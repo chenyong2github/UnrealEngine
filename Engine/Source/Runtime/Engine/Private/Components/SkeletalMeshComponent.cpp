@@ -3643,11 +3643,16 @@ float USkeletalMeshComponent::CalculateMass(FName BoneName)
 	return Mass;
 }
 
+bool USkeletalMeshComponent::IsShown(const FEngineShowFlags& ShowFlags) const
+{
+	return ShowFlags.SkeletalMeshes;
+}
+
 #if WITH_EDITOR
 
-bool USkeletalMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
+bool USkeletalMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
 {
-	if (!bConsiderOnlyBSP && ShowFlags.SkeletalMeshes && MeshObject != nullptr)
+	if (!bConsiderOnlyBSP && MeshObject != nullptr)
 	{
 		FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
 		check(SkelMeshRenderData);
@@ -3687,9 +3692,9 @@ bool USkeletalMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBB
 	return false;
 }
 
-bool USkeletalMeshComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
+bool USkeletalMeshComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
 {
-	if (!bConsiderOnlyBSP && ShowFlags.SkeletalMeshes && MeshObject != nullptr)
+	if (!bConsiderOnlyBSP && MeshObject != nullptr)
 	{
 		FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
 		check(SkelMeshRenderData);

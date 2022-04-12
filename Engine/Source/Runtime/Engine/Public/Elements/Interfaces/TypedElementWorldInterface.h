@@ -3,14 +3,21 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementHandle.h"
+
+#include "Elements/Interfaces/TypedElementSelectionInterface.h"
+
+#include "CoreFwd.h"
 #include "UObject/Interface.h"
 
 #include "TypedElementWorldInterface.generated.h"
 
 class ULevel;
+class UTypedElementSelectionSet; 
 class UWorld;
-class UTypedElementSelectionSet;
 struct FCollisionShape;
+struct FConvexVolume;
+struct FEngineShowFlags;
+struct FWorldSelectionElementArgs;
 
 UENUM()
 enum class ETypedElementWorldType : uint8
@@ -195,7 +202,7 @@ public:
 	/**
 	 * Can the element be promoted
 	 * Generally available when the element is lighter representation of another element.
-	 * Like an instance for example.
+	 * Like promoting a static mesh instance from an instanced static static component to a static actor for example.
 	 */
 	virtual bool CanPromoteElement(const FTypedElementHandle& InElementHandle)
 	{
@@ -205,7 +212,7 @@ public:
 	/**
 	 * Promote a element when possible
 	 * Generally available when the element is lighter representation of another element.
-	 * Like an instance for example.
+	 * Like promoting a static mesh instance from an instanced static static component to a static actor for example.
 	 * 
 	 * @param OverrideWorld Override the world in which the promotion might create new elements. Leave it to null to use the world from the handle.
 	 */
@@ -213,6 +220,35 @@ public:
 	{
 		return FTypedElementHandle();
 	}
+
+	/**
+	 * Return true if the element is in the volume
+	 * Note: This should only be use for editor tools since it doesn't use the physics system and the performance would probably be to slow for a runtime application.
+	 */
+	virtual bool IsElementInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, bool bMustEncompassEntireElement = false);
+
+	/**
+	 * Return true if the element is in the Box
+	 * Note: This should only be use for editor tools since it doesn't use the physics system and the performance would probably be to slow for a runtime application.
+	 */
+	virtual bool IsElementInBox(const FTypedElementHandle& Handle, const FBox& InBox, bool bMustEncompassEntireElement = false);
+
+	/**
+	 * Get the selectable elements from this element that are inside the the convex volume
+	 */
+	TArray<FTypedElementHandle> GetSelectionElementsInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, const FWorldSelectionElementArgs& SelectionArgs);
+
+	/**
+	 * Get the selectable elements from this element that are inside the the convex volume
+	 */
+	TArray<FTypedElementHandle> GetSelectionElementsInBox(const FTypedElementHandle& Handle, const FBox& InBox, const FWorldSelectionElementArgs& SelectionArgs);
+
+	virtual TArray<FTypedElementHandle> GetSelectionElementsFromSelectionFunction(
+		const FTypedElementHandle& Handle,
+		const FWorldSelectionElementArgs& SelectionArgs,
+		const TFunction<bool(const FTypedElementHandle& /*ElementHandle*/, const FWorldSelectionElementArgs& /*SelectionArgs*/)>& SelectionFunction
+		);
+
 
 	/**
 	 * Script Api
@@ -352,7 +388,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual FScriptTypedElementHandle PromoteElement(const FScriptTypedElementHandle& InElementHandle, UWorld* OverrideWorld = nullptr);
 
-private:
+protected:
 	/**
 	 * Return the registry associated with this interface implementation
 	 */
@@ -385,4 +421,30 @@ struct TTypedElement<ITypedElementWorldInterface> : public TTypedElementBase<ITy
 	FTypedElementHandle DuplicateElement(UWorld* InWorld, const FVector& InLocationOffset) const { return InterfacePtr->DuplicateElement(*this, InWorld, InLocationOffset); }
 	bool CanPromoteElement() const { return InterfacePtr->CanPromoteElement(*this); }
 	FTypedElementHandle PromoteElement(UWorld* OverrideWorld = nullptr) const { return InterfacePtr->PromoteElement(*this, OverrideWorld); }
+	bool IsElementInConvexVolume(const FConvexVolume& InVolume, bool bMustEncompassEntireElement = false) const { return InterfacePtr->IsElementInConvexVolume(*this, InVolume, bMustEncompassEntireElement); }
+	bool IsElementInBox(const FBox& InBox, bool bMustEncompassEntireElement = false) const { return InterfacePtr->IsElementInBox(*this, InBox, bMustEncompassEntireElement); }
+	TArray<FTypedElementHandle> GetSelectionElementsInConvexVolume(const FConvexVolume& InVolume, const FWorldSelectionElementArgs& SelectionArgs) const { return InterfacePtr->GetSelectionElementsInConvexVolume(*this, InVolume, SelectionArgs); }
+	TArray<FTypedElementHandle> GetSelectionElementsInBox(const FBox& InBox, const FWorldSelectionElementArgs& SelectionArgs) const { return InterfacePtr->GetSelectionElementsInBox(*this, InBox, SelectionArgs); }
+	TArray<FTypedElementHandle> GetSelectionElementsFromSelectionFunction(const FWorldSelectionElementArgs& SelectionArgs, const TFunction<bool(const FTypedElementHandle&, const FWorldSelectionElementArgs&)>& SelectionFunction) const
+	{
+		return InterfacePtr->GetSelectionElementsFromSelectionFunction(*this, SelectionArgs, SelectionFunction);
+	}
+};
+
+struct FWorldSelectionElementArgs
+{
+	// Optional selection set to use to get the selectable elements only
+	const UTypedElementSelectionSet* SelectionSet;
+
+	ETypedElementSelectionMethod SelectionMethod = ETypedElementSelectionMethod::Primary;
+
+	FTypedElementSelectionOptions SelectionOptions;
+
+	// Optional show flag to avoid selecting non rendered elements
+	FEngineShowFlags* ShowFlags;
+
+	bool bMustEncompassEntireElement = false;
+
+	// To deprecate once the BSP tools are removed from the engine
+	bool bBSPSelectionOnly = false;
 };

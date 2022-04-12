@@ -22,8 +22,8 @@ class NAVIGATIONSYSTEM_API UNavLinkRenderingComponent : public UPrimitiveCompone
 	/** Should recreate proxy one very update */
 	virtual bool ShouldRecreateProxyOnUpdateTransform() const override { return true; }
 #if WITH_EDITOR
-	virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
-	virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
+	virtual bool ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
+	virtual bool ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const override;
 	virtual bool IgnoreBoundsForEditorFocus() const override { return true; }
 #endif
 	//~ End UPrimitiveComponent Interface

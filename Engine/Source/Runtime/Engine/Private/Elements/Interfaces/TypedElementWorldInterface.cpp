@@ -3,8 +3,139 @@
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
 
 #include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 
+#include "ConvexVolume.h"
+#include "Math/Box.h"
+#include "ShowFlags.h"
 #include "UObject/Stack.h"
+
+bool ITypedElementWorldInterface::IsElementInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, bool bMustEncompassEntireElement)
+{
+	FBoxSphereBounds Bounds;
+	if (GetBounds(Handle, Bounds))
+	{
+		bool bIsFullyContained = false;
+		if (InVolume.IntersectBox(Bounds.Origin, Bounds.BoxExtent, bIsFullyContained))
+		{
+			return !bMustEncompassEntireElement || bIsFullyContained;
+		}
+	}
+
+	return false;
+}
+
+bool ITypedElementWorldInterface::IsElementInBox(const FTypedElementHandle& Handle, const FBox& InBox, bool bMustEncompassEntireElement)
+{
+	FBoxSphereBounds Bounds;
+	if (GetBounds(Handle, Bounds))
+	{
+		const FBox& ElementBounds = Bounds.GetBox();
+
+		// Check the component bounds versus the selection box
+		// If the selection box must encompass the entire component, then both the min and max vector of the bounds must be inside in the selection
+		// box to be valid. If the selection box only has to touch the component, then it is sufficient to check if it intersects with the bounds.
+		if ((!bMustEncompassEntireElement && InBox.Intersect(ElementBounds))
+			|| (bMustEncompassEntireElement && InBox.IsInside(ElementBounds)))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+TArray<FTypedElementHandle> ITypedElementWorldInterface::GetSelectionElementsInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, const FWorldSelectionElementArgs& SelectionArgs)
+{
+	UTypedElementRegistry& Registry = GetRegistry();
+	return GetSelectionElementsFromSelectionFunction(Handle, SelectionArgs, [&InVolume, &Registry](const FTypedElementHandle& ElementHandle, const FWorldSelectionElementArgs& SelectionArgs) -> bool
+	{
+		if (TTypedElement<ITypedElementWorldInterface> WorldElement = Registry.GetElement<ITypedElementWorldInterface>(ElementHandle))
+		{
+			return WorldElement.IsElementInConvexVolume(InVolume, SelectionArgs.bMustEncompassEntireElement);
+		}
+
+		return false;
+	});
+}
+
+TArray<FTypedElementHandle> ITypedElementWorldInterface::GetSelectionElementsInBox(const FTypedElementHandle& Handle, const FBox& InBox, const FWorldSelectionElementArgs& SelectionArgs)
+{
+	UTypedElementRegistry& Registry = GetRegistry();
+	return GetSelectionElementsFromSelectionFunction(Handle, SelectionArgs, [&InBox, &Registry](const FTypedElementHandle& ElementHandle, const FWorldSelectionElementArgs& SelectionArgs) -> bool
+	{
+		if (TTypedElement<ITypedElementWorldInterface> WorldElement = Registry.GetElement<ITypedElementWorldInterface>(ElementHandle))
+		{
+			return WorldElement.IsElementInBox(InBox, SelectionArgs.bMustEncompassEntireElement);
+		}
+
+		return false;
+	});
+}
+
+TArray<FTypedElementHandle> ITypedElementWorldInterface::GetSelectionElementsFromSelectionFunction(const FTypedElementHandle& InElementHandle, const FWorldSelectionElementArgs& SelectionArgs, const TFunction<bool(const FTypedElementHandle& /*ElementHandle*/, const FWorldSelectionElementArgs& /*SelectionArgs*/)>& SelectionFunction)
+{
+	// The default implementation simply iterate the child elements
+
+	TArray<FTypedElementHandle> SelectedSubElements;
+
+	if (TTypedElement<ITypedElementHierarchyInterface> HierarchyElement = GetRegistry().GetElement<ITypedElementHierarchyInterface>(InElementHandle))
+	{
+		TArray<FTypedElementHandle> ChildElementHandles;
+		HierarchyElement.GetChildElements(ChildElementHandles);
+		for (const FTypedElementHandle& ChildHandle : ChildElementHandles)
+		{
+			if (TTypedElement<ITypedElementWorldInterface> ChildWorldElement = GetRegistry().GetElement<ITypedElementWorldInterface>(ChildHandle))
+			{
+				TArray<FTypedElementHandle> ElementsFromChildSelection = ChildWorldElement.GetSelectionElementsFromSelectionFunction(SelectionArgs, SelectionFunction);
+				if (ElementsFromChildSelection.Num() > 1)
+				{
+					SelectedSubElements.Reserve(SelectedSubElements.Num() + ElementsFromChildSelection.Num());
+				}
+
+				for (const FTypedElementHandle& Handle : ElementsFromChildSelection)
+				{
+					if (Handle == InElementHandle)
+					{
+						return { InElementHandle };
+					}
+
+					SelectedSubElements.Add(Handle);
+				}
+			}
+		}
+
+		// If all the elements selected are the child elements, Select the parent instead if possible.
+		if (!ChildElementHandles.IsEmpty() && ChildElementHandles == SelectedSubElements)
+		{
+			if (SelectionArgs.SelectionSet)
+			{
+				SelectedSubElements.Add(SelectionArgs.SelectionSet->GetSelectionElement(InElementHandle, SelectionArgs.SelectionMethod));
+			}
+			else
+			{
+				SelectedSubElements.Add(InElementHandle);
+			}
+		}
+	}
+	else
+	{
+		if (SelectionFunction(InElementHandle, SelectionArgs))
+		{
+			if (SelectionArgs.SelectionSet)
+			{
+				SelectedSubElements.Add(SelectionArgs.SelectionSet->GetSelectionElement(InElementHandle, SelectionArgs.SelectionMethod));
+			}
+			else
+			{
+				SelectedSubElements.Add(InElementHandle);
+			}
+		}
+	}
+
+	return SelectedSubElements;
+}
 
 bool ITypedElementWorldInterface::IsTemplateElement(const FScriptTypedElementHandle& InElementHandle)
 {

@@ -9,6 +9,7 @@
 #include "Elements/SMInstance/SMInstanceElementData.h"
 
 #include "Engine/StaticMesh.h"
+#include "ShowFlags.h"
 
 bool USMInstanceElementWorldInterface::CanEditElement(const FTypedElementHandle& InElementHandle)
 {
@@ -116,4 +117,26 @@ void USMInstanceElementWorldInterface::NotifyMovementEnded(const FTypedElementHa
 	{
 		SMInstance.NotifySMInstanceMovementEnded();
 	}
+}
+
+TArray<FTypedElementHandle> USMInstanceElementWorldInterface::GetSelectionElementsFromSelectionFunction(const FTypedElementHandle& InElementHandle, const FWorldSelectionElementArgs& SelectionArgs, const TFunction<bool(const FTypedElementHandle&, const FWorldSelectionElementArgs&)>& SelectionFunction)
+{
+	if (SelectionArgs.bBSPSelectionOnly && SelectionArgs.ShowFlags && !SelectionArgs.ShowFlags->StaticMeshes)
+	{
+		return {};
+	}
+
+	if (SelectionFunction(InElementHandle, SelectionArgs))
+	{
+		if (SelectionArgs.SelectionSet)
+		{
+			return {SelectionArgs.SelectionSet->GetSelectionElement(InElementHandle, SelectionArgs.SelectionMethod)};
+		}
+		else
+		{
+			return {InElementHandle};
+		}
+	}
+
+	return {};
 }

@@ -123,6 +123,13 @@ public:
 	bool IntersectSphere(const FVector& Origin,const float& Radius, bool& bOutFullyContained) const;
 
 	/**
+     * Intersection test with a triangle
+	 * param bOutFullyContained to know if the triangle was fully contained 
+     * @returns true if this convex volume intersects the given triangle.
+     */
+	bool IntersectTriangle(const FVector& PointA, const FVector& PointB, const FVector& PointC, bool& bOutFullyContained) const;
+
+	/**
      * Intersection test with line segment
      * @param Start of the segment.
      * @param End of the segment.

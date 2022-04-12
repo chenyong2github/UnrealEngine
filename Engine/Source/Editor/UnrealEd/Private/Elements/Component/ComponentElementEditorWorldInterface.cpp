@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
@@ -79,4 +80,52 @@ void UComponentElementEditorWorldInterface::DuplicateElements(TArrayView<const F
 			OutNewElements.Add(UEngineElementsLibrary::AcquireEditorComponentElementHandle(NewComponent));
 		}
 	}
+}
+
+bool UComponentElementEditorWorldInterface::IsElementInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, bool bMustEncompassEntireElement)
+{
+	if (const UPrimitiveComponent* Component = Cast<UPrimitiveComponent>(ComponentElementDataUtil::GetComponentFromHandle(Handle)))
+	{
+		return Component->ComponentIsTouchingSelectionFrustum(InVolume, false, bMustEncompassEntireElement);
+	}
+
+	return ITypedElementWorldInterface::IsElementInConvexVolume(Handle, InVolume, bMustEncompassEntireElement);
+}
+
+bool UComponentElementEditorWorldInterface::IsElementInBox(const FTypedElementHandle& Handle, const FBox& InBox, bool bMustEncompassEntireElement)
+{
+	if (const UPrimitiveComponent* Component = Cast<UPrimitiveComponent>(ComponentElementDataUtil::GetComponentFromHandle(Handle)))
+	{
+		return Component->ComponentIsTouchingSelectionBox(InBox, false, bMustEncompassEntireElement);
+	}
+
+	return ITypedElementWorldInterface::IsElementInBox(Handle, InBox, bMustEncompassEntireElement);
+}
+
+TArray<FTypedElementHandle> UComponentElementEditorWorldInterface::GetSelectionElementsFromSelectionFunction(const FTypedElementHandle& InElementHandle, const FWorldSelectionElementArgs& SelectionArgs, const TFunction<bool(const FTypedElementHandle&, const FWorldSelectionElementArgs&)>& SelectionFunction)
+{
+	if (const UPrimitiveComponent* Component = Cast<UPrimitiveComponent>(ComponentElementDataUtil::GetComponentFromHandle(InElementHandle)))
+	{
+		bool bIsVisible = Component->IsRegistered();
+		if (GetOwnerWorld(InElementHandle)->IsEditorWorld())
+		{
+			bIsVisible &= Component->IsVisibleInEditor();
+		}
+		else
+		{
+			bIsVisible &= Component->IsVisible();
+		}
+
+		if (SelectionArgs.ShowFlags)
+		{
+			bIsVisible &= Component->IsShown(*(SelectionArgs.ShowFlags));
+		}
+		
+		if (bIsVisible)
+		{
+			return ITypedElementWorldInterface::GetSelectionElementsFromSelectionFunction(InElementHandle, SelectionArgs, SelectionFunction);
+		}
+	}
+
+	return {};
 }

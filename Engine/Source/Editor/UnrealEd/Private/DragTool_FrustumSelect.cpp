@@ -2,6 +2,7 @@
 
 
 #include "DragTool_FrustumSelect.h"
+
 #include "Components/PrimitiveComponent.h"
 #include "CanvasItem.h"
 #include "Settings/LevelEditorViewportSettings.h"
@@ -10,6 +11,10 @@
 #include "UnrealEdGlobals.h"
 #include "EngineUtils.h"
 #include "Engine/Selection.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
+#include "Elements/Interfaces/TypedElementWorldInterface.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "ActorEditorUtils.h"
@@ -17,12 +22,35 @@
 #include "HModel.h"
 #include "CanvasTypes.h"
 #include "Subsystems/BrushEditingSubsystem.h"
+#include "LevelEditorSubsystem.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //
 // FDragTool_FrustumSelect
 //
 ///////////////////////////////////////////////////////////////////////////////
+
+namespace UE::LevelEditor::Private
+{
+	TArray<FTypedElementHandle> GetElementsIntersectingFrustum(const AActor* Actor,
+		const FConvexVolume& InFrustum,
+		FLevelEditorViewportClient* Viewport,
+		const FWorldSelectionElementArgs& SelectionArgs)
+	{
+		if (Actor && (!Viewport || !Actor->IsA(AVolume::StaticClass()) || !Viewport->IsVolumeVisibleInViewport(*Actor)))
+		{
+			if (FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor))
+			{
+				if (TTypedElement<ITypedElementWorldInterface> WorldElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(ActorHandle))
+				{
+					return WorldElement.GetSelectionElementsInConvexVolume(InFrustum, SelectionArgs);
+				}
+			}
+		}
+
+		return {};
+	}
+}
 
 void FDragTool_ActorFrustumSelect::AddDelta( const FVector& InDelta )
 {
@@ -66,7 +94,6 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 	FScopedTransaction Transaction( NSLOCTEXT("ActorFrustumSelect", "MarqueeSelectTransation", "Marquee Select" ) );
 
 	bool bShouldSelect = true;
-	GEditor->GetSelectedActors()->Modify();
 
 	if( !bShiftDown )
 	{
@@ -76,7 +103,6 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 
 	// Does an actor have to be fully contained in the box to be selected
 	const bool bStrictDragSelection = GetDefault<ULevelEditorViewportSettings>()->bStrictBoxSelection;
-	bool bSelectionChanged = false;
 
 	// Let the editor mode try to handle the selection.
 	const bool bEditorModeHandledSelection = ModeTools->FrustumSelect(Frustum, LevelViewportClient, bLeftMouseButtonDown);
@@ -86,10 +112,26 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 
 	if( !bEditorModeHandledSelection && !bComponentVisHandledSelection)
 	{
+		UTypedElementSelectionSet* SelectionSet = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>()->GetSelectionSet();
+		SelectionSet->Modify();
+
+		FWorldSelectionElementArgs SeletionArgs
+		{
+			SelectionSet,
+			ETypedElementSelectionMethod::Primary,
+			FTypedElementSelectionOptions(),
+			&(LevelViewportClient->EngineShowFlags),
+			bStrictDragSelection,
+			bGeometryMode
+		};
+
+		 FTypedElementSelectionOptions ElementSelectionOption;
+
+
 		if( !bShiftDown )
 		{
 			// If the user is selecting, but isn't hold down SHIFT, remove all current selections.
-			GEditor->SelectNone( true, true );
+			SelectionSet->ClearSelection(ElementSelectionOption);
 		}
 
 		const int32 ViewportSizeX = LevelViewportClient->Viewport->GetSizeXY().X;
@@ -112,24 +154,51 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 			for(FActorIterator It(LevelViewportClient->GetWorld()); It; ++It)
 			{
 				AActor* Actor = *It;
-				if (IntersectsFrustum( *Actor, Frustum, bStrictDragSelection))
-				{
-					// Select the actor if it intersected
-					const bool bShouldNotifyNow = false;	// We'll notify after everything has been selected
-					GEditor->SelectActor( Actor, bShouldSelect, bShouldNotifyNow );
-					bSelectionChanged = true;
-				}
+				SelectionSet->SelectElements(UE::LevelEditor::Private::GetElementsIntersectingFrustum(Actor, Frustum, LevelViewportClient, SeletionArgs), ElementSelectionOption);
 			}
 		}
 		else
 		{
 			// Extend the endpoint of the rect to get the actual line
 			// LWC_TODO: Large world scale selection needed.
-			FIntRect BoxRect( FIntPoint( FMath::Max<double>( 0.0, Start.X ), FMath::Max<double>( 0.0, Start.Y ) ), FIntPoint( FMath::Min(ViewportSizeX, FMath::TruncToInt(End.X+1)), FMath::Min( ViewportSizeY, FMath::TruncToInt(End.Y+1) ) ) );
+			FIntRect BoxRect(FIntPoint(FMath::Max<double>(0.0, Start.X), FMath::Max<double>(0.0, Start.Y)), FIntPoint(FMath::Min(ViewportSizeX, FMath::TruncToInt(End.X + 1)), FMath::Min(ViewportSizeY, FMath::TruncToInt(End.Y + 1))));
 
-			TSet<AActor*> HitActors;
+			// Typed Element selection
+			{
+				FTypedElementListRef ElementList = UTypedElementRegistry::GetInstance()->CreateElementList();
+				LevelViewportClient->Viewport->GetElementHandlesInRect(BoxRect, ElementList);
+
+				if (bStrictDragSelection)
+				{
+					ElementList->ForEachElement<ITypedElementWorldInterface>([bStrictDragSelection, &Frustum, &SelectionSet, &ElementSelectionOption]
+						(const TTypedElement<ITypedElementWorldInterface>& InElement)
+						{
+							if (InElement.IsElementInConvexVolume(Frustum, bStrictDragSelection))
+							{
+								SelectionSet->SelectElement(SelectionSet->GetSelectionElement(InElement, ETypedElementSelectionMethod::Primary), ElementSelectionOption);
+							}
+
+							return true;
+						});
+				}
+				else
+				{
+					// Grab only the selectable handles (this remove the components from the selection and select the actor instead)
+					ElementList->ForEachElementHandle([&SelectionSet, &ElementSelectionOption](const FTypedElementHandle& InHandle)
+						{
+							SelectionSet->SelectElement(SelectionSet->GetSelectionElement(InHandle, ETypedElementSelectionMethod::Primary), ElementSelectionOption);
+							return true;
+						});
+				}
+			}
+
+			// We need this old code to support the BSP
+			TSet<AActor*> BSPActors;
 			TSet<UModel*> HitModels;
-			LevelViewportClient->Viewport->GetActorsAndModelsInHitProxy( BoxRect, HitActors, HitModels );
+			LevelViewportClient->Viewport->GetActorsAndModelsInHitProxy( BoxRect, BSPActors, HitModels );
+			BSPActors.Empty(HitModels.Num());
+
+			
 
 			if (HitModels.Num() > 0)
 			{
@@ -144,35 +213,27 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 						{
 							uint32 SurfaceIndex = Model.Nodes[NodeIndex].iSurf;
 							FBspSurf& Surf = Model.Surfs[SurfaceIndex];
-							HitActors.Add( Surf.Actor );
+							BSPActors.Add( Surf.Actor );
 						}
 					}
 				}
 			}
 
-			if( HitActors.Num() > 0 )
+			if( BSPActors.Num() > 0 )
 			{
-				for( auto It = HitActors.CreateConstIterator(); It; ++It )
+				for( auto It = BSPActors.CreateConstIterator(); It; ++It )
 				{
 					AActor* Actor = *It;
-					if( bStrictDragSelection && IntersectsFrustum( *Actor, Frustum, bStrictDragSelection ) )
+					if (bStrictDragSelection)
 					{
-						GEditor->SelectActor(Actor, bShouldSelect, false);
-						bSelectionChanged = true;
+						SelectionSet->SelectElements(UE::LevelEditor::Private::GetElementsIntersectingFrustum(Actor, Frustum, LevelViewportClient, SeletionArgs), ElementSelectionOption);
 					}
-					else if( !bStrictDragSelection )
+					else
 					{
-						GEditor->SelectActor(Actor, bShouldSelect, false);
-						bSelectionChanged = true;
+						SelectionSet->SelectElement(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor), ElementSelectionOption);
 					}
 				}
 			}
-		}
-
-		if(bSelectionChanged)
-		{
-			// If any selections were made.  Notify that now.
-			GEditor->NoteSelectionChange();
 		}
 	}
 
@@ -187,44 +248,6 @@ void FDragTool_ActorFrustumSelect::Render(const FSceneView* View, FCanvas* Canva
 	FCanvasBoxItem BoxItem( FVector2D(Start.X, Start.Y) / Canvas->GetDPIScale(), FVector2D(End.X-Start.X, End.Y-Start.Y) / Canvas->GetDPIScale());
 	BoxItem.SetColor( FLinearColor::White );
 	Canvas->DrawItem( BoxItem );
-}
-
-bool FDragTool_ActorFrustumSelect::IntersectsFrustum( AActor& InActor, const FConvexVolume& InFrustum, bool bUseStrictSelection ) const
-{	
-	bool bActorHitByBox = false;
-
-	UBrushEditingSubsystem* BrushSubsystem = GEditor->GetEditorSubsystem<UBrushEditingSubsystem>();
-	const bool bGeometryMode = BrushSubsystem ? BrushSubsystem->IsGeometryEditorModeActive() : false;
-
-	// Check for special cases (like certain show flags that might hide an actor)
-	bool bActorIsHiddenByShowFlags = false;
-
-	// Check to see that volume actors are visible in the viewport
-	check(LevelViewportClient != nullptr);
-	if( InActor.IsA(AVolume::StaticClass()) && (!LevelViewportClient->EngineShowFlags.Volumes || !LevelViewportClient->IsVolumeVisibleInViewport(InActor) ) )
-	{
-		bActorIsHiddenByShowFlags = true;
-	}
-
-	// Never drag-select hidden actors or builder brushes. 
-	if( !bActorIsHiddenByShowFlags && !InActor.IsHiddenEd() && !FActorEditorUtils::IsABuilderBrush(&InActor) )
-	{
-		// Iterate over all actor components, selecting out primitive components
-		for (UActorComponent* Component : InActor.GetComponents())
-		{
-			UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component);
-			if (PrimitiveComponent && PrimitiveComponent->IsRegistered() && PrimitiveComponent->IsVisibleInEditor() )
-			{
-				if (PrimitiveComponent->ComponentIsTouchingSelectionFrustum(InFrustum, LevelViewportClient->EngineShowFlags, bGeometryMode, bUseStrictSelection))
-				{
-					bActorHitByBox = true;
-					break;
-				}
-			}
-		}
-	}
-
-	return bActorHitByBox;
 }
 
 bool FDragTool_ActorFrustumSelect::IntersectsFrustum( const UModel& InModel, int32 NodeIndex, const FConvexVolume& InFrustum, bool bUseStrictSelection ) const

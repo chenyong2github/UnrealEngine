@@ -405,6 +405,209 @@ bool FConvexVolume::IntersectSphere(const FVector& Origin,const float& Radius, b
 	return true;
 }
 
+//
+//	FConvexVolume::IntersectTriangle
+//
+
+bool FConvexVolume::IntersectTriangle(const FVector& PointA, const FVector& PointB, const FVector& PointC, bool& bOutFullyContained) const
+{
+		checkSlow(PermutedPlanes.Num() % 4 == 0);
+
+		// Assume that it is not fully contained by default
+		bOutFullyContained = false;
+
+		// Load the points
+		VectorRegister A = VectorLoadFloat3(&PointA);
+		VectorRegister B = VectorLoadFloat3(&PointB);
+		VectorRegister C = VectorLoadFloat3(&PointC);
+		VectorRegister Zero = VectorZero();
+
+		// Splat points into 3 vectors
+		VectorRegister AX = VectorReplicate(A, 0);
+		VectorRegister AY = VectorReplicate(A, 1);
+		VectorRegister AZ = VectorReplicate(A, 2);
+
+		VectorRegister BX = VectorReplicate(B, 0);
+		VectorRegister BY = VectorReplicate(B, 1);
+		VectorRegister BZ = VectorReplicate(B, 2);
+
+		VectorRegister CX = VectorReplicate(C, 0);
+		VectorRegister CY = VectorReplicate(C, 1);
+		VectorRegister CZ = VectorReplicate(C, 2);
+
+		// Since we are moving straight through get a pointer to the data
+		const FPlane* RESTRICT PermutedPlanePtr = (FPlane*)PermutedPlanes.GetData();
+
+		// First test if one or all point are inside the volume
+		bool IsAInside = true;
+		bool IsBInside = true;
+		bool IsCInside = true;
+
+		// Process four planes at a time until we have < 4 left
+		for (int32 Count = 0; Count < PermutedPlanes.Num(); Count += 4)
+		{
+			// Load 4 planes that are already all Xs, Ys, ...
+			VectorRegister PlanesX = VectorLoadAligned(PermutedPlanePtr);
+			PermutedPlanePtr++;
+			VectorRegister PlanesY = VectorLoadAligned(PermutedPlanePtr);
+			PermutedPlanePtr++;
+			VectorRegister PlanesZ = VectorLoadAligned(PermutedPlanePtr);
+			PermutedPlanePtr++;
+			VectorRegister PlanesW = VectorLoadAligned(PermutedPlanePtr);
+			PermutedPlanePtr++;
+
+			// Calculate the distance (x * x) + (y * y) + (z * z) - w and use it to determine if the point is ouside
+
+			// Point A
+			VectorRegister DistX = VectorMultiply(AX, PlanesX);
+			VectorRegister DistY = VectorMultiplyAdd(AY, PlanesY, DistX);
+			VectorRegister DistZ = VectorMultiplyAdd(AZ, PlanesZ, DistY);
+			VectorRegister Distance = VectorSubtract(DistZ, PlanesW);
+			int32 MaskA = VectorAnyGreaterThan(Distance, Zero);
+			if (MaskA)
+			{
+				IsAInside = false;
+			}
+
+			DistX = VectorMultiply(BX, PlanesX);
+			DistY = VectorMultiplyAdd(BY, PlanesY, DistX);
+			DistZ = VectorMultiplyAdd(BZ, PlanesZ, DistY);
+			Distance = VectorSubtract(DistZ, PlanesW);
+			int32 MaskB = VectorAnyGreaterThan(Distance, Zero);
+			if (MaskB)
+			{
+				IsBInside = false;
+			}
+
+			DistX = VectorMultiply(CX, PlanesX);
+			DistY = VectorMultiplyAdd(CY, PlanesY, DistX);
+			DistZ = VectorMultiplyAdd(CZ, PlanesZ, DistY);
+			Distance = VectorSubtract(DistZ, PlanesW);
+			int32 MaskC = VectorAnyGreaterThan(Distance, Zero);
+			if (MaskC)
+			{
+				IsCInside = false;
+			}
+
+			// The points were all outside of at lest one plane
+			if (MaskA & MaskB & MaskC)
+			{
+				return false;
+			}
+		}
+
+		// If a point is inside early exit
+		if (IsAInside || IsBInside || IsCInside)
+		{
+			bOutFullyContained = IsAInside && IsBInside && IsCInside;
+			return true;
+		}
+
+		// Clip the triangle against the planes see if it some part are inside the volume.
+
+		// Arbitrary upper bounds
+		const int32 Slack = 16;
+		TArray<FVector> Vertices;
+		Vertices.Reserve(Slack);
+		Vertices.Add(PointA);
+		Vertices.Add(PointB);
+		Vertices.Add(PointC);
+
+		// True for inside the box
+		TArray<bool> Sides;
+		Sides.Reserve(Slack);
+
+		TArray<FVector> NewVertices;
+		NewVertices.Reserve(Slack);
+
+		for (const FPlane& Plane : Planes)
+		{
+			bool bVertexInside = false;
+			bool bVertexOutside = false;
+
+			VectorRegister PlaneRegist = VectorLoadAligned(&Plane);
+
+
+			for (int32 Index = 0; Index < Vertices.Num(); ++Index)
+			{
+				// Calculate the distance of the point and the plane (x * x) + (y * y) + (z * z) - w and use it to determine on which side the point is
+				const float DotProduct = VectorDot3Scalar(VectorLoadFloat3(&Vertices[Index]), PlaneRegist);
+				if (DotProduct - Plane.W <= 0.0)
+				{
+					bVertexInside = true;
+					Sides.Add(true);
+				}
+				else
+				{
+					bVertexOutside = true;
+					Sides.Add(false);
+				}
+			}
+
+			if (!bVertexInside)
+			{
+				return false;
+			}
+			
+			if (!bVertexOutside)
+			{
+				continue;
+			}
+
+
+			const int32 LastValidIndex = Vertices.Num() - 1;
+			const FVector* PreviousVertex = &Vertices[LastValidIndex];
+			bool PreviousIsInside = Sides[LastValidIndex];
+
+			for (int32 Index = 0; Index < Vertices.Num(); ++Index)
+			{
+				bool bIsInside = Sides[Index];
+				const FVector& Vertex = Vertices[Index];
+				if (bIsInside != PreviousIsInside)
+				{
+					// Cross plane
+					VectorRegister Start = VectorLoadFloat3(PreviousVertex);
+					VectorRegister End = VectorLoadFloat3(&Vertex);
+					VectorRegister Line = VectorSubtract(End, Start);
+
+					// Line plane intersection
+					// Start + Line * ((W - Dot(Start, PlaneNormal)) / Dot(Line, PlaneNormal))
+
+					// (W - Dot(Start, PlaneNormal)) / Dot(Line, PlaneNormal)
+					const FVector::FReal Scalar = (Plane.W - VectorDot3Scalar(Start, PlaneRegist)) / VectorDot3Scalar(Line, PlaneRegist);
+
+					// Start + Line * Scalar
+					VectorRegister Intersection = VectorMultiplyAdd(Line, VectorLoadFloat1(&Scalar), Start);
+
+					NewVertices.Emplace(VectorGetComponent(Intersection, 0), VectorGetComponent(Intersection, 1), VectorGetComponent(Intersection, 2));
+
+					if (bIsInside)
+					{
+						NewVertices.Add(Vertex);
+					}
+				}
+				else if (bIsInside)
+				{
+					NewVertices.Add(Vertex);
+				}
+
+				PreviousIsInside = bIsInside;
+				PreviousVertex = &Vertex;
+			}
+
+
+			if (NewVertices.IsEmpty())
+			{
+				return false;
+			}
+
+			Sides.Reset(NewVertices.Num());
+			Swap(Vertices, NewVertices);
+			NewVertices.Reset();
+		}
+
+	return true;
+}
 
 //
 //	FConvexVolume::IntersectLineSegment

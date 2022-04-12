@@ -2822,6 +2822,11 @@ void UStaticMeshComponent::GetNavigationData(FNavigationRelevantData& Data) cons
 	}
 }
 
+bool UStaticMeshComponent::IsShown(const FEngineShowFlags& ShowFlags) const
+{
+	return ShowFlags.StaticMeshes;
+}
+
 #if WITH_EDITOR
 
 // UpdateBounds is currently the closest place we can get from the StaticMesh property
@@ -2861,19 +2866,25 @@ void UStaticMeshComponent::PostStaticMeshCompilation()
 	}
 }
 
-bool UStaticMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
+bool UStaticMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
 {
-	if (!bConsiderOnlyBSP && ShowFlags.StaticMeshes && GetStaticMesh() != nullptr && GetStaticMesh()->HasValidRenderData())
+	if (!bConsiderOnlyBSP && GetStaticMesh() != nullptr && GetStaticMesh()->HasValidRenderData())
 	{
+		// If the bounds are fully contains assume the static mesh component is fully contained
+		if (Super::ComponentIsTouchingSelectionBox(InSelBBox, bConsiderOnlyBSP, true))
+		{
+			return true;
+		}
+
 		// Check if we are even inside it's bounding box, if we are not, there is no way we colliding via the more advanced checks we will do.
-		if (Super::ComponentIsTouchingSelectionBox(InSelBBox, ShowFlags, bConsiderOnlyBSP, false))
+		if (Super::ComponentIsTouchingSelectionBox(InSelBBox, bConsiderOnlyBSP, false))
 		{
 			TArray<FVector> Vertex;
 
 			FStaticMeshLODResources& LODModel = GetStaticMesh()->GetRenderData()->LODResources[0];
 			FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
 
-			for (const auto& Section : LODModel.Sections)
+			for (const FStaticMeshSection& Section : LODModel.Sections)
 			{
 				// Iterate over each triangle.
 				for (int32 TriangleIndex = 0; TriangleIndex < (int32)Section.NumTriangles; TriangleIndex++)
@@ -2913,31 +2924,52 @@ bool UStaticMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox
 	return false;
 }
 
-
-bool UStaticMeshComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
+bool UStaticMeshComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
 {
-	if (!bConsiderOnlyBSP && ShowFlags.StaticMeshes && GetStaticMesh() != nullptr && GetStaticMesh()->HasValidRenderData())
+	if (!bConsiderOnlyBSP && GetStaticMesh() && GetStaticMesh()->HasValidRenderData())
 	{
 		// Check if we are even inside it's bounding box, if we are not, there is no way we colliding via the more advanced checks we will do.
-		if (Super::ComponentIsTouchingSelectionFrustum(InFrustum, ShowFlags, bConsiderOnlyBSP, false))
+		bool bIsFullyContained = false;
+		if (InFrustum.IntersectBox(Bounds.Origin, Bounds.BoxExtent, bIsFullyContained))
 		{
-			TArray<FVector> Vertex;
+			// If the bounds are fully contains assume the static mesh component is fully contained
+			if (bIsFullyContained)
+			{
+				return true;
+			}
 
 			FStaticMeshLODResources& LODModel = GetStaticMesh()->GetRenderData()->LODResources[0];
+			FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
 
-			uint32 NumVertices = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices();
-			for (uint32 VertexIndex = 0; VertexIndex < NumVertices; ++VertexIndex)
+			const FTransform& TransformToWorld = GetComponentTransform();
+			for (const FStaticMeshSection& Section : LODModel.Sections)
 			{
-				const FVector3f& LocalPosition = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex);
-				const FVector WorldPosition = GetComponentTransform().TransformPosition(FVector(LocalPosition));
-				bool bLocationIntersected = InFrustum.IntersectSphere(WorldPosition, 0.0f);
-				if (bLocationIntersected && !bMustEncompassEntireComponent)
+				// Iterate over each triangle.
+				for (int32 TriangleIndex = 0; TriangleIndex < (int32)Section.NumTriangles; TriangleIndex++)
 				{
-					return true;
-				}
-				else if (!bLocationIntersected && bMustEncompassEntireComponent)
-				{
-					return false;
+					int32 Index = TriangleIndex * 3 + Section.FirstIndex;
+				
+					FVector PointA(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[Index]));
+					FVector PointB(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[Index + 1]));
+					FVector PointC(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[Index + 2]));
+
+					PointA = TransformToWorld.TransformPosition(PointA);
+					PointB = TransformToWorld.TransformPosition(PointB);
+					PointC = TransformToWorld.TransformPosition(PointC);
+
+					bool bFullyContained = false;
+					bool bIntersect = InFrustum.IntersectTriangle(PointA, PointB, PointC, bFullyContained);
+
+					if (!bMustEncompassEntireComponent && bIntersect)
+					{
+						// Needn't encompass entire component: any intersection, we consider as touching
+						return true;
+					}
+					else if (bMustEncompassEntireComponent && !bFullyContained)
+					{
+						// Must encompass entire component: any non intersection, we consider as not touching
+						return false;
+					}
 				}
 			}
 

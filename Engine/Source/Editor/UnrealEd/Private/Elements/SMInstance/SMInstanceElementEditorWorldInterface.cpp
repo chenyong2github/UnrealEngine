@@ -216,3 +216,27 @@ FTypedElementHandle USMInstanceElementEditorWorldInterface::PromoteElement(const
 
 	return FTypedElementHandle();
 }
+
+bool USMInstanceElementEditorWorldInterface::IsElementInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, bool bMustEncompassEntireElement)
+{
+	FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(Handle);
+
+	if (UInstancedStaticMeshComponent* Component = SMInstance.GetISMComponent())
+	{
+		return Component->IsInstanceTouchingSelectionFrustum(SMInstance.GetISMInstanceIndex(), InVolume, bMustEncompassEntireElement);
+	}
+
+	return false;
+}
+
+bool USMInstanceElementEditorWorldInterface::IsElementInBox(const FTypedElementHandle& Handle, const FBox& InBox, bool bMustEncompassEntireElement)
+{
+	FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(Handle);
+
+	if (UInstancedStaticMeshComponent* Component = SMInstance.GetISMComponent())
+	{
+		return Component->IsInstanceTouchingSelectionBox(SMInstance.GetISMInstanceIndex(), InBox, bMustEncompassEntireElement);
+	}
+
+	return false;
+}

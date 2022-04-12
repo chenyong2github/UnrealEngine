@@ -5,6 +5,8 @@
 #include "GameFramework/Actor.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 
 #include "Editor.h"
 #include "UnrealEdGlobals.h"
@@ -111,3 +113,86 @@ void UActorElementEditorWorldInterface::DuplicateElements(TArrayView<const FType
 		}
 	}
 }
+
+bool UActorElementEditorWorldInterface::IsElementInConvexVolume(const FTypedElementHandle& Handle, const FConvexVolume& InVolume, bool bMustEncompassEntireElement)
+{
+	if (TTypedElement<ITypedElementHierarchyInterface> HierarchyElement = GetRegistry().GetElement<ITypedElementHierarchyInterface>(Handle))
+	{
+		TArray<FTypedElementHandle> ChildElementHandles;
+		HierarchyElement.GetChildElements(ChildElementHandles);
+		for (const FTypedElementHandle& ChildHandle : ChildElementHandles)
+		{
+			if (TTypedElement<ITypedElementWorldInterface> ChildWorldElement = GetRegistry().GetElement<ITypedElementWorldInterface>(ChildHandle))
+			{
+				if (ChildWorldElement.IsElementInConvexVolume(InVolume, bMustEncompassEntireElement))
+				{
+					if (!bMustEncompassEntireElement)
+					{
+						return true;
+					}
+				}
+				else if (bMustEncompassEntireElement)
+				{
+					return false;
+				}
+			}
+		}
+	}
+	else
+	{
+		// We expect the actor elements to have a Hierarchy Interface implementation
+		checkNoEntry();
+	}
+
+	return bMustEncompassEntireElement;
+}
+
+bool UActorElementEditorWorldInterface::IsElementInBox(const FTypedElementHandle& Handle, const FBox& InBox, bool bMustEncompassEntireElement)
+{
+	if (TTypedElement<ITypedElementHierarchyInterface> HierarchyElement = GetRegistry().GetElement<ITypedElementHierarchyInterface>(Handle))
+	{
+		TArray<FTypedElementHandle> ChildElementHandles;
+		HierarchyElement.GetChildElements(ChildElementHandles);
+		for (const FTypedElementHandle& ChildHandle : ChildElementHandles)
+		{
+			if (TTypedElement<ITypedElementWorldInterface> ChildWorldElement = GetRegistry().GetElement<ITypedElementWorldInterface>(ChildHandle))
+			{
+				if (ChildWorldElement.IsElementInBox(InBox, bMustEncompassEntireElement))
+				{
+					if (!bMustEncompassEntireElement)
+					{
+						return true;
+					}
+				}
+				else if (bMustEncompassEntireElement)
+				{
+					return false;
+				}
+			}
+		}
+	}
+	else
+	{
+		// We expect the actor elements to have a Hierarchy Interface implementation
+		checkNoEntry();
+	}
+
+	return bMustEncompassEntireElement;
+}
+
+TArray<FTypedElementHandle> UActorElementEditorWorldInterface::GetSelectionElementsFromSelectionFunction(const FTypedElementHandle& InElementHandle, const FWorldSelectionElementArgs& SelectionArgs, const TFunction<bool(const FTypedElementHandle&, const FWorldSelectionElementArgs&)>& SelectionFunction)
+{
+	if (const AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle))
+	{ 
+		if (GetOwnerWorld(InElementHandle)->IsEditorWorld())
+		{
+			if (Actor->IsHiddenEd())
+			{
+				return {};
+			}
+		}
+	}
+
+	return  UActorElementWorldInterface::GetSelectionElementsFromSelectionFunction(InElementHandle, SelectionArgs, SelectionFunction);
+}
+

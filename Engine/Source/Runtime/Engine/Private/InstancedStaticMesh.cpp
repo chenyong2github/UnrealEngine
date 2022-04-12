@@ -26,14 +26,11 @@
 #include "UObject/MobileObjectVersion.h"
 #include "EngineStats.h"
 #include "Interfaces/ITargetPlatform.h"
-#if WITH_EDITOR
-#include "DeviceProfiles/DeviceProfile.h"
-#include "DeviceProfiles/DeviceProfileManager.h"
-#endif // WITH_EDITOR
 #include "MeshMaterialShader.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "NaniteSceneProxy.h"
 #include "MaterialCachedData.h"
+#include "Collision.h"
 
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/SMInstance/SMInstanceElementData.h"
@@ -4176,6 +4173,193 @@ void UInstancedStaticMeshComponent::OnRegister()
 		InitPerInstanceRenderData(InitializeFromCurrentData);
 	}
 }
+
+#if WITH_EDITOR
+
+bool UInstancedStaticMeshComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
+{
+	if (bConsiderOnlyBSP)
+	{
+		return false;
+	}
+
+	for (int32 Index = 0; Index < PerInstanceSMData.Num(); ++Index)
+	{
+		if (IsInstanceTouchingSelectionBox(Index, InSelBBox, bMustEncompassEntireComponent) && !bMustEncompassEntireComponent)
+		{
+			return true;
+		}
+		else if (bMustEncompassEntireComponent)
+		{
+			return false;
+		}
+	}
+
+	return bMustEncompassEntireComponent;
+}
+
+bool UInstancedStaticMeshComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
+{
+	if (bConsiderOnlyBSP)
+	{
+		return false;
+	}
+
+	for (int32 Index = 0; Index < PerInstanceSMData.Num(); ++Index)
+	{
+		if (IsInstanceTouchingSelectionFrustum(Index, InFrustum, bMustEncompassEntireComponent) && !bMustEncompassEntireComponent)
+		{
+			return true;
+		}
+		else if (bMustEncompassEntireComponent)
+		{
+			return false;
+		}
+	}
+
+	return bMustEncompassEntireComponent;
+}
+
+bool UInstancedStaticMeshComponent::IsInstanceTouchingSelectionBox(int32 InstanceIndex, const FBox& InBox, const bool bMustEncompassEntireInstance) const
+{
+	if (PerInstanceSMData.IsValidIndex(InstanceIndex))
+	{
+		const UStaticMesh* Mesh = GetStaticMesh();
+		if (Mesh && Mesh->HasValidRenderData())
+		{
+			const FBoxSphereBounds& MeshBoundingBox = Mesh->GetBounds();
+
+			FTransform InstanceTransfrom;
+			const bool bWorldSpace = true;
+			GetInstanceTransform(InstanceIndex, InstanceTransfrom, bWorldSpace);
+
+			const FBox& InstanceBoundingBox = MeshBoundingBox.TransformBy(InstanceTransfrom).GetBox();
+
+			// If the bounds are fully contains assume the static mesh instance is fully contained
+			if (InstanceBoundingBox.IsInside(InBox))
+			{
+				return true;
+			}
+
+			// Test the bounding box first to avoid heavy computation.
+			if (InBox.Intersect(InstanceBoundingBox))
+			{
+				TArray<FVector> Vertex;
+
+				FStaticMeshLODResources& LODModel = GetStaticMesh()->GetRenderData()->LODResources[0];
+				FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
+
+				for (const FStaticMeshSection& Section : LODModel.Sections)
+				{
+					// Iterate over each triangle.
+					for (int32 TriangleIndex = 0; TriangleIndex < (int32)Section.NumTriangles; TriangleIndex++)
+					{
+						Vertex.Empty(3);
+
+						int32 FirstIndex = TriangleIndex * 3 + Section.FirstIndex;
+						for (int32 i = 0; i < 3; i++)
+						{
+							int32 VertexIndex = Indices[FirstIndex + i];
+							FVector LocalPosition(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(VertexIndex));
+							Vertex.Emplace(InstanceTransfrom.TransformPosition(LocalPosition));
+						}
+
+						// Check if the triangle is colliding with the bounding box.
+						FSeparatingAxisPointCheck ThePointCheck(Vertex, InBox.GetCenter(), InBox.GetExtent(), false);
+						if (!bMustEncompassEntireInstance && ThePointCheck.bHit)
+						{
+							// Needn't encompass entire component: any intersection, we consider as touching
+							return true;
+						}
+						else if (bMustEncompassEntireInstance && !ThePointCheck.bHit)
+						{
+							// Must encompass entire component: any non intersection, we consider as not touching
+							return false;
+						}
+					}
+				}
+
+				// Either:
+				// a) It must encompass the entire component and all points were intersected (return true), or;
+				// b) It needn't encompass the entire component but no points were intersected (return false)
+				return bMustEncompassEntireInstance;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UInstancedStaticMeshComponent::IsInstanceTouchingSelectionFrustum(int32 InstanceIndex, const FConvexVolume& InFrustum, const bool bMustEncompassEntireInstance) const
+{
+	if (PerInstanceSMData.IsValidIndex(InstanceIndex))
+	{
+		const UStaticMesh* Mesh = GetStaticMesh();
+		if (Mesh && Mesh->HasValidRenderData())
+		{
+			const FBoxSphereBounds& MeshBoundingBox = Mesh->GetBounds();
+
+			FTransform InstanceTransfrom;
+			const bool bWorldSpace = true;
+			GetInstanceTransform(InstanceIndex, InstanceTransfrom, bWorldSpace);
+
+			const FBoxSphereBounds& InstanceBoundingBox = MeshBoundingBox.TransformBy(InstanceTransfrom);
+
+			// Test the bounding box first to avoid heavy computation.
+			bool bIsFullyInside = false;
+			if (InFrustum.IntersectBox(InstanceBoundingBox.Origin, InstanceBoundingBox.BoxExtent, bIsFullyInside))
+			{
+				// If the bounds are fully contains assume the static mesh instance is fully contained
+				if (bIsFullyInside)
+				{
+					return true;
+				}
+
+				FStaticMeshLODResources& LODModel = GetStaticMesh()->GetRenderData()->LODResources[0];
+				FIndexArrayView Indices = LODModel.IndexBuffer.GetArrayView();
+
+				for (const FStaticMeshSection& Section : LODModel.Sections)
+				{
+					// Iterate over each triangle.
+					for (int32 TriangleIndex = 0; TriangleIndex < (int32)Section.NumTriangles; TriangleIndex++)
+					{
+						int32 Index = TriangleIndex * 3 + Section.FirstIndex;
+
+						FVector PointA(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[Index]));
+						FVector PointB(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[Index + 1]));
+						FVector PointC(LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[Index + 2]));
+
+						PointA = InstanceTransfrom.TransformPosition(PointA);
+						PointB = InstanceTransfrom.TransformPosition(PointB);
+						PointC = InstanceTransfrom.TransformPosition(PointC);
+
+						bool bFullyContained = false;
+						bool bIntersect = InFrustum.IntersectTriangle(PointA, PointB, PointC, bFullyContained);
+
+						if (!bMustEncompassEntireInstance && bIntersect)
+						{
+							// Needn't encompass entire component: any intersection, we consider as touching
+							return true;
+						}
+						else if (bMustEncompassEntireInstance && !bFullyContained)
+						{
+							// Must encompass entire component: any non intersection, we consider as not touching
+							return false;
+						}
+					}
+				}
+
+				// Either:
+				// a) It must encompass the entire component and all points were intersected (return true), or;
+				// b) It needn't encompass the entire component but no points were intersected (return false)
+				return bMustEncompassEntireInstance;
+			}
+		}
+	}
+
+	return false;
+}
+#endif //WITH_EDITOR
 
 void UInstancedStaticMeshComponent::PostLoad()
 {

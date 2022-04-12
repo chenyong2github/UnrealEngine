@@ -1524,6 +1524,11 @@ FPrimitiveSceneProxy* ULandscapeComponent::CreateSceneProxy()
 	return Proxy;
 }
 
+bool ULandscapeComponent::IsShown(const FEngineShowFlags& ShowFlags) const
+{
+	return ShowFlags.Landscape;
+}
+
 void ULandscapeComponent::DestroyComponent(bool bPromoteChildren/*= false*/)
 {
 	ALandscapeProxy* Proxy = GetLandscapeProxy();

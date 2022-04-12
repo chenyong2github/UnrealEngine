@@ -52,15 +52,6 @@ private:
 	void CalculateBox( FBox& OutBox );
 
 	/** 
-	 * Returns true if the passed in Actor intersects with the provided box 
-	 *
-	 * @param InActor				The actor to check
-	 * @param InBox					The box to check against
-	 * @param bUseStrictSelection	true if the actor must be entirely within the frustum
-	 */
-	bool IntersectsBox( AActor& InActor, const FBox& InBox, bool bUseStrictSelection );
-
-	/** 
 	 * Returns true if the provided BSP node intersects with the provided frustum 
 	 *
 	 * @param InModel				The model containing BSP nodes to check

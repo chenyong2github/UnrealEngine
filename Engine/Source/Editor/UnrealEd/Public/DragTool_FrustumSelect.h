@@ -53,15 +53,6 @@ private:
 	void CalculateFrustum( FSceneView* View, FConvexVolume& OutFrustum, bool bUseBoxFrustum );
 
 	/** 
-	 * Returns true if the passed in Actor intersects with the provided frustum 
-	 *
-	 * @param InActor				The actor to check
-	 * @param InFrustum				The frustum to check against
-	 * @param bUseStrictSelection	true if the actor must be entirely within the frustum
-	 */
-	bool IntersectsFrustum( AActor& InActor, const FConvexVolume& InFrustum, bool bUseStrictSelection ) const;
-
-	/** 
 	 * Returns true if the provided BSP node intersects with the provided frustum 
 	 *
 	 * @param InModel				The model containing BSP nodes to check

@@ -548,10 +548,9 @@ ESceneDepthPriorityGroup UBrushComponent::GetStaticDepthPriorityGroup() const
 	}
 }
 
-#if WITH_EDITOR
-static bool IsComponentTypeShown(AActor* Actor, const FEngineShowFlags& ShowFlags)
+bool UBrushComponent::IsShown(const FEngineShowFlags& ShowFlags) const
 {
-	if (Actor != nullptr)
+	if (const AActor* Actor = GetOwner())
 	{
 		return (Actor->IsA(AVolume::StaticClass())) ? ShowFlags.Volumes : ShowFlags.BSP;
 	}
@@ -559,13 +558,9 @@ static bool IsComponentTypeShown(AActor* Actor, const FEngineShowFlags& ShowFlag
 	return false;
 }
 
-bool UBrushComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
+#if WITH_EDITOR
+bool UBrushComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
 {
-	if (!IsComponentTypeShown(GetOwner(), ShowFlags))
-	{
-		return false;
-	}
-
 	if (Brush != nullptr && Brush->Polys != nullptr)
 	{
 		TArray<FVector> Vertices;
@@ -648,13 +643,8 @@ bool UBrushComponent::ComponentIsTouchingSelectionBox(const FBox& InSelBBox, con
 }
 
 
-bool UBrushComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const FEngineShowFlags& ShowFlags, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
+bool UBrushComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolume& InFrustum, const bool bConsiderOnlyBSP, const bool bMustEncompassEntireComponent) const
 {
-	if (!IsComponentTypeShown(GetOwner(), ShowFlags))
-	{
-		return false;
-	}
-
 	if (Brush != nullptr && Brush->Polys != nullptr)
 	{
 		TArray<FVector> Vertices;
