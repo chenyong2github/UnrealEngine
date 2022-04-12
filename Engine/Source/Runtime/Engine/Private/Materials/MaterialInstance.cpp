@@ -116,7 +116,7 @@ FFontParameterValue::ValueType FFontParameterValue::GetValue(const FFontParamete
 }
 
 FMaterialInstanceResource::FMaterialInstanceResource(UMaterialInstance* InOwner)
-	: FMaterialRenderProxy(GetPathNameSafe(InOwner->GetMaterial()))
+	: FMaterialRenderProxy(InOwner->GetName())
 	, Parent(NULL)
 	, Owner(InOwner)
 	, GameThreadParent(NULL)
@@ -2052,10 +2052,10 @@ void UMaterialInstance::CacheResourceShadersForRendering(EMaterialShaderPrecompi
 			ResourcesToCache.Reset();
 			ResourcesToCache.Add(CurrentResource);
 			CacheShadersForResources(ShaderPlatform, ResourcesToCache, PrecompileMode);
-			RecacheUniformExpressions(true);
 		}
 	}
 
+	RecacheUniformExpressions(true);
 	InitResources();
 }
 
