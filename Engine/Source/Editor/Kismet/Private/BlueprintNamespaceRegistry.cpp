@@ -209,7 +209,13 @@ void FBlueprintNamespaceRegistry::FindAndRegisterAllNamespaces()
 	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 	{
 		const UClass* ClassObject = *ClassIt;
-		if (UEdGraphSchema_K2::IsAllowableBlueprintVariableType(ClassObject) && !ExcludedObjects.Contains(ClassObject))
+
+		// Include native function library class objects as well.
+		const bool bShouldRegisterClassObject =
+			UEdGraphSchema_K2::IsAllowableBlueprintVariableType(ClassObject)
+			|| ClassObject->IsChildOf<UBlueprintFunctionLibrary>();
+
+		if (bShouldRegisterClassObject && !ExcludedObjects.Contains(ClassObject))
 		{
 			RegisterNamespace(ClassObject);
 		}
@@ -232,16 +238,6 @@ void FBlueprintNamespaceRegistry::FindAndRegisterAllNamespaces()
 		if (UEdGraphSchema_K2::IsAllowableBlueprintVariableType(EnumObject) && !ExcludedObjects.Contains(EnumObject))
 		{
 			RegisterNamespace(EnumObject);
-		}
-	}
-
-	// Register loaded function library namespace identifiers.
-	for (TObjectIterator<UBlueprintFunctionLibrary> LibraryIt; LibraryIt; ++LibraryIt)
-	{
-		const UBlueprintFunctionLibrary* LibraryObject = *LibraryIt;
-		if (LibraryObject && !ExcludedObjects.Contains(LibraryObject))
-		{
-			RegisterNamespace(LibraryObject);
 		}
 	}
 
