@@ -187,9 +187,6 @@ namespace ShaderConductor
             // UE Change Begin: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
             bool enableFMAPass = false;
             // UE Change End: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can.
-            // UE Change Begin: Force subpass OpTypeImage depth flag to be set to 0
-            bool forceSubpassImageDepthFalse = false;
-            // UE Change End: Force subpass OpTypeImage depth flag to be set to 0
             // UE Change Begin: Allow separate samplers in GLSL via extensions.
             bool enableSeparateSamplers = false;
             // UE Change End: Allow separate samplers in GLSL via extensions.

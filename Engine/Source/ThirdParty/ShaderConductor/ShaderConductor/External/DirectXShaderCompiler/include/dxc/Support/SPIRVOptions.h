@@ -68,9 +68,6 @@ struct SpirvCodeGenOptions {
   // UE Change Begin: Use custom layout rules for UE5.
   bool ue5Layout;
   // UE Change End: Use custom layout rules for UE5.
-  // UE Change Begin: Force subpass OpTypeImage depth flag to be set to 0
-  bool forceSubpassImageDepthFalse;
-  // UE Change End: Force subpass OpTypeImage depth flag to be set to 0
   // UE Change Begin: Allow preserving unused inputs in shaders, used for OpenGL to match input/outputs
   bool preserveStorageInput;
   // UE Change End: Allow preserving unused inputs in shaders, used for OpenGL to match input/outputs

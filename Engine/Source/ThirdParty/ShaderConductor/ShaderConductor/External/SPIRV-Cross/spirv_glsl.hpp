@@ -440,7 +440,7 @@ protected:
 	virtual std::string builtin_to_glsl(spv::BuiltIn builtin, spv::StorageClass storage);
 	
 	// UE Change Begin: Emit structure padding to support uniform buffers with offsets
-	void emit_struct_member_padding(const SPIRType &type, uint32_t member_type_id, uint32_t index);
+        void emit_struct_member_padding(const SPIRType &type, uint32_t index);
 	// UE Change End: Emit structure padding to support uniform buffers with offsets
 
 	virtual void emit_struct_member(const SPIRType &type, uint32_t member_type_id, uint32_t index,

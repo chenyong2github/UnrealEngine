@@ -58,13 +58,6 @@ inline bool SupportsOfflineCompiler(EShaderPlatform ShaderPlatform)
 		|| ShaderPlatform == SP_VULKAN_SM5_ANDROID;
 }
 
-inline bool ForceSubpassImageDepthFalseForPlatform(EShaderPlatform ShaderPlatform)
-{
-	return ShaderPlatform == SP_VULKAN_PCES3_1
-		|| ShaderPlatform == SP_VULKAN_ES3_1_ANDROID
-		|| ShaderPlatform == SP_VULKAN_SM5_ANDROID;
-}
-
 inline CrossCompiler::FShaderConductorOptions::ETargetEnvironment GetMinimumTargetEnvironment(EShaderPlatform ShaderPlatform)
 {
 	// All desktop Vulkan platforms create a Vulkan 1.1 instance (SP_VULKAN_SM5_ANDROID can still use 1.0)
@@ -1893,6 +1886,17 @@ static bool BuildShaderOutputFromSpirv(
 		}
 	}
 
+	// For Android run an additional pass to patch spirv to be compatible across drivers
+	if(IsAndroidShaderPlatform(Input.Target.GetPlatform()))
+	{
+		const char* OptArgs[] = { "--android-driver-patch" };
+		if (!CompilerContext.OptimizeSpirv(Spirv.Data, OptArgs, UE_ARRAY_COUNT(OptArgs)))
+		{
+			UE_LOG(LogVulkanShaderCompiler, Error, TEXT("Failed to apply driver patches for Android"));
+			return false;
+		}
+	}
+
 	PatchSpirvReflectionEntries(Spirv);
 	Spirv.EntryPointName = PatchSpirvEntryPointWithCRC(Spirv, Spirv.CRC);
 
@@ -2080,7 +2084,6 @@ static bool CompileWithShaderConductor(
 	// Initialize compilation options for ShaderConductor
 	CrossCompiler::FShaderConductorOptions Options;
 	Options.bDisableScalarBlockLayout = !bIsRayTracingShader;
-	Options.bForceSubpassImageDepthFalse = ForceSubpassImageDepthFalseForPlatform(Input.Target.GetPlatform());
 
 	// Enable HLSL 2021 if specified
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021))

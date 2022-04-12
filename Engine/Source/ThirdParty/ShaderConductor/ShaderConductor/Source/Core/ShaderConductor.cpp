@@ -1163,13 +1163,6 @@ namespace
             dxcArgStrings.push_back(L"all");
         }
 
-		// UE Change Begin: Force subpass OpTypeImage depth flag to be set to 0
-		if (options.forceSubpassImageDepthFalse)
-		{
-			dxcArgStrings.push_back(L"-fspv-force-subpass-image-depth-false");
-		}
-		// UE Change End: Force subpass OpTypeImage depth flag to be set to 0
-
         // UE Change Begin: Ensure 1.2 for ray tracing shaders
         const bool bIsRayTracingShader = (source.stage >= ShaderStage::RayGen) && (source.stage <= ShaderStage::RayCallable);
         if (bIsRayTracingShader)

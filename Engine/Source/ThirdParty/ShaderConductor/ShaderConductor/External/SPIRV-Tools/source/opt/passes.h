@@ -85,5 +85,7 @@
 #include "source/opt/vector_dce.h"
 #include "source/opt/workaround1209.h"
 #include "source/opt/wrap_opkill.h"
-
+// UE Change Begin: Added support for Android driver patch pass to fix platform specific issues
+#include "source/opt/android_driver_patch_pass.h"
+// UE Change End: Added support for Android driver patch pass to fix platform specific issues
 #endif  // SOURCE_OPT_PASSES_H_

@@ -72,8 +72,6 @@ namespace CrossCompiler
 		/** Enable a pass that converts floating point MUL+ADD pairs into FMAs to avoid re-association. */
 		bool bEnableFMAPass = false;
 
-		/** Force subpass OpTypeImage depth parameter to false as a work around for driver bugs */
-		bool bForceSubpassImageDepthFalse = false;
 
 		/** Disables scalar block layout for structured buffers. True for Vulkan mobile due to low coverage of 'VK_EXT_scalar_block_layout' extension. */
 		bool bDisableScalarBlockLayout = false;

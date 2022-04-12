@@ -13126,7 +13126,7 @@ bool CompilerGLSL::variable_decl_is_remapped_storage(const SPIRVariable &var, St
 
 
 // UE Change begin: Emit structure padding to support uniform buffers with offsets
-void CompilerGLSL::emit_struct_member_padding(const SPIRType &type, uint32_t member_type_id, uint32_t index)
+void CompilerGLSL::emit_struct_member_padding(const SPIRType &type, uint32_t index)
 {
 	if (!options.pad_ubo_blocks)
 	{
@@ -13205,7 +13205,7 @@ void CompilerGLSL::emit_struct_member(const SPIRType &type, uint32_t member_type
 		qualifiers = to_interpolation_qualifiers(memberflags);
 
 	// UE Change Begin: Emit structure padding to support uniform buffers with offsets
-	emit_struct_member_padding(type, member_type_id, index);
+        emit_struct_member_padding(type, index);
 	// UE Change End: Emit structure padding to support uniform buffers with offsets
 
 	statement(layout_for_member(type, index), qualifiers, qualifier, flags_to_qualifiers_glsl(membertype, memberflags),

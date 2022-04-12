@@ -526,6 +526,10 @@ bool Optimizer::RegisterPassFromFlag(const std::string& flag) {
     RegisterPass(CreateFusedMultiplyAddPass());
     // UE Change End: Implement a fused-multiply-add pass to reduce the
     // possibility of re-association.
+    // UE Change Begin: Added support for Android driver patch pass to fix platform specific issues
+  } else if (pass_name == "android-driver-patch") {
+    RegisterPass(CreateAndroidDriverPatchPass());
+    // UE Change End: Added support for Android driver patch pass to fix platform specific issues
   } else if (pass_name == "graphics-robust-access") {
     RegisterPass(CreateGraphicsRobustAccessPass());
   } else if (pass_name == "wrap-opkill") {
@@ -1020,5 +1024,12 @@ Optimizer::PassToken CreateFusedMultiplyAddPass() {
 }
 // UE Change End: Implement a fused-multiply-add pass to reduce the possibility
 // of re-association.
+
+// UE Change Begin: Added support for Android driver patch pass to fix platform specific issues
+Optimizer::PassToken CreateAndroidDriverPatchPass() {
+  return MakeUnique<Optimizer::PassToken::Impl>(
+      MakeUnique<opt::AndroidDriverPatchPass>());
+}
+// UE Change End: Added support for Android driver patch pass to fix platform specific issues
 
 }  // namespace spvtools
