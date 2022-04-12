@@ -1440,7 +1440,7 @@ void FAssetRegistryImpl::SearchAllAssets(Impl::FEventContext& EventContext, bool
 		bSynchronousSearch = true;
 	}
 
-	Gatherer.SetUseMonolithicCache(true);
+	Gatherer.ActivateMonolithicCache();
 
 	// Add all existing mountpoints to the GlobalGatherer
 	// This will include Engine content, Game content, but also may include mounted content directories for one or more plugins.

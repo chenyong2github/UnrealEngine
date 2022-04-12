@@ -32,6 +32,7 @@ namespace UE::AssetDataGather::Private
 {
 class FAssetDataDiscovery;
 class FFilesToSearch;
+struct FCachePayload;
 struct FGatheredPathData;
 struct FPathExistence;
 struct FSetPathProperties;
@@ -63,7 +64,7 @@ public:
 	// Extra at-construction configuration 
 
 	/** Configure the gatherer to use a single monolithic cache for all files, and read/write this cache during ticks. */
-	void SetUseMonolithicCache(bool bInUseMonolithicCache);
+	void ActivateMonolithicCache();
 
 
 	// Controlling Async behavior
@@ -226,13 +227,13 @@ private:
 		TArray<FAssetData*>& AssetDataList, FPackageDependencyData& DependencyData,
 		TArray<FString>& CookedPackagesToLoadUponDiscovery, bool& OutCanRetry) const;
 
-	/** Helper for LoadCacheFile and internal callsites; occurs inside the proper critical section. */
-	void LoadCacheFileInternal(FStringView CacheFilename);
+	/** Add the given AssetDatas into DiskCachedAssetDataMap and DiskCachedAssetBlocks. */
+	void ConsumeCacheFile(UE::AssetDataGather::Private::FCachePayload&& Payload);
 	/**
-	 * If a save of the async cache has been triggered, get the cache filename and pointers to all elements that should be saved,
+	 * If a save of the monolithic cache has been triggered, get the cache filename and pointers to all elements that should be saved,
 	 * for later saving outside of the critical section.
 	 */
-	void TryReserveSaveAsyncCache(FString& OutCacheFilename, TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave);
+	void TryReserveSaveMonolithicCache(bool& bOutShouldSave, TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave);
 	/**
 	 * If the CacheFilename/AssetsToSave are non empty, save the cache file. 
 	 * This function reads the read-only-after-creation data from each FDiskCachedAssetData*, but otherwise does not use
@@ -244,10 +245,6 @@ private:
 	 * Filters the list of assets by child paths of the elements in SaveCacheLongPackageNameDirs, if it is non-empty.
 	 */
 	void GetAssetsToSave(TArrayView<const FString> SaveCacheLongPackageNameDirs, TArray<TPair<FName,FDiskCachedAssetData*>>& OutAssetsToSave);
-	/** Writes to file the timestamped cache of discovered assets. */
-	void SerializeCacheSave(FAssetRegistryWriter& Ar, const TArray<TPair<FName,FDiskCachedAssetData*>>& AssetsToSave);
-	/** Reads from file the timestamped cache of discovered assets, for quick loading of data for assets that have not changed on disk. */
-	void SerializeCacheLoad(FAssetRegistryReader& Ar);
 
 	/* Adds the given PackageName,DiskCachedAssetData pair into NewCachedAssetDataMap, and detects collisions for multiple files with the same PackageName */
 	void AddToCache(FName PackageName, FDiskCachedAssetData* DiskCachedAssetData);
@@ -346,12 +343,6 @@ private:
 	 * Read/writable only within ResultsLock.
 	 */
 	TArray<FString> DiscoveredPaths;
-	/**
-	 * If using a TickManaged cache, this is the name of the cache file.
-	 * The cachefile contains timestamp,guid,and asset data for each package file in the the previous process's gather.
-	 * Read/writable only within ResultsLock.
-	 */
-	FString TickManagedCacheFilename;
 
 	/** The current search start time, set in the first tick after idle and used for performance metrics when reporting results. Read/writable only within ResultsLock. */
 	double SearchStartTime;
@@ -363,18 +354,13 @@ private:
 	 */
 	int32 NumPathsToSearchAtLastSyncPoint;
 	/**
-	 * Track whether we are using a monolithic cache. The monolithic cache is only supported as a TickManaged cache.
-	 * Setting it to true sets up the TickManaged cache. Read/writable only within ResultsLock.
-	 */
-	bool bUseMonolithicCache;
-	/**
-	 * Track whether a cache file should be loaded and saved by the Tick function
-	 * (as opposed to being externally managed by calls to LoadCacheFile/SaveCacheFile).
+	 * Track whether we are using a monolithic cache that should be loaded/saved during tick.
+	 * Wether we are or not, the AssetRegistry can also call LoadCacheFile/ScanPathsSynchronous to load/save smaller files.
 	 * Read/writable only within ResultsLock.
 	 */
-	bool bUseTickManagedCache;
-	/** If bUseTickManagedCache is true, track whether the cache has been loaded. Read/writable only within ResultsLock. */
-	bool bHasLoadedTickManagedCache;
+	bool bUseMonolithicCache;
+	/** If bHasLoadedMonolithicCache is true, track whether the cache has been loaded. Read/writable only within ResultsLock. */
+	bool bHasLoadedMonolithicCache;
 	/** Track whether the Discovery subsystem has gone idle and we have read all filenames from it. Read/writable only within ResultsLock. */
 	bool bDiscoveryIsComplete;
 	/** Track whether this Gather has gone idle and a caller has read all search data from it. Read/writable only within ResultsLock. */
@@ -397,7 +383,7 @@ private:
 	TArray<TPair<int32, FDiskCachedAssetData*>> DiskCachedAssetBlocks;
 	/**
 	 * Map of PackageName to cached discovered assets that were loaded from disk.
-	 * This should only be modified in the loading section of SerializeCache calls.
+	 * This should only be modified by ConsumeCacheFile.
 	 * Read/Writable only within TickLock.
 	 */
 	TMap<FName, FDiskCachedAssetData*> DiskCachedAssetDataMap;
