@@ -4,7 +4,7 @@
 #include "OpenXRCore.h"
 #include "OpenXRPlatformRHI.h"
 
-bool FOpenXRLayer::NeedReAllocateTexture()
+bool FOpenXRLayer::NeedReallocateRightTexture()
 {
 	if (!Desc.Texture.IsValid())
 	{
@@ -17,15 +17,15 @@ bool FOpenXRLayer::NeedReAllocateTexture()
 		return false;
 	}
 
-	if (!Swapchain.IsValid())
+	if (!RightEye.Swapchain.IsValid())
 	{
 		return true;
 	}
 
-	return SwapchainSize != Texture->GetSizeXY();
+	return RightEye.SwapchainSize != Texture->GetSizeXY();
 }
 
-bool FOpenXRLayer::NeedReAllocateLeftTexture()
+bool FOpenXRLayer::NeedReallocateLeftTexture()
 {
 	if (!Desc.LeftTexture.IsValid())
 	{
@@ -38,25 +38,41 @@ bool FOpenXRLayer::NeedReAllocateLeftTexture()
 		return false;
 	}
 
-	if (!Swapchain.IsValid())
+	if (!LeftEye.Swapchain.IsValid())
 	{
 		return true;
 	}
 
-	return SwapchainSize != Texture->GetSizeXY();
+	return LeftEye.SwapchainSize != Texture->GetSizeXY();
 }
 
-FIntRect FOpenXRLayer::GetViewport() const
+FIntRect FOpenXRLayer::GetRightViewportSize() const
 {
-	FBox2D Viewport(SwapchainSize * Desc.UVRect.Min, SwapchainSize * Desc.UVRect.Max);
+	FBox2D Viewport(RightEye.SwapchainSize * Desc.UVRect.Min, RightEye.SwapchainSize * Desc.UVRect.Max);
 	return FIntRect(Viewport.Min.IntPoint(), Viewport.Max.IntPoint());
 }
 
-FVector2D FOpenXRLayer::GetQuadSize() const
+FIntRect FOpenXRLayer::GetLeftViewportSize() const
+{
+	FBox2D Viewport(LeftEye.SwapchainSize * Desc.UVRect.Min, LeftEye.SwapchainSize * Desc.UVRect.Max);
+	return FIntRect(Viewport.Min.IntPoint(), Viewport.Max.IntPoint());
+}
+
+FVector2D FOpenXRLayer::GetRightQuadSize() const
 {
 	if (Desc.Flags & IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO)
 	{
-		float AspectRatio = SwapchainSize.Y / SwapchainSize.X;
+		float AspectRatio = RightEye.SwapchainSize.Y / RightEye.SwapchainSize.X;
+		return FVector2D(Desc.QuadSize.X, Desc.QuadSize.X * AspectRatio);
+	}
+	return Desc.QuadSize;
+}
+
+FVector2D FOpenXRLayer::GetLeftQuadSize() const
+{
+	if (Desc.Flags & IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO)
+	{
+		float AspectRatio = LeftEye.SwapchainSize.Y / LeftEye.SwapchainSize.X;
 		return FVector2D(Desc.QuadSize.X, Desc.QuadSize.X * AspectRatio);
 	}
 	return Desc.QuadSize;
@@ -80,8 +96,9 @@ void MarkLayerTextureForUpdate(FOpenXRLayer& Layer)
 	// If the swapchain is static we need to re-allocate it before it can be updated
 	if (!(Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE))
 	{
-		Layer.Swapchain.Reset();
-		Layer.LeftSwapchain.Reset();
+		Layer.RightEye.Swapchain.Reset();
+		Layer.LeftEye.Swapchain.Reset();
 	}
-	Layer.bUpdateTexture = true;
+	Layer.RightEye.bUpdateTexture = true;
+	Layer.LeftEye.bUpdateTexture = true;
 }

@@ -1488,8 +1488,8 @@ void FOpenXRHMD::DestroySession()
 		// to destroy swapchain handles after the session is already destroyed.
 		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
 		{
-			Layer.Swapchain.Reset();
-			Layer.LeftSwapchain.Reset();
+			Layer.RightEye.Swapchain.Reset();
+			Layer.LeftEye.Swapchain.Reset();
 		});
 
 		PipelinedLayerStateRendering.ColorSwapchain.Reset();
@@ -1815,26 +1815,23 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 				const ETextureCreateFlags Flags = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE ?
 					TexCreate_Dynamic | TexCreate_SRGB : TexCreate_SRGB;
 
-				if (Layer.NeedReAllocateTexture())
+				if (Layer.NeedReallocateRightTexture())
 				{
 					FRHITexture2D* Texture = Layer.Desc.Texture->GetTexture2D();
-					Layer.Swapchain = CreateSwapchain(Texture, Flags);
-					Layer.SwapchainSize = Texture->GetSizeXY();
-					Layer.bUpdateTexture = true;
+					Layer.RightEye.SetSwapchain(CreateSwapchain(Texture, Flags), Texture->GetSizeXY());
 				}
 
-				if (Layer.NeedReAllocateLeftTexture())
+				if (Layer.NeedReallocateLeftTexture())
 				{
 					FRHITexture2D* Texture = Layer.Desc.LeftTexture->GetTexture2D();
-					Layer.LeftSwapchain = CreateSwapchain(Texture, Flags);
-					Layer.bUpdateTexture = true;
+					Layer.LeftEye.SetSwapchain(CreateSwapchain(Texture, Flags), Texture->GetSizeXY());
 				}
 			}
 			else
 			{
 				// We retain references in FPipelinedLayerState to avoid premature destruction
-				Layer.Swapchain.Reset();
-				Layer.LeftSwapchain.Reset();
+				Layer.RightEye.Swapchain.Reset();
+				Layer.LeftEye.Swapchain.Reset();
 			}
 		});
 	}
@@ -1856,40 +1853,43 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT;
 		Quad.space = Layer.Desc.PositionType == ELayerType::FaceLocked ?
 			DeviceSpaces[HMDDeviceId].Space : GetTrackingSpace();
-		Quad.subImage.imageRect = ToXrRect(Layer.GetViewport());
 		Quad.subImage.imageArrayIndex = 0;
 		Quad.pose = ToXrPose(Layer.Desc.Transform * PositionTransform, WorldToMeters);
-		Quad.size = ToXrExtent2D(Layer.GetQuadSize(), WorldToMeters);
 
 		// We need to copy each layer into an OpenXR swapchain so they can be displayed by the compositor
-		if (Layer.Swapchain.IsValid() && Layer.Desc.Texture.IsValid())
+		if (Layer.RightEye.Swapchain.IsValid() && Layer.Desc.Texture.IsValid())
 		{
-			if (Layer.bUpdateTexture && bIsRunning)
+			if (Layer.RightEye.bUpdateTexture && bIsRunning)
 			{
 				FRHITexture2D* SrcTexture = Layer.Desc.Texture->GetTexture2D();
-				FIntRect DstRect(FIntPoint(0, 0), Layer.SwapchainSize.IntPoint());
-				CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.Swapchain, DstRect, false, bNoAlpha);
+				FIntRect DstRect(FIntPoint(0, 0), Layer.RightEye.SwapchainSize.IntPoint());
+				CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.RightEye.Swapchain, DstRect, false, bNoAlpha);
 			}
 
 			Quad.eyeVisibility = bIsStereo ? XR_EYE_VISIBILITY_RIGHT : XR_EYE_VISIBILITY_BOTH;
-			Quad.subImage.swapchain = static_cast<FOpenXRSwapchain*>(Layer.Swapchain.Get())->GetHandle();
+
+			Quad.subImage.imageRect = ToXrRect(Layer.GetRightViewportSize());
+			Quad.subImage.swapchain = static_cast<FOpenXRSwapchain*>(Layer.RightEye.Swapchain.Get())->GetHandle();
+			Quad.size = ToXrExtent2D(Layer.GetRightQuadSize(), WorldToMeters);
 			PipelinedLayerStateRendering.QuadLayers.Add(Quad);
-			PipelinedLayerStateRendering.QuadSwapchains.Add(Layer.Swapchain);
+			PipelinedLayerStateRendering.QuadSwapchains.Add(Layer.RightEye.Swapchain);
 		}
 
-		if (Layer.LeftSwapchain.IsValid() && Layer.Desc.LeftTexture.IsValid())
+		if (Layer.LeftEye.Swapchain.IsValid() && Layer.Desc.LeftTexture.IsValid())
 		{
-			if (Layer.bUpdateTexture && bIsRunning)
+			if (Layer.LeftEye.bUpdateTexture && bIsRunning)
 			{
 				FRHITexture2D* SrcTexture = Layer.Desc.LeftTexture->GetTexture2D();
-				FIntRect DstRect(FIntPoint(0, 0), Layer.SwapchainSize.IntPoint());
-				CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.LeftSwapchain, DstRect, false, bNoAlpha);
+				FIntRect DstRect(FIntPoint(0, 0), Layer.LeftEye.SwapchainSize.IntPoint());
+				CopyTexture_RenderThread(RHICmdList, SrcTexture, FIntRect(), Layer.LeftEye.Swapchain, DstRect, false, bNoAlpha);
 			}
 
 			Quad.eyeVisibility = XR_EYE_VISIBILITY_LEFT;
-			Quad.subImage.swapchain = static_cast<FOpenXRSwapchain*>(Layer.LeftSwapchain.Get())->GetHandle();
+			Quad.subImage.imageRect = ToXrRect(Layer.GetLeftViewportSize());
+			Quad.subImage.swapchain = static_cast<FOpenXRSwapchain*>(Layer.LeftEye.Swapchain.Get())->GetHandle();
+			Quad.size = ToXrExtent2D(Layer.GetLeftQuadSize(), WorldToMeters);
 			PipelinedLayerStateRendering.QuadLayers.Add(Quad);
-			PipelinedLayerStateRendering.QuadSwapchains.Add(Layer.LeftSwapchain);
+			PipelinedLayerStateRendering.QuadSwapchains.Add(Layer.LeftEye.Swapchain);
 		}
 	}
 
@@ -1911,7 +1911,9 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		// Reset the update flag on all layers
 		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
 		{
-			Layer.bUpdateTexture = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
+			const bool bUpdateTexture = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
+			Layer.RightEye.bUpdateTexture = bUpdateTexture;
+			Layer.LeftEye.bUpdateTexture = bUpdateTexture;
 		}, false);
 
 		FXRSwapChainPtr ColorSwapchain = PipelinedLayerStateRendering.ColorSwapchain;

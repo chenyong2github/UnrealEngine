@@ -8,27 +8,43 @@
 
 struct FOpenXRLayer
 {
+	struct FPerEyeTextureData
+	{
+		FXRSwapChainPtr			Swapchain = nullptr;
+		FVector2D				SwapchainSize{};
+		bool					bUpdateTexture = false;
+
+		void					SetSwapchain(FXRSwapChainPtr InSwapchain, const FVector2D& InSwapchainSize)
+		{
+			Swapchain = InSwapchain;
+			SwapchainSize = InSwapchainSize;
+			bUpdateTexture = true;
+		}
+	};
+
 	IStereoLayers::FLayerDesc	Desc;
-	FXRSwapChainPtr				Swapchain;
-	FXRSwapChainPtr				LeftSwapchain;
-	FVector2D					SwapchainSize;
-	bool						bUpdateTexture;
+
+	/** Texture tracking data for the right eye.*/
+	FPerEyeTextureData			RightEye;
+
+	/** Texture tracking data for the left eye, may not be present.*/
+	FPerEyeTextureData			LeftEye;
 
 	FOpenXRLayer(const IStereoLayers::FLayerDesc& InLayerDesc)
 		: Desc(InLayerDesc)
-		, Swapchain()
-		, LeftSwapchain()
-		, bUpdateTexture(false)
 	{ }
 
 	void SetLayerId(uint32 InId) { Desc.SetLayerId(InId); }
 	uint32 GetLayerId() const { return Desc.GetLayerId(); }
 
-	bool NeedReAllocateTexture();
-	bool NeedReAllocateLeftTexture();
+	bool NeedReallocateRightTexture();
+	bool NeedReallocateLeftTexture();
 
-	FIntRect GetViewport() const;
-	FVector2D GetQuadSize() const;
+	FIntRect GetRightViewportSize() const;
+	FVector2D GetRightQuadSize() const;
+
+	FIntRect GetLeftViewportSize() const;
+	FVector2D GetLeftQuadSize() const;
 };
 
 bool GetLayerDescMember(const FOpenXRLayer& Layer, IStereoLayers::FLayerDesc& OutLayerDesc);
