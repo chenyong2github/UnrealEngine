@@ -402,6 +402,10 @@ void HotReloadPackages(TArrayView<const FName> InPackageNames)
 		UPackage* ExistingPackage = FindPackage(nullptr, *PackageName.ToString());
 		if (ExistingPackage)
 		{
+			if (ExistingPackage->HasAnyPackageFlags(PKG_NewlyCreated))
+			{
+				ExistingPackage->ClearPackageFlags(PKG_NewlyCreated);
+			}
 			ExistingPackages.Add(ExistingPackage);
 		}
 	}
@@ -463,7 +467,7 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 		}
 	}
 
-	// Broadcast the eminent objects destruction (ex. tell BlueprintActionDatabase to release its reference(s) on Blueprint(s) right now)
+	// Broadcast the eminent objects destruction (ex. tell BlueprintActionDatabase to release its reference(s) on Blueprint(s) right now)
 	FEditorDelegates::OnAssetsPreDelete.Broadcast(ObjectsToPurge);
 
 	// Mark objects as purgeable.

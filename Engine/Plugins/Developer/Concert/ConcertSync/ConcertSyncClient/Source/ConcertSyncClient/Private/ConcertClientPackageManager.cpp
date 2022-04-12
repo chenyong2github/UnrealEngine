@@ -119,6 +119,21 @@ FConcertClientPackageManager::~FConcertClientPackageManager()
 		}
 	}
 
+	// The persistent level should always be reloaded when using external objects.
+	UWorld* CurrentWorld = ConcertSyncClientUtil::GetCurrentWorld();
+	if (CurrentWorld)
+	{
+		ULevel* PersistentLevel = CurrentWorld->PersistentLevel;
+		if (PersistentLevel && PersistentLevel->IsUsingExternalObjects())
+		{
+			const FName PackageName = PersistentLevel->GetPackage()->GetFName();
+			if (!PackagesPendingHotReload.Contains(PackageName))
+			{
+				PackagesPendingHotReload.Add(PackageName);
+			}
+		}
+	}
+
 	if (!IsEngineExitRequested())
 	{
 		// Hot reload after unregistering from most delegates to prevent events triggered by hot-reloading (such as asset deleted) to be recorded as transaction.
