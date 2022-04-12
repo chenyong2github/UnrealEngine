@@ -24,7 +24,9 @@ struct FPreInitContext
 	bool bDisableDisregardForGC = false;
 	bool bHasEditorToken = false;
 	bool bIsRegularClient = false;
+	UE_DEPRECATED(5.1, "Use bIsPossiblyUnrecognizedCommandlet instead")
 	bool bTokenDoesNotHaveDash = false;
+	bool bIsPossiblyUnrecognizedCommandlet = false;
 
 	FString Token;
 	const TCHAR* CommandletCommandLine = nullptr;
