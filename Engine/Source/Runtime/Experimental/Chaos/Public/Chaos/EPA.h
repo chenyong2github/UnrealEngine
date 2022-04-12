@@ -406,6 +406,7 @@ enum class EEPAResult
 	MaxIterations,				// We have a contact point, but did not reach the target tolerance before we hit the iteration limit - result accuracy is unknown
 	Degenerate,					// We hit a degenerate condition in EPA which prevents a solution from being generated (result is invalid but objects may be penetrating)
 	BadInitialSimplex,			// The initial setup did not provide a polytope containing the origin (objects are separated)
+	NoValidContact,             // No valid contact have been found, no contacts will be returned
 };
 
 inline const bool IsEPASuccess(EEPAResult EPAResult)

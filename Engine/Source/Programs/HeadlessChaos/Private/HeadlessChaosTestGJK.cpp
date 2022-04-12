@@ -1594,9 +1594,11 @@ namespace ChaosTest
 		FVec3 OutNorm;
 
 		// Should fail and give a valid time
-		GJKRaycast2(A, B, BToA, LocalDir, Length, OutTime, OutLoc, OutNorm, Thickness, bComputeMtd, InitialDir, Thickness);
+		bool bHit = GJKRaycast2(A, B, BToA, LocalDir, Length, OutTime, OutLoc, OutNorm, Thickness, bComputeMtd, InitialDir, Thickness);
 
-		// Expect to recieve a valid time.
+		EXPECT_FALSE(bHit);
+
+		// Expect to receive a valid time.
 		EXPECT_TRUE(FMath::IsFinite(OutTime));
 	}
 

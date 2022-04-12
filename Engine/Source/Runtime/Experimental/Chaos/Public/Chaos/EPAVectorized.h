@@ -360,7 +360,7 @@ FORCEINLINE_DEBUGGABLE void VectorEPAComputeVisibilityBorder(TEPAWorkingArray<Ve
 }
 
 
-FORCEINLINE_DEBUGGABLE void VectorComputeEPAResults(const VectorRegister4Float* VertsA, const VectorRegister4Float* VertsB, const VectorTEPAEntry& Entry, VectorRegister4Float& OutPenetration, VectorRegister4Float& OutDir, VectorRegister4Float& OutA, VectorRegister4Float& OutB)
+FORCEINLINE_DEBUGGABLE void VectorComputeEPAResults(const VectorRegister4Float* VertsA, const VectorRegister4Float* VertsB, const VectorTEPAEntry& Entry, VectorRegister4Float& OutPenetration, VectorRegister4Float& OutDir, VectorRegister4Float& OutA, VectorRegister4Float& OutB, EEPAResult& ResultStatus)
 {
 	//NOTE: We use this function as fallback when robustness breaks. So - do not assume adjacency is valid as these may be new uninitialized traingles that failed
 
@@ -371,7 +371,16 @@ FORCEINLINE_DEBUGGABLE void VectorComputeEPAResults(const VectorRegister4Float* 
 	constexpr VectorRegister4Int three = MakeVectorRegisterIntConstant(3, 3, 3, 3);
 	VectorRegister4Int NumVerts = three;
 	OutDir = VectorSimplexFindClosestToOrigin(Simplex, NumVerts, Barycentric, As, Bs);
-	OutPenetration = VectorSqrt(VectorDot4(OutDir, OutDir));
+
+	const VectorRegister4Float DotDir = VectorDot4(OutDir, OutDir);
+
+	if (VectorContainsNaNOrInfinite(DotDir))
+	{
+		OutPenetration = VectorZero();
+		ResultStatus = EEPAResult::NoValidContact;
+	}
+
+	OutPenetration = VectorSqrt(DotDir);
 
 	constexpr float EpsFloat = 1e-4f;
 	constexpr VectorRegister4Float Eps = MakeVectorRegisterFloatConstant(EpsFloat, EpsFloat, EpsFloat, EpsFloat);
@@ -502,16 +511,15 @@ EEPAResult VectorEPA(TArray<VectorRegister4Float>& VertsABuffer, TArray<VectorRe
 		const VectorRegister4Float W = VectorSubtract(ASupport, BSupport);
 		const VectorRegister4Float DistanceToSupportPlane = VectorDot3(Entry.PlaneNormal, W);
 
-		const VectorRegister4Float UpCoundIsGTDist = VectorCompareGT(UpperBound, DistanceToSupportPlane);
-
 		//Remember the entry that gave us the lowest upper bound and use it in case we have to terminate early
 		//This can result in very deep planes. Ideally we'd just use the plane formed at W, but it's not clear how you get back points in A, B for that
 		//BestEntry = Entry;
-		UpperBound = VectorSelect(UpCoundIsGTDist, DistanceToSupportPlane, UpperBound);
+		UpperBound = VectorMin(DistanceToSupportPlane, UpperBound);
 		LowerBound = Entry.Distance;
 
-		const VectorRegister4Float EpsIsGEAbsBounds = VectorCompareGE(Eps, VectorAbs(VectorSubtract(UpperBound, LowerBound)));
-
+		
+		const VectorRegister4Float DiffUpLow = VectorAbs(VectorSubtract(UpperBound, LowerBound));
+		const VectorRegister4Float EpsIsGEAbsBounds = VectorCompareGE(Eps, DiffUpLow);
 
 
 		//It's possible the origin is not contained by the CSO. In this case the upper bound will be negative, at which point we should just exit. Maybe return a different enum value?
@@ -605,7 +613,7 @@ EEPAResult VectorEPA(TArray<VectorRegister4Float>& VertsABuffer, TArray<VectorRe
 		}
 	}
 
-	VectorComputeEPAResults(VertsABuffer.GetData(), VertsBBuffer.GetData(), LastEntry, OutPenetration, OutDir, WitnessA, WitnessB);
+	VectorComputeEPAResults(VertsABuffer.GetData(), VertsBBuffer.GetData(), LastEntry, OutPenetration, OutDir, WitnessA, WitnessB, ResultStatus);
 	
 	return ResultStatus;
 }

@@ -192,7 +192,7 @@ TEST(SweepTests, Sweep) {
 	SUCCEED();
 }
 
-TEST(SweepTests, DISABLED_LargeSweep)
+TEST(SweepTests, LargeSweep)
 {
 	ChaosTest::GJKLargeDistanceCapsuleSweep();
 

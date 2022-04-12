@@ -2029,6 +2029,10 @@ namespace Chaos
 						OutTime = -OutTime - (MarginA + MarginB);
 						OutPosition = ClosestA;
 					}
+					else if (EPAResult == EEPAResult::NoValidContact)
+					{
+						return false;
+					}
 					else
 					{
 						//assume touching hit
