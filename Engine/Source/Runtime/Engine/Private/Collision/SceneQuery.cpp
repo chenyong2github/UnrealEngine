@@ -27,6 +27,7 @@ float DebugLineLifetime = 2.f;
 
 #include "ChaosSolversModule.h"
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
+#include "PBDRigidsSolver.h"
 
 CSV_DEFINE_CATEGORY(SceneQuery, false);
 

@@ -4,6 +4,7 @@
 #include "Chaos/ChaosArchive.h"
 #include "Chaos/Transform.h"
 #include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
+#include "UObject/PhysicsObjectVersion.h"
 
 namespace Chaos
 {

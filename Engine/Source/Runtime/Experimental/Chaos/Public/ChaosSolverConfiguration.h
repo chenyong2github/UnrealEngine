@@ -3,8 +3,10 @@
 #pragma once
 
 #include "SolverEventFilters.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "PBDRigidsSolver.h"
+#endif
 #include "ChaosSolverConfiguration.generated.h"
 
 UENUM()
@@ -22,25 +24,7 @@ struct FChaosSolverConfiguration
 {
 	GENERATED_BODY();
 
-	FChaosSolverConfiguration()
-		: Iterations(FEvolution::DefaultNumIterations)
-		, CollisionPairIterations(FEvolution::DefaultNumCollisionPairIterations)
-		, PushOutIterations(FEvolution::DefaultNumPushOutIterations)
-		, CollisionPushOutPairIterations(FEvolution::DefaultNumCollisionPushOutPairIterations)
-		, CollisionMarginFraction(FEvolution::DefaultCollisionMarginFraction)
-		, CollisionMarginMax(FEvolution::DefaultCollisionMarginMax)
-		, CollisionCullDistance(FEvolution::DefaultCollisionCullDistance)
-		, CollisionMaxPushOutVelocity(FEvolution::DefaultCollisionMaxPushOutVelocity)
-		, JointPairIterations(FEvolution::DefaultNumJointPairIterations)
-		, JointPushOutPairIterations(FEvolution::DefaultNumJointPushOutPairIterations)
-		, ClusterConnectionFactor(1.0f)
-		, ClusterUnionConnectionType(EClusterUnionMethod::DelaunayTriangulation)
-		, bGenerateCollisionData(false)
-		, bGenerateBreakData(false)
-		, bGenerateTrailingData(false)
-		, bGenerateContactGraph(true)
-	{
-	}
+	CHAOS_API FChaosSolverConfiguration();
 
 	// The number of iterations to run during the constraint solver step
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
@@ -93,7 +77,6 @@ struct FChaosSolverConfiguration
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Iterations")
 	int32 JointPushOutPairIterations;
 
-
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Clustering")
 	float ClusterConnectionFactor;
 
@@ -120,7 +103,4 @@ struct FChaosSolverConfiguration
 
 	UPROPERTY(EditAnywhere, Category = "SolverConfiguration|Contacts")
 	bool bGenerateContactGraph;
-
-private:
-	using FEvolution = Chaos::FPBDRigidsEvolutionGBF;
 };
