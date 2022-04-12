@@ -1298,7 +1298,7 @@ void AGameModeBase::RestartPlayerAtTransform(AController* NewPlayer, const FTran
 		}
 	}
 
-	if (IsValid(NewPlayer->GetPawn()))
+	if (!IsValid(NewPlayer->GetPawn()))
 	{
 		FailedToRestartPlayer(NewPlayer);
 	}
