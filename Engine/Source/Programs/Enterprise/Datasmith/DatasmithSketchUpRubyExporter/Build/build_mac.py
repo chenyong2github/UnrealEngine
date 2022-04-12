@@ -190,7 +190,6 @@ assert os.path.isfile(DatasmithSDKlib), DatasmithSDKlib
 link_cmd = [
     'xcrun',
     'clang++', 
-#    '-isysroot', '/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX11.1.sdk',
     '-target', 'x86_64-apple-macos10.15',
     '-Xlinker', '-export_dynamic',
     '-Xlinker', '-no_deduplicate',
@@ -201,7 +200,7 @@ link_cmd = [
 
 link_cmd.append('-bundle') # link ruby extension as a MacOs 'bundle' not dynamic lib
 
-link_cmd += ['-framework', 'Ruby'] # link to RUby framework (found by framework_search_paths)
+#link_cmd += ['-framework', 'Ruby'] # link to RUby framework (found by framework_search_paths)
 
 # Handle SketchUp API
 link_cmd += [
