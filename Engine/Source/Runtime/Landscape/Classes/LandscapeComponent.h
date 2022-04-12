@@ -1153,6 +1153,12 @@ public:
 
 	LANDSCAPE_API void SetLOD(bool bForced, int32 InLODValue);
 
+	UFUNCTION(BlueprintCallable, Category = "LandscapeComponent")
+	LANDSCAPE_API void SetForcedLOD(int32 InForcedLOD);
+
+	UFUNCTION(BlueprintCallable, Category = "LandscapeComponent")
+	LANDSCAPE_API void SetLODBias(int32 InLODBias);
+
 protected:
 
 #if WITH_EDITOR
