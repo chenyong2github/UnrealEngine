@@ -501,7 +501,7 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 	// Setup defines to map each VT stack to either 1 or 2 page table textures, depending on how many layers it uses
 	for (int i = 0; i < EmitMaterialData.VTStacks.Num(); ++i)
 	{
-		const FMaterialVirtualTextureStack& Stack = MaterialCompilationOutput.UniformExpressionSet.GetVTStacks()[i];
+		const FMaterialVirtualTextureStack& Stack = MaterialCompilationOutput.UniformExpressionSet.GetVTStack(i);
 
 		TStringBuilder<256> PageTableName;
 		PageTableName.Appendf(TEXT("VIRTUALTEXTURE_PAGETABLE_%d"), i);

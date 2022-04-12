@@ -703,7 +703,7 @@ uint32 AcquireVTStackIndex(
 	for (int32 Index = EmitMaterialData.VTStackHash.First(Hash.Hash); EmitMaterialData.VTStackHash.IsValid(Index); Index = EmitMaterialData.VTStackHash.Next(Index))
 	{
 		const FVTStackEntry& Entry = EmitMaterialData.VTStacks[Index];
-		if (!UniformExpressionSet.GetVTStacks()[Index].AreLayersFull() &&
+		if (!UniformExpressionSet.GetVTStack(Index).AreLayersFull() &&
 			Entry.EmitTexCoordValue == EmitTexCoordValue &&
 			Entry.EmitTexCoordValueDdx == EmitTexCoordValueDdx &&
 			Entry.EmitTexCoordValueDdy == EmitTexCoordValueDdy &&
