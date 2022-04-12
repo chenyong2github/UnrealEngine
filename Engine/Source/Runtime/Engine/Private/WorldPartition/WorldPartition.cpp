@@ -43,6 +43,7 @@
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -64,14 +65,13 @@ static FAutoConsoleVariableRef CVarGDefaultLoadingRangeHLOD0(
 TMap<FName, FString> GetDataLayersDumpString(const UWorldPartition* WorldPartition)
 {
 	TMap<FName, FString> DataLayersDumpString;
-	if (const AWorldDataLayers* WorldDataLayers = WorldPartition->GetWorld()->GetWorldDataLayers())
+	const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(WorldPartition->GetWorld());
+	DataLayerSubsystem->ForEachDataLayer([&DataLayersDumpString](const UDataLayerInstance* DataLayer)
 	{
-		WorldDataLayers->ForEachDataLayer([&DataLayersDumpString](const UDataLayerInstance* DataLayer)
-		{
-			DataLayersDumpString.FindOrAdd(DataLayer->GetDataLayerFName()) = FString::Format(TEXT("{0}({1})"), { DataLayer->GetDataLayerShortName(), DataLayer->GetDataLayerFName().ToString() });
-			return true;
-		});
-	}
+		DataLayersDumpString.FindOrAdd(DataLayer->GetDataLayerFName()) = FString::Format(TEXT("{0}({1})"), { DataLayer->GetDataLayerShortName(), DataLayer->GetDataLayerFName().ToString() });
+		return true;
+	});
+	
 	return DataLayersDumpString;
 }
 
@@ -799,7 +799,7 @@ UWorldPartition* UWorldPartition::CreateOrRepairWorldPartition(AWorldSettings* W
 		WorldSettings->MarkPackageDirty();
 
 		WorldPartition->DefaultHLODLayer = UHLODLayer::GetEngineDefaultHLODLayersSetup();
-
+		
 		AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers();
 		if (!WorldDataLayers)
 		{
@@ -1025,41 +1025,40 @@ bool UWorldPartition::ShouldActorBeLoadedByEditorCells(const FWorldPartitionActo
 		return false;
 	}
 
-	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-	{
-		// Use DataLayers of loaded/dirty Actor if available to handle dirtied actors
-		FWorldPartitionActorViewProxy ActorDescProxy(ActorDesc);
+	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
+	
+	// Use DataLayers of loaded/dirty Actor if available to handle dirtied actors
+	FWorldPartitionActorViewProxy ActorDescProxy(ActorDesc);
 
-		if (IsRunningCookCommandlet())
+	if (IsRunningCookCommandlet())
+	{
+		// When running cook commandlet, dont allow loading of actors with dynamically loaded data layers
+		for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayers())
 		{
-			// When running cook commandlet, dont allow loading of actors with dynamically loaded data layers
-			for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayers())
+			const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName);
+			if (DataLayerInstance && DataLayerInstance->IsRuntime())
 			{
-				const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerInstanceName);
-				if (DataLayerInstance && DataLayerInstance->IsRuntime())
-				{
-					return false;
-				}
+				return false;
 			}
-		}
-		else
-		{
-			uint32 NumValidLayers = 0;
-			for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayers())
-			{
-				if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerInstanceName))
-				{
-					if (DataLayerInstance->IsEffectiveLoadedInEditor())
-					{
-						return true;
-					}
-					NumValidLayers++;
-				}
-			}
-			return !NumValidLayers;
 		}
 	}
-
+	else
+	{
+		uint32 NumValidLayers = 0;
+		for (const FName& DataLayerInstanceName : ActorDescProxy.GetDataLayers())
+		{
+			if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName))
+			{
+				if (DataLayerInstance->IsEffectiveLoadedInEditor())
+				{
+					return true;
+				}
+				NumValidLayers++;
+			}
+		}
+		return !NumValidLayers;
+	}
+	
 	return true;
 };
 

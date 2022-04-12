@@ -9,18 +9,18 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 
 template<class LayerNameContainer>
 TSet<const UDataLayerInstance*> GetDataLayerInstances(UWorld* InWorld, const LayerNameContainer& DataLayerInstanceNames)
 {
 	TSet<const UDataLayerInstance*> DataLayerInstances;
-	if (const AWorldDataLayers* WorldDataLayers = InWorld->GetWorldDataLayers())
+	if (const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(InWorld))
 	{
 		for (const FName& DataLayerInstanceName : DataLayerInstanceNames)
 		{
-			if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerInstanceName))
+			if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName))
 			{
 				if (ensure(DataLayerInstance->IsRuntime()))
 				{
