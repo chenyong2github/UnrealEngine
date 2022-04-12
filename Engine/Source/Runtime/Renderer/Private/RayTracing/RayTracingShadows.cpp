@@ -190,9 +190,7 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingShadows(const FViewInfo& Vi
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 	// Ray tracing shadows shaders should be properly configured even if r.RayTracing.Shadows is 0 because lights can have raytracing shadows enabled independently of that CVar
 
-	const bool bRayTracingShadows = ShouldRenderRayTracingEffect(ERayTracingPipelineCompatibilityFlags::FullPipeline);
-
-	if (!bRayTracingShadows)
+	if (!ShouldRenderRayTracingShadows())
 	{
 		return;
 	}

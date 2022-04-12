@@ -484,6 +484,11 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflectionsDeferredMaterial
 {
 	// Declare all RayGen shaders that are used with deferred material sorts
 
+	if (!ShouldRenderRayTracingReflections(View))
+	{
+		return;
+	}
+
 	if (CVarRayTracingReflectionsExperimentalDeferred.GetValueOnRenderThread())
 	{
 		// If deferred reflections technique is used, then we only need to gather its shaders and skip the rest.
