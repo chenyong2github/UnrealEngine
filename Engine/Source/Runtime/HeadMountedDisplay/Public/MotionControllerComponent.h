@@ -137,6 +137,12 @@ private:
 	/** If true, the Position and Orientation args will contain the most recent controller state */
 	bool PollControllerState(FVector& Position, FRotator& Orientation, float WorldToMetersScale);
 
+	void OnModularFeatureUnregistered(const FName& Type, class IModularFeature* ModularFeature);
+	IMotionController* PolledMotionController_GameThread;
+	IMotionController* PolledMotionController_RenderThread;
+	FCriticalSection PolledMotionControllerMutex;
+
+
 	FTransform RenderThreadRelativeTransform;
 	FVector RenderThreadComponentScale;
 
