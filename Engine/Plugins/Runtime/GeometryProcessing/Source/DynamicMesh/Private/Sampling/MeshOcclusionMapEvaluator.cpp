@@ -278,3 +278,6 @@ FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFu
 	return FOcclusionTuple(AccumOcclusion, AccumNormal);
 }
 
+#undef WANT_AMBIENT_OCCLUSION
+#undef WANT_BENT_NORMAL
+#undef WANT_ALL

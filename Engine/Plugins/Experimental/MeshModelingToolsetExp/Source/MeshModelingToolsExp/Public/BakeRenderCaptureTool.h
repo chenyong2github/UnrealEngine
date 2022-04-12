@@ -58,7 +58,7 @@ struct FBakeRenderCaptureResultsBuilder
 	TUniquePtr<TImageBuilder<FVector4f>> PackedMRSImage; 
 	TUniquePtr<TImageBuilder<FVector4f>> EmissiveImage;
 	TUniquePtr<TImageBuilder<FVector4f>> ColorImage;
-	TUniquePtr<TImageBuilder<FVector3f>> NormalImage;
+	TUniquePtr<TImageBuilder<FVector4f>> NormalImage; // Tangent-space normal map
 };
 
 //
@@ -112,7 +112,7 @@ struct FMaterialProxySettingsRC
 	UPROPERTY(Category = Material, EditAnywhere, meta=(EditCondition="bPackedMRSMap == false"))
 	uint8 bSpecularMap:1;
 	
-	// Whether to generate a packed texture for the Metallic/Roughness/Specular properties
+	// Whether to generate a packed texture with Metallic, Roughness and Specular properties
 	UPROPERTY(Category = Material, EditAnywhere)
 	uint8 bPackedMRSMap:1;
 
@@ -172,8 +172,10 @@ public:
 	// Material Baking Settings
 	//
 
-	/** If Value is > 1, Multisample output baked textures by this amount in each direction (eg 4 == 16x supersampling) */
-	UPROPERTY(EditAnywhere, Category = MaterialSettings, meta = (ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "4"))
+	/** If Value is > 1, Multisample output baked textures by this amount in each direction (eg 4 == 16x supersampling).
+	 *  WIP feature currently disabled
+	 */
+	UPROPERTY(EditAnywhere, Category = MaterialSettings, meta = (ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "4", EditCondition="false"))
 	int32 MultiSamplingAA = 0;
 
 	/** If Value is zero, use MaterialSettings resolution, otherwise override the render capture resolution */

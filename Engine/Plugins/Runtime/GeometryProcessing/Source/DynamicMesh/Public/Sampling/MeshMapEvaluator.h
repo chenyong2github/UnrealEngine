@@ -19,7 +19,9 @@ enum class EMeshMapEvaluatorType
 	Curvature,
 	Property,
 	ResampleImage,
-	MultiResampleImage
+	MultiResampleImage,
+	GenericWorldPositionColor,
+	GenericWorldPositionNormal
 };
 
 class FMeshMapEvaluator
