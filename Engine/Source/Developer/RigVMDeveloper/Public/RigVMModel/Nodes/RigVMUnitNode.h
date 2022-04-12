@@ -60,6 +60,23 @@ public:
 	// @param bUseDefault If set to true the default struct will be created - otherwise the struct will contains the values from the node
 	TSharedPtr<FStructOnScope> ConstructStructInstance(bool bUseDefault = false) const;
 
+	// Returns a copy of the struct with the current values
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type* = nullptr
+	>
+	FORCEINLINE T ConstructStructInstance() const
+	{
+		if(!ensure(T::StaticStruct() == GetScriptStruct()))
+		{
+			return T();
+		}
+
+		TSharedPtr<FStructOnScope> Instance = ConstructStructInstance(false);
+		const T& InstanceRef = *(const T*)Instance->GetStructMemory();
+		return InstanceRef;
+	}
+
 	FRigVMStructUpgradeInfo GetUpgradeInfo() const;
 
 protected:

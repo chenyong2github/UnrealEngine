@@ -4,6 +4,7 @@
 
 #include "Animation/Rig.h"
 #include "RigVMCore/RigVMStruct.h"
+#include "RigVMModel/RigVMControllerActions.h"
 #include "RigVMUserWorkflowRegistry.h"
 
 FString URigVMUnitNode::GetNodeTitle() const

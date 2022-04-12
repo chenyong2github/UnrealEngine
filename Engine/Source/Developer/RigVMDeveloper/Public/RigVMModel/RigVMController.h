@@ -97,6 +97,42 @@ class RIGVMDEVELOPER_API URigVMControllerHost : public UInterface
 	GENERATED_BODY()
 };
 
+USTRUCT(BlueprintType)
+struct RIGVMDEVELOPER_API FRigStructScope
+{
+	GENERATED_BODY()
+
+public:
+	
+	FRigStructScope()
+		: ScriptStruct(nullptr)
+		, Memory(nullptr)
+	{}
+
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	FRigStructScope(const T& InInstance)
+		: ScriptStruct(T::StaticStruct())
+		, Memory((const uint8*)&InInstance)
+	{}
+
+	FRigStructScope(const FStructOnScope& InScope)
+		: ScriptStruct(Cast<UScriptStruct>(InScope.GetStruct()))
+		, Memory(InScope.GetStructMemory()) 
+	{}
+
+	const UScriptStruct* GetScriptStruct() const { return ScriptStruct; }
+	const uint8* GetMemory() const { return Memory; }
+	bool IsValid() const { return ScriptStruct != nullptr && Memory != nullptr; }
+
+protected:
+
+	const UScriptStruct* ScriptStruct;
+	const uint8* Memory;
+};
+
 // Interface that allows an object to host a rig VM controller. Used by graph edting code to interact with the controller.
 class RIGVMDEVELOPER_API IRigVMControllerHost
 {
@@ -115,7 +151,6 @@ public:
 	// Get or create a Rig VM controller corresponding to the supplied editor object that represents it (usually a UEdGraph) 
 	virtual URigVMController* GetOrCreateRigVMController(const UObject* InEditorObject) = 0;
 };
-
 
 /**
  * The Controller is the sole authority to perform changes
@@ -207,6 +242,33 @@ public:
 	// This causes a NodeAdded modified event.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMUnitNode* AddUnitNodeFromStructPath(const FString& InScriptStructPath, const FName& InMethodName = TEXT("Execute"), const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	// Adds a unit node using a template
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	URigVMUnitNode* AddUnitNode(const T& InDefaults, const FName& InMethodName = TEXT("Execute"), const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false)
+	{
+		return AddUnitNodeWithDefaults(T::StaticStruct(), InDefaults, InMethodName, InPosition, InNodeName, bSetupUndoRedo, bPrintPythonCommand); 
+	}
+
+	// Adds a Function / Struct Node to the edited Graph.
+	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
+	// This causes a NodeAdded modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	URigVMUnitNode* AddUnitNodeWithDefaults(UScriptStruct* InScriptStruct, const FString& InDefaults, const FName& InMethodName = TEXT("Execute"), const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	// Adds a Function / Struct Node to the edited Graph.
+	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
+	// This causes a NodeAdded modified event.
+	URigVMUnitNode* AddUnitNodeWithDefaults(UScriptStruct* InScriptStruct, const FRigStructScope& InDefaults, const FName& InMethodName = TEXT("Execute"), const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
+
+	// Adds a Function / Struct Node to the edited Graph.
+	// UnitNode represent a RIGVM_METHOD declaration on a USTRUCT.
+	// This causes a NodeAdded modified event.
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+	bool SetUnitNodeDefaults(URigVMUnitNode* InNode, const FRigStructScope& InDefaults, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);
 
 	// Adds a Variable Node to the edited Graph.
 	// Variables represent local work state for the function and
@@ -941,8 +1003,6 @@ private:
 	URigVMInjectionInfo* InjectNodeIntoPin(URigVMPin* InPin, bool bAsInput, const FName& InInputPinName, const FName& InOutputPinName, bool bSetupUndoRedo = true);
 	URigVMNode* EjectNodeFromPin(URigVMPin* InPin, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
 	bool EjectAllInjectedNodes(URigVMNode* InNode, bool bSetupUndoRedo = true, bool bPrintPythonCommands = false);
-	bool PerformUserWorkflowAction(const FRigVMUserWorkflow& InWorkflow, const FRigVMUserWorkflowAction& InAction, bool bSetupUndoRedo);
-	bool PerformUserWorkflowActions(const FRigVMUserWorkflow& InWorkflow, const TArray<FRigVMUserWorkflowAction>& InActions, bool bSetupUndoRedo);
 
 	// try to reconnect source and target pins after a node deletion
 	void RelinkSourceAndTargetPins(URigVMNode* RigNode, bool bSetupUndoRedo = true);

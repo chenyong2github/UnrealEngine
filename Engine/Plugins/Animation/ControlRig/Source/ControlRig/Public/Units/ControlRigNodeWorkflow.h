@@ -40,6 +40,6 @@ public:
 protected:
 
 #if WITH_EDITOR
-	static TArray<FRigVMUserWorkflowAction> ProvideTransformWorkflow(const URigVMUserWorkflowOptions* InOptions);
+	static bool PerformTransformWorkflow(const URigVMUserWorkflowOptions* InOptions, UObject* InController);
 #endif
 };

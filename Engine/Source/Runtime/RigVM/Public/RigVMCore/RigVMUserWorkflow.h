@@ -5,61 +5,14 @@
 #include "CoreMinimal.h"
 #include "Logging/TokenizedMessage.h"
 #include "RigVMCore/RigVMTraits.h"
+#include "UObject/StructOnScope.h"
 #include "RigVMUserWorkflow.generated.h"
 
 class URigVMUserWorkflowOptions;
 
 DECLARE_DELEGATE_ThreeParams(FRigVMReportDelegate, EMessageSeverity::Type, UObject*, const FString&);
-
-// Types of actions within a workflow
-UENUM(BlueprintType)
-enum class ERigVMUserWorkflowActionType : uint8
-{
-	Invalid = 0 UMETA(Hidden),
-	SetPinDefaultValue = 1
-};
-
-USTRUCT(BlueprintType)
-struct RIGVM_API FRigVMUserWorkflowAction
-{
-	GENERATED_BODY()
-
-public:
-
-	FORCEINLINE FRigVMUserWorkflowAction()
-    : Type(ERigVMUserWorkflowActionType::Invalid)
-    , Subject()
-    , Data()
-    {}
-
-	FORCEINLINE FRigVMUserWorkflowAction(
-		ERigVMUserWorkflowActionType InType,
-		UObject* InSubject,
-		const FString& InData)
-	: Type(InType)
-	, Subject(InSubject)
-	, Data(InData)
-	{}
-
-	FORCEINLINE bool IsValid() const { return Type != ERigVMUserWorkflowActionType::Invalid && Subject != nullptr; }
-	FORCEINLINE ERigVMUserWorkflowActionType GetType() const { return Type; }
-	FORCEINLINE UObject* GetSubject() const { return Subject; }
-	FORCEINLINE const FString& GetData() const { return Data; }
-	
-	template<typename T>
-	FORCEINLINE T* GetSubject() const { return Cast<T>(Subject.Get()); }
-
-protected:
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Action, meta = (AllowPrivateAccess = true))
-	ERigVMUserWorkflowActionType Type;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Action, meta = (AllowPrivateAccess = true))
-	TObjectPtr<UObject> Subject;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Action, meta = (AllowPrivateAccess = true))
-	FString Data;
-};
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMPerformUserWorkflowDelegate, const URigVMUserWorkflowOptions*, UObject*);
+DECLARE_DYNAMIC_DELEGATE_RetVal_TwoParams(bool, FRigVMPeformUserWorkflowDynamicDelegate, const URigVMUserWorkflowOptions*, InOptions, UObject*, InController);
 
 // Types of workflows offered by a rigvm struct node
 UENUM(BlueprintType)
@@ -72,9 +25,6 @@ enum class ERigVMUserWorkflowType : uint8
 	All = NodeContext | PinContext | OnPinDefaultChanged
 };
 
-DECLARE_DELEGATE_RetVal_OneParam(TArray<FRigVMUserWorkflowAction>, FRigVMWorkflowGetActionsDelegate, const URigVMUserWorkflowOptions*);
-DECLARE_DYNAMIC_DELEGATE_RetVal_OneParam(TArray<FRigVMUserWorkflowAction>, FRigVMWorkflowGetActionsDynamicDelegate, const URigVMUserWorkflowOptions*, InOptions);
-
 USTRUCT(BlueprintType)
 struct RIGVM_API FRigVMUserWorkflow
 {
@@ -83,11 +33,7 @@ struct RIGVM_API FRigVMUserWorkflow
 public:
 
 	FORCEINLINE FRigVMUserWorkflow()
-	: Title()
-	, Tooltip()
-	, Type(ERigVMUserWorkflowType::Invalid)
-	, OnGetActionsDelegate()
-	, OnGetActionsDynamicDelegate()
+	: Type(ERigVMUserWorkflowType::Invalid)
 	, OptionsClass(nullptr)
 	{}
 
@@ -95,13 +41,12 @@ public:
 		const FString& InTitle,
 		const FString& InTooltip,
 		ERigVMUserWorkflowType InType,
-		FRigVMWorkflowGetActionsDelegate InGetActionsDelegate,
+		FRigVMPerformUserWorkflowDelegate InGetActionsDelegate,
 		UClass* InOptionsClass)
 	: Title(InTitle)
 	, Tooltip(InTooltip)
 	, Type(InType)
-	, OnGetActionsDelegate(InGetActionsDelegate)
-	, OnGetActionsDynamicDelegate()
+	, PerformDelegate(InGetActionsDelegate)
 	, OptionsClass(InOptionsClass)
 	{}
 	
@@ -111,7 +56,7 @@ public:
 	{
 		return Type != ERigVMUserWorkflowType::Invalid &&
 			GetOptionsClass() != nullptr &&
-			(OnGetActionsDelegate.IsBound() || OnGetActionsDynamicDelegate.IsBound());
+			(PerformDelegate.IsBound() || PerformDynamicDelegate.IsBound());
 	}
 
 	FORCEINLINE const FString& GetTitle() const { return Title; }
@@ -119,7 +64,7 @@ public:
 	FORCEINLINE ERigVMUserWorkflowType GetType() const { return Type; }
 	FORCEINLINE UClass* GetOptionsClass() const { return OptionsClass; }
 
-	TArray<FRigVMUserWorkflowAction> GetActions(const URigVMUserWorkflowOptions* InOptions) const;
+	bool Perform(const URigVMUserWorkflowOptions* InOptions, UObject* InController) const;
 
 protected:
 
@@ -134,10 +79,10 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Workflow, meta = (AllowPrivateAccess = true))
 	ERigVMUserWorkflowType Type;
 
-	FRigVMWorkflowGetActionsDelegate OnGetActionsDelegate;
+	FRigVMPerformUserWorkflowDelegate PerformDelegate;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Workflow, meta = (ScriptName = "OnGetActions", AllowPrivateAccess = true))
-	FRigVMWorkflowGetActionsDynamicDelegate OnGetActionsDynamicDelegate;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Workflow, meta = (ScriptName = "OnPerformWorkflow", AllowPrivateAccess = true))
+	FRigVMPeformUserWorkflowDynamicDelegate PerformDynamicDelegate;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Workflow, meta = (AllowPrivateAccess = true))
 	TObjectPtr<UClass> OptionsClass;

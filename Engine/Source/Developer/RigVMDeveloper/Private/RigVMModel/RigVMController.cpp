@@ -835,6 +835,111 @@ URigVMUnitNode* URigVMController::AddUnitNodeFromStructPath(const FString& InScr
 	return AddUnitNode(ScriptStruct, InMethodName, InPosition, InNodeName, bSetupUndoRedo, bPrintPythonCommand);
 }
 
+URigVMUnitNode* URigVMController::AddUnitNodeWithDefaults(UScriptStruct* InScriptStruct, const FString& InDefaults,
+	const FName& InMethodName, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo,
+	bool bPrintPythonCommand)
+{
+	if(InScriptStruct == nullptr)
+	{
+		return nullptr;
+	}
+
+	FStructOnScope StructOnScope;
+
+	if(!InDefaults.IsEmpty())
+	{
+		StructOnScope = FStructOnScope(InScriptStruct);
+		
+		FRigVMPinDefaultValueImportErrorContext ErrorPipe;
+		InScriptStruct->ImportText(*InDefaults, StructOnScope.GetStructMemory(), nullptr, PPF_None, &ErrorPipe, FString());
+
+		if(ErrorPipe.NumErrors > 0)
+		{
+			return nullptr;
+		}
+	}
+
+	return AddUnitNodeWithDefaults(InScriptStruct, StructOnScope, InMethodName, InPosition, InNodeName, bSetupUndoRedo, bPrintPythonCommand);
+}
+
+URigVMUnitNode* URigVMController::AddUnitNodeWithDefaults(UScriptStruct* InScriptStruct, const FRigStructScope& InDefaults,
+                                                          const FName& InMethodName, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo,
+                                                          bool bPrintPythonCommand)
+{
+	if(InScriptStruct == nullptr)
+	{
+		return nullptr;
+	}
+
+	const bool bSetPinDefaults = InDefaults.IsValid() && (InDefaults.GetScriptStruct() == InScriptStruct); 
+	if(bSetPinDefaults)
+	{
+		static constexpr TCHAR AddUnitNodeTitle[] = TEXT("Add Unit Node");
+		OpenUndoBracket(AddUnitNodeTitle);
+	}
+
+	URigVMUnitNode* Node = AddUnitNode(InScriptStruct, InMethodName, InPosition, InNodeName, bSetupUndoRedo, bPrintPythonCommand);
+	if(Node == nullptr)
+	{
+		if(bSetPinDefaults)
+		{
+			CancelUndoBracket();
+		}
+		return nullptr;
+	}
+
+	if(bSetPinDefaults)
+	{
+		if(!SetUnitNodeDefaults(Node, InDefaults))
+		{
+			CancelUndoBracket();
+		}
+	}
+
+	CloseUndoBracket();
+	return Node;
+}
+
+bool URigVMController::SetUnitNodeDefaults(URigVMUnitNode* InNode, const FRigStructScope& InDefaults,
+	bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+	if(InNode == nullptr || !InDefaults.IsValid())
+	{
+		return false;
+	}
+
+	if(InNode->GetScriptStruct() != InDefaults.GetScriptStruct())
+	{
+		return false;
+	}
+
+	static constexpr TCHAR SetUnitNodeDefaultsTitle[] = TEXT("Set Unit Node Defaults");
+	OpenUndoBracket(SetUnitNodeDefaultsTitle);
+
+	for(URigVMPin* Pin : InNode->GetPins())
+	{
+		if(Pin->GetDirection() != ERigVMPinDirection::Input &&
+			Pin->GetDirection() != ERigVMPinDirection::IO &&
+			Pin->GetDirection() != ERigVMPinDirection::Visible)
+		{
+			continue;
+		}
+		
+		if(const FProperty* Property = InDefaults.GetScriptStruct()->FindPropertyByName(Pin->GetFName()))
+		{
+			const uint8* MemberMemoryPtr = Property->ContainerPtrToValuePtr<uint8>(InDefaults.GetMemory());
+			const FString NewDefault = FRigVMStruct::ExportToFullyQualifiedText(Property, MemberMemoryPtr);
+			if(NewDefault != Pin->GetDefaultValue())
+			{
+				SetPinDefaultValue(Pin->GetPinPath(), NewDefault, true, bSetupUndoRedo, false, bPrintPythonCommand);
+			}
+		}
+	}
+
+	CloseUndoBracket();
+	return true;
+}
+
 URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bIsGetter, const FString& InDefaultValue, const FVector2D& InPosition, const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if (!IsValidGraph())
@@ -7063,7 +7168,7 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 	
 	check(InPin);
 
-	if(!InPin->IsUObject())
+	if(!InPin->IsUObject() && bValidatePinDefaults)
 	{
 		ensure(!InDefaultValue.IsEmpty());
 	}
@@ -7160,16 +7265,6 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 			{
 				Graph->MarkPackageDirty();
 			}
-		}
-	}
-
-	if(bSetupUndoRedo)
-	{
-		TArray<FRigVMUserWorkflow> WorkflowsOnPinChange = InPin->GetNode()->GetSupportedWorkflows(ERigVMUserWorkflowType::OnPinDefaultChanged, InPin);
-		for(const FRigVMUserWorkflow& Workflow : WorkflowsOnPinChange)
-		{
-			const URigVMUserWorkflowOptions* Options = MakeOptionsForWorkflow(InPin, Workflow);
-			PerformUserWorkflow(Workflow, Options, bSetupUndoRedo);
 		}
 	}
 
@@ -10966,71 +11061,33 @@ URigVMUserWorkflowOptions* URigVMController::MakeOptionsForWorkflow(UObject* InS
 	return Options;
 }
 
-bool URigVMController::PerformUserWorkflowAction(const FRigVMUserWorkflow& InWorkflow, const FRigVMUserWorkflowAction& InAction, bool bSetupUndoRedo)
+bool URigVMController::PerformUserWorkflow(const FRigVMUserWorkflow& InWorkflow,
+	const URigVMUserWorkflowOptions* InOptions, bool bSetupUndoRedo)
 {
-	if(!InAction.IsValid())
+	if(!InWorkflow.IsValid() || !ensure(InOptions != nullptr))
 	{
 		return false;
 	}
 
-	static bool bIsPerformingUserWorkflowAction = false;
-	if(bIsPerformingUserWorkflowAction)
-	{
-		return false;
-	}
-	TGuardValue<bool> ReentryGuard(bIsPerformingUserWorkflowAction, true);
-	
-	switch(InAction.GetType())
-	{
-		case ERigVMUserWorkflowActionType::SetPinDefaultValue:
-		{
-			if(URigVMPin* Pin = InAction.GetSubject<URigVMPin>())
-			{
-				return SetPinDefaultValue(Pin->GetPinPath(), InAction.GetData(), true, bSetupUndoRedo, false, false);
-			}
-			break;
-		}
-		case ERigVMUserWorkflowActionType::Invalid:
-		default:
-		{
-			break;
-		}
-	}
-	return false;
-}
-
-bool URigVMController::PerformUserWorkflowActions(const FRigVMUserWorkflow& InWorkflow, const TArray<FRigVMUserWorkflowAction>& InActions, bool bSetupUndoRedo)
-{
-	if(InActions.IsEmpty())
-	{
-		return false;
-	}
-	
-	for(const FRigVMUserWorkflowAction& Action : InActions)
-	{
-		if(!Action.IsValid())
-		{
-			return false;
-		}
-	}
 
 	FRigVMBaseAction Bracket;
 	Bracket.Title = InWorkflow.GetTitle();
 	ActionStack->BeginAction(Bracket);
 
-	for(const FRigVMUserWorkflowAction& Action : InActions)
-	{
-		PerformUserWorkflowAction(InWorkflow, Action, bSetupUndoRedo);
-	}
+	const bool bSuccess = InWorkflow.Perform(InOptions, this);
 
 	ActionStack->EndAction(Bracket);
-	return true;
-}
 
-bool URigVMController::PerformUserWorkflow(const FRigVMUserWorkflow& InWorkflow,
-	const URigVMUserWorkflowOptions* InOptions, bool bSetupUndoRedo)
-{
-	return PerformUserWorkflowActions(InWorkflow, InWorkflow.GetActions(InOptions), bSetupUndoRedo);
+	if(!bSuccess)
+	{
+		// if the workflow was run as the top level action we'll undo
+		if(ActionStack->CurrentActions.IsEmpty())
+		{
+			ActionStack->Undo(this);
+		}
+	}
+
+	return bSuccess;
 }
 
 TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> URigVMController::GetAffectedReferences(ERigVMControllerBulkEditType InEditType, bool bForceLoad, bool bNotify)
@@ -14396,6 +14453,10 @@ void URigVMController::PostProcessDefaultValue(URigVMPin* Pin, FString& OutDefau
 		while (OutDefaultValue.EndsWith(TEXT("\"")))
 		{
 			OutDefaultValue = OutDefaultValue.LeftChop(1);
+		}
+		if(OutDefaultValue.IsEmpty() && Pin->GetCPPType() == RigVMTypeUtils::FNameType)
+		{
+			OutDefaultValue = FName(NAME_None).ToString();
 		}
 	}
 }

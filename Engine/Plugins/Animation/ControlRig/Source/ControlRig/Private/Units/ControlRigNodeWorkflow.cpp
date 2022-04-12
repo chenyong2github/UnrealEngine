@@ -5,6 +5,7 @@
 
 #if WITH_EDITOR
 #include "RigVMModel/RigVMNode.h"
+#include "RigVMModel/RigVMController.h"
 #endif
 
 bool UControlRigWorkflowOptions::EnsureAtLeastOneRigElementSelected() const
@@ -33,7 +34,7 @@ TArray<FRigVMUserWorkflow> UControlRigTransformWorkflowOptions::ProvideWorkflows
 					TEXT("Set from hierarchy"),
 					TEXT("Sets the pin to match the global transform of the selected element in the hierarchy"),
 					ERigVMUserWorkflowType::PinContext,
-					FRigVMWorkflowGetActionsDelegate::CreateStatic(&UControlRigTransformWorkflowOptions::ProvideTransformWorkflow),
+					FRigVMPerformUserWorkflowDelegate::CreateStatic(&UControlRigTransformWorkflowOptions::PerformTransformWorkflow),
 					StaticClass()
 				);
 			}
@@ -44,11 +45,12 @@ TArray<FRigVMUserWorkflow> UControlRigTransformWorkflowOptions::ProvideWorkflows
 }
 
 #if WITH_EDITOR
-TArray<FRigVMUserWorkflowAction> UControlRigTransformWorkflowOptions::ProvideTransformWorkflow(
-	const URigVMUserWorkflowOptions* InOptions)
-{
-	TArray<FRigVMUserWorkflowAction> Actions;
 
+bool UControlRigTransformWorkflowOptions::PerformTransformWorkflow(const URigVMUserWorkflowOptions* InOptions,
+	UObject* InController)
+{
+	URigVMController* Controller = CastChecked<URigVMController>(InController);
+	
 	if(const UControlRigTransformWorkflowOptions* Options = Cast<UControlRigTransformWorkflowOptions>(InOptions))
 	{
 		if(Options->EnsureAtLeastOneRigElementSelected())
@@ -57,16 +59,15 @@ TArray<FRigVMUserWorkflowAction> UControlRigTransformWorkflowOptions::ProvideTra
 			if(FRigTransformElement* TransformElement = (FRigTransformElement*)Options->Hierarchy->Find<FRigTransformElement>(Key))
 			{
 				const FTransform Transform = Options->Hierarchy->GetTransform(TransformElement, Options->TransformType);
-				
-				Actions.Emplace(
-					ERigVMUserWorkflowActionType::SetPinDefaultValue,
-					InOptions->GetSubject<URigVMPin>(),
+
+				return Controller->SetPinDefaultValue(
+					InOptions->GetSubject<URigVMPin>()->GetPinPath(),
 					FRigVMStruct::ExportToFullyQualifiedText<FTransform>(Transform)
 				);
 			}
 		}
 	}
 	
-	return Actions;
+	return false;
 }
 #endif

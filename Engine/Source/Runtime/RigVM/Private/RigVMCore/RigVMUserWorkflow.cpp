@@ -59,29 +59,23 @@ void URigVMUserWorkflowOptions::Report(EMessageSeverity::Type InSeverity,  const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TArray<FRigVMUserWorkflowAction> FRigVMUserWorkflow::GetActions(const URigVMUserWorkflowOptions* InOptions) const
+bool FRigVMUserWorkflow::Perform(const URigVMUserWorkflowOptions* InOptions, UObject* InController) const
 {
-	TArray<FRigVMUserWorkflowAction> Actions;
 	if(!IsValid() || !ValidateOptions(InOptions))
 	{
-		return Actions;
+		return false;
 	}
 
-	if(OnGetActionsDelegate.IsBound())
+	if(PerformDelegate.IsBound())
 	{
-		Actions = OnGetActionsDelegate.Execute(InOptions);
+		return PerformDelegate.Execute(InOptions, InController);
 	}
-	else if(OnGetActionsDynamicDelegate.IsBound())
+	else if(PerformDynamicDelegate.IsBound())
 	{
-		Actions = OnGetActionsDynamicDelegate.Execute(InOptions);
+		return PerformDynamicDelegate.Execute(InOptions, InController);
 	}
 	
-	Actions = Actions.FilterByPredicate([](const FRigVMUserWorkflowAction& Action) -> bool
-	{
-		return Action.IsValid();
-	});
-	
-	return Actions;
+	return false;
 }
 
 bool FRigVMUserWorkflow::ValidateOptions(const URigVMUserWorkflowOptions* InOptions) const
