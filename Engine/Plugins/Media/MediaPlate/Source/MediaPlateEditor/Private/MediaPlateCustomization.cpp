@@ -73,13 +73,6 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 
 	// Add media control buttons.
 	MediaPlateCategory.AddCustomRow(LOCTEXT("MediaPlateControls", "MediaPlate Controls"))
-		.NameContent()
-		[
-			SNullWidget::NullWidget
-		]
-		.ValueContent()
-		.VAlign(VAlign_Center)
-		.MaxDesiredWidth(250)
 		[
 			SNew(SHorizontalBox)
 
