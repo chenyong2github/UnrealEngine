@@ -23,6 +23,10 @@ TSharedPtr<IDetailCustomization> FGraphVariableDetailsCustomization::MakeInstanc
 		for (UObject* Object : *Objects)
 		{
 			UWidgetBlueprint* Blueprint = Cast<UWidgetBlueprint>(Object);
+			if (Blueprint == nullptr)
+			{
+				return nullptr;
+			}
 			if (FinalBlueprint.IsSet() && FinalBlueprint.GetValue() != Blueprint)
 			{
 				return nullptr;
