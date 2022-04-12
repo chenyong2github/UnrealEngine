@@ -1657,7 +1657,9 @@ void ParseReflectionData(const FShaderCompilerInput& ShaderInput, CrossCompiler:
 		}
 		else
 		{
-			if (bEmulatedUBs)
+			const FUniformBufferEntry* UniformBufferEntry = ShaderInput.Environment.UniformBufferMap.Find(Binding->name);
+
+			if (bEmulatedUBs && (UniformBufferEntry == nullptr || !UniformBufferEntry->bNoEmulatedUniformBuffer))
 			{
 				check(UBOIndices);
 				uint32 Index = FPlatformMath::CountTrailingZeros(UBOIndices);
@@ -2974,6 +2976,7 @@ static bool CompileToGlslWithShaderConductor(
 		default:
 			TargetDesc.CompileFlags.SetDefine(TEXT("force_flattened_io_blocks"), 1);
 			TargetDesc.CompileFlags.SetDefine(TEXT("emit_uniform_buffer_as_plain_uniforms"), 1);
+			TargetDesc.CompileFlags.SetDefine(TEXT("pad_ubo_blocks"), 1);
 			// TODO: Currently disabled due to bug when assigning an array to temporary variable
 			///TargetDesc.CompileFlags.SetDefine(TEXT("force_temporary"), 1);
 

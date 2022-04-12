@@ -946,6 +946,9 @@ public:
 	/** True if the uniform buffer is not used across frames. */
 	bool bStreamDraw;
 
+	/** True if the uniform buffer is emulated */
+	bool bIsEmulatedUniformBuffer;
+
 	/** Initialization constructor. */
 	FOpenGLUniformBuffer(const FRHIUniformBufferLayout* InLayout);
 

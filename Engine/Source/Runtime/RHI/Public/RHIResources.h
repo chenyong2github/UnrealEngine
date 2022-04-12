@@ -863,6 +863,7 @@ struct FRHIUniformBufferLayoutInitializer
 		Ar << Ref.UniformBuffers;
 		Ar << Ref.Name;
 		Ar << Ref.Hash;
+		Ar << Ref.bNoEmulatedUniformBuffer;
 		return Ar;
 	}
 
@@ -907,6 +908,9 @@ public:
 
 	/** Whether this layout may contain non-render-graph outputs (e.g. RHI UAVs). */
 	LAYOUT_FIELD_INITIALIZED(bool, bHasNonGraphOutputs, false);
+
+	/** Used for platforms which use emulated ub's, forces a real uniform buffer instead */
+	LAYOUT_FIELD_INITIALIZED(bool, bNoEmulatedUniformBuffer, false);
 };
 
 /** Compare two uniform buffer layout initializers. */
@@ -938,6 +942,7 @@ struct FRHIUniformBufferLayout : public FRHIResource
 		, StaticSlot(Initializer.StaticSlot)
 		, BindingFlags(Initializer.BindingFlags)
 		, bHasNonGraphOutputs(Initializer.bHasNonGraphOutputs)
+		, bNoEmulatedUniformBuffer(Initializer.bNoEmulatedUniformBuffer)
 	{}
 
 	inline const FString& GetDebugName() const
@@ -1002,6 +1007,9 @@ struct FRHIUniformBufferLayout : public FRHIResource
 
 	/** Whether this layout may contain non-render-graph outputs (e.g. RHI UAVs). */
 	const bool bHasNonGraphOutputs;
+
+	/** Used for platforms which use emulated ub's, forces a real uniform buffer instead */
+	const bool bNoEmulatedUniformBuffer;
 };
 
 /** Compare two uniform buffer layouts. */

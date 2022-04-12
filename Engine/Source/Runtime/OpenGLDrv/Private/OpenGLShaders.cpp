@@ -1208,7 +1208,6 @@ void FOpenGLDynamicRHI::BindUniformBufferBase(FOpenGLContextState& ContextState,
 	SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLUniformBindTime);
 	VERIFY_GL_SCOPE();
 	checkSlow(IsInRenderingThread() || IsInRHIThread());
-	check(!GUseEmulatedUniformBuffers);
 
 	for (int32 BufferIndex = 0; BufferIndex < NumUniformBuffers; ++BufferIndex)
 	{
@@ -1216,13 +1215,19 @@ void FOpenGLDynamicRHI::BindUniformBufferBase(FOpenGLContextState& ContextState,
 		uint32 Offset = 0;
 		uint32 Size = ZERO_FILLED_DUMMY_UNIFORM_BUFFER_SIZE;
 		int32 BindIndex = FirstUniformBuffer + BufferIndex;
+
 		if (IsValidRef(BoundUniformBuffers[BufferIndex]))
 		{
 			FRHIUniformBuffer* UB = BoundUniformBuffers[BufferIndex].GetReference();
-			Buffer = ((FOpenGLUniformBuffer*)UB)->Resource;
-			Size = ((FOpenGLUniformBuffer*)UB)->GetSize();
+			FOpenGLUniformBuffer* GLUB = ((FOpenGLUniformBuffer*)UB);
+			Buffer = GLUB->Resource;
+
+			if (GLUB->bIsEmulatedUniformBuffer)
+				continue;
+
+			Size = GLUB->GetSize();
 #if SUBALLOCATED_CONSTANT_BUFFER
-			Offset = ((FOpenGLUniformBuffer*)UB)->Offset;
+			Offset = GLUB->Offset;
 #endif
 		}
 		else
@@ -3633,52 +3638,49 @@ void FOpenGLDynamicRHI::BindPendingShaderState( FOpenGLContextState& ContextStat
 		ForceUniformBindingUpdate = FOpenGL::SupportsSeparateShaderObjects();
 	}
 
-	if (!GUseEmulatedUniformBuffers)
-	{
-		int32 NextUniformBufferIndex = OGL_FIRST_UNIFORM_BUFFER;
+	int32 NextUniformBufferIndex = OGL_FIRST_UNIFORM_BUFFER;
 
-		static_assert(SF_NumGraphicsFrequencies == 5 && SF_NumFrequencies == 10, "Unexpected SF_ ordering");
-		static_assert(SF_RayGen > SF_NumGraphicsFrequencies, "SF_NumGraphicsFrequencies be the number of frequencies supported in OpenGL");
+	static_assert(SF_NumGraphicsFrequencies == 5 && SF_NumFrequencies == 10, "Unexpected SF_ ordering");
+	static_assert(SF_RayGen > SF_NumGraphicsFrequencies, "SF_NumGraphicsFrequencies be the number of frequencies supported in OpenGL");
 
-		int32 NumUniformBuffers[SF_NumGraphicsFrequencies];
+	int32 NumUniformBuffers[SF_NumGraphicsFrequencies];
 
-		PendingState.BoundShaderState->GetNumUniformBuffers(NumUniformBuffers);
+	PendingState.BoundShaderState->GetNumUniformBuffers(NumUniformBuffers);
 			
-		PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_VERTEX, NextUniformBufferIndex);
+	PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_VERTEX, NextUniformBufferIndex);
 
+	BindUniformBufferBase(
+		ContextState,
+		NumUniformBuffers[SF_Vertex],
+		PendingState.BoundUniformBuffers[SF_Vertex],
+		NextUniformBufferIndex,
+		ForceUniformBindingUpdate);
+	NextUniformBufferIndex += NumUniformBuffers[SF_Vertex];
+
+	PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_PIXEL, NextUniformBufferIndex);
+	BindUniformBufferBase(
+		ContextState,
+		NumUniformBuffers[SF_Pixel],
+		PendingState.BoundUniformBuffers[SF_Pixel],
+		NextUniformBufferIndex,
+		ForceUniformBindingUpdate);
+	NextUniformBufferIndex += NumUniformBuffers[SF_Pixel];
+
+	if (NumUniformBuffers[SF_Geometry] >= 0)
+	{
+		PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_GEOMETRY, NextUniformBufferIndex);
 		BindUniformBufferBase(
 			ContextState,
-			NumUniformBuffers[SF_Vertex],
-			PendingState.BoundUniformBuffers[SF_Vertex],
+			NumUniformBuffers[SF_Geometry],
+			PendingState.BoundUniformBuffers[SF_Geometry],
 			NextUniformBufferIndex,
 			ForceUniformBindingUpdate);
-		NextUniformBufferIndex += NumUniformBuffers[SF_Vertex];
+		NextUniformBufferIndex += NumUniformBuffers[SF_Geometry];
+	}
 
-		PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_PIXEL, NextUniformBufferIndex);
-		BindUniformBufferBase(
-			ContextState,
-			NumUniformBuffers[SF_Pixel],
-			PendingState.BoundUniformBuffers[SF_Pixel],
-			NextUniformBufferIndex,
-			ForceUniformBindingUpdate);
-		NextUniformBufferIndex += NumUniformBuffers[SF_Pixel];
-
-		if (NumUniformBuffers[SF_Geometry] >= 0)
-		{
-			PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_GEOMETRY, NextUniformBufferIndex);
-			BindUniformBufferBase(
-				ContextState,
-				NumUniformBuffers[SF_Geometry],
-				PendingState.BoundUniformBuffers[SF_Geometry],
-				NextUniformBufferIndex,
-				ForceUniformBindingUpdate);
-			NextUniformBufferIndex += NumUniformBuffers[SF_Geometry];
-		}
-
-		if (FOpenGL::SupportsBindlessTexture())
-		{
-			SetupBindlessTextures(ContextState, PendingState.BoundShaderState->LinkedProgram->Samplers);
-		}
+	if (FOpenGL::SupportsBindlessTexture())
+	{
+		SetupBindlessTextures(ContextState, PendingState.BoundShaderState->LinkedProgram->Samplers);
 	}
 }
 
@@ -3839,17 +3841,14 @@ void FOpenGLDynamicRHI::BindPendingComputeShaderState(FOpenGLContextState& Conte
 		ForceUniformBindingUpdate = true;
 	}
 
-	if (!GUseEmulatedUniformBuffers)
-	{
-		ComputeShader->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_COMPUTE, OGL_FIRST_UNIFORM_BUFFER);
-		BindUniformBufferBase(
-			ContextState,
-			ComputeShader->Bindings.NumUniformBuffers,
-			PendingState.BoundUniformBuffers[SF_Compute],
-			OGL_FIRST_UNIFORM_BUFFER,
-			ForceUniformBindingUpdate);
-		SetupBindlessTextures( ContextState, ComputeShader->LinkedProgram->Samplers );
-	}
+	ComputeShader->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_COMPUTE, OGL_FIRST_UNIFORM_BUFFER);
+	BindUniformBufferBase(
+		ContextState,
+		ComputeShader->Bindings.NumUniformBuffers,
+		PendingState.BoundUniformBuffers[SF_Compute],
+		OGL_FIRST_UNIFORM_BUFFER,
+		ForceUniformBindingUpdate);
+	SetupBindlessTextures( ContextState, ComputeShader->LinkedProgram->Samplers );
 }
 
 /** Constructor. */
@@ -4013,6 +4012,10 @@ void FOpenGLShaderParameterCache::CommitPackedUniformBuffers(FOpenGLLinkedProgra
 		{
 			const FOpenGLUniformBuffer* UniformBuffer = (FOpenGLUniformBuffer*)RHIUniformBuffers[BufferIndex].GetReference();
 			check(UniformBuffer);
+
+			if (!UniformBuffer->bIsEmulatedUniformBuffer)
+				continue;
+
 			const uint32* RESTRICT SourceData = UniformBuffer->EmulatedBufferData->Data.GetData();
 			for (int32 InfoIndex = LastInfoIndex; InfoIndex < UniformBuffersCopyInfo.Num(); ++InfoIndex)
 			{
@@ -4041,6 +4044,10 @@ void FOpenGLShaderParameterCache::CommitPackedUniformBuffers(FOpenGLLinkedProgra
 		for (int32 BufferIndex = 0; BufferIndex < Bindings.NumUniformBuffers; ++BufferIndex)
 		{
 			const FOpenGLUniformBuffer* UniformBuffer = (FOpenGLUniformBuffer*)RHIUniformBuffers[BufferIndex].GetReference();
+
+			if (!UniformBuffer->bIsEmulatedUniformBuffer)
+				continue;
+
 			// Workaround for null UBs (FORT-323429), additional logging here is to give us a chance to investigate the higher level issue causing the null UB.
 #if !UE_BUILD_SHIPPING
 			UE_CLOG(UniformBuffer == nullptr && EmulatedUniformBufferSet.IsValidIndex(BufferIndex), LogRHI, Fatal, TEXT("CommitPackedUniformBuffers null UB stage %d, idx %d (%d), %s"), Stage, BufferIndex, EmulatedUniformBufferSet.Num(), *LinkedProgram->Config.ProgramKey.ToString());

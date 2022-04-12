@@ -50,6 +50,8 @@ struct FUniformBufferEntry
 	uint32 LayoutHash{};
 	/** The binding flags used by this resource table. */
 	EUniformBufferBindingFlags BindingFlags{ EUniformBufferBindingFlags::Shader };
+	/** Whether to force a real uniform buffer when using emulated uniform buffers */
+	bool bNoEmulatedUniformBuffer;
 };
 
 /** Parse the shader resource binding from the binding type used in shader code. */
@@ -121,6 +123,15 @@ public:
 
 		/** Uniform buffer generated from assets, such as material parameter collection or Niagara. */
 		DataDrivenUniformBuffer,
+	};
+
+	/** Additional flags that can be used to determine usage */
+	enum class EUsageFlags : uint8
+	{
+		None = 0,
+
+		/** On platforms that support emulated uniform buffers, disable them for this uniform buffer */
+		NoEmulatedUniformBuffer = 1 << 0,
 	};
 
 	/** Shader binding name of the uniform buffer that contains the root shader parameters. */
@@ -241,7 +252,8 @@ public:
 		uint32 InSize,
 		const TArray<FMember>& InMembers,
 		bool bForceCompleteInitialization = false,
-		FRHIUniformBufferLayoutInitializer* OutLayoutInitializer = nullptr);
+		FRHIUniformBufferLayoutInitializer* OutLayoutInitializer = nullptr,
+		uint32 InUsageFlags = 0);
 
 	virtual ~FShaderParametersMetadata();
 
@@ -275,6 +287,8 @@ public:
 	uint32 GetSize() const { return Size; }
 	EUseCase GetUseCase() const { return UseCase; }
 	inline bool IsLayoutInitialized() const { return Layout != nullptr; }
+	uint32 GetUsageFlags() const { return UsageFlags; }
+
 	const FRHIUniformBufferLayout& GetLayout() const
 	{
 		check(IsLayoutInitialized());
@@ -385,6 +399,8 @@ private:
 	/** Hash about the entire memory layout of the structure. */
 	uint32 LayoutHash = 0;
 
+	/** Additional flags for how to use the buffer */
+	uint32 UsageFlags = 0;
 
 	void InitializeLayout(FRHIUniformBufferLayoutInitializer* OutLayoutInitializer = nullptr);
 

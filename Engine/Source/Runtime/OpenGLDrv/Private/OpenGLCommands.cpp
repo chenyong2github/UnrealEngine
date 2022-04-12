@@ -2005,43 +2005,34 @@ FORCEINLINE void FOpenGLDynamicRHI::CommitNonComputeShaderConstants()
 	{
 		CommitNonComputeShaderConstantsSlowPath();
 	}
-	else
+	
+	FOpenGLLinkedProgram* LinkedProgram = PendingState.BoundShaderState->LinkedProgram;
+	if (LinkedProgram == PendingState.LinkedProgramAndDirtyFlag)
 	{
-		FOpenGLLinkedProgram* LinkedProgram = PendingState.BoundShaderState->LinkedProgram;
-		if (LinkedProgram == PendingState.LinkedProgramAndDirtyFlag)
-		{
-			return;
-		}
-		CommitNonComputeShaderConstantsFastPath(LinkedProgram);
-		PendingState.LinkedProgramAndDirtyFlag = LinkedProgram;
+		return;
 	}
+	CommitNonComputeShaderConstantsFastPath(LinkedProgram);
+	PendingState.LinkedProgramAndDirtyFlag = LinkedProgram;
 }
 
 
+// Only used for emulated uniform buffers
 void FOpenGLDynamicRHI::CommitNonComputeShaderConstantsSlowPath()
 {
 	VERIFY_GL_SCOPE();
 	PendingState.LinkedProgramAndDirtyFlag = nullptr;
 
 	FOpenGLLinkedProgram* LinkedProgram = PendingState.BoundShaderState->LinkedProgram;
-	if (GUseEmulatedUniformBuffers)
-	{
-		PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_VERTEX].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_VERTEX, PendingState.BoundUniformBuffers[SF_Vertex], PendingState.BoundShaderState->GetVertexShader()->UniformBuffersCopyInfo);
-	}
+	
+	PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_VERTEX].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_VERTEX, PendingState.BoundUniformBuffers[SF_Vertex], PendingState.BoundShaderState->GetVertexShader()->UniformBuffersCopyInfo);
 	PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_VERTEX].CommitPackedGlobals(LinkedProgram, CrossCompiler::SHADER_STAGE_VERTEX);
 
-	if (GUseEmulatedUniformBuffers)
-	{
-		PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_PIXEL].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_PIXEL, PendingState.BoundUniformBuffers[SF_Pixel], PendingState.BoundShaderState->GetPixelShader()->UniformBuffersCopyInfo);
-	}
+	PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_PIXEL].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_PIXEL, PendingState.BoundUniformBuffers[SF_Pixel], PendingState.BoundShaderState->GetPixelShader()->UniformBuffersCopyInfo);
 	PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_PIXEL].CommitPackedGlobals(LinkedProgram, CrossCompiler::SHADER_STAGE_PIXEL);
 
 	if (PendingState.BoundShaderState->GetGeometryShader())
 	{
-		if (GUseEmulatedUniformBuffers)
-		{
-			PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_GEOMETRY].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_GEOMETRY, PendingState.BoundUniformBuffers[SF_Geometry], PendingState.BoundShaderState->GetGeometryShader()->UniformBuffersCopyInfo);
-		}
+		PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_GEOMETRY].CommitPackedUniformBuffers(LinkedProgram, CrossCompiler::SHADER_STAGE_GEOMETRY, PendingState.BoundUniformBuffers[SF_Geometry], PendingState.BoundShaderState->GetGeometryShader()->UniformBuffersCopyInfo);
 		PendingState.ShaderParameters[CrossCompiler::SHADER_STAGE_GEOMETRY].CommitPackedGlobals(LinkedProgram, CrossCompiler::SHADER_STAGE_GEOMETRY);
 	}
 }
@@ -2065,10 +2056,7 @@ void FOpenGLDynamicRHI::CommitComputeShaderConstants(FOpenGLComputeShader* Compu
 	const int32 Stage = CrossCompiler::SHADER_STAGE_COMPUTE;
 	FOpenGLShaderParameterCache& StageShaderParameters = PendingState.ShaderParameters[Stage];
 
-	if (GUseEmulatedUniformBuffers)
-	{
-		StageShaderParameters.CommitPackedUniformBuffers(ComputeShader->LinkedProgram, Stage, PendingState.BoundUniformBuffers[Stage], ComputeShader->UniformBuffersCopyInfo);
-	}
+	StageShaderParameters.CommitPackedUniformBuffers(ComputeShader->LinkedProgram, Stage, PendingState.BoundUniformBuffers[Stage], ComputeShader->UniformBuffersCopyInfo);
 	StageShaderParameters.CommitPackedGlobals(ComputeShader->LinkedProgram, Stage);
 	PendingState.LinkedProgramAndDirtyFlag = nullptr;
 }

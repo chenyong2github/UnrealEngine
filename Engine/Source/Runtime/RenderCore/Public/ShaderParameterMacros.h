@@ -1379,6 +1379,23 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
 		sizeof(StructTypeName), \
 		StructTypeName::zzGetMembers())
 
+#define IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT_EX2(StructTypeName,ShaderVariableName,StaticSlotName,BindingFlagsEnum,UsageFlags) \
+	static_assert(EnumHasAnyFlags(EUniformBufferBindingFlags::BindingFlagsEnum, EUniformBufferBindingFlags::Static), "Shader bindings must include 'Static'."); \
+	FShaderParametersMetadata StructTypeName::StaticStructMetadata( \
+		FShaderParametersMetadata::EUseCase::UniformBuffer, \
+		EUniformBufferBindingFlags::BindingFlagsEnum, \
+		TEXT(#StructTypeName), \
+		TEXT(#StructTypeName), \
+		TEXT(ShaderVariableName), \
+		TEXT(#StaticSlotName), \
+		StructTypeName::FTypeInfo::FileName, \
+		StructTypeName::FTypeInfo::FileLine, \
+		sizeof(StructTypeName), \
+		StructTypeName::zzGetMembers(), \
+		false, \
+		nullptr, \
+		(uint32)UsageFlags)
+
 /** Implements the same contract as IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT, with the addition of the 'StaticAndShader' binding
  *  flag. This means that the uniform buffer may be bound statically or through SetShaderParameters. The uniform buffer is NOT
  *  removed from the parameter map, which means it is possible to end up with both global and shader bindings. The RHI validation
@@ -1387,6 +1404,9 @@ extern RENDERCORE_API FShaderParametersMetadata* FindUniformBufferStructByShader
  */
 #define IMPLEMENT_STATIC_AND_SHADER_UNIFORM_BUFFER_STRUCT(StructTypeName,ShaderVariableName,StaticSlotName) \
 	IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT_EX(StructTypeName, ShaderVariableName, StaticSlotName, StaticAndShader)
+
+#define IMPLEMENT_STATIC_AND_SHADER_UNIFORM_BUFFER_STRUCT_EX(StructTypeName,ShaderVariableName,StaticSlotName,UsageFlags) \
+	IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT_EX2(StructTypeName, ShaderVariableName, StaticSlotName, StaticAndShader, UsageFlags)
 
  /** Implements a uniform buffer tied to a static binding slot. The third parameter is the name of the slot.
   *  Multiple uniform buffers can be associated to a slot; only one uniform buffer can be bound to a slot

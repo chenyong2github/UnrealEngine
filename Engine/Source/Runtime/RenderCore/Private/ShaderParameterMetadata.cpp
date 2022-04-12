@@ -303,7 +303,8 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	uint32 InSize,
 	const TArray<FMember>& InMembers,
 	bool bForceCompleteInitialization,
-	FRHIUniformBufferLayoutInitializer* OutLayoutInitializer)
+	FRHIUniformBufferLayoutInitializer* OutLayoutInitializer,
+	uint32 InUsageFlags)
 	: LayoutName(InLayoutName)
 	, StructTypeName(InStructTypeName)
 	, ShaderVariableName(InShaderVariableName)
@@ -316,6 +317,7 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	, BindingFlags(InBindingFlags)
 	, Members(InMembers)
 	, GlobalListLink(this)
+	, UsageFlags(InUsageFlags)
 {
 	checkf(UseCase == EUseCase::UniformBuffer || !EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Static), TEXT("Only uniform buffers can utilize the global binding flag."));
 
@@ -422,6 +424,7 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 	FRHIUniformBufferLayoutInitializer LocalLayoutInitializer(LayoutName);
 	FRHIUniformBufferLayoutInitializer& LayoutInitializer = OutLayoutInitializer ? *OutLayoutInitializer : LocalLayoutInitializer;
 	LayoutInitializer.ConstantBufferSize = Size;
+	LayoutInitializer.bNoEmulatedUniformBuffer = UsageFlags & (uint32)EUsageFlags::NoEmulatedUniformBuffer;
 
 	if (StaticSlotName)
 	{
@@ -793,8 +796,9 @@ void FShaderParametersMetadata::AddResourceTableEntries(TMap<FString, FResourceT
 	
 	FUniformBufferEntry UniformBufferEntry;
 	UniformBufferEntry.StaticSlotName = StaticSlotName;
-	UniformBufferEntry.LayoutHash = GetLayout().GetHash();
+	UniformBufferEntry.LayoutHash = IsLayoutInitialized() ? GetLayout().GetHash() : 0;
 	UniformBufferEntry.BindingFlags = BindingFlags;
+	UniformBufferEntry.bNoEmulatedUniformBuffer = UsageFlags & (uint32)EUsageFlags::NoEmulatedUniformBuffer;
 	UniformBufferMap.Add(ShaderVariableName, UniformBufferEntry);
 }
 

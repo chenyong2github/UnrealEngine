@@ -407,6 +407,7 @@ inline FArchive& operator<<(FArchive& Ar, FUniformBufferEntry& Entry)
 	Ar << Entry.StaticSlotName;
 	Ar << Entry.LayoutHash;
 	Ar << Entry.BindingFlags;
+	Ar << Entry.bNoEmulatedUniformBuffer;
 	return Ar;
 }
 
