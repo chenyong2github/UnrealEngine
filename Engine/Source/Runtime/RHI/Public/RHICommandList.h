@@ -4721,6 +4721,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return GDynamicRHI->RHIIsRenderingSuspended();
 	}
 	
+	UE_DEPRECATED(5.1, "No longer used: FCompression::UncompressMemory should be used instead")
+	FORCEINLINE bool EnqueueDecompress(uint8_t* SrcBuffer, uint8_t* DestBuffer, int CompressedSize, void* ErrorCodeBuffer)
+	{
+		return false;
+	}
+
 	FORCEINLINE bool GetAvailableResolutions(FScreenResolutionArray& Resolutions, bool bIgnoreRefreshRate)
 	{
 		return RHIGetAvailableResolutions(Resolutions, bIgnoreRefreshRate);
