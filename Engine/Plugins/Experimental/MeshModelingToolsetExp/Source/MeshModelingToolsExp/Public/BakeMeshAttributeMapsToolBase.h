@@ -176,6 +176,9 @@ protected:
 	};
 	FBakeSettings CachedBakeSettings;
 
+	EBakeOpState UpdateResult_SampleFilterMask(UTexture2D* SampleFilterMask);
+	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedSampleFilterMask;
+
 	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> TargetMeshUVCharts;
 
 	/**

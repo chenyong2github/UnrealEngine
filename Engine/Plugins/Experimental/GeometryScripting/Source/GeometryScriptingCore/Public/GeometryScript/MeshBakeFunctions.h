@@ -210,6 +210,10 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptBakeTextureOptions
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	EGeometryScriptBakeSamplesPerPixel SamplesPerPixel = EGeometryScriptBakeSamplesPerPixel::Sample1;
 
+	/** Mask texture for filtering out samples/pixels from the output texture */
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	TObjectPtr<UTexture2D> SampleFilterMask = nullptr;
+
 	/** Maximum allowed distance for the projection from target mesh to source mesh for the sample to be considered valid.
 	 * This is only relevant if a separate source mesh is provided. */
 	UPROPERTY(BlueprintReadWrite, Category = Options)

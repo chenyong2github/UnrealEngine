@@ -104,6 +104,7 @@ public:
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	TSharedPtr<TArray<int32>, ESPMode::ThreadSafe> BaseMeshUVCharts;
 	bool bIsBakeToSelf = false;
+	ImagePtr SampleFilterMask;
 
 	// Map Type settings
 	EBakeMapType Maps;
@@ -140,6 +141,14 @@ public:
 		if (bIsBakeToSelf)
 		{
 			Baker->SetCorrespondenceStrategy(FMeshBaseBaker::ECorrespondenceStrategy::Identity);
+		}
+		if (SampleFilterMask)
+		{
+			Baker->SampleFilterF = [this](const FVector2i& ImageCoords, const FVector2d& UV, int32 TriID)
+			{
+				const FVector4f Color = SampleFilterMask->BilinearSampleUV<float>(UV, FVector4f(0, 0, 0, 1));
+				return Color.IsNearlyZero3();
+			};
 		}
 		
 		FMeshBakerDynamicMeshSampler DetailSampler(DetailMesh.Get(), DetailSpatial.Get(), DetailMeshTangents.Get());
@@ -293,6 +302,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->BitDepth, [this](EBakeTextureBitDepth) { OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->SamplesPerPixel, [this](EBakeTextureSamplesPerPixel) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->SampleFilterMask, [this](UTexture2D*){ OpState |= EBakeOpState::Evaluate; });
 	
 
 	InputMeshSettings = NewObject<UBakeInputMeshProperties>(this);
@@ -419,6 +429,7 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMeshAttribute
 	Op->BakeSettings = CachedBakeSettings;
 	Op->BaseMeshUVCharts = TargetMeshUVCharts;
 	Op->bIsBakeToSelf = bIsBakeToSelf;
+	Op->SampleFilterMask = CachedSampleFilterMask;
 
 	constexpr EBakeMapType RequiresTangents = EBakeMapType::TangentSpaceNormal | EBakeMapType::BentNormal;
 	if ((bool)(CachedBakeSettings.BakeMapTypes & RequiresTangents))
@@ -619,6 +630,8 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	OpState |= UpdateResult_TargetMeshTangents(CachedBakeSettings.BakeMapTypes);
 
 	OpState |= UpdateResult_DetailNormalMap();
+
+	OpState |= UpdateResult_SampleFilterMask(Settings->SampleFilterMask);
 
 	// Update map type settings
 	if ((bool)(CachedBakeSettings.BakeMapTypes & EBakeMapType::TangentSpaceNormal))

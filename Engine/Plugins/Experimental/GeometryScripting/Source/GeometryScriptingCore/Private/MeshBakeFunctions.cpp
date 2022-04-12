@@ -228,6 +228,24 @@ namespace GeometryScriptBakeLocals
 		return true;
 	};
 
+	TUniquePtr<TImageBuilder<FVector4f>> GetSampleFilterMask(
+		const FGeometryScriptBakeTextureOptions& Options,
+		const FText& DebugPrefix,
+		TArray<FGeometryScriptDebugMessage>* Debug)
+	{
+		if (Options.SampleFilterMask)
+		{
+			TUniquePtr<TImageBuilder<FVector4f>> Result = MakeUnique<TImageBuilder<FVector4f>>();
+			if (!UE::AssetUtils::ReadTexture(Options.SampleFilterMask, *Result, true))
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, FText::Format(LOCTEXT("Bake_InvalidSampleFilterMask", "{0}: Failed to read SampleFilterMask"), DebugPrefix));
+				return nullptr;
+			}
+			return Result;
+		}
+		return nullptr;
+	}
+
 	struct FEvaluatorState
 	{
 		const FDynamicMesh3* TargetMesh = nullptr;
@@ -495,6 +513,15 @@ namespace GeometryScriptBakeLocals
 		Baker.SetDimensions(BakeDimensions);
 		Baker.SetProjectionDistance(BakeOptions.ProjectionDistance);
 		Baker.SetSamplesPerPixel(GetSamplesPerPixel(BakeOptions.SamplesPerPixel));
+		TUniquePtr<TImageBuilder<FVector4f>> SampleFilterMask = GetSampleFilterMask(BakeOptions, BakeTexturePrefix, Debug);
+		if (SampleFilterMask)
+		{
+			Baker.SampleFilterF = [&SampleFilterMask](const FVector2i& ImageCoords, const FVector2d& UV, int32 TriID)
+			{
+				const FVector4f Color = SampleFilterMask->BilinearSampleUV<float>(UV, FVector4f(0, 0, 0, 1));
+				return Color.IsNearlyZero3();
+			};
+		}
 		if (bIsBakeToSelf)
 		{
 			Baker.SetCorrespondenceStrategy(FMeshBaseBaker::ECorrespondenceStrategy::Identity);

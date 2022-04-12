@@ -60,6 +60,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Textures)
 	EBakeTextureSamplesPerPixel SamplesPerPixel = EBakeTextureSamplesPerPixel::Sample1;
 
+	/** Mask texture for filtering out samples/pixels from the output texture */
+	UPROPERTY(EditAnywhere, Category = Textures, AdvancedDisplay)
+	TObjectPtr<UTexture2D> SampleFilterMask = nullptr;
+
 	UFUNCTION()
 	const TArray<FString>& GetMapPreviewNamesFunc()
 	{

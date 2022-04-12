@@ -512,9 +512,19 @@ void FMeshMapBaker::BakeSample(
 	float* Buffer = static_cast<float*>(FMemory_Alloca(sizeof(float) * BakeSampleBufferSize));
 	float* BufferPtr = Buffer;
 	const int32 NumBakers = Bakers.Num();
-	for (int32 Idx = 0; Idx < NumBakers; ++Idx)
+	if (SampleFilterF && SampleFilterF(ImageCoords, UVPosition, Sample.DetailTriID))
 	{
-		BakeContexts[Idx].Evaluate(BufferPtr, Sample, BakeContexts[Idx].EvalData);
+		for (int32 Idx = 0; Idx < NumBakers; ++Idx)
+		{
+			BakeContexts[Idx].EvaluateDefault(BufferPtr, BakeContexts[Idx].EvalData);
+		}
+	}
+	else
+	{
+		for (int32 Idx = 0; Idx < NumBakers; ++Idx)
+		{
+			BakeContexts[Idx].Evaluate(BufferPtr, Sample, BakeContexts[Idx].EvalData);
+		}
 	}
 	checkSlow((BufferPtr - Buffer) == BakeSampleBufferSize);
 

@@ -141,6 +141,29 @@ void UBakeMeshAttributeMapsToolBase::UpdateResult()
 }
 
 
+EBakeOpState UBakeMeshAttributeMapsToolBase::UpdateResult_SampleFilterMask(UTexture2D* SampleFilterMask)
+{
+	EBakeOpState ResultState = EBakeOpState::Clean;
+	if (SampleFilterMask)
+	{
+		CachedSampleFilterMask = MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>();
+		if (!UE::AssetUtils::ReadTexture(SampleFilterMask, *CachedSampleFilterMask, bPreferPlatformData))
+		{
+			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the sample filter mask"), EToolMessageLevel::UserWarning);
+			return EBakeOpState::Invalid;
+		}
+		ResultState = EBakeOpState::Evaluate;
+	}
+	else if (CachedSampleFilterMask)
+	{
+		// Clear CachedSampleFilterMask if SampleFilterMask is null and re-evaluate.
+		CachedSampleFilterMask.Reset();
+		ResultState = EBakeOpState::Evaluate;
+	}
+	return ResultState;
+}
+
+
 void UBakeMeshAttributeMapsToolBase::UpdateVisualization()
 {
 }

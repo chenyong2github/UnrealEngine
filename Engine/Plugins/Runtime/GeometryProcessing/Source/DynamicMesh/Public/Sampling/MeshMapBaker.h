@@ -47,9 +47,16 @@ public:
 	/** @return the bake result image for a given baker index. */
 	const TArrayView<TUniquePtr<TImageBuilder<FVector4f>>> GetBakeResults(int32 EvalIdx);
 
-	/** if this function returns true, we should abort calculation */
+	/** @return true if we should abort calculation */
 	TFunction<bool(void)> CancelF = []() { return false; };
 
+	/**
+	 * @param ImageCoords the output image coordinates to be evaluated
+	 * @param UV the target mesh UV coordinates to be evaluated
+	 * @param TriID the target mesh triangle ID to be evaluated
+	 * @return true if the given sample should be filtered (return default evaluator result)
+	 */
+	TFunction<bool(const FVector2i&, const FVector2d&, int32)> SampleFilterF = nullptr;
 
 	//
 	// Parameters
