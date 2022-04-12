@@ -156,6 +156,12 @@ TSharedRef<SWidget> FStateTreeStateLinkDetails::OnGetStateContent() const
 
 		FUIAction NotSetItemAction(FExecuteAction::CreateSP(const_cast<FStateTreeStateLinkDetails*>(this), &FStateTreeStateLinkDetails::OnStateComboChange, ComboNotSet));
 		MenuBuilder.AddMenuEntry(LOCTEXT("TransitionBlock", "Block Transition"), LOCTEXT("TransitionBlockTooltip", "Will not transition to any state, but will block other transitions to trigger if the condition passes."), FSlateIcon(), NotSetItemAction);
+
+		FUIAction SucceededItemAction(FExecuteAction::CreateSP(const_cast<FStateTreeStateLinkDetails*>(this), &FStateTreeStateLinkDetails::OnStateComboChange, ComboSucceeded));
+		MenuBuilder.AddMenuEntry(LOCTEXT("TransitionTreeSucceeded", "Tree Succeeded"), LOCTEXT("TransitionTreeSuccessTooltip", "Complete tree with success."), FSlateIcon(), SucceededItemAction);
+
+		FUIAction FailedItemAction(FExecuteAction::CreateSP(const_cast<FStateTreeStateLinkDetails*>(this), &FStateTreeStateLinkDetails::OnStateComboChange, ComboFailed));
+		MenuBuilder.AddMenuEntry(LOCTEXT("TransitionTreeFailed", "Tree Failed"), LOCTEXT("TransitionTreeFailedTooltip", "Complete tree with failure."), FSlateIcon(), FailedItemAction);
 	}
 
 	if (CachedNames.Num() > 0)
@@ -188,6 +194,14 @@ FText FStateTreeStateLinkDetails::GetCurrentStateDesc() const
 	else if (TransitionType == EStateTreeTransitionType::NextState)
 	{
 		return LOCTEXT("TransitionNextState", "Next State");
+	}
+	else if (TransitionType == EStateTreeTransitionType::Succeeded)
+	{
+		return LOCTEXT("TransitionTreeSucceeded", "Tree Succeeded");
+	}
+	else if (TransitionType == EStateTreeTransitionType::Failed)
+	{
+		return LOCTEXT("TransitionTreeFailed", "Tree Failed");
 	}
 	else if (TransitionType == EStateTreeTransitionType::GotoState)
 	{
