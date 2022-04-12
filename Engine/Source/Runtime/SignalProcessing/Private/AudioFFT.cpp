@@ -435,7 +435,7 @@ namespace Audio
 		void PerformDFT(const FFTTimeDomainData& InputParams, FFTFreqDomainData& OutputParams)
 		{
 			const float* InputBuffer = InputParams.Buffer;
-			float* OutReal = OutputParams.OutImag;
+			float* OutReal = OutputParams.OutReal;
 			float* OutImag = OutputParams.OutImag;
 
 			float N = InputParams.NumSamples;
@@ -460,7 +460,7 @@ namespace Audio
 		void PerformIDFT(const FFTFreqDomainData& InputParams, FFTTimeDomainData& OutputParams)
 		{
 			float* OutputBuffer = OutputParams.Buffer;
-			float* InReal = InputParams.OutImag;
+			float* InReal = InputParams.OutReal;
 			float* InImag = InputParams.OutImag;
 
 			float N = OutputParams.NumSamples;
