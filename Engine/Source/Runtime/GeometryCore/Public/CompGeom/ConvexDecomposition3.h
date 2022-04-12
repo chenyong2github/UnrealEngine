@@ -63,6 +63,14 @@ public:
 	// Angle at edge above which we don't sample it as a convex edge (expressed in degrees)
 	double ConvexEdgeAngleThreshold = 170;
 
+	// A bias term to favor merging away 'too thin' parts before merging other parts, expressed as a volume in units s.t. the longest axis of the original input bounding box is 1 unit long
+	// Because these merges *must* be done, it's generally safer to do them earlier, rather than hoping the error associated with them will go down after other merges are performed
+	double BiasToRemoveTooThinParts = .1;
+
+	// Maximum number of convex edges to sample for possible cutting planes when calling SplitWorst() to generate an initial convex decomposition
+	// Larger values will cost more to run but can let the algorithm find a cleaner decomposition
+	int32 MaxConvexEdgePlanes = 50;
+
 	// TODO: Provide hull approximation options?
 
 
@@ -71,9 +79,10 @@ public:
 	 * 
 	 * @param NumOutputHulls		Number of convex hulls to use in the final convex decomposition
 	 * @param NumAdditionalSplits	How far to go beyond the target number of hulls when initially the mesh into pieces -- larger values will require more computation but can find better convex decompositions
-	 * @param ErrorTolerance		Stop splitting when hulls have error less than this (expressed in cm; will be cubed for volumetric error)
+	 * @param ErrorTolerance		Stop splitting when hulls have error less than this (expressed in cm; will be cubed for volumetric error). Overrides NumOutputHulls if specified
+	 * @param MinThicknessTolerance	Optionally specify a minimum thickness (in cm) for convex parts; parts below this thickness will always be merged away. Overrides NumOutputHulls and ErrorTolerance when needed
 	 */
-	void Compute(int32 NumOutputHulls, int32 NumAdditionalSplits = 10, double ErrorTolerance = 0.0)
+	void Compute(int32 NumOutputHulls, int32 NumAdditionalSplits = 10, double ErrorTolerance = 0.0, double MinThicknessTolerance = 0)
 	{
 		int32 TargetNumSplits = NumOutputHulls + NumAdditionalSplits;
 		for (int32 SplitIdx = 0; SplitIdx < TargetNumSplits; SplitIdx++)
@@ -84,8 +93,9 @@ public:
 				break;
 			}
 		}
-		Compact();
-		MergeBest(NumHulls() - NumOutputHulls, ErrorTolerance);
+		
+		constexpr bool bAllowCompact = true;
+		MergeBest(NumOutputHulls, ErrorTolerance, MinThicknessTolerance, bAllowCompact);
 	}
 
 	// Split the worst convex part, and return the increase in the total number of convex parts after splitting (can be more than 1 if result has multiple separate connected components)
@@ -93,30 +103,39 @@ public:
 	// @param bCanSkipUnreliableGeoVolumes		if true, don't split hulls where we have questionable geometry volume results, unless there is no hull with good geometry volume results
 	int32 SplitWorst(bool bCanSkipUnreliableGeoVolumes = false, double ErrorTolerance = 0.0);
 
-	// Merge the pairs of convex hulls in the decomposition that will least increase the error
-	// @param NumMerges				The target number of merges to perform.  Intermediate results can be used across merges, so it is best to do all merges in one call.
-	// @param ErrorTolerance		If > 0, continue to merge (if there are possible merges) until the resulting error would be greater than this value. Overrides NumMerges as the stopping condition.
-	// Note ErrorTolerance is expressed in cm, and will be cubed for volumetric error.
+	// Merge the pairs of convex hulls in the decomposition that will least increase the error.  Intermediate results can be used across merges, so it is best to do all merges in one call.
+	// @param TargetNumParts		The target number of parts for the decomposition; will be overriden by non-default ErrorTolerance or MinPartThickness
+	// @param ErrorTolerance		If > 0, continue to merge (if there are possible merges) until the resulting error would be greater than this value. Overrides TargetNumParts as the stopping condition.
+	//								Note: ErrorTolerance is expressed in cm, and will be cubed for volumetric error.
+	// @param MinPartThickness		Optionally specify a minimum thickness (in cm) for convex parts; parts below this thickness will always be merged away. Overrides TargetNumParts and ErrorTolerance when needed.
+	//								Note: These parts may be further split so they can be merged into multiple hulls
+	// @param bAllowCompact			Allow the algorithm to discard underlying geometry once it will no longer be used, resulting in a smaller representation & faster merges
 	// @return						The number of merges performed
-	int32 MergeBest(int32 NumMerges, double ErrorTolerance = 0);
+	int32 MergeBest(int32 TargetNumParts, double ErrorTolerance = 0, double MinThicknessTolerance = 0, bool bAllowCompact = true);
 
 	// simple helper to convert an error tolerance expressed in world space to a local-space volume tolerance
 	inline double ConvertDistanceToleranceToLocalVolumeTolerance(double DistTolerance) const
 	{
-		double LocalDist = DistTolerance / ResultTransform.GetScale().GetMax();
+		double LocalDist = ConvertDistanceToleranceToLocalSpace(DistTolerance);
 		double LocalVolume = LocalDist * LocalDist * LocalDist;
 		return LocalVolume;
 	}
 
-	// TODO: Implement a MergeSmall method to provide a way to ensure removal of low-quality parts
-	// Use merges remove convex hulls that are too small or too flat
-	// @param MinVolumeTolerance		Hulls with a smaller volume than this will be removed by merges (units in cm^3)
-	// @param MinThicknessTolerance		Hulls thinner than this will be removed by merges (units in cm)
-	// Note hull thickness is measured by first fitting a plane to the hull points then measuring their span in the plane normal direction
-	//int32 MergeSmall(double MinVolumeTolerance, double MinThicknessTolerance = FMathd::MaxReal);
+	// simple helper to convert an error tolerance expressed in world space to local space
+	inline double ConvertDistanceToleranceToLocalSpace(double DistTolerance) const
+	{
+		double ScaleFactor = ResultTransform.GetScale().GetMax();
+		if (!ensure(ScaleFactor >= FMathd::Epsilon)) // If ScaleFactor is zero, ResultTransform is trying to collapse all the hulls to a degenerate space -- likely indicates an incorrect ResultTransform
+		{
+			ScaleFactor = FMathd::Epsilon;
+		}
+		double LocalDist = DistTolerance / ScaleFactor;
+		return LocalDist;
+	}
 
 	// Compact the decomposition representation to the minimal needed for output: Just the hull vertices and triangles, no internal geometry
-	// Only call this if no more decomposition will be performed, but merges can still be performed on the compact representation
+	// This will prevent some further processing on the representation; to ensure it is called only when the geometry is no longer needed,
+	// instead of calling this directly, call MergeBest with bAllowCompact=true
 	void Compact()
 	{
 		for (FConvexPart& Part : Decomposition)
@@ -195,12 +214,14 @@ public:
 			HullPlanes.Reset();
 			HullVolume = 0;
 			GeoVolume = 0;
+			SumHullsVolume = -FMathd::MaxReal;
 			GeoCenter = FVector3d::ZeroVector;
 			Bounds = FAxisAlignedBox3d::Empty();
 			HullError = FMathd::MaxReal;
 			bIsCompact = false;
 			bFailed = false;
 			bGeometryVolumeUnreliable = false;
+			bMustMerge = false;
 		}
 
 		// Underlying geometry represented by the convex part
@@ -227,6 +248,9 @@ public:
 		FAxisAlignedBox3d Bounds;
 		bool bGeometryVolumeUnreliable = false;
 
+		// Flag indicating the hull should be merged into another part during a MergeBest() call
+		bool bMustMerge = false;
+
 		// Approximate value indicating how badly the hull mismatches the input geometry
 		double HullError = FMathd::MaxReal;
 
@@ -252,7 +276,7 @@ public:
 		}
 
 		// Helper to create hull after InternalGeo is set
-		void ComputeHull(bool bComputePlanes = true);
+		bool ComputeHull(bool bComputePlanes = true);
 
 		// Helper to compute volumes, centroid, bounds, etc after the convex part is initialized
 		void ComputeStats();
