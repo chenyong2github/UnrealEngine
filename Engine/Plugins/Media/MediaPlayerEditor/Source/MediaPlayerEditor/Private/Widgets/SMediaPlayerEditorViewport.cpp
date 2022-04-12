@@ -30,7 +30,8 @@ SMediaPlayerEditorViewport::SMediaPlayerEditorViewport()
  *****************************************************************************/
 
 void SMediaPlayerEditorViewport::Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer,
-	UMediaTexture* InMediaTexture, const TSharedRef<ISlateStyle>& InStyle)
+	UMediaTexture* InMediaTexture, const TSharedRef<ISlateStyle>& InStyle,
+	bool bInIsSoundEnabled)
 {
 	MediaPlayer = &InMediaPlayer;
 	Style = InStyle;
@@ -63,7 +64,7 @@ void SMediaPlayerEditorViewport::Construct(const FArguments& InArgs, UMediaPlaye
 						})
 						[
 							// movie texture
-							SNew(SMediaPlayerEditorOutput, InMediaPlayer, InMediaTexture)
+							SNew(SMediaPlayerEditorOutput, InMediaPlayer, InMediaTexture, bInIsSoundEnabled)
 						]
 					]
 				]

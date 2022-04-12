@@ -7,6 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class UMediaPlayer;
+class UMediaSoundComponent;
 class UMediaTexture;
 
 
@@ -32,9 +33,11 @@ public:
 	 * @param InMediaPlayer The UMediaPlayer asset to show the details for.
 	 * @param InMediaTexture The UMediaTexture asset to output video to. If nullptr then use our own.
 	 * @param InStyleSet The style set to use.
+	 * @param bInIsSoundEnabled If true then produce sound.
 	 */
 	void Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer,
-		UMediaTexture* InMediaTexture, const TSharedRef<ISlateStyle>& InStyle);
+		UMediaTexture* InMediaTexture, const TSharedRef<ISlateStyle>& InStyle,
+		bool bInIsSoundEnabled);
 
 public:
 

@@ -61,12 +61,12 @@ SMediaPlayerEditorOutput::~SMediaPlayerEditorOutput()
  *****************************************************************************/
 
 void SMediaPlayerEditorOutput::Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer,
-	UMediaTexture* InMediaTexture)
+	UMediaTexture* InMediaTexture, bool bInIsSoundEnabled)
 {
 	MediaPlayer = &InMediaPlayer;
 
 	// create media sound component
-	if ((GEngine != nullptr) && GEngine->UseSound())
+	if ((GEngine != nullptr) && GEngine->UseSound() && (bInIsSoundEnabled))
 	{
 		SoundComponent = NewObject<UMediaSoundComponent>(GetTransientPackage(), NAME_None, RF_Transient | RF_Public);
 
