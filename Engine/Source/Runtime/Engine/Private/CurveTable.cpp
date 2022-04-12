@@ -224,7 +224,7 @@ void UCurveTable::Serialize(FArchive& Ar)
 				FRichCurve* Curve = (FRichCurve*)RowIt.Value();
 				if (Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData() && CVar_CurveTable_RemoveRedundantKeys > 0)
 				{
-					Curve->RemoveRedundantKeys(0.f);
+					Curve->RemoveRedundantAutoTangentKeys(0.f);
 				}
 				FRichCurve::StaticStruct()->SerializeTaggedProperties(Ar, (uint8*)Curve, FRichCurve::StaticStruct(), nullptr);
 			}

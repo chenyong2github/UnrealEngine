@@ -1355,7 +1355,7 @@ bool UnFbx::FFbxImporter::ImportCurveToAnimSequence(class UAnimSequence * Target
 		{
 			if (ImportOptions->bRemoveRedundantKeys)
 			{
-				RichCurve.RemoveRedundantKeys(SMALL_NUMBER);
+				RichCurve.RemoveRedundantAutoTangentKeys(SMALL_NUMBER);
 			}
 
 			// Set actual keys on curve within the model

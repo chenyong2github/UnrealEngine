@@ -55,7 +55,7 @@ bool UAnimCurveCompressionCodec_CompressedRichCurve::Compress(const FCompressibl
 		const FFloatCurve& Curve = AnimSeq.RawFloatCurves[CurveIndex];
 
 		FRichCurve RawCurve = Curve.FloatCurve;	// Copy
-		RawCurve.RemoveRedundantKeys(MaxCurveError);
+		RawCurve.RemoveRedundantAutoTangentKeys(MaxCurveError);
 
 		FCompressedRichCurve CompressedCurve;
 		RawCurve.CompressCurve(CompressedCurve, MaxCurveError, SampleRate);

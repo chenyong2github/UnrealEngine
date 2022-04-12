@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Curves/IndexedCurve.h"
+#include "Misc/FrameRate.h"
 #include "RealCurve.generated.h"
 
 /** Method of interpolation between this key and the next. */
@@ -131,9 +132,9 @@ public:
 	virtual void BakeCurve(float SampleRate) PURE_VIRTUAL(FRealCurve::BakeCurve, );
 	virtual void BakeCurve(float SampleRate, float FirstKeyTime, float LastKeyTime) PURE_VIRTUAL(FRealCurve::BakeCurve, );
 
-	/** Remove redundant keys, comparing against Tolerance */
-	virtual void RemoveRedundantKeys(float Tolerance) PURE_VIRTUAL(FRealCurve::RemoveRedundantKeys, );
-	virtual void RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float LastKeyTime) PURE_VIRTUAL(FRealCurve::RemoveRedundantKeys, );
+	/** Remove redundant keys, comparing against Tolerance (and optional use of sample-rate for additional testing) */
+	virtual void RemoveRedundantKeys(float Tolerance, FFrameRate SampleRate = FFrameRate(0,0)) PURE_VIRTUAL(FRealCurve::RemoveRedundantKeys, );
+	virtual void RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float LastKeyTime, FFrameRate SampleRate = FFrameRate(0,0)) PURE_VIRTUAL(FRealCurve::RemoveRedundantKeys, );
 
 protected:
 	static void CycleTime(float MinTime, float MaxTime, float& InTime, int& CycleCount);

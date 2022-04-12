@@ -532,12 +532,12 @@ void FRawCurveTracks::AddFloatCurveKey(const FSmartName& NewCurve, int32 CurveFl
 	FloatCurve->UpdateOrAddKey(Value, Time);
 }
 
-void FRawCurveTracks::RemoveRedundantKeys()
+void FRawCurveTracks::RemoveRedundantKeys(float Tolerance /*= UE_SMALL_NUMBER*/, FFrameRate SampleRate /*= FFrameRate(0,0)*/ )
 {
 	for (auto CurveIter = FloatCurves.CreateIterator(); CurveIter; ++CurveIter)
 	{
 		FFloatCurve& Curve = *CurveIter;
-		Curve.FloatCurve.RemoveRedundantKeys(UE_SMALL_NUMBER);
+		Curve.FloatCurve.RemoveRedundantKeys(Tolerance, SampleRate);
 	}
 }
 #endif

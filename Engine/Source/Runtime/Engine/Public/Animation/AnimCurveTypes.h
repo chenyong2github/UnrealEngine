@@ -847,7 +847,7 @@ struct FRawCurveTracks
 	* Add new float curve from the given UID if not existing and add the key with time/value
 	*/
 	ENGINE_API void AddFloatCurveKey(const FSmartName& NewCurve, int32 CurveFlags, float Time, float Value);
-	ENGINE_API void RemoveRedundantKeys();
+	ENGINE_API void RemoveRedundantKeys(float Tolerance = UE_SMALL_NUMBER, FFrameRate SampleRate = FFrameRate(0,0));
 
 #endif // WITH_EDITOR
 	/**

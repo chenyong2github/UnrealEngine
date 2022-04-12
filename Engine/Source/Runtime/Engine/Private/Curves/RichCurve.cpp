@@ -197,7 +197,7 @@ bool FRichCurveKey::Serialize(FArchive& Ar)
 
 				if (bHasArriveWeight && bHasLeaveWeight)
 				{
-					TangentWeightMode = RCTWM_WeightedBoth;				
+					TangentWeightMode = RCTWM_WeightedBoth;
 				}
 				else if (bHasArriveWeight)
 				{
@@ -809,7 +809,7 @@ void FRichCurve::ReadjustTimeRange(float NewMinTimeRange, float NewMaxTimeRange,
 		}
 	}
 
-	RemoveRedundantKeys(0.f);
+	RemoveRedundantAutoTangentKeys(0.f);
 
 	// now cull out all out of range 
 	float MinTime, MaxTime;
@@ -892,17 +892,27 @@ void FRichCurve::BakeCurve(float SampleRate, float FirstKeyTime, float LastKeyTi
 	}
 }
 
-void FRichCurve::RemoveRedundantKeys(float Tolerance)
+void FRichCurve::RemoveRedundantAutoTangentKeys(float Tolerance)
+{
+	RemoveRedundantKeys(Tolerance, FFrameRate(0,0));
+}
+
+void FRichCurve::RemoveRedundantKeys(float Tolerance, FFrameRate SampleRate)
 {
 	if (Keys.Num() < 3)
 	{
 		return;
 	}
 
-	RemoveRedundantKeysInternal(Tolerance, 0, Keys.Num() - 1);
+	RemoveRedundantKeysInternal(Tolerance, 0, Keys.Num() - 1, SampleRate);
 }
 
-void FRichCurve::RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float LastKeyTime)
+void FRichCurve::RemoveRedundantAutoTangentKeys(float Tolerance, float FirstKeyTime, float LastKeyTime)
+{
+	RemoveRedundantKeys(Tolerance, FirstKeyTime, LastKeyTime, FFrameRate(0,0));
+}
+
+void FRichCurve::RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float LastKeyTime, FFrameRate SampleRate)
 {
 	if (FirstKeyTime >= LastKeyTime)
 	{
@@ -927,7 +937,7 @@ void FRichCurve::RemoveRedundantKeys(float Tolerance, float FirstKeyTime, float 
 
 	if ((StartKey != INDEX_NONE) && (EndKey != INDEX_NONE))
 	{
-		RemoveRedundantKeysInternal(Tolerance, StartKey, EndKey);
+		RemoveRedundantKeysInternal(Tolerance, StartKey, EndKey, SampleRate);
 	}
 }
 
@@ -1192,7 +1202,7 @@ float EvalForTwoKeys(const FRichCurveKey& Key1, const FRichCurveKey& Key2, const
 	}
 }
 
-void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepKey, int32 InEndKeepKey)
+void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepKey, int32 InEndKeepKey, FFrameRate SampleRate)
 {
 	if (Keys.Num() < 3) // Will always keep first and last key
 	{
@@ -1243,11 +1253,59 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 
 		//Add keys up to the first end keep key if they are not redundant
 		int32 MostRecentKeepKeyIndex = 0;
+
+		const bool bTryRemoveUserTangentKeys = SampleRate.IsValid();
 		for (int32 TestIndex = ActualStartKeepKey+1; TestIndex < ActualEndKeepKey; ++TestIndex) //Loop within the bounds of the first and last key
 		{
-			const float KeyValue = Keys[TestIndex].Value;
-			const float ValueWithoutKey = EvalForTwoKeys(Keys[MostRecentKeepKeyIndex], Keys[TestIndex + 1], Keys[TestIndex].Time);
-			if (FMath::Abs(ValueWithoutKey - KeyValue) > Tolerance) // Is this key needed
+			bool bKeepKey = false;
+			
+			if (bTryRemoveUserTangentKeys)
+			{
+				const FFrameTime KeyOneFrameTime = SampleRate.AsFrameTime(Keys[MostRecentKeepKeyIndex].Time);
+				const FFrameTime KeyTwoFrameTime = SampleRate.AsFrameTime(Keys[TestIndex + 1].Time);
+
+				FFrameTime SampleFrameTime = KeyOneFrameTime;
+				const float ToRemoveKeyTime = Keys[TestIndex].Time;
+
+				// Sample curve at intervals, dictated by provided sample-rate, between the keys surrounding the to-be-removed key
+				// this makes sure that any impact on non-lerp keys is taken into account
+				while (SampleFrameTime <= KeyTwoFrameTime)
+				{
+					const float SampleSeconds = SampleRate.AsSeconds(SampleFrameTime);
+					const float ValueWithoutKey = EvalForTwoKeys(Keys[MostRecentKeepKeyIndex], Keys[TestIndex + 1], SampleSeconds);
+
+					const FRichCurveKey& KeyOne = SampleSeconds <= ToRemoveKeyTime ? Keys[MostRecentKeepKeyIndex] : Keys[TestIndex];
+					const FRichCurveKey& KeyTwo = SampleSeconds <= ToRemoveKeyTime ? Keys[TestIndex] : Keys[TestIndex + 1];
+					const float ValueWithKey = EvalForTwoKeys(KeyOne, KeyTwo, SampleSeconds);
+				
+					if (FMath::Abs(ValueWithoutKey - ValueWithKey) > Tolerance)
+					{
+						bKeepKey = true;
+						break;
+					}
+
+					// Next frame
+					SampleFrameTime.FrameNumber += 1;	
+				}
+			}
+			else
+			{
+				auto IsNonUserTangentKey = [](const FRichCurveKey& Key)
+				{
+					return Key.TangentMode != RCTM_User && Key.TangentMode != RCTM_Break;
+				};
+
+				bKeepKey = true;
+				if (IsNonUserTangentKey(Keys[MostRecentKeepKeyIndex]) && IsNonUserTangentKey(Keys[TestIndex + 1]) && IsNonUserTangentKey(Keys[TestIndex]))
+				{
+					const float KeyValue = Keys[TestIndex].Value;
+					const float ValueWithoutKey = EvalForTwoKeys(Keys[MostRecentKeepKeyIndex], Keys[TestIndex + 1], Keys[TestIndex].Time);
+
+					bKeepKey = FMath::Abs(ValueWithoutKey - KeyValue) > Tolerance;
+				}
+			}			
+			
+			if (bKeepKey) // Is this key needed
 			{
 				MostRecentKeepKeyIndex = TestIndex;
 				NewKeys.Add(Keys[TestIndex]);
@@ -1267,7 +1325,6 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 	AutoSetTangents();
 
 	// Rebuild KeyHandlesToIndices
-
 	check(Keys.Num() == KeepHandles.Num());
 	KeyHandlesToIndices.Initialize(KeepHandles);
 }

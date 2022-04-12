@@ -109,14 +109,69 @@ void UCurveEditorReduceFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurve
 			TArray<FKeyHandle> KeysToRemove;
 			for (int32 TestIndex = 1; TestIndex < KeyHandles.Num() - 1; ++TestIndex)
 			{
+				bool bKeepKey = false;				
+				if (bTryRemoveUserSetTangentKeys && SampleRate.IsValid())
+				{
+					const FFrameTime KeyOneFrameTime = SampleRate.AsFrameTime(SelectedKeyPositions[MostRecentKeepKeyIndex].InputValue);
+					const FFrameTime KeyTwoFrameTime = SampleRate.AsFrameTime(SelectedKeyPositions[TestIndex + 1].InputValue);
 
-				const float KeyValue = SelectedKeyPositions[TestIndex].OutputValue;
-				const float ValueWithoutKey = EvalForTwoKeys(SelectedKeyPositions[MostRecentKeepKeyIndex], SelectedKeyAttributes[MostRecentKeepKeyIndex],
-					SelectedKeyPositions[TestIndex + 1], SelectedKeyAttributes[TestIndex + 1],
-					SelectedKeyPositions[TestIndex].InputValue);
+					FFrameTime SampleFrameTime = KeyOneFrameTime;
+					const double ToRemoveKeyTime = SelectedKeyPositions[TestIndex].InputValue;
 
-				// Check if there is a great enough change in value to consider this key needed.
-				if (FMath::Abs(ValueWithoutKey - KeyValue) > Tolerance)
+					// Sample curve at intervals, dictated by provided sample-rate, between the keys surrounding the to-be-removed key
+					// this makes sure that any impact on non-lerp keys is taken into account
+					while (SampleFrameTime <= KeyTwoFrameTime)
+					{
+						const double SampleSeconds = SampleRate.AsSeconds(SampleFrameTime);
+						const float ValueWithoutKey = EvalForTwoKeys(SelectedKeyPositions[MostRecentKeepKeyIndex],	SelectedKeyAttributes[MostRecentKeepKeyIndex],
+							SelectedKeyPositions[TestIndex + 1], SelectedKeyAttributes[TestIndex + 1],
+							SampleSeconds);
+
+						const FKeyPosition& KeyOne = SampleSeconds <= ToRemoveKeyTime ? SelectedKeyPositions[MostRecentKeepKeyIndex] : SelectedKeyPositions[TestIndex];
+						const FKeyPosition& KeyTwo = SampleSeconds <= ToRemoveKeyTime ? SelectedKeyPositions[TestIndex] : SelectedKeyPositions[TestIndex + 1];
+						
+						const FKeyAttributes& AttributesOne = SampleSeconds <= ToRemoveKeyTime ? SelectedKeyAttributes[MostRecentKeepKeyIndex] : SelectedKeyAttributes[TestIndex];
+						const FKeyAttributes& AttributesTwo = SampleSeconds <= ToRemoveKeyTime ? SelectedKeyAttributes[TestIndex] : SelectedKeyAttributes[TestIndex + 1];
+						
+						const float ValueWithKey = EvalForTwoKeys(KeyOne, AttributesOne,KeyTwo, AttributesTwo, SampleSeconds);
+				
+						if (FMath::Abs(ValueWithoutKey - ValueWithKey) > Tolerance)
+						{
+							bKeepKey = true;
+							break;
+						}
+
+						// Next frame
+						SampleFrameTime.FrameNumber += 1;	
+					}	
+					
+				}
+				else
+				{
+					auto IsNonUserTangentKey = [](const FKeyAttributes& KeyAttributes)
+					{
+						return !KeyAttributes.HasTangentMode() ||
+							(KeyAttributes.GetTangentMode() != RCTM_User && KeyAttributes.GetTangentMode() != RCTM_Break);
+					};
+					
+					bKeepKey = true;
+
+					// Only try to remove keys which have automatic tangent data
+					if (IsNonUserTangentKey(SelectedKeyAttributes[MostRecentKeepKeyIndex]) &&
+						IsNonUserTangentKey(SelectedKeyAttributes[TestIndex]) &&
+						IsNonUserTangentKey(SelectedKeyAttributes[TestIndex + 1]))
+					{
+						const float KeyValue = SelectedKeyPositions[TestIndex].OutputValue;
+						const float ValueWithoutKey = EvalForTwoKeys(SelectedKeyPositions[MostRecentKeepKeyIndex], SelectedKeyAttributes[MostRecentKeepKeyIndex],
+							SelectedKeyPositions[TestIndex + 1], SelectedKeyAttributes[TestIndex + 1],
+							SelectedKeyPositions[TestIndex].InputValue);
+
+						// Check if there is a great enough change in value to consider this key needed.
+						bKeepKey = FMath::Abs(ValueWithoutKey - KeyValue) > Tolerance;
+					}
+				}
+
+				if (bKeepKey)
 				{
 					MostRecentKeepKeyIndex = TestIndex;
 				}

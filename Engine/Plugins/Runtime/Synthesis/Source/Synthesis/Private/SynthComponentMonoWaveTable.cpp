@@ -87,7 +87,7 @@ void UMonoWaveTableSynthPreset::EditChangeInternal()
 			bChangedThisCurve = true;
 		}
 
-		Curve.EditorCurveData.RemoveRedundantKeys(SMALL_NUMBER, -0.1, 1.1);
+		Curve.EditorCurveData.RemoveRedundantAutoTangentKeys(SMALL_NUMBER, -0.1, 1.1);
 
 		// Loop through Keys in this Curve...
 		for (auto& Key : Curve.EditorCurveData.Keys)
