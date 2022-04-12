@@ -153,16 +153,16 @@ struct FAnimTrace
 	}
 
 	/** Helper function to output a tracked value for an anim node */
-	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, bool InValue);
-	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, int32 InValue);
-	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, float InValue);
-	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FVector2D& InValue);
-	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FVector& InValue);
-	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FRotator& InValue);
-	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const FName& InValue);
-	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const TCHAR* InValue);
-	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const UClass* InValue);
-	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, const TCHAR* InKey, const UObject* InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, bool InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, int32 InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, float InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, const FVector2D& InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, const FVector& InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, const FRotator& InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, const FName& InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, const TCHAR* InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, const UClass* InValue);
+	ENGINE_API static void OutputAnimNodeValue(const FAnimationBaseContext& InContext, uint32 NodeIndex, const TCHAR* InKey, const UObject* InValue);
 
 	/** Helper function to output debug info for sequence player nodes */
 	ENGINE_API static void OutputAnimSequencePlayer(const FAnimationBaseContext& InContext, const FAnimNode_SequencePlayerBase& InNode);
@@ -217,7 +217,10 @@ struct FAnimTrace
 	FAnimTrace::FScopedAnimNodeTraceSuspend _ScopedAnimNodeTraceSuspend;
 
 #define TRACE_ANIM_NODE_VALUE(Context, Key, Value) \
-	FAnimTrace::OutputAnimNodeValue(Context, Key, Value);
+	FAnimTrace::OutputAnimNodeValue(Context, Context.GetCurrentNodeId(), Key, Value);
+
+#define TRACE_ANIM_NODE_VALUE_WITH_ID(Context, NodeId, Key, Value) \
+	FAnimTrace::OutputAnimNodeValue(Context, NodeId, Key, Value);
 
 #define TRACE_ANIM_SEQUENCE_PLAYER(Context, Node) \
 	FAnimTrace::OutputAnimSequencePlayer(Context, Node);
@@ -249,6 +252,7 @@ struct FAnimTrace
 #define TRACE_ANIM_NODE_BLENDABLE_ATTRIBUTES(Context, TargetNodeId, SourceNodeId)
 #define TRACE_SCOPED_ANIM_NODE_SUSPEND
 #define TRACE_ANIM_NODE_VALUE(Context, Key, Value)
+#define TRACE_ANIM_NODE_VALUE_WITH_ID(Context, NodeId, Key, Value)
 #define TRACE_ANIM_SEQUENCE_PLAYER(Context, Node)
 #define TRACE_ANIM_STATE_MACHINE_STATE(Context, StateMachineIndex, StateIndex, StateWeight, ElapsedTime)
 #define TRACE_ANIM_NOTIFY(AnimInstance, NotifyEvent, EventType)
