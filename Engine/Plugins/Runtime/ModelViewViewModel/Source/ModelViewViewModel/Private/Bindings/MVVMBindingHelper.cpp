@@ -114,7 +114,7 @@ namespace UE::MVVM::BindingHelper
 	bool IsValidForRuntimeConversion(const UFunction* InFunction)
 	{
 		if (Private::IsValidCommon(InFunction)
-			&& (InFunction->HasAllFunctionFlags(FUNC_Static) || InFunction->HasAnyFunctionFlags(FUNC_Const | FUNC_BlueprintPure))
+			&& (InFunction->HasAllFunctionFlags(FUNC_Static) || InFunction->HasAllFunctionFlags(FUNC_Const | FUNC_BlueprintPure))
 			&& InFunction->NumParms == 2)
 		{
 			const FProperty* ReturnProperty = GetReturnProperty(InFunction);
@@ -381,7 +381,7 @@ namespace UE::MVVM::BindingHelper
 			return MakeError(MoveTemp(CommonResult));
 		}
 
-		if (!InFunction->HasAllFunctionFlags(FUNC_Static) && !InFunction->HasAnyFunctionFlags(FUNC_Const | FUNC_BlueprintPure))
+		if (!InFunction->HasAllFunctionFlags(FUNC_Static) && !InFunction->HasAllFunctionFlags(FUNC_Const | FUNC_BlueprintPure))
 		{
 			return MakeError(FString::Printf(TEXT("The function '%s' is not static or is not const and pure."), *InFunction->GetName()));
 		}

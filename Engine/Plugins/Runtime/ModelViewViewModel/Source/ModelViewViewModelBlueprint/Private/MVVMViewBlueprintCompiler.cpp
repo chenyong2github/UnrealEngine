@@ -154,7 +154,7 @@ void FMVVMViewBlueprintCompiler::CreateVariables(const FWidgetBlueprintCompilerC
 					}
 					else
 					{
-						WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The field for source '%s' exist but is not a property.")
+						WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The field for source '%s' exists but is not a property.")
 							, *SourceContext.DisplayName));
 						bAreSourcesCreatorValid = false;
 						continue;
@@ -404,7 +404,7 @@ bool FMVVMViewBlueprintCompiler::PreCompile(UWidgetBlueprintGeneratedClass* Clas
 	PreCompileSourceCreators(Class, BlueprintView);
 	PreCompileBindings(Class, BlueprintView);
 
-	return bAreSourcesCreatorValid && bIsBindingsValid && bIsBindingsValid;
+	return bAreSourcesCreatorValid && bAreSourceContextsValid && bIsBindingsValid;
 }
 
 
