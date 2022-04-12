@@ -230,6 +230,7 @@ void UMaterialInstanceConstant::UpdateCachedData()
 
 		if (bUsingNewHLSLGenerator && bHasStaticPermutationResource)
 		{
+			check(!LocalCachedExpressionData);
 			LocalCachedExpressionData = new FMaterialCachedExpressionData();
 			LocalCachedExpressionData->Reset();
 			LocalCachedExpressionData->UpdateForCachedHLSLTree(GetCachedHLSLTree(), &LocalStaticParameters);
