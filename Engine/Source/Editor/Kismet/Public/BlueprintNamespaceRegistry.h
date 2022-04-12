@@ -77,6 +77,9 @@ protected:
 	void DumpAllRegisteredPaths();
 	void OnDefaultNamespaceTypeChanged();
 
+	/** Handler for hot reload / live coding completion events. */
+	void OnReloadComplete(EReloadCompleteReason InReason);
+
 private:
 	/** Indicates whether the registry has been initialized. */
 	bool bIsInitialized;
@@ -85,6 +88,7 @@ private:
 	FDelegateHandle OnAssetAddedDelegateHandle;
 	FDelegateHandle OnAssetRemovedDelegateHandle;
 	FDelegateHandle OnAssetRenamedDelegateHandle;
+	FDelegateHandle OnReloadCompleteDelegateHandle;
 	FDelegateHandle OnDefaultNamespaceTypeChangedDelegateHandle;
 
 	/** Handles storage and retrieval for namespace path identifiers. */

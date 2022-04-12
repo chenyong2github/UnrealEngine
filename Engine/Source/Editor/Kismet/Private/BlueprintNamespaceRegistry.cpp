@@ -59,6 +59,7 @@ void FBlueprintNamespaceRegistry::Initialize()
 
 		FindAndRegisterAllNamespaces();
 
+		OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FBlueprintNamespaceRegistry::OnReloadComplete);
 		OnDefaultNamespaceTypeChangedDelegateHandle = FBlueprintNamespaceUtilities::OnDefaultBlueprintNamespaceTypeChanged().AddRaw(this, &FBlueprintNamespaceRegistry::OnDefaultNamespaceTypeChanged);
 	}
 
@@ -72,6 +73,7 @@ void FBlueprintNamespaceRegistry::Shutdown()
 		return;
 	}
 
+	FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);
 	FBlueprintNamespaceUtilities::OnDefaultBlueprintNamespaceTypeChanged().Remove(OnDefaultNamespaceTypeChangedDelegateHandle);
 
 	if (FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry")))
@@ -139,6 +141,12 @@ void FBlueprintNamespaceRegistry::OnAssetRenamed(const FAssetData& AssetData, co
 
 		PathTree->AddPath(NewDefaultNamespacePath);
 	}
+}
+
+void FBlueprintNamespaceRegistry::OnReloadComplete(EReloadCompleteReason InReason)
+{
+	// Rebuild the registry to reflect the appropriate default namespace identifiers for any reloaded types.
+	Rebuild();
 }
 
 bool FBlueprintNamespaceRegistry::IsRegisteredPath(const FString& InPath) const
