@@ -910,6 +910,8 @@ void FViewInfo::Init()
 	SinCosInscatteringColorCubemapRotation = FVector2f::ZeroVector;
 	FogInscatteringColorCubemap = nullptr;
 	FogInscatteringTextureParameters = FVector::ZeroVector;
+	VolumetricFogStartDistance = false;
+	VolumetricFogStartDistance = 0.0f;
 	VolumetricFogNearFadeInDistanceInv = 100000000.0f;
 
 	SkyAtmosphereCameraAerialPerspectiveVolume = nullptr;

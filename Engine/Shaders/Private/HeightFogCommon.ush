@@ -231,29 +231,29 @@ float4 CombineVolumetricFog(float4 GlobalFog, float3 VolumeUV, uint EyeIndex, fl
 	float4 VolumetricFogLookup = float4(0, 0, 0, 1);
 
 #if PERMUTATION_SUPPORT_VOLUMETRIC_FOG
-	float StartDistance = 0.0f;
+	float VolFogStartDistance = 0.0f;
 	if (FogStruct.ApplyVolumetricFog > 0)
 	{
 	#if INSTANCED_STEREO
 		if (EyeIndex == 0)
 		{
-			StartDistance = FogStruct.ExponentialFogParameters.w;
+			VolFogStartDistance = FogStruct.VolumetricFogStartDistance;
 			VolumetricFogLookup = Texture3DSampleLevel(FogStruct.IntegratedLightScattering, SharedIntegratedLightScatteringSampler, VolumeUV, 0);
 		}
 		else
 		{
-			StartDistance = FogStructISR.ExponentialFogParameters.w;
+			VolFogStartDistance = FogStructISR.VolumetricFogStartDistance;
 			VolumetricFogLookup = Texture3DSampleLevel(FogStructISR.IntegratedLightScattering, SharedIntegratedLightScatteringSampler, VolumeUV, 0);
 		}
 	#else
-		StartDistance = FogStruct.ExponentialFogParameters.w;
+		VolFogStartDistance = FogStruct.VolumetricFogStartDistance;
 		VolumetricFogLookup = Texture3DSampleLevel(FogStruct.IntegratedLightScattering, SharedIntegratedLightScatteringSampler, VolumeUV, 0);
 	#endif
 	}
 
 	// Do not apply the Froxel volumetric texture in front of the fog start distance. (the soft fading occur in FinalIntegrationCS).
-	// We go with a quickly increasing step function because the soft fade in occur in FinalIntegrationCS.
-	VolumetricFogLookup = lerp(float4(0, 0, 0, 1), VolumetricFogLookup, saturate((SceneDepth - StartDistance) * 100000000.0f));
+	// We go with a quickly increasing step function because the soft fade in from start distance occurs in FinalIntegrationCS.
+	VolumetricFogLookup = lerp(float4(0, 0, 0, 1), VolumetricFogLookup, saturate((SceneDepth - VolFogStartDistance) * 100000000.0f));
 #endif
 
 	// Visualize depth distribution

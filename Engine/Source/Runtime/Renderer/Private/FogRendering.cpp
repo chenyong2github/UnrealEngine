@@ -92,6 +92,7 @@ void SetupFogUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 			OutParameters.ApplyVolumetricFog = 0.0f;
 		}
 		OutParameters.IntegratedLightScatteringSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		OutParameters.VolumetricFogStartDistance = View.VolumetricFogStartDistance;
 		OutParameters.VolumetricFogNearFadeInDistanceInv = View.VolumetricFogNearFadeInDistanceInv;
 	}
 }
@@ -258,6 +259,8 @@ void FSceneRenderer::InitFogConstants()
 					View.DirectionalInscatteringColor = FogInfo.DirectionalInscatteringColor * SunLight->Proxy->GetColor().GetLuminance();
 				}
 				View.bUseDirectionalInscattering = SunLight != nullptr;
+				View.bEnableVolumetricFog = FogInfo.bEnableVolumetricFog;
+				View.VolumetricFogStartDistance = FogInfo.VolumetricFogStartDistance;
 				View.VolumetricFogNearFadeInDistanceInv = FogInfo.VolumetricFogNearFadeInDistance > 0.0f ? (1.0f / FogInfo.VolumetricFogNearFadeInDistance) : 100000000.0f;
 			}
 		}
@@ -332,9 +335,12 @@ static void RenderViewFog(
 	GraphicsPSOInit.bDepthBounds = GSupportsDepthBoundsTest && CVarFogUseDepthBounds.GetValueOnAnyThread();
 	if (GraphicsPSOInit.bDepthBounds)
 	{
+		float ExpFogStartDistance = View.ExponentialFogParameters.W;
+		float VolFogStartDistance = View.bEnableVolumetricFog ? View.VolumetricFogStartDistance : ExpFogStartDistance;
+
 		// The fog can be set to start at a certain euclidean distance.
-		// clamp the value to be behind the near plane z
-		float FogStartDistance = FMath::Max(30.0f, View.ExponentialFogParameters.W);
+		// clamp the value to be behind the near plane z, according to the smallest distance between volumetric fog and height fog (if they are enabled). 
+		float FogStartDistance = FMath::Max(30.0f, FMath::Min(ExpFogStartDistance, VolFogStartDistance));
 
 		// Here we compute the nearest z value the fog can start
 		// to skip shader execution on pixels that are closer.

@@ -172,10 +172,16 @@ class ENGINE_API UExponentialHeightFogComponent : public USceneComponent
 	float VolumetricFogExtinctionScale;
 
 	/** 
-	 * Distance over which volumetric fog should be computed.  Larger values extend the effect into the distance but expose under-sampling artifacts in details.
+	 * Distance over which volumetric fog should be computed, after the start distance.  Larger values extend the effect into the distance but expose under-sampling artifacts in details.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VolumetricFog, meta=(DisplayName = "View Distance", UIMin = "1000", UIMax = "10000"))
 	float VolumetricFogDistance;
+
+	/** 
+	 * Distance from the camera that the volumetric fog will start, in world units. 
+	 */
+	UPROPERTY(BlueprintReadOnly, interp, Category= VolumetricFog, meta=(DisplayName = "Start Distance", UIMin = "0", UIMax = "5000"))
+	float VolumetricFogStartDistance;
 
 	/** 
 	 * Distance over which volumetric fog will fade in from the start distance.

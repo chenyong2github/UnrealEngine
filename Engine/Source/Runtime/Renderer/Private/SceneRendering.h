@@ -1308,6 +1308,8 @@ public:
 	float FogMaxOpacity;
 	FVector4f ExponentialFogParameters3;
 	FVector4f SkyAtmosphereAmbientContributionColorScale;
+	bool bEnableVolumetricFog;
+	float VolumetricFogStartDistance;
 	float VolumetricFogNearFadeInDistanceInv;
 	FVector2f SinCosInscatteringColorCubemapRotation;
 
