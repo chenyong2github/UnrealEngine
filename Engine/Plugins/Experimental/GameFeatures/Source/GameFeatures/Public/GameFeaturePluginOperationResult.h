@@ -5,14 +5,11 @@
 #include "CoreMinimal.h"
 #include "Templates/ValueOrError.h"
 
-namespace UE
+namespace UE::GameFeatures
 {
-	namespace GameFeatures
-	{
-		struct FSuccessType {};
+	struct FSuccessType {};
 
-		using FResult = TValueOrError<FSuccessType, FString>;
+	using FResult = TValueOrError<FSuccessType, FString>;
 
-		GAMEFEATURES_API FString ToString(const FResult& Result);
-	}
+	GAMEFEATURES_API FString ToString(const FResult& Result);
 }

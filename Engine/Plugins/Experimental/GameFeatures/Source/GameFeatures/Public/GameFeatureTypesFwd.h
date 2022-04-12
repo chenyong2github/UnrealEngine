@@ -8,10 +8,7 @@ namespace GameFeaturePluginStatePrivate
 }
 using EGameFeaturePluginState = GameFeaturePluginStatePrivate::EGameFeaturePluginState;
 
-namespace UE
+namespace UE::GameFeatures
 {
-	namespace GameFeatures
-	{
-		GAMEFEATURES_API FString ToString(EGameFeaturePluginState InType);
-	}
+	GAMEFEATURES_API FString ToString(EGameFeaturePluginState InType);
 }

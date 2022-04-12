@@ -128,6 +128,8 @@ Transition states are expected to transition the machine to another state after 
                +------------+
 */
 
+// JMarcus TODO: move this stuff into UE::GameFeatures namespace
+
 #define GAME_FEATURE_PLUGIN_PROTOCOL_LIST(XPROTO)	\
 	XPROTO(File,			TEXT("file:"))			\
 	XPROTO(InstallBundle,	TEXT("installbundle:"))	\
@@ -274,11 +276,14 @@ struct FGameFeaturePluginState
 	FGameFeaturePluginStateMachineProperties& StateProperties;
 
 	void UpdateStateMachineDeferred(float Delay = 0.0f) const;
+	void GarbageCollectAndUpdateStateMachineDeferred() const;
 	void UpdateStateMachineImmediate() const;
 
 	void UpdateProgress(float Progress) const;
 
 private:
+	void CleanupDeferredUpdateCallbacks() const;
+
 	mutable FTSTicker::FDelegateHandle TickHandle;
 };
 
@@ -286,13 +291,13 @@ private:
 struct FGameFeaturePluginStateInfo
 {
 	/** The state this info represents */
-	EGameFeaturePluginState State;
+	EGameFeaturePluginState State = EGameFeaturePluginState::Uninitialized;
 
 	/** The progress of this state. Relevant only for transition states. */
-	float Progress;
+	float Progress = 0.0f;
 
-	FGameFeaturePluginStateInfo() : State(EGameFeaturePluginState::Uninitialized), Progress(0.f) {}
-	explicit FGameFeaturePluginStateInfo(EGameFeaturePluginState InState) : State(InState), Progress(0.f) {}
+	FGameFeaturePluginStateInfo() = default;
+	explicit FGameFeaturePluginStateInfo(EGameFeaturePluginState InState) : State(InState) {}
 };
 
 /** A state machine to manage transitioning a game feature plugin from just a URL into a fully loaded and active plugin, including registering its contents with other game systems */
