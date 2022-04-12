@@ -2997,10 +2997,13 @@ void CullRasterize(
 
 	FCullingParameters CullingParameters;
 	{
+		// Never use the disocclusion hack with virtual shadows as it interacts very poorly with caching that first frame
+		const bool bDisocclusionHack = GNaniteDisocclusionHack && !VirtualShadowMapArray;
+
 		CullingParameters.InViews		= GraphBuilder.CreateSRV(CullingContext.ViewsBuffer);
 		CullingParameters.NumViews		= Views.Num();
 		CullingParameters.NumPrimaryViews = NumPrimaryViews;
-		CullingParameters.DisocclusionLodScaleFactor = GNaniteDisocclusionHack ? 0.01f : 1.0f;	// TODO: Get rid of this hack
+		CullingParameters.DisocclusionLodScaleFactor = bDisocclusionHack ? 0.01f : 1.0f;	// TODO: Get rid of this hack
 		CullingParameters.HZBTexture	= RegisterExternalTextureWithFallback(GraphBuilder, CullingContext.PrevHZB, GSystemTextures.BlackDummy);
 		CullingParameters.HZBSize		= CullingContext.PrevHZB ? CullingContext.PrevHZB->GetDesc().Extent : FVector2f(0.0f);
 		CullingParameters.HZBSampler	= TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
