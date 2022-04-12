@@ -142,7 +142,9 @@ public:
 	// UAISystemBase begin		
 	virtual void InitializeActorsForPlay(bool bTimeGotReset) override;
 	virtual void WorldOriginLocationChanged(FIntVector OldOriginLocation, FIntVector NewOriginLocation) override;
-	virtual void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true, UWorld* NewWorld = NULL) override;
+	virtual void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true) override;
+	UE_DEPRECATED(5.1, "NewWorld was unused and not always calculated correctly and we expect it is not needed; let us know on UDN if it is necessary.")
+	virtual void CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld) override;
 	virtual void StartPlay() override;
 	// UAISystemBase end
 

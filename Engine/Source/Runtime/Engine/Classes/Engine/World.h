@@ -3345,7 +3345,7 @@ public:
 
 private:
 	/** Internal version of CleanupWorld. */
-	void CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld);
+	void CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, bool bWorldChanged);
 
 	/** Utility function to handle Exec/Console Commands related to the Trace Tags */
 	bool HandleTraceTagCommand( const TCHAR* Cmd, FOutputDevice& Ar );

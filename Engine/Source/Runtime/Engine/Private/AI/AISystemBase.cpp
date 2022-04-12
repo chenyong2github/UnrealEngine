@@ -24,6 +24,11 @@ FSoftClassPath UAISystemBase::GetAISystemClassName()
 
 void UAISystemBase::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld)
 {
+	CleanupWorld(bSessionEnded, bCleanupResources);
+}
+
+void UAISystemBase::CleanupWorld(bool bSessionEnded, bool bCleanupResources)
+{
 	FGameModeEvents::OnGameModeMatchStateSetEvent().Remove(OnMatchStateSetHandle);
 }
 

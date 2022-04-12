@@ -45,7 +45,7 @@ UAISystem::UAISystem(const FObjectInitializer& ObjectInitializer)
 
 void UAISystem::BeginDestroy()
 {
-	CleanupWorld(true, true, NULL);
+	CleanupWorld(true, true);
 	Super::BeginDestroy();
 }
 
@@ -127,7 +127,12 @@ void UAISystem::WorldOriginLocationChanged(FIntVector OldOriginLocation, FIntVec
 
 void UAISystem::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld)
 {
-	Super::CleanupWorld(bSessionEnded, bCleanupResources, NewWorld);
+	CleanupWorld(bSessionEnded, bCleanupResources);
+}
+
+void UAISystem::CleanupWorld(bool bSessionEnded, bool bCleanupResources)
+{
+	Super::CleanupWorld(bSessionEnded, bCleanupResources);
 	
 	if (bCleanupResources)
 	{

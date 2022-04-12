@@ -4920,17 +4920,17 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 		bool bIsStreamingSubWorld = PersistentLevel && PersistentLevel->OwningWorld != this;
 		UE_CLOG(!bIsStreamingSubWorld, LogWorld, Warning, TEXT("UWorld::CleanupWorld called twice or called without InitWorld called first."));
 	}
-	CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
+	const bool bWorldChanged = NewWorld != this;
+	CleanupWorldInternal(bSessionEnded, bCleanupResources, bWorldChanged);
 	bInitializedAndNeedsCleanup = false;
 }
 
-void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld)
+void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, bool bWorldChanged)
 {
 	if(CleanupWorldTag == CleanupWorldGlobalTag)
 	{
 		return;
 	}
-	const bool bWorldChanged = NewWorld != this;
 	CleanupWorldTag = CleanupWorldGlobalTag;
 
 	UE_LOG(LogWorld, Log, TEXT("UWorld::CleanupWorld for %s, bSessionEnded=%s, bCleanupResources=%s"), *GetName(), bSessionEnded ? TEXT("true") : TEXT("false"), bCleanupResources ? TEXT("true") : TEXT("false"));
@@ -4952,7 +4952,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 
 	if (AISystem != nullptr)
 	{
-		AISystem->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld);
+		AISystem->CleanupWorld(bSessionEnded, bCleanupResources);
 	}
 
 	if (bCleanupResources == true)
@@ -5072,7 +5072,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 	for (int32 LevelIndex = 0; LevelIndex < GetNumLevels(); ++LevelIndex)
 	{
 		UWorld* World = CastChecked<UWorld>(GetLevel(LevelIndex)->GetOuter());
-		World->CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
+		World->CleanupWorldInternal(bSessionEnded, bCleanupResources, bWorldChanged);
 	}
 
 	for (ULevelStreaming* StreamingLevel : GetStreamingLevels())
@@ -5080,7 +5080,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 		if (ULevel* Level = StreamingLevel->GetLoadedLevel())
 		{
 			UWorld* World = CastChecked<UWorld>(Level->GetOuter());
-			World->CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
+			World->CleanupWorldInternal(bSessionEnded, bCleanupResources, bWorldChanged);
 		}
 	}
 
@@ -5093,7 +5093,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, UW
 			if (Level)
 			{
 				UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
-				LevelWorld->CleanupWorldInternal(bSessionEnded, bCleanupResources, NewWorld);
+				LevelWorld->CleanupWorldInternal(bSessionEnded, bCleanupResources, bWorldChanged);
 			}
 		}
 	}
