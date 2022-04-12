@@ -4271,14 +4271,19 @@ int32 UNetDriver::ServerReplicateActors_PrepConnections( const float DeltaSecond
 			{
 				UNetConnection *Child = Connection->Children[ChildIdx];
 				APlayerController* ChildPlayerController = Child->PlayerController;
-				if ( ChildPlayerController != NULL )
+				AActor* DesiredChildViewTarget = Child->OwningActor;
+
+				if (ChildPlayerController)
 				{
-					Child->ViewTarget = ChildPlayerController->GetViewTarget();
+					AActor* ChildViewTarget = ChildPlayerController->GetViewTarget();
+
+					if (ChildViewTarget && ChildViewTarget->GetWorld())
+					{
+						DesiredChildViewTarget = ChildViewTarget;
+					}
 				}
-				else
-				{
-					Child->ViewTarget = NULL;
-				}
+
+				Child->ViewTarget = DesiredChildViewTarget;
 			}
 		}
 		else
