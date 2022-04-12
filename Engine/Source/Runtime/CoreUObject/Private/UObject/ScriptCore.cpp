@@ -2040,7 +2040,13 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 
 DEFINE_FUNCTION(UObject::execUndefined)
 {
-	Stack.Logf(ELogVerbosity::Error, TEXT("Unknown code token %02X"), Stack.Code[-1] );
+	const FText LocalizedErrorMessage = FText::Format(
+		LOCTEXT("UndefinedOpcode", "Encountered an undefined opcode ({0}) at byte offset {1}. The compiler may have generated an instruction sequence that was unexpected or incomplete."),
+		FText::FromString(FString::Printf(TEXT("0x%02X"), Stack.Code[-1])),
+		FText::AsNumber(Stack.Node ? reinterpret_cast<ScriptPointerType>(&Stack.Code[-1]) - reinterpret_cast<ScriptPointerType>(&Stack.Node->Script[0]) : 0)
+	);
+
+	Stack.Log(ELogVerbosity::Error, LocalizedErrorMessage.ToString());
 }
 
 DEFINE_FUNCTION(UObject::execLocalVariable)

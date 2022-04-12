@@ -616,8 +616,8 @@ public:
 			// Additional Validation, since we cannot trust custom k2nodes
 			if (CoerceProperty && ensure(Schema) && ensure(CurrentCompilerContext))
 			{
-			    const bool bSecialCaseSelf = (Term->Type.PinSubCategory == UEdGraphSchema_K2::PN_Self);
-				if(!bSecialCaseSelf)
+			    const bool bSpecialCaseSelf = (Term->Type.PinSubCategory == UEdGraphSchema_K2::PN_Self);
+				if(!bSpecialCaseSelf)
 			    {
 				    FEdGraphPinType TrueType;
 				    const bool bValidProperty = Schema->ConvertPropertyToPinType(CoerceProperty, TrueType);
@@ -642,12 +642,12 @@ public:
 					    }
 					    return true;
 				    };
-    
-				    if (!bValidProperty || !AreTypesBinaryCompatible(Term->Type, TrueType))
-				    {
-					    const FString ErrorMessage = FString::Printf(TEXT("ICE: The type of property %s doesn't match a term. @@"), *CoerceProperty->GetPathName());
-					    CurrentCompilerContext->MessageLog.Error(*ErrorMessage, Term->SourcePin);
-				    }
+
+					if (bValidProperty && !AreTypesBinaryCompatible(Term->Type, TrueType))
+					{
+						const FString ErrorMessage = FString::Printf(TEXT("ICE: The type of property %s doesn't match the terminal type for pin @@."), *CoerceProperty->GetPathName());
+						CurrentCompilerContext->MessageLog.Error(*ErrorMessage, Term->SourcePin);
+					}
 				}
 			}
 
@@ -913,11 +913,17 @@ public:
 							continue;
 						}
 
+						// Create a new term for each property, and serialize it out
 						for (int32 ArrayIter = 0; ArrayIter < Prop->ArrayDim; ++ArrayIter)
 						{
-							// Create a new term for each property, and serialize it out
 							FBPTerminal NewTerm;
-							Schema->ConvertPropertyToPinType(Prop, NewTerm.Type);
+							if(!Schema->ConvertPropertyToPinType(Prop, NewTerm.Type))
+							{								
+								// Do nothing for unsupported/unhandled property types. This will leave the value unchanged from its constructed default.
+								Writer << EX_Nothing;
+								continue;
+							}
+
 							NewTerm.bIsLiteral = true;
 							NewTerm.Source = Term->Source;
 							NewTerm.SourcePin = Term->SourcePin;
@@ -1171,11 +1177,18 @@ public:
 			{
 				// Create a new term for each property, and serialize it out
 				FBPTerminal NewTerm;
-				Schema->ConvertPropertyToPinType(Prop, NewTerm.Type);
-				NewTerm.bIsLiteral = true;
-				Prop->ExportText_InContainer(0, NewTerm.Name, StructData, StructData, NULL, PPF_None);
+				if(Schema->ConvertPropertyToPinType(Prop, NewTerm.Type))
+				{
+					NewTerm.bIsLiteral = true;
+					Prop->ExportText_InContainer(0, NewTerm.Name, StructData, StructData, NULL, PPF_None);
 
-				EmitTermExpr(&NewTerm, Prop);
+					EmitTermExpr(&NewTerm, Prop);
+				}
+				else
+				{
+					// Do nothing for unsupported/unhandled property types. This will leave the value unchanged from its constructed default.
+					Writer << EX_Nothing;
+				}
 			}
 		}
 
