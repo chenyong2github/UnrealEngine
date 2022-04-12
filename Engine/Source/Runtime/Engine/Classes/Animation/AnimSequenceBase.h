@@ -171,11 +171,6 @@ public:
 	// update cache data (notify tracks, sync markers)
 	virtual void RefreshCacheData();
 
-#if WITH_EDITOR
-	UE_DEPRECATED(5.0, "Updating of any relevent Curve data is now handled through the UAnimDataModel notifies")
-	void RefreshCurveData() {}
-#endif // WITH_EDITOR
-
 	//~ Begin UAnimationAsset Interface
 #if WITH_EDITOR
 	virtual void RemapTracksToNewSkeleton(USkeleton* NewSkeleton, bool bConvertSpaces) override;
@@ -253,22 +248,6 @@ public:
 	virtual bool IsValidToPlay() const { return true; }
 	// ideally this would be animsequcnebase, but we might have some issue with that. For now, just allow AnimSequence
 	virtual class UAnimSequence* GetAdditiveBasePose() const { return nullptr; }
-
-	typedef FSimpleMulticastDelegate::FDelegate FOnAnimCurvesChanged;
-	/** Registers a delegate to be called after anim curves have changed*/
-	UE_DEPRECATED(5.0, "Functionality has been deprecated, register to UAnimDataModel::GetModifiedEvent instead")
-	void RegisterOnAnimCurvesChanged(const FOnAnimCurvesChanged& Delegate) {}
-
-	UE_DEPRECATED(5.0, "Functionality has been deprecated, register to UAnimDataModel::GetModifiedEvent instead")
-	void UnregisterOnAnimCurvesChanged(void* Unregister) {}
-
-	typedef FSimpleMulticastDelegate::FDelegate FOnAnimTrackCurvesChanged;
-	/** Registers a delegate to be called after anim track curves have changed*/
-	UE_DEPRECATED(5.0, "Functionality has been deprecated, register to UAnimDataModel::GetModifiedEvent instead")
-	void RegisterOnAnimTrackCurvesChanged(const FOnAnimTrackCurvesChanged& Delegate) {}
-
-	UE_DEPRECATED(5.0, "Functionality has been deprecated, register to UAnimDataModel::GetModifiedEvent instead")
-	void UnregisterOnAnimTrackCurvesChanged(void* Unregister) {}
 #endif
 
 	// return true if anim notify is available 

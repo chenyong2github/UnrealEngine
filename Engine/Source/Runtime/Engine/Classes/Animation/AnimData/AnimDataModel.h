@@ -277,26 +277,6 @@ public:
 	* @return	GUID representing the contained data and state 
 	*/
 	FGuid GenerateGuid() const;
-	
-	/** Backwards compatibility functionality */
-	UE_DEPRECATED(5.0, "Use GetBoneAnimationTracks(), and FBoneAnimationTrack::InternalTrackData instead")
-	const TArray<FRawAnimSequenceTrack>& GetTransientRawAnimationTracks() const;
-	
-	UE_DEPRECATED(5.0, "Use GetBoneAnimationTracks(), and FBoneAnimationTrack::Name instead")
-	const TArray<FName>& GetTransientRawAnimationTrackNames() const;
-
-	UE_DEPRECATED(5.0, "Use GetBoneAnimationTracks(), and FBoneAnimationTrack::BoneTreeIndex instead")
-	const TArray<FTrackToSkeletonMap>& GetTransientRawAnimationTrackSkeletonMappings() const;
-
-	UE_DEPRECATED(5.0, "Non-const access to track data is prohibited, use UAnimDataController API to modify AnimDataModel instead")
-	FRawAnimSequenceTrack& GetNonConstRawAnimationTrackByIndex(int32 TrackIndex);
-
-	UE_DEPRECATED(5.0, "Use GetCurveData() instead")
-	const FRawCurveTracks& GetTransientRawCurveTracks() const;
-
-	UE_DEPRECATED(5.0, "Use Controller for mutating curve data")
-	FAnimationCurveData& GetNonConstCurveData();	
-
 private:
 	/** Helper functionality used by UAnimDataController to retrieve mutable data */ 
 	FBoneAnimationTrack* FindMutableBoneTrackByName(FName Name);
@@ -337,10 +317,6 @@ private:
 			}
 
 			check(BracketCounter >= 0);
-			if (BracketCounter == 0)
-			{
-				GenerateTransientData();
-			}
 		}
 	}
 
@@ -373,16 +349,10 @@ private:
 			}
 
 			check(BracketCounter >= 0);
-			if (BracketCounter == 0)
-			{
-				GenerateTransientData();
-			}
 		}
 	}
 
 private:
-	void GenerateTransientData() const;
-	void CheckTransientData() const;
 
 	UPROPERTY(Transient)
 	int32 BracketCounter = 0;
@@ -420,23 +390,7 @@ private:
 	
 	/** Container with all animated (bone) attribute data */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Animation Data Model", meta = (AllowPrivateAccess = "true"))
-	TArray<FAnimatedBoneAttribute> AnimatedBoneAttributes;
-	
-private:
-	/** Transient data, kept around for backward-compatibility */
-	UPROPERTY(Transient, VisibleAnywhere, Category = "Animation Data Model")
-	mutable TArray<FRawAnimSequenceTrack> RawAnimationTracks;
-
-	UPROPERTY(Transient, VisibleAnywhere, Category = "Animation Data Model")
-	mutable TArray<FName> RawAnimationTrackNames;
-
-	UPROPERTY(Transient, VisibleAnywhere, Category = "Animation Data Model")
-	mutable TArray<FTrackToSkeletonMap> RawAnimationTrackSkeletonMappings;
-
-	mutable bool bHasTransientDataBeenGenerated = false;
-
-	UPROPERTY(Transient, VisibleAnywhere, Category = "Animation Data Model")
-	mutable FRawCurveTracks RawCurveTracks;
+	TArray<FAnimatedBoneAttribute> AnimatedBoneAttributes;	
 
 	friend class UAnimDataController;
 	friend class FAnimDataControllerTestBase;

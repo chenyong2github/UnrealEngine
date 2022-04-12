@@ -498,51 +498,47 @@ void UAnimSequence::AddReferencedObjects(UObject* This, FReferenceCollector& Col
 	Collector.AddReferencedObject(AnimSeq->CompressedData.CurveCompressionCodec);
 }
 
+#if WITH_EDITOR
 int32 UAnimSequence::GetUncompressedRawSize() const
 {
-#if WITH_EDITOR
 	if (DataModel)
 	{
 		const int32 BoneRawSize = FRawAnimSequenceTrack::SingleKeySize * DataModel->GetNumBoneTracks() * DataModel->GetNumberOfKeys();
-	int32 CurveRawSize = 0;
+		int32 CurveRawSize = 0;
 
 		for (const FFloatCurve& Curve : DataModel->GetCurveData().FloatCurves)
-	{
-		CurveRawSize += sizeof(FFloatCurve);
-		CurveRawSize += sizeof(FRichCurveKey) * Curve.FloatCurve.Keys.Num();
+		{
+			CurveRawSize += sizeof(FFloatCurve);
+			CurveRawSize += sizeof(FRichCurveKey) * Curve.FloatCurve.Keys.Num();
+		}
+		return BoneRawSize + CurveRawSize;
 	}
-	return BoneRawSize + CurveRawSize;
-}
-
-#endif // WITH_EDITOR
-
 	return 0;
 }
 
 int32 UAnimSequence::GetApproxRawSize() const
 {
-#if WITH_EDITOR
 	if (DataModel)
 	{
 		int32 Total = sizeof(FRawAnimSequenceTrack) * DataModel->GetNumBoneTracks();
 		for (const FBoneAnimationTrack& AnimationTrack : DataModel->GetBoneAnimationTracks())
-	{
-			Total += AnimationTrack.InternalTrackData.PosKeys.Num() * AnimationTrack.InternalTrackData.PosKeys.GetTypeSize();
-			Total += AnimationTrack.InternalTrackData.RotKeys.Num() * AnimationTrack.InternalTrackData.RotKeys.GetTypeSize();
-			Total += AnimationTrack.InternalTrackData.ScaleKeys.Num() * AnimationTrack.InternalTrackData.ScaleKeys.GetTypeSize();
+		{
+				Total += AnimationTrack.InternalTrackData.PosKeys.Num() * AnimationTrack.InternalTrackData.PosKeys.GetTypeSize();
+				Total += AnimationTrack.InternalTrackData.RotKeys.Num() * AnimationTrack.InternalTrackData.RotKeys.GetTypeSize();
+				Total += AnimationTrack.InternalTrackData.ScaleKeys.Num() * AnimationTrack.InternalTrackData.ScaleKeys.GetTypeSize();
+		}
+	
+			for (const FFloatCurve& Curve : DataModel->GetCurveData().FloatCurves)
+		{
+			Total += sizeof(FFloatCurve);
+			Total += sizeof(FRichCurveKey) * Curve.FloatCurve.Keys.Num();
+		}
+		return Total;
 	}
-
-		for (const FFloatCurve& Curve : DataModel->GetCurveData().FloatCurves)
-	{
-		Total += sizeof(FFloatCurve);
-		Total += sizeof(FRichCurveKey) * Curve.FloatCurve.Keys.Num();
-	}
-	return Total;
-}
-#endif // WITH_EDITOR
 
 	return 0;
 }
+#endif // WITH_EDITOR
 
 int32 UAnimSequence::GetApproxBoneCompressedSize() const
 {
@@ -1034,18 +1030,6 @@ void ShowResaveMessage(const UAnimSequence* Sequence)
 	}
 }
 
-void UAnimSequence::VerifyTrackMap(USkeleton* MySkeleton)
-{
-	ValidateModel();
-
-	USkeleton* UseSkeleton = (MySkeleton) ? MySkeleton : GetSkeleton();
-
-	if(Controller->RemoveBoneTracksMissingFromSkeleton(UseSkeleton))
-	{
-		ShowResaveMessage(this);
-	}
-}
-
 #endif // WITH_EDITOR
 void UAnimSequence::BeginDestroy()
 {
@@ -1216,31 +1200,6 @@ void UAnimSequence::GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, FAni
 		UE::Anim::GetBoneTransformFromModel(DataModel, OutAtom, TrackIndex, DecompContext.GetEvaluationTime(), Interpolation);
 #endif
 	}
-}
-
-void UAnimSequence::ExtractBoneTransform(const TArray<struct FRawAnimSequenceTrack>& InRawAnimationData, FTransform& OutAtom, int32 TrackIndex, float Time) const
-{
-	// Bail out if the animation data doesn't exists (e.g. was stripped by the cooker).
-	if (InRawAnimationData.IsValidIndex(TrackIndex))
-	{
-		UE_LOG(LogAnimation, Log, TEXT("UAnimSequence::GetBoneTransform : No valid anim data track!"));
-		OutAtom.SetIdentity();
-		return;
-	}
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return ExtractBoneTransform(InRawAnimationData[TrackIndex], OutAtom, Time);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-void UAnimSequence::ExtractBoneTransform(const struct FRawAnimSequenceTrack& RawTrack, FTransform& OutAtom, int32 KeyIndex) const
-{
-	UE::Anim::ExtractBoneTransform(RawTrack, OutAtom, KeyIndex);
-}
-
-void UAnimSequence::ExtractBoneTransform(const struct FRawAnimSequenceTrack& RawTrack, FTransform& OutAtom, float Time) const
-{
-	FAnimationUtils::ExtractTransformFromTrack(Time, GetNumberOfSampledKeys(), GetPlayLength(), RawTrack, Interpolation, OutAtom);
 }
 
 void UAnimSequence::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const
@@ -1612,36 +1571,6 @@ void UAnimSequence::GetBonePose(FAnimationPoseData& OutAnimationPoseData, const 
 	EvaluateAttributes(OutAnimationPoseData, ExtractionContext, false);
 }
 
-const TArray<FRawAnimSequenceTrack>& UAnimSequence::GetRawAnimationData() const
-{
-#if WITH_EDITOR
-	if (IsDataModelValid())
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return DataModel->GetTransientRawAnimationTracks();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-#endif
-	
-	static const TArray<FRawAnimSequenceTrack> Tracks;
-	check(false);
-	return Tracks;
-}
-
-#if WITH_EDITORONLY_DATA
-const TArray<FName>& UAnimSequence::GetAnimationTrackNames() const
-{
-	if (IsDataModelValid())
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return DataModel->GetTransientRawAnimationTrackNames();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	static const TArray<FName> Names;
-	check(false);
-	return Names;
-}
-#endif 
 
 #if WITH_EDITOR
 void UAnimSequence::UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName)
@@ -1654,40 +1583,6 @@ void UAnimSequence::UpdateCompressedCurveName(SmartName::UID_Type CurveUID, cons
 			break;
 		}
 	}
-}
-
-int32 UAnimSequence::AddNewRawTrack(FName TrackName, FRawAnimSequenceTrack* TrackData)
-{
-	ValidateModel();
-
-	int32 NewTrackIndex = INDEX_NONE;
-	Controller->OpenBracket(LOCTEXT("AddNewRawTrack_Bracket", "Adding new Bone Animation Track"));
-	{
-		NewTrackIndex = Controller->AddBoneTrack(TrackName);
-		if (NewTrackIndex != INDEX_NONE && TrackData)
-		{
-			Controller->SetBoneTrackKeys(TrackName, TrackData->PosKeys, TrackData->RotKeys, TrackData->ScaleKeys);
-		}
-	}
-	Controller->CloseBracket();
-
-	if (NewTrackIndex == INDEX_NONE)
-	{
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("TrackName"), FText::FromName(TrackName));
-		FNotificationInfo Info(FText::Format(LOCTEXT("FailedToAddTracks", "Failed to add track with name \"{TrackName}\"."), Args));
-
-		Info.bUseLargeFont = false;
-		Info.ExpireDuration = 5.0f;
-
-		TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
-		if (Notification.IsValid())
-		{
-			Notification->SetCompletionState(SNotificationItem::CS_Fail);
-		}
-	}
-
-	return NewTrackIndex;
 }
 #endif
 
@@ -1893,154 +1788,11 @@ FName UAnimSequence::GetRetargetTransformsSourceName() const
 	}
 }
 
-const TArray<FTrackToSkeletonMap>& UAnimSequence::GetRawTrackToSkeletonMapTable() const
-{
-#if WITH_EDITOR
-	if (IsDataModelValid())
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return DataModel->GetTransientRawAnimationTrackSkeletonMappings();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-#endif
-
-	static const TArray<FTrackToSkeletonMap> TempMap;
-	check(false);
-	return TempMap;
-}
-
-const FRawAnimSequenceTrack& UAnimSequence::GetRawAnimationTrack(int32 TrackIndex) const
-{
-#if WITH_EDITOR
-	if (IsDataModelValid())
-	{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return DataModel->GetBoneTrackByIndex(TrackIndex).InternalTrackData;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS 
-	}
-#endif
-	
-	static const FRawAnimSequenceTrack TempTrack;
-	check(false);
-	return TempTrack;
-}
-
-FRawAnimSequenceTrack& UAnimSequence::GetRawAnimationTrack(int32 TrackIndex)
-{
-#if WITH_EDITOR
-	if (IsDataModelValid())
-	{
-	ValidateModel();
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return DataModel->GetNonConstRawAnimationTrackByIndex(TrackIndex);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-#endif
-
-		static FRawAnimSequenceTrack TempTrack;
-	check(false);
-	return TempTrack;
-}
-
 void UAnimSequence::RetargetBoneTransform(FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive) const
 {
 	FAnimationRuntime::RetargetBoneTransform(GetSkeleton(), GetRetargetTransformsSourceName(), GetRetargetTransforms(), BoneTransform, SkeletonBoneIndex, BoneIndex, RequiredBones, bIsBakedAdditive);
 }
 
-#if WITH_EDITOR
-bool UAnimSequence::InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame, int32 CopyFrame)
-{
-	ValidateModel();
-
-	// make sure the copyframe is valid and start frame is valid
-	const int32 NumFramesToInsert = EndFrame-StartFrame;
-	if ((CopyFrame>=0 && CopyFrame< DataModel->GetNumberOfKeys()) && (StartFrame >= 0 && StartFrame <= DataModel->GetNumberOfKeys()) && NumFramesToInsert > 0)
-	{
-		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("InsertFramesToRawAnimData", "Inserting Frames into Animation Track Data"));
-		UE::Anim::AnimationData::DuplicateKeys(this, StartFrame, NumFramesToInsert, CopyFrame);
-
-		UE_LOG(LogAnimation, Log, TEXT("\tPlay Length: %f, Number of Keys: %d"), GetPlayLength(), DataModel->GetNumberOfKeys());
-
-		return true;
-	}
-
-	return false;
-}
-
-bool UAnimSequence::CropRawAnimData( float CurrentTime, bool bFromStart )
-{
-	ValidateModel();
-	
-	// Save Total Number of Frames before crop
-	const int32 TotalNumOfKeys = GetDataModel()->GetNumberOfKeys();
-	// if current frame is 1, do not try crop. There is nothing to crop
-	if (TotalNumOfKeys <= 1 )
-	{
-		return false;
-	}
-	
-	// If you're end or beginning, you can't cut all nor nothing. 
-	// Avoiding ambiguous situation what exactly we would like to cut 
-	// Below it clamps range to 1, TotalNumOfFrames-1
-	// causing if you were in below position, it will still crop 1 frame. 
-	// To be clearer, it seems better if we reject those inputs. 
-	// If you're a bit before/after, we assume that you'd like to crop
-	if ( CurrentTime == 0.f || CurrentTime == GetPlayLength() )
-	{
-		return false;
-	}
-
-	const FFrameTime FrameTime = DataModel->GetFrameRate().AsFrameTime(CurrentTime);
-	const FFrameNumber FrameNumber = FrameTime.CeilToFrame();
-	// determine which keys need to be removed.
-	const int32 StartKey = bFromStart ? 0 : FrameNumber.Value;
-	const int32 NumKeysToRemove = bFromStart ? FrameNumber.Value : TotalNumOfKeys - (StartKey + 1);
-
-	// Recalculate number of keys and frames
-	const int32 NewNumKeys = TotalNumOfKeys - NumKeysToRemove;
-	const int32 NewNumFrames = NewNumKeys - 1;
-
-	UE_LOG(LogAnimation, Log, TEXT("UAnimSequence::CropRawAnimData %s - CurrentTime: %f, bFromStart: %d, TotalNumOfKeys: %d, KeyIndex: %d, StartKey: %d, NumKeys: %d"), *GetName(), CurrentTime, bFromStart, TotalNumOfKeys, FrameNumber.Value, StartKey, NumKeysToRemove);
-
-	Controller->OpenBracket(LOCTEXT("CropRawAnimation_Bracket", "Cropping Animation Track Data"));
-	UE::Anim::AnimationData::RemoveKeys(this, StartKey, NumKeysToRemove);
-	Controller->CloseBracket();
-
-	UE_LOG(LogAnimation, Log, TEXT("\tPlay Length: %f, Number of Keys: %d"), GetPlayLength(), GetDataModel()->GetNumberOfKeys());
-
-	MarkPackageDirty();
-
-	return true;
-}
-
-void UAnimSequence::FlipRotationWForNonRoot(USkeletalMesh* SkelMesh)
-{
-	if (!GetSkeleton())
-	{
-		return;
-	}
-
-	ValidateModel();
-	Controller->OpenBracket(LOCTEXT("FlipRotationWForNonRoot_Bracket", "Flipping rotation W component for non-root tracks"));
-	{
-		for (const FBoneAnimationTrack& Track : DataModel->GetBoneAnimationTracks())
-		{
-			// Only apply to non-root bones
-			if (Track.BoneTreeIndex > 0)
-			{
-				TArray<FQuat4f> NewRotationalKeys = Track.InternalTrackData.RotKeys;
-				for (FQuat4f& RotationalKey : NewRotationalKeys)
-				{
-					RotationalKey.W *= -1.f;
-				}
-
-				Controller->SetBoneTrackKeys(Track.Name, Track.InternalTrackData.PosKeys, NewRotationalKeys, Track.InternalTrackData.ScaleKeys);
-			}
-		}
-	}
-	Controller->CloseBracket();
-}
-#endif 
 
 #if WITH_EDITOR
 bool UAnimSequence::ShouldPerformStripping(const bool bPerformFrameStripping, const bool bPerformStrippingOnOddFramedAnims) const
@@ -2062,9 +1814,9 @@ FString UAnimSequence::GetDDCCacheKeySuffix(const bool bPerformStripping) const
 }
 #endif
 
+#if WITH_EDITOR
 void UAnimSequence::WaitOnExistingCompression(const bool bWantResults)
 {
-#if WITH_EDITOR
 	check(IsInGameThread());
 	if (bCompressionInProgress)
 	{
@@ -2073,12 +1825,10 @@ void UAnimSequence::WaitOnExistingCompression(const bool bWantResults)
 		bCompressionInProgress = false;
 		COOK_STAT(Timer.TrackCyclesOnly()); // Need to get hit/miss and size from WaitOnExistingCompression!
 	}
-#endif
 }
 
 void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 {
-#if WITH_EDITOR
 	check(IsInGameThread());
 	USkeleton* CurrentSkeleton = GetSkeleton();
 	if (CurrentSkeleton == nullptr)
@@ -2194,10 +1944,8 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 		}
 
 	}
-#endif
 }
 
-#if WITH_EDITOR
 void UAnimSequence::ApplyCompressedData(const FString& DataCacheKeySuffix, const bool bPerformFrameStripping, const TArray<uint8>& Data)
 {
 	if (GetDDCCacheKeySuffix(bPerformFrameStripping) == DataCacheKeySuffix)
@@ -2240,18 +1988,6 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 		}
 	}
 
-int32 UAnimSequence::GetSkeletonIndexFromRawDataTrackIndex(const int32 TrackIndex) const
-{
-#if WITH_EDITOR
-	if (IsDataModelValid())
-	{
-	return DataModel->GetBoneTrackByIndex(TrackIndex).BoneTreeIndex;
-	}
-#endif // WITH_EDITOR
-	
-	check(false);
-	return INDEX_NONE;
-}
 
 #if WITH_EDITOR
 bool UAnimSequence::CanBakeAdditive() const
@@ -2720,21 +2456,8 @@ void UAnimSequence::UpdateDependentStreamingAnimations() const
 
 #endif
 
-void UAnimSequence::RecycleAnimSequence()
-{
-#if WITH_EDITOR
-	ResetAnimation();
-#endif // WITH_EDITORONLY_DATA
-}
 
 #if WITH_EDITOR
-void UAnimSequence::CleanAnimSequenceForImport()
-{
-	ValidateModel();
-	DeleteBoneAnimationData();
-	RawDataGuid.Invalidate();
-}
-
 void UAnimSequence::ResetAnimation()
 {
 	// clear everything. Making new animation, so need to reset all the things that belong here
@@ -2780,15 +2503,6 @@ void UAnimSequence::DeleteBoneAnimationData()
 	Controller->RemoveAllBoneTracks();
 }
 #endif // WITH_EDITOR
-		
-
-bool UAnimSequence::CopyNotifies(UAnimSequence* SourceAnimSeq, UAnimSequence* DestAnimSeq, bool bShowDialogs /*= true */)
-{
-#if WITH_EDITOR
-	return UE::Anim::CopyNotifies(SourceAnimSeq, DestAnimSeq, bShowDialogs);
-#endif // WITH_EDITOR
-	return false;
-}
 
 bool UAnimSequence::IsValidAdditive() const		
 { 
@@ -3361,17 +3075,6 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 	Super::RemapTracksToNewSkeleton(NewSkeleton, bConvertSpaces);
 }
 
-void UAnimSequence::PostProcessSequence(bool bForceNewRawDatGuid)
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// Apply compression
-	MarkRawDataAsModified(bForceNewRawDatGuid);
-	OnRawDataChanged();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	// mark package as dirty
-	MarkPackageDirty();
-}
 
 void UAnimSequence::RemoveNaNTracks()
 {
@@ -3421,34 +3124,6 @@ void UAnimSequence::RemoveNaNTracks()
 	}	
 }
 
-void UAnimSequence::RemoveAllTracks()
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	RawAnimationData.Empty();
-	AnimationTrackNames.Empty();
-	TrackToSkeletonMapTable.Empty();
-	SourceRawAnimationData_DEPRECATED.Empty();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	
-	ValidateModel();
-	IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("RemoveAllTracks_Bracket", "Removing all Bone Animation and Transform Curve Tracks"));
-	Controller->RemoveAllBoneTracks();
-
-	// clear all transform tracks
-	// not deleting curve names from skeleton 
-	// since we don't know if that name is used by other assets
-	Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);	
-}
-
-void UAnimSequence::RemoveTrack(int32 TrackIndex)
-{
-	ValidateModel();
-	
-	if (DataModel->IsValidBoneTrackIndex(TrackIndex))
-	{
-		Controller->RemoveBoneTrack(DataModel->GetBoneTrackByIndex(TrackIndex).Name);
-	}
-}
 
 int32 FindFirstChildTrack(const USkeleton* MySkeleton, const FReferenceSkeleton& RefSkeleton, const TArray<FName>& AnimationTrackNames, FName BoneName)
 {
@@ -3505,63 +3180,6 @@ int32 FindFirstChildTrack(const USkeleton* MySkeleton, const FReferenceSkeleton&
 	}
 }
 
-int32 UAnimSequence::InsertTrack(const FName& BoneName)
-{
-	ValidateModel();
-
-	// first verify if it doesn't exists, if it does, return
-	const int32 ExistingTrackIndex = DataModel->GetBoneTrackIndexByName(BoneName);
-	if (ExistingTrackIndex != INDEX_NONE)
-	{
-		return ExistingTrackIndex;
-	}
-
-	USkeleton * MySkeleton = GetSkeleton();
-	// should not call this if skeleton was empty
-	if (ensure(MySkeleton) == false)
-	{
-		return INDEX_NONE;
-	}
-
-	const FReferenceSkeleton& RefSkeleton = MySkeleton->GetReferenceSkeleton();
-
-	TArray<FName> TrackNames;
-	DataModel->GetBoneTrackNames(TrackNames);
-
-	const int32 NewTrackIndex = FindFirstChildTrack(MySkeleton, RefSkeleton, TrackNames, BoneName);
-	ensure(NewTrackIndex <= DataModel->GetNumBoneTracks());
-	const int32 BoneIndex = RefSkeleton.FindBoneIndex(BoneName);
-	if (NewTrackIndex != INDEX_NONE)
-	{
-		const TArray<FTransform>& RefPose = RefSkeleton.GetRefBonePose();
-
-		FRawAnimSequenceTrack RawTrack;
-		RawTrack.PosKeys.Add(FVector3f(RefPose[BoneIndex].GetTranslation()));
-		RawTrack.RotKeys.Add(FQuat4f(RefPose[BoneIndex].GetRotation()));
-		RawTrack.ScaleKeys.Add(FVector3f(RefPose[BoneIndex].GetScale3D()));
-
-		// now insert to the track
-		Controller->InsertBoneTrack(BoneName, NewTrackIndex);
-	}
-
-	return NewTrackIndex;
-}
-
-void UAnimSequence::ResizeSequence(float NewLength, int32 NewNumFrames, bool bInsert, int32 StartFrame/*inclusive */, int32 EndFrame/*inclusive*/)
-{
- 	ValidateModel();
-
-	const FFrameRate& FrameRate = DataModel->GetFrameRate();
-	const float T0 = FrameRate.AsSeconds(StartFrame);
-	const float T1 = FrameRate.AsSeconds(EndFrame);
-
-	FFrameRate NewFrameRate = FFrameRate((NewLength / NewNumFrames), 1);
-
-	Controller->Resize(NewLength, T0, T1);
-
-	ensure(DataModel->GetNumberOfKeys() == NewNumFrames);
-}
-
 bool UAnimSequence::GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive /*= true*/)
 {
 	Super::GetAllAnimationSequencesReferred(AnimationAssets, bRecursive);
@@ -3584,11 +3202,6 @@ void UAnimSequence::ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnim
 			RefPoseSeq = *ReplacementAsset;
 		}
 	}
-}
-
-bool UAnimSequence::AddLoopingInterpolation()
-{
-	return UE::Anim::AnimationData::AddLoopingInterpolation(this);
 }
 
 int32 FindParentNodeIndex(URig* Rig, USkeleton* Skeleton, FName ParentNodeName)
@@ -4047,19 +3660,6 @@ bool UAnimSequence::ConvertRiggingDataToAnimationData(FAnimSequenceTrackContaine
 	return false;
 }
 
-void UAnimSequence::ClearBakedTransformData()
-{
-	UE_LOG(LogAnimation, Warning, TEXT("[%s] Detected previous edited data is invalidated. Clearing transform curve data and Source Data. This can happen if you do retarget another animation to this. If not, please report back to Epic. "), *GetName());
-	//Clear Transform curve data
-	Controller->RemoveAllCurvesOfType(ERawCurveTrackTypes::RCT_Transform);
-}
-
-bool UAnimSequence::DoesContainTransformCurves() const
-{
-	ValidateModel();
-	return DataModel->GetNumberOfTransformCurves() > 0;
-}
-
 void UAnimSequence::BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceTrack>& InOutNewRawTracks, TArray<FName>& InOutNewTrackNames, TArray<FTrackToSkeletonMap>& InOutNewTrackToSkeletonMapTable)
 {
 	ValidateModel();
@@ -4217,13 +3817,6 @@ void UAnimSequence::AddKeyToSequence(float Time, const FName& BoneName, const FT
 	check(TransformCurve);
 
 	Controller->SetTransformCurveKey(TransformCurveId, Time, AdditiveTransform);
-}
-
-void UAnimSequence::RefreshTrackMapFromAnimTrackNames()
-{
-	ValidateModel();
-	const USkeleton * MySkeleton = GetSkeleton();
-	Controller->RemoveBoneTracksMissingFromSkeleton(MySkeleton);
 }
 
 uint8* UAnimSequence::FindSyncMarkerPropertyData(int32 SyncMarkerIndex, FArrayProperty*& ArrayProperty)
@@ -5480,15 +5073,6 @@ void UAnimSequence::EnableRootMotionSettingFromMontage(bool bInEnableRootMotion,
 		bRootMotionSettingsCopiedFromMontage = true;
 	}
 }
-
-#if WITH_EDITOR
-void UAnimSequence::OnRawDataChanged()
-{
-	RecompressAnimationData();
-	//MDW - Once we have async anim ddc requests we should do this too
-	//RequestDependentAnimRecompression();
-}
-#endif
 
 bool UAnimSequence::IsCompressedDataValid() const
 {

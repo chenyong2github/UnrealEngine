@@ -34,7 +34,6 @@ void UAnimDataModel::PostDuplicate(bool bDuplicateForPIE)
 {
 	UObject::PostDuplicate(bDuplicateForPIE);
 
-	GenerateTransientData();
 	Notify(EAnimDataModelNotifyType::Populated);
 }
 
@@ -377,72 +376,6 @@ FGuid UAnimDataModel::GenerateGuid() const
 	FGuid Guid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
 	
 	return Guid;
-}
-
-const TArray<FRawAnimSequenceTrack>& UAnimDataModel::GetTransientRawAnimationTracks() const
-{
-	CheckTransientData();
-	return RawAnimationTracks;
-}
-
-const TArray<FName>& UAnimDataModel::GetTransientRawAnimationTrackNames() const
-{
-	CheckTransientData();
-	return RawAnimationTrackNames;
-}
-
-const TArray<FTrackToSkeletonMap>& UAnimDataModel::GetTransientRawAnimationTrackSkeletonMappings() const
-{
-	CheckTransientData();
-	return RawAnimationTrackSkeletonMappings;
-}
-
-FRawAnimSequenceTrack& UAnimDataModel::GetNonConstRawAnimationTrackByIndex(int32 TrackIndex)
-{
-	CheckTransientData();
-	checkf(BoneAnimationTracks.IsValidIndex(TrackIndex), TEXT("Invalid track index"));
-	return BoneAnimationTracks[TrackIndex].InternalTrackData;
-}
-
-const FRawCurveTracks& UAnimDataModel::GetTransientRawCurveTracks() const
-{
-	CheckTransientData();
-	return RawCurveTracks;
-}
-
-FAnimationCurveData& UAnimDataModel::GetNonConstCurveData()
-{
-	CheckTransientData();	
-	return CurveData;	
-}
-
-void UAnimDataModel::GenerateTransientData() const
-{
-	RawAnimationTracks.Empty(BoneAnimationTracks.Num());
-	RawAnimationTrackNames.Empty(BoneAnimationTracks.Num());
-	RawAnimationTrackSkeletonMappings.Empty(BoneAnimationTracks.Num());
-
-	for (const FBoneAnimationTrack& AnimTrack : BoneAnimationTracks)
-	{
-		RawAnimationTracks.Add(AnimTrack.InternalTrackData);
-		RawAnimationTrackNames.Add(AnimTrack.Name);
-		RawAnimationTrackSkeletonMappings.Add(AnimTrack.BoneTreeIndex);
-	}
-	
-	RawCurveTracks.FloatCurves = CurveData.FloatCurves;
-#if WITH_EDITOR
-	RawCurveTracks.TransformCurves = CurveData.TransformCurves;
-#endif
-	
-	bHasTransientDataBeenGenerated = true;
-}
-
-void UAnimDataModel::CheckTransientData() const
-{
-	if(!bHasTransientDataBeenGenerated)
-	{
-		GenerateTransientData();
-	}
 }
 
 FRichCurve* UAnimDataModel::GetMutableRichCurve(const FAnimationCurveIdentifier& CurveIdentifier)

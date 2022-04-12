@@ -17,6 +17,7 @@
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Misc/MessageDialog.h"
+#include "Animation/AnimSequenceHelpers.h"
 
 #define LOCTEXT_NAMESPACE "AnimSequenceHelpers"
 
@@ -805,6 +806,16 @@ bool AnimationData::Trim(UAnimSequence* InSequence, float TrimStart, float TrimE
 
 		const int32 StartTrimKeyIndex = StartFrameTrim.Value;
 		const int32 NumTrimmedFrames = EndFrameTrim.Value - StartFrameTrim.Value;
+
+		if (StartTrimKeyIndex == 0 && NumTrimmedFrames + 1 == NumKeys)
+		{
+			return false;
+		}
+
+		if (NumTrimmedFrames == 0)
+		{
+			return false;
+		}
 		
 		IAnimationDataController::FScopedBracket ScopedBracket(Controller, LOCTEXT("TrimRawAnimation_Bracket", "Trimming Animation Track Data"));
 		RemoveKeys(InSequence, StartTrimKeyIndex, NumTrimmedFrames);

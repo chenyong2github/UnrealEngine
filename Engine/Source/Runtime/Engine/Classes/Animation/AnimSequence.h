@@ -291,17 +291,6 @@ public:
 
 	FCompressedAnimSequence CompressedData;
 
-	// Accessors for animation frame count
-	UE_DEPRECATED(5.0, "GetRawNumberOfFrames is deprecated see UAnimDataModel::GetNumberOfKeys for the source keys, or GetNumberOfSampledKeys for resampled keys")
-	int32 GetRawNumberOfFrames() const { return GetNumberOfSampledKeys(); }
-
-	UE_DEPRECATED(5.0, "SetRawNumberOfFrame has been deprecated see UAnimDataController::SetFrameRate")
-	void SetRawNumberOfFrame(int32 InNumFrames) {}
-
-	/** Update the the number of expected keys in the (non-uniform) animation tracks, including T0 */
-	UE_DEPRECATED(5.0, "SetNumberOfSampledKeys has been deprecated see UAnimDataController::SetFrameRate")
-	void SetNumberOfSampledKeys(int32 InNumberOfKeys) {}
-
 	/** Additive animation type. **/
 	UPROPERTY(EditAnywhere, Category=AdditiveSettings, AssetRegistrySearchable)
 	TEnumAsByte<enum EAdditiveAnimationType> AdditiveAnimType;
@@ -445,10 +434,6 @@ public:
 #endif
 	//~ End UAnimSequenceBase Interface
 
-	// Returns the framerate of the animation
-	UE_DEPRECATED(5.0, "GetFrameRate is deprecated see UAnimDataModel::GetFrameRate for the source frame rate, or GetSamplingFrameRate for the target frame rate instead")
-	float GetFrameRate() const { return (float)GetSamplingFrameRate().AsDecimal(); }
-
 	// Extract Root Motion transform from the animation
 	FTransform ExtractRootMotion(float StartTime, float DeltaTime, bool bAllowLooping) const;
 
@@ -481,34 +466,13 @@ public:
 	*/
 	void GetBonePose(struct FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bForceUseRawData = false) const;
 
-	UE_DEPRECATED(5.0, "GetRawAnimationTrack has been deprecated see UAnimDataModel::GetBoneAnimationTracks")
-	const TArray<FRawAnimSequenceTrack>& GetRawAnimationData() const;
-
-#if WITH_EDITORONLY_DATA
-	UE_DEPRECATED(5.0, "SourceRawAnimationData has been deprecated")
-	bool HasSourceRawData() const { return false; }
-	UE_DEPRECATED(5.0, "GetAnimationTrackNames has been deprecated see FBoneAnimationTrack::Name")
-	const TArray<FName>& GetAnimationTrackNames() const;
-	
-	UE_DEPRECATED(5.0, "UpdateCompressedCurveName will be marked protected, updating compressed curve names is now handled by EAnimDataModelNotifyType::CurveRenamed")
-	void UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName);
-	
-	// Adds a new track (if no track of the supplied name is found) to the raw animation data, optionally setting it to TrackData.
-	UE_DEPRECATED(5.0, "AddNewRawTrack has been deprecated see UAnimDataController::AddBoneTrack and UAnimDataController::SetBoneTrackKeys")
-	int32 AddNewRawTrack(FName TrackName, FRawAnimSequenceTrack* TrackData = nullptr);
-#endif
-	UE_DEPRECATED(5.0, "GetRawTrackToSkeletonMapTable has been deprecated see FBoneAnimationTrack::BoneTreeIndex")
-	const TArray<FTrackToSkeletonMap>& GetRawTrackToSkeletonMapTable() const;
-
 	const TArray<FTrackToSkeletonMap>& GetCompressedTrackToSkeletonMapTable() const { return CompressedData.CompressedTrackToSkeletonMapTable; }
 	const TArray<struct FSmartName>& GetCompressedCurveNames() const { return CompressedData.CompressedCurveNames; }
 
-	UE_DEPRECATED(5.0, "GetRawAnimationTrack, and non-const access to Raw Animation Data has been deprecated see UAnimDataModel::GetBoneTrackByIndex")
-	FRawAnimSequenceTrack& GetRawAnimationTrack(int32 TrackIndex);
-
-	UE_DEPRECATED(5.0, "GetRawAnimationTrack has been deprecated see UAnimDataModel::GetBoneTrackByIndex")
-	const FRawAnimSequenceTrack& GetRawAnimationTrack(int32 TrackIndex) const;
-
+#if WITH_EDITORONLY_DATA
+protected:
+	void UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName);
+#endif
 private:
 #if WITH_EDITORONLY_DATA
 	void UpdateRetargetSourceAsset();
@@ -573,49 +537,20 @@ public:
 	 * @param	bUseRawData		If true, use raw animation data instead of compressed data.
 	 */
 	void GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, FAnimSequenceDecompressionContext& DecompContext, bool bUseRawData) const;
-
-	/**
-	 * Extract Bone Transform of the Time given, from InRawAnimationData
-	 *
-	 * @param	InRawAnimationData	RawAnimationData it extracts bone transform from
-	 * @param	OutAtom				[out] Output bone transform.
-	 * @param	TrackIndex			Index of track to interpolate.
-	 * @param	Time				Time on track to interpolate to.
-	 */
-	UE_DEPRECATED(5.0, "ExtractBoneTransform has been deprecated see FAnimationUtils::ExtractTransformFromTrack")
-	void ExtractBoneTransform(const TArray<struct FRawAnimSequenceTrack> & InRawAnimationData, FTransform& OutAtom, int32 TrackIndex, float Time) const;
-
-	/**
-	* Extract Bone Transform of the Time given, from InRawAnimationData
-	*
-	* @param	InRawAnimationTrack	RawAnimationTrack it extracts bone transform from
-	* @param	OutAtom				[out] Output bone transform.
-	* @param	Time				Time on track to interpolate to.
-	*/
-	UE_DEPRECATED(5.0, "ExtractBoneTransform has been deprecated see FAnimationUtils::ExtractTransformFromTrack")
-	void ExtractBoneTransform(const struct FRawAnimSequenceTrack& InRawAnimationTrack, FTransform& OutAtom, float Time) const;
-
-	UE_DEPRECATED(5.0, "ExtractBoneTransform has been deprecated see FAnimSequenceHelpers::ExtractBoneTransform")
-	void ExtractBoneTransform(const struct FRawAnimSequenceTrack& RawTrack, FTransform& OutAtom, int32 KeyIndex) const;
-
 	// End Transform related functions 
 
 	// Begin Memory related functions
 
 	/** @return	estimate uncompressed raw size. This is *not* the real raw size. 
 				Here we estimate what it would be with no trivial compression. */
-#if !WITH_EDITOR
-	UE_DEPRECATED(5.0, "GetUncompressedRawSize will be marked EDITOR_ONLY")
-#endif // !WITH_EDITOR
+#if WITH_EDITOR
 	int32 GetUncompressedRawSize() const;
 
 	/**
 	 * @return		The approximate size of raw animation data.
 	 */
-#if !WITH_EDITOR
-	UE_DEPRECATED(5.0, "GetApproxRawSize will be marked EDITOR_ONLY")
-#endif // !WITH_EDITOR
 	int32 GetApproxRawSize() const;
+#endif // WITH_EDITOR
 
 	/**
 	 * @return		The approximate size of compressed animation data for only bones.
@@ -627,44 +562,14 @@ public:
 	 */
 	int32 GetApproxCompressedSize() const;
 
-	/**
-	 * Removes trivial frames -- frames of tracks when position or orientation is constant
-	 * over the entire animation -- from the raw animation data.  If both position and rotation
-	 * go down to a single frame, the time is stripped out as well.
-	 * @return true if keys were removed.
-	 */
-	UE_DEPRECATED(5.0, "CompressRawAnimData has been deprecated, reduction of Raw Animation data now happens during compression instead")
-	bool CompressRawAnimData(float MaxPosDiff, float MaxAngleDiff) { return false; }
-
-	/**
-	 * Removes trivial frames -- frames of tracks when position or orientation is constant
-	 * over the entire animation -- from the raw animation data.  If both position and rotation
-	 * go down to a single frame, the time is stripped out as well.
-	 * @return true if keys were removed.
-	 */
-	UE_DEPRECATED(5.0, "CompressRawAnimData has been deprecated, reduction of Raw Animation data now happens during compression instead")
-	bool CompressRawAnimData() { return false; }
-
 	// Get compressed data for this UAnimSequence. May be built directly or pulled from DDC
 #if WITH_EDITOR
 	bool ShouldPerformStripping(const bool bPerformFrameStripping, const bool bPerformStrippingOnOddFramedAnims) const;
 	FString GetDDCCacheKeySuffix(const bool bPerformStripping) const;
 	void ApplyCompressedData(const FString& DataCacheKeySuffix, const bool bPerformFrameStripping, const TArray<uint8>& Data);
-#endif
 
-#if !WITH_EDITOR
-	UE_DEPRECATED(5.0, "WaitOnExistingCompression will be marked EDITOR_ONLY")
-#endif // !WITH_EDITOR
 	void WaitOnExistingCompression(const bool bWantResults=true);
-
-#if !WITH_EDITOR
-	UE_DEPRECATED(5.0, "RequestAnimCompression will be marked EDITOR_ONLY")
-#endif // !WITH_EDITOR
 	void RequestAnimCompression(FRequestAnimCompressionParams Params);
-
-#if !WITH_EDITOR
-	UE_DEPRECATED(5.0, "RequestSyncAnimRecompression will be marked EDITOR_ONLY")
-#endif // !WITH_EDITOR
 	void RequestSyncAnimRecompression(bool bOutput = false)
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -672,41 +577,26 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-#if !WITH_EDITOR
-	UE_DEPRECATED(5.0, "RequestAsyncAnimRecompression will be marked EDITOR_ONLY")
-#endif // !WITH_EDITOR
 	void RequestAsyncAnimRecompression(bool bOutput = false)
 	{ 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		RequestAnimCompression(FRequestAnimCompressionParams(true, false, bOutput));
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
+#endif
 
 protected:
 	void ApplyCompressedData(const TArray<uint8>& Data);
-
+    void ClearCompressedBoneData();
+    void ClearCompressedCurveData();
+    // Write the compressed data to the supplied FArchive
+    void SerializeCompressedData(FArchive& Ar, bool bDDCData);
 public:
 	bool IsCompressedDataValid() const;
 	bool IsCurveCompressedDataValid() const;
-
-	UE_DEPRECATED(5.0, "ClearCompressedBoneData will be marked protected")
-	void ClearCompressedBoneData();
-	UE_DEPRECATED(5.0, "ClearCompressedCurveData will be marked protected")
-	void ClearCompressedCurveData();
-	// Write the compressed data to the supplied FArchive
-	UE_DEPRECATED(5.0, "SerializeCompressedData will be marked protected")
-	void SerializeCompressedData(FArchive& Ar, bool bDDCData);
-
 	// End Memory related functions
 
 	// Begin Utility functions
-	/**
-	 * Get Skeleton Bone Index from Track Index for raw data
-	 *
-	 * @param	TrackIndex		Track Index
-	 */
-	UE_DEPRECATED(5.0, "DoesContainTransformCurves has been deprecated see FBoneAnimationTrack::BoneTreeIndex")
-	int32 GetSkeletonIndexFromRawDataTrackIndex(const int32 TrackIndex) const;
 
 	/**
 	* Get Skeleton Bone Index from Track Index for compressed data
@@ -717,95 +607,15 @@ public:
 	{
 		return GetCompressedTrackToSkeletonMapTable()[TrackIndex].BoneTreeIndex;
 	}
-
-	/** Clears any data in the AnimSequence */
-	UE_DEPRECATED(5.0, "RecycleAnimSequence has been deprecated use ResetAnimation instead")
-	void RecycleAnimSequence();
-
-#if WITH_EDITOR
-	/** Clears some data in the AnimSequence, so it can be reused when importing a new animation with same name over it. */
-	UE_DEPRECATED(5.0, "CleanAnimSequenceForImport has been deprecated see UAnimDataController:ResetModel")
-	void CleanAnimSequenceForImport();
-#endif
-
-	/** 
-	 * Copy AnimNotifies from one UAnimSequence to another.
-	 */
-	UE_DEPRECATED(5.0, "CopyNotifies has been moved, see UAnimSequenceHelpers::CopyNotifies")
-	static bool CopyNotifies(UAnimSequence* SourceAnimSeq, UAnimSequence* DestAnimSeq, bool bShowDialogs = true);
-
-	/**
-	 * Flip Rotation's W For NonRoot items, and compress it again if SkelMesh exists
-	 */
-	UE_DEPRECATED(5.0, "FlipRotationWForNonRoot has been deprecated, use UAnimDataModel::GetBoneAnimationTracks and UAnimDataController::SetBoneTrackKeys instead")
-	void FlipRotationWForNonRoot(USkeletalMesh * SkelMesh);
-
 	// End Utility functions
+	
 #if WITH_EDITOR
-	/**
-	 * After imported or any other change is made, call this to apply post process
-	 */
-	UE_DEPRECATED(5.0, "PostProcessSequence has been deprecated, any Raw Animation Data modifications should go through UAnimDataController")
-	void PostProcessSequence(bool bForceNewRawDatGuid = true);
-
-	// Kick off compression request when our raw data has changed
-	UE_DEPRECATED(5.0, "OnRawDataChanged has been deprecated, any Raw Animation Data modifications should go through UAnimDataController")
-	void OnRawDataChanged();
-
-	/** 
-	 * Insert extra frame of the first frame at the end of the frame so that it improves the interpolation when it loops
-	 * This increases framecount + time, so that it requires recompression
-	 */
-	UE_DEPRECATED(5.0, "AddLoopingInterpolation has been deprecated see FAnimSequenceHelpers::AnimationData::AddLoopingInterpolation")
-	bool AddLoopingInterpolation();
-
-	/*
-	* Clear all raw animation data that contains bone tracks
-	*/
-	UE_DEPRECATED(5.0, "RemoveAllTracks has been deprecated see UAnimDataController::RemoveAllBoneTracks")
-	void RemoveAllTracks();
-
-	/** 
-	 * Bake Transform Curves.TransformCurves to RawAnimation after making a back up of current RawAnimation
-	 */
-	UE_DEPRECATED(5.0, "BakeTrackCurvesToRawAnimation has been deprecated, transform curves are now baked during compression")
-	void BakeTrackCurvesToRawAnimation() {}
-
 	void BakeTrackCurvesToRawAnimationTracks(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable);
 
-	/**
-	 * Sometimes baked data gets invalidated. For example, if you retarget this from another animation
-	 * It won't matter anymore, so in any case, when the data is not valid anymore
-	 * We clear Source Raw Animation Data as well as Transform Curve
-	 */
-	UE_DEPRECATED(5.0, "ClearBakedTransformData has been deprecated, transform curves are now baked during compression")
-	void ClearBakedTransformData();
 	/**
 	 * Add Key to Transform Curves
 	 */
 	void AddKeyToSequence(float Time, const FName& BoneName, const FTransform& AdditiveTransform);
-	/**
-	 * Return true if it needs to re-bake
-	 */
-	UE_DEPRECATED(5.0, "DoesNeedRebake has been deprecated, transform curves are now baked during compression")
-	bool DoesNeedRebake() const { return false; }
-	/**
-	 * Return true if it contains transform curves
-	 */
-	UE_DEPRECATED(5.0, "DoesContainTransformCurves has been deprecated see UAnimDataModel::GetNumberOfTransformCurves")
-	bool DoesContainTransformCurves() const;
-
-	/**
-	 * Returns whether this animation has baked transform curves (i.e. has the raw data been modified)
-	 */
-	UE_DEPRECATED(5.0, "HasBakedTransformCurves has been deprecated, transform curves are now baked during compression")
-	bool HasBakedTransformCurves() const { return false; }
-
-	/**
-	 * Restore the pre baked transform curve raw data
-	 */
-	UE_DEPRECATED(5.0, "RestoreSourceData has been deprecated, transform curves are now baked during compression")
-	void RestoreSourceData() {}
 
 	/**
 	* Return true if compressed data is out of date / missing and so animation needs to use raw data
@@ -824,29 +634,6 @@ public:
 	 * Create Animation Sequence from the given animation
 	 */
 	bool CreateAnimation(class UAnimSequence* Sequence);
-
-	/**
-	 * Crops the raw anim data either from Start to CurrentTime or CurrentTime to End depending on
-	 * value of bFromStart.  Can't be called against cooked data.
-	 *
-	 * @param	CurrentTime		marker for cropping (either beginning or end)
-	 * @param	bFromStart		whether marker is begin or end marker
-	 * @return					true if the operation was successful.
-	 */
-	UE_DEPRECATED(5.0, "InsertFramesToRawAnimData has been deprecated see FAnimSequenceHelpers::AnimationData::Trim")
-	bool CropRawAnimData( float CurrentTime, bool bFromStart );
-		
-	/**
-	 * Crops the raw anim data either from Start to CurrentTime or CurrentTime to End depending on
-	 * value of bFromStart.  Can't be called against cooked data.
-	 *
-	 * @param	StartFrame		StartFrame to insert (0-based)
-	 * @param	EndFrame		EndFrame to insert (0-based
-	 * @param	CopyFrame		A frame that we copy from (0-based)
-	 * @return					true if the operation was successful.
-	 */
-	UE_DEPRECATED(5.0, "InsertFramesToRawAnimData has been deprecated see FAnimSequenceHelpers::AnimationData::DuplicateKeys")
-	bool InsertFramesToRawAnimData( int32 StartFrame, int32 EndFrame, int32 CopyFrame);
 
 	/** 
 	 * Add validation check to see if it's being ready to play or not
@@ -962,36 +749,8 @@ private:
 	bool ConvertRiggingDataToAnimationData(FAnimSequenceTrackContainer & RiggingAnimationData);
 	int32 GetSpaceBasedAnimationData(TArray< TArray<FTransform> > & AnimationDataInComponentSpace, FAnimSequenceTrackContainer * RiggingAnimationData) const;
 
-	/** Verify Track Map is valid, if not, fix up */
-	UE_DEPRECATED(5.0, "RemoveTrack has been deprecated see UAnimDataController::RemoveBoneTracksMissingFromSkeleton")
-	void VerifyTrackMap(USkeleton* MySkeleton=NULL);
-
-	/** Refresh Track Map from Animation Track Names **/
-	UE_DEPRECATED(5.0, "RemoveTrack has been deprecated see UAnimDataController::RemoveBoneTracksMissingFromSkeleton")
-	void RefreshTrackMapFromAnimTrackNames();
-
-	/**
-	 * Utility function that helps to remove track, you can't just remove RawAnimationData
-	 */
-	UE_DEPRECATED(5.0, "RemoveTrack has been deprecated see UAnimDataController::RemoveBoneTrack")
-	void RemoveTrack(int32 TrackIndex);
-
-	/**
-	 * Utility function that finds the correct spot to insert track to 
-	 */
-	UE_DEPRECATED(5.0, "InsertTrack has been deprecated see UAnimDataController::InsertBoneTrack")
-	int32 InsertTrack(const FName& BoneName);
-
 public:
-	/**
-	 * Utility function to resize the sequence
-	 * It rearranges curve data + notifies
-	 */
-	UE_DEPRECATED(5.0, "ResizeSequence has been deprecated see UAnimDataController::Resize")
-	void ResizeSequence(float NewLength, int32 NewNumFrames, bool bInsert, int32 StartFrame/*inclusive */, int32 EndFrame/*inclusive*/);
-
 #endif
-
 	/** Refresh sync marker data*/
 	void RefreshSyncMarkerDataFromAuthored();
 
@@ -1018,39 +777,29 @@ private:
 public:
 #if WITH_EDITOR
 	UE_DEPRECATED(5.0, "AddBoneCustomAttribute has been deprecated see UAnimDataController::AddAttribute")
-	UFUNCTION(BlueprintCallable, Category=CustomAttributes)
+	UFUNCTION(BlueprintCallable, Category=CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="AddBoneFloatCustomAttribute has been deprecated, use UAnimDataController::AddAttribute instead"))
 	void AddBoneFloatCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<float>& ValueKeys);
 
 	UE_DEPRECATED(5.0, "AddBoneCustomAttribute has been deprecated see UAnimDataController::AddAttribute")
-	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
+	UFUNCTION(BlueprintCallable, Category = CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="AddBoneIntegerCustomAttribute has been deprecated, use UAnimDataController::AddAttribute instead"))
 	void AddBoneIntegerCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<int32>& ValueKeys);
 
 	UE_DEPRECATED(5.0, "AddBoneStringCustomAttribute has been deprecated see UAnimDataController::AddAttribute")
-	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
+	UFUNCTION(BlueprintCallable, Category = CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="AddBoneStringCustomAttribute has been deprecated, use UAnimDataController::AddAttribute instead"))
 	void AddBoneStringCustomAttribute(const FName& BoneName, const FName& AttributeName, const TArray<float>& TimeKeys, const TArray<FString>& ValueKeys);
 
 	UE_DEPRECATED(5.0, "RemoveCustomAttribute has been deprecated see UAnimDataController::RemoveAttribute")
-	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
+	UFUNCTION(BlueprintCallable, Category = CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="RemoveCustomAttribute has been deprecated, use UAnimDataController::RemoveAttribute instead"))
 	void RemoveCustomAttribute(const FName& BoneName, const FName& AttributeName);
 
 	UE_DEPRECATED(5.0, "RemoveAllCustomAttributesForBone has been deprecated see UAnimDataController::RemoveAllAttributesForBone")
-	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
+	UFUNCTION(BlueprintCallable, Category = CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="RemoveAllCustomAttributesForBone has been deprecated, use UAnimDataController::RemoveAllAttributesForBone instead"))
 	void RemoveAllCustomAttributesForBone(const FName& BoneName);
 
 	UE_DEPRECATED(5.0, "RemoveAllCustomAttributes has been deprecated see UAnimDataController::RemoveAllAttributes")
-	UFUNCTION(BlueprintCallable, Category = CustomAttributes)
+	UFUNCTION(BlueprintCallable, Category = CustomAttributes, meta=(DeprecatedFunction, DeprecationMessage="RemoveAllCustomAttributes has been deprecated, use UAnimDataController::RemoveAllAttributes instead"))
 	void RemoveAllCustomAttributes();
-	
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.0, "GetCustomAttributesForBone has been deprecated see UAnimDataModel::GetAttributesForBone")
-	void GetCustomAttributesForBone(const FName& BoneName, TArray<FCustomAttribute>& OutAttributes) const {}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITOR
-	UE_DEPRECATED(5.0, "GetCustomAttributesForBone has been deprecated use EvaluateAttribute instead")
-	void GetCustomAttributes(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bUseRawData) const
-	{
-		EvaluateAttributes(OutAnimationPoseData, ExtractionContext, bUseRawData);
-	}
 
 	void EvaluateAttributes(FAnimationPoseData& OutAnimationPoseData, const FAnimExtractContext& ExtractionContext, bool bUseRawData) const;	
 protected:

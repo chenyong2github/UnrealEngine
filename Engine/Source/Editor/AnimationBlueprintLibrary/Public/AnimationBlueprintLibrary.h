@@ -355,7 +355,7 @@ public:
 	/** Apply all the changes made to Bone Tracks to Finalize. This triggers recompression. Note that this is expensive, but will require to get correct compressed data */
 	UE_DEPRECATED(5.0, "FinalizeBoneAnimation has been deprecated, use UAnimDataController instead")
 	UFUNCTION(BlueprintCallable, Category = "AnimationBlueprintLibrary|Curves", meta=(DeprecatedFunction, DeprecationMessage="FinalizeBoneAnimation has been deprecated, use UAnimDataController instead"))
-	static void FinalizeBoneAnimation(UAnimSequence* AnimationSequence);
+	static void FinalizeBoneAnimation(UAnimSequence* AnimationSequence) {}
 
 	// Smart name helper functions
 

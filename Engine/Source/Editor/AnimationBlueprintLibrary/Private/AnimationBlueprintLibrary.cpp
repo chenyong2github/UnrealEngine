@@ -2502,16 +2502,6 @@ void UAnimationBlueprintLibrary::RemoveAllBoneAnimation(UAnimSequence* Animation
 	}
 }
 
-void UAnimationBlueprintLibrary::FinalizeBoneAnimation(UAnimSequence* AnimationSequence)
-{
-	if (AnimationSequence)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		AnimationSequence->PostProcessSequence();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-}
-
 static void RecursiveRetrieveAnimationGraphs(UEdGraph* EdGraph, TArray<UAnimationGraph*>& OutAnimationGraphs)
 {
 	if (UAnimationGraph* AnimGraph = Cast<UAnimationGraph>(EdGraph))
