@@ -297,7 +297,7 @@ public:
 				bResult = true;
 			}
 
-			UE_LOG(LogPlatformFile, Log, TEXT("%s cached read wrapper"), bResult ? TEXT("Using") : TEXT("Not using"));
+			UE_LOG(LogPlatformFile, Verbose, TEXT("%s cached read wrapper"), bResult ? TEXT("Using") : TEXT("Not using"));
 		}
 #endif
 		return bResult;
