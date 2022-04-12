@@ -9,6 +9,7 @@
 #include "MediaPlateCustomization.h"
 #include "MediaPlateEditorStyle.h"
 #include "MediaPlayer.h"
+#include "MediaSoundComponent.h"
 #include "Models/MediaPlateEditorCommands.h"
 #include "PropertyEditorModule.h"
 
@@ -52,6 +53,14 @@ void FMediaPlateEditorModule::Tick(float DeltaTime)
 		bool bIsMediaPlateToBeRemoved = true;
 		if (MediaPlate != nullptr)
 		{
+			// Update sound component.
+			TObjectPtr<UMediaSoundComponent> SoundComponent = MediaPlate->SoundComponent;
+			if (SoundComponent != nullptr)
+			{
+				SoundComponent->UpdatePlayer();
+			}
+
+			// Get the player.
 			TObjectPtr<UMediaPlayer> MediaPlayer = MediaPlate->GetMediaPlayer();
 			if (MediaPlayer != nullptr)
 			{

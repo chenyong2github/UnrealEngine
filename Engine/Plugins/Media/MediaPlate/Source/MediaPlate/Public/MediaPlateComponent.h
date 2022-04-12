@@ -10,6 +10,7 @@
 
 class UMediaComponent;
 class UMediaPlayer;
+class UMediaSoundComponent;
 class UMediaSource;
 class UMediaTexture;
 struct FMediaTextureTrackerObject;
@@ -24,7 +25,11 @@ class MEDIAPLATE_API UMediaPlateComponent : public UActorComponent
 
 public:
 	//~ UActorComponent interface.
+	virtual void OnRegister();
 	virtual void BeginPlay();
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 
 	/**
 	 * Call this get our media player.
@@ -58,6 +63,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
 	bool bLoop;
 
+	/** If set then enable audio. */
+	UPROPERTY(EditAnywhere, Category = "MediaPlate")
+	bool bEnableAudio = false;
+
 	/** What time to start playing from (in seconds). */
 	UPROPERTY(EditAnywhere, Category = "MediaPlate", meta = (ClampMin = "0.0"))
 	float StartTime = 0.0f;
@@ -65,6 +74,10 @@ public:
 	/** Holds the media player. */
 	UPROPERTY(Category = MediaPlate, VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<UMediaComponent> MediaComponent;
+
+	/** Holds the component to play sound. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
+	TObjectPtr<UMediaSoundComponent> SoundComponent;
 
 	/** URL (or file)  to play. This will take precedence over the MediaSource. */
 	UPROPERTY(EditAnywhere, Category = MediaPlate)

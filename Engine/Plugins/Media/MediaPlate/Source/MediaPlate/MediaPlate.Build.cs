@@ -18,6 +18,7 @@ public class MediaPlate : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AudioMixer",
 				"CoreUObject",
 				"Engine",
 				"MediaAssets",

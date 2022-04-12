@@ -8,6 +8,7 @@
 #include "MediaPlayer.h"
 #include "MediaPlateModule.h"
 #include "MediaSource.h"
+#include "MediaSoundComponent.h"
 #include "MediaTexture.h"
 #include "MediaTextureTracker.h"
 
@@ -27,6 +28,21 @@ UMediaPlateComponent::UMediaPlateComponent(const FObjectInitializer& ObjectIniti
 		if (MediaTexture != nullptr)
 		{
 			MediaTexture->NewStyleOutput = true;
+		}
+	}
+}
+
+void UMediaPlateComponent::OnRegister()
+{
+	Super::OnRegister();
+
+	// Set up sound component if we have one.
+	if (SoundComponent != nullptr)
+	{
+		TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
+		if (MediaPlayer != nullptr)
+		{
+			SoundComponent->SetMediaPlayer(MediaPlayer);
 		}
 	}
 }
@@ -155,5 +171,47 @@ bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
 
 	return bIsPlaying;
 }
+
+#if WITH_EDITOR
+
+void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	// Has bEnableAudiio changed?
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, bEnableAudio))
+	{
+		// Are we turning on audio?
+		if (bEnableAudio)
+		{
+			// Get the media player.
+			TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
+			if (MediaPlayer != nullptr)
+			{
+				// Create a sound component.
+				SoundComponent = NewObject<UMediaSoundComponent>(this, NAME_None);
+				if (SoundComponent != nullptr)
+				{
+					SoundComponent->bIsUISound = true;
+					SoundComponent->SetMediaPlayer(MediaPlayer);
+					SoundComponent->Initialize();
+					SoundComponent->RegisterComponent();
+				}
+			}
+		}
+		else
+		{
+			// Remove this sound component.
+			if (SoundComponent != nullptr)
+			{
+				SoundComponent->UnregisterComponent();
+				SoundComponent->SetMediaPlayer(nullptr);
+				SoundComponent->UpdatePlayer();
+				SoundComponent->DestroyComponent();
+				SoundComponent = nullptr;
+			}
+		}
+	}
+}
+
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
