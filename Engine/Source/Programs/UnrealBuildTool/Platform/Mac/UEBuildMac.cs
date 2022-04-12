@@ -424,7 +424,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public override void RegisterBuildPlatforms()
 		{
-			ApplePlatformSDK SDK = new ApplePlatformSDK();
+			MacPlatformSDK SDK = new MacPlatformSDK();
 
 			// Register this build platform for Mac
 			UEBuildPlatform.RegisterBuildPlatform(new MacPlatform(SDK));
