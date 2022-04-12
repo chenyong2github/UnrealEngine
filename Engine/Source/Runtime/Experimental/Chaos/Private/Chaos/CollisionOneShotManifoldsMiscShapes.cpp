@@ -34,6 +34,8 @@ namespace Chaos
 	extern FRealSingle Chaos_Collision_GJKEpsilon;
 	extern FRealSingle Chaos_Collision_EPAEpsilon;
 
+	extern bool bChaos_Collision_OneSidedTriangleMesh;
+
 	namespace Collisions
 	{
 		void ConstructSphereSphereOneShotManifold(
@@ -735,6 +737,9 @@ namespace Chaos
 			const FTriangleMeshImplicitObject* UnscaledTriMesh = UnwrapImplicit<FTriangleMeshImplicitObject>(TriMesh, TriMeshScale, TriMeshMargin);
 			check(UnscaledTriMesh != nullptr);
 
+			// @todo(chaos): should be an option on the Tri Mesh?
+			const bool bOneSidedCollision = bChaos_Collision_OneSidedTriangleMesh;
+
 			const FRigidTransform3 TriangleMeshToConvexTransform = TriMeshTransform.GetRelativeTransformNoScale(ConvexTransform);
 
 			// Calculate the query bounds in trimesh space
@@ -757,7 +762,7 @@ namespace Chaos
 			while (TriangleProducer.NextTriangle(*UnscaledTriMesh, QueryTransform, Triangle, TriangleIndex))
 			{
 				TriangleManifoldPoints.Reset();
-				ConstructPlanarConvexTriangleOneShotManifold(Convex, Triangle, CullDistance, TriangleManifoldPoints);
+				ConstructPlanarConvexTriangleOneShotManifold(Convex, Triangle, bOneSidedCollision, CullDistance, TriangleManifoldPoints);
 					
 				for (int32 TriangleContactIndex = 0; TriangleContactIndex < TriangleManifoldPoints.Num(); ++TriangleContactIndex)
 				{

@@ -82,6 +82,11 @@ namespace Chaos
 	bool bChaos_Collision_UseGJK2 = false;
 	FAutoConsoleVariableRef CVarChaos_Collision_UseGJK2(TEXT("p.Chaos.Collision.UseGJK2"), bChaos_Collision_UseGJK2, TEXT(""));
 
+	bool bChaos_Collision_OneSidedTriangleMesh = false;
+	bool bChaos_Collision_OneSidedHeightfield = false;
+	FAutoConsoleVariableRef CVarChaos_Collision_OneSidedTriangleMesh(TEXT("p.Chaos.Collision.OneSidedTriangleMesh"), bChaos_Collision_OneSidedTriangleMesh, TEXT(""));
+	FAutoConsoleVariableRef CVarChaos_Collision_OneSidedHeightfield(TEXT("p.Chaos.Collision.OneSidedHeightfield"), bChaos_Collision_OneSidedHeightfield, TEXT(""));
+
 	namespace Collisions
 	{
 		// Forward delarations we need from CollisionRestitution.cpp
@@ -1299,7 +1304,7 @@ namespace Chaos
 
 		// @todo(chaos): don't use GJK/EPA for triangle-convex so we can avoid using margains and avoid errors related to misidentifying edge contacts
 		template <typename ConvexType>
-		void ConstructPlanarConvexTriangleOneShotManifold(const ConvexType& Convex, const FTriangle& Triangle, const FReal CullDistance, TCArray<FContactPoint, 4>& OutContactPoints)
+		void ConstructPlanarConvexTriangleOneShotManifold(const ConvexType& Convex, const FTriangle& Triangle, const bool bOneSided, const FReal CullDistance, TCArray<FContactPoint, 4>& OutContactPoints)
 		{
 			SCOPE_CYCLE_COUNTER_MANIFOLD();
 			check(OutContactPoints.Num() == 0);
@@ -1332,6 +1337,12 @@ namespace Chaos
 			const FVec3 TrianglePlaneNormal = Triangle.GetNormal();
 			const FVec3 TrianglePlanePosition = Triangle[0];
 			const FReal TrianglePlaneNormalDotContactNormal = FVec3::DotProduct(TrianglePlaneNormal, GJKContactPoint.ShapeContactNormal);
+
+			// One sided triangles ignore collisions with the inside face
+			if (bOneSided && (TrianglePlaneNormalDotContactNormal < FReal(0)))
+			{
+				return;
+			}
 
 			// Find the best opposing plane on the convex
 			// @todo(chaos): handle zero margins...
@@ -1701,7 +1712,8 @@ namespace Chaos
 		template
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const FImplicitConvex3& Convex, 
-			const FTriangle& Triangle, 
+			const FTriangle& Triangle,
+			const bool bOneSided,
 			const FReal CullDistance, 
 			TCArray<FContactPoint, 4>& OutContactPoints);
 
@@ -1709,6 +1721,7 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const TImplicitObjectInstanced<FImplicitConvex3>& Convex,
 			const FTriangle& Triangle,
+			const bool bOneSided,
 			const FReal CullDistance,
 			TCArray<FContactPoint, 4>& OutContactPoints);
 
@@ -1716,6 +1729,7 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const TImplicitObjectScaled<FImplicitConvex3>& Convex,
 			const FTriangle& Triangle,
+			const bool bOneSided,
 			const FReal CullDistance,
 			TCArray<FContactPoint, 4>& OutContactPoints);
 
@@ -1723,6 +1737,7 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const FImplicitBox3& Convex,
 			const FTriangle& Triangle,
+			const bool bOneSided,
 			const FReal CullDistance,
 			TCArray<FContactPoint, 4>& OutContactPoints);
 
@@ -1730,6 +1745,7 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const TImplicitObjectScaled<FImplicitBox3>& Convex,
 			const FTriangle& Triangle,
+			const bool bOneSided,
 			const FReal CullDistance,
 			TCArray<FContactPoint, 4>& OutContactPoints);
 
@@ -1737,6 +1753,7 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const TImplicitObjectInstanced<FImplicitBox3>& Convex,
 			const FTriangle& Triangle,
+			const bool bOneSided,
 			const FReal CullDistance,
 			TCArray<FContactPoint, 4>& OutContactPoints);
 

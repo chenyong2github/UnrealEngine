@@ -48,6 +48,7 @@ namespace Chaos
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const ConvexType& Convex, 
 			const FTriangle& Triangle, 
+			const bool bOneSided,
 			const FReal CullDistance, 
 			TCArray<FContactPoint, 4>& OutContactPoints);
 	}

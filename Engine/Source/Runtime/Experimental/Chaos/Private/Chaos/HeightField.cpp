@@ -20,6 +20,8 @@ namespace Chaos
 {
 	extern FRealSingle Chaos_Collision_EdgePrunePlaneDistance;
 
+	extern bool bChaos_Collision_OneSidedHeightfield;
+
 	int32 bOneSidedHeightField = 1;
 	static FAutoConsoleVariableRef CVarOneSidedHeightField(TEXT("p.Chaos.OneSidedHeightField"), bOneSidedHeightField, TEXT("When enabled, extra steps will ensure that FHeightField::GJKContactPointImp never results in internal-facing contact data."));
 
@@ -1465,6 +1467,9 @@ namespace Chaos
 	template <typename GeomType>
 	bool FHeightField::ContactManifoldPlanarConvexImp(const GeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, TArray<FContactPoint>& ContactPoints) const
 	{
+		// @todo(chaos): should be an option on the Heightfield?
+		const bool bOneSidedCollision = bChaos_Collision_OneSidedHeightfield;
+
 		auto OverlapTriangle = [&](const FVec3& A, const FVec3& B, const FVec3& C, TCArray<FContactPoint, 4>& TriangleContactPoints)
 		{
 			// Create triangle in query space
@@ -1473,7 +1478,7 @@ namespace Chaos
 				QueryTM.InverseTransformPositionNoScale(B), 
 				QueryTM.InverseTransformPositionNoScale(C));
 
-			Collisions::ConstructPlanarConvexTriangleOneShotManifold(QueryGeom, TriangleConvex, Thickness, TriangleContactPoints);
+			Collisions::ConstructPlanarConvexTriangleOneShotManifold(QueryGeom, TriangleConvex, bOneSidedCollision, Thickness, TriangleContactPoints);
 
 			// Convert back to shape-local space
 			for (FContactPoint& ContactPoint : TriangleContactPoints)
