@@ -20,6 +20,7 @@ public:
 	{
 		UncookedPackageLoader.Reset(new FAsyncLoadingThread(/** ThreadIndex = */ 0, InEDLBootNotificationManager));
 		CookedPackageLoader.Reset(MakeAsyncPackageLoader2(InIoDispatcher, UncookedPackageLoader.Get()));
+		UncookedPackageLoader->SetIoStorePackageLoader(CookedPackageLoader.Get());
 	}
 
 	virtual ~FEditorPackageLoader () { }
@@ -199,7 +200,7 @@ public:
 
 private:
 	TUniquePtr<IAsyncPackageLoader> CookedPackageLoader;
-	TUniquePtr<IAsyncPackageLoader> UncookedPackageLoader;
+	TUniquePtr<FAsyncLoadingThread> UncookedPackageLoader;
 	bool bHasInitializedCookedPackageLoader = false;
 };
 

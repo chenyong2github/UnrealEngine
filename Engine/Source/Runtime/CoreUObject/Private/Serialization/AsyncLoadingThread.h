@@ -283,10 +283,23 @@ private:
 	/** Thread safe counter used to accumulate cycles spent on blocking. Using stats may generate to many stats messages. */
 	static FThreadSafeCounter BlockingCycles;
 #endif
+
+	IAsyncPackageLoader* IoStorePackageLoader = nullptr;
+
 public:
 
 	FAsyncLoadingThread(int32 InThreadIndex, IEDLBootNotificationManager& InEDLBootNotificationManager);
 	virtual ~FAsyncLoadingThread();
+
+	IAsyncPackageLoader* GetIoStorePackageLoader() const
+	{
+		return IoStorePackageLoader;
+	}
+
+	void SetIoStorePackageLoader(IAsyncPackageLoader* InIoStorePackageLoader)
+	{
+		IoStorePackageLoader = InIoStorePackageLoader;
+	}
 
 	//~ Begin FRunnable Interface.
 	virtual bool Init();

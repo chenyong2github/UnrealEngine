@@ -6081,8 +6081,28 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports()
 			// The package doesn't exist and this import is not in the dependency list so add it now.
 			if (!FPackageName::IsShortPackageName(ImportPackageName))
 			{
-				UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::LoadImports for %s: Loading %s"), *Desc.PackagePath.GetDebugName(), *ImportPackageName);
-				AddImportDependency(ImportPackageFName, ImportToLoad, InstancingContext);
+				bool bLoadedFromIoStore = false;
+				if (IAsyncPackageLoader* IoStorePackageLoader = AsyncLoadingThread.GetIoStorePackageLoader())
+				{
+					FPackagePath ImportedPackagePath = FPackagePath::FromPackageNameUnchecked(ImportPackageFName);
+					FPackageName::EPackageLocationFilter PackageLocation = FPackageName::EPackageLocationFilter(uint8(FPackageName::EPackageLocationFilter::IoDispatcher) | uint8(FPackageName::EPackageLocationFilter::FileSystem));
+					PackageLocation = FPackageName::DoesPackageExistEx(ImportedPackagePath, PackageLocation, false /* bMatchCaseOnDisk */, nullptr);
+					if (PackageLocation == FPackageName::EPackageLocationFilter::IoDispatcher)
+					{
+						UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::LoadImports for %s: Loading %s (0x%llX) using IoStore package loader"), *Desc.PackagePath.GetDebugName(), *ImportPackageName, FPackageId::FromName(ImportPackageFName).ValueForDebugging());
+						check(IsInGameThread());
+						FAsyncLoadingThread::LeaveAsyncLoadingTick(AsyncLoadingThread.GetThreadIndex()); // Fix thread check that triggers if we recurse back into the uncooked package loader from here
+						int32 ImportRequestId = IoStorePackageLoader->LoadPackage(ImportedPackagePath, NAME_None, FLoadPackageAsyncDelegate(), PKG_None, INDEX_NONE, 0, nullptr);
+						IoStorePackageLoader->FlushLoading(ImportRequestId);
+						FAsyncLoadingThread::EnterAsyncLoadingTick(AsyncLoadingThread.GetThreadIndex());
+						bLoadedFromIoStore = true;
+					}
+				}
+				if (!bLoadedFromIoStore)
+				{
+					UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::LoadImports for %s: Loading %s"), *Desc.PackagePath.GetDebugName(), *ImportPackageName);
+					AddImportDependency(ImportPackageFName, ImportToLoad, InstancingContext);
+				}
 			}
 			else
 			{
@@ -6782,7 +6802,7 @@ void FAsyncPackage::CloseDelayedLinkers()
 
 void FAsyncPackage::CallCompletionCallbacks(bool bInternal, EAsyncLoadingResult::Type LoadingResult)
 {
-	checkSlow(bInternal || !IsInAsyncLoadingThread());
+	checkSlow(bInternal || !GetOwnerThread().IsInAsyncLoadThread());
 
 	UPackage* LoadedPackage = (!bLoadHasFailed) ? LinkerRoot : nullptr;
 	for (FCompletionCallback& CompletionCallback : CompletionCallbacks)
