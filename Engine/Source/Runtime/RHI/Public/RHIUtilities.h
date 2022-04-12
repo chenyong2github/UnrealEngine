@@ -890,6 +890,9 @@ extern RHI_API float RHIGetSyncSlackMS();
 /** Returns the top and bottom vsync present thresholds (the values of rhi.PresentThreshold.Top and rhi.PresentThreshold.Bottom) */
 extern RHI_API void RHIGetPresentThresholds(float& OutTopPercent, float& OutBottomPercent);
 
+/** Returns the value of the rhi.SyncAllowVariable CVar. */
+extern RHI_API bool RHIGetSyncAllowVariable();
+
 /** Signals the completion of the specified task graph event when the given frame has flipped. */
 extern RHI_API void RHICompleteGraphEventOnFlip(uint64 PresentIndex, FGraphEventRef Event);
 

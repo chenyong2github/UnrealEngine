@@ -116,6 +116,13 @@ TAutoConsoleVariable<float> CVarRHISyncSlackMS(
 );
 #endif
 
+TAutoConsoleVariable<int32> CVarRHISyncAllowVariable(
+	TEXT("rhi.SyncAllowVariable"),
+	1,
+	TEXT("When 1, allows the RHI to use variable refresh rate, if supported by the output hardware."),
+	ECVF_Default
+);
+
 class FRHIFrameFlipTrackingRunnable : public FRunnable
 {
 	static FRunnableThread* Thread;
@@ -488,6 +495,11 @@ RHI_API float RHIGetSyncSlackMS()
 	const float SyncSlackMS = RHIGetSyncInterval() / float(FPlatformMisc::GetMaxRefreshRate()) * 1000.f;		// Sync slack is entire frame interval if we aren't using the frame offset system
 #endif // #else // #if USE_FRAME_OFFSET_THREAD
 	return SyncSlackMS;
+}
+
+RHI_API bool RHIGetSyncAllowVariable()
+{
+	return CVarRHISyncAllowVariable.GetValueOnAnyThread() != 0;
 }
 
 RHI_API void RHIGetPresentThresholds(float& OutTopPercent, float& OutBottomPercent)
