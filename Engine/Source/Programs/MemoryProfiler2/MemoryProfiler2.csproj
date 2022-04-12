@@ -211,10 +211,8 @@
     <Compile Include="StreamToken.cs" />
     <Compile Include="TimeLineView.cs" />
     <Compile Include="../../../Platforms/*/Source/Programs/MemoryProfiler2/**/*.cs">
-      <!-- RecursiveDir metadata expands to [PlatformName]/Source/Programs/[etc]. The Replace() will
-      replace everything from the first slash to the end leaving just the platform name. Should the
-      Replace() fail then RecursiveDir is still an agreeable value -->
-      <Link>$([System.Text.RegularExpressions.Regex]::Replace(%(Compile.RecursiveDir), [\\/].+$, ``))/_</Link>
+      <!-- Since RecursiveDir is bugged on VS Mac, we use the FullPath, and use Regex to pull out portions of the path to get Platform name -->
+      <Link>Platform/$([System.Text.RegularExpressions.Regex]::Replace(%(FullPath), '^(.*[\\/]Platforms[\\/])(.+?)[\\/](.*)$', '$2'))/%(Filename)%(Extension)</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup>

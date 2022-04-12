@@ -502,6 +502,28 @@ namespace UnrealBuildTool
 
 			IDictionary<PrimaryProjectFolder, Guid> ProjectFolderGuids = GenerateProjectFolderGuids(RootFolder);
 
+			// check if the give folder has any projects that will be put into the solution
+			System.Func<PrimaryProjectFolder, bool>? HasProjectFunc = null;
+			HasProjectFunc = (ProjectFolder) =>
+			{
+				foreach (MSBuildProjectFile ChildProject in ProjectFolder.ChildProjects)
+				{
+					if (AllProjectFiles.Contains(ChildProject))
+					{
+						return true;
+					}
+				}
+
+				foreach (PrimaryProjectFolder SubFolder in ProjectFolder.SubFolders)
+				{
+					if (HasProjectFunc!(SubFolder))
+					{
+						return true;
+					}
+				}
+				return false;
+			};
+
 			// Solution folders, files and project entries
 			{
 				// This the GUID that Visual Studio uses to identify a solution folder
@@ -512,6 +534,11 @@ namespace UnrealBuildTool
 					IEnumerable<PrimaryProjectFolder> AllSolutionFolders = ProjectFolderGuids.Keys.OrderBy(Folder => Folder.FolderName).ThenBy(Folder => ProjectFolderGuids[Folder]);
 					foreach (PrimaryProjectFolder CurFolder in AllSolutionFolders)
 					{
+						// if this folder has no projects anywhere under it then skip it
+						if (!HasProjectFunc(CurFolder))
+						{
+							continue;
+						}
 						string FolderGUIDString = ProjectFolderGuids[CurFolder].ToString("B").ToUpperInvariant();
 						VCSolutionFileContent.AppendLine("Project(\"" + SolutionFolderEntryGUID + "\") = \"" + CurFolder.FolderName + "\", \"" + CurFolder.FolderName + "\", \"" + FolderGUIDString + "\"");
 
@@ -763,14 +790,21 @@ namespace UnrealBuildTool
 
 									foreach (MSBuildProjectFile ChildProject in CurFolder.ChildProjects)
 									{
-										//	e.g. "{BF6FB09F-A2A6-468F-BE6F-DEBE07EAD3EA} = {C43B6BB5-3EF0-4784-B896-4099753BCDA9}"
-										LocalVCSolutionFileContent.AppendLine("		" + ChildProject.ProjectGUID.ToString("B").ToUpperInvariant() + " = " + CurFolderGUIDString);
+										if (AllProjectFiles.Contains(ChildProject))
+										{
+											//	e.g. "{BF6FB09F-A2A6-468F-BE6F-DEBE07EAD3EA} = {C43B6BB5-3EF0-4784-B896-4099753BCDA9}"
+											LocalVCSolutionFileContent.AppendLine("		" + ChildProject.ProjectGUID.ToString("B").ToUpperInvariant() + " = " + CurFolderGUIDString);
+										}
 									}
 
 									foreach (PrimaryProjectFolder SubFolder in CurFolder.SubFolders)
 									{
-										//	e.g. "{BF6FB09F-A2A6-468F-BE6F-DEBE07EAD3EA} = {C43B6BB5-3EF0-4784-B896-4099753BCDA9}"
-										LocalVCSolutionFileContent.AppendLine("		" + ProjectFolderGuids[SubFolder].ToString("B").ToUpperInvariant() + " = " + CurFolderGUIDString);
+										// if this folder has no projects anywhere under it then skip it
+										if (HasProjectFunc(SubFolder))
+										{
+											//	e.g. "{BF6FB09F-A2A6-468F-BE6F-DEBE07EAD3EA} = {C43B6BB5-3EF0-4784-B896-4099753BCDA9}"
+											LocalVCSolutionFileContent.AppendLine("		" + ProjectFolderGuids[SubFolder].ToString("B").ToUpperInvariant() + " = " + CurFolderGUIDString);
+										}
 									}
 
 									// Recurse into subfolders
