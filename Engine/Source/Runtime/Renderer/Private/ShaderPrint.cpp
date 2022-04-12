@@ -141,7 +141,7 @@ namespace ShaderPrint
 	// Uniform buffer
 	
 	// ShaderPrint uniform buffer
-	IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FShaderPrintCommonParameters, "ShaderPrint");
+	IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FShaderPrintCommonParameters, "ShaderPrintData");
 	
 	// Fill the uniform buffer parameters
 	// Return a uniform buffer with values filled and with single frame lifetime

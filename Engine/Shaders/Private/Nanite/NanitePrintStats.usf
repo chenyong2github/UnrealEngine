@@ -112,7 +112,7 @@ void PrintStats()
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 #else
-	ScreenPos.y += (InStatsBuffer[0].NumPrimaryViews > 0 ? 11 : 9) * ShaderPrint.FontSpacing.y;
+	ScreenPos.y += (InStatsBuffer[0].NumPrimaryViews > 0 ? 11 : 9) * ShaderPrintData.FontSpacing.y;
 #endif
 
 #if TWO_PASS_CULLING
@@ -158,7 +158,7 @@ void PrintStats()
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 	ScreenPos = ShaderPrintNewline(ScreenPos);
 #else
-	ScreenPos.y += 9 * ShaderPrint.FontSpacing.y;
+	ScreenPos.y += 9 * ShaderPrintData.FontSpacing.y;
 #endif
 #endif
 

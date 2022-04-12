@@ -48,7 +48,7 @@ void InitValueBufferCS()
 [numthreads(1, 1, 1)]
 void BuildIndirectDispatchArgsCS()
 {
-	uint ValueCount = min(ShaderPrint.MaxValueCount, uint(ValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value));
+	uint ValueCount = min(ShaderPrintData.MaxValueCount, uint(ValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value));
 
 	RWIndirectDispatchArgsBuffer[0] = (ValueCount + 63)/64;
 	RWIndirectDispatchArgsBuffer[1] = 1;
@@ -77,7 +77,7 @@ void AddSymbol(inout float2 ScreenPos, in int Symbol, in float3 Color, uint Type
 	
 		// Prevent writing off the buffer
 		// Note that counter still increases so need to clamp when reading it in later passes
-		if (uint(IndexToStore) >= ShaderPrint.MaxSymbolCount)
+		if (uint(IndexToStore) >= ShaderPrintData.MaxSymbolCount)
 		{
 			return;
 		}
@@ -86,7 +86,7 @@ void AddSymbol(inout float2 ScreenPos, in int Symbol, in float3 Color, uint Type
 		RWSymbolsBuffer[IndexToStore + SHADER_PRINT_VALUE_OFFSET] = PackShaderPrintItem(Item);
 	}
 
-	ScreenPos.x += ShaderPrint.FontSpacing.x;
+	ScreenPos.x += ShaderPrintData.FontSpacing.x;
 }
 
 void AddState(in uint InValue, in uint InPackedMetadata)
@@ -98,7 +98,7 @@ void AddState(in uint InValue, in uint InPackedMetadata)
 		InterlockedAdd(RWStateBuffer[SHADER_PRINT_STATE_COUNT_OFFSET], 1, Metadata.Index);
 	}
 
-	if (Metadata.Index < ShaderPrint.MaxStateCount)
+	if (Metadata.Index < ShaderPrintData.MaxStateCount)
 	{
 		const uint Index3 = Metadata.Index * SHADER_PRINT_STATE_STRIDE + SHADER_PRINT_STATE_VALUE_OFFSET;
 		RWStateBuffer[Index3 + SHADER_PRINT_STATE_INDEX_METADATA] = ShaderPrintPackMetadata(Metadata); // Re-encode with the new index
@@ -213,7 +213,7 @@ void AddHexSymbols(inout float2 ScreenPos, uint Value, in float3 Color)
 [numthreads(64, 1, 1)]
 void BuildSymbolBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint ValueCount = min(ShaderPrint.MaxValueCount, uint(ValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value));
+	uint ValueCount = min(ShaderPrintData.MaxValueCount, uint(ValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value));
 	if (DispatchThreadId.x >= ValueCount)
 	{
 		return;
@@ -249,7 +249,7 @@ void BuildSymbolBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 [numthreads(1, 1, 1)]
 void CompactStateBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint StateCount = min(RWStateBuffer[SHADER_PRINT_STATE_COUNT_OFFSET], ShaderPrint.MaxStateCount);
+	uint StateCount = min(RWStateBuffer[SHADER_PRINT_STATE_COUNT_OFFSET], ShaderPrintData.MaxStateCount);
 
 	if (StateCount > 0)
 	{
@@ -281,7 +281,7 @@ void CompactStateBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 [numthreads(1, 1, 1)]
 void BuildIndirectDrawArgsCS()
 {
-	uint SymbolCount = min(ShaderPrint.MaxSymbolCount, uint(SymbolsBuffer[SHADER_PRINT_COUNT_OFFSET].Value));
+	uint SymbolCount = min(ShaderPrintData.MaxSymbolCount, uint(SymbolsBuffer[SHADER_PRINT_COUNT_OFFSET].Value));
 
 	RWIndirectDrawArgsBuffer[0] = 6;
 	RWIndirectDrawArgsBuffer[1] = SymbolCount * 2; // Main glyph + drop shadow
@@ -305,7 +305,7 @@ void DrawSymbolsVS(
 {
 	bool bDropShadow = (InstanceId & 1) == 0;
 	OutShadow = bDropShadow ? 1 : 0;
-	float2 DropShadowOffset = bDropShadow ? ShaderPrint.FontSize.xy * float2(0.2f, -0.2f) : 0;
+	float2 DropShadowOffset = bDropShadow ? ShaderPrintData.FontSize.xy * float2(0.2f, -0.2f) : 0;
 
 	InstanceId = InstanceId >> 1;
 	FShaderPrintItem Symbol = UnpackShaderPrintItem(SymbolsBuffer[InstanceId + SHADER_PRINT_VALUE_OFFSET]);
@@ -319,21 +319,21 @@ void DrawSymbolsVS(
 	bool bIsValid = true;
 	if (Symbol.Type == SHADER_PRINT_TYPE_SLIDER)
 	{
-		const float2 NormalizedSize = GetSliderWidgetSize() / float2(ShaderPrint.Resolution);
+		const float2 NormalizedSize = GetSliderWidgetSize() / float2(ShaderPrintData.Resolution);
 		const float2 Offset = float2(NormalizedSize.x - NormalizedSize.y/4.f, 0.f);
 		OutPosition.xy = VertPos.xy * NormalizedSize + Offset + InstancePos + DropShadowOffset;
 		bIsValid = !bDropShadow;
 	}
 	else if (Symbol.Type == SHADER_PRINT_TYPE_CHECK)
 	{
-		const float2 NormalizedSize = GetCheckboxWidgetSize() / float2(ShaderPrint.Resolution);
+		const float2 NormalizedSize = GetCheckboxWidgetSize() / float2(ShaderPrintData.Resolution);
 		const float2 Offset = float2(NormalizedSize.x * 0.5f, 0.f);
 		OutPosition.xy = VertPos.xy * NormalizedSize + Offset + InstancePos + DropShadowOffset;
 		bIsValid = !bDropShadow;
 	}
 	else
 	{	
-		OutPosition.xy = VertPos.xy * ShaderPrint.FontSize.xy + InstancePos + DropShadowOffset;
+		OutPosition.xy = VertPos.xy * ShaderPrintData.FontSize.xy + InstancePos + DropShadowOffset;
 	}
 
 	OutPosition.zw = float2(0, 1);
