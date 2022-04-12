@@ -32,9 +32,11 @@ public:
 	/** @return List of external data required by the state tree */
 	TConstArrayView<FStateTreeExternalDataDesc> GetExternalDataDescs() const { return ExternalDataDescs; }
 
-	/** @return Schema describing which inputs, evaluators, and tasks a StateTree can contain */
-	const UStateTreeSchema* GetSchema() const { return Schema; }
-	void SetSchema(UStateTreeSchema* InSchema) { Schema = InSchema; }
+	/** @return List of named external data enforced by the schema that must be provided through the execution context. */
+	TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const { return Schema ? Schema->GetNamedExternalDataDescs() : TConstArrayView<FStateTreeExternalDataDesc>(); }
+
+	/** @return List of parameters of the state tree. Default parameter values can be overridden at runtime by the execution context. */
+	TConstArrayView<FStateTreeParameterDesc> GetParameterDescs() const { return Parameters.Parameters; }
 
 	/** @return true if the tree asset can be used at runtime. */
 	bool IsReadyToRun() const;
@@ -66,7 +68,6 @@ protected:
 	virtual void Serialize(FStructuredArchiveRecord Record) override;
 	
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 #endif
 
@@ -74,8 +75,16 @@ private:
 
 	// Properties
 
-	UPROPERTY(EditDefaultsOnly, Category = Common, Instanced)
+	UPROPERTY(Instanced)
 	TObjectPtr<UStateTreeSchema> Schema = nullptr;
+
+	/**
+	 * Parameters that could be used for bindings within the Tree.
+	 * Default values are stored within the asset but StateTreeReference can be used to parameterized the tree.
+	 * @see FStateTreeReference
+	 */
+	UPROPERTY()
+	FStateTreeParameters Parameters;	
 
 	/** Evaluators, Tasks, and Condition items */
 	UPROPERTY()
@@ -117,10 +126,4 @@ private:
 	friend struct FStateTreeCompiler;
 #endif
 };
-
-
-
-
-
-
 

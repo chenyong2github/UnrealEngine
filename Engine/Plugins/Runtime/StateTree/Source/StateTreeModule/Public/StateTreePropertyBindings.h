@@ -153,7 +153,11 @@ struct STATETREEMODULE_API FStateTreeBindableStructDesc
 {
 	GENERATED_BODY()
 
+	FStateTreeBindableStructDesc() = default;
+
 #if WITH_EDITORONLY_DATA
+	FStateTreeBindableStructDesc(const FName InName, const UStruct* InStruct, const FGuid InGuid) : Struct(InStruct), Name(InName), ID(InGuid) {}
+
 	bool operator==(const FStateTreeBindableStructDesc& RHS) const
 	{
 		return ID == RHS.ID && Struct == RHS.Struct; // Not checking name, it's cosmetic.

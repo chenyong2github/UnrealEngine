@@ -809,7 +809,7 @@ EVisibility FStateTreeEditorNodeDetails::IsNameVisible() const
 
 	if (ScriptStruct != nullptr && ScriptStruct->IsChildOf(FStateTreeTaskBase::StaticStruct()))
 	{
-		const UStateTreeSchema* Schema = StateTree ? StateTree->GetSchema() : nullptr;
+		const UStateTreeSchema* Schema = EditorData ? EditorData->Schema : nullptr;
 		if (Schema && Schema->AllowMultipleTasks() == false)
 		{
 			// Single task states use the state name as task name.
@@ -977,7 +977,7 @@ TSharedRef<SWidget> FStateTreeEditorNodeDetails::GeneratePicker()
 	ClassCache->GetClasses(BaseClass, ObjectNodes);
 
 	const FSlateIcon ScripStructIcon = FSlateIconFinder::FindIconForClass(UScriptStruct::StaticClass());
-	const UStateTreeSchema* Schema = StateTree ? StateTree->GetSchema() : nullptr;
+	const UStateTreeSchema* Schema = EditorData ? EditorData->Schema : nullptr;
 	
 	for (const TSharedPtr<FStateTreeNodeClassData>& Data : StructNodes)
 	{

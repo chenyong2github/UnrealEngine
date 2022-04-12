@@ -10,7 +10,6 @@
 #include "StateTreeConditionBase.h"
 #include "StateTreeState.h"
 #include "StateTreeExecutionContext.h"
-#include "CoreMinimal.h"
 #include "StateTreePropertyBindingCompiler.h"
 
 
@@ -32,6 +31,27 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 		return false;
 	}
 
+	// Copy schema the EditorData
+	StateTree->Schema = DuplicateObject(TreeData->Schema, StateTree);
+
+	// Copy parameters from EditorData	
+	StateTree->Parameters = TreeData->Parameters;
+	
+	// Mark all parameters as binding source
+	for (FStateTreeParameterDesc& Desc : StateTree->Parameters.Parameters)
+	{
+		Desc.DataViewIndex = BindingsCompiler.AddSourceStruct({Desc.Name, Desc.Parameter.GetScriptStruct(), Desc.ID});
+	}	
+	
+	// Mark all named external values as binding source
+	if (StateTree->Schema)
+	{
+		for (FStateTreeExternalDataDesc& Desc : StateTree->Schema->GetMutableNamedExternalDataDescs())
+		{
+			Desc.Handle.DataViewIndex = BindingsCompiler.AddSourceStruct({Desc.Name, Desc.Struct, Desc.ID});
+		} 
+	}
+	
 	if (!CreateStates())
 	{
 		StateTree->ResetCompiled();

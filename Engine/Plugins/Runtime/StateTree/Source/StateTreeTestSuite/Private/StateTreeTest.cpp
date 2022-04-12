@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeTest.h"
-#include "CoreMinimal.h"
 #include "AITestsCommon.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeState.h"
 #include "StateTreeCompiler.h"
 #include "Conditions/StateTreeCondition_Common.h"
-#include "StateTreeEvaluatorBase.h"
-#include "StateTreeTaskBase.h"
 #include "StateTree.h"
 #include "StateTreeTestTypes.h"
 #include "StateTreeExecutionContext.h"
@@ -27,8 +24,7 @@ namespace UE::StateTree::Tests
 		UStateTreeEditorData* EditorData = NewObject<UStateTreeEditorData>(StateTree);
 		check(EditorData);
 		StateTree->EditorData = EditorData;
-		UStateTreeSchema* Schema = NewObject<UStateTreeTestSchema>();
-		StateTree->SetSchema(Schema);
+		EditorData->Schema = NewObject<UStateTreeTestSchema>();
 		return *StateTree;
 	}
 

@@ -5,16 +5,13 @@
 #include "StateTreeTaskBase.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeConditionBase.h"
-#include "CoreMinimal.h"
-#include "Engine/World.h"
+#include "Containers/StaticArray.h"
 #include "VisualLogger/VisualLogger.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "Algo/Reverse.h"
 #include "Logging/LogScopedVerbosityOverride.h"
-#include "ProfilingDebugging/CsvProfiler.h"
 
-#define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(GetOwner(), LogStateTree, Verbosity, TEXT("%s: ") Format, *GetInstanceDescription(), ##__VA_ARGS__)
-#define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), GetOwner(), LogStateTree, Verbosity, TEXT("%s: ") Format, *GetInstanceDescription(), ##__VA_ARGS__)
+#define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
+#define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG_UELOG((Condition), GetOwner(), LogStateTree, Verbosity, TEXT("%s") Format, *GetInstanceDescription(), ##__VA_ARGS__)
 
 namespace UE::StateTree
 {
@@ -53,10 +50,64 @@ bool FStateTreeExecutionContext::Init(UObject& InOwner, const UStateTree& InStat
 	// Initialize data views for all possible items.
 	DataViews.SetNum(StateTree->GetNumDataViews());
 
+	// Set data views associated to the parameters using the default values
+	SetDefaultParameters();
+
 	// Initialize array to keep track of which states have been updated.
 	VisitedStates.Init(false, StateTree->States.Num());
 
 	return true;
+}
+
+void FStateTreeExecutionContext::SetDefaultParameters()
+{
+	for (const FStateTreeParameterDesc& Desc : StateTree->GetParameterDescs())
+	{
+		check(DataViews.IsValidIndex(Desc.DataViewIndex));
+		DataViews[Desc.DataViewIndex] = FStateTreeDataView(Desc.Parameter);
+	}
+}
+
+void FStateTreeExecutionContext::SetParameters(const FStateTreeParameters& Parameters)
+{
+	const TConstArrayView<FStateTreeParameterDesc> TreeDescs = StateTree->GetParameterDescs();
+	const int32 NumTreeDescs = TreeDescs.Num();
+	if (NumTreeDescs == 0)
+	{
+		return;
+	}
+
+	// The current implementation golden path is based on an expected 1:1 match between the 2 parameter lists
+	// In case they mismatch then we search for matching parameter. 
+	int32 TreeDescIndex = 0;
+	for (const FStateTreeParameterDesc& ExternalDesc : Parameters.Parameters)
+	{
+		if (!TreeDescs[TreeDescIndex].IsMatching(ExternalDesc))
+		{
+			// The parameter was not found where we expected it to be, search for it starting from last matching index
+			bool bMatchFound = false;
+			for (int32 Index = 0; Index < NumTreeDescs; Index++)
+			{
+				TreeDescIndex = ++TreeDescIndex % NumTreeDescs;
+				if (TreeDescs[TreeDescIndex].IsMatching(ExternalDesc))
+				{
+					bMatchFound = true;
+					break;
+				}
+			}
+
+			if (!bMatchFound)
+			{
+				STATETREE_LOG(Warning, TEXT("Parameter '%s' doesn't match any expected parameters of StateTree '%s'."), *LexToString(ExternalDesc), *GetNameSafe(StateTree));
+				continue;
+			}
+		}
+
+		const uint16 DataViewIndex = TreeDescs[TreeDescIndex].DataViewIndex;
+		check(DataViewIndex != INDEX_NONE && DataViews.IsValidIndex(DataViewIndex));
+		DataViews[DataViewIndex] = FStateTreeDataView(ExternalDesc.Parameter);
+		TreeDescIndex = ++TreeDescIndex % NumTreeDescs;
+	}
 }
 
 void FStateTreeExecutionContext::Reset()
@@ -227,7 +278,7 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime, FSta
 
 	// The state selection is repeated up to MaxIteration time. This allows failed EnterState() to potentially find a new state immediately.
 	// This helps event driven StateTrees to not require another event/tick to find a suitable state.
-	static const int32 MaxIterations = 5;
+	static constexpr int32 MaxIterations = 5;
 	for (int32 Iter = 0; Iter < MaxIterations; Iter++)
 	{
 		// Trigger conditional transitions or state succeed/failed transitions. First tick transition is handled here too.
@@ -973,7 +1024,7 @@ FString FStateTreeExecutionContext::GetSafeStateName(const FStateTreeHandle Stat
 	return TEXT("(Unknown)");
 }
 
-FString FStateTreeExecutionContext::DebugGetStatePath(const FStateTreeActiveStates& ActiveStates, int32 ActiveStateIndex) const
+FString FStateTreeExecutionContext::DebugGetStatePath(const FStateTreeActiveStates& ActiveStates, const int32 ActiveStateIndex) const
 {
 	FString StatePath;
 	if (!ensureMsgf(ActiveStates.IsValidIndex(ActiveStateIndex), TEXT("Provided index must be valid")))

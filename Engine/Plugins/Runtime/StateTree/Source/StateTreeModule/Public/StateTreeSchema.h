@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "StateTreeTypes.h"
 #include "StateTreeSchema.generated.h"
 
 /**
@@ -38,6 +39,12 @@ public:
 	 * @return True if the class is a StateTree item Blueprint base class.
 	 */
 	bool IsChildOfBlueprintBase(const UClass* InClass) const;
+
+	/** @return List of named external data enforced by the schema. They must be provided at runtime through the execution context. */
+	virtual TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const	{ return {}; }
+
+	/** @return List of mutable named external data enforced by the schema. They must be provided at runtime through the execution context. */
+	virtual TArrayView<FStateTreeExternalDataDesc> GetMutableNamedExternalDataDescs() { return {}; }
 
 #if WITH_EDITOR
 	

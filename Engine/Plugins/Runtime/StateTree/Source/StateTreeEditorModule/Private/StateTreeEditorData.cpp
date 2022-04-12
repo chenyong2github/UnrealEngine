@@ -2,15 +2,61 @@
 
 #include "StateTreeEditorData.h"
 #include "StateTreeConditionBase.h"
+#include "StateTreeDelegates.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
-#include "CoreMinimal.h"
-
 
 void UStateTreeEditorData::PostInitProperties()
 {
 	Super::PostInitProperties();
 }
+
+#if WITH_EDITOR
+void UStateTreeEditorData::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+	
+	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.Property)
+	{
+		const UStateTree* StateTree = GetTypedOuter<UStateTree>();
+		checkf(StateTree, TEXT("UStateTreeEditorData should only be allocated within a UStateTree"));
+		
+		const FName MemberName = PropertyChangedEvent.MemberProperty->GetFName();
+		if (MemberName == GET_MEMBER_NAME_CHECKED(UStateTreeEditorData, Schema))
+		{			
+			UE::StateTree::Delegates::OnSchemaChanged.Broadcast(*StateTree);
+		}
+		else if (MemberName == GET_MEMBER_NAME_CHECKED(UStateTreeEditorData, Parameters))
+		{
+			TArray<FStateTreeParameterDesc>& Params = Parameters.Parameters;
+			const FName PropertyName = PropertyChangedEvent.Property->GetFName();
+			
+			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
+			{
+				// Ensure unique ID on duplicated items.
+				const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(PropertyName.ToString());
+				if (Params.IsValidIndex(ArrayIndex))
+				{
+					Params[ArrayIndex].Name = FName(Params[ArrayIndex].Name.ToString() + TEXT(" Duplicate"));
+					Params[ArrayIndex].ID = FGuid::NewGuid();
+				}
+			}
+			else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd
+					|| PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
+			{
+				// Create unique ID on added items or ensure on set ones (maybe a copy/paste) 
+				const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(PropertyName.ToString());
+				if (Params.IsValidIndex(ArrayIndex))
+				{
+					Params[ArrayIndex].ID = FGuid::NewGuid();
+				}
+			}
+
+			UE::StateTree::Delegates::OnParametersChanged.Broadcast(*StateTree);
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 void UStateTreeEditorData::GetAccessibleStructs(const FGuid TargetStructID, TArray<FStateTreeBindableStructDesc>& OutStructDescs) const
 {
@@ -27,6 +73,24 @@ void UStateTreeEditorData::GetAccessibleStructs(const FGuid TargetStructID, TArr
 
 void UStateTreeEditorData::GetAccessibleStructs(const TConstArrayView<const UStateTreeState*> Path, const FGuid TargetStructID, TArray<FStateTreeBindableStructDesc>& OutStructDescs) const
 {
+	const UStateTree* StateTree = GetTypedOuter<UStateTree>();
+	checkf(StateTree, TEXT("UStateTreeEditorData should only be allocated within a UStateTree"));
+	
+	// All parameters are accessible
+	for (const FStateTreeParameterDesc& Desc : Parameters.Parameters)
+	{
+		OutStructDescs.Emplace(Desc.Name, Desc.Parameter.GetScriptStruct(), Desc.ID);
+	}
+
+	// All named external data items declared by the schema are accessible
+	if (Schema != nullptr)
+	{
+		for (const FStateTreeExternalDataDesc& Desc : Schema->GetNamedExternalDataDescs())
+		{
+			OutStructDescs.Emplace(Desc.Name, Desc.Struct, Desc.ID);
+		}	
+	}
+
 	TArray<FStateTreeBindableStructDesc> EvalDescs;
 	TArray<FStateTreeBindableStructDesc> TaskDescs;
 
@@ -128,6 +192,24 @@ const UStateTreeState* UStateTreeEditorData::GetStateByStructID(const FGuid Targ
 void UStateTreeEditorData::GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStructs) const
 {
 	AllStructs.Reset();
+
+	const UStateTree* StateTree = GetTypedOuter<UStateTree>();
+	checkf(StateTree, TEXT("UStateTreeEditorData should only be allocated within a UStateTree"));
+
+	// All parameters
+	for (const FStateTreeParameterDesc& Desc : Parameters.Parameters)
+	{
+		AllStructs.Emplace(Desc.ID, Desc.Parameter.GetScriptStruct());
+	}
+
+	// All named external data items declared by the schema
+	if (Schema != nullptr)
+	{
+		for (const FStateTreeExternalDataDesc& Desc : Schema->GetNamedExternalDataDescs())
+		{
+			AllStructs.Emplace(Desc.ID, Desc.Struct);
+		}	
+	}
 
 	VisitHierarchy([&AllStructs](const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct) -> bool
 		{

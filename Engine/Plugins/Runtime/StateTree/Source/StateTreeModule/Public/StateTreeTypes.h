@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "InstancedStruct.h"
 #include "StateTreeTypes.generated.h"
 
 STATETREEMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTree, Warning, All);
@@ -177,8 +178,8 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 		{
 			return FStateTreeHandle::Invalid;			
 		}
-		
-		FStateTreeHandle Ret = States[NumStates - 1];
+
+		const FStateTreeHandle Ret = States[NumStates - 1];
 		NumStates--;
 		return Ret;
 	}
@@ -406,7 +407,8 @@ struct STATETREEMODULE_API FStateTreeExternalDataHandle
 	static bool IsValidIndex(const int32 Index) { return Index >= 0 && Index < (int32)IndexNone; }
 
 	bool IsValid() const { return DataViewIndex != IndexNone; }
-	
+
+	UPROPERTY()
 	uint8 DataViewIndex = IndexNone;
 };
 
@@ -482,6 +484,78 @@ struct TStateTreeInstanceDataPropertyHandle : FStateTreeInstanceDataPropertyHand
 	typedef T DataType;
 };
 
+/**
+ * Describes a parameter of the state tree that could be used for bindings.
+ * Can also be provided externally by a StateTreeReference to parameterized the tree.
+ * @see FStateTreeReference
+ */
+USTRUCT()
+struct STATETREEMODULE_API FStateTreeParameterDesc
+{
+	GENERATED_BODY()
+
+	/** Indicates that parameters hold the same data type */
+	bool IsSameType(const FStateTreeParameterDesc& RHS) const { return Parameter.GetScriptStruct() == RHS.Parameter.GetScriptStruct(); }
+
+	/** Indicates that parameters hold the same data type and have the same identifier. They might have different values. */
+	bool IsMatching(const FStateTreeParameterDesc& RHS) const
+	{				
+#if WITH_EDITORONLY_DATA
+		return Name == RHS.Name && ID == RHS.ID && IsSameType(RHS);
+#else
+		return Name == RHS.Name && IsSameType(RHS);
+#endif			
+	}
+	
+	friend FString LexToString(const FStateTreeParameterDesc& Desc)
+	{
+		return FString::Printf(TEXT("{%s} %s"),
+			Desc.Parameter.GetScriptStruct() != nullptr ? *Desc.Parameter.GetScriptStruct()->GetName() : TEXT("null type"),
+			*Desc.Name.ToString());
+	}
+
+	bool IsValid() const
+	{
+		return DataViewIndex != InvalidIndex;
+	}
+
+	/** The type of the parameter. */
+	UPROPERTY(EditDefaultsOnly, Category = Common)
+	FInstancedStruct Parameter;
+
+	/** Name of the parameter. */
+	UPROPERTY(EditDefaultsOnly, Category = Common)
+	FName Name;
+
+	/** The runtime data's data view index in the StateTreeExecutionContext, and source struct index in property binding. */
+	UPROPERTY()
+	uint16 DataViewIndex = InvalidIndex;
+
+	static constexpr uint16 InvalidIndex = MAX_uint16;
+
+#if WITH_EDITORONLY_DATA
+	/** Unique identifier. */
+	UPROPERTY()
+	FGuid ID;
+#endif
+};
+
+
+/**
+ * Container for StateTree parameters.
+ * Could be used for parameter definitions (within the StateTreeAsset) and parameterization (StateTreeReference).
+ */
+USTRUCT()
+struct FStateTreeParameters
+{
+	GENERATED_BODY()
+
+	void Reset() { Parameters.Reset(); }
+	
+	UPROPERTY(EditDefaultsOnly, Category= Common)
+	TArray<FStateTreeParameterDesc> Parameters;
+};
+
 
 /**
  * Describes an external data. The data can point to a struct or object.
@@ -495,6 +569,14 @@ struct STATETREEMODULE_API FStateTreeExternalDataDesc
 	FStateTreeExternalDataDesc() = default;
 	FStateTreeExternalDataDesc(const UStruct* InStruct, const EStateTreeExternalDataRequirement InRequirement) : Struct(InStruct), Requirement(InRequirement) {}
 
+	FStateTreeExternalDataDesc(const FName InName, const UStruct* InStruct, const FGuid InGuid)
+		: Struct(InStruct)
+		, Name(InName)
+#if WITH_EDITORONLY_DATA
+		, ID(InGuid)
+#endif
+	{}
+
 	bool operator==(const FStateTreeExternalDataDesc& Other) const
 	{
 		return Struct == Other.Struct && Requirement == Other.Requirement;
@@ -504,6 +586,14 @@ struct STATETREEMODULE_API FStateTreeExternalDataDesc
 	UPROPERTY();
 	const UStruct* Struct = nullptr;
 
+	/**
+	 * Name of the external data. Used only for bindable external data (enforced by the schema).
+	 * External data linked explicitly by the nodes (i.e. LinkExternalData) are identified only
+	 * by their type since they are used for unique instance of a given type.  
+	 */
+	UPROPERTY(VisibleAnywhere, Category = Common)
+	FName Name;
+	
 	/** Handle/Index to the StateTreeExecutionContext data views array */
 	UPROPERTY();
 	FStateTreeExternalDataHandle Handle;
@@ -511,6 +601,12 @@ struct STATETREEMODULE_API FStateTreeExternalDataDesc
 	/** Describes if the data is required or not. */
 	UPROPERTY();
 	EStateTreeExternalDataRequirement Requirement = EStateTreeExternalDataRequirement::Required;
+
+#if WITH_EDITORONLY_DATA
+	/** Unique identifier. Used only for bindable external data. */
+	UPROPERTY()
+	FGuid ID;
+#endif
 };
 
 

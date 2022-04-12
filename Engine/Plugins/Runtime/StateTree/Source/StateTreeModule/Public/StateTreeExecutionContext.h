@@ -4,7 +4,6 @@
 
 #include "StateTree.h"
 #include "InstancedStruct.h"
-#include "Containers/StaticArray.h"
 #include "StateTreePropertyBindings.h"
 #include "StateTreeInstanceData.h"
 #include "StateTreeExecutionContext.generated.h"
@@ -65,6 +64,15 @@ public:
 	/** Initializes the StateTree instance to be used with specific owner and StateTree asset. */
 	bool Init(UObject& InOwner, const UStateTree& InStateTree, const EStateTreeStorage InStorageType);
 
+	/** Updates data views of all parameters by using the default values defined in the StateTree asset. */
+	void SetDefaultParameters();
+
+	/**
+	 * Updates data views of the matching parameters by replacing the default values defined in the StateTree asset by the provided values.
+	 * Note: caller is responsible to make sure external parameters lifetime matches the context.
+	 */
+	void SetParameters(const FStateTreeParameters& Parameters);
+	
 	/** Resets the instance to initial empty state. Note: Does not call ExitState(). */
 	void Reset();
 
@@ -100,6 +108,13 @@ public:
 		return StateTree->ExternalDataDescs;
 	}
 
+	/** @return Array view to named external data descriptors associated with this context. Note: Init() must be called before calling this method. */
+	TConstArrayView<FStateTreeExternalDataDesc> GetNamedExternalDataDescs() const
+	{
+		check(StateTree);
+		return StateTree->GetNamedExternalDataDescs();
+	}
+
 	/** @return True if all required external data pointers are set. */ 
 	bool AreExternalDataViewsValid() const
 	{
@@ -111,7 +126,7 @@ public:
 			
 			if (DataDesc.Requirement == EStateTreeExternalDataRequirement::Required)
 			{
-				// Required items must have valid pointer and expected type.  
+				// Required items must have valid pointer of the expected type.  
 				if (!DataView.IsValid() || !DataView.GetStruct()->IsChildOf(DataDesc.Struct))
 				{
 					bResult = false;
@@ -126,7 +141,18 @@ public:
 					bResult = false;
 					break;
 				}
-			 
+			}
+		}
+
+		for (const FStateTreeExternalDataDesc& DataDesc : StateTree->GetNamedExternalDataDescs())
+		{
+			const FStateTreeDataView& DataView = DataViews[DataDesc.Handle.DataViewIndex];
+
+			// Items must have valid pointer of the expected type.  
+			if (!DataView.IsValid() || !DataView.GetStruct()->IsChildOf(DataDesc.Struct))
+			{
+				bResult = false;
+				break;
 			}
 		}
 		return bResult;

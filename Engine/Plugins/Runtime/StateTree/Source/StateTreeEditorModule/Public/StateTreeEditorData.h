@@ -6,6 +6,8 @@
 #include "StateTreeEditorPropertyBindings.h"
 #include "StateTreeEditorData.generated.h"
 
+class UStateTreeSchema;
+
 UENUM()
 enum class EStateTreeNodeType : uint8
 {
@@ -31,6 +33,10 @@ public:
 	virtual bool GetStructByID(const FGuid StructID, FStateTreeBindableStructDesc& OutStructDesc) const override;
 	virtual FStateTreeEditorPropertyBindings* GetPropertyEditorBindings() override { return &EditorBindings; }
 	// ~IStateTreeEditorPropertyBindingsOwner
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 	/** Returns parent state of a struct, or nullptr if not found. */
 	const UStateTreeState* GetStateByStructID(const FGuid TargetStructID) const;
@@ -90,12 +96,19 @@ public:
 		EditorBindings.AddPropertyBinding(SourcePath, TargetPath);
 	}
 	// ~StateTree Builder API
+
+	/** Schema describing which inputs, evaluators, and tasks a StateTree can contain */	
+	UPROPERTY(EditDefaultsOnly, Category = Common, Instanced)
+	TObjectPtr<UStateTreeSchema> Schema = nullptr;
 	
+	/** Public parameters that could be used for bindings within the Tree. */
+	UPROPERTY(EditDefaultsOnly, Category = Common, meta=(ShowOnlyInnerProperties))
+	FStateTreeParameters Parameters;
 	
 	UPROPERTY(meta = (ExcludeFromHash))
 	FStateTreeEditorPropertyBindings EditorBindings;
 
-	// Top level States aka Routines.
+	/** Top level States. */
 	UPROPERTY()
 	TArray<UStateTreeState*> SubTrees;
 };

@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTree.h"
-#include "StateTreeDelegates.h"
 #include "StateTreeLinker.h"
 #include "StateTreeNodeBase.h"
 
@@ -17,6 +16,8 @@ void UStateTree::ResetCompiled()
 	States.Reset();
 	Transitions.Reset();
 
+	Schema = nullptr;
+	Parameters.Reset();
 	Nodes.Reset();
 	Instances.Reset();
 	InstanceObjects.Reset();
@@ -27,17 +28,6 @@ void UStateTree::ResetCompiled()
 	ExternalDataBaseIndex = 0;
 
 	InstanceDataDefaultValue.Reset();
-}
-
-void UStateTree::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.Property)
-	{
-		if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTree, Schema))
-		{
-			UE::StateTree::Delegates::OnSchemaChanged.Broadcast(*this);
-		}
-	}
 }
 
 void UStateTree::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const

@@ -195,6 +195,7 @@ void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedP
 
 	UE::StateTree::Delegates::OnIdentifierChanged.AddSP(this, &FStateTreeEditor::OnIdentifierChanged);
 	UE::StateTree::Delegates::OnSchemaChanged.AddSP(this, &FStateTreeEditor::OnSchemaChanged);
+	UE::StateTree::Delegates::OnParametersChanged.AddSP(this, &FStateTreeEditor::OnParametersChanged);
 }
 
 FName FStateTreeEditor::GetToolkitFName() const
@@ -275,7 +276,7 @@ TSharedRef<SDockTab> FStateTreeEditor::SpawnTab_AssetDetails(const FSpawnTabArgs
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 
 	AssetDetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-	AssetDetailsView->SetObject(StateTree);
+	AssetDetailsView->SetObject(StateTree ? StateTree->EditorData : nullptr);
 	AssetDetailsView->OnFinishedChangingProperties().AddSP(this, &FStateTreeEditor::OnAssetFinishedChangingProperties);
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
@@ -354,7 +355,7 @@ void FStateTreeEditor::HandleModelSelectionChanged(const TArray<UStateTreeState*
 
 void FStateTreeEditor::SaveAsset_Execute()
 {
-	// Remember the treview expnasion state
+	// Remember the treeview expansion state
 	if (StateTreeView)
 	{
 		StateTreeView->SavePersistentExpandedStates();
@@ -385,6 +386,19 @@ void FStateTreeEditor::OnSchemaChanged(const UStateTree& InStateTree)
 			StateTreeViewModel->NotifyAssetChangedExternally();
 		}
 
+		if (SelectionDetailsView.IsValid())
+		{
+			SelectionDetailsView->ForceRefresh();
+		}
+	}
+}
+
+void FStateTreeEditor::OnParametersChanged(const UStateTree& InStateTree)
+{
+	if (StateTree == &InStateTree)
+	{
+		// Accessible structs might be different after modifying parameters so forcing refresh
+		// so the FStateTreeBindingExtension can rebuild the list of bindable structs
 		if (SelectionDetailsView.IsValid())
 		{
 			SelectionDetailsView->ForceRefresh();
@@ -557,7 +571,7 @@ namespace UE::StateTree::Editor::Internal
 			return;
 		}
 		
-		const UStateTreeSchema* Schema = StateTree.GetSchema();
+		const UStateTreeSchema* Schema = TreeData->Schema;
 		if (!Schema)
 		{
 			return;
@@ -706,6 +720,8 @@ void FStateTreeEditor::Compile()
 	{
 		// Success
 		StateTree->LastCompiledEditorDataHash = EditorDataHash;
+
+		UE::StateTree::Delegates::OnPostCompile.Broadcast(*StateTree);
 	}
 	else
 	{

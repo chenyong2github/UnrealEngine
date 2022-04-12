@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "StateTreeTypes.h"
 #include "StateTreePropertyBindingCompiler.h"
 #include "StateTreeCompilerLog.h"
@@ -20,14 +19,12 @@ struct FStateTreeStateLink;
 struct STATETREEEDITORMODULE_API FStateTreeCompiler
 {
 public:
-
-	FStateTreeCompiler(FStateTreeCompilerLog& InLog)
+	explicit FStateTreeCompiler(FStateTreeCompilerLog& InLog)
 		: Log(InLog)
 	{
 	}
 	
 	bool Compile(UStateTree& InStateTree);
-
 private:
 
 	bool ResolveTransitionState(const UStateTreeState& SourceState, const FStateTreeStateLink& Link, FStateTreeHandle& OutTransitionHandle) const;
@@ -55,7 +52,7 @@ private:
 	struct FExecutionPath
 	{
 		FExecutionPath() = default;
-		FExecutionPath(const TConstArrayView<const UStateTreeState*> InPath) : Path(InPath) {}
+		explicit FExecutionPath(const TConstArrayView<const UStateTreeState*> InPath) : Path(InPath) {}
 		
 		TArray<const UStateTreeState*> Path;
 	};

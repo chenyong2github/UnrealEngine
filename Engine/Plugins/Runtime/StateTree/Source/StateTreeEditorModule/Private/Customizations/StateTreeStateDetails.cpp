@@ -1,34 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeStateDetails.h"
-#include "Misc/MessageDialog.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Class.h"
-#include "UObject/UnrealType.h"
-#include "Layout/Visibility.h"
-#include "Misc/Attribute.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SVectorInputBox.h"
-#include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Input/SButton.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "ComponentVisualizer.h"
-#include "Editor/UnrealEdEngine.h"
-#include "UnrealEdGlobals.h"
-#include "IDetailCustomNodeBuilder.h"
 #include "IDetailChildrenBuilder.h"
 #include "DetailWidgetRow.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "PropertyCustomizationHelpers.h"
-#include "ScopedTransaction.h"
-#include "Modules/ModuleManager.h"
-#include "ISettingsModule.h"
-#include "Editor.h"
 #include "IPropertyUtilities.h"
 #include "StateTreeEditorData.h"
 #include "StateTreeViewModel.h"
@@ -45,22 +23,22 @@ TSharedRef<IDetailCustomization> FStateTreeStateDetails::MakeInstance()
 
 void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	// Find StateTree associated with this panel.
-	UStateTree* StateTree = nullptr;
+	// Find StateTreeEditorData associated with this panel.
+	const UStateTreeEditorData* EditorData = nullptr;
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	DetailBuilder.GetObjectsBeingCustomized(Objects);
 	for (TWeakObjectPtr<UObject>& WeakObject : Objects)
 	{
-		if (UObject* Object = WeakObject.Get())
+		if (const UObject* Object = WeakObject.Get())
 		{
-			if (UStateTree* OuterStateTree = Object->GetTypedOuter<UStateTree>())
+			const UStateTreeEditorData* OuterEditorData = Object->GetTypedOuter<UStateTreeEditorData>();
 			{
-				StateTree = OuterStateTree;
+				EditorData = OuterEditorData;
 				break;
 			}
 		}
 	}
-	const UStateTreeSchema* Schema = StateTree ? StateTree->GetSchema() : nullptr;
+	const UStateTreeSchema* Schema = EditorData ? EditorData->Schema : nullptr;
 
 	TSharedPtr<IPropertyHandle> TasksProperty = DetailBuilder.GetProperty(TEXT("Tasks"));
 	TSharedPtr<IPropertyHandle> SingleTaskProperty = DetailBuilder.GetProperty(TEXT("SingleTask"));

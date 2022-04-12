@@ -71,6 +71,7 @@ private:
 	void HandleModelAssetChanged();
 	void OnIdentifierChanged(const UStateTree& StateTree);
 	void OnSchemaChanged(const UStateTree& StateTree);
+	void OnParametersChanged(const UStateTree& StateTree);
 
 	FText GetStatisticsText() const;
 
