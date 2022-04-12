@@ -2979,7 +2979,7 @@ void UNiagaraComponent::CopyParametersFromAsset(bool bResetExistingOverrideParam
 		bool bNewParam = OverrideParameters.AddParameter(Param, true);
 
 		bool bCopyAssetValue = bResetExistingOverrideParameters || bNewParam;
-		if (bCopyAssetValue)
+		if (bCopyAssetValue || Param.IsDataInterface())
 		{
 			Asset->GetExposedParameters().CopyParameterData(OverrideParameters, Param);
 		}
