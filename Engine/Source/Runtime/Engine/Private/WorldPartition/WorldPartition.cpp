@@ -463,8 +463,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				if (bIsInstanced)
 				{
 					const FString LongActorPackageName = ActorDescIterator->GetActorPackage().ToString();
-					const FString ActorPackageName = FPaths::GetBaseFilename(LongActorPackageName);
-					const FString InstancedName = FString::Printf(TEXT("%s_InstanceOf_%s"), *LevelPackage->GetName(), *ActorPackageName);
+					const FString InstancedName = ULevel::GetExternalActorPackageInstanceName(LevelPackage->GetName(), LongActorPackageName);
 
 					InstancingContext.AddMapping(*LongActorPackageName, *InstancedName);
 
@@ -483,6 +482,10 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 	if (bIsEditor)
 	{
+		// Here we need to flush any async loading before starting any synchronous load (mixing synchronous and asynchronous load on the same package is not handled properly).
+		// Also, this will ensure that FindObject will work on an external actor that was loading asynchronously.
+		FlushAsyncLoading();
+
 		// Make sure to preload only AWorldDataLayers actor first (ShouldActorBeLoadedByEditorCells requires it)
 		for (UActorDescContainer::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 		{

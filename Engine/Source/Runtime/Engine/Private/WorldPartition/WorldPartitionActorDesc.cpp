@@ -376,26 +376,17 @@ AActor* FWorldPartitionActorDesc::Load() const
 			Container->GetInstancingContext(InstancingContext, SoftObjectPathFixupArchive);
 		}
 
-		const FName PackageNameToLoad = *ActorPackage.ToString();
-		FName PackageNameToCreate = PackageNameToLoad;
+		UPackage* Package = nullptr;
+
 		if (InstancingContext)
 		{
-			PackageNameToCreate = InstancingContext->Remap(ActorPackage);
-			check(PackageNameToCreate != ActorPath);
+			FName RemappedPackageName = InstancingContext->Remap(ActorPackage);
+			check(RemappedPackageName != ActorPath);
+
+			Package = CreatePackage(*RemappedPackageName.ToString());
 		}
 
-		// Here we are not using LoadPackage because we could be inside an async load and it's currently not properly handled.
-		// Instead, use the async version and flush.
-		UPackage* Package = nullptr;
-		LoadPackageAsync(FPackagePath::FromPackageNameChecked(PackageNameToLoad), PackageNameToCreate, FLoadPackageAsyncDelegate::CreateLambda([&Package](const FName&, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
-		{
-			if (Result == EAsyncLoadingResult::Succeeded)
-			{
-				Package = LoadedPackage;
-			}
-		}), PKG_None, INDEX_NONE, 0, InstancingContext);
-
-		FlushAsyncLoading();
+		Package = LoadPackage(Package, *ActorPackage.ToString(), LOAD_None, nullptr, InstancingContext);
 
 		if (Package)
 		{
