@@ -26,7 +26,6 @@
 #include "Misc/ScopeRWLock.h"
 #include "PackageReader.h"
 #include "Serialization/ArrayReader.h"
-#include "Serialization/LargeMemoryReader.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/CoreRedirects.h"
@@ -127,25 +126,6 @@ FAssetRegistryInterface GAssetRegistryInterface;
 
 DEFINE_LOG_CATEGORY(LogAssetRegistry);
 
-static bool LoadAssetRegistry(const TCHAR* Path, const FAssetRegistryLoadOptions& Options, FAssetRegistryState& Out)
-{
-	check(Path);
-
-	TUniquePtr<FArchive> FileReader(IFileManager::Get().CreateFileReader(Path));
-	if (FileReader)
-	{
-		// It's faster to load the whole file into memory on a Gen5 console
-		TArray64<uint8> Data;
-		Data.SetNumUninitialized(FileReader->TotalSize());
-		FileReader->Serialize(Data.GetData(), Data.Num());
-		check(!FileReader->IsError());
-		
-		FLargeMemoryReader MemoryReader(Data.GetData(), Data.Num());
-		return Out.Load(MemoryReader, Options);
-	}
-
-	return false;
-}
 
 namespace UE::AssetRegistry::Premade
 {
@@ -288,7 +268,7 @@ private:
 		const int32 ThreadReduction = 2; // This thread + main thread already has work to do 
 		int32 MaxWorkers = CanLoadAsync() ? FPlatformMisc::NumberOfCoresIncludingHyperthreads() - ThreadReduction : 0;
 		Options.ParallelWorkers = FMath::Clamp(MaxWorkers, 0, 16);
-		bLoadSucceeded = LoadAssetRegistry(*ARPath, Options, Payload);
+		bLoadSucceeded = FAssetRegistryState::LoadFromDisk(*ARPath, Options, Payload);
 		UE_CLOG(!bLoadSucceeded, LogAssetRegistry, Warning, TEXT("Premade AssetRegistry path %s existed but failed to load."), *ARPath);
 		UE_CLOG(bLoadSucceeded, LogAssetRegistry, Log, TEXT("Premade AssetRegistry loaded from '%s'"), *ARPath);
 		return bLoadSucceeded;

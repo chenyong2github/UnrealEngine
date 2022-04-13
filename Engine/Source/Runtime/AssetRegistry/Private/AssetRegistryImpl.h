@@ -500,9 +500,6 @@ void RunAssetsThroughFilter(TArray<FAssetData>& AssetDataList, const FARCompiled
 void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName,
 	ESerializationTarget Target = ESerializationTarget::ForGame);
 
-/** Load via -Serialize the Out state from file at the given path */
-bool LoadAssetRegistry(const TCHAR* Path, const FAssetRegistryLoadOptions& Options, FAssetRegistryState& Out);
-
 /** Gets the current availability of an asset, primarily for streaming install purposes. */
 EAssetAvailability::Type GetAssetAvailability(const FAssetData& AssetData);
 /** Gets an ETA or percentage complete for an asset that is still in the process of being installed. */

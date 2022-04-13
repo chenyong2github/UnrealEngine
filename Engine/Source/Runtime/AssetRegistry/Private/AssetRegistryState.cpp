@@ -8,6 +8,7 @@
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "Serialization/ArrayReader.h"
+#include "Serialization/LargeMemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/UObjectHash.h"
@@ -1157,12 +1158,16 @@ bool FAssetRegistryState::Save(FArchive& OriginalAr, const FAssetRegistrySeriali
 	return !OriginalAr.IsError();
 }
 
-bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOptions& Options)
+bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOptions& Options, FAssetRegistryVersion::Type* OutVersion)
 {
 	LLM_SCOPE(ELLMTag::AssetRegistry);
 
 	FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion;
 	FAssetRegistryVersion::SerializeVersion(OriginalAr, Version);
+	if (OutVersion != nullptr)
+	{
+		*OutVersion = Version;
+	}
 
 	FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, ESoftObjectPathCollectType::NonPackage, ESoftObjectPathSerializeType::AlwaysSerialize);
 
@@ -1193,6 +1198,26 @@ bool FAssetRegistryState::Load(FArchive& OriginalAr, const FAssetRegistryLoadOpt
 	}
 
 	return !OriginalAr.IsError();
+}
+
+/* static */ bool FAssetRegistryState::LoadFromDisk(const TCHAR* InPath, const FAssetRegistryLoadOptions& InOptions, FAssetRegistryState& OutState, FAssetRegistryVersion::Type* OutVersion)
+{
+	check(InPath);
+
+	TUniquePtr<FArchive> FileReader(IFileManager::Get().CreateFileReader(InPath));
+	if (FileReader)
+	{
+		// It's faster to load the whole file into memory on a Gen5 console
+		TArray64<uint8> Data;
+		Data.SetNumUninitialized(FileReader->TotalSize());
+		FileReader->Serialize(Data.GetData(), Data.Num());
+		check(!FileReader->IsError());
+
+		FLargeMemoryReader MemoryReader(Data.GetData(), Data.Num());
+		return OutState.Load(MemoryReader, InOptions, OutVersion);
+	}
+
+	return false;
 }
 
 template<class Archive>
