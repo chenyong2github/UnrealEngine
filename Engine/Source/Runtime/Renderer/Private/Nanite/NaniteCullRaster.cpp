@@ -209,6 +209,14 @@ static bool UsePrimitiveShader()
 	return GNanitePrimShaderRasterization != 0 && GRHISupportsPrimitiveShaders;
 }
 
+static bool AllowProgrammableRaster(EShaderPlatform ShaderPlatform)
+{
+	// Piggy-back on the vendor extensions for atomics flag to assume we don't have SM6 support. This fixes errors that were occurring
+	// from the Nanite material rasterizer CS because of compiling ddx/ddy in SM5 (even if unused).
+	// TODO: Remove this DDPI check when removing vendor extension support
+	return GNaniteAllowProgrammableRaster != 0 && !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(ShaderPlatform);
+}
+
 struct FCompactedViewInfo
 {
 	uint32 StartOffset;
@@ -882,7 +890,7 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompileComputePermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
+		return FNaniteMaterialShader::ShouldCompileComputePermutation(Parameters, AllowProgrammableRaster(Parameters.Platform));
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -977,7 +985,7 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
+		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, AllowProgrammableRaster(Parameters.Platform));
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1077,7 +1085,7 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
+		return FNaniteMaterialShader::ShouldCompileVertexPermutation(Parameters, AllowProgrammableRaster(Parameters.Platform));
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1214,7 +1222,7 @@ public:
 			return false;
 		}
 
-		return FNaniteMaterialShader::ShouldCompilePixelPermutation(Parameters, GNaniteAllowProgrammableRaster != 0);
+		return FNaniteMaterialShader::ShouldCompilePixelPermutation(Parameters, AllowProgrammableRaster(Parameters.Platform));
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1312,7 +1320,7 @@ FCullingContext InitCullingContext(
 		CullingContext.Configuration.bTwoPassOcclusion = false;
 	}
 
-	if (GNaniteAllowProgrammableRaster == 0 || GNaniteProgrammableRaster == 0)
+	if (!AllowProgrammableRaster(ShaderPlatform) || GNaniteProgrammableRaster == 0)
 	{
 		// Never use programmable raster if the material shaders are unavailable (or if globally disabled).
 		CullingContext.Configuration.bProgrammableRaster = false;
