@@ -46,6 +46,7 @@ class FStampDeferredDebugProbePS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, MaterialTextureArrayUAV)
 		SHADER_PARAMETER(uint32, MaxBytesPerPixel)
+		SHADER_PARAMETER(uint32, bRoughDiffuse)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 		SHADER_PARAMETER(int32, DebugProbesMode)
 		RENDER_TARGET_BINDING_SLOTS()
@@ -82,6 +83,7 @@ static void CommonStampDeferredDebugProbeDrawCall(
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->MaterialTextureArrayUAV = View.StrataViewData.SceneData->MaterialTextureArrayUAVWithoutRTs;
 	PassParameters->MaxBytesPerPixel = View.StrataViewData.SceneData->MaxBytesPerPixel;
+	PassParameters->bRoughDiffuse = View.StrataViewData.SceneData->bRoughDiffuse ? 1 : 0;
 	PassParameters->DebugProbesMode = View.Family->EngineShowFlags.VisualizeLightingOnProbes ? 3 : FMath::Clamp(CVarVisualizeLightingOnProbes.GetValueOnRenderThread(), 0, 3);
 		
 	FStampDeferredDebugProbePS::FPermutationDomain PermutationVector;

@@ -106,7 +106,8 @@ void Main(
 		const float3 DummyL = float3(1, 0, 0);
 
 		// Update tree (coverage/transmittance/luminace weights)
-		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, DummyL, false /*bRoughDiffuseEnabled*/);
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse /*bRoughDiffuseEnabled*/);
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, DummyL, Settings);
 
 		RefractionWorldNormal = StrataTree.Operators[StrataData.OperatorIndex].TopDownRefractionWorldNormal;
 

@@ -33,8 +33,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 // Common function for forward lighting per pixel using light data
 float3 StrataForwardLightingCommon(
 	float Dither,
-	bool bForceFullyRough,
-	bool bRoughDiffuseEnabled, 
+	FStrataIntegrationSettings Settings,
 	FDeferredLightData LightData,
 	float3 ToLight,
 	float LightMask,
@@ -92,7 +91,7 @@ float3 StrataForwardLightingCommon(
 
 				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
 				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough, bRoughDiffuseEnabled);
+				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings);
 				bEvaluateHasBeenExecuted = true;
 			}
 			else
@@ -101,7 +100,7 @@ float3 StrataForwardLightingCommon(
 				AreaLightContext = CreateCapsuleIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Capsule, LightData.bInverseSquared);
 				Lighting = IntegrateLight(Capsule, LightData.bInverseSquared);
 
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough, bRoughDiffuseEnabled);
+				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings);
 				bEvaluateHasBeenExecuted = true;
 			}
 
@@ -124,7 +123,7 @@ float3 StrataForwardLightingCommon(
 
 				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
 				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough, bRoughDiffuseEnabled);
+				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings);
 				bEvaluateHasBeenExecuted = true;
 			}
 			else
@@ -132,7 +131,7 @@ float3 StrataForwardLightingCommon(
 				FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
 				AreaLightContext = CreateCapsuleIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Capsule, LightData.bInverseSquared);
 
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough, bRoughDiffuseEnabled);
+				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings);
 				bEvaluateHasBeenExecuted = true;
 			}
 
@@ -155,7 +154,7 @@ float3 StrataForwardLightingCommon(
 float3 StrataForwardLighting(
 	uint EyeIndex,
 	float4 SvPosition,
-	bool bRoughDiffuseEnabled,
+	FStrataIntegrationSettings Settings,
 	FBasePassInterpolantsVSToPS BasePassInterpolants,
 	FVertexFactoryInterpolantsVSToPS Interpolants,
 	VTPageTableResult LightmapVTPageTableResult,
@@ -259,7 +258,7 @@ float3 StrataForwardLighting(
 	if (StrataTree.BSDFCount > 0)
 	{
 		// Update tree (coverage/transmittance/luminace weights)
-		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, L, bRoughDiffuseEnabled, OutCoverage, OutTransmittancePreCoverage);
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, L, Settings, OutCoverage, OutTransmittancePreCoverage);
 
 		//
 		// Forward lighting
@@ -273,13 +272,7 @@ float3 StrataForwardLighting(
 			{
 				// Compute current BSDF transmittance
 				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
-			
-				#if FORCE_FULLY_ROUGH
-				const bool bForceFullyRough = true;
-				#else
-				const bool bForceFullyRough = View.RenderingReflectionCaptureMask > 0;
-				#endif
-			
+					
 				////
 				//// Evaluate environment lighting
 				////
@@ -302,7 +295,7 @@ float3 StrataForwardLighting(
 						StrataUpdateBSDFContext(EnvBSDFContext, EnvBSDFContext.L);
 
 						// And evaluate diffuse parameters
-						FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(EnvBSDFContext, false/*bEnableSpecular*/, bForceFullyRough);
+						FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(EnvBSDFContext, false/*bEnableSpecular*/, Settings);
 						float3 DiffuseNormal = StrataEnvLight.DiffuseNormal;
 						float3 DiffuseColorForIndirect = StrataEnvLight.DiffuseWeight;
 						float3 SubsurfaceColorForIndirect = StrataEnvLight.DiffuseBackFaceWeight;
@@ -344,7 +337,7 @@ float3 StrataForwardLighting(
 				#if FORWARD_PER_PIXEL_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME
 					{
 						// Evaluate specular parameters without bent normal
-						FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular, bForceFullyRough);
+						FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular, Settings);
 
 						// Evaluate specular lighting
 						if (any(StrataEnvLight.SpecularWeight > 0.0f))
@@ -383,7 +376,7 @@ float3 StrataForwardLighting(
 				float FinalLerpFactor;
 				ComputeVolumeUVs(TranslatedWorldPosition, LightingPositionOffset, InnerVolumeUVs, OuterVolumeUVs, FinalLerpFactor);
 
-				FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, bRoughDiffuseEnabled);
+				FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, Settings);
 
 			#if TRANSLUCENCY_PERVERTEX_FORWARD_SHADING
 
@@ -480,8 +473,7 @@ float3 StrataForwardLighting(
 						FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;
 						Color += StrataForwardLightingCommon(
 							Dither,
-							bForceFullyRough,
-							bRoughDiffuseEnabled,
+							Settings,
 							DirLightData,
 							ToDirLight,
 							DirLightMask,
@@ -565,8 +557,7 @@ float3 StrataForwardLighting(
 					FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;
 					Color += StrataForwardLightingCommon(
 						Dither,
-						bForceFullyRough,
-						bRoughDiffuseEnabled,
+						Settings,
 						LightData,
 						ToLight,
 						LightMask,

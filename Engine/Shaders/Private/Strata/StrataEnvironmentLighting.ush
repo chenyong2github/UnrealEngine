@@ -22,6 +22,7 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 	float3 V,
 	float AmbientOcclusion,
 	float TopLayerSpecularContributionFactor,
+	FStrataIntegrationSettings Settings,
 	FStrataMaterialContainer MaterialBuffer,
 	FStrataAddressing StrataAddressing,
 	FStrataPixelHeader StrataPixelHeader,
@@ -64,8 +65,7 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 
 		// Evaluate environment lighting
 		const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
-		const bool bForceFullyRough = false;
-		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular, bForceFullyRough);
+		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular, Settings);
 
 		float3 BentNormal = StrataEnvLight.DiffuseNormal;
 	#if APPLY_SKY_SHADOWING

@@ -204,6 +204,7 @@ FDirectLighting StrataLumenLighting(
 	in float3 InRoughSpecularIndirectLighting)
 {
 	FDirectLighting Out = (FDirectLighting)0;
+	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse);
 
 	Strata_for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 	{
@@ -216,7 +217,7 @@ FDirectLighting StrataLumenLighting(
 		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
 
 		// Evaluate environment lighting
-		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, false/*bForceFullyRough*/);
+		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, Settings);
 		
 		const float3 DiffuseColor = StrataGetBSDFDiffuseColor(BSDF);
 		const float  Roughness = StrataGetBSDFRoughness(BSDF);

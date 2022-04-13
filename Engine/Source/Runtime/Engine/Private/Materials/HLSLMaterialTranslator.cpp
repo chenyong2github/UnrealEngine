@@ -1421,11 +1421,11 @@ bool FHLSLMaterialTranslator::Translate()
 			
 				// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
 				{
-					ResourcesString += "void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 L)\n";
+					ResourcesString += "void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V, float3 L)\n";
 					ResourcesString += "{\n";
 					for (uint32 BSDFIndex = 0; BSDFIndex < StrataMaterialBSDFCount; ++BSDFIndex)
 					{
-						ResourcesString += FString::Printf(TEXT("\t UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[%d], bRoughDiffuseEnabled, NullStrataAddressing, V, L);\n"), BSDFIndex);
+						ResourcesString += FString::Printf(TEXT("\t UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[%d], Settings, NullStrataAddressing, V, L);\n"), BSDFIndex);
 					}
 					ResourcesString += "}\n";
 				}
@@ -1529,7 +1529,7 @@ bool FHLSLMaterialTranslator::Translate()
 			
 			// Adde default strata functions
 			ResourcesString += "#if TEMPLATE_USES_STRATA\n";
-			ResourcesString += "void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 L) {}\n";
+			ResourcesString += "void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V, float3 L) {}\n";
 			ResourcesString += "void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree) {}\n";
 			ResourcesString += "void UpdateAllBSDFWeightAfterOperatorVisit(inout FStrataTree StrataTree) {}\n";
 			ResourcesString += "#endif\n";

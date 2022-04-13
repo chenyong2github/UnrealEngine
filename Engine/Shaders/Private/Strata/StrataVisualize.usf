@@ -34,46 +34,6 @@ void DrawReferentialTWS(float3 P /*In Translated World Space*/, float3 X, float3
 	AddLineTWS(P + N * Size, P + N * SizeWithTip, ColorZ, ColorZ);
 }
 
-float3 DrawPlot(
-	const float3 V, 
-	const FStrataPixelHeader Header,
-	const FStrataBSDF BSDF, 
-	const FStrataAddressing StrataAddressing,
-	uint2 PixelCoord, 
-	uint2 RectOffset, 
-	uint2 RectSize)
-{
-	float3 Out = 0;
-
-	const uint2 LocalCoord = PixelCoord - RectOffset;
-	const float2 UV			= float2(PixelCoord - RectOffset) / float2(RectSize);
-	const float2 ProjCoord = UV * 2 - 1;
-	if (all(UV >= 0) && all(UV <= 1) && (Pow2(ProjCoord.x) + Pow2(ProjCoord.y) <1))
-	{
-		const float SinTheta = sqrt(Pow2(ProjCoord.x) + Pow2(ProjCoord.y));
-		const float CosTheta = sqrt(1 - Pow2(SinTheta));
-		const float3 L = float3(ProjCoord, CosTheta);
-
-		const float3x3 Basis = StrataGetBSDFSharedBasis(Header, BSDF, StrataAddressing);
-		float3 LocalV = mul(Basis, V);
-		if (LocalV.z < 0)
-		{
-			LocalV.z = 0;
-			LocalV = normalize(LocalV);
-		}
-
-		float3x3 TangentBasis;
-		TangentBasis[0] = float3(1, 0, 0);
-		TangentBasis[1] = float3(0, 1, 0);
-		TangentBasis[2] = float3(0, 0, 1);
-
-		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, LocalV, L, true);
-		FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(BSDFContext, Strata.bRoughDiffuse);
-		Out = (BSDFEvaluate.DiffusePathValue + BSDFEvaluate.SpecularPathValue + BSDFEvaluate.TransmissionPathValue) * BSDFContext.SatNoL; // * BSDF.Weight
-	}
-	return Out;
-}
-
 void AddDrawPixelFootprint(float3 P, float3 dPdx, float3 dPdy, float2 Scale, bool bNormalize, float4 Color)
 {
 	const float3 T = (bNormalize ? normalize(dPdx) : dPdx) * Scale.x;

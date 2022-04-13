@@ -40,8 +40,7 @@ FStrataDeferredLighting StrataDeferredLighting(
 	FStrataPixelHeader StrataPixelHeader)
 {
 	FStrataDeferredLighting StrataLighting = GetInitialisedStrataDeferredLighting();
-
-	const bool bForceFullyRough = false;
+	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse);
 
 	FRectTexture RectTexture = InitRectTexture(LightData);
 
@@ -67,14 +66,14 @@ FStrataDeferredLighting StrataDeferredLighting(
 
 			// We must have the StrataIntegrateBSDF inside the if due to the rectlight texture: it must be non ambiguous which texture is going to be used.
 			// After the compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
-			BSDFEvaluate = StrataIntegrateBSDF(BSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough, Strata.bRoughDiffuse);
+			BSDFEvaluate = StrataIntegrateBSDF(BSDFContext, ShadowTerms, AreaLightContext, Settings);
 		}
 		else
 		{
 			FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
 			AreaLightContext = CreateCapsuleIntegrateContext(Roughness, BSDFContext.N, BSDFContext.V, Capsule, LightData.bInverseSquared);
 
-			BSDFEvaluate = StrataIntegrateBSDF(BSDFContext, ShadowTerms, AreaLightContext, bForceFullyRough, Strata.bRoughDiffuse);
+			BSDFEvaluate = StrataIntegrateBSDF(BSDFContext, ShadowTerms, AreaLightContext, Settings);
 		}
 
 		float3 DiffuseLuminance = BSDFEvaluate.IntegratedDiffuseValue;

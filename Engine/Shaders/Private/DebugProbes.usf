@@ -14,9 +14,10 @@
 #include "SceneTexturesCommon.ush"
 RWTexture2DArray<uint> MaterialTextureArrayUAV;
 uint MaxBytesPerPixel;
+uint bRoughDiffuse;
 
 // Default functions for PackStrataOut to function properly
-void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, bool bRoughDiffuseEnabled, FStrataAddressing NullStrataAddressing, float3 V, float3 L) {}
+void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V, float3 L) {}
 void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree) {}
 void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree) {}
 void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V) {}
@@ -315,12 +316,15 @@ void MainPS(
 		float3 EmissiveLuminance = 0.0f;
 		bool bStrataSubsurfaceEnable = false;
 		const float Dither = 0.0f;
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, bRoughDiffuse);
+
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(ResolvedView.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
 		FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(MaterialTextureArrayUAV);
 		PackStrataOut(
 			RWStrataMaterialContainer, 
 			MaterialTextureArrayUAV,
 			Dither,
+			Settings,
 			StrataAddressing,
 			StrataPixelHeader, StrataData, -RayDir, bStrataSubsurfaceEnable, EmissiveLuminance,
 			SSSData, TopLayerData, OpaqueRoughRefractionData);
