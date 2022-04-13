@@ -742,8 +742,8 @@ namespace Chaos
 		// For non-rigids, DeltaX is zero and use R for rotation.
 		const auto Rigid0 = Particle0.CastToRigidParticle();
 		const auto Rigid1 = Particle1.CastToRigidParticle();
-		const FVec3 DeltaX0 = Rigid0 ? Rigid0->V() - Dt : FVec3::ZeroVector;
-		const FVec3 DeltaX1 = Rigid1 ? Rigid1->V() - Dt : FVec3::ZeroVector;
+		const FVec3 DeltaX0 = Rigid0 ? Rigid0->V() * Dt : FVec3::ZeroVector;
+		const FVec3 DeltaX1 = Rigid1 ? Rigid1->V() * Dt : FVec3::ZeroVector;
 		const FQuat& R0 = Rigid0 ? Rigid0->Q() : Particle0.R();
 		const FQuat& R1 = Rigid1 ? Rigid1->Q() : Particle1.R();
 		return DeltaExceedsThreshold(

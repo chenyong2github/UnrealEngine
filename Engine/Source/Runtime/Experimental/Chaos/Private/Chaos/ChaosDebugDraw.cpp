@@ -1738,7 +1738,7 @@ namespace Chaos
 					{
 						const FVector LocalOffset = HalfExtents * FVector(ScaleArray[IX], ScaleArray[IY], ScaleArray[IZ]);
 						const FVector Offset = R.RotateVector(LocalOffset);
-						FDebugDrawQueue::GetInstance().DrawDebugLine(X, X + DeltaX, BoundsColor, false, -1.f, -1, BoundsThickness);
+						FDebugDrawQueue::GetInstance().DrawDebugLine(X + Offset, X + Offset + DeltaX, BoundsColor, false, -1.f, -1, BoundsThickness);
 					}
 				}
 			}
