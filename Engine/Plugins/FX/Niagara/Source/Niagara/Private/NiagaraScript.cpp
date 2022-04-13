@@ -1806,7 +1806,11 @@ void UNiagaraScript::PostLoad()
 		// disable the owning script and system
 		if (!HasValidParameterBindings())
 		{
+#if WITH_EDITOR && IS_MONOLITHIC
+			UE_LOG(LogNiagara, Warning, TEXT("Mismatch between binding between RapidIterationParamters and ScriptExecutionParameters for system %s"), *GetFullName());
+#else
 			UE_LOG(LogNiagara, Error, TEXT("Mismatch between binding between RapidIterationParamters and ScriptExecutionParameters for system %s"), *GetFullName());
+#endif
 
 			CachedScriptVM.Reset();
 			return;
