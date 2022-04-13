@@ -33,9 +33,11 @@ FClothConstraints::FClothConstraints()
 {
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FClothConstraints::~FClothConstraints()
 {
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FClothConstraints::Initialize(
 	Softs::FPBDEvolution* InEvolution,
