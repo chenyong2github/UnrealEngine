@@ -129,11 +129,13 @@ bool UCommonNumericTextBlock::CanEditChange(const FProperty* InProperty) const
 	if (bIsEditable && InProperty)
 	{
 		const FName PropertyName = InProperty->GetFName();
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// this should be move in a customizaer
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(UTextBlock, MinDesiredWidth))
 		{
 			bIsEditable = PerformSizeInterpolation != true;
 		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return bIsEditable;

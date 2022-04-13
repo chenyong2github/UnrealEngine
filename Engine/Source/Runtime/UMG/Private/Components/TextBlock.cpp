@@ -20,6 +20,7 @@ UTextBlock::UTextBlock(const FObjectInitializer& ObjectInitializer)
 {
 	bIsVariable = false;
 	bWrapWithInvalidationPanel = false;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ShadowOffset = FVector2D(1.0f, 1.0f);
 	ColorAndOpacity = FLinearColor::White;
 	ShadowColorAndOpacity = FLinearColor::Transparent;
@@ -31,6 +32,7 @@ UTextBlock::UTextBlock(const FObjectInitializer& ObjectInitializer)
 		static ConstructorHelpers::FObjectFinder<UFont> RobotoFontObj(*UWidget::GetDefaultFontName());
 		Font = FSlateFontInfo(RobotoFontObj.Object, 24, FName("Bold"));
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
@@ -43,6 +45,19 @@ void UTextBlock::ReleaseSlateResources(bool bReleaseChildren)
 	Super::ReleaseSlateResources(bReleaseChildren);
 
 	MyTextBlock.Reset();
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FSlateColor UTextBlock::GetColorAndOpacity() const
+{
+	if (ColorAndOpacityDelegate.IsBound() && !IsDesignTime())
+	{
+		return ColorAndOpacityDelegate.Execute();
+	}
+	else
+	{
+		return ColorAndOpacity;
+	}
 }
 
 void UTextBlock::SetColorAndOpacity(FSlateColor InColorAndOpacity)
@@ -62,6 +77,18 @@ void UTextBlock::SetOpacity(float InOpacity)
 	SetColorAndOpacity(FSlateColor(CurrentColor));
 }
 
+FLinearColor UTextBlock::GetShadowColorAndOpacity() const
+{
+	if (ShadowColorAndOpacityDelegate.IsBound() && !IsDesignTime())
+	{
+		return ShadowColorAndOpacityDelegate.Execute();
+	}
+	else
+	{
+		return ShadowColorAndOpacity;
+	}
+}
+
 void UTextBlock::SetShadowColorAndOpacity(FLinearColor InShadowColorAndOpacity)
 {
 	ShadowColorAndOpacity = InShadowColorAndOpacity;
@@ -69,6 +96,11 @@ void UTextBlock::SetShadowColorAndOpacity(FLinearColor InShadowColorAndOpacity)
 	{
 		MyTextBlock->SetShadowColorAndOpacity(InShadowColorAndOpacity);
 	}
+}
+
+FVector2D UTextBlock::GetShadowOffset() const
+{
+	return ShadowOffset;
 }
 
 void UTextBlock::SetShadowOffset(FVector2D InShadowOffset)
@@ -80,6 +112,11 @@ void UTextBlock::SetShadowOffset(FVector2D InShadowOffset)
 	}
 }
 
+const FSlateFontInfo& UTextBlock::GetFont() const
+{
+	return Font;
+}
+
 void UTextBlock::SetFont(FSlateFontInfo InFontInfo)
 {
 	Font = InFontInfo;
@@ -87,6 +124,11 @@ void UTextBlock::SetFont(FSlateFontInfo InFontInfo)
 	{
 		MyTextBlock->SetFont(Font);
 	}
+}
+
+const FSlateBrush& UTextBlock::GetStrikeBrush() const
+{
+	return StrikeBrush;
 }
 
 void UTextBlock::SetStrikeBrush(FSlateBrush InStrikeBrush)
@@ -107,6 +149,11 @@ void UTextBlock::SetJustification(ETextJustify::Type InJustification)
 	}
 }
 
+float UTextBlock::GetMinDesiredWidth() const
+{
+	return MinDesiredWidth;
+}
+
 void UTextBlock::SetMinDesiredWidth(float InMinDesiredWidth)
 {
 	MinDesiredWidth = InMinDesiredWidth;
@@ -125,6 +172,11 @@ void UTextBlock::SetAutoWrapText(bool InAutoWrapText)
 	}
 }
 
+ETextTransformPolicy UTextBlock::GetTextTransformPolicy() const
+{
+	return TextTransformPolicy;
+}
+
 void UTextBlock::SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy)
 {
 	TextTransformPolicy = InTransformPolicy;
@@ -134,11 +186,17 @@ void UTextBlock::SetTextTransformPolicy(ETextTransformPolicy InTransformPolicy)
 	}
 }
 
+ETextOverflowPolicy UTextBlock::GetTextOverflowPolicy() const
+{
+	return TextOverflowPolicy;
+}
+
 void UTextBlock::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
 {
 	TextOverflowPolicy = InOverflowPolicy;
 	SynchronizeProperties();
 }
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 UMaterialInstanceDynamic* UTextBlock::GetDynamicFontMaterial()
 {
@@ -183,6 +241,7 @@ UMaterialInstanceDynamic* UTextBlock::GetDynamicOutlineMaterial()
 
 	return nullptr;
 }
+
 
 TSharedRef<SWidget> UTextBlock::RebuildWidget()
 {

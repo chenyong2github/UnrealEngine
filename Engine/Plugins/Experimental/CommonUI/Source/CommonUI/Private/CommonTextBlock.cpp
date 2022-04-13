@@ -303,18 +303,77 @@ void UCommonTextBlock::PostLoad()
 			bool bAllDefaults = true;
 
 			// Font
-			if (Font.FontObject == CDO->Font.FontObject) { Font.FontObject = DefaultStyleCDO->Font.FontObject; } else { bAllDefaults = false; }
-			if (Font.FontMaterial == CDO->Font.FontMaterial) { Font.FontMaterial = DefaultStyleCDO->Font.FontMaterial; } else { bAllDefaults = false; }
-			if (Font.OutlineSettings.OutlineSize == CDO->Font.OutlineSettings.OutlineSize) { Font.OutlineSettings.OutlineSize = DefaultStyleCDO->Font.OutlineSettings.OutlineSize; } else { bAllDefaults = false; }
-			if (Font.OutlineSettings.bSeparateFillAlpha == CDO->Font.OutlineSettings.bSeparateFillAlpha) { Font.OutlineSettings.bSeparateFillAlpha = DefaultStyleCDO->Font.OutlineSettings.bSeparateFillAlpha; } else { bAllDefaults = false; }
-			if (Font.OutlineSettings.bApplyOutlineToDropShadows == CDO->Font.OutlineSettings.bApplyOutlineToDropShadows) { Font.OutlineSettings.bApplyOutlineToDropShadows = DefaultStyleCDO->Font.OutlineSettings.bApplyOutlineToDropShadows; } else { bAllDefaults = false; }
-			if (Font.OutlineSettings.OutlineMaterial == CDO->Font.OutlineSettings.OutlineMaterial) { Font.OutlineSettings.OutlineMaterial = DefaultStyleCDO->Font.OutlineSettings.OutlineMaterial; } else { bAllDefaults = false; }
-			if (Font.OutlineSettings.OutlineColor.R == CDO->Font.OutlineSettings.OutlineColor.R) { Font.OutlineSettings.OutlineColor.R = DefaultStyleCDO->Font.OutlineSettings.OutlineColor.R; } else { bAllDefaults = false; }
-			if (Font.OutlineSettings.OutlineColor.G == CDO->Font.OutlineSettings.OutlineColor.G) { Font.OutlineSettings.OutlineColor.G = DefaultStyleCDO->Font.OutlineSettings.OutlineColor.G; } else { bAllDefaults = false; }
-			if (Font.OutlineSettings.OutlineColor.B == CDO->Font.OutlineSettings.OutlineColor.B) { Font.OutlineSettings.OutlineColor.B = DefaultStyleCDO->Font.OutlineSettings.OutlineColor.B; } else { bAllDefaults = false; }
-			if (Font.OutlineSettings.OutlineColor.A == CDO->Font.OutlineSettings.OutlineColor.A) { Font.OutlineSettings.OutlineColor.A = DefaultStyleCDO->Font.OutlineSettings.OutlineColor.A; } else { bAllDefaults = false; }
-			if (Font.TypefaceFontName == CDO->Font.TypefaceFontName) { Font.TypefaceFontName = DefaultStyleCDO->Font.TypefaceFontName; } else { bAllDefaults = false; };
-			if (Font.Size == CDO->Font.Size) { Font.Size = DefaultStyleCDO->Font.Size; } else { bAllDefaults = false; };
+			{
+				bool bFontHasChanged = false;
+				FSlateFontInfo MyFont = GetFont();
+				const FSlateFontInfo& CDOFont = CDO->GetFont();
+				if (MyFont.FontObject == CDOFont.FontObject)
+				{
+					MyFont.FontObject = DefaultStyleCDO->Font.FontObject;
+					bFontHasChanged = true;
+				}
+				if (MyFont.FontMaterial == CDOFont.FontMaterial)
+				{
+					MyFont.FontMaterial = DefaultStyleCDO->Font.FontMaterial;
+					bFontHasChanged = true;
+				}
+				if (MyFont.OutlineSettings.OutlineSize == CDOFont.OutlineSettings.OutlineSize)
+				{
+					MyFont.OutlineSettings.OutlineSize = DefaultStyleCDO->Font.OutlineSettings.OutlineSize;
+					bFontHasChanged = true;
+				}
+				if (MyFont.OutlineSettings.bSeparateFillAlpha == CDOFont.OutlineSettings.bSeparateFillAlpha)
+				{
+					MyFont.OutlineSettings.bSeparateFillAlpha = DefaultStyleCDO->Font.OutlineSettings.bSeparateFillAlpha;
+					bFontHasChanged = true;
+				}
+				if (MyFont.OutlineSettings.bApplyOutlineToDropShadows == CDOFont.OutlineSettings.bApplyOutlineToDropShadows)
+				{
+					MyFont.OutlineSettings.bApplyOutlineToDropShadows = DefaultStyleCDO->Font.OutlineSettings.bApplyOutlineToDropShadows;
+					bFontHasChanged = true;
+				}
+				if (MyFont.OutlineSettings.OutlineMaterial == CDOFont.OutlineSettings.OutlineMaterial)
+				{
+					MyFont.OutlineSettings.OutlineMaterial = DefaultStyleCDO->Font.OutlineSettings.OutlineMaterial;
+					bFontHasChanged = true;
+				}
+				if (MyFont.OutlineSettings.OutlineColor.R == CDOFont.OutlineSettings.OutlineColor.R)
+				{
+					MyFont.OutlineSettings.OutlineColor.R = DefaultStyleCDO->Font.OutlineSettings.OutlineColor.R;
+					bFontHasChanged = true;
+				}
+				if (MyFont.OutlineSettings.OutlineColor.G == CDOFont.OutlineSettings.OutlineColor.G)
+				{
+					MyFont.OutlineSettings.OutlineColor.G = DefaultStyleCDO->Font.OutlineSettings.OutlineColor.G;
+					bFontHasChanged = true;
+				}
+				if (MyFont.OutlineSettings.OutlineColor.B == CDOFont.OutlineSettings.OutlineColor.B)
+				{
+					MyFont.OutlineSettings.OutlineColor.B = DefaultStyleCDO->Font.OutlineSettings.OutlineColor.B;
+					bFontHasChanged = true;
+				}
+				if (MyFont.OutlineSettings.OutlineColor.A == CDOFont.OutlineSettings.OutlineColor.A)
+				{
+					MyFont.OutlineSettings.OutlineColor.A = DefaultStyleCDO->Font.OutlineSettings.OutlineColor.A;
+					bFontHasChanged = true;
+				}
+				if (MyFont.TypefaceFontName == CDOFont.TypefaceFontName)
+				{
+					MyFont.TypefaceFontName = DefaultStyleCDO->Font.TypefaceFontName;
+					bFontHasChanged = true;
+				}
+				if (MyFont.Size == CDOFont.Size)
+				{
+					MyFont.Size = DefaultStyleCDO->Font.Size;
+					bFontHasChanged = true;
+				}
+
+				if (bFontHasChanged)
+				{
+					SetFont(MyFont);
+				}
+				bAllDefaults = bAllDefaults && !bFontHasChanged;
+			}
 
 			// Margin
 			if (Margin.Left == CDO->Margin.Left) { Margin.Left = DefaultStyleCDO->Margin.Left; } else { bAllDefaults = false; }
@@ -326,17 +385,63 @@ void UCommonTextBlock::PostLoad()
 			if (LineHeightPercentage == CDO->LineHeightPercentage) { LineHeightPercentage = DefaultStyleCDO->LineHeightPercentage; } else { bAllDefaults = false; }
 
 			// ColorAndOpacity
-			if (ColorAndOpacity == CDO->ColorAndOpacity) { ColorAndOpacity = DefaultStyleCDO->Color; } else { bAllDefaults = false; }
+			if (GetColorAndOpacity() == CDO->GetColorAndOpacity()) { SetColorAndOpacity(DefaultStyleCDO->Color); } else { bAllDefaults = false; }
 
 			// ShadowOffset
-			if (ShadowOffset.X == CDO->ShadowOffset.X) { DefaultStyleCDO->bUsesDropShadow ? ShadowOffset.X = DefaultStyleCDO->ShadowOffset.X : 0.f; } else { bAllDefaults = false; }
-			if (ShadowOffset.Y == CDO->ShadowOffset.Y) { DefaultStyleCDO->bUsesDropShadow ? ShadowOffset.Y = DefaultStyleCDO->ShadowOffset.Y : 0.f; } else { bAllDefaults = false; }
+			{
+				bool bShadowOffsetHasChanged = false;
+				FVector2D MyShadowOffset = GetShadowOffset();
+				const FVector2D CDOShadowOffset = CDO->GetShadowOffset();
+				if (MyShadowOffset.X == CDOShadowOffset.X)
+				{
+					DefaultStyleCDO->bUsesDropShadow ? MyShadowOffset.X = DefaultStyleCDO->ShadowOffset.X : 0.f;
+					bShadowOffsetHasChanged = true;
+				}
+				if (MyShadowOffset.Y == CDOShadowOffset.Y)
+				{
+					DefaultStyleCDO->bUsesDropShadow ? MyShadowOffset.Y = DefaultStyleCDO->ShadowOffset.Y : 0.f;
+					bShadowOffsetHasChanged = true;
+				}
+
+				if (bShadowOffsetHasChanged)
+				{
+					SetShadowOffset(MyShadowOffset);
+				}
+				bAllDefaults = bAllDefaults && !bShadowOffsetHasChanged;
+			}
 
 			// ShadowColorAndOpacity
-			if (ShadowColorAndOpacity.R == CDO->ShadowColorAndOpacity.R) { DefaultStyleCDO->bUsesDropShadow ? ShadowColorAndOpacity.R = DefaultStyleCDO->ShadowColor.R : 0.f; } else { bAllDefaults = false; }
-			if (ShadowColorAndOpacity.G == CDO->ShadowColorAndOpacity.G) { DefaultStyleCDO->bUsesDropShadow ? ShadowColorAndOpacity.G = DefaultStyleCDO->ShadowColor.G : 0.f; } else { bAllDefaults = false; }
-			if (ShadowColorAndOpacity.B == CDO->ShadowColorAndOpacity.B) { DefaultStyleCDO->bUsesDropShadow ? ShadowColorAndOpacity.B = DefaultStyleCDO->ShadowColor.B : 0.f; } else { bAllDefaults = false; }
-			if (ShadowColorAndOpacity.A == CDO->ShadowColorAndOpacity.A) { DefaultStyleCDO->bUsesDropShadow ? ShadowColorAndOpacity.A = DefaultStyleCDO->ShadowColor.A : 0.f; } else { bAllDefaults = false; }
+			{
+				bool bShadowColorAndOpacityHasChanged = false;
+				FLinearColor MyShadowOffset = GetShadowColorAndOpacity();
+				const FLinearColor CDOShadowOffset = CDO->GetShadowColorAndOpacity();
+				if (MyShadowOffset.R == CDOShadowOffset.R)
+				{
+					DefaultStyleCDO->bUsesDropShadow ? MyShadowOffset.R = DefaultStyleCDO->ShadowColor.R : 0.f;
+					bShadowColorAndOpacityHasChanged = true;
+				}
+				if (MyShadowOffset.G == CDOShadowOffset.G)
+				{
+					DefaultStyleCDO->bUsesDropShadow ? MyShadowOffset.G = DefaultStyleCDO->ShadowColor.G : 0.f;
+					bShadowColorAndOpacityHasChanged = true;
+				}
+				if (MyShadowOffset.B == CDOShadowOffset.B)
+				{
+					DefaultStyleCDO->bUsesDropShadow ? MyShadowOffset.B = DefaultStyleCDO->ShadowColor.B : 0.f;
+					bShadowColorAndOpacityHasChanged = true;
+				}
+				if (MyShadowOffset.A == CDOShadowOffset.A)
+				{
+					DefaultStyleCDO->bUsesDropShadow ? MyShadowOffset.A = DefaultStyleCDO->ShadowColor.A : 0.f;
+					bShadowColorAndOpacityHasChanged = true;
+				}
+
+				if (bShadowColorAndOpacityHasChanged)
+				{
+					SetShadowColorAndOpacity(MyShadowOffset);
+				}
+				bAllDefaults = bAllDefaults && !bShadowColorAndOpacityHasChanged;
+			}
 
 			if (bAllDefaults)
 			{
@@ -368,6 +473,7 @@ void UCommonTextBlock::Serialize(FArchive& Ar)
 		FVector2D TempShadowOffset = FVector2D::ZeroVector;
 		FLinearColor TempShadowColorAndOpacity = FLinearColor::Transparent;
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Swap(Font, TempFont);
 		Swap(StrikeBrush, TempStrikeBrush);
 		Swap(Margin, TempMargin);
@@ -385,6 +491,7 @@ void UCommonTextBlock::Serialize(FArchive& Ar)
 		Swap(TempColorAndOpacity, ColorAndOpacity);
 		Swap(TempShadowOffset, ShadowOffset);
 		Swap(TempShadowColorAndOpacity, ShadowColorAndOpacity);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	else
 #endif //if WITH_EDITORONLY_DATA
@@ -393,7 +500,7 @@ void UCommonTextBlock::Serialize(FArchive& Ar)
 
 		if (Ar.IsLoading() && bDisplayAllCaps_DEPRECATED)
 		{
-			TextTransformPolicy = ETextTransformPolicy::ToUpper;
+			SetTextTransformPolicy(ETextTransformPolicy::ToUpper);
 			bDisplayAllCaps_DEPRECATED = false;
 		}
 	}
@@ -407,7 +514,7 @@ void UCommonTextBlock::SetWrapTextWidth(int32 InWrapTextAt)
 
 void UCommonTextBlock::SetTextCase(bool bUseAllCaps)
 {
-	TextTransformPolicy = bUseAllCaps ? ETextTransformPolicy::ToUpper : ETextTransformPolicy::None;
+	SetTextTransformPolicy(bUseAllCaps ? ETextTransformPolicy::ToUpper : ETextTransformPolicy::None);
 	SynchronizeProperties();
 }
 
@@ -437,7 +544,7 @@ void UCommonTextBlock::SynchronizeProperties()
 
 	if (bAutoCollapseWithEmptyText)
 	{
-		SetVisibility(Text.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		SetVisibility(GetText().IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}
 
 	Super::SynchronizeProperties();
@@ -485,21 +592,21 @@ void UCommonTextBlock::UpdateFromStyle()
 {
 	if (const UCommonTextStyle* TextStyle = GetStyleCDO())
 	{
-		Font = TextStyle->Font;
-		StrikeBrush = TextStyle->StrikeBrush;
+		SetFont(TextStyle->Font);
+		SetStrikeBrush(TextStyle->StrikeBrush);
 		Margin = TextStyle->Margin;
 		LineHeightPercentage = TextStyle->LineHeightPercentage;
-		ColorAndOpacity = TextStyle->Color;
+		SetColorAndOpacity(TextStyle->Color);
 
 		if (TextStyle->bUsesDropShadow)
 		{
-			ShadowOffset = TextStyle->ShadowOffset;
-			ShadowColorAndOpacity = TextStyle->ShadowColor;
+			SetShadowOffset(TextStyle->ShadowOffset);
+			SetShadowColorAndOpacity(TextStyle->ShadowColor);
 		}
 		else
 		{
-			ShadowOffset = FVector2D::ZeroVector;
-			ShadowColorAndOpacity = FLinearColor::Transparent;
+			SetShadowOffset(FVector2D::ZeroVector);
+			SetShadowColorAndOpacity(FLinearColor::Transparent);
 		}
 	}
 }
@@ -534,6 +641,7 @@ bool UCommonTextBlock::CanEditChange(const FProperty* InProperty) const
 	{
 		if (const UCommonTextStyle* TextStyle = GetStyleCDO())
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			static TArray<FName> InvalidPropertiesWithStyle =
 			{
 				GET_MEMBER_NAME_CHECKED(UCommonTextBlock, Font),
@@ -544,7 +652,7 @@ bool UCommonTextBlock::CanEditChange(const FProperty* InProperty) const
 				GET_MEMBER_NAME_CHECKED(UCommonTextBlock, ShadowOffset),
 				GET_MEMBER_NAME_CHECKED(UCommonTextBlock, ShadowColorAndOpacity)
 			};
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return !InvalidPropertiesWithStyle.Contains(InProperty->GetFName());
 		}
 
@@ -609,7 +717,7 @@ void UCommonTextBlock::ApplyFontSizeMultiplier() const
 {
 	if (MyTextBlock.IsValid())
 	{
-		FSlateFontInfo FontInfo = Font;
+		FSlateFontInfo FontInfo = GetFont();
 		FontInfo.Size *= MobileFontSizeMultiplier;
 		MyTextBlock->SetFont(FontInfo);
 	}
