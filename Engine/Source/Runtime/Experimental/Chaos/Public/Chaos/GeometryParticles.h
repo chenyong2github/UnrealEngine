@@ -22,6 +22,7 @@
 #define CHAOS_DETERMINISTIC 1
 #endif
 
+
 namespace Chaos
 {
 	class FConstraintHandle;
@@ -435,6 +436,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
 			TArrayCollection::AddArray(&MLocalBounds);
+			TArrayCollection::AddArray(&MCCDAxisThreshold);
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
@@ -474,6 +476,7 @@ namespace Chaos
 			, MHasCollision(MoveTemp(Other.MHasCollision))
 			, MShapesArray(MoveTemp(Other.MShapesArray))
 			, MLocalBounds(MoveTemp(Other.MLocalBounds))
+			, MCCDAxisThreshold(MoveTemp(Other.MCCDAxisThreshold))
 			, MWorldSpaceInflatedBounds(MoveTemp(Other.MWorldSpaceInflatedBounds))
 			, MHasBounds(MoveTemp(Other.MHasBounds))
 			, MSpatialIdx(MoveTemp(Other.MSpatialIdx))
@@ -505,6 +508,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
 			TArrayCollection::AddArray(&MLocalBounds);
+			TArrayCollection::AddArray(&MCCDAxisThreshold);
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
@@ -546,6 +550,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MHasCollision);
 			TArrayCollection::AddArray(&MShapesArray);
 			TArrayCollection::AddArray(&MLocalBounds);
+			TArrayCollection::AddArray(&MCCDAxisThreshold);
 			TArrayCollection::AddArray(&MWorldSpaceInflatedBounds);
 			TArrayCollection::AddArray(&MHasBounds);
 			TArrayCollection::AddArray(&MSpatialIdx);
@@ -633,6 +638,28 @@ namespace Chaos
 			{
 				MLocalBounds[Index] = TAABB<T, d>(InGeometry->BoundingBox());
 
+				// Update CCDAxisThreshold to be the extents of the bounds of the smallest shape on each axis
+				MCCDAxisThreshold[Index] = MLocalBounds[Index].Extents();
+				for (const TUniquePtr<FPerShapeData>& Shape : ShapesArray(Index))
+				{
+					// Only sim-enabled shapes should ever be swept with CCD, so make sure the
+					// sim-enabled flag is on for each shape before considering it's min bounds
+					// for CCD extents.
+					if (Shape->GetSimEnabled())
+					{
+						const TSerializablePtr<FImplicitObject> Geometry = Shape->GetGeometry();
+						if (Geometry->HasBoundingBox())
+						{
+							const TVector<T, d> ShapeExtents = Geometry->BoundingBox().Extents();
+							TVector<T, d>& CCDAxisThreshold = MCCDAxisThreshold[Index];
+							for (int32 AxisIndex = 0; AxisIndex < d; ++AxisIndex)
+							{
+								MCCDAxisThreshold[Index][AxisIndex] = FMath::Min(ShapeExtents[AxisIndex], MCCDAxisThreshold[Index][AxisIndex]);
+							}
+						}
+					}
+				}
+
 				// Update the world-space stat of all the shapes - must be called after UpdateShapesArray
 				// world space inflated bounds needs to take expansion into account - this is done in integrate for dynamics anyway, so
 				// this computation is mainly for statics
@@ -649,6 +676,11 @@ namespace Chaos
 		CHAOS_API TAABB<T, d>& LocalBounds(const int32 Index)
 		{
 			return MLocalBounds[Index];
+		}
+
+		CHAOS_API const TVector<T,d>& CCDAxisThreshold(const int32 Index) const
+		{
+			return MCCDAxisThreshold[Index];
 		}
 
 		CHAOS_API bool HasBounds(const int32 Index) const
@@ -884,6 +916,7 @@ public:
 		TArrayCollectionArray<bool> MHasCollision;
 		TArrayCollectionArray<FShapesArray> MShapesArray;
 		TArrayCollectionArray<TAABB<T,d>> MLocalBounds;
+		TArrayCollectionArray<TVector<T,d>> MCCDAxisThreshold;
 		TArrayCollectionArray<TAABB<T, d>> MWorldSpaceInflatedBounds;
 		TArrayCollectionArray<bool> MHasBounds;
 		TArrayCollectionArray<FSpatialAccelerationIdx> MSpatialIdx;
@@ -933,3 +966,4 @@ public:
 	TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>* TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>::SerializationFactory(FChaosArchive& Ar, TGeometryParticlesImp<FReal, 3, EGeometryParticlesSimType::Other>* Particles);
 
 }
+
