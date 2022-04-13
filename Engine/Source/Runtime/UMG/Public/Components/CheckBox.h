@@ -32,40 +32,41 @@ class UMG_API UCheckBox : public UContentWidget
 	GENERATED_UCLASS_BODY()
 
 public:
-	UE_FIELD_NOTIFICATION_DECLARE_CLASS_DESCRIPTOR_OneField(CheckedState);
-
-public:
 	/** Whether the check box is currently in a checked state */
-	UPROPERTY(EditAnywhere, Category=Appearance)
+	UE_DEPRECATED(5.1, "Direct access to CheckedState is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintGetter="GetCheckedState", BlueprintSetter="SetCheckedState", FieldNotify, Category="Appearance")
 	ECheckBoxState CheckedState;
 
 	/** A bindable delegate for the IsChecked. */
 	UPROPERTY()
 	FGetCheckBoxState CheckedStateDelegate;
 
-public:
 	/** The checkbox bar style */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Style" ))
+	UE_DEPRECATED(5.1, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Style", meta = (DisplayName="Style"))
 	FCheckBoxStyle WidgetStyle;
 
 	/** How the content of the toggle button should align within the given space */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Appearance")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment;
 
 	/** The type of mouse action required by the user to trigger the buttons 'Click' */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to ClickMethod is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetClickMethod", Category="Interaction", AdvancedDisplay)
 	TEnumAsByte<EButtonClickMethod::Type> ClickMethod;
 
 	/** The type of touch action required by the user to trigger the buttons 'Click' */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to TouchMethod is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetTouchMethod", Category="Interaction", AdvancedDisplay)
 	TEnumAsByte<EButtonTouchMethod::Type> TouchMethod;
 
 	/** The type of keyboard/gamepad button press action required by the user to trigger the buttons 'Click' */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction", AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to PressMethod is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetPressMethod", Category="Interaction", AdvancedDisplay)
 	TEnumAsByte<EButtonPressMethod::Type> PressMethod;
 
 	/** Sometimes a button should only be mouse-clickable and never keyboard focusable. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Interaction")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Interaction")
 	bool IsFocusable;
 
 public:
@@ -96,13 +97,31 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Widget")
 	void SetCheckedState(ECheckBoxState InCheckedState);
 
-	UFUNCTION(BlueprintCallable, Category = "Button")
+	/** Returns the local style. */
+	const FCheckBoxStyle& GetWidgetStyle() const;
+
+	/** Sets the style. */
+	void SetWidgetStyle(const FCheckBoxStyle& InStyle);
+
+	/** Returns the click method. */
+	EButtonClickMethod::Type GetClickMethod() const;
+
+	/** Sets the click method. */
+	UFUNCTION(BlueprintCallable, Category="Button")
 	void SetClickMethod(EButtonClickMethod::Type InClickMethod);
 
-	UFUNCTION(BlueprintCallable, Category = "Button")
+	/** Returns the touch method. */
+	EButtonTouchMethod::Type GetTouchMethod() const;
+
+	/** Sets the touch method. */
+	UFUNCTION(BlueprintCallable, Category="Button")
 	void SetTouchMethod(EButtonTouchMethod::Type InTouchMethod);
 
-	UFUNCTION(BlueprintCallable, Category = "Button")
+	/** Returns the press method. */
+	EButtonPressMethod::Type GetPressMethod() const;
+
+	/** Sets the press method. */
+	UFUNCTION(BlueprintCallable, Category="Button")
 	void SetPressMethod(EButtonPressMethod::Type InPressMethod);
 
 public:
@@ -130,7 +149,10 @@ protected:
 	//~ Begin UWidget Interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 #if WITH_EDITOR
-	virtual TSharedRef<SWidget> RebuildDesignWidget(TSharedRef<SWidget> Content) override { return Content; }
+	virtual TSharedRef<SWidget> RebuildDesignWidget(TSharedRef<SWidget> Content) override
+	{
+		return Content;
+	}
 #endif
 	//~ End UWidget Interface
 

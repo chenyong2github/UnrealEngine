@@ -12,8 +12,6 @@
 /////////////////////////////////////////////////////
 // UCheckBox
 
-UE_FIELD_NOTIFICATION_IMPLEMENT_CLASS_DESCRIPTOR_OneField(UCheckBox, CheckedState);
-
 static FCheckBoxStyle* DefaultCheckboxStyle = nullptr;
 
 #if WITH_EDITOR
@@ -31,6 +29,7 @@ UCheckBox::UCheckBox(const FObjectInitializer& ObjectInitializer)
 		DefaultCheckboxStyle->UnlinkColors();
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	WidgetStyle = *DefaultCheckboxStyle;
 
 #if WITH_EDITOR 
@@ -57,6 +56,8 @@ UCheckBox::UCheckBox(const FObjectInitializer& ObjectInitializer)
 
 	ClickMethod = EButtonClickMethod::DownAndUp;
 	TouchMethod = EButtonTouchMethod::DownAndUp;
+	PressMethod = EButtonPressMethod::DownAndUp;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	IsFocusable = true;
 #if WITH_EDITORONLY_DATA
@@ -74,6 +75,7 @@ void UCheckBox::ReleaseSlateResources(bool bReleaseChildren)
 
 TSharedRef<SWidget> UCheckBox::RebuildWidget()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyCheckbox = SNew(SCheckBox)
 		.OnCheckStateChanged( BIND_UOBJECT_DELEGATE(FOnCheckStateChanged, SlateOnCheckStateChangedCallback) )
 		.Style(&WidgetStyle)
@@ -83,6 +85,7 @@ TSharedRef<SWidget> UCheckBox::RebuildWidget()
 		.PressMethod(PressMethod)
 		.IsFocusable(IsFocusable)
 		;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if ( GetChildrenCount() > 0 )
 	{
@@ -96,8 +99,14 @@ void UCheckBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyCheckbox->SetStyle(&WidgetStyle);
 	MyCheckbox->SetIsChecked( PROPERTY_BINDING(ECheckBoxState, CheckedState) );
+	MyCheckbox->SetClickMethod(ClickMethod);
+	MyCheckbox->SetTouchMethod(TouchMethod);
+	MyCheckbox->SetPressMethod(PressMethod);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UCheckBox::OnSlotAdded(UPanelSlot* InSlot)
@@ -128,6 +137,13 @@ bool UCheckBox::IsPressed() const
 	return false;
 }
 
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+EButtonClickMethod::Type UCheckBox::GetClickMethod() const
+{
+	return ClickMethod;
+}
+
 void UCheckBox::SetClickMethod(EButtonClickMethod::Type InClickMethod)
 {
 	ClickMethod = InClickMethod;
@@ -135,6 +151,11 @@ void UCheckBox::SetClickMethod(EButtonClickMethod::Type InClickMethod)
 	{
 		MyCheckbox->SetClickMethod(ClickMethod);
 	}
+}
+
+EButtonTouchMethod::Type UCheckBox::GetTouchMethod() const
+{
+	return TouchMethod;
 }
 
 void UCheckBox::SetTouchMethod(EButtonTouchMethod::Type InTouchMethod)
@@ -153,6 +174,11 @@ void UCheckBox::SetPressMethod(EButtonPressMethod::Type InPressMethod)
 	{
 		MyCheckbox->SetPressMethod(PressMethod);
 	}
+}
+
+EButtonPressMethod::Type UCheckBox::GetPressMethod() const
+{
+	return PressMethod;
 }
 
 bool UCheckBox::IsChecked() const
@@ -204,15 +230,32 @@ void UCheckBox::SetCheckedState(ECheckBoxState InCheckedState)
 	}
 }
 
+const FCheckBoxStyle& UCheckBox::GetWidgetStyle() const
+{
+	return WidgetStyle;
+}
+
+void UCheckBox::SetWidgetStyle(const FCheckBoxStyle& InStyle)
+{
+	WidgetStyle = InStyle;
+
+	if (MyCheckbox)
+	{
+		MyCheckbox->SetStyle(&WidgetStyle);
+	}
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 void UCheckBox::SlateOnCheckStateChangedCallback(ECheckBoxState NewState)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (CheckedState != NewState)
 	{
 		CheckedState = NewState;
 		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::CheckedState);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	//@TODO: Choosing to treat Undetermined as Checked
 	const bool bWantsToBeChecked = NewState != ECheckBoxState::Unchecked;
 	OnCheckStateChanged.Broadcast(bWantsToBeChecked);
 }
