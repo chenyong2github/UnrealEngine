@@ -2,6 +2,7 @@
 
 #include "MVVMViewModelBase.h"
 
+#include "ViewModel/MVVMViewModelBlueprintGeneratedClass.h"
 #include "Bindings/MVVMBindingHelper.h"
 
 
@@ -67,6 +68,15 @@ const UE::FieldNotification::IClassDescriptor& UMVVMViewModelBase::GetFieldNotif
 }
 
 
+void UMVVMViewModelBase::FFieldNotificationClassDescriptor::ForEachField(const UClass* Class, TFunctionRef<bool(::UE::FieldNotification::FFieldId FieldId)> Callback) const
+{
+	if (const UMVVMViewModelBlueprintGeneratedClass* ViewModelBPClass = Cast<const UMVVMViewModelBlueprintGeneratedClass>(Class))
+	{
+		ViewModelBPClass->ForEachField(Callback);
+	}
+}
+
+
 void UMVVMViewModelBase::BindingFieldValueChanged(UE::FieldNotification::FFieldId InFieldId)
 {
 	if (InFieldId.IsValid() && EnabledFieldNotifications.IsValidIndex(InFieldId.GetIndex()) && EnabledFieldNotifications[InFieldId.GetIndex()])
@@ -76,9 +86,8 @@ void UMVVMViewModelBase::BindingFieldValueChanged(UE::FieldNotification::FFieldI
 }
 
 
-void UMVVMViewModelBase::BindingValueChanged(FMVVMBindingName ViewModelPropertyName)
+void UMVVMViewModelBase::K2_BroadcastFieldValueChanged(FFieldNotificationId ViewModelPropertyName)
 {
-	UE::FieldNotification::FFieldId FieldId = GetFieldNotificationDescriptor().GetField(GetClass(), ViewModelPropertyName.ToName());
+	UE::FieldNotification::FFieldId FieldId = GetFieldNotificationDescriptor().GetField(GetClass(), ViewModelPropertyName.GetFieldName());
 	BindingFieldValueChanged(FieldId);
 }
-

@@ -21,7 +21,16 @@ namespace UE::MVVM::FunctionGraphHelper
 	/** Add an input argument to an existing function graph. */
 	MODELVIEWVIEWMODELBLUEPRINT_API bool AddFunctionArgument(UEdGraph* FunctionGraph, TSubclassOf<UObject> Argument, FName ArgumentName);
 
+	/** Add an input argument to an existing function graph. */
+	MODELVIEWVIEWMODELBLUEPRINT_API bool AddFunctionArgument(UEdGraph* FunctionGraph, FProperty* Argument, FName ArgumentName);
+
 	/** Generate the nodes needed for to call the MVVMView::SetViewModel function. */
-	MODELVIEWVIEWMODELBLUEPRINT_API bool GenerateViewModelSetter(FKismetCompilerContext& InContext, UEdGraph* InFunctionGraph, FName InViewModelName);
+	MODELVIEWVIEWMODELBLUEPRINT_API bool GenerateViewModelSetter(FKismetCompilerContext& Context, UEdGraph* FunctionGraph, FName IiewModelName);
+
+	/** Generate the nodes needed for to set the property and to call the broadcast field notify function. */
+	MODELVIEWVIEWMODELBLUEPRINT_API bool GenerateViewModelFieldNotifySetter(FKismetCompilerContext& Context, UEdGraph* FunctionGraph, FProperty* Property, FName InputPinName);
+
+	/** Generate the nodes needed to broadcast field notify function. */
+	MODELVIEWVIEWMODELBLUEPRINT_API bool GenerateViewModelFielNotifyBroadcast(FKismetCompilerContext& Context, UEdGraph* FunctionGraph, FProperty* Property);
 
 } //namespace

@@ -2,6 +2,7 @@
 
 #include "ModelViewViewModelEditorModule.h"
 
+#include "AssetToolsModule.h"
 #include "BlueprintModes/WidgetBlueprintApplicationMode.h"
 #include "BlueprintModes/WidgetBlueprintApplicationModes.h"
 #include "Customizations/MVVMBindPropertiesDetailView.h"
@@ -25,6 +26,7 @@
 #include "Styling/StyleColors.h"
 #include "Tabs/MVVMBindingSummoner.h"
 #include "UMGEditorModule.h"
+#include "ViewModel/AssetTypeActions_ViewModelBlueprint.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintExtension.h"
 #include "WidgetBlueprintToolMenuContext.h"
@@ -45,6 +47,13 @@ void FModelViewViewModelEditorModule::StartupModule()
 
 	IUMGEditorModule& UMGEditorModule = FModuleManager::LoadModuleChecked<IUMGEditorModule>("UMGEditor");
 	UMGEditorModule.OnRegisterTabsForEditor().AddRaw(this, &FModelViewViewModelEditorModule::HandleRegisterBlueprintEditorTab);
+
+	// Register asset types
+	{
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		ViewModelBlueprintActions = MakeShared<UE::MVVM::FAssetTypeActions_ViewModelBlueprint>();
+		AssetTools.RegisterAssetTypeActions(ViewModelBlueprintActions.ToSharedRef());
+	}
 
 	PropertyBindingExtension = MakeShared<FMVVMPropertyBindingExtension>();
 	UMGEditorModule.GetPropertyBindingExtensibilityManager()->AddExtension(PropertyBindingExtension.ToSharedRef());
@@ -82,6 +91,12 @@ void FModelViewViewModelEditorModule::ShutdownModule()
 		UMGEditorModule->GetPropertyBindingExtensibilityManager()->RemoveExtension(PropertyBindingExtension.ToSharedRef());
 	}
 	PropertyBindingExtension.Reset();
+
+	// Unregister all the asset types that we registered
+	if (FAssetToolsModule* AssetTools = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools"))
+	{
+		AssetTools->Get().UnregisterAssetTypeActions(ViewModelBlueprintActions.ToSharedRef());
+	}
 
 	if (FPropertyEditorModule* PropertyEditorModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor"))
 	{

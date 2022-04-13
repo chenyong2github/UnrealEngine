@@ -23,6 +23,7 @@ public class ModelViewViewModelEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AssetTools",
 				"EditorStyle",
 				"EditorWidgets",
 				"BlueprintGraph",

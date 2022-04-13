@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 
+#include "FieldNotification/FieldId.h"
 #include "FieldNotification/FieldNotificationDeclaration.h"
 #include "FieldNotification/FieldMulticastDelegate.h"
 #include "FieldNotification/IFieldValueChanged.h"
@@ -46,8 +47,9 @@ class MODELVIEWVIEWMODEL_API UMVVMViewModelBase : public UObject, public INotify
 	GENERATED_BODY()
 
 public:
-	struct FFieldNotificationClassDescriptor : public UE::FieldNotification::IClassDescriptor
+	struct MODELVIEWVIEWMODEL_API FFieldNotificationClassDescriptor : public ::UE::FieldNotification::IClassDescriptor
 	{
+		virtual void ForEachField(const UClass* Class, TFunctionRef<bool(UE::FieldNotification::FFieldId FielId)> Callback) const override;
 	};
 
 public:
@@ -60,16 +62,8 @@ public:
 	//~ End INotifyFieldValueChanged Interface
 
 protected:
-	// todo make a 2k node to create a binding base on a variable or a function
-	UFUNCTION(BlueprintCallable, Category="MVVM")
-	static FMVVMBindingName MakeBindingName_Temporary(FName BindingName)
-	{
-		return FMVVMBindingName(BindingName);
-	}
-
-protected:
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
-	void BindingValueChanged(FMVVMBindingName PropertyName);
+	UFUNCTION(BlueprintCallable, Category="FieldNotify", meta=(DisplayName="Broadcast Field Value Changed", ScriptName="BroadcastFieldValueChanged"))
+	void K2_BroadcastFieldValueChanged(FFieldNotificationId FieldId);
 	void BindingFieldValueChanged(UE::FieldNotification::FFieldId InFieldId);
 
 protected:

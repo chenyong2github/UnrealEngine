@@ -6,8 +6,13 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
-class FMVVMPropertyBindingExtension;
+namespace UE::MVVM
+{
+	class FAssetTypeActions_ViewModelBlueprint;
+}
+
 class FMVVMBindPropertiesDetailView;
+class FMVVMPropertyBindingExtension;
 class FWidgetBlueprintApplicationMode;
 class FWorkflowAllowedTabSet;
 class UBlueprint;
@@ -34,4 +39,5 @@ private:
 private:
 	TUniquePtr<FMVVMBindPropertiesDetailView> BindDetailView;
 	TSharedPtr<FMVVMPropertyBindingExtension> PropertyBindingExtension;
+	TSharedPtr<UE::MVVM::FAssetTypeActions_ViewModelBlueprint> ViewModelBlueprintActions;
 };
