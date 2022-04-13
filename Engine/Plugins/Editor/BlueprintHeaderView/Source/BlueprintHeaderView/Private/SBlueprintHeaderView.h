@@ -139,6 +139,9 @@ private:
 	/** Gathers all properties from the blueprint and sorts them according to the selected method from config */
 	void GatherProperties(const UBlueprint* Blueprint, TArray<const FProperty*>& OutProperties);
 
+	/** Sorts an array of properties to optimize for minimal C++ struct padding */
+	void SortPropertiesForPadding(TArray<const FProperty*>& InOutProperties);
+
 	/** Creates a context menu for the list view */
 	TSharedPtr<SWidget> OnContextMenuOpening();
 

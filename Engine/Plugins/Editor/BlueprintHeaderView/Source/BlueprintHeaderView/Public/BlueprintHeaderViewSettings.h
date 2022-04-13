@@ -8,8 +8,14 @@
 UENUM()
 enum class EHeaderViewSortMethod : uint8
 {
-	None,
-	SortByAccessSpecifier
+	// Properties will stay in the same order they were in the Blueprint class.
+	None, 
+
+	// Properties will be grouped together by Access Specifiers, in order of visibility (public, protected, private).
+	SortByAccessSpecifier,
+	
+	// Properties will be sorted to minimize padding in compiled class layout.
+	SortForOptimalPadding 
 };
 
 USTRUCT(NotBlueprintable)
