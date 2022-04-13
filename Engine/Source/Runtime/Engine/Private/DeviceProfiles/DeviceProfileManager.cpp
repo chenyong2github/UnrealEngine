@@ -88,7 +88,9 @@ UDeviceProfileManager& UDeviceProfileManager::Get(bool bFromPostCDOContruct)
 
 		InitializeSharedSamplerStates();
 
+#if ALLOW_OTHER_PLATFORM_CONFIG
 		FCoreDelegates::GatherDeviceProfileCVars.BindLambda([](const FString& DeviceProfileName) { return UDeviceProfileManager::Get().GatherDeviceProfileCVars(DeviceProfileName, EDeviceProfileMode::DPM_CacheValues); });
+#endif
 	}
 	return *DeviceProfileManagerSingleton;
 }
