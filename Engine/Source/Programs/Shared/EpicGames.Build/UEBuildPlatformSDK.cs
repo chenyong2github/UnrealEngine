@@ -329,7 +329,7 @@ namespace EpicGames.Core
 				else
 				{
 					Console.WriteLine("Processing parent manual sdk: {0}", ParentManualSDKVersions);
-					CachedManualSDKVersions = JsonSerializer.Deserialize<Dictionary<string, string>>(ParentManualSDKVersions) ?? new Dictionary<string, string>();
+					CachedManualSDKVersions = JsonSerializer.Deserialize<Dictionary<string, string>>(ParentManualSDKVersions);
 				}
 			}
 			else
