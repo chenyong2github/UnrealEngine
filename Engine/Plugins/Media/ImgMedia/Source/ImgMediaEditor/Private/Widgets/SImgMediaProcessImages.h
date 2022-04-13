@@ -10,6 +10,7 @@
 
 class IDetailsView;
 class IImageWrapper;
+class SButton;
 class SNotificationItem;
 
 /**
@@ -26,8 +27,15 @@ public:
 	void Construct(const FArguments& InArgs);
 
 private:
+	/**
+	 * Updates our widgets based on the current state.
+	 */
+	void UpdateWidgets();
+	
 	/** Called when we click on the process images button. */
 	FReply OnProcessImagesClicked();
+	/** Called when we click on the cancel button. */
+	FReply OnCancelClicked();
 
 	/**
 	 * Processes all images in the sequence and generate tiles/mips.
@@ -111,4 +119,13 @@ private:
 	TSharedPtr<class IDetailsView> DetailsView;
 	/** Object that holds our options. */
 	TStrongObjectPtr<UImgMediaProcessImagesOptions> Options;
+	/** Holds the button to start processing. */
+	TSharedPtr<SButton> StartButton;
+	/** Holds the button to cancel processing. */
+	TSharedPtr<SButton> CancelButton;
+
+	/** True if we are currently processing. */
+	bool bIsProcessing = false;
+	/** True if we want to cancel processing. */
+	bool bIsCancelling = false;
 };
