@@ -15,14 +15,14 @@
 
 class UMLDeformerAsset;
 class UMLDeformerVizSettings;
+class UMLDeformerModelInstance;
+class UMLDeformerComponent;
 class UAnimSequence;
 class UGeometryCache;
 class UNeuralNetwork;
 
 namespace UE::MLDeformer
 {
-	class FMLDeformerModelInstance;
-
 	/** The vertex map on the GPU. */
 	class FVertexMapBuffer : public FVertexBufferWithSRV
 	{
@@ -64,7 +64,7 @@ public:
 	virtual void Init(UMLDeformerAsset* InDeformerAsset);
 	virtual void InitGPUData();
 	virtual UMLDeformerInputInfo* CreateInputInfo();
-	virtual UE::MLDeformer::FMLDeformerModelInstance* CreateModelInstance();
+	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component);
 #if WITH_EDITORONLY_DATA
 	virtual bool HasTrainingGroundTruth() const { return false; }
 	virtual void SampleGroundTruthPositions(float SampleTime, TArray<FVector3f>& OutPositions) {}

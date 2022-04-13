@@ -103,7 +103,7 @@ public:
 
 	/** The height in units to draw the labels at. */
 	UPROPERTY(EditAnywhere, Category = "Shared Settings", meta = (EditCondition = "bDrawLabels", ForceUnits="cm"))
-	float LabelHeight = 300.0f;
+	float LabelHeight = 200.0f;
 
 	/** The scale of the label text. */
 	UPROPERTY(EditAnywhere, Category = "Shared Settings", meta = (ClampMin = "0.001", EditCondition = "bDrawLabels", ForceUnits="Multiplier"))
@@ -111,7 +111,7 @@ public:
 
 	/** The spacing between meshes. */
 	UPROPERTY(EditAnywhere, Category = "Shared Settings", meta = (ClampMin = "0", ForceUnits="cm"))
-	float MeshSpacing = 300.0f;
+	float MeshSpacing = 125.0f;
 
 	/** Show the heat map? This will visualize the active areas of the deformer. */
 	UPROPERTY(EditAnywhere, Category = "Live Settings")

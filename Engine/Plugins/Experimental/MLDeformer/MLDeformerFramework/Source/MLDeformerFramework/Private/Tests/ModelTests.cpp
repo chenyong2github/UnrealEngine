@@ -77,7 +77,7 @@ namespace UE::MLDeformerTests
 		UTEST_TRUE(TEXT("MLDeformerComponent SkelMeshComponent check"), MLDeformerComponent->GetSkeletalMeshComponent() == SkelMeshComponent);
 
 		// Create and init the model instance.
-		FMLDeformerModelInstance* ModelInstance = MLDeformerComponent->GetModelInstance();
+		UMLDeformerModelInstance* ModelInstance = MLDeformerComponent->GetModelInstance();
 		UTEST_NOT_NULL(TEXT("CreateModelInstance check"), ModelInstance);
 		UTEST_TRUE(TEXT("ModelInstance GetModel check"), ModelInstance->GetModel() == TestModel);
 		UTEST_TRUE(TEXT("ModelInstance compatible check"), ModelInstance->IsCompatible());

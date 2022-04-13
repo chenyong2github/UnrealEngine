@@ -80,7 +80,7 @@ namespace UE::VertexDeltaModelTests
 		const int64 NumNetworkOutputs = NeuralNet->GetOutputTensor().Num();
 		const int64 ExpectedNetworkOutput = NumGeomCacheVerts * 3;	// 3 floats per vertex.
 		UTEST_EQUAL(TEXT("NeuralNet output size check"), NumNetworkOutputs, ExpectedNetworkOutput);
-		UTEST_EQUAL(TEXT("Hidden Layers check"), VertexDeltaModel->GetNumHiddenLayers(), 2);
+		UTEST_EQUAL(TEXT("Hidden Layers check"), VertexDeltaModel->GetNumHiddenLayers(), 3);
 
 		UVertexDeltaModelVizSettings* VizSettings = Cast<UVertexDeltaModelVizSettings>(VertexDeltaModel->GetVizSettings());
 		UTEST_NOT_NULL(TEXT("VizSettings check"), VizSettings);
@@ -110,7 +110,7 @@ namespace UE::VertexDeltaModelTests
 		UTEST_TRUE(TEXT("MLDeformerComponent SkelMeshComponent check"), MLDeformerComponent->GetSkeletalMeshComponent() == SkelMeshComponent);
 
 		// Create and init the model instance.
-		FMLDeformerModelInstance* ModelInstance = MLDeformerComponent->GetModelInstance();
+		UMLDeformerModelInstance* ModelInstance = MLDeformerComponent->GetModelInstance();
 		UTEST_NOT_NULL(TEXT("CreateModelInstance check"), ModelInstance);
 		UTEST_TRUE(TEXT("ModelInstance GetModel check"), ModelInstance->GetModel() == VertexDeltaModel);
 		UTEST_TRUE(TEXT("ModelInstance compatible check"), ModelInstance->IsCompatible());

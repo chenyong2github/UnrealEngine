@@ -5,6 +5,7 @@
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerVizSettings.h"
 #include "MLDeformerAsset.h"
+#include "MLDeformerComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
@@ -12,6 +13,7 @@
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheTrack.h"
 #include "NeuralNetwork.h"
+#include "UObject/UObjectGlobals.h"
 
 namespace UE::MLDeformer
 {
@@ -45,9 +47,9 @@ UMLDeformerInputInfo* UMLDeformerModel::CreateInputInfo()
 	return NewObject<UMLDeformerInputInfo>(this);
 }
 
-UE::MLDeformer::FMLDeformerModelInstance* UMLDeformerModel::CreateModelInstance()
+UMLDeformerModelInstance* UMLDeformerModel::CreateModelInstance(UMLDeformerComponent* Component)
 { 
-	return new UE::MLDeformer::FMLDeformerModelInstance(this);
+	return NewObject<UMLDeformerModelInstance>(Component);
 }
 
 void UMLDeformerModel::Init(UMLDeformerAsset* InDeformerAsset) 
@@ -88,6 +90,9 @@ void UMLDeformerModel::PostLoad()
 		UpdateCachedNumVertices();
 	#endif
 
+	UMLDeformerAsset* MLDeformerAsset = Cast<UMLDeformerAsset>(GetOuter());
+	Init(MLDeformerAsset);
+
 	if (InputInfo)
 	{
 		InputInfo->OnPostLoad();
@@ -125,8 +130,6 @@ USkeleton* UMLDeformerModel::GetSkeleton(bool& bInvalidSkeletonIsError, const IP
 
 void UMLDeformerModel::BeginDestroy()
 {
-	NeuralNetworkModifyDelegate.Broadcast();
-
 	BeginReleaseResource(&VertexMapBuffer);
 	RenderResourceDestroyFence.BeginFence();
 	Super::BeginDestroy();

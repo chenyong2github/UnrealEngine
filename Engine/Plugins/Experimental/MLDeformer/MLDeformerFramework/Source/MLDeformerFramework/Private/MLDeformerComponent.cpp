@@ -17,15 +17,10 @@ UMLDeformerComponent::UMLDeformerComponent(const FObjectInitializer& ObjectIniti
 
 void UMLDeformerComponent::Init()
 {
-	using namespace UE::MLDeformer;
-
 	// If there is no deformer asset linked, release what we currently have.
 	if (DeformerAsset == nullptr)
 	{
-		if (ModelInstance)
-		{
-			ModelInstance->Release();
-		}
+		ModelInstance = nullptr;
 		return;
 	}
 
@@ -33,26 +28,23 @@ void UMLDeformerComponent::Init()
 	UMLDeformerModel* Model = DeformerAsset->GetModel();
 	if (Model)
 	{
-		// Create the model instance if it isn't there yet.
-		if (ModelInstance == nullptr)
-		{
-			ModelInstance = TUniquePtr<FMLDeformerModelInstance>(Model->CreateModelInstance());
-		}
-		else
-		{
-			ModelInstance->Release();
-		}
+		ModelInstance = Model->CreateModelInstance(this);
+		ModelInstance->SetModel(Model);
 		ModelInstance->Init(SkelMeshComponent);
 	}
 	else
 	{
+		ModelInstance = nullptr;
 		UE_LOG(LogMLDeformer, Warning, TEXT("ML Deformer component on '%s' has a deformer asset that has no ML model setup."), *GetOuter()->GetName());
 	}
 }
 
 void UMLDeformerComponent::SetupComponent(UMLDeformerAsset* InDeformerAsset, USkeletalMeshComponent* InSkelMeshComponent)
 {
-	AddTickPrerequisiteComponent(SkelMeshComponent);
+	if (InSkelMeshComponent)
+	{		
+		AddTickPrerequisiteComponent(InSkelMeshComponent);
+	}
 
 	DeformerAsset = InDeformerAsset;
 	SkelMeshComponent = InSkelMeshComponent;
@@ -77,8 +69,7 @@ void UMLDeformerComponent::AddNeuralNetworkModifyDelegate()
 		(
 			([this]()
 			{
-				ModelInstance->Release();
-				ModelInstance->Init(SkelMeshComponent);
+				Init();
 			})
 		);
 	}
@@ -118,14 +109,12 @@ void UMLDeformerComponent::Activate(bool bReset)
 void UMLDeformerComponent::Deactivate()
 {
 	RemoveNeuralNetworkModifyDelegate();
-	if (ModelInstance)
-	{
-		ModelInstance->Release();
-	}
+	ModelInstance = nullptr;
 }
 
 void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	if (TickType != ELevelTick::LEVELTICK_PauseTick)
 	{
 		if (ModelInstance &&
@@ -135,6 +124,22 @@ void UMLDeformerComponent::TickComponent(float DeltaTime, enum ELevelTick TickTy
 			ModelInstance->Tick(DeltaTime);
 		}
 	}
-
-	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 }
+
+#if WITH_EDITOR
+	void UMLDeformerComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+	{
+		const FProperty* Property = PropertyChangedEvent.Property;
+		if (Property == nullptr)
+		{
+			return;
+		}
+
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMLDeformerComponent, DeformerAsset))
+		{
+			RemoveNeuralNetworkModifyDelegate();
+			Init();
+			AddNeuralNetworkModifyDelegate();
+		}
+	}
+#endif

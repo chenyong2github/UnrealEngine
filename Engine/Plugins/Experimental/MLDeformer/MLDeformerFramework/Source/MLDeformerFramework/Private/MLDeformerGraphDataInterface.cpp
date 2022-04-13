@@ -78,7 +78,7 @@ namespace UE::MLDeformer
 
 		const UMLDeformerAsset* DeformerAsset = DeformerComponent->GetDeformerAsset();
 		const UMLDeformerModel* Model = DeformerAsset->GetModel();
-		const FMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
+		const UMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
 
 		NeuralNetwork = Model->GetNeuralNetwork();
 		NeuralNetworkInferenceHandle = ModelInstance->GetNeuralNetworkInferenceHandle();

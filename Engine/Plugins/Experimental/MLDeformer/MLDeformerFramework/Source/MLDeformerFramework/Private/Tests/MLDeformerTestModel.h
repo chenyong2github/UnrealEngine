@@ -7,27 +7,26 @@
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerTestModel.generated.h"
 
+class UMLDeformerComponent;
+
 UCLASS()
 class UMLDeformerTestModel 
-	:  public UMLDeformerModel
+	: public UMLDeformerModel
 {
 	GENERATED_BODY()
 
 public:
-	UE::MLDeformer::FMLDeformerModelInstance* CreateModelInstance() override;
+	UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
 	FString GetDisplayName() const override;
 	void UpdateNumTargetMeshVertices() override;
 };
 
-namespace UE::MLDeformerTests
+UCLASS()
+class UTestModelInstance
+	: public UMLDeformerModelInstance
 {
-	using namespace UE::MLDeformer;
+	GENERATED_BODY()
 
-	class FTestModelInstance
-		: public FMLDeformerModelInstance
-	{
-	public:
-		FTestModelInstance(UMLDeformerModel* InModel);
-		void Tick(float DeltaTime) {}
-	};
-}	// namespace UE::MLDeformerTests
+public:
+	void Tick(float DeltaTime) {}
+};

@@ -1,18 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLDeformerTestModel.h"
+#include "MLDeformerComponent.h"
+#include "UObject/UObjectGlobals.h"
 
-namespace UE::MLDeformerTests
+UMLDeformerModelInstance* UMLDeformerTestModel::CreateModelInstance(UMLDeformerComponent* Component)
 {
-	FTestModelInstance::FTestModelInstance(UMLDeformerModel* InModel)
-		: FMLDeformerModelInstance(InModel)
-	{
-	}
-}	// namespace UE::MLDeformerTests
-
-UE::MLDeformer::FMLDeformerModelInstance* UMLDeformerTestModel::CreateModelInstance()
-{
-	return new UE::MLDeformerTests::FTestModelInstance(this);
+	return NewObject<UTestModelInstance>(Component);
 }
 
 FString UMLDeformerTestModel::GetDisplayName() const 

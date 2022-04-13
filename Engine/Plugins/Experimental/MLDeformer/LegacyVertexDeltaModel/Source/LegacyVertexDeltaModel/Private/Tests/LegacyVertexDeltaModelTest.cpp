@@ -81,7 +81,7 @@ namespace UE::LegacyVertexDeltaModelTests
 		const int64 ExpectedNetworkOutput = NumGeomCacheVerts * 3;	// 3 floats per vertex.
 		UTEST_EQUAL(TEXT("NeuralNet output size check"), NumNetworkOutputs, ExpectedNetworkOutput);
 
-		UTEST_EQUAL(TEXT("Loss function check"), VertexDeltaModel->GetLossFunction(), ELegacyVertexDeltaModelLossFunction::MSE);
+		UTEST_EQUAL(TEXT("Loss function check"), VertexDeltaModel->GetLossFunction(), ELegacyVertexDeltaModelLossFunction::L1);
 		UTEST_EQUAL(TEXT("Activation function check"), VertexDeltaModel->GetActivationFunction(), ELegacyVertexDeltaModelActivationFunction::LRelu);
 		UTEST_EQUAL(TEXT("Hidden Layers check"), VertexDeltaModel->GetNumHiddenLayers(), 2);
 
@@ -113,7 +113,7 @@ namespace UE::LegacyVertexDeltaModelTests
 		UTEST_TRUE(TEXT("MLDeformerComponent SkelMeshComponent check"), MLDeformerComponent->GetSkeletalMeshComponent() == SkelMeshComponent);
 
 		// Create and init the model instance.
-		FMLDeformerModelInstance* ModelInstance = MLDeformerComponent->GetModelInstance();
+		UMLDeformerModelInstance* ModelInstance = MLDeformerComponent->GetModelInstance();
 		UTEST_NOT_NULL(TEXT("CreateModelInstance check"), ModelInstance);
 		UTEST_TRUE(TEXT("ModelInstance GetModel check"), ModelInstance->GetModel() == VertexDeltaModel);
 		UTEST_TRUE(TEXT("ModelInstance compatible check"), ModelInstance->IsCompatible());

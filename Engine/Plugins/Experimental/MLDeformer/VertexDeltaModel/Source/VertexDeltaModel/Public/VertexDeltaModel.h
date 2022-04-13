@@ -69,7 +69,7 @@ public:
 
 	/** The number of iterations to train the model for. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1"))
-	int32 NumIterations = 500000;
+	int32 NumIterations = 10000;
 
 	/** The number of frames per batch when training the model. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Training Settings", meta = (ClampMin = "1"))

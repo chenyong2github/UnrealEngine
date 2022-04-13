@@ -11,6 +11,7 @@
 #include "MLDeformerComponent.h"
 #include "MLDeformerInputInfo.h"
 #include "MLDeformerSampler.h"
+#include "MLDeformerModelInstance.h"
 #include "AnimationEditorPreviewActor.h"
 #include "AnimPreviewInstance.h"
 #include "Animation/MeshDeformer.h"
@@ -313,7 +314,7 @@ namespace UE::MLDeformer
 
 				LabelComponent->SetRelativeLocation(ActorLocation + FVector(0.0f, 0.0f, VizSettings->GetLabelHeight()) - AlignmentOffset);
 				LabelComponent->SetRelativeRotation(FQuat(FVector(0.0f, 0.0f, 1.0f), FMath::DegreesToRadians(90.0f)));
-				LabelComponent->SetRelativeScale3D(FVector(VizSettings->GetLabelScale()));
+				LabelComponent->SetRelativeScale3D(FVector(VizSettings->GetLabelScale() * 0.5f));
 
 				// Update visibility.
 				const bool bLabelIsVisible = (bDrawTrainingActors && EditorActor->IsTrainingActor()) || (bDrawTestActors && EditorActor->IsTestActor());
@@ -1108,7 +1109,7 @@ namespace UE::MLDeformer
 				USkeletalMeshComponent* SkelMeshComponent = EditorActor ? EditorActor->GetSkeletalMeshComponent() : nullptr;
 				UMLDeformerAsset* DeformerAsset = GetModel()->GetDeformerAsset();
 				EditorActor->GetMLDeformerComponent()->SetupComponent(DeformerAsset, SkelMeshComponent);
-				UE::MLDeformer::FMLDeformerModelInstance* ModelInstance = EditorActor->GetMLDeformerComponent()->GetModelInstance();
+				UMLDeformerModelInstance* ModelInstance = EditorActor->GetMLDeformerComponent()->GetModelInstance();
 				if (ModelInstance)
 				{
 					ModelInstance->UpdateCompatibilityStatus();
@@ -1198,7 +1199,7 @@ namespace UE::MLDeformer
 		const UMLDeformerComponent* DeformerComponent = EditorActor ? EditorActor->GetMLDeformerComponent() : nullptr;
 		if (DeformerComponent)
 		{
-			const FMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
+			const UMLDeformerModelInstance* ModelInstance = DeformerComponent->GetModelInstance();
 			if (ModelInstance &&
 				ModelInstance->GetSkeletalMeshComponent() && 
 				ModelInstance->GetSkeletalMeshComponent()->SkeletalMesh &&
