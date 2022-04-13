@@ -1338,8 +1338,8 @@ bool FMobileSceneRenderer::RequiresMultiPass(FRHICommandListImmediate& RHICmdLis
 		return false;
 	}
 		
-	// Always render reflection capture in single pass
-	if (View.bIsPlanarReflection || View.bIsSceneCapture)
+	// Always render reflection capture in single pass, unless we are on PC (no vulkan)
+	if ((View.bIsPlanarReflection || View.bIsSceneCapture) && !IsSimulatedPlatform(ShaderPlatform))
 	{
 		return false;
 	}
