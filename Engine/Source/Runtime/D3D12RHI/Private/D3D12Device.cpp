@@ -379,7 +379,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	check(RayTracingCompactionRequestHandler == nullptr);
 	RayTracingCompactionRequestHandler = new FD3D12RayTracingCompactionRequestHandler(this);
 
-	D3D12_RESOURCE_DESC DispatchRaysDescBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(D3D12_DISPATCH_RAYS_DESC), D3D12_RESOURCE_FLAG_NONE);
+	D3D12_RESOURCE_DESC DispatchRaysDescBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(D3D12_DISPATCH_RAYS_DESC), D3D12RHI_RESOURCE_FLAG_ALLOW_INDIRECT_BUFFER);
 	RayTracingDispatchRaysDescBuffer = GetParentAdapter()->CreateRHIBuffer(
 		DispatchRaysDescBufferDesc, 256,
 		0, DispatchRaysDescBufferDesc.Width, BUF_DrawIndirect,
