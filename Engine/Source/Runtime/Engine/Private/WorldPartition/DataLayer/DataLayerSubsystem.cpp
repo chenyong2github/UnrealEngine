@@ -14,6 +14,8 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
+#include "ProfilingDebugging/ScopedTimers.h"
+#include "WorldPartition/DataLayer/DataLayerUtils.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #endif
@@ -64,6 +66,17 @@ void UDataLayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		FModuleManager::LoadModuleChecked<IDataLayerEditorModule>("DataLayerEditor");
 	}
+
+	UActorDescContainer::OnActorDescContainerInitialized.AddUObject(this, &UDataLayerSubsystem::OnActorDescContainerInitialized);
+#endif
+}
+
+void UDataLayerSubsystem::Deinitialize()
+{
+	Super::Deinitialize();
+
+#if WITH_EDITOR
+	UActorDescContainer::OnActorDescContainerInitialized.RemoveAll(this);
 #endif
 }
 
@@ -608,6 +621,21 @@ uint32 UDataLayerSubsystem::GetDataLayerEditorContextHash() const
 		DataLayerInstanceNames.Add(DataLayerInstance->GetDataLayerFName());
 	}
 	return FDataLayerEditorContext(GetWorld(), DataLayerInstanceNames).GetHash();
+}
+
+void UDataLayerSubsystem::OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer)
+{
+	check(InActorDescContainer);
+
+	UE_SCOPED_TIMER(*FString::Printf(TEXT("Resolving Data Layer Instance Names for %s"), *InActorDescContainer->GetContainerPackage().ToString()), LogWorldPartition, Display);
+
+	const FWorldDataLayersActorDesc* WorldDataLayersActorDesc = FDataLayerUtils::GetWorldDataLayersActorDesc(InActorDescContainer);
+	for (FActorDescList::TIterator<> Iterator(InActorDescContainer); Iterator; ++Iterator)
+	{
+		FWorldPartitionActorDesc* ActorDesc = *Iterator;
+		check(ActorDesc->GetContainer() == InActorDescContainer);
+		ActorDesc->DataLayerInstanceNames = FDataLayerUtils::ResolvedDataLayerInstanceNames(ActorDesc, WorldDataLayersActorDesc);
+	}
 }
 
 #endif

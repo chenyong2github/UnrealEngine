@@ -39,7 +39,7 @@ class ENGINE_API FWorldPartitionActorDesc
 	friend class UWorldPartition;
 	friend struct FWorldPartitionHandleImpl;
 	friend struct FWorldPartitionReferenceImpl;
-	friend class UDataLayerEditorSubsystem;
+	friend class UDataLayerSubsystem;
 	friend class FDataLayerUtils;
 
 public:

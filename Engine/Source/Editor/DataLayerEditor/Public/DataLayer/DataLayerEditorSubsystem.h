@@ -683,7 +683,5 @@ private:
 	/** Delegate used to notify changes to ActorEditorContextSubsystem */
 	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
 
-	static void OnActorDescContainerInitialized(class UActorDescContainer* InActorDescContainer);
-
 	friend class FDataLayersBroadcast;
 };

@@ -13,6 +13,7 @@
  * UDataLayerSubsystem
  */
 
+class UActorDescContainer;
 class UCanvas;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerRuntimeStateChanged, const UDataLayerInstance*, DataLayer, EDataLayerRuntimeState, State);
@@ -46,6 +47,7 @@ public:
 
 	//~ Begin USubsystem Interface.
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	//~ End USubsystem Interface.
 
 	//~ Begin Blueprint callable functions
@@ -191,6 +193,10 @@ public:
 
 private:
 
+#if WITH_EDITOR
+	void OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer);
+#endif
+
 	/** Console command used to toggle activation of a DataLayer */
 	static class FAutoConsoleCommand ToggleDataLayerActivation;
 
@@ -204,9 +210,15 @@ private:
 template<class T>
 UDataLayerInstance* UDataLayerSubsystem::GetDataLayerInstance(const T& InDataLayerIdentifier) const
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	const UDataLayerInstance * DataLayerInstance = GetWorld()->GetWorldDataLayers()->GetDataLayerInstance(InDataLayerIdentifier);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	const UDataLayerInstance* DataLayerInstance = nullptr;
+
+	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		DataLayerInstance = WorldDataLayers->GetDataLayerInstance(InDataLayerIdentifier);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+	
 	return const_cast<UDataLayerInstance*>(DataLayerInstance);
 }
 
@@ -214,11 +226,16 @@ template<class T>
 TArray<FName> UDataLayerSubsystem::GetDataLayerInstanceNames(const TArray<T>& InDataLayerIdentifiers) const
 {
 	TArray<FName> DataLayerInstanceNames;
-	DataLayerInstanceNames.Reserve(InDataLayerIdentifiers.Num());
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DataLayerInstanceNames = GetWorld()->GetWorldDataLayers()->GetDataLayerInstanceNames(InDataLayerIdentifiers);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	{
+		DataLayerInstanceNames.Reserve(InDataLayerIdentifiers.Num());
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		DataLayerInstanceNames = GetWorld()->GetWorldDataLayers()->GetDataLayerInstanceNames(InDataLayerIdentifiers);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	return DataLayerInstanceNames;
 }
 
@@ -226,10 +243,15 @@ template<class T>
 TArray<const UDataLayerInstance*> UDataLayerSubsystem::GetDataLayerInstances(const TArray<T>& InDataLayerIdentifiers) const
 {
 	TArray<const UDataLayerInstance*> DataLayerInstances;
-	DataLayerInstances.Reserve(InDataLayerIdentifiers.Num());
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DataLayerInstances = GetWorld()->GetWorldDataLayers()->GetDataLayerInstances(InDataLayerIdentifiers);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	{
+		DataLayerInstances.Reserve(InDataLayerIdentifiers.Num());
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		DataLayerInstances = GetWorld()->GetWorldDataLayers()->GetDataLayerInstances(InDataLayerIdentifiers);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	return DataLayerInstances;
 }
