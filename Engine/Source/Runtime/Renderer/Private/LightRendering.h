@@ -514,81 +514,22 @@ public:
 		float U, float V,
 		float SizeU, float SizeV,
 		FIntPoint InTargetSize,
-		FIntPoint InTextureSize)
-	{
-		FDrawFullScreenRectangleParameters Out;
-		Out.PosScaleBias = FVector4f(SizeX, SizeY, X, Y);
-		Out.UVScaleBias  = FVector4f(SizeU, SizeV, U, V);
-		Out.InvTargetSizeAndTextureSize = FVector4f(
-			1.0f / InTargetSize.X, 1.0f / InTargetSize.Y,
-			1.0f / InTextureSize.X, 1.0f / InTextureSize.Y);
-		return Out;
-	}
+		FIntPoint InTextureSize);
 
-	static FParameters GetParameters(const FViewInfo& View, 
+	static FParameters GetParameters(const FViewInfo& View,
 		float X, float Y,
 		float SizeX, float SizeY,
 		float U, float V,
 		float SizeU, float SizeV,
 		FIntPoint TargetSize,
 		FIntPoint TextureSize,
-		bool bBindViewUniform = true)
-	{
-		FParameters Out;
-		if (bBindViewUniform)
-		{
-			Out.View = View.ViewUniformBuffer;
-		}
-		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(FVector4f(0,0,0,0));
-		Out.FullScreenRect = GetFullScreenRectParameters(X, Y, SizeX, SizeY, U, V, SizeU, SizeV, TargetSize, TextureSize);
-		return Out;
-	}
+		bool bBindViewUniform = true);
 
-	static FParameters GetParameters(const FViewInfo& View, bool bBindViewUniform = true)
-	{
-		FParameters Out;
-		if (bBindViewUniform)
-		{
-			Out.View = View.ViewUniformBuffer;
-		}
-		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(FVector4f(0, 0, 0, 0));
-		Out.FullScreenRect = GetFullScreenRectParameters(
-			0, 0,
-			View.ViewRect.Width(), View.ViewRect.Height(),
-			View.ViewRect.Min.X, View.ViewRect.Min.Y,
-			View.ViewRect.Width(), View.ViewRect.Height(),
-			View.ViewRect.Size(),
-			GetSceneTextureExtent());
+	static FParameters GetParameters(const FViewInfo& View, bool bBindViewUniform = true);
 
-		return Out;
-	}
+	static FParameters GetParameters(const FViewInfo& View, const FSphere& LightBounds, bool bBindViewUniform = true);
 
-	static FParameters GetParameters(const FViewInfo& View, const FSphere& LightBounds, bool bBindViewUniform = true)
-	{
-		FVector4f StencilingSpherePosAndScale;
-		StencilingGeometry::GStencilSphereVertexBuffer.CalcTransform(StencilingSpherePosAndScale, LightBounds, View.ViewMatrices.GetPreViewTranslation());
-
-		FParameters Out;
-		if (bBindViewUniform)
-		{
-			Out.View = View.ViewUniformBuffer;
-		}
-		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters((FVector4f)StencilingSpherePosAndScale); // LWC_TODO: Precision loss
-		Out.FullScreenRect = GetFullScreenRectParameters(0, 0, 0, 0, 0, 0, 0, 0, FIntPoint(1, 1), FIntPoint(1, 1));
-		return Out;
-	}
-
-	static FParameters GetParameters(const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, bool bBindViewUniform = true)
-	{
-		FParameters Out;
-		if (bBindViewUniform)
-		{
-			Out.View = View.ViewUniformBuffer;
-		}
-		Out.Geometry = FStencilingGeometryShaderParameters::GetParameters(View, LightSceneInfo);
-		Out.FullScreenRect = GetFullScreenRectParameters(0, 0, 0, 0, 0, 0, 0, 0, FIntPoint(1, 1), FIntPoint(1, 1));
-		return Out;
-	}
+	static FParameters GetParameters(const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, bool bBindViewUniform = true);
 };
 
 enum class FLightOcclusionType : uint8

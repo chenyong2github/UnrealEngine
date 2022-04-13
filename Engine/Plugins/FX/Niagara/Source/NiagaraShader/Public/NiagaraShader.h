@@ -16,7 +16,9 @@
 #include "NiagaraScriptBase.h"
 #include "NiagaraShared.h"
 #include "NiagaraShaderType.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "SceneRenderTargetParameters.h"
+#endif
 
 class UClass;
 

@@ -28,6 +28,7 @@
 #include "Fonts/FontMeasure.h"
 #include "EngineModule.h"
 #include "CanvasRender.h"
+#include "RenderGraphUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCanvas, Log, All);
 

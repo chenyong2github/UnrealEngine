@@ -15,7 +15,9 @@
 #include "MaterialShared.h"
 #include "GlobalShader.h"
 #include "MaterialShaderType.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "SceneRenderTargetParameters.h"
+#endif
 #include "ShaderParameterUtils.h"
 
 template<typename TBufferStruct> class TUniformBufferRef;

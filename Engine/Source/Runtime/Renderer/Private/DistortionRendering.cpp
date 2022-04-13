@@ -58,6 +58,10 @@ static TAutoConsoleVariable<float> CVarRefractionRoughnessToMipLevelFactor(
 	TEXT("Factor to translate the roughness factor into a mip level."),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDistortionPassUniformParameters, RENDERER_API)
+	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
+	SHADER_PARAMETER(FVector4f, DistortionParams)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDistortionPassUniformParameters, "DistortionPass", SceneTextures);
 

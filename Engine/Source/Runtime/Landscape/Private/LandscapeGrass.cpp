@@ -62,6 +62,7 @@
 #include "SimpleMeshDrawCommandPass.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "MaterialCachedData.h"
+#include "SceneRenderTargetParameters.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 

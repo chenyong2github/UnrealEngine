@@ -20,15 +20,6 @@
 #include "SceneRendering.h"
 #include "Engine/LightMapTexture2D.h"
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLightmapDensityPassUniformParameters, )
-	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
-	SHADER_PARAMETER(FVector4f, LightMapDensity)
-	SHADER_PARAMETER(FVector4f, DensitySelectedColor) // The color to apply to selected objects.
-	SHADER_PARAMETER(FVector4f, VertexMappedColor) // The color to apply to vertex mapped objects.
-	SHADER_PARAMETER_TEXTURE(Texture2D, GridTexture) // The "Grid" texture to visualize resolution.
-	SHADER_PARAMETER_SAMPLER(SamplerState, GridTextureSampler)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
 template<typename LightMapPolicyType>
 class TLightMapDensityElementData : public FMeshMaterialShaderElementData
 {

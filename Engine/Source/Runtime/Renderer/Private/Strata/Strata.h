@@ -9,6 +9,7 @@
 #include "UnifiedBuffer.h"
 #include "RHIUtilities.h"
 #include "StrataDefinitions.h"
+#include "RenderGraphUtils.h"
 
 // Forward declarations.
 class FScene;

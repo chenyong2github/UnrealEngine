@@ -51,6 +51,7 @@ class FRaytracingLightDataPacked;
 class FRayTracingLocalShaderBindingWriter;
 class FVirtualShadowMapClipmap;
 class FShadowProjectionPassParameters;
+class FSceneTextureShaderParameters;
 
 struct FCloudRenderContext;
 struct FSceneWithoutWaterTextures;

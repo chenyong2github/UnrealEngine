@@ -7,10 +7,14 @@
 #include "Shader.h"
 #include "ShaderParameterStruct.h"
 #include "ShaderParameterMacros.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "RHIGPUReadback.h"
+#endif
 #include "PipelineStateCache.h"
 
 class FGlobalShaderMap;
+class FRHIGPUTextureReadback;
+class FRHIGPUBufferReadback;
 
 /** Returns whether the resource was produced by a prior pass. */
 inline bool HasBeenProduced(FRDGViewableResource* Resource)

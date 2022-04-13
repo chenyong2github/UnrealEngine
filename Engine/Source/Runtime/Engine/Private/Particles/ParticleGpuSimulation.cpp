@@ -47,7 +47,6 @@
 #include "VectorField/VectorField.h"
 #include "Misc/CoreDelegates.h"
 #include "PipelineStateCache.h"
-#include "SceneRenderTargetParameters.h"
 #include "MeshMaterialShader.h"
 
 DECLARE_CYCLE_STAT(TEXT("GPUSpriteEmitterInstance Init GT"), STAT_GPUSpriteEmitterInstance_Init, STATGROUP_Particles);

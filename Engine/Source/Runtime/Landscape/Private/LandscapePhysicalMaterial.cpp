@@ -18,6 +18,8 @@
 #include "RHIResources.h"
 #include "SceneRenderTargetParameters.h"
 #include "SimpleMeshDrawCommandPass.h"
+#include "RHIGPUReadback.h"
+#include "RenderGraphUtils.h"
 
 DECLARE_GPU_STAT_NAMED(LandscapePhysicalMaterial_Draw, TEXT("LandscapePhysicalMaterial"));
 

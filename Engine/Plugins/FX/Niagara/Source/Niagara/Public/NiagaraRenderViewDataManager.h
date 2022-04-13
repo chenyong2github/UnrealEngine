@@ -7,6 +7,7 @@
 #include "RenderResource.h"
 #include "ShaderParameterStruct.h"
 #include "ShaderParameterMacros.h"
+#include "SceneRenderTargetParameters.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FNiagaraSceneTextureParameters, )
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)

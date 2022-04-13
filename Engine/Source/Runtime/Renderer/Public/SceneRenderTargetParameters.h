@@ -2,7 +2,16 @@
 
 #pragma once
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "RenderGraph.h"
+#endif
+#include "RenderGraphDefinitions.h"
+#include "ShaderParameterMacros.h"
+#include "RendererInterface.h"
+
+class FRDGBuilder;
+struct IPooledRenderTarget;
+struct FSceneTextures;
 
 /** A uniform buffer containing common scene textures used by materials or global shaders. */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, RENDERER_API)

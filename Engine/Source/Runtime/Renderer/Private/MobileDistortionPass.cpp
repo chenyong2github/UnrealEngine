@@ -12,6 +12,11 @@ MobileDistortionPass.cpp - Mobile specific rendering of primtives with refractio
 #include "PipelineStateCache.h"
 #include "DistortionRendering.h"
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileDistortionPassUniformParameters, RENDERER_API)
+	SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, SceneTextures)
+	SHADER_PARAMETER(FVector4f, DistortionParams)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileDistortionPassUniformParameters, "MobileDistortionPass", SceneTextures);
 
 bool IsMobileDistortionActive(const FViewInfo& View)

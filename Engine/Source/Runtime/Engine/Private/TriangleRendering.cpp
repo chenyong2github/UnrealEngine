@@ -18,6 +18,7 @@
 #include "SceneUtils.h"
 #include "EngineModule.h"
 #include "MeshPassProcessor.h"
+#include "RenderGraphUtils.h"
 
 DECLARE_GPU_STAT_NAMED(CanvasDrawTriangles, TEXT("CanvasDrawTriangles"));
 

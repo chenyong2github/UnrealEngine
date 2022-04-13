@@ -59,18 +59,6 @@ private:
 	TArray<FPrimitiveSceneProxy*, SceneRenderingAllocator> Prims;
 };
 
-
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FDistortionPassUniformParameters, RENDERER_API)
-	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
-	SHADER_PARAMETER(FVector4f, DistortionParams)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileDistortionPassUniformParameters, RENDERER_API)
-	SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, SceneTextures)
-	SHADER_PARAMETER(FVector4f, DistortionParams)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-
 extern void SetupDistortionParams(FVector4f& DistortionParams, const FViewInfo& View);
 
 class FDistortionMeshProcessor : public FMeshPassProcessor
