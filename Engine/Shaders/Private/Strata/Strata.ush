@@ -124,7 +124,8 @@ struct FStrataBSDF
 
 	// STRATA_TODO pack the following
 	int					OperatorIndex;
-	float3				LuminanceWeight;
+	float3				LuminanceWeightV;
+	float3				LuminanceWeightL;
 	int					bIsBottom;
 	int					bIsTop;
 
@@ -288,7 +289,8 @@ struct FStrataBSDF
 #define STATE_BIT_COUNT_ISTHIN					1
 #define STATE_BIT_COUNT_BSDF_TYPE				3
 #define STATE_BIT_COUNT_SHAREDLOCALBASESID		2
-#define STATE_BIT_COUNT___UNUSED___				6
+#define STATE_BIT_COUNT_HASLIGHTWEIGHT			1
+#define STATE_BIT_COUNT___UNUSED___				5
 #define STATE_BIT_COUNT_WEIGHT10F				10
 
 // Bit offset of each component store in BSDF state 
@@ -305,6 +307,7 @@ struct FStrataBSDF
 #define STATE_BIT_OFFSET_ISTHIN					(STATE_BIT_OFFSET_HASFUZZ			+ STATE_BIT_COUNT_HASFUZZ)
 #define STATE_BIT_OFFSET_BSDF_TYPE				(STATE_BIT_OFFSET_ISTHIN			+ STATE_BIT_COUNT_ISTHIN)
 #define STATE_BIT_OFFSET_SHAREDLOCALBASESID		(STATE_BIT_OFFSET_BSDF_TYPE			+ STATE_BIT_COUNT_BSDF_TYPE)
+#define STATE_BIT_OFFSET_HASLIGHTWEIGHT			(STATE_BIT_OFFSET_SHAREDLOCALBASESID+ STATE_BIT_COUNT_SHAREDLOCALBASESID)
 #define STATE_BIT_OFFSET_WEIGHT10F				22
 
 // Layout 0 (Fast)
@@ -379,6 +382,10 @@ struct FStrataBSDF
 // Indicates if the BSDF is part of the top layer
 #define BSDF_GETISTHIN(X)				READ_BITS(X.State,  STATE_BIT_COUNT_ISTHIN, STATE_BIT_OFFSET_ISTHIN)
 #define BSDF_SETISTHIN(X, Value)		WRITE_BITS(X.State, STATE_BIT_COUNT_ISTHIN, STATE_BIT_OFFSET_ISTHIN, Value)
+
+// Indicates if the BSDF has light weight data
+#define BSDF_GETHASLIGHTWEIGHT(X)		READ_BITS(X.State,  STATE_BIT_COUNT_HASLIGHTWEIGHT, STATE_BIT_OFFSET_HASLIGHTWEIGHT)
+#define BSDF_SETHASLIGHTWEIGHT(X, Value) WRITE_BITS(X.State, STATE_BIT_COUNT_HASLIGHTWEIGHT, STATE_BIT_OFFSET_HASLIGHTWEIGHT, Value)
 
 #if STRATA_INLINE_SHADING
 #define BSDF_SETEMISSIVE(X, V)			X.Emissive = V
@@ -680,9 +687,8 @@ bool StrataHasAreaLightIntegrator(in FStrataBSDF BSDF)
 
 bool StrataIsBSDFVisible(in FStrataBSDF BSDF)
 {
-	return any(BSDF.LuminanceWeight > 0.0f);
+	return any(BSDF.LuminanceWeightV > 0.0f);
 }
-
 
 bool StrataHasGreyScaleWeight(in float3 Weight)
 {
@@ -755,10 +761,12 @@ struct FStrataOperator
 	// Coverage / Transmittance
 
 	float  Coverage;									// The summarised coverage of all the matter (from the sub tree) represented by that operator
-	float3 Transmittance;								// This is the transmittance of the matter itself. If coverage is 0.25, then 25% of the light will be affected by the transmittance and 75% of light won't be.
+	float3 TransmittanceL;								// This is the transmittance of the matter itself. If coverage is 0.25, then 25% of the light will be affected by the transmittance and 75% of light won't be.
+	float3 TransmittanceV;								// This is the transmittance of the matter itself. If coverage is 0.25, then 25% of the light will be affected by the transmittance and 75% of light won't be.
 
-	float VerticalTop_Coverage;							// Only used by vertical layering operators. It represent the coverage of all the matter of the top layer (from the left sub tree).
-	float3 VerticalTop_Transmittance;					// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree).
+	float  VerticalTop_Coverage;						// Only used by vertical layering operators. It represent the coverage of all the matter of the top layer (from the left sub tree).
+	float3 VerticalTop_TransmittanceV;					// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree, and towards the view).
+	float3 VerticalTop_TransmittanceL;					// Only used by vertical layering operators. It represent the transmittance of matter of the top layer (from the left sub tree, and towards the light).
 
 	// Rough refraction
 	float3				 TopDownRefractionWorldNormal;	// The normal used for the single refracted direction
@@ -1473,6 +1481,7 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 	BSDF_SETHASHAZINESS(ResultBSDF,		BSDF_GETHASHAZINESS(ForegroundBSDF)				| BSDF_GETHASHAZINESS(BackgroundBSDF));
 	BSDF_SETHASF90(ResultBSDF,			BSDF_GETHASF90(ForegroundBSDF)					| BSDF_GETHASF90(BackgroundBSDF));
 	BSDF_SETHASFUZZ(ResultBSDF,			BSDF_GETHASFUZZ(ForegroundBSDF)					| BSDF_GETHASFUZZ(BackgroundBSDF));
+	BSDF_SETHASLIGHTWEIGHT(ResultBSDF,	BSDF_GETHASLIGHTWEIGHT(ForegroundBSDF)			| BSDF_GETHASLIGHTWEIGHT(BackgroundBSDF));
 
 	BSDF_SETEMISSIVE(ResultBSDF,		lerp(BSDF_GETEMISSIVE(BackgroundBSDF),			BSDF_GETEMISSIVE(ForegroundBSDF),			ForegroundOtherMixFactor));
 	SLAB_DIFFUSEALBEDO(ResultBSDF) =	lerp(SLAB_DIFFUSEALBEDO(BackgroundBSDF),		SLAB_DIFFUSEALBEDO(ForegroundBSDF),			ForegroundOtherMixFactor);
@@ -1663,14 +1672,15 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 	EnableSlabBSDFSimpleVolumetric(BaseBSDF);
 	const float3 UnusedDiffuseColor		= 0;	// Unused when only transmittance is needed
 	FParticipatingMedia PM				= StrataSlabCreateParticipatingMedia(UnusedDiffuseColor, SLAB_SSSMFP(TopBSDF));
-	const float3 SlabTransmittance		= IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, NoV);
+	const float3 SlabTransmittanceV		= IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, NoV);
+	const float3 SlabTransmittanceL		= IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, 1.0f /*Normal incidence i.e., NoL == 1.f*/);
 
 	// STRATA_TODO account for energy conservation here.
 
 	FVerticalLayeringInfo Info			= GetVerticalLayeringInfo(SafeTopCoverage, SafeBaseCoverage);
 	// Compute some ways to intepoldate and accumulate parameters, but always normalise because coverage is applied later in UpdateSingleBSDFOperatorCoverageTransmittance.
-	const float  TopToBottomLerp		= saturate((Info.TransmittanceTopAndBottom * dot(SlabTransmittance,0.33.xxx) + Info.SurfaceBottom) / max(STRATA_EPSILON, Info.Coverage));
-	const float3 BottomColorFactor		= (Info.TransmittanceTopAndBottom * SlabTransmittance + Info.SurfaceBottom) / max(STRATA_EPSILON, Info.Coverage);
+	const float  TopToBottomLerp		= saturate((Info.TransmittanceTopAndBottom * dot(SlabTransmittanceV,0.33.xxx) + Info.SurfaceBottom) / max(STRATA_EPSILON, Info.Coverage));
+	const float3 BottomColorFactor		= (Info.TransmittanceTopAndBottom * SlabTransmittanceV + Info.SurfaceBottom) / max(STRATA_EPSILON, Info.Coverage);
 	const float  TopFactor				= Info.SurfaceTop / max(STRATA_EPSILON, Info.Coverage);
 	
 	// Add both layers thickness
@@ -2662,7 +2672,7 @@ void StrataUpdateTree(
 		Settings);
 
 	OutCoverage = saturate(StrataTree.Operators[StrataData.OperatorIndex].Coverage);
-	OutTransmittancePreCoverage = saturate(StrataTree.Operators[StrataData.OperatorIndex].Transmittance);
+	OutTransmittancePreCoverage = saturate(StrataTree.Operators[StrataData.OperatorIndex].TransmittanceV);
 }
 
 #endif // STRATA_INLINE_SHADING && STRATA_CLAMPED_BSDF_COUNT > 0
@@ -2748,10 +2758,10 @@ void PackStrataOut(
 					{
 					case STRATA_BSDF_TYPE_SLAB:
 					{
-						EmissiveColor += BSDF_GETEMISSIVE(BSDF) * BSDF.LuminanceWeight;
+						EmissiveColor += BSDF_GETEMISSIVE(BSDF) * BSDF.LuminanceWeightV;
 
 						// Simple and single bsdf do not allow weights other than 1
-						const bool LuminanceWeightEqualOne = all(BSDF.LuminanceWeight == 1.0f);
+						const bool LuminanceWeightEqualOne = all(BSDF.LuminanceWeightV == 1.0f);
 
 						// Update simple material compatibility
 						bIsSimpleMaterial = IsStrataSlabFastPathCompatible(BSDF) && LuminanceWeightEqualOne;
@@ -2788,7 +2798,7 @@ void PackStrataOut(
 					{
 						bIsSimpleMaterial = false;
 						bIsSingleMaterial = false;
-						EmissiveColor += BSDF_GETEMISSIVE(BSDF) * BSDF.LuminanceWeight;
+						EmissiveColor += BSDF_GETEMISSIVE(BSDF) * BSDF.LuminanceWeightV;
 
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLW_ROUGHNESS(BSDF);
@@ -2877,8 +2887,11 @@ void PackStrataOut(
 				BRANCH
 				if (bIsVisible)
 				{
-					const uint GreyScaleThroughput = StrataHasGreyScaleWeight(BSDF.LuminanceWeight) ? 1 : 0;
+					const uint GreyScaleThroughput = StrataHasGreyScaleWeight(BSDF.LuminanceWeightV) ? 1 : 0;
 					BSDF_SETHASGREYWEIGHT(BSDF, GreyScaleThroughput);
+
+					const bool bHasLightTransmittance = any(BSDF.LuminanceWeightL < 1.0f);
+					BSDF_SETHASLIGHTWEIGHT(BSDF, bHasLightTransmittance);
 
 					// A. Layout0 - Simple encoding (aka. fast-path): store header & data
 					if (bHasFastEncoding && BSDFIdx == SimpleMaterial_BSDFIndex)
@@ -2932,13 +2945,13 @@ void PackStrataOut(
 					// C. Layout2 - Weight for Regular/Complex path
 					else if (GreyScaleThroughput > 0)
 					{
-						BSDF_SETWEIGHT10F(BSDF, Pack10F(BSDF.LuminanceWeight.x));
+						BSDF_SETWEIGHT10F(BSDF, Pack10F(BSDF.LuminanceWeightV.x));
 						STRATA_STORE_UINT1(BSDF.State);
 					}
 					else
 					{
 						STRATA_STORE_UINT1(BSDF.State);
-						STRATA_STORE_UINT1(PackR11G11B10F(BSDF.LuminanceWeight));
+						STRATA_STORE_UINT1(PackR11G11B10F(BSDF.LuminanceWeightV));
 					}
 
 					// Layout1 & Layout2
@@ -3003,7 +3016,12 @@ void PackStrataOut(
 							STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(SLAB_FUZZ_COLOR(BSDF), SLAB_FUZZ_AMOUNT(BSDF))));
 						}
 
-						// 8-20 bytes
+						if (BSDF_GETHASLIGHTWEIGHT(BSDF))
+						{
+							STRATA_STORE_UINT1(PackR11G11B10F(BSDF.LuminanceWeightL));
+						}
+
+						// 8-24 bytes
 					}
 					break;
 					case STRATA_BSDF_TYPE_HAIR:
@@ -3146,7 +3164,8 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, in
 	uint Data0 = StrataPixelHeader.SharedLocalBasesTypes_PackedHeader;
 	uint Data1 = StrataLoadUint1(StrataBuffer, StrataAddressing);
 	OutBSDF.State = 0;
-	OutBSDF.LuminanceWeight = 1.0f;
+	OutBSDF.LuminanceWeightV = 1.0f;
+	OutBSDF.LuminanceWeightL = 1.0f;
 
 	const uint PackedRoughness8bits = 0xFF    & (Data0 >>  HEADER_FASTENCODING_BIT_COUNT);
 	const uint PackedData8Bits		= 0xFF    & (Data0 >> (HEADER_FASTENCODING_BIT_COUNT + 8));
@@ -3191,6 +3210,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 	}
 
 	FStrataBSDF OutBSDF = (FStrataBSDF)0;
+	OutBSDF.LuminanceWeightL = 1.0f;
 
 	float DummyFloat = 0.0f;
 
@@ -3202,7 +3222,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		Data = StrataHeader.SharedLocalBasesTypes_PackedHeader;
 	#endif
 		OutBSDF.State = (Data>>HEADER_SINGLEENCODING_BIT_COUNT) & STATE_SINGLEENCODING_MASK;
-		OutBSDF.LuminanceWeight = 1.0f;
+		OutBSDF.LuminanceWeightV = 1.0f;
 		const uint BSDFType = firstbitlow(GetShadingModels(StrataHeader));
 		BSDF_SETTYPE(OutBSDF, BSDFType);
 
@@ -3214,11 +3234,11 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		OutBSDF.State = StrataLoadUint1(StrataBuffer, StrataAddressing);
 		if (BSDF_GETHASGREYWEIGHT(OutBSDF))
 		{
-			OutBSDF.LuminanceWeight = Unpack10F(BSDF_GETWEIGHT10F(OutBSDF));
+			OutBSDF.LuminanceWeightV = Unpack10F(BSDF_GETWEIGHT10F(OutBSDF));
 		}
 		else
 		{
-			StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, OutBSDF.LuminanceWeight);
+			StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, OutBSDF.LuminanceWeightV);
 		}
 	}
 
@@ -3287,6 +3307,11 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		if (BSDF_GETHASFUZZ(OutBSDF))
 		{
 			StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, SLAB_FUZZ_COLOR(OutBSDF), SLAB_FUZZ_AMOUNT(OutBSDF));
+		}
+
+		if (BSDF_GETHASLIGHTWEIGHT(OutBSDF))
+		{
+			StrataLoad_R11G11B10F(StrataBuffer, StrataAddressing, OutBSDF.LuminanceWeightL);
 		}
 	}
 	break;

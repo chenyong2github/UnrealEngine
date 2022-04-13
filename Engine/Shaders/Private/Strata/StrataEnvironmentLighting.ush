@@ -58,10 +58,10 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 	{
 		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
 
-		const float3 BSDFThroughput = BSDF.LuminanceWeight;
-
 		// Create the BSDF context
 		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
+
+		const float3 BSDFThroughput = LuminanceWeight(StrataBSDFContext, BSDF); // Use the reflected direction
 
 		// Evaluate environment lighting
 		const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;

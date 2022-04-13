@@ -211,10 +211,9 @@ FDirectLighting StrataLumenLighting(
 		// STRATA_TODO: Override the BSDF F0/DiffuseColor when bVisualizeDiffuseIndirect is set
 		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
 
-		const float3 BSDFThroughput = BSDF.LuminanceWeight;
-
 		// Create the BSDF context
 		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
+		const float3 BSDFThroughput = LuminanceWeight(StrataBSDFContext, BSDF);
 
 		// Evaluate environment lighting
 		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, Settings);

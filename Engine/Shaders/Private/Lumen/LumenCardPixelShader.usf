@@ -96,10 +96,11 @@ void Main(
 			{
 				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
 				FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, Settings);
-				DiffuseColor  += CurrentBSDF.LuminanceWeight * StrataEnvLight.DiffuseWeight;
-				SpecularColor += CurrentBSDF.LuminanceWeight * StrataEnvLight.SpecularWeight;
-				WorldNormal   += CurrentBSDF.LuminanceWeight * StrataBSDFContext.N;
-				Emissive      += CurrentBSDF.LuminanceWeight * CurrentBSDF.Emissive;
+				const float3 Weight = CurrentBSDF.LuminanceWeightV; // Use LuminanceWeightV instead of LuminanceWeight(..) as we only need to weight these value with the view transmittance, not the light transmittance;
+				DiffuseColor  += Weight * StrataEnvLight.DiffuseWeight;
+				SpecularColor += Weight * StrataEnvLight.SpecularWeight;
+				WorldNormal   += Weight * StrataBSDFContext.N;
+				Emissive      += Weight * CurrentBSDF.Emissive;
 			}
 			#undef CurrentBSDF
 		}

@@ -165,6 +165,24 @@ void StrataUpdateBSDFContext(inout FStrataBSDFContext BSDFContext, float3 NewL)
 	BSDFContext.SatNoV = saturate(BSDFContext.Context.NoV);
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Helper functions
+
+float3 LuminanceWeight(FStrataBSDFContext InContext, FStrataBSDF InBSDF)
+{
+	// LuminanceWeight is the absorption from the shading point towards the surface 
+	// in the normal direction. To compute the absorption towards the light, we 
+	// reweight it with new distance L'
+	// LuminanceWeightL  = exp(sigma * L)  with L=1 for normal incidence. 
+	// LuminanceWeightL' = exp(sigma * L') with L'= L . 1/NoL
+	//                   = exp(sigma * L . 1/NoL)
+	//                   = pow(exp(sigma * L), 1/NoL)
+	//                   = pow(LuminanceWeightL, 1/NoL)
+	const float DistanceL = rcp(max(InContext.SatNoL, 0.001f));
+	const float3 EffectiveLuminanceWeightL = any(InBSDF.LuminanceWeightL < 1.f) ? pow(max(InBSDF.LuminanceWeightL, 0.0001f), DistanceL) : InBSDF.LuminanceWeightL;
+	return InBSDF.LuminanceWeightV * EffectiveLuminanceWeightL;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // BSDF evaluation (punctual/area)
 
@@ -195,7 +213,8 @@ struct FStrataEvaluateResult
 	float  TransmissionPDF;
 	float  ThinTransmissionPathPDF;
 
-	float3 Throughput;					// Throughput to the next layer
+	float3 ThroughputV;					// Throughput to the next layer (from the view to the shading point)
+	float3 ThroughputL;					// Throughput to the next layer (from the light to the shading point)
 	bool   bSubsurface;					// True if we need to separate the subsurface light contribution for the screen space diffusion process.
 	bool   bApplyProjectedSolidAngle;	// True if the Saturate(NoL) factor should be applied or not over the value of the BSDF
 };
@@ -466,7 +485,8 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			// we do not need to add emissive for the BRDF TotalSpec or TotalDiff values as this is handled separately
 			Sample.EmissivePathValue = BSDF_GETEMISSIVE(BSDFContext.BSDF);
 
-			Sample.Throughput = OpaqueBSDFThroughput;
+			Sample.ThroughputV = OpaqueBSDFThroughput;
+			Sample.ThroughputL = OpaqueBSDFThroughput;
 
 			////
 			//// Evaluate cloth fuzz layered on top of the slab.
@@ -518,7 +538,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 					//Sample.SpecularHazePDF		= lerp(Sample.SpecularHazePDF,			BSDFContext.SatNoV / PI,	Fuzz);;
 				}
 
-				Sample.Throughput *= Cloth_DirectionalAlbedo_SpecularTransmission;
+				Sample.ThroughputV *= Cloth_DirectionalAlbedo_SpecularTransmission;
 				break;
 			}
 			#endif
@@ -557,7 +577,8 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				const float3 RefracV = refract(BSDFContext.V, -BSDFContext.N, OneOverIOR);
 				const float PhaseFunction = ApproximateHG(dot(-BSDFContext.L, RefracV), PhaseFunctionAnisotropy);
 
-				Sample.Throughput				= TransmissionThroughput * PhaseFunction;
+				Sample.ThroughputV				= TransmissionThroughput * PhaseFunction;
+				Sample.ThroughputL				= TransmissionThroughput * PhaseFunction;
 				Sample.TransmissionPathValue	= TransmissionThroughput * PhaseFunction;
 				Sample.TransmissionPDF			= 1.0f / (4.0f * PI);		// STRATA_TODO this currently match the uniform sphere sampling from StrataImportanceSampleBSDF
 
@@ -610,15 +631,24 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 				FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(DiffuseColor, SLAB_SSSMFP(BSDFContext.BSDF));
 				const float DiffuseToVolumeBlend = StrataSlabDiffuseToVolumeBlend(PM);
 				const float3 SlabDirectionalAlbedo = IsotropicMediumSlabPunctualDirectionalAlbedo(PM);
-				const float3 SlabTransmittance = IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, BSDFContext.Context.NoV);
+
+				// Shading point <-> View throughput
+				const float3 SlabTransmittanceV = IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, BSDFContext.Context.NoV);
+				const float3 SpecularTransmissionV = DirectionalAlbedo_SpecularTransmission;
+
+				// Shading point <-> Light throughput
+				// Compute the transmittance at normal incidence (instead of BSDFContext.Context.NoL), and will compute the final value during evaluation 
+				const float3 SlabTransmittanceL = IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, 1.f /*NoL with L==N*/);
+				const float3 SpecularTransmissionL = 1.0f;
 
 				const float Phase = IsotropicPhase();
 
 				// Now lerp between the optically thin and optically thin medium models.
 				// The diffuse and throughput account for the GGX interface SpecularTransmission.
-				Sample.DiffusePathValue = lerp(Sample.DiffusePathValue,		SlabDirectionalAlbedo * DirectionalAlbedo_SpecularTransmission,		DiffuseToVolumeBlend);
-				Sample.DiffusePDF		= lerp(Sample.DiffusePDF,			Phase,																DiffuseToVolumeBlend);
-				Sample.Throughput		= lerp(Sample.Throughput,			SlabTransmittance     * DirectionalAlbedo_SpecularTransmission,		DiffuseToVolumeBlend);
+				Sample.DiffusePathValue = lerp(Sample.DiffusePathValue,		SlabDirectionalAlbedo * SpecularTransmissionV,		DiffuseToVolumeBlend);
+				Sample.DiffusePDF		= lerp(Sample.DiffusePDF,			Phase,												DiffuseToVolumeBlend);
+				Sample.ThroughputV		= lerp(Sample.ThroughputV,			SlabTransmittanceV    * SpecularTransmissionV,		DiffuseToVolumeBlend);
+				Sample.ThroughputL		= lerp(Sample.ThroughputL,			SlabTransmittanceL    * SpecularTransmissionL,		DiffuseToVolumeBlend);
 
 				Sample.bSubsurface = false;	// It should already be the case because Enforce in this case because BSDF_GETHASSSS should be false when BSDF_GETISSIMPLEVOLUME is true
 
@@ -657,7 +687,8 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			uint2 Random = uint2(0, 0);
 			Sample.SpecularPathValue	= HairShading(GBuffer, BSDFContext.L, BSDFContext.V, BSDFContext.N, ShadowTerms.TransmissionShadow, HairTransmittance, BacklitEnabled, Area, Random);
 			Sample.SpecularPDF			= 1.0f / (4.0f * PI);		// STRATA_TODO this currently match the uniform sphere sampling from StrataImportanceSampleBSDF
-			Sample.Throughput			= OpaqueBSDFThroughput; 
+			Sample.ThroughputV			= OpaqueBSDFThroughput; 
+			Sample.ThroughputL			= OpaqueBSDFThroughput; 
 			Sample.IntegratedSpecularValue = ShadowTerms.TransmissionShadow * AreaLightContext.AreaLight.FalloffColor * AreaLightContext.Falloff * Sample.SpecularPathValue;
 		}
 		break;

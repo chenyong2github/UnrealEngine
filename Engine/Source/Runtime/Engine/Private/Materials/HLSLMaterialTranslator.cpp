@@ -10072,6 +10072,8 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 					StrataMaterialRequestedSizeByte += UintByteSize;
 					// Color weight
 					StrataMaterialRequestedSizeByte += UintByteSize;
+					// Light transmittance weight
+					StrataMaterialRequestedSizeByte += UintByteSize;
 				}
 				else
 				{

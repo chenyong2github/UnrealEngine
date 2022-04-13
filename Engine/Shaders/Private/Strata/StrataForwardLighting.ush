@@ -329,7 +329,7 @@ float3 StrataForwardLighting(
 						#endif
 
 							Color += (DiffuseIndirectLighting * DiffuseColorForIndirect + SubsurfaceIndirectLighting * SubsurfaceColorForIndirect) * 
-								CurrentBSDF.LuminanceWeight * AOMultiBounce(StrataEnvLight.DiffuseColor, ShadingOcclusion.DiffOcclusion);
+								LuminanceWeight(StrataBSDFContext, CurrentBSDF) * AOMultiBounce(StrataEnvLight.DiffuseColor, ShadingOcclusion.DiffOcclusion);
 						}
 					}
 
@@ -344,7 +344,7 @@ float3 StrataForwardLighting(
 						{
 							int SingleCaptureIndex = GetPrimitiveData(MaterialParameters).SingleCaptureIndex;
 							Color += GetImageBasedReflectionSpecular(MaterialParameters, StrataEnvLight.SpecularDirection, Roughness, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex) *
-								 StrataEnvLight.SpecularWeight * IndirectOcclusion * CurrentBSDF.LuminanceWeight * AOMultiBounce(StrataEnvLight.SpecularColor, ShadingOcclusion.SpecOcclusion);
+								 StrataEnvLight.SpecularWeight * IndirectOcclusion * LuminanceWeight(StrataBSDFContext, CurrentBSDF) * AOMultiBounce(StrataEnvLight.SpecularColor, ShadingOcclusion.SpecOcclusion);
 						}
 						// We skip hazy lob evaluation in forward.
 					}
@@ -443,7 +443,7 @@ float3 StrataForwardLighting(
 				}
 			#endif
 
-				Color += (SurfaceLighting + BSDFEvaluate.EmissivePathValue) * CurrentBSDF.LuminanceWeight;
+				Color += (SurfaceLighting + BSDFEvaluate.EmissivePathValue) * LuminanceWeight(StrataBSDFContext, CurrentBSDF);
 
 			#elif FORWARD_PER_PIXEL_SHADING
 
@@ -484,7 +484,7 @@ float3 StrataForwardLighting(
 							AbsoluteWorldPosition,
 							TranslatedWorldPosition,
 							SceneDepth,
-							CurrentBSDF.LuminanceWeight,
+							LuminanceWeight(StrataBSDFContext, CurrentBSDF),
 							StrataPixelHeader,
 							StrataBSDFContext,
 							bEvaluateHasBeenExecuted,
@@ -568,7 +568,7 @@ float3 StrataForwardLighting(
 						AbsoluteWorldPosition,
 						TranslatedWorldPosition,
 						SceneDepth,
-						CurrentBSDF.LuminanceWeight,
+						LuminanceWeight(StrataBSDFContext, CurrentBSDF),
 						StrataPixelHeader,
 						StrataBSDFContext,
 						bEvaluateHasBeenExecuted,
