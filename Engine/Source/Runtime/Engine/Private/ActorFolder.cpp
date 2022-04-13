@@ -163,17 +163,9 @@ void UActorFolder::MarkAsDeleted()
 	bIsDeleted = true;
 }
 
-UActorFolder* UActorFolder::GetParent() const
+UActorFolder* UActorFolder::GetParent(bool bSkipDeleted) const
 {
-	UActorFolder* Parent = ParentFolderGuid.IsValid() ? GetOuterULevel()->GetActorFolder(ParentFolderGuid) : nullptr;
-	if (Parent)
-	{
-		if (!Parent->IsValid())
-		{
-			return Parent->GetParent();
-		}
-	}
-	return Parent;
+	return ParentFolderGuid.IsValid() ? GetOuterULevel()->GetActorFolder(ParentFolderGuid, bSkipDeleted) : nullptr;
 }
 
 FName UActorFolder::GetPath() const

@@ -33,7 +33,7 @@ public:
 	//~ End UObject
 
 	void SetParent(UActorFolder* InParent);
-	UActorFolder* GetParent() const;
+	UActorFolder* GetParent(bool bSkipDeleted = true) const;
 
 	void SetLabel(const FString& InFolderLabel);
 	FString GetLabel() const { return FolderLabel; }

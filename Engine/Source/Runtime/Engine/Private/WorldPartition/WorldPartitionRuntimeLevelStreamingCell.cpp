@@ -12,7 +12,6 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
-#include "WorldPartition/WorldPartitionPackageCache.h"
 #include "Engine/LevelStreamingAlwaysLoaded.h"
 #endif
 
@@ -102,10 +101,6 @@ void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartit
 {
 	check(!ActorDescView.GetActorIsEditorOnly());
 	Packages.Emplace(ActorDescView.GetActorPackage(), ActorDescView.GetActorPath(), InContainerID, InContainerTransform, InContainer->GetContainerPackage());
-	if (ActorDescView.GetFolderGuid().IsValid())
-	{
-		ActorFolders.Add(ActorDescView.GetFolderGuid());
-	}
 }
 
 UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::CreateLevelStreaming(const FString& InPackageName) const
@@ -147,10 +142,12 @@ void UWorldPartitionRuntimeLevelStreamingCell::MoveAlwaysLoadedContentToPersiste
 	check(IsAlwaysLoaded());
 	if (GetActorCount() > 0)
 	{
-		FWorldPartitionPackageCache PackageCache;
-		verify(FWorldPartitionLevelHelper::LoadActors(nullptr, Packages, PackageCache, [](bool) {}, /*bLoadAsync*/false));
+		FWorldPartitionLevelHelper::FPackageReferencer PackageReferencer;
+		const bool bLoadAsync = false;
 
 		UWorld* OuterWorld = GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
+		verify(FWorldPartitionLevelHelper::LoadActors(OuterWorld, nullptr, Packages, PackageReferencer, [](bool) {}, bLoadAsync, FLinkerInstancingContext()));
+				
 		FWorldPartitionLevelHelper::MoveExternalActorsToLevel(Packages, OuterWorld->PersistentLevel);
 
 		// Empty cell's package list (this ensures that no one can rely on cell's content).
@@ -192,12 +189,14 @@ bool UWorldPartitionRuntimeLevelStreamingCell::PopulateGeneratedPackageForCook(U
 		}
 
 		// Load cell Actors
-		FWorldPartitionPackageCache PackageCache;
-		verify(FWorldPartitionLevelHelper::LoadActors(nullptr, Packages, PackageCache, [](bool) {}, /*bLoadAsync*/false));
-
-		// Create a level and move these actors in it
 		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 		UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
+
+		FWorldPartitionLevelHelper::FPackageReferencer PackageReferencer;
+		const bool bLoadAsync = false;
+		verify(FWorldPartitionLevelHelper::LoadActors(OuterWorld, nullptr, Packages, PackageReferencer, [](bool) {}, bLoadAsync, FLinkerInstancingContext()));
+
+		// Create a level and move these actors in it
 		ULevel* NewLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(OuterWorld, LevelStreaming->GetWorldAsset().ToString(), InPackage);
 		check(NewLevel->GetPackage() == InPackage);
 		FWorldPartitionLevelHelper::MoveExternalActorsToLevel(Packages, NewLevel);

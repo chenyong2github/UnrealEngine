@@ -16,7 +16,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
 #if WITH_EDITOR
-#include "WorldPartition/WorldPartitionPackageCache.h"
+#include "WorldPartition/WorldPartitionLevelHelper.h"
 #endif
 #include "WorldPartitionLevelStreamingDynamic.generated.h"
 
@@ -60,7 +60,6 @@ private:
 	FName OriginalLevelPackageName;
 	TArray<FWorldPartitionRuntimeCellObjectMapping> ChildPackages;
 	TArray<FWorldPartitionRuntimeCellObjectMapping> ChildPackagesToLoad;
-	TArray<FGuid> ActorFolders;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -70,7 +69,7 @@ private:
 	FDelegateHandle OnCleanupLevelDelegateHandle;
 	bool bLoadRequestInProgress;
 	bool bLoadSucceeded;
-	FWorldPartitionPackageCache PackageCache;
+	FWorldPartitionLevelHelper::FPackageReferencer PackageReferencer;
 #endif
 
 	UPROPERTY()

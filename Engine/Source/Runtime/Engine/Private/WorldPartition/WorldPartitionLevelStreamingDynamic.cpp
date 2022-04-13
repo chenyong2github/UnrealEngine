@@ -99,7 +99,6 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	bShouldBeAlwaysLoaded = InCell.IsAlwaysLoaded();
 	StreamingPriority = 0;
 	UnsavedActorsContainer = InCell.UnsavedActorsContainer;
-	ActorFolders = InCell.GetActorFolders().Array();
 
 	UWorld* OuterWorld = InCell.GetOuterUWorldPartition()->GetTypedOuter<UWorld>();
 	Initialize(OuterWorld, InCell.GetPackages());
@@ -133,19 +132,6 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 
 	UPackage* RuntimeLevelPackage = RuntimeLevel->GetPackage();
 	check(RuntimeLevelPackage);
-
-	// Propagate ActorFolder flag to the runtime level and prepare its ActorFolders list
-	if (World->PersistentLevel->IsUsingActorFolders() && ActorFolders.Num())
-	{
-		FLevelActorFoldersHelper::SetUseActorFolders(RuntimeLevel, true);
-		for (const FGuid& ActorFolderGuid : ActorFolders)
-		{
-			if (UActorFolder* ActorFolder = World->PersistentLevel->GetActorFolder(ActorFolderGuid))
-			{
-				FLevelActorFoldersHelper::AddActorFolder(RuntimeLevel, ActorFolder, /*bInShouldDirtyLevel*/ false, /*bInShouldBroadcast*/ false);
-			}
-		}
-	}
 
 	// Set flag here as this level isn't async loaded
 	RuntimeLevel->bClientOnlyVisible = bClientOnlyVisible;
@@ -358,7 +344,7 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	// Load saved actors
 	if (ChildPackagesToLoad.Num())
 	{
-		FWorldPartitionLevelHelper::LoadActors(RuntimeLevel, ChildPackagesToLoad, PackageCache, FinalizeLoading, GetWorld()->IsGameWorld(), &InstancingContext);
+		FWorldPartitionLevelHelper::LoadActors(World, RuntimeLevel, ChildPackagesToLoad, PackageReferencer, FinalizeLoading, World->IsGameWorld(), MoveTemp(InstancingContext));
 	}
 	else
 	{
@@ -425,7 +411,7 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 	// Mark this package as fully loaded with regards to external objects
 	RuntimeLevel->GetPackage()->SetDynamicPIEPackagePending(false);
 
-	PackageCache.UnloadPackages();
+	PackageReferencer.RemoveReferences();
 }
 
 /**
@@ -435,7 +421,7 @@ void UWorldPartitionLevelStreamingDynamic::OnCleanupLevel()
 {
 	if (RuntimeLevel)
 	{
-		PackageCache.UnloadPackages();
+		PackageReferencer.RemoveReferences();
 
 		RuntimeLevel->OnCleanupLevel.Remove(OnCleanupLevelDelegateHandle);
 

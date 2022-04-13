@@ -366,6 +366,7 @@ TMap<FName, TWeakObjectPtr<UWorld> > ULevel::StreamedLevelsOwningWorld;
 
 #if WITH_EDITOR
 const FName ULevel::LoadAllExternalObjectsTag(TEXT("LoadAllExternalObjectsTag"));
+const FName ULevel::DontLoadExternalObjectsTag(TEXT("DontLoadExternalObjectsTag"));
 #endif
 
 ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
@@ -944,7 +945,9 @@ void ULevel::PostLoad()
 	// if we use external actors, load dynamic actors here
 	if (IsUsingExternalActors())
 	{
-		if (!bWasDuplicated && (!bIsPartitioned || Linker->GetInstancingContext().HasTag(ULevel::LoadAllExternalObjectsTag)))
+		if (!bWasDuplicated &&
+			(!bIsPartitioned || Linker->GetInstancingContext().HasTag(ULevel::LoadAllExternalObjectsTag)) &&
+			!Linker->GetInstancingContext().HasTag(ULevel::DontLoadExternalObjectsTag))
 		{
 			UPackage* LevelPackage = GetPackage();
 			bool bPackageForPIE = LevelPackage->HasAnyPackageFlags(PKG_PlayInEditor);

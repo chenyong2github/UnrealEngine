@@ -73,7 +73,7 @@ private:
 	friend class UWorld;
 	friend class UActorFolder;
 	friend class UWorldPartitionConvertCommandlet;
-	friend class UWorldPartitionLevelStreamingDynamic;
+	friend class FWorldPartitionLevelHelper;
 };
 
 class ENGINE_API FLevelPartitionOperationScope
@@ -780,6 +780,8 @@ public:
 	ENGINE_API static bool GetPartitionedLevelCanBeUsedByLevelInstanceFromAsset(const FAssetData& Asset);
 	ENGINE_API static bool GetPartitionedLevelCanBeUsedByLevelInstanceFromPackage(FName LevelPackage);
 	ENGINE_API static const FName LoadAllExternalObjectsTag;
+	ENGINE_API static const FName DontLoadExternalObjectsTag;
+
 	ENGINE_API bool GetPromptWhenAddingToLevelOutsideBounds() const;
 	ENGINE_API bool GetPromptWhenAddingToLevelBeforeCheckout() const;
 #endif
@@ -1341,6 +1343,7 @@ private:
 	void SetUseActorFoldersInternal(bool bInEnabled);
 
 	friend struct FLevelActorFoldersHelper;
+	friend class FWorldPartitionLevelHelper;
 
 	/** Replace the existing LSA (if set) by spawning a new one based on this level's script blueprint */
 	void RegenerateLevelScriptActor();

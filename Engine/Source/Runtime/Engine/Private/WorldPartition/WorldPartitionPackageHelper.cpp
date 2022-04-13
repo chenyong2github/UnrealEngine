@@ -46,21 +46,4 @@ void FWorldPartitionPackageHelper::UnloadPackage(UPackage* InPackage)
 	}
 }
 
-UPackage* FWorldPartitionPackageHelper::DuplicateWorldPackage(UPackage* InPackage, FName InDuplicatePackageName)
-{
-	UPackage* DuplicatedPackage = nullptr;
-	UWorld* PackageWorld = UWorld::FindWorldInPackage(InPackage);
-	check(PackageWorld);
-
-	DuplicatedPackage = CreatePackage(*InDuplicatePackageName.ToString());
-	FObjectDuplicationParameters DuplicationParameters(PackageWorld, DuplicatedPackage);
-	DuplicationParameters.bAssignExternalPackages = false;
-	DuplicationParameters.DuplicateMode = EDuplicateMode::World;
-
-	UWorld* DuplicatedWorld = Cast<UWorld>(StaticDuplicateObjectEx(DuplicationParameters));
-	check(DuplicatedWorld);
-
-	return DuplicatedPackage;
-}
-
 #endif

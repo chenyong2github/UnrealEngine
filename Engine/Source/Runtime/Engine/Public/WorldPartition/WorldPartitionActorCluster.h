@@ -60,6 +60,11 @@ struct FActorContainerID
 		return GetTypeHash(InContainerID.ID);
 	}
 
+	static FActorContainerID GetMainContainerID()
+	{
+		return FActorContainerID();
+	}
+
 	UPROPERTY()
 	uint64 ID;
 };

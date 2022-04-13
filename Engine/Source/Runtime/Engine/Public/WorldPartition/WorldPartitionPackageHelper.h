@@ -12,7 +12,6 @@ class FWorldPartitionPackageHelper
 {
 public:
 	static void UnloadPackage(UPackage* InPackage);
-	static UPackage* DuplicateWorldPackage(UPackage* InPackage, FName InDuplicatePackageName);
 };
 
 #endif
