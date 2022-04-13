@@ -32,6 +32,7 @@
 #include "Chaos/GeometryQueries.h"
 #include "Chaos/CollisionOneShotManifolds.h"
 #include "Chaos/CollisionOneShotManifoldsMiscShapes.h"
+#include "Chaos/CCDUtilities.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -118,10 +119,6 @@ extern bool bChaosCollisionCCDEnableResweep;
 
 namespace Chaos
 {
-	namespace CVars
-	{
-		extern FRealSingle CCDEnableThresholdBoundsScale;
-	}
 	namespace Collisions
 	{
 		void ResetChaosCollisionCounters()
@@ -179,31 +176,7 @@ namespace Chaos
 				return false;
 			}
 
-			bool bUseCCD = false;
-
-			// bUseCCD is determined by the difference between P and X rather than V.
-			// This implies that the smaller Dt is, the less likely CCD will be triggered.
-			// This is because CCD is enabled to prevent tunneling. When Dt it small, tunneling is less likely to happen and therefore fewer constraints need to be processed with CCD.
-			if (bIsCCDEnabled0)
-			{
-				const FReal DSizeSquared0 = DeltaX0.SizeSquared();
-				const FReal MinExtent0 = Particle0->LocalBounds().Extents().Min();
-				const FReal CCDThreshold0 = MinExtent0 * CVars::CCDEnableThresholdBoundsScale;
-				if (DSizeSquared0 > CCDThreshold0 * CCDThreshold0)
-				{
-					bUseCCD = true;
-				}
-			}
-			if (!bUseCCD && bIsCCDEnabled1)
-			{
-				const FReal DSizeSquared1 = DeltaX1.SizeSquared();
-				const FReal MinExtent1 = Particle1->LocalBounds().Extents().Min();
-				const FReal CCDThreshold1 = MinExtent1 * CVars::CCDEnableThresholdBoundsScale;
-				if (DSizeSquared1 > CCDThreshold1 * CCDThreshold1)
-				{
-					bUseCCD = true;
-				}
-			}
+			bool bUseCCD = CCDHelpers::DeltaExceedsThreshold(*Particle0, *Particle1);
 
 			if (bUseCCD)
 			{

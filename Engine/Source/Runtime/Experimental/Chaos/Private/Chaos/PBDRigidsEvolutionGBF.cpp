@@ -61,12 +61,11 @@ namespace Chaos
 		bool bChaosUseCCD = true;
 		FAutoConsoleVariableRef  CVarChaosUseCCD(TEXT("p.Chaos.CCD.UseCCD"), bChaosUseCCD , TEXT("Global flag to turn CCD on or off. Default is true"));
 
-		FRealSingle CCDEnableThresholdBoundsScale = 0.4f;
-		FAutoConsoleVariableRef  CVarCCDEnableThresholdBoundsScale(TEXT("p.Chaos.CCD.EnableThresholdBoundsScale"), CCDEnableThresholdBoundsScale , TEXT("CCD is used when object position is changing > smallest bound's extent * BoundsScale. 0 will always Use CCD. Values < 0 disables CCD."));
-
 		bool bChaosCollisionCCDUseTightBoundingBox = true; 
 		FAutoConsoleVariableRef  CVarChaosCollisionCCDUseTightBoundingBox(TEXT("p.Chaos.Collision.CCD.UseTightBoundingBox"), bChaosCollisionCCDUseTightBoundingBox , TEXT(""));
 
+		bool bChaosCollisionCCDDebugDraw = false; 
+		FAutoConsoleVariableRef  CVarChaosCollisionCCDDebugDraw(TEXT("p.Chaos.Collision.CCD.DebugDraw"), bChaosCollisionCCDDebugDraw , TEXT(""));
 
 		int32 ChaosSolverCollisionPriority = 0;
 		FAutoConsoleVariableRef CVarChaosSolverCollisionPriority(TEXT("p.Chaos.Solver.Collision.Priority"), ChaosSolverCollisionPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));

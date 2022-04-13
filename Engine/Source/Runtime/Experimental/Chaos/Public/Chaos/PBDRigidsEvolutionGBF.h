@@ -17,7 +17,9 @@
 #include "Chaos/PerParticleInitForce.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
 #include "Chaos/CCDUtilities.h"
+#include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDSuspensionConstraints.h"
+#include "Chaos/ChaosDebugDraw.h"
 
 namespace Chaos
 {
@@ -30,9 +32,9 @@ namespace Chaos
 	{
 		CHAOS_API extern FRealSingle HackMaxAngularVelocity;
 		CHAOS_API extern FRealSingle HackMaxVelocity;
-		CHAOS_API extern FRealSingle CCDEnableThresholdBoundsScale;
 		CHAOS_API extern FRealSingle SmoothedPositionLerpRate;
 		CHAOS_API extern bool bChaosCollisionCCDUseTightBoundingBox;
+		CHAOS_API extern bool bChaosCollisionCCDDebugDraw;
 	}
 
 	using FPBDRigidsEvolutionCallback = TFunction<void()>;
@@ -298,10 +300,15 @@ namespace Chaos
 					}
 					else
 					{
-						const FReal MinBoundsAxis = Particle.LocalBounds().Extents().Min();
-						const FReal LengthCCDThreshold = MinBoundsAxis *  CVars::CCDEnableThresholdBoundsScale;
-						const FReal PXSizeSquared = (Particle.P() - Particle.X()).SizeSquared();
-						if (PXSizeSquared > LengthCCDThreshold * LengthCCDThreshold)
+
+#if CHAOS_DEBUG_DRAW
+						if (CVars::bChaosCollisionCCDDebugDraw)
+						{
+							DebugDraw::DrawCCDAxisThreshold(Particle.X(), Particle.CCDAxisThreshold(), Particle.P() - Particle.X(), Particle.Q());
+						}
+#endif
+
+						if (CCDHelpers::DeltaExceedsThreshold(Particle.CCDAxisThreshold(), Particle.P() - Particle.X(), Particle.Q()))
 						{
 							if (CVars::bChaosCollisionCCDUseTightBoundingBox)
 							{
@@ -378,6 +385,7 @@ namespace Chaos
 		void GatherSolverInput(FReal Dt, int32 GroupIndex);
 		void ScatterSolverOutput(FReal Dt, int32 GroupIndex);
 
+
 		FEvolutionResimCache* GetCurrentStepResimCache()
 		{
 			return CurrentStepResimCacheImp;
@@ -412,3 +420,4 @@ namespace Chaos
 	};
 
 }
+

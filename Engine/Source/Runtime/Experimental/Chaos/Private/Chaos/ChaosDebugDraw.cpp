@@ -25,6 +25,7 @@
 #include "Chaos/PBDSuspensionConstraints.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Utilities.h"
+#include "Chaos/CCDUtilities.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -1677,6 +1678,71 @@ namespace Chaos
 			}
 		}
 
+		void DrawCCDAxisThreshold(const FVec3& X, const FVec3& AxisThreshold, const FVec3& DeltaX, const FQuat& R)
+		{
+			// Call the version of DeltaExceedsThreshold that provides access to its
+			// intermediate variables so we can debug draw them
+			FVec3 AbsLocalDelta, AxisThresholdScaled, AxisThresholdDiff;
+			const bool bEnableCCD = CCDHelpers::DeltaExceedsThreshold(
+				AxisThreshold, DeltaX, R, AbsLocalDelta, AxisThresholdScaled, AxisThresholdDiff);
+			const FVector AxisPercents = AbsLocalDelta / AxisThresholdScaled;
+
+			// Pick draw settings
+			const FColor BoundsColor = bEnableCCD ? FColor::Orange : FColor::Cyan;
+			const FColor DeltaColor = FColor::Red;
+			const float ArrowSize = 20.f;
+			const FString AxisStrings[] = { FString("X"), FString("Y"), FString("Z") };
+			const float AxisThickness = 4.f;
+			const float DeltaThickness = 2.f;
+			const float BoundsThickness = 2.f;
+
+			const auto DrawAxis = [&](const int32 AxisIndex)
+			{
+				const bool bAxisEnableCCD = AxisThresholdDiff[AxisIndex] > 0.f;
+				const FColor AxisColor = bEnableCCD ? FColor::Orange : FColor::Cyan;
+				FVector AxisLocalExtent = FVector::ZeroVector;
+				FVector AxisLocalDelta = FVector::ZeroVector;
+				AxisLocalExtent[AxisIndex] = AxisThresholdScaled[AxisIndex];
+				AxisLocalDelta[AxisIndex] = AbsLocalDelta[AxisIndex];
+				const FVector AxisExtent = R.RotateVector(AxisLocalExtent);
+				const FVector AxisDelta = R.RotateVector(AxisLocalDelta);
+				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(X, X + AxisExtent, ArrowSize, AxisColor, false, -1.f, -1, AxisThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugDirectionalArrow(X, X + AxisDelta, ArrowSize, DeltaColor, false, -1.f, -1, DeltaThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugString(X + AxisExtent, FString::Printf(TEXT("%s: %.2f%%"), *AxisStrings[AxisIndex], AxisPercents[AxisIndex] * 100.f), nullptr, AxisColor, -1.f, true, 1.f);
+			};
+
+			// Get the index of the largest element
+			const auto MaxIndex = [](const FVector& Vec)
+			{
+				return Vec[0] > Vec[1]
+					? (Vec[0] > Vec[2] ? (uint8)0 : (uint8)2)
+					: (Vec[1] > Vec[2] ? (uint8)1 : (uint8)2);
+			};
+
+			// Draw the axis which has the highest percentage of it's available position delta
+			const int32 AxisIndexMaxPercent = MaxIndex(AxisPercents);
+			DrawAxis(AxisIndexMaxPercent);
+
+			// Draw a box representing the size of the CCD extents on each axis at the start
+			// and end position of the CoM over this frame (gray = no ccd, orange = ccd enabled)
+			// Also draw a position delta vector (red) and the threshold delta vector (green)
+			const FVector HalfExtents = AxisThreshold * .5f;
+			FDebugDrawQueue::GetInstance().DrawDebugBox(X, HalfExtents, R, BoundsColor, false, -1.f, -1, BoundsThickness);
+			FDebugDrawQueue::GetInstance().DrawDebugBox(X + DeltaX, HalfExtents, R, BoundsColor, false, -1.f, -1, BoundsThickness);
+			const float ScaleArray[] = { -1.f, 1.f };
+			for (uint8 IX = 0; IX < 2; ++IX)
+			{
+				for (uint8 IY = 0; IY < 2; ++IY)
+				{
+					for (uint8 IZ = 0; IZ < 2; ++IZ)
+					{
+						const FVector LocalOffset = HalfExtents * FVector(ScaleArray[IX], ScaleArray[IY], ScaleArray[IZ]);
+						const FVector Offset = R.RotateVector(LocalOffset);
+						FDebugDrawQueue::GetInstance().DrawDebugLine(X, X + DeltaX, BoundsColor, false, -1.f, -1, BoundsThickness);
+					}
+				}
+			}
+		}
 #endif
 	}
 }

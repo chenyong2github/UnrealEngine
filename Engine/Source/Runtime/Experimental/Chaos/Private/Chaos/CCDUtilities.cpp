@@ -27,6 +27,12 @@ FAutoConsoleVariableRef CVarChaosCollisionCCDEnablePhiCheck(TEXT("p.Chaos.Collis
 
 namespace Chaos
 {
+	namespace CVars
+	{
+		FRealSingle CCDEnableThresholdBoundsScale = 0.4f;
+		FAutoConsoleVariableRef  CVarCCDEnableThresholdBoundsScale(TEXT("p.Chaos.CCD.EnableThresholdBoundsScale"), CCDEnableThresholdBoundsScale , TEXT("CCD is used when object position is changing > smallest bound's extent * BoundsScale. 0 will always Use CCD. Values < 0 disables CCD."));
+	}
+
 	void FCCDParticle::AddOverlappingDynamicParticle(FCCDParticle* const InParticle)
 	{
 		OverlappingDynamicParticles.Add(InParticle);
@@ -151,18 +157,15 @@ namespace Chaos
 				}
 			}
 
-			// Compute the relative displacement. If relative displacement is smaller than 0.5 * (Extents0.Min() + Extents1.Min()), it is impossible for an particle to tunnel through another particle, even though the absolute velocities of the particles might be large.
-			const FReal CCDThreshold0 = GetParticleCCDThreshold(Constraint->GetImplicit0());
-			const FReal CCDThreshold1 = GetParticleCCDThreshold(Constraint->GetImplicit1());
-			const FReal CCDConstraintThreshold = CCDThreshold0 + CCDThreshold1;
-			if ((Displacements[1] - Displacements[0]).SizeSquared() > FMath::Square(CCDConstraintThreshold))
-			{
-				bNeedCCDSolve = true;
-			}
+			// Determine if this particle pair should trigger CCD
+			const auto Particle0 = Constraint->GetParticle(0);
+			const auto Particle1 = Constraint->GetParticle(1);
+			bNeedCCDSolve = CCDHelpers::DeltaExceedsThreshold(*Particle0, *Particle1, Dt);
 
 			// make sure we ignore pairs that don't include any dynamics
 			if (CCDParticlePair[0] != nullptr || CCDParticlePair[1] != nullptr)
 			{
+				const FReal CCDConstraintThreshold = FMath::Min(Particle0->CCDAxisThreshold().GetMin(), Particle1->CCDAxisThreshold().GetMin());
 				const FReal PhiThreshold = -CCDConstraintThreshold;
 				CCDConstraints.Add(FCCDConstraint(Constraint, CCDParticlePair, Displacements, PhiThreshold));
 				for (int32 i = 0; i < 2; i++)
@@ -658,5 +661,93 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* Particle = CCDParticle.Particle;
 			Particle->X() = Particle->P() - Particle->V() * Dt;
 		}
+	}
+
+	bool CCDHelpers::DeltaExceedsThreshold(const FVec3& AxisThreshold, const FVec3& DeltaX, const FQuat& R)
+	{
+		FVec3 AbsLocalDelta, AxisThresholdScaled, AxisThresholdDiff;
+		return DeltaExceedsThreshold(AxisThreshold, DeltaX, R, AbsLocalDelta, AxisThresholdScaled, AxisThresholdDiff);
+	}
+
+	bool CCDHelpers::DeltaExceedsThreshold(const FVec3& AxisThreshold, const FVec3& DeltaX, const FQuat& R, FVec3& OutAbsLocalDelta, FVec3& OutAxisThresholdScaled, FVec3& OutAxisThresholdDiff)
+	{
+		if (CVars::CCDEnableThresholdBoundsScale < 0.f) { return false; }
+		if (CVars::CCDEnableThresholdBoundsScale == 0.f) { return true; }
+
+		// Get per-component absolute value of position delta in local space.
+		// This is how much we've moved on each principal axis (but not which
+		// direction on that axis that we've moved in).
+		OutAbsLocalDelta = R.UnrotateVector(DeltaX).GetAbs();
+
+		// Scale the ccd extents in local space and subtract them from the 
+		// local space position deltas. This will give us a vector representing
+		// how much further we've moved on each axis than should be allowed by
+		// the CCD bounds.
+		OutAxisThresholdScaled = AxisThreshold * CVars::CCDEnableThresholdBoundsScale;
+		OutAxisThresholdDiff = OutAbsLocalDelta - OutAxisThresholdScaled;
+
+		// That is, if any element of ExtentsDiff is greater than zero, then that
+		// means DeltaX has exceeded the scaled extents
+		return OutAxisThresholdDiff.GetMax() > 0.f;
+	}
+
+	bool CCDHelpers::DeltaExceedsThreshold(
+		const FVec3& AxisThreshold0, const FVec3& DeltaX0, const FQuat& R0,
+		const FVec3& AxisThreshold1, const FVec3& DeltaX1, const FQuat& R1)
+	{
+		return CCDHelpers::DeltaExceedsThreshold(
+
+			// To combine axis thresholds:
+			// * transform particle1's threshold into particle0's local space
+			// * take the per-component minimum of each axis threshold
+			//
+			// To think about why we use component mininma to combine thresholds,
+			// imagine what happens when a large object and a small object move
+			// towards each other at the same speed. Say particle0 is the large
+			// object, and then think about particle1's motion from particle0's
+			// inertial frame of reference. In this case, clearly you should
+			// choose particle1's threshold since it is the one that is moving.
+			//
+			// Since there's no preferred inertial frame, the correct choice
+			// will always be to take the smaller object's threshold.
+			AxisThreshold0.ComponentMin(R0 * R1.UnrotateVector(AxisThreshold1)),
+
+			// Taking the difference of the deltas gives the total delta - how
+			// much the objects have moved towards each other. We choose to use
+			// particle0 as the reference.
+			DeltaX1 - DeltaX0,
+
+			// Since we're doing this in particle0's space, we choose its rotation.
+			R0);
+	}
+
+	bool CCDHelpers::DeltaExceedsThreshold(const FGeometryParticleHandle& Particle0, const FGeometryParticleHandle& Particle1)
+	{
+		// For rigids, compute DeltaX from the X - P diff and use Q for the rotation.
+		// For non-rigids, DeltaX is zero and use R for rotation.
+		const auto Rigid0 = Particle0.CastToRigidParticle();
+		const auto Rigid1 = Particle1.CastToRigidParticle();
+		const FVec3 DeltaX0 = Rigid0 ? Rigid0->P() - Rigid0->X() : FVec3::ZeroVector;
+		const FVec3 DeltaX1 = Rigid1 ? Rigid1->P() - Rigid1->X() : FVec3::ZeroVector;
+		const FQuat& R0 = Rigid0 ? Rigid0->Q() : Particle0.R();
+		const FQuat& R1 = Rigid1 ? Rigid1->Q() : Particle1.R();
+		return DeltaExceedsThreshold(
+			Particle0.CCDAxisThreshold(), DeltaX0, R0,
+			Particle1.CCDAxisThreshold(), DeltaX1, R1);
+	}
+
+	bool CCDHelpers::DeltaExceedsThreshold(const FGeometryParticleHandle& Particle0, const FGeometryParticleHandle& Particle1, const FReal Dt)
+	{
+		// For rigids, compute DeltaX from the V * Dt and use Q for the rotation.
+		// For non-rigids, DeltaX is zero and use R for rotation.
+		const auto Rigid0 = Particle0.CastToRigidParticle();
+		const auto Rigid1 = Particle1.CastToRigidParticle();
+		const FVec3 DeltaX0 = Rigid0 ? Rigid0->V() - Dt : FVec3::ZeroVector;
+		const FVec3 DeltaX1 = Rigid1 ? Rigid1->V() - Dt : FVec3::ZeroVector;
+		const FQuat& R0 = Rigid0 ? Rigid0->Q() : Particle0.R();
+		const FQuat& R1 = Rigid1 ? Rigid1->Q() : Particle1.R();
+		return DeltaExceedsThreshold(
+			Particle0.CCDAxisThreshold(), DeltaX0, R0,
+			Particle1.CCDAxisThreshold(), DeltaX1, R1);
 	}
 }

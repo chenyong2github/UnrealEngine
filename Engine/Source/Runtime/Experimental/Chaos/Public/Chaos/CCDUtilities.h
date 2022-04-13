@@ -119,4 +119,29 @@ namespace Chaos
 		TArray<int32> IslandParticleStart, IslandParticleNum; // IslandParticleNum is the number of dynamic particles in an island.
 		TArray<int32> IslandConstraintStart, IslandConstraintNum, IslandConstraintEnd; // The duplication of information in IslandConstraintNum and IslandConstraintEnd is needed when we group constraints using islands.
 	};
+
+	struct CCDHelpers
+	{
+		// Return true if DeltaX indicates a movement beyond a set of threshold
+		// distances for each local axis.
+		static bool DeltaExceedsThreshold(const FVec3& AxisThreshold, const FVec3& DeltaX, const FQuat& R);
+		static bool DeltaExceedsThreshold(const FVec3& AxisThreshold, const FVec3& DeltaX, const FQuat& R, FVec3& OutAbsLocalDelta, FVec3& AxisThresholdScaled, FVec3& AxisThresholdDiff);
+
+		// Return true if a pair of DeltaXs potentially indicate closing
+		// motion between two bodies which would cause the crossing of a combined
+		// threshold on any local axis.
+		static bool DeltaExceedsThreshold(
+			const FVec3& AxisThreshold0, const FVec3& DeltaX0, const FQuat& R0,
+			const FVec3& AxisThreshold1, const FVec3& DeltaX1, const FQuat& R1);
+
+		// Variant of the two-particle of DeltaExceedsThreshold which chooses
+		// DeltaX: For rigid particles, use X-P. For non-rigids, use Vec3::ZeroVector.
+		// R: For rigid particles, use Q. For non-rigids, use R.
+		static bool DeltaExceedsThreshold(const FGeometryParticleHandle& Particle0, const FGeometryParticleHandle& Particle1);
+
+		// Variant of the two-particle of DeltaExceedsThreshold which chooses
+		// DeltaX: For rigid particles, use V*Dt. For non-rigids, use Vec3::ZeroVector.
+		// R: For rigid particles, use Q. For non-rigids, use R.
+		static bool DeltaExceedsThreshold(const FGeometryParticleHandle& Particle0, const FGeometryParticleHandle& Particle1, const FReal Dt);
+	};
 }
