@@ -900,6 +900,14 @@ protected:
 	// Handle for our device destroyed delegate
 	FDelegateHandle DeviceDestroyedHandle;
 
+	FCriticalSection RenderStateCallbackListCritSec;
+
+	// Callback as audio device is about to render a buffer
+	FOnAudioDevicePreRender OnAudioDevicePreRender;
+
+	// Callback as audio device has just finished rendering a buffer
+	FOnAudioDevicePostRender OnAudioDevicePostRender;
+
 public:
 	/**
 	 * Registers a sound class with the audio device
@@ -952,9 +960,6 @@ public:
 		UE_LOG(LogAudio, Error, TEXT("Submix patching only works with the audio mixer. Please run with audio mixer enabled."));
 		return nullptr;
 	}
-
-	FOnAudioDevicePreRender OnAudioDevicePreRender;
-	FOnAudioDevicePostRender OnAudioDevicePostRender;
 
 	virtual void InitSoundEffectPresets() {}
 
@@ -1512,10 +1517,10 @@ protected:
 	 */
 	virtual void OnListenerUpdated(const TArray<FListener>& InListeners) {};
 
-	void NotifyAudioDevicePreRender(const FAudioDeviceRenderInfo& InInfo) const;
+	void NotifyAudioDevicePreRender(const FAudioDeviceRenderInfo& InInfo);
 
-	void NotifyAudioDevicePostRender(const FAudioDeviceRenderInfo& InInfo) const;
-	
+	void NotifyAudioDevicePostRender(const FAudioDeviceRenderInfo& InInfo);
+
 private:
 
 	/**
@@ -1723,6 +1728,14 @@ public:
 		PrevPassiveSoundMixModifiers = InPrevPassiveSoundMixModifiers;
 		DefaultBaseSoundMix = InDefaultBaseSoundMix;
 	}
+
+	FDelegateHandle AddPreRenderDelegate(const FOnAudioDevicePreRender::FDelegate& InDelegate);
+
+	bool RemovePreRenderDelegate(const FDelegateHandle& InHandle);
+
+	FDelegateHandle AddPostRenderDelegate(const FOnAudioDevicePostRender::FDelegate& InDelegate);
+
+	bool RemovePostRenderDelegate(const FDelegateHandle& InHandle);
 
 private:
 	/**

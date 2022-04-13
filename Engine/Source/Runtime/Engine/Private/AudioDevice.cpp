@@ -4706,13 +4706,39 @@ void FAudioDevice::UpdateAudioEngineSubsystems()
 	}
 }
 
-void FAudioDevice::NotifyAudioDevicePreRender(const FAudioDeviceRenderInfo& InInfo) const
+FDelegateHandle FAudioDevice::AddPreRenderDelegate(const FOnAudioDevicePreRender::FDelegate& InDelegate)
 {
+	FScopeLock LockCallbacks(&RenderStateCallbackListCritSec);
+	return OnAudioDevicePreRender.Add(InDelegate);
+}
+
+bool FAudioDevice::RemovePreRenderDelegate(const FDelegateHandle& InHandle)
+{
+	FScopeLock LockCallbacks(&RenderStateCallbackListCritSec);
+	return OnAudioDevicePreRender.Remove(InHandle);
+}
+
+void FAudioDevice::NotifyAudioDevicePreRender(const FAudioDeviceRenderInfo& InInfo)
+{
+	FScopeLock LockCallbacks(&RenderStateCallbackListCritSec);
 	OnAudioDevicePreRender.Broadcast(InInfo);
 }
 
-void FAudioDevice::NotifyAudioDevicePostRender(const FAudioDeviceRenderInfo& InInfo) const
+FDelegateHandle FAudioDevice::AddPostRenderDelegate(const FOnAudioDevicePostRender::FDelegate& InDelegate)
 {
+	FScopeLock LockCallbacks(&RenderStateCallbackListCritSec);
+	return OnAudioDevicePostRender.Add(InDelegate);
+}
+
+bool FAudioDevice::RemovePostRenderDelegate(const FDelegateHandle& InHandle)
+{
+	FScopeLock LockCallbacks(&RenderStateCallbackListCritSec);
+	return OnAudioDevicePostRender.Remove(InHandle);
+}
+
+void FAudioDevice::NotifyAudioDevicePostRender(const FAudioDeviceRenderInfo& InInfo)
+{
+	FScopeLock LockCallbacks(&RenderStateCallbackListCritSec);
 	OnAudioDevicePostRender.Broadcast(InInfo);
 }
 
