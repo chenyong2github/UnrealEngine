@@ -2311,7 +2311,7 @@ FConfigFile* FConfigCacheIni::Find(const FString& Filename)
 	if (!Result && !bAreFileOperationsDisabled)
 	{
 		// Before attempting to add another file, double check that this doesn't exist at a normalized path.
-		const FString UnrealFileName = FPaths::CreateStandardFilename(FPaths::RemoveDuplicateSlashes(Filename));
+		const FString UnrealFileName = NormalizeConfigIniPath(Filename);
 		Result = FindConfigFile(UnrealFileName);
 		
 		if (!Result)
@@ -2326,7 +2326,9 @@ FConfigFile* FConfigCacheIni::Find(const FString& Filename)
 		}
 		else
 		{
-			UE_LOG(LogConfig, Warning, TEXT("GConfig::Find attempting to access config with non-normalized path %s"), *Filename);
+			// We could normalize always normalize paths, but we don't want to always incur the penalty of that
+			// when callers can cache the strings ahead of time.
+			UE_LOG(LogConfig, Warning, TEXT("GConfig::Find attempting to access config with non-normalized path %s. Please use FConfigCacheIni::NormalizeConfigIniPath before accessing INI files through ConfigCache."), *Filename);
 		}
 	}
 
@@ -4718,6 +4720,13 @@ void FConfigCacheIni::LoadConsoleVariablesFromINI()
 #endif	//WITH_EDITOR
 
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
+}
+
+FString FConfigCacheIni::NormalizeConfigIniPath(const FString& NonNormalizedPath)
+{
+	// CreateStandardFilename may not actually do anything in certain cases (e.g., if we detect a network drive, non-root drive, etc.)
+	// At a minimum, we will remove double slashes to try and fix some errors.
+	return FPaths::CreateStandardFilename(FPaths::RemoveDuplicateSlashes(NonNormalizedPath));
 }
 
 FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile)

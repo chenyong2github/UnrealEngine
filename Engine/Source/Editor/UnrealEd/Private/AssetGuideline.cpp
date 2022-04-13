@@ -85,7 +85,7 @@ void UAssetGuideline::PostLoad()
 		if (IConsoleManager::Get().FindConsoleVariable(*ProjectSetting.Key))
 		{
 			FString CurrentIniValue;
-			FString FilenamePath = FPaths::ProjectDir() + ProjectSetting.Filename;
+			FString FilenamePath = FConfigCacheIni::NormalizeConfigIniPath(FPaths::ProjectDir() + ProjectSetting.Filename);
 			if (GConfig->GetString(*ProjectSetting.Section, *ProjectSetting.Key, CurrentIniValue, FilenamePath))
 			{
 				if (CurrentIniValue != ProjectSetting.Value)
@@ -271,7 +271,7 @@ void UAssetGuideline::EnableMissingGuidelines(TArray<FString> IncorrectPlugins, 
 		for (const FIniStringValue& IncorrectProjectSetting : IncorrectProjectSettings)
 		{
 			// Only fails if file DNE
-			FString FilenamePath = FPaths::ProjectDir() + IncorrectProjectSetting.Filename;
+			FString FilenamePath = FConfigCacheIni::NormalizeConfigIniPath(FPaths::ProjectDir() + IncorrectProjectSetting.Filename);
 			if (bSuccess && GConfig->Find(FilenamePath))
 			{
 				FGameProjectGenerationModule::Get().TryMakeProjectFileWriteable(FilenamePath);

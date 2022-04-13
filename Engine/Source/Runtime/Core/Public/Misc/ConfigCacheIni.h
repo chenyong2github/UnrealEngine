@@ -1162,6 +1162,36 @@ public:
 	static void LoadConsoleVariablesFromINI();
 
 	/**
+	 * Normalizes file paths to INI files.
+	 *
+	 * If an INI file is accessed with multiple paths, then we can run into issues where we cache multiple versions
+	 * of the file. Specifically, any updates to the file may only be applied to one cached version, and could cause
+	 * changes to be lost.
+	 *
+	 * E.G.
+	 *
+	 *		// Standard path.
+	 *		C:\ProjectDir\Engine\Config\DefaultEngine.ini
+	 *
+	 *		// Lowercase drive, and an extra slash between ProjectDir and Engine.
+	 *		c:\ProjectDir\\Engine\Confg\DefaultEngine.ini
+	 *
+	 *		// Relative to a project binary.
+	 *		..\..\..\ConfigDefaultEngine.ini
+	 *
+	 *		The paths above could all be used to reference the same ini file (namely, DefaultEngine.ini).
+	 *		However, they would end up generating unique entries in the GConfigCache.
+	 *		That means any modifications to *one* of the entries would not propagate to the others, and if
+	 *		any / all of the ini files are saved, they will stomp changes to the other entries.
+	 *
+	 *		We can prevent these types of issues by enforcing normalized paths when accessing configs.
+	 *
+	 *	@param NonNormalizedPath	The path to the INI file we want to access.
+	 *	@return A normalized version of the path (may be the same as the input).
+	 */
+	static FString NormalizeConfigIniPath(const FString& NonNormalizedPath);
+	
+	/**
 	 * Save the current config cache state into a file for bootstrapping other processes.
 	 */
 	void SaveCurrentStateForBootstrap(const TCHAR* Filename);

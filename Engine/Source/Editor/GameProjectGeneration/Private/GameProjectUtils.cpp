@@ -1304,7 +1304,7 @@ UTemplateProjectDefs* GameProjectUtils::LoadTemplateDefs(const FString& ProjectD
 {
 	UTemplateProjectDefs* TemplateDefs = nullptr;
 
-	const FString TemplateDefsIniFilename = ProjectDirectory / TEXT("Config") / GetTemplateDefsFilename();
+	const FString TemplateDefsIniFilename = FConfigCacheIni::NormalizeConfigIniPath(ProjectDirectory / TEXT("Config") / GetTemplateDefsFilename());
 	if ( FPlatformFileManager::Get().GetPlatformFile().FileExists(*TemplateDefsIniFilename) )
 	{
 		UClass* ClassToConstruct = UDefaultTemplateProjectDefs::StaticClass();
