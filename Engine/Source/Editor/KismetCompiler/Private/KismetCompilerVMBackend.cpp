@@ -2362,11 +2362,6 @@ void FKismetCompilerVMBackend::ConstructFunction(FKismetFunctionContext& Functio
 					FBlueprintCompiledStatement* Statement = (*StatementList)[StatementIndex];
 
 					ScriptWriter.GenerateCodeForStatement(CompilerContext, FunctionContext, *Statement, StatementNode);
-					
-					const bool bUberGraphFunctionCall = Statement->FunctionToCall && (Statement->FunctionToCall == Class->UberGraphFunction)
-						&& (EKismetCompiledStatementType::KCST_CallFunction == Statement->Type);
-					const bool bIsReducible = FKismetCompilerUtilities::IsStatementReducible(Statement->Type) || bUberGraphFunctionCall;
-					bAnyNonReducibleFunctionGenerated |= !bIsReducible;
 				}
 			}
 		}

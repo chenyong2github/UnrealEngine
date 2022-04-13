@@ -29,14 +29,11 @@ protected:
 
 	TStatementToSkipSizeMap UbergraphStatementLabelMap;
 public:
-	bool bAnyNonReducibleFunctionGenerated;
-
 	FKismetCompilerVMBackend(UBlueprint* InBlueprint, UEdGraphSchema_K2* InSchema, FKismetCompilerContext& InContext)
 		: Blueprint(InBlueprint)
 		, Schema(InSchema)
 		, MessageLog(InContext.MessageLog)
 		, CompilerContext(InContext)
-		, bAnyNonReducibleFunctionGenerated(false)
 	{
 	}
 

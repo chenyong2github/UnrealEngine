@@ -354,7 +354,10 @@ UBlueprint::UBlueprint(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, bDuplicatingReadOnly(false)
 	, bCachedDependenciesUpToDate(false)
+	// @todo: BP2CPP_remove
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	, bHasAnyNonReducibleFunction(EIsBPNonReducible::Unkown)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 {
 }

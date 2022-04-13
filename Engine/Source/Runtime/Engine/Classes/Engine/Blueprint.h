@@ -809,15 +809,20 @@ public:
 	UPROPERTY(transient, duplicatetransient)
 	TSet<TWeakObjectPtr<UStruct>> CachedUDSDependencies;
 
-	enum class EIsBPNonReducible : uint8
+	// @todo: BP2CPP_remove
+	enum class UE_DEPRECATED(5.1, "Blueprint Nativization has been removed as a supported feature. This type will eventually be removed.") EIsBPNonReducible : uint8
 	{
 		Unkown,
 		Yes,
 		No,
 	};
 
+	// @todo: BP2CPP_remove
 	// Cached information if the BP contains any non-reducible functions (that can benefit from nativization).
+	UE_DEPRECATED(5.1, "Blueprint Nativization has been removed as a supported feature. This member will eventually be removed.")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	EIsBPNonReducible bHasAnyNonReducibleFunction;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// If this BP is just a duplicate created for a specific compilation, the reference to original GeneratedClass is needed
 	UPROPERTY(transient, duplicatetransient)

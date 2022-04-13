@@ -4836,10 +4836,6 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 			const bool bGenerateStubsOnly = !bIsFullCompile || (0 != MessageLog.NumErrors);
 			BP_SCOPED_COMPILER_EVENT_STAT(EKismetCompilerStats_CodeGenerationTime);
 			Backend_VM.GenerateCodeFromClass(NewClass, FunctionList, bGenerateStubsOnly);
-			if (!bGenerateStubsOnly)
-			{
-				Blueprint->bHasAnyNonReducibleFunction = Backend_VM.bAnyNonReducibleFunctionGenerated ? UBlueprint::EIsBPNonReducible::Yes : UBlueprint::EIsBPNonReducible::No;
-			}
 		}
 
 		// Fill ScriptAndPropertyObjectReferences arrays in functions
