@@ -29,6 +29,11 @@ public:
 	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(FMediaPlateEditorModule, STATGROUP_Tickables); }
 	
 	/**
+	 * Get the style used by this module.
+	 **/
+	TSharedPtr<ISlateStyle> GetStyle() { return Style; }
+	
+	/**
 	 * Call this when a media plate starts playing so we can track it.
 	 */
 	void MediaPlateStartedPlayback(TObjectPtr<UMediaPlateComponent> MediaPlate);

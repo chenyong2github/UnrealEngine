@@ -25,6 +25,18 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	TSharedPtr<FTabManager> HostTabManager = DetailsView->GetHostTabManager();
 	bool bIsMediaPlateWindow = (HostTabManager.IsValid() == false);
 
+	// Get style.
+	const ISlateStyle* Style = nullptr;
+	FMediaPlateEditorModule* EditorModule = FModuleManager::LoadModulePtr<FMediaPlateEditorModule>("MediaPlateEditor");
+	if (EditorModule != nullptr)
+	{
+		Style = EditorModule->GetStyle().Get();
+	}
+	if (Style == nullptr)
+	{
+		Style = &FEditorStyle::Get();
+	}
+
 	IDetailCategoryBuilder& MediaPlateCategory = DetailBuilder.EditCategory("MediaPlate");
 
 	// Get objects we are editing.
@@ -106,7 +118,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						[
 							SNew(SImage)
 								.ColorAndOpacity(FSlateColor::UseForeground())
-								.Image(FEditorStyle::GetBrush("Icons.Toolbar.Play"))
+								.Image(Style->GetBrush("MediaPlateEditor.PlayMedia.Small"))
 						]
 				]
 
@@ -132,7 +144,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						[
 							SNew(SImage)
 								.ColorAndOpacity(FSlateColor::UseForeground())
-								.Image(FEditorStyle::GetBrush("Icons.Toolbar.Stop"))
+								.Image(Style->GetBrush("MediaPlateEditor.StopMedia.Small"))
 						]
 				]
 		];
