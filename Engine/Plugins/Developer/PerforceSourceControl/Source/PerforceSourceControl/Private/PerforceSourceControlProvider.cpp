@@ -685,6 +685,11 @@ bool FPerforceSourceControlProvider::TryToDownloadFileFromBackgroundThread(const
 	check(Command.Worker->UpdateStates() == false);
 
 	OutputCommandMessages(Command);
+
+	if (!Command.bCancelledWhileTryingToConnect)
+	{
+		Command.ReturnResults();
+	}
 	
 	return Command.bCommandSuccessful;
 }
