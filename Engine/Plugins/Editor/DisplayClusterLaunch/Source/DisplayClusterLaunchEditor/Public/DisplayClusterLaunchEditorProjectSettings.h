@@ -76,7 +76,7 @@ public:
 
 		DPCvars = { "p.Chaos.Solver.Deterministic=1", "r.Shadow.Virtual.Cache=0" };
 
-		Logging = { {"LogDisplayClusterRenderSync", EDisplayClusterLaunchLogVerbosity::VeryVerbose } };
+		Logging = { {"LogDisplayClusterRenderSync", EDisplayClusterLaunchLogVerbosity::Log } };
 	}
 
 	/**
@@ -86,6 +86,36 @@ public:
 	 */
 	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings")
 	bool bConnectToMultiUser = false;
+
+	/**
+	 * If true, a server name will be automatically generated for you when connecting to multi-user.
+	 * If false, the text in ExplicitServerName will be used instead.
+	 * If ExplicitServerName is empty, a name will be generated whether this setting is true or false.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings")
+	bool bAutoGenerateServerName = true;
+
+	/**
+	 * A specific server name to use when connecting to multi-user if bAutoGenerateServerName is false.
+	 * If left empty, a name will be generated whether bAutoGenerateServerName is true or false.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings")
+	FString ExplicitServerName;
+
+	/**
+	 * If true, a session name will be automatically generated for you when connecting to multi-user.
+	 * If false, the text in ExplicitSessionName will be used instead.
+	 * If ExplicitSessionName is empty, a name will be generated whether this setting is true or false.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings")
+	bool bAutoGenerateSessionName = true;
+
+	/**
+	 * A specific session name to use when connecting to multi-user if bAutoGenerateSessionName is false.
+	 * If left empty, a name will be generated whether bAutoGenerateSessionName is true or false.
+	 */
+	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings")
+	FString ExplicitSessionName;
 
 	/**
 	 * Whether or not to enable Unreal Insights for this session

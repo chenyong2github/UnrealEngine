@@ -190,6 +190,29 @@ bool AddUdpMessagingArguments(FString& ConcatenatedArguments)
 	return false;
 }
 
+FString AppendRandomNumbersToString(const FString InString, uint8 NumberToAppend = 6)
+{
+	FString RandomizedString = "_";
+
+	for (uint8 RandomIteration = 0; RandomIteration < NumberToAppend; RandomIteration++)
+	{
+		RandomizedString += FString::FromInt(FMath::RandRange(0, 9));
+	}
+	return InString + RandomizedString;
+}
+
+FString GetConcertServerName()
+{
+	const UDisplayClusterLaunchEditorProjectSettings* Settings = GetDefault<UDisplayClusterLaunchEditorProjectSettings>();
+	return Settings->bAutoGenerateServerName ? AppendRandomNumbersToString("nDisplayLaunchServer") : Settings->ExplicitServerName;
+}
+
+FString GetConcertSessionName()
+{
+	const UDisplayClusterLaunchEditorProjectSettings* Settings = GetDefault<UDisplayClusterLaunchEditorProjectSettings>();
+	return Settings->bAutoGenerateSessionName ? AppendRandomNumbersToString("nDisplayLaunchSession") : Settings->ExplicitSessionName;
+}
+
 FString GetConcertArguments()
 {
 	const UConcertClientConfig* ConcertClientConfig = GetDefault<UConcertClientConfig>();
@@ -197,7 +220,7 @@ FString GetConcertArguments()
 
 	FString ReturnValue =
 		FString::Printf(TEXT("-CONCERTISHEADLESS -CONCERTRETRYAUTOCONNECTONERROR -CONCERTAUTOCONNECT -CONCERTSERVER=\"%s\" -CONCERTSESSION=\"%s\""),
-			*ConcertClientConfig->DefaultServerURL, *ConcertClientConfig->DefaultSessionName);
+			 *GetConcertServerName(), *GetConcertSessionName());
 
 	return ReturnValue;
 }
@@ -266,13 +289,13 @@ void FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess()
 	const FString EditorBinary = FPlatformProcess::ExecutablePath();
 	
 	const FString Project = FPaths::SetExtension(FPaths::Combine(FPaths::ProjectDir(), FApp::GetProjectName()),".uproject");
-	const FString Map = GetCurrentWorld()->GetCurrentLevel()->GetPackage()->GetLoadedPath().GetLocalFullPath();
+	const FString Map = GetCurrentWorld()->GetCurrentLevel()->GetPackage()->GetFName().ToString();
 
 	// Create Multi-user params
 	FString ConcertArguments;
 	if (GetConnectToMultiUser())
 	{
-		GetConcertArguments();
+		ConcertArguments = GetConcertArguments();
 		LaunchConcertServerIfNotRunning();
 	}
 
@@ -330,8 +353,8 @@ void FDisplayClusterLaunchEditorModule::OnFEngineLoopInitComplete()
 	Actions->MapAction(FDisplayClusterLaunchUiCommands::Get().LaunchDisplayCluster,
 		FExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess));
 	
-	RegisterToolbarItem();
 	RegisterProjectSettings();
+	RegisterToolbarItem();
 }
 
 void FDisplayClusterLaunchEditorModule::RegisterToolbarItem()

@@ -19,6 +19,12 @@ struct FSoftObjectPath;
 class FDisplayClusterLaunchEditorModule : public IModuleInterface
 {
 public:
+
+	enum class ELaunchState
+	{
+		NotLaunched,
+		Launched
+	};
 	
 	static FDisplayClusterLaunchEditorModule& Get();
 

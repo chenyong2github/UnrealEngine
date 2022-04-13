@@ -43,7 +43,7 @@
 			"Name": "DisplayClusterLaunchEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64", "Linux" ]
+			"AllowlistPlatforms": [ "Win64", "Linux" ]
 		}
 	]
 }
