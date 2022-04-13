@@ -15,6 +15,7 @@
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
+#include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #endif
 
 extern int32 GDrawDataLayersLoadTime;

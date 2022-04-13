@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ChunkedArray.h"
+
+class FShaderParametersMetadata;
 
 /** 
  * When we build FShaderParametersMetadata at runtime it can require that we allocate
@@ -13,7 +16,7 @@
 struct FShaderParametersMetadataAllocations
 {
 	/** Allocated metadata. Should include the parent metadata allocation. */
-	TArray<class FShaderParametersMetadata*> ShaderParameterMetadatas;
+	TArray<FShaderParametersMetadata*> ShaderParameterMetadatas;
 	/** Allocated name dictionary. */
 	TChunkedArray<FString, 512> Names;
 

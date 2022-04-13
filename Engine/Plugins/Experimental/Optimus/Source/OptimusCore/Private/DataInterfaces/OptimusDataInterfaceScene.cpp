@@ -9,6 +9,7 @@
 #include "CoreGlobals.h"
 #include "Engine/World.h"
 #include "SceneInterface.h"
+#include "ShaderCore.h"
 
 FString UOptimusSceneDataInterface::GetDisplayName() const
 {

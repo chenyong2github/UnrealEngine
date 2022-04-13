@@ -17,6 +17,7 @@
 #include "BaseBehaviors/SingleClickOrDragBehavior.h"
 #include "GameFramework/Actor.h"
 #include "Engine/Selection.h"
+#include "ProfilingDebugging/ScopedTimers.h"
 
 #define LOCTEXT_NAMESPACE "FractureSelection"
 

@@ -3,6 +3,7 @@
 #include "ComputeFramework/ComputeGraphComponent.h"
 
 #include "ComputeFramework/ComputeGraph.h"
+#include "GameFramework/Actor.h"
 
 UComputeGraphComponent::UComputeGraphComponent()
 {

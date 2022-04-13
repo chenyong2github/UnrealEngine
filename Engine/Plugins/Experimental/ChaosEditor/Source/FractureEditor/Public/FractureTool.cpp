@@ -9,6 +9,7 @@
 #include "SLevelViewport.h"
 #include "EditorModeManager.h"
 #include "FractureEditorMode.h"
+#include "Modules/ModuleManager.h"
 
 #include "FractureToolContext.h"
 #include "FractureSelectionTools.h"

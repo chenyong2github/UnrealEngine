@@ -2,11 +2,11 @@
 
 #pragma once
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
 
 class UEdGraphPin;
 class UOptimusNode;
 class UOptimusNodePin;
-enum EEdGraphPinDirection;
 struct FEdGraphPinType;
 
 namespace OptimusEditor

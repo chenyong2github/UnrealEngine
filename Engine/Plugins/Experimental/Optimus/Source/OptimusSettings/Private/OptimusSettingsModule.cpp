@@ -3,6 +3,7 @@
 #include "OptimusSettingsModule.h"
 
 #include "Features/IModularFeatures.h"
+#include "Modules/ModuleManager.h"
 
 void FOptimusSettingsModule::StartupModule()
 {
