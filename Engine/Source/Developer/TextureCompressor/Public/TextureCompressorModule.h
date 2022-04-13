@@ -70,6 +70,8 @@ struct FColorAdjustmentParameters
  */
 struct FTextureBuildSettings
 {
+	/** Force recompress by changing DDC key */
+	uint32 ForceRecompressDDCUID;
 	/** Format specific config object view or null if no format specific config is applied as part of this build. */
 	FCbObjectView FormatConfigOverride;
 	/** Color adjustment parameters. */

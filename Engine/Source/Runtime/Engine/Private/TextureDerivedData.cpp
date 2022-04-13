@@ -64,6 +64,7 @@
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID and set this new
 // guid as version
 // this is put in the DDC1 and the DDC2 key
+// @@!! next time this changes clean up SerializeForKey todo marks
 #define TEXTURE_DERIVEDDATA_VER		TEXT("95BCE5A0BFB949539A18684748C633C9")
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
@@ -206,6 +207,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 
 	// weird/unncessary way to do this :
 	// should have just serialized the bool bForceAlphaChannel
+	// @@!! these can go away whenever we bump the overall ddc key
 	if (Settings.bForceAlphaChannel)
 	{
 		TempGuid = FGuid(0x2C9DF7E3, 0xBC9D413B, 0xBF963C7A, 0x3F27E8B1);
@@ -215,6 +217,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	if ( Settings.MaxTextureResolution != FTextureBuildSettings::MaxTextureResolutionDefault &&
 		( Settings.MipGenSettings == TMGS_LeaveExistingMips || Settings.bDoScaleMipsForAlphaCoverage ) )
 	{
+		// @@!! these can go away whenever we bump the overall ddc key
 		// behavior of MaxTextureResolution + LeaveExistingMips or bDoScaleMipsForAlphaCoverage changed, so modify the key :
 		TempGuid = FGuid(0x418B8584, 0x72D54EA5, 0xBA8E8C2B, 0xECC880DE);
 		Ar << TempGuid;
@@ -222,21 +225,29 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 
 	if ( Settings.bVolume )
 	{
+		// @@!! these can go away whenever we bump the overall ddc key
 		TempGuid = FGuid(0xCC4348B8,0x84714993,0xAB1E2C93,0x8EA6C9E0);
 		Ar << TempGuid;
 	}
 
 	if ( Settings.bVirtualStreamable && Settings.bSRGB && Settings.bUseLegacyGamma )
 	{
+		// @@!! these can go away whenever we bump the overall ddc key
 		TempGuid = FGuid(0xCAEDDFB6,0xEDC2455D,0x8D45B90C,0x3A1B7783);
 		Ar << TempGuid;
 	}
 
 	// do not change key if old mip filter is used for old textures
+	// @@!! these can go away whenever we bump the overall ddc key
 	if (Settings.bUseNewMipFilter)
 	{
 		TempGuid = FGuid(0x27B79A99, 0xE1A5458E, 0xAB619475, 0xCD01AD2A);
 		Ar << TempGuid;
+	}
+	
+	if ( Settings.ForceRecompressDDCUID != 0 )
+	{
+		TempUint32 = Settings.ForceRecompressDDCUID; Ar << TempUint32;
 	}
 
 	// Note - compression quality is added to the DDC by the formats (based on whether they
@@ -272,7 +283,9 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 		{
 			Version = TextureFormat->GetVersion(BuildSettings.TextureFormatName, &BuildSettings);
 		}
+		// @@!! else error !?
 	}
+	// @@!! else error !?
 	
 	FString CompositeTextureStr;
 
@@ -744,6 +757,7 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.AlphaCoverageThresholds = FVector4f(0,0,0,0);
 	}
 
+	OutBuildSettings.ForceRecompressDDCUID = Texture.ForceRecompressDDCUID;
 	OutBuildSettings.bUseNewMipFilter = Texture.bUseNewMipFilter;
 	OutBuildSettings.bComputeBokehAlpha = (Texture.LODGroup == TEXTUREGROUP_Bokeh);
 	OutBuildSettings.bReplicateAlpha = false;

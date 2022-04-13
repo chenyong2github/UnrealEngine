@@ -1160,7 +1160,7 @@ public:
 	/** If enabled, defer compression of the texture until save or manually compressed in the texture editor. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Transient, Category=Compression, meta=(NoResetToDefault), meta=(DisplayName="Editor Defer Compression"))
 	uint32 DeferCompression:1;
-
+	
 	/** How aggressively should any relevant lossy compression be applied. For compressors that support EncodeSpeed (i.e. Oodle), this is only
 	*	applied if enabled (see Project Settings -> Texture Encoding). Note that this is *in addition* to any
 	*	unavoidable loss due to the target format - selecting "No Lossy Compression" will not result in zero distortion for BCn formats.
@@ -1169,7 +1169,7 @@ public:
 	TEnumAsByte<ETextureLossyCompressionAmount> LossyCompressionAmount;
 	
 	/** Oodle Texture SDK Version to encode with.  Enter 'latest' to update; 'None' preserves legacy encoding to avoid patches. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Compression, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Compression, AdvancedDisplay, meta=(NoResetToDefault))
 	FName OodleTextureSdkVersion;
 
 	/** The maximum resolution for generated textures. A value of 0 means the maximum size for the format on each platform. */
@@ -1179,6 +1179,10 @@ public:
 	/** The compression quality for generated ASTC textures (i.e. mobile platform textures). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta = (DisplayName = "ASTC Compression Quality"), AdvancedDisplay)
 	TEnumAsByte<enum ETextureCompressionQuality> CompressionQuality;
+	
+	/** Increment ForceRecompressDDCUID to force recompression (change the DDC key) */
+	UPROPERTY(EditAnywhere, Category=Compression, meta=(DisplayName="Force Recompress UID"), AdvancedDisplay, meta=(NoResetToDefault))
+	uint32 ForceRecompressDDCUID;
 
 	/** Removed. */
 	UPROPERTY()

@@ -126,6 +126,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 	CompressionNone = 0;
 	CompressFinal = 0;
 	DeferCompression = 0;
+	ForceRecompressDDCUID = 0;
 	LossyCompressionAmount = TLCA_Default;
 	MaxTextureSize = 0; // means no limitation
 	MipGenSettings = TMGS_FromTextureGroup;
