@@ -89,6 +89,8 @@ public:
 
 	void SetTransition(float Duration, ETransitionCurve Curve);
 
+	bool IsTransitionPlaying() const;
+
 private:
 	EActiveTimerReturnType UpdateTransition(double InCurrentTime, float InDeltaTime);
 	float GetTransitionProgress() const;

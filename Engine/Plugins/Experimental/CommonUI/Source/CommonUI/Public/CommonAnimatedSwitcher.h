@@ -46,6 +46,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Common Widget Switcher")
 	bool IsCurrentlySwitching() const;
 
+	/** Is the switcher playing a transition animation? */
+	UFUNCTION(BlueprintCallable, Category = "Common Widget Switcher")
+	bool IsTransitionPlaying() const;
+
 protected:
 	virtual void HandleSlateActiveIndexChanged(int32 ActiveIndex);
 
@@ -59,6 +63,10 @@ public:
 	/** Fires when the active widget displayed by the switcher changes */
 	DECLARE_EVENT_TwoParams(UCommonAnimatedSwitcher, FOnActiveIndexChanged, UWidget*, int32)
 	FOnActiveIndexChanged OnActiveWidgetIndexChanged;
+
+	/** Fires when the switcher changes its transition animation state */
+	DECLARE_EVENT_OneParam(UCommonAnimatedSwitcher, FOnTransitioningChanged, bool)
+	FOnTransitioningChanged OnTransitioningChanged;
 
 protected:
 	/** The type of transition to play between widgets */

@@ -232,3 +232,8 @@ float SCommonAnimatedSwitcher::GetTransitionProgress() const
 		
 	return Progress;
 }
+
+bool SCommonAnimatedSwitcher::IsTransitionPlaying() const
+{
+	return TransitionSequence.IsPlaying();
+}
