@@ -441,7 +441,7 @@ TArray<UDataLayerInstance*> UDataLayerSubsystem::ConvertArgsToDataLayers(UWorld*
 		FString SanitizedDataLayerName = DataLayerName.ToString().Replace(TEXT(" "), TEXT(""));
 		DataLayerSubsystem->ForEachDataLayer([&OutDataLayers, &SanitizedDataLayerName, &bShortNameFound](UDataLayerInstance* DataLayerInstance)
 		{
-			if (DataLayerInstance->GetDataLayerShortName().Find(SanitizedDataLayerName, ESearchCase::IgnoreCase) == 0)
+			if (DataLayerInstance->GetDataLayerShortName().Compare(SanitizedDataLayerName, ESearchCase::IgnoreCase) == 0)
 			{
 				if (bShortNameFound)
 				{
