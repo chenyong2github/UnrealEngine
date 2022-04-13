@@ -3565,7 +3565,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	UPackage* PIELevelPackage = CreatePackage(*PrefixedLevelName);
 	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor);
 	PIELevelPackage->SetPIEInstanceID(PIEInstanceID);
-	PIELevelPackage->SetLoadedPath(FPackagePath::FromPackageNameChecked(PackageFName));
+	PIELevelPackage->SetLoadedPath(EditorLevelPackage->GetLoadedPath());
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PIELevelPackage->SetGuid( EditorLevelPackage->GetGuid() );
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
