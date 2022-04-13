@@ -3081,20 +3081,6 @@ void GetMaterialClippingShadowDepth(FMaterialPixelParameters Parameters, FPixelM
 	#endif
 }
 
-// The material blending mode alone is not enough information. We also need to know if the material is ThinTranslucent because in this case we should never clip.
-// Indeed, ThinTranslucent surfaces always have a coverage of 1 and opacity represent the coverage of the opaque lit material sitting on top of the translucent one.
-void GetMaterialClippingVelocity(FMaterialPixelParameters Parameters, FPixelMaterialInputs PixelMaterialInputs, bool bIsThinTranslucent)
-{
-	ClipLODTransition(Parameters);
-	#if MATERIALBLENDING_MASKED && MATERIAL_DITHER_OPACITY_MASK
-		CLIP(GetMaterialMaskInputRaw(PixelMaterialInputs) - 1.0f / 255.0f);
-	#elif MATERIALBLENDING_MASKED
-		CLIP(GetMaterialMask(PixelMaterialInputs)); 
-	#elif MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
-		CLIP(bIsThinTranslucent ? 1.0f : GetMaterialOpacity(PixelMaterialInputs) - 1.0 / 255.0 - GetMaterialOpacityMaskClipValue());
-	#endif
-}
-
 #if MATERIAL_DITHER_OPACITY_MASK
 float DitheredOpacityMaskToOpacity(float Mask)
 {
@@ -3137,6 +3123,18 @@ void GetMaterialCoverageAndClipping(FMaterialPixelParameters Parameters, FPixelM
 	#else
 		CLIP(GetMaterialMask(PixelMaterialInputs));
 	#endif
+#endif
+}
+
+// The material blending mode alone is not enough information. We also need to know if the material is ThinTranslucent because in this case we should never clip.
+// Indeed, ThinTranslucent surfaces always have a coverage of 1 and opacity represent the coverage of the opaque lit material sitting on top of the translucent one.
+void GetMaterialClippingVelocity(FMaterialPixelParameters Parameters, FPixelMaterialInputs PixelMaterialInputs, bool bIsThinTranslucent)
+{
+#if MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
+	ClipLODTransition(Parameters);
+	CLIP(bIsThinTranslucent ? 1.0f : GetMaterialOpacity(PixelMaterialInputs) - 1.0 / 255.0 - GetMaterialOpacityMaskClipValue());
+#else
+	GetMaterialCoverageAndClipping(Parameters, PixelMaterialInputs);
 #endif
 }
 

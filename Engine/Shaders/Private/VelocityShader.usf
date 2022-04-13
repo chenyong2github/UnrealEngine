@@ -167,7 +167,6 @@ void MainPixelShader(
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Input.FactoryInterpolants, SvPosition);
 	FPixelMaterialInputs PixelMaterialInputs;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, bIsFrontFace);
-	GetMaterialClippingVelocity(MaterialParameters, PixelMaterialInputs, VELOCITY_THIN_TRANSLUCENT_MODE > 0);
 
 #if OUTPUT_PIXEL_DEPTH_OFFSET
 	ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);
@@ -176,7 +175,7 @@ void MainPixelShader(
 #if MATERIALBLENDING_MASKED_USING_COVERAGE
 	OutCoverage = DiscardMaterialWithPixelCoverage(MaterialParameters, PixelMaterialInputs);
 #else
-	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
+	GetMaterialClippingVelocity(MaterialParameters, PixelMaterialInputs, VELOCITY_THIN_TRANSLUCENT_MODE > 0);
 #endif
 
 	// 3d velocity, includes camera an object motion
