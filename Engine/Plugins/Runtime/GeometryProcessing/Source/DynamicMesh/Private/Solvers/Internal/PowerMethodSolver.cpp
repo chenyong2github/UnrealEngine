@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PowerMethodSolver.h"
+#include "DenseMatrix.h"
 
 using namespace UE::Geometry;
 
 FPowerMethod::ESolveStatus FPowerMethod::Solve(ScalarType& OutEigenValue, RealVectorType& OutEigenVector, bool bComputeLargest)
 {
-    if (Verify(bComputeLargest) == false) 
+    if (VerifyUserParameters(bComputeLargest) == false) 
     {
         return ESolveStatus::InvalidParameters;
     }
@@ -18,8 +19,17 @@ FPowerMethod::ESolveStatus FPowerMethod::Solve(ScalarType& OutEigenValue, RealVe
     }
 
     // Initial guess for the eigenvector
-    int32 Rows = OpMatrixA.Rows();
-    OutEigenVector = RealVectorType::Random(Rows, 1); 
+    if (Parms.InitialSolution.IsSet())
+    {
+        OutEigenVector = Parms.InitialSolution.GetValue();
+    }
+    else 
+    {
+        const int32 Rows = OpMatrixA.Rows();
+        FRandomStream Stream;
+        Stream.GenerateNewSeed();
+        RandomDenseMatrix(OutEigenVector, Rows, 1, Stream); 
+    }
 
     bool bConverged = false;
     for (IterationNum = 0; IterationNum < Parms.MaxIterations; ++IterationNum) 
@@ -181,7 +191,7 @@ bool FPowerMethod::Iteration(RealVectorType& EVector, bool bComputeLargest)
     return true;
 }
 
-bool FPowerMethod::Verify(bool bComputeLargest) const
+bool FPowerMethod::VerifyUserParameters(bool bComputeLargest) const
 {	
     if (OpMatrixA.Product == nullptr || OpMatrixA.Rows == nullptr) 
     {
@@ -207,6 +217,12 @@ bool FPowerMethod::Verify(bool bComputeLargest) const
     {
         return false;
     } 
+
+    // check that the initial vector (if set) has the correct dimensions
+    if (Parms.InitialSolution.IsSet() && Parms.InitialSolution.GetValue().rows() != OpMatrixA.Rows())
+    {
+        return false; 
+    }
 
     return true;
 }

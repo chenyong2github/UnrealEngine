@@ -33,6 +33,7 @@ public:
 	{
 		ScalarType Tolerance = 1e-6; // Convergence parameter, see Converged()
 		int32 MaxIterations = 1000;  // Maximum number of times the power iteration is run 
+		TOptional<RealVectorType> InitialSolution; // Optionally specify the starting vector for the first iteration.
 	};
 
 	// The result of the solve
@@ -133,7 +134,7 @@ protected:
 	virtual bool SetupSolver(bool bComputeLargest);
 
 	/** Check that the input user parameters are valid and matrix operators are set */
-	virtual bool Verify(bool bComputeLargest) const;
+	virtual bool VerifyUserParameters(bool bComputeLargest) const;
 
 	/** Is matrix B not an identity matrix*/
 	inline bool IsGeneralProblem() const 

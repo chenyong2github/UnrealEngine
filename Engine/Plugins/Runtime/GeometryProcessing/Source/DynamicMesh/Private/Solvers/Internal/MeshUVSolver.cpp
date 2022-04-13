@@ -499,6 +499,30 @@ bool FSpectralConformalMeshUVSolver::SolveParameterization(const FSparseMatrixD&
 	FPowerMethod::Parameters Parms;
 	Parms.Tolerance = 1e-10;
 	
+	// check if we need to set a custom starting vector
+	if (InitialUVs.IsSet() && ensure(InitialUVs.GetValue().Num() == Mesh.MaxVertexID())) 
+	{
+		const int32 NumVerts = VtxLinearization.NumVerts();
+
+		FPowerMethod::RealVectorType InitialSolution;
+		InitialSolution.resize(2*NumVerts);
+		
+		for (int32 Idx = 0; Idx < NumVerts; ++Idx)
+		{
+			const int32 VertexID = VtxLinearization.GetId(Idx);
+			InitialSolution(Idx) = InitialUVs.GetValue()[VertexID].X;
+			InitialSolution(Idx + NumVerts) = InitialUVs.GetValue()[VertexID].Y;
+		}
+		Parms.InitialSolution = InitialSolution;
+	}
+	else if (RandomStream.IsSet()) 
+	{
+		const int32 NumVerts = VtxLinearization.NumVerts();
+		FPowerMethod::RealVectorType InitialSolution;
+        RandomDenseMatrix(InitialSolution, 2*NumVerts, 1, RandomStream.GetValue());
+		Parms.InitialSolution = InitialSolution;
+	}
+	
 	FPowerMethod::ScalarType EigenValue;
 	FPowerMethod::RealVectorType EigenVector;
 	TUniquePtr<FPowerMethod> PMSolverPtr = MakeUnique<FSparsePowerMethod>(SystemMatrixPSD, 
@@ -563,4 +587,16 @@ bool FSpectralConformalMeshUVSolver::SolveUVs(const FDynamicMesh3* InMeshPtr, TA
 	}	
 
 	return bSolveOK;;
+}
+
+void FSpectralConformalMeshUVSolver::SetInitialSolution(const TArray<FVector2d>& InInitialUVs) 
+{
+	RandomStream.Reset();
+	InitialUVs = InInitialUVs;
+}
+
+void FSpectralConformalMeshUVSolver::SetInitialSolution(const FRandomStream& InRandomStream) 
+{
+	InitialUVs.Reset();
+	RandomStream = InRandomStream;
 }

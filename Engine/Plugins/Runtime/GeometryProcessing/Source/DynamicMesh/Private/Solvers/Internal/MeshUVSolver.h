@@ -7,8 +7,10 @@
 #include "Solvers/MatrixInterfaces.h"
 #include "Solvers/MeshLinearization.h"
 #include "Solvers/ConstrainedMeshSolver.h"
-
+#include "Math/RandomStream.h"
 #include "MatrixBase.h"
+#include "DenseMatrix.h"
+#include "FSparseMatrixD.h"
 
 namespace UE
 {
@@ -29,19 +31,19 @@ public:
 	{
 	};
 
-	// Add constraint associated with given vertex id.  Boundary vertices will be ignored
+	// Add constraint associated with given vertex id.
 	void AddConstraint(const int32 VtxId, const double Weight, const FVector2d& Pos, const bool bPostFix) override;
 
-	// Update the position of an existing constraint.  Bool return if a corresponding constraint weight exists. Boundary vertices will be ignored (and return false).  
+	// Update the position of an existing constraint. Bool return if a corresponding constraint weight exists.
 	bool UpdateConstraintPosition(const int32 VtxId, const FVector2d& Position, const bool bPostFix) override;
 
-	// The underlying solver will have to refactor the matrix if this is done. Bool return if a corresponding constraint position exists. Boundary vertices will be ignored (and return false).  
+	// The underlying solver will have to refactor the matrix if this is done. Bool return if a corresponding constraint position exists.
 	bool UpdateConstraintWeight(const int32 VtxId, const double Weight) override;
 
-	// Clear all constraints associated with this smoother
+	// Clear all constraints associated with this uv solver.
 	void ClearConstraints() override;
 
-	// Test if for constraint associated with given vertex id. Will return false for any boundary vert.
+	// Test if for constraint associated with given vertex id. 
 	bool IsConstrained(const int32 VtxId) const override;
 
 protected:
@@ -99,8 +101,6 @@ public:
 										FSparseMatrixD* OutAreaMatrix = nullptr);
 protected:
 
-	using FColumnVectorD = Eigen::Matrix<FSparseMatrixD::Scalar, Eigen::Dynamic, 1>;
-	
 	/**
 	 * Construct the 2Vx2V (V is the number of vertices) symmetric vector area matrix A. Given the vector X = [u;v] of 
 	 * the stacked UV coordinates, we can compute the signed 2D area of the parameterization using the quadratic form 
@@ -212,6 +212,35 @@ public:
 
 	virtual bool SolveUVs(const FDynamicMesh3* InMesh, TArray<FVector2d>& OutUVBuffer) override;
 
+	
+	//
+	// Debug utility functions
+	//
+public:
+
+	/**
+	 * Spectral conformal solver uses an iterative method to compute the final UVs. As most iterative methods 
+	 * it requires the initial guess of the solution. By default, we randomly set UV values between [-1, 1] and 
+	 * then converge to the correct solution. 
+	 *  
+	 * However, the solution is rotation invariant and it can be different given different initial guesses. Hence, 
+	 * to help make this method more deterministic, you can manually specify the initial per-vertex UVs. 
+	 * Same initial values will always produce the same solution.
+	 * 
+	 * @param InInitialUVs vector of UV coordinates for every vertex in the mesh.
+	 * 
+	 * @note resets RandomStream optional variable to avoid confusion as to which one to use.
+	 */ 
+	void SetInitialSolution(const TArray<FVector2d>& InInitialUVs);
+ 
+	/**
+	 * @param InRandomStream  The stream will be used to sample random values for the initial UV solution. 
+	 * 					      You can set the desired seed value in the stream.
+	 *
+	 * @note resets InitialUVs optional variable to avoid confusion as to which one to use.
+	 */
+	void SetInitialSolution(const FRandomStream& InRandomStream);
+
 protected: 
 
 	/** 
@@ -242,6 +271,10 @@ protected:
 	// The mesh can contain triangles of variable sizes. By default this difference in size is not considered during 
 	// the UV solve. Enabling this allows to preserve the triangle size irregularity in the resulting parameterization.
 	bool bPreserveIrregularity = false;
+
+	// Optional debug varibles used for setting the initial UV values. 
+	TOptional<TArray<FVector2d>> InitialUVs; 
+	TOptional<FRandomStream> RandomStream;
 };
 
 
