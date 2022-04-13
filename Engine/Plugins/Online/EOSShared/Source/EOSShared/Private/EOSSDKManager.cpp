@@ -13,6 +13,7 @@
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/CallstackTrace.h"
 #include "Stats/Stats.h"
 
 #include "CoreGlobals.h"
@@ -24,23 +25,42 @@
 #include "eos_sdk.h"
 #include "eos_version.h"
 
+#ifndef EOS_TRACE_MALLOC
+#define EOS_TRACE_MALLOC 1
+#endif
+
 namespace
 {
 	static void* EOS_MEMORY_CALL EosMalloc(size_t Bytes, size_t Alignment)
 	{
 		LLM_SCOPE(ELLMTag::RealTimeCommunications);
+
+#if !EOS_TRACE_MALLOC
+		CALLSTACK_TRACE_LIMIT_CALLSTACKRESOLVE_SCOPE();
+#endif
+
 		return FMemory::Malloc(Bytes, Alignment);
 	}
 
 	static void* EOS_MEMORY_CALL EosRealloc(void* Ptr, size_t Bytes, size_t Alignment)
 	{
 		LLM_SCOPE(ELLMTag::RealTimeCommunications);
+
+#if !EOS_TRACE_MALLOC
+		CALLSTACK_TRACE_LIMIT_CALLSTACKRESOLVE_SCOPE();
+#endif
+
 		return FMemory::Realloc(Ptr, Bytes, Alignment);
 	}
 
 	static void EOS_MEMORY_CALL EosFree(void* Ptr)
 	{
 		LLM_SCOPE(ELLMTag::RealTimeCommunications);
+
+#if !EOS_TRACE_MALLOC
+		CALLSTACK_TRACE_LIMIT_CALLSTACKRESOLVE_SCOPE();
+#endif
+
 		FMemory::Free(Ptr);
 	}
 

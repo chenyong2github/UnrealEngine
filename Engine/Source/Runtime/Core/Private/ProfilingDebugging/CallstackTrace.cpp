@@ -14,6 +14,8 @@ void	CallstackTrace_InitializeInternal();
 UE_TRACE_CHANNEL_DEFINE(CallstackChannel)
 UE_TRACE_EVENT_DEFINE(Memory, CallstackSpec)
 
+uint32 GCallStackTracingTlsSlotIndex = MAX_uint32;
+
 ////////////////////////////////////////////////////////////////////////////////
 void CallstackTrace_Create(class FMalloc* InMalloc)
 {
@@ -27,6 +29,9 @@ void CallstackTrace_Create(class FMalloc* InMalloc)
 ////////////////////////////////////////////////////////////////////////////////
 void CallstackTrace_Initialize()
 {
+	GCallStackTracingTlsSlotIndex = FPlatformTLS::AllocTlsSlot();
+	//NOTE: we don't bother cleaning up TLS, this is only closed during real shutdown
+
 	static auto InitOnce = [&]
 	{
 		CallstackTrace_InitializeInternal();

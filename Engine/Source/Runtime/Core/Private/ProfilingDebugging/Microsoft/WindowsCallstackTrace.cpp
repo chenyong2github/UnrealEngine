@@ -770,7 +770,7 @@ void CallstackTrace_InitializeInternal()
 ////////////////////////////////////////////////////////////////////////////////
 uint32 CallstackTrace_GetCurrentId()
 {
-	void* AddressOfReturnAddress = PLATFORM_RETURN_ADDRESS_POINTER();
+	void* AddressOfReturnAddress = PLATFORM_RETURN_ADDRESS_FOR_CALLSTACKTRACING();
 	if (FBacktracer* Instance = FBacktracer::Get())
 	{
 		return Instance->GetBacktraceId(AddressOfReturnAddress);
