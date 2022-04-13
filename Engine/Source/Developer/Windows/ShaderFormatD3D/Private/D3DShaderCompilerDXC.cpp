@@ -876,6 +876,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 					NumSamplers, NumSRVs, NumCBs, NumUAVs,
 					Output, UniformBufferNames, UsedUniformBufferSlots, VendorExtensions);
 
+			NumInstructions = ShaderDesc.InstructionCount;
 			Output.bSucceeded = true;
 		}
 
