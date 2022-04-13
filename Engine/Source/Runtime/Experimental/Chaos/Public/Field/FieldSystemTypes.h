@@ -161,6 +161,7 @@ enum EFieldPhysicsType
 	Field_ActivateDisabled			UMETA(DisplayName = "Activate Disabled", ToolTip = "Activate all the disabled particles for which the field value will be 0"),
 	Field_InitialLinearVelocity		UMETA(DisplayName = "Initial Linear Velocity", ToolTip = "Set the geometry collection initial linear velocity", Hidden),
 	Field_InitialAngularVelocity	UMETA(DisplayName = "Initial Angular Velocity", ToolTip = "Set the geometry collection initial angular velocity", Hidden),
+	Field_LinearImpulse				UMETA(DisplayName = "Linear Impulse", ToolTip = "Add a vector field affecting the particles linear impulse.", Hidden),
 	//~~~
 	//256th entry
 	Field_PhysicsType_Max           UMETA(Hidden)
@@ -177,6 +178,7 @@ enum EFieldVectorType
 	Vector_PositionTarget			UMETA(DisplayName = "Position Target", ToolTip = "Add a position constraint to the particles to follow a target position", Hidden),
 	Vector_InitialLinearVelocity	UMETA(DisplayName = "Initial Linear Velocity", ToolTip = "Set the geometry collection initial linear velocity", Hidden),
 	Vector_InitialAngularVelocity	UMETA(DisplayName = "Initial Angular Velocity", ToolTip = "Set the geometry collection initial angular velocity", Hidden),
+	Vector_LinearImpulse			UMETA(DisplayName = "Linear Impulse", ToolTip = "Add a vector field affecting the particles linear impulse.", Hidden),
 
 	//~~~
 	//256th entry
@@ -240,7 +242,8 @@ TArray<EFieldPhysicsType> CHAOS_API GetFieldTargetTypes(EFieldOutputType OutputT
 						 EFieldPhysicsType::Field_AngularTorque,
 						 EFieldPhysicsType::Field_PositionTarget,
 						 EFieldPhysicsType::Field_InitialLinearVelocity,
-						 EFieldPhysicsType::Field_InitialAngularVelocity };
+						 EFieldPhysicsType::Field_InitialAngularVelocity,
+						 EFieldPhysicsType::Field_LinearImpulse };
 		break;
 	}
 	case Field_Output_Scalar:

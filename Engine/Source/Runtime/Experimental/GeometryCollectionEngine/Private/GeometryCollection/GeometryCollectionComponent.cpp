@@ -701,6 +701,32 @@ void UGeometryCollectionComponent::AddForce(FVector Force, FName BoneName, bool 
 	DispatchFieldCommand(Command);
 }
 
+void UGeometryCollectionComponent::AddImpulse(FVector Impulse, FName BoneName, bool bVelChange)
+{
+	const FVector Direction = Impulse.GetSafeNormal(); 
+	const FVector::FReal Magnitude = Impulse.Size();
+	const EFieldPhysicsType FieldType = bVelChange? EFieldPhysicsType::Field_LinearVelocity: EFieldPhysicsType::Field_LinearImpulse;
+	
+	const FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(FieldType, new FUniformVector(Magnitude, Direction));
+	DispatchFieldCommand(Command);
+}
+
+TUniquePtr<FFieldNodeBase> MakeRadialField(const FVector& Origin, float Radius, float Strength, ERadialImpulseFalloff Falloff)
+{
+	TUniquePtr<FFieldNodeBase> Field;
+	if (Falloff == ERadialImpulseFalloff::RIF_Constant)
+	{
+		Field.Reset(new FRadialVector(Strength, Origin));
+	}
+	else
+	{
+		FRadialFalloff * FalloffField = new FRadialFalloff(Strength,0.f, 1.f, 0.f, Radius, Origin, EFieldFalloffType::Field_Falloff_Linear);
+		FRadialVector* VectorField = new FRadialVector(1.f, Origin);
+		Field.Reset(new FSumVector(1.0, FalloffField, VectorField, nullptr, Field_Multiply));
+	}
+	return Field;
+}
+
 void UGeometryCollectionComponent::AddRadialForce(FVector Origin, float Radius, float Strength, ERadialImpulseFalloff Falloff, bool bAccelChange)
 {
 	ensure(bAccelChange == false); // not supported
@@ -709,21 +735,24 @@ void UGeometryCollectionComponent::AddRadialForce(FVector Origin, float Radius, 
 		return;
 	}
 
-	FFieldNodeBase* FieldNode = nullptr;
-	if (Falloff == ERadialImpulseFalloff::RIF_Constant)
+	if (TUniquePtr<FFieldNodeBase> Field = MakeRadialField(Origin, Radius, Strength, Falloff))
 	{
-		FieldNode = new FRadialVector(Strength, Origin);
+		const FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(EFieldPhysicsType::Field_LinearForce, Field.Release());
+		DispatchFieldCommand(Command);
 	}
-	else
+}
+
+void UGeometryCollectionComponent::AddRadialImpulse(FVector Origin, float Radius, float Strength, enum ERadialImpulseFalloff Falloff, bool bVelChange)
+{
+	if(bIgnoreRadialImpulse)
 	{
-		FRadialFalloff * FalloffField = new FRadialFalloff(Strength,0.f, 1.f, 0.f, Radius, Origin, EFieldFalloffType::Field_Falloff_Linear);
-		FRadialVector* VectorField = new FRadialVector(1.f, Origin);
-		FieldNode = new FSumVector(1.0, FalloffField, VectorField, nullptr, Field_Multiply);
+		return;
 	}
 
-	if (FieldNode)
+	if (TUniquePtr<FFieldNodeBase> Field = MakeRadialField(Origin, Radius, Strength, Falloff))
 	{
-		const FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(EFieldPhysicsType::Field_LinearForce, FieldNode);
+		const EFieldPhysicsType FieldType = bVelChange? EFieldPhysicsType::Field_LinearVelocity: EFieldPhysicsType::Field_LinearImpulse;
+		const FFieldSystemCommand Command = FFieldObjectCommands::CreateFieldCommand(FieldType, Field.Release());
 		DispatchFieldCommand(Command);
 	}
 }

@@ -92,6 +92,7 @@ DEFINE_STAT(STAT_ParamUpdateField_PositionAnimated);
 DEFINE_STAT(STAT_ParamUpdateField_DynamicConstraint);
 DEFINE_STAT(STAT_ForceUpdateField_LinearForce);
 DEFINE_STAT(STAT_ForceUpdateField_AngularTorque);
+DEFINE_STAT(STAT_ForceUpdateField_LinearImpulse);
 
 DEFINE_STAT(STAT_Collisions_Detect);
 DEFINE_STAT(STAT_Collisions_ParticlePairBroadPhase);

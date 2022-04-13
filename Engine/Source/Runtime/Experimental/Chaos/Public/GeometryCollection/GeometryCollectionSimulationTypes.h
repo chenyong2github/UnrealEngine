@@ -56,6 +56,7 @@ enum class EGeometryCollectionPhysicsTypeEnum : uint8
 	Chaos_SleepingThreshold        UMETA(DisplayName = "Sleeping Threshold", ToolTip = "Set particles in sleeping mode if their linear and angular velocity are less than the threshold."),
 	Chaos_ExternalClusterStrain    UMETA(DisplayName = "External Strain", ToolTip = "Apply an external strain over the particles. If this strain is over the internal one, the cluster will break."),
 	Chaos_InternalClusterStrain    UMETA(DisplayName = "Internal Strain", ToolTip = "Add a strain field to the particles internal one."),
+	Chaos_LinearImpulse			   UMETA(DisplayName = "Linear Impulse", ToolTip = "Add a vector field to apply an impulse to the particles."),
 	//
 	Chaos_Max						UMETA(Hidden)
 };
@@ -63,10 +64,22 @@ enum class EGeometryCollectionPhysicsTypeEnum : uint8
 
 inline CHAOS_API EFieldPhysicsType GetGeometryCollectionPhysicsType(const EGeometryCollectionPhysicsTypeEnum GeoCollectionType)
 {
-	static const TArray<EFieldPhysicsType> PhysicsTypes = { EFieldPhysicsType::Field_AngularVelociy , EFieldPhysicsType::Field_DynamicState, EFieldPhysicsType::Field_LinearVelocity, 
-		EFieldPhysicsType::Field_InitialAngularVelocity, EFieldPhysicsType::Field_InitialLinearVelocity, EFieldPhysicsType::Field_CollisionGroup, 
-		EFieldPhysicsType::Field_LinearForce, EFieldPhysicsType::Field_AngularTorque, EFieldPhysicsType::Field_DisableThreshold, EFieldPhysicsType::Field_SleepingThreshold, 
-		EFieldPhysicsType::Field_ExternalClusterStrain, EFieldPhysicsType::Field_InternalClusterStrain,EFieldPhysicsType::Field_PhysicsType_Max };
+	static const TArray<EFieldPhysicsType> PhysicsTypes = {
+		EFieldPhysicsType::Field_AngularVelociy,
+		EFieldPhysicsType::Field_DynamicState,
+		EFieldPhysicsType::Field_LinearVelocity, 
+		EFieldPhysicsType::Field_InitialAngularVelocity,
+		EFieldPhysicsType::Field_InitialLinearVelocity,
+		EFieldPhysicsType::Field_CollisionGroup, 
+		EFieldPhysicsType::Field_LinearForce,
+		EFieldPhysicsType::Field_AngularTorque,
+		EFieldPhysicsType::Field_DisableThreshold,
+		EFieldPhysicsType::Field_SleepingThreshold, 
+		EFieldPhysicsType::Field_ExternalClusterStrain,
+		EFieldPhysicsType::Field_InternalClusterStrain,
+		EFieldPhysicsType::Field_LinearImpulse,
+		EFieldPhysicsType::Field_PhysicsType_Max
+	};
 
 	return PhysicsTypes[(uint8)GeoCollectionType];
 }

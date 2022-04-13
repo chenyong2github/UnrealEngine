@@ -594,6 +594,22 @@ namespace Chaos
 				}
 			}
 		}
+		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_LinearImpulse)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_LinearImpulse);
+			{
+				static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
+				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
+				{
+					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
+					if (RigidHandle && RigidHandle->ObjectState() == Chaos::EObjectStateType::Dynamic)
+					{
+						const FVec3 CurrentImpulseVelocity = RigidHandle->LinearImpulseVelocity();
+						RigidHandle->SetLinearImpulseVelocity(CurrentImpulseVelocity + (ResultsView[Index.Result] * RigidHandle->InvM()));
+					}
+				}
+			}
+		}
 		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_AngularVelociy)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_AngularVelocity);
@@ -711,7 +727,8 @@ FORCEINLINE bool IsParameterFieldValid(const FFieldSystemCommand& FieldCommand)
 	else if (FieldCommand.RootNode->Type() == FFieldNodeBase::EFieldType::EField_FVector)
 	{
 		return (FieldCommand.PhysicsType == EFieldPhysicsType::Field_LinearVelocity) ||
-			(FieldCommand.PhysicsType == EFieldPhysicsType::Field_AngularVelociy);
+				(FieldCommand.PhysicsType == EFieldPhysicsType::Field_AngularVelociy) ||
+				(FieldCommand.PhysicsType == EFieldPhysicsType::Field_LinearImpulse);
 	}
 	return false;
 }
