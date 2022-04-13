@@ -8,6 +8,7 @@
 
 #include "LandscapePatchManager.generated.h"
 
+class ALandscape;
 class ULandscapePatchComponent;
 
 /**
