@@ -69,12 +69,21 @@ void FGPULightmass::GameThreadDestroy()
 
 	RemoveGameThreadEventHooks();
 
-	if (!IsEngineExitRequested() && LightBuildNotification.IsValid())
+	if (LightBuildNotification.IsValid())
 	{
-		FText CompletedText = LOCTEXT("LightBuildDoneMessage", "Lighting build completed");
-		LightBuildNotification->SetText(CompletedText);
-		LightBuildNotification->SetCompletionState(SNotificationItem::CS_Success);
-		LightBuildNotification->ExpireAndFadeout();
+		if (!IsEngineExitRequested())
+		{
+			// Shows a notification that fades out slowly
+			FText CompletedText = LOCTEXT("LightBuildDoneMessage", "Lighting build completed");
+			LightBuildNotification->SetText(CompletedText);
+			LightBuildNotification->SetCompletionState(SNotificationItem::CS_Success);
+			LightBuildNotification->ExpireAndFadeout();
+		}
+		else
+		{
+			// Immediately destroys the notification widget to avoid crash
+			LightBuildNotification.Reset();
+		}
 	}
 
 	Scene.RemoveAllComponents();

@@ -34,6 +34,7 @@ public:
 	void StartRecordingVisibleTiles();
 	void EndRecordingVisibleTiles();
 
+	// Game thread objects. Must be destroyed in GameThreadDestroy()
 	TSharedPtr<SNotificationItem> LightBuildNotification;
 	int32 LightBuildPercentage;
 	
