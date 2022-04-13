@@ -17,6 +17,7 @@
 
 #include "GenericImgMediaReader.h"
 #include "IImageWrapperModule.h"
+#include "IImgMediaModule.h"
 #include "IImgMediaReader.h"
 #include "ImgMediaLoaderWork.h"
 #include "ImgMediaMipMapInfo.h"
@@ -545,6 +546,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 					if (Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameNumberToTime(MaxIdx), QueuedSampleFetch.CurrentSequenceIndex), FTimespan::FromSeconds(Duration), GetNumMipLevels(), ImgMediaLoader::GetTilingDescription(this)))
 					{
 						OutSample = Sample;
+						CSV_EVENT(ImgMedia, TEXT("LoaderFetchHit %d %d-%d"), MaxIdx, StartIndex, EndIndex);
 						return IMediaSamples::EFetchBestSampleResult::Ok;
 					}
 				}
@@ -578,6 +580,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 				}
 			}
 		}
+		CSV_EVENT(ImgMedia, TEXT("LoaderFetchMiss %d-%d"), StartIndex, EndIndex);
 	}
 	return IMediaSamples::EFetchBestSampleResult::NoSample;
 }
@@ -1313,6 +1316,8 @@ void FImgMediaLoader::Update(int32 PlayHeadFrame, float PlayRate, bool Loop)
 		}
 	}
 	Algo::Reverse(PendingFrameNumbers);
+
+	CSV_EVENT(ImgMedia, TEXT("LoaderUpdatePending %d %d"), (PendingFrameNumbers.Num() > 0) ? PendingFrameNumbers[0] : -1, (PendingFrameNumbers.Num() > 0) ? PendingFrameNumbers[PendingFrameNumbers.Num() - 1] : -1);
 }
 
 

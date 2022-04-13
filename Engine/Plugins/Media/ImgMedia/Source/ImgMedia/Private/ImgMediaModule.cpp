@@ -13,7 +13,7 @@
 #include "ImgMediaSource.h"
 #include "IImgMediaModule.h"
 
-
+CSV_DEFINE_CATEGORY_MODULE(IMGMEDIA_API, ImgMedia, false);
 DEFINE_LOG_CATEGORY(LogImgMedia);
 
 FLazyName IImgMediaModule::CustomFormatAttributeName(TEXT("EpicGamesCustomFormat"));

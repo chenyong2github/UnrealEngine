@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "Templates/SharedPointer.h"
 #include "Modules/ModuleInterface.h"
 
@@ -11,6 +12,8 @@ class FImgMediaGlobalCache;
 class FImgMediaPlayer;
 class IMediaEventSink;
 class IMediaPlayer;
+
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(IMGMEDIA_API, ImgMedia);
 
 /** Callback when a player gets created. */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnImgMediaPlayerCreated, const TSharedPtr<FImgMediaPlayer>&);

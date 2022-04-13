@@ -4,7 +4,7 @@
 #include "ImgMediaPrivate.h"
 
 #include "Misc/ScopeLock.h"
-
+#include "IImgMediaModule.h"
 #include "IImgMediaReader.h"
 #include "ImgMediaLoader.h"
 
@@ -48,6 +48,7 @@ void FImgMediaLoaderWork::Initialize(int32 InFrameNumber,
 void FImgMediaLoaderWork::Abandon()
 {
 	SCOPE_CYCLE_COUNTER(STAT_ImgMedia_LoaderAbandonWork);
+	CSV_EVENT(ImgMedia, TEXT("LoaderAbandon %d"), FrameNumber);
 
 	Finalize(nullptr, 0.0f);
 }
@@ -66,6 +67,7 @@ void FImgMediaLoaderWork::DoThreadedWork()
 	else
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ImgMedia_LoaderReadFrame);
+		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("ImgMedia_LoaderReadFrame %d"), FrameNumber));
 
 		// read the image frame
 		if (ExistingFrame == nullptr)
