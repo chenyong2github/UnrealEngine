@@ -68,6 +68,9 @@ public:
 	/** Update the weight map table with the current simulation parameters. */
 	inline void ApplyValues(const FSolverReal Dt, const int32 NumIterations);
 
+	/** Update the weight map table with the current simulation parameters. */
+	inline void ApplyXPBDValues(const FSolverReal MinStiffness, const FSolverReal MaxStiffnesss);
+
 	/**
 	 * Lookup for the exponential weighted value at the specified weight map index.
 	 * This function will assert if it is called with a non zero index on an empty weight map.
@@ -195,20 +198,52 @@ void FPBDStiffness::ApplyValues(const FSolverReal Dt, const int32 NumIterations)
 	{
 		// If InValue is 1 then LogValue = -inf and the output becomes -inf as well
 		// In order for this function to be continuous, We want the output to be 1 when InValue = 1
-		if (InValue == (FSolverReal)1.)
+		const FSolverReal ClampedInValue = FMath::Clamp(InValue, (FSolverReal)0., (FSolverReal)1.);
+
+		if (ClampedInValue == (FSolverReal)1.)
 		{
 			return (FSolverReal)1.;
 		}
 		// Get a very steep exponential curve between the [0, 1] range to make easier to set the parameter
 		// The base has been chosen empirically
 		// ParameterValue = Pow(ParameterFitBase, ParameterValue - 1)
-		const FSolverReal ParameterFit = FMath::Exp(ParameterFitLogBase * (FMath::Clamp(InValue, (FSolverReal)0., (FSolverReal)1.) - (FSolverReal)1.));
+		const FSolverReal ParameterFit = FMath::Exp(ParameterFitLogBase * (ClampedInValue - (FSolverReal)1.));
 
 		// Use simulation dependent stiffness exponent to alleviate the variations in effect when Dt and NumIterations change
 		// This is based on the Position-Based Simulation Methods paper (page 8),
 		// but uses the delta time in addition of the number of iterations in the calculation of the error term.
 		const FSolverReal LogValue = FMath::Loge((FSolverReal)1. - ParameterFit);
 		return (FSolverReal)1. - FMath::Exp(LogValue * Exponent);
+	};
+
+	const FSolverReal Offset = WeightedValue[0];
+	const FSolverReal Range = WeightedValue[1] - WeightedValue[0];
+	const int32 TableSize = Table.Num();
+	const FSolverReal WeightIncrement = (TableSize > 1) ? (FSolverReal)1. / (FSolverReal)(TableSize - 1) : (FSolverReal)1.; // Must allow full range from 0 to 1 included
+	for (int32 Index = 0; Index < TableSize; ++Index)
+	{
+		const FSolverReal Weight = (FSolverReal)Index * WeightIncrement;
+		Table[Index] = SimulationValue(Offset + Weight * Range);
+	}
+}
+
+void FPBDStiffness::ApplyXPBDValues(const FSolverReal MinStiffness, const FSolverReal MaxStiffness)
+{
+	SCOPE_CYCLE_COUNTER(STAT_PBD_StiffnessApplyValues);
+	
+	// XPBD internally handles the effects of iterations and dt. 
+	// PBD stiffness is more like a constraint compliance. This should scale like 1/ xpbd stiffness which 
+	// is an actual measure of stiffness (e.g., something with units like Pascals)	
+	const FSolverReal MinOverMaxStiffness = MinStiffness / MaxStiffness;
+	auto SimulationValue = [this, MinOverMaxStiffness, MinStiffness, MaxStiffness](const FSolverReal InValue)->FSolverReal
+	{
+		const FSolverReal ClampedInValue = FMath::Clamp(InValue, (FSolverReal)0., (FSolverReal)1.);
+		if (ClampedInValue == (FSolverReal)1.)
+		{
+			return MaxStiffness;
+		}
+		const FSolverReal ParameterFit = FMath::Exp(ParameterFitLogBase * (ClampedInValue - (FSolverReal)1.));
+		return MinStiffness / ((FSolverReal)1. - ParameterFit + MinOverMaxStiffness);
 	};
 
 	const FSolverReal Offset = WeightedValue[0];

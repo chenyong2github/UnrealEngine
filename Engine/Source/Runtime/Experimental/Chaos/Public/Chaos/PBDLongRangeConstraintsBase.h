@@ -49,8 +49,13 @@ public:
 	// Set the scale low and high value of the scale weight map
 	void SetScale(const FSolverVec2& InScale) { Scale = FSolverVec2(FMath::Clamp((FSolverReal)InScale.X, (FSolverReal)0.01, (FSolverReal)10.), FMath::Clamp((FSolverReal)InScale.Y, (FSolverReal)0.01, (FSolverReal)10.)); }  // TODO: Fix FSolverVec2 double to float conversion error on some platforms as to remove extra cast to FSolverReal
 
+public:
 	// Set stiffness offset and range, as well as the simulation stiffness exponent
-	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations);
+	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations)
+	{
+		Stiffness.ApplyValues(Dt, NumIterations);
+		ApplyScale();
+	}
 
 	// Return the tethers, organized in concurent friendly batches
 	const TArray<TConstArrayView<FTether>>& GetTethers() const { return Tethers; }
@@ -82,6 +87,10 @@ protected:
 
 	// Return whether the constraint has been setup with a weightmap to interpolate between two low and high values of scales
 	bool HasScaleWeightMap() const { return ScaleTable.Num() > 1; }
+
+	// Part of ApplyProperties to update ScaleTable.
+	void ApplyScale();
+
 
 	// Return a vector representing the amount of segment required for the tether to shrink back to its maximum target length constraint, or zero if the constraint is already met
 	inline FSolverVec3 GetDelta(const FSolverParticles& Particles, const FTether& Tether, const FSolverReal InScale) const
@@ -120,5 +129,4 @@ protected:
 	const int32 ParticleOffset;  // Index of the first usable particle
 	const int32 ParticleCount;  // Number of particles available to this constraint
 };
-
 }  // End namespace Chaos::Softs

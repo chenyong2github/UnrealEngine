@@ -37,7 +37,13 @@ namespace Chaos
 		void SetVolumeConstraints(TArray<TVec3<int32>>&& SurfaceElements, Softs::FSolverReal VolumeStiffness);
 		void SetLongRangeConstraints(const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
 			const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers, const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
-			const Softs::FSolverVec2& TetherScale, bool bUseXPBDConstraints);
+			const Softs::FSolverVec2& TetherScale);
+		UE_DEPRECATED(5.1, "LongRange XPBDConstraints are not supported.")
+		void SetLongRangeConstraints(const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
+			const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers, const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
+			const Softs::FSolverVec2& TetherScale, bool bUseXPBDConstraints) {
+			return SetLongRangeConstraints(Tethers, TetherStiffnessMultipliers, TetherScaleMultipliers, TetherScale);
+		}
 		void SetMaximumDistanceConstraints(const TConstArrayView<FRealSingle>& MaxDistances);
 		void SetBackstopConstraints(const TConstArrayView<FRealSingle>& BackstopDistances, const TConstArrayView<FRealSingle>& BackstopRadiuses, bool bUseLegacyBackstop);
 		void SetAnimDriveConstraints(const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers, const TConstArrayView<FRealSingle>& AnimDriveDampingMultipliers);
@@ -75,7 +81,13 @@ namespace Chaos
 		const TSharedPtr<Softs::FPBDSpringConstraints>& GetThinShellVolumeConstraints() const { return ThinShellVolumeConstraints; }
 		const TSharedPtr<Softs::FPBDVolumeConstraint>& GetVolumeConstraints() const { return VolumeConstraints; }
 		const TSharedPtr<Softs::FPBDLongRangeConstraints>& GetLongRangeConstraints() const { return LongRangeConstraints; }
-		const TSharedPtr<Softs::FXPBDLongRangeConstraints>& GetXLongRangeConstraints() const { return XLongRangeConstraints; }
+		UE_DEPRECATED(5.1,"LongRange XPBDConstraints are not supported.")
+		const TSharedPtr<Softs::FXPBDLongRangeConstraints>& GetXLongRangeConstraints() const 
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			return XLongRangeConstraints; 
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
 		const TSharedPtr<Softs::FPBDSphericalConstraint>& GetMaximumDistanceConstraints() const { return MaximumDistanceConstraints; }
 		const TSharedPtr<Softs::FPBDSphericalBackstopConstraint>& GetBackstopConstraints() const { return BackstopConstraints; }
 		const TSharedPtr<Softs::FPBDAnimDriveConstraint>& GetAnimDriveConstraints() const { return AnimDriveConstraints; }
@@ -95,7 +107,8 @@ namespace Chaos
 		TSharedPtr<Softs::FXPBDAxialSpringConstraints> XAreaConstraints;
 		TSharedPtr<Softs::FPBDSpringConstraints> ThinShellVolumeConstraints;
 		TSharedPtr<Softs::FPBDVolumeConstraint> VolumeConstraints;
-		TSharedPtr<Softs::FPBDLongRangeConstraints> LongRangeConstraints;
+		TSharedPtr<Softs::FPBDLongRangeConstraints> LongRangeConstraints; 
+		UE_DEPRECATED(5.1, "LongRange XPBDConstraints are not supported.")
 		TSharedPtr<Softs::FXPBDLongRangeConstraints> XLongRangeConstraints;
 		TSharedPtr<Softs::FPBDSphericalConstraint> MaximumDistanceConstraints;
 		TSharedPtr<Softs::FPBDSphericalBackstopConstraint> BackstopConstraints;

@@ -271,22 +271,14 @@ void FClothConstraints::CreateRules()
 
 	// Long range constraints modify particle P as part of Init. To avoid possible dependency order issues,
 	// add them last
-	if (XLongRangeConstraints)
-	{
-		ConstraintInits[ConstraintInitIndex++] =
-			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
-			{
-				XLongRangeConstraints->Init();
-				XLongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
-				XLongRangeConstraints->Apply(Particles, Dt);  // Run the LRA constraint only once per timestep
-			};
-	}
 	if (LongRangeConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
 			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
-			{
-				LongRangeConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+			{	
+				// Only doing one iteration.
+				constexpr int32 NumLRAIterations = 1;
+				LongRangeConstraints->ApplyProperties(Dt, NumLRAIterations);
 				LongRangeConstraints->Apply(Particles, Dt);  // Run the LRA constraint only once per timestep
 			};
 	}
@@ -419,34 +411,19 @@ void FClothConstraints::SetLongRangeConstraints(
 	const TArray<TConstArrayView<TTuple<int32, int32, FRealSingle>>>& Tethers,
 	const TConstArrayView<FRealSingle>& TetherStiffnessMultipliers,
 	const TConstArrayView<FRealSingle>& TetherScaleMultipliers,
-	const Softs::FSolverVec2& TetherScale, bool bUseXPBDConstraints)
+	const Softs::FSolverVec2& TetherScale)
 {
 	check(Evolution);
-
-	if (bUseXPBDConstraints)
-	{
-		XLongRangeConstraints = MakeShared<Softs::FXPBDLongRangeConstraints>(
-			Evolution->Particles(),
-			ParticleOffset,
-			NumParticles,
-			Tethers,
-			TetherStiffnessMultipliers,
-			TetherScaleMultipliers,
-			/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
-			TetherScale);
-	}
-	else
-	{
-		LongRangeConstraints = MakeShared<Softs::FPBDLongRangeConstraints>(
-			Evolution->Particles(),
-			ParticleOffset,
-			NumParticles,
-			Tethers,
-			TetherStiffnessMultipliers,
-			TetherScaleMultipliers,
-			/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
-			TetherScale);
-	}
+	//  Now that we're only doing a single iteration of Long range constraints, and they're more of a fake constraint to jump start our initial guess, it's not clear that using XPBD makes sense here.
+	LongRangeConstraints = MakeShared<Softs::FPBDLongRangeConstraints>(
+		Evolution->Particles(),
+		ParticleOffset,
+		NumParticles,
+		Tethers,
+		TetherStiffnessMultipliers,
+		TetherScaleMultipliers,
+		/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
+		TetherScale);
 	++NumConstraintInits;  // Uses init to both update the property tables and apply the constraint
 }
 
@@ -587,11 +564,6 @@ void FClothConstraints::SetLongRangeAttachmentProperties(const Softs::FSolverVec
 	{
 		LongRangeConstraints->SetStiffness(TetherStiffness);
 		LongRangeConstraints->SetScale(TetherScale);
-	}
-	if (XLongRangeConstraints)
-	{
-		XLongRangeConstraints->SetStiffness(TetherStiffness);
-		XLongRangeConstraints->SetScale(TetherScale);
 	}
 }
 

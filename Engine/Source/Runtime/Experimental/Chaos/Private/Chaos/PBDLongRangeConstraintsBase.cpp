@@ -65,12 +65,8 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 	ApplyProperties((FSolverReal)(1. / FPBDStiffness::ParameterFrequency), 1);
 }
 
-void FPBDLongRangeConstraintsBase::ApplyProperties(const FSolverReal Dt, const int32 NumIterations)
+void FPBDLongRangeConstraintsBase::ApplyScale()
 {
-	// Apply stiffness
-	Stiffness.ApplyValues(Dt, NumIterations);
-
-	// Apply scale
 	const FSolverReal Offset = Scale[0];
 	const FSolverReal Range = Scale[1] - Scale[0];
 	const int32 ScaleTableSize = ScaleTable.Num();

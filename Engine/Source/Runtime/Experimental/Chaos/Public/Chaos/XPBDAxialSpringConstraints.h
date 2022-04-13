@@ -10,7 +10,8 @@ namespace Chaos::Softs
 {
 
 // Stiffness is in N/CM^2, so it needs to be adjusted from the PBD stiffness ranging between [0,1]
-static const double XPBDAxialSpringMaxCompliance = 1e-7;  // Max stiffness: 1e+11 N/M^2 = 1e+7 N/CM^2 -> Max compliance: 1e-7 CM^2/N
+static const FSolverReal XPBDAxialSpringMinStiffness = (FSolverReal)1e-1;
+static const FSolverReal XPBDAxialSpringMaxStiffness = (FSolverReal)1e7;  // Max stiffness: 1e+11 N/M^2 = 1e+7 N/CM^2
 
 class FXPBDAxialSpringConstraints final : public FPBDAxialSpringConstraintsBase
 {
@@ -35,6 +36,8 @@ public:
 	}
 
 	virtual ~FXPBDAxialSpringConstraints() override {}
+
+	void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyXPBDValues(XPBDAxialSpringMinStiffness, XPBDAxialSpringMaxStiffness); }
 
 	void Init() const { for (FSolverReal& Lambda : Lambdas) { Lambda = (FSolverReal)0.; } }
 
@@ -125,7 +128,7 @@ private:
 		const FSolverReal Offset = (Distance - Dists[InConstraintIndex]);
 
 		FSolverReal& Lambda = Lambdas[InConstraintIndex];
-		const FSolverReal Alpha = (FSolverReal)XPBDAxialSpringMaxCompliance / (ExpStiffnessValue * Dt * Dt);
+		const FSolverReal Alpha = (FSolverReal)1 / (ExpStiffnessValue * Dt * Dt);
 
 		const FSolverReal DLambda = (Offset - Alpha * Lambda) / (CombinedInvMass + Alpha);
 		const FSolverVec3 Delta = DLambda * Direction;

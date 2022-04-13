@@ -210,8 +210,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 			Tethers,
 			TetherStiffnessMultipliers,
 			TetherScaleMultipliers,
-			Softs::FSolverVec2((Softs::FSolverReal)Cloth->TetherScale[0], (Softs::FSolverReal)Cloth->TetherScale[1]) * MeshScale,
-			Cloth->bUseXPBDConstraints);
+			Softs::FSolverVec2((Softs::FSolverReal)Cloth->TetherScale[0], (Softs::FSolverReal)Cloth->TetherScale[1]) * MeshScale);
 	}
 
 	// Max distances

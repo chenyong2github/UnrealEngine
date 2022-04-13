@@ -10,7 +10,8 @@ namespace Chaos::Softs
 {
 
 // Stiffness is in N/CM^2, so it needs to be adjusted from the PBD stiffness ranging between [0,1]
-static const double XPBDSpringMaxCompliance = 1e-7;  // Max stiffness: 1e+11 N/M^2 = 1e+7 N/CM^2 -> Max compliance: 1e-7 CM^2/N
+static const FSolverReal XPBDSpringMinStiffness = (FSolverReal)1e-1; // Min stiffness: 1e3 N/M^2 = 1e-1 N/CM^2. Empirically defined to have similar look to XPBDSpringConstraints.
+static const FSolverReal XPBDSpringMaxStiffness = (FSolverReal)1e7;  // Max stiffness: 1e+11 N/M^2 = 1e+7 N/CM^2
 
 class FXPBDSpringConstraints final : public FPBDSpringConstraintsBase
 {
@@ -38,6 +39,9 @@ public:
 	virtual ~FXPBDSpringConstraints() override {}
 
 	void Init() const { for (FSolverReal& Lambda : Lambdas) { Lambda = (FSolverReal)0.; } }
+	
+	// Update stiffness table, as well as the simulation stiffness exponent
+	inline void ApplyProperties(const FSolverReal Dt, const int32 NumIterations) { Stiffness.ApplyXPBDValues(XPBDSpringMinStiffness, XPBDSpringMaxStiffness); }
 
 	void Apply(FSolverParticles& Particles, const FSolverReal Dt, const int32 ConstraintIndex, const FSolverReal ExpStiffnessValue) const
 	{
@@ -98,7 +102,7 @@ private:
 		const FSolverReal Offset = Distance - Dists[ConstraintIndex];
 
 		FSolverReal& Lambda = Lambdas[ConstraintIndex];
-		const FSolverReal Alpha = (FSolverReal)XPBDSpringMaxCompliance / (ExpStiffnessValue * Dt * Dt);
+		const FSolverReal Alpha = (FSolverReal)1.f / (ExpStiffnessValue * Dt * Dt);
 
 		const FSolverReal DLambda = (Offset - Alpha * Lambda) / (CombinedInvMass + Alpha);
 		const FSolverVec3 Delta = DLambda * Direction;
