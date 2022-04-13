@@ -200,25 +200,6 @@ void FSoundWaveData::DiscardZerothChunkData()
 	ZerothChunkData.Empty();
 }
 
-TIndirectArray<struct FStreamedAudioChunk>& FStreamedAudioPlatformData::GetChunks() const
-{
-#if WITH_EDITORONLY_DATA
-	// For the chunks to be available, any async task need to complete first.
-	const_cast<FStreamedAudioPlatformData*>(this)->FinishCache();
-#endif
-	return const_cast<FStreamedAudioPlatformData*>(this)->Chunks;
-}
-
-int32 FStreamedAudioPlatformData::GetNumChunks() const
-{
-#if WITH_EDITORONLY_DATA
-	// NumChunks is written by the caching process, any async task need to complete before we can read it.
-	const_cast<FStreamedAudioPlatformData*>(this)->FinishCache();
-#endif
-
-	return NumChunks;
-}
-
 FSoundWaveData::MaxChunkSizeResults FSoundWaveData::GetMaxChunkSizeResults() const
 {
 	MaxChunkSizeResults Results;
