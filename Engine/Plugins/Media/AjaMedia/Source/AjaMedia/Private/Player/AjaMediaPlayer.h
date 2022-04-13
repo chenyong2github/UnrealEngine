@@ -43,6 +43,7 @@ namespace AJA
  */
 class FAjaMediaPlayer
 	: public FMediaIOCorePlayerBase
+	, public TSharedFromThis<FAjaMediaPlayer>
 	, protected AJA::IAJAInputOutputChannelCallbackInterface
 {
 	using Super = FMediaIOCorePlayerBase;

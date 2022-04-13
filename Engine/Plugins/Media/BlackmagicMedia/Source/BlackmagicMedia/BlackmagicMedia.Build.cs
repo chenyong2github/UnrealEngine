@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"MediaAssets",
 					"MediaIOCore",
+					"RHI",
 					"TimeManagement",
 					"RenderCore"
 				});
@@ -31,6 +32,7 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Blackmagic",
 					"Engine",
+					"GPUTextureTransfer",
 					"MediaUtils",
 					"Projects",
 					"SlateCore"

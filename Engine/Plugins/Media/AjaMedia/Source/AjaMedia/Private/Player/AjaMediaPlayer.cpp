@@ -284,6 +284,9 @@ void FAjaMediaPlayer::Close()
 	MetadataSamplePool->Reset();
 	TextureSamplePool->Reset();
 
+	UnregisterSampleBuffers();
+	UnregisterTextures();
+
 	//Disable all our channels from the monitor
 	Samples->EnableTimedDataChannels(this, EMediaIOSampleType::None);
 
@@ -293,10 +296,6 @@ void FAjaMediaPlayer::Close()
 	AjaThreadCurrentTextureSample.Reset();
 
 	Super::Close();
-
-	// This has to be done after the Super::Close to make sure that samples are flushed so that all textures are returned to our texturex array.
-	UnregisterSampleBuffers();
-	UnregisterTextures();
 }
 
 FGuid FAjaMediaPlayer::GetPlayerPluginGUID() const
@@ -541,24 +540,24 @@ bool FAjaMediaPlayer::OnRequestInputBuffer(const AJA::AJARequestInputBufferData&
 
 		if (CVarAjaEnableGPUDirect.GetValueOnAnyThread())
 		{
-			bool bFoundRegisteredTexture = false;
-
-			do
+			FScopeLock Lock(&TexturesCriticalSection);
+			TRefCountPtr<FRHITexture> Texture = Textures.Pop();
+			if (Texture && RegisteredTextures.Contains(Texture))
 			{
-				FScopeLock Lock(&TexturesCriticalSection);
-				TRefCountPtr<FRHITexture> Texture = Textures.Pop();
-				if (Texture && RegisteredTextures.Contains(Texture))
-				{
-					AjaThreadCurrentTextureSample->SetTexture(Texture);
-					AjaThreadCurrentTextureSample->SetDestructionCallback([this](TRefCountPtr<FRHITexture> InTexture) { OnSampleDestroyed(InTexture); });
-					bFoundRegisteredTexture = true;
-				}
-				else
-				{
-					UE_LOG(LogAjaMedia, Display, TEXT("Unregistered texture %u encountered while doing a gpu texture transfer."), Texture ? reinterpret_cast<std::uintptr_t>(Texture->GetNativeResource()) : 0);
-				}
+				AjaThreadCurrentTextureSample->SetTexture(Texture);
 
-			} while (!bFoundRegisteredTexture && Textures.Num());
+				AjaThreadCurrentTextureSample->SetDestructionCallback([MediaPlayerWeakPtr = TWeakPtr<FAjaMediaPlayer>(AsShared())](TRefCountPtr<FRHITexture> InTexture)
+				{
+					if (TSharedPtr<FAjaMediaPlayer> MediaPlayer = MediaPlayerWeakPtr.Pin())
+					{
+						MediaPlayer->OnSampleDestroyed(InTexture);
+					}
+				});
+			}
+			else
+			{
+				UE_LOG(LogAjaMedia, Error, TEXT("Unregistered texture %u encountered while doing a gpu texture transfer."), Texture ? reinterpret_cast<std::uintptr_t>(Texture->GetNativeResource()) : 0);
+			}
 
 			RegisterSampleBuffer(AjaThreadCurrentTextureSample);
 		}
@@ -826,7 +825,7 @@ void FAjaMediaPlayer::SetupSampleChannels()
 void FAjaMediaPlayer::OnSampleDestroyed(TRefCountPtr<FRHITexture> InTexture)
 {
 	FScopeLock ScopeLock(&TexturesCriticalSection);
-	if (InTexture)
+	if (InTexture && RegisteredTextures.Contains(InTexture))
 	{
 		Textures.Add(InTexture);
 	}
