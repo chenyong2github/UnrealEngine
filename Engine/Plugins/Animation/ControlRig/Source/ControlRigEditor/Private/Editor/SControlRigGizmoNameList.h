@@ -25,6 +25,7 @@ public:
 	void Construct(const FArguments& InArgs, FRigControlElement* ControlElement, UControlRigBlueprint* InBlueprint);
 	void Construct(const FArguments& InArgs, TArray<FRigControlElement*> ControlElements, UControlRigBlueprint* InBlueprint);
 	void Construct(const FArguments& InArgs, TArray<FRigControlElement> ControlElements, UControlRigBlueprint* InBlueprint);
+	void BeginDestroy();
 
 protected:
 
@@ -38,9 +39,14 @@ protected:
 	void OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 	void OnNameListComboBox();
 
+	FORCEINLINE static const TArray< TSharedPtr<FString> >& GetEmptyList()
+	{
+		static const TArray< TSharedPtr<FString> > EmptyList;
+		return EmptyList;
+	}
+
 	FOnGetNameListContent OnGetNameListContent;
 	TSharedPtr<SControlRigGraphPinNameListValueWidget> NameListComboBox;
-	TArray<TSharedPtr<FString>> EmptyList;
 
 	TArray<FRigElementKey> ControlKeys;
 	UControlRigBlueprint* Blueprint;

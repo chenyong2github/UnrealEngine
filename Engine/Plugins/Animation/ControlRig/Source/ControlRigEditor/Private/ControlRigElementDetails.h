@@ -11,6 +11,7 @@
 #include "ControlRigBlueprint.h"
 #include "DetailsViewWrapperObject.h"
 #include "Graph/SControlRigGraphPinNameListValueWidget.h"
+#include "Editor/SControlRigGizmoNameList.h"
 #include "Styling/SlateTypes.h"
 #include "IPropertyUtilities.h"
 #include "SSearchableComboBox.h"
@@ -105,6 +106,7 @@ public:
 
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	virtual void BeginDestroy() {};
 
 	URigHierarchy* GetHierarchy() const { return HierarchyBeingCustomized; }
 	URigHierarchy* GetHierarchyBeingDebugged() const;
@@ -245,6 +247,7 @@ public:
 	void CustomizeValue(IDetailLayoutBuilder& DetailBuilder);
 	void CustomizeControl(IDetailLayoutBuilder& DetailBuilder);
 	void CustomizeShape(IDetailLayoutBuilder& DetailBuilder);
+	virtual void BeginDestroy() override;
 
 	/** FRigBaseElementDetails interface */
 	virtual void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass) override;
@@ -556,7 +559,7 @@ private:
 
 	TArray<FRigControlElement> ControlElements;
 	TArray<UDetailsViewWrapperObject*> ObjectPerControl;
-
+	TSharedPtr<SControlRigShapeNameList> ShapeNameListWidget; 
 	static TSharedPtr<TArray<ERigControlValueType>> PickedValueTypes;
 };
 

@@ -8,7 +8,6 @@
 #include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"
-#include "Editor/SControlRigGizmoNameList.h"
 #include "ControlRigBlueprint.h"
 #include "Graph/ControlRigGraph.h"
 #include "PropertyCustomizationHelpers.h"
@@ -631,6 +630,8 @@ void FRigBaseElementDetails::SetName(const FText& InNewText, ETextCommit::Type I
 
 	if (Hierarchy)
 	{
+		BeginDestroy();
+		
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
 		Controller->RenameElement(GetElementKey(), *InNewText.ToString(), true, true);
@@ -2936,7 +2937,7 @@ void FRigControlElementDetails::CustomizeShape(IDetailLayoutBuilder& DetailBuild
 	]
 	.ValueContent()
 	[
-		SNew(SControlRigShapeNameList, ControlElements, BlueprintBeingCustomized)
+		SAssignNew(ShapeNameListWidget, SControlRigShapeNameList, ControlElements, BlueprintBeingCustomized)
 		.OnGetNameListContent(this, &FRigControlElementDetails::GetShapeNameList)
 		.IsEnabled(this, &FRigControlElementDetails::IsShapeEnabled)
 	];
@@ -2944,6 +2945,16 @@ void FRigControlElementDetails::CustomizeShape(IDetailLayoutBuilder& DetailBuild
 	ShapeColorHandle = SettingsHandle->GetChildHandle(TEXT("ShapeColor"));
 	ShapePropertiesGroup.AddPropertyRow(ShapeColorHandle.ToSharedRef())
 	.DisplayName(FText::FromString(TEXT("Color")));
+}
+
+void FRigControlElementDetails::BeginDestroy()
+{
+	FRigTransformElementDetails::BeginDestroy();
+
+	if(ShapeNameListWidget.IsValid())
+	{
+		ShapeNameListWidget->BeginDestroy();
+	}
 }
 
 void FRigControlElementDetails::RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass)
