@@ -202,11 +202,6 @@ public:
 	static bool GetScalabilityCVar(const FString& CvarName, int32& OutValue);
 	static bool GetScalabilityCVar(const FString& CvarName, float& OutValue);
 
-#if ALLOW_OTHER_PLATFORM_CONFIG
-	/** Retrieve another platform's DeviceProfile, and make sure it's CVars are expanded, including scalability */
-	static void ExpandDeviceProfileCVars(UDeviceProfile* DeviceProfile);
-#endif
-
 	/**
 	* Enable/Disable a tagged fragment of the active device profile.
 	* This unsets the entire cvar DP state, then re-sets the new DP+fragment state.
@@ -218,6 +213,18 @@ public:
 	* null if the tag is not found.
 	*/
 	const FSelectedFragmentProperties* GetActiveDeviceProfileFragmentByTag(FName& FragmentTag) const;
+
+
+	enum class EDeviceProfileMode : uint8
+	{
+		DPM_SetCVars,
+		DPM_CacheValues,
+	};
+
+	/**
+	 * Walk the device profile/fragment chain to get the final set ot CVars in a unified way
+	 */
+	static TMap<FName, FString> GatherDeviceProfileCVars(const FString& DeviceProfileName, EDeviceProfileMode GatherMode);
 
 
 private:
@@ -239,17 +246,11 @@ private:
 	/** Sees if the texture settings are the same between two profiles */
 	bool AreTextureGroupsTheSame(UDeviceProfile* Profile1, UDeviceProfile* Profile2) const;
 
-	enum class EDeviceProfileMode : uint8
-	{
-		DPM_SetCVars,
-		DPM_CacheValues,
-	};
-
 	/**
 	 * Perform the processing of ini sections, going up to parents, etc. Depending on runtime vs editor processing of another platform,
 	 * the Mode will control how the settings are handled
 	 */
-	static void ProcessDeviceProfileIniSettings(const FString& DeviceProfileName, EDeviceProfileMode Mode);
+	static void SetDeviceProfileCVars(const FString& DeviceProfileName);
 
 
 	/** Read and process all of the fragment matching rules. Returns an array containing the names of fragments selected. */
