@@ -9,12 +9,18 @@
 #include "Editor.h"
 #include "PropertyHandle.h"
 #include "DetailWidgetRow.h"
+#include "GameplayTagsEditorModule.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "EditorFontGlyphs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "GameplayTagContainerCustomization"
+
+TSharedRef<IPropertyTypeCustomization> FGameplayTagContainerCustomizationPublic::MakeInstance()
+{
+	return MakeShareable(new FGameplayTagContainerCustomization);
+}
 
 void FGameplayTagContainerCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {

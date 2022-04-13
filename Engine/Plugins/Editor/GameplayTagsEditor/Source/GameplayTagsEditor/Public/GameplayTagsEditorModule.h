@@ -83,6 +83,12 @@ struct GAMEPLAYTAGSEDITOR_API FGameplayTagCustomizationPublic
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 };
 
+/** This is public so that child structs of FGameplayTagContainer can use the details customization */
+struct GAMEPLAYTAGSEDITOR_API FGameplayTagContainerCustomizationPublic
+{
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+};
+
 struct GAMEPLAYTAGSEDITOR_API FRestrictedGameplayTagCustomizationPublic
 {
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
