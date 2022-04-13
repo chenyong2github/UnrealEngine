@@ -8626,6 +8626,10 @@ int32 FHLSLMaterialTranslator::ShadowReplace(int32 Default, int32 Shadow)
 	return GenericSwitch(TEXT("GetShadowReplaceState()"), Shadow, Default);
 }
 
+int32 FHLSLMaterialTranslator::NaniteReplace(int32 Default, int32 Nanite)
+{
+	return GenericSwitch(TEXT("GetNaniteReplaceState()"), Nanite, Default);
+}
 
 int32 FHLSLMaterialTranslator::ReflectionCapturePassSwitch(int32 Default, int32 Reflection)
 {

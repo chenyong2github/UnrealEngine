@@ -1769,6 +1769,16 @@ bool GetGIReplaceState()
 #endif
 }
 
+// Used for the Nanite path in the NaniteReplace material expression
+bool GetNaniteReplaceState()
+{
+#if IS_NANITE_PASS
+	return true;
+#else
+	return false;
+#endif
+}
+
 bool GetRayTracingQualitySwitch()
 {
 #if (RAYHITGROUPSHADER || LUMEN_CARD_CAPTURE) && !PATH_TRACING

@@ -133,6 +133,7 @@
 #include "Materials/MaterialExpressionMaterialProxyReplace.h"
 #include "Materials/MaterialExpressionMin.h"
 #include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialExpressionNaniteReplace.h"
 #include "Materials/MaterialExpressionNoise.h"
 #include "Materials/MaterialExpressionNormalize.h"
 #include "Materials/MaterialExpressionObjectBounds.h"
@@ -17084,6 +17085,58 @@ void UMaterialExpressionTemporalSobol::GetCaption(TArray<FString>& OutCaptions) 
 	}
 
 	OutCaptions.Add(Caption);
+}
+#endif // WITH_EDITOR
+
+//
+//	UMaterialExpressionNaniteReplace
+//
+UMaterialExpressionNaniteReplace::UMaterialExpressionNaniteReplace(const FObjectInitializer& ObjectInitializer)
+: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionNaniteReplace::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Default.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input Default"));
+	}
+	else if (!Nanite.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input Nanite"));
+	}
+	else
+	{
+		const int32 Arg1 = Default.Compile(Compiler);
+		const int32 Arg2 = Nanite.Compile(Compiler);
+		return Compiler->NaniteReplace(Arg1, Arg2);
+	}
+}
+
+void UMaterialExpressionNaniteReplace::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Nanite Pass Switch"));
+}
+
+void UMaterialExpressionNaniteReplace::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Allows material to define specialized behavior when being rendered with Nanite."), 40, OutToolTip);
 }
 #endif // WITH_EDITOR
 
