@@ -243,7 +243,7 @@ FBxDFSample StrataSampleDirection(
 {
 	FBxDFSample Out = (FBxDFSample)0;
 	Out.PDF = 1;
-	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse);
+	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
 
 	// STRATA_TODO: For now, use only the last BSDF (arbitrary)
 	Strata_for(uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)

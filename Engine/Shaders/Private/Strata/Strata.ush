@@ -752,6 +752,7 @@ struct FStrataOperator
 {
 	// STRATA_TODO: pack in a single uint
 	uint ParentIndex;
+	uint LayerDepth;
 	uint MaxDistanceFromLeaves;							// The largest depth distance from any tree leaf representing a BSDF
 	uint Type;											// The type of operator
 	int	LeftIndex;
@@ -782,9 +783,7 @@ struct FStrataOperator
 	float ThinFilmThickness;							// Thickness of thin-film coating layer. In micro-meters (1um == 1000nm).  Merge with regular ThicknessCm?
 	float ThinFilmIOR;									// IOR of the thin-film coating layer
 
-	// Topology information
-	bool				 bIsTop;
-
+	// Translucent refractions
 	FStrataLobeStatistic VerticalTop_TopDownRefractionLobeStat;	// Only used by vertical layering operators. It represent the lobe statistics of the top layer at its interface.
 	FStrataLobeStatistic VerticalTop_BottomUpRefractionLobeStat;
 };
@@ -1414,7 +1413,7 @@ FStrataData StrataVerticalLayering(FStrataData Top, FStrataData Base, inout FStr
 }
 
 // Take the inlined BSDF resulting from parameter blending (or BSDF creation) and register it to the StrataTree
-FStrataData PromoteParameterBlendedBSDFToOperator(FStrataData StrataData, inout FStrataTree StrataTree, int OperatorIndex, int BSDFIndex, int bIsBottom, int bIsTop)
+FStrataData PromoteParameterBlendedBSDFToOperator(FStrataData StrataData, inout FStrataTree StrataTree, int OperatorIndex, int BSDFIndex, int LayerDepth, int bIsBottom)
 {
 	StrataTree.BSDFCount++;
 	StrataTree.OperatorCount++;
@@ -1422,13 +1421,14 @@ FStrataData PromoteParameterBlendedBSDFToOperator(FStrataData StrataData, inout 
 	StrataTree.BSDFs[BSDFIndex] = StrataData.InlinedBSDF;
 	
 	StrataTree.Operators[OperatorIndex]							= GetInitialisedStrataOperator();
+	StrataTree.Operators[OperatorIndex].LayerDepth				= LayerDepth;
 	StrataTree.Operators[OperatorIndex].MaxDistanceFromLeaves	= 0;
 	StrataTree.Operators[OperatorIndex].Type					= STRATA_OPERATOR_BSDF;
 	StrataTree.Operators[OperatorIndex].LeftIndex				= BSDFIndex;
 
 	StrataTree.BSDFs[BSDFIndex].OperatorIndex					= OperatorIndex;
 	StrataTree.BSDFs[BSDFIndex].bIsBottom						= bIsBottom;
-	StrataTree.BSDFs[BSDFIndex].bIsTop							= bIsTop;
+	StrataTree.BSDFs[BSDFIndex].bIsTop							= LayerDepth == 0;
 
 	StrataData.OperatorIndex = OperatorIndex;
 	return StrataData;
@@ -2593,13 +2593,15 @@ struct FStrataIntegrationSettings
 {
 	bool bForceFullyRough;
 	bool bRoughDiffuseEnabled;
+	int  PeelLayersAboveDepth;
 };
 
-FStrataIntegrationSettings InitStrataIntegrationSettings(bool bForceFullyRough, bool bRoughDiffuseEnabled)
+FStrataIntegrationSettings InitStrataIntegrationSettings(bool bForceFullyRough, bool bRoughDiffuseEnabled, int PeelLayersAboveDepth)
 {
 	FStrataIntegrationSettings Out;
 	Out.bForceFullyRough = bForceFullyRough;
 	Out.bRoughDiffuseEnabled = bRoughDiffuseEnabled;
+	Out.PeelLayersAboveDepth = PeelLayersAboveDepth;
 	return Out;
 }
 

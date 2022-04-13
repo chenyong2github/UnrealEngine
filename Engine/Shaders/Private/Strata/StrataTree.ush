@@ -75,6 +75,12 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 
 #define Op StrataTree.Operators[CurrentBSDF.OperatorIndex]
 
+	// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
+#if USE_DEVELOPMENT_SHADERS
+	// We progressively remove top layers but never the bottom one.
+	CurrentBSDF.Coverage = Op.LayerDepth < Settings.PeelLayersAboveDepth && !CurrentBSDF.bIsBottom ? 0.0f : CurrentBSDF.Coverage;
+#endif
+
 	const float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
 
 	// Extract the true thickness of the BSDF before it is cast into the normalised Slab thickness we used.
@@ -89,7 +95,7 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
 	FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, Settings);
 
-	float CurrentBSDFCoverage = CurrentBSDF.Coverage;
+	float CurrentBSDFCoverage		= CurrentBSDF.Coverage;
 	float3 CurrentBSDFTransmittanceV = BSDFEvaluate.ThroughputV;
 	float3 CurrentBSDFTransmittanceL = BSDFEvaluate.ThroughputL;
 
@@ -134,8 +140,6 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
 	Op.TopDownRefractionWorldNormal = TangentBasis[2];
 
-	Op.bIsTop = CurrentBSDF.bIsTop;
-
 #undef Op
 
 #endif // STRATA_INLINE_SHADING
@@ -151,10 +155,10 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 #define OpB StrataTree.Operators[StrataTree.Operators[OpIndex].RightIndex]
 
 	// Propagate bIsTop:
-	//  - horizontal, add, weight operations: Any of the operand bIsTop should be enough to determine if this operator is at the top of the material
-	//	- vertical: must take the top layer information (operand A)
+	//  - horizontal, add, weight operations: Any of the operand bIsTop should be enough to determine this operator depth
+	//	- vertical: takes the top layer depth information (operand A)
 	// => we always take the operand A information.
-	Op.bIsTop = OpA.bIsTop;
+	Op.LayerDepth = OpA.LayerDepth;
 
 	switch (Op.Type)
 	{
@@ -229,7 +233,8 @@ void UpdateSingleOperatorCoverageTransmittance(inout FStrataTree StrataTree, int
 
 		// Project bottom lob through top layer.
 		{
-			const float BottomUpInterfaceEta = Op.bIsTop ? WATER_IOR / AIR_IOR : 1.0f;
+			const bool bIsTop = Op.LayerDepth == 0;
+			const float BottomUpInterfaceEta = bIsTop ? WATER_IOR / AIR_IOR : 1.0f;
 			Op.BottomUpRefractionLobeStat = StrataGetRefractedLobe(StrataOppositeLobe(OpB.BottomUpRefractionLobeStat), 
 				/*InterfaceFDG*/0.0f, StrataLobeVarianceToRoughness(OpA.BottomUpRefractionLobeStat.Sigma), BottomUpInterfaceEta);
 			Op.BottomUpRefractionLobeStat.E *= saturate(OpA.TransmittanceV + (1.0f - OpA.Coverage)); // Combine with top layer medium and specular transmittance
@@ -386,7 +391,8 @@ void UpdateAllBSDFWithBottomUpOperatorVisit_Vertical(
 		// Evaluate the reflected lobe after refraction through the top layer of the vertical operator.
 		// => This tells how light should be integrated when traveling up thorugh that layer.
 		const float TopLayerSigma = Op.VerticalTop_BottomUpRefractionLobeStat.Sigma;
-		const float BottomUpInterfaceEta = Op.bIsTop ? WATER_IOR / AIR_IOR : 1.0f;
+		const bool bIsTop = Op.LayerDepth == 0;
+		const float BottomUpInterfaceEta = bIsTop ? WATER_IOR / AIR_IOR : 1.0f;
 		FStrataLobeStatistic RefractedLobe = StrataGetRefractedLobe(StrataOppositeLobe(ReflectedLobe), DummyInterfaceDFG, StrataLobeVarianceToRoughness(TopLayerSigma), BottomUpInterfaceEta);/////////////////
 
 		StrataSetBSDFRoughness(CurrentBSDF, StrataLobeVarianceToRoughness(RefractedLobe.Sigma));

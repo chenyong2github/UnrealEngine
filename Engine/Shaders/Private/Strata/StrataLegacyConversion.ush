@@ -26,7 +26,7 @@ struct FStrataLegacyParameters
 	float  Thickness;
 	uint   SharedLocalBasisIndex;
 
-	int bIsTop;
+	int LayerDepth;
 	int bIsBottom;
 
 	float Weight;
@@ -56,7 +56,7 @@ FStrataLegacyParameters InitStrataLegacyParameters(FStrataPixelFootprint InPixel
 	Out.FuzzColor = Zeros;
 	Out.Thickness = STRATA_LAYER_DEFAULT_THICKNESS_CM;
 	Out.SharedLocalBasisIndex = InSharedLocalBasisIndex;
-	Out.bIsTop = 1;
+	Out.LayerDepth = 0;
 	Out.bIsBottom = 1;
 	Out.Weight = InWeight;
 	Out.PixelFootprint = InPixelFootprint;
@@ -97,8 +97,8 @@ FStrataData CreateLegacySlab(
 		StrataTree,
 		OperatorIndex,
 		BSDFIndex,
-		In.bIsBottom,
-		In.bIsTop);
+		In.LayerDepth,
+		In.bIsBottom);
 }
 
 // Convert legacy shading models - Dynamic
@@ -287,7 +287,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Bot.SSSMFPScale = 0.f;
 		Bot.Emissive = Zeros;
 		Bot.SharedLocalBasisIndex = ClearCoatBottomNormal_SharedLocalBasisIndex;
-		Bot.bIsTop = 0;
+		Bot.LayerDepth = 1;
 		Bot.bIsBottom = 1;
 		Bot.Weight = 1.f;
 		// === TOP layer === 
@@ -314,7 +314,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Emissive = Emissive;
 		Top.Thickness = Thickness;
 		Top.SharedLocalBasisIndex = SharedLocalBasisIndex;
-		Top.bIsTop = 1;
+		Top.LayerDepth = 0;
 		Top.bIsBottom = 0;
 		Top.Weight = ClearCoat;
 
@@ -389,7 +389,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.SSSMFPScale = Opacity;
 		Top.Emissive = Emissive;
 		Top.SharedLocalBasisIndex = SharedLocalBasisIndex;
-		Top.bIsTop = 1;
+		Top.LayerDepth = 0;
 		Top.bIsBottom = 0;
 		Top.Weight = 1.f;
 
@@ -404,7 +404,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Bot.SSSMFPScale = Opacity;
 		Bot.Emissive = Emissive;
 		Bot.SharedLocalBasisIndex = ClearCoatBottomNormal_SharedLocalBasisIndex;
-		Bot.bIsTop = 0;
+		Bot.LayerDepth = 1;
 		Bot.bIsBottom = 1;
 		Bot.Weight = 1.f;
 
@@ -624,8 +624,8 @@ FStrataData StrataConvertLegacyMaterialStatic(
 			StrataTree,
 			0		/*OperatorIndex*/,
 			0		/*BSDFIndex*/,
-			true	/*In.bIsBottom*/,
-			true	/*In.bIsTop*/);
+			0		/*int LayerDepth*/,
+			1		/*int bIsBottom*/);
 
 		FStrataLegacyParameters Bot = InitStrataLegacyParameters(PixelFootprint, SharedLocalBasisIndex, 1.0f);
 		FStrataData Bot_Slab = CreateLegacySlab(Bot, SharedLocalBasisTypes, StrataTree,	/*OperatorIndex*/1, /*BSDFIndex*/1);

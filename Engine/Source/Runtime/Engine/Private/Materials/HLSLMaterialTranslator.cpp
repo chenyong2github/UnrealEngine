@@ -10300,8 +10300,8 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 			*TangentCode,
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
-			PromoteToOperator->bIsBottom ? 1 : 0,
-			PromoteToOperator->bIsTop ? 1 : 0);
+			PromoteToOperator->LayerDepth,
+			PromoteToOperator->bIsBottom ? 1 : 0);
 	}
 
 	return AddCodeChunk(
@@ -10421,8 +10421,8 @@ int32 FHLSLMaterialTranslator::StrataSingleLayerWaterBSDF(
 		*SharedLocalBasisIndexMacro,
 		PromoteToOperator->Index,
 		PromoteToOperator->BSDFIndex,
+		PromoteToOperator->LayerDepth,
 		PromoteToOperator->bIsBottom ? 1 : 0,
-		PromoteToOperator->bIsTop ? 1 : 0,
 		*GetParameterCode(Normal)
 	);
 }
@@ -10464,8 +10464,8 @@ int32 FHLSLMaterialTranslator::StrataHorizontalMixingParameterBlending(
 			*SharedLocalBasisIndexMacro,
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
-			PromoteToOperator->bIsBottom,
-			PromoteToOperator->bIsTop
+			PromoteToOperator->LayerDepth,
+			PromoteToOperator->bIsBottom ? 1 : 0
 		);
 	}
 
@@ -10514,8 +10514,8 @@ int32 FHLSLMaterialTranslator::StrataVerticalLayeringParameterBlending(int32 Top
 			*GetParameterCode(CameraVector()),
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
-			PromoteToOperator->bIsBottom,
-			PromoteToOperator->bIsTop
+			PromoteToOperator->LayerDepth,
+			PromoteToOperator->bIsBottom ? 1 : 0
 		);
 	}
 
@@ -10563,8 +10563,8 @@ int32 FHLSLMaterialTranslator::StrataAddParameterBlending(int32 A, int32 B, int3
 			*SharedLocalBasisIndexMacro,
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
-			PromoteToOperator->bIsBottom,
-			PromoteToOperator->bIsTop
+			PromoteToOperator->LayerDepth,
+			PromoteToOperator->bIsBottom ? 1 : 0
 		);
 	}
 
@@ -10609,8 +10609,8 @@ int32 FHLSLMaterialTranslator::StrataWeightParameterBlending(int32 A, int32 Weig
 			*GetParameterCode(Weight),
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
-			PromoteToOperator->bIsBottom,
-			PromoteToOperator->bIsTop
+			PromoteToOperator->LayerDepth,
+			PromoteToOperator->bIsBottom ? 1 : 0
 		);
 	}
 
@@ -10657,8 +10657,8 @@ int32 FHLSLMaterialTranslator::StrataThinFilmParameterBlending(int32 A, int32 Th
 			*GetParameterCode(CameraVector()),
 			PromoteToOperator->Index,
 			PromoteToOperator->BSDFIndex,
-			PromoteToOperator->bIsBottom,
-			PromoteToOperator->bIsTop
+			PromoteToOperator->LayerDepth,
+			PromoteToOperator->bIsBottom ? 1 : 0
 		);
 	}
 

@@ -294,7 +294,7 @@ void ReflectionEnvironmentSkyLighting(
 		float3 TopLayerEnvBRDF = 0.0f;
 
 		const float CloudVolumetricAOShadow = GetCloudVolumetricAOShadow(TranslatedWorldPosition);
-		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse);
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
 
 		FStrataDeferredLighting StrataLighting = StrataEnvironmentLighting(
 			SvPosition,

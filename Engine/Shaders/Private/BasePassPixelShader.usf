@@ -1730,7 +1730,7 @@ void FPixelShaderInOut_MainPS(
 		FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
 		FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
 		FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
-		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, StrataStruct.bRoughDiffuse);
+		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, StrataStruct.bRoughDiffuse, StrataStruct.PeelLayersAboveDepth);
 
 		// Generate the strata material data to write out
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), StrataStruct.MaxBytesPerPixel);
@@ -1791,7 +1791,7 @@ void FPixelShaderInOut_MainPS(
 		const bool bForceFullyRough = View.RenderingReflectionCaptureMask > 0;
 		#endif
 
-		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(bForceFullyRough, StrataStruct.bRoughDiffuse);
+		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(bForceFullyRough, StrataStruct.bRoughDiffuse, StrataStruct.PeelLayersAboveDepth);
 
 		float3 Throughput = 1.0f;
 		Color = StrataForwardLighting(

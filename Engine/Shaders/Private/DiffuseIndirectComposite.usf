@@ -204,7 +204,7 @@ FDirectLighting StrataLumenLighting(
 	in float3 InRoughSpecularIndirectLighting)
 {
 	FDirectLighting Out = (FDirectLighting)0;
-	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse);
+	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
 
 	Strata_for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
 	{

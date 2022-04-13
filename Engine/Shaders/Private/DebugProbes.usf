@@ -305,7 +305,7 @@ void MainPS(
 			/*uint SharedLocalBasisIndex			*/SharedLocalBasisIndex,
 			/*inout uint SharedLocalBasisTypes		*/StrataPixelHeader.SharedLocalBases.Types);
 
-		FStrataData StrataData = PromoteParameterBlendedBSDFToOperator(StrataSlabData, StrataPixelHeader.StrataTree, /*int OperatorIndex*/0, /*int BSDFIndex*/0, /*int bIsBottom*/1, /*int bIsTop*/1);
+		FStrataData StrataData = PromoteParameterBlendedBSDFToOperator(StrataSlabData, StrataPixelHeader.StrataTree, /*int OperatorIndex*/0, /*int BSDFIndex*/0, /*int LayerDepth*/0, /*int bIsBottom*/1);
 		StrataPixelHeader.StrataTree.BSDFs[0].LuminanceWeightV = 1.0f;
 		StrataPixelHeader.StrataTree.BSDFs[0].LuminanceWeightL = 1.0f;
 		StrataPixelHeader.StrataTree.BSDFs[0].TopLayerDataWeight = 1.0f;
@@ -317,7 +317,7 @@ void MainPS(
 		float3 EmissiveLuminance = 0.0f;
 		bool bStrataSubsurfaceEnable = false;
 		const float Dither = 0.0f;
-		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, bRoughDiffuse);
+		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, bRoughDiffuse, 0/*PeelLayersAboveDepth*/);
 
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelCoord, uint2(ResolvedView.BufferSizeAndInvSize.xy), MaxBytesPerPixel);
 		FRWStrataMaterialContainer RWStrataMaterialContainer = InitialiseRWStrataMaterialContainer(MaterialTextureArrayUAV);

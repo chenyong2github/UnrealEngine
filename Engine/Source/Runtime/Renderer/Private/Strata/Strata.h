@@ -19,6 +19,7 @@ struct FScreenPassTexture;
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataBasePassUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
+	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray<uint>, MaterialTextureArrayUAVWithoutRTs)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, SSSTextureUAV)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, OpaqueRoughRefractionTextureUAV)
@@ -26,6 +27,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataForwardPassUniformParameters, )
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
+	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FStrataTileParameter, )
@@ -38,6 +40,7 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_API)
 	SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 	SHADER_PARAMETER(uint32, bRoughDiffuse)
+	SHADER_PARAMETER(uint32, PeelLayersAboveDepth)
 	SHADER_PARAMETER(uint32, TileSize)
 	SHADER_PARAMETER(uint32, TileSizeLog2)
 	SHADER_PARAMETER(FIntPoint, TileCount)
@@ -67,6 +70,7 @@ struct FStrataSceneData
 {
 	uint32 MaxBytesPerPixel;
 	bool bRoughDiffuse;
+	int32 PeelLayersAboveDepth;
 
 	// Resources allocated and updated each frame
 
