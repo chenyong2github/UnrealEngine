@@ -11,6 +11,8 @@
 
 class FStructOnScope;
 
+using FActivityID = int64;
+
 UENUM()
 enum class EConcertServerFlags : uint8
 {
