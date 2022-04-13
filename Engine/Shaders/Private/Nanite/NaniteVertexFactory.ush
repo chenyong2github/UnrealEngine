@@ -150,7 +150,7 @@ void SetLightMapDataIndex(inout FVertexFactoryInterpolantsVSToPS Interpolants, u
 
 #endif // NEEDS_LIGHTMAP_COORDINATE
 
-void SetVertexParameterInstanceData(inout FMaterialVertexParameters VertexParameters, FInstanceSceneData InstanceData)
+void SetVertexParameterInstanceData(inout FMaterialVertexParameters VertexParameters, FInstanceSceneData InstanceData, FPrimitiveSceneData PrimitiveData, bool bEvaluateWorldPositionOffset)
 {
 	VertexParameters.PrimitiveId			= InstanceData.PrimitiveId;
 	VertexParameters.InstanceLocalToWorld	= InstanceData.LocalToWorld;
@@ -168,7 +168,9 @@ void SetVertexParameterInstanceData(inout FMaterialVertexParameters VertexParame
 	VertexParameters.SceneData.PrimitiveId 	= InstanceData.PrimitiveId;
 	VertexParameters.SceneData.InstanceId 	= InstanceData.RelativeId;
 	VertexParameters.SceneData.InstanceData	= InstanceData;
-	VertexParameters.SceneData.Primitive	= GetPrimitiveData(InstanceData.PrimitiveId);
+	VertexParameters.SceneData.Primitive	= PrimitiveData;
+
+	VertexParameters.bEvaluateWorldPositionOffset = bEvaluateWorldPositionOffset;
 }
 
 void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParameters, FNaniteRawAttributeData RawAttributeData, float4x4 LocalToTranslatedWorld, float3x3 LocalToWorld, float3 PointLocalNoWPO)
@@ -265,10 +267,11 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 	Tri.TriIndices = TriIndices;
 	Tri.RawAttributeData = RawAttributeData;
 
-	// TODO: PROG_RASTER: Optimize
-#if USES_WORLD_POSITION_OFFSET
+#if USES_WORLD_POSITION_OFFSET || NUM_TEX_COORD_INTERPOLATORS
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+#endif
 
+#if USES_WORLD_POSITION_OFFSET
 	BRANCH
 	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
 	{
@@ -276,11 +279,11 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 		for (int i = 0; i < 3; ++i)
 		{
 			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
-			SetVertexParameterInstanceData(VertexParameters, InstanceData);
+			SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, true /* WPO */);
 			SetVertexParameterAttributeData(VertexParameters, RawAttributeData[i], Transforms.LocalToTranslatedWorld, Transforms.LocalToWorldNoScale, PointLocalNoWPO[i]);
 
 			FMaterialVertexParameters PrevVertexParameters = (FMaterialVertexParameters)0;
-			SetVertexParameterInstanceData(PrevVertexParameters, InstanceData);
+			SetVertexParameterInstanceData(PrevVertexParameters, InstanceData, PrimitiveData, true /* WPO */);
 			SetVertexParameterAttributeData(PrevVertexParameters, RawAttributeData[i], Transforms.PrevLocalToTranslatedWorld, Transforms.PrevLocalToWorldNoScale, PointLocalNoWPO[i]);
 
 			const float3 WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
@@ -312,7 +315,7 @@ FNaniteTransformedTri TransformNaniteTriangle(FInstanceSceneData InstanceData, F
 
 		#if NUM_TEX_COORD_INTERPOLATORS
 			FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
-			SetVertexParameterInstanceData(VertexParameters, InstanceData);
+			SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, false /* WPO */);
 			SetVertexParameterAttributeData(VertexParameters, RawAttributeData[i], Transforms.LocalToTranslatedWorld, Transforms.LocalToWorldNoScale, PointLocalNoWPO[i]);
 
 			GetMaterialCustomizedUVs(VertexParameters, Tri.CustomizedUVs[i]);

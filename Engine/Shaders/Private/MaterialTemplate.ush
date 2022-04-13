@@ -551,6 +551,10 @@ struct FMaterialVertexParameters
 	// FIXME: just for compatibility with assets that use custom HLSL expressions, will be removed once we fix up all these assets
 	// Index into View.PrimitiveSceneData
 	uint PrimitiveId;
+
+#if IS_NANITE_PASS
+	bool bEvaluateWorldPositionOffset;
+#endif
 };
 
 float MaterialReadInterpolatorComponent(FMaterialPixelParameters Parameters, int InterpolatorIndex)
@@ -2735,6 +2739,14 @@ half GetMaterialMaskedOpacity(FPixelMaterialInputs PixelMaterialInputs)
 
 WPO_PRECISE(float3) GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
+	#if IS_NANITE_PASS
+		BRANCH
+		if (!Parameters.bEvaluateWorldPositionOffset)
+		{
+			return float3(0,0,0);
+		}
+	#endif
+
 	#if USE_INSTANCING || USE_INSTANCE_CULLING
 		// skip if this instance is hidden
 		if (Parameters.PerInstanceParams.z < 1.f)
@@ -2747,6 +2759,14 @@ WPO_PRECISE(float3) GetMaterialWorldPositionOffset(FMaterialVertexParameters Par
 
 WPO_PRECISE(float3) GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
+	#if IS_NANITE_PASS
+		BRANCH
+		if (!Parameters.bEvaluateWorldPositionOffset)
+		{
+			return float3(0,0,0);
+		}
+	#endif
+
 	#if USE_INSTANCING || USE_INSTANCE_CULLING
 		// skip if this instance is hidden
 		if (Parameters.PerInstanceParams.z < 1.f)

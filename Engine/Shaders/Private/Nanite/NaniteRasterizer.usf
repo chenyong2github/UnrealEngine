@@ -1023,8 +1023,9 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 
 	float3 WorldPositionOffset = 0.0f;
 #if IS_NANITE_PROGRAMMABLE && USES_WORLD_POSITION_OFFSET
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	BRANCH
-	if ((GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
+	if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u)
 	{
 		const FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 		const FNaniteRawAttributeData RawAttributeData = GetRawAttributeData(Cluster, VertIndex, NANITE_NUM_TEXCOORDS_TO_DECODE);
@@ -1037,7 +1038,7 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 		LocalToWorld[2] *= InvScale.z;
 
 		FMaterialVertexParameters VertexParameters = (FMaterialVertexParameters)0;
-		SetVertexParameterInstanceData(VertexParameters, InstanceData);
+		SetVertexParameterInstanceData(VertexParameters, InstanceData, PrimitiveData, true /* WPO */);
 		SetVertexParameterAttributeData(VertexParameters, RawAttributeData, InstanceDynamicData.LocalToTranslatedWorld, LocalToWorld, PointLocal);
 
 		WorldPositionOffset = GetMaterialWorldPositionOffset(VertexParameters);
