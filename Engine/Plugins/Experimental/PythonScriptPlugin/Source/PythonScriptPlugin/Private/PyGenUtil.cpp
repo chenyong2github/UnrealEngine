@@ -12,6 +12,7 @@
 #include "Misc/ScopeExit.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
+#include "Misc/OutputDeviceNull.h"
 #include "UObject/Class.h"
 #include "UObject/Stack.h"
 #include "UObject/Package.h"
@@ -887,7 +888,29 @@ void ExtractFunctionParams(const UFunction* InFunc, TArray<FGeneratedWrappedMeth
 		{
 			// This is either a default specified in Blueprint, or specified in C++ directly as meta-data
 			// (ie, because UHT can't parse the C++ default argument, eg, a default TMap argument)
-			GeneratedWrappedMethodParam.ParamDefaultValue = InFunc->GetMetaData(InParam->GetFName());
+			FString ParamDefaultValue = InFunc->GetMetaData(InParam->GetFName());
+
+			// If the parameter is a class then try and get the full name as the metadata might just be the short name
+			if (InParam->IsA<FClassProperty>() && !FPackageName::IsValidObjectPath(ParamDefaultValue))
+			{
+				if (const UClass* DefaultClass = FindObject<UClass>(ANY_PACKAGE, *ParamDefaultValue, true))
+				{
+					ParamDefaultValue = DefaultClass->GetPathName();
+				}
+			}
+
+			// Validate that the default is actually valid (ie, can be imported), as we may hit 
+			// false positives for this meta-data (eg, from LatentInfo, WorldContext, etc)
+			void* TempParam = FMemory_Alloca_Aligned(InParam->GetSize(), InParam->GetMinAlignment());
+			InParam->InitializeValue(TempParam);
+			{
+				FOutputDeviceNull NullOutputDevice;
+				if (PropertyAccessUtil::ImportDefaultPropertyValue(InParam, TempParam, *ParamDefaultValue, &NullOutputDevice))
+				{
+					GeneratedWrappedMethodParam.ParamDefaultValue = MoveTemp(ParamDefaultValue);
+				}
+			}
+			InParam->DestroyValue(TempParam);
 		}
 	};
 

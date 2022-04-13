@@ -300,8 +300,10 @@ namespace PropertyAccessUtil
 	 * @param InProp The property to import the default value for.
 	 * @param InPropValue The destination location to receive the imported value.
 	 * @param InDefaultValue The default value to import.
+	 *
+	 * @return True if the default value could be imported, false otherwise.
 	 */
-	COREUOBJECT_API void ImportDefaultPropertyValue(const FProperty* InProp, void* InPropValue, const FString& InDefaultValue);
+	COREUOBJECT_API bool ImportDefaultPropertyValue(const FProperty* InProp, void* InPropValue, const FString& InDefaultValue, FOutputDevice* ErrorText = (FOutputDevice*)GWarn);
 
 	/**
 	 * Low-level function to determine if two properties are compatible with each other (for use by CopySinglePropertyValue/CopyCompletePropertyValue).

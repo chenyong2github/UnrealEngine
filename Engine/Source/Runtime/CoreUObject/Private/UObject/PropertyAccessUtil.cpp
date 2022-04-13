@@ -2,6 +2,7 @@
 
 #include "UObject/PropertyAccessUtil.h"
 #include "UObject/EnumProperty.h"
+#include "UObject/TextProperty.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "Misc/DefaultValueHelper.h"
@@ -642,14 +643,14 @@ FProperty* FindPropertyByName(const FName InPropName, const UStruct* InStruct)
 	return Prop;
 }
 
-void ImportDefaultPropertyValue(const FProperty* InProp, void* InPropValue, const FString& InDefaultValue)
+bool ImportDefaultPropertyValue(const FProperty* InProp, void* InPropValue, const FString& InDefaultValue, FOutputDevice* ErrorText)
 {
-	if (InDefaultValue.IsEmpty())
+	if (InDefaultValue.IsEmpty() && !(InProp->IsA<FStrProperty>() || InProp->IsA<FTextProperty>()))
 	{
-		return;
+		return false;
 	}
 
-	bool bDoImportText = true;
+	bool bImportedText = false;
 
 	// Certain struct types export using a non-standard default value, so we have to import them manually rather than use ImportText
 	if (const FStructProperty* StructProp = CastField<FStructProperty>(InProp))
@@ -657,34 +658,36 @@ void ImportDefaultPropertyValue(const FProperty* InProp, void* InPropValue, cons
 		if (StructProp->Struct == TBaseStructure<FVector>::Get())
 		{
 			FVector* Vector = (FVector*)InPropValue;
-			bDoImportText = !FDefaultValueHelper::ParseVector(InDefaultValue, *Vector);
+			bImportedText = FDefaultValueHelper::ParseVector(InDefaultValue, *Vector);
 		}
 		else if (StructProp->Struct == TBaseStructure<FVector2D>::Get())
 		{
 			FVector2D* Vector2D = (FVector2D*)InPropValue;
-			bDoImportText = !FDefaultValueHelper::ParseVector2D(InDefaultValue, *Vector2D);
+			bImportedText = FDefaultValueHelper::ParseVector2D(InDefaultValue, *Vector2D);
 		}
 		else if (StructProp->Struct == TBaseStructure<FRotator>::Get())
 		{
 			FRotator* Rotator = (FRotator*)InPropValue;
-			bDoImportText = !FDefaultValueHelper::ParseRotator(InDefaultValue, *Rotator);
+			bImportedText = FDefaultValueHelper::ParseRotator(InDefaultValue, *Rotator);
 		}
 		else if (StructProp->Struct == TBaseStructure<FColor>::Get())
 		{
 			FColor* Color = (FColor*)InPropValue;
-			bDoImportText = !FDefaultValueHelper::ParseColor(InDefaultValue, *Color);
+			bImportedText = FDefaultValueHelper::ParseColor(InDefaultValue, *Color);
 		}
 		else if (StructProp->Struct == TBaseStructure<FLinearColor>::Get())
 		{
 			FLinearColor* LinearColor = (FLinearColor*)InPropValue;
-			bDoImportText = !FDefaultValueHelper::ParseLinearColor(InDefaultValue, *LinearColor);
+			bImportedText = FDefaultValueHelper::ParseLinearColor(InDefaultValue, *LinearColor);
 		}
 	}
 
-	if (bDoImportText)
+	if (!bImportedText)
 	{
-		InProp->ImportText_Direct(*InDefaultValue, InPropValue, nullptr, PPF_None);
+		bImportedText = InProp->ImportText_Direct(*InDefaultValue, InPropValue, nullptr, PPF_None, ErrorText) != nullptr;
 	}
+
+	return bImportedText;
 }
 
 }
