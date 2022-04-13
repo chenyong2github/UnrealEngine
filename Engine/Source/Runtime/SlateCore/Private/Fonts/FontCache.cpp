@@ -181,6 +181,19 @@ FShapedGlyphSequence::FShapedGlyphSequence(TArray<FShapedGlyphEntry> InGlyphsToR
 		}
 	}
 
+#if SLATE_CHECK_UOBJECT_SHAPED_GLYPH_SEQUENCE
+	if (FontMaterial)
+	{
+		FontMaterialWeakPtr = FontMaterial;
+		DebugFontMaterialName = FontMaterial->GetFName();
+	}
+	if (OutlineSettings.OutlineMaterial)
+	{
+		OutlineMaterialWeakPtr = OutlineSettings.OutlineMaterial;
+		DebugOutlineMaterialName = OutlineSettings.OutlineMaterial->GetFName();
+	}
+#endif
+
 	// Track memory usage
 	INC_MEMORY_STAT_BY(STAT_SlateShapedGlyphSequenceMemory, GetAllocatedSize());
 }
@@ -424,6 +437,24 @@ FShapedGlyphSequencePtr FShapedGlyphSequence::GetSubSequence(const int32 InStart
 
 void FShapedGlyphSequence::AddReferencedObjects(FReferenceCollector& Collector)
 {
+#if SLATE_CHECK_UOBJECT_SHAPED_GLYPH_SEQUENCE
+	if (GSlateCheckUObjectShapedGlyphSequence)
+	{
+		// pending kill objects may still be rendered for a frame so it is valid for the check to pass
+		const bool bEvenIfPendingKill = true;
+		// This test needs to be thread safe. It doesn't give us as many chances to trap bugs here but it is still useful
+		const bool bThreadSafe = true;
+		if (!DebugFontMaterialName.IsNone())
+		{
+			checkf(FontMaterialWeakPtr.IsValid(bEvenIfPendingKill, bThreadSafe), TEXT("Material %s has become invalid. This means the FShapedGlyphSequence::FontMaterial was garbage collected while slate was using it"), *DebugFontMaterialName.ToString());
+		}
+		if (!DebugOutlineMaterialName.IsNone())
+		{
+			checkf(OutlineMaterialWeakPtr.IsValid(bEvenIfPendingKill, bThreadSafe), TEXT("Material %s has become invalid. This means the FShapedGlyphSequence::OutlineSettings::OutlineMaterial was garbage collected while slate was using it"), *DebugOutlineMaterialName.ToString());
+		}
+	}
+#endif
+
 	Collector.AddReferencedObject(FontMaterial);
 	Collector.AddReferencedObject(OutlineSettings.OutlineMaterial);
 }

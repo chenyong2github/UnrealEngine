@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SlateGlobals.h"
 #include "Fonts/ShapedTextFwd.h"
 #include "UObject/ObjectMacros.h"
 #include "Fonts/SlateFontInfo.h"
@@ -444,6 +445,13 @@ private:
 	TArray<TWeakPtr<FFreeTypeFace>> GlyphFontFaces;
 	/** A map of source indices to their shaped glyph data indices - used to perform efficient reverse look-up */
 	FSourceIndicesToGlyphData SourceIndicesToGlyphData;
+#if SLATE_CHECK_UOBJECT_SHAPED_GLYPH_SEQUENCE
+	// Used to guard against crashes when the material object is deleted. This is expensive so we do not do it in shipping
+	TWeakObjectPtr<const UObject> FontMaterialWeakPtr;
+	TWeakObjectPtr<const UObject> OutlineMaterialWeakPtr;
+	FName DebugFontMaterialName;
+	FName DebugOutlineMaterialName;
+#endif
 };
 
 /** Information for rendering one non-shaped character */

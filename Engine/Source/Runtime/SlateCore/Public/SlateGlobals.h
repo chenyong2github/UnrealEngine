@@ -10,6 +10,9 @@
 // Enabled cvar GSlateCheckUObjectRenderResources that will check for invalid reference in the slate resources manager
 #define SLATE_CHECK_UOBJECT_RENDER_RESOURCES !UE_BUILD_SHIPPING
 
+// Enabled cvar GSlateCheckUObjectShapedGlyphSequence that will check for invalid reference before using them
+#define SLATE_CHECK_UOBJECT_SHAPED_GLYPH_SEQUENCE !UE_BUILD_SHIPPING
+
 #ifndef SLATE_CULL_WIDGETS
 	#define SLATE_CULL_WIDGETS 1
 #endif
@@ -77,6 +80,10 @@ extern SLATECORE_API int32 GSlateLayoutGeneration;
 extern SLATECORE_API bool GSlateCheckUObjectRenderResources;
 // When we detect a none valid resource, should we log a fatal error (crash) or log it (ensure).
 extern SLATECORE_API bool GSlateCheckUObjectRenderResourcesShouldLogFatal;
+#endif
+
+#if SLATE_CHECK_UOBJECT_SHAPED_GLYPH_SEQUENCE
+extern SLATECORE_API bool GSlateCheckUObjectShapedGlyphSequence;
 #endif
 
 #if WITH_SLATE_DEBUGGING
