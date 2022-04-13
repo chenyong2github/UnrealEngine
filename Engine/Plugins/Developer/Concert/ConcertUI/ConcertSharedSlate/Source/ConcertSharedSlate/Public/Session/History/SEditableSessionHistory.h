@@ -37,7 +37,7 @@ private:
 	FRequestDeleteActivity DeleteActivityFunc;
 
 	/** Creates a delete button that is overlayed over the summary column*/
-	TSharedPtr<SWidget> MakeSummaryColumnDeleteButton(TWeakPtr<FConcertSessionActivity> RowActivity, const FName& ColumnId) const;
+	TSharedPtr<SWidget> MakeSummaryColumnDeleteButton(TWeakPtr<SMultiColumnTableRow<TSharedPtr<FConcertSessionActivity>>> OwningRow, TWeakPtr<FConcertSessionActivity> RowActivity, const FName& ColumnId) const;
 	FReply OnClickDeleteActivityButton(TWeakPtr<FConcertSessionActivity> RowActivity) const;
 	FText GetDeleteActivityToolTip(TWeakPtr<FConcertSessionActivity> RowActivity) const;
 	bool CanDeleteActivity(TWeakPtr<FConcertSessionActivity> RowActivity) const;

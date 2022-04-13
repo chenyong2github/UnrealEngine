@@ -154,7 +154,7 @@ TSharedRef<SWidget> SConcertSessionActivityRow::GenerateWidgetForColumn(const FN
 	
 	if (OnMakeColumnOverlayWidget.IsBound())
 	{
-		if (TSharedPtr<SWidget> OverlayedWidget = OnMakeColumnOverlayWidget.Execute(ActivityPin, ColumnId))
+		if (TSharedPtr<SWidget> OverlayedWidget = OnMakeColumnOverlayWidget.Execute(SharedThis(this), ActivityPin, ColumnId))
 		{
 			Overlay->AddSlot()
 			[

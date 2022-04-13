@@ -47,19 +47,34 @@ public:
 	};
 
 	/** Used to pull activities from a session. Used to fetch and display the activities of an archived session. */
-	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FFetchActivitiesFunc, TArray<TSharedPtr<FConcertSessionActivity>>& /*InOutActivities*/, int32& /*OutFetchedCount*/, FText& /*ErrorMsg*/);
+	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FFetchActivitiesFunc,
+		TArray<TSharedPtr<FConcertSessionActivity>>& /*InOutActivities*/,
+		int32& /*OutFetchedCount*/,
+		FText& /*ErrorMsg*/
+		)
 	
 	/** Used to map an activity to its client. */
-	DECLARE_DELEGATE_RetVal_OneParam(TOptional<FConcertClientInfo>, FGetActivityClientInfoFunc, FGuid /*ClientId*/);
+	DECLARE_DELEGATE_RetVal_OneParam(TOptional<FConcertClientInfo>, FGetActivityClientInfoFunc,
+		FGuid /*ClientId*/
+		)
 
 	/** Returns the transaction event corresponding the specified activity.*/
-	DECLARE_DELEGATE_RetVal_OneParam(TFuture<TOptional<FConcertSyncTransactionEvent>>, FGetTransactionEvent, const FConcertSessionActivity& /*Activity*/)
+	DECLARE_DELEGATE_RetVal_OneParam(TFuture<TOptional<FConcertSyncTransactionEvent>>, FGetTransactionEvent,
+		const FConcertSessionActivity& /*Activity*/
+		)
 	
 	/** Returns the package event corresponding to the package activity. */
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FGetPackageEvent, const FConcertSessionActivity& /*Activity*/, FConcertSyncPackageEventMetaData& /*OutEvent*/);
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FGetPackageEvent,
+		const FConcertSessionActivity& /*Activity*/,
+		FConcertSyncPackageEventMetaData& /*OutEvent*/
+		)
 
 	/** Used to overlay a widget over a column widget to add custom functionalities to a row. */
-	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<SWidget>, FMakeColumnOverlayWidgetFunc, TWeakPtr<FConcertSessionActivity> /*ThisRowActivity*/, const FName& /*ColumnId*/);
+	DECLARE_DELEGATE_RetVal_ThreeParams(TSharedPtr<SWidget>, FMakeColumnOverlayWidgetFunc,
+		TWeakPtr<SMultiColumnTableRow<TSharedPtr<FConcertSessionActivity>>> /*OwningRow*/,
+		TWeakPtr<FConcertSessionActivity> /*ThisRowActivity*/,
+		const FName& /*ColumnId*/
+		)
 
 public:
 	SLATE_BEGIN_ARGS(SConcertSessionActivities)

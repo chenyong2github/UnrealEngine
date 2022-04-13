@@ -26,13 +26,16 @@ void SEditableSessionHistory::Construct(const FArguments& InArgs)
 	];
 }
 
-TSharedPtr<SWidget> SEditableSessionHistory::MakeSummaryColumnDeleteButton(TWeakPtr<FConcertSessionActivity> RowActivity, const FName& ColumnId) const
+TSharedPtr<SWidget> SEditableSessionHistory::MakeSummaryColumnDeleteButton(
+	TWeakPtr<SMultiColumnTableRow<TSharedPtr<FConcertSessionActivity>>> OwningRow,
+	TWeakPtr<FConcertSessionActivity> RowActivity,
+	const FName& ColumnId) const
 {
 	if (!SessionHistory->IsLastColumn(ColumnId))
 	{
 		return nullptr;
 	}
-	
+
 	return SNew(SBox)
 		.Padding(FMargin(1, 1))
 		.HAlign(HAlign_Right)
@@ -40,6 +43,7 @@ TSharedPtr<SWidget> SEditableSessionHistory::MakeSummaryColumnDeleteButton(TWeak
 		[
 			SNew(SNegativeActionButton)
 			.OnClicked(this, &SEditableSessionHistory::OnClickDeleteActivityButton, RowActivity)
+			.Visibility_Lambda([OwningRow](){ return OwningRow.IsValid() && OwningRow.Pin()->IsHovered() ? EVisibility::Visible : EVisibility::Collapsed; })
 			.ToolTipText(TAttribute<FText>::CreateLambda([this, RowActivity](){ return GetDeleteActivityToolTip(RowActivity);}))
 			.IsEnabled(TAttribute<bool>::CreateLambda([this, RowActivity](){ return CanDeleteActivity(RowActivity);}))
 			.Icon(FEditorStyle::GetBrush("Icons.Delete"))
