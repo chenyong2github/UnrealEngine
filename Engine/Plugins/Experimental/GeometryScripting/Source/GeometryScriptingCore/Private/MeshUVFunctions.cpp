@@ -437,22 +437,32 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::RecomputeMeshUVs(
 			bComponentSolved[k] = false;
 			switch (Options.Method)
 			{
-			case EGeometryScriptUVFlattenMethod::ExpMap:
-			{
-				FDynamicMeshUVEditor::FExpMapOptions ExpMapOptions;
-				ExpMapOptions.NormalSmoothingRounds = Options.ExpMapOptions.NormalSmoothingRounds;
-				ExpMapOptions.NormalSmoothingAlpha = Options.ExpMapOptions.NormalSmoothingAlpha;
-				bComponentSolved[k] = UVEditor.SetTriangleUVsFromExpMap(ComponentTris, ExpMapOptions);
-			}
-			break;
-
-			case EGeometryScriptUVFlattenMethod::Conformal:
-				bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundaryConformal(ComponentTris);
-				if ( bComponentSolved[k] )
+				case EGeometryScriptUVFlattenMethod::ExpMap:
 				{
-					UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);
+					FDynamicMeshUVEditor::FExpMapOptions ExpMapOptions;
+					ExpMapOptions.NormalSmoothingRounds = Options.ExpMapOptions.NormalSmoothingRounds;
+					ExpMapOptions.NormalSmoothingAlpha = Options.ExpMapOptions.NormalSmoothingAlpha;
+					bComponentSolved[k] = UVEditor.SetTriangleUVsFromExpMap(ComponentTris, ExpMapOptions);
+					break;
 				}
-				break;
+				case EGeometryScriptUVFlattenMethod::Conformal:
+				{
+					bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundaryConformal(ComponentTris);
+					if ( bComponentSolved[k] )
+					{
+						UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);
+					}
+					break;
+				}
+				case EGeometryScriptUVFlattenMethod::SpectralConformal:
+				{
+					bComponentSolved[k] = UVEditor.SetTriangleUVsFromFreeBoundarySpectralConformal(ComponentTris, false, Options.SpectralConformalOptions.bPreserveIrregularity);
+					if ( bComponentSolved[k] )
+					{
+						UVEditor.ScaleUVAreaTo3DArea(ComponentTris, true);
+					}
+					break;
+				}
 			}
 		}
 

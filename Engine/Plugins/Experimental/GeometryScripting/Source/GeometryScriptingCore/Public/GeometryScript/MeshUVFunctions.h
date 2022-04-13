@@ -26,7 +26,8 @@ UENUM(BlueprintType)
 enum class EGeometryScriptUVFlattenMethod : uint8
 {
 	ExpMap = 0,
-	Conformal = 1
+	Conformal = 1,
+	SpectralConformal = 2
 };
 
 UENUM(BlueprintType)
@@ -49,6 +50,15 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptExpMapUVOptions
 	float NormalSmoothingAlpha = 0.25f;
 };
 
+USTRUCT(BlueprintType)
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptSpectralConformalUVOptions
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	bool bPreserveIrregularity = true;
+};
+
 
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptRecomputeUVsOptions
@@ -56,13 +66,16 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptRecomputeUVsOptions
 	GENERATED_BODY()
 public:
 	UPROPERTY(BlueprintReadWrite, Category = Options)
-	EGeometryScriptUVFlattenMethod Method = EGeometryScriptUVFlattenMethod::Conformal;
+	EGeometryScriptUVFlattenMethod Method = EGeometryScriptUVFlattenMethod::SpectralConformal;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	EGeometryScriptUVIslandSource IslandSource = EGeometryScriptUVIslandSource::UVIslands;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	FGeometryScriptExpMapUVOptions ExpMapOptions;
+
+	UPROPERTY(BlueprintReadWrite, Category = Options)
+	FGeometryScriptSpectralConformalUVOptions SpectralConformalOptions;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	FGeometryScriptGroupLayer GroupLayer;
