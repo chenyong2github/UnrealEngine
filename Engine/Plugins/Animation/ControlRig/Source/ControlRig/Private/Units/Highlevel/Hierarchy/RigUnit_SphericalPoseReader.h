@@ -382,4 +382,11 @@ struct CONTROLRIG_API FRigUnit_SphericalPoseReader: public FRigUnit_HighlevelBas
 
 	UPROPERTY()
 	FCachedRigElement OptionalParentCache;
+	
+	UPROPERTY()
+	FTransform LocalDriverTransformInit;
+	UPROPERTY()
+	FVector CachedRotationOffset;
+	UPROPERTY()
+	bool bCachedInitTransforms;
 };
