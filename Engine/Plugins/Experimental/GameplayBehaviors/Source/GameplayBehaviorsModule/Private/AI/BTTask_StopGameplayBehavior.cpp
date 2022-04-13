@@ -2,7 +2,7 @@
 
 #include "AI/BTTask_StopGameplayBehavior.h"
 #include "GameplayBehavior.h"
-#include "GameplayBehaviorManager.h"
+#include "GameplayBehaviorSubsystem.h"
 #include "AIController.h"
 
 //----------------------------------------------------------------------//
@@ -16,9 +16,9 @@ UBTTask_StopGameplayBehavior::UBTTask_StopGameplayBehavior(const FObjectInitiali
 EBTNodeResult::Type UBTTask_StopGameplayBehavior::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	UWorld* World = GetWorld();
-	UGameplayBehaviorManager* GBMgr = UGameplayBehaviorManager::GetCurrent(World);
+	UGameplayBehaviorSubsystem* Subsystem = UGameplayBehaviorSubsystem::GetCurrent(World);
 	AAIController* MyController = OwnerComp.GetAIOwner();
-	if (GBMgr == nullptr || MyController == nullptr
+	if (Subsystem == nullptr || MyController == nullptr
 		|| MyController->GetPawn() == nullptr)
 	{
 		return EBTNodeResult::Failed;
@@ -26,7 +26,7 @@ EBTNodeResult::Type UBTTask_StopGameplayBehavior::ExecuteTask(UBehaviorTreeCompo
 
 	AActor& Avatar = *MyController->GetPawn();
 
-	return GBMgr->StopBehavior(Avatar, BehaviorToStop)
+	return Subsystem->StopBehavior(Avatar, BehaviorToStop)
 		? EBTNodeResult::Succeeded
 		: EBTNodeResult::Failed;
 }

@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "AISubsystem.h"
-#include "GameplayBehaviorManager.generated.h"
+#include "Subsystems/WorldSubsystem.h"
+#include "GameplayBehaviorSubsystem.generated.h"
 
 
 class UGameplayBehavior;
@@ -21,36 +21,20 @@ struct FAgentGameplayBehaviors
 };
 
 UCLASS(config = Game, defaultconfig, Transient)
-class GAMEPLAYBEHAVIORSMODULE_API UGameplayBehaviorManager : public UAISubsystem//, public FSelfRegisteringExec
+class GAMEPLAYBEHAVIORSMODULE_API UGameplayBehaviorSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 public:
-	DECLARE_DELEGATE_RetVal_OneParam(UGameplayBehaviorManager*, FInstanceGetterSignature, UWorld& /*World*/);
-
-	UGameplayBehaviorManager(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-	virtual void PostInitProperties() override;
-
-	bool StopBehavior(AActor& Avatar, TSubclassOf<UGameplayBehavior> BehaviorToStop);
-
-	static UGameplayBehaviorManager* GetCurrent(UWorld* World);
+	static UGameplayBehaviorSubsystem* GetCurrent(const UWorld* World);
 	static bool TriggerBehavior(const UGameplayBehaviorConfig& Config, AActor& Avatar, AActor* SmartObjectOwner = nullptr);
 	static bool TriggerBehavior(UGameplayBehavior& Behavior, AActor& Avatar, const UGameplayBehaviorConfig* Config, AActor* SmartObjectOwner = nullptr);
-
-	bool IsShuttingDown() const { return !IsValidChecked(this) || IsUnreachable(); }
-
-	UWorld* GetWorldFast() const { return Cast<UWorld>(GetOuter()); }
+	bool StopBehavior(AActor& Avatar, TSubclassOf<UGameplayBehavior> BehaviorToStop);
 
 protected:
 	void OnBehaviorFinished(UGameplayBehavior& Behavior, AActor& Avatar, const bool bInterrupted);
 
 	virtual bool TriggerBehaviorImpl(UGameplayBehavior& Behavior, AActor& Avatar, const UGameplayBehaviorConfig* Config, AActor* SmartObjectOwner = nullptr);
 
-protected:
 	UPROPERTY()
 	TMap<AActor*, FAgentGameplayBehaviors> AgentGameplayBehaviors;
-
-	UPROPERTY(config)
-	uint32 bCreateIfMissing : 1;
-
-	static FInstanceGetterSignature InstanceGetterDelegate;
 };

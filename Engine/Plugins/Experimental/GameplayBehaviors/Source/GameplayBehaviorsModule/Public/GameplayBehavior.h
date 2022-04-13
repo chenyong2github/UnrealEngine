@@ -12,7 +12,7 @@ class APawn;
 class ACharacter;
 class UGameplayBehaviorConfig;
 class UGameplayBehavior;
-class UGameplayBehaviorManager;
+class UGameplayBehaviorSubsystem;
 
 
 GAMEPLAYBEHAVIORSMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogGameplayBehavior, Warning, All);

@@ -14,10 +14,12 @@ struct TDefaultManagerInstanceTracker
 	TMap<UWorld*, FManager*> WorldToInstanceMap;
 	bool bCreateIfMissing = false;
 
+	UE_DEPRECATED(5.1, "TDefaultManagerInstanceTracker is deprecated and will be removed. Consider inheriting from a subsystem instead.")
 	TDefaultManagerInstanceTracker()
 	{
 	}
 
+	UE_DEPRECATED(5.1, "TDefaultManagerInstanceTracker is deprecated and will be removed. Consider inheriting from a subsystem instead.")
 	FManager* GetManagerInstance(UWorld& World)
 	{
 		FManager** FoundInstance = WorldToInstanceMap.Find(&World);

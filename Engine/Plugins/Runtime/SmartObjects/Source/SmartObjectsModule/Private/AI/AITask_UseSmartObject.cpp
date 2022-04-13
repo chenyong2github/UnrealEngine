@@ -8,7 +8,7 @@
 #include "SmartObjectSubsystem.h"
 #include "GameplayBehavior.h"
 #include "GameplayBehaviorConfig.h"
-#include "GameplayBehaviorManager.h"
+#include "GameplayBehaviorSubsystem.h"
 #include "GameplayTagAssetInterface.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Misc/ScopeExit.h"
@@ -191,7 +191,7 @@ void UAITask_UseSmartObject::OnGameplayTaskDeactivated(UGameplayTask& Task)
 					const USmartObjectComponent* SmartObjectComponent = SmartObjectSubsystem->GetSmartObjectComponent(ClaimedHandle);
 					AActor& InteractorActor = *OwnerController->GetPawn();
 					AActor* InteracteeActor = SmartObjectComponent ? SmartObjectComponent->GetOwner() : nullptr;
-					bBehaviorActive = UGameplayBehaviorManager::TriggerBehavior(*GameplayBehavior, InteractorActor, GameplayBehaviorConfig, InteracteeActor);
+					bBehaviorActive = UGameplayBehaviorSubsystem::TriggerBehavior(*GameplayBehavior, InteractorActor, GameplayBehaviorConfig, InteracteeActor);
 					// Behavior can be successfully triggered AND ended synchronously. We are only interested to register callback when still running
 					if (bBehaviorActive)
 					{
