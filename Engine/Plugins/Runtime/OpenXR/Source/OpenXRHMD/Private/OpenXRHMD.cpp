@@ -288,7 +288,13 @@ FVector2D FOpenXRHMD::GetPlayAreaBounds(EHMDTrackingOrigin::Type Origin) const
 		break;
 	}
 	XrExtent2Df Bounds;
-	XR_ENSURE(xrGetReferenceSpaceBoundsRect(Session, Space, &Bounds));
+	const XrResult Result = xrGetReferenceSpaceBoundsRect(Session, Space, &Bounds);
+	if (Result != XR_SUCCESS)
+	{
+		UE_LOG(LogHMD, Warning, TEXT("GetPlayAreaBounds xrGetReferenceSpaceBoundsRect with reference space %s failed with result %s. Returning zero vector."), OpenXRReferenceSpaceTypeToString(Space), OpenXRResultToString(Result));
+		return FVector2D::ZeroVector;
+	}
+	
 	Swap(Bounds.width, Bounds.height); // Convert to UE coordinate system
 	return ToFVector2D(Bounds, WorldToMetersScale);
 }

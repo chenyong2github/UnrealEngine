@@ -27,6 +27,16 @@ constexpr const TCHAR* OpenXRSessionStateToString(XrSessionState e)
 	}
 }
 
+#define XR_REFERENCE_SPACE_TYPE_STR(name, val) case name: return TEXT(#name);
+constexpr const TCHAR* OpenXRReferenceSpaceTypeToString(XrReferenceSpaceType e)
+{
+	switch (e)
+	{
+		XR_LIST_ENUM_XrReferenceSpaceType(XR_REFERENCE_SPACE_TYPE_STR);
+	default: return TEXT("Unknown");
+	}
+}
+
 #if DO_CHECK
 #define XR_ENSURE(x) [] (XrResult Result) \
 	{ \
