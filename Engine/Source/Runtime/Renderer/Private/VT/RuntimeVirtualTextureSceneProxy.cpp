@@ -91,10 +91,10 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 
 		// Store the ProducerHandle and SpaceID immediately after virtual texture is initialized.
 		ENQUEUE_RENDER_COMMAND(GetProducerHandle)(
-			[this](FRHICommandList& RHICmdList)
+			[this, VirtualTexturePtr = VirtualTexture](FRHICommandList& RHICmdList)
 			{
-				ProducerHandle = VirtualTexture->GetProducerHandle();
-				SpaceID = VirtualTexture->GetAllocatedVirtualTexture()->GetSpaceID();
+				ProducerHandle = VirtualTexturePtr->GetProducerHandle();
+				SpaceID = VirtualTexturePtr->GetAllocatedVirtualTexture()->GetSpaceID();
 			});
 	}
 }
