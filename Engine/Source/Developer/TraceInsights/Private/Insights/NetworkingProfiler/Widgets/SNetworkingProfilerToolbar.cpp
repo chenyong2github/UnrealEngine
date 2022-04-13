@@ -2,6 +2,7 @@
 
 #include "SNetworkingProfilerToolbar.h"
 
+#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SBoxPanel.h"
 
@@ -34,7 +35,7 @@ void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs, TSharedRef<
 {
 	struct Local
 	{
-		static void FillViewToolbar(FToolBarBuilder& ToolbarBuilder, TSharedRef<SNetworkingProfilerWindow> ProfilerWindow)
+		static void FillViewToolbar(FToolBarBuilder& ToolbarBuilder, const FArguments &InArgs, TSharedRef<SNetworkingProfilerWindow> ProfilerWindow)
 		{
 			ToolbarBuilder.BeginSection("View");
 			{
@@ -68,9 +69,14 @@ void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs, TSharedRef<
 			//		FSlateIcon(FInsightsStyle::GetStyleSetName(), "NewNetworkingInsights.Icon"));
 			//}
 			//ToolbarBuilder.EndSection();
+
+			if (InArgs._ToolbarExtender.IsValid())
+			{
+				InArgs._ToolbarExtender->Apply("MainToolbar", EExtensionHook::First, ToolbarBuilder);
+			}
 		}
 
-		static void FillRightSideToolbar(FToolBarBuilder& ToolbarBuilder)
+		static void FillRightSideToolbar(FToolBarBuilder& ToolbarBuilder, const FArguments &InArgs)
 		{
 			ToolbarBuilder.BeginSection("Debug");
 			{
@@ -79,18 +85,23 @@ void SNetworkingProfilerToolbar::Construct(const FArguments& InArgs, TSharedRef<
 					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Debug.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
+
+			if (InArgs._ToolbarExtender.IsValid())
+			{
+				InArgs._ToolbarExtender->Apply("RightSideToolbar", EExtensionHook::First, ToolbarBuilder);
+			}
 		}
 	};
 
-	TSharedPtr<FUICommandList> CommandList = InProfilerWindow->GetCommandList();
+	const TSharedPtr<FUICommandList> CommandList = InProfilerWindow->GetCommandList();
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	ToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");
-	Local::FillViewToolbar(ToolbarBuilder, InProfilerWindow);
+	Local::FillViewToolbar(ToolbarBuilder, InArgs, InProfilerWindow);
 
 	FSlimHorizontalToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	RightSideToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");
-	Local::FillRightSideToolbar(RightSideToolbarBuilder);
+	Local::FillRightSideToolbar(RightSideToolbarBuilder, InArgs);
 
 	ChildSlot
 	[

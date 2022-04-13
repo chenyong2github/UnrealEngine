@@ -2,10 +2,10 @@
 
 #pragma once
 
-#include "Templates/SharedPointer.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FExtender;
 class SNetworkingProfilerWindow;
 
 class SNetworkingProfilerToolbar : public SCompoundWidget
@@ -18,6 +18,7 @@ public:
 	virtual ~SNetworkingProfilerToolbar();
 
 	SLATE_BEGIN_ARGS(SNetworkingProfilerToolbar) {}
+	SLATE_ARGUMENT(TSharedPtr<FExtender>, ToolbarExtender);
 	SLATE_END_ARGS()
 
 	/**

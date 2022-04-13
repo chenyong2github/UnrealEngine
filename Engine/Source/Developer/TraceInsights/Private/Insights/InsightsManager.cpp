@@ -678,7 +678,6 @@ void FInsightsManager::SpawnAndActivateTabs()
 			while ((NetworkingProfilerTab = FGlobalTabmanager::Get()->FindExistingLiveTab(TabId)).IsValid())
 			{
 				NetworkingProfilerTab->RequestCloseTab();
-				NetworkingProfilerTab->RemoveTabFromParent();
 			}
 		}
 	}

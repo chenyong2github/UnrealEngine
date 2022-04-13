@@ -3,23 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Framework/Docking/TabManager.h"
-#include "Input/Reply.h"
-#include "Layout/Visibility.h"
-#include "Misc/Guid.h"
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Docking/SDockTab.h"
-#include "Widgets/SCompoundWidget.h"
 
 // Insights
-#include "Insights/InsightsManager.h"
-#include "Insights/ITimingViewSession.h"
+#include "Insights/ITimingViewSession.h" // for Insights::ETimeChangedFlags
+#include "Insights/Widgets/SMajorTabWindow.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FActiveTimerHandle;
-class FMenuBuilder;
 
 class STimingView;
 
@@ -43,8 +32,8 @@ struct FLoadingProfilerTabs
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Implements the timing profiler window. */
-class SLoadingProfilerWindow : public SCompoundWidget
+/** Implements the Asset Loading Insights window. */
+class SLoadingProfilerWindow : public Insights::SMajorTabWindow
 {
 public:
 	/** Default constructor. */
@@ -56,7 +45,8 @@ public:
 	SLATE_BEGIN_ARGS(SLoadingProfilerWindow) {}
 	SLATE_END_ARGS()
 
-	void Reset();
+	virtual void Reset() override;
+
 	void UpdateTableTreeViews();
 	void UpdateEventAggregationTreeView();
 	void UpdateObjectTypeAggregationTreeView();
@@ -67,18 +57,19 @@ public:
 	/** Constructs this widget. */
 	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow);
 
-	void ShowTab(const FName& TabID);
-	void HideTab(const FName& TabID);
-	void ShowHideTab(const FName& TabID, bool bShow) { bShow ? ShowTab(TabID) : HideTab(TabID); }
-
-	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
-
 	TSharedPtr<STimingView> GetTimingView() const { return TimingView; }
 	TSharedPtr<Insights::SUntypedTableTreeView> GetEventAggregationTreeView() const { return EventAggregationTreeView; }
 	TSharedPtr<Insights::SUntypedTableTreeView> GetObjectTypeAggregationTreeView() const { return ObjectTypeAggregationTreeView; }
 	TSharedPtr<Insights::SUntypedTableTreeView> GetPackageDetailsTreeView() const { return PackageDetailsTreeView; }
 	TSharedPtr<Insights::SUntypedTableTreeView> GetExportDetailsTreeView() const { return ExportDetailsTreeView; }
 	TSharedPtr<Insights::SUntypedTableTreeView> GetRequestsTreeView() const { return RequestsTreeView; }
+
+protected:
+	virtual const TCHAR* GetAnalyticsEventName() const override;
+	virtual TSharedRef<FWorkspaceItem> CreateWorkspaceMenuGroup() override;
+	virtual void RegisterTabSpawners() override;
+	virtual TSharedRef<FTabManager::FLayout> CreateDefaultTabLayout() const override;
+	virtual TSharedRef<SWidget> CreateToolbar(TSharedPtr<FExtender> Extender);
 
 private:
 	TSharedRef<SDockTab> SpawnTab_TimingView(const FSpawnTabArgs& Args);
@@ -99,86 +90,9 @@ private:
 	TSharedRef<SDockTab> SpawnTab_RequestsTreeView(const FSpawnTabArgs& Args);
 	void OnRequestsTreeViewTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
-	/**
-	 * Fill the main menu with menu items.
-	 *
-	 * @param MenuBuilder The multi-box builder that should be filled with content for this pull-down menu.
-	 * @param TabManager A Tab Manager from which to populate tab spawner menu items.
-	 */
-	static void FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FTabManager> TabManager);
-
-	/** Callback for determining the visibility of the 'Select a session' overlay. */
-	EVisibility IsSessionOverlayVisible() const;
-
-	/** Callback for getting the enabled state of the profiler window. */
-	bool IsProfilerEnabled() const;
-
-	/** Updates the amount of time the profiler has been active. */
-	EActiveTimerReturnType UpdateActiveDuration(double InCurrentTime, float InDeltaTime);
-
-	/**
-	 * Ticks this widget. Override in derived classes, but always call the parent implementation.
-	 *
-	 * @param  AllottedGeometry The space allotted for this widget
-	 * @param  InCurrentTime  Current absolute real time
-	 * @param  InDeltaTime  Real time passed since last tick
-	 */
-	//virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-
-	/**
-	 * The system will use this event to notify a widget that the cursor has entered it. This event is NOT bubbled.
-	 *
-	 * @param MyGeometry The Geometry of the widget receiving the event
-	 * @param MouseEvent Information about the input event
-	 */
-	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-
-	/**
-	 * The system will use this event to notify a widget that the cursor has left it. This event is NOT bubbled.
-	 *
-	 * @param MouseEvent Information about the input event
-	 */
-	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override;
-
-	/**
-	 * Called after a key is pressed when this widget has focus
-	 *
-	 * @param MyGeometry The Geometry of the widget receiving the event
-	 * @param  InKeyEvent  Key event
-	 *
-	 * @return  Returns whether the event was handled, along with other possible actions
-	 */
-	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
-
-	/**
-	 * Called when the user is dropping something onto a widget; terminates drag and drop.
-	 *
-	 * @param MyGeometry      The geometry of the widget receiving the event.
-	 * @param DragDropEvent   The drag and drop event.
-	 *
-	 * @return A reply that indicated whether this event was handled.
-	 */
-	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
-
-	/**
-	 * Called during drag and drop when the the mouse is being dragged over a widget.
-	 *
-	 * @param MyGeometry      The geometry of the widget receiving the event.
-	 * @param DragDropEvent   The drag and drop event.
-	 *
-	 * @return A reply that indicated whether this event was handled.
-	 */
-	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
-
 	void OnTimeSelectionChanged(Insights::ETimeChangedFlags InFlags, double InStartTime, double InEndTime);
 
 private:
-	/** Holds the tab manager that manages the front-end's tabs. */
-	TSharedPtr<FTabManager> TabManager;
-
-	/** All tabs owned by this window */
-	TSet<TSharedPtr<SDockTab>> OpenTabs;
-
 	/** The Timing view (multi-track) widget */
 	TSharedPtr<STimingView> TimingView;
 
@@ -196,12 +110,6 @@ private:
 
 	/** The Requests tree view widget */
 	TSharedPtr<Insights::SUntypedTableTreeView> RequestsTreeView;
-
-	/** The handle to the active update duration tick */
-	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
-
-	/** The number of seconds the profiler has been active */
-	float DurationActive;
 
 	double SelectionStartTime;
 	double SelectionEndTime;

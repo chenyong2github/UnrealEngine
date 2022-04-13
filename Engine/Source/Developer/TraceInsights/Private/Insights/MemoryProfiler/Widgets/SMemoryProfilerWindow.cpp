@@ -4,28 +4,12 @@
 
 #include "Features/IModularFeatures.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Framework/Docking/LayoutService.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/WorkspaceItem.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
-
-#if WITH_EDITOR
-	#include "EngineAnalytics.h"
-	#include "Runtime/Analytics/Analytics/Public/AnalyticsEventAttribute.h"
-	#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
-#endif // WITH_EDITOR
 
 // Insights
-#include "Insights/Common/InsightsMenuBuilder.h"
-#include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/MemoryProfiler/MemoryProfilerManager.h"
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
@@ -33,10 +17,7 @@
 #include "Insights/MemoryProfiler/Widgets/SMemInvestigationView.h"
 #include "Insights/MemoryProfiler/Widgets/SMemoryProfilerToolbar.h"
 #include "Insights/MemoryProfiler/Widgets/SMemTagTreeView.h"
-#include "Insights/TraceInsightsModule.h"
-#include "Insights/Version.h"
 #include "Insights/ViewModels/TimeRulerTrack.h"
-#include "Insights/Widgets/SInsightsSettings.h"
 #include "Insights/Widgets/STimingView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -54,8 +35,8 @@ const FName FMemoryProfilerTabs::ModulesViewID(TEXT("Modules"));
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SMemoryProfilerWindow::SMemoryProfilerWindow()
-	: SharedState(MakeShared<FMemorySharedState>())
-	, DurationActive(0.0f)
+	: SMajorTabWindow(FInsightsManagerTabs::MemoryProfilerTabId)
+	, SharedState(MakeShared<FMemorySharedState>())
 {
 	CreateTimingViewMarkers();
 }
@@ -64,31 +45,19 @@ SMemoryProfilerWindow::SMemoryProfilerWindow()
 
 SMemoryProfilerWindow::~SMemoryProfilerWindow()
 {
-	// Close all tabs.
-	TArray<TSharedPtr<SDockTab>> LocalOpenTabs;
-	for (TSharedPtr<SDockTab>& Tab : OpenTabs)
-	{
-		LocalOpenTabs.Add(Tab);
-	}
-	for (TSharedPtr<SDockTab>& Tab : LocalOpenTabs)
-	{
-		Tab->RequestCloseTab();
-		Tab->RemoveTabFromParent();
-	}
-	LocalOpenTabs.Reset();
-	check(OpenTabs.IsEmpty());
+	CloseAllOpenTabs();
 
 	check(ModulesView == nullptr);
 	check(MemTagTreeView == nullptr);
 	check(MemInvestigationView == nullptr);
 	check(TimingView == nullptr);
+}
 
-#if WITH_EDITOR
-	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Insights.Usage.MemoryProfiler"), FAnalyticsEventAttribute(TEXT("Duration"), DurationActive));
-	}
-#endif // WITH_EDITOR
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TCHAR* SMemoryProfilerWindow::GetAnalyticsEventName() const
+{
+	return TEXT("Insights.Usage.MemoryProfiler");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -142,7 +111,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 	TimingView->HideAllDefaultTracks();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnTimingViewTabClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -164,7 +133,7 @@ void SMemoryProfilerWindow::OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeingC
 	IModularFeatures::Get().UnregisterModularFeature(Insights::TimingViewExtenderFeatureName, &SharedState.Get());
 	SharedState->SetTimingView(nullptr);
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,7 +151,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemInvestigationView(const 
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemInvestigationViewTabClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -195,7 +164,7 @@ void SMemoryProfilerWindow::OnMemInvestigationViewTabClosed(TSharedRef<SDockTab>
 	FMemoryProfilerManager::Get()->SetMemInvestigationViewVisible(false);
 	MemInvestigationView = nullptr;
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -213,7 +182,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemTagTreeView(const FSpawn
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemTagTreeViewTabClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -226,7 +195,7 @@ void SMemoryProfilerWindow::OnMemTagTreeViewTabClosed(TSharedRef<SDockTab> TabBe
 	FMemoryProfilerManager::Get()->SetMemTagTreeViewVisible(false);
 	MemTagTreeView = nullptr;
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -254,7 +223,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView(const
 	MemAllocTableTreeViews.Add(MemAllocTableTreeView);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -295,12 +264,12 @@ void SMemoryProfilerWindow::OnMemAllocTableTreeViewTabClosed(TSharedRef<SDockTab
 		}
 	}
 
-	TabManager->UnregisterTabSpawner(ClosingTabId);
+	GetTabManager()->UnregisterTabSpawner(ClosingTabId);
 
 	MemAllocTableTreeView->OnClose();
 	MemAllocTableTreeViews.Remove(MemAllocTableTreeView);
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -325,17 +294,26 @@ void SMemoryProfilerWindow::CloseMemAllocTableTreeTabs()
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedPtr<Insights::SMemAllocTableTreeView> SMemoryProfilerWindow::ShowMemAllocTableTreeViewTab()
 {
+	if (!GetTabManager().IsValid())
+	{
+		return nullptr;
+	}
+	FTabManager* TabManagerPtr = GetTabManager().Get();
+
 	if (SharedState->GetCurrentQueryTarget()->GetName() == Insights::FQueryTargetWindowSpec::NewWindow)
 	{
 		++LastMemAllocTableTreeViewIndex;
 		FName TabId = FMemoryProfilerTabs::MemAllocTableTreeViewID;
 		TabId.SetNumber(LastMemAllocTableTreeViewIndex);
 
+		check(GetWorkspaceMenuGroup().IsValid());
+		const TSharedRef<FWorkspaceItem> Group = GetWorkspaceMenuGroup().ToSharedRef();
+
 		FText MemAllocTableTreeViewTabDisplayName = FText::Format(LOCTEXT("MemoryProfiler.MemAllocTableTreeViewTabTitle", "Allocs Table {0}"), FText::AsNumber(LastMemAllocTableTreeViewIndex));
-		TabManager->RegisterTabSpawner(TabId, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView, LastMemAllocTableTreeViewIndex))
+		TabManagerPtr->RegisterTabSpawner(TabId, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemAllocTableTreeView, LastMemAllocTableTreeViewIndex))
 			.SetDisplayName(MemAllocTableTreeViewTabDisplayName)
 			.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemAllocTableTreeView"))
-			.SetGroup(AppMenuGroup.ToSharedRef());
+			.SetGroup(Group);
 
 		TSharedPtr<Insights::FQueryTargetWindowSpec> NewTarget = MakeShared<Insights::FQueryTargetWindowSpec>(TabId, MemAllocTableTreeViewTabDisplayName);
 		SharedState->AddQueryTarget(NewTarget);
@@ -344,9 +322,9 @@ TSharedPtr<Insights::SMemAllocTableTreeView> SMemoryProfilerWindow::ShowMemAlloc
 	}
 
 	FName TabId = SharedState->GetCurrentQueryTarget()->GetName();
-	if (TabManager->HasTabSpawner(TabId))
+	if (TabManagerPtr->HasTabSpawner(TabId))
 	{
-		TSharedPtr<SDockTab> Tab = TabManager->TryInvokeTab(TabId);
+		TSharedPtr<SDockTab> Tab = TabManagerPtr->TryInvokeTab(TabId);
 		if (Tab)
 		{
 			TSharedRef<Insights::SMemAllocTableTreeView> MemAllocTableTreeView = StaticCastSharedRef<Insights::SMemAllocTableTreeView>(Tab->GetContent());
@@ -378,7 +356,7 @@ TSharedRef<SDockTab> SMemoryProfilerWindow::SpawnTab_ModulesView(const FSpawnTab
 		];
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SMemoryProfilerWindow::OnModulesViewClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -391,49 +369,65 @@ void SMemoryProfilerWindow::OnModulesViewClosed(TSharedRef<SDockTab> TabBeingClo
 	FMemoryProfilerManager::Get()->SetModulesViewVisible(false);
 	ModulesView = nullptr;
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
+{
+	TSharedPtr<FMemoryProfilerManager> MemoryProfilerManager = FMemoryProfilerManager::Get();
+	ensure(MemoryProfilerManager.IsValid());
+
+	SetCommandList(MemoryProfilerManager->GetCommandList());
+
+	SMajorTabWindow::FArguments Args;
+	SMajorTabWindow::Construct(Args, ConstructUnderMajorTab, ConstructUnderWindow);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<FWorkspaceItem> SMemoryProfilerWindow::CreateWorkspaceMenuGroup()
+{
+	return GetTabManager()->AddLocalWorkspaceMenuCategory(LOCTEXT("MemoryProfilerMenuGroupName", "Memory Insights"));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SMemoryProfilerWindow::RegisterTabSpawners()
+{
+	check(GetTabManager().IsValid());
+	FTabManager* TabManagerPtr = GetTabManager().Get();
+	check(GetWorkspaceMenuGroup().IsValid());
+	const TSharedRef<FWorkspaceItem> Group = GetWorkspaceMenuGroup().ToSharedRef();
+
+	TabManagerPtr->RegisterTabSpawner(FMemoryProfilerTabs::TimingViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_TimingView))
+		.SetDisplayName(LOCTEXT("TimingViewTabTitle", "Timing View"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TimingView"))
+		.SetGroup(Group);
+
+	TabManagerPtr->RegisterTabSpawner(FMemoryProfilerTabs::MemInvestigationViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemInvestigationView))
+		.SetDisplayName(LOCTEXT("MemInvestigationViewTabTitle", "Investigation"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemInvestigationView"))
+		.SetGroup(Group);
+
+	TabManagerPtr->RegisterTabSpawner(FMemoryProfilerTabs::MemTagTreeViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemTagTreeView))
+		.SetDisplayName(LOCTEXT("MemTagTreeViewTabTitle", "LLM Tags"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemTagTreeView"))
+		.SetGroup(Group);
+
+	TabManagerPtr->RegisterTabSpawner(FMemoryProfilerTabs::ModulesViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_ModulesView))
+		.SetDisplayName(LOCTEXT("ModulesViewTabTitle", "Modules"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ModulesView"))
+		.SetGroup(Group);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
+TSharedRef<FTabManager::FLayout> SMemoryProfilerWindow::CreateDefaultTabLayout() const
 {
-	// Create & initialize tab manager.
-	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
-	const auto& PersistLayout = [](const TSharedRef<FTabManager::FLayout>& LayoutToSave)
-	{
-		FLayoutSaveRestore::SaveToConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), LayoutToSave);
-	};
-	TabManager->SetOnPersistLayout(FTabManager::FOnPersistLayout::CreateLambda(PersistLayout));
-
-	AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("MemoryProfilerMenuGroupName", "Memory Insights"));
-
-	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::TimingViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_TimingView))
-		.SetDisplayName(LOCTEXT("TimingViewTabTitle", "Timing View"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TimingView"))
-		.SetGroup(AppMenuGroup.ToSharedRef());
-
-	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::MemInvestigationViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemInvestigationView))
-		.SetDisplayName(LOCTEXT("MemInvestigationViewTabTitle", "Investigation"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemInvestigationView"))
-		.SetGroup(AppMenuGroup.ToSharedRef());
-
-	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::MemTagTreeViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_MemTagTreeView))
-		.SetDisplayName(LOCTEXT("MemTagTreeViewTabTitle", "LLM Tags"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.MemTagTreeView"))
-		.SetGroup(AppMenuGroup.ToSharedRef());
-
-	TabManager->RegisterTabSpawner(FMemoryProfilerTabs::ModulesViewID, FOnSpawnTab::CreateRaw(this, &SMemoryProfilerWindow::SpawnTab_ModulesView))
-		.SetDisplayName(LOCTEXT("ModulesViewTabTitle", "Modules"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ModulesView"))
-		.SetGroup(AppMenuGroup.ToSharedRef());
-
-	TSharedPtr<FMemoryProfilerManager> MemoryProfilerManager = FMemoryProfilerManager::Get();
-	ensure(MemoryProfilerManager.IsValid());
-
-	// Create tab layout.
-	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("InsightsMemoryProfilerLayout_v1.2")
+	return FTabManager::NewLayout("InsightsMemoryProfilerLayout_v1.2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -455,215 +449,14 @@ void SMemoryProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef
 				->SetForegroundTab(FMemoryProfilerTabs::MemInvestigationViewID)
 			)
 		);
-
-	Layout = FLayoutSaveRestore::LoadFromConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), Layout);
-
-	// Create & initialize main menu.
-	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>());
-	MenuBarBuilder.AddPullDownMenu(
-		LOCTEXT("MenuLabel", "Menu"),
-		FText::GetEmpty(),
-		FNewMenuDelegate::CreateStatic(&SMemoryProfilerWindow::FillMenu, TabManager),
-		FName(TEXT("Menu"))
-	);
-
-#if !WITH_EDITOR
-	TSharedRef<SWidget> MenuWidget = MenuBarBuilder.MakeWidget();
-	MenuWidget->SetClipping(EWidgetClipping::ClipToBoundsWithoutIntersecting);
-#endif
-
-	ChildSlot
-	[
-		SNew(SOverlay)
-
-#if !WITH_EDITOR
-		// Menu
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Top)
-		.Padding(34.0f, -60.0f, 0.0f, 0.0f)
-		[
-			MenuWidget
-		]
-#endif
-
-		// Version
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Top)
-		.Padding(0.0f, -16.0f, 4.0f, 0.0f)
-		[
-			SNew(STextBlock)
-			.Clipping(EWidgetClipping::ClipToBoundsWithoutIntersecting)
-			.Text(LOCTEXT("UnrealInsightsVersion", UNREAL_INSIGHTS_VERSION_STRING_EX))
-			.ColorAndOpacity(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f))
-		]
-
-		// Overlay slot for the main window area
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(FMargin(0.0f, 0.0f, 0.0f, 5.0f))
-			[
-				SNew(SMemoryProfilerToolbar)
-			]
-
-			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			[
-				TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
-			]
-		]
-
-		// Session hint overlay
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SBorder)
-			.Visibility(this, &SMemoryProfilerWindow::IsSessionOverlayVisible)
-			.BorderImage(FAppStyle::Get().GetBrush("PopupText.Background"))
-			.Padding(8.0f)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("SelectTraceOverlayText", "Please select a trace."))
-			]
-		]
-	];
-
-#if !WITH_EDITOR
-	// Tell tab-manager about the global menu bar.
-	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox(), MenuWidget);
-#endif
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SMemoryProfilerWindow::FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FTabManager> TabManager)
+TSharedRef<SWidget> SMemoryProfilerWindow::CreateToolbar(TSharedPtr<FExtender> Extender)
 {
-	if (!TabManager.IsValid())
-	{
-		return;
-	}
-
-	FInsightsManager::Get()->GetInsightsMenuBuilder()->PopulateMenu(MenuBuilder);
-
-	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemoryProfilerWindow::ShowTab(const FName& TabID)
-{
-	if (TabManager->HasTabSpawner(TabID))
-	{
-		TabManager->TryInvokeTab(TabID);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemoryProfilerWindow::HideTab(const FName& TabID)
-{
-	TSharedPtr<SDockTab> Tab = TabManager->FindExistingLiveTab(TabID);
-	if (Tab.IsValid())
-	{
-		Tab->RequestCloseTab();
-		Tab->RemoveTabFromParent();
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility SMemoryProfilerWindow::IsSessionOverlayVisible() const
-{
-	if (FInsightsManager::Get()->GetSession().IsValid())
-	{
-		return EVisibility::Hidden;
-	}
-	else
-	{
-		return EVisibility::Visible;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SMemoryProfilerWindow::IsProfilerEnabled() const
-{
-	return FInsightsManager::Get()->GetSession().IsValid();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EActiveTimerReturnType SMemoryProfilerWindow::UpdateActiveDuration(double InCurrentTime, float InDeltaTime)
-{
-	DurationActive += InDeltaTime;
-
-	// The profiler window will explicitly unregister this active timer when the mouse leaves.
-	return EActiveTimerReturnType::Continue;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemoryProfilerWindow::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	SCompoundWidget::OnMouseEnter(MyGeometry, MouseEvent);
-
-	if (!ActiveTimerHandle.IsValid())
-	{
-		ActiveTimerHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SMemoryProfilerWindow::UpdateActiveDuration));
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SMemoryProfilerWindow::OnMouseLeave(const FPointerEvent& MouseEvent)
-{
-	SCompoundWidget::OnMouseLeave(MouseEvent);
-
-	auto PinnedActiveTimerHandle = ActiveTimerHandle.Pin();
-	if (PinnedActiveTimerHandle.IsValid())
-	{
-		UnRegisterActiveTimer(PinnedActiveTimerHandle.ToSharedRef());
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SMemoryProfilerWindow::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
-{
-	return FMemoryProfilerManager::Get()->GetCommandList()->ProcessCommandBindings(InKeyEvent) ? FReply::Handled() : FReply::Unhandled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SMemoryProfilerWindow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
-{
-	if (FInsightsManager::Get()->OnDragOver(DragDropEvent))
-	{
-		return FReply::Handled();
-	}
-
-	return SCompoundWidget::OnDragOver(MyGeometry, DragDropEvent);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SMemoryProfilerWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
-{
-	if (FInsightsManager::Get()->OnDrop(DragDropEvent))
-	{
-		return FReply::Handled();
-	}
-
-	return SCompoundWidget::OnDrop(MyGeometry, DragDropEvent);
+	return SNew(SMemoryProfilerToolbar).ToolbarExtender(Extender);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

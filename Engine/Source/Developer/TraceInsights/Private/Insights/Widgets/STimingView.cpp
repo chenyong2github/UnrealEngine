@@ -4832,7 +4832,6 @@ void STimingView::CloseQuickFindTab()
 		if (QuickFindTab.IsValid())
 		{
 			QuickFindTab->RequestCloseTab();
-			QuickFindTab->RemoveTabFromParent();
 		}
 	}
 }

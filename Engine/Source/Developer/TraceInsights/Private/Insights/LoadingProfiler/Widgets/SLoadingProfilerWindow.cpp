@@ -3,35 +3,16 @@
 #include "SLoadingProfilerWindow.h"
 
 #include "Framework/Commands/UICommandList.h"
-#include "Framework/Docking/LayoutService.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Docking/WorkspaceItem.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SlateOptMacros.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/SBoxPanel.h"
-#include "Widgets/Text/STextBlock.h"
-
-#if WITH_EDITOR
-	#include "EngineAnalytics.h"
-	#include "Runtime/Analytics/Analytics/Public/AnalyticsEventAttribute.h"
-	#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
-#endif // WITH_EDITOR
 
 // Insights
-#include "Insights/Common/InsightsMenuBuilder.h"
-#include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 #include "Insights/LoadingProfiler/Widgets/SLoadingProfilerToolbar.h"
 #include "Insights/Table/Widgets/SUntypedTableTreeView.h"
-#include "Insights/TraceInsightsModule.h"
-#include "Insights/Version.h"
-#include "Insights/Widgets/SInsightsSettings.h"
 #include "Insights/Widgets/STimingView.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -50,7 +31,7 @@ const FName FLoadingProfilerTabs::RequestsTreeViewID(TEXT("Requests"));
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SLoadingProfilerWindow::SLoadingProfilerWindow()
-	: DurationActive(0.0f)
+	: SMajorTabWindow(FInsightsManagerTabs::LoadingProfilerTabId)
 	, SelectionStartTime(0.0f)
 	, SelectionEndTime(0.0f)
 {
@@ -60,19 +41,7 @@ SLoadingProfilerWindow::SLoadingProfilerWindow()
 
 SLoadingProfilerWindow::~SLoadingProfilerWindow()
 {
-	// Close all tabs.
-	TArray<TSharedPtr<SDockTab>> LocalOpenTabs;
-	for (TSharedPtr<SDockTab>& Tab : OpenTabs)
-	{
-		LocalOpenTabs.Add(Tab);
-	}
-	for (TSharedPtr<SDockTab>& Tab : LocalOpenTabs)
-	{
-		Tab->RequestCloseTab();
-		Tab->RemoveTabFromParent();
-	}
-	LocalOpenTabs.Reset();
-	check(OpenTabs.IsEmpty());
+	CloseAllOpenTabs();
 
 	check(RequestsTreeView == nullptr);
 	check(ExportDetailsTreeView == nullptr);
@@ -80,13 +49,13 @@ SLoadingProfilerWindow::~SLoadingProfilerWindow()
 	check(ObjectTypeAggregationTreeView == nullptr);
 	check(EventAggregationTreeView == nullptr);
 	check(TimingView == nullptr);
+}
 
-#if WITH_EDITOR
-	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
-	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Insights.Usage.LoadingProfiler"), FAnalyticsEventAttribute(TEXT("Duration"), DurationActive));
-	}
-#endif // WITH_EDITOR
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const TCHAR* SLoadingProfilerWindow::GetAnalyticsEventName() const
+{
+	return TEXT("Insights.Usage.LoadingProfiler");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -281,7 +250,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_TimingView(const FSpawnTab
 	TimingView->SelectTimeInterval(SelectionStartTime, SelectionEndTime - SelectionStartTime);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnTimingViewTabClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -298,7 +267,7 @@ void SLoadingProfilerWindow::OnTimingViewTabClosed(TSharedRef<SDockTab> TabBeing
 		TimingView = nullptr;
 	}
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -322,7 +291,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_EventAggregationTreeView(c
 	UpdateEventAggregationTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnEventAggregationTreeViewTabClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -335,7 +304,7 @@ void SLoadingProfilerWindow::OnEventAggregationTreeViewTabClosed(TSharedRef<SDoc
 	FLoadingProfilerManager::Get()->SetEventAggregationTreeViewVisible(false);
 	EventAggregationTreeView = nullptr;
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -359,7 +328,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_ObjectTypeAggregationTreeV
 	UpdateObjectTypeAggregationTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnObjectTypeAggregationTreeViewTabClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -372,7 +341,7 @@ void SLoadingProfilerWindow::OnObjectTypeAggregationTreeViewTabClosed(TSharedRef
 	FLoadingProfilerManager::Get()->SetObjectTypeAggregationTreeViewVisible(false);
 	ObjectTypeAggregationTreeView = nullptr;
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -396,7 +365,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_PackageDetailsTreeView(con
 	UpdatePackageDetailsTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnPackageDetailsTreeViewTabClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -409,7 +378,7 @@ void SLoadingProfilerWindow::OnPackageDetailsTreeViewTabClosed(TSharedRef<SDockT
 	FLoadingProfilerManager::Get()->SetPackageDetailsTreeViewVisible(false);
 	PackageDetailsTreeView = nullptr;
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -433,7 +402,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_ExportDetailsTreeView(cons
 	UpdateExportDetailsTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnExportDetailsTreeViewTabClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -446,7 +415,7 @@ void SLoadingProfilerWindow::OnExportDetailsTreeViewTabClosed(TSharedRef<SDockTa
 	FLoadingProfilerManager::Get()->SetExportDetailsTreeViewVisible(false);
 	ExportDetailsTreeView = nullptr;
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -470,7 +439,7 @@ TSharedRef<SDockTab> SLoadingProfilerWindow::SpawnTab_RequestsTreeView(const FSp
 	UpdateRequestsTreeView();
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &SLoadingProfilerWindow::OnRequestsTreeViewTabClosed));
-	OpenTabs.Add(DockTab);
+	AddOpenTab(DockTab);
 
 	return DockTab;
 }
@@ -483,59 +452,75 @@ void SLoadingProfilerWindow::OnRequestsTreeViewTabClosed(TSharedRef<SDockTab> Ta
 	FLoadingProfilerManager::Get()->SetRequestsTreeViewVisible(false);
 	RequestsTreeView = nullptr;
 
-	OpenTabs.Remove(TabBeingClosed);
+	RemoveOpenTab(TabBeingClosed);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SLoadingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
+{
+	TSharedPtr<FLoadingProfilerManager> LoadingProfilerManager = FLoadingProfilerManager::Get();
+	ensure(LoadingProfilerManager.IsValid());
+
+	SetCommandList(LoadingProfilerManager->GetCommandList());
+
+	SMajorTabWindow::FArguments Args;
+	SMajorTabWindow::Construct(Args, ConstructUnderMajorTab, ConstructUnderWindow);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<FWorkspaceItem> SLoadingProfilerWindow::CreateWorkspaceMenuGroup()
+{
+	return GetTabManager()->AddLocalWorkspaceMenuCategory(LOCTEXT("LoadingProfilerMenuGroupName", "Asset Loading Insights"));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SLoadingProfilerWindow::RegisterTabSpawners()
+{
+	check(GetTabManager().IsValid());
+	FTabManager* TabManagerPtr = GetTabManager().Get();
+	check(GetWorkspaceMenuGroup().IsValid());
+	const TSharedRef<FWorkspaceItem> Group = GetWorkspaceMenuGroup().ToSharedRef();
+
+	TabManagerPtr->RegisterTabSpawner(FLoadingProfilerTabs::TimingViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_TimingView))
+		.SetDisplayName(LOCTEXT("TimingViewTabTitle", "Timing View"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TimingView"))
+		.SetGroup(Group);
+
+	TabManagerPtr->RegisterTabSpawner(FLoadingProfilerTabs::EventAggregationTreeViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_EventAggregationTreeView))
+		.SetDisplayName(LOCTEXT("EventAggregationTreeViewTabTitle", "Event Aggregation"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"))
+		.SetGroup(Group);
+
+	TabManagerPtr->RegisterTabSpawner(FLoadingProfilerTabs::ObjectTypeAggregationTreeViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_ObjectTypeAggregationTreeView))
+		.SetDisplayName(LOCTEXT("ObjectTypeAggregationTreeViewTabTitle", "Object Type Aggregation"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"))
+		.SetGroup(Group);
+
+	TabManagerPtr->RegisterTabSpawner(FLoadingProfilerTabs::PackageDetailsTreeViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_PackageDetailsTreeView))
+		.SetDisplayName(LOCTEXT("PackageDetailsTreeViewTabTitle", "Package Details"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"))
+		.SetGroup(Group);
+
+	TabManagerPtr->RegisterTabSpawner(FLoadingProfilerTabs::ExportDetailsTreeViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_ExportDetailsTreeView))
+		.SetDisplayName(LOCTEXT("ExportDetailsTreeViewTabTitle", "Export Details"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"))
+		.SetGroup(Group);
+
+	TabManagerPtr->RegisterTabSpawner(FLoadingProfilerTabs::RequestsTreeViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_RequestsTreeView))
+		.SetDisplayName(LOCTEXT("RequestsTreeViewTabTitle", "Requests"))
+		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"))
+		.SetGroup(Group);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-void SLoadingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
+TSharedRef<FTabManager::FLayout> SLoadingProfilerWindow::CreateDefaultTabLayout() const
 {
-	// Create & initialize tab manager.
-	TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab);
-	const auto& PersistLayout = [](const TSharedRef<FTabManager::FLayout>& LayoutToSave)
-	{
-		FLayoutSaveRestore::SaveToConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), LayoutToSave);
-	};
-	TabManager->SetOnPersistLayout(FTabManager::FOnPersistLayout::CreateLambda(PersistLayout));
-
-	TSharedRef<FWorkspaceItem> AppMenuGroup = TabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("LoadingProfilerMenuGroupName", "Asset Loading Insights"));
-
-	TabManager->RegisterTabSpawner(FLoadingProfilerTabs::TimingViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_TimingView))
-		.SetDisplayName(LOCTEXT("TimingViewTabTitle", "Timing View"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TimingView"))
-		.SetGroup(AppMenuGroup);
-
-	TabManager->RegisterTabSpawner(FLoadingProfilerTabs::EventAggregationTreeViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_EventAggregationTreeView))
-		.SetDisplayName(LOCTEXT("EventAggregationTreeViewTabTitle", "Event Aggregation"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"))
-		.SetGroup(AppMenuGroup);
-
-	TabManager->RegisterTabSpawner(FLoadingProfilerTabs::ObjectTypeAggregationTreeViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_ObjectTypeAggregationTreeView))
-		.SetDisplayName(LOCTEXT("ObjectTypeAggregationTreeViewTabTitle", "Object Type Aggregation"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"))
-		.SetGroup(AppMenuGroup);
-
-	TabManager->RegisterTabSpawner(FLoadingProfilerTabs::PackageDetailsTreeViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_PackageDetailsTreeView))
-		.SetDisplayName(LOCTEXT("PackageDetailsTreeViewTabTitle", "Package Details"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"))
-		.SetGroup(AppMenuGroup);
-
-	TabManager->RegisterTabSpawner(FLoadingProfilerTabs::ExportDetailsTreeViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_ExportDetailsTreeView))
-		.SetDisplayName(LOCTEXT("ExportDetailsTreeViewTabTitle", "Export Details"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"))
-		.SetGroup(AppMenuGroup);
-
-	TabManager->RegisterTabSpawner(FLoadingProfilerTabs::RequestsTreeViewID, FOnSpawnTab::CreateRaw(this, &SLoadingProfilerWindow::SpawnTab_RequestsTreeView))
-		.SetDisplayName(LOCTEXT("RequestsTreeViewTabTitle", "Requests"))
-		.SetIcon(FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.TableTreeView"))
-		.SetGroup(AppMenuGroup);
-
-	TSharedPtr<FLoadingProfilerManager> LoadingProfilerManager = FLoadingProfilerManager::Get();
-	ensure(LoadingProfilerManager.IsValid());
-
-	// Create tab layout.
-	TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("InsightsLoadingProfilerLayout_v1.2")
+	return FTabManager::NewLayout("InsightsLoadingProfilerLayout_v1.2")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -559,215 +544,14 @@ void SLoadingProfilerWindow::Construct(const FArguments& InArgs, const TSharedRe
 				->SetForegroundTab(FLoadingProfilerTabs::EventAggregationTreeViewID)
 			)
 		);
-
-	Layout = FLayoutSaveRestore::LoadFromConfig(FTraceInsightsModule::GetUnrealInsightsLayoutIni(), Layout);
-
-	// Create & initialize main menu.
-	FMenuBarBuilder MenuBarBuilder = FMenuBarBuilder(TSharedPtr<FUICommandList>());
-	MenuBarBuilder.AddPullDownMenu(
-		LOCTEXT("MenuLabel", "Menu"),
-		FText::GetEmpty(),
-		FNewMenuDelegate::CreateStatic(&SLoadingProfilerWindow::FillMenu, TabManager),
-		FName(TEXT("Menu"))
-	);
-
-#if !WITH_EDITOR
-	TSharedRef<SWidget> MenuWidget = MenuBarBuilder.MakeWidget();
-	MenuWidget->SetClipping(EWidgetClipping::ClipToBoundsWithoutIntersecting);
-#endif
-
-	ChildSlot
-	[
-		SNew(SOverlay)
-
-#if !WITH_EDITOR
-		// Menu
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Left)
-		.VAlign(VAlign_Top)
-		.Padding(34.0f, -60.0f, 0.0f, 0.0f)
-		[
-			MenuWidget
-		]
-#endif
-
-		// Version
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Top)
-		.Padding(0.0f, -16.0f, 4.0f, 0.0f)
-		[
-			SNew(STextBlock)
-			.Clipping(EWidgetClipping::ClipToBoundsWithoutIntersecting)
-			.Text(LOCTEXT("UnrealInsightsVersion", UNREAL_INSIGHTS_VERSION_STRING_EX))
-			.ColorAndOpacity(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f))
-		]
-
-		// Overlay slot for the main window area
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Fill)
-		[
-			SNew(SVerticalBox)
-
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(FMargin(0.0f, 0.0f, 0.0f, 5.0f))
-			[
-				SNew(SLoadingProfilerToolbar)
-			]
-
-			+ SVerticalBox::Slot()
-			.FillHeight(1.0f)
-			[
-				TabManager->RestoreFrom(Layout, ConstructUnderWindow).ToSharedRef()
-			]
-		]
-
-		// Session hint overlay
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SBorder)
-			.Visibility(this, &SLoadingProfilerWindow::IsSessionOverlayVisible)
-			.BorderImage(FAppStyle::Get().GetBrush("PopupText.Background"))
-			.Padding(8.0f)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("SelectTraceOverlayText", "Please select a trace."))
-			]
-		]
-	];
-
-#if !WITH_EDITOR
-	// Tell tab-manager about the global menu bar.
-	TabManager->SetMenuMultiBox(MenuBarBuilder.GetMultiBox(), MenuWidget);
-#endif
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SLoadingProfilerWindow::FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FTabManager> TabManager)
+TSharedRef<SWidget> SLoadingProfilerWindow::CreateToolbar(TSharedPtr<FExtender> Extender)
 {
-	if (!TabManager.IsValid())
-	{
-		return;
-	}
-
-	FInsightsManager::Get()->GetInsightsMenuBuilder()->PopulateMenu(MenuBuilder);
-
-	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SLoadingProfilerWindow::ShowTab(const FName& TabID)
-{
-	if (TabManager->HasTabSpawner(TabID))
-	{
-		TabManager->TryInvokeTab(TabID);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SLoadingProfilerWindow::HideTab(const FName& TabID)
-{
-	TSharedPtr<SDockTab> Tab = TabManager->FindExistingLiveTab(TabID);
-	if (Tab.IsValid())
-	{
-		Tab->RequestCloseTab();
-		Tab->RemoveTabFromParent();
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EVisibility SLoadingProfilerWindow::IsSessionOverlayVisible() const
-{
-	if (FInsightsManager::Get()->GetSession().IsValid())
-	{
-		return EVisibility::Hidden;
-	}
-	else
-	{
-		return EVisibility::Visible;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool SLoadingProfilerWindow::IsProfilerEnabled() const
-{
-	return FInsightsManager::Get()->GetSession().IsValid();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-EActiveTimerReturnType SLoadingProfilerWindow::UpdateActiveDuration(double InCurrentTime, float InDeltaTime)
-{
-	DurationActive += InDeltaTime;
-
-	// The profiler window will explicitly unregister this active timer when the mouse leaves.
-	return EActiveTimerReturnType::Continue;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SLoadingProfilerWindow::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	SCompoundWidget::OnMouseEnter(MyGeometry, MouseEvent);
-
-	if (!ActiveTimerHandle.IsValid())
-	{
-		ActiveTimerHandle = RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SLoadingProfilerWindow::UpdateActiveDuration));
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SLoadingProfilerWindow::OnMouseLeave(const FPointerEvent& MouseEvent)
-{
-	SCompoundWidget::OnMouseLeave(MouseEvent);
-
-	auto PinnedActiveTimerHandle = ActiveTimerHandle.Pin();
-	if (PinnedActiveTimerHandle.IsValid())
-	{
-		UnRegisterActiveTimer(PinnedActiveTimerHandle.ToSharedRef());
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SLoadingProfilerWindow::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
-{
-	return FLoadingProfilerManager::Get()->GetCommandList()->ProcessCommandBindings(InKeyEvent) ? FReply::Handled() : FReply::Unhandled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SLoadingProfilerWindow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
-{
-	if (FInsightsManager::Get()->OnDragOver(DragDropEvent))
-	{
-		return FReply::Handled();
-	}
-
-	return SCompoundWidget::OnDragOver(MyGeometry, DragDropEvent);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SLoadingProfilerWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
-{
-	if (FInsightsManager::Get()->OnDrop(DragDropEvent))
-	{
-		return FReply::Handled();
-	}
-
-	return SCompoundWidget::OnDrop(MyGeometry, DragDropEvent);
+	return SNew(SLoadingProfilerToolbar).ToolbarExtender(Extender);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

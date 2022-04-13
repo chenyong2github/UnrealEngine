@@ -4,7 +4,8 @@
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
+
+class FExtender;
 
 /** Ribbon based toolbar used as a main menu in the Profiler window. */
 class STimingProfilerToolbar : public SCompoundWidget
@@ -26,8 +27,4 @@ public:
 	 * @param InArgs The declaration data for this widget
 	 */
 	void Construct(const FArguments& InArgs);
-
-private:
-	/** Create the UI commands for the toolbar */
-	void CreateCommands();
 };

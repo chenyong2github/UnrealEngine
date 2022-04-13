@@ -2,6 +2,7 @@
 
 #include "SMemoryProfilerToolbar.h"
 
+#include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SBoxPanel.h"
 
@@ -33,7 +34,7 @@ void SMemoryProfilerToolbar::Construct(const FArguments& InArgs)
 {
 	struct Local
 	{
-		static void FillViewToolbar(FToolBarBuilder& ToolbarBuilder)
+		static void FillViewToolbar(FToolBarBuilder& ToolbarBuilder, const FArguments &InArgs)
 		{
 			ToolbarBuilder.BeginSection("View");
 			{
@@ -51,9 +52,14 @@ void SMemoryProfilerToolbar::Construct(const FArguments& InArgs)
 					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.ModulesView.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
+
+			if (InArgs._ToolbarExtender.IsValid())
+			{
+				InArgs._ToolbarExtender->Apply("MainToolbar", EExtensionHook::First, ToolbarBuilder);
+			}
 		}
 
-		static void FillRightSideToolbar(FToolBarBuilder& ToolbarBuilder)
+		static void FillRightSideToolbar(FToolBarBuilder& ToolbarBuilder, const FArguments &InArgs)
 		{
 			ToolbarBuilder.BeginSection("Debug");
 			{
@@ -62,6 +68,11 @@ void SMemoryProfilerToolbar::Construct(const FArguments& InArgs)
 					FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icons.Debug.ToolBar"));
 			}
 			ToolbarBuilder.EndSection();
+
+			if (InArgs._ToolbarExtender.IsValid())
+			{
+				InArgs._ToolbarExtender->Apply("RightSideToolbar", EExtensionHook::First, ToolbarBuilder);
+			}
 		}
 	};
 
@@ -69,11 +80,11 @@ void SMemoryProfilerToolbar::Construct(const FArguments& InArgs)
 
 	FSlimHorizontalToolBarBuilder ToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	ToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");
-	Local::FillViewToolbar(ToolbarBuilder);
+	Local::FillViewToolbar(ToolbarBuilder, InArgs);
 
 	FSlimHorizontalToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
 	RightSideToolbarBuilder.SetStyle(&FInsightsStyle::Get(), "PrimaryToolbar");
-	Local::FillRightSideToolbar(RightSideToolbarBuilder);
+	Local::FillRightSideToolbar(RightSideToolbarBuilder, InArgs);
 
 	ChildSlot
 	[

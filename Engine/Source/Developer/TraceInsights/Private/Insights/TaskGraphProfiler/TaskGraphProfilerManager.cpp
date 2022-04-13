@@ -8,6 +8,7 @@
 #include "Modules/ModuleManager.h"
 #include "TraceServices/AnalysisService.h"
 #include "TraceServices/Model/TasksProfiler.h"
+#include "Widgets/Docking/SDockTab.h"
 
 // Insights
 #include "Insights/InsightsStyle.h"
@@ -475,7 +476,6 @@ void FTaskGraphProfilerManager::OnWindowClosedEvent()
 		if (Tab.IsValid())
 		{
 			Tab->RequestCloseTab();
-			Tab->RemoveTabFromParent();
 		}
 	}
 }
