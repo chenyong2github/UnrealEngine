@@ -2467,6 +2467,22 @@ static void SerializePlatformData(
 			}
 
 			CookTags->Add(Texture, "Format", FString(GPixelFormats[PlatformData->PixelFormat].Name));
+
+			// Add in diff keys for change detection/blame.
+			{
+				// Did the source change?
+				CookTags->Add(Texture, "Diff_10_Tex2D_Source", Texture->Source.GetIdString());
+
+				// Did the settings change?
+				if (const UE::DerivedData::FCacheKeyProxy* CacheKey = PlatformData->DerivedDataKey.TryGet<UE::DerivedData::FCacheKeyProxy>())
+				{
+					CookTags->Add(Texture, "Diff_20_Tex2D_CacheKey", *WriteToString<64>(*CacheKey->AsCacheKey()));
+				}
+				else if (const FString* DDK = PlatformData->DerivedDataKey.TryGet<FString>())
+				{
+					CookTags->Add(Texture, "Diff_20_Tex2D_DDK", FString(*DDK));
+				}
+			}
 		}
 #endif
 	}

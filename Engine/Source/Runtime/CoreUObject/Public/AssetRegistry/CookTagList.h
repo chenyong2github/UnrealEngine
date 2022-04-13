@@ -41,6 +41,9 @@ struct FCookTagList
 	*	Adds a tag to the list to be added to the development asset registry
 	*	for this object. Note that we only carry over the name/value, not
 	*	any of the other metadata available when adding tags via GetAssetRegistryTags.
+	* 
+	*	Tags that start with "Diff_" are used for bulk data diff blaming - see DiffAssetBulkDataCommandlet.cpp. When
+	* 	adding diff tags, be sure to add explanatory prose in that commandlet to GBuiltinDiffTagHelp.
 	*/
 	void Add(UObject* InObject, FName InTagName, FString&& InTagValue)
 	{
