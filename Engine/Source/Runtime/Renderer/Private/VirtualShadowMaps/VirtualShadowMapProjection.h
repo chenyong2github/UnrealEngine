@@ -22,7 +22,7 @@ const TCHAR* ToString(EVirtualShadowMapProjectionInputType In);
 void RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FViewInfo& View,
+	const FViewInfo& View, int32 ViewIndex,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
@@ -32,7 +32,7 @@ void RenderVirtualShadowMapProjection(
 void RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FViewInfo& View,
+	const FViewInfo& View, int32 ViewIndex,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
@@ -42,7 +42,7 @@ void RenderVirtualShadowMapProjection(
 FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FViewInfo& View,
+	const FViewInfo& View, int32 ViewIndex,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	EVirtualShadowMapProjectionInputType InputType);
 

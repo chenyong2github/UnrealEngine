@@ -2114,6 +2114,8 @@ void FSceneRenderer::RenderShadowProjections(
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
+				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
 				FViewInfo& View = Views[ViewIndex];
 				FIntRect ScissorRect;
 				if (!LightSceneInfo->Proxy->GetScissorRect(ScissorRect, View, View.ViewRect))
@@ -2129,7 +2131,7 @@ void FSceneRenderer::RenderShadowProjections(
 						RenderVirtualShadowMapProjection(
 							GraphBuilder,
 							SceneTextures,
-							View,
+							View, ViewIndex,
 							VirtualShadowMapArray,
 							ScissorRect,
 							EVirtualShadowMapProjectionInputType::GBuffer,
@@ -2142,7 +2144,7 @@ void FSceneRenderer::RenderShadowProjections(
 						RenderVirtualShadowMapProjection(
 							GraphBuilder,
 							SceneTextures,
-							View,
+							View, ViewIndex,
 							VirtualShadowMapArray,
 							ScissorRect,
 							EVirtualShadowMapProjectionInputType::GBuffer,
@@ -2158,7 +2160,7 @@ void FSceneRenderer::RenderShadowProjections(
 							RenderVirtualShadowMapProjection(
 								GraphBuilder,
 								SceneTextures,
-								View,
+								View, ViewIndex,
 								VirtualShadowMapArray,
 								ScissorRect,
 								EVirtualShadowMapProjectionInputType::HairStrands,
@@ -2171,7 +2173,7 @@ void FSceneRenderer::RenderShadowProjections(
 							RenderVirtualShadowMapProjection(
 								GraphBuilder,
 								SceneTextures,
-								View,
+								View, ViewIndex,
 								VirtualShadowMapArray,
 								ScissorRect,
 								EVirtualShadowMapProjectionInputType::HairStrands,

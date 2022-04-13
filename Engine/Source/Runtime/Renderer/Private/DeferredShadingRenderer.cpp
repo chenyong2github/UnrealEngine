@@ -3157,7 +3157,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (VirtualShadowMapArray.IsEnabled())
 	{
-		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder);
+		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder, Views);
 		if (Views.Num() > 0)
 		{
 			VirtualShadowMapArray.PrintStats(GraphBuilder, Views[0]);
@@ -3337,7 +3337,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 					const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
-					AddPostProcessingPasses(GraphBuilder, View, bAnyLumenActive, PostProcessingInputs, NaniteResults, InstanceCullingManager, &VirtualShadowMapArray, LumenFrameTemporaries);
+					AddPostProcessingPasses(GraphBuilder, View, ViewIndex, bAnyLumenActive, PostProcessingInputs, NaniteResults, InstanceCullingManager, &VirtualShadowMapArray, LumenFrameTemporaries);
 				}
 			}
 		}

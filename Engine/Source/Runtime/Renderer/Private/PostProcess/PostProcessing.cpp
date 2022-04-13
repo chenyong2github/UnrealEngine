@@ -186,7 +186,7 @@ bool ComposeSeparateTranslucencyInTSR(const FViewInfo& View);
 
 void AddPostProcessingPasses(
 	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
+	const FViewInfo& View, int32 ViewIndex,
 	bool bAnyLumenActive,
 	const FPostProcessingInputs& Inputs,
 	const Nanite::FRasterResults* NaniteRasterResults,
@@ -1352,7 +1352,7 @@ void AddPostProcessingPasses(
 
 		if (EngineShowFlags.VisualizeVirtualShadowMap && VirtualShadowMapArray != nullptr)
 		{
-			VirtualShadowMapArray->AddVisualizePass(GraphBuilder, View, SceneColor);
+			VirtualShadowMapArray->AddVisualizePass(GraphBuilder, View, ViewIndex, SceneColor);
 		}
 
 		{

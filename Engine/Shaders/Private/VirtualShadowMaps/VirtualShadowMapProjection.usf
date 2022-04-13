@@ -628,7 +628,7 @@ void VirtualShadowMapProjection(
 #if VISUALIZE_OUTPUT
 	if (InputType == INPUT_TYPE_GBUFFER)
 	{
-		OutputVisualize( PixelPos, VisualizeResult );
+		OutputVisualize( PixelPos - uint2( ProjectionRect.xy ), VisualizeResult );
 	}
 #endif // VISUALIZE_OUTPUT
 }

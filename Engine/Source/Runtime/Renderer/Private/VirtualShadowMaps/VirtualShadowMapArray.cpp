@@ -4,6 +4,7 @@
 =============================================================================*/
 #include "VirtualShadowMapArray.h"
 #include "VirtualShadowMapVisualizationData.h"
+#include "VirtualShadowMapDefinitions.h"
 #include "../BasePassRendering.h"
 #include "../ScreenPass.h"
 #include "Components/LightComponent.h"
@@ -1053,19 +1054,22 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	{
 		FVirtualShadowMapVisualizationData& VisualizationData = GetVirtualShadowMapVisualizationData();
 	
-		// TODO: Support more than one view/debug output
-		const FName& VisualizationMode = Views[0].CurrentVirtualShadowMapVisualizationMode;
-		FIntPoint Extent = Views[0].ViewRect.Max;
-		if (VisualizationData.Update(VisualizationMode))
+		for (const FViewInfo& View : Views)
 		{
-			// TODO - automatically enable the show flag when set from command line?
-			//EngineShowFlags.SetVisualizeVirtualShadowMap(true);
-		}
+			const FName& VisualizationMode = View.CurrentVirtualShadowMapVisualizationMode;
+			// for stereo views that aren't multi-view, don't account for the left
+			FIntPoint Extent = View.ViewRect.Max - View.ViewRect.Min;
+			if (VisualizationData.Update(VisualizationMode))
+			{
+				// TODO - automatically enable the show flag when set from command line?
+				//EngineShowFlags.SetVisualizeVirtualShadowMap(true);
+			}
 
-		if (VisualizationData.IsActive() && EngineShowFlags.VisualizeVirtualShadowMap)
-		{
-			bDebugOutputEnabled = true;
-			DebugVisualizationOutput = CreateDebugVisualizationTexture(GraphBuilder, Extent);
+			if (VisualizationData.IsActive() && EngineShowFlags.VisualizeVirtualShadowMap)
+			{
+				bDebugOutputEnabled = true;
+				DebugVisualizationOutput.Add(CreateDebugVisualizationTexture(GraphBuilder, Extent));
+			}
 		}
 	}
 #endif //!UE_BUILD_SHIPPING
@@ -1196,6 +1200,8 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
 		const FViewInfo &View = Views[ViewIndex];
 
 		// This view contained no local lights (that were stored in the light grid), and no directional lights, so nothing to do.
@@ -1565,41 +1571,50 @@ class FDebugVisualizeVirtualSmCS : public FVirtualPageManagementShader
 IMPLEMENT_GLOBAL_SHADER(FDebugVisualizeVirtualSmCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapDebug.usf", "DebugVisualizeVirtualSmCS", SF_Compute);
 
 
-void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder)
+void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views)
 {
 	check(IsEnabled());
 			
-	if (DebugVisualizationOutput == nullptr || !VisualizeLight.IsValid())
+	if (DebugVisualizationOutput.IsEmpty() || !VisualizeLight.IsValid())
 	{
 		return;
 	}
 
 	const FVirtualShadowMapVisualizationData& VisualizationData = GetVirtualShadowMapVisualizationData();
+	if (VisualizationData.GetActiveModeID() != VIRTUAL_SHADOW_MAP_VISUALIZE_CLIPMAP_VIRTUAL_SPACE)
+	{
+		return;
+	}
 
 	int32 BorderWidth = 2;
 
-	FIntPoint DebugTargetExtent = DebugVisualizationOutput->Desc.Extent;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		FViewInfo& View = Views[ViewIndex];
 
-	FDebugVisualizeVirtualSmCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugVisualizeVirtualSmCS::FParameters>();
-	PassParameters->ProjectionParameters = GetSamplingParameters(GraphBuilder);
-	
-	PassParameters->DebugTargetWidth = DebugTargetExtent.X;
-	PassParameters->DebugTargetHeight = DebugTargetExtent.Y;
-	PassParameters->BorderWidth = BorderWidth;
-	PassParameters->VisualizeModeId = VisualizationData.GetActiveModeID();
-	PassParameters->VirtualShadowMapId = VisualizeLight.GetVirtualShadowMapId();
+		FIntPoint DebugTargetExtent = DebugVisualizationOutput[ViewIndex]->Desc.Extent;
 
-	PassParameters->OutVisualize = GraphBuilder.CreateUAV(DebugVisualizationOutput);
+		FDebugVisualizeVirtualSmCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugVisualizeVirtualSmCS::FParameters>();
+		PassParameters->ProjectionParameters = GetSamplingParameters(GraphBuilder);
 
-	auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FDebugVisualizeVirtualSmCS>();
+		PassParameters->DebugTargetWidth = DebugTargetExtent.X;
+		PassParameters->DebugTargetHeight = DebugTargetExtent.Y;
+		PassParameters->BorderWidth = BorderWidth;
+		PassParameters->VisualizeModeId = VisualizationData.GetActiveModeID();
+		PassParameters->VirtualShadowMapId = VisualizeLight.GetVirtualShadowMapId();
 
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("DebugVisualizeVirtualShadowMap"),
-		ComputeShader,
-		PassParameters,
-		FComputeShaderUtils::GetGroupCount(DebugTargetExtent, FVirtualPageManagementShader::DefaultCSGroupXY)
-	);
+		PassParameters->OutVisualize = GraphBuilder.CreateUAV(DebugVisualizationOutput[ViewIndex]);
+
+		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FDebugVisualizeVirtualSmCS>();
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("DebugVisualizeVirtualShadowMap"),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(DebugTargetExtent, FVirtualPageManagementShader::DefaultCSGroupXY)
+		);
+	}
 }
 
 
@@ -2771,10 +2786,10 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const FProjectedShadowInfo* Projec
 	return uint32(NumMaps);
 }
 
-void FVirtualShadowMapArray::AddVisualizePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture Output)
+void FVirtualShadowMapArray::AddVisualizePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, int32 ViewIndex, FScreenPassTexture Output)
 {
 #if !UE_BUILD_SHIPPING
-	if (!IsAllocated() || DebugVisualizationOutput == nullptr)
+	if (!IsAllocated() || DebugVisualizationOutput.IsEmpty())
 	{
 		return;
 	}
@@ -2783,13 +2798,13 @@ void FVirtualShadowMapArray::AddVisualizePass(FRDGBuilder& GraphBuilder, const F
 	if (VisualizationData.IsActive() && VisualizeLight.IsValid())
 	{	
 		FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
-		Parameters->InputTexture = DebugVisualizationOutput;
+		Parameters->InputTexture = DebugVisualizationOutput[ViewIndex];
 		Parameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		Parameters->RenderTargets[0] = FRenderTargetBinding(Output.Texture, ERenderTargetLoadAction::ENoAction);
 
 		TShaderMapRef<FCopyRectPS> PixelShader(View.ShaderMap);
 
-		FScreenPassTextureViewport InputViewport(DebugVisualizationOutput->Desc.Extent);
+		FScreenPassTextureViewport InputViewport(DebugVisualizationOutput[ViewIndex]->Desc.Extent);
 		FScreenPassTextureViewport OutputViewport(Output);
 
 		// See CVarVisualizeLayout documentation
@@ -2799,7 +2814,6 @@ void FVirtualShadowMapArray::AddVisualizePass(FRDGBuilder& GraphBuilder, const F
 			const int32 TileWidth  = View.UnscaledViewRect.Width() / 3;
 			const int32 TileHeight = View.UnscaledViewRect.Height() / 3;
 
-			OutputViewport.Rect.Min = FIntPoint(0, 0);
 			OutputViewport.Rect.Max = OutputViewport.Rect.Min + FIntPoint(TileWidth, TileHeight);
 		}
 		else if (VisualizeLayout == 2)	// Split screen

@@ -252,7 +252,7 @@ public:
 	 */
 	void RenderVirtualShadowMapsNonNanite(FRDGBuilder& GraphBuilder, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualSmMeshCommandPasses, FScene& Scene, TArrayView<FViewInfo> Views);
 
-	void RenderDebugInfo(FRDGBuilder& GraphBuilder);
+	void RenderDebugInfo(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views);
 	
 	void PrintStats(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
@@ -274,7 +274,7 @@ public:
 	uint32 AddRenderViews(const FProjectedShadowInfo* ProjectedShadowInfo, float LODScaleFactor, bool bSetHzbParams, bool bUpdateHZBMetaData, bool bClampToNearPlane, TArray<Nanite::FPackedView, SceneRenderingAllocator>& OutVirtualShadowViews);
 
 	// Add visualization composite pass, if enabled
-	void AddVisualizePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture Output);
+	void AddVisualizePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, int32 ViewIndex, FScreenPassTexture Output);
 
 	//
 	bool UseHzbOcclusion() const { return bUseHzbOcclusion; }
@@ -331,7 +331,7 @@ public:
 	FRDGBufferRef StatsBufferRDG = nullptr;
 
 	// Debug visualization
-	FRDGTextureRef DebugVisualizationOutput = nullptr;
+	TArray<FRDGTextureRef> DebugVisualizationOutput;
 	FVirtualShadowMapVisualizeLightSearch VisualizeLight;
 
 private:

@@ -912,12 +912,14 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				if( VirtualShadowMapArray.IsAllocated() && CVarVirtualShadowOnePassProjection.GetValueOnRenderThread() )
 				{
 					// TODO: This needs to move into the view loop in clustered deferred shading pass
-					for (const FViewInfo& View : Views)
+					for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 					{
+						const FViewInfo& View = Views[ViewIndex];
+
 						ShadowMaskBits = RenderVirtualShadowMapProjectionOnePass(
 							GraphBuilder,
 							SceneTextures,
-							View,
+							View, ViewIndex,
 							VirtualShadowMapArray,
 							EVirtualShadowMapProjectionInputType::GBuffer);
 
@@ -926,7 +928,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 							HairStrandsShadowMaskBits = RenderVirtualShadowMapProjectionOnePass(
 							GraphBuilder,
 							SceneTextures,
-							View,
+							View, ViewIndex,
 							VirtualShadowMapArray,
 							EVirtualShadowMapProjectionInputType::HairStrands);
 						}

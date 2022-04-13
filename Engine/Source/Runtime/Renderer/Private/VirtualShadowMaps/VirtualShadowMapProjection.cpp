@@ -285,7 +285,7 @@ static float GetNormalBiasForShader()
 static void RenderVirtualShadowMapProjectionCommon(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FViewInfo& View,
+	const FViewInfo& View, int32 ViewIndex,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ProjectionRect,
 	EVirtualShadowMapProjectionInputType InputType,
@@ -350,7 +350,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	
 	bool bDebugOutput = false;
 #if !UE_BUILD_SHIPPING
-	if ( VirtualShadowMapArray.DebugVisualizationOutput && InputType == EVirtualShadowMapProjectionInputType::GBuffer && VirtualShadowMapArray.VisualizeLight.IsValid() )
+	if ( !VirtualShadowMapArray.DebugVisualizationOutput.IsEmpty() && InputType == EVirtualShadowMapProjectionInputType::GBuffer && VirtualShadowMapArray.VisualizeLight.IsValid() )
 	{
 		const FVirtualShadowMapVisualizationData& VisualizationData = GetVirtualShadowMapVisualizationData();
 
@@ -358,7 +358,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 		PassParameters->VisualizeModeId = VisualizationData.GetActiveModeID();
 		PassParameters->VisualizeVirtualShadowMapId = VirtualShadowMapArray.VisualizeLight.GetVirtualShadowMapId();
 		PassParameters->PhysicalPageMetaData = GraphBuilder.CreateSRV( VirtualShadowMapArray.PhysicalPageMetaDataRDG );
-		PassParameters->OutVisualize = GraphBuilder.CreateUAV( VirtualShadowMapArray.DebugVisualizationOutput );
+		PassParameters->OutVisualize = GraphBuilder.CreateUAV( VirtualShadowMapArray.DebugVisualizationOutput[ViewIndex] );
 	}
 #endif
 
@@ -390,7 +390,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FViewInfo& View,
+	const FViewInfo& View, int32 ViewIndex,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	EVirtualShadowMapProjectionInputType InputType)
 {
@@ -407,7 +407,7 @@ FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
 		SceneTextures,
-		View,
+		View, ViewIndex,
 		VirtualShadowMapArray,
 		ProjectionRect,
 		InputType,
@@ -440,7 +440,7 @@ static FRDGTextureRef CreateShadowMaskTexture(FRDGBuilder& GraphBuilder, FIntPoi
 void RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FViewInfo& View,
+	const FViewInfo& View, int32 ViewIndex,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
@@ -452,7 +452,7 @@ void RenderVirtualShadowMapProjection(
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
 		SceneTextures,
-		View,
+		View, ViewIndex,
 		VirtualShadowMapArray,
 		ScissorRect,
 		InputType,
@@ -471,7 +471,7 @@ void RenderVirtualShadowMapProjection(
 void RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const FViewInfo& View,
+	const FViewInfo& View, int32 ViewIndex,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionInputType InputType,
@@ -483,7 +483,7 @@ void RenderVirtualShadowMapProjection(
 	RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder,
 		SceneTextures,
-		View,
+		View, ViewIndex,
 		VirtualShadowMapArray,		
 		ScissorRect,
 		InputType,
