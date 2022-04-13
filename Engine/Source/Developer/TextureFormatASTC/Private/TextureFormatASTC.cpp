@@ -443,11 +443,32 @@ public:
 		const FTextureBuildSettings* BuildSettings = nullptr
 	) const override
 	{
+	/*
+	// note/bug , doesn't call through to ISPC :
+#if SUPPORTS_ISPC_ASTC
+		if(GASTCCompressor == 0)
+		{
+			return IntelISPCTexCompFormat.GetVersion(Format,BuildSettings);
+		}
+#endif
+	*/
+
 		return BASE_ASTC_FORMAT_VERSION;
 	}
 
 	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const override
 	{
+	/*
+	// note/bug : doesn't call through to ISPC !
+	// but it is putting GASTCCompressor in the key
+#if SUPPORTS_ISPC_ASTC
+		if(GASTCCompressor == 0)
+		{
+			return IntelISPCTexCompFormat.GetDerivedDataKeyString(BuildSettings);
+		}
+#endif
+	*/
+
 		return FString::Printf(TEXT("ASTCCmpr_%d_%d_%d"), GetQualityVersion(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality), GASTCCompressor, int32(GASTCHDRProfile > 0 && BuildSettings.bHDRSource));
 	}
 
