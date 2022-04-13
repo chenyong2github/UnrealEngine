@@ -30,13 +30,9 @@ private:
 	void OnMaxTextureSizeCommitted(int32 NewValue, ETextCommit::Type CommitInfo);
 	void OnBeginSliderMovement();
 	void OnEndSliderMovement(int32 NewValue);
-	void OnPowerOfTwoModeChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type SelectInfo);
-	void OnPropertyResetToDefault() const;
 
 	TSharedPtr<IPropertyHandle> MaxTextureSizePropertyHandle;
-	TSharedPtr<IPropertyHandle> PowerOfTwoModePropertyHandle;
 	TSharedPtr<IPropertyHandle> VirtualTextureStreamingPropertyHandle;
-	TArray<TSharedPtr<FString>> PowerOfTwoModeComboBoxList;
 	TWeakObjectPtr<UObject> TextureBeingCustomized;
 	TSharedPtr<STextComboBox> TextComboBox;
 	bool bIsUsingSlider;
