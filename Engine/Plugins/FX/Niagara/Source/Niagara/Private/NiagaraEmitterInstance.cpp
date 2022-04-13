@@ -1204,7 +1204,7 @@ void FNiagaraEmitterInstance::PreTick()
 
 	if (bResetPending)
 	{
-		Data.ResetBuffers();
+		bResetPending = false;
 
 		if (EventInstanceData.IsValid())
 		{
@@ -1218,12 +1218,14 @@ void FNiagaraEmitterInstance::PreTick()
 			}
 		}
 
-		bResetPending = false;
-
 		if ( GPUExecContext )
 		{
 			GPUExecContext->bResetPending_GT = true;
 			GPUExecContext->GpuSpawnInfo_GT.Reset();
+		}
+		else
+		{
+			Data.ResetBuffers();
 		}
 	}
 
