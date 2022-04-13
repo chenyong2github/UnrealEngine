@@ -36,6 +36,7 @@
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "Async/Async.h"
 #include "Misc/CommandLine.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -662,6 +663,15 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	EnvelopeFollowerFrameSize = 1024;
 	EnvelopeFollowerAttackTime = 10;
 	EnvelopeFollowerReleaseTime = 100;
+
+#if UE_ENABLE_VIRTUALIZATION_TOGGLE
+	// Calling ::SetVirtualizationOptOut allows us to prevent the bulkdata from virtualizing if a project
+	// has that option enabled. This is not intended to be a shipping feature.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		RawData.SetVirtualizationOptOut(true);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif //UE_ENABLE_VIRTUALIZATION_TOGGLE
+
 #endif
 
 	bCachedSampleRateFromPlatformSettings = false;
@@ -828,6 +838,7 @@ void USoundWave::Serialize( FArchive& Ar )
 	}
 
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	if (Ar.IsLoading() && (Ar.UEVer() >= VER_UE4_SOUND_COMPRESSION_TYPE_ADDED) && (Ar.CustomVer(FFrameworkObjectVersion::GUID) < FFrameworkObjectVersion::RemoveSoundWaveCompressionName))
 	{
@@ -838,6 +849,9 @@ void USoundWave::Serialize( FArchive& Ar )
 	bool bShouldStreamSound = false;
 
 #if WITH_EDITORONLY_DATA
+	FByteBulkData TempOldBulkData;
+	bool bBulkDataConverted = false;
+
 	bLoadedFromCookedData = Ar.IsLoading() && bCooked;
 	if (bVirtualizeWhenSilent_DEPRECATED)
 	{
@@ -962,12 +976,30 @@ void USoundWave::Serialize( FArchive& Ar )
 		// only save the raw data for non-cooked packages
 #if WITH_EDITORONLY_DATA
 		FScopeLock ScopeLock(&RawDataCriticalSection);
+
+		if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::SoundWaveVirtualizationUpdate)
+		{
+			TempOldBulkData.Serialize(Ar, this, INDEX_NONE, false);	
+			bBulkDataConverted = true;
+		}
+		else
+		{
+			RawData.Serialize(Ar, this);
+		}
 #endif
-		RawData.Serialize(Ar, this, INDEX_NONE, false);
 	}
 
 	Ar << CompressedDataGuid;
 
+#if WITH_EDITORONLY_DATA	
+	// If we're converting to FEditorBulkData, we need to first serialize the CompressedDataGuid, as we use it as our key.
+	if (bBulkDataConverted)
+	{
+		FScopeLock ScopeLock(&RawDataCriticalSection);
+		RawData.CreateFromBulkData(TempOldBulkData, CompressedDataGuid, this); 
+	}
+#endif //WITH_EDITORONLY_DATA	
+	
 	bool bBuiltStreamedAudio = false;
 
 	if (bShouldStreamSound)
@@ -1192,11 +1224,11 @@ bool USoundWave::GetImportedSoundWaveData(TArray<uint8>& OutRawPCMData, uint32& 
 #endif
 
 	// Can only get sound wave data if there is bulk data 
-	if (RawData.GetBulkDataSize() > 0)
+	if (RawData.HasPayloadData())
 	{
-		FBulkDataReadScopeLock LockedBulkData(RawData);
-		const uint8* Data = LockedBulkData.GetData<uint8>();
-		int32 DataSize = RawData.GetBulkDataSize();
+		TFuture<FSharedBuffer> BufferFuture = RawData.GetPayload();
+		const uint8* Data = (const uint8*) BufferFuture.Get().GetData(); // Will block.
+		int32 DataSize = BufferFuture.Get().GetSize();
 
 		if (NumChannels > 2)
 		{
@@ -1665,14 +1697,6 @@ void USoundWave::PostLoad()
 		{
 			// Upload the data to the hardware, but only if we've precached startup sounds already
 			AudioDevice->Precache(this);
-		}
-		// remove bulk data if no AudioDevice is used and no sounds were initialized
-		else if (IsRunningGame())
-		{
-#if WITH_EDITORONLY_DATA
-			FScopeLock ScopeLock(&RawDataCriticalSection);
-#endif
-			RawData.RemoveBulkData();
 		}
 	}
 

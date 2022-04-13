@@ -7,6 +7,7 @@
 #include "Serialization/BulkData.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Serialization/EditorBulkData.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Audio.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -1238,7 +1239,7 @@ struct FAudioCookInputs
 	// copy-on-write mechanism that doesn't require us to make
 	// a copy in memory to get immutability.
 	FCriticalSection& BulkDataCriticalSection;
-	FByteBulkData& BulkData;
+	UE::Serialization::FEditorBulkData& BulkData;
 #endif
 
 	FAudioCookInputs(USoundWave* InSoundWave, FName InBaseFormat, FName InHashFormat, const FPlatformAudioCookOverrides* InCookOverrides)
@@ -1318,19 +1319,15 @@ static void CookSimpleWave(const FAudioCookInputs& Inputs, TArray<uint8>& Output
 
 	FScopeLock ScopeLock(&Inputs.BulkDataCriticalSection);
 
-	if (!Inputs.BulkData.IsBulkDataLoaded())
-	{
-		Inputs.BulkData.ForceBulkDataResident();
-	}
+	TFuture<FSharedBuffer> FutureBuffer = Inputs.BulkData.GetPayload();
 	
-	UE_CLOG(!Inputs.BulkData.IsBulkDataLoaded(), LogAudioDerivedData, Display, TEXT("Calling ForceBulkDataResident for LPCM data for USoundWave %s failed."), *Inputs.SoundFullName);
 	
-	// Lock raw wave data.
-	const uint8* RawWaveData = (const uint8*)Inputs.BulkData.LockReadOnly();
-	int32 RawDataSize = Inputs.BulkData.GetBulkDataSize();
-	ON_SCOPE_EXIT { Inputs.BulkData.Unlock(); };
 
-	if (!RawWaveData || RawDataSize == 0)
+	
+	const uint8* RawWaveData = (const uint8*)FutureBuffer.Get().GetData(); // Will block 
+	int32 RawDataSize = FutureBuffer.Get().GetSize();
+
+	if (!Inputs.BulkData.HasPayloadData())
 	{
 		UE_LOG(LogAudioDerivedData, Warning, TEXT("LPCM data failed to load for sound %s"), *Inputs.SoundFullName);
 	}
@@ -1421,18 +1418,10 @@ static void CookSurroundWave(const FAudioCookInputs& Inputs,  TArray<uint8>& Out
 	}
 
 	FScopeLock ScopeLock(&Inputs.BulkDataCriticalSection);
-
-	if (!Inputs.BulkData.IsBulkDataLoaded())
-	{
-		Inputs.BulkData.ForceBulkDataResident();
-	}
-	
-	UE_CLOG(!Inputs.BulkData.IsBulkDataLoaded(), LogAudioDerivedData, Display, TEXT("Calling ForceBulkDataResident for LPCM data for USoundWave %s failed."), *Inputs.SoundFullName);
-
 	// Lock raw wave data.
-	const uint8* RawWaveData = (const uint8*)Inputs.BulkData.LockReadOnly();
-	int32 RawDataSize = Inputs.BulkData.GetBulkDataSize();
-	ON_SCOPE_EXIT { Inputs.BulkData.Unlock(); };
+	TFuture<FSharedBuffer> FutureBuffer = Inputs.BulkData.GetPayload();
+	const uint8* RawWaveData = (const uint8*)FutureBuffer.Get().GetData(); // Will block 
+	int32 RawDataSize = FutureBuffer.Get().GetSize();
 
 	// Front left channel is the master
 	static_assert(SPEAKER_FrontLeft == 0, "Front-left speaker must be first.");
@@ -1885,9 +1874,6 @@ void USoundWave::WillNeverCacheCookedPlatformDataAgain()
 	// this is called after we have finished caching the platform data but before we have saved the data
 	// so need to keep the cached platform data around
 	Super::WillNeverCacheCookedPlatformDataAgain();
-
-	// TODO: We can clear these arrays if we never need to cook again.
-	RawData.RemoveBulkData();
 
 	check(SoundWaveDataPtr);
 	SoundWaveDataPtr->CompressedFormatData.FlushData();

@@ -151,9 +151,15 @@ bool USoundExporterWAV::SupportsObject(UObject* Object) const
 bool USoundExporterWAV::ExportBinary( UObject* Object, const TCHAR* Type, FArchive& Ar, FFeedbackContext* Warn, int32 FileIndex, uint32 PortFlags )
 {
 	USoundWave* Sound = CastChecked<USoundWave>( Object );
-	void* RawWaveData = Sound->RawData.Lock( LOCK_READ_ONLY );
-	Ar.Serialize( RawWaveData, Sound->RawData.GetBulkDataSize() );
-	Sound->RawData.Unlock();
+
+	// We a non-const pointer for the sake of calling serialize, but this is on writing FArchive so it's never modified
+	// Assert that's the case
+	if(ensure(Ar.IsSaving()))
+	{	
+		TFuture<FSharedBuffer> FutureBuffer = Sound->RawData.GetPayload(); // This will block, but for now that's ok.
+		void* RawWaveData = (void*)FutureBuffer.Get().GetData();
+		Ar.Serialize(RawWaveData, FutureBuffer.Get().GetSize());
+	}
 	return true;
 }
 
@@ -254,15 +260,18 @@ bool USoundSurroundExporterWAV::ExportBinary( UObject* Object, const TCHAR* Type
 
 	USoundWave* Sound = CastChecked<USoundWave>( Object );
 	if ( Sound->ChannelSizes.Num() > 0 )
-	{
-		uint8* RawWaveData = ( uint8* )Sound->RawData.Lock( LOCK_READ_ONLY );
-
-		if( Sound->ChannelSizes[ FileIndex ] )
+	{		
+		if (ensure(Ar.IsSaving()))
 		{
-			Ar.Serialize( RawWaveData + Sound->ChannelOffsets[ FileIndex ], Sound->ChannelSizes[ FileIndex ] );
-		}
+			// Non-const pointer for the sake of calling serialize, so assert that we are writing an archive.
+			TFuture<FSharedBuffer> FutureBuffer = Sound->RawData.GetPayload();
+			uint8* RawWaveData = (uint8*) FutureBuffer.Get().GetData();
 
-		Sound->RawData.Unlock();
+			if( Sound->ChannelSizes[ FileIndex ] )
+			{
+				Ar.Serialize( RawWaveData + Sound->ChannelOffsets[ FileIndex ], Sound->ChannelSizes[ FileIndex ] );
+			}
+		}
 
 		bResult = Sound->ChannelSizes[ FileIndex ] != 0;
 	}

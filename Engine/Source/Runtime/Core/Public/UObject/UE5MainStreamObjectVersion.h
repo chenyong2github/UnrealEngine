@@ -209,6 +209,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Enforcing new automatic tangent behaviour, enforcing auto-tangents for Key0 and KeyN to be flat, for Animation Assets.
 		ForceUpdateAnimationAssetCurveTangents,
 
+		// SoundWave Update to use EditorBuildData for it's RawData
+		SoundWaveVirtualizationUpdate,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -407,10 +407,8 @@ void FAudioRecordingManager::StopRecording(TArray<USoundWave*>& OutSoundWaves)
 					NewSoundWave->InvalidateCompressedData(true, false);
 
 					// Copy the raw wave data file to the sound wave for storage. Will allow the recording to be exported.
-					NewSoundWave->RawData.Lock(LOCK_READ_WRITE);
-					void* LockedData = NewSoundWave->RawData.Realloc(RawWaveData.Num());
-					FMemory::Memcpy(LockedData, RawWaveData.GetData(), RawWaveData.Num());
-					NewSoundWave->RawData.Unlock();
+					FSharedBuffer UpdatedBuffed = FSharedBuffer::Clone(RawWaveData.GetData(), RawWaveData.Num());
+					NewSoundWave->RawData.UpdatePayload(UpdatedBuffed);
 
 					bCreatedPackage = true;
 				}

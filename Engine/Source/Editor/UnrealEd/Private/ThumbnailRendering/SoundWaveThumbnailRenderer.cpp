@@ -31,8 +31,7 @@ void USoundWaveThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32
 	}
 
 	SoundWave->SetRedrawThumbnail(false);
-
-	if (SoundWave->NumChannels == 0 || SoundWave->RawData.GetBulkDataSize() == 0)
+	if (SoundWave->NumChannels == 0 || !SoundWave->RawData.HasPayloadData())
 	{
 		return;
 	}
@@ -41,9 +40,10 @@ void USoundWaveThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32
 	FCanvasLineItem LineItem;
 	LineItem.SetColor(FLinearColor::White);
 
-	uint8* RawWaveData = (uint8*)SoundWave->RawData.Lock(LOCK_READ_ONLY);
-	int32 RawDataSize = SoundWave->RawData.GetBulkDataSize();
- 
+	TFuture<FSharedBuffer> BufferFuture = SoundWave->RawData.GetPayload();
+	const uint8* RawWaveData = (const uint8 *)BufferFuture.Get().GetData();  // Bulk
+	int32 RawDataSize = BufferFuture.Get().GetSize();
+	 
 	// Compute the scaled y-value used to render the channel data
 	const float SampleYScale = Height / (2.f * 32767 * SoundWave->NumChannels);
 
@@ -168,7 +168,6 @@ void USoundWaveThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32
 		CurrentRawWaveByteIndex += RawChannelFileByteSize;
 	}
 
-	SoundWave->RawData.Unlock();
 }
 
 bool USoundWaveThumbnailRenderer::AllowsRealtimeThumbnails(UObject* Object) const

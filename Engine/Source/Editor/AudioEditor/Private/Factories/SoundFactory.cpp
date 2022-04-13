@@ -479,9 +479,9 @@ UObject* USoundFactory::CreateObject
 			// copy the data into the bulk byte data
 
 			// Get the raw data bulk byte pointer and copy over the .wav files we generated
-			Sound->RawData.Lock(LOCK_READ_WRITE);
 
-			uint8* LockedData = (uint8*)Sound->RawData.Realloc(TotalSize);
+			FUniqueBuffer EditableBuffer = FUniqueBuffer::Alloc(TotalSize);
+			uint8* LockedData = (uint8*)EditableBuffer.GetData();
 			int16* LockedDataInt16 = reinterpret_cast<int16*>(LockedData);
 
 			int32 RawDataOffset = 0;
@@ -524,15 +524,15 @@ UObject* USoundFactory::CreateObject
 					RawDataOffset += ChannelSize;
 				}
 			}
-			Sound->RawData.Unlock();
+
+			Sound->RawData.UpdatePayload(EditableBuffer.MoveToShared());
 		}
 		else
 		{
 			// For mono and stereo assets, just copy the data into the buffer
-			Sound->RawData.Lock(LOCK_READ_WRITE);
-			void* LockedData = Sound->RawData.Realloc(RawWaveDataBufferSize);
-			FMemory::Memcpy(LockedData, Buffer, RawWaveDataBufferSize);
-			Sound->RawData.Unlock();
+			FSharedBuffer UpdatedBuffer = FSharedBuffer::Clone(RawWaveData.GetData(), RawWaveData.Num());
+			Sound->RawData.UpdatePayload(UpdatedBuffer);
+
 		}
 
 		Sound->Duration = (float)NumFrames / *WaveInfo.pSamplesPerSec;

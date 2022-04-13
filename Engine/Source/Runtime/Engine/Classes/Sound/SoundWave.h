@@ -16,6 +16,7 @@
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "Serialization/BulkData.h"
 #include "Serialization/BulkDataBuffer.h"
+#include "Serialization/EditorBulkData.h"
 #include "Sound/SoundGroups.h"
 #include "Sound/SoundWaveLoadingBehavior.h"
 #include "UObject/ObjectKey.h"
@@ -786,7 +787,8 @@ public:
 	const uint8* GetResourceData() const;
 
 	/** Uncompressed wav data 16 bit in mono or stereo - stereo not allowed for multichannel data */
-	FByteBulkData RawData;
+
+	UE::Serialization::FEditorBulkData RawData;
 
 	/** GUID used to uniquely identify this node so it can be found in the DDC */
 	FGuid CompressedDataGuid;

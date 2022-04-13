@@ -483,10 +483,8 @@ namespace Audio
 		// TODO: Check to see if we need to call USoundWave::FreeResources here.
 
 		// Emplace wav data in the RawData component of the sound wave.
-		CurrentSoundWave->RawData.Lock(LOCK_READ_WRITE);
-		void* LockedData = CurrentSoundWave->RawData.Realloc(SerializedWavData.Num());
-		FMemory::Memcpy(LockedData, SerializedWavData.GetData(), SerializedWavData.Num());
-		CurrentSoundWave->RawData.Unlock();
+		FSharedBuffer Buffer = FSharedBuffer::Clone(SerializedWavData.GetData(), SerializedWavData.Num());
+		CurrentSoundWave->RawData.UpdatePayload(Buffer);
 
 		USoundWave* SavedSoundWave = CurrentSoundWave;
 
