@@ -3260,7 +3260,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 		{
 			// Do we have particle state iteration enable
 			SimRunSpawnUpdateLogicString += TEXT("	bool bRunSpawnUpdateLogic = true;\n");
-			if ( TranslationStage.bParticleIterationStateEnabled )
+			if ( TranslationStage.bParticleIterationStateEnabled && TranslationStage.bWritesParticles )
 			{
 				if ( TranslationStage.bPartialParticleUpdate == false )
 				{
