@@ -4134,9 +4134,9 @@ USkeletalMeshSocket* USkeletalMesh::GetSocketByIndex(int32 Index) const
 	return nullptr;
 }
 
-TMap<FVector, FColor> USkeletalMesh::GetVertexColorData(const uint32 PaintingMeshLODIndex) const
+TMap<FVector3f, FColor> USkeletalMesh::GetVertexColorData(const uint32 PaintingMeshLODIndex) const
 {
-	TMap<FVector, FColor> VertexColorData;
+	TMap<FVector3f, FColor> VertexColorData;
 #if WITH_EDITOR
 	const FSkeletalMeshModel* SkeletalMeshModel = GetImportedModel();
 	if (GetHasVertexColors() && SkeletalMeshModel && SkeletalMeshModel->LODModels.IsValidIndex(PaintingMeshLODIndex))
@@ -4149,7 +4149,7 @@ TMap<FVector, FColor> USkeletalMesh::GetVertexColorData(const uint32 PaintingMes
 			
 			for (int32 VertexIndex = 0; VertexIndex < SoftVertices.Num(); ++VertexIndex)
 			{
-				FVector Position(SoftVertices[VertexIndex].Position);
+				const FVector3f& Position(SoftVertices[VertexIndex].Position);
 				FColor& Color = VertexColorData.FindOrAdd(Position);
 				Color = SoftVertices[VertexIndex].Color;
 			}

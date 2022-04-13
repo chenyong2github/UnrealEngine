@@ -1416,7 +1416,7 @@ protected:
 	 * @return bool true if set up successfully
 	 */
 	bool BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh* StaticMesh, TArray<FFbxMaterial>& MeshMaterials, int LODIndex,
-									 EVertexColorImportOption::Type VertexColorImportOption, const TMap<FVector, FColor>& ExistingVertexColorData, const FColor& VertexOverrideColor);
+									 EVertexColorImportOption::Type VertexColorImportOption, const TMap<FVector3f, FColor>& ExistingVertexColorData, const FColor& VertexOverrideColor);
 	
 	/**
 	 * Clean up for destroy the Importer.
@@ -1491,7 +1491,7 @@ protected:
 	* @returns bool*	true if import successfully.
 	*/
     bool FillSkelMeshImporterFromFbx(FSkeletalMeshImportData& ImportData, FbxMesh*& Mesh, FbxSkin* Skin, 
-										FbxShape* Shape, TArray<FbxNode*> &SortedLinks, const TArray<FbxSurfaceMaterial*>& FbxMaterials, FbxNode *RootNode, const TMap<FVector, FColor>& ExistingVertexColorData);
+										FbxShape* Shape, TArray<FbxNode*> &SortedLinks, const TArray<FbxSurfaceMaterial*>& FbxMaterials, FbxNode *RootNode, const TMap<FVector3f, FColor>& ExistingVertexColorData);
 public:
 
 	/**
@@ -1507,7 +1507,7 @@ public:
 	*/
 	bool FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray,
 									FSkeletalMeshImportData* OutData, TArray<FbxNode*>& OutImportedSkeletonLinkNodes, TArray<FName> &LastImportedMaterialNames, 
-									const bool bIsReimport, const TMap<FVector, FColor>& ExistingVertexColorData);
+									const bool bIsReimport, const TMap<FVector3f, FColor>& ExistingVertexColorData);
 
 protected:
 

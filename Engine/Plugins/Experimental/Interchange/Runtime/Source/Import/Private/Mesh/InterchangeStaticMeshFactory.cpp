@@ -154,7 +154,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 	int32 FinalLodCount = LodCount;
 
 	// If we are reimporting, cache the existing vertex colors so they can be optionally reapplied after reimport
-	TMap<FVector, FColor> ExisitingVertexColorData;
+	TMap<FVector3f, FColor> ExisitingVertexColorData;
 	if (Arguments.ReimportObject)
 	{
 		if(ExistingAsset)
@@ -265,7 +265,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 						//If we have old vertex color (reimport), we want to keep it if the option is ignore
 						if (ExisitingVertexColorData.Num() > 0)
 						{
-							FVector VertexPosition = FVector(LodMeshDescription->GetVertexPosition(LodMeshDescription->GetVertexInstanceVertex(VertexInstanceID)));
+							const FVector3f& VertexPosition = LodMeshDescription->GetVertexPosition(LodMeshDescription->GetVertexInstanceVertex(VertexInstanceID));
 							const FColor* PaintedColor = ExisitingVertexColorData.Find(VertexPosition);
 							if (PaintedColor)
 							{

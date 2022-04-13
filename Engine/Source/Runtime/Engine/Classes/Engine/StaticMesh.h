@@ -1811,7 +1811,7 @@ public:
 	 *
 	 *	@param	VertexColorData		(out)A map of vertex position data and its color. The method fills this map.
 	 */
-	ENGINE_API void GetVertexColorData(TMap<FVector, FColor>& VertexColorData);
+	ENGINE_API void GetVertexColorData(TMap<FVector3f, FColor>& VertexColorData);
 
 	/**
 	 * Sets vertex color data by position.
@@ -1820,7 +1820,7 @@ public:
 	 *
 	 *	@param	VertexColorData		A map of vertex position data and color.
 	 */
-	ENGINE_API void SetVertexColorData(const TMap<FVector, FColor>& VertexColorData);
+	ENGINE_API void SetVertexColorData(const TMap<FVector3f, FColor>& VertexColorData);
 
 	/** Removes all vertex colors from this mesh and rebuilds it (Editor only */
 	ENGINE_API void RemoveVertexColors();

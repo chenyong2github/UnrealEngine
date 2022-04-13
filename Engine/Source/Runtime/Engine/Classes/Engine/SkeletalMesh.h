@@ -2836,7 +2836,7 @@ public:
 	 *
 	 *	@return	VertexColorData		Returns a map of vertex position and their associated color.
 	 */
-	TMap<FVector, FColor> GetVertexColorData(const uint32 PaintingMeshLODIndex = 0) const;
+	TMap<FVector3f, FColor> GetVertexColorData(const uint32 PaintingMeshLODIndex = 0) const;
 
 	/** Called to rebuild an out-of-date or invalid socket map */
 	void RebuildSocketMap();

@@ -63,6 +63,7 @@ struct FRestoreReimportData
 
 	FRestoreReimportData(UStaticMesh* Mesh)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRestoreReimportData);
 		if (!ensure(Mesh))
 		{
 			return;
@@ -81,6 +82,7 @@ struct FRestoreReimportData
 
 	void RestoreMesh(UnFbx::FFbxImporter* FbxImporter)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(RestoreMesh);
 		if (!ensure(EditorObject && DupObject))
 		{
 			return;
@@ -125,6 +127,7 @@ struct FRestoreReimportData
 
 	void CleanupDuplicateMesh()
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CleanupDuplicateMesh);
 		if(DupObject)
 		{
 			DupObject->RemoveFromRoot();
@@ -369,7 +372,7 @@ float UnFbx::FFbxImporter::GetTriangleAreaThreshold() const
 
 
 bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh* StaticMesh, TArray<FFbxMaterial>& MeshMaterials, int32 LODIndex,
-	EVertexColorImportOption::Type VertexColorImportOption, const TMap<FVector, FColor>& ExistingVertexColorData, const FColor& VertexOverrideColor)
+	EVertexColorImportOption::Type VertexColorImportOption, const TMap<FVector3f, FColor>& ExistingVertexColorData, const FColor& VertexOverrideColor)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::BuildStaticMeshFromGeometry);
 	FFbxScopedOperation ScopedImportOperation(this);
@@ -383,11 +386,6 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	//The mesh description should have been created before calling BuildStaticMeshFromGeometry
 	check(MeshDescription);
 	FStaticMeshAttributes Attributes(*MeshDescription);
-
-	//This slow task doesn't have any text description and is used to unify all the other sub-tasks of this function.
-	FScopedSlowTask BuildStaticMeshSlowTask(Mesh->IsTriangleMesh() ? 1 : 2);
-	BuildStaticMeshSlowTask.MakeDialog();
-	BuildStaticMeshSlowTask.EnterProgressFrame(1);
 
 	//Get the base layer of the mesh
 	FbxLayer* BaseLayer = Mesh->GetLayer(0);
@@ -486,13 +484,6 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 		{
 			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Error_FailedToTriangulateWithOmission", "Unable to triangulate mesh '{0}': it will be omitted."), FText::FromString(FbxNodeName))), FFbxErrors::Generic_Mesh_TriangulationFailed);
 			return false;
-		}
-		
-		BuildStaticMeshSlowTask.EnterProgressFrame(1);
-		if (ImportOptions->bIsImportCancelable && BuildStaticMeshSlowTask.ShouldCancel())
-		{ 
-			bImportOperationCanceled = true; 
-			return false; 
 		}
 	}
 	
@@ -778,7 +769,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 
 				MeshDescription->ReserveNewPolygons(PolygonCount);
 				MeshDescription->ReserveNewVertexInstances(TotalVertexCount);
-				MeshDescription->ReserveNewEdges(TotalVertexCount);
+				MeshDescription->ReserveNewEdges(Mesh->GetMeshEdgeCount());
 			}
 
 			bool  bBeginGetMeshEdgeIndexForPolygonCalled   = false;
@@ -853,7 +844,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 					CornerInstanceIDs[CornerIndex] = VertexInstanceID;
 					const int32 ControlPointIndex = Mesh->GetPolygonVertex(PolygonIndex, CornerIndex);
 					const FVertexID VertexID(VertexOffset + ControlPointIndex);
-					const FVector VertexPosition = (FVector)VertexPositions[VertexID];
+					const FVector3f& VertexPosition = VertexPositions[VertexID];
 					CornerVerticesIDs[CornerIndex] = VertexID;
 
 					FVertexInstanceID AddedVertexInstanceId = MeshDescription->CreateVertexInstance(VertexID);
@@ -1176,11 +1167,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 
 			if (SkippedVertexInstance > 0)
 			{
-				//We must compact the sparse array before reserving new space
-				//When we reserve it will make a hole in the sparse array if the last reserve was not fully use
-				//The importer assume there will be no hole when importing a mesh
-				FElementIDRemappings OutRemappings;
-				MeshDescription->Compact(OutRemappings);
+				check(MeshDescription->Triangles().Num() == MeshDescription->Triangles().GetArraySize());
 			}
 		}
 	}
@@ -1681,7 +1668,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 	UObject* ExistingObject = NULL;
 
 	// A mapping of vertex positions to their color in the existing static mesh
-	TMap<FVector, FColor>		ExistingVertexColorData;
+	TMap<FVector3f, FColor>		ExistingVertexColorData;
 
 	EVertexColorImportOption::Type VertexColorImportOption = ImportOptions->VertexColorImportOption;
 	FString NewPackageName;
@@ -1798,10 +1785,12 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 	bool bAllDegenerated = true;
 	TArray<FFbxMaterial> MeshMaterials;
 	int32 NodeFailCount = 0;
+	
+	FScopedSlowTask BuildMeshSlowTask(MeshNodeArray.Num(), FText::Format(LOCTEXT("FbxStaticMeshBuildGeometryTask", "Importing Static Mesh Geometries {0} of {1}."), FText::AsNumber(0), FText::AsNumber(MeshNodeArray.Num())));
+	BuildMeshSlowTask.MakeDialog();
 	for (int32 MeshIndex = 0; MeshIndex < MeshNodeArray.Num(); MeshIndex++)
 	{
-		FScopedSlowTask BuildMeshSlowTask(MeshNodeArray.Num(), FText::Format(LOCTEXT("FbxStaticMeshBuildGeometryTask", "Importing Static Mesh Geometry {0} of {1}."), FText::AsNumber(1), FText::AsNumber(MeshNodeArray.Num())));
-		
+		BuildMeshSlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("FbxStaticMeshBuildGeometryTask", "Importing Static Mesh Geometry {0} of {1}."), FText::AsNumber(MeshIndex+1), FText::AsNumber(MeshNodeArray.Num())));
 		FbxNode* Node = MeshNodeArray[MeshIndex];
 		if (Node->GetMesh())
 		{
@@ -1817,8 +1806,6 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 			{
 				bAllDegenerated = false;
 
-				//Only cancel the operation if we are creating a new asset, as we don't support existing asset restoration yet.
-				BuildMeshSlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("FbxStaticMeshBuildGeometryTask", "Importing Static Mesh Geometry {0} of {1}."), FText::AsNumber(MeshIndex + 1), FText::AsNumber(MeshNodeArray.Num())));
 				if(ImportOptions->bIsImportCancelable && BuildMeshSlowTask.ShouldCancel())
 				{
 					bImportOperationCanceled = true; 

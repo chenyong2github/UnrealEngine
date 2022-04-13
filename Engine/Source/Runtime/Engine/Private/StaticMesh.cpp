@@ -6843,8 +6843,9 @@ void UStaticMesh::MarkAsNotHavingNavigationData()
  *
  *	@param	VertexColorData		(out)A map of vertex position data and its color. The method fills this map.
  */
-void UStaticMesh::GetVertexColorData(TMap<FVector, FColor>& VertexColorData)
+void UStaticMesh::GetVertexColorData(TMap<FVector3f, FColor>& VertexColorData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::GetVertexColorData);
 	VertexColorData.Empty();
 #if WITH_EDITOR
 	// What LOD to get vertex colors from.  
@@ -6854,21 +6855,18 @@ void UStaticMesh::GetVertexColorData(TMap<FVector, FColor>& VertexColorData)
 	{
 		if (!GetSourceModel(PaintingMeshLODIndex).IsRawMeshEmpty())
 		{
-			// Extract the raw mesh.
-			FRawMesh Mesh;
-			GetSourceModel(PaintingMeshLODIndex).LoadRawMesh(Mesh);
-			// Nothing to copy if there are no colors stored.
-			if (Mesh.WedgeColors.Num() != 0 && Mesh.WedgeColors.Num() == Mesh.WedgeIndices.Num())
+			FMeshDescription* MeshDescription = GetMeshDescription(PaintingMeshLODIndex);
+			VertexColorData.Reserve(MeshDescription->Vertices().Num());
+			TVertexAttributesConstRef<FVector3f> Positions = FStaticMeshConstAttributes(*MeshDescription).GetVertexPositions();
+			TVertexInstanceAttributesConstRef<FVector4f> Colors = FStaticMeshConstAttributes(*MeshDescription).GetVertexInstanceColors();
+			for(FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 			{
-				// Build a mapping of vertex positions to vertex colors.
-				for (int32 WedgeIndex = 0; WedgeIndex < Mesh.WedgeIndices.Num(); ++WedgeIndex)
+				FVertexID VertexID = MeshDescription->GetVertexInstanceVertex(VertexInstanceID);
+				FColor Color = FLinearColor(Colors[VertexInstanceID]).ToFColorSRGB();
+				const FVector3f& Position = Positions[VertexID];
+				if (!VertexColorData.Contains(Position))
 				{
-					FVector Position(Mesh.VertexPositions[Mesh.WedgeIndices[WedgeIndex]]);
-					FColor Color = Mesh.WedgeColors[WedgeIndex];
-					if (!VertexColorData.Contains(Position))
-					{
-						VertexColorData.Add(Position, Color);
-					}
+					VertexColorData.Add(Position, Color);
 				}
 			}
 		}
@@ -6883,8 +6881,9 @@ void UStaticMesh::GetVertexColorData(TMap<FVector, FColor>& VertexColorData)
  *
  *	@param	VertexColorData		A map of vertex position data and color.
  */
-void UStaticMesh::SetVertexColorData(const TMap<FVector, FColor>& VertexColorData)
+void UStaticMesh::SetVertexColorData(const TMap<FVector3f, FColor>& VertexColorData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::SetVertexColorData);
 #if WITH_EDITOR
 	// What LOD to get vertex colors from.  
 	// Currently mesh painting only allows for painting on the first lod.
@@ -6893,34 +6892,23 @@ void UStaticMesh::SetVertexColorData(const TMap<FVector, FColor>& VertexColorDat
 	{
 		if (GetSourceModel(PaintingMeshLODIndex).IsRawMeshEmpty() == false)
 		{
-			// Extract the raw mesh.
-			FRawMesh Mesh;
-			GetSourceModel(PaintingMeshLODIndex).LoadRawMesh(Mesh);
-
-			// Reserve space for the new vertex colors.
-			if (Mesh.WedgeColors.Num() == 0 || Mesh.WedgeColors.Num() != Mesh.WedgeIndices.Num())
+			FMeshDescription* MeshDescription = GetMeshDescription(PaintingMeshLODIndex);
+			TVertexAttributesRef<FVector3f> Positions = FStaticMeshAttributes(*MeshDescription).GetVertexPositions();
+			TVertexInstanceAttributesRef<FVector4f> Colors = FStaticMeshAttributes(*MeshDescription).GetVertexInstanceColors();
+			for (FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 			{
-				Mesh.WedgeColors.Empty(Mesh.WedgeIndices.Num());
-				Mesh.WedgeColors.AddUninitialized(Mesh.WedgeIndices.Num());
-			}
-
-			// Build a mapping of vertex positions to vertex colors.
-			for (int32 WedgeIndex = 0; WedgeIndex < Mesh.WedgeIndices.Num(); ++WedgeIndex)
-			{
-				FVector Position(Mesh.VertexPositions[Mesh.WedgeIndices[WedgeIndex]]);
-				const FColor* Color = VertexColorData.Find(Position);
-				if (Color)
+				FVertexID VertexID = MeshDescription->GetVertexInstanceVertex(VertexInstanceID);
+				const FVector3f& Position = Positions[VertexID];
+				if (const FColor* Color = VertexColorData.Find(Position))
 				{
-					Mesh.WedgeColors[WedgeIndex] = *Color;
+					Colors[VertexInstanceID] = FVector4f(FLinearColor::FromSRGBColor(*Color));
 				}
 				else
 				{
-					Mesh.WedgeColors[WedgeIndex] = FColor(255, 255, 255, 255);
+					Colors[VertexInstanceID] = FVector4f(FLinearColor::White);
 				}
 			}
-
-			// Save the new raw mesh.
-			GetSourceModel(PaintingMeshLODIndex).SaveRawMesh(Mesh);
+			CommitMeshDescription(PaintingMeshLODIndex);
 		}
 	}
 	// TODO_STATICMESH: Build?
@@ -6937,17 +6925,14 @@ ENGINE_API void UStaticMesh::RemoveVertexColors()
 		FStaticMeshSourceModel& SourceModel = GetSourceModel(LodIndex);
 		if (!SourceModel.IsRawMeshEmpty())
 		{
-			FRawMesh RawMesh;
-			SourceModel.LoadRawMesh(RawMesh);
-
-			if (RawMesh.WedgeColors.Num() > 0)
+			FMeshDescription* MeshDescription = GetMeshDescription(LodIndex);
+			TVertexInstanceAttributesRef<FVector4f> Colors = FStaticMeshAttributes(*MeshDescription).GetVertexInstanceColors();
+			for (FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 			{
-				RawMesh.WedgeColors.Empty();
-
-				SourceModel.SaveRawMesh(RawMesh);
-
-				bRemovedVertexColors = true;
+				Colors[VertexInstanceID] = FVector4f(FLinearColor::White);
 			}
+			CommitMeshDescription(LodIndex);
+			bRemovedVertexColors = true;
 		}
 	}
 

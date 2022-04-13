@@ -1317,7 +1317,7 @@ bool UnFbx::FFbxImporter::ImportBones(TArray<FbxNode*>& NodeArray, FSkeletalMesh
 	return true;
 }
 
-bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray, FSkeletalMeshImportData* OutData, TArray<FbxNode*>& OutImportedSkeletonLinkNodes, TArray<FName> &LastImportedMaterialNames, const bool bIsReimport, const TMap<FVector, FColor>& ExistingVertexColorData)
+bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray, FSkeletalMeshImportData* OutData, TArray<FbxNode*>& OutImportedSkeletonLinkNodes, TArray<FName> &LastImportedMaterialNames, const bool bIsReimport, const TMap<FVector3f, FColor>& ExistingVertexColorData)
 {
 	if (NodeArray.Num() == 0)
 	{
@@ -1682,7 +1682,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		}
 	}
 
-	TMap<FVector, FColor> ExistingVertexColorData;
+	TMap<FVector3f, FColor> ExistingVertexColorData;
 	if (!ExistingSkelMesh)
 	{
 		// When we are not re-importing we want to create the mesh here to be sure there is no material
@@ -3100,7 +3100,7 @@ void UnFbx::FFbxImporter::CleanUpUnusedMaterials(FSkeletalMeshImportData& Import
 	}
 }
 
-bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& ImportData, FbxMesh*& Mesh, FbxSkin* Skin, FbxShape* FbxShape, TArray<FbxNode*> &SortedLinks, const TArray<FbxSurfaceMaterial*>& FbxMaterials, FbxNode *RootNode, const TMap<FVector, FColor>& ExistingVertexColorData)
+bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& ImportData, FbxMesh*& Mesh, FbxSkin* Skin, FbxShape* FbxShape, TArray<FbxNode*> &SortedLinks, const TArray<FbxSurfaceMaterial*>& FbxMaterials, FbxNode *RootNode, const TMap<FVector3f, FColor>& ExistingVertexColorData)
 {
 	FbxNode* Node = Mesh->GetNode();
 
@@ -3701,7 +3701,7 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 		{
 			for (int32 VertexIndex = 0; VertexIndex < 3; VertexIndex++)
 			{
-				const FVector VertexPosition = (FVector)ImportData.Points[TmpWedges[VertexIndex].VertexIndex];
+				const FVector3f& VertexPosition = ImportData.Points[TmpWedges[VertexIndex].VertexIndex];
 				const FColor* PaintedColor = ExistingVertexColorData.Find(VertexPosition);
 				
 				// try to match this wedge current vertex with one that existed in the previous mesh.
