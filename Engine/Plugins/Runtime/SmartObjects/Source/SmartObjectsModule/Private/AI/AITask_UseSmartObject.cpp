@@ -13,6 +13,8 @@
 #include "VisualLogger/VisualLogger.h"
 #include "Misc/ScopeExit.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/World.h"
+
 
 UAITask_UseSmartObject::UAITask_UseSmartObject(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
