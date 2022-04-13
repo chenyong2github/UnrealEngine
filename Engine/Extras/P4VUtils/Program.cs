@@ -101,7 +101,7 @@ namespace P4VUtils
 			}
 
 			Logger.LogInformation("Commands:");
-			HelpUtils.PrintTable(Table, 2, 15, Logger);
+			HelpUtils.PrintTable(Table, 2, 15, ConsoleUtils.WindowWidth - 1, Logger);
 		}
 
 		static async Task<int> Main(string[] Args)
@@ -149,7 +149,10 @@ namespace P4VUtils
 				if (Args.Any(x => x.Equals("-help", StringComparison.OrdinalIgnoreCase)))
 				{
 					List<KeyValuePair<string, string>> Parameters = CommandLineArguments.GetParameters(Command.GetType());
-					HelpUtils.PrintHelp(Args[0], Command.GetType(), Logger);
+					Logger.LogInformation("{Title}", Args[0]);
+					Logger.LogInformation("{Description}", Command.GetType());
+					Logger.LogInformation("Parameters:");
+					HelpUtils.PrintTable(Parameters, 4, 24, HelpUtils.WindowWidth - 1, Logger);
 					return 0;
 				}
 

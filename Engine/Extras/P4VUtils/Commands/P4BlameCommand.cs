@@ -54,7 +54,7 @@ namespace P4VUtils.Commands
 				AnnotateRecord LineResult = Results[LineNumber];
 				string EscapedString = Regex.Escape(LineResult.Data);
 
-				Logger.LogInformation(@"Change {Change} by {User} on [{Time}]:'{Description}'", LineResult.LowerCL, LineResult.UserName, LineResult.Time, EscapedString);
+				Logger.LogInformation(@"Change {Change} by {User} on [{Time}]:'{Description}'", LineResult.LowerCl, LineResult.UserName, LineResult.Time, EscapedString);
 			}
 			catch (PerforceException Exception)
 			{

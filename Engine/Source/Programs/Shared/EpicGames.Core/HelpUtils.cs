@@ -141,7 +141,7 @@ namespace EpicGames.Core
 
 			foreach (string line in lines)
 			{
-				logger.LogInformation("{Line)", line);
+				logger.LogInformation("{Line}", line);
 			}
 		}
 
