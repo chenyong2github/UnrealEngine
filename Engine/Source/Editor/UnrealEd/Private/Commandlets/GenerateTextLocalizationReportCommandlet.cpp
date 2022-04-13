@@ -4,6 +4,8 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Internationalization/LocKeyFuncs.h"
+#include "LocTextHelper.h"
+#include "Misc/ConfigCacheIni.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGenerateTextLocalizationReportCommandlet, Log, All);
 
@@ -30,7 +32,6 @@ int32 UGenerateTextLocalizationReportCommandlet::Main(const FString& Params)
 	else
 	{
 		UE_LOG(LogGenerateTextLocalizationReportCommandlet, Error, TEXT("No config specified."));
-		return -1;
 	}
 
 	// Set config section.
@@ -91,7 +92,7 @@ int32 UGenerateTextLocalizationReportCommandlet::Main(const FString& Params)
 
 	if( bConflictReport )
 	{
-		if( !ProcessConflictReport( DestinationPath ) )
+		if( !ProcessConflictReport( DestinationPath) )
 		{
 			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Error, TEXT("Failed to generate localization conflict report."));
 			return -1;
@@ -177,11 +178,64 @@ bool UGenerateTextLocalizationReportCommandlet::ProcessConflictReport(const FStr
 		UE_LOG(LogGenerateTextLocalizationReportCommandlet, Error, TEXT("No conflict report name specified."));
 		return false;
 	}
-
+	if (ConflictReportName.Contains(TEXT("."), ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+	{
+		UE_LOG(LogGenerateTextLocalizationReportCommandlet, Error, TEXT("Conflict report name has a file extension. Please remove the file extension from the name. EConflictReportFormat is used to determine the file extension."));
+		return false;
+	}
+	EConflictReportFormat ConflictReportFormat = EConflictReportFormat::None;
+	FString ConflictReportFormatString;
+	if (!GConfig->GetString(*SectionName, TEXT("ConflictReportFormat"), ConflictReportFormatString, GatherTextConfigPath))
+	{
+		UE_LOG(LogGenerateTextLocalizationReportCommandlet, Display, TEXT("Conflict report format not specified. Conflict report will default to CSV format."));
+		ConflictReportFormat = EConflictReportFormat::CSV;
+	}
+	else
+	{
+		ConflictReportFormatString.TrimStartAndEndInline();
+		static const TCHAR* TxtEnumString = TEXT("EConflictReportFormat::Txt");
+		static const TCHAR* CSVEnumString = TEXT("EConflictReportFormat::CSV");
+		if (ConflictReportFormatString.Equals(TxtEnumString))
+		{
+			ConflictReportFormat = EConflictReportFormat::Txt;
+		}
+		else if (ConflictReportFormatString.Equals(CSVEnumString))
+		{
+			ConflictReportFormat = EConflictReportFormat::CSV;
+		}
+		else
+		{
+			// @TODOLocalization: Consider alternatives to defaulting to CSV.
+			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Warning, TEXT("Specified conflict report format %s in \'%s\' not supported. Defaulting to CSV format."), *ConflictReportFormatString, *GatherTextConfigPath);
+			ConflictReportFormat = EConflictReportFormat::CSV;
+		}
+	}
+	switch (ConflictReportFormat)
+	{
+		case EConflictReportFormat::CSV:
+		{
+			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Display, TEXT("Conflict report format will be in CSV."));
+			static const TCHAR* CSVExtension = TEXT(".csv");
+			ConflictReportName += CSVExtension;
+			break;
+		}
+		case EConflictReportFormat::Txt:
+		{
+			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Display, TEXT("Conflict report formatwill be in in txt format."));
+			static const TCHAR* TxtExtension = TEXT(".txt");
+			ConflictReportName += TxtExtension;
+			break;
+		}
+		default:
+		{
+			UE_LOG(LogGenerateTextLocalizationReportCommandlet, Error, TEXT("Unsupported conflict report format %s detected in %s. Unable to create the appropriate report name and extension."), *ConflictReportFormatString, *GatherTextConfigPath);
+			return false;
+		}
+	}
 	const FString ReportFilePath = (DestinationPath / ConflictReportName);
 
 	FText ReportSaveError;
-	if (!GatherManifestHelper->SaveConflictReport(ReportFilePath, &ReportSaveError))
+	if (!GatherManifestHelper->SaveConflictReport(ReportFilePath, ConflictReportFormat , &ReportSaveError))
 	{
 		UE_LOG(LogGenerateTextLocalizationReportCommandlet, Error, TEXT("%s"), *ReportSaveError.ToString());
 		return false;

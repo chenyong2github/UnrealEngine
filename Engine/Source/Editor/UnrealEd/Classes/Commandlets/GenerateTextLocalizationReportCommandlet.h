@@ -7,7 +7,6 @@
 #include "Commandlets/GatherTextCommandletBase.h"
 #include "GenerateTextLocalizationReportCommandlet.generated.h"
 
-
 UCLASS()
 class UGenerateTextLocalizationReportCommandlet : public UGatherTextCommandletBase
 {
@@ -18,6 +17,10 @@ public:
 	virtual int32 Main(const FString& Params) override;
 	//~ End UCommandlet Interface
 
+	virtual bool ShouldRunInPreview(const TArray<FString>& Switches, const TMap<FString, FString>& ParamVals) const
+	{
+		return true;
+	}
 private:
 	/**
 	 * Collects word count info and writes out a report.
@@ -34,7 +37,7 @@ private:
 	 * @return True if successful; false oterwise.
 	 */
 	bool ProcessConflictReport(const FString& DestinationPath);
-
+	
 private:
 	FString GatherTextConfigPath;
 	FString SectionName;

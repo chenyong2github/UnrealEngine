@@ -114,12 +114,15 @@ FString FLocTextConflicts::GetConflictReport() const
 		const FString& Key = Conflict->Key.GetString();
 
 		bool bAddToReport = false;
+		// Grab the list of all conflicting source text associated with this key 
 		TArray<FLocItem> SourceList;
 		Conflict->EntriesBySourceLocation.GenerateValueArray(SourceList);
+
 		if (SourceList.Num() >= 2)
 		{
 			for (int32 i = 0; i < SourceList.Num() - 1 && !bAddToReport; ++i)
 			{
+				// we only add the conflict to the report if the source strings do not match up.
 				for (int32 j = i + 1; j < SourceList.Num() && !bAddToReport; ++j)
 				{
 					if (!(SourceList[i] == SourceList[j]))
@@ -154,6 +157,87 @@ FString FLocTextConflicts::GetConflictReport() const
 	return Report;
 }
 
+FString FLocTextConflicts::GetConflictReportAsCSV() const
+{
+	// First have the headers 
+	FString Report = TEXT("Namespace,Key,File1,Line1,File2,Line2,Source1,Source2\n");
+
+	for (const auto& ConflictPair : EntriesByKey)
+	{
+		const TSharedRef<FConflict>& Conflict = ConflictPair.Value;
+		const FString& Namespace = Conflict->Namespace.GetString();
+		const FString& Key = Conflict->Key.GetString();
+
+		bool bAddToReport = false;
+		TArray<FLocItem> SourceList;
+		Conflict->EntriesBySourceLocation.GenerateValueArray(SourceList);
+		if (SourceList.Num() >= 2)
+		{
+			for (int32 i = 0; i < SourceList.Num() - 1 && !bAddToReport; ++i)
+			{
+				for (int32 j = i + 1; j < SourceList.Num() && !bAddToReport; ++j)
+				{
+					// Conflict only if the source text and metadata don't match 
+					if (!(SourceList[i] == SourceList[j]))
+					{
+						bAddToReport = true;
+					}
+				}
+			}
+		}
+
+		if (bAddToReport)
+		{
+			// the format of the CSV will need file1,line1 and file2,line2 to be compared against each other 
+			// If a single key has more than 1 conflict, we want file 1 in the csv to always be the same one.
+			// Thus we store the results of the first entry to be appended in each row of the CSV for a single entry 
+
+			bool bFirstEntry = true;
+			FString FirstEntrySourceFile;
+			FString FirstEntryLineNumber;
+			FString FirstEntrySourceText;
+
+			// This maps each of the source locations to its conflicting source string 
+			// for each entry in this, we create a new row in the .csv 
+			for (auto EntryIter = Conflict->EntriesBySourceLocation.CreateConstIterator(); EntryIter; ++EntryIter)
+			{
+				const FString& SourceLocation = EntryIter.Key();
+				FString ProcessedSourceLocation = SourceLocation;
+				ProcessedSourceLocation.ReplaceInline(TEXT("\\"), TEXT("/"));
+
+				const FString& SourceText = EntryIter.Value().Text.ReplaceCharWithEscapedChar();
+				// in the event there are more than 2 key conflicts for a single key,
+				// this will always be the entry for file 1 and line 1 in the output file 
+				if (bFirstEntry)
+				{
+					// For a source file conflict, source location is in the format My/File/Name.cpp:LineNumber
+					bool bSplitSuccessful = ProcessedSourceLocation.Split(TEXT(":"), &FirstEntrySourceFile, &FirstEntryLineNumber, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+					// If the split fails, this means that the location is not in the form file:linenumber.
+					// if the line number string is not numeric, this means we are dealing with an asset path 
+					if (!bSplitSuccessful  || !FirstEntryLineNumber.IsNumeric())
+					{
+						FirstEntrySourceFile = ProcessedSourceLocation;
+						FirstEntryLineNumber = TEXT("0");
+					}
+					FirstEntrySourceText = SourceText;
+					bFirstEntry = false;
+					continue;
+				}
+				FString CurrentSourceFile;
+				FString CurrentLineNumber;
+				bool bSplitSuccessful = ProcessedSourceLocation.Split(TEXT(":"), &CurrentSourceFile, &CurrentLineNumber, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+				// Same as above 
+				if (!bSplitSuccessful || !CurrentLineNumber.IsNumeric())
+				{
+					CurrentSourceFile = ProcessedSourceLocation;
+					CurrentLineNumber = TEXT("0");
+				}
+				Report += FString::Printf(TEXT("%s,%s,%s,%s,%s,%s,%s,%s\n"), *Namespace, *Key, *FirstEntrySourceFile, *FirstEntryLineNumber, *CurrentSourceFile, *CurrentLineNumber, *FirstEntrySourceText, *SourceText);
+			}
+		}
+	}
+	return Report;
+}
 
 const FString FLocTextWordCounts::ColHeadingDateTime = TEXT("Date/Time");
 const FString FLocTextWordCounts::ColHeadingWordCount = TEXT("Word Count");
@@ -1104,7 +1188,7 @@ FString FLocTextHelper::GetConflictReport() const
 	return ConflictTracker.GetConflictReport();
 }
 
-bool FLocTextHelper::SaveConflictReport(const FString& InReportFilePath, FText* OutError) const
+bool FLocTextHelper::SaveConflictReport(const FString& InReportFilePath, EConflictReportFormat InConflictReportFormat, FText* OutError) const
 {
 	bool bSaved = false;
 
@@ -1112,8 +1196,29 @@ bool FLocTextHelper::SaveConflictReport(const FString& InReportFilePath, FText* 
 	{
 		LocFileNotifies->PreFileWrite(InReportFilePath);
 	}
-
-	const FString ConflictReport = ConflictTracker.GetConflictReport();
+	FString ConflictReport;
+	switch (InConflictReportFormat)
+	{
+		case EConflictReportFormat::Txt: 
+		{
+			ConflictReport = ConflictTracker.GetConflictReport();
+			break;
+		}
+		case EConflictReportFormat::CSV:
+		{
+			ConflictReport = ConflictTracker.GetConflictReportAsCSV();
+			break;
+		}
+		default:
+		{
+			if (OutError)
+			{
+				*OutError = FText::Format(LOCTEXT("Error_UnsupportedConflictReportFormat", "Failed to generate conflict report '{0}'. An unsupported conflict report format was specified. Supported formats can be found in EConflictReportFormat."), FText::FromString(InReportFilePath));
+			}
+			return false;
+		}
+	}
+	
 	if (FFileHelper::SaveStringToFile(ConflictReport, *InReportFilePath))
 	{
 		bSaved = true;

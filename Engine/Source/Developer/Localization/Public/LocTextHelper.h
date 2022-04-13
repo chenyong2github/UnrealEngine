@@ -78,6 +78,13 @@ struct LOCALIZATION_API FLocTextPlatformSplitUtils
 	/** Get the platforms names that should be split, based on the given split mode */
 	static const TArray<FString>& GetPlatformsToSplit(const ELocTextPlatformSplitMode& InSplitMode);
 };
+/** An enum representing all the formats the conflict report can be output in. */
+enum class EConflictReportFormat : uint8
+{
+	None,
+	Txt,
+	CSV
+};
 
 /**
  * Class that tracks any conflicts that occur when gathering source text entries.
@@ -123,11 +130,15 @@ public:
 	 * @param InSourceLocation		The source location of the conflict.
 	 */
 	void AddConflict(const FLocKey& InNamespace, const FLocKey& InKey, const TSharedPtr<FLocMetadataObject>& InKeyMetadata, const FLocItem& InSource, const FString& InSourceLocation);
-
+	
 	/**
-	 * Convert the conflicts to a string format that can be easily saved as a report summary.
+	 * Convert the conflicts to a string format that can be easily saved as a .txt report summary.
 	 */
 	FString GetConflictReport() const;
+	/**
+	 * Convert the conflicts to a string format that can be easily saved as a .csv report summary.
+	 */
+	FString GetConflictReportAsCSV() const;
 
 private:
 	FLocTextConflicts(const FLocTextConflicts&) = delete;
@@ -778,16 +789,18 @@ public:
 	 * Get a conflict report that can be easily saved as a report summary.
 	 */
 	FString GetConflictReport() const;
+	
 
 	/**
 	 * Save the conflict report summary to disk.
 	 *
 	 * @param InReportFilePath		Full file path to write the report to.
+	 * @param InConflictReportFormat		The format the conflict report should be generated in.
 	 * @param OutError				Optional text to be filled when an error occurs.
 	 *
 	 * @return True if the file was saved, false otherwise.
 	 */
-	bool SaveConflictReport(const FString& InReportFilePath, FText* OutError = nullptr) const;
+	bool SaveConflictReport(const FString& InReportFilePath, EConflictReportFormat InConflictReportFormat, FText* OutError = nullptr) const;
 
 	/**
 	 * Get a word count report for the current state of the manifest and archives.
