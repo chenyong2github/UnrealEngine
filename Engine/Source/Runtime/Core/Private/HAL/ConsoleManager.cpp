@@ -10,7 +10,6 @@ ConsoleManager.cpp: console command handling
 #include "Misc/Paths.h"
 #include "Stats/Stats.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/RemoteConfigIni.h"
@@ -353,12 +352,8 @@ static void ExpandScalabilityCVar(FConfigCacheIni* ConfigSystem, const FString& 
 	}
 }
 
-bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, const FString& DeviceProfileName, TFunctionRef<void(const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)> Visit)
+bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, bool bVisitPlatformDeviceProfile, TFunctionRef<void(const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetBy)> Visit)
 {
-	// we can't get to Scalability code in here (it's in Engine) but we still want to apply the default level... 
-	// there is a static_assert in UDeviceProfile::ExpandDeviceProfileCVars to make sure the default doesn't change from this value
-	const int DefaultScalabilityLevel = 3;
-
 	// get the config system for the platform the DP uses
 	FConfigCacheIni* ConfigSystem = FConfigCacheIni::ForPlatform(*PlatformName.ToString());
 	if (ConfigSystem == nullptr)
@@ -370,134 +365,55 @@ bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, const F
 	//   doesn't come from ini
 
 	// ECVF_SetByScalability:
-	//	 initializes sg. cvars to the Default level, likely DPs etc will replace most/all of these settings
-
-	// ECVF_SetByProjectSetting:
-	// ECVF_SetBySystemSettingsIni:
-	//   read from ini files
-	
-	// ECVF_SetByDeviceProfile: 
-	//   read from the DP parenting chain
+	//	 skipped, i believe this is not really loaded as a normal layer per-se, it's up to the other sections to set with this one
 
 	// ECVF_SetByGameSetting:
 	//   skipped, since we don't have a user
 
-	// ECVF_SetByConsoleVariablesIni:
-	//   maybe skip this? it's a weird one, but maybe?
 
-	// ECVF_SetByCommandline:
-	//   skip as this would not be expected to apply to emulation
-
-	// ECVF_SetByCode:
-	//   skip because it cannot be set by code
-
-	// ECVF_SetByConsole
-	//   we could have this if we made a per-platform CVar, not just the shared default value
+	// ECVF_SetByProjectSetting:
+	// ECVF_SetBySystemSettingsIni:
+	// ECVF_SetByDeviceProfile: 
+	//   ONLY using the base DP named for the platform, as the DPManager needs to be used for proper DeviceProfiles
 
 	const TCHAR* DeviceProfileTag = TEXT("_NamedDeviceProfile");
-	const TCHAR* ScalabilityTag = TEXT("_Scalability");
 	struct FSectionPair
 	{
 		const TCHAR* Name; EConsoleVariableFlags SetBy;
 	} Sections[] =
 	{
-		// this order is not based on priority order, but by the order as seen in LaunchEngineLoop:
-		//		GSystemSettings.Initialize()
-		{ TEXT("SystemSettings"), ECVF_SetBySystemSettingsIni },
-
-		//		ApplyCVarSettingsFromIni(...)
 		{ TEXT("/Script/Engine.RendererSettings"), ECVF_SetByProjectSetting },
 		{ TEXT("/Script/Engine.RendererOverrideSettings"), ECVF_SetByProjectSetting },
 		{ TEXT("/Script/Engine.StreamingSettings"), ECVF_SetByProjectSetting },
 		{ TEXT("/Script/Engine.GarbageCollectionSettings"), ECVF_SetByProjectSetting },
 		{ TEXT("/Script/Engine.NetworkSettings"), ECVF_SetByProjectSetting },
 
-		//		Scalability::InitScalabilitySystem()
-		{ ScalabilityTag, ECVF_SetByDeviceProfile },
-
-		//		UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile()
-		{ DeviceProfileTag, ECVF_SetByDeviceProfile },
-
-		//		FConfigCacheIni::LoadConsoleVariablesFromINI()
-		{ TEXT("Startup"), ECVF_SetByConsoleVariablesIni },
+		{ TEXT("SystemSettings"), ECVF_SetBySystemSettingsIni },
 		{ TEXT("ConsoleVariables"), ECVF_SetBySystemSettingsIni },
 
-	};
-
-	TMap<FString, int32> CVarSetByMap;
-	auto VisitIfAllowed = [&CVarSetByMap, &Visit](const FString& Name, const FString& Value, EConsoleVariableFlags SetBy)
-	{
-		int32 SetByInt = (int32)(SetBy & ECVF_SetByMask);
-		int32 WasSetBy = CVarSetByMap.FindOrAdd(Name);
-		if (SetByInt < WasSetBy)
-		{
-			UE_LOG(LogConsoleManager, Log, TEXT("Skipping CVar %s=%s while visiting another platform, because it was already visited with a higher priority"), *Name, *Value);
-			return;
-		}
-
-		CVarSetByMap[Name] = SetByInt;
-
-		// now look up the cvar, if it exists (it's okay if it doesn't, it may not exist on host platform, but then it's not previewable!)
-		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Name, false /* bTrackFrequentCalls */);
-		EConsoleVariableFlags PreviewFlag = (CVar != nullptr) ? (EConsoleVariableFlags)(CVar->GetFlags() & ECVF_Preview) : ECVF_Default;
-		Visit(Name, Value, (EConsoleVariableFlags)(SetBy | PreviewFlag));
+		{ DeviceProfileTag, ECVF_SetByDeviceProfile },
 	};
 
 	// now walk up the stack getting current values
 	for (const FSectionPair& SectionPair : Sections)
 	{
-		bool bDeleteSection = false;
 		FConfigSection* Section;
 		bool bIsDeviceProfile = FCString::Strcmp(SectionPair.Name, DeviceProfileTag) == 0;
-		bool bIsScalabilityLevel = FCString::Strcmp(SectionPair.Name, ScalabilityTag) == 0;
 
 		if (bIsDeviceProfile)
 		{
-			// skip this if we didn't specify one
-			if (DeviceProfileName.Len() == 0)
+			// skip this if we don't want it
+			if (bVisitPlatformDeviceProfile == false)
 			{
 				continue;
 			}
-			if (!FCoreDelegates::GatherDeviceProfileCVars.IsBound())
-			{
-				UE_LOG(LogConsoleManager, Warning, TEXT("Attempted to get CVars for another platform before FCoreDelegates::GatherDeviceProfileCVars was bound to a callback. CVar values are likely incorrect."));
-				continue;
-			}
-
-			// make a fake section of the dp cvars - this will let the expansion happen as normal below
-			Section = new FConfigSection();
-			bDeleteSection = true;
-
-			// run the delegate (this code can't get into DP code directly, so we use a delegate), and walk over the results
-			for (TPair<FName, FString>& Pair : FCoreDelegates::GatherDeviceProfileCVars.Execute(DeviceProfileName))
-			{
-				Section->Add(Pair);
-			}
-		}
-		else if (bIsScalabilityLevel)
-		{
-			// walk over all of the scalability groups, and assign them to the default level
-			FString DefaultLevel = FString::Printf(TEXT("%d"), DefaultScalabilityLevel);
-
-			// make a fake section of the sg. vars - this will let the expansion happen as normal below
-			Section = new FConfigSection();
-			bDeleteSection = true;
-			IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateLambda([&DefaultLevel, Section](const TCHAR* Name, IConsoleObject* Obj)
-				{
-					if (Obj->TestFlags(ECVF_ScalabilityGroup))
-					{
-						Section->Add(Name, FConfigValue(DefaultLevel));
-					}
-				}
-			));
+			FString DPSectionName = PlatformName.ToString() + TEXT(" DeviceProfile");
+			Section = ConfigSystem->GetSectionPrivate(*DPSectionName, false, true, GDeviceProfilesIni);
 		}
 		else
 		{
-			static const FString ConsoleVariablesIni = FPaths::EngineDir() + TEXT("Config/ConsoleVariables.ini");
-			const FString& IniFile = (SectionPair.SetBy == ECVF_SetByConsoleVariablesIni) ? ConsoleVariablesIni : GEngineIni;
-			Section = ConfigSystem->GetSectionPrivate(SectionPair.Name, false, true, IniFile);
+			Section = ConfigSystem->GetSectionPrivate(SectionPair.Name, false, true, GEngineIni);
 		}
-
 
 		if (Section != nullptr)
 		{
@@ -506,6 +422,25 @@ bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, const F
 			{
 				FString Key = Pair.Key.ToString();
 				FString Value = Pair.Value.GetValue();
+
+				// DPs have +CVars= prefix for the key, and the real cvar KVP is in the Value
+				// and other keys are not CVars so are ignored
+				if (bIsDeviceProfile)
+				{
+					if (Key.StartsWith(TEXT("CVars")))
+					{
+						FString ValueCopy = Value;
+						// expect a second = in the value, skip any that don't
+						if (!ValueCopy.Split(TEXT("="), &Key, &Value))
+						{
+							continue;
+						}
+					}
+					else
+					{
+						continue;
+					}
+				}
 
 				// don't bother tracking when looking up other platform cvars
 				IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Key, false /* bTrackFrequentCalls */);
@@ -522,23 +457,28 @@ bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, const F
 
 					for (const auto& ScalabilityPair : ScalabilityCVars)
 					{
-						VisitIfAllowed(ScalabilityPair.Key, ScalabilityPair.Value, (EConsoleVariableFlags)(ECVF_SetByScalability | PreviewFlag));
+						Visit(ScalabilityPair.Key, ScalabilityPair.Value, (EConsoleVariableFlags)(ECVF_SetByScalability | PreviewFlag));
 					}
 				}
 				else
 				{
-					VisitIfAllowed(Key, Value, (EConsoleVariableFlags)(SectionPair.SetBy | PreviewFlag));
+					Visit(Key, Value, (EConsoleVariableFlags)(SectionPair.SetBy | PreviewFlag));
 				}
 			}
-
-			// clean up the temp section we made
-			if (bDeleteSection)
-			{
-				delete Section;
-			}
-
 		}
 	}
+
+	// ECVF_SetByConsoleVariablesIni:
+	//   maybe skip this? it's a weird one, but maybe?
+
+	// ECVF_SetByCommandline:
+	//   skip as this would not be expected to apply to emulation
+
+	// ECVF_SetByCode:
+	//   skip because it cannot be set by code
+
+	// ECVF_SetByConsole
+	//   we could have this if we made a per-platform CVar, not just the shared default value
 
 
 	return true;
@@ -547,6 +487,7 @@ bool IConsoleManager::VisitPlatformCVarsForEmulation(FName PlatformName, const F
 
 static bool GetConfigValueFromRuntimeSources(FName PlatformName, IConsoleVariable* CVar, FString& OutValue, EConsoleVariableFlags& LastSetBy)
 {
+
 	FString VariableName = IConsoleManager::Get().FindConsoleObjectName(CVar);
 	if (VariableName.Len() == 0)
 	{
@@ -556,8 +497,7 @@ static bool GetConfigValueFromRuntimeSources(FName PlatformName, IConsoleVariabl
 	OutValue = CVar->GetDefaultValueVariable()->GetString();
 	LastSetBy = ECVF_SetByConstructor;
 
-	// use the platform's base DeviceProfile for emulation
-	IConsoleManager::VisitPlatformCVarsForEmulation(PlatformName, PlatformName.ToString(),
+	IConsoleManager::VisitPlatformCVarsForEmulation(PlatformName, true, 
 		[&VariableName, &OutValue, &LastSetBy](const FString& CVarName, const FString& CVarValue, EConsoleVariableFlags SetByAndPreview)
 		{
 			// if this key is the variable, set it at the current SetBy level

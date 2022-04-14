@@ -239,14 +239,7 @@ public:
     static FSimpleMulticastDelegate PostSlateModal;
     
 #endif	//WITH_EDITOR
-
-#if ALLOW_OTHER_PLATFORM_CONFIG
-	// Called when the CVar (ConsoleManager) needs to retrieve CVars for a deviceprofile for another platform - this dramatically simplifies module dependencies
-	typedef TMap<FName, FString> FCVarKeyValueMap;
-	DECLARE_DELEGATE_RetVal_OneParam(FCVarKeyValueMap, FGatherDeviceProfileCVars, const FString&  /*DeviceProfileName*/);
-	static FGatherDeviceProfileCVars GatherDeviceProfileCVars;
-#endif
-
+	
 	// Called when an error occurred.
 	static FSimpleMulticastDelegate OnShutdownAfterError;
 

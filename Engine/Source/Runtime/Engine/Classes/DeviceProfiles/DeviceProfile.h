@@ -179,16 +179,14 @@ private:
 public:
 	const TMap<FString, FString>& GetAllExpandedCVars();
 	const TMap<FString, FString>& GetAllPreviewCVars();
+	void AddExpandedCVars(const TMap<FString, FString>& CVarsToMerge);
+	void AddPreviewCVars(const TMap<FString, FString>& CVarsToMerge);
 	void ClearAllExpandedCVars();
 	/** Set the memory size bucket to be used when previewing this DP, changing this will reset the expanded cvars. */
 	void SetPreviewMemorySizeBucket(EPlatformMemorySizeBucket PreviewMemorySizeBucketIn);
 	EPlatformMemorySizeBucket GetPreviewMemorySizeBucket() const;
 
 private:
-	
-	// calculate the cvars for another platform's deviceprofile
-	void ExpandDeviceProfileCVars();
-		
 	/** Resolved CVars, including expanded scalability cvars used to properly emulate one platform on another */
 	TMap<FString, FString> AllExpandedCVars;
 
