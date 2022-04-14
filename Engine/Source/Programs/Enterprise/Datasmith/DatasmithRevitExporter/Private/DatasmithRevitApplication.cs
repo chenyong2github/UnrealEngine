@@ -65,7 +65,6 @@ namespace DatasmithRevitExporter
 		private static string ExportMessages;
 
 		private EventHandler<DocumentClosingEventArgs> DocumentClosingHandler;
-		private EventHandler<ViewActivatedEventArgs> ViewActivatedHandler;
 		private EventHandler<IdlingEventArgs> IdlingEventHandler;
 		private EventHandler<DocumentOpenedEventArgs> DocumentOpenedHandler;
 
