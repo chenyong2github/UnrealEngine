@@ -300,8 +300,8 @@ uint32 FindFaceIndexImp(const THitLocation& PHit, const FVector& UnitDir)
 #else
 	const FTransform WorldTM(PHit.Actor->R(), PHit.Actor->X());
 	const FVector LocalPosition = WorldTM.InverseTransformPositionNoScale(PHit.WorldPosition);
-	const FVector LocalNormal = WorldTM.InverseTransformVectorNoScale(UnitDir);
-	return PHit.Shape->GetGeometry()->FindMostOpposingFace(LocalPosition, LocalNormal, PHit.FaceIndex, 1);	//todo:this number matches the one above, but is it right?
+	const FVector LocalUnitDir = WorldTM.InverseTransformVectorNoScale(UnitDir);
+	return PHit.Shape->GetGeometry()->FindMostOpposingFace(LocalPosition, LocalUnitDir, PHit.FaceIndex, 1);	//todo:this number matches the one above, but is it right?
 #endif
 }
 

@@ -1216,7 +1216,7 @@ bool FTriangleMeshImplicitObject::SweepGeom(const TImplicitObjectScaled<FConvex>
 }
 
 template <typename IdxType>
-int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const TArray<TVec3<IdxType>>& Elements, const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const
+int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const TArray<TVec3<IdxType>>& Elements, const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist, const FVec3& Scale) const
 {
 	//todo: this is horribly slow, need adjacency information
 	const FReal SearchDist2 = SearchDist * SearchDist;
@@ -1231,9 +1231,9 @@ int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const TArray<TVec3<IdxTy
 
 	for (int32 TriIdx : PotentialIntersections)
 	{
-		const FVec3& A = MParticles.X(Elements[TriIdx][0]);
-		const FVec3& B = MParticles.X(Elements[TriIdx][1]);
-		const FVec3& C = MParticles.X(Elements[TriIdx][2]);
+		const FVec3& A = MParticles.X(Elements[TriIdx][0]) * Scale;
+		const FVec3& B = MParticles.X(Elements[TriIdx][1]) * Scale;
+		const FVec3& C = MParticles.X(Elements[TriIdx][2]) * Scale;
 
 		const FVec3 AB = B - A;
 		const FVec3 AC = C - A;
@@ -1243,6 +1243,13 @@ int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const TArray<TVec3<IdxTy
 		{
 			//hitting degenerate triangle - should be fixed before we get to this stage
 			continue;
+		}
+
+		// Check if the scale is reflective
+		bool bNormalSignFlip = Scale.X * Scale.Y * Scale.Z < 0;
+		if (bNormalSignFlip)
+		{
+			Normal = -Normal;
 		}
 
 		const TPlane<FReal, 3> TriPlane{A, Normal};
@@ -1264,13 +1271,26 @@ int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const TArray<TVec3<IdxTy
 
 int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const
 {
+	const FVec3 Scale(1.0f, 1.0f, 1.0f);
 	if (MElements.RequiresLargeIndices())
 	{
-		return FindMostOpposingFace(MElements.GetLargeIndexBuffer(), Position, UnitDir, HintFaceIndex, SearchDist);
+		return FindMostOpposingFace(MElements.GetLargeIndexBuffer(), Position, UnitDir, HintFaceIndex, SearchDist, Scale);
 	}
 	else
 	{
-		return FindMostOpposingFace(MElements.GetSmallIndexBuffer(), Position, UnitDir, HintFaceIndex, SearchDist);
+		return FindMostOpposingFace(MElements.GetSmallIndexBuffer(), Position, UnitDir, HintFaceIndex, SearchDist, Scale);
+	}
+}
+
+int32 FTriangleMeshImplicitObject::FindMostOpposingFaceScaled(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist, const FVec3& Scale) const
+{
+	if (MElements.RequiresLargeIndices())
+	{
+		return FindMostOpposingFace(MElements.GetLargeIndexBuffer(), Position, UnitDir, HintFaceIndex, SearchDist, Scale);
+	}
+	else
+	{
+		return FindMostOpposingFace(MElements.GetSmallIndexBuffer(), Position, UnitDir, HintFaceIndex, SearchDist, Scale);
 	}
 }
 

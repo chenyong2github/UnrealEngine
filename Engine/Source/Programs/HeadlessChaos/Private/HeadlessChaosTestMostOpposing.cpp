@@ -19,53 +19,128 @@ namespace ChaosTest
 
 	void TrimeshMostOpposing()
 	{
-		FReal Time;
-		FVec3 Position;
-		FVec3 Normal;
-		TArray<uint16> DummyMaterials;
-		int32 FaceIndex;
+		{
+			FReal Time;
+			FVec3 Position;
+			FVec3 Normal;
+			TArray<uint16> DummyMaterials;
+			int32 FaceIndex;
 
-		FTriangleMeshImplicitObject::ParticlesType Particles;
-		Particles.AddParticles(6);
-		Particles.X(0) = FVec3(1, 1, 1);
-		Particles.X(1) = FVec3(5, 1, 1);
-		Particles.X(2) = FVec3(1, 5, 1);
+			FTriangleMeshImplicitObject::ParticlesType Particles;
+			Particles.AddParticles(6);
+			Particles.X(0) = FVec3(1, 1, 1);
+			Particles.X(1) = FVec3(5, 1, 1);
+			Particles.X(2) = FVec3(1, 5, 1);
 
-		Particles.X(3) = FVec3(1, 1, 1);
-		Particles.X(4) = FVec3(1, 5, 1);
-		Particles.X(5) = FVec3(1, 1, -5);
+			Particles.X(3) = FVec3(1, 1, 1);
+			Particles.X(4) = FVec3(1, 5, 1);
+			Particles.X(5) = FVec3(1, 1, -5);
 
-		TArray<TVec3<int32>> Indices;
-		Indices.Emplace(0, 1, 2);
-		Indices.Emplace(3, 4, 5);
-		FTriangleMeshImplicitObject Tri(MoveTemp(Particles), MoveTemp(Indices), MoveTemp(DummyMaterials));
+			TArray<TVec3<int32>> Indices;
+			Indices.Emplace(0, 1, 2);
+			Indices.Emplace(3, 4, 5);
+			FTriangleMeshImplicitObject Tri(MoveTemp(Particles), MoveTemp(Indices), MoveTemp(DummyMaterials));
 
-		//simple into the triangle
-		bool bHit = Tri.Raycast(FVec3(3, 2, 2), FVec3(0, 0, -1), 2, 0, Time, Position, Normal, FaceIndex);
-		EXPECT_TRUE(bHit);
-		EXPECT_EQ(Tri.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 0);
-		EXPECT_EQ(Tri.GetFaceNormal(0).X, Normal.X);
-		EXPECT_EQ(Tri.GetFaceNormal(0).Y, Normal.Y);
-		EXPECT_EQ(Tri.GetFaceNormal(0).Z, Normal.Z);
+			//simple into the triangle
+			bool bHit = Tri.Raycast(FVec3(3, 2, 2), FVec3(0, 0, -1), 2, 0, Time, Position, Normal, FaceIndex);
+			EXPECT_TRUE(bHit);
+			EXPECT_EQ(Tri.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 0);
+			EXPECT_EQ(Tri.GetFaceNormal(0).X, Normal.X);
+			EXPECT_EQ(Tri.GetFaceNormal(0).Y, Normal.Y);
+			EXPECT_EQ(Tri.GetFaceNormal(0).Z, Normal.Z);
 
-		//simple into second triangle
-		bHit = Tri.Raycast(FVec3(0, 2, 0), FVec3(1, 0, 0), 2, 0, Time, Position, Normal, FaceIndex);
-		EXPECT_TRUE(bHit);
-		EXPECT_EQ(FaceIndex, 1);
-		EXPECT_EQ(Tri.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);
-		const FVec3 FaceNormal = Tri.GetFaceNormal(1);
-		EXPECT_EQ(FaceNormal.X, Normal.X);
-		EXPECT_EQ(FaceNormal.Y, Normal.Y);
-		EXPECT_EQ(FaceNormal.Z, Normal.Z);
+			//simple into second triangle
+			bHit = Tri.Raycast(FVec3(0, 2, 0), FVec3(1, 0, 0), 2, 0, Time, Position, Normal, FaceIndex);
+			EXPECT_TRUE(bHit);
+			EXPECT_EQ(FaceIndex, 1);
+			EXPECT_EQ(Tri.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);
+			const FVec3 FaceNormal = Tri.GetFaceNormal(1);
+			EXPECT_EQ(FaceNormal.X, Normal.X);
+			EXPECT_EQ(FaceNormal.Y, Normal.Y);
+			EXPECT_EQ(FaceNormal.Z, Normal.Z);
 
-		//very close to edge, for now just return face hit regardless of direction because that's the implementation we currently rely on.
-		//todo: inconsistent with hulls, should make them the same, but may have significant impact on existing content
+			//very close to edge, for now just return face hit regardless of direction because that's the implementation we currently rely on.
+			//todo: inconsistent with hulls, should make them the same, but may have significant impact on existing content
 
-		bHit = Tri.Raycast(FVec3(0, 2, 0.9), FVec3(1, 0, 0), 2, 0, Time, Position, Normal, FaceIndex);
-		EXPECT_TRUE(bHit);
-		EXPECT_EQ(FaceIndex, 1);
-		EXPECT_EQ(Tri.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);
-		EXPECT_EQ(Tri.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 1);	//ignores direction completely as per current implementation
+			bHit = Tri.Raycast(FVec3(0, 2, 0.9), FVec3(1, 0, 0), 2, 0, Time, Position, Normal, FaceIndex);
+			EXPECT_TRUE(bHit);
+			EXPECT_EQ(FaceIndex, 1);
+			EXPECT_EQ(Tri.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);
+			EXPECT_EQ(Tri.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 1);	//ignores direction completely as per current implementation
+		}
+
+		// Non-uniform scale (Actual bug regression test)
+		{
+			// 4 triangles
+			FTriangleMeshImplicitObject::ParticlesType Particles;
+			Particles.AddParticles(12);
+			// in z-y plane
+			Particles.X(0) = FVec3(0, 0, 0);
+			Particles.X(1) = FVec3(0, 1, 0);
+			Particles.X(2) = FVec3(0, 0, 1);
+
+			// In x-z plane
+			Particles.X(3) = FVec3(0, 0, 0);
+			Particles.X(4) = FVec3(1, 0, 0);
+			Particles.X(5) = FVec3(0, 0, 1);
+
+			// In x-y plane
+			Particles.X(6) = FVec3(0, 0, 0);
+			Particles.X(7) = FVec3(1, 0, 0);
+			Particles.X(8) = FVec3(0, 1, 0);
+
+			// One 45 degree slanted triangle
+			Particles.X(9) = FVec3(1, 0, 0);
+			Particles.X(10) = FVec3(1, 1, 0);
+			Particles.X(11) = FVec3(0, 0, 1);
+
+			TArray<TVec3<int32>> Indices;
+			Indices.Emplace(0, 1, 2);
+			Indices.Emplace(3, 4, 5);
+			Indices.Emplace(6, 7, 8);
+			Indices.Emplace(9, 10, 11);
+			TArray<uint16> DummyMaterials;
+			TUniquePtr<FTriangleMeshImplicitObject> Tri = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(Particles), MoveTemp(Indices), MoveTemp(DummyMaterials));
+
+			// Using typical non uniform scale values
+			//const FVec3 Scale(10, 1, 0.1);
+			const FVec3 Scale(10, 1, 0.1);
+			TImplicitObjectScaledGeneric<FReal, 3> ScaledTri(MakeSerializable(Tri), nullptr, Scale);
+
+			FVec3 OpposeSlantedFace = (FVec3(-1, 0, -1)/Scale).GetSafeNormal(); // Note we are transforming a normal here.
+			EXPECT_NEAR(FVec3::DotProduct(OpposeSlantedFace, FVec3(Scale.Z, 0, Scale.X).GetSafeNormal()), -1.0f, KINDA_SMALL_NUMBER); // Check if OpposeSlantedFace opposes the slanted plane
+
+			// We should hit the slanted face, since we are directly opposing it
+			EXPECT_EQ(ScaledTri.FindMostOpposingFace(FVec3(0, 0, 0), OpposeSlantedFace, INDEX_NONE, 100.0), 3);
+
+			// Now modify the test vector just a bit 
+			FVec3 OpposeSlantedFaceNotExactlyOrthogonal = FVec3(OpposeSlantedFace.X*3.0f, OpposeSlantedFace.Y, OpposeSlantedFace.Z).GetSafeNormal();
+
+			// We should not get the triangle in the y-z plane (should still be the slanted plane)
+			// Check that the slanted triangle (3) is more apposing than the y-z triangle (0)
+			EXPECT_GT(FVec3::DotProduct(OpposeSlantedFaceNotExactlyOrthogonal, FVec3(-1, 0, 0)), FVec3::DotProduct(OpposeSlantedFaceNotExactlyOrthogonal, -OpposeSlantedFace));
+
+			EXPECT_NE(ScaledTri.FindMostOpposingFace(FVec3(0, 0, 0), OpposeSlantedFaceNotExactlyOrthogonal, INDEX_NONE, 100.0), 0);
+
+			// Now check mirroring cases:
+			FVec3 MirrorScale(1, -1, 1);
+			TImplicitObjectScaledGeneric<FReal, 3> MirTri(MakeSerializable(Tri), nullptr, MirrorScale);
+			EXPECT_EQ(MirTri.FindMostOpposingFace(FVec3(0, 0, 0), FVec3(0,0,-1), INDEX_NONE, 100.0), 2);
+
+			// Note: Switching to FindMostOpposingFaceScaled version instead of using wrapper class
+			MirrorScale = FVec3(-1, 1, 1);
+			EXPECT_EQ(Tri->FindMostOpposingFaceScaled(FVec3(0, 0, 0), FVec3(0, 0, -1), INDEX_NONE, 100.0, MirrorScale), 2);
+
+			MirrorScale = FVec3(1, 1, -1);
+			EXPECT_EQ(Tri->FindMostOpposingFaceScaled(FVec3(0, 0, 0), FVec3(0, 0, 1), INDEX_NONE, 100.0, MirrorScale), 2);
+
+			MirrorScale = FVec3(-1, -1, -1);
+			EXPECT_EQ(Tri->FindMostOpposingFaceScaled(FVec3(0, 0, 0), FVec3(0, 0, 1), INDEX_NONE, 100.0, MirrorScale), 2);
+
+			MirrorScale = FVec3(-1, -1, 0);
+			EXPECT_EQ(Tri->FindMostOpposingFaceScaled(FVec3(0, 0, 0), FVec3(0, 0, -1), INDEX_NONE, 100.0, MirrorScale), 2);		
+
+		}
 	}
 
 
@@ -212,6 +287,13 @@ namespace ChaosTest
 			EXPECT_EQ(FaceIndex, INDEX_NONE);
 			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 3);
 			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(-1, 0, 0), FaceIndex, 0.01), 3);	//too far to care about other face
+		}
+
+		// Reflection
+		{
+			// Reflecting in x-z plane should return the same face as not reflecting (in this particular case)
+			FVec3 ReflectionScale = FVec3(1,-1,1);
+			EXPECT_EQ(Convex->FindMostOpposingFaceScaled(FVec3(0, 0, 0), FVec3(-2, 0, -1).GetSafeNormal(), INDEX_NONE, 1000.0f, ReflectionScale),2);
 		}
 	}
 
