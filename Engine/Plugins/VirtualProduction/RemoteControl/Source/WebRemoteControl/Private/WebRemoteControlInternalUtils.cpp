@@ -328,10 +328,11 @@ bool WebRemoteControlInternalUtils::GetBatchRequestStructDelimiters(TConstArrayV
 		ErrorText = TEXT("Expected json object.");
 	}
 
+	bool bHasEncounteredError = false;
 	int32 LastEncounteredRequestId = -1;
 
 	// Mark the start/end of the param object in the payload
-	while (JsonReader->ReadNext(Notation) && ErrorText.IsEmpty())
+	while (!bHasEncounteredError && JsonReader->ReadNext(Notation))
 	{
 		switch (Notation)
 		{
@@ -358,8 +359,89 @@ bool WebRemoteControlInternalUtils::GetBatchRequestStructDelimiters(TConstArrayV
 			}
 			break;
 		case EJsonNotation::Error:
+			bHasEncounteredError = true;
 			ErrorText = JsonReader->GetErrorMessage();
 			break;
+		default:
+			// Ignore any other fields
+			break;
+		}
+	}
+
+	if (!ErrorText.IsEmpty())
+	{
+		UE_LOG(LogRemoteControl, Error, TEXT("Web Remote Control deserialization error: %s"), *ErrorText);
+		if (OutErrorText)
+		{
+			*OutErrorText = MoveTemp(ErrorText);
+		}
+		return false;
+	}
+
+	return true;
+}
+
+bool WebRemoteControlInternalUtils::GetBatchWebSocketRequestStructDelimiters(TConstArrayView<uint8> InTCHARPayload, TArray<FBlockDelimiters>& OutStructParameters, FString* OutErrorText)
+{
+	typedef UCS2CHAR PayloadCharType;
+	FMemoryReaderView Reader(InTCHARPayload);
+	TSharedRef<TJsonReader<PayloadCharType>> JsonReader = TJsonReader<PayloadCharType>::Create(&Reader);
+
+	EJsonNotation Notation;
+
+	FString ErrorText;
+	// The payload should be an object
+	JsonReader->ReadNext(Notation);
+	if (Notation != EJsonNotation::ObjectStart)
+	{
+		ErrorText = TEXT("Expected json object.");
+	}
+
+	bool bHasEncounteredError = false;
+	bool bIsInRequestsArray = false;
+	bool bIsDoneRequestsArray = false;
+	const TCHAR* const RequestsIdentifier = TEXT("Requests");
+
+	// Mark the start/end of the param object in the payload
+	while (!bHasEncounteredError && JsonReader->ReadNext(Notation) && !bIsDoneRequestsArray)
+	{
+		switch (Notation)
+		{
+		case EJsonNotation::ArrayStart:
+			if (JsonReader->GetIdentifier() == RequestsIdentifier)
+			{
+				bIsInRequestsArray = true;
+			}
+			break;
+
+		case EJsonNotation::ArrayEnd:
+			if (JsonReader->GetIdentifier() == RequestsIdentifier)
+			{
+				bIsDoneRequestsArray = true;
+			}
+			break;
+
+		case EJsonNotation::ObjectStart:
+			if (bIsInRequestsArray && JsonReader->GetIdentifier() == TEXT("Parameters"))
+			{
+				FBlockDelimiters& Delimiters = OutStructParameters.Emplace_GetRef();
+				Delimiters.BlockStart = Reader.Tell() - sizeof(PayloadCharType);
+				if (JsonReader->SkipObject())
+				{
+					Delimiters.BlockEnd = Reader.Tell();
+				}
+				else
+				{
+					ErrorText = FString::Printf(TEXT("%s object improperly formatted."), *JsonReader->GetIdentifier());
+				}
+			}
+			break;
+
+		case EJsonNotation::Error:
+			bHasEncounteredError = true;
+			ErrorText = JsonReader->GetErrorMessage();
+			break;
+
 		default:
 			// Ignore any other fields
 			break;

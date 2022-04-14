@@ -565,6 +565,21 @@ struct FRCWebSocketRequest : public FRCRequest
 };
 
 /**
+ * Holds a request that wraps multiple requests..
+ */
+USTRUCT()
+struct FRCWebSocketBatchRequest : public FRCRequest
+{
+	GENERATED_BODY()
+
+	/**
+	 * The list of batched requests.
+	 */
+	UPROPERTY()
+	TArray<FRCWebSocketRequest> Requests;
+};
+
+/**
  * Holds a request made via websocket to register for events about a given preset.
  */
 USTRUCT()
@@ -616,5 +631,62 @@ struct FRCWebSocketActorRegisterBody : public FRCRequest
 	 */
 	UPROPERTY()
 	FName ClassName;
+};
+
+/**
+ * Holds a request made via websocket to modify a property exposed in a preset.
+ */
+USTRUCT()
+struct FRCWebSocketPresetSetPropertyBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketPresetSetPropertyBody()
+	{
+		AddStructParameter(PropertyValueLabel());
+	}
+
+	/**
+	 * Get the label for the PropertyValue struct.
+	 */
+	static FString PropertyValueLabel() { return TEXT("PropertyValue"); }
+
+	/**
+	 * The name of the remote control preset to which the property belongs.
+	 */
+	UPROPERTY()
+	FName PresetName;
+
+	/**
+	 * The label of the property to modify.
+	 */
+	UPROPERTY()
+	FName PropertyLabel;
+
+	/**
+	 * Which type of operation should be performed on the value of the property.
+	 * This will be ignored if ResetToDefault is true.
+	 */
+	UPROPERTY()
+	ERCModifyOperation Operation = ERCModifyOperation::EQUAL;
+
+	/**
+	 * Whether a transaction should be created for the call.
+	 */
+	UPROPERTY()
+	bool GenerateTransaction = false;
+
+	/**
+	 * If true, ignore the other parameters and just reset the property to its default value.
+	 */
+	UPROPERTY()
+	bool ResetToDefault = false;
+
+	/**
+	 * The sequence number of this change. The highest sequence number received from this client will be
+	 * sent back to the client in future PresetFieldsChanged events.
+	 */
+	UPROPERTY()
+	int64 SequenceNumber = -1;
 };
 

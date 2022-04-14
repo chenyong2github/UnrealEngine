@@ -14,7 +14,7 @@
 #include "RemoteControlRequest.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "WebRemoteControlUtils.h"
-
+#include "WebSocketMessageHandler.h"
 
 namespace RemotePayloadSerializer
 {
@@ -148,6 +148,15 @@ namespace WebRemoteControlInternalUtils
 	 * @return Whether the delimiters were able to be found.
 	 */
 	UE_NODISCARD bool GetBatchRequestStructDelimiters(TConstArrayView<uint8> InTCHARPayload, TMap<int32, FBlockDelimiters>& OutStructParameters, FString* OutErrorText = nullptr);
+
+	/**
+	 * Get the struct delimiters for all the batched WebSocket requests.
+	 * @param InTCHARPayload The json payload to deserialize.
+	 * @param OutStructParameters Delimiters for each request.
+	 * @param OutErrorText If set, the string pointer will be populated with an error message on error.
+	 * @return Whether the delimiters were able to be found.
+	 */
+	UE_NODISCARD bool GetBatchWebSocketRequestStructDelimiters(TConstArrayView<uint8> InTCHARPayload, TArray<FBlockDelimiters>& OutStructParameters, FString* OutErrorText = nullptr);
 	
 	/**
 	 * Specialization of DeserializeRequestPayload that handles Batch requests.
@@ -182,7 +191,7 @@ namespace WebRemoteControlInternalUtils
 			if (InCompleteCallback)
 			{
 				TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse();
-				CreateUTF8ErrorMessage(TEXT("Unable to deserialize request."), Response->Body);
+				CreateUTF8ErrorMessage(TEXT("Unable to get struct delimiters for batch request."), Response->Body);
 				(*InCompleteCallback)(MoveTemp(Response));
 			}
 			return false;
@@ -195,6 +204,67 @@ namespace WebRemoteControlInternalUtils
 				Wrapper.GetParameterDelimiters(FRCRequestWrapper::BodyLabel()) = MoveTemp(*BodyDelimiters);
 				Wrapper.TCHARBody = InTCHARPayload.Slice(BodyDelimiters->BlockStart, BodyDelimiters->BlockEnd - BodyDelimiters->BlockStart);
 			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Specialization of DeserializeRequestPayload that handles WebSocket batch requests.
+	 * This will populate the TCHARBody of all the wrapped requests.
+	 * @param InTCHARPayload The json payload to deserialize.
+	 * @param InCompleteCallback The callback to call error.
+	 * @param The structure to serialize using the request's content.
+	 * @return Whether the deserialization was successful.
+	 *
+	 * @note InCompleteCallback will be called with an appropriate http response if the deserialization fails.
+	 */
+	template <>
+	UE_NODISCARD inline bool DeserializeRequestPayload(TConstArrayView<uint8> InTCHARPayload, const FHttpResultCallback* InCompleteCallback, FRCWebSocketBatchRequest& OutDeserializedRequest)
+	{
+		FMemoryReaderView Reader(InTCHARPayload);
+		FJsonStructDeserializerBackend DeserializerBackend(Reader);
+
+		if (!FStructDeserializer::Deserialize(&OutDeserializedRequest, *FRCWebSocketBatchRequest::StaticStruct(), DeserializerBackend, FStructDeserializerPolicies()))
+		{
+			if (InCompleteCallback)
+			{
+				TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse();
+				CreateUTF8ErrorMessage(TEXT("Unable to deserialize request."), Response->Body);
+				(*InCompleteCallback)(MoveTemp(Response));
+			}
+			return false;
+		}
+
+		TArray<FBlockDelimiters> Delimiters;
+		if (!GetBatchWebSocketRequestStructDelimiters(InTCHARPayload, Delimiters, nullptr))
+		{
+			if (InCompleteCallback)
+			{
+				TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse();
+				CreateUTF8ErrorMessage(TEXT("Unable to get struct delimiters for batch request."), Response->Body);
+				(*InCompleteCallback)(MoveTemp(Response));
+			}
+			return false;
+		}
+
+		if (Delimiters.Num() != OutDeserializedRequest.Requests.Num())
+		{
+			if (InCompleteCallback)
+			{
+				TUniquePtr<FHttpServerResponse> Response = CreateHttpResponse();
+				CreateUTF8ErrorMessage(TEXT("Batch request delimiters did not match number of requests."), Response->Body);
+				(*InCompleteCallback)(MoveTemp(Response));
+			}
+			return false;
+		}
+
+		for (int32 RequestIndex = 0; RequestIndex < OutDeserializedRequest.Requests.Num(); ++RequestIndex)
+		{
+			FRCWebSocketRequest& Request = OutDeserializedRequest.Requests[RequestIndex];
+			FBlockDelimiters& ParametersDelimeters = Delimiters[RequestIndex];
+			Request.GetParameterDelimiters(FRCWebSocketRequest::ParametersFieldLabel()) = MoveTemp(ParametersDelimeters);
+			Request.TCHARBody = InTCHARPayload.Slice(ParametersDelimeters.BlockStart, ParametersDelimeters.BlockEnd - ParametersDelimeters.BlockStart);
 		}
 
 		return true;
@@ -282,5 +352,65 @@ namespace WebRemoteControlInternalUtils
 		static_assert(TIsDerivedFrom<SerializerBackendType, IStructSerializerBackend>::IsDerived, "SerializerBackendType must inherit from IStructSerializerBackend.");
 		SerializerBackendType SerializerBackend(Writer);
 		FStructSerializer::Serialize(Struct.GetStructMemory(), *(UScriptStruct*)Struct.GetStruct(), SerializerBackend, FStructSerializerPolicies());
+	}
+
+	/**
+	 * Modify a property as specified by a remote request.
+	 * @param Property The property to modify.
+	 * @param Request The request to modify the property, containing additional information about how to modify it.
+	 * @param Payload The payload from which to deserialize property data.
+	 * @param ClientId The ID of the client that sent this request.
+	 * @param WebSocketHandler The WebSocket handler that will be notified of this remote change.
+	 */
+	template <typename RequestType>
+	bool ModifyPropertyUsingPayload(FRemoteControlProperty& Property, const RequestType& Request, const TArrayView<uint8>& Payload, const FGuid& ClientId, FWebSocketMessageHandler& WebSocketHandler)
+	{
+		FRCObjectReference ObjectRef;
+
+		// Replace PropertyValue with the underlying property name.
+		TArray<uint8> NewPayload;
+		RemotePayloadSerializer::ReplaceFirstOccurence(Payload, TEXT("PropertyValue"), Property.FieldName.ToString(), NewPayload);
+
+		// Then deserialize the payload onto all the bound objects.
+		FMemoryReader NewPayloadReader(NewPayload);
+		FRCJsonStructDeserializerBackend Backend(NewPayloadReader);
+
+		ObjectRef.Property = Property.GetProperty();
+		ObjectRef.Access = Request.GenerateTransaction ? ERCAccess::WRITE_TRANSACTION_ACCESS : ERCAccess::WRITE_ACCESS;
+
+		bool bSuccess = true;
+
+		Property.EnableEditCondition();
+
+		for (UObject* Object : Property.GetBoundObjects())
+		{
+			IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, Property.FieldPathInfo.ToString(), ObjectRef);
+
+			// Notify the handler before the change to ensure that the notification triggered by PostEditChange is ignored by the handler 
+			// if the client does not want remote change notifications.
+			if (ClientId.IsValid())
+			{
+				// Don't manually trigger a property change modification if this request gets converted to a function call.
+				if (ObjectRef.IsValid() && !RemoteControlPropertyUtilities::FindSetterFunction(ObjectRef.Property.Get(), ObjectRef.Object->GetClass()))
+				{
+					WebSocketHandler.NotifyPropertyChangedRemotely(ClientId, Property.GetOwner()->GetPresetId(), Property.GetId());
+				}
+			}
+
+			if (Request.ResetToDefault)
+			{
+				// set interception flag as an extra argument {}
+				constexpr bool bAllowIntercept = true;
+				bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bAllowIntercept);
+			}
+			else
+			{
+				NewPayloadReader.Seek(0);
+				// Set a ERCPayloadType and TCHARBody in order to follow the replication path
+				bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend, ERCPayloadType::Json, NewPayload, Request.Operation);
+			}
+		}
+
+		return bSuccess;
 	}
 }

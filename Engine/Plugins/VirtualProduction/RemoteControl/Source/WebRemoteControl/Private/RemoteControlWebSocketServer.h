@@ -35,6 +35,11 @@ public:
 	 */
 	void AddPreDispatch(TFunction<bool(const struct FRemoteControlWebSocketMessage& Message)> WebsocketPreprocessor);
 
+	/**
+	 * Attempt to dispatch a WebSocket message if its PreDispatch passes.
+	 */
+	void AttemptDispatch(const struct FRemoteControlWebSocketMessage& Message);
+
 private:
 	/** Preprocessors for the Dispatch Function */
 	TArray<TFunction<bool(const struct FRemoteControlWebSocketMessage& Message)>> DispatchPreProcessor;

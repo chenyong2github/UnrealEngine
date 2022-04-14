@@ -766,6 +766,12 @@ void FWebRemoteControlModule::RegisterRoutes()
 		FWebSocketMessageDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleWebSocketHttpMessage)
 		});
 
+	RegisterWebsocketRoute({
+		TEXT("Batch multiple WebSocket messages into one request"),
+		TEXT("batch"),
+		FWebSocketMessageDelegate::CreateRaw(this, &FWebRemoteControlModule::HandleWebSocketBatchMessage)
+		});
+
 	WebSocketHandler->RegisterRoutes(this);
 
 	EditorRoutes.RegisterRoutes(this);
@@ -1172,50 +1178,8 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 		return true;
 	}
 
-	FRCObjectReference ObjectRef;
-
-	// Replace PropertyValue with the underlying property name.
-	TArray<uint8> NewPayload;
-	RemotePayloadSerializer::ReplaceFirstOccurence(SetPropertyRequest.TCHARBody, TEXT("PropertyValue"), RemoteControlProperty->FieldName.ToString(), NewPayload);
-
-	// Then deserialize the payload onto all the bound objects.
-	FMemoryReader NewPayloadReader(NewPayload);
-	FRCJsonStructDeserializerBackend Backend(NewPayloadReader);
-
-	ObjectRef.Property = RemoteControlProperty->GetProperty();
-	ObjectRef.Access = SetPropertyRequest.GenerateTransaction ? ERCAccess::WRITE_TRANSACTION_ACCESS : ERCAccess::WRITE_ACCESS;
-
-	bool bSuccess = true;
-
-	RemoteControlProperty->EnableEditCondition();
-
-	for (UObject* Object : RemoteControlProperty->GetBoundObjects())
-	{
-		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
-
-		// Notify the handler before the change to ensure that the notification triggered by PostEditChange is ignored by the handler 
-		// if the client does not want remote change notifications.
-		if (ActingClientId.IsValid())
-		{
-			// Don't manually trigger a property change modification if this request gets converted to a function call.
-			if (ObjectRef.IsValid() && !RemoteControlPropertyUtilities::FindSetterFunction(ObjectRef.Property.Get(), ObjectRef.Object->GetClass()))
-			{
-				WebSocketHandler->NotifyPropertyChangedRemotely(ActingClientId, Preset->GetPresetId(), RemoteControlProperty->GetId());
-			}
-		}
-		if (SetPropertyRequest.ResetToDefault)
-		{
-			// set interception flag as an extra argument {}
-			constexpr bool bAllowIntercept = true;
-			bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef, bAllowIntercept);
-		}
-		else
-		{
-			NewPayloadReader.Seek(0);
-			// Set a ERCPayloadType and TCHARBody in order to follow the replication path
-			bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend, ERCPayloadType::Json, NewPayload, SetPropertyRequest.Operation);
-		}
-	}
+	const bool bSuccess = WebRemoteControlInternalUtils::ModifyPropertyUsingPayload(
+		*RemoteControlProperty.Get(), SetPropertyRequest, SetPropertyRequest.TCHARBody, ActingClientId, *WebSocketHandler);
 
 	if (bSuccess)
 	{
@@ -2042,6 +2006,38 @@ void FWebRemoteControlModule::HandleWebSocketHttpMessage(const FRemoteControlWeb
 
 	WebSocketServer.Send(WebSocketMessage.ClientId, MoveTemp(UTF8Response));
 	LogRequestExternally(Wrapper.RequestId, TEXT("UE Sent"));
+}
+
+void FWebRemoteControlModule::HandleWebSocketBatchMessage(const FRemoteControlWebSocketMessage& WebSocketMessage)
+{
+	if (!WebSocketRouter)
+	{
+		return;
+	}
+
+	FRCWebSocketBatchRequest Body;
+	if (!WebRemoteControlInternalUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Body))
+	{
+		return;
+	}
+
+	for (FRCWebSocketRequest& Request : Body.Requests)
+	{
+		FRemoteControlWebSocketMessage Message;
+
+		const FBlockDelimiters PayloadDelimiters = Request.GetParameterDelimiters(FRCWebSocketRequest::ParametersFieldLabel());
+		if (PayloadDelimiters.BlockStart != PayloadDelimiters.BlockEnd)
+		{
+			Message.RequestPayload = MakeArrayView(WebSocketMessage.RequestPayload).Slice(PayloadDelimiters.BlockStart, PayloadDelimiters.BlockEnd - PayloadDelimiters.BlockStart);
+		}
+
+		Message.ClientId = WebSocketMessage.ClientId;
+		Message.Header = WebSocketMessage.Header;
+		Message.MessageId = Request.Id;
+		Message.MessageName = Request.MessageName;
+
+		WebSocketRouter->AttemptDispatch(Message);
+	}
 }
 
 void FWebRemoteControlModule::InvokeWrappedRequest(const FRCRequestWrapper& Wrapper, FMemoryWriter& OutUTF8PayloadWriter, const FHttpServerRequest* TemplateRequest)

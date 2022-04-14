@@ -21,6 +21,7 @@
 #endif
 
 static TAutoConsoleVariable<int32> CVarWebRemoteControlFramesBetweenPropertyNotifications(TEXT("WebControl.FramesBetweenPropertyNotifications"), 5, TEXT("The number of frames between sending batches of property notifications."));
+const int64 FWebSocketMessageHandler::DefaultSequenceNumber = -1;
 
 namespace WebSocketMessageHandlerStructUtils
 {
@@ -37,6 +38,7 @@ namespace WebSocketMessageHandlerStructUtils
 	FName Prop_PresetName= "PresetName";
 	FName Prop_PresetId = "PresetId";
 	FName Prop_ChangedFields = "ChangedFields";
+	FName Prop_SequenceNumber = "SequenceNumber";
 
 	FName Struct_ActorPropertyValue= "WEBRC_ActorPropertyValue";
 	FName Prop_PropertyName = "PropertyName";
@@ -78,7 +80,8 @@ namespace WebSocketMessageHandlerStructUtils
 		{ 
 			Prop_PresetId,
 			Prop_PresetName,
-			Prop_Type
+			Prop_Type,
+			Prop_SequenceNumber
 		};
 
 		Args.ArrayProperties.Emplace(Prop_ChangedFields, PropertyValueStruct);
@@ -149,7 +152,7 @@ namespace WebSocketMessageHandlerStructUtils
 		return StructOnScope;
 	}
 
-	FStructOnScope CreatePresetFieldsChangedStructOnScope(const URemoteControlPreset* Preset, const TArray<FStructOnScope>& PropertyValuesOnScope)
+	FStructOnScope CreatePresetFieldsChangedStructOnScope(const URemoteControlPreset* Preset, const TArray<FStructOnScope>& PropertyValuesOnScope, int64 SequenceNumber)
 	{
 		UScriptStruct* PropertyValueStruct = (UScriptStruct*)PropertyValuesOnScope[0].GetStruct();
 		check(PropertyValueStruct);
@@ -160,6 +163,7 @@ namespace WebSocketMessageHandlerStructUtils
 		SetStringPropertyValue(Prop_Type, FieldsChangedOnScope, TEXT("PresetFieldsChanged"));
 		SetStringPropertyValue(Prop_PresetName, FieldsChangedOnScope, *Preset->GetFName().ToString());
 		SetStringPropertyValue(Prop_PresetId, FieldsChangedOnScope, *Preset->GetPresetId().ToString());
+		SetStringPropertyValue(Prop_SequenceNumber, FieldsChangedOnScope, FString::Printf(TEXT("%lld"), SequenceNumber));
 		SetStructArrayPropertyValue(Prop_ChangedFields, FieldsChangedOnScope, PropertyValuesOnScope);
 
 		return FieldsChangedOnScope;
@@ -251,41 +255,35 @@ void FWebSocketMessageHandler::RegisterRoutes(FWebRemoteControlModule* WebRemote
 #endif
 	
 	// WebSocket routes
-	TUniquePtr<FRemoteControlWebsocketRoute> PresetRegisterRoute = MakeUnique<FRemoteControlWebsocketRoute>(
+	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
 		TEXT("Subscribe to events emitted by a Remote Control Preset"),
 		TEXT("preset.register"),
 		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketPresetRegister)
-		);
+	));
 
-	WebRemoteControl->RegisterWebsocketRoute(*PresetRegisterRoute);
-	Routes.Emplace(MoveTemp(PresetRegisterRoute));
-
-	TUniquePtr<FRemoteControlWebsocketRoute> PresetUnregisterRoute = MakeUnique<FRemoteControlWebsocketRoute>(
+	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
 		TEXT("Unsubscribe to events emitted by a Remote Control Preset"),
 		TEXT("preset.unregister"),
 		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketPresetUnregister)
-		);
+	));
 
-	WebRemoteControl->RegisterWebsocketRoute(*PresetUnregisterRoute);
-	Routes.Emplace(MoveTemp(PresetUnregisterRoute));
-
-	TUniquePtr<FRemoteControlWebsocketRoute> ActorRegisterRoute = MakeUnique<FRemoteControlWebsocketRoute>(
+	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
 		TEXT("Subscribe to events emitted when actors of a particular type are added to/deleted from/renamed in the editor world"),
 		TEXT("actors.register"),
 		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketActorRegister)
-		);
+	));
 
-	WebRemoteControl->RegisterWebsocketRoute(*ActorRegisterRoute);
-	Routes.Emplace(MoveTemp(ActorRegisterRoute));
-
-	TUniquePtr<FRemoteControlWebsocketRoute> ActorUnregisterRoute = MakeUnique<FRemoteControlWebsocketRoute>(
+	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
 		TEXT("Unsubscribe to events emitted when actors of a particular type are added to/deleted from/renamed in the editor world"),
 		TEXT("actors.unregister"),
 		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketActorUnregister)
-		);
+	));
 
-	WebRemoteControl->RegisterWebsocketRoute(*ActorUnregisterRoute);
-	Routes.Emplace(MoveTemp(ActorUnregisterRoute));
+	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
+		TEXT("Modify the value of of a property exposed on a preset"),
+		TEXT("preset.property.modify"),
+		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketPresetModifyProperty)
+	));
 }
 
 void FWebSocketMessageHandler::UnregisterRoutes(FWebRemoteControlModule* WebRemoteControl)
@@ -309,6 +307,14 @@ void FWebSocketMessageHandler::UnregisterRoutes(FWebRemoteControlModule* WebRemo
 	{
 		WebRemoteControl->UnregisterWebsocketRoute(*Route);
 	}
+}
+
+void FWebSocketMessageHandler::RegisterRoute(FWebRemoteControlModule* WebRemoteControl, TUniquePtr<FRemoteControlWebsocketRoute> Route)
+{
+	checkSlow(WebRemoteControl);
+
+	WebRemoteControl->RegisterWebsocketRoute(*Route);
+	Routes.Emplace(MoveTemp(Route));
 }
 
 void FWebSocketMessageHandler::RegisterActorHandlers()
@@ -502,6 +508,38 @@ void FWebSocketMessageHandler::HandleWebSocketActorUnregister(const FRemoteContr
 	UnregisterClientForActorClass(WebSocketMessage.ClientId, ActorClass);
 }
 
+void FWebSocketMessageHandler::HandleWebSocketPresetModifyProperty(const FRemoteControlWebSocketMessage& WebSocketMessage)
+{
+	FRCWebSocketPresetSetPropertyBody Body;
+	if (!WebRemoteControlInternalUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Body))
+	{
+		return;
+	}
+
+	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Body.PresetName);
+	if (Preset == nullptr)
+	{
+		return;
+	}
+
+	const FGuid PropertyId = Preset->GetExposedEntityId(Body.PropertyLabel);
+	TSharedPtr<FRemoteControlProperty> RemoteControlProperty = Preset->GetExposedEntity<FRemoteControlProperty>(PropertyId).Pin();
+
+	if (!RemoteControlProperty.IsValid())
+	{
+		return;
+	}
+
+	WebRemoteControlInternalUtils::ModifyPropertyUsingPayload(*RemoteControlProperty.Get(), Body, WebSocketMessage.RequestPayload, ActingClientId, *this);
+
+	// Update the sequence number for this client
+	int64& SequenceNumber = ClientSequenceNumbers.FindOrAdd(ActingClientId, DefaultSequenceNumber);
+	if (SequenceNumber < Body.SequenceNumber)
+	{
+		SequenceNumber = Body.SequenceNumber;
+	}
+}
+
 void FWebSocketMessageHandler::ProcessChangedProperties()
 {
 	//Go over each property that were changed for each preset
@@ -528,8 +566,11 @@ void FWebSocketMessageHandler::ProcessChangedProperties()
 			// property class. See UE-139683
 			for (const FGuid& Id : ClientToEventsPair.Value)
 			{
+				const int64* ClientSequenceNumber = ClientSequenceNumbers.Find(Id);
+				const int64 SequenceNumber = ClientSequenceNumber ? *ClientSequenceNumber : DefaultSequenceNumber;
+
 				TArray<uint8> WorkingBuffer;
-				if (ClientToEventsPair.Value.Num() && WritePropertyChangeEventPayload(Preset, { Id }, WorkingBuffer))
+				if (ClientToEventsPair.Value.Num() && WritePropertyChangeEventPayload(Preset, { Id }, SequenceNumber, WorkingBuffer))
 				{
 					TArray<uint8> Payload;
 					WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Payload);
@@ -780,6 +821,7 @@ void FWebSocketMessageHandler::OnConnectionClosedCallback(FGuid ClientId)
 
 	/** Remove this client's config. */
 	ClientConfigMap.Remove(ClientId);
+	ClientSequenceNumbers.Remove(ClientId);
 }
 
 void FWebSocketMessageHandler::OnEndFrame()
@@ -1114,7 +1156,7 @@ bool FWebSocketMessageHandler::ShouldProcessEventForPreset(const FGuid& PresetId
 	return PresetNotificationMap.Contains(PresetId) && PresetNotificationMap[PresetId].Num() > 0;
 }
 
-bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, TArray<uint8>& OutBuffer)
+bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, int64 InSequenceNumber, TArray<uint8>& OutBuffer)
 {
 	bool bHasProperty = false;
 
@@ -1137,7 +1179,7 @@ bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPre
 
 	if (PropValuesOnScope.Num())
 	{
-		FStructOnScope FieldsChangedEventOnScope = WebSocketMessageHandlerStructUtils::CreatePresetFieldsChangedStructOnScope(InPreset, PropValuesOnScope);
+		FStructOnScope FieldsChangedEventOnScope = WebSocketMessageHandlerStructUtils::CreatePresetFieldsChangedStructOnScope(InPreset, PropValuesOnScope, InSequenceNumber);
 
 		FMemoryWriter Writer(OutBuffer);
 		WebRemoteControlInternalUtils::SerializeStructOnScope(FieldsChangedEventOnScope, Writer);

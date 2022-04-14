@@ -73,6 +73,16 @@ void FWebsocketMessageRouter::AddPreDispatch(TFunction<bool(const FRemoteControl
 	DispatchPreProcessor.Add(WebsocketPreprocessor);
 }
 
+void FWebsocketMessageRouter::AttemptDispatch(const struct FRemoteControlWebSocketMessage& Message)
+{
+	if (!PreDispatch(Message))
+	{
+		return;
+	}
+
+	Dispatch(Message);
+}
+
 bool FWebsocketMessageRouter::PreDispatch(const FRemoteControlWebSocketMessage& Message) const
 {
 	for (TFunction<bool(const FRemoteControlWebSocketMessage&)> PreprocessFunction : DispatchPreProcessor)
@@ -220,13 +230,7 @@ void FRCWebSocketServer::ReceivedRawPacket(void* Data, int32 Size, FGuid ClientI
 	if (TOptional<FRemoteControlWebSocketMessage> Message = RemoteControlWebSocketServer::ParseWebsocketMessage(Payload))
 	{
 		Message->ClientId = ClientId;
-		
-		if (!Router->PreDispatch(*Message))
-		{
-			return;
-		}
-	
-		Router->Dispatch(*Message);
+		Router->AttemptDispatch(*Message);
 	}
 }
 

@@ -116,6 +116,12 @@ struct FRCPropertyDescription
 
 		Name = Property->GetName();
 
+#if WITH_EDITORONLY_DATA
+		DisplayName = Property->GetDisplayNameText();
+#else
+		DisplayName = FText::FromString(Name);
+#endif
+
 		const FProperty* ValueProperty = Property;
 		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
@@ -188,6 +194,10 @@ struct FRCPropertyDescription
 	/** Name of the exposed property */
 	UPROPERTY()
 	FString Name;
+
+	/** Display name of the exposed property */
+	UPROPERTY()
+	FText DisplayName;
 	
 	/** Description of the exposed property */
 	UPROPERTY()

@@ -78,6 +78,9 @@ private:
 	};
 
 
+	/** Register a WebSocket route */
+	void RegisterRoute(FWebRemoteControlModule* WebRemoteControl, TUniquePtr<FRemoteControlWebsocketRoute> Route);
+
 	/** Register handlers for actors being added/deleted (must happen after engine init). */
 	void RegisterActorHandlers();
 	
@@ -92,6 +95,12 @@ private:
 
 	/** Handles registration to callbacks for creation/destruction/rename of a given actor type */
 	void HandleWebSocketActorUnregister(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
+	/** Handles multiple messages batched into a single request */
+	void HandleWebSocketBatchRequest(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
+	/** Handles property modification for a given preset */
+	void HandleWebSocketPresetModifyProperty(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
 	//Preset callbacks
 	void OnPresetExposedPropertiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedPropertyIds);
@@ -165,7 +174,7 @@ private:
 	/**
 	 * Write the provided list of events to a buffer.
 	 */
-	bool WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, TArray<uint8>& OutBuffer);
+	bool WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, int64 InSequenceNumber, TArray<uint8>& OutBuffer);
 
 	/**
 	 * Write the provided list of actor modifications to a buffer.
@@ -220,6 +229,9 @@ private:
 
 private:
 
+	/** Default sequence number for a client that hasn't reported one yet. */
+	static const int64 DefaultSequenceNumber;
+
 	/** Map type from class to Guids of clients listening for changes to actors of that class. */
 	typedef TMap<TWeakObjectPtr<UClass>, FWatchedClassData, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UClass>, FWatchedClassData>> FActorNotificationMap;
 
@@ -249,6 +261,9 @@ private:
 
 	/** Holds client-specific config if any. */
 	TMap<FGuid, FRCClientConfig> ClientConfigMap;
+
+	/** The largest sequence number received from each client. */
+	TMap<FGuid, int64> ClientSequenceNumbers;
 
 	/** Properties that changed for a frame, per preset.  */
 	TMap<FGuid, TMap<FGuid, TSet<FGuid>>> PerFrameModifiedProperties;

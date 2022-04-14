@@ -134,6 +134,7 @@ private:
 
 	//~ Websocket route handlers
 	void HandleWebSocketHttpMessage(const struct FRemoteControlWebSocketMessage& WebSocketMessage);
+	void HandleWebSocketBatchMessage(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
 	void InvokeWrappedRequest(const struct FRCRequestWrapper& Wrapper, FMemoryWriter& OutUTF8PayloadWriter, const FHttpServerRequest* TemplateRequest = nullptr);
 
