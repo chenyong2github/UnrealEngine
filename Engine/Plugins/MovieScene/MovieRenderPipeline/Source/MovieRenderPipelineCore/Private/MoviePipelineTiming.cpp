@@ -554,6 +554,21 @@ void UMoviePipeline::TickProducingFrames()
 			DeltaFrameTime = DeltaFrameTime * WorldTimeDilation;
 		}
 
+		// Cloth doesn't like temporal sub-sampling due to the wildly varying delta times (due to the 'shutter closed') period.
+		// To help account for this, we increase the sub-division count for each skeletal mesh inversely to the deltatime
+		// for this frame. That means if a 'short' frame is 2ms, but a long frame is 10ms, we make the long frame 5x as many
+		// sub-divisions as the short frame to fake the cloth simulation system into processing each step with the same dt.
+		{
+			if (AntiAliasingSettings->TemporalSampleCount > 1)
+			{
+				double Ratio = DeltaFrameTime.FrameNumber.Value / (double)FrameMetrics.TicksPerSample.FrameNumber.Value;
+				
+				// Slomo can end up trying to do less than one iteration, we don't want that.	
+				int32 DivisionMultiplier = FMath::Max(FMath::FloorToInt(Ratio), 1);
+				SetSkeletalMeshClothSubSteps(DivisionMultiplier);
+			}
+		}
+
 		/*
 		* Now that we know how much we want to advance the sequence by (and the world)
 		* We can calculate out the desired frame for the shot to evaluate. This is slightly

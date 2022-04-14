@@ -21,7 +21,8 @@ public class MovieRenderPipelineCore : ModuleRules
 				"Networking",
 				"HTTP",
 				"DeveloperSettings",
-				"CinematicCamera"
+				"CinematicCamera",
+				"ClothingSystemRuntimeInterface"
 
 			}
 		);

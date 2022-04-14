@@ -43,6 +43,9 @@
 #include "MoviePipelineCommandLineEncoder.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "ProfilingDebugging/TraceAuxiliary.h"
+#include "EngineUtils.h"
+#include "ClothingSimulationInteractor.h"
+#include "ClothingSimulationInterface.h"
 
 #if WITH_EDITOR
 #include "MovieSceneExportMetadata.h"
@@ -64,6 +67,7 @@ static TAutoConsoleVariable<int32> CVarMovieRenderPipelineFrameStepper(
 	ECVF_Default);
 
 FString UMoviePipeline::DefaultDebugWidgetAsset = TEXT("/MovieRenderPipeline/Blueprints/UI_MovieRenderPipelineScreenOverlay.UI_MovieRenderPipelineScreenOverlay_C");
+DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_ClothAdjust"), STAT_ClothSubstepAdjust, STATGROUP_MoviePipeline);
 
 UMoviePipeline::UMoviePipeline()
 	: CustomTimeStep(nullptr)
@@ -992,6 +996,9 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 		const bool bSaveSettings = false;
 		MoviePipeline::SaveOrRestoreSubSectionHierarchy(Node, bSaveSettings);
 	}
+
+	RestoreSkeletalMeshClothSubSteps();
+	ClothSimCache.Reset();
 	
 	if (IsFlushDiskWritesPerShot())
 	{
@@ -1612,4 +1619,52 @@ void UMoviePipeline::StopUnrealInsightsCapture()
 {
 	FTraceAuxiliary::Stop();
 }
+
+void UMoviePipeline::SetSkeletalMeshClothSubSteps(const int32 InSubdivisionCount)
+{
+	SCOPE_CYCLE_COUNTER(STAT_ClothSubstepAdjust);
+
+	for (TActorIterator<AActor> ActorIt(GetWorld()); ActorIt; ++ActorIt)
+	{
+		AActor* FoundActor = *ActorIt;
+		if (FoundActor)
+		{
+			TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+			FoundActor->GetComponents<USkeletalMeshComponent>(SkeletalMeshComponents);
+
+			for (USkeletalMeshComponent* Component : SkeletalMeshComponents)
+			{
+				UClothingSimulationInteractor* ClothInteractor = Component->GetClothingSimulationInteractor();
+				if (ClothInteractor)
+				{
+					TWeakObjectPtr<UClothingSimulationInteractor> WeakPtr = TWeakObjectPtr< UClothingSimulationInteractor>(ClothInteractor);
+		
+					FClothSimSettingsCache* ExistingCacheEntry = ClothSimCache.Find(WeakPtr);
+					if (!ExistingCacheEntry)
+					{
+						ClothSimCache.Add(WeakPtr);
+						ExistingCacheEntry = ClothSimCache.Find(WeakPtr);
+						const int32 NumSubsteps = Component->GetClothingSimulation() ? FMath::Max(Component->GetClothingSimulation()->GetNumSubsteps(), 1)
+							: 1; // If there's no clothing simulation component just fall back to assuming they only had 1.
+						ExistingCacheEntry->NumSubSteps = NumSubsteps;
+					}
+
+					ClothInteractor->SetNumSubsteps(ExistingCacheEntry->NumSubSteps * InSubdivisionCount);
+				}
+			}
+		}
+	}
+}
+
+void UMoviePipeline::RestoreSkeletalMeshClothSubSteps()
+{
+	for (const TPair<TWeakObjectPtr<UClothingSimulationInteractor>, FClothSimSettingsCache>& Pair : ClothSimCache)
+	{
+		if (Pair.Key.Get())
+		{
+			Pair.Key->SetNumSubsteps(Pair.Value.NumSubSteps);
+		}
+	}
+}
+
 #undef LOCTEXT_NAMESPACE // "MoviePipeline"
