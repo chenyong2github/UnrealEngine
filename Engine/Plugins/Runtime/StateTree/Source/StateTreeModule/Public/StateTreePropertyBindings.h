@@ -144,6 +144,16 @@ protected:
 };
 
 
+UENUM()
+enum class EStateTreeBindableStructSource : uint8
+{
+	TreeData,
+	TreeParameter,
+	StateParameter, 
+	Task,
+	Evaluator,
+};
+
 /**
  * Descriptor for a struct or class that can be a binding source or target.
  * Each struct has unique identifier, which is used to distinguish them, and name that is mostly for debugging and UI.
@@ -172,6 +182,9 @@ struct STATETREEMODULE_API FStateTreeBindableStructDesc
 	UPROPERTY()
 	FName Name;
 
+	UPROPERTY()
+	EStateTreeBindableStructSource DataSource = EStateTreeBindableStructSource::TreeData;
+	
 #if WITH_EDITORONLY_DATA
 	/** Unique identifier of the struct. */
 	UPROPERTY()
@@ -518,7 +531,7 @@ struct STATETREEMODULE_API FStateTreeEditorPropertyPath
 	UPROPERTY()
 	TArray<FString> Path;
 
-	bool IsValid() const { return StructID.IsValid() && Path.Num() > 0; }
+	bool IsValid() const { return StructID.IsValid(); }
 
 	bool operator==(const FStateTreeEditorPropertyPath& RHS) const;
 };

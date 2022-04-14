@@ -184,6 +184,11 @@ bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 	const FProperty* SourceProperty = PropertyAccesses[Copy.SourceAccessIndex].LeafProperty;
 	const FProperty* TargetProperty = PropertyAccesses[Copy.TargetAccessIndex].LeafProperty;
 
+	if (SourceProperty == nullptr)
+	{
+		return TargetProperty->IsA<FStructProperty>() || TargetProperty->IsA<FObjectPropertyBase>();
+	}
+	
 	if (!SourceProperty || !TargetProperty)
 	{
 		return false;
@@ -297,6 +302,7 @@ uint8* FStateTreePropertyBindings::GetAddress(FStateTreeDataView InStructView, c
 	check(InStructView.IsValid());
 
 	uint8* Address = InStructView.GetMutableMemory();
+	
 	for (int32 i = InAccess.IndirectionsBegin; Address != nullptr && i < InAccess.IndirectionsEnd; i++)
 	{
 		const FStateTreePropertyIndirection& Indirection = PropertyIndirections[i];
@@ -352,7 +358,7 @@ uint8* FStateTreePropertyBindings::GetAddress(FStateTreeDataView InStructView, c
 
 void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, const FProperty* SourceProperty, const uint8* SourceAddress, const FProperty* TargetProperty, uint8* TargetAddress) const
 {
-	check(SourceProperty);
+	// Source property can be null
 	check(SourceAddress);
 	check(TargetProperty);
 	check(TargetAddress);
@@ -363,16 +369,25 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, con
 		FMemory::Memcpy(TargetAddress, SourceAddress, Copy.CopySize);
 		break;
 	case EStateTreePropertyCopyType::CopyComplex:
-		SourceProperty->CopyCompleteValue(TargetAddress, SourceAddress);
+		TargetProperty->CopyCompleteValue(TargetAddress, SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::CopyBool:
 		static_cast<const FBoolProperty*>(TargetProperty)->SetPropertyValue(TargetAddress, static_cast<const FBoolProperty*>(SourceProperty)->GetPropertyValue(SourceAddress));
 		break;
 	case EStateTreePropertyCopyType::CopyStruct:
+		// If SourceProperty == nullptr (pointing to the struct source directly), the GetAddress() did the right thing and is pointing the the beginning of the struct. 
 		static_cast<const FStructProperty*>(TargetProperty)->Struct->CopyScriptStruct(TargetAddress, SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::CopyObject:
-		static_cast<const FObjectPropertyBase*>(TargetProperty)->SetObjectPropertyValue(TargetAddress, static_cast<const FObjectPropertyBase*>(SourceProperty)->GetObjectPropertyValue(SourceAddress));
+		if (SourceProperty == nullptr)
+		{
+			// Source is pointing at object directly.
+			static_cast<const FObjectPropertyBase*>(TargetProperty)->SetObjectPropertyValue(TargetAddress, (UObject*)SourceAddress);
+		}
+		else
+		{
+			static_cast<const FObjectPropertyBase*>(TargetProperty)->SetObjectPropertyValue(TargetAddress, static_cast<const FObjectPropertyBase*>(SourceProperty)->GetObjectPropertyValue(SourceAddress));
+		}
 		break;
 	case EStateTreePropertyCopyType::CopyName:
 		static_cast<const FNameProperty*>(TargetProperty)->SetPropertyValue(TargetAddress, static_cast<const FNameProperty*>(SourceProperty)->GetPropertyValue(SourceAddress));
@@ -388,7 +403,7 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, con
 		const int32 MinSize = FMath::Min(SourceArrayHelper.Num(), TargetArrayHelper.Num());
 		for (int32 ElementIndex = 0; ElementIndex < MinSize; ++ElementIndex)
 		{
-			SourceArrayProperty->Inner->CopySingleValue(TargetArrayHelper.GetRawPtr(ElementIndex), SourceArrayHelper.GetRawPtr(ElementIndex));
+			TargetArrayProperty->Inner->CopySingleValue(TargetArrayHelper.GetRawPtr(ElementIndex), SourceArrayHelper.GetRawPtr(ElementIndex));
 		}
 		break;
 	}
@@ -482,8 +497,11 @@ void FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> Sour
 		}
 		const FStateTreePropertyAccess& SourceAccess = PropertyAccesses[Copy.SourceAccessIndex];
 		const FStateTreePropertyAccess& TargetAccess = PropertyAccesses[Copy.TargetAccessIndex];
-		check(SourceStructViews[Copy.SourceStructIndex].GetStruct() == SourceStructs[Copy.SourceStructIndex].Struct);
-		const uint8* SourceAddress = GetAddress(SourceStructViews[Copy.SourceStructIndex], SourceAccess);
+
+		const FStateTreeDataView SourceStructView = SourceStructViews[Copy.SourceStructIndex];
+		check(SourceStructView.GetStruct() == SourceStructs[Copy.SourceStructIndex].Struct || SourceStructView.GetStruct()->IsChildOf(SourceStructs[Copy.SourceStructIndex].Struct));
+		
+		const uint8* SourceAddress = GetAddress(SourceStructView, SourceAccess);
 		uint8* TargetAddress = GetAddress(TargetStructView, TargetAccess);
 		if (SourceAddress && TargetAddress)
 		{

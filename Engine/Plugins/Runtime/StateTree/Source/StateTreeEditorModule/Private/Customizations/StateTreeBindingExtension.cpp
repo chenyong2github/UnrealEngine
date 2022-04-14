@@ -90,6 +90,24 @@ EStateTreePropertyUsage ParsePropertyUsage(TSharedPtr<const IPropertyHandle> InP
 	return EStateTreePropertyUsage::Invalid;
 }
 
+FText GetSectionNameFromDataSource(const EStateTreeBindableStructSource Source)
+{
+	switch(Source)
+	{
+		case EStateTreeBindableStructSource::Task:
+			return LOCTEXT("Tasks", "Tasks");
+		case EStateTreeBindableStructSource::Evaluator:
+			return LOCTEXT("Evaluators", "Evaluators");
+		case EStateTreeBindableStructSource::TreeData:
+			return LOCTEXT("Tree Data", "Tree Data");
+		case EStateTreeBindableStructSource::StateParameter:
+			return LOCTEXT("State Parameter", "State Parameter");
+		case EStateTreeBindableStructSource::TreeParameter:
+			return LOCTEXT("Tree Parameter", "Tree Parameter");
+	}
+	return FText::GetEmpty();
+}
+
 
 FOnStateTreeBindingChanged STATETREEEDITORMODULE_API OnStateTreeBindingChanged;
 
@@ -145,7 +163,11 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 			for (FStateTreeBindableStructDesc& StructDesc : AccessibleStructs)
 			{
 				const UStruct* Struct = StructDesc.Struct;
-				Context.Emplace(const_cast<UStruct*>(Struct), nullptr, FText::FromString(StructDesc.Name.ToString()));
+
+				FBindingContextStruct& ContextStruct = Context.AddDefaulted_GetRef();
+				ContextStruct.DisplayText = FText::FromString(StructDesc.Name.ToString());
+				ContextStruct.Struct = const_cast<UStruct*>(Struct);
+				ContextStruct.Section = UE::StateTree::PropertyBinding::GetSectionNameFromDataSource(StructDesc.DataSource);
 			}
 		}
 	}
@@ -207,6 +229,19 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 			return bCanBind;
 		});
 
+	Args.OnCanBindToContextStruct = FOnCanBindToContextStruct::CreateLambda([InPropertyHandle](const UStruct* InStruct)
+		{
+			if (const FStructProperty* StructProperty = CastField<FStructProperty>(InPropertyHandle->GetProperty()))
+			{
+				return StructProperty->Struct == InStruct;
+			}
+			if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InPropertyHandle->GetProperty()))
+			{
+				return InStruct != nullptr && InStruct->IsChildOf(ObjectProperty->PropertyClass);
+			}
+			return false;
+		});
+
 	Args.OnCanAcceptPropertyOrChildren = FOnCanBindProperty::CreateLambda([](FProperty* InProperty)
 		{
 			// Make only editor visible properties visible for binding.
@@ -223,13 +258,18 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 			if (EditorBindings && OwnerObject)
 			{
-				if (TargetPath.IsValid() && InBindingChain.Num() > 1)	// Assume at least: [0] struct index, [1] a property.
+				if (TargetPath.IsValid() && InBindingChain.Num() > 0)
 				{
+					// First item in the binding chain is the index in AccessibleStructs.
 					FStateTreeEditorPropertyPath SourcePath;
 					const int32 SourceStructIndex = InBindingChain[0].ArrayIndex;
-					TArray<FBindingChainElement> SourceBindingChain(InBindingChain.GetData() + 1, InBindingChain.Num() - 1);
+					
+					TArray<FBindingChainElement> SourceBindingChain = InBindingChain;
+					SourceBindingChain.RemoveAt(0); // remove struct index.
+
 					check(SourceStructIndex >= 0 && SourceStructIndex < AccessibleStructs.Num());
 
+					// If SourceBindingChain is empty at this stage, it means that the binding points to the source struct itself.
 					SourcePath.StructID = AccessibleStructs[SourceStructIndex].ID;
 					PropertyAccessEditor.MakeStringPath(SourceBindingChain, SourcePath.Path);
 

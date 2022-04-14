@@ -69,7 +69,17 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 		NewBinding.SourcePathIndex = SourceResult.PathIndex;
 		NewBinding.TargetPathIndex = TargetResult.PathIndex;
 		NewBinding.SourceStructIndex = SourceStructIdx;
-		NewBinding.CopyType = GetCopyType(SourceResult.LeafProperty, SourceResult.LeafArrayIndex, TargetResult.LeafProperty, TargetResult.LeafArrayIndex);
+		NewBinding.CopyType = GetCopyType(SourceStruct.Struct, SourceResult.LeafProperty, SourceResult.LeafArrayIndex,
+			TargetStruct.Struct, TargetResult.LeafProperty, TargetResult.LeafArrayIndex);
+
+		if (NewBinding.CopyType == EStateTreePropertyCopyType::None)
+		{
+			Log->Reportf(EMessageSeverity::Error, TargetStruct,
+				TEXT("Could not resolve copy type for properties '%s:%s' and '%s:%s'."),
+				*SourceStruct.Name.ToString(), *EditorBinding.SourcePath.ToString(),
+				*TargetStruct.Name.ToString(), *EditorBinding.TargetPath.ToString());
+			return false;
+		}
 	}
 
 	const int32 BindingsEnd = PropertyBindings->PropertyBindings.Num();
@@ -101,8 +111,30 @@ int32 FStateTreePropertyBindingCompiler::GetSourceStructIndexByID(const FGuid& I
 	return SourceStructs.IndexOfByPredicate([ID](const FStateTreeBindableStructDesc& Structs) { return (Structs.ID == ID); });
 }
 
-EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(const FProperty* SourceProperty, const int32 SourceArrayIndex, const FProperty* TargetProperty, const int32 TargetArrayIndex)
+EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(const UStruct* SourceStruct, const FProperty* SourceProperty, const int32 SourceArrayIndex,
+																		  const UStruct* TargetStruct, const FProperty* TargetProperty, const int32 TargetArrayIndex)
 {
+	if (SourceProperty == nullptr)
+	{
+		// Copy directly from the source struct, target must be.
+		if (const FStructProperty* StructProperty = CastField<FStructProperty>(TargetProperty))
+		{
+			if (StructProperty->Struct == SourceStruct)
+			{
+				return EStateTreePropertyCopyType::CopyStruct;
+			}
+		}
+		else if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(TargetProperty))
+		{
+			if (SourceStruct->IsChildOf(ObjectProperty->PropertyClass))
+			{
+				return EStateTreePropertyCopyType::CopyObject;
+			}
+		}
+		
+		return EStateTreePropertyCopyType::None;
+	}
+	
 	if (const FArrayProperty* SourceArrayProperty = CastField<FArrayProperty>(SourceProperty))
 	{
 		// use the array's inner property if we are not trying to copy the whole array
@@ -294,10 +326,18 @@ bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBind
 		return false;
 	}
 
+	// If the path is empty, we're pointing directly at the source struct.
+	if (InPath.Path.Num() == 0)
+	{
+		OutLeafProperty = nullptr;
+		OutLeafArrayIndex = INDEX_NONE;
+		return true;
+	}
+
 	const UStruct* CurrentStruct = InStructDesc.Struct;
 	const FProperty* LeafProperty = nullptr;
 	int32 LeafArrayIndex = INDEX_NONE;
-	bool bResult = InPath.Path.Num() > 0;
+	bool bResult = true;
 
 	for (int32 SegmentIndex = 0; SegmentIndex < InPath.Path.Num(); SegmentIndex++)
 	{
