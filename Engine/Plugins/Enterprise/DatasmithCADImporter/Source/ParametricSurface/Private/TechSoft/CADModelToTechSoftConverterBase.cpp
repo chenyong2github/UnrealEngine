@@ -55,8 +55,6 @@ bool FCADModelToTechSoftConverterBase::SaveModel(const TCHAR* InFolderPath, TSha
 		// This will be used when the file is reloaded
 		TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
 		JsonObject->SetNumberField(JSON_ENTRY_BODY_UNIT, 0.1); // ALL BRep from Alias or Rhino are defined in mm
-		JsonObject->SetNumberField(JSON_ENTRY_COLOR_NAME, 0);
-		JsonObject->SetNumberField(JSON_ENTRY_MATERIAL_NAME, 0);
 
 		TSharedRef< TJsonWriter< TCHAR, TPrettyJsonPrintPolicy<TCHAR> > > JsonWriter = TJsonWriterFactory< TCHAR, TPrettyJsonPrintPolicy<TCHAR> >::Create(&JsonString);
 
@@ -82,6 +80,9 @@ bool FCADModelToTechSoftConverterBase::Tessellate(const CADLibrary::FMeshParamet
 		CADLibrary::TechSoftUtils::FillBodyMesh(Representation, ImportParameters, BodyUnit, BodyMesh);
 	}
 #endif
+
+	TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
+	CADLibrary::TechSoftUtils::RestoreMaterials(JsonObject, BodyMesh);
 
 	if (BodyMesh.Faces.Num() == 0)
 	{

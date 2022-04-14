@@ -38,14 +38,12 @@ public:
 	{
 	}
 
-	virtual bool AddBRep(AlDagNode& DagNode, EAliasObjectReference ObjectReference) override;
+	virtual bool AddBRep(AlDagNode& DagNode, const FColor& Color, EAliasObjectReference ObjectReference) override;
 
 protected:
-	static const FColor DefaultColor;
-
 	TMap<void*, A3DTopoCoEdge*> AlEdgeToTSCoEdge;
 
-	A3DTopoFace* AddTrimRegion(const AlTrimRegion& InTrimRegion, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix);
+	A3DTopoFace* AddTrimRegion(const AlTrimRegion& InTrimRegion, const FColor& Color, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix);
 	A3DTopoLoop* CreateTopoLoop(const AlTrimBoundary& TrimBoundary);
 	A3DTopoCoEdge* CreateEdge(const AlTrimCurve& TrimCurve);
 	A3DCrvBase* CreateCurve(const AlTrimCurve& TrimCurve);

@@ -2,6 +2,7 @@
 
 #include "AliasModelToCADKernelConverter.h"
 
+#include "CADData.h"
 #include "CADKernelTools.h"
 #include "Hal/PlatformMemory.h"
 #include "MeshDescriptionHelper.h"
@@ -275,12 +276,14 @@ void FAliasModelToCADKernelConverter::AddShell(const AlShell& InShell, EAliasObj
 	}
 }
 
-bool FAliasModelToCADKernelConverter::AddBRep(AlDagNode& DagNode, EAliasObjectReference InObjectReference)
+bool FAliasModelToCADKernelConverter::AddBRep(AlDagNode& DagNode, const FColor& Color, EAliasObjectReference InObjectReference)
 {
 	AlEdge2CADKernelEdge.Empty();
 
 	TSharedRef<CADKernel::FBody> CADKernelBody = CADKernel::FEntity::MakeShared<CADKernel::FBody>();
 	TSharedRef<CADKernel::FShell> CADKernelShell = CADKernel::FEntity::MakeShared<CADKernel::FShell>();
+	uint32 ColorId = (uint32) CADLibrary::BuildColorName(Color);
+	CADKernelShell->SetColorId(ColorId);
 	CADKernelBody->AddShell(CADKernelShell);
 
 	boolean bAlOrientation;

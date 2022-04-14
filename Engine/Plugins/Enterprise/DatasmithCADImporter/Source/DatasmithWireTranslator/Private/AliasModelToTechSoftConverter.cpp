@@ -29,8 +29,6 @@
 namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
 {
 
-const FColor FAliasModelToTechSoftConverter::DefaultColor(200, 200, 200);
-
 #ifdef USE_TECHSOFT_SDK
 
 namespace AliasToTechSoftUtils
@@ -304,7 +302,7 @@ void FAliasModelToTechSoftConverter::LinkEdgesLoop(const AlTrimBoundary& TrimBou
 	}
 }
 
-A3DTopoFace* FAliasModelToTechSoftConverter::AddTrimRegion(const AlTrimRegion& InTrimRegion, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix)
+A3DTopoFace* FAliasModelToTechSoftConverter::AddTrimRegion(const AlTrimRegion& InTrimRegion, const FColor& Color, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix)
 {
 	A3DSurfBase* CarrierSurface = AliasToTechSoftUtils::AddNURBSSurface(InTrimRegion, InObjectReference, InAlMatrix);
 	if (CarrierSurface == nullptr)
@@ -340,13 +338,13 @@ A3DTopoFace* FAliasModelToTechSoftConverter::AddTrimRegion(const AlTrimRegion& I
 
 	A3DTopoFace* FacePtr = CADLibrary::TechSoftInterface::CreateTopoFace(*Face);
 
-	CADLibrary::TechSoftUtils::SetEntityGraphicsColor(FacePtr, DefaultColor);
+	CADLibrary::TechSoftUtils::SetEntityGraphicsColor(FacePtr, Color);
 
 	return FacePtr;
 }
 #endif
 
-bool FAliasModelToTechSoftConverter::AddBRep(AlDagNode& DagNode, EAliasObjectReference InObjectReference)
+bool FAliasModelToTechSoftConverter::AddBRep(AlDagNode& DagNode, const FColor& Color, EAliasObjectReference InObjectReference)
 {
 #ifdef USE_TECHSOFT_SDK
 	AlEdgeToTSCoEdge.Empty();
@@ -373,7 +371,7 @@ bool FAliasModelToTechSoftConverter::AddBRep(AlDagNode& DagNode, EAliasObjectRef
 			{
 				for (TUniquePtr<AlTrimRegion> TrimRegion(AliasShell->firstTrimRegion()); TrimRegion.IsValid(); TrimRegion = TUniquePtr<AlTrimRegion>(TrimRegion->nextRegion()))
 				{
-					A3DTopoFace* TSFace = AddTrimRegion(*TrimRegion, InObjectReference, AlMatrix);
+					A3DTopoFace* TSFace = AddTrimRegion(*TrimRegion, Color, InObjectReference, AlMatrix);
 					if (TSFace != nullptr)
 					{
 						TSFaces.Add(TSFace);
@@ -396,7 +394,7 @@ bool FAliasModelToTechSoftConverter::AddBRep(AlDagNode& DagNode, EAliasObjectRef
 				{
 					for (; TrimRegion.IsValid(); TrimRegion = TUniquePtr<AlTrimRegion>(TrimRegion->nextRegion()))
 					{
-						A3DTopoFace* TSFace = AddTrimRegion(*TrimRegion, InObjectReference, AlMatrix);
+						A3DTopoFace* TSFace = AddTrimRegion(*TrimRegion, Color, InObjectReference, AlMatrix);
 						if (TSFace != nullptr)
 						{
 							TSFaces.Add(TSFace);
@@ -409,7 +407,7 @@ bool FAliasModelToTechSoftConverter::AddBRep(AlDagNode& DagNode, EAliasObjectRef
 				if (TSSurface != nullptr)
 				{
 					A3DTopoFace* TSFace = CADLibrary::TechSoftUtils::CreateTopoFaceWithNaturalLoop(TSSurface);
-					CADLibrary::TechSoftUtils::SetEntityGraphicsColor(TSFace, DefaultColor);
+					CADLibrary::TechSoftUtils::SetEntityGraphicsColor(TSFace, Color);
 
 					if (TSFace != nullptr)
 					{

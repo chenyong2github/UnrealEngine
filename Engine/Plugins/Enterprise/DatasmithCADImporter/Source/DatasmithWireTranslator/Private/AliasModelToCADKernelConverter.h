@@ -40,7 +40,7 @@ public:
 	{
 	}
 
-	virtual bool AddBRep(AlDagNode& DagNode, EAliasObjectReference ObjectReference) override;
+	virtual bool AddBRep(AlDagNode& DagNode, const FColor& Color, EAliasObjectReference ObjectReference) override;
 
 protected:
 	TSharedPtr<CADKernel::FTopologicalEdge> AddEdge(const AlTrimCurve& TrimCurve, TSharedPtr<CADKernel::FSurface>& CarrierSurface);

@@ -1611,7 +1611,7 @@ bool OpenModelUtils::IsValidActor(const TSharedPtr<IDatasmithActorElement>& Acto
 	return false;
 }
 
-bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& MeshParameters, bool& bHasNormal, bool bMerge)
+bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, const TCHAR* SlotMaterialId, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& MeshParameters, const bool bMerge)
 {
 	if (AliasMesh.numberOfVertices() == 0 || AliasMesh.numberOfTriangles() == 0)
 	{
@@ -1664,7 +1664,7 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, FM
 	// Assume one material per mesh, no partitioning
 	MeshDescription.ReserveNewPolygonGroups(1);
 	FPolygonGroupID PolyGroupId = MeshDescription.CreatePolygonGroup();
-	FName ImportedSlotName = TEXT("0"); // No access to DatasmithMeshHelper::DefaultSlotName
+	FName ImportedSlotName = SlotMaterialId;
 	PolygonGroupImportedMaterialSlotNames[PolyGroupId] = ImportedSlotName;
 
 	// At least one UV set must exist.

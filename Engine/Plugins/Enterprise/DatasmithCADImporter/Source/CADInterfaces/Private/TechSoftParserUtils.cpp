@@ -47,25 +47,6 @@ namespace TechSoftParserUtils
 
 	void FTechSoftMeshConverter::ConvertFace(const A3DTessFaceData& FaceTessData, CADLibrary::FTessellationData& Tessellation)
 	{
-		//if (FaceTessData.m_uiStyleIndexesSize == 1)
-		//{
-		//	A3DUns32 StyleIndex = FaceTessData.m_puiStyleIndexes[0];
-		//	FCADUUID ColorName;
-		//	FCADUUID MaterialName;
-		//	TraverseGraphStyleData(StyleIndex, ColorName, MaterialName);
-		//	if (ColorName)
-		//	{
-		//		Tessellation.ColorName = ColorName;
-		//		BodyMesh.ColorSet.Add(ColorName);
-		//	}
-
-		//	if (MaterialName)
-		//	{
-		//		Tessellation.MaterialName = MaterialName;
-		//		BodyMesh.MaterialSet.Add(MaterialName);
-		//	}
-		//}
-
 		uint32 TriangleCount = CountTriangles(FaceTessData);
 		Reserve(Tessellation, TriangleCount, /*bWithTexture*/ FaceTessData.m_uiTextureCoordIndexesSize > 0);
 

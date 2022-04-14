@@ -30,7 +30,7 @@ public:
 	{
 	}
 
-	virtual bool AddBRep(AlDagNode& DagNode, EAliasObjectReference ObjectReference) override;
+	virtual bool AddBRep(AlDagNode& DagNode, const FColor& Color, EAliasObjectReference ObjectReference) override;
 
 protected:
 

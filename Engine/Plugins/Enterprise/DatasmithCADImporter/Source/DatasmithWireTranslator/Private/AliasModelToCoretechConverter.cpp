@@ -194,7 +194,7 @@ void FAliasModelToCoretechConverter::AddShell(const AlShell& Shell, EAliasObject
 	}
 }
 
-bool FAliasModelToCoretechConverter::AddBRep(AlDagNode& DagNode, EAliasObjectReference InObjectReference)
+bool FAliasModelToCoretechConverter::AddBRep(AlDagNode& DagNode, const FColor& Color, EAliasObjectReference InObjectReference)
 {
 	TArray<uint64> FaceList;
 

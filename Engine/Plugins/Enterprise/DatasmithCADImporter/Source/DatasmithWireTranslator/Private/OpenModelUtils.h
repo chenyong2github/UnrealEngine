@@ -65,20 +65,19 @@ namespace OpenModelUtils
 		return HashCombine(IdA, HashCombine(IdB, HashCombine(IdC, IdD)));
 	}
 
-	inline uint32 GetAlDagNodeUuid(const TSharedPtr<AlDagNode>& DagNode)
+	inline uint32 GetAlDagNodeUuid(AlDagNode& DagNode)
 	{
-		if (DagNode->hasPersistentID() == sSuccess)
+		if (DagNode.hasPersistentID() == sSuccess)
 		{
 			AlPersistentID* PersistentID;
-			DagNode->persistentID(PersistentID);
+			DagNode.persistentID(PersistentID);
 			return GetTypeHash(*PersistentID);
 		}
-		FString Label = UTF8_TO_TCHAR(DagNode->name());
+		FString Label = UTF8_TO_TCHAR(DagNode.name());
 		return GetTypeHash(Label);
 	}
 
-	// Note that Alias file unit is cm like UE
-	bool TransferAlMeshToMeshDescription(const AlMesh& Mesh, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& SymmetricParameters, bool& bHasNormal, bool bMerge = false);
+	bool TransferAlMeshToMeshDescription(const AlMesh& Mesh, const TCHAR* SlotMaterialName, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& SymmetricParameters, const bool bMerge = false);
 
 	TSharedPtr<AlDagNode> TesselateDagLeaf(const AlDagNode& DagLeaf, ETesselatorType TessType, double Tolerance);
 }

@@ -18,7 +18,7 @@ enum class EAliasObjectReference
 class IAliasBRepConverter
 {
 public:
-	virtual bool AddBRep(AlDagNode& DagNode, EAliasObjectReference ObjectReference) = 0;
+	virtual bool AddBRep(AlDagNode& DagNode, const FColor& Color, EAliasObjectReference ObjectReference) = 0;
 };
 
 }
