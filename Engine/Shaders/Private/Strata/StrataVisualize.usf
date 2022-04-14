@@ -82,10 +82,6 @@ void DrawPixelFootprint(float3 P, float3 dPdx, float3 dPdy, uint2 PixelCoord)
 
 #if SHADER_MATERIALPRINT
 
-#ifndef MULTIPASS_ENABLE 
-#define MULTIPASS_ENABLE 0
-#endif
-
 uint BSDFIndex;
 RWBuffer<uint> RWPositionOffsetBuffer;
 
@@ -301,7 +297,6 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 {
 	FShaderPrintContext Context;
-	#if MULTIPASS_ENABLE
 	if (BSDFIndex > 0)
 	{
 		float2 PrintOffset;
@@ -310,7 +305,6 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 		Context = InitShaderPrintContext(true, PrintOffset);
 	}
 	else
-	#endif
 	{
 		Context = InitShaderPrintContext(true, uint2(50, 50));
 	}
@@ -359,41 +353,21 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 	}
 
 	// BSDFs
-#if MULTIPASS_ENABLE
 	if (BSDFIndex < Header.BSDFCount)
 	{
 		if (BSDFIndex > 0)
 		{
-			StrataSeekBSDF(StrataAddressing, UnpackBSDFOffset(Strata.BSDFOffsetTexture[InCoord], Header.BSDFCount), BSDFIndex);
+			const uint AddressOffset = UnpackBSDFOffsetAtIndex(Strata.BSDFOffsetTexture[InCoord], BSDFIndex, Header.BSDFCount);
+			StrataSeekBSDF(StrataAddressing, AddressOffset);
 		}
 		PrintBSDF(Context, StrataAddressing, Header, InWorldPosition, V);
 
 		RWPositionOffsetBuffer[0] = asuint(Context.Pos.x);
 		RWPositionOffsetBuffer[1] = asuint(Context.Pos.y);
 	}
-#else // MULTIPASS_ENABLE
-	if (BSDFIndex == 0 && Header.BSDFCount > 0)
-	{
-	#if 1
-		#if COMPILER_DXC == 1
-		LOOP
-		for (uint BSDFIndex = 0; BSDFIndex < Header.BSDFCount; ++BSDFIndex)
-		#else
-		Header.BSDFCount = min(Header.BSDFCount, STRATA_VIZ_MAX_BSDF);
-		UNROLL_N(STRATA_VIZ_MAX_BSDF) // FXC requires that we specify an upper bound here. Not DXC.
-		for (uint LocalBSDFIndex = 0; LocalBSDFIndex < Header.BSDFCount; ++LocalBSDFIndex)
-		#endif
-	#endif
-		{
-			PrintBSDF(Context, StrataAddressing, Header, InWorldPosition, V);
-		}
-	}
-#endif // MULTIPASS_ENABLE
 
 	// Memory footprint
-#if MULTIPASS_ENABLE
 	if (BSDFIndex+1 == Header.BSDFCount)
-#endif
 	{
 		const uint FootPrint_PostBSDFs = StrataAddressing.ReadBytes;
 

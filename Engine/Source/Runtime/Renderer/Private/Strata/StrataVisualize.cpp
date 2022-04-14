@@ -31,8 +31,6 @@ void AddStrataInternalClassificationTilePass(
 	EStrataTileType TileMaterialType,
 	const bool bDebug);
 
-#define MULTIPASS_ENABLE 0
-
 class FMaterialPrintInfoCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FMaterialPrintInfoCS);
@@ -72,7 +70,6 @@ class FMaterialPrintInfoCS : public FGlobalShader
 		// Stay debug and skip optimizations to reduce compilation time on this long shader.
 		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
 		OutEnvironment.SetDefine(TEXT("SHADER_MATERIALPRINT"), 1);
-		OutEnvironment.SetDefine(TEXT("MULTIPASS_ENABLE"), MULTIPASS_ENABLE);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FMaterialPrintInfoCS, "/Engine/Private/Strata/StrataVisualize.usf", "MaterialPrintInfoCS", SF_Compute);
@@ -133,17 +130,14 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 
 		// Print Material info
 		{
-			uint32 BSDFIndex = 0;
 			FRDGBufferUAVRef PrintOffsetBufferUAV = nullptr;
 
-#if MULTIPASS_ENABLE
 			FRDGBufferRef PrintOffsetBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 2), TEXT("Strata.DebugPrintPositionOffset"));
 			PrintOffsetBufferUAV = GraphBuilder.CreateUAV(PrintOffsetBuffer, PF_R32_UINT);
 			AddClearUAVPass(GraphBuilder, PrintOffsetBufferUAV, 50u);
 			const uint32 MaxBSDFCount = 8;
 
-			for (BSDFIndex; BSDFIndex < MaxBSDFCount; ++BSDFIndex)
-#endif
+			for (uint32 BSDFIndex=0; BSDFIndex < MaxBSDFCount; ++BSDFIndex)
 			{
 				FMaterialPrintInfoCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMaterialPrintInfoCS::FParameters>();
 				PassParameters->BSDFIndex = BSDFIndex;
@@ -154,7 +148,7 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 				ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
 
 				TShaderMapRef<FMaterialPrintInfoCS> ComputeShader(View.ShaderMap);
-				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Strata::VisualizeMaterial(Print)"), ComputeShader, PassParameters, FIntVector(1, 1, 1));
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Strata::VisualizeMaterial(Print, BSDF=%d)", BSDFIndex), ComputeShader, PassParameters, FIntVector(1, 1, 1));
 			}
 		}
 
