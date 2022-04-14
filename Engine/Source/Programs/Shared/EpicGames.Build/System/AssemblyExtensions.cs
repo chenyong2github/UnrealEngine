@@ -17,7 +17,7 @@ namespace UnrealBuildBase
 			}
 			catch (ReflectionTypeLoadException e)
 			{
-				AllTypes = e.Types.Where(x => x != null).ToArray();
+				AllTypes = e.Types.Where(x => x != null).Cast<Type>().ToArray();
 			}
 			return AllTypes;
 		}
