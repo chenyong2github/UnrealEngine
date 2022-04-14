@@ -761,7 +761,7 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 		OnComplete(MoveTemp(Response));
 	}
 
-	if (State.Response.Status == EStatus::Ok)
+	if (Response.Status == EStatus::Ok)
 	{
 		if (EnumHasAnyFlags(Node.CacheFlags, ECacheStoreFlags::StopStore))
 		{
