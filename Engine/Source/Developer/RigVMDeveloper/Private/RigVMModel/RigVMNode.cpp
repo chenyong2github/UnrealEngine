@@ -536,7 +536,13 @@ TArray<FRigVMUserWorkflow> URigVMNode::GetSupportedWorkflows(ERigVMUserWorkflowT
 	{
 		InSubject = this;
 	}
-	return URigVMUserWorkflowRegistry::Get()->GetWorkflows(InType, nullptr, InSubject);
+
+	const UScriptStruct* Struct = nullptr;
+	if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(this))
+	{
+		Struct = UnitNode->GetScriptStruct();
+	}
+	return URigVMUserWorkflowRegistry::Get()->GetWorkflows(InType, Struct, InSubject);
 }
 
 #if WITH_EDITOR

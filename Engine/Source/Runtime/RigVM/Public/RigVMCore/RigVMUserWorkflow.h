@@ -95,11 +95,13 @@ class RIGVM_API URigVMUserWorkflowOptions : public UObject
 
 public:
 
+	UFUNCTION(BlueprintCallable, Category=Options)
 	FORCEINLINE bool IsValid() const { return Subject != nullptr; }
+	
+	UFUNCTION(BlueprintCallable, Category=Options)
 	bool RequiresDialog() const;
-	FORCEINLINE UObject* GetSubject() const { return Subject.Get(); }
 
-	template<typename T>
+	template<typename T = UObject>
 	FORCEINLINE T* GetSubject() const { return Cast<T>(Subject.Get()); }
 
 	FORCEINLINE UObject* GetSubjectChecked() const
@@ -120,6 +122,24 @@ public:
 	void Reportf(EMessageSeverity::Type InSeverity, const FmtType& Fmt, Types... Args) const
 	{
 		Report(InSeverity, FString::Printf(Fmt, Args...));
+	}
+
+	UFUNCTION(BlueprintCallable, Category=Options)
+	FORCEINLINE void ReportError(const FString& InMessage)
+	{
+		Report(EMessageSeverity::Error, InMessage);
+	}
+
+	UFUNCTION(BlueprintCallable, Category=Options)
+	FORCEINLINE void ReportWarning(const FString& InMessage)
+	{
+		Report(EMessageSeverity::Warning, InMessage);
+	}
+
+	UFUNCTION(BlueprintCallable, Category=Options)
+	FORCEINLINE void ReportInfo(const FString& InMessage)
+	{
+		Report(EMessageSeverity::Info, InMessage);
 	}
 
 protected:

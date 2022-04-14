@@ -900,8 +900,34 @@ URigVMUnitNode* URigVMController::AddUnitNodeWithDefaults(UScriptStruct* InScrip
 	return Node;
 }
 
+bool URigVMController::SetUnitNodeDefaults(URigVMUnitNode* InNode, const FString& InDefaults, bool bSetupUndoRedo,
+	bool bPrintPythonCommand)
+{
+	if(InNode == nullptr)
+	{
+		return false; 
+	}
+
+	UScriptStruct* ScriptStruct = InNode->GetScriptStruct();
+	if(ScriptStruct == nullptr)
+	{
+		return false;
+	}
+	
+	FStructOnScope StructOnScope(ScriptStruct);
+	FRigVMPinDefaultValueImportErrorContext ErrorPipe;
+	ScriptStruct->ImportText(*InDefaults, StructOnScope.GetStructMemory(), nullptr, PPF_None, &ErrorPipe, FString());
+
+	if(ErrorPipe.NumErrors > 0)
+	{
+		return false;
+	}
+
+	return SetUnitNodeDefaults(InNode, StructOnScope, bSetupUndoRedo, bPrintPythonCommand);
+}
+
 bool URigVMController::SetUnitNodeDefaults(URigVMUnitNode* InNode, const FRigStructScope& InDefaults,
-	bool bSetupUndoRedo, bool bPrintPythonCommand)
+                                           bool bSetupUndoRedo, bool bPrintPythonCommand)
 {
 	if(InNode == nullptr || !InDefaults.IsValid())
 	{
