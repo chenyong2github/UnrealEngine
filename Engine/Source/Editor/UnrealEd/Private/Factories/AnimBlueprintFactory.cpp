@@ -209,7 +209,7 @@ public:
 		TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title( LOCTEXT("CreateAnimBlueprintOptions", "Create Animation Blueprint") )
 		.ClientSize(FVector2D(500, 500))
-		.SizingRule(ESizingRule::Autosized)
+		.SizingRule(ESizingRule::FixedSize)
 		.SupportsMinimize(false)
 		.SupportsMaximize(false)
 		[
