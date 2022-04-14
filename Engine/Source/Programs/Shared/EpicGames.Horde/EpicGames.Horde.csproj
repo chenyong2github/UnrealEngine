@@ -11,6 +11,7 @@
     <Nullable>enable</Nullable>
     <DebugType>pdbonly</DebugType>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DocumentationFile></DocumentationFile>
