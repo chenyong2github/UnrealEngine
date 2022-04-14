@@ -65,14 +65,54 @@ void MainPS(
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
 
 	FPixelMaterialInputs PixelMaterialInputs;
-	
 	{
 		float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
 		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(SvPosition);
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 	}
+	float3 WorldNormal = MaterialParameters.WorldNormal;
 
+#if TEMPLATE_USES_STRATA
+	{
+		const float3 V = MaterialParameters.CameraVector;
+		const float3 L = MaterialParameters.WorldNormal;
+
+		// Initialise a Strata header with normal in registers
+		FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
+		FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+		StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
+		StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
+		StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
+		StrataPixelHeader.IrradianceAO = InitIrradianceAndOcclusion();
+		StrataPixelHeader.IrradianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+
+		float TotalCoverage = 1.f;
+		FStrataTree StrataTree = StrataPixelHeader.StrataTree;
+		if (StrataTree.BSDFCount > 0)
+		{
+			const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/);
+			float3 TotalTransmittancePreCoverage = 0;
+			FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
+			StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, L, Settings, TotalCoverage, TotalTransmittancePreCoverage);
+
+			// Extract averaged normal
+			WorldNormal = 0;
+			STRATA_UNROLL_N(STRATA_CLAMPED_BSDF_COUNT)
+			for (int BSDFIdx = 0; BSDFIdx < StrataTree.BSDFCount; ++BSDFIdx)
+			{
+				#define CurrentBSDF StrataTree.BSDFs[BSDFIdx]
+				if (StrataIsBSDFVisible(CurrentBSDF))
+				{
+					FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
+					const float Weight = Luminance(CurrentBSDF.LuminanceWeightV);
+					WorldNormal += Weight * StrataBSDFContext.N;
+				}
+				#undef CurrentBSDF
+			}
+		}
+	}
+#endif // TEMPLATE_USES_STRATA
 	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
 
-	OutTarget0 = float4(EncodeNormal(MaterialParameters.WorldNormal), 1.0f);
+	OutTarget0 = float4(EncodeNormal(WorldNormal), 1.0f);
 }

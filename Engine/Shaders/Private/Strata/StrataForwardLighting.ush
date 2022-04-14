@@ -277,17 +277,16 @@ float3 StrataForwardLighting(
 				//// Evaluate environment lighting
 				////
 
+				// Compute the bent normal from the BSDF normal
+				const float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
+				const FShadingOcclusion ShadingOcclusion = ApplyBentNormal(MaterialParameters.CameraVector, StrataBSDFContext.N, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), Roughness,  StrataGetAO(StrataPixelHeader));
+
+				float IndirectOcclusion = 1.0f;
+				float IndirectIrradiance = 0.0f; 
+
+				// 1. Diffuse Sky evaluation using bent normal
 				if (UseBasePassSkylight > 0)
 				{
-					const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
-					float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
-					float IndirectOcclusion = 1.0f;
-					float IndirectIrradiance = 0.0f; 
-
-					// Compute the bent normal from the BSDF normal
-					const FShadingOcclusion ShadingOcclusion = ApplyBentNormal(MaterialParameters.CameraVector, StrataBSDFContext.N, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), Roughness,  StrataGetAO(StrataPixelHeader));
-
-					// 1. Diffuse Sky evaluation using bent normal
 					{
 						// Update a context specific for environment lighting
 						FStrataBSDFContext EnvBSDFContext = StrataBSDFContext;
@@ -332,24 +331,26 @@ float3 StrataForwardLighting(
 								LuminanceWeight(StrataBSDFContext, CurrentBSDF) * AOMultiBounce(StrataEnvLight.DiffuseColor, ShadingOcclusion.DiffOcclusion);
 						}
 					}
-
-					// 2. Specular evaluation (using regular normal)
-				#if FORWARD_PER_PIXEL_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME
-					{
-						// Evaluate specular parameters without bent normal
-						FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular, Settings);
-
-						// Evaluate specular lighting
-						if (any(StrataEnvLight.SpecularWeight > 0.0f))
-						{
-							int SingleCaptureIndex = GetPrimitiveData(MaterialParameters).SingleCaptureIndex;
-							Color += GetImageBasedReflectionSpecular(MaterialParameters, StrataEnvLight.SpecularDirection, Roughness, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex) *
-								 StrataEnvLight.SpecularWeight * IndirectOcclusion * LuminanceWeight(StrataBSDFContext, CurrentBSDF) * AOMultiBounce(StrataEnvLight.SpecularColor, ShadingOcclusion.SpecOcclusion);
-						}
-						// We skip hazy lob evaluation in forward.
-					}
-				#endif
 				}
+
+				// 2. Specular evaluation (using regular normal)
+				#if FORWARD_PER_PIXEL_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME
+				const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
+				if (bEnableSpecular)
+				{
+					// Evaluate specular parameters without bent normal
+					FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular, Settings);
+
+					// Evaluate specular lighting
+					if (any(StrataEnvLight.SpecularWeight > 0.0f))
+					{
+						int SingleCaptureIndex = GetPrimitiveData(MaterialParameters).SingleCaptureIndex;
+						Color += GetImageBasedReflectionSpecular(MaterialParameters, StrataEnvLight.SpecularDirection, Roughness, IndirectIrradiance, GridIndex, SingleCaptureIndex, EyeIndex) *
+								StrataEnvLight.SpecularWeight * IndirectOcclusion * LuminanceWeight(StrataBSDFContext, CurrentBSDF) * AOMultiBounce(StrataEnvLight.SpecularColor, ShadingOcclusion.SpecOcclusion);
+					}
+					// We skip hazy lob evaluation in forward.
+				}
+				#endif
 
 				////
 				//// Evaluate translucent lighting volume / vertex lighting.

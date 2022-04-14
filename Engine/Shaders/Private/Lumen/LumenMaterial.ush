@@ -98,7 +98,7 @@ Texture2D FrontLayerTranslucencyNormal;
 FLumenMaterialData InternalReadMaterialData_FrontLayerTranslucency(uint2 InPixelPos)
 {
 	FLumenMaterialData Out = (FLumenMaterialData)0;
-#if !STRATA_ENABLED
+#if FRONT_LAYER_TRANSLUCENCY
 	Out.SceneDepth = ConvertFromDeviceZ(FrontLayerTranslucencySceneDepth[InPixelPos].x);
 	float4 NormalEncoded = FrontLayerTranslucencyNormal[InPixelPos];
 	Out.WorldNormal = DecodeNormal(NormalEncoded.xyz);
@@ -146,10 +146,10 @@ FLumenMaterialData InternalReadMaterialData_GBuffer(float2 InUV)		{ return Inter
 // Read material data
 FLumenMaterialData ReadMaterialData(uint2 InPixelPos)
 {
-#if STRATA_ENABLED
-	return InternalReadMaterialData_Strata(InPixelPos);
-#elif FRONT_LAYER_TRANSLUCENCY
+#if FRONT_LAYER_TRANSLUCENCY
 	return InternalReadMaterialData_FrontLayerTranslucency(InPixelPos);
+#elif STRATA_ENABLED
+	return InternalReadMaterialData_Strata(InPixelPos);
 #else
 	return InternalReadMaterialData_GBuffer(InPixelPos);
 #endif
@@ -157,10 +157,10 @@ FLumenMaterialData ReadMaterialData(uint2 InPixelPos)
 
 FLumenMaterialData ReadMaterialData(uint2 InPixelPos, float2 InBufferUV)
 {
-#if STRATA_ENABLED
-	return InternalReadMaterialData_Strata(InPixelPos);
-#elif FRONT_LAYER_TRANSLUCENCY
+#if FRONT_LAYER_TRANSLUCENCY
 	return InternalReadMaterialData_FrontLayerTranslucency(InPixelPos);
+#elif STRATA_ENABLED
+	return InternalReadMaterialData_Strata(InPixelPos);
 #else
 	return InternalReadMaterialData_GBuffer(InBufferUV);
 #endif

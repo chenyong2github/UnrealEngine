@@ -283,7 +283,9 @@ void ReflectionGenerateRaysCS(
 			float ConeAngle = 0.0f;
 			bool bMirrorReflectionDebug = false;
 
-		#if STRATA_ENABLED
+			// Use Strata sampling routine only for opaque surface. 
+			// When FontLayerTranslucency is enable, LumenMaterial is built from custom packed data (i.e., non-Strata)
+		#if STRATA_ENABLED && !FRONT_LAYER_TRANSLUCENCY
 			{
 				const float2 E = GenerateRandom(ReflectionTracingCoord);
 				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(SvPosition, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
