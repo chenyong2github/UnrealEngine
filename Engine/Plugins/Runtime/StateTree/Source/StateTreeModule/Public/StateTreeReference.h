@@ -17,7 +17,7 @@ struct FStateTreeReference
 	GENERATED_BODY()
 
 	UPROPERTY(EditDefaultsOnly, Category="")
-	TObjectPtr<UStateTree> StateTree;
+	TObjectPtr<UStateTree> StateTree = nullptr;
 
 	UPROPERTY(EditDefaultsOnly, Category="")
 	FStateTreeParameters Parameters;
