@@ -1118,10 +1118,10 @@ void FBuildJob::ExecuteTransition(EBuildJobState OldState, EBuildJobState NewSta
 	if (OldState <= EBuildJobState::ResolveInputDataWait && EBuildJobState::ResolveInputDataWait < NewState)
 	{
 		MissingInputs.Empty();
-		Definition.Reset();
 	}
 	if (OldState <= EBuildJobState::ExecuteLocalWait && EBuildJobState::ExecuteLocalWait < NewState)
 	{
+		Definition.Reset();
 		Action.Reset();
 		Inputs.Reset();
 		if (Context)
