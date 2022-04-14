@@ -469,6 +469,115 @@ TCHAR* FindNextUniformBufferReference(TCHAR* SearchPtr, const TCHAR* SearchStrin
 	return nullptr;
 }
 
+void HandleReflectedGlobalConstantBufferMember(
+	const FString& MemberName,
+	uint32 ConstantBufferIndex,
+	int32 ReflectionOffset,
+	int32 ReflectionSize,
+	FShaderCompilerOutput& Output
+)
+{
+	Output.ParameterMap.AddParameterAllocation(
+		*MemberName,
+		ConstantBufferIndex,
+		ReflectionOffset,
+		ReflectionSize,
+		EShaderParameterType::LooseData);
+}
+
+void HandleReflectedRootConstantBufferMember(
+	const FShaderCompilerInput& Input,
+	const FShaderParameterParser& ShaderParameterParser,
+	const FString& MemberName,
+	int32 ReflectionOffset,
+	int32 ReflectionSize,
+	FShaderCompilerOutput& Output
+)
+{
+	ShaderParameterParser.ValidateShaderParameterType(Input, MemberName, ReflectionOffset, ReflectionSize, Output);
+}
+
+void HandleReflectedRootConstantBuffer(
+	int32 ConstantBufferSize,
+	FShaderCompilerOutput& CompilerOutput
+)
+{
+	CompilerOutput.ParameterMap.AddParameterAllocation(
+		FShaderParametersMetadata::kRootUniformBufferBindingName,
+		FShaderParametersMetadata::kRootCBufferBindingIndex,
+		0,
+		static_cast<uint16>(ConstantBufferSize),
+		EShaderParameterType::LooseData);
+}
+
+void HandleReflectedUniformBuffer(
+	const FString& UniformBufferName,
+	int32 ReflectionSlot,
+	int32 BaseIndex,
+	int32 BufferSize,
+	FShaderCompilerOutput& CompilerOutput
+)
+{
+	CompilerOutput.ParameterMap.AddParameterAllocation(
+		*UniformBufferName,
+		ReflectionSlot,
+		BaseIndex,
+		BufferSize,
+		EShaderParameterType::UniformBuffer
+	);
+}
+
+void HandleReflectedShaderResource(
+	const FString& ResourceName,
+	int32 BindOffset,
+	int32 ReflectionSlot,
+	int32 BindCount,
+	FShaderCompilerOutput& CompilerOutput
+)
+{
+	CompilerOutput.ParameterMap.AddParameterAllocation(
+		*ResourceName,
+		BindOffset,
+		ReflectionSlot,
+		BindCount,
+		EShaderParameterType::SRV
+	);
+}
+
+void HandleReflectedShaderUAV(
+	const FString& UAVName,
+	int32 BindOffset,
+	int32 ReflectionSlot,
+	int32 BindCount,
+	FShaderCompilerOutput& CompilerOutput
+)
+{
+	CompilerOutput.ParameterMap.AddParameterAllocation(
+		*UAVName,
+		BindOffset,
+		ReflectionSlot,
+		BindCount,
+		EShaderParameterType::UAV
+	);
+}
+
+void HandleReflectedShaderSampler(
+	const FString& SamplerName,
+	int32 BindOffset,
+	int32 ReflectionSlot,
+	int32 BindCount,
+	FShaderCompilerOutput& CompilerOutput
+)
+{
+	CompilerOutput.ParameterMap.AddParameterAllocation(
+		*SamplerName,
+		BindOffset,
+		ReflectionSlot,
+		BindCount,
+		EShaderParameterType::Sampler
+	);
+}
+
 void AddNoteToDisplayShaderParameterStructureOnCppSide(
 	const FShaderParametersMetadata* ParametersStructure,
 	FShaderCompilerOutput& CompilerOutput)

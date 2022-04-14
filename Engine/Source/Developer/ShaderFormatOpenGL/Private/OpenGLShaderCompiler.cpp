@@ -712,7 +712,7 @@ void FOpenGLFrontend::BuildShaderOutput(
 		}
 		else
 		{
-			ParameterMap.AddParameterAllocation(*UniformBlock.Name, UBIndex, 0, 0, EShaderParameterType::UniformBuffer);
+			HandleReflectedUniformBuffer(UniformBlock.Name, UBIndex, ShaderOutput);
 		}
 		Header.Bindings.NumUniformBuffers++;
 	}
@@ -743,13 +743,13 @@ void FOpenGLFrontend::BuildShaderOutput(
 		if (bIgnore)
 			continue;
 
-		ParameterMap.AddParameterAllocation(
-			*PackedGlobal.Name,
+		HandleReflectedGlobalConstantBufferMember(
+			PackedGlobal.Name,
 			PackedGlobal.PackedType,
-			PackedGlobal.Offset * BytesPerComponent,
-			PackedGlobal.Count * BytesPerComponent,
-			EShaderParameterType::LooseData
-			);
+			PackedGlobal.Offset* BytesPerComponent,
+			PackedGlobal.Count* BytesPerComponent,
+			ShaderOutput
+		);
 
 		uint16& Size = PackedGlobalArraySize.FindOrAdd(PackedGlobal.PackedType);
 		Size = FMath::Max<uint16>(BytesPerComponent * (PackedGlobal.Offset + PackedGlobal.Count), Size);
@@ -769,7 +769,7 @@ void FOpenGLFrontend::BuildShaderOutput(
 		}
 		else
 		{
-			ParameterMap.AddParameterAllocation(*PackedUB.Attribute.Name, PackedUB.Attribute.Index, 0, 0, EShaderParameterType::UniformBuffer);
+			HandleReflectedUniformBuffer(PackedUB.Attribute.Name, PackedUB.Attribute.Index, ShaderOutput);
 		}
 		Header.Bindings.NumUniformBuffers++;
 
@@ -884,13 +884,7 @@ void FOpenGLFrontend::BuildShaderOutput(
 		}
 		else
 		{
-		ParameterMap.AddParameterAllocation(
-			*Sampler.Name,
-			0,
-			Sampler.Offset,
-			Sampler.Count,
-			EShaderParameterType::SRV
-			);
+			HandleReflectedShaderResource(Sampler.Name, Sampler.Offset, Sampler.Count, ShaderOutput);
 		}
 
 		Header.Bindings.NumSamplers = FMath::Max<uint8>(
@@ -907,13 +901,7 @@ void FOpenGLFrontend::BuildShaderOutput(
 			}
 			else
 			{
-				ParameterMap.AddParameterAllocation(
-					*SamplerState,
-					0,
-					Sampler.Offset,
-					Sampler.Count,
-					EShaderParameterType::Sampler
-					);
+				HandleReflectedShaderSampler(SamplerState, Sampler.Offset, Sampler.Count, ShaderOutput);
 			}
 		}
 	}
@@ -930,13 +918,7 @@ void FOpenGLFrontend::BuildShaderOutput(
 		}
 		else
 		{
-		ParameterMap.AddParameterAllocation(
-			*UAV.Name,
-			0,
-			UAV.Offset,
-			UAV.Count,
-			EShaderParameterType::UAV
-			);
+			HandleReflectedShaderUAV(UAV.Name, UAV.Offset, UAV.Count, ShaderOutput);
 		}
 
 		Header.Bindings.NumUAVs = FMath::Max<uint8>(

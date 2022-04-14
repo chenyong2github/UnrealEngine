@@ -996,7 +996,9 @@ static void BuildShaderOutput(
 			check(VulkanBindingIndex != -1);
 			check(!UsedUniformBufferSlots[VulkanBindingIndex]);
 			UsedUniformBufferSlots[VulkanBindingIndex] = true;
-			ParameterMap.AddParameterAllocation(*UniformBlock.Name, VulkanBindingIndex, 0, 0, EShaderParameterType::UniformBuffer);
+
+			HandleReflectedUniformBuffer(UniformBlock.Name, VulkanBindingIndex, ShaderOutput);
+
 			++OLDHeader.SerializedBindings.NumUniformBuffers;
 			NEWEntryTypes.Add(*UniformBlock.Name, FVulkanShaderHeader::UniformBuffer);
 		}
@@ -1059,14 +1061,15 @@ static void BuildShaderOutput(
 		}
 		check(Found != -1);
 
-		ParameterMap.AddParameterAllocation(
-			*PackedGlobal.Name,
+		HandleReflectedGlobalConstantBufferMember(
+			PackedGlobal.Name,
 			Found,
 			PackedGlobal.Offset * BytesPerComponent,
 			PackedGlobal.Count * BytesPerComponent,
-			EShaderParameterType::LooseData
-			);
-		NEWEntryTypes.Add(*PackedGlobal.Name, FVulkanShaderHeader::PackedGlobal);
+			ShaderOutput
+		);
+
+		NEWEntryTypes.Add(PackedGlobal.Name, FVulkanShaderHeader::PackedGlobal);
 
 		uint32& Size = PackedGlobalArraySize.FindOrAdd((CrossCompiler::EPackedTypeName)PackedGlobal.PackedType);
 		Size = FMath::Max<uint32>(BytesPerComponent * (PackedGlobal.Offset + PackedGlobal.Count), Size);
@@ -1080,7 +1083,9 @@ static void BuildShaderOutput(
 		//check(PackedUB.Attribute.Index == Header.SerializedBindings.NumUniformBuffers);
 		check(!UsedUniformBufferSlots[OLDHeader.UNUSED_NumNonGlobalUBs]);
 		UsedUniformBufferSlots[OLDHeader.UNUSED_NumNonGlobalUBs] = true;
-		ParameterMap.AddParameterAllocation(*PackedUB.Attribute.Name, OLDHeader.UNUSED_NumNonGlobalUBs++, PackedUB.Attribute.Index, 0, EShaderParameterType::UniformBuffer);
+
+		HandleReflectedUniformBuffer(PackedUB.Attribute.Name, OLDHeader.UNUSED_NumNonGlobalUBs++, PackedUB.Attribute.Index, 0, ShaderOutput);
+
 		NEWEntryTypes.Add(PackedUB.Attribute.Name, FVulkanShaderHeader::PackedGlobal);
 	}
 
@@ -1207,13 +1212,9 @@ static void BuildShaderOutput(
 		auto& Binding = HlslccBindings[HlslccBindingIndex];
 		int32 BindingIndex = Spirv.FindBinding(Binding.Name, true);
 		check(BindingIndex != -1);
-		ParameterMap.AddParameterAllocation(
-			*Name,
-			0,
-			BindingIndex,
-			1,
-			EShaderParameterType::Sampler
-		);
+
+		HandleReflectedShaderSampler(Name, BindingIndex, ShaderOutput);
+
 		NEWEntryTypes.Add(Name, FVulkanShaderHeader::Global);
 
 		// Count only samplers states, not textures
@@ -1224,13 +1225,9 @@ static void BuildShaderOutput(
 	{
 		int32 VulkanBindingIndex = Spirv.FindBinding(Sampler.Name, true);
 		check(VulkanBindingIndex != -1);
-		ParameterMap.AddParameterAllocation(
-			*Sampler.Name,
-			Sampler.Offset,
-			VulkanBindingIndex,
-			Sampler.Count,
-			EShaderParameterType::SRV
-		);
+
+		HandleReflectedShaderResource(Sampler.Name, Sampler.Offset, VulkanBindingIndex, Sampler.Count, ShaderOutput);
+
 		NEWEntryTypes.Add(Sampler.Name, FVulkanShaderHeader::Global);
 
 		for (auto& SamplerState : Sampler.SamplerStates)
@@ -1239,13 +1236,9 @@ static void BuildShaderOutput(
 			{
 				// ParameterMap does not use a TMultiMap, so we cannot push the same entry to it more than once!  if we try to, we've done something wrong...
 				check(!ParameterMap.ContainsParameterAllocation(*SamplerState));
-				ParameterMap.AddParameterAllocation(
-					*SamplerState,
-					Sampler.Offset,
-					VulkanBindingIndex,
-					Sampler.Count,
-					EShaderParameterType::Sampler
-				);
+
+				HandleReflectedShaderSampler(SamplerState, Sampler.Offset, VulkanBindingIndex, Sampler.Count, ShaderOutput);
+
 				NEWEntryTypes.Add(SamplerState, FVulkanShaderHeader::Global);
 
 				// Count compiled texture-samplers as output samplers
@@ -1259,13 +1252,8 @@ static void BuildShaderOutput(
 		int32 VulkanBindingIndex = Spirv.FindBinding(UAV.Name);
 		check(VulkanBindingIndex != -1);
 
-		ParameterMap.AddParameterAllocation(
-			*UAV.Name,
-			UAV.Offset,
-			VulkanBindingIndex,
-			UAV.Count,
-			EShaderParameterType::UAV
-			);
+		HandleReflectedShaderUAV(UAV.Name, UAV.Offset, VulkanBindingIndex, UAV.Count, ShaderOutput);
+
 		NEWEntryTypes.Add(UAV.Name, FVulkanShaderHeader::Global);
 
 		OLDHeader.SerializedBindings.NumUAVs = FMath::Max<uint8>(
@@ -1279,13 +1267,8 @@ static void BuildShaderOutput(
 		int32 VulkanBindingIndex = Spirv.FindBinding(AccelerationStructure.Name);
 		check(VulkanBindingIndex != -1);
 
-		ParameterMap.AddParameterAllocation(
-			*AccelerationStructure.Name,
-			AccelerationStructure.Offset,
-			VulkanBindingIndex,
-			1,
-			EShaderParameterType::SRV
-		);
+		HandleReflectedShaderResource(AccelerationStructure.Name, AccelerationStructure.Offset, VulkanBindingIndex, 1, ShaderOutput);
+
 		NEWEntryTypes.Add(AccelerationStructure.Name, FVulkanShaderHeader::Global);
 
 		OLDHeader.SerializedBindings.NumAccelerationStructures = FMath::Max<uint8>(

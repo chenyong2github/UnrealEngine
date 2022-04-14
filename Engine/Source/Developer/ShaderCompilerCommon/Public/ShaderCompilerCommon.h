@@ -139,6 +139,100 @@ private:
 	bool bMovedLoosedParametersToRootConstantBuffer = false;
 };
 
+extern SHADERCOMPILERCOMMON_API void HandleReflectedGlobalConstantBufferMember(
+	const FString& MemberName,
+	uint32 ConstantBufferIndex,
+	int32 ReflectionOffset,
+	int32 ReflectionSize,
+	FShaderCompilerOutput& CompilerOutput
+);
+
+extern SHADERCOMPILERCOMMON_API void HandleReflectedRootConstantBufferMember(
+	const FShaderCompilerInput& Input,
+	const FShaderParameterParser& ShaderParameterParser,
+	const FString& MemberName,
+	int32 ReflectionOffset,
+	int32 ReflectionSize,
+	FShaderCompilerOutput& CompilerOutput
+);
+
+extern SHADERCOMPILERCOMMON_API void HandleReflectedRootConstantBuffer(
+	int32 ConstantBufferSize,
+	FShaderCompilerOutput& CompilerOutput
+);
+
+extern SHADERCOMPILERCOMMON_API void HandleReflectedUniformBuffer(
+	const FString& UniformBufferName,
+	int32 ReflectionSlot,
+	int32 BaseIndex,
+	int32 BufferSize,
+	FShaderCompilerOutput& CompilerOutput
+);
+
+inline void HandleReflectedUniformBuffer(const FString& UniformBufferName, int32 ReflectionSlot, int32 BufferSize, FShaderCompilerOutput& CompilerOutput)
+{
+	HandleReflectedUniformBuffer(UniformBufferName, ReflectionSlot, 0, BufferSize, CompilerOutput);
+}
+
+inline void HandleReflectedUniformBuffer(const FString& UniformBufferName, int32 ReflectionSlot, FShaderCompilerOutput& CompilerOutput)
+{
+	HandleReflectedUniformBuffer(UniformBufferName, ReflectionSlot, 0, CompilerOutput);
+}
+
+extern SHADERCOMPILERCOMMON_API void HandleReflectedShaderResource(
+	const FString& ResourceName,
+	int32 BindOffset,
+	int32 ReflectionSlot,
+	int32 BindCount,
+	FShaderCompilerOutput& CompilerOutput
+);
+
+inline void HandleReflectedShaderResource(const FString& ResourceName, int32 ReflectionSlot, int32 BindCount, FShaderCompilerOutput& CompilerOutput)
+{
+	HandleReflectedShaderResource(ResourceName, 0, ReflectionSlot, BindCount, CompilerOutput);
+}
+
+inline void HandleReflectedShaderResource(const FString& ResourceName, int32 ReflectionSlot, FShaderCompilerOutput& CompilerOutput)
+{
+	HandleReflectedShaderResource(ResourceName, ReflectionSlot, 1, CompilerOutput);
+}
+
+extern SHADERCOMPILERCOMMON_API void HandleReflectedShaderUAV(
+	const FString& UAVName,
+	int32 BindOffset,
+	int32 ReflectionSlot,
+	int32 BindCount,
+	FShaderCompilerOutput& CompilerOutput
+);
+
+inline void HandleReflectedShaderUAV(const FString& UAVName, int32 ReflectionSlot, int32 BindCount, FShaderCompilerOutput& CompilerOutput)
+{
+	HandleReflectedShaderUAV(UAVName, 0, ReflectionSlot, BindCount, CompilerOutput);
+}
+
+inline void HandleReflectedShaderUAV(const FString& UAVName, int32 ReflectionSlot, FShaderCompilerOutput& CompilerOutput)
+{
+	HandleReflectedShaderUAV(UAVName, ReflectionSlot, 1, CompilerOutput);
+}
+
+extern SHADERCOMPILERCOMMON_API void HandleReflectedShaderSampler(
+	const FString& SamplerName,
+	int32 BindOffset,
+	int32 ReflectionSlot,
+	int32 BindCount,
+	FShaderCompilerOutput& CompilerOutput
+);
+
+inline void HandleReflectedShaderSampler(const FString& SamplerName, int32 ReflectionSlot, int32 BindCount, FShaderCompilerOutput& CompilerOutput)
+{
+	HandleReflectedShaderSampler(SamplerName, 0, ReflectionSlot, BindCount, CompilerOutput);
+}
+
+inline void HandleReflectedShaderSampler(const FString& SamplerName, int32 ReflectionSlot, FShaderCompilerOutput& CompilerOutput)
+{
+	HandleReflectedShaderSampler(SamplerName, ReflectionSlot, 1, CompilerOutput);
+}
+
 /** Adds a note to CompilerOutput.Error about where the shader parameter structure is on C++ side. */
 extern SHADERCOMPILERCOMMON_API void AddNoteToDisplayShaderParameterStructureOnCppSide(
 	const FShaderParametersMetadata* ParametersStructure,

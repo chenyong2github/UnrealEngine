@@ -342,13 +342,14 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 						{
 							bGlobalUniformBufferUsed = true;
 
-							Output.ParameterMap.AddParameterAllocation(
-								ANSI_TO_TCHAR(VariableDesc.Name),
+							HandleReflectedGlobalConstantBufferMember(
+								FString(VariableDesc.Name),
 								CBIndex,
 								VariableDesc.StartOffset,
 								VariableDesc.Size,
-								EShaderParameterType::LooseData
+								Output
 							);
+
 							UsedUniformBufferSlots[CBIndex] = true;
 						}
 					}
@@ -368,24 +369,22 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 						Variable->GetDesc(&VariableDesc);
 						if (VariableDesc.uFlags & D3D_SVF_USED)
 						{
-							FString MemberName(ANSI_TO_TCHAR(VariableDesc.Name));
-							int32 ReflectionSize = VariableDesc.Size;
-							int32 ReflectionOffset = VariableDesc.StartOffset;
+							HandleReflectedRootConstantBufferMember(
+								Input,
+								ShaderParameterParser,
+								FString(VariableDesc.Name),
+								VariableDesc.StartOffset,
+								VariableDesc.Size,
+								Output
+							);
 
-							ShaderParameterParser.ValidateShaderParameterType(Input, MemberName, ReflectionOffset, ReflectionSize, Output);
-
-							ConstantBufferSize = FMath::Max(ConstantBufferSize, ReflectionOffset + ReflectionSize);
+							ConstantBufferSize = FMath::Max<int32>(ConstantBufferSize, VariableDesc.StartOffset + VariableDesc.Size);
 						}
 					}
 
 					if (ConstantBufferSize > 0)
 					{
-						Output.ParameterMap.AddParameterAllocation(
-							FShaderParametersMetadata::kRootUniformBufferBindingName,
-							FShaderParametersMetadata::kRootCBufferBindingIndex,
-							/* Offset = */ uint16(0),
-							/* Size = */ uint16(ConstantBufferSize),
-							EShaderParameterType::LooseData);
+						HandleReflectedRootConstantBuffer(ConstantBufferSize, Output);
 
 						bGlobalUniformBufferUsed = true;
 						UsedUniformBufferSlots[CBIndex] = true;
@@ -405,20 +404,16 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 			else
 			{
 				// Track just the constant buffer itself.
-				Output.ParameterMap.AddParameterAllocation(
-					ANSI_TO_TCHAR(CBDesc.Name),
-					CBIndex,
-					0,
-					0,
-					EShaderParameterType::UniformBuffer
-				);
-				UsedUniformBufferSlots[CBIndex] = true;
+				const FString UniformBufferName(CBDesc.Name);
+
+				HandleReflectedUniformBuffer(UniformBufferName, CBIndex, Output);
 
 				if (UniformBufferNames.Num() <= (int32)CBIndex)
 				{
 					UniformBufferNames.AddDefaulted(CBIndex - UniformBufferNames.Num() + 1);
 				}
-				UniformBufferNames[CBIndex] = CBDesc.Name;
+				UniformBufferNames[CBIndex] = UniformBufferName;
+				UsedUniformBufferSlots[CBIndex] = true;
 			}
 
 			NumCBs = FMath::Max(NumCBs, BindDesc.BindPoint + BindDesc.BindCount);
@@ -431,9 +426,6 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 			const bool bIsAMDTexExtension = (FCStringAnsi::Strcmp(BindDesc.Name, "AmdDxExtShaderIntrinsicsResource") == 0);
 			const bool bIsAMDSmpExtension = (FCStringAnsi::Strcmp(BindDesc.Name, "AmdDxExtShaderIntrinsicsSamplerState") == 0);
 			const bool bIsVendorParameter = bIsAMDTexExtension || bIsAMDSmpExtension;
-
-			TCHAR OfficialName[1024];
-			FCString::Strcpy(OfficialName, ANSI_TO_TCHAR(BindDesc.Name));
 
 			const uint32 BindCount = 1;
 			EShaderParameterType ParameterType = EShaderParameterType::Num;
@@ -452,16 +444,13 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 			{
 				VendorExtensions.Emplace(0x1002 /*AMD*/, 0, BindDesc.BindPoint, BindCount, ParameterType);
 			}
+			else if (ParameterType == EShaderParameterType::Sampler)
+			{
+				HandleReflectedShaderSampler(FString(BindDesc.Name), BindDesc.BindPoint, Output);
+			}
 			else
 			{
-				// Add a parameter for the texture only, the sampler index will be invalid
-				Output.ParameterMap.AddParameterAllocation(
-					OfficialName,
-					0,
-					BindDesc.BindPoint,
-					BindCount,
-					ParameterType
-				);
+				HandleReflectedShaderResource(FString(BindDesc.Name), BindDesc.BindPoint, Output);
 			}
 		}
 		else if (BindDesc.Type == D3D_SIT_UAV_RWTYPED || BindDesc.Type == D3D_SIT_UAV_RWSTRUCTURED ||
@@ -487,9 +476,6 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 			// See D3DCommon.ush
 			const bool bIsDiagnosticBufferParameter = (FCStringAnsi::Strcmp(BindDesc.Name, "UEDiagnosticBuffer") == 0);
 
-			TCHAR OfficialName[1024];
-			FCString::Strcpy(OfficialName, ANSI_TO_TCHAR(BindDesc.Name));
-
 			const uint32 BindCount = 1;
 			if (bIsVendorParameter)
 			{
@@ -506,13 +492,7 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 			}
 			else
 			{
-				Output.ParameterMap.AddParameterAllocation(
-					OfficialName,
-					0,
-					BindDesc.BindPoint,
-					BindCount,
-					EShaderParameterType::UAV
-				);
+				HandleReflectedShaderUAV(FString(BindDesc.Name), BindDesc.BindPoint, Output);
 			}
 
 			NumUAVs = FMath::Max(NumUAVs, BindDesc.BindPoint + BindCount);
@@ -520,38 +500,15 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 		else if (BindDesc.Type == D3D_SIT_STRUCTURED || BindDesc.Type == D3D_SIT_BYTEADDRESS)
 		{
 			check(BindDesc.BindCount == 1);
-			TCHAR OfficialName[1024];
-			FCString::Strcpy(OfficialName, ANSI_TO_TCHAR(BindDesc.Name));
-
-			const uint32 BindCount = 1;
-			Output.ParameterMap.AddParameterAllocation(
-				OfficialName,
-				0,
-				BindDesc.BindPoint,
-				BindCount,
-				EShaderParameterType::SRV
-			);
-
-			NumSRVs = FMath::Max(NumSRVs, BindDesc.BindPoint + BindCount);
+			HandleReflectedShaderResource(FString(BindDesc.Name), BindDesc.BindPoint, Output);
+			NumSRVs = FMath::Max(NumSRVs, BindDesc.BindPoint + 1);
 		}
 		else if (BindDesc.Type == (D3D_SHADER_INPUT_TYPE)(D3D_SIT_UAV_RWSTRUCTURED_WITH_COUNTER + 1)) // D3D_SIT_RTACCELERATIONSTRUCTURE (12)
 		{
 			// Acceleration structure resources are treated as SRVs.
 			check(BindDesc.BindCount == 1);
-
-			TCHAR OfficialName[1024];
-			FCString::Strcpy(OfficialName, ANSI_TO_TCHAR(BindDesc.Name));
-
-			const uint32 BindCount = 1;
-			Output.ParameterMap.AddParameterAllocation(
-				OfficialName,
-				0,
-				BindDesc.BindPoint,
-				BindCount,
-				EShaderParameterType::SRV
-			);
-
-			NumSRVs = FMath::Max(NumSRVs, BindDesc.BindPoint + BindCount);
+			HandleReflectedShaderResource(FString(BindDesc.Name), BindDesc.BindPoint, Output);
+			NumSRVs = FMath::Max(NumSRVs, BindDesc.BindPoint + 1);
 		}
 	}
 }
