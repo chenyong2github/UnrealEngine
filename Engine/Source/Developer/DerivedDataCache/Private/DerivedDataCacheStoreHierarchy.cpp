@@ -221,7 +221,7 @@ FCacheStoreHierarchy::FCacheStoreHierarchy(IMemoryCacheStore* InMemoryCache)
 {
 	if (MemoryCache)
 	{
-		Add(MemoryCache, ECacheStoreFlags::Local | ECacheStoreFlags::Query);
+		Add(MemoryCache, ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::StopStore);
 	}
 }
 
