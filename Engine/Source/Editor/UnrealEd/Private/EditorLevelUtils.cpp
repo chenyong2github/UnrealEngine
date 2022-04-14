@@ -726,8 +726,11 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 	}
 	check(bIsPartitioned == PersistentLevel->bIsPartitioned);
 
-	// Call lambda before saving level
-	InPreSaveLevelOperation(PersistentLevel);
+	if (InPreSaveLevelOperation)
+	{
+		// Call lambda before saving level
+		InPreSaveLevelOperation(PersistentLevel);
+	}
 
 	bool bNewWorldSaved = false;
 	FString NewPackageName = DefaultFilename;
