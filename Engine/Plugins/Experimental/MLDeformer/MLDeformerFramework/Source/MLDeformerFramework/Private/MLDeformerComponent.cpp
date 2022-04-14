@@ -28,6 +28,10 @@ void UMLDeformerComponent::Init()
 	UMLDeformerModel* Model = DeformerAsset->GetModel();
 	if (Model)
 	{
+		if (ModelInstance)
+		{
+			ModelInstance->Release();
+		}
 		ModelInstance = Model->CreateModelInstance(this);
 		ModelInstance->SetModel(Model);
 		ModelInstance->Init(SkelMeshComponent);

@@ -271,7 +271,7 @@ namespace UE::VertexDeltaModel
 
 	FString FVertexDeltaEditorModel::GetTrainedNetworkOnnxFile() const
 	{
-		return FString(FPaths::ProjectIntermediateDir() + TEXT("VertexDeltaModel/latest_net_G.onnx"));
+		return FString(FPaths::ProjectIntermediateDir() + TEXT("VertexDeltaModel/VertexDeltaModel.onnx"));
 	}
 }	// namespace UE::VertexDeltaModel
 
