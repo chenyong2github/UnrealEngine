@@ -67,24 +67,30 @@ struct FRedirectorBindingInfo
  */
 struct FBindingContextStruct
 {
-	FBindingContextStruct(UStruct* InStruct, const FSlateBrush* InIcon = nullptr, const FText& InDisplayText = FText::GetEmpty(), const FText& InTooltipText = FText::GetEmpty())
+	FBindingContextStruct() = default;
+	
+	FBindingContextStruct(UStruct* InStruct, const FSlateBrush* InIcon = nullptr, const FText& InDisplayText = FText::GetEmpty(), const FText& InTooltipText = FText::GetEmpty(), const FText& InSection = FText::GetEmpty())
 		: Struct(InStruct)
 		, Icon(InIcon)
 		, DisplayText(InDisplayText)
 		, TooltipText(InTooltipText)
+		, Section(InSection)
 	{}
 
 	/** The struct to bind to. */
-	UStruct* Struct;
+	UStruct* Struct = nullptr;
 
-	/** Icon to display in hte poppup menu. */ 
-	const FSlateBrush* Icon;
+	/** Icon to display in the popup menu. */ 
+	const FSlateBrush* Icon = nullptr;
 
 	/** Text to display for this item in the popup. If left empty, struct's display text will be used. */
 	FText DisplayText;
 
 	/** Tooltip to show, or if empty, the tool tip will be set to the same as popup text. */
 	FText TooltipText;
+
+	/** Name of the section to put the struct to. If left empty, no section will be created. */
+	FText Section;
 };
 
 
@@ -108,6 +114,9 @@ DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCanBindFunction, UFunction* /*InFuncti
 
 /** Delegate called to see if a class can be bound to */
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCanBindToClass, UClass* /*InClass*/);
+
+/** Delegate called to see if a class can be bound to */
+DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCanBindToContextStruct, UStruct* /*InStruct*/);
 
 /** Delegate called to see if a subobject can be bound to */
 DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCanBindToSubObjectClass, UClass* /*InSubObjectClass*/);
@@ -154,6 +163,9 @@ struct FPropertyBindingWidgetArgs
 	/** Delegate called to see if a class can be bound to */
 	FOnCanBindToClass OnCanBindToClass;
 
+	/** Delegate called to see if a context struct can be directly bound to */
+	FOnCanBindToContextStruct OnCanBindToContextStruct;
+	
 	/** Delegate called to see if a subobject can be bound to */
 	FOnCanBindToSubObjectClass OnCanBindToSubObjectClass;
 

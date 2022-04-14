@@ -394,9 +394,33 @@ TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu()
 	{
 		auto MakeContextStructWidget = [this](const FBindingContextStruct& ContextStruct)
 		{
-			FText DisplayText = ContextStruct.DisplayText.IsEmpty() ? ContextStruct.Struct->GetDisplayNameText() : ContextStruct.DisplayText;
-			FText ToolTipText = ContextStruct.TooltipText.IsEmpty() ? DisplayText : ContextStruct.TooltipText;
+			const FText DisplayText = ContextStruct.DisplayText.IsEmpty() ? ContextStruct.Struct->GetDisplayNameText() : ContextStruct.DisplayText;
+			const FText ToolTipText = ContextStruct.TooltipText.IsEmpty() ? DisplayText : ContextStruct.TooltipText;
 
+			const FSlateBrush* Icon = ContextStruct.Icon;
+			FLinearColor IconColor = FLinearColor::White;
+			if (Icon == nullptr)
+			{
+				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+
+				FEdGraphPinType PinType;
+
+				if (UClass* Class = Cast<UClass>(ContextStruct.Struct))
+				{
+					PinType.PinCategory = UEdGraphSchema_K2::PC_Object;
+					PinType.PinSubCategory = NAME_None;
+					PinType.PinSubCategoryObject = Class;
+				}
+				else if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ContextStruct.Struct))
+				{
+					PinType.PinCategory = UEdGraphSchema_K2::PC_Struct;
+					PinType.PinSubCategory = NAME_None;
+					PinType.PinSubCategoryObject = ScriptStruct;
+				}
+				Icon = FBlueprintEditorUtils::GetIconFromPin(PinType, true); 
+				IconColor = Schema->GetPinTypeColor(PinType);
+			}
+			
 			return SNew(SHorizontalBox)
 				.ToolTipText(ToolTipText)
 				+ SHorizontalBox::Slot()
@@ -411,7 +435,8 @@ TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu()
 				.Padding(1.0f, 0.0f)
 				[
 					SNew(SImage)
-					.Image(ContextStruct.Icon)
+					.Image(Icon)
+					.ColorAndOpacity(IconColor)
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -423,20 +448,50 @@ TSharedRef<SWidget> SPropertyBinding::OnGenerateDelegateMenu()
 				];
 		};
 
+		bool bSectionOpened = false;
+		FText CurrentSection = FText::GetEmpty();
+		
 		for (int32 i = 0; i < BindingContextStructs.Num(); i++)
 		{
 			FBindingContextStruct& ContextStruct = BindingContextStructs[i];
-			if (HasBindableProperties(ContextStruct.Struct))
-			{
-				// Make first chain element representing the index in the context array.
-				TArray<TSharedPtr<FBindingChainElement>> BindingChain;
-				BindingChain.Emplace(MakeShared<FBindingChainElement>(nullptr, i));
 
+			if (!ContextStruct.Section.IdenticalTo(CurrentSection))
+			{
+				if (bSectionOpened)
+				{
+					MenuBuilder.EndSection();
+				}
+
+				CurrentSection = ContextStruct.Section;
+				MenuBuilder.BeginSection(FName(), CurrentSection);
+				bSectionOpened = true;
+			}
+			
+			// Make first chain element representing the index in the context array.
+			TArray<TSharedPtr<FBindingChainElement>> BindingChain;
+			BindingChain.Emplace(MakeShared<FBindingChainElement>(nullptr, i));
+
+			if (Args.OnCanBindToContextStruct.IsBound() && Args.OnCanBindToContextStruct.Execute(ContextStruct.Struct))
+			{
+				// If the struct can be be bound to directly, create action for that. 
+				MenuBuilder.AddMenuEntry(
+					FUIAction(FExecuteAction::CreateSP(this, &SPropertyBinding::HandleAddBinding, BindingChain)),
+					MakeContextStructWidget(ContextStruct));
+			}
+			else if (HasBindableProperties(ContextStruct.Struct))
+			{
+				// Show struct properties.
 				MenuBuilder.AddSubMenu(
 					MakeContextStructWidget(ContextStruct),
 					FNewMenuDelegate::CreateSP(this, &SPropertyBinding::FillPropertyMenu, ContextStruct.Struct, BindingChain));
 			}
 		}
+
+		if (bSectionOpened)
+		{
+			MenuBuilder.EndSection();
+		}
+
 	}
 
 	FDisplayMetrics DisplayMetrics;
@@ -524,8 +579,6 @@ void SPropertyBinding::FillPropertyMenu(FMenuBuilder& MenuBuilder, UStruct* InOw
 
 	auto MakePropertyWidget = [this](FProperty* InProperty)
 	{
-		static FName PropertyIcon(TEXT("Kismet.VariableList.TypeIcon"));
-
 		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 
 		FEdGraphPinType PinType;
