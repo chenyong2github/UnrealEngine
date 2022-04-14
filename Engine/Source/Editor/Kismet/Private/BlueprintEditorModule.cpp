@@ -31,6 +31,7 @@
 #include "KismetCompiler.h"
 #include "KismetWidgets.h"
 #include "BlueprintNamespaceRegistry.h"
+#include "SPinValueInspector.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintEditor"
 
@@ -259,6 +260,7 @@ void FBlueprintEditorModule::ShutdownModule()
 	UnregisterSCSEditorCustomization("InstancedStaticMeshComponent");
 
 	UEdGraphPin::ShutdownVerification();
+	FPinValueInspectorTooltip::ShutdownTooltip();
 
 	FBlueprintNamespaceRegistry::Get().Shutdown();
 }

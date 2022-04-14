@@ -279,6 +279,13 @@ TWeakPtr<FPinValueInspectorTooltip> FPinValueInspectorTooltip::SummonTooltip(FEd
 	return nullptr;
 }
 
+void FPinValueInspectorTooltip::ShutdownTooltip()
+{
+	TooltipWindow.Reset();
+	TooltipWidget.Reset();
+	ValueInspectorWidget.Reset();
+}
+
 void FPinValueInspectorTooltip::MoveTooltip(const FVector2D& InNewLocation)
 {
 	if (ensureMsgf(TooltipWindow.IsValid(), TEXT("SPinValueInspector::MoveTooltip was called before any tooltip was created")))

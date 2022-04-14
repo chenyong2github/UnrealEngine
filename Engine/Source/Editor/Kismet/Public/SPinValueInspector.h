@@ -91,6 +91,9 @@ public:
 	/** Summons a new tooltip in the shared window */
 	static TWeakPtr<FPinValueInspectorTooltip> SummonTooltip(FEdGraphPinReference InPinRef);
 
+	/** Release the references to the static widget shared pointers */
+	static void ShutdownTooltip();
+
 	/** Inspector widget in the tooltip */
 	static TSharedPtr<SPinValueInspector> ValueInspectorWidget;
 
