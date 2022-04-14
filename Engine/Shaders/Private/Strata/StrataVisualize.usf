@@ -129,7 +129,9 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 	{
 		case STRATA_BSDF_TYPE_SLAB:
 		{
-			const bool bGreyWeightV = BSDF_GETHASGREYWEIGHT(BSDF);
+			const bool bWeightL = BSDF_GETHASWEIGHT_L(BSDF);
+			const bool bGreyWeightV = BSDF_GETHASGREYWEIGHT_V(BSDF);
+			const bool bGreyWeightL = BSDF.LuminanceWeightL.x == BSDF.LuminanceWeightL.y && BSDF.LuminanceWeightL.x == BSDF.LuminanceWeightL.z;
 
 			Print(Context, TEXT("Slab "), FontBSDFType);
 			Newline(Context);
@@ -138,7 +140,10 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			{
 				Print(Context, TEXT("           "), FontBSDFStateName);
 			}
-			Print(Context, TEXT("WeightL"), FontBSDFStateName);
+			if (bWeightL)
+			{
+				Print(Context, TEXT("WeightL"), FontBSDFStateName);
+			}
 			Newline(Context);
 
 			Print(Context, TEXT(" "), FontSilver);
@@ -150,23 +155,24 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			PrintBool(Context, BSDF_GETISTHIN(BSDF), FontBSDF);					Print(Context, TEXT("  "), FontSilver);
 
 			// View Weight
-			if (BSDF_GETHASGREYWEIGHT(BSDF))
 			{
-				Print(Context, BSDF.LuminanceWeightV.x, FontSilver, 6, 4);
-			}
-			else
-			{
-				Print(Context, BSDF.LuminanceWeightV.r, FontLightRed,   6, 4);
-				Print(Context, BSDF.LuminanceWeightV.g, FontLightGreen, 6, 4);
-				Print(Context, BSDF.LuminanceWeightV.b, FontLightBlue,  6, 4);
+				if (bGreyWeightV)
+				{
+					Print(Context, BSDF.LuminanceWeightV.x, FontSilver, 6, 4);
+				}
+				else
+				{
+					Print(Context, BSDF.LuminanceWeightV.r, FontLightRed,   6, 4);
+					Print(Context, BSDF.LuminanceWeightV.g, FontLightGreen, 6, 4);
+					Print(Context, BSDF.LuminanceWeightV.b, FontLightBlue,  6, 4);
+				}
 			}
 
 			// Lighy weight
-			if (any(BSDF.LuminanceWeightL < 1.f))
+			if (bWeightL)
 			{
 				Print(Context, TEXT(" "), FontSilver);
-				const bool bGreyLuminanceL = BSDF.LuminanceWeightL.x == BSDF.LuminanceWeightL.y && BSDF.LuminanceWeightL.x == BSDF.LuminanceWeightL.z;
-				if (bGreyLuminanceL)
+				if (bGreyWeightL)
 				{
 					Print(Context, BSDF.LuminanceWeightL.x, FontSilver);
 				}
@@ -250,7 +256,7 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			Print(Context, BSDF_GETSHAREDLOCALBASISID(BSDF), FontBSDF);
 			PrintBool(Context, BSDF_GETHASANISOTROPY(BSDF), FontBSDF);
 			PrintBool(Context, BSDF_GETISTOPLAYER(BSDF), FontBSDF);
-			if (BSDF_GETHASGREYWEIGHT(BSDF))
+			if (BSDF_GETHASGREYWEIGHT_V(BSDF))
 			{
 				Print(Context, BSDF.LuminanceWeightV.x, FontSilver);
 			}
