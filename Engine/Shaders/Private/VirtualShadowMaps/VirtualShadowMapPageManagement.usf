@@ -1030,6 +1030,7 @@ RWBuffer<uint> OutPagesForHZBIndirectArgsBuffer;
 RWStructuredBuffer<uint> OutPhysicalPagesForHZB;
 StructuredBuffer<uint> DirtyPageFlags;
 uint bFirstBuildThisFrame;
+uint bForceFullHZBUpdate;
 
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
 void SelectPagesForHZBCS(uint PhysicalPageIndex : SV_DispatchThreadID)
@@ -1045,7 +1046,7 @@ void SelectPagesForHZBCS(uint PhysicalPageIndex : SV_DispatchThreadID)
 	{
 		bool bPageDirty = DirtyPageFlags[MetaData.VirtualPageOffset] != 0U;
 		// rebuild the HZB if the page is rendered to or it is freshly allocated, but only the first time for a given frame.
-		if (bPageDirty || (bFirstBuildThisFrame != 0 && MetaData.Age == 0U))
+		if (bForceFullHZBUpdate || bPageDirty || (bFirstBuildThisFrame != 0 && MetaData.Age == 0U))
 		{
 			StatsBufferInterlockedInc(VSM_STAT_NUM_HZB_PAGES_BUILT);
 

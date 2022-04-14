@@ -33,6 +33,29 @@ StructuredBuffer<uint> InvalidatingInstances;
 uint NumInvalidatingInstanceSlots;
 #endif
 
+struct FInstanceInvalidationPayload
+{
+	int ClipmapVirtualShadowMapId;
+	bool bInvalidateStaticPage;
+};
+
+FInstanceInvalidationPayload DecodeInstanceInvalidationPayload(uint Payload)
+{
+	FInstanceInvalidationPayload Result;
+	Result.bInvalidateStaticPage = (Payload & 0x2) != 0;
+	if (Payload & 0x1)
+	{
+		// Single clipmap level
+		Result.ClipmapVirtualShadowMapId = Payload >> 2;
+	}
+	else
+	{
+		// All local light levels
+		Result.ClipmapVirtualShadowMapId = INDEX_NONE;
+	}
+	return Result;
+}
+
 /**
  * Each thread loops over a range on instances loaded from a buffer. The instance bounds are projected to all cached virtual shadow map address space 
  * and any overlapped pages are marked as invalid.
@@ -46,6 +69,8 @@ void VirtualSmInvalidateInstancePagesCS(
 	uint FirstVirtualShadowMapId = 0u;
 	uint NumVirtualShadowMapIds = VirtualShadowMap.NumShadowMaps;
 
+	bool bForceInvalidateStaticPage = false;
+
 #if INPUT_KIND == INPUT_KIND_LOAD_BALANCER
 	FInstanceWorkSetup WorkSetup = InstanceCullingLoadBalancer_Setup(GroupId, GroupThreadIndex, 0U);
 
@@ -54,11 +79,14 @@ void VirtualSmInvalidateInstancePagesCS(
 		return;
 	}
 
-	bool bSkipClipmaps = (WorkSetup.Item.Payload & 1U) != 0U;
-	uint SingleShadowMapId = WorkSetup.Item.Payload >> 1U;
-	if (SingleShadowMapId != 0U)
+	FInstanceInvalidationPayload Payload = DecodeInstanceInvalidationPayload(WorkSetup.Item.Payload);
+
+	bForceInvalidateStaticPage = Payload.bInvalidateStaticPage;
+	bool bSkipClipmaps = Payload.ClipmapVirtualShadowMapId == INDEX_NONE;
+	if (!bSkipClipmaps)
 	{
-		FirstVirtualShadowMapId = SingleShadowMapId - 1U;
+		// Do a single clipmap level
+		FirstVirtualShadowMapId = Payload.ClipmapVirtualShadowMapId;
 		NumVirtualShadowMapIds = FirstVirtualShadowMapId + 1U;
 	}
 
@@ -84,7 +112,9 @@ void VirtualSmInvalidateInstancePagesCS(
 			return;
 		}
 
-		uint InvalidationFlags = ShouldCacheInstanceAsStatic(InstanceSceneData) ? VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG;
+		// TODO: This is slightly messy, but should be ok for the moment
+		bool bInvalidateStaticPage = bForceInvalidateStaticPage ||  ShouldCacheInstanceAsStatic(InstanceSceneData);
+		uint InvalidationFlags = bInvalidateStaticPage ? VSM_STATIC_UNCACHED_FLAG : VSM_DYNAMIC_UNCACHED_FLAG;
 
 		// TODO: Clean up hardcoded flag field test.
 		bool bCastShadows = InstanceSceneData.ValidInstance 

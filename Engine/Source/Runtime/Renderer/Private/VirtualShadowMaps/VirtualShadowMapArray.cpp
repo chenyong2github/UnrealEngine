@@ -254,6 +254,12 @@ static TAutoConsoleVariable<int32> CVarShadowsVirtualUseHZB(
 	TEXT(" 2 - Two-pass occlusion culling (default)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarShadowsVirtualForceFullHZBUpdate(
+	TEXT("r.Shadow.Virtual.ForceFullHZBUpdate"),
+	0,
+	TEXT("Forces full HZB update every frame rather than just dirty pages.\n"),
+	ECVF_RenderThreadSafe);
+
 FMatrix CalcTranslatedWorldToShadowUVMatrix(
 	const FMatrix& TranslatedWorldToShadowView,
 	const FMatrix& ViewToClip)
@@ -2536,6 +2542,7 @@ class FSelectPagesForHZBCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutPhysicalPagesForHZB)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, DirtyPageFlags)
 		SHADER_PARAMETER(uint32, bFirstBuildThisFrame)
+		SHADER_PARAMETER(uint32, bForceFullHZBUpdate)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStatsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -2607,6 +2614,7 @@ void FVirtualShadowMapArray::UpdateHZB(FRDGBuilder& GraphBuilder)
 		PassParameters->OutPhysicalPagesForHZB = GraphBuilder.CreateUAV(PhysicalPagesForHZBRDG);
 		PassParameters->DirtyPageFlags = GraphBuilder.CreateSRV(DirtyPageFlagsRDG);
 		PassParameters->bFirstBuildThisFrame = !bHZBBuiltThisFrame;
+		PassParameters->bForceFullHZBUpdate = CVarShadowsVirtualForceFullHZBUpdate.GetValueOnRenderThread();
 		FSelectPagesForHZBCS::FPermutationDomain PermutationVector;
 		SetStatsArgsAndPermutation<FSelectPagesForHZBCS>(GraphBuilder, StatsBufferRDG, PassParameters, PermutationVector);
 		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FSelectPagesForHZBCS>(PermutationVector);

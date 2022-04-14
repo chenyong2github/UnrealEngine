@@ -191,6 +191,25 @@ FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::FInvalidati
 	}
 }
 
+static inline uint32 EncodeInstanceInvalidationPayload(bool bInvalidateStaticPage, int32 ClipmapVirtualShadowMapId = INDEX_NONE)
+{
+	uint32 Payload = 0;
+
+	if (bInvalidateStaticPage)
+	{
+		Payload = Payload | 0x2;
+	}
+
+	if (ClipmapVirtualShadowMapId != INDEX_NONE)
+	{
+		// Do a single clipmap level
+		Payload = Payload | 0x1;
+		Payload = Payload | (((uint32)ClipmapVirtualShadowMapId) << 2);
+	}
+
+	return Payload;
+}
+
 void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::Add(const FPrimitiveSceneInfo * PrimitiveSceneInfo)
 {
 	int32 PrimitiveID = PrimitiveSceneInfo->GetIndex();
@@ -204,12 +223,14 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::Add(co
 		AlreadyAddedPrimitives[PrimitiveID] = true;
 		int32 PersistentPrimitiveIndex = PrimitiveSceneInfo->GetPersistentIndex().Index;
 
-		const int32 NumInstanceSceneDataEntries = PrimitiveSceneInfo->GetNumInstanceSceneDataEntries();
-		// Add for non-directional lights, mark for skipping clipmaps as these are handled individually below
-		LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, 1U);
-
 		// Nanite meshes need special handling because they don't get culled on CPU, thus always process invalidations for those
 		const bool bIsNaniteMesh = Scene.PrimitiveFlagsCompact[PrimitiveID].bIsNaniteMesh;
+		const bool bPossiblyCachedAsStatic = !PrimitiveSceneInfo->Proxy->IsMovable();
+
+		const int32 NumInstanceSceneDataEntries = PrimitiveSceneInfo->GetNumInstanceSceneDataEntries();
+		// Add for non-directional lights, mark for skipping clipmaps as these are handled individually below
+		LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, EncodeInstanceInvalidationPayload(bPossiblyCachedAsStatic));
+
 		// Process directional lights, where we explicitly filter out primitives that were not rendered (and mark this fact)
 		for (auto& CacheEntry : Manager.PrevCacheEntries)
 		{
@@ -228,8 +249,9 @@ void FVirtualShadowMapArrayCacheManager::FInvalidatingPrimitiveCollector::Add(co
 				{
 					if (SmCacheEntry.IsValid())
 					{
-						// Lowest bit indicates whether to run the clipmap loop, add 1 to ID so != 0 <==> single level processing
-						LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries, (uint32(SmCacheEntry->CurrentVirtualShadowMapId + 1) << 1U) | 0U);
+						checkSlow(SmCacheEntry->CurrentVirtualShadowMapId != INDEX_NONE);
+						LoadBalancer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset(), NumInstanceSceneDataEntries,
+							EncodeInstanceInvalidationPayload(bPossiblyCachedAsStatic, SmCacheEntry->CurrentVirtualShadowMapId));
 					}
 				}
 			}
