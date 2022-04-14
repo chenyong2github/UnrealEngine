@@ -494,6 +494,8 @@ FInsightsSettings& FInsightsManager::GetSettings()
 
 bool FInsightsManager::Tick(float DeltaTime)
 {
+	AutoLoadLiveSession();
+
 	UpdateSessionDuration();
 
 #if !WITH_EDITOR
@@ -794,6 +796,37 @@ void FInsightsManager::OpenTraceFile(const FString& InTraceFile) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FInsightsManager::AutoLoadLiveSession()
+{
+	if (!bIsAutoLoadLiveSessionEnabled)
+	{
+		return;
+	}
+
+	if (!StoreClient.IsValid())
+	{
+		return;
+	}
+
+	const uint32 SessionCount = StoreClient->GetSessionCount();
+	for (uint32 SessionIndex = 0; SessionIndex < SessionCount; ++SessionIndex)
+	{
+		const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionIndex);
+		if (SessionInfo)
+		{
+			const uint32 TraceId = SessionInfo->GetTraceId();
+			if (TraceId != CurrentTraceId && !AutoLoadedTraceIds.Contains(TraceId))
+			{
+				AutoLoadedTraceIds.Add(TraceId);
+				LoadTrace(SessionInfo->GetTraceId());
+				break;
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FInsightsManager::LoadLastLiveSession()
 {
 	ResetSession();
@@ -803,19 +836,15 @@ void FInsightsManager::LoadLastLiveSession()
 		return;
 	}
 
-	const int32 SessionCount = StoreClient->GetSessionCount();
-	if (SessionCount == 0)
+	const uint32 SessionCount = StoreClient->GetSessionCount();
+	if (SessionCount != 0)
 	{
-		return;
+		const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
+		if (SessionInfo)
+		{
+			LoadTrace(SessionInfo->GetTraceId());
+		}
 	}
-
-	const UE::Trace::FStoreClient::FSessionInfo* SessionInfo = StoreClient->GetSessionInfo(SessionCount - 1);
-	if (SessionInfo == nullptr)
-	{
-		return;
-	}
-
-	LoadTrace(SessionInfo->GetTraceId());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -824,7 +853,7 @@ void FInsightsManager::LoadTrace(uint32 InTraceId, bool InAutoQuit)
 {
 	ResetSession();
 
-	if (StoreClient == nullptr)
+	if (!StoreClient.IsValid())
 	{
 		if (InAutoQuit)
 		{

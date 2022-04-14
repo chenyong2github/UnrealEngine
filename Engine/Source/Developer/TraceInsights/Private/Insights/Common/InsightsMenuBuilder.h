@@ -10,7 +10,7 @@ class FMenuBuilder;
 
 struct FUIAction;
 
-class FInsightsMenuBuilder
+class FInsightsMenuBuilder : public TSharedFromThis<FInsightsMenuBuilder>
 {
 public:
 	FInsightsMenuBuilder();
@@ -18,7 +18,8 @@ public:
 	TSharedRef<FWorkspaceItem> GetInsightsToolsGroup();
 	TSharedRef<FWorkspaceItem> GetWindowsGroup();
 
-	void PopulateMenu(FMenuBuilder& MenuBuilder);
+	void PopulateMenu(FMenuBuilder& InOutMenuBuilder);
+	void BuildOpenTraceFileSubMenu(FMenuBuilder& InOutMenuBuilder);
 
 	// Adds a menu entry with a custom key binding text.
 	static void AddMenuEntry(

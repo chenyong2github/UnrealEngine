@@ -264,6 +264,10 @@ public:
 	 */
 	void OpenTraceFile(const FString& TraceFilename) const;
 
+	void ToggleAutoLoadLiveSession() { bIsAutoLoadLiveSessionEnabled = !bIsAutoLoadLiveSessionEnabled; }
+	bool IsAutoLoadLiveSessionEnabled() const { return bIsAutoLoadLiveSessionEnabled; }
+	void AutoLoadLiveSession();
+
 	/**
 	 * Creates a new analysis session instance and loads the latest available trace that is live.
 	 * Replaces the current analysis session.
@@ -450,6 +454,9 @@ private:
 
 	bool bIsAnalysisComplete = false;
 	bool bSessionAnalysisCompletedAutoQuit = false;
+
+	bool bIsAutoLoadLiveSessionEnabled = false;
+	TSet<uint32> AutoLoadedTraceIds; // list of trace ids for the auto loaded live sessions
 
 	FStopwatch AnalysisStopwatch;
 	double SessionDuration = 0.0;

@@ -58,16 +58,24 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 		LOCTEXT("OpenSessionBrowser_ToolTip", "Opens the Unreal Insights Session Browser window."),
 		FSlateIcon(FInsightsStyle::GetStyleSetName(), "AppIcon.Small"),
 		FUIAction(FExecuteAction::CreateLambda([] { FInsightsManager::Get()->OpenUnrealInsights(); })));
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("OpenTraceFile_SubMenu", "Open Trace File"),
+		LOCTEXT("OpenTraceFile_SubMenu_Desc", "Starts analysis for a specified trace file."),
+		FNewMenuDelegate::CreateSP(this, &FInsightsMenuBuilder::BuildOpenTraceFileSubMenu),
+		false,
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen")
+	);
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("OpenTraceFile1", "Open Trace File (new instance)..."),
-		LOCTEXT("OpenTraceFile1_ToolTip", "Starts analysis for a specified trace file, in a separate Unreal Insights instance."),
+		LOCTEXT("AutoOpenLiveTrace", "Auto Open Live Trace"),
+		LOCTEXT("AutoOpenLiveTrace_ToolTip", "If enabled, the analysis starts automatically for each new live trace session, replacing the current analysis session."),
 		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateLambda([] { FInsightsManager::Get()->OpenTraceFile(); })));
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("OpenTraceFile2", "Open Trace File (same instance)..."),
-		LOCTEXT("OpenTraceFile2_ToolTip", "Starts analysis for a specified trace file, replacing the current analysis session."),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateLambda([] { FInsightsManager::Get()->LoadTraceFile(); })));
+		FUIAction(
+			FExecuteAction::CreateLambda([]() { FInsightsManager::Get()->ToggleAutoLoadLiveSession(); }),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([]() -> bool { return FInsightsManager::Get()->IsAutoLoadLiveSessionEnabled(); })
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton);
 	MenuBuilder.EndSection();
 
 	FGlobalTabmanager::Get()->PopulateLocalTabSpawnerMenu(MenuBuilder);
@@ -105,6 +113,23 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 	}
 #endif // !UE_BUILD_SHIPPING
 #endif // !WITH_EDITOR
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FInsightsMenuBuilder::BuildOpenTraceFileSubMenu(FMenuBuilder& MenuBuilder)
+{
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OpenTraceFile1", "Open in New Instance..."),
+		LOCTEXT("OpenTraceFile1_ToolTip", "Starts analysis for a specified trace file, in a separate Unreal Insights instance."),
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen"),
+		FUIAction(FExecuteAction::CreateLambda([] { FInsightsManager::Get()->OpenTraceFile(); })));
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("OpenTraceFile2", "Open in Same Instance..."),
+		LOCTEXT("OpenTraceFile2_ToolTip", "Starts analysis for a specified trace file, replacing the current analysis session."),
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen"),
+		FUIAction(FExecuteAction::CreateLambda([] { FInsightsManager::Get()->LoadTraceFile(); })));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
