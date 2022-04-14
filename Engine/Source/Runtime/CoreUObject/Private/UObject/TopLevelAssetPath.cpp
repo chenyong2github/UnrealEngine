@@ -1,0 +1,202 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "UObject/TopLevelAssetPath.h"
+
+#include "Containers/UnrealString.h"
+
+#include "Misc/AsciiSet.h"
+#include "Misc/RedirectCollector.h"
+#include "UObject/CoreRedirects.h"
+#include "UObject/ObjectRedirector.h"
+#include "UObject/UnrealType.h"
+#include "UObject/UObjectThreadContext.h"
+
+FTopLevelAssetPath::FTopLevelAssetPath(const UObject* InObject)
+{
+	if (InObject == nullptr)
+	{
+		PackageName = AssetName = FName();
+	}
+	else if (!InObject->GetOuter())
+	{
+		check(Cast<UPackage>(InObject) != nullptr);
+		PackageName = InObject->GetFName();
+		AssetName = FName();
+	}
+	else if (!InObject->IsAsset() || InObject->GetOuter()->GetOuter() != nullptr)
+	{
+		PackageName = AssetName = FName();
+	}
+	else
+	{
+		PackageName = InObject->GetOuter()->GetFName();
+		AssetName = InObject->GetFName();
+	}
+}
+
+void FTopLevelAssetPath::AppendString(FStringBuilderBase& Builder) const
+{
+	if (!IsNull())
+	{
+		Builder << PackageName;
+		if (!AssetName.IsNone())
+		{
+			Builder << '.' << AssetName;
+		}		
+	}
+}
+
+void FTopLevelAssetPath::AppendString(FString& Builder) const
+{
+	if (!IsNull())
+	{
+		PackageName.AppendString(Builder);
+		if( !AssetName.IsNone() )
+		{
+			Builder += TEXT(".");
+			AssetName.AppendString(Builder);
+		}
+	}
+}
+
+FString FTopLevelAssetPath::ToString() const
+{
+	TStringBuilder<256> Builder;
+	AppendString(Builder);
+	return FString(Builder);
+}
+
+void FTopLevelAssetPath::ToString(FString& OutString) const
+{
+	OutString.Reset();
+	AppendString(OutString);
+}
+
+bool FTopLevelAssetPath::TrySetPath(FName InPackageName, FName InAssetName)
+{
+	PackageName = InPackageName;
+	AssetName = InAssetName;
+	return !PackageName.IsNone();
+}
+
+bool FTopLevelAssetPath::TrySetPath(FWideStringView Path)
+{
+	if (Path.IsEmpty() || Path.Equals(TEXT("None"), ESearchCase::CaseSensitive))
+	{
+		// Empty path, just empty the pathname.
+		Reset();
+		return false;
+	}
+	else
+	{
+		if (Path[0] != '/')
+		{
+			// Possibly an ExportText path. Trim the ClassName.
+			Path = FPackageName::ExportTextPathToObjectPath(Path);
+
+			if (Path.IsEmpty() || Path[0] != '/')
+			{
+				Reset();
+				return false;
+			}
+		}
+
+		FAsciiSet Delim1(".");
+		FWideStringView PackageNameView = FAsciiSet::FindPrefixWithout(Path, Delim1);
+		if (PackageNameView.IsEmpty())
+		{
+			Reset();
+			return false;
+		}
+
+		FWideStringView AssetNameView = Path.Mid(PackageNameView.Len() + 1);
+		if (AssetNameView.IsEmpty())
+		{
+			// Reference to a package itself. Iffy, but supported for legacy usage of FSoftObjectPath.
+			PackageName = FName(PackageNameView);
+			AssetName = FName();
+			return true;
+		}
+
+		FAsciiSet Delim2("." SUBOBJECT_DELIMITER);
+		if (FAsciiSet::HasAny(AssetNameView, Delim2))
+		{
+			// Subobject path or is malformed and contains multiple '.' delimiters.
+			Reset();
+			return false;
+		}
+
+		PackageName = FName(PackageNameView);
+		AssetName = FName(AssetNameView);
+		return true;
+	}
+	return false;
+}
+
+bool FTopLevelAssetPath::TrySetPath(FAnsiStringView Path)
+{
+	TStringBuilder<FName::StringBufferSize> Wide;
+	Wide << Path;
+	return TrySetPath(Wide);
+}
+
+
+
+#if WITH_DEV_AUTOMATION_TESTS 
+
+#include "Misc/AutomationTest.h"
+
+// Combine import/export tests
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTopLevelAssetPathTest, "System.Core.Misc.TopLevelAssetPath", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+bool FTopLevelAssetPathTest::RunTest(const FString& Parameters)
+{
+	FName PackageName("/Path/To/Package");
+	FName AssetName("Asset");
+
+	FString AssetPathString(WriteToString<FName::StringBufferSize>(PackageName, '.', AssetName).ToView());
+
+	FTopLevelAssetPath EmptyPath;
+	TestEqual(TEXT("Empty path to string is empty string"), EmptyPath.ToString(), FString());
+
+	FTopLevelAssetPath PackagePath;
+	TestFalse(TEXT("TrySetPath(NAME_None, NAME_None) fails"), PackagePath.TrySetPath(NAME_None, NAME_None));
+	TestTrue(TEXT("TrySetPath(PackageName, NAME_None) succeeds"), PackagePath.TrySetPath(PackageName, NAME_None));
+	TestEqual(TEXT("PackagePath to string is PackageName"), PackagePath.ToString(), PackageName.ToString());
+
+	FTopLevelAssetPath AssetPath;
+	TestTrue(TEXT("TrySetPath(PackageName, AssetName) succeeds"), AssetPath.TrySetPath(PackageName, AssetName));
+	TestEqual(TEXT("AssetPath to string is PackageName.AssetName"), AssetPath.ToString(), AssetPathString);
+
+	FTopLevelAssetPath EmptyPathFromString;
+	TestFalse(TEXT("TrySetPath with empty string fails"), EmptyPathFromString.TrySetPath(TEXT("")));
+	TestEqual(TEXT("Empty path to string is empty string"), EmptyPathFromString.ToString(), FString());
+
+	FTopLevelAssetPath PackagePathFromString;
+	TestTrue(TEXT("TrySetPath(PackageName.ToString()) succeeds"), PackagePath.TrySetPath(PackageName.ToString()));
+	TestEqual(TEXT("PackagePath to string is PackageName"), PackagePath.ToString(), PackageName.ToString());
+
+	FTopLevelAssetPath AssetPathFromString;
+	TestTrue(TEXT("TrySetPath(AssetPath) succeeds"), PackagePath.TrySetPath(AssetPathString));
+	TestEqual(TEXT("AssetPathFromString to string is PackageName.AssetName"), PackagePath.ToString(), AssetPathString);
+
+	FTopLevelAssetPath FailedPath;
+	TestFalse(TEXT("TrySetPath with unrooted path string fails"), FailedPath.TrySetPath("UnrootedPackage/Subfolder"));
+	TestEqual(TEXT("Failed set to string is empty string"), FailedPath.ToString(), FString());
+
+	FTopLevelAssetPath SubObjectPath;
+	TestFalse(TEXT("TrySetPath with subobject path string fails"), SubObjectPath.TrySetPath("/Path/To/Package.Asset:Subobject"));
+	TestEqual(TEXT("Failed set to string is empty string"), SubObjectPath.ToString(), FString());
+
+	FTopLevelAssetPath MalformedPath;
+	TestFalse(TEXT("TrySetPath with malformed path string fails"), MalformedPath.TrySetPath("/Path/To/Package.Asset.Malformed"));
+	TestEqual(TEXT("Failed set to string is empty string"), MalformedPath.ToString(), FString());
+
+	// Test ExportText path with and without root 
+	// Test starting with . 
+
+	return true;
+}
+
+#endif // WITH_DEV_AUTOMATION_TESTS
