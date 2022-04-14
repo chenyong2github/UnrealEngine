@@ -11,6 +11,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "AnimNotifyState_MotionWarping.h"
+#include "Net/UnrealNetwork.h"
 
 DEFINE_LOG_CATEGORY(LogMotionWarping);
 
@@ -203,6 +204,17 @@ UMotionWarpingComponent::UMotionWarpingComponent(const FObjectInitializer& Objec
 	: Super(ObjectInitializer)
 {
 	bWantsInitializeComponent = true;
+	SetIsReplicatedByDefault(true);
+}
+
+void UMotionWarpingComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	FDoRepLifetimeParams Params;
+	Params.bIsPushBased = true;
+	Params.Condition = COND_SimulatedOnly;
+	DOREPLIFETIME_WITH_PARAMS_FAST(UMotionWarpingComponent, WarpTargets, Params);
 }
 
 void UMotionWarpingComponent::InitializeComponent()
@@ -474,23 +486,40 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPostConvertToWorld(const FT
 	return FinalRootMotion;
 }
 
-void UMotionWarpingComponent::AddOrUpdateWarpTarget(FName WarpTargetName, const FMotionWarpingTarget& WarpTarget)
+void UMotionWarpingComponent::AddOrUpdateWarpTarget(const FMotionWarpingTarget& WarpTarget)
 {
-	if (WarpTargetName != NAME_None)
+	if (WarpTarget.Name != NAME_None)
 	{
-		FMotionWarpingTarget& WarpTargetRef = WarpTargetMap.FindOrAdd(WarpTargetName);
-		WarpTargetRef = WarpTarget;
+		for (int32 Idx = 0; Idx < WarpTargets.Num(); Idx++)
+		{
+			if (WarpTargets[Idx].Name == WarpTarget.Name)
+			{
+				WarpTargets[Idx] = WarpTarget;
+				return;
+			}
+		}
+
+		WarpTargets.Add(WarpTarget);
+
+		MARK_PROPERTY_DIRTY_FROM_NAME(UMotionWarpingComponent, WarpTargets, this);
 	}
 }
 
 int32 UMotionWarpingComponent::RemoveWarpTarget(FName WarpTargetName)
 {
-	return WarpTargetMap.Remove(WarpTargetName);
+	const int32 NumRemoved = WarpTargets.RemoveAll([&WarpTargetName](const FMotionWarpingTarget& WarpTarget) { return WarpTarget.Name == WarpTargetName; });
+	
+	if(NumRemoved > 0)
+	{
+		MARK_PROPERTY_DIRTY_FROM_NAME(UMotionWarpingComponent, WarpTargets, this);
+	}
+
+	return NumRemoved;
 }
 
 void UMotionWarpingComponent::AddOrUpdateWarpTargetFromTransform(FName WarpTargetName, FTransform TargetTransform)
 {
-	AddOrUpdateWarpTarget(WarpTargetName, TargetTransform);
+	AddOrUpdateWarpTarget(FMotionWarpingTarget(WarpTargetName, TargetTransform));
 }
 
 void UMotionWarpingComponent::AddOrUpdateWarpTargetFromComponent(FName WarpTargetName, const USceneComponent* Component, FName BoneName, bool bFollowComponent)
@@ -501,7 +530,7 @@ void UMotionWarpingComponent::AddOrUpdateWarpTargetFromComponent(FName WarpTarge
 		return;
 	}
 
-	AddOrUpdateWarpTarget(WarpTargetName, FMotionWarpingTarget(Component, BoneName, bFollowComponent));
+	AddOrUpdateWarpTarget(FMotionWarpingTarget(WarpTargetName, Component, BoneName, bFollowComponent));
 }
 
 URootMotionModifier* UMotionWarpingComponent::AddModifierFromTemplate(URootMotionModifier* Template, const UAnimSequenceBase* Animation, float StartTime, float EndTime)

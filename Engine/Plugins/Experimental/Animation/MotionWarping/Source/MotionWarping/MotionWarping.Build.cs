@@ -28,6 +28,7 @@ public class MotionWarping : ModuleRules
 				"Core",
 				"CoreUObject",
                 "Engine",
+				"NetCore"
 			}
 			);
 			

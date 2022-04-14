@@ -150,9 +150,17 @@ struct MOTIONWARPING_API FMotionWarpingTarget
 {
 	GENERATED_BODY()
 
-	/** When the warp target is created from a component this stores the transform of the component at the time of creation, otherwise its the transform supplied by the user */
+	/** Unique name for this warp target */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FTransform Transform;
+	FName Name;
+
+	/** When the warp target is created from a component this stores the location of the component at the time of creation, otherwise its the location supplied by the user */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FVector Location;
+
+	/** When the warp target is created from a component this stores the rotation of the component at the time of creation, otherwise its the rotation supplied by the user */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FRotator Rotation;
 
 	/** Optional component used to calculate the final target transform */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
@@ -167,12 +175,12 @@ struct MOTIONWARPING_API FMotionWarpingTarget
 	bool bFollowComponent;
 
 	FMotionWarpingTarget()
-		: Transform(FTransform::Identity), Component(nullptr), BoneName(NAME_None), bFollowComponent(false) {}
+		: Name(NAME_None), Location(FVector::ZeroVector), Rotation(FRotator::ZeroRotator), Component(nullptr), BoneName(NAME_None), bFollowComponent(false) {}
 
-	FMotionWarpingTarget(const FTransform& InTransform)
-		: Transform(InTransform), Component(nullptr), BoneName(NAME_None), bFollowComponent(false) {}
+	FMotionWarpingTarget(const FName& InName, const FTransform& InTransform)
+		: Name(InName), Location(InTransform.GetLocation()), Rotation(InTransform.Rotator()), Component(nullptr), BoneName(NAME_None), bFollowComponent(false) {}
 
-	FMotionWarpingTarget(const USceneComponent* InComp, FName InBoneName, bool bInbFollowComponent);
+	FMotionWarpingTarget(const FName& InName, const USceneComponent* InComp, FName InBoneName, bool bInbFollowComponent);
 
 	FTransform GetTargetTrasform() const;
 
@@ -182,12 +190,12 @@ struct MOTIONWARPING_API FMotionWarpingTarget
 
 	FORCEINLINE bool operator==(const FMotionWarpingTarget& Other) const
 	{
-		return Other.Transform.Equals(Transform) && Other.Component == Component && Other.BoneName == BoneName && Other.bFollowComponent == bFollowComponent;
+		return Other.Name == Name && Other.Location.Equals(Location) && Other.Rotation.Equals(Rotation) && Other.Component == Component && Other.BoneName == BoneName && Other.bFollowComponent == bFollowComponent;
 	}
 
 	FORCEINLINE bool operator!=(const FMotionWarpingTarget& Other) const
 	{
-		return !Other.Transform.Equals(Transform) || Other.Component != Component || Other.BoneName != BoneName || Other.bFollowComponent != bFollowComponent;
+		return Other.Name != Name || !Other.Location.Equals(Location) || !Other.Rotation.Equals(Rotation) || Other.Component != Component || Other.BoneName != BoneName || Other.bFollowComponent != bFollowComponent;
 	}
 
 	static FTransform GetTargetTransformFromComponent(const USceneComponent* Comp, const FName& BoneName);

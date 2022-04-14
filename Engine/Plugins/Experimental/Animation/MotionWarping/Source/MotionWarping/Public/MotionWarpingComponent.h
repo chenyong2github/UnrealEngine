@@ -95,6 +95,7 @@ public:
 	UMotionWarpingComponent(const FObjectInitializer& ObjectInitializer);
 
 	virtual void InitializeComponent() override;
+	virtual void GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const;
 
 	/** Gets the character this component belongs to */
 	FORCEINLINE ACharacter* GetCharacterOwner() const { return CharacterOwner.Get(); }
@@ -115,11 +116,14 @@ public:
 	URootMotionModifier* AddModifierFromTemplate(URootMotionModifier* Template, const UAnimSequenceBase* Animation, float StartTime, float EndTime);
 
 	/** Find the target associated with a specified name */
-	FORCEINLINE const FMotionWarpingTarget* FindWarpTarget(const FName& WarpTargetName) const { return WarpTargetMap.Find(WarpTargetName); }
+	FORCEINLINE const FMotionWarpingTarget* FindWarpTarget(const FName& WarpTargetName) const 
+	{ 
+		return WarpTargets.FindByPredicate([&WarpTargetName](const FMotionWarpingTarget& WarpTarget){ return WarpTarget.Name == WarpTargetName; });
+	}
 
-	/** Adds or update a target associated with a specified name */
+	/** Adds or update a warp target */
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
-	void AddOrUpdateWarpTarget(FName WarpTargetName, const FMotionWarpingTarget& WarpTarget);
+	void AddOrUpdateWarpTarget(const FMotionWarpingTarget& WarpTarget);
 
 	/** 
 	 * Create and adds or update a target associated with a specified name 
@@ -176,8 +180,8 @@ protected:
 	UPROPERTY(Transient)
 	TArray<URootMotionModifier*> Modifiers;
 
-	UPROPERTY(Transient)
-	TMap<FName, FMotionWarpingTarget> WarpTargetMap;
+	UPROPERTY(Transient, Replicated)
+	TArray<FMotionWarpingTarget> WarpTargets;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	TOptional<FVector> OriginalRootMotionAccum;
