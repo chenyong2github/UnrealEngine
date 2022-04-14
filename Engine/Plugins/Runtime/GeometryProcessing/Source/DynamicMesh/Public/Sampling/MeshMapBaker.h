@@ -56,7 +56,7 @@ public:
 	 * @param TriID the target mesh triangle ID to be evaluated
 	 * @return true if the given sample should be filtered (return default evaluator result)
 	 */
-	TFunction<bool(const FVector2i&, const FVector2d&, int32)> SampleFilterF = nullptr;
+	TFunction<float(const FVector2i&, const FVector2d&, int32)> SampleFilterF = nullptr;
 
 	//
 	// Parameters

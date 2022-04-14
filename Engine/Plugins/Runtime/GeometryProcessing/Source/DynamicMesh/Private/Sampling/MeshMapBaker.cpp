@@ -512,19 +512,9 @@ void FMeshMapBaker::BakeSample(
 	float* Buffer = static_cast<float*>(FMemory_Alloca(sizeof(float) * BakeSampleBufferSize));
 	float* BufferPtr = Buffer;
 	const int32 NumBakers = Bakers.Num();
-	if (SampleFilterF && SampleFilterF(ImageCoords, UVPosition, Sample.DetailTriID))
+	for (int32 Idx = 0; Idx < NumBakers; ++Idx)
 	{
-		for (int32 Idx = 0; Idx < NumBakers; ++Idx)
-		{
-			BakeContexts[Idx].EvaluateDefault(BufferPtr, BakeContexts[Idx].EvalData);
-		}
-	}
-	else
-	{
-		for (int32 Idx = 0; Idx < NumBakers; ++Idx)
-		{
-			BakeContexts[Idx].Evaluate(BufferPtr, Sample, BakeContexts[Idx].EvalData);
-		}
+		BakeContexts[Idx].Evaluate(BufferPtr, Sample, BakeContexts[Idx].EvalData);
 	}
 	checkSlow((BufferPtr - Buffer) == BakeSampleBufferSize);
 
@@ -533,7 +523,7 @@ void FMeshMapBaker::BakeSample(
 	const int64 OccupancyMapSampleIdx = OccupancyMap.Tile.GetIndexFromSourceCoords(ImageCoords);
 	const int32 SampleUVChart = OccupancyMap.TexelQueryUVChart[OccupancyMapSampleIdx];
 
-	auto AddFn = [this, &ImageCoords, &UVPosition, &Tile, &TileBuffer, Buffer, &OccupancyMap, SampleUVChart](const TArray<int32>& BakeIds) -> void
+	auto AddFn = [this, &ImageCoords, &UVPosition, &Tile, &TileBuffer, &OccupancyMap, SampleUVChart](const TArray<int32>& BakeIds, const float* SourceBuffer, float Weight) -> void
 	{
 		const FVector2i BoxFilterStart(
 			FMath::Clamp(ImageCoords.X - FilterKernelSize, 0, Dimensions.GetWidth()),
@@ -561,6 +551,7 @@ void FMeshMapBaker::BakeSample(
 
 			float FilterWeight = TextureFilterEval(TexelDistance);
 			FilterWeight *= (SampleUVChart == BufferTilePixelUVChart);
+			FilterWeight *= Weight;
 			PixelWeight += FilterWeight;
 			for (const int32 BakeIdx : BakeIds)
 			{
@@ -574,14 +565,14 @@ void FMeshMapBaker::BakeSample(
 					const int32 Stride = static_cast<int32>(Context.DataLayout[DataIdx]);
 					for (int32 BufIdx = Offset; BufIdx < Offset + Stride; ++BufIdx)
 					{
-						PixelBuffer[BufIdx] += Buffer[BufIdx] * FilterWeight;
+						PixelBuffer[BufIdx] += SourceBuffer[BufIdx] * FilterWeight;
 					}
 				}
 			}
 		}
 	};
 
-	auto OverwriteFn = [this, &ImageCoords, &Tile, &TileBuffer, Buffer](const TArray<int32>& BakeIds) -> void
+	auto OverwriteFn = [this, &ImageCoords, &Tile, &TileBuffer](const TArray<int32>& BakeIds, const float* SourceBuffer) -> void
 	{
 		const int64 BufferTilePixelLinearIdx = Tile.GetIndexFromSourceCoords(ImageCoords); 
 		float* PixelBuffer = TileBuffer.GetPixel(BufferTilePixelLinearIdx);
@@ -598,14 +589,24 @@ void FMeshMapBaker::BakeSample(
 				const int32 Stride = static_cast<int32>(Context.DataLayout[DataIdx]);
 				for (int32 BufIdx = Offset; BufIdx < Offset + Stride; ++BufIdx)
 				{
-					PixelBuffer[BufIdx] = Buffer[BufIdx];
+					PixelBuffer[BufIdx] = SourceBuffer[BufIdx];
 				}
 			}
 		}
 	};
 
-	AddFn(BakeAccumulateLists[static_cast<int32>(FMeshMapEvaluator::EAccumulateMode::Add)]);
-	OverwriteFn(BakeAccumulateLists[static_cast<int32>(FMeshMapEvaluator::EAccumulateMode::Overwrite)]);
+	if (SampleFilterF)
+	{
+		const float SampleMaskWeight = FMath::Clamp(SampleFilterF(ImageCoords, UVPosition, Sample.BaseSample.TriangleIndex), 0.0f, 1.0f);
+		AddFn(BakeAccumulateLists[static_cast<int32>(FMeshMapEvaluator::EAccumulateMode::Add)], Buffer, SampleMaskWeight);
+		AddFn(BakeAccumulateLists[static_cast<int32>(FMeshMapEvaluator::EAccumulateMode::Add)], BakeDefaults.GetData(), 1.0f - SampleMaskWeight);
+		OverwriteFn(BakeAccumulateLists[static_cast<int32>(FMeshMapEvaluator::EAccumulateMode::Overwrite)], FMath::IsNearlyZero(SampleMaskWeight) ? BakeDefaults.GetData() : Buffer);
+	}
+	else
+	{
+		AddFn(BakeAccumulateLists[static_cast<int32>(FMeshMapEvaluator::EAccumulateMode::Add)], Buffer, 1.0f);
+		OverwriteFn(BakeAccumulateLists[static_cast<int32>(FMeshMapEvaluator::EAccumulateMode::Overwrite)], Buffer);
+	}
 }
 
 int32 FMeshMapBaker::AddEvaluator(const TSharedPtr<FMeshMapEvaluator, ESPMode::ThreadSafe>& Eval)

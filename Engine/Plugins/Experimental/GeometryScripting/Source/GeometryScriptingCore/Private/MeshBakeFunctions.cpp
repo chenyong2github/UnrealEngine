@@ -518,8 +518,8 @@ namespace GeometryScriptBakeLocals
 		{
 			Baker.SampleFilterF = [&SampleFilterMask](const FVector2i& ImageCoords, const FVector2d& UV, int32 TriID)
 			{
-				const FVector4f Color = SampleFilterMask->BilinearSampleUV<float>(UV, FVector4f(0, 0, 0, 1));
-				return Color.IsNearlyZero3();
+				const FVector4f Mask = SampleFilterMask->BilinearSampleUV<float>(UV, FVector4f::One());
+				return (Mask.X + Mask.Y + Mask.Z) / 3;
 			};
 		}
 		if (bIsBakeToSelf)
