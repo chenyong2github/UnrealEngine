@@ -2843,7 +2843,7 @@ public:
 		{
 			check( sizeof(ColorDataType) == 8 );
 			uint16 RGBA[4] = { 0xFFFF,0xFFFF,0xFFFF, 0 };
-			memcpy(&WhiteWithZeroAlpha,RGBA,8);
+			memcpy(&WhiteWithZeroAlpha,RGBA,sizeof(ColorDataType));
 		}
 
 		// Left -> Right
