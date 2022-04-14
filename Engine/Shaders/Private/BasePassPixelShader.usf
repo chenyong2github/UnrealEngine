@@ -1732,9 +1732,9 @@ void FPixelShaderInOut_MainPS(
 		FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
 		FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, StrataStruct.bRoughDiffuse, StrataStruct.PeelLayersAboveDepth);
 
-#if STRATA_ADVANCED_DEBUG_ENABLED
-		Settings.SliceStoringDebugStrataTree = all(View.CursorPosition == PixelPos) ? Strata.SliceStoringDebugStrataTree : Settings.SliceStoringDebugStrataTree;
-#endif
+	#if STRATA_ADVANCED_DEBUG_ENABLED
+		Settings.SliceStoringDebugStrataTree = all(View.CursorPosition == PixelPos) ? StrataStruct.SliceStoringDebugStrataTree : Settings.SliceStoringDebugStrataTree;
+	#endif
 
 		// Generate the strata material data to write out
 		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(ResolvedView.BufferSizeAndInvSize.xy), StrataStruct.MaxBytesPerPixel);

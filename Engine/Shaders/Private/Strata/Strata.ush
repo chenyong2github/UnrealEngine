@@ -814,7 +814,7 @@ FStrataTree GetInitialisedStrataTree()
 }
 
 void StrataPackOutStrataTree(
-	inout RWTexture2DArray<uint> ExtraMaterialDataUAV,
+	RWTexture2DArray<uint> ExtraMaterialDataUAV,
 	in FStrataTree StrataTree,
 	in int SliceStoringDebugStrataTree)
 {
@@ -837,7 +837,7 @@ void StrataPackOutStrataTree(
 		WRITE_UINT(StrataTree.BSDFs[i].bIsBottom);
 		WRITE_UINT(StrataTree.BSDFs[i].bIsTop);
 
-#if STRATA_INLINE_SHADING
+	#if STRATA_INLINE_SHADING
 		WRITE_FLOAT(StrataTree.BSDFs[i].Coverage);
 
 		WRITE_FLOAT3(StrataTree.BSDFs[i].Emissive);
@@ -845,7 +845,7 @@ void StrataPackOutStrataTree(
 		WRITE_FLOAT(StrataTree.BSDFs[i].TmpMFP);
 
 		WRITE_FLOAT(StrataTree.BSDFs[i].TopLayerDataWeight);
-#endif
+	#endif
 
 		// Skipping specific single layer water data
 
