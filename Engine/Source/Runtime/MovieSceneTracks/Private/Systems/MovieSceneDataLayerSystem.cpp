@@ -611,7 +611,7 @@ void UMovieSceneDataLayerSystem::UpdateDesiredStates()
 
 			for (const UDataLayerAsset* DataLayerAsset : Section->GetDataLayerAssets())
 			{
-				const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstanceFromAsset(DataLayerAsset);
+				const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerFromAsset(DataLayerAsset);
 				if (DataLayerInstance)
 				{
 					this->DesiredLayerStates->ApplyNewState(DataLayerInstance->GetDataLayerFName(), OptHBiases ? OptHBiases[Index] : 0, DesiredState, bRequiresStreamingFlush);
@@ -667,7 +667,7 @@ void UMovieSceneDataLayerSystem::BeginTrackingEntities()
 
 				for (const UDataLayerAsset* DataLayerAsset : Section->GetDataLayerAssets())
 				{
-					UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstanceFromAsset(DataLayerAsset);
+					UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerFromAsset(DataLayerAsset);
 					if (DataLayerInstance)
 					{
 						FPreAnimatedStateEntry Entry = PreAnimatedStorage->MakeEntry(DataLayerInstance);

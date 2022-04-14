@@ -475,9 +475,11 @@ bool UDataLayerToAssetCommandlet::RemapActorDataLayersToAssets(TStrongObjectPtr<
 	UE_SCOPED_TIMER(TEXT("Remapping Actors Data Layers"), LogDataLayerToAssetCommandlet, Display);
 	UE_LOG(LogDataLayerToAssetCommandlet, Log, TEXT("Starting Actor Data Layer Remapping To Data Layer Asset. This can take a while."));
 
+	AWorldDataLayers* WorldDataLayersActor = MainWorld->GetWorldDataLayers();
+
 	uint32 ErrorCount = 0;
 	FWorldPartitionHelpers::ForEachActorWithLoading(MainWorld->GetWorldPartition(), AActor::StaticClass(),
-		[&ErrorCount, &CommandletContext, this](const FWorldPartitionActorDesc* ActorDesc)
+		[WorldDataLayersActor, &ErrorCount, &CommandletContext, this](const FWorldPartitionActorDesc* ActorDesc)
 		{
 			uint32 ActorConversionErrors = 0;
 			if (AActor* Actor = ActorDesc->GetActor())
@@ -638,6 +640,7 @@ bool UDataLayerToAssetCommandlet::RebuildDataLayerHierarchies(TStrongObjectPtr<U
 	UE_SCOPED_TIMER(TEXT("Creating Data Layer Instances Hierarchy"), LogDataLayerToAssetCommandlet, Display);
 
 	uint32 ErrorCount = 0;
+	AWorldDataLayers* WorldDataLayers = MainWorld->GetWorldDataLayers();
 	for (const TWeakObjectPtr<UDataLayerConversionInfo>& ConvertingInfo : CommandletContext->GetConvertingDataLayerConversionInfo())
 	{
 		UDataLayerInstance* Child = ConvertingInfo->DataLayerInstance;
@@ -702,6 +705,7 @@ bool UDataLayerToAssetCommandlet::DeletePreviousConversionsData(TStrongObjectPtr
 	UE_SCOPED_TIMER(TEXT("Delete Conflicting Assets"), LogDataLayerToAssetCommandlet, Display);
 
 	uint32 ErrorCount = 0;
+	AWorldDataLayers* WorldDataLayers = MainWorld->GetWorldDataLayers();
 	for (const TWeakObjectPtr<UDataLayerConversionInfo>& ConvertingInfo : CommandletContext->GetConvertingDataLayerConversionInfo())
 	{
 		for (const TWeakObjectPtr<UDataLayerConversionInfo>& PreviousConversion : ConvertingInfo->GetPreviousConversions())

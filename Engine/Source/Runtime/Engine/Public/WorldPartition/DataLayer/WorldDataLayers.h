@@ -81,6 +81,9 @@ public:
 	// Allows overriding of DataLayers with PlayFromHere
 	template<class T>
 	void OverwriteDataLayerRuntimeStates(const TArray<T>* InActiveDataLayers, const TArray<T>* InLoadedDataLayers );
+
+	// Returns the DataLayer user loaded editor states
+	void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const;
 #endif
 	
 	void DumpDataLayers(FOutputDevice& OutputDevice) const;
@@ -143,9 +146,6 @@ public:
 
 	UE_DEPRECATED(5.1, "Convert UDataLayers to UDataLayerAsset and UDataLayerInstance using DataLayerToAssetCommandLet")
 	const UDataLayerInstance* GetDataLayerFromLabel(const FName& InDataLayerLabel) const;
-
-	UE_DEPRECATED(5.1, "Use UDataLayerSubsystem::GetUserLoadedInEditorStates insteaed")
-	void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const {}
 
 	//~ End Deprecated
 

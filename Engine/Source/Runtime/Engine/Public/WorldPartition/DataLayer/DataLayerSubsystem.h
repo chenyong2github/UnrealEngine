@@ -6,7 +6,6 @@
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerEditorContext.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "DataLayerSubsystem.generated.h"
 
 /**
@@ -54,7 +53,7 @@ public:
 
 	/** Find a Data Layer by its asset. */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	UDataLayerInstance* GetDataLayerInstanceFromAsset(const UDataLayerAsset* InDataLayerAsset) const;
+	UDataLayerInstance* GetDataLayerFromAsset(const UDataLayerAsset* InDataLayerAsset) const;
 
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	EDataLayerRuntimeState GetDataLayerInstanceRuntimeState(const UDataLayerAsset* InDataLayerAsset) const;
@@ -72,33 +71,7 @@ public:
 
 	//~ End Blueprint callable functions
 
-#if WITH_EDITOR
-	bool RemoveDataLayer(const UDataLayerInstance* InDataLayer);
-	bool RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances);
-
-	void UpdateDataLayerEditorPerProjectUserSettings() const;
-	void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const;
-
-	void PushActorEditorContext() const;
-	void PopActorEditorContext() const;
-	TArray<UDataLayerInstance*> GetActorEditorContextDataLayers() const;
-	uint32 GetDataLayerEditorContextHash() const;
-#endif
-
-	template<class T>
-	UDataLayerInstance* GetDataLayerInstance(const T& InDataLayerIdentifier) const;
-
-	template<class T>
-	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<T>& InDataLayerIdentifiers) const;
-
-	template<class T>
-	TArray<FName> GetDataLayerInstanceNames(const TArray<T>& InDataLayerIdentifiers) const;
-
-	const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
-
-	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func);
-	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func) const;
-
+	UDataLayerInstance* GetDataLayerInstance(const FName& InDataLayerInstanceName) const;
 	void SetDataLayerRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bInIsRecursive = false);
 	EDataLayerRuntimeState GetDataLayerRuntimeState(const UDataLayerInstance* InDataLayer) const;
 	EDataLayerRuntimeState GetDataLayerRuntimeStateByName(const FName& InDataLayerName) const;
@@ -191,11 +164,16 @@ public:
 
 	//~ End Deprecated
 
+#if WITH_EDITOR
+public:
+	uint32 GetDataLayerEditorContextHash() const;
+
 private:
 
-#if WITH_EDITOR
 	void OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer);
 #endif
+
+private:
 
 	/** Console command used to toggle activation of a DataLayer */
 	static class FAutoConsoleCommand ToggleDataLayerActivation;
@@ -206,52 +184,3 @@ private:
 	/** Console command used to set Runtime DataLayer state*/
 	static class FAutoConsoleCommand SetDataLayerRuntimeStateCommand;
 };
-
-template<class T>
-UDataLayerInstance* UDataLayerSubsystem::GetDataLayerInstance(const T& InDataLayerIdentifier) const
-{
-	const UDataLayerInstance* DataLayerInstance = nullptr;
-
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		DataLayerInstance = WorldDataLayers->GetDataLayerInstance(InDataLayerIdentifier);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	
-	return const_cast<UDataLayerInstance*>(DataLayerInstance);
-}
-
-template<class T>
-TArray<FName> UDataLayerSubsystem::GetDataLayerInstanceNames(const TArray<T>& InDataLayerIdentifiers) const
-{
-	TArray<FName> DataLayerInstanceNames;
-
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-	{
-		DataLayerInstanceNames.Reserve(InDataLayerIdentifiers.Num());
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		DataLayerInstanceNames = GetWorld()->GetWorldDataLayers()->GetDataLayerInstanceNames(InDataLayerIdentifiers);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	return DataLayerInstanceNames;
-}
-
-template<class T>
-TArray<const UDataLayerInstance*> UDataLayerSubsystem::GetDataLayerInstances(const TArray<T>& InDataLayerIdentifiers) const
-{
-	TArray<const UDataLayerInstance*> DataLayerInstances;
-
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-	{
-		DataLayerInstances.Reserve(InDataLayerIdentifiers.Num());
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		DataLayerInstances = GetWorld()->GetWorldDataLayers()->GetDataLayerInstances(InDataLayerIdentifiers);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	return DataLayerInstances;
-}

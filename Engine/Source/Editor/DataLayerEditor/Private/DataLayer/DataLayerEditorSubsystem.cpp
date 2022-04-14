@@ -172,38 +172,42 @@ void UDataLayerEditorSubsystem::Deinitialize()
 }
 
 void UDataLayerEditorSubsystem::OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor)
-{	
-	UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+{
+	AWorldDataLayers* WorldDataLayer = InWorld->GetWorldDataLayers();
+	if (!WorldDataLayer)
+	{
+		return;
+	}
 
 	switch (InType)
 	{
 	case EActorEditorContextAction::ApplyContext:
 		check(InActor && InActor->GetWorld() == InWorld);
 		{
-			AddActorToDataLayers(InActor, DataLayerSubsystem->GetActorEditorContextDataLayers());
+			AddActorToDataLayers(InActor, WorldDataLayer->GetActorEditorContextDataLayers());
 		}
 		break;
 	case EActorEditorContextAction::ResetContext:
-		for (UDataLayerInstance* DataLayer : DataLayerSubsystem->GetActorEditorContextDataLayers())
+		for (UDataLayerInstance* DataLayer : WorldDataLayer->GetActorEditorContextDataLayers())
 		{
 			RemoveFromActorEditorContext(DataLayer);
 		}
 		break;
 	case EActorEditorContextAction::PushContext:
-		DataLayerSubsystem->PushActorEditorContext();
+		WorldDataLayer->PushActorEditorContext();
 		BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
 		break;
 	case EActorEditorContextAction::PopContext:
-		DataLayerSubsystem->PopActorEditorContext();
+		WorldDataLayer->PopActorEditorContext();
 		BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
 		break;
 	}
-}	
+}
 
 bool UDataLayerEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEditorContextClientDisplayInfo& OutDiplayInfo) const
 {
-	UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-	if (!DataLayerSubsystem->GetActorEditorContextDataLayers().IsEmpty())
+	AWorldDataLayers* WorldDataLayer = InWorld->GetWorldDataLayers();
+	if (WorldDataLayer && !WorldDataLayer->GetActorEditorContextDataLayers().IsEmpty())
 	{
 		OutDiplayInfo.Title = TEXT("Current Data Layers");
 		OutDiplayInfo.Brush = FEditorStyle::GetBrush(TEXT("DataLayer.Editor"));
@@ -215,33 +219,33 @@ bool UDataLayerEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld
 TSharedRef<SWidget> UDataLayerEditorSubsystem::GetActorEditorContextWidget(UWorld* InWorld) const
 {
 	TSharedRef<SVerticalBox> OutWidget = SNew(SVerticalBox);
-	
-	UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-	TArray<UDataLayerInstance*> DataLayers = DataLayerSubsystem->GetActorEditorContextDataLayers();
-	for (UDataLayerInstance* DataLayer : DataLayers)
+	if (AWorldDataLayers* WorldDataLayer = InWorld->GetWorldDataLayers())
 	{
-		check(IsValid(DataLayer));
-		OutWidget->AddSlot().AutoHeight()
+		TArray<UDataLayerInstance*> DataLayers = WorldDataLayer->GetActorEditorContextDataLayers();
+		for (UDataLayerInstance* DataLayer : DataLayers)
+		{
+			check(IsValid(DataLayer));
+			OutWidget->AddSlot().AutoHeight()
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(0.0f, 1.0f, 1.0f, 1.0f)
-			[
-				SNew(SImage)
-				.ColorAndOpacity(DataLayer->GetDebugColor())
-			.Image(FAppStyle::Get().GetBrush("Level.ColorIcon"))
-			]
-		+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f, 1.0f, 1.0f, 1.0f)
-			[
-				SNew(STextBlock)
-				.Text(FText::FromString(DataLayer->GetDataLayerShortName()))
-			]
+				.AutoWidth()
+				.Padding(0.0f, 1.0f, 1.0f, 1.0f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(DataLayer->GetDebugColor())
+					.Image(FAppStyle::Get().GetBrush("Level.ColorIcon"))
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.0f, 1.0f, 1.0f, 1.0f)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(DataLayer->GetDataLayerShortName()))
+				]
 			];
+		}
 	}
-	
 	return OutWidget;
 }
 
@@ -258,6 +262,17 @@ void UDataLayerEditorSubsystem::RemoveFromActorEditorContext(UDataLayerInstance*
 	if (InDataLayerInstance->RemoveFromActorEditorContext())
 	{
 		BroadcastDataLayerChanged(EDataLayerAction::Modify, InDataLayerInstance, NAME_None);
+	}
+}
+
+void UDataLayerEditorSubsystem::UpdateDataLayerEditorPerProjectUserSettings()
+{
+	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
+	{
+		TArray<FName> DataLayersNotLoadedInEditor;
+		TArray<FName> DataLayersLoadedInEditor;
+		WorldDataLayers->GetUserLoadedInEditorStates(DataLayersLoadedInEditor, DataLayersNotLoadedInEditor);
+		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetWorldDataLayersNonDefaultEditorLoadStates(GetWorld(), DataLayersLoadedInEditor, DataLayersNotLoadedInEditor);
 	}
 }
 
@@ -649,21 +664,23 @@ bool UDataLayerEditorSubsystem::UpdateActorVisibility(AActor* Actor, bool& bOutS
 	}
 
 	bool bActorBelongsToVisibleDataLayer = false;
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	DataLayerSubsystem->ForEachDataLayer([&Actor, &bOutActorModified, &bActorBelongsToVisibleDataLayer](UDataLayerInstance* DataLayer)
+	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
-		if (DataLayer->IsEffectiveVisible() && Actor->ContainsDataLayer(DataLayer))
+		WorldDataLayers->ForEachDataLayer([&Actor, &bOutActorModified, &bActorBelongsToVisibleDataLayer](UDataLayerInstance* DataLayer)
 		{
-			if (Actor->SetIsHiddenEdLayer(false))
+			if (DataLayer->IsEffectiveVisible() && Actor->ContainsDataLayer(DataLayer))
 			{
-				bOutActorModified = true;
+				if (Actor->SetIsHiddenEdLayer(false))
+				{
+					bOutActorModified = true;
+				}
+				// Stop, because we found at least one visible DataLayer the actor belongs to
+				bActorBelongsToVisibleDataLayer = true;
+				return false;
 			}
-			// Stop, because we found at least one visible DataLayer the actor belongs to
-			bActorBelongsToVisibleDataLayer = true;
-			return false;
-		}
-		return true;
-	});
+			return true;
+		});
+	}
 
 	// If the actor isn't part of a visible DataLayer, hide and de-select it.
 	if (!bActorBelongsToVisibleDataLayer)
@@ -857,17 +874,19 @@ void UDataLayerEditorSubsystem::ToggleDataLayersVisibility(const TArray<UDataLay
 
 void UDataLayerEditorSubsystem::MakeAllDataLayersVisible()
 {
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	DataLayerSubsystem->ForEachDataLayer([this](UDataLayerInstance* DataLayer)
+	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
-		if (!DataLayer->IsVisible())
+		WorldDataLayers->ForEachDataLayer([this](UDataLayerInstance* DataLayer)
 		{
-			DataLayer->Modify();
-			DataLayer->SetVisible(true);
-			BroadcastDataLayerChanged(EDataLayerAction::Modify, DataLayer, "bIsVisible");
-		}
-		return true;
-	});
+			if (!DataLayer->IsVisible())
+			{
+				DataLayer->Modify();
+				DataLayer->SetVisible(true);
+				BroadcastDataLayerChanged(EDataLayerAction::Modify, DataLayer, "bIsVisible");
+			}
+			return true;
+		});
+	}
 	
 	UpdateAllActorsVisibility(true, true);
 }
@@ -942,12 +961,14 @@ bool UDataLayerEditorSubsystem::ToggleDataLayersIsLoadedInEditor(const TArray<UD
 bool UDataLayerEditorSubsystem::ResetUserSettings()
 {
 	bool bRefreshNeeded = false;
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	DataLayerSubsystem->ForEachDataLayer([this, &bRefreshNeeded](UDataLayerInstance* DataLayer)
+	if (const AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
-		bRefreshNeeded |= SetDataLayerIsLoadedInEditorInternal(DataLayer, DataLayer->IsInitiallyLoadedInEditor(), true);
-		return true;
-	});
+		WorldDataLayers->ForEachDataLayer([this, &bRefreshNeeded](UDataLayerInstance* DataLayer)
+		{
+			bRefreshNeeded |= SetDataLayerIsLoadedInEditorInternal(DataLayer, DataLayer->IsInitiallyLoadedInEditor(), true);
+			return true;
+		});
+	}
 	
 	if (bRefreshNeeded)
 	{
@@ -959,9 +980,9 @@ bool UDataLayerEditorSubsystem::ResetUserSettings()
 
 bool UDataLayerEditorSubsystem::HasDeprecatedDataLayers() const
 {
-	if (AWorldDataLayers* WorldDataLayer = GetWorld()->GetWorldDataLayers())
+	if (const AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
-		return WorldDataLayer->HasDeprecatedDataLayers();
+		return WorldDataLayers->HasDeprecatedDataLayers();
 	}
 
 	return false;
@@ -969,32 +990,40 @@ bool UDataLayerEditorSubsystem::HasDeprecatedDataLayers() const
 
 UDataLayerInstance* UDataLayerEditorSubsystem::GetDataLayerInstance(const FName& DataLayerInstanceName) const
 {
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	return DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName);
+	const AWorldDataLayers* WorldDataLayers = GetWorldDataLayers();
+	return WorldDataLayers ? const_cast<UDataLayerInstance*>(WorldDataLayers->GetDataLayerInstance(DataLayerInstanceName)) : nullptr;
 }
 
 UDataLayerInstance* UDataLayerEditorSubsystem::GetDataLayerInstance(const UDataLayerAsset* DataLayerAsset) const
 {
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	return DataLayerSubsystem ? const_cast<UDataLayerInstance*>(DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset)) : nullptr;
+	const AWorldDataLayers* WorldDataLayers = GetWorldDataLayers();
+	return WorldDataLayers ? const_cast<UDataLayerInstance*>(WorldDataLayers->GetDataLayerInstance(DataLayerAsset)) : nullptr;
+}
+
+AWorldDataLayers* UDataLayerEditorSubsystem::GetWorldDataLayers() const
+{
+	return GetWorld()->GetWorldDataLayers();
 }
 
 void UDataLayerEditorSubsystem::AddAllDataLayersTo(TArray<TWeakObjectPtr<UDataLayerInstance>>& OutDataLayers) const
 {
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	DataLayerSubsystem->ForEachDataLayer([&OutDataLayers](UDataLayerInstance* DataLayer)
+	if (const AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
-		OutDataLayers.Add(DataLayer);
-		return true;
-	});
+		WorldDataLayers->ForEachDataLayer([&OutDataLayers](UDataLayerInstance* DataLayer)
+			{
+				OutDataLayers.Add(DataLayer);
+				return true;
+			});
+	}
 }
 
 UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayerInstance(const FDataLayerCreationParameters& Parameters)
 {
 	UDataLayerInstance* NewDataLayer = nullptr;
 
-	AWorldDataLayers* WorldDataLayers = Parameters.WorlDataLayers != nullptr ? Parameters.WorlDataLayers.Get() : GetWorld()->GetWorldDataLayers();
-	if (!HasDeprecatedDataLayers())
+
+	AWorldDataLayers* WorldDataLayers = GetWorldDataLayers();
+	if (!WorldDataLayers->HasDeprecatedDataLayers())
 	{
 		NewDataLayer = WorldDataLayers->CreateDataLayer<UDataLayerInstanceWithAsset>(Parameters.DataLayerAsset);
 	}
@@ -1014,19 +1043,23 @@ UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayerInstance(const FDa
 
 void UDataLayerEditorSubsystem::DeleteDataLayers(const TArray<UDataLayerInstance*>& DataLayersToDelete)
 {
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	if (DataLayerSubsystem->RemoveDataLayers(DataLayersToDelete))
+	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
-		BroadcastDataLayerChanged(EDataLayerAction::Delete, NULL, NAME_None);
+		if (WorldDataLayers->RemoveDataLayers(DataLayersToDelete))
+		{
+			BroadcastDataLayerChanged(EDataLayerAction::Delete, NULL, NAME_None);
+		}
 	}
 }
 
 void UDataLayerEditorSubsystem::DeleteDataLayer(UDataLayerInstance* DataLayerToDelete)
 {
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	if (DataLayerSubsystem->RemoveDataLayer(DataLayerToDelete))
+	if (AWorldDataLayers* WorldDataLayers = GetWorldDataLayers())
 	{
-		BroadcastDataLayerChanged(EDataLayerAction::Delete, NULL, NAME_None);
+		if (WorldDataLayers->RemoveDataLayer(DataLayerToDelete))
+		{
+			BroadcastDataLayerChanged(EDataLayerAction::Delete, NULL, NAME_None);
+		}
 	}
 }
 
@@ -1046,9 +1079,7 @@ void UDataLayerEditorSubsystem::BroadcastDataLayerChanged(const EDataLayerAction
 void UDataLayerEditorSubsystem::BroadcastDataLayerEditorLoadingStateChanged(bool bIsFromUserChange)
 {
 	DataLayerEditorLoadingStateChanged.Broadcast(bIsFromUserChange);
-	
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	DataLayerSubsystem->UpdateDataLayerEditorPerProjectUserSettings();
+	UpdateDataLayerEditorPerProjectUserSettings();
 }
 
 void UDataLayerEditorSubsystem::OnSelectionChanged()
@@ -1102,8 +1133,8 @@ bool UDataLayerEditorSubsystem::TryGetDataLayerFromLabel(const FName& DataLayerL
 
 UDataLayerInstance* UDataLayerEditorSubsystem::GetDataLayerFromLabel(const FName& DataLayerLabel) const
 {
-	UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
-	return DataLayerSubsystem->GetDataLayerFromLabel(DataLayerLabel);
+	const AWorldDataLayers* WorldDataLayers = GetWorldDataLayers();
+	return WorldDataLayers ? const_cast<UDataLayerInstance*>(WorldDataLayers->GetDataLayerFromLabel(DataLayerLabel)) : nullptr;
 }
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

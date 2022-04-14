@@ -13,8 +13,7 @@
 #include "AI/NavigationSystemBase.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/DataLayer/DataLayer.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "EditorSupportDelegates.h"
 #include "Logging/TokenizedMessage.h"
@@ -1383,11 +1382,11 @@ bool AActor::HasDataLayers() const
 
 bool AActor::HasValidDataLayers() const
 {
-	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 	{
 		for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : DataLayerAssets)
 		{
-			if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset))
+			if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerAsset))
 			{
 				return true;
 			}
@@ -1395,7 +1394,7 @@ bool AActor::HasValidDataLayers() const
 
 		for (const FActorDataLayer& ActorDataLayer : DataLayers)
 		{
-			if (const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(ActorDataLayer.Name))
+			if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(ActorDataLayer.Name))
 			{
 				return true;
 			}
@@ -1408,12 +1407,13 @@ TArray<FName> AActor::GetDataLayerInstanceNames() const
 {
 	TArray<FName> DataLayerInstanceNames;
 	
-	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	if (WorldDataLayers != nullptr)
 	{
-		DataLayerInstanceNames += DataLayerSubsystem->GetDataLayerInstanceNames(DataLayerAssets);
+		DataLayerInstanceNames += WorldDataLayers->GetDataLayerInstanceNames(DataLayerAssets);
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		DataLayerInstanceNames += DataLayerSubsystem->GetDataLayerInstanceNames(DataLayers);
+		DataLayerInstanceNames += WorldDataLayers->GetDataLayerInstanceNames(DataLayers);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return DataLayerInstanceNames;
@@ -1421,16 +1421,21 @@ TArray<FName> AActor::GetDataLayerInstanceNames() const
 
 TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances() const
 {
+	return GetWorld() ? GetDataLayerInstances(GetWorld()->GetWorldDataLayers()) : TArray<const UDataLayerInstance*>();
+}
+
+TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances(const AWorldDataLayers* WorldDataLayers) const
+{
 	TArray<const UDataLayerInstance*> DataLayerInstances;
-	
-	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	if (WorldDataLayers != nullptr)
 	{
-		DataLayerInstances += DataLayerSubsystem->GetDataLayerInstances(DataLayerAssets);
+		DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayerAssets);
 
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		DataLayerInstances += DataLayerSubsystem->GetDataLayerInstances(DataLayers);
+		DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayers);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
+
 
 	return DataLayerInstances;
 }
@@ -1448,7 +1453,7 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 
 		if (GetWorld())
 		{
-			if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+			if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 			{
 				if (bRevertChangesOnLockedDataLayer)
 				{
@@ -1456,12 +1461,12 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 					TSet<const UDataLayerAsset*> PreEdit(PreEditChangeDataLayers);
 					TSet<const UDataLayerAsset*> PostEdit(DataLayerAssets);
 
-					auto DifferenceContainsLockedDataLayers = [DataLayerSubsystem](const TSet<const UDataLayerAsset*>& A, const TSet<const UDataLayerAsset*>& B)
+					auto DifferenceContainsLockedDataLayers = [WorldDataLayers](const TSet<const UDataLayerAsset*>& A, const TSet<const UDataLayerAsset*>& B)
 					{
 						TSet<const UDataLayerAsset*> Diff = A.Difference(B);
 						for (const UDataLayerAsset* DataLayerAsset : Diff)
 						{
-							const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset);
+							const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerAsset);
 							if (DataLayerInstance && DataLayerInstance->IsLocked())
 							{
 								return true;
@@ -1478,7 +1483,7 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 				}
 
 				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				auto CleanupDataLayers = [this, DataLayerSubsystem](auto& DataLayerArray)
+				auto CleanupDataLayers = [this, WorldDataLayers](auto& DataLayerArray)
 				{
 					using ArrayType = typename TRemoveReference<decltype(DataLayerArray)>::Type;
 					
@@ -1486,7 +1491,7 @@ void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)
 					for (int32 Index = 0; Index < DataLayerArray.Num();)
 					{
 						auto& DataLayer = DataLayerArray[Index];
-						if (!DataLayerSubsystem->GetDataLayerInstance(DataLayer) || ExistingDataLayer.Contains(DataLayer))
+						if (!WorldDataLayers->GetDataLayerInstance(DataLayer) || ExistingDataLayer.Contains(DataLayer))
 						{
 							DataLayerArray.RemoveAtSwap(Index);
 						}
@@ -1585,19 +1590,6 @@ bool AActor::RemoveDataLayer(const UDEPRECATED_DataLayer* DataLayer)
 		return RemoveDataLayer(FActorDataLayer(DataLayer->GetFName()));
 	}
 	return false;
-}
-
-TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances(const AWorldDataLayers* WorldDataLayers) const
-{
-	TArray<const UDataLayerInstance*> DataLayerInstances;
-
-	if (WorldDataLayers != nullptr)
-	{
-		DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayerAssets);
-		DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayers);
-	}
-
-	return DataLayerInstances;
 }
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

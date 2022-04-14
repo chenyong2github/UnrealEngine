@@ -5,7 +5,7 @@
 #include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
-#include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/DataLayersID.h"
 #include "Engine/World.h"
 
@@ -51,14 +51,14 @@ void UWorldPartitionRuntimeCell::UpdateDebugName()
 	Builder += FString::Printf(TEXT("L%d_X%d_Y%d"), Coords.Z, Coords.X, Coords.Y);
 	int32 DataLayerCount = DataLayers.Num();
 
-	const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetOuterUWorldPartition()->GetWorld());
+	const AWorldDataLayers* WorldDataLayers = GetOuterUWorldPartition()->GetWorld()->GetWorldDataLayers();
 	TArray<const UDataLayerInstance*> DataLayerObjects;
-	if (DataLayerCount > 0)
+	if (WorldDataLayers && (DataLayerCount > 0))
 	{
 		Builder += TEXT(" DL[");
 		for (int i = 0; i < DataLayerCount; ++i)
 		{
-			const UDataLayerInstance* DataLayer = DataLayerSubsystem->GetDataLayerInstance(DataLayers[i]);
+			const UDataLayerInstance* DataLayer = WorldDataLayers->GetDataLayerInstance(DataLayers[i]);
 			DataLayerObjects.Add(DataLayer);
 			Builder += DataLayer->GetDataLayerShortName();
 			Builder += TEXT(",");

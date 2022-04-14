@@ -636,6 +636,13 @@ private:
 	TArray<AActor*> GetSelectedActors() const;
 
 	/**
+	 * Gets the WorldDataLayers for this world
+	 *
+	 * @return	The AWorldDataLayers Object
+	 */
+	class AWorldDataLayers* GetWorldDataLayers() const;
+
+	/**
 	 * Get the current UWorld object.
 	 *
 	 * @return						The UWorld* object
@@ -652,6 +659,7 @@ private:
 	void PostUndoRedo();
 
 	bool SetDataLayerIsLoadedInEditorInternal(UDataLayerInstance* DataLayer, const bool bIsLoadedInEditor, const bool bIsFromUserChange);
+	void UpdateDataLayerEditorPerProjectUserSettings();
 
 	void BroadcastActorDataLayersChanged(const TWeakObjectPtr<AActor>& ChangedActor);
 	void BroadcastDataLayerChanged(const EDataLayerAction Action, const TWeakObjectPtr<const UDataLayerInstance>& ChangedDataLayer, const FName& ChangedProperty);
