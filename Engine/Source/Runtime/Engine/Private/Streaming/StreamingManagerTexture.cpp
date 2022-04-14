@@ -205,10 +205,6 @@ TArray<FStreamingRenderAsset>& FRenderAssetStreamingManager::GetStreamingRenderA
 void FRenderAssetStreamingManager::OnPreGarbageCollect()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRenderAssetStreamingManager::OnPreGarbageCollect);
-#if WITH_EDITORONLY_DATA
-	void PurgeAbandonedDDCHandles();
-	PurgeAbandonedDDCHandles();
-#endif
 
 	FScopeLock ScopeLock(&CriticalSection);
 	if (StreamingRenderAssetsSyncEvent.IsValid())

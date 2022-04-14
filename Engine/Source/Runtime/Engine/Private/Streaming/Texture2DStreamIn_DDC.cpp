@@ -5,10 +5,10 @@ Texture2DStreamIn_DDC.cpp: Stream in helper for 2D textures loading DDC files.
 =============================================================================*/
 
 #include "Streaming/Texture2DStreamIn_DDC.h"
-#include "Streaming/TextureStreamingHelpers.h"
+#include "Rendering/Texture2DResource.h"
 #include "RenderUtils.h"
 #include "Serialization/MemoryReader.h"
-#include "Rendering/Texture2DResource.h"
+#include "Streaming/TextureStreamingHelpers.h"
 
 #if WITH_EDITORONLY_DATA
 
@@ -16,83 +16,15 @@ Texture2DStreamIn_DDC.cpp: Stream in helper for 2D textures loading DDC files.
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataRequestOwner.h"
+#include "Misc/ScopeExit.h"
 
 int32 GStreamingUseAsyncRequestsForDDC = 1;
 static FAutoConsoleVariableRef CVarStreamingDDCPendingSleep(
 	TEXT("r.Streaming.UseAsyncRequestsForDDC"),
 	GStreamingUseAsyncRequestsForDDC,
-	TEXT("Whether to use async DDC requets in order to react quickly to cancel and suspend rendering requests (default=0)"),
+	TEXT("Whether to use async DDC requests in order to react quickly to cancel and suspend rendering requests (default=0)"),
 	ECVF_Default
 );
-
-int32 GStreamingAbandonedDDCHandlePurgeFrequency = 150;
-static FAutoConsoleVariableRef CVarStreamingAbandonedDDCHandlePurgeFrequency(
-	TEXT("r.Streaming.AbandonedDDCHandlePurgeFrequency"),
-	GStreamingAbandonedDDCHandlePurgeFrequency,
-	TEXT("The number of abandonned handle at which a purge will be triggered (default=150)"),
-	ECVF_Default
-);
-
-// ******************************************
-// ******* FAbandonedDDCHandleManager *******
-// ******************************************
-
-FAbandonedDDCHandleManager GAbandonedDDCHandleManager;
-
-void FAbandonedDDCHandleManager::Add(uint32 InHandle)
-{
-	check(InHandle);
-
-	bool bPurge = false;
-	{
-		FScopeLock ScopeLock(&CS);
-		Handles.Add(InHandle);
-
-		++TotalAdd;
-		bPurge = (TotalAdd % GStreamingAbandonedDDCHandlePurgeFrequency == 0);
-	}
-
-	if (bPurge)
-	{
-		Purge();
-	}
-}
-
-void FAbandonedDDCHandleManager::Purge()
-{
-	TArray<uint32> TempHandles;	
-	{
-		FScopeLock ScopeLock(&CS);
-		FMemory::Memswap(&TempHandles, &Handles, sizeof(TempHandles));
-	}
-
-	FDerivedDataCacheInterface& DDCInterface = GetDerivedDataCacheRef();
-	TArray64<uint8> Data;
-
-	for (int32 Index = 0; Index < TempHandles.Num(); ++Index)
-	{
-		uint32 Handle = TempHandles[Index];
-		if (DDCInterface.PollAsynchronousCompletion(Handle))
-		{
-			DDCInterface.GetAsynchronousResults(Handle, Data);
-			Data.Reset();
-
-			TempHandles.RemoveAtSwap(Index);
-			--Index;
-		}
-	}
-
-	if (TempHandles.Num())
-	{
-		FScopeLock ScopeLock(&CS);
-		Handles.Append(TempHandles);
-	}
-}
-
-void PurgeAbandonedDDCHandles()
-{
-	GAbandonedDDCHandleManager.Purge();
-}
 
 // ******************************************
 // ********* FTexture2DStreamIn_DDC *********
@@ -102,22 +34,11 @@ FTexture2DStreamIn_DDC::FTexture2DStreamIn_DDC(UTexture2D* InTexture)
 	: FTexture2DStreamIn(InTexture)
 	, DDCRequestOwner(UE::DerivedData::EPriority::Normal)
 {
-	DDCHandles.AddZeroed(ResourceState.MaxNumLODs);
 	DDCMipRequestStatus.AddZeroed(ResourceState.MaxNumLODs);
 }
 
 FTexture2DStreamIn_DDC::~FTexture2DStreamIn_DDC()
 {
-	// On cancellation, we don't wait for DDC requests to complete before releasing the object.
-	// This prevents GC from being stalled when texture are deleted.
-	for (uint32& AbandonedHandle : DDCHandles)
-	{
-		if (AbandonedHandle)
-		{
-			GAbandonedDDCHandleManager.Add(AbandonedHandle);
-			AbandonedHandle = 0;
-		}
-	}
 }
 
 void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
@@ -131,45 +52,45 @@ void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 	{
 		const int32 LODBias = static_cast<int32>(Context.MipsView.GetData() - PlatformData->Mips.GetData());
 
+		using namespace UE::DerivedData;
+		TArray<FCacheGetChunkRequest> MipKeys;
+
+		TStringBuilder<256> MipNameBuilder;
+		Context.Texture->GetPathName(nullptr, MipNameBuilder);
+		const int32 TextureNameLen = MipNameBuilder.Len();
+
 		if (PlatformData->DerivedDataKey.IsType<FString>())
 		{
 			for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 			{
 				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
-				if (MipMap.IsPagedToDerivedData())
+				FMipRequestStatus& Status = DDCMipRequestStatus[MipIndex];
+				if (!MipMap.IsPagedToDerivedData())
 				{
-					check(!DDCHandles[MipIndex]);
-					DDCHandles[MipIndex] = GetDerivedDataCacheRef().GetAsynchronous(*PlatformData->GetDerivedDataMipKeyString(MipIndex + LODBias, MipMap), Context.Texture->GetPathName());
-
-#if !UE_BUILD_SHIPPING
-					// On some platforms the IO is too fast to test cancelation requests timing issues.
-					if (FRenderAssetStreamingSettings::ExtraIOLatency > 0 && TaskSynchronization.GetValue() == 0)
-					{
-						FPlatformProcess::Sleep(FRenderAssetStreamingSettings::ExtraIOLatency * .001f); // Slow down the streaming.
-					}
-#endif
-				}
-				else
-				{
-					UE_LOG(LogTexture, Error, TEXT("Attempting to stream in a mip that is already present."));
+					UE_LOG(LogTexture, Error, TEXT("Attempting to stream data that is already loaded for mip %d of %s."),
+						MipIndex, *Context.Texture->GetPathName());
 					MarkAsCancelled();
+				}
+				else if (!Status.bRequestIssued && !Status.Buffer)
+				{
+					FCacheGetChunkRequest& Request = MipKeys.AddDefaulted_GetRef();
+					MipNameBuilder.Appendf(TEXT(" [MIP %d]"), MipIndex + LODBias);
+					Request.Name = MipNameBuilder;
+					Request.Key = ConvertLegacyCacheKey(PlatformData->GetDerivedDataMipKeyString(MipIndex + LODBias, MipMap));
+					Request.UserData = MipIndex;
+					MipNameBuilder.RemoveSuffix(MipNameBuilder.Len() - TextureNameLen);
+					Status.bRequestIssued = true;
 				}
 			}
 		}
 		else if (PlatformData->DerivedDataKey.IsType<UE::DerivedData::FCacheKeyProxy>())
 		{
-			using namespace UE::DerivedData;
-			TArray<FCacheGetChunkRequest> MipKeys;
-
-			TStringBuilder<256> MipNameBuilder;
-			Context.Texture->GetPathName(nullptr, MipNameBuilder);
-			const int32 TextureNameLen = MipNameBuilder.Len();
-
 			const FCacheKey& Key = *PlatformData->DerivedDataKey.Get<UE::DerivedData::FCacheKeyProxy>().AsCacheKey();
 			for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 			{
 				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
-				if (MipMap.IsPagedToDerivedData())
+				FMipRequestStatus& Status = DDCMipRequestStatus[MipIndex];
+				if (MipMap.IsPagedToDerivedData() && !Status.bRequestIssued && !Status.Buffer)
 				{
 					FCacheGetChunkRequest& Request = MipKeys.AddDefaulted_GetRef();
 					MipNameBuilder.Appendf(TEXT(" [MIP %d]"), MipIndex + LODBias);
@@ -178,46 +99,52 @@ void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 					Request.Id = FTexturePlatformData::MakeMipId(MipIndex + LODBias);
 					Request.UserData = MipIndex;
 					MipNameBuilder.RemoveSuffix(MipNameBuilder.Len() - TextureNameLen);
-					DDCMipRequestStatus[MipIndex].bRequestIssued = true;
+					Status.bRequestIssued = true;
 				}
-			}
-
-			if (MipKeys.Num())
-			{
-				GetCache().GetChunks(MipKeys, DDCRequestOwner, [this](FCacheGetChunkResponse&& Response)
-				{
-					if (Response.Status == EStatus::Ok)
-					{
-						const int32 MipIndex = int32(Response.UserData);
-						check(!DDCMipRequestStatus[MipIndex].Buffer);
-						DDCMipRequestStatus[MipIndex].Buffer = MoveTemp(Response.RawData);
-					}
-				});
 			}
 		}
 		else
 		{
-			UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated a supported derived data key format."));
+			UE_LOG(LogTexture, Error, TEXT("Attempting to stream data in an unsupported cache format for mips [%d, %d) of %s."),
+				PendingFirstLODIdx, CurrentFirstLODIdx, *Context.Texture->GetPathName());
 			MarkAsCancelled();
+		}
+
+		if (MipKeys.Num())
+		{
+		#if !UE_BUILD_SHIPPING
+			// On some platforms the IO is too fast to test cancellation requests timing issues.
+			if (FRenderAssetStreamingSettings::ExtraIOLatency > 0 && TaskSynchronization.GetValue() == 0)
+			{
+				FPlatformProcess::Sleep(MipKeys.Num() * FRenderAssetStreamingSettings::ExtraIOLatency * 0.001f); // Slow down the streaming.
+			}
+		#endif
+
+			FRequestBarrier Barrier(DDCRequestOwner);
+			GetCache().GetChunks(MipKeys, DDCRequestOwner, [this](FCacheGetChunkResponse&& Response)
+			{
+				if (Response.Status == EStatus::Ok)
+				{
+					const int32 MipIndex = int32(Response.UserData);
+					FMipRequestStatus& Status = DDCMipRequestStatus[MipIndex];
+					check(!Status.Buffer);
+					Status.Buffer = MoveTemp(Response.RawData);
+					check(Status.bRequestIssued);
+					Status.bRequestIssued = false;
+				}
+			});
 		}
 	}
 	else
 	{
-		UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated derived data yet."));
+		UE_LOG(LogTexture, Error, TEXT("Attempting to stream data that has not been generated yet for mips [%d, %d) of %s."),
+			PendingFirstLODIdx, CurrentFirstLODIdx, *Context.Texture->GetPathName());
 		MarkAsCancelled();
 	}
 }
 
 bool FTexture2DStreamIn_DDC::DoPoolDDCRequests(const FContext& Context) 
 {
-	for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
-	{
-		const uint32 Handle = DDCHandles[MipIndex];
-		if (Handle && !GetDerivedDataCacheRef().PollAsynchronousCompletion(Handle))
-		{
-			return false;
-		}
-	}
 	return DDCRequestOwner.Poll();
 }
 
@@ -228,167 +155,51 @@ void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 		return;
 	}
 
-	if (const FTexturePlatformData* PlatformData = Context.Texture->GetPlatformData())
+	using namespace UE::DerivedData;
+	const EPriority OriginalPriority = DDCRequestOwner.GetPriority();
+	ON_SCOPE_EXIT { DDCRequestOwner.SetPriority(OriginalPriority); };
+	DDCRequestOwner.SetPriority(EPriority::Blocking);
+	DoCreateAsyncDDCRequests(Context);
+	DDCRequestOwner.Wait();
+
+	for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 	{
-		const int32 LODBias = static_cast<int32>(Context.MipsView.GetData() - PlatformData->Mips.GetData());
+		const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
+		check(MipData[MipIndex].Data);
 
-		if (PlatformData->DerivedDataKey.IsType<FString>())
+		FMipRequestStatus& Status = DDCMipRequestStatus[MipIndex];
+		if (Status.Buffer)
 		{
-			for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
+			const SIZE_T ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
+
+			UE_LOG(LogTexture, Verbose, TEXT("FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC Size=%dx%d ExpectedMipSize=%" SIZE_T_FMT " DerivedMipSize=%" SIZE_T_FMT),
+				MipMap.SizeX, MipMap.SizeY, ExpectedMipSize, Status.Buffer.GetSize());
+
+			// Serializes directly into MipData so it must be tight packed pitch
+			const uint32 DestPitch = MipData[MipIndex].Pitch;
+			FTexture2DResource::WarnRequiresTightPackedMip(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), DestPitch);
+
+			if (Status.Buffer.GetSize() == ExpectedMipSize)
 			{
-				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
-				check(MipData[MipIndex].Data != nullptr);
-
-				if (MipMap.IsPagedToDerivedData())
-				{
-					// The overhead of doing 2 copy of each mip data (from GetSynchronous() and FMemoryReader) in hidden by other texture DDC ops happening at the same time.
-					TArray64<uint8> DerivedMipData;
-					bool bDDCValid = true;
-
-					const uint32 Handle = DDCHandles[MipIndex];
-					if (Handle)
-					{
-						bDDCValid = GetDerivedDataCacheRef().GetAsynchronousResults(Handle, DerivedMipData);
-						DDCHandles[MipIndex] = 0;
-					}
-					else
-					{
-						bDDCValid = GetDerivedDataCacheRef().GetSynchronous(*PlatformData->GetDerivedDataMipKeyString(MipIndex + LODBias, MipMap), DerivedMipData, Context.Texture->GetPathName());
-					}
-
-					if (bDDCValid)
-					{
-						const SIZE_T ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
-						FMemoryReaderView Ar(MakeMemoryView(DerivedMipData), true);
-
-						UE_LOG(LogTextureUpload,Verbose,TEXT("FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC Size: %dx%d , ExpectedMipSize=%d DerivedMipData=%d"),
-							MipMap.SizeX,MipMap.SizeY,
-							ExpectedMipSize,(int)DerivedMipData.Num());
-
-						// Serializes directly into MipData so it must be tight packed pitch :
-						uint32 DestPitch = MipData[MipIndex].Pitch;
-						FTexture2DResource::WarnRequiresTightPackedMip(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), DestPitch);
-
-						if (DerivedMipData.Num() == ExpectedMipSize)
-						{
-							// Pitch ignored
-							// to copy and respect Pitch, use CopyTextureData2D
-							// MipData[] should have size but doesn't
-							Ar.Serialize(MipData[MipIndex].Data, DerivedMipData.Num());
-						}
-						else
-						{
-							UE_LOG(LogTexture, Error, TEXT("DDC mip size (%" SIZE_T_FMT ") not as expected (%" SIZE_T_FMT ") for mip %d of %s."),
-								static_cast<SIZE_T>(DerivedMipData.Num()), ExpectedMipSize, MipIndex, *Context.Texture->GetPathName());
-							MarkAsCancelled();
-						}
-					}
-					else
-					{
-						MarkAsCancelled();
-					}
-				}
-				else
-				{
-					UE_LOG(LogTexture, Error, TEXT("Attempting to stream in a mip that is already present."));
-					MarkAsCancelled();
-				}
+				// Pitch ignored
+				// to copy and respect Pitch, use CopyTextureData2D
+				// MipData[] should have size but doesn't
+				FMemory::Memcpy(MipData[MipIndex].Data, Status.Buffer.GetData(), Status.Buffer.GetSize());
 			}
-		}
-		else if (PlatformData->DerivedDataKey.IsType<UE::DerivedData::FCacheKeyProxy>())
-		{
-			using namespace UE::DerivedData;
-			const FCacheKey& Key = *PlatformData->DerivedDataKey.Get<FCacheKeyProxy>().AsCacheKey();
-			TStringBuilder<256> MipNameBuilder;
-			Context.Texture->GetPathName(nullptr, MipNameBuilder);
-			const int32 TextureNameLen = MipNameBuilder.Len();
-
-			for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
+			else
 			{
-				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
-				check(MipData[MipIndex].Data != nullptr);
-
-				if (MipMap.IsPagedToDerivedData())
-				{
-					FSharedBuffer MipResult;
-					FMipRequestStatus& MipRequestStatus = DDCMipRequestStatus[MipIndex];
-					if (MipRequestStatus.bRequestIssued)
-					{
-						MipResult = MoveTemp(MipRequestStatus.Buffer);
-						MipRequestStatus.bRequestIssued = false;
-					}
-					else
-					{
-						FCacheGetChunkRequest Request;
-						MipNameBuilder.Appendf(TEXT(" [MIP %d]"), MipIndex + LODBias);
-						Request.Name = MipNameBuilder;
-						Request.Key = Key;
-						Request.Id = FTexturePlatformData::MakeMipId(MipIndex + LODBias);
-						Request.UserData = MipIndex;
-						MipNameBuilder.RemoveSuffix(MipNameBuilder.Len() - TextureNameLen);
-
-						FRequestOwner BlockingRequestOwner(EPriority::Blocking);
-						GetCache().GetChunks({Request}, BlockingRequestOwner, [MipIndex, &MipResult](FCacheGetChunkResponse&& Response)
-						{
-							if (Response.Status == EStatus::Ok)
-							{
-								MipResult = MoveTemp(Response.RawData);
-							}
-						});
-						BlockingRequestOwner.Wait();
-
-					}
-
-					if (MipResult)
-					{
-						const SIZE_T ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
-						
-						UE_LOG(LogTextureUpload,Verbose,TEXT("FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC Size: %dx%d , ExpectedMipSize=%d MipResult=%d"),
-							MipMap.SizeX,MipMap.SizeY,
-							ExpectedMipSize,(int)MipResult.GetSize());
-						
-						// uses Memcpy instead of CopyTextureData2D, so Pitch must be tight packed
-						uint32 DestPitch = MipData[MipIndex].Pitch;
-						FTexture2DResource::WarnRequiresTightPackedMip(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), DestPitch);
-
-						if (MipResult.GetSize() == ExpectedMipSize)
-						{
-							// Pitch ignored
-							// to memcpy and respect Pitch, use CopyTextureData2D
-							// check MipData[] Size & Pitch
-							FMemory::Memcpy(MipData[MipIndex].Data, MipResult.GetData(), MipResult.GetSize());
-						}
-						else
-						{
-							UE_LOG(LogTexture, Error, TEXT("DDC mip size (%" SIZE_T_FMT ") not as expected (%" SIZE_T_FMT ") for mip %d of %s."),
-								static_cast<SIZE_T>(MipResult.GetSize()), ExpectedMipSize, MipIndex, *Context.Texture->GetPathName());
-							MarkAsCancelled();
-						}
-					}
-					else
-					{
-						MarkAsCancelled();
-					}
-				}
-				else
-				{
-					UE_LOG(LogTexture, Error, TEXT("Attempting to stream in a mip that is already present."));
-					MarkAsCancelled();
-				}
+				UE_LOG(LogTexture, Error, TEXT("Cached mip size (%" SIZE_T_FMT ") not as expected (%" SIZE_T_FMT ") for mip %d of %s."),
+					static_cast<SIZE_T>(Status.Buffer.GetSize()), ExpectedMipSize, MipIndex, *Context.Texture->GetPathName());
+				MarkAsCancelled();
 			}
 		}
 		else
 		{
-			UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated a supported derived data key format."));
 			MarkAsCancelled();
 		}
-		FPlatformMisc::MemoryBarrier();
 	}
-	else
-	{
-		UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated derived data yet."));
-		MarkAsCancelled();
-	}
+
+	FPlatformMisc::MemoryBarrier();
 }
 
 #endif

@@ -30,11 +30,8 @@
 #include "DerivedDataBuildInputs.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildSession.h"
-#include "DerivedDataCacheInterface.h"
-#include "DerivedDataCacheKey.h"
+#include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
-#include "DerivedDataSharedString.h"
-#include "DerivedDataValue.h"
 #include "Engine/TextureCube.h"
 #include "Engine/VolumeTexture.h"
 #include "ImageCoreUtils.h"
@@ -728,6 +725,8 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 // DDC1 primary fetch/build work function
 void FTextureCacheDerivedDataWorker::DoWork()
 {
+	using namespace UE::DerivedData;
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::DoWork);
 
 	const bool bForceRebuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForceRebuild);
@@ -737,7 +736,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 	const bool bValidateVirtualTextureCompression = CVarVTValidateCompressionOnLoad.GetValueOnAnyThread() != 0;
 	bool bInvalidVirtualTextureCompression = false;
 
-	TArray64<uint8> RawDerivedData;
+	FSharedBuffer RawDerivedData;
 
 	// Can't have a fetch first if we are rebuilding
 	if (bForceRebuild)
@@ -762,8 +761,15 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		{
 			FString FetchFirstKey;
 			GetTextureDerivedDataKeyFromSuffix(FetchFirstKeySuffix, FetchFirstKey);
-		
-			bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*FetchFirstKey, RawDerivedData, TexturePathName);
+
+			FRequestOwner BlockingOwner(EPriority::Blocking);
+			GetCache().GetValue({{{TexturePathName}, ConvertLegacyCacheKey(FetchFirstKey)}}, BlockingOwner, [&RawDerivedData](FCacheGetValueResponse&& Response)
+			{
+				RawDerivedData = Response.Value.GetData().Decompress();
+			});
+			BlockingOwner.Wait();
+
+			bLoadedFromDDC = !RawDerivedData.IsNull();
 			if (bLoadedFromDDC)
 			{
 				bUsedFetchFirst = true;
@@ -778,7 +784,14 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		// Didn't get the initial fetch, so we're using fetch/build.
 		LocalDerivedDataKeySuffix = MoveTemp(FetchOrBuildKeySuffix);
 		GetTextureDerivedDataKeyFromSuffix(LocalDerivedDataKeySuffix, LocalDerivedDataKey);
-		bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*LocalDerivedDataKey, RawDerivedData, TexturePathName);
+
+		FRequestOwner BlockingOwner(EPriority::Blocking);
+		GetCache().GetValue({{{TexturePathName}, ConvertLegacyCacheKey(LocalDerivedDataKey)}}, BlockingOwner, [&RawDerivedData](FCacheGetValueResponse&& Response)
+		{
+			RawDerivedData = Response.Value.GetData().Decompress();
+		});
+		BlockingOwner.Wait();
+		bLoadedFromDDC = !RawDerivedData.IsNull();
 	}
 
 	KeySuffix = LocalDerivedDataKeySuffix;
@@ -791,8 +804,8 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		const bool bInlineMips = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::InlineMips);
 		const bool bForDDC = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForDDCBuild);
 
-		BytesCached = RawDerivedData.Num();
-		FMemoryReaderView Ar(MakeMemoryView(RawDerivedData), /*bIsPersistent=*/ true);
+		BytesCached = RawDerivedData.GetSize();
+		FMemoryReaderView Ar(RawDerivedData.GetView(), /*bIsPersistent=*/ true);
 		DerivedData->Serialize(Ar, NULL);
 		bSucceeded = true;
 		// Load any streaming (not inline) mips that are necessary for our platform.
@@ -805,15 +818,22 @@ void FTextureCacheDerivedDataWorker::DoWork()
 				if (DerivedData->VTData != nullptr &&
 					DerivedData->VTData->IsInitialized())
 				{
-					TArray<FString, TInlineAllocator<16>> ChunkKeys;
+					FCacheGetValueRequest Request;
+					Request.Name = TexturePathName;
+					Request.Policy = ECachePolicy::Default | ECachePolicy::SkipData;
+
+					TArray<FCacheGetValueRequest, TInlineAllocator<16>> ChunkKeys;
 					for (const FVirtualTextureDataChunk& Chunk : DerivedData->VTData->Chunks)
 					{
 						if (!Chunk.DerivedDataKey.IsEmpty())
 						{
-							ChunkKeys.Add(Chunk.DerivedDataKey);
+							ChunkKeys.Add_GetRef(Request).Key = ConvertLegacyCacheKey(Chunk.DerivedDataKey);
 						}
 					}
-					GetDerivedDataCacheRef().TryToPrefetch(ChunkKeys, TexturePathName);
+
+					FRequestOwner BlockingOwner(EPriority::Blocking);
+					GetCache().GetValue(ChunkKeys, BlockingOwner, [](FCacheGetValueResponse&&){});
+					BlockingOwner.Wait();
 				}
 			}
 

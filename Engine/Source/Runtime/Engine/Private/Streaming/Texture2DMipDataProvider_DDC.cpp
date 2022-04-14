@@ -5,16 +5,14 @@ Texture2DMipDataProvider_DDC.cpp : Implementation of FTextureMipDataProvider usi
 =============================================================================*/
 
 #include "Texture2DMipDataProvider_DDC.h"
-#include "DerivedDataCacheInterface.h"
 #include "Engine/Texture.h"
-#include "TextureResource.h"
-#include "Streaming/Texture2DStreamIn_DDC.h" // for FAbandonedDDCHandleManager
+#include "Rendering/StreamableTextureResource.h"
 #include "Streaming/TextureStreamingHelpers.h"
+#include "TextureResource.h"
 
 #if WITH_EDITORONLY_DATA
 
 #include "DerivedDataCache.h"
-#include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheKey.h"
 
 FTexture2DMipDataProvider_DDC::FTexture2DMipDataProvider_DDC(const UTexture* Texture)
@@ -25,14 +23,12 @@ FTexture2DMipDataProvider_DDC::FTexture2DMipDataProvider_DDC(const UTexture* Tex
 
 FTexture2DMipDataProvider_DDC::~FTexture2DMipDataProvider_DDC()
 {
-	check(!DDCHandles.Num());
 }
 
 void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, const FTextureUpdateSyncOptions& SyncOptions)
 {
-	if (!DDCHandles.Num())
+	if (DDCBuffers.IsEmpty())
 	{
-		DDCHandles.AddZeroed(CurrentFirstLODIdx);
 		DDCBuffers.AddZeroed(CurrentFirstLODIdx);
 
 		FTexturePlatformData*const * PtrPlatformData = const_cast<UTexture*>(Context.Texture)->GetRunningPlatformData();
@@ -41,6 +37,13 @@ void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, c
 			const FTexturePlatformData* PlatformData = *PtrPlatformData;
 			const int32 LODBias = static_cast<int32>(Context.MipsView.GetData() - PlatformData->Mips.GetData());
 
+			using namespace UE::DerivedData;
+			TArray<FCacheGetChunkRequest> MipKeys;
+
+			TStringBuilder<256> MipNameBuilder;
+			Context.Texture->GetPathName(nullptr, MipNameBuilder);
+			const int32 TextureNameLen = MipNameBuilder.Len();
+
 			if (PlatformData->DerivedDataKey.IsType<FString>())
 			{
 				for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
@@ -48,19 +51,17 @@ void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, c
 					const FTexture2DMipMap& OwnerMip = *Context.MipsView[MipIndex];
 					if (OwnerMip.IsPagedToDerivedData())
 					{
-						DDCHandles[MipIndex] = GetDerivedDataCacheRef().GetAsynchronous(*PlatformData->GetDerivedDataMipKeyString(MipIndex + LODBias, OwnerMip), Context.Texture->GetPathName());
+						FCacheGetChunkRequest& Request = MipKeys.AddDefaulted_GetRef();
+						MipNameBuilder.Appendf(TEXT(" [MIP %d]"), MipIndex + LODBias);
+						Request.Name = MipNameBuilder;
+						Request.Key = ConvertLegacyCacheKey(PlatformData->GetDerivedDataMipKeyString(MipIndex + LODBias, OwnerMip));
+						Request.UserData = MipIndex;
+						MipNameBuilder.RemoveSuffix(MipNameBuilder.Len() - TextureNameLen);
 					}
 				}
 			}
 			else if (PlatformData->DerivedDataKey.IsType<UE::DerivedData::FCacheKeyProxy>())
 			{
-				using namespace UE::DerivedData;
-				TArray<FCacheGetChunkRequest> MipKeys;
-
-				TStringBuilder<256> MipNameBuilder;
-				Context.Texture->GetPathName(nullptr, MipNameBuilder);
-				const int32 TextureNameLen = MipNameBuilder.Len();
-
 				const FCacheKey& Key = *PlatformData->DerivedDataKey.Get<UE::DerivedData::FCacheKeyProxy>().AsCacheKey();
 				for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 				{
@@ -68,7 +69,7 @@ void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, c
 					if (MipMap.IsPagedToDerivedData())
 					{
 						FCacheGetChunkRequest& Request = MipKeys.AddDefaulted_GetRef();
-						MipNameBuilder.Appendf(TEXT(" [MIP 0]"), MipIndex + LODBias);
+						MipNameBuilder.Appendf(TEXT(" [MIP %d]"), MipIndex + LODBias);
 						Request.Name = MipNameBuilder;
 						Request.Key = Key;
 						Request.Id = FTexturePlatformData::MakeMipId(MipIndex + LODBias);
@@ -76,44 +77,37 @@ void FTexture2DMipDataProvider_DDC::Init(const FTextureUpdateContext& Context, c
 						MipNameBuilder.RemoveSuffix(MipNameBuilder.Len() - TextureNameLen);
 					}
 				}
-
-				if (MipKeys.Num())
-				{
-					GetCache().GetChunks(MipKeys, DDCRequestOwner, [this](FCacheGetChunkResponse&& Response)
-					{
-						if (Response.Status == EStatus::Ok)
-						{
-							const int32 MipIndex = int32(Response.UserData);
-							check(!DDCBuffers[MipIndex]);
-							DDCBuffers[MipIndex] = MoveTemp(Response.RawData);
-						}
-					});
-				}
 			}
 			else
 			{
-				UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated a supported derived data key format."));
+				UE_LOG(LogTexture, Error, TEXT("Attempting to stream data in an unsupported cache format for mips [%d, %d) of %s."),
+					PendingFirstLODIdx, CurrentFirstLODIdx, *Context.Texture->GetPathName());
+			}
+
+			if (MipKeys.Num())
+			{
+				FRequestBarrier Barrier(DDCRequestOwner);
+				GetCache().GetChunks(MipKeys, DDCRequestOwner, [this](FCacheGetChunkResponse&& Response)
+				{
+					if (Response.Status == EStatus::Ok)
+					{
+						const int32 MipIndex = int32(Response.UserData);
+						check(!DDCBuffers[MipIndex]);
+						DDCBuffers[MipIndex] = MoveTemp(Response.RawData);
+					}
+				});
 			}
 		}
 		else
 		{
-			UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated derived data yet."));
+			UE_LOG(LogTexture, Error, TEXT("Attempting to stream data that has not been generated yet for mips [%d, %d) of %s."),
+				PendingFirstLODIdx, CurrentFirstLODIdx, *Context.Texture->GetPathName());
 		}
-
 
 		*SyncOptions.bSnooze = true;
 	}
-	else // The DDC request have been issued, only check whether they are ready (since no good sync option is used).
+	else // The cache request has been issued, only check whether they are ready.
 	{
-		for (uint32 Handle : DDCHandles)
-		{
-			if (Handle && !GetDerivedDataCacheRef().PollAsynchronousCompletion(Handle))
-			{
-				*SyncOptions.bSnooze = true;
-				return;
-			}
-		}
-
 		if (!DDCRequestOwner.Poll())
 		{
 			*SyncOptions.bSnooze = true;
@@ -134,7 +128,8 @@ bool FTexture2DMipDataProvider_DDC::SerializeMipInfo(const FTextureUpdateContext
 	}
 	else if (uint64(MipSize) < OutMipInfo.DataSize && DepthOrArraySize > 1 && OutMipInfo.DataSize % DepthOrArraySize == 0 && MipSize % DepthOrArraySize == 0)
 	{
-		UE_LOG(LogTexture, Verbose, TEXT("DDC mip size smaller than streaming buffer size. (%s, Mip %d): %d KB / %d KB."), *Context.Resource->GetTextureName().ToString(), ResourceState.MaxNumLODs - MipIndex, OutMipInfo.DataSize / 1024, MipSize / 1024);
+		UE_LOG(LogTexture, Verbose, TEXT("Cached mip size is smaller than streaming buffer size for mip %d of %s: %d KiB / %d KiB."),
+			ResourceState.MaxNumLODs - MipIndex, *Context.Resource->GetTextureName().ToString(), OutMipInfo.DataSize / 1024, MipSize / 1024);
 
 		const uint64 SourceSubSize = MipSize / DepthOrArraySize;
 		const uint64 DestSubSize = OutMipInfo.DataSize / DepthOrArraySize;
@@ -151,7 +146,8 @@ bool FTexture2DMipDataProvider_DDC::SerializeMipInfo(const FTextureUpdateContext
 		return true;
 	}
 
-	UE_LOG(LogTexture, Warning, TEXT("Mismatch between DDC mip size and streaming buffer size. (%s, Mip %d): %d KB / %d KB."), *Context.Resource->GetTextureName().ToString(), ResourceState.MaxNumLODs - MipIndex, OutMipInfo.DataSize / 1024, MipSize / 1024);
+	UE_LOG(LogTexture, Warning, TEXT("Mismatch between cached mip size and streaming buffer size for mip %d of %s: %d KB / %d KB."),
+		ResourceState.MaxNumLODs - MipIndex, *Context.Resource->GetTextureName().ToString(), OutMipInfo.DataSize / 1024, MipSize / 1024);
 	FMemory::Memzero(OutMipInfo.DestData, OutMipInfo.DataSize);
 	return false;
 }
@@ -168,68 +164,31 @@ int32 FTexture2DMipDataProvider_DDC::GetMips(
 		const FTexturePlatformData* PlatformData = *PtrPlatformData;
 		const int32 LODBias = static_cast<int32>(Context.MipsView.GetData() - PlatformData->Mips.GetData());
 
-		if (PlatformData->DerivedDataKey.IsType<FString>())
+		for (int32 MipIndex = StartingMipIndex; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
-			for (int32 MipIndex = StartingMipIndex; MipIndex < CurrentFirstLODIdx; ++MipIndex)
+			bool bSuccess = false;
+			if (DDCBuffers[MipIndex])
 			{
-				const uint32 Handle = DDCHandles[MipIndex];
-				bool bSuccess = false;
-				if (Handle)
+				// The result must be read from a memory reader!
+				FMemoryReaderView Ar(DDCBuffers[MipIndex], true);
+				if (SerializeMipInfo(Context, Ar, MipIndex, DDCBuffers[MipIndex].GetSize(), MipInfos[MipIndex]))
 				{
-					DDCHandles[MipIndex] = 0; // Clear the handle.
-
-					TArray64<uint8> DerivedMipData;
-					if (GetDerivedDataCacheRef().GetAsynchronousResults(Handle, DerivedMipData))
-					{
-						const FTextureMipInfo& MipInfo = MipInfos[MipIndex];
-
-						// The result must be read from a memory reader!
-						FMemoryReaderView Ar(MakeMemoryView(DerivedMipData), true);
-						if (SerializeMipInfo(Context, Ar, MipIndex, DerivedMipData.Num(), MipInfo))
-						{
-							bSuccess = true;
-						}
-					}
+					bSuccess = true;
 				}
-
-				if (!bSuccess)
-				{
-					AdvanceTo(ETickState::CleanUp, ETickThread::Async);
-					return MipIndex; // We failed at getting this mip. Cancel will be called.
-				}
+				DDCBuffers[MipIndex].Reset();
 			}
-		}
-		else if (PlatformData->DerivedDataKey.IsType<UE::DerivedData::FCacheKeyProxy>())
-		{
-			for (int32 MipIndex = StartingMipIndex; MipIndex < CurrentFirstLODIdx; ++MipIndex)
+
+			if (!bSuccess)
 			{
-				bool bSuccess = false;
-				if (DDCBuffers[MipIndex])
-				{
-					// The result must be read from a memory reader!
-					FMemoryReaderView Ar(DDCBuffers[MipIndex], true);
-					if (SerializeMipInfo(Context, Ar, MipIndex, DDCBuffers[MipIndex].GetSize(), MipInfos[MipIndex]))
-					{
-						bSuccess = true;
-					}
-					DDCBuffers[MipIndex].Reset();
-				}
-
-				if (!bSuccess)
-				{
-					AdvanceTo(ETickState::CleanUp, ETickThread::Async);
-					return MipIndex; // We failed at getting this mip. Cancel will be called.
-				}
+				AdvanceTo(ETickState::CleanUp, ETickThread::Async);
+				return MipIndex; // We failed at getting this mip. Cancel will be called.
 			}
-		}
-		else
-		{
-			UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated a supported derived data key format."));
 		}
 	}
 	else
 	{
-		UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated derived data yet."));
+		UE_LOG(LogTexture, Error, TEXT("Attempting to stream data that has not been generated yet for mips [%d, %d) of %s."),
+			PendingFirstLODIdx, CurrentFirstLODIdx, *Context.Texture->GetPathName());
 	}
 
 	AdvanceTo(ETickState::CleanUp, ETickThread::Async);
@@ -255,27 +214,11 @@ void FTexture2DMipDataProvider_DDC::Cancel(const FTextureUpdateSyncOptions& Sync
 
 FTextureMipDataProvider::ETickThread FTexture2DMipDataProvider_DDC::GetCancelThread() const
 {
-	if (DDCHandles.Num() || DDCBuffers.Num())
-	{
-		return ETickThread::Async;
-	}
-	else
-	{
-		return ETickThread::None;
-	}
+	return DDCBuffers.Num() ? ETickThread::Async : ETickThread::None;
 }
 
 void FTexture2DMipDataProvider_DDC::ReleaseDDCResources()
 {
-	for (uint32& Handle : DDCHandles)
-	{
-		if (Handle)
-		{
-			GAbandonedDDCHandleManager.Add(Handle);
-			Handle = 0;
-		}
-	}
-	DDCHandles.Empty();
 	DDCRequestOwner.Cancel();
 	DDCBuffers.Empty();
 }

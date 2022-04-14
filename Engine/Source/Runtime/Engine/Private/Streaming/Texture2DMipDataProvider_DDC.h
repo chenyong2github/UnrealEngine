@@ -37,15 +37,12 @@ public:
 
 protected:
 
-	// Helper to route incomplete DDC requests to the FAbandonedDDCHandleManager.
 	void ReleaseDDCResources();
 
 	bool SerializeMipInfo(const FTextureUpdateContext& Context, FArchive& Ar, int32 MipIndex, int64 MipSize, const FTextureMipInfo& OutMipInfo);
 
 private:
 
-	// The list of DDC handle for each mips (0 based on the highest mip).
-	TArray<uint32, TInlineAllocator<MAX_TEXTURE_MIP_COUNT>> DDCHandles;
 	TArray<FSharedBuffer, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DDCBuffers;
 	UE::DerivedData::FRequestOwner DDCRequestOwner;
 };

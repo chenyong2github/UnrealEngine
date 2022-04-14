@@ -6,7 +6,6 @@
 
 #include "Engine/Texture2D.h"
 
-#include "Serialization/MemoryWriter.h"
 #include "Misc/App.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
@@ -23,7 +22,8 @@
 #include "EngineUtils.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
-#include "DerivedDataCacheInterface.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataRequestOwner.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Streaming/Texture2DStreamOut_AsyncReallocate.h"
@@ -164,21 +164,22 @@ void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 #if WITH_EDITORONLY_DATA
 int64 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC)
 {
+	using namespace UE::DerivedData;
+
 	int64 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
 	check(BulkDataSizeInBytes > 0);
 
-	TArray64<uint8> DerivedData;
-	FMemoryWriter64 Ar(DerivedData, /*bIsPersistent=*/ true);
-	{
-		void* BulkMipData = BulkData.Lock(LOCK_READ_ONLY);
-		Ar.Serialize(BulkMipData, BulkDataSizeInBytes);
-		BulkData.Unlock();
-	}
-	const int64 Result = DerivedData.Num();
-	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData, TextureName, bReplaceExistingDDC);
-	bPagedToDerivedData = true;
+	FValue DerivedData;
+	DerivedData = FValue::Compress(FSharedBuffer::MakeView(BulkData.Lock(LOCK_READ_ONLY), BulkDataSizeInBytes));
+	BulkData.Unlock();
+
+	FRequestOwner AsyncOwner(EPriority::Normal);
+	GetCache().PutValue({{{TextureName}, ConvertLegacyCacheKey(InDerivedDataKey), MoveTemp(DerivedData)}}, AsyncOwner);
+	AsyncOwner.KeepAlive();
+
+	SetPagedToDerivedData(true);
 	BulkData.RemoveBulkData();
-	return Result;
+	return BulkDataSizeInBytes;
 }
 #endif // #if WITH_EDITORONLY_DATA
 

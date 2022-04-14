@@ -9,7 +9,8 @@
 #include "Misc/Paths.h"
 #include "Async/AsyncWork.h"
 #include "Misc/CoreMisc.h"
-#include "DerivedDataCacheInterface.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataRequestOwner.h"
 #include "HAL/FileManager.h"
 #include "Misc/PackageName.h"
 #include "Misc/FileHelper.h"
@@ -59,7 +60,6 @@ public:
 		TRACE_CPUPROFILER_EVENT_SCOPE(FAsyncFillCacheWorker::DoWork);
 
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-		FDerivedDataCacheInterface& DDC = GetDerivedDataCacheRef();
 
 		// Limit size of valid hash
 		static const uint32 kMaxHashSize = 32 * 1024;
@@ -104,23 +104,29 @@ public:
 		}
 
 		// Fetch data from DDC
-		TArray64<uint8> Results;
-		//TODO(ddebaets) this sync request seems to be blocking here while it uses the job pool. add overload to perform it on this thread?
-		const bool DDCResult = DDC.GetSynchronous(*Chunk->DerivedDataKey, Results, FinalFilename);
-		if (DDCResult == false)
+		using namespace UE::DerivedData;
+		FSharedBuffer Results;
+		FRequestOwner BlockingOwner(EPriority::Blocking);
+		GetCache().GetValue({{{FinalFilename}, ConvertLegacyCacheKey(Chunk->DerivedDataKey)}}, BlockingOwner, [&Results](FCacheGetValueResponse&& Response)
+		{
+			Results = Response.Value.GetData().Decompress();
+		});
+		BlockingOwner.Wait();
+
+		if (Results.IsNull())
 		{
 			UE_LOG(LogVTDiskCache, Log, TEXT("Failed to fetch data from DDC (key: %s)"), *Chunk->DerivedDataKey);
 			return;
 		}
 
-		if (Results.Num() <= sizeof(FVirtualTextureChunkHeader))
+		if (Results.GetSize() <= sizeof(FVirtualTextureChunkHeader))
 		{
-			UE_LOG(LogVTDiskCache, Error, TEXT("VT DDC data is too small %" INT64_FMT " (key: %s)"), Results.Num(), *Chunk->DerivedDataKey);
+			UE_LOG(LogVTDiskCache, Error, TEXT("VT DDC data is too small %" UINT64_FMT " (key: %s)"), Results.GetSize(), *Chunk->DerivedDataKey);
 			return;
 		}
 
-		const uint8* ChunkData = Results.GetData();
-		const int64 ChunkDataSize = Results.Num();
+		const void* ChunkData = Results.GetData();
+		const uint64 ChunkDataSize = Results.GetSize();
 
 		FSHAHash Hash;
 		FSHA1::HashBuffer(ChunkData, ChunkDataSize, Hash.Hash);
@@ -147,7 +153,7 @@ public:
 			*Ar << Header;
 			const int64 ArchiveOffset = Ar->Tell();
 			check(ArchiveOffset == sizeof(FVirtualTextureFileHeader));
-			Ar->Serialize(const_cast<uint8*>(ChunkData), ChunkDataSize);
+			Ar->Serialize(const_cast<void*>(ChunkData), ChunkDataSize);
 		}
 
 		if (PlatformFile.MoveFile(*FinalFilename, *TempFilename))
