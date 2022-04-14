@@ -98,6 +98,13 @@ namespace EpicGames.Core
 
 		public static void AddFileToAssemblyCache(string assemblyPath)
 		{
+			// Ignore any reference assemblies
+			string? directory = Path.GetFileName(Path.GetDirectoryName(assemblyPath));
+			if (!string.IsNullOrEmpty(directory) && (directory == "ref" | directory == "refint"))
+			{
+				return;
+			}
+
 			string assemblyName = Path.GetFileNameWithoutExtension(assemblyPath);
 			DateTime assemblyLastWriteTime = File.GetLastWriteTimeUtc(assemblyPath);
 			if (s_assemblyLocationCache.ContainsKey(assemblyName))
