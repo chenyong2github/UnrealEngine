@@ -2139,9 +2139,11 @@ void FAssetFileContextMenu::ExecuteSCCCheckIn()
 		GetSelectedPackageNames(PackageNames);
 
 		const bool bUseSourceControlStateCache = true;
-		const bool bCheckinGood = FSourceControlWindows::PromptForCheckin(bUseSourceControlStateCache, PackageNames);
 
-		if (!bCheckinGood)
+		FCheckinResultInfo ResultInfo;
+		FSourceControlWindows::PromptForCheckin(ResultInfo, PackageNames, TArray<FString>(), TArray<FString>(), bUseSourceControlStateCache);
+
+		if ( ResultInfo.Result == ECommandResult::Failed )
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "SCC_Checkin_Failed", "Check-in failed as a result of save failure."));
 		}
