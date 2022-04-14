@@ -99,7 +99,7 @@ enum class EPBIKRootBehavior : uint8
 	Free,
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct PBIK_API FPBIKSolverSettings
 {
 	GENERATED_BODY()

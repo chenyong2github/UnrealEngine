@@ -27,7 +27,7 @@ enum class EAimMode : uint8
 	MAX,
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FAimTarget
 {
 	GENERATED_BODY()

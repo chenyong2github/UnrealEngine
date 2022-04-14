@@ -104,3 +104,18 @@ struct FRigVMMethodStruct : public FRigVMStructBase
 	RIGVM_METHOD()
 	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 };
+
+USTRUCT(meta=(DisplayName="Control", Category="Controls", ShowVariableNameInTitle, Deprecated = "4.24.0"))
+struct CONTROLRIG_API FRigUnit_Control
+{
+	GENERATED_BODY()
+
+	FRigUnit_Control()
+		: Factor(0)
+	{
+	}
+
+	/** The transform of this control */
+	UPROPERTY(EditAnywhere, Category="Control")
+	float Factor;
+};

@@ -14,7 +14,7 @@
 
 using PBIK::FDebugLine;
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FPBIKDebug
 {
 	GENERATED_BODY()

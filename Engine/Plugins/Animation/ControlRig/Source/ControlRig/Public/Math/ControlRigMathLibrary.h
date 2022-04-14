@@ -42,7 +42,7 @@ enum class EControlRigAnimEasingType : uint8
 	BounceEaseInOut
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FCRFourPointBezier
 {
 	GENERATED_BODY()
@@ -52,16 +52,16 @@ struct FCRFourPointBezier
 		A = B = C = D = FVector::ZeroVector;
 	}
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Bezier)
 	FVector A;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Bezier)
 	FVector B;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Bezier)
 	FVector C;
 
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Bezier)
 	FVector D;
 };
 

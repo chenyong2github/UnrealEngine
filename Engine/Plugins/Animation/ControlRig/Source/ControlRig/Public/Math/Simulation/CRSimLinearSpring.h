@@ -6,7 +6,7 @@
 #include "CRSimPoint.h"
 #include "CRSimLinearSpring.generated.h"
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FCRSimLinearSpring
 {
 	GENERATED_BODY()
@@ -21,19 +21,19 @@ struct FCRSimLinearSpring
 	/**
 	 * The first point affected by this spring
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	int32 SubjectA;
 
 	/**
 	 * The second point affected by this spring
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	int32 SubjectB;
 
 	/**
 	 * The power of this spring
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	float Coefficient;
 
 	/**
@@ -41,7 +41,7 @@ struct FCRSimLinearSpring
 	 * A value of lower than zero indicates that the equilibrium
 	 * should be based on the current distance of the two subjects.
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	float Equilibrium;
 
 	void CalculateForPoints(const FCRSimPoint& InPointA, const FCRSimPoint& InPointB, FVector& ForceA, FVector& ForceB) const;

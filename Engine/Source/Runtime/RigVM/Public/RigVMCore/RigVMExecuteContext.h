@@ -192,7 +192,7 @@ struct RIGVM_API FRigVMRuntimeSettings
  * The execute context is used for mutable nodes to
  * indicate execution order.
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct RIGVM_API FRigVMExecuteContext
 {
 	GENERATED_BODY()

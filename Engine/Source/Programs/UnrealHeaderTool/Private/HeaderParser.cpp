@@ -4685,6 +4685,49 @@ void FHeaderParser::GetVarType(
 	{
 		ParsedVarIndexRange->Count = InputPos - ParsedVarIndexRange->StartIndex;
 	}
+
+	// Setup additional property as well as script struct def flags
+	// for structs / properties being used for the RigVM.
+	// The Input / Output / Constant metadata tokens can be used to mark
+	// up an input / output pin of a RigVMNode. To allow authoring of those
+	// nodes we'll mark up the property as accessible in Blueprint / Python
+	// as well as make the struct a blueprint type.
+	if(OwnerScriptStructDef)
+	{
+		const EPropertyFlags OriginalFlags = VarProperty.PropertyFlags; 
+		if(VarProperty.MetaData.Contains(NAME_ConstantText))
+		{
+			VarProperty.PropertyFlags |= CPF_Edit | CPF_EditConst | CPF_BlueprintVisible;
+		}
+		if(VarProperty.MetaData.Contains(NAME_InputText) ||
+			VarProperty.MetaData.Contains(NAME_VisibleText))
+		{
+			VarProperty.PropertyFlags |= CPF_Edit | CPF_BlueprintVisible;
+		}
+		if(VarProperty.MetaData.Contains(NAME_OutputText))
+		{
+			if((VarProperty.PropertyFlags & CPF_BlueprintVisible) == 0)
+			{
+				VarProperty.PropertyFlags |= CPF_BlueprintVisible | CPF_BlueprintReadOnly;
+			}
+		}
+		
+		if(OriginalFlags != VarProperty.PropertyFlags &&
+			(((VarProperty.PropertyFlags & CPF_BlueprintVisible) != 0) ||
+			((VarProperty.PropertyFlags & CPF_BlueprintReadOnly) != 0)))
+		{
+			if(!OwnerScriptStructDef->GetBoolMetaDataHierarchical(FHeaderParserNames::NAME_BlueprintType))
+			{
+				OwnerScriptStructDef->SetMetaData(FHeaderParserNames::NAME_BlueprintType, TEXT("true"));
+			}
+			
+			if(!VarProperty.MetaData.Contains(NAME_Category))
+			{
+				static constexpr TCHAR PinsCategory[] = TEXT("Pins");
+				VarProperty.MetaData.Add(NAME_Category, PinsCategory);
+			}
+		}
+	}
 }
 
 FUnrealPropertyDefinitionInfo& FHeaderParser::GetVarNameAndDim

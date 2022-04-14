@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "FBIKDebugOption.generated.h"
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FFBIKDebugOption
 {
 	GENERATED_BODY()

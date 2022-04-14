@@ -120,7 +120,7 @@ struct FFBIKConstraintOption
 	}
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FMotionProcessInput
 {
 	GENERATED_BODY()

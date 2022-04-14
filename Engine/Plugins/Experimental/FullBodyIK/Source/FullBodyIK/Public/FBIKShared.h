@@ -17,7 +17,7 @@ private:
 	virtual void PreSolve(TArray<FFBIKLinkData>& InOutLinkData, const TMap<int32, FFBIKEffectorTarget>& InEndEffectors) const override;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FSolverInput
 {
 	GENERATED_BODY()

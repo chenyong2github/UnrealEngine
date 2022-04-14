@@ -12,7 +12,7 @@ enum class ECRSimPointForceType : uint8
 	Direction
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FCRSimPointForce
 {
 	GENERATED_BODY()
@@ -28,7 +28,7 @@ struct FCRSimPointForce
 	/**
 	 * The type of force.
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	ECRSimPointForceType ForceType;
 
 	/**
@@ -36,19 +36,19 @@ struct FCRSimPointForce
 	 * This is a direction for direction based forces,
 	 * while this is a position for attractor / repel based forces.
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	FVector Vector;
 
 	/**
 	 * The strength of the force (a multiplier for direction based forces)
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	float Coefficient;
 
 	/**
 	 * If set to true the input vector will be normalized.
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	bool bNormalize;
 
 	FVector Calculate(const FCRSimPoint& InPoint, float InDeltaTime) const;

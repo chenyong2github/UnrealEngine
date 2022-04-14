@@ -5,7 +5,7 @@
 #include "Units/RigUnit.h"
 #include "RigUnit_BlendTransform.generated.h"
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FBlendTarget
 {
 	GENERATED_BODY()

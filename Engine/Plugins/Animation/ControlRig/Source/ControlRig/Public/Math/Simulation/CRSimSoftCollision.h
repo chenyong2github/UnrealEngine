@@ -15,7 +15,7 @@ enum class ECRSimSoftCollisionType : uint8
 	Cone
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FCRSimSoftCollision
 {
 	GENERATED_BODY()
@@ -34,13 +34,13 @@ struct FCRSimSoftCollision
 	/**
 	 * The world / global transform of the collisoin
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	FTransform Transform;
 
 	/**
 	 * The type of collision shape
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	ECRSimSoftCollisionType ShapeType;
 
 	/**
@@ -48,7 +48,7 @@ struct FCRSimSoftCollision
 	 * If this is equal or higher than the maximum there's no falloff.
 	 * For a cone shape this represents the minimum angle in degrees.
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	float MinimumDistance;
 
 	/**
@@ -56,25 +56,25 @@ struct FCRSimSoftCollision
 	 * If this is equal or lower than the minimum there's no falloff.
 	 * For a cone shape this represents the maximum angle in degrees.
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	float MaximumDistance;
 
 	/**
 	 * The type of falloff to use
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	EControlRigAnimEasingType FalloffType;
 
 	/**
 	 * The strength of the collision force
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	float Coefficient;
 
 	/**
 	 * If set to true the collision volume will be inverted
 	 */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category=Simulation)
 	bool bInverted;
 
 	static float CalculateFalloff(const FCRSimSoftCollision& InCollision, const FVector& InPosition, float InSize, FVector& OutDirection);

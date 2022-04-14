@@ -50,7 +50,7 @@ struct CONTROLRIG_API FRigUnit_AimBone_Target
 	FName Space;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigUnit_AimItem_Target
 {
 	GENERATED_BODY()
@@ -95,7 +95,7 @@ struct CONTROLRIG_API FRigUnit_AimItem_Target
 	FRigElementKey Space;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigUnit_AimBone_DebugSettings
 {
 	GENERATED_BODY()
