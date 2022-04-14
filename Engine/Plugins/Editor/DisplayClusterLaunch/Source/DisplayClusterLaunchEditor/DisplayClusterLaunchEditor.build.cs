@@ -47,6 +47,6 @@ public class DisplayClusterLaunchEditor : ModuleRules
 				"UnrealEd",
 				"WorkspaceMenuStructure"
 			}
-			);
+		);
 	}
 }

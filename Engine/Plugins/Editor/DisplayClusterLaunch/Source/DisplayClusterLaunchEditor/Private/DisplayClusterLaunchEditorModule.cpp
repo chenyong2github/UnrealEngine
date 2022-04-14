@@ -365,7 +365,11 @@ void FDisplayClusterLaunchEditorModule::RegisterToolbarItem()
 
 	FToolMenuSection& Section = Menu->AddSection("DisplayClusterLaunch");
 
-	FToolMenuEntry DisplayClusterLaunchButton = FToolMenuEntry::InitToolBarButton(FDisplayClusterLaunchUiCommands::Get().LaunchDisplayCluster);
+	FToolMenuEntry DisplayClusterLaunchButton =
+		FToolMenuEntry::InitToolBarButton(FDisplayClusterLaunchUiCommands::Get().LaunchDisplayCluster,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Toolbar.Play"));
 	DisplayClusterLaunchButton.SetCommandList(Actions);
 
 	const FToolMenuEntry DisplayClusterLaunchComboButton = FToolMenuEntry::InitComboButton(
@@ -487,7 +491,7 @@ TSharedRef<SWidget>  FDisplayClusterLaunchEditorModule::CreateToolbarMenuEntries
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("DisplayClusterLaunchLastNode", "Launch Last Node"),
 			LOCTEXT("DisplayClusterLaunchLastNodeTooltip", "Launch the last node."),
-			FSlateIcon(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Toolbar.Play"),
 			FUIAction(
 				FExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess),
 				FCanExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::DoesCurrentWorldHaveDisplayClusterConfig)
@@ -544,7 +548,7 @@ void FDisplayClusterLaunchEditorModule::AddDisplayClusterLaunchConfigurations(IA
 				MenuBuilder.AddMenuEntry(
 					NodeName,
 					DisplayClusterConfigTooltip,
-					FSlateIcon(),
+					FSlateIcon(FDisplayClusterLaunchEditorStyle::Get().GetStyleSetName(),"Icons.DisplayCluster"),
 					FUIAction(
 						FExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::SetSelectedDisplayClusterConfigActor, Node.Get()),
 						FCanExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::DoesCurrentWorldHaveDisplayClusterConfig),
@@ -618,7 +622,9 @@ void FDisplayClusterLaunchEditorModule::AddDisplayClusterLaunchNodes(IAssetRegis
 					}),
 					FUIAction(FExecuteAction(), FCanExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::DoesCurrentWorldHaveDisplayClusterConfig)),
 					NAME_None,
-					EUserInterfaceActionType::None
+					EUserInterfaceActionType::None,
+					false,
+					FSlateIcon(FDisplayClusterLaunchEditorStyle::Get().GetStyleSetName(),"Icons.DisplayClusterNode")
 				);
 			}
 			MenuBuilder.EndSection();
@@ -664,7 +670,9 @@ void FDisplayClusterLaunchEditorModule::AddConsoleVariablesEditorAssetsToToolbar
 				}),
 				FUIAction(FExecuteAction(), FCanExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::DoesCurrentWorldHaveDisplayClusterConfig)),
 				NAME_None,
-				EUserInterfaceActionType::None
+				EUserInterfaceActionType::None,
+				false,
+				FSlateIcon(FDisplayClusterLaunchEditorStyle::Get().GetStyleSetName(),"Icons.ConsoleVariablesEditor")
 			);
 		}
 		MenuBuilder.EndSection();
@@ -678,7 +686,7 @@ void FDisplayClusterLaunchEditorModule::AddOptionsToToolbarMenu(FMenuBuilder& Me
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ConnectToMultiUserLabel", "Connect to Multi-User"),
 			LOCTEXT("ConnectToMultiUserTooltip", "Connect to Multi-User"),
-			FSlateIcon(),
+			FSlateIcon(FDisplayClusterLaunchEditorStyle::Get().GetStyleSetName(),"Icons.MultiUser"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this]()
 				{
@@ -695,7 +703,7 @@ void FDisplayClusterLaunchEditorModule::AddOptionsToToolbarMenu(FMenuBuilder& Me
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("EnableUnrealInsightsLabel", "Enable Unreal Insights"),
 			LOCTEXT("EnableUnrealInsightsTooltip", "Enable Unreal Insights"),
-			FSlateIcon(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(),"UnrealInsights.MenuIcon"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this]()
 				{
@@ -712,7 +720,7 @@ void FDisplayClusterLaunchEditorModule::AddOptionsToToolbarMenu(FMenuBuilder& Me
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("CloseEditorOnLaunchLabel", "Close Editor on Launch"),
 			LOCTEXT("CloseEditorOnLaunchTooltip", "Close Editor on Launch"),
-			FSlateIcon(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.X"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this]()
 				{
@@ -729,7 +737,7 @@ void FDisplayClusterLaunchEditorModule::AddOptionsToToolbarMenu(FMenuBuilder& Me
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("AdvancedSettingsLabel", "Advanced Settings..."),
 			LOCTEXT("AdvancedSettingsTooltip", "Open the nDisplay Launch Project Settings"),
-			FSlateIcon(),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Settings"),
 			FUIAction(
 				FExecuteAction::CreateStatic(&FDisplayClusterLaunchEditorModule::OpenProjectSettings)
 			),

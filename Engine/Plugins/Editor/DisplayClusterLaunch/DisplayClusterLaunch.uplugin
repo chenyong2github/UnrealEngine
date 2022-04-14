@@ -30,6 +30,10 @@
 			"Enabled": true 
 		},
 		{
+			"Name": "ConcertSyncClient",
+			"Enabled": true
+		},
+		{
 			"Name": "MultiUserClient",
 			"Enabled": true
 		},
