@@ -26,6 +26,9 @@
 	#include <sys/types.h>
 	#include <sys/ioctl.h>
 #endif
+#if PLATFORM_HAS_BSD_SOCKET_FEATURE_POLL
+	#include <poll.h>
+#endif
 	#include <netinet/in.h>
 	#include <arpa/inet.h>
 #if PLATFORM_HAS_BSD_SOCKET_FEATURE_GETHOSTNAME
