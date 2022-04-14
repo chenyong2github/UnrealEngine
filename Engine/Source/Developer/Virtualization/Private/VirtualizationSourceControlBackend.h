@@ -31,6 +31,13 @@ namespace UE::Virtualization
  * SubmitFromTempDir [bool]:	When set to true, payloads will be submitted from the temp directory of
  *								the current machine and when false the files will be submitted from the
  *								Save directory of the current project. [Default=false]
+ * RetryCount [int32]:			How many times we should try to download a payload before giving up with
+ *								an error. Useful when the connection is unreliable but does not experience 
+ *								frequent persistent outages. [Default=2]
+ * RetryWaitTime [int32]:		The length of time the process should wait between each download attempt
+ *								in milliseconds. Remember that the max length of time that the process
+ *								can stall attempting to download a payload file is 
+ *								RetryCount * RetryWaitTime; [Default=100ms]
  * 
  * Environment Variables:
  * UE-VirtualizationWorkingDir [string]:	This can be set to a valid directory path that the backend
@@ -60,6 +67,8 @@ private:
 
 private:
 
+	bool TryApplySettingsFromConfigFiles(const FString& ConfigEntry);
+
 	void CreateDepotPath(const FIoHash& PayloadId, FStringBuilderBase& OutPath);
 
 	bool FindSubmissionWorkingDir(const FString& ConfigEntry);
@@ -82,6 +91,11 @@ private:
 	/** Should we try to make the temp client partitioned or not? */
 	bool bUsePartitionedClient = true;
 
+	/** The number of times to retry pulling a payload from the depot */
+	int32 RetryCount = 2;
+
+	/** The length of time (in milliseconds) to wait after each pull attempt before retrying. */
+	int32 RetryWaitTimeMS = 100;
 };
 
 } // namespace UE::Virtualization
