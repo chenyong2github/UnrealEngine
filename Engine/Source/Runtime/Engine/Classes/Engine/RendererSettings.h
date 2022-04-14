@@ -932,6 +932,15 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 StrataOpaqueMaterialRoughRefraction : 1;
 
 	/**
+	"Enable advanced strata material debug visualization shaders. Base pas shaders can output such advanced data."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (
+		ConsoleVariable = "r.Strata.Debug.AdvancedVisualizationShaders", DisplayName = "Strata advanced visualization shaders",
+		ToolTip = "Enable advanced strata material debug visualization shaders. Base pass shaders can output such advanced data.",
+		ConfigRestartRequired = true))
+		uint32 StrataDebugAdvancedVisualizationShaders : 1;
+
+	/**
 	"Enable rough diffuse material."
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (

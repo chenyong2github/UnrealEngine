@@ -20,6 +20,12 @@ static TAutoConsoleVariable<int32> CVarStrataDebugVisualizeMode(
 	TEXT("Strata debug view mode."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarStrataDebugAdvancedVisualizationShaders(
+	TEXT("r.Strata.Debug.AdvancedVisualizationShaders"),
+	0,
+	TEXT("Enable advanced strata material debug visualization shaders. Base pass shaders can output such advanced data."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 namespace Strata
 {
 // Forward declarations
@@ -30,6 +36,11 @@ void AddStrataInternalClassificationTilePass(
 	const FRDGTextureRef* ColorTexture,
 	EStrataTileType TileMaterialType,
 	const bool bDebug);
+
+bool IsStrataAdvancedVisualizationShadersEnabled()
+{
+	return CVarStrataDebugAdvancedVisualizationShaders.GetValueOnRenderThread() > 0;
+}
 
 class FMaterialPrintInfoCS : public FGlobalShader
 {
@@ -126,9 +137,12 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 		ShaderPrint::RequestSpaceForLines(64);
 		ShaderPrint::RequestSpaceForCharacters(1024);
 
+		const uint32 ViewMode = FMath::Max(0, CVarStrataDebugVisualizeMode.GetValueOnRenderThread());
+
 		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
 
 		// Print Material info
+		if(ViewMode >= 1 && ViewMode != 3)
 		{
 			FRDGBufferUAVRef PrintOffsetBufferUAV = nullptr;
 
@@ -153,8 +167,7 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 		}
 
 		// Draw material debug
-		const uint32 ViewMode = FMath::Max(0, CVarStrataDebugVisualizeMode.GetValueOnRenderThread());
-		if (ViewMode > 1)
+		if (ViewMode >= 2 && ViewMode != 3)
 		{
 			FVisualizeMaterialPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeMaterialPS::FParameters>();
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
@@ -169,6 +182,12 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 
 			FPixelShaderUtils::AddFullscreenPass<FVisualizeMaterialPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Strata::VisualizeMaterial(Draw)"), PixelShader, PassParameters, View.ViewRect, PreMultipliedColorTransmittanceBlend);
 		}
+
+		// Draw each material layer indepentely
+		if (ViewMode == 3)
+		{
+			
+		}
 	}
 }
 
@@ -179,6 +198,7 @@ bool ShouldRenderStrataDebugPasses(const FViewInfo& View)
 			(FVisualizeMaterialPS::CanRunStrataVizualizeMaterial(View.GetShaderPlatform()) && View.Family && View.Family->EngineShowFlags.VisualizeStrataMaterial)
 			|| (CVarStrataClassificationDebug.GetValueOnAnyThread() > 0)
 			|| ShouldRenderStrataRoughRefractionRnD()
+			|| IsStrataAdvancedVisualizationShadersEnabled()
 			);
 }
 
