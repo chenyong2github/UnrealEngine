@@ -1871,6 +1871,7 @@ namespace EpicGames.BuildGraph
 				if (childElement.Name == "Default" || await EvaluateConditionAsync(childElement))
 				{
 					await readContentsAsync(childElement);
+					break;
 				}
 			}
 		}
