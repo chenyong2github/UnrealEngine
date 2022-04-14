@@ -197,6 +197,7 @@ public:
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
 	virtual bool WantsNegXTriMesh() override { return false; }
 	virtual void GetMeshId(FString& OutMeshId) override;
+	virtual bool GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const override;
 	//~ End Interface_CollisionDataProvider Interface
 
 	/** Determines the mesh proxy values for SplineMeshScaleZ and SplineMeshMinZ*/

@@ -868,6 +868,16 @@ bool USplineMeshComponent::ContainsPhysicsTriMeshData(bool InUseAllTriData) cons
 	return false;
 }
 
+bool USplineMeshComponent::GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const
+{
+	if (GetStaticMesh())
+	{
+		return GetStaticMesh()->GetTriMeshSizeEstimates(OutTriMeshEstimates, bInUseAllTriData);
+	}
+
+	return false;
+}
+
 void USplineMeshComponent::GetMeshId(FString& OutMeshId)
 {
 	// First get the base mesh id from the static mesh

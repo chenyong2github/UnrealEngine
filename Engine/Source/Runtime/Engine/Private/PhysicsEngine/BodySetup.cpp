@@ -10,6 +10,8 @@
 #include "Components/PrimitiveComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
+#include "Trace/Trace.h"
+#include "Trace/Trace.inl"
 #include "Components/SkinnedMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
@@ -129,6 +131,13 @@ ENGINE_API TAutoConsoleVariable<float> CVarMaxContactOffset(
 	TEXT("Max value of contact offset, which controls how close objects get before generating contacts. < 0 implies use project settings. Default: 1.0"),
 	ECVF_Default);
 
+#if WITH_EDITOR
+ENGINE_API TAutoConsoleVariable<int32> CVarBodySetupSkipDDCThreshold(
+	TEXT("p.BodySetupSkipDDCThreshold"),
+	16384,
+	TEXT("Enables skipping the DDC for body setups with vertice count under threshold. Default: 16384"),
+	ECVF_Default);
+#endif
 
 void FBodySetupUVInfo::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const
 {
@@ -217,7 +226,7 @@ void UBodySetup::AddCollisionFrom(const FKAggregateGeom& FromAggGeom)
 
 void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlags InCookFlags) const
 {
-
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBodySetup::GetCookInfo);
 
 	OutCookInfo.OuterDebugName = GetOuter()->GetPathName();
 	OutCookInfo.bConvexDeformableMesh = false;
@@ -1518,6 +1527,72 @@ bool UBodySetup::CalcUVAtLocation(const FVector& BodySpaceLocation, int32 FaceIn
 	return bSuccess;
 }
 
+#if WITH_EDITOR
+
+bool ShouldSkipDDC(UBodySetup* InSetup, FString& OutReason)
+{
+	// Building body setup is so fast and is invalidated so often because of guids usage
+	// that its preferable to avoid using DDC queries unless we have to process something significant.
+
+	const int32 SkipDDCThreshold = CVarBodySetupSkipDDCThreshold.GetValueOnAnyThread();
+	if (SkipDDCThreshold > 0)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ShouldSkipDDC);
+
+		// Some numbers on AMD TR 3970X single-thread
+		//    18603 verts 6976 indices takes 13 ms to build
+		//     9793 verts 5878 indices takes  9 ms to build
+		//    Cloud DDC access is generally between 20 ms and 150 ms
+		//    Local DDC access is generally between 0.02 ms and 5 ms on SSD
+
+		// By using the DDC2 API, we could be more specific about how many
+		// vertices should represent enough work to warrant a cloud query
+		// versus allowing local queries only.
+
+		if (InSetup->GetCollisionTraceFlag() != CTF_UseComplexAsSimple && InSetup->AggGeom.ConvexElems.Num() > 0)
+		{
+			int32 VerticeCount = 0;
+			for (const FKConvexElem& ConvexElem : InSetup->AggGeom.ConvexElems)
+			{
+				VerticeCount += ConvexElem.VertexData.Num();
+			}
+
+			if (VerticeCount >= SkipDDCThreshold)
+			{
+				OutReason = FString::Printf(TEXT("AggGeom Vertice Count %ld"), VerticeCount);
+				return false;
+			}
+		}
+
+		if (InSetup->GetCollisionTraceFlag() != CTF_UseSimpleAsComplex)
+		{
+			UObject* CDPObj = InSetup->GetOuter();
+			IInterface_CollisionDataProvider* CDP = Cast<IInterface_CollisionDataProvider>(CDPObj);
+
+			if (CDP && CDP->ContainsPhysicsTriMeshData(InSetup->bMeshCollideAll))
+			{
+				FTriMeshCollisionDataEstimates Estimates;
+				if (CDP->GetTriMeshSizeEstimates(Estimates, InSetup->bMeshCollideAll) && Estimates.VerticeCount >= SkipDDCThreshold)
+				{
+					OutReason = FString::Printf(TEXT("CDP Vertice Count %lld"), Estimates.VerticeCount);
+					return false;
+				}
+			}
+		}
+
+		// Defaults to true
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+UE_TRACE_EVENT_BEGIN(Cpu, BodySetupDDCFetch, NoSync)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, FetchReason)
+UE_TRACE_EVENT_END()
+
 template<typename DDCBuilderType>
 void GetDDCBuiltData(FByteBulkData* OutResult, DDCBuilderType& InBuilder, UBodySetup* InSetup, bool bInIsRuntime)
 {
@@ -1533,8 +1608,13 @@ void GetDDCBuiltData(FByteBulkData* OutResult, DDCBuilderType& InBuilder, UBodyS
 		bool bDataWasBuilt = false;
 		bool bDDCHit = false;
 
-		if(!bSkipDDC)
+		FString FetchReason;
+		if(!bSkipDDC && !ShouldSkipDDC(InSetup, FetchReason))
 		{
+#if CPUPROFILERTRACE_ENABLED
+			UE_TRACE_LOG_SCOPED_T(Cpu, BodySetupDDCFetch, CpuChannel)
+				<< BodySetupDDCFetch.FetchReason(*FetchReason);
+#endif
 			bDDCHit = GetDerivedDataCacheRef().GetSynchronous(&InBuilder, OutData, &bDataWasBuilt);
 		}
 		else
@@ -1557,6 +1637,8 @@ void GetDDCBuiltData(FByteBulkData* OutResult, DDCBuilderType& InBuilder, UBodyS
 		UE_LOG(LogPhysics, Warning, TEXT("Attempt to build physics data for %s when we are unable to."), *InSetup->GetPathName());
 	}
 }
+
+#endif //#if WITH_EDITOR
 
 FByteBulkData* UBodySetup::GetCookedData(FName Format, bool bRuntimeOnlyOptimizedVersion)
 {
@@ -1608,7 +1690,7 @@ FByteBulkData* UBodySetup::GetCookedData(FName Format, bool bRuntimeOnlyOptimize
 #else
 		static_assert(false, "No cooker defined for this physics interface");
 #endif
-			
+
 		GetDDCBuiltData(Result, *PhysicsDerivedCooker, this, bIsRuntime);
 	}
 #endif // #if WITH_EDITOR

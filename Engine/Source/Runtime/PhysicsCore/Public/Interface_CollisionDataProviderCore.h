@@ -55,3 +55,9 @@ struct FTriMeshCollisionData
 	{
 	}
 };
+
+// Estimates of triangle mesh collision data necessary for cooking physics data
+struct FTriMeshCollisionDataEstimates
+{
+	int64 VerticeCount = 0;
+};

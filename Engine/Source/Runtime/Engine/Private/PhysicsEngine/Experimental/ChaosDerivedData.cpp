@@ -96,6 +96,8 @@ bool FChaosDerivedDataCooker::IsBuildThreadsafe() const
 
 bool FChaosDerivedDataCooker::Build(TArray<uint8>& OutData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FChaosDerivedDataCooker::Build);
+
 	bool bSucceeded = false;
 
 	if(Setup)

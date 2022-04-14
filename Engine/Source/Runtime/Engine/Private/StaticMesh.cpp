@@ -6649,6 +6649,41 @@ bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const
 	return ContainsPhysicsTriMeshDataCheckComplex(bInUseAllTriData, bInCheckComplexCollisionMesh);
 }
 
+bool UStaticMesh::GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const
+{
+#if WITH_EDITORONLY_DATA
+	if (ComplexCollisionMesh && ComplexCollisionMesh != this)
+	{
+		ComplexCollisionMesh->ConditionalPostLoad();
+		return ComplexCollisionMesh->GetTriMeshSizeEstimates(OutTriMeshEstimates, bInUseAllTriData);
+	}
+#else // #if WITH_EDITORONLY_DATA
+	// without editor data, we can't selectively generate a physics mesh for a given LOD index (we're missing access to GetSectionInfoMap()) so force bInUseAllTriData in order to use LOD index 0
+	bInUseAllTriData = true;
+#endif // #if !WITH_EDITORONLY_DATA
+
+	if (GetRenderData() == nullptr || GetRenderData()->LODResources.Num() == 0)
+	{
+		return false;
+	}
+
+	// Get the LOD level to use for collision
+	// Always use 0 if asking for 'all tri data'
+	const int32 UseLODIndex = bInUseAllTriData ? 0 : FMath::Clamp(LODForCollision, 0, GetRenderData()->LODResources.Num() - 1);
+
+	const FStaticMeshLODResources& LOD = GetRenderData()->LODResources[UseLODIndex];
+
+	OutTriMeshEstimates.VerticeCount = 0;
+
+	for (int32 SectionIndex = 0; SectionIndex < LOD.Sections.Num(); ++SectionIndex)
+	{
+		const FStaticMeshSection& Section = LOD.Sections[SectionIndex];
+		OutTriMeshEstimates.VerticeCount += Section.NumTriangles * 3;
+	}
+
+	return true;
+}
+
 bool UStaticMesh::ContainsPhysicsTriMeshDataCheckComplex(bool bInUseAllTriData, bool bInCheckComplexCollisionMesh) const
 {
 #if WITH_EDITORONLY_DATA
