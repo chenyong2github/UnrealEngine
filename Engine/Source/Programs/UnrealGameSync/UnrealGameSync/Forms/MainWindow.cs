@@ -360,7 +360,7 @@ namespace UnrealGameSync
 				// Switch the stream
 				Func<IPerforceConnection, CancellationToken, Task> SwitchTask = async (Connection, CancellationToken) =>
 				{
-					await Connection.SwitchClientToStreamAsync(Connection.Settings.ClientName!, StreamName, SwitchClientOptions.None, CancellationToken);
+					await Connection.SwitchClientToStreamAsync(StreamName, SwitchClientOptions.None, CancellationToken);
 				};
 
 				PerforceSettings Settings = new PerforceSettings(WorkspaceInfo.ServerAndPort, WorkspaceInfo.UserName);

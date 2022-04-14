@@ -3818,7 +3818,7 @@ namespace UnrealGameSync
 						{
 							if (Idx == 1 || !await Perforce.OpenedAsync(OpenedOptions.None, FileSpecList.Any, CancellationToken).AnyAsync())
 							{
-								await Perforce.SwitchClientToStreamAsync(Perforce.Settings.ClientName!, NewStreamName, SwitchClientOptions.IgnoreOpenFiles, CancellationToken);
+								await Perforce.SwitchClientToStreamAsync(NewStreamName, SwitchClientOptions.IgnoreOpenFiles, CancellationToken);
 								return true;
 							}
 							return false;
