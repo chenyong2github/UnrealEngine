@@ -832,8 +832,8 @@ void StrataPackOutStrataTree(
 	{
 		WRITE_UINT(StrataTree.BSDFs[i].State);
 		WRITE_UINT(StrataTree.BSDFs[i].OperatorIndex);
-		WRITE_FLOAT3(asuint(StrataTree.BSDFs[i].LuminanceWeightV));
-		WRITE_FLOAT3(asuint(StrataTree.BSDFs[i].LuminanceWeightL));
+		WRITE_FLOAT3(StrataTree.BSDFs[i].LuminanceWeightV);
+		WRITE_FLOAT3(StrataTree.BSDFs[i].LuminanceWeightL);
 		WRITE_UINT(StrataTree.BSDFs[i].bIsBottom);
 		WRITE_UINT(StrataTree.BSDFs[i].bIsTop);
 
@@ -862,8 +862,54 @@ void StrataPackOutStrataTree(
 #undef WRITE_FLOAT4
 }
 
-void StrataUnpackInStrataTree()
+void StrataUnpackInStrataTree(
+	Texture2DArray<uint> StrataMaterialData,
+	inout FStrataTree StrataTree,
+	in int SliceStoringDebugStrataTree)
 {
+	StrataTree = GetInitialisedStrataTree();
+	int OutCoord = 0;
+#define READ_UINT(Data) Data = StrataMaterialData[uint3(OutCoord++, 0, SliceStoringDebugStrataTree)];
+#define READ_FLOAT(Data) Data = asfloat(StrataMaterialData[uint3(OutCoord++, 0, SliceStoringDebugStrataTree)]);
+#define READ_FLOAT3(Data) READ_FLOAT(Data.x);READ_FLOAT(Data.y);READ_FLOAT(Data.z);
+#define READ_FLOAT4(Data) READ_FLOAT(Data.x);READ_FLOAT(Data.y);READ_FLOAT(Data.z);READ_FLOAT(Data.w);
+
+	READ_UINT(StrataTree.BSDFCount);
+	READ_UINT(StrataTree.OperatorCount);
+
+	LOOP
+	for (int i = 0; i < StrataTree.BSDFCount; ++i)
+	{
+		READ_UINT(StrataTree.BSDFs[i].State);
+		READ_UINT(StrataTree.BSDFs[i].OperatorIndex);
+		READ_FLOAT3(StrataTree.BSDFs[i].LuminanceWeightV);
+		READ_FLOAT3(StrataTree.BSDFs[i].LuminanceWeightL);
+		READ_UINT(StrataTree.BSDFs[i].bIsBottom);
+		READ_UINT(StrataTree.BSDFs[i].bIsTop);
+
+	#if STRATA_INLINE_SHADING
+		READ_FLOAT(StrataTree.BSDFs[i].Coverage);
+
+		READ_FLOAT3(StrataTree.BSDFs[i].Emissive);
+		READ_FLOAT(StrataTree.BSDFs[i].ThicknessCm);
+		READ_FLOAT(StrataTree.BSDFs[i].TmpMFP);
+
+		READ_FLOAT(StrataTree.BSDFs[i].TopLayerDataWeight);
+	#endif
+
+		// Skipping specific single layer water data
+
+		READ_FLOAT4(StrataTree.BSDFs[i].VGPRs[0]);
+		READ_FLOAT4(StrataTree.BSDFs[i].VGPRs[1]);
+		READ_FLOAT4(StrataTree.BSDFs[i].VGPRs[2]);
+		READ_FLOAT4(StrataTree.BSDFs[i].VGPRs[3]);
+		READ_FLOAT4(StrataTree.BSDFs[i].VGPRs[4]);
+	}
+
+#undef READ_UINT
+#undef READ_FLOAT
+#undef READ_FLOAT3
+#undef READ_FLOAT4
 }
 
 

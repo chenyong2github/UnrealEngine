@@ -157,7 +157,6 @@ void AddStrataOpaqueRoughRefractionPasses(
 	FSceneTextures& SceneTextures,
 	TArrayView<const FViewInfo> Views);
 
-bool IsStrataAdvancedVisualizationShadersEnabled();
 bool ShouldRenderStrataDebugPasses(const FViewInfo& View);
 FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor);
 

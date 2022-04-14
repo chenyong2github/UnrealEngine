@@ -42,6 +42,12 @@ bool IsStrataAdvancedVisualizationShadersEnabled()
 	return CVarStrataDebugAdvancedVisualizationShaders.GetValueOnRenderThread() > 0;
 }
 
+static bool StrataDebugVisualizationCanRunOnPlatform(EShaderPlatform Platform)
+{
+	// On some consoles, this ALU heavy shader (and with optimisation disables for the sake of low compilation time) would spill registers. So only keep it for the editor.
+	return GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5 && IsPCPlatform(Platform);
+}
+
 class FMaterialPrintInfoCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FMaterialPrintInfoCS);
@@ -63,15 +69,9 @@ class FMaterialPrintInfoCS : public FGlobalShader
 		return PermutationVector;
 	}
 
-	static bool CanRunStrataVizualizeMaterial(EShaderPlatform Platform)
-	{
-		// On some consoles, this ALU heavy shader (and with optimisation disables for the sake of low compilation time) would spill registers. So only keep it for the editor.
-		return IsPCPlatform(Platform);
-	}
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 && Strata::IsStrataEnabled() && CanRunStrataVizualizeMaterial(Parameters.Platform);
+		return Strata::IsStrataEnabled() && StrataDebugVisualizationCanRunOnPlatform(Parameters.Platform) && EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -106,15 +106,9 @@ class FVisualizeMaterialPS : public FGlobalShader
 		return PermutationVector;
 	}
 
-	static bool CanRunStrataVizualizeMaterial(EShaderPlatform Platform)
-	{
-		// On some consoles, this ALU heavy shader (and with optimisation disables for the sake of low compilation time) would spill registers. So only keep it for the editor.
-		return IsPCPlatform(Platform);
-	}
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5 && Strata::IsStrataEnabled() && CanRunStrataVizualizeMaterial(Parameters.Platform);
+		return Strata::IsStrataEnabled() && StrataDebugVisualizationCanRunOnPlatform(Parameters.Platform) && EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -127,6 +121,74 @@ class FVisualizeMaterialPS : public FGlobalShader
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FVisualizeMaterialPS, "/Engine/Private/Strata/StrataVisualize.usf", "VisualizeMaterialPS", SF_Pixel);
+
+class FMaterialDebugStrataTreeCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FMaterialDebugStrataTreeCS);
+	SHADER_USE_PARAMETER_STRUCT(FMaterialDebugStrataTreeCS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return Strata::IsStrataEnabled() && StrataDebugVisualizationCanRunOnPlatform(Parameters.Platform) && EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		// Stay debug and skip optimizations to reduce compilation time on this long shader.
+		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
+		OutEnvironment.SetDefine(TEXT("SHADER_DEBUGSTRATATREE"), 1);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FMaterialDebugStrataTreeCS, "/Engine/Private/Strata/StrataVisualize.usf", "MaterialDebugStrataTreeCS", SF_Compute);
+
+class FMaterialDebugStrataTreePS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FMaterialDebugStrataTreePS);
+	SHADER_USE_PARAMETER_STRUCT(FMaterialDebugStrataTreePS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return Strata::IsStrataEnabled() && StrataDebugVisualizationCanRunOnPlatform(Parameters.Platform) && EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		// Stay debug and skip optimizations to reduce compilation time on this long shader.
+		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
+		OutEnvironment.SetDefine(TEXT("SHADER_DEBUGSTRATATREE"), 1);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FMaterialDebugStrataTreePS, "/Engine/Private/Strata/StrataVisualize.usf", "MaterialDebugStrataTreePS", SF_Pixel);
 
 static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture, EShaderPlatform Platform)
 {
@@ -183,23 +245,47 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 			FPixelShaderUtils::AddFullscreenPass<FVisualizeMaterialPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Strata::VisualizeMaterial(Draw)"), PixelShader, PassParameters, View.ViewRect, PreMultipliedColorTransmittanceBlend);
 		}
 
-		// Draw each material layer indepentely
+		// Draw each material layer independently
 		if (ViewMode == 3)
 		{
-			
+			if (IsStrataAdvancedVisualizationShadersEnabled())
+			{
+				{
+					FMaterialDebugStrataTreeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMaterialDebugStrataTreeCS::FParameters>();
+					PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+					ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
+
+					TShaderMapRef<FMaterialDebugStrataTreeCS> ComputeShader(View.ShaderMap);
+					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Strata::StrataAdvancedVisualization(Print)"), ComputeShader, PassParameters, FIntVector(1, 1, 1));
+				}
+
+				{
+					FMaterialDebugStrataTreePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMaterialDebugStrataTreePS::FParameters>();
+					PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+					PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+
+					FMaterialDebugStrataTreePS::FPermutationDomain PermutationVector;
+					TShaderMapRef<FMaterialDebugStrataTreePS> PixelShader(View.ShaderMap, PermutationVector);
+
+					FPixelShaderUtils::AddFullscreenPass<FMaterialDebugStrataTreePS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Strata::StrataAdvancedVisualization(Draw)"), PixelShader, PassParameters, View.ViewRect, PreMultipliedColorTransmittanceBlend);
+				}
+			}
+			else
+			{
+				// TODO warn the user that this mode is not available with delegate SceneRenderer.OnGetOnScreenMessages.AddLambda([](FScreenMessageWriter& ScreenMessageWriter)->void
+			}
 		}
 	}
 }
 
 bool ShouldRenderStrataDebugPasses(const FViewInfo& View)
 {
-	return IsStrataEnabled() &&
-		(
-			(FVisualizeMaterialPS::CanRunStrataVizualizeMaterial(View.GetShaderPlatform()) && View.Family && View.Family->EngineShowFlags.VisualizeStrataMaterial)
-			|| (CVarStrataClassificationDebug.GetValueOnAnyThread() > 0)
-			|| ShouldRenderStrataRoughRefractionRnD()
-			|| IsStrataAdvancedVisualizationShadersEnabled()
-			);
+	return IsStrataEnabled() && (
+		(StrataDebugVisualizationCanRunOnPlatform(View.GetShaderPlatform()) && ( (View.Family && View.Family->EngineShowFlags.VisualizeStrataMaterial) || CVarStrataClassificationDebug.GetValueOnAnyThread() > 0 ))
+		|| ShouldRenderStrataRoughRefractionRnD()
+		);
 }
 
 FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor)
@@ -207,7 +293,7 @@ FScreenPassTexture AddStrataDebugPasses(FRDGBuilder& GraphBuilder, const FViewIn
 	check(IsStrataEnabled());
 	EShaderPlatform Platform = View.GetShaderPlatform();
 
-	if (FVisualizeMaterialPS::CanRunStrataVizualizeMaterial(Platform))
+	if (StrataDebugVisualizationCanRunOnPlatform(Platform))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Strata::VisualizeMaterial");
 		AddVisualizeMaterialPasses(GraphBuilder, View, ScreenPassSceneColor.Texture, Platform);

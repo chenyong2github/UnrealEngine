@@ -3,7 +3,12 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
+#ifdef SHADER_DEBUGSTRATATREE
+#define STRATA_INLINE_SHADING 1
+#else
 #define STRATA_INLINE_SHADING 0
+#endif
+
 #define STRATA_SSS_MATERIAL_OVERRIDE 0
 #define STRATA_SSS_TRANSMISSION 0  // Disable for now, as the SSS profile texture need to be bound
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
@@ -446,3 +451,91 @@ void VisualizeMaterialPS(
 	}
 }
 #endif // SHADER_MATERIALVISUALIZE
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Material Visualize
+
+#if SHADER_DEBUGSTRATATREE
+
+[numthreads(1, 1, 1)]
+void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint2 PixelPos = View.CursorPosition;
+
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+	if (Header.BSDFCount > 0)
+	{
+		FStrataTree StrataTree = GetInitialisedStrataTree();
+		StrataUnpackInStrataTree(
+			Strata.MaterialTextureArray,
+			StrataTree,
+			Strata.SliceStoringDebugStrataTree + STRATA_BASE_PASS_MRT_OUTPUT_COUNT);
+
+
+		FShaderPrintContext Context;
+		Context = InitShaderPrintContext(true, uint2(50, 50));
+
+
+		Print(Context, StrataTree.BSDFCount, FontWhite, 2, 0);
+		Print(Context, TEXT("BSDFs"), FontWhite);
+		Newline(Context);
+		Print(Context, StrataTree.OperatorCount, FontWhite, 2, 0);
+		Print(Context, TEXT("Operators"), FontWhite);
+		Newline(Context);
+	}
+}
+
+float4 GetMaterialOnSphere(
+	in float2 PixelPos,
+	in float2 Pos,
+	in float  Size,
+	in FStrataBSDF BSDF,
+	inout float4 OutColor)
+{
+	if (all(PixelPos > Pos) && all(PixelPos < (Pos + Size)))
+	{
+		OutColor = float4(StrataGetBSDFDiffuseColor(BSDF), 0);
+	}
+	return OutColor;
+}
+
+void MaterialDebugStrataTreePS(
+	float4 SVPos : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	OutColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
+
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(View.CursorPosition, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
+	if (Header.BSDFCount > 0)
+	{
+		OutColor = float4(0.0f, 0.0f, 0.0f, 0.5f);
+
+		FStrataTree StrataTree = GetInitialisedStrataTree();
+		StrataUnpackInStrataTree(
+			Strata.MaterialTextureArray,
+			StrataTree,
+			Strata.SliceStoringDebugStrataTree + STRATA_BASE_PASS_MRT_OUTPUT_COUNT);
+
+		const float2 PixelPos = SVPos.xy;
+
+		float2 Pos = float2(100.0f, 100.0f);
+		const float SphereSize = 100.0f;
+		for (int i = 0; i < StrataTree.BSDFCount; i++)
+		{
+			OutColor = GetMaterialOnSphere(
+				PixelPos,
+				Pos,
+				SphereSize,
+				StrataTree.BSDFs[i],
+				OutColor);
+		
+			Pos.y += SphereSize + 10.0f;
+		}
+	}
+
+	OutColor = float4(pow(OutColor.rgb,1.0/2.2), OutColor.a);
+}
+
+#endif // SHADER_DEBUGSTRATATREE
