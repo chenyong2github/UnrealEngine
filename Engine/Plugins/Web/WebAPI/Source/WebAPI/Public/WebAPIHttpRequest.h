@@ -116,13 +116,13 @@ TMap<FString, FString> TRequest<PayloadType>::GetAllHeaders() const
 	OutMap.Reserve(Headers.Num());
 	for (const FString& Header : Headers)
 	{
-		FString* const Key = nullptr;
-		FString* const Value = nullptr;
+		FString* Key = nullptr;
+		FString* Value = nullptr;
 		Header.Split(TEXT(":"), Key, Value);
 		
 		check(Key);
 		check(Value);
-		
+
 		OutMap.Emplace(MoveTemp(*Key), MoveTemp(*Value));
 	}
 

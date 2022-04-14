@@ -15,5 +15,10 @@ struct WEBAPI_API FWebAPIMessageResponse
 
 	virtual ~FWebAPIMessageResponse() = default;
 
-	virtual const FText& GetMessage() const PURE_VIRTUAL(FWebAPIMessageResponse::GetMessage, return FText::GetEmpty(););
+	virtual const FText& GetMessage() const;
 };
+
+inline const FText& FWebAPIMessageResponse::GetMessage() const
+{
+	return FText::GetEmpty();
+}

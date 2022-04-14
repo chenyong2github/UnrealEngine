@@ -427,9 +427,16 @@ namespace UE::WebAPI::OpenAPI
 
 	TObjectPtr<UWebAPIParameter> FWebAPIOpenAPISchemaConverter::ConvertParameter(const TSharedPtr<OpenAPI::V3::FParameterObject>& InSrcParameter)
 	{
-		// const FString* ParameterName = InputSchema->Components.Parameters.FindKey(InSrcParameter);
-		// check(ParameterName);
 		const FString* ParameterName = nullptr;
+		for (const TPair<FString, Json::TJsonReference<V3::FParameterObject>>& ParameterPair : InputSchema->Components->Parameters)
+		{
+			if(ParameterPair.Value.IsSet() && ParameterPair.Value.GetShared() == InSrcParameter)
+			{
+				ParameterName = &ParameterPair.Key;
+				break;
+			}
+		}
+		check(ParameterName);
 
 		const FString ParameterJsonName = InSrcParameter->Name.IsEmpty() ? *ParameterName : InSrcParameter->Name;
 
