@@ -56,6 +56,8 @@ namespace UnrealBuildTool.Rules
 			}
 
 			bBuildLocallyWithSNDBS = true;
+
+			ShortName = "VSCSCA";
 		}
 	}
 }

@@ -14,6 +14,8 @@ namespace UnrealBuildTool.Rules
 					"DesktopPlatform"
 				}
 			);
+
+			ShortName = "XCodeSCA";
 		}
 	}
 }

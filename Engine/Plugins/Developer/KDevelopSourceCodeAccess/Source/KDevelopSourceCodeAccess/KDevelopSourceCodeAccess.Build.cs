@@ -19,6 +19,8 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateDependencyModuleNames.Add("HotReload");
 			}
+
+			ShortName = "KDevSCA";
 		}
 	}
 }

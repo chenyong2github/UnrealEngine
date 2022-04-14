@@ -27,6 +27,8 @@ namespace UnrealBuildTool.Rules
 			}
 
 			bBuildLocallyWithSNDBS = true;
+			
+			ShortName = "VSSCA";
 		}
 	}
 }

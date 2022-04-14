@@ -14,6 +14,8 @@ namespace UnrealBuildTool.Rules
 					"SourceCodeAccess"
 				}
 			);
+
+			ShortName = "NullSCA";
 		}
 	}
 }
