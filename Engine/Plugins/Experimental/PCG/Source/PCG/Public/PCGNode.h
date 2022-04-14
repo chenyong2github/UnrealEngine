@@ -52,6 +52,9 @@ public:
 	/** Returns all the output labels */
 	TArray<FName> OutLabels() const;
 
+	/** Returns true if we want the default In/Out labels */
+	bool HasDefaultLabels() const;
+
 	/** Returns true if the input pin is connected */
 	bool IsInputPinConnected(const FName& Label) const;
 

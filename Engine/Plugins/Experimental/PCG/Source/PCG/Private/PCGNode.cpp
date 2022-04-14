@@ -83,6 +83,11 @@ TArray<FName> UPCGNode::OutLabels() const
 	return DefaultSettings ? DefaultSettings->OutLabels() : TArray<FName>();
 }
 
+bool UPCGNode::HasDefaultLabels() const
+{
+	return !DefaultSettings || DefaultSettings->HasDefaultLabels();
+}
+
 bool UPCGNode::IsInputPinConnected(const FName& Label) const
 {
 	for (const UPCGEdge* InboundEdge : InboundEdges)

@@ -39,12 +39,12 @@ bool UPCGSettings::operator==(const UPCGSettings& Other) const
 
 bool UPCGSettings::HasInLabel(const FName& Label) const
 {
-	return Label == NAME_None || InLabels().Contains(Label);
+	return (Label == NAME_None && HasDefaultLabels()) || InLabels().Contains(Label);
 }
 
 bool UPCGSettings::HasOutLabel(const FName& Label) const
 {
-	return Label == NAME_None || OutLabels().Contains(Label);
+	return (Label == NAME_None && HasDefaultLabels()) || OutLabels().Contains(Label);
 }
 
 FPCGElementPtr UPCGSettings::GetElement() const

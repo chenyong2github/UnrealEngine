@@ -41,10 +41,40 @@ namespace PCGDebugElement
 			Materials.Add(Material);
 		}
 
-		TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+		// In the case of a node with multiple output pins, we will select only the inputs from the first non-empty pin.
+		bool bFilterOnPin = false;
+		FName PinFilter = NAME_None;
 
+		if (Context->Node)
+		{
+			if (Context->Node->IsOutputPinConnected(NAME_None))
+			{
+				bFilterOnPin = true;
+			}
+			else
+			{
+				TArray<FName> OutLabels = Context->Node->OutLabels();
+				for (const FName& OutLabel : OutLabels)
+				{
+					if (Context->Node->IsOutputPinConnected(OutLabel))
+					{
+						PinFilter = OutLabel;
+						bFilterOnPin = true;
+						break;
+					}
+				}
+			}
+		}
+
+		TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
 		for(const FPCGTaggedData& Input : Inputs)
 		{
+			// Skip output if we're filtering on the first pin
+			if (bFilterOnPin && Input.Pin != PinFilter)
+			{
+				continue;
+			}
+
 			const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Input.Data);
 
 			if (!SpatialData)

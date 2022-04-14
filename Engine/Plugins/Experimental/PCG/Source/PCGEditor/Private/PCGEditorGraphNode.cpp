@@ -101,7 +101,10 @@ void UPCGEditorGraphNode::AllocateDefaultPins()
 {
 	if (NodeType == EPCGEditorGraphNodeType::Input || NodeType == EPCGEditorGraphNodeType::Settings)
 	{
-		CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, FName(TEXT("Out")));
+		if (!PCGNode || PCGNode->HasDefaultLabels())
+		{
+			CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, FName(TEXT("Out")));
+		}
 
 		if (PCGNode)
 		{
@@ -114,7 +117,10 @@ void UPCGEditorGraphNode::AllocateDefaultPins()
 
 	if (NodeType == EPCGEditorGraphNodeType::Output || NodeType == EPCGEditorGraphNodeType::Settings)
 	{
-		CreatePin(EEdGraphPinDirection::EGPD_Input, NAME_None, FName(TEXT("In")));
+		if (!PCGNode || PCGNode->HasDefaultLabels())
+		{
+			CreatePin(EEdGraphPinDirection::EGPD_Input, NAME_None, FName(TEXT("In")));
+		}
 
 		if (PCGNode)
 		{
@@ -130,12 +136,24 @@ void UPCGEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 {
 	if (FromPin->Direction == EEdGraphPinDirection::EGPD_Output)
 	{
-		UEdGraphPin* ToPin = FindPinChecked(TEXT("In"), EEdGraphPinDirection::EGPD_Input);
+		FName InPinName = TEXT("In");
+		if (PCGNode && !PCGNode->HasDefaultLabels() && !PCGNode->InLabels().IsEmpty())
+		{
+			InPinName = PCGNode->InLabels()[0];
+		}
+
+		UEdGraphPin* ToPin = FindPinChecked(InPinName, EEdGraphPinDirection::EGPD_Input);
 		GetSchema()->TryCreateConnection(FromPin, ToPin);
 	}
 	else if (FromPin->Direction == EEdGraphPinDirection::EGPD_Input)
 	{
-		UEdGraphPin* ToPin = FindPinChecked(TEXT("Out"), EEdGraphPinDirection::EGPD_Output);
+		FName OutPinName = TEXT("Out");
+		if (PCGNode && !PCGNode->HasDefaultLabels() && !PCGNode->OutLabels().IsEmpty())
+		{
+			OutPinName = PCGNode->OutLabels()[0];
+		}
+
+		UEdGraphPin* ToPin = FindPinChecked(OutPinName, EEdGraphPinDirection::EGPD_Output);
 		GetSchema()->TryCreateConnection(FromPin, ToPin);
 	}
 	NodeConnectionListChanged();
@@ -169,11 +187,11 @@ void UPCGEditorGraphNode::ReconstructNode()
 
 	for (UEdGraphPin* Pin : Pins)
 	{
-		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && Pin->PinName != TEXT("In"))
+		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && (Pin->PinName != TEXT("In") || !PCGNode->HasDefaultLabels()))
 		{
 			InputPins.Add(Pin);
 		}
-		else if (Pin->Direction == EEdGraphPinDirection::EGPD_Output && Pin->PinName != TEXT("Out"))
+		else if (Pin->Direction == EEdGraphPinDirection::EGPD_Output && (Pin->PinName != TEXT("Out") || !PCGNode->HasDefaultLabels()))
 		{
 			OutputPins.Add(Pin);
 		}

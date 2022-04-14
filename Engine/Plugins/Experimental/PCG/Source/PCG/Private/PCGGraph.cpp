@@ -315,24 +315,84 @@ void UPCGGraph::RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To,
 #endif
 }
 
-void UPCGGraph::RemoveInboundEdges(UPCGNode* InNode)
+void UPCGGraph::RemoveAllInboundEdges(UPCGNode* InNode)
 {
 	check(InNode);
+	const bool bChanged = !InNode->InboundEdges.IsEmpty();
 
 	for (int32 i = InNode->InboundEdges.Num() - 1; i >= 0; --i)
 	{
 		InNode->InboundEdges[i]->BreakEdge();
 	}
+
+#if WITH_EDITOR
+	if (bChanged)
+	{
+		NotifyGraphChanged(/*bIsStructural=*/true);
+	}
+#endif
 }
 
-void UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode)
+void UPCGGraph::RemoveAllOutboundEdges(UPCGNode* InNode)
 {
 	check(InNode);
+	const bool bChanged = !InNode->OutboundEdges.IsEmpty();
 
 	for (int32 i = InNode->OutboundEdges.Num() - 1; i >= 0; --i)
 	{
 		InNode->OutboundEdges[i]->BreakEdge();
 	}
+
+#if WITH_EDITOR
+	if (bChanged)
+	{
+		NotifyGraphChanged(/*bIsStructural=*/true);
+	}
+#endif
+}
+
+void UPCGGraph::RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel)
+{
+	check(InNode);
+	bool bChanged = false;
+
+	for (int32 i = InNode->InboundEdges.Num() - 1; i >= 0; --i)
+	{
+		if (InNode->InboundEdges[i]->OutboundLabel == InboundLabel)
+		{
+			InNode->InboundEdges[i]->BreakEdge();
+			bChanged = true;
+		}
+	}
+
+#if WITH_EDITOR
+	if (bChanged)
+	{
+		NotifyGraphChanged(/*bIsStructural=*/true);
+	}
+#endif
+}
+
+void UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel)
+{
+	check(InNode);
+	bool bChanged = false;
+
+	for (int32 i = InNode->OutboundEdges.Num() - 1; i >= 0; --i)
+	{
+		if (InNode->OutboundEdges[i]->InboundLabel == OutboundLabel)
+		{
+			InNode->OutboundEdges[i]->BreakEdge();
+			bChanged = true;
+		}
+	}
+
+#if WITH_EDITOR
+	if (bChanged)
+	{
+		NotifyGraphChanged(/*bIsStructural=*/true);
+	}
+#endif
 }
 
 #if WITH_EDITOR

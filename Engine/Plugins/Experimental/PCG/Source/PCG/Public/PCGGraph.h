@@ -62,8 +62,10 @@ public:
 	const TArray<UPCGNode*>& GetNodes() const { return Nodes; }
 	void RemoveNode(UPCGNode* InNode);
 	void RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To, const FName& ToLabel);
-	void RemoveInboundEdges(UPCGNode* InNode);
-	void RemoveOutboundEdges(UPCGNode* InNode);
+	void RemoveAllInboundEdges(UPCGNode* InNode);
+	void RemoveAllOutboundEdges(UPCGNode* InNode);
+	void RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel);
+	void RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel);
 
 #if WITH_EDITOR
 	FPCGTagToSettingsMap GetTrackedTagsToSettings() const;
