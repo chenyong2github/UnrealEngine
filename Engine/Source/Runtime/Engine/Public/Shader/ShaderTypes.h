@@ -451,16 +451,17 @@ struct FValue
 	}
 
 	inline const FType& GetType() const { return Type; }
-	inline const FValueComponent& GetComponent(int32 i) const
-	{
-		checkf(Component.IsValidIndex(i), TEXT("Invalid component %d, of type '%s'"), i, Type.GetName());
-		return Component[i];
-	}
+	inline int32 GetNumComponents() const { return Type.GetNumComponents(); }
 
-	/** returns 0 for invalid components */
-	inline FValueComponent TryGetComponent(int32 i) const
+	inline FValueComponent GetComponent(int32 Index) const
 	{
-		return Component.IsValidIndex(i) ? Component[i] : FValueComponent();
+		// Return scalar value for any request to xyzw
+		const int32 ComponentIndex = (GetNumComponents() == 1 && Index >= 0 && Index < 4) ? 0 : Index;
+		if (Component.IsValidIndex(ComponentIndex))
+		{
+			return Component[ComponentIndex];
+		}
+		return FValueComponent();
 	}
 
 	static FValue FromMemoryImage(EValueType Type, const void* Data, uint32* OutSizeInBytes = nullptr);

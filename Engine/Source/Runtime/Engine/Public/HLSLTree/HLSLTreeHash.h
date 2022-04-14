@@ -84,9 +84,9 @@ inline void AppendHash(FHasher& Hasher, const Shader::FType& Type)
 inline void AppendHash(FHasher& Hasher, const Shader::FValue& Value)
 {
 	AppendHash(Hasher, Value.Type);
-	for (int32 i = 0; i < Value.Type.GetNumComponents(); ++i)
+	for (int32 i = 0; i < Value.GetNumComponents(); ++i)
 	{
-		AppendHash(Hasher, Value.TryGetComponent(i));
+		AppendHash(Hasher, Value.GetComponent(i));
 	}
 }
 

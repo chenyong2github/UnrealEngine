@@ -175,7 +175,7 @@ void FPreshaderData::WriteValue(const FValue& Value)
 	{
 		const EValueComponentType ComponentType = Value.Type.GetComponentType(Index);
 		const int32 ComponentSize = GetComponentTypeSizeInBytes(ComponentType);
-		const FValueComponent Component = Value.TryGetComponent(Index);
+		const FValueComponent Component = Value.GetComponent(Index);
 		WriteData(&Component.Packed, ComponentSize);
 	}
 }
@@ -453,16 +453,16 @@ static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataConte
 	switch (NumElements)
 	{
 	case 4:
-		Result.Component[3] = Value.TryGetComponent(IndexA);
+		Result.Component[3] = Value.GetComponent(IndexA);
 		// Fallthrough...
 	case 3:
-		Result.Component[2] = Value.TryGetComponent(IndexB);
+		Result.Component[2] = Value.GetComponent(IndexB);
 		// Fallthrough...
 	case 2:
-		Result.Component[1] = Value.TryGetComponent(IndexG);
+		Result.Component[1] = Value.GetComponent(IndexG);
 		// Fallthrough...
 	case 1:
-		Result.Component[0] = Value.TryGetComponent(IndexR);
+		Result.Component[0] = Value.GetComponent(IndexR);
 		break;
 	default:
 		UE_LOG(LogMaterial, Fatal, TEXT("Invalid number of swizzle elements: %d"), NumElements);

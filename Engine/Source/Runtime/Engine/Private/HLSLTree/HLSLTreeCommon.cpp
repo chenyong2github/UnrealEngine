@@ -18,10 +18,10 @@ struct FPreshaderLoopScope
 
 FSwizzleParameters::FSwizzleParameters(int8 InR, int8 InG, int8 InB, int8 InA) : NumComponents(0), bHasSwizzle(true)
 {
-	ComponentIndex[0] = InR;
-	ComponentIndex[1] = InG;
-	ComponentIndex[2] = InB;
-	ComponentIndex[3] = InA;
+	SwizzleComponentIndex[0] = InR;
+	SwizzleComponentIndex[1] = InG;
+	SwizzleComponentIndex[2] = InB;
+	SwizzleComponentIndex[3] = InA;
 
 	if (InA >= 0)
 	{
@@ -40,11 +40,14 @@ FSwizzleParameters::FSwizzleParameters(int8 InR, int8 InG, int8 InB, int8 InA) :
 	{
 		check(InG <= 3);
 		++NumComponents;
+		check(InR >= 0);
 	}
 
-	// At least one proper index
-	check(InR >= 0 && InR <= 3);
-	++NumComponents;
+	if (InR >= 0)
+	{
+		check(InR <= 3);
+		++NumComponents;
+	}
 }
 
 FSwizzleParameters MakeSwizzleMask(bool bInR, bool bInG, bool bInB, bool bInA)
@@ -439,11 +442,11 @@ FRequestedType GetRequestedSwizzleType(const FSwizzleParameters& Params, const F
 {
 	FRequestedType RequestedInputType;
 	RequestedInputType.ValueComponentType = RequestedType.ValueComponentType;
-	for (int32 Index = 0; Index < Params.NumComponents; ++Index)
+	for (int32 Index = 0; Index < RequestedType.RequestedComponents.Num(); ++Index)
 	{
 		if (RequestedType.IsComponentRequested(Index))
 		{
-			const int32 SwizzledComponentIndex = Params.ComponentIndex[Index];
+			const int32 SwizzledComponentIndex = Params.GetSwizzleComponentIndex(Index);
 			RequestedInputType.SetComponentRequest(SwizzledComponentIndex);
 		}
 	}
@@ -484,7 +487,7 @@ bool FExpressionSwizzle::PrepareValue(FEmitContext& Context, FEmitScope& Scope, 
 	if (RequestedInputType.IsVoid())
 	{
 		// All the requested components are outside the swizzle, so just return 0
-		ResultType.ValueComponentType = Shader::EValueComponentType::Float;
+		ResultType.ValueComponentType = RequestedType.ValueComponentType;
 		for (int32 ComponentIndex = 0; ComponentIndex < Parameters.NumComponents; ++ComponentIndex)
 		{
 			ResultType.SetComponent(ComponentIndex, EExpressionEvaluation::ConstantZero);
@@ -499,7 +502,7 @@ bool FExpressionSwizzle::PrepareValue(FEmitContext& Context, FEmitScope& Scope, 
 		{
 			if (RequestedType.IsComponentRequested(ComponentIndex))
 			{
-				const int32 SwizzledComponentIndex = Parameters.ComponentIndex[ComponentIndex];
+				const int32 SwizzledComponentIndex = Parameters.GetSwizzleComponentIndex(ComponentIndex);
 				ResultType.SetComponent(ComponentIndex, InputType.GetComponent(SwizzledComponentIndex));
 			}
 			else
@@ -514,66 +517,61 @@ bool FExpressionSwizzle::PrepareValue(FEmitContext& Context, FEmitScope& Scope, 
 
 void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	static const TCHAR ComponentName[] = { 'x', 'y', 'z', 'w' };
-	TCHAR Swizzle[5] = TEXT("");
-	TCHAR LWCSwizzle[10] = TEXT("");
-	bool bHasSwizzleReorder = false;
+	const FRequestedType RequestedInputType = Private::GetRequestedSwizzleType(Parameters, RequestedType);
+	FEmitShaderExpression* EmitInput = Input->GetValueShader(Context, Scope, RequestedInputType);
+	const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(EmitInput->Type);
 
-	const int32 NumComponents = FMath::Min<int32>(RequestedType.GetNumComponents(), Parameters.NumComponents);
-	FRequestedType RequestedInputType;
-	RequestedInputType.ValueComponentType = RequestedType.ValueComponentType;
-	for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ++ComponentIndex)
+	bool bSkipSwizzle = (InputTypeDesc.NumComponents == Parameters.NumComponents);
+	if (bSkipSwizzle)
 	{
-		// If component wasn't requested, we just refer to 'x' component of input, since that should always be present
-		int32 SwizzledComponentIndex = 0;
-
-		if (RequestedType.IsComponentRequested(ComponentIndex))
+		for (int32 ComponentIndex = 0; ComponentIndex < Parameters.NumComponents; ++ComponentIndex)
 		{
-			SwizzledComponentIndex = Parameters.ComponentIndex[ComponentIndex];
-			RequestedInputType.SetComponentRequest(SwizzledComponentIndex);
-		}
-
-		Swizzle[ComponentIndex] = ComponentName[SwizzledComponentIndex];
-		LWCSwizzle[ComponentIndex * 2 + 0] = TEXT(',');
-		LWCSwizzle[ComponentIndex * 2 + 1] = TEXT('0') + SwizzledComponentIndex;
-
-		if (SwizzledComponentIndex != ComponentIndex)
-		{
-			bHasSwizzleReorder = true;
+			if (Parameters.GetSwizzleComponentIndex(ComponentIndex) != ComponentIndex)
+			{
+				bSkipSwizzle = false;
+				break;
+			}
 		}
 	}
 
-	FEmitShaderExpression* InputValue = Input->GetValueShader(Context, Scope, RequestedInputType);
-	const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(InputValue->Type);
-
-	if (bHasSwizzleReorder || NumComponents != InputTypeDesc.NumComponents)
+	if (bSkipSwizzle)
 	{
-		const Shader::EValueType ResultType = Shader::MakeValueType(InputTypeDesc.ComponentType, NumComponents);
-		const int32 NumRequestedComponents = RequestedInputType.GetNumComponents();
-		if (NumRequestedComponents > InputTypeDesc.NumComponents)
-		{
-			// Zero-extend our input if needed, so we can acccess all the given components
-			InputValue = Context.EmitCast(Scope, InputValue, Shader::MakeValueType(InputTypeDesc.ComponentType, NumRequestedComponents), EEmitCastFlags::ZeroExtendScalar);
-		}
-
-		if (InputTypeDesc.ComponentType == Shader::EValueComponentType::Double)
-		{
-			check(LWCSwizzle[0]);
-			OutResult.Code = Context.EmitInlineExpression(Scope, ResultType, TEXT("LWCSwizzle(%%)"),
-				InputValue,
-				LWCSwizzle);
-		}
-		else
-		{
-			check(Swizzle[0]);
-			OutResult.Code = Context.EmitInlineExpression(Scope, ResultType, TEXT("%.%"),
-				InputValue,
-				Swizzle);
-		}
+		OutResult.Code = EmitInput;
 	}
 	else
 	{
-		OutResult.Code = InputValue;
+		const bool bIsLWC = (InputTypeDesc.ComponentType == Shader::EValueComponentType::Double);
+		TStringBuilder<256> FormattedCode;
+		if (bIsLWC)
+		{
+			FormattedCode.Appendf(TEXT("LWCSwizzle(%s"), EmitInput->Reference);
+		}
+		else
+		{
+			FormattedCode.Appendf(TEXT("%s."), EmitInput->Reference);
+		}
+
+		static const TCHAR ComponentName[] = { 'x', 'y', 'z', 'w' };
+		for (int32 ComponentIndex = 0; ComponentIndex < Parameters.NumComponents; ++ComponentIndex)
+		{
+			const int32 SwizzledComponentIndex = (InputTypeDesc.NumComponents > 1) ? Parameters.GetSwizzleComponentIndex(ComponentIndex) : 0;
+			if (bIsLWC)
+			{
+				FormattedCode.Appendf(TEXT(", %d"), SwizzledComponentIndex);
+			}
+			else
+			{
+				FormattedCode.AppendChar(ComponentName[SwizzledComponentIndex]);
+			}
+		}
+
+		if (bIsLWC)
+		{
+			FormattedCode.Append(TEXT(")"));
+		}
+
+		const Shader::FType ResultType = Shader::MakeValueType(InputTypeDesc.ComponentType, Parameters.NumComponents);
+		OutResult.Code = Context.EmitInlineExpressionWithDependency(Scope, EmitInput, ResultType, FormattedCode.ToView());
 	}
 }
 
@@ -593,10 +591,10 @@ void FExpressionSwizzle::EmitValuePreshader(FEmitContext& Context, FEmitScope& S
 
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ComponentSwizzle)
 			.Write((uint8)Parameters.NumComponents)
-			.Write((uint8)Parameters.ComponentIndex[0])
-			.Write((uint8)Parameters.ComponentIndex[1])
-			.Write((uint8)Parameters.ComponentIndex[2])
-			.Write((uint8)Parameters.ComponentIndex[3]);
+			.Write((uint8)Parameters.GetSwizzleComponentIndex(0))
+			.Write((uint8)Parameters.GetSwizzleComponentIndex(1))
+			.Write((uint8)Parameters.GetSwizzleComponentIndex(2))
+			.Write((uint8)Parameters.GetSwizzleComponentIndex(3));
 		OutResult.Type = Shader::MakeValueType(InputTypeDesc.ComponentType, Parameters.NumComponents);
 	}
 }
@@ -605,42 +603,45 @@ namespace Private
 {
 struct FAppendTypes
 {
-	Shader::EValueType ResultType;
+	FPreparedType ResultType;
 	Shader::EValueType LhsType;
 	Shader::EValueType RhsType;
 	FRequestedType LhsRequestedType;
 	FRequestedType RhsRequestedType;
 	bool bIsLWC;
 };
-FAppendTypes GetAppendTypes(const FRequestedType& RequestedType, Shader::EValueType LhsType, Shader::EValueType RhsType)
+FAppendTypes GetAppendTypes(const FRequestedType& RequestedType, const FPreparedType& LhsType, const FPreparedType& RhsType)
 {
-	const Shader::FValueTypeDescription LhsTypeDesc = Shader::GetValueTypeDescription(LhsType);
-	const Shader::FValueTypeDescription RhsTypeDesc = Shader::GetValueTypeDescription(RhsType);
-	const Shader::EValueComponentType ComponentType = Shader::CombineComponentTypes(LhsTypeDesc.ComponentType, RhsTypeDesc.ComponentType);
-	const int32 NumComponents = FMath::Min(LhsTypeDesc.NumComponents + RhsTypeDesc.NumComponents, 4);
+	const Shader::EValueComponentType ComponentType = Shader::CombineComponentTypes(LhsType.ValueComponentType, RhsType.ValueComponentType);
+	const int32 NumLhsComponents = LhsType.GetNumComponents();
+	const int32 NumRhsComponents = RhsType.GetNumComponents();
+	const int32 NumComponents = FMath::Min(NumLhsComponents + NumRhsComponents, 4);
 
 	FAppendTypes Types;
+	Types.ResultType.ValueComponentType = ComponentType;
 	Types.LhsRequestedType.ValueComponentType = ComponentType;
 	Types.RhsRequestedType.ValueComponentType = ComponentType;
-	for (int32 Index = 0; Index < LhsTypeDesc.NumComponents; ++Index)
+	Types.LhsType = Shader::MakeValueType(ComponentType, NumLhsComponents);
+	Types.RhsType = Shader::MakeValueType(ComponentType, NumComponents - NumLhsComponents);
+	Types.bIsLWC = ComponentType == Shader::EValueComponentType::Double;
+
+	for (int32 Index = 0; Index < NumLhsComponents; ++Index)
 	{
+		Types.ResultType.SetComponent(Index, LhsType.GetComponent(Index));
 		if (RequestedType.IsComponentRequested(Index))
 		{
 			Types.LhsRequestedType.SetComponentRequest(Index);
 		}
 	}
-	for (int32 Index = LhsTypeDesc.NumComponents; Index < NumComponents; ++Index)
+	for (int32 Index = NumLhsComponents; Index < NumComponents; ++Index)
 	{
+		Types.ResultType.SetComponent(Index, RhsType.GetComponent(Index - NumLhsComponents));
 		if (RequestedType.IsComponentRequested(Index))
 		{
-			Types.RhsRequestedType.SetComponentRequest(Index - LhsTypeDesc.NumComponents);
+			Types.RhsRequestedType.SetComponentRequest(Index - NumLhsComponents);
 		}
 	}
 
-	Types.ResultType = Shader::MakeValueType(ComponentType, NumComponents);
-	Types.LhsType = Shader::MakeValueType(ComponentType, LhsTypeDesc.NumComponents);
-	Types.RhsType = Shader::MakeValueType(ComponentType, NumComponents - LhsTypeDesc.NumComponents);
-	Types.bIsLWC = ComponentType == Shader::EValueComponentType::Double;
 	return Types;
 }
 } // namespace Private
@@ -665,18 +666,11 @@ const FExpression* FExpressionAppend::ComputePreviousFrame(FTree& Tree, const FR
 bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const FPreparedType& LhsType = Context.PrepareExpression(Lhs, Scope, RequestedType);
-	const int32 NumRequestedComponents = RequestedType.GetNumComponents();
-	const int32 NumLhsComponents = FMath::Min(LhsType.GetNumComponents(), NumRequestedComponents);
-
-	FPreparedType ResultType(LhsType.ValueComponentType);
-	for (int32 Index = 0; Index < NumLhsComponents; ++Index)
-	{
-		ResultType.SetComponent(Index, LhsType.GetComponent(Index));
-	}
+	const int32 NumLhsComponents = LhsType.GetNumComponents();
 
 	FRequestedType RhsRequestedType;
 	RhsRequestedType.ValueComponentType = RequestedType.ValueComponentType;
-	for (int32 Index = NumLhsComponents; Index < NumRequestedComponents; ++Index)
+	for (int32 Index = NumLhsComponents; Index < RequestedType.RequestedComponents.Num(); ++Index)
 	{
 		RhsRequestedType.SetComponentRequest(Index - NumLhsComponents, RequestedType.IsComponentRequested(Index));
 	}
@@ -689,24 +683,19 @@ bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 		{
 			return Context.Error(TEXT("Type mismatch"));
 		}
-
-		const int32 NumRhsComponents = FMath::Min(RhsType.GetNumComponents(), NumRequestedComponents - NumLhsComponents);
-		for (int32 Index = 0; Index < NumRhsComponents; ++Index)
-		{
-			ResultType.SetComponent(NumLhsComponents + Index, RhsType.GetComponent(Index));
-		}
 	}
 
-	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, LhsType.GetType(), RhsType.GetType());
+	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, LhsType, RhsType);
 	Context.MarkInputType(Lhs, Types.LhsType);
 	Context.MarkInputType(Rhs, Types.RhsType);
 
-	return OutResult.SetType(Context, RequestedType, ResultType);
+	return OutResult.SetType(Context, RequestedType, Types.ResultType);
 }
 
 void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
-	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Context.GetType(Lhs), Context.GetType(Rhs));
+	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Context.GetPreparedType(Lhs), Context.GetPreparedType(Rhs));
+	const Shader::FType ResultType = Types.ResultType.GetType();
 	FEmitShaderExpression* LhsValue = Lhs->GetValueShader(Context, Scope, Types.LhsRequestedType, Types.LhsType);
 
 	if (Types.RhsType == Shader::EValueType::Void)
@@ -718,14 +707,14 @@ void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope
 		FEmitShaderExpression* RhsValue = Rhs->GetValueShader(Context, Scope, Types.RhsRequestedType, Types.RhsType);
 		if (Types.bIsLWC)
 		{
-			OutResult.Code = Context.EmitInlineExpression(Scope, Types.ResultType, TEXT("MakeLWCVector(%, %)"),
+			OutResult.Code = Context.EmitInlineExpression(Scope, ResultType, TEXT("MakeLWCVector(%, %)"),
 				LhsValue,
 				RhsValue);
 		}
 		else
 		{
-			OutResult.Code = Context.EmitInlineExpression(Scope, Types.ResultType, TEXT("%(%, %)"),
-				Shader::GetValueTypeDescription(Types.ResultType).Name,
+			OutResult.Code = Context.EmitInlineExpression(Scope, ResultType, TEXT("%(%, %)"),
+				Shader::GetValueTypeDescription(ResultType).Name,
 				LhsValue,
 				RhsValue);
 		}
@@ -734,7 +723,7 @@ void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope
 
 void FExpressionAppend::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
 {
-	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Context.GetType(Lhs), Context.GetType(Rhs));
+	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Context.GetPreparedType(Lhs), Context.GetPreparedType(Rhs));
 	Lhs->GetValuePreshader(Context, Scope, Types.LhsRequestedType, OutResult.Preshader);
 	if (Types.RhsType != Shader::EValueType::Void)
 	{
@@ -745,7 +734,7 @@ void FExpressionAppend::EmitValuePreshader(FEmitContext& Context, FEmitScope& Sc
 
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::AppendVector);
 	}
-	OutResult.Type = Types.ResultType;
+	OutResult.Type = Types.ResultType.GetType();
 }
 
 void FExpressionSwitchBase::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const

@@ -7,6 +7,7 @@
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialExpressionExecEnd.h"
 #include "Materials/MaterialExpressionReroute.h"
+#include "Materials/MaterialExpressionNamedReroute.h"
 #include "Materials/MaterialExpressionGenericConstant.h"
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionConstant2Vector.h"
@@ -161,6 +162,18 @@ bool UMaterialExpression::GenerateHLSLStatements(FMaterialHLSLGenerator& Generat
 bool UMaterialExpressionReroute::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
 {
 	OutExpression = Input.TryAcquireHLSLExpression(Generator, Scope);
+	return OutExpression != nullptr;
+}
+
+bool UMaterialExpressionNamedRerouteDeclaration::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
+{
+	OutExpression = Input.TryAcquireHLSLExpression(Generator, Scope);
+	return OutExpression != nullptr;
+}
+
+bool UMaterialExpressionNamedRerouteUsage::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const
+{
+	OutExpression = Generator.AcquireExpression(Scope, 0, Declaration, 0, UE::HLSLTree::FSwizzleParameters());
 	return OutExpression != nullptr;
 }
 

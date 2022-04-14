@@ -74,6 +74,7 @@ public:
 	virtual void SetEditableName(const FString& NewName) override;
 
 	virtual void PostCopyNode(const TArray<UMaterialExpression*>& CopiedExpressions) override;
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
 #endif // WITH_EDITOR
 	//~ End UMaterialExpression Interface
 
@@ -114,6 +115,7 @@ public:
 	virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
 	
 	virtual void PostCopyNode(const TArray<UMaterialExpression*>& CopiedExpressions) override;
+	virtual bool GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression const*& OutExpression) const override;
 #endif // WITH_EDITOR
 	//~ End UMaterialExpression Interface
 

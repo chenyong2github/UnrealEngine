@@ -220,6 +220,8 @@ struct FPreparedComponent
 
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
 
+	void SetLoopEvaluation(FEmitScope& Scope);
+
 	FEmitScope* LoopScope = nullptr;
 	Shader::FComponentBounds Bounds;
 	EExpressionEvaluation Evaluation = EExpressionEvaluation::None;
@@ -318,7 +320,8 @@ private:
 	bool TryMergePreparedType(FEmitContext& Context,
 		const Shader::FStructType* StructType,
 		FName ObjectType,
-		Shader::EValueComponentType ComponentType);
+		Shader::EValueComponentType ComponentType,
+		int32 NumComponents);
 
 	FPreparedType PreparedType;
 	bool bPreparingValue = false;

@@ -436,7 +436,7 @@ FPreparedType FEmitContext::PrepareExpression(const FExpression* InExpression, F
 
 void FEmitContext::MarkInputType(const FExpression* InExpression, const Shader::FType& Type)
 {
-	if (OwnerStack.Num() > 0)
+	if (OwnerStack.Num() > 0 && !Type.IsVoid())
 	{
 		const FOwnedNode* InputOwner = OwnerStack.Last();
 		for (UObject* InputObject : InputOwner->GetOwners())
@@ -945,7 +945,12 @@ FEmitShaderExpression* FEmitContext::EmitPreshaderOrConstant(FEmitScope& Scope, 
 		const Shader::EValueType FieldType = ResultType.GetFlatFieldType(FieldIndex);
 		const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(FieldType);
 		const int32 NumFieldComponents = TypeDesc.NumComponents;
-		const EExpressionEvaluation FieldEvaluation = PreparedType.GetFieldEvaluation(Scope, RequestedType, ComponentIndex, NumFieldComponents);
+
+		// If this is a struct, use GetFieldEvaluation()
+		// If this isn't a struct, use GetEvaluation() instead, which will properly handle promoting scalar types
+		const EExpressionEvaluation FieldEvaluation = Type.IsStruct()
+			? PreparedType.GetFieldEvaluation(Scope, RequestedType, ComponentIndex, NumFieldComponents)
+			: PreparedType.GetEvaluation(Scope, RequestedType);
 
 		if (FieldEvaluation == EExpressionEvaluation::Preshader)
 		{

@@ -539,6 +539,10 @@ FRequestedType::FRequestedType(const Shader::FType& InType, bool bDefaultRequest
 	{
 		StructType = InType.StructType;
 	}
+	else if (InType.IsObject())
+	{
+		ObjectType = InType.ObjectType;
+	}
 	else
 	{
 		const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(InType);
@@ -651,6 +655,15 @@ EExpressionEvaluation FPreparedComponent::GetEvaluation(const FEmitScope& Scope)
 	return Result;
 }
 
+void FPreparedComponent::SetLoopEvaluation(FEmitScope& Scope)
+{
+	Evaluation = MakeLoopEvaluation(Evaluation);
+	if (IsLoopEvaluation(Evaluation))
+	{
+		LoopScope = FEmitScope::FindSharedParent(&Scope, LoopScope);
+	}
+}
+
 FPreparedComponent CombineComponents(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs)
 {
 	if (Lhs.IsNone())
@@ -720,7 +733,7 @@ int32 FPreparedType::GetNumComponents() const
 	}
 	else if (ValueComponentType != Shader::EValueComponentType::Void)
 	{
-		auto Predicate = [](const FPreparedComponent& InComponent) { return InComponent.IsRequested(); };
+		auto Predicate = [](const FPreparedComponent& InComponent) { return !InComponent.IsNone(); };
 		const int32 MaxComponentIndex = PreparedComponents.FindLastByPredicate(Predicate);
 		return (MaxComponentIndex != INDEX_NONE) ? MaxComponentIndex + 1 : 1;
 	}
@@ -748,10 +761,13 @@ Shader::FType FPreparedType::GetType() const
 
 FRequestedType FPreparedType::GetRequestedType() const
 {
+	const int32 NumComponents = GetNumComponents();
 	FRequestedType Result;
 	Result.ValueComponentType = ValueComponentType;
 	Result.StructType = StructType;
-	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	Result.ObjectType = ObjectType;
+	Result.RequestedComponents.Init(false, NumComponents);
+	for (int32 Index = 0; Index < NumComponents; ++Index)
 	{
 		const FPreparedComponent& Component = PreparedComponents[Index];
 		if (Component.IsRequested())
@@ -775,7 +791,7 @@ EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope) cons
 EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const
 {
 	EExpressionEvaluation Result = EExpressionEvaluation::ConstantZero;
-	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	for (int32 Index = 0; Index < RequestedType.RequestedComponents.Num(); ++Index)
 	{
 		if (RequestedType.IsComponentRequested(Index))
 		{
@@ -811,15 +827,14 @@ FPreparedComponent FPreparedType::GetMergedComponent() const
 
 FPreparedComponent FPreparedType::GetComponent(int32 Index) const
 {
-	if (PreparedComponents.IsValidIndex(Index))
+	const int32 NumComponents = GetNumComponents();
+	const int32 ComponentIndex = (NumComponents == 1 && Index >= 0 && Index < 4) ? 0 : Index;
+	if (PreparedComponents.IsValidIndex(ComponentIndex))
 	{
-		return PreparedComponents[Index];
+		return PreparedComponents[ComponentIndex];
 	}
 
-	// Return 'ConstantZero' for unprepared components
-	// TODO - do we ever want to return 'None' instead?
-	const int32 NumComponents = GetNumComponents();
-	return (NumComponents == 1) ? PreparedComponents[0] : FPreparedComponent(EExpressionEvaluation::ConstantZero);
+	return FPreparedComponent(EExpressionEvaluation::None);
 }
 
 void FPreparedType::EnsureNumComponents(int32 NumComponents)
@@ -894,15 +909,21 @@ void FPreparedType::MergeEvaluation(EExpressionEvaluation Evaluation)
 
 void FPreparedType::SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& RequestedType)
 {
-	for (int32 Index = 0; Index < PreparedComponents.Num(); ++Index)
+	const int32 NumRequestedComponents = RequestedType.GetNumComponents();
+	const int32 NumComponents = GetNumComponents();
+	
+	if (NumComponents == 1 && FMath::IsWithinInclusive(NumRequestedComponents, 1, 4))
 	{
-		if (RequestedType.IsComponentRequested(Index))
+		// If we're a scalar type, set loop evaluation if any of xyzw are requested
+		PreparedComponents[0].SetLoopEvaluation(Scope);
+	}
+	else
+	{
+		for (int32 Index = 0; Index < NumComponents; ++Index)
 		{
-			FPreparedComponent& Component = PreparedComponents[Index];
-			Component.Evaluation = MakeLoopEvaluation(Component.Evaluation);
-			if (IsLoopEvaluation(Component.Evaluation))
+			if (RequestedType.IsComponentRequested(Index))
 			{
-				Component.LoopScope = FEmitScope::FindSharedParent(&Scope, Component.LoopScope);
+				PreparedComponents[Index].SetLoopEvaluation(Scope);
 			}
 		}
 	}
@@ -1016,7 +1037,8 @@ FPreparedType MakeNonLWCType(const FPreparedType& Type)
 bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context,
 	const Shader::FStructType* StructType,
 	FName ObjectType,
-	Shader::EValueComponentType ComponentType)
+	Shader::EValueComponentType ComponentType,
+	int32 NumComponents)
 {
 	if (!StructType && ObjectType.IsNone() && ComponentType == Shader::EValueComponentType::Void)
 	{
@@ -1051,6 +1073,11 @@ bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context,
 	}
 	else
 	{
+		const int32 PrevNumComponents = PreparedType.GetNumComponents();
+		if (NumComponents != PrevNumComponents)
+		{
+			return Context.Error(TEXT("Invalid type"));
+		}
 		PreparedType.ValueComponentType = Shader::CombineComponentTypes(PreparedType.ValueComponentType, ComponentType);
 	}
 
@@ -1068,21 +1095,29 @@ bool FPrepareValueResult::SetTypeVoid()
 
 bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluation Evaluation, const Shader::FType& Type)
 {
-	if (TryMergePreparedType(Context, Type.StructType, Type.ObjectType, Shader::GetValueTypeDescription(Type.ValueType).ComponentType))
+	const int32 NumComponents = Type.GetNumComponents();
+	if (TryMergePreparedType(Context, Type.StructType, Type.ObjectType, Shader::GetValueTypeDescription(Type.ValueType).ComponentType, NumComponents))
 	{
 		if (Evaluation != EExpressionEvaluation::None)
 		{
-			const int32 NumComponents = Type.GetNumComponents();
-			for (int32 Index = 0; Index < NumComponents; ++Index)
+			const int32 NumRequestedComponents = RequestedType.GetNumComponents();
+			if (NumComponents == 1 && NumRequestedComponents > 0 && NumRequestedComponents <= 4)
 			{
-				if (RequestedType.IsComponentRequested(Index))
+				PreparedType.MergeComponent(0, Evaluation);
+			}
+			else
+			{
+				for (int32 Index = 0; Index < NumComponents; ++Index)
 				{
-					PreparedType.MergeComponent(Index, Evaluation);
-				}
-				else
-				{
-					// If component wasn't requested, it can be replaced with constant-0
-					PreparedType.MergeComponent(Index, EExpressionEvaluation::ConstantZero);
+					if (RequestedType.IsComponentRequested(Index))
+					{
+						PreparedType.MergeComponent(Index, Evaluation);
+					}
+					else
+					{
+						// If component wasn't requested, it can be replaced with constant-0
+						PreparedType.MergeComponent(Index, EExpressionEvaluation::ConstantZero);
+					}
 				}
 			}
 		}
@@ -1103,20 +1138,28 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 		}
 	}
 
-	if (TryMergePreparedType(Context, Type.StructType, Type.ObjectType, ComponentType))
+	const int32 NumComponents = Type.GetNumComponents();
+	if (TryMergePreparedType(Context, Type.StructType, Type.ObjectType, ComponentType, NumComponents))
 	{
-		const int32 NumComponents = Type.GetNumComponents();
-		for (int32 Index = 0; Index < NumComponents; ++Index)
+		const int32 NumRequestedComponents = RequestedType.GetNumComponents();
+		if (NumComponents == 1 && NumRequestedComponents > 0 && NumRequestedComponents <= 4)
 		{
-			const FPreparedComponent& Component = Type.GetComponent(Index);
-			if (RequestedType.IsComponentRequested(Index))
+			PreparedType.MergeComponent(0, Type.GetComponent(0));
+		}
+		else
+		{
+			for (int32 Index = 0; Index < NumComponents; ++Index)
 			{
-				PreparedType.MergeComponent(Index, Component);
-			}
-			else if(!Component.IsNone())
-			{
-				// If component wasn't requested, it can be replaced with constant-0
-				PreparedType.MergeComponent(Index, EExpressionEvaluation::ConstantZero);
+				const FPreparedComponent& Component = Type.GetComponent(Index);
+				if (RequestedType.IsComponentRequested(Index))
+				{
+					PreparedType.MergeComponent(Index, Component);
+				}
+				else if (!Component.IsNone())
+				{
+					// If component wasn't requested, it can be replaced with constant-0
+					PreparedType.MergeComponent(Index, EExpressionEvaluation::ConstantZero);
+				}
 			}
 		}
 		return true;
