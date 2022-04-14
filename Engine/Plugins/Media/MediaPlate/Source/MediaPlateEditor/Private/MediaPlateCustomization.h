@@ -9,6 +9,7 @@
 
 class IDetailLayoutBuilder;
 class UMediaPlateComponent;
+class UMediaPlayer;
 
 /**
  * Implements a details view customization for the UMediaPlateComponent class.
@@ -52,5 +53,9 @@ private:
 	 */
 	void OnMediaPathChanged(IDetailLayoutBuilder* DetailBuilder);
 
+	/**
+	 * Get the rate to use when we press the forward button.
+	 */
+	float GetForwardRate(UMediaPlayer* MediaPlayer) const;
 };
 

@@ -9,6 +9,7 @@
 #include "MediaPlate.h"
 #include "MediaPlateComponent.h"
 #include "MediaPlateEditorModule.h"
+#include "MediaPlayer.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
@@ -122,6 +123,66 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 						]
 				]
 
+			// Pause button.
+			+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.VAlign(VAlign_Center)
+					.OnClicked_Lambda([this]() -> FReply
+					{
+						for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+						{
+							UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+							if (MediaPlate != nullptr)
+							{
+								UMediaPlayer* MediaPlayer = MediaPlate->GetMediaPlayer();
+								if (MediaPlayer != nullptr)
+								{
+									MediaPlayer->Pause();
+								}
+							}
+						}
+						return FReply::Handled();
+					})
+					[
+						SNew(SImage)
+							.ColorAndOpacity(FSlateColor::UseForeground())
+							.Image(Style->GetBrush("MediaPlateEditor.PauseMedia.Small"))
+					]
+				]
+
+			// Forward button.
+			+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.VAlign(VAlign_Center)
+					.OnClicked_Lambda([this]() -> FReply
+					{
+						for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+						{
+							UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+							if (MediaPlate != nullptr)
+							{
+								UMediaPlayer* MediaPlayer = MediaPlate->GetMediaPlayer();
+								if (MediaPlayer != nullptr)
+								{
+									MediaPlayer->SetRate(GetForwardRate(MediaPlayer));
+								}
+							}
+						}
+						return FReply::Handled();
+					})
+					[
+						SNew(SImage)
+							.ColorAndOpacity(FSlateColor::UseForeground())
+							.Image(Style->GetBrush("MediaPlateEditor.ForwardMedia.Small"))
+					]
+				]
+
 			// Stop button.
 			+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
@@ -199,5 +260,19 @@ void FMediaPlateCustomization::OnMediaPathChanged(IDetailLayoutBuilder* DetailBu
 	// Refresh the layout so we can show/hide the media source.
 	DetailBuilder->ForceRefreshDetails();
 }
+
+
+float FMediaPlateCustomization::GetForwardRate(UMediaPlayer* MediaPlayer) const
+{
+	float Rate = MediaPlayer->GetRate();
+
+	if (Rate < 1.0f)
+	{
+		Rate = 1.0f;
+	}
+
+	return 2.0f * Rate;
+}
+
 
 #undef LOCTEXT_NAMESPACE
