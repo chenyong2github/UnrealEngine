@@ -6,6 +6,7 @@ using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace EpicGames.UHT.Exporters.Json
@@ -39,7 +40,7 @@ namespace EpicGames.UHT.Exporters.Json
 					(IUhtExportFactory Factory) =>
 					{
 						string JsonPath = Factory.MakePath(Package, ".json");
-						JsonSerializerOptions Options = new JsonSerializerOptions { WriteIndented = true, IgnoreNullValues = true };
+						JsonSerializerOptions Options = new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 						Factory.CommitOutput(JsonPath, JsonSerializer.Serialize(Package, Options));
 					}));
 			}
