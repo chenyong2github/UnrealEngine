@@ -104,17 +104,17 @@
 //////////////////////////////////////////////////////////////////////////
 
 // How to display PC_Real pin types to users
-enum class EBlueprintRealDisplayMode
+enum class EBlueprintRealDisplayMode : uint8
 {
 	Real,
 	Float,
 	Number
 };
 
-namespace BlueprintDisplay
+namespace UE::BlueprintDisplay::Private
 {
 	int32 LastRealNamingMode = -1;
-	int32 RealNamingMode = (int32)EBlueprintRealDisplayMode::Float;
+	int32 RealNamingMode = static_cast<int32>(EBlueprintRealDisplayMode::Float);
 	FAutoConsoleVariableRef CVarRealNamingMode(TEXT("Blueprint.PC_Real.DisplayMode"), RealNamingMode, TEXT("Real naming mode\n\t0: Real\n\t1: Float (default)\n\t2: Number\n\nNote the editor needs to be restarted for this to fully take effect"));
 
 	EBlueprintRealDisplayMode GetRealDisplayMode()
@@ -3664,6 +3664,13 @@ FText UEdGraphSchema_K2::TypeToText(const FProperty* const Property)
 
 FText UEdGraphSchema_K2::GetCategoryText(const FName Category, const bool bForMenu)
 {
+	return GetCategoryText(Category, NAME_None, bForMenu);
+}
+
+FText UEdGraphSchema_K2::GetCategoryText(FName Category, FName SubCategory, bool bForMenu)
+{
+	using namespace UE::BlueprintDisplay::Private;
+
 	if (Category.IsNone())
 	{
 		return FText::GetEmpty();
@@ -3673,46 +3680,68 @@ FText UEdGraphSchema_K2::GetCategoryText(const FName Category, const bool bForMe
 	if (CategoryDescriptions.Num() == 0)
 	{
 		CategoryDescriptions.Add(PC_Exec, LOCTEXT("Exec", "Exec"));
-		CategoryDescriptions.Add(PC_Boolean, LOCTEXT("BoolCategory","Boolean"));
-		CategoryDescriptions.Add(PC_Byte, LOCTEXT("ByteCategory","Byte"));
-		CategoryDescriptions.Add(PC_Class, LOCTEXT("ClassCategory","Class Reference"));
+		CategoryDescriptions.Add(PC_Boolean, LOCTEXT("BoolCategory", "Boolean"));
+		CategoryDescriptions.Add(PC_Byte, LOCTEXT("ByteCategory", "Byte"));
+		CategoryDescriptions.Add(PC_Class, LOCTEXT("ClassCategory", "Class Reference"));
 		CategoryDescriptions.Add(PC_Int, LOCTEXT("IntCategory", "Integer"));
 		CategoryDescriptions.Add(PC_Int64, LOCTEXT("Int64Category", "Integer64"));
 		CategoryDescriptions.Add(PC_Real, LOCTEXT("RealCategory", "Real"));
-		CategoryDescriptions.Add(PC_Name, LOCTEXT("NameCategory","Name"));
-		CategoryDescriptions.Add(PC_Delegate, LOCTEXT("DelegateCategory","Delegate"));
-		CategoryDescriptions.Add(PC_MCDelegate, LOCTEXT("MulticastDelegateCategory","Multicast Delegate"));
-		CategoryDescriptions.Add(PC_Object, LOCTEXT("ObjectCategory","Object Reference"));
-		CategoryDescriptions.Add(PC_Interface, LOCTEXT("InterfaceCategory","Interface"));
-		CategoryDescriptions.Add(PC_String, LOCTEXT("StringCategory","String"));
-		CategoryDescriptions.Add(PC_Text, LOCTEXT("TextCategory","Text"));
-		CategoryDescriptions.Add(PC_Struct, LOCTEXT("StructCategory","Structure"));
-		CategoryDescriptions.Add(PC_Wildcard, LOCTEXT("WildcardCategory","Wildcard"));
-		CategoryDescriptions.Add(PC_Enum, LOCTEXT("EnumCategory","Enum"));
+		CategoryDescriptions.Add(PC_Float, LOCTEXT("FloatCategory", "Real (single-precision)"));
+		CategoryDescriptions.Add(PC_Double, LOCTEXT("DoubleCategory", "Real (double-precision)"));
+		CategoryDescriptions.Add(PC_Name, LOCTEXT("NameCategory", "Name"));
+		CategoryDescriptions.Add(PC_Delegate, LOCTEXT("DelegateCategory", "Delegate"));
+		CategoryDescriptions.Add(PC_MCDelegate, LOCTEXT("MulticastDelegateCategory", "Multicast Delegate"));
+		CategoryDescriptions.Add(PC_Object, LOCTEXT("ObjectCategory", "Object Reference"));
+		CategoryDescriptions.Add(PC_Interface, LOCTEXT("InterfaceCategory", "Interface"));
+		CategoryDescriptions.Add(PC_String, LOCTEXT("StringCategory", "String"));
+		CategoryDescriptions.Add(PC_Text, LOCTEXT("TextCategory", "Text"));
+		CategoryDescriptions.Add(PC_Struct, LOCTEXT("StructCategory", "Structure"));
+		CategoryDescriptions.Add(PC_Wildcard, LOCTEXT("WildcardCategory", "Wildcard"));
+		CategoryDescriptions.Add(PC_Enum, LOCTEXT("EnumCategory", "Enum"));
 		CategoryDescriptions.Add(PC_SoftObject, LOCTEXT("SoftObjectReferenceCategory", "Soft Object Reference"));
 		CategoryDescriptions.Add(PC_SoftClass, LOCTEXT("SoftClassReferenceCategory", "Soft Class Reference"));
 		CategoryDescriptions.Add(PC_FieldPath, LOCTEXT("FieldPathReferenceCategory", "Property Reference"));
 		CategoryDescriptions.Add(AllObjectTypes, LOCTEXT("AllObjectTypes", "Object Types"));
 	}
 
-	if (BlueprintDisplay::ShouldRefreshRealDisplay())
+	if (ShouldRefreshRealDisplay())
 	{
-		switch (BlueprintDisplay::GetRealDisplayMode())
+		switch (GetRealDisplayMode())
 		{
 		case EBlueprintRealDisplayMode::Real:
 			CategoryDescriptions[PC_Real] = LOCTEXT("RealCategory_DisplayAsReal", "Real");
+			CategoryDescriptions[PC_Float] = LOCTEXT("RealCategory_DisplayAsReal", "Real (single-precision)");
+			CategoryDescriptions[PC_Double] = LOCTEXT("RealCategory_DisplayAsReal", "Real (double-precision)");
 			break;
 		case EBlueprintRealDisplayMode::Float:
 			CategoryDescriptions[PC_Real] = LOCTEXT("RealCategory_DisplayAsFloat", "Float");
+			CategoryDescriptions[PC_Float] = LOCTEXT("RealCategory_DisplayAsFloat", "Float (single-precision)");
+			CategoryDescriptions[PC_Double] = LOCTEXT("RealCategory_DisplayAsFloat", "Float (double-precision)");
 			break;
 		case EBlueprintRealDisplayMode::Number:
 			CategoryDescriptions[PC_Real] = LOCTEXT("RealCategory_DisplayAsNumber", "Number");
+			CategoryDescriptions[PC_Float] = LOCTEXT("RealCategory_DisplayAsNumber", "Number (single-precision)");
+			CategoryDescriptions[PC_Double] = LOCTEXT("RealCategory_DisplayAsNumber", "Number (double-precision)");
+			break;
+		default:
+			check(false);
 			break;
 		}
 	}
 
-	if (FText const* TypeDesc = CategoryDescriptions.Find(Category))
+	if (const FText* TypeDesc = CategoryDescriptions.Find(Category))
 	{
+		const bool bUseDetailedRealCategory =
+			bForMenu &&
+			(Category == PC_Real) &&
+			((SubCategory == PC_Float) || (SubCategory == PC_Double));
+
+		if (bUseDetailedRealCategory)
+		{
+			TypeDesc = CategoryDescriptions.Find(SubCategory);
+			check(TypeDesc);
+		}
+
 		return *TypeDesc;
 	}
 	else
@@ -3783,7 +3812,9 @@ FText UEdGraphSchema_K2::TerminalTypeToText(const FName Category, const FName Su
 	{
 		if (Category == UEdGraphSchema_K2::PC_Real)
 		{
-			switch (BlueprintDisplay::GetRealDisplayMode())
+			using namespace UE::BlueprintDisplay::Private;
+
+			switch (GetRealDisplayMode())
 			{
 			case EBlueprintRealDisplayMode::Real:
 				PropertyText = (SubCategory == UEdGraphSchema_K2::PC_Float) ? LOCTEXT("SinglePrecisionReal", "Real (single-precision)") : LOCTEXT("DoublePrecisionReal", "Real (double-precision)");

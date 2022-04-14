@@ -988,6 +988,17 @@ public:
 	static FText GetCategoryText(const FName Category, const bool bForMenu = false);
 
 	/**
+	 * Returns the FText to use for a given schema category and subcategory
+	 *
+	 * @param	Category	The category to convert into a FText.
+	 * @param	SubCategory	The subcategory to convert into a FText.
+	 * @param	bForMenu	Indicates if this is for display in tooltips or menu
+	 *
+	 * @return	The text to display for the category.
+	 */
+	static FText GetCategoryText(FName Category, FName SubCategory, bool bForMenu = false);
+
+	/**
 	 * Get the type tree for all of the property types valid for this schema
 	 *
 	 * @param	TypeTree		The array that will contain the type tree hierarchy for this schema upon returning

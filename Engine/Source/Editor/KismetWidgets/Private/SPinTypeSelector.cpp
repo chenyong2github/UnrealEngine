@@ -430,7 +430,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Text(this, &SPinTypeSelector::GetTypeDescription )
+						.Text(this, &SPinTypeSelector::GetTypeDescription, false)
 						.Font(InArgs._Font)
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
@@ -479,7 +479,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 						.Padding(2.0f, 0.0f, 0.0f, 0.0f)
 						[
 							SNew(STextBlock)
-							.Text( this, &SPinTypeSelector::GetSecondaryTypeDescription )
+							.Text(this, &SPinTypeSelector::GetSecondaryTypeDescription, false)
 							.Font(InArgs._Font)
 						]
 					]
@@ -520,7 +520,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(this, &SPinTypeSelector::GetTypeDescription)
+				.Text(this, &SPinTypeSelector::GetTypeDescription, false)
 				.Font(InArgs._Font)
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
@@ -531,7 +531,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 //=======================================================================
 // Attribute Helpers
 
-FText SPinTypeSelector::GetTypeDescription() const
+FText SPinTypeSelector::GetTypeDescription(const bool bIncludeSubcategory) const
 {
 	const FName PinSubCategory = TargetPinType.Get().PinSubCategory;
 	const UObject* PinSubCategoryObject = TargetPinType.Get().PinSubCategoryObject.Get();
@@ -545,11 +545,11 @@ FText SPinTypeSelector::GetTypeDescription() const
 	}
 	else
 	{
-		return UEdGraphSchema_K2::GetCategoryText(TargetPinType.Get().PinCategory, true);
+		return UEdGraphSchema_K2::GetCategoryText(TargetPinType.Get().PinCategory, bIncludeSubcategory ? PinSubCategory : NAME_None, true);
 	}
 }
 
-FText SPinTypeSelector::GetSecondaryTypeDescription() const
+FText SPinTypeSelector::GetSecondaryTypeDescription(const bool bIncludeSubcategory) const
 {
 	const FName PinSubCategory = TargetPinType.Get().PinValueType.TerminalSubCategory;
 	const UObject* PinSubCategoryObject = TargetPinType.Get().PinValueType.TerminalSubCategoryObject.Get();
@@ -563,11 +563,11 @@ FText SPinTypeSelector::GetSecondaryTypeDescription() const
 	}
 	else
 	{
-		return UEdGraphSchema_K2::GetCategoryText(TargetPinType.Get().PinValueType.TerminalCategory, true);
+		return UEdGraphSchema_K2::GetCategoryText(TargetPinType.Get().PinValueType.TerminalCategory, bIncludeSubcategory ? PinSubCategory : NAME_None, true);
 	}
 }
 
-FText SPinTypeSelector::GetCombinedTypeDescription() const
+FText SPinTypeSelector::GetCombinedTypeDescription(const bool bIncludeSubcategory) const
 {
 	FFormatNamedArguments Args;
 
@@ -575,23 +575,24 @@ FText SPinTypeSelector::GetCombinedTypeDescription() const
 	switch (TargetPinType.Get().ContainerType)
 	{
 	case EPinContainerType::Map:
-		Args.Add(TEXT("KeyTitle"), GetTypeDescription());
-		Args.Add(TEXT("ValueTitle"), GetSecondaryTypeDescription());
-		return FText::Format(NSLOCTEXT("KismetSchema", "MapAsText", "Map of {KeyTitle}s to {ValueTitle}s"), Args);
+		Args.Add(TEXT("KeyTitle"), GetTypeDescription(bIncludeSubcategory));
+		Args.Add(TEXT("ValueTitle"), GetSecondaryTypeDescription(bIncludeSubcategory));
+		return FText::Format(NSLOCTEXT("SPinTypeSelector", "MapAsText", "Map of {KeyTitle} types to {ValueTitle} types"), Args);
 	case EPinContainerType::Set:
-		Args.Add(TEXT("PropertyTitle"), GetTypeDescription());
-		return FText::Format(NSLOCTEXT("SetAsText", "MapAsText", "Set of {PropertyTitle}s"), Args);
+		Args.Add(TEXT("PropertyTitle"), GetTypeDescription(bIncludeSubcategory));
+		return FText::Format(NSLOCTEXT("SPinTypeSelector", "SetAsText", "Set of {PropertyTitle} types"), Args);
 	case EPinContainerType::Array:
-		Args.Add(TEXT("PropertyTitle"), GetTypeDescription());
-		return FText::Format(NSLOCTEXT("ArrayAsText", "MapAsText", "Array of {PropertyTitle}s"), Args);
+		Args.Add(TEXT("PropertyTitle"), GetTypeDescription(bIncludeSubcategory));
+		return FText::Format(NSLOCTEXT("SPinTypeSelector", "ArrayAsText", "Array of {PropertyTitle} types"), Args);
 	default:
-		return GetTypeDescription();
+		Args.Add(TEXT("PropertyTitle"), GetTypeDescription(bIncludeSubcategory));
+		return FText::Format(NSLOCTEXT("SPinTypeSelector", "PrimitiveAsText", "{PropertyTitle} type"), Args);
 	}
 }
 
 const FSlateBrush* SPinTypeSelector::GetTypeIconImage() const
 {
-	return FBlueprintEditorUtils::GetIconFromPin( TargetPinType.Get() );
+	return FBlueprintEditorUtils::GetIconFromPin(TargetPinType.Get());
 }
 
 const FSlateBrush* SPinTypeSelector::GetSecondaryTypeIconImage() const
@@ -1379,7 +1380,15 @@ FText SPinTypeSelector::GetToolTipForComboBoxType() const
 
 	// With the full selector type, just display the primary type in the tooltip because the secondary type has its own combo box.
 	// With the partial selector type, we need to jam everything into the tooltip for the single combo box.
-	return FText::Format(LOCTEXT("PrimaryTypeTwoLines", "{0}Current Type: {1}"), EditText, SelectorType == ESelectorType::Full ? GetTypeDescription() : GetCombinedTypeDescription());
+	// Additionally, with the partial selector type, GetCombinedTypeDescription automatically appends "type" to its description.
+	if (SelectorType == ESelectorType::Full)
+	{
+		return FText::Format(LOCTEXT("PrimaryTypeTwoLines", "{0}Current: {1} type"), EditText, GetTypeDescription(true));
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("PrimaryCombinedTypeTwoLines", "{0}Current: {1}"), EditText, GetCombinedTypeDescription(true));
+	}
 }
 
 FText SPinTypeSelector::GetToolTipForComboBoxSecondaryType() const

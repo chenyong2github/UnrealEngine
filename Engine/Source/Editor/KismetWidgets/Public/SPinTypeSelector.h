@@ -107,13 +107,13 @@ protected:
 	FSlateColor GetSecondaryTypeIconColor() const;
 
 	/** Gets a succinct type description for the type being manipulated */
-	FText GetTypeDescription() const;
+	FText GetTypeDescription(bool bIncludeSubcategory = false) const;
 
 	/** Gets the secondary type description. E.g. the value type for TMaps */
-	FText GetSecondaryTypeDescription() const;
+	FText GetSecondaryTypeDescription(bool bIncludeSubcategory = false) const;
 
 	/** Gets a combined description of the primary, container, and secondary types. E.g. "Map of Strings to Floats" */
-	FText GetCombinedTypeDescription() const;
+	FText GetCombinedTypeDescription(bool bIncludeSubcategory = false) const;
 
 	TSharedPtr<SComboButton>		TypeComboButton;
 	TSharedPtr<SComboButton>		SecondaryTypeComboButton;
