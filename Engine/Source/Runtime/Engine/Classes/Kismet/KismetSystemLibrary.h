@@ -349,15 +349,15 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 * @param	Value	value to set the float to
 	 * @return	The literal float
 	 */
-	UFUNCTION(BlueprintPure, Category="Math|Float", meta=(BlueprintThreadSafe))
+	UE_DEPRECATED(5.1, "This method has been deprecated and will be removed.")
 	static float MakeLiteralFloat(float Value);
 
 	/**
-	 * Creates a literal double
-	 * @param	Value	value to set the double to
-	 * @return	The literal double
+	 * Creates a literal float (double-precision)
+	 * @param	Value	value to set the float (double-precision) to
+	 * @return	The literal float (double-precision)
 	 */
-	UFUNCTION(BlueprintPure, Category = "Math|Double", meta = (BlueprintThreadSafe))
+	UFUNCTION(BlueprintPure, Category = "Math|Float", meta = (BlueprintThreadSafe, DisplayName = "Make Literal Float"))
 	static double MakeLiteralDouble(double Value);
 
 	/**
