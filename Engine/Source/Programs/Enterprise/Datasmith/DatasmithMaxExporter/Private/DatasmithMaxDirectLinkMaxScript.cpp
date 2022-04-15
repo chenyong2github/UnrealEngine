@@ -54,12 +54,8 @@ Value* OnLoad_cf(Value **arg_list, int count)
 
 	InitScripts();
 
-	if (CreateExporter(bEnableUI, EnginePathUnreal))
-	{
-		return &false_value;
-	}
 
-	return bool_result(true);
+	return bool_result(CreateExporter(bEnableUI, EnginePathUnreal));
 }
 
 Value* OnUnload_cf(Value**, int);

@@ -46,6 +46,7 @@ public:
 		InvalidateGeometry(nodes);
 	}
 
+
 	virtual void MappingChanged(NodeKeyTab& nodes) override
 	{
 		LogNodeEvent(L"MappingChanged", nodes);
@@ -127,7 +128,7 @@ public:
 
 		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
 		{
-			SceneTracker.NodePropertiesChanged(nodes[NodeIndex]);
+			SceneTracker.NodeNameChanged(nodes[NodeIndex]);
 		}
 	}
 
@@ -537,6 +538,16 @@ void FNotifications::On3dsMaxNotification(void* param, NotifyInfo* info)
 
 	case NOTIFY_PLUGINS_PRE_SHUTDOWN: // This one crashes when calling LogInfo
 		return;
+	// case NOTIFY_NODE_LAYER_CHANGED:
+	// 	break;
+	case NOTIFY_NODE_UNLINKED:
+	case NOTIFY_NODE_CREATED:
+	case NOTIFY_NODE_LINKED:
+		{
+			INode* Node = reinterpret_cast<INode*>(info->callParam);
+			LogDebugNode(NotificationsHandler.ConvertNotificationCodeToString(info->intcode), Node);
+		}
+		break;
 	default:
 		LOG_DEBUG_HEAVY(FString(TEXT("Notify: ")) + NotificationsHandler.ConvertNotificationCodeToString(info->intcode));
 	};

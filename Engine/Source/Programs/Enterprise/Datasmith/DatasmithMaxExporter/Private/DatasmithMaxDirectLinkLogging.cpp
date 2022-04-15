@@ -75,16 +75,21 @@ void LogWarning(const FString& Msg)
 {
 	LogWarning(*Msg);
 }
+
+FString GetNodeDesc(INode* Node)
+{
+	return Node ? FString::Printf(TEXT("%s(%llu)"), Node->GetName(), NodeEventNamespace::GetKeyByNode(Node)) : TEXT("<null>");
+}
+
 void LogDebugNode(const FString& Name, INode* Node)
 {
 #ifdef LOG_DEBUG_HEAVY_ENABLE
 
-	LogDebug(FString::Printf(TEXT("%s: %u %s(%d) - %s")
+	LogDebug(FString::Printf(TEXT("%s: %s - %s, parent: %s")
 		, *Name
-		, NodeEventNamespace::GetKeyByNode(Node)
-		, Node ? Node->GetName() : L"<null>"
-		, Node ? Node->GetHandle() : 0
+		, *GetNodeDesc(Node)
 		, (Node && Node->IsNodeHidden(TRUE))? TEXT("HIDDEN") : TEXT("")
+		, *GetNodeDesc(Node ? Node->GetParentNode() : nullptr)
 		));
 	if (Node)
 	{
@@ -108,14 +113,13 @@ void LogNodeEvent(const MCHAR* Name, INodeEventCallback::NodeKeyTab& nodes)
 		FNodeKey NodeKey = nodes[NodeIndex];
 
 		Animatable* anim = Animatable::GetAnimByHandle(NodeKey);
-		INode* Node = NodeEventNamespace::GetNodeByKey(NodeKey);
-		if (Node) // Node sometimes is null. Not sure why
+		if (INode* Node = NodeEventNamespace::GetNodeByKey(NodeKey)) // Node sometimes is null. Not sure why
 		{
-			LogDebug(FString::Printf(TEXT("   %u %s(%d)"), NodeKey, Node->GetName(), Node->GetHandle()));
+			LogDebug(FString::Printf(TEXT("   %s, parent: %s"), *GetNodeDesc(Node), *GetNodeDesc(Node->GetParentNode())));
 		}
 		else
 		{
-			LogDebug(FString::Printf(TEXT("    %u <null>"), NodeKey));
+			LogDebug(FString::Printf(TEXT("   <null>(%llu)"), NodeKey));
 		}
 	}
 #endif

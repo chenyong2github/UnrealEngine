@@ -10,6 +10,7 @@
 #include "DatasmithMaxMeshExporter.h"
 #include "DatasmithMaxSceneExporter.h"
 #include "DatasmithMaxAttributes.h"
+#include "DatasmithMaxSceneParser.h"
 #include "DatasmithMaxLogger.h"
 
 #include "Logging/LogMacros.h"
@@ -24,7 +25,10 @@ MAX_INCLUDES_START
 	#include "MeshNormalSpec.h"
 MAX_INCLUDES_END
 
+
 namespace DatasmithMaxDirectLink
+{
+namespace GeomUtils
 {
 
 class FNullView : public View
@@ -41,26 +45,26 @@ public:
 	}
 };
 
-FRenderMeshForConversion GetMeshForGeomObject(INode* Node, Object* Obj)
+FRenderMeshForConversion GetMeshForGeomObject(TimeValue CurrentTime, INode* Node, Object* Obj)
 {
 	// todo: baseline exporter uses GetBaseObject which takes result of EvalWorldState
 	// and searched down DerivedObject pipeline(by taking GetObjRef) 
 	// This is STRANGE as EvalWorldState shouldn't return DerivedObject in the first place(it should return result of pipeline evaluation)
 
 	BOOL bNeedsDelete;
-	Mesh* RenderMesh = GetMeshFromRenderMesh(Node, bNeedsDelete, GetCOREInterface()->GetTime());
+	Mesh* RenderMesh = GetMeshFromRenderMesh(CurrentTime, Node, bNeedsDelete);
 
 	return FRenderMeshForConversion(Node, RenderMesh, bNeedsDelete);
 }
 
-FRenderMeshForConversion GetMeshForNode(INode* Node, FTransform Pivot)
+FRenderMeshForConversion GetMeshForNode(TimeValue CurrentTime, INode* Node, FTransform Pivot)
 {
 	if (!Node)
 	{
 		return FRenderMeshForConversion();
 	}
 	BOOL bNeedsDelete;
-	Mesh* RenderMesh = GetMeshFromRenderMesh(Node, bNeedsDelete, GetCOREInterface()->GetTime());
+	Mesh* RenderMesh = GetMeshFromRenderMesh(CurrentTime, Node, bNeedsDelete);
 	return FRenderMeshForConversion(Node, RenderMesh, bNeedsDelete, Pivot);
 }
 
@@ -77,13 +81,41 @@ FTransform FTransformFromMatrix3(const Matrix3& MaxTransform, float UnitMultipli
 	return FTransform( Rotation, Translation, Scale );
 }
 
-FRenderMeshForConversion GetMeshForCollision(INode* Node)
+INode* GetCollisionNode(ISceneTracker& SceneTracker, INode* Node, const FDatasmithMaxStaticMeshAttributes* DatasmithAttributes, bool& bOutFromDatasmithAttribute)
+{
+	if (DatasmithAttributes)
+	{
+		INode* ModifierSpecifiedCustomCollisionNode = DatasmithAttributes->GetCustomCollisonNode();
+		if (ModifierSpecifiedCustomCollisionNode)
+		{
+			bOutFromDatasmithAttribute = true;
+			return ModifierSpecifiedCustomCollisionNode;
+		}
+	}
+
+	
+
+	FString OriginalName = Node->GetName();
+	for ( const FString& CollisionNodePrefix : FDatasmithMaxSceneParser::CollisionNodesPrefixes )
+	{
+		if (FNodeTracker* CollisionNode = SceneTracker.GetNodeTrackerByNodeName(*( CollisionNodePrefix + TEXT("_") + OriginalName )))
+		{
+			bOutFromDatasmithAttribute = false;
+			return CollisionNode->Node;
+		}
+	}
+
+	return nullptr;
+}
+
+
+FRenderMeshForConversion GetMeshForCollision(TimeValue CurrentTime, ISceneTracker& SceneTracker, INode* Node)
 {
 	// source: FDatasmithMaxMeshExporter::ExportMesh
 	FDatasmithConverter Converter;
 	bool bIsCollisionFromDatasmithAttributes;
 	TOptional<FDatasmithMaxStaticMeshAttributes> DatasmithAttributes = FDatasmithMaxStaticMeshAttributes::ExtractStaticMeshAttributes(Node);
-	INode* CollisionNode = FDatasmithMaxMeshExporter::GetCollisionNode(Node, DatasmithAttributes ? &DatasmithAttributes.GetValue() : nullptr, bIsCollisionFromDatasmithAttributes);
+	INode* CollisionNode = GetCollisionNode(SceneTracker, Node, DatasmithAttributes ? &DatasmithAttributes.GetValue() : nullptr, bIsCollisionFromDatasmithAttributes);
 	FTransform CollisionPivot;
 	if (CollisionNode)
 	{
@@ -103,11 +135,9 @@ FRenderMeshForConversion GetMeshForCollision(INode* Node)
 		}
 		else
 		{
-
-			TimeValue Now = GetCOREInterface()->GetTime();
 			FTransform FTransformFromMatrix3(const Matrix3& MaxTransform, float UnitMultiplier); // todo: move to header and rename(F is for class!)
-			FTransform NodeWTM = FTransformFromMatrix3(Node->GetNodeTM(Now), Converter.UnitToCentimeter);
-			FTransform ColliderNodeWTM = FTransformFromMatrix3(CollisionNode->GetNodeTM(Now), Converter.UnitToCentimeter);
+			FTransform NodeWTM = FTransformFromMatrix3(Node->GetNodeTM(CurrentTime), Converter.UnitToCentimeter);
+			FTransform ColliderNodeWTM = FTransformFromMatrix3(CollisionNode->GetNodeTM(CurrentTime), Converter.UnitToCentimeter);
 
 			// if object-offset has been baked into the mesh data, we want collision mesh data in the mesh's node space
 			//   MeshVert_Node = RealPivot * max_vert_data
@@ -128,7 +158,7 @@ FRenderMeshForConversion GetMeshForCollision(INode* Node)
 			CollisionPivot = BakedTransform;
 		}
 	}
-	return GetMeshForNode(CollisionNode, CollisionPivot);
+	return GetMeshForNode(CurrentTime, CollisionNode, CollisionPivot);
 }
 
 
@@ -281,7 +311,7 @@ void SetNormalForAFace(FDatasmithMesh& DatasmithMesh, int32 Index, const FVector
 	DatasmithMesh.SetNormal(Index * 3 + 2, NormalVector.X, NormalVector.Y, NormalVector.Z);
 }
 
-bool FillDatasmithMeshFromBoundingBox(FDatasmithMesh& DatasmithMesh, INode* ExportNode, FTransform Pivot)
+bool FillDatasmithMeshFromBoundingBox(TimeValue CurrentTime, FDatasmithMesh& DatasmithMesh, INode* ExportNode, FTransform Pivot)
 {
 	if (!ExportNode)
 	{
@@ -291,7 +321,7 @@ bool FillDatasmithMeshFromBoundingBox(FDatasmithMesh& DatasmithMesh, INode* Expo
 
 	BOOL bNeedsDelete;
 
-	Mesh* MaxMesh = GetMeshFromRenderMesh(ExportNode, bNeedsDelete, GetCOREInterface()->GetTime());
+	Mesh* MaxMesh = GetMeshFromRenderMesh(CurrentTime, ExportNode, bNeedsDelete);
 
 	if (!MaxMesh)
 	{
@@ -390,14 +420,14 @@ bool FillDatasmithMeshFromBoundingBox(FDatasmithMesh& DatasmithMesh, INode* Expo
 }
 
 
-bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, bool bConsolidateMaterialIds, TSet<uint16>& SupportedChannels, TMap<int32, int32>& UVChannelsMap)
+bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, const MeshConversionParams& Params, TSet<uint16>& SupportedChannels, TMap<int32, int32>& UVChannelsMap)
 {
 	bool bResult = false;
-	if (RenderMesh.GetMesh()->getNumFaces())
+	if (Params.RenderMesh.GetMesh()->getNumFaces())
 	{
 		// Copy mesh to clean it before filling Datasmith mesh from it
 		Mesh CachedMesh;
-		CachedMesh.DeepCopy(RenderMesh.GetMesh(), TOPO_CHANNEL | GEOM_CHANNEL | TEXMAP_CHANNEL | VERTCOLOR_CHANNEL);
+		CachedMesh.DeepCopy(Params.RenderMesh.GetMesh(), TOPO_CHANNEL | GEOM_CHANNEL | TEXMAP_CHANNEL | VERTCOLOR_CHANNEL);
 
 		CachedMesh.DeleteIsoVerts();
 		CachedMesh.RemoveDegenerateFaces();
@@ -410,88 +440,13 @@ bool CreateDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, INode* Node, 
 		if (CachedMesh.getNumFaces() > 0)
 		{
 			// todo: pivot
-			FillDatasmithMeshFromMaxMesh(DatasmithMesh, CachedMesh, Node, bConsolidateMaterialIds, SupportedChannels, UVChannelsMap, RenderMesh.GetPivot());
+			FillDatasmithMeshFromMaxMesh(DatasmithMesh, CachedMesh, Params.Node, Params.bConsolidateMaterialIds, SupportedChannels, UVChannelsMap, Params.RenderMesh.GetPivot());
 
 			bResult = true; // Set to true, don't care what ExportToUObject does here - we need to move it to a thread anyway
 		}
 		CachedMesh.FreeAll();
 	}
 	return bResult;
-}
-
-// todo: paralelize calls to ExportToUObject 
-bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshElement>& DatasmithMeshElement, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, bool bConsolidateMaterialIds, TSet<uint16>& SupportedChannels, const FRenderMeshForConversion& CollisionMesh)
-{
-	// Reset old mesh
-	if (DatasmithMeshElement)
-	{
-		// todo: potential mesh reuse - when DatasmithMeshElement allows to reset materials(as well as other params)
-		Scene.ReleaseMeshElement(DatasmithMeshElement);
-		SupportedChannels.Reset();
-	}
-
-	TOptional<FDatasmithMaxStaticMeshAttributes> DatasmithAttributes = FDatasmithMaxStaticMeshAttributes::ExtractStaticMeshAttributes(Node);
-
-	DatasmithMeshElement = FDatasmithSceneFactory::CreateMesh(MeshName);
-
-	if (DatasmithAttributes && DatasmithAttributes->GetExportMode() == EStaticMeshExportMode::BoundingBox)
-	{
-		FDatasmithMesh DatasmithMesh;
-		if (FillDatasmithMeshFromBoundingBox(DatasmithMesh, Node, FTransform::Identity))
-		{
-			Scene.AddMeshElement(DatasmithMeshElement, DatasmithMesh, nullptr);
-			return true;
-		}
-		else
-		{
-			LogWarning(FString(TEXT("Invalid object: ")) + Node->GetName());
-			return false;
-		}
-	}
-
-	FDatasmithMesh DatasmithMesh;
-	TMap<int32, int32> UVChannelsMap;
-	if (!CreateDatasmithMeshFromMaxMesh(DatasmithMesh, Node, MeshName, RenderMesh, bConsolidateMaterialIds, SupportedChannels, UVChannelsMap))
-	{
-		LogWarning(FString(TEXT("Invalid object: ")) + Node->GetName());
-		return false;
-	}
-
-	// Mapping between the 3ds max channel and the exported mesh channel
-	if (DatasmithAttributes)
-	{
-		constexpr int32 MaxToUnrealUVOffset = -1;
-		constexpr int32 DefaultValue = -1;
-		const int32 SelectedLightmapUVChannel = DatasmithAttributes->GetLightmapUVChannel();
-		const int32* ExportedSelectedChannel = UVChannelsMap.Find(SelectedLightmapUVChannel + MaxToUnrealUVOffset);
-
-		if (ExportedSelectedChannel)
-		{
-			DatasmithMeshElement->SetLightmapCoordinateIndex(*ExportedSelectedChannel);
-		}
-		else if (SelectedLightmapUVChannel != DefaultValue)
-		{
-			LogWarning(*FString::Printf(TEXT("%s won't use the channel %i for its lightmap because it's not supported by the mesh. A new channel will be generated.")
-				, static_cast<const TCHAR*>(Node->GetName())
-				, SelectedLightmapUVChannel));
-		}
-	}
-
-
-	FDatasmithMesh* DatasmithCollisionMeshPtr = nullptr;
-	FDatasmithMesh DatasmithCollisionMesh;
-	if (CollisionMesh.IsValid())
-	{
-		TSet<uint16> SupportedChannelsDummy; // ignore map channels for collision mesh
-		TMap<int32, int32> UVChannelsMapDummy;
-		if (CreateDatasmithMeshFromMaxMesh(DatasmithCollisionMesh, CollisionMesh.GetNode(), nullptr, CollisionMesh, true, SupportedChannelsDummy, UVChannelsMapDummy))
-		{
-			DatasmithCollisionMeshPtr = &DatasmithCollisionMesh;
-		}
-	}
-
-	Scene.AddMeshElement(DatasmithMeshElement, DatasmithMesh, DatasmithCollisionMeshPtr);
-	return true;
 }
 
 // todo: copied from DatasmithMaxMeshExporter.cpp
@@ -516,7 +471,7 @@ Object* GetBaseObject(INode* Node, TimeValue Time)
 }
 #define VRAY_PROXY_DISPLAY_AS_MESH	4	// Value to set on a VRay Mesh Proxy to get the mesh
 
-int SetObjectParamValue(Object *Obj, const FString& ParamName, int DesiredValue)
+int SetObjectParamValue(TimeValue CurrentTime, Object *Obj, const FString& ParamName, int DesiredValue)
 {
 	bool bFoundDisplayValue = false;
 	int PrevDisplayValue = DesiredValue; // Display value to see mesh
@@ -530,10 +485,10 @@ int SetObjectParamValue(Object *Obj, const FString& ParamName, int DesiredValue)
 			ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[ParamIndex];
 			if (FCString::Stricmp(ParamDefinition.int_name, *ParamName) == 0)
 			{
-				PrevDisplayValue = ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime());
+				PrevDisplayValue = ParamBlock2->GetInt(ParamDefinition.ID, CurrentTime);
 				if (PrevDisplayValue != DesiredValue)
 				{
-					ParamBlock2->SetValue(ParamDefinition.ID, GetCOREInterface()->GetTime(), DesiredValue);
+					ParamBlock2->SetValue(ParamDefinition.ID, CurrentTime, DesiredValue);
 				}
 				bFoundDisplayValue = true;
 				break;
@@ -546,7 +501,7 @@ int SetObjectParamValue(Object *Obj, const FString& ParamName, int DesiredValue)
 }
 
 
-Mesh* GetMeshFromRenderMesh(INode* Node, BOOL& bNeedsDelete, TimeValue CurrentTime)
+Mesh* GetMeshFromRenderMesh(TimeValue CurrentTime, INode* Node, BOOL& bNeedsDelete)
 {
 	Object* Obj = GetBaseObject(Node, CurrentTime);
 	const Class_ID& ObjectClassID = Obj->ClassID();
@@ -557,12 +512,12 @@ Mesh* GetMeshFromRenderMesh(INode* Node, BOOL& bNeedsDelete, TimeValue CurrentTi
 	if (ObjectClassID == VRAYPROXY_CLASS_ID)
 	{
 		// Need the high resolution render mesh associated with the VRay Mesh Proxy for the export
-		PreviousMeshDisplayValue = SetObjectParamValue(Obj, VRayProxyParamName, VRAY_PROXY_DISPLAY_AS_MESH);
+		PreviousMeshDisplayValue = SetObjectParamValue(CurrentTime, Obj, VRayProxyParamName, VRAY_PROXY_DISPLAY_AS_MESH);
 	}
 	else if(ObjectClassID == BODYOBJECT_CLASS_ID)
 	{
 		// Need to make sure we are using the viewport mesh on BodyObject, otherwise the RenderMesh gives a tessellated low resolution mesh.
-		PreviousMeshDisplayValue = SetObjectParamValue(Obj, BodyObjectViewportMeshParamName, 1);
+		PreviousMeshDisplayValue = SetObjectParamValue(CurrentTime, Obj, BodyObjectViewportMeshParamName, 1);
 	}
 
 	GeomObject* GeomObj = static_cast<GeomObject*>(Obj);
@@ -577,11 +532,11 @@ Mesh* GetMeshFromRenderMesh(INode* Node, BOOL& bNeedsDelete, TimeValue CurrentTi
 	// Restore display state if different from mesh display
 	if (ObjectClassID == VRAYPROXY_CLASS_ID && PreviousMeshDisplayValue != VRAY_PROXY_DISPLAY_AS_MESH)
 	{
-		SetObjectParamValue(Obj, VRayProxyParamName, PreviousMeshDisplayValue);
+		SetObjectParamValue(CurrentTime, Obj, VRayProxyParamName, PreviousMeshDisplayValue);
 	}
 	else if(ObjectClassID == BODYOBJECT_CLASS_ID && PreviousMeshDisplayValue != 1)
 	{
-		SetObjectParamValue(Obj, BodyObjectViewportMeshParamName, PreviousMeshDisplayValue);
+		SetObjectParamValue(CurrentTime, Obj, BodyObjectViewportMeshParamName, PreviousMeshDisplayValue);
 	}
 
 	return RenderMesh;
@@ -589,6 +544,95 @@ Mesh* GetMeshFromRenderMesh(INode* Node, BOOL& bNeedsDelete, TimeValue CurrentTi
 
 
 }
+}
+
+namespace DatasmithMaxDirectLink
+{
+
+// todo: paralelize calls to ExportToUObject 
+bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMeshConverterSource& MeshSource, FMeshConverted& MeshConverted)
+{
+	TOptional<FDatasmithMaxStaticMeshAttributes> DatasmithAttributes = FDatasmithMaxStaticMeshAttributes::ExtractStaticMeshAttributes(MeshSource.Node);
+
+	MeshConverted.DatasmithMeshElement = FDatasmithSceneFactory::CreateMesh(*MeshSource.MeshName);
+
+	if (DatasmithAttributes && DatasmithAttributes->GetExportMode() == EStaticMeshExportMode::BoundingBox)
+	{
+		FDatasmithMesh DatasmithMesh;
+		if (GeomUtils::FillDatasmithMeshFromBoundingBox(CurrentTime, DatasmithMesh, MeshSource.Node, FTransform::Identity))
+		{
+			Scene.AddMeshElement(MeshConverted.DatasmithMeshElement, DatasmithMesh, nullptr);
+			return true;
+		}
+		else
+		{
+			LogWarning(FString(TEXT("Invalid object: ")) + MeshSource.Node->GetName());
+			return false;
+		}
+	}
+
+	FDatasmithMesh DatasmithMesh;
+	TMap<int32, int32> UVChannelsMap;
+
+	MeshConversionParams RenderMeshParams = {
+		MeshSource.RenderMesh.GetNode(),
+		*MeshSource.MeshName,
+		MeshSource.RenderMesh,
+		MeshSource.bConsolidateMaterialIds
+	};
+
+	if (!GeomUtils::CreateDatasmithMeshFromMaxMesh(DatasmithMesh, RenderMeshParams, MeshConverted.SupportedChannels, UVChannelsMap))
+	{
+		LogWarning(FString(TEXT("Invalid object: ")) + MeshSource.Node->GetName());
+		return false;
+	}
+
+	// Mapping between the 3ds max channel and the exported mesh channel
+	if (DatasmithAttributes)
+	{
+		constexpr int32 MaxToUnrealUVOffset = -1;
+		constexpr int32 DefaultValue = -1;
+		const int32 SelectedLightmapUVChannel = DatasmithAttributes->GetLightmapUVChannel();
+		const int32* ExportedSelectedChannel = UVChannelsMap.Find(SelectedLightmapUVChannel + MaxToUnrealUVOffset);
+
+		if (ExportedSelectedChannel)
+		{
+			MeshConverted.DatasmithMeshElement->SetLightmapCoordinateIndex(*ExportedSelectedChannel);
+		}
+		else if (SelectedLightmapUVChannel != DefaultValue)
+		{
+			LogWarning(*FString::Printf(TEXT("%s won't use the channel %i for its lightmap because it's not supported by the mesh. A new channel will be generated.")
+				, static_cast<const TCHAR*>(MeshSource.Node->GetName())
+				, SelectedLightmapUVChannel));
+		}
+	}
+
+	FDatasmithMesh* DatasmithCollisionMeshPtr = nullptr;
+	FDatasmithMesh DatasmithCollisionMesh;
+	if (MeshSource.CollisionMesh.IsValid())
+	{
+		TSet<uint16> SupportedChannelsDummy; // ignore map channels for collision mesh
+		TMap<int32, int32> UVChannelsMapDummy;
+
+		MeshConversionParams CollisionParams = {
+			MeshSource.CollisionMesh.GetNode(),
+			nullptr,
+			MeshSource.CollisionMesh,
+			true
+		};
+
+		if (GeomUtils::CreateDatasmithMeshFromMaxMesh(DatasmithCollisionMesh, CollisionParams, SupportedChannelsDummy, UVChannelsMapDummy))
+		{
+			DatasmithCollisionMeshPtr = &DatasmithCollisionMesh;
+		}
+	}
+
+	Scene.AddMeshElement(MeshConverted.DatasmithMeshElement, DatasmithMesh, DatasmithCollisionMeshPtr);
+	return true;
+}
+
+}
+
 
 #include "Windows/HideWindowsPlatformTypes.h"
 

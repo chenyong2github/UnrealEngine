@@ -26,7 +26,10 @@ MAX_INCLUDES_END
 namespace DatasmithMaxDirectLink
 {
 
-bool ConvertRailClone(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker, Object* Obj)
+namespace GeomUtils
+{
+
+bool ConvertRailClone(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker)
 {
 	INode* RailCloneNode = NodeTracker.Node;
 
@@ -103,19 +106,22 @@ bool ConvertRailClone(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker, Ob
 			}
 		}
 
-		if(!NodeTracker.DatasmithActorElement)
-		{
-			// note: this is how baseline exporter derives names
-			FString UniqueName = FString::FromInt(NodeTracker.Node->GetHandle());
-			NodeTracker.DatasmithActorElement = FDatasmithSceneFactory::CreateActor((const TCHAR*)*UniqueName);
-		}
+		// note: this is how baseline exporter derives names
+		FString UniqueName = FString::FromInt(NodeTracker.Node->GetHandle());
+		NodeTracker.CreateConverted().DatasmithActorElement = FDatasmithSceneFactory::CreateActor((const TCHAR*)*UniqueName);
 
 		SceneTracker.SetupActor(NodeTracker);
 
 		int32 MeshIndex = 0;
 		for (FHismInstances& Instances: InstancesForMesh)
 		{
-			SceneTracker.SetupDatasmithHISMForNode(NodeTracker, NodeTracker.Node, FRenderMeshForConversion(NodeTracker.Node, Instances.MaxMesh.Get(), false), NodeTracker.Node->GetMtl(), MeshIndex, Instances.Transforms);
+			FMeshConverterSource MeshSource = {
+				NodeTracker.Node, TEXT(""),
+				FRenderMeshForConversion(NodeTracker.Node, Instances.MaxMesh.Get(), false), false,
+				FRenderMeshForConversion()
+			};
+
+			SceneTracker.SetupDatasmithHISMForNode(NodeTracker, MeshSource, NodeTracker.Node->GetMtl(), MeshIndex, Instances.Transforms);
 			MeshIndex++;
 		}
 	}
@@ -128,7 +134,7 @@ bool ConvertRailClone(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker, Ob
 
 }
 
-bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker, Object* Obj)
+bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker)
 {
 	INode* ForestNode = NodeTracker.Node;
 
@@ -177,12 +183,9 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker, Object* Obj)
 			}
 		}
 
-		if(!NodeTracker.DatasmithActorElement)
-		{
-			// note: this is how baseline exporter derives names
-			FString UniqueName = FString::FromInt(NodeTracker.Node->GetHandle());
-			NodeTracker.DatasmithActorElement = FDatasmithSceneFactory::CreateActor((const TCHAR*)*UniqueName);
-		}
+		// note: this is how baseline exporter derives names
+		FString UniqueName = FString::FromInt(NodeTracker.Node->GetHandle());
+		NodeTracker.CreateConverted().DatasmithActorElement = FDatasmithSceneFactory::CreateActor((const TCHAR*)*UniqueName);
 
 		Scene.SetupActor(NodeTracker);
 
@@ -192,14 +195,18 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker, Object* Obj)
 			INode* GeometryNode = Instances.GeometryNode;
 
 			Object* GeomObj = GeometryNode->EvalWorldState(GetCOREInterface()->GetTime()).obj;
-			
-			FRenderMeshForConversion RenderMesh = GetMeshForGeomObject(GeometryNode, GeomObj);
 
-			if (RenderMesh.IsValid())
+			FMeshConverterSource MeshSource = {
+				GeometryNode, TEXT(""),
+				GetMeshForGeomObject(CurrentTime, GeometryNode, GeomObj), false,
+				FRenderMeshForConversion()
+			};
+
+			if (MeshSource.RenderMesh.IsValid())
 			{
 				for(const TPair<Mtl*, TArray<Matrix3>>& MaterialAndTransforms: Instances.InstancesTransformsForMaterial)
 				{
-					Scene.SetupDatasmithHISMForNode(NodeTracker, GeometryNode, RenderMesh, MaterialAndTransforms.Key, MeshIndex, MaterialAndTransforms.Value);
+					Scene.SetupDatasmithHISMForNode(NodeTracker, MeshSource, MaterialAndTransforms.Key, MeshIndex, MaterialAndTransforms.Value);
 				}
 
 
@@ -216,6 +223,8 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker, Object* Obj)
 }
 
 }
+}
+
 
 #include "Windows/HideWindowsPlatformTypes.h"
 

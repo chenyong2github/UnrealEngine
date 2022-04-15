@@ -4,6 +4,9 @@
 
 #include "DatasmithMaxExporterDefines.h"
 
+#include "DatasmithMaxConverters.h"
+#include "DatasmithMaxGeomUtils.h"
+
 #include "IDatasmithSceneElements.h"
 #include "DatasmithMesh.h"
 
@@ -22,12 +25,15 @@ MAX_INCLUDES_START
 MAX_INCLUDES_END
 
 
+
 // Log all messages
 // #define LOG_DEBUG_HEAVY_ENABLE 1
 // #define LOG_DEBUG_ENABLE 1
 
 
 void AssignMeshMaterials(TSharedPtr<IDatasmithMeshElement>&MeshElement, Mtl * Material, const TSet<uint16>&SupportedChannels);
+
+class FDatasmithMaxStaticMeshAttributes;
 
 namespace DatasmithMaxDirectLink
 {
@@ -102,6 +108,7 @@ IPersistentExportOptions& GetPersistentExportOptions();
 typedef NodeEventNamespace::NodeKey FNodeKey;
 typedef MtlBase* FMaterialKey;
 
+
 struct FXRefScene
 {
 	INode* Tree = nullptr;
@@ -110,26 +117,123 @@ struct FXRefScene
 	operator bool(){ return XRefFileIndex != -1; }
 };
 
-
-// Identifies Max node to track its changes
-class FNodeTracker: FNoncopyable
+// Incapsulating time slider value to distinguish usage of TimeValue specifically for point on timeslider where we syncing
+struct FSyncPoint
 {
-public:
-	explicit FNodeTracker(FNodeKey InNodeKey, INode* InNode) : NodeKey(InNodeKey), Node(InNode), Name(Node->GetName()) {}
+	TimeValue Time;
+};
 
-	void Invalidate()
+// Incapsulating time interval value to distinguish usage of Interval specifically for validity of synced entity 
+struct FValidity
+{
+	explicit FValidity()
 	{
-		bInvalidated = true;
+		Invalidate(); // Invalid by default(to essentially force update(validate explicitly)
 	}
 
 	bool IsInvalidated() const
 	{
-		return bInvalidated;
+		bool bResult = ValidityInterval.Empty() != 0; // Invalidated equals interval is empty
+		check(bIsInvalidated == bResult);
+		return bResult;
 	}
 
-	bool IsInstance()
+	void SetValid()
 	{
-		return InstanceHandle != 0;
+		bIsInvalidated = false;
+	}
+
+	void Invalidate()
+	{
+		bIsInvalidated = true;
+		ValidityInterval.SetEmpty();
+	}
+
+	bool IsValidForSyncPoint(const FSyncPoint& State) const
+	{
+		return ValidityInterval.InInterval(State.Time) != 0;
+	}
+
+	// Maximize validity interval before updating invalidated 
+	void ResetValidityInterval()
+	{
+		check(bIsInvalidated);
+		ValidityInterval.SetInfinite();
+	}
+
+	// Intersect
+	void NarrowValidityToInterval(const Interval& InValidityInterval)
+	{
+		ValidityInterval &= InValidityInterval;
+	}
+
+	void NarrowValidityToInterval(const FValidity& Validity)
+	{
+		NarrowValidityToInterval(Validity.ValidityInterval);
+	}
+
+	// this Validity contains another validity interval fully
+	// Used to determine if this validity doesn't need to be updated
+	// @return True is this validity doesn't need to be updated
+	bool Overlaps(const FValidity& Validity) const
+	{
+		return ValidityInterval.IsSubset(Validity.ValidityInterval);
+	}
+
+private:
+	Interval ValidityInterval;
+	// todo: this flag indicates, that 'invalidate' called specifically(no force rebuild
+	//  this is done in order to distinguish from Empty Interval that might happen somehow when updated
+	//  probably this is not needed - need to think about this and just rely on Empty for invalidated state 
+	bool bIsInvalidated; 
+};
+
+// NodeTracker - associated with INode, plus validity
+// Converter - holds convertion data for SPECIFIC node object type, e.g. geometry, railclone, light, dummy
+// Converted - holds Datasmith converted data for node
+
+// Identifies Max node to track its changes, including tracked dependencies
+class FNodeTracker: FNoncopyable
+{
+public:
+	explicit FNodeTracker(FNodeKey InNodeKey, INode* InNode) : NodeKey(InNodeKey), Node(InNode) {}
+
+	void Invalidate()
+	{
+		Validity.Invalidate();
+	}
+
+	void SetValid()
+	{
+		Validity.SetValid();
+	}
+
+	void ResetValidityInterval()
+	{
+		Validity.ResetValidityInterval();
+	}
+
+	bool IsValidForSyncPoint(const FSyncPoint& State) const
+	{
+		return Validity.IsValidForSyncPoint(State);
+	}
+
+	bool IsSubtreeValidForSyncPoint(const FSyncPoint& State) const
+	{
+		return SubtreeValidity.IsValidForSyncPoint(State);
+	}
+
+	// Forcefully invalidated
+	bool IsInvalidated() const
+	{
+		return Validity.IsInvalidated();
+	}
+
+	// todo: rename. Intersect validity with currently set one
+	//   e.g. validity interval of a geometry should be intersection of validity of transform, mesh, etc
+	void NarrowValidityToInterval(Interval ValidityInterval) 
+	{
+		return Validity.NarrowValidityToInterval(ValidityInterval);
 	}
 
 	void SetXRefIndex(FXRefScene InXRefScene)
@@ -139,76 +243,107 @@ public:
 
 	INode* GetXRefParent()
 	{
-		return XRefScene ? XRefScene.Tree->GetXRefParent(XRefScene.XRefFileIndex): nullptr;
+		INode* Result = XRefScene ? XRefScene.Tree->GetXRefParent(XRefScene.XRefFileIndex): nullptr;
+		return Result;
 	}
 
+	FNodeConverted& CreateConverted()
+	{
+		check(!Converted);
+		Converted.Reset(new FNodeConverted);
+		return *Converted;
+	}
+
+	FNodeConverted& GetConverted()
+	{
+		check(Converted);
+		return *Converted;
+	}
+
+	bool HasConverted()
+	{
+		return Converted.IsValid();
+	}
+
+	void ReleaseConverted()
+	{
+		Converted.Reset();
+	}
+
+	template<typename ConverterType>
+	ConverterType& CreateConverter()
+	{
+		check(!Converter);
+		ConverterType* Result = new ConverterType;
+		Converter.Reset(Result);
+		return *Result;
+	}
+
+	FNodeConverter& GetConverter()
+	{
+		check(Converter);
+		return *Converter;
+	}
+
+	bool HasConverter()
+	{
+		return Converter.IsValid();
+	}
+
+	FNodeConverter::EType GetConverterType()
+	{
+		if (Converter.IsValid())
+		{
+			return Converter->ConverterType;
+		}
+		return FNodeConverter::Unknown;
+	}
+
+	void ReleaseConverter()
+	{
+		Converter.Reset();
+	}
+
+	// Node entity identification data
 	FNodeKey NodeKey;
 	INode* const Node;
+	// Keep root node and xref index when this node is a direct child of an XRef scene
+	// This is needed to retrieve parent node(e.g. when updated)
+	// Keeping parent node itself doesn't work - it can change and the only way to get it when it's changed is to call INode::GetXRefParent
+	FXRefScene XRefScene;
+	FString Name;
+
+	// Node validity
+	bool bDeleted = false;
+	FValidity Validity;
+	FValidity SubtreeValidity;
+
+	// Other related tracked entities
 	FNodeTracker* Collision = nullptr;
 	FLayerTracker* Layer = nullptr;
-	AnimHandle InstanceHandle = 0; // todo: rename - this is handle for object this node is instance of
-	FString Name; 
-	bool bInvalidated = true;
-	bool bDeleted = false;
+	TSet<class FMaterialTracker*> MaterialTrackers; 
 
-	TSharedPtr<IDatasmithActorElement> DatasmithActorElement;
-
-	TSet<class FMaterialTracker*> MaterialTrackers;
-
-	TSharedPtr<IDatasmithMeshActorElement> DatasmithMeshActor;
-
-	FXRefScene XRefScene;
-
-	TArray<FNodeTracker*> Children;
-
+	// Node conversion state
+	TUniquePtr<FNodeConverted> Converted = nullptr; // Datasmith element that this Node is converted to
+	TUniquePtr<FNodeConverter> Converter = nullptr; // Converter for specific Max object type
 };
 
-class FRenderMeshForConversion: FNoncopyable
+class FMeshConverterSource
 {
 public:
-	explicit FRenderMeshForConversion(){}
-	explicit FRenderMeshForConversion(INode* InNode, Mesh* InMaxMesh, bool bInNeedsDelete, FTransform InPivot=FTransform::Identity)
-		: Node(InNode)
-		, MaxMesh(InMaxMesh)
-		, bNeedsDelete(bInNeedsDelete)
-		, Pivot(InPivot)
-	{}
-	~FRenderMeshForConversion()
-	{
-		if (bNeedsDelete)
-		{
-			MaxMesh->DeleteThis();
-		}
-	}
+	// Node this mesh instantiates. When this is a 'regular' node it's  just instantiates mesh for Params
+	// but it's possible that this Node wants mesh to be bounding-box(when DatasmithAttributes spicifies it)
+	INode* Node;
 
-	bool IsValid() const
-	{
-		return MaxMesh != nullptr;
-	}
+	FString MeshName; // Suggested Mesh name, resulting mesh name should be this???
 
-	INode* GetNode() const
-	{
-		return Node;
-	}
+	GeomUtils::FRenderMeshForConversion RenderMesh; // Extracted render mesh
+	bool bConsolidateMaterialIds; // Whether to join all materials id into single material slot for render mesh (used when a geometry doesn't have a multimaterial assigned)
 
-	Mesh* GetMesh() const
-	{
-		return MaxMesh;
-	}
-
-	const FTransform& GetPivot() const
-	{
-		return Pivot;
-	}
-
-
-private:
-	INode* Node = nullptr;
-	Mesh* MaxMesh = nullptr;
-	bool bNeedsDelete = false;
-	FTransform Pivot;
-
+	GeomUtils::FRenderMeshForConversion CollisionMesh; 
 };
+
+
 
 struct FSceneUpdateStats
 {
@@ -245,6 +380,11 @@ struct FSceneUpdateStats
 	int32 UpdateMaterialsSkippedAsAlreadyConverted =0;
 	int32 UpdateMaterialsConverted = 0;
 	int32 UpdateTexturesTotal = 0;
+	int32 CheckTimeSliderTotalChecks = 0;
+	int32 CheckTimeSliderSkippedAsAlreadyInvalidated = 0;
+	int32 CheckTimeSliderSkippedAsSubtreeValid = 0;
+	int32 CheckTimeSliderInvalidated = 0;
+	int32 ConvertNodesConverted = 0;
 };
 
 #define SCENE_UPDATE_STAT_INC(Category, Name) {Stats.##Category##Name++;}
@@ -264,6 +404,7 @@ public:
 	virtual void NodeDeleted(INode* Node) = 0;
 	virtual void NodeGeometryChanged(FNodeKey NodeKey) = 0;
 	virtual void NodeHideChanged(FNodeKey NodeKey) = 0;
+	virtual void NodeNameChanged(FNodeKey NodeKey) = 0;
 	virtual void NodePropertiesChanged(FNodeKey NodeKey) = 0;
 	virtual void NodeLinkChanged(FNodeKey NodeKey) = 0;
 	virtual void NodeTransformChanged(FNodeKey NodeKey) = 0;
@@ -272,29 +413,42 @@ public:
 
 	// Scene modification
 	virtual void AddMeshElement(TSharedPtr<IDatasmithMeshElement>& Mesh, FDatasmithMesh& DatasmithMesh, FDatasmithMesh* CollisionMesh) = 0;
-	virtual void ReleaseMeshElement(TSharedPtr<IDatasmithMeshElement> Mesh) = 0;
+	virtual void ReleaseMeshElement(FMeshConverted& Converted) = 0;
 	virtual void SetupActor(FNodeTracker& NodeTracker) = 0;
-	virtual void SetupDatasmithHISMForNode(FNodeTracker& NodeTracker, INode* GeometryNode, const FRenderMeshForConversion& RenderMesh, Mtl* Material, int32 MeshIndex, const TArray<Matrix3>& Transforms) = 0;
+	virtual void SetupDatasmithHISMForNode(FNodeTracker& NodeTracker, FMeshConverterSource& MeshSource, Mtl* Material, int32 MeshIndex, const TArray<Matrix3>& Transforms) = 0;
 	virtual void RemoveMaterial(const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) = 0;
 	virtual void RemoveTexture(const TSharedPtr<IDatasmithTextureElement>&) = 0;
 	virtual void NodeXRefMerged(INode* Node) = 0;
+
+
+
+	// Sync/Update
+	FSyncPoint CurrentSyncPoint;
+
+	virtual void AddGeometryNodeInstance(FNodeTracker& NodeTracker, FMeshNodeConverter& MeshConverter, Object* Obj) = 0;
+	virtual void RemoveGeometryNodeInstance(FNodeTracker& NodeTracker) = 0;
+	virtual void ConvertGeometryNodeToDatasmith(FNodeTracker& NodeTracker, FMeshNodeConverter& MeshConverter) = 0;
+
+	virtual void UnregisterNodeForMaterial(FNodeTracker& NodeTracker) = 0;
+
+	virtual TSharedRef<IDatasmithScene> GetDatasmithSceneRef() = 0;
+
+	// Utility
+	virtual FNodeTracker* GetNodeTrackerByNodeName(const TCHAR* Name) = 0;
 	virtual FSceneUpdateStats& GetStats() = 0;
 };
 
-//---- Geometry utility function
-bool ConvertRailClone(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker, Object* Obj);
-bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker, Object* Obj);
-
-Mesh* GetMeshFromRenderMesh(INode* Node, BOOL& bNeedsDelete, TimeValue CurrentTime);
-FRenderMeshForConversion GetMeshForGeomObject(INode* Node, Object* Obj); // Extract mesh using already evaluated object
-FRenderMeshForConversion GetMeshForNode(INode* Node, FTransform Pivot); // Extract mesh evaluating node object
-FRenderMeshForConversion GetMeshForCollision(INode* Node);
-
-void FillDatasmithMeshFromMaxMesh(FDatasmithMesh& DatasmithMesh, Mesh& MaxMesh, INode* ExportedNode, bool bForceSingleMat, TSet<uint16>& SupportedChannels, TMap<int32, int32>& UVChannelsMap, FTransform Pivot);
-
+// Input data for mesh conversion
+struct MeshConversionParams
+{
+	INode* Node; // Node, this geom object created from
+	const TCHAR* MeshName;
+	const GeomUtils::FRenderMeshForConversion& RenderMesh; // Extracted render mesh
+	bool bConsolidateMaterialIds; // Whether to join all materials id into single material slot (used when a geometry doesn't have a multimaterial assigned)
+};
 
 // Creates Mesh element and converts max mesh into it
-bool ConvertMaxMeshToDatasmith(ISceneTracker& Scene, TSharedPtr<IDatasmithMeshElement>& DatasmithMeshElement, INode* Node, const TCHAR* MeshName, const FRenderMeshForConversion& RenderMesh, bool bConsolidateMaterialIds, TSet<uint16>& SupportedChannels, const FRenderMeshForConversion& CollisionMesh = FRenderMeshForConversion());
+bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMeshConverterSource& MeshSource, FMeshConverted& MeshConverted);
 
 bool OpenDirectLinkUI();
 const TCHAR* GetDirectlinkCacheDirectory();

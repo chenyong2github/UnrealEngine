@@ -336,7 +336,7 @@ void FDatasmithMaxSceneExporter::ExportMeshActor(TSharedRef< IDatasmithScene > D
 	DatasmithScene->AddActor( NodeActor );
 }
 
-TSharedRef< IDatasmithActorElement > FDatasmithMaxSceneExporter::ExportHierarchicalInstanceStaticMeshActor(TSharedRef< IDatasmithScene > DatasmithScene, INode* Node, INode* CustomMeshNode, const TCHAR* Label, TSet<uint16>& SupportedChannels, Mtl* StaticMeshMtl, const TArray<Matrix3>* Instances,
+TSharedRef< IDatasmithActorElement > FDatasmithMaxSceneExporter::ExportHierarchicalInstanceStaticMeshActor(INode* Node, INode* CustomMeshNode, const TCHAR* Label, TSet<uint16>& SupportedChannels, Mtl* StaticMeshMtl, const TArray<Matrix3>* Instances,
 	const TCHAR* MeshName, float UnitMultiplier, const EStaticMeshExportMode& ExportMode, TSharedPtr< IDatasmithActorElement >& OutInversedHISMActor)
 {
 	check(Node && Instances && MeshName);
