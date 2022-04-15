@@ -171,7 +171,7 @@ namespace DatasmithRhino.DirectLink
 					TryCatchExecute(() => ExportContext.ModifyActor(RhinoEventArgs.NewState, bReparent));
 					break;
 				case LayerTableEventType.Deleted:
-					TryCatchExecute(() => ExportContext.DeleteActor(RhinoEventArgs.OldState));
+					TryCatchExecute(() => ExportContext.DeleteActor(RhinoEventArgs.NewState));
 					break;
 				case LayerTableEventType.Sorted:
 				case LayerTableEventType.Current:
