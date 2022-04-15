@@ -410,6 +410,24 @@ namespace Horde.Agent.Tests
 		}
 
 		[TestMethod]
+		public void AssetLogEventMatcher()
+		{
+			string[] lines =
+			{
+				@"LogBlueprint: Warning: [AssetLog] D:\\build\\++UE5\\Sync\\QAGame\\Plugins\\NiagaraFluids\\Content\\Blueprints\\Phsyarum_BP.uasset: [Compiler] Fill Texture 2D : Usage of 'Fill Texture 2D' has been deprecated. This function has been replaced by object user variables on the emitter to specify render targets to fill with data.",
+			};
+
+			List<LogEvent> events = Parse(String.Join("\n", lines), new DirectoryReference("D:\\build\\++UE5\\Sync"));
+			Assert.AreEqual(1, events.Count);
+			Assert.AreEqual(events[0].Id, KnownLogEvents.Engine_AssetLog);
+
+			LogValue assetProperty = (LogValue)events[0].Properties!["asset"];
+			Assert.AreEqual("Asset", assetProperty.Type);
+			Assert.AreEqual(@"//UE4/Main/QAGame/Plugins/NiagaraFluids/Content/Blueprints/Phsyarum_BP.uasset@12345", assetProperty.Properties!["depotPath"].ToString());
+			Assert.AreEqual(@"QAGame/Plugins/NiagaraFluids/Content/Blueprints/Phsyarum_BP.uasset", assetProperty.Properties!["relativePath"].ToString());
+		}
+
+		[TestMethod]
 		public void ClangEventMatcher()
 		{
 			string[] lines =

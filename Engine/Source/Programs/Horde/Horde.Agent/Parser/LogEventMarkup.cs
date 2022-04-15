@@ -56,7 +56,7 @@ namespace Horde.Agent.Parser
 				FileReference location = FileReference.Combine(DirectoryReference.Combine(context.WorkspaceDir, "Engine", "Binaries", "Win64"), group.Value);
 				if (location.IsUnderDirectory(context.WorkspaceDir) && !location.ContainsName("Intermediate", context.WorkspaceDir))
 				{
-					string relativePath = location.MakeRelativeTo(context.WorkspaceDir);
+					string relativePath = location.MakeRelativeTo(context.WorkspaceDir).Replace('\\', '/');
 					string depotPath = $"{context.PerforceStream.TrimEnd('/')}/{relativePath.Replace(Path.DirectorySeparatorChar, '/')}@{context.PerforceChange.Value}";
 
 					Dictionary<string, object> properties = new Dictionary<string, object>();
