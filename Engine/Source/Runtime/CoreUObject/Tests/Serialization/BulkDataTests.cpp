@@ -6,7 +6,7 @@
 namespace BulkDataTest
 {
 	// Test code paths for BulkData objects that do not reference a file on disk.
-	TEST_CASE_METHOD(FAutomationTestFixture, "CoreUObject::Serialization::FByteBulkData::Transient", "[CoreUObject][Serialization]")
+	TEST_CASE("CoreUObject::Serialization::FByteBulkData::Transient", "[CoreUObject][Serialization]")
 	{
 		FByteBulkData BulkData;
 

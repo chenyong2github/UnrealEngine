@@ -4,17 +4,24 @@
 
 #include "TestRunner.h"
 #include "TestHarness.h"
+
 #include "CoreGlobals.h"
-#include "Modules/ModuleManager.h"
 #include "HAL/PlatformTLS.h"
-#include "Misc/OutputDeviceRedirector.h"
 #include "Logging/LogVerbosity.h"
+#include "Misc/OutputDeviceRedirector.h"
+#include "Modules/ModuleManager.h"
+#include "Templates/SharedPointer.h"
 
 #include "LowLevelTestModule.h"
 #include "TestCommon/CoreUtilities.h"
-#include "TestCommon/CoreUObjectUtilities.h"
 
 #include <set>
+
+bool bCatchIsRunning = false;
+bool bGAllowLogging = false;
+bool bGMultithreaded = false;
+bool bGDebug = false;
+bool bGGlobalSetup = true;
 
 namespace Catch
 {
@@ -30,7 +37,7 @@ namespace Catch
 			// Note: For UE_LOG(...) reporting the user must pass the "--log" command line argument, but this is not required for ensure reporting
 			GLog->AddOutputDevice(this);
 		}
-		
+
 		void testRunEnded(Catch::TestRunStats const& testRunStats) override {
 			GLog->RemoveOutputDevice(this);
 		}
@@ -49,12 +56,18 @@ namespace Catch
 			// Catch option and changing condition above to `getCurrentContext().getConfig()->verbosity() == Verbosity::High`
 			// I tried this but unfortunately it didn't work, passing that option makes catch complain with the error message:
 			// "Verbosity level not supported by this reporter"
-			
+
 			// TODO Perhaps we should check IsInGameThread() or do something to make this threadsafe...?
+			// UPDATE: CanBeUsedOnMultipleThreads returns true
 			if (LogVerbosity <= DesiredLogVerbosity)
 			{
 				catchOut << *FText::FromName(Category).ToString() << "(" << ToString(LogVerbosity) << ")" << ": " << V << "\n";
 			}
+		}
+
+		virtual bool CanBeUsedOnMultipleThreads() const
+		{
+			return true;
 		}
 		// End of FOutputDevice interface
 
@@ -178,13 +191,15 @@ int RunTests(int argc, const char* argv[])
 	KnownLLTArgs.insert("--no-log");
 	KnownLLTArgs.insert("--mt");
 	KnownLLTArgs.insert("--no-mt");
-	KnownLLTArgs.insert("--debug");
+	KnownLLTArgs.insert("--global-setup");
+	KnownLLTArgs.insert("--no-global-setup");
 	KnownLLTArgs.insert("--base-global-module");
+	KnownLLTArgs.insert("--debug");
 
 	// By default don't wait for input
 	bool bWaitForInputToTerminate = false;
 
-	FString LoadModuleName = TEXT("");
+	FString BaseModuleName;
 
 	// Every argument that is not in the list of known low level test options and is considered to be a catch test runner argument.
 	for (int i = 0; i < argc; ++i)
@@ -203,7 +218,7 @@ int RunTests(int argc, const char* argv[])
 			{
 				bGAllowLogging = true;
 			}
-			if (std::strcmp(argv[i], "--no-log") == 0)
+			else if (std::strcmp(argv[i], "--no-log") == 0)
 			{
 				bGAllowLogging = false;
 			}
@@ -211,9 +226,17 @@ int RunTests(int argc, const char* argv[])
 			{
 				bGMultithreaded = true;
 			}
-			if (std::strcmp(argv[i], "--no-mt") == 0)
+			else if (std::strcmp(argv[i], "--no-mt") == 0)
 			{
 				bGMultithreaded = false;
+			}
+			if (std::strcmp(argv[i], "--global-setup") == 0)
+			{
+				bGGlobalSetup = true;
+			}
+			else if (std::strcmp(argv[i], "--no-global-setup") == 0)
+			{
+				bGGlobalSetup = false;
 			}
 			if (std::strcmp(argv[i], "--debug") == 0)
 			{
@@ -223,7 +246,7 @@ int RunTests(int argc, const char* argv[])
 			if (std::strcmp(argv[i], "--base-global-module") == 0 &&
 				i + 1 < argc)
 			{
-				LoadModuleName = argv[i + 1];
+				BaseModuleName = argv[i + 1];
 				++i;
 			}
 		}
@@ -234,11 +257,14 @@ int RunTests(int argc, const char* argv[])
 		}
 	}
 
-	// Global command line initialization
-	InitCommandLine(bGAllowLogging);
+	if (bGGlobalSetup)
+	{	
+		InitCommandLine(bGAllowLogging);
 
-	LoadBaseTestModule(LoadModuleName);
-	GlobalModuleSetup();
+		LoadBaseTestModule(BaseModuleName);
+
+		GlobalModuleSetup();
+	}
 
 	int SessionResult = 0;
 	{
@@ -247,17 +273,16 @@ int RunTests(int argc, const char* argv[])
 		CatchArgv.Reset();
 	}
 
-	CleanupCoreUObject();
-	CleanupTaskGraphAndDependencies();
+	if (bGGlobalSetup)
+	{
+		GlobalModuleTeardown();
 
-	GlobalModuleTeardown();
-	UnloadBaseTestModule(LoadModuleName);
+		UnloadBaseTestModule(BaseModuleName);
 
-	// Required for platform cleanup, program will crash on exit otherwise
-	CleanupPlatform();
+		CleanupPlatform();
 
-	// Command line cleanup
-	CleanupCommandLine();
+		CleanupCommandLine();
+	}
 
 #if PLATFORM_DESKTOP
 	if (bWaitForInputToTerminate)

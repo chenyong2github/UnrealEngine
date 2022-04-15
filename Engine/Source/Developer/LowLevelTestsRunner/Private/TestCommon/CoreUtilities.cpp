@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
-#include "Misc/CommandLine.h"
-#include "TestCommon/CoreUtilities.h"
+
 #include "HAL/PlatformOutputDevices.h"
 #include "HAL/PlatformProcess.h"
 #include "Logging/LogSuppressionInterface.h"
+#include "Misc/CommandLine.h"
 #include "Misc/QueuedThreadPool.h"
+
+#include "TestCommon/CoreUtilities.h"
 
 void InitCommandLine(bool AllowLogging)
 {
@@ -103,28 +105,16 @@ void CleanupTaskGraph()
 	FTaskGraphInterface::Shutdown();
 }
 
-bool TaskGraphInitialised = false;
-
 void InitTaskGraphAndDependencies(bool MultiThreaded)
 {
-	if (TaskGraphInitialised == true)
-		return;
-
 	InitTaskGraph(MultiThreaded);
 	InitAllThreadPools(MultiThreaded);
-
-	TaskGraphInitialised = true;
 }
 
 void CleanupTaskGraphAndDependencies()
 {
-	if (TaskGraphInitialised == false)
-		return;
-
 	CleanupAllThreadPools();
 	CleanupTaskGraph();
-
-	TaskGraphInitialised = false;
 }
 
 void CleanupPlatform()

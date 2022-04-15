@@ -2,14 +2,15 @@
 
 #pragma once
 
+#include "TestHarness.h"
+
 #include "CoreMinimal.h"
-#include "TestFixtures/CoreTestFixture.h"
 #include "UObject/ObjectHandle.h"
 
-class FObjectRefTrackingTestBase : public FCoreTestFixture
+
+class FObjectRefTrackingTestBase
 {
 public:
-
 	uint32 GetNumResolves() const { return NumResolves; }
 	uint32 GetNumFailedResolves() const { return NumFailedResolves; }
 	uint32 GetNumReads() const { return NumReads; }

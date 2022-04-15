@@ -20,10 +20,11 @@
 #pragma warning(disable : 4005)
 #endif
 
-static bool bCatchIsRunning = false;
-static bool bGAllowLogging = false;
-static bool bGMultithreaded = false;
-static bool bGDebug = false;
+extern bool bCatchIsRunning;
+extern bool bGAllowLogging;
+extern bool bGMultithreaded;
+extern bool bGDebug;
+extern bool bGGlobalSetup;
 
 #if __cplusplus
 	extern "C" const char* GetProcessExecutablePath();

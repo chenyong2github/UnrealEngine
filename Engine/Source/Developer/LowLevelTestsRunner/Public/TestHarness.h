@@ -98,11 +98,6 @@ struct Catch::StringMaker<TTuple<KeyType, ValueType>>
 	}
 };
 
-/** Use with TEST_CASE_METHOD to quickly migrate automation tests to Catch. */
-class FAutomationTestFixture
-{	
-};
-
 #define VERIFY(What, Actual)\
 	CAPTURE(What);\
 	CHECK(Actual == true)
