@@ -791,7 +791,7 @@ EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope) cons
 EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const
 {
 	EExpressionEvaluation Result = EExpressionEvaluation::ConstantZero;
-	for (int32 Index = 0; Index < RequestedType.RequestedComponents.Num(); ++Index)
+	for (int32 Index = 0; Index < RequestedType.GetNumComponents(); ++Index)
 	{
 		if (RequestedType.IsComponentRequested(Index))
 		{
@@ -953,7 +953,7 @@ Shader::FComponentBounds FPreparedType::GetComponentBounds(int32 Index) const
 Shader::FComponentBounds FPreparedType::GetBounds(const FRequestedType& RequestedType) const
 {
 	Shader::FComponentBounds Result(Shader::EComponentBound::DoubleMax, Shader::EComponentBound::NegDoubleMax);
-	for (int32 Index = 0; Index < RequestedType.RequestedComponents.Num(); ++Index)
+	for (int32 Index = 0; Index < RequestedType.GetNumComponents(); ++Index)
 	{
 		if (RequestedType.IsComponentRequested(Index))
 		{
@@ -1074,9 +1074,11 @@ bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context,
 	else
 	{
 		const int32 PrevNumComponents = PreparedType.GetNumComponents();
-		if (NumComponents != PrevNumComponents)
+		if (PrevNumComponents == 1 && NumComponents > 1)
 		{
-			return Context.Error(TEXT("Invalid type"));
+			// Once an expression is prepared as a scalar type, it's not valid to change later
+			// Other expressions may have already assumed this will be a scalar type, and its components will replicate
+			return Context.Error(TEXT("Type was already prepared as scalar"));
 		}
 		PreparedType.ValueComponentType = Shader::CombineComponentTypes(PreparedType.ValueComponentType, ComponentType);
 	}

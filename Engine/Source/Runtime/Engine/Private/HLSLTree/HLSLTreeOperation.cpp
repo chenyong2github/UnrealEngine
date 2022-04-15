@@ -591,7 +591,6 @@ bool FExpressionOperation::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 		Context.MarkInputType(Inputs[Index], Types.InputType[Index]);
 	}
 
-	bool bMarkInputsLive = Context.bMarkLiveValues;
 	switch (Op)
 	{
 	case EOperation::Mul:

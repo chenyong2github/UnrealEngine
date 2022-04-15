@@ -1249,7 +1249,7 @@ void FExpressionVertexInterpolator::EmitValueShader(FEmitContext& Context, FEmit
 		FRequestedType RequestedPreshaderType;
 		RequestedPreshaderType.ValueComponentType = RequestedType.ValueComponentType;
 		RequestedPreshaderType.StructType = RequestedType.StructType;
-		for (int32 Index = 0; Index < RequestedType.RequestedComponents.Num(); ++Index)
+		for (int32 Index = 0; Index < RequestedType.GetNumComponents(); ++Index)
 		{
 			// Requested components that are *not* requested by the interpolator will be either constant or preshader evaluation
 			if (RequestedType.IsComponentRequested(Index) &&
@@ -1290,17 +1290,17 @@ int32 FEmitData::FindInterpolatorIndex(const FExpression* Expression) const
 
 void FEmitData::AddInterpolator(const FExpression* Expression, const FRequestedType& RequestedType, const FPreparedType& PreparedType)
 {
-	int32 Index = FindInterpolatorIndex(Expression);
-	if (Index == INDEX_NONE)
+	int32 InterpolatorIndex = FindInterpolatorIndex(Expression);
+	if (InterpolatorIndex == INDEX_NONE)
 	{
-		Index = VertexInterpolators.Emplace(Expression);
+		InterpolatorIndex = VertexInterpolators.Emplace(Expression);
 	}
 
-	FVertexInterpolator& Interpolator = VertexInterpolators[Index];
+	FVertexInterpolator& Interpolator = VertexInterpolators[InterpolatorIndex];
 	Interpolator.PreparedType = PreparedType;
-	for (int32 ComponentIndex = 0; ComponentIndex < RequestedType.RequestedComponents.Num(); ++ComponentIndex)
+	for (int32 ComponentIndex = 0; ComponentIndex < RequestedType.GetNumComponents(); ++ComponentIndex)
 	{
-		if (RequestedType.IsComponentRequested(Index))
+		if (RequestedType.IsComponentRequested(ComponentIndex))
 		{
 			const EExpressionEvaluation ComponentEvaluation = PreparedType.GetComponent(ComponentIndex).Evaluation;
 			if (ComponentEvaluation == EExpressionEvaluation::Shader)

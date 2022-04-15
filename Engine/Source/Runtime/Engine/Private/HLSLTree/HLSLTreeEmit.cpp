@@ -507,6 +507,9 @@ FEmitScope* FEmitContext::InternalPrepareScope(FScope* InScope, FScope* InParent
 	for (int32 Index = 0; Index < EmitScopeChain.Num(); ++Index)
 	{
 		FEmitScope* EmitScope = EmitScopeChain[Index];
+		FEmitScope* EmitParentScope = EmitScope->ParentScope;
+		FStatement* Statement = EmitScope->OwnerStatement;
+
 		if (bMarkDead)
 		{
 			EmitScope->Evaluation = EExpressionEvaluation::None;
@@ -514,12 +517,9 @@ FEmitScope* FEmitContext::InternalPrepareScope(FScope* InScope, FScope* InParent
 		}
 		else if (EmitScope->State == EEmitScopeState::Initializing)
 		{
-			FStatement* Statement = EmitScope->OwnerStatement;
 			if (Statement)
 			{
 				FEmitOwnerScope OwnerScope(*this, Statement);
-
-				FEmitScope* EmitParentScope = EmitScope->ParentScope;
 				check(EmitParentScope);
 				if (Statement->Prepare(*this, *EmitParentScope))
 				{
@@ -545,6 +545,13 @@ FEmitScope* FEmitContext::InternalPrepareScope(FScope* InScope, FScope* InParent
 			{
 				EmitScope->State = EEmitScopeState::Live;
 			}
+		}
+		else if (Statement && EmitScope->State == EEmitScopeState::Live && bMarkLiveValues)
+		{
+			// Need to Prepare statement a second time to mark live values
+			FEmitOwnerScope OwnerScope(*this, Statement);
+			check(EmitParentScope);
+			verify(Statement->Prepare(*this, *EmitParentScope));
 		}
 
 		if (EmitScope->State == EEmitScopeState::Dead)

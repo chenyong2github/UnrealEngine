@@ -442,7 +442,7 @@ FRequestedType GetRequestedSwizzleType(const FSwizzleParameters& Params, const F
 {
 	FRequestedType RequestedInputType;
 	RequestedInputType.ValueComponentType = RequestedType.ValueComponentType;
-	for (int32 Index = 0; Index < RequestedType.RequestedComponents.Num(); ++Index)
+	for (int32 Index = 0; Index < RequestedType.GetNumComponents(); ++Index)
 	{
 		if (RequestedType.IsComponentRequested(Index))
 		{
@@ -670,7 +670,7 @@ bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 
 	FRequestedType RhsRequestedType;
 	RhsRequestedType.ValueComponentType = RequestedType.ValueComponentType;
-	for (int32 Index = NumLhsComponents; Index < RequestedType.RequestedComponents.Num(); ++Index)
+	for (int32 Index = NumLhsComponents; Index < RequestedType.GetNumComponents(); ++Index)
 	{
 		RhsRequestedType.SetComponentRequest(Index - NumLhsComponents, RequestedType.IsComponentRequested(Index));
 	}
@@ -683,6 +683,13 @@ bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 		{
 			return Context.Error(TEXT("Type mismatch"));
 		}
+	}
+	else
+	{
+		// We never want the result of an 'Append' operation to be a scalar value
+		// Ensure that we include at least a single component for the rhs, even if it's not currently requested
+		RhsType.ValueComponentType = RequestedType.ValueComponentType;
+		RhsType.SetComponent(0, EExpressionEvaluation::ConstantZero);
 	}
 
 	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, LhsType, RhsType);
