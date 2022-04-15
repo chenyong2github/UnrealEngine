@@ -1503,3 +1503,39 @@ void UInterchangeSkeletalMeshFactory::PreImportPreCompletedCallback(const FImpor
 	}
 #endif
 }
+
+bool UInterchangeSkeletalMeshFactory::GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::GetSourceFilenames(SkeletalMesh->GetAssetImportData(), OutSourceFilenames);
+	}
+#endif
+
+	return false;
+}
+
+bool UInterchangeSkeletalMeshFactory::SetSourceFilename(const UObject* Object, const FString& SourceFilename, int32 SourceIndex) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::SetSourceFilename(SkeletalMesh->GetAssetImportData(), SourceFilename, SourceIndex);
+	}
+#endif
+
+	return false;
+}
+
+bool UInterchangeSkeletalMeshFactory::SetReimportSourceIndex(const UObject* Object, int32 SourceIndex) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::SetReimportSourceIndex(SkeletalMesh, SkeletalMesh->GetAssetImportData(), SourceIndex);
+	}
+#endif
+
+	return false;
+}

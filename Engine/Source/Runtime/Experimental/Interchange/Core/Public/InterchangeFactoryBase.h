@@ -166,6 +166,31 @@ public:
 	}
 
 	/**
+	 * Fills the OutSourceFilenames array with the list of source files contained in the asset source data.
+	 * Returns true if the operation was successful.
+	 */
+	virtual bool GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const
+	{
+		return false;
+	}
+
+	/**
+	 * Sets the object's source at the specified index to the given SourceFileName
+	 */
+	virtual bool SetSourceFilename(const UObject* Object, const FString& SourceFilename, int32 SourceIndex) const
+	{
+		return false;
+	}
+
+	/**
+	 * Set the object's reimport source at the specified index value.
+	 */
+	virtual bool SetReimportSourceIndex(const UObject* Object, int32 SourceIndex) const
+	{
+		return false;
+	}
+
+	/**
 	 * This function is used to add the given message object directly into the results for this operation.
 	 */
 	template <typename T>

@@ -1338,3 +1338,27 @@ bool UInterchangeStaticMeshFactory::ImportSockets(const FCreateAssetParams& Argu
 
 	return true;
 }
+
+bool UInterchangeStaticMeshFactory::GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::GetSourceFilenames(StaticMesh->GetAssetImportData(), OutSourceFilenames);
+	}
+#endif
+
+	return false;
+}
+
+bool UInterchangeStaticMeshFactory::SetSourceFilename(const UObject* Object, const FString& SourceFilename, int32 SourceIndex) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const UStaticMesh* StaticMesh = Cast<UStaticMesh>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::SetSourceFilename(StaticMesh->GetAssetImportData(), SourceFilename, SourceIndex);
+	}
+#endif
+
+	return false;
+}

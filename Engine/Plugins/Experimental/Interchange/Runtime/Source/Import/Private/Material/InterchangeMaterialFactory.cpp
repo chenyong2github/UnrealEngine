@@ -354,6 +354,30 @@ void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPre
 #endif
 }
 
+bool UInterchangeMaterialFactory::GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::GetSourceFilenames(MaterialInterface->AssetImportData.Get(), OutSourceFilenames);
+	}
+#endif
+
+	return false;
+}
+
+bool UInterchangeMaterialFactory::SetSourceFilename(const UObject* Object, const FString& SourceFilename, int32 SourceIndex) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::SetSourceFilename(MaterialInterface->AssetImportData.Get(), SourceFilename, SourceIndex);
+	}
+#endif
+
+	return false;
+}
+
 #if WITH_EDITOR
 void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCreateAssetParams& Arguments, const UInterchangeBaseMaterialFactoryNode* BaseMaterialFactoryNode)
 {

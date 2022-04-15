@@ -453,6 +453,30 @@ void UInterchangeAnimSequenceFactory::PreImportPreCompletedCallback(const FImpor
 #endif
 }
 
+bool UInterchangeAnimSequenceFactory::GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::GetSourceFilenames(AnimSequence->AssetImportData.Get(), OutSourceFilenames);
+	}
+#endif
+
+	return false;
+}
+
+bool UInterchangeAnimSequenceFactory::SetSourceFilename(const UObject* Object, const FString& SourceFilename, int32 SourceIndex) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const UAnimSequence* AnimSequence = Cast<UAnimSequence>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::SetSourceFilename(AnimSequence->AssetImportData.Get(), SourceFilename, SourceIndex);
+	}
+#endif
+
+	return false;
+}
+
 /************************************************************************/
 /* Automation tests                                                     */
 /************************************************************************/

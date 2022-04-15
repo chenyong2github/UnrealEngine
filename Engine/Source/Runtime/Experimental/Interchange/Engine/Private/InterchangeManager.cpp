@@ -496,6 +496,34 @@ bool UInterchangeManager::CanTranslateSourceData(const UInterchangeSourceData* S
 	return GetTranslatorForSourceData(SourceData) != nullptr;
 }
 
+bool UInterchangeManager::CanReimport(const UObject* Object, TArray<FString>& OutFilenames) const
+{
+	const UClass* RegisteredFactoryClass = GetRegisteredFactoryClass(Object->GetClass());
+	if (!RegisteredFactoryClass)
+	{
+		return false;
+	}
+
+	UInterchangeFactoryBase* Factory = RegisteredFactoryClass->GetDefaultObject<UInterchangeFactoryBase>();
+	if(!Factory->GetSourceFilenames(Object, OutFilenames))
+	{
+		return false;
+	}
+
+	for (const FString& Filename : OutFilenames)
+	{
+		UE::Interchange::FScopedSourceData ScopedSourceData(Filename);
+
+		if (CanTranslateSourceData(ScopedSourceData.GetSourceData()))
+		{
+			return true;
+		}
+	}
+
+	OutFilenames.Empty();
+	return false;
+}
+
 void UInterchangeManager::StartQueuedTasks(bool bCancelAllTasks /*= false*/)
 {
 	if (!ensure(IsInGameThread()))

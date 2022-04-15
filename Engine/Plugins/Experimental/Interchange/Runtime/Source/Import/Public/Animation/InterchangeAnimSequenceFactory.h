@@ -30,6 +30,8 @@ public:
 		//Currently we cannot use the anim sequence controller outside of the game thread
 		return false;
 	}
+	virtual bool GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const override;
+	virtual bool SetSourceFilename(const UObject* Object, const FString& SourceFilename, int32 SourceIndex) const override;
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////

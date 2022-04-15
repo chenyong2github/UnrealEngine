@@ -77,6 +77,23 @@ namespace UE
 			 * @return The source data that should be stored on the asset or nullptr if a parameter is invalid
 			 */
 			static UAssetImportData* SetImportAssetData(FSetImportAssetDataParameters& Parameters);
+
+			/**
+			 * Fills the OutSourceFilenames array with the list of source files contained in the asset source data.
+			 * Returns true if the operation was successful.
+			 */
+			static bool GetSourceFilenames(const UAssetImportData* AssetImportData, TArray<FString>& OutSourceFilenames);
+
+			/**
+			 * Sets the SourceFileName value at the specified index.
+			 */
+			static bool SetSourceFilename(UAssetImportData* AssetImportData, const FString& SourceFilename, int32 SourceIndex);
+
+			/**
+			 * Set the object's reimport source at the specified index value.
+			 */
+			static bool SetReimportSourceIndex(const UObject* Object, UAssetImportData* AssetImportData, int32 SourceIndex);
+
 #endif // WITH_EDITORONLY_DATA
 
 			/**

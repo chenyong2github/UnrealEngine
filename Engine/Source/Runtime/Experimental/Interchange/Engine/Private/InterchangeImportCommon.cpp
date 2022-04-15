@@ -181,6 +181,53 @@ namespace UE
 			// Return the asset import data so it can be set on the imported asset.
 			return AssetImportData;
 		}
+
+		bool FFactoryCommon::GetSourceFilenames(const UAssetImportData* AssetImportData, TArray<FString>& OutSourceFilenames)
+		{
+			if (Cast<UInterchangeAssetImportData>(AssetImportData) != nullptr)
+			{
+				AssetImportData->ExtractFilenames(OutSourceFilenames);
+				return true;
+			}
+			return false;
+		}
+
+		bool FFactoryCommon::SetSourceFilename(UAssetImportData* AssetImportData, const FString& SourceFilename, int32 SourceIndex)
+		{
+			if (AssetImportData)
+			{
+				int32 RealSourceFileIndex = SourceIndex == INDEX_NONE ? 0 : SourceIndex;
+				if (RealSourceFileIndex < AssetImportData->GetSourceFileCount())
+				{
+					AssetImportData->UpdateFilenameOnly(SourceFilename, SourceIndex);
+				}
+				else
+				{
+					//Create a source file entry, this case happen when user import a specific content for the first time
+					FString SourceIndexLabel = USkeletalMesh::GetSourceFileLabelFromIndex(RealSourceFileIndex).ToString();
+					AssetImportData->AddFileName(SourceFilename, RealSourceFileIndex, SourceIndexLabel);
+				}
+				return true;
+			}
+
+			return false;
+		}
+		
+		bool FFactoryCommon::SetReimportSourceIndex(const UObject* Object, UAssetImportData* AssetImportData, int32 SourceIndex)
+		{
+			UInterchangeAssetImportData* InterchangeAssetImportData = Cast<UInterchangeAssetImportData>(AssetImportData);
+			if (!InterchangeAssetImportData)
+			{
+				return false;
+			}
+
+			for (UInterchangePipelineBase* PipelineBase : InterchangeAssetImportData->Pipelines)
+			{
+				PipelineBase->ScriptedSetReimportSourceIndex(Object->GetClass(), SourceIndex);
+			}
+			return true;
+		}
+
 #endif //#if WITH_EDITORONLY_DATA
 
 

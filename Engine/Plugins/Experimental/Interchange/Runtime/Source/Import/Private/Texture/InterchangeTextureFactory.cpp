@@ -1293,3 +1293,27 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 	}
 #endif
 }
+
+bool UInterchangeTextureFactory::GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const UTexture* Texture = Cast<UTexture>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::GetSourceFilenames(Texture->AssetImportData.Get(), OutSourceFilenames);
+	}
+#endif
+
+	return false;
+}
+
+bool UInterchangeTextureFactory::SetSourceFilename(const UObject* Object, const FString& SourceFilename, int32 SourceIndex) const
+{
+#if WITH_EDITORONLY_DATA
+	if (const UTexture* Texture = Cast<UTexture>(Object))
+	{
+		return UE::Interchange::FFactoryCommon::SetSourceFilename(Texture->AssetImportData.Get(), SourceFilename, SourceIndex);
+	}
+#endif
+
+	return false;
+}

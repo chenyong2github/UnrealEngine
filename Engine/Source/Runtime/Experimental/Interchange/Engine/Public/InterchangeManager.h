@@ -365,6 +365,13 @@ public:
 	bool CanTranslateSourceData(const UInterchangeSourceData* SourceData) const;
 
 	/**
+	 * Returns true if Interchange can create that type of assets and is able to translate its source file.
+	 * @Param Object - The object we want to reimport.
+	 * @Param OutFilenames - An array that is filled with the object's source filenames if the operation is successful.
+	 */
+	bool CanReimport(const UObject* Object, TArray<FString>& OutFilenames) const;
+
+	/**
 	 * Call this to start an import asset process, the caller must specify a source data.
 	 * This import process can import many different asset, but all in the game content.
 	 *
