@@ -14,7 +14,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCulture("")]
 
 [assembly: ComVisible(false)]
-[assembly: NeutralResourcesLanguageAttribute("")]
+[assembly: NeutralResourcesLanguageAttribute("en-US")]
 
 #if !SPECIFIC_VERSION
 // Automatically generate a version number based on the time of compilation

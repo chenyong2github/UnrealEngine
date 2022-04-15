@@ -38,6 +38,7 @@ namespace EpicGames.Core
 	/// </summary>
 	public class ManagedProcessGroup : IDisposable
 	{
+#pragma warning disable IDE0049 // Naming Styles
 #pragma warning disable IDE1006 // Naming Styles
 		const UInt32 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000;
 		const UInt32 JOB_OBJECT_LIMIT_BREAKAWAY_OK = 0x00000800;
@@ -102,6 +103,8 @@ namespace EpicGames.Core
 
 		[DllImport("kernel32.dll", SetLastError = true)]
 		static extern bool QueryInformationJobObject(SafeFileHandle hJob, int JobObjectInformationClass, ref JOBOBJECT_BASIC_ACCOUNTING_INFORMATION lpJobObjectInformation, int cbJobObjectInformationLength);
+#pragma warning restore IDE1006 // Naming Styles
+#pragma warning restore IDE0049 // Naming Styles
 
 		/// <summary>
 		/// Handle to the native job object that this process is added to. This handle is closed by the Dispose() method (and will automatically be closed by the OS on process exit),
@@ -191,6 +194,7 @@ namespace EpicGames.Core
 	/// </summary>
 	public sealed class ManagedProcess : IDisposable
 	{
+#pragma warning disable IDE0049 // Naming Styles
 #pragma warning disable IDE1006 // Naming Styles
 		[StructLayout(LayoutKind.Sequential)]
 		class SECURITY_ATTRIBUTES
@@ -326,6 +330,7 @@ namespace EpicGames.Core
 
 		const int ERROR_ACCESS_DENIED = 5;
 #pragma warning restore IDE1006 // Naming Styles
+#pragma warning restore IDE0049 // Naming Styles
 
 		/// <summary>
 		/// Converts FILETIME to DateTime.
