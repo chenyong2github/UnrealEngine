@@ -479,7 +479,14 @@ const FExpression* FExpressionSwizzle::ComputePreviousFrame(FTree& Tree, const F
 	return Tree.NewSwizzle(Parameters, Tree.GetPreviousFrame(Input, RequestedInputType));
 }
 
-bool FExpressionSwizzle::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+namespace Private
+{
+bool SwizzlePrepareValue(FEmitContext& Context,
+	FEmitScope& Scope,
+	const FRequestedType& RequestedType,
+	const FSwizzleParameters& Parameters,
+	const FExpression* Input,
+	FPrepareValueResult& OutResult)
 {
 	const FRequestedType RequestedInputType = Private::GetRequestedSwizzleType(Parameters, RequestedType);
 
@@ -515,7 +522,12 @@ bool FExpressionSwizzle::PrepareValue(FEmitContext& Context, FEmitScope& Scope, 
 	return OutResult.SetType(Context, RequestedType, ResultType);
 }
 
-void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+void SwizzleEmitValueShader(FEmitContext& Context,
+	FEmitScope& Scope,
+	const FRequestedType& RequestedType,
+	const FSwizzleParameters& Parameters,
+	const FExpression* Input,
+	FEmitValueShaderResult& OutResult)
 {
 	const FRequestedType RequestedInputType = Private::GetRequestedSwizzleType(Parameters, RequestedType);
 	FEmitShaderExpression* EmitInput = Input->GetValueShader(Context, Scope, RequestedInputType);
@@ -575,7 +587,12 @@ void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FEmitScope& Scop
 	}
 }
 
-void FExpressionSwizzle::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
+void SwizzleEmitValuePreshader(FEmitContext& Context,
+	FEmitScope& Scope,
+	const FRequestedType& RequestedType,
+	const FSwizzleParameters& Parameters,
+	const FExpression* Input,
+	FEmitValuePreshaderResult& OutResult)
 {
 	const FRequestedType RequestedInputType = Private::GetRequestedSwizzleType(Parameters, RequestedType);
 	if (RequestedInputType.IsVoid())
@@ -597,6 +614,72 @@ void FExpressionSwizzle::EmitValuePreshader(FEmitContext& Context, FEmitScope& S
 			.Write((uint8)Parameters.GetSwizzleComponentIndex(3));
 		OutResult.Type = Shader::MakeValueType(InputTypeDesc.ComponentType, Parameters.NumComponents);
 	}
+}
+
+} // namespace Private
+
+bool FExpressionSwizzle::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	return Private::SwizzlePrepareValue(Context, Scope, RequestedType, Parameters, Input, OutResult);
+}
+
+void FExpressionSwizzle::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+{
+	return Private::SwizzleEmitValueShader(Context, Scope, RequestedType, Parameters, Input, OutResult);
+}
+
+void FExpressionSwizzle::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
+{
+	return Private::SwizzleEmitValuePreshader(Context, Scope, RequestedType, Parameters, Input, OutResult);
+}
+
+void FExpressionComponentMask::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
+{
+	const FExpressionDerivatives InputDerivatives = Tree.GetAnalyticDerivatives(Input);
+	if (InputDerivatives.IsValid())
+	{
+		OutResult.ExpressionDdx = Tree.NewExpression<FExpressionComponentMask>(InputDerivatives.ExpressionDdx, Mask);
+		OutResult.ExpressionDdy = Tree.NewExpression<FExpressionComponentMask>(InputDerivatives.ExpressionDdy, Mask);
+	}
+}
+
+const FExpression* FExpressionComponentMask::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+{
+	return Tree.NewExpression<FExpressionComponentMask>(Tree.GetPreviousFrame(Input, RequestedType), Mask);
+}
+
+namespace Private
+{
+FSwizzleParameters GetComponentMaskSwizzle(FEmitContext& Context, FEmitScope& Scope, const FExpression* Mask)
+{
+	const Shader::FBoolValue MaskValue = Mask->GetValueConstant(Context, Scope, Shader::EValueType::Bool4).AsBool();
+	return MakeSwizzleMask(MaskValue[0], MaskValue[1], MaskValue[2], MaskValue[3]);
+}
+}
+
+bool FExpressionComponentMask::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	const FPreparedType& PreparedMaskType = Context.PrepareExpression(Mask, Scope, Shader::EValueType::Bool4);
+	const EExpressionEvaluation MaskEvaluation = PreparedMaskType.GetEvaluation(Scope, Shader::EValueType::Bool4);
+	if (!IsConstantEvaluation(MaskEvaluation))
+	{
+		return Context.Error(TEXT("Mask must be constant"));
+	}
+
+	const FSwizzleParameters Swizzle = Private::GetComponentMaskSwizzle(Context, Scope, Mask);
+	return Private::SwizzlePrepareValue(Context, Scope, RequestedType, Swizzle, Input, OutResult);
+}
+
+void FExpressionComponentMask::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
+{
+	const FSwizzleParameters Swizzle = Private::GetComponentMaskSwizzle(Context, Scope, Mask);
+	return Private::SwizzleEmitValueShader(Context, Scope, RequestedType, Swizzle, Input, OutResult);
+}
+
+void FExpressionComponentMask::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
+{
+	const FSwizzleParameters Swizzle = Private::GetComponentMaskSwizzle(Context, Scope, Mask);
+	return Private::SwizzleEmitValuePreshader(Context, Scope, RequestedType, Swizzle, Input, OutResult);
 }
 
 namespace Private

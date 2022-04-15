@@ -499,18 +499,36 @@ void FExpressionParameter::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 
 	Context.PreshaderStackPosition++;
 	OutResult.Type = GetShaderValueType(ParameterType);
-	if (ParameterType == EMaterialParameterType::StaticSwitch)
+	if (IsStaticMaterialParameter(ParameterType))
 	{
 		Shader::FValue Value = DefaultValue;
 		if (EmitMaterialData.StaticParameters)
 		{
-			for (const FStaticSwitchParameter& Parameter : EmitMaterialData.StaticParameters->StaticSwitchParameters)
+			switch (ParameterType)
 			{
-				if (Parameter.ParameterInfo == ParameterInfo)
+			case EMaterialParameterType::StaticSwitch:
+				for (const FStaticSwitchParameter& Parameter : EmitMaterialData.StaticParameters->StaticSwitchParameters)
 				{
-					Value = Parameter.Value;
-					break;
+					if (Parameter.ParameterInfo == ParameterInfo)
+					{
+						Value = Parameter.Value;
+						break;
+					}
 				}
+				break;
+			case EMaterialParameterType::StaticComponentMask:
+				for (const FStaticComponentMaskParameter& Parameter : EmitMaterialData.StaticParameters->StaticComponentMaskParameters)
+				{
+					if (Parameter.ParameterInfo == ParameterInfo)
+					{
+						Value = Shader::FValue(Parameter.R, Parameter.G, Parameter.B, Parameter.A);
+						break;
+					}
+				}
+				break;
+			default:
+				checkNoEntry();
+				break;
 			}
 		}
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(Value);
