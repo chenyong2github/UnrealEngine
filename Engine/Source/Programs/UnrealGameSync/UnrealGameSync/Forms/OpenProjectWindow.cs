@@ -286,7 +286,9 @@ namespace UnrealGameSync
 			{
 				ILogger<OpenProjectInfo> Logger = ServiceProvider.GetRequiredService<ILogger<OpenProjectInfo>>();
 
-				ModalTask<OpenProjectInfo>? NewOpenProjectInfo = PerforceModalTask.Execute(this, "Opening project", "Opening project, please wait...", Perforce, (x, y) => DetectSettingsAsync(x, SelectedProject, Settings, Logger, y), Logger);
+				PerforceSettings NewPerforceSettings = Utility.OverridePerforceSettings(Perforce, SelectedProject.ServerAndPort, SelectedProject.UserName);
+
+				ModalTask<OpenProjectInfo>? NewOpenProjectInfo = PerforceModalTask.Execute(this, "Opening project", "Opening project, please wait...", NewPerforceSettings, (x, y) => DetectSettingsAsync(x, SelectedProject, Settings, Logger, y), Logger);
 				if (NewOpenProjectInfo != null && NewOpenProjectInfo.Succeeded)
 				{
 					OpenProjectInfo = NewOpenProjectInfo.Result;

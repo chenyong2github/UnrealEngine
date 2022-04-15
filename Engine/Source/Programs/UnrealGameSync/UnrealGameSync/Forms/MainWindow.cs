@@ -1130,7 +1130,9 @@ namespace UnrealGameSync
 				TaskFlags |= ModalTaskFlags.Quiet;
 			}
 
-			ModalTask<OpenProjectInfo>? SettingsTask = PerforceModalTask.Execute(this, "Opening Project", "Opening project, please wait...", DefaultPerforceSettings, (p, c) => OpenProjectWindow.DetectSettingsAsync(p, Project, Settings, ProjectLogger, c), ProjectLogger, TaskFlags);
+			PerforceSettings PerforceSettings = Utility.OverridePerforceSettings(DefaultPerforceSettings, Project.ServerAndPort, Project.UserName);
+
+			ModalTask<OpenProjectInfo>? SettingsTask = PerforceModalTask.Execute(this, "Opening Project", "Opening project, please wait...", PerforceSettings, (p, c) => OpenProjectWindow.DetectSettingsAsync(p, Project, Settings, ProjectLogger, c), ProjectLogger, TaskFlags);
 			if (SettingsTask == null || SettingsTask.Failed)
 			{
 				if(SettingsTask != null) CreateErrorPanel(ReplaceTabIdx, Project, SettingsTask.Error);
