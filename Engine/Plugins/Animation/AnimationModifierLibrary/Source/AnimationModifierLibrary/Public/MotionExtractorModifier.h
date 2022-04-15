@@ -61,6 +61,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	EMotionExtractor_Axis Axis;
 
+	/** Whether we want to remove the curve when we revert or re-apply modifier 
+		Disabling this allows you to modify settings and create a new curve each time you re-apply the modifier
+		Enabling this is the preferred setting when using a modifier that's applied in bulk and you may want to remove/rename curves */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	bool bRemoveCurveOnRevert;
+
 	/** Whether to extract the bone pose in component space or local space */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	bool bComponentSpace;

@@ -18,6 +18,7 @@ UMotionExtractorModifier::UMotionExtractorModifier()
 	bUseCustomCurveName = false;
 	CustomCurveName = NAME_None;
 	SampleRate = 30;
+	bRemoveCurveOnRevert = false;
 }
 
 void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
@@ -95,8 +96,12 @@ void UMotionExtractorModifier::OnApply_Implementation(UAnimSequence* Animation)
 
 void UMotionExtractorModifier::OnRevert_Implementation(UAnimSequence* Animation)
 {
-	// Left empty intentionally. 
-	// Would be nice to have a way to explicitly define if Revert should be called before Apply
+	if (bRemoveCurveOnRevert)
+	{
+		const FName FinalCurveName = GetCurveName();
+		const bool bRemoveNameFromSkeleton = false;
+		UAnimationBlueprintLibrary::RemoveCurve(Animation, FinalCurveName, bRemoveNameFromSkeleton);
+	}
 }
 
 FName UMotionExtractorModifier::GetCurveName() const
