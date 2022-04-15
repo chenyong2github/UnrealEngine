@@ -314,7 +314,6 @@ private:
 	// track if file is open for write
 	bool FileOpenAsWrite;
 
-	friend class FReadaheadCache;
 	friend class FUnixFileRegistry;
 };
 
