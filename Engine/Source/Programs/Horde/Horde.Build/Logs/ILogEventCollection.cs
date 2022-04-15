@@ -31,10 +31,11 @@ namespace Horde.Build.Collections
 		/// Finds events within a log file
 		/// </summary>
 		/// <param name="logId">Unique id of the log containing this event</param>
+		/// <param name="spanId">Optional span to filter events by</param>
 		/// <param name="index">Start index within the matching results</param>
 		/// <param name="count">Maximum number of results to return</param>
 		/// <returns>List of events matching the query</returns>
-		Task<List<ILogEvent>> FindAsync(LogId logId, int? index = null, int? count = null);
+		Task<List<ILogEvent>> FindAsync(LogId logId, ObjectId? spanId, int? index = null, int? count = null);
 
 		/// <summary>
 		/// Finds a list of events for a set of spans

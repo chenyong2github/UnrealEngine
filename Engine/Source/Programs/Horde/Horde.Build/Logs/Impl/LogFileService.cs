@@ -117,10 +117,11 @@ namespace Horde.Build.Services
 		/// Find events for a particular log file
 		/// </summary>
 		/// <param name="logFile">The log file instance</param>
+		/// <param name="spanId">Issue span to return events for</param>
 		/// <param name="index">Index of the first event to retrieve</param>
 		/// <param name="count">Number of events to retrieve</param>
 		/// <returns>List of log events</returns>
-		Task<List<ILogEvent>> FindLogEventsAsync(ILogFile logFile, int? index = null, int? count = null);
+		Task<List<ILogEvent>> FindEventsAsync(ILogFile logFile, ObjectId? spanId = null, int? index = null, int? count = null);
 
 		/// <summary>
 		/// Adds events to a log span
@@ -777,9 +778,9 @@ namespace Horde.Build.Services
 		}
 
 		/// <inheritdoc/>
-		public Task<List<ILogEvent>> FindLogEventsAsync(ILogFile logFile, int? index = null, int? count = null)
+		public Task<List<ILogEvent>> FindEventsAsync(ILogFile logFile, ObjectId? spanId = null, int? index = null, int? count = null)
 		{
-			return _logEvents.FindAsync(logFile.Id, index, count);
+			return _logEvents.FindAsync(logFile.Id, spanId, index, count);
 		}
 
 		class LogEventLine : ILogEventLine

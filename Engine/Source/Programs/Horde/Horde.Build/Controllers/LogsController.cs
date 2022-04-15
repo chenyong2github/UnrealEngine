@@ -303,7 +303,7 @@ namespace Horde.Build.Controllers
 				return Forbid();
 			}
 
-			List<ILogEvent> logEvents = await _logFileService.FindLogEventsAsync(logFile, index, count);
+			List<ILogEvent> logEvents = await _logFileService.FindEventsAsync(logFile, null, index, count);
 
 			Dictionary<ObjectId, int?> spanIdToIssueId = new Dictionary<ObjectId, int?>();
 

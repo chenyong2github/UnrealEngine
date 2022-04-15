@@ -606,7 +606,7 @@ namespace Horde.Build.Notifications.Impl
 				return;
 			}
 
-			List<ILogEvent> jobStepEvents = await _logFileService.FindLogEventsAsync(logFile);
+			List<ILogEvent> jobStepEvents = await _logFileService.FindEventsAsync(logFile);
 			List<ILogEventData> jobStepEventData = new List<ILogEventData>();
 			foreach (ILogEvent logEvent in jobStepEvents)
 			{

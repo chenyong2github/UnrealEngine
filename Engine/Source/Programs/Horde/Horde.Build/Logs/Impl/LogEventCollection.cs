@@ -133,13 +133,17 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILogEvent>> FindAsync(LogId logId, int? index = null, int? count = null)
+		public async Task<List<ILogEvent>> FindAsync(LogId logId, ObjectId? spanId = null, int? index = null, int? count = null)
 		{
 			_logger.LogInformation("Querying for log events for log {LogId} creation time {CreateTime}", logId, logId.Value.CreationTime);
 
 			FilterDefinitionBuilder<LogEventDocument> builder = Builders<LogEventDocument>.Filter;
 
 			FilterDefinition<LogEventDocument> filter = builder.Eq(x => x.Id.LogId, logId);
+			if(spanId != null)
+			{
+				filter &= builder.Eq(x => x.SpanId, spanId.Value);
+			}
 
 			IFindFluent<LogEventDocument, LogEventDocument> results = _logEvents.Find(filter).SortBy(x => x.Id);
 			if (index != null)
@@ -152,19 +156,6 @@ namespace Horde.Build.Collections.Impl
 			}
 
 			List<LogEventDocument> eventDocuments = await results.ToListAsync();
-			return eventDocuments.ConvertAll<ILogEvent>(x => x);
-		}
-
-		/// <inheritdoc/>
-		public async Task<List<ILogEvent>> FindEventsForSpanAsync(ObjectId spanId, LogId[]? logIds, int index, int count)
-		{
-			FilterDefinition<LogEventDocument> filter = Builders<LogEventDocument>.Filter.Eq(x => x.SpanId, spanId);
-			if (logIds != null && logIds.Length > 0)
-			{
-				filter &= Builders<LogEventDocument>.Filter.In(x => x.Id.LogId, logIds);
-			}
-
-			List<LogEventDocument> eventDocuments = await _logEvents.Find(filter).Skip(index).Limit(count).ToListAsync();
 			return eventDocuments.ConvertAll<ILogEvent>(x => x);
 		}
 

@@ -615,7 +615,7 @@ namespace Horde.Build.Services.Impl
 			}
 
 			// Process all the events for this step
-			List<ILogEvent> stepEvents = await _logFileService.FindLogEventsAsync(logFile);
+			List<ILogEvent> stepEvents = await _logFileService.FindEventsAsync(logFile);
 
 			// Create a new list of event fingerprints for each one
 			bool nonSystemicErrors = false;

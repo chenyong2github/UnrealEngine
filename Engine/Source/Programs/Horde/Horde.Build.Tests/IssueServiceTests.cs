@@ -397,7 +397,7 @@ namespace Horde.Build.Tests
 				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
 
 				ILogFile? log = await LogFileService.GetLogFileAsync(job.Batches[0].Steps[0].LogId!.Value);
-				List<ILogEvent> events = await LogFileService.FindLogEventsAsync(log!);
+				List<ILogEvent> events = await LogFileService.FindEventsAsync(log!);
 				Assert.AreEqual(1, events.Count);
 				Assert.AreEqual(2, events[0].LineCount);
 
@@ -1225,7 +1225,7 @@ namespace Horde.Build.Tests
 				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Failure);
 
 				ILogFile? log = await LogFileService.GetLogFileAsync(job.Batches[0].Steps[0].LogId!.Value);
-				List<ILogEvent> events = await LogFileService.FindLogEventsAsync(log!);
+				List<ILogEvent> events = await LogFileService.FindEventsAsync(log!);
 				Assert.AreEqual(1, events.Count);
 				Assert.AreEqual(40, events[0].LineCount);
 

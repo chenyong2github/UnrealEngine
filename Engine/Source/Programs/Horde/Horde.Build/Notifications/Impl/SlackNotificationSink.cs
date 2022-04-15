@@ -34,6 +34,7 @@ using MongoDB.Driver;
 
 namespace Horde.Build.Notifications.Impl
 {
+	using LogId = ObjectId<ILogFile>;
 	using UserId = ObjectId<IUser>;
 
 	/// <summary>
@@ -195,6 +196,7 @@ namespace Horde.Build.Notifications.Impl
 
 		readonly IIssueService _issueService;
 		readonly IUserCollection _userCollection;
+		readonly LogFileService _logFileService;
 		readonly StreamService _streamService;
 		readonly IWebHostEnvironment _environment;
 		readonly ServerSettings _settings;
@@ -211,17 +213,11 @@ namespace Horde.Build.Notifications.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="mongoService"></param>
-		/// <param name="issueService"></param>
-		/// <param name="userCollection">The user collection</param>
-		/// <param name="streamService"></param>
-		/// <param name="environment"></param>
-		/// <param name="settings">The current configuration settings</param>
-		/// <param name="logger">Logging device</param>
-		public SlackNotificationSink(MongoService mongoService, IIssueService issueService, IUserCollection userCollection, StreamService streamService, IWebHostEnvironment environment, IOptions<ServerSettings> settings, ILogger<SlackNotificationSink> logger)
+		public SlackNotificationSink(MongoService mongoService, IIssueService issueService, IUserCollection userCollection, LogFileService logFileService, StreamService streamService, IWebHostEnvironment environment, IOptions<ServerSettings> settings, ILogger<SlackNotificationSink> logger)
 		{
 			_issueService = issueService;
 			_userCollection = userCollection;
+			_logFileService = logFileService;
 			_streamService = streamService;
 			_environment = environment;
 			_settings = settings.Value;
@@ -672,6 +668,34 @@ namespace Horde.Build.Notifications.Impl
 
 			string streamList = StringUtils.FormatList(details.Spans.Select(x => $"*{x.StreamName}*").Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
 			attachment.Blocks.Add(new SectionBlock($"Occurring in {streamList}"));
+
+			IIssueSpan? lastSpan = details.Spans.OrderByDescending(x => x.LastFailure.StepTime).FirstOrDefault();
+			if (lastSpan != null && lastSpan.LastFailure.LogId != null)
+			{
+				LogId logId = lastSpan.LastFailure.LogId.Value;
+				ILogFile? logFile = await _logFileService.GetLogFileAsync(logId);
+				if(logFile != null)
+				{
+					List<ILogEvent> events = await _logFileService.FindEventsAsync(logFile, lastSpan.Id, 0, 20);
+					if (events.Any(x => x.Severity == EventSeverity.Error))
+					{
+						events.RemoveAll(x => x.Severity == EventSeverity.Warning);
+					}
+
+					List<string> eventStrings = new List<string>();
+					for (int idx = 0; idx < Math.Min(events.Count, 3); idx++)
+					{
+						ILogEventData data = await _logFileService.GetEventDataAsync(logFile, events[idx].LineIndex, events[idx].LineCount);
+						eventStrings.Add($"```{data.Message}```");
+					}
+					if (events.Count > 3)
+					{
+						eventStrings.Add("```...```");
+					}
+
+					attachment.Blocks.Add(new SectionBlock(String.Join("\n", eventStrings)));
+				}
+			}
 
 			if (issue.FixChange != null)
 			{
