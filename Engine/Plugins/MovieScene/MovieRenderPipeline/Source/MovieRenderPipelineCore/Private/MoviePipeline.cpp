@@ -46,6 +46,7 @@
 #include "EngineUtils.h"
 #include "ClothingSimulationInteractor.h"
 #include "ClothingSimulationInterface.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #if WITH_EDITOR
 #include "MovieSceneExportMetadata.h"
