@@ -88,6 +88,9 @@ FCoreDelegates::FPakSigningKeysDelegate& FCoreDelegates::GetPakSigningKeysDelega
     FSimpleMulticastDelegate FCoreDelegates::PreSlateModal;
     FSimpleMulticastDelegate FCoreDelegates::PostSlateModal;
 #endif	//WITH_EDITOR
+#if ALLOW_OTHER_PLATFORM_CONFIG
+	FCoreDelegates::FGatherDeviceProfileCVars FCoreDelegates::GatherDeviceProfileCVars;
+#endif
 FSimpleMulticastDelegate FCoreDelegates::OnShutdownAfterError;
 FSimpleMulticastDelegate FCoreDelegates::OnInit;
 FSimpleMulticastDelegate FCoreDelegates::OnPostEngineInit;
