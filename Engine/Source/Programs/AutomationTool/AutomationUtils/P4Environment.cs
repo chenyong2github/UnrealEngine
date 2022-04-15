@@ -153,7 +153,7 @@ namespace AutomationTool
 				if(String.IsNullOrEmpty(Client))
 				{
 					string HostName = System.Net.Dns.GetHostName();
-					ThisClient = DetectClient(DefaultConnection, User, HostName, CmdEnv.UATExe);
+					ThisClient = DetectClient(DefaultConnection, User, HostName, CmdEnv.AutomationToolDll);
 					Log.TraceInformation("Using user {0} clientspec {1} {2}", User, ThisClient.Name, ThisClient.RootPath);
 					Client = ThisClient.Name;
 					CommandUtils.SetEnvVar(EnvVarNames.Client, Client);
@@ -328,7 +328,7 @@ namespace AutomationTool
 		/// <param name="HostName">Host</param>
 		/// <param name="UATLocation">Path to UAT exe, this will be checked agains the root path.</param>
 		/// <returns>Client to use.</returns>
-		private static P4ClientInfo DetectClient(P4Connection Connection, string UserName, string HostName, string UATLocation)
+		private static P4ClientInfo DetectClient(P4Connection Connection, string UserName, string HostName, string AutomationToolDll)
 		{
 			CommandUtils.LogVerbose("uebp_CLIENT not set, detecting current client...");
 
@@ -341,7 +341,7 @@ namespace AutomationTool
 				{
 					string ClientName = Result.Output.Substring(KeyName.Length).Trim();
 					P4ClientInfo ClientInfo = Connection.GetClientInfo(ClientName, true);
-					if (ClientInfo != null && Connection.IsValidClientForFile(ClientInfo, UATLocation))
+					if (ClientInfo != null && Connection.IsValidClientForFile(ClientInfo, AutomationToolDll))
 					{
 						return ClientInfo;
 					}
@@ -350,7 +350,7 @@ namespace AutomationTool
 
 			// Otherwise search for all clients that match
 			List<P4ClientInfo> MatchingClients = new List<P4ClientInfo>();
-			P4ClientInfo[] P4Clients = Connection.GetClientsForUser(UserName, UATLocation);
+			P4ClientInfo[] P4Clients = Connection.GetClientsForUser(UserName, AutomationToolDll);
 			foreach (P4ClientInfo Client in P4Clients)
 			{
 				if (!String.IsNullOrEmpty(Client.Host) && String.Compare(Client.Host, HostName, true) != 0)
