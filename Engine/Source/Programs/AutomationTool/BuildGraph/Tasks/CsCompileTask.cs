@@ -72,6 +72,12 @@ namespace AutomationTool.Tasks
 		/// </summary>
 		[TaskParameter(Optional = true, ValidationType = TaskParameterValidationType.TagList)]
 		public string TagReferences;
+
+		/// <summary>
+		/// Whether to use the system toolchain rather than the bundled UE SDK
+		/// </summary>
+		[TaskParameter(Optional = true)]
+		public bool UseSystemCompiler;
 	}
 
 	/// <summary>
@@ -174,7 +180,14 @@ namespace AutomationTool.Tasks
 						throw new AutomationException("Project {0} does not exist!", ProjectFile);
 					}
 
-					CommandUtils.RunAndLog(CommandUtils.CmdEnv, CommandUtils.CmdEnv.DotnetMsbuildPath, $"msbuild {CommandUtils.MakePathSafeToUseWithCommandLine(ProjectFile.FullName)} {JoinedArguments}");
+					if (Parameters.UseSystemCompiler)
+					{
+						CommandUtils.MsBuild(CommandUtils.CmdEnv, ProjectFile.FullName, JoinedArguments, null);
+					}
+					else
+					{
+						CommandUtils.RunAndLog(CommandUtils.CmdEnv, CommandUtils.CmdEnv.DotnetMsbuildPath, $"msbuild {CommandUtils.MakePathSafeToUseWithCommandLine(ProjectFile.FullName)} {JoinedArguments}");
+					}
 				}
 			}
 
