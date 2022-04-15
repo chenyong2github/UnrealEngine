@@ -186,6 +186,11 @@ public:
 	*/
 	void UpdateBoundingBox();
 
+	/**  
+	* GetBoundingBox 
+	*/
+	FBoxSphereBounds GetBoundingBox() const;
+
 	/**
 	 * Update the visibility of specified geometry nodes
 	 */

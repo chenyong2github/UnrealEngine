@@ -411,6 +411,8 @@ namespace GeometryCollection
 						}
 					}
 				}
+
+				Collection->UpdateBoundingBox();
 			}
 		}
 	}

@@ -878,6 +878,17 @@ void FGeometryCollection::UpdateBoundingBox()
 	}
 }
 
+FBoxSphereBounds FGeometryCollection::GetBoundingBox() const 
+{
+	FBoxSphereBounds ResultingBox = FBoxSphereBounds(ForceInitToZero);
+	for (int32 Idx = 0; Idx < NumElements(FGeometryCollection::GeometryGroup); ++Idx)
+	{
+		ResultingBox.ExpandBy( BoundingBox[Idx].GetExtent().Length() );
+	}
+	return ResultingBox;
+}
+
+
 void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 {
 	if (Ar.IsCooking())
