@@ -2045,8 +2045,8 @@ void FBlueprintEditor::ImportNamespace(const FString& InNamespace)
 void FBlueprintEditor::ImportNamespaceEx(const FImportNamespaceExParameters& InParams)
 {
 	// No auto-import actions if features are disabled.
-	const bool bIsAutoInputEnabled = GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures;
-	if (InParams.bIsAutoImport && !bIsAutoInputEnabled)
+	const bool bIsAutoImportEnabled = GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceImportingFeatures;
+	if (InParams.bIsAutoImport && !bIsAutoImportEnabled)
 	{
 		return;
 	}
@@ -2072,7 +2072,7 @@ void FBlueprintEditor::ImportNamespaceEx(const FImportNamespaceExParameters& InP
 	};
 
 	// Update the imported set for all edited objects.
-	bool bWasAdded = false;
+	bool bWasAddedAsImport = false;
 	const TArray<UObject*>& EditingObjs = GetEditingObjects();
 	for (UObject* EditingObj : EditingObjs)
 	{
@@ -2081,7 +2081,7 @@ void FBlueprintEditor::ImportNamespaceEx(const FImportNamespaceExParameters& InP
 			// Add each namespace into the Blueprint's user-facing import set.
 			for (const FString& NamespaceToImport : InParams.NamespacesToImport)
 			{
-				bWasAdded |= AddNamespaceToImportList(BlueprintObj, NamespaceToImport);
+				bWasAddedAsImport |= AddNamespaceToImportList(BlueprintObj, NamespaceToImport);
 			}
 		}
 	}
@@ -2101,15 +2101,16 @@ void FBlueprintEditor::ImportNamespaceEx(const FImportNamespaceExParameters& InP
 	// Add to the current scope of the Blueprint's editor context. Note that in certain cases, imports may already be associated
 	// with the Blueprint, but not yet associated with the editor context (e.g. - auto-import after setting a Blueprint's namespace;
 	// we won't add it to the Blueprint's import list, but we still want to add to the editor context and do any post-import actions).
+	bool bWasAddedToEditorContext = false;
 	if (ImportedNamespaceHelper.IsValid())
 	{
 		for (const FString& NamespaceToImport : InParams.NamespacesToImport)
 		{
-			bWasAdded |= AddNamespaceToEditorContext(ImportedNamespaceHelper, NamespaceToImport);
+			bWasAddedToEditorContext |= AddNamespaceToEditorContext(ImportedNamespaceHelper, NamespaceToImport);
 		}
 	}
 
-	if (bWasAdded)
+	if (bWasAddedAsImport || bWasAddedToEditorContext)
 	{
 		// Load additional libraries that may now be in scope.
 		// @todo_namespaces - Make this more targeted - i.e. get/load only those assets tagged w/ the given namespace
@@ -2124,8 +2125,8 @@ void FBlueprintEditor::ImportNamespaceEx(const FImportNamespaceExParameters& InP
 		// If bound, execute the post-import callback.
 		InParams.OnPostImportCallback.ExecuteIfBound();
 
-		// Display a notification for auto-import events.
-		if (InParams.bIsAutoImport)
+		// Display a notification for auto-import events only if we've added it to the editor context.
+		if (InParams.bIsAutoImport && bWasAddedToEditorContext)
 		{
 			const int32 ImportCount = InParams.NamespacesToImport.Num();
 

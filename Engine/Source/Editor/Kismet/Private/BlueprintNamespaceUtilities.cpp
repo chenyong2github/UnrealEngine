@@ -255,26 +255,27 @@ void FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(const UBlueprin
 
 	const bool bAddParentClassImportedNamespaces = GetDefault<UBlueprintEditorSettings>()->bInheritImportedNamespacesFromParentBP;
 
-	// Inherited Blueprint namespaces (if set).
-	TArray<UBlueprint*> ParentBPStack;
-	UBlueprint::GetBlueprintHierarchyFromClass(InBlueprint->ParentClass, ParentBPStack);
-	while (ParentBPStack.Num() > 0)
+	// Inherited namespaces from the parent class hierarchy (if set).
+	UClass* ParentClass = InBlueprint->ParentClass;
+	while (ParentClass)
 	{
-		if (const UBlueprint* ParentBP = ParentBPStack.Pop())
+		// Parent class namespace (if set).
+		FString ParentClassNamespace = GetObjectNamespace(ParentClass);
+		if (!ParentClassNamespace.IsEmpty())
 		{
-			// Parent Blueprint's namespace (if set).
-			FString ParentBPNamespace = GetObjectNamespace(ParentBP);
-			if (!ParentBPNamespace.IsEmpty())
-			{
-				OutNamespaces.Add(ParentBPNamespace);
-			}
+			OutNamespaces.Add(ParentClassNamespace);
+		}
 
-			// If enabled, also include namespaces that are explicitly imported by all ancestor BPs.
-			if (bAddParentClassImportedNamespaces)
+		// If enabled, also include namespaces that are explicitly imported by all ancestor BPs.
+		if (bAddParentClassImportedNamespaces)
+		{
+			if (const UBlueprint* ParentBP = UBlueprint::GetBlueprintFromClass(ParentClass))
 			{
 				OutNamespaces.Append(ParentBP->ImportedNamespaces);
 			}
 		}
+
+		ParentClass = ParentClass->GetSuperClass();
 	}
 }
 
