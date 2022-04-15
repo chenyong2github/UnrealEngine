@@ -20,8 +20,6 @@ class INTERCHANGEPIPELINES_API UInterchangeGenericLevelPipeline : public UInterc
 {
 	GENERATED_BODY()
 
-public:
-
 protected:
 
 	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
@@ -31,7 +29,20 @@ protected:
 		return true;
 	}
 
-	void CreateActorFactoryNode(UInterchangeBaseNodeContainer* InBaseNodeContainer, const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer);
+	/**
+	 * PreImport step called for each translated SceneNode.
+	 */
+	virtual void ExecuteSceneNodePreImport(UInterchangeBaseNodeContainer* InBaseNodeContainer, const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer);
+
+	/**
+	 * Return a new Actor Factory Node to be used for the given SceneNode.
+	 */
+	virtual UInterchangeActorFactoryNode* CreateActorFactoryNode(const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode, UInterchangeBaseNodeContainer* FactoryNodeContainer) const;
+
+	/**
+	 * Use to set up the given factory node's attributes after its initialization.
+	 */
+	virtual void SetUpFactoryNode(UInterchangeActorFactoryNode* ActorFactoryNode, const UInterchangeBaseNode* TranslatedAssetNode, UInterchangeBaseNodeContainer* FactoryNodeContainer) const;
 	
 };
 

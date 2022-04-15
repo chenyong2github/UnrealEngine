@@ -58,19 +58,18 @@ void UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 					continue;
 				}
 			}
-			CreateActorFactoryNode(InBaseNodeContainer, SceneNode, InBaseNodeContainer);
+			ExecuteSceneNodePreImport(InBaseNodeContainer, SceneNode, InBaseNodeContainer);
 		}
 	}
 }
 
-void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(UInterchangeBaseNodeContainer* InBaseNodeContainer, const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer)
+void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBaseNodeContainer* InBaseNodeContainer, const UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer* FactoryNodeContainer)
 {
 	if (!SceneNode)
 	{
 		return;
 	}
 
-	UInterchangeActorFactoryNode* ActorFactoryNode = nullptr;
 	const UInterchangeBaseNode* TranslatedAssetNode = nullptr;
 
 	FString AssetInstanceUid;
@@ -79,14 +78,7 @@ void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(UInterchangeBaseNo
 		TranslatedAssetNode = FactoryNodeContainer->GetNode(AssetInstanceUid);
 	}
 
-	if (TranslatedAssetNode && TranslatedAssetNode->IsA<UInterchangeCameraNode>())
-	{
-		ActorFactoryNode = NewObject<UInterchangeCineCameraFactoryNode>(FactoryNodeContainer, NAME_None);
-	}
-	else
-	{
-		ActorFactoryNode = NewObject<UInterchangeActorFactoryNode>(FactoryNodeContainer, NAME_None);
-	}
+	UInterchangeActorFactoryNode* ActorFactoryNode = CreateActorFactoryNode(SceneNode, TranslatedAssetNode, FactoryNodeContainer);
 
 	if (!ensure(ActorFactoryNode))
 	{
@@ -114,70 +106,86 @@ void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(UInterchangeBaseNo
 
 	if (TranslatedAssetNode)
 	{
-		if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(TranslatedAssetNode))
-		{
-			if (MeshNode->IsSkinnedMesh())
-			{
-				ActorFactoryNode->SetCustomActorClassName(ASkeletalMeshActor::StaticClass()->GetPathName());
-				ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
-			}
-			else
-			{
-				ActorFactoryNode->SetCustomActorClassName(AStaticMeshActor::StaticClass()->GetPathName());
-			}
-		}
-		else if (const UInterchangeLightNode* LightNode = Cast<UInterchangeLightNode>(TranslatedAssetNode))
-		{
-			//Test for spot before point since a spot light is a point light
-			if (LightNode->IsA<UInterchangeSpotLightNode>())
-			{
-				ActorFactoryNode->SetCustomActorClassName(ASpotLight::StaticClass()->GetPathName());
-			}
-			else if (LightNode->IsA<UInterchangePointLightNode>())
-			{
-				ActorFactoryNode->SetCustomActorClassName(APointLight::StaticClass()->GetPathName());
-			} 
-			else if (LightNode->IsA<UInterchangeRectLightNode>())
-			{
-				ActorFactoryNode->SetCustomActorClassName(ARectLight::StaticClass()->GetPathName());
-			}
-			else if (LightNode->IsA<UInterchangeDirectionalLightNode>())
-			{
-				ActorFactoryNode->SetCustomActorClassName(ADirectionalLight::StaticClass()->GetPathName());
-			}
-			else
-			{
-				ActorFactoryNode->SetCustomActorClassName(APointLight::StaticClass()->GetPathName());
-			}
-		}
-		else if (const UInterchangeCameraNode* CameraNode = Cast<UInterchangeCameraNode>(TranslatedAssetNode))
-		{
-			ActorFactoryNode->SetCustomActorClassName(ACineCameraActor::StaticClass()->GetPathName());
-			ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
-
-			if (UInterchangeCineCameraFactoryNode* CineCameraFactoryNode = Cast<UInterchangeCineCameraFactoryNode>(ActorFactoryNode))
-			{
-				float FocalLength;
-				if (CameraNode->GetCustomFocalLength(FocalLength))
-				{
-					CineCameraFactoryNode->SetCustomFocalLength(FocalLength);
-				}
-				
-				float SensorHeight;
-				if (CameraNode->GetCustomSensorHeight(SensorHeight))
-				{
-					CineCameraFactoryNode->SetCustomSensorHeight(SensorHeight);
-				}
-
-				float SensorWidth;
-				if (CameraNode->GetCustomSensorWidth(SensorWidth))
-				{
-					CineCameraFactoryNode->SetCustomSensorWidth(SensorWidth);
-				}
-			}
-		}
+		SetUpFactoryNode(ActorFactoryNode, TranslatedAssetNode, FactoryNodeContainer);
 	}
 
 	FactoryNodeContainer->AddNode(ActorFactoryNode);
 }
 
+UInterchangeActorFactoryNode* UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode, UInterchangeBaseNodeContainer* FactoryNodeContainer) const
+{
+	if (TranslatedAssetNode && TranslatedAssetNode->IsA<UInterchangeCameraNode>())
+	{
+		return NewObject<UInterchangeCineCameraFactoryNode>(FactoryNodeContainer, NAME_None);
+	}
+	else
+	{
+		return NewObject<UInterchangeActorFactoryNode>(FactoryNodeContainer, NAME_None);
+	}
+}
+
+void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactoryNode* ActorFactoryNode, const UInterchangeBaseNode* TranslatedAssetNode, UInterchangeBaseNodeContainer* FactoryNodeContainer) const
+{
+	if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(TranslatedAssetNode))
+	{
+		if (MeshNode->IsSkinnedMesh())
+		{
+			ActorFactoryNode->SetCustomActorClassName(ASkeletalMeshActor::StaticClass()->GetPathName());
+			ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
+		}
+		else
+		{
+			ActorFactoryNode->SetCustomActorClassName(AStaticMeshActor::StaticClass()->GetPathName());
+		}
+	}
+	else if (const UInterchangeLightNode* LightNode = Cast<UInterchangeLightNode>(TranslatedAssetNode))
+	{
+		//Test for spot before point since a spot light is a point light
+		if (LightNode->IsA<UInterchangeSpotLightNode>())
+		{
+			ActorFactoryNode->SetCustomActorClassName(ASpotLight::StaticClass()->GetPathName());
+		}
+		else if (LightNode->IsA<UInterchangePointLightNode>())
+		{
+			ActorFactoryNode->SetCustomActorClassName(APointLight::StaticClass()->GetPathName());
+		}
+		else if (LightNode->IsA<UInterchangeRectLightNode>())
+		{
+			ActorFactoryNode->SetCustomActorClassName(ARectLight::StaticClass()->GetPathName());
+		}
+		else if (LightNode->IsA<UInterchangeDirectionalLightNode>())
+		{
+			ActorFactoryNode->SetCustomActorClassName(ADirectionalLight::StaticClass()->GetPathName());
+		}
+		else
+		{
+			ActorFactoryNode->SetCustomActorClassName(APointLight::StaticClass()->GetPathName());
+		}
+	}
+	else if (const UInterchangeCameraNode* CameraNode = Cast<UInterchangeCameraNode>(TranslatedAssetNode))
+	{
+		ActorFactoryNode->SetCustomActorClassName(ACineCameraActor::StaticClass()->GetPathName());
+		ActorFactoryNode->SetCustomMobility(EComponentMobility::Movable);
+
+		if (UInterchangeCineCameraFactoryNode* CineCameraFactoryNode = Cast<UInterchangeCineCameraFactoryNode>(ActorFactoryNode))
+		{
+			float FocalLength;
+			if (CameraNode->GetCustomFocalLength(FocalLength))
+			{
+				CineCameraFactoryNode->SetCustomFocalLength(FocalLength);
+			}
+
+			float SensorHeight;
+			if (CameraNode->GetCustomSensorHeight(SensorHeight))
+			{
+				CineCameraFactoryNode->SetCustomSensorHeight(SensorHeight);
+			}
+
+			float SensorWidth;
+			if (CameraNode->GetCustomSensorWidth(SensorWidth))
+			{
+				CineCameraFactoryNode->SetCustomSensorWidth(SensorWidth);
+			}
+		}
+	}
+}
