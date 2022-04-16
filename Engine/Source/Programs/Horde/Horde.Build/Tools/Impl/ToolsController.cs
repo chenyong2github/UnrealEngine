@@ -212,10 +212,6 @@ namespace Horde.Build.Tools.Impl
 			{
 				return Forbid(AclAction.DownloadTool, id);
 			}
-			if(tool.Deployments.Count == 0)
-			{
-				return NotFound(LogEvent.Create(LogLevel.Error, "Tool {ToolId} does not currently have any deployments", id));
-			}
 
 			if (action == GetToolAction.Info)
 			{
@@ -223,6 +219,11 @@ namespace Horde.Build.Tools.Impl
 			}
 			else
 			{
+				if (tool.Deployments.Count == 0)
+				{
+					return NotFound(LogEvent.Create(LogLevel.Error, "Tool {ToolId} does not currently have any deployments", id));
+				}
+
 				return await GetDeploymentPayloadAsync(tool, tool.Deployments[^1]);
 			}
 		}
