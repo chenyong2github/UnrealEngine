@@ -515,7 +515,7 @@ namespace Horde.Build
 		/// <summary>
 		/// Namespace to use for storing tools
 		/// </summary>
-		public NamespaceId ToolNamespaceId { get; set; } = new NamespaceId("horde.tools");
+		public NamespaceId ToolNamespaceId { get; set; } = new NamespaceId("horde.p4");
 
 		/// <summary>
 		/// Lazily computed timezone value
