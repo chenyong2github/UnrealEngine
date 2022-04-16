@@ -30,8 +30,8 @@ void FRayTracingValidateGeometryBuildParamsCS::Dispatch(FRHICommandList& RHICmdL
 		EventName.Append(TEXT(" - "));
 		EventName.Append(*DebugNameString);
 	}
-	
-	RHICmdList.PushEvent(EventName.GetData(), FColor::Black);
+
+	RHICmdList.PushEvent(EventName.ToString(), FColor::Black);
 
 	const uint32 IndexStride = Initializer.IndexBuffer->GetStride();
 
