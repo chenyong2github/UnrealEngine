@@ -15,6 +15,7 @@ uint DI_LOCAL(InputStreamStart);
 Buffer<uint> DI_LOCAL(IndexBuffer);
 Buffer<float> DI_LOCAL(PositionInputBuffer);
 Buffer<SNORM float4> DI_LOCAL(TangentInputBuffer);
+Buffer<float4> DI_LOCAL(ColorInputBuffer);
 Buffer<float2> DI_LOCAL(UVInputBuffer);
 Buffer<uint> DI_LOCAL(DuplicatedIndicesIndices);
 Buffer<uint> DI_LOCAL(DuplicatedIndices);
@@ -56,6 +57,12 @@ DI_IMPL_READ(ReadTangentZ, float4, uint VertexIndex)
 {
 	uint BufferIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * 2;
 	return TangentBias_SkinCache(DI_LOCAL(TangentInputBuffer)[BufferIndex + 1]);
+}
+
+DI_IMPL_READ(ReadColor, float4, uint VertexIndex)
+{
+	uint BufferIndex = DI_LOCAL(InputStreamStart) + VertexIndex;
+	return DI_LOCAL(ColorInputBuffer)[BufferIndex];
 }
 
 DI_IMPL_READ(ReadUV, float2, uint VertexIndex, uint UVChannelIndex)
