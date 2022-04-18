@@ -250,9 +250,7 @@ namespace EpicGames.UHT.Types
 			}
 
 			string Type = TokenReader.GetStringView(TypeStartPos, TokenReader.InputPos - TypeStartPos).ToString();
-			Type.Replace("\n", " ");
-			Type.Replace("\r", "");
-			Type.Replace("\t", " ");
+			Type = Type.Replace("\n", " ").Replace("\r", "").Replace("\t", " ");
 
 			switch (Behavior)
 			{

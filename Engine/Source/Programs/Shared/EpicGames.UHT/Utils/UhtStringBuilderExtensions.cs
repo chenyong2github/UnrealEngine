@@ -417,7 +417,7 @@ namespace EpicGames.UHT.Utils
 							}
 							break;
 					}
-				} while (Index < Length);
+				}
 			}
 
 			Builder.Append("\"");
