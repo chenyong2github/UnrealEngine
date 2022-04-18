@@ -39,7 +39,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-NoDSYM", Value = "false")]
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bUseDSYMFiles")]
-		public bool bUseDSYMFiles = true;
+		public bool bUseDSYMFiles = false;
 
 		/// <summary>
 		/// Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
