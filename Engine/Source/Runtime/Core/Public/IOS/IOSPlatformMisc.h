@@ -197,7 +197,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, int32& OutputDevice, int32& ColorGamut)
 	{
 		// Linear output to Apple's specific format.
-		OutputDevice = 7;
+		OutputDevice = (int32)EDisplayOutputFormat::HDR_LinearEXR;
 		ColorGamut = 0;
 	}
 

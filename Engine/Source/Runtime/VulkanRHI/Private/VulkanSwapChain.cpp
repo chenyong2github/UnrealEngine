@@ -175,18 +175,17 @@ FVulkanSwapChain::FVulkanSwapChain(VkInstance InInstance, FVulkanDevice& InDevic
 		if (Formats[Index].colorSpace != RequestedColorSpace)
 		{
 			static const auto CVarHDROutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
-			int32 OutputDevice = CVarHDROutputDevice ? CVarHDROutputDevice->GetValueOnAnyThread() : 0;
-			// The possible values are documented in PostProcessTonemap.cpp, where the cvar is defined. They match the ETonemapperOutputDevice enum, which is defined in a header we cannot include.
+			EDisplayOutputFormat OutputDevice = CVarHDROutputDevice ? (EDisplayOutputFormat)CVarHDROutputDevice->GetValueOnAnyThread() : EDisplayOutputFormat::SDR_sRGB;
 			switch (OutputDevice)
 			{
-			case 0:
+			case EDisplayOutputFormat::SDR_sRGB:
 				RequestedColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 				break;
-			case 1:
+			case EDisplayOutputFormat::SDR_Rec709:
 				RequestedColorSpace = VK_COLOR_SPACE_BT709_NONLINEAR_EXT;
 				break;
-			case 3:
-			case 4:
+			case EDisplayOutputFormat::HDR_ACES_1000nit_ST2084:
+			case EDisplayOutputFormat::HDR_ACES_2000nit_ST2084:
 				RequestedColorSpace = VK_COLOR_SPACE_HDR10_ST2084_EXT;
 				break;
 			default:

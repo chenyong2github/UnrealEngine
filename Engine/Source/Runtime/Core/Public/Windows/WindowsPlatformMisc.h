@@ -260,7 +260,7 @@ struct CORE_API FWindowsPlatformMisc
 		if (DeviceId == 0x1002 /*AMD*/ || DeviceId == 0x10DE /*NVIDIA*/)
 		{
 			// ScRGB, 1000 or 2000 nits, Rec2020
-			OutputDevice = (DisplayNitLevel == 1000) ? 5 : 6;
+			OutputDevice = (DisplayNitLevel == 1000) ? (int32)EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB : (int32)EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB;
 			ColorGamut = 2;
 		}
 	}

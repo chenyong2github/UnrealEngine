@@ -234,7 +234,7 @@ struct CORE_API FMacPlatformMisc : public FApplePlatformMisc
 	FORCEINLINE static void ChooseHDRDeviceAndColorGamut(uint32 DeviceId, uint32 DisplayNitLevel, int32& OutputDevice, int32& ColorGamut)
 	{
 		// ScRGB, 1000 or 2000 nits, DCI-P3
-		OutputDevice = DisplayNitLevel == 1000 ? 5 : 6;
+		OutputDevice = DisplayNitLevel == 1000 ? (int32)EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB : (int32)EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB;
 		ColorGamut = 1;
 	}
 };

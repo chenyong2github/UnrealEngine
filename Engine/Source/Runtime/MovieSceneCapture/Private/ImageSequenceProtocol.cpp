@@ -215,7 +215,7 @@ bool UImageSequenceProtocol_EXR::SetupImpl()
 	if (CaptureGamut == HCGM_Linear)
 	{
 		CVarDumpGamut->Set(1);
-		CVarDumpDevice->Set(7);
+		CVarDumpDevice->Set((int32)EDisplayOutputFormat::HDR_LinearEXR);
 	}
 	else
 	{

@@ -253,17 +253,6 @@ private:
 		DG_ACEScg
 	};
 
-	enum EDisplayFormat
-	{
-		DF_sRGB,
-		DF_Rec709,
-		DF_ExplicitGammaMapping,
-		DF_ACES1000_ST_2084,
-		DF_ACES2000_ST_2084,
-		DF_ACES1000_ScRGB,
-		DF_ACES2000_ScRGB,
-	};
-
 	struct DisplayChromacities
 	{
 		float RedX, RedY;
@@ -283,7 +272,7 @@ private:
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	/** Ensure the correct color space is set on the swap chain */
-	void EnsureColorSpace(EDisplayGamut DisplayGamut, EDisplayFormat OutputDevice);
+	void EnsureColorSpace(EDisplayGamut DisplayGamut, EDisplayOutputFormat OutputDevice);
 
 	/** 
 	 * Set HDR meta data. 

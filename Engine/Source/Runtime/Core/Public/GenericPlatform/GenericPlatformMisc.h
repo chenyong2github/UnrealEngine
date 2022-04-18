@@ -430,6 +430,24 @@ enum class EInputOutputFlags : uint8
 
 ENUM_CLASS_FLAGS(EInputOutputFlags);
 
+/**
+ * Defines the type of format the backbuffer expects. You must update values in TonemapCommon.ush when changing this enum
+ */
+enum class EDisplayOutputFormat
+{
+	SDR_sRGB = 0,
+	SDR_Rec709 = 1,
+	SDR_ExplicitGammaMapping = 2,
+	HDR_ACES_1000nit_ST2084 = 3,
+	HDR_ACES_2000nit_ST2084 = 4,
+	HDR_ACES_1000nit_ScRGB = 5,
+	HDR_ACES_2000nit_ScRGB = 6,
+	HDR_LinearEXR = 7,
+	HDR_LinearNoToneCurve = 8,
+	HDR_LinearWithToneCurve = 9,
+	MAX
+};
+
 
 /**
  * Different types of Context Switch stats

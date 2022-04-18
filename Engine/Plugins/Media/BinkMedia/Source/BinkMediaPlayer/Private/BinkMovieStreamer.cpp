@@ -136,23 +136,23 @@ bool FBinkMovieStreamer::Tick(float DeltaTime)
 			static const auto CVarDisplayOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
 			if (GRHISupportsHDROutput && CVarHDROutputEnabled->GetValueOnRenderThread() != 0)
 			{
-				int outDev = CVarDisplayOutputDevice->GetValueOnRenderThread();
+				EDisplayOutputFormat outDev = static_cast<EDisplayOutputFormat>(CVarDisplayOutputDevice->GetValueOnRenderThread());
 				switch (outDev)
 				{
 				// LDR
-				case 0:
-				case 1:
-				case 2:
+				case EDisplayOutputFormat::SDR_sRGB:
+				case EDisplayOutputFormat::SDR_Rec709:
+				case EDisplayOutputFormat::SDR_ExplicitGammaMapping:
 					BinkPluginSetHdrSettings(bnk, 1, 1.0f, 80);
 					break;
 				// 1k nits
-				case 3:
-				case 5:
+				case EDisplayOutputFormat::HDR_ACES_1000nit_ST2084:
+				case EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB:
 					BinkPluginSetHdrSettings(bnk, 1, 1.0f, 1000);
 					break;
 				// 2k nits
-				case 4:
-				case 6:
+				case EDisplayOutputFormat::HDR_ACES_2000nit_ST2084:
+				case EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB:
 					BinkPluginSetHdrSettings(bnk, 1, 1.0f, 2000);
 					break;
 				// no tonemap

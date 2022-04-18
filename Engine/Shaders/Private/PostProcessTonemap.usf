@@ -19,26 +19,9 @@
 #include "PixelQuadMessagePassing.ush"
 #include "ScreenPass.ush"
 
-
-/** Values of DIM_OUTPUT_DEVICE (matching C++'s ETonemapperOutputDevice) */
-#define TONEMAPPER_OUTPUT_sRGB 0
-#define TONEMAPPER_OUTPUT_Rec709 1
-#define TONEMAPPER_OUTPUT_ExplicitGammaMapping 2
-#define TONEMAPPER_OUTPUT_ACES1000nitST2084 3
-#define TONEMAPPER_OUTPUT_ACES2000nitST2084 4
-#define TONEMAPPER_OUTPUT_ACES1000nitScRGB 5
-#define TONEMAPPER_OUTPUT_ACES2000nitScRGB 6
-#define TONEMAPPER_OUTPUT_LinearEXR 7
-#define TONEMAPPER_OUTPUT_NoToneCurve 8
-#define TONEMAPPER_OUTPUT_WithToneCurve 9
-
 #ifndef DIM_OUTPUT_DEVICE
 	#define DIM_OUTPUT_DEVICE (TONEMAPPER_OUTPUT_sRGB)
 #endif
-
-
-
-
 
 // 0 / 1(slower, visualize multiple internals side by side for the same image portion, see DebugTile)
 #define DEBUG_TONEMAPPER 0

@@ -7,6 +7,18 @@
 #include "ACES.ush"
 #include "GammaCorrectionCommon.ush"
 
+/** Values of DIM_OUTPUT_DEVICE (matching C++'s EDisplayOutputFormat) */
+#define TONEMAPPER_OUTPUT_sRGB 0
+#define TONEMAPPER_OUTPUT_Rec709 1
+#define TONEMAPPER_OUTPUT_ExplicitGammaMapping 2
+#define TONEMAPPER_OUTPUT_ACES1000nitST2084 3
+#define TONEMAPPER_OUTPUT_ACES2000nitST2084 4
+#define TONEMAPPER_OUTPUT_ACES1000nitScRGB 5
+#define TONEMAPPER_OUTPUT_ACES2000nitScRGB 6
+#define TONEMAPPER_OUTPUT_LinearEXR 7
+#define TONEMAPPER_OUTPUT_NoToneCurve 8
+#define TONEMAPPER_OUTPUT_WithToneCurve 9
+
 // usually 1/2.2, the .y is used for inverse gamma when "gamma only" mode is not used
 half3 InverseGamma;
 
@@ -336,7 +348,7 @@ float3 ST2084ToScRGB(float3 Color, uint OutputDevice)
 	float MaxODTNits = 1000.0f;
 	float MinODTNits = 0.0001f;
 
-	if (OutputDevice == 4 || OutputDevice == 6)
+	if (OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitScRGB)
 	{
 		// 2000 nit display
 		MaxODTNits = 2000.0f;

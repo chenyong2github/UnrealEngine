@@ -11,23 +11,6 @@
 
 bool SupportsFilmGrain(EShaderPlatform Platform);
 
-// You must update values in PostProcessTonemap.usf when changing this enum.
-enum class ETonemapperOutputDevice
-{
-	sRGB,
-	Rec709,
-	ExplicitGammaMapping,
-	ACES1000nitST2084,
-	ACES2000nitST2084,
-	ACES1000nitScRGB,
-	ACES2000nitScRGB,
-	LinearEXR,
-	LinearNoToneCurve,
-	LinearWithToneCurve,
-
-	MAX
-};
-
 BEGIN_SHADER_PARAMETER_STRUCT(FTonemapperOutputDeviceParameters, )
 	SHADER_PARAMETER(FVector3f, InverseGamma)
 	SHADER_PARAMETER(uint32, OutputDevice)

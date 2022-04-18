@@ -426,9 +426,9 @@ void FD3D12Viewport::EnableHDR()
 	if ( GRHISupportsHDROutput && IsHDREnabled() )
 	{
 		static const auto CVarHDROutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
-		const EDisplayFormat OutputDevice = EDisplayFormat(CVarHDROutputDevice->GetValueOnAnyThread());
+		const EDisplayOutputFormat OutputDevice = EDisplayOutputFormat(CVarHDROutputDevice->GetValueOnAnyThread());
 
-		const float DisplayMaxOutputNits = (OutputDevice == DF_ACES2000_ST_2084 || OutputDevice == DF_ACES2000_ScRGB) ? 2000.f : 1000.f;
+		const float DisplayMaxOutputNits = (OutputDevice == EDisplayOutputFormat::HDR_ACES_2000nit_ST2084 || OutputDevice == EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB) ? 2000.f : 1000.f;
 		const float DisplayMinOutputNits = 0.0f;	// Min output of the display
 		const float DisplayMaxCLL = 0.0f;			// Max content light level in lumens (0.0 == unknown)
 		const float DisplayFALL = 0.0f;				// Frame average light level (0.0 == unknown)
@@ -455,7 +455,7 @@ void FD3D12Viewport::ShutdownHDR()
 	{
 		// Default SDR display data
 		const EDisplayGamut DisplayGamut = DG_Rec709;
-		const EDisplayFormat OutputDevice = DF_sRGB;
+		const EDisplayOutputFormat OutputDevice = EDisplayOutputFormat::SDR_sRGB;
 
 		// Note: These values aren't actually used.
 		const float DisplayMaxOutputNits = 100.0f;	// Max output of the display
@@ -536,7 +536,7 @@ static const FString GetDXGIColorSpaceString(DXGI_COLOR_SPACE_TYPE ColorSpace)
 	return FString::FromInt(ColorSpace);
 };
 
-void FD3D12Viewport::EnsureColorSpace(EDisplayGamut DisplayGamut, EDisplayFormat OutputDevice)
+void FD3D12Viewport::EnsureColorSpace(EDisplayGamut DisplayGamut, EDisplayOutputFormat OutputDevice)
 {
 	ensure(SwapChain4.GetReference());
 
@@ -547,20 +547,20 @@ void FD3D12Viewport::EnsureColorSpace(EDisplayGamut DisplayGamut, EDisplayFormat
 	switch (OutputDevice)
 	{
 		// Gamma 2.2
-	case DF_sRGB:
-	case DF_Rec709:
+	case EDisplayOutputFormat::SDR_sRGB:
+	case EDisplayOutputFormat::SDR_Rec709:
 		NewColorSpace = bPrimaries2020 ? DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P2020 : DXGI_COLOR_SPACE_RGB_FULL_G22_NONE_P709;
 		break;
 
 		// Gamma ST.2084
-	case DF_ACES1000_ST_2084:
-	case DF_ACES2000_ST_2084:
+	case EDisplayOutputFormat::HDR_ACES_1000nit_ST2084:
+	case EDisplayOutputFormat::HDR_ACES_2000nit_ST2084:
 		NewColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G2084_NONE_P2020;
 		break;
 
 		// Gamma 1.0 (Linear)
-	case DF_ACES1000_ScRGB:
-	case DF_ACES2000_ScRGB:
+	case EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB:
+	case EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB:
 		// Linear. Still supports expanded color space with values >1.0f and <0.0f.
 		// The actual range is determined by the pixel format (e.g. a UNORM format can only ever have 0-1).
 		NewColorSpace = DXGI_COLOR_SPACE_RGB_FULL_G10_NONE_P709;

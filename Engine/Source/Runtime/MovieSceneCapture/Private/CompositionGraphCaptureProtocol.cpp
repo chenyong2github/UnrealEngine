@@ -40,7 +40,7 @@ struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 		if (CaptureGamut == HCGM_Linear)
 		{
 			CVarDumpGamut->Set(1);
-			CVarDumpDevice->Set(7);
+			CVarDumpDevice->Set((int32)EDisplayOutputFormat::HDR_LinearEXR);
 		}
 		else
 		{

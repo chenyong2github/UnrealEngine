@@ -26,14 +26,14 @@ void GenerateLUTPS(
 
 	float3 LinearColor = ST2084ToLinear(Neutral);
 
-	if( OutputDevice == 3 || OutputDevice == 5 )
+	if( OutputDevice == TONEMAPPER_OUTPUT_ACES1000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES1000nitScRGB)
 	{		
 		// ACES 1000nit transform with PQ/2084 encoding, user specified gamut 
 		float3 ODTColor = ACESOutputTransforms1000(LinearColor);
 		ODTColor = mul(AP1_2_Output, ODTColor);
 		OutColor.rgb = LinearToST2084(ODTColor);
 	}	
-	else if( OutputDevice == 4 || OutputDevice == 6 )
+	else if( OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitScRGB)
 	{		
 		// ACES 2000nit transform with PQ/2084 encoding, user specified gamut 
 		float3 ODTColor = ACESOutputTransforms2000(LinearColor);
