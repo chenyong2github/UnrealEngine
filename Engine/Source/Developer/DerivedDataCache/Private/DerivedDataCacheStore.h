@@ -106,8 +106,12 @@ enum class ECacheStoreFlags : uint32
 	/** Accepts requests with a policy of StoreLocal or StoreRemote. Needs matching Local/Remote flag. */
 	Store           = 1 << 3,
 
-	/** Requests to store records or values contained by this cache store will not propagate any further. */
-	StopStore       = 1 << 4,
+	/** A put of a record or value contained by this cache store will not store to later cache stores. */
+	StopPutStore    = 1 << 4,
+	/** A get of a record or value contained by this cache store will not store to later cache stores. */
+	StopGetStore    = 1 << 5,
+	/** A record or value contained by this cache store will not store to later cache stores. */
+	StopStore       = StopPutStore | StopGetStore,
 };
 
 ENUM_CLASS_FLAGS(ECacheStoreFlags);

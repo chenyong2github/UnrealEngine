@@ -221,7 +221,7 @@ FCacheStoreHierarchy::FCacheStoreHierarchy(IMemoryCacheStore* InMemoryCache)
 {
 	if (MemoryCache)
 	{
-		Add(MemoryCache, ECacheStoreFlags::Local | ECacheStoreFlags::Query);
+		Add(MemoryCache, ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::StopGetStore);
 	}
 }
 
@@ -446,7 +446,7 @@ bool FCacheStoreHierarchy::TPutBatch<Params>::DispatchGetRequests()
 	NodeGetIndex = NodePutIndex;
 
 	const FCacheStoreNode& Node = Hierarchy.Nodes[NodeGetIndex];
-	if (!EnumHasAnyFlags(Node.CacheFlags, ECacheStoreFlags::StopStore))
+	if (!EnumHasAnyFlags(Node.CacheFlags, ECacheStoreFlags::StopPutStore))
 	{
 		return false;
 	}
@@ -668,7 +668,7 @@ void FCacheStoreHierarchy::TGetBatch<Params>::DispatchRequests()
 				{
 					AsyncNodeRequests.Add(MakePutRequest(Response, Request));
 				}
-				else if (EnumHasAnyFlags(Node.CacheFlags, ECacheStoreFlags::StopStore) && CanQuery(GetCombinedPolicy(Request.Policy), Node.CacheFlags))
+				else if (EnumHasAnyFlags(Node.CacheFlags, ECacheStoreFlags::StopGetStore) && CanQuery(GetCombinedPolicy(Request.Policy), Node.CacheFlags))
 				{
 					NodeRequests.Add({Request.Name, Request.Key, AddPolicy(Request.Policy, ECachePolicy::SkipData), StateIndex});
 				}
@@ -763,9 +763,9 @@ void FCacheStoreHierarchy::TGetBatch<Params>::CompleteRequest(FGetResponse&& Res
 
 	if (Response.Status == EStatus::Ok)
 	{
-		if (EnumHasAnyFlags(Node.CacheFlags, ECacheStoreFlags::StopStore))
+		if (EnumHasAnyFlags(Node.CacheFlags, ECacheStoreFlags::StopGetStore))
 		{
-			// Never store to later later nodes if this node has StopStore.
+			// Never store to later nodes.
 			State.Request.Policy = RemovePolicy(State.Request.Policy, ECachePolicy::Default);
 		}
 		else
