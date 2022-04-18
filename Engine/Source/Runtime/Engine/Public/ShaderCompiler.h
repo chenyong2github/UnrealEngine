@@ -1271,6 +1271,8 @@ enum class ODSCRecompileCommand
 	SingleShader
 };
 
+extern ENGINE_API const TCHAR* ODSCCmdEnumToString(ODSCRecompileCommand Cmd);
+
 struct FShaderRecompileData
 {
 	/** The platform name to compile for. */
