@@ -564,7 +564,7 @@ void FConcertServer::ArchiveOfflineSessions(const FConcertServerSessionRepositor
 	}
 }
 
-FGuid FConcertServer::ArchiveSession(const FGuid& SessionId, const FString& ArchiveNameOverride, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason)
+FGuid FConcertServer::ArchiveSession(const FGuid& SessionId, const FString& ArchiveNameOverride, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason, FGuid ArchiveSessionIdOverride)
 {
 	if (GetArchivedSessionIdByName(ArchiveNameOverride).IsValid())
 	{
@@ -572,7 +572,7 @@ FGuid FConcertServer::ArchiveSession(const FGuid& SessionId, const FString& Arch
 		return FGuid();
 	}
 
-	const FGuid ArchivedSessionId = ArchiveLiveSession(SessionId, ArchiveNameOverride, SessionFilter);
+	const FGuid ArchivedSessionId = ArchiveLiveSession(SessionId, ArchiveNameOverride, SessionFilter, MoveTemp(ArchiveSessionIdOverride));
 	if (!ArchivedSessionId.IsValid())
 	{
 		OutFailureReason = LOCTEXT("Error_ArchiveSession_FailedToCopy", "Could not copy session data to the archive");
@@ -1439,7 +1439,7 @@ bool FConcertServer::DestroyLiveSession(const FGuid& LiveSessionId, const bool b
 	return false;
 }
 
-FGuid FConcertServer::ArchiveLiveSession(const FGuid& LiveSessionId, const FString& ArchivedSessionNameOverride, const FConcertSessionFilter& SessionFilter)
+FGuid FConcertServer::ArchiveLiveSession(const FGuid& LiveSessionId, const FString& ArchivedSessionNameOverride, const FConcertSessionFilter& SessionFilter, FGuid ArchiveSessionIdOverride)
 {
 	TSharedPtr<IConcertServerSession> LiveSession = LiveSessions.FindRef(LiveSessionId);
 	if (LiveSession)
@@ -1458,7 +1458,7 @@ FGuid FConcertServer::ArchiveLiveSession(const FGuid& LiveSessionId, const FStri
 		const FConcertServerSessionRepository& SessionRepository = GetSessionRepository(LiveSession->GetSessionInfo().SessionId);
 
 		FConcertSessionInfo ArchivedSessionInfo = LiveSession->GetSessionInfo();
-		ArchivedSessionInfo.SessionId = FGuid::NewGuid();
+		ArchivedSessionInfo.SessionId = ensure(ArchiveSessionIdOverride.IsValid()) ? MoveTemp(ArchiveSessionIdOverride) : FGuid::NewGuid();
 		ArchivedSessionInfo.SessionName = MoveTemp(ArchivedSessionName);
 		if (EventSink->ArchiveSession(*this, LiveSession.ToSharedRef(), SessionRepository.GetSessionSavedDir(ArchivedSessionInfo.SessionId), ArchivedSessionInfo, SessionFilter))
 		{

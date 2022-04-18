@@ -64,7 +64,7 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 	
 	FCreatedStaticMeshActor CreateEditedActor(FName OuterLevelPath);
 
-	TTestActivityArray<int64> CreateActivityHistory(FConcertSyncSessionDatabase& SessionDatabase, const FGuid& EndpointID)
+	TTestActivityArray<FActivityID> CreateActivityHistory(FConcertSyncSessionDatabase& SessionDatabase, const FGuid& EndpointID)
 	{
 		TTestActivityArray<int64> ActivityIDs;
 		TTestActivityArray<int64> PackageEventIDs;

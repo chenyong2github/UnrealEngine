@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConcertMessageData.h"
 
 class FConcertSyncSessionDatabase;
 
@@ -44,5 +45,5 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 	 *
 	 *	@return An array where every ETestActivity entry is the index to the activity ID added to SessionDatabase
 	 */
-	TTestActivityArray<int64> CreateActivityHistory(FConcertSyncSessionDatabase& SessionDatabase, const FGuid& EndpointID);
+	TTestActivityArray<FActivityID> CreateActivityHistory(FConcertSyncSessionDatabase& SessionDatabase, const FGuid& EndpointID);
 }

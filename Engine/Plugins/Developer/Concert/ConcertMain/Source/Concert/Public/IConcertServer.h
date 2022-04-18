@@ -138,9 +138,10 @@ public:
 	 * @param ArchiveNameOverride The name override to give to the archived session.
 	 * @param SessionFilter The filter controlling which activities from the session should be archived.
 	 * @param OutFailureReason The reason the operation fails if the function returns false, undefined otherwise.
+	 * @param ArchiveSessionIdOverride The ID the archived session is supposed to have
 	 * @return The ID of the archived session on success, or an invalid GUID otherwise.
 	 */
-	virtual FGuid ArchiveSession(const FGuid& SessionId, const FString& ArchiveNameOverride, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason) = 0;
+	virtual FGuid ArchiveSession(const FGuid& SessionId, const FString& ArchiveNameOverride, const FConcertSessionFilter& SessionFilter, FText& OutFailureReason, FGuid ArchiveSessionIdOverride = FGuid::NewGuid()) = 0;
 
 	/**
 	 * Copy the session data to a destination folder for external usage.

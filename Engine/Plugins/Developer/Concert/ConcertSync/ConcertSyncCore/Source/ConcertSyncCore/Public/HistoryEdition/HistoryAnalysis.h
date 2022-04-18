@@ -20,6 +20,11 @@ namespace UE::ConcertSyncCore
 		 * This will not contain any elements in HardDependencies.
 		 */
 		TSet<FActivityID> PossibleDependencies;
+
+		FHistoryDeletionRequirements(TSet<FActivityID> HardDependencies = {}, TSet<FActivityID> PossibleDependencies = {})
+			: HardDependencies(MoveTemp(HardDependencies)),
+			  PossibleDependencies(MoveTemp(PossibleDependencies))
+		{}
 	};
 
 	/** Utility function for one-off operations: just computes the dependency graph before calling AnalyseActivityDeletion. */
