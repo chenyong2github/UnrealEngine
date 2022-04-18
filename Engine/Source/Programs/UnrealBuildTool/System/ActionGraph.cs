@@ -350,6 +350,10 @@ namespace UnrealBuildTool
 				{
 					return new SNDBS(TargetDescriptors);
 				}
+				else if (BuildConfiguration.bAllowHordeCompute && HordeExecutor.IsAvailable())
+				{
+					return new HordeExecutor(BuildConfiguration.MaxParallelActions);
+				}
 			}
 
 			return new ParallelExecutor(BuildConfiguration.MaxParallelActions);

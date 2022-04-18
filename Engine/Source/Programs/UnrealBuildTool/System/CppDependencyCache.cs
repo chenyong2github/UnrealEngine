@@ -300,6 +300,24 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Attempts to read the dependencies from the given input file. This static version will not use any caches.
+		/// </summary>
+		/// <param name="InputFile">File to be read</param>
+		/// <param name="OutDependencyItems">Receives a list of output items</param>
+		/// <returns>True if the input file exists and the dependencies were read</returns>
+		public static bool TryGetDependenciesUncached(FileItem InputFile, [NotNullWhen(true)] out List<FileItem>? OutDependencyItems)
+		{
+			if (!InputFile.Exists)
+			{
+				OutDependencyItems = null;
+				return false;
+			}
+
+			OutDependencyItems = ReadDependencyInfo(InputFile).Files;
+			return true;
+		}
+
+		/// <summary>
 		/// Creates a cache hierarchy for a particular target
 		/// </summary>
 		/// <param name="ProjectFile">Project file for the target being built</param>
