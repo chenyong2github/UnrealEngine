@@ -1451,6 +1451,10 @@ void UOptimusDeformer::PostLoad()
 			}
 		}
 	}
+
+	// Fixup any empty array entries.
+	Resources->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusResourceDescription>& Value) { return Value == nullptr; });
+	Variables->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusVariableDescription>& Value) { return Value == nullptr; });
 }
 
 
