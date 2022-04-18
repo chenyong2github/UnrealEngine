@@ -196,6 +196,7 @@ public:
 	 * Returns true iff the Asset is a TopLevelAsset (not a subobject, its outer is a UPackage).
 	 * Only TopLevelAssets can be PrimaryAssets in the AssetManager.
 	 * A TopLevelAsset is not necessarily the main asset in a package; see IsUAsset.
+	 * Note that this is distinct from UObject::IsAsset because IsAsset can be overloaded (see e.g. AActor::IsAsset)
 	 */
 	COREUOBJECT_API bool IsTopLevelAsset() const;
 	

@@ -5875,6 +5875,80 @@ UAssetRegistryImpl::FFileLoadProgressUpdatedEvent& UAssetRegistryImpl::OnFileLoa
 
 namespace UE::AssetRegistry
 {
+const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> PackageAssetDatas, bool bRequireOneTopLevelAsset)
+{
+	if (PackageAssetDatas.Num() == 1) // common case
+	{
+		return PackageAssetDatas[0];
+	}
+
+	// Find a candidate asset.
+	// If there's a "UAsset", then we use that as the asset.
+	// If not, then we look for a "TopLevelAsset", i.e. one that shows up in the content browser.
+	int32 TopLevelAssetCount = 0;
+
+	// If we have multiple TLAs, then we pick the "least" TLA.
+	// If we have NO TLAs, then we pick the "least" asset,
+	// both determined by class then name:
+	auto AssetDataLessThan = [](const FAssetData* LHS, const FAssetData* RHS)
+	{
+		int32 ClassCompare = LHS->AssetClass.Compare(RHS->AssetClass);
+		if (ClassCompare == 0)
+		{
+			return LHS->AssetName.LexicalLess(RHS->AssetName);
+		}
+		return ClassCompare < 0;
+	};
+
+	const FAssetData* LeastTopLevelAsset = nullptr;
+	const FAssetData* LeastAsset = nullptr;
+	for (const FAssetData* Asset : PackageAssetDatas)
+	{
+		if (Asset->AssetName.IsNone())
+		{
+			continue;
+		}
+		if (Asset->IsUAsset())
+		{
+			return Asset;
+		}
+		// This is after IsUAsset because Blueprints can be the UAsset but also be considered skipable.
+		if (FFiltering::ShouldSkipAsset(Asset->AssetClass, Asset->PackageFlags))
+		{
+			continue;
+		}
+		if (Asset->IsTopLevelAsset())
+		{
+			TopLevelAssetCount++;
+			if (LeastTopLevelAsset == nullptr ||
+				AssetDataLessThan(Asset, LeastTopLevelAsset))
+			{
+				LeastTopLevelAsset = Asset;
+			}
+		}
+		if (LeastAsset == nullptr ||
+			AssetDataLessThan(Asset, LeastAsset))
+		{
+			LeastAsset = Asset;
+		}
+	}
+
+	if (bRequireOneTopLevelAsset)
+	{
+		if (TopLevelAssetCount == 1)
+		{
+			return LeastTopLevelAsset;
+		}
+		return nullptr;
+	}
+
+	if (TopLevelAssetCount)
+	{
+		return LeastTopLevelAsset;
+	}
+	return LeastAsset;
+}
+
 
 void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAssetData>& OutPackageToAssetData)
 {
@@ -5883,7 +5957,7 @@ void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAsset
 	{
 		Filter.PackageNames.Add(PackageName);
 	}
-
+	
 	TArray<FAssetData> AssetDataList;
 	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
 	if (!AssetRegistry)
@@ -5891,37 +5965,30 @@ void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAsset
 		return;
 	}
 	AssetRegistry->GetAssets(Filter, AssetDataList);
-	auto IsHigherDisplayPriority = [](const FAssetData& LHS, const FAssetData& RHS)
+
+	if (AssetDataList.Num() == 0)
 	{
-		bool bLHSIsEmpty = LHS.AssetName.IsNone();
-		bool bRHSIsEmpty = RHS.AssetName.IsNone();
-		if (bLHSIsEmpty || bRHSIsEmpty)
-		{
-			return !bLHSIsEmpty;
-		}
-		bool bLHSIsUAsset = LHS.IsUAsset();
-		bool bRHSIsUAsset = RHS.IsUAsset();
-		if (bLHSIsUAsset != bRHSIsUAsset)
-		{
-			return bLHSIsUAsset;
-		}
-		bool bLHSShouldSkip = FFiltering::ShouldSkipAsset(LHS.AssetClass, LHS.PackageFlags);
-		bool bRHSShouldSkip = FFiltering::ShouldSkipAsset(LHS.AssetClass, LHS.PackageFlags);
-		if (bLHSShouldSkip || bRHSShouldSkip)
-		{
-			return !bLHSShouldSkip;
-		}
-		return LHS.AssetName.FastLess(RHS.AssetName);
-	};
-	for (FAssetData& AssetData : AssetDataList)
-	{
-		// If there are multiple assets in the same package, use the highest priority asset for the display
-		FAssetData& MappedAssetData = OutPackageToAssetData.FindOrAdd(AssetData.PackageName);
-		if (IsHigherDisplayPriority(AssetData, MappedAssetData))
-		{
-			MappedAssetData = MoveTemp(AssetData);
-		}
+		return;
 	}
-}
+
+	Algo::SortBy(AssetDataList, &FAssetData::PackageName, FNameFastLess());
+
+	TArray<const FAssetData*, TInlineAllocator<1>> PackageAssetDatas;
+	FName CurrentPackageName = AssetDataList[0].PackageName;
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		if (CurrentPackageName != AssetData.PackageName)
+		{
+			OutPackageToAssetData.FindOrAdd(CurrentPackageName) = *GetMostImportantAsset(PackageAssetDatas, false);
+			PackageAssetDatas.Empty();
+			CurrentPackageName = AssetData.PackageName;
+		}
+
+		PackageAssetDatas.Push(&AssetData);
+	}
+
+	OutPackageToAssetData.FindOrAdd(CurrentPackageName) = *GetMostImportantAsset(PackageAssetDatas, false);
 
 }
+
+} // namespace AssetRegistry

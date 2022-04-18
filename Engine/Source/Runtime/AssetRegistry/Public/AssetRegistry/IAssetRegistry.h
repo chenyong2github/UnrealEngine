@@ -680,13 +680,31 @@ namespace AssetRegistry
 	ASSETREGISTRY_API bool ReadPackageDataDependencies(FArchive& BinaryArchive, TBitArray<>& OutImportUsedInGame, TBitArray<>& OutSoftPackageUsedInGame);
 
 	/**
-	 * Given a list of packages, gather the primary assets for each package.
+	 * Given a list of packages, gather the most important assets for each package.
 	 * If multiple assets are in a package, the most important asset will be added.
 	 * If a package does not exist or does not have any assets, no entry will be added for that package name.
 	 */
 	ASSETREGISTRY_API void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAssetData>& OutPackageToAssetData);
-}
-}
+
+	/**
+	 * Given a list of asset datas for a specific package, find an asset considered "most important" or "representative".
+	 * This is distinct from a Primary asset, and is used for user facing representation of a package or other cases
+	 * where you need to relate information about a package to an asset.
+	 * 
+	 * Usually there is only 1 asset per package so this is straightforward, however in the multiple asset case it:
+	 *	Tries to find the "UAsset" via the FAssetData::IsUAsset() function. (i.e. asset name matches package name)
+	 *	If none exist, tries to find a "Top Level Asset" using FAssetData::IsToplevelAsset(). (i.e. outer == package)
+	 *		If only one exists, use that.
+	 *		Otherwise, if bRequireOneTopLevelAsset is false, gather the set of possibles and return the first sorted on asset class then name.
+	 *			If no top level assets, all package assets
+	 *			If multiple top level assets, all top level assets
+	 * 
+	 * A good source for PackageAssetDatas is FAssetRegistryState::GetAssetsByPackageName.
+	 */
+	ASSETREGISTRY_API const FAssetData* GetMostImportantAsset(TConstArrayView<const FAssetData*> PackageAssetDatas, bool bRequireOneTopLevelAsset);
+
+} // namespace AssetRegistry
+} // namespace UE
 
 /** Returns the filename without filepath for the DevelopmentAssetRegistry written by the cooker. */
 ASSETREGISTRY_API const TCHAR* GetDevelopmentAssetRegistryFilename();
