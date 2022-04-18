@@ -135,7 +135,7 @@ endif()
 if (APPLE)
     # Use standard macOS SDK location if this is not specified.
     if (NOT ISPC_MACOS_SDK_PATH)
-        set(command "xcrun" "--show-sdk-path")
+        set(command "xcrun" "--sdk" "macosx" "--show-sdk-path")
         execute_process(COMMAND ${command}
             OUTPUT_VARIABLE ISPC_MACOS_SDK_PATH
             OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -220,6 +220,19 @@ find_package(Python3 REQUIRED)
     if (NOT Python3_Interpreter_FOUND)
         message(FATAL_ERROR "Python interpreter is not found")
     endif()
+
+if (CMAKE_HOST_SYSTEM_NAME MATCHES "Darwin")
+    execute_process(
+        COMMAND brew --prefix bison
+        RESULT_VARIABLE BREW_BISON
+        OUTPUT_VARIABLE BREW_BISON_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if (BREW_BISON EQUAL 0 AND EXISTS "${BREW_BISON_PREFIX}")
+        message(STATUS "Found Bison keg installed by Homebrew at ${BREW_BISON_PREFIX}")
+        set(BISON_EXECUTABLE "${BREW_BISON_PREFIX}/bin/bison")
+    endif()
+endif()
 
 find_package(BISON 3.0 REQUIRED)
     if (BISON_FOUND)
