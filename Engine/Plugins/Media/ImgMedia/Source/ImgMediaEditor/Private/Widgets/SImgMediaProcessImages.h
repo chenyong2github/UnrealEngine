@@ -12,6 +12,10 @@ class IDetailsView;
 class IImageWrapper;
 class SButton;
 class SNotificationItem;
+class UMediaPlayer;
+class UMediaSource;
+class UMediaTexture;
+class UTextureRenderTarget2D;
 
 /**
  * SImgMediaProcessImages provides processing of image sequences.
@@ -26,6 +30,10 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
+	/** SWidget interface */
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
+
+
 private:
 	/**
 	 * Updates our widgets based on the current state.
@@ -39,10 +47,8 @@ private:
 
 	/**
 	 * Processes all images in the sequence and generate tiles/mips.
-	 *
-	 * @param ConfirmNotification	Notification that will be updated with progress and closed when done.
 	 */
-	void ProcessAllImages(TSharedPtr<SNotificationItem> ConfirmNotification);
+	void ProcessAllImages();
 	
 	/**
 	  * Checks if this file has an alpha channel.
@@ -85,6 +91,27 @@ private:
 		bool bInEnableMips, bool bHasAlphaChannel, const FString& InName);
 
 	/**
+	 * Processess a single image and writes out a file.
+	 * Tiles and mips may be generated.
+	 * This might not run on the game thread.
+	 *
+	 * @param RawData			Image pixel data (RGBA FFloat16).
+	 * @param Width				Width of image.
+	 * @param Height			Height of image.
+	 * @param BitDepth			Number of bits per pixel.
+	 * @param InTileWidth		Desired width of tiles.
+	 * @param InTileHeight		Desired height of tiles.
+	 * @param InTileBorder		Number of pixels to duplicate along a tile edge.
+	 * @param bInEnableMips		Turn on mip mapping.
+	 * @param bHasAlphaChannel	True if there really is an alpha channel.
+	 * @param InName			Full path and name of file to write.
+	 */
+	void ProcessImageCustomRawData(TArray64<uint8>& RawData,
+		int32 Width, int32 Height, int32 BitDepth,
+		int32 InTileWidth, int32 InTileHeight, int32 InTileBorder, bool bInEnableMips,
+		bool bHasAlphaChannel, const FString& InName);
+	
+	/**
 	 * Removes the alpha channel from a buffer.
 	 * This will be done in place.
 	 * Assumes 2 bytes per channel, 4 channels, alpha is the last channel.
@@ -115,6 +142,26 @@ private:
 		int32 TileWidth, int32 TileHeight, int32 InTileBorder,
 		int32 BytesPerPixel);
 
+	/**
+	 * Call this every frame to handle processing.
+	 */
+	void HandleProcessing();
+
+	/**
+	 * Creates a render target.
+	 */
+	void CreateRenderTarget();
+
+	/**
+	 * Draws the media texture to our render target.
+	 */
+	void DrawTextureToRenderTarget();
+
+	/**
+	 * Clean up after processing is done.
+	 */
+	void CleanUp();
+
 	/** Holds our details view. */
 	TSharedPtr<class IDetailsView> DetailsView;
 	/** Object that holds our options. */
@@ -123,9 +170,27 @@ private:
 	TSharedPtr<SButton> StartButton;
 	/** Holds the button to cancel processing. */
 	TSharedPtr<SButton> CancelButton;
+	/** Notification to update user on our progress. */
+	TSharedPtr<SNotificationItem> ConfirmNotification;
+
+	/** Used to read in media. */
+	TObjectPtr<UMediaPlayer> MediaPlayer;
+	/** Texture for the player. */
+	TObjectPtr<UMediaTexture> MediaTexture;
+	/** Source for the player. */
+	TObjectPtr<UMediaSource> MediaSource;
+	/** Render target to render the media texture to. */
+	TObjectPtr<UTextureRenderTarget2D> RenderTarget;
+	/** The current time we are processing. */
+	FTimespan CurrentTime;
+	/** How long a frame is. */
+	FTimespan FrameDuration;
+	/** Current frame index we are processinig. */
+	int32 CurrentFrameIndex = 0;
 
 	/** True if we are currently processing. */
 	bool bIsProcessing = false;
 	/** True if we want to cancel processing. */
 	bool bIsCancelling = false;
+	
 };

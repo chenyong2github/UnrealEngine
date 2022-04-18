@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"ImgMedia",
 					"InputCore",
 					"MediaAssets",
+					"RenderCore",
 					"Slate",
 					"SlateCore",
 					"UnrealEd",
