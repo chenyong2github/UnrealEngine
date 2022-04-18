@@ -14,9 +14,11 @@
 // under the License.
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef unsigned int8 uint8;
+// UE CHANGE BEGIN - Redefining uint8/uint16/uint32/uint64 type which is part of ISPC language since version 1.13.
+/*typedef unsigned int8 uint8;
 typedef unsigned int32 uint32;
-typedef unsigned int64 uint64;
+typedef unsigned int64 uint64;*/
+// UE CHANGE END - Redefining uint8/uint16/uint32/uint64 type which is part of ISPC language since version 1.13.
 
 ///////////////////////////
 //   generic helpers
