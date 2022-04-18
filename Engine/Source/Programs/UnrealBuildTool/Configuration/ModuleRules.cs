@@ -844,10 +844,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		public List<string> AllowedRestrictedFolders = new List<string>();
 
-		/// <exclude/>
-		[Obsolete("Deprecated in 5.0, use AllowedRestrictedFolders instead.")]
-		public List<string> WhitelistRestrictedFolders = new List<string>();
-
 		/// <summary>
 		/// Set of aliased restricted folder references
 		/// </summary>

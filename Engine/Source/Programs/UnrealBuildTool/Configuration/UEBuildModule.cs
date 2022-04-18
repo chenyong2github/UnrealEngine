@@ -269,27 +269,8 @@ namespace UnrealBuildTool
 				PrivateIncludePaths = CreateDirectoryHashSet(Rules.PrivateIncludePaths);
 			}
 
-			RestrictedFoldersAllowList = new HashSet<DirectoryReference>(Rules.AllowedRestrictedFolders.Count());
+			RestrictedFoldersAllowList = new HashSet<DirectoryReference>(Rules.AllowedRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
 
-#pragma warning disable 618
-			{
-				// consume values from deprecated WhitelistRestrictedFolders, but only if AllowedRestrictedFolders has not been set.
-				// Remove this block when WhitelistRestrictedFolders has been removed.
-				if (Rules.WhitelistRestrictedFolders.Count() > 0)
-				{
-					if (Rules.AllowedRestrictedFolders.Count() > 0)
-					{
-						Log.TraceWarning($"Value(s) have been set for both ModuleRules.WhitelistRestrictedFolders and ModuleRules.AllowedRestrictedFolders for module \"{Rules.Name}\". ModuleRules.WhitelistRestrictedFolders has been deprecated and will be ignored.");
-					}
-					else
-					{
-						RestrictedFoldersAllowList.UnionWith(Rules.WhitelistRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
-					}
-				}
-			}
-#pragma warning restore 618
-
-			RestrictedFoldersAllowList.UnionWith(Rules.AllowedRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
 			AliasRestrictedFolders = new Dictionary<string, string>(Rules.AliasRestrictedFolders);
 
 			// get the module directories from the module

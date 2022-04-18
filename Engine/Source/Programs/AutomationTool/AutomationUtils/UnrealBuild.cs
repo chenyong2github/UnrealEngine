@@ -1293,14 +1293,4 @@ namespace AutomationTool
 		// List of everything we built so far
 		public readonly HashSet<string> BuildProductFiles = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
 	}
-
-	[Obsolete("Deprecated in 5.0. Use UnrealBuild")]
-	public class UE4Build : UnrealBuild
-	{
-		public UE4Build(BuildCommand Command) : base(Command)
-		{
-		}
-
-
-	}
 }

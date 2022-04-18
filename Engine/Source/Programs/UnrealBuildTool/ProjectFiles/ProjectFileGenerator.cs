@@ -362,16 +362,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		bool bGatherThirdPartySource = false;
 
-		/// <exclude/>
-		[Obsolete("Deprecated in 5.0, use PrimaryProjectName instead.")]
-		[XmlConfigFile(Deprecated = true, NewAttributeName = "PrimaryProjectName")]
-		protected string MasterProjectName = "UE5";
-
-		/// <exclude/>
-		[Obsolete("Deprecated in 5.0, use bPrimaryProjecNameFromFolder instead.")]
-		[XmlConfigFile(Deprecated = true, NewAttributeName = "bPrimaryProjectNameFromFolder")]
-		protected bool bMasterProjectNameFromFolder = false;
-
 		/// <summary>
 		/// Name of the primary project file -- for example, the base file name for the Visual Studio solution file, or the Xcode project file on Mac.
 		/// </summary>

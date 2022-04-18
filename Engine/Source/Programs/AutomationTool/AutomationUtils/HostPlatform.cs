@@ -52,12 +52,6 @@ namespace AutomationTool
 		/// <returns></returns>
 		abstract public string GetUnrealExePath(string UnrealExe);
 
-		[Obsolete("Deprecated in 5.0; use GetUnrealExePath() instead")]
-		public string GetUE4ExePath(string UE4Exe)
-		{
-			return GetUnrealExePath(UE4Exe);
-		}
-
 		/// <summary>
 		/// Log folder for local builds.
 		/// </summary>

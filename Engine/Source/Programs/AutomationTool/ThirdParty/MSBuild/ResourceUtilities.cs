@@ -173,13 +173,6 @@ namespace Microsoft.Build.Shared
             return ExtractMessageCode(true /* msbuildCodeOnly */, FormatString(GetResourceString(resourceName), args), out code);
         }
 
-        [Obsolete("Use GetResourceString instead.", true)]
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        internal static string FormatResourceString(string resourceName)
-        {   // Avoids an accidental dependency on FormatResourceString(string, params object[])
-            return null;
-        }
-
         /// <summary>
         /// Looks up a string in the resources, and formats it with the arguments passed in. If the string resource has an MSBuild
         /// message code and help keyword associated with it, they are discarded.

@@ -1482,13 +1482,6 @@ namespace AutomationTool
 		[Help("unrealexe=ExecutableName", "Name of the Unreal Editor executable, i.e. -unrealexe=UnrealEditor.exe")]
 		public string UnrealExe;
 
-		[Obsolete("Removed in 5.0; Use UnrealExe instead")]
-		public string UE4Exe
-		{
-			set => UnrealExe = value;
-			get => UnrealExe;
-		}
-
 		/// <summary>
 		/// Shared: true if this build is archived, command line: -archive
 		/// </summary>
@@ -1520,15 +1513,6 @@ namespace AutomationTool
 		/// </summary>
 		[Help("createappbundle", "When archiving for Mac, set this to true to package it in a .app bundle instead of normal loose files")]
 		public bool CreateAppBundle;
-
-        /// <summary>
-        /// Determines if Blueprint assets should be substituted with auto-generated code.
-        /// </summary>
-		[Obsolete("The RunAssetNativization property has been deprecated in 5.0. This feature is no longer supported.")]
-        public bool RunAssetNativization
-		{
-			get { return false; }
-		}
 
 		/// <summary>
 		/// Keeps track of any '-ini:type:[section]:value' arguments on the command line. These will override cached config settings for the current process, and can be passed along to other tools.

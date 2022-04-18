@@ -383,35 +383,6 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// Mostly an internal function, but expose StackFramesToSkip to allow UAT to use existing wrapper functions and still get proper formatting.
-		/// </summary>
-		/// <param name="stackFramesToSkip"></param>
-		/// <param name="verbosity"></param>
-		/// <param name="format"></param>
-		/// <param name="args"></param>
-		[Obsolete("StackFramesToSkip has been deprecated since 5.0. Please call an override without this parameter")]
-		[StringFormatMethod("Format")]
-		public static void WriteLine(int stackFramesToSkip, LogEventType verbosity, string format, params object?[] args)
-		{
-			WriteLinePrivate(false, verbosity, LogFormatOptions.None, format, args);
-		}
-
-		/// <summary>
-		/// Mostly an internal function, but expose StackFramesToSkip to allow UAT to use existing wrapper functions and still get proper formatting.
-		/// </summary>
-		/// <param name="stackFramesToSkip"></param>
-		/// <param name="verbosity"></param>
-		/// <param name="formatOptions"></param>
-		/// <param name="format"></param>
-		/// <param name="args"></param>
-		[Obsolete("StackFramesToSkip has been deprecated since 5.0. Please call an override without this parameter")]
-		[StringFormatMethod("Format")]
-		public static void WriteLine(int stackFramesToSkip, LogEventType verbosity, LogFormatOptions formatOptions, string format, params object?[] args)
-		{
-			WriteLinePrivate(false, verbosity, formatOptions, format, args);
-		}
-
-		/// <summary>
 		/// Similar to Trace.WriteLine
 		/// </summary>
 		/// <param name="verbosity"></param>
