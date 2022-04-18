@@ -1963,6 +1963,8 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 	}
 
 	SelectRigsAndControls(ControlRig, KeyAreas);
+	
+	GEditor->NoteSelectionChange();
 }
 
 void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* ControlRig, const TArray<const IKeyArea*>& KeyAreas)
