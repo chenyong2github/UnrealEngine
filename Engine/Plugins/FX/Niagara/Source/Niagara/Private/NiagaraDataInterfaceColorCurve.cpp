@@ -69,7 +69,6 @@ void UNiagaraDataInterfaceColorCurve::Serialize(FArchive& Ar)
 	}
 }
 
-#if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceColorCurve::UpdateTimeRanges()
 {
 	if ((RedCurve.GetNumKeys() > 0 || GreenCurve.GetNumKeys() > 0 || BlueCurve.GetNumKeys() > 0 || AlphaCurve.GetNumKeys() > 0))
@@ -112,7 +111,6 @@ TArray<float> UNiagaraDataInterfaceColorCurve::BuildLUT(int32 NumEntries) const
 	}
 	return OutputLUT;
 }
-#endif
 
 bool UNiagaraDataInterfaceColorCurve::CopyToInternal(UNiagaraDataInterface* Destination) const 
 {
