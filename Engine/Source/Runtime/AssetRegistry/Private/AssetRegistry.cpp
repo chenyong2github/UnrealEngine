@@ -5980,7 +5980,7 @@ void GetAssetForPackages(TConstArrayView<FName> PackageNames, TMap<FName, FAsset
 		if (CurrentPackageName != AssetData.PackageName)
 		{
 			OutPackageToAssetData.FindOrAdd(CurrentPackageName) = *GetMostImportantAsset(PackageAssetDatas, false);
-			PackageAssetDatas.Empty();
+			PackageAssetDatas.Reset();
 			CurrentPackageName = AssetData.PackageName;
 		}
 
