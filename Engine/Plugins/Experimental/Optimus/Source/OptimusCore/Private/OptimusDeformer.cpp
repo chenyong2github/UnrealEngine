@@ -879,7 +879,7 @@ bool UOptimusDeformer::Compile()
 	{
 		CompileBeginDelegate.Broadcast(this);
 		CompileMessageDelegate.Broadcast(
-			FTokenizedMessage::Create(EMessageSeverity::CriticalError, LOCTEXT("NoGraphFound", "No update graph found. Compilation aborted.")));
+			FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("NoGraphFound", "No update graph found. Compilation aborted.")));
 		CompileEndDelegate.Broadcast(this);
 		return false;
 	}
@@ -991,7 +991,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 	if (TerminalNodes.IsEmpty())
 	{
 		Result.Set<TSharedRef<FTokenizedMessage>>(FTokenizedMessage::Create(
-			EMessageSeverity::CriticalError,
+			EMessageSeverity::Error,
 			LOCTEXT("NoDataInterfaceFound", "No data interface terminal nodes found. Compilation aborted.")));
 		return Result;
 	}
@@ -1106,7 +1106,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 			);
 			if (!KernelSource)
 			{
-				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::CriticalError,
+				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error,
 					LOCTEXT("CantCreateKernel", "Unable to create compute kernel from kernel node. Compilation aborted."));
 				Message->AddToken(FUObjectToken::Create(ConnectedNode.Node));
 				Result.Set<TSharedRef<FTokenizedMessage>>(Message);
@@ -1115,7 +1115,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 
 			if (BoundKernel.InputDataBindings.IsEmpty() || BoundKernel.OutputDataBindings.IsEmpty())
 			{
-				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::CriticalError,
+				TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error,
 					LOCTEXT("KernelHasNoBindings", "Kernel has either no input or output bindings. Compilation aborted."));
 				Message->AddToken(FUObjectToken::Create(ConnectedNode.Node));
 				Result.Set<TSharedRef<FTokenizedMessage>>(Message);
