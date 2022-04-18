@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#if WITH_AUDIOMODULATION_METASOUND_SUPPORT
 #include "IAudioModulation.h"
 #include "IAudioProxyInitializer.h"
 #include "Internationalization/Text.h"
-#include "MetasoundDataReferenceMacro.h"
 
+#include "MetasoundDataReferenceMacro.h"
 
 namespace AudioModulation
 {
@@ -106,3 +107,4 @@ namespace AudioModulation
 
 DECLARE_METASOUND_DATA_REFERENCE_TYPES(AudioModulation::FSoundModulatorAsset, AUDIOMODULATION_API, FSoundModulatorAssetTypeInfo, FSoundModulatorAssetReadRef, FSoundModulatorAssetWriteRef)
 DECLARE_METASOUND_DATA_REFERENCE_TYPES(AudioModulation::FSoundModulationParameterAsset, AUDIOMODULATION_API, FSoundModulationParameterAssetTypeInfo, FSoundModulationParameterAssetReadRef, FSoundModulationParameterAssetWriteRef)
+#endif // WITH_AUDIOMODULATION_METASOUND_SUPPORT

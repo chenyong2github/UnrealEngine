@@ -4,6 +4,12 @@ namespace UnrealBuildTool.Rules
 {
 	public class AudioModulation : ModuleRules
 	{
+		// Set this to false & disable MetaSound plugin dependency
+		// by setting MetaSound's field '"Enabled": false' in the
+		// AudioModulation.uplugin if running Modulation without
+		// MetaSound support.
+		public static bool bIncludeMetaSoundSupport = true;
+
 		public AudioModulation(ReadOnlyTargetRules Target) : base(Target)
 		{
 			PublicDependencyModuleNames.AddRange(
@@ -21,11 +27,20 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DeveloperSettings",
 					"Engine",
-					"MetasoundFrontend",
-					"MetasoundGraphCore",
 					"SignalProcessing"
 				}
 			);
+
+			if (bIncludeMetaSoundSupport)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"MetasoundFrontend",
+						"MetasoundGraphCore"
+					}
+				);
+			}
 
 			if (Target.Type == TargetType.Editor)
 			{
@@ -39,6 +54,14 @@ namespace UnrealBuildTool.Rules
 			}
 
 			PublicDefinitions.Add("WITH_AUDIOMODULATION=1");
+			if (bIncludeMetaSoundSupport)
+			{
+				PublicDefinitions.Add("WITH_AUDIOMODULATION_METASOUND_SUPPORT=1");
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_AUDIOMODULATION_METASOUND_SUPPORT=0");
+			}
 		}
 	}
 }

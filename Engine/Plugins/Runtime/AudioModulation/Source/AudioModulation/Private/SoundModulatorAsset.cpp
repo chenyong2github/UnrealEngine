@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_AUDIOMODULATION_METASOUND_SUPPORT
 #include "SoundModulatorAsset.h"
 #include "Templates/SharedPointer.h"
 
@@ -38,3 +39,4 @@ namespace AudioModulation
 		}
 	}
 } // namespace AudioModulation
+#endif // WITH_AUDIOMODULATION_METASOUND_SUPPORT

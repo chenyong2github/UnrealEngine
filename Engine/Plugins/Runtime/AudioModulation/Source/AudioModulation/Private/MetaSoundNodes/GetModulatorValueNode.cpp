@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_AUDIOMODULATION_METASOUND_SUPPORT
 #include "AudioDefines.h"
 #include "AudioModulation.h"
 #include "MetasoundDataFactory.h"
@@ -161,3 +162,4 @@ namespace AudioModulation
 } // namespace AudioModulation
 
 #undef LOCTEXT_NAMESPACE
+#endif // WITH_AUDIOMODULATION_METASOUND_SUPPORT
