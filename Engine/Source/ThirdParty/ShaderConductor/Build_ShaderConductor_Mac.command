@@ -2,7 +2,7 @@
 
 PATH="/Applications/CMake.app/Contents/bin":"$PATH"
 
-CUR_DIR="`dirname "$0"`"
+CUR_DIR=`pwd`
 
 cd $CUR_DIR
 
@@ -16,7 +16,7 @@ if [ ! -d ninja ]; then
 fi
 
 PATH="$CUR_DIR/ninja":"$PATH"
-export PATH="$CUR_DIR/ninja":"$PATH"
+export PATH
 export MACOSX_DEPLOYMENT_TARGET=10.14
 
 cd ShaderConductor
@@ -29,12 +29,22 @@ DST_DIR="../../../../Binaries/ThirdParty/ShaderConductor/Mac"
 
 if [ "$#" -eq 1 ] && [ "$1" == "-debug" ]; then
 	# Debug
-	python3 BuildAll.py ninja clang x64 Debug
-	SRC_DIR="$SRC_DIR/ninja-osx-clang-x64-Debug"
+    if [ "$BUILD_UNIVERSAL" = true ] ; then
+        python3 BuildAll.py ninja clang mac_universal Debug
+        SRC_DIR="$SRC_DIR/ninja-osx-clang-mac_universal-Debug"
+    else
+        python3 BuildAll.py ninja clang x64 Debug
+        SRC_DIR="$SRC_DIR/ninja-osx-clang-x64-Debug"
+    fi
 else
 	# Release
-	python3 BuildAll.py ninja clang x64 RelWithDebInfo
-	SRC_DIR="$SRC_DIR/ninja-osx-clang-x64-RelWithDebInfo"
+    if [ "$BUILD_UNIVERSAL" = true ] ; then
+        python3 BuildAll.py ninja clang mac_universal RelWithDebInfo
+        SRC_DIR="$SRC_DIR/ninja-osx-clang-mac_universal-RelWithDebInfo"
+    else
+        python3 BuildAll.py ninja clang x64 RelWithDebInfo
+        SRC_DIR="$SRC_DIR/ninja-osx-clang-x64-RelWithDebInfo"
+    fi
 fi
 
 # Copy binary files from source to destination

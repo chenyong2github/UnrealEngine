@@ -167,6 +167,8 @@ def Build(hostPlatform, hostArch, buildSys, compiler, arch, configuration, tblge
 			batCmd.AddCommand("set CXX=cl.exe")
 		if (configuration == "clangformat"):
 			options = "-DSC_CLANGFORMAT=\"ON\""
+		elif "mac_universal" == arch:
+			options = " -DCMAKE_OSX_ARCHITECTURES=\"arm64;x86_64\" -DCMAKE_BUILD_TYPE=\"%s\" %s" % (configuration, tblgenOptions)
 		else:
 			options = "-DCMAKE_BUILD_TYPE=\"%s\" -DSC_ARCH_NAME=\"%s\" %s" % (configuration, arch, tblgenOptions)
 		batCmd.AddCommand("cmake -G Ninja %s ../../" % options)
@@ -224,7 +226,7 @@ if __name__ == "__main__":
 		hostArch = "x64"
 	elif (hostArch == "i386"):
 		hostArch = "x86"
-	elif (hostArch == "ARM64"):
+	elif (hostArch == "ARM64") or (hostArch == "arm64"):
 		hostArch = "arm64"
 	else:
 		LogError("Unknown host architecture %s.\n" % hostArch)
@@ -258,7 +260,7 @@ if __name__ == "__main__":
 		configuration = "Release"
 
 	tblgenPath = None
-	if (configuration != "clangformat") and (hostArch != arch) and (not ((hostArch == "x64") and (arch == "x86"))):
+	if (configuration != "clangformat") and (hostArch != arch) and (not arch == "mac_universal") and (not ((hostArch == "x64") and (arch == "x86"))):
 		# Cross compiling:
 		# Generate a project with host architecture, build clang-tblgen and llvm-tblgen, and keep the path of clang-tblgen and llvm-tblgen
 		tblgenPath = Build(hostPlatform, hostArch, buildSys, compiler, hostArch, configuration, True, None)
