@@ -62,7 +62,7 @@ DI_IMPL_READ(ReadTangentZ, float4, uint VertexIndex)
 DI_IMPL_READ(ReadColor, float4, uint VertexIndex)
 {
 	uint BufferIndex = DI_LOCAL(InputStreamStart) + VertexIndex;
-	return DI_LOCAL(ColorInputBuffer)[BufferIndex];
+	return DI_LOCAL(ColorInputBuffer)[BufferIndex] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
 }
 
 DI_IMPL_READ(ReadUV, float2, uint VertexIndex, uint UVChannelIndex)
