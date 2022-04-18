@@ -57,5 +57,10 @@ private:
 	 * Get the rate to use when we press the forward button.
 	 */
 	float GetForwardRate(UMediaPlayer* MediaPlayer) const;
+
+	/**
+	 * Get the rate to use when we press the reverse button.
+	 */
+	float GetReverseRate(UMediaPlayer* MediaPlayer) const;
 };
 
