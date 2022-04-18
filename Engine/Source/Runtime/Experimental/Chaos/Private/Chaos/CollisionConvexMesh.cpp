@@ -15,7 +15,7 @@ namespace Chaos
 
 	int32 FConvexBuilder::ComputeHorizonEpsilonFromMeshExtends = 1;
 
-	bool FConvexBuilder::bUseGeometryTConvexHull3 = false;
+	bool FConvexBuilder::bUseGeometryTConvexHull3 = true;
 
 	FAutoConsoleVariableRef CVarConvexGeometryCheckEnable(TEXT("p.Chaos.ConvexGeometryCheckEnable"), FConvexBuilder::PerformGeometryCheck, TEXT("Perform convex geometry complexity check for Chaos physics."));
 
@@ -23,11 +23,19 @@ namespace Chaos
 
 	FAutoConsoleVariableRef CVarConvexParticlesWarningThreshold(TEXT("p.Chaos.ConvexParticlesWarningThreshold"), FConvexBuilder::VerticesThreshold, TEXT("Threshold beyond which we warn about collision geometry complexity."));
 	
-	FAutoConsoleVariableRef CvarUseGeometryTConvexHull3(TEXT("p.Chaos.Convex.UseTConvexHull3Builder"), FConvexBuilder::bUseGeometryTConvexHull3, TEXT("Use the newer Geometry Tools code path for generating convex hulls.[def:false]"));
+	FAutoConsoleVariableRef CvarUseGeometryTConvexHull3(TEXT("p.Chaos.Convex.UseTConvexHull3Builder"), FConvexBuilder::bUseGeometryTConvexHull3, TEXT("Use the newer Geometry Tools code path for generating convex hulls when default build method is set.[def:true]"));
 
 
+	bool FConvexBuilder::UseConvexHull3(FConvexBuilder::EBuildMethod BuildMethod)
+	{
+		if (BuildMethod == EBuildMethod::Default && FConvexBuilder::bUseGeometryTConvexHull3)
+		{
+			return true;
+		}
+		return BuildMethod == EBuildMethod::ConvexHull3;
+	}
 
-	void FConvexBuilder::Build(const TArray<FVec3Type>& InVertices, TArray <FPlaneType>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3Type>& OutVertices, FAABB3Type& OutLocalBounds)
+	void FConvexBuilder::Build(const TArray<FVec3Type>& InVertices, TArray <FPlaneType>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3Type>& OutVertices, FAABB3Type& OutLocalBounds, EBuildMethod BuildMethod)
 	{
 		OutPlanes.Reset();
 		OutVertices.Reset();
@@ -91,12 +99,7 @@ namespace Chaos
 
 		if (NumVerticesToUse >= 4)
 		{
-			// @todo(chaos) : Experimental path for convex generation. This is still under
-			//                testing, and will eventually replace the convex generation
-			//                in chaos. Currenty defaults to off, but can be enabled with 
-			//                the cvar : p.Chaos.Convex.UseTConvexHull3Builder
-
-			if (bUseGeometryTConvexHull3) // Use the newer Geometry Tools code path for generating convex hulls.
+			if (UseConvexHull3(BuildMethod)) // Use the newer Geometry Tools code path for generating convex hulls.
 			{
 				UE::Geometry::TConvexHull3<FRealType> HullCompute;
 				if (HullCompute.Solve<FVec3Type>(*VerticesToUse))

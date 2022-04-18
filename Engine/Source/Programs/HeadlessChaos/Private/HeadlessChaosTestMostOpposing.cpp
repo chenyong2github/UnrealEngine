@@ -171,7 +171,7 @@ namespace ChaosTest
 		EXPECT_FLOAT_EQ(Position.Y, 2);
 		EXPECT_FLOAT_EQ(Position.Z, 1);
 		EXPECT_EQ(FaceIndex, INDEX_NONE);	//convex should not compute its own face index as this is too expensive
-		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01 + SMALL_NUMBER), 1);	//front face, just so happens that convex hull generates the planes in this order
+		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01 + SMALL_NUMBER), 0);	//front face, just so happens that convex hull generates the planes in this order
 
 		//simple into second triangle
 		bHit = Convex.Raycast(FVec3(0, 2, 0), FVec3(1, 0, 0), 2, 0, Time, Position, Normal, FaceIndex);
@@ -187,7 +187,7 @@ namespace ChaosTest
 		EXPECT_TRUE(bHit);
 		EXPECT_EQ(FaceIndex, INDEX_NONE);
 		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01 + SMALL_NUMBER), 3);
-		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01 + SMALL_NUMBER), 1);
+		EXPECT_EQ(Convex.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01 + SMALL_NUMBER), 0);
 
 		//again but far enough away from edge
 		bHit = Convex.Raycast(FVec3(0, 2, 0.9), FVec3(1, 0, 0), 2, 0, Time, Position, Normal, FaceIndex);
@@ -228,7 +228,7 @@ namespace ChaosTest
 			EXPECT_EQ(Position.Y, 0);
 			EXPECT_EQ(Position.Z, 2 - Time);
 			EXPECT_EQ(FaceIndex, INDEX_NONE);	//convex should not compute its own face index as this is too expensive
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 2);	//x+ face, just so happens that convex hull generates the planes in this order
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 0);	//x+ face, just so happens that convex hull generates the planes in this order
 
 			//simple into second triangle
 			bHit = Scaled.Raycast(FVec3(-2, 0, 0.5), FVec3(1, 0, 0), 3, 0, Time, Position, Normal, FaceIndex);
@@ -237,20 +237,20 @@ namespace ChaosTest
 			EXPECT_EQ(Position.Y, 0);
 			EXPECT_EQ(Position.Z, 0.5);
 			EXPECT_EQ(FaceIndex, INDEX_NONE);	//convex should not compute its own face index as this is too expensive
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 3);	//x- face, just so happens that convex hull generates the planes in this order
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);	//x- face, just so happens that convex hull generates the planes in this order
 
 			bHit = Scaled.Raycast(FVec3(-0.001, 0, 2), FVec3(0, 0, -1), 3, 0, Time, Position, Normal, FaceIndex);
 			EXPECT_TRUE(bHit);
 			EXPECT_EQ(FaceIndex, INDEX_NONE);
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 3);
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(-1, 0, 0), FaceIndex, 0.01), 2);
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(-1, 0, 0), FaceIndex, 0.01), 0);
 
 			//again but far enough away from edge
 			bHit = Scaled.Raycast(FVec3(-0.1, 0, 2), FVec3(0, 0, -1), 3, 0, Time, Position, Normal, FaceIndex);
 			EXPECT_TRUE(bHit);
 			EXPECT_EQ(FaceIndex, INDEX_NONE);
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 3);
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(-1, 0, 0), FaceIndex, 0.01), 3);	//too far to care about other face
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(-1, 0, 0), FaceIndex, 0.01), 1);	//too far to care about other face
 		}
 
 		//non-uniform scale
@@ -264,7 +264,7 @@ namespace ChaosTest
 			EXPECT_EQ(Position.Y, 0);
 			EXPECT_EQ(Position.Z, 2 - Time);
 			EXPECT_EQ(FaceIndex, INDEX_NONE);	//convex should not compute its own face index as this is too expensive
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 2);	//x+ face, just so happens that convex hull generates the planes in this order
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(0, 0, -1), FaceIndex, 0.01), 0);	//x+ face, just so happens that convex hull generates the planes in this order
 
 			//simple into second triangle
 			bHit = Scaled.Raycast(FVec3(-2, 0, 0.5), FVec3(1, 0, 0), 3, 0, Time, Position, Normal, FaceIndex);
@@ -273,20 +273,20 @@ namespace ChaosTest
 			EXPECT_EQ(Position.Y, 0);
 			EXPECT_EQ(Position.Z, 0.5);
 			EXPECT_EQ(FaceIndex, INDEX_NONE);	//convex should not compute its own face index as this is too expensive
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 3);	//x- face, just so happens that convex hull generates the planes in this order
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);	//x- face, just so happens that convex hull generates the planes in this order
 
 			bHit = Scaled.Raycast(FVec3(-0.001, 0, 2), FVec3(0, 0, -1), 3, 0, Time, Position, Normal, FaceIndex);
 			EXPECT_TRUE(bHit);
 			EXPECT_EQ(FaceIndex, INDEX_NONE);
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 3);
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(-1, 0, 0), FaceIndex, 0.01), 2);
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(-1, 0, 0), FaceIndex, 0.01), 0);
 
 			//again but far enough away from edge
 			bHit = Scaled.Raycast(FVec3(-0.1, 0, 2), FVec3(0, 0, -1), 3, 0, Time, Position, Normal, FaceIndex);
 			EXPECT_TRUE(bHit);
 			EXPECT_EQ(FaceIndex, INDEX_NONE);
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 3);
-			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(-1, 0, 0), FaceIndex, 0.01), 3);	//too far to care about other face
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 1);
+			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(-1, 0, 0), FaceIndex, 0.01), 1);	//too far to care about other face
 		}
 
 		// Reflection

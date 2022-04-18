@@ -100,7 +100,7 @@ namespace Chaos
 			ComputeUnitMassInertiaTensorAndRotationOfMass(Volume);
 		}
 
-		FConvex(const TArray<FVec3Type>& InVertices, const FReal InMargin)
+		FConvex(const TArray<FVec3Type>& InVertices, const FReal InMargin, FConvexBuilder::EBuildMethod BuildMethod = FConvexBuilder::EBuildMethod::Default)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 		{
 			const int32 NumVertices = InVertices.Num();
@@ -110,23 +110,17 @@ namespace Chaos
 			}
 
 			TArray<TArray<int32>> FaceIndices;
-			FConvexBuilder::Build(InVertices, Planes, FaceIndices, Vertices, LocalBoundingBox);
+			FConvexBuilder::Build(InVertices, Planes, FaceIndices, Vertices, LocalBoundingBox, BuildMethod);
 			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
 
 			// @todo(chaos): this only works with triangles. Fix that an we can run MergeFaces before calling this
 			CalculateVolumeAndCenterOfMass(Vertices, FaceIndices, Volume, CenterOfMass);
 
-			// @todo(chaos): should be based on size, or passed in
-			if (!FConvexBuilder::bUseGeometryTConvexHull3)
-			{
-				// @todo(convex) : TConvexHull3 does not need to merge faces, and 
-				// it appears that this code path can leave the convex in an
-				// undefined state. We should consider removing the merge faces when
-				// we transition to the UE::Geometry convex generation. 
-				const FRealType DistanceTolerance = 1.0f;
-				FConvexBuilder::MergeFaces(Planes, FaceIndices, Vertices, DistanceTolerance);
-				CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
-			}
+			// it appears that this code path can leave the convex in an
+			// undefined state.
+			const FRealType DistanceTolerance = 1.0f;
+			FConvexBuilder::MergeFaces(Planes, FaceIndices, Vertices, DistanceTolerance);
+			CHAOS_ENSURE(Planes.Num() == FaceIndices.Num());
 
 			CreateStructureData(MoveTemp(FaceIndices));
 

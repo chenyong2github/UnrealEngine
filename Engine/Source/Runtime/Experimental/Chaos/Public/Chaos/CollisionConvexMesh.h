@@ -40,6 +40,13 @@ namespace Chaos
 
 	public:
 
+		enum EBuildMethod
+		{
+			Default = 0,	// use what is set as default from cvars
+			Original = 1,	// original method, fast but has issues
+			ConvexHull3 = 2,// new method, slower but less issues
+		};
+
 		class Params
 		{
 		public:
@@ -252,8 +259,10 @@ namespace Chaos
 
 	public:
 
-		static CHAOS_API void Build(const TArray<FVec3Type>& InVertices, TArray<FPlaneType>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3Type>& OutVertices, FAABB3Type& OutLocalBounds);
+		static CHAOS_API void Build(const TArray<FVec3Type>& InVertices, TArray<FPlaneType>& OutPlanes, TArray<TArray<int32>>& OutFaceIndices, TArray<FVec3Type>& OutVertices, FAABB3Type& OutLocalBounds, EBuildMethod BuildMethod = EBuildMethod::Default);
 
+		static bool UseConvexHull3(EBuildMethod BuildMethod);
+		
 		static void BuildConvexHull(const TArray<FVec3Type>& InVertices, TArray<TVec3<int32>>& OutIndices, const Params& InParams = Params())
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Chaos::BuildConvexHull);
