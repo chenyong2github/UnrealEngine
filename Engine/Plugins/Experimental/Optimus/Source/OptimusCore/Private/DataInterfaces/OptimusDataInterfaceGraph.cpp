@@ -101,12 +101,12 @@ void UOptimusGraphDataInterface::GetHLSL(FString& OutHLSL) const
 	// Add uniforms.
 	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
-		OutHLSL += FString::Printf(TEXT("float DI_LOCAL(%s);\n"), *Variable.Name);
+		OutHLSL += FString::Printf(TEXT("%s DI_LOCAL(%s);\n"), *Variable.ValueType->ToString(), *Variable.Name);
 	}
 	// Add function getters.
 	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
-		OutHLSL += FString::Printf(TEXT("DI_IMPL_READ(Read%s, float, )\n{\n\treturn DI_LOCAL(%s);\n}\n"), *Variable.Name, *Variable.Name);
+		OutHLSL += FString::Printf(TEXT("DI_IMPL_READ(Read%s, %s, )\n{\n\treturn DI_LOCAL(%s);\n}\n"), *Variable.Name, *Variable.ValueType->ToString(), *Variable.Name);
 	}
 }
 
