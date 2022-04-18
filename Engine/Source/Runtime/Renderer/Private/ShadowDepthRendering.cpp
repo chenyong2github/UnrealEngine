@@ -280,9 +280,9 @@ static TAutoConsoleVariable<int32> CVarSupportPointLightWholeSceneShadows(
 static bool MobileUsesPerspectiveCorrectShadowPermutation(EShaderPlatform ShaderPlatform)
 {
 	// Required only for spotlight shadows on mobile
-	static FShaderPlatformCachedIniValue<bool> MobileEnableMovableSpotlightsShadowIniValue(TEXT("r.Mobile.EnableMovableSpotlightsShadow"));
-	const bool bMobileEnableMovableSpotlightsShadow = (MobileEnableMovableSpotlightsShadowIniValue.Get(ShaderPlatform) != 0);
-	return bMobileEnableMovableSpotlightsShadow;
+	static FShaderPlatformCachedIniValue<bool> MobileEnableMovableSpotlightShadowsIniValue(TEXT("r.Mobile.EnableMovableSpotlightsShadow"));
+	const bool bMobileEnableMovableSpotlightShadows = (MobileEnableMovableSpotlightShadowsIniValue.Get(ShaderPlatform) != 0);
+	return bMobileEnableMovableSpotlightShadows;
 }
 
 

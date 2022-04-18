@@ -59,8 +59,8 @@ void OverrideWithDefaultMaterialForShadowDepth(
 	ERHIFeatureLevel::Type InFeatureLevel
 	);
 
-void InitMobileSDFShadowingOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& Extent);
-void ReleaseMobileSDFShadowingOutputs();
+void InitMobileShadowProjectionOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& Extent);
+void ReleaseMobileShadowProjectionOutputs();
 
 enum EShadowDepthRenderMode
 {
@@ -1176,7 +1176,7 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
-			|| (bUseTransmission == 0 && SubPixelShadow == 0 && IsMobileDistanceFieldEnabled(Parameters.Platform));
+			|| (bUseTransmission == 0 && SubPixelShadow == 0 && MobileUsesShadowMaskTexture(Parameters.Platform));
 	}
 
 	/**
@@ -1190,6 +1190,9 @@ public:
 		OutEnvironment.SetDefine(TEXT("SUBPIXEL_SHADOW"), (uint32)(SubPixelShadow ? 1 : 0));
 		OutEnvironment.SetDefine(TEXT("USE_FADE_PLANE"), (uint32)(bUseFadePlane ? 1 : 0));
 		OutEnvironment.SetDefine(TEXT("USE_TRANSMISSION"), (uint32)(bUseTransmission ? 1 : 0));
+
+		const bool bMobileVulkanForceDepthRead = IsVulkanMobilePlatform(Parameters.Platform) && MobileUsesShadowMaskTexture(Parameters.Platform);
+		OutEnvironment.SetDefine(TEXT("FORCE_DEPTH_TEXTURE_READS"), (uint32)(bMobileVulkanForceDepthRead ? 1 : 0));
 	}
 
 	/**

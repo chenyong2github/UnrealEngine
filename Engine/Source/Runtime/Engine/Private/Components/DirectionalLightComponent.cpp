@@ -353,8 +353,10 @@ public:
 				const bool bUsingDeferredRenderer = Scene == nullptr ? true : Scene->GetShadingPath() == EShadingPath::Deferred;
 				bUseWholeSceneCSMForMovableObjects = Component->Mobility == EComponentMobility::Stationary && !Component->bUseInsetShadowsForMovableObjects && !bUsingDeferredRenderer;
 			}
+			// Modulated shadow is only supported on mobile forward
+			bCastModulatedShadows = Component->bCastModulatedShadows && (Scene == nullptr || !IsMobileDeferredShadingEnabled(Scene->GetShaderPlatform()));
 		}
-		bCastModulatedShadows = Component->bCastModulatedShadows;
+		
 		ModulatedShadowColor = FLinearColor(Component->ModulatedShadowColor);
 		ShadowAmount = Component->ShadowAmount;
 	}

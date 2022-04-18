@@ -2529,12 +2529,6 @@ static TAutoConsoleVariable<int32> CVarMobileShadingPath(
 		 "1: Deferred shading"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarMobileNumDynamicPointLights(
-	TEXT("r.MobileNumDynamicPointLights"),
-	4,
-	TEXT("The number of dynamic point lights to support on mobile devices. Setting this to 0 for games which do not require dynamic point lights will reduce the number of shaders generated."), 
-	ECVF_RenderThreadSafe | ECVF_ReadOnly);
-
 static TAutoConsoleVariable<int32> CVarMobileEnableStaticAndCSMShadowReceivers(
 	TEXT("r.Mobile.EnableStaticAndCSMShadowReceivers"),
 	1,
@@ -2620,6 +2614,17 @@ static TAutoConsoleVariable<int32> CVarMobileAllowPerPixelShadingModels(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarMobileForwardSupportLocalLights(
+	TEXT("r.Mobile.Forward.EnableLocalLights"),
+	1,
+	TEXT("Enable local lights support on mobile forward. 0 is disabled, 1 is enabled (default)"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarMobileForwardEnableClusteredReflections(
+	TEXT("r.Mobile.Forward.EnableClusteredReflections"),
+	0,
+	TEXT("Whether to enable clustered reflections on mobile forward, it's always supported on mobile deferred."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarMobileSupportGPUScene(
 	TEXT("r.Mobile.SupportGPUScene"),

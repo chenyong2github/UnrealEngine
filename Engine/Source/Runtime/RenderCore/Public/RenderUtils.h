@@ -503,6 +503,14 @@ RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platfo
 
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform);
 
+RENDERCORE_API bool IsMobileMovableSpotlightShadowsEnabled(const FStaticShaderPlatform Platform);
+
+RENDERCORE_API bool MobileForwardEnableLocalLights(const FStaticShaderPlatform Platform);
+
+RENDERCORE_API bool MobileEnableClusteredReflections(const FStaticShaderPlatform Platform);
+
+RENDERCORE_API bool MobileUsesShadowMaskTexture(const FStaticShaderPlatform Platform);
+
 RENDERCORE_API bool MobileBasePassAlwaysUsesCSM(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool SupportsGen4TAA(const FStaticShaderPlatform Platform);

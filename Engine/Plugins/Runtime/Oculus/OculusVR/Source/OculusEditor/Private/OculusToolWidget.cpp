@@ -285,7 +285,6 @@ void SOculusToolWidget::RebuildLayout()
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileShaderStaticAndCSMShadowReceivers")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileShaderAllowDistanceFieldShadows")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileShaderAllowMovableDirectionalLights")));
-	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileNumDynamicPointLights")));
 	AddSimpleSetting(box, SimpleSettings.Find(FName("MobileMovableSpotlights")));
 
 	box = NewCategory(scroller, FText::GetEmpty());
@@ -544,30 +543,6 @@ void SOculusToolWidget::Construct(const FArguments& InArgs)
 	SimpleSettings.Find(FName("MobileShaderAllowMovableDirectionalLights"))->actions.Add(
 		{ LOCTEXT("MobileShaderAllowMovableDirectionalLightsButton", "Disable Support Movable Directional Lights"),
 		&SOculusToolWidget::MobileShaderAllowMovableDirectionalLightsDisable }
-	);
-
-	SimpleSettings.Add(FName("MobileNumDynamicPointLights"), {
-		FName("MobileNumDynamicPointLights"),
-		LOCTEXT("MobileNumDynamicPointLightsDescription", "Your project does not contain any movable lights. Max Movable Spotlights / Point Lights can be set to 0 to reduce shader permutations."),
-		&SOculusToolWidget::MobileNumDynamicPointLightsVisibility,
-		TArray<SimpleSettingAction>(),
-		(int)SupportFlags::SupportMobile
-		});
-	SimpleSettings.Find(FName("MobileNumDynamicPointLights"))->actions.Add(
-		{ LOCTEXT("MobileNumDynamicPointLightsButton", "Set Max Movable Spotlights / Point Lights to 0"),
-		&SOculusToolWidget::MobileNumDynamicPointLightsFix }
-	);
-
-	SimpleSettings.Add(FName("MobileMovableSpotlights"), {
-		FName("MobileMovableSpotlights"),
-		LOCTEXT("MobileMovableSpotlightsDescription", "Your project does not contain any movable lights. Support Movable Spotlights can be disabled to reduce shader permutations."),
-		&SOculusToolWidget::MobileMovableSpotlightsDisableVisibility,
-		TArray<SimpleSettingAction>(),
-		(int)SupportFlags::SupportMobile
-		});
-	SimpleSettings.Find(FName("MobileMovableSpotlights"))->actions.Add(
-		{ LOCTEXT("MobileMovableSpotlightsButton", "Disable Support Movable Spotlights"),
-		&SOculusToolWidget::MobileMovableSpotlightsDisable }
 	);
 
 	auto scroller = SNew(SScrollBox);
@@ -932,64 +907,6 @@ EVisibility SOculusToolWidget::MobileShaderAllowMovableDirectionalLightsVisibili
 {
 	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
 	if (!Settings->bMobileAllowMovableDirectionalLights)
-	{
-		return EVisibility::Collapsed;
-	}
-
-	for (const auto& kvp : DynamicLights)
-	{
-		AActor* owner = kvp.Value->GetOwner();
-		if (owner != NULL && owner->IsRootComponentMovable())
-		{
-			return EVisibility::Collapsed;
-		}
-	}
-
-	return EVisibility::Visible;
-}
-
-FReply SOculusToolWidget::MobileNumDynamicPointLightsFix(bool text)
-{
-	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	Settings->MobileNumDynamicPointLights = 0;
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, MobileNumDynamicPointLights)), Settings->GetDefaultConfigFilename());
-	SuggestRestart();
-	return FReply::Handled();
-}
-
-EVisibility SOculusToolWidget::MobileNumDynamicPointLightsVisibility(FName tag) const
-{
-	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	if (Settings->MobileNumDynamicPointLights == 0)
-	{
-		return EVisibility::Collapsed;
-	}
-
-	for (const auto& kvp : DynamicLights)
-	{
-		AActor* owner = kvp.Value->GetOwner();
-		if (owner != NULL && owner->IsRootComponentMovable())
-		{
-			return EVisibility::Collapsed;
-		}
-	}
-
-	return EVisibility::Visible;
-}
-
-FReply SOculusToolWidget::MobileMovableSpotlightsDisable(bool text)
-{
-	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	Settings->bMobileAllowMovableSpotlights = false;
-	Settings->UpdateSinglePropertyInConfigFile(Settings->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(URendererSettings, bMobileAllowMovableSpotlights)), Settings->GetDefaultConfigFilename());
-	SuggestRestart();
-	return FReply::Handled();
-}
-
-EVisibility SOculusToolWidget::MobileMovableSpotlightsDisableVisibility(FName tag) const
-{
-	URendererSettings* Settings = GetMutableDefault<URendererSettings>();
-	if (!Settings->bMobileAllowMovableSpotlights)
 	{
 		return EVisibility::Collapsed;
 	}

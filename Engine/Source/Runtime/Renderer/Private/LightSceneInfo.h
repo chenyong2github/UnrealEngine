@@ -13,6 +13,7 @@
 #include "Math/GenericOctree.h"
 #include "PrimitiveSceneProxy.h"
 #include "Templates/UniquePtr.h"
+#include "SceneRendering.h"
 
 class FLightPrimitiveInteraction;
 class FLightSceneInfo;
@@ -340,8 +341,7 @@ public:
 		return (uint32)LightSceneInfo->Id;
 	}
 
-	// Update the mobile movable point light uniform buffer before it is used for mobile base pass rendering.
-	void ConditionalUpdateMobileMovablePointLightUniformBuffer(const class FSceneRenderer* SceneRenderer);
+	bool SetupMobileMovableLocalLightShadowParameters(const FViewInfo& View, const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos, FMobileMovableLocalLightShadowParameters& MobileMovableLocalLightShadowParameters) const;
 
 	bool ShouldRecordShadowSubjectsForMobile() const;
 };

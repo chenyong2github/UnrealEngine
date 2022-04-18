@@ -132,13 +132,6 @@ protected:
 	TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> ShadowSubjectPrimitives;
 };
 
-class FMobileMovableSpotLightsShadowInfo
-{
-public:
-	FVector4f ShadowBufferSize = FVector4f(0.0f);
-	FRHITexture* ShadowDepthTexture = nullptr;
-};
-
 /** Information about a visible light which is specific to the view it's visible in. */
 class FVisibleLightViewInfo
 {
@@ -1299,9 +1292,6 @@ public:
 
 	FHairStrandsViewData HairStrandsViewData;
 
-	//Spotlight shadow info for mobile.
-	FMobileMovableSpotLightsShadowInfo MobileMovableSpotLightsShadowInfo;
-
 	/** Parameters for exponential height fog. */
 	FVector4f ExponentialFogParameters;
 	FVector4f ExponentialFogParameters2;
@@ -1908,6 +1898,7 @@ public:
 	virtual void RenderHitProxies(FRDGBuilder& GraphBuilder) {}
 	virtual bool ShouldRenderVelocities() const { return false; }
 	virtual bool ShouldRenderPrePass() const { return false; }
+	virtual bool AllowSimpleLights() const;
 
 	/** Creates a scene renderer based on the current feature level. */
 	RENDERER_API static FSceneRenderer* CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
@@ -2318,6 +2309,7 @@ public:
 
 	virtual bool ShouldRenderPrePass() const override;
 
+	virtual bool AllowSimpleLights() const override;
 
 protected:
 	/** Finds the visible dynamic shadows for each view. */
@@ -2395,9 +2387,6 @@ protected:
 
 	void RenderPixelProjectedReflection(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture, FRDGTextureRef PixelProjectedReflectionTexture, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy);
 
-	/** Before SetupMobileBasePassAfterShadowInit, we need to update the uniform buffer and shadow info for all movable point lights.*/
-	void UpdateMovablePointLightUniformBufferAndShadowInfo();
-
 	void RenderMobileShadowProjections(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
 private:
 	const bool bGammaSpace;
@@ -2417,6 +2406,9 @@ private:
 	bool bIsFullDepthPrepassEnabled;
 	bool bIsMaskedOnlyDepthPrepassEnabled;
 	bool bRequiresSceneDepthAux;
+	bool bEnableClusteredLocalLights;
+	bool bEnableClusteredReflections;
+	bool bRequiresShadowProjections;
 
 	ETranslucencyPass::Type StandardTranslucencyPass;
 	EMeshPass::Type StandardTranslucencyMeshPass;

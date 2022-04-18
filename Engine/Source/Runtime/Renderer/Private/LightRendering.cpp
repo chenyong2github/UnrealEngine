@@ -773,11 +773,14 @@ static bool LightRequiresDenosier(const FLightSceneInfo& LightSceneInfo)
 	return false;
 }
 
-
+bool FSceneRenderer::AllowSimpleLights() const
+{
+	return bAllowSimpleLights == 1;
+}
 
 void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLights, bool bShadowedLightsInClustered)
 {
-	if (bAllowSimpleLights)
+	if (AllowSimpleLights())
 	{
 		GatherSimpleLights(ViewFamily, Views, OutSortedLights.SimpleLights);
 	}

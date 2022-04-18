@@ -168,7 +168,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	LightList(NULL),
 	LastRenderTime(-FLT_MAX),
 	Scene(InScene),
-	NumMobileMovablePointLights(0),
+	NumMobileMovableLocalLights(0),
 	bShouldRenderInMainPass(InComponent->SceneProxy->ShouldRenderInMainPass()),
 	bVisibleInRealTimeSkyCapture(InComponent->SceneProxy->IsVisibleInRealTimeSkyCaptures()),
 #if RHI_RAYTRACING

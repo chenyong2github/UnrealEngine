@@ -160,7 +160,6 @@ bool FMaterialQualityOverrides::HasAnyOverridesSet() const
 		|| bForceDisableLMDirectionality != DefaultOverrides.bForceDisableLMDirectionality
 		|| bForceFullyRough != DefaultOverrides.bForceFullyRough
 		|| bForceNonMetal != DefaultOverrides.bForceNonMetal
-		|| bForceLQReflections != DefaultOverrides.bForceLQReflections
 		|| bForceDisablePreintegratedGF != DefaultOverrides.bForceDisablePreintegratedGF
 		|| bDisableMaterialNormalCalculation != DefaultOverrides.bDisableMaterialNormalCalculation
 		|| bDiscardQualityDuringCook != DefaultOverrides.bDiscardQualityDuringCook;

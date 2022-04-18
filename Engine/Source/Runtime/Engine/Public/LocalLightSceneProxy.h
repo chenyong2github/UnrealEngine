@@ -53,6 +53,8 @@ public:
 
 	virtual bool GetPerObjectProjectedShadowInitializer(const FBoxSphereBounds& SubjectBounds, class FPerObjectProjectedShadowInitializer& OutInitializer) const override;
 
+	virtual bool IsLocalLight() const override;
+
 protected:
 
 	/** Updates the light scene info's radius from the component. */

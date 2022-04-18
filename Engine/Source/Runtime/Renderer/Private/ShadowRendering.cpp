@@ -2371,7 +2371,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 
 void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View)
 {
-	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows || View.bIsPlanarReflection)
+	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows || View.bIsPlanarReflection || bRequiresShadowProjections)
 	{
 		return;
 	}
@@ -2420,7 +2420,7 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 	}
 }
 
-void InitMobileSDFShadowingOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& Extent)
+void InitMobileShadowProjectionOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& Extent)
 {
 	const FIntPoint& BufferSize = Extent;
 
@@ -2435,6 +2435,8 @@ void FMobileSceneRenderer::RenderMobileShadowProjections(
 	FRDGBuilder& GraphBuilder, 
 	FRDGTextureRef SceneDepthTexture)
 {
+	RDG_RHI_EVENT_SCOPE(GraphBuilder, RenderMobileShadowProjections);
+
 	FRDGTextureRef ScreenShadowMaskTexture = GraphBuilder.RegisterExternalTexture(GScreenSpaceShadowMaskTextureMobileOutputs.ScreenSpaceShadowMaskTextureMobile, TEXT("ScreenSpaceShadowMaskTextureMobile"));
 	AddClearRenderTargetPass(GraphBuilder, ScreenShadowMaskTexture);
 
@@ -2447,15 +2449,19 @@ void FMobileSceneRenderer::RenderMobileShadowProjections(
 		const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 		const FLightSceneProxy* LightSceneProxy = LightSceneInfo->Proxy;
 
-		RenderShadowProjections(GraphBuilder, SceneTextures,
-			ScreenShadowMaskTexture,
-			nullptr,
-			LightSceneInfo,
-			false);
+		// Local light shadows don't render to shadow mask texture on mobile deferred
+		if (LightSceneProxy->GetLightType() == LightType_Directional || !IsMobileDeferredShadingEnabled(ShaderPlatform))
+		{
+			RenderShadowProjections(GraphBuilder, SceneTextures,
+				ScreenShadowMaskTexture,
+				nullptr,
+				LightSceneInfo,
+				true);
+		}
 	}
 }
 
-void ReleaseMobileSDFShadowingOutputs()
+void ReleaseMobileShadowProjectionOutputs()
 {
 	GScreenSpaceShadowMaskTextureMobileOutputs.Release();
 }

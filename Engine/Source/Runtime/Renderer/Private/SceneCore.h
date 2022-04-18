@@ -41,7 +41,7 @@ public:
 	bool HasTranslucentObjectShadow() const { return bHasTranslucentObjectShadow; }
 	bool HasInsetObjectShadow() const { return bHasInsetObjectShadow; }
 	bool CastsSelfShadowOnly() const { return bSelfShadowOnly; }
-	bool IsMobileDynamicPointLight() const { return bMobileDynamicPointLight; }
+	bool IsMobileDynamicLocalLight() const { return bMobileDynamicLocalLight; }
 
 	FORCEINLINE bool IsNaniteMeshProxy() const { return bNaniteMeshProxy; }
 	FORCEINLINE bool ProxySupportsGPUScene() const { return bProxySupportsGPUScene; }
@@ -112,8 +112,8 @@ private:
 	/** True if the primitive only shadows itself. */
 	uint32 bSelfShadowOnly : 1;
 
-	/** True this is a mobile dynamic point light interaction. */
-	uint32 bMobileDynamicPointLight : 1;
+	/** True this is a mobile dynamic local light interaction. */
+	uint32 bMobileDynamicLocalLight : 1;
 
 	/** If true then all meshes drawn by the primitive scene proxy are Nanite meshes. Caches the result of FPrimitiveSceneProxy::IsNaniteMesh() */
 	uint32 bNaniteMeshProxy : 1;

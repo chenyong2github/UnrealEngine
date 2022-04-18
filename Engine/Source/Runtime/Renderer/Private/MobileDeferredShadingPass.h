@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RenderGraphDefinitions.h"
+#include "SceneRendering.h"
 
 class FMobileSceneTextureUniformParameters;
 class FRDGBuilder;
@@ -21,4 +22,5 @@ void MobileDeferredShadingPass(
 	int32 NumViews,
 	const FViewInfo& View,
 	const FScene& Scene, 
-	const FSortedLightSetSceneInfo &SortedLightSet);
+	const FSortedLightSetSceneInfo& SortedLightSet,
+	const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos);

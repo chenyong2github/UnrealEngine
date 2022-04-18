@@ -125,7 +125,7 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessMobileShadingPath(const FMes
 	typedef FUniformLightMapPolicy LightMapPolicyType;
 
 	const FVertexFactory* VertexFactory = MeshBatch.VertexFactory;
-	const int32 NumMovablePointLights = 0;
+	const bool bEnableLocalLights = false;
 	const bool bEnableSkyLight = false;
 
 	TMeshProcessorShaders<
@@ -133,7 +133,7 @@ bool FEditorPrimitivesBasePassMeshProcessor::ProcessMobileShadingPath(const FMes
 		TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>> BasePassShaders;
 	if (!MobileBasePass::GetShaders(
 		NoLightmapPolicy.GetIndirectPolicy(),
-		NumMovablePointLights,
+		bEnableLocalLights,
 		Material,
 		VertexFactory->GetType(),
 		bEnableSkyLight,

@@ -172,7 +172,7 @@ FLightPrimitiveInteraction::FLightPrimitiveInteraction(
 	bHasTranslucentObjectShadow(bInHasTranslucentObjectShadow),
 	bHasInsetObjectShadow(bInHasInsetObjectShadow),
 	bSelfShadowOnly(false),
-	bMobileDynamicPointLight(false)
+	bMobileDynamicLocalLight(false)
 {
 	// Determine whether this light-primitive interaction produces a shadow.
 	if(PrimitiveSceneInfo->Proxy->HasStaticLighting())
@@ -237,19 +237,21 @@ FLightPrimitiveInteraction::FLightPrimitiveInteraction(
 		if (PrimitiveSceneInfo->Scene->GetShadingPath() == EShadingPath::Mobile && LightSceneInfo->Proxy->IsMovable())
 		{
 			const uint8 LightType = LightSceneInfo->Proxy->GetLightType();
-			static const auto MobileEnableMovableSpotLightsVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnableMovableSpotLights"));
 
 			const bool bIsValidLightType = 
 				   LightType == LightType_Rect
 				|| LightType == LightType_Point
-				|| (LightType == LightType_Spot && MobileEnableMovableSpotLightsVar->GetValueOnRenderThread());
+				|| LightType == LightType_Spot;
 
 			if( bIsValidLightType )
 			{
-				bMobileDynamicPointLight = true;
-				PrimitiveSceneInfo->NumMobileMovablePointLights++;
-				// The mobile renderer needs to update the shader bindings of movable point lights uniform buffer, so we have to update any static meshes in drawlists
-				PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();
+				bMobileDynamicLocalLight = true;
+				PrimitiveSceneInfo->NumMobileMovableLocalLights++;
+				if (PrimitiveSceneInfo->NumMobileMovableLocalLights == 1)
+				{
+					// Update static meshes to choose the shader permutation with local lights.
+					PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();
+				}
 			} 
 		}
 	}
@@ -306,12 +308,15 @@ FLightPrimitiveInteraction::~FLightPrimitiveInteraction()
 
 	FlushCachedShadowMapData();
 
-	// Track mobile movable point light count
-	if (bMobileDynamicPointLight)
+	// Track mobile movable local light count
+	if (bMobileDynamicLocalLight)
 	{
-		PrimitiveSceneInfo->NumMobileMovablePointLights--;
-		// The mobile renderer needs to use a different shader for movable point lights, so we have to update any static meshes in drawlists
-		PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();
+		PrimitiveSceneInfo->NumMobileMovableLocalLights--;
+		if (PrimitiveSceneInfo->NumMobileMovableLocalLights == 0)
+		{
+			// Update static meshes to choose the shader permutation without local lights.
+			PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();
+		}
 	}
 
 	// Remove the interaction from the light's interaction list.

@@ -10,6 +10,9 @@
 #define MobileSceneTextures MobileBasePass.SceneTextures
 #define EyeAdaptationStruct MobileBasePass
 
+#define ForwardLightData MobileBasePass.Forward
+#define ReflectionStruct MobileBasePass.ReflectionsParameters
+
 #ifndef MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF
 #define MOBILE_QL_FORCE_DISABLE_PREINTEGRATEDGF 0
 #endif
@@ -23,17 +26,11 @@
 #endif
 
 #define APPLY_AO 0
-#define APPLY_DISTANCE_FIELD 0
 
 #if (MATERIALBLENDING_MASKED || MATERIALBLENDING_SOLID) 
 	#if ENABLE_AMBIENT_OCCLUSION && !MATERIAL_SHADINGMODEL_UNLIT
 		#undef APPLY_AO
 		#define APPLY_AO 1
-	#endif
-
-	#if ENABLE_DISTANCE_FIELD
-		#undef APPLY_DISTANCE_FIELD
-		#define APPLY_DISTANCE_FIELD 1
 	#endif
 #endif
 
@@ -47,30 +44,8 @@
 	#define SIMPLE_SINGLE_LAYER_WATER 1
 #endif
 
-#if MAX_DYNAMIC_POINT_LIGHTS > 0
-#if VARIABLE_NUM_DYNAMIC_POINT_LIGHTS
-int NumDynamicPointLights;
-#else
-#define NumDynamicPointLights NUM_DYNAMIC_POINT_LIGHTS
-#endif
-
-#define DynamicSpotLightShadowTexture		MobileDirectionalLight.DirectionalLightShadowTexture
-#define DynamicSpotLightShadowSampler		MobileDirectionalLight.DirectionalLightShadowSampler
-#define DynamicSpotLightShadowBufferSize	MobileDirectionalLight.DirectionalLightShadowSize
-
-#define LightShadowType_PointLight	1
-#define LightShadowType_SpotLight	2
-#define LightShadowType_Shadow		4
-#define ValidLightType (LightShadowType_PointLight | LightShadowType_SpotLight)
-
-#endif
-
-#ifndef PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS
-#define PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS 0
-#endif
-
-#ifndef PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS_SHADOW
-#define PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS_SHADOW 0
+#ifndef PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHT_SHADOWS
+#define PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHT_SHADOWS 0
 #endif
 
 #ifndef MOBILE_QL_FORCE_FULLY_ROUGH
@@ -79,18 +54,14 @@ int NumDynamicPointLights;
 #ifndef MOBILE_QL_FORCE_NONMETAL
 #define MOBILE_QL_FORCE_NONMETAL 0
 #endif
-#ifndef MOBILE_QL_FORCE_LQ_REFLECTIONS
-#define MOBILE_QL_FORCE_LQ_REFLECTIONS 0
-#endif
 #ifndef MOBILE_QL_DISABLE_MATERIAL_NORMAL
 #define MOBILE_QL_DISABLE_MATERIAL_NORMAL 0
 #endif
 
 #define FULLY_ROUGH (MATERIAL_FULLY_ROUGH || MOBILE_QL_FORCE_FULLY_ROUGH)
 #define NONMETAL (MATERIAL_NONMETAL || MOBILE_QL_FORCE_NONMETAL)
-#define HQ_REFLECTIONS (MATERIAL_HQ_FORWARD_REFLECTION_CAPTURES && !MOBILE_QL_FORCE_LQ_REFLECTIONS)
 #define FORCE_VERTEX_NORMAL (MOBILE_QL_DISABLE_MATERIAL_NORMAL)
-#define SUPPORT_SPOTLIGHTS_SHADOW (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS_SHADOW
+#define SUPPORT_SPOTLIGHTS_SHADOW (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHT_SHADOWS
 #define DEFERRED_SHADING_PATH (MOBILE_DEFERRED_SHADING && ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER))
 
 // SceneDepthAux always enabled for IOS, on other platforms only enabled when in forward and MobileHDR=true
@@ -103,283 +74,17 @@ int NumDynamicPointLights;
 #endif
 #define TRANSLUCENCY_NON_DIRECTIONAL (MATERIALBLENDING_ANY_TRANSLUCENT && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
-#define ALLOW_CUBE_REFLECTIONS HQ_REFLECTIONS
-
 #include "SHCommon.ush"
 #include "/Engine/Generated/Material.ush"
 #include "MobileBasePassCommon.ush"
 #include "/Engine/Generated/VertexFactory.ush"
-#include "ReflectionEnvironmentShared.ush"
 #include "LightmapCommon.ush"  
-#include "MobileShadingModels.ush"
-#include "DynamicLightingCommon.ush"
-#include "PlanarReflectionShared.ush"
+#include "MobileLightingCommon.ush"
 #include "ShadingModelsMaterial.ush"
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	#include "SingleLayerWaterShading.ush"
 #endif
-
-/** Prenormalized capture of the scene that's closest to the object being rendered. */
-#if HQ_REFLECTIONS
-	#define MAX_HQ_REFLECTIONS 3
-	TextureCube ReflectionCubemap0;
-	SamplerState ReflectionCubemapSampler0;
-	TextureCube ReflectionCubemap1;
-	SamplerState ReflectionCubemapSampler1;
-	TextureCube ReflectionCubemap2;
-	SamplerState ReflectionCubemapSampler2;
-	// x,y,z - inverted average brightness for 0, 1, 2; w - sky cube texture max mips.
-	float4 ReflectionAverageBrigtness;
-	float4 ReflectanceMaxValueRGBM;
-	float4 ReflectionPositionsAndRadii[MAX_HQ_REFLECTIONS];
-	float4 ReflectionTilePositions[MAX_HQ_REFLECTIONS];
-		#if ALLOW_CUBE_REFLECTIONS
-		float4x4 CaptureBoxTransformArray[MAX_HQ_REFLECTIONS];
-		float4 CaptureBoxScalesArray[MAX_HQ_REFLECTIONS];
-		#endif
-#endif
-
-#ifndef MOBILE_USE_CSM_BRANCH
-#define MOBILE_USE_CSM_BRANCH 0
-#endif
-
-#if MOBILE_USE_CSM_BRANCH
-	uint UseCSM;
-#endif
-
-bool IsCSMEnabled()
-{
-#if MOBILE_USE_CSM_BRANCH
-	return UseCSM != 0u;
-#else
-	return true;
-#endif
-}
-
-// Half precision version for mobile's high quality reflection
-half MobileComputeMixingWeight(half IndirectIrradiance, half AverageBrightness, half Roughness)
-{
-	// Mirror surfaces should have no mixing, so they match reflections from other sources (SSR, planar reflections)
-	half MixingAlpha = smoothstep(0, 1, saturate(Roughness * View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.x + View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.y));
-
-	// We have high frequency directional data but low frequency spatial data in the envmap.
-	// We have high frequency spatial data but low frequency directional data in the lightmap.
-	// So, we combine the two for the best of both. This is done by removing the low spatial frequencies from the envmap and replacing them with the lightmap data.
-	// This is only done with luma so as to not get odd color shifting.
-	half MixingWeight = IndirectIrradiance / max(AverageBrightness, .0001f);
-
-	MixingWeight = min(MixingWeight, View.ReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight.z);
-
-	return lerp(1.0f, MixingWeight, MixingAlpha);
-}
-
-half3 GetLookupVectorForBoxCaptureMobile(half3 ReflectionVector, half3 WorldPosition, half4 BoxCapturePositionAndRadius, half4x4 RelativeWorldToBox, half4 BoxScales, half3 LocalCaptureOffset, out half DistanceAlpha)
-{
-	// Transform the ray into the local space of the box, where it is an AABB with mins at -1 and maxs at 1
-	half3 LocalRayStart = mul(half4(WorldPosition - BoxCapturePositionAndRadius.xyz, 1), RelativeWorldToBox).xyz;
-	half3 LocalRayDirection = mul(half4(ReflectionVector, 0), RelativeWorldToBox).xyz;
-
-	half3 InvRayDir = rcp(LocalRayDirection);
-
-	//find the ray intersection with each of the 3 planes defined by the minimum extrema.
-	half3 FirstPlaneIntersections = -InvRayDir - LocalRayStart * InvRayDir;
-	//find the ray intersection with each of the 3 planes defined by the maximum extrema.
-	half3 SecondPlaneIntersections = InvRayDir - LocalRayStart * InvRayDir;
-	//get the furthest of these intersections along the ray
-	half3 FurthestPlaneIntersections = max(FirstPlaneIntersections, SecondPlaneIntersections);
-
-	//clamp the intersections to be between RayOrigin and RayEnd on the ray
-	half Intersection = min(FurthestPlaneIntersections.x, min(FurthestPlaneIntersections.y, FurthestPlaneIntersections.z));
-
-	// Compute the reprojected vector
-	half3 IntersectPosition = WorldPosition + Intersection * ReflectionVector;
-	half3 ProjectedCaptureVector = IntersectPosition - (BoxCapturePositionAndRadius.xyz + LocalCaptureOffset);
-
-	// Compute the distance from the receiving pixel to the box for masking
-	// Apply local to world scale to take scale into account without transforming back to world space
-	// Shrink the box by the transition distance (BoxScales.w) so that the fade happens inside the box influence area	
-	half BoxDistance = ComputeDistanceFromBoxToPoint(-(BoxScales.xyz - .5f * BoxScales.w), BoxScales.xyz - .5f * BoxScales.w, LocalRayStart * BoxScales.xyz);
-
-	// Setup a fade based on receiver distance to the box, hides the box influence shape
-	DistanceAlpha = 1.0 - smoothstep(0, .7f * BoxScales.w, BoxDistance);
-
-	return ProjectedCaptureVector;
-}
-
-half3 GetLookupVectorForSphereCaptureMobile(half3 ReflectionVector, half3 WorldPosition, half4 SphereCapturePositionAndRadius, half NormalizedDistanceToCapture, half3 LocalCaptureOffset, inout half DistanceAlpha)
-{
-	half3 ProjectedCaptureVector = ReflectionVector;
-	half ProjectionSphereRadius = SphereCapturePositionAndRadius.w;
-	half SphereRadiusSquared = ProjectionSphereRadius * ProjectionSphereRadius;
-
-	half3 LocalPosition = WorldPosition - SphereCapturePositionAndRadius.xyz;
-	half LocalPositionSqr = dot(LocalPosition, LocalPosition);
-
-	// Find the intersection between the ray along the reflection vector and the capture's sphere
-	half3 QuadraticCoef;
-	QuadraticCoef.x = 1;
-	QuadraticCoef.y = dot(ReflectionVector, LocalPosition);
-	QuadraticCoef.z = LocalPositionSqr - SphereRadiusSquared;
-
-	half Determinant = QuadraticCoef.y * QuadraticCoef.y - QuadraticCoef.z;
-
-	// Only continue if the ray intersects the sphere
-	FLATTEN
-		if (Determinant >= 0)
-		{
-			half FarIntersection = sqrt(Determinant) - QuadraticCoef.y;
-
-			half3 LocalIntersectionPosition = LocalPosition + FarIntersection * ReflectionVector;
-			ProjectedCaptureVector = LocalIntersectionPosition - LocalCaptureOffset;
-			// Note: some compilers don't handle smoothstep min > max (this was 1, .6)
-			//DistanceAlpha = 1.0 - smoothstep(.6, 1, NormalizedDistanceToCapture);
-
-			half x = saturate(2.5 * NormalizedDistanceToCapture - 1.5);
-			DistanceAlpha = 1 - x * x*(3 - 2 * x);
-		}
-	return ProjectedCaptureVector;
-}
-
-half3 GetMobileSkyLightReflection(half3 ReflectionVector, half Roughness, half CubemapMaxMip)
-{
-	half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, CubemapMaxMip);
-	half3 Reflection = MobileReflectionCapture.Texture.SampleLevel(MobileReflectionCapture.TextureSampler, ReflectionVector, AbsoluteSpecularMip).rgb;
-	return Reflection * ResolvedView.SkyLightColor.rgb;
-}
-
-void GatherSpecularIBL(FMaterialPixelParameters MaterialParameters
-	, TextureCube ReflectionCube
-	, SamplerState ReflectionSampler
-	, half Roughness
-	, half IndirectIrradiance
-	, half MaxValue
-	, inout half4 ImageBasedReflections
-#if HQ_REFLECTIONS
-	, int ReflectionIndex
-	, inout half3 ExtraIndirectSpecular
-	, inout half2 CompositedAverageBrightness
-#endif
-)
-{
-	half3 ProjectedCaptureVector = MaterialParameters.ReflectionVector;
-
-#if HQ_REFLECTIONS
-
-	float CaptureRadius = ReflectionPositionsAndRadii[ReflectionIndex].w;
-	if (CaptureRadius == 0.0f)
-	{
-		return;
-	}
-	
-	half DistanceAlpha = 0.0;
-
-	FLWCVector3 CaptureWorldPosition = MakeLWCVector3(ReflectionTilePositions[ReflectionIndex].xyz, ReflectionPositionsAndRadii[ReflectionIndex].xyz);
-	float3 CaptureTranslatedWorldPosition = LWCToFloat(LWCAdd(CaptureWorldPosition, ResolvedView.PreViewTranslation));
-
-	half3 CaptureVector = MaterialParameters.WorldPosition_CamRelative - CaptureTranslatedWorldPosition;
-	half CaptureVectorLength = sqrt(dot(CaptureVector, CaptureVector));
-	half NormalizedDistanceToCapture = saturate(CaptureVectorLength / CaptureRadius);
-	ProjectedCaptureVector = GetOffSpecularPeakReflectionDir(MaterialParameters.WorldNormal, MaterialParameters.ReflectionVector, Roughness);
-	
-	if (CaptureVectorLength < CaptureRadius || CaptureRadius <= 0)
-	{
-#if ALLOW_CUBE_REFLECTIONS
-		if (CaptureBoxScalesArray[ReflectionIndex].w > 0)
-		{
-			ProjectedCaptureVector = GetLookupVectorForBoxCaptureMobile(MaterialParameters.ReflectionVector, MaterialParameters.WorldPosition_CamRelative, float4(CaptureTranslatedWorldPosition, CaptureRadius), CaptureBoxTransformArray[ReflectionIndex], CaptureBoxScalesArray[ReflectionIndex], half3(0.0f, 0.0f, 0.0f), DistanceAlpha);
-		}
-		else
-#endif
-		{
-			ProjectedCaptureVector = GetLookupVectorForSphereCaptureMobile(MaterialParameters.ReflectionVector, MaterialParameters.WorldPosition_CamRelative, float4(CaptureTranslatedWorldPosition, CaptureRadius), NormalizedDistanceToCapture, half3(0.0f, 0.0f, 0.0f), DistanceAlpha);
-		}
-	}
-	half UsingSkyReflection = CaptureRadius <= 0.0f;
-
-#else
-	half UsingSkyReflection = MobileReflectionCapture.Params.y > 0.0f;
-#endif
-
-	// Fetch from cubemap and convert to linear HDR
-	half3 SpecularIBL = 0.0f;
-
-
-	if (UsingSkyReflection)
-	{
-		// Apply sky colour if the reflection map is the sky.
-#if HQ_REFLECTIONS
-		half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, ReflectionAverageBrigtness.w);
-		half4 SpecularIBLSample = ReflectionCube.SampleLevel(ReflectionSampler, ProjectedCaptureVector, AbsoluteSpecularMip);
-		ExtraIndirectSpecular = SpecularIBLSample.rgb * ResolvedView.SkyLightColor.rgb;
-#else
-		half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, MobileReflectionCapture.Params.y);
-		half4 SpecularIBLSample = ReflectionCube.SampleLevel(ReflectionSampler, ProjectedCaptureVector, AbsoluteSpecularMip);
-		ImageBasedReflections.rgb = SpecularIBLSample.rgb * ResolvedView.SkyLightColor.rgb * ImageBasedReflections.a;
-#endif
-	}
-	else
-	{
-		half AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, ResolvedView.ReflectionCubemapMaxMip);
-		half4 SpecularIBLSample = ReflectionCube.SampleLevel(ReflectionSampler, ProjectedCaptureVector, AbsoluteSpecularMip);
-
-		SpecularIBL = RGBMDecode(SpecularIBLSample, MaxValue);
-		SpecularIBL = SpecularIBL * SpecularIBL;
-#if HQ_REFLECTIONS
-		SpecularIBL *= DistanceAlpha;
-
-		// Under operator (back to front)
-		ImageBasedReflections.rgb += SpecularIBL * ImageBasedReflections.a;
-		ImageBasedReflections.a *= 1 - DistanceAlpha;
-
-		half AverageBrightness = ReflectionAverageBrigtness[ReflectionIndex];
-		CompositedAverageBrightness.x += AverageBrightness * DistanceAlpha * CompositedAverageBrightness.y;
-		CompositedAverageBrightness.y *= 1 - DistanceAlpha;
-#else
-		half ReflectionCaptureBrightness = MobileReflectionCapture.Params.w;
-		ImageBasedReflections.rgb = SpecularIBL * ImageBasedReflections.a * ReflectionCaptureBrightness;
-#if ALLOW_STATIC_LIGHTING
-		//To keep ImageBasedReflectionLighting conherence with PC, use ComputeMixingWeight instead of InvReflectionAverageBrightness to calulate the IBL constribution
-		ImageBasedReflections.rgb *= MobileComputeMixingWeight(IndirectIrradiance, MobileReflectionCapture.Params.x, Roughness);
-#endif
-		ImageBasedReflections.rgb *= View.IndirectLightingColorScale;
-#endif
-	}
-}
-
-#if HQ_REFLECTIONS
-void BlendReflectionCaptures(FMaterialPixelParameters MaterialParameters, half Roughness, half IndirectIrradiance, inout half4 ImageBasedReflections)
-{
-	half2 CompositedAverageBrightness = half2(0.0f, 1.0f);
-	half3 ExtraIndirectSpecular = 0.0f;
-
-	GatherSpecularIBL(MaterialParameters, ReflectionCubemap0, ReflectionCubemapSampler0, Roughness, IndirectIrradiance, ReflectanceMaxValueRGBM.x, ImageBasedReflections, 0, ExtraIndirectSpecular, CompositedAverageBrightness);
-	GatherSpecularIBL(MaterialParameters, ReflectionCubemap1, ReflectionCubemapSampler1, Roughness, IndirectIrradiance, ReflectanceMaxValueRGBM.y, ImageBasedReflections, 1, ExtraIndirectSpecular, CompositedAverageBrightness);
-	GatherSpecularIBL(MaterialParameters, ReflectionCubemap2, ReflectionCubemapSampler2, Roughness, IndirectIrradiance, ReflectanceMaxValueRGBM.z, ImageBasedReflections, 2, ExtraIndirectSpecular, CompositedAverageBrightness);
-
-	ImageBasedReflections.rgb *= View.IndirectLightingColorScale;
-	CompositedAverageBrightness.x *= Luminance(View.IndirectLightingColorScale);
-
-#if ALLOW_STATIC_LIGHTING
-	ImageBasedReflections.rgb *= ComputeMixingWeight(IndirectIrradiance, CompositedAverageBrightness.x, Roughness);
-#endif
-
-	ImageBasedReflections.rgb += ImageBasedReflections.a * ExtraIndirectSpecular;
-}
-#endif // HQ_REFLECTIONS
-
-half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameters, half Roughness, half IndirectIrradiance, half CompositeAlpha)
-{
-	half4 ImageBasedReflections = half4(0, 0, 0, CompositeAlpha);
-
-#if HQ_REFLECTIONS
-	BlendReflectionCaptures(MaterialParameters, Roughness, IndirectIrradiance, ImageBasedReflections);
-#else
-	GatherSpecularIBL(MaterialParameters, MobileReflectionCapture.Texture, MobileReflectionCapture.TextureSampler, Roughness, IndirectIrradiance, MobileReflectionCapture.Params.z, ImageBasedReflections);
-#endif
-
-	return ImageBasedReflections.rgb;
-}
 
 half3 FrameBufferBlendOp(half4 Source)
 {
@@ -410,109 +115,6 @@ void ApplyPixelDepthOffsetForMobileBasePass(inout FMaterialPixelParameters Mater
 {
     float PixelDepthOffset = ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);
 }
-
-half ApplyPrecomputedShadowMask(half ShadowMap, half Shadow)
-{
-#if ALLOW_STATIC_LIGHTING
-	return min(ShadowMap, Shadow);
-#else
-	return ShadowMap;
-#endif
-}
-
-#if MAX_DYNAMIC_POINT_LIGHTS > 0
-void AccumulateLightingOfDynamicPointLight(
-FMaterialPixelParameters MaterialParameters, 
-FMobileShadingModelContext ShadingModelContext,
-FGBufferData GBuffer,
-float4 LightPositionAndInvRadius,
-float4 LightTilePosition,
-float4 LightColorAndFalloffExponent, 
-float4 SpotLightDirectionAndSpecularScale, 
-float4 SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
-#if SUPPORT_SPOTLIGHTS_SHADOW
-FPCFSamplerSettings Settings,
-float4 SpotLightShadowSharpenAndShadowFadeFraction,
-float4 SpotLightShadowmapMinMax,
-float4x4 SpotLightShadowWorldToShadowMatrix,
-#endif
-inout FMobileLightAccumulator MobileLightAccumulator)
-{
-	uint LightShadowType = SpotLightAnglesAndSoftTransitionScaleAndLightShadowType.w;
-
-	float FadedShadow = 1.0f;
-	
-	FLWCVector3 LightWorldPosition = MakeLWCVector3(LightTilePosition.xyz, LightPositionAndInvRadius.xyz);
-	FLWCVector3 LightTranslatedWorldPosition = LWCAdd(LightWorldPosition, ResolvedView.PreViewTranslation);
-	float3 LocalPosition = MaterialParameters.WorldPosition_CamRelative - LWCToFloat(LightTranslatedWorldPosition);
-	float3 ToLight = -LocalPosition;
-	float DistanceSqr = dot(ToLight, ToLight);
-	half3 L = ToLight * rsqrt(DistanceSqr);
-	float3 PointH = normalize(float3(MaterialParameters.CameraVector + L));
-
-	half PointNoL = max(0, dot(MaterialParameters.WorldNormal, L));
-	float PointNoH = max(0, dot(MaterialParameters.WorldNormal, PointH));
-	half PointVoH = max(0, dot(MaterialParameters.CameraVector, PointH));
-
-#if SUPPORT_SPOTLIGHTS_SHADOW
-		if ((LightShadowType & LightShadowType_Shadow) == LightShadowType_Shadow)
-		{
-
-			float4 HomogeneousShadowPosition = mul(float4(LocalPosition, 1), SpotLightShadowWorldToShadowMatrix);
-			float2 ShadowUVs = HomogeneousShadowPosition.xy / HomogeneousShadowPosition.w;
-			if (all(ShadowUVs >= SpotLightShadowmapMinMax.xy && ShadowUVs <= SpotLightShadowmapMinMax.zw))
-			{
-				// Clamp pixel depth in light space for shadowing opaque, because areas of the shadow depth buffer that weren't rendered to will have been cleared to 1
-				// We want to force the shadow comparison to result in 'unshadowed' in that case, regardless of whether the pixel being shaded is in front or behind that plane
-				// Invert ShadowZ as the shadow space has been changed (but not yet the filtering code)
-				float ShadowZ = 1.0f - HomogeneousShadowPosition.z;
-				float LightSpacePixelDepthForOpaque = min(ShadowZ, 0.99999f);
-				Settings.SceneDepth = LightSpacePixelDepthForOpaque;
-				Settings.TransitionScale = SpotLightAnglesAndSoftTransitionScaleAndLightShadowType.z * lerp(SpotLightShadowSharpenAndShadowFadeFraction.z, 1.0, PointNoL);
-
-				half Shadow = MobileShadowPCF(ShadowUVs, Settings);
-
-				Shadow = saturate((Shadow - 0.5) * SpotLightShadowSharpenAndShadowFadeFraction.x + 0.5);
-
-				FadedShadow = lerp(1.0f, Square(Shadow), SpotLightShadowSharpenAndShadowFadeFraction.y);
-			}
-		}
-#endif
-
-	if ((LightShadowType & ValidLightType) != 0)
-	{
-		#if TRANSLUCENCY_NON_DIRECTIONAL
-			PointNoL = 1.f;
-		#endif
-
-		float Attenuation;
-
-		if (LightColorAndFalloffExponent.w == 0)
-		{
-			// Sphere falloff (technically just 1/d2 but this avoids inf)
-			Attenuation = 1 / (DistanceSqr + 1);
-
-			float LightRadiusMask = Square(saturate(1 - Square(DistanceSqr * (LightPositionAndInvRadius.w * LightPositionAndInvRadius.w))));
-			Attenuation *= LightRadiusMask;
-		}
-		else
-		{
-			Attenuation = RadialAttenuation(ToLight * LightPositionAndInvRadius.w, LightColorAndFalloffExponent.w);
-		}
-
-#if PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS
-		if ((LightShadowType & LightShadowType_SpotLight) == LightShadowType_SpotLight)
-		{
-			Attenuation *= SpotAttenuation(L, -SpotLightDirectionAndSpecularScale.xyz, SpotLightAnglesAndSoftTransitionScaleAndLightShadowType.xy);
-		}
-#endif
-
-		FMobileDirectLighting Lighting = MobileIntegrateBxDF(ShadingModelContext, GBuffer, PointNoL, PointNoH, PointVoH, MaterialParameters.CameraVector, L, FadedShadow);
-
-		MobileLightAccumulator_Add(MobileLightAccumulator, Lighting.Diffuse, Lighting.Specular * SpotLightDirectionAndSpecularScale.w, (Attenuation)*LightColorAndFalloffExponent.rgb * (1.0 / PI));
-	}
-}
-#endif
 
 // Force early depth_stencil for non-masked material that use VT feedback
 #if (NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED) && !(MATERIALBLENDING_MASKED || USE_DITHERED_LOD_TRANSITION || OUTPUT_PIXEL_DEPTH_OFFSET)
@@ -798,196 +400,44 @@ void Main(
 	EncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD, OutGBufferE, OutGBufferF, OutGBufferVelocity);
 #else
 
-#if ENABLE_SKY_LIGHT
-	half3 SkyDiffuseLighting = GetSkySHDiffuseSimple(MaterialParameters.WorldNormal);
-	half3 DiffuseLookup = SkyDiffuseLighting * ResolvedView.SkyLightColor.rgb;
-	IndirectIrradiance += Luminance(DiffuseLookup);
-#endif
+	half4 DynamicShadowFactors = 1.0f;
+	half NoL = 0.0f;
 
-	half3 L = MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xyz;
-	half NoL = max(0, dot(MaterialParameters.WorldNormal, L));
-	float3 H = normalize(float3(MaterialParameters.CameraVector + L));
-	half NoH = max(0, dot(MaterialParameters.WorldNormal, H));
-	half VoH = max(0, dot(MaterialParameters.CameraVector, H));
+	// Directional light
+	AccumulateDirectionalLighting(GBuffer, ShadingModelContext, MaterialParameters.CameraVector, MaterialParameters.ScreenPosition, SvPosition, Shadow, DynamicShadowFactors, NoL, MobileLightAccumulator);
 
-	float  ShadowPositionZ = 0;
-#if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER && !APPLY_DISTANCE_FIELD
-	// Cascaded Shadow Map
-	if (IsCSMEnabled())
-	{
-		half ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w, NoL, ShadowPositionZ);
-		Shadow = ApplyPrecomputedShadowMask(ShadowMap, Shadow);
-	}
-#endif /* DIRECTIONAL_LIGHT_CSM */
+	// Skylight
+	bool bApplySkyLighting = !(MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP) || NoL == 0;
+	AccumulateSkyLighting(GBuffer, ShadingModelContext, ResolvedView.SkyLightColor.rgb, bApplySkyLighting, IndirectIrradiance, MobileLightAccumulator);
 
-#if APPLY_DISTANCE_FIELD
-	if (ShadowPositionZ == 0)
-	{
-		half ShadowMap = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition)).x;
-		ShadowMap = DecodeLightAttenuation(ShadowMap);
-		Shadow = ApplyPrecomputedShadowMask(ShadowMap, Shadow);
-	}
-#endif
+	float2 LocalPosition = SvPosition.xy - ResolvedView.ViewRectMin.xy;
+	uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), SvPosition.w);
 
-#if TRANSLUCENCY_NON_DIRECTIONAL
-	NoL = 1.f;
-	ShadingModelContext.SpecularColor = 0.f;
-#endif
-
-	// Direct Lighting (Directional light) + IBL
-	FMobileDirectLighting Lighting = MobileIntegrateBxDF(ShadingModelContext, GBuffer, NoL, NoH, VoH, MaterialParameters.CameraVector, L, Shadow);
-	// MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z saves SpecularScale for direction light.
-	MobileLightAccumulator_Add(MobileLightAccumulator, Lighting.Diffuse, Lighting.Specular * MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z, MobileDirectionalLight.DirectionalLightColor.rgb);
-
-#if	!(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR)
-	// Environment map has been prenormalized, scale by lightmap luminance
-	half3 SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, GBuffer.Roughness, IndirectIrradiance, 1.0f);
-	half3 SpecularIBLLighting = (half3)0.0f;
-	#if MATERIAL_PLANAR_FORWARD_REFLECTIONS
-		BRANCH
-		if (abs(dot(PlanarReflectionStruct.ReflectionPlane.xyz, 1)) > .0001f)
-		{
-			half4 PlanarReflection = GetPlanarReflection(MaterialParameters.WorldPosition_CamRelative, MaterialParameters.WorldNormal, GBuffer.Roughness);
-			// Planar reflections win over reflection environment
-			SpecularIBL = lerp(SpecularIBL, PlanarReflection.rgb, PlanarReflection.a);
-		}
-	#endif
-	#if MATERIAL_SHADINGMODEL_CLEAR_COAT
-		half F = GetEnvBRDF(0.04, ShadingModelContext.ClearCoatRoughness, ShadingModelContext.NoV).x;
-		F *= ShadingModelContext.ClearCoat;
-		half LayerAttenuation = (1 - F);
-
-		// Fc * Vis
-		#if FORWARDSHADING_USE_HQ_ENV_BRDF
-			half2 AB = PreIntegratedGF.SampleLevel(PreIntegratedGFSampler, float2(ShadingModelContext.NoV, GBuffer.Roughness), 0).rg;
-		#else
-			half2 AB = EnvBRDFApproxLazarov(GBuffer.Roughness, ShadingModelContext.NoV);
-		#endif
-		SpecularIBLLighting += SpecularIBL * LayerAttenuation * (ShadingModelContext.SpecularColor * AB.x + AB.y * saturate(50 * ShadingModelContext.SpecularColor.g) * (1 - ShadingModelContext.ClearCoat));
-
-		SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, ShadingModelContext.ClearCoatRoughness, IndirectIrradiance, F);
-		SpecularIBLLighting += SpecularIBL;
-
-	#else
-		SpecularIBLLighting += SpecularIBL * ShadingModelContext.EnvBrdf;
-	#endif
-
-		MobileLightAccumulator_Add(MobileLightAccumulator, 0.0f, SpecularIBLLighting, 1.0f);
+	// Reflection IBL
+#if !(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR)
+	AccumulateReflection(GBuffer
+		, ShadingModelContext
+		, MaterialParameters.WorldPosition_CamRelative
+		, MaterialParameters.ReflectionVector
+		, IndirectIrradiance
+		, GridIndex
+		, MobileLightAccumulator);
 #endif
 
 	// Local lights
-#if MAX_DYNAMIC_POINT_LIGHTS > 0 && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-
-		if(NumDynamicPointLights > 0)
-		{
-
-			#if SUPPORT_SPOTLIGHTS_SHADOW
-				FPCFSamplerSettings Settings;
-				Settings.ShadowDepthTexture = DynamicSpotLightShadowTexture;
-				Settings.ShadowDepthTextureSampler = DynamicSpotLightShadowSampler;
-				Settings.ShadowBufferSize = DynamicSpotLightShadowBufferSize;
-				Settings.bSubsurface = false;
-				Settings.bTreatMaxDepthUnshadowed = false;
-				Settings.DensityMulConstant = 0;
-				Settings.ProjectionDepthBiasParameters = 0;
-			#endif
-
-			AccumulateLightingOfDynamicPointLight(MaterialParameters, 
-												ShadingModelContext,
-												GBuffer,
-												MobileMovablePointLight0.LightPositionAndInvRadius,
-												MobileMovablePointLight0.LightTilePosition,
-												MobileMovablePointLight0.LightColorAndFalloffExponent, 
-												MobileMovablePointLight0.SpotLightDirectionAndSpecularScale, 
-												MobileMovablePointLight0.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
-												#if SUPPORT_SPOTLIGHTS_SHADOW
-												Settings,
-												MobileMovablePointLight0.SpotLightShadowSharpenAndShadowFadeFraction,
-												MobileMovablePointLight0.SpotLightShadowmapMinMax,
-												MobileMovablePointLight0.SpotLightShadowWorldToShadowMatrix,
-												#endif
-												MobileLightAccumulator);
-
-			if (MAX_DYNAMIC_POINT_LIGHTS > 1 && NumDynamicPointLights > 1)
-			{
-				AccumulateLightingOfDynamicPointLight(MaterialParameters, 
-														ShadingModelContext,
-														GBuffer,
-													MobileMovablePointLight1.LightPositionAndInvRadius, 
-													MobileMovablePointLight1.LightTilePosition,
-														MobileMovablePointLight1.LightColorAndFalloffExponent, 
-														MobileMovablePointLight1.SpotLightDirectionAndSpecularScale, 
-														MobileMovablePointLight1.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
-														#if SUPPORT_SPOTLIGHTS_SHADOW
-														Settings,
-														MobileMovablePointLight1.SpotLightShadowSharpenAndShadowFadeFraction,
-														MobileMovablePointLight1.SpotLightShadowmapMinMax,
-														MobileMovablePointLight1.SpotLightShadowWorldToShadowMatrix,
-														#endif
-														MobileLightAccumulator);
-
-				if (MAX_DYNAMIC_POINT_LIGHTS > 2 && NumDynamicPointLights > 2)
-				{
-					AccumulateLightingOfDynamicPointLight(MaterialParameters, 
-															ShadingModelContext,
-															GBuffer,
-															MobileMovablePointLight2.LightPositionAndInvRadius, 
-														MobileMovablePointLight2.LightTilePosition,
-															MobileMovablePointLight2.LightColorAndFalloffExponent, 
-															MobileMovablePointLight2.SpotLightDirectionAndSpecularScale, 
-															MobileMovablePointLight2.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
-															#if SUPPORT_SPOTLIGHTS_SHADOW
-															Settings,
-															MobileMovablePointLight2.SpotLightShadowSharpenAndShadowFadeFraction,
-															MobileMovablePointLight2.SpotLightShadowmapMinMax,
-															MobileMovablePointLight2.SpotLightShadowWorldToShadowMatrix,
-															#endif
-															MobileLightAccumulator);
-
-					if (MAX_DYNAMIC_POINT_LIGHTS > 3 && NumDynamicPointLights > 3)
-					{
-						AccumulateLightingOfDynamicPointLight(MaterialParameters, 
-																ShadingModelContext,
-																GBuffer,
-																MobileMovablePointLight3.LightPositionAndInvRadius, 
-															MobileMovablePointLight3.LightTilePosition,
-																MobileMovablePointLight3.LightColorAndFalloffExponent, 
-																MobileMovablePointLight3.SpotLightDirectionAndSpecularScale, 
-																MobileMovablePointLight3.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType, 
-																#if SUPPORT_SPOTLIGHTS_SHADOW
-																Settings,
-																MobileMovablePointLight3.SpotLightShadowSharpenAndShadowFadeFraction,
-																MobileMovablePointLight3.SpotLightShadowmapMinMax,
-																MobileMovablePointLight3.SpotLightShadowWorldToShadowMatrix,
-																#endif
-																MobileLightAccumulator);
-					}
-				}
-			}
-		}
-
-#endif
-
-	// Skylight
-#if ENABLE_SKY_LIGHT
-	//@mw todo
-	// TODO: Also need to do specular.
-	#if MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP
-	if (NoL == 0)
+#if  !MATERIAL_SHADINGMODEL_SINGLELAYERWATER && ENABLE_CLUSTERED_LIGHTS
 	{
-	#endif
+		const uint EyeIndex = 0;
+		const FCulledLightsGridData CulledLightGridData = GetCulledLightsGrid(GridIndex, EyeIndex);
+		half4 LocalLightDynamicShadowFactors = 1.0f;
 
-	#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-		ShadingModelContext.WaterDiffuseIndirectLuminance += SkyDiffuseLighting;
-	#endif
-		half3 DiffuseColorForSky = ShadingModelContext.DiffuseColor;
-	#if MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN
-		DiffuseColorForSky += ShadingModelContext.SubsurfaceColor;
-	#endif
-		MobileLightAccumulator_Add(MobileLightAccumulator, SkyDiffuseLighting, 0.0f, half3(ResolvedView.SkyLightColor.rgb) * DiffuseColorForSky * MaterialAO);
-	#if MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP
+		#if USE_SHADOWMASKTEXTURE
+			LocalLightDynamicShadowFactors = DynamicShadowFactors;
+		#endif
+		
+		uint LightingChannelMask = GetPrimitive_LightingChannelMask(MaterialParameters.PrimitiveId);
+		AccumulateLightGridLocalLighting(CulledLightGridData, ShadingModelContext, GBuffer, MaterialParameters.WorldPosition_CamRelative, MaterialParameters.CameraVector, EyeIndex, 0, LocalLightDynamicShadowFactors, LightingChannelMask, MobileLightAccumulator);
 	}
-	#endif
 #endif
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER

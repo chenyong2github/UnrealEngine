@@ -38,7 +38,6 @@ public:
 		, bForceFullyRough(false)
 		, bForceNonMetal(false)
 		, bForceDisableLMDirectionality(false)
-		, bForceLQReflections(false)
 		, bForceDisablePreintegratedGF(false)
 		, bDisableMaterialNormalCalculation(false)
 		, MobileShadowQuality(EMobileShadowQuality::PCF_3x3)
@@ -59,9 +58,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Disable Lightmap directionality"), Category = "Quality")
 	bool bForceDisableLMDirectionality;
-
-	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Force low quality reflections"), Category = "Quality")
-	bool bForceLQReflections;
 
 	UPROPERTY(EditAnywhere, Config, Meta = (DisplayName = "Force not use preintegrated GF for simple IBL"), Category = "Quality")
 	bool bForceDisablePreintegratedGF;

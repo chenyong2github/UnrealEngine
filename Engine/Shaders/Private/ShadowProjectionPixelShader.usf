@@ -337,7 +337,7 @@ void Main(
 	// RETURN_COLOR not needed unless writing to SceneColor;
 	float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction * PerObjectDistanceFadeFraction);
 
-#if FORWARD_SHADING
+#if FORWARD_SHADING || SHADING_PATH_MOBILE 
 	float LightInfluenceMask = GetLightInfluenceMask(TranslateWorldPosition);
 	// Constrain shadowing from this light to pixels inside the light's influence, since other non-overlapping lights are packed into the same channel
 	FadedShadow = lerp(1, FadedShadow, LightInfluenceMask);

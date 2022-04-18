@@ -1007,6 +1007,20 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConfigRestartRequired = true))
 		uint32 bMobileEnableMovableLightCSMShaderCulling : 1;
 
+	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
+		ConsoleVariable = "r.Mobile.Forward.EnableLocalLights",
+		DisplayName = "Enable local lights support on mobile forward",
+		ToolTip = "Enable local lights support with clustered lighting on mobile forward. 0 is disabled, 1 is enabled (default). Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+		uint32 bMobileForwardEnableLocalLights : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
+		ConsoleVariable = "r.Mobile.Forward.EnableClusteredReflections",
+		DisplayName = "Enable clustered reflections on mobile forward",
+		ToolTip = "Whether to enable clustered reflections on mobile forward, it's always supported on mobile deferred. Changing this setting requires restarting the editor.",
+		ConfigRestartRequired = true))
+		uint32 bMobileForwardEnableClusteredReflections : 1;
+
 	UPROPERTY(config, EditAnywhere, Category = MobileShaderPermutationReduction, meta = (
 		ConsoleVariable = "r.Mobile.EnableNoPrecomputedLightingCSMShader",
 		DisplayName = "Support CSM on levels with Force No Precomputed Lighting enabled",
@@ -1030,20 +1044,6 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bMobileAllowMovableDirectionalLights : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = MobileShaderPermutationReduction, meta = (
-		ConsoleVariable = "r.MobileNumDynamicPointLights", DisplayName = "Max Movable Spotlights / Point Lights", ClampMax = 4,
-		ToolTip = "The number of dynamic spotlights or point lights to support on mobile devices. Setting this to 0 for games which do not require dynamic spotlights or point lights will reduce the number of shaders generated. Changing this setting requires restarting the editor.",
-		ConfigRestartRequired = true))
-		uint32 MobileNumDynamicPointLights;
-
-	UPROPERTY(config, EditAnywhere, Category = MobileShaderPermutationReduction, meta = (
-		ConsoleVariable = "r.Mobile.EnableMovableSpotlights",
-		DisplayName = "Support Movable Spotlights",
-		ToolTip = "Generate shaders for primitives to receive lighting from movable spotlights. This incurs an additional cost when processing movable lights. Changing this setting requires restarting the editor.",
-		ConfigRestartRequired = true))
-		uint32 bMobileAllowMovableSpotlights : 1;
-
-	UPROPERTY(config, EditAnywhere, Category = MobileShaderPermutationReduction, meta = (
-		EditCondition = "bMobileAllowMovableSpotlights",
 		ConsoleVariable = "r.Mobile.EnableMovableSpotlightsShadow",
 		DisplayName = "Support Movable SpotlightShadows",
 		ToolTip = "Generate shaders for primitives to receive shadow from movable spotlights. Changing this setting requires restarting the editor.",

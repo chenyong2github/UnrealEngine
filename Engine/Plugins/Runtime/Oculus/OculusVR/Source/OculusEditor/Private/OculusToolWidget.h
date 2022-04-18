@@ -126,12 +126,6 @@ protected:
 	FReply MobileShaderAllowMovableDirectionalLightsDisable(bool text);
 	EVisibility MobileShaderAllowMovableDirectionalLightsVisibility(FName tag) const;
 
-	FReply MobileNumDynamicPointLightsFix(bool text);
-	EVisibility MobileNumDynamicPointLightsVisibility(FName tag) const;
-
-	FReply MobileMovableSpotlightsDisable(bool text);
-	EVisibility MobileMovableSpotlightsDisableVisibility(FName tag) const;
-
 	FReply SelectLight(FString lightName);
 	FReply IgnoreLight(FString lightName);
 	

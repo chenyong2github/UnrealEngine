@@ -814,7 +814,6 @@ public:
 
 	/* 
 	 * Forward renderer: enables multiple parallax-corrected reflection captures that blend together.
-	 * Mobile renderer: blend between nearest 3 reflection captures, but reduces the number of samplers available to the material as two more samplers will be used for reflection cubemaps.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = ForwardShading, meta = (DisplayName = "High Quality Reflections"))
 	uint8 bUseHQForwardReflections : 1;

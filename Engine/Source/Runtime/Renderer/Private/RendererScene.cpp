@@ -1185,7 +1185,6 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	NumUnbuiltReflectionCaptures(0)
 ,	NumMobileStaticAndCSMLights_RenderThread(0)
 ,	NumMobileMovableDirectionalLights_RenderThread(0)
-,	MobileWholeSceneShadowAtlasSize(0, 0)
 ,	GPUSkinCache(nullptr)
 ,	SceneLODHierarchy(this)
 ,	RuntimeVirtualTexturePrimitiveHideMaskEditor(0)
@@ -1863,7 +1862,7 @@ void FScene::AssignAvailableShadowMapChannelForLight(FLightSceneInfo* LightScene
 			return;
 		}
 	}
-	else if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
+	else if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional && !IsMobilePlatform(GetShaderPlatform()))
 	{
 		// The implementation of forward lighting in ShadowProjectionPixelShader.usf does not support binding the directional light to channel 3.
 		// This is related to the USE_FADE_PLANE feature that encodes the CSM blend factor the alpha channel.
@@ -1965,8 +1964,9 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 		RectProxy->AtlasSlotIndex = RectLightAtlas::AddRectLightTexture(RectProxy->SourceTexture);
 	}
 
-	const bool bForwardShading = IsForwardShadingEnabled(GetShaderPlatform());
-	if (bForwardShading && (LightSceneInfo->Proxy->CastsDynamicShadow() || LightSceneInfo->Proxy->GetLightFunctionMaterial()))
+	const EShaderPlatform ShaderPlatform = GetShaderPlatform();
+	const bool bAssignShadowMapChannel = IsForwardShadingEnabled(ShaderPlatform) ||  (IsMobilePlatform(ShaderPlatform) && MobileUsesShadowMaskTexture(ShaderPlatform));
+	if (bAssignShadowMapChannel && (LightSceneInfo->Proxy->CastsDynamicShadow() || LightSceneInfo->Proxy->GetLightFunctionMaterial()))
 	{
 		AssignAvailableShadowMapChannelForLight(LightSceneInfo);
 	}
@@ -3122,7 +3122,6 @@ void FScene::UpdateLightColorAndBrightness(ULightComponent* Light)
 					{
 						Scene->Lights[ LightSceneInfo->Id ].Color = NewParameters.NewColor;
 					}
-					LightSceneInfo->Proxy->SetMobileMovablePointLightUniformBufferNeedsUpdate(true);
 				}
 			});
 	}
@@ -3842,12 +3841,16 @@ void FScene::UpdateEarlyZPassMode()
 	{
 		EarlyZPassMode = DDM_None;
 
-		if (MaskedInEarlyPass(GetFeatureLevelShaderPlatform(FeatureLevel)))
+		const EShaderPlatform ShaderPlatform = GetShaderPlatform();
+		static const bool bMaskedInEarlyPass = MaskedInEarlyPass(ShaderPlatform);
+		if (bMaskedInEarlyPass)
 		{
 			EarlyZPassMode = DDM_MaskedOnly;
 		}
 
-		if (IsMobileDistanceFieldEnabled(GetShaderPlatform()) || IsMobileAmbientOcclusionEnabled(GetShaderPlatform()))
+		const bool bIsMobileAmbientOcclusionEnabled = IsMobileAmbientOcclusionEnabled(ShaderPlatform);
+		const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(ShaderPlatform);
+		if (bIsMobileAmbientOcclusionEnabled || bMobileUsesShadowMaskTexture)
 		{
 			EarlyZPassMode = DDM_AllOpaque;
 		}

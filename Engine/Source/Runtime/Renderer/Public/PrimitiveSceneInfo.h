@@ -378,8 +378,8 @@ public:
 	/** The scene the primitive is in. */
 	FScene* Scene;
 
-	/** The number of movable point lights for mobile */
-	int32 NumMobileMovablePointLights;
+	/** The number of movable local lights for mobile */
+	int32 NumMobileMovableLocalLights;
 
 	/** Set to true for the primitive to be rendered in the main pass to be visible in a view. */
 	bool bShouldRenderInMainPass : 1;

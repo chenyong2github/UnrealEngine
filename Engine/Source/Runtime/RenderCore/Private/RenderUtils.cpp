@@ -1152,8 +1152,8 @@ RENDERCORE_API bool MobileRequiresSceneDepthAux(const FStaticShaderPlatform Plat
 RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel)
 {
 	return FeatureLevel >= ERHIFeatureLevel::SM5 
-		// mobile deferred requries ES3.2 feature set
-		|| IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
+		// requries ES3.2 feature set
+		|| MobileEnableClusteredReflections(GetFeatureLevelShaderPlatform(FeatureLevel));
 }
 
 RENDERCORE_API bool MaskedInEarlyPass(const FStaticShaderPlatform Platform)
@@ -1201,6 +1201,31 @@ RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platfo
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform)
 {
 	return IsMobilePlatform(Platform) && (FDataDrivenShaderPlatformInfo::GetSupportsMobileDistanceField(Platform)/* || IsD3DPlatform(Platform)*/) && IsUsingDistanceFields(Platform);
+}
+
+RENDERCORE_API bool IsMobileMovableSpotlightShadowsEnabled(const FStaticShaderPlatform Platform)
+{
+	static FShaderPlatformCachedIniValue<bool> MobileMovableSpotlightShadowsEnabledIniValue(TEXT("r.Mobile.EnableMovableSpotlightsShadow"));
+	return MobileMovableSpotlightShadowsEnabledIniValue.Get(Platform);
+}
+
+RENDERCORE_API bool MobileForwardEnableLocalLights(const FStaticShaderPlatform Platform)
+{
+	static FShaderPlatformCachedIniValue<bool> MobileForwardEnableLocalLightsIniValue(TEXT("r.Mobile.Forward.EnableLocalLights"));
+	return MobileForwardEnableLocalLightsIniValue.Get(Platform);
+}
+
+RENDERCORE_API bool MobileEnableClusteredReflections(const FStaticShaderPlatform Platform)
+{
+	static FShaderPlatformCachedIniValue<bool> MobileForwardEnableClusteredReflectionsIniValue(TEXT("r.Mobile.Forward.EnableClusteredReflections"));
+	return IsMobileDeferredShadingEnabled(Platform) || MobileForwardEnableClusteredReflectionsIniValue.Get(Platform);
+}
+
+RENDERCORE_API bool MobileUsesShadowMaskTexture(const FStaticShaderPlatform Platform)
+{
+	// Only distance field shadow needs to render shadow mask texture on mobile deferred, normal shadows need to be rendered separately because of handling lighting channels.
+	// Besides distance field shadow, with clustered lighting and shadow of local light enabled, shadows will render to shadow mask texture on mobile forward, lighting channels are handled in base pass shader.
+	return IsMobileDistanceFieldEnabled(Platform) || (!IsMobileDeferredShadingEnabled(Platform) && IsMobileMovableSpotlightShadowsEnabled(Platform) && MobileForwardEnableLocalLights(Platform));
 }
 
 RENDERCORE_API bool MobileBasePassAlwaysUsesCSM(const FStaticShaderPlatform Platform)
