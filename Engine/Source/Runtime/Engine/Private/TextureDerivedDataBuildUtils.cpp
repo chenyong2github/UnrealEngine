@@ -246,20 +246,25 @@ UE::DerivedData::FUtf8SharedString FindTextureBuildFunction(const FName TextureF
 {
 	using namespace UE::DerivedData;
 
-	if (FReadScopeLock Lock(GTextureBuildFunctionLock); const FUtf8SharedString* Function = GTextureBuildFunctionMap.Find(TextureFormatName))
 	{
-		return *Function;
+		FReadScopeLock Lock(GTextureBuildFunctionLock);
+		if (const FUtf8SharedString* Function = GTextureBuildFunctionMap.Find(TextureFormatName))
+		{
+			return *Function;
+		}
 	}
 
 	FName TextureFormatModuleName;
-
-	if (ITextureFormatManagerModule* TFM = GetTextureFormatManager())
+	ITextureFormatManagerModule* TFM = GetTextureFormatManager();
+	if (TFM == nullptr)
 	{
-		ITextureFormatModule* TextureFormatModule = nullptr;
-		if (!TFM->FindTextureFormatAndModule(TextureFormatName, TextureFormatModuleName, TextureFormatModule))
-		{
-			return {};
-		}
+		return {};
+	}
+
+	ITextureFormatModule* TextureFormatModule = nullptr;
+	if (!TFM->FindTextureFormatAndModule(TextureFormatName, TextureFormatModuleName, TextureFormatModule))
+	{
+		return {};
 	}
 
 	TStringBuilder<128> FunctionName;
