@@ -1366,17 +1366,28 @@ FModifierKeysState FLinuxApplication::GetModifierKeys() const
 	return FModifierKeysState( bIsLeftShiftDown, bIsRightShiftDown, bIsLeftControlDown, bIsRightControlDown, bIsLeftAltDown, bIsRightAltDown, false, false, bAreCapsLocked );
 }
 
-
 void FLinuxApplication::SetCapture( const TSharedPtr< FGenericWindow >& InWindow )
 {
 	bIsMouseCaptureEnabled = InWindow.IsValid();
 	UpdateMouseCaptureWindow( bIsMouseCaptureEnabled ? ((FLinuxWindow*)InWindow.Get())->GetHWnd() : NULL );
 }
 
-
 void* FLinuxApplication::GetCapture( void ) const
 {
 	return ( bIsMouseCaptureEnabled && MouseCaptureWindow ) ? MouseCaptureWindow : NULL;
+}
+
+bool FLinuxApplication::IsGamepadAttached() const
+{
+	for (const TPair<SDL_JoystickID, SDLControllerState>& ControllerState : ControllerStates)
+	{
+		if (SDL_GameControllerGetAttached(ControllerState.Value.Controller))
+		{
+			return true;
+		}
+	}
+	
+	return false;
 }
 
 void FLinuxApplication::UpdateMouseCaptureWindow(SDL_HWindow TargetWindow)
