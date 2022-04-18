@@ -355,7 +355,7 @@
 #endif
 
 #ifndef MOBILE_EMULATION
-#define MOBILE_EMULATION ((FEATURE_LEVEL == FEATURE_LEVEL_ES3_1) && (!(COMPILER_GLSL_ES3_1) && USE_DEVELOPMENT_SHADERS && (!(METAL_PROFILE) || MAC) && !VULKAN_PROFILE))
+#define MOBILE_EMULATION 0
 #endif
 
 // Whether the platform supports independent texture and samplers

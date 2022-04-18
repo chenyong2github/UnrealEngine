@@ -5733,6 +5733,18 @@ void GlobalBeginCompileShader(
 		}
 	}
 
+	if (IsAndroidPlatform(EShaderPlatform(Target.Platform)))
+	{
+		// Force no development shaders on Android platforms
+		bAllowDevelopmentShaderCompile = false;
+	}
+
+	// Mobile emulation should be defined when a PC platform is using a mobile renderer (limited to feature level ES3_1)...  eg SP_PCD3D_ES3_1,SP_VULKAN_PCES3_1,SP_METAL_MACES3_1
+	if (IsSimulatedPlatform(EShaderPlatform(Target.Platform)) && bAllowDevelopmentShaderCompile)
+	{
+		Input.Environment.SetDefine(TEXT("MOBILE_EMULATION"), 1);
+	}
+
 	// Add compiler flag CFLAG_ForceDXC if DXC is enabled
 	const bool bHlslVersion2021 = Input.Environment.CompilerFlags.Contains(CFLAG_HLSL2021);
 	const bool bIsDxcEnabled = IsDxcEnabledForPlatform((EShaderPlatform)Target.Platform, bHlslVersion2021);
