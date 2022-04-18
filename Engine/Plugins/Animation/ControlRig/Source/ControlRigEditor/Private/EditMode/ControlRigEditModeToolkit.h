@@ -48,6 +48,7 @@ public:
 	virtual void OnToolPaletteChanged(FName PaletteName) override;
 
 	void TryInvokeToolkitUI(const FName InName);
+	bool IsToolkitUIActive(const FName InName) const;
 
 public:
 	static const FName PoseTabName;

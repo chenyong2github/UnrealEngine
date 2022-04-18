@@ -974,12 +974,16 @@ void SControlRigEditModeTools::CustomizeToolBarPalette(FToolBarBuilder& ToolBarB
 
 	// Tweens
 	ToolBarBuilder.AddToolBarButton(
+		FUIAction(
 		FExecuteAction::CreateRaw(OwningToolkit.Pin().Get(), &FControlRigEditModeToolkit::TryInvokeToolkitUI, FControlRigEditModeToolkit::TweenOverlayName),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateRaw(OwningToolkit.Pin().Get(), &FControlRigEditModeToolkit::IsToolkitUIActive, FControlRigEditModeToolkit::TweenOverlayName)
+		),		
 		NAME_None,
 		LOCTEXT("Tweens", "Tweens"),
 		LOCTEXT("TweensTooltip", "Create Tweens"),
 		FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.TweenTool")),
-		EUserInterfaceActionType::Button
+		EUserInterfaceActionType::ToggleButton
 	);
 
 	// Snap

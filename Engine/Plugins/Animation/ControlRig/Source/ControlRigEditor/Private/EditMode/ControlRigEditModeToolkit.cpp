@@ -132,6 +132,17 @@ void FControlRigEditModeToolkit::TryInvokeToolkitUI(const FName InName)
 	}
 }
 
+bool FControlRigEditModeToolkit::IsToolkitUIActive(const FName InName) const
+{
+	if (InName == TweenOverlayName)
+	{
+		return TweenWidget.IsValid();
+	}
+
+	TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin();
+	return ModeUILayerPtr->GetTabManager()->FindExistingLiveTab(FTabId(InName)).IsValid();
+}
+
 FText FControlRigEditModeToolkit::GetActiveToolDisplayName() const
 {
 	return ModeTools->GetActiveToolName();
