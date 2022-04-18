@@ -6,6 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "SRigHierarchyTreeView.h"
 #include "ControlRigEditorStyle.h"
 #include "PropertyCustomizationHelpers.h"
@@ -659,6 +660,7 @@ FReply SRigSpacePickerWidget::HandleAddElementClicked()
 	.RigTreeDelegates(TreeDelegates);
 	SearchableTreeView->GetTreeView()->RefreshTreeView(true);
 
+	const bool bFocusImmediately = false;
 	// Create as context menu
 	TGuardValue<bool> AboutToShowMenu(bLaunchingContextMenu, true);
 	ContextMenu = FSlateApplication::Get().PushMenu(
@@ -666,7 +668,8 @@ FReply SRigSpacePickerWidget::HandleAddElementClicked()
 		FWidgetPath(),
 		SearchableTreeView.ToSharedRef(),
 		FSlateApplication::Get().GetCursorPos(),
-		FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu)
+		FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu),
+		bFocusImmediately
 	);
 
 	if(!ContextMenu.IsValid())
@@ -689,7 +692,7 @@ FReply SRigSpacePickerWidget::HandleAddElementClicked()
 		}
 	});
 
-	return FReply::Handled();
+	return FReply::Handled().SetUserFocus(SearchableTreeView->GetSearchBox(), EFocusCause::SetDirectly);
 }
 
 bool SRigSpacePickerWidget::IsSpaceMoveUpEnabled(FRigElementKey InKey) const

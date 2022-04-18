@@ -6,6 +6,7 @@
 #include "Widgets/Views/STreeView.h"
 #include "Rigs/RigHierarchy.h"
 
+class SSearchBox;
 class SRigHierarchyTreeView;
 class SRigHierarchyItem;
 class FRigTreeElement;
@@ -307,6 +308,7 @@ public:
 
 	void Construct(const FArguments& InArgs);
 	virtual ~SSearchableRigHierarchyTreeView() {}
+	TSharedRef<SSearchBox> GetSearchBox() const { return SearchBox.ToSharedRef(); }
 	TSharedRef<SRigHierarchyTreeView> GetTreeView() const { return TreeView.ToSharedRef(); }
 	const FRigTreeDisplaySettings& GetDisplaySettings();
 
@@ -317,5 +319,6 @@ private:
 	FOnGetRigTreeDisplaySettings SuperGetRigTreeDisplaySettings;
 	FText FilterText;
 	FRigTreeDisplaySettings Settings;
+	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<SRigHierarchyTreeView> TreeView;
 };

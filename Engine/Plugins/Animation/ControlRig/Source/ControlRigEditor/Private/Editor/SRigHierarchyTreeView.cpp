@@ -795,7 +795,7 @@ void SSearchableRigHierarchyTreeView::Construct(const FArguments& InArgs)
 		.HAlign(HAlign_Fill)
 		.Padding(0.0f)
 		[
-			SNew(SSearchBox)
+			SAssignNew(SearchBox, SSearchBox)
 			.InitialText(InArgs._InitialFilterText)
 			.OnTextChanged(this, &SSearchableRigHierarchyTreeView::OnFilterTextChanged)
 		]
