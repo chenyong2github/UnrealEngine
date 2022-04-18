@@ -42,7 +42,7 @@ namespace EpicGames.Core
 		/// of valid and invalid build records will usually be larger than the number of input records</param>
 		/// <param name="ProjectPath">Path of the project</param>
 		void ValidateRecursively(
-			Dictionary<FileReference, CsProjBuildRecord> ValidBuildRecords,
+			Dictionary<FileReference, (CsProjBuildRecord, FileReference)> ValidBuildRecords,
 			Dictionary<FileReference, (CsProjBuildRecord, FileReference)> InvalidBuildRecords,
 			Dictionary<FileReference, (CsProjBuildRecord, FileReference)> BuildRecords,
 			FileReference ProjectPath);

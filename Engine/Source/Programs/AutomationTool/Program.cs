@@ -419,12 +419,22 @@ namespace AutomationToolDriver
 				: AutomationToolCommandLine.CommandsToExecute;
 			bool bBuildSuccess;
 			HashSet<FileReference> ScriptModuleAssemblyPaths = CompileScriptModule.InitializeScriptModules(
-					ScriptsForProject, AdditionalScriptDirs, bForceCompile, bNoCompile, bUseBuildRecords, out bBuildSuccess);
+					Rules.RulesFileType.AutomationModule, ScriptsForProject, AdditionalScriptDirs, bForceCompile | true, bNoCompile, bUseBuildRecords, 
+					out bBuildSuccess, (int Count) =>
+                    {
+						Log.TraceInformation($"Building {Count} projects (see Log 'Engine/Programs/AutomationTool/Saved/Logs/Log.txt' for more details)");
+					});
 
 			if (!bBuildSuccess)
             {
 				return ExitCode.Error_Unknown;
             }
+
+			// when the engine is installed, or UAT is invoked with -NoCompile, we expect to find at least one script module (AutomationUtils is a necessity)
+			if (ScriptModuleAssemblyPaths.Count == 0)
+			{
+				throw new Exception("Found no script module records.");
+			}
 
 			// Load AutomationUtils.Automation.dll
 			FileReference AssemblyPath = ScriptModuleAssemblyPaths.FirstOrDefault(x => x.GetFileNameWithoutExtension().Contains("AutomationUtils.Automation"));

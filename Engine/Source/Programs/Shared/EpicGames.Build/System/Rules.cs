@@ -28,7 +28,12 @@ namespace UnrealBuildBase
 			/// <summary>
 			/// .automation.csproj files
 			/// </summary>
-			AutomationModule
+			AutomationModule,
+
+			/// <summary>
+			/// .ubtplugin.csproj files
+			/// </summary>
+			UbtPlugin,
 		}
 
 		/// <summary>
@@ -39,6 +44,7 @@ namespace UnrealBuildBase
 			public List<FileReference> ModuleRules = new List<FileReference>();
 			public List<FileReference> TargetRules = new List<FileReference>();
 			public List<FileReference> AutomationModules = new List<FileReference>();
+			public List<FileReference> UbtPlugins = new List<FileReference>();
 		}
 
 		/// Map of root folders to a cached list of all UBT-related source files in that folder or any of its sub-folders.
@@ -198,7 +204,7 @@ namespace UnrealBuildBase
 		/// <param name="Directories">Directories to search</param>
 		/// <param name="Type">Type of rules to return</param>
 		/// <returns>List of rules files of the given type</returns>
-		private static List<FileReference> FindAllRulesFiles(IEnumerable<DirectoryReference> Directories, RulesFileType Type)
+		public static List<FileReference> FindAllRulesFiles(IEnumerable<DirectoryReference> Directories, RulesFileType Type)
 		{
 			List<(DirectoryReference, RulesFileCache)> Caches = new List<(DirectoryReference, RulesFileCache)>(Directories.Count());
 			using (ThreadPoolWorkQueue Queue = new ThreadPoolWorkQueue())
@@ -224,6 +230,7 @@ namespace UnrealBuildBase
 					Cache.ModuleRules.Sort((A, B) => A.FullName.CompareTo(B.FullName));
 					Cache.TargetRules.Sort((A, B) => A.FullName.CompareTo(B.FullName));
 					Cache.AutomationModules.Sort((A, B) => A.FullName.CompareTo(B.FullName));
+					Cache.UbtPlugins.Sort((A, B) => A.FullName.CompareTo(B.FullName));
 					RootFolderToRulesFileCache[Directory] = Cache;
 				}
 
@@ -239,6 +246,10 @@ namespace UnrealBuildBase
 				else if (Type == RulesFileType.AutomationModule)
 				{
 					Files.AddRange(Cache.AutomationModules);
+				}
+				else if (Type == RulesFileType.UbtPlugin)
+				{
+					Files.AddRange(Cache.UbtPlugins);
 				}
 				else
 				{
@@ -281,6 +292,14 @@ namespace UnrealBuildBase
 					lock(Cache.AutomationModules)
 					{
 						Cache.AutomationModules.Add(File.Location);
+					}
+					bSearchSubFolders = false;
+				}
+				else if (File.HasExtension(".ubtplugin.csproj"))
+				{
+					lock(Cache.UbtPlugins)
+					{
+						Cache.UbtPlugins.Add(File.Location);
 					}
 					bSearchSubFolders = false;
 				}

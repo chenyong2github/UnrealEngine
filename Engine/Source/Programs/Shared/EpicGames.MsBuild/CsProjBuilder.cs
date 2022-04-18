@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 using EpicGames.Core;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Execution;
@@ -141,19 +139,19 @@ namespace EpicGames.MsBuild
 			return FileReference.Combine(BuildRecordDirectory, ProjectPath.GetFileName()).ChangeExtension(".json");
 		}
 
-		public static HashSet<FileReference> Build(HashSet<FileReference> FoundAutomationProjects,
-			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories)
+		public static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> Build(HashSet<FileReference> FoundProjects,
+			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, Action<int> OnBuildingProjects)
 		{
 
 			// Register the MS build path prior to invoking the internal routine.  By not having the internal routine
 			// inline, we avoid having the issue of the Microsoft.Build libraries being resolved prior to the build path
 			// being set.
 			RegisterMsBuildPath(Hook);
-			return BuildInternal(FoundAutomationProjects, bForceCompile, out bBuildSuccess, Hook, BaseDirectories);
+			return BuildInternal(FoundProjects, bForceCompile, out bBuildSuccess, Hook, BaseDirectories, OnBuildingProjects);
 		}
 
-		private static HashSet<FileReference> BuildInternal(HashSet<FileReference> FoundAutomationProjects,
-			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories)
+		private static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> BuildInternal(HashSet<FileReference> FoundProjects,
+			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, Action<int> OnBuildingProjects)
 		{
 			Dictionary<string, string> GlobalProperties = new Dictionary<string, string>
 			{
@@ -167,6 +165,7 @@ namespace EpicGames.MsBuild
 
 			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> BuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>();
 
+			using var ProjectCollection = new ProjectCollection(GlobalProperties);
 			var Projects = new Dictionary<string, Project>();
 			var	SkippedProjects = new HashSet<string>();
 
@@ -174,8 +173,8 @@ namespace EpicGames.MsBuild
 			// not available when using Microsoft.Build.Execution.ProjectInstance (used later in this function and
 			// in BuildProjects) - particularly, to access glob information defined in the source file.
 
-			// Load all found automation projects, and any other referenced projects.
-			foreach (FileReference ProjectPath in FoundAutomationProjects)
+			// Load all found projects, and any other referenced projects.
+			foreach (FileReference ProjectPath in FoundProjects)
 			{
 				void LoadProjectAndReferences(string ProjectPath, string ReferencedBy)
 				{
@@ -188,7 +187,7 @@ namespace EpicGames.MsBuild
 						// so make sure to print our own diagnostic info if something goes wrong
 						try
 						{
-							Project = new Project(ProjectPath, GlobalProperties, toolsVersion: null);
+							Project = new Project(ProjectPath, GlobalProperties, toolsVersion: null, projectCollection: ProjectCollection);
 						}
 						catch (Microsoft.Build.Exceptions.InvalidProjectFileException IPFEx)
 						{
@@ -363,7 +362,7 @@ namespace EpicGames.MsBuild
 				{
 					if (String.Equals("None", Glob.ItemElement.ItemType, StringComparison.Ordinal))
 					{
-						// don't record the default "None" glob - it's not (?) a trigger for any Automation rebuild
+						// don't record the default "None" glob - it's not (?) a trigger for any rebuild
 						continue;
 					}
 
@@ -386,10 +385,10 @@ namespace EpicGames.MsBuild
 			// Potential optimization: Constructing the ProjectGraph here gives the full graph of dependencies - which is nice,
 			// but not strictly necessary, and slower than doing it some other way.
 			ProjectGraph InputProjectGraph;
-			InputProjectGraph = new ProjectGraph(FoundAutomationProjects
+			InputProjectGraph = new ProjectGraph(FoundProjects
 				// Build the graph without anything that can't be built on this platform
 				.Where(x => !SkippedProjects.Contains(x.FullName))
-				.Select(P => P.FullName), GlobalProperties);
+				.Select(P => P.FullName), GlobalProperties, ProjectCollection);
 
 			// A ProjectGraph that will represent the set of projects that we actually want to build
 			ProjectGraph BuildProjectGraph = null;
@@ -401,7 +400,7 @@ namespace EpicGames.MsBuild
 			}
 			else
 			{
-				Dictionary<FileReference, CsProjBuildRecord> ValidBuildRecords = new Dictionary<FileReference, CsProjBuildRecord>(BuildRecords.Count);
+				Dictionary<FileReference, (CsProjBuildRecord, FileReference)> ValidBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(BuildRecords.Count);
 				Dictionary<FileReference, (CsProjBuildRecord, FileReference)> InvalidBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(BuildRecords.Count);
 
 				foreach (ProjectGraphNode Project in InputProjectGraph.ProjectNodesTopologicallySorted)
@@ -414,12 +413,13 @@ namespace EpicGames.MsBuild
 
 				if (OutOfDateProjects.Count > 0)
 				{
-					BuildProjectGraph = new ProjectGraph(OutOfDateProjects.Select(P => P.ProjectInstance.FullPath), GlobalProperties);
+					BuildProjectGraph = new ProjectGraph(OutOfDateProjects.Select(P => P.ProjectInstance.FullPath), GlobalProperties, ProjectCollection);
 				}
 			}
 
 			if (BuildProjectGraph != null)
 			{
+				OnBuildingProjects(BuildProjectGraph.EntryPointNodes.Count);
 				bBuildSuccess = BuildProjects(BuildProjectGraph, GlobalProperties);
 			}
 			else
@@ -448,11 +448,16 @@ namespace EpicGames.MsBuild
 			// todo: re-verify build records after a build to verify that everything is actually up to date
 
 			// even if only a subset was built, this function returns the full list of target assembly paths
-			return new HashSet<FileReference>(InputProjectGraph.EntryPointNodes.Select(
-				Project => FileReference.FromString(Project.ProjectInstance.GetPropertyValue("TargetPath"))));
+			var OutDict = new Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)>();
+			foreach (ProjectGraphNode EntryPointNode in InputProjectGraph.EntryPointNodes)
+			{
+				FileReference ProjectPath = FileReference.FromString(EntryPointNode.ProjectInstance.FullPath);
+				OutDict.Add(ProjectPath, BuildRecords[ProjectPath]);
+			}
+			return OutDict;
 		}
 
-		private static bool BuildProjects(ProjectGraph AutomationProjectGraph, Dictionary<string, string> GlobalProperties)
+		private static bool BuildProjects(ProjectGraph ProjectGraph, Dictionary<string, string> GlobalProperties)
 		{
 			var Logger = new MLogger();
 
@@ -460,10 +465,9 @@ namespace EpicGames.MsBuild
 
 			bool Result = true;
 
-			Log.TraceInformation($"Building {AutomationProjectGraph.EntryPointNodes.Count} projects (see Log 'Engine/Programs/AutomationTool/Saved/Logs/Log.txt' for more details)");
 			foreach (string TargetToBuild in TargetsToBuild)
 			{
-				var GraphRequest = new GraphBuildRequestData(AutomationProjectGraph, new string[] { TargetToBuild });
+				var GraphRequest = new GraphBuildRequestData(ProjectGraph, new string[] { TargetToBuild });
 
 				var BuildMan = BuildManager.DefaultBuildManager;
 
