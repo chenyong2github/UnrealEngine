@@ -12,6 +12,8 @@ $ bPrintDebugInfo : Whether debug info should be written to the console.
 
 $ bAllowHybridExecutor : Whether the hybrid executor will be used (a remote executor and local executor).
 
+$ bAllowHordeCompute : Whether Horde remote compute may be used. Highly experimental, disabled by default.
+
 $ bAllowXGE : Whether XGE may be used.
 
 $ bAllowFASTBuild : Whether FASTBuild may be used.
@@ -249,6 +251,12 @@ $ bForceRemote : Whether to force remote
 $ bStopOnError : Whether to stop on error
 
 $ MsvcCRTRedistVersion : Which MSVC CRT Redist version to use
+
+### HordeExecutor
+
+$ NumRemoteParallelProcesses : How many processes that will be executed in parallel remotely
+
+$ RemoteProcessOnly : Only run work remotely, for testing
 
 ### HybridExecutor
 
