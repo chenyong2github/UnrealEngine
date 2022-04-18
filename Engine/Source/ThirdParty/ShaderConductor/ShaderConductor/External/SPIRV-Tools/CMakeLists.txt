@@ -242,10 +242,15 @@ if(NOT COMMAND find_host_program)
   endmacro()
 endif()
 
-# Tests require Python3
+# Tests require python3
 # UE Change Begin: Support CMake 3.12+ in finding python3
-find_package(Python3 COMPONENTS Interpreter Development)
-#find_host_package(PythonInterp 3 REQUIRED)
+if(CMAKE_VERSION VERSION_LESS 3.12)
+  find_package(PythonInterp 3 REQUIRED)
+else()
+  find_package(Python3 COMPONENTS Interpreter)
+  set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+endif()
+message("Python3=${PYTHON_EXECUTABLE}")
 # UE Change End: Support CMake 3.12+ in finding python3
 
 # Check for symbol exports on Linux.
