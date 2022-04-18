@@ -64,10 +64,20 @@ namespace DatasmithRhino.ExportContext
 			SetDirectLinkStatus(DirectLinkSynchronizationStatus.PendingHidding);
 		}
 
+		public bool HasHiddenStatus()
+		{
+			return DirectLinkStatus == DirectLinkSynchronizationStatus.PendingHidding || DirectLinkStatus == DirectLinkSynchronizationStatus.Hidden;
+		}
+
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void ApplyDeletedStatus()
 		{
 			SetDirectLinkStatus(DirectLinkSynchronizationStatus.PendingDeletion);
+		}
+
+		public bool HasDeletedStatus()
+		{
+			return DirectLinkStatus == DirectLinkSynchronizationStatus.PendingDeletion || DirectLinkStatus == DirectLinkSynchronizationStatus.Deleted;
 		}
 
 		private void SetDirectLinkStatus(DirectLinkSynchronizationStatus Status)
