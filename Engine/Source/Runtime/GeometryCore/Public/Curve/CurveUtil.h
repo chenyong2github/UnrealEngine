@@ -48,7 +48,7 @@ using namespace UE::Math;
 		{
 			Sum += Distance(Vertices[i], Vertices[i-1]);
 		}
-		if (bLoop)
+		if (bLoop && NV > 1)
 		{
 			Sum += Distance(Vertices[NV-1], Vertices[0]);
 		}

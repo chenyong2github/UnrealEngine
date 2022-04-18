@@ -44,6 +44,15 @@ enum class EGeometryScriptLODType : uint8
 };
 
 
+UENUM(BlueprintType)
+enum class EGeometryScriptAxis : uint8
+{
+	X = 0,
+	Y = 1,
+	Z = 2
+};
+
+
 USTRUCT(BlueprintType)
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptMeshReadLOD
 {
@@ -296,6 +305,25 @@ public:
 };
 
 
+USTRUCT(BlueprintType, meta = (DisplayName = "PolyPath"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptPolyPath
+{
+	GENERATED_BODY()
+public:
+	TSharedPtr<TArray<FVector>> Path;
+
+	UPROPERTY(EditAnywhere, Category = "Options")
+	bool bClosedLoop = false;
+
+	void Reset()
+	{
+		if (!Path.IsValid())
+		{
+			Path = MakeShared<TArray<FVector>>();
+		}
+		Path->Reset();
+	}
+};
 
 
 //
