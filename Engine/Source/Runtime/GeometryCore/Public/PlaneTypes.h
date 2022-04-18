@@ -6,6 +6,7 @@
 
 #include "VectorTypes.h"
 #include "VectorUtil.h"
+#include "Math/Plane.h"
 
 namespace UE
 {

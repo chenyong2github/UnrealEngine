@@ -7,6 +7,7 @@
 #include "VectorTypes.h"
 #include "TriangleTypes.h"
 #include "VectorUtil.h"
+#include "Math/Ray.h"
 
 namespace UE
 {
