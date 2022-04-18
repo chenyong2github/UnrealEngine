@@ -1298,7 +1298,7 @@ void FNetworkFileServerClientConnection::ProcessRecompileShaders( FArchive& In, 
 
 	// tell other side all the materials to load, by pathname
 	In << RecompileData.MaterialsToLoad;
-
+	In << RecompileData.ShaderTypesToLoad;
 	int32 iShaderPlatform = static_cast<int32>(RecompileData.ShaderPlatform);
 	In << iShaderPlatform;
 	RecompileData.ShaderPlatform = static_cast<EShaderPlatform>(iShaderPlatform);

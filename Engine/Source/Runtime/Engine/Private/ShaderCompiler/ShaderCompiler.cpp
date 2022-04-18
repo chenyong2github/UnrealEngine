@@ -6028,7 +6028,7 @@ protected:
 
 namespace
 {
-	ODSCRecompileCommand ParseRecompileCommandString(const TCHAR* CmdString, TArray<FString>& OutMaterialsToLoad)
+	ODSCRecompileCommand ParseRecompileCommandString(const TCHAR* CmdString, TArray<FString>& OutMaterialsToLoad, FString& OutShaderTypesToLoad)
 	{
 		FString CmdName = FParse::Token(CmdString, 0);
 
@@ -6067,11 +6067,24 @@ namespace
 				OutMaterialsToLoad.Add(It->GetPathName());
 			}
 		}
-		else
+		else if (FCString::Stricmp(*CmdName, TEXT("All")) == 0)
 		{
 			CommandType = ODSCRecompileCommand::Material;
 
 			// tell other side all the materials to load, by pathname
+			for (TObjectIterator<UMaterialInterface> It; It; ++It)
+			{
+				OutMaterialsToLoad.Add(It->GetPathName());
+			}
+		}
+		else
+		{
+			CommandType = ODSCRecompileCommand::SingleShader;
+
+			OutShaderTypesToLoad = CmdName;
+
+			// tell other side which materials to load and compile the single
+			// shader for.
 			for (TObjectIterator<UMaterialInterface> It; It; ++It)
 			{
 				OutMaterialsToLoad.Add(It->GetPathName());
@@ -6204,8 +6217,9 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 	{
 #if WITH_ODSC
 		TArray<FString> MaterialsToLoad;
-		ODSCRecompileCommand CommandType = ParseRecompileCommandString(Cmd, MaterialsToLoad);
-		GODSCManager->AddThreadedRequest(MaterialsToLoad, GMaxRHIShaderPlatform, CommandType);
+		FString ShaderTypesToLoad;
+		ODSCRecompileCommand CommandType = ParseRecompileCommandString(Cmd, MaterialsToLoad, ShaderTypesToLoad);
+		GODSCManager->AddThreadedRequest(MaterialsToLoad, ShaderTypesToLoad, GMaxRHIShaderPlatform, CommandType);
 #endif
 		return true;
 	}
@@ -7365,9 +7379,42 @@ void RecompileShadersForRemote(
 			// Only compile for the desired platform if requested
 			if (ShaderPlatform == Args.ShaderPlatform || Args.ShaderPlatform == SP_NumPlatforms)
 			{
-				// If we are explicitly wanting to recompile global or if shaders have changed.
-				if (Args.CommandType == ODSCRecompileCommand::Global ||
-					Args.CommandType == ODSCRecompileCommand::Changed)
+				if (Args.CommandType == ODSCRecompileCommand::SingleShader &&
+					Args.ShaderTypesToLoad.Len() > 0)
+				{
+					UE_LOG(LogShaders, Display, TEXT("Recompiling single shader."));
+
+					TArray<const FShaderType*> ShaderTypes = FShaderType::GetShaderTypesByFilename(*Args.ShaderTypesToLoad);
+					TArray<const FShaderPipelineType*> ShaderPipelineTypes = FShaderPipelineType::GetShaderPipelineTypesByFilename(*Args.ShaderTypesToLoad);
+
+					for (const FShaderType* ShaderType : ShaderTypes)
+					{
+						UE_LOG(LogShaders, Display, TEXT("\t%s..."), ShaderType->GetName());
+					}
+
+					if (ShaderTypes.Num() > 0 || ShaderPipelineTypes.Num() > 0)
+					{
+						BeginRecompileGlobalShaders(ShaderTypes, ShaderPipelineTypes, ShaderPlatform, TargetPlatform);
+						FinishRecompileGlobalShaders();
+					}
+
+					// write the shader compilation info to memory, converting fnames to strings
+					FMemoryWriter MemWriter(*Args.GlobalShaderMap, true);
+					FNameAsStringProxyArchive Ar(MemWriter);
+
+					TOptional<FArchiveCookData> CookData;
+					FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
+					if (TargetPlatform != nullptr)
+					{
+						CookData.Emplace(*TargetPlatform, CookContext);
+					}
+					Ar.SetCookData(CookData.GetPtrOrNull());
+
+					// save out the global shader map to the byte array
+					SaveGlobalShadersForRemoteRecompile(Ar, ShaderPlatform);
+				}
+				else if (Args.CommandType == ODSCRecompileCommand::Global ||
+						 Args.CommandType == ODSCRecompileCommand::Changed)
 				{
 					UE_LOG(LogShaders, Display, TEXT("Recompiling global shaders."));
 

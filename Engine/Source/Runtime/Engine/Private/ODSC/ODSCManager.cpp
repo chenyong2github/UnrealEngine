@@ -70,11 +70,11 @@ bool FODSCManager::Tick(float DeltaSeconds)
 	return false;
 }
 
-void FODSCManager::AddThreadedRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType)
+void FODSCManager::AddThreadedRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType)
 {
 	if (Thread)
 	{
-		Thread->AddRequest(MaterialsToCompile, ShaderPlatform, RecompileCommandType);
+		Thread->AddRequest(MaterialsToCompile, ShaderTypesToLoad, ShaderPlatform, RecompileCommandType);
 	}
 }
 

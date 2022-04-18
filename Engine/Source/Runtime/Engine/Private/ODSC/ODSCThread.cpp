@@ -20,8 +20,9 @@ FODSCMessageHandler::FODSCMessageHandler(EShaderPlatform InShaderPlatform, ODSCR
 {
 }
 
-FODSCMessageHandler::FODSCMessageHandler(const TArray<FString>& InMaterials, EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType) :
+FODSCMessageHandler::FODSCMessageHandler(const TArray<FString>& InMaterials, const FString& ShaderTypesToLoad, EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType) :
 	MaterialsToLoad(std::move(InMaterials)),
+	ShaderTypesToLoad(ShaderTypesToLoad),
 	ShaderPlatform(InShaderPlatform),
 	RecompileCommandType(InRecompileCommandType)
 {
@@ -33,6 +34,7 @@ void FODSCMessageHandler::FillPayload(FArchive& Payload)
 	RequestStartTime = FPlatformTime::Seconds();
 
 	Payload << MaterialsToLoad;
+	Payload << ShaderTypesToLoad;
 	uint32 ConvertedShaderPlatform = (uint32)ShaderPlatform;
 	Payload << ConvertedShaderPlatform;
 	Payload << RecompileCommandType;
@@ -108,9 +110,9 @@ void FODSCThread::Tick()
 	Process();
 }
 
-void FODSCThread::AddRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType)
+void FODSCThread::AddRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType)
 {
-	PendingMaterialThreadedRequests.Enqueue(new FODSCMessageHandler(MaterialsToCompile, ShaderPlatform, RecompileCommandType));
+	PendingMaterialThreadedRequests.Enqueue(new FODSCMessageHandler(MaterialsToCompile, ShaderTypesToLoad, ShaderPlatform, RecompileCommandType));
 }
 
 void FODSCThread::AddShaderPipelineRequest(EShaderPlatform ShaderPlatform, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames)

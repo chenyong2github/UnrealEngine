@@ -1267,7 +1267,8 @@ enum class ODSCRecompileCommand
 	None,
 	Changed,
 	Global,
-	Material
+	Material,
+	SingleShader
 };
 
 struct FShaderRecompileData
@@ -1286,6 +1287,9 @@ struct FShaderRecompileData
 
 	/** Materials to load. */
 	TArray<FString> MaterialsToLoad;
+
+	/** The names of shader type file names to compile shaders for. */
+	FString ShaderTypesToLoad;
 
 	/** What type of shaders to recompile. All, Changed, Global, or Material? */
 	ODSCRecompileCommand CommandType = ODSCRecompileCommand::Changed;
@@ -1312,6 +1316,7 @@ struct FShaderRecompileData
 		ModifiedFiles = Other.ModifiedFiles;
 		MeshMaterialMaps = Other.MeshMaterialMaps;
 		MaterialsToLoad = Other.MaterialsToLoad;
+		ShaderTypesToLoad = Other.ShaderTypesToLoad;
 		CommandType = Other.CommandType;
 		GlobalShaderMap = Other.GlobalShaderMap;
 

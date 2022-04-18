@@ -17,7 +17,7 @@ class FODSCMessageHandler : public IPlatformFile::IFileServerMessageHandler
 {
 public:
 	FODSCMessageHandler(EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType);
-	FODSCMessageHandler(const TArray<FString>& InMaterials, EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType);
+	FODSCMessageHandler(const TArray<FString>& InMaterials, const FString& ShaderTypesToLoad, EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType);
 	/** Subclass fills out an archive to send to the server */
 	virtual void FillPayload(FArchive& Payload) override;
 
@@ -37,6 +37,9 @@ private:
 
 	/** The materials we send over the network and expect maps for on the return */
 	TArray<FString> MaterialsToLoad;
+
+	/** The names of shader type file names to compile shaders for. */
+	FString ShaderTypesToLoad;
 
 	/** Which shader platform we are compiling for */
 	EShaderPlatform ShaderPlatform;
@@ -85,12 +88,13 @@ public:
 	 * Add a shader compile request to be processed by this thread.
 	 *
 	 * @param MaterialsToCompile - List of material names to submit compiles for.
+	 * @param ShaderTypesToLoad - List of shader types to submit compiles for.
 	 * @param ShaderPlatform - Which shader platform to compile for.
 	 * @param RecompileCommandType - Whether we should recompile changed or global shaders.
 	 *
 	 * @return false if no longer needs ticking
 	 */
-	void AddRequest(const TArray<FString>& MaterialsToCompile, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType);
+	void AddRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType);
 
 	/**
 	 * Add a request to compile a pipeline (VS/PS) of shaders.  The results are submitted and processed in an async manner.

@@ -1067,6 +1067,7 @@ private:
 			int32 iShaderPlatform = static_cast<int32>(RecompileData.ShaderPlatform);
 			TUniquePtr<FArchive> Ar = Request.ReadBody();
 			*Ar << RecompileData.MaterialsToLoad;
+			*Ar << RecompileData.ShaderTypesToLoad;
 			*Ar << iShaderPlatform;
 			RecompileData.ShaderPlatform = static_cast<EShaderPlatform>(iShaderPlatform);
 			*Ar << RecompileData.CommandType;
