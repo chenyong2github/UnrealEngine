@@ -2,7 +2,10 @@
 
 #include "HistoryEdition/HistoryAnalysis.h"
 
+#include "HistoryEdition/ActivityGraphIDs.h"
 #include "HistoryEdition/DependencyGraphBuilder.h"
+
+#include "Containers/Queue.h"
 
 namespace UE::ConcertSyncCore
 {

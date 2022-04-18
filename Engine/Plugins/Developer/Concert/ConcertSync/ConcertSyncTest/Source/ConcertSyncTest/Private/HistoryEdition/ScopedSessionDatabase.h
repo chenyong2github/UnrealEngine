@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "ConcertSyncSessionDatabase.h"
 
+#include "HAL/FileManager.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/Paths.h"
 
 namespace UE::ConcertSyncTests
 {
