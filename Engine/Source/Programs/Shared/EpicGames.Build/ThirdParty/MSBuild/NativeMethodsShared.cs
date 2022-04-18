@@ -19,12 +19,21 @@ using Microsoft.Win32.SafeHandles;
 using FILETIME = System.Runtime.InteropServices.ComTypes.FILETIME;
 using Microsoft.Build.Utilities;
 
+//EPIC BEGIN
+#nullable disable
+//EPIC END
+
 namespace Microsoft.Build.Shared
 {
-    /// <summary>
-    /// Interop methods.
-    /// </summary>
-    internal static class NativeMethodsShared
+	/// <summary>
+	/// Interop methods.
+	/// </summary>
+	//EPIC BEGIN
+	[SuppressMessage("Performance", "CA1838:Avoid 'StringBuilder' parameters for P/Invokes", Justification = "<Pending>")]
+	[SuppressMessage("Interoperability", "CA1419:Provide a parameterless constructor that is as visible as the containing type for concrete types derived from 'System.Runtime.InteropServices.SafeHandle'", Justification = "<Pending>")]
+	[SuppressMessage("Performance", "CA1823:Avoid unused private fields", Justification = "<Pending>")]
+	//EPIC END
+	internal static class NativeMethodsShared
     {
         #region Constants
 
@@ -239,12 +248,12 @@ namespace Microsoft.Build.Shared
         /// </summary>
         internal class SafeProcessHandle : SafeHandleZeroOrMinusOneIsInvalid
         {
-            // Create a SafeHandle, informing the base class
-            // that this SafeHandle instance "owns" the handle,
-            // and therefore SafeHandle should call
-            // our ReleaseHandle method when the SafeHandle
-            // is no longer in use
-            private SafeProcessHandle() : base(true)
+			// Create a SafeHandle, informing the base class
+			// that this SafeHandle instance "owns" the handle,
+			// and therefore SafeHandle should call
+			// our ReleaseHandle method when the SafeHandle
+			// is no longer in use
+			private SafeProcessHandle() : base(true)
             {
             }
             protected override bool ReleaseHandle()
@@ -876,11 +885,11 @@ namespace Microsoft.Build.Shared
         /// </summary>
         internal static ProcessorArchitectures ProcessorArchitectureNative => SystemInformation.ProcessorArchitectureTypeNative;
 
-#endregion
+		#endregion
 
-#region Set Error Mode (copied from BCL)
+		#region Set Error Mode (copied from BCL)
 
-        private static readonly Version s_threadErrorModeMinOsVersion = new Version(6, 1, 0x1db0);
+		private static readonly Version s_threadErrorModeMinOsVersion = new Version(6, 1, 0x1db0);
 
         internal static int SetErrorMode(int newMode)
         {
@@ -1483,7 +1492,7 @@ namespace Microsoft.Build.Shared
 
         [SuppressMessage("Microsoft.Design", "CA1060:MovePInvokesToNativeMethodsClass", Justification = "Class name is NativeMethodsShared for increased clarity")]
         [DllImport(kernel32Dll, SetLastError = true, CharSet = CharSet.Unicode)]
-        private static extern uint SearchPath
+		private static extern uint SearchPath
         (
             string path,
             string fileName,

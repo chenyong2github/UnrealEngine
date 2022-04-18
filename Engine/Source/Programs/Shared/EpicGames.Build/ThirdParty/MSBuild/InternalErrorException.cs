@@ -5,6 +5,10 @@ using System;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 
+//EPIC BEGIN
+#nullable disable
+//EPIC END
+
 namespace Microsoft.Build.Shared
 {
     /// <summary>
@@ -19,7 +23,11 @@ namespace Microsoft.Build.Shared
     ///     
     /// </summary>
     [Serializable]
-    internal sealed class InternalErrorException : Exception
+	//EPIC BEGIN
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1064:Exceptions should be public", Justification = "<Pending>")]
+	[System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1837:Use 'Environment.ProcessId'", Justification = "<Pending>")]
+	//EPIC END
+	internal sealed class InternalErrorException : Exception
     {
         /// <summary>
         /// Default constructor.
@@ -114,7 +122,7 @@ namespace Microsoft.Build.Shared
 #endif
         }
 
-        private static void LaunchDebugger(string message, string innerMessage)
+		private static void LaunchDebugger(string message, string innerMessage)
         {
 #if FEATURE_DEBUG_LAUNCH
             Debug.Fail(message, innerMessage);

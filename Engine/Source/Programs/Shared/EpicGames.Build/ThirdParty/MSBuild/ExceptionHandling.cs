@@ -20,17 +20,26 @@ using Microsoft.Build.Shared.FileSystem;
 using System.Xml.Schema;
 using System.Runtime.Serialization;
 
+//EPIC BEGIN
+#nullable disable
+//EPIC END
+
 namespace Microsoft.Build.Shared
 #endif
 {
-    /// <summary>
-    /// Utility methods for classifying and handling exceptions.
-    /// </summary>
-    internal static class ExceptionHandling
+	/// <summary>
+	/// Utility methods for classifying and handling exceptions.
+	/// </summary>
+	//EPIC BEGIN
+	[SuppressMessage("Performance", "CA1837:Use 'Environment.ProcessId'", Justification = "<Pending>")]
+	[SuppressMessage("Reliability", "CA2002:Do not lock on objects with weak identity", Justification = "<Pending>")]
+	[SuppressMessage("Performance", "CA1810:Initialize reference type static fields inline", Justification = "<Pending>")]
+	//EPIC END
+	internal static class ExceptionHandling
     {
         private static readonly string s_debugDumpPath;
 
-        static ExceptionHandling()
+		static ExceptionHandling()
         {
             s_debugDumpPath = GetDebugDumpPath();
         }
@@ -299,10 +308,10 @@ namespace Microsoft.Build.Shared
         }
 #endif
 
-        /// <summary>
-        /// Dump the exception information to a file
-        /// </summary>
-        internal static void DumpExceptionToFile(Exception ex)
+		/// <summary>
+		/// Dump the exception information to a file
+		/// </summary>
+		internal static void DumpExceptionToFile(Exception ex)
         {
             //  Locking on a type is not recommended.  However, we are doing it here to be extra cautious about compatibility because
             //  this method previously had a [MethodImpl(MethodImplOptions.Synchronized)] attribute, which does lock on the type when

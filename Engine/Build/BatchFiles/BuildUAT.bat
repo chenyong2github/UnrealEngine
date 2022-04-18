@@ -25,6 +25,8 @@ dir /s^
  Programs\Shared\EpicGames.Core\*.csproj^
  Programs\Shared\EpicGames.Build\*.cs^
  Programs\Shared\EpicGames.Build\*.csproj^
+ Programs\Shared\EpicGames.MsBuild\*.cs^
+ Programs\Shared\EpicGames.MsBuild\*.csproj^
  Programs\Shared\EpicGames.UHT\*.cs^
  Programs\Shared\EpicGames.UHT\*.csproj^
  Programs\UnrealBuildTool\*.cs^

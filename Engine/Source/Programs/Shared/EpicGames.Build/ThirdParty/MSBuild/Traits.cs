@@ -4,6 +4,10 @@
 using System;
 using Microsoft.Build.Shared;
 
+//EPIC BEGIN
+#nullable disable
+//EPIC END
+
 namespace Microsoft.Build.Utilities
 {
     /// <summary>

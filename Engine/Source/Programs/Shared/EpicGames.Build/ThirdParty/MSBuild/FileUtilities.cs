@@ -20,14 +20,22 @@ using System.Threading;
 using Microsoft.Build.Utilities;
 using Microsoft.Build.Shared.FileSystem;
 
+//EPIC BEGIN
+#nullable disable
+//EPIC END
+
 namespace Microsoft.Build.Shared
 {
-    /// <summary>
-    /// This class contains utility methods for file IO.
-    /// PERF\COVERAGE NOTE: Try to keep classes in 'shared' as granular as possible. All the methods in
-    /// each class get pulled into the resulting assembly.
-    /// </summary>
-    internal static partial class FileUtilities
+	/// <summary>
+	/// This class contains utility methods for file IO.
+	/// PERF\COVERAGE NOTE: Try to keep classes in 'shared' as granular as possible. All the methods in
+	/// each class get pulled into the resulting assembly.
+	/// </summary>
+	// EPIC BEGIN
+	[SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "<Pending>")]
+	[SuppressMessage("Performance", "CA1837:Use 'Environment.ProcessId'", Justification = "<Pending>")]
+	// EPIC END
+	internal static partial class FileUtilities
     {
         // A list of possible test runners. If the program running has one of these substrings in the name, we assume
         // this is a test harness.
@@ -55,11 +63,12 @@ namespace Microsoft.Build.Shared
 
         internal static readonly StringComparison PathComparison = GetIsFileSystemCaseSensitive() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
-        /// <summary>
-        /// Determines whether the file system is case sensitive.
-        /// Copied from https://github.com/dotnet/runtime/blob/73ba11f3015216b39cb866d9fb7d3d25e93489f2/src/libraries/Common/src/System/IO/PathInternal.CaseSensitivity.cs#L41-L59
-        /// </summary>
-        public static bool GetIsFileSystemCaseSensitive()
+
+		/// <summary>
+		/// Determines whether the file system is case sensitive.
+		/// Copied from https://github.com/dotnet/runtime/blob/73ba11f3015216b39cb866d9fb7d3d25e93489f2/src/libraries/Common/src/System/IO/PathInternal.CaseSensitivity.cs#L41-L59
+		/// </summary>
+		public static bool GetIsFileSystemCaseSensitive()
         {
             try
             {
@@ -113,10 +122,11 @@ namespace Microsoft.Build.Shared
 
         private static readonly IFileSystem DefaultFileSystem = FileSystems.Default;
 
-        /// <summary>
-        /// Retrieves the MSBuild runtime cache directory
-        /// </summary>
-        internal static string GetCacheDirectory()
+
+		/// <summary>
+		/// Retrieves the MSBuild runtime cache directory
+		/// </summary>
+		internal static string GetCacheDirectory()
         {
             if (cacheDirectory == null)
             {
@@ -890,14 +900,14 @@ namespace Microsoft.Build.Shared
             }
         }
 
-        /// <summary>
-        /// Returns if the directory exists
-        /// </summary>
-        /// <param name="fullPath">Full path to the directory in the filesystem</param>
-        /// <param name="fileSystem">The file system</param>
-        /// <returns></returns>
-        internal static bool DirectoryExistsNoThrow(string fullPath, IFileSystem fileSystem = null)
-        {
+		/// <summary>
+		/// Returns if the directory exists
+		/// </summary>
+		/// <param name="fullPath">Full path to the directory in the filesystem</param>
+		/// <param name="fileSystem">The file system</param>
+		/// <returns></returns>
+		internal static bool DirectoryExistsNoThrow(string fullPath, IFileSystem fileSystem = null)
+		{
             fullPath = AttemptToShortenPath(fullPath);
 
             try
