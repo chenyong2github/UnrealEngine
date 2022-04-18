@@ -337,6 +337,8 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 		BuildProgressWidget.Pin()->SetBuildType(BuildType);
 	}
 
+	TSoftObjectPtr<UWorld> World = InWorld;
+
 	bool bShouldMapCheck = !FParse::Param(FCommandLine::Get(), TEXT("SkipMapCheck"));
 	if (Id == FBuildOptions::BuildGeometry)
 	{
@@ -494,6 +496,11 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 		UE_LOG(LogEditorBuildUtils, Warning, TEXT("Invalid build Id: %s"), *Id.ToString());
 		bDoBuild = false;
 	}
+
+	// It's possible the world was unloaded & reloaded if external commands were run.
+	// To work around this, reassign the initial world from it's soft object path.
+	check(World.IsValid());
+	InWorld = World.Get();
 
 	// Check map for errors (only if build operation happened)
 	if ( bShouldMapCheck && bDoBuild && !GEditor->GetMapBuildCancelled() )
@@ -1155,9 +1162,16 @@ void FBuildAllHandler::ProcessBuild(const TWeakPtr<SBuildProgressWidget>& BuildP
 {
 	const FScopedBusyCursor BusyCursor;
 
+	TSoftObjectPtr<UWorld> World = CurrentWorld;
+
 	// Loop until we finish, or we start an async step.
 	while (true)
 	{
+		// It's possible the world was unloaded & reloaded if external commands were run.
+		// To work around this, reassign the initial world from it's soft object path.
+		check(World.IsValid());
+		CurrentWorld = World.Get();
+
 		if (GEditor->GetMapBuildCancelled())
 		{
 			// Build cancelled, so bail.
