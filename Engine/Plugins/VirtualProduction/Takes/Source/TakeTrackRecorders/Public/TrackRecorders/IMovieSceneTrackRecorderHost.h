@@ -52,6 +52,8 @@ struct FTrackRecorderSettings
 	float ReduceKeysTolerance;
 
 	TArray<FTakeRecorderTrackSettings> DefaultTracks;
+	TArray<FString> IncludeAnimationNames;
+	TArray<FString> ExcludeAnimationNames;
 
 	static bool IsDefaultPropertyTrack(UObject* InObjectToRecord, const FString& InPropertyPath, const TArray<FTakeRecorderTrackSettings>& DefaultTracks)
 	{

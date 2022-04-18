@@ -68,6 +68,14 @@ public:
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, meta=(ShowInnerProperties), Category = "Actor Source")
 	TObjectPtr<UActorRecorderPropertyMap> RecordedProperties;
 
+	/** Include only the animation bones/curves that match this list */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Source")
+	TArray<FString> IncludeAnimationNames;
+
+	/** Exclude all animation bones/curves that match this list */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Actor Source")
+	TArray<FString> ExcludeAnimationNames;
+
 	/** The level sequence that this source is being recorded into. Set during PreRecording, null after PostRecording. */
 	UPROPERTY()
 	TObjectPtr<ULevelSequence> TargetLevelSequence;

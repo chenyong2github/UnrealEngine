@@ -320,6 +320,35 @@ void FAnimationRecorder::ProcessNotifies()
 	}
 }
 
+bool FAnimationRecorder::ShouldSkipName(const FName& InName) const
+{
+	bool bShouldSkipName = false;
+			
+	for (const FString& ExcludeAnimationName : ExcludeAnimationNames)
+	{
+		if (InName.ToString().Contains(ExcludeAnimationName))
+		{
+			bShouldSkipName = true;
+			break;
+		}
+	}
+
+	if (IncludeAnimationNames.Num() != 0)
+	{
+		bShouldSkipName = true;
+		for (const FString& IncludeAnimationName : IncludeAnimationNames)
+		{
+			if (InName.ToString().Contains(IncludeAnimationName))
+			{
+				bShouldSkipName = false;
+				break;
+			}
+		}
+	}
+
+	return bShouldSkipName;
+}
+
 UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 {
 	double StartTime, ElapsedTime = 0;
@@ -356,11 +385,23 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 						const bool bMaterialCurve = CurveMetaData->Type.bMaterial;
 						const bool bAttributeCurve = !bMorphTarget && !bMaterialCurve;
 						
+						const FSmartNameMapping* Mapping = SkeletonObj->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+						FSmartName SmartName;
+
+						bool bShouldSkipName = false;
+						if (Mapping && Mapping->FindSmartNameByUID(CurveUID, SmartName))
+						{
+							bShouldSkipName = ShouldSkipName(SmartName.DisplayName);
+						}
+
 						const bool bSkipCurve = (bMorphTarget && !bRecordMorphTargets) ||
 												(bAttributeCurve && !bRecordAttributeCurves) ||
-												(bMaterialCurve && !bRecordMaterialCurves);
+												(bMaterialCurve && !bRecordMaterialCurves) ||
+												bShouldSkipName;
+
 						if (bSkipCurve)
 						{
+							UE_LOG(LogAnimation, Log, TEXT("Animation Recorder skipping curve: %s"), *SmartName.DisplayName.ToString());
 							continue;
 						}
 					}
@@ -434,7 +475,27 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
 			const FRawAnimSequenceTrack& RawTrack = RawTracks[TrackIndex];
 
-			Controller.SetBoneTrackKeys(AnimationTrack.Name, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
+			FName BoneName = AnimationTrack.Name;
+
+			bool bShouldSkipName = ShouldSkipName(AnimationTrack.Name);
+
+			if (!bShouldSkipName)
+			{
+				Controller.SetBoneTrackKeys(BoneName, RawTrack.PosKeys, RawTrack.RotKeys, RawTrack.ScaleKeys);
+			}
+			else
+			{
+				TArray<FVector3f> SinglePosKey;
+				SinglePosKey.Add(RawTrack.PosKeys[0]);
+				TArray<FQuat4f> SingleRotKey;
+				SingleRotKey.Add(RawTrack.RotKeys[0]);
+				TArray<FVector3f> SingleScaleKey;
+				SingleScaleKey.Add(RawTrack.ScaleKeys[0]);
+
+				Controller.SetBoneTrackKeys(BoneName, SinglePosKey, SingleRotKey, SingleScaleKey);
+
+				UE_LOG(LogAnimation, Log, TEXT("Animation Recorder skipping bone: %s"), *BoneName.ToString());
+			}
 		}
 
 		Controller.NotifyPopulated();
@@ -1055,6 +1116,8 @@ void FAnimRecorderInstance::InitInternal(USkeletalMeshComponent* InComponent, co
 	Recorder->bRecordMorphTargets = Settings.bRecordMorphTargets;
 	Recorder->bRecordAttributeCurves = Settings.bRecordAttributeCurves;
 	Recorder->bRecordMaterialCurves = Settings.bRecordMaterialCurves;
+	Recorder->IncludeAnimationNames = Settings.IncludeAnimationNames;
+	Recorder->ExcludeAnimationNames = Settings.ExcludeAnimationNames;
 
 	if (InComponent)
 	{

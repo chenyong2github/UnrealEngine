@@ -1656,6 +1656,8 @@ FTrackRecorderSettings UTakeRecorderActorSource::GetTrackRecorderSettings() cons
 	TrackRecorderSettings.ReduceKeysTolerance = Parameters.User.ReduceKeysTolerance;
 
 	TrackRecorderSettings.DefaultTracks = Parameters.Project.DefaultTracks;
+	TrackRecorderSettings.IncludeAnimationNames = IncludeAnimationNames;
+	TrackRecorderSettings.ExcludeAnimationNames = ExcludeAnimationNames;
 
 	return TrackRecorderSettings;
 }

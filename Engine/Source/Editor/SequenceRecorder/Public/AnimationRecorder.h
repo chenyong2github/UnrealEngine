@@ -141,6 +141,10 @@ public:
 	uint8 bRecordAttributeCurves : 1;
 	/** Whether or not to record material curves*/
 	uint8 bRecordMaterialCurves : 1;
+	/** Include list */
+	TArray<FString> IncludeAnimationNames;
+	/** Exclude list */
+	TArray<FString> ExcludeAnimationNames;
 public:
 	/** Helper function to get space bases depending on master pose component */
 	static void GetBoneTransforms(USkeletalMeshComponent* Component, TArray<FTransform>& BoneTransforms);
@@ -151,6 +155,8 @@ private:
 	void RecordNotifies(USkeletalMeshComponent* Component, const TArray<FAnimNotifyEventReference>& AnimNotifies, float DeltaTime, float RecordTime);
 
 	void ProcessNotifies();
+
+	bool ShouldSkipName(const FName& InName) const;
 
 	// recording curve data 
 	struct FBlendedCurve

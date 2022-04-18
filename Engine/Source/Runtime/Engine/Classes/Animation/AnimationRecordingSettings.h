@@ -84,4 +84,12 @@ struct ENGINE_API FAnimationRecordingSettings
 	/** Whether or not to record material curves */
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bRecordMaterialCurves;
+
+	/** Include only the animation bones/curves that match this list */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	TArray<FString> IncludeAnimationNames;
+
+	/** Exclude all animation bones/curves that match this list */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	TArray<FString> ExcludeAnimationNames;
 };
