@@ -91,22 +91,24 @@ void FUVEditorRecomputeUVsOp::NormalizeUVAreas(const FDynamicMesh3& Mesh, FDynam
 void FUVEditorRecomputeUVsOp::CalculateResult(FProgressCancel* Progress)
 {
 	NewResultInfo = FGeometryResult(EGeometryResultType::InProgress);
+	bool bOK = false;
 
-	bool bOK;
-	if (bMergingOptimization)
-	{
-		bOK = CalculateResult_RegionOptimization(Progress);
-	}
-	else
-	{
-		bOK = CalculateResult_Basic(Progress);
+	if (IsValid())
+	{		
+		if (bMergingOptimization)
+		{
+			bOK = CalculateResult_RegionOptimization(Progress);
+		}
+		else
+		{
+			bOK = CalculateResult_Basic(Progress);
+		}
 	}
 
 	NewResultInfo.SetSuccess(bOK, Progress);
 	SetResultInfo(NewResultInfo);
 
 }
-
 
 void FUVEditorRecomputeUVsOp::CollectIslandComponentsPerTile(const FDynamicMeshUVOverlay& UVOverlay, TArray< TileConnectedComponents >& ComponentsPerTile, bool& bUseExistingUVTopology)
 {
@@ -116,10 +118,15 @@ void FUVEditorRecomputeUVsOp::CollectIslandComponentsPerTile(const FDynamicMeshU
 	TArray<FVector2i> Tiles;
 	TArray<TUniquePtr<TArray<int32>>> TileTids;
 
-	FDynamicMeshUDIMClassifier TileClassifier(&UVOverlay);
-
 	if (bUDIMsEnabled)
 	{
+		TOptional<TArray<int32>> SelectionArray;
+		if (Selection.IsSet())
+		{
+			SelectionArray = Selection.GetValue().Array();
+		}		
+		FDynamicMeshUDIMClassifier TileClassifier(&UVOverlay, SelectionArray);
+	
 		Tiles = TileClassifier.ActiveTiles();
 		for (const FVector2i& Tile : Tiles)
 		{
@@ -128,8 +135,16 @@ void FUVEditorRecomputeUVsOp::CollectIslandComponentsPerTile(const FDynamicMeshU
 	}
 	else
 	{
-		Tiles.Add({ 0,0 });
-		TileTids.Add(nullptr);
+		if (Selection.IsSet())
+		{
+			Tiles.Add({ 0,0 });
+			TileTids.Emplace(MakeUnique<TArray<int32>>(Selection.GetValue().Array()));
+		}
+		else
+		{
+			Tiles.Add({ 0,0 });
+			TileTids.Add(nullptr);
+		}
 	}
 	
 	for (int32 TileIndex = 0; TileIndex < Tiles.Num(); ++TileIndex)
@@ -228,11 +243,29 @@ bool FUVEditorRecomputeUVsOp::CalculateResult_Basic(FProgressCancel* Progress)
 		TArray<bool> bComponentSolved;
 		bComponentSolved.Init(false, NumComponents);
 		int32 SuccessCount = 0;
+		TArray<FAxisAlignedBox2f> PerComponentBoundingBoxes;
+		PerComponentBoundingBoxes.SetNum(NumComponents);
 
 		// TODO: the solves here could be done in parallel if we pre-allocated the island element IDs
 		for (int32 k = 0; k < NumComponents; ++k)
 		{
 			const TArray<int32>& ComponentTris = TileComponents.ConnectedComponents[k].Indices;
+
+			FAxisAlignedBox2f& UVBounds = PerComponentBoundingBoxes[k];
+			if (bPackToOriginalBounds)
+			{
+				for (int32 tid : ComponentTris)
+				{
+					if (UseOverlay->IsSetTriangle(tid))
+					{
+						FIndex3i UVTri = UseOverlay->GetTriangle(tid);
+						FVector2f U = UseOverlay->GetElement(UVTri.A);
+						FVector2f V = UseOverlay->GetElement(UVTri.B);
+						FVector2f W = UseOverlay->GetElement(UVTri.C);
+						UVBounds.Contain(U); UVBounds.Contain(V); UVBounds.Contain(W);
+					}
+				}
+			}
 
 			bComponentSolved[k] = false;
 			switch (UnwrapType)
@@ -270,17 +303,38 @@ bool FUVEditorRecomputeUVsOp::CalculateResult_Basic(FProgressCancel* Progress)
 		if (bAutoRotate)
 		{
 			ParallelFor(NumComponents, [&](int32 k)
+			{
+				if (Progress && Progress->Cancelled())
 				{
-					if (Progress && Progress->Cancelled())
-					{
-						return;
-					}
-					if (bComponentSolved[k])
-					{
-						const TArray<int32>& ComponentTris = TileComponents.ConnectedComponents[k].Indices;
-						UVEditor.AutoOrientUVArea(ComponentTris);
-					};
-				});
+					return;
+				}
+				if (bComponentSolved[k])
+				{
+					const TArray<int32>& ComponentTris = TileComponents.ConnectedComponents[k].Indices;
+					UVEditor.AutoOrientUVArea(ComponentTris);
+				};
+			});
+		}
+		if (Progress && Progress->Cancelled())
+		{
+			return false;
+		}
+
+		if (bPackToOriginalBounds)
+		{
+			ParallelFor(NumComponents, [&](int32 k)
+			{
+				if (Progress && Progress->Cancelled())
+				{
+					return;
+				}
+				if (bComponentSolved[k])
+				{
+					const TArray<int32>& ComponentTris = TileComponents.ConnectedComponents[k].Indices;
+					const FAxisAlignedBox2f& UVBounds = PerComponentBoundingBoxes[k];
+					UVEditor.ScaleUVAreaToBoundingBox(ComponentTris, UVBounds, true, true);
+				}
+			});
 		}
 		if (Progress && Progress->Cancelled())
 		{
@@ -298,7 +352,7 @@ bool FUVEditorRecomputeUVsOp::CalculateResult_Basic(FProgressCancel* Progress)
 			return false;
 		}
 
-		if (bPackUVs)
+		if (bPackUVs && ensure(TileComponents.TileTids.Num() > 0))
 		{
 			bool bPackingSuccess = UVEditor.UDIMPack(PackingTextureResolution, PackingGutterWidth, TileComponents.Tile, &TileComponents.TileTids);
 			if (!bPackingSuccess)
@@ -440,6 +494,17 @@ bool FUVEditorRecomputeUVsOp::CalculateResult_RegionOptimization(FProgressCancel
 	return true;
 }
 
+bool FUVEditorRecomputeUVsOp::IsValid() const
+{
+	if (bPackToOriginalBounds && (bMergingOptimization || IslandMode == EUVEditorRecomputeUVsIslandMode::PolyGroups))
+	{
+		// It is not a valid state to be packing into original UV island bounds if islands are being merged or re-generated from polygroups
+		return false;
+	}
+
+	return true;
+}
+
 
 /**
  * Factory
@@ -491,6 +556,11 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorRecomputeUVsOpFactory::MakeNewOperator
 		RecomputeUVsOp->bPackUVs = true;
 		RecomputeUVsOp->PackingTextureResolution = Settings->TextureResolution;
 		break;
+	case EUVEditorRecomputeUVsPropertiesLayoutType::NormalizeToExistingBounds:
+		RecomputeUVsOp->bPackToOriginalBounds = true;
+		RecomputeUVsOp->bPackUVs = false;
+		RecomputeUVsOp->bNormalizeAreas = false;
+		break;
 	case EUVEditorRecomputeUVsPropertiesLayoutType::NormalizeToBounds:
 		RecomputeUVsOp->bNormalizeAreas = true;
 		RecomputeUVsOp->AreaScaling = Settings->NormalizeScale / OriginalMesh->GetBounds().MaxDim();
@@ -501,6 +571,7 @@ TUniquePtr<FDynamicMeshOperator> UUVEditorRecomputeUVsOpFactory::MakeNewOperator
 	}
 
 	RecomputeUVsOp->SetTransform(TargetTransform);
+	RecomputeUVsOp->Selection = Selection;
 
 	return RecomputeUVsOp;
 }

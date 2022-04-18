@@ -63,6 +63,8 @@ enum class EUVEditorRecomputeUVsPropertiesLayoutType
 	None,
 	/** Uniformly scale and translate UV islands collectively to pack them into the unit square, i.e. fit between 0 and 1 with no overlap */
 	Repack,
+	/** Scale and center all islands to fit within their original bounding boxes. Only applicable if using existing UVs. */
+	NormalizeToExistingBounds,
 	/** Uniformly scale UV islands such that they have constant relative area, relative to object bounds */
 	NormalizeToBounds,
 	/** Uniformly scale UV islands such that they have constant relative area, relative to world space */
@@ -174,6 +176,9 @@ public:
 	// orientation control
 	bool bAutoRotate = true;
 
+	// Individual packing
+	bool bPackToOriginalBounds = false;
+
 	// area scaling
 	bool bNormalizeAreas = true;
 	float AreaScaling = 1.0;
@@ -182,7 +187,7 @@ public:
 	int32 UVLayer = 0;
 
 	// Atlas Packing parameters
-	bool bPackUVs = true;
+	bool bPackUVs = true;	
 	int32 PackingTextureResolution = 512;
 	float PackingGutterWidth = 1.0f;
 
@@ -206,6 +211,8 @@ public:
 	// UDIM options	
 	bool bUDIMsEnabled = false;
 
+	// Selection
+	TOptional<TSet<int32>> Selection;
 
 	// set ability on protected transform.
 	void SetTransform(const FTransformSRT3d& XForm)
@@ -221,6 +228,11 @@ public:
 
 
 protected:
+
+	/*
+	* Check if operation is valid to do work. It may not be valid if there are conflicting or inconsistent options passed to it from the user.
+	*/
+	bool IsValid() const;
 
 	FGeometryResult NewResultInfo;
 
@@ -254,6 +266,8 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UUVEditorRecomputeUVsToolProperties> Settings = nullptr;
+
+	TOptional<TSet<int32>> Selection;
 
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> InputGroups;
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;

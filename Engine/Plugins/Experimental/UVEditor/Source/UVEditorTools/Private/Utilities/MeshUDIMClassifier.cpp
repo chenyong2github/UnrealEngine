@@ -7,9 +7,10 @@
 
 using namespace UE::Geometry;
 
-FDynamicMeshUDIMClassifier::FDynamicMeshUDIMClassifier(const FDynamicMeshUVOverlay* UVOverlayIn)
+FDynamicMeshUDIMClassifier::FDynamicMeshUDIMClassifier(const FDynamicMeshUVOverlay* UVOverlayIn, TOptional<TArray<int32>> SelectionIn)
 {
 	UVOverlay = UVOverlayIn;
+	Selection = SelectionIn;
 	ClassifyUDIMs();
 }
 
@@ -43,7 +44,14 @@ void FDynamicMeshUDIMClassifier::ClassifyUDIMs()
 	};
 
 	FMeshConnectedComponents UVComponents(Mesh);
-	UVComponents.FindConnectedTriangles(UVIslandPredicate);
+	if (Selection.IsSet())
+	{
+		UVComponents.FindConnectedTriangles(Selection.GetValue(), UVIslandPredicate);
+	}
+	else
+	{
+		UVComponents.FindConnectedTriangles(UVIslandPredicate);
+	}
 
 	auto UVTriangleToUDIM = [this](int32 Tid)
 	{

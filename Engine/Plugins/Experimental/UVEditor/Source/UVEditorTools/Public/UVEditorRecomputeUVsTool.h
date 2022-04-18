@@ -9,6 +9,7 @@
 #include "Polygroups/PolygroupSet.h"
 #include "Drawing/UVLayoutPreview.h"
 #include "UVEditorToolAnalyticsUtils.h"
+#include "Selection/UVToolSelectionAPI.h"
 
 #include "UVEditorRecomputeUVsTool.generated.h"
 
@@ -43,7 +44,7 @@ public:
  * UUVEditorRecomputeUVsTool Recomputes UVs based on existing segmentations of the mesh
  */
 UCLASS()
-class UVEDITORTOOLS_API UUVEditorRecomputeUVsTool : public UInteractiveTool 
+class UVEDITORTOOLS_API UUVEditorRecomputeUVsTool : public UInteractiveTool, public IUVToolSupportsSelection
 {
 	GENERATED_BODY()
 
@@ -82,6 +83,10 @@ protected:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorRecomputeUVsOpFactory>> Factories;
+
+	UPROPERTY()
+	TObjectPtr<UUVToolSelectionAPI> UVToolSelectionAPI = nullptr;
+
 
 	TSharedPtr<UE::Geometry::FPolygroupSet, ESPMode::ThreadSafe> ActiveGroupSet;
 	void OnSelectedGroupLayerChanged();
