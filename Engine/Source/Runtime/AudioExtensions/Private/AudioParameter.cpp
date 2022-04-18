@@ -220,8 +220,7 @@ void FAudioParameter::Merge(TArray<FAudioParameter>&& InParams, TArray<FAudioPar
 			FAudioParameter NewParam = InParams.Pop(bAllowShrinking);
 			if (NewParam.ParamName == OutParam.ParamName)
 			{
-				NewParam.Merge(OutParam);
-				OutParam = MoveTemp(NewParam);
+				OutParam.Merge(NewParam);
 			}
 			else
 			{

@@ -808,8 +808,8 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 		AudioDevice->SetCanHaveMultipleActiveSounds(AudioComponentID, bCanPlayMultipleInstances);
 	}
 
-	TArray<FAudioParameter> SoundParams = InstanceParameters;
-
+	TArray<FAudioParameter> SoundParams = DefaultParameters;
+	
 	if (AActor* Owner = GetOwner())
 	{
 		TArray<FAudioParameter> ActorParams;
@@ -821,8 +821,8 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 		UE_LOG(LogAudio, VeryVerbose, TEXT("AudioComponent : '%s' playing sound '%s' has no owner"), *GetFullName(), *Sound->GetName());
 	}
 
-	TArray<FAudioParameter> DefaultParamsCopy = DefaultParameters;
-	FAudioParameter::Merge(MoveTemp(DefaultParamsCopy), SoundParams);
+	TArray<FAudioParameter> InstanceParamsCopy = InstanceParameters;
+	FAudioParameter::Merge(MoveTemp(InstanceParamsCopy), SoundParams);
 
 	AudioDevice->AddNewActiveSound(NewActiveSound, MoveTemp(SoundParams));
 
