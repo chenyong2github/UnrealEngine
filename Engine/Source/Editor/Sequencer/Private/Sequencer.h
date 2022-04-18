@@ -501,9 +501,9 @@ public:
 	bool IsLevelEditorSequencer() const { return bIsEditingWithinLevelEditor; }
 
 	/** @return Whether to show the curve editor or not */
-	void SetShowCurveEditor(bool bInShowCurveEditor);
+	virtual void SetShowCurveEditor(bool bInShowCurveEditor) override;
 	/** @return If the curve editor is currently visible. */
-	bool GetCurveEditorIsVisible() const;
+	virtual bool GetCurveEditorIsVisible() const override;
 
 	/** Called to save the current movie scene */
 	void SaveCurrentMovieScene();

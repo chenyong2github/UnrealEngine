@@ -444,6 +444,11 @@ public:
 	*/
 	virtual void RecreateCurveEditor() {};
 
+	/** Whether to show the curve editor or not */
+	virtual void SetShowCurveEditor(bool bInShowCurveEditor) {}
+	/** @return If the curve editor is currently visible. */
+	virtual bool GetCurveEditorIsVisible() const { return false; }
+
 	/*
 	 * Puts sequencer in a silent state (whereby it will not redraw viewports, or attempt to update external state besides the sequence itself)
 	 */
