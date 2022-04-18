@@ -247,6 +247,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = PlayInEditor, meta = (ToolTip = "Whether or not the editor is minimized on VR PIE"))
 	bool ShouldMinimizeEditorOnVRPIE;
 
+	/** Should we minimize the editor when non-VR PIE is clicked (default = false) */
+	UPROPERTY(config, EditAnywhere, Category = PlayInEditor, meta = (ToolTip = "Whether or not the editor is minimized on non-VR PIE"))
+	bool bShouldMinimizeEditorOnNonVRPIE;
+
 	/** Whether to automatically recompile blueprints on PIE */
 	UPROPERTY(config, EditAnywhere, Category=PlayInEditor, meta=(ToolTip="Automatically recompile blueprints used by the current level when initiating a Play In Editor session"))
 	bool AutoRecompileBlueprints;
