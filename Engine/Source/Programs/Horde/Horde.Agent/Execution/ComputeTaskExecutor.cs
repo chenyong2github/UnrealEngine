@@ -144,6 +144,7 @@ namespace Horde.Agent.Execution
 						_logger.LogInformation("stderr: {Line}", line);
 					}
 
+					process.WaitForExit();
 					_logger.LogInformation("exit: {ExitCode}", process.ExitCode);
 
 					ComputeTaskResult result = new ComputeTaskResult(process.ExitCode);
