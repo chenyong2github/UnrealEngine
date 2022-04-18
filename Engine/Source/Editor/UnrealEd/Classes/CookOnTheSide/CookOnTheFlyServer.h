@@ -33,6 +33,8 @@ class IPlugin;
 class ITargetPlatform;
 struct FPropertyChangedEvent;
 
+namespace UE::LinkerLoad { enum class EImportBehavior : uint8; }
+
 enum class ECookInitializationFlags
 {
 	None =										0x00000000, // No flags
@@ -293,6 +295,8 @@ private:
 	void OnFConfigCreated(const FConfigFile* Config);
 
 	void ProcessAccessedIniSettings(const FConfigFile* Config, FIniSettingContainer& AccessedIniStrings) const;
+
+	void OnRequestClusterCompleted(const UE::Cook::FRequestCluster& RequestCluster);
 
 	/**
 	* OnTargetPlatformChangedSupportedFormats
@@ -1116,6 +1120,11 @@ private:
 	/** Allocate a new FCookSavePackageContext and ICookedPackageWriter for the given platform. */
 	UE::Cook::FCookSavePackageContext* CreateSaveContext(const ITargetPlatform* TargetPlatform);
 
+	void ConditionalInstallImportBehaviorCallback();
+	void ConditionalUninstallImportBehaviorCallback();
+	static void PropertyImportBehaviorCallback(const FObjectImport& Import, const FLinkerLoad& LinkerLoad, UE::LinkerLoad::EImportBehavior& OutBehavior);
+	
+	static UCookOnTheFlyServer* ActiveCOTFS;
 	uint32		StatLoadedPackageCount = 0;
 	uint32		StatSavedPackageCount = 0;
 
@@ -1135,6 +1144,7 @@ private:
 	bool bHybridIterativeDebug = false;
 	bool bHasBlockedOnAssetRegistry = false;
 	bool bHasDeferredInitializeCookOnTheFly = false;
+	bool bImportBehaviorCallbackInstalled = false;
 
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */

@@ -37,6 +37,7 @@
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
 #include "EditorDomain/EditorDomain.h"
+#include "EditorDomain/EditorDomainUtils.h"
 #include "Engine/AssetManager.h"
 #include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
@@ -114,6 +115,7 @@
 #include "UObject/Class.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/GarbageCollection.h"
+#include "UObject/LinkerLoadImportBehavior.h"
 #include "UObject/MetaData.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
@@ -182,6 +184,7 @@ static FAutoConsoleVariableRef CVarCookDisplayWarnBusyTime(
 ////////////////////////////////////////////////////////////////
 /// Cook on the fly server
 ///////////////////////////////////////////////////////////////
+UCookOnTheFlyServer* UCookOnTheFlyServer::ActiveCOTFS = nullptr;
 
 constexpr float TickCookableObjectsFrameTime = .100f;
 
@@ -2010,18 +2013,7 @@ void UCookOnTheFlyServer::PumpRequests(UE::Cook::FTickStackData& StackData, int3
 				PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
 			}
 			RequestClusters.PopFront();
-			if (IsCookByTheBookMode() && bHybridIterativeDebug)
-			{
-				for (FPackageData* PackageData : *PackageDatas)
-				{
-					if (!PackageData->AreAllRequestedPlatformsExplored())
-					{
-						UE_LOG(LogCook, Warning, TEXT("Missing dependency: existing requested Package %s was not explored in the first cluster."),
-							*WriteToString<256>(PackageData->GetPackageName()));
-					}
-				}
-				PackageDatas->SetLogDiscoveredPackages(true); // Turn this on for the rest of the cook after the initial cluster
-			}
+			OnRequestClusterCompleted(RequestCluster);
 		}
 		if (CookerTimer.IsTimeUp())
 		{
@@ -3845,6 +3837,7 @@ void UCookOnTheFlyServer::ShutdownCookOnTheFly()
 		CookOnTheFlyRequestManager->Shutdown();
 		CookOnTheFlyRequestManager.Reset();
 		ClearHierarchyTimers();
+		ConditionalUninstallImportBehaviorCallback();
 	}
 }
 
@@ -4143,6 +4136,7 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 void UCookOnTheFlyServer::BeginDestroy()
 {
 	ShutdownCookOnTheFly();
+	ConditionalUninstallImportBehaviorCallback();
 
 	Super::BeginDestroy();
 }
@@ -5709,6 +5703,28 @@ bool UCookOnTheFlyServer::SaveCurrentIniSettings(const ITargetPlatform* TargetPl
 
 }
 
+void UCookOnTheFlyServer::OnRequestClusterCompleted(const UE::Cook::FRequestCluster& RequestCluster)
+{
+	using namespace UE::Cook;
+	if (IsCookByTheBookMode())
+	{
+		if (bHybridIterativeDebug)
+		{
+			for (FPackageData* PackageData : *PackageDatas)
+			{
+				if (!PackageData->AreAllRequestedPlatformsExplored())
+				{
+					UE_LOG(LogCook, Warning, TEXT("Missing dependency: existing requested Package %s was not explored in the first cluster."),
+						*WriteToString<256>(PackageData->GetPackageName()));
+				}
+			}
+			PackageDatas->SetLogDiscoveredPackages(true); // Turn this on for the rest of the cook after the initial cluster
+		}
+
+		ConditionalInstallImportBehaviorCallback();
+	}
+}
+
 FAsyncIODelete& UCookOnTheFlyServer::GetAsyncIODelete()
 {
 	if (AsyncIODelete)
@@ -6961,6 +6977,8 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	BuildDefinitions->Wait();
 	
 	GetDerivedDataCacheRef().WaitForQuiescence(true);
+
+	ConditionalUninstallImportBehaviorCallback();
 	
 	UCookerSettings const* CookerSettings = GetDefault<UCookerSettings>();
 
@@ -9178,6 +9196,87 @@ UE::Cook::FCookSavePackageContext& UCookOnTheFlyServer::FindOrCreateSaveContext(
 		}
 	}
 	return *SavePackageContexts.Add_GetRef(CreateSaveContext(TargetPlatform));
+}
+
+void UCookOnTheFlyServer::ConditionalInstallImportBehaviorCallback()
+{
+	if (!bImportBehaviorCallbackInstalled && !IsCookingInEditor() && FEditorDomain::Get())
+	{
+		check(ActiveCOTFS == nullptr);
+		ActiveCOTFS = this;
+		UE::LinkerLoad::SetPropertyImportBehaviorCallback(&PropertyImportBehaviorCallback);
+		bImportBehaviorCallbackInstalled = true;
+	}
+}
+
+void UCookOnTheFlyServer::ConditionalUninstallImportBehaviorCallback()
+{
+	if (bImportBehaviorCallbackInstalled)
+	{
+		check(ActiveCOTFS == this);
+		UE::LinkerLoad::SetPropertyImportBehaviorCallback((UE::LinkerLoad::PropertyImportBehaviorFunction*)nullptr);
+		ActiveCOTFS = nullptr;
+		bImportBehaviorCallbackInstalled = false;
+	}
+}
+
+void UCookOnTheFlyServer::PropertyImportBehaviorCallback(const FObjectImport& Import, const FLinkerLoad& LinkerLoad, UE::LinkerLoad::EImportBehavior& OutBehavior)
+{
+	auto GetImportPackageName = [&LinkerLoad](const FObjectImport& Import)
+	{
+		const FObjectImport* CurrentResource = &Import;
+		for (int32 NumCycles = 0; NumCycles < LinkerLoad.ImportMap.Num(); ++NumCycles)
+		{
+			// If the import has a package name set, then that's the import package name,
+			if (CurrentResource->HasPackageName())
+			{
+				return CurrentResource->GetPackageName();
+			}
+			// If our outer is null, then we have a package
+			else if (CurrentResource->OuterIndex.IsNull())
+			{
+				return CurrentResource->ObjectName;
+			}
+			if (!CurrentResource->OuterIndex.IsImport())
+			{
+				return FName();
+			}
+			CurrentResource = &LinkerLoad.Imp(CurrentResource->OuterIndex);
+		}
+		return FName();
+	};
+
+	if (ActiveCOTFS != nullptr)
+	{
+		FName ImportPackageName = GetImportPackageName(Import);
+		if (!ImportPackageName.IsNone())
+		{
+			UE::Cook::FPackageData* PackageData = ActiveCOTFS->PackageDatas->FindPackageDataByPackageName(ImportPackageName);
+
+			if (PackageData && PackageData->IsInProgress())
+			{
+				OutBehavior = UE::LinkerLoad::EImportBehavior::Eager;
+			}
+			else
+			{
+				FNameBuilder ClassPathBuilder(Import.ClassPackage);
+				ClassPathBuilder.AppendChar(TEXT('.'));
+				ClassPathBuilder << Import.ClassName;
+				FName ClassPath(ClassPathBuilder.ToView());
+				UE::EditorDomain::FClassDigestMap& ClassDigests = UE::EditorDomain::GetClassDigests();
+				FReadScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
+				UE::EditorDomain::FClassDigestData* ExistingData = ClassDigests.Map.Find(ClassPath);
+				if (!ExistingData || !ExistingData->bTargetIterativeEnabled)
+				{
+					OutBehavior = UE::LinkerLoad::EImportBehavior::Eager;
+				}
+				else
+				{
+					OutBehavior = UE::LinkerLoad::EImportBehavior::LazyOnDemand;
+				}
+			}
+		}
+	}
 }
 
 

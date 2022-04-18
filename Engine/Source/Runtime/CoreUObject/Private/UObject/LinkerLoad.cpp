@@ -11,6 +11,7 @@
 #include "Misc/ObjectThumbnail.h"
 #include "Misc/App.h"
 #include "UObject/MetaData.h"
+#include "UObject/LinkerLoadImportBehavior.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
@@ -1963,98 +1964,6 @@ FStructuredArchiveSlot FLinkerLoad::GetExportSlot(FPackageIndex InExportIndex)
 	return ExportReaders[Index]->GetRoot();
 }
 
-#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-FLinkerLoad::EImportLoadBehavior FLinkerLoad::ParseImportLoadBehavior(const FString* LoadBehaviorMeta)
-{
-	EImportLoadBehavior LoadBehavior = EImportLoadBehavior::Eager;
-	if (LoadBehaviorMeta)
-	{
-		if (*LoadBehaviorMeta == "Eager")
-		{
-			LoadBehavior = EImportLoadBehavior::Eager;
-		}
-		// @TODO: OBJPTR: we want to permit lazy background loading in the future
-		// else if (*LoadBehaviorMeta == "LazyBackground")
-		// {
-		// 	LoadBehavior = EImportLoadBehavior::LazyBackground;
-		// }
-		else if (*LoadBehaviorMeta == "LazyOnDemand")
-		{
-			LoadBehavior = EImportLoadBehavior::LazyOnDemand;
-		}
-	}
-
-	return LoadBehavior;
-}
-
-FLinkerLoad::EImportLoadBehavior FLinkerLoad::GetCurrentPropertyImportLoadBehavior(FPackageIndex ImportIndex)
-{
-	static const FName Name_LoadBehavior("LoadBehavior");
-	const FObjectImport& Import = Imp(ImportIndex);
-	if (Import.bImportSearchedFor)
-	{
-		// If it was something that's been searched for, we've already attempted a resolve, might as well use it
-		return EImportLoadBehavior::Eager;
-	}
-
-	if (!IsImportLazyLoadEnabled() || !IsAllowingLazyLoading() || (LinkerRoot && LinkerRoot->HasAnyPackageFlags(PKG_PlayInEditor)))
-	{
-		return EImportLoadBehavior::Eager;
-	}
-
-	UObject* ClassPackage = FindObject<UPackage>(nullptr, *Import.ClassPackage.ToString());
-	UClass* FindClass = ClassPackage ? FindObject<UClass>(ClassPackage, *Import.ClassName.ToString()) : nullptr;
-
-	// Attempt to get the meta from the referenced class.  This only looks in already loaded classes.  May need to resolve the class in the future.
-	EImportLoadBehavior LoadBehavior = EImportLoadBehavior::Eager;
-	static const bool bDefaultLoadBehaviorTest = FParse::Param(FCommandLine::Get(), TEXT("DefaultLoadBehaviorTest"));
-	if (bDefaultLoadBehaviorTest)
-	{
-		LoadBehavior = EImportLoadBehavior::LazyOnDemand;
-	}
-
-	if (FindClass)
-	{
-		if (const FString* LoadBehaviorMeta = FindClass->FindMetaData(Name_LoadBehavior))
-		{
-			LoadBehavior = ParseImportLoadBehavior(LoadBehaviorMeta);
-		}
-	}
-
-	const FArchiveSerializedPropertyChain* PropChain = GetSerializedPropertyChain();
-	if (!PropChain)
-	{
-		return LoadBehavior;
-	}
-
-	const int32 NumPropsInChain = PropChain->GetNumProperties();
-	const FProperty* CurrentProperty = NumPropsInChain > 0 ? PropChain->GetPropertyFromStack(0) : nullptr;
-	if (!CurrentProperty)
-	{
-		return LoadBehavior;
-	}
-
-	const FProperty* ParentProperty = NumPropsInChain > 1 ? PropChain->GetPropertyFromStack(1) : nullptr;
-	// Exclude properties that are in hash sensitive containers as they will require the object to be loaded to compute a hash
-	// @TODO: OBJPTR: Forcing resolve for ObjectPtr hashing.  See GetTypeHash in ObjectHandle.h.
-	if (ParentProperty && 
-		(
-			ParentProperty->IsA<FSetProperty>() ||
-			(ParentProperty->IsA<FMapProperty>() && (CurrentProperty == static_cast<const FMapProperty*>(ParentProperty)->GetKeyProperty()))
-		))
-	{
-		return EImportLoadBehavior::Eager;
-	}
-
-	if (const FString* LoadBehaviorMeta = CurrentProperty->FindMetaData(Name_LoadBehavior))
-	{
-		LoadBehavior = ParseImportLoadBehavior(LoadBehaviorMeta);
-	}
-
-	return LoadBehavior;
-}
-#endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-
 FString ExtractObjectName(const FString& InFullPath)
 {
 	FString ObjectName = InFullPath;
@@ -2580,15 +2489,15 @@ void FLinkerLoad::Verify()
 {
 	if (!bHaveImportsBeenVerified)
 	{
-		bool bShouldVerifiedAllImports = IsRunningCommandlet();
+		bool bShouldVerifyAllImports = IsRunningCommandlet();
 
 #if WITH_EDITOR
 		// In editor builds using OFPA, we need to resolve imports for BP classes referenced by the level script in order to be able
 		// to properly reinstanced them. We could filter out imports to resolve here, but we resolve all of them instead.
-		bShouldVerifiedAllImports = true;
+		bShouldVerifyAllImports = true;
 #endif
 
-		if (!IsImportLazyLoadEnabled() && bShouldVerifiedAllImports)
+		if (!IsImportLazyLoadEnabled() && bShouldVerifyAllImports)
 		{
 #if WITH_EDITOR
 			TOptional<FScopedSlowTask> SlowTask;
@@ -5512,8 +5421,10 @@ FArchive& FLinkerLoad::operator<<( FObjectPtr& ObjectPtr )
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 	if (Index.IsImport())
 	{
-		EImportLoadBehavior LoadBehavior = GetCurrentPropertyImportLoadBehavior(Index);
-		if (LoadBehavior == EImportLoadBehavior::LazyOnDemand)
+		using namespace UE::LinkerLoad;
+		EImportBehavior LoadBehavior = EImportBehavior::Eager;
+		GetPropertyImportLoadBehavior(Imp(Index), *this, LoadBehavior);
+		if (LoadBehavior == EImportBehavior::LazyOnDemand)
 		{
 			const FObjectImport& Import = Imp(Index);
 			FObjectPathId ObjectPath;
@@ -5765,8 +5676,22 @@ bool FLinkerLoad::RemoveKnownMissingPackage(FName PackageName)
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 bool FLinkerLoad::IsImportLazyLoadEnabled()
 {
-	static const bool bLazyLoadImports = FParse::Param(FCommandLine::Get(), TEXT("LazyLoadImports"));
-	return bLazyLoadImports;
+	auto ImportLazyLoadEnabled = []()
+	{
+		if (FParse::Param(FCommandLine::Get(), TEXT("LazyLoadImports")))
+		{
+			return true;
+		}
+		else if (GConfig)
+		{
+			bool bLazyLoadImportsConfig = false;
+			GConfig->GetBool(TEXT("Core.System.Experimental"), TEXT("LazyLoadImports"), bLazyLoadImportsConfig, GEngineIni);
+			return bLazyLoadImportsConfig;
+		}
+		return false;
+	};
+	static const bool bImportLazyLoadEnabled = ImportLazyLoadEnabled();
+	return bImportLazyLoadEnabled;
 }
 #endif
 

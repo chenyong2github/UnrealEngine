@@ -1083,18 +1083,6 @@ private:
 
 	/** Sets the basic linker archive info */
 	void ResetStatusInfo();
-
-#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-	enum class EImportLoadBehavior
-	{
-		Eager = 0,
-		// @TODO: OBJPTR: we want to permit lazy background loading in the future
-		//LazyBackground,
-		LazyOnDemand,
-	};
-	static EImportLoadBehavior ParseImportLoadBehavior(const FString* LoadBehaviorMeta);
-	EImportLoadBehavior GetCurrentPropertyImportLoadBehavior(FPackageIndex ImportIndex);
-#endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 public:
 	/**
 	 * Serializes the gatherable text data container.
