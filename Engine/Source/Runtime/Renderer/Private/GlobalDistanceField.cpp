@@ -1223,7 +1223,7 @@ void ReadbackDistanceFieldClipmap(FRHICommandListImmediate& RHICmdList, FGlobalD
 	//Readback->Bounds = ClipMap.Bounds;
 	//Readback->Size = Size;
 
-	ensureMsgf(false, TEXT("#todo: Global DF readback requires a rewrite as global distance field is no longer stored in a continuos memory"));
+	ensureMsgf(false, TEXT("#todo: Global DF readback requires a rewrite as global distance field is no longer stored in a continuous memory"));
 
 	Readback->Bounds = FBox(FVector(0.0f), FVector(0.0f));
 	Readback->Size = FIntVector(0);

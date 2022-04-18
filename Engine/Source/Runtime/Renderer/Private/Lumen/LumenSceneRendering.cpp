@@ -102,7 +102,7 @@ int32 GLumenSceneSurfaceCacheResetEveryNthFrame = 0;
 FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheResetEveryNthFrame(
 	TEXT("r.LumenScene.SurfaceCache.ResetEveryNthFrame"),
 	GLumenSceneSurfaceCacheResetEveryNthFrame,
-	TEXT("Continuosly reset all atlases and captured cards every N-th frame.\n"),
+	TEXT("Continuously reset all atlases and captured cards every N-th frame.\n"),
 	ECVF_RenderThreadSafe
 );
 

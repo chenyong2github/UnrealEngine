@@ -606,7 +606,7 @@ void CullMeshSDFObjectsForView(
 	}
 }
 
-// Compact list of {ObjectIndex, GridCellIndex} into a continuos array
+// Compact list of {ObjectIndex, GridCellIndex} into a continuous array
 void CompactCulledObjectArray(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
