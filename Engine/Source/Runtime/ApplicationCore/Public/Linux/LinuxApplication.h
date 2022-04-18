@@ -305,9 +305,6 @@ private:
 	/** Using high precision mouse input */
 	bool bUsingHighPrecisionMouseInput;
 
-	/** Gamepad is attached */
-	bool bIsGamepadAttached;
-	
 	/** TODO: describe */
 	bool bIsMouseCursorLocked;
 
