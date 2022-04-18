@@ -17,18 +17,12 @@ public class AGXRHI : ModuleRules
 				"RHI",
 				"RHICore",
 				"RenderCore",
+				"MetalCpp"
 			}
 			);
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target,
 			"MTLPP"
 		);
-
-		PublicWeakFrameworks.Add("Metal");
-
-		if (Target.Platform == UnrealTargetPlatform.Mac)
-		{
-			PublicFrameworks.Add("QuartzCore");
-		}
 	}
 }
