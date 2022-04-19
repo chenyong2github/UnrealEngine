@@ -12,6 +12,7 @@
 #include "Chaos/Particles.h"
 #include "Chaos/Rotation.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 namespace Chaos
 {
@@ -313,8 +314,10 @@ public:
 
 		Ar << MAcceleration << MAngularAcceleration << MLinearImpulseVelocity << MAngularImpulseVelocity;
 
+		Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 		Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
-		if (Ar.IsLoading() && Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ChaosInertiaConvertedToVec3)
+		if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::ChaosInertiaConvertedToVec3
+			&& Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::ChaosInertiaConvertedToVec3)
 		{
 			TArray<PMatrix<T, d, d>> IArray;
 			TArray<PMatrix<T, d, d>> InvIArray;

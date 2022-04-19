@@ -202,6 +202,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Migrated function handlers to the CDO/archetype data
 		MigratedFunctionHandlersToDefaults,
 
+		// Storing inertia tensor as vec3 instead of matrix.
+		ChaosInertiaConvertedToVec3,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
