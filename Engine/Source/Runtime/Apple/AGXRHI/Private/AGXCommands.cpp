@@ -40,14 +40,14 @@ public:
 };
 static TGlobalResource<FVector4VertexDeclaration> FVector4VertexDeclaration;
 
-mtlpp::PrimitiveType AGXTranslatePrimitiveType(uint32 PrimitiveType)
+MTLPrimitiveType AGXTranslatePrimitiveType(uint32 PrimitiveType)
 {
 	switch (PrimitiveType)
 	{
-		case PT_TriangleList:	return mtlpp::PrimitiveType::Triangle;
-		case PT_TriangleStrip:	return mtlpp::PrimitiveType::TriangleStrip;
-		case PT_LineList:		return mtlpp::PrimitiveType::Line;
-		case PT_PointList:		return mtlpp::PrimitiveType::Point;
+		case PT_TriangleList:	return MTLPrimitiveTypeTriangle;
+		case PT_TriangleStrip:	return MTLPrimitiveTypeTriangleStrip;
+		case PT_LineList:		return MTLPrimitiveTypeLine;
+		case PT_PointList:		return MTLPrimitiveTypePoint;
 		// Metal doesn't actually actually draw in control-point patch-lists because of the way the compute shader stage works - it can handle any arbitrary patch size and will output triangles.
 		case PT_1_ControlPointPatchList:
 		case PT_2_ControlPointPatchList:
@@ -82,11 +82,11 @@ mtlpp::PrimitiveType AGXTranslatePrimitiveType(uint32 PrimitiveType)
 		case PT_31_ControlPointPatchList:
 		case PT_32_ControlPointPatchList:
 		{
-			return mtlpp::PrimitiveType::Triangle;
+			return MTLPrimitiveTypeTriangle;
 		}
 		default:
 			METAL_FATAL_ERROR(TEXT("Unsupported primitive type %d"), (int32)PrimitiveType);
-			return mtlpp::PrimitiveType::Triangle;
+			return MTLPrimitiveTypeTriangle;
 	}
 }
 

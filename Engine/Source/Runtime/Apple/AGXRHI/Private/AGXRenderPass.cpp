@@ -302,7 +302,11 @@ void FAGXRenderPass::DrawPrimitive(uint32 PrimitiveType, uint32 BaseVertexIndex,
 	uint32 NumVertices = GetVertexCountForPrimitiveCount(NumPrimitives, PrimitiveType);
 	
 	METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeDraw(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__, NumPrimitives, NumVertices, NumInstances));
-	CurrentEncoder.GetRenderCommandEncoder().Draw(AGXTranslatePrimitiveType(PrimitiveType), BaseVertexIndex, NumVertices, NumInstances);
+
+	[CurrentEncoder.GetRenderCommandEncoder() drawPrimitives:AGXTranslatePrimitiveType(PrimitiveType)
+												 vertexStart:(NSUInteger)BaseVertexIndex
+												 vertexCount:(NSUInteger)NumVertices
+											   instanceCount:(NSUInteger)NumInstances];
 
 	ConditionalSubmit();	
 }
@@ -321,7 +325,10 @@ void FAGXRenderPass::DrawPrimitiveIndirect(uint32 PrimitiveType, FAGXVertexBuffe
 		PrepareToRender(PrimitiveType);
 		
 		METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeDraw(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__, 1, 1, 1));
-		CurrentEncoder.GetRenderCommandEncoder().Draw(AGXTranslatePrimitiveType(PrimitiveType), TheBackingBuffer, ArgumentOffset);
+
+		[CurrentEncoder.GetRenderCommandEncoder() drawPrimitives:AGXTranslatePrimitiveType(PrimitiveType)
+												  indirectBuffer:TheBackingBuffer.GetPtr()
+											indirectBufferOffset:((NSUInteger)ArgumentOffset + TheBackingBuffer.GetOffset())];
 
 		ConditionalSubmit();
 	}
@@ -390,13 +397,26 @@ void FAGXRenderPass::DrawIndexedPrimitive(FAGXBuffer const& IndexBuffer, uint32 
 	uint32 NumIndices = GetVertexCountForPrimitiveCount(NumPrimitives, PrimitiveType);
 	
 	METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeDraw(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__, NumPrimitives, NumVertices, NumInstances));
+
 	if (GRHISupportsBaseVertexIndex && GRHISupportsFirstInstance)
 	{
-		CurrentEncoder.GetRenderCommandEncoder().DrawIndexed(AGXTranslatePrimitiveType(PrimitiveType), NumIndices, ((IndexStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32), IndexBuffer, StartIndex * IndexStride, NumInstances, BaseVertexIndex, FirstInstance);
+		[CurrentEncoder.GetRenderCommandEncoder() drawIndexedPrimitives:AGXTranslatePrimitiveType(PrimitiveType)
+															 indexCount:(NSUInteger)NumIndices
+															  indexType:((IndexStride == 2) ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32)
+															indexBuffer:IndexBuffer.GetPtr()
+													  indexBufferOffset:((NSUInteger)(StartIndex * IndexStride) + IndexBuffer.GetOffset())
+														  instanceCount:(NSUInteger)NumInstances
+															 baseVertex:(NSUInteger)BaseVertexIndex
+														   baseInstance:(NSUInteger)FirstInstance];
 	}
 	else
 	{
-		CurrentEncoder.GetRenderCommandEncoder().DrawIndexed(AGXTranslatePrimitiveType(PrimitiveType), NumIndices, ((IndexStride == 2) ? mtlpp::IndexType::UInt16 : mtlpp::IndexType::UInt32), IndexBuffer, StartIndex * IndexStride, NumInstances);
+		[CurrentEncoder.GetRenderCommandEncoder() drawIndexedPrimitives:AGXTranslatePrimitiveType(PrimitiveType)
+															 indexCount:(NSUInteger)NumIndices
+															  indexType:((IndexStride == 2) ? MTLIndexTypeUInt16 : MTLIndexTypeUInt32)
+															indexBuffer:IndexBuffer.GetPtr()
+													  indexBufferOffset:((NSUInteger)(StartIndex * IndexStride) + IndexBuffer.GetOffset())
+														  instanceCount:(NSUInteger)NumInstances];
 	}
 	
 	ConditionalSubmit();
@@ -422,7 +442,13 @@ void FAGXRenderPass::DrawIndexedIndirect(FAGXIndexBuffer* IndexBuffer, uint32 Pr
 		PrepareToRender(PrimitiveType);
 		
 		METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeDraw(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__, 1, 1, 1));
-		CurrentEncoder.GetRenderCommandEncoder().DrawIndexed(AGXTranslatePrimitiveType(PrimitiveType), (mtlpp::IndexType)IndexBuffer->IndexType, TheBackingIndexBuffer, 0, TheBackingBuffer, (DrawArgumentsIndex * 5 * sizeof(uint32)));
+
+		[CurrentEncoder.GetRenderCommandEncoder()	drawIndexedPrimitives:AGXTranslatePrimitiveType(PrimitiveType)
+																indexType:(MTLIndexType)IndexBuffer->IndexType
+															  indexBuffer:TheBackingIndexBuffer.GetPtr()
+														indexBufferOffset:(0 + TheBackingIndexBuffer.GetOffset())
+														   indirectBuffer:TheBackingBuffer.GetPtr()
+													 indirectBufferOffset:((NSUInteger)(DrawArgumentsIndex * 5 * sizeof(uint32)) + TheBackingBuffer.GetOffset())];
 
 		ConditionalSubmit();
 	}
@@ -449,7 +475,13 @@ void FAGXRenderPass::DrawIndexedPrimitiveIndirect(uint32 PrimitiveType,FAGXIndex
 		PrepareToRender(PrimitiveType);
 		
 		METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeDraw(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__, 1, 1, 1));
-		CurrentEncoder.GetRenderCommandEncoder().DrawIndexed(AGXTranslatePrimitiveType(PrimitiveType), (mtlpp::IndexType)IndexBuffer->IndexType, TheBackingIndexBuffer, 0, TheBackingBuffer, ArgumentOffset);
+
+		[CurrentEncoder.GetRenderCommandEncoder()	drawIndexedPrimitives:AGXTranslatePrimitiveType(PrimitiveType)
+																indexType:(MTLIndexType)IndexBuffer->IndexType
+															  indexBuffer:TheBackingIndexBuffer.GetPtr()
+														indexBufferOffset:(0 + TheBackingIndexBuffer.GetOffset())
+														   indirectBuffer:TheBackingBuffer.GetPtr()
+													 indirectBufferOffset:((NSUInteger)ArgumentOffset + TheBackingBuffer.GetOffset())];
 
 		ConditionalSubmit();
 	}
@@ -569,8 +601,9 @@ void FAGXRenderPass::InsertTextureBarrier()
 #if PLATFORM_MAC
 	check(CurrentEncoder.IsRenderCommandEncoderActive());
 	
-	id <MTLRenderCommandEncoder> RenderEncoder = CurrentEncoder.GetRenderCommandEncoder().GetPtr();
+	id<MTLRenderCommandEncoder> RenderEncoder = CurrentEncoder.GetRenderCommandEncoder();
 	check(RenderEncoder);
+	
 	[RenderEncoder memoryBarrierWithScope:MTLBarrierScopeRenderTargets afterStages:MTLRenderStageFragment beforeStages:MTLRenderStageVertex];
 #endif
 }

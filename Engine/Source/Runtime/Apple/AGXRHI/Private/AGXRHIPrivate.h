@@ -250,7 +250,7 @@ FORCEINLINE mtlpp::LoadAction GetMetalRTLoadAction(ERenderTargetLoadAction LoadA
 	}
 }
 
-mtlpp::PrimitiveType AGXTranslatePrimitiveType(uint32 PrimitiveType);
+MTLPrimitiveType AGXTranslatePrimitiveType(uint32 PrimitiveType);
 
 #if PLATFORM_MAC
 mtlpp::PrimitiveTopologyClass AGXTranslatePrimitiveTopology(uint32 PrimitiveType);
