@@ -256,6 +256,7 @@ namespace UE { namespace TasksTests
 			Signal2.Trigger();
 			verify(!Task.Wait(FTimespan::FromMilliseconds(100)));
 			Signal3.Trigger();
+			Task.Wait();
 		}
 
 		{	// nested in square
