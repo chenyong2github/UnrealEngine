@@ -927,14 +927,13 @@ uint32 FAGXBufferPoolPolicyData::GetPoolBucketIndex(CreationArguments Args)
 	check( Size <= BucketSizes[Lower] );
 	check( (Lower == 0 ) || ( Size > BucketSizes[Lower-1] ) );
 	
-	return Lower;
+	return (int32)Args.Storage * NumPoolBucketSizes + Lower;
 }
 
 uint32 FAGXBufferPoolPolicyData::GetPoolBucketSize(uint32 Bucket)
 {
 	check(Bucket < NumPoolBuckets);
-	uint32 Index = Bucket;
-	checkf(Index < NumPoolBucketSizes, TEXT("%d %d"), Index, NumPoolBucketSizes);
+	uint32 Index = Bucket % NumPoolBucketSizes;
 	return BucketSizes[Index];
 }
 
