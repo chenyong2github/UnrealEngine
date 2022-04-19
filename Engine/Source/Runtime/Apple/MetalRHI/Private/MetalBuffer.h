@@ -217,9 +217,10 @@ public:
 	typedef FMetalPooledBufferArgs CreationArguments;
 	enum
 	{
+		NumResourceStorageModes = 4, /* Corresponds to MTLStorageMode types: managed, shared, private, memoryless */
 		NumSafeFrames = 1, /** Number of frames to leave buffers before reclaiming/reusing */
 		NumPoolBucketSizes = NumBucketSizes, /** Number of pool bucket sizes */
-		NumPoolBuckets = NumPoolBucketSizes, /** Number of pool bucket sizes - all entries must use consistent ResourceOptions */
+		NumPoolBuckets = NumPoolBucketSizes * NumResourceStorageModes, /** Number of pool bucket sizes - all entries must use consistent ResourceOptions, so the total number of pool buckets is the number of pool bucket sizes x the number of resource storage modes */
 		NumToDrainPerFrame = 65536, /** Max. number of resources to cull in a single frame */
 		CullAfterFramesNum = 30 /** Resources are culled if unused for more frames than this */
 	};

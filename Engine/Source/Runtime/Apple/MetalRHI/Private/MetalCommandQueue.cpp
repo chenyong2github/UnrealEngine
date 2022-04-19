@@ -147,14 +147,14 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 	const bool bIsNVIDIA = [Device.GetName().GetPtr() rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound;
 	Features = EMetalFeaturesCountingQueries | EMetalFeaturesBaseVertexInstance | EMetalFeaturesIndirectBuffer | EMetalFeaturesLayeredRendering | EMetalFeaturesCubemapArrays;
 
-	FString DeviceName(Device.GetName());
-
 	if (!bIsNVIDIA)
 	{
 		Features |= EMetalFeaturesSetBufferOffset;
 	}
 	if (Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2))
 	{
+		FString DeviceName(Device.GetName());
+
 		Features |= EMetalFeaturesMSAADepthResolve | EMetalFeaturesMSAAStoreAndResolve;
         
 		// Assume that set*Bytes only works on macOS Sierra and above as no-one has tested it anywhere else.
@@ -253,23 +253,6 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 	{
 		Features |= EMetalFeaturesGPUTrace;
 	}
-
-#if PLATFORM_MAC
-	// For Release-5.0 we encountered a hard GPU hang on AMD GPUs.
-	if (DeviceName.Contains(TEXT("AMD")))
-	{
-		const auto CVarLumenDiffuseIndirectAllow = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.DiffuseIndirect.Allow"));
-		const auto CVarLumenReflectionsAllow = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.Reflections.Allow"));
-		if (CVarLumenDiffuseIndirectAllow != nullptr)
-		{
-			CVarLumenDiffuseIndirectAllow->Set(0, ECVF_SetByCode);
-		}
-		if (CVarLumenReflectionsAllow != nullptr)
-		{
-			CVarLumenReflectionsAllow->Set(0, ECVF_SetByCode);
-		}
-	}
-#endif
 
 	PermittedOptions = 0;
 	PermittedOptions |= mtlpp::ResourceOptions::CpuCacheModeDefaultCache;

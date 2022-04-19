@@ -1852,7 +1852,7 @@ void FLumenSceneData::CopyBuffersForResample(FRDGBuilder& GraphBuilder, FShaderR
 {
 	if (LastPageTableBufferForResample.NumBytes != PageTableBuffer.NumBytes)
 	{
-		LastPageTableBufferForResample.Initialize(TEXT("Lumen.LastPageBufferForResample"), PageTableBuffer.NumBytes);
+		LastPageTableBufferForResample.Initialize(TEXT("Lumen.LastPageBufferForResample"), PageTableBuffer.NumBytes, BUF_Static);
 	}
 
 	{
@@ -1869,7 +1869,7 @@ void FLumenSceneData::CopyBuffersForResample(FRDGBuilder& GraphBuilder, FShaderR
 
 	if (LastCardBufferForResample.NumBytes != CardBuffer.NumBytes)
 	{
-		LastCardBufferForResample.Initialize(TEXT("Lumen.LastCardsForResample"), NumBytesPerElement, CardBuffer.NumBytes / NumBytesPerElement);
+		LastCardBufferForResample.Initialize(TEXT("Lumen.LastCardsForResample"), NumBytesPerElement, CardBuffer.NumBytes / NumBytesPerElement, BUF_Static);
 	}
 	else
 	{
