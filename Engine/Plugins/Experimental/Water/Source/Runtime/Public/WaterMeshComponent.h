@@ -36,7 +36,9 @@ public:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials = false) const override;
 	virtual void SetMaterial(int32 ElementIndex, UMaterialInterface* Material) override;
+#if WITH_EDITOR
 	virtual bool ShouldRenderSelected() const override;
+#endif // WITH_EDITOR
 	//~ End UPrimitiveComponent Interface
 
 	void Update();

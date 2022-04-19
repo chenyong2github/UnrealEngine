@@ -109,20 +109,31 @@ void UWaterMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Ma
 	UE_LOG(LogWater, Warning, TEXT("SetMaterial is not compatible with UWaterMeshComponent since all materials on this component are auto-populated from the Water Bodies contained within it."));
 }
 
+#if WITH_EDITOR
+
 bool UWaterMeshComponent::ShouldRenderSelected() const
 {
 	if (bSelectable)
 	{
-		for (TActorIterator<AWaterBody> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+		bool bShouldRender = Super::ShouldRenderSelected();
+		if (!bShouldRender)
 		{
-			if (ActorItr->IsSelected())
+			UWaterSubsystem::ForEachWaterBodyComponent(GetWorld(), [&bShouldRender](UWaterBodyComponent* WaterBodyComponent)
 			{
-				return true;
-			}
+				check(WaterBodyComponent);
+				bShouldRender |= WaterBodyComponent->ShouldRenderSelected();
+
+				// Stop iterating over water body components by returning false as soon as one component says it should be "render selected" :
+				return !bShouldRender;
+			});
 		}
+
+		return bShouldRender;
 	}
 	return false;
 }
+
+#endif // WITH_EDITOR
 
 FMaterialRelevance UWaterMeshComponent::GetWaterMaterialRelevance(ERHIFeatureLevel::Type InFeatureLevel) const
 {
