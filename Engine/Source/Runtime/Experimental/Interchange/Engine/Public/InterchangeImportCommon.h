@@ -87,7 +87,7 @@ namespace UE
 			/**
 			 * Sets the SourceFileName value at the specified index.
 			 */
-			static bool SetSourceFilename(UAssetImportData* AssetImportData, const FString& SourceFilename, int32 SourceIndex);
+			static bool SetSourceFilename(UAssetImportData* AssetImportData, const FString& SourceFilename, int32 SourceIndex, const FString& SourceLabel = FString());
 
 			/**
 			 * Set the object's reimport source at the specified index value.

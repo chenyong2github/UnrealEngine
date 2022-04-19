@@ -192,20 +192,19 @@ namespace UE
 			return false;
 		}
 
-		bool FFactoryCommon::SetSourceFilename(UAssetImportData* AssetImportData, const FString& SourceFilename, int32 SourceIndex)
+		bool FFactoryCommon::SetSourceFilename(UAssetImportData* AssetImportData, const FString& SourceFilename, int32 SourceIndex, const FString& SourceLabel)
 		{
 			if (AssetImportData)
 			{
-				int32 RealSourceFileIndex = SourceIndex == INDEX_NONE ? 0 : SourceIndex;
-				if (RealSourceFileIndex < AssetImportData->GetSourceFileCount())
+				const int32 SafeSourceIndex = SourceIndex == INDEX_NONE ? 0 : SourceIndex;				
+				if (SafeSourceIndex < AssetImportData->GetSourceFileCount())
 				{
-					AssetImportData->UpdateFilenameOnly(SourceFilename, SourceIndex);
+					AssetImportData->UpdateFilenameOnly(SourceFilename, SafeSourceIndex);
 				}
 				else
 				{
 					//Create a source file entry, this case happen when user import a specific content for the first time
-					FString SourceIndexLabel = USkeletalMesh::GetSourceFileLabelFromIndex(RealSourceFileIndex).ToString();
-					AssetImportData->AddFileName(SourceFilename, RealSourceFileIndex, SourceIndexLabel);
+					AssetImportData->AddFileName(SourceFilename, SafeSourceIndex, SourceLabel);
 				}
 				return true;
 			}
