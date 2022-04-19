@@ -137,6 +137,11 @@ public:
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithVerse() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetEnabledPluginsWithContentOrVerse() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetDiscoveredPlugins() override;
+
+#if WITH_EDITOR
+	virtual const TSet<FString>& GetBuiltInPluginNames() const override;
+#endif //WITH_EDITOR
+
 	virtual bool AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh = true) override;
 	const TSet<FString>& GetAdditionalPluginSearchPaths() const override;
 	virtual TArray<TSharedRef<IPlugin>> GetPluginsWithPakFile() const override;
@@ -220,6 +225,11 @@ private:
 
 	/** Plugins that need to be configured to see if they should be enabled */
 	TSet<FString> PluginsToConfigure;
+
+#if WITH_EDITOR
+	/** Names of built-in plugins */
+	TSet<FString> BuiltInPluginNames;
+#endif //if WITH_EDITOR
 
 	TArray<TSharedRef<IPlugin>> PluginsWithPakFile;
 

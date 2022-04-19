@@ -329,6 +329,9 @@ void FPluginManager::DiscoverAllPlugins()
 	for (const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
 	{
 		PluginsToConfigure.Add(PluginPair.Key);
+#if WITH_EDITOR
+		BuiltInPluginNames.Add(PluginPair.Key);
+#endif //if WITH_EDITOR
 	}
 }
 
@@ -1890,6 +1893,14 @@ TArray<TSharedRef<IPlugin>> FPluginManager::GetDiscoveredPlugins()
 	}
 	return Plugins;
 }
+
+#if WITH_EDITOR
+const TSet<FString>& FPluginManager::GetBuiltInPluginNames() const
+{
+	ensure(!BuiltInPluginNames.IsEmpty());
+	return BuiltInPluginNames;
+}
+#endif //if WITH_EDITOR
 
 bool FPluginManager::AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh)
 {

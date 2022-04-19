@@ -281,7 +281,7 @@ public:
 #endif
 
 	/**
-	 * Finds information for an enabled plugin.
+	 * Finds information for a plugin.
 	 *
 	 * @return	 Pointer to the plugin's information, or nullptr.
 	 */
@@ -322,6 +322,13 @@ public:
 	 * @return	Array of the discovered plugins.
 	 */
 	virtual TArray<TSharedRef<IPlugin>> GetDiscoveredPlugins() = 0;
+
+#if WITH_EDITOR
+	/**
+	 * Returns the set of built-in plugin names
+	 */
+	PROJECTS_API virtual const TSet<FString>& GetBuiltInPluginNames() const = 0;
+#endif //WITH_EDITOR
 
 	/**
 	 * Stores the specified path, utilizing it in future search passes when 
