@@ -139,6 +139,11 @@ public:
 		}
 	}
 
+	virtual bool IsEqualToDefaultValue(PCGMetadataValueKey ValueKey) const
+	{
+		return PCG::Private::MetadataTraits<T>::Equal(GetValue(ValueKey), DefaultValue);
+	}
+
 	PCGMetadataValueKey GetValueKeyOffsetForChild() const
 	{
 		FReadScopeLock ScopeLock(ValueLock);
@@ -364,7 +369,6 @@ protected:
 	{
 		// Empty on purpose
 	}
-
 
 protected:
 	mutable FRWLock ValueLock;

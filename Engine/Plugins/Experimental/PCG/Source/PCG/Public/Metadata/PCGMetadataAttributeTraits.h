@@ -29,34 +29,25 @@ namespace PCG
 
 #undef PCGMetadataGenerateDataTypes
 
-		// Common traits for int32, int64, float, double
 		template<typename T>
-		struct MetadataTraits
+		struct DefaultOperationTraits
 		{
-			enum { CompressData = false };
-			enum { CanMinMax = true };
 			enum { CanSubAdd = true };
 			enum { CanMulDiv = true };
-			enum { CanInterpolate = true };
 			
-			static T Min(const T& A, const T& B)
+			static bool Equal(const T& A, const T& B)
 			{
-				return FMath::Min(A, B);
-			}
-
-			static T Max(const T& A, const T& B)
-			{
-				return FMath::Max(A, B);
-			}
-
-			static T Add(const T& A, const T& B)
-			{
-				return A + B;
+				return A == B;
 			}
 
 			static T Sub(const T& A, const T& B)
 			{
 				return A - B;
+			}
+
+			static T Add(const T& A, const T& B)
+			{
+				return A + B;
 			}
 
 			static T Mul(const T& A, const T& B)
@@ -68,6 +59,12 @@ namespace PCG
 			{
 				return A / B;
 			}
+		};
+
+		template<typename T>
+		struct DefaultWeightedSumTraits
+		{
+			enum { CanInterpolate = true };
 
 			static T WeightedSum(const T& A, const T& B, float Weight)
 			{
@@ -80,6 +77,24 @@ namespace PCG
 			}
 		};
 
+		// Common traits for int32, int64, float, double
+		template<typename T>
+		struct MetadataTraits : DefaultOperationTraits<T>, DefaultWeightedSumTraits<T>
+		{
+			enum { CompressData = false };
+			enum { CanMinMax = true };
+
+			static T Min(const T& A, const T& B)
+			{
+				return FMath::Min(A, B);
+			}
+
+			static T Max(const T& A, const T& B)
+			{
+				return FMath::Max(A, B);
+			}
+		};
+
 		template<>
 		struct MetadataTraits<bool>
 		{
@@ -88,6 +103,11 @@ namespace PCG
 			enum { CanSubAdd = true };
 			enum { CanMulDiv = false };
 			enum { CanInterpolate = false };
+
+			static bool Equal(const bool& A, const bool& B)
+			{
+				return A == B;
+			}
 
 			static bool Min(const bool& A, const bool& B)
 			{
@@ -112,13 +132,11 @@ namespace PCG
 
 		// Vector types
 		template<>
-		struct MetadataTraits<FVector>
+		struct MetadataTraits<FVector> : DefaultOperationTraits<FVector>
 		{
 			enum { CompressData = false };
 			enum { CanMinMax = true };
-			enum { CanSubAdd = true };
-			enum { CanMulDiv = true };
-			enum { CanInterpolate = true};
+			enum { CanInterpolate = true };
 
 			static FVector Min(const FVector& A, const FVector& B) 
 			{
@@ -130,26 +148,6 @@ namespace PCG
 				return FVector(FMath::Max(A.X, B.X), FMath::Max(A.Y, B.Y), FMath::Max(A.Z, B.Z));
 			}
 
-			static FVector Add(const FVector& A, const FVector& B)
-			{
-				return A + B;
-			}
-
-			static FVector Sub(const FVector& A, const FVector& B)
-			{
-				return A - B;
-			}
-
-			static FVector Mul(const FVector& A, const FVector& B)
-			{
-				return A * B;
-			}
-
-			static FVector Div(const FVector& A, const FVector& B)
-			{
-				return A / B;
-			}
-
 			static FVector WeightedSum(const FVector& A, const FVector& B, float Weight)
 			{
 				return A + B * Weight;
@@ -157,17 +155,15 @@ namespace PCG
 
 			static FVector ZeroValue()
 			{
-				return FVector::Zero();
+				return FVector::ZeroVector;
 			}
 		};
 
 		template<>
-		struct MetadataTraits<FVector4>
+		struct MetadataTraits<FVector4> : DefaultOperationTraits<FVector4>
 		{
 			enum { CompressData = false };
 			enum { CanMinMax = true };
-			enum { CanSubAdd = true };
-			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
 
 			static FVector4 Min(const FVector4& A, const FVector4& B)
@@ -180,26 +176,6 @@ namespace PCG
 				return FVector4(FMath::Max(A.X, B.X), FMath::Max(A.Y, B.Y), FMath::Max(A.Z, B.Z), FMath::Max(A.W, B.W));
 			}
 
-			static FVector4 Add(const FVector4& A, const FVector4& B)
-			{
-				return A + B;
-			}
-
-			static FVector4 Sub(const FVector4& A, const FVector4& B)
-			{
-				return A - B;
-			}
-
-			static FVector4 Mul(const FVector& A, const FVector4& B)
-			{
-				return A * B;
-			}
-
-			static FVector4 Div(const FVector& A, const FVector4& B)
-			{
-				return A / B;
-			}
-
 			static FVector4 WeightedSum(const FVector4& A, const FVector4& B, float Weight)
 			{
 				return A + B * Weight;
@@ -207,7 +183,7 @@ namespace PCG
 
 			static FVector4 ZeroValue()
 			{
-				return FVector::Zero();
+				return FVector4::Zero();
 			}
 		};
 
@@ -220,6 +196,11 @@ namespace PCG
 			enum { CanSubAdd = true };
 			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
+
+			static bool Equal(const FQuat& A, const FQuat& B)
+			{
+				return A == B;
+			}
 
 			static FQuat Add(const FQuat& A, const FQuat& B)
 			{
@@ -267,6 +248,13 @@ namespace PCG
 			enum { CanSubAdd = true };
 			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
+
+			static bool Equal(const FTransform& A, const FTransform& B)
+			{
+				return A.GetLocation() == B.GetLocation() &&
+					A.GetRotation() == B.GetRotation() &&
+					A.GetScale3D() == B.GetScale3D();
+			}
 
 			static FTransform Add(const FTransform& A, const FTransform& B)
 			{
@@ -322,6 +310,11 @@ namespace PCG
 			enum { CanSubAdd = false };
 			enum { CanMulDiv = false };
 			enum { CanInterpolate = false };
+
+			static bool Equal(const FString& A, const FString& B)
+			{
+				return A == B;
+			}
 		};
 	}
 }
