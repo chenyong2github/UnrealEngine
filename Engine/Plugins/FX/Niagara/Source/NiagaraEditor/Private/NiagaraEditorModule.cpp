@@ -151,6 +151,7 @@
 #include "NiagaraPerfBaseline.h"
 
 #include "NiagaraGraphDataCache.h"
+#include "Misc/ScopedSlowTask.h"
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
@@ -634,6 +635,39 @@ void DumpCompileIdDataForAsset(const TArray<FString>& Arguments)
 	else
 	{
 		UE_LOG(LogNiagaraEditor, Warning, TEXT("Command required an asset reference to be passed in."));
+	}
+}
+
+void LoadAllSystemsInFolder(const TArray<FString>& Arguments)
+{
+	if (Arguments.Num() == 1)
+	{
+		TArray<FAssetData> SystemAssetsInFolder;
+		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		FARFilter Filter;
+		Filter.ClassNames.Add(UNiagaraSystem::StaticClass()->GetFName());
+		Filter.PackagePaths.Add(*Arguments[0]);
+		Filter.bRecursivePaths = true;
+		AssetRegistryModule.Get().GetAssets(Filter, SystemAssetsInFolder);
+		if (SystemAssetsInFolder.Num() > 0)
+		{
+			const FText SlowTaskText = FText::Format(NSLOCTEXT("NiagaraEditor", "LoadAllSystemsInFolderFormat", "Loading {0} systems in folder {1}"), FText::AsNumber(SystemAssetsInFolder.Num()), FText::FromString(Arguments[0]));
+			FScopedSlowTask SlowTask(SystemAssetsInFolder.Num(), SlowTaskText);
+			SlowTask.MakeDialog(true);
+			int32 ItemNumber = 0;
+			for (FAssetData& SystemAsset : SystemAssetsInFolder)
+			{
+				if (SlowTask.ShouldCancel())
+				{
+					return;
+				}
+				ItemNumber++;
+				FText SlowTaskUpdateText = FText::Format(NSLOCTEXT("NiagaraEditor", "LoadAllSystemsInFolderProgressFormat", "Loading system {0} of {1}\n{2}"),
+					FText::AsNumber(ItemNumber), FText::AsNumber(SystemAssetsInFolder.Num()),  FText::FromString(SystemAsset.GetFullName()));
+				SlowTask.EnterProgressFrame(1, SlowTaskUpdateText);
+				SystemAsset.GetAsset();
+			}
+		}
 	}
 }
 
@@ -1154,6 +1188,11 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("fx.DumpCompileIdDataForAsset"),
 		TEXT("Dumps data relevant to generating the compile id for an asset."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&DumpCompileIdDataForAsset));
+
+	LoadAllSystemsInFolderCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.LoadAllNiagaraSystemsInFolder"),
+		TEXT("Loads all niagara systems in the supplied directory and sub-directories."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&LoadAllSystemsInFolder));
 
 	FNiagaraMessageManager* MessageManager = FNiagaraMessageManager::Get();
 	MessageManager->RegisterMessageTopic(FNiagaraMessageTopics::CompilerTopicName);

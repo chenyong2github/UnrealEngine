@@ -344,6 +344,7 @@ private:
 	IConsoleCommand* PreventAllSystemRecompilesCommand;
 	IConsoleCommand* UpgradeAllNiagaraAssetsCommand;
 	IConsoleCommand* DumpCompileIdDataForAssetCommand;
+	IConsoleCommand* LoadAllSystemsInFolderCommand;
 
 	FOnCheckScriptToolkitsShouldFocusGraphElement OnCheckScriptToolkitsShouldFocusGraphElement;
 
