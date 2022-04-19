@@ -210,111 +210,6 @@ namespace NiagaraBakerWidgetLocal
 
 //////////////////////////////////////////////////////////////////////////
 
-class FBakerSettingsDetails : public IDetailCustomization
-{
-public:
-	FBakerSettingsDetails(TWeakPtr<FNiagaraBakerViewModel> InWeakViewModel)
-		: WeakViewModel(InWeakViewModel)
-	{
-	}
-
-	static TSharedRef<IDetailCustomization> MakeInstance(TWeakPtr<FNiagaraBakerViewModel> InWeakViewModel)
-	{
-		return MakeShared<FBakerSettingsDetails>(InWeakViewModel);
-	}
-
-	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
-	{
-		// We only support customization on 1 object
-		TArray<TWeakObjectPtr<UObject>> ObjectsCustomized;
-		DetailBuilder.GetObjectsBeingCustomized(ObjectsCustomized);
-		if (ObjectsCustomized.Num() != 1 || !ObjectsCustomized[0]->IsA<UNiagaraBakerSettings>())
-		{
-			return;
-		}
-
-		FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get();
-
-		UNiagaraBakerSettings* BakerSettings = CastChecked<UNiagaraBakerSettings>(ObjectsCustomized[0]);
-
-		// Func for only showing information for current camera
-		auto PerCameraProperty =
-			[&DetailBuilder, BakerSettings](IDetailCategoryBuilder& DetailCategory, TSharedPtr<IPropertyHandle> PropertyHandle, FText DisplayName, FText ToolTip)
-			{
-				TSharedPtr<IPropertyHandleArray> ArrayPropertyHandle = PropertyHandle->AsArray();
-				if (ArrayPropertyHandle == nullptr)
-				{
-					return;
-				}
-				uint32 NumElements = 0;
-				if ( ArrayPropertyHandle->GetNumElements(NumElements) != FPropertyAccess::Success )
-				{
-					return;
-				}
-
-				DetailBuilder.HideProperty(PropertyHandle->AsShared());
-				for (uint32 i=0; i < NumElements; ++i)
-				{
-					TSharedRef<IPropertyHandle> ArrayValuePropertyHandle = ArrayPropertyHandle->GetElement(i);
-
-					DetailCategory.AddProperty(ArrayValuePropertyHandle)
-						.DisplayName(DisplayName)
-						.ToolTip(ToolTip)
-						.Visibility(TAttribute<EVisibility>::CreateLambda([=] { return uint32(BakerSettings->CameraViewportMode) == i ? EVisibility::Visible : EVisibility::Hidden; }));
-				}
-			};
-
-		// Settings
-		{
-			IDetailCategoryBuilder& DetailCategory = DetailBuilder.EditCategory(FName("Settings"));
-
-			DetailCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, StartSeconds));
-			DetailCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, DurationSeconds));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, FramesPerSecond));
-			DetailCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, FramesPerDimension));
-
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, CameraViewportMode));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, CameraViewportLocation));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, CameraViewportRotation));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, CameraOrbitDistance));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, CameraFOV));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, CameraOrthoWidth));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, CameraAspectRatio));
-
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, bPreviewLooping));
-			DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, bRenderComponentOnly));
-
-			//DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, Outputs));
-		}
-
-		// Output Settings
-		if ( UNiagaraBakerOutput* CurrentOutput = ViewModel->GetCurrentOutput() )
-		{
-			IDetailCategoryBuilder& OutputTextureCategory = DetailBuilder.EditCategory(FName("OutputSettings"));
-
-			TSharedPtr<IPropertyHandleArray> OutputsArrayPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, Outputs))->AsArray();
-			TSharedPtr<IPropertyHandle> OutputPropertyHandle = OutputsArrayPropertyHandle->GetElement(ViewModel->GetCurrentOutputIndex());
-
-			for (TFieldIterator<FProperty> PropertyIt(CurrentOutput->GetClass()); PropertyIt; ++PropertyIt)
-			{
-				if (PropertyIt->HasAnyPropertyFlags(CPF_Transient | CPF_Deprecated))
-				{
-					continue;
-				}
-				TSharedPtr<IPropertyHandle> PropertyHandle = OutputPropertyHandle->GetChildHandle(PropertyIt->GetFName());
-				if ( PropertyHandle )
-				{
-					OutputTextureCategory.AddProperty(PropertyHandle);
-				}
-			}
-		}
-	}
-
-	TWeakPtr<FNiagaraBakerViewModel> WeakViewModel;
-};
-
-//////////////////////////////////////////////////////////////////////////
-
 void SNiagaraBakerWidget::Construct(const FArguments& InArgs)
 {
 	WeakViewModel = InArgs._WeakViewModel;
@@ -614,20 +509,50 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeCameraModeMenu()
 
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	for (int i = 0; i < int(ENiagaraBakerViewMode::Num); ++i)
+	if ( UNiagaraBakerSettings* BakerSettings = ViewModel->GetBakerSettings() )
 	{
+		for (int i = 0; i < BakerSettings->CameraSettings.Num(); ++i)
+		{
+			if ( i == int32(ENiagaraBakerViewMode::Num) )
+			{
+				MenuBuilder.AddSeparator();
+			}
+
+			MenuBuilder.AddMenuEntry(
+				ViewModel->GetCameraSettingsText(i),
+				FText::GetEmpty(),
+				ViewModel->GetCameraSettingsIcon(i),
+				FUIAction(
+					FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraSettingsIndex, i),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::IsCameraSettingIndex, i)
+				),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+
+		MenuBuilder.AddSeparator();
 		MenuBuilder.AddMenuEntry(
-			FNiagaraBakerViewModel::GetCameraModeText(ENiagaraBakerViewMode(i)),
+			LOCTEXT("AddBookmark", "Add Bookmark"),
 			FText::GetEmpty(),
-			FNiagaraBakerViewModel::GetCameraModeIcon(ENiagaraBakerViewMode(i)),
+			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraViewMode, ENiagaraBakerViewMode(i)),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::IsCameraViewMode, ENiagaraBakerViewMode(i))
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
+				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::AddCameraBookmark)
+			)
 		);
+
+		if ( BakerSettings->CurrentCameraIndex >= int32(ENiagaraBakerViewMode::Num) )
+		{
+			MenuBuilder.AddMenuEntry(
+				FText::Format(LOCTEXT("RemoveBookmarkFormat", "Remove Bookmark '{0}'"), ViewModel->GetCameraSettingsText(BakerSettings->CurrentCameraIndex)),
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::RemoveCameraBookmark, BakerSettings->CurrentCameraIndex)
+				)
+			);
+		}
 	}
 
 	return MenuBuilder.MakeWidget();
@@ -718,7 +643,7 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeViewOptionsMenu()
 			LOCTEXT("CameraLocation", "Camera Rotation")
 		);
 
-		if ( ViewModel->IsCameraViewMode(ENiagaraBakerViewMode::Perspective) )
+		if ( ViewModel->IsCurrentCameraPerspective() )
 		{
 			MenuBuilder.AddWidget(
 				MakeSpinBox<float>(1.0f, 170.0f, 1.0f, 170.0f, TAttribute<float>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCameraFOV), SSpinBox<float>::FOnValueChanged::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraFOV)),

@@ -355,15 +355,16 @@ void FNiagaraBakerRenderer::RenderSceneCapture(UTextureRenderTarget2D* RenderTar
 	SceneCaptureComponent->CaptureSource = CaptureSource;
 	
 	// Set view location
-	if (BakerSettings->IsOrthographic())
+	const FNiagaraBakerCameraSettings& CurrentCamera = BakerSettings->GetCurrentCamera();
+	if (CurrentCamera.IsOrthographic())
 	{
 		SceneCaptureComponent->ProjectionType = ECameraProjectionMode::Orthographic;
-		SceneCaptureComponent->OrthoWidth = BakerSettings->CameraOrthoWidth;
+		SceneCaptureComponent->OrthoWidth = CurrentCamera.OrthoWidth;
 	}
 	else
 	{
 		SceneCaptureComponent->ProjectionType = ECameraProjectionMode::Perspective;
-		SceneCaptureComponent->FOVAngle = BakerSettings->CameraFOV;
+		SceneCaptureComponent->FOVAngle = CurrentCamera.FOV;
 	}
 	
 	const FMatrix SceneCaptureMatrix = FMatrix(FPlane(0, 0, 1, 0), FPlane(1, 0, 0, 0), FPlane(0, 1, 0, 0), FPlane(0, 0, 0, 1));

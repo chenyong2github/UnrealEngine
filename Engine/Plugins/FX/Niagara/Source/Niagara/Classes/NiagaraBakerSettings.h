@@ -27,6 +27,52 @@ enum class ENiagaraBakerViewMode
 };
 
 USTRUCT()
+struct FNiagaraBakerCameraSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	ENiagaraBakerViewMode ViewMode = ENiagaraBakerViewMode::Perspective;
+
+	UPROPERTY()
+	FVector ViewportLocation = FVector::ZeroVector;
+
+	UPROPERTY()
+	FRotator ViewportRotation = FRotator::ZeroRotator;
+
+	UPROPERTY()
+	float OrbitDistance = 200.f;
+
+	UPROPERTY()
+	float FOV = 90.0f;
+
+	UPROPERTY()
+	float OrthoWidth = 512.0f;
+
+	UPROPERTY()
+	bool bUseAspectRatio = false;
+
+	UPROPERTY()
+	float AspectRatio = 1.0f;
+
+	bool IsOrthographic() const { return ViewMode != ENiagaraBakerViewMode::Perspective; }
+	bool IsPerspective() const { return ViewMode == ENiagaraBakerViewMode::Perspective; }
+
+	bool operator==(const FNiagaraBakerCameraSettings& Other) const
+	{
+		return
+			ViewMode == Other.ViewMode &&
+			ViewportLocation.Equals(Other.ViewportLocation) &&
+			ViewportRotation.Equals(Other.ViewportRotation) &&
+			OrbitDistance == Other.OrbitDistance &&
+			FOV == Other.FOV &&
+			OrthoWidth == Other.OrthoWidth &&
+			bUseAspectRatio == Other.bUseAspectRatio &&
+			AspectRatio == Other.AspectRatio;
+	}
+};
+
+USTRUCT()
 struct FNiagaraBakerTextureSettings
 {
 	GENERATED_BODY()
@@ -112,48 +158,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TArray<TObjectPtr<UNiagaraBakerOutput>> Outputs;
 
-	/** Current active viewport we will render from. */
+	/** Camera Settings, will always be at least ENiagaraBakerViewMode::Num elements and those are fixed cameras. */
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	ENiagaraBakerViewMode CameraViewportMode = ENiagaraBakerViewMode::Perspective;
+	TArray<FNiagaraBakerCameraSettings> CameraSettings;
 
-	/** Per viewport camera position.. */
+	/** Active camera that we were saved with */
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	FVector CameraViewportLocation[(int)ENiagaraBakerViewMode::Num];
-
-	/** Per viewport camera rotation.. */
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	FRotator CameraViewportRotation[(int)ENiagaraBakerViewMode::Num];
-
-	/** Perspective camera orbit distance. */
-	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditConditionHides, EditCondition="CameraViewportMode == ENiagaraBakerViewMode::Perspective", ClampMin = "0.01"))
-	float CameraOrbitDistance = 200.f;
-
-	/** Camera FOV to use when in perspective mode. */
-	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditConditionHides, EditCondition="CameraViewportMode == ENiagaraBakerViewMode::Perspective", ClampMin="1.0", ClampMax="179.0"))
-	float CameraFOV = 90.0f;
-
-	/** Camera Orthographic width to use with in orthographic mode. */
-	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditConditionHides, EditCondition = "CameraViewportMode != ENiagaraBakerViewMode::Perspective", ClampMin="1.0"))
-	float CameraOrthoWidth = 512.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Settings", meta=(PinHiddenByDefault, InlineEditConditionToggle))
-	uint8 bUseCameraAspectRatio : 1;
-
-	/** Custom aspect ratio to use rather than using the width & height to automatically calculate. */
-	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditCondition = "bUseCameraAspectRatio", ClampMin="0.01"))
-	float CameraAspectRatio = 1.0f;
+	int32 CurrentCameraIndex = 0;
 
 	/** Should we render just the component or the whole scene. */
 	UPROPERTY(EditAnywhere, Category = "Settings", AdvancedDisplay)
 	uint8 bRenderComponentOnly : 1;
-
-	///** Type of level setup to use. */
-	//UPROPERTY(EditAnywhere, Category = "Environment", meta = (PinHiddenByDefault, InlineEditConditionToggle))
-	//uint8 bLoadLevel : 1;
-
-	///** Used to determine type of level setup. */
-	//UPROPERTY(EditAnywhere, Category = "Environment", meta = (EditCondition = "bLoadLevel"))
-	//TSoftObjectPtr<class ULevel> LevelEnvironment;
 
 	bool Equals(const UNiagaraBakerSettings& Other) const;
 
@@ -165,8 +180,8 @@ public:
 	FMatrix GetViewMatrix() const;
 	FMatrix GetProjectionMatrix() const;
 
-	bool IsOrthographic() const { return CameraViewportMode != ENiagaraBakerViewMode::Perspective; }
-	bool IsPerspective() const { return CameraViewportMode == ENiagaraBakerViewMode::Perspective; }
+	FNiagaraBakerCameraSettings& GetCurrentCamera() { return CameraSettings[CurrentCameraIndex]; }
+	const FNiagaraBakerCameraSettings& GetCurrentCamera() const { return CameraSettings[CurrentCameraIndex]; }
 
 	int GetOutputNumFrames(UNiagaraBakerOutput* BakerOutput) const;
 	FNiagaraBakerOutputFrameIndices GetOutputFrameIndices(UNiagaraBakerOutput* BakerOutput, float RelativeTime) const;
@@ -182,4 +197,28 @@ public:
 	// Deprecated properties
 	UPROPERTY()
 	TArray<FNiagaraBakerTextureSettings> OutputTextures_DEPRECATED;
+
+	UPROPERTY()
+	ENiagaraBakerViewMode CameraViewportMode_DEPRECATED = ENiagaraBakerViewMode::Perspective;
+
+	UPROPERTY()
+	FVector CameraViewportLocation_DEPRECATED[(int)ENiagaraBakerViewMode::Num];
+
+	UPROPERTY()
+	FRotator CameraViewportRotation_DEPRECATED[(int)ENiagaraBakerViewMode::Num];
+
+	UPROPERTY()
+	float CameraOrbitDistance_DEPRECATED = 200.f;
+
+	UPROPERTY()
+	float CameraFOV_DEPRECATED = 90.0f;
+
+	UPROPERTY()
+	float CameraOrthoWidth_DEPRECATED = 512.0f;
+
+	UPROPERTY()
+	uint8 bUseCameraAspectRatio_DEPRECATED : 1;
+
+	UPROPERTY()
+	float CameraAspectRatio_DEPRECATED = 1.0f;
 };

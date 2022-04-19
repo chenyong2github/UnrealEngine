@@ -2,7 +2,6 @@
 
 #include "SNiagaraBakerViewport.h"
 #include "ViewModels/NiagaraBakerViewModel.h"
-#include "SNiagaraBakerViewportToolbar.h"
 #include "NiagaraBakerRenderer.h"
 #include "NiagaraBatchedElements.h"
 #include "NiagaraComponent.h"
@@ -68,7 +67,7 @@ public:
 				bFocus |= Viewport->KeyState(FEditorViewportCommands::Get().FocusViewportToSelection->GetActiveChord(ChordIndex)->Key);
 			}
 
-			if ( BakerSettings->IsOrthographic() )
+			if ( BakerSettings->GetCurrentCamera().IsOrthographic() )
 			{
 				LocalMovement.X += bLeftKeyState ? KeyboardMoveSpeed : 0.0f;
 				LocalMovement.X -= bRightKeyState ? KeyboardMoveSpeed : 0.0f;
@@ -105,7 +104,7 @@ public:
 		UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
 		if ( ViewModel->ShowRealtimePreview() && BakerSettings && (Key == EKeys::MouseX || Key == EKeys::MouseY) )
 		{
-			if (BakerSettings->IsOrthographic())
+			if (BakerSettings->GetCurrentCamera().IsOrthographic())
 			{
 				if (InViewport->KeyState(EKeys::RightMouseButton))
 				{
@@ -173,8 +172,10 @@ public:
 			const FVector YAxis = ViewMatrix.GetUnitAxis(EAxis::Y);
 			const FVector ZAxis = ViewMatrix.GetUnitAxis(EAxis::Z);
 
+			FNiagaraBakerCameraSettings& CurrentCamera = BakerSettings->GetCurrentCamera();
+
 			FVector WorldMovement = FVector::ZeroVector;
-			if (BakerSettings->IsOrthographic())
+			if (CurrentCamera.IsOrthographic())
 			{
 				const FVector2D MoveSpeed = GetPreviewOrthoUnits();
 
@@ -182,11 +183,11 @@ public:
 				WorldMovement -= LocalMovement.Y * MoveSpeed.Y * YAxis;
 				//WorldMovement += LocalMovement.Z * MoveSpeed * ZAxis;
 
-				BakerSettings->CameraViewportLocation[(int)BakerSettings->CameraViewportMode] += WorldMovement;
+				CurrentCamera.ViewportLocation += WorldMovement;
 			}
 			else
 			{
-				FRotator& WorldRotation = BakerSettings->CameraViewportRotation[(int)BakerSettings->CameraViewportMode];
+				FRotator& WorldRotation = CurrentCamera.ViewportRotation;
 				WorldRotation.Yaw = FRotator::ClampAxis(WorldRotation.Yaw + LocalRotation.X);
 				WorldRotation.Roll = FMath::Clamp(WorldRotation.Roll + LocalRotation.Y, 0.0f, 180.0f);
 
@@ -194,28 +195,28 @@ public:
 				WorldMovement -= LocalMovement.X * MoveSpeed * XAxis;
 				WorldMovement -= LocalMovement.Y * MoveSpeed * YAxis;
 				//WorldMovement -= LocalMovement.Z * MoveSpeed * ZAxis;
-				BakerSettings->CameraViewportLocation[(int)BakerSettings->CameraViewportMode] += WorldMovement;
+				CurrentCamera.ViewportLocation += WorldMovement;
 
-				BakerSettings->CameraOrbitDistance = FMath::Max(BakerSettings->CameraOrbitDistance + LocalMovement.Z, 0.01f);
+				CurrentCamera.OrbitDistance = FMath::Max(CurrentCamera.OrbitDistance + LocalMovement.Z, 0.01f);
 			}
 
 			if (!FMath::IsNearlyZero(LocalZoom))
 			{
-				if (BakerSettings->IsPerspective())
+				if (CurrentCamera.IsPerspective())
 				{
-					BakerSettings->CameraFOV = FMath::Clamp(BakerSettings->CameraFOV + LocalZoom, 0.001f, 179.0f);
+					CurrentCamera.FOV = FMath::Clamp(CurrentCamera.FOV + LocalZoom, 0.001f, 179.0f);
 				}
 				else
 				{
-					BakerSettings->CameraOrthoWidth = FMath::Max(BakerSettings->CameraOrthoWidth + LocalZoom, 1.0f);
+					CurrentCamera.OrthoWidth = FMath::Max(CurrentCamera.OrthoWidth + LocalZoom, 1.0f);
 				}
 			}
 
 			if (!FMath::IsNearlyZero(LocalAspect))
 			{
-				if (BakerSettings->bUseCameraAspectRatio)
+				if (CurrentCamera.bUseAspectRatio)
 				{
-					BakerSettings->CameraAspectRatio = FMath::Max(BakerSettings->CameraAspectRatio + (LocalAspect / 50.0f), 0.01f);
+					CurrentCamera.AspectRatio = FMath::Max(CurrentCamera.AspectRatio + (LocalAspect / 50.0f), 0.01f);
 				}
 			}
 		}
@@ -555,19 +556,20 @@ public:
 		{
 			//-TODO: Should take aspect ratio into account here
 			const FBoxSphereBounds ComponentBounds = NiagaraComponent->CalcBounds(NiagaraComponent->GetComponentTransform());
-			if ( BakerSettings->IsOrthographic() )
+			FNiagaraBakerCameraSettings& CurrentCamera = BakerSettings->GetCurrentCamera();
+			if (CurrentCamera.IsOrthographic() )
 			{
-				BakerSettings->CameraViewportLocation[(int)BakerSettings->CameraViewportMode] = ComponentBounds.Origin;
-				BakerSettings->CameraOrthoWidth = ComponentBounds.SphereRadius * 2.0f;
+				CurrentCamera.ViewportLocation = ComponentBounds.Origin;
+				CurrentCamera.OrthoWidth = ComponentBounds.SphereRadius * 2.0f;
 			}
 			else
 			{
-				const float HalfFOVRadians = FMath::DegreesToRadians(BakerSettings->CameraFOV) * 0.5f;
+				const float HalfFOVRadians = FMath::DegreesToRadians(CurrentCamera.FOV) * 0.5f;
 				const float CameraDistance = ComponentBounds.SphereRadius / FMath::Tan(HalfFOVRadians);
 				//const FVector CameraOffset = BakerSettings->GetViewMatrix().Inverse().GetUnitAxis(EAxis::Z) * CameraDistance;
 				//BakerSettings->CameraViewportLocation[(int)ENiagaraBakerViewMode::Perspective] = ComponentBounds.Origin - CameraOffset;
-				BakerSettings->CameraViewportLocation[(int)BakerSettings->CameraViewportMode] = ComponentBounds.Origin;
-				BakerSettings->CameraOrbitDistance = CameraDistance;
+				CurrentCamera.ViewportLocation = ComponentBounds.Origin;
+				CurrentCamera.OrbitDistance = CameraDistance;
 			}
 		}
 	}
@@ -580,9 +582,10 @@ public:
 		const UNiagaraBakerSettings* BakerSettings = ViewModel ? ViewModel->GetBakerSettings() : nullptr;
 		if (BakerSettings && (PreviewViewRect.Area() > 0))
 		{
-			const float AspectRatioY = BakerSettings->bUseCameraAspectRatio ? BakerSettings->CameraAspectRatio : 1.0f;
-			OrthoUnits.X = BakerSettings->CameraOrthoWidth / float(PreviewViewRect.Width());
-			OrthoUnits.Y = BakerSettings->CameraOrthoWidth * AspectRatioY / float(PreviewViewRect.Height());
+			const FNiagaraBakerCameraSettings& CurrentCamera = BakerSettings->GetCurrentCamera();
+			const float AspectRatioY = CurrentCamera.bUseAspectRatio ? CurrentCamera.AspectRatio : 1.0f;
+			OrthoUnits.X = CurrentCamera.OrthoWidth / float(PreviewViewRect.Width());
+			OrthoUnits.Y = CurrentCamera.OrthoWidth * AspectRatioY / float(PreviewViewRect.Height());
 		}
 		return OrthoUnits;
 	}

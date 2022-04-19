@@ -64,17 +64,21 @@ public:
 	bool ShowInfoText() const { return bShowInfoText; }
 	void ToggleInfoText() { bShowInfoText = !bShowInfoText; }
 
-	void SetCameraViewMode(ENiagaraBakerViewMode ViewMode);
-	bool IsCameraViewMode(ENiagaraBakerViewMode ViewMode);
+	void SetCameraSettingsIndex(int CamerSettingsIndex);
+	bool IsCameraSettingIndex(int CamerSettingsIndex) const;
+
+	void AddCameraBookmark();
+	void RemoveCameraBookmark(int32 CameraIndex);
 
 	FText GetCurrentCameraModeText() const;
 	FName GetCurrentCameraModeIconName() const;
 	FSlateIcon GetCurrentCameraModeIcon() const;
 
-	static FText GetCameraModeText(ENiagaraBakerViewMode Mode);
-	static FName GetCameraModeIconName(ENiagaraBakerViewMode Mode);
-	static FSlateIcon GetCameraModeIcon(ENiagaraBakerViewMode Mode);
+	FText GetCameraSettingsText(int32 CameraSettingsIndex) const;
+	FName GetCameraSettingsIconName(int32 CameraSettingsIndex) const;
+	FSlateIcon GetCameraSettingsIcon(int32 CameraSettingsIndex) const;
 
+	bool IsCurrentCameraPerspective() const;
 	FVector GetCurrentCameraLocation() const;
 	void SetCurrentCameraLocation(const FVector Value);
 	FRotator GetCurrentCameraRotation() const;
