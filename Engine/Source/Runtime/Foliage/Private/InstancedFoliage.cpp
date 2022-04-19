@@ -4356,7 +4356,10 @@ void AInstancedFoliageActor::PostLoad()
 				TUniqueObj<FFoliageInfo> FoliageInfo;
 				while (FoliageInfos.RemoveAndCopyValue(nullptr, FoliageInfo))
 				{
-					FoliageInfo->Uninitialize();
+					if (FoliageInfo->IsInitialized())
+					{
+						FoliageInfo->Uninitialize();
+					}
 				}				
 			}
 		}
