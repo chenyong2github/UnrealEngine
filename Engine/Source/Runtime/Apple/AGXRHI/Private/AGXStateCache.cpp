@@ -1859,10 +1859,10 @@ void FAGXStateCache::FlushVisibilityResults(FAGXCommandEncoder& CommandEncoder)
 		
         CommandEncoder.BeginBlitCommandEncoding();
 		
-		mtlpp::BlitCommandEncoder& Encoder = CommandEncoder.GetBlitCommandEncoder();
+		id<MTLBlitCommandEncoder> Encoder = CommandEncoder.GetBlitCommandEncoder();
 
 		// METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CommandEncoder.GetCommandBufferStats(), __FUNCTION__));
-		MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Synchronize(VisibilityResults->Buffer));
+		[Encoder synchronizeResource:VisibilityResults->Buffer.GetPtr()];
 		
 		VisibilityWritten = 0;
 	}

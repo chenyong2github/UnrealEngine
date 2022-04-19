@@ -574,65 +574,123 @@ void FAGXRenderPass::InsertTextureBarrier()
 void FAGXRenderPass::CopyFromTextureToBuffer(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FAGXBuffer const& toBuffer, uint32 destinationOffset, uint32 destinationBytesPerRow, uint32 destinationBytesPerImage, mtlpp::BlitOption options)
 {
 	ConditionalSwitchToBlit();
-	mtlpp::BlitCommandEncoder& Encoder = CurrentEncoder.GetBlitCommandEncoder();
-	check(Encoder.GetPtr());
+	
+	id<MTLBlitCommandEncoder> Encoder = CurrentEncoder.GetBlitCommandEncoder();
+	check(Encoder);
 	
 	METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
 	{
-		MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Copy(Texture, sourceSlice, sourceLevel, sourceOrigin, sourceSize, toBuffer, destinationOffset, destinationBytesPerRow, destinationBytesPerImage, options));
+		[Encoder			 copyFromTexture:Texture.GetPtr()
+								 sourceSlice:(NSUInteger)sourceSlice
+								 sourceLevel:(NSUInteger)sourceLevel
+								sourceOrigin:*reinterpret_cast<MTLOrigin*>(&sourceOrigin)
+								  sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+									toBuffer:toBuffer.GetPtr()
+						   destinationOffset:(NSUInteger)destinationOffset + toBuffer.GetOffset()
+					  destinationBytesPerRow:(NSUInteger)destinationBytesPerRow
+					destinationBytesPerImage:(NSUInteger)destinationBytesPerImage
+									 options:*reinterpret_cast<MTLBlitOption*>(&options)];
 	}
+	
 	ConditionalSubmit();
 }
 
 void FAGXRenderPass::CopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 sourceOffset, uint32 sourceBytesPerRow, uint32 sourceBytesPerImage, mtlpp::Size sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin, mtlpp::BlitOption options)
 {
 	ConditionalSwitchToBlit();
-	mtlpp::BlitCommandEncoder& Encoder = CurrentEncoder.GetBlitCommandEncoder();
-	check(Encoder.GetPtr());
 	
+	id<MTLBlitCommandEncoder> Encoder = CurrentEncoder.GetBlitCommandEncoder();
+	check(Encoder);
 	
 	METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
+	
 	if (options == mtlpp::BlitOption::None)
 	{
-		MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Copy(Buffer, sourceOffset, sourceBytesPerRow, sourceBytesPerImage, sourceSize, toTexture, destinationSlice, destinationLevel, destinationOrigin));
+		[Encoder		 copyFromBuffer:Buffer.GetPtr()
+						   sourceOffset:(NSUInteger)sourceOffset + Buffer.GetOffset()
+					  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+					sourceBytesPerImage:(NSUInteger)sourceBytesPerImage
+							 sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+							  toTexture:toTexture.GetPtr()
+					   destinationSlice:(NSUInteger)destinationSlice
+					   destinationLevel:(NSUInteger)destinationLevel
+					  destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)];
 	}
 	else
 	{
-		MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Copy(Buffer, sourceOffset, sourceBytesPerRow, sourceBytesPerImage, sourceSize, toTexture, destinationSlice, destinationLevel, destinationOrigin, options));
+		[Encoder		 copyFromBuffer:Buffer.GetPtr()
+						   sourceOffset:(NSUInteger)sourceOffset + Buffer.GetOffset()
+					  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+					sourceBytesPerImage:(NSUInteger)sourceBytesPerImage
+							 sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+							  toTexture:toTexture.GetPtr()
+					   destinationSlice:(NSUInteger)destinationSlice
+					   destinationLevel:(NSUInteger)destinationLevel
+					  destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)
+								options:*reinterpret_cast<MTLBlitOption*>(&options)];
 	}
+	
 	ConditionalSubmit();
 }
 
 void FAGXRenderPass::CopyFromTextureToTexture(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin)
 {
 	ConditionalSwitchToBlit();
-	mtlpp::BlitCommandEncoder& Encoder = CurrentEncoder.GetBlitCommandEncoder();
-	check(Encoder.GetPtr());
+	
+	id<MTLBlitCommandEncoder> Encoder = CurrentEncoder.GetBlitCommandEncoder();
+	check(Encoder);
 	
 	METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
-	MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Copy(Texture, sourceSlice, sourceLevel, sourceOrigin, sourceSize, toTexture, destinationSlice, destinationLevel, destinationOrigin));
+	
+	[Encoder	  copyFromTexture:Texture.GetPtr()
+					  sourceSlice:(NSUInteger)sourceSlice
+					  sourceLevel:(NSUInteger)sourceLevel
+					 sourceOrigin:*reinterpret_cast<MTLOrigin*>(&sourceOrigin)
+					   sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+						toTexture:toTexture.GetPtr()
+				 destinationSlice:(NSUInteger)destinationSlice
+				 destinationLevel:(NSUInteger)destinationLevel
+				destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)];
+	
 	ConditionalSubmit();
 }
 
 void FAGXRenderPass::CopyFromBufferToBuffer(FAGXBuffer const& SourceBuffer, NSUInteger SourceOffset, FAGXBuffer const& DestinationBuffer, NSUInteger DestinationOffset, NSUInteger Size)
 {
 	ConditionalSwitchToBlit();
-	mtlpp::BlitCommandEncoder& Encoder = CurrentEncoder.GetBlitCommandEncoder();
-	check(Encoder.GetPtr());
+	
+	id<MTLBlitCommandEncoder> Encoder = CurrentEncoder.GetBlitCommandEncoder();
+	check(Encoder);
 	
 	METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
-	MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Copy(SourceBuffer, SourceOffset, DestinationBuffer, DestinationOffset, Size));
+
+	[Encoder	   copyFromBuffer:SourceBuffer.GetPtr()
+					 sourceOffset:SourceOffset + SourceBuffer.GetOffset()
+						 toBuffer:DestinationBuffer.GetPtr()
+				destinationOffset:DestinationOffset + DestinationBuffer.GetOffset()
+							 size:Size];
+	
 	ConditionalSubmit();
 }
 
 void FAGXRenderPass::PresentTexture(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin)
 {
 	ConditionalSwitchToBlit();
-	mtlpp::BlitCommandEncoder& Encoder = CurrentEncoder.GetBlitCommandEncoder();
-	check(Encoder.GetPtr());
+	
+	id<MTLBlitCommandEncoder> Encoder = CurrentEncoder.GetBlitCommandEncoder();
+	check(Encoder);
 	
 	METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
-	MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Copy(Texture, sourceSlice, sourceLevel, sourceOrigin, sourceSize, toTexture, destinationSlice, destinationLevel, destinationOrigin));
+
+	[Encoder	  copyFromTexture:Texture.GetPtr()
+					  sourceSlice:(NSUInteger)sourceSlice
+					  sourceLevel:(NSUInteger)sourceLevel
+					 sourceOrigin:*reinterpret_cast<MTLOrigin*>(&sourceOrigin)
+					   sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+						toTexture:toTexture.GetPtr()
+				 destinationSlice:(NSUInteger)destinationSlice
+				 destinationLevel:(NSUInteger)destinationLevel
+				destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)];
 }
 
 void FAGXRenderPass::SynchronizeTexture(FAGXTexture const& Texture, uint32 Slice, uint32 Level)
@@ -640,25 +698,29 @@ void FAGXRenderPass::SynchronizeTexture(FAGXTexture const& Texture, uint32 Slice
 	check(Texture);
 #if PLATFORM_MAC
 	ConditionalSwitchToBlit();
-	mtlpp::BlitCommandEncoder& Encoder = CurrentEncoder.GetBlitCommandEncoder();
-	check(Encoder.GetPtr());
+	
+	id<MTLBlitCommandEncoder> Encoder = CurrentEncoder.GetBlitCommandEncoder();
+	check(Encoder);
 	
 	// METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
-	MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Synchronize(Texture, Slice, Level));
+	[Encoder synchronizeTexture:Texture.GetPtr() slice:(NSUInteger)Slice level:(NSUInteger)Level];
+	
 	ConditionalSubmit();
 #endif
 }
 
-void FAGXRenderPass::SynchroniseResource(mtlpp::Resource const& Resource)
+void FAGXRenderPass::SynchronizeResource(mtlpp::Resource const& Resource)
 {
 	check(Resource);
 #if PLATFORM_MAC
 	ConditionalSwitchToBlit();
-	mtlpp::BlitCommandEncoder& Encoder = CurrentEncoder.GetBlitCommandEncoder();
-	check(Encoder.GetPtr());
+	
+	id<MTLBlitCommandEncoder> Encoder = CurrentEncoder.GetBlitCommandEncoder();
+	check(Encoder);
 	
 	// METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
-	MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Synchronize(Resource));
+	[Encoder synchronizeResource:Resource.GetPtr()];
+
 	ConditionalSubmit();
 #endif
 }
@@ -667,7 +729,7 @@ void FAGXRenderPass::FillBuffer(FAGXBuffer const& Buffer, ns::Range Range, uint8
 {
 	check(Buffer);
 	
-	mtlpp::BlitCommandEncoder TargetEncoder;
+	id<MTLBlitCommandEncoder> TargetEncoder = nil;
 	bool bAsync = !CurrentEncoder.HasBufferBindingHistory(Buffer);
 	if(bAsync)
 	{
@@ -682,9 +744,9 @@ void FAGXRenderPass::FillBuffer(FAGXBuffer const& Buffer, ns::Range Range, uint8
 		METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), FString::Printf(TEXT("FillBuffer: %p %llu %llu"), Buffer.GetPtr(), Buffer.GetOffset() + Range.Location, Range.Length)));
 	}
 	
-	check(TargetEncoder.GetPtr());
+	check(TargetEncoder);
 	
-	MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, TargetEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Fill(Buffer, Range, Value));
+	[TargetEncoder fillBuffer:Buffer.GetPtr() range:NSMakeRange(Range.Location + Buffer.GetOffset(), Range.Length) value:Value];
 	
 	if (!bAsync)
 	{
@@ -694,7 +756,7 @@ void FAGXRenderPass::FillBuffer(FAGXBuffer const& Buffer, ns::Range Range, uint8
 
 bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint32 sourceOffset, uint32 sourceBytesPerRow, uint32 sourceBytesPerImage, mtlpp::Size sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin, mtlpp::BlitOption options)
 {
-	mtlpp::BlitCommandEncoder TargetEncoder;
+	id<MTLBlitCommandEncoder> TargetEncoder = nil;
 	bool bAsync = !CurrentEncoder.HasTextureBindingHistory(toTexture);
 	if(bAsync)
 	{
@@ -709,15 +771,32 @@ bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint
 		METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
 	}
 	
-	check(TargetEncoder.GetPtr());
+	check(TargetEncoder);
 	
 	if (options == mtlpp::BlitOption::None)
 	{
-		MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, TargetEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Copy(Buffer, sourceOffset, sourceBytesPerRow, sourceBytesPerImage, sourceSize, toTexture, destinationSlice, destinationLevel, destinationOrigin));
+		[TargetEncoder		 copyFromBuffer:Buffer.GetPtr()
+							   sourceOffset:(NSUInteger)sourceOffset + Buffer.GetOffset()
+						  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+						sourceBytesPerImage:(NSUInteger)sourceBytesPerImage
+								 sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+								  toTexture:toTexture.GetPtr()
+						   destinationSlice:(NSUInteger)destinationSlice
+						   destinationLevel:(NSUInteger)destinationLevel
+						  destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)];
 	}
 	else
 	{
-		MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, TargetEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Copy(Buffer, sourceOffset, sourceBytesPerRow, sourceBytesPerImage, sourceSize, toTexture, destinationSlice, destinationLevel, destinationOrigin, options));
+		[TargetEncoder		 copyFromBuffer:Buffer.GetPtr()
+							   sourceOffset:(NSUInteger)sourceOffset + Buffer.GetOffset()
+						  sourceBytesPerRow:(NSUInteger)sourceBytesPerRow
+						sourceBytesPerImage:(NSUInteger)sourceBytesPerImage
+								 sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+								  toTexture:toTexture.GetPtr()
+						   destinationSlice:(NSUInteger)destinationSlice
+						   destinationLevel:(NSUInteger)destinationLevel
+						  destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)
+									options:*reinterpret_cast<MTLBlitOption*>(&options)];
 	}
 	
 	return bAsync;
@@ -725,7 +804,7 @@ bool FAGXRenderPass::AsyncCopyFromBufferToTexture(FAGXBuffer const& Buffer, uint
 
 bool FAGXRenderPass::AsyncCopyFromTextureToTexture(FAGXTexture const& Texture, uint32 sourceSlice, uint32 sourceLevel, mtlpp::Origin sourceOrigin, mtlpp::Size sourceSize, FAGXTexture const& toTexture, uint32 destinationSlice, uint32 destinationLevel, mtlpp::Origin destinationOrigin)
 {
-	mtlpp::BlitCommandEncoder TargetEncoder;
+	id<MTLBlitCommandEncoder> TargetEncoder = nil;
 	bool bAsync = !CurrentEncoder.HasTextureBindingHistory(toTexture);
 	if(bAsync)
 	{
@@ -740,10 +819,18 @@ bool FAGXRenderPass::AsyncCopyFromTextureToTexture(FAGXTexture const& Texture, u
 		METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
 	}
 	
-	check(TargetEncoder.GetPtr());
+	check(TargetEncoder);
 	
-	MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, TargetEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Copy(Texture, sourceSlice, sourceLevel, sourceOrigin, sourceSize, toTexture, destinationSlice, destinationLevel, destinationOrigin));
-	
+	[TargetEncoder	  copyFromTexture:Texture.GetPtr()
+						  sourceSlice:(NSUInteger)sourceSlice
+						  sourceLevel:(NSUInteger)sourceLevel
+						 sourceOrigin:*reinterpret_cast<MTLOrigin*>(&sourceOrigin)
+						   sourceSize:*reinterpret_cast<MTLSize*>(&sourceSize)
+							toTexture:toTexture.GetPtr()
+					 destinationSlice:(NSUInteger)destinationSlice
+					 destinationLevel:(NSUInteger)destinationLevel
+					destinationOrigin:*reinterpret_cast<MTLOrigin*>(&destinationOrigin)];
+
 	return bAsync;
 }
 
@@ -754,7 +841,7 @@ bool FAGXRenderPass::CanAsyncCopyToBuffer(FAGXBuffer const& DestinationBuffer)
 
 void FAGXRenderPass::AsyncCopyFromBufferToBuffer(FAGXBuffer const& SourceBuffer, NSUInteger SourceOffset, FAGXBuffer const& DestinationBuffer, NSUInteger DestinationOffset, NSUInteger Size)
 {
-	mtlpp::BlitCommandEncoder TargetEncoder;
+	id<MTLBlitCommandEncoder> TargetEncoder = nil;
 	bool bAsync = !CurrentEncoder.HasBufferBindingHistory(DestinationBuffer);
 	if(bAsync)
 	{
@@ -769,9 +856,13 @@ void FAGXRenderPass::AsyncCopyFromBufferToBuffer(FAGXBuffer const& SourceBuffer,
 		METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), FString::Printf(TEXT("AsyncCopyFromBufferToBuffer: %p %llu %llu"), DestinationBuffer.GetPtr(), DestinationBuffer.GetOffset() + DestinationOffset, Size)));
 	}
 	
-	check(TargetEncoder.GetPtr());
+	check(TargetEncoder);
 	
-    MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, TargetEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Copy(SourceBuffer, SourceOffset, DestinationBuffer, DestinationOffset, Size));
+	[TargetEncoder	   copyFromBuffer:SourceBuffer.GetPtr()
+						 sourceOffset:SourceOffset + SourceBuffer.GetOffset()
+							 toBuffer:DestinationBuffer.GetPtr()
+					destinationOffset:DestinationOffset + DestinationBuffer.GetOffset()
+								 size:Size];
 }
 
 FAGXBuffer FAGXRenderPass::AllocateTemporyBufferForCopy(FAGXBuffer const& DestinationBuffer, NSUInteger Size, NSUInteger Align)
@@ -794,11 +885,13 @@ void FAGXRenderPass::AsyncGenerateMipmapsForTexture(FAGXTexture const& Texture)
 	// This must be a plain old error
 	check(!CurrentEncoder.HasTextureBindingHistory(Texture));
 	ConditionalSwitchToAsyncBlit();
-	mtlpp::BlitCommandEncoder Encoder = PrologueEncoder.GetBlitCommandEncoder();
-	check(Encoder.GetPtr());
+	
+	id<MTLBlitCommandEncoder> Encoder = PrologueEncoder.GetBlitCommandEncoder();
+	check(Encoder);
 	
 	METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
-	MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, Encoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, GenerateMipmaps(Texture));
+
+	[Encoder generateMipmapsForTexture:Texture.GetPtr()];
 }
 
 void FAGXRenderPass::End(void)
@@ -863,17 +956,16 @@ void FAGXRenderPass::TransitionResources(mtlpp::Resource const& Resource)
 void FAGXRenderPass::InsertDebugEncoder()
 {
 	FAGXBuffer NewBuf = CurrentEncoder.GetRingBuffer().NewBuffer(BufferOffsetAlignment, BufferOffsetAlignment);
-	
 	check(NewBuf);
 	
-	mtlpp::BlitCommandEncoder TargetEncoder;
 	ConditionalSwitchToBlit();
-	TargetEncoder = CurrentEncoder.GetBlitCommandEncoder();
+	
+	id<MTLBlitCommandEncoder> TargetEncoder = CurrentEncoder.GetBlitCommandEncoder();
+	check(TargetEncoder);
+	
 	METAL_GPUPROFILE(FAGXProfiler::GetProfiler()->EncodeBlit(CurrentEncoder.GetCommandBufferStats(), __FUNCTION__));
 	
-	check(TargetEncoder.GetPtr());
-	
-	MTLPP_VALIDATE(mtlpp::BlitCommandEncoder, TargetEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, Fill(NewBuf, ns::Range(0, BufferOffsetAlignment), 0xff));
+	[TargetEncoder fillBuffer:NewBuf.GetPtr() range:NSMakeRange(0 + NewBuf.GetOffset(), BufferOffsetAlignment) value:0xFF];
 	
 	ConditionalSubmit();
 }

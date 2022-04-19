@@ -25,6 +25,7 @@ FAGXCommandEncoder::FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEnco
 , bSupportsMetalFeaturesSetBytes(CmdList.GetCommandQueue().SupportsFeature(EAGXFeaturesSetBytes))
 , RingBuffer(EncoderRingBufferSize, BufferOffsetAlignment, FAGXCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::HazardTrackingModeUntracked | BUFFER_RESOURCE_STORAGE_MANAGED)))
 , RenderPassDesc(nil)
+, BlitCommandEncoder(nil)
 #if ENABLE_METAL_GPUPROFILE
 , CommandBufferStats(nullptr)
 #endif
@@ -284,7 +285,7 @@ bool FAGXCommandEncoder::IsComputeCommandEncoderActive(void) const
 
 bool FAGXCommandEncoder::IsBlitCommandEncoderActive(void) const
 {
-	return BlitCommandEncoder.GetPtr() != nil;
+	return BlitCommandEncoder != nil;
 }
 
 bool FAGXCommandEncoder::IsImmediate(void) const
@@ -330,7 +331,7 @@ mtlpp::ComputeCommandEncoder& FAGXCommandEncoder::GetComputeCommandEncoder(void)
 	return ComputeCommandEncoder;
 }
 
-mtlpp::BlitCommandEncoder& FAGXCommandEncoder::GetBlitCommandEncoder(void)
+id<MTLBlitCommandEncoder> FAGXCommandEncoder::GetBlitCommandEncoder() const
 {
 	check(IsBlitCommandEncoderActive());
 	return BlitCommandEncoder;
@@ -443,8 +444,7 @@ void FAGXCommandEncoder::BeginBlitCommandEncoding(void)
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
 	
-	BlitCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, BlitCommandEncoder());
-	
+	BlitCommandEncoder = [[CommandBuffer.GetPtr() blitCommandEncoder] retain];	
 	EncoderNum++;
 	
 	NSString* Label = nil;
@@ -452,13 +452,13 @@ void FAGXCommandEncoder::BeginBlitCommandEncoding(void)
 	if(GetEmitDrawEvents())
 	{
 		Label = [NSString stringWithFormat:@"BlitEncoder: %@", [DebugGroups count] > 0 ? [DebugGroups lastObject] : (NSString*)CFSTR("InitialPass")];
-		BlitCommandEncoder.SetLabel(Label);
+		[BlitCommandEncoder setLabel:Label];
 		
 		if([DebugGroups count])
 		{
 			for (NSString* Group in DebugGroups)
 			{
-				BlitCommandEncoder.PushDebugGroup(Group);
+				[BlitCommandEncoder pushDebugGroup:Group];
 			}
 		}
 	}
@@ -579,7 +579,8 @@ void FAGXCommandEncoder::EndEncoding(void)
 		}
 		else if(IsBlitCommandEncoderActive())
 		{
-			BlitCommandEncoder.EndEncoding();
+			[BlitCommandEncoder endEncoding];
+			[BlitCommandEncoder release];
 			BlitCommandEncoder = nil;
 		}
 	}
@@ -640,7 +641,7 @@ void FAGXCommandEncoder::InsertDebugSignpost(ns::String const& String)
 		}
 		else if (BlitCommandEncoder)
 		{
-			BlitCommandEncoder.InsertDebugSignpost(String);
+			[BlitCommandEncoder insertDebugSignpost:String];
 		}
 	}
 }
@@ -665,7 +666,7 @@ void FAGXCommandEncoder::PushDebugGroup(ns::String const& String)
 		}
 		else if (BlitCommandEncoder)
 		{
-			BlitCommandEncoder.PushDebugGroup(String);
+			[BlitCommandEncoder pushDebugGroup:String];
 		}
 	}
 }
@@ -690,7 +691,7 @@ void FAGXCommandEncoder::PopDebugGroup(void)
 		}
 		else if (BlitCommandEncoder)
 		{
-			BlitCommandEncoder.PopDebugGroup();
+			[BlitCommandEncoder popDebugGroup];
 		}
 	}
 }

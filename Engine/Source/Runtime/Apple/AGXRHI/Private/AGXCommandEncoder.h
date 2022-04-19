@@ -140,7 +140,7 @@ public:
 	mtlpp::ComputeCommandEncoder& GetComputeCommandEncoder(void);
 	
 	/** @returns The active blit command encoder or nil if there isn't one. */
-	mtlpp::BlitCommandEncoder& GetBlitCommandEncoder(void);
+	id<MTLBlitCommandEncoder> GetBlitCommandEncoder() const;
 	
 	/** @returns The number of encoded passes in the command buffer. */
 	uint32 NumEncodedPasses(void) const { return EncoderNum; }
@@ -460,7 +460,7 @@ public:
 	mtlpp::ParallelRenderCommandEncoder ParallelRenderCommandEncoder;
 	mtlpp::RenderCommandEncoder RenderCommandEncoder;
 	mtlpp::ComputeCommandEncoder ComputeCommandEncoder;
-	mtlpp::BlitCommandEncoder BlitCommandEncoder;
+	id<MTLBlitCommandEncoder> BlitCommandEncoder;
 	TArray<mtlpp::RenderCommandEncoder> ChildRenderCommandEncoders;
 	
 #if ENABLE_METAL_GPUPROFILE

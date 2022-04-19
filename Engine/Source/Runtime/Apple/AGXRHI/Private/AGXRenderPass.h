@@ -60,7 +60,7 @@ public:
     
     void SynchronizeTexture(FAGXTexture const& Texture, uint32 Slice, uint32 Level);
     
-	void SynchroniseResource(mtlpp::Resource const& Resource);
+	void SynchronizeResource(mtlpp::Resource const& Resource);
     
 	void FillBuffer(FAGXBuffer const& Buffer, ns::Range Range, uint8 Value);
 	

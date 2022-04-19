@@ -601,7 +601,7 @@ void* FAGXRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode InLockMode, uin
 			SCOPE_CYCLE_COUNTER(STAT_AGXBufferPageOffTime);
 			
 			// Synchronise the buffer with the CPU
-			GetAGXDeviceContext().SynchroniseResource(GetCurrentBacking().Buffer);
+			GetAGXDeviceContext().SynchronizeResource(GetCurrentBacking().Buffer);
 			
 			//kick the current command buffer.
 			GetAGXDeviceContext().SubmitCommandBufferAndWait();

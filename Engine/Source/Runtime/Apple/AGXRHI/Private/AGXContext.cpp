@@ -1520,9 +1520,9 @@ void FAGXContext::SynchronizeTexture(FAGXTexture const& Texture, uint32 Slice, u
 	RenderPass.SynchronizeTexture(Texture, Slice, Level);
 }
 
-void FAGXContext::SynchroniseResource(mtlpp::Resource const& Resource)
+void FAGXContext::SynchronizeResource(mtlpp::Resource const& Resource)
 {
-	RenderPass.SynchroniseResource(Resource);
+	RenderPass.SynchronizeResource(Resource);
 }
 
 void FAGXContext::FillBuffer(FAGXBuffer const& Buffer, ns::Range Range, uint8 Value)
