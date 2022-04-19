@@ -33,10 +33,10 @@ class UK2Node_ExecutePythonScript : public UK2Node_CallFunction
 	//~ Begin UK2Node Interface.
 	virtual void EarlyValidation(class FCompilerResultsLog& MessageLog) const override;
 	virtual void ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
-	virtual class FNodeHandlingFunctor* CreateNodeHandler(class FKismetCompilerContext& CompilerContext) const override;
 	virtual bool CanPasteHere(const UEdGraph* TargetGraph) const override;
 	virtual bool IsActionFilteredOut(const class FBlueprintActionFilter& Filter) override;
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
+	virtual int32 GetNodeRefreshPriority() const override { return EBaseNodeRefreshPriority::Low_UsesDependentWildcard; }
 	//~ End UK2Node Interface.
 
 private:
@@ -49,8 +49,6 @@ private:
 	UEdGraphPin* FindArgumentPinChecked(const FName PinName, EEdGraphPinDirection PinDirection = EGPD_MAX);
 
 private:
-	friend class FKCHandler_ExecutePythonScript;
-
 	/** User-defined input pins */
 	UPROPERTY(EditAnywhere, Category="Arguments")
 	TArray<FName> Inputs;
