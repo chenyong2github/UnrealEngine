@@ -3108,7 +3108,7 @@ void UGroomComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 void UGroomComponent::OnAttachmentChanged()
 {
 	Super::OnAttachmentChanged();
-	if (GroomAsset && !IsBeingDestroyed() && HasBeenCreated())
+	if (GroomAsset && !IsBeingDestroyed() && HasBeenCreated() && IsValidChecked(this))
 	{
 		UMeshComponent* NewMeshComponent = Cast<UMeshComponent>(GetAttachParent());
 		const bool bHasAttachmentChanged = RegisteredMeshComponent != NewMeshComponent;
