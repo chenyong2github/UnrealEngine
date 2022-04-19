@@ -180,20 +180,32 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 	if (OutViewFamily->EngineShowFlags.PathTracing)
 	{
 		// override whatever settings came from PostProcessVolume or Camera
-		int32 SampleCount = InOutSampleState.TemporalSampleCount * InOutSampleState.SpatialSampleCount;
-		int32 SampleIndex = InOutSampleState.TemporalSampleIndex * InOutSampleState.SpatialSampleCount + InOutSampleState.SpatialSampleIndex;
+
+		// If motion blur is enabled:
+		//    blend all spatial samples together while leaving the handling of temporal samples up to MRQ
+		//    each temporal sample will include denoising and post-process effects
+		// If motion blur is NOT enabled:
+		//    blend all temporal+spatial samples within the path tracer and only apply denoising on the last temporal sample
+		//    this way we minimize denoising cost and also allow a much higher number of temporal samples to be used which
+		//    can help reduce strobing
+
+		// NOTE: Tiling is not compatible with the reference motion blur mode because it changes the order of the loops over the image.
+		const bool bAccumulateSpatialSamplesOnly = OutViewFamily->EngineShowFlags.MotionBlur || InOutSampleState.GetTileCount() > 1;
+
+		const int32 SampleCount = bAccumulateSpatialSamplesOnly ? InOutSampleState.SpatialSampleCount : InOutSampleState.TemporalSampleCount * InOutSampleState.SpatialSampleCount;
+		const int32 SampleIndex = bAccumulateSpatialSamplesOnly ? InOutSampleState.SpatialSampleIndex : InOutSampleState.TemporalSampleIndex * InOutSampleState.SpatialSampleCount + InOutSampleState.SpatialSampleIndex;
 
 		// TODO: pass along FrameIndex (which includes SampleIndex) to make sure sampling is fully deterministic
 
 		// Overwrite whatever sampling count came from the PostProcessVolume
 		View->FinalPostProcessSettings.bOverride_PathTracingSamplesPerPixel = true;
-		View->FinalPostProcessSettings.PathTracingSamplesPerPixel = InOutSampleState.SpatialSampleCount;
+		View->FinalPostProcessSettings.PathTracingSamplesPerPixel = SampleCount;
 
-		// reset path tracer's accumulation at the start of each spatial sample
-		View->bForcePathTracerReset = InOutSampleState.SpatialSampleIndex == 0;
+		// reset path tracer's accumulation at the start of each sample
+		View->bForcePathTracerReset = SampleIndex == 0;
 
-		// discard the result, unless its the last spatial sample
-		InOutSampleState.bDiscardResult |= !(InOutSampleState.SpatialSampleIndex == InOutSampleState.SpatialSampleCount - 1);
+		// discard the result, unless its the last sample
+		InOutSampleState.bDiscardResult |= !(SampleIndex == SampleCount - 1);
 	}
 
 	// Object Occlusion/Histories
