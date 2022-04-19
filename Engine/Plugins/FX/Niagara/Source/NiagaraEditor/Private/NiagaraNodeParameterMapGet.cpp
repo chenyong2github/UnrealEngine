@@ -210,14 +210,13 @@ void UNiagaraNodeParameterMapGet::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 
 		NewPin->PinName = NewUniqueName;
 		NewPin->PinFriendlyName = FText::FromName(NewPin->PinName);
+		NewPin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
 
 		UEdGraphPin* MatchingDefault = GetDefaultPin(NewPin);
 		if (MatchingDefault == nullptr)
 		{
 			UEdGraphPin* DefaultPin = CreateDefaultPin(NewPin);
 		}
-
-		NewPin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
 	}
 
 	if (HasAnyFlags(RF_NeedLoad | RF_NeedPostLoad | RF_NeedInitialization))
