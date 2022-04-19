@@ -34,16 +34,26 @@ int32 UOptimusNode_DataInterface::GetDataFunctionIndexFromPin(const UOptimusNode
 		return INDEX_NONE;
 	}
 
-	int32 PinIndex = GetPins().IndexOfByKey(InPin);
+	// FIXME: This information should be baked into the pin definition so we don't have to
+	// look it up repeatedly.
+	const UOptimusComputeDataInterface *DataInterfaceCDO = Cast<UOptimusComputeDataInterface>(DataInterfaceClass->GetDefaultObject());
+	const TArray<FOptimusCDIPinDefinition> PinDefinitions = DataInterfaceCDO->GetPinDefinitions();
+
+	int32 PinIndex = INDEX_NONE;
+	for (int32 Index = 0 ; Index < PinDefinitions.Num(); ++Index)
+	{
+		if (InPin->GetUniqueName() == PinDefinitions[Index].PinName)
+		{
+			PinIndex = Index;
+			break;
+		}
+	}
 	if (!ensure(PinIndex != INDEX_NONE))
 	{
 		return INDEX_NONE;
 	}
 
-	// FIXME: This information should be baked into the pin definition so we don't have to
-	// look it up repeatedly.
-	const UOptimusComputeDataInterface *DataInterfaceCDO = Cast<UOptimusComputeDataInterface>(DataInterfaceClass->GetDefaultObject());
-	const FString FunctionName = DataInterfaceCDO->GetPinDefinitions()[PinIndex].DataFunctionName;
+	const FString FunctionName = PinDefinitions[PinIndex].DataFunctionName;
 	
 	TArray<FShaderFunctionDefinition> FunctionDefinitions;
 	if (InPin->GetDirection() == EOptimusNodePinDirection::Input)
