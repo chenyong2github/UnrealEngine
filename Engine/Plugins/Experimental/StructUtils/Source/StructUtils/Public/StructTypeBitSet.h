@@ -7,8 +7,9 @@
 #include "InstancedStruct.h"
 #include "StructUtilsTypes.h"
 
+
 /**
- * The TScriptStructTypeBitSet holds information on "existence" of subtypes of a given UStruct. The information on 
+ * The TStructTypeBitSet holds information on "existence" of subtypes of a given UStruct. The information on 
  * available child-structs is gathered lazily - the internal FStructTracker is assigning a given type a new index the
  * very first time the type is encountered. 
  * To create a specific instantiation of the type you need to declare the static StructTracker member variable. 
@@ -29,7 +30,7 @@
  */
 struct FStructTracker
 {
-	int32 FindOrAddStructTypeIndex(const UScriptStruct& InStructType)
+	int32 FindOrAddStructTypeIndex(const UStruct& InStructType)
 	{
 		// Get existing index...
 		const uint32 Hash = PointerHash(&InStructType);
@@ -56,7 +57,7 @@ struct FStructTracker
 		return Index;
 	}
 
-	const UScriptStruct* GetStructType(const int32 StructTypeIndex) const
+	const UStruct* GetStructType(const int32 StructTypeIndex) const
 	{
 		return StructTypesList.IsValidIndex(StructTypeIndex) ? StructTypesList[StructTypeIndex].Get() : nullptr;
 	}
@@ -70,7 +71,7 @@ struct FStructTracker
 		return DebugStructTypeNamesList.IsValidIndex(StructTypeIndex) ? DebugStructTypeNamesList[StructTypeIndex] : FName();
 	}
 
-	TConstArrayView<TWeakObjectPtr<const UScriptStruct>> DebugGetAllStructTypes() const { return StructTypesList; }
+	TConstArrayView<TWeakObjectPtr<const UStruct>> DebugGetAllStructTypes() const { return StructTypesList; }
 
 	void DebugResetStructTypeMappingInfo()
 	{
@@ -82,11 +83,11 @@ struct FStructTracker
 #endif // WITH_STRUCTUTILS_DEBUG
 
 	TSet<uint32> StructTypeToIndexSet;
-	TArray<TWeakObjectPtr<const UScriptStruct>, TInlineAllocator<64>> StructTypesList;
+	TArray<TWeakObjectPtr<const UStruct>, TInlineAllocator<64>> StructTypesList;
 };
 
 template<typename TBaseStruct>
-struct TScriptStructTypeBitSet
+struct TStructTypeBitSet
 {
 private:
 	struct FBitArrayExt : TBitArray<>
@@ -228,18 +229,19 @@ private:
 	};
 
 	static FStructTracker StructTracker;
+	using FBaseStruct = TBaseStruct;
 
 public:
-	TScriptStructTypeBitSet() = default;
+	TStructTypeBitSet() = default;
 
-	explicit TScriptStructTypeBitSet(const UScriptStruct& StructType)
+	explicit TStructTypeBitSet(const UStruct& StructType)
 	{
 		Add(StructType);
 	}
 
-	explicit TScriptStructTypeBitSet(std::initializer_list<const UScriptStruct*> InitList)
+	explicit TStructTypeBitSet(std::initializer_list<const UStruct*> InitList)
 	{
-		for (const UScriptStruct* StructType : InitList)
+		for (const UStruct* StructType : InitList)
 		{
 			if (StructType)
 			{
@@ -248,9 +250,9 @@ public:
 		}
 	}
 
-	explicit TScriptStructTypeBitSet(TConstArrayView<const UScriptStruct*> InitList)
+	explicit TStructTypeBitSet(TConstArrayView<const UStruct*> InitList)
 	{
-		for (const UScriptStruct* StructType : InitList)
+		for (const UStruct* StructType : InitList)
 		{
 			if (StructType)
 			{
@@ -259,7 +261,18 @@ public:
 		}
 	}
 
-	explicit TScriptStructTypeBitSet(TConstArrayView<FInstancedStruct> InitList)
+	explicit TStructTypeBitSet(TConstArrayView<const UScriptStruct*> InitList)
+	{
+		for (const UStruct* StructType : InitList)
+		{
+			if (StructType)
+			{
+				Add(*StructType);
+			}
+		}
+	}
+
+	explicit TStructTypeBitSet(TConstArrayView<FInstancedStruct> InitList)
 	{
 		for (const FInstancedStruct& StructInstance : InitList)
 		{
@@ -276,24 +289,30 @@ private:
 	 * @Note that this constructor needs to remain private to ensure consistency of stored values with data tracked 
 	 * by the StructTracker
 	 */
-	TScriptStructTypeBitSet(const TBitArray<>& Source)
+	TStructTypeBitSet(const TBitArray<>& Source)
 		: StructTypesBitArray(Source)
 	{
 	}
 
-	TScriptStructTypeBitSet(const int32 BitToSet)
+	TStructTypeBitSet(const int32 BitToSet)
 	{
 		StructTypesBitArray.AddAtIndex(BitToSet);
 	}
 
+	static const UStruct* GetBaseUStruct()
+	{
+		static const UStruct* Instance = UE::StructUtils::GetAsUStruct<TBaseStruct>();
+		return Instance;
+	}
+
 public:
 
-	static int32 CreateTypeIndex(const UScriptStruct& InStructType)
+	static int32 CreateTypeIndex(const UStruct& InStructType)
 	{
 #if WITH_STRUCTUTILS_DEBUG
-		ensureMsgf(InStructType.IsChildOf(TBaseStruct::StaticStruct())
+		ensureMsgf(InStructType.IsChildOf(GetBaseUStruct())
 			, TEXT("Creating index for '%s' while it doesn't derive from the expected struct type %s")
-			, *InStructType.GetPathName(), *TBaseStruct::StaticStruct()->GetName());
+			, *InStructType.GetPathName(), *GetBaseUStruct()->GetName());
 #endif // WITH_STRUCTUTILS_DEBUG
 
 		return StructTracker.FindOrAddStructTypeIndex(InStructType);
@@ -303,15 +322,15 @@ public:
 	static int32 GetTypeIndex()
 	{
 		static_assert(TIsDerivedFrom<T, TBaseStruct>::IsDerived, "Given struct type doesn't match the expected base struct type.");
-		static const int32 TypeIndex = CreateTypeIndex(*TBaseStructure<T>::Get());
+		static const int32 TypeIndex = CreateTypeIndex(*UE::StructUtils::GetAsUStruct<T>());
 		return TypeIndex;
 	}
 
 	template<typename T>
-	static const TScriptStructTypeBitSet<TBaseStruct>& GetTypeBitSet()
+	static const TStructTypeBitSet<TBaseStruct>& GetTypeBitSet()
 	{
 		static_assert(TIsDerivedFrom<T, TBaseStruct>::IsDerived, "Given struct type doesn't match the expected base struct type.");
-		static const TScriptStructTypeBitSet<TBaseStruct> TypeBitSet(GetTypeIndex<T>());
+		static const TStructTypeBitSet<TBaseStruct> TypeBitSet(GetTypeIndex<T>());
 		return TypeBitSet;
 	}
 	
@@ -331,7 +350,7 @@ public:
 		StructTypesBitArray.RemoveAtIndex(StructTypeIndex);
 	}
 
-	FORCEINLINE void Remove(const TScriptStructTypeBitSet<TBaseStruct>& Other)
+	FORCEINLINE void Remove(const TStructTypeBitSet<TBaseStruct>& Other)
 	{
 		StructTypesBitArray -= Other.StructTypesBitArray;
 	}
@@ -344,24 +363,24 @@ public:
 		return StructTypesBitArray.Contains(StructTypeIndex);
 	}
 
-	void Add(const UScriptStruct& InStructType)
+	void Add(const UStruct& InStructType)
 	{
 #if WITH_STRUCTUTILS_DEBUG
-		ensureMsgf(InStructType.IsChildOf(TBaseStruct::StaticStruct())
+		ensureMsgf(InStructType.IsChildOf(GetBaseUStruct())
 				, TEXT("Registering '%s' with FStructTracker while it doesn't derive from the expected struct type %s")
-				, *InStructType.GetPathName(), *TBaseStruct::StaticStruct()->GetName());
+				, *InStructType.GetPathName(), *GetBaseUStruct()->GetName());
 #endif // WITH_STRUCTUTILS_DEBUG
 
 		const int32 StructTypeIndex = StructTracker.FindOrAddStructTypeIndex(InStructType);
 		StructTypesBitArray.AddAtIndex(StructTypeIndex);
 	}
 
-	void Remove(const UScriptStruct& InStructType)
+	void Remove(const UStruct& InStructType)
 	{
 #if WITH_STRUCTUTILS_DEBUG
-		ensureMsgf(InStructType.IsChildOf(TBaseStruct::StaticStruct())
+		ensureMsgf(InStructType.IsChildOf(GetBaseUStruct())
 				, TEXT("Registering '%s' with FStructTracker while it doesn't derive from the expected struct type %s")
-				, *InStructType.GetPathName(), *TBaseStruct::StaticStruct()->GetName());
+				, *InStructType.GetPathName(), *GetBaseUStruct()->GetName());
 #endif // WITH_STRUCTUTILS_DEBUG
 
 		const int32 StructTypeIndex = StructTracker.FindOrAddStructTypeIndex(InStructType);
@@ -370,87 +389,87 @@ public:
 
 	void Reset() { StructTypesBitArray.Reset(); }
 
-	bool Contains(const UScriptStruct& InStructType) const
+	bool Contains(const UStruct& InStructType) const
 	{
 #if WITH_STRUCTUTILS_DEBUG
-		ensureMsgf(InStructType.IsChildOf(TBaseStruct::StaticStruct())
+		ensureMsgf(InStructType.IsChildOf(GetBaseUStruct())
 				, TEXT("Registering '%s' with FStructTracker while it doesn't derive from the expected struct type %s")
-				, *InStructType.GetPathName(), *TBaseStruct::StaticStruct()->GetName());
+				, *InStructType.GetPathName(), *GetBaseUStruct()->GetName());
 #endif // WITH_STRUCTUTILS_DEBUG
 
 		const int32 StructTypeIndex = StructTracker.FindOrAddStructTypeIndex(InStructType);
 		return StructTypesBitArray.Contains(StructTypeIndex);
 	}
 
-	FORCEINLINE TScriptStructTypeBitSet operator+(const TScriptStructTypeBitSet& Other) const
+	FORCEINLINE TStructTypeBitSet operator+(const TStructTypeBitSet& Other) const
 	{
-		TScriptStructTypeBitSet Result;
+		TStructTypeBitSet Result;
 		Result.StructTypesBitArray = TBitArray<>::BitwiseOR(StructTypesBitArray, Other.StructTypesBitArray, EBitwiseOperatorFlags::MaxSize);
 		return MoveTemp(Result);
 	}
 
-	FORCEINLINE void operator+=(const TScriptStructTypeBitSet& Other)
+	FORCEINLINE void operator+=(const TStructTypeBitSet& Other)
 	{
 		StructTypesBitArray = TBitArray<>::BitwiseOR(StructTypesBitArray, Other.StructTypesBitArray, EBitwiseOperatorFlags::MaxSize);
 	}
 
-	FORCEINLINE void operator-=(const TScriptStructTypeBitSet& Other)
+	FORCEINLINE void operator-=(const TStructTypeBitSet& Other)
 	{
 		StructTypesBitArray -= Other.StructTypesBitArray;
 	}
 
-	FORCEINLINE TScriptStructTypeBitSet operator+(const UScriptStruct& NewElement) const
+	FORCEINLINE TStructTypeBitSet operator+(const UStruct& NewElement) const
 	{
-		TScriptStructTypeBitSet Result = *this;
+		TStructTypeBitSet Result = *this;
 		Result.Add(NewElement);
 		return MoveTemp(Result);
 	}
 
-	FORCEINLINE TScriptStructTypeBitSet operator-(const UScriptStruct& NewElement) const
+	FORCEINLINE TStructTypeBitSet operator-(const UStruct& NewElement) const
 	{
-		TScriptStructTypeBitSet Result = *this;
+		TStructTypeBitSet Result = *this;
 		Result.Remove(NewElement);
 		return MoveTemp(Result);
 	}
 
-	FORCEINLINE TScriptStructTypeBitSet operator-(const TScriptStructTypeBitSet& Other) const
+	FORCEINLINE TStructTypeBitSet operator-(const TStructTypeBitSet& Other) const
 	{
-		TScriptStructTypeBitSet Result = *this;
+		TStructTypeBitSet Result = *this;
 		Result -= Other;
 		return MoveTemp(Result);
 	}
 
-	FORCEINLINE TScriptStructTypeBitSet operator&(const TScriptStructTypeBitSet& Other) const
+	FORCEINLINE TStructTypeBitSet operator&(const TStructTypeBitSet& Other) const
 	{
-		return TScriptStructTypeBitSet(TBitArray<>::BitwiseAND(StructTypesBitArray, Other.StructTypesBitArray, EBitwiseOperatorFlags::MinSize));
+		return TStructTypeBitSet(TBitArray<>::BitwiseAND(StructTypesBitArray, Other.StructTypesBitArray, EBitwiseOperatorFlags::MinSize));
 	}
 
-	FORCEINLINE TScriptStructTypeBitSet operator|(const TScriptStructTypeBitSet& Other) const
+	FORCEINLINE TStructTypeBitSet operator|(const TStructTypeBitSet& Other) const
 	{
-		return TScriptStructTypeBitSet(TBitArray<>::BitwiseOR(StructTypesBitArray, Other.StructTypesBitArray, EBitwiseOperatorFlags::MaxSize));
+		return TStructTypeBitSet(TBitArray<>::BitwiseOR(StructTypesBitArray, Other.StructTypesBitArray, EBitwiseOperatorFlags::MaxSize));
 	}
 
-	FORCEINLINE TScriptStructTypeBitSet GetOverlap(const TScriptStructTypeBitSet& Other) const
+	FORCEINLINE TStructTypeBitSet GetOverlap(const TStructTypeBitSet& Other) const
 	{
 		return *this & Other;
 	}
 
-	FORCEINLINE bool IsEquivalent(const TScriptStructTypeBitSet<TBaseStruct>& Other) const
+	FORCEINLINE bool IsEquivalent(const TStructTypeBitSet<TBaseStruct>& Other) const
 	{
 		return StructTypesBitArray.CompareSetBits(Other.StructTypesBitArray, /*bMissingBitValue=*/false);
 	}
 
-	FORCEINLINE bool HasAll(const TScriptStructTypeBitSet& Other) const
+	FORCEINLINE bool HasAll(const TStructTypeBitSet& Other) const
 	{
 		return StructTypesBitArray.HasAll(Other.StructTypesBitArray);
 	}
 
-	FORCEINLINE bool HasAny(const TScriptStructTypeBitSet& Other) const
+	FORCEINLINE bool HasAny(const TStructTypeBitSet& Other) const
 	{
 		return StructTypesBitArray.HasAny(Other.StructTypesBitArray);
 	}
 
-	FORCEINLINE bool HasNone(const TScriptStructTypeBitSet& Other) const
+	FORCEINLINE bool HasNone(const TStructTypeBitSet& Other) const
 	{
 		return !StructTypesBitArray.HasAny(Other.StructTypesBitArray);
 	}
@@ -460,22 +479,27 @@ public:
 		return StructTypesBitArray.IsEmpty();
 	}
 
-	FORCEINLINE bool operator==(const TScriptStructTypeBitSet& Other) const { return StructTypesBitArray == Other.StructTypesBitArray; }
-	FORCEINLINE bool operator!=(const TScriptStructTypeBitSet& Other) const { return !(*this == Other); }
+	FORCEINLINE bool IsBitSet(const int32 BitIndex) const
+	{
+		return StructTypesBitArray.Contains(BitIndex);
+	}
+
+	FORCEINLINE bool operator==(const TStructTypeBitSet& Other) const { return StructTypesBitArray == Other.StructTypesBitArray; }
+	FORCEINLINE bool operator!=(const TStructTypeBitSet& Other) const { return !(*this == Other); }
 
 	/**
 	 * note that this function is slow(ish) due to the FStructTracker utilizing WeakObjectPtrs to store types. 
 	 * @todo To be improved.
 	 */
-	template<typename Allocator>
-	void ExportTypes(TArray<const UScriptStruct*, Allocator>& OutTypes) const
+	template<typename TOutStructType, typename Allocator>
+	void ExportTypes(TArray<const TOutStructType*, Allocator>& OutTypes) const
 	{
 		TBitArray<>::FConstIterator It(StructTypesBitArray);
 		while (It)
 		{
 			if (It.GetValue())
 			{
-				OutTypes.Add(StructTracker.GetStructType(It.GetIndex()));
+				OutTypes.Add(Cast<TOutStructType>(StructTracker.GetStructType(It.GetIndex())));
 			}
 			++It;
 		}
@@ -520,21 +544,7 @@ public:
 		}
 	}
 
-	void DebugGetStructTypes(TArray<const UScriptStruct*>& OutComponentList) const
-	{
-		for (int32 Index = 0; Index < StructTypesBitArray.Num(); ++Index)
-		{
-			if (StructTypesBitArray[Index])
-			{
-				if (const UScriptStruct* StructType = StructTracker.GetStructType(Index))
-				{
-					OutComponentList.Add(StructType);
-				}
-			}
-		}
-	}
-
-	static TConstArrayView<TWeakObjectPtr<const UScriptStruct>> DebugGetAllStructTypes()
+	static TConstArrayView<TWeakObjectPtr<const UStruct>> DebugGetAllStructTypes()
 	{
 		return StructTracker.DebugGetAllStructTypes();
 	}
@@ -554,10 +564,10 @@ protected:
 #endif // WITH_STRUCTUTILS_DEBUG
 
 public:
-	FORCEINLINE friend uint32 GetTypeHash(const TScriptStructTypeBitSet<TBaseStruct>& Instance)
+	FORCEINLINE friend uint32 GetTypeHash(const TStructTypeBitSet<TBaseStruct>& Instance)
 	{
+		const uint32 StoredTypeHash = PointerHash(UE::StructUtils::GetAsUStruct<TBaseStruct>());
 		const uint32 BitArrayHash = GetTypeHash(Instance.StructTypesBitArray);
-		const uint32 StoredTypeHash = PointerHash(TBaseStruct::StaticStruct());
 		return HashCombine(StoredTypeHash, BitArrayHash);
 	}
 
@@ -565,4 +575,4 @@ private:
 	FBitArrayExt StructTypesBitArray;
 };
 
-template<typename TBaseStruct> FStructTracker TScriptStructTypeBitSet<TBaseStruct>::StructTracker;
+template<typename TBaseStruct> FStructTracker TStructTypeBitSet<TBaseStruct>::StructTracker;

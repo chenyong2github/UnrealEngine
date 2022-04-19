@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "AITestsCommon.h"
-#include "ScriptStructTypeBitSet.h"
+#include "StructTypeBitSet.h"
 #include "StructUtilsTestTypes.h"
 
 #if WITH_STRUCTUTILS_DEBUG
@@ -11,16 +11,16 @@
 
 PRAGMA_DISABLE_OPTIMIZATION
 
-namespace FScriptStructTypeBitSetTests
+namespace FStructTypeBitSetTests
 {
 
-using FTestStructBaseBitSet = TScriptStructTypeBitSet<FTestStructSimpleBase>;
+using FTestStructBaseBitSet = TStructTypeBitSet<FTestStructSimpleBase>;
 
-struct FTestStructBitSet : public TScriptStructTypeBitSet<FTestStructSimple>
+struct FTestStructBitSet : public TStructTypeBitSet<FTestStructSimple>
 {
 	FTestStructBitSet() = default;
-	FTestStructBitSet(const TScriptStructTypeBitSet<FTestStructSimple>& Other) 
-		: TScriptStructTypeBitSet<FTestStructSimple>(Other)
+	FTestStructBitSet(const TStructTypeBitSet<FTestStructSimple>& Other) 
+		: TStructTypeBitSet<FTestStructSimple>(Other)
 	{
 
 	}
@@ -320,7 +320,7 @@ struct FStructUtilsTest_CompileTimeBitSetReversed : FAITestBase
 
 IMPLEMENT_AI_INSTANT_TEST(FStructUtilsTest_CompileTimeBitSetReversed, "System.StructUtils.BitSet.CompileTime_Reversed");
 
-} // namespace FScriptStructTypeBitSetTests
+} // namespace FStructTypeBitSetTests
 
 #undef LOCTEXT_NAMESPACE
 

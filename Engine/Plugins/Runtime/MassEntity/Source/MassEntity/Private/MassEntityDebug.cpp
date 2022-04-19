@@ -5,7 +5,7 @@
 #include "MassProcessor.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
-#include "ScriptStructTypeBitSet.h"
+#include "StructTypeBitSet.h"
 
 DEFINE_ENUM_TO_STRING(EMassProcessingPhase);
 
@@ -135,9 +135,9 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice LogFragmentSizes(
 	TEXT("Logs all the fragment types being used along with their sizes."),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Params, UWorld* World, FOutputDevice& Ar)
 		{
-			for (const TWeakObjectPtr<const UScriptStruct>& WeakStruct : FMassFragmentBitSet::DebugGetAllStructTypes())
+			for (const TWeakObjectPtr<const UStruct>& WeakStruct : FMassFragmentBitSet::DebugGetAllStructTypes())
 			{
-				if (const UScriptStruct* StructType = WeakStruct.Get())
+				if (const UStruct* StructType = WeakStruct.Get())
 				{
 					Ar.Logf(ELogVerbosity::Log, TEXT("%s, size: %d"), *StructType->GetName(), StructType->GetStructureSize());
 				}
@@ -164,9 +164,9 @@ FAutoConsoleCommandWithOutputDevice LogFragments(
 	TEXT("Logs all the known tags and fragments along with their \"index\" as stored via bitsets."),
 	FConsoleCommandWithOutputDeviceDelegate::CreateStatic([](FOutputDevice& OutputDevice)
 {
-	auto PrintKnownTypes = [&OutputDevice](TConstArrayView<TWeakObjectPtr<const UScriptStruct>> AllStructs) {
+	auto PrintKnownTypes = [&OutputDevice](TConstArrayView<TWeakObjectPtr<const UStruct>> AllStructs) {
 		int i = 0;
-		for (TWeakObjectPtr<const UScriptStruct> Struct : AllStructs)
+		for (TWeakObjectPtr<const UStruct> Struct : AllStructs)
 		{
 			if (Struct.IsValid())
 			{

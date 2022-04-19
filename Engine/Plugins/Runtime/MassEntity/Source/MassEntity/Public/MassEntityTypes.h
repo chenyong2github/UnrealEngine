@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ScriptStructTypeBitSet.h"
+#include "StructTypeBitSet.h"
 #include "MassProcessingTypes.h"
 #include "StructArrayView.h"
 #include "MassEntityTypes.generated.h"
@@ -102,14 +102,14 @@ struct FMassEntityHandle
 	}
 };
 
-template struct MASSENTITY_API TScriptStructTypeBitSet<FMassFragment>;
-using FMassFragmentBitSet = TScriptStructTypeBitSet<FMassFragment>;
-template struct MASSENTITY_API TScriptStructTypeBitSet<FMassTag>;
-using FMassTagBitSet = TScriptStructTypeBitSet<FMassTag>;
-template struct MASSENTITY_API TScriptStructTypeBitSet<FMassChunkFragment>;
-using FMassChunkFragmentBitSet = TScriptStructTypeBitSet<FMassChunkFragment>;
-template struct MASSENTITY_API TScriptStructTypeBitSet<FMassSharedFragment>;
-using FMassSharedFragmentBitSet = TScriptStructTypeBitSet<FMassSharedFragment>;
+template struct MASSENTITY_API TStructTypeBitSet<FMassFragment>;
+using FMassFragmentBitSet = TStructTypeBitSet<FMassFragment>;
+template struct MASSENTITY_API TStructTypeBitSet<FMassTag>;
+using FMassTagBitSet = TStructTypeBitSet<FMassTag>;
+template struct MASSENTITY_API TStructTypeBitSet<FMassChunkFragment>;
+using FMassChunkFragmentBitSet = TStructTypeBitSet<FMassChunkFragment>;
+template struct MASSENTITY_API TStructTypeBitSet<FMassSharedFragment>;
+using FMassSharedFragmentBitSet = TStructTypeBitSet<FMassSharedFragment>;
 
 /** The type summarily describing a composition of an entity or an archetype. It contains information on both the
  *  fragments as well as tags */
@@ -412,7 +412,7 @@ namespace UE::Mass
 {
 	/**
 	 * A statically-typed list of of related types. Used mainly to differentiate type collections at compile-type as well as
-	 * efficiently produce TScriptStructTypeBitSet representing given collection.
+	 * efficiently produce TStructTypeBitSet representing given collection.
 	 */
 	template<typename T, typename... TOthers>
 	struct TMultiTypeList : TMultiTypeList<TOthers...>
@@ -425,10 +425,10 @@ namespace UE::Mass
 		};
 
 		template<typename TBaseStruct>
-		static void PopulateBitSet(TScriptStructTypeBitSet<TBaseStruct>& OutBitSet)
+		static void PopulateBitSet(TStructTypeBitSet<TBaseStruct>& OutBitSet)
 		{
 			Super::PopulateBitSet(OutBitSet);
-			OutBitSet += TScriptStructTypeBitSet<TBaseStruct>::template GetTypeBitSet<FType>();
+			OutBitSet += TStructTypeBitSet<TBaseStruct>::template GetTypeBitSet<FType>();
 		}
 	};
 		
@@ -443,9 +443,9 @@ namespace UE::Mass
 		};
 
 		template<typename TBaseStruct>
-		static void PopulateBitSet(TScriptStructTypeBitSet<TBaseStruct>& OutBitSet)
+		static void PopulateBitSet(TStructTypeBitSet<TBaseStruct>& OutBitSet)
 		{
-			OutBitSet += TScriptStructTypeBitSet<TBaseStruct>::template GetTypeBitSet<FType>();
+			OutBitSet += TStructTypeBitSet<TBaseStruct>::template GetTypeBitSet<FType>();
 		}
 	};
 

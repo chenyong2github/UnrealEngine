@@ -4,6 +4,7 @@
 
 #include "UObject/Class.h"
 #include "StructView.h"
+#include "Templates/UnrealTypeTraits.h"
 
 #ifndef WITH_STRUCTUTILS_DEBUG
 #define WITH_STRUCTUTILS_DEBUG (!(UE_BUILD_SHIPPING || UE_BUILD_SHIPPING_WITH_EDITOR || UE_BUILD_TEST) && 1)
@@ -17,6 +18,18 @@ namespace UE::StructUtils
 	extern STRUCTUTILS_API uint32 GetStructCrc32(const UScriptStruct& ScriptStruct, const uint8* StructMemory, const uint32 CRC = 0);
 
 	extern STRUCTUTILS_API uint32 GetStructCrc32(const FConstStructView StructView, const uint32 CRC = 0);
+
+	template <typename T>
+	typename TEnableIf<!TIsDerivedFrom<T, UObject>::IsDerived, UScriptStruct*>::Type GetAsUStruct()
+	{
+		return T::StaticStruct();
+	}
+
+	template <typename T>
+	typename TEnableIf<TIsDerivedFrom<T, UObject>::IsDerived, UClass*>::Type GetAsUStruct()
+	{
+		return T::StaticClass();
+	}
 }
 
 /* Predicate useful to find a struct of a specific type in an container */

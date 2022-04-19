@@ -1352,7 +1352,7 @@ void UMassEntitySubsystem::DebugGetArchetypeFragmentTypes(const FMassArchetypeHa
 {
 	if (Archetype.DataPtr.IsValid())
 	{
-		Archetype.DataPtr->GetCompositionDescriptor().Fragments.DebugGetStructTypes(InOutFragmentList);
+		Archetype.DataPtr->GetCompositionDescriptor().Fragments.ExportTypes(InOutFragmentList);
 	}
 }
 
