@@ -229,7 +229,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 
 		LumenSceneData.IncrementSurfaceCacheUpdateFrameIndex();
 
-		FGlobalShaderMap* GlobalShaderMap = Views[0].ShaderMap;
 		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
 
 		if (LumenSceneData.GetNumCardPages() > 0)
@@ -246,7 +245,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			FLumenCardUpdateContext IndirectLightingCardUpdateContext;
 			Lumen::BuildCardUpdateContext(
 				GraphBuilder,
-				GlobalShaderMap,
 				LumenSceneData,
 				Views,
 				TracingInputs.LumenCardSceneUniformBuffer,
@@ -256,21 +254,15 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			RenderDirectLightingForLumenScene(
 				GraphBuilder,
 				TracingInputs,
-				GlobalShaderMap,
 				DirectLightingCardUpdateContext);
 
 			RenderRadiosityForLumenScene(
 				GraphBuilder,
+				FrameTemporaries,
 				TracingInputs,
-				GlobalShaderMap,
 				TracingInputs.IndirectLightingAtlas,
 				TracingInputs.RadiosityNumFramesAccumulatedAtlas,
 				IndirectLightingCardUpdateContext);
-
-			LumenSceneData.DirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.DirectLightingAtlas);
-			LumenSceneData.IndirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.IndirectLightingAtlas);
-			LumenSceneData.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.RadiosityNumFramesAccumulatedAtlas);
-			LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(TracingInputs.FinalLightingAtlas);
 
 			LumenSceneData.bFinalLightingAtlasContentsValid = true;
 		}
@@ -278,10 +270,10 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 		for (const FViewInfo& View : Views)
 		{
 			FLumenViewCardTracingInputs ViewCardTracingInputs(GraphBuilder, View);
-			ComputeLumenSceneVoxelLighting(GraphBuilder, View, TracingInputs, ViewCardTracingInputs);
+			ComputeLumenSceneVoxelLighting(GraphBuilder, View, FrameTemporaries, TracingInputs, ViewCardTracingInputs);
 		}
 
-		ComputeLumenTranslucencyGIVolume(GraphBuilder, TracingInputs, GlobalShaderMap);
+		ComputeLumenTranslucencyGIVolume(GraphBuilder, TracingInputs);
 	}
 }
 
@@ -512,7 +504,6 @@ IMPLEMENT_GLOBAL_SHADER(FLumenSceneLightingStatsCS, "/Engine/Private/Lumen/Lumen
 
 void Lumen::BuildCardUpdateContext(
 	FRDGBuilder& GraphBuilder,
-	const FGlobalShaderMap* GlobalShaderMap,
 	const FLumenSceneData& LumenSceneData,
 	const TArray<FViewInfo>& Views,
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
@@ -568,7 +559,7 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->RWCardPageTileAllocator = GraphBuilder.CreateUAV(CardPageTileAllocator);
 		PassParameters->RWPriorityHistogram = GraphBuilder.CreateUAV(PriorityHistogram);
 
-		auto ComputeShader = GlobalShaderMap->GetShader<FClearCardUpdateContextCS>();
+		auto ComputeShader = Views[0].ShaderMap->GetShader<FClearCardUpdateContextCS>();
 
 		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(LumenCardUpdateContext::CARD_UPDATE_CONTEXT_MAX * LumenCardUpdateContext::PRIORITY_HISTOGRAM_SIZE, FClearCardUpdateContextCS::GetGroupSize()), 1, 1);
 
@@ -604,7 +595,7 @@ void Lumen::BuildCardUpdateContext(
 
 		FBuildPageUpdatePriorityHistogramCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FBuildPageUpdatePriorityHistogramCS::FSurfaceCacheFeedback>(bUseFeedback);
-		auto ComputeShader = GlobalShaderMap->GetShader<FBuildPageUpdatePriorityHistogramCS>(PermutationVector);
+		auto ComputeShader = Views[0].ShaderMap->GetShader<FBuildPageUpdatePriorityHistogramCS>(PermutationVector);
 
 		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(LumenSceneData.GetNumCardPages(), FBuildPageUpdatePriorityHistogramCS::GetGroupSize()), 1, 1);
 
@@ -626,7 +617,7 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->SurfaceCacheUpdateFrameIndex = UpdateFrameIndex;
 		PassParameters->FreezeUpdateFrame = FreezeUpdateFrame;
 
-		auto ComputeShader = GlobalShaderMap->GetShader<FSelectMaxUpdateBucketCS>();
+		auto ComputeShader = Views[0].ShaderMap->GetShader<FSelectMaxUpdateBucketCS>();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -679,7 +670,7 @@ void Lumen::BuildCardUpdateContext(
 
 		FBuildCardsUpdateListCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FBuildCardsUpdateListCS::FSurfaceCacheFeedback>(bUseFeedback);
-		auto ComputeShader = GlobalShaderMap->GetShader<FBuildCardsUpdateListCS>(PermutationVector);
+		auto ComputeShader = Views[0].ShaderMap->GetShader<FBuildCardsUpdateListCS>(PermutationVector);
 
 		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(LumenSceneData.GetNumCardPages(), FBuildCardsUpdateListCS::GetGroupSize()), 1, 1);
 
@@ -713,7 +704,7 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->IndirectLightingCardPageIndexAllocator = GraphBuilder.CreateSRV(IndirectLightingCardUpdateContext.CardPageIndexAllocator);
 		PassParameters->VertexCountPerInstanceIndirect = GRHISupportsRectTopology ? 3 : 6;
 
-		auto ComputeShader = GlobalShaderMap->GetShader<FSetCardPageIndexIndirectArgsCS>();
+		auto ComputeShader = Views[0].ShaderMap->GetShader<FSetCardPageIndexIndirectArgsCS>();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -736,7 +727,7 @@ void Lumen::BuildCardUpdateContext(
 		PassParameters->CardPageNum = LumenSceneData.GetNumCardPages();
 		PassParameters->LightingStatMode = GLumenLightingStats;
 
-		auto ComputeShader = GlobalShaderMap->GetShader<FLumenSceneLightingStatsCS>();
+		auto ComputeShader = Views[0].ShaderMap->GetShader<FLumenSceneLightingStatsCS>();
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,

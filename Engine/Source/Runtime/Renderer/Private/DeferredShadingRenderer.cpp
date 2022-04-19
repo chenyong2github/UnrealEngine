@@ -2353,10 +2353,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
+	FLumenSceneFrameTemporaries LumenFrameTemporaries;
 	{
 		{
 			RDG_RHI_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
-			InitViewsAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
+			InitViewsAfterPrepass(GraphBuilder, LumenFrameTemporaries, ILCTaskData, InstanceCullingManager);
 		}
 
 		{
@@ -2590,7 +2591,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	UpdateLumenScene(GraphBuilder);
+	UpdateLumenScene(GraphBuilder, LumenFrameTemporaries);
 
 	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture = nullptr;
 
@@ -2760,8 +2761,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		Strata::AddStrataMaterialClassificationPass(GraphBuilder, SceneTextures, Views);
 	}
-
-	FLumenSceneFrameTemporaries LumenFrameTemporaries;
 
 	// Shadows, lumen and fog after base pass
 	if (!bHasRayTracedOverlay)
@@ -3343,11 +3342,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	if (bRenderDeferredLighting)
-	{
-		// After AddPostProcessingPasses in case of Lumen Visualizations writing to feedback
-		FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
-	}
+	// After AddPostProcessingPasses in case of Lumen Visualizations writing to feedback
+	FinishGatheringLumenSurfaceCacheFeedback(GraphBuilder, Views[0], LumenFrameTemporaries);
 
 	GEngine->GetPostRenderDelegateEx().Broadcast(GraphBuilder);
 

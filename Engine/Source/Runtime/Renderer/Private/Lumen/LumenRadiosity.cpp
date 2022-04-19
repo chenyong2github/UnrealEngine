@@ -1003,8 +1003,8 @@ void LumenRadiosity::AddRadiosityPass(
 
 void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	FRDGBuilder& GraphBuilder, 
-	const FLumenCardTracingInputs& TracingInputs, 
-	FGlobalShaderMap* GlobalShaderMap, 
+	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenCardTracingInputs& TracingInputs,
 	FRDGTextureRef RadiosityAtlas,
 	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,
 	const FLumenCardUpdateContext& CardUpdateContext)
@@ -1027,7 +1027,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			if (ViewTracingInputs.NumClipmapLevels == 0 && !Lumen::UseHardwareRayTracedRadiosity(ViewFamily))
 			{
 				// First frame since enabling, initialize voxel lighting since we won't have anything from last frame
-				ComputeLumenSceneVoxelLighting(GraphBuilder, View, TracingInputs, ViewTracingInputs);
+				ComputeLumenSceneVoxelLighting(GraphBuilder, View, FrameTemporaries, TracingInputs, ViewTracingInputs);
 			}
 		}
 

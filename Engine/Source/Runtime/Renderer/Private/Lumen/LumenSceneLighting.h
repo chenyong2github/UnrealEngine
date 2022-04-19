@@ -198,7 +198,6 @@ namespace Lumen
 
 	void BuildCardUpdateContext(
 		FRDGBuilder& GraphBuilder,
-		const FGlobalShaderMap* GlobalShaderMap,
 		const FLumenSceneData& LumenSceneData,
 		const TArray<FViewInfo>& Views,
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,

@@ -949,6 +949,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		GraphBuilder, 
 		Scene,
 		View, 
+		FrameTemporaries,
 		bTraceMeshObjects,
 		SceneTextures,
 		TracingInputs,

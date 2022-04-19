@@ -750,6 +750,7 @@ void VisualizeLumenScene(
 	const FScene* Scene,
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	FScreenPassTexture Output,
 	FRDGTextureRef ColorGradingTexture,
 	FRDGTextureRef EyeAdaptationTexture,
@@ -803,6 +804,7 @@ void VisualizeLumenScene(
 			CullMeshObjectsToViewGrid(
 				View,
 				Scene,
+				FrameTemporaries,
 				0,
 				CardTraceEndDistanceFromCamera,
 				CullGridPixelSize,
@@ -906,7 +908,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 
 				for (int32 TileIndex = 0; TileIndex < LumenVisualize::NumOverviewTilesPerRow; ++TileIndex)
 				{
-					VisualizeLumenScene(Scene, GraphBuilder, View, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationTexture, TracingInputs, VisualizeTiles[TileIndex].Mode, TileIndex);	
+					VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationTexture, TracingInputs, VisualizeTiles[TileIndex].Mode, TileIndex);	
 				}
 
 				AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("LumenVisualizeLabels"), View, FScreenPassRenderTarget(Output, ERenderTargetLoadAction::ELoad),
@@ -926,7 +928,7 @@ FScreenPassTexture AddVisualizeLumenScenePass(FRDGBuilder& GraphBuilder, const F
 			}
 			else
 			{
-				VisualizeLumenScene(Scene, GraphBuilder, View, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationTexture, TracingInputs, VisualizeMode, /*VisualizeTileIndex*/ -1);
+				VisualizeLumenScene(Scene, GraphBuilder, View, FrameTemporaries, Output, Inputs.ColorGradingTexture, Inputs.EyeAdaptationTexture, TracingInputs, VisualizeMode, /*VisualizeTileIndex*/ -1);
 			}
 		}
 	}

@@ -562,4 +562,20 @@ void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRD
 			LumenSceneData.CardPageHighResLastUsedBuffer = GraphBuilder.ConvertToExternalBuffer(FrameTemporaries.CardPageHighResLastUsedBuffer);
 		}
 	}
+
+	if (FrameTemporaries.AlbedoAtlas)
+	{
+		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+
+		LumenSceneData.DepthAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.DepthAtlas);
+		LumenSceneData.AlbedoAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.AlbedoAtlas);
+		LumenSceneData.OpacityAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.OpacityAtlas);
+		LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.NormalAtlas);
+		LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.EmissiveAtlas);
+
+		LumenSceneData.DirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.DirectLightingAtlas);
+		LumenSceneData.IndirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.IndirectLightingAtlas);
+		LumenSceneData.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.RadiosityNumFramesAccumulatedAtlas);
+		LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.FinalLightingAtlas);
+	}
 }

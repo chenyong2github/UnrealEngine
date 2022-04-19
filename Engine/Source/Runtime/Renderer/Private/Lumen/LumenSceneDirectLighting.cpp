@@ -1501,7 +1501,6 @@ void CullDirectLightingTiles(
 void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 	FRDGBuilder& GraphBuilder,
 	const FLumenCardTracingInputs& TracingInputs,
-	FGlobalShaderMap* GlobalShaderMap,
 	const FLumenCardUpdateContext& CardUpdateContext)
 {
 	LLM_SCOPE_BYTAG(Lumen);

@@ -565,6 +565,7 @@ void TraceReflections(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	bool bTraceMeshObjects,
 	const FSceneTextures& SceneTextures,
 	const FLumenCardTracingInputs& TracingInputs,
@@ -683,7 +684,9 @@ void TraceReflections(
 			{
 				CullForCardTracing(
 					GraphBuilder,
-					Scene, View,
+					Scene, 
+					View,
+					FrameTemporaries,
 					TracingInputs,
 					IndirectTracingParameters,
 					/* out */ MeshSDFGridParameters);

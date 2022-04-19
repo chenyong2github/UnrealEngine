@@ -624,9 +624,10 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 	// Find the visible primitives.
 	{
+		FLumenSceneFrameTemporaries LumenFrameTemporaries;
 		FILCUpdatePrimTaskData ILCTaskData;
 		InitViews(GraphBuilder, SceneTexturesConfig, FExclusiveDepthStencil::DepthWrite_StencilWrite, ILCTaskData, InstanceCullingManager);
-		InitViewsAfterPrepass(GraphBuilder, ILCTaskData, InstanceCullingManager);
+		InitViewsAfterPrepass(GraphBuilder, LumenFrameTemporaries, ILCTaskData, InstanceCullingManager);
 	}
 
 	extern TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;

@@ -282,6 +282,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 			GraphBuilder,
 			Scene,
 			View,
+			FrameTemporaries,
 			DiffuseTracingParametersForCulling.IndirectTracingParameters.MaxMeshSDFTraceDistance,
 			DiffuseTracingParametersForCulling.IndirectTracingParameters.CardTraceEndDistanceFromCamera,
 			HierarchyParameters,
@@ -441,7 +442,9 @@ void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 		{
 			CullForCardTracing(
 				GraphBuilder,
-				Scene, View,
+				Scene, 
+				View,
+				FrameTemporaries,
 				TracingInputs,
 				DiffuseTracingParameters.IndirectTracingParameters,
 				/* out */ ReferencePassParameters.MeshSDFGridParameters);

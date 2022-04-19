@@ -475,6 +475,7 @@ void TraceScreenProbes(
 	FRDGBuilder& GraphBuilder, 
 	const FScene* Scene,
 	const FViewInfo& View, 
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	bool bTraceMeshObjects,
 	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
@@ -590,7 +591,9 @@ void TraceScreenProbes(
 	{
 		CullForCardTracing(
 			GraphBuilder,
-			Scene, View,
+			Scene, 
+			View,
+			FrameTemporaries,
 			TracingInputs,
 			IndirectTracingParameters,
 			/* out */ MeshSDFGridParameters);

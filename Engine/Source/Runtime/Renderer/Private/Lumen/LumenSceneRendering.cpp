@@ -1901,6 +1901,7 @@ void ResampleLightingHistory(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FScene* Scene,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
 	FLumenSceneData& LumenSceneData,
 	FResampledCardCaptureAtlas& CardCaptureAtlas)
@@ -1961,15 +1962,15 @@ void ResampleLightingHistory(
 
 			{
 				FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
-				SetupLumenCardSceneParameters(GraphBuilder, Scene, *LumenCardSceneParameters);
+				SetupLumenCardSceneParameters(GraphBuilder, Scene, FrameTemporaries, *LumenCardSceneParameters);
 				LumenCardSceneParameters->CardData = LastCardBufferForResampleSRV;
 				LumenCardSceneParameters->PageTableBuffer = LastPageTableBufferForResampleSRV;
 				PassParameters->PS.LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
 			}
 
-			PassParameters->PS.DirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DirectLightingAtlas);
-			PassParameters->PS.IndirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.IndirectLightingAtlas);
-			PassParameters->PS.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityNumFramesAccumulatedAtlas);
+			PassParameters->PS.DirectLightingAtlas = FrameTemporaries.DirectLightingAtlas;
+			PassParameters->PS.IndirectLightingAtlas = FrameTemporaries.IndirectLightingAtlas;
+			PassParameters->PS.RadiosityNumFramesAccumulatedAtlas = FrameTemporaries.RadiosityNumFramesAccumulatedAtlas;
 			PassParameters->PS.NewCardPageResampleData = NewCardPageResampleDataSRV;
 
 			FResampleLightingHistoryToCardCaptureAtlasPS::FPermutationDomain PermutationVector;
@@ -1991,7 +1992,7 @@ void ResampleLightingHistory(
 	}
 }
 
-void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder)
+void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -2082,16 +2083,28 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		}
 
 		// Atlas reallocation
+		if (bReallocateAtlas || !LumenSceneData.AlbedoAtlas)
 		{
-			if (bReallocateAtlas || !LumenSceneData.AlbedoAtlas)
-			{
-				LumenSceneData.AllocateCardAtlases(GraphBuilder);
-			}
+			LumenSceneData.AllocateCardAtlases(GraphBuilder, FrameTemporaries);
+			ClearLumenSurfaceCacheAtlas(GraphBuilder, FrameTemporaries, Views[0].ShaderMap);
+		}
+		else
+		{
+			FrameTemporaries.AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("Lumen.SceneAlbedo"));
+			FrameTemporaries.OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas, TEXT("Lumen.SceneOpacity"));
+			FrameTemporaries.NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas, TEXT("Lumen.SceneNormal"));
+			FrameTemporaries.EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas, TEXT("Lumen.SceneEmissive"));
+			FrameTemporaries.DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas, TEXT("Lumen.SceneDepth"));
 
-			if (LumenSceneData.bDebugClearAllCachedState)
-			{
-				ClearLumenSurfaceCacheAtlas(GraphBuilder, Views[0].ShaderMap);
-			}
+			FrameTemporaries.DirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DirectLightingAtlas, TEXT("Lumen.SceneDepth"));
+			FrameTemporaries.IndirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.IndirectLightingAtlas, TEXT("Lumen.IndirectLightingAtlas"));
+			FrameTemporaries.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityNumFramesAccumulatedAtlas, TEXT("Lumen.RadiosityNumFramesAccumulatedAtlas"));
+			FrameTemporaries.FinalLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.FinalLightingAtlas, TEXT("Lumen.FinalLightingAtlas"));
+		}
+
+		if (LumenSceneData.bDebugClearAllCachedState)
+		{
+			ClearLumenSurfaceCacheAtlas(GraphBuilder, FrameTemporaries, Views[0].ShaderMap);
 		}
 
 		TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender = LumenCardRenderer.CardPagesToRender;
@@ -2100,7 +2113,14 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		{
 			// Before we update the GPU page table, read from the persistent atlases for the card pages we are reallocating, and write it to the card capture atlas
 			// This is a resample operation, as the original data may have been at a different mip level, or didn't exist at all
-			ResampleLightingHistory(GraphBuilder, Views[0], Scene, CardPagesToRender, LumenSceneData, LumenCardRenderer.ResampledCardCaptureAtlas);
+			ResampleLightingHistory(
+				GraphBuilder,
+				Views[0],
+				Scene,
+				FrameTemporaries,
+				CardPagesToRender,
+				LumenSceneData,
+				LumenCardRenderer.ResampledCardCaptureAtlas);
 		}
 
 		LumenSceneData.UploadPageTable(GraphBuilder);
@@ -2172,7 +2192,11 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, "LumenCardScene");
 
-void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenCardScene& OutParameters)
+void SetupLumenCardSceneParameters(
+	FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
+	FLumenCardScene& OutParameters)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
@@ -2207,23 +2231,11 @@ void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scen
 	OutParameters.HeightfieldData = LumenSceneData.HeightfieldBuffer.SRV;
 	OutParameters.NumHeightfields = LumenSceneData.Heightfields.Num();
 
-	if (LumenSceneData.AlbedoAtlas.IsValid())
-	{
-		OutParameters.AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas, TEXT("Lumen.SceneAlbedo"));
-		OutParameters.OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas, TEXT("Lumen.SceneOpacity"));
-		OutParameters.NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas, TEXT("Lumen.SceneNormal"));
-		OutParameters.EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas, TEXT("Lumen.SceneEmissive"));
-		OutParameters.DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas, TEXT("Lumen.SceneDepth"));
-	}
-	else
-	{
-		FRDGTextureRef BlackDummyTextureRef = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("Lumen.BlackDummy"));
-		OutParameters.AlbedoAtlas = BlackDummyTextureRef;
-		OutParameters.OpacityAtlas = BlackDummyTextureRef;
-		OutParameters.NormalAtlas = BlackDummyTextureRef;
-		OutParameters.EmissiveAtlas = BlackDummyTextureRef;
-		OutParameters.DepthAtlas = BlackDummyTextureRef;
-	}
+	OutParameters.AlbedoAtlas = FrameTemporaries.AlbedoAtlas;
+	OutParameters.OpacityAtlas = FrameTemporaries.OpacityAtlas;
+	OutParameters.NormalAtlas = FrameTemporaries.NormalAtlas;
+	OutParameters.EmissiveAtlas = FrameTemporaries.EmissiveAtlas;
+	OutParameters.DepthAtlas = FrameTemporaries.DepthAtlas;
 }
 
 DECLARE_GPU_STAT(UpdateCardSceneBuffer);
@@ -2438,7 +2450,7 @@ bool UpdateGlobalLightingState(const FScene* Scene, const FViewInfo& View, FLume
 	return bModifySceneStateVersion;
 }
 
-void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
+void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::UpdateLumenScene);
@@ -2851,7 +2863,14 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				}
 			}
 
-			UpdateLumenSurfaceCacheAtlas(GraphBuilder, Views[0], CardPagesToRender, CardCaptureRectBufferSRV, CardCaptureAtlas, LumenCardRenderer.ResampledCardCaptureAtlas);
+			UpdateLumenSurfaceCacheAtlas(
+				GraphBuilder,
+				Views[0],
+				FrameTemporaries,
+				CardPagesToRender,
+				CardCaptureRectBufferSRV,
+				CardCaptureAtlas,
+				LumenCardRenderer.ResampledCardCaptureAtlas);
 		}
 	}
 

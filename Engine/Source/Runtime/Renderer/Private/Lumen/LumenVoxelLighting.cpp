@@ -900,6 +900,7 @@ void UpdateVoxelVisBuffer(
 	FRDGBuilder& GraphBuilder, 
 	FScene* Scene, 
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenCardTracingInputs& TracingInputs,
 	FLumenViewCardTracingInputs& ViewTracingInputs,
 	FRDGBufferRef VoxelVisBuffer,
@@ -1241,7 +1242,7 @@ void UpdateVoxelVisBuffer(
 				FRDGBufferRef HeightfieldObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxNumHeightfieldObjects), TEXT("Lumen.HeightfieldObjectIndices"));
 
 				FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
-				SetupLumenCardSceneParameters(GraphBuilder, Scene, *LumenCardSceneParameters);
+				SetupLumenCardSceneParameters(GraphBuilder, Scene, FrameTemporaries, *LumenCardSceneParameters);
 
 				AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(HeightfieldObjectIndexBuffer, PF_R32_UINT), 0);
 
@@ -1334,6 +1335,7 @@ void UpdateVoxelVisBuffer(
 void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenCardTracingInputs& TracingInputs,
 	FLumenViewCardTracingInputs& ViewTracingInputs)
 {
@@ -1433,7 +1435,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 		ViewTracingInputs.VoxelGridResolution = GetClipmapResolution();
 		ViewTracingInputs.NumClipmapLevels = ClampedNumClipmapLevels;
 
-		UpdateVoxelVisBuffer(GraphBuilder, Scene, View, TracingInputs, ViewTracingInputs, VoxelVisBuffer, ClipmapsToUpdate, bForceFullUpdate);
+		UpdateVoxelVisBuffer(GraphBuilder, Scene, View, FrameTemporaries, TracingInputs, ViewTracingInputs, VoxelVisBuffer, ClipmapsToUpdate, bForceFullUpdate);
 		VoxelizeVisBuffer(View, Scene, TracingInputs, ViewTracingInputs, VoxelLighting, VoxelVisBuffer, ClipmapsToUpdate, GraphBuilder);
 
 		View.ViewState->Lumen.VoxelLighting = GraphBuilder.ConvertToExternalTexture(VoxelLighting);

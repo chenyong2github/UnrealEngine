@@ -425,40 +425,46 @@ private:
 	void InitViews(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& SceneTexturesConfig, FExclusiveDepthStencil::Type BasePassDepthStencilAccess, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
 
 	void InitViewsBeforePrepass(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager);
-	void InitViewsAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
-	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder);
-	void UpdateLumenScene(FRDGBuilder& GraphBuilder);
+	void InitViewsAfterPrepass(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
+	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
+	void UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 
 	void RenderDirectLightingForLumenScene(
 		FRDGBuilder& GraphBuilder,
 		const class FLumenCardTracingInputs& TracingInputs,
-		FGlobalShaderMap* GlobalShaderMap,
 		const FLumenCardUpdateContext& CardUpdateContext);
 	
 	void RenderRadiosityForLumenScene(
 		FRDGBuilder& GraphBuilder,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const class FLumenCardTracingInputs& TracingInputs,
-		FGlobalShaderMap* GlobalShaderMap,
 		FRDGTextureRef RadiosityAtlas,
 		FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,
 		const FLumenCardUpdateContext& CardUpdateContext);
 
 	void ClearLumenSurfaceCacheAtlas(
 		FRDGBuilder& GraphBuilder,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const FGlobalShaderMap* GlobalShaderMap);
 
 	void UpdateLumenSurfaceCacheAtlas(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
 		FRDGBufferSRVRef CardCaptureRectBufferSRV,
 		const struct FCardCaptureAtlas& CardCaptureAtlas,
 		const struct FResampledCardCaptureAtlas& ResampledCardCaptureAtlas);
 
-	void ComputeLumenSceneVoxelLighting(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, class FLumenViewCardTracingInputs& ViewTracingInputs);
+	void ComputeLumenSceneVoxelLighting(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenCardTracingInputs& TracingInputs,
+		class FLumenViewCardTracingInputs& ViewTracingInputs);
 
-	void ComputeLumenTranslucencyGIVolume(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs, FGlobalShaderMap* GlobalShaderMap);
+	void ComputeLumenTranslucencyGIVolume(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs);
 
 	void CreateIndirectCapsuleShadows();
 

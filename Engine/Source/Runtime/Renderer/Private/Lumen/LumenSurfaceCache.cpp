@@ -126,7 +126,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )
 	RDG_TEXTURE_ACCESS(OutputTexture, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
-const TRefCountPtr<IPooledRenderTarget>& CreateCardAtlas(FRDGBuilder& GraphBuilder, const FIntPoint PageAtlasSize, ESurfaceCacheCompression PhysicalAtlasCompression, ELumenSurfaceCacheLayer LayerId, const TCHAR* Name)
+FRDGTextureRef CreateCardAtlas(FRDGBuilder& GraphBuilder, const FIntPoint PageAtlasSize, ESurfaceCacheCompression PhysicalAtlasCompression, ELumenSurfaceCacheLayer LayerId, const TCHAR* Name)
 {
 	const FLumenSurfaceLayerConfig& Config = GetSurfaceLayerConfig(LayerId);
 	ETextureCreateFlags TexFlags = TexCreate_ShaderResource | TexCreate_NoFastClear;
@@ -151,42 +151,50 @@ const TRefCountPtr<IPooledRenderTarget>& CreateCardAtlas(FRDGBuilder& GraphBuild
 		CreateInfo.UAVFormat = Config.CompressedUAVFormat;
 	}
 
-	FRDGTextureRef AtlasRDG = GraphBuilder.CreateTexture(CreateInfo, Name);
-	return GraphBuilder.ConvertToExternalTexture(AtlasRDG);
+	return GraphBuilder.CreateTexture(CreateInfo, Name);
 }
 
-void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder)
+void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	const FIntPoint PageAtlasSize = GetPhysicalAtlasSize();
 
-	AlbedoAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Albedo, TEXT("Lumen.SceneAlbedo"));
-	OpacityAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Opacity, TEXT("Lumen.SceneOpacity"));
-	DepthAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Depth, TEXT("Lumen.SceneDepth"));
-	NormalAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Normal, TEXT("Lumen.SceneNormal"));
-	EmissiveAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Emissive, TEXT("Lumen.SceneEmissive"));
+	FrameTemporaries.AlbedoAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Albedo, TEXT("Lumen.SceneAlbedo"));
+	FrameTemporaries.OpacityAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Opacity, TEXT("Lumen.SceneOpacity"));
+	FrameTemporaries.DepthAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Depth, TEXT("Lumen.SceneDepth"));
+	FrameTemporaries.NormalAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Normal, TEXT("Lumen.SceneNormal"));
+	FrameTemporaries.EmissiveAtlas = CreateCardAtlas(GraphBuilder, PageAtlasSize, PhysicalAtlasCompression, ELumenSurfaceCacheLayer::Emissive, TEXT("Lumen.SceneEmissive"));
 
-	// Direct Lighting
-	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, Lumen::GetDirectLightingAtlasFormat(), FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, DirectLightingAtlas, TEXT("Lumen.SceneDirectLighting"));
-	}
+	FrameTemporaries.DirectLightingAtlas = GraphBuilder.CreateTexture(
+		FRDGTextureDesc::Create2D(
+			PageAtlasSize,
+			Lumen::GetDirectLightingAtlasFormat(),
+			FClearValueBinding::Black,
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV
+		), TEXT("Lumen.SceneDirectLighting"));
 
-	// Indirect Lighting
-	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(), Lumen::GetIndirectLightingAtlasFormat(), FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, IndirectLightingAtlas, TEXT("Lumen.SceneIndirectLighting"));
-	}
+	FrameTemporaries.IndirectLightingAtlas = GraphBuilder.CreateTexture(
+		FRDGTextureDesc::Create2D(
+			GetRadiosityAtlasSize(),
+			Lumen::GetIndirectLightingAtlasFormat(),
+				FClearValueBinding::Black,
+				TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV
+			), TEXT("Lumen.SceneIndirectLighting"));
 
-	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(GetRadiosityAtlasSize(), Lumen::GetNumFramesAccumulatedAtlasFormat(), FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, RadiosityNumFramesAccumulatedAtlas, TEXT("Lumen.SceneNumFramesAccumulatedAtlas"));
-	}
+	FrameTemporaries.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.CreateTexture(
+		FRDGTextureDesc::Create2D(
+			GetRadiosityAtlasSize(),
+			Lumen::GetNumFramesAccumulatedAtlasFormat(),
+			FClearValueBinding::Black,
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV
+		), TEXT("Lumen.SceneNumFramesAccumulatedAtlas"));
 
-	// Final Lighting
-	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(PageAtlasSize, PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV, false));
-		GRenderTargetPool.FindFreeElement(GraphBuilder.RHICmdList, Desc, FinalLightingAtlas, TEXT("Lumen.SceneFinalLighting"));
-	}
+	FrameTemporaries.FinalLightingAtlas = GraphBuilder.CreateTexture(
+		FRDGTextureDesc::Create2D(
+			PageAtlasSize,
+			PF_FloatR11G11B10,
+			FClearValueBinding::Black,
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV
+		), TEXT("Lumen.SceneFinalLighting"));
 }
 
 // Copy captured cards into surface cache. Possibly with compression. Has three paths:
@@ -196,6 +204,7 @@ void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder)
 void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
 	FRDGBufferSRVRef CardCaptureRectBufferSRV,
 	const FCardCaptureAtlas& CardCaptureAtlas,
@@ -205,16 +214,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	RDG_EVENT_SCOPE(GraphBuilder, "CopyCardsToSurfaceCache");
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-	FRDGTextureRef DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
-	FRDGTextureRef AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
-	FRDGTextureRef OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
-	FRDGTextureRef NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
-	FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
-	FRDGTextureRef DirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DirectLightingAtlas);
-	FRDGTextureRef IndirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.IndirectLightingAtlas);
-	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityNumFramesAccumulatedAtlas);
-	FRDGTextureRef FinalLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.FinalLightingAtlas);
 
 	// Create rect buffer
 	FRDGBufferRef SurfaceCacheRectBuffer;
@@ -249,11 +248,11 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 
 	FPassConfig PassConfigs[(uint32)ELumenSurfaceCacheLayer::MAX] =
 	{
-		{ DepthAtlas,		ELumenSurfaceCacheLayer::Depth },
-		{ AlbedoAtlas,		ELumenSurfaceCacheLayer::Albedo },
-		{ OpacityAtlas,		ELumenSurfaceCacheLayer::Opacity },
-		{ NormalAtlas,		ELumenSurfaceCacheLayer::Normal },
-		{ EmissiveAtlas,	ELumenSurfaceCacheLayer::Emissive },
+		{ FrameTemporaries.DepthAtlas,		ELumenSurfaceCacheLayer::Depth },
+		{ FrameTemporaries.AlbedoAtlas,		ELumenSurfaceCacheLayer::Albedo },
+		{ FrameTemporaries.OpacityAtlas,	ELumenSurfaceCacheLayer::Opacity },
+		{ FrameTemporaries.NormalAtlas,		ELumenSurfaceCacheLayer::Normal },
+		{ FrameTemporaries.EmissiveAtlas,	ELumenSurfaceCacheLayer::Emissive },
 	};
 
 	for (FPassConfig& Pass : PassConfigs)
@@ -430,10 +429,10 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 
 		FCopyCardCaptureLightingToAtlasParameters* PassParameters = GraphBuilder.AllocParameters<FCopyCardCaptureLightingToAtlasParameters>();
 
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(DirectLightingAtlas, ERenderTargetLoadAction::ELoad, 0);
-		PassParameters->RenderTargets[1] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ELoad, 0);
-		PassParameters->RenderTargets[2] = FRenderTargetBinding(IndirectLightingAtlas, ERenderTargetLoadAction::ELoad, 0);
-		PassParameters->RenderTargets[3] = FRenderTargetBinding(RadiosityNumFramesAccumulatedAtlas, ERenderTargetLoadAction::ELoad, 0);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(FrameTemporaries.DirectLightingAtlas, ERenderTargetLoadAction::ELoad, 0);
+		PassParameters->RenderTargets[1] = FRenderTargetBinding(FrameTemporaries.FinalLightingAtlas, ERenderTargetLoadAction::ELoad, 0);
+		PassParameters->RenderTargets[2] = FRenderTargetBinding(FrameTemporaries.IndirectLightingAtlas, ERenderTargetLoadAction::ELoad, 0);
+		PassParameters->RenderTargets[3] = FRenderTargetBinding(FrameTemporaries.RadiosityNumFramesAccumulatedAtlas, ERenderTargetLoadAction::ELoad, 0);
 
 		PassParameters->PS.View = View.ViewUniformBuffer;
 		PassParameters->PS.AlbedoCardCaptureAtlas = CardCaptureAtlas.Albedo;
@@ -464,16 +463,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 			/*RectUVBufferSRV*/ CardCaptureRectBufferSRV,
 			/*DownsampleFactor*/ 1);
 	}
-
-	LumenSceneData.DepthAtlas = GraphBuilder.ConvertToExternalTexture(DepthAtlas);
-	LumenSceneData.AlbedoAtlas = GraphBuilder.ConvertToExternalTexture(AlbedoAtlas);
-	LumenSceneData.OpacityAtlas = GraphBuilder.ConvertToExternalTexture(OpacityAtlas);
-	LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(NormalAtlas);
-	LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(EmissiveAtlas);
-	LumenSceneData.DirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(DirectLightingAtlas);
-	LumenSceneData.IndirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(IndirectLightingAtlas);
-	LumenSceneData.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.ConvertToExternalTexture(RadiosityNumFramesAccumulatedAtlas);
-	LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(FinalLightingAtlas);
 }
 
 class FClearCompressedAtlasCS : public FGlobalShader
@@ -512,28 +501,16 @@ class FClearCompressedAtlasCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FClearCompressedAtlasCS, "/Engine/Private/Lumen/SurfaceCache/LumenSurfaceCache.usf", "ClearCompressedAtlasCS", SF_Compute);
 
-void ClearAtlas(FRDGBuilder& GraphBuilder, TRefCountPtr<IPooledRenderTarget>& Atlas)
-{
-	FRDGTextureRef AtlasTexture = GraphBuilder.RegisterExternalTexture(Atlas);
-	AddClearRenderTargetPass(GraphBuilder, AtlasTexture);
-	Atlas = GraphBuilder.ConvertToExternalTexture(AtlasTexture);
-}
-
 // Clear entire Lumen surface cache to debug default values
 // Surface cache can be compressed
 void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 	FRDGBuilder& GraphBuilder,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FGlobalShaderMap* GlobalShaderMap)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "ClearLumenSurfaceCache");
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-	FRDGTextureRef DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
-	FRDGTextureRef AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
-	FRDGTextureRef OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
-	FRDGTextureRef NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
-	FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
 
 	struct FPassConfig
 	{
@@ -543,11 +520,11 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 
 	FPassConfig PassConfigs[(uint32)ELumenSurfaceCacheLayer::MAX] =
 	{
-		{ DepthAtlas,		ELumenSurfaceCacheLayer::Depth },
-		{ AlbedoAtlas,		ELumenSurfaceCacheLayer::Albedo },
-		{ OpacityAtlas,		ELumenSurfaceCacheLayer::Opacity },
-		{ NormalAtlas,		ELumenSurfaceCacheLayer::Normal },
-		{ EmissiveAtlas,	ELumenSurfaceCacheLayer::Emissive },
+		{ FrameTemporaries.DepthAtlas,		ELumenSurfaceCacheLayer::Depth },
+		{ FrameTemporaries.AlbedoAtlas,		ELumenSurfaceCacheLayer::Albedo },
+		{ FrameTemporaries.OpacityAtlas,	ELumenSurfaceCacheLayer::Opacity },
+		{ FrameTemporaries.NormalAtlas,		ELumenSurfaceCacheLayer::Normal },
+		{ FrameTemporaries.EmissiveAtlas,	ELumenSurfaceCacheLayer::Emissive },
 	};
 
 	const FIntPoint PhysicalAtlasSize = LumenSceneData.GetPhysicalAtlasSize();
@@ -663,14 +640,8 @@ void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 		}
 	}
 
-	LumenSceneData.DepthAtlas = GraphBuilder.ConvertToExternalTexture(DepthAtlas);
-	LumenSceneData.AlbedoAtlas = GraphBuilder.ConvertToExternalTexture(AlbedoAtlas);
-	LumenSceneData.OpacityAtlas = GraphBuilder.ConvertToExternalTexture(OpacityAtlas);
-	LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(NormalAtlas);
-	LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(EmissiveAtlas);
-
-	ClearAtlas(GraphBuilder, LumenSceneData.DirectLightingAtlas);
-	ClearAtlas(GraphBuilder, LumenSceneData.IndirectLightingAtlas);
-	ClearAtlas(GraphBuilder, LumenSceneData.RadiosityNumFramesAccumulatedAtlas);
-	ClearAtlas(GraphBuilder, LumenSceneData.FinalLightingAtlas);
+	AddClearRenderTargetPass(GraphBuilder, FrameTemporaries.DirectLightingAtlas);
+	AddClearRenderTargetPass(GraphBuilder, FrameTemporaries.IndirectLightingAtlas);
+	AddClearRenderTargetPass(GraphBuilder, FrameTemporaries.RadiosityNumFramesAccumulatedAtlas);
+	AddClearRenderTargetPass(GraphBuilder, FrameTemporaries.FinalLightingAtlas);
 }

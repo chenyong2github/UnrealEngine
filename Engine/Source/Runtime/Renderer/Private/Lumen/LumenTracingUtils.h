@@ -199,6 +199,7 @@ extern void CullHeightfieldObjectsForView(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	FRDGBufferRef& NumCulledObjects,
@@ -207,6 +208,7 @@ extern void CullHeightfieldObjectsForView(
 extern void CullMeshObjectsToViewGrid(
 	const FViewInfo& View,
 	const FScene* Scene,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	int32 GridPixelsPerCellXY,
@@ -219,6 +221,7 @@ extern void CullMeshSDFObjectsToProbes(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	const LumenProbeHierarchy::FHierarchyParameters& ProbeHierarchyParameters,
@@ -229,6 +232,7 @@ extern void CullForCardTracing(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	FLumenCardTracingInputs TracingInputs,
 	const FLumenIndirectTracingParameters& IndirectTracingParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters);

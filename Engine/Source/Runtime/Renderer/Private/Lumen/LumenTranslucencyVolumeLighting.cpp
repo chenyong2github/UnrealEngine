@@ -644,10 +644,7 @@ void TraceVoxelsTranslucencyVolume(
 		GroupSize);
 }
 
-void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
-	FRDGBuilder& GraphBuilder,
-	FLumenCardTracingInputs& TracingInputs,
-	FGlobalShaderMap* GlobalShaderMap)
+void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs)
 {
 	if (GLumenTranslucencyVolume)
 	{

@@ -369,6 +369,17 @@ struct FLumenSceneFrameTemporaries
 	// Current frame's buffers for writing feedback
 	FLumenSurfaceCacheFeedback::FFeedbackResources SurfaceCacheFeedbackResources;
 
+	FRDGTextureRef AlbedoAtlas = nullptr;
+	FRDGTextureRef OpacityAtlas = nullptr;
+	FRDGTextureRef NormalAtlas = nullptr;
+	FRDGTextureRef EmissiveAtlas = nullptr;
+	FRDGTextureRef DepthAtlas = nullptr;
+
+	FRDGTextureRef DirectLightingAtlas = nullptr;
+	FRDGTextureRef IndirectLightingAtlas = nullptr;
+	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas = nullptr;
+	FRDGTextureRef FinalLightingAtlas = nullptr;
+
 	FRDGBufferRef CardPageLastUsedBuffer = nullptr;
 	FRDGBufferRef CardPageHighResLastUsedBuffer = nullptr;
 };
@@ -498,7 +509,7 @@ public:
 	void RemoveAllMeshCards();
 	void UploadPageTable(FRDGBuilder& GraphBuilder);
 
-	void AllocateCardAtlases(FRDGBuilder& GraphBuilder);
+	void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, int32 ResLevel, bool bLockPages);
 	void FreeVirtualSurface(FLumenCard& Card, uint8 FromResLevel, uint8 ToResLevel);
 

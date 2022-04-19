@@ -277,6 +277,7 @@ void CullForCardTracing(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	FLumenCardTracingInputs TracingInputs,
 	const FLumenIndirectTracingParameters& IndirectTracingParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters)
@@ -297,6 +298,7 @@ void CullForCardTracing(
 	CullMeshObjectsToViewGrid(
 		View,
 		Scene,
+		FrameTemporaries,
 		IndirectTracingParameters.MaxMeshSDFTraceDistance,
 		IndirectTracingParameters.CardTraceEndDistanceFromCamera,
 		GCardFroxelGridPixelSize,

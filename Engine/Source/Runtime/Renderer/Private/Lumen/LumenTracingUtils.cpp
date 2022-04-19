@@ -11,22 +11,22 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 
 	{
 		FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
-		SetupLumenCardSceneParameters(GraphBuilder, Scene, *LumenCardSceneParameters);
+		SetupLumenCardSceneParameters(GraphBuilder, Scene, FrameTemporaries, *LumenCardSceneParameters);
 		LumenCardSceneUniformBuffer = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
 	}
 
-	check(LumenSceneData.FinalLightingAtlas);
+	check(FrameTemporaries.FinalLightingAtlas);
 
-	AlbedoAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.AlbedoAtlas);
-	OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
-	NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
-	EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
-	DepthAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DepthAtlas);
+	AlbedoAtlas = FrameTemporaries.AlbedoAtlas;
+	OpacityAtlas = FrameTemporaries.OpacityAtlas;
+	NormalAtlas = FrameTemporaries.NormalAtlas;
+	EmissiveAtlas = FrameTemporaries.EmissiveAtlas;
+	DepthAtlas = FrameTemporaries.DepthAtlas;
 
-	DirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DirectLightingAtlas);
-	IndirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.IndirectLightingAtlas);
-	RadiosityNumFramesAccumulatedAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityNumFramesAccumulatedAtlas);
-	FinalLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.FinalLightingAtlas);
+	DirectLightingAtlas = FrameTemporaries.DirectLightingAtlas;
+	IndirectLightingAtlas = FrameTemporaries.IndirectLightingAtlas;
+	RadiosityNumFramesAccumulatedAtlas = FrameTemporaries.RadiosityNumFramesAccumulatedAtlas;
+	FinalLightingAtlas = FrameTemporaries.FinalLightingAtlas;
 
 	if (FrameTemporaries.CardPageLastUsedBuffer && FrameTemporaries.CardPageHighResLastUsedBuffer)
 	{

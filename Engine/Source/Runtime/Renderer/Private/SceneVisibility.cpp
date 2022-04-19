@@ -5046,7 +5046,7 @@ void FDeferredShadingSceneRenderer::InitViewsBeforePrepass(FRDGBuilder& GraphBui
 	}
 }
 
-void FDeferredShadingSceneRenderer::InitViewsAfterPrepass(FRDGBuilder& GraphBuilder, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager)
+void FDeferredShadingSceneRenderer::InitViewsAfterPrepass(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager)
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViewsAfterPrepass, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsPossiblyAfterPrepass);
@@ -5100,7 +5100,7 @@ void FDeferredShadingSceneRenderer::InitViewsAfterPrepass(FRDGBuilder& GraphBuil
 
 	SetupSceneReflectionCaptureBuffer(RHICmdList);
 
-	BeginUpdateLumenSceneTasks(GraphBuilder);
+	BeginUpdateLumenSceneTasks(GraphBuilder, FrameTemporaries);
 }
 
 /*------------------------------------------------------------------------------

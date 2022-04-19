@@ -89,7 +89,7 @@ namespace Lumen
 	}
 };
 
-extern void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenCardScene& OutParameters);
+extern void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenSceneFrameTemporaries& FrameTemporaries, FLumenCardScene& OutParameters);
 extern void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRDGBuilder& GraphBuilder);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionCompositeParameters, )

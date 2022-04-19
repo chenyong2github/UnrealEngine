@@ -507,6 +507,7 @@ void CullHeightfieldObjectsForView(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	FRDGBufferRef& NumHeightfieldCulledObjects,
@@ -526,7 +527,7 @@ void CullHeightfieldObjectsForView(
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(NumHeightfieldCulledObjects, PF_R32_UINT), 0);
 
 	FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
-	SetupLumenCardSceneParameters(GraphBuilder, Scene, *LumenCardSceneParameters);
+	SetupLumenCardSceneParameters(GraphBuilder, Scene, FrameTemporaries, *LumenCardSceneParameters);
 
 	FCullHeightfieldObjectsForViewCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullHeightfieldObjectsForViewCS::FParameters>();
 	{
@@ -696,6 +697,7 @@ void CullMeshSDFObjectsToProbes(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	const LumenProbeHierarchy::FHierarchyParameters& ProbeHierarchyParameters,
@@ -733,6 +735,7 @@ void CullMeshSDFObjectsToProbes(
 			GraphBuilder,
 			Scene,
 			View,
+			FrameTemporaries,
 			MaxMeshSDFInfluenceRadius,
 			CardTraceEndDistanceFromCamera,
 			Context.NumHeightfieldCulledObjects,
@@ -839,6 +842,7 @@ void CullMeshSDFObjectsToProbes(
 void CullObjectsToGrid(
 	const FViewInfo& View,
 	const FScene* Scene,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	int32 GridPixelsPerCellXY,
@@ -855,7 +859,7 @@ void CullObjectsToGrid(
 	FMeshSDFObjectCull* PassParameters = GraphBuilder.AllocParameters<FMeshSDFObjectCull>();
 	{
 		FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
-		SetupLumenCardSceneParameters(GraphBuilder, Scene, *LumenCardSceneParameters);
+		SetupLumenCardSceneParameters(GraphBuilder, Scene, FrameTemporaries, *LumenCardSceneParameters);
 
 		if (DistanceFieldSceneData.NumObjectsInBuffer > 0)
 		{
@@ -966,6 +970,7 @@ void CullObjectsToGrid(
 void CullMeshObjectsToViewGrid(
 	const FViewInfo& View,
 	const FScene* Scene,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	int32 GridPixelsPerCellXY,
@@ -1023,6 +1028,7 @@ void CullMeshObjectsToViewGrid(
 			GraphBuilder,
 			Scene,
 			View,
+			FrameTemporaries,
 			MaxMeshSDFInfluenceRadius,
 			CardTraceEndDistanceFromCamera,
 			Context.NumHeightfieldCulledObjects,
@@ -1048,6 +1054,7 @@ void CullMeshObjectsToViewGrid(
 		CullObjectsToGrid(
 			View,
 			Scene,
+			FrameTemporaries,
 			MaxMeshSDFInfluenceRadius,
 			CardTraceEndDistanceFromCamera,
 			GridPixelsPerCellXY,

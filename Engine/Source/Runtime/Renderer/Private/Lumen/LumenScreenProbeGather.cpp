@@ -1783,6 +1783,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		GraphBuilder, 
 		Scene,
 		View, 
+		FrameTemporaries,
 		GLumenGatherCvars.TraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(ViewFamily),
 		SceneTextures,
 		LightingChannelsTexture,
