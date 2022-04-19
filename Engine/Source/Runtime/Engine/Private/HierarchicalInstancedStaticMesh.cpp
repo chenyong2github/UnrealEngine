@@ -2721,13 +2721,15 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAnyThread(
 	OutSortedInstances = MoveTemp(Builder.Result->SortedInstances);
 }
 
-void UHierarchicalInstancedStaticMeshComponent::AcceptPrebuiltTree(TArray<FClusterNode>& InClusterTree, int32 InOcclusionLayerNumNodes, int32 InNumBuiltRenderInstances)
+void UHierarchicalInstancedStaticMeshComponent::AcceptPrebuiltTree(TArray<FInstancedStaticMeshInstanceData>& InInstanceData, TArray<FClusterNode>& InClusterTree, int32 InOcclusionLayerNumNodes, int32 InNumBuiltRenderInstances)
 {
 	checkSlow(IsInGameThread());
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_UHierarchicalInstancedStaticMeshComponent_AcceptPrebuiltTree);
+	
 	// this is only for prebuild data, already in the correct order
 	check(!PerInstanceSMData.Num());
+
 	NumBuiltInstances = 0;
 	TranslatedInstanceSpaceOrigin = FVector::Zero();
 	check(PerInstanceRenderData.IsValid());
@@ -2753,6 +2755,13 @@ void UHierarchicalInstancedStaticMeshComponent::AcceptPrebuiltTree(TArray<FClust
 	if(bMeshIsValid)
 	{
 		*ClusterTreePtr = MoveTemp(InClusterTree);
+
+		// We only need to copy off the instances if it is a Nanite mesh, since the Nanite scene proxy uses them instead
+		if (ShouldCreateNaniteProxy())
+		{
+			PerInstanceSMData = MoveTemp(InInstanceData);
+		}
+		
 		PostBuildStats();
 
 	}
