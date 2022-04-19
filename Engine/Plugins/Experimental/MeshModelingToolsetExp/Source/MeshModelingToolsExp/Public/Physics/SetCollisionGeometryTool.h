@@ -10,8 +10,11 @@
 #include "OrientedBoxTypes.h"
 #include "CapsuleTypes.h"
 #include "Physics/CollisionPropertySets.h"
+#include "Physics/PhysicsDataCollection.h"
 #include "PropertySets/PolygroupLayersProperties.h"
 #include "Polygroups/PolygroupSet.h"
+#include "ModelingOperators.h"
+#include "MeshOpPreviewHelpers.h"
 #include "SetCollisionGeometryTool.generated.h"
 
 class UPreviewGeometry;
@@ -156,7 +159,7 @@ public:
  * Mesh Inspector Tool for visualizing mesh information
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API USetCollisionGeometryTool : public UMultiSelectionMeshEditingTool
+class MESHMODELINGTOOLSEXP_API USetCollisionGeometryTool : public UMultiSelectionMeshEditingTool, public UE::Geometry::IGenericDataOperatorFactory<FPhysicsDataCollection>
 {
 	GENERATED_BODY()
 public:
@@ -167,6 +170,15 @@ public:
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
+	virtual bool CanAccept() const override
+	{
+		// allow accept when we're showing the current, valid result
+		return Super::CanAccept() && bInputMeshesValid && Compute && Compute->HaveValidResult() && !bVisualizationDirty;
+	}
+
+	// Begin IGenericDataOperatorFactory interface
+	virtual TUniquePtr<UE::Geometry::TGenericDataOperator<FPhysicsDataCollection>> MakeNewOperator() override;
+	// End IGenericDataOperatorFactory interface
 
 protected:
 
@@ -185,6 +197,11 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInterface> LineMaterial = nullptr;
 
+	//
+	// Background compute
+	//
+	TUniquePtr<TGenericDataBackgroundCompute<FPhysicsDataCollection>> Compute = nullptr;
+
 protected:
 	UPROPERTY()
 	TObjectPtr<UPreviewGeometry> PreviewGeom;
@@ -195,6 +212,11 @@ protected:
 	TArray<FDynamicMesh3> InitialSourceMeshes;
 
 	void OnInputModeChanged();
+
+	/**
+	 * Invalidates the background compute operator.
+	 */
+	void InvalidateCompute();
 
 	enum class EDetectedCollisionGeometry
 	{
@@ -232,7 +254,6 @@ protected:
 		const TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>>& FromInputMeshes,
 		TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>>& ToMeshes,
 		TFunctionRef<bool(const FDynamicMesh3*, int32, int32)> TrisConnectedPredicate);
-	TSharedPtr<UE::Geometry::FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>& GetApproximator(ESetCollisionGeometryInputMode MeshSetMode);
 
 	TUniquePtr<UE::Geometry::FPolygroupSet> ActiveGroupSet;
 	void OnSelectedGroupLayerChanged();
@@ -241,12 +262,9 @@ protected:
 	FTransform OrigTargetTransform;
 	FVector TargetScale3D;
 
-	bool bResultValid = false;
 	TSharedPtr<FPhysicsDataCollection, ESPMode::ThreadSafe> InitialCollision;
 	TSharedPtr<FPhysicsDataCollection, ESPMode::ThreadSafe> GeneratedCollision;
 
-	void UpdateGeneratedCollision();
-//	TSharedPtr<FPhysicsDataCollection> GenerateCollision_MinVolume();
 
 	bool bVisualizationDirty = false;
 	void UpdateVisualization();
