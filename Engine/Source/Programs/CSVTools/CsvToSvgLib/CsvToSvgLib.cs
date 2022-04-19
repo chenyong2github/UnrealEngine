@@ -5,13 +5,14 @@ using CSVStats;
 using System.Threading.Tasks;
 using System.Text;
 using System.ComponentModel;
+using System.Diagnostics;
 
 namespace CSVTools
 {
 
 	public class CsvToSvgLibVersion
 	{
-		private static string VersionString = "2.52";
+		private static string VersionString = "2.53";
 
 		public static string Get() { return VersionString; }
 	};
@@ -490,20 +491,6 @@ namespace CSVTools
 				}
 
 				SetLegend(newCsvStats, csvInfo.filename, graphParams, csvList.Count > 1);
-
-				if (graphParams.smooth)
-				{
-					int kernelSize = graphParams.smoothKernelSize;
-					if (graphParams.smoothKernelSize == -1)
-					{
-						float percent = graphParams.smoothKernelPercent;
-						percent = Math.Min(percent, 100.0f);
-						percent = Math.Max(percent, 0.0f);
-						float kernelSizeF = percent * 0.01f * (float)newCsvStats.SampleCount + 0.5f;
-						kernelSize = (int)kernelSizeF;
-					}
-					newCsvStats = SmoothStats(newCsvStats, kernelSize, graphParams.bSmoothMultithreaded);
-				}
 				if (!graphParams.stacked)
 				{
 					AssignColours(newCsvStats, theme, false, graphParams.colorOffset);
@@ -511,6 +498,25 @@ namespace CSVTools
 				csvStatsList.Add(newCsvStats);
 			}
 			perfLog.LogTiming("ProcessCsvStats");
+
+
+			if (graphParams.smooth)
+			{
+				for (int i=0; i<csvStatsList.Count; i++)
+				{ 
+					int kernelSize = graphParams.smoothKernelSize;
+					if (graphParams.smoothKernelSize == -1)
+					{
+						float percent = graphParams.smoothKernelPercent;
+						percent = Math.Min(percent, 100.0f);
+						percent = Math.Max(percent, 0.0f);
+						float kernelSizeF = percent * 0.01f * (float)csvStatsList[i].SampleCount + 0.5f;
+						kernelSize = (int)kernelSizeF;
+					}
+					csvStatsList[i] = SmoothStats(csvStatsList[i], kernelSize, graphParams.bSmoothMultithreaded);
+				}
+				perfLog.LogTiming("SmoothStats");
+			}
 
 			Range range = new Range(graphParams.minX, graphParams.maxX, graphParams.minY, graphParams.maxY);
 
@@ -766,82 +772,137 @@ namespace CSVTools
 			return newRange;
 		}
 
+		class SmoothKernel
+		{
+			public SmoothKernel(int inKernelSize)
+			{
+				downsampleLevel = Math.Min( (int)Math.Log((double)inKernelSize / 20.0, 2.0), 4);
+
+				kernelSize = inKernelSize >> downsampleLevel;
+				weights = new float[kernelSize];
+				float totalWeight = 0.0f;
+				for (int i = 0; i < kernelSize; i++)
+				{
+					double df = (double)i + 0.5;
+					double b = (double)kernelSize / 2;
+					double c = (double)kernelSize / 8;
+					double weight = Math.Exp(-(Math.Pow(df - b, 2.0) / Math.Pow(2 * c, 2.0)));
+					weights[i] = (float)weight;
+					totalWeight += (float)weight;
+				}
+				float oneOverTotalWeight = 1.0f / totalWeight;
+				for (int i = 0; i < kernelSize; i++)
+				{
+					weights[i] *= oneOverTotalWeight;
+				}
+			}
+			public StatSamples SmoothStatSamples(StatSamples sourceStatSamples)
+			{
+				StatSamples destStatSamples = new StatSamples(sourceStatSamples,false);
+				destStatSamples.samples.Capacity = sourceStatSamples.samples.Count;
+
+				// Downsample the source samples to the specified size
+				List<float> downsampledSamples = sourceStatSamples.samples;
+				for ( int i=0; i< downsampleLevel; i++)
+				{
+					int currentSampleCount = downsampledSamples.Count / 2;
+					List<float> nextLevelSamples = new List<float>(currentSampleCount);
+					for (int j=0; j< currentSampleCount; j++)
+					{
+						int prevLevelIndex = j * 2;
+						nextLevelSamples.Add( ( downsampledSamples[prevLevelIndex] + downsampledSamples[prevLevelIndex + 1] ) * 0.5f );
+					}
+					downsampledSamples = nextLevelSamples;
+				}
+				int downsampleScale = 1 << downsampleLevel;
+
+				int kernelSizeClamped = Math.Min(kernelSize, downsampledSamples.Count);
+
+				for (int i = 0; i < sourceStatSamples.samples.Count; i++)
+				{
+					float sum = 0.0f;
+					int startIndex = (i >> downsampleLevel) - kernelSizeClamped / 2;
+					int endIndex = (startIndex + kernelSizeClamped);
+					int startIndexClamped = Math.Max(0, startIndex);
+					int endIndexClamped = Math.Min(downsampledSamples.Count, endIndex);
+					int kernelStartIndex = startIndexClamped - startIndex;
+					int kernelIndex = kernelStartIndex;
+
+					// Smooth the in-range samples
+					for (int j = startIndexClamped; j < endIndexClamped; j++)
+					{
+						sum += downsampledSamples[j] * weights[kernelIndex];
+						kernelIndex++;
+					}
+
+					// Mirror the out of range samples < 0 
+					if (startIndex < 0)
+					{
+						kernelIndex = kernelStartIndex - 1;
+						endIndexClamped = Math.Min(downsampledSamples.Count, -startIndex);
+						for (int j = startIndexClamped; j < endIndexClamped; j++)
+						{
+							sum += downsampledSamples[j] * weights[kernelIndex];
+							kernelIndex--;
+						}
+					}
+					// Mirror the out of range samples >= n
+					if (endIndex > downsampledSamples.Count)
+					{
+						kernelIndex = kernelSizeClamped - 1;
+						startIndexClamped = Math.Max(0, downsampledSamples.Count - endIndex + downsampledSamples.Count);
+						for (int j = startIndexClamped; j < endIndexClamped; j++)
+						{
+							sum += downsampledSamples[j] * weights[kernelIndex];
+							kernelIndex--;
+						}
+					}
+
+					destStatSamples.samples.Add(sum);
+				}
+				return destStatSamples;
+			}
+
+			int kernelSize;
+			int downsampleLevel;
+			float [] weights;
+		};
+
+
+
+
 
 
 		CsvStats SmoothStats(CsvStats stats, int KernelSize, bool bMultiThreaded)
 		{
 			// Compute Gaussian Weights
-			float[] Weights = new float[KernelSize];
-			float TotalWeight = 0.0f;
-			for (int i = 0; i < KernelSize; i++)
-			{
-				double df = (double)i + 0.5;
-				double b = (double)KernelSize / 2;
-				double c = (double)KernelSize / 8;
-				double weight = Math.Exp(-(Math.Pow(df - b, 2.0) / Math.Pow(2 * c, 2.0)));
-				Weights[i] = (float)weight;
-				TotalWeight += (float)weight;
-			}
-
-			for (int i = 0; i < KernelSize; i++)
-			{
-				Weights[i] /= TotalWeight;
-			}
+			SmoothKernel kernel = new SmoothKernel(KernelSize);
 
 			List<StatSamples> statSampleList = stats.Stats.Values.ToList();
-
 			// Add the stats to smoothstats before the parallel for, so we can preserve the order
-			CsvStats smoothStats = new CsvStats();
-			foreach (StatSamples srcStatSamples in stats.Stats.Values)
-			{
-				StatSamples NewStatSamples = new StatSamples(srcStatSamples, false);
-				smoothStats.AddStat(NewStatSamples);
-			}
-			StatSamples[] SmoothSamplesArray = smoothStats.Stats.Values.ToArray();
 
-			Action<int> smoothStat = i =>
-			{
-				StatSamples srcStatSamples = statSampleList[i];
-				StatSamples destStatSamples = SmoothSamplesArray[i];// new StatSamples(srcStatSamples);
-
-				int maxSampleIndex = srcStatSamples.samples.Count - 1;
-				for (int j = 0; j < srcStatSamples.samples.Count; j++)
-				{
-					float sum = 0.0f;
-					for (int k = 0; k < KernelSize; k++)
-					{
-						int SampleIndex = j - (KernelSize / 2) + k;
-
-						// If the index is out of range, mirror it (so as not to bias the result)
-						if (SampleIndex < 0)
-						{
-							SampleIndex = -SampleIndex;
-						}
-						else if (SampleIndex > maxSampleIndex)
-						{
-							SampleIndex = maxSampleIndex - (SampleIndex - maxSampleIndex);
-						}
-						// clamp the src index to a valid range
-						int srcIndex = Math.Min(Math.Max(0, SampleIndex), maxSampleIndex);
-
-						sum += srcStatSamples.samples[srcIndex] * Weights[k];
-					}
-					destStatSamples.samples.Add(sum);
-				}
-			};
-
+			StatSamples[] smoothSamplesArray = new StatSamples[stats.Stats.Count];
 			if (bMultiThreaded)
 			{
-				Parallel.For(0, stats.Stats.Values.Count, smoothStat);
+				int numThreads = Environment.ProcessorCount/2;
+				Parallel.For(0, stats.Stats.Values.Count, new ParallelOptions { MaxDegreeOfParallelism = numThreads }, i =>
+				{
+					smoothSamplesArray[i] = kernel.SmoothStatSamples(statSampleList[i]);
+				});
 			}
 			else
 			{
 				for (int i=0; i< stats.Stats.Values.Count; i++)
 				{
-					smoothStat(i);
+					smoothSamplesArray[i] = kernel.SmoothStatSamples(statSampleList[i]);
 				}
 			}
 
+			CsvStats smoothStats = new CsvStats();
+			foreach (StatSamples stat in smoothSamplesArray)
+			{
+				smoothStats.AddStat(stat);
+			}
 
 			smoothStats.metaData = stats.metaData;
 			smoothStats.Events = stats.Events;

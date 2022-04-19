@@ -321,7 +321,7 @@ namespace CSVStats
 		public PerfLog(bool inLoggingEnabled, string inLogPrefix=null)
 		{
 			stopWatch = Stopwatch.StartNew();
-			lastTimeElapsed = 0.0;
+			previousTime = 0.0;
 			loggingEnabled = inLoggingEnabled;
 			if (inLogPrefix != null)
 			{
@@ -331,7 +331,10 @@ namespace CSVStats
 
 		public double LogTiming(string description, bool newLine = false)
 		{
-			double elapsed = stopWatch.Elapsed.TotalSeconds - lastTimeElapsed;
+
+			double currentTime = stopWatch.Elapsed.TotalSeconds;
+			double elapsed = currentTime - previousTime;
+
 			if (loggingEnabled)
 			{
 				Console.WriteLine("[PerfLog] " + logPrefix + String.Format("{0,-25} : {1,-10}", description, (elapsed * 1000.0).ToString("0.0") + "ms"), 70);
@@ -340,7 +343,7 @@ namespace CSVStats
 					Console.WriteLine();
 				}
 			}
-			lastTimeElapsed = stopWatch.Elapsed.TotalSeconds;
+			previousTime = currentTime;
 			return elapsed;
 		}
 
@@ -361,7 +364,7 @@ namespace CSVStats
 			return elapsed;
 		}
 		Stopwatch stopWatch;
-		double lastTimeElapsed;
+		double previousTime;
 		bool loggingEnabled;
 		string logPrefix = "";
 	}

@@ -402,6 +402,7 @@ namespace CSVTools
 			{
 				graphParams.bSmoothMultithreaded = smoothMultiThreadedStr == "1";
 			}
+			graphParams.bPerfLog = GetBoolArg("perfLog");
 
 			// Misc params (rarely used)
 			graphParams.frameOffset = GetIntArg("frameOffset", graphParams.frameOffset);
