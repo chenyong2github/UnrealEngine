@@ -165,7 +165,7 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 				{
 					static EObjectFlags DisallowedFlags()
 					{
-						return RF_BeginDestroyed | RF_FinishDestroyed | RF_PendingKill;
+						return RF_BeginDestroyed | RF_FinishDestroyed;
 					}
 
 					static EObjectFlags NeededFlags()
