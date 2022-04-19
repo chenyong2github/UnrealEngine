@@ -929,24 +929,12 @@ URigVMController* UControlRigGraph::GetController() const
 
 void UControlRigGraph::RemoveAndDeleteNode(UEdGraphNode* InNode)
 {
-	static UObject* NewOuter = GetTransientPackage();
+	// Make sure EdGraph is not part of the transaction
+	TGuardValue<ITransaction*> TransactionGuard(GUndo, nullptr);
 					
-	// Rename the soon to be deleted object to a unique name, so that other objects can use
-	// the old name
-	{
-		FString DeletedName;
-		UObject* ExistingObject = nullptr;
-		static int32 DeletedIndex = FMath::Rand();
-		do
-		{
-			DeletedName = FString::Printf(TEXT("%s_Deleted_%d"), *InNode->GetName(), DeletedIndex++); 
-			ExistingObject = StaticFindObject(/*Class=*/ NULL, NewOuter, *DeletedName, true);						
-		}
-		while (ExistingObject);
-		InNode->Rename(*DeletedName, NewOuter, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
-		InNode->MarkAsGarbage();
-	}
-
+	static UObject* NewOuter = GetTransientPackage();
+	InNode->Rename(nullptr, NewOuter, REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
+					
 	// Remove the node and notify of the removal
 	{
 		Nodes.Remove(InNode);
