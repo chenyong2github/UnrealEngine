@@ -52,6 +52,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetAlwaysUsesDeltaSnap, BlueprintGetter = GetAlwaysUsesDeltaSnap, Category = "Slider")
 	bool bAlwaysUsesDeltaSnap;
 
+	/** Whether this spin box should have slider feature enabled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slider")
+	bool bEnableSlider = true;
+
 	/** The amount by which to change the spin box value as the slider moves. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetDelta, BlueprintGetter = GetDelta, Category = "Slider")
 	float Delta;

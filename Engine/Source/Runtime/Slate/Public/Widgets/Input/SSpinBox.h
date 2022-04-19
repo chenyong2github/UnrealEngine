@@ -74,6 +74,7 @@ public:
 		, _MinFractionalDigits(DefaultMinFractionalDigits)
 		, _MaxFractionalDigits(DefaultMaxFractionalDigits)
 		, _AlwaysUsesDeltaSnap(false)
+		, _EnableSlider(true)
 		, _Delta(0)
 		, _ShiftMouseMovePixelPerDelta(1)
 		, _SupportDynamicSliderMaxValue(false)
@@ -107,6 +108,8 @@ public:
 		SLATE_ATTRIBUTE(TOptional< int32 >, MaxFractionalDigits)
 		/** Whether typed values should use delta snapping, defaults to false */
 		SLATE_ATTRIBUTE(bool, AlwaysUsesDeltaSnap)
+		/** Whether this spin box should have slider feature enabled, defaults to true */
+		SLATE_ATTRIBUTE(bool, EnableSlider)
 		/** Delta to increment the value as the slider moves.  If not specified will determine automatically */
 		SLATE_ATTRIBUTE(NumericType, Delta)
 		/** How many pixel the mouse must move to change the value of the delta step */
@@ -190,6 +193,7 @@ public:
 		SetMinFractionalDigits(MinFractionalDigits);
 
 		AlwaysUsesDeltaSnap = InArgs._AlwaysUsesDeltaSnap;
+		EnableSlider = InArgs._EnableSlider;
 
 		SupportDynamicSliderMaxValue = InArgs._SupportDynamicSliderMaxValue;
 		SupportDynamicSliderMinValue = InArgs._SupportDynamicSliderMinValue;
@@ -511,7 +515,8 @@ public:
 	 */
 	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
-		if (PointerDraggingSliderIndex == MouseEvent.GetPointerIndex())
+		const bool bEnableSlider = GetEnableSlider();
+		if (PointerDraggingSliderIndex == MouseEvent.GetPointerIndex() && bEnableSlider)
 		{
 			if (!this->HasMouseCapture())
 			{
@@ -646,6 +651,13 @@ public:
 
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override
 	{
+		const bool bEnableSlider = GetEnableSlider();
+
+		if (!bEnableSlider)
+		{
+			return FCursorReply::Cursor(EMouseCursor::Default);
+		}
+
 		return bDragging ?
 			FCursorReply::Cursor(EMouseCursor::None) :
 			FCursorReply::Cursor(EMouseCursor::ResizeLeftRight);
@@ -784,6 +796,10 @@ public:
 	/** See the AlwaysUsesDeltaSnap attribute */
 	bool GetAlwaysUsesDeltaSnap() const { return AlwaysUsesDeltaSnap.Get(); }
 	void SetAlwaysUsesDeltaSnap(bool bNewValue) { AlwaysUsesDeltaSnap.Set(bNewValue); }
+
+	/** See the EnableSlider attribute */
+	bool GetEnableSlider() const { return EnableSlider.Get(); }
+	void SetEnableSlider(bool bNewValue) { EnableSlider.Set(bNewValue); }
 
 	/** See the Delta attribute */
 	NumericType GetDelta() const { return Delta.Get(); }
@@ -1057,6 +1073,7 @@ private:
 	TAttribute< TOptional<int32> > MinFractionalDigits;
 	TAttribute< TOptional<int32> > MaxFractionalDigits;
 	TAttribute<bool> AlwaysUsesDeltaSnap;
+	TAttribute<bool> EnableSlider;
 	TAttribute<bool> SupportDynamicSliderMaxValue;
 	TAttribute<bool> SupportDynamicSliderMinValue;
 	FOnDynamicSliderMinMaxValueChanged OnDynamicSliderMaxValueChanged;

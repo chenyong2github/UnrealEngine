@@ -33,6 +33,7 @@ USpinBox::USpinBox(const FObjectInitializer& ObjectInitializer)
 	MinFractionalDigits = 1;
 	MaxFractionalDigits = 6;
 	bAlwaysUsesDeltaSnap = false;
+	bEnableSlider = true;
 	Delta = 0;
 	SliderExponent = 1;
 	MinDesiredWidth = 0;
@@ -107,6 +108,7 @@ void USpinBox::SynchronizeProperties()
 	MySpinBox->SetMinFractionalDigits(MinFractionalDigits);
 	MySpinBox->SetMaxFractionalDigits(MaxFractionalDigits);
 	MySpinBox->SetAlwaysUsesDeltaSnap(bAlwaysUsesDeltaSnap);
+	MySpinBox->SetEnableSlider(bEnableSlider);
 
 	// Set optional values
 	bOverride_MinValue ? SetMinValue(MinValue) : ClearMinValue();
