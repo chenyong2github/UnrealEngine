@@ -153,6 +153,8 @@ private:
 
 	const ITargetPlatform&				TargetPlatform;
 	const FName							TargetPlatformFName;
+	FString								ProjectId;
+	FString								OplogId;
 	FString								OutputPath;
 	FString								MetadataDirectoryPath;
 	FIoContainerId						ContainerId = FIoContainerId::FromName(TEXT("global"));

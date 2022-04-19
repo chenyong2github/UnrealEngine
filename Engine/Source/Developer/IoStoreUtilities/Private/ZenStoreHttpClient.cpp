@@ -7,6 +7,7 @@
 #include "Algo/Sort.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/App.h"
+#include "Misc/CommandLine.h"
 #include "HAL/FileManager.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_UNIX || PLATFORM_MAC
@@ -779,6 +780,17 @@ static FString GetProjectPathId()
 
 	FString HashString = FMD5::HashBytes((unsigned char*)AbsProjectFilePathUTF8.Get(), AbsProjectFilePathUTF8.Length()).Left(8);
 	return FString::Printf(TEXT("%s.%.8s"), FApp::GetProjectName(), *HashString);
+}
+
+FString FZenStoreHttpClient::GetProjectId()
+{
+	FString ProjectId;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-ZenStoreProject="), ProjectId) == false)
+	{
+		ProjectId = GetProjectPathId();
+	}
+
+	return ProjectId;
 }
 
 FString FZenStoreHttpClient::GenerateDefaultProjectId()

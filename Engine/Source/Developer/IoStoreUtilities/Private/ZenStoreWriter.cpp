@@ -18,6 +18,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "IO/IoDispatcher.h"
 #include "Misc/App.h"
+#include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/StringBuilder.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -168,9 +169,13 @@ FZenStoreWriter::FZenStoreWriter(
 {
 	StaticInit();
 
-	FString ProjectId = FZenStoreHttpClient::GenerateDefaultProjectId();
-	FString OplogId = InTargetPlatform->PlatformName();
-
+	ProjectId = FZenStoreHttpClient::GetProjectId();
+	
+	if (FParse::Value(FCommandLine::Get(), TEXT("-ZenStorePlatform="), OplogId) == false)
+	{
+		OplogId = InTargetPlatform->PlatformName();
+	}
+	
 	HttpClient = MakeUnique<UE::FZenStoreHttpClient>();
 
 	FString RootDir = FPaths::RootDir();
@@ -367,8 +372,6 @@ void FZenStoreWriter::Initialize(const FCookInfo& Info)
 			IFileManager::Get().DeleteDirectory(*OutputPath, bRequireExists, bTree);
 		}
 
-		FString ProjectId = FZenStoreHttpClient::GenerateDefaultProjectId();
-		FString OplogId = TargetPlatform.PlatformName();
 		bool bOplogEstablished = HttpClient->TryCreateOplog(ProjectId, OplogId, Info.bFullBuild);
 		UE_CLOG(!bOplogEstablished, LogZenStoreWriter, Fatal, TEXT("Failed to establish oplog on the ZenServer"));
 
