@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/CCDUtilities.h"
-
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "Chaos/CollisionResolution.h"
+#include "Chaos/ChaosDebugDraw.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
