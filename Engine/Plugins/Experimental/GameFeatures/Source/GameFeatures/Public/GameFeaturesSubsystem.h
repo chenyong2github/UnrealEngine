@@ -264,6 +264,10 @@ public:
 	void TerminateGameFeaturePlugin(const FString& PluginURL);
 	void TerminateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUninstallComplete& CompleteDelegate);
 
+	/** If the specified plugin is registered, return the URL used to identify it. Returns true if the plugin exists, false if it was not found */
+	bool GetPluginURLForRegisteredPluginByName(const FString& PluginName, FString& OutPluginURL) const;
+
+	// @TODO: Deprecate GetPluginURLForBuiltInPluginByName
 	/** If the specified plugin is a built-in plugin, return the URL used to identify it. Returns true if the plugin exists, false if it was not found */
 	bool GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL) const;
 

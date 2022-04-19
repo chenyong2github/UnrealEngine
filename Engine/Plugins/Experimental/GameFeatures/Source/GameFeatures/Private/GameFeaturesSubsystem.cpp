@@ -373,6 +373,12 @@ void UGameFeaturesSubsystem::OnGameFeatureCheckingStatus(const FString& PluginUR
 
 void UGameFeaturesSubsystem::OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL)
 {
+	// Map plugin name to plugin URL
+	if (ensure(!GameFeaturePluginNameToPathMap.Contains(PluginName)))
+	{
+		GameFeaturePluginNameToPathMap.Add(PluginName, PluginURL);
+	}
+
 	check(GameFeatureData);
 	AddGameFeatureToAssetManager(GameFeatureData, PluginName);
 
@@ -406,6 +412,9 @@ void UGameFeaturesSubsystem::OnGameFeatureUnregistering(const UGameFeatureData* 
 			Action->OnGameFeatureUnregistering();
 		}
 	}
+
+	// Unmap plugin name to plugin URL
+	GameFeaturePluginNameToPathMap.Remove(PluginName);
 }
 
 void UGameFeaturesSubsystem::OnGameFeatureLoading(const UGameFeatureData* GameFeatureData, const FString& PluginURL)
@@ -828,11 +837,6 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 					{
 						StateMachine->SetDestinationState(DestinationState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadGameFeaturePluginComplete));
 					}
-
-					if (!GameFeaturePluginNameToPathMap.Contains(Plugin->GetName()))
-					{
-						GameFeaturePluginNameToPathMap.Add(Plugin->GetName(), PluginURL);
-					}
 				}
 			}
 		}
@@ -852,7 +856,7 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditio
 	UAssetManager::Get().PopBulkScanning();
 }
 
-bool UGameFeaturesSubsystem::GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL) const
+bool UGameFeaturesSubsystem::GetPluginURLForRegisteredPluginByName(const FString& PluginName, FString& OutPluginURL) const
 {
 	if (const FString* PluginURL = GameFeaturePluginNameToPathMap.Find(PluginName))
 	{
@@ -861,6 +865,11 @@ bool UGameFeaturesSubsystem::GetPluginURLForBuiltInPluginByName(const FString& P
 	}
 
 	return false;
+}
+
+bool UGameFeaturesSubsystem::GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL) const
+{
+	return GetPluginURLForRegisteredPluginByName(PluginName, OutPluginURL);
 }
 
 FString UGameFeaturesSubsystem::GetPluginFilenameFromPluginURL(const FString& PluginURL) const

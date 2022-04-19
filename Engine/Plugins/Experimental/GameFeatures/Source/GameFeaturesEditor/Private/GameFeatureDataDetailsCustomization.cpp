@@ -51,7 +51,7 @@ void FGameFeatureDataDetailsCustomization::CustomizeDetails(IDetailLayoutBuilder
 		GameFeature->GetOutermost()->GetName().ParseIntoArray(PathParts, TEXT("/"));
 
 		UGameFeaturesSubsystem& Subsystem = UGameFeaturesSubsystem::Get();
-		Subsystem.GetPluginURLForBuiltInPluginByName(PathParts[0], /*out*/ PluginURL);
+		Subsystem.GetPluginURLForRegisteredPluginByName(PathParts[0], /*out*/ PluginURL);
 		PluginPtr = IPluginManager::Get().FindPlugin(PathParts[0]);
 
 		const float Padding = 8.0f;
