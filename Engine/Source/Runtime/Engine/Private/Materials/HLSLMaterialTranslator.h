@@ -645,6 +645,7 @@ protected:
 
 	bool StrataGenerateDerivedMaterialOperatorData();
 	void StrataEvaluateSharedLocalBases(uint8& UsedSharedLocalBasesCount, FString* OutStrataPixelNormalInitializerValues, FShaderCompilerEnvironment* OutEnvironment);
+	FString StrataGetCastParameterCode(int32 Index, EMaterialValueType DestType);
 
 	// FMaterialCompiler interface.
 
