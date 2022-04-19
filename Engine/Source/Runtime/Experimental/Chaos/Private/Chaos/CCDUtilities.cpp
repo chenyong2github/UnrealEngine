@@ -31,6 +31,9 @@ namespace Chaos
 	{
 		FRealSingle CCDEnableThresholdBoundsScale = 0.4f;
 		FAutoConsoleVariableRef  CVarCCDEnableThresholdBoundsScale(TEXT("p.Chaos.CCD.EnableThresholdBoundsScale"), CCDEnableThresholdBoundsScale , TEXT("CCD is used when object position is changing > smallest bound's extent * BoundsScale. 0 will always Use CCD. Values < 0 disables CCD."));
+
+		extern int32 ChaosSolverDrawCCDInteractions;
+		extern DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings;	
 	}
 
 	void FCCDParticle::AddOverlappingDynamicParticle(FCCDParticle* const InParticle)
@@ -292,7 +295,17 @@ namespace Chaos
 		const int32 ConstraintEnd = IslandConstraintEnd[Island];
 		check(ConstraintNum > 0);
 
+#if CHAOS_DEBUG_DRAW
+		if (CVars::ChaosSolverDrawCCDInteractions)
+		{
 			// Debugdraw the shape at the TOI=0 (black) and TOI=1 (white)
+			for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
+			{
+				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, true, FColor::Black, &CVars::ChaosSolverDebugDebugDrawSettings);
+				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, false, FColor::White, &CVars::ChaosSolverDebugDebugDrawSettings);
+			}
+		}
+#endif
 
 		// Sort constraints based on TOI
 		std::sort(SortedCCDConstraints.GetData() + ConstraintStart, SortedCCDConstraints.GetData() + ConstraintStart + ConstraintNum, CCDConstraintSortPredicate);
@@ -322,7 +335,6 @@ namespace Chaos
 				ConstraintIndex++;
 				continue;
 			}
-
 			// Skip CCD resolution if the depth at TOI=1 is low and let the standard contact resolution handle it.
 			// This can be important because CCD contact resolution uses point-mass physics and does not apply rotation 
 			// so we must leave some work for the regular solver to do to get decent behaviour when sliding fast along
@@ -527,11 +539,23 @@ namespace Chaos
 				}
 			}
 		}
-		
+
+		// Debugdraw the shapes at the final position
 		for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
-		{ 
+		{
 			CCDConstraint->SweptConstraint->SetCCDResults(CCDConstraint->NetImpulse);
 		}
+		
+#if CHAOS_DEBUG_DRAW
+		// Debugdraw the shapes at the final position
+		if (CVars::ChaosSolverDrawCCDInteractions)
+		{
+			for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
+			{
+				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, false, FColor::Green, &CVars::ChaosSolverDebugDebugDrawSettings);
+			}
+		}
+#endif
 	}
 
 	void FCCDManager::ResetIslandParticles(const int32 Island)
@@ -622,7 +646,6 @@ namespace Chaos
 				{
 					Rigid1->V() -= Impulse * InvM1;
 				}
-
 				CCDConstraint->NetImpulse += Impulse;
 			}
 		}

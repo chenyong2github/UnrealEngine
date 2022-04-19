@@ -64,9 +64,6 @@ namespace Chaos
 		bool bChaosCollisionCCDUseTightBoundingBox = true; 
 		FAutoConsoleVariableRef  CVarChaosCollisionCCDUseTightBoundingBox(TEXT("p.Chaos.Collision.CCD.UseTightBoundingBox"), bChaosCollisionCCDUseTightBoundingBox , TEXT(""));
 
-		bool bChaosCollisionCCDDebugDraw = false; 
-		FAutoConsoleVariableRef  CVarChaosCollisionCCDDebugDraw(TEXT("p.Chaos.Collision.CCD.DebugDraw"), bChaosCollisionCCDDebugDraw , TEXT(""));
-
 		int32 ChaosSolverCollisionPriority = 0;
 		FAutoConsoleVariableRef CVarChaosSolverCollisionPriority(TEXT("p.Chaos.Solver.Collision.Priority"), ChaosSolverCollisionPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));
 

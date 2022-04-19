@@ -45,7 +45,7 @@ namespace Chaos
 
 		/**
 		 * @brief Update the contact manifold on the constraint
-		 * @note Transforms are shape world-space transforms (not particle transforms)
+		 * @note Transforms are shape world-space transforms (not particle transforms) at the start of the sweep. The end of the sweep are the transforms stored in the constraint as ShapeWorldTransform0/1
 		*/
 		void CHAOS_API UpdateConstraintSwept(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1, const FReal Dt);
 
@@ -61,11 +61,9 @@ namespace Chaos
 		bool CHAOS_API ShouldUseCCD(const FGeometryParticleHandle* Particle0, const FVec3& DeltaX0, const FGeometryParticleHandle* Particle1, const FVec3& DeltaX1, FVec3& Dir, FReal& Length, const bool bForceDisableCCD);
 
 		// Update the constraint by re-running collision detection on the shape pair.
+		// @todo(chaos): remove this and use UpdateConstraint instead
 		template<ECollisionUpdateType UpdateType>
 		void CHAOS_API UpdateConstraintFromGeometry(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal Dt);
-
-		// Update the constraint by re-running collision detection on the shape pair.
-		// Return whether CCD is needed for this constraint.
 		template<ECollisionUpdateType UpdateType>
 		bool CHAOS_API UpdateConstraintFromGeometrySwept(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ParticleTransform0, const FRigidTransform3& ParticleTransform1, const FReal Dt);
 

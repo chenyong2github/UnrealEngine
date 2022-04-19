@@ -34,7 +34,7 @@ namespace Chaos
 		CHAOS_API extern FRealSingle HackMaxVelocity;
 		CHAOS_API extern FRealSingle SmoothedPositionLerpRate;
 		CHAOS_API extern bool bChaosCollisionCCDUseTightBoundingBox;
-		CHAOS_API extern bool bChaosCollisionCCDDebugDraw;
+		CHAOS_API extern int32 ChaosSolverDrawCCDThresholds;
 	}
 
 	using FPBDRigidsEvolutionCallback = TFunction<void()>;
@@ -302,7 +302,7 @@ namespace Chaos
 					{
 
 #if CHAOS_DEBUG_DRAW
-						if (CVars::bChaosCollisionCCDDebugDraw)
+						if (CVars::ChaosSolverDrawCCDThresholds)
 						{
 							DebugDraw::DrawCCDAxisThreshold(Particle.X(), Particle.CCDAxisThreshold(), Particle.P() - Particle.X(), Particle.Q());
 						}
