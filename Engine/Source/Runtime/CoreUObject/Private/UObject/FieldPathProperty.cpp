@@ -187,7 +187,7 @@ FString FFieldPathProperty::GetCPPMacroType(FString& ExtendedTypeText) const
 {
 	check(PropertyClass);
 	ExtendedTypeText = FString::Printf(TEXT("TFieldPath<F%s>"), *PropertyClass->GetName());
-	return TEXT("STRUCT");
+	return TEXT("TFIELDPATH");
 }
 
 FString FFieldPathProperty::GetCPPTypeForwardDeclaration() const

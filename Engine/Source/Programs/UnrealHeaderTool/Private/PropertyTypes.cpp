@@ -2510,7 +2510,7 @@ struct FPropertyTypeTraitsFieldPath : public FPropertyTypeTraitsBase
 	{
 		const FPropertyBase& VarProperty = PropDef.GetPropertyBase();
 		ExtendedTypeText = FString::Printf(TEXT("TFieldPath<F%s>"), *VarProperty.FieldClassName.ToString());
-		return TEXT("STRUCT");
+		return TEXT("TFIELDPATH");
 	}
 };
 
