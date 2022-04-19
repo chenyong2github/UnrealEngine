@@ -147,6 +147,27 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			}
 		}),
 		ECVF_Cheat);
+
+	IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("UnloadAndKeepRegisteredGameFeaturePlugin"),
+		TEXT("Unloads a game feature plugin by URL but keeps it registered"),
+		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
+			{
+				if (Args.Num() > 0)
+				{
+					FString PluginURL;
+					if (!UGameFeaturesSubsystem::Get().GetPluginURLForBuiltInPluginByName(Args[0], /*out*/ PluginURL))
+					{
+						PluginURL = Args[0];
+					}
+					UGameFeaturesSubsystem::Get().UnloadGameFeaturePlugin(PluginURL, true);
+				}
+				else
+				{
+					Ar.Logf(TEXT("Expected a game feature plugin URL as an argument"));
+				}
+			}),
+		ECVF_Cheat);
 }
 
 void UGameFeaturesSubsystem::Deinitialize()
