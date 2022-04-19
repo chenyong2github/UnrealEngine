@@ -234,7 +234,23 @@ void FMaterialEditorUtilities::UpdateSearchResults(const class UEdGraph* Graph)
 
 void FMaterialEditorUtilities::GetVisibleMaterialParameters(const UMaterial* Material, UMaterialInstance* MaterialInstance, TArray<FMaterialParameterInfo>& VisibleExpressions)
 {
+	check(Material);
+	check(MaterialInstance);
+
 	VisibleExpressions.Empty();
+	if (Material->IsUsingNewHLSLGenerator())
+	{
+		// When using the new HLSL generator, MI parameter list will already have unused parameters culled
+		// We can assume that any remaining parameters are visible
+		TArray<FMaterialParameterInfo> ParameterInfo;
+		TArray<FGuid> ParamterGuid;
+		for (int32 TypeIndex = 0; TypeIndex < NumMaterialParameterTypes; ++TypeIndex)
+		{
+			MaterialInstance->GetAllParameterInfoOfType((EMaterialParameterType)TypeIndex, ParameterInfo, ParamterGuid);
+			VisibleExpressions.Append(ParameterInfo);
+		}
+		return;
+	}
 
 	TUniquePtr<FGetVisibleMaterialParametersFunctionState> FunctionState = MakeUnique<FGetVisibleMaterialParametersFunctionState>(nullptr);
 	TArray<FGetVisibleMaterialParametersFunctionState*> FunctionStack;

@@ -161,24 +161,26 @@ FOperationRequestedTypes GetOperationRequestedTypes(EOperation Op, const FReques
 	case EOperation::Length:
 	case EOperation::Normalize:
 	case EOperation::Sum:
-		Types.InputType[0] = Shader::MakeValueType(RequestedType.ValueComponentType, 4);
+		Types.InputType[0] = Shader::MakeValueType(RequestedType.GetValueComponentType(), 4);
 		break;
 	case EOperation::VecMulMatrix3:
 		Types.bIsMatrixOperation = true;
-		Types.InputType[0] = Shader::MakeValueType(RequestedType.ValueComponentType, 3);
-		Types.InputType[1] = Shader::MakeValueType(RequestedType.ValueComponentType, 16);
+		Types.InputType[0] = Shader::EValueType::Float3;
+		Types.InputType[1] = Shader::EValueType::Float4x4;
 		break;
 	case EOperation::VecMulMatrix4:
+		// float3 * FLWCMatrix -> FLWCVector3
+		// Note that we'll never explicitly request the 'FLWCVector3 * FLWCInverseMatrix -> float3' case
 		Types.bIsMatrixOperation = true;
-		Types.InputType[0] = Shader::MakeValueType(RequestedType.ValueComponentType, 3);
-		Types.InputType[1] = Shader::MakeValueType(RequestedType.ValueComponentType, 16);
+		Types.InputType[0] = Shader::EValueType::Float3;
+		Types.InputType[1] = Shader::MakeValueType(RequestedType.GetValueComponentType(), 16);
 		break;
 	case EOperation::Matrix3MulVec:
 	case EOperation::Matrix4MulVec:
 		// No LWC for transpose matrices
 		Types.bIsMatrixOperation = true;
-		Types.InputType[0] = Shader::MakeValueType(RequestedType.ValueComponentType, 16);
-		Types.InputType[1] = Shader::MakeValueType(RequestedType.ValueComponentType, 3);
+		Types.InputType[0] = Shader::EValueType::Float4x4;
+		Types.InputType[1] = Shader::EValueType::Float3;
 		break;
 	default:
 		break;
@@ -195,11 +197,9 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> 
 		Op == EOperation::Matrix4MulVec)
 	{
 		FPreparedComponent IntermediateComponent;
-		Shader::EValueComponentType IntermediateComponentType = Shader::EValueComponentType::Void;
 		for (int32 Index = 0; Index < InputPreparedType.Num(); ++Index)
 		{
 			IntermediateComponent = CombineComponents(IntermediateComponent, InputPreparedType[Index].GetMergedComponent());
-			IntermediateComponentType = Shader::CombineComponentTypes(IntermediateComponentType, InputPreparedType[Index].ValueComponentType);
 		}
 
 		switch (Op)
@@ -211,9 +211,27 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> 
 			Types.ResultType = FPreparedType(Shader::EValueType::Float3, IntermediateComponent);
 			break;
 		case EOperation::VecMulMatrix4:
-			Types.InputType[0] = Shader::MakeValueType(IntermediateComponentType, 3);
-			Types.InputType[1] = Shader::MakeValueType(IntermediateComponentType, 16);
-			Types.ResultType = FPreparedType(Shader::MakeValueType(IntermediateComponentType, 3), IntermediateComponent);
+			switch (InputPreparedType[1].GetType().ValueType)
+			{
+			case Shader::EValueType::Double4x4:
+				// float3 * FLWCMatrix -> FLWCVector3
+				Types.InputType[0] = Shader::EValueType::Float3;
+				Types.InputType[1] = Shader::EValueType::Double4x4;
+				Types.ResultType = FPreparedType(Shader::EValueType::Double3, IntermediateComponent);
+				break;
+			case Shader::EValueType::DoubleInverse4x4:
+				// FLWCVector3 * FLWCInverseMatrix -> float3
+				Types.InputType[0] = Shader::EValueType::Double3;
+				Types.InputType[1] = Shader::EValueType::DoubleInverse4x4;
+				Types.ResultType = FPreparedType(Shader::EValueType::Float3, IntermediateComponent);
+				break;
+			default:
+				// float3 * float4x4 -> float3
+				Types.InputType[0] = Shader::EValueType::Float3;
+				Types.InputType[1] = Shader::EValueType::Float4x4;
+				Types.ResultType = FPreparedType(Shader::EValueType::Float3, IntermediateComponent);
+				break;
+			}
 			break;
 		case EOperation::Matrix3MulVec:
 		case EOperation::Matrix4MulVec:
@@ -232,11 +250,11 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> 
 			IntermediateType = MergePreparedTypes(IntermediateType, InputPreparedType[Index]);
 		}
 
-		const Shader::EValueComponentType IntermediateComponentType = IntermediateType.ValueComponentType;
+		const Shader::EValueComponentType IntermediateComponentType = IntermediateType.GetValueComponentType();
 		const int32 NumIntermediateComponents = IntermediateType.GetNumComponents();
 		for (int32 Index = 0; Index < InputPreparedType.Num(); ++Index)
 		{
-			Shader::EValueComponentType InputComponentType = InputPreparedType[Index].ValueComponentType;
+			Shader::EValueComponentType InputComponentType = InputPreparedType[Index].GetValueComponentType();
 			if (InputComponentType != IntermediateComponentType)
 			{
 				switch (IntermediateComponentType)
@@ -305,7 +323,7 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> 
 		case EOperation::Greater:
 		case EOperation::LessEqual:
 		case EOperation::GreaterEqual:
-			Types.ResultType.ValueComponentType = Shader::EValueComponentType::Bool;
+			Types.ResultType.Type = Shader::MakeValueType(Shader::EValueComponentType::Bool, NumIntermediateComponents);
 			break;
 		case EOperation::Fmod:
 			Types.InputType[1] = Shader::MakeNonLWCType(Types.InputType[1]);

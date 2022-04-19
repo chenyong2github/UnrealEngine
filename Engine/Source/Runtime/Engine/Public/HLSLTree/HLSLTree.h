@@ -141,29 +141,36 @@ enum class EDefaultRequestedType : uint8
 };
 
 /**
- * Represents a request for an arbitrary set of untyped components
+ * FRequestedType is used when accessing various FExpression methods.  A requested type is represented by a concrete Shader::FType, along with a bit vector of components.  A bit set in this vector means the given component was requested.
+ * This allows FExpressions to track access of particular components, which can enable various optimizations.  For example, a 'Swizzle' expression may only access the 'Y' component of its input.  So it might request a float2 value from
+ * its input, but with only the second bit set.  This lets the input know that only the 'Y' component is needed for this request.  This is turn can be passed down the chain, which can allow certain expressions to be skipped or constant-folded.
+ * This is especially useful when dealing with struct types, which are internally represented as a flattened list of components of all fields.  In many cases only certain fields of a struct type will be relevant, which can be tracked by
+ * setting the bits associated with those fields.
  */
 class ENGINE_API FRequestedType
 {
 public:
 	FRequestedType() = default;
-	FRequestedType(Shader::EValueType InType, bool bDefaultRequest = true);
 	FRequestedType(const Shader::FType& InType, bool bDefaultRequest = true);
-	FRequestedType(FName InObjectName);
+	FRequestedType(const FRequestedType& InType, bool bDefaultRequest = true);
+	FRequestedType(Shader::EValueType InType, bool bDefaultRequest = true) : FRequestedType(Shader::FType(InType), bDefaultRequest) {}
+	FRequestedType(const Shader::FStructType* InType, bool bDefaultRequest = true) : FRequestedType(Shader::FType(InType), bDefaultRequest) {}
+	FRequestedType(const FName& InType, bool bDefaultRequest = true) : FRequestedType(Shader::FType(InType), bDefaultRequest) {}
+
 	FRequestedType(EDefaultRequestedType InType) : DefaultType(InType) { check(InType != EDefaultRequestedType::None); }
 
-	Shader::FType GetType() const;
-	const TCHAR* GetName() const { return GetType().GetName(); }
-	int32 GetNumComponents() const;
+	Shader::FType GetType(const Shader::FType& InDefaultType) const;
+	int32 GetNumComponentsRequested(int32 InDefaultNumComponents) const;
+	Shader::EValueComponentType GetValueComponentType() const;
 
 	bool IsComponentRequested(int32 Index) const
 	{
 		return (DefaultType == EDefaultRequestedType::Any) || (RequestedComponents.IsValidIndex(Index) ? (bool)RequestedComponents[Index] : false);
 	}
 
-	bool IsStruct() const { return !IsVoid() && StructType != nullptr; }
-	bool IsObject() const { return !IsVoid() && !ObjectType.IsNone(); }
-	bool IsNumeric() const { return !IsVoid() && Shader::IsNumericType(ValueComponentType); }
+	bool IsStruct() const { return !IsVoid() && Type.IsStruct(); }
+	bool IsObject() const { return !IsVoid() && Type.IsObject(); }
+	bool IsNumeric() const { return !IsVoid() && Type.IsNumeric(); }
 	bool IsVoid() const { return (DefaultType != EDefaultRequestedType::Any) && RequestedComponents.Find(true) == INDEX_NONE; }
 
 	void SetComponentRequest(int32 Index, bool bRequest = true);
@@ -177,14 +184,17 @@ public:
 	}
 
 	/** Marks the given field as requested, based on the input request type (which should match the field type) */
-	void SetField(const Shader::FStructField* Field, const FRequestedType& InRequest);
+	void SetFieldRequested(const Shader::FStructField* Field, const FRequestedType& InRequest);
 
 	/** Returns the requested type of the given field */
 	FRequestedType GetField(const Shader::FStructField* Field) const;
 
-	const Shader::FStructType* StructType = nullptr;
-	FName ObjectType;
-	Shader::EValueComponentType ValueComponentType = Shader::EValueComponentType::Void;
+	/**
+	 * The type used to initialize the request. The actual 'Type' represented by the FRequestedType may be different, as vector types will truncate to the number of requested components
+	 */
+	Shader::FType Type;
+
+	/** Used to signify 'special' requested types */
 	EDefaultRequestedType DefaultType = EDefaultRequestedType::None;
 
 	/** 1 bit per component, a value of 'true' means the specified component is requsted */
@@ -192,10 +202,7 @@ public:
 };
 inline bool operator==(const FRequestedType& Lhs, const FRequestedType& Rhs)
 {
-	return Lhs.ValueComponentType == Rhs.ValueComponentType &&
-		Lhs.ObjectType == Rhs.ObjectType &&
-		Lhs.StructType == Rhs.StructType &&
-		Lhs.RequestedComponents == Rhs.RequestedComponents;
+	return Lhs.Type == Rhs.Type && Lhs.RequestedComponents == Rhs.RequestedComponents;
 }
 inline bool operator!=(const FRequestedType& Lhs, const FRequestedType& Rhs)
 {
@@ -204,12 +211,13 @@ inline bool operator!=(const FRequestedType& Lhs, const FRequestedType& Rhs)
 
 inline void AppendHash(FHasher& Hasher, const FRequestedType& Value)
 {
-	AppendHash(Hasher, Value.StructType);
-	AppendHash(Hasher, Value.ObjectType);
-	AppendHash(Hasher, Value.ValueComponentType);
+	AppendHash(Hasher, Value.Type);
 	AppendHash(Hasher, Value.RequestedComponents);
 }
 
+/**
+ * Prepared state for a single component.  Used by FPreparedType, which includes a list of these
+ */
 struct FPreparedComponent
 {
 	FPreparedComponent() = default;
@@ -218,12 +226,31 @@ struct FPreparedComponent
 	inline bool IsNone() const { return Evaluation == EExpressionEvaluation::None; }
 	inline bool IsRequested() const { return IsRequestedEvaluation(Evaluation); }
 
+	/**
+	 * Get the evaluation of this component within the given scope
+	 * See comment of 'LoopScope' for explanation of why evaluation may change due to scope
+	 */
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
 
 	void SetLoopEvaluation(FEmitScope& Scope);
 
+	/**
+	 * If 'Evaluation' is a loop evaluation, the loop status is only applied inside this scope.
+	 * This is important for constant-folding and preshaders working with loops.  Consider something like this:
+	 * int Value = 0;
+	 * for(int Index = 0; Index < 10; ++Index)
+	 * {
+	 *     Value += Index;
+	 * }
+	 * In this example, 'Value' would have 'ConstantLoop' evaluation, with LoopScope set to the for-loop scope.  This means that *within* the scope of the loop,
+	 * 'Value' is not constant, but it is constant *outside* the loop.  Outside of LoopScope, 'ConstantLoop' evaluation will switch to 'Constant'
+	 */ 
 	FEmitScope* LoopScope = nullptr;
+
+	/** Numeric bounds of this component */
 	Shader::FComponentBounds Bounds;
+
+	/** Evaluation type of this component */
 	EExpressionEvaluation Evaluation = EExpressionEvaluation::None;
 };
 inline bool operator==(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs)
@@ -240,16 +267,18 @@ inline bool operator!=(const FPreparedComponent& Lhs, const FPreparedComponent& 
 FPreparedComponent CombineComponents(const FPreparedComponent& Lhs, const FPreparedComponent& Rhs);
 
 /**
- * Like FRequestedType, but tracks an EExpressionEvaluation per component, rather than a simple requested flag
+ * Represents the prepared type of an FExpression.  Each FExpression will prepare a type during FExpression::PrepareValue().
+ * The prepared type is represented by a concrete Shader::FType, along with a list of FPreparedComponents.
+ * This structure matches FRequestedType, and in fact FRequestedType is often used as a 'mask' to only consider certain prepared components
  */
 class FPreparedType
 {
 public:
 	FPreparedType() = default;
-	FPreparedType(Shader::EValueComponentType InComponentType) : ValueComponentType(InComponentType) {}
-	FPreparedType(const Shader::FStructType* InStructType) : StructType(InStructType) {}
-	FPreparedType(Shader::EValueType InType, const FPreparedComponent& InComponent = FPreparedComponent());
 	FPreparedType(const Shader::FType& InType, const FPreparedComponent& InComponent = FPreparedComponent());
+	FPreparedType(Shader::EValueType InType, const FPreparedComponent& InComponent = FPreparedComponent()) : FPreparedType(Shader::FType(InType), InComponent) {}
+	FPreparedType(const Shader::FStructType* InType, const FPreparedComponent& InComponent = FPreparedComponent()) : FPreparedType(Shader::FType(InType), InComponent) {}
+	FPreparedType(const FName& InType, const FPreparedComponent& InComponent = FPreparedComponent()) : FPreparedType(Shader::FType(InType), InComponent) {}
 
 	void SetEvaluation(EExpressionEvaluation Evaluation);
 	void MergeEvaluation(EExpressionEvaluation Evaluation);
@@ -261,11 +290,12 @@ public:
 	int32 GetNumComponents() const;
 	FRequestedType GetRequestedType() const;
 	Shader::FType GetType() const;
+	Shader::EValueComponentType GetValueComponentType() const;
 	const TCHAR* GetName() const { return GetType().GetName(); }
-	bool IsStruct() const { return !IsVoid() && StructType != nullptr; }
-	bool IsObject() const { return !IsVoid() && !ObjectType.IsNone(); }
-	bool IsNumeric() const { return !IsVoid() && Shader::IsNumericType(ValueComponentType); }
-	bool IsInitialized() const { return StructType != nullptr || !ObjectType.IsNone() || ValueComponentType != Shader::EValueComponentType::Void; }
+	bool IsStruct() const { return !IsVoid() && Type.IsStruct(); }
+	bool IsObject() const { return !IsVoid() && Type.IsObject(); }
+	bool IsNumeric() const { return !IsVoid() && Type.IsNumeric(); }
+	bool IsInitialized() const { return !Type.IsVoid(); }
 	bool IsVoid() const;
 
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
@@ -282,21 +312,19 @@ public:
 	void SetComponentBounds(int32 Index, const Shader::FComponentBounds Bounds);
 	void MergeComponent(int32 Index, const FPreparedComponent& InComponent);
 
-	const Shader::FStructType* StructType = nullptr;
-	FName ObjectType;
-	Shader::EValueComponentType ValueComponentType = Shader::EValueComponentType::Void;
-
 	void EnsureNumComponents(int32 NumComponents);
+
+	/**
+	 * The type used to initialize the this. The actual 'Type' represented by the FPreparedType may be different, as vector types will truncate to the number of prepared components
+	 */
+	Shader::FType Type;
 
 	/** Evaluation type for each component, may be 'None' for components that are unused */
 	TArray<FPreparedComponent, TInlineAllocator<4>> PreparedComponents;
 };
 inline bool operator==(const FPreparedType& Lhs, const FPreparedType& Rhs)
 {
-	return Lhs.ValueComponentType == Rhs.ValueComponentType &&
-		Lhs.StructType == Rhs.StructType &&
-		Lhs.ObjectType == Rhs.ObjectType &&
-		Lhs.PreparedComponents == Rhs.PreparedComponents;
+	return Lhs.Type == Rhs.Type && Lhs.PreparedComponents == Rhs.PreparedComponents;
 }
 inline bool operator!=(const FPreparedType& Lhs, const FPreparedType& Rhs)
 {
@@ -317,11 +345,7 @@ public:
 	bool SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedType& Type);
 
 private:
-	bool TryMergePreparedType(FEmitContext& Context,
-		const Shader::FStructType* StructType,
-		FName ObjectType,
-		Shader::EValueComponentType ComponentType,
-		int32 NumComponents);
+	bool TryMergePreparedType(FEmitContext& Context, const Shader::FType& Type);
 
 	FPreparedType PreparedType;
 	bool bPreparingValue = false;
@@ -367,7 +391,7 @@ struct FExpressionDerivatives
 
 /**
  * Represents an HLSL expression.  This is a piece of code that evaluates to a value, but has no side effects.
- * Unlike statements, expressions are not expected to execute in any particular order.  They may be cached (or not) in generated code, without the underlying implementation needing to care.
+ * Unlike statements, expressions are not expected to execute in any particular order.
  * Examples include constant literals, variable accessors, and various types of math operations
  * This is an abstract base class, with derived classes representing various types of expression
  */
@@ -434,12 +458,33 @@ public:
 		FStringBuilderBase& OutForwardCode) const;
 
 protected:
+	/** Create new expressions representing DDX/DDY of this expression */
 	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const;
+
+	/** Creates a new expression representing this expression on the previous frame.  By default returns nullptr, which means the previous frame is the same as the current frame */
 	virtual const FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const;
+
+	/**
+	 * Computes a FPreparedType for this expression, given a FRequestedType.  Will be called multiple times, with potentially different requested types, if the FExpression is used multiple times.
+	 * In this case, all the prepared types will be merged together if possible (or generate an error otherwise).
+	 * The EExpressionEvaluation set by this is important for determining which EmitValue*** methods may be called
+	 * A given FExpression implementation must support at least one of EmitValueShader/EmitValuePreshader, but doesn't need to support both
+	 */
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
+
+	/** Emit HLSL shader code representing this expression */
 	virtual void EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const;
+
+	/** Emit Preshader code representing this expression */
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const;
+
+	/** Emit an object.  The given 'ObjectTypeName' determines the C++ type pointed to by OutObjectBase */
 	virtual bool EmitValueObject(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, void* OutObjectBase) const;
+
+	/**
+	 * Allows custom objects to be passed to custom HLSL functions.  This needs to initialize some HLSL code that facilitates this interface.
+	 * If this returns 'true', then EmitValueShader() will be called to generate the actual HLSL code for the FExpression
+	 */
 	virtual bool EmitCustomHLSLParameter(FEmitContext& Context, FEmitScope& Scope, const FName& ObjectTypeName, const TCHAR* ParameterName, FEmitCustomHLSLParameterResult& OutResult) const;
 
 private:

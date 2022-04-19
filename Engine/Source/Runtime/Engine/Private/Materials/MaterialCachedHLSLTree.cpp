@@ -219,7 +219,7 @@ bool FMaterialCachedHLSLTree::IsAttributeUsed(UE::HLSLTree::FEmitContext& Contex
 		return false;
 	}
 
-	FRequestedType RequestedType;
+	FRequestedType RequestedType(GetMaterialAttributesType(), false);
 	RequestedType.SetFieldRequested(PropertyField);
 
 	const int32 NumComponents = PropertyField->GetNumComponents();

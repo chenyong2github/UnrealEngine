@@ -640,7 +640,7 @@ ETextureMipValueMode GetMipValueMode(FEmitContext& Context, const FExpressionTex
 bool FExpressionTextureSample::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const FPreparedType& TextureType = Context.PrepareExpression(TextureExpression, Scope, FMaterialTextureValue::GetTypeName());
-	if (TextureType.ObjectType != FMaterialTextureValue::GetTypeName())
+	if (TextureType.Type.ObjectType != FMaterialTextureValue::GetTypeName())
 	{
 		return Context.Error(TEXT("Expected texture"));
 	}
@@ -1069,7 +1069,7 @@ void FExpressionTextureSample::EmitValueShader(FEmitContext& Context, FEmitScope
 bool FExpressionTextureSize::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const FPreparedType& TextureType = Context.PrepareExpression(TextureExpression, Scope, FMaterialTextureValue::GetTypeName());
-	if (TextureType.ObjectType != FMaterialTextureValue::GetTypeName())
+	if (TextureType.Type.ObjectType != FMaterialTextureValue::GetTypeName())
 	{
 		return Context.Error(TEXT("Expected texture"));
 	}
@@ -1188,7 +1188,7 @@ bool FExpressionNoise::PrepareValue(FEmitContext& Context, FEmitScope& Scope, co
 void FExpressionNoise::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const FPreparedType& PreparedType = Context.GetPreparedType(PositionExpression);
-	bool bIsLWC = Shader::IsLWCType(PreparedType.ValueComponentType);
+	bool bIsLWC = Shader::IsLWCType(PreparedType.Type);
 	FEmitShaderExpression* EmitPosition = PositionExpression->GetValueShader(Context, Scope, bIsLWC ? Shader::EValueType::Double3 : Shader::EValueType::Float3);
 	FEmitShaderExpression* EmitFilterWidth = FilterWidthExpression->GetValueShader(Context, Scope, Shader::EValueType::Float1);
 
@@ -1263,21 +1263,20 @@ void FExpressionVertexInterpolator::EmitValueShader(FEmitContext& Context, FEmit
 	if (InterpolatorIndex >= 0)
 	{
 		const FVertexInterpolator& Interpolator = EmitMaterialData.VertexInterpolators[InterpolatorIndex];
+		const Shader::FType LocalType = Interpolator.PreparedType.GetType();
+		const int32 NumComponentsRequested = RequestedType.GetNumComponentsRequested(LocalType.GetNumComponents());
 
-		FRequestedType RequestedPreshaderType;
-		RequestedPreshaderType.ValueComponentType = RequestedType.ValueComponentType;
-		RequestedPreshaderType.StructType = RequestedType.StructType;
-		for (int32 Index = 0; Index < RequestedType.GetNumComponents(); ++Index)
+		// Request all non-shader components in preshader, only shader components will be packed in interpolator
+		FRequestedType RequestedPreshaderType(RequestedType, false);
+		for (int32 Index = 0; Index < NumComponentsRequested; ++Index)
 		{
-			// Requested components that are *not* requested by the interpolator will be either constant or preshader evaluation
-			if (RequestedType.IsComponentRequested(Index) &&
-				!Interpolator.RequestedType.IsComponentRequested(Index))
+			const EExpressionEvaluation ComponentEvaluation = Interpolator.PreparedType.GetComponent(Index).Evaluation;
+			if (RequestedType.IsComponentRequested(Index) && ComponentEvaluation != EExpressionEvaluation::Shader)
 			{
 				RequestedPreshaderType.SetComponentRequest(Index);
 			}
 		}
 
-		const Shader::FType LocalType = Interpolator.PreparedType.GetType();
 		FEmitShaderExpression* EmitPreshader = Context.EmitPreshaderOrConstant(Scope, RequestedPreshaderType, LocalType, VertexExpression);
 		OutResult.Code = Context.EmitExpression(Scope, LocalType, TEXT("MaterialVertexInterpolator%(Parameters, %)"), InterpolatorIndex, EmitPreshader);
 	}
@@ -1314,9 +1313,11 @@ void FEmitData::AddInterpolator(const FExpression* Expression, const FRequestedT
 		InterpolatorIndex = VertexInterpolators.Emplace(Expression);
 	}
 
+	const Shader::FType LocalType = PreparedType.GetType();
 	FVertexInterpolator& Interpolator = VertexInterpolators[InterpolatorIndex];
+	Interpolator.RequestedType = FRequestedType(RequestedType, false);
 	Interpolator.PreparedType = PreparedType;
-	for (int32 ComponentIndex = 0; ComponentIndex < RequestedType.GetNumComponents(); ++ComponentIndex)
+	for (int32 ComponentIndex = 0; ComponentIndex < RequestedType.GetNumComponentsRequested(LocalType.GetNumComponents()); ++ComponentIndex)
 	{
 		if (RequestedType.IsComponentRequested(ComponentIndex))
 		{

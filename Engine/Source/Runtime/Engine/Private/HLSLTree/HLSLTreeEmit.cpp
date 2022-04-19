@@ -414,8 +414,6 @@ FPreparedType FEmitContext::PrepareExpression(const FExpression* InExpression, F
 		return Result->PreparedType;
 	}
 
-	MarkInputType(InExpression, RequestedType.GetType());
-
 	bool bResult = false;
 	{
 		FEmitOwnerScope OwnerScope(*this, InExpression);
@@ -430,6 +428,7 @@ FPreparedType FEmitContext::PrepareExpression(const FExpression* InExpression, F
 	{
 		ResultType = Result->PreparedType;
 		check(!ResultType.IsVoid());
+		MarkInputType(InExpression, RequestedType.GetType(ResultType.GetType()));
 	}
 	return ResultType;
 }
@@ -1177,6 +1176,9 @@ FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpr
 		else
 		{
 			const bool bReplicateScalar = (SourceTypeDesc.NumComponents == 1) && !EnumHasAnyFlags(Flags, EEmitCastFlags::ZeroExtendScalar);
+
+			check(SourceTypeDesc.NumComponents <= 4);
+			check(DestTypeDesc.NumComponents <= 4);
 
 			int32 NumComponents = 0;
 			bool bNeedClosingParen = false;

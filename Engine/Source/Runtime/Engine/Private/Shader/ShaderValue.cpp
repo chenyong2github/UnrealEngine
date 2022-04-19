@@ -72,16 +72,30 @@ int32 FType::GetNumFlatFields() const
 
 EValueComponentType FType::GetComponentType(int32 Index) const
 {
+	if (Index < 0)
+	{
+		return EValueComponentType::Void;
+	}
+
 	if (IsStruct())
 	{
 		check(ValueType == EValueType::Struct);
-		return StructType->ComponentTypes.IsValidIndex(Index) ? StructType->ComponentTypes[Index] : EValueComponentType::Void;
+		if (Index < StructType->ComponentTypes.Num())
+		{
+			return StructType->ComponentTypes[Index];
+		}
 	}
-	else
+	else if(IsNumeric())
 	{
 		const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
-		return (Index >= 0 && Index < TypeDesc.NumComponents) ? TypeDesc.ComponentType : EValueComponentType::Void;
+		// Scalar types replicate xyzw
+		if ((TypeDesc.NumComponents == 1 && Index < 4) || Index < TypeDesc.NumComponents)
+		{
+			return TypeDesc.ComponentType;
+		}
 	}
+
+	return EValueComponentType::Void;
 }
 
 EValueType FType::GetFlatFieldType(int32 Index) const

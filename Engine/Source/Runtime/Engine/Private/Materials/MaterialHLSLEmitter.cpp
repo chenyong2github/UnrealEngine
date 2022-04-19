@@ -870,7 +870,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 			EmitResultScope = EmitContext.PrepareScope(CachedTree->GetResultScope());
 
 			// Prepare code for just the normal
-			FRequestedType RequestedMaterialNormal;
+			FRequestedType RequestedMaterialNormal(CachedTree->GetMaterialAttributesType(), false);
 			RequestedMaterialNormal.SetFieldRequested(NormalField);
 			const FPreparedType PixelResultType1 = EmitContext.PrepareExpression(CachedTree->GetResultExpression(), *EmitResultScope, RequestedMaterialNormal);
 			if (PixelResultType1.IsVoid())

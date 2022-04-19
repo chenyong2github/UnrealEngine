@@ -149,6 +149,17 @@ ENGINE_API EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, F
 
 inline bool IsNumericType(EValueType Type) { return IsNumericType(GetValueTypeDescription(Type).ComponentType); }
 
+inline bool IsNumericVectorType(EValueType Type)
+{
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+	return IsNumericType(TypeDesc.ComponentType) && TypeDesc.NumComponents <= 4;
+}
+inline bool IsNumericMatrixType(EValueType Type)
+{
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+	return IsNumericType(TypeDesc.ComponentType) && TypeDesc.NumComponents == 16;
+}
+
 struct FType
 {
 	FType() : ValueType(EValueType::Void) {}
@@ -163,6 +174,8 @@ struct FType
 	bool IsStruct() const { return ValueType == EValueType::Struct; }
 	bool IsObject() const { return ValueType == EValueType::Object; }
 	bool IsNumeric() const { return !IsStruct() && !IsObject() && IsNumericType(ValueType); }
+	bool IsNumericVector() const { return !IsStruct() && !IsObject() && IsNumericVectorType(ValueType); }
+	bool IsNumericMatrix() const { return !IsStruct() && !IsObject() && IsNumericMatrixType(ValueType); }
 	bool IsNumericLWC() const { return IsNumeric() && IsLWCType(ValueType); }
 	int32 GetNumComponents() const;
 	int32 GetNumFlatFields() const;
