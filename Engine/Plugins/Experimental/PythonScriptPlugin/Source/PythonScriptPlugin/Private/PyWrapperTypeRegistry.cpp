@@ -2629,6 +2629,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 	auto ExportGeneratedMethod = [&OutPythonScript, &GetFunctionReturnValue](const PyGenUtil::FGeneratedWrappedMethod& InTypeMethod)
 	{
 		FString MethodArgsStr;
+		FString FirstDefaultedParamName;
 		for (const PyGenUtil::FGeneratedWrappedMethodParameter& MethodParam : InTypeMethod.MethodFunc.InputParams)
 		{
 			MethodArgsStr += TEXT(", ");
@@ -2637,6 +2638,21 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 			{
 				MethodArgsStr += TEXT("=");
 				MethodArgsStr += PyGenUtil::PythonizeDefaultValue(MethodParam.ParamProp, MethodParam.ParamDefaultValue.GetValue());
+				if (FirstDefaultedParamName.IsEmpty())
+				{
+					FirstDefaultedParamName = MethodParam.ParamProp->GetName();
+				}
+			}
+			else if (!FirstDefaultedParamName.IsEmpty())
+			{
+				// Some UFUNCTION has their default values declared as 'meta' invisible to C++ compile, but Python generated glue will use that. Sometime, the next parameter(s) are
+				// not defaulted. This creates invalid Python declarations. In stub, this is legal to use "..." to indicate a default param value without specifying the exact value.
+				// That's a workaround for faulty method declarations and the C++ code should be fixed.
+				MethodArgsStr += TEXT("=...");
+
+				// Left as 'Verbose' until we fix known cases. Once fixed, we should turn this as a 'Warning'.
+				REPORT_PYTHON_GENERATION_ISSUE(Verbose, TEXT("The function '%s' is missing default values for param '%s'. All params after the first defaulted param '%s' (likely from meta data) should be defaulted. The Python stub defaulted missing default values."), 
+					*InTypeMethod.MethodFunc.Func->GetPathName(), *MethodParam.ParamProp->GetName(), *FirstDefaultedParamName);
 			}
 		}
 
