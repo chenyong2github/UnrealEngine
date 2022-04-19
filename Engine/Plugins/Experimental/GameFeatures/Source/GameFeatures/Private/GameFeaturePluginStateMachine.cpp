@@ -788,6 +788,8 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 		const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
 		if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName))
 		{
+			// The asset registry listens to FPackageName::OnContentPathDismounted() and 
+			// will automatically cleanup the asset registry state we added for this plugin.
 			IPluginManager::Get().UnmountExplicitlyLoadedPlugin(PluginName, nullptr);
 		}
 
