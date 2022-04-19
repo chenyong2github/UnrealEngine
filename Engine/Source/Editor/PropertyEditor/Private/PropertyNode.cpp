@@ -935,12 +935,14 @@ bool FPropertyNode::IsEditConst() const
 
 			if (!bIsEditConst)
 			{
+				TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain(Property.Get());
+				
 				for (TPropObjectConstIterator CurObjectIt(ObjectPropertyNode->ObjectConstIterator()); CurObjectIt; ++CurObjectIt)
 				{
 					const TWeakObjectPtr<UObject> CurObject = *CurObjectIt;
 					if (CurObject.IsValid())
 					{
-						if (!CurObject->CanEditChange(Property.Get()))
+						if (!CurObject->CanEditChange(*PropertyChain))
 						{
 							// At least one of the objects didn't like the idea of this property being changed.
 							bIsEditConst = true;
@@ -2802,13 +2804,13 @@ TSharedPtr< FPropertyItemValueDataTrackerSlate > FPropertyNode::GetValueTracker(
 
 }
 
-TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InProperty )
+TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InProperty ) const
 {
 	TSharedRef<FEditPropertyChain> PropertyChain( MakeShareable( new FEditPropertyChain ) );
 
-	FPropertyNode* ItemNode = this;
+	const FPropertyNode* ItemNode = this;
 
-	FComplexPropertyNode* ComplexNode = FindComplexParent();
+	const FComplexPropertyNode* ComplexNode = FindComplexParent();
 	FProperty* MemberProperty = InProperty;
 
 	do
@@ -2818,7 +2820,7 @@ TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InP
 			MemberProperty = PropertyChain->GetHead()->GetValue();
 		}
 
-		FProperty* TheProperty	= ItemNode->GetProperty();
+		FProperty* TheProperty	= ItemNode->Property.Get();
 		if ( TheProperty )
 		{
 			// Skip over property window items that correspond to a single element in a static array,
@@ -2844,14 +2846,14 @@ TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InP
 	return PropertyChain;
 }
 
-TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InProperty, const TSet<UObject*>& InAffectedArchetypeInstances )
+TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InProperty, const TSet<UObject*>& InAffectedArchetypeInstances ) const
 {
 	TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain(InProperty);
 	PropertyChain->SetAffectedArchetypeInstances(InAffectedArchetypeInstances);
 	return PropertyChain;
 }
 
-TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InProperty, TSet<UObject*>&& InAffectedArchetypeInstances )
+TSharedRef<FEditPropertyChain> FPropertyNode::BuildPropertyChain( FProperty* InProperty, TSet<UObject*>&& InAffectedArchetypeInstances ) const
 {
 	TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain(InProperty);
 	PropertyChain->SetAffectedArchetypeInstances(MoveTemp(InAffectedArchetypeInstances));

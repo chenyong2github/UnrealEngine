@@ -408,6 +408,17 @@ public:
 	 */
 	virtual bool CanEditChange( const FProperty* InProperty ) const;
 
+	/**
+	 * Alternate version of CanEditChange that includes the full property chain leading to the property in question.
+	 * The head of the chain is the FStructProperty member variable that contains the property that was modified.
+	 * The active property in the chain is the specific FProperty in question (the one given to the other signature of CanEditChange)
+	 * 
+	 * @param PropertyChain The chain to the property in question. The ActiveNode of the chain corresponds to the specific property in question.
+	 *
+	 * @return	true if the property can be modified in the editor, otherwise false
+	 */
+	virtual bool CanEditChange(const FEditPropertyChain& PropertyChain) const;
+
 	/** 
 	 * Intentionally non-virtual as it calls the FPropertyChangedEvent version
 	 */

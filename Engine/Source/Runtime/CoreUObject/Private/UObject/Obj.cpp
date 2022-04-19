@@ -479,6 +479,11 @@ bool UObject::CanEditChange( const FProperty* InProperty ) const
 	return bIsMutable;
 }
 
+bool UObject::CanEditChange(const FEditPropertyChain& PropertyChain) const
+{
+	return CanEditChange(PropertyChain.GetActiveNode()->GetValue());
+}
+
 void UObject::PropagatePreEditChange( TArray<UObject*>& AffectedObjects, FEditPropertyChain& PropertyAboutToChange )
 {
 	TArray<UObject*> Instances;
