@@ -82,14 +82,6 @@ void UUVToolSelectionAPI::SetTargets(const TArray<TObjectPtr<UUVEditorToolMeshIn
 
 void UUVToolSelectionAPI::Shutdown()
 {
-	HighlightMechanic->Shutdown();
-	SelectionMechanic->Shutdown();
-
-	MechanicAdapter->Shutdown(EToolShutdownType::Completed);
-	HighlightMechanic = nullptr;
-	SelectionMechanic = nullptr;
-	MechanicAdapter = nullptr;
-
 	if (UnwrapInputRouter.IsValid())
 	{
 		// Make sure that we stop any captures that our mechanics may have, then remove them from
@@ -98,6 +90,14 @@ void UUVToolSelectionAPI::Shutdown()
 		UnwrapInputRouter->DeregisterSource(MechanicAdapter);
 		UnwrapInputRouter = nullptr;
 	}
+
+	HighlightMechanic->Shutdown();
+	SelectionMechanic->Shutdown();
+
+	MechanicAdapter->Shutdown(EToolShutdownType::Completed);
+	HighlightMechanic = nullptr;
+	SelectionMechanic = nullptr;
+	MechanicAdapter = nullptr;
 
 	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 	{
@@ -127,6 +127,13 @@ void UUVToolSelectionAPI::OnToolEnded(UInteractiveTool* DeadTool)
 	OnSelectionChanged.RemoveAll(DeadTool);
 	OnPreSelectionChange.RemoveAll(DeadTool);
 	OnDragSelectionChanged.RemoveAll(DeadTool);
+	
+	if (UnwrapInputRouter.IsValid())
+	{
+		// Make sure that we stop any captures that our mechanics may have.
+		UnwrapInputRouter->ForceTerminateSource(MechanicAdapter);
+	}
+	
 }
 
 void UUVToolSelectionAPI::SetSelections(const TArray<FUVToolSelection>& SelectionsIn, bool bBroadcast, bool bEmitChange)

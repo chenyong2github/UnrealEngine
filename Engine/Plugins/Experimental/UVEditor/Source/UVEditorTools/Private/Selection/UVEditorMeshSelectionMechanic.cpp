@@ -1160,6 +1160,11 @@ bool UUVEditorMeshSelectionMechanic::OnUpdateHover(const FInputDeviceRay& Device
 {
 	using namespace UVEditorMeshSelectionMechanicLocals;
 
+	if (!IsEnabled())
+	{
+		return false;
+	}
+
 	ESelectionMode Mode = SelectionMode;
 	if (SelectionMode != ESelectionMode::Vertex && SelectionMode != ESelectionMode::Edge)
 	{
@@ -1233,9 +1238,18 @@ bool UUVEditorMeshSelectionMechanic::OnUpdateHover(const FInputDeviceRay& Device
 
 void UUVEditorMeshSelectionMechanic::OnEndHover()
 {
-	HoverPointSet->Clear();
-	HoverLineSet->Clear();
-	HoverTriangleSet->Clear();
+	if (ensure(HoverPointSet.IsValid()))
+	{
+		HoverPointSet->Clear();
+	}
+	if (ensure(HoverLineSet.IsValid()))
+	{
+		HoverLineSet->Clear();
+	}
+	if (ensure(HoverTriangleSet.IsValid()))
+	{
+		HoverTriangleSet->Clear();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
