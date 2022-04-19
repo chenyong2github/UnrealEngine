@@ -157,7 +157,7 @@ const TCHAR* FFieldPathProperty::ImportText_Internal( const TCHAR* Buffer, void*
 			FString UnquotedPathName;
 			if (!FParse::QuotedString(*PathName, UnquotedPathName))
 			{
-				UE_LOG(LogProperty, Warning, TEXT("FieldPathProperty: Bad quoted string: %s"), *PathName);
+				ErrorText->Logf(ELogVerbosity::Warning, TEXT("FieldPathProperty: Bad quoted string: %s"), *PathName);
 				return nullptr;
 			}
 			PathName = MoveTemp(UnquotedPathName);
