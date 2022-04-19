@@ -4,7 +4,7 @@
 
 #include "BatchedTiles.ush"
 
-int NumRayGuidingTrialSamples;
+int RayGuidingEndPassIndex;
 
 RWTexture2D<uint> RayGuidingLuminance;
 RWTexture2D<float> RayGuidingCDFX;
@@ -22,7 +22,7 @@ void FirstBounceRayGuidingCDFBuildCS(
 	int ClusterLinearIndexInTile = GroupID.x % NUM_CLUSTERS_PER_TILE;
 	int2 ClusterPosition = int2(ClusterLinearIndexInTile % NUM_CLUSTERS_PER_DIM, ClusterLinearIndexInTile / NUM_CLUSTERS_PER_DIM);
 	
-	if (BatchedTiles[TileIndex].RenderPassIndex != NumRayGuidingTrialSamples - 1) return;
+	if (BatchedTiles[TileIndex].RenderPassIndex != RayGuidingEndPassIndex) return;
 	
 	if (ThreadId.x < DIRECTIONAL_BINS_ONE_DIM)
 	{
@@ -34,7 +34,7 @@ void FirstBounceRayGuidingCDFBuildCS(
 			for(int dy = -FilterKernelSize; dy <= FilterKernelSize; dy++)
 			{
 				int2 FinalPosition = ClusterPosition * DIRECTIONAL_BINS_ONE_DIM + clamp(ThreadId.xy + int2(dx, dy), int2(0, 0), int2(DIRECTIONAL_BINS_ONE_DIM - 1, DIRECTIONAL_BINS_ONE_DIM - 1));
-				Value += asfloat(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition]);
+				Value += asfloat(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition]) * ((dx != 0 || dy != 0) ? 0.125 : 1);
 			}
 		}
 

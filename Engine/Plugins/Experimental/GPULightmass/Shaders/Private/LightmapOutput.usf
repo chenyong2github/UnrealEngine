@@ -16,6 +16,7 @@ RWTexture2D<float4> ShadowMask;
 RWTexture2D<float4> ShadowMaskSampleCount;
 
 int NumTotalSamples;
+int NumIrradianceCachePasses;
 int NumRayGuidingTrialSamples;
 
 [numthreads(8, 8, 1)]
@@ -68,9 +69,14 @@ void SelectiveLightmapOutputCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 					
 					float3 Color = float3(0, 1, 0);
 					
-					if (BatchedTiles[TileIndex].RenderPassIndex < NumRayGuidingTrialSamples)
+					if (BatchedTiles[TileIndex].RenderPassIndex < NumIrradianceCachePasses)
 					{
 						Color = float3(1, 0, 0);
+					}
+					
+					if (BatchedTiles[TileIndex].RenderPassIndex >= NumIrradianceCachePasses && BatchedTiles[TileIndex].RenderPassIndex < NumIrradianceCachePasses + NumRayGuidingTrialSamples)
+					{
+						Color = float3(0.5, 0.5, 0);
 					}
 					
 					OutputTileAtlas[LaunchIndex + BatchedTiles[TileIndex].OutputLayer0Position].rgba = float4(

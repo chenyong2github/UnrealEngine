@@ -12,7 +12,7 @@ BEGIN_UNIFORM_BUFFER_STRUCT(FIrradianceCachingParameters, )
 	SHADER_PARAMETER(int32, Quality)
 	SHADER_PARAMETER(float, Spacing)
 	SHADER_PARAMETER(float, CornerRejection)
-	SHADER_PARAMETER_UAV(RWStructuredBuffer<FIrradianceCacheRecord>, IrradianceCacheRecords)
+	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint4>, IrradianceCacheRecords)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, RWHashTable)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, RWHashToIndex)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, RWIndexToHash)
@@ -21,17 +21,7 @@ END_UNIFORM_BUFFER_STRUCT()
 
 struct FIrradianceCache
 {
-	struct FIrradianceCacheRecord
-	{
-		// When used as a cache entry, 
-		// WorldPosition.w == FrameLastTouched
-		// WorldNormal.w == NumAccumulatedSamples
-		FVector4f WorldPosition;
-		FVector4f WorldNormal;
-		FVector4f Irradiance;
-	};
-
-	const int32 IrradianceCacheMaxSize = 1048576;
+	const int32 IrradianceCacheMaxSize = 4194304;
 
 	FBufferRHIRef IrradianceCacheRecords;
 	FUnorderedAccessViewRHIRef IrradianceCacheRecordsUAV;

@@ -85,6 +85,15 @@ FVolumetricLightmapRenderer::FVolumetricLightmapRenderer(FSceneRenderState* Scen
 	: Scene(Scene)
 {
 	VolumetricLightmap.Data = &VolumetricLightmapData;
+	
+	NumTotalPassesToRender = Scene->Settings->GISamples;
+	
+	if (Scene->Settings->bUseIrradianceCaching)
+	{
+		NumTotalPassesToRender += Scene->Settings->IrradianceCacheQuality;	
+	}
+
+	NumTotalPassesToRender *= Scene->Settings->VolumetricLightmapQualityMultiplier;
 }
 
 FPrecomputedVolumetricLightmap* FVolumetricLightmapRenderer::GetPrecomputedVolumetricLightmapForPreview()
@@ -469,11 +478,6 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 	Scene->DestroyRayTracingScene();
 }
 
-int32 FVolumetricLightmapRenderer::GetGISamplesMultiplier()
-{
-	return Scene->Settings->VolumetricLightmapQualityMultiplier;
-}
-
 void FVolumetricLightmapRenderer::BackgroundTick()
 {
 	if (NumTotalBricks == 0)
@@ -482,7 +486,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 	}
 
 	int32 NumCellsPerBrick = 5 * 5 * 5;
-	if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * Scene->Settings->GISamples * GetGISamplesMultiplier())
+	if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * NumTotalPassesToRender)
 	{
 		return;
 	}
@@ -551,6 +555,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					PassParameters->BrickRequests = BrickRequests.SRV;
 					PassParameters->NumTotalBricks = NumTotalBricks;
 					PassParameters->BrickBatchOffset = BrickBatchOffset;
+					PassParameters->VolumetricLightmapQualityMultiplier = Scene->Settings->VolumetricLightmapQualityMultiplier;
 					PassParameters->AmbientVector = AccumulationBrickData.AmbientVector.UAV;
 					PassParameters->SHCoefficients0R = AccumulationBrickData.SHCoefficients[0].UAV;
 					PassParameters->SHCoefficients1R = AccumulationBrickData.SHCoefficients[1].UAV;
@@ -729,7 +734,7 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 			SamplesTaken += BricksToCalcThisFrame * NumCellsPerBrick;
 
-			if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * Scene->Settings->GISamples * GetGISamplesMultiplier())
+			if (SamplesTaken >= (uint64)NumTotalBricks * NumCellsPerBrick * NumTotalPassesToRender)
 			{
 				break;
 			}

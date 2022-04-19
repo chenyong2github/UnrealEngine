@@ -130,8 +130,7 @@ public:
 
 	int32 FrameNumber = 0;
 
-	bool bUseFirstBounceRayGuiding = false;
-	int32 NumFirstBounceRayGuidingTrialSamples = 0;
+	int32 NumTotalPassesToRender = 0;
 
 	bool bDenoiseDuringInteractiveBake = false;
 	bool bOnlyBakeWhatYouSee = false;

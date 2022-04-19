@@ -1644,10 +1644,10 @@ void FSceneRenderState::BackgroundTick()
 					{
 						FTileVirtualCoordinates VirtualCoordinates(FIntPoint(X, Y), 0);
 
-						TotalSamples += Settings->GISamples * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+						TotalSamples += LightmapRenderer->NumTotalPassesToRender * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 						SamplesTaken += (Lightmap.DoesTileHaveValidCPUData(VirtualCoordinates, LightmapRenderer->GetCurrentRevision()) ?
-							Settings->GISamples :
-							FMath::Min(Lightmap.RetrieveTileState(VirtualCoordinates).RenderPassIndex, Settings->GISamples - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+							LightmapRenderer->NumTotalPassesToRender  :
+							FMath::Min(Lightmap.RetrieveTileState(VirtualCoordinates).RenderPassIndex, LightmapRenderer->NumTotalPassesToRender - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 					}
 				}
 			}
@@ -1658,11 +1658,11 @@ void FSceneRenderState::BackgroundTick()
 			{
 				for (FLightmapTileRequest& Tile : LightmapRenderer->RecordedTileRequests)
 				{
-					TotalSamples += Settings->GISamples * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+					TotalSamples += LightmapRenderer->NumTotalPassesToRender * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 
 					SamplesTaken += (Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, LightmapRenderer->GetCurrentRevision()) ?
-						Settings->GISamples :
-						FMath::Min(Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex, Settings->GISamples - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+						LightmapRenderer->NumTotalPassesToRender :
+						FMath::Min(Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex, LightmapRenderer->NumTotalPassesToRender - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 				}
 			}
 			else
@@ -1671,11 +1671,11 @@ void FSceneRenderState::BackgroundTick()
 				{
 					for (FLightmapTileRequest& Tile : FrameRequests)
 					{
-						TotalSamples += Settings->GISamples * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+						TotalSamples += LightmapRenderer->NumTotalPassesToRender  * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 
 						SamplesTaken += (Tile.RenderState->DoesTileHaveValidCPUData(Tile.VirtualCoordinates, LightmapRenderer->GetCurrentRevision()) ?
-							Settings->GISamples :
-							FMath::Min(Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex, Settings->GISamples - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
+							LightmapRenderer->NumTotalPassesToRender :
+							FMath::Min(Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex, LightmapRenderer->NumTotalPassesToRender - 1)) * GPreviewLightmapPhysicalTileSize * GPreviewLightmapPhysicalTileSize;
 					}
 				}
 			}
@@ -1686,7 +1686,7 @@ void FSceneRenderState::BackgroundTick()
 		{
 			int32 NumCellsPerBrick = 5 * 5 * 5;
 			SamplesTaken += VolumetricLightmapRenderer->SamplesTaken;
-			TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * Settings->GISamples * VolumetricLightmapRenderer->GetGISamplesMultiplier();
+			TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * VolumetricLightmapRenderer->NumTotalPassesToRender;
 		}
 
 		int32 IntPercentage = FMath::FloorToInt(SamplesTaken * 100.0 / TotalSamples);

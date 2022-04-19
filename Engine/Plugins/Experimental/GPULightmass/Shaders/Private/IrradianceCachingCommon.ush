@@ -1,5 +1,11 @@
 #include "/Engine/Private/HashTable.ush"
 
+struct FFinalGatherHitPoint
+{
+	float3 WorldPosition;
+	float3 WorldNormal;
+};
+
 bool ICHashTableAdd( uint Key, out uint Index )
 {
 	// Zero is reserved as invalid
@@ -74,6 +80,34 @@ uint3 EncodeVoxelKey(float3 VoxelPos)
 	return Key;
 }
 
+float3 EncodePositionKey(float3 WorldPosition, float3 WorldNormal, float Spacing)
+{
+	// Our cache entries are square shaped surfels. Along the primary axis of the normal the length is 1/4 of the specified cell size - which means 4x resolution.
+	// This reduces leaks through thin walls and also serves as a fail-safe plan when the geometry normal is not reliable
+	
+	const int CompressionFactor = 4;
+	
+	if(abs(WorldNormal.x) >= abs(WorldNormal.y) && abs(WorldNormal.x) >= abs(WorldNormal.z))
+	{
+		WorldPosition.x *= CompressionFactor;
+		return floor(WorldPosition / Spacing);
+	}
+	
+	if(abs(WorldNormal.y) >= abs(WorldNormal.x) && abs(WorldNormal.y) >= abs(WorldNormal.z))
+	{
+		WorldPosition.y *= CompressionFactor;
+		return floor(WorldPosition / Spacing);
+	}
+	
+	if(abs(WorldNormal.z) >= abs(WorldNormal.x) && abs(WorldNormal.z) >= abs(WorldNormal.y))
+	{				
+		WorldPosition.z *= CompressionFactor;
+		return floor(WorldPosition / Spacing);
+	}
+	
+	return floor(WorldPosition / Spacing);
+}
+
 uint EncodeNormalBits(float3 WorldNormal)
 {
 	return	(WorldNormal.x >= 0.01 ? (1 << 5) : 0) |
@@ -101,17 +135,16 @@ uint EncodeNormalBits(float3 WorldNormal)
 	} \
 }
 
-void EmitGeometryHitPoint(FIrradianceCacheRecord HitPoint, uint Size)
+void EmitGeometryHitPoint(FFinalGatherHitPoint HitPoint, uint Size)
 {
-	uint3 Key = EncodeVoxelKey(floor(HitPoint.WorldPosition.xyz / Size));
-	uint NormalDirectionBits = EncodeNormalBits(HitPoint.WorldNormal.xyz);
+	uint3 Key = EncodeVoxelKey(EncodePositionKey(HitPoint.WorldPosition, HitPoint.WorldNormal, Size));
+	uint NormalDirectionBits = EncodeNormalBits(HitPoint.WorldNormal);
 	
 	uint HashKey = 0;
 	HashKey = MurmurAdd( HashKey, Key.x );
 	HashKey = MurmurAdd( HashKey, Key.y );
 	HashKey = MurmurAdd( HashKey, Key.z );
 	HashKey = MurmurAdd( HashKey, NormalDirectionBits );
-	HashKey = MurmurAdd( HashKey, Size );
 	uint Index;
 	if (ICHashTableAdd(HashKey, Index))
 	{
@@ -124,6 +157,15 @@ void EmitGeometryHitPoint(FIrradianceCacheRecord HitPoint, uint Size)
 			IrradianceCachingParameters.RWHashTable[IrradianceCachingParameters.RWIndexToHash[RecordIndex]] = 0;
 		}
 		IrradianceCachingParameters.RWIndexToHash[RecordIndex] = Index;
-		IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex] = HitPoint;
+		IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex] = uint4(0, 0, 0, 0);
 	}
+}
+
+int GetIrradianceCachingQuality()
+{
+#ifdef VOLUMETRIC_LIGHTMAP_PATH_TRACING_MAIN_RG
+	return IrradianceCachingParameters.Quality * VolumetricLightmapQualityMultiplier;
+#endif
+	
+	return IrradianceCachingParameters.Quality;
 }

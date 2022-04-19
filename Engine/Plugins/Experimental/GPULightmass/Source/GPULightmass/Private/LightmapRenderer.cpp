@@ -106,6 +106,7 @@ class FSelectiveLightmapOutputCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int32, NumBatchedTiles)
 		SHADER_PARAMETER(int32, NumTotalSamples)
+		SHADER_PARAMETER(int32, NumIrradianceCachePasses)
 		SHADER_PARAMETER(int32, NumRayGuidingTrialSamples)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FGPUTileDescription>, BatchedTiles)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutputTileAtlas)
@@ -173,13 +174,19 @@ FLightmapRenderer::FLightmapRenderer(FSceneRenderState* InScene)
 	: Scene(InScene)
 	, LightmapTilePoolGPU(FIntPoint(Scene->Settings->LightmapTilePoolSize))
 {
-	bUseFirstBounceRayGuiding = Scene->Settings->bUseFirstBounceRayGuiding;
-	if (bUseFirstBounceRayGuiding)
+	NumTotalPassesToRender = Scene->Settings->GISamples;
+	
+	if (Scene->Settings->bUseIrradianceCaching)
 	{
-		NumFirstBounceRayGuidingTrialSamples = Scene->Settings->FirstBounceRayGuidingTrialSamples;
+		NumTotalPassesToRender += Scene->Settings->IrradianceCacheQuality;	
+	}
+	
+	if (Scene->Settings->bUseFirstBounceRayGuiding)
+	{
+		NumTotalPassesToRender += Scene->Settings->FirstBounceRayGuidingTrialSamples;
 	}
 
-	if (!bUseFirstBounceRayGuiding)
+	if (!Scene->Settings->bUseFirstBounceRayGuiding)
 	{
 		LightmapTilePoolGPU.Initialize(
 			{
@@ -1145,7 +1152,7 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			TArray<FRHIRayTracingShader*> RayGenShaderTable;
 			{
 				FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(LightmapRenderer->bUseFirstBounceRayGuiding);
+				PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(Settings->bUseFirstBounceRayGuiding);
 				PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(Settings->bUseIrradianceCaching);
 				RayGenShaderTable.Add(GlobalShaderMap->GetShader<FLightmapPathTracingRGS>(PermutationVector).GetRayTracingShader());
 			}
@@ -2142,13 +2149,13 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 	}
 
 	int32 NumSamplesPerFrame = (bInsideBackgroundTick && bIsViewportNonRealtime) ? Scene->Settings->TilePassesInFullSpeedMode : Scene->Settings->TilePassesInSlowMode;
-	NumSamplesPerFrame = FMath::Max(FMath::Min(NumSamplesPerFrame, Scene->Settings->GISamples - 1), 0);
+	NumSamplesPerFrame = FMath::Max(FMath::Min(NumSamplesPerFrame, NumTotalPassesToRender - 1), 0);
 
 	{
 		auto& PendingGITileRequests = *GraphBuilder.AllocObject<TArray<FLightmapTileRequest>>(
-			PendingTileRequests.FilterByPredicate([NumGISamples = Scene->Settings->GISamples, MostCommonLODIndex](const FLightmapTileRequest& Tile)
+			PendingTileRequests.FilterByPredicate([NumTotalPassesToRender = NumTotalPassesToRender, MostCommonLODIndex](const FLightmapTileRequest& Tile)
 			{
-				return !Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, NumGISamples) && Tile.RenderState->GeometryInstanceRef.LODIndex == MostCommonLODIndex;
+				return !Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, NumTotalPassesToRender) && Tile.RenderState->GeometryInstanceRef.LODIndex == MostCommonLODIndex;
 			}));
 
 #if RHI_RAYTRACING
@@ -2218,7 +2225,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 								{
 									const FLightmapTileRequest& Tile = PendingGITileRequests[Index];
 
-									if (Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, Scene->Settings->GISamples)) continue;
+									if (Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, NumTotalPassesToRender)) continue;
 									uint32 AssignedGPUIndex = (Tile.RenderState->DistributionPrefixSum + Tile.RenderState->RetrieveTileStateIndex(Tile.VirtualCoordinates)) % GNumExplicitGPUsForRendering;
 									if (AssignedGPUIndex != GPUIndex) continue;
 
@@ -2233,13 +2240,31 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 									TArray<FMeshBatch> MeshBatches = Tile.RenderState->GeometryInstanceRef.GetMeshBatchesForGBufferRendering(Tile.VirtualCoordinates);
 
+									int32 EffectiveRenderPassIndex = PendingGIRenderPassIndices[Index];
+									
+									if(Scene->Settings->bUseIrradianceCaching)
+									{
+										if (EffectiveRenderPassIndex >= Scene->Settings->IrradianceCacheQuality)
+										{
+											EffectiveRenderPassIndex -= Scene->Settings->IrradianceCacheQuality;
+									
+											if(Scene->Settings->bUseFirstBounceRayGuiding)
+											{
+												if (EffectiveRenderPassIndex >= Scene->Settings->FirstBounceRayGuidingTrialSamples)
+												{
+													EffectiveRenderPassIndex -= Scene->Settings->FirstBounceRayGuidingTrialSamples;
+												}
+											}
+										}
+									}
+									
 									RenderMeshBatchesIntoGBuffer(
 										RHICmdList,
 										ReferenceView.Get(),
 										Scene->GetPrimitiveIdForGPUScene(Tile.RenderState->GeometryInstanceRef),
 										MeshBatches,
 										VirtualTexturePhysicalTileCoordinateScaleAndBias,
-										PendingGIRenderPassIndices[Index] / AAvsGIMultiplier,
+										EffectiveRenderPassIndex / AAvsGIMultiplier,
 										ScratchTilePoolGPU->GetPositionFromLinearAddress(Tile.TileAddressInScratch)* GPreviewLightmapPhysicalTileSize);
 
 									GPrimitiveIdVertexBufferPool.DiscardAll();
@@ -2271,7 +2296,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 							TileDesc.OutputLayer2Position = Tile.OutputPhysicalCoordinates[2] * GPreviewLightmapPhysicalTileSize;
 							TileDesc.FrameIndex = Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).Revision;
 							TileDesc.RenderPassIndex = Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex;
-							if (!Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, Scene->Settings->GISamples))
+							if (!Tile.RenderState->IsTileGIConverged(Tile.VirtualCoordinates, NumTotalPassesToRender))
 							{
 								Tile.RenderState->RetrieveTileState(Tile.VirtualCoordinates).RenderPassIndex++;
 
@@ -2312,7 +2337,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 							FRDGTextureRef RayGuidingCDFX = nullptr;
 							FRDGTextureRef RayGuidingCDFY = nullptr;
 
-							if (bUseFirstBounceRayGuiding)
+							if (Scene->Settings->bUseFirstBounceRayGuiding)
 							{
 								RayGuidingLuminance = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[5], TEXT("RayGuidingLuminance"));
 								RayGuidingCDFX = GraphBuilder.RegisterExternalTexture(LightmapTilePoolGPU.PooledRenderTargets[6], TEXT("RayGuidingCDFX"));
@@ -2328,7 +2353,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 								{
 									FLightmapPathTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLightmapPathTracingRGS::FParameters>();
 									PassParameters->LastInvalidationFrame = LastInvalidationFrame;
-									PassParameters->NumTotalSamples = Scene->Settings->GISamples;
+									PassParameters->NumTotalSamples = NumTotalPassesToRender;
 									PassParameters->TLAS = Scene->RayTracingSceneSRV;
 									PassParameters->GBufferWorldPosition = GBufferWorldPosition;
 									PassParameters->GBufferWorldNormal = GBufferWorldNormal;
@@ -2337,12 +2362,12 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 									PassParameters->SHCorrectionAndStationarySkyLightBentNormal = GraphBuilder.CreateUAV(SHCorrectionAndStationarySkyLightBentNormal);
 									PassParameters->SHDirectionality = GraphBuilder.CreateUAV(SHDirectionality);
 
-									if (bUseFirstBounceRayGuiding)
+									if (Scene->Settings->bUseFirstBounceRayGuiding)
 									{
 										PassParameters->RayGuidingLuminance = GraphBuilder.CreateUAV(RayGuidingLuminance);
 										PassParameters->RayGuidingCDFX = RayGuidingCDFX;
 										PassParameters->RayGuidingCDFY = RayGuidingCDFY;
-										PassParameters->NumRayGuidingTrialSamples = NumFirstBounceRayGuidingTrialSamples;
+										PassParameters->NumRayGuidingTrialSamples = Scene->Settings->FirstBounceRayGuidingTrialSamples;
 									}
 
 									PassParameters->BatchedTiles = GPUBatchedTileRequests.BatchedTilesSRV;
@@ -2374,7 +2399,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 
 									FLightmapPathTracingRGS::FPermutationDomain PermutationVector;
-									PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(bUseFirstBounceRayGuiding);
+									PermutationVector.Set<FLightmapPathTracingRGS::FUseFirstBounceRayGuiding>(Scene->Settings->bUseFirstBounceRayGuiding);
 									PermutationVector.Set<FLightmapPathTracingRGS::FUseIrradianceCaching>(Scene->Settings->bUseIrradianceCaching);
 									auto RayGenerationShader = GlobalShaderMap->GetShader<FLightmapPathTracingRGS>(PermutationVector);
 									ClearUnusedGraphResources(RayGenerationShader, PassParameters);
@@ -2394,7 +2419,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 									});
 								}
 
-								if (bUseFirstBounceRayGuiding)
+								if (Scene->Settings->bUseFirstBounceRayGuiding)
 								{
 									FFirstBounceRayGuidingCDFBuildCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFirstBounceRayGuidingCDFBuildCS::FParameters>();
 
@@ -2402,7 +2427,12 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 									PassParameters->RayGuidingLuminance = GraphBuilder.CreateUAV(RayGuidingLuminance);
 									PassParameters->RayGuidingCDFX = GraphBuilder.CreateUAV(RayGuidingCDFX);
 									PassParameters->RayGuidingCDFY = GraphBuilder.CreateUAV(RayGuidingCDFY);
-									PassParameters->NumRayGuidingTrialSamples = NumFirstBounceRayGuidingTrialSamples;
+									PassParameters->RayGuidingEndPassIndex = Scene->Settings->FirstBounceRayGuidingTrialSamples - 1;
+
+									if (Scene->Settings->bUseIrradianceCaching)
+									{
+										PassParameters->RayGuidingEndPassIndex += Scene->Settings->IrradianceCacheQuality;
+									}
 
 									TShaderMapRef<FFirstBounceRayGuidingCDFBuildCS> ComputeShader(GlobalShaderMap);
 									FComputeShaderUtils::AddPass(
@@ -2785,7 +2815,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 				TransferTexture(3);
 				TransferTexture(4);
 
-				if (bUseFirstBounceRayGuiding)
+				if (Scene->Settings->bUseFirstBounceRayGuiding)
 				{
 					TransferTexture(5);
 					TransferTexture(6);
@@ -2851,8 +2881,9 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 				FSelectiveLightmapOutputCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectiveLightmapOutputCS::FParameters>();
 				PassParameters->NumBatchedTiles = GPUBatchedTileRequests.BatchedTilesDesc.Num();
-				PassParameters->NumTotalSamples = Scene->Settings->GISamples;
-				PassParameters->NumRayGuidingTrialSamples = NumFirstBounceRayGuidingTrialSamples;
+				PassParameters->NumTotalSamples = NumTotalPassesToRender;
+				PassParameters->NumIrradianceCachePasses = Scene->Settings->bUseIrradianceCaching ? Scene->Settings->IrradianceCacheQuality : 0;
+				PassParameters->NumRayGuidingTrialSamples = Scene->Settings->bUseFirstBounceRayGuiding ? Scene->Settings->FirstBounceRayGuidingTrialSamples : 0;
 				PassParameters->BatchedTiles = GPUBatchedTileRequests.BatchedTilesSRV;
 				PassParameters->OutputTileAtlas = GraphBuilder.CreateUAV(RenderTargetTileAtlas);
 				PassParameters->IrradianceAndSampleCount = GraphBuilder.CreateUAV(IrradianceAndSampleCount);
@@ -2879,7 +2910,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 
 				FSelectiveLightmapOutputCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectiveLightmapOutputCS::FParameters>();
 				PassParameters->NumBatchedTiles = GPUBatchedTileRequests.BatchedTilesDesc.Num();
-				PassParameters->NumTotalSamples = Scene->Settings->GISamples;
+				PassParameters->NumTotalSamples = NumTotalPassesToRender;
 				PassParameters->BatchedTiles = GPUBatchedTileRequests.BatchedTilesSRV;
 				PassParameters->OutputTileAtlas = GraphBuilder.CreateUAV(RenderTargetTileAtlas);
 				PassParameters->ShadowMask = GraphBuilder.CreateUAV(ShadowMask);
@@ -2904,7 +2935,7 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 	{
 		auto ConvergedTileRequests = PendingTileRequests.FilterByPredicate(
 			[
-				NumGISamples = Scene->Settings->GISamples,
+				NumGISamples = NumTotalPassesToRender,
 				NumShadowSamples = Scene->Settings->StationaryLightShadowSamples,
 				bOnlyBakeWhatYouSee = bOnlyBakeWhatYouSee, 
 				bDenoiseDuringInteractiveBake = bDenoiseDuringInteractiveBake

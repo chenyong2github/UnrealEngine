@@ -64,7 +64,13 @@ FMaterialSample RadianceProbe_SampleMaterial(
 
 	int2 ClusterPosition = clamp((int2)LaunchIndex - int2(2, 2), int2(0, 0), int2(63, 63)) / TEXEL_CLUSTER_SIZE;
 	
-	if (BatchedTiles[TileIndex].RenderPassIndex >= NumRayGuidingTrialSamples)
+	int MinRenderPassIndex = NumRayGuidingTrialSamples;
+
+#if USE_IRRADIANCE_CACHING
+	MinRenderPassIndex += GetIrradianceCachingQuality();
+#endif
+	
+	if (BatchedTiles[TileIndex].RenderPassIndex >= MinRenderPassIndex)
 	{
 		float LastRowPrefixSum = 0;
 		float RowPrefixSum = 0;
@@ -148,8 +154,14 @@ float RadianceProbe_Pdf(float3 OutgoingDirection, FPathTracingPayload Payload)
 	int TileIndex = BatchedLaunchIndex.x / GPreviewLightmapPhysicalTileSize;
 
 	int2 ClusterPosition = clamp((int2)LaunchIndex - int2(2, 2), int2(0, 0), int2(63, 63)) / TEXEL_CLUSTER_SIZE;
+
+	int MinRenderPassIndex = NumRayGuidingTrialSamples;
+
+#if USE_IRRADIANCE_CACHING
+	MinRenderPassIndex += GetIrradianceCachingQuality();
+#endif
 	
-	if (BatchedTiles[TileIndex].RenderPassIndex >= NumRayGuidingTrialSamples)
+	if (BatchedTiles[TileIndex].RenderPassIndex >= MinRenderPassIndex)
 	{
 		float LastPrefixSum = 0;
 		float PrefixSum;
@@ -223,7 +235,13 @@ FMaterialEval RadianceProbe_EvalMaterial(
 
 	int2 ClusterPosition = clamp((int2)LaunchIndex - int2(2, 2), int2(0, 0), int2(63, 63)) / TEXEL_CLUSTER_SIZE;
 	
-	if (BatchedTiles[TileIndex].RenderPassIndex >= NumRayGuidingTrialSamples)
+	int MinRenderPassIndex = NumRayGuidingTrialSamples;
+
+#if USE_IRRADIANCE_CACHING
+	MinRenderPassIndex += GetIrradianceCachingQuality();
+#endif
+	
+	if (BatchedTiles[TileIndex].RenderPassIndex >= MinRenderPassIndex)
 	{
 		float LastPrefixSum = 0;
 		float PrefixSum;
