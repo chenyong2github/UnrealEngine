@@ -870,7 +870,7 @@ namespace AutomationScripts
 
 					// Work out which ICU data version we use for this platform
 					var ICUDataVersion = "icudt64l";
-					if (SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HoloLens || SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.TVOS)
+					if (SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HoloLens)
 					{
 						ICUDataVersion = "icudt53l";
 					}
