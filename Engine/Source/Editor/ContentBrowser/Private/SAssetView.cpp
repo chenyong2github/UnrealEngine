@@ -334,7 +334,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	OwningContentBrowser = InArgs._OwningContentBrowser;
 
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList();
+	AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList(EAssetClassAction::ViewAsset);
 	FolderPermissionList = AssetToolsModule.Get().GetFolderPermissionList();
 	WritableFolderPermissionList = AssetToolsModule.Get().GetWritableFolderPermissionList();
 

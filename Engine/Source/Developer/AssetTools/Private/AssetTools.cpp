@@ -181,19 +181,22 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, AssetRenameManager(MakeShareable(new FAssetRenameManager))
 	, AssetFixUpRedirectors(MakeShareable(new FAssetFixUpRedirectors))
-	, NextUserCategoryBit(EAssetTypeCategories::FirstUser)
-	, AssetClassPermissionList(MakeShared<FNamePermissionList>())
+	, NextUserCategoryBit(EAssetTypeCategories::FirstUser) 
 	, FolderPermissionList(MakeShared<FPathPermissionList>())
 	, WritableFolderPermissionList(MakeShared<FPathPermissionList>())
 	, CreateAssetsAsExternallyReferenceable(true)
 {
 	TArray<FString> SupportedTypesArray;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("SupportedAssetTypes"), SupportedTypesArray, GEditorIni);
-	for (const FString& Type : SupportedTypesArray)
+	for (int32 i = 0; i < (int32)EAssetClassAction::AllAssetActions; ++i)
 	{
-		AssetClassPermissionList->AddAllowListItem("AssetToolsConfigFile", *Type);
+		AssetClassPermissionList.Add(MakeShared<FNamePermissionList>());
+		for (const FString& Type : SupportedTypesArray)
+		{
+			AssetClassPermissionList[i]->AddAllowListItem("AssetToolsConfigFile", *Type);
+		}
+		AssetClassPermissionList[i]->OnFilterChanged().AddUObject(this, &UAssetToolsImpl::AssetClassPermissionListChanged, (EAssetClassAction)i);
 	}
-	AssetClassPermissionList->OnFilterChanged().AddUObject(this, &UAssetToolsImpl::AssetClassPermissionListChanged);
 
 	TArray<FString> DenyListedViewPath;
 	GConfig->GetArray(TEXT("AssetTools"), TEXT("DenyListAssetPaths"), DenyListedViewPath, GEditorIni);
@@ -332,7 +335,7 @@ void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeAction
 	bool bSupported = false;
 	if (const UClass* SupportedClass = NewActions->GetSupportedClass())
 	{
-		bSupported = AssetClassPermissionList->PassesFilter(SupportedClass->GetFName());
+		bSupported = GetAssetClassPermissionList(EAssetClassAction::CreateAsset)->PassesFilter(SupportedClass->GetFName());
 	}
 	else
 	{
@@ -3976,24 +3979,42 @@ TArray<UFactory*> UAssetToolsImpl::GetNewAssetFactories() const
 
 TSharedRef<FNamePermissionList>& UAssetToolsImpl::GetAssetClassPermissionList()
 {
-	return AssetClassPermissionList;
+	return GetAssetClassPermissionList(EAssetClassAction::ViewAsset);
 }
 
-void UAssetToolsImpl::AssetClassPermissionListChanged()
+TSharedRef<FNamePermissionList>& UAssetToolsImpl::GetAssetClassPermissionList(EAssetClassAction AssetClassAction)
 {
-	for (TSharedRef<IAssetTypeActions>& ActionsIt : AssetTypeActionsList)
+	if (AssetClassAction < EAssetClassAction::AllAssetActions)
 	{
-		bool bSupported = false;
-		if (const UClass* SupportedClass = ActionsIt->GetSupportedClass())
-		{
-			bSupported = AssetClassPermissionList->PassesFilter(SupportedClass->GetFName());
-		}
-		else
-		{
-			bSupported = !ActionsIt->GetFilterName().IsNone();
-		}
+		return AssetClassPermissionList[(int32)AssetClassAction];
+	}
+	
+	static TSharedRef<FNamePermissionList> Empty = MakeShared<FNamePermissionList>();
+	return Empty;
+}
 
-		ActionsIt->SetSupported(bSupported);
+void UAssetToolsImpl::AssetClassPermissionListChanged(EAssetClassAction AssetClassAction)
+{
+	switch (AssetClassAction)
+	{
+	case EAssetClassAction::CreateAsset:
+		for (TSharedRef<IAssetTypeActions>& ActionsIt : AssetTypeActionsList)
+		{
+			bool bSupported = false;
+			if (const UClass* SupportedClass = ActionsIt->GetSupportedClass())
+			{
+				bSupported = GetAssetClassPermissionList(AssetClassAction)->PassesFilter(SupportedClass->GetFName());
+			}
+			else
+			{
+				bSupported = !ActionsIt->GetFilterName().IsNone();
+			}
+
+			ActionsIt->SetSupported(bSupported);
+		}
+		break;
+	default:
+		break;
 	}
 }
 

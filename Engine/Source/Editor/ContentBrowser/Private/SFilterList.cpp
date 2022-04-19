@@ -1358,7 +1358,7 @@ void SFilterList::PopulateAddFilterMenu(UToolMenu* Menu)
 	};
 	AssetTypeActionsList.Sort( FCompareIAssetTypeActions() );
 
-	TSharedRef<FNamePermissionList> AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList();
+	const TSharedRef<FNamePermissionList>& AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList(EAssetClassAction::CreateAsset);
 
 	// For every asset type, move it into all the categories it should appear in
 	for (int32 ClassIdx = 0; ClassIdx < AssetTypeActionsList.Num(); ++ClassIdx)
@@ -1649,7 +1649,7 @@ void SFilterList::GetTypeActionsForCategory(EAssetTypeCategories::Type Category,
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 	TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActionsList;
 	AssetToolsModule.Get().GetAssetTypeActionsList(AssetTypeActionsList);
-	TSharedRef<FNamePermissionList> AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList();
+	const TSharedRef<FNamePermissionList>& AssetClassPermissionList = AssetToolsModule.Get().GetAssetClassPermissionList(EAssetClassAction::ViewAsset);
 
 	// Find all asset type actions that match the category
 	for (int32 ClassIdx = 0; ClassIdx < AssetTypeActionsList.Num(); ++ClassIdx)

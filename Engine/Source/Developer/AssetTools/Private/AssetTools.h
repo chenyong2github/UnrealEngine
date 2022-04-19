@@ -124,6 +124,7 @@ public:
 	virtual bool IsAssetClassSupported(const UClass* AssetClass) const override;
 	virtual TArray<UFactory*> GetNewAssetFactories() const override;
 	virtual TSharedRef<FNamePermissionList>& GetAssetClassPermissionList() override;
+	virtual TSharedRef<FNamePermissionList>& GetAssetClassPermissionList(EAssetClassAction AssetClassAction) override;
 	virtual TSharedRef<FPathPermissionList>& GetFolderPermissionList() override;
 	virtual TSharedRef<FPathPermissionList>& GetWritableFolderPermissionList() override;
 	virtual bool AllPassWritableFolderFilter(const TArray<FString>& InPaths) const override;
@@ -184,7 +185,7 @@ private:
 	UObject* PerformDuplicateAsset(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, bool bWithDialog);
 
 	/** Internal method that performs actions when asset class deny list filter changes */
-	void AssetClassPermissionListChanged();
+	void AssetClassPermissionListChanged(EAssetClassAction AssetClassAction);
 
 	/**
 	 * Add sub content deny list filter for a new mount point
@@ -211,8 +212,8 @@ private:
 	/** The next user category bit to allocate (set to 0 when there are no more bits left) */
 	uint32 NextUserCategoryBit;
 
-	/** Permission list of assets by class name */
-	TSharedRef<FNamePermissionList> AssetClassPermissionList;
+	/** Permission lists of assets by class name, one for each EAssetClassAction */
+	TArray<TSharedRef<FNamePermissionList>> AssetClassPermissionList;
 
 	/** Permission list of folder paths */
 	TSharedRef<FPathPermissionList> FolderPermissionList;

@@ -26,6 +26,16 @@ class FNamePermissionList;
 class FPathPermissionList;
 
 UENUM()
+enum class EAssetClassAction : uint8
+{
+	/** Whether an action can be created by an AssetTypeAction */
+	CreateAsset,
+	/** Whether an asset can be viewed in the content browser */
+	ViewAsset,
+	AllAssetActions
+};
+
+UENUM()
 enum class EAssetRenameResult : uint8
 {
 	/** The asset rename failed */
@@ -457,8 +467,12 @@ public:
 	/** Find all supported asset factories. */
 	virtual TArray<UFactory*> GetNewAssetFactories() const = 0;
 
-	/** Get asset class permission list for content browser and other systems */
+	/** Get asset class permission list for the ViewAsset action */
+	UE_DEPRECATED(5.1, "Pass in an EAssetClassAction instead of nothing")
 	virtual TSharedRef<FNamePermissionList>& GetAssetClassPermissionList() = 0;
+	
+	/** Get asset class permission list for content browser and other systems */
+	virtual TSharedRef<FNamePermissionList>& GetAssetClassPermissionList(EAssetClassAction AssetClassAction) = 0;
 
 	/** Get folder permission list for content browser and other systems */
 	virtual TSharedRef<FPathPermissionList>& GetFolderPermissionList() = 0;
