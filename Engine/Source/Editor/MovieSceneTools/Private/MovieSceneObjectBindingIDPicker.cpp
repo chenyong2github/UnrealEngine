@@ -291,8 +291,13 @@ void FMovieSceneObjectBindingIDPicker::SetCurrentValueFromFixed(UE::MovieScene::
 	TSharedPtr<ISequencer>              Sequencer = WeakSequencer.Pin();
 	const FMovieSceneSequenceHierarchy* Hierarchy = Sequencer.IsValid() ? Sequencer->GetEvaluationTemplate().GetHierarchy() : nullptr;
 
-	// If we don't know the local sequence ID, or we have no hierarchy, or we're resetting the binding; just set the ID directly
-	if (LocalSequenceID == MovieSceneSequenceID::Invalid || !InValue.Guid.IsValid() || Hierarchy == nullptr)
+	// If there is no sequencer, just set the ID directly 
+	if (!Sequencer.IsValid())
+	{
+		SetCurrentValue(InValue);
+	}
+	// If we don't know the local sequence ID, or we have no hierarchy, or we're resetting the binding; set a relative ID
+	else if (LocalSequenceID == MovieSceneSequenceID::Invalid || !InValue.Guid.IsValid() || Hierarchy == nullptr)
 	{
 		SetCurrentValue(UE::MovieScene::FRelativeObjectBindingID(InValue.Guid));
 	}
