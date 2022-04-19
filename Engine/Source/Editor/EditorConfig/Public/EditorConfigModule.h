@@ -4,6 +4,8 @@
 
 #include "Modules/ModuleInterface.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogEditorConfig, Log, All)
+
 class FEditorConfigModule : public IModuleInterface
 {
 };

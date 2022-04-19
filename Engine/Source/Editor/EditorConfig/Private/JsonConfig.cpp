@@ -5,6 +5,7 @@
 #include "Misc/StringBuilder.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+#include "EditorConfigModule.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogJsonConfig, Log, All);
 
@@ -182,7 +183,12 @@ namespace UE
 			return false;
 		}
 
-		return LoadFromString(Contents);
+		if (!LoadFromString(Contents))
+		{
+			UE_LOG(LogEditorConfig, Error, TEXT("Failed to load JSON file into JsonConfig %s"), FilePath.GetData());
+			return false;
+		}
+		return true;
 	}
 
 	bool FJsonConfig::LoadFromString(FStringView Content)
@@ -190,6 +196,7 @@ namespace UE
 		TSharedRef<FJsonStringReader> JsonReader = FJsonStringReader::Create(Content.GetData());
 		if (!FJsonSerializer::Deserialize(JsonReader.Get(), OverrideObject))
 		{
+			UE_LOG(LogEditorConfig, Error, TEXT("Failed to deserialize JSON string"));
 			return false;
 		}
 
