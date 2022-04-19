@@ -156,6 +156,9 @@ DECLARE_DELEGATE_OneParam( FConsoleCommandWithWorldDelegate, UWorld* );
 /** Console command delegate type (with a world and arguments.)  This is a void callback function that always takes a list of arguments and a world. */
 DECLARE_DELEGATE_TwoParams(FConsoleCommandWithWorldAndArgsDelegate, const TArray< FString >&, UWorld*);
 
+/** Console command delegate type (with arguments and output device.)  This is a void callback function that always takes a list of arguments and output device. */
+DECLARE_DELEGATE_TwoParams(FConsoleCommandWithArgsAndOutputDeviceDelegate, const TArray< FString >&, FOutputDevice&);
+
 /** Console command delegate type (with a world arguments and output device.)  This is a void callback function that always takes a list of arguments, a world and output device. */
 DECLARE_DELEGATE_ThreeParams(FConsoleCommandWithWorldArgsAndOutputDeviceDelegate, const TArray< FString >&, UWorld*, FOutputDevice&);
 
@@ -271,13 +274,14 @@ struct FNullConsoleVariableDelegate
 	}
 };
 
-struct FConsoleVariableDelegate                            : FNullConsoleVariableDelegate<FConsoleVariableDelegate, IConsoleVariable*> {};
-struct FConsoleCommandDelegate                             : FNullConsoleVariableDelegate<FConsoleCommandDelegate> {};
-struct FConsoleCommandWithArgsDelegate                     : FNullConsoleVariableDelegate<FConsoleCommandWithArgsDelegate, const TArray<FString>&> {};
-struct FConsoleCommandWithWorldDelegate                    : FNullConsoleVariableDelegate<FConsoleCommandWithWorldDelegate, UWorld*> {};
-struct FConsoleCommandWithWorldAndArgsDelegate             : FNullConsoleVariableDelegate<FConsoleCommandWithWorldAndArgsDelegate, const TArray<FString>&, UWorld*> {};
-struct FConsoleCommandWithWorldArgsAndOutputDeviceDelegate : FNullConsoleVariableDelegate<FConsoleCommandWithWorldArgsAndOutputDeviceDelegate, const TArray<FString>&, UWorld*, FOutputDevice&> {};
-struct FConsoleCommandWithOutputDeviceDelegate             : FNullConsoleVariableDelegate<FConsoleCommandWithOutputDeviceDelegate, FOutputDevice&> {};
+struct FConsoleVariableDelegate								: FNullConsoleVariableDelegate<FConsoleVariableDelegate, IConsoleVariable*> {};
+struct FConsoleCommandDelegate								: FNullConsoleVariableDelegate<FConsoleCommandDelegate> {};
+struct FConsoleCommandWithArgsDelegate						: FNullConsoleVariableDelegate<FConsoleCommandWithArgsDelegate, const TArray<FString>&> {};
+struct FConsoleCommandWithWorldDelegate						: FNullConsoleVariableDelegate<FConsoleCommandWithWorldDelegate, UWorld*> {};
+struct FConsoleCommandWithWorldAndArgsDelegate				: FNullConsoleVariableDelegate<FConsoleCommandWithWorldAndArgsDelegate, const TArray<FString>&, UWorld*> {};
+struct FConsoleCommandWithArgsAndOutputDeviceDelegate		: FNullConsoleVariableDelegate<FConsoleCommandWithArgsAndOutputDeviceDelegate, const TArray<FString>&, FOutputDevice&> {};
+struct FConsoleCommandWithWorldArgsAndOutputDeviceDelegate	: FNullConsoleVariableDelegate<FConsoleCommandWithWorldArgsAndOutputDeviceDelegate, const TArray<FString>&, UWorld*, FOutputDevice&> {};
+struct FConsoleCommandWithOutputDeviceDelegate				: FNullConsoleVariableDelegate<FConsoleCommandWithOutputDeviceDelegate, FOutputDevice&> {};
 
 #endif
 
@@ -816,7 +820,17 @@ struct CORE_API IConsoleManager
 	* @param	Flags		Optional flags bitmask
 	*/
 	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldAndArgsDelegate& Command, uint32 Flags = ECVF_Default) = 0;
-
+	
+	/**
+	* Register a console command that takes arguments
+	*
+	* @param	Name		The name of this command (must not be nullptr)
+	* @param	Help		Help text for this command
+	* @param	Command		The user function to call when this command is executed
+	* @param	Flags		Optional flags bitmask
+	*/
+	virtual IConsoleCommand* RegisterConsoleCommand(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithArgsAndOutputDeviceDelegate& Command, uint32 Flags = ECVF_Default) = 0;
+	
 	/**
 	* Register a console command that takes arguments
 	*
@@ -1750,6 +1764,19 @@ public:
 	 * @param	Flags		Optional flags bitmask
 	 */
 	FAutoConsoleCommandWithWorldAndArgs(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithWorldAndArgsDelegate& Command, uint32 Flags = ECVF_Default)
+		: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleCommand(Name, Help, Command, Flags))
+	{
+	}
+};
+
+/**
+ * Autoregistering console command with args and an output device
+ */
+class CORE_API FAutoConsoleCommandWithArgsAndOutputDevice : private FAutoConsoleObject
+{
+public:
+	
+	FAutoConsoleCommandWithArgsAndOutputDevice(const TCHAR* Name, const TCHAR* Help, const FConsoleCommandWithArgsAndOutputDeviceDelegate& Command, uint32 Flags = ECVF_Default)
 		: FAutoConsoleObject(IConsoleManager::Get().RegisterConsoleCommand(Name, Help, Command, Flags))
 	{
 	}
