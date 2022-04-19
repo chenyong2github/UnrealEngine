@@ -1602,7 +1602,7 @@ void FAGXDeviceContext::SetParallelRenderPassDescriptor(FRHIRenderPassInfo const
 	}
 }
 
-mtlpp::RenderCommandEncoder FAGXDeviceContext::GetParallelRenderCommandEncoder(uint32 Index, mtlpp::ParallelRenderCommandEncoder& ParallelEncoder, mtlpp::CommandBuffer& CommandBuffer)
+id<MTLRenderCommandEncoder> FAGXDeviceContext::GetParallelRenderCommandEncoder(uint32 Index, id<MTLParallelRenderCommandEncoder>* ParallelEncoder, mtlpp::CommandBuffer& CommandBuffer)
 {
 	FScopeLock Lock(&FreeListMutex);
 	

@@ -98,16 +98,16 @@ public:
 #pragma mark - Public Command Encoder Accessors -
 	
 	/** @returns True if and only if there is an active parallel render command encoder, otherwise false. */
-	bool IsParallelRenderCommandEncoderActive(void) const;
+	bool IsParallelRenderCommandEncoderActive() const;
 	
 	/** @returns True if and only if there is an active render command encoder, otherwise false. */
-	bool IsRenderCommandEncoderActive(void) const;
+	bool IsRenderCommandEncoderActive() const;
 	
 	/** @returns True if and only if there is an active compute command encoder, otherwise false. */
-	bool IsComputeCommandEncoderActive(void) const;
+	bool IsComputeCommandEncoderActive() const;
 	
 	/** @returns True if and only if there is an active blit command encoder, otherwise false. */
-	bool IsBlitCommandEncoderActive(void) const;
+	bool IsBlitCommandEncoderActive() const;
 	
 	/**
 	 * True iff the command-encoder submits immediately to the command-queue, false if it performs any buffering.
@@ -128,10 +128,10 @@ public:
 	mtlpp::RenderPassDescriptor const& GetRenderPassDescriptor(void) const;
 	
 	/** @returns The active render command encoder or nil if there isn't one. */
-	mtlpp::ParallelRenderCommandEncoder& GetParallelRenderCommandEncoder(void);
+	id<MTLParallelRenderCommandEncoder> GetParallelRenderCommandEncoder() const;
 	
 	/** @returns The child render command encoder of the current parallel render encoder for Index. */
-	mtlpp::RenderCommandEncoder& GetChildRenderCommandEncoder(uint32 Index);
+	id<MTLRenderCommandEncoder> GetChildRenderCommandEncoder(uint32 Index) const;
 
 	/** @returns The active render command encoder or nil if there isn't one. */
 	id<MTLRenderCommandEncoder> GetRenderCommandEncoder() const;
@@ -457,11 +457,11 @@ public:
 	mtlpp::RenderPassDescriptor RenderPassDesc;
 	
 	mtlpp::CommandBuffer CommandBuffer;
-	mtlpp::ParallelRenderCommandEncoder ParallelRenderCommandEncoder;
+	id<MTLParallelRenderCommandEncoder> ParallelRenderCommandEncoder;
 	id<MTLRenderCommandEncoder> RenderCommandEncoder;
 	id<MTLComputeCommandEncoder> ComputeCommandEncoder;
 	id<MTLBlitCommandEncoder> BlitCommandEncoder;
-	TArray<mtlpp::RenderCommandEncoder> ChildRenderCommandEncoders;
+	TArray< id<MTLRenderCommandEncoder> > ChildRenderCommandEncoders;
 	
 #if ENABLE_METAL_GPUPROFILE
 	FAGXCommandBufferStats* CommandBufferStats;

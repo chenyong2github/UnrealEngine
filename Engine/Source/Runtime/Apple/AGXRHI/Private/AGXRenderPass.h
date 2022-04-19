@@ -146,7 +146,7 @@ public:
 	 * Get a child render command-encoder and the parent parallel command-encoder when within a parallel pass.
 	 * @returns A valid render command encoder or nil.
 	 */
-    mtlpp::RenderCommandEncoder GetParallelRenderCommandEncoder(uint32 Index, mtlpp::ParallelRenderCommandEncoder& ParallelEncoder);
+    id<MTLRenderCommandEncoder> GetParallelRenderCommandEncoder(uint32 Index, id<MTLParallelRenderCommandEncoder>* ParallelEncoder);
 	
 	void InsertTextureBarrier();
 	

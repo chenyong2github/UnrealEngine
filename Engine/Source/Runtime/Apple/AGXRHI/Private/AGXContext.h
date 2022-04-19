@@ -213,7 +213,7 @@ public:
 
 	void BeginParallelRenderCommandEncoding(uint32 Num);
 	void SetParallelRenderPassDescriptor(FRHIRenderPassInfo const& TargetInfo);
-	mtlpp::RenderCommandEncoder GetParallelRenderCommandEncoder(uint32 Index, mtlpp::ParallelRenderCommandEncoder& ParallelEncoder, mtlpp::CommandBuffer& CommandBuffer);
+	id<MTLRenderCommandEncoder> GetParallelRenderCommandEncoder(uint32 Index, id<MTLParallelRenderCommandEncoder>* ParallelEncoder, mtlpp::CommandBuffer& CommandBuffer);
 	void EndParallelRenderCommandEncoding(void);
 	
 	/** Get the index of the bound Metal device in the global list of rendering devices. */

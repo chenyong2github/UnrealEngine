@@ -1053,10 +1053,10 @@ bool FAGXRenderPass::IsWithinParallelPass(void)
 	return bWithinRenderPass && CurrentEncoder.IsParallelRenderCommandEncoderActive();
 }
 
-mtlpp::RenderCommandEncoder FAGXRenderPass::GetParallelRenderCommandEncoder(uint32 Index, mtlpp::ParallelRenderCommandEncoder& ParallelEncoder)
+id<MTLRenderCommandEncoder> FAGXRenderPass::GetParallelRenderCommandEncoder(uint32 Index, id<MTLParallelRenderCommandEncoder>* ParallelEncoder)
 {
 	check(IsWithinParallelPass());
-	ParallelEncoder = CurrentEncoder.GetParallelRenderCommandEncoder();
+	*ParallelEncoder = CurrentEncoder.GetParallelRenderCommandEncoder();
 	return CurrentEncoder.GetChildRenderCommandEncoder(Index);
 }
 

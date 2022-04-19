@@ -25,6 +25,7 @@ FAGXCommandEncoder::FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEnco
 , bSupportsMetalFeaturesSetBytes(CmdList.GetCommandQueue().SupportsFeature(EAGXFeaturesSetBytes))
 , RingBuffer(EncoderRingBufferSize, BufferOffsetAlignment, FAGXCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::HazardTrackingModeUntracked | BUFFER_RESOURCE_STORAGE_MANAGED)))
 , RenderPassDesc(nil)
+, ParallelRenderCommandEncoder(nil)
 , RenderCommandEncoder(nil)
 , ComputeCommandEncoder(nil)
 , BlitCommandEncoder(nil)
@@ -270,24 +271,24 @@ void FAGXCommandEncoder::CommitCommandBuffer(uint32 const Flags)
 
 #pragma mark - Public Command Encoder Accessors -
 	
-bool FAGXCommandEncoder::IsParallelRenderCommandEncoderActive(void) const
+bool FAGXCommandEncoder::IsParallelRenderCommandEncoderActive() const
 {
-	return ParallelRenderCommandEncoder.GetPtr() != nil;
+	return (ParallelRenderCommandEncoder != nil);
 }
 	
-bool FAGXCommandEncoder::IsRenderCommandEncoderActive(void) const
+bool FAGXCommandEncoder::IsRenderCommandEncoderActive() const
 {
-	return RenderCommandEncoder != nil || ParallelRenderCommandEncoder.GetPtr() != nil;
+	return (RenderCommandEncoder != nil) || (ParallelRenderCommandEncoder != nil);
 }
 
-bool FAGXCommandEncoder::IsComputeCommandEncoderActive(void) const
+bool FAGXCommandEncoder::IsComputeCommandEncoderActive() const
 {
-	return ComputeCommandEncoder != nil;
+	return (ComputeCommandEncoder != nil);
 }
 
-bool FAGXCommandEncoder::IsBlitCommandEncoderActive(void) const
+bool FAGXCommandEncoder::IsBlitCommandEncoderActive() const
 {
-	return BlitCommandEncoder != nil;
+	return (BlitCommandEncoder != nil);
 }
 
 bool FAGXCommandEncoder::IsImmediate(void) const
@@ -310,12 +311,12 @@ mtlpp::RenderPassDescriptor const& FAGXCommandEncoder::GetRenderPassDescriptor(v
 	return RenderPassDesc;
 }
 
-mtlpp::ParallelRenderCommandEncoder& FAGXCommandEncoder::GetParallelRenderCommandEncoder(void)
+id<MTLParallelRenderCommandEncoder> FAGXCommandEncoder::GetParallelRenderCommandEncoder() const
 {
 	return ParallelRenderCommandEncoder;
 }
 
-mtlpp::RenderCommandEncoder& FAGXCommandEncoder::GetChildRenderCommandEncoder(uint32 Index)
+id<MTLRenderCommandEncoder> FAGXCommandEncoder::GetChildRenderCommandEncoder(uint32 Index) const
 {
 	check(IsParallelRenderCommandEncoderActive() && Index < ChildRenderCommandEncoders.Num());
 	return ChildRenderCommandEncoders[Index];
@@ -348,7 +349,7 @@ void FAGXCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren)
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
 	
-	ParallelRenderCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, ParallelRenderCommandEncoder(RenderPassDesc));
+	ParallelRenderCommandEncoder = [[CommandBuffer.GetPtr() parallelRenderCommandEncoderWithDescriptor:RenderPassDesc.GetPtr()] retain];
 	
 	EncoderNum++;
 	
@@ -357,20 +358,20 @@ void FAGXCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren)
 	if(GetEmitDrawEvents())
 	{
 		Label = [NSString stringWithFormat:@"ParallelRenderCommandEncoder: %@", [DebugGroups count] > 0 ? [DebugGroups lastObject] : (NSString*)CFSTR("InitialPass")];
-		ParallelRenderCommandEncoder.SetLabel(Label);
+		[ParallelRenderCommandEncoder setLabel:Label];
 		
 		if([DebugGroups count])
 		{
 			for (NSString* Group in DebugGroups)
 			{
-				ParallelRenderCommandEncoder.PushDebugGroup(Group);
+				[ParallelRenderCommandEncoder pushDebugGroup:Group];
 			}
 		}
 	}
 	
 	for (uint32 i = 0; i < NumChildren; i++)
 	{
-		mtlpp::RenderCommandEncoder CommandEncoder = MTLPP_VALIDATE(mtlpp::ParallelRenderCommandEncoder, ParallelRenderCommandEncoder, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, GetRenderCommandEncoder());
+		id<MTLRenderCommandEncoder> CommandEncoder = [[ParallelRenderCommandEncoder renderCommandEncoder] retain];
 		ChildRenderCommandEncoders.Add(CommandEncoder);
 	}
 }
@@ -388,7 +389,7 @@ void FAGXCommandEncoder::BeginRenderCommandEncoding(void)
 	}
 	else
 	{
-		RenderCommandEncoder = [GetAGXDeviceContext().GetParallelRenderCommandEncoder(CommandList.GetParallelIndex(), ParallelRenderCommandEncoder, CommandBuffer).GetPtr() retain];
+		RenderCommandEncoder = GetAGXDeviceContext().GetParallelRenderCommandEncoder(CommandList.GetParallelIndex(), &ParallelRenderCommandEncoder, CommandBuffer);
 	}
 	
 	NSString* Label = nil;
@@ -446,7 +447,7 @@ void FAGXCommandEncoder::BeginBlitCommandEncoding(void)
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
 	
-	BlitCommandEncoder = [[CommandBuffer.GetPtr() blitCommandEncoder] retain];	
+	BlitCommandEncoder = [[CommandBuffer.GetPtr() blitCommandEncoder] retain];
 	EncoderNum++;
 	
 	NSString* Label = nil;
@@ -474,7 +475,7 @@ void FAGXCommandEncoder::EndEncoding(void)
 		{
 			if (RenderCommandEncoder)
 			{
-				if (ParallelRenderCommandEncoder.GetPtr() == nil)
+				if (ParallelRenderCommandEncoder == nil)
 				{
 					check(RenderPassDesc);
 					
@@ -536,7 +537,8 @@ void FAGXCommandEncoder::EndEncoding(void)
 				EncoderNum = 0;
 
 				CommandBuffer = nil;
-				
+
+				[ParallelRenderCommandEncoder release];
 				ParallelRenderCommandEncoder = nil;
 			}
 
@@ -552,24 +554,25 @@ void FAGXCommandEncoder::EndEncoding(void)
 						{
 							mtlpp::StoreAction Action = ColorStoreActions[i];
 							check(Action != mtlpp::StoreAction::Unknown);
-							ParallelRenderCommandEncoder.SetColorStoreAction((mtlpp::StoreAction)Action, i);
+							[ParallelRenderCommandEncoder setColorStoreAction:(MTLStoreAction)Action atIndex:i];
 						}
 					}
 					if (RenderPassDesc.GetDepthAttachment().GetTexture() && RenderPassDesc.GetDepthAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
 					{
 						mtlpp::StoreAction Action = DepthStoreAction;
 						check(Action != mtlpp::StoreAction::Unknown);
-						ParallelRenderCommandEncoder.SetDepthStoreAction((mtlpp::StoreAction)Action);
+						[ParallelRenderCommandEncoder setDepthStoreAction:(MTLStoreAction)Action];
 					}
 					if (RenderPassDesc.GetStencilAttachment().GetTexture() && RenderPassDesc.GetStencilAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
 					{
 						mtlpp::StoreAction Action = StencilStoreAction;
 						check(Action != mtlpp::StoreAction::Unknown);
-						ParallelRenderCommandEncoder.SetStencilStoreAction((mtlpp::StoreAction)Action);
+						[ParallelRenderCommandEncoder setStencilStoreAction:(MTLStoreAction)Action];
 					}
 				}
 
-				ParallelRenderCommandEncoder.EndEncoding();
+				[ParallelRenderCommandEncoder endEncoding];
+				[ParallelRenderCommandEncoder release];
 				ParallelRenderCommandEncoder = nil;
 
 				ChildRenderCommandEncoders.Empty();
@@ -636,16 +639,15 @@ void FAGXCommandEncoder::InsertDebugSignpost(ns::String const& String)
 		}
 		else if (ParallelRenderCommandEncoder && !IsParallel())
 		{
-			ParallelRenderCommandEncoder.InsertDebugSignpost(String);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ParallelRenderCommandEncoder.InsertDebugSignpost(String));
+			[ParallelRenderCommandEncoder insertDebugSignpost:String.GetPtr()];
 		}
 		else if (ComputeCommandEncoder)
 		{
-			[ComputeCommandEncoder insertDebugSignpost:String];
+			[ComputeCommandEncoder insertDebugSignpost:String.GetPtr()];
 		}
 		else if (BlitCommandEncoder)
 		{
-			[BlitCommandEncoder insertDebugSignpost:String];
+			[BlitCommandEncoder insertDebugSignpost:String.GetPtr()];
 		}
 	}
 }
@@ -654,23 +656,22 @@ void FAGXCommandEncoder::PushDebugGroup(ns::String const& String)
 {
 	if (String)
 	{
-		[DebugGroups addObject:String];
+		[DebugGroups addObject:String.GetPtr()];
 		if (RenderCommandEncoder)
 		{
 			[RenderCommandEncoder pushDebugGroup:String.GetPtr()];
 		}
 		else if (ParallelRenderCommandEncoder && !IsParallel())
 		{
-			ParallelRenderCommandEncoder.PushDebugGroup(String);
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ParallelRenderCommandEncoder.PushDebugGroup(String));
+			[ParallelRenderCommandEncoder pushDebugGroup:String.GetPtr()];
 		}
 		else if (ComputeCommandEncoder)
 		{
-			[ComputeCommandEncoder pushDebugGroup:String];
+			[ComputeCommandEncoder pushDebugGroup:String.GetPtr()];
 		}
 		else if (BlitCommandEncoder)
 		{
-			[BlitCommandEncoder pushDebugGroup:String];
+			[BlitCommandEncoder pushDebugGroup:String.GetPtr()];
 		}
 	}
 }
@@ -686,8 +687,7 @@ void FAGXCommandEncoder::PopDebugGroup(void)
 		}
 		else if (ParallelRenderCommandEncoder && !IsParallel())
 		{
-			ParallelRenderCommandEncoder.PopDebugGroup();
-			METAL_DEBUG_LAYER(EAGXDebugLevelFastValidation, ParallelRenderCommandEncoder.PopDebugGroup());
+			[ParallelRenderCommandEncoder popDebugGroup];
 		}
 		else if (ComputeCommandEncoder)
 		{
