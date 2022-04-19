@@ -102,7 +102,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Uniforms and structures
 
-// Needs to match C++ code in ShaderPrint.cpp
 struct FShaderPrintItem
 {
 	float2 ScreenPos; // Position in normalized coordinates
@@ -112,6 +111,7 @@ struct FShaderPrintItem
 	uint Metadata;	  // Metadata (used for widget to store extra state data
 };
 
+// Needs to match C++ code in ShaderPrint.cpp
 struct FPackedShaderPrintItem
 {
 	uint ScreenPos16bits; // Position in normalized coordinates
