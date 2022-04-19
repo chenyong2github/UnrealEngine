@@ -3,6 +3,7 @@
 #include "StructUtilsEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "InstancedStructDetails.h"
+#include "PropertyBagDetails.h"
 
 #define LOCTEXT_NAMESPACE "StructUtilsEditor"
 
@@ -13,6 +14,7 @@ void FStructUtilsEditorModule::StartupModule()
 	// Register the details customizer
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomPropertyTypeLayout("InstancedStruct", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FInstancedStructDetails::MakeInstance));
+	PropertyModule.RegisterCustomPropertyTypeLayout("InstancedPropertyBag", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FPropertyBagDetails::MakeInstance));
 	PropertyModule.NotifyCustomizationModuleChanged();
 }
 
@@ -23,6 +25,7 @@ void FStructUtilsEditorModule::ShutdownModule()
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("InstancedStruct");
+		PropertyModule.UnregisterCustomPropertyTypeLayout("InstancedPropertyBag");
 		PropertyModule.NotifyCustomizationModuleChanged();
 	}
 }

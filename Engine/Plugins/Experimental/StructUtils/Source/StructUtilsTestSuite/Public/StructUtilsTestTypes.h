@@ -114,3 +114,35 @@ struct FTestStructSimple7 : public FTestStructSimpleBase
 	UPROPERTY()
 	float Float = 0.0f;
 };
+
+UCLASS()
+class UBagTestObject1 : public UObject
+{
+	GENERATED_BODY()
+};
+
+UCLASS()
+class UBagTestObject2 : public UObject
+{
+	GENERATED_BODY()
+};
+
+UCLASS()
+class UBagTestObject1Derived : public UBagTestObject1
+{
+	GENERATED_BODY()
+};
+
+UENUM()
+enum class EPropertyBagTest1 : uint8
+{
+	Foo,
+	Bar,
+};
+
+UENUM()
+enum class EPropertyBagTest2 : uint8
+{
+	Bingo,
+	Bongo,
+};

@@ -40,6 +40,7 @@ namespace UnrealBuildTool.Rules
 				"PropertyEditor",
 				"AIGraph",
 				"ToolMenus",
+				"BlueprintGraph",
 			}
 			);
 		}
