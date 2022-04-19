@@ -2912,6 +2912,8 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 				if (SwitchType == OverrideToAdd->GetType())
 				{
 					MatchingStaticSwitchPin->DefaultValue = OverrideToAdd->GetStaticSwitchValue().GetValue();
+					TargetFunctionCall.MarkNodeRequiresSynchronization(TEXT("Static Switch Value Changed"), true);
+					Results.bModifiedGraph = true;
 					Results.bSucceeded = true;
 				}
 				else
