@@ -192,10 +192,10 @@ protected:
 	/** Update our cached properties for what will be recorded. Done here so the UI doesn't have to iterate through map every frame. */
 	void UpdateCachedNumberOfRecordedProperties();
 
-	/** Returns the Guid of the Spawnable/Possessable in the specified sequence that represents the given actor, or an invalid Guid if the actor has no object binding in the sequence. */
+	/** Returns the Guid of the Possessable in the specified sequence that represents the given actor, or an invalid Guid if the actor has no object binding in the sequence. */
 	FGuid ResolveActorFromSequence(AActor* InActor, ULevelSequence* CurrentSequence) const;
 
-	/** Remove the Spawnable/Possessable data for the given Guid from the sequence. Calls CleanExistingDataFromSequenceImpl afterwards for any other cleanup you may wish to do. */
+	/** Remove the Possessable data for the given Guid from the sequence. Calls CleanExistingDataFromSequenceImpl afterwards for any other cleanup you may wish to do. */
 	void CleanExistingDataFromSequence(const FGuid& ForGuid, ULevelSequence& InSequence);
 
 	/** Called as part of PostRecording before Track Recorders are finalized. Calls PostProcessTrackRecordersImpl afterwards for any other post processing you wish to do before Track recorders are finalized. */
