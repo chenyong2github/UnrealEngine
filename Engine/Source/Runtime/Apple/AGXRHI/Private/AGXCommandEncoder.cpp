@@ -25,6 +25,7 @@ FAGXCommandEncoder::FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEnco
 , bSupportsMetalFeaturesSetBytes(CmdList.GetCommandQueue().SupportsFeature(EAGXFeaturesSetBytes))
 , RingBuffer(EncoderRingBufferSize, BufferOffsetAlignment, FAGXCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::HazardTrackingModeUntracked | BUFFER_RESOURCE_STORAGE_MANAGED)))
 , RenderPassDesc(nil)
+, ComputeCommandEncoder(nil)
 , BlitCommandEncoder(nil)
 #if ENABLE_METAL_GPUPROFILE
 , CommandBufferStats(nullptr)
@@ -160,12 +161,12 @@ void FAGXCommandEncoder::ResetLive(void)
 	{
 		for (uint32 i = 0; i < ML_MaxBuffers; i++)
 		{
-			ComputeCommandEncoder.SetBuffer(nil, 0, i);
+			[ComputeCommandEncoder setBuffer:nil offset:0 atIndex:i];
 		}
 		
 		for (uint32 i = 0; i < ML_MaxTextures; i++)
 		{
-			ComputeCommandEncoder.SetTexture(nil, i);
+			[ComputeCommandEncoder setTexture:nil atIndex:i];
 		}
 	}
 }
@@ -280,7 +281,7 @@ bool FAGXCommandEncoder::IsRenderCommandEncoderActive(void) const
 
 bool FAGXCommandEncoder::IsComputeCommandEncoderActive(void) const
 {
-	return ComputeCommandEncoder.GetPtr() != nil;
+	return ComputeCommandEncoder != nil;
 }
 
 bool FAGXCommandEncoder::IsBlitCommandEncoderActive(void) const
@@ -325,7 +326,7 @@ mtlpp::RenderCommandEncoder& FAGXCommandEncoder::GetRenderCommandEncoder(void)
 	return RenderCommandEncoder;
 }
 
-mtlpp::ComputeCommandEncoder& FAGXCommandEncoder::GetComputeCommandEncoder(void)
+id<MTLComputeCommandEncoder> FAGXCommandEncoder::GetComputeCommandEncoder() const
 {
 	check(IsComputeCommandEncoderActive());
 	return ComputeCommandEncoder;
@@ -413,11 +414,11 @@ void FAGXCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType Dispatc
 	
 	if (DispatchType == mtlpp::DispatchType::Serial)
 	{
-		ComputeCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, ComputeCommandEncoder());
+		ComputeCommandEncoder = [[CommandBuffer.GetPtr() computeCommandEncoder] retain];
 	}
 	else
 	{
-		ComputeCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, ComputeCommandEncoder(DispatchType));
+		ComputeCommandEncoder = [[CommandBuffer.GetPtr() computeCommandEncoderWithDispatchType:*reinterpret_cast<MTLDispatchType*>(&DispatchType)] retain];
 	}
 
 	EncoderNum++;
@@ -427,13 +428,13 @@ void FAGXCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType Dispatc
 	if(GetEmitDrawEvents())
 	{
 		Label = [NSString stringWithFormat:@"ComputeEncoder: %@", [DebugGroups count] > 0 ? [DebugGroups lastObject] : (NSString*)CFSTR("InitialPass")];
-		ComputeCommandEncoder.SetLabel(Label);
+		[ComputeCommandEncoder setLabel:Label];
 		
 		if([DebugGroups count])
 		{
 			for (NSString* Group in DebugGroups)
 			{
-				ComputeCommandEncoder.PushDebugGroup(Group);
+				[ComputeCommandEncoder pushDebugGroup:Group];
 			}
 		}
 	}
@@ -574,7 +575,8 @@ void FAGXCommandEncoder::EndEncoding(void)
 		}
 		else if(IsComputeCommandEncoderActive())
 		{
-			ComputeCommandEncoder.EndEncoding();
+			[ComputeCommandEncoder endEncoding];
+			[ComputeCommandEncoder release];
 			ComputeCommandEncoder = nil;
 		}
 		else if(IsBlitCommandEncoderActive())
@@ -637,7 +639,7 @@ void FAGXCommandEncoder::InsertDebugSignpost(ns::String const& String)
 		}
 		else if (ComputeCommandEncoder)
 		{
-			ComputeCommandEncoder.InsertDebugSignpost(String);
+			[ComputeCommandEncoder insertDebugSignpost:String];
 		}
 		else if (BlitCommandEncoder)
 		{
@@ -662,7 +664,7 @@ void FAGXCommandEncoder::PushDebugGroup(ns::String const& String)
 		}
 		else if (ComputeCommandEncoder)
 		{
-			ComputeCommandEncoder.PushDebugGroup(String);
+			[ComputeCommandEncoder pushDebugGroup:String];
 		}
 		else if (BlitCommandEncoder)
 		{
@@ -687,7 +689,7 @@ void FAGXCommandEncoder::PopDebugGroup(void)
 		}
 		else if (ComputeCommandEncoder)
 		{
-			ComputeCommandEncoder.PopDebugGroup();
+			[ComputeCommandEncoder popDebugGroup];
 		}
 		else if (BlitCommandEncoder)
 		{
@@ -951,7 +953,7 @@ void FAGXCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType, 
 					break;
 				case mtlpp::FunctionType::Kernel:
 					check(ComputeCommandEncoder);
-					ComputeCommandEncoder.SetBytes(Bytes, Length, Index);
+					[ComputeCommandEncoder setBytes:static_cast<const void*>(Bytes) length:Length atIndex:Index];
 					break;
 				default:
 					check(false);
@@ -1004,7 +1006,7 @@ void FAGXCommandEncoder::SetShaderBufferOffset(mtlpp::FunctionType FunctionType,
 			break;
 		case mtlpp::FunctionType::Kernel:
 			check (ComputeCommandEncoder);
-			ComputeCommandEncoder.SetBufferOffset(Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset(), index);
+			[ComputeCommandEncoder setBufferOffset:(Offset + ShaderBuffers[uint32(FunctionType)].Buffers[index].GetOffset()) atIndex:index];
 			break;
 		default:
 			check(false);
@@ -1029,7 +1031,7 @@ void FAGXCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FAGX
 		case mtlpp::FunctionType::Kernel:
 			check (ComputeCommandEncoder);
 			FenceResource(Texture);
-			ComputeCommandEncoder.SetTexture(Texture, index);
+			[ComputeCommandEncoder setTexture:Texture.GetPtr() atIndex:index];
 			break;
 		default:
 			check(false);
@@ -1068,7 +1070,7 @@ void FAGXCommandEncoder::SetShaderSamplerState(mtlpp::FunctionType FunctionType,
 			break;
 		case mtlpp::FunctionType::Kernel:
 			check (ComputeCommandEncoder);
-			ComputeCommandEncoder.SetSamplerState(Sampler, index);
+			[ComputeCommandEncoder setSamplerState:Sampler.GetPtr() atIndex:index];
 			break;
 		default:
 			check(false);
@@ -1094,7 +1096,7 @@ void FAGXCommandEncoder::SetComputePipelineState(FAGXShaderPipeline* State)
 {
 	check (ComputeCommandEncoder);
 	{
-		ComputeCommandEncoder.SetComputePipelineState(State->ComputePipelineState);
+		[ComputeCommandEncoder setComputePipelineState:State->ComputePipelineState.GetPtr()];
 	}
 }
 
@@ -1174,7 +1176,7 @@ void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, u
 				Binding.Bound |= (1 << Index);
 				check(ComputeCommandEncoder);
 				FenceResource(Buffer);
-				ComputeCommandEncoder.SetBuffer(Buffer, Offset, Index);
+				[ComputeCommandEncoder setBuffer:Buffer.GetPtr() offset:(Offset + Buffer.GetOffset()) atIndex:Index];
 				break;
 
 			default:
@@ -1212,7 +1214,7 @@ void FAGXCommandEncoder::SetShaderBufferInternal(mtlpp::FunctionType Function, u
 			case mtlpp::FunctionType::Kernel:
 				Binding.Bound |= (1 << Index);
 				check(ComputeCommandEncoder);
-				ComputeCommandEncoder.SetBytes(Bytes, Len, Index);
+				[ComputeCommandEncoder setBytes:static_cast<const void*>(Bytes) length:(NSUInteger)Len atIndex:Index];
 				break;
 
 			default:

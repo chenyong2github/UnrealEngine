@@ -137,7 +137,7 @@ public:
 	mtlpp::RenderCommandEncoder& GetRenderCommandEncoder(void);
 	
 	/** @returns The active compute command encoder or nil if there isn't one. */
-	mtlpp::ComputeCommandEncoder& GetComputeCommandEncoder(void);
+	id<MTLComputeCommandEncoder> GetComputeCommandEncoder() const;
 	
 	/** @returns The active blit command encoder or nil if there isn't one. */
 	id<MTLBlitCommandEncoder> GetBlitCommandEncoder() const;
@@ -459,7 +459,7 @@ public:
 	mtlpp::CommandBuffer CommandBuffer;
 	mtlpp::ParallelRenderCommandEncoder ParallelRenderCommandEncoder;
 	mtlpp::RenderCommandEncoder RenderCommandEncoder;
-	mtlpp::ComputeCommandEncoder ComputeCommandEncoder;
+	id<MTLComputeCommandEncoder> ComputeCommandEncoder;
 	id<MTLBlitCommandEncoder> BlitCommandEncoder;
 	TArray<mtlpp::RenderCommandEncoder> ChildRenderCommandEncoders;
 	
