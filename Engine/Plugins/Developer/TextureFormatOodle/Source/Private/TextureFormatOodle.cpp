@@ -1437,29 +1437,22 @@ static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobDa
 	// spam. The RunJob portion is a bit of setup work, just elide that unless there's
 	// reason to suspect something fishy here.
 	//TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN_RunJob);
-	
-	TArray<Private::FTaskBase*> Prerequisites;
-	Prerequisites.Reserve(NumDependencies);
-	for (int DependencyIndex = 0; DependencyIndex < NumDependencies; DependencyIndex++)
-	{
-		Prerequisites.Add(reinterpret_cast<Private::FTaskBase*>(Dependencies[DependencyIndex]));
-	}
 
-	auto* Task{ new Private::FTaskBase };
-	Task->Init(TEXT("Oodle_EncodeBCN_Task"), 
+	FTask* Task = new FTask;
+	Task->Launch(
+		TEXT("Oodle_EncodeBCN_Task"),
 		[JobFunction, JobData]
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_EncodeBCN_Task);
 			JobFunction(JobData);
-		}, 
+		},
+		TArrayView<FTask*>{ reinterpret_cast<FTask**>(Dependencies), NumDependencies },
 		// Use Background priority so we don't use Foreground time in the Editor
 		// @todo maybe it's better to inherit so the outer caller can tell us if we are high priority or not?
 		IsInGameThread() ? ETaskPriority::Normal : ETaskPriority::BackgroundNormal
 	);
-	Task->AddPrerequisites(Prerequisites);
-	Task->TryLaunch();
 
-	return reinterpret_cast<uint64>(Task);
+	return reinterpret_cast<OO_U64>(Task);
 }
 
 static void OODLE_CALLBACK TFO_WaitJob(OO_U64 JobHandle, void* UserPtr)
@@ -1468,9 +1461,9 @@ static void OODLE_CALLBACK TFO_WaitJob(OO_U64 JobHandle, void* UserPtr)
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_WaitJob);
 
-	Private::FTaskBase* Task = reinterpret_cast<Private::FTaskBase*>(JobHandle);
+	FTask* Task = reinterpret_cast<FTask*>(JobHandle);
 	Task->Wait();
-	Task->Release();
+	delete Task;
 }
 
 static OO_BOOL OODLE_CALLBACK TFO_OodleAssert(const char* file, const int line, const char* function, const char* message)

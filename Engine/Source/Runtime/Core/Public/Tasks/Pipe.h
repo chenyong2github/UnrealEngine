@@ -7,7 +7,7 @@
 
 #include <atomic>
 
-namespace UE { namespace Tasks
+namespace UE::Tasks
 {
 	// A chain of tasks that are executed one after another. Can be used to synchronise access to a shared resource as FPipe guarantees 
 	// non-concurrent tasks execution. FPipe is a replacement for named threads because it's lightweight and flexible -
@@ -55,8 +55,9 @@ namespace UE { namespace Tasks
 		TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* InDebugName, TaskBodyType&& TaskBody, LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Default)
 		{
 			using FResult = TInvokeResult_T<TaskBodyType>;
-			Private::TTaskWithResult<FResult>* Task = new Private::TTaskWithResult<FResult>;
-			Task->Init(InDebugName, Forward<TaskBodyType>(TaskBody), Priority);
+			using FExecutableTask = Private::TExecutableTask<std::decay_t<TaskBodyType>>;
+
+			FExecutableTask* Task = FExecutableTask::Create(InDebugName, Forward<TaskBodyType>(TaskBody), Priority, Private::EExtendedTaskPriority::None);
 			Task->SetPipe(*this);
 			Task->TryLaunch();
 			return TTask<FResult>{ Task };
@@ -72,10 +73,11 @@ namespace UE { namespace Tasks
 		TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* InDebugName, TaskBodyType&& TaskBody, PrerequisitesCollectionType&& Prerequisites, LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Default)
 		{
 			using FResult = TInvokeResult_T<TaskBodyType>;
-			Private::TTaskWithResult<FResult>* Task = new Private::TTaskWithResult<FResult>;
-			Task->Init(InDebugName, Forward<TaskBodyType>(TaskBody), Priority);
-			Task->AddPrerequisites(Forward<PrerequisitesCollectionType>(Prerequisites));
+			using FExecutableTask = Private::TExecutableTask<std::decay_t<TaskBodyType>>;
+
+			FExecutableTask* Task = FExecutableTask::Create(InDebugName, Forward<TaskBodyType>(TaskBody), Priority, Private::EExtendedTaskPriority::None);
 			Task->SetPipe(*this);
+			Task->AddPrerequisites(Forward<PrerequisitesCollectionType>(Prerequisites));
 			Task->TryLaunch();
 			return TTask<FResult>{ Task };
 		}
@@ -112,4 +114,4 @@ namespace UE { namespace Tasks
 	private:
 		const TCHAR* const DebugName;
 	};
-}}
+}

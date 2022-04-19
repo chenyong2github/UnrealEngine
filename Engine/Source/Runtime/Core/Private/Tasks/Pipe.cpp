@@ -4,7 +4,7 @@
 #include "Misc/ScopeExit.h"
 #include "Tasks/Task.h"
 
-namespace UE { namespace Tasks
+namespace UE::Tasks
 {
 	Private::FTaskBase* FPipe::PushIntoPipe(Private::FTaskBase& Task)
 	{
@@ -22,7 +22,7 @@ namespace UE { namespace Tasks
 			return nullptr;
 		}
 
-		LastTask_Local->AddRef(); // keep it alive, it's the caller's duty to release it
+		LastTask_Local->AddRef(); // keep it alive, must be called before leaving this function, it's the caller's duty to release it
 		return LastTask_Local;
 	}
 
@@ -83,4 +83,4 @@ namespace UE { namespace Tasks
 	{
 		return FPipeCallStack::IsOnTop(*this);
 	}
-}}
+}

@@ -1028,6 +1028,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			check(Event->IsComplete());
 		}
 
+		{	// check ref count for named thread tasks
+			FGraphEventRef LocalQueueTask = FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, TStatId{}, nullptr, ENamedThreads::GameThread_Local);
+			LocalQueueTask->Wait(ENamedThreads::GameThread_Local);
+			check(LocalQueueTask.GetRefCount() == 1);
+		}
+
 		//for (int i = 0; i != 100000; ++i)
 		{	// a particular real-life case that doesn't work in the old TaskGraph if run in single-threaded mode.
 			// the culprit is that when a task is waited for, in single-threaded mode the queue it was pushed to is executed. 

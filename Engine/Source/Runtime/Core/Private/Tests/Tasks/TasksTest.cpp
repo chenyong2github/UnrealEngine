@@ -21,57 +21,6 @@ namespace UE { namespace TasksTests
 
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksBasicTest, "System.Core.Tasks.Basic", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
 
-	template<uint32 SpawnerGroupsNum, uint32 SpawnersPerGroupNum>
-	void BasicStressTest()
-	{
-		TArray<FTask> SpawnerGroups;
-		SpawnerGroups.Reserve(SpawnerGroupsNum);
-
-		constexpr uint32 TasksNum = SpawnerGroupsNum * SpawnersPerGroupNum;
-		TArray<FTask> Spawners;
-		Spawners.AddDefaulted(TasksNum);
-		TArray<FTask> Tasks;
-		Tasks.AddDefaulted(TasksNum);
-
-		std::atomic<uint32> TasksExecutedNum{ 0 };
-
-		for (uint32 GroupIndex = 0; GroupIndex != SpawnerGroupsNum; ++GroupIndex)
-		{
-			SpawnerGroups.Add(Launch(UE_SOURCE_LOCATION,
-				[
-					Spawners = &Spawners[GroupIndex * SpawnersPerGroupNum],
-					Tasks = &Tasks[GroupIndex * SpawnersPerGroupNum],
-					&TasksExecutedNum
-				]
-				{
-					for (uint32 SpawnerIndex = 0; SpawnerIndex != SpawnersPerGroupNum; ++SpawnerIndex)
-					{
-						Spawners[SpawnerIndex] = Launch(UE_SOURCE_LOCATION,
-							[
-								Task = &Tasks[SpawnerIndex],
-								&TasksExecutedNum
-							]
-							{
-								*Task = Launch(UE_SOURCE_LOCATION,
-									[&TasksExecutedNum]
-									{
-										++TasksExecutedNum;
-									}
-								);
-							}
-						);
-					}
-				}
-			));
-		}
-
-		Wait(SpawnerGroups);
-		Wait(Spawners);
-		Wait(Tasks);
-
-		check(TasksExecutedNum == TasksNum);
-	}
-
 	bool FTasksBasicTest::RunTest(const FString& Parameters)
 	{
 		if (!FPlatformProcess::SupportsMultithreading())
@@ -93,7 +42,11 @@ namespace UE { namespace TasksTests
 			Launch(UE_SOURCE_LOCATION, [] {}).BusyWait();
 		}
 
-		{	// FTaskEvent
+		{	// FTaskEvent asserts on destruction if it wasn't triggered. uncomment the code to verify
+			//FTaskEvent Event{ UE_SOURCE_LOCATION };
+		}
+
+		{	// FTaskEvent blocks execution until it's signalled
 			FTaskEvent Event{ UE_SOURCE_LOCATION };
 			check(!Event.IsCompleted());
 
@@ -239,10 +192,16 @@ namespace UE { namespace TasksTests
 			Launch(UE_SOURCE_LOCATION, []() mutable { return false; }).GetResult();
 		}
 
-		{	// free memory occupied by a private task instance, can be required if task instance is held as a member var
+		{	// free memory occupied by task, can be required if task instance is held as a member var
 			FTask Task = Launch(UE_SOURCE_LOCATION, [] {});
 			Task.Wait();
 			Task = {};
+		}
+
+		{	// accessing the task from inside its execution
+			FTask Task;
+			Task.Launch(UE_SOURCE_LOCATION, [&Task] { check(!Task.IsCompleted()); });
+			Task.Wait();
 		}
 
 		///////////////////////////////////////////////////////////////////////////////
@@ -263,7 +222,7 @@ namespace UE { namespace TasksTests
 			verify(!Task.Wait(FTimespan::FromMilliseconds(100)));
 			verify(ExecutedSignal.IsCompleted());
 			FinishSignal.Trigger();
-			verify(Task.Wait());
+			Task.Wait();
 		}
 
 		{	// nested task completed before the parent finishes its execution
@@ -297,7 +256,6 @@ namespace UE { namespace TasksTests
 			Signal2.Trigger();
 			verify(!Task.Wait(FTimespan::FromMilliseconds(100)));
 			Signal3.Trigger();
-			verify(Task.Wait());
 		}
 
 		{	// nested in square
@@ -317,13 +275,13 @@ namespace UE { namespace TasksTests
 
 					verify(!NestedTask.Wait(FTimespan::FromMilliseconds(100)));
 					NestedSignal.Trigger();
-					verify(NestedTask.Wait());
+					NestedTask.Wait();
 				}
 			)};
 
 			verify(!Task.Wait(FTimespan::FromMilliseconds(200)));
 			Signal.Trigger();
-			verify(Task.Wait());
+			Task.Wait();
 		}
 
 		{	// nested task should block pipe execution, also an example of pipe suspension
@@ -360,7 +318,7 @@ namespace UE { namespace TasksTests
 				Task = Pipe.Launch(UE_SOURCE_LOCATION, [] {});
 				verify(!Task.Wait(FTimespan::FromMilliseconds(100)));
 			}
-			verify(Task.Wait());
+			Task.Wait();
 		}
 
 		//{	// Cancelled task is completed only after nested
@@ -380,10 +338,72 @@ namespace UE { namespace TasksTests
 		//	ParentBlocker.Trigger(); // unblock `Parent` so it can notice that it's been cancelled
 		//	check(Parent.Wait(FTimespan::FromMilliseconds(100))); // but it's still not complete because of the nested task is blocked
 		//	NestedBlocker.Trigger();
-		//	verify(Parent.Wait());
+		//	Parent.Wait();
 		//}
 
-		UE_BENCHMARK(5, BasicStressTest<100, 100>);
+		return true;
+	}
+
+	template<uint32 SpawnerGroupsNum, uint32 SpawnersPerGroupNum, uint32 RepeatNum>
+	void BasicStressTest()
+	{
+		TArray<FTask> SpawnerGroups;
+		SpawnerGroups.Reserve(SpawnerGroupsNum);
+
+		constexpr uint32 TasksNum = SpawnerGroupsNum * SpawnersPerGroupNum;
+		TArray<FTask> Spawners;
+		Spawners.AddDefaulted(TasksNum);
+		TArray<FTask> Tasks;
+		Tasks.AddDefaulted(TasksNum);
+
+		for (uint32 RepeatIt = 0; RepeatIt != RepeatNum; ++RepeatIt)
+		{
+			std::atomic<uint32> TasksExecutedNum{ 0 };
+
+			for (uint32 GroupIndex = 0; GroupIndex != SpawnerGroupsNum; ++GroupIndex)
+			{
+				SpawnerGroups.Add(Launch(UE_SOURCE_LOCATION,
+					[
+						Spawners = &Spawners[GroupIndex * SpawnersPerGroupNum],
+						Tasks = &Tasks[GroupIndex * SpawnersPerGroupNum],
+						&TasksExecutedNum
+					]
+					{
+						for (uint32 SpawnerIndex = 0; SpawnerIndex != SpawnersPerGroupNum; ++SpawnerIndex)
+						{
+							Spawners[SpawnerIndex] = Launch(UE_SOURCE_LOCATION,
+								[
+									Task = &Tasks[SpawnerIndex],
+									&TasksExecutedNum
+								]
+								{
+									*Task = Launch(UE_SOURCE_LOCATION,
+										[&TasksExecutedNum]
+										{
+											++TasksExecutedNum;
+										}
+									);
+								}
+							);
+						}
+					}
+				));
+			}
+
+			Wait(SpawnerGroups);
+			Wait(Spawners);
+			Wait(Tasks);
+
+			check(TasksExecutedNum == TasksNum);
+		}
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksBasicStressTest, "System.Core.Tasks.BasicStressTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTasksBasicStressTest::RunTest(const FString& Parameters)
+	{
+		UE_BENCHMARK(5, BasicStressTest<100, 100, 100>);
+
 
 		return true;
 	}
@@ -739,7 +759,7 @@ namespace UE { namespace TasksTests
 			FTaskEvent Prereq1{ UE_SOURCE_LOCATION };
 			FTaskEvent Event{ UE_SOURCE_LOCATION };
 			FTask Prereq2{ Launch(UE_SOURCE_LOCATION, [&Event] { Event.Wait(); }) };
-			TArray<TTask<void>> Prereqs{ Prereq1, Prereq2 }; // to check if a random iterable container works as a prerequisite collection
+			TArray<FTask> Prereqs{ Prereq1, Prereq2 }; // to check if a random iterable container works as a prerequisite collection
 
 			TTask<void> Task{ Launch(UE_SOURCE_LOCATION, [] {}, Prereqs, ETaskPriority::Normal) };
 			FPlatformProcess::Sleep(0.1f);
@@ -810,27 +830,31 @@ namespace UE { namespace TasksTests
 	}
 
 	// blocks all workers (except reserve workers) until given event is triggered. Returns blocking tasks.
-	TArray<FTask> BlockWorkers(FTaskEvent& ResumeEvent)
+	TArray<LowLevelTasks::FTask> BlockWorkers(FTaskEvent& ResumeEvent)
 	{
 		FPlatformProcess::Sleep(0.1f); // give workers time to fall asleep, to avoid any reserve worker messing around
 
 		uint32 NumWorkers = LowLevelTasks::FScheduler::Get().GetNumWorkers();
 
-		TArray<FTask> WorkerBlockers; // tasks that block worker threads
+		TArray<LowLevelTasks::FTask> WorkerBlockers; // tasks that block worker threads
 		WorkerBlockers.Reserve(NumWorkers);
 
 		std::atomic<uint32> NumWorkersNotBlocked{ NumWorkers };
 
 		for (int i = 0; i != NumWorkers; ++i)
 		{
-			WorkerBlockers.Add(Launch(UE_SOURCE_LOCATION,
+			WorkerBlockers.Emplace();
+			LowLevelTasks::FTask& Task = WorkerBlockers.Last();
+			Task.Init(TEXT("WorkerBlocker"),
 				[&NumWorkersNotBlocked, &ResumeEvent]
 				{
 					checkf(LowLevelTasks::FScheduler::Get().IsWorkerThread(), TEXT("No reserve workers are expected to get blocked"));
 					--NumWorkersNotBlocked;
 					ResumeEvent.Wait();
-				}
-			));
+				},
+				LowLevelTasks::ETaskFlags::AllowNothing
+			);
+			LowLevelTasks::FScheduler::Get().TryLaunchAffinity(Task, i);
 		}
 
 		UE::FTimeout Timeout{ FTimespan::FromSeconds(1) };
@@ -875,7 +899,7 @@ namespace UE { namespace TasksTests
 	bool FTasksDeepRetractionTest::RunTest(const FString& Parameters)
 	{
 		FTaskEvent ResumeEvent{ UE_SOURCE_LOCATION };
-		TArray<FTask> WorkerBlockers = BlockWorkers(ResumeEvent);
+		TArray<LowLevelTasks::FTask> WorkerBlockers = BlockWorkers(ResumeEvent);
 
 		{	// basic retraction, no dependencies
 			bool bDone = false;
@@ -938,7 +962,7 @@ namespace UE { namespace TasksTests
 		TwoLevelsDeepRetractionTest();
 
 		ResumeEvent.Trigger();
-		verify(Wait(WorkerBlockers, FTimespan::FromSeconds(1)));
+		LowLevelTasks::BusyWaitForTasks<LowLevelTasks::FTask>(WorkerBlockers);
 
 		return true;
 	}
@@ -1150,7 +1174,7 @@ namespace UE { namespace TasksTests
 		TArray<FTask> Tasks[NumBatches];
 		for (int32 BatchIndex = 0; BatchIndex != NumBatches; ++BatchIndex)
 		{
-			Tasks[BatchIndex].Reserve(NumBatches * NumTasksPerBatch);
+			Tasks[BatchIndex].Reserve(NumTasksPerBatch);
 			Batches.Add(Launch(UE_SOURCE_LOCATION,
 				[&Tasks, BatchIndex]()
 				{
