@@ -213,6 +213,15 @@ export class Dashboard {
         this.setPreference(DashboardPreference.DisplayUTC, value ? "true" : "false");
     }
 
+    setLeftAlignLog(value: boolean | undefined) {
+        this.setPreference(DashboardPreference.LeftAlignLog, value ? "true" : "false");
+    }
+
+    get leftAlignLog(): boolean {
+        return this.preferences.get(DashboardPreference.LeftAlignLog) === 'true';
+    }
+
+
     private hasLoggedLocalCache = false;
 
     get localCache(): boolean {
