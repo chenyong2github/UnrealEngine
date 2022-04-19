@@ -13,7 +13,7 @@ bool FRHIBufferTests::VerifyBufferContents(const TCHAR* TestName, FRHICommandLis
 		RHICmdList.CopyToStagingBuffer(Buffer, StagingBuffer, 0, NumBytes);
 
 		// @todo - readback API is inconsistent across RHIs
-		RHICmdList.SubmitCommandsAndFlushGPU();
+		RHICmdList.BlockUntilGPUIdle();
 		RHICmdList.FlushResources();
 
 		void* Memory = RHILockStagingBuffer(StagingBuffer, 0, NumBytes);

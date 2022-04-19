@@ -31,7 +31,7 @@ class FRHIBufferTests
 		});
 
 		FString ClearValueStr;
-		if (TAreTypesEqual<ValueType, FVector4>::Value)
+		if (TAreTypesEqual<ValueType, FVector4f>::Value)
 		{
 			ClearValueStr = FString::Printf(TEXT("%f %f %f %f"), ClearValue.X, ClearValue.Y, ClearValue.Z, ClearValue.W);
 		}
@@ -54,7 +54,9 @@ class FRHIBufferTests
 			{
 				uint8* Element = ((uint8*)Ptr) + Index * NumTestBytes;
 				if (FMemory::Memcmp(Element, TestValue, NumTestBytes) != 0)
+				{
 					return false;
+				}
 			}
 
 			return true;
