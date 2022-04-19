@@ -907,6 +907,16 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 									FWorldPartitionReference Reference(WorldPartition, ActorInstance.Actor);
 									AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString());
 									AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
+
+									// Handle child actors
+									AlwaysLoadedActor->ForEachComponent<UChildActorComponent>(true, [this, &Reference](UChildActorComponent* ChildActorComponent)
+									{
+										if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+										{
+											AlwaysLoadedActorsForPIE.Emplace(Reference, ChildActor);
+										}
+									});
+
 									continue;
 								}
 							}
@@ -980,6 +990,15 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 						if (AActor* Actor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString()))
 						{
 							StreamingCell->UnsavedActorsContainer->Actors.Add(Actor->GetFName(), Actor);
+
+							// Handle child actors
+							Actor->ForEachComponent<UChildActorComponent>(true, [StreamingCell](UChildActorComponent* ChildActorComponent)
+							{
+								if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+								{
+									StreamingCell->UnsavedActorsContainer->Actors.Add(ChildActor->GetFName(), ChildActor);
+								}
+							});
 						}
 					}
 					UE_LOG(LogWorldPartition, Verbose, TEXT("  Actor : %s (%s) (Container %s)"), *(ActorDescView.GetActorPath().ToString()), *ActorDescView.GetGuid().ToString(EGuidFormats::UniqueObjectGuid), *ActorInstance.ContainerInstance->ID.ToString());

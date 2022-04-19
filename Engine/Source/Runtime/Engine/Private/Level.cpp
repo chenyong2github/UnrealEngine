@@ -806,6 +806,15 @@ void ULevel::AddLoadedActor(AActor* Actor, const FTransform* TransformToApply)
 		}
 
 		OnLoadedActorAddedToLevelEvent.Broadcast(*Actor);
+
+		// Handle child actors
+		Actor->ForEachComponent<UChildActorComponent>(false, [this](UChildActorComponent* ChildActorComponent)
+		{
+			if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+			{
+				AddLoadedActor(ChildActor);
+			}
+		});
 	}
 }
 
@@ -814,6 +823,15 @@ void ULevel::RemoveLoadedActor(AActor* Actor, const FTransform* TransformToRemov
 	check(Actor);
 	check(Actor->GetLevel() == this);
 	check(IsValidChecked(Actor));
+
+	// Handle child actors
+	Actor->ForEachComponent<UChildActorComponent>(false, [this](UChildActorComponent* ChildActorComponent)
+	{
+		if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+		{
+			RemoveLoadedActor(ChildActor);
+		}
+	});
 
 	Actor->UnregisterAllComponents();
 	Actor->RegisterAllActorTickFunctions(false, true);	
