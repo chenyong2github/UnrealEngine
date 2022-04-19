@@ -104,9 +104,8 @@ public:
 			if (UClass* IconClass = FactoryNode->GetObjectClass())
 			{
 				TypeIcon = FSlateIconFinder::FindIconBrushForClass(IconClass);
+				Tooltip += TEXT(" [") + IconClass->GetName() + TEXT("]");
 			}
-
-			Tooltip += TEXT(" [") + FactoryNode->GetObjectClass()->GetName() + TEXT("]");
 		}
 
 		if (!TypeIcon)
