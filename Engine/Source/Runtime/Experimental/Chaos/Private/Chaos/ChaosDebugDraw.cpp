@@ -2,6 +2,7 @@
 #include "Chaos/ChaosDebugDraw.h"
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
+#include "Chaos/CCDUtilities.h"
 #include "Chaos/Collision/CollisionConstraintAllocator.h"
 #include "Chaos/Collision/ParticlePairMidPhase.h"
 #include "Chaos/Convex.h"
@@ -29,13 +30,12 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
-namespace Chaos
-{
-
-	namespace DebugDraw
-	{
 #if CHAOS_DEBUG_DRAW
 
+namespace Chaos
+{
+	namespace DebugDraw
+	{
 		bool bChaosDebugDebugDrawShapeBounds = false;
 		FAutoConsoleVariableRef CVarChaosDebugDrawShapeBounds(TEXT("p.Chaos.DebugDraw.ShowShapeBounds"), bChaosDebugDebugDrawShapeBounds, TEXT("Whether to show the bounds of each shape in DrawShapes"));
 
@@ -79,8 +79,11 @@ namespace Chaos
 		float ChaosDebugDrawConvexExplodeDistance = 0.0f;
 		FAutoConsoleVariableRef CVarChaosDebugDrawConvexExplodeDistance(TEXT("p.Chaos.DebugDraw.ConvexExplodeDistance"), ChaosDebugDrawConvexExplodeDistance, TEXT("Explode convex edges by this amount (useful for looking at convex integrity)"));
 
-		float ChaosDebugDrawCCDDuration = 0.0f;
+		float ChaosDebugDrawCCDDuration = 2.0f;
 		FAutoConsoleVariableRef CVarChaosDebugDrawCCDDuration(TEXT("p.Chaos.DebugDraw.CCDDuration"), ChaosDebugDrawCCDDuration, TEXT("How long CCD debug draw should remain on screen"));
+
+		float ChaosDebugDrawCollisionDuration = 0.0f;
+		FAutoConsoleVariableRef CVarChaosDebugDrawCollisionDuration(TEXT("p.Chaos.DebugDraw.CollisionDuration"), ChaosDebugDrawCollisionDuration, TEXT("How long Collision debug draw should remain on screen"));
 
 
 		// NOTE: These settings should never really be used - they are the fallback defaults
@@ -1618,7 +1621,7 @@ namespace Chaos
 			{
 				for (int32 ConstraintIndex = 0; ConstraintIndex < Collisions.NumConstraints(); ++ConstraintIndex)
 				{
-					DrawCollisionImpl(SpaceTransform, Collisions.GetConstraint(ConstraintIndex), ColorScale, 0.0f, GetChaosDebugDrawSettings(Settings));
+					DrawCollisionImpl(SpaceTransform, Collisions.GetConstraint(ConstraintIndex), ColorScale, ChaosDebugDrawCollisionDuration, GetChaosDebugDrawSettings(Settings));
 				}
 			}
 		}
@@ -1630,7 +1633,7 @@ namespace Chaos
 				CollisionAllocator.VisitConstCollisions(
 					[&](const FPBDCollisionConstraint& Collision)
 					{
-						DrawCollisionImpl(SpaceTransform, &Collision, ColorScale, 0.0f, GetChaosDebugDrawSettings(Settings));
+						DrawCollisionImpl(SpaceTransform, &Collision, ColorScale, ChaosDebugDrawCollisionDuration, GetChaosDebugDrawSettings(Settings));
 						return ECollisionVisitorResult::Continue;
 					});
 			}
@@ -1812,6 +1815,8 @@ namespace Chaos
 				}
 			}
 		}
+
+	}	// namespace DebugDraw
+}	// namespace Chaos
+
 #endif
-	}
-}

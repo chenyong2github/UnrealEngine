@@ -8,27 +8,26 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
-// @todo(chaos): these cvars should all be settings per particle
-
-// NOTE: With this disabled secondary CCD collisions will often be missed
-bool bChaosCollisionCCDEnableResweep = true;
-FAutoConsoleVariableRef CVarChaosCollisionCCDEnableResweep(TEXT("p.Chaos.Collision.CCD.EnableResweep"), bChaosCollisionCCDEnableResweep, TEXT("Enable resweep for CCD. Resweeping allows CCD to catch more secondary collisions but also is more costly. Default is true."));
-
-// NOTE: With this disabled, secondary collisions can be missed. When enabled, velocity will not be visually consistent after CCD collisions (if ChaosCollisionCCDConstraintMaxProcessCount is too low)
-bool bChaosCollisionCCDAllowClipping = true;
-FAutoConsoleVariableRef CVarChaosCollisionCCDAllowClipping(TEXT("p.Chaos.Collision.CCD.AllowClipping"), bChaosCollisionCCDAllowClipping, TEXT("This will clip the CCD object at colliding positions when computation budgets run out. Default is true. Turning this option off might cause tunneling."));
-
-// This needs to be at least 2 to handle sliding at CCD speeds properly
-int32 ChaosCollisionCCDConstraintMaxProcessCount = 2;
-FAutoConsoleVariableRef CVarChaosCollisionCCDConstraintMaxProcessCount(TEXT("p.Chaos.Collision.CCD.ConstraintMaxProcessCount"), ChaosCollisionCCDConstraintMaxProcessCount, TEXT("The max number of times each constraint can be resolved when applying CCD constraints. Default is 2. The larger this number is, the more fully CCD constraints are resolved."));
-
-bool bChaosCollisionCCDEnablePhiCheck = false;
-FAutoConsoleVariableRef CVarChaosCollisionCCDEnablePhiCheck(TEXT("p.Chaos.Collision.CCD.EnablePhiCheck"), bChaosCollisionCCDEnablePhiCheck, TEXT("Enable phi check for CCD. If disabled we skip CCD processing of contacts if the penetration depth is below the CCD threshold at TOI=1."));
-
 namespace Chaos
 {
 	namespace CVars
 	{
+		// @todo(chaos): most of these cvars should be settings per particle
+
+		// NOTE: With this disabled secondary CCD collisions will often be missed
+		// @todo(chaos): resweeping also change contacts so it raises questions about collision modifier callbacks and CCD
+		bool bChaosCollisionCCDEnableResweep = true;
+		FAutoConsoleVariableRef CVarChaosCollisionCCDEnableResweep(TEXT("p.Chaos.Collision.CCD.EnableResweep"), bChaosCollisionCCDEnableResweep, TEXT("Enable resweep for CCD. Resweeping allows CCD to catch more secondary collisions but also is more costly. Default is true."));
+
+		// NOTE: With this disabled, secondary collisions can be missed. When enabled, velocity will not be visually consistent after CCD collisions (if ChaosCollisionCCDConstraintMaxProcessCount is too low)
+		bool bChaosCollisionCCDAllowClipping = true;
+		FAutoConsoleVariableRef CVarChaosCollisionCCDAllowClipping(TEXT("p.Chaos.Collision.CCD.AllowClipping"), bChaosCollisionCCDAllowClipping, TEXT("This will clip the CCD object at colliding positions when computation budgets run out. Default is true. Turning this option off might cause tunneling."));
+
+		// By default, we stop processing CCD contacts after a single CCD interaction
+		// This will result in a visual velocity glitch when it happens, but usually this doesn't matter since the impact is very high energy anyway
+		int32 ChaosCollisionCCDConstraintMaxProcessCount = 1;
+		FAutoConsoleVariableRef CVarChaosCollisionCCDConstraintMaxProcessCount(TEXT("p.Chaos.Collision.CCD.ConstraintMaxProcessCount"), ChaosCollisionCCDConstraintMaxProcessCount, TEXT("The max number of times each constraint can be resolved when applying CCD constraints. Default is 2. The larger this number is, the more fully CCD constraints are resolved."));
+
 		FRealSingle CCDEnableThresholdBoundsScale = 0.4f;
 		FAutoConsoleVariableRef  CVarCCDEnableThresholdBoundsScale(TEXT("p.Chaos.CCD.EnableThresholdBoundsScale"), CCDEnableThresholdBoundsScale , TEXT("CCD is used when object position is changing > smallest bound's extent * BoundsScale. 0 will always Use CCD. Values < 0 disables CCD."));
 
@@ -124,6 +123,9 @@ namespace Chaos
 		bool bNeedCCDSolve = false;
 		for (FPBDCollisionConstraint* Constraint : SweptConstraints)
 		{   
+			// A contact can be disabled by a user callback or contact pruning so we need to ignore these.
+			// NOTE: It important that we explicitly check for disabled here, rather than for 0 manifold points since we
+			// may want to use the contact later if resweeping is enabled. 
 			if (!Constraint->IsEnabled())
 			{
 				continue;
@@ -288,7 +290,7 @@ namespace Chaos
 
 	bool CCDConstraintSortPredicate(const FCCDConstraint* Constraint0, const FCCDConstraint* Constraint1)
 	{
-		return Constraint0->SweptConstraint->TimeOfImpact < Constraint1->SweptConstraint->TimeOfImpact;
+		return Constraint0->SweptConstraint->CCDTimeOfImpact < Constraint1->SweptConstraint->CCDTimeOfImpact;
 	}
 
 	void FCCDManager::ApplyIslandSweptConstraints(const int32 Island, const FReal Dt)
@@ -322,7 +324,7 @@ namespace Chaos
 			FCCDParticle* CCDParticle0 = CCDConstraint->Particle[0];
 			FCCDParticle* CCDParticle1 = CCDConstraint->Particle[1];
 
-			IslandTOI = CCDConstraint->SweptConstraint->TimeOfImpact;
+			IslandTOI = CCDConstraint->SweptConstraint->CCDTimeOfImpact;
 
 			// Constraints whose TOIs are in the range of [0, 1) are resolved for this frame. TOI = 1 means that the two 
 			// particles just start touching at the end of the frame and therefore cannot have tunneling this frame. 
@@ -333,28 +335,16 @@ namespace Chaos
 			}
 
 			// If both particles are marked Done (due to clipping), continue
-			if (bChaosCollisionCCDAllowClipping && (!CCDParticle0 || CCDParticle0->Done) && (!CCDParticle1 || CCDParticle1->Done))
-			{
-				ConstraintIndex++;
-				continue;
-			}
-			// Skip CCD resolution if the depth at TOI=1 is low and let the standard contact resolution handle it.
-			// This can be important because CCD contact resolution uses point-mass physics and does not apply rotation 
-			// so we must leave some work for the regular solver to do to get decent behaviour when sliding fast along
-			// a surface for example.
-			// @todo(chaos): enabling this can lead to tunnelling problems when you have a jumble of CCD objects.
-			// Possibly because if we need to re-examin this CCD contact because of an impulse from another CCD contact,
-			// we may be initially penetrating. Investigate and aee if we can come up with a more robust solution. 
-			if (bChaosCollisionCCDEnablePhiCheck && (CCDConstraint->SweptConstraint->GetPhi() > CCDConstraint->PhiThreshold))
+			if (CVars::bChaosCollisionCCDAllowClipping && (!CCDParticle0 || CCDParticle0->Done) && (!CCDParticle1 || CCDParticle1->Done))
 			{
 				ConstraintIndex++;
 				continue;
 			}
 			
-			ensure(CCDConstraint->ProcessedCount < ChaosCollisionCCDConstraintMaxProcessCount);
+			ensure(CCDConstraint->ProcessedCount < CVars::ChaosCollisionCCDConstraintMaxProcessCount);
 
-			// In UpdateConstraintFromGeometrySwept, InitManifoldPoint requires P, Q to be at TOI=1., but the input of 
-			// UpdateConstraintFromGeometrySwept requires transforms at current TOI. So instead of rewinding P, Q, we 
+			// In UpdateConstraintSwept, InitManifoldPoint requires P, Q to be at TOI=1., but the input of 
+			// UpdateConstraintSwept requires transforms at current TOI. So instead of rewinding P, Q, we 
 			// advance X, R to current TOI and keep P, Q at TOI=1.
 			if (CCDParticle0 && !CCDParticle0->Done)
 			{
@@ -365,15 +355,25 @@ namespace Chaos
 				AdvanceParticleXToTOI(CCDParticle1, IslandTOI, Dt);
 			}
 
+#if CHAOS_DEBUG_DRAW
+			// Debugdraw the shape at the current TOI
+			if (CVars::ChaosSolverDrawCCDInteractions)
+			{
+				DebugDraw::DrawCCDCollisionShape(FRigidTransform3::Identity, *CCDConstraint, true, FColor::Magenta, &CVars::ChaosSolverDebugDebugDrawSettings);
+			}
+#endif
+
 			ApplyImpulse(CCDConstraint);
 			CCDConstraint->ProcessedCount++;
 
 			// After applying impulse, constraint TOI need be updated to reflect the new velocities. 
 			// Usually the new velocities are separating, and therefore TOI should be infinity.
 			// See resweep below which (optionally) updates TOI for all other contacts as a result of handling this one
-			CCDConstraint->SweptConstraint->TimeOfImpact = TNumericLimits<FReal>::Max();
+			CCDConstraint->SweptConstraint->CCDTimeOfImpact = TNumericLimits<FReal>::Max();
 
-			if (CCDConstraint->ProcessedCount >= ChaosCollisionCCDConstraintMaxProcessCount)
+			bool bMovedParticle0 = false;
+			bool bMovedParticle1 = false;
+			if (CCDConstraint->ProcessedCount >= CVars::ChaosCollisionCCDConstraintMaxProcessCount)
 			{
 				/* Here is how clipping works:
 				* Assuming collision detection gives us all the possible collision pairs in the current frame.
@@ -384,7 +384,7 @@ namespace Chaos
 				* For kinematic particles, we cannot freeze them in place. In this case, we simply offset the particle with the kinematic motion from [IslandTOI, 1] along the collision normal and freeze it there.
 				* If collision detection is not perfect and does not give us all the secondary collision pairs, setting ChaosCollisionCCDConstraintMaxProcessCount to 1 will always prevent tunneling.
 				*/ 
-				if (bChaosCollisionCCDAllowClipping)
+				if (CVars::bChaosCollisionCCDAllowClipping)
 				{
 					if (CCDParticle0)
 					{
@@ -401,6 +401,7 @@ namespace Chaos
 							ClipParticleP(CCDParticle0);
 						}
 						CCDParticle0->Done = true;
+						bMovedParticle0 = true;
 					}
 					if (CCDParticle1)
 					{
@@ -417,6 +418,7 @@ namespace Chaos
 							ClipParticleP(CCDParticle1);
 						}
 						CCDParticle1->Done = true;
+						bMovedParticle1 = true;
 					}
 				}
 				// If clipping is not allowed, we update particle P (at TOI=1) based on new velocities. 
@@ -425,10 +427,12 @@ namespace Chaos
 					if (CCDParticle0)
 					{
 						UpdateParticleP(CCDParticle0, Dt);
+						bMovedParticle0 = true;
 					}
 					if (CCDParticle1)
 					{
 						UpdateParticleP(CCDParticle1, Dt);
+						bMovedParticle1 = true;
 					}
 				}
 				// Increment ConstraintIndex if we run out of computational budget for this constraint.
@@ -440,115 +444,39 @@ namespace Chaos
 				if (CCDParticle0 && !CCDParticle0->Done)
 				{
 					UpdateParticleP(CCDParticle0, Dt);
+					bMovedParticle0 = true;
 				}
 				if (CCDParticle1 && !CCDParticle1->Done)
 				{
 					UpdateParticleP(CCDParticle1, Dt);
+					bMovedParticle1 = true;
 				}
 			}
 
-			if (bChaosCollisionCCDEnableResweep)
+			// We applied a CCD impulse and updated the particle positions, so we need to update all the constraints involving these particles
+			bool bHasResweptConstraint = false;
+			if (bMovedParticle0)
 			{
-				// For each constraint that contains the two particles on which we applied impulses, we need to update its TOI.
-				const FReal RestDt = (1.f - IslandTOI) * Dt;
-				bool HasResweptConstraint = false;
-				for (int32 i = 0; i < 2; i++)
-				{
-					FCCDParticle *CCDParticle = CCDConstraint->Particle[i];
-					if (CCDParticle != nullptr)
-					{
-						for (int32 AttachedCCDConstraintIndex = 0; AttachedCCDConstraintIndex < CCDParticle->AttachedCCDConstraints.Num(); AttachedCCDConstraintIndex++)
-						{
-							FCCDConstraint *AttachedCCDConstraint = CCDParticle->AttachedCCDConstraints[AttachedCCDConstraintIndex];
-							if (AttachedCCDConstraint == CCDConstraint || AttachedCCDConstraint->ProcessedCount >= ChaosCollisionCCDConstraintMaxProcessCount)
-							{
-								continue;
-							}
-							FRigidTransform3 RigidTransforms[2]; // Rigid transforms at TOI
-							for(int32 j = 0; j < 2; j++)
-							{
-								FCCDParticle *AffectedCCDParticle = AttachedCCDConstraint->Particle[j];
-								if (AffectedCCDParticle != nullptr)
-								{
-									TPBDRigidParticleHandle<FReal, 3>* AffectedParticle = AffectedCCDParticle->Particle;
-									if (!AffectedCCDParticle->Done)
-									{
-										AdvanceParticleXToTOI(AffectedCCDParticle, IslandTOI, Dt);
-									}
-									RigidTransforms[j] = FRigidTransform3(AffectedParticle->X(), AffectedParticle->R());
-								}
-								else
-								{
-									FGenericParticleHandle AffectedParticle = FGenericParticleHandle(AttachedCCDConstraint->SweptConstraint->GetParticle(j));
-									const bool IsKinematic = AffectedParticle->ObjectState() == EObjectStateType::Kinematic;
-									if (IsKinematic)
-									{
-										RigidTransforms[j] = FRigidTransform3(AffectedParticle->P() - AffectedParticle->V() * ((1.f - IslandTOI) * Dt), AffectedParticle->Q());
-									}
-									else // Static case
-									{
-										RigidTransforms[j] = FRigidTransform3(AffectedParticle->X(), AffectedParticle->R());
-									}
-								}
-							}
-
-							/** When resweeping, we need to recompute TOI for affected constraints and therefore the work (GJKRaycast) used to compute the original TOI is wasted.
-							* A potential optimization is to compute an estimate of TOI using the AABB of the particles. Sweeping AABBs to compute an estimated TOI can be very efficient, and this TOI is strictly smaller than the accurate TOI.
-							* At each for-loop iteration, we only need the constraint with the smallest TOI in the island. A potential optimized algorithm could be like:
-							* 	First, sort constraints based on estimated TOI.
-							*	Find the constraint with the smallest accurate TOI:
-							*		Walk through the constraint list, change estimated TOI to accurate TOI
-							*		If accurate TOI is smaller than estimated TOI of the next constraint, we know we found the constraint.
-							*	When resweeping, compute estimated TOI instead of accurate TOI since updated TOI might need to be updated again.
-							*/
-
-							FPBDCollisionConstraint* SweptConstraint = AttachedCCDConstraint->SweptConstraint;
-							const FConstGenericParticleHandle Particle0 = SweptConstraint->GetParticle0();
-							const FConstGenericParticleHandle Particle1 = SweptConstraint->GetParticle1();
-
-							// Initial shape sweep transforms
-							const FRigidTransform3 ShapeStartWorldTransform0 = SweptConstraint->GetShapeRelativeTransform0() * RigidTransforms[0];
-							const FRigidTransform3 ShapeStartWorldTransform1 = SweptConstraint->GetShapeRelativeTransform1() * RigidTransforms[1];
-
-							// End shape sweep transforms
-							const FRigidTransform3 ParticleEndWorldTransform0 = FParticleUtilities::GetActorWorldTransform(Particle0);
-							const FRigidTransform3 ParticleEndWorldTransform1 = FParticleUtilities::GetActorWorldTransform(Particle1);
-							const FRigidTransform3 ShapeEndWorldTransform0 = SweptConstraint->GetShapeRelativeTransform0() * ParticleEndWorldTransform0;
-							const FRigidTransform3 ShapeEndWorldTransform1 = SweptConstraint->GetShapeRelativeTransform1() * ParticleEndWorldTransform1;
-
-							// Update of swept constraint assumes that the constraint holds the end transforms for the sweep
-							SweptConstraint->SetShapeWorldTransforms(ShapeEndWorldTransform0, ShapeEndWorldTransform1);
-
-							if (bChaosCollisionCCDEnableResweep)
-							{
-								// Resweep the shape. This is the expensive option
-								Collisions::UpdateConstraintSwept(*SweptConstraint, ShapeStartWorldTransform0, ShapeStartWorldTransform1, RestDt);
-							}
-
-							const FReal RestDtTOI = AttachedCCDConstraint->SweptConstraint->TimeOfImpact;
-							if ((RestDtTOI >= 0) && (RestDtTOI < FReal(1)))
-							{
-								AttachedCCDConstraint->SweptConstraint->TimeOfImpact = IslandTOI + (FReal(1) - IslandTOI) * RestDtTOI;
-							}
-
-							// When bUpdated==true, TOI was modified. When bUpdated==false, TOI was set to be TNumericLimits<FReal>::Max(). In either case, a re-sorting on the constraints is needed.
-							HasResweptConstraint = true;
-						}
-					}
-				}
-				if (HasResweptConstraint)
-				{
-					std::sort(SortedCCDConstraints.GetData() + ConstraintIndex, SortedCCDConstraints.GetData() + ConstraintStart + ConstraintNum, CCDConstraintSortPredicate);
-				}
+				bHasResweptConstraint |= UpdateParticleSweptConstraints(CCDParticle0, IslandTOI, Dt);
 			}
-		}
+			if (bMovedParticle1)
+			{
+				bHasResweptConstraint |= UpdateParticleSweptConstraints(CCDParticle1, IslandTOI, Dt);
+			}
 
-		// Debugdraw the shapes at the final position
-		for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
-		{
-			CCDConstraint->SweptConstraint->SetCCDResults(CCDConstraint->NetImpulse);
+			// If we updated some constraints, we need to sort so that we handle the next TOI event
+			if (bHasResweptConstraint)
+			{
+				std::sort(SortedCCDConstraints.GetData() + ConstraintIndex, SortedCCDConstraints.GetData() + ConstraintStart + ConstraintNum, CCDConstraintSortPredicate);
+			}
 		}
 		
+		// Update the constraint with the CCD results
+		for (FCCDConstraint* CCDConstraint : SortedCCDConstraints)
+		{ 
+			CCDConstraint->SweptConstraint->SetCCDResults(CCDConstraint->NetImpulse);
+		}
+
 #if CHAOS_DEBUG_DRAW
 		// Debugdraw the shapes at the final position
 		if (CVars::ChaosSolverDrawCCDInteractions)
@@ -559,6 +487,100 @@ namespace Chaos
 			}
 		}
 #endif
+	}
+
+	bool FCCDManager::UpdateParticleSweptConstraints(FCCDParticle* CCDParticle, const FReal IslandTOI, const FReal Dt)
+	{
+		const FReal RestDt = (1.f - IslandTOI) * Dt;
+		bool HasResweptConstraint = false;
+		if (CCDParticle != nullptr)
+		{
+			for (int32 AttachedCCDConstraintIndex = 0; AttachedCCDConstraintIndex < CCDParticle->AttachedCCDConstraints.Num(); AttachedCCDConstraintIndex++)
+			{
+				FCCDConstraint* AttachedCCDConstraint = CCDParticle->AttachedCCDConstraints[AttachedCCDConstraintIndex];
+				if (AttachedCCDConstraint->ProcessedCount >= CVars::ChaosCollisionCCDConstraintMaxProcessCount)
+				{
+					continue;
+				}
+
+				// Particle transforms at TOI
+				FRigidTransform3 ParticleStartWorldTransforms[2];
+				for (int32 j = 0; j < 2; j++)
+				{
+					FCCDParticle* AffectedCCDParticle = AttachedCCDConstraint->Particle[j];
+					if (AffectedCCDParticle != nullptr)
+					{
+						TPBDRigidParticleHandle<FReal, 3>* AffectedParticle = AffectedCCDParticle->Particle;
+						if (!AffectedCCDParticle->Done)
+						{
+							AdvanceParticleXToTOI(AffectedCCDParticle, IslandTOI, Dt);
+						}
+						ParticleStartWorldTransforms[j] = FRigidTransform3(AffectedParticle->X(), AffectedParticle->R());
+					}
+					else
+					{
+						FGenericParticleHandle AffectedParticle = FGenericParticleHandle(AttachedCCDConstraint->SweptConstraint->GetParticle(j));
+						const bool IsKinematic = AffectedParticle->ObjectState() == EObjectStateType::Kinematic;
+						if (IsKinematic)
+						{
+							ParticleStartWorldTransforms[j] = FRigidTransform3(AffectedParticle->P() - AffectedParticle->V() * RestDt, AffectedParticle->Q());
+						}
+						else // Static case
+						{
+							ParticleStartWorldTransforms[j] = FRigidTransform3(AffectedParticle->X(), AffectedParticle->R());
+						}
+					}
+				}
+				/** When resweeping, we need to recompute TOI for affected constraints and therefore the work (GJKRaycast) used to compute the original TOI is wasted.
+				* A potential optimization is to compute an estimate of TOI using the AABB of the particles. Sweeping AABBs to compute an estimated TOI can be very efficient, and this TOI is strictly smaller than the accurate TOI.
+				* At each for-loop iteration, we only need the constraint with the smallest TOI in the island. A potential optimized algorithm could be like:
+				* 	First, sort constraints based on estimated TOI.
+				*	Find the constraint with the smallest accurate TOI:
+				*		Walk through the constraint list, change estimated TOI to accurate TOI
+				*		If accurate TOI is smaller than estimated TOI of the next constraint, we know we found the constraint.
+				*	When resweeping, compute estimated TOI instead of accurate TOI since updated TOI might need to be updated again.
+				*/
+
+				FPBDCollisionConstraint* SweptConstraint = AttachedCCDConstraint->SweptConstraint;
+				const FConstGenericParticleHandle Particle0 = SweptConstraint->GetParticle0();
+				const FConstGenericParticleHandle Particle1 = SweptConstraint->GetParticle1();
+
+				// Initial shape sweep transforms
+				const FRigidTransform3 ShapeStartWorldTransform0 = SweptConstraint->GetShapeRelativeTransform0() * ParticleStartWorldTransforms[0];
+				const FRigidTransform3 ShapeStartWorldTransform1 = SweptConstraint->GetShapeRelativeTransform1() * ParticleStartWorldTransforms[1];
+
+				// End shape sweep transforms
+				const FRigidTransform3 ParticleEndWorldTransform0 = FParticleUtilities::GetActorWorldTransform(Particle0);
+				const FRigidTransform3 ParticleEndWorldTransform1 = FParticleUtilities::GetActorWorldTransform(Particle1);
+				const FRigidTransform3 ShapeEndWorldTransform0 = SweptConstraint->GetShapeRelativeTransform0() * ParticleEndWorldTransform0;
+				const FRigidTransform3 ShapeEndWorldTransform1 = SweptConstraint->GetShapeRelativeTransform1() * ParticleEndWorldTransform1;
+
+				// Update of swept constraint assumes that the constraint holds the end transforms for the sweep
+				SweptConstraint->SetShapeWorldTransforms(ShapeEndWorldTransform0, ShapeEndWorldTransform1);
+
+				if (CVars::bChaosCollisionCCDEnableResweep)
+				{
+					// Resweep the shape. This is the expensive option
+					Collisions::UpdateConstraintSwept(*SweptConstraint, ShapeStartWorldTransform0, ShapeStartWorldTransform1, RestDt);
+				}
+				else
+				{
+					// Keep the contact as-is but update the depth and TOI based on current transforms
+					SweptConstraint->UpdateSweptManifoldPoints(ShapeStartWorldTransform0.GetTranslation(), ShapeStartWorldTransform1.GetTranslation(), Dt);
+				}
+
+				const FReal RestDtTOI = AttachedCCDConstraint->SweptConstraint->CCDTimeOfImpact;
+				if ((RestDtTOI >= 0) && (RestDtTOI < FReal(1)))
+				{
+					AttachedCCDConstraint->SweptConstraint->CCDTimeOfImpact = IslandTOI + (FReal(1) - IslandTOI) * RestDtTOI;
+				}
+
+				// When bUpdated==true, TOI was modified. When bUpdated==false, TOI was set to be TNumericLimits<FReal>::Max(). In either case, a re-sorting on the constraints is needed.
+				HasResweptConstraint = true;
+			}
+		}
+
+		return HasResweptConstraint;
 	}
 
 	void FCCDManager::ResetIslandParticles(const int32 Island)
@@ -621,8 +643,9 @@ namespace Chaos
 		check(Rigid0 != nullptr || Rigid1 != nullptr);
 		const FReal Restitution = Constraint->GetRestitution();
 		const FRigidTransform3& ShapeWorldTransform1 = Constraint->GetShapeWorldTransform1();
-		for(const FManifoldPoint &ManifoldPoint : Constraint->GetManifoldPoints())
-			{
+		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < Constraint->NumManifoldPoints(); ++ManifoldPointIndex)
+		{
+			const FManifoldPoint& ManifoldPoint = Constraint->GetManifoldPoint(ManifoldPointIndex);
 			if (ManifoldPoint.Flags.bDisabled)
 			{
 				continue;
@@ -636,8 +659,8 @@ namespace Chaos
 			{
 				const FReal TargetNormalV = -Restitution * NormalV;
 				// If a particle is marked done, we treat it as static by setting InvM to 0. 
-				const bool bInfMass0 = Rigid0 == nullptr || (bChaosCollisionCCDAllowClipping && CCDConstraint->Particle[0] && CCDConstraint->Particle[0]->Done);
-				const bool bInfMass1 = Rigid1 == nullptr || (bChaosCollisionCCDAllowClipping && CCDConstraint->Particle[1] && CCDConstraint->Particle[1]->Done);
+				const bool bInfMass0 = Rigid0 == nullptr || (CVars::bChaosCollisionCCDAllowClipping && CCDConstraint->Particle[0] && CCDConstraint->Particle[0]->Done);
+				const bool bInfMass1 = Rigid1 == nullptr || (CVars::bChaosCollisionCCDAllowClipping && CCDConstraint->Particle[1] && CCDConstraint->Particle[1]->Done);
 				const FReal InvM0 = bInfMass0 ? 0.f : Rigid0->InvM();
 				const FReal InvM1 = bInfMass1 ? 0.f : Rigid1->InvM();
 				const FVec3 Impulse = (TargetNormalV - NormalV) * Normal / (InvM0 + InvM1);
@@ -649,7 +672,15 @@ namespace Chaos
 				{
 					Rigid1->V() -= Impulse * InvM1;
 				}
+
 				CCDConstraint->NetImpulse += Impulse;
+
+#if CHAOS_DEBUG_DRAW
+				if (CVars::ChaosSolverDrawCCDInteractions)
+				{
+					DebugDraw::DrawCCDCollisionImpulse(FRigidTransform3::Identity, *CCDConstraint, ManifoldPointIndex, Impulse, &CVars::ChaosSolverDebugDebugDrawSettings);
+				}
+#endif
 			}
 		}
 	}

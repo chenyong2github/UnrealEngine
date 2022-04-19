@@ -115,8 +115,6 @@ bool bChaos_Collision_ShapesArrayMode = true;
 FAutoConsoleVariableRef CVarChaos_Collision_ShapesArrayMode(TEXT("p.Chaos.Collision.ShapesArrayMode"), bChaos_Collision_ShapesArrayMode, TEXT(""));
 
 
-extern bool bChaosCollisionCCDEnableResweep;
-
 namespace Chaos
 {
 	namespace Collisions
@@ -199,56 +197,33 @@ namespace Chaos
 		}
 
 		// Initializes TimeOfImpact and adjusts Phi for TOI.
+		// @todo(chaos): this repeats normal calculation and dot product - move to ComputeSweptContactPhiAndTOIHelper?
 		void SetSweptConstraintTOI(TGeometryParticleHandle<FReal, 3>* Particle, const FReal TOI, const FReal Length, const FVec3& Dir, FPBDCollisionConstraint& SweptConstraint)
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_SetSweptConstraintTOI, ConstraintsDetailedStats);
 
-			if (SweptConstraint.GetPhi() > 0.0f)
+			if (TOI <= FReal(1))
 			{
-				SweptConstraint.TimeOfImpact = TNumericLimits<FReal>::Max();
-				return;
-			}
+				const FVec3 ContactNormal = SweptConstraint.CalculateWorldContactNormal();
+				const FReal DirDotNormal = FVec3::DotProduct(Dir, ContactNormal);
 
-			const FReal MinBounds = Particle->Geometry()->BoundingBox().Extents().Min();
-			const FReal Depth = -SweptConstraint.GetPhi();
-			const FReal MaxDepth = MinBounds * CCDAllowedDepthBoundsScale;
-
-			if (TOI <= 0.0f)
-			{
-				// Initial overlap. Phi is correct already.
-				TPBDRigidParticleHandle<FReal, 3> *Rigid0 = SweptConstraint.GetParticle0()->CastToRigidParticle();
-				TPBDRigidParticleHandle<FReal, 3> *Rigid1 = SweptConstraint.GetParticle1()->CastToRigidParticle();
-				const FRigidTransform3& ShapeWorldTransform1 = SweptConstraint.GetShapeWorldTransform1();
-				const FVec3 Normal = ShapeWorldTransform1.TransformVectorNoScale(SweptConstraint.GetClosestManifoldPoint()->ContactPoint.ShapeContactNormal);
-				const FVec3 V0 = Rigid0 != nullptr ? Rigid0->V() : FVec3(0.f);
-				const FVec3 V1 = Rigid1 != nullptr ? Rigid1->V() : FVec3(0.f);
-				const FReal NormalV = FVec3::DotProduct(V0 - V1, Normal);
-				// The two objects are already separating. This constraint needs not to be considered for CCD if the normal velocity is positive.
-				// If TOI < 0 (initial penetration case), CCD will not depenetrate the objects since CCD is only a velocity solve. Depenetration will be left for the main solve.
-				if (NormalV >= 0) 
+				// Modify TOI so we ignore separating and shallow CCD contacts
+				// NOTE (See GJKRaycast2): If initially penetrating, Phi is the separation at the start of the sweep.
+				// But if not initially penetrating Phi is the separation at the end of the sweep
+				// @todo(chaos): The way Phi is set for sweeps is quite confusing - can we make this better?
+				FReal StartPhi, EndPhi;
+				if (TOI <= FReal(0))
 				{
-					SweptConstraint.TimeOfImpact = std::numeric_limits<FReal>::max();
+					StartPhi = SweptConstraint.GetPhi();
+					EndPhi = StartPhi + DirDotNormal * Length;
 				}
 				else
 				{
-					SweptConstraint.TimeOfImpact = 0.0f;
+					EndPhi = SweptConstraint.GetPhi();
+					StartPhi = EndPhi - DirDotNormal * Length;
 				}
-			}
-			else if (TOI > 0.0f && TOI <= 1.0f)
-			{
-				if (Depth <= MaxDepth)
-				{
-					// Although we may have an earlier TOI, depth at TOI = 1 is within tolerance, so just use TOI = 1.
-					SweptConstraint.TimeOfImpact = 1.0f;
-				}
-				else if (Depth > MaxDepth)
-				{
-					// Compute ExtraT that will take us from TOI and 0 phi to slightly past TOI w/ phi at maximum allowed depth.
-					const FReal DirDotNormal = FMath::Abs(FVec3::DotProduct(Dir, SweptConstraint.CalculateWorldContactNormal()));
-					const FReal ExtraT = MaxDepth / (DirDotNormal * Length);
 
-					SweptConstraint.TimeOfImpact = TOI + ExtraT;
-				}
+				SweptConstraint.CCDTimeOfImpact = SweptConstraint.CalculateModifiedSweptTOI(StartPhi, EndPhi);
 			}
 		}
 
@@ -1842,7 +1817,7 @@ namespace Chaos
 				}
 			}
 
-			Constraint.TimeOfImpact = TNumericLimits<FReal>::Max(); // CCD will not be used for this constraint
+			Constraint.CCDTimeOfImpact = TNumericLimits<FReal>::Max(); // CCD will not be used for this constraint
 			// Do a normal non-swept update if we reach this point - Not required for now, since this will be done in solver
 			// UpdateConstraintFromGeometryImpl<UpdateType>(*(Constraint.As<FPBDCollisionConstraint>()), WorldTransform0, WorldTransform1, Dt);
 			return false;
@@ -2164,9 +2139,9 @@ namespace Chaos
 			UpdateConstraintFromGeometryImpl<ECollisionUpdateType::Deepest>(Constraint, ShapeWorldTransform0, ShapeWorldTransform1, Dt);
 		}
 
-		void UpdateConstraintSwept(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ShapeWorldTransform0, const FRigidTransform3& ShapeWorldTransform1, const FReal Dt)
+		bool UpdateConstraintSwept(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ShapeStartWorldTransform0, const FRigidTransform3& ShapeStartWorldTransform1, const FReal Dt)
 		{
-			UpdateConstraintFromGeometrySweptImpl<ECollisionUpdateType::Deepest>(Constraint, ShapeWorldTransform0, ShapeWorldTransform1, Dt);
+			return UpdateConstraintFromGeometrySweptImpl<ECollisionUpdateType::Deepest>(Constraint, ShapeStartWorldTransform0, ShapeStartWorldTransform1, Dt);
 		}
 
 		// Run collision detection for the specified constraint to update the nearest contact point.
@@ -2179,16 +2154,6 @@ namespace Chaos
 			Constraint.SetShapeWorldTransforms(WorldTransform0, WorldTransform1);
 
 			UpdateConstraintFromGeometryImpl<UpdateType>(Constraint, WorldTransform0, WorldTransform1, Dt);
-		}
-
-		template<ECollisionUpdateType UpdateType>
-		bool UpdateConstraintFromGeometrySwept(FPBDCollisionConstraint& Constraint, const FRigidTransform3& ParticleWorldTransform0, const FRigidTransform3& ParticleWorldTransform1, const FReal Dt)
-		{
-			const FRigidTransform3 WorldTransform0 = Constraint.GetShapeRelativeTransform0() * ParticleWorldTransform0;
-			const FRigidTransform3 WorldTransform1 = Constraint.GetShapeRelativeTransform1() * ParticleWorldTransform1;
-			Constraint.SetShapeWorldTransforms(WorldTransform0, WorldTransform1);
-
-			return UpdateConstraintFromGeometrySweptImpl<UpdateType>(Constraint, WorldTransform0, WorldTransform1, Dt);
 		}
 
 		template<typename T_TRAITS>
@@ -2618,9 +2583,6 @@ namespace Chaos
 
 		template void UpdateConstraintFromGeometry<ECollisionUpdateType::Any>(FPBDCollisionConstraint& ConstraintBase, const FRigidTransform3& Transform0, const FRigidTransform3& Transform1, const FReal Dt);
 		template void UpdateConstraintFromGeometry<ECollisionUpdateType::Deepest>(FPBDCollisionConstraint& ConstraintBase, const FRigidTransform3& Transform0, const FRigidTransform3& Transform1, const FReal Dt);
-
-		template bool UpdateConstraintFromGeometrySwept<ECollisionUpdateType::Any>(FPBDCollisionConstraint& ConstraintBase, const FRigidTransform3& Transform0, const FRigidTransform3& Transform1, const FReal Dt);
-		template bool UpdateConstraintFromGeometrySwept<ECollisionUpdateType::Deepest>(FPBDCollisionConstraint& ConstraintBase, const FRigidTransform3& Transform0, const FRigidTransform3& Transform1, const FReal Dt);
 
 	} // Collisions
 

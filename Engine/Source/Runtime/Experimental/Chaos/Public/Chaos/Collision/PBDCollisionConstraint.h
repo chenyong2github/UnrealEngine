@@ -281,7 +281,14 @@ namespace Chaos
 		/**
 		 * @brief Enable or disable CCD for this constraint
 		*/
-		void SetCCDEnabled(const bool bCCDEnabled) { CCDType = bCCDEnabled ? ECollisionCCDType::Enabled : ECollisionCCDType::Disabled; }
+		void SetCCDEnabled(const bool bCCDEnabled)
+		{ 
+			CCDType = bCCDEnabled ? ECollisionCCDType::Enabled : ECollisionCCDType::Disabled;
+			if (bCCDEnabled && (CCDPenetrationThreshold == FReal(0)))
+			{
+				InitCCDThreshold();
+			}
+		}
 
 		//
 		// API
@@ -402,6 +409,31 @@ namespace Chaos
 		const FSavedManifoldPoint* FindSavedManifoldPoint(const FManifoldPoint& ManifoldPoint) const;
 		void ResetSavedManifoldPoints() { SavedManifoldPoints.Reset(); }
 
+		inline int32 NumEnabledManifoldPoints() const
+		{
+			int32 NumEnabled = 0;
+			if (IsEnabled())
+			{
+				for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < NumManifoldPoints(); ++ManifoldPointIndex)
+				{
+					if (!ManifoldPoints[ManifoldPointIndex].Flags.bDisabled)
+					{
+						++NumEnabled;
+					}
+				}
+			}
+			return NumEnabled;
+		}
+
+		inline void DisableManifoldPoint(const int32 DisabledManifoldPointIndex)
+		{
+			ManifoldPoints[DisabledManifoldPointIndex].Flags.bDisabled = true;
+			if (NumEnabledManifoldPoints() == 0)
+			{
+				SetDisabled(true);
+			}
+		}
+
 		void AddIncrementalManifoldContact(const FContactPoint& ContactPoint);
 
 		inline void AddOneshotManifoldContact(const FContactPoint& ContactPoint)
@@ -457,6 +489,17 @@ namespace Chaos
 				ManifoldPoints[ManifoldPointIndex] = InManifoldPoints[ManifoldPointIndex];
 			}
 		}
+
+		/**
+		 * @brief Update the contact depth and TOI based on the current shape world transforms and the given start transforms
+		*/
+		void UpdateSweptManifoldPoints(const FVec3& ShapeStartWorldPosition0, const FVec3& ShapeStartWorldPosition1, const FReal Dt);
+
+		/**
+		 * @brief return the TOI to use for CCD given the start and end separations
+		 * We ignore separated and separating contacts, and modify TOI to leave some minimim overlap.
+		*/
+		FReal CalculateModifiedSweptTOI(const FReal StartPhi, const FReal EndPhi);
 
 		// The GJK warm-start data. This is updated directly in the narrow phase
 		FGJKSimplexData& GetGJKWarmStartData() { return GJKWarmStartData; }
@@ -611,6 +654,8 @@ namespace Chaos
 
 		void InitMarginsAndTolerances(const EImplicitObjectType ImplicitType0, const EImplicitObjectType ImplicitType1, const FReal Margin0, const FReal Margin1);
 
+		void InitCCDThreshold();
+
 	private:
 		FReal CalculateSavedManifoldPointScore(const FSavedManifoldPoint& SavedManifoldPoint, const FManifoldPoint& ManifoldPoint, const FReal DistanceToleranceSq) const;
 
@@ -629,7 +674,8 @@ namespace Chaos
 		FVec3 AccumulatedImpulse;					// @todo(chaos): we need to accumulate angular impulse separately
 
 		// Value in range [0,1] used to interpolate P between [X,P] that we will rollback to when solving at time of impact.
-		FReal TimeOfImpact;
+		FReal CCDTimeOfImpact;
+		FReal CCDPenetrationThreshold;
 
 	private:
 		FPBDCollisionConstraintContainerCookie ContainerCookie;

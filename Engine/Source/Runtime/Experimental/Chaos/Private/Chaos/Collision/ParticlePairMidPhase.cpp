@@ -358,6 +358,7 @@ namespace Chaos
 			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
 			Constraint->SetCCDEnabled(true);
+			Constraint->SetCullDistance(CullDistance);
 			Constraint->ResetManifold();
 			Constraint->ResetActiveManifoldContacts();
 
@@ -865,10 +866,15 @@ namespace Chaos
 		}
 
 		// CullDistance is scaled by the size of the dynamic objects.
-		const FReal CullDistance = InCullDistance * CullDistanceScale;
+		FReal CullDistance = InCullDistance * CullDistanceScale;
 
 		// Enable CCD?
 		const bool bUseCCD = Flags.bIsCCD && ShouldEnableCCD(Dt);
+		if (bUseCCD)
+		{
+			const FReal VMax = (FConstGenericParticleHandle(GetParticle0())->V() - FConstGenericParticleHandle(GetParticle1())->V()).GetAbsMax();
+			CullDistance += VMax * Dt;
+		}
 		
 		// Run collision detection on all potentially colliding shape pairs
 		NumActiveConstraints = 0;

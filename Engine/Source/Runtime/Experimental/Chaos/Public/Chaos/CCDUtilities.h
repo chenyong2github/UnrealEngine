@@ -91,6 +91,7 @@ namespace Chaos
 
 	private:
 		void ApplySweptConstraints(const FReal Dt, TArrayView<FPBDCollisionConstraint* const> InSweptConstraints, const int32 NumDynamicParticles = TNumericLimits<int32>::Max());
+		bool UpdateParticleSweptConstraints(FCCDParticle* CCDParticle, const FReal IslandTOI, const FReal Dt);
 		// This is called after ApplySweptConstraints. This function updates manifold data which will be used in normal solve.
 		void UpdateSweptConstraints(const FReal Dt, FCollisionConstraintAllocator *CollisionAllocator);
 		void OverwriteXUsingV(const FReal Dt);

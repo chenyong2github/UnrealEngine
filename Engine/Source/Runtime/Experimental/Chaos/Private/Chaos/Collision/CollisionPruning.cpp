@@ -242,12 +242,6 @@ namespace Chaos
 		{
 			const FContactGroup& ContactGroup = ContactGroupContainer.ContactGroups[ContactGroupIndex];
 
-			if (ContactGroup.PlaneNormal.Z < FReal(0.5))
-			{
-				static int32 sHere = 0;
-				++sHere;
-			}
-
 			// @todo(chaos): assuming here that the contacts are not all in a line...do we need to check for that?
 			if (!ContactGroup.bActive)
 			{
@@ -280,7 +274,7 @@ namespace Chaos
 				{
 					for (FContactGroupManifoldPoint& RejectCandidateManifoldPoint : RejectCandidateContactGroup.ManifoldPoints)
 					{
-						RejectCandidateManifoldPoint.Collision->GetManifoldPoint(RejectCandidateManifoldPoint.ManifoldPointIndex).Flags.bDisabled = true;
+						RejectCandidateManifoldPoint.Collision->DisableManifoldPoint(RejectCandidateManifoldPoint.ManifoldPointIndex);
 					}
 					RejectCandidateContactGroup.bActive = false;
 				}

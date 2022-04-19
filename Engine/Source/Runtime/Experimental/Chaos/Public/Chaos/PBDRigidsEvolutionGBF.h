@@ -34,6 +34,7 @@ namespace Chaos
 		CHAOS_API extern FRealSingle HackMaxVelocity;
 		CHAOS_API extern FRealSingle SmoothedPositionLerpRate;
 		CHAOS_API extern bool bChaosCollisionCCDUseTightBoundingBox;
+		CHAOS_API extern int32 ChaosCollisionCCDConstraintMaxProcessCount;
 		CHAOS_API extern int32 ChaosSolverDrawCCDThresholds;
 	}
 
@@ -296,6 +297,8 @@ namespace Chaos
 
 					if (!Particle.CCDEnabled())
 					{
+						// Expand bounds about P/Q by a small amount. This can still result in missed collisions, especially
+						// when we have joints that pull the body back to X/R, if P-X is greater than the BoundsThickness
 						Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness));
 					}
 					else
@@ -310,14 +313,16 @@ namespace Chaos
 
 						if (CCDHelpers::DeltaExceedsThreshold(Particle.CCDAxisThreshold(), Particle.P() - Particle.X(), Particle.Q()))
 						{
-							if (CVars::bChaosCollisionCCDUseTightBoundingBox)
+							// We sweep the bounds from P back along the velocity and expand by a small amount.
+							// If not using tight bounds we also expand the bounds in all directions by Velocity. This is necessary only for secondary CCD collisions
+							// @todo(chaos): expanding the bounds by velocity is very expensive - revisit this
+							const FVec3 VDt = Particle.V() * Dt;
+							FReal CCDBoundsExpansion = BoundsThickness;
+							if (!CVars::bChaosCollisionCCDUseTightBoundingBox && (CVars::ChaosCollisionCCDConstraintMaxProcessCount > 1))
 							{
-								Particle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness), Particle.X() - Particle.P());
+								CCDBoundsExpansion += VDt.GetAbsMax();
 							}
-							else
-							{
-								Particle.UpdateWorldSpaceState(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(BoundsThickness) + Particle.V() * Dt);
-							}
+							Particle.UpdateWorldSpaceStateSwept(FRigidTransform3(Particle.P(), Particle.Q()), FVec3(CCDBoundsExpansion), -VDt);
 						}
 						else
 						{

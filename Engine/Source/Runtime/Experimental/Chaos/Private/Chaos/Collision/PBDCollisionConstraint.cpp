@@ -16,6 +16,8 @@
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
+extern Chaos::FRealSingle CCDAllowedDepthBoundsScale;
+
 namespace Chaos
 {
 	extern bool bChaos_Collision_EnableManifoldGJKInject;
@@ -179,7 +181,8 @@ namespace Chaos
 		, Material()
 		, Stiffness(1)
 		, AccumulatedImpulse(0)
-		, TimeOfImpact(0)
+		, CCDTimeOfImpact(0)
+		, CCDPenetrationThreshold(0)
 		, ContainerCookie()
 		, ShapesType(EContactShapesType::Unknown)
 		, CCDType(ECollisionCCDType::Disabled)
@@ -218,7 +221,8 @@ namespace Chaos
 		, Material()
 		, Stiffness(1)
 		, AccumulatedImpulse(0)
-		, TimeOfImpact(0)
+		, CCDTimeOfImpact(0)
+		, CCDPenetrationThreshold(0)
 		, ContainerCookie()
 		, ShapesType(EContactShapesType::Unknown)
 		, CCDType(ECollisionCCDType::Disabled)
@@ -343,6 +347,14 @@ namespace Chaos
 
 		Flags.bIsQuadratic0 = bIsQuadratic0;
 		Flags.bIsQuadratic1 = bIsQuadratic1;
+	}
+
+	void FPBDCollisionConstraint::InitCCDThreshold()
+	{
+		// Calculate the max penetration that we ignore with CCD contacts
+		const FReal Threshold0 = FConstGenericParticleHandle(Particle[0])->CCDEnabled() ? Implicit[0]->BoundingBox().Extents().GetAbsMin() : FReal(0);
+		const FReal Threshold1 = FConstGenericParticleHandle(Particle[1])->CCDEnabled() ? Implicit[1]->BoundingBox().Extents().GetAbsMin() : FReal(0);
+		CCDPenetrationThreshold = FMath::Max(Threshold0, Threshold1) * CCDAllowedDepthBoundsScale;
 	}
 
 	void FPBDCollisionConstraint::SetIsSleeping(const bool bInIsSleeping)
@@ -1025,4 +1037,91 @@ namespace Chaos
 			return NoRestingDependency;
 		}
 	}
+
+	// NOTE: This only works well if we do not update the rotation during CCD interations (which we currently do not)
+	// and we start off with a good selection for the contact plane. The latter is true if we have large objects but not so true
+	// when colliding against non-smooth triangle meshes
+	void FPBDCollisionConstraint::UpdateSweptManifoldPoints(const FVec3& ShapeStartWorldPosition0, const FVec3& ShapeStartWorldPosition1, const FReal Dt)
+	{
+		FReal MinTOI = TNumericLimits<FReal>::Max();
+		int32 MinTOIManifoldPointIndex = INDEX_NONE;
+
+		for (int32 ManifoldPointIndex = 0; ManifoldPointIndex < ManifoldPoints.Num(); ++ManifoldPointIndex)
+		{
+			FManifoldPoint& ManifoldPoint = ManifoldPoints[ManifoldPointIndex];
+			if (ManifoldPoint.Flags.bDisabled)
+			{
+				continue;
+			}
+
+			// Start and End contact positions in world space
+			const FVec3 ContactOffset0 = ShapeWorldTransform0.TransformVectorNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[0]);
+			const FVec3 ContactStartPos0 = ShapeStartWorldPosition0 + ContactOffset0;
+			const FVec3 ContactEndPos0 = ShapeWorldTransform0.GetTranslation() + ContactOffset0;
+			const FVec3 ContactOffset1 = ShapeWorldTransform1.TransformVectorNoScale(ManifoldPoint.ContactPoint.ShapeContactPoints[1]);
+			const FVec3 ContactStartPos1 = ShapeStartWorldPosition1 + ContactOffset1;
+			const FVec3 ContactEndPos1 = ShapeWorldTransform1.GetTranslation() + ContactOffset1;
+
+			// Contact normal in world space
+			const FVec3 ContactNormal = ShapeWorldTransform1.TransformVectorNoScale(ManifoldPoint.ContactPoint.ShapeContactNormal);
+
+			// Start and end separation
+			const FReal ContactStartPhi = FVec3::DotProduct(ContactStartPos0 - ContactStartPos1, ContactNormal);
+			const FReal ContactEndPhi = FVec3::DotProduct(ContactEndPos0 - ContactEndPos1, ContactNormal);
+
+			// Update the TOI and track closest manifold point
+			const FReal ContactTOI = CalculateModifiedSweptTOI(ContactStartPhi, ContactEndPhi);
+			if (ContactTOI < MinTOI)
+			{
+				MinTOI = ContactTOI;
+				MinTOIManifoldPointIndex = ManifoldPointIndex;
+			}
+
+			// Update the contact separation
+			ManifoldPoint.ContactPoint.Phi = ContactEndPhi;
+		}
+
+		CCDTimeOfImpact = MinTOI;
+		ClosestManifoldPointIndex = MinTOIManifoldPointIndex;
+	}
+
+	// Calculate a Time of Impact (TOI) to use with CCD. This is based on the initial and final contact separation from the sweep test but modified so that
+	// - we ignore separating contacts (increasing Phi)
+	// - we ignore contacts that are separated at TOI=1 (EndPhi > 0)
+	// - we ignore contacts if the penetration is less than the CCD tolerance
+	FReal FPBDCollisionConstraint::CalculateModifiedSweptTOI(const FReal StartPhi, const FReal EndPhi)
+	{
+		const FReal InfiniteTOI = TNumericLimits<FReal>::Max();
+		const FReal MovementTolerance = KINDA_SMALL_NUMBER;
+
+		// If we end up separated at TOI=1 ignore the contact
+		if (EndPhi > 0)
+		{
+			return InfiniteTOI;
+		}
+
+		// If contact is moving in the right direction or not moving ignore the contact
+		if (EndPhi > StartPhi - MovementTolerance)
+		{
+			return InfiniteTOI;
+		}
+
+		// If we penetrate by less than the CCD tolerance, treat it as TOI=1. This mean no CCD impulse and the non-CCD 
+		// solve is expected to handle it. E.g., this improves the behaviour when we are sliding along a surface at
+		// above CCD speeds - we don't want to handle TOI events with the floor
+		const FReal PhiThreshold = -CCDPenetrationThreshold;
+		if (EndPhi > PhiThreshold)
+		{
+			return FReal(1);
+		}
+
+		// If we penetrate by more than the CCD threshold we roll back all the way to the TOI leaving no penetration
+		// It would be nice to leave to penetration for the non-CCD solve to handle in this case, but then we will have
+		// initiial-overlap problems when we have secondary CCD collisions that can result in missed collisions
+		const FReal DesiredPhi = FReal(0);
+		const FReal TOI = (DesiredPhi - StartPhi) / (EndPhi - StartPhi);
+
+		return FMath::Clamp(TOI, FReal(0), FReal(1));
+	}
+
 }
