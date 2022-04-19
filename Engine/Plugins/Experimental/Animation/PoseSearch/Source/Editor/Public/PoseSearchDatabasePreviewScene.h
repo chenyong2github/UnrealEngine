@@ -18,7 +18,10 @@ public:
 
 	virtual void Tick(float InDeltaTime) override;
 
-	TSharedRef<FPoseSearchDatabaseEditorToolkit> GetEditorToolkit() const { return EditorToolkitPtr.Pin().ToSharedRef(); }
+	TSharedRef<FPoseSearchDatabaseEditorToolkit> GetEditorToolkit() const
+	{
+		return EditorToolkitPtr.Pin().ToSharedRef(); 
+	}
 
 private:
 

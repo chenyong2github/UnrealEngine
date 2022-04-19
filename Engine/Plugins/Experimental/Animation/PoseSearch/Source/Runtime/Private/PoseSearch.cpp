@@ -1301,7 +1301,16 @@ bool UPoseSearchDatabase::IsValidForIndexing() const
 bool UPoseSearchDatabase::IsValidForSearch() const
 {
 	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
-	return IsValidForIndexing() && SearchIndex && SearchIndex->IsValid();
+	bool bIsValid = IsValidForIndexing() && SearchIndex && SearchIndex->IsValid();
+
+#if WITH_EDITOR
+	const bool bIsCurrentDerivedData = 
+		PrivateDerivedData &&
+		PrivateDerivedData->PendingDerivedDataKey == PrivateDerivedData->DerivedDataKey.Hash;
+	bIsValid = bIsValid && bIsCurrentDerivedData;
+#endif // WITH_EDITOR
+
+	return bIsValid;
 }
 
 void UPoseSearchDatabase::CollectSimpleSequences()
@@ -1663,6 +1672,20 @@ void UPoseSearchDatabase::PostLoad()
 }
 
 #if WITH_EDITOR
+void UPoseSearchDatabase::RegisterOnDerivedDataRebuild(const FOnDerivedDataRebuild& Delegate)
+{
+	OnDerivedDataRebuild.Add(Delegate);
+}
+void UPoseSearchDatabase::UnregisterOnDerivedDataRebuild(void* Unregister)
+{
+	OnDerivedDataRebuild.RemoveAll(Unregister);
+}
+
+void UPoseSearchDatabase::NotifyDerivedDataBuildStarted()
+{
+	OnDerivedDataRebuild.Broadcast();
+}
+
 void UPoseSearchDatabase::BeginCacheDerivedData()
 {
 	bool bPerformCache = true;
@@ -1670,7 +1693,7 @@ void UPoseSearchDatabase::BeginCacheDerivedData()
 	using namespace UE::DerivedData;
 	if (PrivateDerivedData)
 	{
-		const FIoHash ExistingDerivedDataHash = PrivateDerivedData->FetchOrBuildDerivedDataKey;
+		const FIoHash ExistingDerivedDataHash = PrivateDerivedData->PendingDerivedDataKey;
 		if (!ExistingDerivedDataHash.IsZero())
 		{
 			if (ExistingDerivedDataHash == UE::PoseSearch::FPoseSearchDatabaseAsyncCacheTask::CreateKey(*this))
@@ -1754,6 +1777,8 @@ void UPoseSearchDatabase::PostEditChangeProperty(struct FPropertyChangedEvent& P
 			CollectSimpleBlendSpaces();
 		}
 	}
+
+	BeginCacheDerivedData();
 }
 
 void UPoseSearchDatabase::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
@@ -4147,7 +4172,7 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 			FColor Color = GradientColor.ToFColor(true);
 
 			TrajectoryPos = DrawParams.RootTransform.TransformPosition(TrajectoryPos);
-			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
+			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
 			{
 				DrawDebugPoint(DrawParams.World, TrajectoryPos, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
 			}
@@ -4173,12 +4198,18 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 			TrajectoryVel *= DrawDebugVelocityScale;
 			TrajectoryVel = DrawParams.RootTransform.TransformVector(TrajectoryVel);
 			FVector TrajectoryVelDirection = TrajectoryVel.GetSafeNormal();
+
+
 			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
 			{
 				DrawDebugPoint(DrawParams.World, TrajectoryVel, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
 			}
 			else
 			{
+				const float AdjustedThickness =
+					EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ?
+					0.0f : DrawDebugLineThickness;
+
 				DrawDebugDirectionalArrow(
 					DrawParams.World,
 					TrajectoryPos + TrajectoryVelDirection * DrawDebugSphereSize,
@@ -4188,7 +4219,7 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 					bPersistent,
 					LifeTime,
 					DepthPriority,
-					DrawDebugLineThickness
+					AdjustedThickness
 				);
 			}
 		}
@@ -4203,12 +4234,17 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 			FColor Color = GradientColor.ToFColor(true);
 
 			TrajectoryForward = DrawParams.RootTransform.TransformVector(TrajectoryForward);
+
 			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
 			{
 				DrawDebugPoint(DrawParams.World, TrajectoryForward, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
 			}
 			else
 			{
+				const float AdjustedThickness =
+					EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ?
+					0.0f : DrawDebugLineThickness;
+
 				DrawDebugDirectionalArrow(
 					DrawParams.World,
 					TrajectoryPos + TrajectoryForward * DrawDebugSphereSize,
@@ -4218,7 +4254,7 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 					bPersistent,
 					LifeTime,
 					DepthPriority,
-					DrawDebugLineThickness
+					AdjustedThickness
 				);
 			}
 		}
@@ -4289,7 +4325,7 @@ static void DrawPoseFeatures(const FDebugDrawParams& DrawParams, const FFeatureV
 				FColor Color = LinearColor.ToFColor(true);
 
 				BonePos = DrawParams.RootTransform.TransformPosition(BonePos);
-				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
+				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
 				{
 					DrawDebugPoint(DrawParams.World, BonePos, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
 				}
@@ -4318,13 +4354,27 @@ static void DrawPoseFeatures(const FDebugDrawParams& DrawParams, const FFeatureV
 				BoneVel *= DrawDebugVelocityScale;
 				BoneVel = DrawParams.RootTransform.TransformVector(BoneVel);
 				FVector BoneVelDirection = BoneVel.GetSafeNormal();
+
 				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
 				{
 					DrawDebugPoint(DrawParams.World, BoneVel, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
 				}
 				else
 				{
-					DrawDebugDirectionalArrow(DrawParams.World, BonePos + BoneVelDirection * DrawDebugSphereSize, BonePos + BoneVel, DrawDebugArrowSize, Color, bPersistent, LifeTime, DepthPriority, DrawDebugLineThickness);
+					const float AdjustedThickness =
+						EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ?
+						0.0f : DrawDebugLineThickness;
+
+					DrawDebugDirectionalArrow(
+						DrawParams.World, 
+						BonePos + BoneVelDirection * DrawDebugSphereSize, 
+						BonePos + BoneVel, 
+						DrawDebugArrowSize, 
+						Color, 
+						bPersistent, 
+						LifeTime, 
+						DepthPriority, 
+						AdjustedThickness);
 				}
 			}
 		}

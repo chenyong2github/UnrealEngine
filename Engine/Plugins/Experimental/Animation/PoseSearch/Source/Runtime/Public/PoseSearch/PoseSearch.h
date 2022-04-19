@@ -824,8 +824,21 @@ public:
 private:
 	FPoseSearchDatabaseDerivedData* PrivateDerivedData;
 
+#if WITH_EDITOR
+	DECLARE_MULTICAST_DELEGATE(FOnDerivedDataRebuildMulticaster);
+	FOnDerivedDataRebuildMulticaster OnDerivedDataRebuild;
+#endif // WITH_EDITOR
+
 public:
 #if WITH_EDITOR
+	typedef FOnDerivedDataRebuildMulticaster::FDelegate FOnDerivedDataRebuild;
+
+	/** Registers a delegate to be called when derived data starts rebuilding */
+	void RegisterOnDerivedDataRebuild(const FOnDerivedDataRebuild& Delegate);
+	void UnregisterOnDerivedDataRebuild(void* Unregister);
+
+	void NotifyDerivedDataBuildStarted();
+
 	void BeginCacheDerivedData();
 #endif // WITH_EDITOR
 
@@ -1016,6 +1029,9 @@ enum class EDebugDrawFlags : uint32
 
 	// Draw Bone Names
 	DrawBoneNames = 1 << 6,
+
+	// Draws simpler shapes to improve performance
+	DrawFast = 1 << 7,
 };
 ENUM_CLASS_FLAGS(EDebugDrawFlags);
 

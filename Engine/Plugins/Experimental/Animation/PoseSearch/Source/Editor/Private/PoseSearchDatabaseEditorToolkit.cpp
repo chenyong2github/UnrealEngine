@@ -39,14 +39,19 @@ FPoseSearchDatabaseEditorToolkit::~FPoseSearchDatabaseEditorToolkit()
 {
 }
 
-UPoseSearchDatabase* FPoseSearchDatabaseEditorToolkit::GetPoseSearchDatabase() const
+const UPoseSearchDatabase* FPoseSearchDatabaseEditorToolkit::GetPoseSearchDatabase() const
 {
 	return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
 }
 
+void FPoseSearchDatabaseEditorToolkit::StopPreviewScene()
+{
+	ViewModel->RemovePreviewActors();
+}
+
 void FPoseSearchDatabaseEditorToolkit::ResetPreviewScene()
 {
-	ViewModel->RestartAnimations();
+	ViewModel->ResetPreviewActors();
 }
 
 void FPoseSearchDatabaseEditorToolkit::BuildSearchIndex()
@@ -77,14 +82,15 @@ void FPoseSearchDatabaseEditorToolkit::InitAssetEditor(
 		PreviewScene->GetWorld()->GetWorldSettings()->SetIsTemporarilyHiddenInEditor(false);
 	}
 
+	// Create view model
+	ViewModel = MakeShared<FPoseSearchDatabaseViewModel>();
+	ViewModel->Initialize(DatabaseAsset, PreviewScene.ToSharedRef());
+
 	// Create viewport widget
 	FPoseSearchDatabaseViewportRequiredArgs ViewportArgs(
 		StaticCastSharedRef<FPoseSearchDatabaseEditorToolkit>(AsShared()), 
 		PreviewScene.ToSharedRef());
 	ViewportWidget = SNew(SPoseSearchDatabaseViewport, ViewportArgs);
-
-	ViewModel = MakeShared<FPoseSearchDatabaseViewModel>();
-	ViewModel->Initialize(DatabaseAsset, PreviewScene.ToSharedRef());
 
 	// Create Asset Details widget
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -101,7 +107,7 @@ void FPoseSearchDatabaseEditorToolkit::InitAssetEditor(
 
 	// Define Editor Layout
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = 
-		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.01")
+		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.02")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -110,25 +116,25 @@ void FPoseSearchDatabaseEditorToolkit::InitAssetEditor(
 				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)->SetSizeCoefficient(0.9f)
 				->Split
 				(
-					//FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)->SetSizeCoefficient(0.9f)
-					//->Split
-					//(
-					//	FTabManager::NewStack()
-					//	->SetSizeCoefficient(0.65f)
-					//	->AddTab(FPoseSearchDatabaseEditorTabs::ViewportID, ETabState::OpenedTab)
-					//	->SetHideTabWell(true)
-					//)
-					//->Split
-					//(
-					//	FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
-					//	->Split
-					//	(
+					FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)->SetSizeCoefficient(0.9f)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.65f)
+						->AddTab(FPoseSearchDatabaseEditorTabs::ViewportID, ETabState::OpenedTab)
+						->SetHideTabWell(true)
+					)
+					->Split
+					(
+						FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
+						->Split
+						(
 							FTabManager::NewStack()
 							->SetSizeCoefficient(0.3f)
 							->AddTab(FPoseSearchDatabaseEditorTabs::AssetDetailsID, ETabState::OpenedTab)
-					//		->AddTab(FPoseSearchDatabaseEditorTabs::PreviewSettingsID, ETabState::OpenedTab)
-					//	)
-					//)
+							->AddTab(FPoseSearchDatabaseEditorTabs::PreviewSettingsID, ETabState::OpenedTab)
+						)
+					)
 				)
 			)
 		);
@@ -154,6 +160,11 @@ void FPoseSearchDatabaseEditorToolkit::InitAssetEditor(
 void FPoseSearchDatabaseEditorToolkit::BindCommands()
 {
 	const FPoseSearchDatabaseEditorCommands& Commands = FPoseSearchDatabaseEditorCommands::Get();
+
+	ToolkitCommands->MapAction(
+		Commands.StopPreviewScene,
+		FExecuteAction::CreateSP(this, &FPoseSearchDatabaseEditorToolkit::StopPreviewScene),
+		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
 		Commands.ResetPreviewScene,
@@ -182,6 +193,13 @@ void FPoseSearchDatabaseEditorToolkit::ExtendToolbar()
 void FPoseSearchDatabaseEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 {
 	ToolbarBuilder.AddToolBarButton(
+		FPoseSearchDatabaseEditorCommands::Get().StopPreviewScene,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Delete"));
+
+	ToolbarBuilder.AddToolBarButton(
 		FPoseSearchDatabaseEditorCommands::Get().ResetPreviewScene,
 		NAME_None,
 		TAttribute<FText>(),
@@ -204,12 +222,12 @@ void FPoseSearchDatabaseEditorToolkit::RegisterTabSpawners(const TSharedRef<FTab
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
-	//InTabManager->RegisterTabSpawner(
-	//	FPoseSearchDatabaseEditorTabs::ViewportID, 
-	//	FOnSpawnTab::CreateSP(this, &FPoseSearchDatabaseEditorToolkit::SpawnTab_Viewport))
-	//	.SetDisplayName(LOCTEXT("ViewportTab", "Viewport"))
-	//	.SetGroup(WorkspaceMenuCategoryRef)
-	//	.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
+	InTabManager->RegisterTabSpawner(
+		FPoseSearchDatabaseEditorTabs::ViewportID, 
+		FOnSpawnTab::CreateSP(this, &FPoseSearchDatabaseEditorToolkit::SpawnTab_Viewport))
+		.SetDisplayName(LOCTEXT("ViewportTab", "Viewport"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
 
 	InTabManager->RegisterTabSpawner(
 		FPoseSearchDatabaseEditorTabs::AssetDetailsID, 
@@ -218,12 +236,12 @@ void FPoseSearchDatabaseEditorToolkit::RegisterTabSpawners(const TSharedRef<FTab
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
-	//InTabManager->RegisterTabSpawner(
-	//	FPoseSearchDatabaseEditorTabs::PreviewSettingsID, 
-	//	FOnSpawnTab::CreateSP(this, &FPoseSearchDatabaseEditorToolkit::SpawnTab_PreviewSettings))
-	//	.SetDisplayName(LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings"))
-	//	.SetGroup(WorkspaceMenuCategoryRef)
-	//	.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+	InTabManager->RegisterTabSpawner(
+		FPoseSearchDatabaseEditorTabs::PreviewSettingsID, 
+		FOnSpawnTab::CreateSP(this, &FPoseSearchDatabaseEditorToolkit::SpawnTab_PreviewSettings))
+		.SetDisplayName(LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 }
 
 void FPoseSearchDatabaseEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)

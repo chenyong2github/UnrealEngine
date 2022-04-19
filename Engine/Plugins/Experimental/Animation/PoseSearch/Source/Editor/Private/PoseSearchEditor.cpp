@@ -120,10 +120,7 @@ void FEditorModule::StartupModule()
 		// Register Ed Mode used by pose search database
 		FEditorModeRegistry::Get().RegisterMode<FPoseSearchDatabaseEdMode>(
 			FPoseSearchDatabaseEdMode::EdModeId,
-			LOCTEXT("PoseSearchDatabaseEdModeName", "PoseSearchDatabase"),
-			FSlateIcon(),
-			false,
-			9000);
+			LOCTEXT("PoseSearchDatabaseEdModeName", "PoseSearchDatabase"));
 
 		// Register UPoseSearchDatabase Type Actions 
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();

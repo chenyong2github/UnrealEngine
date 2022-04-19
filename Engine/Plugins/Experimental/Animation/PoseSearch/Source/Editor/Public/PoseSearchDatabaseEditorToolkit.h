@@ -33,9 +33,11 @@ public:
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 
-	UPoseSearchDatabase* GetPoseSearchDatabase() const;
+	const UPoseSearchDatabase* GetPoseSearchDatabase() const;
 	FPoseSearchDatabaseViewModel* GetViewModel() const { return ViewModel.Get(); }
+	TSharedPtr<FPoseSearchDatabaseViewModel> GetViewModelSharedPtr() const { return ViewModel; }
 
+	void StopPreviewScene();
 	void ResetPreviewScene();
 	void BuildSearchIndex();
 

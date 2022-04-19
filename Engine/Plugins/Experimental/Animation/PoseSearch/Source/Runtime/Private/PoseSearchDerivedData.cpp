@@ -72,12 +72,13 @@ namespace UE::PoseSearch
 		using namespace UE::DerivedData;
 
 		FIoHash DerivedDataKey = CreateKey(Database);
-		DerivedData.FetchOrBuildDerivedDataKey = DerivedDataKey;
+		DerivedData.PendingDerivedDataKey = DerivedDataKey;
+
+		InDatabase.NotifyDerivedDataBuildStarted();
 
 		if (bForceRebuild)
 		{
-			DerivedData.DerivedDataKey = { Bucket, DerivedDataKey };
-			BuildAndWrite();
+			BuildAndWrite({ Bucket, DerivedDataKey });
 		}
 		else
 		{
@@ -108,7 +109,7 @@ namespace UE::PoseSearch
 
 		TArray<FCacheGetRequest> CacheRequests;
 		ECachePolicy CachePolicy = ECachePolicy::Default;
-		const FCacheKey CacheKey{ Bucket, DerivedData.FetchOrBuildDerivedDataKey };
+		const FCacheKey CacheKey{ Bucket, DerivedData.PendingDerivedDataKey };
 		CacheRequests.Add({ {Database.GetPathName()}, CacheKey, CachePolicy });
 		GetCache().Get(CacheRequests, Owner, [this](FCacheGetResponse&& Response)
 		{
@@ -120,20 +121,20 @@ namespace UE::PoseSearch
 	{
 		using namespace UE::DerivedData;
 
-		DerivedData.DerivedDataKey = Response.Record.GetKey();
 		if (Response.Status == EStatus::Ok)
 		{
 			BuildIndexFromCacheRecord(MoveTemp(Response.Record));
+			DerivedData.DerivedDataKey = Response.Record.GetKey();
 		}
 		else if (Response.Status == EStatus::Error)
 		{
-			BuildAndWrite();
+			BuildAndWrite(Response.Record.GetKey());
 		}
 	}
 
-	void FPoseSearchDatabaseAsyncCacheTask::BuildAndWrite()
+	void FPoseSearchDatabaseAsyncCacheTask::BuildAndWrite(const UE::DerivedData::FCacheKey& NewKey)
 	{
-		GetRequestOwner().LaunchTask(TEXT("PoseSearchDatabaseBuild"), [this]
+		GetRequestOwner().LaunchTask(TEXT("PoseSearchDatabaseBuild"), [this, NewKey]
 		{
 			if (!GetRequestOwner().IsCanceled())
 			{
@@ -142,6 +143,7 @@ namespace UE::PoseSearch
 				const bool bIndexReady = BuildIndex(&Database, DerivedData.SearchIndex);
 
 				WriteIndexToCache();
+				DerivedData.DerivedDataKey = NewKey;
 			}
 		});
 	}

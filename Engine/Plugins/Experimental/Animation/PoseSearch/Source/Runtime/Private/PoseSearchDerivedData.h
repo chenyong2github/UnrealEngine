@@ -37,7 +37,7 @@ struct FPoseSearchDatabaseDerivedData
 	*	Note that since this is read on the game thread constantly in CachePlatformData, it
 	*	must be written to on the game thread to avoid false recaches.
 	*/
-	FIoHash FetchOrBuildDerivedDataKey;
+	FIoHash PendingDerivedDataKey;
 
 	/** Async cache task if one is outstanding. */
 	UE::PoseSearch::FPoseSearchDatabaseAsyncCacheTask* AsyncTask;
@@ -76,7 +76,7 @@ namespace UE::PoseSearch
 	private:
 		void BeginCache();
 		void OnGetComplete(UE::DerivedData::FCacheGetResponse&& Response);
-		void BuildAndWrite();
+		void BuildAndWrite(const UE::DerivedData::FCacheKey& NewKey);
 		void WriteIndexToCache();
 		void BuildIndexFromCacheRecord(UE::DerivedData::FCacheRecord&& CacheRecord);
 

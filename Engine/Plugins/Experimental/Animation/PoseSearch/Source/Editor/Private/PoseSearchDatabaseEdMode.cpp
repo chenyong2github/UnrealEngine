@@ -28,6 +28,11 @@ void FPoseSearchDatabaseEdMode::Tick(FEditorViewportClient* ViewportClient, floa
 	{
 		ViewModel = PoseSearchDbViewportClient->GetAssetEditorToolkit()->GetViewModel();
 	}
+
+	if (ViewModel)
+	{
+		ViewModel->Tick(DeltaTime);
+	}
 }
 
 void FPoseSearchDatabaseEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)

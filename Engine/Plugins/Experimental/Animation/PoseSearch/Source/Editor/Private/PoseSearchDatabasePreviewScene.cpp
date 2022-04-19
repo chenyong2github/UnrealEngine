@@ -2,6 +2,11 @@
 
 #include "PoseSearchDatabasePreviewScene.h"
 #include "PoseSearchDatabaseEditorToolkit.h"
+#include "PoseSearchDatabaseViewModel.h"
+
+#include "PoseSearch/PoseSearch.h"
+
+#include "Animation/DebugSkelMeshComponent.h"
 #include "GameFramework/WorldSettings.h"
 #include "EngineUtils.h"
 
@@ -49,4 +54,27 @@ void FPoseSearchDatabasePreviewScene::Tick(float InDeltaTime)
 	{
 		GetWorld()->Tick(LEVELTICK_All, InDeltaTime);
 	}
+
+	const FPoseSearchDatabaseViewModel* ViewModel = GetEditorToolkit()->GetViewModel();
+	if (ViewModel->GetPoseSearchDatabase()->IsValidForSearch() &&
+		ViewModel->IsPoseFeaturesDrawMode(EPoseSearchFeaturesDrawMode::All))
+	{
+		for (const FPoseSearchDatabasePreviewActor& PreviewActor : ViewModel->GetPreviewActors())
+		{
+			if (PreviewActor.CurrentPoseIndex != INDEX_NONE)
+			{
+				UE::PoseSearch::FDebugDrawParams DrawParams;
+				DrawParams.RootTransform = PreviewActor.Mesh->GetComponentTransform();
+				DrawParams.Database = ViewModel->GetPoseSearchDatabase();
+				DrawParams.World = GetWorld();
+				DrawParams.DefaultLifeTime = 0.0f;
+				DrawParams.PoseIdx = PreviewActor.CurrentPoseIndex;
+				DrawParams.PointSize = 5.0f;
+				EnumAddFlags(DrawParams.Flags, UE::PoseSearch::EDebugDrawFlags::DrawFast);
+
+				UE::PoseSearch::Draw(DrawParams);
+			}
+		}
+	}
 }
+

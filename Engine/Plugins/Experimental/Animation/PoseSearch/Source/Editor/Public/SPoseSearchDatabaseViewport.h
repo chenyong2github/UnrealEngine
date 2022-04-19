@@ -46,6 +46,7 @@ protected:
 	// ~SEditorViewport interface
 	virtual void BindCommands() override;
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
+	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
 	// ~End of SEditorViewport interface
 
 	/** The viewport toolbar */

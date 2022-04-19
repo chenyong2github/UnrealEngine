@@ -2,7 +2,9 @@
 
 #include "SPoseSearchDatabaseViewport.h"
 #include "PoseSearchDatabaseViewportClient.h"
-#include "Toolkits/AssetEditorToolkit.h"
+#include "PoseSearchDatabaseViewModel.h"
+#include "PoseSearchDatabaseEditorToolkit.h"
+#include "SPoseSearchDatabaseViewportToolbar.h"
 #include "PoseSearchDatabaseEditorCommands.h"
 
 void SPoseSearchDatabaseViewport::Construct(
@@ -22,6 +24,59 @@ void SPoseSearchDatabaseViewport::Construct(
 void SPoseSearchDatabaseViewport::BindCommands()
 {
 	SEditorViewport::BindCommands();
+
+	const FPoseSearchDatabaseEditorCommands& Commands = FPoseSearchDatabaseEditorCommands::Get();
+
+	TSharedRef<FPoseSearchDatabaseViewModel> ViewModelRef = 
+		AssetEditorToolkitPtr.Pin()->GetViewModelSharedPtr().ToSharedRef();
+
+	CommandList->MapAction(
+		Commands.ShowPoseFeaturesNone,
+		FExecuteAction::CreateSP(
+			ViewModelRef, 
+			&FPoseSearchDatabaseViewModel::OnSetPoseFeaturesDrawMode, 
+			EPoseSearchFeaturesDrawMode::None),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(
+			ViewModelRef, 
+			&FPoseSearchDatabaseViewModel::IsPoseFeaturesDrawMode, 
+			EPoseSearchFeaturesDrawMode::None));
+
+	CommandList->MapAction(
+		Commands.ShowPoseFeaturesAll,
+		FExecuteAction::CreateSP(
+			ViewModelRef,
+			&FPoseSearchDatabaseViewModel::OnSetPoseFeaturesDrawMode,
+			EPoseSearchFeaturesDrawMode::All),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(
+			ViewModelRef,
+			&FPoseSearchDatabaseViewModel::IsPoseFeaturesDrawMode,
+			EPoseSearchFeaturesDrawMode::All));
+
+	CommandList->MapAction(
+		Commands.ShowAnimationOriginalOnly,
+		FExecuteAction::CreateSP(
+			ViewModelRef,
+			&FPoseSearchDatabaseViewModel::OnSetAnimationPreviewMode,
+			EAnimationPreviewMode::OriginalOnly),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(
+			ViewModelRef,
+			&FPoseSearchDatabaseViewModel::IsAnimationPreviewMode,
+			EAnimationPreviewMode::OriginalOnly));
+
+	CommandList->MapAction(
+		Commands.ShowAnimationOriginalAndMirrored,
+		FExecuteAction::CreateSP(
+			ViewModelRef,
+			&FPoseSearchDatabaseViewModel::OnSetAnimationPreviewMode,
+			EAnimationPreviewMode::OriginalAndMirrored),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(
+			ViewModelRef,
+			&FPoseSearchDatabaseViewModel::IsAnimationPreviewMode,
+			EAnimationPreviewMode::OriginalAndMirrored));
 }
 
 TSharedRef<FEditorViewportClient> SPoseSearchDatabaseViewport::MakeEditorViewportClient()
@@ -37,6 +92,12 @@ TSharedRef<FEditorViewportClient> SPoseSearchDatabaseViewport::MakeEditorViewpor
 
 	return ViewportClient.ToSharedRef();
 }
+
+TSharedPtr<SWidget> SPoseSearchDatabaseViewport::MakeViewportToolbar()
+{
+	return SAssignNew(ViewportToolbar, SPoseSearchDatabaseViewportToolBar, SharedThis(this));
+}
+
 
 TSharedRef<SEditorViewport> SPoseSearchDatabaseViewport::GetViewportWidget()
 {
