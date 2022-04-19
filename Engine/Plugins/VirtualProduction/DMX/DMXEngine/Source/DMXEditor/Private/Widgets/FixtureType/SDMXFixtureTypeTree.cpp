@@ -299,7 +299,7 @@ void SDMXFixtureTypeTree::OnPasteNodes()
 	{
 		// Start transaction for Undo and take a snapshot of the current Library state
 		const FScopedTransaction PasteEntities(NewObjects.Num() > 1 ? LOCTEXT("PasteFixtureTypes", "Paste Fixture Types") : LOCTEXT("PasteFixtureType", "Paste Fixture Type"));
-		Library->Modify();
+		Library->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetEntitiesPropertyName()));
 
 		// Add each pasted Entity to the Library
 		TArray<TWeakObjectPtr<UDMXEntityFixtureType>> NewFixtureTypes;
@@ -319,6 +319,8 @@ void SDMXFixtureTypeTree::OnPasteNodes()
 
 			NewFixtureTypes.Add(CastChecked<UDMXEntityFixtureType>(NewEntity));
 		}
+
+		Library->PostEditChange();
 
 		FixtureTypeSharedData->SelectFixtureTypes(NewFixtureTypes);
 
@@ -344,7 +346,7 @@ void SDMXFixtureTypeTree::OnDuplicateNodes()
 	if (Library && SelectedEntities.Num() > 0)
 	{
 		const FScopedTransaction Transaction(SelectedEntities.Num() > 1 ? LOCTEXT("DuplicateFixtureTypes", "Duplicate Fixture Types") : LOCTEXT("DuplicateFixtureType", "Duplicate Fixture Type"));
-		Library->Modify();
+		Library->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetEntitiesPropertyName()));
 
 		TArray<TWeakObjectPtr<UDMXEntityFixtureType>> NewFixtureTypes;
 		NewFixtureTypes.Reserve(SelectedEntities.Num());
@@ -363,6 +365,8 @@ void SDMXFixtureTypeTree::OnDuplicateNodes()
 				Library->SetEntityIndex(EntityCopy, ++NewEntityIndex);
 			}
 		}
+
+		Library->PostEditChange();
 
 		FixtureTypeSharedData->SelectFixtureTypes(NewFixtureTypes);
 

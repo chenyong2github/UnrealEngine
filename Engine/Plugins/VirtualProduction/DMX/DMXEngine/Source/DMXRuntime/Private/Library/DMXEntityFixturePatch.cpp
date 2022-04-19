@@ -64,14 +64,14 @@ UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMX
 			NewFixturePatch->SetStartingChannel(ConstructionParams.StartingAddress);
 			NewFixturePatch->SetActiveModeIndex(ConstructionParams.ActiveMode);
 
-			return NewFixturePatch;
-
 #if WITH_EDITOR
 			if (bMarkDMXLibraryDirty)
 			{
 				DMXLibrary->PostEditChange();
 			}
 #endif
+			OnFixturePatchChangedDelegate.Broadcast(NewFixturePatch);
+			return NewFixturePatch;
 		}
 	}
 
