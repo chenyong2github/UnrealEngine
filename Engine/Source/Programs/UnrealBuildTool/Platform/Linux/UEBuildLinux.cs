@@ -605,13 +605,18 @@ namespace UnrealBuildTool
 				Options |= LinuxToolChainOptions.TuneDebugInfoForLLDB;
 			}
 
+			if (Target.LinuxPlatform.bPreservePSYM)
+			{
+				Options |= LinuxToolChainOptions.PreservePSYM;
+			}
+
 			// Disable color logging if we are on a build machine
 			if (Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
 			{
 				Log.ColorConsoleOutput = false;
 			}
 
-			return new LinuxToolChain(Target.Architecture, SDK, Target.LinuxPlatform.bPreservePSYM, Options);
+			return new LinuxToolChain(Target.Architecture, SDK, Options);
 		}
 
 		/// <summary>
