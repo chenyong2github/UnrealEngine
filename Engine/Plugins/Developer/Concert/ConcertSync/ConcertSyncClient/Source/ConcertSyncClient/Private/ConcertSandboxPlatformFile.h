@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "ConcertClientPersistData.h"
 
 class ISourceControlProvider;
 
@@ -150,16 +151,15 @@ public:
 	virtual FString ConvertToAbsolutePathForExternalAppForRead(const TCHAR* Filename) override;
 	virtual FString ConvertToAbsolutePathForExternalAppForWrite(const TCHAR* Filename) override;
 
-	/** 
-	 *	Persist the file list from the sandbox state onto the real files.
-	 *	Will mark files for which the operation was succesful as persisted.
+	/**
+	 *	Persist the file list from the sandbox state onto the real files Will mark files for which the operation was
+	 *	succesful as persisted.
 	 *
-	 *	@param InFiles					The files to persist from the sandbox
-	 *	@param SourceControlProvider	Optional pointer to the source control provider to stage/checkout/add the persisted files
-	 *	@param OutFailureReasons		Optional pointer to an array of text containing failure reasons if the operation fails.
-	 *	@return true if the operation was successful
+	 *	@param InFiles	List of files names to persist as full paths.
+	 *	@param InParams	Parameters controlling the persist options specified by the user.
+	 *	@return Returns a persist result object that contains result status.
 	 */
-	bool PersistSandbox(TArrayView<const FString> InFiles, ISourceControlProvider* SourceControlProvider = nullptr, TArray<FText>* OutFailureReasons = nullptr);
+	FPersistResult PersistSandbox(TArrayView<const FString> InFiles, FPersistParameters InParams);
 
 	/** 
 	 *	Discard the sandbox state
@@ -264,6 +264,12 @@ private:
 	/** Called when a file in a sandbox directory changes on disk */
 	void OnDirectoryChanged(const TArray<FFileChangeData>& FileChanges, FConcertSandboxPlatformFilePath MountPath);
 #endif
+
+	/** Copy file using source control (if enabled) */
+	bool CopyFileWithSCC(const TCHAR* InToFilename, const TCHAR* InFromFilename, const FPersistParameters& InParam, FPersistResult& OutResult);
+
+	/** Delete file using source control (if enabled) */
+	bool DeleteFileWithSCC(const TCHAR* InFilename, const FPersistParameters& InParam, FPersistResult& OutResult);
 
 	/** Root path of this sandbox */
 	const FString SandboxRootPath;

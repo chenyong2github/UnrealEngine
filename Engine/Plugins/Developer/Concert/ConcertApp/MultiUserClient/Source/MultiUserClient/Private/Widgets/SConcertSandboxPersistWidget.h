@@ -21,6 +21,7 @@ struct FConcertPersistCommand
 	TArray<FString> FilesToPersist;
 	FText ChangelistDescription;
 	bool bShouldSubmit;
+	bool bShouldMakeFilesWritable;
 };
 
 /**
@@ -148,6 +149,12 @@ private:
 	/** Get the current state of the Keep Checked Out checkbox  */
 	ECheckBoxState GetKeepCheckedOut() const;
 
+	/** Called when the Make Writable checkbox is changed */
+	void OnCheckStateChanged_MakeWritable(ECheckBoxState InState);
+
+	/** Get the current state of the Make Writable checkbox  */
+	ECheckBoxState GetMakeWritable() const;
+
 	/** Check if Provider can checkout files */
 	bool CanCheckOut() const;
 
@@ -202,6 +209,8 @@ private:
 	/** State of the "Keep Files Checked Out" checkbox */
 	ECheckBoxState	KeepFilesCheckedOut;
 
+	/** State of the "Make Writable" checkbox */
+	ECheckBoxState	MakeWritable;
 
 	/** Specify which column to sort with */
 	FName SortByColumn;

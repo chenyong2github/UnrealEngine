@@ -306,31 +306,35 @@ TOptional<FString> FConcertClientWorkspace::GetValidPackageSessionPath(FName Pac
 	return {};
 }
 
-bool FConcertClientWorkspace::PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons)
+
+FPersistResult FConcertClientWorkspace::PersistSessionChanges(FPersistParameters InParam)
 {
 	bool bSuccess = false;
 #if WITH_EDITOR
 	if (PackageManager)
 	{
-		for (const FName& PackageName : InPackagesToPersist)
+		TArray<FName> PackageNames;
+		for (const FName& PackageName : InParam.PackagesToPersist)
 		{
 			SaveLiveTransactionsToPackage(PackageName);
+			PackageNames.Add(PackageName);
 		}
 
-		bSuccess = PackageManager->PersistSessionChanges(InPackagesToPersist, SourceControlProvider, OutFailureReasons);
-
+		FPersistResult Result = PackageManager->PersistSessionChanges(MoveTemp(InParam));
 		// if we successfully persisted the files, record persist events for them in the db
-		if (bSuccess)
+		if (Result.PersistStatus == EPersistStatus::Success)
 		{
 			int64 PersistEventId = 0;
-			for (const FName& PackageName : InPackagesToPersist)
+			for (const FName& PackageName : PackageNames)
 			{
-				LiveSession->GetSessionDatabase().AddPersistEventForHeadRevision(PackageName, PersistEventId);
+				LiveSession->GetSessionDatabase().AddPersistEventForHeadRevision(
+					PackageName, PersistEventId);
 			}
 		}
+		return Result;
 	}
 #endif
-	return bSuccess;
+	return {};
 }
 
 bool FConcertClientWorkspace::HasLiveTransactionSupport(UPackage* InPackage) const

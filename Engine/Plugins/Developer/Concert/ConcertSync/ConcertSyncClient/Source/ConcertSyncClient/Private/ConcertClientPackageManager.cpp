@@ -364,24 +364,24 @@ TOptional<FString> FConcertClientPackageManager::GetDeletedPackagePath(FName Pac
 	return {};
 }
 
-bool FConcertClientPackageManager::PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons)
+FPersistResult FConcertClientPackageManager::PersistSessionChanges(FPersistParameters InParam)
 {
 #if WITH_EDITOR
 	if (SandboxPlatformFile)
 	{
 		// Transform all the package names into actual filenames
 		TArray<FString, TInlineAllocator<8>> FilesToPersist;
-		for (const FName& PackageName : InPackagesToPersist)
+		for (const FName& PackageName : InParam.PackagesToPersist)
 		{
 			if (TOptional<FString> ValidPath = GetValidPackageSessionPath(PackageName))
 			{
 				FilesToPersist.Add(MoveTemp(ValidPath.GetValue()));
 			}
 		}
-		return SandboxPlatformFile->PersistSandbox(FilesToPersist, SourceControlProvider, OutFailureReasons);
+		return SandboxPlatformFile->PersistSandbox(FilesToPersist, MoveTemp(InParam));
 	}
 #endif
-	return false;
+	return {};
 }
 
 bool FConcertClientPackageManager::ApplyPackageFilters(const FConcertPackageInfo& InPackageInfo) const
@@ -540,7 +540,7 @@ void FConcertClientPackageManager::HandleLocalPackageEvent(const FConcertPackage
 	// if the package data has been filtered out of the session persist it immediately from the sandbox
 	else
 	{
-		PersistSessionChanges(MakeArrayView(&PackageInfo.PackageName, 1), &ISourceControlModule::Get().GetProvider());
+		PersistSessionChanges({MakeArrayView(&PackageInfo.PackageName, 1), &ISourceControlModule::Get().GetProvider()});
 	}
 }
 

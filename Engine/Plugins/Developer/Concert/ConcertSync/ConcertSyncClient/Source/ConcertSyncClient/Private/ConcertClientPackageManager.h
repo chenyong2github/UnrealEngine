@@ -6,6 +6,8 @@
 #include "IConcertSessionHandler.h"
 #include "IConcertClientPackageBridge.h"
 
+#include "ConcertClientPersistData.h"
+
 class FConcertSyncClientLiveSession;
 class FConcertSandboxPlatformFile;
 class ISourceControlProvider;
@@ -98,7 +100,7 @@ public:
 	/**
 	 * Persist the session changes from the package name list and prepare it for source control submission.
 	 */
-	bool PersistSessionChanges(TArrayView<const FName> InPackagesToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasons = nullptr);
+	FPersistResult PersistSessionChanges(FPersistParameters InParam);
 
 	/**
 	 * Called when a package is too big to be handled by the system.

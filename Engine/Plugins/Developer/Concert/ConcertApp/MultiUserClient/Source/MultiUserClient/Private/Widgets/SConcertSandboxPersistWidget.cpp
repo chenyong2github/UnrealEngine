@@ -209,6 +209,19 @@ void SConcertSandboxPersistWidget::Construct(const FArguments& InArgs)
 						.Text(LOCTEXT("KeepFilesCheckedOut", "Keep Files Checked Out"))
 					]
 				]
+				+ SWrapBox::Slot()
+				.Padding(0.0f, 0.0f, 16.0f, 0.0f)
+				[
+					SNew(SCheckBox)
+					.OnCheckStateChanged(this, &SConcertSandboxPersistWidget::OnCheckStateChanged_MakeWritable)
+					.IsChecked(this, &SConcertSandboxPersistWidget::GetMakeWritable)
+					.ToolTipText(LOCTEXT("WarningMakeWritable", "Warning this may prevent accurate check-ins with source control."))
+					.IsEnabled_Lambda([this]() { return !CanCheckOut();} )
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("MakeFilesWritable", "Make Files Writable"))
+					]
+				]
 			]
 			+SVerticalBox::Slot()
 			.AutoHeight()
@@ -256,6 +269,7 @@ FReply SConcertSandboxPersistWidget::OnKeyDown(const FGeometry & MyGeometry, con
 FConcertPersistCommand SConcertSandboxPersistWidget::GetPersistCommand() const
 {
 	FConcertPersistCommand Cmd;
+	Cmd.bShouldMakeFilesWritable = GetMakeWritable() == ECheckBoxState::Checked;
 	Cmd.bShouldSubmit = !IsSubmitDescriptionReadOnly();
 	Cmd.ChangelistDescription = SubmitDescriptionTextCtrl->GetText();
 	Cmd.PackagesToPersist.Reserve(ListViewItems.Num());
@@ -331,7 +345,7 @@ FReply SConcertSandboxPersistWidget::CancelClicked()
 	{
 		ParentWindowPin->RequestDestroyWindow();
 	}
-	
+
 	return FReply::Handled();
 }
 
@@ -369,6 +383,16 @@ ECheckBoxState SConcertSandboxPersistWidget::GetSubmitToSourceControl() const
 bool SConcertSandboxPersistWidget::CanSubmitToSourceControl() const
 {
 	return ISourceControlModule::Get().GetProvider().IsEnabled();
+}
+
+void SConcertSandboxPersistWidget::OnCheckStateChanged_MakeWritable(ECheckBoxState InState)
+{
+	MakeWritable = InState;
+}
+
+ECheckBoxState SConcertSandboxPersistWidget::GetMakeWritable() const
+{
+	return MakeWritable;
 }
 
 void SConcertSandboxPersistWidget::OnCheckStateChanged_KeepCheckedOut(ECheckBoxState InState)

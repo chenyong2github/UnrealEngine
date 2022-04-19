@@ -8,6 +8,8 @@
 #include "ConcertWorkspaceMessages.h"
 #include "ConcertSyncSessionTypes.h"
 
+#include "ConcertClientPersistData.h"
+
 class ISourceControlProvider;
 class IConcertClientSession;
 class IConcertClientDataStore;
@@ -81,7 +83,7 @@ public:
 	virtual TOptional<FString> GetValidPackageSessionPath(FName PackageName) const = 0;
 
 	/** Persist the session changes from the package list and prepare it for source control submission */
-	virtual bool PersistSessionChanges(TArrayView<const FName> InPackageToPersist, ISourceControlProvider* SourceControlProvider, TArray<FText>* OutFailureReasonMap = nullptr) = 0;
+	virtual FPersistResult PersistSessionChanges(FPersistParameters InParam) = 0;
 
 	/**
 	 * Get Activities from the session.

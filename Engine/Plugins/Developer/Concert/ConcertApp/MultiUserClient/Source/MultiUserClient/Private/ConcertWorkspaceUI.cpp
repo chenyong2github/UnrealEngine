@@ -660,24 +660,30 @@ bool FConcertWorkspaceUI::PromptPersistSessionChanges()
 	FAsyncTaskNotification Notification(NotificationConfig);
 	FText NotificationSub;
 
-	TArray<FText> PersistFailures;
-	bool bSuccess = ClientWorkspacePin->PersistSessionChanges(PersistCmd.PackagesToPersist, &ISourceControlModule::Get().GetProvider(), &PersistFailures);
+	FPersistResult PersistResult = ClientWorkspacePin->PersistSessionChanges(
+		{PersistCmd.PackagesToPersist, &ISourceControlModule::Get().GetProvider(),PersistCmd.bShouldMakeFilesWritable});
+
+	bool bSuccess = PersistResult.PersistStatus == EPersistStatus::Success;
 	if (bSuccess)
 	{
 		bSuccess = SubmitChangelist(PersistCmd, NotificationSub);
 	}
 	else
 	{
-		NotificationSub = FText::Format(LOCTEXT("FailedPersistNotification", "Failed to persist session files. Reported {0} {0}|plural(one=error,other=errors)."), PersistFailures.Num());
+		NotificationSub = FText::Format(
+			LOCTEXT("FailedPersistNotification",
+					"Failed to persist session files. Reported {0} {0}|plural(one=error,other=errors)."), PersistResult.FailureReasons.Num());
 		FMessageLog ConcertLog("Concert");
-		for (const FText& Failure : PersistFailures)
+		for (const FText& Failure : PersistResult.FailureReasons)
 		{
 			ConcertLog.Error(Failure);
 		}
 	}
 
 	Notification.SetProgressText(LOCTEXT("SeeMessageLog", "See Message Log"));
-	Notification.SetComplete(bSuccess ? LOCTEXT("PersistChangeSuccessHeader", "Successfully Persisted Session Changes") : LOCTEXT("PersistChangeFailedHeader", "Failed to Persist Session Changes"), NotificationSub, bSuccess);
+	Notification.SetComplete(bSuccess ?
+							 LOCTEXT("PersistChangeSuccessHeader", "Successfully Persisted Session Changes")
+							 : LOCTEXT("PersistChangeFailedHeader", "Failed to Persist Session Changes"), NotificationSub, bSuccess);
 
 	return true; // Persisting.
 }
