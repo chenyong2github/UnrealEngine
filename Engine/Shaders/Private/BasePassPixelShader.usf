@@ -1775,6 +1775,11 @@ void FPixelShaderInOut_MainPS(
 			StrataStruct.SSSTextureUAV[PixelPos] = StrataPackSSSData(SSSData);
 		}
 
+		// Unlit view mode
+	#if USE_DEVELOPMENT_SHADERS
+		Color = lerp(Color, TopLayerData.BaseColor, View.UnlitViewmodeMask);
+	#endif
+
 		Color += EmissiveLuminance;
 	}
 
