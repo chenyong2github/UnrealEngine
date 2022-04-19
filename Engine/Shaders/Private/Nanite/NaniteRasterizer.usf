@@ -1417,21 +1417,15 @@ void HWRasterizeMS(
 	{
 		uint TriangleIndex = GroupThreadID;
 
-		bool bValidTriangle = true;
 		uint3 TriangleIndices = uint3(0u, 0u, 0u);
 
 		BRANCH
-		if (bHasRasterBin && (TriangleIndex < RasterBin.y || TriangleIndex >= RasterBin.z))
-		{
-			// Tri not contained in active rasterizer bin
-			bValidTriangle = false;
-		}
-		else
+		if (!bHasRasterBin || (TriangleIndex >= RasterBin.y && TriangleIndex < RasterBin.z))
 		{
 			TriangleIndices = ReadTriangleIndices(Cluster, TriangleIndex);
 			if (ReverseWindingOrder(InstanceData))
 			{
-				TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
+				TriangleIndices = TriangleIndices.xzy;
 			}
 		}
 
@@ -1444,8 +1438,6 @@ void HWRasterizeMS(
 		Attributes.PackedData.w = asuint(NaniteView.ViewSizeAndInvSize.y);
 		MESH_SHADER_WRITE_PRIMITIVE(TriangleIndex, Attributes);
 	}
-
-	float3 WorldPositionOffset = float3(0.0f, 0.0f, 0.0f); // TODO: PROG_RASTER
 
 	const uint Vertex0 = GroupThreadID + 0;
 	if (Vertex0 < Cluster.NumVerts)
@@ -1521,28 +1513,15 @@ VSOut HWRasterizeVS(
 
 	if( TriIndex < Cluster.NumTris )
 	{
-		bool bValidTriangle = true;
-		uint3 TriangleIndices = uint3(0u, 0u, 0u);
-
 		BRANCH
-		if (bHasRasterBin)
+		if (!bHasRasterBin || (TriIndex >= RasterBin.y && TriIndex < RasterBin.z))
 		{
-			if(TriIndex >= RasterBin.y && TriIndex < RasterBin.z)
+			uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriIndex);
+			if (ReverseWindingOrder(InstanceData))
 			{
-				TriangleIndices = ReadTriangleIndices(Cluster, TriIndex);
-				if (ReverseWindingOrder(InstanceData))
-				{
-					TriangleIndices = uint3(TriangleIndices.x, TriangleIndices.z, TriangleIndices.y);
-				}
+				TriangleIndices = TriangleIndices.xzy;
 			}
-			else
-			{
-				bValidTriangle = false;
-			}
-		}
-
-		if(bValidTriangle)
-		{
+		
 			const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
 			Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, TriangleIndices[VertexID], PixelValue);
 	#if IS_NANITE_PROGRAMMABLE && BARYCENTRIC_MODE_EXPORT
