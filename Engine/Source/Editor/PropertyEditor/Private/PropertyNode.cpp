@@ -100,9 +100,9 @@ void FPropertyNode::InitNode(const FPropertyNodeInitParams& InitParams)
 	ArrayOffset = InitParams.ArrayOffset;
 	ArrayIndex = InitParams.ArrayIndex;
 
-	bool bIsSparse = InitParams.bIsSparseProperty;
+	bool bIsSparse = InitParams.IsSparseProperty == FPropertyNodeInitParams::EIsSparseDataProperty::True;
 
-	if (ParentNode)
+	if (ParentNode && InitParams.IsSparseProperty == FPropertyNodeInitParams::EIsSparseDataProperty::Inherit)
 	{
 		//default to parents max child depth
 		MaxChildDepthAllowed = ParentNode->MaxChildDepthAllowed;
@@ -2952,6 +2952,8 @@ void FPropertyNode::GatherInstancesAffectedByContainerPropertyChange(UObject* Mo
 
 	FPropertyNode* ParentPropertyNode = GetParentNode();
 	
+	FComplexPropertyNode* ComplexParentNode = FindComplexParent();
+
 	FProperty* ConvertedProperty = NULL;
 
 	if (ChangeType == EPropertyArrayChangeType::Add || ChangeType == EPropertyArrayChangeType::Clear)
@@ -3023,8 +3025,10 @@ void FPropertyNode::GatherInstancesAffectedByContainerPropertyChange(UObject* Mo
 			{
 				if (OriginalContainerAddr == Addr)
 				{
-					if (HasNodeFlags(EPropertyNodeFlags::IsSparseClassData))
+					if (HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) || (ComplexParentNode && ComplexParentNode->AsStructureNode()))
 					{
+						// SparseClassData and StructureNodes will always return the same address from GetValueBaseAddressFromObject 
+						// (see FPropertyNode::GetStartAddressFromObject and FStructurePropertyNode::GetValueBaseAddress)
 						continue;
 					}
 
