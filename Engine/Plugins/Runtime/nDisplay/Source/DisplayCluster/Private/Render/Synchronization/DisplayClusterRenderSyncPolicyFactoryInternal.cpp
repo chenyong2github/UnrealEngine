@@ -11,6 +11,7 @@
 #include "Misc/DisplayClusterStrings.h"
 #include "DisplayClusterConfigurationStrings.h"
 #include "RHI.h"
+#include "RHIDefinitions.h"
 
 TSharedPtr<IDisplayClusterRenderSyncPolicy> FDisplayClusterRenderSyncPolicyFactoryInternal::Create(const FString& InPolicyType, const TMap<FString, FString>& Parameters)
 {
