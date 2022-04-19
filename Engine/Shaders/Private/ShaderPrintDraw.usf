@@ -16,7 +16,7 @@ StructuredBuffer<FPackedShaderPrintItem> SymbolsBuffer;
 
 RWStructuredBuffer<FPackedShaderPrintItem> RWValuesBuffer;
 RWStructuredBuffer<FPackedShaderPrintItem> RWSymbolsBuffer;
-RWBuffer<uint> RWStateBuffer;
+RWStructuredBuffer<uint> RWStateBuffer;
 
 RWBuffer<uint> RWIndirectDispatchArgsBuffer;
 RWBuffer<uint> RWIndirectDrawArgsBuffer;
