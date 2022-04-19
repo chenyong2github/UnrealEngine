@@ -16,7 +16,7 @@ namespace Geometry
 {
 
 /**
- * 2D dense grid of floating-point scalar values.
+ * 2D dense grid of scalar values.
  */
 template<typename ElemType>
 class TDenseGrid2

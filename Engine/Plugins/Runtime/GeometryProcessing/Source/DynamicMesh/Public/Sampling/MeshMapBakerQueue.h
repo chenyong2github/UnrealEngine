@@ -70,7 +70,6 @@ public:
 	 *
 	 * @param Idx The slot index to update.
 	 * @param Data The data to post to the queue.
-	 * @return true if the operation succeeded (the slot was empty).
 	 */
 	void Post(SIZE_T Idx, void* Data)
 	{
