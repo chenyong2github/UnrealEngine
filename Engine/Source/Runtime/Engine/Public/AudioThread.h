@@ -38,7 +38,7 @@ private:
 
 #if UE_AUDIO_THREAD_AS_PIPE
 
-	static UE::Tasks::FTaskEvent ResumeEvent;
+	static TUniquePtr<UE::Tasks::FTaskEvent> ResumeEvent;
 	static int32 SuspendCount;  // accessed only from GT
 
 	// GC callback handles
