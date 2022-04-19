@@ -658,7 +658,7 @@ FD3D12SyncPoint FD3D12CommandListManager::ExecuteCommandListInternal(TArray<FD3D
 	FD3D12CommandListPayload CurrentCommandListPayload;
 
 	check(Lists.Num() <= FD3D12CommandListPayload::MaxCommandListsPerPayload);
-	FD3D12CommandListHandle BarrierCommandList[128];
+	FD3D12CommandListHandle BarrierCommandList[FD3D12CommandListPayload::MaxCommandListsPerPayload];
 	if (bNeedsResourceBarriers)
 	{
 		// should not be copy queue
