@@ -37,6 +37,38 @@ typedef struct SYMS_DwRegsX64{
   };
 } SYMS_DwRegsX64;
 
+SYMS_GLOBAL SYMS_READ_ONLY SYMS_RegID syms_dw_reg_table_x64[] = {
+  SYMS_RegX64Code_rax,
+  SYMS_RegX64Code_rdx,
+  SYMS_RegX64Code_rcx,
+  SYMS_RegX64Code_rbx,
+  SYMS_RegX64Code_rsi,
+  SYMS_RegX64Code_rdi,
+  SYMS_RegX64Code_rbp,
+  SYMS_RegX64Code_rsp,
+  SYMS_RegX64Code_r8,
+  SYMS_RegX64Code_r9,
+  SYMS_RegX64Code_r10,
+  SYMS_RegX64Code_r11,
+  SYMS_RegX64Code_r12,
+  SYMS_RegX64Code_r13,
+  SYMS_RegX64Code_r14,
+  SYMS_RegX64Code_r15,
+  SYMS_RegX64Code_rip,
+};
+
+SYMS_GLOBAL SYMS_READ_ONLY SYMS_RegID syms_dw_reg_table_x86[] = {
+  SYMS_RegX86Code_eax,
+  SYMS_RegX86Code_edx,
+  SYMS_RegX86Code_ecx,
+  SYMS_RegX86Code_ebx,
+  SYMS_RegX86Code_esi,
+  SYMS_RegX86Code_edi,
+  SYMS_RegX86Code_ebp,
+  SYMS_RegX86Code_esp,
+  SYMS_RegX86Code_eip,
+};
+
 ////////////////////////////////
 //~ NOTE(allen): Dwarf Expression Eval Types
 
@@ -208,11 +240,11 @@ typedef struct SYMS_DwExprCallStack{
   SYMS_U64 depth;
 } SYMS_DwExprCallStack;
 
+
 ////////////////////////////////
 //~ NOTE(allen): Dwarf Expression Analysis & Eval Functions
 
 //- analyzers
-
 
 // NOTE(allen): This analyzer provides the most simplified dwarf expression
 // decoding. If the expression consists of a single op that can be interpreted

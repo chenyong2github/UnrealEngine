@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DWARF_CFI_H
 #define _SYMS_META_DWARF_CFI_H
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:885
 typedef SYMS_U8 SYMS_DwCFA;
 enum{
 //  kind1
@@ -49,8 +49,9 @@ SYMS_DwCFAMask_OPERAND = 0x3F,
 SYMS_DwCFAMask_COUNT = 2
 };
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1588
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1694
 #endif

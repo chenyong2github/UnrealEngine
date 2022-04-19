@@ -29,23 +29,24 @@ enum{
   SYMS_DwEhPtrEnc_SDATA8  = 0x0C, // Signed 64-bit value
 };
 enum{
-  SYMS_DwEhPtrEnc_MODIF_MASK = 0xF0,
+  SYMS_DwEhPtrEnc_MODIF_MASK = 0x70,
   SYMS_DwEhPtrEnc_PCREL   = 0x10, // Value is relative to the current program counter.
   SYMS_DwEhPtrEnc_TEXTREL = 0x20, // Value is relative to the .text section.
   SYMS_DwEhPtrEnc_DATAREL = 0x30, // Value is relative to the .got or .eh_frame_hdr section.
   SYMS_DwEhPtrEnc_FUNCREL = 0x40, // Value is relative to the function.
   SYMS_DwEhPtrEnc_ALIGNED = 0x50, // Value is aligned to an address unit sized boundary.
 };
-// TODO(allen): SYMS_DwEhPtrEnc_INDIRECT = 0x80,
 enum{
-  SYMS_DwEhPtrEnc_OMIT    = 0xFF,
+  SYMS_DwEhPtrEnc_INDIRECT = 0x80, // This flag indicates that value is stored in virtual memory.
+
+  SYMS_DwEhPtrEnc_OMIT     = 0xFF,
 };
 
 typedef struct SYMS_DwEhPtrCtx{
-  SYMS_U64 raw_base_vaddr;
-  SYMS_U64 text_vaddr;
-  SYMS_U64 data_vaddr;
-  SYMS_U64 func_vaddr;
+  SYMS_U64 raw_base_vaddr; // address where pointer is being read
+  SYMS_U64 text_vaddr;     // base address of section with instructions (used for encoding pointer on SH and IA64)
+  SYMS_U64 data_vaddr;     // base address of data section (used for encoding pointer on x86-64)
+  SYMS_U64 func_vaddr;     // base address of function where IP is located
 } SYMS_DwEhPtrCtx;
 
 // CIE: Common Information Entry
@@ -191,6 +192,12 @@ SYMS_API void syms_unwind_elf_x64__eh_frame_parse_fde(void *base,SYMS_U64Range r
 SYMS_API SYMS_DwCFIRecords
 syms_unwind_elf_x64__eh_frame_cfi_from_ip__sloppy(void *base, SYMS_U64Range range, SYMS_DwEhPtrCtx *ptr_ctx,
                                                   SYMS_U64 ip_voff);
+SYMS_API SYMS_DwCFIRecords
+syms_unwind_elf_x64__eh_frame_hdr_from_ip(void *base, 
+                                          SYMS_U64Range eh_frame_hdr_range, 
+                                          SYMS_U64Range eh_frame_range, 
+                                          SYMS_DwEhPtrCtx *ptr_ctx, 
+                                          SYMS_U64 ip_voff);
 
 //- cfi machine
 

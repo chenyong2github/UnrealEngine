@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_DEFAULT_OVERRIDES_C
 #define SYMS_DEFAULT_OVERRIDES_C
 

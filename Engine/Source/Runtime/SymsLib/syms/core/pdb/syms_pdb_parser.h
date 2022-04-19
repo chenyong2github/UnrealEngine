@@ -35,7 +35,6 @@ typedef enum SYMS_PdbPseudoUnit{
   SYMS_PdbPseudoUnit_Null,
   SYMS_PdbPseudoUnit_SYM,
   SYMS_PdbPseudoUnit_TPI,
-  SYMS_PdbPseudoUnit_LAST_PSEUDO_UNIT = SYMS_PdbPseudoUnit_TPI,
   SYMS_PdbPseudoUnit_COUNT = SYMS_PdbPseudoUnit_TPI,
   SYMS_PdbPseudoUnit_FIRST_COMP_UNIT,
 } SYMS_PdbPseudoUnit;
@@ -118,6 +117,7 @@ typedef struct SYMS_PdbUnitSetAccel{
 
 typedef struct SYMS_PdbStub{
   struct SYMS_PdbStub *bucket_next;
+  struct SYMS_PdbStub *parent;
   struct SYMS_PdbStub *sibling_next;
   struct SYMS_PdbStub *first;
   struct SYMS_PdbStub *last;
@@ -152,6 +152,8 @@ typedef struct SYMS_PdbUnitAccel{
   SYMS_U64 proc_count;
   SYMS_PdbStub **var_stubs;
   SYMS_U64 var_count;
+  SYMS_PdbStub **tls_var_stubs;
+  SYMS_U64 tls_var_count;
   SYMS_PdbStub **thunk_stubs;
   SYMS_U64 thunk_count;
   SYMS_PdbStub **pub_stubs;
@@ -453,6 +455,10 @@ SYMS_API SYMS_UnitID       syms_pdb_uid_from_accel(SYMS_PdbUnitAccel *unit);
 
 SYMS_API SYMS_SymbolIDArray syms_pdb_proc_sid_array_from_unit(SYMS_Arena *arena, SYMS_PdbUnitAccel *unit);
 SYMS_API SYMS_SymbolIDArray syms_pdb_var_sid_array_from_unit(SYMS_Arena *arena, SYMS_PdbUnitAccel *unit);
+
+SYMS_API SYMS_UnitID       syms_pdb_tls_var_uid_from_dbg(SYMS_PdbDbgAccel *dbg);
+SYMS_API SYMS_SymbolIDArray syms_pdb_tls_var_sid_array_from_unit(SYMS_Arena *arena, SYMS_PdbUnitAccel *unit);
+
 SYMS_API SYMS_SymbolIDArray syms_pdb_type_sid_array_from_unit(SYMS_Arena *arena, SYMS_PdbUnitAccel *unit);
 
 SYMS_API SYMS_U64          syms_pdb_symbol_count_from_unit(SYMS_PdbUnitAccel *unit);
@@ -478,12 +484,26 @@ SYMS_API SYMS_USID   syms_pdb_sym_type_from_var_id(SYMS_String8 data, SYMS_PdbDb
 SYMS_API SYMS_U64    syms_pdb_sym_voff_from_var_sid(SYMS_String8 data, SYMS_PdbDbgAccel *dbg,
                                                     SYMS_PdbUnitAccel *unit, SYMS_SymbolID sid);
 
+SYMS_API SYMS_RegSection syms_pdb_reg_section_from_x86_reg(SYMS_CvReg cv_reg);
+SYMS_API SYMS_RegSection syms_pdb_reg_section_from_x64_reg(SYMS_CvReg cv_reg);
+SYMS_API SYMS_RegSection syms_pdb_reg_section_from_arch_reg(SYMS_Arch arch, SYMS_CvReg cv_reg);
+
+SYMS_API SYMS_RegSection syms_pdb_reg_section_from_framepointer(SYMS_String8 data,  SYMS_PdbDbgAccel *dbg,
+                                                                SYMS_MsfRange range, SYMS_PdbStub *framepointer_stub);
+
 // main api
 SYMS_API SYMS_USID   syms_pdb_type_from_var_id(SYMS_String8 data, SYMS_PdbDbgAccel *dbg, SYMS_PdbUnitAccel *unit,
                                                SYMS_SymbolID id);
 
 SYMS_API SYMS_U64    syms_pdb_voff_from_var_sid(SYMS_String8 data, SYMS_PdbDbgAccel *dbg, SYMS_PdbUnitAccel *unit,
                                                 SYMS_SymbolID sid);
+
+SYMS_API SYMS_Location syms_pdb_location_from_var_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_PdbDbgAccel *dbg,
+                                                      SYMS_PdbUnitAccel *unit, SYMS_SymbolID sid);
+SYMS_API SYMS_LocRangeArray syms_pdb_location_ranges_from_var_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_PdbDbgAccel *dbg,
+                                                                  SYMS_PdbUnitAccel *unit, SYMS_SymbolID sid);
+SYMS_API SYMS_Location syms_pdb_location_from_id(SYMS_Arena *arena, SYMS_String8 data, SYMS_PdbDbgAccel *dbg,
+                                                 SYMS_PdbUnitAccel *unit, SYMS_LocID loc_id);
 
 
 ////////////////////////////////
@@ -525,9 +545,9 @@ SYMS_API SYMS_SigInfo      syms_pdb_sig_info_from_handle(SYMS_Arena *arena, SYMS
                                                          SYMS_PdbDbgAccel *dbg, SYMS_PdbUnitAccel *unit,
                                                          SYMS_SigHandle handle);
 
-SYMS_API SYMS_U64RangeArray syms_pdb_proc_vranges_from_sid(SYMS_Arena *arena, SYMS_String8 data,
-                                                           SYMS_PdbDbgAccel *dbg, SYMS_PdbUnitAccel *unit,
-                                                           SYMS_SymbolID sid);
+SYMS_API SYMS_U64RangeArray syms_pdb_scope_vranges_from_sid(SYMS_Arena *arena, SYMS_String8 data,
+                                                            SYMS_PdbDbgAccel *dbg, SYMS_PdbUnitAccel *unit,
+                                                            SYMS_SymbolID sid);
 SYMS_API SYMS_SymbolIDArray syms_pdb_scope_children_from_sid(SYMS_Arena *arena, SYMS_String8 data,
                                                              SYMS_PdbDbgAccel *dbg, SYMS_PdbUnitAccel *unit,
                                                              SYMS_SymbolID id);
@@ -560,7 +580,6 @@ SYMS_API SYMS_Line* syms_pdb_loose_push_sequence(SYMS_Arena *arena, SYMS_PdbLine
                                                  SYMS_U64 line_count);
 
 // main api
-
 SYMS_API SYMS_String8 syms_pdb_file_name_from_id(SYMS_Arena *arena, SYMS_String8 data, SYMS_PdbDbgAccel *dbg,
                                                  SYMS_PdbUnitSetAccel *unit_set, SYMS_UnitID uid,
                                                  SYMS_FileID id);

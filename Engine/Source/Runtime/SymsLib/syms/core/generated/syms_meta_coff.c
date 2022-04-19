@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_COFF_C
 #define _SYMS_META_COFF_C
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1135
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1150
 SYMS_API SYMS_Arch
 syms_arch_from_coff_machine_type(SYMS_CoffMachineType v){
 SYMS_Arch result = SYMS_Arch_Null;
@@ -43,5 +43,5 @@ case SYMS_CoffRelocTypeX64_SSPAN32: result = 4; break;
 return(result);
 }
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1591
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1607
 #endif

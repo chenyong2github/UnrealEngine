@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_MACH_C
 #define _SYMS_META_MACH_C
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1135
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1150
 SYMS_API SYMS_Arch
 syms_mach_arch_from_cputype(SYMS_MachCpuType v){
 SYMS_Arch result = SYMS_Arch_Null;
@@ -16,7 +16,7 @@ case SYMS_MachCpuType_ARM64: result = SYMS_Arch_ARM; break;
 return(result);
 }
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1591
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1607
 SYMS_API void
 syms_bswap_in_place__SYMS_MachLCStr(SYMS_MachLCStr *v)
 {
@@ -167,6 +167,7 @@ v->nreloc = syms_bswap_u32(v->nreloc);
 v->flags = syms_bswap_u32(v->flags);
 v->reserved1 = syms_bswap_u32(v->reserved1);
 v->reserved2 = syms_bswap_u32(v->reserved2);
+v->pad = syms_bswap_u32(v->pad);
 }
 
 SYMS_API void
@@ -219,6 +220,233 @@ syms_bswap_in_place__SYMS_MachNList64(SYMS_MachNList64 *v)
 v->n_strx = syms_bswap_u32(v->n_strx);
 v->n_desc = syms_bswap_u16(v->n_desc);
 v->n_value = syms_bswap_u64(v->n_value);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachBuildVersionCommand(SYMS_MachBuildVersionCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->platform = syms_bswap_u32(v->platform);
+v->minos = syms_bswap_u32(v->minos);
+v->sdk = syms_bswap_u32(v->sdk);
+v->ntools = syms_bswap_u32(v->ntools);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachBuildToolVersion(SYMS_MachBuildToolVersion *v)
+{
+v->tool = syms_bswap_u32(v->tool);
+v->version = syms_bswap_u32(v->version);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachVersionMin(SYMS_MachVersionMin *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->version = syms_bswap_u32(v->version);
+v->sdk = syms_bswap_u32(v->sdk);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachDylinker(SYMS_MachDylinker *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+syms_bswap_in_place__SYMS_MachLCStr(&v->name);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachPreboundDylibCommand(SYMS_MachPreboundDylibCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+syms_bswap_in_place__SYMS_MachLCStr(&v->name);
+v->nmodules = syms_bswap_u32(v->nmodules);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachRoutinesCommand(SYMS_MachRoutinesCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->init_address = syms_bswap_u32(v->init_address);
+v->init_module = syms_bswap_u32(v->init_module);
+v->reserved1 = syms_bswap_u32(v->reserved1);
+v->reserved2 = syms_bswap_u32(v->reserved2);
+v->reserved3 = syms_bswap_u32(v->reserved3);
+v->reserved4 = syms_bswap_u32(v->reserved4);
+v->reserved5 = syms_bswap_u32(v->reserved5);
+v->reserved6 = syms_bswap_u32(v->reserved6);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachRoutines64Command(SYMS_MachRoutines64Command *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->init_address = syms_bswap_u64(v->init_address);
+v->init_module = syms_bswap_u64(v->init_module);
+v->reserved1 = syms_bswap_u64(v->reserved1);
+v->reserved2 = syms_bswap_u64(v->reserved2);
+v->reserved3 = syms_bswap_u64(v->reserved3);
+v->reserved4 = syms_bswap_u64(v->reserved4);
+v->reserved5 = syms_bswap_u64(v->reserved5);
+v->reserved6 = syms_bswap_u64(v->reserved6);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachSubFrameworkCommand(SYMS_MachSubFrameworkCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+syms_bswap_in_place__SYMS_MachLCStr(&v->umbrella);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachSubUmbrellaCommand(SYMS_MachSubUmbrellaCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+syms_bswap_in_place__SYMS_MachLCStr(&v->sub_umbrella);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachSubClientCommand(SYMS_MachSubClientCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+syms_bswap_in_place__SYMS_MachLCStr(&v->client);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachSubLibraryCommand(SYMS_MachSubLibraryCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+syms_bswap_in_place__SYMS_MachLCStr(&v->sub_library);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachTwoLevelHintsCommand(SYMS_MachTwoLevelHintsCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->offset = syms_bswap_u32(v->offset);
+v->nhints = syms_bswap_u32(v->nhints);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachPrebindChecksumCommand(SYMS_MachPrebindChecksumCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->chksum = syms_bswap_u32(v->chksum);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachRPathCommand(SYMS_MachRPathCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+syms_bswap_in_place__SYMS_MachLCStr(&v->path);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachLinkeditDataCommand(SYMS_MachLinkeditDataCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->dataoff = syms_bswap_u32(v->dataoff);
+v->datasize = syms_bswap_u32(v->datasize);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachEncryptionInfoCommand(SYMS_MachEncryptionInfoCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->cryptoff = syms_bswap_u32(v->cryptoff);
+v->cryptsize = syms_bswap_u32(v->cryptsize);
+v->cryptid = syms_bswap_u32(v->cryptid);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachEncryptionInfo64Command(SYMS_MachEncryptionInfo64Command *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->cryptoff = syms_bswap_u32(v->cryptoff);
+v->cryptsize = syms_bswap_u32(v->cryptsize);
+v->cryptid = syms_bswap_u32(v->cryptid);
+v->pad = syms_bswap_u32(v->pad);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachEntryPointCommand(SYMS_MachEntryPointCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->entryoff = syms_bswap_u64(v->entryoff);
+v->stacksize = syms_bswap_u64(v->stacksize);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachSourceVersionCommand(SYMS_MachSourceVersionCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->version = syms_bswap_u64(v->version);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachLinkerOptionCommand(SYMS_MachLinkerOptionCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->count = syms_bswap_u32(v->count);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachNoteCommand(SYMS_MachNoteCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->offset = syms_bswap_u64(v->offset);
+v->size = syms_bswap_u64(v->size);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachSymSegCommand(SYMS_MachSymSegCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+v->offset = syms_bswap_u32(v->offset);
+v->size = syms_bswap_u32(v->size);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachFvmlib(SYMS_MachFvmlib *v)
+{
+syms_bswap_in_place__SYMS_MachLCStr(&v->name);
+v->minor_version = syms_bswap_u32(v->minor_version);
+v->header_addr = syms_bswap_u32(v->header_addr);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachFvmlibCommand(SYMS_MachFvmlibCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
+syms_bswap_in_place__SYMS_MachFvmlib(&v->fvmlib);
+}
+
+SYMS_API void
+syms_bswap_in_place__SYMS_MachThreadCommand(SYMS_MachThreadCommand *v)
+{
+v->cmd = syms_bswap_u32(v->cmd);
+v->cmdsize = syms_bswap_u32(v->cmdsize);
 }
 
 #endif

@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_DEBUG_INFO_C
 #define SYMS_DEBUG_INFO_C
 
@@ -57,13 +58,20 @@ syms_type_kind_main_from_fwd(SYMS_TypeKind kind){
 
 SYMS_API SYMS_B32
 syms_type_kind_is_basic(SYMS_TypeKind kind){
-  SYMS_B32 result = (SYMS_TypeKind_Int8 <= kind && kind <= SYMS_TypeKind_Bool);
+  SYMS_B32 result = (SYMS_TypeKind_Int8 <= kind && kind <= SYMS_TypeKind_Void);
+  return(result);
+}
+
+SYMS_API SYMS_B32
+syms_type_kind_is_basic_or_enum(SYMS_TypeKind kind){
+  SYMS_B32 result = ((SYMS_TypeKind_Int8 <= kind && kind <= SYMS_TypeKind_Void) ||
+                     kind == SYMS_TypeKind_Enum || kind == SYMS_TypeKind_ForwardEnum);
   return(result);
 }
 
 SYMS_API SYMS_B32
 syms_type_kind_is_integer(SYMS_TypeKind kind){
-  SYMS_B32 result = (SYMS_TypeKind_Int8 <= kind && kind <= SYMS_TypeKind_UInt128);
+  SYMS_B32 result = (SYMS_TypeKind_Int8 <= kind && kind <= SYMS_TypeKind_Bool);
   return(result);
 }
 
@@ -82,6 +90,12 @@ syms_type_kind_is_complex(SYMS_TypeKind kind){
 SYMS_API SYMS_B32
 syms_type_kind_is_user_defined(SYMS_TypeKind kind){
   SYMS_B32 result = (SYMS_TypeKind_Struct <= kind && kind <= SYMS_TypeKind_ForwardEnum);
+  return(result);
+}
+
+SYMS_API SYMS_B32
+syms_type_kind_is_forward(SYMS_TypeKind kind){
+  SYMS_B32 result = (SYMS_TypeKind_ForwardStruct <= kind && kind <= SYMS_TypeKind_ForwardEnum);
   return(result);
 }
 

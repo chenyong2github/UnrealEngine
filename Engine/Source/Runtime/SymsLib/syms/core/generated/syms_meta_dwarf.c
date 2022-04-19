@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DWARF_C
 #define _SYMS_META_DWARF_C
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1135
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1150
 SYMS_API SYMS_Language
 syms_dw_base_language_from_dw_language(SYMS_DwLanguage v){
 SYMS_Language result = SYMS_Language_Null;
@@ -125,7 +125,7 @@ case SYMS_DwFormKind_REF2: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwFormKind_REF4: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwFormKind_REF8: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwFormKind_REF_UDATA: result = SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwFormKind_SEC_OFFSET: result = SYMS_DwAttribClass_LINEPTR|SYMS_DwAttribClass_LOCLISTPTR|SYMS_DwAttribClass_MACPTR|SYMS_DwAttribClass_RNGLISTPTR; break;
+case SYMS_DwFormKind_SEC_OFFSET: result = SYMS_DwAttribClass_ADDRPTR|SYMS_DwAttribClass_STROFFSETSPTR|SYMS_DwAttribClass_LINEPTR|SYMS_DwAttribClass_LOCLISTPTR|SYMS_DwAttribClass_MACPTR|SYMS_DwAttribClass_RNGLISTPTR; break;
 case SYMS_DwFormKind_EXPRLOC: result = SYMS_DwAttribClass_EXPRLOC; break;
 case SYMS_DwFormKind_FLAG_PRESENT: result = SYMS_DwAttribClass_FLAG; break;
 case SYMS_DwFormKind_REF_SIG8: result = SYMS_DwAttribClass_REFERENCE; break;
@@ -315,6 +315,11 @@ case SYMS_DwAttribKind_UPC_THREADS_SCALED: result = SYMS_DwVersion_V2; break;
 case SYMS_DwAttribKind_PGI_LBASE: result = SYMS_DwVersion_V2; break;
 case SYMS_DwAttribKind_PGI_SOFFSET: result = SYMS_DwVersion_V2; break;
 case SYMS_DwAttribKind_PGI_LSTRIDE: result = SYMS_DwVersion_V2; break;
+case SYMS_DwAttribKind_LLVM_INCLUDE_PATH: result = SYMS_DwVersion_V3; break;
+case SYMS_DwAttribKind_LLVM_CONFIG_MACROS: result = SYMS_DwVersion_V3; break;
+case SYMS_DwAttribKind_LLVM_SYSROOT: result = SYMS_DwVersion_V3; break;
+case SYMS_DwAttribKind_LLVM_API_NOTES: result = SYMS_DwVersion_V3; break;
+case SYMS_DwAttribKind_LLVM_TAG_OFFSET: result = SYMS_DwVersion_V3; break;
 case SYMS_DwAttribKind_APPLE_OPTIMIZED: result = SYMS_DwVersion_V3; break;
 case SYMS_DwAttribKind_APPLE_FLAGS: result = SYMS_DwVersion_V3; break;
 case SYMS_DwAttribKind_APPLE_ISA: result = SYMS_DwVersion_V3; break;
@@ -328,6 +333,8 @@ case SYMS_DwAttribKind_APPLE_PROPERTY_SETTER: result = SYMS_DwVersion_V3; break;
 case SYMS_DwAttribKind_APPLE_PROPERTY_ATTRIBUTE: result = SYMS_DwVersion_V3; break;
 case SYMS_DwAttribKind_APPLE_OBJC_COMPLETE_TYPE: result = SYMS_DwVersion_V3; break;
 case SYMS_DwAttribKind_APPLE_PROPERTY: result = SYMS_DwVersion_V3; break;
+case SYMS_DwAttribKind_APPLE_OBJ_DIRECT: result = SYMS_DwVersion_V3; break;
+case SYMS_DwAttribKind_APPLE_SDK: result = SYMS_DwVersion_V3; break;
 }
 return(result);
 }
@@ -340,9 +347,9 @@ case SYMS_DwAttribKind_SIBLING: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_LOCATION: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_LOCLISTPTR; break;
 case SYMS_DwAttribKind_NAME: result = SYMS_DwAttribClass_STRING; break;
 case SYMS_DwAttribKind_ORDERING: result = SYMS_DwAttribClass_CONST; break;
-case SYMS_DwAttribKind_BYTE_SIZE: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwAttribKind_BIT_OFFSET: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwAttribKind_BIT_SIZE: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
+case SYMS_DwAttribKind_BYTE_SIZE: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
+case SYMS_DwAttribKind_BIT_OFFSET: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
+case SYMS_DwAttribKind_BIT_SIZE: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_STMT_LIST: result = SYMS_DwAttribClass_LINEPTR; break;
 case SYMS_DwAttribKind_LOW_PC: result = SYMS_DwAttribClass_ADDRESS; break;
 case SYMS_DwAttribKind_HIGH_PC: result = SYMS_DwAttribClass_ADDRESS|SYMS_DwAttribClass_CONST; break;
@@ -351,29 +358,29 @@ case SYMS_DwAttribKind_DISCR: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_DISCR_VALUE: result = SYMS_DwAttribClass_CONST; break;
 case SYMS_DwAttribKind_VISIBILITY: result = SYMS_DwAttribClass_CONST; break;
 case SYMS_DwAttribKind_IMPORT: result = SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwAttribKind_STRING_LENGTH: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_LOCLISTPTR; break;
+case SYMS_DwAttribKind_STRING_LENGTH: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_LOCLISTPTR; break;
 case SYMS_DwAttribKind_COMMON_REFERENCE: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_COMP_DIR: result = SYMS_DwAttribClass_STRING; break;
 case SYMS_DwAttribKind_CONST_VALUE: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_STRING; break;
 case SYMS_DwAttribKind_CONTAINING_TYPE: result = SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwAttribKind_DEFAULT_VALUE: result = SYMS_DwAttribClass_REFERENCE; break;
+case SYMS_DwAttribKind_DEFAULT_VALUE: result = SYMS_DwAttribClass_REFERENCE|SYMS_DwAttribClass_FLAG|SYMS_DwAttribClass_CONST; break;
 case SYMS_DwAttribKind_INLINE: result = SYMS_DwAttribClass_CONST; break;
 case SYMS_DwAttribKind_IS_OPTIONAL: result = SYMS_DwAttribClass_FLAG; break;
-case SYMS_DwAttribKind_LOWER_BOUND: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
+case SYMS_DwAttribKind_LOWER_BOUND: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_PRODUCER: result = SYMS_DwAttribClass_STRING; break;
 case SYMS_DwAttribKind_PROTOTYPED: result = SYMS_DwAttribClass_FLAG; break;
-case SYMS_DwAttribKind_RETURN_ADDR: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_LOCLISTPTR; break;
+case SYMS_DwAttribKind_RETURN_ADDR: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_LOCLISTPTR; break;
 case SYMS_DwAttribKind_START_SCOPE: result = SYMS_DwAttribClass_CONST; break;
 case SYMS_DwAttribKind_BIT_STRIDE: result = SYMS_DwAttribClass_CONST; break;
-case SYMS_DwAttribKind_UPPER_BOUND: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
+case SYMS_DwAttribKind_UPPER_BOUND: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_ABSTRACT_ORIGIN: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_ACCESSIBILITY: result = SYMS_DwAttribClass_CONST; break;
 case SYMS_DwAttribKind_ADDRESS_CLASS: result = SYMS_DwAttribClass_CONST; break;
 case SYMS_DwAttribKind_ARTIFICIAL: result = SYMS_DwAttribClass_FLAG; break;
 case SYMS_DwAttribKind_BASE_TYPES: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_CALLING_CONVENTION: result = SYMS_DwAttribClass_CONST; break;
-case SYMS_DwAttribKind_ARR_COUNT: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwAttribKind_DATA_MEMBER_LOCATION: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_LOCLISTPTR; break;
+case SYMS_DwAttribKind_ARR_COUNT: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
+case SYMS_DwAttribKind_DATA_MEMBER_LOCATION: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_LOCLISTPTR; break;
 case SYMS_DwAttribKind_DECL_COLUMN: result = SYMS_DwAttribClass_CONST; break;
 case SYMS_DwAttribKind_DECL_FILE: result = SYMS_DwAttribClass_CONST; break;
 case SYMS_DwAttribKind_DECL_LINE: result = SYMS_DwAttribClass_CONST; break;
@@ -385,20 +392,20 @@ case SYMS_DwAttribKind_FRAME_BASE: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAt
 case SYMS_DwAttribKind_FRIEND: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_IDENTIFIER_CASE: result = SYMS_DwAttribClass_CONST; break;
 case SYMS_DwAttribKind_MACRO_INFO: result = SYMS_DwAttribClass_MACPTR; break;
-case SYMS_DwAttribKind_NAMELIST_ITEM: result = SYMS_DwAttribClass_BLOCK; break;
+case SYMS_DwAttribKind_NAMELIST_ITEM: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_PRIORITY: result = SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwAttribKind_SEGMENT: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_LOCLISTPTR; break;
+case SYMS_DwAttribKind_SEGMENT: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_LOCLISTPTR; break;
 case SYMS_DwAttribKind_SPECIFICATION: result = SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwAttribKind_STATIC_LINK: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_LOCLISTPTR; break;
+case SYMS_DwAttribKind_STATIC_LINK: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_LOCLISTPTR; break;
 case SYMS_DwAttribKind_TYPE: result = SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwAttribKind_USE_LOCATION: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_LOCLISTPTR; break;
+case SYMS_DwAttribKind_USE_LOCATION: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_LOCLISTPTR; break;
 case SYMS_DwAttribKind_VARIABLE_PARAMETER: result = SYMS_DwAttribClass_FLAG; break;
 case SYMS_DwAttribKind_VIRTUALITY: result = SYMS_DwAttribClass_CONST; break;
-case SYMS_DwAttribKind_VTABLE_ELEM_LOCATION: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_LOCLISTPTR; break;
-case SYMS_DwAttribKind_ALLOCATED: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwAttribKind_ASSOCIATED: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
-case SYMS_DwAttribKind_DATA_LOCATION: result = SYMS_DwAttribClass_BLOCK; break;
-case SYMS_DwAttribKind_BYTE_STRIDE: result = SYMS_DwAttribClass_BLOCK|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
+case SYMS_DwAttribKind_VTABLE_ELEM_LOCATION: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_LOCLISTPTR; break;
+case SYMS_DwAttribKind_ALLOCATED: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
+case SYMS_DwAttribKind_ASSOCIATED: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
+case SYMS_DwAttribKind_DATA_LOCATION: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_LOCLIST; break;
+case SYMS_DwAttribKind_BYTE_STRIDE: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_CONST|SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_ENTRY_PC: result = SYMS_DwAttribClass_ADDRESS; break;
 case SYMS_DwAttribKind_USE_UTF8: result = SYMS_DwAttribClass_FLAG; break;
 case SYMS_DwAttribKind_EXTENSION: result = SYMS_DwAttribClass_REFERENCE; break;
@@ -443,7 +450,7 @@ case SYMS_DwAttribKind_CALL_ALL_SOURCE_CALLS: result = SYMS_DwAttribClass_FLAG; 
 case SYMS_DwAttribKind_CALL_ALL_TAIL_CALLS: result = SYMS_DwAttribClass_FLAG; break;
 case SYMS_DwAttribKind_CALL_RETURN_PC: result = SYMS_DwAttribClass_ADDRESS; break;
 case SYMS_DwAttribKind_CALL_VALUE: result = SYMS_DwAttribClass_EXPRLOC; break;
-case SYMS_DwAttribKind_CALL_ORIGIN: result = SYMS_DwAttribClass_EXPRLOC; break;
+case SYMS_DwAttribKind_CALL_ORIGIN: result = SYMS_DwAttribClass_EXPRLOC|SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_CALL_PARAMETER: result = SYMS_DwAttribClass_REFERENCE; break;
 case SYMS_DwAttribKind_CALL_PC: result = SYMS_DwAttribClass_ADDRESS; break;
 case SYMS_DwAttribKind_CALL_TAIL_CALL: result = SYMS_DwAttribClass_FLAG; break;
@@ -496,6 +503,11 @@ case SYMS_DwAttribKind_UPC_THREADS_SCALED: result = SYMS_DwAttribClass_UNDEFINED
 case SYMS_DwAttribKind_PGI_LBASE: result = SYMS_DwAttribClass_UNDEFINED; break;
 case SYMS_DwAttribKind_PGI_SOFFSET: result = SYMS_DwAttribClass_UNDEFINED; break;
 case SYMS_DwAttribKind_PGI_LSTRIDE: result = SYMS_DwAttribClass_UNDEFINED; break;
+case SYMS_DwAttribKind_LLVM_INCLUDE_PATH: result = SYMS_DwAttribClass_STRING; break;
+case SYMS_DwAttribKind_LLVM_CONFIG_MACROS: result = SYMS_DwAttribClass_STRING; break;
+case SYMS_DwAttribKind_LLVM_SYSROOT: result = SYMS_DwAttribClass_STRING; break;
+case SYMS_DwAttribKind_LLVM_API_NOTES: result = SYMS_DwAttribClass_STRING; break;
+case SYMS_DwAttribKind_LLVM_TAG_OFFSET: result = SYMS_DwAttribClass_UNDEFINED; break;
 case SYMS_DwAttribKind_APPLE_OPTIMIZED: result = SYMS_DwAttribClass_FLAG; break;
 case SYMS_DwAttribKind_APPLE_FLAGS: result = SYMS_DwAttribClass_FLAG; break;
 case SYMS_DwAttribKind_APPLE_ISA: result = SYMS_DwAttribClass_FLAG; break;
@@ -509,6 +521,8 @@ case SYMS_DwAttribKind_APPLE_PROPERTY_SETTER: result = SYMS_DwAttribClass_UNDEFI
 case SYMS_DwAttribKind_APPLE_PROPERTY_ATTRIBUTE: result = SYMS_DwAttribClass_UNDEFINED; break;
 case SYMS_DwAttribKind_APPLE_OBJC_COMPLETE_TYPE: result = SYMS_DwAttribClass_UNDEFINED; break;
 case SYMS_DwAttribKind_APPLE_PROPERTY: result = SYMS_DwAttribClass_UNDEFINED; break;
+case SYMS_DwAttribKind_APPLE_OBJ_DIRECT: result = SYMS_DwAttribClass_UNDEFINED; break;
+case SYMS_DwAttribKind_APPLE_SDK: result = SYMS_DwAttribClass_STRING; break;
 }
 return(result);
 }
@@ -558,5 +572,5 @@ case SYMS_DwAccess_Protected: result = SYMS_MemVisibility_Protected; break;
 return(result);
 }
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1591
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1607
 #endif

@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DWARF_EXPR_H
 #define _SYMS_META_DWARF_EXPR_H
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:885
 typedef enum SYMS_DwRegX86{
 SYMS_DwRegX86_EAX = 0,
 SYMS_DwRegX86_ECX = 1,
@@ -282,12 +282,14 @@ SYMS_DwOp_DEREF_TYPE = 0xa6,
 SYMS_DwOp_XDEREF_TYPE = 0xa7,
 SYMS_DwOp_CONVERT = 0xa8,
 SYMS_DwOp_REINTERPRET = 0xa9,
-SYMS_DwOp_LO_USER = 0xe0,
+SYMS_DwOp_GNU_PUSH_TLS_ADDRESS = 0xe0,
+SYMS_DwOp_GNU_UNINIT = 0xf0,
+SYMS_DwOp_LO_USER = SYMS_DwOp_GNU_PUSH_TLS_ADDRESS,
 SYMS_DwOp_HI_USER = 0xff,
-SYMS_DwOp_COUNT = 167
+SYMS_DwOp_COUNT = 169
 } SYMS_DwOp;
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1133
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_RegID syms_reg_from_dw_reg_x86(SYMS_DwRegX86 v);
 SYMS_API SYMS_RegID syms_reg_from_dw_reg_x64(SYMS_DwRegX64 v);
@@ -295,8 +297,9 @@ SYMS_API SYMS_DwVersion syms_dw_version_from_op_code(SYMS_DwOp v);
 SYMS_API SYMS_U64 syms_dw_num_operands_from_op_code(SYMS_DwOp v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1588
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1694
 #endif

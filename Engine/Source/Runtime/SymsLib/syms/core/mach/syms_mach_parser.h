@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_MACH_PARSER_H
 #define SYMS_MACH_PARSER_H
 
@@ -40,16 +41,23 @@ typedef struct SYMS_MachBinAccel{
   SYMS_FileFormat format;
   
   SYMS_Arch arch;
+
+  SYMS_B32 is_swapped;
+
+  SYMS_U32 load_command_count;
+  SYMS_U64Range load_commands;
+
+  SYMS_MachSymtabCommand symtab;
   
   SYMS_MachSegmentCommand64 *segments;
   SYMS_U32 segment_count;
   
   SYMS_MachSection64 *sections;
   SYMS_U32 section_count;
-
+  
   SYMS_U64Range bind_ranges[SYMS_MachBindTable_COUNT];
   SYMS_U64Range export_range;
-
+  
   SYMS_U32 dylib_count;
   struct SYMS_MachParsedDylib *dylibs;
 } SYMS_MachBinAccel;
@@ -113,7 +121,7 @@ typedef struct SYMS_MachExport
   SYMS_U8 child_count;
   
   SYMS_B32 is_export_info;
-
+  
   SYMS_String8 name;
   SYMS_U64 flags;
   SYMS_U64 address;

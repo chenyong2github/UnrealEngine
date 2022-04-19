@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_MACH_H
 #define SYMS_MACH_H
 
@@ -50,23 +51,6 @@ typedef SYMS_S32 SYMS_MachVMProt;
 //~ NOTE(allen): Generated
 
 #include "syms/core/generated/syms_meta_mach.h"
-
-////////////////////////////////
-//~ NOTE(rjf): More Types & Constants from loader.h
-
-typedef struct SYMS_MachBuildVersionCommand{
-  SYMS_U32 cmd;
-  SYMS_U32 cmdsize;
-  SYMS_MachPlatformType platform;
-  SYMS_U32 minos;
-  SYMS_U32 sdk;
-  SYMS_U32 ntools;
-} SYMS_MachBuildVersionCommand;
-
-typedef struct SYMS_MachBuildToolVersion{
-  SYMS_MachToolType tool;
-  SYMS_U32 version;
-} SYMS_MachBuildToolVersion;
 
 ////////////////////////////////
 //~ NOTE(allen): Types & Constants from nlist.h

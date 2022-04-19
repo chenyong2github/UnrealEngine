@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_ELF_H
 #define _SYMS_META_ELF_H
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:885
 typedef SYMS_U8 SYMS_ElfClass;
 enum{
 SYMS_ElfClass_None = 0,
@@ -63,6 +63,7 @@ SYMS_ElfMachineKind_RH32 = 38,
 SYMS_ElfMachineKind_MCORE = 39,
 SYMS_ElfMachineKind_ARM = 40,
 SYMS_ElfMachineKind_SH = 42,
+SYMS_ElfMachineKind_ALPHA = 41,
 SYMS_ElfMachineKind_SPARCV9 = 43,
 SYMS_ElfMachineKind_TRICORE = 44,
 SYMS_ElfMachineKind_ARC = 45,
@@ -88,7 +89,8 @@ SYMS_ElfMachineKind_TI_C6000 = 140,
 SYMS_ElfMachineKind_L1OM = 180,
 SYMS_ElfMachineKind_K1OM = 181,
 SYMS_ElfMachineKind_RISCV = 243,
-SYMS_ElfMachineKind_COUNT = 50
+SYMS_ElfMachineKind_S390_OLD = 0xA390,
+SYMS_ElfMachineKind_COUNT = 52
 };
 typedef SYMS_U16 SYMS_ElfType;
 enum{
@@ -116,6 +118,7 @@ SYMS_ElfPKind_Interp = 3,
 SYMS_ElfPKind_Note = 4,
 SYMS_ElfPKind_SHLib = 5,
 SYMS_ElfPKind_PHDR = 6,
+SYMS_ElfPKind_TLS = 7,
 SYMS_ElfPKind_LOOS = 0x60000000,
 SYMS_ElfPKind_HIOS = 0x6fffffff,
 SYMS_ElfPKind_LowProc = 0x70000000,
@@ -129,8 +132,9 @@ SYMS_ElfPKind_GnuStack = 0x6474E551,
 //  SYMS_ElfPKind_LOOS + 0x474e551, // stack flags
 SYMS_ElfPKind_GnuRelro = 0x6474E552,
 //  SYMS_ElfPKind_LOOS + 0x474e552, // read-only after relocations
+SYMS_ElfPKind_GnuProperty = 0x6474E553,
 SYMS_ElfPKind_SunEHFrame = SYMS_ElfPKind_GnuEHFrame,
-SYMS_ElfPKind_COUNT = 17
+SYMS_ElfPKind_COUNT = 19
 };
 typedef SYMS_U32 SYMS_ElfPFlag;
 enum{
@@ -392,9 +396,11 @@ SYMS_ElfSymType_SECTION = 3,
 //  Symbol is used to relocate sections and normally have LOCAL binding.
 SYMS_ElfSymType_FILE = 4,
 //  Gives name of the source file associated with object.
+SYMS_ElfSymType_COMMON = 5,
+SYMS_ElfSymType_TLS = 6,
 SYMS_ElfSymType_LOPROC = 13,
 SYMS_ElfSymType_HIPROC = 15,
-SYMS_ElfSymType_COUNT = 7
+SYMS_ElfSymType_COUNT = 9
 };
 typedef SYMS_U8 SYMS_ElfSymVisibility;
 enum{
@@ -453,20 +459,195 @@ SYMS_ElfRelocI386_GNU_VTINHERIT = 250,
 SYMS_ElfRelocI386_GNU_VTENTRY = 251,
 SYMS_ElfRelocI386_COUNT = 44
 };
+typedef SYMS_U32 SYMS_ElfRelocX8664;
+enum{
+SYMS_ElfRelocX8664_NONE = 0,
+SYMS_ElfRelocX8664_64 = 1,
+SYMS_ElfRelocX8664_PC32 = 2,
+SYMS_ElfRelocX8664_GOT32 = 3,
+SYMS_ElfRelocX8664_PLT32 = 4,
+SYMS_ElfRelocX8664_COPY = 5,
+SYMS_ElfRelocX8664_GLOB_DAT = 6,
+SYMS_ElfRelocX8664_JUMP_SLOT = 7,
+SYMS_ElfRelocX8664_RELATIVE = 8,
+SYMS_ElfRelocX8664_GOTPCREL = 9,
+SYMS_ElfRelocX8664_32 = 10,
+SYMS_ElfRelocX8664_32S = 11,
+SYMS_ElfRelocX8664_16 = 12,
+SYMS_ElfRelocX8664_PC16 = 13,
+SYMS_ElfRelocX8664_8 = 14,
+SYMS_ElfRelocX8664_PC8 = 15,
+SYMS_ElfRelocX8664_DTPMOD64 = 16,
+SYMS_ElfRelocX8664_DTPOFF64 = 17,
+SYMS_ElfRelocX8664_TPOFF64 = 18,
+SYMS_ElfRelocX8664_TLSGD = 19,
+SYMS_ElfRelocX8664_TLSLD = 20,
+SYMS_ElfRelocX8664_DTPOFF32 = 21,
+SYMS_ElfRelocX8664_GOTTPOFF = 22,
+SYMS_ElfRelocX8664_TPOFF32 = 23,
+SYMS_ElfRelocX8664_PC64 = 24,
+SYMS_ElfRelocX8664_GOTOFF64 = 25,
+SYMS_ElfRelocX8664_GOTPC32 = 26,
+SYMS_ElfRelocX8664_GOT64 = 27,
+SYMS_ElfRelocX8664_GOTPCREL64 = 28,
+SYMS_ElfRelocX8664_GOTPC64 = 29,
+SYMS_ElfRelocX8664_GOTPLT64 = 30,
+SYMS_ElfRelocX8664_PLTOFF64 = 31,
+SYMS_ElfRelocX8664_SIZE32 = 32,
+SYMS_ElfRelocX8664_SIZE64 = 33,
+SYMS_ElfRelocX8664_GOTPC32_TLSDESC = 34,
+SYMS_ElfRelocX8664_TLSDESC_CALL = 35,
+SYMS_ElfRelocX8664_TLSDESC = 36,
+SYMS_ElfRelocX8664_IRELATIVE = 37,
+SYMS_ElfRelocX8664_RELATIVE64 = 38,
+SYMS_ElfRelocX8664_PC32_BND = 39,
+SYMS_ElfRelocX8664_PLT32_BND = 40,
+SYMS_ElfRelocX8664_GOTPCRELX = 41,
+SYMS_ElfRelocX8664_REX_GOTPCRELX = 42,
+SYMS_ElfRelocX8664_GNU_VTINHERIT = 250,
+SYMS_ElfRelocX8664_GNU_VTENTRY = 251,
+SYMS_ElfRelocX8664_COUNT = 45
+};
 typedef SYMS_U32 SYMS_ElfExternalVerFlag;
 enum{
 SYMS_ElfExternalVerFlag_BASE = (1 << 0),
 SYMS_ElfExternalVerFlag_WEAK = (1 << 1),
 SYMS_ElfExternalVerFlag_INFO = (1 << 2),
 };
+typedef SYMS_U32 SYMS_ElfNoteType;
+enum{
+SYMS_ElfNoteType_GNU_ABI = 1,
+SYMS_ElfNoteType_GNU_HWCAP = 2,
+SYMS_ElfNoteType_GNU_BUILD_ID = 3,
+SYMS_ElfNoteType_GNU_GOLD_VERSION = 4,
+SYMS_ElfNoteType_GNU_PROPERTY_TYPE_0 = 5,
+SYMS_ElfNoteType_COUNT = 5
+};
+typedef SYMS_U32 SYMS_ElfGnuABITag;
+enum{
+SYMS_ElfGnuABITag_LINUX = 0,
+SYMS_ElfGnuABITag_HURD = 1,
+SYMS_ElfGnuABITag_SOLARIS = 2,
+SYMS_ElfGnuABITag_FREEBSD = 3,
+SYMS_ElfGnuABITag_NETBSD = 4,
+SYMS_ElfGnuABITag_SYLLABLE = 5,
+SYMS_ElfGnuABITag_NACL = 6,
+SYMS_ElfGnuABITag_COUNT = 7
+};
+typedef SYMS_S32 SYMS_ElfGnuProperty;
+enum{
+SYMS_ElfGnuProperty_LOPROC = 0xc0000000,
+//  processor-specific range
+SYMS_ElfGnuProperty_HIPROC = 0xdfffffff,
+SYMS_ElfGnuProperty_LOUSER = 0xe0000000,
+//  application-specific range
+SYMS_ElfGnuProperty_HIUSER = 0xffffffff,
+SYMS_ElfGnuProperty_STACK_SIZE = 1,
+SYMS_ElfGnuProperty_NO_COPY_ON_PROTECTED = 2,
+SYMS_ElfGnuProperty_COUNT = 6
+};
+typedef SYMS_U32 SYMS_ElfGnuPropertyX86Isa1;
+enum{
+SYMS_ElfGnuPropertyX86Isa1_BASE_LINE = (1 << 0),
+SYMS_ElfGnuPropertyX86Isa1_V2 = (1 << 1),
+SYMS_ElfGnuPropertyX86Isa1_V3 = (1 << 2),
+SYMS_ElfGnuPropertyX86Isa1_V4 = (1 << 3),
+};
+typedef SYMS_U32 SYMS_ElfGnuPropertyX86Compat1Isa1;
+enum{
+SYMS_ElfGnuPropertyX86Compat1Isa1_486 = (1 << 0),
+SYMS_ElfGnuPropertyX86Compat1Isa1_586 = (1 << 1),
+SYMS_ElfGnuPropertyX86Compat1Isa1_686 = (1 << 2),
+SYMS_ElfGnuPropertyX86Compat1Isa1_SSE = (1 << 3),
+SYMS_ElfGnuPropertyX86Compat1Isa1_SSE2 = (1 << 4),
+SYMS_ElfGnuPropertyX86Compat1Isa1_SSE3 = (1 << 5),
+SYMS_ElfGnuPropertyX86Compat1Isa1_SSSE3 = (1 << 6),
+SYMS_ElfGnuPropertyX86Compat1Isa1_SSE4_1 = (1 << 7),
+SYMS_ElfGnuPropertyX86Compat1Isa1_SSE4_2 = (1 << 8),
+SYMS_ElfGnuPropertyX86Compat1Isa1_AVX = (1 << 9),
+SYMS_ElfGnuPropertyX86Compat1Isa1_AVX2 = (1 << 10),
+SYMS_ElfGnuPropertyX86Compat1Isa1_AVX512F = (1 << 11),
+SYMS_ElfGnuPropertyX86Compat1Isa1_AVX512ER = (1 << 12),
+SYMS_ElfGnuPropertyX86Compat1Isa1_AVX512PF = (1 << 13),
+SYMS_ElfGnuPropertyX86Compat1Isa1_AVX512VL = (1 << 14),
+SYMS_ElfGnuPropertyX86Compat1Isa1_AVX512DQ = (1 << 15),
+SYMS_ElfGnuPropertyX86Compat1Isa1_AVX512BW = (1 << 16),
+};
+typedef SYMS_U32 SYMS_ElfGnuPropertyX86Compat2Isa1;
+enum{
+SYMS_ElfGnuPropertyX86Compat2Isa1_CMOVE = (1 << 0),
+SYMS_ElfGnuPropertyX86Compat2Isa1_SSE = (1 << 1),
+SYMS_ElfGnuPropertyX86Compat2Isa1_SSE2 = (1 << 2),
+SYMS_ElfGnuPropertyX86Compat2Isa1_SSE3 = (1 << 3),
+SYMS_ElfGnuPropertyX86Compat2Isa1_SSE4_1 = (1 << 4),
+SYMS_ElfGnuPropertyX86Compat2Isa1_SSE4_2 = (1 << 5),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX = (1 << 6),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX2 = (1 << 7),
+SYMS_ElfGnuPropertyX86Compat2Isa1_FMA = (1 << 8),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512F = (1 << 9),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512CD = (1 << 10),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512ER = (1 << 11),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512PF = (1 << 12),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512VL = (1 << 13),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512DQ = (1 << 14),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512BW = (1 << 15),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512_4FMAPS = (1 << 16),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512_4VNNIW = (1 << 17),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512_BITALG = (1 << 18),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512_IFMA = (1 << 19),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512_VBMI = (1 << 20),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512_VBMI2 = (1 << 21),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512_VNNI = (1 << 22),
+SYMS_ElfGnuPropertyX86Compat2Isa1_AVX512_BF16 = (1 << 23),
+};
+typedef SYMS_S32 SYMS_ElfGnuPropertyX86;
+enum{
+SYMS_ElfGnuPropertyX86_FEATURE_1_AND = 0xc0000002,
+SYMS_ElfGnuPropertyX86_FEATURE_2_USED = 0xc0010001,
+SYMS_ElfGnuPropertyX86_ISA_1_NEEDED = 0xc0008002,
+SYMS_ElfGnuPropertyX86_ISA_2_NEEDED = 0xc0008001,
+SYMS_ElfGnuPropertyX86_ISA_1_USED = 0xc0010002,
+SYMS_ElfGnuPropertyX86_COMPAT_ISA_1_USED = 0xc0000000,
+SYMS_ElfGnuPropertyX86_COMPAT_ISA_1_NEEDED = 0xc0000001,
+SYMS_ElfGnuPropertyX86_UINT32_AND_LO = SYMS_ElfGnuPropertyX86_FEATURE_1_AND,
+SYMS_ElfGnuPropertyX86_UINT32_AND_HI = 0xc0007fff,
+SYMS_ElfGnuPropertyX86_UINT32_OR_LO = 0xc0008000,
+SYMS_ElfGnuPropertyX86_UINT32_OR_HI = 0xc000ffff,
+SYMS_ElfGnuPropertyX86_UINT32_OR_AND_LO = 0xc0010000,
+SYMS_ElfGnuPropertyX86_UINT32_OR_AND_HI = 0xc0017fff,
+SYMS_ElfGnuPropertyX86_COUNT = 13
+};
+typedef SYMS_U32 SYMS_ElfGnuPropertyX86Feature1;
+enum{
+SYMS_ElfGnuPropertyX86Feature1_IBT = (1 << 0),
+SYMS_ElfGnuPropertyX86Feature1_SHSTK = (1 << 1),
+SYMS_ElfGnuPropertyX86Feature1_LAM_U48 = (1 << 2),
+SYMS_ElfGnuPropertyX86Feature1_LAM_U57 = (1 << 3),
+};
+typedef SYMS_U32 SYMS_ElfGnuPropertyX86Feature2;
+enum{
+SYMS_ElfGnuPropertyX86Feature2_X86 = (1 << 0),
+SYMS_ElfGnuPropertyX86Feature2_X87 = (1 << 1),
+SYMS_ElfGnuPropertyX86Feature2_MMX = (1 << 2),
+SYMS_ElfGnuPropertyX86Feature2_XMM = (1 << 3),
+SYMS_ElfGnuPropertyX86Feature2_YMM = (1 << 4),
+SYMS_ElfGnuPropertyX86Feature2_ZMM = (1 << 5),
+SYMS_ElfGnuPropertyX86Feature2_FXSR = (1 << 6),
+SYMS_ElfGnuPropertyX86Feature2_XSAVE = (1 << 7),
+SYMS_ElfGnuPropertyX86Feature2_XSAVEOPT = (1 << 8),
+SYMS_ElfGnuPropertyX86Feature2_XSAVEC = (1 << 9),
+SYMS_ElfGnuPropertyX86Feature2_TMM = (1 << 10),
+SYMS_ElfGnuPropertyX86Feature2_MASK = (1 << 11),
+};
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1133
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_Arch syms_arch_from_elf_machine_type(SYMS_ElfMachineKind v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1588
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1694
 #endif

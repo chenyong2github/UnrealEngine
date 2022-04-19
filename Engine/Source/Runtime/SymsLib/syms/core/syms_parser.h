@@ -184,6 +184,13 @@ SYMS_API SYMS_USID         syms_type_from_var_sid(SYMS_String8 data, SYMS_DbgAcc
 SYMS_API SYMS_U64          syms_voff_from_var_sid(SYMS_String8 data, SYMS_DbgAccel *dbg, SYMS_UnitAccel *unit,
                                                   SYMS_SymbolID sid);
 
+SYMS_API SYMS_Location     syms_location_from_var_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
+                                                      SYMS_UnitAccel *unit, SYMS_SymbolID sid);
+SYMS_API SYMS_LocRangeArray syms_location_ranges_from_var_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
+                                                              SYMS_UnitAccel *unit, SYMS_SymbolID sid);
+SYMS_API SYMS_Location     syms_location_from_id(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
+                                                 SYMS_UnitAccel *unit, SYMS_LocID loc_id);
+
 // member info
 SYMS_API SYMS_MemsAccel*   syms_mems_accel_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
                                                     SYMS_UnitAccel *unit, SYMS_SymbolID sid);
@@ -211,11 +218,20 @@ SYMS_API SYMS_UnitIDAndSig syms_sig_handle_from_proc_sid(SYMS_String8 data, SYMS
 SYMS_API SYMS_SigInfo      syms_sig_info_from_handle(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
                                                      SYMS_UnitAccel *unit, SYMS_SigHandle handle);
 
-SYMS_API SYMS_U64RangeArray syms_proc_vranges_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
-                                                       SYMS_UnitAccel *unit, SYMS_SymbolID sid);
+#define syms_proc_vranges_from_sid syms_scope_vranges_from_sid
+SYMS_API SYMS_U64RangeArray syms_scope_vranges_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
+                                                        SYMS_UnitAccel *unit, SYMS_SymbolID sid);
 SYMS_API SYMS_SymbolIDArray syms_scope_children_from_sid(SYMS_Arena *arena, SYMS_String8 data,
                                                          SYMS_DbgAccel *dbg, SYMS_UnitAccel *unit,
                                                          SYMS_SymbolID sid);
+
+SYMS_API SYMS_Location     syms_location_from_proc_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
+                                                       SYMS_UnitAccel *unit, SYMS_SymbolID sid,
+                                                       SYMS_ProcLoc proc_loc);
+SYMS_API SYMS_LocRangeArray syms_location_ranges_from_proc_sid(SYMS_Arena *arena, SYMS_String8 data,
+                                                               SYMS_DbgAccel *dbg,
+                                                               SYMS_UnitAccel *unit, SYMS_SymbolID sid,
+                                                               SYMS_ProcLoc proc_loc);
 
 SYMS_API SYMS_StrippedInfoArray syms_stripped_from_unit(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
                                                         SYMS_UnitAccel *unit);
@@ -240,6 +256,11 @@ SYMS_API SYMS_MapAccel*    syms_image_symbol_map_from_dbg(SYMS_Arena *arena,SYMS
 SYMS_API SYMS_UnitID       syms_partner_uid_from_map(SYMS_MapAccel *map);
 SYMS_API SYMS_USIDList     syms_symbol_list_from_string(SYMS_Arena *arena, SYMS_String8 data, SYMS_DbgAccel *dbg,
                                                         SYMS_MapAndUnit map_and_unit, SYMS_String8 string);
+
+// thread vars
+
+SYMS_API SYMS_UnitID        syms_tls_var_uid_from_dbg(SYMS_DbgAccel *dbg);
+SYMS_API SYMS_SymbolIDArray syms_tls_var_sid_array_from_unit(SYMS_Arena *arena, SYMS_UnitAccel *thread_unit);
 
 SYMS_C_LINKAGE_END
 

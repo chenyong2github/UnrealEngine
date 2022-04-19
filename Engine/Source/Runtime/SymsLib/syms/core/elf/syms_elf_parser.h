@@ -22,11 +22,10 @@ struct SYMS_ElfImgHeader
 typedef struct SYMS_ElfSection SYMS_ElfSection;
 struct SYMS_ElfSection
 {
-  SYMS_ElfSectionCode code;
+  SYMS_ElfShdr64 header;
   SYMS_U64Range virtual_range;
   SYMS_U64Range file_range;
   SYMS_String8 name;
-  SYMS_U32 sh_link;
 };
 
 typedef struct SYMS_ElfSectionArray SYMS_ElfSectionArray;
@@ -34,6 +33,13 @@ struct SYMS_ElfSectionArray
 {
   SYMS_U64 count;
   SYMS_ElfSection *v;
+};
+
+typedef struct SYMS_ElfSegmentArray SYMS_ElfSegmentArray;
+struct SYMS_ElfSegmentArray
+{
+  SYMS_U64 count;
+  SYMS_ElfPhdr64 *v;
 };
 
 typedef struct SYMS_ElfExtDebugRef SYMS_ElfExtDebugRef;
@@ -62,6 +68,7 @@ struct SYMS_ElfBinAccel
   SYMS_FileFormat format;
   SYMS_ElfImgHeader header;
   SYMS_ElfSectionArray sections;
+  SYMS_ElfSegmentArray segments;
 };
 
 SYMS_C_LINKAGE_BEGIN
@@ -69,9 +76,10 @@ SYMS_C_LINKAGE_BEGIN
 ////////////////////////////////
 //~ rjf: Low-Level Header/Section Parsing
 
-SYMS_API SYMS_ElfImgHeader syms_elf_img_header_from_file(SYMS_String8 file);
+SYMS_API SYMS_ElfImgHeader    syms_elf_img_header_from_file(SYMS_String8 file);
+SYMS_API SYMS_ElfExtDebugRef  syms_elf_ext_debug_ref_from_elf_section_array(SYMS_String8 file, SYMS_ElfSectionArray sections);
 SYMS_API SYMS_ElfSectionArray syms_elf_section_array_from_img_header(SYMS_Arena *arena, SYMS_String8 file, SYMS_ElfImgHeader img);
-SYMS_API SYMS_ElfExtDebugRef syms_elf_ext_debug_ref_from_elf_section_array(SYMS_String8 file, SYMS_ElfSectionArray sections);
+SYMS_API SYMS_ElfSegmentArray syms_elf_segment_array_from_img_header(SYMS_Arena *arena, SYMS_String8 file, SYMS_ElfImgHeader img);
 
 ////////////////////////////////
 //~ rjf: High-Level API Canonical Conversions

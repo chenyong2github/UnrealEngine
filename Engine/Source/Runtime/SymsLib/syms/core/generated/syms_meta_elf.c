@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_ELF_C
 #define _SYMS_META_ELF_C
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1135
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1150
 SYMS_API SYMS_Arch
 syms_arch_from_elf_machine_type(SYMS_ElfMachineKind v){
 SYMS_Arch result = SYMS_Arch_Null;
@@ -19,5 +19,5 @@ case SYMS_ElfMachineKind_AARCH64: result = SYMS_Arch_ARM; break;
 return(result);
 }
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1591
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1607
 #endif

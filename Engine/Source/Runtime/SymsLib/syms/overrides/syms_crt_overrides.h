@@ -1,8 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-/* date = April 6th 2021 4:25 pm */
 
 #ifndef SYMS_CRT_DEFAULT_OVERRIDES_H
 #define SYMS_CRT_DEFAULT_OVERRIDES_H
+
+#if !defined(SYMS_OVERRIDE_FUNC)
+# define SYMS_OVERRIDE_FUNC
+#endif
+
+// NOTE(allen): basic types
 
 #ifdef _MSC_VER
 

@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_DEFAULT_ARENA_C
 #define SYMS_DEFAULT_ARENA_C
 
-static SYMS_DefArena*
+SYMS_OVERRIDE_FUNC SYMS_DefArena*
 syms_arena_def_alloc__sized(SYMS_U64 res, SYMS_U64 cmt){
   SYMS_ASSERT(SYMS_ARENA_HEADER_SIZE < cmt && cmt <= res);
   SYMS_Arena *result = 0;
@@ -26,13 +27,13 @@ syms_arena_def_alloc__sized(SYMS_U64 res, SYMS_U64 cmt){
   return(result);
 }
 
-SYMS_API SYMS_DefArena*
+SYMS_OVERRIDE_FUNC SYMS_DefArena*
 syms_arena_def_alloc(void){
   SYMS_DefArena *result = syms_arena_def_alloc__sized(SYMS_ARENA_RESERVE_SIZE, SYMS_ARENA_COMMIT_SIZE);
   return(result);
 }
 
-SYMS_API void
+SYMS_OVERRIDE_FUNC void
 syms_arena_def_release(SYMS_DefArena *arena){
   for (SYMS_DefArena *node = arena->current, *prev = 0;
        node != 0;
@@ -44,7 +45,7 @@ syms_arena_def_release(SYMS_DefArena *arena){
 
 #define SYMS_ARENA_VERY_LARGE ((SYMS_ARENA_RESERVE_SIZE - SYMS_ARENA_HEADER_SIZE)/2) + 1
 
-SYMS_API void*
+SYMS_OVERRIDE_FUNC void*
 syms_arena_def_push(SYMS_DefArena *arena, SYMS_U64 size){
   void *result = 0;
   
@@ -115,14 +116,14 @@ syms_arena_def_push(SYMS_DefArena *arena, SYMS_U64 size){
   return(result);
 }
 
-SYMS_API SYMS_U64
+SYMS_OVERRIDE_FUNC SYMS_U64
 syms_arena_def_pos(SYMS_Arena *arena){
   SYMS_Arena *current = arena->current;
   SYMS_U64 result = current->base_pos + current->pos;
   return(result);
 }
 
-SYMS_API void
+SYMS_OVERRIDE_FUNC void
 syms_arena_def_pop_to(SYMS_DefArena *arena, SYMS_U64 pos_unclamped){
   SYMS_U64 big_pos = SYMS_ClampBot(SYMS_ARENA_HEADER_SIZE, pos_unclamped);
   
@@ -153,12 +154,12 @@ syms_arena_def_pop_to(SYMS_DefArena *arena, SYMS_U64 pos_unclamped){
 #endif
 }
 
-SYMS_API void
+SYMS_OVERRIDE_FUNC void
 syms_arena_def_set_auto_align(SYMS_DefArena *arena, SYMS_U64 pow2_align){
   arena->align = pow2_align;
 }
 
-SYMS_API void
+SYMS_OVERRIDE_FUNC void
 syms_arena_def_absorb(SYMS_DefArena *arena, SYMS_DefArena *sub){
   // base adjustment
   SYMS_DefArena *current = arena->current;

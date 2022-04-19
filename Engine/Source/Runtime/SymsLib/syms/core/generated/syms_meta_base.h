@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_BASE_H
 #define _SYMS_META_BASE_H
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:885
 typedef enum SYMS_Arch{
 SYMS_Arch_Null,
 SYMS_Arch_X64,
@@ -18,9 +18,8 @@ typedef enum SYMS_OperatingSystem{
 SYMS_OperatingSystem_Null,
 SYMS_OperatingSystem_Win,
 SYMS_OperatingSystem_Linux,
-SYMS_OperatingSystem_PS4,
-SYMS_OperatingSystem_PS5,
-SYMS_OperatingSystem_COUNT = 5
+SYMS_OperatingSystem_Mac,
+SYMS_OperatingSystem_COUNT = 4
 } SYMS_OperatingSystem;
 typedef enum SYMS_Language{
 SYMS_Language_Null,
@@ -76,7 +75,6 @@ SYMS_Language_Link,
 SYMS_Language_CVTRES,
 SYMS_Language_CVTPGD,
 SYMS_Language_UPC,
-//  NOTE(rjf): Unified Parallel C
 SYMS_Language_PLI,
 SYMS_Language_Dylan,
 SYMS_Language_BLISS,
@@ -107,13 +105,14 @@ SYMS_ChecksumAlgorithm_CRC32_IEEE_802_3,
 SYMS_ChecksumAlgorithm_COUNT = 5
 } SYMS_ChecksumAlgorithm;
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1133
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U32 syms_address_size_from_arch(SYMS_Arch v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1588
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1694
 #endif

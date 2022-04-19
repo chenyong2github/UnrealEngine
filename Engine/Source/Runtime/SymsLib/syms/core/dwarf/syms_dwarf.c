@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_DWARF_C
 #define SYMS_DWARF_C
 
@@ -33,7 +34,8 @@ syms_dw_name_string_from_section_kind(SYMS_DwSectionKind kind)
     ".debug_loclists",
     ".debug_rnglists",
     ".debug_str_offsets",
-    ".debug_line_str"
+    ".debug_line_str",
+    ".debug_names"
   };
   SYMS_String8 str =
   {
@@ -56,15 +58,16 @@ syms_dw_mach_name_string_from_section_kind(SYMS_DwSectionKind kind)
     "__debug_line",
     "__debug_loc",
     "__debug_macinfo",
-    "__debug_pubnames",
-    "__debug_pubtypes",
+    "__debug_pubnames_DWARF",
+    "__debug_pubtypes_DWARF",
     "__debug_ranges",
     "__debug_str",
     "__debug_addr",
     "__debug_loclists",
     "__debug_rnglists",
     "__debug_str_offsets",
-    "__debug_line_str"
+    "__debug_line_str",
+    "__debug_names"
   };
   SYMS_String8 str =
   {
@@ -95,7 +98,8 @@ syms_dw_dwo_name_string_from_section_kind(SYMS_DwSectionKind kind)
     ".debug_loclists.dwo",
     ".debug_rnglists.dwo",
     ".debug_str_offsets.dwo",
-    ".debug_line_str.dwo"
+    ".debug_line_str.dwo",
+    ".debug_names.dwo"
   };
   SYMS_String8 str =
   {

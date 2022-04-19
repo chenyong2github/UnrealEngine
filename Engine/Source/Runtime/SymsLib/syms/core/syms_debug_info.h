@@ -240,6 +240,10 @@ typedef struct SYMS_USIDList{
   SYMS_U64 count;
 } SYMS_USIDList;
 
+typedef struct SYMS_USIDArray{
+  SYMS_USID *usid;
+  SYMS_U64 count;
+} SYMS_USIDArray;
 
 typedef struct SYMS_SigHandle{
   SYMS_U64 v;
@@ -348,6 +352,37 @@ typedef struct SYMS_EnumInfoArray{
 } SYMS_EnumInfoArray;
 
 ////////////////////////////////
+// NOTE(allen): Location Types
+
+typedef SYMS_U64 SYMS_LocID;
+
+typedef struct SYMS_LocRange{
+  SYMS_U64Range vrange;
+  SYMS_LocID loc_id;
+} SYMS_LocRange;
+
+typedef struct SYMS_LocRangeArray{
+  SYMS_LocRange *loc_ranges;
+  SYMS_U64 count;
+} SYMS_LocRangeArray;
+
+typedef struct SYMS_LocRangeNode{
+  struct SYMS_LocRangeNode *next;
+  SYMS_LocRange loc_range;
+} SYMS_LocRangeNode;
+
+typedef struct SYMS_LocRangeList{
+  SYMS_LocRangeNode *first;
+  SYMS_LocRangeNode *last;
+  SYMS_U64 count;
+} SYMS_LocRangeList;
+
+typedef enum SYMS_ProcLoc{
+  SYMS_ProcLoc_FrameBase,
+  SYMS_ProcLoc_ReturnAddress,
+} SYMS_ProcLoc;
+
+////////////////////////////////
 // NOTE(allen): Nil For Accelerators
 
 SYMS_READ_ONLY SYMS_GLOBAL SYMS_FileFormat syms_format_nil = SYMS_FileFormat_Null;
@@ -365,10 +400,12 @@ SYMS_API SYMS_USID    syms_make_usid(SYMS_UnitID uid, SYMS_SymbolID sid);
 SYMS_API SYMS_TypeKind syms_type_kind_fwd_from_main(SYMS_TypeKind type_kind);
 SYMS_API SYMS_TypeKind syms_type_kind_main_from_fwd(SYMS_TypeKind type_kind);
 SYMS_API SYMS_B32      syms_type_kind_is_basic(SYMS_TypeKind kind);
+SYMS_API SYMS_B32      syms_type_kind_is_basic_or_enum(SYMS_TypeKind kind);
 SYMS_API SYMS_B32      syms_type_kind_is_integer(SYMS_TypeKind kind);
 SYMS_API SYMS_B32      syms_type_kind_is_signed(SYMS_TypeKind kind);
 SYMS_API SYMS_B32      syms_type_kind_is_complex(SYMS_TypeKind kind);
 SYMS_API SYMS_B32      syms_type_kind_is_user_defined(SYMS_TypeKind kind);
+SYMS_API SYMS_B32      syms_type_kind_is_forward(SYMS_TypeKind kind);
 
 SYMS_API SYMS_SymbolIDArray syms_sid_array_from_list(SYMS_Arena *arena, SYMS_SymbolIDList *list);
 

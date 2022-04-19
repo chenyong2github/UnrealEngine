@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_PE_H
 #define _SYMS_META_PE_H
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:885
 #pragma pack(push,1)
 typedef struct SYMS_DosHeader{
 SYMS_U16 magic;
@@ -194,10 +194,59 @@ SYMS_U32 size;
 SYMS_U32 virtual_offset;
 SYMS_U32 file_offset;
 } SYMS_PeDebugDirectory;
+typedef SYMS_U32 SYMS_PeGlobalFlags;
+enum{
+SYMS_PeGlobalFlags_STOP_ON_EXCEPTION = (1 << 0),
+SYMS_PeGlobalFlags_SHOW_LDR_SNAPS = (1 << 1),
+SYMS_PeGlobalFlags_DEBUG_INITIAL_COMMAND = (1 << 2),
+SYMS_PeGlobalFlags_STOP_ON_HUNG_GUI = (1 << 3),
+SYMS_PeGlobalFlags_HEAP_ENABLE_TAIL_CHECK = (1 << 4),
+SYMS_PeGlobalFlags_HEAP_ENABLE_FREE_CHECK = (1 << 5),
+SYMS_PeGlobalFlags_HEAP_VALIDATE_PARAMETERS = (1 << 6),
+SYMS_PeGlobalFlags_HEAP_VALIDATE_ALL = (1 << 7),
+SYMS_PeGlobalFlags_APPLICATION_VERIFIER = (1 << 8),
+SYMS_PeGlobalFlags_POOL_ENABLE_TAGGING = (1 << 10),
+SYMS_PeGlobalFlags_HEAP_ENABLE_TAGGING = (1 << 11),
+SYMS_PeGlobalFlags_STACK_TRACE_DB = (1 << 12),
+SYMS_PeGlobalFlags_KERNEL_STACK_TRACE_DB = (1 << 13),
+SYMS_PeGlobalFlags_MAINTAIN_OBJECT_TYPELIST = (1 << 14),
+SYMS_PeGlobalFlags_HEAP_ENABLE_TAG_BY_DLL = (1 << 15),
+SYMS_PeGlobalFlags_DISABLE_STACK_EXTENSION = (1 << 16),
+SYMS_PeGlobalFlags_ENABLE_CSRDEBUG = (1 << 17),
+SYMS_PeGlobalFlags_ENABLE_KDEBUG_SYMBOL_LOAD = (1 << 18),
+SYMS_PeGlobalFlags_DISABLE_PAGE_KERNEL_STACKS = (1 << 19),
+SYMS_PeGlobalFlags_ENABLE_SYSTEM_CRIT_BREAKS = (1 << 20),
+SYMS_PeGlobalFlags_HEAP_DISABLE_COALESCING = (1 << 21),
+SYMS_PeGlobalFlags_ENABLE_CLOSE_EXCEPTIONS = (1 << 22),
+SYMS_PeGlobalFlags_ENABLE_EXCEPTION_LOGGING = (1 << 23),
+SYMS_PeGlobalFlags_ENABLE_HANDLE_TYPE_TAGGING = (1 << 24),
+SYMS_PeGlobalFlags_HEAP_PAGE_ALLOCS = (1 << 25),
+SYMS_PeGlobalFlags_DEBUG_INITIAL_COMMAND_EX = (1 << 26),
+SYMS_PeGlobalFlags_DISABLE_DBGPRINT = (1 << 27),
+SYMS_PeGlobalFlags_CRITSEC_EVENT_CREATION = (1 << 28),
+SYMS_PeGlobalFlags_LDR_TOP_DOWN = (1 << 29),
+SYMS_PeGlobalFlags_ENABLE_HANDLE_EXCEPTIONS = (1 << 30),
+SYMS_PeGlobalFlags_DISABLE_PROTDLLS = (1 << 31),
+};
+typedef SYMS_U32 SYMS_PeLoadConfigGuardFlags;
+enum{
+SYMS_PeLoadConfigGuardFlags_CF_INSTRUMENTED = (1 << 8),
+SYMS_PeLoadConfigGuardFlags_CFW_INSTRUMENTED = (1 << 9),
+SYMS_PeLoadConfigGuardFlags_CF_FUNCTION_TABLE_PRESENT = (1 << 10),
+SYMS_PeLoadConfigGuardFlags_SECURITY_COOKIE_UNUSED = (1 << 11),
+SYMS_PeLoadConfigGuardFlags_PROTECT_DELAYLOAD_IAT = (1 << 12),
+SYMS_PeLoadConfigGuardFlags_DELAYLOAD_IAT_IN_ITS_OWN_SECTION = (1 << 13),
+SYMS_PeLoadConfigGuardFlags_CF_EXPORT_SUPPRESSION_INFO_PRESENT = (1 << 14),
+SYMS_PeLoadConfigGuardFlags_CF_ENABLE_EXPORT_SUPPRESSION = (1 << 15),
+SYMS_PeLoadConfigGuardFlags_CF_LONGJUMP_TABLE_PRESENT = (1 << 16),
+SYMS_PeLoadConfigGuardFlags_CF_FUNCTION_TABLE_SIZE_SHIFT = 20, SYMS_PeLoadConfigGuardFlags_CF_FUNCTION_TABLE_SIZE_MASK = 0xf,
+};
+#define SYMS_PeLoadConfigGuardFlags_Extract_CF_FUNCTION_TABLE_SIZE(f) (SYMS_U32)(((f) >> SYMS_PeLoadConfigGuardFlags_CF_FUNCTION_TABLE_SIZE_SHIFT) & SYMS_PeLoadConfigGuardFlags_CF_FUNCTION_TABLE_SIZE_MASK)
 #pragma pack(pop)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1588
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1694
 #endif

@@ -8,7 +8,7 @@
 
 #else // defined(_SYMS_META_BASE_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1534
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1549
 SYMS_SerialType _syms_serial_type_SYMS_S8 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_S16 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_S32 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -39,7 +39,7 @@ SYMS_SerialType _syms_serial_type_SYMS_ChecksumAlgorithm = {{(SYMS_U8 *)0, (SYMS
 
 #else // defined(_SYMS_META_COFF_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1534
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1549
 SYMS_SerialType _syms_serial_type_SYMS_CoffFlags = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CoffMachineType = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CoffHeader = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -64,7 +64,7 @@ SYMS_SerialType _syms_serial_type_SYMS_CoffImportHeaderNameType = {{(SYMS_U8 *)0
 ////////////////////////////////
 #if defined(_SYMS_META_CV_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1076
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1091
 SYMS_API SYMS_U64
 syms_enum_index_from_cvbasictype(SYMS_U64 v){
 SYMS_U64 result = 0;
@@ -127,7 +127,7 @@ case SYMS_CvBasicType_PTR: result = 52; break;
 return(result);
 }
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1307
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1322
 SYMS_SerialValue _syms_serial_members_for_SYMS_CvBasicType[] = {
 { { (SYMS_U8*)"null", 4 }, (SYMS_U64)SYMS_CvBasicType_NOTYPE },
 { { (SYMS_U8*)"abs", 3 }, (SYMS_U64)SYMS_CvBasicType_ABS },
@@ -184,14 +184,14 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_CvBasicType[] = {
 { { (SYMS_U8*)"pointer", 7 }, (SYMS_U64)SYMS_CvBasicType_PTR },
 };
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1443
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1458
 SYMS_SerialType _syms_serial_type_SYMS_CvBasicType = {
 {(SYMS_U8*)"SYMS_CvBasicType", 16}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_CvBasicType), _syms_serial_members_for_SYMS_CvBasicType, sizeof(SYMS_CvBasicType), syms_enum_index_from_cvbasictype
 };
 
 #else // defined(_SYMS_META_CV_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1534
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1549
 SYMS_SerialType _syms_serial_type_SYMS_CvGuid = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvBasicType = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvBasicPointerKind = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -229,6 +229,7 @@ SYMS_SerialType _syms_serial_type_SYMS_CvSlotsym32 = {{(SYMS_U8 *)0, (SYMS_U64)0
 SYMS_SerialType _syms_serial_type_SYMS_CvPogoInfo = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvManyreg = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvManyreg2 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_CvEncodedFramePtrReg = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvFrameprocFlags = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvFrameproc = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvThunkOrdinal = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -249,7 +250,6 @@ SYMS_SerialType _syms_serial_type_SYMS_CvFrameCookieKind = {{(SYMS_U8 *)0, (SYMS
 SYMS_SerialType _syms_serial_type_SYMS_CvFrameCookie = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvEnvblock = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvLocalFlags = {{(SYMS_U8 *)0, (SYMS_U64)0}};
-SYMS_SerialType _syms_serial_type_SYMS_CvLocalVarAttr = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvLocal = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvLvarAddrRange = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvLvarAddrGap = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -278,6 +278,7 @@ SYMS_SerialType _syms_serial_type_SYMS_CvInlineSiteEnd = {{(SYMS_U8 *)0, (SYMS_U
 SYMS_SerialType _syms_serial_type_SYMS_CvInlinees = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvFileStatic = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvHeapAllocSite = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_CvLocalVarAttr = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvFramerel = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvAttrReg = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_CvAttrRegrel = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -359,10 +360,10 @@ SYMS_SerialType _syms_serial_type_SYMS_CvInlineeSourceLineEx = {{(SYMS_U8 *)0, (
 ////////////////////////////////
 #if defined(_SYMS_META_DEBUG_INFO_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1076
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1091
 // syms_enum_index_from_type_kind - skipped identity mapping
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1307
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1322
 SYMS_SerialValue _syms_serial_members_for_SYMS_TypeKind[] = {
 { { (SYMS_U8*)"Null", 4 }, (SYMS_U64)SYMS_TypeKind_Null },
 { { (SYMS_U8*)"int8", 4 }, (SYMS_U64)SYMS_TypeKind_Int8 },
@@ -379,6 +380,7 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_TypeKind[] = {
 { { (SYMS_U8*)"uint128", 7 }, (SYMS_U64)SYMS_TypeKind_UInt128 },
 { { (SYMS_U8*)"uint256", 7 }, (SYMS_U64)SYMS_TypeKind_UInt256 },
 { { (SYMS_U8*)"uint512", 7 }, (SYMS_U64)SYMS_TypeKind_UInt512 },
+{ { (SYMS_U8*)"bool", 4 }, (SYMS_U64)SYMS_TypeKind_Bool },
 { { (SYMS_U8*)"float16", 7 }, (SYMS_U64)SYMS_TypeKind_Float16 },
 { { (SYMS_U8*)"float32", 7 }, (SYMS_U64)SYMS_TypeKind_Float32 },
 { { (SYMS_U8*)"float32pp", 9 }, (SYMS_U64)SYMS_TypeKind_Float32PP },
@@ -391,7 +393,6 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_TypeKind[] = {
 { { (SYMS_U8*)"complex80", 9 }, (SYMS_U64)SYMS_TypeKind_Complex80 },
 { { (SYMS_U8*)"complex128", 10 }, (SYMS_U64)SYMS_TypeKind_Complex128 },
 { { (SYMS_U8*)"void", 4 }, (SYMS_U64)SYMS_TypeKind_Void },
-{ { (SYMS_U8*)"bool", 4 }, (SYMS_U64)SYMS_TypeKind_Bool },
 { { (SYMS_U8*)"struct", 6 }, (SYMS_U64)SYMS_TypeKind_Struct },
 { { (SYMS_U8*)"class", 5 }, (SYMS_U64)SYMS_TypeKind_Class },
 { { (SYMS_U8*)"union", 5 }, (SYMS_U64)SYMS_TypeKind_Union },
@@ -413,14 +414,14 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_TypeKind[] = {
 { { (SYMS_U8*)"Label", 5 }, (SYMS_U64)SYMS_TypeKind_Label },
 };
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1443
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1458
 SYMS_SerialType _syms_serial_type_SYMS_TypeKind = {
 {(SYMS_U8*)"SYMS_TypeKind", 13}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_TypeKind), _syms_serial_members_for_SYMS_TypeKind, sizeof(SYMS_TypeKind), syms_enum_index_from_value_identity
 };
 
 #else // defined(_SYMS_META_DEBUG_INFO_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1534
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1549
 SYMS_SerialType _syms_serial_type_SYMS_UnitFeatures = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_SymbolKind = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_TypeKind = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -435,7 +436,7 @@ SYMS_SerialType _syms_serial_type_SYMS_MemVisibility = {{(SYMS_U8 *)0, (SYMS_U64
 
 #else // defined(_SYMS_META_DWARF_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1534
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1549
 SYMS_SerialType _syms_serial_type_SYMS_DwMode = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_DwVersion = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_DwSectionKind = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -452,6 +453,7 @@ SYMS_SerialType _syms_serial_type_SYMS_DwCallingConvention = {{(SYMS_U8 *)0, (SY
 SYMS_SerialType _syms_serial_type_SYMS_DwAccess = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_DwVirtuality = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_DwRngListEntryKind = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_DwLocListEntryKind = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 
 #endif
 
@@ -459,7 +461,7 @@ SYMS_SerialType _syms_serial_type_SYMS_DwRngListEntryKind = {{(SYMS_U8 *)0, (SYM
 ////////////////////////////////
 #if defined(_SYMS_META_DWARF_CFI_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1076
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1091
 SYMS_API SYMS_U64
 syms_enum_index_from_dw_c_fa(SYMS_U64 v){
 SYMS_U64 result = 0;
@@ -495,7 +497,7 @@ case SYMS_DwCFA_RESTORE: result = 25; break;
 return(result);
 }
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1307
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1322
 SYMS_SerialValue _syms_serial_members_for_SYMS_DwCFA[] = {
 { { (SYMS_U8*)"DW_CFA_nop", 10 }, (SYMS_U64)SYMS_DwCFA_NOP },
 { { (SYMS_U8*)"DW_CFA_set_loc", 14 }, (SYMS_U64)SYMS_DwCFA_SET_LOC },
@@ -525,14 +527,14 @@ SYMS_SerialValue _syms_serial_members_for_SYMS_DwCFA[] = {
 { { (SYMS_U8*)"DW_CFA_restore", 14 }, (SYMS_U64)SYMS_DwCFA_RESTORE },
 };
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1443
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1458
 SYMS_SerialType _syms_serial_type_SYMS_DwCFA = {
 {(SYMS_U8*)"SYMS_DwCFA", 10}, SYMS_SerialTypeKind_Enum, SYMS_ARRAY_SIZE(_syms_serial_members_for_SYMS_DwCFA), _syms_serial_members_for_SYMS_DwCFA, sizeof(SYMS_DwCFA), syms_enum_index_from_dw_c_fa
 };
 
 #else // defined(_SYMS_META_DWARF_CFI_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1534
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1549
 SYMS_SerialType _syms_serial_type_SYMS_DwCFA = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_DwCFADetail = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_DwCFAMask = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -545,7 +547,7 @@ SYMS_SerialType _syms_serial_type_SYMS_DwCFAMask = {{(SYMS_U8 *)0, (SYMS_U64)0}}
 
 #else // defined(_SYMS_META_DWARF_EXPR_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1534
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1549
 SYMS_SerialType _syms_serial_type_SYMS_DwRegX86 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_DwRegX64 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_DwOp = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -558,7 +560,7 @@ SYMS_SerialType _syms_serial_type_SYMS_DwOp = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 
 #else // defined(_SYMS_META_ELF_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1534
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1549
 SYMS_SerialType _syms_serial_type_SYMS_ElfClass = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_ElfOsAbi = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_ElfVersion = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -578,7 +580,17 @@ SYMS_SerialType _syms_serial_type_SYMS_ElfSymBind = {{(SYMS_U8 *)0, (SYMS_U64)0}
 SYMS_SerialType _syms_serial_type_SYMS_ElfSymType = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_ElfSymVisibility = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_ElfRelocI386 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_ElfRelocX8664 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_ElfExternalVerFlag = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_ElfNoteType = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_ElfGnuABITag = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_ElfGnuProperty = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_ElfGnuPropertyX86Isa1 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_ElfGnuPropertyX86Compat1Isa1 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_ElfGnuPropertyX86Compat2Isa1 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_ElfGnuPropertyX86 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_ElfGnuPropertyX86Feature1 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_ElfGnuPropertyX86Feature2 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 
 #endif
 
@@ -588,7 +600,7 @@ SYMS_SerialType _syms_serial_type_SYMS_ElfExternalVerFlag = {{(SYMS_U8 *)0, (SYM
 
 #else // defined(_SYMS_META_MACH_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1534
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1549
 SYMS_SerialType _syms_serial_type_SYMS_MachCpuType = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_MachCpuFamily = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_MachCpuSubtype = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -631,6 +643,37 @@ SYMS_SerialType _syms_serial_type_SYMS_MachSymtabCommand = {{(SYMS_U8 *)0, (SYMS
 SYMS_SerialType _syms_serial_type_SYMS_MachDySymtabCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_MachNList32 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_MachNList64 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachBuildVersionCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachBuildToolVersion = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachVersionMin = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachDylinker = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachPreboundDylibCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachRoutinesCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachRoutines64Command = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachSubFrameworkCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachSubUmbrellaCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachSubClientCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachSubLibraryCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachTwoLevelHintsCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachTwoLevelHint = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachPrebindChecksumCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachRPathCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachLinkeditDataCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachEncryptionInfoCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachEncryptionInfo64Command = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachEntryPointCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachSourceVersionCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachLinkerOptionCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachNoteCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachSymSegCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachFvmlib = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachFvmlibCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachThreadCommand = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachUnwindEncModeX86 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachUnwindRegisterX86 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachUnwindEncX86 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachUnwindEncModeX64 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_MachUnwindRegisterX64 = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 
 #endif
 
@@ -640,7 +683,7 @@ SYMS_SerialType _syms_serial_type_SYMS_MachNList64 = {{(SYMS_U8 *)0, (SYMS_U64)0
 
 #else // defined(_SYMS_META_PE_H)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1534
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1549
 SYMS_SerialType _syms_serial_type_SYMS_DosHeader = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_PeWindowsSubsystem = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_ImageFileCharacteristics = {{(SYMS_U8 *)0, (SYMS_U64)0}};
@@ -651,6 +694,8 @@ SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectoryIndex = {{(SYMS_U8 *)0, (S
 SYMS_SerialType _syms_serial_type_SYMS_PeDataDirectory = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectoryType = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 SYMS_SerialType _syms_serial_type_SYMS_PeDebugDirectory = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_PeGlobalFlags = {{(SYMS_U8 *)0, (SYMS_U64)0}};
+SYMS_SerialType _syms_serial_type_SYMS_PeLoadConfigGuardFlags = {{(SYMS_U8 *)0, (SYMS_U64)0}};
 
 #endif
 

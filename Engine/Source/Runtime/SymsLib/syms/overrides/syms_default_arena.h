@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-/* date = July 28th 2021 3:11 pm */
 
 #ifndef SYMS_DEFAULT_ARENA_H
 #define SYMS_DEFAULT_ARENA_H
@@ -51,13 +50,13 @@ typedef struct SYMS_DefArena{
   struct SYMS_ArenaDev *dev;
 } SYMS_DefArena;
 
-static  SYMS_DefArena*   syms_arena_def_alloc__sized(SYMS_U64 init_res, SYMS_U64 init_cmt);
-SYMS_API SYMS_DefArena*   syms_arena_def_alloc(void);
-SYMS_API void             syms_arena_def_release(SYMS_DefArena *arena);
-SYMS_API void*            syms_arena_def_push(SYMS_DefArena *arena, SYMS_U64 size);
-SYMS_API void             syms_arena_def_pop_to(SYMS_DefArena *arena, SYMS_U64 pos);
-SYMS_API void             syms_arena_def_set_auto_align(SYMS_DefArena *arena, SYMS_U64 pow2_align);
-SYMS_API void             syms_arena_def_absorb(SYMS_DefArena *arena, SYMS_DefArena *sub);
+SYMS_OVERRIDE_FUNC SYMS_DefArena*   syms_arena_def_alloc__sized(SYMS_U64 init_res, SYMS_U64 init_cmt);
+SYMS_OVERRIDE_FUNC SYMS_DefArena*   syms_arena_def_alloc(void);
+SYMS_OVERRIDE_FUNC void             syms_arena_def_release(SYMS_DefArena *arena);
+SYMS_OVERRIDE_FUNC void*            syms_arena_def_push(SYMS_DefArena *arena, SYMS_U64 size);
+SYMS_OVERRIDE_FUNC void             syms_arena_def_pop_to(SYMS_DefArena *arena, SYMS_U64 pos);
+SYMS_OVERRIDE_FUNC void             syms_arena_def_set_auto_align(SYMS_DefArena *arena, SYMS_U64 pow2_align);
+SYMS_OVERRIDE_FUNC void             syms_arena_def_absorb(SYMS_DefArena *arena, SYMS_DefArena *sub);
 
 #define SYMS_Arena SYMS_DefArena
 #define syms_arena_alloc__impl          syms_arena_def_alloc

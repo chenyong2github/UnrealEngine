@@ -273,6 +273,15 @@ typedef struct
   SYMS_U16 vs_vers;
 } SYMS_ElfExternalVersym;
 
+typedef struct
+{
+  SYMS_U32 name_size;
+  SYMS_U32 desc_size;
+  SYMS_U32 type;
+  // name + desc
+  // SYMS_U8  data[1];
+} SYMS_ElfNote;
+
 SYMS_C_LINKAGE_BEGIN
 
 ////////////////////////////////

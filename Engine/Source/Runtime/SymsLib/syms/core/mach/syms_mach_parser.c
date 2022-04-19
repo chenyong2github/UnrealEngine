@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_MACH_PARSER_C
 #define SYMS_MACH_PARSER_C
 
@@ -72,6 +73,8 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
     
     SYMS_U64Range bind_ranges[SYMS_MachBindTable_COUNT]; syms_memzero_struct(&bind_ranges[0]);
     SYMS_U64Range export_range = syms_make_u64_range(0,0);
+
+    SYMS_MachSymtabCommand symtab; syms_memzero_struct(&symtab);
     
     SYMS_MachDylibList dylib_list; syms_memzero_struct(&dylib_list);
     
@@ -95,8 +98,47 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
       SYMS_MachLoadCommand lc = {0};
       syms_based_range_read_struct(base, range, cmd_off, &lc);
       switch (lc.type){
-        // TODO(allen): SYMS_MachSegmentCommand32?
-        
+        case SYMS_MachLoadCommandType_SYMTAB: 
+        {
+          syms_based_range_read_struct(base, range, cmd_off, &symtab);
+        }break;
+
+        case SYMS_MachLoadCommandType_SEGMENT: 
+        {
+          SYMS_MachSegmentCommand32 segment_command32 = {0};
+          syms_based_range_read_struct(base, range, cmd_off, &segment_command32);
+          if (is_swapped){
+            syms_bswap_in_place(SYMS_MachSegmentCommand32, &segment_command32);
+          }
+          SYMS_U64 after_seg_off = cmd_off + sizeof(SYMS_MachSegmentCommand32);
+
+          // push segment node
+          SYMS_MachSegmentNode *segment_node = syms_push_array_zero(scratch.arena, SYMS_MachSegmentNode, 1);
+          syms_mach_segment64_from_segment32(&segment_node->data, &segment_command32);
+          SYMS_QueuePush(segment_first, segment_last, segment_node);
+          segment_count += 1;
+
+          // loop over sections
+          SYMS_U64 next_sec_off = after_seg_off;
+          SYMS_U64 sec_count = segment_command32.nsects;
+          for (SYMS_U32 k = 0; k < sec_count; k += 1){
+            // read section 64
+            SYMS_U64 sec_off = next_sec_off;
+            SYMS_MachSection32 section32 = {0};
+            syms_based_range_read_struct(base, range, sec_off, &section32);
+            if (is_swapped){
+              syms_bswap_in_place(SYMS_MachSection32, &section32);
+            }
+            next_sec_off = sec_off + sizeof(SYMS_MachSection32);
+
+            // push section node
+            SYMS_MachSectionNode *section_node = syms_push_array_zero(scratch.arena, SYMS_MachSectionNode, 1);
+            syms_mach_section64_from_section32(&section_node->data, &section32);
+            SYMS_QueuePush(section_first, section_last, section_node);
+            section_count += 1;
+          }
+        }break;
+
         case SYMS_MachLoadCommandType_SEGMENT_64:
         {
           // read segment 64
@@ -191,13 +233,17 @@ syms_mach_bin_from_base_range(SYMS_Arena *arena, void *base, SYMS_U64Range range
     }
     
     //- fill result
-    result                = syms_push_array(arena, SYMS_MachBinAccel, 1);
-    result->format        = SYMS_FileFormat_MACH;
-    result->arch          = syms_mach_arch_from_cputype(header.cputype);
-    result->segment_count = segment_count;
-    result->segments      = segments;
-    result->section_count = section_count;
-    result->sections      = sections;
+    result                     = syms_push_array(arena, SYMS_MachBinAccel, 1);
+    result->load_command_count = header.ncmds;
+    result->load_commands      = syms_make_u64_inrange(range, after_header_off, header.sizeofcmds);
+    result->format             = SYMS_FileFormat_MACH;
+    result->arch               = syms_mach_arch_from_cputype(header.cputype);
+    result->is_swapped         = is_swapped;
+    result->symtab             = symtab;
+    result->segment_count      = segment_count;
+    result->segments           = segments;
+    result->section_count      = section_count;
+    result->sections           = sections;
     syms_memmove(&result->bind_ranges[0], &bind_ranges[0], sizeof(bind_ranges));
     result->export_range  = export_range;
     { // convert dylib list to array
@@ -383,14 +429,17 @@ syms_mach_sec_info_array_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_Mac
   SYMS_MachSection64 *mach_sec_opl = bin->sections + array.count;
   SYMS_SecInfo *sec_info = array.sec_info;
   for (; mach_sec < mach_sec_opl; sec_info += 1, mach_sec += 1){
-    SYMS_U8 *ptr = mach_sec->sectname;
-    SYMS_U8 *opl = mach_sec->sectname + SYMS_ARRAY_SIZE(mach_sec->sectname);
+    SYMS_U8 *name_ptr = mach_sec->sectname;
+    SYMS_U8 *ptr = name_ptr;
+    SYMS_U8 *opl = name_ptr + SYMS_ARRAY_SIZE(mach_sec->sectname);
     for (;ptr < opl && *ptr != 0; ptr += 1);
     
-    sec_info->name = syms_str8_range(mach_sec->sectname, ptr);
+    SYMS_String8 name = syms_str8_range(name_ptr, ptr);
+    
+    sec_info->name = syms_push_string_copy(arena, name);
     // TODO(allen): figure out when these ranges actually apply and when the section isn't
     // there one side or the other.
-    sec_info->vrange = syms_make_u64_range(mach_sec->addr,   mach_sec->addr +   mach_sec->size);
+    sec_info->vrange = syms_make_u64_range(mach_sec->addr,   mach_sec->addr   + mach_sec->size);
     sec_info->frange = syms_make_u64_range(mach_sec->offset, mach_sec->offset + mach_sec->size);
   }
   return array;

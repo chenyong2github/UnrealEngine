@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_DWARF_PARSER_C
 #define SYMS_DWARF_PARSER_C
 
@@ -62,7 +63,7 @@
 ////////////////////////////////
 //~ rjf: Globals
 
-SYMS_GLOBAL SYMS_DwCompRoot syms_dw_nil_comp_root = {SYMS_DwCompUnitKind_RESERVED};
+SYMS_READ_ONLY SYMS_GLOBAL SYMS_DwCompRoot syms_dw_nil_comp_root = {SYMS_DwCompUnitKind_RESERVED};
 
 ////////////////////////////////
 //~ rjf: Basic Helpers
@@ -621,8 +622,8 @@ syms_dw_based_range_read_attrib_form_value(void *base, SYMS_U64Range range, SYMS
     {
       SYMS_U64 value1 = 0;
       SYMS_U64 value2 = 0;
-      bytes_read += syms_based_range_read_struct(base, range, offset, &value1);
-      bytes_read += syms_based_range_read_struct(base, range, offset, &value2);
+      bytes_read += syms_based_range_read_struct(base, range, offset,                    &value1);
+      bytes_read += syms_based_range_read_struct(base, range, offset + sizeof(SYMS_U64), &value2);
       form_value.v[0] = value1;
       form_value.v[1] = value2;
     }break;
@@ -752,6 +753,18 @@ syms_dw_dbg_accel_from_sec_info_array(SYMS_Arena *arena, SYMS_String8 data, SYMS
       }
     }
     has_necessary_sections = (match_count == SYMS_ARRAY_SIZE(necessary_kinds));
+  }
+  
+  //- rjf: scan sections for .text section, so we can store its index (useful for
+  // later stuff in the expression transpiler)
+  SYMS_U64 text_section_idx = 0;
+  for(SYMS_U64 idx = 0; idx < sections.count; idx += 1)
+  {
+    if(syms_string_match(sections.sec_info[idx].name, syms_str8_lit(".text"), 0))
+    {
+      text_section_idx = idx;
+      break;
+    }
   }
   
   //- rjf: build section map + figure out mode
@@ -950,6 +963,7 @@ syms_dw_dbg_accel_from_sec_info_array(SYMS_Arena *arena, SYMS_String8 data, SYMS
     dbg->mode = mode;
     dbg->vbase = vbase;
     dbg->sections = syms_dw_copy_sec_info_array(arena, sections);
+    dbg->text_section_idx = text_section_idx;
     dbg->acceptable_vrange = acceptable_vrange;
     dbg->section_map = section_map;
     dbg->unit_count = unit_count;
@@ -1189,7 +1203,7 @@ syms_dw_abbrev_offset_from_abbrev_id(SYMS_DwAbbrevTable table, SYMS_U64 abbrev_i
 //- rjf: .debug_ranges (DWARF V4)
 
 SYMS_API SYMS_U64RangeList
-syms_dw_v4_range_list_from_range_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwVersion version, SYMS_U64 addr_size, SYMS_U64 comp_unit_base_addr, SYMS_U64 range_off)
+syms_dw_v4_range_list_from_range_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_U64 addr_size, SYMS_U64 comp_unit_base_addr, SYMS_U64 range_off)
 {
   void *base = syms_dw_sec_base_from_dbg(data, dbg, SYMS_DwSectionKind_Ranges);
   SYMS_U64Range rng = syms_dw_sec_range_from_dbg(dbg, SYMS_DwSectionKind_Ranges);
@@ -1200,7 +1214,7 @@ syms_dw_v4_range_list_from_range_offset(SYMS_Arena *arena, SYMS_String8 data, SY
   SYMS_U64 read_off = range_off;
   SYMS_U64 base_addr = comp_unit_base_addr;
   
-  for(;;)
+  for(;read_off < rng.max;)
   {
     SYMS_U64 v0 = 0;
     SYMS_U64 v1 = 0;
@@ -1228,6 +1242,80 @@ syms_dw_v4_range_list_from_range_offset(SYMS_Arena *arena, SYMS_String8 data, SY
   }
   
   return list;
+}
+
+//- rjf: .debug_loc (DWARF V4)
+
+SYMS_API SYMS_LocRangeList
+syms_dw_v4_location_ranges_from_loc_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_U64 addr_size, SYMS_U64 comp_unit_base_addr, SYMS_U64 offset)
+{
+  void *base = syms_dw_sec_base_from_dbg(data, dbg, SYMS_DwSectionKind_Loc);
+  SYMS_U64Range rng = syms_dw_sec_range_from_dbg(dbg, SYMS_DwSectionKind_Loc);
+  
+  SYMS_LocRangeList list = {0};
+  
+  SYMS_U64 read_off = offset;
+  SYMS_U64 base_addr = comp_unit_base_addr;
+  
+  for(;read_off < rng.max;)
+  {
+    SYMS_U64 v0 = 0;
+    SYMS_U64 v1 = 0;
+    read_off += syms_based_range_read(base, rng, read_off, addr_size, &v0);
+    read_off += syms_based_range_read(base, rng, read_off, addr_size, &v1);
+    
+    //- rjf: base address entry
+    if((addr_size == 4 && v0 == 0xffffffff) ||
+       (addr_size == 8 && v0 == 0xffffffffffffffff))
+    {
+      base_addr = v1;
+    }
+    //- rjf: end-of-list entry
+    else if(v0 == 0 && v1 == 0)
+    {
+      break;
+    }
+    //- rjf: location list entry
+    else
+    {
+      SYMS_U64 start_addr = v0 + base_addr;
+      SYMS_U64 end_addr = v1 + base_addr;
+      
+      // rjf: push to list
+      SYMS_LocRangeNode *n = syms_push_array_zero(arena, SYMS_LocRangeNode, 1);
+      n->loc_range.vrange = syms_make_u64_range(start_addr, end_addr);
+      n->loc_range.loc_id = (SYMS_LocID)read_off;
+      SYMS_QueuePush(list.first, list.last, n);
+      list.count += 1;
+      
+      // rjf: skip past location description
+      SYMS_U16 locdesc_length = 0;
+      read_off += syms_based_range_read_struct(base, rng, read_off, &locdesc_length);
+      read_off += locdesc_length;
+    }
+  }
+  
+  return list;
+}
+
+SYMS_API SYMS_Location
+syms_dw_v4_location_from_loc_id(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_LocID id)
+{
+  SYMS_Location result = {0};
+  
+  void *base = syms_dw_sec_base_from_dbg(data, dbg, SYMS_DwSectionKind_Loc);
+  SYMS_U64Range sec_range = syms_dw_sec_range_from_dbg(dbg, SYMS_DwSectionKind_Loc);
+  SYMS_U64 read_off = (SYMS_U64)id;
+  SYMS_U16 length = 0;
+  read_off += syms_based_range_read_struct(base, sec_range, read_off, &length);
+  void *expr_base = syms_based_range_ptr(base, sec_range, read_off);
+  SYMS_U64Range expr_range = syms_make_u64_range(read_off, read_off+length);
+  SYMS_String8 location = syms_dw_expr__transpile_to_eval(arena, dbg, base, expr_range);
+  
+  // TODO(rjf): wire up `location` to `result`, once SYMS_Location changes to
+  // returning a SYMS_String8 instead of an op list.
+  
+  return result;
 }
 
 //- rjf: .debug_pubtypes + .debug_pubnames (DWARF V4)
@@ -1362,15 +1450,18 @@ syms_dw_v5_offset_from_offs_section_base_index(SYMS_String8 data, SYMS_DwDbgAcce
   SYMS_ASSERT_PARANOID(padding == 0); // must be 0 as of V5.
   
   //- rjf: read
-  void *entries = (SYMS_U8 *)sec_base + read_off;
-  SYMS_U64 count = (unit_length - sizeof(SYMS_U16)*2) / entry_len;
-  if(0 <= index && index < count)
+  if (unit_length >= sizeof(SYMS_U16)*2) 
   {
-    switch(entry_len)
+    void *entries = (SYMS_U8 *)sec_base + read_off;
+    SYMS_U64 count = (unit_length - sizeof(SYMS_U16)*2) / entry_len;
+    if(0 <= index && index < count)
     {
-      default: break;
-      case 4: {result = ((SYMS_U32 *)entries)[index];}break;
-      case 8: {result = ((SYMS_U64 *)entries)[index];}break;
+      switch(entry_len)
+      {
+        default: break;
+        case 4: {result = ((SYMS_U32 *)entries)[index];}break;
+        case 8: {result = ((SYMS_U64 *)entries)[index];}break;
+      }
     }
   }
   
@@ -1422,17 +1513,20 @@ syms_dw_v5_addr_from_addrs_section_base_index(SYMS_String8 data, SYMS_DwDbgAccel
   return result;
 }
 
-//- rjf: .debug_rnglists parsing
+//- rjf: .debug_rnglists + .debug_loclists parsing
 
 SYMS_API SYMS_U64
-syms_dw_v5_rnglist_offset_from_rnglist_section_base_index(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section_kind, SYMS_U64 base, SYMS_U64 index)
+syms_dw_v5_sec_offset_from_rnglist_or_loclist_section_base_index(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section_kind, SYMS_U64 base, SYMS_U64 index)
 {
   //
   // NOTE(rjf): This is only appropriate to call when SYMS_DwFormKind_RNGLISTX is
-  // used to access a range list. Otherwise, SYMS_DwFormKind_SEC_OFFSET is required.
+  // used to access a range list, *OR* when SYMS_DwFormKind_LOCLISTX is used to
+  // access a location list. Otherwise, SYMS_DwFormKind_SEC_OFFSET is required.
   //
-  // See the DWARF V5 spec (February 13, 2017), page 242.
+  // See the DWARF V5 spec (February 13, 2017), page 242. (rnglists)
+  // See the DWARF V5 spec (February 13, 2017), page 215. (loclists)
   //
+  
   SYMS_U64 result = 0;
   void *sec_base = syms_dw_sec_base_from_dbg(data, dbg, section_kind);
   SYMS_U64Range rng = syms_dw_sec_range_from_dbg(dbg, section_kind);
@@ -1481,7 +1575,7 @@ syms_dw_v5_rnglist_offset_from_rnglist_section_base_index(SYMS_String8 data, SYM
 }
 
 SYMS_API SYMS_U64RangeList
-syms_dw_v5_range_list_from_rnglist_or_loclist_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section, SYMS_U64 addr_size, SYMS_U64 addr_section_base, SYMS_U64 offset)
+syms_dw_v5_range_list_from_rnglist_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section, SYMS_U64 addr_size, SYMS_U64 addr_section_base, SYMS_U64 offset)
 {
   SYMS_U64RangeList list = {0};
   
@@ -1567,13 +1661,162 @@ syms_dw_v5_range_list_from_rnglist_or_loclist_offset(SYMS_Arena *arena, SYMS_Str
         SYMS_U64 start = 0;
         SYMS_U64 length = 0;
         read_off += syms_based_range_read(base, rng, read_off, addr_size, &start);
-        read_off += syms_based_range_read(base, rng, read_off, addr_size, &length);
+        read_off += syms_based_range_read_uleb128(base, rng, read_off, &length);
         syms_u64_range_list_push(arena, &list, syms_make_u64_range(start, start+length));
       }break;
     }
   }
   
   return list;
+}
+
+//- rjf: .debug_loclists parsing
+
+SYMS_API SYMS_LocRangeList
+syms_dw_v5_location_ranges_from_loclist_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section, SYMS_U64 addr_size, SYMS_U64 addr_section_base, SYMS_U64 offset)
+{
+  SYMS_LocRangeList list = {0};
+  
+  SYMS_U64 read_off = offset;
+  void *base = syms_dw_sec_base_from_dbg(data, dbg, section);
+  SYMS_U64Range rng = syms_dw_sec_range_from_dbg(dbg, section);
+  
+  SYMS_U64 base_addr = 0;
+  
+  for(SYMS_B32 done = syms_false; !done;)
+  {
+    SYMS_U8 kind8 = 0;
+    read_off += syms_based_range_read_struct(base, rng, read_off, &kind8);
+    SYMS_DwLocListEntryKind kind = (SYMS_DwLocListEntryKind)kind8;
+    
+    SYMS_B32 do_counted_location_description = 0;
+    SYMS_U64 start_addr = 0;
+    SYMS_U64 end_addr = 0;
+    
+    switch(kind)
+    {
+      //- rjf: can be used in split and non-split units:
+      default:
+      case SYMS_DwLocListEntryKind_EndOfList:
+      {
+        done = syms_true;
+      }break;
+      
+      case SYMS_DwLocListEntryKind_BaseAddressX:
+      {
+        SYMS_U64 base_addr_idx = 0;
+        read_off += syms_based_range_read_uleb128(base, rng, read_off, &base_addr_idx);
+        base_addr = syms_dw_v5_addr_from_addrs_section_base_index(data, dbg, SYMS_DwSectionKind_Addr, addr_section_base, base_addr_idx);
+      }break;
+      
+      case SYMS_DwLocListEntryKind_StartXEndX:
+      {
+        SYMS_U64 start_addr_idx = 0;
+        SYMS_U64 end_addr_idx = 0;
+        read_off += syms_based_range_read_uleb128(base, rng, read_off, &start_addr_idx);
+        read_off += syms_based_range_read_uleb128(base, rng, read_off, &end_addr_idx);
+        start_addr = syms_dw_v5_addr_from_addrs_section_base_index(data, dbg, SYMS_DwSectionKind_Addr, addr_section_base, start_addr_idx);
+        end_addr = syms_dw_v5_addr_from_addrs_section_base_index(data, dbg, SYMS_DwSectionKind_Addr, addr_section_base, end_addr_idx);
+        do_counted_location_description = 1;
+      }break;
+      
+      case SYMS_DwLocListEntryKind_StartXLength:
+      {
+        SYMS_U64 start_addr_idx = 0;
+        SYMS_U64 length = 0;
+        read_off += syms_based_range_read_uleb128(base, rng, read_off, &start_addr_idx);
+        read_off += syms_based_range_read_uleb128(base, rng, read_off, &length);
+        start_addr = syms_dw_v5_addr_from_addrs_section_base_index(data, dbg, SYMS_DwSectionKind_Addr, addr_section_base, start_addr_idx);
+        end_addr = start_addr + length;
+        do_counted_location_description = 1;
+      }break;
+      
+      case SYMS_DwLocListEntryKind_OffsetPair:
+      {
+        SYMS_U64 start_offset = 0;
+        SYMS_U64 end_offset = 0;
+        read_off += syms_based_range_read_uleb128(base, rng, read_off, &start_offset);
+        read_off += syms_based_range_read_uleb128(base, rng, read_off, &end_offset);
+        start_addr = start_offset + base_addr;
+        end_addr = end_offset + base_addr;
+        do_counted_location_description = 1;
+      }break;
+      
+      case SYMS_DwLocListEntryKind_DefaultLocation:
+      {
+        do_counted_location_description = 1;
+      }break;
+      
+      //- rjf: non-split units only:
+      
+      case SYMS_DwLocListEntryKind_BaseAddress:
+      {
+        SYMS_U64 new_base_addr = 0;
+        read_off += syms_based_range_read(base, rng, read_off, addr_size, &new_base_addr);
+        base_addr = new_base_addr;
+      }break;
+      
+      case SYMS_DwLocListEntryKind_StartEnd:
+      {
+        SYMS_U64 start = 0;
+        SYMS_U64 end = 0;
+        read_off += syms_based_range_read(base, rng, read_off, addr_size, &start);
+        read_off += syms_based_range_read(base, rng, read_off, addr_size, &end);
+        start_addr = start;
+        end_addr = end;
+        do_counted_location_description = 1;
+      }break;
+      
+      case SYMS_DwLocListEntryKind_StartLength:
+      {
+        SYMS_U64 start = 0;
+        SYMS_U64 length = 0;
+        read_off += syms_based_range_read(base, rng, read_off, addr_size, &start);
+        read_off += syms_based_range_read_uleb128(base, rng, read_off, &length);
+        start_addr = start;
+        end_addr = start+length;
+        do_counted_location_description = 1;
+      }break;
+    }
+    
+    //- rjf: parse a counted location description + push to result, if valid
+    if(do_counted_location_description)
+    {
+      SYMS_LocRangeNode *n = syms_push_array_zero(arena, SYMS_LocRangeNode, 1);
+      n->loc_range.vrange.min = start_addr;
+      n->loc_range.vrange.max = end_addr;
+      n->loc_range.loc_id = read_off;
+      SYMS_QueuePush(list.first, list.last, n);
+      list.count += 1;
+      
+      // rjf: skip past the location description
+      SYMS_U64 locdesc_length = 0;
+      read_off += syms_based_range_read_uleb128(base, rng, read_off, &locdesc_length);
+      read_off += locdesc_length;
+    }
+  }
+  
+  return list;
+}
+
+SYMS_API SYMS_Location
+syms_dw_v5_location_from_loclist_id(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section, SYMS_LocID id)
+{
+  SYMS_Location result = {0};
+  
+  void *base = syms_dw_sec_base_from_dbg(data, dbg, section);
+  SYMS_U64Range sec_range = syms_dw_sec_range_from_dbg(dbg, section);
+  SYMS_U64 read_off = (SYMS_U64)id;
+  SYMS_U64 length = 0;
+  read_off += syms_based_range_read_uleb128(base, sec_range, read_off, &length);
+  void *expr_base = syms_based_range_ptr(base, sec_range, read_off);
+  SYMS_U64Range expr_range = syms_make_u64_range(read_off, read_off+length);
+  SYMS_String8 location = syms_dw_expr__transpile_to_eval(arena, dbg, base, expr_range);
+  
+  // TODO(rjf): wire up `location` to `result`, once SYMS_Location changes to
+  // returning a SYMS_String8 instead of an op list.
+  
+  return result;
 }
 
 ////////////////////////////////
@@ -1619,10 +1862,23 @@ syms_dw_attrib_value_from_form_value(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SY
   }
   //- rjf: (DWARF V5 ONLY) lookup into the .debug_loclists section via an index
   else if(resolve_params.version >= SYMS_DwVersion_V5 &&
-          value_class == SYMS_DwAttribClass_LOCLISTPTR &&
+          value_class == SYMS_DwAttribClass_LOCLIST &&
           form_kind == SYMS_DwFormKind_LOCLISTX)
   {
-    // TODO(rjf)
+    SYMS_U64 loclist_index = form_value.v[0];
+    SYMS_U64 loclist_offset = syms_dw_v5_sec_offset_from_rnglist_or_loclist_section_base_index(data, dbg, SYMS_DwSectionKind_LocLists, resolve_params.debug_loclists_base, loclist_index);
+    value.section = SYMS_DwSectionKind_LocLists;
+    value.v[0] = loclist_offset;
+  }
+  //- rjf: (DWARF V5 ONLY) lookup into the .debug_loclists section via an offset
+  else if(resolve_params.version >= SYMS_DwVersion_V5 &&
+          (value_class == SYMS_DwAttribClass_LOCLIST ||
+           value_class == SYMS_DwAttribClass_LOCLISTPTR) &&
+          form_kind == SYMS_DwFormKind_SEC_OFFSET)
+  {
+    SYMS_U64 loclist_offset = form_value.v[0];
+    value.section = SYMS_DwSectionKind_LocLists;
+    value.v[0] = loclist_offset;
   }
   //- rjf: (DWARF V5 ONLY) lookup into the .debug_rnglists section via an index
   else if(resolve_params.version >= SYMS_DwVersion_V5 &&
@@ -1631,7 +1887,7 @@ syms_dw_attrib_value_from_form_value(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SY
           form_kind == SYMS_DwFormKind_RNGLISTX)
   {
     SYMS_U64 rnglist_index = form_value.v[0];
-    SYMS_U64 rnglist_offset = syms_dw_v5_rnglist_offset_from_rnglist_section_base_index(data, dbg, SYMS_DwSectionKind_RngLists, resolve_params.debug_rnglists_base, rnglist_index);
+    SYMS_U64 rnglist_offset = syms_dw_v5_sec_offset_from_rnglist_or_loclist_section_base_index(data, dbg, SYMS_DwSectionKind_RngLists, resolve_params.debug_rnglists_base, rnglist_index);
     value.section = SYMS_DwSectionKind_RngLists;
     value.v[0] = rnglist_offset;
   }
@@ -1733,6 +1989,16 @@ syms_dw_attrib_value_from_form_value(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SY
     value.section = SYMS_DwSectionKind_Ranges;
     value.v[0] = ranges_offset;
   }
+  //- rjf: .debug_loc
+  else if(resolve_params.version < SYMS_DwVersion_V5 &&
+          (value_class == SYMS_DwAttribClass_LOCLISTPTR ||
+           value_class == SYMS_DwAttribClass_LOCLIST) &&
+          (form_kind == SYMS_DwFormKind_SEC_OFFSET))
+  {
+    SYMS_U64 offset = form_value.v[0];
+    value.section = SYMS_DwSectionKind_Loc;
+    value.v[0] = offset;
+  }
   //- rjf: invalid attribute class
   else if(value_class == 0)
   {
@@ -1770,13 +2036,13 @@ syms_dw_range_list_from_high_low_pc_and_ranges_attrib_value(SYMS_Arena *arena, S
     //- rjf: (DWARF V5 ONLY) .debug_rnglists offset
     case SYMS_DwSectionKind_RngLists:
     {
-      list = syms_dw_v5_range_list_from_rnglist_or_loclist_offset(arena, data, dbg, ranges_value.section, address_size, addr_section_base, ranges_value.v[0]);
+      list = syms_dw_v5_range_list_from_rnglist_offset(arena, data, dbg, ranges_value.section, address_size, addr_section_base, ranges_value.v[0]);
     }break;
     
     //- rjf: (DWARF V4 and earlier) .debug_ranges parsing
     case SYMS_DwSectionKind_Ranges:
     {
-      list = syms_dw_v4_range_list_from_range_offset(arena, data, dbg, SYMS_DwVersion_V4, address_size, comp_unit_base_addr, ranges_value.v[0]);
+      list = syms_dw_v4_range_list_from_range_offset(arena, data, dbg, address_size, comp_unit_base_addr, ranges_value.v[0]);
     }break;
     
     //- rjf: fall back to trying to use low/high PCs
@@ -1808,6 +2074,8 @@ syms_dw_parse_attrib_list_from_info_abbrev_offsets(SYMS_Arena *arena, SYMS_Strin
   SYMS_DwAttribListParseResult result = {0};
   for(SYMS_B32 good_abbrev = syms_true; good_abbrev;)
   {
+    SYMS_U64 attrib_info_offset = info_read_off;
+    
     //- rjf: parse abbrev attrib info
     SYMS_DwAbbrev abbrev;
     syms_memzero_struct(&abbrev);
@@ -1844,6 +2112,7 @@ syms_dw_parse_attrib_list_from_info_abbrev_offsets(SYMS_Arena *arena, SYMS_Strin
     if(good_abbrev)
     {
       SYMS_DwAttribNode *node = syms_push_array_zero(arena, SYMS_DwAttribNode, 1);
+      node->attrib.info_off     = attrib_info_offset;
       node->attrib.abbrev_id    = abbrev.id;
       node->attrib.attrib_kind  = attrib_kind;
       node->attrib.form_kind    = form_kind;
@@ -2240,6 +2509,7 @@ syms_dw_comp_root_from_range(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAcc
   syms_memzero_struct(&unit);
   
   //- rjf: fill header data
+  unit.size            = size;
   unit.kind            = (SYMS_DwCompUnitKind)unit_kind;
   unit.version         = (SYMS_DwVersion)version;
   unit.address_size    = address_size;
@@ -4288,6 +4558,161 @@ syms_dw_children_from_sid_with_kinds(SYMS_Arena *arena, SYMS_String8 data, SYMS_
   return list;
 }
 
+//- rjf: variable locations
+
+SYMS_API SYMS_Location
+syms_dw_location_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit, SYMS_SymbolID sid, SYMS_DwAttribKind loc_attrib)
+{
+  SYMS_Location result = {0};
+  SYMS_ArenaTemp scratch = syms_get_scratch(&arena, 1);
+  
+  SYMS_DwTagStub stub = syms_dw_cached_tag_stub_from_sid__parse_fallback(data, dbg, unit, sid);
+  if(stub.sid != 0)
+  {
+    SYMS_DwAttribList attribs = syms_dw_attrib_list_from_stub(scratch.arena, data, dbg, unit->address_size, &stub);
+    for(SYMS_DwAttribNode *n = attribs.first; n != 0; n = n->next)
+    {
+      SYMS_DwAttrib *attrib = &n->attrib;
+      if(attrib->attrib_kind == loc_attrib &&
+         attrib->form_kind == SYMS_DwFormKind_EXPRLOC)
+      {
+        SYMS_DwAttribValue location_value = syms_dw_attrib_value_from_form_value(data, dbg, unit->resolve_params,
+                                                                                 attrib->form_kind,
+                                                                                 attrib->value_class,
+                                                                                 attrib->form_value);
+        void *expr_base = syms_dw_sec_base_from_dbg(data, dbg, SYMS_DwSectionKind_Info);
+        SYMS_U64Range expr_range = syms_make_u64_range(location_value.v[0], location_value.v[0] + location_value.v[1]);
+        SYMS_String8 location = syms_dw_expr__transpile_to_eval(arena, dbg, expr_base, expr_range );
+        break;
+      }
+    }
+  }
+  
+  // TODO(rjf): once SYMS_Location has changed accordingly (returns a string
+  // instead of an op-list, wire up `location` to `result`)
+  
+  syms_release_scratch(scratch);
+  return result;
+}
+
+SYMS_API SYMS_LocRangeArray
+syms_dw_location_ranges_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
+                                 SYMS_DwUnitAccel *unit, SYMS_SymbolID sid, SYMS_DwAttribKind loc_attrib)
+{
+  SYMS_LocRangeArray result = {0};
+  SYMS_ArenaTemp scratch = syms_get_scratch(&arena, 1);
+  
+  // rjf: get location range list from sid, if applicable
+  SYMS_LocRangeList list = {0};
+  SYMS_DwTagStub stub = syms_dw_cached_tag_stub_from_sid__parse_fallback(data, dbg, unit, sid);
+  if(stub.sid != 0)
+  {
+    SYMS_DwAttribList attribs = syms_dw_attrib_list_from_stub(scratch.arena, data, dbg, unit->address_size, &stub);
+    for(SYMS_DwAttribNode *n = attribs.first; n != 0; n = n->next)
+    {
+      SYMS_DwAttrib *attrib = &n->attrib;
+      if(attrib->attrib_kind == loc_attrib &&
+         (attrib->value_class == SYMS_DwAttribClass_LOCLISTPTR ||
+          attrib->value_class == SYMS_DwAttribClass_LOCLIST))
+      {
+        SYMS_DwAttribValue location_value = syms_dw_attrib_value_from_form_value(data, dbg, unit->resolve_params,
+                                                                                 attrib->form_kind,
+                                                                                 attrib->value_class,
+                                                                                 attrib->form_value);
+        SYMS_U64 comp_unit_base_addr = unit->base_addr;
+        switch(location_value.section)
+        {
+          // NOTE(rjf): .debug_loclists is only available in DWARF V5, so we can use that to
+          // determine which parsing path to use.
+          case SYMS_DwSectionKind_LocLists:
+          {
+            list = syms_dw_v5_location_ranges_from_loclist_offset(scratch.arena, data, dbg, location_value.section, unit->address_size, comp_unit_base_addr, location_value.v[0]);
+          }break;
+          
+          // NOTE(rjf): .debug_loclists is only available in DWARF V4 and earlier.
+          case SYMS_DwSectionKind_Loc:
+          {
+            list = syms_dw_v4_location_ranges_from_loc_offset(scratch.arena, data, dbg, unit->address_size, comp_unit_base_addr, location_value.v[0]);
+          }break;
+        }
+        break;
+      }
+    }
+  }
+  
+  // rjf: convert list => array
+  if(list.count != 0)
+  {
+    result.count = list.count;
+    result.loc_ranges = syms_push_array_zero(arena, SYMS_LocRange, result.count);
+    SYMS_U64 idx = 0;
+    for(SYMS_LocRangeNode *n = list.first; n != 0; n = n->next, idx += 1)
+    {
+      result.loc_ranges[idx] = n->loc_range;
+    }
+  }
+  
+  syms_release_scratch(scratch);
+  return result;
+}
+
+SYMS_API SYMS_Location
+syms_dw_location_from_id(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
+                         SYMS_DwUnitAccel *unit, SYMS_LocID loc_id)
+{
+  SYMS_Location result = {0};
+  switch(unit->version)
+  {
+    case SYMS_DwVersion_V5:{syms_dw_v5_location_from_loclist_id(arena, data, dbg, SYMS_DwSectionKind_LocLists, loc_id);}break;
+    case SYMS_DwVersion_V4:{syms_dw_v4_location_from_loc_id(arena, data, dbg, loc_id);}break;
+  }
+  return result;
+}
+
+//- rjf: location information helpers
+
+SYMS_API SYMS_DwAttribKind
+syms_dw_attrib_kind_from_proc_loc(SYMS_ProcLoc proc_loc)
+{
+  SYMS_DwAttribKind attrib = (SYMS_DwAttribKind)0;
+  switch(proc_loc)
+  {
+    case SYMS_ProcLoc_FrameBase:    {attrib = SYMS_DwAttribKind_FRAME_BASE;}break;
+    case SYMS_ProcLoc_ReturnAddress:{attrib = SYMS_DwAttribKind_RETURN_ADDR;}break;
+  }
+  return attrib;
+}
+
+SYMS_API SYMS_Location
+syms_dw_location_from_var_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit, SYMS_SymbolID sid)
+{
+  return syms_dw_location_from_sid(arena, data, dbg, unit, sid, SYMS_DwAttribKind_LOCATION);
+}
+
+SYMS_API SYMS_LocRangeArray
+syms_dw_location_ranges_from_var_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
+                                     SYMS_DwUnitAccel *unit, SYMS_SymbolID sid)
+{
+  return syms_dw_location_ranges_from_sid(arena, data, dbg, unit, sid, SYMS_DwAttribKind_LOCATION);
+}
+
+SYMS_API SYMS_Location
+syms_dw_location_from_proc_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit, SYMS_SymbolID sid, SYMS_ProcLoc proc_loc)
+{
+  SYMS_DwAttribKind attrib_kind = syms_dw_attrib_kind_from_proc_loc(proc_loc);
+  SYMS_Location location = syms_dw_location_from_sid(arena, data, dbg, unit, sid, attrib_kind);
+  return location;
+}
+
+SYMS_API SYMS_LocRangeArray
+syms_dw_location_ranges_from_proc_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
+                                      SYMS_DwUnitAccel *unit, SYMS_SymbolID sid, SYMS_ProcLoc proc_loc)
+{
+  SYMS_DwAttribKind attrib_kind = syms_dw_attrib_kind_from_proc_loc(proc_loc);
+  SYMS_LocRangeArray ranges = syms_dw_location_ranges_from_sid(arena, data, dbg, unit, sid, attrib_kind);
+  return ranges;
+}
+
 //- rjf: files
 
 SYMS_API SYMS_U64
@@ -4336,8 +4761,8 @@ syms_dw_file_name_from_id(SYMS_Arena *arena, SYMS_DwUnitSetAccel *unit_set, SYMS
 //- rjf: procedures
 
 SYMS_API SYMS_U64RangeArray
-syms_dw_proc_vranges_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
-                              SYMS_DwUnitAccel *unit, SYMS_SymbolID sid)
+syms_dw_scope_vranges_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
+                               SYMS_DwUnitAccel *unit, SYMS_SymbolID sid)
 {
   SYMS_U64RangeList list;
   syms_memzero_struct(&list);
@@ -4647,7 +5072,7 @@ syms_dw_parsed_line_table_from_comp_root(SYMS_Arena *arena, SYMS_String8 data, S
         // it works because compiler stores operand lengths that we can read
         // to skip unknown opcode
         else{
-          if (opcode <= vm_header.num_opcode_lens){
+          if (opcode > 0 && opcode <= vm_header.num_opcode_lens){
             SYMS_U8 num_operands = vm_header.opcode_lens[opcode - 1];
             for (SYMS_U8 i = 0; i < num_operands; i += 1){
               SYMS_U64 operand = 0;
@@ -4884,6 +5309,8 @@ syms_dw_line_parse_from_uid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAcce
 SYMS_API SYMS_U64
 syms_dw_read_line_file(void *line_base, SYMS_U64Range line_rng, SYMS_U64 line_off, SYMS_DwDbgAccel *dbg, SYMS_String8 data, SYMS_DwCompRoot *unit, SYMS_U8 address_size, SYMS_U64 format_count, SYMS_U64Range *formats, SYMS_DwLineFile *line_file_out)
 {
+  syms_memzero_struct(line_file_out);
+  
   SYMS_DwAttribValueResolveParams resolve_params = syms_dw_attrib_value_resolve_params_from_comp_root(unit);
   SYMS_U64 line_off_start = line_off;
   for (SYMS_U64 format_idx = 0; format_idx < format_count; ++format_idx) 

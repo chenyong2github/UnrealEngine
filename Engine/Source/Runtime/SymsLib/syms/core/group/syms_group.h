@@ -5,92 +5,6 @@
 #define SYMS_GROUP_H
 
 ////////////////////////////////
-// NOTE(allen): Syms Type Graph
-
-typedef struct SYMS_TypeMember{
-  SYMS_MemKind kind;
-  SYMS_MemVisibility visibility;
-  SYMS_MemFlags flags;
-  SYMS_String8 name;
-  SYMS_U32 off;
-  SYMS_U32 virtual_off;
-  struct SYMS_TypeNode *type;
-} SYMS_TypeMember;
-
-typedef struct SYMS_TypeSrcCoord{
-  SYMS_USID usid;
-  SYMS_FileID file_id;
-  SYMS_U32 line;
-  SYMS_U32 col;
-} SYMS_TypeSrcCoord;
-
-typedef struct SYMS_TypeMemberArray{
-  SYMS_TypeMember *mems;
-  SYMS_U64 count;
-} SYMS_TypeMemberArray;
-
-typedef struct SYMS_TypeNode{
-  // SYMS_TypeNode extends and completes the information from SYMS_TypeInfo.
-  // See SYMS_TypeInfo for more interpretation info.
-  
-  SYMS_TypeKind kind;
-  SYMS_String8 name;
-  SYMS_U64 byte_size;
-  
-  // when non-null contains the source location of the type's definition
-  SYMS_TypeSrcCoord *src_coord;
-  
-  // (in addition to interpretations of SYMS_TypeInfo 'direct_type')
-  //  SYMS_TypeKind_Forward*   -> the concrete type referenced by the forward reference
-  struct SYMS_TypeNode *direct_type;
-  
-  // 'this_type' meaning depends on kind:
-  //  SYMS_TypeKind_MemberPtr  -> the container type of the member pointer
-  //  SYMS_TypeKind_Proc       -> if non-nil this is the type of an implicit 'this' in a C++ method
-  struct SYMS_TypeNode *this_type;
-  
-  union{
-    // kind: SYMS_TypeKind_Modifier
-    SYMS_TypeModifiers mods;
-    
-    // kind: SYMS_TypeKind_Array
-    SYMS_U64 array_count;
-    
-    // kind: SYMS_TypeKind_Proc
-    struct{
-      struct SYMS_TypeNode **params;
-      SYMS_U64 param_count;
-    } proc;
-    
-    // opaque pointer for lazy eval attachments to the type node.
-    void *lazy_ptr;
-  };
-} SYMS_TypeNode;
-
-typedef struct SYMS_TypeUSIDNode{
-  struct SYMS_TypeUSIDNode *next;
-  SYMS_USID key;
-  SYMS_TypeNode *type;
-} SYMS_TypeUSIDNode;
-
-typedef struct SYMS_TypeUSIDBuckets{
-  SYMS_TypeUSIDNode **buckets;
-  SYMS_U64 bucket_count;
-} SYMS_TypeUSIDBuckets;
-
-typedef struct SYMS_TypeContentNode{
-  struct SYMS_TypeContentNode *next;
-  SYMS_String8 key;
-  SYMS_U64 hash;
-  SYMS_TypeNode *type;
-} SYMS_TypeContentNode;
-
-typedef struct SYMS_TypeContentBuckets{
-  SYMS_TypeContentNode **buckets;
-  SYMS_U64 bucket_count;
-} SYMS_TypeContentBuckets;
-
-////////////////////////////////
 // NOTE(allen): Syms Line Mapping Structures
 
 typedef struct SYMS_LineToAddrMap{
@@ -141,16 +55,18 @@ typedef struct SYMS_FileToLineToAddrLoose{
 
 typedef SYMS_U32 SYMS_GroupUnitCacheFlags;
 enum{
-  SYMS_GroupUnitCacheFlag_HasProcSidArray  = (1 << 0),
-  SYMS_GroupUnitCacheFlag_HasVarSidArray   = (1 << 1),
-  SYMS_GroupUnitCacheFlag_HasTypeSidArray  = (1 << 2),
-  SYMS_GroupUnitCacheFlag_HasFileTable     = (1 << 3),
-  SYMS_GroupUnitCacheFlag_HasInfFileTable  = (1 << 4),
-  SYMS_GroupUnitCacheFlag_HasLineTable     = (1 << 5),
-  SYMS_GroupUnitCacheFlag_HasProcMap       = (1 << 6),
-  SYMS_GroupUnitCacheFlag_HasVarMap        = (1 << 7),
-  SYMS_GroupUnitCacheFlag_HasLineSeqMap    = (1 << 8),
-  SYMS_GroupUnitCacheFlag_HasLineToAddrMap = (1 << 9),
+  SYMS_GroupUnitCacheFlag_HasProcSidArray   = (1 <<  0),
+  SYMS_GroupUnitCacheFlag_HasVarSidArray    = (1 <<  1),
+  SYMS_GroupUnitCacheFlag_HasTlsVarSidArray = (1 <<  2),
+  SYMS_GroupUnitCacheFlag_HasTypeSidArray   = (1 <<  3),
+  SYMS_GroupUnitCacheFlag_HasFileTable      = (1 <<  4),
+  SYMS_GroupUnitCacheFlag_HasInfFileTable   = (1 <<  5),
+  SYMS_GroupUnitCacheFlag_HasLineTable      = (1 <<  6),
+  SYMS_GroupUnitCacheFlag_HasProcMap        = (1 <<  7),
+  SYMS_GroupUnitCacheFlag_HasVarMap         = (1 <<  8),
+  SYMS_GroupUnitCacheFlag_HasLineSeqMap     = (1 <<  9),
+  SYMS_GroupUnitCacheFlag_HasLineToAddrMap  = (1 <<  10),
+  SYMS_GroupUnitCacheFlag_HasTypeNameMap    = (1 <<  11),
 };
 
 typedef struct SYMS_Group{
@@ -184,6 +100,7 @@ typedef struct SYMS_Group{
   SYMS_UnitAccel **units;
   SYMS_SymbolIDArray *proc_sid_arrays;
   SYMS_SymbolIDArray *var_sid_arrays;
+  SYMS_SymbolIDArray *thread_sid_arrays;
   SYMS_SymbolIDArray *type_sid_arrays;
   SYMS_String8Array *file_tables;
   SYMS_String8Array *inferred_file_tables;
@@ -192,12 +109,14 @@ typedef struct SYMS_Group{
   SYMS_SpatialMap1D *unit_var_maps;
   SYMS_SpatialMap1D *line_sequence_maps;
   SYMS_FileToLineToAddrBuckets *file_to_line_to_addr_buckets;
+  SYMS_SymbolNameMap *unit_type_maps;
   
   //- hash tables caches
   SYMS_StringCons string_cons;
   SYMS_FileID2NameMap file_id_2_name_map;
-  SYMS_TypeUSIDBuckets type_usid_buckets;
-  SYMS_TypeContentBuckets type_content_buckets;
+  
+  //- type graph
+  SYMS_TypeGraph type_graph;
   
   //- one-time fills/builds
   SYMS_B8 unit_ranges_is_filled;
@@ -229,25 +148,6 @@ SYMS_READ_ONLY SYMS_GLOBAL SYMS_SpatialMap1D syms_spatial_map_1d_nil = {0};
 SYMS_READ_ONLY SYMS_GLOBAL SYMS_LineToAddrMap syms_line_to_addr_map_nil = {0};
 SYMS_READ_ONLY SYMS_GLOBAL SYMS_TypeMemberArray syms_type_member_array_nil = {0};
 SYMS_READ_ONLY SYMS_GLOBAL SYMS_EnumInfoArray syms_enum_info_array_nil = {0};
-
-SYMS_READ_ONLY SYMS_GLOBAL SYMS_TypeNode syms_type_graph_nil = {
-  SYMS_TypeKind_Null,     // kind
-  {(SYMS_U8*)"(nil)", 5}, // name
-  0,                      // byte_size
-  0,                      // src_coord
-  &syms_type_graph_nil,   // direct_type
-  &syms_type_graph_nil,   // this_type
-};
-
-
-////////////////////////////////
-// NOTE(allen): File Inference Helper Macros
-
-// TODO(allen): Just here to help people with transition. Eventually we're
-// going to cut the helper macros just have syms_file_inf_infer*
-#define SYMS_GroupInitParams            SYMS_ParseBundle
-#define syms_group_infer_from_file_list syms_file_inf_infer_from_file_list
-#define syms_group_infer_from_file      syms_file_inf_infer_from_file
 
 ////////////////////////////////
 // NOTE(allen): Syms Group Setup Functions
@@ -290,6 +190,7 @@ SYMS_API SYMS_UnitNames     syms_group_unit_names_from_uid(SYMS_Arena *arena, SY
 SYMS_API SYMS_UnitAccel*    syms_group_unit_from_uid(SYMS_Group *group, SYMS_UnitID uid);
 SYMS_API SYMS_SymbolIDArray*syms_group_proc_sid_array_from_uid(SYMS_Group *group, SYMS_UnitID uid);
 SYMS_API SYMS_SymbolIDArray*syms_group_var_sid_array_from_uid(SYMS_Group *group, SYMS_UnitID uid);
+SYMS_API SYMS_SymbolIDArray*syms_group_tls_var_sid_array_from_uid(SYMS_Group *group, SYMS_UnitID uid);
 SYMS_API SYMS_SymbolIDArray*syms_group_type_sid_array_from_uid(SYMS_Group *group, SYMS_UnitID uid);
 SYMS_API SYMS_String8Array* syms_group_file_table_from_uid(SYMS_Group *group, SYMS_UnitID uid);
 SYMS_API SYMS_LineParseOut* syms_group_line_parse_from_uid(SYMS_Group *group, SYMS_UnitID uid);
@@ -325,8 +226,6 @@ SYMS_API SYMS_U64Maybe syms_group_foff_from_voff__linear_scan(SYMS_Group *group,
 SYMS_API SYMS_UnitID   syms_group_uid_from_voff__linear_scan(SYMS_Group *group, SYMS_U64 voff);
 SYMS_API SYMS_SymbolID syms_group_proc_sid_from_uid_voff__linear_scan(SYMS_Group *group, SYMS_UnitID uid,
                                                                       SYMS_U64 voff);
-SYMS_API SYMS_SymbolID syms_group_var_sid_from_uid_voff__linear_scan(SYMS_Group *group, SYMS_UnitID uid,
-                                                                     SYMS_U64 voff);
 
 SYMS_API SYMS_Line     syms_group_line_from_uid_voff__linear_scan(SYMS_Group *group, SYMS_UnitID uid,
                                                                   SYMS_U64 voff);
@@ -342,13 +241,18 @@ SYMS_API SYMS_SpatialMap1D* syms_group_unit_map(SYMS_Group *group);
 
 // thread safe (with lanes equipped to group)
 SYMS_API SYMS_SpatialMap1D* syms_group_proc_map_from_uid(SYMS_Group *group, SYMS_UnitID uid);
-SYMS_API SYMS_SpatialMap1D* syms_group_line_sequence_map_from_uid(SYMS_Group *group, SYMS_UnitID uid);
+SYMS_API SYMS_SpatialMap1D* syms_group_line_sequence_map_from_uid(SYMS_Group *group,
+                                                                  SYMS_UnitID uid);
 
-SYMS_API SYMS_SpatialMap1D* syms_group_var_map_from_uid(SYMS_Group *group, SYMS_UnitID uid);
+SYMS_API void                syms_group_fetch_line_to_addr_maps_from_uid(SYMS_Group *group,
+                                                                         SYMS_UnitID uid);
+SYMS_API SYMS_LineToAddrMap*
+syms_group_line_to_addr_map_from_uid_file_id(SYMS_Group *group,
+                                             SYMS_UnitID uid,
+                                             SYMS_FileID file_id);
 
-SYMS_API void                syms_group_fetch_line_to_addr_maps_from_uid(SYMS_Group *group, SYMS_UnitID uid);
-SYMS_API SYMS_LineToAddrMap* syms_group_line_to_addr_map_from_uid_file_id(SYMS_Group *group, SYMS_UnitID uid,
-                                                                          SYMS_FileID file_id);
+SYMS_API SYMS_SymbolNameMap*
+syms_group_type_map_from_uid(SYMS_Group *group, SYMS_UnitID uid);
 
 SYMS_API SYMS_SpatialMap1D* syms_group_stripped_info_map(SYMS_Group *group);
 
@@ -362,8 +266,6 @@ SYMS_API SYMS_U64Maybe syms_group_sec_foff_from_voff__accelerated(SYMS_Group *gr
 SYMS_API SYMS_UnitID   syms_group_uid_from_voff__accelerated(SYMS_Group *group, SYMS_U64 voff);
 SYMS_API SYMS_SymbolID syms_group_proc_sid_from_uid_voff__accelerated(SYMS_Group *group, SYMS_UnitID uid,
                                                                       SYMS_U64 voff);
-SYMS_API SYMS_SymbolID syms_group_var_sid_from_uid_voff__accelerated(SYMS_Group *group, SYMS_UnitID uid,
-                                                                     SYMS_U64 voff);
 
 SYMS_API SYMS_Line     syms_group_line_from_uid_voff__accelerated(SYMS_Group *group, SYMS_UnitID uid,
                                                                   SYMS_U64 voff);
@@ -378,48 +280,56 @@ SYMS_API void          syms_line_to_addr_line_sort(SYMS_FileToLineToAddrLooseLin
 SYMS_API void          syms_line_to_addr_line_sort__rec(SYMS_FileToLineToAddrLooseLine **array, SYMS_U64 count);
 
 ////////////////////////////////
-// NOTE(allen): Syms Group Type Graph Functions
+// NOTE(allen): Syms Group Type Graph
 
-SYMS_API SYMS_TypeNode* syms_group_type_from_usid(SYMS_Group *group, SYMS_USID usid);
-SYMS_API SYMS_TypeNode* syms_group_type_from_usid__rec(SYMS_Group *group, SYMS_USID usid);
+SYMS_API SYMS_TypeGraph* syms_group_type_graph(SYMS_Group *group);
 
-SYMS_API SYMS_TypeMemberArray* syms_group_members_from_type(SYMS_Group *group, SYMS_TypeNode *type);
-SYMS_API SYMS_EnumInfoArray*   syms_group_enum_members_from_type(SYMS_Group *group, SYMS_TypeNode *type);
+////////////////////////////////
+// NOTE(allen): Syms Group Varaible Address Mapping Functions
 
-SYMS_API SYMS_U64       syms_group_type_size_from_usid(SYMS_Group *group, SYMS_USID usid);
+// these are seperated because they require type info which
+// cannot be parallelized like the others
 
-SYMS_API SYMS_TypeNode* syms_group_type_basic(SYMS_Group *group, SYMS_TypeKind basic_kind,
-                                              SYMS_U64 size, SYMS_String8 name);
-SYMS_API SYMS_TypeNode* syms_group_type_mod_from_type(SYMS_Group *group, SYMS_TypeNode *type,
-                                                      SYMS_TypeModifiers mods);
-SYMS_API SYMS_TypeNode* syms_group_type_ptr_from_type(SYMS_Group *group, SYMS_TypeKind ptr_kind,
-                                                      SYMS_TypeNode *type);
-SYMS_API SYMS_TypeNode* syms_group_type_array_from_type(SYMS_Group *group, SYMS_TypeNode *type, SYMS_U64 count);
-SYMS_API SYMS_TypeNode* syms_group_type_proc_from_type(SYMS_Group *group,
-                                                       SYMS_TypeNode *ret_type, SYMS_TypeNode *this_type,
-                                                       SYMS_TypeNode **param_types, SYMS_U64 param_count);
-SYMS_API SYMS_TypeNode* syms_group_type_member_ptr_from_type(SYMS_Group *group, SYMS_TypeNode *container,
-                                                             SYMS_TypeNode *type);
 
-SYMS_API SYMS_String8   syms_group_string_from_type(SYMS_Arena *arena, SYMS_TypeNode *type);
+SYMS_API SYMS_SymbolID syms_group_var_sid_from_uid_voff__linear_scan(SYMS_TypeGraph *graph,
+                                                                     SYMS_Group *group,
+                                                                     SYMS_UnitID uid,
+                                                                     SYMS_U64 voff);
 
-SYMS_API void           syms_group_lhs_string_from_type(SYMS_Arena *arena, SYMS_TypeNode *type,
-                                                        SYMS_String8List *out);
-SYMS_API void           syms_group_rhs_string_from_type(SYMS_Arena *arena, SYMS_TypeNode *type,
-                                                        SYMS_String8List *out);
+SYMS_API SYMS_SpatialMap1D* syms_group_var_map_from_uid(SYMS_TypeGraph *graph,
+                                                        SYMS_Group *group, SYMS_UnitID uid);
 
-SYMS_API void           syms_group_lhs_string_from_type_skip_return(SYMS_Arena *arena, SYMS_TypeNode *type,
-                                                                    SYMS_String8List *out);
+SYMS_API SYMS_SymbolID syms_group_var_sid_from_uid_voff__accelerated(SYMS_TypeGraph *graph,
+                                                                     SYMS_Group *group,
+                                                                     SYMS_UnitID uid,
+                                                                     SYMS_U64 voff);
 
-SYMS_API SYMS_U64       syms_type_usid_hash(SYMS_USID usid);
-SYMS_API SYMS_TypeNode* syms_type_from_usid(SYMS_TypeUSIDBuckets *buckets, SYMS_USID usid);
-SYMS_API void           syms_type_usid_buckets_insert(SYMS_Arena *arena, SYMS_TypeUSIDBuckets *buckets,
-                                                      SYMS_USID key, SYMS_TypeNode *type);
 
-SYMS_API SYMS_U64       syms_type_content_hash(SYMS_String8 data);
-SYMS_API SYMS_TypeNode* syms_type_from_content(SYMS_TypeContentBuckets *buckets, SYMS_String8 data);
-SYMS_API SYMS_String8   syms_type_content_buckets_insert(SYMS_Arena *arena, SYMS_TypeContentBuckets *buckets,
-                                                         SYMS_String8 key, SYMS_TypeNode *type);
+////////////////////////////////
+// NOTE(allen): Syms Group Type Info Functions
+
+SYMS_API SYMS_TypeNode* syms_group_type_from_usid(SYMS_TypeGraph *graph, SYMS_Group *group,
+                                                  SYMS_USID usid);
+SYMS_API SYMS_TypeNode* syms_group_type_from_usid__rec(SYMS_TypeGraph *graph,
+                                                       SYMS_Group *group, SYMS_USID usid);
+
+SYMS_API SYMS_TypeChain syms_group_artificial_types_from_name(SYMS_Group *group,
+                                                              SYMS_String8 name);
+
+SYMS_API SYMS_USIDList syms_group_type_list_from_name_accelerated(SYMS_Arena *arena,
+                                                                  SYMS_Group *group,
+                                                                  SYMS_String8 name);
+
+SYMS_API SYMS_SymbolIDArray syms_group_types_from_unit_name(SYMS_Group *group,
+                                                            SYMS_UnitID uid, SYMS_String8 name);
+
+SYMS_API SYMS_U64       syms_group_type_size_from_usid(SYMS_TypeGraph *graph,
+                                                       SYMS_Group *group, SYMS_USID usid);
+
+SYMS_API SYMS_TypeMemberArray* syms_type_members_from_type(SYMS_Group *group,
+                                                           SYMS_TypeNode *type);
+SYMS_API SYMS_EnumInfoArray*   syms_type_enum_members_from_type(SYMS_Group *group,
+                                                                SYMS_TypeNode *type);
 
 ////////////////////////////////
 //~ NOTE(allen): Syms File Map

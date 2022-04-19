@@ -10,8 +10,8 @@
 #define SYMS_MSF_INVALID_STREAM_NUMBER SYMS_U16_MAX
 typedef SYMS_U16 SYMS_MsfStreamNumber; 
 
-SYMS_GLOBAL char syms_msf20_magic[] = "Microsoft C/C++ program database 2.00\r\n\x1aJG\0\0";
-SYMS_GLOBAL char syms_msf70_magic[] = "Microsoft C/C++ MSF 7.00\r\n\032DS\0\0";
+SYMS_READ_ONLY SYMS_GLOBAL char syms_msf20_magic[] = "Microsoft C/C++ program database 2.00\r\n\x1aJG\0\0";
+SYMS_READ_ONLY SYMS_GLOBAL char syms_msf70_magic[] = "Microsoft C/C++ MSF 7.00\r\n\032DS\0\0";
 
 #define SYMS_MSF20_MAGIC_SIZE 44
 #define SYMS_MSF70_MAGIC_SIZE 32

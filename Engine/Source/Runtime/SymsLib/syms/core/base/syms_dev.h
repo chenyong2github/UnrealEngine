@@ -150,12 +150,12 @@ SYMS_API void syms_logf__dev(char *fmt, ...);
 
 // SYMS_PROF_TIME: () -> SYMS_U64
 #if !defined(SYMS_PROF_TIME)
-# error SYMS_PROF_TIME not #define'd
+# error "SYMS_PROF_TIME not #define'd"
 #endif
 
 // SYMS_PROF_ALLOC: (SYMS_U64) -> void*
 #if !defined(SYMS_PROF_ALLOC)
-# error SYMS_PROF_ALLOC not #define'd
+# error "SYMS_PROF_ALLOC not #define'd"
 #endif
 
 #if !defined(SYMS_PROF_BLOCK_SIZE)

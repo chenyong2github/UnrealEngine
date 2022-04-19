@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_COFF_H
 #define _SYMS_META_COFF_H
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:885
 typedef SYMS_U16 SYMS_CoffFlags;
 enum{
 SYMS_CoffFlag_RELOC_STRIPPED = (1 << 0),
@@ -283,14 +283,15 @@ SYMS_CoffImportHeaderNameType_COUNT = 4
 };
 #pragma pack(pop)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1133
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_Arch syms_arch_from_coff_machine_type(SYMS_CoffMachineType v);
 SYMS_API SYMS_U32 syms_coff_reloc_size_for_x64(SYMS_CoffRelocTypeX64 v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1588
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1694
 #endif

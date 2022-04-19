@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DEBUG_INFO_H
 #define _SYMS_META_DEBUG_INFO_H
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:885
 typedef SYMS_U32 SYMS_UnitFeatures;
 enum{
 SYMS_UnitFeature_CompilationUnit = (1 << 0),
@@ -18,10 +18,11 @@ SYMS_SymbolKind_Type,
 SYMS_SymbolKind_Procedure,
 SYMS_SymbolKind_ImageRelativeVariable,
 SYMS_SymbolKind_LocalVariable,
+SYMS_SymbolKind_TLSVariable,
 SYMS_SymbolKind_Const,
 SYMS_SymbolKind_Scope,
 SYMS_SymbolKind_Inline,
-SYMS_SymbolKind_COUNT = 8
+SYMS_SymbolKind_COUNT = 9
 } SYMS_SymbolKind;
 typedef enum SYMS_TypeKind{
 SYMS_TypeKind_Null,
@@ -40,6 +41,7 @@ SYMS_TypeKind_UInt64,
 SYMS_TypeKind_UInt128,
 SYMS_TypeKind_UInt256,
 SYMS_TypeKind_UInt512,
+SYMS_TypeKind_Bool,
 SYMS_TypeKind_Float16,
 SYMS_TypeKind_Float32,
 SYMS_TypeKind_Float32PP,
@@ -52,13 +54,13 @@ SYMS_TypeKind_Complex64,
 SYMS_TypeKind_Complex80,
 SYMS_TypeKind_Complex128,
 SYMS_TypeKind_Void,
-SYMS_TypeKind_Bool,
 //  @maintenance(allen) sync with 'syms_type_kind_is_user_defined'
 SYMS_TypeKind_Struct,
 SYMS_TypeKind_Class,
 SYMS_TypeKind_Union,
 SYMS_TypeKind_Enum,
 SYMS_TypeKind_Typedef,
+//  @maintenance(allen) sync with 'syms_type_kind_is_forward'
 SYMS_TypeKind_ForwardStruct,
 SYMS_TypeKind_ForwardClass,
 SYMS_TypeKind_ForwardUnion,
@@ -94,13 +96,14 @@ SYMS_MemVisibility_Protected,
 SYMS_MemVisibility_COUNT = 4
 } SYMS_MemVisibility;
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1133
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_U32 syms_bit_size_from_type_kind(SYMS_TypeKind v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1588
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1694
 #endif

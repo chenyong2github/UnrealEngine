@@ -11,6 +11,17 @@
 #include "syms/core/base/syms_base.h"
 #include "syms/core/syms_debug_info.h"
 
+// regs
+#include "syms/core/regs/syms_regs.h"
+#pragma pack(push, 1)
+#include "syms/core/generated/syms_meta_regs_x86.h"
+#include "syms/core/generated/syms_meta_regs_x64.h"
+#pragma pack(pop)
+#include "syms/core/regs/syms_regs_helpers.h"
+
+// eval
+#include "syms/core/syms_eval.h"
+
 // "windows related" formats
 #include "syms/core/pe/syms_pe.h"
 #include "syms/core/pdb/syms_pdb.h"
@@ -33,22 +44,15 @@
 #include "syms/core/elf/syms_elf_parser.h"
 #include "syms/core/dwarf/syms_dwarf_expr.h"
 #include "syms/core/dwarf/syms_dwarf_parser.h"
+#include "syms/core/dwarf/syms_dwarf_transpiler.h"
 
 // parser abstraction
 #include "syms/core/syms_parser.h"
 #include "syms/core/syms_parser_invariants.h"
 #include "syms/core/data_structures/syms_data_structures.h"
+#include "syms/core/group/syms_type_graph.h"
 #include "syms/core/group/syms_group.h"
 #include "syms/core/file_inf/syms_file_inf.h"
-
-// regs
-#include "syms/core/regs/syms_regs.h"
-
-#pragma pack(push, 1)
-#include "syms/core/generated/syms_meta_regs_classes.h"
-#include "syms/core/generated/syms_meta_regs_x86.h"
-#include "syms/core/generated/syms_meta_regs_x64.h"
-#pragma pack(pop)
 
 #include "syms/core/regs/syms_regs_x64.h"
 // depends on "syms_dwarf_expr" and "regs"
@@ -60,5 +64,8 @@
 
 // serialized type information
 #include "syms/syms_serial_inc.h"
+
+// extras
+#include "syms/core/extras/syms_aggregate_proc_map.h"
 
 #endif // SYMS_INC_H

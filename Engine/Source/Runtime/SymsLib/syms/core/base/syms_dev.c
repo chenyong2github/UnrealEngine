@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_DEV_C
 #define SYMS_DEV_C
 
@@ -150,6 +151,15 @@ syms_logf__dev(char *fmt, ...){
   syms_logfv__dev(fmt, args);
   va_end(args);
 }
+
+#else
+
+#define syms_log_set_filter__dev(...)
+#define syms_log_open__dev(...)
+#define syms_log_is_enabled__dev(...) syms_false
+#define syms_log_open_annotated__dev(...) 0
+#define syms_logfv__dev(...)
+#define syms_logf__dev(...)
 
 #endif
 
@@ -495,6 +505,28 @@ syms_prof_stringize_basic__dev(SYMS_Arena *arena, SYMS_ProfLock lock, SYMS_Strin
 }
 
 #endif //SYMS_ENABLE_DEV_STRING
+
+#else
+
+#define syms_prof_equip_thread__dev(...)
+#define syms_prof_equip_thread_auto__dev(...)
+#define syms_prof_unequip_thread__dev(...)
+#define syms_prof_push__dev(...)
+#define syms_prof_paste__dev(...)
+
+#define syms_prof_lock__dev(...) {0}
+#define syms_prof_clear__dev(...)
+#define syms_prof_unlock__dev(l) ((void)l)
+
+#define syms_prof_tree__dev(...)
+#define syms_prof_tree_sort_in_place__dev(...)
+#define syms_prof_tree_sort_pointer_array__dev(...)
+
+#if SYMS_ENABLE_DEV_STRING
+# define syms_prof_stringize_tree__dev(...)
+# define syms_prof_stringize_tree__rec__dev(...)
+# define syms_prof_stringize_basic__dev(...)
+#endif
 
 #endif //SYMS_ENABLE_DEV_PROFILE
 

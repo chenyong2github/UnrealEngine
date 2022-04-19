@@ -7,9 +7,10 @@
 ////////////////////////////////
 //~ NOTE(allen): Version
 
-#define SYMS_VERSION_MAJOR  0
-#define SYMS_VERSION_MINOR  9999
-#define SYMS_VERSION_STR    "1.pre"
+#define SYMS_VERSION_MAJOR    1
+#define SYMS_VERSION_MINOR    0
+#define SYMS_VERSION_SUBMINOR 0
+#define SYMS_VERSION_STR      "1.0.0"
 
 ////////////////////////////////
 //~ NOTE(rjf): Context Cracking
@@ -41,7 +42,7 @@
 #define SYMS_GLOBAL static
 #define SYMS_LOCAL  static
 
-#ifndef SYMS_READ_ONLY
+#if !defined(SYMS_READ_ONLY)
 # if SYMS_COMPILER_CL || (SYMS_COMPILER_CLANG && SYMS_OS_WINDOWS)
 #  pragma section(".roglob", read)
 #  define SYMS_READ_ONLY __declspec(allocate(".roglob"))
@@ -183,6 +184,7 @@ typedef SYMS_U32 SYMS_RegID;
 #define SYMS_CeilIntegerDiv(a,b) (((a) + (b) - 1)/(b))
 
 #define SYMS_AlignPow2(a,b) (((a) + (b) - 1)&(~((b) - 1)))
+#define SYMS_AlignDownPow2(a,b) ((a)&(~((b) - 1)))
 
 #define SYMS_Swap(T,a,b) do{ T t__ = (a); (a) = (b); (b) = t__; }while(0)
 
@@ -226,6 +228,17 @@ typedef SYMS_U32 SYMS_RegID;
 
 ////////////////////////////////
 //~ NOTE(allen): Common Basic Types
+
+typedef struct SYMS_U64Array{
+  SYMS_U64 *u64;
+  SYMS_U64 count;
+} SYMS_U64Array;
+
+typedef struct SYMS_U64ArrayNode{
+  struct SYMS_U64ArrayNode *next;
+  SYMS_U64 *u64;
+  SYMS_U64 count;
+} SYMS_U64ArrayNode;
 
 typedef struct SYMS_U64Maybe{
   SYMS_B32 valid;
@@ -416,7 +429,7 @@ SYMS_API SYMS_U64 syms_hash_u64(SYMS_U64 x);
 #define syms_serial_type(name) (_syms_serial_type_##name)
 #define syms_string_from_enum_value(enum_type, value) \
 (syms_serial_value_from_enum_value(&syms_serial_type(enum_type), value)->name)
-#define syms_bswap_in_place(type, ptr) syms_bswap_in_place__##type(ptr)
+#define syms_bswap_in_place(type, ptr) syms_bswap_in_place__##type((type*)(ptr))
 
 SYMS_API SYMS_SerialField* syms_serial_first_field(SYMS_SerialType *type);
 SYMS_API SYMS_SerialValue* syms_serial_first_value(SYMS_SerialType *type);
@@ -454,7 +467,7 @@ SYMS_API void         syms_string_list_push_node_front(SYMS_String8Node *node, S
                                                        SYMS_String8 string);
 SYMS_API void         syms_string_list_push(SYMS_Arena *arena, SYMS_String8List *list, SYMS_String8 string);
 SYMS_API void         syms_string_list_push_front(SYMS_Arena *arena, SYMS_String8List *list, SYMS_String8 string);
-SYMS_API SYMS_String8List syms_string_list_concat_in_place(SYMS_String8List *left, SYMS_String8List *right);
+SYMS_API SYMS_String8List syms_string_list_concat(SYMS_String8List *left, SYMS_String8List *right);
 
 
 SYMS_API SYMS_String8 syms_string_list_join(SYMS_Arena *arena, SYMS_String8List *list, SYMS_StringJoin *join);

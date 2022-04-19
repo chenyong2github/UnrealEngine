@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_MACH_H
 #define _SYMS_META_MACH_H
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:885
 typedef SYMS_S32 SYMS_MachCpuType;
 enum{
 SYMS_MachCpuType_ANY = 0xFFFFFFFF,
@@ -528,6 +528,7 @@ SYMS_U32 nreloc;
 SYMS_U32 flags;
 SYMS_U32 reserved1;
 SYMS_U32 reserved2;
+SYMS_U32 pad;
 } SYMS_MachSection64;
 typedef struct SYMS_MachSymtabCommand{
 SYMS_U32 cmd;
@@ -576,14 +577,228 @@ SYMS_U8 n_sect;
 SYMS_U16 n_desc;
 SYMS_U64 n_value;
 } SYMS_MachNList64;
+typedef struct SYMS_MachBuildVersionCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_MachPlatformType platform;
+SYMS_U32 minos;
+SYMS_U32 sdk;
+SYMS_U32 ntools;
+} SYMS_MachBuildVersionCommand;
+typedef struct SYMS_MachBuildToolVersion{
+SYMS_MachToolType tool;
+SYMS_U32 version;
+} SYMS_MachBuildToolVersion;
+typedef struct SYMS_MachVersionMin{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 version;
+SYMS_U32 sdk;
+} SYMS_MachVersionMin;
+typedef struct SYMS_MachDylinker{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_MachLCStr name;
+} SYMS_MachDylinker;
+typedef struct SYMS_MachPreboundDylibCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_MachLCStr name;
+SYMS_U32 nmodules;
+} SYMS_MachPreboundDylibCommand;
+typedef struct SYMS_MachRoutinesCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 init_address;
+SYMS_U32 init_module;
+SYMS_U32 reserved1;
+SYMS_U32 reserved2;
+SYMS_U32 reserved3;
+SYMS_U32 reserved4;
+SYMS_U32 reserved5;
+SYMS_U32 reserved6;
+} SYMS_MachRoutinesCommand;
+typedef struct SYMS_MachRoutines64Command{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U64 init_address;
+SYMS_U64 init_module;
+SYMS_U64 reserved1;
+SYMS_U64 reserved2;
+SYMS_U64 reserved3;
+SYMS_U64 reserved4;
+SYMS_U64 reserved5;
+SYMS_U64 reserved6;
+} SYMS_MachRoutines64Command;
+typedef struct SYMS_MachSubFrameworkCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_MachLCStr umbrella;
+} SYMS_MachSubFrameworkCommand;
+typedef struct SYMS_MachSubUmbrellaCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_MachLCStr sub_umbrella;
+} SYMS_MachSubUmbrellaCommand;
+typedef struct SYMS_MachSubClientCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_MachLCStr client;
+} SYMS_MachSubClientCommand;
+typedef struct SYMS_MachSubLibraryCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_MachLCStr sub_library;
+} SYMS_MachSubLibraryCommand;
+typedef struct SYMS_MachTwoLevelHintsCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 offset;
+SYMS_U32 nhints;
+} SYMS_MachTwoLevelHintsCommand;
+typedef SYMS_U32 SYMS_MachTwoLevelHint;
+enum{
+SYMS_MachTwoLevelHint_isub_image_SHIFT = 0, SYMS_MachTwoLevelHint_isub_image_MASK = 0xff,
+SYMS_MachTwoLevelHint_itoc_SHIFT = 8, SYMS_MachTwoLevelHint_itoc_MASK = 0xffffff,
+};
+#define SYMS_MachTwoLevelHint_Extract_isub_image(f) (SYMS_U32)(((f) >> SYMS_MachTwoLevelHint_isub_image_SHIFT) & SYMS_MachTwoLevelHint_isub_image_MASK)
+#define SYMS_MachTwoLevelHint_Extract_itoc(f) (SYMS_U32)(((f) >> SYMS_MachTwoLevelHint_itoc_SHIFT) & SYMS_MachTwoLevelHint_itoc_MASK)
+typedef struct SYMS_MachPrebindChecksumCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 chksum;
+} SYMS_MachPrebindChecksumCommand;
+typedef struct SYMS_MachRPathCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_MachLCStr path;
+} SYMS_MachRPathCommand;
+typedef struct SYMS_MachLinkeditDataCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 dataoff;
+SYMS_U32 datasize;
+} SYMS_MachLinkeditDataCommand;
+typedef struct SYMS_MachEncryptionInfoCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 cryptoff;
+SYMS_U32 cryptsize;
+SYMS_U32 cryptid;
+} SYMS_MachEncryptionInfoCommand;
+typedef struct SYMS_MachEncryptionInfo64Command{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 cryptoff;
+SYMS_U32 cryptsize;
+SYMS_U32 cryptid;
+SYMS_U32 pad;
+} SYMS_MachEncryptionInfo64Command;
+typedef struct SYMS_MachEntryPointCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U64 entryoff;
+SYMS_U64 stacksize;
+} SYMS_MachEntryPointCommand;
+typedef struct SYMS_MachSourceVersionCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U64 version;
+} SYMS_MachSourceVersionCommand;
+typedef struct SYMS_MachLinkerOptionCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 count;
+} SYMS_MachLinkerOptionCommand;
+typedef struct SYMS_MachNoteCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U8 data_owner[16];
+SYMS_U64 offset;
+SYMS_U64 size;
+} SYMS_MachNoteCommand;
+typedef struct SYMS_MachSymSegCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_U32 offset;
+SYMS_U32 size;
+} SYMS_MachSymSegCommand;
+typedef struct SYMS_MachFvmlib{
+SYMS_MachLCStr name;
+SYMS_U32 minor_version;
+SYMS_U32 header_addr;
+} SYMS_MachFvmlib;
+typedef struct SYMS_MachFvmlibCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+SYMS_MachFvmlib fvmlib;
+} SYMS_MachFvmlibCommand;
+typedef struct SYMS_MachThreadCommand{
+SYMS_U32 cmd;
+SYMS_U32 cmdsize;
+} SYMS_MachThreadCommand;
+typedef SYMS_U32 SYMS_MachUnwindEncModeX86;
+enum{
+SYMS_MachUnwindEncModeX86_EBP_FRAME = 1,
+SYMS_MachUnwindEncModeX86_STACK_IMMD = 2,
+SYMS_MachUnwindEncModeX86_STACK_IND = 3,
+SYMS_MachUnwindEncModeX86_DWARF = 4,
+SYMS_MachUnwindEncModeX86_COUNT = 4
+};
+typedef SYMS_U32 SYMS_MachUnwindRegisterX86;
+enum{
+SYMS_MachUnwindRegisterX86_NONE = 0,
+SYMS_MachUnwindRegisterX86_EBX = 1,
+SYMS_MachUnwindRegisterX86_ECX = 2,
+SYMS_MachUnwindRegisterX86_EDX = 3,
+SYMS_MachUnwindRegisterX86_EDI = 4,
+SYMS_MachUnwindRegisterX86_ESI = 5,
+SYMS_MachUnwindRegisterX86_EBP = 6,
+SYMS_MachUnwindRegisterX86_COUNT = 7
+};
+typedef SYMS_U32 SYMS_MachUnwindEncX86;
+enum{
+SYMS_MachUnwindEncX86_MODE_MASK_SHIFT = 4, SYMS_MachUnwindEncX86_MODE_MASK_MASK = 0xffffff,
+SYMS_MachUnwindEncX86_EBP_FRAME_REGISTER = (1 << 15),
+SYMS_MachUnwindEncX86_EBP_FRAME_OFFSET_SHIFT = 8, SYMS_MachUnwindEncX86_EBP_FRAME_OFFSET_MASK = 0x7fff,
+SYMS_MachUnwindEncX86_FRAMELESS_STACK_SIZE_SHIFT = 8, SYMS_MachUnwindEncX86_FRAMELESS_STACK_SIZE_MASK = 0x7fff,
+SYMS_MachUnwindEncX86_FRAMELESS_STACK_ADJUST_SHIFT = 3, SYMS_MachUnwindEncX86_FRAMELESS_STACK_ADJUST_MASK = 0xfff,
+SYMS_MachUnwindEncX86_FRAMELESS_REG_COUNT_SHIFT = 3, SYMS_MachUnwindEncX86_FRAMELESS_REG_COUNT_MASK = 0x1ff,
+SYMS_MachUnwindEncX86_FRAMELESS_REG_PERMUTATION = (1 << 10),
+SYMS_MachUnwindEncX86_DWARF_SECTION_OFFSET = (1 << 24),
+};
+#define SYMS_MachUnwindEncX86_Extract_MODE_MASK(f) (SYMS_MachUnwindEncModeX86)(((f) >> SYMS_MachUnwindEncX86_MODE_MASK_SHIFT) & SYMS_MachUnwindEncX86_MODE_MASK_MASK)
+#define SYMS_MachUnwindEncX86_Extract_EBP_FRAME_OFFSET(f) (SYMS_U32)(((f) >> SYMS_MachUnwindEncX86_EBP_FRAME_OFFSET_SHIFT) & SYMS_MachUnwindEncX86_EBP_FRAME_OFFSET_MASK)
+#define SYMS_MachUnwindEncX86_Extract_FRAMELESS_STACK_SIZE(f) (SYMS_U32)(((f) >> SYMS_MachUnwindEncX86_FRAMELESS_STACK_SIZE_SHIFT) & SYMS_MachUnwindEncX86_FRAMELESS_STACK_SIZE_MASK)
+#define SYMS_MachUnwindEncX86_Extract_FRAMELESS_STACK_ADJUST(f) (SYMS_U32)(((f) >> SYMS_MachUnwindEncX86_FRAMELESS_STACK_ADJUST_SHIFT) & SYMS_MachUnwindEncX86_FRAMELESS_STACK_ADJUST_MASK)
+#define SYMS_MachUnwindEncX86_Extract_FRAMELESS_REG_COUNT(f) (SYMS_U32)(((f) >> SYMS_MachUnwindEncX86_FRAMELESS_REG_COUNT_SHIFT) & SYMS_MachUnwindEncX86_FRAMELESS_REG_COUNT_MASK)
+typedef SYMS_U32 SYMS_MachUnwindEncModeX64;
+enum{
+SYMS_MachUnwindEncModeX64_RBP_FRAME = 1,
+SYMS_MachUnwindEncModeX64_STACK_IMMD = 2,
+SYMS_MachUnwindEncModeX64_STACK_IND = 3,
+SYMS_MachUnwindEncModeX64_DWARF = 4,
+SYMS_MachUnwindEncModeX64_COUNT = 4
+};
+typedef SYMS_U32 SYMS_MachUnwindRegisterX64;
+enum{
+SYMS_MachUnwindRegisterX64_NONE = 0,
+SYMS_MachUnwindRegisterX64_RBX = 1,
+SYMS_MachUnwindRegisterX64_R12 = 2,
+SYMS_MachUnwindRegisterX64_R13 = 3,
+SYMS_MachUnwindRegisterX64_R14 = 4,
+SYMS_MachUnwindRegisterX64_R15 = 5,
+SYMS_MachUnwindRegisterX64_RBP = 6,
+SYMS_MachUnwindRegisterX64_COUNT = 7
+};
 #pragma pack(pop)
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1133
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_Arch syms_mach_arch_from_cputype(SYMS_MachCpuType v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1588
 SYMS_C_LINKAGE_BEGIN
 SYMS_API void syms_bswap_in_place__SYMS_MachLCStr(SYMS_MachLCStr *v);
 SYMS_API void syms_bswap_in_place__SYMS_MachUUID(SYMS_MachUUID *v);
@@ -603,6 +818,32 @@ SYMS_API void syms_bswap_in_place__SYMS_MachSymtabCommand(SYMS_MachSymtabCommand
 SYMS_API void syms_bswap_in_place__SYMS_MachDySymtabCommand(SYMS_MachDySymtabCommand *v);
 SYMS_API void syms_bswap_in_place__SYMS_MachNList32(SYMS_MachNList32 *v);
 SYMS_API void syms_bswap_in_place__SYMS_MachNList64(SYMS_MachNList64 *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachBuildVersionCommand(SYMS_MachBuildVersionCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachBuildToolVersion(SYMS_MachBuildToolVersion *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachVersionMin(SYMS_MachVersionMin *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachDylinker(SYMS_MachDylinker *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachPreboundDylibCommand(SYMS_MachPreboundDylibCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachRoutinesCommand(SYMS_MachRoutinesCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachRoutines64Command(SYMS_MachRoutines64Command *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSubFrameworkCommand(SYMS_MachSubFrameworkCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSubUmbrellaCommand(SYMS_MachSubUmbrellaCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSubClientCommand(SYMS_MachSubClientCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSubLibraryCommand(SYMS_MachSubLibraryCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachTwoLevelHintsCommand(SYMS_MachTwoLevelHintsCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachPrebindChecksumCommand(SYMS_MachPrebindChecksumCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachRPathCommand(SYMS_MachRPathCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachLinkeditDataCommand(SYMS_MachLinkeditDataCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachEncryptionInfoCommand(SYMS_MachEncryptionInfoCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachEncryptionInfo64Command(SYMS_MachEncryptionInfo64Command *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachEntryPointCommand(SYMS_MachEntryPointCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSourceVersionCommand(SYMS_MachSourceVersionCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachLinkerOptionCommand(SYMS_MachLinkerOptionCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachNoteCommand(SYMS_MachNoteCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachSymSegCommand(SYMS_MachSymSegCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachFvmlib(SYMS_MachFvmlib *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachFvmlibCommand(SYMS_MachFvmlibCommand *v);
+SYMS_API void syms_bswap_in_place__SYMS_MachThreadCommand(SYMS_MachThreadCommand *v);
 SYMS_C_LINKAGE_END
 
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1694
 #endif

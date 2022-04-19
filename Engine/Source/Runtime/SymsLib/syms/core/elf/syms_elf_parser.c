@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_ELF_PARSER_C
 #define SYMS_ELF_PARSER_C
 
@@ -95,8 +96,7 @@ syms_elf_img_header_from_file(SYMS_String8 file)
     SYMS_U64 program_header_off = elf_header.e_phoff;
     SYMS_U64 program_header_num = (elf_header.e_phnum != SYMS_U16_MAX) ? elf_header.e_phnum : section_header.sh_info;
     
-    //- rjf: search for base address, which is stored in program header that is closest to entry point
-    SYMS_U64 prev_delta = SYMS_U64_MAX;
+    //- rjf: search for base address, by grabbing the first LOAD phdr
     for(SYMS_U64 i = 0; i < program_header_num; i += 1)
     {
       SYMS_ElfPhdr64 program_header;
@@ -110,24 +110,15 @@ syms_elf_img_header_from_file(SYMS_String8 file)
           syms_based_range_read_struct(file_base, file_range, program_header_off + i*sizeof(SYMS_ElfPhdr32), &h32);
           program_header = syms_elf_phdr64_from_phdr32(h32);
         }break;
-        
         case SYMS_ElfClass_64:
         {
           syms_based_range_read_struct(file_base, file_range, program_header_off + i*sizeof(SYMS_ElfPhdr64), &program_header);
         }break;
       }
-      
       if(program_header.p_type == SYMS_ElfPKind_Load)
       {
-        if(elf_header.e_entry >= program_header.p_vaddr)
-        {
-          SYMS_U64 delta = elf_header.e_entry - program_header.p_vaddr;
-          if(delta < prev_delta)
-          {
-            base_address = program_header.p_vaddr;
-            prev_delta = delta;
-          }
-        }
+        base_address = program_header.p_vaddr;
+        break;
       }
     }
   }
@@ -222,10 +213,9 @@ syms_elf_section_array_from_img_header(SYMS_Arena *arena, SYMS_String8 file, SYM
     }
     
     // rjf: fill section data
-    sections[section_idx].code = (SYMS_ElfSectionCode)header.sh_type;
+    sections[section_idx].header = header;
     sections[section_idx].virtual_range = syms_make_u64_range(header.sh_addr, header.sh_addr + virt_size);
     sections[section_idx].file_range = syms_make_u64_range(header.sh_offset, header.sh_offset + file_size);
-    sections[section_idx].sh_link = header.sh_link;
     sections[section_idx].name = name_stabilized;
   }
   
@@ -240,6 +230,35 @@ syms_elf_section_array_from_img_header(SYMS_Arena *arena, SYMS_String8 file, SYM
     result.count -= 1;
   }
   
+  return result;
+}
+
+SYMS_API SYMS_ElfSegmentArray
+syms_elf_segment_array_from_img_header(SYMS_Arena *arena, SYMS_String8 file, SYMS_ElfImgHeader img)
+{
+  void *base = file.str;
+  SYMS_U64Range range = syms_make_u64_range(0, file.size);
+
+  SYMS_U64 segment_count = img.ehdr.e_phnum;
+  SYMS_ElfPhdr64 *segments = syms_push_array_zero(arena, SYMS_ElfPhdr64, segment_count);
+  for(SYMS_U64 segment_idx = 0; segment_idx < segment_count; segment_idx += 1) 
+  {
+    if(img.is_32bit) 
+    {
+      SYMS_ElfPhdr32 phdr32;
+      syms_based_range_read_struct(base, range, img.ehdr.e_phoff + segment_idx * sizeof(SYMS_ElfPhdr32), &phdr32);
+      segments[segment_idx] = syms_elf_phdr64_from_phdr32(phdr32);
+    }
+    else
+    {
+      syms_based_range_read_struct(base, range, img.ehdr.e_phoff + segment_idx * sizeof(SYMS_ElfPhdr64), &segments[segment_idx]);
+    }
+  }
+
+  SYMS_ElfSegmentArray result;
+  result.count = segment_count;
+  result.v = segments;
+
   return result;
 }
 
@@ -319,6 +338,7 @@ syms_elf_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_ElfFileA
   syms_memmove(&bin_accel->header, &file_accel->header, sizeof(file_accel->header));
   bin_accel->format = file_accel->format;
   bin_accel->sections = syms_elf_section_array_from_img_header(arena, data, file_accel->header);
+  bin_accel->segments = syms_elf_segment_array_from_img_header(arena, data, file_accel->header);
   return bin_accel;
 }
 
@@ -409,8 +429,9 @@ syms_elf_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_ElfBinAccel
     {
       // NOTE(rjf): We subtract 1 from sh_link because we don't store the null
       // section in the bin section array.
-      SYMS_U64 sh_link_idx = sect->sh_link-1;
-      SYMS_B32 sh_link_in_bounds = (0 < sect->sh_link && sect->sh_link < bin->sections.count);
+      SYMS_U64 sh_link_idx = sect->header.sh_link-1;
+      SYMS_B32 sh_link_in_bounds = (0 < sect->header.sh_link && sect->header.sh_link < bin->sections.count);
+      (void)sh_link_in_bounds;
       if(syms_string_match(sect->name, syms_str8_lit(".gnu.version_r"), 0)) 
       {
         verneed_range = sect->file_range;
@@ -429,10 +450,13 @@ syms_elf_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_ElfBinAccel
   }
   
   //- rjf: grab .dynsym symbol array
-  SYMS_U64 sym_arr_count = syms_u64_range_size(dynsym_range) / sym_size;
-  SYMS_ElfSym64 *sym_arr = syms_push_array_zero(scratch.arena, SYMS_ElfSym64, sym_arr_count);
-  SYMS_ElfSym64 *sym_arr_opl = sym_arr + sym_arr_count;
+  SYMS_ElfSym64 *sym_arr = 0;
+  SYMS_ElfSym64 *sym_arr_opl = 0;
+  if (syms_u64_range_size(dynsym_range) > sym_size) 
   {
+    SYMS_U64 sym_arr_count = (syms_u64_range_size(dynsym_range) / sym_size) - 1;
+    sym_arr = syms_push_array_zero(scratch.arena, SYMS_ElfSym64, sym_arr_count);
+    sym_arr_opl = sym_arr + sym_arr_count;
     // NOTE(rjf): We start the read offset at sym_size because the format
     // always has a meaningless null symbol at the beginning of the block.
     SYMS_U64 roff__sym_array = sym_size;
@@ -580,9 +604,9 @@ syms_elf_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_ElfBinAccel
     SYMS_ElfSection *sect = &bin->sections.v[sec_idx];
     if (syms_string_match(sect->name, syms_str8_lit(".gnu.version_d"), 0)) 
     {
-      SYMS_ASSERT(sect->sh_link > 0 && sect->sh_link < bin->sections.count);
+      SYMS_ASSERT(sect->header.sh_link > 0 && sect->header.sh_link < bin->sections.count);
       verdef_range = sect->file_range;
-      verdef_strtab_range = bin->sections.v[sect->sh_link-1].file_range;
+      verdef_strtab_range = bin->sections.v[sect->header.sh_link-1].file_range;
     }
     if (syms_string_match(sect->name, syms_str8_lit(".gnu.version"), 0)) 
     {
@@ -590,9 +614,9 @@ syms_elf_exports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_ElfBinAccel
     }
     if (syms_string_match(sect->name, syms_str8_lit(".dynsym"), 0)) 
     {
-      SYMS_ASSERT(sect->sh_link > 0 && sect->sh_link < bin->sections.count);
+      SYMS_ASSERT(sect->header.sh_link > 0 && sect->header.sh_link < bin->sections.count);
       dynsym_range = sect->file_range;
-      dynsym_strtab_range = bin->sections.v[sect->sh_link-1].file_range;
+      dynsym_strtab_range = bin->sections.v[sect->header.sh_link-1].file_range;
     }
   }
   

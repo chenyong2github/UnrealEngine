@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_MSF_PARSER_C
 #define SYMS_MSF_PARSER_C
 
@@ -90,7 +91,7 @@ syms_msf_accel_from_data(SYMS_Arena *arena, SYMS_String8 data){
       // setup important sizes and counts
       SYMS_U32 size_of_block_index = header.index_size;
       
-      SYMS_U32 file_size = data.size;
+      SYMS_U64 file_size = data.size;
       SYMS_U32 block_size = SYMS_ClampTop(header.block_size, file_size);
       
       SYMS_U32 block_count_in_directory = SYMS_CeilIntegerDiv(directory_size, block_size);
@@ -111,7 +112,7 @@ syms_msf_accel_from_data(SYMS_Arena *arena, SYMS_String8 data){
         directory_map_block_skip_size = SYMS_MSF20_MAGIC_SIZE + SYMS_MEMBER_OFFSET(SYMS_MsfHeader20, directory_map);
       }
       else{
-        SYMS_U32 super_map_off = SYMS_MSF70_MAGIC_SIZE + SYMS_MEMBER_OFFSET(SYMS_MsfHeader70, directory_super_map);
+        SYMS_U64 super_map_off = SYMS_MSF70_MAGIC_SIZE + SYMS_MEMBER_OFFSET(SYMS_MsfHeader70, directory_super_map);
         directory_super_map = (SYMS_U32*)(data.str + super_map_off);
       }
       
@@ -134,7 +135,7 @@ syms_msf_accel_from_data(SYMS_Arena *arena, SYMS_String8 data){
           goto read_directory_done;
         }
         
-        SYMS_U32 directory_map_block_off = directory_map_block_index*block_size;
+        SYMS_U64 directory_map_block_off = (SYMS_U64)(directory_map_block_index)*block_size;
         SYMS_U8 *directory_map_block_base = data.str + directory_map_block_off;
         
         // clamp index count by end of directory
@@ -159,7 +160,7 @@ syms_msf_accel_from_data(SYMS_Arena *arena, SYMS_String8 data){
             goto read_directory_done;
           }
           
-          SYMS_U32 directory_block_off = directory_block_index*block_size;
+          SYMS_U64 directory_block_off = (SYMS_U64)(directory_block_index)*block_size;
           SYMS_U8 *directory_block_base = data.str + directory_block_off;
           
           // clamp copy size by end of directory
@@ -293,13 +294,12 @@ syms_msf_read(SYMS_String8 data, SYMS_MsfAccel *msf,
   SYMS_MsfStreamInfo stream_info = syms_msf_stream_info_from_sn(msf, sn);
   if (stream_info.sn != 0 && off + size <= stream_info.size && size > 0){
     // copy block-by-block
-    SYMS_U32 file_size = data.size;
+    SYMS_U64 file_size = data.size;
     SYMS_U32 block_size = msf->header.block_size;
     SYMS_U32 size_of_block_index = msf->header.index_size;
-    SYMS_U32 block_count_in_whole_file = SYMS_ClampTop(msf->header.block_count, file_size/block_size);
+    SYMS_U32 block_count_in_whole_file_max = SYMS_CeilIntegerDiv(file_size, block_size);
+    SYMS_U32 block_count_in_whole_file = SYMS_ClampTop(msf->header.block_count, block_count_in_whole_file_max);
     SYMS_U32 block_count_in_stream = SYMS_CeilIntegerDiv(stream_info.size, block_size);
-    
-    SYMS_U8 *file_data = data.str;
     
     SYMS_U32 completed_amount = 0;
     for (;;){
@@ -318,14 +318,14 @@ syms_msf_read(SYMS_String8 data, SYMS_MsfAccel *msf,
       }
       
       //  block-index -> range-in-file
-      SYMS_U32 src_block_base = src_block_index*block_size;
+      SYMS_U64 src_block_base = (SYMS_U64)(src_block_index)*block_size;
       SYMS_U32 relative_off = remaining_off%block_size;
       SYMS_U32 relative_opl = SYMS_ClampTop(relative_off + size - completed_amount, block_size);
       SYMS_U32 contiguous_size = relative_opl - relative_off;
       SYMS_ASSERT(src_block_base + relative_opl <= file_size);
       
       // copy & advance
-      syms_memmove((SYMS_U8*)out + completed_amount, file_data + src_block_base + relative_off, contiguous_size);
+      syms_memmove((SYMS_U8*)out + completed_amount, data.str + src_block_base + relative_off, contiguous_size);
       completed_amount += contiguous_size;
       if (completed_amount >= size){
         result = syms_true;
@@ -413,13 +413,12 @@ syms_msf_read_zstring_in_range(SYMS_Arena *arena, SYMS_String8 data, SYMS_MsfAcc
   SYMS_MsfStreamInfo stream_info = syms_msf_stream_info_from_sn(msf, range.sn);
   if (stream_info.sn != 0 && off < stream_info.size && off < max_off){
     // scan block-by-block
-    SYMS_U32 file_size = data.size;
+    SYMS_U64 file_size = data.size;
     SYMS_U32 block_size = msf->header.block_size;
     SYMS_U32 size_of_block_index = msf->header.index_size;
-    SYMS_U32 block_count_in_whole_file = SYMS_ClampTop(msf->header.block_count, file_size/block_size);
+    SYMS_U32 block_count_in_whole_file_max = SYMS_CeilIntegerDiv(file_size, block_size);
+    SYMS_U32 block_count_in_whole_file = SYMS_ClampTop(msf->header.block_count, block_count_in_whole_file_max);
     SYMS_U32 block_count_in_stream = SYMS_CeilIntegerDiv(stream_info.size, block_size);
-    
-    SYMS_U8 *file_data = data.str;
     
     SYMS_U32 max_scan_amount = max_off - off;
     SYMS_U32 scanned_amount = 0;
@@ -446,14 +445,14 @@ syms_msf_read_zstring_in_range(SYMS_Arena *arena, SYMS_String8 data, SYMS_MsfAcc
       }
       
       // block-index -> range-in-file
-      SYMS_U32 src_block_base = src_block_index*block_size;
+      SYMS_U64 src_block_base = (SYMS_U64)(src_block_index)*block_size;
       SYMS_U32 relative_off = remaining_off%block_size;
       SYMS_U32 remaining_max_size = max_off - remaining_off;
       SYMS_U32 relative_opl = SYMS_ClampTop(relative_off + remaining_max_size, block_size);
       SYMS_ASSERT(src_block_base + block_size <= file_size);
       
       // scan
-      SYMS_U8 *start = file_data + src_block_base + relative_off;
+      SYMS_U8 *start = data.str + src_block_base + relative_off;
       SYMS_U8 *opl = start + relative_opl - relative_off;
       SYMS_U8 *ptr = start;
       for (;ptr < opl && *ptr != 0; ptr += 1);

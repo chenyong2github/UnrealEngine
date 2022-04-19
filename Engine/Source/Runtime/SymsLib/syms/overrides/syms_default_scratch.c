@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_DEFAULT_SCRATCH_C
 #define SYMS_DEFAULT_SCRATCH_C
 
@@ -7,7 +8,7 @@
 
 SYMS_THREAD_LOCAL SYMS_DefaultScratchPool syms_scratch_pool = {0};
 
-static SYMS_Arena*
+SYMS_OVERRIDE_FUNC SYMS_Arena*
 syms_default_get_implicit_thread_arena(SYMS_Arena **conflicts, SYMS_U64 conflict_count){
   // init pool if first time
   if (syms_scratch_pool.arenas[0] == 0){

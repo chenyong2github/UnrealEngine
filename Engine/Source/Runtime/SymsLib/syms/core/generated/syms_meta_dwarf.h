@@ -2,7 +2,7 @@
 // generated
 #ifndef _SYMS_META_DWARF_H
 #define _SYMS_META_DWARF_H
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:870
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:885
 typedef enum SYMS_DwMode{
 SYMS_DwMode_Null,
 SYMS_DwMode_32Bit,
@@ -37,7 +37,8 @@ SYMS_DwSectionKind_LocLists,
 SYMS_DwSectionKind_RngLists,
 SYMS_DwSectionKind_StrOffsets,
 SYMS_DwSectionKind_LineStr,
-SYMS_DwSectionKind_COUNT = 17
+SYMS_DwSectionKind_Names,
+SYMS_DwSectionKind_COUNT = 18
 } SYMS_DwSectionKind;
 typedef enum SYMS_DwLanguage{
 SYMS_DwLanguage_INVALID = 0x00,
@@ -365,7 +366,7 @@ SYMS_DwAttribKind_CALL_ALL_CALLS = 0x7a,
 SYMS_DwAttribKind_CALL_ALL_SOURCE_CALLS = 0x7b,
 SYMS_DwAttribKind_CALL_ALL_TAIL_CALLS = 0x7c,
 SYMS_DwAttribKind_CALL_RETURN_PC = 0x7d,
-SYMS_DwAttribKind_CALL_VALUE = 0x7e,
+SYMS_DwAttribKind_CALL_VALUE = 0x7e,//  NOTE(nick): According to spec this is attribute has EXPRLOC class, but in newton_ps5.elf these are defined as REFERENCE
 SYMS_DwAttribKind_CALL_ORIGIN = 0x7f,
 SYMS_DwAttribKind_CALL_PARAMETER = 0x80,
 SYMS_DwAttribKind_CALL_PC = 0x81,
@@ -419,6 +420,11 @@ SYMS_DwAttribKind_UPC_THREADS_SCALED = 0x3210,
 SYMS_DwAttribKind_PGI_LBASE = 0x3a00,
 SYMS_DwAttribKind_PGI_SOFFSET = 0x3a01,
 SYMS_DwAttribKind_PGI_LSTRIDE = 0x3a02,
+SYMS_DwAttribKind_LLVM_INCLUDE_PATH = 0x3e00,
+SYMS_DwAttribKind_LLVM_CONFIG_MACROS = 0x3e01,
+SYMS_DwAttribKind_LLVM_SYSROOT = 0x3e02,
+SYMS_DwAttribKind_LLVM_API_NOTES = 0x3e07,
+SYMS_DwAttribKind_LLVM_TAG_OFFSET = 0x3e03,
 SYMS_DwAttribKind_APPLE_OPTIMIZED = 0x3fe1,
 SYMS_DwAttribKind_APPLE_FLAGS = 0x3fe2,
 SYMS_DwAttribKind_APPLE_ISA = 0x3fe3,
@@ -432,9 +438,11 @@ SYMS_DwAttribKind_APPLE_PROPERTY_SETTER = 0x3fea,
 SYMS_DwAttribKind_APPLE_PROPERTY_ATTRIBUTE = 0x3feb,
 SYMS_DwAttribKind_APPLE_OBJC_COMPLETE_TYPE = 0x3fec,
 SYMS_DwAttribKind_APPLE_PROPERTY = 0x3fed,
+SYMS_DwAttribKind_APPLE_OBJ_DIRECT = 0x3fee,
+SYMS_DwAttribKind_APPLE_SDK = 0x3fef,
 SYMS_DwAttribKind_LO_USER = 0x2000,
 SYMS_DwAttribKind_HI_USER = 0x3fff,
-SYMS_DwAttribKind_COUNT = 175
+SYMS_DwAttribKind_COUNT = 182
 } SYMS_DwAttribKind;
 typedef enum SYMS_DwAttribTypeEncoding{
 SYMS_DwAttribTypeEncoding_Null,
@@ -489,8 +497,20 @@ SYMS_DwRngListEntryKind_StartEnd = 0x06,
 SYMS_DwRngListEntryKind_StartLength = 0x07,
 SYMS_DwRngListEntryKind_COUNT = 8
 } SYMS_DwRngListEntryKind;
+typedef enum SYMS_DwLocListEntryKind{
+SYMS_DwLocListEntryKind_EndOfList = 0x00,
+SYMS_DwLocListEntryKind_BaseAddressX = 0x01,
+SYMS_DwLocListEntryKind_StartXEndX = 0x02,
+SYMS_DwLocListEntryKind_StartXLength = 0x03,
+SYMS_DwLocListEntryKind_OffsetPair = 0x04,
+SYMS_DwLocListEntryKind_DefaultLocation = 0x05,
+SYMS_DwLocListEntryKind_BaseAddress = 0x06,
+SYMS_DwLocListEntryKind_StartEnd = 0x07,
+SYMS_DwLocListEntryKind_StartLength = 0x08,
+SYMS_DwLocListEntryKind_COUNT = 9
+} SYMS_DwLocListEntryKind;
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1118
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1133
 SYMS_C_LINKAGE_BEGIN
 SYMS_API SYMS_Language syms_dw_base_language_from_dw_language(SYMS_DwLanguage v);
 SYMS_API SYMS_DwVersion syms_dw_version_from_form_kind(SYMS_DwFormKind v);
@@ -502,8 +522,9 @@ SYMS_API SYMS_CallConvention syms_dw_base_call_convention_from_dw_calling_conven
 SYMS_API SYMS_MemVisibility syms_dw_mem_visibility_from_access(SYMS_DwAccess v);
 SYMS_C_LINKAGE_END
 
-//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1572
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1588
 SYMS_C_LINKAGE_BEGIN
 SYMS_C_LINKAGE_END
 
+//~ generated from code at syms/metaprogram/syms_metaprogram_serial.c:1694
 #endif

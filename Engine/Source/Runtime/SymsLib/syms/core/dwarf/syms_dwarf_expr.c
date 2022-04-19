@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #if !defined(SYMS_DWARF_EXPR_C)
 #define SYMS_DWARF_EXPR_C
 
@@ -847,9 +848,9 @@ syms_dw_expr__eval(SYMS_Arena *arena_optional, void *expr_base, SYMS_U64Range ex
         
         case SYMS_DwOp_DEREF_SIZE:
         {
-          SYMS_U64 size = 0;
-          step_cursor += syms_based_range_read(base, range, step_cursor, 1, &size);
-          size = SYMS_ClampTop(size, 8);
+          SYMS_U64 raw_size = 0;
+          step_cursor += syms_based_range_read(base, range, step_cursor, 1, &raw_size);
+          SYMS_U64 size = SYMS_ClampTop(raw_size, 8);
           SYMS_U64 addr = syms_dw_expr__stack_pop(&stack);
           SYMS_B32 read_success = syms_false;
           SYMS_MemoryView *memview = config->memview;

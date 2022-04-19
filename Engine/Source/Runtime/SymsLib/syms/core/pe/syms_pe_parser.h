@@ -14,6 +14,7 @@ typedef struct SYMS_PeFileAccel{
 
 typedef struct SYMS_PeBinAccel{
   SYMS_FileFormat format;
+  SYMS_U64 image_base;
   SYMS_U64 section_array_off;
   SYMS_U64 section_count;
   SYMS_U64 dbg_path_off;

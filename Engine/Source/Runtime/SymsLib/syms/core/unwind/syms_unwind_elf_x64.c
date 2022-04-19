@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_UNWIND_ELF_X64_C
 #define SYMS_UNWIND_ELF_X64_C
 
@@ -29,7 +30,7 @@ syms_unwind_elf_x64(SYMS_String8 bin_data, SYMS_ElfBinAccel *bin, SYMS_U64 bin_b
   SYMS_U64 ip_voff = ip_value - rebase_voff_to_vaddr;
   
   //- get sections
-  SYMS_ElfSection *sec_text = syms_elf_sec_from_bin_name__unstable(bin, syms_str8_lit(".text"));
+  SYMS_ElfSection *sec_text = syms_elf_sec_from_bin_name__unstable(bin, syms_str8_lit(".text")); // TODO(nick): What if ELF has two sections with instructions and pointer is ecnoded relative to .text2?
   SYMS_ElfSection *sec_frame_info = syms_elf_sec_from_bin_name__unstable(bin, syms_str8_lit(".eh_frame"));
   SYMS_ElfSection *sec_extra_data = syms_elf_sec_from_bin_name__unstable(bin, syms_str8_lit(".eh_frame_hdr"));
   
@@ -68,8 +69,13 @@ syms_unwind_elf_x64(SYMS_String8 bin_data, SYMS_ElfBinAccel *bin, SYMS_U64 bin_b
     ptr_ctx.raw_base_vaddr = frame_base_voff;
     ptr_ctx.text_vaddr = text_base_vaddr;
     ptr_ctx.data_vaddr = data_base_vaddr;
-    cfi_recs = syms_unwind_elf_x64__eh_frame_cfi_from_ip__sloppy(frame_base, frame_range,
-                                                                 &ptr_ctx, ip_voff);
+    ptr_ctx.func_vaddr = 0;
+    if (sec_extra_data != 0){
+      cfi_recs = syms_unwind_elf_x64__eh_frame_hdr_from_ip(bin_data.str, sec_extra_data->file_range, sec_frame_info->file_range, &ptr_ctx, ip_voff);
+    }
+    else{
+      cfi_recs = syms_unwind_elf_x64__eh_frame_cfi_from_ip__sloppy(frame_base, frame_range, &ptr_ctx, ip_voff);
+    }
   }
   
   //- check cfi records
@@ -357,7 +363,7 @@ syms_unwind_elf_x64__parse_pointer(void *frame_base, SYMS_U64Range frame_range,
   // aligned offset
   SYMS_U64 pointer_off = off;
   if (encoding == SYMS_DwEhPtrEnc_ALIGNED){
-    pointer_off = (off + 7) & ~7;
+    pointer_off = (off + 7) & ~7; // TODO(nick): align to 4 bytes when we parse x86 ELF binary
     encoding = SYMS_DwEhPtrEnc_PTR;
   }
   
@@ -378,7 +384,11 @@ syms_unwind_elf_x64__parse_pointer(void *frame_base, SYMS_U64Range frame_range,
       after_pointer_off = pointer_off + size_param;
     }break;
     
-    case SYMS_DwEhPtrEnc_SIGNED:size_param = 8; goto sfixed;
+    // TODO(nick): SIGNED is actually just a flag that indicates this int is negavite.
+    // There shouldn't be a read when for SIGNED.
+    // For instance, (SYMS_Dw_EhPtrEnc_UDATA2 | SYMS_DwEhPtrEnc_SIGNED) == SYMS_DwEhPtrEnc_SDATA etc.
+    case SYMS_DwEhPtrEnc_SIGNED:size_param = 8; goto sfixed; 
+    
     case SYMS_DwEhPtrEnc_SDATA2:size_param = 2; goto sfixed;
     case SYMS_DwEhPtrEnc_SDATA4:size_param = 4; goto sfixed;
     case SYMS_DwEhPtrEnc_SDATA8:size_param = 8; goto sfixed;
@@ -481,6 +491,12 @@ syms_unwind_elf_x64__eh_frame_parse_cie(void *base, SYMS_U64Range range, SYMS_Dw
                                                                  ret_addr_reg_off, &ret_addr_reg);
       after_ret_addr_reg_off = ret_addr_reg_off + ret_addr_reg_size;
     }
+    
+    // TODO(nick): 
+    // Handle "eh" param, it indicates presence of EH Data field.
+    // On 32bit arch it is a 4-byte and on 64-bit 8-byte value.
+    // Reference: https://refspecs.linuxfoundation.org/LSB_3.0.0/LSB-PDA/LSB-PDA/ehframechpt.html
+    // Reference doc doesn't clarify structure for EH Data though
     
     // check for augmentation data
     SYMS_U64 aug_size_off = after_ret_addr_reg_off;
@@ -716,6 +732,119 @@ syms_unwind_elf_x64__eh_frame_cfi_from_ip__sloppy(void *base, SYMS_U64Range rang
   syms_release_scratch(scratch);
   
   SYMS_LogClose(log);
+  
+  return(result);
+}
+
+SYMS_API SYMS_U64
+syms_search_eh_frame_hdr__linear(void *base, SYMS_U64Range range, SYMS_DwEhPtrCtx *ptr_ctx, SYMS_U64 location)
+{
+  // Table contains only addresses for first instruction in a function and we cannot
+  // guarantee that result is FDE that corresponds to the input location. 
+  // So input location must be cheked against range from FDE header again.
+  
+  SYMS_U64 closest_location = SYMS_U64_MAX;
+  SYMS_U64 closest_address  = SYMS_U64_MAX;
+  
+  SYMS_U64 read_offset = 0;
+  
+  SYMS_U8 version = 0;
+  read_offset += syms_based_range_read_struct(base, range, read_offset, &version);
+  
+  if (version == 1){
+#if 0
+    SYMS_DwEhPtrCtx ptr_ctx; syms_memzero_struct(&ptr_ctx);
+    // Set this to base address of .eh_frame_hdr. Entries are relative
+    // to this section for some reason.
+    ptr_ctx.data_vaddr = range.min;
+    // If input location is VMA then set this to address of .text. 
+    // Pointer parsing function will adjust "init_location" to correct VMA.
+    ptr_ctx.text_vaddr = 0; 
+#endif
+    
+    SYMS_DwEhPtrEnc eh_frame_ptr_enc = 0, fde_count_enc = 0, table_enc = 0;
+    read_offset += syms_based_range_read_struct(base, range, read_offset, &eh_frame_ptr_enc);
+    read_offset += syms_based_range_read_struct(base, range, read_offset, &fde_count_enc);
+    read_offset += syms_based_range_read_struct(base, range, read_offset, &table_enc);
+    
+    SYMS_U64 eh_frame_ptr = 0, fde_count = 0;
+    read_offset += syms_unwind_elf_x64__parse_pointer(base, range, ptr_ctx, eh_frame_ptr_enc, read_offset, &eh_frame_ptr);
+    read_offset += syms_unwind_elf_x64__parse_pointer(base, range, ptr_ctx, fde_count_enc, read_offset, &fde_count);
+    
+    for (SYMS_U64 fde_idx = 0; fde_idx < fde_count; ++fde_idx){
+      SYMS_U64 init_location = 0, address = 0;
+      read_offset += syms_unwind_elf_x64__parse_pointer(base, range, ptr_ctx, table_enc, read_offset, &init_location);
+      read_offset += syms_unwind_elf_x64__parse_pointer(base, range, ptr_ctx, table_enc, read_offset, &address);
+      
+      SYMS_S64 current_delta = (SYMS_S64)(location - init_location);
+      SYMS_S64 closest_delta = (SYMS_S64)(location - closest_location);
+      if (0 <= current_delta && current_delta < closest_delta){
+        closest_location = init_location;
+        closest_address  = address;
+      }
+    }
+  }
+  
+  // address where to find corresponding FDE, this is an absolute offset
+  // into the image file.
+  return closest_address;
+}
+
+SYMS_API SYMS_DwCFIRecords
+syms_unwind_elf_x64__eh_frame_hdr_from_ip(void *base, SYMS_U64Range eh_frame_hdr_range, SYMS_U64Range eh_frame_range, SYMS_DwEhPtrCtx *ptr_ctx, SYMS_U64 ip_voff)
+{
+  SYMS_DwCFIRecords result; syms_memzero_struct(&result);
+  
+  // find FDE offset
+  void *eh_frame_hdr = (void*)((SYMS_U8*)base+eh_frame_hdr_range.min);
+  SYMS_U64 fde_offset = syms_search_eh_frame_hdr__linear(eh_frame_hdr, syms_make_u64_range(0, syms_u64_range_size(eh_frame_hdr_range)), ptr_ctx, ip_voff);
+  
+  SYMS_B32 is_fde_offset_valid = (fde_offset != SYMS_U64_MAX);
+  if (is_fde_offset_valid){
+    SYMS_U64 fde_read_offset = (fde_offset - ptr_ctx->raw_base_vaddr);
+    
+    // read FDE size
+    SYMS_U64 fde_size = 0;
+    fde_read_offset += syms_dw_based_range_read_length(base, eh_frame_range, fde_read_offset, &fde_size);
+    
+    // read FDE discriminator
+    SYMS_U32 fde_discrim = 0;
+    fde_read_offset += syms_based_range_read_struct(base, eh_frame_range, fde_read_offset, &fde_discrim);
+    
+    // compute parent CIE offset
+    SYMS_U64 cie_read_offset = fde_read_offset - (fde_discrim + sizeof(fde_discrim));
+    
+    // read CIE size
+    SYMS_U64 cie_size = 0;
+    cie_read_offset += syms_dw_based_range_read_length(base, eh_frame_range, cie_read_offset, &cie_size);
+    
+    // read CIE discriminator
+    SYMS_U32 cie_discrim = SYMS_U32_MAX;
+    cie_read_offset += syms_based_range_read_struct(base, eh_frame_range, cie_read_offset, &cie_discrim);
+    
+    SYMS_B32 is_fde = (fde_discrim != 0);
+    SYMS_B32 is_cie = (cie_discrim == 0);
+    if (is_fde && is_cie) {
+      void *eh_frame = (void*)((SYMS_U8*)base + eh_frame_range.min);
+      SYMS_U64Range cie_range = syms_make_u64_range(0, cie_read_offset + (cie_size - sizeof(cie_discrim)));
+      SYMS_U64Range fde_range = syms_make_u64_range(0, fde_read_offset + (fde_size - sizeof(fde_discrim)));
+      
+      // parse CIE
+      SYMS_DwCIEUnpacked cie; syms_memzero_struct(&cie);
+      syms_unwind_elf_x64__eh_frame_parse_cie(eh_frame, cie_range, ptr_ctx, cie_read_offset, &cie);
+      
+      // parse FDE
+      SYMS_DwFDEUnpacked fde; syms_memzero_struct(&fde);
+      syms_unwind_elf_x64__eh_frame_parse_fde(eh_frame, fde_range, ptr_ctx, &cie, fde_read_offset, &fde);
+      
+      // range check instruction pointer
+      if (fde.ip_voff_range.min <= ip_voff && ip_voff < fde.ip_voff_range.max){
+        result.valid = syms_true;
+        result.cie = cie;
+        result.fde = fde;
+      }
+    }
+  }
   
   return(result);
 }

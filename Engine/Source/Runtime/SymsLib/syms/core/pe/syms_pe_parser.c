@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #ifndef SYMS_PE_PARSER_C
 #define SYMS_PE_PARSER_C
 
@@ -61,7 +62,8 @@ syms_pe_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeFileAcc
     SYMS_U64 clamped_sec_count = (sec_array_opl - sec_array_off)/sizeof(SYMS_CoffSection);
     SYMS_CoffSection *sections = (SYMS_CoffSection*)((SYMS_U8*)base + sec_array_off);
     
-    // get data directory from optional
+    // read ptional header
+    SYMS_U64 image_base = 0;
     SYMS_U32 data_dir_count = 0;
     SYMS_U64Range *data_dirs_file = 0;
     SYMS_U64Range *data_dirs_virt = 0;
@@ -78,6 +80,9 @@ syms_pe_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeFileAcc
         {
           SYMS_PeOptionalPe32 pe_optional = {0};
           syms_based_range_read_struct(base, optional_range, 0, &pe_optional);
+
+          image_base = pe_optional.image_base;
+
           reported_data_dir_offset = sizeof(pe_optional);
           reported_data_dir_count = pe_optional.data_dir_count;
         }break;
@@ -85,6 +90,9 @@ syms_pe_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeFileAcc
         {
           SYMS_PeOptionalPe32Plus pe_optional = {0};
           syms_based_range_read_struct(base, optional_range, 0, &pe_optional);
+
+          image_base = pe_optional.image_base;
+
           reported_data_dir_offset = sizeof(pe_optional);
           reported_data_dir_count = pe_optional.data_dir_count;
         }break;
@@ -151,6 +159,7 @@ syms_pe_bin_accel_from_file(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeFileAcc
     // fill result
     result = syms_push_array(arena, SYMS_PeBinAccel, 1);
     result->format = SYMS_FileFormat_PE;
+    result->image_base = image_base;
     result->section_array_off = sec_array_off;
     result->section_count = clamped_sec_count;
     result->dbg_path_off = dbg_path_off;
@@ -234,7 +243,7 @@ syms_pe_binary_search_intel_pdata(SYMS_String8 data, SYMS_PeBinAccel *bin, SYMS_
   SYMS_ASSERT(bin->arch == SYMS_Arch_X86 || bin->arch == SYMS_Arch_X64);
   SYMS_U64 pdata_off = bin->data_dirs_file[SYMS_PeDataDirectoryIndex_EXCEPTIONS].min;
   SYMS_U64 pdata_count = syms_u64_range_size(bin->data_dirs_file[SYMS_PeDataDirectoryIndex_EXCEPTIONS]) / sizeof(SYMS_PeIntelPdata);
-
+  
   SYMS_U64 result = 0;
   // check if this bin includes a pdata array
   if (pdata_count > 0){
@@ -367,6 +376,7 @@ syms_pe_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *
   //- rjf: grab prerequisites
   void *base = (void*)data.str;
   SYMS_Arch arch = syms_pe_arch_from_bin(bin);
+  (void)arch;
   SYMS_U64 arch_bit_size = syms_address_size_from_arch(bin->arch);
   SYMS_U64 arch_byte_size = arch_bit_size / 8;
   
@@ -430,7 +440,7 @@ syms_pe_imports_from_bin(SYMS_Arena *arena, SYMS_String8 data, SYMS_PeBinAccel *
         dll_node->import_count += 1;
         
         // rjf: grab name/ordinal
-        SYMS_B32 is_ordinal = (arch_bit_size == 64) ? lookup_entry & 0x8000000000000000 : lookup_entry & 0x80000000;
+        SYMS_B32 is_ordinal = !!((arch_bit_size == 64) ? lookup_entry & 0x8000000000000000 : lookup_entry & 0x80000000);
         if(is_ordinal)
         {
           import_node->ordinal = lookup_entry & 0xFFFF;

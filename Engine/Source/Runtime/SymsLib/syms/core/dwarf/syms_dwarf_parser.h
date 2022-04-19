@@ -97,6 +97,7 @@ struct SYMS_DwDbgAccel
   SYMS_U64 vbase;
   SYMS_DwMode mode;
   SYMS_SecInfoArray sections;
+  SYMS_U64 text_section_idx;
   SYMS_U64Range acceptable_vrange;
   SYMS_DwSection *section_map; // NOTE(rjf): treat as [SYMS_DwSectionKind_COUNT] array
   SYMS_U64 unit_count;
@@ -195,6 +196,7 @@ struct SYMS_DwAttribValue
 typedef struct SYMS_DwAttrib SYMS_DwAttrib;
 struct SYMS_DwAttrib
 {
+  SYMS_U64 info_off;
   SYMS_U64 abbrev_id;
   SYMS_DwAttribKind attrib_kind;
   SYMS_DwFormKind form_kind;
@@ -239,6 +241,7 @@ typedef struct SYMS_DwCompRoot SYMS_DwCompRoot;
 struct SYMS_DwCompRoot
 {
   // NOTE(rjf): Header Data
+  SYMS_U64 size;
   SYMS_DwCompUnitKind kind;
   SYMS_DwVersion version;
   SYMS_U64 address_size;
@@ -602,10 +605,11 @@ SYMS_API SYMS_U64           syms_dw_abbrev_offset_from_abbrev_id(SYMS_DwAbbrevTa
 //~ rjf: Miscellaneous DWARF Section Parsing
 
 //- rjf: .debug_ranges (DWARF V4)
-SYMS_API SYMS_U64RangeList      syms_dw_v4_range_list_from_range_offset(SYMS_Arena *arena, SYMS_String8 data,
-                                                                        SYMS_DwDbgAccel *dbg,
-                                                                        SYMS_DwVersion version,
-                                                                        SYMS_U64 addr_size, SYMS_U64 comp_unit_base_addr, SYMS_U64 range_off);
+SYMS_API SYMS_U64RangeList      syms_dw_v4_range_list_from_range_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_U64 addr_size, SYMS_U64 comp_unit_base_addr, SYMS_U64 range_off);
+
+//- rjf: .debug_loc (DWARF V4)
+SYMS_API SYMS_LocRangeList      syms_dw_v4_location_ranges_from_loc_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_U64 addr_size, SYMS_U64 comp_unit_base_addr, SYMS_U64 offset);
+SYMS_API SYMS_Location          syms_dw_v4_location_from_loc_id(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_LocID loc);
 
 //- rjf: .debug_pubtypes + .debug_pubnames (DWARF V4)
 SYMS_API SYMS_DwPubStringsTable syms_dw_v4_pub_strings_table_from_section_kind(SYMS_Arena *arena, SYMS_String8 data,
@@ -621,9 +625,13 @@ SYMS_API SYMS_U64 syms_dw_v5_offset_from_offs_section_base_index(SYMS_String8 da
 //- rjf: .debug_addr (DWARF V5)
 SYMS_API SYMS_U64 syms_dw_v5_addr_from_addrs_section_base_index(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section, SYMS_U64 base, SYMS_U64 index);
 
-//- rjf: .debug_rnglists + .debug_loclists parsing
-SYMS_API SYMS_U64 syms_dw_v5_rnglist_offset_from_rnglist_section_base_index(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section_kind, SYMS_U64 base, SYMS_U64 index);
-SYMS_API SYMS_U64RangeList syms_dw_v5_range_list_from_rnglist_or_loclist_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section, SYMS_U64 addr_size, SYMS_U64 addr_section_base, SYMS_U64 offset);
+//- rjf: .debug_rnglists parsing (DWARF V5)
+SYMS_API SYMS_U64 syms_dw_v5_sec_offset_from_rnglist_or_loclist_section_base_index(SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section_kind, SYMS_U64 base, SYMS_U64 index);
+SYMS_API SYMS_U64RangeList syms_dw_v5_range_list_from_rnglist_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section, SYMS_U64 addr_size, SYMS_U64 addr_section_base, SYMS_U64 offset);
+
+//- rjf: .debug_loclists parsing (DWARF V5)
+SYMS_API SYMS_LocRangeList syms_dw_v5_location_ranges_from_loclist_offset(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section, SYMS_U64 addr_size, SYMS_U64 addr_section_base, SYMS_U64 offset);
+SYMS_API SYMS_Location syms_dw_v5_location_from_loclist_id(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwSectionKind section, SYMS_LocID id);
 
 ////////////////////////////////
 //~ rjf: Attrib Value Parsing
@@ -750,6 +758,22 @@ SYMS_API SYMS_U64          syms_dw_voff_from_var_sid(SYMS_String8 data, SYMS_DwD
                                                      SYMS_DwUnitAccel *unit, SYMS_SymbolID sid);
 SYMS_API SYMS_SymbolIDList syms_dw_children_from_sid_with_kinds(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit, SYMS_SymbolID sid, SYMS_DwTagKind *kinds, SYMS_U64 count);
 
+//- rjf: location information
+SYMS_API SYMS_Location     syms_dw_location_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit, SYMS_SymbolID sid, SYMS_DwAttribKind loc_attrib);
+SYMS_API SYMS_LocRangeArray syms_dw_location_ranges_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
+                                                             SYMS_DwUnitAccel *unit, SYMS_SymbolID sid, SYMS_DwAttribKind loc_attrib);
+SYMS_API SYMS_Location     syms_dw_location_from_id(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
+                                                    SYMS_DwUnitAccel *unit, SYMS_LocID loc_id);
+
+//- rjf: location information helpers
+SYMS_API SYMS_DwAttribKind syms_dw_attrib_kind_from_proc_loc(SYMS_ProcLoc proc_loc);
+SYMS_API SYMS_Location     syms_dw_location_from_var_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit, SYMS_SymbolID sid);
+SYMS_API SYMS_LocRangeArray syms_dw_location_ranges_from_var_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
+                                                                 SYMS_DwUnitAccel *unit, SYMS_SymbolID sid);
+SYMS_API SYMS_Location     syms_dw_location_from_proc_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit, SYMS_SymbolID sid, SYMS_ProcLoc proc_loc);
+SYMS_API SYMS_LocRangeArray syms_dw_location_ranges_from_proc_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
+                                                                  SYMS_DwUnitAccel *unit, SYMS_SymbolID sid, SYMS_ProcLoc proc_loc);
+
 //- rjf: files
 SYMS_API SYMS_U64          syms_dw_file_index_from_id(SYMS_FileID file_id);
 SYMS_API SYMS_FileID       syms_dw_file_id_from_index(SYMS_U64 idx);
@@ -757,9 +781,9 @@ SYMS_API SYMS_String8      syms_dw_file_name_from_id(SYMS_Arena *arena, SYMS_DwU
                                                      SYMS_UnitID uid, SYMS_FileID file_id);
 
 //- rjf: procedures
-SYMS_API SYMS_U64RangeArray syms_dw_proc_vranges_from_sid(SYMS_Arena *arena, SYMS_String8 data,
-                                                          SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit,
-                                                          SYMS_SymbolID sid);
+SYMS_API SYMS_U64RangeArray syms_dw_scope_vranges_from_sid(SYMS_Arena *arena, SYMS_String8 data,
+                                                           SYMS_DwDbgAccel *dbg, SYMS_DwUnitAccel *unit,
+                                                           SYMS_SymbolID sid);
 SYMS_API SYMS_SigInfo      syms_dw_sig_info_from_sid(SYMS_Arena *arena, SYMS_String8 data, SYMS_DwDbgAccel *dbg,
                                                      SYMS_DwUnitAccel *unit, SYMS_SymbolID sid);
 SYMS_API SYMS_UnitIDAndSig syms_dw_proc_sig_handle_from_sid(SYMS_String8 data, SYMS_DwDbgAccel *dbg,
