@@ -302,7 +302,7 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const int32 ViewIndex,
 	// Get the actual camera settings
 	const float CfgEyeDist = ViewCamera->GetInterpupillaryDistance();
 	const bool  CfgEyeSwap = ViewCamera->GetSwapEyes();
-	const float CfgNCP     = 1.f;
+	const float CfgNCP     = GNearClippingPlane;
 	const EDisplayClusterEyeStereoOffset CfgEyeOffset = ViewCamera->GetStereoOffset();
 
 	// Calculate eye offset considering the world scale

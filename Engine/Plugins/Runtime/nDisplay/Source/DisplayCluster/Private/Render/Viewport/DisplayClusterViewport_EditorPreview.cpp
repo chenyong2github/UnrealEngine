@@ -237,7 +237,7 @@ bool FDisplayClusterViewport::ImplPreview_CalculateStereoViewOffset(const uint32
 	// Get the actual camera settings
 	const float CfgEyeDist  = ViewCamera ? ViewCamera->GetInterpupillaryDistance() : 6.4f;
 	const bool  bCfgEyeSwap = ViewCamera ? ViewCamera->GetSwapEyes() : false;
-	const float CfgNCP = 1.f;
+	const float CfgNCP = GNearClippingPlane;
 
 	const EDisplayClusterEyeStereoOffset CfgEyeOffset = ViewCamera ? ViewCamera->GetStereoOffset() : EDisplayClusterEyeStereoOffset::None;
 
