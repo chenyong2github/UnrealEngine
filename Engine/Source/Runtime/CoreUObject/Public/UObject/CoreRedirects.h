@@ -48,6 +48,14 @@ enum class ECoreRedirectFlags : uint32
 };
 ENUM_CLASS_FLAGS(ECoreRedirectFlags);
 
+enum class ECoreRedirectMatchFlags
+{
+	None = 0,
+	/** The passed-in CoreRedirectObjectName has null fields in Package, Outer, or Name, and should still be allowed to match
+	 against redirectors that were created with a full Package.[Outer:]Name. */
+	AllowPartialMatch = (1 << 0),
+};
+ENUM_CLASS_FLAGS(ECoreRedirectMatchFlags);
 
 /**
  * An object path extracted into component names for matching. TODO merge with FSoftObjectPath?
@@ -102,8 +110,26 @@ struct COREUOBJECT_API FCoreRedirectObjectName
 		return !(*this == Other);
 	}
 
-	/** Returns true if the passed in name matches requirements, will ignore names that are none */
-	bool Matches(const FCoreRedirectObjectName& Other, bool bCheckSubstring = false) const;
+	/** Flags for the Matches function. These flags overlap but are lower-level than ECoreRedirectMatchFlags. */
+	enum class EMatchFlags
+	{
+		None = 0,
+		/** Do not match if LHS (aka *this) has null fields that RHS (aka Other) does not. Default is to match. */
+		DisallowPartialLHSMatch = (1 << 0),
+		/** Match even if RHS (aka Other) has null fields that LHS (aka *this) does not. Default is to NOT match. */
+		AllowPartialRHSMatch = (1 << 1),
+		/**
+		 * LHS fields (aka *this) are searchstrings; RHS (aka Other) fields are searched for that substring.
+		 * Default is to require a complete string match LHS == RHS.
+		 * This flag makes the match more expensive and should be avoided when possible.
+		 */
+		CheckSubString = (1 << 2),
+	};
+	/** Returns true if the passed in name matches requirements. */
+	bool Matches(const FCoreRedirectObjectName& Other, EMatchFlags MatchFlags = EMatchFlags::None) const;
+
+	UE_DEPRECATED(5.1, "Use EMatchFlags::CheckSubString to pass in bCheckSubstring=true.")
+	bool Matches(const FCoreRedirectObjectName& Other, bool bCheckSubstring) const;
 
 	/** Returns integer of degree of match. 0 if doesn't match at all, higher integer for better matches */
 	int32 MatchScore(const FCoreRedirectObjectName& Other) const;
@@ -142,6 +168,7 @@ struct COREUOBJECT_API FCoreRedirectObjectName
 	/** Turn it back into an FString */
 	static FString CombineNames(FName NewName, FName NewOuter, FName NewPackage);
 };
+ENUM_CLASS_FLAGS(FCoreRedirectObjectName::EMatchFlags);
 
 /** 
  * A single redirection from an old name to a new name, parsed out of an ini file
@@ -190,7 +217,11 @@ struct COREUOBJECT_API FCoreRedirect
 	const TCHAR* ParseValueChanges(const TCHAR* Buffer);
 
 	/** Returns true if the passed in name and flags match requirements */
-	bool Matches(ECoreRedirectFlags InFlags, const FCoreRedirectObjectName& InName) const;
+	bool Matches(ECoreRedirectFlags InFlags, const FCoreRedirectObjectName& InName,
+		ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None) const;
+	/** Returns true if the passed in name matches requirements */
+	bool Matches(const FCoreRedirectObjectName& InName,
+		ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None) const;
 
 	/** Returns true if this has value redirects */
 	bool HasValueChanges() const;
@@ -202,10 +233,7 @@ struct COREUOBJECT_API FCoreRedirect
 	FCoreRedirectObjectName RedirectName(const FCoreRedirectObjectName& OldObjectName) const;
 
 	/** See if search criteria is identical */
-	bool IdenticalMatchRules(const FCoreRedirect& Other) const
-	{
-		return RedirectFlags == Other.RedirectFlags && OldName == Other.OldName;
-	}
+	bool IdenticalMatchRules(const FCoreRedirect& Other) const;
 
 	/** Returns the name used as the key into the acceleration map */
 	FName GetSearchKey() const
@@ -223,13 +251,17 @@ struct COREUOBJECT_API FCoreRedirects
 	static void Initialize();
 
 	/** Returns a redirected version of the object name. If there are no valid redirects, it will return the original name */
-	static FCoreRedirectObjectName GetRedirectedName(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName);
+	static FCoreRedirectObjectName GetRedirectedName(ECoreRedirectFlags Type,
+		const FCoreRedirectObjectName& OldObjectName, ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None);
 
 	/** Returns map of String->String value redirects for the object name, or nullptr if none found */
-	static const TMap<FString, FString>* GetValueRedirects(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName);
+	static const TMap<FString, FString>* GetValueRedirects(ECoreRedirectFlags Type,
+		const FCoreRedirectObjectName& OldObjectName, ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None);
 
 	/** Performs both a name redirect and gets a value redirect struct if it exists. Returns true if either redirect found */
-	static bool RedirectNameAndValues(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName, FCoreRedirectObjectName& NewObjectName, const FCoreRedirect** FoundValueRedirect);
+	static bool RedirectNameAndValues(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName,
+		FCoreRedirectObjectName& NewObjectName, const FCoreRedirect** FoundValueRedirect,
+		ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None);
 
 	/** Returns true if this name has been registered as explicitly missing */
 	static bool IsKnownMissing(ECoreRedirectFlags Type, const FCoreRedirectObjectName& ObjectName);
@@ -258,7 +290,8 @@ struct COREUOBJECT_API FCoreRedirects
 	static bool FindPreviousNames(ECoreRedirectFlags Type, const FCoreRedirectObjectName& NewObjectName, TArray<FCoreRedirectObjectName>& PreviousNames);
 
 	/** Returns list of all core redirects that match requirements */
-	static bool GetMatchingRedirects(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName, TArray<const FCoreRedirect*>& FoundRedirects);
+	static bool GetMatchingRedirects(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName,
+		TArray<const FCoreRedirect*>& FoundRedirects, ECoreRedirectMatchFlags MatchFlags = ECoreRedirectMatchFlags::None);
 
 	/** Parse all redirects out of a given ini file */
 	static bool ReadRedirectsFromIni(const FString& IniName);

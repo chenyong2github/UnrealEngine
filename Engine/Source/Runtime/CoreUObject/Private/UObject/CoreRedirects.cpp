@@ -78,43 +78,43 @@ void FCoreRedirectObjectName::Reset()
 
 bool FCoreRedirectObjectName::Matches(const FCoreRedirectObjectName& Other, bool bCheckSubstring) const
 {
-	if (bCheckSubstring)
-	{
-		// Much slower
-		auto NameContains = [](FName Text, FName LookFor)
-		{
-			return WriteToString<FName::StringBufferSize>(Text).ToView().Contains(WriteToString<FName::StringBufferSize>(LookFor));
-		};
-		if (ObjectName != NAME_None && !NameContains(Other.ObjectName, ObjectName))
-		{
-			return false;
-		}
-		if (OuterName != NAME_None && !NameContains(Other.OuterName, OuterName))
-		{
-			return false;
-		}
-		if (PackageName != NAME_None && !NameContains(Other.PackageName, PackageName))
-		{
-			return false;
-		}
-	}
-	else
-	{
-		// Check all names that are non empty
-		if (ObjectName != Other.ObjectName && ObjectName != NAME_None)
-		{
-			return false;
-		}
-		if (OuterName != Other.OuterName && OuterName != NAME_None)
-		{
-			return false;
-		}
-		if (PackageName != Other.PackageName && PackageName != NAME_None)
-		{
-			return false;
-		}
-	}
+	return Matches(Other, EMatchFlags::CheckSubString);
+}
 
+bool FCoreRedirectObjectName::Matches(const FCoreRedirectObjectName& Other, EMatchFlags MatchFlags) const
+{
+	bool bPartialLHS = !EnumHasAnyFlags(MatchFlags, EMatchFlags::DisallowPartialLHSMatch);
+	bool bPartialRHS = EnumHasAnyFlags(MatchFlags, EMatchFlags::AllowPartialRHSMatch);
+	bool bSubString = EnumHasAllFlags(MatchFlags, EMatchFlags::CheckSubString);
+
+	auto FieldMatches = [bPartialLHS, bPartialRHS, bSubString](FName LHS, FName RHS)
+	{
+		if (LHS.IsNone() || RHS.IsNone())
+		{
+			return LHS == RHS || ((!LHS.IsNone() || bPartialLHS) && (!RHS.IsNone() || bPartialRHS));
+		}
+		else if (bSubString)
+		{
+			// Much slower
+			return WriteToString<FName::StringBufferSize>(RHS).ToView().Contains(WriteToString<FName::StringBufferSize>(LHS));
+		}
+		else
+		{
+			return LHS == RHS;
+		}
+	};
+	if (!FieldMatches(ObjectName, Other.ObjectName))
+	{
+		return false;
+	}
+	if (!FieldMatches(OuterName, Other.OuterName))
+	{
+		return false;
+	}
+	if (!FieldMatches(PackageName, Other.PackageName))
+	{
+		return false;
+	}
 	return true;
 }
 
@@ -378,15 +378,30 @@ static FORCEINLINE bool CheckRedirectFlagsMatch(ECoreRedirectFlags FlagsA, ECore
 	return bTypesOverlap && bCategoriesMatch;
 }
 
-bool FCoreRedirect::Matches(ECoreRedirectFlags InFlags, const FCoreRedirectObjectName& InName) const
+bool FCoreRedirect::Matches(ECoreRedirectFlags InFlags, const FCoreRedirectObjectName& InName,
+	ECoreRedirectMatchFlags MatchFlags) const
 {
 	// Check flags for Type/Category match
 	if (!CheckRedirectFlagsMatch(InFlags, RedirectFlags))
 	{
 		return false;
 	}
+	return Matches(InName, MatchFlags);
+}
 
-	return OldName.Matches(InName, IsSubstringMatch());
+
+bool FCoreRedirect::Matches(const FCoreRedirectObjectName& InName, ECoreRedirectMatchFlags MatchFlags) const
+{
+	FCoreRedirectObjectName::EMatchFlags NameMatchFlags = FCoreRedirectObjectName::EMatchFlags::None;
+	if (IsSubstringMatch())
+	{
+		NameMatchFlags |= FCoreRedirectObjectName::EMatchFlags::CheckSubString;
+	}
+	if (EnumHasAllFlags(MatchFlags, ECoreRedirectMatchFlags::AllowPartialMatch))
+	{
+		NameMatchFlags |= FCoreRedirectObjectName::EMatchFlags::AllowPartialRHSMatch;
+	}
+	return OldName.Matches(InName, NameMatchFlags);
 }
 
 bool FCoreRedirect::HasValueChanges() const
@@ -404,7 +419,7 @@ FCoreRedirectObjectName FCoreRedirect::RedirectName(const FCoreRedirectObjectNam
 	FCoreRedirectObjectName ModifyName(OldObjectName);
 
 	// Convert names that are different and non empty
-	if (OldName.ObjectName != NewName.ObjectName)
+	if (OldName.ObjectName != NewName.ObjectName && !ModifyName.ObjectName.IsNone())
 	{
 		if (IsSubstringMatch())
 		{
@@ -416,7 +431,7 @@ FCoreRedirectObjectName FCoreRedirect::RedirectName(const FCoreRedirectObjectNam
 		}
 	}
 	// If package name and object name are specified, copy outer also it was set to null explicitly
-	if (OldName.OuterName != NewName.OuterName || (NewName.PackageName != NAME_None && NewName.ObjectName != NAME_None))
+	if ((OldName.OuterName != NewName.OuterName || (NewName.PackageName != NAME_None && NewName.ObjectName != NAME_None)) && !ModifyName.OuterName.IsNone())
 	{
 		if (IsSubstringMatch())
 		{
@@ -427,7 +442,7 @@ FCoreRedirectObjectName FCoreRedirect::RedirectName(const FCoreRedirectObjectNam
 			ModifyName.OuterName = NewName.OuterName;
 		}
 	}
-	if (OldName.PackageName != NewName.PackageName)
+	if (OldName.PackageName != NewName.PackageName && !ModifyName.PackageName.IsNone())
 	{
 		if (IsSubstringMatch())
 		{
@@ -441,6 +456,23 @@ FCoreRedirectObjectName FCoreRedirect::RedirectName(const FCoreRedirectObjectNam
 
 	return ModifyName;
 }
+
+bool FCoreRedirect::IdenticalMatchRules(const FCoreRedirect& Other) const
+{
+	ECoreRedirectFlags TypeFlags = RedirectFlags & ECoreRedirectFlags::Type_AllMask;
+	if (TypeFlags == ECoreRedirectFlags::Type_Struct ||
+		TypeFlags == ECoreRedirectFlags::Type_Enum)
+	{
+		// Struct and Enum remappings are requested based solely on the Name - not considering package and outer -
+		// so they are identical if only the name matches
+		return RedirectFlags == Other.RedirectFlags && OldName.ObjectName == Other.OldName.ObjectName;
+	}
+	else
+	{
+		return RedirectFlags == Other.RedirectFlags && OldName == Other.OldName;
+	}
+}
+
 
 bool FCoreRedirects::bInitialized = false;
 #if WITH_COREREDIRECTS_MULTITHREAD_WARNING
@@ -535,12 +567,13 @@ void FCoreRedirects::EnterMultithreadedPhase()
 }
 #endif
 
-bool FCoreRedirects::RedirectNameAndValues(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName, FCoreRedirectObjectName& NewObjectName, const FCoreRedirect** FoundValueRedirect)
+bool FCoreRedirects::RedirectNameAndValues(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName,
+	FCoreRedirectObjectName& NewObjectName, const FCoreRedirect** FoundValueRedirect, ECoreRedirectMatchFlags MatchFlags)
 {
 	NewObjectName = OldObjectName;
 	TArray<const FCoreRedirect*> FoundRedirects;
 
-	if (GetMatchingRedirects(Type, OldObjectName, FoundRedirects))
+	if (GetMatchingRedirects(Type, OldObjectName, FoundRedirects, MatchFlags))
 	{
 		// Sort them based on match
 		FoundRedirects.Sort([&OldObjectName](const FCoreRedirect& A, const FCoreRedirect& B) { return A.OldName.MatchScore(OldObjectName) > B.OldName.MatchScore(OldObjectName); });
@@ -556,7 +589,7 @@ bool FCoreRedirects::RedirectNameAndValues(ECoreRedirectFlags Type, const FCoreR
 			}
 
 			// Only apply if name match is still valid, if it already renamed part of it it may not apply any more. Don't want to check flags as those were checked in the gather step
-			if (Redirect->OldName.Matches(NewObjectName, Redirect->IsSubstringMatch()))
+			if (Redirect->Matches(NewObjectName, MatchFlags))
 			{
 				if (FoundValueRedirect && (Redirect->HasValueChanges() || Redirect->OverrideClassName.IsValid()))
 				{
@@ -582,21 +615,23 @@ bool FCoreRedirects::RedirectNameAndValues(ECoreRedirectFlags Type, const FCoreR
 	return NewObjectName != OldObjectName;
 }
 
-FCoreRedirectObjectName FCoreRedirects::GetRedirectedName(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName)
+FCoreRedirectObjectName FCoreRedirects::GetRedirectedName(ECoreRedirectFlags Type,
+	const FCoreRedirectObjectName& OldObjectName, ECoreRedirectMatchFlags MatchFlags)
 {
 	FCoreRedirectObjectName NewObjectName;
 
-	RedirectNameAndValues(Type, OldObjectName, NewObjectName, nullptr);
+	RedirectNameAndValues(Type, OldObjectName, NewObjectName, nullptr, MatchFlags);
 
 	return NewObjectName;
 }
 
-const TMap<FString, FString>* FCoreRedirects::GetValueRedirects(ECoreRedirectFlags Type, const FCoreRedirectObjectName& OldObjectName)
+const TMap<FString, FString>* FCoreRedirects::GetValueRedirects(ECoreRedirectFlags Type,
+	const FCoreRedirectObjectName& OldObjectName, ECoreRedirectMatchFlags MatchFlags)
 {
 	FCoreRedirectObjectName NewObjectName;
 	const FCoreRedirect* FoundRedirect = nullptr;
 
-	RedirectNameAndValues(Type, OldObjectName, NewObjectName, &FoundRedirect);
+	RedirectNameAndValues(Type, OldObjectName, NewObjectName, &FoundRedirect, MatchFlags);
 
 	if (FoundRedirect && FoundRedirect->ValueChanges.Num() > 0)
 	{
@@ -606,13 +641,17 @@ const TMap<FString, FString>* FCoreRedirects::GetValueRedirects(ECoreRedirectFla
 	return nullptr;
 }
 
-bool FCoreRedirects::GetMatchingRedirects(ECoreRedirectFlags SearchFlags, const FCoreRedirectObjectName& OldObjectName, TArray<const FCoreRedirect*>& FoundRedirects)
+bool FCoreRedirects::GetMatchingRedirects(ECoreRedirectFlags SearchFlags, const FCoreRedirectObjectName& OldObjectName,
+	TArray<const FCoreRedirect*>& FoundRedirects, ECoreRedirectMatchFlags MatchFlags)
 {
 	// Look for all redirects that match the given names and flags
 	bool bFound = false;
 	
-	// If we're not explicitly searching for packages or looking for removed things, add the implicit (Type=Package,Category=None) redirects
-	const bool bSearchPackageRedirects = !(SearchFlags & ECoreRedirectFlags::Type_Package) && !(SearchFlags & ECoreRedirectFlags::Category_Removed);
+	// If we're not explicitly searching for packages, and not looking for removed things, and not searching for partial matches
+	// based on ObjectName only, add the implicit (Type=Package,Category=None) redirects
+	const bool bSearchPackageRedirects = !(SearchFlags & ECoreRedirectFlags::Type_Package) &&
+		!(SearchFlags & ECoreRedirectFlags::Category_Removed) &&
+			(!(MatchFlags & ECoreRedirectMatchFlags::AllowPartialMatch) || !OldObjectName.PackageName.IsNone());
 
 	// Determine list of maps to look over, need to handle being passed multiple types in a bit mask
 	for (const TPair<ECoreRedirectFlags, FRedirectNameMap>& Pair : RedirectTypeMap)
@@ -628,7 +667,7 @@ bool FCoreRedirects::GetMatchingRedirects(ECoreRedirectFlags SearchFlags, const 
 			{
 				for (const FCoreRedirect& CheckRedirect : *RedirectsForName)
 				{
-					if (CheckRedirect.Matches(PairFlags, OldObjectName))
+					if (CheckRedirect.Matches(PairFlags, OldObjectName, MatchFlags))
 					{
 						bFound = true;
 						FoundRedirects.Add(&CheckRedirect);
@@ -661,7 +700,12 @@ bool FCoreRedirects::FindPreviousNames(ECoreRedirectFlags SearchFlags, const FCo
 			{
 				for (const FCoreRedirect& Redirect : RedirectPair.Value)
 				{
-					if (Redirect.NewName.Matches(NewObjectName, Redirect.IsSubstringMatch()))
+					FCoreRedirectObjectName::EMatchFlags MatchFlags = FCoreRedirectObjectName::EMatchFlags::None;
+					if (Redirect.IsSubstringMatch())
+					{
+						MatchFlags |= FCoreRedirectObjectName::EMatchFlags::CheckSubString;
+					}
+					if (Redirect.NewName.Matches(NewObjectName, MatchFlags))
 					{
 						// Construct a reverse redirect
 						FCoreRedirect ReverseRedirect = FCoreRedirect(Redirect);

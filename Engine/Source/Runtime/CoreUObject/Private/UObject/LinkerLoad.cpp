@@ -5614,7 +5614,8 @@ TArray<FName> FLinkerLoad::FindPreviousNamesForClass(FString CurrentClassPath, b
 FName FLinkerLoad::FindNewNameForEnum(const FName OldEnumName)
 {
 	FCoreRedirectObjectName OldName = FCoreRedirectObjectName(OldEnumName, NAME_None, NAME_None);
-	FCoreRedirectObjectName NewName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Enum, OldName);
+	FCoreRedirectObjectName NewName = FCoreRedirects::GetRedirectedName(
+		ECoreRedirectFlags::Type_Enum, OldName, ECoreRedirectMatchFlags::AllowPartialMatch);
 
 	if (NewName != OldName)
 	{
@@ -5626,7 +5627,8 @@ FName FLinkerLoad::FindNewNameForEnum(const FName OldEnumName)
 FName FLinkerLoad::FindNewNameForStruct(const FName OldStructName)
 {
 	FCoreRedirectObjectName OldName = FCoreRedirectObjectName(OldStructName, NAME_None, NAME_None);
-	FCoreRedirectObjectName NewName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Struct, OldName);
+	FCoreRedirectObjectName NewName = FCoreRedirects::GetRedirectedName(
+		ECoreRedirectFlags::Type_Struct, OldName, ECoreRedirectMatchFlags::AllowPartialMatch);
 
 	if (NewName != OldName)
 	{
