@@ -171,6 +171,11 @@ public:
 	 */
 	static FString RootDir();
 
+#if WITH_EDITOR
+	/** Returns the special path used when mounting FeaturePaks in editor */
+	static const TCHAR* GameFeatureRootPrefix();
+#endif
+
 	/**
 	 * Returns the base directory of the current project by looking at FApp::GetProjectName().
 	 * This is usually a subdirectory of the installation

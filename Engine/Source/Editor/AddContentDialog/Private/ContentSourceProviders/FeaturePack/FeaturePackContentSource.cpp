@@ -158,7 +158,7 @@ FFeaturePackContentSource::FFeaturePackContentSource(FString InFeaturePackPath)
 	if( InFeaturePackPath.EndsWith(TEXT(".upack") ) == true )
 	{
 		bContentsInPakFile = true;
-		MountPoint = "root:/";
+		MountPoint = FPaths::GameFeatureRootPrefix();
 		// Create a pak platform file and mount the feature pack file.
 		FPakPlatformFile PakPlatformFile;
 		PakPlatformFile.Initialize(&FPlatformFileManager::Get().GetPlatformFile(), TEXT(""));

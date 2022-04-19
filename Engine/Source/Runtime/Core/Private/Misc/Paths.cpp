@@ -1045,12 +1045,15 @@ bool FPaths::IsDrive(const FString& InPath)
 	return false;
 }
 
+#if WITH_EDITOR
+const TCHAR* FPaths::GameFeatureRootPrefix()
+{
+	return TEXT("root:/");
+}
+#endif
+
 bool FPaths::IsRelative(const FString& InPath)
 {
-#if WITH_EDITOR
-	static const TCHAR RootPrefix[] = TEXT("root:/");
-#endif // WITH_EDITOR
-
 	// The previous implementation of this function seemed to handle normalized and unnormalized paths, so this one does too for legacy reasons.
 	const uint32 PathLen = InPath.Len();
 	const bool IsRooted = PathLen &&
@@ -1059,7 +1062,7 @@ bool FPaths::IsRelative(const FString& InPath)
 			((InPath[0] == '\\') && (InPath[1] == '\\'))					// Root of the current directory on Windows. Also covers "\\" for UNC or "network" paths.
 			|| (InPath[1] == ':' && FChar::IsAlpha(InPath[0]))				// Starts with "<DriveLetter>:"
 #if WITH_EDITOR
-			|| (InPath.StartsWith(RootPrefix, ESearchCase::IgnoreCase))		// Feature packs use this
+			|| (InPath.StartsWith(GameFeatureRootPrefix(), ESearchCase::IgnoreCase))
 #endif // WITH_EDITOR
 			))
 		);
