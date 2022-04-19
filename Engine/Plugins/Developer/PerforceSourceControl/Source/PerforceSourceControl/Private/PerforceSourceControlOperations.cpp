@@ -64,6 +64,7 @@ void IPerforceSourceControlWorker::RegisterWorkers()
 	WorkersMap.Add("CreateWorkspace", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceCreateWorkspaceWorker>));
 	WorkersMap.Add("DeleteWorkspace", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceDeleteWorkspaceWorker>));
 	WorkersMap.Add("GetFileList", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceGetFileListWorker>));
+	WorkersMap.Add("GetFile", FGetPerforceSourceControlWorker::CreateStatic(&InstantiateWorker<FPerforceGetFileListWorker>));
 }
 
 TSharedPtr<class IPerforceSourceControlWorker, ESPMode::ThreadSafe> IPerforceSourceControlWorker::CreateWorker(const FName& OperationName, FPerforceSourceControlProvider& SCCProvider)
@@ -3152,6 +3153,44 @@ bool FPerforceGetChangelistDetailsWorker::Execute(FPerforceSourceControlCommand&
 }
 
 bool FPerforceGetChangelistDetailsWorker::UpdateStates() const
+{
+	return false;
+}
+
+FName FPerforceGetFileWorker::GetName() const
+{
+	return "GetFile";
+}
+
+bool FPerforceGetFileWorker::Execute(FPerforceSourceControlCommand& InCommand)
+{
+	FScopedPerforceConnection ScopedConnection(InCommand);
+
+	if (!InCommand.IsCanceled() && ScopedConnection.IsValid())
+	{
+		FPerforceConnection& Connection = ScopedConnection.GetConnection();
+		TSharedRef<FGetFile, ESPMode::ThreadSafe> Operation = StaticCastSharedRef<FGetFile>(InCommand.Operation);
+
+		TSharedRef<FPerforceSourceControlRevision, ESPMode::ThreadSafe> Revision = MakeShared<FPerforceSourceControlRevision>();
+		Revision->FileName = Operation->GetDepotFilePath();
+		Revision->ChangelistNumber = FCString::Atoi(*Operation->GetChangelistNumber());
+		Revision->RevisionNumber = FCString::Atoi(*Operation->GetRevisionNumber());
+		Revision->bIsShelve = Operation->IsShelve();
+	
+		FString OutFilename;
+
+		InCommand.bCommandSuccessful = Revision->Get(OutFilename, InCommand.Concurrency);
+
+		if (InCommand.bCommandSuccessful)
+		{
+			Operation->SetOutPackageFilename(OutFilename);
+		}
+	}
+
+	return InCommand.bCommandSuccessful;
+}
+
+bool FPerforceGetFileWorker::UpdateStates() const
 {
 	return false;
 }

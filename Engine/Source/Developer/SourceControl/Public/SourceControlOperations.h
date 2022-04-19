@@ -1064,4 +1064,54 @@ protected:
 	FString WorkspaceName;
 };
 
+/**
+ * This operation uses p4v print command to get file from specified depot by shelved changelist or file revision returns a package filename
+ */
+class FGetFile : public FSourceControlOperationBase
+{
+public:
+
+	FGetFile(const FString& InChangelistNumber, const FString& InRevisionNumber, const FString& InDepotFilePath, bool bInIsShelve = false)
+		: ChangelistNumber(InChangelistNumber)
+		, RevisionNumber(InRevisionNumber)
+		, DepotFilePath(InDepotFilePath)
+		, bIsShelve(bInIsShelve)
+	{}
+
+	// ISourceControlOperation interface
+	virtual FName GetName() const override
+	{
+		return "GetFile";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_GetFile", "Retrieving file from source control...");
+	}
+
+	const FString& GetChangelistNumber() const { return ChangelistNumber; }
+
+	const FString& GetRevisionNumber() const { return RevisionNumber; }
+
+	const FString& GetDepotFilePath() const { return DepotFilePath; }
+
+	bool IsShelve() const { return bIsShelve; }
+
+	const FString& GetOutPackageFilename() const { return OutPackageFilename; }
+
+	void SetOutPackageFilename(const FString& InOutPackageFilename)
+	{
+		OutPackageFilename = InOutPackageFilename;
+	}
+
+private:
+
+	FString ChangelistNumber;
+	FString RevisionNumber;
+	FString DepotFilePath;
+	bool bIsShelve;
+
+	FString OutPackageFilename;
+};
+
 #undef LOCTEXT_NAMESPACE

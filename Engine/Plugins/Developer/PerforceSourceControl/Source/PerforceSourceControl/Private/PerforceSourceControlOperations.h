@@ -507,3 +507,17 @@ public:
 	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
+
+class FPerforceGetFileWorker final : public IPerforceSourceControlWorker
+{
+public:
+	FPerforceGetFileWorker(FPerforceSourceControlProvider& InSourceControlProvider)
+		: IPerforceSourceControlWorker(InSourceControlProvider)
+	{}
+	virtual ~FPerforceGetFileWorker() = default;
+
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+};
