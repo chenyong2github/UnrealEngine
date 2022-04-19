@@ -1805,9 +1805,6 @@ bool OpenModelUtils::TransferAlMeshToMeshDescription(const AlMesh& AliasMesh, co
 		}
 	}
 
-	// Build edge meta data
-	FStaticMeshOperations::DetermineEdgeHardnessesFromVertexInstanceNormals(MeshDescription);
-
 	return true;
 }
 
