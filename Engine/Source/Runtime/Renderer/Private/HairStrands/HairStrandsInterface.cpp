@@ -519,7 +519,7 @@ FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene
 	return Out;
 }
 
-FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene, TArray<FViewInfo>& Views)
+FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FScene* Scene, TArrayView<FViewInfo> Views)
 {
 	FHairStrandsBookmarkParameters Out;
 	Out = CreateHairStrandsBookmarkParameters(Scene, Views[0]);
@@ -582,7 +582,7 @@ FHairGroupPublicData* GetHairData(const FMeshBatch* Mesh)
 	return reinterpret_cast<FHairGroupPublicData*>(Mesh->Elements[0].VertexFactoryUserData);
 }
 
-void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FLightSceneInfo* LightSceneInfo)
+void AddVisibleShadowCastingLight(const FScene& Scene, TArrayView<FViewInfo>& Views, const FLightSceneInfo* LightSceneInfo)
 {
 	for (FViewInfo& View : Views)
 	{
@@ -595,7 +595,7 @@ void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views,
 	}
 }
 
-void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FSphere& Bounds)
+void AddVisibleShadowCastingLight(const FScene& Scene, TArrayView<FViewInfo>& Views, const FSphere& Bounds)
 {
 	for (FViewInfo& View : Views)
 	{

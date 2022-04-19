@@ -98,7 +98,7 @@ void AddMeshDrawTransitionPass(
 void RenderHairPrePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
-	TArray<FViewInfo>& Views,
+	TArrayView<FViewInfo>& Views,
 	FInstanceCullingManager& InstanceCullingManager)
 {
 	for (FViewInfo& View : Views)
@@ -147,7 +147,7 @@ void RenderHairBasePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	const FSceneTextures& SceneTextures,
-	TArray<FViewInfo>& Views,
+	TArrayView<FViewInfo>& Views,
 	FInstanceCullingManager& InstanceCullingManager)
 {
 	for (FViewInfo& View : Views)

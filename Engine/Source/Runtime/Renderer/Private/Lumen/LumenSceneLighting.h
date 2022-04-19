@@ -199,7 +199,7 @@ namespace Lumen
 	void BuildCardUpdateContext(
 		FRDGBuilder& GraphBuilder,
 		const FLumenSceneData& LumenSceneData,
-		const TArray<FViewInfo>& Views,
+		const TArrayView<FViewInfo>& Views,
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
 		FLumenCardUpdateContext& DirectLightingCardUpdateContext,
 		FLumenCardUpdateContext& IndirectLightingCardUpdateContext);

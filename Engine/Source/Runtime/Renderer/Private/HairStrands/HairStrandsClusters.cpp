@@ -547,7 +547,7 @@ static void AddClusterResetLod0(
 void ComputeHairStrandsClustersCulling(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap& ShaderMap,
-	const TArray<FViewInfo>& Views,
+	const TArrayView<FViewInfo>& Views,
 	const FHairCullingParams& CullingParameters,
 	FHairStrandClusterData& ClusterDatas)
 {
@@ -555,14 +555,6 @@ void ComputeHairStrandsClustersCulling(
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsClusterCulling");
 	TRACE_CPUPROFILER_EVENT_SCOPE(ComputeHairStrandsClustersCulling);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsClusterCulling);
-
-	uint32 ViewCount = Views.Num();
-	TArray<const FSceneView*> SceneViews;
-	SceneViews.SetNumUninitialized(ViewCount);
-	for (uint32 ViewId = 0; ViewId < ViewCount; ++ViewId)
-	{
-		SceneViews[ViewId] = &Views[ViewId];
-	}
 
 	const bool bClusterCulling = IsHairStrandsClusterCullingEnable();
 	for (const FViewInfo& View : Views)

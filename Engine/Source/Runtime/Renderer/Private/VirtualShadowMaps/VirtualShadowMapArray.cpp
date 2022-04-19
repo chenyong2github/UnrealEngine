@@ -1029,7 +1029,7 @@ static uint32 GetShadowMapsToAllocate(uint32 NumShadowMaps)
 void FVirtualShadowMapArray::BuildPageAllocations(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
-	const TArray<FViewInfo>& Views,
+	const TArrayView<FViewInfo>& Views,
 	const FEngineShowFlags& EngineShowFlags,
 	const FSortedLightSetSceneInfo& SortedLightsInfo,
 	const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,

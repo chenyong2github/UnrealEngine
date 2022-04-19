@@ -405,7 +405,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				if (CaptureShadowFromOpaque)
 				{
 					SkyAtmosphereLightShadowData LightShadowData;
-					SkyRC.bShouldSampleOpaqueShadow = ShouldSkySampleAtmosphereLightsOpaqueShadow(*Scene, SceneRenderer.VisibleLightInfos, LightShadowData);
+					SkyRC.bShouldSampleOpaqueShadow = ShouldSkySampleAtmosphereLightsOpaqueShadow(*Scene, SceneRenderer.ActiveViewFamily->VisibleLightInfos, LightShadowData);
 					GetSkyAtmosphereLightsUniformBuffers(GraphBuilder, SkyRC.LightShadowShaderParams0UniformBuffer, SkyRC.LightShadowShaderParams1UniformBuffer,
 						LightShadowData, CubeView, SkyRC.bShouldSampleOpaqueShadow, UniformBuffer_SingleDraw);
 				}
@@ -447,7 +447,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						const FProjectedShadowInfo* ProjectedShadowInfo0 = nullptr;
 						if (AtmosphericLight0Info)
 						{
-							ProjectedShadowInfo0 = GetFirstWholeSceneShadowMap(SceneRenderer.VisibleLightInfos[AtmosphericLight0Info->Id]);
+							ProjectedShadowInfo0 = GetFirstWholeSceneShadowMap(SceneRenderer.ActiveViewFamily->VisibleLightInfos[AtmosphericLight0Info->Id]);
 						}
 
 						// Get the main view shadow info for the cloud shadows in reflection.

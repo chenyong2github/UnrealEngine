@@ -1305,7 +1305,7 @@ struct FLightTileCullContext
 
 // Build list of surface cache tiles per light for future processing
 void CullDirectLightingTiles(
-	const TArray<FViewInfo>& Views,
+	const TArrayView<FViewInfo>& Views,
 	FRDGBuilder& GraphBuilder,
 	const FLumenCardUpdateContext& CardUpdateContext,
 	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
@@ -1573,8 +1573,8 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 							Scene,
 							View,
 							LumenCardSceneUniformBuffer,
-							VisibleLightInfos,
-							VirtualShadowMapArray,
+							ActiveViewFamily->VisibleLightInfos,
+							ActiveViewFamily->VirtualShadowMapArray,
 							GatheredLight,
 							CullContext.LightTileScatterParameters,
 							ViewIndex,
@@ -1595,7 +1595,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 			{
 				const FViewInfo& View = Views[ViewIndex];
 
-				if (Lumen::UseHardwareRayTracedDirectLighting(ViewFamily))
+				if (Lumen::UseHardwareRayTracedDirectLighting(*ActiveViewFamily))
 				{
 					TraceLumenHardwareRayTracedDirectLightingShadows(
 						GraphBuilder,
@@ -1649,7 +1649,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 						Scene,
 						View,
 						TracingInputs,
-						ViewFamily.EngineShowFlags,
+						ActiveViewFamily->EngineShowFlags,
 						LumenCardSceneUniformBuffer,
 						GatheredLights[LightIndex],
 						CullContext.LightTileScatterParameters,

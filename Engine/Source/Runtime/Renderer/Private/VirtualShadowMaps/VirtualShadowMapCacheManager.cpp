@@ -560,7 +560,7 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 		}
 
 		// propagate current-frame primitive state to cache entry
-		for (const auto& LightInfo : SceneRenderer.VisibleLightInfos)
+		for (const auto& LightInfo : SceneRenderer.ActiveViewFamily->VisibleLightInfos)
 		{
 			for (const TSharedPtr<FVirtualShadowMapClipmap> &Clipmap : LightInfo.VirtualShadowMapClipmaps)
 			{

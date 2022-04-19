@@ -1962,6 +1962,7 @@ private:
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	friend class FSceneRenderer;
+	friend class FViewFamilyInfo;
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 };

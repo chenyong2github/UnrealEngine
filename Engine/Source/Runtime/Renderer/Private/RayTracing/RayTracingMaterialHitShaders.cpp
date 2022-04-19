@@ -587,7 +587,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline);
 	SCOPE_CYCLE_COUNTER(STAT_BindRayTracingPipeline);
 
-	const bool bIsPathTracing = ViewFamily.EngineShowFlags.PathTracing;
+	const bool bIsPathTracing = ActiveViewFamily->EngineShowFlags.PathTracing;
 
 	FRayTracingPipelineStateInitializer Initializer;
 

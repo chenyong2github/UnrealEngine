@@ -343,7 +343,7 @@ FIntPoint GetTileListGroupSizeForView(const FViewInfo& View)
 void BuildTileObjectLists(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
-	TArray<FViewInfo>& Views,
+	TArrayView<FViewInfo>& Views,
 	FRDGBufferRef ObjectIndirectArguments,
 	const FDistanceFieldCulledObjectBufferParameters& CulledObjectBufferParameters,
 	FTileIntersectionParameters TileIntersectionParameters,

@@ -1113,7 +1113,7 @@ void FProjectedShadowInfo::RenderDepth(
 		CopyCachedShadowMap(GraphBuilder, *ShadowDepthView, SceneRenderer, PassParameters->RenderTargets, DrawRenderState);
 	}
 
-	PassParameters->VirtualShadowMap = SceneRenderer->VirtualShadowMapArray.GetUniformBuffer(GraphBuilder);
+	PassParameters->VirtualShadowMap = SceneRenderer->ActiveViewFamily->VirtualShadowMapArray.GetUniformBuffer(GraphBuilder);
 
 	switch (FSceneInterface::GetShadingPath(FeatureLevel))
 	{
@@ -1509,9 +1509,11 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 {
 	const bool bNaniteEnabled = 
 		UseNanite(ShaderPlatform) &&
-		ViewFamily.EngineShowFlags.NaniteMeshes &&
+		ActiveViewFamily->EngineShowFlags.NaniteMeshes &&
 		CVarNaniteShadows.GetValueOnRenderThread() != 0 &&
 		Nanite::GStreamingManager.HasResourceEntries();
+
+	auto& SortedShadowsForShadowDepthPass = ActiveViewFamily->SortedShadowsForShadowDepthPass;
 
 	Scene->PrevAtlasHZBs.SetNum(SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num());
 
@@ -1630,6 +1632,8 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 
 void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNaniteEnabled)
 {
+	auto& SortedShadowsForShadowDepthPass = ActiveViewFamily->SortedShadowsForShadowDepthPass;
+	auto& VirtualShadowMapArray = ActiveViewFamily->VirtualShadowMapArray;
 
 	if (SortedShadowsForShadowDepthPass.VirtualShadowMapShadows.Num() == 0 &&
 		SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps.Num() == 0)
@@ -1795,7 +1799,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 
 void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager &InstanceCullingManager)
 {
-	ensureMsgf(!bShadowDepthRenderCompleted, TEXT("RenderShadowDepthMaps called twice in the same frame"));
+	ensureMsgf(!ActiveViewFamily->bShadowDepthRenderCompleted, TEXT("RenderShadowDepthMaps called twice in the same frame"));
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadows);
 
@@ -1804,6 +1808,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 	RDG_EVENT_SCOPE(GraphBuilder, "ShadowDepths");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowDepths);
+
+	auto& SortedShadowsForShadowDepthPass = ActiveViewFamily->SortedShadowsForShadowDepthPass;
 
 	// Ensure all shadow view dynamic primitives are uploaded before shadow-culling batching pass.
 	// TODO: automate this such that:
@@ -1850,7 +1856,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 	const bool bNaniteEnabled = 
 		UseNanite(ShaderPlatform) &&
-		ViewFamily.EngineShowFlags.NaniteMeshes &&
+		ActiveViewFamily->EngineShowFlags.NaniteMeshes &&
 		Nanite::GStreamingManager.HasResourceEntries();
 
 	RenderVirtualShadowMaps(GraphBuilder, bNaniteEnabled);
@@ -2080,7 +2086,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 		Light.LightSceneInfo->PersistentShadows.Empty();
 	}
 
-	bShadowDepthRenderCompleted = true;
+	ActiveViewFamily->bShadowDepthRenderCompleted = true;
 }
 
 bool FShadowDepthPassMeshProcessor::Process(

@@ -67,6 +67,14 @@ static FAutoConsoleVariableRef CVarDisplayClusterShowStats(
 	ECVF_RenderThreadSafe
 );
 
+int32 GDisplayClusterSingleRender = 1;
+static FAutoConsoleVariableRef CVarDisplayClusterSingleRender(
+	TEXT("DC.SingleRender"),
+	GDisplayClusterSingleRender,
+	TEXT("Render Display Cluster view families in a single scene render."),
+	ECVF_RenderThreadSafe
+);
+
 UDisplayClusterViewportClient::UDisplayClusterViewportClient(FVTableHelper& Helper)
 	: Super(Helper)
 {
@@ -414,6 +422,9 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 	const bool bIsRenderedImmediatelyAfterAnotherViewFamily = false;
 	bool bIsFirstViewInMultipleViewFamily = true;
 
+	// Gather all view families first
+	TArray<FSceneViewFamilyContext*> ViewFamilies;
+
 	for (FDisplayClusterRenderFrame::FFrameRenderTarget& DCRenderTarget : RenderFrame.RenderTargets)
 	{
 		// Special flag, allow clear RTT surface only for first family
@@ -422,12 +433,14 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		for (FDisplayClusterRenderFrame::FFrameViewFamily& DCViewFamily : DCRenderTarget.ViewFamilies)
 		{
 			// Create the view family for rendering the world scene to the viewport's render target
-			FSceneViewFamilyContext ViewFamily(RenderFrame.ViewportManager->CreateViewFamilyConstructionValues(
+			ViewFamilies.Add(new FSceneViewFamilyContext(RenderFrame.ViewportManager->CreateViewFamilyConstructionValues(
 				DCRenderTarget,
 				MyWorld->Scene,
 				EngineShowFlags,
 				bAdditionalViewFamily
-			));
+			)));
+			FSceneViewFamilyContext& ViewFamily = *ViewFamilies.Last();
+			bool bIsFamilyVisible = false;
 
 			// Disable clean op for all next families on this render target
 			bAdditionalViewFamily = true;
@@ -756,32 +769,70 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 					ViewFamily.bIsFirstViewInMultipleViewFamily = bIsFirstViewInMultipleViewFamily;
 					bIsFirstViewInMultipleViewFamily = false;
 
-					GetRendererModule().BeginRenderingViewFamily(SceneCanvas, &ViewFamily);
-
-					if (GNumExplicitGPUsForRendering > 1)
-					{
-						const FRHIGPUMask SubmitGPUMask = ViewFamily.Views.Num() == 1 ? ViewFamily.Views[0]->GPUMask : FRHIGPUMask::All();
-						ENQUEUE_RENDER_COMMAND(UDisplayClusterViewportClient_SubmitCommandList)(
-							[SubmitGPUMask](FRHICommandListImmediate& RHICmdList)
-						{
-							SCOPED_GPU_MASK(RHICmdList, SubmitGPUMask);
-							RHICmdList.SubmitCommandsHint();
-						});
-					}
+					// If we reach here, the view family should be rendered
+					bIsFamilyVisible = true;
 				}
-				else
-				{
-					GetRendererModule().PerFrameCleanupIfSkipRenderer();
+			}
 
-					// Make sure RHI resources get flushed if we're not using a renderer
-					ENQUEUE_RENDER_COMMAND(UDisplayClusterViewportClient_FlushRHIResources)(
-						[](FRHICommandListImmediate& RHICmdList)
+			if (bIsFamilyVisible)
+			{
+				// Disable clean op for all next families on this render target
+				bAdditionalViewFamily = true;
+			}
+			else
+			{
+				// Family didn't end up visible, remove last view family from the array
+				delete ViewFamilies.Pop();
+			}
+		}
+	}
+
+	// We gathered all the view families, now render them
+	if (!ViewFamilies.IsEmpty())
+	{
+		if (GDisplayClusterSingleRender)
+		{
+			GetRendererModule().BeginRenderingViewFamilies(
+				SceneCanvas, TArrayView<FSceneViewFamily*>((FSceneViewFamily**)(ViewFamilies.GetData()), ViewFamilies.Num()));
+		}
+		else
+		{
+			for (FSceneViewFamilyContext* ViewFamilyContext : ViewFamilies)
+			{
+				FSceneViewFamily& ViewFamily = *ViewFamilyContext;
+
+				GetRendererModule().BeginRenderingViewFamily(SceneCanvas, &ViewFamily);
+
+				if (GNumExplicitGPUsForRendering > 1)
+				{
+					const FRHIGPUMask SubmitGPUMask = ViewFamily.Views.Num() == 1 ? ViewFamily.Views[0]->GPUMask : FRHIGPUMask::All();
+					ENQUEUE_RENDER_COMMAND(UDisplayClusterViewportClient_SubmitCommandList)(
+						[SubmitGPUMask](FRHICommandListImmediate& RHICmdList)
 					{
-						RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+						SCOPED_GPU_MASK(RHICmdList, SubmitGPUMask);
+						RHICmdList.SubmitCommandsHint();
 					});
 				}
 			}
 		}
+
+		for (FSceneViewFamilyContext* ViewFamilyContext : ViewFamilies)
+		{
+			delete ViewFamilyContext;
+		}
+		ViewFamilies.Empty();
+	}
+	else
+	{
+		// Or if none to render, do logic for when rendering is skipped
+		GetRendererModule().PerFrameCleanupIfSkipRenderer();
+
+		// Make sure RHI resources get flushed if we're not using a renderer
+		ENQUEUE_RENDER_COMMAND(UDisplayClusterViewportClient_FlushRHIResources)(
+			[](FRHICommandListImmediate& RHICmdList)
+			{
+				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+			});
 	}
 
 	// Handle special viewports game-thread logic at frame end

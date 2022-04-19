@@ -544,7 +544,7 @@ IMPLEMENT_GLOBAL_SHADER(FDistanceFieldAOUpsamplePS, "/Engine/Private/DistanceFie
 
 void UpsampleBentNormalAO(
 	FRDGBuilder& GraphBuilder,
-	const TArray<FViewInfo>& Views,
+	const TArrayView<FViewInfo>& Views,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef DistanceFieldAOBentNormal,

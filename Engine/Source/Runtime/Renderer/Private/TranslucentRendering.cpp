@@ -773,9 +773,9 @@ static void AddUpsampleResponsiveAAPass(
 
 bool FSceneRenderer::ShouldRenderTranslucency() const
 {
-	return  ViewFamily.EngineShowFlags.Translucency
-		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
-		&& !ViewFamily.UseDebugViewPS();
+	return  ActiveViewFamily->EngineShowFlags.Translucency
+		&& !ActiveViewFamily->EngineShowFlags.VisualizeLightCulling
+		&& !ActiveViewFamily->UseDebugViewPS();
 }
 
 bool FSceneRenderer::ShouldRenderTranslucency(ETranslucencyPass::Type TranslucencyPass) const
@@ -1301,13 +1301,13 @@ static void RenderTranslucencyViewInner(
 	PassParameters->View = GetSeparateTranslucencyViewParameters(View, Viewport.Extent, ViewportScale, TranslucencyPass);
 	PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 	PassParameters->BasePass = BasePassParameters;
-	PassParameters->VirtualShadowMapSamplingParameters = SceneRenderer.VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+	PassParameters->VirtualShadowMapSamplingParameters = SceneRenderer.ActiveViewFamily->VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
 	if (TranslucencyPass != ETranslucencyPass::TPT_TranslucencyAfterMotionBlur)
 	{
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 	}
-	PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, SceneRenderer.ViewFamily, nullptr);
+	PassParameters->RenderTargets.ShadingRateTexture = GVRSImageManager.GetVariableRateShadingImage(GraphBuilder, *SceneRenderer.ActiveViewFamily, nullptr);
 	PassParameters->RenderTargets.ResolveRect = FResolveRect(Viewport.Rect);
 
 	const EMeshPass::Type MeshPass = TranslucencyPassToMeshPass(TranslucencyPass);
@@ -1617,7 +1617,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 		SharedDepthTexture = SceneTextures.Depth;
 	}
 
-	if (ViewFamily.AllowTranslucencyAfterDOF())
+	if (ActiveViewFamily->AllowTranslucencyAfterDOF())
 	{
 		RenderTranslucencyInner(GraphBuilder, SceneTextures, TranslucentLightingVolumeTextures, OutTranslucencyResourceMap, SharedDepthTexture, ViewsToRender, SceneColorCopyTexture, ETranslucencyPass::TPT_StandardTranslucency, InstanceCullingManager);
 		if (GetHairStrandsComposition() == EHairStrandsCompositionType::AfterTranslucentBeforeTranslucentAfterDOF)

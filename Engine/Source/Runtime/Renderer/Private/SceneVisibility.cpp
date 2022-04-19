@@ -3351,7 +3351,7 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 }
 
 void FSceneRenderer::GatherDynamicMeshElements(
-	TArray<FViewInfo>& InViews, 
+	TArrayView<FViewInfo>& InViews, 
 	const FScene* InScene, 
 	const FSceneViewFamily& InViewFamily, 
 	FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
@@ -3469,7 +3469,7 @@ void FSceneRenderer::GatherDynamicMeshElements(
 			}
 		}
 	}
-	MeshCollector.ProcessTasks();
+	ActiveViewFamily->MeshCollector.ProcessTasks();
 }
 
 /**
@@ -3527,7 +3527,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 		}
 	}
 
-	if (Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
+	if (Views.Num() > 0 && !ActiveViewFamily->EngineShowFlags.HitProxies)
 	{
 		FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Scene, Views);
 		if (Parameters.HasInstances())
@@ -3536,7 +3536,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 		}
 	}
 
-	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
+	if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && Views.Num() > 0 && !ActiveViewFamily->EngineShowFlags.HitProxies)
 	{
 		// If we are rendering from scene capture we don't need to run another time the hair bookmarks.
 		if (Views[0].AllowGPUParticleUpdate())
@@ -3550,12 +3550,12 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 
 	if (FXSystem && Views.IsValidIndex(0))
 	{
-		FXSystem->PreInitViews(GraphBuilder, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
+		FXSystem->PreInitViews(GraphBuilder, Views[0].AllowGPUParticleUpdate() && !ActiveViewFamily->EngineShowFlags.HitProxies);
 	}
 
 #if WITH_EDITOR
 	// Draw lines to lights affecting this mesh if its selected.
-	if (ViewFamily.EngineShowFlags.LightInfluences)
+	if (ActiveViewFamily->EngineShowFlags.LightInfluences)
 	{
 		for (TConstSetBitIterator<> It(Scene->PrimitivesSelected); It; ++It)
 		{
@@ -3618,10 +3618,10 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 
 		// HighResScreenshot should get best results so we don't do the occlusion optimization based on the former frame
 		extern bool GIsHighResScreenshot;
-		const bool bIsHitTesting = ViewFamily.EngineShowFlags.HitProxies;
+		const bool bIsHitTesting = ActiveViewFamily->EngineShowFlags.HitProxies;
 		// Don't test occlusion queries in collision viewmode as they can be bigger then the rendering bounds.
-		const bool bCollisionView = ViewFamily.EngineShowFlags.CollisionVisibility || ViewFamily.EngineShowFlags.CollisionPawn;
-		if (GIsHighResScreenshot || !DoOcclusionQueries() || bIsHitTesting || bCollisionView || ViewFamily.EngineShowFlags.DisableOcclusionQueries)
+		const bool bCollisionView = ActiveViewFamily->EngineShowFlags.CollisionVisibility || ActiveViewFamily->EngineShowFlags.CollisionPawn;
+		if (GIsHighResScreenshot || !DoOcclusionQueries() || bIsHitTesting || bCollisionView || ActiveViewFamily->EngineShowFlags.DisableOcclusionQueries)
 		{
 			View.bDisableQuerySubmissions = true;
 			View.bIgnoreExistingQueries = true;
@@ -3649,9 +3649,9 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 		if (ViewState)
 		{
 			check(View.bStatePrevViewInfoIsReadOnly);
-			View.bStatePrevViewInfoIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies || bFreezeTemporalHistories;
+			View.bStatePrevViewInfoIsReadOnly = ActiveViewFamily->bWorldIsPaused || ActiveViewFamily->EngineShowFlags.HitProxies || bFreezeTemporalHistories;
 
-			ViewState->SetupDistanceFieldTemporalOffset(ViewFamily);
+			ViewState->SetupDistanceFieldTemporalOffset(*ActiveViewFamily);
 
 			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)
 			{
@@ -3978,7 +3978,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 			// we don't use DeltaTime as it can be 0 (in editor) and is computed by subtracting floats (loses precision over time)
 			// Clamp DeltaWorldTime to reasonable values for the purposes of motion blur, things like TimeDilation can make it very small
 			// Offline renders always control the timestep for the view and always need the timescales calculated.
-			if (!ViewFamily.bWorldIsPaused || View.bIsOfflineRender)
+			if (!ActiveViewFamily->bWorldIsPaused || View.bIsOfflineRender)
 			{
 				ViewState->UpdateMotionBlurTimeScale(View);
 			}
@@ -4333,11 +4333,11 @@ void FSceneRenderer::ComputeViewVisibility(
 	// Allocate the visible light info.
 	if (Scene->Lights.GetMaxIndex() > 0)
 	{
-		VisibleLightInfos.AddDefaulted(Scene->Lights.GetMaxIndex());
+		ActiveViewFamily->VisibleLightInfos.AddDefaulted(Scene->Lights.GetMaxIndex());
 	}
 
 	int32 NumPrimitives = Scene->Primitives.Num();
-	float CurrentRealTime = ViewFamily.Time.GetRealTimeSeconds();
+	float CurrentRealTime = ActiveViewFamily->Time.GetRealTimeSeconds();
 
 	FPrimitiveViewMasks HasDynamicMeshElementsMasks;
 	HasDynamicMeshElementsMasks.AddZeroed(NumPrimitives);
@@ -4447,7 +4447,7 @@ void FSceneRenderer::ComputeViewVisibility(
 
 			if (View.PrecomputedVisibilityData)
 			{
-				bUsedPrecomputedVisibility = true;
+				ActiveViewFamily->bUsedPrecomputedVisibility = true;
 			}
 
 			bool bNeedsFrustumCulling = CVarEnableFrustumCull.GetValueOnRenderThread();
@@ -4639,8 +4639,8 @@ void FSceneRenderer::ComputeViewVisibility(
 	{
 		SCOPED_NAMED_EVENT(FSceneRenderer_GatherDynamicMeshElements, FColor::Yellow);
 		// Gather FMeshBatches from scene proxies
-		GatherDynamicMeshElements(Views, Scene, ViewFamily, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer,
-			HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks, MeshCollector);
+		GatherDynamicMeshElements(Views, Scene, *ActiveViewFamily, DynamicIndexBuffer, DynamicVertexBuffer, DynamicReadBuffer,
+			HasDynamicMeshElementsMasks, HasDynamicEditorMeshElementsMasks, ActiveViewFamily->MeshCollector);
 	}
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -4690,9 +4690,9 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 		}
 	}
 
-	const bool bSetupMobileLightShafts = FeatureLevel <= ERHIFeatureLevel::ES3_1 && ShouldRenderLightShafts(ViewFamily);
+	const bool bSetupMobileLightShafts = FeatureLevel <= ERHIFeatureLevel::ES3_1 && ShouldRenderLightShafts(*ActiveViewFamily);
 
-	if (ViewFamily.EngineShowFlags.HitProxies == 0 && Scene->PrecomputedLightVolumes.Num() > 0
+	if (ActiveViewFamily->EngineShowFlags.HitProxies == 0 && Scene->PrecomputedLightVolumes.Num() > 0
 		&& GILCUpdatePrimTaskEnabled && FPlatformProcess::SupportsMultithreading())
 	{
 		Scene->IndirectLightingCache.StartUpdateCachePrimitivesTask(Scene, *this, true, OutILCTaskData);
@@ -4910,7 +4910,7 @@ void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 		if (FXSystem && FXSystem->RequiresEarlyViewUniformBuffer() && Views.IsValidIndex(0))
 		{
 			Views[0].InitRHIResources();
-			FXSystem->PostInitViews(GraphBuilder, Views, !ViewFamily.EngineShowFlags.HitProxies);
+			FXSystem->PostInitViews(GraphBuilder, Views, !ActiveViewFamily->EngineShowFlags.HitProxies);
 		}
 	}
 
@@ -4932,7 +4932,7 @@ void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 	DispatchToRHIThread();
 
 	// Initialise Sky/View resources before the view global uniform buffer is built.
-	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
+	if (ShouldRenderSkyAtmosphere(Scene, ActiveViewFamily->EngineShowFlags))
 	{
 		InitSkyAtmosphereForViews(RHICmdList);
 	}
@@ -5033,13 +5033,13 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 
 void FDeferredShadingSceneRenderer::InitViewsBeforePrepass(FRDGBuilder& GraphBuilder, FInstanceCullingManager& InstanceCullingManager)
 {
-	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
+	const bool bHasRayTracedOverlay = HasRayTracedOverlay(*ActiveViewFamily);
 
 	if (GEarlyInitDynamicShadows &&
 		CurrentDynamicShadowsTaskData == nullptr &&
-		ViewFamily.EngineShowFlags.DynamicShadows
+		ActiveViewFamily->EngineShowFlags.DynamicShadows
 		&& !IsSimpleForwardShadingEnabled(ShaderPlatform)
-		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ActiveViewFamily->EngineShowFlags.HitProxies
 		&& !bHasRayTracedOverlay)
 	{
 		CurrentDynamicShadowsTaskData = BeginInitDynamicShadows(true);
@@ -5053,11 +5053,11 @@ void FDeferredShadingSceneRenderer::InitViewsAfterPrepass(FRDGBuilder& GraphBuil
 
 	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 
-	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
+	const bool bHasRayTracedOverlay = HasRayTracedOverlay(*ActiveViewFamily);
 
-	if (ViewFamily.EngineShowFlags.DynamicShadows 
+	if (ActiveViewFamily->EngineShowFlags.DynamicShadows 
 		&& !IsSimpleForwardShadingEnabled(ShaderPlatform)
-		&& !ViewFamily.EngineShowFlags.HitProxies
+		&& !ActiveViewFamily->EngineShowFlags.HitProxies
 		&& !bHasRayTracedOverlay)
 	{
 		// Setup dynamic shadows.
@@ -5075,7 +5075,7 @@ void FDeferredShadingSceneRenderer::InitViewsAfterPrepass(FRDGBuilder& GraphBuil
 	}
 
 	// If parallel ILC update is disabled, then process it in place.
-	if (ViewFamily.EngineShowFlags.HitProxies == 0
+	if (ActiveViewFamily->EngineShowFlags.HitProxies == 0
 		&& Scene->PrecomputedLightVolumes.Num() > 0
 		&& !(GILCUpdatePrimTaskEnabled && FPlatformProcess::SupportsMultithreading()))
 	{

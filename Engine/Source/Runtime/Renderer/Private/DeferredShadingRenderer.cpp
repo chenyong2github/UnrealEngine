@@ -368,11 +368,14 @@ const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderP
 	FDeferredShadingSceneRenderer
 -----------------------------------------------------------------------------*/
 
-FDeferredShadingSceneRenderer::FDeferredShadingSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer)
-	: FSceneRenderer(InViewFamily, HitProxyConsumer)
+FDeferredShadingSceneRenderer::FDeferredShadingSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer)
+	: FSceneRenderer(InViewFamilies, HitProxyConsumer)
 	, DepthPass(GetDepthPassInfo(Scene))
 	, bAreLightsInLightGrid(false)
-{}
+{
+	ViewPipelineStates.SetNum(AllFamilyViews.Num());
+	FamilyPipelineStates.SetNum(ViewFamilies.Num());
+}
 
 /** 
 * Renders the view family. 
@@ -417,6 +420,9 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTex
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
 
+	int32 FamilyIndex = GetViewFamilyIndexInScene(*ActiveViewFamily);
+	const FFamilyPipelineState& FamilyPipelineState = *FamilyPipelineStates[FamilyIndex];
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& View = Views[ViewIndex];
@@ -424,7 +430,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTex
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 		FSceneViewState* ViewState = View.ViewState;
-		const FPerViewPipelineState& ViewPipelineState = *ViewPipelineStates[ViewIndex];
+		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 
 
 		if (ViewPipelineState.bClosestHZB || ViewPipelineState.bFurthestHZB)
@@ -472,14 +478,14 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTex
 			}
 		}
 
-		if (FamilyPipelineState->bHZBOcclusion && ViewState && ViewState->HZBOcclusionTests.GetNum() != 0)
+		if (FamilyPipelineState.bHZBOcclusion && ViewState && ViewState->HZBOcclusionTests.GetNum() != 0)
 		{
 			check(ViewState->HZBOcclusionTests.IsValidFrame(ViewState->OcclusionFrameCounter));
 			ViewState->HZBOcclusionTests.Submit(GraphBuilder, View);
 		}
 	}
 
-	return FamilyPipelineState->bHZBOcclusion;
+	return FamilyPipelineState.bHZBOcclusion;
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderOpaqueFXPassParameters, )
@@ -560,16 +566,16 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances);
 	SCOPE_CYCLE_COUNTER(STAT_GatherRayTracingWorldInstances);
 
-	RayTracingCollector.ClearViewMeshArrays();
+	ActiveViewFamily->RayTracingCollector.ClearViewMeshArrays();
 
 	FGPUScenePrimitiveCollector DummyDynamicPrimitiveCollector;
 
-	RayTracingCollector.AddViewMeshArrays(
+	ActiveViewFamily->RayTracingCollector.AddViewMeshArrays(
 		&View,
 		&View.RayTracedDynamicMeshElements,
 		&View.SimpleElementCollector,
 		&DummyDynamicPrimitiveCollector,
-		ViewFamily.GetFeatureLevel(),
+		ActiveViewFamily->GetFeatureLevel(),
 		&DynamicIndexBufferForInitViews,
 		&DynamicVertexBufferForInitViews,
 		&DynamicReadBufferForInitViews
@@ -597,7 +603,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	{
 		Scene,
 		&View,
-		ViewFamily,
+		*ActiveViewFamily,
 		GraphBuilder,
 		*View.RayTracingMeshResourceCollector
 	};
@@ -1421,7 +1427,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 		ReferenceView.AddRayTracingMeshBatchTaskList.Empty();
 	}
 
-	const bool bIsPathTracing = ViewFamily.EngineShowFlags.PathTracing;
+	const bool bIsPathTracing = ActiveViewFamily->EngineShowFlags.PathTracing;
 
 	if (GRHISupportsRayTracingShaders)
 	{
@@ -1437,12 +1443,12 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 		{
 			// This view only needs the path tracing raygen shaders as all other
 			// passes should be disabled.
-			PreparePathTracing(ViewFamily, RayGenShaders);
+			PreparePathTracing(*ActiveViewFamily, RayGenShaders);
 		}
 		else
 		{
 			// Path tracing is disabled, get all other possible raygen shaders
-			PrepareRayTracingDebug(ViewFamily, RayGenShaders);
+			PrepareRayTracingDebug(*ActiveViewFamily, RayGenShaders);
 
 			// These other cases do potentially depend on the camera position since they are
 			// driven by FinalPostProcessSettings, which is why we need to merge them across views
@@ -1459,7 +1465,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 					PrepareRayTracingGlobalIlluminationPlugin(View, RayGenShaders);
 					PrepareRayTracingTranslucency(View, RayGenShaders);
 
-					if (DoesPlatformSupportLumenGI(ShaderPlatform) && Lumen::UseHardwareRayTracing(ViewFamily))
+					if (DoesPlatformSupportLumenGI(ShaderPlatform) && Lumen::UseHardwareRayTracing(*ActiveViewFamily))
 					{
 						PrepareLumenHardwareRayTracingScreenProbeGather(View, RayGenShaders);
 						PrepareLumenHardwareRayTracingRadianceCache(View, RayGenShaders);
@@ -1714,7 +1720,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 		const int32 ReferenceViewIndex = 0;
 		FViewInfo& ReferenceView = Views[ReferenceViewIndex];
 
-		const bool bIsPathTracing = ViewFamily.EngineShowFlags.PathTracing;
+		const bool bIsPathTracing = ActiveViewFamily->EngineShowFlags.PathTracing;
 
 		check(ReferenceView.RayTracingMaterialPipeline || ReferenceView.RayTracingMaterialBindings.Num() == 0);
 
@@ -1862,11 +1868,12 @@ static TAutoConsoleVariable<float> CVarStallInitViews(
 
 void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 {
-	ViewPipelineStates.SetNum(Views.Num());
+	int32 FamilyIndex = GetViewFamilyIndexInScene(*ActiveViewFamily);
+	TPipelineState<FFamilyPipelineState>& FamilyPipelineState = FamilyPipelineStates[FamilyIndex];
 
 	// Family pipeline state
 	{
-		FamilyPipelineState.Set(&FFamilyPipelineState::bNanite, UseNanite(ShaderPlatform)); // TODO: Should this respect ViewFamily.EngineShowFlags.NaniteMeshes?
+		FamilyPipelineState.Set(&FFamilyPipelineState::bNanite, UseNanite(ShaderPlatform)); // TODO: Should this respect ActiveViewFamily->EngineShowFlags.NaniteMeshes?
 
 		static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
 		FamilyPipelineState.Set(&FFamilyPipelineState::bHZBOcclusion, ICVarHZBOcc->GetInt() != 0);	
@@ -1878,7 +1885,7 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
-		TPipelineState<FPerViewPipelineState>& ViewPipelineState = ViewPipelineStates[ViewIndex];
+		TPipelineState<FPerViewPipelineState>& ViewPipelineState = GetViewPipelineStateWritable(View);
 
 		// Commit HZB state
 		{
@@ -1902,9 +1909,11 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 
 	// Commit all the pipeline states.
 	{
-		for (TPipelineState<FPerViewPipelineState>& ViewPipelineState : ViewPipelineStates)
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			ViewPipelineState.Commit();
+			const FViewInfo& View = Views[ViewIndex];
+
+			GetViewPipelineStateWritable(View).Commit();
 		}
 		FamilyPipelineState.Commit();
 	} 
@@ -1912,7 +1921,7 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 
 bool FDeferredShadingSceneRenderer::IsNaniteEnabled() const
 {
-	return UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes && Nanite::GStreamingManager.HasResourceEntries();
+	return UseNanite(ShaderPlatform) && ActiveViewFamily->EngineShowFlags.NaniteMeshes && Nanite::GStreamingManager.HasResourceEntries();
 }
 
 #if WITH_MGPU
@@ -1930,7 +1939,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 #if RHI_RAYTRACING
 	{
-		ERayTracingMeshCommandsMode CurrentMode = ViewFamily.EngineShowFlags.PathTracing ? ERayTracingMeshCommandsMode::PATH_TRACING : ERayTracingMeshCommandsMode::RAY_TRACING;
+		ERayTracingMeshCommandsMode CurrentMode = ActiveViewFamily->EngineShowFlags.PathTracing ? ERayTracingMeshCommandsMode::PATH_TRACING : ERayTracingMeshCommandsMode::RAY_TRACING;
 		bool bNaniteCoarseMeshStreamingModeChanged = false;
 #if WITH_EDITOR
 		bNaniteCoarseMeshStreamingModeChanged = Nanite::FCoarseMeshStreamingManager::CheckStreamingMode();
@@ -1984,7 +1993,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		// Only update Nanite streaming residency for the first view when multiple view rendering (nDisplay) is enabled.
 		// Streaming requests are still accumulated from the remaining views.
-		bUpdateNaniteStreaming =  !ViewFamily.bIsMultipleViewFamily || ViewFamily.bIsFirstViewInMultipleViewFamily;
+		bUpdateNaniteStreaming =  !ActiveViewFamily->bIsMultipleViewFamily || ActiveViewFamily->bIsFirstViewInMultipleViewFamily;
 		if(bUpdateNaniteStreaming)
 		{
 			Nanite::GStreamingManager.BeginAsyncUpdate(GraphBuilder);
@@ -1997,9 +2006,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			if (NaniteVisualization.Update(NaniteViewMode))
 			{
 				// When activating the view modes from the command line, automatically enable the VisualizeNanite show flag for convenience.
-				ViewFamily.EngineShowFlags.SetVisualizeNanite(true);
+				ActiveViewFamily->EngineShowFlags.SetVisualizeNanite(true);
 			}
-			bVisualizeNanite = NaniteVisualization.IsActive() && ViewFamily.EngineShowFlags.VisualizeNanite;
+			bVisualizeNanite = NaniteVisualization.IsActive() && ActiveViewFamily->EngineShowFlags.VisualizeNanite;
 		}
 	}
 
@@ -2008,8 +2017,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Setups the final FViewInfo::ViewRect.
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
-	const bool bPathTracedAtmosphere = ViewFamily.EngineShowFlags.PathTracing && Views.Num() > 0 && Views[0].FinalPostProcessSettings.PathTracingEnableReferenceAtmosphere;
-	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags) && !bPathTracedAtmosphere)
+	const bool bPathTracedAtmosphere = ActiveViewFamily->EngineShowFlags.PathTracing && Views.Num() > 0 && Views[0].FinalPostProcessSettings.PathTracingEnableReferenceAtmosphere;
+	if (ShouldRenderSkyAtmosphere(Scene, ActiveViewFamily->EngineShowFlags) && !bPathTracedAtmosphere)
 	{
 		for (int32 LightIndex = 0; LightIndex < NUM_ATMOSPHERE_LIGHTS; ++LightIndex)
 		{
@@ -2035,13 +2044,13 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	WaitOcclusionTests(GraphBuilder.RHICmdList);
 
-	if (!ViewFamily.EngineShowFlags.Rendering)
+	if (!ActiveViewFamily->EngineShowFlags.Rendering)
 	{
 		return;
 	}
 
 	RDG_EVENT_SCOPE(GraphBuilder, "Scene");
-	RDG_GPU_STAT_SCOPE_VERBOSE(GraphBuilder, Unaccounted, *ViewFamily.ProfileDescription);
+	RDG_GPU_STAT_SCOPE_VERBOSE(GraphBuilder, Unaccounted, *ActiveViewFamily->ProfileDescription);
 	
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Render_Init);
@@ -2057,12 +2066,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RectLightAtlas::UpdateRectLightAtlasTexture(GraphBuilder, FeatureLevel);
 	}
 
-	const FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(ViewFamily);
+	const FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(*ActiveViewFamily);
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Create(GraphBuilder);
 
-	const bool bHasRayTracedOverlay = HasRayTracedOverlay(ViewFamily);
+	const bool bHasRayTracedOverlay = HasRayTracedOverlay(*ActiveViewFamily);
 	const bool bAllowStaticLighting = !bHasRayTracedOverlay && IsStaticLightingAllowed();
 
 	const bool bUseVirtualTexturing = UseVirtualTexturing(FeatureLevel);
@@ -2077,17 +2086,17 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Important that this uses consistent logic throughout the frame, so evaluate once and pass in the flag from here
 	// NOTE: Must be done after  system texture initialization
-	VirtualShadowMapArray.Initialize(GraphBuilder, Scene->VirtualShadowMapArrayCacheManager, UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
+	ActiveViewFamily->VirtualShadowMapArray.Initialize(GraphBuilder, Scene->VirtualShadowMapArrayCacheManager, UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
 
 	// if DDM_AllOpaqueNoVelocity was used, then velocity should have already been rendered as well
 	const bool bIsEarlyDepthComplete = (DepthPass.EarlyZPassMode == DDM_AllOpaque || DepthPass.EarlyZPassMode == DDM_AllOpaqueNoVelocity);
 
 	// Use read-only depth in the base pass if we have a full depth prepass.
 	const bool bAllowReadOnlyDepthBasePass = bIsEarlyDepthComplete
-		&& !ViewFamily.EngineShowFlags.ShaderComplexity
-		&& !ViewFamily.UseDebugViewPS()
-		&& !ViewFamily.EngineShowFlags.Wireframe
-		&& !ViewFamily.EngineShowFlags.LightMapDensity;
+		&& !ActiveViewFamily->EngineShowFlags.ShaderComplexity
+		&& !ActiveViewFamily->UseDebugViewPS()
+		&& !ActiveViewFamily->EngineShowFlags.Wireframe
+		&& !ActiveViewFamily->EngineShowFlags.LightMapDensity;
 
 	const FExclusiveDepthStencil::Type BasePassDepthStencilAccess =
 		bAllowReadOnlyDepthBasePass
@@ -2168,7 +2177,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, GPUSceneUpdate);
 
-		if (!ViewFamily.bIsRenderedImmediatelyAfterAnotherViewFamily)
+		if (!ActiveViewFamily->bIsRenderedImmediatelyAfterAnotherViewFamily)
 		{
 			GraphBuilder.SetFlushResourcesRHI();
 		}
@@ -2205,9 +2214,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
 	
-	const bool bRenderDeferredLighting = ViewFamily.EngineShowFlags.Lighting
+	const bool bRenderDeferredLighting = ActiveViewFamily->EngineShowFlags.Lighting
 		&& FeatureLevel >= ERHIFeatureLevel::SM5
-		&& ViewFamily.EngineShowFlags.DeferredLighting
+		&& ActiveViewFamily->EngineShowFlags.DeferredLighting
 		&& bUseGBuffer
 		&& !bHasRayTracedOverlay;
 
@@ -2222,7 +2231,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 		else
 		{
-			bComputeLightGrid = ViewFamily.EngineShowFlags.Lighting;
+			bComputeLightGrid = ActiveViewFamily->EngineShowFlags.Lighting;
 		}
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -2235,10 +2244,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		bComputeLightGrid |= (
 			ShouldRenderVolumetricFog() ||
-			VolumetricCloudWantsToSampleLocalLights(Scene, ViewFamily.EngineShowFlags) ||
-			ViewFamily.ViewMode != VMI_Lit ||
+			VolumetricCloudWantsToSampleLocalLights(Scene, ActiveViewFamily->EngineShowFlags) ||
+			ActiveViewFamily->ViewMode != VMI_Lit ||
 			bAnyLumenEnabled ||
-			VirtualShadowMapArray.IsEnabled());
+			ActiveViewFamily->VirtualShadowMapArray.IsEnabled());
 	}
 
 	// force using occ queries for wireframe if rendering is parented or frozen in the first view
@@ -2252,8 +2261,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	#endif
 
 	
-	const bool bIsOcclusionTesting = DoOcclusionQueries() && !ViewFamily.EngineShowFlags.DisableOcclusionQueries
-		&& (!ViewFamily.EngineShowFlags.Wireframe || bIsViewFrozen || bHasViewParent);
+	const bool bIsOcclusionTesting = DoOcclusionQueries() && !ActiveViewFamily->EngineShowFlags.DisableOcclusionQueries
+		&& (!ActiveViewFamily->EngineShowFlags.Wireframe || bIsViewFrozen || bHasViewParent);
 	const bool bNeedsPrePass = ShouldRenderPrePass();
 
 	GEngine->GetPreRenderDelegateEx().Broadcast(GraphBuilder);
@@ -2387,7 +2396,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			SharedContext.Pipeline = Nanite::EPipeline::Primary;
 
 			Nanite::FRasterState RasterState;
-			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, RasterTextureSize, ViewFamily.EngineShowFlags.VisualizeNanite);
+			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, RasterTextureSize, ActiveViewFamily->EngineShowFlags.VisualizeNanite);
 
 			Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 			CullingConfig.bTwoPassOcclusion					= true;
@@ -2522,7 +2531,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FCompositionLighting CompositionLighting(Views, SceneTextures, [this] (int32 ViewIndex)
 	{
-		return ViewPipelineStates[ViewIndex]->AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
+		return GetViewPipelineState(Views[ViewIndex]).AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
 	});
 
 	const auto RenderOcclusionLambda = [&]()
@@ -2548,10 +2557,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	BeginAsyncDistanceFieldShadowProjections(GraphBuilder, SceneTextures);
 
-	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags);
-	const bool bShouldRenderVolumetricCloudBase = ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags);
-	const bool bShouldRenderVolumetricCloud = bShouldRenderVolumetricCloudBase && !ViewFamily.EngineShowFlags.VisualizeVolumetricCloudConservativeDensity;
-	const bool bShouldVisualizeVolumetricCloud = bShouldRenderVolumetricCloudBase && !!ViewFamily.EngineShowFlags.VisualizeVolumetricCloudConservativeDensity;
+	const bool bShouldRenderSkyAtmosphere = ShouldRenderSkyAtmosphere(Scene, ActiveViewFamily->EngineShowFlags);
+	const bool bShouldRenderVolumetricCloudBase = ShouldRenderVolumetricCloud(Scene, ActiveViewFamily->EngineShowFlags);
+	const bool bShouldRenderVolumetricCloud = bShouldRenderVolumetricCloudBase && !ActiveViewFamily->EngineShowFlags.VisualizeVolumetricCloudConservativeDensity;
+	const bool bShouldVisualizeVolumetricCloud = bShouldRenderVolumetricCloudBase && !!ActiveViewFamily->EngineShowFlags.VisualizeVolumetricCloudConservativeDensity;
 	bool bAsyncComputeVolumetricCloud = IsVolumetricRenderTargetEnabled() && IsVolumetricRenderTargetAsyncCompute();
 	bool bHasHalfResCheckerboardMinMaxDepth = false;
 	bool bVolumetricRenderTargetRequired = bShouldRenderVolumetricCloud && !bHasRayTracedOverlay;
@@ -2573,7 +2582,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	// Capture the SkyLight using the SkyAtmosphere and VolumetricCloud component if available.
-	const bool bRealTimeSkyCaptureEnabled = Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled && Views.Num() > 0 && ViewFamily.EngineShowFlags.SkyLighting;
+	const bool bRealTimeSkyCaptureEnabled = Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled && Views.Num() > 0 && ActiveViewFamily->EngineShowFlags.SkyLighting;
 	if (bRealTimeSkyCaptureEnabled)
 	{
 		FViewInfo& MainView = Views[0];
@@ -2611,7 +2620,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (IsForwardShadingEnabled(ShaderPlatform))
 	{
 		// With forward shading we need to render shadow maps early
-		ensureMsgf(!VirtualShadowMapArray.IsEnabled(), TEXT("Virtual shadow maps are not supported in the forward shading path"));
+		ensureMsgf(!ActiveViewFamily->VirtualShadowMapArray.IsEnabled(), TEXT("Virtual shadow maps are not supported in the forward shading path"));
 		RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
 
 		if (bHairStrandsEnable && !bHasRayTracedOverlay)
@@ -2696,7 +2705,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				GraphBuilder,
 				Scene,
 				SceneTextures,
-				ViewFamily.EngineShowFlags,
+				ActiveViewFamily->EngineShowFlags,
 				Views,
 				NaniteRasterResults
 			);
@@ -2705,7 +2714,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		// VisualizeVirtualShadowMap TODO
 	}
 
-	if (ViewFamily.EngineShowFlags.VisualizeLightCulling)
+	if (ActiveViewFamily->EngineShowFlags.VisualizeLightCulling)
 	{
 		FRDGTextureRef VisualizeLightCullingTexture = GraphBuilder.CreateTexture(SceneTextures.Color.Target->Desc, TEXT("SceneColorVisualizeLightCulling"));
 		AddClearRenderTargetPass(GraphBuilder, VisualizeLightCullingTexture, FLinearColor::Transparent);
@@ -2768,10 +2777,10 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		// If forward shading is enabled, we rendered shadow maps earlier already
 		if (!IsForwardShadingEnabled(ShaderPlatform))
 		{
-			if (VirtualShadowMapArray.IsEnabled())
+			if (ActiveViewFamily->VirtualShadowMapArray.IsEnabled())
 			{
 				ensureMsgf(AreLightsInLightGrid(), TEXT("Virtual shadow map setup requires local lights to be injected into the light grid (this may be caused by 'r.LightCulling.Quality=0')."));
-				VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, ViewFamily.EngineShowFlags, SortedLightSet, VisibleLightInfos, NaniteRasterResults, *Scene);
+				ActiveViewFamily->VirtualShadowMapArray.BuildPageAllocations(GraphBuilder, SceneTextures, Views, ActiveViewFamily->EngineShowFlags, SortedLightSet, ActiveViewFamily->VisibleLightInfos, NaniteRasterResults, *Scene);
 			}
 
 			RenderShadowDepthMaps(GraphBuilder, InstanceCullingManager);
@@ -2780,7 +2789,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 #if RHI_RAYTRACING
 		// Lumen scene lighting requires ray tracing scene to be ready if HWRT shadows are desired
-		if (Lumen::UseHardwareRayTracedSceneLighting(ViewFamily))
+		if (Lumen::UseHardwareRayTracedSceneLighting(*ActiveViewFamily))
 		{
 			WaitForRayTracingScene(GraphBuilder, DynamicGeometryScratchBuffer);
 			bRayTracingSceneReady = true;
@@ -2810,9 +2819,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		// Do this even if VSMs are disabled this frame to clean up any previously extracted data
 		Scene->VirtualShadowMapArrayCacheManager->ExtractFrameData(
 			GraphBuilder,				
-			VirtualShadowMapArray,
+			ActiveViewFamily->VirtualShadowMapArray,
 			*this,
-			ViewFamily.EngineShowFlags.VirtualShadowMapCaching);
+			ActiveViewFamily->EngineShowFlags.VirtualShadowMapCaching);
 	}
 
 	// If not all depth is written during the prepass, kick off async compute cloud after basepass
@@ -2946,7 +2955,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		if (ShouldRenderRayTracingSkyLight(Scene->SkyLight) 
 			//@todo - integrate RenderRayTracingSkyLight into RenderDiffuseIndirectAndAmbientOcclusion
 			&& GetViewPipelineState(Views[0]).DiffuseIndirectMethod != EDiffuseIndirectMethod::Lumen
-			&& ViewFamily.EngineShowFlags.GlobalIllumination)
+			&& ActiveViewFamily->EngineShowFlags.GlobalIllumination)
 		{
 			FRDGTextureRef SkyLightTexture = nullptr;
 			FRDGTextureRef SkyLightHitDistanceTexture = nullptr;
@@ -2955,7 +2964,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	#endif
 	}
-	else if (HairStrands::HasViewHairStrandsData(Views) && ViewFamily.EngineShowFlags.Lighting)
+	else if (HairStrands::HasViewHairStrandsData(Views) && ActiveViewFamily->EngineShowFlags.Lighting)
 	{
 		RenderLightsForHair(GraphBuilder, SceneTextures, SortedLightSet, ForwardScreenSpaceShadowMaskHairTexture, LightingChannelsTexture);
 		RenderDeferredReflectionsAndSkyLightingHair(GraphBuilder);
@@ -3009,7 +3018,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	FRDGTextureRef LightShaftOcclusionTexture = nullptr;
 
 	// Draw Lightshafts
-	if (!bHasRayTracedOverlay && ViewFamily.EngineShowFlags.LightShafts)
+	if (!bHasRayTracedOverlay && ActiveViewFamily->EngineShowFlags.LightShafts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderLightShaftOcclusion);
 		LightShaftOcclusionTexture = RenderLightShaftOcclusion(GraphBuilder, SceneTextures);
@@ -3023,7 +3032,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	// Draw fog.
-	if (!bHasRayTracedOverlay && ShouldRenderFog(ViewFamily))
+	if (!bHasRayTracedOverlay && ShouldRenderFog(*ActiveViewFamily))
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderFog);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderFog);
@@ -3154,12 +3163,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	if (VirtualShadowMapArray.IsEnabled())
+	if (ActiveViewFamily->VirtualShadowMapArray.IsEnabled())
 	{
-		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder, Views);
+		ActiveViewFamily->VirtualShadowMapArray.RenderDebugInfo(GraphBuilder, Views);
 		if (Views.Num() > 0)
 		{
-			VirtualShadowMapArray.PrintStats(GraphBuilder, Views[0]);
+			ActiveViewFamily->VirtualShadowMapArray.PrintStats(GraphBuilder, Views[0]);
 		}
 	}
 
@@ -3173,7 +3182,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ShadingEnergyConservation::Debug(GraphBuilder, View, SceneTextures);
 	}
 
-	if (!bHasRayTracedOverlay && ViewFamily.EngineShowFlags.LightShafts)
+	if (!bHasRayTracedOverlay && ActiveViewFamily->EngineShowFlags.LightShafts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderLightShaftBloom);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_LightShaftBloom));
@@ -3192,7 +3201,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		// Path tracer requires the full ray tracing pipeline support, as well as specialized extra shaders.
 		// Most of the ray tracing debug visualizations also require the full pipeline, but some support inline mode.
 		
-		if (ViewFamily.EngineShowFlags.PathTracing 
+		if (ActiveViewFamily->EngineShowFlags.PathTracing 
 			&& FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(Scene->GetShaderPlatform()))
 		{
 			for (const FViewInfo& View : Views)
@@ -3200,7 +3209,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				RenderPathTracing(GraphBuilder, View, SceneTextures.UniformBuffer, SceneTextures.Color.Target);
 			}
 		}
-		else if (ViewFamily.EngineShowFlags.RayTracingDebug)
+		else if (ActiveViewFamily->EngineShowFlags.RayTracingDebug)
 		{
 			for (const FViewInfo& View : Views)
 			{
@@ -3212,23 +3221,23 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	RendererModule.RenderOverlayExtensions(GraphBuilder, Views, SceneTextures);
 
-	if (ViewFamily.EngineShowFlags.PhysicsField && Scene->PhysicsField)
+	if (ActiveViewFamily->EngineShowFlags.PhysicsField && Scene->PhysicsField)
 	{
 		RenderPhysicsField(GraphBuilder, Views, Scene->PhysicsField, SceneTextures.Color.Target);
 	}
 
-	if (ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO && ShouldRenderDistanceFieldLighting())
+	if (ActiveViewFamily->EngineShowFlags.VisualizeDistanceFieldAO && ShouldRenderDistanceFieldLighting())
 	{
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_RenderDistanceFieldLighting));
 
 		// Use the skylight's max distance if there is one, to be consistent with DFAO shadowing on the skylight
 		const float OcclusionMaxDistance = Scene->SkyLight && !Scene->SkyLight->bWantsStaticShadowing ? Scene->SkyLight->OcclusionMaxDistance : Scene->DefaultMaxDistanceFieldOcclusionDistance;
 		FRDGTextureRef DummyOutput = nullptr;
-		RenderDistanceFieldLighting(GraphBuilder, SceneTextures, FDistanceFieldAOParameters(OcclusionMaxDistance), DummyOutput, false, ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO);
+		RenderDistanceFieldLighting(GraphBuilder, SceneTextures, FDistanceFieldAOParameters(OcclusionMaxDistance), DummyOutput, false, ActiveViewFamily->EngineShowFlags.VisualizeDistanceFieldAO);
 	}
 
 	// Draw visualizations just before use to avoid target contamination
-	if (ViewFamily.EngineShowFlags.VisualizeMeshDistanceFields || ViewFamily.EngineShowFlags.VisualizeGlobalDistanceField)
+	if (ActiveViewFamily->EngineShowFlags.VisualizeMeshDistanceFields || ActiveViewFamily->EngineShowFlags.VisualizeGlobalDistanceField)
 	{
 		RenderMeshDistanceFieldVisualization(GraphBuilder, SceneTextures, FDistanceFieldAOParameters(Scene->DefaultMaxDistanceFieldOcclusionDistance));
 	}
@@ -3239,7 +3248,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, LumenFrameTemporaries, LightingChannelsTexture, /* bIsVisualizePass = */ true);
 	}
 
-	if (ViewFamily.EngineShowFlags.StationaryLightOverlap)
+	if (ActiveViewFamily->EngineShowFlags.StationaryLightOverlap)
 	{
 		RenderStationaryLightOverlap(GraphBuilder, SceneTextures, LightingChannelsTexture);
 	}
@@ -3257,9 +3266,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	RendererModule.RenderPostResolvedSceneColorExtension(GraphBuilder, SceneTextures);
 
-	FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, ViewFamily);
+	FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, *ActiveViewFamily);
 
-	CopySceneCaptureComponentToTarget(GraphBuilder, SceneTextures, ViewFamilyTexture, ViewFamily, Views);
+	CopySceneCaptureComponentToTarget(GraphBuilder, SceneTextures, ViewFamilyTexture, *ActiveViewFamily, Views);
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
@@ -3278,7 +3287,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	// Finish rendering for each view.
-	if (ViewFamily.bResolveScene && ViewFamilyTexture)
+	if (ActiveViewFamily->bResolveScene && ViewFamilyTexture)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "PostProcessing");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, Postprocessing);
@@ -3291,7 +3300,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		PostProcessingInputs.CustomDepthTexture = SceneTextures.CustomDepth.Depth;
 		PostProcessingInputs.SceneTextures = SceneTextures.UniformBuffer;
 
-		if (ViewFamily.UseDebugViewPS())
+		if (ActiveViewFamily->UseDebugViewPS())
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
@@ -3305,14 +3314,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 		else
 		{
-			for (int32 ViewExt = 0; ViewExt < ViewFamily.ViewExtensions.Num(); ++ViewExt)
+			for (int32 ViewExt = 0; ViewExt < ActiveViewFamily->ViewExtensions.Num(); ++ViewExt)
 			{
-				for (int32 ViewIndex = 0; ViewIndex < ViewFamily.Views.Num(); ++ViewIndex)
+				for (int32 ViewIndex = 0; ViewIndex < ActiveViewFamily->Views.Num(); ++ViewIndex)
 				{
 					FViewInfo& View = Views[ViewIndex];
 					RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 					PostProcessingInputs.TranslucencyViewResourcesMap = FTranslucencyViewResourcesMap(TranslucencyResourceMap, ViewIndex);
-					ViewFamily.ViewExtensions[ViewExt]->PrePostProcessPass_RenderThread(GraphBuilder, View, PostProcessingInputs);
+					ActiveViewFamily->ViewExtensions[ViewExt]->PrePostProcessPass_RenderThread(GraphBuilder, View, PostProcessingInputs);
 				}
 			}
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -3336,7 +3345,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 					const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 					const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
 
-					AddPostProcessingPasses(GraphBuilder, View, ViewIndex, bAnyLumenActive, PostProcessingInputs, NaniteResults, InstanceCullingManager, &VirtualShadowMapArray, LumenFrameTemporaries);
+					AddPostProcessingPasses(GraphBuilder, View, ViewIndex, bAnyLumenActive, PostProcessingInputs, NaniteResults, InstanceCullingManager, &ActiveViewFamily->VirtualShadowMapArray, LumenFrameTemporaries);
 				}
 			}
 		}

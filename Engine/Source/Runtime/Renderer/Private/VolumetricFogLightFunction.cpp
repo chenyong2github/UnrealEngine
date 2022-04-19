@@ -156,7 +156,7 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
 
-		if (ViewFamily.EngineShowFlags.LightFunctions
+		if (ActiveViewFamily->EngineShowFlags.LightFunctions
 			&& LightSceneInfo
 			&& LightSceneInfo->Proxy
 			// Band-aid fix for extremely rare case that light scene proxy contains NaNs.

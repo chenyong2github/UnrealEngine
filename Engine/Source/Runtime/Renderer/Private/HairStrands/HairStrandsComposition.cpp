@@ -566,7 +566,7 @@ static void InternalRenderHairComposition(
 
 void RenderHairComposition(
 	FRDGBuilder& GraphBuilder,
-	const TArray<FViewInfo>& Views,
+	const TArrayView<FViewInfo>& Views,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture)
 {

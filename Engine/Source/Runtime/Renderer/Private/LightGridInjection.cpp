@@ -414,12 +414,12 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 					// pack light type in this uint32 as well
 					LightTypeAndShadowMapChannelMaskPacked |= SortedLightInfo.SortKey.Fields.LightType << 16;
 
-					const bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows && VisibleLightInfos.IsValidIndex(LightSceneInfo->Id);
-					const int32 VirtualShadowMapId = bDynamicShadows ? VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId( &View ) : INDEX_NONE;
+					const bool bDynamicShadows = ActiveViewFamily->EngineShowFlags.DynamicShadows && ActiveViewFamily->VisibleLightInfos.IsValidIndex(LightSceneInfo->Id);
+					const int32 VirtualShadowMapId = bDynamicShadows ? ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId( &View ) : INDEX_NONE;
 
-					if ((SortedLightInfo.SortKey.Fields.LightType == LightType_Point && ViewFamily.EngineShowFlags.PointLights) ||
-						(SortedLightInfo.SortKey.Fields.LightType == LightType_Spot && ViewFamily.EngineShowFlags.SpotLights) ||
-						(SortedLightInfo.SortKey.Fields.LightType == LightType_Rect && ViewFamily.EngineShowFlags.RectLights))
+					if ((SortedLightInfo.SortKey.Fields.LightType == LightType_Point && ActiveViewFamily->EngineShowFlags.PointLights) ||
+						(SortedLightInfo.SortKey.Fields.LightType == LightType_Spot && ActiveViewFamily->EngineShowFlags.SpotLights) ||
+						(SortedLightInfo.SortKey.Fields.LightType == LightType_Rect && ActiveViewFamily->EngineShowFlags.RectLights))
 					{
 						ForwardLocalLightData.AddUninitialized(1);
 						FForwardLocalLightData& LightData = ForwardLocalLightData.Last();
@@ -449,7 +449,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 
 						float VolumetricScatteringIntensity = LightProxy->GetVolumetricScatteringIntensity();
 
-						if (LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(View, LightSceneInfo, VisibleLightInfos[LightSceneInfo->Id]) 
+						if (LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(View, LightSceneInfo, ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id])
 							|| (LightNeedsSeparateInjectionIntoVolumetricFogForLightFunction(LightSceneInfo) && CheckForLightFunction(LightSceneInfo)))
 						{
 							// Disable this lights forward shading volumetric scattering contribution
@@ -478,7 +478,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 						ViewSpaceDirAndPreprocAngleData.Add(ViewSpaceDirAndPreprocAngle);
 #endif // ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 					}
-					else if (SortedLightInfo.SortKey.Fields.LightType == LightType_Directional && ViewFamily.EngineShowFlags.DirectionalLights)
+					else if (SortedLightInfo.SortKey.Fields.LightType == LightType_Directional && ActiveViewFamily->EngineShowFlags.DirectionalLights)
 					{
 						// The selected forward directional light is also used for volumetric lighting using ForwardLightData UB.
 						// Also some people noticed that depending on the order a two directional lights are made visible in a level, the selected light for volumetric fog lighting will be different.
@@ -520,7 +520,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 
 							if (bDynamicShadows)
 							{
-								const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& DirectionalLightShadowInfos = VisibleLightInfos[LightSceneInfo->Id].AllProjectedShadows;
+								const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& DirectionalLightShadowInfos = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id].AllProjectedShadows;
 
 								ForwardLightData->DirectionalLightVSM = VirtualShadowMapId;
 
@@ -604,7 +604,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 		ForwardLightData->LightGridPixelSizeShift = FMath::FloorLog2(GLightGridPixelSize);
 		ForwardLightData->SimpleLightsEndIndex = SimpleLightsEnd;
 		ForwardLightData->ClusteredDeferredSupportedEndIndex = ClusteredSupportedEnd;
-		ForwardLightData->DirectLightingShowFlag = ViewFamily.EngineShowFlags.DirectLighting ? 1 : 0;
+		ForwardLightData->DirectLightingShowFlag = ActiveViewFamily->EngineShowFlags.DirectLighting ? 1 : 0;
 
 		// Clamp far plane to something reasonable
 		const float KilometersToCentimeters = 100000.0f;
@@ -765,7 +765,7 @@ void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder&
 {
 	bool bShadowedLightsInClustered = ShouldUseClusteredDeferredShading()
 		&& CVarVirtualShadowOnePassProjection.GetValueOnRenderThread()
-		&& VirtualShadowMapArray.IsEnabled();
+		&& ActiveViewFamily->VirtualShadowMapArray.IsEnabled();
 
 	GatherAndSortLights(SortedLightSet, bShadowedLightsInClustered);
 	
@@ -784,12 +784,13 @@ void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder&
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
-		bAnyViewUsesForwardLighting |= View.bTranslucentSurfaceLighting || ShouldRenderVolumetricFog() || View.bHasSingleLayerWaterMaterial || VolumetricCloudWantsToSampleLocalLights(Scene, ViewFamily.EngineShowFlags);
+		bAnyViewUsesForwardLighting |= View.bTranslucentSurfaceLighting || ShouldRenderVolumetricFog() || View.bHasSingleLayerWaterMaterial || VolumetricCloudWantsToSampleLocalLights(Scene, ActiveViewFamily->EngineShowFlags);
 		bAnyViewUsesLumen |= GetViewPipelineState(View).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::Lumen;
 	}
 	
 	const bool bCullLightsToGrid = GLightCullingQuality 
-		&& (IsForwardShadingEnabled(ShaderPlatform) || bAnyViewUsesForwardLighting || IsRayTracingEnabled() || ShouldUseClusteredDeferredShading() || bAnyViewUsesLumen || ViewFamily.EngineShowFlags.VisualizeMeshDistanceFields || VirtualShadowMapArray.IsEnabled());
+		&& (IsForwardShadingEnabled(ShaderPlatform) || bAnyViewUsesForwardLighting || IsRayTracingEnabled() || ShouldUseClusteredDeferredShading() ||
+			bAnyViewUsesLumen || ActiveViewFamily->EngineShowFlags.VisualizeMeshDistanceFields || ActiveViewFamily->VirtualShadowMapArray.IsEnabled());
 
 	// Store this flag if lights are injected in the grids, check with 'AreLightsInLightGrid()'
 	bAreLightsInLightGrid = bCullLightsToGrid;
@@ -814,7 +815,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 	{
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		const FLightSceneInfo* const LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
-		const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
+		const FVisibleLightInfo& VisibleLightInfo = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
 
 		bScreenShadowMaskNeeded |= VisibleLightInfo.ShadowsToProject.Num() > 0 || VisibleLightInfo.CapsuleShadowsToProject.Num() > 0 || LightSceneInfo->Proxy->GetLightFunctionMaterial() != nullptr;
 	}
@@ -852,7 +853,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 		{
 			const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 			const FLightSceneInfo* const LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
-			FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
+			FVisibleLightInfo& VisibleLightInfo = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id];
 
 			const bool bIssueLightDrawEvent = VisibleLightInfo.ShadowsToProject.Num() > 0 || VisibleLightInfo.CapsuleShadowsToProject.Num() > 0;
 

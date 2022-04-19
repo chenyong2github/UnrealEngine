@@ -425,7 +425,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 
 		extern int32 GLumenSceneSurfaceCacheResampleLighting;
 		const bool bResample = GLumenSceneSurfaceCacheResampleLighting != 0 && ResampledCardCaptureAtlas.DirectLighting != nullptr;
-		const bool bRadiosityEnabled = Lumen::IsRadiosityEnabled(ViewFamily);
+		const bool bRadiosityEnabled = Lumen::IsRadiosityEnabled(*ActiveViewFamily);
 
 		FCopyCardCaptureLightingToAtlasParameters* PassParameters = GraphBuilder.AllocParameters<FCopyCardCaptureLightingToAtlasParameters>();
 

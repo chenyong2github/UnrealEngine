@@ -181,7 +181,7 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyPS,TEXT("/Engine/Private/HitProxyPixelS
 
 void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRenderer, const FSceneTexturesConfig& SceneTexturesConfig, FRDGTextureRef& OutHitProxyTexture, FRDGTextureRef& OutHitProxyDepthTexture)
 {
-	auto& ViewFamily = SceneRenderer->ViewFamily;
+	auto& ViewFamily = *SceneRenderer->ActiveViewFamily;
 	auto FeatureLevel = ViewFamily.Scene->GetFeatureLevel();
 
 	// Ensure VirtualTexture resources are allocated
@@ -262,7 +262,7 @@ static void DoRenderHitProxies(
 	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults,
 	FInstanceCullingManager& InstanceCullingManager)
 {
-	auto& ViewFamily = SceneRenderer->ViewFamily;
+	auto& ViewFamily = *SceneRenderer->ActiveViewFamily;
 	auto& Views = SceneRenderer->Views;
 	const auto FeatureLevel = SceneRenderer->FeatureLevel;
 	const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[FeatureLevel]);
@@ -570,7 +570,7 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 #if WITH_EDITOR
-	FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(ViewFamily);
+	FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(*ActiveViewFamily);
 
 	FRDGTextureRef HitProxyTexture = nullptr;
 	FRDGTextureRef HitProxyDepthTexture = nullptr;
@@ -610,7 +610,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 #if WITH_EDITOR
-	const FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(ViewFamily);
+	const FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(*ActiveViewFamily);
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
 	FRDGTextureRef HitProxyTexture = nullptr;

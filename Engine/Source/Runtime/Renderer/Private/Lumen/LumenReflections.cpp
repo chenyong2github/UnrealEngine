@@ -941,7 +941,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	ReflectionTracingParameters.RWTraceHit = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.TraceHit));
 
 	const bool bTraceMeshObjects = GLumenReflectionTraceMeshSDFs != 0 
-		&& Lumen::UseMeshSDFTracing(ViewFamily) 
+		&& Lumen::UseMeshSDFTracing(*ActiveViewFamily)
 		// HZB is only built to include opaque but is used to cull Mesh SDFs
 		&& ReflectionPass == ELumenReflectionPass::Opaque;
 

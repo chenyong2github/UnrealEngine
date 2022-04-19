@@ -240,7 +240,7 @@ bool FDeferredShadingSceneRenderer::RenderLightFunction(
 	bool bProjectingForForwardShading,
 	bool bUseHairStrands)
 {
-	if (ViewFamily.EngineShowFlags.LightFunctions)
+	if (ActiveViewFamily->EngineShowFlags.LightFunctions)
 	{
 		return RenderLightFunctionForMaterial(GraphBuilder, SceneTextures, LightSceneInfo, ScreenShadowMaskTexture, LightSceneInfo->Proxy->GetLightFunctionMaterial(), bLightAttenuationCleared, bProjectingForForwardShading, false, bUseHairStrands);
 	}

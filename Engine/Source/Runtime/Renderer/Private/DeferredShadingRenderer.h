@@ -210,7 +210,7 @@ public:
 
 	FLumenCardRenderer LumenCardRenderer;
 
-	FDeferredShadingSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer);
+	FDeferredShadingSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer);
 
 	/** Determine and commit the final state of the pipeline for the view family and views. */
 	void CommitFinalPipelineState();
@@ -368,16 +368,36 @@ private:
 	/** Pipeline states that describe the high level topology of the entire renderer.
 	 *
 	 * Once initialized by CommitFinalPipelineState(), it becomes immutable for the rest of the execution of the renderer.
+	 * The ViewPipelineStates array corresponds to AllFamilyViews in the FSceneRenderer.  Use "GetViewPipelineState" or
+	 * "GetViewPipelineStateWritable" to access the pipeline state for a specific View.
 	 */
 	TArray<TPipelineState<FPerViewPipelineState>, TInlineAllocator<1>> ViewPipelineStates;
-	TPipelineState<FFamilyPipelineState> FamilyPipelineState;
+	TArray<TPipelineState<FFamilyPipelineState>, TInlineAllocator<1>> FamilyPipelineStates;
+
+	FORCEINLINE int32 GetViewIndexInScene(const FViewInfo& ViewInfo) const
+	{
+		const FViewInfo* BasePointer = AllFamilyViews.GetData();
+		check(&ViewInfo >= BasePointer && &ViewInfo < BasePointer + AllFamilyViews.Num());
+		int32 ViewIndex = &ViewInfo - BasePointer;
+		return ViewIndex;
+	}
+
+	FORCEINLINE int32 GetViewFamilyIndexInScene(const FViewFamilyInfo& ViewFamily) const
+	{
+		const FViewFamilyInfo* BasePointer = ViewFamilies.GetData();
+		check(&ViewFamily >= BasePointer && &ViewFamily < BasePointer + ViewFamilies.Num());
+		int32 FamilyIndex = &ViewFamily - BasePointer;
+		return FamilyIndex;
+	}
 
 	FORCEINLINE const FPerViewPipelineState& GetViewPipelineState(const FViewInfo& View) const
 	{
-		int32 ViewIndex = 0;
-		bool bFound = ViewFamily.Views.Find(&View, ViewIndex);
-		check(bFound);
-		return *ViewPipelineStates[ViewIndex];
+		return *ViewPipelineStates[GetViewIndexInScene(View)];
+	}
+
+	FORCEINLINE TPipelineState<FPerViewPipelineState>& GetViewPipelineStateWritable(const FViewInfo& View)
+	{
+		return ViewPipelineStates[GetViewIndexInScene(View)];
 	}
 
 	virtual bool IsLumenEnabled(const FViewInfo& View) const override

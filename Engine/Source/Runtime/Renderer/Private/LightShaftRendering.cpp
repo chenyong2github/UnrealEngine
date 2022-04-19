@@ -427,7 +427,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLightShaftOcclusion(
 {
 	FScreenPassRenderTarget Output;
 
-	if (ShouldRenderLightShafts(ViewFamily))
+	if (ShouldRenderLightShafts(*ActiveViewFamily))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "LightShafts (Occlusion)");
 
@@ -531,7 +531,7 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 	const FMinimalSceneTextures& SceneTextures,
 	FTranslucencyPassResourcesMap& OutTranslucencyResourceMap)
 {
-	if (ShouldRenderLightShafts(ViewFamily))
+	if (ShouldRenderLightShafts(*ActiveViewFamily))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "LightShafts (Bloom)");
 
@@ -563,7 +563,7 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 					float OutputViewRectScale = 1.0f;
 
 					// Render to separate translucency buffer instead of scene color if requested.
-					const ELightShaftBloomOutput BloomOutput = GetLightShaftBloomOutput(ViewFamily);
+					const ELightShaftBloomOutput BloomOutput = GetLightShaftBloomOutput(*ActiveViewFamily);
 					bool bUpdateViewsSeparateTranslucency = false;
 					if (BloomOutput == ELightShaftBloomOutput::SeparateTranslucency)
 					{

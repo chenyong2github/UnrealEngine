@@ -448,6 +448,6 @@ namespace HairStrands
 	bool HasHairCardsVisible(const TArrayView<FViewInfo>& Views);
 	bool HasHairStrandsVisible(const TArrayView<FViewInfo>& Views);
 
-	void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FLightSceneInfo* LightSceneInfo);
-	void AddVisibleShadowCastingLight(const FScene& Scene, TArray<FViewInfo>& Views, const FSphere& Bounds);
+	void AddVisibleShadowCastingLight(const FScene& Scene, TArrayView<FViewInfo>& Views, const FLightSceneInfo* LightSceneInfo);
+	void AddVisibleShadowCastingLight(const FScene& Scene, TArrayView<FViewInfo>& Views, const FSphere& Bounds);
 }

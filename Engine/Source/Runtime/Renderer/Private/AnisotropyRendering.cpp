@@ -258,7 +258,7 @@ bool ShouldRenderAnisotropyPass(const FViewInfo& View)
 	return false;
 }
 
-bool ShouldRenderAnisotropyPass(const TArray<FViewInfo>& Views)
+bool ShouldRenderAnisotropyPass(const TArrayView<FViewInfo>& Views)
 {
 	for (const FViewInfo& View : Views)
 	{

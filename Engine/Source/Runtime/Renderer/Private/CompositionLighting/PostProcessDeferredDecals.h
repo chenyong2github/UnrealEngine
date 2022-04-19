@@ -82,4 +82,4 @@ void RenderMeshDecals(
 void ExtractNormalsForNextFrameReprojection(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
-	const TArray<FViewInfo>& Views);
+	const TArrayView<FViewInfo>& Views);

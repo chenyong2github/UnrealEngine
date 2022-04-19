@@ -127,7 +127,7 @@ namespace DistanceField
 
 	FDistanceFieldObjectBufferParameters SetupObjectBufferParameters(const FDistanceFieldSceneData& DistanceFieldSceneData);
 	FDistanceFieldAtlasParameters SetupAtlasParameters(const FDistanceFieldSceneData& DistanceFieldSceneData);
-	void BuildUpdateTrackingBounds(const TArray<FViewInfo>& Views, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
+	void BuildUpdateTrackingBounds(const TArrayView<FViewInfo>& Views, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldCulledObjectBufferParameters, )

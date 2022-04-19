@@ -189,7 +189,7 @@ namespace LumenRadiosity
 	void AddRadiosityPass(
 		FRDGBuilder& GraphBuilder,
 		const FScene* Scene,
-		const TArray<FViewInfo>& Views,
+		const TArrayView<FViewInfo>& Views,
 		bool bRenderSkylight,
 		FLumenSceneData& LumenSceneData,
 		FRDGTextureRef RadiosityAtlas,
@@ -592,7 +592,7 @@ FRDGTextureRef RegisterOrCreateRadiosityAtlas(
 void LumenRadiosity::AddRadiosityPass(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
-	const TArray<FViewInfo>& Views,
+	const TArrayView<FViewInfo>& Views,
 	bool bRenderSkylight,
 	FLumenSceneData& LumenSceneData,
 	FRDGTextureRef RadiosityAtlas,
@@ -1015,7 +1015,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 
 	extern int32 GLumenSceneRecaptureLumenSceneEveryFrame;
 
-	if (Lumen::IsRadiosityEnabled(ViewFamily) 
+	if (Lumen::IsRadiosityEnabled(*ActiveViewFamily) 
 		&& LumenSceneData.bFinalLightingAtlasContentsValid)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Radiosity");
@@ -1024,14 +1024,14 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 		{
 			FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);
 
-			if (ViewTracingInputs.NumClipmapLevels == 0 && !Lumen::UseHardwareRayTracedRadiosity(ViewFamily))
+			if (ViewTracingInputs.NumClipmapLevels == 0 && !Lumen::UseHardwareRayTracedRadiosity(*ActiveViewFamily))
 			{
 				// First frame since enabling, initialize voxel lighting since we won't have anything from last frame
 				ComputeLumenSceneVoxelLighting(GraphBuilder, View, FrameTemporaries, TracingInputs, ViewTracingInputs);
 			}
 		}
 
-		const bool bRenderSkylight = Lumen::ShouldHandleSkyLight(Scene, ViewFamily);
+		const bool bRenderSkylight = Lumen::ShouldHandleSkyLight(Scene, *ActiveViewFamily);
 
 		LumenRadiosity::AddRadiosityPass(
 			GraphBuilder,

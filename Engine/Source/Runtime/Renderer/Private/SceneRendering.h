@@ -1832,22 +1832,13 @@ struct FOcclusionSubmittedFenceState
 };
 
 /**
- * Used as the scope for scene rendering functions.
- * It is initialized in the game thread by FSceneViewFamily::BeginRender, and then passed to the rendering thread.
- * The rendering thread calls Render(), and deletes the scene renderer when it returns.
+ * View family plus auxiliary data used during scene rendering.
  */
-class FSceneRenderer
+class FViewFamilyInfo : public FSceneViewFamily
 {
 public:
-
-	/** The scene being rendered. */
-	FScene* Scene;
-
-	/** The view family being rendered.  This references the Views array. */
-	FSceneViewFamily ViewFamily;
-
-	/** The views being rendered. */
-	TArray<FViewInfo> Views;
+	FViewFamilyInfo(const FSceneViewFamily& InViewFamily);
+	virtual ~FViewFamilyInfo();
 
 	FMeshElementCollector MeshCollector;
 
@@ -1869,8 +1860,38 @@ public:
 	/** True if precomputed visibility was used when rendering the scene. */
 	bool bUsedPrecomputedVisibility;
 
+	bool bShadowDepthRenderCompleted;
+
 	/** Lights added if wholescenepointlight shadow would have been rendered (ignoring r.SupportPointLightWholeSceneShadows). Used for warning about unsupported features. */	
 	TArray<FString, SceneRenderingAllocator> UsedWholeScenePointLightNames;
+
+	/** Size of the family. */
+	FIntPoint FamilySize;
+};
+
+/**
+ * Used as the scope for scene rendering functions.
+ * It is initialized in the game thread by FSceneViewFamily::BeginRender, and then passed to the rendering thread.
+ * The rendering thread calls Render(), and deletes the scene renderer when it returns.
+ */
+class FSceneRenderer
+{
+public:
+
+	/** The scene being rendered. */
+	FScene* Scene;
+
+	/** The view families being rendered.  This references the AllFamilyViews array. */
+	TArray<FViewFamilyInfo> ViewFamilies;
+
+	/** The views being rendered, across all view families */
+	TArray<FViewInfo> AllFamilyViews;
+
+	/** Active view family.  References ViewFamilies array. */
+	FViewFamilyInfo* ActiveViewFamily;
+
+	/** Views for active view family.  References SceneViews array. */
+	TArrayView<FViewInfo> Views;
 
 	/** Feature level being rendered */
 	ERHIFeatureLevel::Type FeatureLevel;
@@ -1885,7 +1906,7 @@ public:
 
 public:
 
-	FSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer);
+	FSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer);
 	virtual ~FSceneRenderer();
 
 	// Initializes the scene renderer on the render thread.
@@ -1902,6 +1923,7 @@ public:
 
 	/** Creates a scene renderer based on the current feature level. */
 	RENDERER_API static FSceneRenderer* CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
+	RENDERER_API static FSceneRenderer* CreateSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer);
 
 	/** Setups FViewInfo::ViewRect according to ViewFamilly's ScreenPercentageInterface. */
 	void PrepareViewRectsForRendering(FRHICommandListImmediate& RHICmdList);
@@ -2019,10 +2041,10 @@ public:
 			? ERDGBuilderFlags::None
 			: ERDGBuilderFlags::AllowParallelExecute;
 	}
-protected:
 
-	/** Size of the family. */
-	FIntPoint FamilySize;
+	void SetActiveViewFamily(FViewFamilyInfo& ViewFamily);
+
+protected:
 
 #if WITH_MGPU
 	FRHIGPUMask AllViewsGPUMask;
@@ -2137,7 +2159,7 @@ protected:
 	void UpdatePreshadowCache();
 
 	/** Gathers simple lights from visible primtives in the passed in views. */
-	static void GatherSimpleLights(const FSceneViewFamily& ViewFamily, const TArray<FViewInfo>& Views, FSimpleLightArray& SimpleLights);
+	static void GatherSimpleLights(const FSceneViewFamily& ViewFamily, const TArrayView<FViewInfo>& Views, FSimpleLightArray& SimpleLights);
 
 	/** Calculates projected shadow visibility. */
 	void InitProjectedShadowVisibility();
@@ -2156,7 +2178,7 @@ protected:
 	void PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTaskData);
 
 	void GatherDynamicMeshElements(
-		TArray<FViewInfo>& InViews, 
+		TArrayView<FViewInfo>& InViews, 
 		const FScene* InScene, 
 		const FSceneViewFamily& InViewFamily, 
 		FGlobalDynamicIndexBuffer& DynamicIndexBuffer,
@@ -2245,7 +2267,7 @@ protected:
 
 	void CheckShadowDepthRenderCompleted() const
 	{
-		checkf(bShadowDepthRenderCompleted, TEXT("Shadow depth rendering was not done before shadow projections, this will cause severe shadow artifacts and indicates an engine bug (pass ordering)"));
+		checkf(ActiveViewFamily->bShadowDepthRenderCompleted, TEXT("Shadow depth rendering was not done before shadow projections, this will cause severe shadow artifacts and indicates an engine bug (pass ordering)"));
 	}
 
 private:
@@ -2255,7 +2277,6 @@ private:
 	/** Dump all UPrimitiveComponents in the Scene to a CSV file */
 	void DumpPrimitives(const FViewCommands& ViewCommands);
 #endif
-	bool bShadowDepthRenderCompleted;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FSceneOnScreenMessagesDelegate, FScreenMessageWriter&);
 	FSceneOnScreenMessagesDelegate OnGetOnScreenMessages;
@@ -2297,7 +2318,7 @@ class FMobileSceneRenderer : public FSceneRenderer
 {
 public:
 
-	FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,FHitProxyConsumer* HitProxyConsumer);
+	FMobileSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer);
 
 	// FSceneRenderer interface
 

@@ -378,7 +378,7 @@ void FDeferredShadingSceneRenderer::CommitIndirectLightingState()
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		const FViewInfo& View = Views[ViewIndex];
-		TPipelineState<FPerViewPipelineState>& ViewPipelineState = ViewPipelineStates[ViewIndex];
+		TPipelineState<FPerViewPipelineState>& ViewPipelineState = GetViewPipelineStateWritable(View);
 
 		EDiffuseIndirectMethod DiffuseIndirectMethod = EDiffuseIndirectMethod::Disabled;
 		EAmbientOcclusionMethod AmbientOcclusionMethod = EAmbientOcclusionMethod::Disabled;
@@ -1496,10 +1496,10 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	FRDGTextureRef DynamicBentNormalAOTexture)
 {
 	extern int32 GLumenVisualizeIndirectDiffuse;
-	if (ViewFamily.EngineShowFlags.VisualizeLightCulling 
-		|| ViewFamily.EngineShowFlags.RayTracingDebug
-		|| ViewFamily.EngineShowFlags.PathTracing
-		|| !ViewFamily.EngineShowFlags.Lighting
+	if (ActiveViewFamily->EngineShowFlags.VisualizeLightCulling 
+		|| ActiveViewFamily->EngineShowFlags.RayTracingDebug
+		|| ActiveViewFamily->EngineShowFlags.PathTracing
+		|| !ActiveViewFamily->EngineShowFlags.Lighting
 		|| GLumenVisualizeIndirectDiffuse != 0)
 	{
 		return;
@@ -1517,7 +1517,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 		&& (Scene->SkyLight->ProcessedTexture || Scene->SkyLight->bRealTimeCaptureEnabled)
 		&& !Scene->SkyLight->bHasStaticLighting;
 
-	bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily) && AnyViewHasGIMethodSupportingDFAO();
+	bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, *ActiveViewFamily) && AnyViewHasGIMethodSupportingDFAO();
 	bool bApplySkyShadowing = false;
 	if (bDynamicSkyLight)
 	{
@@ -1529,7 +1529,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 			&& !GDistanceFieldAOApplyToStaticIndirect
 			&& ShouldRenderDistanceFieldAO()
 			&& ShouldRenderDistanceFieldLighting()
-			&& ViewFamily.EngineShowFlags.AmbientOcclusion
+			&& ActiveViewFamily->EngineShowFlags.AmbientOcclusion
 			&& !bReflectionCapture)
 		{
 			bApplySkyShadowing = true;
@@ -1540,7 +1540,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "ReflectionIndirect");
 
-	const bool bReflectionEnv = ShouldDoReflectionEnvironment(Scene, ViewFamily);
+	const bool bReflectionEnv = ShouldDoReflectionEnvironment(Scene, *ActiveViewFamily);
 
 	FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
 	const auto& SceneColorTexture = SceneTextures.Color;
@@ -1778,7 +1778,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(FRDGBuilder& GraphBuilder)
 {
-	if (ViewFamily.EngineShowFlags.VisualizeLightCulling || !ViewFamily.EngineShowFlags.Lighting)
+	if (ActiveViewFamily->EngineShowFlags.VisualizeLightCulling || !ActiveViewFamily->EngineShowFlags.Lighting)
 	{
 		return;
 	}

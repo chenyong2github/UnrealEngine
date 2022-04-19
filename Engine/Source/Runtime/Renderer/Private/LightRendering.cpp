@@ -701,7 +701,7 @@ static void SplitSimpleLightsByView(TArrayView<const FViewInfo> Views, const FSi
 }
 
 /** Gathers simple lights from visible primtives in the passed in views. */
-void FSceneRenderer::GatherSimpleLights(const FSceneViewFamily& ViewFamily, const TArray<FViewInfo>& Views, FSimpleLightArray& SimpleLights)
+void FSceneRenderer::GatherSimpleLights(const FSceneViewFamily& ViewFamily, const TArrayView<FViewInfo>& Views, FSimpleLightArray& SimpleLights)
 {
 	TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> PrimitivesWithSimpleLights;
 
@@ -782,7 +782,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 {
 	if (AllowSimpleLights())
 	{
-		GatherSimpleLights(ViewFamily, Views, OutSortedLights.SimpleLights);
+		GatherSimpleLights(*ActiveViewFamily, Views, OutSortedLights.SimpleLights);
 	}
 	FSimpleLightArray &SimpleLights = OutSortedLights.SimpleLights;
 	TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = OutSortedLights.SortedLights;
@@ -790,7 +790,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 	// NOTE: we allocate space also for simple lights such that they can be referenced in the same sorted range
 	SortedLights.Empty(Scene->Lights.Num() + SimpleLights.InstanceData.Num());
 
-	bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows && GetShadowQuality() > 0;
+	bool bDynamicShadows = ActiveViewFamily->EngineShowFlags.DynamicShadows && GetShadowQuality() > 0;
 
 #if ENABLE_DEBUG_DISCARD_PROP
 	int Total = Scene->Lights.Num() + SimpleLights.InstanceData.Num();
@@ -817,7 +817,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 
 		if (LightSceneInfo->ShouldRenderLightViewIndependent()
 			// Reflection override skips direct specular because it tends to be blindingly bright with a perfectly smooth surface
-			&& !ViewFamily.EngineShowFlags.ReflectionOverride)
+			&& !ActiveViewFamily->EngineShowFlags.ReflectionOverride)
 		{
 			// Check if the light is visible in any of the views.
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -828,9 +828,9 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 
 					// Check for shadows and light functions.
 					SortedLightInfo->SortKey.Fields.LightType = LightSceneInfoCompact.LightType;
-					SortedLightInfo->SortKey.Fields.bTextureProfile = ViewFamily.EngineShowFlags.TexturedLightProfiles && LightSceneInfo->Proxy->GetIESTextureResource();
+					SortedLightInfo->SortKey.Fields.bTextureProfile = ActiveViewFamily->EngineShowFlags.TexturedLightProfiles && LightSceneInfo->Proxy->GetIESTextureResource();
 					SortedLightInfo->SortKey.Fields.bShadowed = bDynamicShadows && CheckForProjectedShadows(LightSceneInfo);
-					SortedLightInfo->SortKey.Fields.bLightFunction = ViewFamily.EngineShowFlags.LightFunctions && CheckForLightFunction(LightSceneInfo);
+					SortedLightInfo->SortKey.Fields.bLightFunction = ActiveViewFamily->EngineShowFlags.LightFunctions && CheckForLightFunction(LightSceneInfo);
 					SortedLightInfo->SortKey.Fields.bUsesLightingChannels = Views[ViewIndex].bUsesLightingChannels && LightSceneInfo->Proxy->GetLightingChannelMask() != GetDefaultLightingChannelMask();
 
 					// These are not simple lights.
@@ -851,7 +851,7 @@ void FSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLigh
 
 					// One pass projection is supported for lights with only virtual shadow maps
 					// TODO: Exclude lights that also have non-virtual shadow maps
-					bool bHasVirtualShadowMap = VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&Views[ViewIndex]) != INDEX_NONE;
+					bool bHasVirtualShadowMap = ActiveViewFamily->VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId(&Views[ViewIndex]) != INDEX_NONE;
 					SortedLightInfo->SortKey.Fields.bDoesNotWriteIntoPackedShadowMask = !bClusteredDeferredSupported || !bHasVirtualShadowMap;
 					SortedLightInfo->SortKey.Fields.bClusteredDeferredNotSupported = !bClusteredDeferredSupported;
 					break;
@@ -970,13 +970,13 @@ void FDeferredShadingSceneRenderer::RenderLights(
 		RDG_EVENT_SCOPE(GraphBuilder, "DirectLighting");
 
 		// STRATA_TODO move right after stencil clear so that it is also common with EnvLight pass
-		if (ViewFamily.EngineShowFlags.DirectLighting && Strata::IsStrataEnabled())
+		if (ActiveViewFamily->EngineShowFlags.DirectLighting && Strata::IsStrataEnabled())
 		{
 			// Update the stencil buffer, marking simple/complex strata material only once for all the following passes.
 			Strata::AddStrataStencilPass(GraphBuilder, Views, SceneTextures);
 		}
 
-		if(ViewFamily.EngineShowFlags.DirectLighting)
+		if(ActiveViewFamily->EngineShowFlags.DirectLighting)
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "BatchedLights");
 			INC_DWORD_STAT_BY(STAT_NumBatchedLights, UnbatchedLightStart);
@@ -994,7 +994,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 			{
 				FRDGTextureRef ShadowMaskBits = nullptr;
 				FRDGTextureRef HairStrandsShadowMaskBits = nullptr;
-				if( VirtualShadowMapArray.IsAllocated() && CVarVirtualShadowOnePassProjection.GetValueOnRenderThread() )
+				if( ActiveViewFamily->VirtualShadowMapArray.IsAllocated() && CVarVirtualShadowOnePassProjection.GetValueOnRenderThread() )
 				{
 					// TODO: This needs to move into the view loop in clustered deferred shading pass
 					for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
@@ -1005,7 +1005,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 							GraphBuilder,
 							SceneTextures,
 							View, ViewIndex,
-							VirtualShadowMapArray,
+							ActiveViewFamily->VirtualShadowMapArray,
 							EVirtualShadowMapProjectionInputType::GBuffer);
 
 						if (HairStrands::HasViewHairStrandsData(View))
@@ -1014,7 +1014,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 							GraphBuilder,
 							SceneTextures,
 							View, ViewIndex,
-							VirtualShadowMapArray,
+							ActiveViewFamily->VirtualShadowMapArray,
 							EVirtualShadowMapProjectionInputType::HairStrands);
 						}
 					}
@@ -1076,7 +1076,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				if (UnbatchedLightStart)
 				{
 					// Inject non-shadowed, non-simple, non-light function lights in to the volume.
-					InjectTranslucencyLightingVolumeArray(GraphBuilder, Views, Scene, *this, TranslucencyLightingVolumeTextures, VisibleLightInfos, SortedLights, TInterval<int32>(SimpleLightsEnd, UnbatchedLightStart));
+					InjectTranslucencyLightingVolumeArray(GraphBuilder, Views, Scene, *this, TranslucencyLightingVolumeTextures, ActiveViewFamily->VisibleLightInfos, SortedLights, TInterval<int32>(SimpleLightsEnd, UnbatchedLightStart));
 				}
 
 				if (SimpleLights.InstanceData.Num() > 0)
@@ -1147,7 +1147,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				}
 			} // if (RHI_RAYTRACING)
 
-			const bool bDirectLighting = ViewFamily.EngineShowFlags.DirectLighting;
+			const bool bDirectLighting = ActiveViewFamily->EngineShowFlags.DirectLighting;
 
 			FRDGTextureRef SharedScreenShadowMaskTexture = nullptr;
 			FRDGTextureRef SharedScreenShadowMaskSubPixelTexture = nullptr;
@@ -1163,7 +1163,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				//		 stochastically (rather than analytically + shadow mask)
 				const bool bDrawShadows = SortedLightInfo.SortKey.Fields.bShadowed;
 				const bool bDrawLightFunction = SortedLightInfo.SortKey.Fields.bLightFunction;
-				const bool bDrawPreviewIndicator = ViewFamily.EngineShowFlags.PreviewShadowsIndicator && !LightSceneInfo.IsPrecomputedLightingValid() && LightSceneProxy.HasStaticShadowing();
+				const bool bDrawPreviewIndicator = ActiveViewFamily->EngineShowFlags.PreviewShadowsIndicator && !LightSceneInfo.IsPrecomputedLightingValid() && LightSceneProxy.HasStaticShadowing();
 				const bool bDrawHairShadow = bDrawShadows && bUseHairLighting;
 				const bool bUseHairDeepShadow = bDrawShadows && bUseHairLighting && LightSceneProxy.CastsHairStrandsDeepShadow();
 				bool bInjectedTranslucentVolume = false;
@@ -1658,7 +1658,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 						// Accumulate this light's unshadowed contribution to the translucency lighting volume
-						InjectTranslucencyLightingVolume(GraphBuilder, View, ViewIndex, Scene, *this, TranslucencyLightingVolumeTextures, VisibleLightInfos, LightSceneInfo, nullptr);
+						InjectTranslucencyLightingVolume(GraphBuilder, View, ViewIndex, Scene, *this, TranslucencyLightingVolumeTextures, ActiveViewFamily->VisibleLightInfos, LightSceneInfo, nullptr);
 					}
 				}
 
@@ -1708,7 +1708,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 static void RenderLightArrayForOverlapViewmode(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
-	const TArray<FViewInfo>& Views,
+	const TArrayView<FViewInfo>& Views,
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& LightArray)
@@ -2381,7 +2381,7 @@ void FDeferredShadingSceneRenderer::RenderLightsForHair(
 	const int32 UnbatchedLightStart = SortedLightSet.UnbatchedLightStart;
 	const int32 SimpleLightsEnd = SortedLightSet.SimpleLightsEnd;
 
-	if (ViewFamily.EngineShowFlags.DirectLighting)
+	if (ActiveViewFamily->EngineShowFlags.DirectLighting)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "DirectLighting");
 

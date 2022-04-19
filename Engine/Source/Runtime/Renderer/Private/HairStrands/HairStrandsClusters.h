@@ -19,6 +19,6 @@ struct FHairCullingParams
 void ComputeHairStrandsClustersCulling(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap& ShaderMap,
-	const TArray<FViewInfo>& Views,
+	const TArrayView<FViewInfo>& Views,
 	const FHairCullingParams& CullingParameters,
 	FHairStrandClusterData& ClusterDatas);
