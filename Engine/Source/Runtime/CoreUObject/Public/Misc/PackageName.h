@@ -48,6 +48,7 @@ public:
 		LongPackageNames_PathTooShort,
 		LongPackageNames_PathWithNoStartingSlash,
 		LongPackageNames_PathWithTrailingSlash,
+		LongPackageNames_PathWithDoubleSlash,
 	};
 
 	/**
