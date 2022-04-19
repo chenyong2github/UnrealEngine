@@ -4,7 +4,7 @@
 #include "DirectLinkExternalSource.h"
 
 #include "DirectLinkExtensionModule.h"
-#include "IDirectLinkManager.h"
+#include "DirectLinkManager.h"
 
 #include "Async/Async.h"
 #include "DirectLinkEndpoint.h"
@@ -71,7 +71,7 @@ namespace UE::DatasmithImporter
 
 	FDirectLinkExternalSource::~FDirectLinkExternalSource()
 	{
-		Invalidate();
+		ensureMsgf(!DestinationHandle.IsValid(), TEXT("Invalidate() was not called before the FDirectLinkExternalSource destruction. This may have left dangling pointers in the Endpoint."));
 	}
 
 	FExternalSourceCapabilities FDirectLinkExternalSource::GetCapabilities() const
@@ -95,7 +95,7 @@ namespace UE::DatasmithImporter
 
 		if (SourceHandle.IsValid() && DestinationHandle.IsValid())
 		{
-			const FEndpoint::EOpenStreamResult Result = IDirectLinkExtensionModule::GetEndpoint().OpenStream(SourceHandle, DestinationHandle);
+			const FEndpoint::EOpenStreamResult Result = FDirectLinkManager::GetInstance().GetEndpoint().OpenStream(SourceHandle, DestinationHandle);
 
 			bIsStreamOpen = Result == FEndpoint::EOpenStreamResult::Opened || Result == FEndpoint::EOpenStreamResult::AlreadyOpened;
 
@@ -109,18 +109,15 @@ namespace UE::DatasmithImporter
 	{
 		if (SourceHandle.IsValid() && DestinationHandle.IsValid())
 		{
-			IDirectLinkExtensionModule::GetEndpoint().CloseStream(SourceHandle, DestinationHandle);
+			FDirectLinkManager::GetInstance().GetEndpoint().CloseStream(SourceHandle, DestinationHandle);
 			bIsStreamOpen = false;
 		}
 	}
 
 	void FDirectLinkExternalSource::Invalidate()
 	{
-		if (IDirectLinkExtensionModule::IsAvailable())
-		{
-			CloseStream();
-			IDirectLinkExtensionModule::GetEndpoint().RemoveDestination(DestinationHandle);
-		}
+		CloseStream();
+		FDirectLinkManager::GetInstance().GetEndpoint().RemoveDestination(DestinationHandle);
 
 		ClearOnExternalSourceLoadedDelegates();
 		DestinationHandle.Invalidate();

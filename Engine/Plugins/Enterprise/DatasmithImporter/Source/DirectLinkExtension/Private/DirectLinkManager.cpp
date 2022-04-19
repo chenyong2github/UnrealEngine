@@ -25,6 +25,8 @@ DEFINE_LOG_CATEGORY(LogDirectLinkManager);
 
 namespace UE::DatasmithImporter
 {
+	TUniquePtr<FDirectLinkManager> FDirectLinkManager::Instance = nullptr;
+
 	FDirectLinkAutoReconnectManager::FDirectLinkAutoReconnectManager(FDirectLinkManager& InManager)
 		: Manager(InManager)
 		, bShouldRun(true)
@@ -105,9 +107,11 @@ namespace UE::DatasmithImporter
 		, AutoReimportManger(MakeShared<FAutoReimportManager>())
 	{
 		Endpoint->AddEndpointObserver(this);
+
+		ensureMsgf(!Instance, TEXT("There can only be one instance of FDirectLinkManager."));
 	}
 
-	FDirectLinkManager::~FDirectLinkManager()
+	void FDirectLinkManager::Clear()
 	{
 		Endpoint->RemoveEndpointObserver(this);
 
@@ -129,7 +133,7 @@ namespace UE::DatasmithImporter
 		{
 			DirectLink::FRawInfo::FDataPointInfo* SourceDataPointInfo;
 			{
-				FRWScopeLock ScopeLock(RawInfoLock, FRWScopeLockType::SLT_ReadOnly);
+			FRWScopeLock ScopeLock(RawInfoLock, FRWScopeLockType::SLT_ReadOnly);
 				SourceDataPointInfo = RawInfoCache.DataPointsInfo.Find(SourceHandle);
 			}
 			FSourceUri ExternalSourceUri(GetUriFromSourceHandle(SourceHandle));

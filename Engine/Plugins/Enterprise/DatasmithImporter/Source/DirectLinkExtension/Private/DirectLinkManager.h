@@ -56,8 +56,27 @@ namespace UE::DatasmithImporter
 	class FDirectLinkManager: public IDirectLinkManager, public DirectLink::IEndpointObserver
 	{
 	public:
-		FDirectLinkManager();
-		virtual ~FDirectLinkManager();
+		/**
+		 * Static instance that can be used internally to avoid relying on IDirectLinkExtensionModule to get the DirectLink manager.
+		 */
+		static FDirectLinkManager& GetInstance()
+		{
+			if (!Instance)
+			{
+				Instance = TUniquePtr<FDirectLinkManager>(new FDirectLinkManager());;
+				check(Instance);
+			}
+			return *Instance;
+		}
+		
+		static void ResetInstance()
+		{
+			if (Instance)
+			{
+				Instance->Clear();
+			}
+			Instance.Reset();
+		}
 
 		// IEndpointObserver interface begin
 		virtual void OnStateChanged(const DirectLink::FRawInfo& RawInfo) override;
@@ -87,6 +106,14 @@ namespace UE::DatasmithImporter
 		void UpdateModifiedRegisteredAsset(UObject* InAsset) { AutoReimportManger->UpdateModifiedRegisteredAsset(InAsset); }
 
 	private:
+
+		FDirectLinkManager();
+
+		/**
+		 * Should be called before destructing the FDirectLinkManager.
+		 */
+		void Clear();
+
 		/**
 		 * Remove a DirectLink source from cache and invalidate its associated DirectLinkExternalSource object.
 		 * @param InvalidSourceId	The SourceHandle of the invalid DirectLink source.
@@ -108,6 +135,9 @@ namespace UE::DatasmithImporter
 		void CancelEmptySourcesLoading() const;
 
 	private:
+
+		static TUniquePtr<FDirectLinkManager> Instance;
+
 		/**
 		 * Cached DirectLink state.
 		 */

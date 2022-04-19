@@ -26,7 +26,8 @@ namespace UE::DatasmithImporter
 	public:
 		virtual void StartupModule() override
 		{
-			DirectLinkManager = MakeUnique<FDirectLinkManager>();
+			// This will instantiate the DirectLinkManager.
+			FDirectLinkManager::GetInstance();
 			DirectLinkExtensionUI = MakeUnique<FDirectLinkExtensionUI>();
 
 			IUriManager& UriManager = IExternalSourceModule::Get().GetManager();
@@ -40,18 +41,19 @@ namespace UE::DatasmithImporter
 				IUriManager& UriManager = IExternalSourceModule::Get().GetManager();
 				UriManager.UnregisterResolver(DirectLinkUriResolverName);
 			}
+
+			DirectLinkExtensionUI.Reset();
+			FDirectLinkManager::ResetInstance();
 		}
 
 		virtual IDirectLinkManager& GetManager() const override
 		{
-			check(DirectLinkManager.IsValid());
-			return *DirectLinkManager;
+			return FDirectLinkManager::GetInstance();
 		}
 
 		virtual TSharedPtr<FDirectLinkExternalSource> DisplayDirectLinkSourcesDialog() override;
 
 	private:
-		TUniquePtr<FDirectLinkManager> DirectLinkManager;
 		TUniquePtr<FDirectLinkExtensionUI> DirectLinkExtensionUI;
 	};
 
