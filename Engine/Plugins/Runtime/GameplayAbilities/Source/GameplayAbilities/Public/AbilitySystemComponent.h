@@ -1011,6 +1011,8 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	UFUNCTION(BlueprintCallable, Category = "Abilities")
 	bool TryActivateAbility(FGameplayAbilitySpecHandle AbilityToActivate, bool bAllowRemoteActivation = true);
 
+	bool HasActivatableTriggeredAbility(FGameplayTag Tag);
+
 	/** Triggers an ability from a gameplay event, will only trigger on local/server depending on execution flags */
 	bool TriggerAbilityFromGameplayEvent(FGameplayAbilitySpecHandle AbilityToTrigger, FGameplayAbilityActorInfo* ActorInfo, FGameplayTag Tag, const FGameplayEventData* Payload, UAbilitySystemComponent& Component);
 

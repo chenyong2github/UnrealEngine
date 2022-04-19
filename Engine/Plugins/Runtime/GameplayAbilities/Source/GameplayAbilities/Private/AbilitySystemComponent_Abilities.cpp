@@ -2145,6 +2145,29 @@ void UAbilitySystemComponent::ClientActivateAbilitySucceedWithEventData_Implemen
 	}
 }
 
+bool UAbilitySystemComponent::HasActivatableTriggeredAbility(FGameplayTag Tag)
+{
+	TArray<FGameplayAbilitySpec> Specs = GetActivatableAbilities();
+	const FGameplayAbilityActorInfo* ActorInfo = AbilityActorInfo.Get();
+	for (const FGameplayAbilitySpec& Spec : Specs)
+	{
+		if (Spec.Ability == nullptr)
+		{
+			continue;
+		}
+
+		TArray<FAbilityTriggerData>& Triggers = Spec.Ability->AbilityTriggers;
+		for (const FAbilityTriggerData& Data : Triggers)
+		{
+			if (Data.TriggerTag == Tag && Spec.Ability->CanActivateAbility(Spec.Handle, ActorInfo))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 bool UAbilitySystemComponent::TriggerAbilityFromGameplayEvent(FGameplayAbilitySpecHandle Handle, FGameplayAbilityActorInfo* ActorInfo, FGameplayTag EventTag, const FGameplayEventData* Payload, UAbilitySystemComponent& Component)
 {
 	FGameplayAbilitySpec* Spec = FindAbilitySpecFromHandle(Handle);
