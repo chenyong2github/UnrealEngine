@@ -24,7 +24,7 @@ public:
 	virtual void ShutdownGameFeatureManager() { }
 
 	// Called when a game feature plugin enters the Loading state to determine additional assets to load
-	virtual TArray<FPrimaryAssetId> GetPreloadAssetListForGameFeature(const UGameFeatureData* GameFeatureToLoad) const { return TArray<FPrimaryAssetId>(); }
+	virtual TArray<FPrimaryAssetId> GetPreloadAssetListForGameFeature(const UGameFeatureData* GameFeatureToLoad, bool bIncludeLoadedAssets = false) const { return TArray<FPrimaryAssetId>(); }
 
 	// Returns the bundle state to use for assets returned by GetPreloadAssetListForGameFeature()
 	// See the Asset Manager documentation for more information about asset bundles

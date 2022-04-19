@@ -199,11 +199,11 @@ TSharedPtr<FStreamableHandle> UGameFeaturesSubsystem::LoadGameFeatureData(const 
 		ArFilter.bIncludeOnlyOnDiskAssets = true;
 #endif //if !WITH_EDITOR
 
-		TArray<FAssetData> GameFeatureAssets;
-		if (LocalAssetRegistry.GetAssets(ArFilter, GameFeatureAssets) && !GameFeatureAssets.IsEmpty())
+		LocalAssetRegistry.EnumerateAssets(ArFilter, [&GameFeatureAssetData](const FAssetData& AssetData)
 		{
-			GameFeatureAssetData = MoveTemp(GameFeatureAssets[0]);
-		}
+			GameFeatureAssetData = AssetData;
+			return false;
+		});
 	}
 
 	if (GameFeatureAssetData.IsValid())

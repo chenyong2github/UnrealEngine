@@ -1209,9 +1209,15 @@ struct FGameFeaturePluginState_Unloading : public FGameFeaturePluginState
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		// @todo Unload everything that was loaded in Loading
+		if (bRequestedGC)
+		{
+			StateStatus.SetTransition(EGameFeaturePluginState::Registered);
+			return;
+		}
 
-		if (!bRequestedGC && StateProperties.DestinationState == EGameFeaturePluginState::Registered)
+		UnloadGameFeatureBundles(StateProperties.GameFeatureData);
+
+		if (StateProperties.DestinationState == EGameFeaturePluginState::Registered)
 		{
 			// If we aren't going farther than Registered, GC now
 			// otherwise we will defer until closer to our destination state
@@ -1221,6 +1227,31 @@ struct FGameFeaturePluginState_Unloading : public FGameFeaturePluginState
 		}
 
 		StateStatus.SetTransition(EGameFeaturePluginState::Registered);
+	}
+
+	void UnloadGameFeatureBundles(const UGameFeatureData* GameFeatureToLoad)
+	{
+		if (GameFeatureToLoad == nullptr)
+		{
+			return;
+		}
+
+		const UGameFeaturesProjectPolicies& Policy = UGameFeaturesSubsystem::Get().GetPolicy();
+
+		// Remove all bundles from feature data and completely unload everything else
+		FPrimaryAssetId GameFeatureAssetId = GameFeatureToLoad->GetPrimaryAssetId();
+		TSharedPtr<FStreamableHandle> Handle = UAssetManager::Get().ChangeBundleStateForPrimaryAssets({ GameFeatureAssetId }, {}, {}, /*bRemoveAllBundles=*/ true);
+		ensureAlways(Handle == nullptr || Handle->HasLoadCompleted()); // Should be no handle since nothing is being loaded
+
+		TArray<FPrimaryAssetId> AssetIds = Policy.GetPreloadAssetListForGameFeature(GameFeatureToLoad, /*bIncludeLoadedAssets=*/true);
+
+		// Don't unload game feature data asset yet, that will happen in FGameFeaturePluginState_Unregistering
+		ensureAlways(AssetIds.RemoveSwap(GameFeatureAssetId, false) == 0);
+
+		if (AssetIds.Num() > 0)
+		{
+			UAssetManager::Get().UnloadPrimaryAssets(AssetIds);
+		}
 	}
 };
 
@@ -1250,15 +1281,15 @@ struct FGameFeaturePluginState_Loading : public FGameFeaturePluginState
 	{
 		check(GameFeatureToLoad);
 
-		TArray<FPrimaryAssetId> AssetIdsToLoad;
+		const UGameFeaturesProjectPolicies& Policy = UGameFeaturesSubsystem::Get().GetPolicy<UGameFeaturesProjectPolicies>();
+
+		TArray<FPrimaryAssetId> AssetIdsToLoad = Policy.GetPreloadAssetListForGameFeature(GameFeatureToLoad);
+
 		FPrimaryAssetId GameFeatureAssetId = GameFeatureToLoad->GetPrimaryAssetId();
 		if (GameFeatureAssetId.IsValid())
 		{
 			AssetIdsToLoad.Add(GameFeatureAssetId);
 		}
-
-		UGameFeaturesProjectPolicies& Policy = UGameFeaturesSubsystem::Get().GetPolicy<UGameFeaturesProjectPolicies>();
-		AssetIdsToLoad.Append(Policy.GetPreloadAssetListForGameFeature(GameFeatureToLoad));
 
 		TSharedPtr<FStreamableHandle> RetHandle;
 		if (AssetIdsToLoad.Num() > 0)
