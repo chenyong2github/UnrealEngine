@@ -102,6 +102,8 @@ private:
 
 	FName InputName;
 
+	FGuid InputVariableGuid;
+
 	FNiagaraParameterHandle AliasedParameterHandle;
 
 	mutable FGuid ValidScriptGraphChangeIdForOverridePin;

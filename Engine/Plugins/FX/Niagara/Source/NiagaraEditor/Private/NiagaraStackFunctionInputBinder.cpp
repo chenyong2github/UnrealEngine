@@ -121,6 +121,9 @@ bool FNiagaraStackFunctionInputBinder::TryBindInternal(
 
 			InputType = InputVariable.GetType();
 
+			TOptional<FNiagaraVariableMetaData> InputMetadata = InFunctionCallNode->GetNiagaraGraph()->GetMetaData(InputVariable);
+			InputVariableGuid = InputMetadata.IsSet() ? InputMetadata->GetVariableGuid() : FGuid();
+
 			AliasedParameterHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(FNiagaraParameterHandle(InputVariable.GetName()), FunctionCallNode.Get());
 				
 			RefreshGraphPins();
@@ -283,7 +286,7 @@ void FNiagaraStackFunctionInputBinder::SetData(const uint8* InValue, int32 InSiz
 
 			if (OverridePin == nullptr)
 			{
-				OverridePin = &FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(*FunctionCallNode, AliasedParameterHandle, InputType);
+				OverridePin = &FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(*FunctionCallNode, AliasedParameterHandle, InputType, InputVariableGuid);
 			}
 
 			OverridePin->Modify();

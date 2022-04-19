@@ -2820,6 +2820,12 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::AddInp
 					DesiredMode = ENiagaraDefaultMode::FailIfPreviouslyNotSet;
 				TSet KnownParameters = { Parameter };
 				FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(InputOverridePin, OverrideToAdd->GetLinkedValueHandle().GetValue(), KnownParameters, DesiredMode, OverrideToAdd->GetOverrideNodeId());
+				FGuid LinkedOutputId = FNiagaraStackGraphUtilities::GetScriptVariableIdForLinkedOutputHandle(
+					OverrideToAdd->GetLinkedValueHandle().GetValue(), OverrideToAdd->GetType(), *TargetFunctionCall.GetNiagaraGraph());
+				if (LinkedOutputId.IsValid())
+				{
+					TargetFunctionCall.UpdateInputNameBinding(LinkedOutputId, OverrideToAdd->GetLinkedValueHandle()->GetName());
+				}
 				Results.bSucceeded = true;
 			}
 			else if (OverrideToAdd->GetDataValueInputName().IsSet() && OverrideToAdd->GetDataValueObject() != nullptr)

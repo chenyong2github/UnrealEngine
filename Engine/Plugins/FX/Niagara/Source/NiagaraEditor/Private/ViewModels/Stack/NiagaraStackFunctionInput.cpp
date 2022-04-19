@@ -1251,7 +1251,11 @@ void UNiagaraStackFunctionInput::SetLinkedValueHandle(const FNiagaraParameterHan
 		UEdGraphPin& OverridePin = GetOrCreateOverridePin();
 		TSet<FNiagaraVariable> KnownParameters = FNiagaraStackGraphUtilities::GetParametersForContext(OverridePin.GetOwningNode()->GetGraph(), GetSystemViewModel()->GetSystem());
 		FNiagaraStackGraphUtilities::SetLinkedValueHandleForFunctionInput(OverridePin, InParameterHandle, KnownParameters);
-		OwningFunctionCallNode->FixupPinNames(); // refresh the input guids and update the bound names
+		FGuid LinkedOutputId = FNiagaraStackGraphUtilities::GetScriptVariableIdForLinkedOutputHandle(InParameterHandle, InputType, *OwningFunctionCallNode->GetNiagaraGraph());
+		if (LinkedOutputId.IsValid())
+		{
+			OwningFunctionCallNode->UpdateInputNameBinding(LinkedOutputId, InParameterHandle.GetName());
+		}
 	}
 
 	FNiagaraStackGraphUtilities::RelayoutGraph(*OwningFunctionCallNode->GetGraph());
@@ -1744,12 +1748,6 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 			OverridePin->Modify();
 			OverridePin->DefaultValue = PinDefaultValue;
 			Cast<UNiagaraNode>(OverridePin->GetOwningNode())->MarkNodeRequiresSynchronization(TEXT("OverridePin Default Value Changed"), true);
-		}
-
-		if (InputMetaData.IsSet())
-		{
-			FName VariableName = FNiagaraParameterHandle(RapidIterationParameter.GetName()).GetName();
-			OwningFunctionCallNode->UpdateInputNameBinding(InputMetaData->GetVariableGuid(), VariableName);
 		}
 	}
 	
@@ -2703,20 +2701,9 @@ UEdGraphPin& UNiagaraStackFunctionInput::GetOrCreateOverridePin()
 	if (OverridePin == nullptr)
 	{
 		TGuardValue<bool> Guard(bUpdatingGraphDirectly, true);
-		OverridePin = &FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(*OwningFunctionCallNode, AliasedInputParameterHandle, InputType);
+		FGuid InputScriptVariableId = InputMetaData.IsSet() ? InputMetaData->GetVariableGuid() : FGuid();
+		OverridePin = &FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverridePin(*OwningFunctionCallNode, AliasedInputParameterHandle, InputType, InputScriptVariableId);
 		OverridePinCache = OverridePin;
-
-		// update name binding if we have a guid
-		UNiagaraGraph* CalledGraph = OwningFunctionCallNode->GetCalledGraph();
-		if (CalledGraph)
-		{
-			const FName ModuleInputName = FNiagaraParameterHandle::CreateModuleParameterHandle(AliasedInputParameterHandle.GetName()).GetParameterHandleString();
-			TOptional<FNiagaraVariableMetaData> MetaData = CalledGraph->GetMetaData(FNiagaraVariable(InputType, ModuleInputName));
-			if (MetaData.IsSet())
-			{
-				OwningFunctionCallNode->UpdateInputNameBinding(MetaData->GetVariableGuid(), AliasedInputParameterHandle.GetName());
-			}
-		}
 	}
 	return *OverridePin;
 }

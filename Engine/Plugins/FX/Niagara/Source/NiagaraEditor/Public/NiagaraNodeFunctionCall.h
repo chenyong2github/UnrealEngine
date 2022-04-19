@@ -126,9 +126,6 @@ public:
 	virtual bool IsDeprecated() const override;
 	//~ End EdGraphNode Interface
 
-	/** Checks if the existing pin names match the function script parameter names and try to fix them via guid matching if there is a difference */
-	NIAGARAEDITOR_API bool FixupPinNames();
-
 	/** When overriding an input value, this updates which variable guid was bound to which input name, so it can be reassigned when the input is renamed.*/
 	void UpdateInputNameBinding(const FGuid& BoundVariableGuid, const FName& BoundName);
 
@@ -180,6 +177,7 @@ public:
 	NIAGARAEDITOR_API void RemoveCustomNote(const FGuid& MessageKey);
 	NIAGARAEDITOR_API FSimpleDelegate& OnCustomNotesChanged() { return OnCustomNotesChangedDelegate; }
 	void RemoveCustomNoteViaDelegate(const FGuid MessageKey);
+	TArray<FGuid> GetBoundPinGuidsByName(FName InputName) const;
 
 	/** Adds a static switch pin to this function call node by variable id and sets it's default value using the supplied data and marks it as
 		orphaned. This allows a previously available static switch value to be retained on the node even if the the switch is no longer exposed. */
@@ -203,8 +201,6 @@ protected:
 	bool IsValidPropagatedVariable(const FNiagaraVariable& Variable) const;
 
 	void UpdateNodeErrorMessage();
-
-	TArray<FGuid> GetBoundPinGuidsByName(FName InputName) const;
 
 	void FixupFunctionScriptVersion();
 

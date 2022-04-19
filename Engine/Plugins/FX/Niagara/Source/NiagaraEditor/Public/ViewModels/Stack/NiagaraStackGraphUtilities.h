@@ -118,7 +118,7 @@ namespace FNiagaraStackGraphUtilities
 
 	UEdGraphPin* GetStackFunctionInputOverridePin(UNiagaraNodeFunctionCall& StackFunctionCall, FNiagaraParameterHandle AliasedInputParameterHandle);
 
-	UEdGraphPin& GetOrCreateStackFunctionInputOverridePin(UNiagaraNodeFunctionCall& StackFunctionCall, FNiagaraParameterHandle AliasedInputParameterHandle, FNiagaraTypeDefinition InputType, const FGuid& PreferredOverrideNodeGuid = FGuid());
+	UEdGraphPin& GetOrCreateStackFunctionInputOverridePin(UNiagaraNodeFunctionCall& StackFunctionCall, FNiagaraParameterHandle AliasedInputParameterHandle, FNiagaraTypeDefinition InputType, const FGuid& InputScriptVariableId, const FGuid& PreferredOverrideNodeGuid = FGuid());
 
 	bool IsOverridePinForFunction(UEdGraphPin& OverridePin, UNiagaraNodeFunctionCall& FunctionCallNode);
 
@@ -221,25 +221,6 @@ namespace FNiagaraStackGraphUtilities
 
 	bool CanWriteParameterFromUsage(FNiagaraVariable Parameter, ENiagaraScriptUsage Usage, const TOptional<FName>& StackContextOverride = TOptional<FName>(), const TArray<FName>& StackContextAllOverrides = TArray<FName>());
 	bool CanWriteParameterFromUsageViaOutput(FNiagaraVariable Parameter, const UNiagaraNodeOutput* OutputNode);
-
-	bool DoesDynamicInputMatchDefault(
-		FString EmitterUniqueName,
-		UNiagaraScript& OwningScript,
-		UNiagaraNodeFunctionCall& OwningFunctionCallNode,
-		UEdGraphPin& OverridePin,
-		FName InputName,
-		UEdGraphPin& DefaultPin);
-
-	void ResetToDefaultDynamicInput(
-		TSharedRef<FNiagaraSystemViewModel> SystemViewModel,
-		TSharedPtr<FNiagaraEmitterViewModel> EmitterViewModel,
-		UNiagaraStackEditorData& StackEditorData,
-		UNiagaraScript& SourceScript,
-		const TArray<TWeakObjectPtr<UNiagaraScript>> AffectedScripts,
-		UNiagaraNodeFunctionCall& ModuleNode,
-		UNiagaraNodeFunctionCall& InputFunctionCallNode,
-		FName InputName,
-		UEdGraphPin& DefaultPin);
 	
 	bool GetStackIssuesRecursively(const UNiagaraStackEntry* const Entry, TArray<UNiagaraStackErrorItem*>& OutIssues);
 
@@ -285,6 +266,12 @@ namespace FNiagaraStackGraphUtilities
 	void AddNewVariableToParameterMapNode(UNiagaraNodeParameterMapBase* MapBaseNode, bool bCreateInputPin, const UNiagaraScriptVariable* NewScriptVar);
 
 	void SynchronizeVariableToLibraryAndApplyToGraph(UNiagaraScriptVariable* ScriptVarToSync);
+
+	void PopulateFunctionCallNameBindings(UNiagaraNodeFunctionCall& InFunctionCallNode);
+
+	void SynchronizeReferencingMapPinsWithFunctionCall(UNiagaraNodeFunctionCall& InFunctionCallNode);
+
+	FGuid GetScriptVariableIdForLinkedOutputHandle(const FNiagaraParameterHandle& LinkedOutputHandle, FNiagaraTypeDefinition LinkedType, UNiagaraGraph& TargetGraph);
 
 	namespace DependencyUtilities
 	{
