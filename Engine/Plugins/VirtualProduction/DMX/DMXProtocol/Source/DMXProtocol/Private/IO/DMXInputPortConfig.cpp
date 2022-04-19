@@ -14,6 +14,8 @@ FDMXInputPortConfigParams::FDMXInputPortConfigParams(const FDMXInputPortConfig& 
 	: PortName(InputPortConfig.GetPortName())
 	, ProtocolName(InputPortConfig.GetProtocolName())
 	, CommunicationType(InputPortConfig.GetCommunicationType())
+	, bAutoCompleteDeviceAddressEnabled(InputPortConfig.IsAutoCompleteDeviceAddressEnabled())
+	, AutoCompleteDeviceAddress(InputPortConfig.GetAutoCompleteDeviceAddress())
 	, DeviceAddress(InputPortConfig.GetDeviceAddress())
 	, LocalUniverseStart(InputPortConfig.GetLocalUniverseStart())
 	, NumUniverses(InputPortConfig.GetNumUniverses())
@@ -41,6 +43,8 @@ FDMXInputPortConfig::FDMXInputPortConfig(const FGuid& InPortGuid, const FDMXInpu
 	: PortName(InitializationData.PortName)
 	, ProtocolName(InitializationData.ProtocolName)
 	, CommunicationType(InitializationData.CommunicationType)
+	, bAutoCompleteDeviceAddressEnabled(InitializationData.bAutoCompleteDeviceAddressEnabled)
+	, AutoCompleteDeviceAddress(InitializationData.AutoCompleteDeviceAddress)
 	, DeviceAddress(InitializationData.DeviceAddress)
 	, LocalUniverseStart(InitializationData.LocalUniverseStart)
 	, NumUniverses(InitializationData.NumUniverses)
@@ -124,7 +128,7 @@ void FDMXInputPortConfig::MakeValid()
 
 FString FDMXInputPortConfig::GetDeviceAddress() const
 {
-	// Allow to override the listener ip from commandline
+	// Return the Command Line Device Address if it is set
 	const FString DMXInputPortCommandLine = FString::Printf(TEXT("dmxinputportip=%s:"), *PortName);
 	FString OverrideIP;
 	FParse::Value(FCommandLine::Get(), *DMXInputPortCommandLine, OverrideIP);
@@ -132,5 +136,20 @@ FString FDMXInputPortConfig::GetDeviceAddress() const
 	{
 		return OverrideIP;
 	}
+
+	// Return the Auto Complete Device Address if that is enabled
+	if (bAutoCompleteDeviceAddressEnabled)
+	{
+		const TArray<TSharedPtr<FString>> AvailableNetworkInterfaceCardIPs = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
+		for (const TSharedPtr<FString>& NetworkInterfaceCardIP : AvailableNetworkInterfaceCardIPs)
+		{
+			if ((*NetworkInterfaceCardIP).MatchesWildcard(AutoCompleteDeviceAddress))
+			{
+				return *NetworkInterfaceCardIP;
+			}
+		}
+	}
+
+	// Return the Device Address
 	return DeviceAddress;
 }

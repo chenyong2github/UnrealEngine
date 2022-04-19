@@ -79,10 +79,14 @@ public:
 	int32 ConvertLocalToExternUniverseID(int32 LocalUniverseID) const;
 
 	FORCEINLINE const FString& GetPortName() const { return PortName; }
-	
-	FORCEINLINE const FString& GetDeviceAddress() const { return DeviceAddress; }
 
 	FORCEINLINE const IDMXProtocolPtr& GetProtocol() const { return Protocol; }
+
+	FORCEINLINE bool IsAutoCompleteDeviceAddressEnabled() const { return bAutoCompleteDeviceAddressEnabled; }
+
+	FORCEINLINE const FString& GetAutoCompleteDeviceAddress() const { return AutoCompleteDeviceAddress; }
+
+	FORCEINLINE const FString& GetDeviceAddress() const { return DeviceAddress; }
 
 	FORCEINLINE EDMXCommunicationType GetCommunicationType() const { return CommunicationType; }
 
@@ -112,6 +116,12 @@ protected:
 
 	/** The communication type of this port */
 	EDMXCommunicationType CommunicationType;
+
+	/** If true, instead of using the Device Address, the port will auto-complete the IP from the available Network Interface Card Addresses */
+	bool bAutoCompleteDeviceAddressEnabled = false;
+
+	/** The auto-complete Device Address, supports wildcards */
+	FString AutoCompleteDeviceAddress;
 
 	/** The address of the device that handles communication, e.g. the network interface for art-net */
 	FString DeviceAddress;

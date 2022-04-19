@@ -5,6 +5,7 @@
 #include "DMXProtocolModule.h"
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolTypes.h"
+#include "DMXProtocolUtils.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXInputPortConfig.h"
@@ -57,8 +58,13 @@ void FDMXInputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 	// Cache customized properties
 	ProtocolNameHandle = PropertyHandles.FindChecked(FDMXInputPortConfig::GetProtocolNamePropertyNameChecked());
 	CommunicationTypeHandle = PropertyHandles.FindChecked(FDMXInputPortConfig::GetCommunicationTypePropertyNameChecked());
+	AutoCompleteDeviceAddressEnabledHandle = PropertyHandles.FindChecked(FDMXInputPortConfig::GetAutoCompleteDeviceAddressEnabledPropertyNameChecked());
+	AutoCompleteDeviceAddressHandle = PropertyHandles.FindChecked(FDMXInputPortConfig::GetAutoCompleteDeviceAddressPropertyNameChecked());
 	DeviceAddressHandle = PropertyHandles.FindChecked(FDMXInputPortConfig::GetDeviceAddressPropertyNameChecked());
 	PortGuidHandle = PropertyHandles.FindChecked(FDMXInputPortConfig::GetPortGuidPropertyNameChecked());
+
+	// Hande property changes
+	AutoCompleteDeviceAddressHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXInputPortConfigCustomization::UpdateAutoCompleteDeviceAddressTextBox));
 
 	// Ports always need a valid Guid (cannot be blueprinted)
 	if (!GetPortGuid().IsValid())
@@ -81,6 +87,12 @@ void FDMXInputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 		{
 			continue;
 		}
+
+		// Don't add the bAutoCompeteDeviceAddressEnabled property
+		if (Iter.Value() == AutoCompleteDeviceAddressEnabledHandle)
+		{
+			continue;
+		}
 		
 		// Add the property
 		IDetailPropertyRow& PropertyRow = ChildBuilder.AddProperty(Iter.Value().ToSharedRef());
@@ -93,29 +105,34 @@ void FDMXInputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 		{
 			GenerateCommunicationTypeRow(PropertyRow);
 		}
+		else if (Iter.Value() == AutoCompleteDeviceAddressHandle)
+		{
+			GenerateAutoCompleteDeviceAddressRow(PropertyRow);
+		}
 		else if (Iter.Value() == DeviceAddressHandle)
 		{
-			GenerateIPAddressRow(PropertyRow);
+			GenerateDeviceAddressRow(PropertyRow);
 		}
 		else if (Iter.Key() == FDMXInputPortConfig::GetPriorityStrategyPropertyNameChecked())
 		{
-			TAttribute<EVisibility> PriorityStrategyVisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]() 
+
+			PropertyRow.Visibility(TAttribute<EVisibility>::CreateLambda([this]
 				{
 					const bool bPriorityStrategyIsVisible = GetProtocol().IsValid() && GetProtocol()->SupportsPrioritySettings();
-					return bPriorityStrategyIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
+					return bPriorityStrategyIsVisible ? 
+						EVisibility::Visible : 
+						EVisibility::Collapsed;
 				}));
-
-			PropertyRow.Visibility(PriorityStrategyVisibilityAttribute);
 		}
 		else if (Iter.Key() == FDMXInputPortConfig::GetPriorityPropertyNameChecked())
 		{
-			TAttribute<EVisibility> PriorityVisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateLambda([this]() 
+			PropertyRow.Visibility(TAttribute<EVisibility>::CreateLambda([this]
 				{
 					const bool bPriorityIsVisible = GetProtocol().IsValid() && GetProtocol()->SupportsPrioritySettings();
-					return bPriorityIsVisible ? EVisibility::Visible : EVisibility::Collapsed;
+					return bPriorityIsVisible ? 
+						EVisibility::Visible : 
+						EVisibility::Collapsed;
 				}));
-
-			PropertyRow.Visibility(PriorityVisibilityAttribute);
 		}
 	}
 }
@@ -123,7 +140,6 @@ void FDMXInputPortConfigCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 void FDMXInputPortConfigCustomization::GenerateProtocolNameRow(IDetailPropertyRow& PropertyRow)
 {
 	// Customizate the Protocol Name property to draw a combo box with all protocol names
-
 	TSharedPtr<SWidget> NameWidget;
 	TSharedPtr<SWidget> ValueWidget;
 	FDetailWidgetRow Row;
@@ -156,9 +172,14 @@ void FDMXInputPortConfigCustomization::GenerateProtocolNameRow(IDetailPropertyRo
 void FDMXInputPortConfigCustomization::GenerateCommunicationTypeRow(IDetailPropertyRow& PropertyRow)
 {
 	// Customizate the Communication Type property depending on the port's supported communication modes
-
-	TAttribute<EVisibility> CommunicationTypeVisibilityAttribute = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FDMXInputPortConfigCustomization::GetCommunicationTypeVisibility));
-	PropertyRow.Visibility(CommunicationTypeVisibilityAttribute);
+	const TAttribute<EVisibility> CommunicationTypeVisibilityAttribute = TAttribute<EVisibility>::CreateLambda([this]
+		{
+			if (CommunicationTypeComboBox.IsValid() && GetProtocol().IsValid())
+			{
+				return CommunicationTypeComboBox->GetVisibility();
+			}
+			return EVisibility::Collapsed;
+		});
 
 	TSharedPtr<SWidget> NameWidget;
 	TSharedPtr<SWidget> ValueWidget;
@@ -180,15 +201,106 @@ void FDMXInputPortConfigCustomization::GenerateCommunicationTypeRow(IDetailPrope
 		];
 }
 
-void FDMXInputPortConfigCustomization::GenerateIPAddressRow(IDetailPropertyRow& PropertyRow)
+void FDMXInputPortConfigCustomization::GenerateAutoCompleteDeviceAddressRow(IDetailPropertyRow& PropertyRow)
+{
+	// Mimic a Inline Edit Condition Toggle - Doing it directly via Meta Specifiers is not possible. -
+	// The Inline Edit Condition Toggle property wouldn't get properly serialized when being a Config property.
+	const TSharedRef<SWidget> AutoCompleteDeviceAddressEnableldPropertyValueWidget = AutoCompleteDeviceAddressEnabledHandle->CreatePropertyValueWidget();
+
+	const TSharedRef<SWidget> AutoCompleteDeviceAddressPropertyNameWidget = AutoCompleteDeviceAddressHandle->CreatePropertyNameWidget();
+	const TSharedRef<SWidget> AutoCompleteDeviceAddressPropertyValueWidget = AutoCompleteDeviceAddressHandle->CreatePropertyValueWidget();
+
+	AutoCompleteDeviceAddressPropertyNameWidget->SetEnabled(TAttribute<bool>::CreateLambda([this]()
+		{
+			return IsAutoCompleteDeviceAddressEnabled();
+		}));
+	AutoCompleteDeviceAddressPropertyValueWidget->SetEnabled(TAttribute<bool>::CreateLambda([this]()
+		{
+			return IsAutoCompleteDeviceAddressEnabled();
+		}));
+
+	PropertyRow.CustomWidget()
+		.NameContent()
+		[
+			SNew(SHorizontalBox)
+	
+			// Edit Inline Condition Toggle Checkbox
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Fill)
+			.AutoWidth()
+			[
+				AutoCompleteDeviceAddressEnableldPropertyValueWidget
+			]
+
+			// Property Name
+			+ SHorizontalBox::Slot()
+			.Padding(8.f, 0.f, 0.f, 0.f)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Fill)
+			.AutoWidth()
+			[
+				AutoCompleteDeviceAddressPropertyNameWidget
+			]
+		]
+		.ValueContent()
+		[
+			// Property Value
+			AutoCompleteDeviceAddressPropertyValueWidget
+		];
+}
+
+void FDMXInputPortConfigCustomization::GenerateDeviceAddressRow(IDetailPropertyRow& PropertyRow)
 {
 	// Customizate the IPAddress property to show a combo box with available IP addresses
-	FString InitialValue = GetIPAddress();
+	const FString InitialValue = GetIPAddress();
 
 	TSharedPtr<SWidget> NameWidget;
 	TSharedPtr<SWidget> ValueWidget;
 	FDetailWidgetRow Row;
 	PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
+
+	// Override the value widget so it either shows 
+	// - The IP Address Edit widget when auto complete is disabled
+	// - The auto completed IP Address when auto complete is enabled
+	ValueWidget =
+		SNew(SHorizontalBox)
+		
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		[
+			SAssignNew(IPAddressEditWidget, SDMXIPAddressEditWidget)
+			.Visibility_Lambda([this]()
+				{
+					return IsAutoCompleteDeviceAddressEnabled() ?
+						EVisibility::Collapsed :
+						EVisibility::Visible;
+				})
+			.InitialValue(InitialValue)
+			.bShowLocalNICComboBox(true)
+			.OnIPAddressSelected(this, &FDMXInputPortConfigCustomization::OnDeviceAddressSelected)
+		]
+
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Fill)
+		[
+			SAssignNew(AutoCompletedDeviceAddressTextBlock, STextBlock)
+			.Visibility_Lambda([this]()
+				{
+					return IsAutoCompleteDeviceAddressEnabled() ?
+						EVisibility::Visible :
+						EVisibility::Collapsed;
+				})
+			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+		];
+	UpdateAutoCompleteDeviceAddressTextBox();
+
+	PropertyRow.IsEnabled(TAttribute<bool>::CreateLambda([this]
+		{
+			return !IsAutoCompleteDeviceAddressEnabled();
+		}));
 
 	PropertyRow.CustomWidget()
 		.NameContent()
@@ -197,21 +309,60 @@ void FDMXInputPortConfigCustomization::GenerateIPAddressRow(IDetailPropertyRow& 
 		]
 		.ValueContent()
 		[
-			SAssignNew(IPAddressEditWidget, SDMXIPAddressEditWidget)
-			.InitialValue(InitialValue)
-			.bShowLocalNICComboBox(true)
-			.OnIPAddressSelected(this, &FDMXInputPortConfigCustomization::OnIPAddressSelected)
+			ValueWidget.ToSharedRef()
 		];
-}	
+}
 
-EVisibility FDMXInputPortConfigCustomization::GetCommunicationTypeVisibility() const
+void FDMXInputPortConfigCustomization::UpdateAutoCompleteDeviceAddressTextBox()
 {
-	if (CommunicationTypeComboBox.IsValid() && GetProtocol().IsValid())
+	// Set text on the AutoCompleteDeviceAddress Text Box depending on what the resulting IP is
+	if (AutoCompletedDeviceAddressTextBlock.IsValid())
 	{
-		return CommunicationTypeComboBox->GetVisibility();
-	}
+		FString AutoCompleteDeviceAddress;
+		if (AutoCompleteDeviceAddressHandle->GetValue(AutoCompleteDeviceAddress) == FPropertyAccess::Success)
+		{
+			TArray<FString> SearchStrings;
+			constexpr bool bCullEmpty = true;
+			AutoCompleteDeviceAddress.ParseIntoArray(SearchStrings, TEXT("."), bCullEmpty);
 
-	return EVisibility::Collapsed;
+			const TArray<TSharedPtr<FString>> LocalNetworkInterfaceCardIPs = FDMXProtocolUtils::GetLocalNetworkInterfaceCardIPs();
+
+			FString NewIPAddress;
+			for (const TSharedPtr<FString>& NetworkInterfaceCardIP : LocalNetworkInterfaceCardIPs)
+			{
+				TArray<FString> NetworkInterfaceCardIPSubstrings;
+				(*NetworkInterfaceCardIP).ParseIntoArray(NetworkInterfaceCardIPSubstrings, TEXT("."));
+				
+				// Try to match each search string
+				bool bMatchesSearchStrings = true;
+				for (int32 SubstringIndex = 0; SubstringIndex < NetworkInterfaceCardIPSubstrings.Num(); SubstringIndex++)
+				{
+					if (SearchStrings.IsValidIndex(SubstringIndex))
+					{
+						if (!NetworkInterfaceCardIPSubstrings[SubstringIndex].MatchesWildcard(SearchStrings[SubstringIndex]))
+						{
+							bMatchesSearchStrings = false;
+							break;
+						}
+					}
+				}
+
+				if (bMatchesSearchStrings)
+				{
+					// Set the text and return if a match was found
+					const FText IPAddressText = FText::FromString(*NetworkInterfaceCardIP);
+					AutoCompletedDeviceAddressTextBlock->SetText(FText::Format(LOCTEXT("AutoCompletedIPAddressText", "{0} (auto-completed)"), IPAddressText));
+					return;
+				}
+			}
+
+			// Fall back to the manually set one
+			FString DeviceAddress;
+			DeviceAddressHandle->GetValue(DeviceAddress);
+			const FText NoMatchForIPAddressText = FText::Format(LOCTEXT("NoRegexMatchForDeviceAddress", "No match. Using '{0}'"), FText::FromString(DeviceAddress));
+			AutoCompletedDeviceAddressTextBlock->SetText(NoMatchForIPAddressText);
+		}
+	}
 }
 
 void FDMXInputPortConfigCustomization::OnProtocolNameSelected()
@@ -240,7 +391,7 @@ void FDMXInputPortConfigCustomization::OnCommunicationTypeSelected()
 	PropertyUtilities->ForceRefresh();
 }
 
-void FDMXInputPortConfigCustomization::OnIPAddressSelected()
+void FDMXInputPortConfigCustomization::OnDeviceAddressSelected()
 {
 	FString SelectedIP = IPAddressEditWidget->GetSelectedIPAddress();
 
@@ -297,33 +448,16 @@ EDMXCommunicationType FDMXInputPortConfigCustomization::GetCommunicationType() c
 	return static_cast<EDMXCommunicationType>(CommunicationType);
 }
 
+bool FDMXInputPortConfigCustomization::IsAutoCompleteDeviceAddressEnabled() const
+{
+	bool bAutoCompleteDeviceAddressEnabled;
+	AutoCompleteDeviceAddressEnabledHandle->GetValue(bAutoCompleteDeviceAddressEnabled);
+
+	return bAutoCompleteDeviceAddressEnabled;
+}
+
 FString FDMXInputPortConfigCustomization::GetIPAddress() const
 {
-	FGuid PortGuid = GetPortGuid();
-	if (PortGuid.IsValid())
-	{
-		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
-		checkf(ProtocolSettings, TEXT("Unexpected protocol settings not available when its details are customized"));
-
-		const FDMXInputPortConfig* InputPortConfigPtr = ProtocolSettings->InputPortConfigs.FindByPredicate([&PortGuid](const FDMXInputPortConfig& InputPortConfig)
-			{
-				return InputPortConfig.GetPortGuid() == PortGuid;
-			});
-		if (InputPortConfigPtr)
-		{
-			return InputPortConfigPtr->GetDeviceAddress();
-		}
-
-		const FDMXOutputPortConfig* OutputPortConfigPtr = ProtocolSettings->OutputPortConfigs.FindByPredicate([&PortGuid](const FDMXOutputPortConfig& OutputPortConfig)
-			{
-				return OutputPortConfig.GetPortGuid() == PortGuid;
-			});
-		if (OutputPortConfigPtr)
-		{
-			return OutputPortConfigPtr->GetDeviceAddress();
-		}
-	}
-
 	FString IPAddress;
 	ensure(DeviceAddressHandle->GetValue(IPAddress) == FPropertyAccess::Success);
 

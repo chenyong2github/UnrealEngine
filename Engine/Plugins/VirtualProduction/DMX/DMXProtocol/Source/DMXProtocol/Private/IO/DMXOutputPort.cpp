@@ -531,6 +531,8 @@ FDMXOutputPortConfig FDMXOutputPort::MakeOutputPortConfig() const
 	Params.PortName = PortName;
 	Params.ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
 	Params.CommunicationType = CommunicationType;
+	Params.bAutoCompleteDeviceAddressEnabled = bAutoCompleteDeviceAddressEnabled;
+	Params.AutoCompleteDeviceAddress = AutoCompleteDeviceAddress;
 	Params.DeviceAddress = DeviceAddress;
 	Params.DestinationAddresses = DestinationAddresses;
 	Params.bLoopbackToEngine = CommunicationDeterminator.IsLoopbackToEngineEnabled();
@@ -575,6 +577,8 @@ void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& InOutOutputPortConfi
 		FName ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
 
 		if (ProtocolName == OutputPortConfig.GetProtocolName() &&
+			bAutoCompleteDeviceAddressEnabled == bAutoCompleteDeviceAddressEnabled &&
+			AutoCompleteDeviceAddress == AutoCompleteDeviceAddress &&
 			DeviceAddress == OutputPortConfig.GetDeviceAddress() &&
 			DestinationAddresses == OutputPortConfig.GetDestinationAddresses() &&
 			CommunicationType == OutputPortConfig.GetCommunicationType() &&
@@ -604,11 +608,13 @@ void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& InOutOutputPortConfi
 	PortGuid = ConfigPortGuid;
 
 	CommunicationType = OutputPortConfig.GetCommunicationType();
-	ExternUniverseStart = OutputPortConfig.GetExternUniverseStart();
+	bAutoCompleteDeviceAddressEnabled = OutputPortConfig.IsAutoCompleteDeviceAddressEnabled();
+	AutoCompleteDeviceAddress = OutputPortConfig.GetAutoCompleteDeviceAddress();
 	DeviceAddress = OutputPortConfig.GetDeviceAddress();
 	DestinationAddresses = OutputPortConfig.GetDestinationAddresses();
 	LocalUniverseStart = OutputPortConfig.GetLocalUniverseStart();
 	NumUniverses = OutputPortConfig.GetNumUniverses();
+	ExternUniverseStart = OutputPortConfig.GetExternUniverseStart();
 	PortName = OutputPortConfig.GetPortName();
 	Priority = OutputPortConfig.GetPriority();
 	DelaySeconds = OutputPortConfig.GetDelay() / OutputPortConfig.GetDelayFrameRate().AsDecimal();

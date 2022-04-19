@@ -406,6 +406,8 @@ FDMXInputPortConfig FDMXInputPort::MakeInputPortConfig() const
 	FDMXInputPortConfigParams Params;
 	Params.PortName = PortName;
 	Params.ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
+	Params.bAutoCompleteDeviceAddressEnabled = bAutoCompleteDeviceAddressEnabled;
+	Params.AutoCompleteDeviceAddress = AutoCompleteDeviceAddress;
 	Params.CommunicationType = CommunicationType;
 	Params.DeviceAddress = DeviceAddress;
 	Params.LocalUniverseStart = LocalUniverseStart;
@@ -453,6 +455,8 @@ void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InOutInputPortConfig, 
 		FName ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
 
 		if (ProtocolName == InputPortConfig.GetProtocolName() &&
+			bAutoCompleteDeviceAddressEnabled == bAutoCompleteDeviceAddressEnabled &&
+			AutoCompleteDeviceAddress == AutoCompleteDeviceAddress &&
 			DeviceAddress == InputPortConfig.GetDeviceAddress() &&
 			CommunicationType == InputPortConfig.GetCommunicationType())
 		{
@@ -473,8 +477,10 @@ void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InOutInputPortConfig, 
 	// Copy properties from the config into the base class
 	PortGuid = InputPortConfig.GetPortGuid();
 	CommunicationType = InputPortConfig.GetCommunicationType();
-	ExternUniverseStart = InputPortConfig.GetExternUniverseStart();
+	bAutoCompleteDeviceAddressEnabled = InputPortConfig.IsAutoCompleteDeviceAddressEnabled();
+	AutoCompleteDeviceAddress = InputPortConfig.GetAutoCompleteDeviceAddress();
 	DeviceAddress = InputPortConfig.GetDeviceAddress();
+	ExternUniverseStart = InputPortConfig.GetExternUniverseStart();
 	LocalUniverseStart = InputPortConfig.GetLocalUniverseStart();
 	NumUniverses = InputPortConfig.GetNumUniverses();
 	PortName = InputPortConfig.GetPortName();

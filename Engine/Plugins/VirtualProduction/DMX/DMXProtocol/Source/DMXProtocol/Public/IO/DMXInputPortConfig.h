@@ -46,6 +46,8 @@ struct DMXPROTOCOL_API FDMXInputPortConfigParams
 	FString PortName;
 	FName ProtocolName;
 	EDMXCommunicationType CommunicationType;
+	bool bAutoCompleteDeviceAddressEnabled;
+	FString AutoCompleteDeviceAddress;
 	FString DeviceAddress; 
 	int32 LocalUniverseStart;
 	int32 NumUniverses;
@@ -80,6 +82,8 @@ public:
 	FORCEINLINE const FString& GetPortName() const { return PortName; }
 	FORCEINLINE const FName& GetProtocolName() const { return ProtocolName; }
 	FORCEINLINE EDMXCommunicationType GetCommunicationType() const { return CommunicationType; }
+	FORCEINLINE bool IsAutoCompleteDeviceAddressEnabled() const { return bAutoCompleteDeviceAddressEnabled; }
+	FORCEINLINE FString GetAutoCompleteDeviceAddress() const { return AutoCompleteDeviceAddress; }
 	FString GetDeviceAddress() const;
 	FORCEINLINE int32 GetLocalUniverseStart() const { return LocalUniverseStart; }
 	FORCEINLINE int32 GetNumUniverses() const { return NumUniverses; }
@@ -92,6 +96,8 @@ public:
 	static FName GetPortNamePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, PortName); }
 	static FName GetProtocolNamePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, ProtocolName); }
 	static FName GetCommunicationTypePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, CommunicationType); }
+	static FName GetAutoCompleteDeviceAddressEnabledPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, bAutoCompleteDeviceAddressEnabled); }
+	static FName GetAutoCompleteDeviceAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, AutoCompleteDeviceAddress); }
 	static FName GetDeviceAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, DeviceAddress); }
 	static FName GetLocalUniverseStartPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, LocalUniverseStart); }
 	static FName GetNumUniversesPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(FDMXInputPortConfig, NumUniverses); }
@@ -113,6 +119,23 @@ protected:
 	/** The type of communication used with this port */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
 	EDMXCommunicationType CommunicationType = EDMXCommunicationType::InternalOnly;
+
+	/** Enables 'Auto Complete Device Address', hidden via customization - EditConditionInlineToggle doesn't support Config */
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config")
+	bool bAutoCompleteDeviceAddressEnabled = false;
+
+	/**
+	 * Searches available Network Interface Card IP Addresses and uses the first match as the 'Network Interface Card IP Address' (both in Editor and Game).
+	 *
+	 * Supports wildcards, examples:
+	 * '192'
+	 * '192.*'
+	 * '192.168.?.*'.
+	 *
+	 * If empty or '*' the first best available IP will be selected (not recommended)
+	 */
+	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Auto Complete Network Interface Card IP Address"))
+	FString AutoCompleteDeviceAddress = TEXT("192.*");
 
 	/** The Network Interface Card's IP Adress, over which DMX is received */
 	UPROPERTY(Config, BlueprintReadOnly, EditDefaultsOnly, Category = "Port Config", Meta = (DisplayName = "Network Interface Card IP Address"))

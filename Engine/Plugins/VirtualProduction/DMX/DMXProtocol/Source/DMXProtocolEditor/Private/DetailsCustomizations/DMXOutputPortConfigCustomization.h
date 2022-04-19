@@ -40,23 +40,26 @@ private:
 	/** Generates the customized Communication Type row */
 	void GenerateCommunicationTypeRow(IDetailPropertyRow& PropertyRow);
 
+	/** Generates the customized Auto Complete Device Address row */
+	void GenerateAutoCompleteDeviceAddressRow(IDetailPropertyRow& PropertyRow);
+
 	/** Generates the customized IP Address row */
-	void GenerateIPAddressRow(IDetailPropertyRow& PropertyRow);
+	void GenerateDeviceAddressRow(IDetailPropertyRow& PropertyRow);
 
 	/** Generates the customized Delay Seconds row */
 	void GenerateDelayRow(IDetailPropertyRow& PropertyRow);
 
-	/** Returns the visibility of the Communication Type Property */
-	EVisibility GetCommunicationTypeVisibility() const;
+	/** Updates the Auto Complete Device Address Text Box */
+	void UpdateAutoCompleteDeviceAddressTextBox();
 
 	/** Called when a Protocol Name was selected */
 	void OnProtocolNameSelected();
 
-	/** Called when a local IP Address was selected */
-	void OnIPAddressSelected();
-
 	/** Called when a Communication Type was selected */
 	void OnCommunicationTypeSelected();
+
+	/** Called when a Device Address was selected */
+	void OnDeviceAddressSelected();
 
 	/** Called when the Destination Addresses Array visibility needs to be updated */
 	void UpdateDestinationAddressesVisibility();
@@ -85,11 +88,20 @@ private:
 	/** Gets the communication type */
 	EDMXCommunicationType GetCommunicationType() const;
 
+	/** Returns the value of the AutoCompleteDeviceAddressEnabled property */
+	bool IsAutoCompleteDeviceAddressEnabled() const;
+
 	/** Gets the IP Address */
 	FString GetIPAddress() const;
 
 	/** Property handle to the ProtocolName property */
 	TSharedPtr<IPropertyHandle> ProtocolNameHandle;
+
+	/** Property handle to the bAutoCompleteDeviceAddressEnabled property */
+	TSharedPtr<IPropertyHandle> AutoCompleteDeviceAddressEnabledHandle;
+
+	/** Property handle to the AutoCompleteDeviceAddress property */
+	TSharedPtr<IPropertyHandle> AutoCompleteDeviceAddressHandle;
 
 	/** Property handle to the IPAddress property */
 	TSharedPtr<IPropertyHandle> DeviceAddressHandle;
@@ -112,11 +124,14 @@ private:
 	/** ComboBox to select a protocol name */
 	TSharedPtr<SDMXProtocolNameComboBox> ProtocolNameComboBox;
 
-	/** ComboBox that displays local ip addresses */
-	TSharedPtr<SDMXIPAddressEditWidget> IPAddressEditWidget;
-
 	/** ComboBox that exposes a selection of communication types to the user */
 	TSharedPtr<SDMXCommunicationTypeComboBox> CommunicationTypeComboBox;
+
+	/** Text Block that displays the device address when it is auto completed */
+	TSharedPtr<STextBlock> AutoCompletedDeviceAddressTextBlock;
+
+	/** ComboBox that displays local ip addresses */
+	TSharedPtr<SDMXIPAddressEditWidget> IPAddressEditWidget;
 
 	/** Custom widget that lets the user set the delay */
 	TSharedPtr<SDMXDelayEditWidget> DelayEditWidget;
