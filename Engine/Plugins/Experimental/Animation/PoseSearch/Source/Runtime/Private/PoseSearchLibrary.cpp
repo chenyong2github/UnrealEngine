@@ -496,7 +496,8 @@ void UpdateMotionMatchingState(
 		TraceState.Weights = Settings.Weights;
 		TraceState.DbPoseIdx = InOutMotionMatchingState.DbPoseIdx;
 		TraceState.DatabaseId = FObjectTrace::GetObjectId(Database);
-
+		TraceState.ContinuingPoseIdx = PoseStepper.Result.PoseIdx;
+		
 		TraceState.AssetPlayerTime = InOutMotionMatchingState.AssetPlayerTime;
 		TraceState.DeltaTime = DeltaTime;
 		TraceState.SimLinearVelocity = SimLinearVelocity;

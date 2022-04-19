@@ -719,6 +719,7 @@ void SDebuggerDatabaseView::RefreshColumns()
 	using namespace DebuggerDatabaseColumns;
 	
 	ActiveView.HeaderRow->ClearColumns();
+	ContinuingPoseView.HeaderRow->ClearColumns();
 	FilteredDatabaseView.HeaderRow->ClearColumns();
 	
 	// Sort columns by index
@@ -749,6 +750,8 @@ void SDebuggerDatabaseView::RefreshColumns()
 			
 			// Every time the active column is changed, update the database column
 			ActiveView.HeaderRow->AddColumn(ColumnArgs.OnWidthChanged(this, &SDebuggerDatabaseView::OnColumnWidthChanged, ColumnName));
+			
+			ContinuingPoseView.HeaderRow->AddColumn(ColumnArgs.OnWidthChanged(this, &SDebuggerDatabaseView::OnColumnWidthChanged, ColumnName));
 		}
 	}
 }
@@ -944,6 +947,9 @@ void SDebuggerDatabaseView::CreateRows(const UPoseSearchDatabase& Database)
 
 	ActiveView.Rows.Reset();
 	ActiveView.Rows.Add(MakeShared<FDebuggerDatabaseRowData>());
+
+	ContinuingPoseView.Rows.Reset();
+	ContinuingPoseView.Rows.Add(MakeShared<FDebuggerDatabaseRowData>());
 }
 
 void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database)
@@ -955,6 +961,7 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 		CreateRows(Database);
 	}
 	check(ActiveView.Rows.Num() == 1);
+	check(ContinuingPoseView.Rows.Num() == 1);
 
 	FPoseSearchWeightsContext StateWeights;
 	StateWeights.Update(State.Weights, &Database);
@@ -969,16 +976,38 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 			EPoseSearchBooleanRequest::TrueValue : EPoseSearchBooleanRequest::FalseValue;
 	}
 	
-	for(const TSharedRef<FDebuggerDatabaseRowData>& Row : UnfilteredDatabaseRows)
+	if (!UnfilteredDatabaseRows.IsEmpty())
 	{
-		const int32 PoseIdx = Row->PoseIdx;
-
-		ComparePoses(PoseIdx, SearchContext, Row->PoseCostDetails);
-
-		// If we are on the active pose for the frame
-		if (PoseIdx == State.DbPoseIdx)
+		bool IsActiveViewRowInitialized = false;
+		bool IsContinuingPoseViewRowInitialized = false;
+		for (const TSharedRef<FDebuggerDatabaseRowData>& Row : UnfilteredDatabaseRows)
 		{
-			*ActiveView.Rows[0] = Row.Get();
+			const int32 PoseIdx = Row->PoseIdx;
+
+			ComparePoses(PoseIdx, SearchContext, Row->PoseCostDetails);
+
+			// If we are on the active pose for the frame
+			if (PoseIdx == State.DbPoseIdx)
+			{
+				*ActiveView.Rows[0] = Row.Get();
+				IsActiveViewRowInitialized = true;
+			}
+
+			if (PoseIdx == State.ContinuingPoseIdx)
+			{
+				*ContinuingPoseView.Rows[0] = Row.Get();
+				IsContinuingPoseViewRowInitialized = true;
+			}
+		}
+
+		if (!IsActiveViewRowInitialized)
+		{
+			*ActiveView.Rows[0] = UnfilteredDatabaseRows[0].Get();
+		}
+
+		if (!IsContinuingPoseViewRowInitialized)
+		{
+			*ContinuingPoseView.Rows[0] = *ActiveView.Rows[0];
 		}
 	}
 
@@ -1006,6 +1035,13 @@ TSharedRef<ITableRow> SDebuggerDatabaseView::HandleGenerateActiveRow(TSharedRef<
 {
 	return
 		SNew(SDebuggerDatabaseRow, OwnerTable, Item, ActiveView.RowStyle, &ActiveView.RowBrush, FMargin(0.0f, 2.0f, 6.0f, 4.0f))
+		.ColumnMap(this, &SDebuggerDatabaseView::GetColumnMap);
+}
+
+TSharedRef<ITableRow> SDebuggerDatabaseView::HandleGenerateContinuingPoseRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const
+{
+	return
+		SNew(SDebuggerDatabaseRow, OwnerTable, Item, ContinuingPoseView.RowStyle, &ContinuingPoseView.RowBrush, FMargin(0.0f, 2.0f, 6.0f, 4.0f))
 		.ColumnMap(this, &SDebuggerDatabaseView::GetColumnMap);
 }
 
@@ -1053,6 +1089,27 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 	ActiveView.RowStyle = FEditorStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
 	ActiveView.RowBrush = *FEditorStyle::GetBrush("DetailsView.CategoryTop");
 
+	// ContinuingPose Row
+	ContinuingPoseView.HeaderRow = SNew(SHeaderRow).Visibility(EVisibility::Collapsed);
+
+	// Used for spacing
+	ContinuingPoseView.ScrollBar =
+		SNew(SScrollBar)
+		.Orientation(Orient_Vertical)
+		.HideWhenNotInUse(false)
+		.AlwaysShowScrollbar(true)
+		.AlwaysShowScrollbarTrack(true);
+
+	ContinuingPoseView.ListView = SNew(SListView<TSharedRef<FDebuggerDatabaseRowData>>)
+		.ListItemsSource(&ContinuingPoseView.Rows)
+		.HeaderRow(ContinuingPoseView.HeaderRow.ToSharedRef())
+		.OnGenerateRow(this, &SDebuggerDatabaseView::HandleGenerateContinuingPoseRow)
+		.ExternalScrollbar(ContinuingPoseView.ScrollBar)
+		.SelectionMode(ESelectionMode::SingleToggle)
+		.ConsumeMouseWheel(EConsumeMouseWheel::Never);
+
+	ContinuingPoseView.RowStyle = FEditorStyle::GetWidgetStyle<FTableRowStyle>("TableView.Row");
+	ContinuingPoseView.RowBrush = *FEditorStyle::GetBrush("DetailsView.CategoryTop");
 
 	// Filtered Database
 	FilteredDatabaseView.ScrollBar =
@@ -1139,6 +1196,65 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 			]	
 		]
 
+		+ SVerticalBox::Slot()
+		// Side and top margins, ignore bottom handled by the color border below
+		.Padding(0.0f, 5.0f, 0.0f, 0.0f)
+		.AutoHeight()
+		[
+			// ContinuingPose Row text tab
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.0f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Fill)
+				.Padding(0.0f)
+				.AutoWidth()
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
+					.Padding(FMargin(30.0f, 3.0f, 30.0f, 0.0f))
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Fill)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString("Continuing Pose"))	
+					]
+				]
+			]
+
+			// ContinuingPose row list view with scroll bar
+			+ SVerticalBox::Slot()
+			
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.Padding(0.0f)
+				[
+					SNew(SBorder)
+					
+					.BorderImage(FEditorStyle::GetBrush("NoBorder"))
+					.Padding(0.0f)
+					[
+						ContinuingPoseView.ListView.ToSharedRef()
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					ContinuingPoseView.ScrollBar.ToSharedRef()
+				]
+			]	
+		]
+		
 		+ SVerticalBox::Slot()
 		.Padding(0.0f, 0.0f, 0.0f, 5.0f)
 		[
@@ -1235,9 +1351,10 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 	SortColumn = FCost::Name;
 	SortMode = EColumnSortMode::Ascending;
 
-	// Active view scroll bar only for indenting the columns to align w/ database
+	// Active and Continuing Pose view scroll bars only for indenting the columns to align w/ database
 	ActiveView.ScrollBar->SetVisibility(EVisibility::Hidden);
-	
+	ContinuingPoseView.ScrollBar->SetVisibility(EVisibility::Hidden);
+
 	RefreshColumns();
 }
 
@@ -1653,6 +1770,22 @@ void SDebuggerView::DrawFeatures(
 		// Use the motion-matching state's pose idx, as the active row may be update-throttled at this point
 		DrawParams.PoseIdx = State.DbPoseIdx;
 		DrawParams.LabelPrefix = TEXT("A");
+		Draw(DrawParams);
+	}
+
+	Selected = DatabaseView->GetContinuingPoseRow()->GetSelectedItems();
+
+	// ContinuingPose row should only have 0 or 1
+	check(Selected.Num() < 2);
+
+	if (!Selected.IsEmpty())
+	{
+		// Green for the ContinuingPose view
+		DrawParams.Color = &FLinearColor::Gray;
+
+		// Use the motion-matching state's pose idx, as the ContinuingPose row may be update-throttled at this point
+		DrawParams.PoseIdx = (*Selected.begin())->PoseIdx;
+		DrawParams.LabelPrefix = TEXT("C");
 		Draw(DrawParams);
 	}
 

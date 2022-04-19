@@ -30,6 +30,7 @@ struct FTraceMotionMatchingStateMessage : FTraceMessage
 	FPoseSearchDynamicWeightParams Weights;
 	int32 DbPoseIdx = INDEX_NONE;
 	uint64 DatabaseId = INDEX_NONE;
+	int32 ContinuingPoseIdx = INDEX_NONE;
 	float AssetPlayerTime = 0.0f;
 	float DeltaTime = 0.0f;
 	float SimLinearVelocity = 0.0f;

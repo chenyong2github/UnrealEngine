@@ -44,6 +44,7 @@ bool FTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 				Message.DatabaseId = EventData.GetValue<uint64>("DatabaseId");
 				Message.Flags = static_cast<FTraceMotionMatchingState::EFlags>(EventData.GetValue<uint32>("Flags"));
 				Message.DbPoseIdx = EventData.GetValue<int32>("DbPoseIdx");
+				Message.ContinuingPoseIdx = EventData.GetValue<int32>("ContinuingPoseIdx");
 				Message.ElapsedPoseJumpTime = EventData.GetValue<float>("ElapsedPoseJumpTime");
 				Message.QueryVector = EventData.GetArrayView<float>("QueryVector");
                 Message.QueryVectorNormalized = EventData.GetArrayView<float>("QueryVectorNormalized");

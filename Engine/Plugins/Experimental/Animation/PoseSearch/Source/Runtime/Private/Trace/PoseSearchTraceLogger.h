@@ -59,6 +59,9 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	/** Object Id of the database asset */
 	uint64 DatabaseId = 0;
 
+	/** Index of the continuing pose in our database */
+	int32 ContinuingPoseIdx = 0;
+
 	/** Node Id of the motion matching node associated with this message */
 	int32 NodeId = 0;
 

@@ -268,6 +268,7 @@ class SDebuggerDatabaseView : public SCompoundWidget
 	void Update(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database);
 
 	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& GetActiveRow() const { return ActiveView.ListView; }
+	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& GetContinuingPoseRow() const { return ContinuingPoseView.ListView; }
 	const TSharedPtr<SListView<TSharedRef<FDebuggerDatabaseRowData>>>& GetDatabaseRows() const { return FilteredDatabaseView.ListView; }
 	const TSharedRef<FDebuggerDatabaseRowData>& GetPoseIdxDatabaseRow(int32 PoseIdx) const;
 
@@ -326,6 +327,9 @@ private:
 	/** Generates the active row widget for the given data */
 	TSharedRef<ITableRow> HandleGenerateActiveRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 
+	/** Generates the continuing pose row widget for the given data */
+	TSharedRef<ITableRow> HandleGenerateContinuingPoseRow(TSharedRef<FDebuggerDatabaseRowData> Item, const TSharedRef<STableViewBase>& OwnerTable) const;
+
 	TWeakPtr<SDebuggerView> ParentDebuggerViewPtr;
 
 	FOnPoseSelectionChanged OnPoseSelectionChanged;
@@ -363,6 +367,9 @@ private:
 
 	/** Active row at the top of the view */
 	FTable ActiveView;
+
+	/** Continuing pose row below Active row */
+	FTable ContinuingPoseView;
 
 	/** All database poses */
 	TArray<TSharedRef<FDebuggerDatabaseRowData>> UnfilteredDatabaseRows;
