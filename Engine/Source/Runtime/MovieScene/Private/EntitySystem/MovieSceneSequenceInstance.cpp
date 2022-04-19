@@ -279,6 +279,45 @@ void FSequenceInstance::PostEvaluation(UMovieSceneEntitySystemLinker* Linker)
 			SCOPE_CYCLE_COUNTER(MovieSceneEval_SequenceInstancePostUpdate);
 
 			Player->PostEvaluation(Context);
+
+			if (VolatilityManager && LegacyEvaluator)
+			{
+				FMovieSceneRootEvaluationTemplateInstance& RootTemplateInstance = Player->GetEvaluationTemplate();
+
+				UMovieSceneCompiledDataManager* CompiledDataManager = RootTemplateInstance.GetCompiledDataManager();
+
+				// If this sequence is volatile, purge any stale track templates from the compiled data
+				FMovieSceneEvaluationTemplate* EvalTemplate = const_cast<FMovieSceneEvaluationTemplate*>(CompiledDataManager->FindTrackTemplate(CompiledDataID));
+				if (EvalTemplate)
+				{
+					EvalTemplate->PurgeStaleTracks();
+				}
+
+				// Do the same for all subsequences
+				const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(CompiledDataID);
+				if (Hierarchy)
+				{
+					for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
+					{
+						UMovieSceneSequence* SubSequence = Pair.Value.GetLoadedSequence();
+						if (!SubSequence)
+						{
+							continue;
+						}
+						FMovieSceneCompiledDataID SubCompiledDataID = CompiledDataManager->FindDataID(SubSequence);
+						if (!SubCompiledDataID.IsValid())
+						{
+							continue;
+						}
+
+						FMovieSceneEvaluationTemplate* SubEvalTemplate = const_cast<FMovieSceneEvaluationTemplate*>(CompiledDataManager->FindTrackTemplate(SubCompiledDataID));
+						if (SubEvalTemplate)
+						{
+							SubEvalTemplate->PurgeStaleTracks();
+						}
+					}
+				}
+			}
 		}
 	}
 }
