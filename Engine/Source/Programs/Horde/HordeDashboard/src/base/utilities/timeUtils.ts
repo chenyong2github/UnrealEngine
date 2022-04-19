@@ -347,7 +347,7 @@ export const getHumanTime = (timeIn: Date | string | undefined): string => {
     const nowDay = now.dayOfYear();
     const timeDay = time.dayOfYear();
 
-    if (nowDay - timeDay > 2) {
+    if (nowDay - timeDay >= 2) {
         return time.format('MMM Do');    
     }
 
