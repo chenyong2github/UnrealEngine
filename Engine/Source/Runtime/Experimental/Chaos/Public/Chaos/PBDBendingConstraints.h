@@ -25,7 +25,7 @@ public:
 			const int32 i2 = Constraint[1];
 			const int32 i3 = Constraint[2];
 			const int32 i4 = Constraint[3];
-			const TArray<FSolverVec3> Grads = Base::GetGradients(InParticles, i);
+			const TStaticArray<FSolverVec3, 4> Grads = Base::GetGradients(InParticles, i);
 			const FSolverReal S = Base::GetScalingFactor(InParticles, i, Grads);
 			InParticles.P(i1) -= S * InParticles.InvM(i1) * Grads[0];
 			InParticles.P(i2) -= S * InParticles.InvM(i2) * Grads[1];
