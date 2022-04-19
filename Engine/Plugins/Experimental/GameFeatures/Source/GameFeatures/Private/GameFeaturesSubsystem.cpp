@@ -374,7 +374,7 @@ void UGameFeaturesSubsystem::OnGameFeatureCheckingStatus(const FString& PluginUR
 void UGameFeaturesSubsystem::OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL)
 {
 	// Map plugin name to plugin URL
-	if (ensure(!GameFeaturePluginNameToPathMap.Contains(PluginName)))
+	if (!GameFeaturePluginNameToPathMap.Contains(PluginName))
 	{
 		GameFeaturePluginNameToPathMap.Add(PluginName, PluginURL);
 	}
@@ -836,6 +836,11 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 					else
 					{
 						StateMachine->SetDestinationState(DestinationState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadGameFeaturePluginComplete));
+					}
+
+					if (!GameFeaturePluginNameToPathMap.Contains(Plugin->GetName()))
+					{
+						GameFeaturePluginNameToPathMap.Add(Plugin->GetName(), PluginURL);
 					}
 				}
 			}
