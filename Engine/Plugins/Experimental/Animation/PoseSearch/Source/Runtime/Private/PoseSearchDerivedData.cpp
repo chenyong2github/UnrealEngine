@@ -267,7 +267,7 @@ namespace UE::PoseSearch
 		for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
 		{
 			const FAnimNotifyEvent* NotifyEvent = EventReference.GetNotify();
-			if (!NotifyEvent)
+			if (!NotifyEvent || !NotifyEvent->NotifyStateClass)
 			{
 				continue;
 			}
