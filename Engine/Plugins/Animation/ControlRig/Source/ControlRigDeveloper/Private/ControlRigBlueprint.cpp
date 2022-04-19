@@ -586,9 +586,9 @@ void UControlRigBlueprint::PostLoad()
 	}
 
 #if WITH_EDITOR
-	// delay compilation until the package has been loaded
 	if(GIsEditor)
 	{
+		// delay compilation until the package has been loaded
 		FCoreUObjectDelegates::OnEndLoadPackage.AddUObject(this, &UControlRigBlueprint::HandlePackageDone);
 	}
 #else
