@@ -304,6 +304,9 @@ private:
 	/** Can the modifier stack be evaluated. */
 	bool CanEvaluateModifierStack() const;
 
+	/** Output Providers should only update outside of MU or if we have the correct VP Role */
+	bool ShouldUpdateOutputProviders() const;
+
 	// When another component replaces us, get a notification so we can clean up
 	void NotifyComponentWasReplaced(UVCamComponent* ReplacementComponent);
 
