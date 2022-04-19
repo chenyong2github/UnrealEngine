@@ -144,7 +144,10 @@ void UMovieSceneActorReferenceSection::OnBindingIDsUpdated(const TMap<UE::MovieS
 	{
 		Modify();
 
-		ActorReferenceData.GetDefault().Object = OldFixedToNewFixedMap[DefaultFixedBindingID].ConvertToRelative(LocalSequenceID, Hierarchy);
+		FMovieSceneActorReferenceKey NewDefaultValue = ActorReferenceData.GetDefault();
+		NewDefaultValue.Object = OldFixedToNewFixedMap[DefaultFixedBindingID].ConvertToRelative(LocalSequenceID, Hierarchy);
+
+		ActorReferenceData.SetDefault(NewDefaultValue);
 	}
 
 	for (FMovieSceneActorReferenceKey& Key : ActorReferenceData.GetData().GetValues())
