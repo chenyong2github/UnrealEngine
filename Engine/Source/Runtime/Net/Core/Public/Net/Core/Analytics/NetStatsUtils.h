@@ -384,7 +384,7 @@ public:
 	 */
 	double GetMin() const
 	{
-		return MinValue;
+		return ((MinValue == std::numeric_limits<double>::max()) ? 0.0 : MinValue);
 	}
 
 	/**
@@ -394,7 +394,7 @@ public:
 	 */
 	double GetMax() const
 	{
-		return MaxValue;
+		return ((MaxValue == std::numeric_limits<double>::min()) ? 0.0 : MaxValue);
 	}
 
 	/**
