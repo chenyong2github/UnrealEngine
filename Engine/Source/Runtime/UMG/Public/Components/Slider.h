@@ -29,7 +29,8 @@ class UMG_API USlider : public UWidget
 
 public:
 	/** The volume value to display. */
-	UPROPERTY(EditAnywhere, Category=Appearance, meta=(UIMin="0", UIMax="1"))
+	UE_DEPRECATED(5.1, "Direct access to Value is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, FieldNotify, BlueprintGetter="GetValue", BlueprintSetter="SetValue", Category="Appearance", meta=(UIMin="0", UIMax="1"))
 	float Value;
 
 	/** A bindable delegate to allow logic to drive the value of the widget */
@@ -37,37 +38,44 @@ public:
 	FGetFloat ValueDelegate;
 
 	/** The minimum value the slider can be set to. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance)
+	UE_DEPRECATED(5.1, "Direct access to MinValue is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetMinValue", Category="Appearance")
 	float MinValue;
 
 	/** The maximum value the slider can be set to. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Appearance)
+	UE_DEPRECATED(5.1, "Direct access to MaxValue is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetMaxValue", Category="Appearance")
 	float MaxValue;
 
 public:
-	
 	/** The progress bar style */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Style" ))
+	UE_DEPRECATED(5.1, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Style", meta=( DisplayName="Style" ))
 	FSliderStyle WidgetStyle;
 
 	/** The slider's orientation. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
+	UE_DEPRECATED(5.1, "Direct access to Orientation is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Appearance)
 	TEnumAsByte<EOrientation> Orientation;
 
 	/** The color to draw the slider bar in. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
+	UE_DEPRECATED(5.1, "Direct access to SliderBarColor is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetSliderBarColor", Category="Appearance")
 	FLinearColor SliderBarColor;
 
 	/** The color to draw the slider handle in. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
+	UE_DEPRECATED(5.1, "Direct access to SliderHandleColor is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetSliderHandleColor", Category="Appearance")
 	FLinearColor SliderHandleColor;
 
 	/** Whether the slidable area should be indented to fit the handle. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to IndentHandle is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="HasIndentHandle", Setter, BlueprintSetter="SetIndentHandle", Category="Appearance", AdvancedDisplay)
 	bool IndentHandle;
 
 	/** Whether the handle is interactive or fixed. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, AdvancedDisplay)
+	UE_DEPRECATED(5.1, "Direct access to Locked is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter="IsLocked", Setter, BlueprintSetter="SetLocked", Category="Appearance", AdvancedDisplay)
 	bool Locked;
 
 	/** Sets new value if mouse position is greater/less than half the step size. */
@@ -79,7 +87,8 @@ public:
 	bool RequiresControllerLock;
 
 	/** The amount to adjust the value by, when using a controller or keyboard */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=(UIMin="0", UIMax="1"))
+	UE_DEPRECATED(5.1, "Direct access to StepSize is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere,BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetStepSize", Category="Appearance", meta=(UIMin="0", UIMax="1"))
 	float StepSize;
 
 	/** Should the slider be focusable? */
@@ -120,29 +129,62 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Behavior")
 	void SetValue(float InValue);
 
+	/** Gets the minimum value of the slider. */
+	float GetMinValue() const;
+
 	/** Sets the minimum value of the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
 	void SetMinValue(float InValue);
+
+	/** Gets the maximum value of the slider. */
+	float GetMaxValue() const;
 
 	/** Sets the maximum value of the slider. */
 	UFUNCTION(BlueprintCallable, Category = "Behavior")
 	void SetMaxValue(float InValue);
 
-	/** Sets if the slidable area should be indented to fit the handle */
+	/** Get the style used by the widget. */
+	const FSliderStyle& GetWidgetStyle() const;
+
+	/** Set the style used by the widget. */
+	void SetWidgetStyle(const FSliderStyle& InStyle);
+
+	/** Getg the slider's orientation. */
+	EOrientation GetOrientation() const;
+
+	/** Sets the slider's orientation. */
+	void SetOrientation(EOrientation InOrientation);
+
+	/** Gets if the slidable area should be indented to fit the handle. */
+	bool HasIndentHandle() const;
+
+	/** Sets if the slidable area should be indented to fit the handle. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
 	void SetIndentHandle(bool InValue);
 
-	/** Sets the handle to be interactive or fixed */
+	/** Returns true when the handle is fixed. */
+	bool IsLocked() const;
+
+	/** Sets the handle to be interactive or fixed. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
 	void SetLocked(bool InValue);
 
-	/** Sets the amount to adjust the value by, when using a controller or keyboard */
+	/** Gets the amount to adjust the value by. */
+	float GetStepSize() const;
+
+	/** Sets the amount to adjust the value by, when using a controller or keyboard. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
 	void SetStepSize(float InValue);
 
-	/** Sets the color of the slider bar */
+	/** Gets the color of the slider bar. */
+	FLinearColor GetSliderBarColor() const;
+
+	/** Sets the color of the slider bar. */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetSliderBarColor(FLinearColor InValue);
+
+	/** Gets the color of the handle bar */
+	FLinearColor GetSliderHandleColor() const;
 
 	/** Sets the color of the handle bar */
 	UFUNCTION(BlueprintCallable, Category="Appearance")

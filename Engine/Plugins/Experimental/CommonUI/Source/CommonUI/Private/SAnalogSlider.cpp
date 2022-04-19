@@ -51,7 +51,7 @@ FReply SAnalogSlider::OnAnalogValueChanged(const FGeometry& MyGeometry, const FA
 	const float TimeToSlideFromZeroToOneAtFullSpeed = 3;
 	const float FastestStepTime = TimeToSlideFromZeroToOneAtFullSpeed * StepSizeValue;
 
-	float NewValue = ValueAttribute.Get();
+	float NewValue = GetValue();
 	bool bCommitNewValue = false;
 
 	if (Orientation == EOrientation::Orient_Horizontal && KeyPressed == EKeys::Gamepad_LeftX)
@@ -129,14 +129,14 @@ FNavigationReply SAnalogSlider::OnNavigation(const FGeometry& MyGeometry, const 
 	{
 		if (InNavigationEvent.GetNavigationType() == EUINavigation::Left)
 		{
-			CommitValue(FMath::Clamp(ValueAttribute.Get() - GetStepSize(), 0.0f, 1.0f));
+			CommitValue(FMath::Clamp(GetValue() - GetStepSize(), 0.0f, 1.0f));
 			OnAnalogCapture.ExecuteIfBound(GetValue());
 
 			return FNavigationReply::Explicit(nullptr);
 		}
 		else if (InNavigationEvent.GetNavigationType() == EUINavigation::Right)
 		{
-			CommitValue(FMath::Clamp(ValueAttribute.Get() + GetStepSize(), 0.0f, 1.0f));
+			CommitValue(FMath::Clamp(GetValue() + GetStepSize(), 0.0f, 1.0f));
 			OnAnalogCapture.ExecuteIfBound(GetValue());
 
 			return FNavigationReply::Explicit(nullptr);

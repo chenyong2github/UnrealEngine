@@ -19,6 +19,7 @@ static FSliderStyle* EditorSliderStyle = nullptr;
 USlider::USlider(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MinValue = 0.0f;
 	MaxValue = 1.0f;
 	Orientation = EOrientation::Orient_Horizontal;
@@ -58,6 +59,8 @@ USlider::USlider(const FObjectInitializer& ObjectInitializer)
 	}
 #endif // WITH_EDITOR
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 #if WITH_EDITORONLY_DATA
 	AccessibleBehavior = ESlateAccessibleBehavior::Summary;
 	bCanChildrenBeAccessible = false;
@@ -66,6 +69,7 @@ USlider::USlider(const FObjectInitializer& ObjectInitializer)
 
 TSharedRef<SWidget> USlider::RebuildWidget()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MySlider = SNew(SSlider)
 		.Style(&WidgetStyle)
 		.IsFocusable(IsFocusable)
@@ -74,7 +78,7 @@ TSharedRef<SWidget> USlider::RebuildWidget()
 		.OnControllerCaptureBegin(BIND_UOBJECT_DELEGATE(FSimpleDelegate, HandleOnControllerCaptureBegin))
 		.OnControllerCaptureEnd(BIND_UOBJECT_DELEGATE(FSimpleDelegate, HandleOnControllerCaptureEnd))
 		.OnValueChanged(BIND_UOBJECT_DELEGATE(FOnFloatValueChanged, HandleOnValueChanged));
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return MySlider.ToSharedRef();
 }
 
@@ -82,6 +86,7 @@ void USlider::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	TAttribute<float> ValueBinding = PROPERTY_BINDING(float, Value);
 	
 	MySlider->SetOrientation(Orientation);
@@ -94,6 +99,7 @@ void USlider::SynchronizeProperties()
 	MySlider->SetLocked(Locked);
 	MySlider->SetIndentHandle(IndentHandle);
 	MySlider->SetStepSize(StepSize);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USlider::ReleaseSlateResources(bool bReleaseChildren)
@@ -106,6 +112,7 @@ void USlider::ReleaseSlateResources(bool bReleaseChildren)
 void USlider::HandleOnValueChanged(float InValue)
 {
 	OnValueChanged.Broadcast(InValue);
+	BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::Value);
 }
 
 void USlider::HandleOnMouseCaptureBegin()
@@ -128,6 +135,7 @@ void USlider::HandleOnControllerCaptureEnd()
 	OnControllerCaptureEnd.Broadcast();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 float USlider::GetValue() const
 {
 	if ( MySlider.IsValid() )
@@ -164,6 +172,15 @@ void USlider::SetValue(float InValue)
 	}
 }
 
+float USlider::GetMinValue() const
+{
+	if (MySlider.IsValid())
+	{
+		return MySlider->GetMinValue();
+	}
+	return MinValue;
+}
+
 void USlider::SetMinValue(float InValue)
 {
 	MinValue = InValue;
@@ -176,6 +193,15 @@ void USlider::SetMinValue(float InValue)
 	}
 }
 
+float USlider::GetMaxValue() const
+{
+	if (MySlider.IsValid())
+	{
+		return MySlider->GetMaxValue();
+	}
+	return MaxValue;
+}
+
 void USlider::SetMaxValue(float InValue)
 {
 	MaxValue = InValue;
@@ -183,6 +209,39 @@ void USlider::SetMaxValue(float InValue)
 	{
 		MySlider->SetMinAndMaxValues(MinValue, MaxValue);
 	}
+}
+
+const FSliderStyle& USlider::GetWidgetStyle() const
+{
+	return WidgetStyle;
+}
+
+void USlider::SetWidgetStyle(const FSliderStyle& InStyle)
+{
+	WidgetStyle = InStyle;
+	if (MySlider.IsValid())
+	{
+		MySlider->SetStyle(&WidgetStyle);
+	}
+}
+
+EOrientation USlider::GetOrientation() const
+{
+	return Orientation;
+}
+
+void USlider::SetOrientation(EOrientation InOrientation)
+{
+	Orientation = InOrientation;
+	if (MySlider.IsValid())
+	{
+		MySlider->SetOrientation(Orientation);
+	}
+}
+
+bool USlider::HasIndentHandle() const
+{
+	return IndentHandle;
 }
 
 void USlider::SetIndentHandle(bool InIndentHandle)
@@ -194,6 +253,11 @@ void USlider::SetIndentHandle(bool InIndentHandle)
 	}
 }
 
+bool USlider::IsLocked() const
+{
+	return Locked;
+}
+
 void USlider::SetLocked(bool InLocked)
 {
 	Locked = InLocked;
@@ -201,6 +265,15 @@ void USlider::SetLocked(bool InLocked)
 	{
 		MySlider->SetLocked(InLocked);
 	}
+}
+
+float USlider::GetStepSize() const
+{
+	if (MySlider.IsValid())
+	{
+		return MySlider->GetStepSize();
+	}
+	return StepSize;
 }
 
 void USlider::SetStepSize(float InValue)
@@ -212,6 +285,11 @@ void USlider::SetStepSize(float InValue)
 	}
 }
 
+FLinearColor USlider::GetSliderHandleColor() const
+{
+	return SliderHandleColor;
+}
+
 void USlider::SetSliderHandleColor(FLinearColor InValue)
 {
 	SliderHandleColor = InValue;
@@ -219,6 +297,11 @@ void USlider::SetSliderHandleColor(FLinearColor InValue)
 	{
 		MySlider->SetSliderHandleColor(InValue);
 	}
+}
+
+FLinearColor USlider::GetSliderBarColor() const
+{
+	return SliderBarColor;
 }
 
 void USlider::SetSliderBarColor(FLinearColor InValue)
@@ -229,6 +312,7 @@ void USlider::SetSliderBarColor(FLinearColor InValue)
 		MySlider->SetSliderBarColor(InValue);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_ACCESSIBILITY
 TSharedPtr<SWidget> USlider::GetAccessibleWidget() const

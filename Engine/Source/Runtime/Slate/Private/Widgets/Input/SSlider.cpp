@@ -7,7 +7,24 @@
 #include "Widgets/Accessibility/SlateAccessibleWidgets.h"
 #endif
 
+SLATE_IMPLEMENT_WIDGET(SSlider)
+void SSlider::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "Value", ValueSlateAttribute, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "IndentHandle", IndentHandleSlateAttribute, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "Locked", LockedSlateAttribute, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "SliderBarColor", SliderBarColorSlateAttribute, EInvalidateWidgetReason::Paint);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "SliderHandleColor", SliderHandleColorSlateAttribute, EInvalidateWidgetReason::Paint);
+}
+
 SSlider::SSlider()
+	: Style(nullptr)
+	, PressedScreenSpaceTouchDownPosition(FVector2D(0, 0))
+	, ValueSlateAttribute(*this, 1.f)
+	, IndentHandleSlateAttribute(*this, true)
+	, LockedSlateAttribute(*this, false)
+	, SliderBarColorSlateAttribute(*this, FLinearColor::White)
+	, SliderHandleColorSlateAttribute(*this, FLinearColor::White)
 {
 #if WITH_ACCESSIBILITY
 	AccessibleBehavior = EAccessibleBehavior::Summary;
@@ -21,17 +38,17 @@ void SSlider::Construct( const SSlider::FArguments& InDeclaration )
 
 	Style = InDeclaration._Style;
 
-	IndentHandle = InDeclaration._IndentHandle;
+	IndentHandleSlateAttribute.Assign(*this, InDeclaration._IndentHandle);
 	bMouseUsesStep = InDeclaration._MouseUsesStep;
 	bRequiresControllerLock = InDeclaration._RequiresControllerLock;
-	LockedAttribute = InDeclaration._Locked;
+	LockedSlateAttribute.Assign(*this, InDeclaration._Locked);
 	Orientation = InDeclaration._Orientation;
 	StepSize = InDeclaration._StepSize;
-	ValueAttribute = InDeclaration._Value;
+	ValueSlateAttribute.Assign(*this, InDeclaration._Value);
 	MinValue = InDeclaration._MinValue;
 	MaxValue = InDeclaration._MaxValue;
-	SliderBarColor = InDeclaration._SliderBarColor;
-	SliderHandleColor = InDeclaration._SliderHandleColor;
+	SliderBarColorSlateAttribute.Assign(*this, InDeclaration._SliderBarColor);
+	SliderHandleColorSlateAttribute.Assign(*this, InDeclaration._SliderHandleColor);
 	bIsFocusable = InDeclaration._IsFocusable;
 	OnMouseCaptureBegin = InDeclaration._OnMouseCaptureBegin;
 	OnMouseCaptureEnd = InDeclaration._OnMouseCaptureEnd;
@@ -57,7 +74,7 @@ int32 SSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometr
 	// calculate slider geometry as if it's a horizontal slider (we'll rotate it later if it's vertical)
 	const FVector2D HandleSize = GetThumbImage()->ImageSize;
 	const FVector2D HalfHandleSize = 0.5f * HandleSize;
-	const float Indentation = IndentHandle.Get() ? HandleSize.X : 0.0f;
+	const float Indentation = IndentHandleSlateAttribute.Get() ? HandleSize.X : 0.0f;
 
 	// We clamp to make sure that the slider cannot go out of the slider Length.
 	const float SliderPercent = FMath::Clamp(GetNormalizedValue(), 0.0f, 1.0f); 
@@ -99,7 +116,7 @@ int32 SSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometr
 		SliderGeometry.ToPaintGeometry(BarTopLeft, BarSize),
 		BarImage,
 		DrawEffects,
-		BarImage->GetTint(InWidgetStyle) * SliderBarColor.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+		BarImage->GetTint(InWidgetStyle) * SliderBarColorSlateAttribute.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
 		);
 
 	++LayerId;
@@ -111,7 +128,7 @@ int32 SSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometr
 		SliderGeometry.ToPaintGeometry(HandleTopLeftPoint, GetThumbImage()->ImageSize),
 		ThumbImage,
 		DrawEffects,
-		ThumbImage->GetTint(InWidgetStyle) * SliderHandleColor.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+		ThumbImage->GetTint(InWidgetStyle) * SliderHandleColorSlateAttribute.Get().GetColor(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
 	);
 
 	return LayerId;
@@ -137,9 +154,15 @@ FVector2D SSlider::ComputeDesiredSize( float ) const
 	return FVector2D(SSliderDesiredSize.X, Thickness);
 }
 
+void SSlider::SetStyle(const FSliderStyle* InStyle)
+{
+	Style = InStyle;
+	Invalidate(EInvalidateWidgetReason::Layout);
+}
+
 bool SSlider::IsLocked() const
 {
-	return LockedAttribute.Get();
+	return LockedSlateAttribute.Get();
 }
 
 bool SSlider::IsInteractable() const
@@ -167,7 +190,7 @@ FNavigationReply SSlider::OnNavigation(const FGeometry& MyGeometry, const FNavig
 	{
 		FNavigationReply Reply = FNavigationReply::Escape();
 
-		float NewValue = ValueAttribute.Get();
+		float NewValue = ValueSlateAttribute.Get();
 		if (Orientation == EOrientation::Orient_Horizontal)
 		{
 			if (InNavigationEvent.GetNavigationType() == EUINavigation::Left)
@@ -194,7 +217,7 @@ FNavigationReply SSlider::OnNavigation(const FGeometry& MyGeometry, const FNavig
 				Reply = FNavigationReply::Stop();
 			}
 		}
-		if (ValueAttribute.Get() != NewValue)
+		if (ValueSlateAttribute.Get() != NewValue)
 		{
 			CommitValue(FMath::Clamp(NewValue, MinValue, MaxValue));
 			return Reply;
@@ -256,7 +279,7 @@ void SSlider::OnFocusLost(const FFocusEvent& InFocusEvent)
 	if (bControllerInputCaptured)
 	{
 		// Commit and reset state
-		CommitValue(ValueAttribute.Get());
+		CommitValue(ValueSlateAttribute.Get());
 		ResetControllerState();
 	}
 }
@@ -382,9 +405,9 @@ void SSlider::CommitValue(float NewValue)
 {
 	const float OldValue = GetValue();
 
-	if (!ValueAttribute.IsBound())
+	if (!ValueSlateAttribute.IsBound(*this))
 	{
-		ValueAttribute.Set(NewValue);
+		ValueSlateAttribute.Assign(*this, NewValue);
 	}
 
 	Invalidate(EInvalidateWidgetReason::Paint);
@@ -399,7 +422,7 @@ float SSlider::PositionToValue( const FGeometry& MyGeometry, const FVector2D& Ab
 	float RelativeValue;
 	float Denominator;
 	// Only need X as we rotate the thumb image when rendering vertically
-	const float Indentation = GetThumbImage()->ImageSize.X * (IndentHandle.Get() ? 2.f : 1.f);
+	const float Indentation = GetThumbImage()->ImageSize.X * (IndentHandleSlateAttribute.Get() ? 2.f : 1.f);
 	const float HalfIndentation = 0.5f * Indentation;
 
 	if (Orientation == Orient_Horizontal)
@@ -417,18 +440,19 @@ float SSlider::PositionToValue( const FGeometry& MyGeometry, const FVector2D& Ab
 	RelativeValue = FMath::Clamp(RelativeValue, 0.0f, 1.0f) * (MaxValue - MinValue) + MinValue;
 	if (bMouseUsesStep)
 	{
-		float direction = ValueAttribute.Get() - RelativeValue;
-		if (direction > StepSize.Get() / 2.0f)
+		float direction = ValueSlateAttribute.Get() - RelativeValue;
+		float CurrentStepSize = StepSize.Get();
+		if (direction > CurrentStepSize / 2.0f)
 		{
-			return FMath::Clamp(ValueAttribute.Get() - StepSize.Get(), MinValue, MaxValue);
+			return FMath::Clamp(ValueSlateAttribute.Get() - CurrentStepSize, MinValue, MaxValue);
 		}
-		else if (direction < StepSize.Get() / -2.0f)
+		else if (direction < CurrentStepSize / -2.0f)
 		{
-			return FMath::Clamp(ValueAttribute.Get() + StepSize.Get(), MinValue, MaxValue);
+			return FMath::Clamp(ValueSlateAttribute.Get() + CurrentStepSize, MinValue, MaxValue);
 		}
 		else
 		{
-			return ValueAttribute.Get();
+			return ValueSlateAttribute.Get();
 		}
 	}
 	return RelativeValue;
@@ -436,7 +460,7 @@ float SSlider::PositionToValue( const FGeometry& MyGeometry, const FVector2D& Ab
 
 const FSlateBrush* SSlider::GetBarImage() const
 {
-	if (!IsEnabled() || LockedAttribute.Get())
+	if (!IsEnabled() || LockedSlateAttribute.Get())
 	{
 		return &Style->DisabledBarImage;
 	}
@@ -452,7 +476,7 @@ const FSlateBrush* SSlider::GetBarImage() const
 
 const FSlateBrush* SSlider::GetThumbImage() const
 {
-	if (!IsEnabled() || LockedAttribute.Get())
+	if (!IsEnabled() || LockedSlateAttribute.Get())
 	{
 		return &Style->DisabledThumbImage;
 	}
@@ -468,7 +492,7 @@ const FSlateBrush* SSlider::GetThumbImage() const
 
 float SSlider::GetValue() const
 {
-	return ValueAttribute.Get();
+	return ValueSlateAttribute.Get();
 }
 
 float SSlider::GetNormalizedValue() const
@@ -479,13 +503,13 @@ float SSlider::GetNormalizedValue() const
 	}
 	else
 	{
-		return (ValueAttribute.Get() - MinValue) / (MaxValue - MinValue);
+		return (ValueSlateAttribute.Get() - MinValue) / (MaxValue - MinValue);
 	}
 }
 
-void SSlider::SetValue(const TAttribute<float>& InValueAttribute)
+void SSlider::SetValue(TAttribute<float> InValueAttribute)
 {
-	SetAttribute(ValueAttribute, InValueAttribute, EInvalidateWidgetReason::Paint);
+	ValueSlateAttribute.Assign(*this, MoveTemp(InValueAttribute));
 }
 
 void SSlider::SetMinAndMaxValues(float InMinValue, float InMaxValue)
@@ -498,14 +522,14 @@ void SSlider::SetMinAndMaxValues(float InMinValue, float InMaxValue)
 	}
 }
 
-void SSlider::SetIndentHandle(const TAttribute<bool>& InIndentHandle)
+void SSlider::SetIndentHandle(TAttribute<bool> InIndentHandle)
 {
-	SetAttribute(IndentHandle, InIndentHandle, EInvalidateWidgetReason::Paint);
+	IndentHandleSlateAttribute.Assign(*this, MoveTemp(InIndentHandle));
 }
 
-void SSlider::SetLocked(const TAttribute<bool>& InLocked)
+void SSlider::SetLocked(TAttribute<bool> InLocked)
 {
-	SetAttribute(LockedAttribute, InLocked, EInvalidateWidgetReason::Paint);
+	LockedSlateAttribute.Assign(*this, MoveTemp(InLocked));
 }
 
 void SSlider::SetOrientation(EOrientation InOrientation)
@@ -517,14 +541,14 @@ void SSlider::SetOrientation(EOrientation InOrientation)
 	}
 }
 
-void SSlider::SetSliderBarColor(FSlateColor InSliderBarColor)
+void SSlider::SetSliderBarColor(TAttribute<FSlateColor> InSliderBarColor)
 {
-	SetAttribute(SliderBarColor, TAttribute<FSlateColor>(InSliderBarColor), EInvalidateWidgetReason::Paint);
+	SliderBarColorSlateAttribute.Assign(*this, MoveTemp(InSliderBarColor));
 }
 
-void SSlider::SetSliderHandleColor(FSlateColor InSliderHandleColor)
+void SSlider::SetSliderHandleColor(TAttribute<FSlateColor> InSliderHandleColor)
 {
-	SetAttribute(SliderHandleColor, TAttribute<FSlateColor>(InSliderHandleColor), EInvalidateWidgetReason::Paint);
+	SliderHandleColorSlateAttribute.Assign(*this, MoveTemp(InSliderHandleColor));
 }
 
 float SSlider::GetStepSize() const
@@ -532,9 +556,9 @@ float SSlider::GetStepSize() const
 	return StepSize.Get();
 }
 
-void SSlider::SetStepSize(const TAttribute<float>& InStepSize)
+void SSlider::SetStepSize(TAttribute<float> InStepSize)
 {
-	StepSize = InStepSize;
+	StepSize = MoveTemp(InStepSize);
 }
 
 void SSlider::SetMouseUsesStep(bool MouseUsesStep)

@@ -19,9 +19,10 @@ class FSlateWindowElementList;
 /**
  * A Slate slider control is a linear scale and draggable handle.
  */
-class SLATE_API SSlider
-	: public SLeafWidget
+class SLATE_API SSlider : public SLeafWidget
 {
+	SLATE_DECLARE_WIDGET(SSlider, SLeafWidget)
+
 public:
 
 	SLATE_BEGIN_ARGS(SSlider)
@@ -108,6 +109,9 @@ public:
 	 */
 	void Construct( const SSlider::FArguments& InDeclaration );
 
+	/** Set the widget style. */
+	void SetStyle(const FSliderStyle* InStyle);
+
 	/** Get the MinValue attribute */
 	float GetMinValue() const { return MinValue; }
 
@@ -121,31 +125,31 @@ public:
 	float GetNormalizedValue() const;
 
 	/** Set the Value attribute */
-	void SetValue(const TAttribute<float>& InValueAttribute);
+	void SetValue(TAttribute<float> InValueAttribute);
 
 	/** Set the MinValue and MaxValue attributes. If the new MinValue is more than the new MaxValue, MaxValue will be changed to equal MinValue. */
 	void SetMinAndMaxValues(float InMinValue, float InMaxValue);
 	
 	/** Set the IndentHandle attribute */
-	void SetIndentHandle(const TAttribute<bool>& InIndentHandle);
+	void SetIndentHandle(TAttribute<bool> InIndentHandle);
 	
 	/** Set the Locked attribute */
-	void SetLocked(const TAttribute<bool>& InLocked);
+	void SetLocked(TAttribute<bool> InLocked);
 
 	/** Set the Orientation attribute */
 	void SetOrientation(EOrientation InOrientation);
 	
 	/** Set the SliderBarColor attribute */
-	void SetSliderBarColor(FSlateColor InSliderBarColor);
+	void SetSliderBarColor(TAttribute<FSlateColor> InSliderBarColor);
 	
 	/** Set the SliderHandleColor attribute */
-	void SetSliderHandleColor(FSlateColor InSliderHandleColor);
+	void SetSliderHandleColor(TAttribute<FSlateColor> InSliderHandleColor);
 
 	/** Get the StepSize attribute */
 	float GetStepSize() const;
 
 	/** Set the StepSize attribute */
-	void SetStepSize(const TAttribute<float>& InStepSize);
+	void SetStepSize(TAttribute<float> InStepSize);
 
 	/** Set the MouseUsesStep attribute */
 	void SetMouseUsesStep(bool MouseUsesStep);
@@ -202,33 +206,60 @@ protected:
 	const FSlateBrush* GetThumbImage() const;
 
 protected:
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "Direct access to Value is now deprecated. Use the setter or getter.")
+	TSlateDeprecatedTAttribute<float> ValueAttribute;
+	UE_DEPRECATED(5.1, "Direct access to IndentHandle is now deprecated. Use the setter or getter.")
+	TSlateDeprecatedTAttribute<bool> IndentHandle;
+	UE_DEPRECATED(5.1, "Direct access to LockedAttribute is now deprecated. Use the setter or getter.")
+	TSlateDeprecatedTAttribute<bool> LockedAttribute;
+	UE_DEPRECATED(5.1, "Direct access to SliderBarColor is now deprecated. Use the setter or getter.")
+	TSlateDeprecatedTAttribute<FSlateColor> SliderBarColor;
+	UE_DEPRECATED(5.1, "Direct access to SliderHandleColor is now deprecated. Use the setter or getter.")
+	TSlateDeprecatedTAttribute<FSlateColor> SliderHandleColor;
+#endif
+
+	/** @return an attribute reference of IndentHandle */
+	TSlateAttributeRef<float> GetValueAttribute() const
+	{
+		return TSlateAttributeRef<float>(SharedThis(this), ValueSlateAttribute);
+	}
+
+	/** @return an attribute reference of IndentHandle */
+	TSlateAttributeRef<bool> GetIndentHandleAttribute() const
+	{
+		return TSlateAttributeRef<bool>(SharedThis(this), IndentHandleSlateAttribute);
+	}
+
+	/** @return an attribute reference of Locked */
+	TSlateAttributeRef<bool> GetLockedAttribute() const
+	{
+		return TSlateAttributeRef<bool>(SharedThis(this), LockedSlateAttribute);
+	}
+
+	/** @return an attribute reference of SliderBarColor */
+	TSlateAttributeRef<FSlateColor> GetSliderBarColorAttribute() const
+	{
+		return TSlateAttributeRef<FSlateColor>(SharedThis(this), SliderBarColorSlateAttribute);
+	}
+
+	/** @return an attribute reference of SliderHandleColor */
+	TSlateAttributeRef<FSlateColor> GetSliderHandleColorAttribute() const
+	{
+		return TSlateAttributeRef<FSlateColor>(SharedThis(this), SliderHandleColorSlateAttribute);
+	}
 
 	// Holds the style passed to the widget upon construction.
 	const FSliderStyle* Style;
 
-	// Holds a flag indicating whether the slideable area should be indented to fit the handle.
-	TAttribute<bool> IndentHandle;
-
-	// Holds a flag indicating whether the slider is locked.
-	TAttribute<bool> LockedAttribute;
-
 	// Holds the slider's orientation.
 	EOrientation Orientation;
-
-	// Holds the color of the slider bar.
-	TAttribute<FSlateColor> SliderBarColor;
-
-	// Holds the color of the slider handle.
-	TAttribute<FSlateColor> SliderHandleColor;
-
-	// Holds the slider's current value.
-	TAttribute<float> ValueAttribute;
 
 	// Holds the initial cursor in case a custom cursor has been specified, so we can restore it after dragging the slider
 	EMouseCursor::Type CachedCursor;
 
 	/** The location in screenspace the slider was pressed by a touch */
-	FVector2D PressedScreenSpaceTouchDownPosition = FVector2D(0, 0);
+	FVector2D PressedScreenSpaceTouchDownPosition;
 
 	/** Holds the amount to adjust the value by when using a controller or keyboard */
 	TAttribute<float> StepSize;
@@ -253,6 +284,21 @@ private:
 
 	// Resets controller input state. Fires delegates.
 	void ResetControllerState();
+
+	// Holds the slider's current value.
+	TSlateAttribute<float> ValueSlateAttribute;
+
+	// Holds a flag indicating whether the slideable area should be indented to fit the handle.
+	TSlateAttribute<bool> IndentHandleSlateAttribute;
+
+	// Holds a flag indicating whether the slider is locked.
+	TSlateAttribute<bool> LockedSlateAttribute;
+
+	// Holds the color of the slider bar.
+	TSlateAttribute<FSlateColor> SliderBarColorSlateAttribute;
+
+	// Holds the color of the slider handle.
+	TSlateAttribute<FSlateColor> SliderHandleColorSlateAttribute;
 
 	// Holds a delegate that is executed when the mouse is pressed and a capture begins.
 	FSimpleDelegate OnMouseCaptureBegin;
