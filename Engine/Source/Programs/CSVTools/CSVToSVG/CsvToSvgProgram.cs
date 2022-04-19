@@ -59,6 +59,8 @@ namespace CSVTools
 			"       -compression <pixel error value>\n" +
 			"       -discardLastFrame <1|0> (default 1)\n" +
 			"       -filterOutZeros\n" +
+			"       -fixedPointGraphs 1|0 (default 1 - smaller graphs but no subpixel accuracy)\n"+
+			"       -fixedPointPrecisionScale <1..N> - scale for fixed point graph rendering (>1 gives subpixel accuracy)"+
 			"       -graphOnly\n" +
 			"       -hideEventNames <1|0>\n" +
 			"       -hideStatPrefix <list>\n" +
@@ -98,7 +100,7 @@ namespace CSVTools
             "       -percentile99 \n" +
 			"       -uniqueId <string> : unique ID for JS (needed if this is getting embedded in HTML alongside other graphs)\n" +
 			"       -nocommandlineEmbed : don't embed the commandline in the SVG" +
-			"       -lineDecimalPlaces <N> (default 3)" +
+			"       -lineDecimalPlaces <N> (only effective with with -fixedPointGraphs 0. Default=3)" +
 			"       -frameOffset <N> : offset used for frame display name (default 0)" +
             "";
 
@@ -332,9 +334,14 @@ namespace CSVTools
 			// Other flags
 			graphParams.showMetadata = GetArg("nometadata") != "1";
 			graphParams.graphOnly = GetArg("graphOnly") == "1";
-			graphParams.compression = GetFloatArg("compression", graphParams.compression);
 			graphParams.interactive = GetArg("interactive") == "1";
 			graphParams.snapToPeaks = !GetBoolArg("noSnap");
+
+			// Compression
+			graphParams.compression = GetFloatArg("compression", graphParams.compression);
+			graphParams.bFixedPointGraphs = GetIntArg("fixedPointGraphs", graphParams.bFixedPointGraphs?1:0) == 1;
+			graphParams.fixedPointPrecisionScale = GetFloatArg("fixedPointPrecisionScale", graphParams.fixedPointPrecisionScale);
+			graphParams.lineDecimalPlaces=GetIntArg("lineDecimalPlaces", graphParams.lineDecimalPlaces);
 
 			// Sometimes the last frame is garbage. We might want to remove it
 			graphParams.discardLastFrame = (GetIntArg("discardLastFrame", graphParams.discardLastFrame?1:0) == 1);
@@ -397,7 +404,6 @@ namespace CSVTools
 			}
 
 			// Misc params (rarely used)
-			graphParams.lineDecimalPlaces=GetIntArg("lineDecimalPlaces", graphParams.lineDecimalPlaces);
 			graphParams.frameOffset = GetIntArg("frameOffset", graphParams.frameOffset);
 			graphParams.statMultiplier = GetFloatArg("statMultiplier", graphParams.statMultiplier);
 

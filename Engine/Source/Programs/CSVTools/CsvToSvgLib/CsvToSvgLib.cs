@@ -11,7 +11,7 @@ namespace CSVTools
 
 	public class CsvToSvgLibVersion
 	{
-		private static string VersionString = "2.50";
+		private static string VersionString = "2.51";
 
 		public static string Get() { return VersionString; }
 	};
@@ -38,12 +38,17 @@ namespace CSVTools
 		// Other flags
 		public bool showMetadata = true; //noMetadata
 		public bool graphOnly = false;
-		public float compression = 0.0f;
 		public bool interactive = false;
 		public bool snapToPeaks = true; // Interactive mode only
 		public int maxHierarchyDepth = -1;
 		public char hierarchySeparator = '/';
 		public List<string> hideStatPrefixes = new List<string>();
+
+		// Compression
+		public float compression = 0.0f;
+		public bool bFixedPointGraphs = true;
+		public float fixedPointPrecisionScale = 2.0f; // Scale applied to fixed point graphs. Values greater than one allow for subpixel accuracy
+		public int lineDecimalPlaces = 3; // Legacy: only used if bFixedPointGraphs is 0
 
 		// Stacking
 		public bool stacked = false;
@@ -84,7 +89,6 @@ namespace CSVTools
 
 		// Advanced params
 		public string themeName = "";
-		public int lineDecimalPlaces = 3;
 		public int frameOffset = 0;
 		public float statMultiplier = 1.0f;
 		public string minFilterStatName = null;
@@ -439,8 +443,11 @@ namespace CSVTools
 			svg.WriteLine("<stop stop-color = 'white' offset = '100%'/>");
 			svg.WriteLine("</linearGradient>");
 
-			svg.WriteLine("<clipPath id='graphArea'>");
-			svg.WriteLine("<rect  x='" + graphRect.x + "' y='" + graphRect.y + "' width='" + graphRect.width + "' height='" + graphRect.height + "'/>");
+			// Clip rect
+			svg.WriteLine("<clipPath id='graphClipRect'>");
+			// If we're using a fixed point scale for graphs, we need to apply it to the clip rect
+			float clipRectScale = (graphParams.bFixedPointGraphs && !graphParams.percentile) ? graphParams.fixedPointPrecisionScale : 1.0f;
+			svg.WriteLine("<rect  x='" + graphRect.x*clipRectScale + "' y='" + graphRect.y*clipRectScale + "' width='" + graphRect.width*clipRectScale + "' height='" + graphRect.height*clipRectScale + "'/>");
 			svg.WriteLine("</clipPath>");
 
 			svg.WriteLine("<filter id='dropShadowFilter' x='-20%' width='130%' height='130%'>");
@@ -1356,39 +1363,57 @@ namespace CSVTools
 					RawPoints = CompressPoints(RawPoints, graphParams.compression, rect, range);
 				}
 
-				string formatStr = "0";
-				if (numDecimalPlaces > 0)
-				{
-					formatStr += ".";
-					for (int i = 0; i < numDecimalPlaces; i++)
-					{
-						formatStr += "0";
-					}
-				}
 				string idString = id.Length > 0 ? "id='" + id + "'" : "";
 
-				svg.WriteLine("<polyline " + idString + " points='");
-				foreach (Vec2 point in RawPoints)
+				float graphScale = 1.0f;
+				if (graphParams.bFixedPointGraphs)
 				{
-					float x = point.X;
-					float y = point.Y;
-					svg.WriteFast(" " + x.ToString(formatStr) + "," + y.ToString(formatStr));
+					// Fixed point graphs are smaller because they don't include the decimal point, but we need to apply a scale to get subpixel accuracy
+					// We scale the polyline by the inverse of the scaling that we're applying to the points
+					graphScale = graphParams.fixedPointPrecisionScale;
+					float oneOverScale = 1.0f / graphScale;
+					svg.WriteLine("<polyline " + idString + " transform='scale("+ oneOverScale + ","+ oneOverScale + ")' points='");
+					foreach (Vec2 point in RawPoints)
+					{
+						int x = (int)Math.Round(point.X * graphScale, 0);
+						int y = (int)Math.Round(point.Y * graphScale, 0);
+						svg.WriteFast(" " + x + "," + y);
+					}
+				}
+				else
+				{
+					string formatStr = "0";
+					if (numDecimalPlaces > 0)
+					{
+						formatStr += ".";
+						for (int i = 0; i < numDecimalPlaces; i++)
+						{
+							formatStr += "0";
+						}
+					}
+					svg.WriteLine("<polyline " + idString + " points='");
+					foreach (Vec2 point in RawPoints)
+					{
+						float x = point.X;
+						float y = point.Y;
+						svg.WriteFast(" " + x.ToString(formatStr) + "," + y.ToString(formatStr));
+					}
 				}
 
 				string fillString = "none";
 				if (graphParams.stacked)
 				{
-					thickness = 0.0f;// Math.Min(thickness, 1.0f);
+					thickness = Math.Min(thickness, 0.01f);
 					float lastSample = samples[n - 1];
-					svg.WriteFast(" " + ToSvgX((float)n + 20, rect, range) + "," + ToSvgY(lastSample, rect, range) );
-					svg.WriteFast(" " + ToSvgX((float)n + 20, rect, range) + "," + ToSvgY(0.0f, rect, range) );
-					svg.WriteFast(" " + ToSvgX((float)n - 20, rect, range) + "," + ToSvgY(0.0f, rect, range) );
-					svg.WriteFast(" " + ToSvgX(start, rect, range) + "," + ToSvgY(0.0f, rect, range) );
+					svg.WriteFast(" " + ToSvgX((float)n + 20, rect, range) * graphScale + "," + ToSvgY(lastSample, rect, range) * graphScale);
+					svg.WriteFast(" " + ToSvgX((float)n + 20, rect, range) * graphScale + "," + ToSvgY(0.0f, rect, range) * graphScale);
+					svg.WriteFast(" " + ToSvgX((float)n - 20, rect, range) * graphScale + "," + ToSvgY(0.0f, rect, range) * graphScale);
+					svg.WriteFast(" " + ToSvgX(start, rect, range) * graphScale + "," + ToSvgY(0.0f, rect, range) * graphScale );
 
 					colour.alpha = 1.0f;
 					fillString = colour.SVGStringNoQuotes();
 				}
-				svg.WriteLine("' style='fill:" + fillString + ";stroke-width:" + thickness + "; clip-path: url(#graphArea)' stroke=" + colour.SVGString() + "/>");
+				svg.WriteLine("' style='fill:" + fillString + ";stroke-width:" + thickness * graphScale + "; clip-path: url(#graphClipRect)' stroke=" + colour.SVGString() + "/>");
 			}
 		}
 		void DrawPercentileGraph(SvgFile svg, List<float> samples, Colour colour, Rect rect, Range range, string id)
@@ -1425,7 +1450,7 @@ namespace CSVTools
 
 				svg.WriteFast(" " + x + "," + y);
 			}
-			svg.WriteLine("' style='fill:none;stroke-width:1.3; clip-path: url(#graphArea)' stroke=" + colour.SVGString() + "/>");
+			svg.WriteLine("' style='fill:none;stroke-width:1.3; clip-path: url(#graphClipRect)' stroke=" + colour.SVGString() + "/>");
 
 		}
 
