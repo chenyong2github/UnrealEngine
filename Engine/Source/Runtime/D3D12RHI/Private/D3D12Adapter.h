@@ -55,9 +55,9 @@ struct FD3D12AdapterDesc
 
 	bool IsValid() const;
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	static HRESULT EnumAdapters(int32 AdapterIndex, DXGI_GPU_PREFERENCE GpuPreference, IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter);
-	HRESULT EnumAdapters(IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter) const;
+#if DXGI_MAX_FACTORY_INTERFACE >= 6
+	static HRESULT EnumAdapters(int32 AdapterIndex, DXGI_GPU_PREFERENCE GpuPreference, IDXGIFactory2* DxgiFactory2, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter);
+	HRESULT EnumAdapters(IDXGIFactory2* DxgiFactory2, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter) const;
 #endif
 
 	DXGI_ADAPTER_DESC Desc{};
@@ -83,7 +83,7 @@ struct FD3D12AdapterDesc
 	/** Whether the GPU is integrated or discrete. */
 	bool bIsIntegrated = false;
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#if DXGI_MAX_FACTORY_INTERFACE >= 6
 	DXGI_GPU_PREFERENCE GpuPreference = DXGI_GPU_PREFERENCE_UNSPECIFIED;
 #endif
 };
@@ -133,19 +133,44 @@ public:
 	FORCEINLINE const uint32 GetAdapterIndex() const { return Desc.AdapterIndex; }
 	FORCEINLINE const D3D_FEATURE_LEVEL GetFeatureLevel() const { return Desc.MaxSupportedFeatureLevel; }
 	FORCEINLINE D3D_SHADER_MODEL GetHighestShaderModel() const { return Desc.MaxSupportedShaderModel; }
-	FORCEINLINE ID3D12Device* GetD3DDevice() const { return RootDevice.GetReference(); }
+
+	FORCEINLINE ID3D12Device* GetD3DDevice() const { return RootDevice; }
 #if D3D12_MAX_DEVICE_INTERFACE >= 1
-	FORCEINLINE ID3D12Device1* GetD3DDevice1() const { return RootDevice1.GetReference(); }
+	FORCEINLINE ID3D12Device1* GetD3DDevice1() const { return RootDevice1; }
 #endif
 #if D3D12_MAX_DEVICE_INTERFACE >= 2
-	FORCEINLINE ID3D12Device2* GetD3DDevice2() const { return RootDevice2.GetReference(); }
+	FORCEINLINE ID3D12Device2* GetD3DDevice2() const { return RootDevice2; }
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 3
+	FORCEINLINE ID3D12Device3* GetD3DDevice3() const { return RootDevice3; }
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 4
+	FORCEINLINE ID3D12Device4* GetD3DDevice4() const { return RootDevice4; }
 #endif
 #if D3D12_MAX_DEVICE_INTERFACE >= 5
-	FORCEINLINE ID3D12Device5* GetD3DDevice5() { return RootDevice5.GetReference(); }
+	FORCEINLINE ID3D12Device5* GetD3DDevice5() { return RootDevice5; }
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 6
+	FORCEINLINE ID3D12Device6* GetD3DDevice6() { return RootDevice6; }
 #endif
 #if D3D12_MAX_DEVICE_INTERFACE >= 7
-	FORCEINLINE ID3D12Device7* GetD3DDevice7() { return RootDevice7.GetReference(); }
-#endif // D3D12_RHI_RAYTRACING
+	FORCEINLINE ID3D12Device7* GetD3DDevice7() { return RootDevice7; }
+#endif
+
+	FORCEINLINE IDXGIFactory2* GetDXGIFactory2() const { return DxgiFactory2; }
+#if DXGI_MAX_FACTORY_INTERFACE >= 3
+	FORCEINLINE IDXGIFactory3* GetDXGIFactory3() const { return DxgiFactory3; }
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 4
+	FORCEINLINE IDXGIFactory4* GetDXGIFactory4() const { return DxgiFactory4; }
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 5
+	FORCEINLINE IDXGIFactory5* GetDXGIFactory5() const { return DxgiFactory5; }
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 6
+	FORCEINLINE IDXGIFactory6* GetDXGIFactory6() const { return DxgiFactory6; }
+#endif
+
 	FORCEINLINE void SetDeviceRemoved(bool value) { bDeviceRemoved = value; }
 	FORCEINLINE const bool IsDeviceRemoved() const { return bDeviceRemoved; }
 	FORCEINLINE const bool IsDebugDevice() const { return bDebugDevice; }
@@ -234,11 +259,8 @@ public:
 	FORCEINLINE uint32 GetVRSTileSize() const { return VRSTileSize; }
 
 	void CreateDXGIFactory(bool bWithDebug);
-	FORCEINLINE IDXGIFactory* GetDXGIFactory() const { return DxgiFactory; }
-	FORCEINLINE IDXGIFactory2* GetDXGIFactory2() const { return DxgiFactory2; }
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	FORCEINLINE IDXGIFactory6* GetDXGIFactory6() const { return DxgiFactory6; }
-#endif
+	void InitDXGIFactoryVariants(IDXGIFactory2* InDxgiFactory2);
+	HRESULT EnumAdapters(IDXGIAdapter** TempAdapter) const;
 
 	FORCEINLINE FD3D12UploadHeapAllocator& GetUploadHeapAllocator(uint32 GPUIndex)
 	{ 
@@ -459,6 +481,20 @@ protected:
 	TRefCountPtr<ID3D12Device7> RootDevice7;
 #endif
 
+	TRefCountPtr<IDXGIFactory2> DxgiFactory2;
+#if DXGI_MAX_FACTORY_INTERFACE >= 3
+	TRefCountPtr<IDXGIFactory3> DxgiFactory3;
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 4
+	TRefCountPtr<IDXGIFactory4> DxgiFactory4;
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 5
+	TRefCountPtr<IDXGIFactory5> DxgiFactory5;
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 6
+	TRefCountPtr<IDXGIFactory6> DxgiFactory6;
+#endif
+
 #if D3D12_SUPPORTS_DXGI_DEBUG
 	TRefCountPtr<IDXGIDebug> DXGIDebug;
 	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
@@ -507,12 +543,6 @@ protected:
 
 	/** The viewport which is currently being drawn. */
 	TRefCountPtr<FD3D12Viewport> DrawingViewport;
-
-	TRefCountPtr<IDXGIFactory> DxgiFactory;
-	TRefCountPtr<IDXGIFactory2> DxgiFactory2;
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	TRefCountPtr<IDXGIFactory6> DxgiFactory6;
-#endif
 
 	/** A Fence whos value increases every frame*/
 	TRefCountPtr<FD3D12ManualFence> FrameFence;

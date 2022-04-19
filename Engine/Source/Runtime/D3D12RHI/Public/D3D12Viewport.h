@@ -101,9 +101,18 @@ public:
 	virtual void IssueFrameEvent() override;
 
 #if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
-	IDXGISwapChain1* GetSwapChain() const { return SwapChain1; }
-	IDXGISwapChain1* GetSDRSwapChain() const { return (PixelFormat == SDRPixelFormat) ? GetSwapChain() : (IDXGISwapChain1*)SDRSwapChain1; }
-	virtual void* GetNativeSwapChain() const override { return GetSwapChain(); }
+	IDXGISwapChain1* GetSwapChain1() const { return SwapChain1; }
+#if DXGI_MAX_SWAPCHAIN_INTERFACE >= 2
+	IDXGISwapChain2* GetSwapChain2() const { return SwapChain2; }
+#endif
+#if DXGI_MAX_SWAPCHAIN_INTERFACE >= 3
+	IDXGISwapChain3* GetSwapChain3() const { return SwapChain3; }
+#endif
+#if DXGI_MAX_SWAPCHAIN_INTERFACE >= 4
+	IDXGISwapChain4* GetSwapChain4() const { return SwapChain4; }
+#endif
+
+	virtual void* GetNativeSwapChain() const override { return GetSwapChain1(); }
 #endif // #if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 
 	virtual void* GetNativeBackBufferTexture() const override { return GetBackBuffer_RHIThread()->GetResource(); }
@@ -197,12 +206,20 @@ private:
 
 #if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 	TRefCountPtr<IDXGISwapChain1> SwapChain1;
+#if DXGI_MAX_SWAPCHAIN_INTERFACE >= 2
+	TRefCountPtr<IDXGISwapChain2> SwapChain2;
+#endif
+#if DXGI_MAX_SWAPCHAIN_INTERFACE >= 3
+	TRefCountPtr<IDXGISwapChain3> SwapChain3;
+#endif
+#if DXGI_MAX_SWAPCHAIN_INTERFACE >= 4
+	TRefCountPtr<IDXGISwapChain4> SwapChain4;
+#endif
+
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	bool bHDRMetaDataSet;
 	DXGI_COLOR_SPACE_TYPE ColorSpace;
-	TRefCountPtr<IDXGISwapChain4> SwapChain4;
 #endif
-	TRefCountPtr<IDXGISwapChain1> SDRSwapChain1;
 #endif // D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 
 	TArray<TRefCountPtr<FD3D12Texture>> BackBuffers;

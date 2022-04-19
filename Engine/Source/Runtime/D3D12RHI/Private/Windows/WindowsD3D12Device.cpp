@@ -1581,7 +1581,7 @@ bool FD3D12DynamicRHI::RHIGetAvailableResolutions(FScreenResolutionArray& Resolu
 	HRESULT HResult = S_OK;
 	TRefCountPtr<IDXGIAdapter> Adapter;
 	//TODO: should only be called on display out device
-	HResult = ChosenAdapter.GetDesc().EnumAdapters(ChosenAdapter.GetDXGIFactory(), ChosenAdapter.GetDXGIFactory6(), Adapter.GetInitReference());
+	HResult = ChosenAdapter.EnumAdapters(Adapter.GetInitReference());
 
 	if (DXGI_ERROR_NOT_FOUND == HResult)
 	{

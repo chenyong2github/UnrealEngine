@@ -220,12 +220,12 @@ bool FD3D12AdapterDesc::IsValid() const
 	return MaxSupportedFeatureLevel != (D3D_FEATURE_LEVEL)0 && AdapterIndex >= 0;
 }
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-HRESULT FD3D12AdapterDesc::EnumAdapters(int32 AdapterIndex, DXGI_GPU_PREFERENCE GpuPreference, IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter)
+#if DXGI_MAX_FACTORY_INTERFACE >= 6
+HRESULT FD3D12AdapterDesc::EnumAdapters(int32 AdapterIndex, DXGI_GPU_PREFERENCE GpuPreference, IDXGIFactory2* DxgiFactory2, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter)
 {
 	if (!DxgiFactory6 || GpuPreference == DXGI_GPU_PREFERENCE_UNSPECIFIED)
 	{
-		return DxgiFactory->EnumAdapters(AdapterIndex, TempAdapter);
+		return DxgiFactory2->EnumAdapters(AdapterIndex, TempAdapter);
 	}
 	else
 	{
@@ -233,9 +233,9 @@ HRESULT FD3D12AdapterDesc::EnumAdapters(int32 AdapterIndex, DXGI_GPU_PREFERENCE 
 	}
 }
 
-HRESULT FD3D12AdapterDesc::EnumAdapters(IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter) const
+HRESULT FD3D12AdapterDesc::EnumAdapters(IDXGIFactory2* DxgiFactory2, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter) const
 {
-	return EnumAdapters(AdapterIndex, GpuPreference, DxgiFactory, DxgiFactory6, TempAdapter);
+	return EnumAdapters(AdapterIndex, GpuPreference, DxgiFactory2, DxgiFactory6, TempAdapter);
 }
 #endif
 
@@ -425,11 +425,9 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 
 	// QI for the Adapter
 	TRefCountPtr<IDXGIAdapter> TempAdapter;
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	Desc.EnumAdapters(DxgiFactory, DxgiFactory6, TempAdapter.GetInitReference());
-#else
-	DxgiFactory->EnumAdapters(Desc.AdapterIndex, TempAdapter.GetInitReference());
-#endif
+
+	EnumAdapters(TempAdapter.GetInitReference());
+
 	VERIFYD3D12RESULT(TempAdapter->QueryInterface(IID_PPV_ARGS(DxgiAdapter.GetInitReference())));
 
 	bool bDeviceCreated = false;
@@ -1367,31 +1365,52 @@ void FD3D12Adapter::Cleanup()
 void FD3D12Adapter::CreateDXGIFactory(bool bWithDebug)
 {
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
+	typedef HRESULT(WINAPI FCreateDXGIFactory2)(UINT, REFIID, void**);
 
 #if PLATFORM_WINDOWS
-	typedef HRESULT(WINAPI* FCreateDXGIFactory2)(UINT, REFIID, void**);
-	FCreateDXGIFactory2 CreateDXGIFactory2FnPtr = nullptr;
-
 	// Dynamically load this otherwise Win7 fails to boot as it's missing on that DLL
 	HMODULE DxgiDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll"));
 	check(DxgiDLL);
-#pragma warning(push)
-#pragma warning(disable: 4191) // disable the "unsafe conversion from 'FARPROC' to 'blah'" warning
-	CreateDXGIFactory2FnPtr = (FCreateDXGIFactory2)(GetProcAddress(DxgiDLL, "CreateDXGIFactory2"));
-	check(CreateDXGIFactory2FnPtr);
-#pragma warning(pop)
+
+	FCreateDXGIFactory2* CreateDXGIFactory2FnPtr = (FCreateDXGIFactory2*)(void*)::GetProcAddress(DxgiDLL, "CreateDXGIFactory2");
+
 	FPlatformProcess::FreeDllHandle(DxgiDLL);
-
-	VERIFYD3D12RESULT(CreateDXGIFactory2FnPtr(Flags, IID_PPV_ARGS(DxgiFactory.GetInitReference())));
-
-	DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory6.GetInitReference()));
-#elif PLATFORM_HOLOLENS
-	VERIFYD3D12RESULT(::CreateDXGIFactory2(Flags, IID_PPV_ARGS(DxgiFactory.GetInitReference())));
+#else
+	FCreateDXGIFactory2* CreateDXGIFactory2FnPtr = &CreateDXGIFactory2;
 #endif
 
-	VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
+	check(CreateDXGIFactory2FnPtr);
+
+	const uint32 Flags = bWithDebug ? DXGI_CREATE_FACTORY_DEBUG : 0;
+	VERIFYD3D12RESULT(CreateDXGIFactory2FnPtr(Flags, IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
+
+	InitDXGIFactoryVariants(DxgiFactory2);
 #endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+}
+
+void FD3D12Adapter::InitDXGIFactoryVariants(IDXGIFactory2* InDxgiFactory2)
+{
+#if DXGI_MAX_FACTORY_INTERFACE >= 3
+	InDxgiFactory2->QueryInterface(IID_PPV_ARGS(DxgiFactory3.GetInitReference()));
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 4
+	InDxgiFactory2->QueryInterface(IID_PPV_ARGS(DxgiFactory4.GetInitReference()));
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 5
+	InDxgiFactory2->QueryInterface(IID_PPV_ARGS(DxgiFactory5.GetInitReference()));
+#endif
+#if DXGI_MAX_FACTORY_INTERFACE >= 6
+	InDxgiFactory2->QueryInterface(IID_PPV_ARGS(DxgiFactory6.GetInitReference()));
+#endif
+}
+
+HRESULT FD3D12Adapter::EnumAdapters(IDXGIAdapter** TempAdapter) const
+{
+#if DXGI_MAX_FACTORY_INTERFACE >= 6
+	return FD3D12AdapterDesc::EnumAdapters(Desc.AdapterIndex, Desc.GpuPreference, DxgiFactory2, DxgiFactory6, TempAdapter);
+#else
+	return DxgiFactory2->EnumAdapters(Desc.AdapterIndex, TempAdapter);
+#endif
 }
 
 #if D3D12_SUBMISSION_GAP_RECORDER

@@ -74,6 +74,8 @@ public class DX12 : ModuleRules
 			PublicDefinitions.Add("D3D12_MAX_COMMANDLIST_INTERFACE=6");
 			PublicDefinitions.Add("D3D12_SUPPORTS_INFO_QUEUE=1");
 			PublicDefinitions.Add("D3D12_SUPPORTS_DXGI_DEBUG=1");
+			PublicDefinitions.Add("DXGI_MAX_FACTORY_INTERFACE=6");
+			PublicDefinitions.Add("DXGI_MAX_SWAPCHAIN_INTERFACE=4");
 		}
 
 		// DX12 extensions, not part of SDK

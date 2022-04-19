@@ -65,25 +65,17 @@ FD3D12Viewport::FD3D12Viewport(class FD3D12Adapter* InParent, HWND InWindowHandl
 //Init for a Viewport that will do the presenting
 void FD3D12Viewport::Init()
 {
-
 	FD3D12Adapter* Adapter = GetParentAdapter();
+	IDXGIFactory2* Factory2 = Adapter->GetDXGIFactory2();
 
 	bAllowTearing = false;
-	IDXGIFactory* Factory = Adapter->GetDXGIFactory2();
 	if (GD3D12UseAllowTearing)
 	{
-		if (Factory)
+		if (IDXGIFactory5* Factory5 = Adapter->GetDXGIFactory5())
 		{
-			TRefCountPtr<IDXGIFactory5> Factory5;
-			Factory->QueryInterface(IID_PPV_ARGS(Factory5.GetInitReference()));
-			if (Factory5.IsValid())
-			{
-				BOOL AllowTearing;
-				if (SUCCEEDED(Factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &AllowTearing, sizeof(AllowTearing))) && AllowTearing)
-				{
-					bAllowTearing = true;
-				}
-			}
+			BOOL AllowTearing = FALSE;
+			Factory5->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &AllowTearing, sizeof(AllowTearing));
+			bAllowTearing = (AllowTearing != FALSE);
 		}
 	}
 
@@ -100,12 +92,14 @@ void FD3D12Viewport::Init()
 
 	const DXGI_MODE_DESC BufferDesc = SetupDXGI_MODE_DESC();
 
+	// The command queue used here is irrelevant in regard to multi - GPU as it gets overriden in the Resize
+	ID3D12CommandQueue* CommandQueue = Adapter->GetDevice(0)->GetD3DCommandQueue();
+
 	// Create the swapchain.
-// Change from Microsoft for HoloLens support, may require further review: : BEGIN HoloLens support
 #if PLATFORM_HOLOLENS
 	{
 		// MSAA Sample count
-		DXGI_SWAP_CHAIN_DESC1 SwapChainDesc = { 0 };
+		DXGI_SWAP_CHAIN_DESC1 SwapChainDesc{};
 		SwapChainDesc.SampleDesc.Count = 1;
 		SwapChainDesc.SampleDesc.Quality = 0;
 		SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
@@ -120,14 +114,11 @@ void FD3D12Viewport::Init()
 		SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		SwapChainDesc.Flags = SwapChainFlags;
 
-		// The command queue used here is irrelevant in regard to multi - GPU as it gets overriden in the Resize
-		ID3D12CommandQueue* pCommandQueue = Adapter->GetDevice(0)->GetD3DCommandQueue();
-
-		TRefCountPtr<IDXGIFactory4> Factory4;
-		Factory->QueryInterface(IID_PPV_ARGS(Factory4.GetInitReference()));
+		IDXGIFactory4* Factory4 = Adapter->GetDXGIFactory4();
+		check(Factory4);
 
 		VERIFYD3D12RESULT(Factory4->CreateSwapChainForCoreWindow(
-			pCommandQueue,
+			CommandQueue,
 			reinterpret_cast<IUnknown*>(Windows::UI::Core::CoreWindow::GetForCurrentThread()),
 			&SwapChainDesc,
 			NULL,
@@ -135,7 +126,6 @@ void FD3D12Viewport::Init()
 		));
 	}
 #else
-// : END HoloLens support
 
 	extern bool bNeedSwapChain;
 
@@ -144,14 +134,9 @@ void FD3D12Viewport::Init()
 	{
 		if (Adapter->GetOwningRHI()->IsQuadBufferStereoEnabled())
 		{
-			TRefCountPtr<IDXGIFactory2> Factory2;
-			Factory->QueryInterface(IID_PPV_ARGS(Factory2.GetInitReference()));
-
-			BOOL bIsStereoEnabled = Factory2->IsWindowedStereoEnabled();
-			if (bIsStereoEnabled)
+			if (Factory2->IsWindowedStereoEnabled())
 			{
-				DXGI_SWAP_CHAIN_DESC1 SwapChainDesc1;
-				FMemory::Memzero(&SwapChainDesc1, sizeof(DXGI_SWAP_CHAIN_DESC1));
+				DXGI_SWAP_CHAIN_DESC1 SwapChainDesc1{};
 
 				// Enable stereo 
 				SwapChainDesc1.Stereo = true;
@@ -169,17 +154,7 @@ void FD3D12Viewport::Init()
 				SwapChainDesc1.Width = SizeX;
 				SwapChainDesc1.Height = SizeY;
 
-				// The command queue used here is irrelevant in regard to multi-GPU as it gets overriden in the Resize
-				ID3D12CommandQueue* pCommandQueue = Adapter->GetDevice(0)->GetD3DCommandQueue();
-
-				VERIFYD3D12RESULT((Factory2->CreateSwapChainForHwnd(pCommandQueue, WindowHandle, &SwapChainDesc1, nullptr, nullptr, SwapChain1.GetInitReference())));
-				VERIFYD3D12RESULT(SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain4.GetInitReference())));
-
-				// Set the DXGI message hook to not change the window behind our back.
-				Adapter->GetDXGIFactory2()->MakeWindowAssociation(WindowHandle, DXGI_MWA_NO_WINDOW_CHANGES);
-
-				// Resize to setup mGPU correctly.
-				Resize(SwapChainDesc1.Width, SwapChainDesc1.Height, bIsFullscreen, PixelFormat);
+				VERIFYD3D12RESULT(Factory2->CreateSwapChainForHwnd(CommandQueue, WindowHandle, &SwapChainDesc1, nullptr, nullptr, SwapChain1.GetInitReference()));
 			}
 			else
 			{
@@ -192,67 +167,63 @@ void FD3D12Viewport::Init()
 		if (SwapChain1 == nullptr)
 		{
 			// Create the swapchain.
+			DXGI_SWAP_CHAIN_DESC SwapChainDesc = {};
+			SwapChainDesc.BufferDesc = BufferDesc;
+			// MSAA Sample count
+			SwapChainDesc.SampleDesc.Count = 1;
+			SwapChainDesc.SampleDesc.Quality = 0;
+			SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
+			// 1:single buffering, 2:double buffering, 3:triple buffering
+			SwapChainDesc.BufferCount = NumBackBuffers;
+			SwapChainDesc.OutputWindow = WindowHandle;
+			SwapChainDesc.Windowed = !bIsFullscreen;
+			// DXGI_SWAP_EFFECT_DISCARD / DXGI_SWAP_EFFECT_SEQUENTIAL
+			SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+			SwapChainDesc.Flags = SwapChainFlags;
+
+			TRefCountPtr<IDXGISwapChain> SwapChain;
+			HRESULT hr = Factory2->CreateSwapChain(CommandQueue, &SwapChainDesc, SwapChain.GetInitReference());
+			if (FAILED(hr))
 			{
-				DXGI_SWAP_CHAIN_DESC SwapChainDesc = {};
-				SwapChainDesc.BufferDesc = BufferDesc;
-				// MSAA Sample count
-				SwapChainDesc.SampleDesc.Count = 1;
-				SwapChainDesc.SampleDesc.Quality = 0;
-				SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
-				// 1:single buffering, 2:double buffering, 3:triple buffering
-				SwapChainDesc.BufferCount = NumBackBuffers;
-				SwapChainDesc.OutputWindow = WindowHandle;
-				SwapChainDesc.Windowed = !bIsFullscreen;
-				// DXGI_SWAP_EFFECT_DISCARD / DXGI_SWAP_EFFECT_SEQUENTIAL
-				SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-				SwapChainDesc.Flags = SwapChainFlags;
+				UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create swapchain with the following parameters:"));
+				UE_LOG(LogD3D12RHI, Warning, TEXT("\tDXGI_MODE_DESC: width: %d height: %d DXGI format: %d"), SwapChainDesc.BufferDesc.Width, SwapChainDesc.BufferDesc.Height, SwapChainDesc.BufferDesc.Format);
+				UE_LOG(LogD3D12RHI, Warning, TEXT("\tBack buffer count: %d"), NumBackBuffers);
+				UE_LOG(LogD3D12RHI, Warning, TEXT("\tWindows handle: 0x%x (IsWindow: %s)"), WindowHandle, IsWindow(WindowHandle) ? TEXT("true") : TEXT("false"));
+				UE_LOG(LogD3D12RHI, Warning, TEXT("\tFullscreen: %s"), bIsFullscreen ? TEXT("true") : TEXT("false"));
+				UE_LOG(LogD3D12RHI, Warning, TEXT("\tSwapchain flags: %d"), SwapChainFlags);
 
-				// The command queue used here is irrelevant in regard to multi-GPU as it gets overriden in the Resize
-				ID3D12CommandQueue* pCommandQueue = Adapter->GetDevice(0)->GetD3DCommandQueue();
-
-				TRefCountPtr<IDXGISwapChain> SwapChain;
-				HRESULT hr = Adapter->GetDXGIFactory2()->CreateSwapChain(pCommandQueue, &SwapChainDesc, SwapChain.GetInitReference());
-				if (FAILED(hr))
-				{
-					UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to create swapchain with the following parameters:"));
-					UE_LOG(LogD3D12RHI, Warning, TEXT("\tDXGI_MODE_DESC: width: %d height: %d DXGI format: %d"), SwapChainDesc.BufferDesc.Width, SwapChainDesc.BufferDesc.Height, SwapChainDesc.BufferDesc.Format);
-					UE_LOG(LogD3D12RHI, Warning, TEXT("\tBack buffer count: %d"), NumBackBuffers);
-					UE_LOG(LogD3D12RHI, Warning, TEXT("\tWindows handle: 0x%x (IsWindow: %s)"), WindowHandle, IsWindow(WindowHandle) ? TEXT("true") : TEXT("false"));
-					UE_LOG(LogD3D12RHI, Warning, TEXT("\tFullscreen: %s"), bIsFullscreen ? TEXT("true") : TEXT("false"));
-					UE_LOG(LogD3D12RHI, Warning, TEXT("\tSwapchain flags: %d"), SwapChainFlags);
-
-					VERIFYD3D12RESULT(hr);
-				}
-
-				VERIFYD3D12RESULT(SwapChain->QueryInterface(IID_PPV_ARGS(SwapChain1.GetInitReference())));
-
-				// Get a SwapChain4 if supported.
-				SwapChain->QueryInterface(IID_PPV_ARGS(SwapChain4.GetInitReference()));
+				VERIFYD3D12RESULT(hr);
 			}
+
+			VERIFYD3D12RESULT(SwapChain->QueryInterface(IID_PPV_ARGS(SwapChain1.GetInitReference())));
 		}
 	}
-	// Change from Microsoft for HoloLens support, may require further review: : BEGIN HoloLens support
 #endif
-// : END HoloLens support
+
+	SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain2.GetInitReference()));
+#if DXGI_MAX_SWAPCHAIN_INTERFACE >= 3
+	SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain3.GetInitReference()));
+#endif
+#if DXGI_MAX_SWAPCHAIN_INTERFACE >= 4
+	SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain4.GetInitReference()));
+#endif
 
 	{
 		// Don't make the windows association call and release back buffer at the same time (see notes on critical section)
 		FScopeLock Lock(&DXGIBackBufferLock);
 
 		// Set the DXGI message hook to not change the window behind our back.
-		Adapter->GetDXGIFactory2()->MakeWindowAssociation(WindowHandle, DXGI_MWA_NO_WINDOW_CHANGES);
+		Factory2->MakeWindowAssociation(WindowHandle, DXGI_MWA_NO_WINDOW_CHANGES);
 	}
 
 	// Resize to setup mGPU correctly.
 	Resize(BufferDesc.Width, BufferDesc.Height, bIsFullscreen, PixelFormat);
 
-// Change from Microsoft for HoloLens support, may require further review: : BEGIN HoloLens support
 #if !PLATFORM_HOLOLENS
 	// Tell the window to redraw when they can.
 	// @todo: For Slate viewports, it doesn't make sense to post WM_PAINT messages (we swallow those.)
 	::PostMessageW(WindowHandle, WM_PAINT, 0, 0);
 #endif
-	// : END HoloLens support
 }
 
 void FD3D12Viewport::FinalDestroyInternal()
@@ -356,10 +327,8 @@ void FD3D12Viewport::ResizeInternal()
 			NodeMasks.Add(Device->GetGPUMask().GetNative());
 		}
 
-		if (SwapChain1)
+		if (SwapChain3)
 		{
-			TRefCountPtr<IDXGISwapChain3> SwapChain3;
-			VERIFYD3D12RESULT(SwapChain1->QueryInterface(IID_PPV_ARGS(SwapChain3.GetInitReference())));
 			VERIFYD3D12RESULT_EX(SwapChain3->ResizeBuffers1(NumBackBuffers, SizeX, SizeY, GetRenderTargetFormat(PixelFormat), SwapChainFlags, NodeMasks.GetData(), (IUnknown**)CommandQueues.GetData()), Adapter->GetD3DDevice());
 		}
 
