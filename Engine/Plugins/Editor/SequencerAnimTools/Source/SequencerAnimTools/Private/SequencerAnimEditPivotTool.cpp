@@ -65,7 +65,7 @@ FLastSelectedObjects USequencerPivotTool::LastSelectedObjects;
 
 static void GetControlRigsAndSequencer(TArray<TWeakObjectPtr<UControlRig>>& ControlRigs, TWeakPtr<ISequencer>& SequencerPtr, ULevelSequence** LevelSequence)
 {
-	*LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+	*LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetFocusedLevelSequence();
 	if (*LevelSequence)
 	{
 		IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(*LevelSequence, false);

@@ -101,7 +101,7 @@ int32 FControlRigSnapperSelection::NumSelected() const
 TWeakPtr<ISequencer> FControlRigSnapper::GetSequencer()
 {
 	TWeakPtr<ISequencer> WeakSequencer = nullptr;
-	ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+	ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetFocusedLevelSequence();
 	if (LevelSequence)
 	{
 		IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LevelSequence, false);

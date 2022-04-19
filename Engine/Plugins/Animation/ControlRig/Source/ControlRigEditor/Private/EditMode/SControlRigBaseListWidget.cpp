@@ -1384,7 +1384,7 @@ void SControlRigBaseListWidget::ExecuteSelectControls(UControlRigPoseAsset* Pose
 	}
 	else
 	{
-		ULevelSequence *LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+		ULevelSequence *LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetFocusedLevelSequence();
 		if (LevelSequence)
 		{
 			const FScopedTransaction Transaction(LOCTEXT("SelectControls", "Select Controls"));

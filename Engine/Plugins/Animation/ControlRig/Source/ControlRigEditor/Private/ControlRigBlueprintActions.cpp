@@ -291,7 +291,7 @@ void FControlRigBlueprintActions::OnSpawnedSkeletalMeshActorChanged(UObject* InO
 	UClass* ControlRigClass = RigBlueprint->GeneratedClass;
 
 	// find a level sequence in the world, if can't find that, create one
-	ULevelSequence* Sequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+	ULevelSequence* Sequence = ULevelSequenceEditorBlueprintLibrary::GetFocusedLevelSequence();
 	if (Sequence == nullptr)
 	{
 		ALevelSequenceActor* LevelSequenceActor = nullptr;
