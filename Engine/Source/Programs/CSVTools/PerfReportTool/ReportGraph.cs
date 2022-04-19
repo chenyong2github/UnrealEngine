@@ -196,7 +196,7 @@ namespace PerfReportTool
 			ignoreStats = new OptionalString(element, "ignoreStats");
 
 			statString = new OptionalString(element, "statString", true);
-			additionalArgs = new OptionalString(element, "additionalArgs", true);
+			//additionalArgs = new OptionalString(element, "additionalArgs", true);
 			statMultiplier = new OptionalDouble(element, "statMultiplier");
 			legendAverageThreshold = new OptionalDouble(element, "legendAverageThreshold");
 			snapToPeaks = new OptionalBool(element, "snapToPeaks");
@@ -218,7 +218,7 @@ namespace PerfReportTool
 			compression.InheritFrom(baseSettings.compression);
 			width.InheritFrom(baseSettings.width);
 			height.InheritFrom(baseSettings.height);
-			additionalArgs.InheritFrom(baseSettings.additionalArgs);
+			//additionalArgs.InheritFrom(baseSettings.additionalArgs);
 			stacked.InheritFrom(baseSettings.stacked);
 			showAverages.InheritFrom(baseSettings.showAverages);
 			filterOutZeros.InheritFrom(baseSettings.filterOutZeros);
@@ -248,7 +248,7 @@ namespace PerfReportTool
 		public OptionalDouble compression;
 		public OptionalInt width;
 		public OptionalInt height;
-		public OptionalString additionalArgs;
+		//public OptionalString additionalArgs;
 		public OptionalBool stacked;
 		public OptionalBool showAverages;
 		public OptionalBool filterOutZeros;

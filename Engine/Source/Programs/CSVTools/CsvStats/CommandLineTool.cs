@@ -173,11 +173,10 @@ namespace CSVStats
 			{
 				return CommandLineArgs[lowerKey];
 			}
-			else if (mandatory)
+			if (mandatory)
 			{
 				Console.WriteLine("Missing parameter " + key);
 			}
-
 			return "";
 		}
 
@@ -252,6 +251,20 @@ namespace CSVStats
 			return commandLine.GetArg(key, mandatory);
         }
 
+		protected List<string> GetListArg(string key, char separator=';', bool convertToLowercase=false, bool mandatory=false)
+		{
+			string listStr=commandLine.GetArg(key, mandatory);
+			if (listStr=="")
+			{
+				return new List<string>();
+			}
+			if (convertToLowercase)
+			{
+				listStr = listStr.ToLower();
+			}
+			return listStr.Split(separator).ToList();
+		}
+
 		protected void WriteLine(String message, params object[] args)
         {
             String formatted = String.Format(message, args);
@@ -300,5 +313,56 @@ namespace CSVStats
 		{
 			commandLine = new CommandLine(args);
 		}
+	}
+
+
+	public class PerfLog
+	{
+		public PerfLog(bool inLoggingEnabled, string inLogPrefix=null)
+		{
+			stopWatch = Stopwatch.StartNew();
+			lastTimeElapsed = 0.0;
+			loggingEnabled = inLoggingEnabled;
+			if (inLogPrefix != null)
+			{
+				logPrefix = inLogPrefix + " - ";
+			}
+		}
+
+		public double LogTiming(string description, bool newLine = false)
+		{
+			double elapsed = stopWatch.Elapsed.TotalSeconds - lastTimeElapsed;
+			if (loggingEnabled)
+			{
+				Console.WriteLine("[PerfLog] " + logPrefix + String.Format("{0,-25} : {1,-10}", description, (elapsed * 1000.0).ToString("0.0") + "ms"), 70);
+				if (newLine)
+				{
+					Console.WriteLine();
+				}
+			}
+			lastTimeElapsed = stopWatch.Elapsed.TotalSeconds;
+			return elapsed;
+		}
+
+		public double LogTotalTiming(bool seconds=true)
+		{
+			double elapsed = stopWatch.Elapsed.TotalSeconds;
+			if (loggingEnabled)
+			{
+				if (seconds)
+				{
+					Console.WriteLine("[PerfLog] "+logPrefix+"TOTAL: " + elapsed.ToString("0.0") + "s\n");
+				}
+				else
+				{
+					Console.WriteLine("[PerfLog] " + logPrefix + "TOTAL: " + (elapsed*1000.0).ToString("0.0") + "ms\n");
+				}
+			}
+			return elapsed;
+		}
+		Stopwatch stopWatch;
+		double lastTimeElapsed;
+		bool loggingEnabled;
+		string logPrefix = "";
 	}
 }
