@@ -15,6 +15,7 @@
 #include "PyWrapperFixedArray.h"
 #include "PyWrapperSet.h"
 #include "PyWrapperMap.h"
+#include "PyWrapperFieldPath.h"
 #include "PyWrapperTypeRegistry.h"
 
 #include "Misc/Paths.h"
@@ -302,6 +303,12 @@ bool CalculatePropertyDef(PyTypeObject* InPyType, FPropertyDef& OutPropertyDef)
 	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperTextType) == 1)
 	{
 		OutPropertyDef.PropertyClass = FTextProperty::StaticClass();
+		return true;
+	}
+
+	if (PyObject_IsSubclass((PyObject*)InPyType, (PyObject*)&PyWrapperFieldPathType) == 1)
+	{
+		OutPropertyDef.PropertyClass = FFieldPathProperty::StaticClass();
 		return true;
 	}
 

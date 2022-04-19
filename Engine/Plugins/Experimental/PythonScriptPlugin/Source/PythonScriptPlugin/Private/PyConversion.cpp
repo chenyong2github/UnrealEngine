@@ -15,6 +15,7 @@
 #include "PyWrapperFixedArray.h"
 #include "PyWrapperSet.h"
 #include "PyWrapperMap.h"
+#include "PyWrapperFieldPath.h"
 #include "PyWrapperTypeRegistry.h"
 
 #include "Templates/Casts.h"
@@ -365,8 +366,8 @@ FPyConversionResult Nativize(PyObject* PyObj, FText& OutVal, const ESetErrorStat
 {
 	if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperTextType) == 1)
 	{
-		FPyWrapperText* PyWrappedName = (FPyWrapperText*)PyObj;
-		OutVal = PyWrappedName->Value;
+		FPyWrapperText* PyWrappedText = (FPyWrapperText*)PyObj;
+		OutVal = PyWrappedText->Value;
 		return FPyConversionResult::Success();
 	}
 
@@ -385,6 +386,25 @@ FPyConversionResult Pythonize(const FText& Val, PyObject*& OutPyObj, const ESetE
 	OutPyObj = (PyObject*)FPyWrapperTextFactory::Get().CreateInstance(Val);
 	return FPyConversionResult::Success();
 }
+
+FPyConversionResult Nativize(PyObject* PyObj, FFieldPath& OutVal, const ESetErrorState SetErrorState)
+{
+	if (PyObject_IsInstance(PyObj, (PyObject*)&PyWrapperFieldPathType) == 1)
+	{
+		FPyWrapperFieldPath* PyWrappedFieldPath = (FPyWrapperFieldPath*)PyObj;
+		OutVal = PyWrappedFieldPath->Value;
+		return FPyConversionResult::Success();
+	}
+
+	PYCONVERSION_RETURN(FPyConversionResult::Failure(), TEXT("Nativize"), *FString::Printf(TEXT("Cannot nativize '%s' as 'FieldPath'"), *PyUtil::GetFriendlyTypename(PyObj)));
+}
+
+FPyConversionResult Pythonize(const FFieldPath& Val, PyObject*& OutPyObj, const ESetErrorState SetErrorState)
+{
+	OutPyObj = (PyObject*)FPyWrapperFieldPathFactory::Get().CreateInstance(Val);
+	return FPyConversionResult::Success();
+}
+
 
 FPyConversionResult Nativize(PyObject* PyObj, void*& OutVal, const ESetErrorState SetErrorState)
 {
@@ -671,7 +691,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 	PYCONVERSION_RETURN(RESULT, TEXT("NativizeProperty"), *FString::Printf(TEXT("Cannot nativize '%s' as '%s' (%s)"), *PyUtil::GetFriendlyTypename(PyObj), *Prop->GetName(), *Prop->GetClass()->GetName()))
 
 #define NATIVIZE_SETTER_PROPERTY(PROPTYPE)											\
-	if (auto* CastProp = CastField<PROPTYPE>(Prop))										\
+	if (const PROPTYPE* CastProp = CastField<PROPTYPE>(Prop))								\
 	{																				\
 		PROPTYPE::TCppType NewValue;												\
 		const FPyConversionResult Result = Nativize(PyObj, NewValue, SetErrorState);\
@@ -688,7 +708,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 	}
 
 #define NATIVIZE_INLINE_PROPERTY(PROPTYPE)											\
-	if (auto* CastProp = CastField<PROPTYPE>(Prop))										\
+	if (const PROPTYPE* CastProp = CastField<PROPTYPE>(Prop))								\
 	{																				\
 		PROPTYPE::TCppType NewValue;												\
 		const FPyConversionResult Result = Nativize(PyObj, NewValue, SetErrorState);\
@@ -717,8 +737,9 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 	NATIVIZE_INLINE_PROPERTY(FStrProperty);
 	NATIVIZE_INLINE_PROPERTY(FNameProperty);
 	NATIVIZE_INLINE_PROPERTY(FTextProperty);
+	NATIVIZE_INLINE_PROPERTY(FFieldPathProperty);
 
-	if (auto* CastProp = CastField<FByteProperty>(Prop))
+	if (const FByteProperty* CastProp = CastField<FByteProperty>(Prop))
 	{
 		uint8 NewValue = 0;
 		FPyConversionResult Result = FPyConversionResult::Failure();
@@ -753,7 +774,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FEnumProperty>(Prop))
+	if (const FEnumProperty* CastProp = CastField<FEnumProperty>(Prop))
 	{
 		FPyConversionResult Result = FPyConversionResult::Failure();
 
@@ -782,7 +803,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FClassProperty>(Prop))
+	if (const FClassProperty* CastProp = CastField<FClassProperty>(Prop))
 	{
 		UClass* NewValue = nullptr;
 		const FPyConversionResult Result = NativizeClass(PyObj, NewValue, CastProp->MetaClass, SetErrorState);
@@ -797,7 +818,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FSoftClassProperty>(Prop))
+	if (const FSoftClassProperty* CastProp = CastField<FSoftClassProperty>(Prop))
 	{
 		UClass* NewValue = nullptr;
 		const FPyConversionResult Result = NativizeClass(PyObj, NewValue, CastProp->MetaClass, SetErrorState);
@@ -812,7 +833,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FObjectPropertyBase>(Prop))
+	if (const FObjectPropertyBase* CastProp = CastField<FObjectPropertyBase>(Prop))
 	{
 		UObject* NewValue = nullptr;
 		const FPyConversionResult Result = NativizeObject(PyObj, NewValue, CastProp->PropertyClass, SetErrorState);
@@ -827,7 +848,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FInterfaceProperty>(Prop))
+	if (const FInterfaceProperty* CastProp = CastField<FInterfaceProperty>(Prop))
 	{
 		UObject* NewValue = nullptr;
 		const FPyConversionResult Result = NativizeObject(PyObj, NewValue, CastProp->InterfaceClass, SetErrorState);
@@ -842,7 +863,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FStructProperty>(Prop))
+	if (const FStructProperty* CastProp = CastField<FStructProperty>(Prop))
 	{
 		FPyConversionResult Result = FPyConversionResult::Failure();
 		PyTypeObject* PyStructType = FPyWrapperTypeRegistry::Get().GetWrappedStructType(CastProp->Struct);
@@ -865,7 +886,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FDelegateProperty>(Prop))
+	if (const FDelegateProperty* CastProp = CastField<FDelegateProperty>(Prop))
 	{
 		FPyConversionResult Result = FPyConversionResult::Failure();
 		PyTypeObject* PyDelegateType = FPyWrapperTypeRegistry::Get().GetWrappedDelegateType(CastProp->SignatureFunction);
@@ -880,7 +901,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FMulticastDelegateProperty>(Prop))
+	if (const FMulticastDelegateProperty* CastProp = CastField<FMulticastDelegateProperty>(Prop))
 	{
 		FPyConversionResult Result = FPyConversionResult::Failure();
 		PyTypeObject* PyDelegateType = FPyWrapperTypeRegistry::Get().GetWrappedDelegateType(CastProp->SignatureFunction);
@@ -895,7 +916,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FArrayProperty>(Prop))
+	if (const FArrayProperty* CastProp = CastField<FArrayProperty>(Prop))
 	{
 		FPyConversionResult Result = FPyConversionResult::Failure();
 		FPyWrapperArrayPtr PyArray = FPyWrapperArrayPtr::StealReference(FPyWrapperArray::CastPyObject(PyObj, &PyWrapperArrayType, CastProp->Inner, &Result));
@@ -909,7 +930,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FSetProperty>(Prop))
+	if (const FSetProperty* CastProp = CastField<FSetProperty>(Prop))
 	{
 		FPyConversionResult Result = FPyConversionResult::Failure();
 		FPyWrapperSetPtr PySet = FPyWrapperSetPtr::StealReference(FPyWrapperSet::CastPyObject(PyObj, &PyWrapperSetType, CastProp->ElementProp, &Result));
@@ -923,7 +944,7 @@ FPyConversionResult NativizeProperty_Direct(PyObject* PyObj, const FProperty* Pr
 		PYCONVERSION_PROPERTY_RETURN(Result);
 	}
 
-	if (auto* CastProp = CastField<FMapProperty>(Prop))
+	if (const FMapProperty* CastProp = CastField<FMapProperty>(Prop))
 	{
 		FPyConversionResult Result = FPyConversionResult::Failure();
 		FPyWrapperMapPtr PyMap = FPyWrapperMapPtr::StealReference(FPyWrapperMap::CastPyObject(PyObj, &PyWrapperMapType, CastProp->KeyProp, CastProp->ValueProp, &Result));
@@ -954,7 +975,7 @@ FPyConversionResult PythonizeProperty_Direct(const FProperty* Prop, const void* 
 	OwnerContext.AssertValidConversionMethod(ConversionMethod);
 
 #define PYTHONIZE_GETTER_PROPERTY(PROPTYPE)											\
-	if (auto* CastProp = CastField<PROPTYPE>(Prop))										\
+	if (const PROPTYPE* CastProp = CastField<PROPTYPE>(Prop))										\
 	{																				\
 		auto&& Value = CastProp->GetPropertyValue(ValueAddr);						\
 		PYCONVERSION_PROPERTY_RETURN(Pythonize(Value, OutPyObj, SetErrorState));	\
@@ -973,8 +994,9 @@ FPyConversionResult PythonizeProperty_Direct(const FProperty* Prop, const void* 
 	PYTHONIZE_GETTER_PROPERTY(FStrProperty);
 	PYTHONIZE_GETTER_PROPERTY(FNameProperty);
 	PYTHONIZE_GETTER_PROPERTY(FTextProperty);
+	PYTHONIZE_GETTER_PROPERTY(FFieldPathProperty);
 
-	if (auto* CastProp = CastField<FByteProperty>(Prop))
+	if (const FByteProperty* CastProp = CastField<FByteProperty>(Prop))
 	{
 		const uint8 Value = CastProp->GetPropertyValue(ValueAddr);
 		if (CastProp->Enum)
@@ -987,31 +1009,31 @@ FPyConversionResult PythonizeProperty_Direct(const FProperty* Prop, const void* 
 		}
 	}
 
-	if (auto* CastProp = CastField<FEnumProperty>(Prop))
+	if (const FEnumProperty* CastProp = CastField<FEnumProperty>(Prop))
 	{
 		FNumericProperty* EnumInternalProp = CastProp->GetUnderlyingProperty();
 		PYCONVERSION_PROPERTY_RETURN(PythonizeEnumEntry(EnumInternalProp ? EnumInternalProp->GetSignedIntPropertyValue(ValueAddr) : 0, CastProp->GetEnum(), OutPyObj, SetErrorState));
 	}
 
-	if (auto* CastProp = CastField<FClassProperty>(Prop))
+	if (const FClassProperty* CastProp = CastField<FClassProperty>(Prop))
 	{
 		UClass* Value = Cast<UClass>(CastProp->LoadObjectPropertyValue(ValueAddr));
 		PYCONVERSION_PROPERTY_RETURN(PythonizeClass(Value, OutPyObj, SetErrorState));
 	}
 
-	if (auto* CastProp = CastField<FSoftClassProperty>(Prop))
+	if (const FSoftClassProperty* CastProp = CastField<FSoftClassProperty>(Prop))
 	{
 		UClass* Value = Cast<UClass>(CastProp->LoadObjectPropertyValue(ValueAddr));
 		PYCONVERSION_PROPERTY_RETURN(PythonizeClass(Value, OutPyObj, SetErrorState));
 	}
 
-	if (auto* CastProp = CastField<FObjectPropertyBase>(Prop))
+	if (const FObjectPropertyBase* CastProp = CastField<FObjectPropertyBase>(Prop))
 	{
 		UObject* Value = CastProp->LoadObjectPropertyValue(ValueAddr);
 		PYCONVERSION_PROPERTY_RETURN(Pythonize(Value, OutPyObj, SetErrorState));
 	}
 
-	if (auto* CastProp = CastField<FInterfaceProperty>(Prop))
+	if (const FInterfaceProperty* CastProp = CastField<FInterfaceProperty>(Prop))
 	{
 		UObject* Value = CastProp->GetPropertyValue(ValueAddr).GetObject();
 		if (Value)
@@ -1026,20 +1048,20 @@ FPyConversionResult PythonizeProperty_Direct(const FProperty* Prop, const void* 
 		return FPyConversionResult::Success();
 	}
 
-	if (auto* CastProp = CastField<FStructProperty>(Prop))
+	if (const FStructProperty* CastProp = CastField<FStructProperty>(Prop))
 	{
 		OutPyObj = (PyObject*)FPyWrapperStructFactory::Get().CreateInstance(CastProp->Struct, (void*)ValueAddr, OwnerContext, ConversionMethod);
 		return FPyConversionResult::Success();
 	}
 
-	if (auto* CastProp = CastField<FDelegateProperty>(Prop))
+	if (const FDelegateProperty* CastProp = CastField<FDelegateProperty>(Prop))
 	{
 		const FScriptDelegate* Value = CastProp->GetPropertyValuePtr(ValueAddr);
 		OutPyObj = (PyObject*)FPyWrapperDelegateFactory::Get().CreateInstance(CastProp->SignatureFunction, (FScriptDelegate*)Value, OwnerContext, ConversionMethod);
 		return FPyConversionResult::Success();
 	}
 
-	if (auto* CastProp = CastField<FMulticastDelegateProperty>(Prop))
+	if (const FMulticastDelegateProperty* CastProp = CastField<FMulticastDelegateProperty>(Prop))
 	{
 		const FMulticastScriptDelegate* Value = CastProp->GetMulticastDelegate(ValueAddr);
 		OutPyObj = (PyObject*)FPyWrapperMulticastDelegateFactory::Get().CreateInstance(CastProp->SignatureFunction, (FMulticastScriptDelegate*)Value, OwnerContext, ConversionMethod);
@@ -1047,26 +1069,26 @@ FPyConversionResult PythonizeProperty_Direct(const FProperty* Prop, const void* 
 	}
 
 	// TODO: We're just not handling sparse delegates at this time
-	/*if (auto* CastProp = CastField<FMulticastSparseDelegateProperty>(Prop))
+	/*if (const FMulticastSparseDelegateProperty* CastProp = CastField<FMulticastSparseDelegateProperty>(Prop))
 	{
 		const FMulticastScriptDelegate* Value = CastProp->GetMulticastDelegate(ValueAddr);
 		OutPyObj = (PyObject*)FPyWrapperMulticastDelegateFactory::Get().CreateInstance(CastProp->SignatureFunction, (FMulticastScriptDelegate*)Value, OwnerContext, ConversionMethod);
 		return FPyConversionResult::Success();
 	}*/
 
-	if (auto* CastProp = CastField<FArrayProperty>(Prop))
+	if (const FArrayProperty* CastProp = CastField<FArrayProperty>(Prop))
 	{
 		OutPyObj = (PyObject*)FPyWrapperArrayFactory::Get().CreateInstance((void*)ValueAddr, CastProp, OwnerContext, ConversionMethod);
 		return FPyConversionResult::Success();
 	}
 
-	if (auto* CastProp = CastField<FSetProperty>(Prop))
+	if (const FSetProperty* CastProp = CastField<FSetProperty>(Prop))
 	{
 		OutPyObj = (PyObject*)FPyWrapperSetFactory::Get().CreateInstance((void*)ValueAddr, CastProp, OwnerContext, ConversionMethod);
 		return FPyConversionResult::Success();
 	}
 
-	if (auto* CastProp = CastField<FMapProperty>(Prop))
+	if (const FMapProperty* CastProp = CastField<FMapProperty>(Prop))
 	{
 		OutPyObj = (PyObject*)FPyWrapperMapFactory::Get().CreateInstance((void*)ValueAddr, CastProp, OwnerContext, ConversionMethod);
 		return FPyConversionResult::Success();

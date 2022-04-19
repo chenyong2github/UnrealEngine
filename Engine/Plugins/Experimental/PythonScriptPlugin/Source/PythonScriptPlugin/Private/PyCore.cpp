@@ -18,6 +18,7 @@
 #include "PyWrapperFixedArray.h"
 #include "PyWrapperSet.h"
 #include "PyWrapperMap.h"
+#include "PyWrapperFieldPath.h"
 #include "PyWrapperMath.h"
 
 #include "PythonScriptPlugin.h"
@@ -1894,6 +1895,7 @@ void InitializeModule()
 	InitializePyWrapperFixedArray(NativePythonModule);
 	InitializePyWrapperSet(NativePythonModule);
 	InitializePyWrapperMap(NativePythonModule);
+	InitializePyWrapperFieldPath(NativePythonModule);
 	InitializePyWrapperMath(NativePythonModule);
 
 	FPyWrapperTypeRegistry::Get().RegisterNativePythonModule(MoveTemp(NativePythonModule));

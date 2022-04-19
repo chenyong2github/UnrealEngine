@@ -117,6 +117,11 @@ int32 UPyTestObject::FuncTakingPyTestDelegate(const FPyTestDelegate& InDelegate,
 	return InDelegate.IsBound() ? InDelegate.Execute(InValue) : INDEX_NONE;
 }
 
+void UPyTestObject::FuncTakingFieldPath(const TFieldPath<FProperty>& InFieldPath)
+{
+	FieldPath = InFieldPath;
+}
+
 int32 UPyTestObject::DelegatePropertyCallback(const int32 InValue) const
 {
 	if (InValue != Int)
@@ -154,6 +159,11 @@ TMap<int32, bool> UPyTestObject::ReturnMap()
 	TMap<int32, bool> TmpMap;
 	TmpMap.Add(10, true);
 	return TmpMap;
+}
+
+TFieldPath<FProperty> UPyTestObject::ReturnFieldPath()
+{
+	return TFieldPath<FProperty>(UPyTestObject::StaticClass()->FindPropertyByName(TEXT("FieldPath")));
 }
 
 void UPyTestObject::EmitScriptError()

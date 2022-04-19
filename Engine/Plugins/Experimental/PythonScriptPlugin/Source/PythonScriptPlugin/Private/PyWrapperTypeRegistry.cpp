@@ -12,6 +12,7 @@
 #include "PyWrapperFixedArray.h"
 #include "PyWrapperSet.h"
 #include "PyWrapperMap.h"
+#include "PyWrapperFieldPath.h"
 #include "PyConversion.h"
 #include "PyGIL.h"
 #include "PyCore.h"
@@ -436,6 +437,24 @@ FPyWrapperMap* FPyWrapperMapFactory::CreateInstance(void* InUnrealInstance, cons
 	}, InConversionMethod == EPyConversionMethod::Copy || InConversionMethod == EPyConversionMethod::Steal);
 }
 
+FPyWrapperFieldPathFactory& FPyWrapperFieldPathFactory::Get()
+{
+	static FPyWrapperFieldPathFactory Instance;
+	return Instance;
+}
+
+FPyWrapperFieldPath* FPyWrapperFieldPathFactory::FindInstance(FFieldPath InUnrealInstance) const
+{
+	return FindInstanceInternal(InUnrealInstance, &PyWrapperFieldPathType);
+}
+
+FPyWrapperFieldPath* FPyWrapperFieldPathFactory::CreateInstance(FFieldPath InUnrealInstance)
+{
+	return CreateInstanceInternal(InUnrealInstance, &PyWrapperFieldPathType, [InUnrealInstance](FPyWrapperFieldPath* InSelf)
+	{
+		return FPyWrapperFieldPath::Init(InSelf, InUnrealInstance);
+	});
+}
 
 FPyWrapperTypeReinstancer& FPyWrapperTypeReinstancer::Get()
 {
@@ -2313,7 +2332,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 								if (!PythonFileLine.Contains(TEXT("unreal"), ESearchCase::CaseSensitive))
 								{
 									bExportedImports = true;
-									PythonScript.WriteLine(PythonFileLine);
+									PythonScript.WriteLine(PythonFileLine.TrimStart()); // Trim leading spaces, import in .py file might be indented (lazy loaded in a if).
 								}
 								continue;
 							}

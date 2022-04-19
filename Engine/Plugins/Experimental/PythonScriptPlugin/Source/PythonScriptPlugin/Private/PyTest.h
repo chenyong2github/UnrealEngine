@@ -60,6 +60,12 @@ public:
 	FText Text;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
+	TFieldPath<FProperty> FieldPath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
+	TFieldPath<FStructProperty> StructFieldPath;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TArray<FString> StringArray;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
@@ -147,6 +153,12 @@ public:
 	FText Text;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
+	TFieldPath<FProperty> FieldPath = TFieldPath<FProperty>(FPyTestStruct::StaticStruct()->FindPropertyByName(TEXT("StringArray")));
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
+	TFieldPath<FStructProperty> StructFieldPath = TFieldPath<FStructProperty>(CastField<FStructProperty>(UPyTestObject::GetClass()->FindPropertyByName(TEXT("Struct"))));
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TArray<FString> StringArray;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
@@ -210,6 +222,9 @@ public:
 	int32 FuncTakingPyTestDelegate(const FPyTestDelegate& InDelegate, const int32 InValue) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
+	void FuncTakingFieldPath(const TFieldPath<FProperty>& InFieldPath); // UHT couldn't parse any default value for the FieldPath.
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	int32 DelegatePropertyCallback(const int32 InValue) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
@@ -223,6 +238,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	static TMap<int32, bool> ReturnMap();
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
+	static TFieldPath<FProperty> ReturnFieldPath();
 
 	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	static void EmitScriptError();

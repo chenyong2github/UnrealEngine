@@ -2229,6 +2229,22 @@ void PythonizeValueImpl(const FProperty* InProp, const void* InPropValue, const 
 				? FString::Printf(TEXT("%sText(\"%s\")"), UnrealNamespace, **TextStrValue)
 				: FString::Printf(TEXT("\"%s\""), **TextStrValue);
 		}
+		else if (const FFieldPathProperty* FieldPathProp =  CastField<const FFieldPathProperty>(InProp))
+		{
+			const FString FieldPathStrValue = FieldPathProp->GetPropertyValue(PropArrValue).ToString();
+			if (FieldPathStrValue.IsEmpty())
+			{
+				OutPythonDefaultValue += bUseStrictTyping
+					? FString::Printf(TEXT("%sFieldPath()"), UnrealNamespace)
+					: FString::Printf(TEXT("FieldPath()"));
+			}
+			else // Use the path string as default value.
+			{
+				OutPythonDefaultValue += bUseStrictTyping
+					? FString::Printf(TEXT("%sFieldPath(\"%s\")"), UnrealNamespace, *GetPropertyPythonName(FieldPathProp), *FieldPathStrValue)
+					: FString::Printf(TEXT("FieldPath(\"%s\")"), *GetPropertyPythonName(FieldPathProp), *FieldPathStrValue);
+			}
+		}
 		else if (const FObjectPropertyBase* ObjProp = CastField<const FObjectPropertyBase>(InProp))
 		{
 			OutPythonDefaultValue += TEXT("None");
@@ -2298,7 +2314,7 @@ void PythonizeValueImpl(const FProperty* InProp, const void* InPropValue, const 
 			OutPythonDefaultValue += bUseStrictTyping
 				? FString::Printf(TEXT("%sMap.cast(%s, %s, {"), UnrealNamespace, *GetPropertyTypePythonName(MapProperty->KeyProp, bIncludeUnrealNamespace, bIsForDocString), *GetPropertyTypePythonName(MapProperty->ValueProp, bIncludeUnrealNamespace, bIsForDocString))
 				: TEXT("{");
-		{
+			{
 				FScriptMapHelper ScriptMapHelper(MapProperty, PropArrValue);
 				for (int32 SparseElementIndex = 0, ElementIndex = 0; SparseElementIndex < ScriptMapHelper.GetMaxIndex(); ++SparseElementIndex)
 				{
@@ -2985,6 +3001,8 @@ FString GetPropertyTypePythonName(const FProperty* InProp, const bool InIncludeU
 	GET_PROPERTY_TYPE(FStrProperty, TEXT("str"))
 	GET_PROPERTY_TYPE(FNameProperty, InIncludeUnrealNamespace ? TEXT("unreal.Name") : TEXT("Name"))
 	GET_PROPERTY_TYPE(FTextProperty, InIncludeUnrealNamespace ? TEXT("unreal.Text") : TEXT("Text"))
+	GET_PROPERTY_TYPE(FFieldPathProperty, InIncludeUnrealNamespace ? TEXT("unreal.FieldPath") : TEXT("FieldPath"))
+
 	if (const FByteProperty* ByteProp = CastField<const FByteProperty>(InProp))
 	{
 		if (ByteProp->Enum)

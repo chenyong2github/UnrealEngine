@@ -26,6 +26,7 @@ struct FPyWrapperFixedArray;
 struct FPyWrapperSet;
 struct FPyWrapperMap;
 struct FPyWrapperStructMetaData;
+struct FPyWrapperFieldPath;
 
 class FPyWrapperOwnerContext;
 class UPythonGeneratedClass;
@@ -298,6 +299,21 @@ public:
 	/** Find the wrapped Python instance associated with the given Unreal instance, or create one if needed (returns new reference) */
 	FPyWrapperMap* CreateInstance(void* InUnrealInstance, const FMapProperty* InProp, const FPyWrapperOwnerContext& InOwnerContext, const EPyConversionMethod InConversionMethod);
 };
+
+/** Factory for wrapped field type instances */
+class FPyWrapperFieldPathFactory : public TPyWrapperTypeFactory<FFieldPath, FPyWrapperFieldPath>
+{
+public:
+	/** Access the singleton instance */
+	static FPyWrapperFieldPathFactory& Get();
+
+	/** Find the wrapped Python instance associated with the given Unreal instance (if any, returns borrowed reference) */
+	FPyWrapperFieldPath* FindInstance(FFieldPath InUnrealInstance) const;
+
+	/** Find the wrapped Python instance associated with the given Unreal instance, or create one if needed (returns new reference) */
+	FPyWrapperFieldPath* CreateInstance(FFieldPath InUnrealInstance);
+};
+
 
 /** Singleton instance that handles re-instancing Python types */
 class FPyWrapperTypeReinstancer
