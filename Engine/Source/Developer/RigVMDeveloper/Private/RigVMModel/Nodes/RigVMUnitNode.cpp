@@ -7,6 +7,25 @@
 #include "RigVMModel/RigVMControllerActions.h"
 #include "RigVMUserWorkflowRegistry.h"
 
+void URigVMUnitNode::PostLoad()
+{
+	Super::PostLoad();
+
+	// if we have a script struct but no notation let's figure out the template
+	if(GetScriptStruct() != nullptr && GetTemplate() == nullptr)
+	{
+		if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(GetScriptStruct(), *GetMethodName().ToString()))
+		{
+			if(Function->TemplateIndex != INDEX_NONE)
+			{
+				const FRigVMTemplate& Template = FRigVMRegistry::Get().GetTemplates()[Function->TemplateIndex];
+				TemplateNotation = Template.GetNotation();
+				ResolvedFunctionName = Function->GetName();
+			}	
+		}
+	}
+}
+
 FString URigVMUnitNode::GetNodeTitle() const
 {
 	if (UScriptStruct* Struct = GetScriptStruct())
@@ -283,7 +302,11 @@ FName URigVMUnitNode::GetNextAggregateName(const FName& InLastAggregatePinName) 
 
 UScriptStruct* URigVMUnitNode::GetScriptStruct() const
 {
-	return ScriptStruct;
+	if(UScriptStruct* ResolvedStruct = Super::GetScriptStruct())
+	{
+		return ResolvedStruct;
+	}
+	return ScriptStruct_DEPRECATED;
 }
 
 bool URigVMUnitNode::IsLoopNode() const
@@ -299,7 +322,12 @@ bool URigVMUnitNode::IsLoopNode() const
 
 FName URigVMUnitNode::GetMethodName() const
 {
-	return MethodName;
+	const FName ResolvedMethodName = Super::GetMethodName();
+	if(!ResolvedMethodName.IsNone())
+	{
+		return ResolvedMethodName;
+	}
+	return MethodName_DEPRECATED;
 }
 
 FString URigVMUnitNode::GetStructDefaultValue() const

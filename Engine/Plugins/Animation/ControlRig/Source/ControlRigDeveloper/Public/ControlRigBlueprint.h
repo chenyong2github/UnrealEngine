@@ -570,7 +570,6 @@ private:
 	void PatchBoundVariables();
 	void PatchVariableNodesWithIncorrectType();
 	void PatchPropagateToChildren();
-	void ConvertUnitNodesToTemplateNodes();
 	void PatchParameterNodesOnLoad();
 
 	TMap<FName, int32> AddedMemberVariableMap;

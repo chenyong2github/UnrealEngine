@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "RigVMUnitNode.h"
-#include "RigVMModel/Nodes/RigVMUnitNode.h"
+#include "RigVMModel/RigVMNode.h"
 #include "RigVMCore/RigVMTemplate.h"
 #include "RigVMTemplateNode.generated.h"
 
@@ -13,7 +12,7 @@
  * the template's template.
  */
 UCLASS(BlueprintType)
-class RIGVMDEVELOPER_API URigVMTemplateNode : public URigVMUnitNode
+class RIGVMDEVELOPER_API URigVMTemplateNode : public URigVMNode
 {
 	GENERATED_BODY()
 
@@ -22,12 +21,16 @@ public:
 	// default constructor
 	URigVMTemplateNode();
 
-	// URigVMUnitNode interface
-	virtual UScriptStruct* GetScriptStruct() const;
+	// URigVMNode interface
 	virtual FString GetNodeTitle() const override;
 	virtual FName GetMethodName() const;
 	virtual  FText GetToolTipText() const override;
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const override;
+
+	// Returns the UStruct for this unit node
+	// (the struct declaring the RIGVM_METHOD)
+	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)
+	virtual UScriptStruct* GetScriptStruct() const;
 
 	// Returns the notation of the node
 	UFUNCTION(BlueprintPure, Category = Template)
@@ -62,21 +65,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = Template)
 	bool IsFullyUnresolved() const;
 
-	// returns the sole resolved unit struct
-	UFUNCTION(BlueprintPure, Category = Template)
-	UScriptStruct* GetResolvedUnitStruct() const { return GetScriptStruct(); }
-
-	// returns the list of all supported unit structs
-	UFUNCTION(BlueprintPure, Category = Template)
-	TArray<UScriptStruct*> GetSupportedUnitStructs() const;
-
 	// returns a default value for pin if it is known
 	FString GetInitialDefaultValueForPin(const FName& InRootPinName, const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
 	// returns the display name for a pin
 	FName GetDisplayNameForPin(const FName& InRootPinName, const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
-private:
+protected:
 
 	void InvalidateCache();
 

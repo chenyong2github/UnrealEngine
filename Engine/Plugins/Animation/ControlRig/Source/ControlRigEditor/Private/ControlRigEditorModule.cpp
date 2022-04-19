@@ -1015,6 +1015,12 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 			continue;
 		}
 
+		// ignore templates which don't have a function backing it up
+		if(Template.GetPermutation(0) == nullptr)
+		{
+			continue;
+		}
+
 		FText NodeCategory = FText::FromString(Template.GetCategory());
 		FText MenuDesc = FText::FromName(Template.GetName());
 		FText ToolTip = Template.GetTooltipText();

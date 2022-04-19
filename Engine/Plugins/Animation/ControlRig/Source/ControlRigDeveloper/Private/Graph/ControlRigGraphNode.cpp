@@ -775,9 +775,8 @@ bool UControlRigGraphNode::ShowPaletteIconOnNode() const
 			ModelNode->IsA<URigVMFunctionReturnNode>() ||
 			ModelNode->IsA<URigVMFunctionReferenceNode>() ||
 			ModelNode->IsA<URigVMCollapseNode>() ||
-			ModelNode->IsA<URigVMTemplateNode>() ||
-			ModelNode->IsLoopNode() ||
-			Cast<URigVMUnitNode>(ModelNode) != nullptr;
+			ModelNode->IsA<URigVMUnitNode>() ||
+			ModelNode->IsLoopNode();
 	}
 	return false;
 }
@@ -824,13 +823,16 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 			}
 		}
 
-		if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
-		{
-			return TemplateNodeIcon;
-		}
-
 		if (URigVMUnitNode *UnitNode = Cast<URigVMUnitNode>(ModelNode))
 		{
+			if(const FRigVMTemplate* Template = UnitNode->GetTemplate())
+			{
+				if(Template->NumPermutations() > 1)
+				{
+					return TemplateNodeIcon;
+				}
+			}
+			
 			FString IconPath;
 			const int32 NumOfIconPathNames = 4;
 			

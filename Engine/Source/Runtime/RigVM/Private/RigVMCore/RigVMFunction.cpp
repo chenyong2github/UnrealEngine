@@ -4,6 +4,11 @@
 #include "RigVMCore/RigVMTemplate.h"
 #include "RigVMCore/RigVMRegistry.h"
 
+FString FRigVMFunction::GetName() const
+{
+	return Name;
+}
+
 FName FRigVMFunction::GetMethodName() const
 {
 	FString FullName(Name);

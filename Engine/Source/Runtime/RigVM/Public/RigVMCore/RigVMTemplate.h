@@ -112,6 +112,8 @@ struct RIGVM_API FRigVMTemplateArgument
 		}
 	};
 
+	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const FType& InType);
+
 	// returns the name of the argument
 	const FName& GetName() const { return Name; }
 
@@ -152,6 +154,7 @@ protected:
 
 	friend struct FRigVMTemplate;
 	friend class URigVMController;
+	friend struct FRigVMRegistry;
 };
 
 /**
@@ -250,6 +253,9 @@ private:
 
 	// Constructor from a struct, a template name and a function index
 	FRigVMTemplate(UScriptStruct* InStruct, const FString& InTemplateName, int32 InFunctionIndex);
+
+	// Constructor from a template name, arguments and a function index
+	FRigVMTemplate(const FName& InTemplateName, const TArray<FRigVMTemplateArgument>& InArguments, int32 InFunctionIndex);
 
 	int32 Index;
 	FName Notation;

@@ -84,6 +84,7 @@ struct RIGVM_API FRigVMFunction
 	}
 
 	FORCEINLINE bool IsValid() const { return Name != nullptr && FunctionPtr != nullptr; }
+	FString GetName() const;
 	FName GetMethodName() const;
 	FString GetModuleName() const;
 	FString GetModuleRelativeHeaderPath() const;

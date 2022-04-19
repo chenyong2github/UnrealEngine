@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "RigVMModel/RigVMNode.h"
+#include "RigVMModel/Nodes/RigVMTemplateNode.h"
 #include "RigVMCore/RigVMStruct.h"
 #include "UObject/StructOnScope.h"
 #include "RigVMUnitNode.generated.h"
@@ -13,11 +13,14 @@
  * struct UPROPERTY members.
  */
 UCLASS(BlueprintType)
-class RIGVMDEVELOPER_API URigVMUnitNode : public URigVMNode
+class RIGVMDEVELOPER_API URigVMUnitNode : public URigVMTemplateNode
 {
 	GENERATED_BODY()
 
 public:
+
+	// UObject interface
+	virtual void PostLoad() override;
 
 	// Override node functions
 	virtual FString GetNodeTitle() const override;
@@ -41,12 +44,9 @@ public:
 	bool IsDeprecated() const;
 	FString GetDeprecatedMetadata() const;
 
-	
-	
-	// Returns the UStruct for this unit node
-	// (the struct declaring the RIGVM_METHOD)
-	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)
-	virtual UScriptStruct* GetScriptStruct() const;
+
+	// URigVMTemplateNode interface
+	virtual UScriptStruct* GetScriptStruct() const override;
 
 	// Returns the name of the declared RIGVM_METHOD
 	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)
@@ -86,10 +86,10 @@ protected:
 private:
 
 	UPROPERTY()
-	TObjectPtr<UScriptStruct> ScriptStruct;
+	TObjectPtr<UScriptStruct> ScriptStruct_DEPRECATED;
 
 	UPROPERTY()
-	FName MethodName;
+	FName MethodName_DEPRECATED;
 
 	friend class URigVMController;
 };

@@ -473,9 +473,6 @@ void UControlRigBlueprint::PostLoad()
 		PatchRigElementKeyCacheOnLoad();
 		PatchBoundVariables();
 		PatchPropagateToChildren();
-#if UE_RIGVM_ENABLE_TEMPLATE_NODES
-		ConvertUnitNodesToTemplateNodes();
-#endif
 		PatchParameterNodesOnLoad();
 
 #if WITH_EDITOR
@@ -3915,36 +3912,6 @@ void UControlRigBlueprint::PatchPropagateToChildren()
 			}
 			Controller->SuspendNotifications(false);
 		}
-	}
-}
-
-void UControlRigBlueprint::ConvertUnitNodesToTemplateNodes()
-{
-	TGuardValue<bool> GuardNotifsSelf(bSuspendModelNotificationsForSelf, true);
-
-	bool bWasDirty = false;
-	if (const UPackage* Package = GetOutermost())
-	{
-		bWasDirty = Package->IsDirty();
-	}
-
-	for (URigVMGraph* Graph : GetAllModels())
-	{
-		URigVMController* Controller = GetOrCreateController(Graph);
-		TArray<URigVMNode*> Nodes = Graph->GetNodes();
-		for (URigVMNode* Node : Nodes)
-		{
-			if(Node->IsInjected())
-			{
-				continue;
-			}
-			Controller->ReplaceUnitNodeWithTemplateNode(Node->GetFName(), false);
-		}
-	}
-
-	if (UPackage* Package = GetOutermost())
-	{
-		Package->SetDirtyFlag(bWasDirty);
 	}
 }
 

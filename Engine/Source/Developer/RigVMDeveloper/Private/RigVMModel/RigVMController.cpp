@@ -707,7 +707,7 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 		}
 
 		const FString Name = GetValidNodeName(InNodeName.IsEmpty() ? InScriptStruct->GetName() : InNodeName);
-		URigVMTemplateNode* TemplateNode = AddTemplateNode(Template->GetNotation(), InPosition, Name, bSetupUndoRedo, bPrintPythonCommand);
+		URigVMUnitNode* TemplateNode = Cast<URigVMUnitNode>(AddTemplateNode(Template->GetNotation(), InPosition, Name, bSetupUndoRedo, bPrintPythonCommand));
 		if(TemplateNode == nullptr)
 		{
 			CancelUndoBracket();
@@ -752,8 +752,7 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 	
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? InScriptStruct->GetName() : InNodeName);
 	URigVMUnitNode* Node = NewObject<URigVMUnitNode>(Graph, *Name);
-	Node->ScriptStruct = InScriptStruct;
-	Node->MethodName = InMethodName;
+	Node->ResolvedFunctionName = Function->GetName();
 	Node->Position = InPosition;
 	Node->NodeTitle = InScriptStruct->GetMetaData(TEXT("DisplayName"));
 	
@@ -1624,82 +1623,6 @@ URigVMVariableNode* URigVMController::ReplaceParameterNodeWithVariable(const FNa
 	}
 
 	return nullptr;
-}
-
-URigVMTemplateNode* URigVMController::ReplaceUnitNodeWithTemplateNode(const FName& InNodeName, bool bSetupUndoRedo)
-{
-	if(!IsValidGraph())
-	{
-		return nullptr;
-	}
-
-	if (!bIsTransacting && !IsGraphEditable())
-	{
-		return nullptr;
-	}
-
-	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(GetGraph()->FindNodeByName(InNodeName));
-	if(UnitNode == nullptr)
-	{
-		return nullptr;
-	}
-	if(UnitNode->IsA<URigVMTemplateNode>())
-	{
-		return Cast<URigVMTemplateNode>(UnitNode);
-	}
-
-	UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct();
-	if(ScriptStruct == nullptr)
-	{
-		return nullptr;
-	}
-	
-	const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(ScriptStruct, *UnitNode->GetMethodName().ToString());
-	if(Function == nullptr)
-	{
-		return nullptr;
-	}
-			
-	const FRigVMTemplate* Template = Function->GetTemplate();
-	if(Template == nullptr)
-	{
-		return nullptr;
-	}
-
-	FRigVMBaseAction Action;
-	if (bSetupUndoRedo)
-	{
-		Action.Title = FString::Printf(TEXT("Replace Unit with Template"));
-		ActionStack->BeginAction(Action);
-	}
-
-	const TMap<FString, FPinState> PinStates = GetPinStates(UnitNode);
-	TArray<URigVMLink*> Links = UnitNode->GetLinks();
-	DetachLinksFromPinObjects(&Links);
-
-	const FVector2D NodePosition = UnitNode->GetPosition();
-	RemoveNode(UnitNode, bSetupUndoRedo);
-	URigVMTemplateNode* TemplateNode = AddTemplateNode(Template->GetNotation(), NodePosition, InNodeName.ToString(), bSetupUndoRedo);
-	if(TemplateNode == nullptr)
-	{
-		if(bSetupUndoRedo)
-		{
-			ActionStack->CancelAction(Action, this);
-		}
-		return nullptr;
-	}
-
-	FullyResolveTemplateNode(TemplateNode, Function, bSetupUndoRedo);
-
-	ApplyPinStates(TemplateNode, PinStates);
-	ReattachLinksToPinObjects(false, &Links);
-
-	if(bSetupUndoRedo)
-	{
-		ActionStack->EndAction(Action);
-	}
-	
-	return TemplateNode;
 }
 
 bool URigVMController::UnresolveTemplateNodes(const TArray<FName>& InNodeNames, bool bSetupUndoRedo, bool bPrintPythonCommand)
@@ -11752,7 +11675,21 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 	}
 
 	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? Template->GetName().ToString() : InNodeName);
-	URigVMTemplateNode* Node = NewObject<URigVMTemplateNode>(Graph, *Name);
+	URigVMTemplateNode* Node = nullptr;
+
+	// determine what kind of node we need to create
+	const UScriptStruct* PotentialUnitStruct = Template->GetPermutation(0)->Struct;
+	if(PotentialUnitStruct && PotentialUnitStruct->IsChildOf(FRigVMStruct::StaticStruct()))
+	{
+		Node = NewObject<URigVMUnitNode>(Graph, *Name); 
+	}
+
+	if(Node == nullptr)
+	{
+		ReportErrorf(TEXT("Template node '%s' cannot be created. Unknown template."), *InNotation.ToString());
+		return nullptr;
+	}
+	
 	Node->TemplateNotation = Template->GetNotation();
 	Node->Position = InPosition;
 
@@ -13074,7 +13011,7 @@ FProperty* URigVMController::FindPropertyForPin(const FString& InPinPath)
 	{
 		int32 PartIndex = 1; // cut off the first one since it's the node
 
-		UStruct* Struct = UnitNode->ScriptStruct;
+		UStruct* Struct = UnitNode->GetScriptStruct();
 		FProperty* Property = Struct->FindPropertyByName(*Parts[PartIndex++]);
 
 		while (PartIndex < Parts.Num() && Property != nullptr)
@@ -14629,8 +14566,7 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, cons
 	{
 		ReportErrorf(TEXT("Template %s doesn't support function %s::%s."),
 			*Template->GetNotation().ToString(),
-			*InFunctionToResolve->Struct->GetStructCPPName(),
-			*InFunctionToResolve->GetMethodName().ToString()
+			*InFunctionToResolve->GetName()
 		);
 		return false;
 	}
@@ -14766,11 +14702,14 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, cons
 
 	if (UnitNodeCreatedContext.IsValid())
 	{
-		if (TSharedPtr<FStructOnScope> StructScope = InNode->ConstructStructInstance())
+		if(URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InNode))
 		{
-			TGuardValue<FName> NodeNameScope(UnitNodeCreatedContext.NodeName, InNode->GetFName());
-			FRigVMStruct* StructInstance = (FRigVMStruct*)StructScope->GetStructMemory();
-			StructInstance->OnUnitNodeCreated(UnitNodeCreatedContext);
+			if (TSharedPtr<FStructOnScope> StructScope = UnitNode->ConstructStructInstance())
+			{
+				TGuardValue<FName> NodeNameScope(UnitNodeCreatedContext.NodeName, UnitNode->GetFName());
+				FRigVMStruct* StructInstance = (FRigVMStruct*)StructScope->GetStructMemory();
+				StructInstance->OnUnitNodeCreated(UnitNodeCreatedContext);
+			}
 		}
 	}
 	

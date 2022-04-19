@@ -44,6 +44,9 @@ public:
 	// Returns all current rigvm functions
 	const TArray<FRigVMTemplate>& GetTemplates() const;
 
+	// Defines and retrieves a template given its arguments
+	const FRigVMTemplate* GetOrAddTemplateFromArguments(const FName& InName, const TArray<FRigVMTemplateArgument>& InArguments);
+
 private:
 
 	static const FName TemplateNameMetaName;

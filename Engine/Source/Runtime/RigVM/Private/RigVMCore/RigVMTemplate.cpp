@@ -52,6 +52,15 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(FProperty* InProperty)
 	Types.Add(Type);
 }
 
+FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const FType& InType)
+: Index(INDEX_NONE)
+, Name(InName)
+, Direction(InDirection)
+, bSingleton(true)
+, Types({InType})
+{
+}
+
 bool FRigVMTemplateArgument::SupportsType(const FString& InCPPType, const TArray<int32>& InPermutationIndices, FType* OutType) const
 {
 	bool bFoundMatch = false;
@@ -197,7 +206,32 @@ FRigVMTemplate::FRigVMTemplate(UScriptStruct* InStruct, const FString& InTemplat
 
 	if (ArgumentNotations.Num() > 0)
 	{
-		FString NotationStr = FString::Printf(TEXT("%s(%s)"), *InTemplateName, *FString::Join(ArgumentNotations, TEXT(",")));
+		const FString NotationStr = FString::Printf(TEXT("%s(%s)"), *InTemplateName, *FString::Join(ArgumentNotations, TEXT(",")));
+		Notation = *NotationStr;
+		Permutations.Add(InFunctionIndex);
+	}
+}
+
+FRigVMTemplate::FRigVMTemplate(const FName& InTemplateName, const TArray<FRigVMTemplateArgument>& InArguments, int32 InFunctionIndex)
+	: Index(INDEX_NONE)
+	, Notation(NAME_None)
+{
+	TArray<FString> ArgumentNotations;
+	for (const FRigVMTemplateArgument& InArgument : InArguments)
+	{
+		FRigVMTemplateArgument Argument = InArgument;
+		Argument.Index = Arguments.Num();
+
+		if(IsValidArgumentForTemplate(Argument))
+		{
+			Arguments.Add(Argument);
+			ArgumentNotations.Add(GetArgumentNotation(Argument));
+		}
+	}
+
+	if (ArgumentNotations.Num() > 0)
+	{
+		const FString NotationStr = FString::Printf(TEXT("%s(%s)"), *InTemplateName.ToString(), *FString::Join(ArgumentNotations, TEXT(",")));
 		Notation = *NotationStr;
 		Permutations.Add(InFunctionIndex);
 	}
@@ -580,7 +614,12 @@ bool FRigVMTemplate::ArgumentSupportsType(const FName& InArgumentName, const FSt
 const FRigVMFunction* FRigVMTemplate::GetPermutation(int32 InIndex) const
 {
 	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
-	return &Registry.GetFunctions()[Permutations[InIndex]];
+	const int32 FunctionIndex = Permutations[InIndex];
+	if(Registry.GetFunctions().IsValidIndex(FunctionIndex))
+	{
+		return &Registry.GetFunctions()[Permutations[InIndex]];
+	}
+	return nullptr;
 }
 
 bool FRigVMTemplate::ContainsPermutation(const FRigVMFunction* InPermutation) const

@@ -303,10 +303,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	URigVMVariableNode* ReplaceParameterNodeWithVariable(const FName& InNodeName, const FName& InVariableName, const FString& InCPPType, UObject* InCPPTypeObject, bool bSetupUndoRedo);
 
-	// Refreshes the unit node to be backed up by a template instead 
-	UFUNCTION(BlueprintCallable, Category = RigVMController)
-	URigVMTemplateNode* ReplaceUnitNodeWithTemplateNode(const FName& InNodeName, bool bSetupUndoRedo);
-
 	// Turns a resolved templated node(s) back into its template.
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	bool UnresolveTemplateNodes(const TArray<FName>& InNodeNames, bool bSetupUndoRedo = true, bool bPrintPythonCommand = false);

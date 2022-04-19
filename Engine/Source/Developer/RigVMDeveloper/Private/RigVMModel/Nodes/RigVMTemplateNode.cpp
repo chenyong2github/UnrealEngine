@@ -298,15 +298,6 @@ bool URigVMTemplateNode::IsFullyUnresolved() const
 	return GetResolvedPermutations().Num() == GetTemplate()->NumPermutations();
 }
 
-TArray<UScriptStruct*> URigVMTemplateNode::GetSupportedUnitStructs() const
-{
-	if(const FRigVMTemplate* Template = GetTemplate())
-	{
-		return URigVMController::GetUnitStructsForTemplate(Template->GetNotation());
-	}
-	return TArray<UScriptStruct*>();
-}
-
 FString URigVMTemplateNode::GetInitialDefaultValueForPin(const FName& InRootPinName, const TArray<int32>& InPermutationIndices) const
 {
 	if(GetTemplate() == nullptr)
