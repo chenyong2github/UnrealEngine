@@ -2963,14 +2963,14 @@ bool UStaticMeshComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolu
 					if (!bMustEncompassEntireComponent && bIntersect)
 					{
 						// Needn't encompass entire component: any intersection, we consider as touching
-						return true;
-					}
-					else if (bMustEncompassEntireComponent && !bFullyContained)
-					{
-						// Must encompass entire component: any non intersection, we consider as not touching
-						return false;
-					}
+					return true;
 				}
+					else if (bMustEncompassEntireComponent && !bFullyContained)
+				{
+						// Must encompass entire component: any non intersection, we consider as not touching
+					return false;
+				}
+			}
 			}
 
 			// Either:
@@ -3252,7 +3252,7 @@ FArchive& operator<<(FArchive& Ar,FStaticMeshComponentLODInfo& I)
 	}
 
 	// Serialize out cached vertex information if necessary.
-	if (!StripFlags.IsEditorDataStripped() && !(Ar.IsFilterEditorOnly() && Ar.IsCountingMemory()))
+	if (!StripFlags.IsEditorDataStripped() && !(Ar.IsFilterEditorOnly() && Ar.IsCountingMemory()) && !Ar.IsObjectReferenceCollector())
 	{
 		Ar << I.PaintedVertices;
 	}
