@@ -20,6 +20,7 @@
 #include "ToolMenus.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Styling/MVVMEditorStyle.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Images/SImage.h"
@@ -356,7 +357,7 @@ TSharedRef<SWidget> SMVVMViewBindingPanel::GenerateEditViewWidget()
 			NAME_None,
 			LOCTEXT("AddBinding", "Add Binding"),
 			LOCTEXT("AddBindingTooltip", "Add an empty Binding"),
-			FSlateIcon(/*FWidgetReflectorStyle::GetStyleSetName(), WidgetReflectorIcon::TakeSnapshot*/),
+			FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BindingView.AddBinding"),
 			EUserInterfaceActionType::Button
 		);
 		ToolbarBuilderGlobal.EndSection();
@@ -373,7 +374,7 @@ TSharedRef<SWidget> SMVVMViewBindingPanel::GenerateEditViewWidget()
 			NAME_None,
 			LOCTEXT("ManageViewModels", "Manage ViewModels"),
 			LOCTEXT("ManageViewModelsTooltip", "Manage ViewModels for this widget"),
-			FSlateIcon(),
+			FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BindingView.ManageViewModels"),
 			EUserInterfaceActionType::Button
 		);
 		ToolbarBuilderGlobal.EndSection();

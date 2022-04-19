@@ -14,7 +14,7 @@ class SMVVMSourceEntry;
 class SMVVMSourceSelector : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FSelectionChanged, TOptional<UE::MVVM::FBindingSource>);
+	DECLARE_DELEGATE_OneParam(FSelectionChanged, UE::MVVM::FBindingSource);
 
 	SLATE_BEGIN_ARGS(SMVVMSourceSelector) :
 		_TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "NormalText" ) )

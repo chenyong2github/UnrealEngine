@@ -166,21 +166,27 @@ public:
 				}
 			}
 
-			return SNew(SComboBox<FName>)
-				.OptionsSource(&ModeNames)
-				.InitiallySelectedItem(ModeEnum->GetNameByValue((int64) ViewModelBinding->BindingType))
-				.OnSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnModeSelectionChanged)
-				.OnGenerateWidget(this, &SMVVMViewBindingListEntryRow::GenerateModeWidget)
-				.Content()
+			return 
+				SNew(SBox)
+				.Padding(FMargin(2, 0))
+				.VAlign(VAlign_Center)
 				[
-					SNew(SBox)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.WidthOverride(16)
-					.HeightOverride(16)
+					SNew(SComboBox<FName>)
+					.OptionsSource(&ModeNames)
+					.InitiallySelectedItem(ModeEnum->GetNameByValue((int64) ViewModelBinding->BindingType))
+					.OnSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnModeSelectionChanged)
+					.OnGenerateWidget(this, &SMVVMViewBindingListEntryRow::GenerateModeWidget)
+					.Content()
 					[
-						SNew(SImage)
-						.Image(this, &SMVVMViewBindingListEntryRow::GetCurrentModeBrush)
+						SNew(SBox)
+						.HAlign(HAlign_Center)
+						.VAlign(VAlign_Center)
+						.WidthOverride(16)
+						.HeightOverride(16)
+						[
+							SNew(SImage)
+							.Image(this, &SMVVMViewBindingListEntryRow::GetCurrentModeBrush)
+						]
 					]
 				];
 		}
@@ -217,6 +223,7 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SNew(SEnumComboBox, UpdateModeEnum)
+					.ContentPadding(FMargin(4, 0))
 					.OnEnumSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnUpdateModeSelectionChanged)
 					.CurrentValue(this, &SMVVMViewBindingListEntryRow::GetUpdateModeValue)
 				];
@@ -354,7 +361,7 @@ private:
 			];
 	}
 
-	void OnViewModelSelectionChanged(TOptional<UE::MVVM::FBindingSource> Source)
+	void OnViewModelSelectionChanged(UE::MVVM::FBindingSource Source)
 	{
 		OnSourceSelectionChanged(Source, ViewModelHelper.Get());
 		if (ViewModelFieldSelector.IsValid())
@@ -363,7 +370,7 @@ private:
 		}
 	}
 
-	void OnWidgetSelectionChanged(TOptional<UE::MVVM::FBindingSource> Source)
+	void OnWidgetSelectionChanged(UE::MVVM::FBindingSource Source)
 	{
 		OnSourceSelectionChanged(Source, WidgetHelper.Get());
 		if (WidgetFieldSelector.IsValid())
@@ -372,7 +379,7 @@ private:
 		}
 	}
 
-	void OnSourceSelectionChanged(TOptional<UE::MVVM::FBindingSource> SelectedSource, UE::MVVM::IFieldPathHelper* PathHelper)
+	void OnSourceSelectionChanged(UE::MVVM::FBindingSource SelectedSource, UE::MVVM::IFieldPathHelper* PathHelper)
 	{
 		if (UMVVMBlueprintView* BlueprintViewPtr = BlueprintView.Get())
 		{

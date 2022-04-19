@@ -27,7 +27,14 @@ namespace UE::MVVM
 
 		friend int32 GetTypeHash(const FBindingSource& Source)
 		{
-			return GetTypeHash(Source.SourceGuid) ^ GetTypeHash(Source.Name) ^ GetTypeHash(Source.Class);
+			uint32 Hash = HashCombine(GetTypeHash(Source.SourceGuid), GetTypeHash(Source.Name));
+			Hash = HashCombine(Hash, GetTypeHash(Source.Class));
+			return Hash;
+		}
+
+		bool IsValid() const
+		{
+			return SourceGuid.IsValid() || !Name.IsNone();
 		}
 
 		void Reset()
@@ -69,7 +76,7 @@ struct TListTypeTraits<UE::MVVM::FBindingSource>
 
 	static bool IsPtrValid(const UE::MVVM::FBindingSource& InPtr)
 	{
-		return !InPtr.Name.IsNone() || InPtr.SourceGuid.IsValid();
+		return InPtr.IsValid();
 	}
 
 	static void ResetPtr(UE::MVVM::FBindingSource& InPtr)

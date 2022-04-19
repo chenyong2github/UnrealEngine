@@ -36,9 +36,11 @@ FMVVMEditorStyle::FMVVMEditorStyle()
 		Set("ClassIcon.MVVMBlueprintViewModel", new IMAGE_BRUSH("Slate/PH_MVVMBlueprintViewModel_16x", Icon16x16));
 	}
 
-	{
-		Set("BlueprintView.TabIcon", new IMAGE_BRUSH_SVG("Slate/ViewModel", Icon16x16));
-	}
+	Set("BlueprintView.TabIcon", new IMAGE_BRUSH_SVG("Slate/ViewModel", Icon16x16));
+
+	Set("BindingView.ManageViewModels", new IMAGE_BRUSH_SVG("Slate/ViewModel", Icon16x16));
+	Set("BindingView.AddBinding", new IMAGE_BRUSH_SVG("Slate/ViewModel_AddBinding", Icon16x16));
+
 
 	// ViewModelSelectionWidget Icons
 	{

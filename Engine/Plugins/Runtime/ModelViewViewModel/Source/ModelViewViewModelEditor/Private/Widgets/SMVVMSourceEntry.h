@@ -22,11 +22,11 @@ public:
 		{
 		}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
-		SLATE_ARGUMENT(TOptional<UE::MVVM::FBindingSource>, Source)
+		SLATE_ARGUMENT(UE::MVVM::FBindingSource, Source)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& Args);
-	void RefreshSource(const TOptional<UE::MVVM::FBindingSource>& Source);
+	void RefreshSource(const UE::MVVM::FBindingSource& Source);
 
 private:
 	TSharedPtr<STextBlock> Label;

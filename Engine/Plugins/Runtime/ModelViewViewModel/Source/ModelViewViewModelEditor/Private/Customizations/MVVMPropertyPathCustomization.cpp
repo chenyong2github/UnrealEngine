@@ -176,7 +176,7 @@ namespace UE::MVVM
 		return EMVVMBindingMode::OneWayToDestination;
 	}
 
-	void FPropertyPathCustomizationBase::OnSourceSelectionChanged(TOptional<FBindingSource> Selected)
+	void FPropertyPathCustomizationBase::OnSourceSelectionChanged(FBindingSource Selected)
 	{
 		FScopedTransaction Transaction(LOCTEXT("ChangeSource", "Change binding source."));
 

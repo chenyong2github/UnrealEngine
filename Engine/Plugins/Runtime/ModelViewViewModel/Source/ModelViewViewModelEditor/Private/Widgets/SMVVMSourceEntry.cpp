@@ -9,24 +9,24 @@
 
 #define LOCTEXT_NAMESPACE "SMVVMSource"
 
-static const FSlateBrush* GetSourceIcon(const TOptional<UE::MVVM::FBindingSource>& Source)
+static const FSlateBrush* GetSourceIcon(const UE::MVVM::FBindingSource& Source)
 {
-	if (!Source.IsSet())
+	if (!Source.IsValid())
 	{
 		return nullptr;
 	}
 
-	return FSlateIconFinder::FindIconBrushForClass(Source.GetValue().Class);
+	return FSlateIconFinder::FindIconBrushForClass(Source.Class);
 }
 
-static FLinearColor GetSourceColor(const TOptional<UE::MVVM::FBindingSource>& Source)
+static FLinearColor GetSourceColor(const UE::MVVM::FBindingSource& Source)
 {
-	if (!Source.IsSet() || Source.GetValue().Class == nullptr || Source.GetValue().Class->GetName().IsEmpty())
+	if (!Source.IsValid())
 	{
 		return FLinearColor::White;
 	}
 
-	uint32 Hash = GetTypeHash(Source.GetValue().Class->GetName());
+	uint32 Hash = GetTypeHash(Source.Class->GetName());
 	FLinearColor Color = FLinearColor::White;
 	Color.R = ((Hash * 1 % 96) + 32) / 256.f;
 	Color.G = ((Hash * 2 % 96) + 32) / 256.f;
@@ -34,14 +34,14 @@ static FLinearColor GetSourceColor(const TOptional<UE::MVVM::FBindingSource>& So
 	return Color;
 }
 
-static FText GetSourceDisplayName(const TOptional<UE::MVVM::FBindingSource>& Source)
+static FText GetSourceDisplayName(const UE::MVVM::FBindingSource& Source)
 {
-	if (!Source.IsSet())
+	if (!Source.IsValid())
 	{
 		return LOCTEXT("None", "<None>");
 	}
 
-	return Source.GetValue().DisplayName;
+	return !Source.DisplayName.IsEmpty() ? Source.DisplayName : FText::FromString(Source.Name.ToString());
 }
 
 void SMVVMSourceEntry::Construct(const FArguments& InArgs)
@@ -69,7 +69,7 @@ void SMVVMSourceEntry::Construct(const FArguments& InArgs)
 	RefreshSource(InArgs._Source);
 }
 
-void SMVVMSourceEntry::RefreshSource(const TOptional<UE::MVVM::FBindingSource>& Source)
+void SMVVMSourceEntry::RefreshSource(const UE::MVVM::FBindingSource& Source)
 {
 	Image->SetImage(GetSourceIcon(Source));
 	Image->SetColorAndOpacity(GetSourceColor(Source));

@@ -5,7 +5,6 @@
 #include "Internationalization/Text.h"
 #include "Misc/Attribute.h"
 #include "Misc/Guid.h"
-#include "Misc/Optional.h"
 #include "MVVMPropertyPath.h"
 #include "Types/MVVMBindingName.h"
 #include "Types/MVVMBindingSource.h"
@@ -22,8 +21,8 @@ namespace UE::MVVM
 		virtual FMVVMConstFieldVariant GetSelectedField() const = 0;
 
 		virtual void GetAvailableSources(TSet<FBindingSource>& OutSources) const = 0;
-		virtual TOptional<FBindingSource> GetSelectedSource() const = 0;
-		virtual void SetSelectedSource(const TOptional<FBindingSource>& Source) const = 0;
+		virtual FBindingSource GetSelectedSource() const = 0;
+		virtual void SetSelectedSource(const FBindingSource& Source) const = 0;
 
 		virtual FMVVMBindingName GetBindingName() const = 0;
 		virtual FMemberReference GetBindingReference() const = 0;
@@ -47,8 +46,8 @@ namespace UE::MVVM
 		virtual FMVVMConstFieldVariant GetSelectedField() const override;
 
 		virtual void GetAvailableSources(TSet<FBindingSource>& OutSources) const override;
-		virtual TOptional<FBindingSource> GetSelectedSource() const override;
-		virtual void SetSelectedSource(const TOptional<FBindingSource>& Source) const override;
+		virtual FBindingSource GetSelectedSource() const override;
+		virtual void SetSelectedSource(const FBindingSource& Source) const override;
 
 		virtual FMVVMBindingName GetBindingName() const override;
 		virtual FMemberReference GetBindingReference() const override;
@@ -76,8 +75,8 @@ namespace UE::MVVM
 		virtual FMVVMConstFieldVariant GetSelectedField() const override;
 
 		virtual void GetAvailableSources(TSet<FBindingSource>& OutSources) const override;
-		virtual TOptional<FBindingSource> GetSelectedSource() const override;
-		virtual void SetSelectedSource(const TOptional<FBindingSource>& Source) const override;
+		virtual FBindingSource GetSelectedSource() const override;
+		virtual void SetSelectedSource(const FBindingSource& Source) const override;
 
 		virtual FMVVMBindingName GetBindingName() const override;
 		virtual FMemberReference GetBindingReference() const override;

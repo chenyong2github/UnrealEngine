@@ -66,7 +66,7 @@ namespace UE::MVVM
 		}
 	}
 
-	TOptional<FBindingSource> FWidgetFieldPathHelper::GetSelectedSource() const
+	FBindingSource FWidgetFieldPathHelper::GetSelectedSource() const
 	{
 		TSet<FBindingSource> Sources;
 		GetAvailableSources(Sources);
@@ -79,7 +79,7 @@ namespace UE::MVVM
 			}
 		}
 
-		return TOptional<FBindingSource>();
+		return FBindingSource();
 	}
 
 	void FWidgetFieldPathHelper::GetAvailableFields(TSet<FMVVMConstFieldVariant>& OutFields) const
@@ -136,7 +136,7 @@ namespace UE::MVVM
 		return FMVVMConstFieldVariant();
 	}
 
-	void FWidgetFieldPathHelper::SetSelectedSource(const TOptional<FBindingSource>& Source) const
+	void FWidgetFieldPathHelper::SetSelectedSource(const FBindingSource& Source) const
 	{
 		FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr);
 		if (Path == nullptr)
@@ -144,9 +144,9 @@ namespace UE::MVVM
 			return;
 		}
 
-		if (Source.IsSet())
+		if (Source.IsValid())
 		{
-			Path->WidgetName = Source.GetValue().Name;
+			Path->WidgetName = Source.Name;
 		}
 		else
 		{
@@ -224,7 +224,7 @@ namespace UE::MVVM
 		}
 	}
 
-	TOptional<FBindingSource> FViewModelFieldPathHelper::GetSelectedSource() const
+	FBindingSource FViewModelFieldPathHelper::GetSelectedSource() const
 	{
 		TSet<FBindingSource> Sources;
 		GetAvailableSources(Sources);
@@ -237,7 +237,7 @@ namespace UE::MVVM
 			}
 		}
 
-		return TOptional<FBindingSource>();
+		return FBindingSource();
 	}
 
 	void FViewModelFieldPathHelper::GetAvailableFields(TSet<FMVVMConstFieldVariant>& OutFields) const
@@ -282,7 +282,7 @@ namespace UE::MVVM
 		return FMVVMConstFieldVariant();
 	}
 
-	void FViewModelFieldPathHelper::SetSelectedSource(const TOptional<FBindingSource>& Source) const
+	void FViewModelFieldPathHelper::SetSelectedSource(const FBindingSource& Source) const
 	{
 		FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr);
 		if (Path == nullptr)
@@ -290,9 +290,9 @@ namespace UE::MVVM
 			return;
 		}
 
-		if (Source.IsSet())
+		if (Source.IsValid())
 		{
-			Path->ContextId = Source.GetValue().SourceGuid;
+			Path->ContextId = Source.SourceGuid;
 		}
 		else
 		{

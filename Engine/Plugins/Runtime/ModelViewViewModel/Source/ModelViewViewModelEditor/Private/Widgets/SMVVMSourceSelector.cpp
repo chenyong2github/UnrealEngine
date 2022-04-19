@@ -65,11 +65,9 @@ void SMVVMSourceSelector::OnComboBoxSelectionChanged(FBindingSource Selected, ES
 {
 	SelectedSource = Selected;
 
-	TOptional<FBindingSource> OptionalSource = SelectedSource;
+	SelectedSourceWidget->RefreshSource(Selected);
 
-	SelectedSourceWidget->RefreshSource(OptionalSource);
-
-	OnSelectionChanged.ExecuteIfBound(OptionalSource);
+	OnSelectionChanged.ExecuteIfBound(Selected);
 }
 
 void SMVVMSourceSelector::Refresh()

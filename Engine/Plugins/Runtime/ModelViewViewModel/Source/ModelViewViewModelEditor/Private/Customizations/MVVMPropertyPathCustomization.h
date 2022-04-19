@@ -32,7 +32,7 @@ namespace UE::MVVM
 		virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override {}
 
 	private:
-		void OnSourceSelectionChanged(TOptional<FBindingSource> Selected);
+		void OnSourceSelectionChanged(FBindingSource Selected);
 		void OnPropertySelectionChanged(FMVVMConstFieldVariant Selected);
 
 		void OnOtherPropertyChanged();
