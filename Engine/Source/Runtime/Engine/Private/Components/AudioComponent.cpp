@@ -33,12 +33,22 @@ FAutoConsoleVariableRef CVarPrimeSoundOnAudioComponentSpawn(
 	ECVF_Default);
 
 //CVar for how long voiceslots should be taken up when queuing sounds
-static int32 TimeToTakeUpVoiceSlotCVar = int32(EQuartzCommandQuantization::EighthNote);
+static int32 TimeToTakeUpVoiceSlotCVar = int32(EQuartzCommandQuantization::HalfNote);
 FAutoConsoleVariableRef CVarTimeToTakeUpVoiceSlot(
 	TEXT("au.Quartz.TimeToTakeUpVoiceSlot"),
 	TimeToTakeUpVoiceSlotCVar,
 	TEXT("TheEQuartzCommandQuantization type (default: EQuartzCommandQuantization::EighthNote) before playing that a queued sound should take up a voice slot for\n")
 	TEXT("Value: The EQuartzCommandQuantization index of the desired duration"),
+	ECVF_Default);
+
+
+//CVar to disable the gamethread-side caching of play requests to minimize time spent rendering a silent voice before the Quartz Deadline
+static int32 bAlwaysTakeVoiceSlotCVar = 0;
+FAutoConsoleVariableRef bCVarAlwaysTakeVoiceSlot(
+	TEXT("au.Quartz.bAlwaysTakeVoiceSlot"),
+	bAlwaysTakeVoiceSlotCVar,
+	TEXT("Always take voice slot immediately without trying to cache the request on the component\n")
+	TEXT("default = 0: cache play requests on the component until closer to the deadline. - 1: always forward the request to the audio engine immediately."),
 	ECVF_Default);
 
 static int32 WorldlessGetAudioTimeBehaviorCVar = 0;
@@ -501,7 +511,7 @@ void UAudioComponent::PlayQuantized(
 	double NumFramesForDesiredTime = OutTickRate.GetFramesPerDuration(InQuantizationBoundary.Quantization) * InQuantizationBoundary.Multiplier;
 
 	// If the desired quantization time is less than our min time, just execute immediately
-	const bool bStealVoiceSlot = NumFramesForDesiredTime <= NumFramesBeforeMinTime;
+	const bool bStealVoiceSlot = bAlwaysTakeVoiceSlotCVar || (NumFramesForDesiredTime <= NumFramesBeforeMinTime);
 	const bool bClockIsNotRunning = !InClockHandle->IsClockRunning(WorldContextObject);
 	const bool bCommandResetsClock = InQuantizationBoundary.bResetClockOnQueued;
 	if (bStealVoiceSlot || bClockIsNotRunning || bCommandResetsClock)
