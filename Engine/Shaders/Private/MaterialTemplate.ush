@@ -139,6 +139,9 @@
 	#define CLIP(x)
 	#if COMPUTESHADER
 		#define clip(x)
+		#define ddx(x) 0
+		#define ddy(x) 0
+		#define fwidth(x) 0
 	#endif
 #else
 	#define ALLOW_CLIP 1
