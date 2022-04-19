@@ -376,11 +376,17 @@ FString UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(const FString
 	return GetPluginURL_InstallBundleProtocol(PluginName, MakeArrayView(&BundleName, 1));
 }
 
-void UGameFeaturesSubsystem::OnGameFeatureTerminating(const FString& PluginURL)
+void UGameFeaturesSubsystem::OnGameFeatureTerminating(const FString& PluginName, const FString& PluginURL)
 {
 	for (UObject* Observer : Observers)
 	{
 		CastChecked<IGameFeatureStateChangeObserver>(Observer)->OnGameFeatureTerminating(PluginURL);
+	}
+
+	if (!PluginName.IsEmpty())
+	{
+		// Unmap plugin name to plugin URL
+		GameFeaturePluginNameToPathMap.Remove(PluginName);
 	}
 }
 
@@ -392,14 +398,17 @@ void UGameFeaturesSubsystem::OnGameFeatureCheckingStatus(const FString& PluginUR
 	}
 }
 
-void UGameFeaturesSubsystem::OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL)
+void UGameFeaturesSubsystem::OnGameFeatureStatusKnown(const FString& PluginName, const FString& PluginURL)
 {
 	// Map plugin name to plugin URL
-	if (!GameFeaturePluginNameToPathMap.Contains(PluginName))
+	if (ensure(!GameFeaturePluginNameToPathMap.Contains(PluginName)))
 	{
 		GameFeaturePluginNameToPathMap.Add(PluginName, PluginURL);
 	}
+}
 
+void UGameFeaturesSubsystem::OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL)
+{
 	check(GameFeatureData);
 	AddGameFeatureToAssetManager(GameFeatureData, PluginName);
 
@@ -433,9 +442,6 @@ void UGameFeaturesSubsystem::OnGameFeatureUnregistering(const UGameFeatureData* 
 			Action->OnGameFeatureUnregistering();
 		}
 	}
-
-	// Unmap plugin name to plugin URL
-	GameFeaturePluginNameToPathMap.Remove(PluginName);
 }
 
 void UGameFeaturesSubsystem::OnGameFeatureLoading(const UGameFeatureData* GameFeatureData, const FString& PluginURL)
@@ -858,11 +864,6 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 					{
 						StateMachine->SetDestinationState(DestinationState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadGameFeaturePluginComplete));
 					}
-
-					if (!GameFeaturePluginNameToPathMap.Contains(Plugin->GetName()))
-					{
-						GameFeaturePluginNameToPathMap.Add(Plugin->GetName(), PluginURL);
-					}
 				}
 			}
 		}
@@ -882,7 +883,7 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugins(FBuiltInPluginAdditio
 	UAssetManager::Get().PopBulkScanning();
 }
 
-bool UGameFeaturesSubsystem::GetPluginURLForRegisteredPluginByName(const FString& PluginName, FString& OutPluginURL) const
+bool UGameFeaturesSubsystem::GetPluginURLByName(const FString& PluginName, FString& OutPluginURL) const
 {
 	if (const FString* PluginURL = GameFeaturePluginNameToPathMap.Find(PluginName))
 	{
@@ -895,7 +896,7 @@ bool UGameFeaturesSubsystem::GetPluginURLForRegisteredPluginByName(const FString
 
 bool UGameFeaturesSubsystem::GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL) const
 {
-	return GetPluginURLForRegisteredPluginByName(PluginName, OutPluginURL);
+	return GetPluginURLByName(PluginName, OutPluginURL);
 }
 
 FString UGameFeaturesSubsystem::GetPluginFilenameFromPluginURL(const FString& PluginURL) const

@@ -264,8 +264,11 @@ public:
 	void TerminateGameFeaturePlugin(const FString& PluginURL);
 	void TerminateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUninstallComplete& CompleteDelegate);
 
-	/** If the specified plugin is registered, return the URL used to identify it. Returns true if the plugin exists, false if it was not found */
-	bool GetPluginURLForRegisteredPluginByName(const FString& PluginName, FString& OutPluginURL) const;
+	/**
+	 * If the specified plugin is known by the game feature system, returns the URL used to identify it
+	 * @return true if the plugin exists, false if it was not found
+	 */
+	bool GetPluginURLByName(const FString& PluginName, FString& OutPluginURL) const;
 
 	// @TODO: Deprecate GetPluginURLForBuiltInPluginByName
 	/** If the specified plugin is a built-in plugin, return the URL used to identify it. Returns true if the plugin exists, false if it was not found */
@@ -313,11 +316,14 @@ public:
 private:
 	TSet<FString> GetActivePluginNames() const;
 
-	void OnGameFeatureTerminating(const FString& PluginURL);
+	void OnGameFeatureTerminating(const FString& PluginName, const FString& PluginURL);
 	friend struct FGameFeaturePluginState_Terminal;
 
 	void OnGameFeatureCheckingStatus(const FString& PluginURL);
 	friend struct FGameFeaturePluginState_UnknownStatus;
+
+	void OnGameFeatureStatusKnown(const FString& PluginName, const FString& PluginURL);
+	friend struct FGameFeaturePluginState_CheckingStatus;
 
 	void OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL);
 	friend struct FGameFeaturePluginState_Registering;

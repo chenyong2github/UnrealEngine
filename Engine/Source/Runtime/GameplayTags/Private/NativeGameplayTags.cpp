@@ -26,7 +26,6 @@ static bool VerifyModuleCanContainGameplayTag(FName ModuleName, FName TagName, c
 			//check(ThisPlugin.IsValid());
 			//UGameplayTagsManager::Get().AddTagIniSearchPath(ThisPlugin->GetBaseDir() / TEXT("Config") / TEXT("Tags"));
 
-			//const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
 			//const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
 			//UGameplayTagsManager::Get().AddTagIniSearchPath(PluginFolder / TEXT("Config") / TEXT("Tags"));
 

@@ -215,7 +215,7 @@ struct FGameFeaturePluginState_Terminal : public FDestinationGameFeaturePluginSt
 		checkf(!bEnteredTerminalState, TEXT("Plugin entered terminal state more than once! %s"), *StateProperties.PluginURL);
 		bEnteredTerminalState = true;
 
-		UGameFeaturesSubsystem::Get().OnGameFeatureTerminating(StateProperties.PluginURL);
+		UGameFeaturesSubsystem::Get().OnGameFeatureTerminating(StateProperties.PluginName, StateProperties.PluginURL);
 	}
 };
 
@@ -313,6 +313,7 @@ struct FGameFeaturePluginState_CheckingStatus : public FGameFeaturePluginState
 			return;
 		}
 
+		UGameFeaturesSubsystem::Get().OnGameFeatureStatusKnown(StateProperties.PluginName, StateProperties.PluginURL);
 		StateStatus.SetTransition(EGameFeaturePluginState::StatusKnown);
 	}
 };
@@ -785,12 +786,11 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 		PendingBundles.Empty();
 		bUnmounted = false;
 
-		const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
-		if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName))
+		if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(StateProperties.PluginName))
 		{
 			// The asset registry listens to FPackageName::OnContentPathDismounted() and 
 			// will automatically cleanup the asset registry state we added for this plugin.
-			IPluginManager::Get().UnmountExplicitlyLoadedPlugin(PluginName, nullptr);
+			IPluginManager::Get().UnmountExplicitlyLoadedPlugin(StateProperties.PluginName, nullptr);
 		}
 
 		if (StateProperties.GetPluginProtocol() != EGameFeaturePluginProtocol::InstallBundle)
@@ -992,13 +992,12 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 			return;
 		}
 		
-		const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
-		IPluginManager::Get().MountExplicitlyLoadedPlugin(PluginName);
+		IPluginManager::Get().MountExplicitlyLoadedPlugin(StateProperties.PluginName);
 
 		// After the new plugin is mounted add the asset registry for that plugin.
 		if (StateProperties.GetPluginProtocol() == EGameFeaturePluginProtocol::InstallBundle)
 		{
-			TSharedPtr<IPlugin> NewlyMountedPlugin = IPluginManager::Get().FindPlugin(PluginName);
+			TSharedPtr<IPlugin> NewlyMountedPlugin = IPluginManager::Get().FindPlugin(StateProperties.PluginName);
 			if (NewlyMountedPlugin.IsValid() && NewlyMountedPlugin->CanContainContent())
 			{
 				TArray<uint8> SerializedAssetData;
@@ -1158,11 +1157,9 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
-
 		if (bRequestedGC)
 		{
-			UE::GameFeatures::VerifyAssetsUnloaded(PluginName, false);
+			UE::GameFeatures::VerifyAssetsUnloaded(StateProperties.PluginName, false);
 
 			StateStatus.SetTransition(EGameFeaturePluginState::Unmounting);
 			return;
@@ -1170,7 +1167,7 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 
 		if (StateProperties.GameFeatureData)
 		{
-			UGameFeaturesSubsystem::Get().OnGameFeatureUnregistering(StateProperties.GameFeatureData, PluginName, StateProperties.PluginURL);
+			UGameFeaturesSubsystem::Get().OnGameFeatureUnregistering(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.PluginURL);
 			UGameFeaturesSubsystem::Get().UnloadGameFeatureData(StateProperties.GameFeatureData);
 		}
 
@@ -1187,15 +1184,14 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) override
 	{
-		const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
 		const FString PluginFolder = FPaths::GetPath(StateProperties.PluginInstalledFilename);
 		UGameplayTagsManager::Get().AddTagIniSearchPath(PluginFolder / TEXT("Config") / TEXT("Tags"));
 
-		const FString PreferredGameFeatureDataPath = FString::Printf(TEXT("/%s/%s.%s"), *PluginName, *PluginName, *PluginName);
+		const FString PreferredGameFeatureDataPath = FString::Printf(TEXT("/%s/%s.%s"), *StateProperties.PluginName, *StateProperties.PluginName, *StateProperties.PluginName);
 
-		FString BackupGameFeatureDataPath = TEXT("/") + PluginName + TEXT("/GameFeatureData.GameFeatureData");
+		FString BackupGameFeatureDataPath = TEXT("/") + StateProperties.PluginName + TEXT("/GameFeatureData.GameFeatureData");
 		// Allow game feature location to be overriden globally and from within the plugin
-		FString OverrideIniPathName = PluginName + TEXT("_Override");
+		FString OverrideIniPathName = StateProperties.PluginName + TEXT("_Override");
 		FString OverridePath = GConfig->GetStr(TEXT("GameFeatureData"), *OverrideIniPathName, GGameIni);
 		if (OverridePath.IsEmpty())
 		{
@@ -1227,11 +1223,10 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 
 		if (StateProperties.GameFeatureData)
 		{
-			StateProperties.PluginName = PluginName;
 			StateProperties.GameFeatureData->InitializeBasePluginIniFile(StateProperties.PluginInstalledFilename);
 			StateStatus.SetTransition(EGameFeaturePluginState::Registered);
 
-			UGameFeaturesSubsystem::Get().OnGameFeatureRegistering(StateProperties.GameFeatureData, PluginName, StateProperties.PluginURL);
+			UGameFeaturesSubsystem::Get().OnGameFeatureRegistering(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.PluginURL);
 		}
 		else
 		{
@@ -1273,8 +1268,7 @@ struct FGameFeaturePluginState_Unloading : public FGameFeaturePluginState
 	{
 		if (bRequestedGC)
 		{
-			const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
-			UE::GameFeatures::VerifyAssetsUnloaded(PluginName, true);
+			UE::GameFeatures::VerifyAssetsUnloaded(StateProperties.PluginName, true);
 
 			StateStatus.SetTransition(EGameFeaturePluginState::Registered);
 			return;
@@ -1429,8 +1423,7 @@ struct FGameFeaturePluginState_Deactivating : public FGameFeaturePluginState
 
 			// Deactivate
 			FGameFeatureDeactivatingContext Context(FSimpleDelegate::CreateRaw(this, &FGameFeaturePluginState_Deactivating::OnPauserCompleted));
-			const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
-			UGameFeaturesSubsystem::Get().OnGameFeatureDeactivating(StateProperties.GameFeatureData, PluginName, Context, StateProperties.PluginURL);
+			UGameFeaturesSubsystem::Get().OnGameFeatureDeactivating(StateProperties.GameFeatureData, StateProperties.PluginName, Context, StateProperties.PluginURL);
 			NumExpectedPausers = Context.NumPausers;
 		}
 
@@ -1468,8 +1461,7 @@ struct FGameFeaturePluginState_Activating : public FGameFeaturePluginState
 
 		StateProperties.GameFeatureData->InitializeHierarchicalPluginIniFiles(StateProperties.PluginInstalledFilename);
 
-		const FString PluginName = FPaths::GetBaseFilename(StateProperties.PluginInstalledFilename);
-		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData, PluginName, Context, StateProperties.PluginURL);
+		UGameFeaturesSubsystem::Get().OnGameFeatureActivating(StateProperties.GameFeatureData, StateProperties.PluginName, Context, StateProperties.PluginURL);
 
 		StateStatus.SetTransition(EGameFeaturePluginState::Active);
 	}
@@ -1767,6 +1759,8 @@ bool FGameFeaturePluginStateMachineProperties::ParseURL()
 		ensureMsgf(false, TEXT("Unknown protocol for PluginURL: %s"), *PluginURL);
 		return false;
 	}
+
+	PluginName = FPaths::GetBaseFilename(PluginInstalledFilename);
 
 	if (PluginInstalledFilename.IsEmpty() || !PluginInstalledFilename.EndsWith(TEXT(".uplugin")))
 	{
