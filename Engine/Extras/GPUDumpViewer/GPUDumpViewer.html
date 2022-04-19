@@ -2346,7 +2346,6 @@ void main(void)
 		var ue_pixel_format = this.resource_desc['Format'];
 
 		// Missing formats:
-		//PF_BC6H
 		//PF_R8G8B8A8_SNORM
 		//PF_R16G16B16A16_UNORM
 		//PF_R16G16B16A16_SNORN
@@ -2385,7 +2384,7 @@ void main(void)
 			raw_channel_count = 2;
 			raw_channel_format = 'float';
 		}
-		else if (ue_pixel_format === 'PF_R32_FLOAT')
+		else if (ue_pixel_format === 'PF_R32_FLOAT' || ue_pixel_format === 'PF_BC4')
 		{
 			webgl_texture_internal_format = gl.R32F;
 			webgl_texture_src_format = gl.RED;
@@ -2395,7 +2394,7 @@ void main(void)
 			raw_channel_format = 'float';
 		}
 		// 16bit floats
-		else if (ue_pixel_format === 'PF_FloatRGBA')
+		else if (ue_pixel_format === 'PF_FloatRGBA' || ue_pixel_format === 'PF_BC6H' || ue_pixel_format === 'PF_BC7')
 		{
 			webgl_texture_internal_format = gl.RGBA16F;
 			webgl_texture_src_format = gl.RGBA;
@@ -2404,7 +2403,7 @@ void main(void)
 			raw_channel_count = 4;
 			raw_channel_format = 'float';
 		}
-		else if (ue_pixel_format === 'PF_G16R16F' || ue_pixel_format === 'PF_G16R16F_FILTER')
+		else if (ue_pixel_format === 'PF_G16R16F' || ue_pixel_format === 'PF_G16R16F_FILTER' || ue_pixel_format === 'PF_BC5')
 		{
 			webgl_texture_internal_format = gl.RG16F;
 			webgl_texture_src_format = gl.RG;

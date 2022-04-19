@@ -1346,6 +1346,7 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 	float MaxCardUpdateDistanceFromCamera,
 	int32 MaxTileCapturesPerFrame,
 	FLumenCardRenderer& LumenCardRenderer,
+	FRHIGPUMask GPUMask,
 	const TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(ProcessLumenSurfaceCacheRequests);
@@ -1430,7 +1431,7 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 
 						if (!PageTableEntry.IsMapped())
 						{
-							MapSurfaceCachePage(MipMap, PageIndex);
+							MapSurfaceCachePage(MipMap, PageIndex, GPUMask);
 							check(PageTableEntry.IsMapped());
 
 							// Allocate space in temporary allocation atlas
@@ -1449,7 +1450,10 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 								PageIndex,
 								bResampleLastLighting));
 
-							LastCapturedPageHeap.Update(GetSurfaceCacheUpdateFrameIndex(), PageIndex);
+							for (uint32 GPUIndex : GPUMask)
+							{
+								LastCapturedPageHeap[GPUIndex].Update(GetSurfaceCacheUpdateFrameIndex(), PageIndex);
+							}
 							LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
 						}
 					}
@@ -1519,7 +1523,7 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 
 				if (!PageTableEntry.IsMapped())
 				{
-					MapSurfaceCachePage(MipMap, PageIndex);
+					MapSurfaceCachePage(MipMap, PageIndex, GPUMask);
 					check(PageTableEntry.IsMapped());
 
 					// Allocate space in temporary allocation atlas
@@ -1538,7 +1542,10 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 						PageIndex,
 						bResampleLastLighting));
 
-					LastCapturedPageHeap.Update(GetSurfaceCacheUpdateFrameIndex(), PageIndex);
+					for (uint32 GPUIndex : GPUMask)
+					{
+						LastCapturedPageHeap[GPUIndex].Update(GetSurfaceCacheUpdateFrameIndex(), PageIndex);
+					}
 					LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
 					DirtyCards.Add(VirtualPageIndex.CardIndex);
 				}
@@ -1546,20 +1553,25 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 		}
 	}
 
-	// Finally process card refresh to capture any material updates
+	// Finally process card refresh to capture any material updates, or render cards that need to be initialized for the first time on
+	// a given GPU in multi-GPU scenarios.  Uninitialized cards on a particular GPU will have a zero captured frame index set when the
+	// card was allocated.  A zero frame index otherwise can't occur on a card, because the constructor sets SurfaceCacheUpdateFrameIndex
+	// to 1, and IncrementSurfaceCacheUpdateFrameIndex skips over zero if it happens to wrap around.
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SceneCardCaptureRefresh);
 
 		int32 NumTexelsLeftToRefresh = GetCardCaptureRefreshNumTexels();
 		int32 NumPagesLeftToRefesh = FMath::Min<int32>((int32)GetCardCaptureRefreshNumPages(), MaxTileCapturesPerFrame - CardPagesToRender.Num());
 
+		FBinaryHeap<uint32,uint32>& PageHeap = LastCapturedPageHeap[GPUMask.GetFirstIndex()];
+
 		bool bCanCapture = true;
-		while (LastCapturedPageHeap.Num() > 0 && bCanCapture)
+		while (PageHeap.Num() > 0 && bCanCapture)
 		{
 			bCanCapture = false;
 
-			const uint32 PageTableIndex = LastCapturedPageHeap.Top();
-			const uint32 CapturedSurfaceCacheFrameIndex = LastCapturedPageHeap.GetKey(PageTableIndex);
+			const uint32 PageTableIndex = PageHeap.Top();
+			const uint32 CapturedSurfaceCacheFrameIndex = PageHeap.GetKey(PageTableIndex);
 
 			const int32 FramesSinceLastUpdated = GetSurfaceCacheUpdateFrameIndex() - CapturedSurfaceCacheFrameIndex;
 			if (FramesSinceLastUpdated > 0)
@@ -1568,11 +1580,20 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 				const FLumenCard& Card = Cards[PageTableEntry.CardIndex];
 				const FLumenMeshCards& MeshCardsElement = MeshCards[Card.MeshCardsIndex];
 
-				// Limit number of re-captured texels and pages per frame
-				FLumenMipMapDesc MipMapDesc;
-				Card.GetMipMapDesc(PageTableEntry.ResLevel, MipMapDesc);
-				NumTexelsLeftToRefresh -= MipMapDesc.PageResolution.X * MipMapDesc.PageResolution.Y;
-				NumPagesLeftToRefesh -= 1;
+#if WITH_MGPU
+				// Limit number of re-captured texels and pages per frame, except always allow captures of uninitialized
+				// cards where the captured frame index is zero (don't count them against the throttled limits).
+				// Uninitialized cards on a particular GPU will always be at the front of the heap, due to the zero index,
+				// so even if the limits are set to zero, we'll still process them if needed (the limit comparisons below
+				// are >= 0, and will pass if nothing has been decremented from the limits yet).
+				if ((CapturedSurfaceCacheFrameIndex != 0) || (GNumExplicitGPUsForRendering == 1))
+#endif
+				{
+					FLumenMipMapDesc MipMapDesc;
+					Card.GetMipMapDesc(PageTableEntry.ResLevel, MipMapDesc);
+					NumTexelsLeftToRefresh -= MipMapDesc.PageResolution.X * MipMapDesc.PageResolution.Y;
+					NumPagesLeftToRefesh -= 1;
+				}
 
 				if (NumTexelsLeftToRefresh >= 0 && NumPagesLeftToRefesh >= 0)
 				{
@@ -1595,7 +1616,10 @@ void FLumenSceneData::ProcessLumenSurfaceCacheRequests(
 							PageTableIndex,
 							/*bResampleLastLighting*/ true));
 
-						LastCapturedPageHeap.Update(GetSurfaceCacheUpdateFrameIndex(), PageTableIndex);
+						for (uint32 GPUIndex : GPUMask)
+						{
+							LastCapturedPageHeap[GPUIndex].Update(GetSurfaceCacheUpdateFrameIndex(), PageTableIndex);
+						}
 						LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
 						bCanCapture = true;
 					}
@@ -2079,6 +2103,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 				MaxCardUpdateDistanceFromCamera,
 				MaxTileCapturesPerFrame,
 				LumenCardRenderer,
+				GraphBuilder.RHICmdList.GetGPUMask(),
 				SurfaceCacheRequests);
 		}
 

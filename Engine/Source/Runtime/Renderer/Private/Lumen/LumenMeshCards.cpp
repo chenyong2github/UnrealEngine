@@ -281,6 +281,7 @@ void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, const FSceneViewFam
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCardSceneBuffer);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateCardSceneBuffer);
 	SCOPED_DRAW_EVENT(RHICmdList, UpdateCardSceneBuffer);
+	SCOPED_GPU_MASK(GraphBuilder.RHICmdList, FRHIGPUMask::All());
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 

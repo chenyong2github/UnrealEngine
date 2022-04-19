@@ -567,6 +567,8 @@ FRDGTextureRef InitializeOctahedralSolidAngleTexture(
 		FRDGTextureRef OctahedralSolidAngleTexture = GraphBuilder.CreateTexture(OctahedralSolidAngleTextureDesc, TEXT("OctahedralSolidAngleTexture"));
 	
 		{
+			RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+
 			FOctahedralSolidAngleCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOctahedralSolidAngleCS::FParameters>();
 			PassParameters->RWOctahedralSolidAngleTexture = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OctahedralSolidAngleTexture));
 			PassParameters->OctahedralSolidAngleTextureSize = OctahedralSolidAngleTextureSize;

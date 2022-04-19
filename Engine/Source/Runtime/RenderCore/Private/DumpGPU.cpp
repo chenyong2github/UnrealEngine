@@ -783,9 +783,17 @@ struct FRDGResourceDumpContext
 
 		bool bIsUnsupported = false;
 
-		if (GPixelFormats[Desc.Format].BlockSizeX != 1 ||
-			GPixelFormats[Desc.Format].BlockSizeY != 1 ||
-			GPixelFormats[Desc.Format].BlockSizeZ != 1)
+		// We support uncompressing certain BC formats, as the DumpGPU viewer doesn't support compressed formats.  Compression
+		// is used by Lumen, so it's extremely useful to preview.  Additional code below selects the uncompressed format (BC4 is
+		// scalar, so we use PF_R32_FLOAT, BC5 is dual channel, so it uses PF_G16R16F, etc).  If you add a format here, you must
+		// also update Engine\Extras\GPUDumpViewer\GPUDumpViewer.html (see "translate_subresource_desc").
+		if ((GPixelFormats[Desc.Format].BlockSizeX != 1 ||
+			 GPixelFormats[Desc.Format].BlockSizeY != 1 ||
+			 GPixelFormats[Desc.Format].BlockSizeZ != 1) &&
+			!(Desc.Format == PF_BC4 ||
+			  Desc.Format == PF_BC5 ||
+			  Desc.Format == PF_BC6H ||
+			  Desc.Format == PF_BC7))
 		{
 			bIsUnsupported = true;
 		}
@@ -822,6 +830,21 @@ struct FRDGResourceDumpContext
 			else if (Desc.Format == PF_D24)
 			{
 				SubresourceDumpDesc.PreprocessedPixelFormat = PF_R32_FLOAT;
+				SubresourceDumpDesc.DumpTextureType = FDumpTextureCS::ETextureType::Texture2DFloatNoMSAA;
+			}
+			else if (Desc.Format == PF_BC4)
+			{
+				SubresourceDumpDesc.PreprocessedPixelFormat = PF_R32_FLOAT;
+				SubresourceDumpDesc.DumpTextureType = FDumpTextureCS::ETextureType::Texture2DFloatNoMSAA;
+			}
+			else if (Desc.Format == PF_BC5)
+			{
+				SubresourceDumpDesc.PreprocessedPixelFormat = PF_G16R16F;
+				SubresourceDumpDesc.DumpTextureType = FDumpTextureCS::ETextureType::Texture2DFloatNoMSAA;
+			}
+			else if ((Desc.Format == PF_BC6H) || (Desc.Format == PF_BC7))
+			{
+				SubresourceDumpDesc.PreprocessedPixelFormat = PF_FloatRGBA;
 				SubresourceDumpDesc.DumpTextureType = FDumpTextureCS::ETextureType::Texture2DFloatNoMSAA;
 			}
 		}
