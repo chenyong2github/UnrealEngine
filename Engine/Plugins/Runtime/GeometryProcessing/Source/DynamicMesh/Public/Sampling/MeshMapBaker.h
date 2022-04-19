@@ -54,7 +54,10 @@ public:
 	 * @param ImageCoords the output image coordinates to be evaluated
 	 * @param UV the target mesh UV coordinates to be evaluated
 	 * @param TriID the target mesh triangle ID to be evaluated
-	 * @return true if the given sample should be filtered (return default evaluator result)
+	 * @return a weight (clamped by the baker to the range [0,1]) used to combine evaluator sample values with evaluator
+	 *  defaults. For evaluators using EAccumulateMode::Overwrite the default is used when weight == 0, and the value is
+	 *  used otherwise. For evaluators using EAccumulateMode::Add the sample's value and default are blended using the
+	 *  expression: `weight * value + (1 - weight) * default`
 	 */
 	TFunction<float(const FVector2i&, const FVector2d&, int32)> SampleFilterF = nullptr;
 
@@ -161,6 +164,12 @@ protected:
 	TMeshSurfaceUVSampler<FMeshMapEvaluator::FCorrespondenceSample> DetailCorrespondenceSampler;
 
 	FImageDimensions Dimensions = FImageDimensions(128, 128);
+
+	/** @return evaluator ids with the corresponding mode */
+	const TArray<int32>& EvaluatorIdsForMode(FMeshMapEvaluator::EAccumulateMode Mode) const
+	{
+		return BakeAccumulateLists[static_cast<int32>(Mode)];
+	}
 
 	/**
 	 * If true, the baker will pad the baked content past the UV borders by GutterSize.

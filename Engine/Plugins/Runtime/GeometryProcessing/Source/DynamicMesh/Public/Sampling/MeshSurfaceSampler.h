@@ -221,35 +221,10 @@ bool TMeshSurfaceUVSampler<SampleType>::SampleUV(const FVector2d& UV, SampleType
 	check(QueryType == EMeshSurfaceSamplerQueryType::UVOnly);
 	check(bUVSpatialValid);
 
-	FMeshUVSampleInfo Sample;
-
 	FRay3d HitRay(FVector3d(UV.X, UV.Y, 100.0), -FVector3d::UnitZ());
-	Sample.TriangleIndex = UVBVTree.FindNearestHitTriangle(HitRay);
-	if ( Mesh->IsTriangle(Sample.TriangleIndex) == false )
-	{
-		ResultOut = ZeroValue;
-		return false;
-	}
-	check(UVOverlay->IsSetTriangle(Sample.TriangleIndex));
+	const int32 UVTriangleID = UVBVTree.FindNearestHitTriangle(HitRay);
 
-	Sample.MeshVertices = Mesh->GetTriangle(Sample.TriangleIndex);
-	Sample.Triangle3D = FTriangle3d(
-		Mesh->GetVertex(Sample.MeshVertices.A),
-		Mesh->GetVertex(Sample.MeshVertices.B),
-		Mesh->GetVertex(Sample.MeshVertices.C));
-
-	Sample.UVVertices = UVOverlay->GetTriangle(Sample.TriangleIndex);
-	Sample.TriangleUV = FTriangle2d(
-		(FVector2d)UVOverlay->GetElement(Sample.UVVertices.A),
-		(FVector2d)UVOverlay->GetElement(Sample.UVVertices.B),
-		(FVector2d)UVOverlay->GetElement(Sample.UVVertices.C));
-
-	Sample.BaryCoords = Sample.TriangleUV.GetBarycentricCoords(UV);
-	Sample.SurfacePoint = Mesh->GetTriBaryPoint(Sample.TriangleIndex, Sample.BaryCoords.X, Sample.BaryCoords.Y, Sample.BaryCoords.Z);
-
-	ValueFunction(Sample, ResultOut);
-
-	return true;
+	return SampleUV(UVTriangleID, UV, ResultOut);
 }
 
 
