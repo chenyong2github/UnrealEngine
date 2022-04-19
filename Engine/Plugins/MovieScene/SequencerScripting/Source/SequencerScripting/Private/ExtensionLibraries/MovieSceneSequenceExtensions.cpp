@@ -1012,6 +1012,36 @@ UMovieSceneFolder* UMovieSceneSequenceExtensions::AddRootFolderToSequence(UMovie
 	return NewFolder;
 }
 
+void UMovieSceneSequenceExtensions::RemoveRootFolderFromSequence(UMovieSceneSequence* Sequence, UMovieSceneFolder* Folder)
+{
+	if (!Sequence || !Folder)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call RemoveRootFolderFromSequence on a null sequence or folder"), ELogVerbosity::Error);
+		return;
+	}
+
+	UMovieScene* FolderMovieScene = Folder->GetTypedOuter<UMovieScene>();
+	if (FolderMovieScene != Sequence->GetMovieScene())
+	{
+		FFrame::KismetExecutionMessage(*FString::Printf(TEXT("The folder '%s' does not belong to sequence '%s'"),
+			*Folder->GetFolderName().ToString(), *Sequence->GetName()), ELogVerbosity::Error);
+		return;
+	}
+
+#if WITH_EDITORONLY_DATA
+	if (FolderMovieScene)
+	{
+		FolderMovieScene->Modify();
+		const int32 NumFoldersRemoved = FolderMovieScene->GetRootFolders().Remove(Folder);
+		if (NumFoldersRemoved == 0)
+		{
+			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("The specified folder '%s' is not a root folder"),
+				*Folder->GetFolderName().ToString()), ELogVerbosity::Error);
+		}
+	}
+#endif
+}
+
 TArray<FMovieSceneMarkedFrame> UMovieSceneSequenceExtensions::GetMarkedFrames(UMovieSceneSequence* Sequence)
 {
 	if (!Sequence)

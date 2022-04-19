@@ -503,6 +503,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
 	static UMovieSceneFolder* AddRootFolderToSequence(UMovieSceneSequence* Sequence, FString NewFolderName);
 
+	/**
+	 * Remove a root folder from the given sequence. Will throw an exception if the specified folder is not valid or not a root folder.
+	 *
+	 * @param Sequence			The sequence That the folder belongs to
+	 * @param Folder			The folder to remove
+	 */
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
+	static void RemoveRootFolderFromSequence(UMovieSceneSequence* Sequence, UMovieSceneFolder* Folder);
+
 public:
 
 	/**
