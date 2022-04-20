@@ -554,15 +554,12 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		MaterialSection.bHasPerInstanceRandomID = MaterialAudit.HasPerInstanceRandomID(MaterialSection.MaterialIndex);
 		MaterialSection.bHasPerInstanceCustomData = MaterialAudit.HasPerInstanceCustomData(MaterialSection.MaterialIndex);
 
-		if (bIsInstancedMesh)
+		// Set the IsUsedWithInstancedStaticMeshes usage so per instance random and custom data get compiled
+		// in by the HLSL translator in cases where only Nanite scene proxies have rendered with this material
+		// which would result in this usage not being set by FInstancedStaticMeshSceneProxy::SetupProxy()
+		if (bIsInstancedMesh && ShadingMaterial && !ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_InstancedStaticMeshes))
 		{
-			// Set the IsUsedWithInstancedStaticMeshes usage so per instance random and custom data get compiled
-			// in by the HLSL translator in cases where only Nanite scene proxies have rendered with this material
-			// which would result in this usage not being set by FInstancedStaticMeshSceneProxy::SetupProxy()
-			if (!ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_InstancedStaticMeshes))
-			{
-				ShadingMaterial = nullptr;
-			}
+			ShadingMaterial = nullptr;
 		}
 
 		if (bHasSurfaceStaticLighting && ShadingMaterial && !ShadingMaterial->CheckMaterialUsage_Concurrent(MATUSAGE_StaticLighting))
