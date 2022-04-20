@@ -417,7 +417,7 @@ namespace Chaos
 		*/
 		inline void ResetMaterial()
 		{
-			Manifold.ResetMaterialModifications();
+			Material.ResetMaterialModifications();
 		}
 
 		/**
