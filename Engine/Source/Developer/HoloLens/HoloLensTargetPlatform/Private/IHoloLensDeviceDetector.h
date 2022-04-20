@@ -29,8 +29,8 @@ struct FHoloLensDeviceInfo
 	EHoloLensArchitecture Architecture;
 	FString Username;
 	FString Password;
-	int32 RequiresCredentials : 1;
-	int32 IsLocal : 1;
+	uint8 RequiresCredentials : 1;
+	uint8 IsLocal : 1;
 };
 
 typedef TSharedPtr<class IHoloLensDeviceDetector, ESPMode::ThreadSafe> IHoloLensDeviceDetectorPtr;
