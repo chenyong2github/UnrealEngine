@@ -82,7 +82,18 @@ bool UNiagaraDataInterfaceCollisionQuery::InitPerInstanceData(void* PerInstanceD
 	PIData->SystemInstance = InSystemInstance;
 	if (InSystemInstance)
 	{
-		PIData->CollisionBatch.Init(InSystemInstance->GetId(), InSystemInstance->GetWorld());
+		TStatId CollisionStatId = SCENE_QUERY_STAT_ONLY(NiagaraCollision);
+
+		// If we don't have stats enabled can we pull a valid stat from the asset?
+		// This will allow us to trace back to the asset when profiling
+		#if !STATS && (ENABLE_STATNAMEDEVENTS && ENABLE_STATNAMEDEVENTS_UOBJECT)
+			TStatId AssetStatId = static_cast<const UObjectBaseUtility*>(InSystemInstance->GetSystem())->GetStatID();
+			if (AssetStatId.IsValidStat())
+			{
+				CollisionStatId = AssetStatId;
+			}
+		#endif
+		PIData->CollisionBatch.Init(InSystemInstance->GetId(), InSystemInstance->GetWorld(), CollisionStatId);
 	}
 
 	return true;

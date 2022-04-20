@@ -3,7 +3,10 @@
 #pragma once
 
 #include "NiagaraEvents.h"
+#include "NiagaraStats.h"
 #include "WorldCollision.h"
+
+DECLARE_CYCLE_STAT(TEXT("Collision"), STAT_NiagaraCollision, STATGROUP_Niagara);
 
 class FNiagaraDataSet;
 
@@ -78,10 +81,11 @@ public:
 	}
 
 
-	void Init(FNiagaraSystemInstanceID InBatchID, UWorld *InCollisionWorld)
+	void Init(FNiagaraSystemInstanceID InBatchID, UWorld *InCollisionWorld, TStatId InStatId)
 	{
 		BatchID = InBatchID;
 		CollisionWorld = InCollisionWorld;
+		StatId = InStatId;
 		CollisionTraces[0].Empty();
 		CollisionTraces[1].Empty();
 		CurrBuffer = 0;
@@ -99,6 +103,7 @@ private:
 
 	//TArray<FTraceHandle> CollisionTraceHandles;
 	const static FName CollisionTagName;
+	const static FName TraceTagName;
 
 	FRWLock CollisionTraceLock;
 	TArray<FNiagaraCollisionEventPayload> CollisionEvents;
@@ -109,4 +114,5 @@ private:
 	TArray<FNiagaraDICollsionQueryResult> CollisionResults;
 	uint32 CurrBuffer;
 	UWorld *CollisionWorld = nullptr;
+	TStatId StatId;
 };

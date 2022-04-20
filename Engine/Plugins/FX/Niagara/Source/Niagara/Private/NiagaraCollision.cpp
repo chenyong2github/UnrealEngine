@@ -3,14 +3,13 @@
 #include "NiagaraCollision.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraStats.h"
 #include "NiagaraComponent.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
-DECLARE_CYCLE_STAT(TEXT("Collision"), STAT_NiagaraCollision, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Event Emission"), STAT_NiagaraEventWrite, STATGROUP_Niagara);
 
 const FName FNiagaraDICollisionQueryBatch::CollisionTagName = FName("Niagara");
+const FName FNiagaraDICollisionQueryBatch::TraceTagName = FName("NiagaraCollision");
 
 static int32 GNiagaraCollisionCPUEnabled = 1;
 static FAutoConsoleVariableRef CVarNiagaraCollisionEnabled(
@@ -113,7 +112,7 @@ int32 FNiagaraDICollisionQueryBatch::SubmitQuery(FVector StartPos, FVector EndPo
 		return INDEX_NONE;
 	}
 
-	FCollisionQueryParams CollisionQueryParams(SCENE_QUERY_STAT(NiagaraCollision), false);
+	FCollisionQueryParams CollisionQueryParams(TraceTagName, StatId, false);
 	CollisionQueryParams.OwnerTag = CollisionTagName;
 	CollisionQueryParams.bFindInitialOverlaps = false;
 	CollisionQueryParams.bReturnFaceIndex = false;
@@ -143,7 +142,7 @@ bool FNiagaraDICollisionQueryBatch::PerformQuery(FVector StartPos, FVector EndPo
 	}
 
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraCollision);
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(NiagaraCollision), false);
+	FCollisionQueryParams QueryParams(TraceTagName, StatId, false);
 	QueryParams.OwnerTag = CollisionTagName;
 	QueryParams.bFindInitialOverlaps = false;
 	QueryParams.bReturnFaceIndex = false;
