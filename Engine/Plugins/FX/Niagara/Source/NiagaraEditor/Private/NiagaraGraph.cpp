@@ -2220,37 +2220,34 @@ void UNiagaraGraph::ScriptVariableChanged(FNiagaraVariable Variable)
 		return;
 	}
 
-	FNiagaraEditorModule& EditorModule = FNiagaraEditorModule::Get();
-
+	TSet<UNiagaraNodeParameterMapGet*> MapGetNodes;
 	TArray<UEdGraphPin*> Pins = FindParameterMapDefaultValuePins(Variable.GetName());
 	for (UEdGraphPin* Pin : Pins)
 	{
-		Pin->bHidden = ((*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::Binding) || ((*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::FailIfPreviouslyNotSet);
-		if ((*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::Custom)
+		if(UNiagaraNodeParameterMapGet* MapGetNode = Cast<UNiagaraNodeParameterMapGet>(Pin->GetOwningNode()))
 		{
-			Pin->bNotConnectable = false;
-			Pin->bDefaultValueIsReadOnly = false;
+			MapGetNodes.Add(MapGetNode);
 		}
-		else
+		
+		if ((*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::Value && !Variable.GetType().IsDataInterface())
 		{
-			Pin->BreakAllPinLinks(true);
-			Pin->bNotConnectable = true;
-			Pin->bDefaultValueIsReadOnly = true;
-
-			if ((*ScriptVariable)->DefaultMode == ENiagaraDefaultMode::Value && !Variable.GetType().IsDataInterface())
+			FNiagaraEditorModule& EditorModule = FNiagaraEditorModule::Get();
+			auto TypeUtilityValue = EditorModule.GetTypeUtilities(Variable.GetType());
+			if (TypeUtilityValue.IsValid() && TypeUtilityValue->CanHandlePinDefaults())
 			{
-				auto TypeUtilityValue = EditorModule.GetTypeUtilities(Variable.GetType());
-				if (TypeUtilityValue.IsValid() && TypeUtilityValue->CanHandlePinDefaults())
+				if (!Variable.IsDataAllocated())
 				{
-					if (!Variable.IsDataAllocated())
-					{
-						Variable.AllocateData();
-					}
-					FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable);
-					GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
+					Variable.AllocateData();
 				}
+				FString NewDefaultValue = TypeUtilityValue->GetPinDefaultStringFromValue(Variable);
+				GetDefault<UEdGraphSchema_Niagara>()->TrySetDefaultValue(*Pin, NewDefaultValue, true);
 			}
 		}
+	}
+
+	for(UNiagaraNodeParameterMapGet* MapGet : MapGetNodes)
+	{
+		MapGet->SynchronizeDefaultPins();
 	}
 
 	ValidateDefaultPins();

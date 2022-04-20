@@ -40,6 +40,8 @@ public:
 	/** Get the default value input pin for one of the output pins specified.*/
 	UEdGraphPin* GetDefaultPin(UEdGraphPin* OutputPin) const;
 
+	void SynchronizeDefaultPins();
+	
 	virtual void PostLoad() override;
 
 	void GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const override;
@@ -59,7 +61,7 @@ protected:
 	virtual void RemoveDynamicPin(UEdGraphPin* Pin) override;
 
 	/** Make sure that descriptions match up as well as any other value that can be changed.*/
-	void SynchronizeDefaultInputPin(UEdGraphPin* DefaultPin, UEdGraphPin* OutputPin, UNiagaraScriptVariable* ScriptVar);
+	void SynchronizeDefaultInputPin(UEdGraphPin* DefaultPin);
 	
 	/** Reverse the lookup from GetDefaultPin.*/
 	UEdGraphPin* GetOutputPinForDefault(const UEdGraphPin* DefaultPin) const;

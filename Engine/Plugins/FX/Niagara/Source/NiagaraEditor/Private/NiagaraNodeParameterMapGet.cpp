@@ -142,7 +142,7 @@ UEdGraphPin* UNiagaraNodeParameterMapGet::CreateDefaultPin(UEdGraphPin* OutputPi
 	}
 	PinOutputToPinDefaultPersistentId.Add(OutputPin->PersistentGuid, DefaultPin->PersistentGuid);
 
-	SynchronizeDefaultInputPin(DefaultPin, OutputPin, GetScriptVariable(OutputPin->PinName));
+	SynchronizeDefaultInputPin(DefaultPin);
 	return DefaultPin;
 }
 
@@ -164,7 +164,7 @@ void UNiagaraNodeParameterMapGet::OnPinRenamed(UEdGraphPin* RenamedPin, const FS
 	if (DefaultPin)
 	{
 		DefaultPin->Modify();
-		SynchronizeDefaultInputPin(DefaultPin, RenamedPin, GetScriptVariable(RenamedPin->PinName));
+		SynchronizeDefaultInputPin(DefaultPin);
 	}
 
 	MarkNodeRequiresSynchronization(__FUNCTION__, true);
@@ -289,6 +289,26 @@ UEdGraphPin* UNiagaraNodeParameterMapGet::GetDefaultPin(UEdGraphPin* OutputPin) 
 	return nullptr;
 }
 
+void UNiagaraNodeParameterMapGet::SynchronizeDefaultPins()
+{
+	TArray<UEdGraphPin*> OutputPins;
+	GetOutputPins(OutputPins);
+
+	for(UEdGraphPin* OutputPin : OutputPins)
+	{
+		if(IsAddPin(OutputPin) || OutputPin->bOrphanedPin)
+		{
+			continue;
+		}
+
+		UEdGraphPin* DefaultPin = GetDefaultPin(OutputPin);
+		if(ensureAlwaysMsgf(DefaultPin != nullptr, TEXT("There should always be an input pin for every output pin, even if hidden.")))
+		{
+			SynchronizeDefaultInputPin(DefaultPin);
+		}
+	}
+}
+
 
 UEdGraphPin* UNiagaraNodeParameterMapGet::GetOutputPinForDefault(const UEdGraphPin* DefaultPin) const
 {
@@ -332,14 +352,14 @@ void UNiagaraNodeParameterMapGet::PostLoad()
 			continue;
 		}
 
-		UEdGraphPin* InputPin = GetDefaultPin(OutputPin);
-		if (InputPin == nullptr)
+		UEdGraphPin* DefaultPin = GetDefaultPin(OutputPin);
+		if (DefaultPin == nullptr)
 		{
 			CreateDefaultPin(OutputPin);
 		}
 		else
 		{
-			SynchronizeDefaultInputPin(InputPin, OutputPin, GetScriptVariable(OutputPin->PinName));
+			SynchronizeDefaultInputPin(DefaultPin);
 		}
 
 		OutputPin->PinType.PinSubCategory = UNiagaraNodeParameterMapBase::ParameterPinSubCategory;
@@ -347,14 +367,21 @@ void UNiagaraNodeParameterMapGet::PostLoad()
 }
 
 
-void UNiagaraNodeParameterMapGet::SynchronizeDefaultInputPin(UEdGraphPin* DefaultPin, UEdGraphPin* OutputPin, UNiagaraScriptVariable* ScriptVar)
+void UNiagaraNodeParameterMapGet::SynchronizeDefaultInputPin(UEdGraphPin* DefaultPin)
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-	if (!DefaultPin)
+	if (!DefaultPin || DefaultPin->bOrphanedPin)
 	{
 		return;
 	}
 
+	UEdGraphPin* OutputPin = GetOutputPinForDefault(DefaultPin);
+	if(!ensureAlwaysMsgf(OutputPin != nullptr, TEXT("There should always be an output pin found for every default pin we attempt to synchronize")))
+	{
+		return;
+	}
+	
+	UNiagaraScriptVariable* ScriptVar = GetScriptVariable(OutputPin->PinName);
 	FNiagaraVariable Var = Schema->PinToNiagaraVariable(OutputPin);
 	if (FNiagaraParameterMapHistory::IsEngineParameter(Var))
 	{
@@ -373,6 +400,7 @@ void UNiagaraNodeParameterMapGet::SynchronizeDefaultInputPin(UEdGraphPin* Defaul
 	if (ScriptVar) {
 		if (ScriptVar->DefaultMode == ENiagaraDefaultMode::Value)
 		{
+			DefaultPin->BreakAllPinLinks();
 			DefaultPin->bNotConnectable = true;
 			DefaultPin->bDefaultValueIsReadOnly = true;
 		}

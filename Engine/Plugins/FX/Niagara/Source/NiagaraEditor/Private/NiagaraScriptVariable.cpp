@@ -31,6 +31,7 @@ void UNiagaraScriptVariable::PostEditChangeProperty(struct FPropertyChangedEvent
 
 	if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(GetOuter()))
 	{
+		Graph->ScriptVariableChanged(Variable);
 		Graph->NotifyGraphNeedsRecompile();
 	}
 	else if (UNiagaraParameterDefinitions* Definitions = Cast<UNiagaraParameterDefinitions>(GetOuter()))
