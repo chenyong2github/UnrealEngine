@@ -25,6 +25,11 @@ FText UAnimGraphNode_FootPlacement::GetTooltipText() const
 	return LOCTEXT("FootPlacementTooltip", "Foot Placement.");
 }
 
+FLinearColor UAnimGraphNode_FootPlacement::GetNodeTitleColor() const
+{
+	return FLinearColor(FColor(153.f, 0.f, 0.f));
+}
+
 FText UAnimGraphNode_FootPlacement::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	return GetControllerDescription();
