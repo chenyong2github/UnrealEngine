@@ -128,14 +128,15 @@ namespace UE::Anim::FootPlacement
 		const bool bHit = Context.World->SweepSingleByChannel(
 			HitResult, TraceStart, TraceEnd, FQuat::Identity, CollisionChannel, CollisionShape, QueryParams);
 
+		OutImpactLocationWS = HitResult.ImpactPoint;
 		if (!Context.GetMovementComponentIsWalkable(HitResult))
 		{
+			// If the surface hit isn't walkable, use the negated trace direction as the impact normal
+			OutImpactNormalWS = -TraceDirectionWS;
 			return false;
 		}
 
-		OutImpactLocationWS = HitResult.ImpactPoint;
 		OutImpactNormalWS = HitResult.ImpactNormal;
-
 		return true;
 	}
 

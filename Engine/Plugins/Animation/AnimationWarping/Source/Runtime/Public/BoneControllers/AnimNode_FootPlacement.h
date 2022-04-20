@@ -406,17 +406,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interpolation", meta = (PinHiddenByDefault))
 	FFootPlacementInterpolationSettings InterpolationSettings;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trace Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Trace", meta = (PinHiddenByDefault))
 	FFootPlacementTraceSettings TraceSettings;
 
 	// TODO: This wont work well when the animation doesn't have a single plant plane, i.e. a walking upstairs anim
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = "Plant")
 	FBoneReference IKFootRootBone;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = "Pelvis")
 	FBoneReference PelvisBone;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Plant Settings", meta = (PinHiddenByDefault))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Pelvis", meta = (PinHiddenByDefault))
 	FFootPlacementPelvisSettings PelvisSettings;
 
 public:
