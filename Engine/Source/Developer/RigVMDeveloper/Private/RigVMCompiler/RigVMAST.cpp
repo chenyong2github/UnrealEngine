@@ -2214,38 +2214,38 @@ bool FRigVMParserAST::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FS
 
 	if(SourceNode->IsA<URigVMRerouteNode>())
 	{
-		TArray<URigVMNode*> LinkedSourceNodes = SourceNode->GetLinkedSourceNodes();
-		for (int32 LinkedSourceNodeIndex = 0; LinkedSourceNodeIndex<LinkedSourceNodes.Num(); LinkedSourceNodeIndex++)
+		TArray<URigVMPin*> SourcePins;
+		for (URigVMPin* Pin : SourceNode->GetPins())
 		{
-			URigVMNode* LinkedSourceNode = LinkedSourceNodes[LinkedSourceNodeIndex];
-			if(LinkedSourceNode->IsA<URigVMRerouteNode>())
+			SourcePins.Append(Pin->GetLinkedSourcePins(true));
+		}
+		
+		for (URigVMPin* SourcePin : SourcePins)
+		{
+			if (!CanLink(SourcePin, InTargetPin, OutFailureReason))
 			{
-				LinkedSourceNodes.Append(LinkedSourceNode->GetLinkedSourceNodes());
-			}
-			else
-			{
-				SourceNode = LinkedSourceNode;
-				break;
+				return false;
 			}
 		}
+		return true;
 	}
 
 	if(TargetNode->IsA<URigVMRerouteNode>())
 	{
-		TArray<URigVMNode*> LinkedTargetNodes = TargetNode->GetLinkedTargetNodes();
-		for (int32 LinkedTargetNodeIndex = 0; LinkedTargetNodeIndex<LinkedTargetNodes.Num(); LinkedTargetNodeIndex++)
+		TArray<URigVMPin*> TargetPins;
+		for (URigVMPin* Pin : TargetNode->GetPins())
 		{
-			URigVMNode* LinkedTargetNode = LinkedTargetNodes[LinkedTargetNodeIndex];
-			if(LinkedTargetNode->IsA<URigVMRerouteNode>())
+			TargetPins.Append(Pin->GetLinkedTargetPins(true));
+		}
+		
+		for (URigVMPin* TargetPin : TargetPins)
+		{
+			if (!CanLink(InSourcePin, TargetPin, OutFailureReason))
 			{
-				LinkedTargetNodes.Append(LinkedTargetNode->GetLinkedTargetNodes());
-			}
-			else
-			{
-				TargetNode = LinkedTargetNode;
-				break;
+				return false;
 			}
 		}
+		return true;
 	}
 
 	FRigVMASTProxy SourceNodeProxy = FRigVMASTProxy::MakeFromUObject(SourceNode);

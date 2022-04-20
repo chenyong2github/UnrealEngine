@@ -42,5 +42,6 @@ private:
 
 	friend class URigVMController;
 	friend class URigVMCompiler;
+	friend class FRigVMParserAST;
 };
 
