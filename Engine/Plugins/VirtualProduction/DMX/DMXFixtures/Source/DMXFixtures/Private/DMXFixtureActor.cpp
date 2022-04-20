@@ -6,6 +6,7 @@
 
 #include "Components/StaticMeshComponent.h"
 
+
 DECLARE_CYCLE_STAT(TEXT("FixtureActor Push Normalized Values"), STAT_FixtureActorPushNormalizedValuesPerAttribute, STATGROUP_DMX);
 
 ADMXFixtureActor::ADMXFixtureActor()
@@ -53,6 +54,22 @@ ADMXFixtureActor::ADMXFixtureActor()
 	MinQuality = 1.0f;
 	MaxQuality = 1.0f;
 	HasBeenInitialized = false;
+}
+
+void ADMXFixtureActor::OnMVRGetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames, TArray<FName>& OutMatrixAttributeNames) const
+{
+	for (UDMXFixtureComponent* DMXFixtureComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
+	{
+		TArray<FName> SupportedAttributeNamesOfComponent;
+		DMXFixtureComponent->GetSupportedDMXAttributes(SupportedAttributeNamesOfComponent);
+
+		OutAttributeNames.Append(SupportedAttributeNamesOfComponent);
+	}
+}
+
+void ADMXFixtureActor::OnMVRSetFixturePatch_Implementation(UDMXEntityFixturePatch* FixturePatch)
+{
+	DMX->SetFixturePatch(FixturePatch);
 }
 
 #if WITH_EDITOR

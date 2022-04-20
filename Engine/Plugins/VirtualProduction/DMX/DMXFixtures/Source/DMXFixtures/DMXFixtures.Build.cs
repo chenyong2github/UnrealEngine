@@ -8,7 +8,15 @@ public class DMXFixtures : ModuleRules
 	{
 	   PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-       PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "DMXRuntime", "DMXProtocol", "RenderCore", "RHI", "ProceduralMeshComponent" });
+       PublicDependencyModuleNames.AddRange(new string[] { 
+		   "Core",
+		   "CoreUObject",
+		   "DMXRuntime", 
+		   "DMXProtocol",
+		   "Engine",
+		   "RenderCore", 
+		   "RHI", 
+		   "ProceduralMeshComponent" });
 
        PrivateDependencyModuleNames.AddRange(new string[] {  });
 

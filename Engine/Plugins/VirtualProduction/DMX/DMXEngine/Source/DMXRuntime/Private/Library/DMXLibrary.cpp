@@ -530,6 +530,19 @@ void UDMXLibrary::UpdatePorts()
 	}
 }
 
+FDMXMVRGeneralSceneDescription UDMXLibrary::MakeGeneralSceneDescription() const
+{
+	FDMXMVRGeneralSceneDescription GeneralSceneDescription;
+	const TArray<UDMXEntityFixturePatch*> FixturePatches = GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
+	{
+		const TArray<FDMXMVRFixture> MVRFixtures = FixturePatch->MakeMVRFixtures();
+		GeneralSceneDescription.MVRFixtures.Append(MVRFixtures);
+	}
+
+	return GeneralSceneDescription;
+}
+
 #if WITH_EDITOR
 void UDMXLibrary::UpgradeFromControllersToPorts()
 {	

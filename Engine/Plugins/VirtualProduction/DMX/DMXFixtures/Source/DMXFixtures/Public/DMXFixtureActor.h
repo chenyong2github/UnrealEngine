@@ -2,18 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "DMXFixtureComponent.h"
 #include "DMXFixtureComponentDouble.h"
 #include "DMXFixtureComponentSingle.h"
 #include "DMXFixtureComponentColor.h"
-#include "GameFramework/Actor.h"
-#include "Game/DMXComponent.h"
-#include "Components/SpotLightComponent.h"
-#include "Materials/MaterialInstanceDynamic.h"
-#include "Components/ArrowComponent.h"
 #include "DMXProtocolTypes.h"
 #include "Library/DMXEntityFixturePatch.h"
+#include "MVR/DMXMVRFixtureActorInterface.h"
+
+#include "CoreMinimal.h"
+#include "Components/ArrowComponent.h"
+#include "Components/SpotLightComponent.h"
+#include "Game/DMXComponent.h"
+#include "GameFramework/Actor.h"
+#include "Materials/MaterialInstanceDynamic.h"
+
 #include "DMXFixtureActor.generated.h"
 
 
@@ -28,17 +31,26 @@ enum EDMXFixtureQualityLevel
 };
 
 UCLASS()
-class DMXFIXTURES_API ADMXFixtureActor : public AActor
+class DMXFIXTURES_API ADMXFixtureActor 
+	: public AActor
+	, public IDMXMVRFixtureActorInterface
 {
 	GENERATED_BODY()
 
 protected:
+	//~ Begin AActor Interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
+	//~ End AActor interface
 
 public:
 	ADMXFixtureActor();
+
+	//~ Begin DMXMVRFixtureActorInterface interface
+	virtual void OnMVRGetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames, TArray<FName>& OutMatrixAttributeNames) const override;
+	virtual void OnMVRSetFixturePatch_Implementation(UDMXEntityFixturePatch* FixturePatch) override;
+	//~ End DMXMVRFixtureActorInterface interface
 
 	bool HasBeenInitialized;
 	float LensRadius;

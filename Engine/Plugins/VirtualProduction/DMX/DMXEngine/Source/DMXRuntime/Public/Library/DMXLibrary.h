@@ -7,6 +7,7 @@
 #include "IO/DMXInputPortReference.h"
 #include "IO/DMXOutputPortReference.h"
 #include "Library/DMXEntity.h"
+#include "MVR/DMXMVRGeneralSceneDescription.h"
 
 #include "Templates/SubclassOf.h"
 #include "Misc/Guid.h"
@@ -185,7 +186,6 @@ public:
 	UE_DEPRECATED(5.0, "Deprecated in favor of the more expressive UDMXLibrary::GetOnEntitiesAdded() and UDMXLibrary::GetOnEntitiesRemoved() that also forwards the added resp. removed entities")
 	FOnEntitiesUpdated_DEPRECATED& GetOnEntitiesUpdated();
 
-public:
 	/** Returns all local Universe IDs in Ports */
 	TSet<int32> GetAllLocalUniversesIDsInPorts() const;
 
@@ -200,6 +200,9 @@ public:
 
 	/** Updates the ports from what's set in the Input and Output Port References arrays */
 	void UpdatePorts();
+
+	/** Creates an MVR General Scene Description from the Library's MVR data */
+	FDMXMVRGeneralSceneDescription MakeGeneralSceneDescription() const;
 
 	/** Returns the Entity that was last added to the Library */
 	FORCEINLINE TWeakObjectPtr<UDMXEntity> GetLastAddedEntity() const { return LastAddedEntity; }

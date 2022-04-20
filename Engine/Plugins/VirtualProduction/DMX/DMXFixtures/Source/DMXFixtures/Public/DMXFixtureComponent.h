@@ -41,7 +41,7 @@ protected:
 	/** Initializes the cells for the fixture */
 	void InitCells(int NumCells);
 
-public:	
+public:
 	UDMXFixtureComponent();
 
 	/** Initializes the component */
@@ -52,7 +52,7 @@ public:
 	virtual void SetCurrentCell(int Index);
 
 	/** If used within a DMX Fixture Actor or Fixture Matrix Actor, the component only receives data when set to true. Else needs be implemented in blueprints. */
-	UPROPERTY(EditAnywhere, Category = "DMX Parameters", meta= (DisplayPriority = 0))
+	UPROPERTY(EditAnywhere, Category = "DMX Parameters", meta = (DisplayPriority = 0))
 	bool bIsEnabled = true;
 
 	/** Value changes smaller than this threshold are ignored */
@@ -86,6 +86,11 @@ public:
 	/** Called to initialize the component in blueprints */
 	UFUNCTION(BlueprintCallable, BlueprintImplementableEvent, Category = "DMX")
 	void InitializeComponent();
+
+	/** Should be implemented to let other objects (e.g. datasmith) know which attributes the component can handle */
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "DMX")
+	void GetSupportedDMXAttributes(TArray<FName>& OutAttributeNames);
+	virtual void GetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames) {};
 
 	/** Applies the speed scale property */
 	void ApplySpeedScale();

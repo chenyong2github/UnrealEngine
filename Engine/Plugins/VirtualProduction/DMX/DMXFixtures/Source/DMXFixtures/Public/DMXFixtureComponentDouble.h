@@ -14,7 +14,11 @@ class DMXFIXTURES_API UDMXFixtureComponentDouble : public UDMXFixtureComponent
 
 public:
 	UDMXFixtureComponentDouble();
-		
+
+	//~ Begin DMXFixtureComponent interface
+	virtual void GetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames) override;
+	//~ End DMXFixtureComponent interface
+
 	/** The first dmx attribute the component handles */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "DMX Channels")
 	FDMXChannelData DMXChannel1;

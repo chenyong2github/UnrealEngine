@@ -22,11 +22,11 @@
 
 #define LOCTEXT_NAMESPACE "UDMXEditorFactoryNew"
 
+
+// The whole class is deprecated 5.1, but we keep the implementation for the time being
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UDMXEditorFactoryNew::UDMXEditorFactoryNew()
 {
-	SupportedClass = UDMXLibrary::StaticClass();
-	bCreateNew = true;
-	bEditAfterNew = true;
 }
 
 UObject * UDMXEditorFactoryNew::FactoryCreateNew(UClass * Class, UObject * InParent, FName Name, EObjectFlags Flags, UObject * Context, FFeedbackContext * Warn)
@@ -45,14 +45,10 @@ UObject * UDMXEditorFactoryNew::FactoryCreateNew(UClass * Class, UObject * InPar
 	return DMXLibrary;
 }
 
-uint32 UDMXEditorFactoryNew::GetMenuCategories() const
-{
-	return (uint32)FDMXEditorModule::GetAssetCategory();
-}
-
 UDMXLibrary * UDMXEditorFactoryNew::MakeNewEditor(UObject * InParent, FName Name, EObjectFlags Flags)
 {
 	return NewObject<UDMXLibrary>(InParent, Name, Flags);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

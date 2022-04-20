@@ -27,6 +27,49 @@
 
 #define LOCTEXT_NAMESPACE "DMXGDTFImporter"
 
+
+namespace UE::DMX::DMXGDTFImporter::Private
+{
+	/** 
+	 * Depending on the GDTF Spec, some XML Attribute Names might start with or without DMX. 
+	 * 
+	 * @param ParentNode		The Parent Node to search in 
+	 * @param NodeName			The Attribute Name with DMX tag. This is the correct form, e.g. 'DMXMode', not 'Mode', 'DMXChannels', not 'Channels'.
+	 * @return					Returns a pointer to the child node, or nullptr if the child cannot be found 
+	 */
+	const FXmlNode* FindChildNodeEvenIfDMXSubstringIsMissing(const FXmlNode& ParentNode, const FString& AttributeNameWithDMXTag)
+	{
+		if (const FXmlNode* ChildNodePtrWithSubstring = ParentNode.FindChildNode(AttributeNameWithDMXTag))
+		{
+			return ChildNodePtrWithSubstring;
+		}
+		else if (const FXmlNode* ChildNodePtrWithoutSubstring = ParentNode.FindChildNode(AttributeNameWithDMXTag.RightChop(3)))
+		{
+			return ChildNodePtrWithoutSubstring;
+		}
+
+		return nullptr;
+	}
+
+	/** 
+	 * Depending on the GDTF Spec, some XML Attribute Names might start with or without DMX. 
+	 * 
+	 * @param ParentNode		The Parent Node to search in 
+	 * @param NodeName			The Attribute Name with DMX tag. This is the correct form, e.g. 'DMXMode', not 'Mode', 'DMXChannels', not 'Channels'.
+	 * @return					Returns the Attribute as String
+	 */
+	FString FindAttributeEvenIfDMXSubstringIsMissing(const FXmlNode& ParentNode, const FString& AttributeNameWithDMXTag)
+	{
+		FString Attribute = ParentNode.GetAttribute(AttributeNameWithDMXTag);
+		if (Attribute.IsEmpty())
+		{
+			Attribute = ParentNode.GetAttribute(AttributeNameWithDMXTag.RightChop(3));
+		}
+
+		return Attribute;
+	}
+};
+
 FDMXGDTFImporter::FDMXGDTFImporter(const FDMXGDTFImportArgs& InImportArgs)
     : ImportArgs(InImportArgs)
     , bIsXMLParsedSuccessfully(false)
@@ -393,8 +436,13 @@ UDMXImportGDTF* FDMXGDTFImporter::CreateGDTFDesctription()
                             {
                                 FDMXImportGDTFBreak ImportBreak;
 
-                                LexTryParseString(ImportBreak.DMXOffset, *BreakNode->GetAttribute("DMXOffset"));
-                                LexTryParseString(ImportBreak.DMXBreak, *BreakNode->GetAttribute("DMXBreak"));
+								// Depending on the GDTF spec the Offset node may be called either 'DMXOffset' or 'Offset'
+								const FString DMXOffsetAttribute = UE::DMX::DMXGDTFImporter::Private::FindAttributeEvenIfDMXSubstringIsMissing(*BreakNode, TEXT("DMXOffset"));
+								LexTryParseString(ImportBreak.DMXOffset, *DMXOffsetAttribute);
+
+								// Depending on the GDTF spec the Break node may be called either 'DMXBreak' or 'Break'
+								const FString DMXBreakAttribute = UE::DMX::DMXGDTFImporter::Private::FindAttributeEvenIfDMXSubstringIsMissing(*BreakNode, TEXT("DMXBreak"));
+								LexTryParseString(ImportBreak.DMXBreak, *DMXBreakAttribute);
 
                                 ImportGeometryReference.Breaks.Add(ImportBreak);
                             }
@@ -406,17 +454,21 @@ UDMXImportGDTF* FDMXGDTFImporter::CreateGDTFDesctription()
                     }
                 }
 
-                if (const FXmlNode* DMXModesNode = FixtureTypeNode->FindChildNode("DMXModes"))
+				// Depending on the GDTF spec the Break node may be called either 'DMXModes' or 'Modes'.
+				const FXmlNode* const ModesNode = UE::DMX::DMXGDTFImporter::Private::FindChildNodeEvenIfDMXSubstringIsMissing(*FixtureTypeNode, TEXT("DMXModes"));
+                if (ModesNode)
                 {
-                    for (const FXmlNode* DMXModeNode : DMXModesNode->GetChildrenNodes())
+                    for (const FXmlNode* DMXModeNode : ModesNode->GetChildrenNodes())
                     {
                         FDMXImportGDTFDMXMode DMXImportGDTFDMXMode;
                         DMXImportGDTFDMXMode.Name = FName(*DMXModeNode->GetAttribute("Name"));
                         DMXImportGDTFDMXMode.Geometry = FName(*DMXModeNode->GetAttribute("Geometry"));
 
-                        if (const FXmlNode* DMXChannelsNode = DMXModeNode->FindChildNode("DMXChannels"))
+						// Depending on the GDTF spec in use modes may be stored in the "Modes" or "DMXModes" node.
+						const FXmlNode* const ChannelsNode = UE::DMX::DMXGDTFImporter::Private::FindChildNodeEvenIfDMXSubstringIsMissing(*DMXModeNode, TEXT("DMXChannels"));
+                        if (ChannelsNode)
                         {
-                            for (const FXmlNode* DMXChannelNode : DMXChannelsNode->GetChildrenNodes())
+                            for (const FXmlNode* DMXChannelNode : ChannelsNode->GetChildrenNodes())
                             {
 								FDMXImportGDTFDMXChannel ImportDMXChannel;
 

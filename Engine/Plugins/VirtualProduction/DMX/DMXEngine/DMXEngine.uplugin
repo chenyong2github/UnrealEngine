@@ -14,8 +14,8 @@
 	"IsBetaVersion": false,
 	"Modules": [
 		{
-			"Name": "DMXRuntime",
-			"Type": "Runtime",
+			"Name": "DMXBlueprintGraph",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
 		},
 		{
@@ -24,12 +24,16 @@
 			"LoadingPhase": "Default"
 		},
 		{
-			"Name": "DMXBlueprintGraph",
-			"Type": "UncookedOnly",
+			"Name": "DMXRuntime",
+			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
+		{
+			"Name": "DatasmithContent",
+			"Enabled": true
+		},
 		{
 			"Name": "DMXProtocol",
 			"Enabled": true

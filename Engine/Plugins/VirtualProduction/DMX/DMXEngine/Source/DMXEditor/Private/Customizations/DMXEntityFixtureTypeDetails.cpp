@@ -2,8 +2,8 @@
 
 #include "Customizations/DMXEntityFixtureTypeDetails.h"
 
+#include "Library/DMXImportGDTF.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "Library/DMXImport.h"
 
 #include "CoreMinimal.h"
 #include "DetailLayoutBuilder.h"
@@ -33,7 +33,7 @@ void FDMXEntityFixtureTypeDetails::OnDMXImportChanged()
 	UObject* DMXImportObject = nullptr;
 	if (DMXImportHandle->GetValue(DMXImportObject) == FPropertyAccess::Success)
 	{
-		if (UDMXImport* DMXImport = Cast<UDMXImport>(DMXImportObject))
+		if (UDMXImportGDTF* DMXImportGDTF = Cast<UDMXImportGDTF>(DMXImportObject))
 		{
 			const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyUtilities->GetSelectedObjects();
 
@@ -41,7 +41,7 @@ void FDMXEntityFixtureTypeDetails::OnDMXImportChanged()
 			{
 				if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(WeakFixtureTypeObject.Get()))
 				{
-					FixtureType->SetModesFromDMXImport(DMXImport);
+					FixtureType->SetGDTF(DMXImportGDTF);
 				}
 			}
 		}

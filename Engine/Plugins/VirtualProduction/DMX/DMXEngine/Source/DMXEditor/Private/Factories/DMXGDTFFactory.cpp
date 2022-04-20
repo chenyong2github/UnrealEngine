@@ -115,7 +115,7 @@ UObject* UDMXGDTFFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, 
     ImportArgs.ImportUI = ImportUI;
     ImportArgs.Name = InName;
     ImportArgs.Parent = InParent;
-    ImportArgs.CurrentFilename = CurrentFilename;
+    ImportArgs.CurrentFilename = InFilename;
     ImportArgs.Flags = Flags;
     ImportArgs.bCancelOperation = bOperationCanceled;
     TUniquePtr<FDMXGDTFImporter> Importer = MakeUnique<FDMXGDTFImporter>(ImportArgs);
@@ -159,7 +159,7 @@ UObject* UDMXGDTFFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, 
 
         if (CreatedObject != nullptr)
         {
-            CreatedObject->SourceFilename = GetCurrentFilename();
+            CreatedObject->SourceFilename = InFilename;
         }
 		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, CreatedObject);
     }

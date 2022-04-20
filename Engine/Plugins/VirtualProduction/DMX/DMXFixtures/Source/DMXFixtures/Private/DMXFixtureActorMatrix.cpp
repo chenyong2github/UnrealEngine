@@ -71,6 +71,38 @@ void ADMXFixtureActorMatrix::PostEditChangeProperty(FPropertyChangedEvent& Prope
 }
 #endif
 
+void ADMXFixtureActorMatrix::OnMVRGetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames, TArray<FName>& OutMatrixAttributeNames) const
+{
+	Super::OnMVRGetSupportedDMXAttributes_Implementation(OutAttributeNames, OutMatrixAttributeNames);
+	
+	for (UDMXFixtureComponent* DMXComponent : TInlineComponentArray<UDMXFixtureComponent*>(this))
+	{
+		if (UDMXFixtureComponentColor* ColorComponent = Cast<UDMXFixtureComponentColor>(DMXComponent))
+		{
+			OutMatrixAttributeNames.Add(ColorComponent->DMXChannel1.Name);
+			OutMatrixAttributeNames.Add(ColorComponent->DMXChannel2.Name);
+			OutMatrixAttributeNames.Add(ColorComponent->DMXChannel3.Name);
+			OutMatrixAttributeNames.Add(ColorComponent->DMXChannel4.Name);
+		}
+		else if (UDMXFixtureComponentSingle* SingleComponent = Cast<UDMXFixtureComponentSingle>(DMXComponent))
+		{
+			// Single channel component - hardcoded and limited to specific names, as on PushFixtureMatrixCellData
+			if (SingleComponent->DMXChannel.Name.Name == FName("Dimmer"))
+			{
+				OutMatrixAttributeNames.Add(FName("Dimmer"));
+			}
+			else if (SingleComponent->DMXChannel.Name.Name == FName("Pan"))
+			{
+				OutMatrixAttributeNames.Add(FName("Pan"));
+			}
+			else if (SingleComponent->DMXChannel.Name.Name == FName("Tilt"))
+			{
+				OutMatrixAttributeNames.Add(FName("Tilt"));
+			}
+		}
+	}
+}
+
 void ADMXFixtureActorMatrix::InitializeMatrixFixture()
 {
 	UDMXEntityFixturePatch* FixturePatch = DMX->GetFixturePatch();

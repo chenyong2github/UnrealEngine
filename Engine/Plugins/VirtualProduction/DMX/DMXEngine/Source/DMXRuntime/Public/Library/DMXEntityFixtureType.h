@@ -313,11 +313,14 @@ public:
 
 
 public:
-#if WITH_EDITOR
+	/** Sets the GDTF for this Fixture Type. Note, this clears the fixture type so that the Fixture Type reflects the GDTF. Merging is not supported. */
 	UFUNCTION(BlueprintCallable, Category = "Fixture Settings")
+	void SetGDTF(UDMXImportGDTF* DMXImportAsset);
+
+	UE_DEPRECATED(5.1, "Deprecated in favor of more clearly named member function SetGDTFAsset. Only supports the functional UDMXImportGDTF now.")
+	UFUNCTION(BlueprintCallable, Category = "Fixture Settings", Meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 5.1. Please use the more clearly named SetGDTFAsset instead."))
 	void SetModesFromDMXImport(UDMXImport* DMXImportAsset);
-#endif // WITH_EDITOR
-	
+
 	/** Returns a delegate that is and should be broadcast whenever a Fixture Type changed */
 	static FDMXOnFixtureTypeChangedDelegate& GetOnFixtureTypeChanged();
 

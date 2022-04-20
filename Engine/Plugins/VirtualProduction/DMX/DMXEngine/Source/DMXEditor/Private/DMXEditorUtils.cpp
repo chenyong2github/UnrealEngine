@@ -5,7 +5,6 @@
 #include "DMXEditorLog.h"
 #include "DMXRuntimeUtils.h"
 #include "DMXSubsystem.h"
-#include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXPortManager.h"
@@ -15,12 +14,14 @@
 
 #include "AssetRegistryModule.h"
 #include "Factories.h"
+#include "PackageTools.h"
 #include "ScopedTransaction.h"
 #include "UnrealExporter.h"
 #include "Dialogs/Dialogs.h"
 #include "Exporters/Exporter.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "UObject/Package.h"
+
 
 #define LOCTEXT_NAMESPACE "FDMXEditorUtils"
 // In blueprints name verification, it is said that '.' is known for causing problems
@@ -993,5 +994,36 @@ void FDMXEditorUtils::ClearFixturePatchCachedData()
 		}
 	}
 }
+
+UPackage* FDMXEditorUtils::GetOrCreatePackage(TWeakObjectPtr<UObject> Parent, const FString& DesiredName)
+{
+	UPackage* Package = nullptr;
+	FString NewPackageName;
+
+	if (Parent.IsValid() && Parent->IsA(UPackage::StaticClass()))
+	{
+		Package = StaticCast<UPackage*>(Parent.Get());
+	}
+
+	if (!Package)
+	{
+		if (Parent.IsValid() && Parent->GetOutermost())
+		{
+			NewPackageName = FPackageName::GetLongPackagePath(Parent->GetOutermost()->GetName()) + "/" + DesiredName;
+		}
+		else
+		{
+			return nullptr;
+		}
+
+		NewPackageName = UPackageTools::SanitizePackageName(NewPackageName);
+		Package = CreatePackage(*NewPackageName);
+		Package->FullyLoad();
+	}
+
+	return Package;
+}
+
+#undef DMX_INVALID_NAME_CHARACTERS
 
 #undef LOCTEXT_NAMESPACE

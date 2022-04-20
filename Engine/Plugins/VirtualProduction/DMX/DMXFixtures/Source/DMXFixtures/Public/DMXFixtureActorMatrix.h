@@ -23,6 +23,9 @@ protected:
 #endif
 
 public:
+	//~ Begin DMXGDTFActorInterface interface
+	virtual void OnMVRGetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames, TArray<FName>& OutMatrixAttributeNames) const override;
+	//~ End DMXGDTFActorInterface interface
 
 	TArray<uint8> MatrixData;
 	int MatrixDataSize;

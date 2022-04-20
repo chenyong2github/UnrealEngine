@@ -11,6 +11,15 @@ UDMXFixtureComponentDouble::UDMXFixtureComponentDouble()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
+void UDMXFixtureComponentDouble::GetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames)
+{
+	if (bIsEnabled)
+	{
+		OutAttributeNames.Add(DMXChannel1.Name.Name);
+		OutAttributeNames.Add(DMXChannel2.Name.Name);
+	}
+}
+
 void UDMXFixtureComponentDouble::Initialize()
 {
 	Super::Initialize();

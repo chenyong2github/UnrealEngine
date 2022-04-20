@@ -300,20 +300,20 @@ void UDMXEntityFixtureType::PostEditUndo()
 }
 #endif // WITH_EDITOR
 
-#if WITH_EDITOR
-void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
+void UDMXEntityFixtureType::SetGDTF(UDMXImportGDTF* GDTFAsset)
 {
-	if (DMXImportAsset == nullptr || !DMXImportAsset->IsValidLowLevelFast())
+	if (!IsValid(GDTFAsset))
 	{
 		return;
 	}
 
-	if (UDMXImportGDTFDMXModes* GDTFDMXModes = Cast<UDMXImportGDTFDMXModes>(DMXImportAsset->DMXModes))
+	DMXImport = GDTFAsset;
+	if (UDMXImportGDTFDMXModes* GDTFDMXModes = Cast<UDMXImportGDTFDMXModes>(DMXImport->DMXModes))
 	{
 		// Clear existing modes
-		Modes.Empty(DMXImportAsset->DMXModes != nullptr ? GDTFDMXModes->DMXModes.Num() : 0);
+		Modes.Empty(DMXImport->DMXModes != nullptr ? GDTFDMXModes->DMXModes.Num() : 0);
 
-		if (DMXImportAsset->DMXModes == nullptr)
+		if (DMXImport->DMXModes == nullptr)
 		{
 			return;
 		}
@@ -435,7 +435,17 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 
 	OnFixtureTypeChangedDelegate.Broadcast(this);
 }
-#endif // WITH_EDITOR
+
+void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
+{
+	UDMXImportGDTF* GDTFAsset = Cast<UDMXImportGDTF>(DMXImportAsset);
+	if (!ensureAlwaysMsgf(GDTFAsset, TEXT("DMXImportAsset %s is not a DMXImportGDTF type, this was never supported. Cannot SetModesFromDMXImport"), *DMXImportAsset->GetName()))
+	{
+		return;
+	}
+
+	SetGDTF(GDTFAsset);
+}
 
 FDMXOnFixtureTypeChangedDelegate& UDMXEntityFixtureType::GetOnFixtureTypeChanged()
 {

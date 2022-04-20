@@ -148,6 +148,9 @@ public:
 	/** Clears cached data fixture patches received */
 	static void ClearFixturePatchCachedData();
 
+	/** Gets the package or creates a new one if it doesn't exist */
+	static UPackage* GetOrCreatePackage(TWeakObjectPtr<UObject> Parent, const FString& DesiredName);
+
 	// can't instantiate this class
 	FDMXEditorUtils() = delete;
 };

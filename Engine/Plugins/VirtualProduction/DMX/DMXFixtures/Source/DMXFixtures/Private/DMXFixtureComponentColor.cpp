@@ -9,6 +9,17 @@ UDMXFixtureComponentColor::UDMXFixtureComponentColor()
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
+void UDMXFixtureComponentColor::GetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames)
+{
+	if (bIsEnabled)
+	{
+		OutAttributeNames.Add(DMXChannel1.Name);
+		OutAttributeNames.Add(DMXChannel2.Name);
+		OutAttributeNames.Add(DMXChannel3.Name);
+		OutAttributeNames.Add(DMXChannel4.Name);
+	}
+}
+
 void UDMXFixtureComponentColor::Initialize()
 {
 	Super::Initialize();
