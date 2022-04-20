@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using EpicGames.Core;
+using EpicGames.UHT.Utils;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
@@ -19,7 +20,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 28;
+		public const int CurrentVersion = 29;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -75,6 +76,21 @@ namespace UnrealBuildTool
 		/// Whether the project has a script plugin. UHT needs to know this to detect which manifest to use for checking out-of-datedness.
 		/// </summary>
 		public bool bHasProjectScriptPlugin;
+
+		/// <summary>
+		/// If true, there exists script plugins that don't have a matching UBT plugin
+		/// </summary>
+		public bool bHasRequiredProjectScriptPlugin;
+
+		/// <summary>
+		/// Collection of UBT C# plugins (project file)
+		/// </summary>
+		public FileReference[]? UbtPlugins;
+
+		/// <summary>
+		/// Collection of UHT C# plugins (target assembly file)
+		/// </summary>
+		public FileReference[]? UhtPlugins;
 
 		/// <summary>
 		/// The array of command-line arguments. The makefile will be invalidated whenever these change.
@@ -195,7 +211,12 @@ namespace UnrealBuildTool
 		/// <param name="ConfigValueTracker">Set of dependencies on config files</param>
 		/// <param name="bDeployAfterCompile">Whether to deploy the target after compiling</param>
 		/// <param name="bHasProjectScriptPlugin">Whether the target has a project script plugin</param>
-		public TargetMakefile(string ExternalMetadata, FileReference ExecutableFile, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, bool bHasProjectScriptPlugin)
+		/// <param name="bHasRequiredProjectScriptPlugin">If true, we have a script plugin without a matching UBT plugin</param>
+		/// <param name="UbtPlugins">Collection of UBT plugins</param>
+		/// <param name="UhtPlugins">Collection of UBT plugins for UHT</param>
+		public TargetMakefile(string ExternalMetadata, FileReference ExecutableFile, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, 
+			TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, bool bHasProjectScriptPlugin,
+			bool bHasRequiredProjectScriptPlugin, FileReference[]? UbtPlugins, FileReference[]? UhtPlugins)
 		{
 			this.CreateTimeUtc = UnrealBuildTool.StartTimeUtc;
 			this.ModifiedTimeUtc = CreateTimeUtc;
@@ -208,6 +229,9 @@ namespace UnrealBuildTool
 			this.ConfigValueTracker = ConfigValueTracker;
 			this.bDeployAfterCompile = bDeployAfterCompile;
 			this.bHasProjectScriptPlugin = bHasProjectScriptPlugin;
+			this.bHasRequiredProjectScriptPlugin = bHasRequiredProjectScriptPlugin;
+			this.UbtPlugins = UbtPlugins;
+			this.UhtPlugins = UhtPlugins;
 			this.Actions = new List<IExternalAction>();
 			this.OutputItems = new List<FileItem>();
 			this.ModuleNameToOutputItems = new Dictionary<string, FileItem[]>(StringComparer.OrdinalIgnoreCase);
@@ -244,6 +268,9 @@ namespace UnrealBuildTool
 			ConfigValueTracker = new ConfigValueTracker(Reader);
 			bDeployAfterCompile = Reader.ReadBool();
 			bHasProjectScriptPlugin = Reader.ReadBool();
+			bHasRequiredProjectScriptPlugin = Reader.ReadBool();
+			UbtPlugins = Reader.ReadArray(() => Reader.ReadFileReference())!;
+			UhtPlugins = Reader.ReadArray(() => Reader.ReadFileReference())!;
 			AdditionalArguments = Reader.ReadArray(() => Reader.ReadString())!;
 			UHTAdditionalArguments = Reader.ReadArray(() => Reader.ReadString())!;
 			PreBuildScripts = Reader.ReadArray(() => Reader.ReadFileReference())!;
@@ -284,6 +311,9 @@ namespace UnrealBuildTool
 			ConfigValueTracker.Write(Writer);
 			Writer.WriteBool(bDeployAfterCompile);
 			Writer.WriteBool(bHasProjectScriptPlugin);
+			Writer.WriteBool(bHasRequiredProjectScriptPlugin);
+			Writer.WriteArray(UbtPlugins, Item => Writer.WriteFileReference(Item));
+			Writer.WriteArray(UhtPlugins, Item => Writer.WriteFileReference(Item));
 			Writer.WriteArray(AdditionalArguments, Item => Writer.WriteString(Item));
 			Writer.WriteArray(UHTAdditionalArguments, Item => Writer.WriteString(Item));
 			Writer.WriteArray(PreBuildScripts, Item => Writer.WriteFileReference(Item));
@@ -338,6 +368,7 @@ namespace UnrealBuildTool
 		/// <returns>The loaded makefile, or null if it failed for some reason.  On failure, the 'ReasonNotLoaded' variable will contain information about why</returns>
 		public static TargetMakefile? Load(FileReference MakefilePath, FileReference? ProjectFile, UnrealTargetPlatform Platform, string[] Arguments, out string? ReasonNotLoaded)
 		{
+			(FileReference ProjectFile, FileReference TargetAssembly)[]? Plugins;
 			FileInfo MakefileInfo;
 			using (GlobalTracer.Instance.BuildSpan("Checking dependent timestamps").StartActive())
 			{
@@ -383,6 +414,16 @@ namespace UnrealBuildTool
 					return null;
 				}
 
+				// Check to see if EpicGames.UHT was compiled more recently than the makefile
+				DateTime UhtTimestamp = new FileInfo(typeof(UhtSession).Assembly.Location).LastWriteTime;
+				if (MakefileInfo.LastWriteTime.CompareTo(UhtTimestamp) < 0)
+				{
+					// UnrealBuildTool was compiled more recently than the makefile
+					Log.TraceLog("Makefile is older than EpicGames.UHT assembly, ignoring it");
+					ReasonNotLoaded = "EpicGames.UHT assembly is newer";
+					return null;
+				}
+
 				// Check to see if any BuildConfiguration files have changed since the last build
 				foreach (XmlConfig.InputFile InputFile in XmlConfig.InputFiles)
 				{
@@ -391,6 +432,33 @@ namespace UnrealBuildTool
 					{
 						Log.TraceLog("Makefile is older than BuildConfiguration.xml, ignoring it");
 						ReasonNotLoaded = "BuildConfiguration.xml is newer";
+						return null;
+					}
+				}
+
+				// Check for any out of date UBT plugins
+				{
+					if (PluginsBase.EnumerateUbtPlugins(ProjectFile, out Plugins))
+					{
+						if (Plugins != null)
+						{
+							foreach ((FileReference ProjectFile, FileReference TargetAssembly) Plugin in Plugins)
+							{
+								DateTime PluginTimestamp = new FileInfo(Plugin.TargetAssembly.FullName).LastWriteTime;
+								if (MakefileInfo.LastWriteTime.CompareTo(PluginTimestamp) < 0)
+								{
+									// UnrealBuildTool was compiled more recently than the makefile
+									Log.TraceLog($"Makefile is older than {Plugin.TargetAssembly.GetFileNameWithoutExtension()} UBT plugin assembly, ignoring it");
+									ReasonNotLoaded = "UBT plugin assembly is newer";
+									return null;
+								}
+							}
+						}
+					}
+					else
+					{
+						Log.TraceLog($"Error collecting plugins");
+						ReasonNotLoaded = "Error collecting plugins";
 						return null;
 					}
 				}
@@ -455,6 +523,24 @@ namespace UnrealBuildTool
 					Log.TraceLog("New metadata:\n", CurrentExternalMetadata);
 					ReasonNotLoaded = "build metadata has changed";
 					return null;
+				}
+
+				// Check to see if the number of plugins changed
+				{
+					// Make sure the list of plugins hasn't changed
+					int NewCount = Plugins != null ? Plugins.Length : 0;
+					int OldCount = Makefile.UbtPlugins != null ? Makefile.UbtPlugins.Length : 0;
+					bool bSame = NewCount == OldCount;
+					if (bSame && Plugins != null)
+					{
+						bSame = Enumerable.SequenceEqual(Plugins.Select(P => P.ProjectFile), Makefile.UbtPlugins!);
+					}
+					if (!bSame)
+					{
+						Log.TraceLog("Available UBT plugins changed");
+						ReasonNotLoaded = "Available UBT plugins changed";
+						return null;
+					}
 				}
 			}
 

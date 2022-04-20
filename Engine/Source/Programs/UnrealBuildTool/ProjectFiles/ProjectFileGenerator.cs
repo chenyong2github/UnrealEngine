@@ -430,9 +430,10 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Adds all .automation.csproj files to the solution.
+		/// Adds all rules project files to the solution.
 		/// </summary>
-		void AddAutomationModules(List<FileReference> UnrealProjectFiles, PrimaryProjectFolder RootFolder, PrimaryProjectFolder ProgramsFolder)
+		void AddRulesModules(Rules.RulesFileType RulesFileType, string ProgramSubDirectory, List<ProjectFile> AddedProjectFiles, 
+			List<FileReference> UnrealProjectFiles, PrimaryProjectFolder RootFolder, PrimaryProjectFolder ProgramsFolder)
 		{
 			List<DirectoryReference> BuildFolders = new List<DirectoryReference>();
 			foreach (FileReference UnrealProjectFile in UnrealProjectFiles)
@@ -444,11 +445,11 @@ namespace UnrealBuildTool
 				}
 			}
 
-			PrimaryProjectFolder AutomationFolder = ProgramsFolder.AddSubFolder("Automation");
+			PrimaryProjectFolder Folder = ProgramsFolder.AddSubFolder(ProgramSubDirectory);
 			DirectoryReference SamplesDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Samples");
 
-			// Find all the automation modules .csproj files to add
-			List<FileReference> ModuleFiles = Rules.FindAllRulesSourceFiles(Rules.RulesFileType.AutomationModule, null, ForeignPlugins: null, AdditionalSearchPaths: BuildFolders);
+			// Find all the modules .csproj files to add
+			List<FileReference> ModuleFiles = Rules.FindAllRulesSourceFiles(RulesFileType, null, ForeignPlugins: null, AdditionalSearchPaths: BuildFolders);
 			foreach (FileReference ProjectFile in ModuleFiles)
 			{
 				if (FileReference.Exists(ProjectFile))
@@ -457,12 +458,12 @@ namespace UnrealBuildTool
 
 					Project.ShouldBuildForAllSolutionTargets = false;//true;
 					AddExistingProjectFile(Project, bForceDevelopmentConfiguration: true);
-					AutomationProjectFiles.Add(Project);
+					AddedProjectFiles.Add(Project);
 
 					if (!ProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
 					{
 						FileReference PropsFile = new FileReference(ProjectFile.FullName + ".props");
-						CreateAutomationProjectPropsFile(PropsFile);
+						CreateProjectPropsFile(PropsFile);
 
 						if (ProjectFile.IsUnderDirectory(SamplesDirectory))
 						{
@@ -475,7 +476,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						AutomationFolder.ChildProjects.Add(Project);
+						Folder.ChildProjects.Add(Project);
 					}
 				}
 			}
@@ -512,10 +513,10 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Creates a .props file next to each automation project which specifies the path to the engine directory
+		/// Creates a .props file next to each project which specifies the path to the engine directory
 		/// </summary>
 		/// <param name="PropsFile">The properties file path</param>
-		void CreateAutomationProjectPropsFile(FileReference PropsFile)
+		void CreateProjectPropsFile(FileReference PropsFile)
 		{
 			using (FileStream Stream = FileReference.Open(PropsFile, FileMode.Create, FileAccess.Write, FileShare.Read))
 			{
@@ -1078,7 +1079,10 @@ namespace UnrealBuildTool
 						ProgramsFolder.ChildProjects.Add(AutomationToolProject);
 
 					// Add automation.csproj files to the primary project
-					AddAutomationModules(AllGameProjects, RootFolder, ProgramsFolder);
+					AddRulesModules(Rules.RulesFileType.AutomationModule, "Automation", AutomationProjectFiles, AllGameProjects, RootFolder, ProgramsFolder);
+
+					// Add ubtplugin.csproj files to the primary project
+					AddRulesModules(Rules.RulesFileType.UbtPlugin, "UnrealBuildTool.Plugins", UbtPluginProjectFiles, AllGameProjects, RootFolder, ProgramsFolder);
 
 					// Add shared projects
 					AddSharedDotNetModules(AllEngineDirectories, ProgramsFolder);
@@ -3047,6 +3051,8 @@ namespace UnrealBuildTool
 		protected readonly List<ProjectFile> OtherProjectFiles = new List<ProjectFile>();
 
 		protected readonly List<ProjectFile> AutomationProjectFiles = new List<ProjectFile>();
+
+		protected readonly List<ProjectFile> UbtPluginProjectFiles = new List<ProjectFile>();
 
 		/// List of top-level folders in the primary project file
 		protected PrimaryProjectFolder RootFolder;

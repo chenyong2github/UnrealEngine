@@ -99,5 +99,60 @@ namespace UnrealBuildBase
 				}
 			}
 		}
+
+		/// <summary>
+		/// Enumerates all the UBT plugin files available to the given project
+		/// </summary>
+		/// <param name="ProjectFile">Path to the project file</param>
+		/// <param name="Plugins">Collection of found plugins</param>
+		/// <returns>True if the plugins compiled</returns>
+		public static bool EnumerateUbtPlugins(FileReference? ProjectFile, out (FileReference ProjectFile, FileReference TargetAssembly)[]? Plugins)
+		{
+			bool bBuildSuccess = true;
+			Plugins = null;
+
+			List<DirectoryReference> PluginDirectories = new List<DirectoryReference>();
+			PluginDirectories.AddRange(Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source"));
+			PluginDirectories.AddRange(Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Plugins"));
+			if (ProjectFile != null)
+			{
+				PluginDirectories.AddRange(Unreal.GetExtensionDirs(ProjectFile.Directory, "Source"));
+				PluginDirectories.AddRange(Unreal.GetExtensionDirs(ProjectFile.Directory, "Plugins"));
+				PluginDirectories.AddRange(Unreal.GetExtensionDirs(ProjectFile.Directory, "Mods"));
+			}
+
+			// Scan for UBT plugin projects
+			HashSet<FileReference> ScannedPlugins = new HashSet<FileReference>(UnrealBuildBase.Rules.FindAllRulesFiles(
+				PluginDirectories, UnrealBuildBase.Rules.RulesFileType.UbtPlugin));
+
+			// Build the located plugins
+			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordFile)>? BuiltPlugins = null;
+			if (ScannedPlugins.Count > 0)
+			{
+				List<DirectoryReference> BaseDirectories = new List<DirectoryReference>(2);
+				BaseDirectories.Add(Unreal.EngineDirectory);
+				if (ProjectFile != null)
+				{
+					BaseDirectories.Add(ProjectFile.Directory);
+				}
+
+				BuiltPlugins = CompileScriptModule.Build(UnrealBuildBase.Rules.RulesFileType.UbtPlugin, ScannedPlugins, BaseDirectories, false, false, true, out bBuildSuccess,
+					Count =>
+					{
+						if (Log.OutputFile != null)
+						{
+							Log.TraceInformation($"Building {Count} plugins (see Log '{Log.OutputFile}' for more details)");
+						}
+						else
+						{
+							Log.TraceInformation($"Building {Count} plugins");
+						}
+					}
+				);
+
+				Plugins = BuiltPlugins.Select(P => (P.Key, CompileScriptModule.GetTargetPath(P))).OrderBy(X => X.Key.FullName).ToArray();
+			}
+			return bBuildSuccess;
+		}
 	}
 }

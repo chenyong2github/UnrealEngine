@@ -16,6 +16,7 @@ using EpicGames.Core;
 using System.Reflection;
 using OpenTracing.Util;
 using UnrealBuildBase;
+using EpicGames.UHT.Utils;
 
 namespace UnrealBuildTool
 {
@@ -1060,6 +1061,11 @@ namespace UnrealBuildTool
 		public bool bHasProjectScriptPlugin;
 
 		/// <summary>
+		/// If true, then a script plugin was found that didn't have a matching UBT plugin
+		/// </summary>
+		public bool bHasRequiredProjectScriptPlugin;
+
+		/// <summary>
 		/// All plugins which are built for this target
 		/// </summary>
 		public List<UEBuildPlugin>? BuildPlugins;
@@ -1073,6 +1079,16 @@ namespace UnrealBuildTool
 		/// Specifies the path to a specific plugin to compile.
 		/// </summary>
 		public FileReference? ForeignPlugin;
+
+		/// <summary>
+		/// Collection of all UBT plugin project files
+		/// </summary>
+		public List<FileReference>? UbtPlugins;
+
+		/// <summary>
+		/// Collection of all located UHT plugin assemblies
+		/// </summary>
+		public List<FileReference>? UhtPlugins;
 
 		/// <summary>
 		/// All application binaries; may include binaries not built by this target.
@@ -1793,7 +1809,8 @@ namespace UnrealBuildTool
 
 			// Create the makefile
 			string ExternalMetadata = UEBuildPlatform.GetBuildPlatform(Platform).GetExternalBuildMetadata(ProjectFile);
-			TargetMakefile Makefile = new TargetMakefile(ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, ProjectIntermediateDirectory, TargetType, Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin);
+			TargetMakefile Makefile = new TargetMakefile(ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, ProjectIntermediateDirectory, TargetType, 
+				Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin, bHasRequiredProjectScriptPlugin, UbtPlugins?.ToArray(), UhtPlugins?.ToArray());
 
 			// Get diagnostic info to be printed before each build
 			TargetToolChain.GetVersionInfo(Makefile.Diagnostics);
@@ -3414,6 +3431,9 @@ namespace UnrealBuildTool
 
 			// Set the list of plugins that should be built
 			BuildPlugins = new List<UEBuildPlugin>(NameToInstance.Values);
+
+			// Setup the UHT plugins
+			SetupUbtPlugins();
 		}
 
 		/// <summary>
@@ -3506,12 +3526,6 @@ namespace UnrealBuildTool
 					return null;
 				}
 
-				// If this plugin supports UHT, flag that we need to pass the project file to UHT when generating headers
-				if (Info.Descriptor.SupportedPrograms != null && Info.Descriptor.SupportedPrograms.Contains("UnrealHeaderTool"))
-				{
-					bHasProjectScriptPlugin = true;
-				}
-
 				// Disable any plugins that aren't compatible with this program
 				if (Rules.Type == TargetType.Program && (Info.Descriptor.SupportedPrograms == null || !Info.Descriptor.SupportedPrograms.Contains(AppName)))
 				{
@@ -3596,6 +3610,69 @@ namespace UnrealBuildTool
 			else
 			{
 				return false;
+			}
+		}
+
+		/// <summary>
+		/// Scan for UBT plugins.  This also detects if the current target has a C++ style UHT that don't have
+		/// an associated UBT/UHT plugin.  When this happens, the old UHT must be used.
+		/// </summary>
+		private void SetupUbtPlugins()
+		{
+			if (BuildPlugins == null)
+			{
+				throw new BuildException("Build plugins has not be populated");
+			}
+
+			// Collect the plugins
+			(FileReference ProjectFile, FileReference TargetAssembly)[]? BuiltPlugins;
+			if (!PluginsBase.EnumerateUbtPlugins(ProjectFile, out BuiltPlugins))
+			{
+				throw new BuildException("One or more UBT plugins failed to compile.");
+			}
+
+			// Save the collection
+			if (BuiltPlugins != null)
+			{
+				UbtPlugins = BuiltPlugins.Select(P => P.ProjectFile).ToList();
+			}
+
+			// For all the plugins 
+			foreach (UEBuildPlugin Plugin in BuildPlugins)
+			{
+				PluginInfo Info = Plugin.Info;
+
+				// Check to see if this plugin has an associated UBT plugin
+				bool bUbtPluginFound = false;
+				if (BuiltPlugins != null)
+				{
+					foreach ((FileReference ProjectFile, FileReference TargetAssembly) BuiltPlugin in BuiltPlugins)
+					{
+						if (BuiltPlugin.ProjectFile.IsUnderDirectory(Info.Directory))
+						{
+							if (UhtTables.IsUhtPlugin(BuiltPlugin.TargetAssembly.FullName))
+							{
+								if (UhtPlugins == null)
+								{
+									UhtPlugins = new List<FileReference>();
+								}
+								UhtPlugins.Add(BuiltPlugin.TargetAssembly);
+								bUbtPluginFound = true;
+								break;
+							}
+						}
+					}
+				}
+
+				// If this plugin supports UHT, flag that we need to pass the project file to UHT when generating headers
+				if (Info.Descriptor.SupportedPrograms != null && Info.Descriptor.SupportedPrograms.Contains("UnrealHeaderTool"))
+				{
+					bHasProjectScriptPlugin = true;
+					if (!bUbtPluginFound)
+					{
+						bHasRequiredProjectScriptPlugin = true;
+					}
+				}
 			}
 		}
 
