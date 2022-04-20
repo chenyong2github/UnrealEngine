@@ -1293,6 +1293,12 @@ void FD3D12Adapter::Cleanup()
 		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	}
 
+	// Release allocation data of all thread local transient uniform buffer allocators
+	for (FD3D12FastConstantAllocator* Allocator : TransientUniformBufferAllocators)
+	{
+		Allocator->Cleanup();
+	}
+
 	// Cleanup resources
 	DeferredDeletionQueue.ReleaseResources(true, true);
 
@@ -1541,15 +1547,35 @@ FD3D12FastConstantAllocator& FD3D12Adapter::GetTransientUniformBufferAllocator()
 {
 	class FTransientUniformBufferAllocator : public FD3D12FastConstantAllocator, public TThreadSingleton<FTransientUniformBufferAllocator>
 	{
-		using FD3D12FastConstantAllocator::FD3D12FastConstantAllocator;
+	public:
+		FTransientUniformBufferAllocator(FD3D12Adapter* InAdapter, FD3D12Device* Parent, FRHIGPUMask VisibiltyMask) : FD3D12FastConstantAllocator(Parent, VisibiltyMask), Adapter(InAdapter) {}
+		~FTransientUniformBufferAllocator()
+		{
+			Adapter->ReleaseTransientUniformBufferAllocator(this);
+		}
+	private:
+		FD3D12Adapter* Adapter;
 	};
 
 	// Multi-GPU support : is using device 0 always appropriate here?
 	return FTransientUniformBufferAllocator::Get([this]() -> FTransientUniformBufferAllocator*
 	{
-		FTransientUniformBufferAllocator* Alloc = new FTransientUniformBufferAllocator(Devices[0], FRHIGPUMask::All());
+		FTransientUniformBufferAllocator* Alloc = new FTransientUniformBufferAllocator(this, Devices[0], FRHIGPUMask::All());
+
+		// Register so the underlying resource location can be freed during adapter cleanup instead of when thread local allocation is destroyed
+		{
+			FScopeLock Lock(&TransientUniformBufferAllocatorsCS);
+			TransientUniformBufferAllocators.Add(Alloc);
+		}
+
 		return Alloc;
 	});
+}
+
+void FD3D12Adapter::ReleaseTransientUniformBufferAllocator(FD3D12FastConstantAllocator* InAllocator)
+{
+	FScopeLock Lock(&TransientUniformBufferAllocatorsCS);
+	verify(TransientUniformBufferAllocators.Remove(InAllocator) == 1);
 }
 
 void FD3D12Adapter::UpdateMemoryInfo()
