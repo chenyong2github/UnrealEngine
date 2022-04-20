@@ -334,6 +334,7 @@ public:
 	virtual void UpdateUsingMeshChange(const UE::Geometry::FDynamicMeshChange& MeshChange, bool bRevert);
 	virtual bool IsInDefaultMode() const;
 	virtual void RevertToDefaultMode();
+	virtual void SetChangesMade(bool bChangesMadeIn);
 
 	// IClickDragBehaviorTarget
 	virtual FInputRayHit CanBeginClickDragSequence(const FInputDeviceRay& PressPos) override;
