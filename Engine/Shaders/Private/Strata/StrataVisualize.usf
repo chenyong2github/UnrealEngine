@@ -513,7 +513,7 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 float4 GetBackgroundCheckboardColor(float2 UV)
 {
 	const float Count = 16.0f;
-	int2 UVi = int2(UV * Count);
+	uint2 UVi = uint2(UV * Count);
 	bool bIsBlack = (UVi.x % 2) > 0 ? true : false;
 	bIsBlack = (UVi.y % 2) > 0 ? !bIsBlack : bIsBlack;
 	const float3 Color = (bIsBlack ? 0.04 : 0.18);
@@ -691,6 +691,14 @@ void MaterialDebugStrataTreePS(
 
 		float2 Pos = float2(100.0f, 100.0f);
 		const float SphereSize = 200.0f;
+
+		// STRATA_TODO: read BSDF and Operators "on the fly".
+#if COMPILER_DXC == 1
+		LOOP
+#else
+		StrataTree.BSDFCount = min(StrataTree.BSDFCount, 2); 
+		STRATA_UNROLL_N(2)
+#endif
 		for (int i = 0; i < StrataTree.BSDFCount; i++)
 		{
 			GetMaterialOnSphere(

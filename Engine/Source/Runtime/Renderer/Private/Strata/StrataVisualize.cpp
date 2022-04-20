@@ -7,6 +7,7 @@
 #include "ShaderCompiler.h"
 #include "PixelShaderUtils.h"
 #include "BasePassRendering.h"
+#include "IndirectLightRendering.h"
 
 
 static TAutoConsoleVariable<int32> CVarStrataClassificationDebug(
@@ -152,7 +153,6 @@ class FMaterialDebugStrataTreeCS : public FGlobalShader
 
 		// Stay debug and skip optimizations to reduce compilation time on this long shader.
 		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
-		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 		OutEnvironment.SetDefine(TEXT("SHADER_DEBUGSTRATATREE_TEST_CS"), 1);
 	}
 };
@@ -171,6 +171,7 @@ class FMaterialDebugStrataTreePS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyDiffuseLightingParameters, SkyDiffuseLighting)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -273,6 +274,10 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 					PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 					PassParameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 					PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+
+					const float DynamicBentNormalAO = 0.0f;
+					FSkyLightSceneProxy* NullSkyLight = nullptr;
+					PassParameters->SkyDiffuseLighting = GetSkyDiffuseLightingParameters(NullSkyLight, DynamicBentNormalAO);
 
 					FMaterialDebugStrataTreePS::FPermutationDomain PermutationVector;
 					TShaderMapRef<FMaterialDebugStrataTreePS> PixelShader(View.ShaderMap, PermutationVector);
