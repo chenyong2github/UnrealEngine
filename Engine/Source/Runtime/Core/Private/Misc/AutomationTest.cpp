@@ -1199,6 +1199,24 @@ void FAutomationTestBase::AddExpectedError(FString ExpectedErrorPattern, EAutoma
 	}
 }
 
+uint32 FAutomationTestBase::ExtractAutomationTestFlags(FString InTagNotation)
+{
+	uint32 Result = 0;
+	TArray<FString> OutputParts;
+	InTagNotation
+		.Replace(TEXT("["), TEXT(""))
+		.Replace(TEXT("]"), TEXT(";"))
+		.ParseIntoArray(OutputParts, TEXT(";"), true);
+	for (auto it = OutputParts.begin(); it != OutputParts.end(); ++it)
+	{
+		if (FStringToEAutomationTestFlagMap.Contains(*it))
+		{
+			Result |= FStringToEAutomationTestFlagMap[*it];
+		}
+	}
+	return Result;
+}
+
 void FAutomationTestBase::GetExpectedErrors(TArray<FAutomationExpectedError>& OutInfo) const
 {
 	OutInfo = ExpectedErrors;

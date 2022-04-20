@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "TestHarness.h"
 
 #include "CoreMinimal.h"
@@ -129,3 +131,4 @@ private:
 	static thread_local uint32 NumReads;
 };
 
+#endif

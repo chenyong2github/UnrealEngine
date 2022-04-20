@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "Misc/StringBuilder.h"
 
 #include "Containers/UnrealString.h"
@@ -279,3 +281,5 @@ TEST_CASE("Core::String::StringBuilder", "[Core][String][Smoke]")
 		CHECK(Builder == ANSITEXTVIEW(""));
 	}
 }
+
+#endif

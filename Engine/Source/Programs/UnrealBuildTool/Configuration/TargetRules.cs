@@ -39,7 +39,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Program (standalone program, e.g. ShaderCompileWorker.exe, can be modular or monolithic depending on the program)
 		/// </summary>
-		Program,
+		Program
 	}
 
 	/// <summary>
@@ -274,20 +274,17 @@ namespace UnrealBuildTool
 
 		private readonly string DefaultName;
 
-		private TestTargetRules? TestTargetRules;
-
 		/// <summary>
-		/// Create and return test target executable on demand for this target and its dependencies' tests.
+		/// Whether this is a low level tests target.
 		/// </summary>
-		public TestTargetRules CreateOrGetTestTarget()
+		public bool IsTestTarget
 		{
-			if (TestTargetRules == null)
-			{
-				TargetInfo TestsTargetInfo = new TargetInfo(Name + TargetDescriptor.TEST_TARGETS_SUFFIX, Platform, Configuration, Architecture, ProjectFile, null);
-				TestTargetRules = new TestTargetRules(this, TestsTargetInfo);
-			}
-			return TestTargetRules;	
+			get { return bIsTestTargetOverride ?? false; }
 		}
+		/// <summary>
+		/// Override this boolean flag in inheriting classes for low level test targets.
+		/// </summary>
+		protected bool? bIsTestTargetOverride;
 
 		/// <summary>
 		/// File containing the general type for this target (not including platform/group)
@@ -429,18 +426,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-AllModules")]
 		public bool bBuildAllModules = false;
-
-		/// <summary>
-		/// Decides whether to compile with all the "Tests" folders from all dependent modules.
-		/// </summary>
-		public bool bIncludeAllTests
-		{
-			get { return bIncludeAllTestsOverride ?? false; }
-		}
-		/// <summary>
-		/// Set this override to true in derived target classes to compile with all the "Tests" folders from all dependent modules.
-		/// </summary>
-		protected bool? bIncludeAllTestsOverride;
 
 		/// <summary>
 		/// Set this to reference a VSTest run settings file from generated projects.
@@ -1887,16 +1872,16 @@ namespace UnrealBuildTool
 			{
 				GlobalDefinitions.Add("UE_GAME=1");
 			}
-			else if(Type == global::UnrealBuildTool.TargetType.Client)
+			else if (Type == global::UnrealBuildTool.TargetType.Client)
 			{
 				GlobalDefinitions.Add("UE_GAME=1");
 				GlobalDefinitions.Add("UE_CLIENT=1");
 			}
-			else if(Type == global::UnrealBuildTool.TargetType.Editor)
+			else if (Type == global::UnrealBuildTool.TargetType.Editor)
 			{
 				GlobalDefinitions.Add("UE_EDITOR=1");
 			}
-			else if(Type == global::UnrealBuildTool.TargetType.Server)
+			else if (Type == global::UnrealBuildTool.TargetType.Server)
 			{
 				GlobalDefinitions.Add("UE_SERVER=1");
 				GlobalDefinitions.Add("USE_NULL_RHI=1");
@@ -2168,19 +2153,6 @@ namespace UnrealBuildTool
 			get { return Inner.Name; }
 		}
 
-		public TestTargetRules TestTarget { get { return Inner.CreateOrGetTestTarget(); } }
-
-		public TargetRules TestedTarget {
-			get
-			{
-				if (Inner is TestTargetRules)
-				{
-					return ((TestTargetRules)Inner).TestedTarget;
-				}
-				throw new Exception("Not a test target.");
-			}
-		}
-
 		internal FileReference File
 		{
 			get { return Inner.File!; }
@@ -2286,11 +2258,6 @@ namespace UnrealBuildTool
 			get { return Inner.bBuildAllModules; }
 		}
 
-		public bool bIncludeAllTests
-		{
-			get { return Inner.bIncludeAllTests; }
-		}
-		
 		public IEnumerable<string> AdditionalPlugins
 		{
 			get { return Inner.AdditionalPlugins; }
@@ -3202,9 +3169,9 @@ namespace UnrealBuildTool
 			get { return "../Binaries/ThirdParty/"; }
 		}
 
-		public bool IsTestTarget()
+		public bool IsTestTarget
 		{
-			return Inner is TestTargetRules;
+			get { return Inner.IsTestTarget; }
 		}
 
 		/// <summary>

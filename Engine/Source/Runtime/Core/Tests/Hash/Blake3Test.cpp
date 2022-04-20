@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "Hash/Blake3.h"
 
 #include "Misc/StringBuilder.h"
@@ -59,3 +61,5 @@ TEST_CASE("Core::Hash::Blake3", "[Core][Hash][Smoke]")
 		CHECK(HashHex.ToView() == TestCase.Hash);
 	}
 }
+
+#endif

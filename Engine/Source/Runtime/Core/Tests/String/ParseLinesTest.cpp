@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "String/ParseLines.h"
 
 #include "Algo/Compare.h"
@@ -80,3 +82,5 @@ TEST_CASE("Core::String::ParseLines", "[Core][String][Smoke]")
 }
 
 } // UE::String
+
+#endif

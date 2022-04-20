@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "UObject/ObjectPtr.h"
 
 #include "ObjectRefTrackingTestBase.h"
@@ -361,3 +363,5 @@ class UForwardDeclaredObjDerived: public UObject {};
 class FForwardDeclaredNotObjDerived {};
 
 }
+
+#endif

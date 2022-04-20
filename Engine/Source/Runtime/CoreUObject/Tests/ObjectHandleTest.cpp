@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "UObject/ObjectHandle.h"
 
 #include "HAL/PlatformProperties.h"
@@ -195,3 +197,5 @@ TEST_CASE_METHOD(FObjectHandleTestBase, "CoreUObject::FObjectHandle::Resolve Mal
 	TestResolveFailure(FPackedObjectRef { 0xEFEF'EFEF'EFEF'EFEFull });
 }
 #endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+
+#endif

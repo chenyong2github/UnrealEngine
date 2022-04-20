@@ -18,9 +18,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructs a TestModuleRules object with an associated tested module.
 		/// </summary>
-		public TestModuleRules(ModuleRules TestedModule) : base(new ReadOnlyTargetRules(TestedModule.Target.TestTarget))
+		public TestModuleRules(ModuleRules TestedModule) : base(TestedModule.Target)
 		{
 			this.TestedModule = TestedModule;
+
+			bIsTestModuleOverride = true;
 
 			Name = TestedModule.Name + "Tests";
 			if (!string.IsNullOrEmpty(TestedModule.ShortName))
@@ -28,7 +30,7 @@ namespace UnrealBuildTool
 				ShortName = TestedModule.ShortName + "Tests";
 			}
 
-			File = FileReference.Combine(UnrealBuildTool.EngineSourceDirectory, "UnrealBuildTool", "Configuration", "TestModuleRules.cs");
+			File = TestedModule.File;
 			Directory = DirectoryReference.Combine(TestedModule.Directory, "Tests");
 
 			Context = TestedModule.Context;

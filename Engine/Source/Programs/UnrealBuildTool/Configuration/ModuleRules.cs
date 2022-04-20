@@ -797,21 +797,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Decides whether to include the "Tests" folder at the root of the module as part of the compilation.
-		/// By default this folder is excluded from the module's compilation.
-		/// The "Tests" folder should be reserved for low level tests but there are exceptions to this rule.
-		/// </summary>
-		public bool bBuildIncludeTestsFolder
-		{
-			get { return bBuildIncludeTestsFolderOverride ?? false; }
-		}
-		/// <summary>
-		/// Set this override to true in derived target classes to include the "Tests" folder at the root of the module in the compilation.
-		/// </summary>
-		protected bool? bBuildIncludeTestsFolderOverride;
-
-
-		/// <summary>
 		/// The number of source files in this module before unity build will be activated for that module.  If set to
 		/// anything besides -1, will override the default setting which is controlled by MinGameModuleSourceFilesForUnityBuild
 		/// </summary>
@@ -1411,6 +1396,76 @@ namespace UnrealBuildTool
 			}
 			return false;
 		}
+
+		/// <summary>
+		/// Prepares a module for building a low level tests executable.
+		/// If the target includes all tests or we're building a module as part of a test module chain, then we include the LowLevelTestsRunner dependency.
+		/// We also keep track of any Editor and Engine dependencies and add appropriate global definitions.
+		/// </summary>
+		internal void PrepareModuleForTests()
+		{
+			if (!IsTestModule && Target.IsTestTarget)
+			{
+				if (Name != "LowLevelTestsRunner" && System.IO.Directory.Exists(TestsDirectory))
+				{
+					if (!PrivateIncludePathModuleNames.Contains("LowLevelTestsRunner"))
+					{
+						PrivateIncludePathModuleNames.Add("LowLevelTestsRunner");
+					}
+				}
+				else if (Name == "LowLevelTestsRunner")
+				{
+					TestTargetRules.LowLevelTestsRunnerModule = this;
+				}
+
+				// If one of these modules is in the dependency graph, we must enable their appropriate global definitions
+				if (Name == "Editor")
+				{
+					TestTargetRules.bTestsRequireEditor = true;
+				}
+				if (Name == "Engine")
+				{
+					TestTargetRules.bTestsRequireEngine = true;
+				}
+				if (Name == "ApplicationCore")
+				{
+					TestTargetRules.bTestsRequireApplicationCore = true;
+				}
+				if (Name == "CoreUObject")
+				{
+					TestTargetRules.bTestsRequireCoreUObject = true;
+				}
+
+				if (TestTargetRules.LowLevelTestsRunnerModule != null)
+				{
+					if (TestTargetRules.bTestsRequireEditor && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Editor"))
+					{
+						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Editor");
+					}
+					if (TestTargetRules.bTestsRequireEngine && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Engine"))
+					{
+						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Engine");
+					}
+					if (TestTargetRules.bTestsRequireApplicationCore && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("ApplicationCore"))
+					{
+						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("ApplicationCore");
+					}
+					if (TestTargetRules.bTestsRequireCoreUObject && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("CoreUObject"))
+					{
+						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("CoreUObject");
+					}
+				}
+			}
+		}
+
+		internal bool IsTestModule
+		{
+			get { return bIsTestModuleOverride ?? false; }
+		}
+		/// <summary>
+		/// Whether this is a low level tests module.
+		/// </summary>
+		protected bool? bIsTestModuleOverride;
 
 		/// <summary>
 		/// Returns the module directory for a given subclass of the module (platform extensions add subclasses of ModuleRules to add in platform-specific settings)

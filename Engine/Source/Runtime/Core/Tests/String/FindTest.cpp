@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "String/Find.h"
 
 #include "Containers/StringView.h"
@@ -222,3 +224,5 @@ TEST_CASE("Core::String::Find", "[Core][String][Smoke]")
 }
 
 } // UE::String
+
+#endif

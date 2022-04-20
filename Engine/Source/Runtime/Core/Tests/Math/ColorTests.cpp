@@ -1,4 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
+#if WITH_LOW_LEVEL_TESTS
+
 #include "CoreMinimal.h"
 #include "Math/Color.h"
 #include "TestHarness.h"
@@ -63,3 +66,5 @@ TEST_CASE("Core::Math::FColor::Smoke Test", "[Core][Math][Smoke]")
 		CHECK(1 == 1);
 	}
 }
+
+#endif

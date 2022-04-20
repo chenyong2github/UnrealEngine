@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "Templates/ValueOrError.h"
 
 #include "TestHarness.h"
@@ -229,3 +231,5 @@ TEST_CASE("Core::Templates::ValueOrError", "[Core][Templates][Smoke]")
 	CHECK(ValueCount == 0);
 	CHECK(ErrorCount == 0);
 }
+
+#endif

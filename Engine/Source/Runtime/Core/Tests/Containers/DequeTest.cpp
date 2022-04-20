@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "Containers/Deque.h"
 #include "CoreMinimal.h"
 #include "TokenTest.h"
@@ -928,3 +930,5 @@ TEST_CASE("Core::Containers::TDeque::Assign from std initializer_list", "[Core][
 }
 
 }  // namespace Deque
+
+#endif

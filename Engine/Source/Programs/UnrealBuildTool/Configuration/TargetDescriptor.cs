@@ -28,7 +28,11 @@ namespace UnrealBuildTool
 
 		public static string GetTestedTargetName(string Name)
 		{
-			return Name.Substring(0, Name.Length - TEST_TARGETS_SUFFIX.Length);
+			if (Name.EndsWith(TEST_TARGETS_SUFFIX))
+			{
+				return Name.Substring(0, Name.Length - TEST_TARGETS_SUFFIX.Length);
+			}
+			return Name;
 		}
 
 		/// <summary>

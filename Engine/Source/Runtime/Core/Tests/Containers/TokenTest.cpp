@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "TokenTest.h"
 #include "TestHarness.h"
 
@@ -108,3 +110,5 @@ TEST_CASE("Core::Containers::TToken::Move assignment", "[Core][Containers][TToke
 	CHECK(int32Token::NumCopyAssignmentCalls() == 0);
 	CHECK(int32Token::NumMoveAssignmentCalls() == 1);
 }
+
+#endif

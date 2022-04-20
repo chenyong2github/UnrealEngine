@@ -512,14 +512,17 @@ namespace UnrealBuildTool
 			public string ProjectPlatformName;
 			public string ProjectConfigurationName;
 			public ProjectTarget? ProjectTarget;
+			public bool TestMode;
 
-			public ProjectConfigAndTargetCombination(UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, string InProjectPlatformName, string InProjectConfigurationName, ProjectTarget? InProjectTarget)
+			public ProjectConfigAndTargetCombination(UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, string InProjectPlatformName, string InProjectConfigurationName, ProjectTarget? InProjectTarget, bool InTestMode = false)
 			{
+				TestMode = InTestMode;
+
 				Platform = InPlatform;
 				Configuration = InConfiguration;
 				ProjectPlatformName = InProjectPlatformName;
-				ProjectConfigurationName = InProjectConfigurationName;
-				ProjectTarget = InProjectTarget;
+				ProjectConfigurationName = InProjectConfigurationName + (!InTestMode ? string.Empty : "_LowLevelTests");
+				ProjectTarget = InProjectTarget;				
 			}
 
 			public string? ProjectConfigurationAndPlatformName
@@ -642,6 +645,9 @@ namespace UnrealBuildTool
 				{
 					ProjectConfigAndTargetCombination StubCombination = new ProjectConfigAndTargetCombination(UnrealTargetPlatform.Parse(StubProjectPlatformName), UnrealTargetConfiguration.Unknown, StubProjectPlatformName, StubProjectConfigurationName, null);
 					ProjectConfigAndTargetCombinations.Add(StubCombination);
+
+					ProjectConfigAndTargetCombination TestModeStubCombination = new ProjectConfigAndTargetCombination(UnrealTargetPlatform.Parse(StubProjectPlatformName), UnrealTargetConfiguration.Unknown, StubProjectPlatformName, StubProjectConfigurationName, null, true);
+					ProjectConfigAndTargetCombinations.Add(TestModeStubCombination);
 				}
 				else
 				{
@@ -677,6 +683,10 @@ namespace UnrealBuildTool
 
 										ProjectConfigAndTargetCombination Combination = new ProjectConfigAndTargetCombination(Platform, Configuration, ProjectPlatformName, ProjectConfigurationName, ProjectTarget);
 										ProjectConfigAndTargetCombinations.Add(Combination);
+
+										// Configuration for building with -Mode=Test, produces separate low level tests executable
+										ProjectConfigAndTargetCombination TestModeCombination = new ProjectConfigAndTargetCombination(Platform, Configuration, ProjectPlatformName, ProjectConfigurationName, ProjectTarget, true);
+										ProjectConfigAndTargetCombinations.Add(TestModeCombination);
 									}
 								}
 							}
@@ -1725,6 +1735,11 @@ namespace UnrealBuildTool
 					if (IsForeignProject)
 					{
 						BuildArguments.AppendFormat(" -Project={0}", UProjectPath);
+					}
+
+					if (Combination.TestMode)
+					{
+						BuildArguments.Append(" -Mode=Test");
 					}
 
 					List<string> ExtraTargets = new List<string>();

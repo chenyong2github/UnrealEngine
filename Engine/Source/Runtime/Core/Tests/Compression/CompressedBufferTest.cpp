@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "Compression/CompressedBuffer.h"
 
 #include "Algo/Compare.h"
@@ -241,3 +243,5 @@ TEST_CASE("Core::Compression::CompressedBuffer::Decompress", "[Core][Compression
 		}
 	}
 }
+
+#endif

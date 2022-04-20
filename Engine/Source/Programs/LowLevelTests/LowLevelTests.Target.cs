@@ -17,12 +17,6 @@ public class LowLevelTestsTarget : TargetRules
 		Type = TargetType.Program;
 		LinkType = TargetLinkType.Monolithic;
 
-		// LowLevelTests to produce executable with Core tests
-		if (GetType() == typeof(LowLevelTestsTarget))
-		{
-			bIncludeAllTestsOverride = true;
-		}
-
 		bDeployAfterCompile = Target.Platform != UnrealTargetPlatform.Android;
 		bIsBuildingConsoleApplication = true;
 
@@ -59,6 +53,11 @@ public class LowLevelTestsTarget : TargetRules
 
 		VSTestRunSettingsFile = FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "LowLevelTests", "vstest.runsettings");
 
+		if (this.GetType().Name.StartsWith("LowLevelTests"))
+		{
+			bIsTestTargetOverride = true;
+		}
+
 		SetupPreprocessorDefinitions(Target);
 	}
 
@@ -70,7 +69,6 @@ public class LowLevelTestsTarget : TargetRules
 
 	protected virtual void SetupPreprocessorDefinitions(TargetInfo Target)
 	{
-		GlobalDefinitions.Add("UE_LOW_LEVEL_TESTS=1");
 		GlobalDefinitions.Add("STATS=0");
 
 		// Platform specific setup

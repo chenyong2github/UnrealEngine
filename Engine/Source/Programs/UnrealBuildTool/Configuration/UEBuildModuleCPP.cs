@@ -365,7 +365,7 @@ namespace UnrealBuildTool
 		}
 
 		// UEBuildModule interface.
-		public override List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment BinaryCompileEnvironment, List<FileReference> SpecificFilesToCompile, ISourceFileWorkingSet WorkingSet, IActionGraphBuilder Graph, bool bBuildIncludeTestsFolder = false)
+		public override List<FileItem> Compile(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment BinaryCompileEnvironment, List<FileReference> SpecificFilesToCompile, ISourceFileWorkingSet WorkingSet, IActionGraphBuilder Graph)
 		{
 			//UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(BinaryCompileEnvironment.Platform);
 
@@ -404,7 +404,7 @@ namespace UnrealBuildTool
 
 			// Find all the input files
 			Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles = new Dictionary<DirectoryItem, FileItem[]>();
-			InputFileCollection InputFiles = FindInputFiles(Target.Platform, DirectoryToSourceFiles, Target.IsTestTarget() || bBuildIncludeTestsFolder);
+			InputFileCollection InputFiles = FindInputFiles(Target.Platform, DirectoryToSourceFiles);
 
 			foreach (KeyValuePair<DirectoryItem, FileItem[]> Pair in DirectoryToSourceFiles)
 			{
@@ -1542,9 +1542,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Platform">The platform the module is being built for</param>
 		/// <param name="DirectoryToSourceFiles">Map of directory to source files inside it</param>
-		/// <param name="IncludeTests">Whether tests are included in the file list</param>
 		/// <returns>Set of source files that should be built</returns>
-		public InputFileCollection FindInputFiles(UnrealTargetPlatform Platform, Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles, bool IncludeTests = false)
+		public InputFileCollection FindInputFiles(UnrealTargetPlatform Platform, Dictionary<DirectoryItem, FileItem[]> DirectoryToSourceFiles)
 		{
 			ReadOnlyHashSet<string> ExcludedNames = UEBuildPlatform.GetBuildPlatform(Platform).GetExcludedFolderNames();
 
@@ -1554,32 +1553,7 @@ namespace UnrealBuildTool
 			foreach (DirectoryReference Dir in ModuleDirectories)
 			{
 				DirectoryItem ModuleDirectoryItem = DirectoryItem.GetItemByDirectoryReference(Dir);
-				if (!IncludeTests)
-				{
-					// Skip Tests folder at the base of the source folder if not including tests
-					foreach (DirectoryItem FirstLevelDir in ModuleDirectoryItem.EnumerateDirectories())
-					{
-						if (FirstLevelDir.Name == "Tests")
-						{
-							continue;
-						}
-						else
-						{
-							FindInputFilesFromDirectoryRecursive(FirstLevelDir, ExcludedNames, SourceDirectories, DirectoryToSourceFiles, InputFiles);
-						}
-					}
-					// Add remaining source files at the base of the source folder
-					FileItem[] SourceFiles = FindInputFilesFromDirectory(ModuleDirectoryItem, InputFiles);
-					if (SourceFiles.Length > 0)
-					{
-						SourceDirectories.Add(ModuleDirectoryItem.Location);
-					}
-					DirectoryToSourceFiles.Add(ModuleDirectoryItem, SourceFiles);
-				}
-				else
-				{
-					FindInputFilesFromDirectoryRecursive(ModuleDirectoryItem, ExcludedNames, SourceDirectories, DirectoryToSourceFiles, InputFiles);
-				}
+				FindInputFilesFromDirectoryRecursive(ModuleDirectoryItem, ExcludedNames, SourceDirectories, DirectoryToSourceFiles, InputFiles);
 			}
 
 			return InputFiles;

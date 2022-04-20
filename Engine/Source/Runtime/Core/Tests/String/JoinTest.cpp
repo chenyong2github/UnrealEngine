@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "String/Join.h"
 
 #include "Containers/StringView.h"
@@ -36,3 +38,5 @@ TEST_CASE("Core::String::Join", "[Core][String][Smoke]")
 }
 
 } // UE::String
+
+#endif

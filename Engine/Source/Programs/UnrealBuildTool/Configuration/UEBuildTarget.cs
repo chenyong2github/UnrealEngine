@@ -711,16 +711,7 @@ namespace UnrealBuildTool
 			TargetRules RulesObject;
 			using (GlobalTracer.Instance.BuildSpan("RulesAssembly.CreateTargetRules()").StartActive())
 			{
-				if (!Descriptor.IsTestsTarget)
-				{
-					RulesObject = RulesAssembly.CreateTargetRules(Descriptor.Name, Descriptor.Platform, Descriptor.Configuration, Descriptor.Architecture, Descriptor.ProjectFile, Descriptor.AdditionalArguments);
-				}
-				else
-				{
-					// Get testable target first, then use its tests executable target instead
-					RulesObject = RulesAssembly.CreateTargetRules(TargetDescriptor.GetTestedTargetName(Descriptor.Name), Descriptor.Platform, Descriptor.Configuration, Descriptor.Architecture, Descriptor.ProjectFile, Descriptor.AdditionalArguments);
-					RulesObject = RulesObject.CreateOrGetTestTarget();
-				}
+				RulesObject = RulesAssembly.CreateTargetRules(Descriptor.Name, Descriptor.Platform, Descriptor.Configuration, Descriptor.Architecture, Descriptor.ProjectFile, Descriptor.AdditionalArguments, Descriptor.IsTestsTarget);
 			}
 			if ((ProjectFileGenerator.bGenerateProjectFiles == false) && !RulesObject.GetSupportedPlatforms().Contains(Descriptor.Platform))
 			{
@@ -1104,31 +1095,6 @@ namespace UnrealBuildTool
 		/// true if target should be compiled in monolithic mode, false if not
 		/// </summary>
 		protected bool bCompileMonolithic = false;
-
-		/// <summary>
-		/// Keeps track if low level tests executable must build with the Editor.
-		/// </summary>
-		private bool bTestsRequireEditor = false;
-
-		/// <summary>
-		/// Keeps track if low level tests executable must build with the Engine.
-		/// </summary>
-		private bool bTestsRequireEngine = false;
-
-		/// <summary>
-		/// Keeps track if low level tests executable must build with the ApplicationCore.
-		/// </summary>
-		private bool bTestsRequireApplicationCore = false;
-
-		/// <summary>
-		/// Keeps track if low level tests executable must build with the CoreUObject.
-		/// </summary>
-		private bool bTestsRequireCoreUObject = false;
-
-		/// <summary>
-		/// Track low level tests runner module for configuration.
-		/// </summary>
-		private ModuleRules? LowLevelTestsRunnerModule;
 
 		/// <summary>
 		/// Used to keep track of all modules by name.
@@ -3073,9 +3039,9 @@ namespace UnrealBuildTool
 				UEBuildModule Module = FindOrCreateModuleByName(ModuleName, PrecompileReferenceChain);
 				AllModules.Add(Module);
 				Module.RecursivelyCreateModules(
-					(string ModuleName, string ReferenceChain, bool IsTestModule) => 
+					(string ModuleName, string ReferenceChain) => 
 					{ 
-						UEBuildModule FoundModule = FindOrCreateModuleByName(ModuleName, ReferenceChain, IsTestModule);
+						UEBuildModule FoundModule = FindOrCreateModuleByName(ModuleName, ReferenceChain);
 						AllModules.Add(FoundModule);
 						return FoundModule; 
 					}, 
@@ -3688,7 +3654,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the launch module
-			UEBuildModuleCPP LaunchModule = FindOrCreateCppModuleByName(Rules.LaunchModuleName, TargetRulesFile.GetFileName(), Rules.IsTestTarget());
+			UEBuildModuleCPP LaunchModule = FindOrCreateCppModuleByName(Rules.LaunchModuleName, TargetRulesFile.GetFileName());
 
 			// Get the intermediate directory for the launch module directory. This can differ from the standard engine intermediate directory because it is always configuration-specific.
 			DirectoryReference IntermediateDirectory;
@@ -3878,18 +3844,20 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.Definitions.Add("WITH_DEV_AUTOMATION_TESTS=" + (bCompileDevTests ? "1" : "0"));
 			GlobalCompileEnvironment.Definitions.Add("WITH_PERF_AUTOMATION_TESTS=" + (bCompilePerfTests ? "1" : "0"));
 
+			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_LOW_LEVEL_TESTS={0}", Rules.IsTestTarget ? "1" : "0"));
+
 			GlobalCompileEnvironment.Definitions.Add("UNICODE");
 			GlobalCompileEnvironment.Definitions.Add("_UNICODE");
 			GlobalCompileEnvironment.Definitions.Add("__UNREAL__");
 
 			GlobalCompileEnvironment.Definitions.Add(String.Format("IS_MONOLITHIC={0}", ShouldCompileMonolithic() ? "1" : "0"));
 
-			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_ENGINE={0}", Rules.bCompileAgainstEngine || bTestsRequireEngine ? "1" : "0"));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_ENGINE={0}", Rules.bCompileAgainstEngine || TestTargetRules.bTestsRequireEngine ? "1" : "0"));
 			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_UNREAL_DEVELOPER_TOOLS={0}", Rules.bBuildDeveloperTools ? "1" : "0"));
 			GlobalCompileEnvironment.Definitions.Add(String.Format("WITH_UNREAL_TARGET_DEVELOPER_TOOLS={0}", Rules.bBuildTargetDeveloperTools ? "1" : "0"));
 
 			// Set a macro to control whether to initialize ApplicationCore. Command line utilities should not generally need this.
-			if (Rules.bCompileAgainstApplicationCore || bTestsRequireApplicationCore)
+			if (Rules.bCompileAgainstApplicationCore || TestTargetRules.bTestsRequireApplicationCore)
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_APPLICATION_CORE=1");
 			}
@@ -3898,7 +3866,7 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_APPLICATION_CORE=0");
 			}
 
-			if (Rules.bCompileAgainstCoreUObject || bTestsRequireCoreUObject)
+			if (Rules.bCompileAgainstCoreUObject || TestTargetRules.bTestsRequireCoreUObject)
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_COREUOBJECT=1");
 			}
@@ -4006,7 +3974,7 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("USE_ESTIMATED_UTCNOW=0");
 			}
 
-			if ((Rules.bCompileAgainstEditor && (Rules.Type == TargetType.Editor || Rules.Type == TargetType.Program)) || bTestsRequireEditor)
+			if ((Rules.bCompileAgainstEditor && (Rules.Type == TargetType.Editor || Rules.Type == TargetType.Program)) || TestTargetRules.bTestsRequireEditor)
 			{
 				GlobalCompileEnvironment.Definitions.Add("WITH_EDITOR=1");
 				GlobalCompileEnvironment.Definitions.Add("WITH_IOSTORE_IN_EDITOR=1");
@@ -4168,19 +4136,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Create a rules object for the given module, and set any default values for this target
 		/// </summary>
-		private ModuleRules CreateModuleRulesAndSetDefaults(string ModuleName, string ReferenceChain, bool IsTestModule = false)
+		private ModuleRules CreateModuleRulesAndSetDefaults(string ModuleName, string ReferenceChain)
 		{
 			// Create the rules from the assembly
-			ModuleRules RulesObject;
-			if (IsTestModule)
-			{
-				RulesObject = RulesAssembly.CreateModuleRules(TargetDescriptor.GetTestedTargetName(ModuleName), new ReadOnlyTargetRules(Rules.TestedTarget), ReferenceChain);
-				RulesObject = new TestModuleRules(RulesObject);
-			}
-			else
-			{
-				RulesObject = RulesAssembly.CreateModuleRules(ModuleName, Rules, ReferenceChain);
-			}
+			ModuleRules RulesObject = RulesAssembly.CreateModuleRules(ModuleName, Rules, ReferenceChain);
 
 			// Set whether the module requires an IMPLEMENT_MODULE macro
 			if (!RulesObject.bRequiresImplementModule.HasValue)
@@ -4296,19 +4255,15 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ModuleName">Name of the module</param>
 		/// <param name="ReferenceChain">Chain of references causing this module to be instantiated, for display in error messages</param>
-		/// <param name="IsTestModule">Whether it's a test module or not</param>
-		public UEBuildModule FindOrCreateModuleByName(string ModuleName, string ReferenceChain, bool IsTestModule = false)
+		public UEBuildModule FindOrCreateModuleByName(string ModuleName, string ReferenceChain)
 		{
 			UEBuildModule? Module;
 			if (!Modules.TryGetValue(ModuleName, out Module))
 			{
 				// @todo projectfiles: Cross-platform modules can appear here during project generation, but they may have already
 				//   been filtered out by the project generator.  This causes the projects to not be added to directories properly.
-				ModuleRules RulesObject = CreateModuleRulesAndSetDefaults(ModuleName, ReferenceChain, IsTestModule);
+				ModuleRules RulesObject = CreateModuleRulesAndSetDefaults(ModuleName, ReferenceChain);
 				DirectoryReference ModuleDirectory = RulesObject.File.Directory;
-
-				// If we're building a test executable, include test harness dependency
-				PrepareModuleForTests(IsTestModule, RulesObject);
 
 				// Clear the bUsePrecompiled flag if we're compiling a foreign plugin; since it's treated like an engine module, it will default to true in an installed build.
 				if (RulesObject.Plugin != null && RulesObject.Plugin.File == ForeignPlugin)
@@ -4422,77 +4377,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Prepares a module for building a low level tests executable.
-		/// If the target includes all tests OR we're building a module as part of a test module chain, then we include the LowLevelTestsRunner dependency.
-		/// We also keep track of any Editor and Engine dependencies and add appropriate global definitions at compilation step.
-		/// </summary>
-		/// <param name="IsTestModule">Whether we're building a tests module or not.</param>
-		/// <param name="RulesObject">The module rules object.</param>
-		private void PrepareModuleForTests(bool IsTestModule, ModuleRules RulesObject)
-		{
-			if (!IsTestModule
-				&& Rules.IsTestTarget()
-				|| Rules.bIncludeAllTests)
-			{
-				if (RulesObject.Name != "LowLevelTestsRunner" && Directory.Exists(RulesObject.TestsDirectory))
-				{
-					RulesObject.PrivateIncludePathModuleNames.Add("LowLevelTestsRunner");
-				}
-				else if (RulesObject.Name == "LowLevelTestsRunner")
-				{
-					LowLevelTestsRunnerModule = RulesObject;
-				}
-
-				// If one of these modules is in the dependency graph, we must enable their appropriate global definitions
-				if (RulesObject.Name == "Editor")
-				{
-					bTestsRequireEditor = true;
-				}
-				if (RulesObject.Name == "Engine")
-				{
-					bTestsRequireEngine = true;
-				}
-				if (RulesObject.Name == "ApplicationCore")
-				{
-					bTestsRequireApplicationCore = true;
-				}
-				if (RulesObject.Name == "CoreUObject")
-				{
-					bTestsRequireCoreUObject = true;
-				}
-
-				if (LowLevelTestsRunnerModule != null)
-				{
-					if (bTestsRequireEditor && !LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Editor"))
-					{
-						LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Editor");
-					}
-					if (bTestsRequireEngine && !LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Engine"))
-					{
-						LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Engine");
-					}
-					if (bTestsRequireApplicationCore && !LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("ApplicationCore"))
-					{
-						LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("ApplicationCore");
-					}
-					if (bTestsRequireCoreUObject && !LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("CoreUObject"))
-					{
-						LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("CoreUObject");
-					}
-				}
-			}
-		}
-
-		/// <summary>
 		/// Constructs a new C++ module
 		/// </summary>
 		/// <param name="ModuleName">Name of the module</param>
 		/// <param name="ReferenceChain">Chain of references causing this module to be instantiated, for display in error messages</param>
-		/// <param name="IsTestModule">Whether it's a test module.</param>
 		/// <returns>New C++ module</returns>
-		public UEBuildModuleCPP FindOrCreateCppModuleByName(string ModuleName, string ReferenceChain, bool IsTestModule = false)
+		public UEBuildModuleCPP FindOrCreateCppModuleByName(string ModuleName, string ReferenceChain)
 		{
-			UEBuildModuleCPP? CppModule = FindOrCreateModuleByName(ModuleName, ReferenceChain, IsTestModule) as UEBuildModuleCPP;
+			UEBuildModuleCPP? CppModule = FindOrCreateModuleByName(ModuleName, ReferenceChain) as UEBuildModuleCPP;
 			if (CppModule == null)
 			{
 				throw new BuildException("'{0}' is not a C++ module (referenced via {1})", ModuleName, ReferenceChain);

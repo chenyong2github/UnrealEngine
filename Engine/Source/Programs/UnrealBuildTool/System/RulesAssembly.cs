@@ -388,6 +388,11 @@ namespace UnrealBuildTool
 		/// <returns>Compiled module rule info</returns>
 		public ModuleRules CreateModuleRules(string ModuleName, ReadOnlyTargetRules Target, string ReferenceChain)
 		{
+			if (Target.IsTestTarget)
+			{
+				ModuleName = TargetDescriptor.GetTestedTargetName(ModuleName);
+			}
+
 			// Currently, we expect the user's rules object type name to be the same as the module name
 			string ModuleTypeName = ModuleName;
 
@@ -505,6 +510,13 @@ namespace UnrealBuildTool
 				}
 				Constructor.Invoke(RulesObject, new object[] { Target });
 
+				if (Target.IsTestTarget && Target.LaunchModuleName != null && ModuleName == TargetDescriptor.GetTestedTargetName(Target.LaunchModuleName))
+				{
+					RulesObject = new TestModuleRules(RulesObject);
+				}
+
+				RulesObject.PrepareModuleForTests();
+
 				return RulesObject;
 			}
 			catch (Exception Ex)
@@ -519,8 +531,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="TypeName">Type name of the target rules</param>
 		/// <param name="TargetInfo">Target configuration information to pass to the constructor</param>
+		/// <param name="IsTestTarget">If building a low level tests target</param>
 		/// <returns>Instance of the corresponding TargetRules</returns>
-		protected TargetRules CreateTargetRulesInstance(string TypeName, TargetInfo TargetInfo)
+		protected TargetRules CreateTargetRulesInstance(string TypeName, TargetInfo TargetInfo, bool IsTestTarget = false)
 		{
 			// The build module must define a type named '<TargetName>Target' that derives from our 'TargetRules' type.  
 			Type? BaseRulesType = CompiledAssembly?.GetType(TypeName);
@@ -674,6 +687,11 @@ namespace UnrealBuildTool
 				throw new BuildException(String.Format("{0}: {1} does not support modular builds", Rules.Name, Rules.Platform));
 			}
 
+			if (IsTestTarget)
+			{
+				Rules = new TestTargetRules(Rules, TargetInfo);
+			}
+
 			return Rules;
 		}
 
@@ -686,9 +704,14 @@ namespace UnrealBuildTool
 		/// <param name="Architecture">Architecture being built</param>
 		/// <param name="ProjectFile">Path to the project file for this target</param>
 		/// <param name="Arguments">Command line arguments for this target</param>
+		/// <param name="IsTestTarget">If building a low level test target</param>
 		/// <returns>The build target rules for the specified target</returns>
-		public TargetRules CreateTargetRules(string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, FileReference? ProjectFile, CommandLineArguments? Arguments)
+		public TargetRules CreateTargetRules(string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, string Architecture, FileReference? ProjectFile, CommandLineArguments? Arguments, bool IsTestTarget = false)
 		{
+			if (IsTestTarget)
+			{
+				TargetName = TargetDescriptor.GetTestedTargetName(TargetName);
+			}
 			bool bFoundTargetName = TargetNameToTargetFile.ContainsKey(TargetName);
 			if (bFoundTargetName == false)
 			{
@@ -713,7 +736,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					return Parent.CreateTargetRules(TargetName, Platform, Configuration, Architecture, ProjectFile, Arguments);
+					return Parent.CreateTargetRules(TargetName, Platform, Configuration, Architecture, ProjectFile, Arguments, IsTestTarget);
 				}
 			}
 
@@ -721,7 +744,7 @@ namespace UnrealBuildTool
 			string TargetTypeName = TargetName + "Target";
 
 			// The build module must define a type named '<TargetName>Target' that derives from our 'TargetRules' type.  
-			return CreateTargetRulesInstance(TargetTypeName, new TargetInfo(TargetName, Platform, Configuration, Architecture, ProjectFile, Arguments));
+			return CreateTargetRulesInstance(TargetTypeName, new TargetInfo(TargetName, Platform, Configuration, Architecture, ProjectFile, Arguments), IsTestTarget);
 		}
 
 		/// <summary>

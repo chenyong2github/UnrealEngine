@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
 #include "Serialization/MemoryReader.h"
@@ -388,3 +390,5 @@ TEST_CASE("CBor::FCbor::ByteSwap Performance Test", "[CBor][Perf]")
 	CHECK(( WriteRatio >= 1.0 - Margin && WriteRatio <= 1.0 + Margin)==true);
 	CHECK(( ReadRatio  >= 1.0 - Margin && ReadRatio  <= 1.0 + Margin)==true);
 }
+
+#endif

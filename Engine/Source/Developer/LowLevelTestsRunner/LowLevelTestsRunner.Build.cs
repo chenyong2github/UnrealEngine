@@ -34,12 +34,18 @@ public class LowLevelTestsRunner : ModuleRules
 
 		if (Target.bCompileAgainstApplicationCore)
 		{
-			PrivateDependencyModuleNames.Add("ApplicationCore");
+			if (!PrivateDependencyModuleNames.Contains("ApplicationCore"))
+			{
+				PrivateDependencyModuleNames.Add("ApplicationCore");
+			}
 		}
 
 		if (Target.bCompileAgainstCoreUObject)
 		{
-			PrivateDependencyModuleNames.Add("CoreUObject");
+			if (!PrivateDependencyModuleNames.Contains("CoreUObject"))
+			{
+				PrivateDependencyModuleNames.Add("CoreUObject");
+			}
 		}
 	}
 }

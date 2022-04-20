@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "Serialization/VarInt.h"
 
 #include "Serialization/BufferReader.h"
@@ -278,3 +280,5 @@ TEST_CASE("Core::Serialization::VarInt::Serialize", "[Core][Serialization][Smoke
 		CHECK(ReadAr.Tell() == ReadByteCount);
 	}
 }
+
+#endif

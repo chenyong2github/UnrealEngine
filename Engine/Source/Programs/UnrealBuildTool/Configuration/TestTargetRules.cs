@@ -13,6 +13,31 @@ namespace UnrealBuildTool
 	public class TestTargetRules : TargetRules
 	{
 		/// <summary>
+		/// Keeps track if low level tests executable must build with the Editor.
+		/// </summary>
+		public static bool bTestsRequireEditor = false;
+
+		/// <summary>
+		/// Keeps track if low level tests executable must build with the Engine.
+		/// </summary>
+		public static bool bTestsRequireEngine = false;
+
+		/// <summary>
+		/// Keeps track if low level tests executable must build with the ApplicationCore.
+		/// </summary>
+		public static bool bTestsRequireApplicationCore = false;
+
+		/// <summary>
+		/// Keeps track if low level tests executable must build with the CoreUObject.
+		/// </summary>
+		public static bool bTestsRequireCoreUObject = false;
+
+		/// <summary>
+		/// Keep track of low level test runner module instance.
+		/// </summary>
+		public static ModuleRules? LowLevelTestsRunnerModule;
+
+		/// <summary>
 		/// Associated tested target of this test target.
 		/// </summary>
 		public TargetRules TestedTarget { get; private set; }
@@ -28,12 +53,14 @@ namespace UnrealBuildTool
 				throw new BuildException("TestedTarget can't be of type TestTargetRules.");
 			}
 
+			bIsTestTargetOverride = true;
+
 			this.TestedTarget = TestedTarget;
 
 			DefaultBuildSettings = BuildSettingsVersion.V2;
 
 			ExeBinariesSubFolder = Name = TestedTarget.Name + "Tests";
-			TargetSourceFile = File = FileReference.Combine(UnrealBuildTool.EngineSourceDirectory, "UnrealBuildTool", "Configuration", "TestTargetRules.cs");
+			TargetSourceFile = File = TestedTarget.File;
 			LaunchModuleName = TestedTarget.LaunchModuleName + "Tests";
 
 			ManifestFileNames = TestedTarget.ManifestFileNames;
@@ -81,7 +108,6 @@ namespace UnrealBuildTool
 				bDebugBuildsActuallyUseDebugCRT = true;
 			}
 
-			GlobalDefinitions.Add("UE_LOW_LEVEL_TESTS=1");
 			GlobalDefinitions.Add("STATS=0");
 			GlobalDefinitions.Add("TEST_FOR_VALID_FILE_SYSTEM_MEMORY=0");
 

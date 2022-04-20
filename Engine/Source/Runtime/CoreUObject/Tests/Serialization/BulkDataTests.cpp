@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_LOW_LEVEL_TESTS
+
 #include "TestHarness.h"
 #include "Serialization/BulkData.h"
 
@@ -75,3 +77,4 @@ namespace BulkDataTest
 	}
 }
 
+#endif
