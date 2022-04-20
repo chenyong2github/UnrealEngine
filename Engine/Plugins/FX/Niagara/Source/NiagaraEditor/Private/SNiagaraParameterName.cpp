@@ -405,33 +405,49 @@ void SNiagaraParameterNamePinLabel::Construct(const FArguments& InArgs, UEdGraph
 {
 	TargetPin = InTargetPin;
 
-	SNiagaraParameterNameTextBlock::Construct(SNiagaraParameterNameTextBlock::FArguments()
-		.EditableTextStyle(InArgs._EditableTextStyle)
-		.ParameterText(InArgs._ParameterText)
-		.IsReadOnly(InArgs._IsReadOnly)
-		.HighlightText(InArgs._HighlightText)
-		.OnVerifyTextChanged(InArgs._OnVerifyTextChanged)
-		.OnTextCommitted(InArgs._OnTextCommitted)
-		.IsSelected(InArgs._IsSelected)
-		.DecoratorHAlign(InArgs._DecoratorHAlign)
-		.DecoratorPadding(InArgs._DecoratorPadding)
-		.Decorator()
+	ChildSlot
+	[
+		SNew(SBorder)
+		.BorderImage(FAppStyle::Get().GetBrush("NoBorder"))
+		.ForegroundColor(this, &SNiagaraParameterNamePinLabel::GetForegroundColor)
 		[
-			InArgs._Decorator.Widget
-		]);
+			SAssignNew(ParameterNameTextBlock, SNiagaraParameterNameTextBlock)
+			.EditableTextStyle(InArgs._EditableTextStyle)
+			.ParameterText(InArgs._ParameterText)
+			.IsReadOnly(InArgs._IsReadOnly)
+			.HighlightText(InArgs._HighlightText)
+			.OnVerifyTextChanged(InArgs._OnVerifyTextChanged)
+			.OnTextCommitted(InArgs._OnTextCommitted)
+			.IsSelected(InArgs._IsSelected)
+			.DecoratorHAlign(InArgs._DecoratorHAlign)
+			.DecoratorPadding(InArgs._DecoratorPadding)
+			.Decorator()
+			[
+				InArgs._Decorator.Widget
+			]
+		]
+	];		
 }
 
 void SNiagaraParameterNamePinLabel::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	SNiagaraParameterNameTextBlock::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
-
 	UNiagaraNodeParameterMapBase* ParameterMapNode = Cast<UNiagaraNodeParameterMapBase>(TargetPin->GetOwningNode());
 	if (ParameterMapNode != nullptr)
 	{
 		if (ParameterMapNode->GetIsPinEditNamespaceModifierPending(TargetPin))
 		{
 			ParameterMapNode->SetIsPinEditNamespaceModifierPending(TargetPin, false);
-			EnterNamespaceModifierEditingMode();
+			ParameterNameTextBlock->EnterNamespaceModifierEditingMode();
 		}
 	}
+}
+
+FSlateColor SNiagaraParameterNamePinLabel::GetForegroundColor() const
+{
+	return TargetPin->bOrphanedPin ? FLinearColor::Red : FLinearColor::White;
+}
+
+void SNiagaraParameterNamePinLabel::EnterEditingMode()
+{
+	ParameterNameTextBlock->EnterEditingMode();
 }

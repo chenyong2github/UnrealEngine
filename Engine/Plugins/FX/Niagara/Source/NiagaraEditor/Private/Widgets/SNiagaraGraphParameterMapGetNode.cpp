@@ -133,7 +133,7 @@ void SNiagaraGraphParameterMapGetNode::CreatePinWidgets()
 
 	AddRowWidgetToNode(SourceRowWidget);
 	
-	// Deferred pin adding to line up input/output pins by name.
+	// Deferred pin adding to line up input/output pins by persistent guid mapping.
 	for (int32 i = 0; i < OutputPins.Num(); i++)
 	{
 		TSharedRef<SGraphPin> OutputPin = OutputPins[i];

@@ -152,7 +152,7 @@ private:
 	TSharedPtr<SNiagaraParameterName> ParameterName;
 };
 
-class NIAGARAEDITOR_API SNiagaraParameterNamePinLabel : public SNiagaraParameterNameTextBlock
+class NIAGARAEDITOR_API SNiagaraParameterNamePinLabel : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraParameterNamePinLabel)
@@ -179,6 +179,10 @@ public:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+	virtual FSlateColor GetForegroundColor() const override;
+
+	void EnterEditingMode();
 private:
 	UEdGraphPin* TargetPin;
+	TSharedPtr<SNiagaraParameterNameTextBlock> ParameterNameTextBlock;
 };

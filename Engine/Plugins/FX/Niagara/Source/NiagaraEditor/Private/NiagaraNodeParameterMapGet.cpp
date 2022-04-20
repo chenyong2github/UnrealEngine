@@ -172,9 +172,25 @@ void UNiagaraNodeParameterMapGet::OnPinRenamed(UEdGraphPin* RenamedPin, const FS
 
 void UNiagaraNodeParameterMapGet::OnPinRemoved(UEdGraphPin* InRemovedPin)
 {
+	FGuid PersistentGuidKey;
 	if(UEdGraphPin* DefaultPin = GetDefaultPin(InRemovedPin))
 	{
-		RemovePin(DefaultPin);
+		PersistentGuidKey = InRemovedPin->PersistentGuid;
+
+		if(!InRemovedPin->bOrphanedPin)
+		{
+			RemovePin(DefaultPin);
+		}
+	}
+
+	if(UEdGraphPin* OutputPin = GetOutputPinForDefault(InRemovedPin))
+	{
+		PersistentGuidKey = OutputPin->PersistentGuid;
+	}
+
+	if(PersistentGuidKey.IsValid() && PinOutputToPinDefaultPersistentId.Contains(PersistentGuidKey))
+	{
+		PinOutputToPinDefaultPersistentId.Remove(PersistentGuidKey);
 	}
 	
 	Super::OnPinRemoved(InRemovedPin);
@@ -377,6 +393,13 @@ void UNiagaraNodeParameterMapGet::SynchronizeDefaultInputPin(UEdGraphPin* Defaul
 FText UNiagaraNodeParameterMapGet::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	return LOCTEXT("UNiagaraNodeParameterMapGetName", "Map Get");
+}
+
+void UNiagaraNodeParameterMapGet::AddOrphanedPinPairGuids(UEdGraphPin* OutputPin, UEdGraphPin* DefaultPin)
+{
+	ensure(OutputPin && DefaultPin && OutputPin->bOrphanedPin && DefaultPin->bOrphanedPin && OutputPin->PersistentGuid.IsValid() && DefaultPin->PersistentGuid.IsValid());
+
+	PinOutputToPinDefaultPersistentId.Add(OutputPin->PersistentGuid, DefaultPin->PersistentGuid);
 }
 
 void UNiagaraNodeParameterMapGet::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const

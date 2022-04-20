@@ -35,6 +35,8 @@ public:
 
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const;
 
+	void AddOrphanedPinPairGuids(UEdGraphPin* OutputPin, UEdGraphPin* DefaultPin);
+	
 	/** Get the default value input pin for one of the output pins specified.*/
 	UEdGraphPin* GetDefaultPin(UEdGraphPin* OutputPin) const;
 

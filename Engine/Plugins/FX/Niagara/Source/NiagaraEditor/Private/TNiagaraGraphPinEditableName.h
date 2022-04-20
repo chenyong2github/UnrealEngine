@@ -129,7 +129,7 @@ protected:
 			.Padding(FMargin(0.0f, 1.0f, 0.0f, 1.0f))
 			[
 				SAssignNew(CreatedParameterNamePinLabel, SNiagaraParameterNamePinLabel, this->GraphPinObj)
-				.EditableTextStyle(&FEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("Graph.Node.InlineEditablePinName"))
+				.EditableTextStyle(&FNiagaraEditorStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("NiagaraEditor.Graph.Node.InlineEditablePinName"))
 				.ParameterText(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinLabel)
 				.IsReadOnly(bIsPinEditable == false)
 				.Visibility(this, &TNiagaraGraphPinEditableName<BaseClass>::GetParentPinVisibility)
