@@ -274,6 +274,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FCoreDelegates::ConfigReadyForUse.AddStatic(FGenericCrashContext::InitializeFromConfig);
 
+	FCoreDelegates::OnPostFork.AddLambda([](EForkProcessRole Role)
+	{
+		if (Role == EForkProcessRole::Child)
+		{
+			UE_LOG(LogCrashContext, VeryVerbose, TEXT("Updating forked child Session ProcessID: %u -> %u"), NCached::Session.ProcessId, FPlatformProcess::GetCurrentProcessId());
+
+			NCached::Session.ProcessId = FPlatformProcess::GetCurrentProcessId();
+			SerializeTempCrashContextToFile();
+		}
+	});
+
 	SerializeTempCrashContextToFile();
 
 	CleanupPlatformSpecificFiles();
