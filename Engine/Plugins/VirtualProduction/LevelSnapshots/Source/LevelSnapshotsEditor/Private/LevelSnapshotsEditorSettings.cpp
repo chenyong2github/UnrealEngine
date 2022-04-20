@@ -6,7 +6,12 @@
 #include "Application/SlateApplicationBase.h"
 #include "HAL/PlatformApplicationMisc.h"
 
-ULevelSnapshotsEditorSettings* ULevelSnapshotsEditorSettings::Get()
+const ULevelSnapshotsEditorSettings* ULevelSnapshotsEditorSettings::Get()
+{
+	return GetDefault<ULevelSnapshotsEditorSettings>();
+}
+
+ULevelSnapshotsEditorSettings* ULevelSnapshotsEditorSettings::GetMutable()
 {
 	return GetMutableDefault<ULevelSnapshotsEditorSettings>();
 }
@@ -16,7 +21,6 @@ ULevelSnapshotsEditorSettings::ULevelSnapshotsEditorSettings(const FObjectInitia
 	RootLevelSnapshotSaveDir.Path = "/Game/LevelSnapshots";
 	LevelSnapshotSaveDir = "{map}/{year}-{month}-{day}";
 	DefaultLevelSnapshotName = "{map}_{user}_{time}";
-	LevelSnapshotNameOverride = DefaultLevelSnapshotName;
 
 	bEnableLevelSnapshotsToolbarButton = true;
 	bUseCreationForm = true;
@@ -48,7 +52,7 @@ void ULevelSnapshotsEditorSettings::SetLastCreationWindowSize(const FVector2D In
 
 const FString& ULevelSnapshotsEditorSettings::GetNameOverride() const
 {
-	return LevelSnapshotNameOverride;
+	return LevelSnapshotNameOverride.IsSet() ? LevelSnapshotNameOverride.Get() : DefaultLevelSnapshotName;
 }
 
 void ULevelSnapshotsEditorSettings::SetNameOverride(const FString& InName)
@@ -121,5 +125,5 @@ FText ULevelSnapshotsEditorSettings::ParseLevelSnapshotsTokensInText(const FText
 
 bool ULevelSnapshotsEditorSettings::IsNameOverridden() const
 {
-	return !LevelSnapshotNameOverride.Equals(DefaultLevelSnapshotName);
+	return LevelSnapshotNameOverride.IsSet();
 }

@@ -150,7 +150,7 @@ void FLevelSnapshotsEditorModule::OpenSnapshotsEditor()
 
 bool FLevelSnapshotsEditorModule::HandleModifiedProjectSettings()
 {
-	ULevelSnapshotsEditorSettings* Settings = ULevelSnapshotsEditorSettings::Get();
+	ULevelSnapshotsEditorSettings* Settings = ULevelSnapshotsEditorSettings::GetMutable();
 	Settings->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
 	Settings->SanitizeAllProjectSettingsPaths(true);
 		

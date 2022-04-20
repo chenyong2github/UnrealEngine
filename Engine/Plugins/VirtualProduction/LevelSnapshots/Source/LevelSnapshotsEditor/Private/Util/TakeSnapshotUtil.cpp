@@ -39,7 +39,7 @@ namespace UE::LevelSnapshots::Editor
 			return;
 		}
 		
-		ULevelSnapshotsEditorSettings* DataManagementSettings = ULevelSnapshotsEditorSettings::Get();
+		ULevelSnapshotsEditorSettings* DataManagementSettings = ULevelSnapshotsEditorSettings::GetMutable();
 		DataManagementSettings->ValidateRootLevelSnapshotSaveDirAsGameContentRelative();
 		DataManagementSettings->SanitizeAllProjectSettingsPaths(true);
 

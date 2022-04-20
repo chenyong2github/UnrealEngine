@@ -231,7 +231,7 @@ TSharedRef<SWidget> SLevelSnapshotsEditorCreationForm::MakeDataManagementSetting
 	DetailsViewArgs.bShowScrollBar = false;
 
 	TSharedRef<IDetailsView> Details = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
-	const TArray<UObject*> ProjectSettingsObjects = { ULevelSnapshotsEditorSettings::Get() };
+	const TArray<UObject*> ProjectSettingsObjects = { ULevelSnapshotsEditorSettings::GetMutable() };
 	// By requirement, we're only supposed to show the data management settings
 	Details->RegisterInstancedCustomPropertyLayout(
 		ULevelSnapshotsEditorSettings::StaticClass(),
@@ -250,14 +250,17 @@ SLevelSnapshotsEditorCreationForm::~SLevelSnapshotsEditorCreationForm()
 
 FText SLevelSnapshotsEditorCreationForm::GetNameOverrideText() const
 {
+	const ULevelSnapshotsEditorSettings* Settings = ULevelSnapshotsEditorSettings::Get();
+	check(Settings);
+	
 	UWorld* World = ULevelSnapshotsEditorData::GetEditorWorld();
 	if (!ensure(World))
 	{
-		return FText::FromString(ULevelSnapshotsEditorSettings::Get()->GetNameOverride());
+		return FText::FromString(Settings->GetNameOverride());
 	}
 
 	return ULevelSnapshotsEditorSettings::ParseLevelSnapshotsTokensInText(
-		FText::FromString(ULevelSnapshotsEditorSettings::Get()->GetNameOverride()),
+		FText::FromString(Settings->GetNameOverride()),
 		World->GetName()
 		);
 }
@@ -267,7 +270,7 @@ void SLevelSnapshotsEditorCreationForm::SetNameOverrideText(const FText& InNewTe
 	FString NameAsString = InNewText.ToString();
 	ULevelSnapshotsEditorSettings::SanitizePathInline(NameAsString, true);
 
-	ULevelSnapshotsEditorSettings* Settings = ULevelSnapshotsEditorSettings::Get();
+	ULevelSnapshotsEditorSettings* Settings = ULevelSnapshotsEditorSettings::GetMutable();
 	Settings->SetNameOverride(NameAsString);
 	bNameDiffersFromDefault = Settings->IsNameOverridden();
 }
@@ -301,7 +304,7 @@ FReply SLevelSnapshotsEditorCreationForm::OnCreateButtonPressed()
 void SLevelSnapshotsEditorCreationForm::OnWindowClosed(const TSharedRef<SWindow>& ParentWindow) const
 {
 	const FVector2D WindowSize = ParentWindow->GetClientSizeInScreen();
-	ULevelSnapshotsEditorSettings* Settings = ULevelSnapshotsEditorSettings::Get();
+	ULevelSnapshotsEditorSettings* Settings = ULevelSnapshotsEditorSettings::GetMutable();
 	Settings->SetLastCreationWindowSize(WindowSize);
 	Settings->SaveConfig();
 

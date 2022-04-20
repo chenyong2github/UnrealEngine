@@ -12,7 +12,8 @@ class LEVELSNAPSHOTSEDITOR_API ULevelSnapshotsEditorSettings : public UObject
 	GENERATED_BODY()
 public:
 
-	static ULevelSnapshotsEditorSettings* Get();
+	static const ULevelSnapshotsEditorSettings* Get();
+	static ULevelSnapshotsEditorSettings* GetMutable();
 	
 	ULevelSnapshotsEditorSettings(const FObjectInitializer& ObjectInitializer);
 
@@ -85,5 +86,5 @@ public:
 private:
 	
 	/* If the user overrides the Name field in the creation form, the override will be saved here so it can be recalled. */
-	FString LevelSnapshotNameOverride;
+	TAttribute<FString> LevelSnapshotNameOverride;
 };
