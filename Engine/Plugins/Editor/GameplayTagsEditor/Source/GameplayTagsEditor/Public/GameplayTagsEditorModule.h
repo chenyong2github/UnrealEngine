@@ -7,6 +7,8 @@
 #include "Modules/ModuleManager.h"
 #include "IPropertyTypeCustomization.h"
 #include "GameplayTagContainer.h"
+#include "GameplayTagCustomizationOptions.h"
+#include "GameplayTagContainerCustomizationOptions.h"
 
 DECLARE_DELEGATE_OneParam(FOnSetGameplayTag, const FGameplayTag&);
 DECLARE_DELEGATE_OneParam(FOnSetGameplayTagContainer, const FGameplayTagContainer&);
@@ -81,12 +83,14 @@ public:
 struct GAMEPLAYTAGSEDITOR_API FGameplayTagCustomizationPublic
 {
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+	static TSharedRef<IPropertyTypeCustomization> MakeInstanceWithOptions(const FGameplayTagCustomizationOptions& Options);
 };
 
 /** This is public so that child structs of FGameplayTagContainer can use the details customization */
 struct GAMEPLAYTAGSEDITOR_API FGameplayTagContainerCustomizationPublic
 {
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+	static TSharedRef<IPropertyTypeCustomization> MakeInstanceWithOptions(const FGameplayTagContainerCustomizationOptions& Options);
 };
 
 struct GAMEPLAYTAGSEDITOR_API FRestrictedGameplayTagCustomizationPublic

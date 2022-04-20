@@ -14,8 +14,17 @@
 
 TSharedRef<IPropertyTypeCustomization> FGameplayTagCustomizationPublic::MakeInstance()
 {
-	return MakeShareable(new FGameplayTagCustomization);
+	return MakeInstanceWithOptions({});
 }
+
+TSharedRef<IPropertyTypeCustomization> FGameplayTagCustomizationPublic::MakeInstanceWithOptions(const FGameplayTagCustomizationOptions& Options)
+{
+	return MakeShareable(new FGameplayTagCustomization(Options));
+}
+
+FGameplayTagCustomization::FGameplayTagCustomization(const FGameplayTagCustomizationOptions& InOptions):
+	Options(InOptions)
+{}
 
 void FGameplayTagCustomization::CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
@@ -122,7 +131,9 @@ TSharedRef<SWidget> FGameplayTagCustomization::GetListContent()
 		.TagContainerName(StructPropertyHandle->GetPropertyDisplayName().ToString())
 		.MultiSelect(false)
 		.OnTagChanged(this, &FGameplayTagCustomization::OnTagChanged)
-		.PropertyHandle(StructPropertyHandle);
+		.PropertyHandle(StructPropertyHandle)
+		.ForceHideAddNewTag(Options.bForceHideAddTag)
+		.ForceHideAddNewTagSource(Options.bForceHideAddTagSource);
 
 	LastTagWidget = TagWidget;
 

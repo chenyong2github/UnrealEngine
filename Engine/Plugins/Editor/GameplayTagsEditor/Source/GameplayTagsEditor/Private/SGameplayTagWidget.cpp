@@ -85,6 +85,8 @@ void SGameplayTagWidget::Construct(const FArguments& InArgs, const TArray<FEdita
 	PropertyHandle = InArgs._PropertyHandle;
 	RootFilterString = InArgs._Filter;
 	GameplayTagUIMode = InArgs._GameplayTagUIMode;
+	bForceHideAddNewTag = InArgs._ForceHideAddNewTag;
+	bForceHideAddNewTagSource = InArgs._ForceHideAddNewTagSource;
 
 	bAddTagSectionExpanded = InArgs._NewTagControlsInitiallyExpanded;
 	bDelayRefresh = false;
@@ -1259,9 +1261,9 @@ EVisibility SGameplayTagWidget::DetermineExpandableUIVisibility() const
 {
 	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 
-	if ( !Manager.ShouldImportTagsFromINI() )
+	if ( !Manager.ShouldImportTagsFromINI() || (bForceHideAddNewTag && bForceHideAddNewTagSource))
 	{
-		// If we can't support adding tags from INI files, we should never see this widget
+		// If we can't support adding tags from INI files, or both options are forcibly disabled, we should never see this widget
 		return EVisibility::Collapsed;
 	}
 
@@ -1270,7 +1272,7 @@ EVisibility SGameplayTagWidget::DetermineExpandableUIVisibility() const
 
 EVisibility SGameplayTagWidget::DetermineAddNewSourceExpandableUIVisibility() const
 {
-	if (bRestrictedTags)
+	if (bRestrictedTags || bForceHideAddNewTagSource)
 	{
 		return EVisibility::Collapsed;
 	}
@@ -1282,7 +1284,7 @@ EVisibility SGameplayTagWidget::DetermineAddNewTagWidgetVisibility() const
 {
 	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 
-	if ( !Manager.ShouldImportTagsFromINI() || !bAddTagSectionExpanded || bRestrictedTags )
+	if ( !Manager.ShouldImportTagsFromINI() || !bAddTagSectionExpanded || bRestrictedTags || bForceHideAddNewTag )
 	{
 		// If we can't support adding tags from INI files, we should never see this widget
 		return EVisibility::Collapsed;
@@ -1295,7 +1297,7 @@ EVisibility SGameplayTagWidget::DetermineAddNewRestrictedTagWidgetVisibility() c
 {
 	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 
-	if (!Manager.ShouldImportTagsFromINI() || !bAddTagSectionExpanded || !bRestrictedTags)
+	if (!Manager.ShouldImportTagsFromINI() || !bAddTagSectionExpanded || !bRestrictedTags || bForceHideAddNewTag )
 	{
 		// If we can't support adding tags from INI files, we should never see this widget
 		return EVisibility::Collapsed;
@@ -1308,7 +1310,7 @@ EVisibility SGameplayTagWidget::DetermineAddNewSourceWidgetVisibility() const
 {
 	UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
 
-	if (!Manager.ShouldImportTagsFromINI() || !bAddSourceSectionExpanded || bRestrictedTags)
+	if (!Manager.ShouldImportTagsFromINI() || !bAddSourceSectionExpanded || bRestrictedTags || bForceHideAddNewTagSource )
 	{
 		// If we can't support adding tags from INI files, we should never see this widget
 		return EVisibility::Collapsed;

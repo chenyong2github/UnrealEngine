@@ -6,6 +6,7 @@
 #include "Layout/Visibility.h"
 #include "Widgets/SWidget.h"
 #include "Editor/PropertyEditor/Public/IPropertyTypeCustomization.h"
+#include "GameplayTagContainerCustomizationOptions.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "SGameplayTagWidget.h"
@@ -17,11 +18,8 @@ class IPropertyHandle;
 class FGameplayTagContainerCustomization : public IPropertyTypeCustomization, public FEditorUndoClient
 {
 public:
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
-	{
-		return MakeShareable(new FGameplayTagContainerCustomization);
-	}
 
+	FGameplayTagContainerCustomization(const FGameplayTagContainerCustomizationOptions& InOptions);
 	~FGameplayTagContainerCustomization();
 
 	/** Overridden to show an edit button to launch the gameplay tag editor */
@@ -72,6 +70,8 @@ private:
 	TSharedPtr<class SComboButton> EditButton;
 
 	TWeakPtr<class SGameplayTagWidget> LastTagWidget;
+
+	FGameplayTagContainerCustomizationOptions Options;
 
 	void OnTagDoubleClicked(FGameplayTag Tag);
 	FReply OnRemoveTagClicked(FGameplayTag Tag);

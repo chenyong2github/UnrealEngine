@@ -45,6 +45,8 @@ public:
 		, _GameplayTagUIMode( EGameplayTagUIMode::SelectionMode )
 		, _MaxHeight(260.0f)
 		, _RestrictedTags( false )
+		, _ForceHideAddNewTag(false)
+		, _ForceHideAddNewTagSource(false)
 	{}
 		SLATE_ARGUMENT( FString, Filter ) // Comma delimited string of tag root names to filter by
 		SLATE_ARGUMENT( FString, NewTagName ) // String that will initially populate the New Tag Name field
@@ -57,6 +59,8 @@ public:
 		SLATE_ARGUMENT( EGameplayTagUIMode, GameplayTagUIMode )	// Determines behavior of the menu based on where it's used
 		SLATE_ARGUMENT( float, MaxHeight )	// caps the height of the gameplay tag tree
 		SLATE_ARGUMENT( bool, RestrictedTags ) // if we are dealing with restricted tags or regular gameplay tags
+		SLATE_ARGUMENT( bool, ForceHideAddNewTag) // Allow caller context to manually manipulate visibility of add new tag widget
+		SLATE_ARGUMENT( bool, ForceHideAddNewTagSource) // Allow caller context to manually manipulate visibility of add new tag source widget
 	SLATE_END_ARGS()
 
 	/** Simple struct holding a tag container and its owner for generic re-use of the widget */
@@ -153,6 +157,12 @@ private:
 
 	/** If true, this widget is displaying restricted tags; if false this widget displays regular gameplay tags. */
 	bool bRestrictedTags;
+
+	/** If true, this widget is unable to display the 'Add new tag' widget */
+	bool bForceHideAddNewTag;
+
+	/** If true, this widget is unable to display the 'Add new tag source' widget */
+	bool bForceHideAddNewTagSource;
 
 	/** The maximum height of the gameplay tag tree. If 0, the height is unbound. */
 	float MaxHeight;

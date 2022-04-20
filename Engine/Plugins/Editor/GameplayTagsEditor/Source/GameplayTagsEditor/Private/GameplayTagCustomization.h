@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
 #include "Editor/PropertyEditor/Public/IPropertyTypeCustomization.h"
+#include "GameplayTagCustomizationOptions.h"
 #include "SGameplayTagWidget.h"
 #include "EditorUndoClient.h"
 
@@ -15,6 +16,7 @@ class FGameplayTagCustomization : public IPropertyTypeCustomization, public FEdi
 {
 public:
 
+	FGameplayTagCustomization(const FGameplayTagCustomizationOptions& InOptions);
 	~FGameplayTagCustomization();
 
 	/** Overridden to show an edit button to launch the gameplay tag editor */
@@ -67,6 +69,8 @@ private:
 	TSharedPtr<class SComboButton> EditButton;
 
 	TWeakPtr<class SGameplayTagWidget> LastTagWidget;
+
+	FGameplayTagCustomizationOptions Options;
 };
 
 /** Customization for FGameplayTagCreationWidgetHelper showing an add tag button */
