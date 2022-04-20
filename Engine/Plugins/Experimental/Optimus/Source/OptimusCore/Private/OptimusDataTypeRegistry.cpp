@@ -33,17 +33,16 @@ static bool IsStructHashable(const UScriptStruct* InStructType)
 template<typename SourceT, typename DestT>
 static bool ConvertPropertyValuePOD(
 	TArrayView<const uint8> InRawValue,
-	TArray<uint8>& OutShaderValue
+	TArrayView<uint8> OutShaderValue
 	)
 {
-	if (!ensure(InRawValue.Num() == sizeof(SourceT)))
+	if (ensure(InRawValue.Num() == sizeof(SourceT)) &&
+		ensure(OutShaderValue.Num() == sizeof(DestT)))
 	{
-		return false;
+		*reinterpret_cast<DestT*>(OutShaderValue.GetData()) = static_cast<DestT>(*reinterpret_cast<const SourceT*>(InRawValue.GetData()));
+		return true;
 	}
-	const int32 Offset = OutShaderValue.Num();
-	OutShaderValue.AddUninitialized(sizeof(DestT));
-	*reinterpret_cast<DestT*>(OutShaderValue.GetData() + Offset) = static_cast<DestT>(*reinterpret_cast<const SourceT*>(InRawValue.GetData()));
-	return true;
+	return false;
 }
 
 
@@ -90,6 +89,7 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	// FIntPoint -> int2
 	Registry.RegisterType(
 		TBaseStructure<FIntPoint>::Get(),
+	    FText::FromString(TEXT("Int Vector 2")),
 		FShaderValueType::Get(EShaderFundamentalType::Int, 2),
 		{},
 		bShowElements,
@@ -98,6 +98,7 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	// FIntVector -> int3
 	Registry.RegisterType(
 		TBaseStructure<FIntVector>::Get(),
+	    FText::FromString(TEXT("Int Vector 3")),	 
 		FShaderValueType::Get(EShaderFundamentalType::Int, 3),
 		{},
 		bShowElements,
@@ -114,7 +115,7 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	// uint -> uint
 	Registry.RegisterType(
 		*FUInt32Property::StaticClass(),
-	    FText::FromString(TEXT("Unsigned Int")),
+	    FText::FromString(TEXT("UInt")),
 		FShaderValueType::Get(EShaderFundamentalType::Uint),
 		[](UStruct* InScope, FName InName) {
 			auto Prop = new FUInt32Property(InScope, InName, RF_Public);
@@ -124,6 +125,34 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 		ConvertPropertyValuePOD<uint32, uint32>,
 		FName(TEXT("uint")), FLinearColor(0.0275f, 0.733, 0.820f, 1.0f), 
 		EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+
+	/* FIXME: Need the corresponding definitions in UObject/Class.h @ line 3537
+	// FIntPoint -> int2
+	Registry.RegisterType(
+		TBaseStructure<FUintPoint>::Get(),
+	    FText::FromString(TEXT("UInt Vector 2")),
+		FShaderValueType::Get(EShaderFundamentalType::Uint, 2),
+		{},
+		bShowElements,
+		EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+
+	// FIntVector -> int3
+	Registry.RegisterType(
+		TBaseStructure<FUintVector>::Get(),
+	    FText::FromString(TEXT("UInt Vector 3")),	 
+		FShaderValueType::Get(EShaderFundamentalType::Uint, 3),
+		{},
+		bShowElements,
+		EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+
+	// FIntVector4 -> int4
+	Registry.RegisterType(
+		TBaseStructure<FUintVector4>::Get(),
+		FShaderValueType::Get(EShaderFundamentalType::Uint, 4),
+		{},
+		bShowElements,
+		EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+	*/
 	
 	// float -> float
 	Registry.RegisterType(
@@ -142,7 +171,7 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 		    return Prop;
 	    },
 		ConvertPropertyValuePOD<float, float>,
-		FName(TEXT("float")), {}, 
+		FName(TEXT("real")), {}, 
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// double -> float 
@@ -162,7 +191,7 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 			return Prop;
 	    },
 		ConvertPropertyValuePOD<double, float>,
-		FName(TEXT("float")), {}, 
+		FName(TEXT("real")), {}, 
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// FVector2D -> float2
@@ -281,6 +310,7 @@ bool FOptimusDataTypeRegistry::RegisterType(
 		InDataType.TypeName = InFieldType.GetFName();
 		InDataType.DisplayName = InDisplayName;
 		InDataType.ShaderValueType = InShaderValueType;
+		InDataType.ShaderValueSize = InShaderValueType->GetResourceElementSize();
 		InDataType.TypeCategory = InPinCategory;
 		if (InPinColor.IsSet())
 		{
@@ -294,9 +324,26 @@ bool FOptimusDataTypeRegistry::RegisterType(
 	);
 }
 
+bool FOptimusDataTypeRegistry::RegisterType(
+    UScriptStruct *InStructType,
+    FShaderValueTypeHandle InShaderValueType,
+	TOptional<FLinearColor> InPinColor,
+	bool bInShowElements,
+    EOptimusDataTypeUsageFlags InUsageFlags
+	)
+{
+#if WITH_EDITOR
+	FText DisplayName = InStructType->GetDisplayNameText();
+#else
+	FText DisplayName = FText::FromName(InStructType->GetFName());
+#endif
+	
+	return RegisterType(InStructType, DisplayName, InShaderValueType, InPinColor, bInShowElements, InUsageFlags);
+}
 
 bool FOptimusDataTypeRegistry::RegisterType(
     UScriptStruct *InStructType,
+	const FText& InDisplayName,
     FShaderValueTypeHandle InShaderValueType,
     TOptional<FLinearColor> InPinColor,
     bool bInShowElements,
@@ -323,68 +370,95 @@ bool FOptimusDataTypeRegistry::RegisterType(
 
 		PropertyCreateFuncT PropertyCreateFunc;
 		PropertyValueConvertFuncT PropertyValueConvertFunc;
+		int32 ExpectedShaderValueSize = 0;
+		
 		if (EnumHasAnyFlags(InUsageFlags, EOptimusDataTypeUsageFlags::Variable))
 		{
 			const bool bIsHashable = IsStructHashable(InStructType);
 
 			PropertyCreateFunc = [bIsHashable, InStructType](UStruct* InScope, FName InName) -> FProperty *
 			{
-				auto Prop = new FStructProperty(InScope, InName, RF_Public);
-				Prop->Struct = InStructType;
-				Prop->ArrayDim = 1;
-				Prop->ElementSize = InStructType->GetCppStructOps()->GetSize();
+				auto Property = new FStructProperty(InScope, InName, RF_Public);
+				Property->Struct = InStructType;
+				Property->ElementSize = InStructType->GetStructureSize();
 				if (bIsHashable)
 				{
-					Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
+					Property->SetPropertyFlags(CPF_HasGetValueTypeHash);
 				}
-				return Prop;
+				return Property;
 			};
 
-			PropertyValueConvertFunc = [InStructType, this](TArrayView<const uint8> InRawValue, TArray<uint8>& OutShaderValue) -> bool
+			struct FPropertyConversionInfo
 			{
-				const uint8* RawValuePtr = InRawValue.GetData();
-				int32 BytesRemaining = InRawValue.Num();
-				
-				for (const FProperty* Property : TFieldRange<FProperty>(InStructType))
+				PropertyValueConvertFuncT ConversionFunc;
+				int32 PropertyOffset;
+				int32 PropertySize;
+				int32 ShaderValueSize;
+			};
+			
+			TArray<FPropertyConversionInfo> ConversionEntries;
+			int32 ExpectedPropertySize = InStructType->GetCppStructOps()->GetSize();
+			
+			for (const FProperty* Property : TFieldRange<FProperty>(InStructType))
+			{
+				FOptimusDataTypeHandle TypeHandle = FindType(*Property);
+				if (!TypeHandle.IsValid())
 				{
-					FOptimusDataTypeHandle TypeHandle = FindType(*Property);
-					if (!TypeHandle.IsValid())
-					{
-						UE_LOG(LogOptimusCore, Error, TEXT("Found un-registered sub-element '%s' when converting '%s'"),
-							*(Property->GetClass()->GetName()), *InStructType->GetName());
-						return false;
-					}
-
-					auto ConversionFunc = FindPropertyValueConvertFunc(TypeHandle->TypeName);
-					if (!ConversionFunc)
-					{
-						UE_LOG(LogOptimusCore, Error, TEXT("Sub-element '%s' has no conversion when converting '%s'"),
-							*(Property->GetClass()->GetName()), *InStructType->GetName());
-						return false;
-					}
-					if (!ConversionFunc(TArrayView<const uint8>(RawValuePtr, Property->GetSize()), OutShaderValue))
-					{
-						return false;
-					}
-					RawValuePtr += Property->GetSize();
-					BytesRemaining -= Property->GetSize();
-					if (!ensure(BytesRemaining >= 0))
-					{
-						return false;
-					}
+					UE_LOG(LogOptimusCore, Error, TEXT("Found un-registered sub-element '%s' when converting '%s'"),
+						*(Property->GetClass()->GetName()), *InStructType->GetName());
+					return false;
 				}
-				return true;
+				
+				FPropertyConversionInfo ConversionInfo;
+
+				ConversionInfo.ConversionFunc = FindPropertyValueConvertFunc(TypeHandle->TypeName);
+				if (!ConversionInfo.ConversionFunc)
+				{
+					UE_LOG(LogOptimusCore, Error, TEXT("Sub-element '%s' has no conversion when converting '%s'"),
+						*(Property->GetClass()->GetName()), *InStructType->GetName());
+					return false;
+				}
+
+				ConversionInfo.PropertyOffset = Property->GetOffset_ForInternal();
+				ConversionInfo.PropertySize = Property->GetSize();
+				ConversionInfo.ShaderValueSize = TypeHandle->ShaderValueSize;
+				
+				ExpectedShaderValueSize += ConversionInfo.ShaderValueSize; 
+
+				ConversionEntries.Add(ConversionInfo);
+			}
+
+			PropertyValueConvertFunc = [ConversionEntries, ExpectedPropertySize, ExpectedShaderValueSize](
+				TArrayView<const uint8> InRawValue, 
+				TArrayView<uint8> OutShaderValue
+				) -> bool
+			{
+				if (ensure(InRawValue.Num() == ExpectedPropertySize) &&
+					ensure(OutShaderValue.Num() == ExpectedShaderValueSize))
+				{
+					uint8* ShaderValuePtr = OutShaderValue.GetData();
+					for (const FPropertyConversionInfo& ConversionInfo: ConversionEntries)
+					{
+						TArrayView<const uint8> PropertyData(InRawValue.GetData() + ConversionInfo.PropertyOffset, ConversionInfo.PropertySize);
+						TArrayView<uint8> ShaderValueData(ShaderValuePtr, ConversionInfo.ShaderValueSize);
+						if (!ConversionInfo.ConversionFunc(PropertyData, ShaderValueData))
+						{
+							return false;
+						}
+
+						ShaderValuePtr += ConversionInfo.ShaderValueSize;
+					}
+					return true;
+				}
+				return false;
 			};
 		}
 
 		return RegisterType(TypeName, [&](FOptimusDataType& InDataType) {
 			InDataType.TypeName = TypeName;
-#if WITH_EDITOR
-			InDataType.DisplayName = InStructType->GetDisplayNameText();
-#else
-			InDataType.DisplayName = FText::FromName(InStructType->GetFName());
-#endif
+			InDataType.DisplayName = InDisplayName;
 			InDataType.ShaderValueType = InShaderValueType;
+			InDataType.ShaderValueSize = ExpectedShaderValueSize;
 			InDataType.TypeCategory = FName(TEXT("struct"));
 			InDataType.TypeObject = InStructType;
 			if (InPinColor.IsSet())
@@ -472,6 +546,7 @@ bool FOptimusDataTypeRegistry::RegisterType(
 		InDataType.TypeName = InTypeName;
 		InDataType.DisplayName = InDisplayName;
 		InDataType.ShaderValueType = InShaderValueType;
+		InDataType.ShaderValueSize = InShaderValueType->GetResourceElementSize();
 		InDataType.TypeCategory = InPinCategory;
 		InDataType.TypeObject = InPinSubCategory;
 		InDataType.bHasCustomPinColor = true;

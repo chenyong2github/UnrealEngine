@@ -13,6 +13,7 @@ void UOptimusVariableDescription::ResetValueDataSize()
 		// Create a temporary property from the type so that we can get the size of the
 		// type for properly resizing the storage.
 		TUniquePtr<FProperty> TempProperty(DataType->CreateProperty(nullptr, NAME_None));
+		
 		if (ValueData.Num() != TempProperty->GetSize())
 		{
 			ValueData.SetNumZeroed(TempProperty->GetSize());

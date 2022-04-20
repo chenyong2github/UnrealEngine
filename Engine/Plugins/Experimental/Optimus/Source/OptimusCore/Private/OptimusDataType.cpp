@@ -56,7 +56,7 @@ FProperty* FOptimusDataType::CreateProperty(
 
 bool FOptimusDataType::ConvertPropertyValueToShader(
 	TArrayView<const uint8> InValue,
-	TArray<uint8>& OutConvertedValue
+	TArrayView<uint8> OutConvertedValue
 	) const
 {
 	const FOptimusDataTypeRegistry::PropertyValueConvertFuncT PropertyConversionFunc =

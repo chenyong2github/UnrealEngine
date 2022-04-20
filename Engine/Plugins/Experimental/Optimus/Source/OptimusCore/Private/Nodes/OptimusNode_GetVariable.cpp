@@ -57,8 +57,10 @@ TArray<uint8> UOptimusNode_GetVariable::GetShaderValue() const
 	if (const UOptimusVariableDescription* Var = VariableDesc.Get();
 		Var && ensure(Var->DataType.IsValid()) && ensure(GetPins().Num() == 1))
 	{
-		if (TArray<uint8> ValueResult;
-			Var->DataType->ConvertPropertyValueToShader(Var->ValueData, ValueResult))
+		TArray<uint8> ValueResult;
+		ValueResult.SetNumUninitialized(Var->DataType->ShaderValueSize);
+
+		if (Var->DataType->ConvertPropertyValueToShader(Var->ValueData, ValueResult))
 		{
 			return ValueResult;
 		}

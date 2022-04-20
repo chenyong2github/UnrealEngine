@@ -17,13 +17,12 @@ class FOptimusDataTypeRegistry
 public:
 	using PropertyCreateFuncT = TFunction<FProperty *(UStruct *InScope, FName InName)>;
 
-	/** Defines a pointer to a function that takes a const uint8 pointer that points to the
-	  * property value, and adds entries to the OutShaderValue and fills them with a value
-	  * converted that matches what a shader parameter structure expects (e.g. bool is
-	  * converted to a 32-bit integer). The pointer returned is a pointer to the value after
-	  * the converted from value.
+	/** Defines a function that takes an array view on UE property data and converts it to
+	 *  a matching HLSL shader value data. It's expected that the input and output array views
+	 *  hold enough data to both read all property data for this type and write out shader values
+	 *  matching these data.
 	  */
-	using PropertyValueConvertFuncT = TFunction<bool(TArrayView<const uint8> InRawValue, TArray<uint8>& OutShaderValue)>;
+	using PropertyValueConvertFuncT = TFunction<bool(TArrayView<const uint8> InRawValue, TArrayView<uint8> OutShaderValue)>;
 
 	~FOptimusDataTypeRegistry();
 
@@ -45,6 +44,15 @@ public:
 	// Register a complex type that has corresponding types on both the UE and HLSL side.
 	OPTIMUSCORE_API bool RegisterType(
 	    UScriptStruct *InStructType,
+	    FShaderValueTypeHandle InShaderValueType,
+		TOptional<FLinearColor> InPinColor,
+		bool bInShowElements,
+	    EOptimusDataTypeUsageFlags InUsageFlags
+		);
+
+	OPTIMUSCORE_API bool RegisterType(
+	    UScriptStruct *InStructType,
+		const FText& InDisplayName,
 	    FShaderValueTypeHandle InShaderValueType,
 		TOptional<FLinearColor> InPinColor,
 		bool bInShowElements,

@@ -58,7 +58,7 @@ struct OPTIMUSCORE_API FOptimusDataType
 	// accommodate the newly converted value.
 	bool ConvertPropertyValueToShader(
 		TArrayView<const uint8> InValue,
-		TArray<uint8>& OutConvertedValue
+		TArrayView<uint8> OutConvertedValue
 		) const;
 
 	// Returns true if the data type can create a FProperty object to represent it.
@@ -74,6 +74,11 @@ struct OPTIMUSCORE_API FOptimusDataType
 	UPROPERTY()
 	FShaderValueTypeHandle ShaderValueType;
 
+	// Size of the shader value that can hold a value of this type. If this type is not a
+	// shader value, then this value is zero.
+	UPROPERTY()
+	int32 ShaderValueSize;
+	
 	UPROPERTY()
 	FName TypeCategory;
 

@@ -110,9 +110,10 @@ TArray<uint8> UOptimusNode_ConstantValue::GetShaderValue() const
 		if (ensure(ValueProperty) && ensure(DataType.IsValid()))
 		{
 			TArrayView<const uint8> ValueData(ValueProperty->ContainerPtrToValuePtr<uint8>(this), ValueProperty->GetSize());
+			TArray<uint8> ValueResult;
+			ValueResult.SetNumUninitialized(DataType->ShaderValueSize);
 
-			if (TArray<uint8> ValueResult;
-				DataType->ConvertPropertyValueToShader(ValueData, ValueResult))
+			if (DataType->ConvertPropertyValueToShader(ValueData, ValueResult))
 			{
 				return ValueResult;
 			}

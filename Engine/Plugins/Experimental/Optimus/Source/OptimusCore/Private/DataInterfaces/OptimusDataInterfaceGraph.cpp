@@ -181,10 +181,8 @@ FOptimusGraphDataProviderProxy::FOptimusGraphDataProviderProxy(UOptimusDeformerI
 				{
 					if (Variable.ValueType == VariableValue->DataType->ShaderValueType && Variable.Name == VariableValue->VariableName.GetPlainNameString())
 					{
-						// todo[CF]: This conversion is quite a lot to be doing for every individual variable on every frame!
-						TArray<uint8> ValueResult;
-						VariableValue->DataType->ConvertPropertyValueToShader(VariableValue->ValueData, ValueResult);
-						FMemory::Memcpy(&ParameterData[Variable.Offset], ValueResult.GetData(), ValueResult.Num());
+						TArrayView<uint8> ParameterEntry(&ParameterData[Variable.Offset], VariableValue->DataType->ShaderValueSize);
+						VariableValue->DataType->ConvertPropertyValueToShader(VariableValue->ValueData, ParameterEntry);
 						break;
 					}
 				}
