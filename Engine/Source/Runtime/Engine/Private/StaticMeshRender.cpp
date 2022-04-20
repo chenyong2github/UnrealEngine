@@ -305,7 +305,7 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 
 			if (CVarRayTracingStaticMeshesWPO.GetValueOnAnyThread() == 1)
 			{
-				bDynamicRayTracingGeometry &= InComponent->bEvaluateWorldPositionOffset;
+				bDynamicRayTracingGeometry &= InComponent->bEvaluateWorldPositionOffsetInRayTracing;
 			}
 		}
 
