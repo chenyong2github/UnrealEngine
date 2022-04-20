@@ -189,34 +189,34 @@ namespace Chaos
 		FPBDCollisionConstraintMaterial& CollisionMaterial = Constraint.Material;
 		if (PhysicsMaterial0 && PhysicsMaterial1)
 		{
-			const FChaosPhysicsMaterial::ECombineMode RestitutionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->RestitutionCombineMode, PhysicsMaterial1->RestitutionCombineMode);
-			CollisionMaterial.Restitution = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Restitution, PhysicsMaterial1->Restitution, RestitutionCombineMode);
+			const FChaosPhysicsMaterial::ECombineMode RestitutionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->RestitutionCombineMode,PhysicsMaterial1->RestitutionCombineMode);
+			CollisionMaterial.MaterialRestitution = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Restitution, PhysicsMaterial1->Restitution, RestitutionCombineMode);
 
-			const FChaosPhysicsMaterial::ECombineMode FrictionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->FrictionCombineMode, PhysicsMaterial1->FrictionCombineMode);
-			CollisionMaterial.Friction = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Friction, PhysicsMaterial1->Friction, FrictionCombineMode);
+			const FChaosPhysicsMaterial::ECombineMode FrictionCombineMode = FChaosPhysicsMaterial::ChooseCombineMode(PhysicsMaterial0->FrictionCombineMode,PhysicsMaterial1->FrictionCombineMode);
+			CollisionMaterial.MaterialDynamicFriction = FChaosPhysicsMaterial::CombineHelper(PhysicsMaterial0->Friction,PhysicsMaterial1->Friction, FrictionCombineMode);
 			const FReal StaticFriction0 = FMath::Max(PhysicsMaterial0->Friction, PhysicsMaterial0->StaticFriction);
 			const FReal StaticFriction1 = FMath::Max(PhysicsMaterial1->Friction, PhysicsMaterial1->StaticFriction);
-			CollisionMaterial.AngularFriction = FChaosPhysicsMaterial::CombineHelper(StaticFriction0, StaticFriction1, FrictionCombineMode);
+			CollisionMaterial.MaterialStaticFriction = FChaosPhysicsMaterial::CombineHelper(StaticFriction0, StaticFriction1, FrictionCombineMode);
 		}
 		else if (PhysicsMaterial0)
 		{
 			const FReal StaticFriction0 = FMath::Max(PhysicsMaterial0->Friction, PhysicsMaterial0->StaticFriction);
-			CollisionMaterial.Restitution = PhysicsMaterial0->Restitution;
-			CollisionMaterial.Friction = PhysicsMaterial0->Friction;
-			CollisionMaterial.AngularFriction = StaticFriction0;
+			CollisionMaterial.MaterialRestitution = PhysicsMaterial0->Restitution;
+			CollisionMaterial.MaterialDynamicFriction = PhysicsMaterial0->Friction;
+			CollisionMaterial.MaterialStaticFriction = StaticFriction0;
 		}
 		else if (PhysicsMaterial1)
 		{
 			const FReal StaticFriction1 = FMath::Max(PhysicsMaterial1->Friction, PhysicsMaterial1->StaticFriction);
-			CollisionMaterial.Restitution = PhysicsMaterial1->Restitution;
-			CollisionMaterial.Friction = PhysicsMaterial1->Friction;
-			CollisionMaterial.AngularFriction = StaticFriction1;
+			CollisionMaterial.MaterialRestitution = PhysicsMaterial1->Restitution;
+			CollisionMaterial.MaterialDynamicFriction = PhysicsMaterial1->Friction;
+			CollisionMaterial.MaterialStaticFriction = StaticFriction1;
 		}
 		else
 		{
-			CollisionMaterial.Friction = DefaultCollisionFriction;
-			CollisionMaterial.AngularFriction = DefaultCollisionFriction;
-			CollisionMaterial.Restitution = DefaultCollisionRestitution;
+			CollisionMaterial.MaterialDynamicFriction = DefaultCollisionFriction;
+			CollisionMaterial.MaterialStaticFriction = DefaultCollisionFriction;
+			CollisionMaterial.MaterialRestitution = DefaultCollisionRestitution;
 		}
 
 		CollisionMaterial.RestitutionThreshold = (CollisionRestitutionThresholdOverride >= 0.0f) ? CollisionRestitutionThresholdOverride : RestitutionThreshold;
@@ -224,21 +224,23 @@ namespace Chaos
 		// Overrides for testing
 		if (CollisionFrictionOverride >= 0)
 		{
-			CollisionMaterial.Friction = CollisionFrictionOverride;
-			CollisionMaterial.AngularFriction = CollisionFrictionOverride;
+			CollisionMaterial.MaterialDynamicFriction = CollisionFrictionOverride;
+			CollisionMaterial.MaterialStaticFriction = CollisionFrictionOverride;
 		}
 		if (CollisionRestitutionOverride >= 0)
 		{
-			CollisionMaterial.Restitution = CollisionRestitutionOverride;
+			CollisionMaterial.MaterialRestitution = CollisionRestitutionOverride;
 		}
 		if (CollisionAngularFrictionOverride >= 0)
 		{
-			CollisionMaterial.AngularFriction = CollisionAngularFrictionOverride;
+			CollisionMaterial.MaterialStaticFriction = CollisionAngularFrictionOverride;
 		}
 		if (!bEnableRestitution)
 		{
-			CollisionMaterial.Restitution = 0.0f;
+			CollisionMaterial.MaterialRestitution = 0.0f;
 		}
+		
+		CollisionMaterial.ResetMaterialModifications();
 	}
 
 	void FPBDCollisionConstraints::UpdatePositionBasedState(const FReal Dt)

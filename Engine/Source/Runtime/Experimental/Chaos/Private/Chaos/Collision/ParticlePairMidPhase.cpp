@@ -281,6 +281,7 @@ namespace Chaos
 			// NOTE: these are not used by CCD which continuously moves the particles
 			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
+			Constraint->ResetMaterial();
 			Constraint->SetCCDEnabled(false);
 
 			// If the constraint was not used last frame, it needs to be reset. 
@@ -357,6 +358,7 @@ namespace Chaos
 			// NOTE: these are not used by CCD which continuously moves the particles
 			Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
 
+			Constraint->ResetMaterial();
 			Constraint->SetCCDEnabled(true);
 			Constraint->SetCullDistance(CullDistance);
 			Constraint->ResetManifold();
@@ -561,6 +563,8 @@ namespace Chaos
 		const FRigidTransform3 ShapeWorldTransform0 = ShapeRelativeTransform0 * ParticleTransform0;
 		const FRigidTransform3 ShapeWorldTransform1 = ShapeRelativeTransform1 * ParticleTransform1;
 		Constraint->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+
+		Constraint->ResetMaterial();
 
 		NewConstraints.Add(Constraint);
 		return Constraint;

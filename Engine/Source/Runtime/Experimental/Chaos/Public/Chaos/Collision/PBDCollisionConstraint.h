@@ -104,7 +104,10 @@ namespace Chaos
 	{
 	public:
 		FPBDCollisionConstraintMaterial()
-			: Friction(0)
+			: MaterialStaticFriction(0)
+			, MaterialDynamicFriction(0)
+			, MaterialRestitution(0)
+			, Friction(0)
 			, AngularFriction(0)
 			, Restitution(0)
 			, RestitutionPadding(0)
@@ -116,9 +119,16 @@ namespace Chaos
 		{
 		}
 
+		// Material properties pulled from the materials of the two shapes involved in the contact
+		FReal MaterialStaticFriction;
+		FReal MaterialDynamicFriction;
+		FReal MaterialRestitution;
+
+		// Final material properties (post modifier) used by the solver. These get reset every frame to the material values above
 		FReal Friction;			// @todo(chaos): rename DynamicFriction
 		FReal AngularFriction;	// @todo(chaos): rename StaticFriction
 		FReal Restitution;
+
 		FReal RestitutionPadding; // For StandardPBD implementation of resitution, we pad constraints on initial contact to enforce outward velocity
 		FReal RestitutionThreshold;
 		FReal InvMassScale0;
@@ -126,6 +136,15 @@ namespace Chaos
 		FReal InvInertiaScale0;
 		FReal InvInertiaScale1;
 
+		// Reset the material properties to those pulled from the shape's materials (i.e., back to the state before any contact modification)
+		void ResetMaterialModifications()
+		{
+			Friction = MaterialDynamicFriction;
+			AngularFriction = MaterialStaticFriction;
+			Restitution = MaterialRestitution;
+		}
+
+		// @todo(chaos): remove this
 		void Reset()
 		{
 			RestitutionPadding = 0;
@@ -392,6 +411,14 @@ namespace Chaos
 		// Whether we run collision detection every iteration (true if we are not using one shot manifolds)
 		// NOTE: This is initially set based on whether are allowing incremental manifolds
 		bool GetUseIncrementalCollisionDetection() const { return !Flags.bUseManifold || Flags.bUseIncrementalManifold; }
+
+		/**
+		* Reset the material properties to those from the shape materials. Called each frame to reset contact modifications to the material.
+		*/
+		inline void ResetMaterial()
+		{
+			Manifold.ResetMaterialModifications();
+		}
 
 		/**
 		 * @brief Clear the current and previous manifolds
