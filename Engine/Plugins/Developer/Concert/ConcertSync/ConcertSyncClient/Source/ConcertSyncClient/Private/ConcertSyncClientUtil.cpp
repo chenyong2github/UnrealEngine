@@ -149,8 +149,15 @@ FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNew
 		}
 	};
 
-	// Find the outer for the existing object
-	if (UObject* ExistingObjectOuter = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectOuterPathToFind.ToString()))
+	// Find the outer for the existing object.
+	// Note that we use FSoftObjectPath::ResolveObject() here to ensure that if
+	// world partitioning is involved, we're able to resolve a non-partitioned
+	// path into an object with a partitioned path (e.g. an editor path to a
+	// "-game"/nDisplay path).
+	// TODO: If a case arises where we need to go the other direction and get
+	// an object with a non-partitioned path from a partitioned path, a
+	// different mechanism for that would be needed here.
+	if (UObject* ExistingObjectOuter = FSoftObjectPath(ObjectOuterPathToFind).ResolveObject())
 	{
 		// We need the object class to find or create the object
 		if (UClass* ObjectClass = FindOrLoadClass(InObjectId.ObjectClassPathName))
@@ -197,8 +204,10 @@ FGetObjectResult GetObject(const FConcertObjectId& InObjectId, const FName InNew
 		}
 	}
 
-	// Find the outer for the new object
-	if (UObject* NewObjectOuter = StaticFindObject(UObject::StaticClass(), nullptr, *ObjectOuterPathToCreate.ToString()))
+	// Find the outer for the new object.
+	// As above, we use FSoftObjectPath::ResolveObject() here to account for
+	// the possibility of world partitioning.
+	if (UObject* NewObjectOuter = FSoftObjectPath(ObjectOuterPathToCreate).ResolveObject())
 	{
 		// We need the object class to find or create the object
 		if (UClass* ObjectClass = FindOrLoadClass(InObjectId.ObjectClassPathName))
@@ -467,7 +476,7 @@ void PurgePackages(TArrayView<const FName> InPackageNames)
 		}
 	}
 
-	// Broadcast the eminent objects destruction (ex. tell BlueprintActionDatabase to release its reference(s) on Blueprint(s) right now)
+	// Broadcast the eminent objects destruction (ex. tell BlueprintActionDatabase to release its reference(s) on Blueprint(s) right now)
 	FEditorDelegates::OnAssetsPreDelete.Broadcast(ObjectsToPurge);
 
 	// Mark objects as purgeable.
