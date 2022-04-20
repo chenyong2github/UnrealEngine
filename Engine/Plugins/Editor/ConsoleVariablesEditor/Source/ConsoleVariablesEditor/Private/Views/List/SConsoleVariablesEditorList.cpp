@@ -9,6 +9,7 @@
 #include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_ShowOnlyVariables.h"
 #include "ConsoleVariablesEditorListFilters/ConsoleVariablesEditorListFilter_Source.h"
 
+#include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorModule.h"
 #include "ConsoleVariablesEditorProjectSettings.h"
 #include "ConsoleVariablesEditorStyle.h"
@@ -439,7 +440,7 @@ void SConsoleVariablesEditorList::RebuildListWithListMode(
 
 		for (const FConsoleVariablesEditorListRowPtr& Item : TreeViewRootObjects)
 		{
-			if (Item->GetCommandInfo().Pin()->Command.Equals(InConsoleCommandToScrollTo))
+			if (Item->GetCommandInfo().Pin()->Command.Equals(InConsoleCommandToScrollTo, ESearchCase::IgnoreCase))
 			{
 				ScrollToItem = Item;
 				break;
@@ -1025,13 +1026,6 @@ void SConsoleVariablesEditorList::CacheCurrentListItemData()
 		if (const TSharedPtr<FConsoleVariablesEditorCommandInfo>& CommandInfo = Item->GetCommandInfo().Pin())
 		{
 			const FString& CommandName = CommandInfo->Command;
-				
-			/*CachedCommandStates.SetNum(Algo::RemoveIf(
-				CachedCommandStates,
-				[CommandName](const FConsoleVariablesEditorAssetSaveData& CachedData)
-				{
-					return CachedData.CommandName.Equals(CommandName);
-				}));*/
 			
 			CachedCommandStates.Add(
 				{
@@ -1060,7 +1054,7 @@ void SConsoleVariablesEditorList::RestorePreviousListItemData()
 					CachedCommandStates,
 					[CommandName](const FConsoleVariablesEditorAssetSaveData& CachedData)
 					{
-						return CachedData.CommandName.Equals(CommandName);
+						return CachedData.CommandName.Equals(CommandName, ESearchCase::IgnoreCase);
 					}))
 				{
 					Item->SetCachedValue((*Match).CommandValueAsString);
@@ -1103,8 +1097,13 @@ void SConsoleVariablesEditorList::GenerateTreeView(const bool bSkipExecutionOfCa
 	
 	check(EditableAsset);
 
-	for (const FConsoleVariablesEditorAssetSaveData& SavedCommand : EditableAsset->GetSavedCommands())
+	TArray<FConsoleVariablesEditorAssetSaveData> SavedCommands = EditableAsset->GetSavedCommands();
+	
+	for (const FConsoleVariablesEditorAssetSaveData& SavedCommand : SavedCommands)
 	{
+		UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("%hs: Considering %s for the list"),
+			__FUNCTION__, *SavedCommand.CommandName);
+		
 		// Get corresponding CommandInfo for tracking or make one if the command is non-value
 		TSharedPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
 			ConsoleVariablesEditorModule.FindCommandInfoByName(SavedCommand.CommandName).Pin();
@@ -1122,15 +1121,31 @@ void SConsoleVariablesEditorList::GenerateTreeView(const bool bSkipExecutionOfCa
 		{
 			FConsoleVariablesEditorListRowPtr RowToAdd = nullptr;
 			
-			if (TSharedPtr<FConsoleVariablesEditorListRow>* MatchingRow = Algo::FindByPredicate(
+			// If the row already exists, let's not make another one.
+			if (Algo::FindByPredicate(
+				TreeViewRootObjects,
+				[this, &CommandInfo](const FConsoleVariablesEditorListRowPtr& ExistingRow)
+				{
+					return ExistingRow->GetCommandInfo().IsValid() &&
+						ExistingRow->GetCommandInfo().Pin()->Command.Equals(CommandInfo->Command, ESearchCase::IgnoreCase);
+				}) != nullptr)
+			{
+				UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("%hs: Not Adding %s to the list because it's already in the list"),
+					__FUNCTION__, *SavedCommand.CommandName);
+				continue;
+			}
+			// If the row exists in our cache, let's use that one instead of creating a new one.
+			if (TSharedPtr<FConsoleVariablesEditorListRow>* MatchingLastPresetRow = Algo::FindByPredicate(
 				LastPresetObjects,
 				[this, &CommandInfo](const FConsoleVariablesEditorListRowPtr& ExistingRow)
 				{
 					return ExistingRow->GetCommandInfo().IsValid() &&
-						ExistingRow->GetCommandInfo().Pin()->Command.Equals(CommandInfo->Command);
+						ExistingRow->GetCommandInfo().Pin()->Command.Equals(CommandInfo->Command, ESearchCase::IgnoreCase);
 				}))
 			{
-				RowToAdd = *MatchingRow;
+				UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("%hs: Adding %s to the list from cache"),
+					__FUNCTION__, *SavedCommand.CommandName);
+				RowToAdd = *MatchingLastPresetRow;
 			}
 			else
 			{
@@ -1162,14 +1177,17 @@ void SConsoleVariablesEditorList::GenerateTreeView(const bool bSkipExecutionOfCa
 						!CachedCommandStates.ContainsByPredicate(
 							[this, &CommandInfo](const FConsoleVariablesEditorAssetSaveData& Comparator)
 							{
-								return Comparator.CommandName.Equals(CommandInfo->Command);
+								return Comparator.CommandName.Equals(CommandInfo->Command, ESearchCase::IgnoreCase);
 							});
 				}
-
+				
 				if (bIsEligibleForExecution)
 				{
 					CommandInfo->ExecuteCommand(SavedCommand.CommandValueAsString);
 				}
+				
+				UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("%hs: Adding %s to the list with a new row item"),
+					__FUNCTION__, *SavedCommand.CommandName);
 				
 				TreeViewRootObjects.Add(RowToAdd);
 			}

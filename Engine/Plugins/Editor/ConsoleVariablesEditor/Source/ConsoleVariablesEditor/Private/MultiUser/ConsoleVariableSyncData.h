@@ -6,6 +6,9 @@
 #include "Misc/Guid.h"
 
 #include "ConcertMessageData.h"
+
+#include "Styling/SlateTypes.h"
+
 #include "ConsoleVariableSyncData.generated.h"
 
 UCLASS(config=Engine, DisplayName="Multi-user Console Variable Synchronization")
@@ -96,4 +99,16 @@ struct FConcertSetConsoleVariableEvent
 	/** The value to set the named console variable. */
 	UPROPERTY()
 	FString Value;
+};
+
+USTRUCT()
+struct FConcertSetListItemCheckStateEvent
+{
+	GENERATED_BODY()
+	/** Console variable name to apply the checked state change. */
+	UPROPERTY()
+	FString Variable;
+	/** The checked state of the list item. */
+	UPROPERTY()
+	ECheckBoxState CheckState;
 };

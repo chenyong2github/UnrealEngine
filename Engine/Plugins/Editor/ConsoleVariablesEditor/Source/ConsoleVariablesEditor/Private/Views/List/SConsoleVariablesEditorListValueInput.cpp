@@ -109,9 +109,6 @@ void SConsoleVariablesEditorListValueInput_Float::Construct(const FArguments& In
 				!PinnedItem->GetCachedValue().Equals(ValueAsString))
 			{				
 				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
-
-				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
-					PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
 					
 				PinnedItem->SetCachedValue(ValueAsString);
 			}
@@ -181,9 +178,6 @@ void SConsoleVariablesEditorListValueInput_Int::Construct(const FArguments& InAr
 				!PinnedItem->GetCachedValue().Equals(ValueAsString))
 			{				
 				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
-
-				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
-					PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
 
 				PinnedItem->SetCachedValue(ValueAsString);
 			}
@@ -279,9 +273,6 @@ void SConsoleVariablesEditorListValueInput_String::Construct(const FArguments& I
 			{				
 				PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
 
-				FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
-					PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
-
 				PinnedItem->SetCachedValue(ValueAsString);
 			}
 		})
@@ -372,8 +363,6 @@ void SConsoleVariablesEditorListValueInput_Bool::SetInputValue(const FString& In
 	{				
 		PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(InValueAsString);
 
-		FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(PinnedItem->GetCommandInfo().Pin()->Command, InValueAsString);
-
 		PinnedItem->SetCachedValue(InValueAsString);
 	}
 }
@@ -439,9 +428,6 @@ void SConsoleVariablesEditorListValueInput_Command::Construct(const FArguments& 
 						!PinnedItem->GetCachedValue().Equals(ValueAsString)))
 					{
 						PinnedItem->GetCommandInfo().Pin()->ExecuteCommand(ValueAsString);
-
-						FConsoleVariablesEditorModule::Get().SendMultiUserConsoleVariableChange(
-							PinnedItem->GetCommandInfo().Pin()->Command, ValueAsString);
 
 						PinnedItem->SetCachedValue(ValueAsString);
 					}

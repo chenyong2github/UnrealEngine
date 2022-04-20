@@ -406,6 +406,22 @@ struct FManagerImpl
 								 EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 	}
 
+	/**
+	 * Sends the given console variable name with the specified checked state to all connected endpoints.  It is up to the
+	 * endpoint to implement the change locally based on configured synchronization state.
+	 */
+	void SendListItemCheckStateChange(FString InName, ECheckBoxState InCheckState)
+	{
+		TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
+		if (!bIsEnabled || !Session.IsValid())
+		{
+			return;
+		}
+		FConcertSetListItemCheckStateEvent OutEvent{MoveTemp(InName), MoveTemp(InCheckState)};
+		Session->SendCustomEvent(OutEvent, Session->GetSessionClientEndpointIds(),
+								 EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
+	}
+
 	/** Reference to the customization object so that we can sync with the session.*/
 	TSharedPtr<FConcertConsoleVariableSessionCustomization> Customization;
 
@@ -420,6 +436,9 @@ struct FManagerImpl
 
 	/** Multicast delegate invoked when Multi-user console variable change event is received. */
 	FOnRemoteCVarChange RemoteCVarChanged;
+
+	/** Multicast delegate invoked when Multi-user console variable list item in CVE is manually checked or unchecked. */
+	FOnRemoteListItemCheckStateChange RemoteListItemCheckStateChanged;
 
 	/** Multi-user connection change delegate */
 	FOnMultiUserConnectionChange ConnectionChanged;
@@ -444,6 +463,11 @@ FOnRemoteCVarChange& FManager::OnRemoteCVarChange()
 	return Implementation->RemoteCVarChanged;
 }
 
+FOnRemoteListItemCheckStateChange& FManager::OnRemoteListItemCheckStateChange()
+{
+	return Implementation->RemoteListItemCheckStateChanged;
+}
+
 FOnMultiUserConnectionChange& FManager::OnConnectionChange()
 {
 	return Implementation->ConnectionChanged;
@@ -452,6 +476,11 @@ FOnMultiUserConnectionChange& FManager::OnConnectionChange()
 void FManager::SendConsoleVariableChange(FString InName, FString InValue)
 {
 	Implementation->SendConsoleVariableChange(MoveTemp(InName), MoveTemp(InValue));
+}
+
+void FManager::SendListItemCheckStateChange(FString InName, ECheckBoxState InCheckedState)
+{
+	Implementation->SendListItemCheckStateChange(MoveTemp(InName), MoveTemp(InCheckedState));
 }
 
 void FManager::SetEnableMultiUserSupport(bool bIsEnabled)

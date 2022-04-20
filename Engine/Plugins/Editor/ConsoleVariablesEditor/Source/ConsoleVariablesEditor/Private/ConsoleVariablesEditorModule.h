@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ConsoleVariablesAsset.h"
-#include "ConsoleVariablesEditorCommandInfo.h"
 #include "MultiUser/ConsoleVariableSync.h"
 
 #include "CoreMinimal.h"
@@ -12,6 +11,7 @@
 #include "Widgets/Docking/SDockTab.h"
 
 struct FAssetData;
+struct FConsoleVariablesEditorCommandInfo;
 
 class FConsoleVariablesEditorMainPanel;
 class FConsoleVariablesEditorToolkit;

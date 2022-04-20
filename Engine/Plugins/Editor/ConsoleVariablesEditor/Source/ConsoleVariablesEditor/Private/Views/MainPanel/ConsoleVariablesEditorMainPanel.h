@@ -86,8 +86,12 @@ private:
 
 	static void OnConnectionChanged(EConcertConnectionStatus Status);
 	static void OnRemoteCvarChange(const FString InName, const FString InValue);
-
+	static void OnRemoteListItemCheckStateChange(const FString InName, ECheckBoxState InCheckedState);
+	
+	void SendListItemCheckStateChange(const FString& InName, ECheckBoxState InCheckedState);
+	
 	UE::ConsoleVariables::MultiUser::Private::FManager MultiUserManager;
 	FDelegateHandle OnConnectionChangedHandle;
 	FDelegateHandle OnRemoteCVarChangeHandle;
+	FDelegateHandle OnRemoteListItemCheckStateChangeHandle;
 };

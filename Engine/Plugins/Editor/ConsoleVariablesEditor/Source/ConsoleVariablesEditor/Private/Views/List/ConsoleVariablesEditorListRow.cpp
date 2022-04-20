@@ -125,7 +125,7 @@ void FConsoleVariablesEditorListRow::ResetToStartupValueAndSource() const
 	if (const TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedCommand = GetCommandInfo().Pin())
 	{
 		PinnedCommand->SetSourceFlag(PinnedCommand->StartupSource);
-		PinnedCommand->ExecuteCommand(PinnedCommand->StartupValueAsString, false);
+		PinnedCommand->ExecuteCommand(PinnedCommand->StartupValueAsString, true, false);
 	}
 }
 
@@ -325,7 +325,7 @@ FReply FConsoleVariablesEditorListRow::OnActionButtonClicked()
 	if (bIsGlobalSearch)
 	{
 		FConsoleVariablesEditorAssetSaveData MatchingData;
-		if (!ConsoleVariablesEditorModule.GetPresetAsset()->FindSavedDataByCommandString(CommandName, MatchingData))
+		if (!ConsoleVariablesEditorModule.GetPresetAsset()->FindSavedDataByCommandString(CommandName, MatchingData, ESearchCase::IgnoreCase))
 		{
 			EditableAsset->AddOrSetConsoleObjectSavedData(
 				{

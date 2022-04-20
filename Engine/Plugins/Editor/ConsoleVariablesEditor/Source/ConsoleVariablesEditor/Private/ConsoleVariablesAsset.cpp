@@ -2,8 +2,9 @@
 
 #include "ConsoleVariablesAsset.h"
 
+#include "ConsoleVariablesEditorCommandInfo.h"
+#include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorModule.h"
-#include "Algo/Find.h"
 
 void UConsoleVariablesAsset::SetVariableCollectionDescription(const FString& InVariableCollectionDescription)
 {
@@ -15,11 +16,12 @@ void UConsoleVariablesAsset::ReplaceSavedCommands(const TArray<FConsoleVariables
 	SavedCommands = Replacement;
 }
 
-bool UConsoleVariablesAsset::FindSavedDataByCommandString(const FString InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue) const
+bool UConsoleVariablesAsset::FindSavedDataByCommandString(
+	const FString InCommandString, FConsoleVariablesEditorAssetSaveData& OutValue, const ESearchCase::Type SearchCase) const
 {
 	for (const FConsoleVariablesEditorAssetSaveData& Command : SavedCommands)
 	{
-		if (Command.CommandName.Equals(InCommandString))
+		if (Command.CommandName.TrimStartAndEnd().Equals(InCommandString.TrimStartAndEnd(), SearchCase))
 		{
 			OutValue = Command;
 			return true;
@@ -32,7 +34,8 @@ bool UConsoleVariablesAsset::FindSavedDataByCommandString(const FString InComman
 void UConsoleVariablesAsset::AddOrSetConsoleObjectSavedData(const FConsoleVariablesEditorAssetSaveData& InData)
 {
 	FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
-
+	UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("%hs: Adding %s to editable asset"),
+		__FUNCTION__, *InData.CommandName);
 	if (const TWeakPtr<FConsoleVariablesEditorCommandInfo> CommandInfo =
 			ConsoleVariablesEditorModule.FindCommandInfoByName(InData.CommandName);
 		CommandInfo.IsValid())
@@ -50,17 +53,32 @@ void UConsoleVariablesAsset::AddOrSetConsoleObjectSavedData(const FConsoleVariab
 	
 	RemoveConsoleVariable(InData.CommandName);
 	SavedCommands.Add(InData);
+	// Make a copy because this array can change during iteration
+	TArray<FConsoleVariablesEditorAssetSaveData> SavedCommandsLocal = SavedCommands; 
+	for (int32 CommandIndex = 0; CommandIndex < SavedCommandsLocal.Num(); CommandIndex++)
+	{
+		FConsoleVariablesEditorAssetSaveData& SavedCommand = SavedCommandsLocal[CommandIndex];
+		UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("%hs: Command named '%s' at Index %i"),
+			__FUNCTION__, *SavedCommand.CommandName, CommandIndex);
+	}
 }
 
 bool UConsoleVariablesAsset::RemoveConsoleVariable(const FString InCommandString)
 {
 	FConsoleVariablesEditorAssetSaveData ExistingData;
-	if (FindSavedDataByCommandString(InCommandString, ExistingData))
+	int32 RemoveCount = 0;
+	while (FindSavedDataByCommandString(InCommandString, ExistingData, ESearchCase::IgnoreCase))
 	{
-		return SavedCommands.Remove(ExistingData) > 0;
+		UE_LOG(LogConsoleVariablesEditor, VeryVerbose, TEXT("%hs: Removing %s from editable asset"),
+			__FUNCTION__, *InCommandString);
+		
+		if (SavedCommands.Remove(ExistingData) > 0)
+		{
+			RemoveCount++;
+		}
 	}
 	
-	return false;
+	return RemoveCount > 0;
 }
 
 void UConsoleVariablesAsset::CopyFrom(const UConsoleVariablesAsset* InAssetToCopy)

@@ -1,13 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-
-#include "Algo/Find.h"
+ 
 #include "CoreMinimal.h"
-#include "ConsoleVariablesEditorLog.h"
-#include "Editor.h"
-#include "Engine/GameEngine.h"
-#include "HAL/IConsoleManager.h"
+#include "ConsoleVariablesEditorModule.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDetectConsoleObjectUnregistered, FString)
 
@@ -24,13 +20,13 @@ struct FConsoleVariablesEditorCommandInfo
 		// A console variable such as 'r.ScreenPercentage'
 		Variable
 	};
-
+	
 	struct FStaticConsoleVariableFlagInfo
 	{
 		EConsoleVariableFlags Flag;
 		FText DisplayText;
 	};
-
+	
 	FConsoleVariablesEditorCommandInfo(const FString& InCommand)
 	: Command(InCommand)
 	{
@@ -46,235 +42,68 @@ struct FConsoleVariablesEditorCommandInfo
 			}
 		}
 	}
-
+	
 	~FConsoleVariablesEditorCommandInfo()
 	{
 		OnDetectConsoleObjectUnregistered.Remove(OnDetectConsoleObjectUnregisteredHandle);
-
 		if (IConsoleVariable* AsVariable = GetConsoleVariablePtr())
 		{
 			AsVariable->OnChangedDelegate().Remove(OnVariableChangedCallbackHandle);
 		}
 	}
-
+	
 	FORCEINLINE bool operator==(const FConsoleVariablesEditorCommandInfo& Comparator) const
 	{
-		return Command.Equals(Comparator.Command);
+		return Command.Equals(Comparator.Command, ESearchCase::IgnoreCase);
 	}
-
+	
 	void SetIfChangedInCurrentPreset(const bool bNewSetting)
 	{
 		bSetInCurrentSession = bNewSetting;
 	}
-
+	
 	/** Sets a variable to the specified value whilst maintaining its SetBy flag.
 	  * Non-variables will be executed through the console.
 	  * If bSetInSession is true, this CommandInfo's associated variable row will display "Session" in the UI.
 	 */
-	void ExecuteCommand(const FString& NewValueAsString, const bool bSetInSession = true)
-	{
-		if (IConsoleVariable* AsVariable = GetConsoleVariablePtr())
-		{
-			AsVariable->Set(*NewValueAsString, GetSource());
-
-			bSetInCurrentSession = bSetInSession;
-		}
-		else
-		{
-			GEngine->Exec(GetCurrentWorld(),
-				*FString::Printf(TEXT("%s %s"), *Command, *NewValueAsString).TrimStartAndEnd());
-		}
-	}
-
+	void ExecuteCommand(
+		const FString& NewValueAsString, const bool bShouldTransactInConcert = true, const bool bSetInSession = true);
+ 
 	/** Get a reference to the cached console object. May return nullptr if unregistered. */
-	IConsoleObject* GetConsoleObjectPtr()
-	{
-		// If the console object ptr goes stale or is older than the specified threshold, try to refresh it
-		// May return nullptr if unregistered
-		if (!ConsoleObjectPtr ||
-			(FDateTime::UtcNow() - TimeOfLastConsoleObjectRefresh).GetTotalSeconds() > ConsoleObjectRefreshThreshold)
-		{
-			FString CommandKey = Command; 
-
-			// Remove additional params, if they exist
-			const int32 IndexOfSpace = CommandKey.Find(" ");
-			if (IndexOfSpace != INDEX_NONE)
-			{
-				CommandKey = CommandKey.Left(IndexOfSpace).TrimStartAndEnd();
-			}
-			
-			ConsoleObjectPtr = IConsoleManager::Get().FindConsoleObject(*CommandKey);
-			TimeOfLastConsoleObjectRefresh = FDateTime::UtcNow();
-		}
-
-		// If the console object turns out to be unregistered, let interested parties know
-		if (ConsoleObjectPtr && ConsoleObjectPtr->TestFlags(ECVF_Unregistered))
-		{
-			OnDetectConsoleObjectUnregistered.Broadcast(Command);
-		}
-
-		return ConsoleObjectPtr;
-	}
+	IConsoleObject* GetConsoleObjectPtr();
 
 	/** Return the console object as a console variable object if applicable. May return nullptr if unregistered. */
-	IConsoleVariable* GetConsoleVariablePtr()
-	{
-		if (IConsoleObject* ObjectPtr = GetConsoleObjectPtr())
-		{
-			return ObjectPtr->AsVariable();
-		}
-		
-		return nullptr;
-	}
+	IConsoleVariable* GetConsoleVariablePtr();
 
 	/**
 	 *Return the console object as a console command object if applicable.
 	 *Does not consider externally parsed console commands, as they have no associated objects.
 	 */
-	IConsoleCommand* GetConsoleCommandPtr()
-	{
-		if (IConsoleObject* ObjectPtr = GetConsoleObjectPtr())
-		{
-			return ObjectPtr->AsCommand();
-		}
-		
-		return nullptr;
-	}
-	
-	static UWorld* GetCurrentWorld()
-	{
-		UWorld* CurrentWorld = nullptr;
-		if (GIsEditor)
-		{
-			CurrentWorld = GEditor->GetEditorWorldContext().World();
-		}
-		else if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
-		{
-			CurrentWorld = GameEngine->GetGameWorld();
-		}
-		return CurrentWorld;
-	}
+	IConsoleCommand* GetConsoleCommandPtr();
+ 
+	static UWorld* GetCurrentWorld();
 
-	FString GetHelpText()
-	{
-		if (const IConsoleVariable* AsVariable = GetConsoleVariablePtr())
-		{
-			return FString(AsVariable->GetHelp());
-		}
+	FString GetHelpText();
+ 
+	EConsoleVariableFlags GetSource();
+ 
+	void ClearSourceFlags();
 
-		return "";
-	}
+	void SetSourceFlag(const EConsoleVariableFlags InSource);
+ 
+	FText GetSourceAsText();
 
-	EConsoleVariableFlags GetSource()
-	{
-		if (const IConsoleObject* ConsoleObject = GetConsoleObjectPtr())
-		{
-			return (EConsoleVariableFlags)((uint32)ConsoleObject->GetFlags() & ECVF_SetByMask);
-		}
-
-		return ECVF_Default;
-	}
-
-	void ClearSourceFlags()
-	{
-		if (IConsoleObject* ConsoleObject = GetConsoleObjectPtr())
-		{
-			for (const FStaticConsoleVariableFlagInfo& StaticConsoleVariableFlagInfo : SupportedFlags)
-			{
-				ConsoleObject->ClearFlags(StaticConsoleVariableFlagInfo.Flag);
-			}
-		}
-	}
-
-	void SetSourceFlag(const EConsoleVariableFlags InSource)
-	{
-		if (IConsoleVariable* AsVariable = GetConsoleVariablePtr())
-		{
-			AsVariable->Set(*AsVariable->GetString(), StartupSource);
-			return;
-		}
-		
-		const uint32 OldPri = (uint32)GetSource();
-		const uint32 NewPri = (uint32)InSource;
-
-		if (NewPri < OldPri)
-		{
-			return;
-		}
-		
-		if (IConsoleObject* ConsoleObject = GetConsoleObjectPtr())
-		{
-			ClearSourceFlags();
-			ConsoleObject->SetFlags((EConsoleVariableFlags)InSource);
-		}
-	}
-
-	FText GetSourceAsText()
-	{
-		// Non-variables don't really have a source
-		if (ObjectType != EConsoleObjectType::Variable)
-		{
-			return LOCTEXT("Source_IsNotConsoleVariableButConsoleCommand", "Command");
-		}
-
-		if (bSetInCurrentSession)
-		{
-			return LOCTEXT("Source_SetByCurrentPreset", "Session");
-		}
-		
-		return ConvertConsoleVariableSetByFlagToText(GetSource());
-	}
-
-	static FText ConvertConsoleVariableSetByFlagToText(const EConsoleVariableFlags InFlag)
-	{
-		FText ReturnValue = LOCTEXT("UnknownSource", "<UNKNOWN>"); 
-
-		if (const FStaticConsoleVariableFlagInfo* Match = Algo::FindByPredicate(
-			SupportedFlags,
-				[InFlag](const FStaticConsoleVariableFlagInfo& Comparator)
-				{
-					return Comparator.Flag == InFlag;
-				}))
-		{
-			ReturnValue = (*Match).DisplayText;
-		}
-		
-		return ReturnValue;
-	}
-
-	bool IsCurrentValueDifferentFromInputValue(const FString& InValueToCompare)
-	{
-		if (const IConsoleVariable* AsVariable = GetConsoleVariablePtr())
-		{
-			// Floats sometimes return true erroneously because they can be stringified as e.g '1' or '1.0' by different functions.
-			if (AsVariable->IsVariableFloat())
-			{
-				const float A = AsVariable->GetFloat();
-				const float B = FCString::Atof(*InValueToCompare);
-
-				return !FMath::IsNearlyEqual(A, B);
-			}
-			
-			return !AsVariable->GetString().Equals(InValueToCompare);
-		}
-		else if (ObjectType == EConsoleObjectType::NullObject || ObjectType == EConsoleObjectType::Command)
-		{
-			return true;
-		}
-
-		return false;
-	}
-
+	static FText ConvertConsoleVariableSetByFlagToText(const EConsoleVariableFlags InFlag);
+ 
+	bool IsCurrentValueDifferentFromInputValue(const FString& InValueToCompare);
+ 
 	/** The actual string key or name */
 	UPROPERTY()
 	FString Command;
-
 	EConsoleObjectType ObjectType = EConsoleObjectType::NullObject;
-
 	/** This object is periodically refreshed to mitigate the occurrence of stale pointers. */
 	IConsoleObject* ConsoleObjectPtr;
 	FDateTime TimeOfLastConsoleObjectRefresh;
-
 	double ConsoleObjectRefreshThreshold = 1.0;
 	
 	/** The value of this variable (if Variable object type) when the module started in this session after it may have been set by an ini file. */
@@ -282,17 +111,13 @@ struct FConsoleVariablesEditorCommandInfo
 	
 	/** The source of this variable's (if Variable object type) last setting as recorded when the plugin was loaded. */
 	EConsoleVariableFlags StartupSource = ECVF_Default;
-
 	/** If the variable was last changed by the current preset */
 	bool bSetInCurrentSession = false;
-
 	/** When variables change, this callback is executed. */
 	FDelegateHandle OnVariableChangedCallbackHandle;
-
 	/** When commands are unregistered change, this callback is broadcasted. */
 	FOnDetectConsoleObjectUnregistered OnDetectConsoleObjectUnregistered;
 	FDelegateHandle OnDetectConsoleObjectUnregisteredHandle;
-
 	/** A mapping of SetBy console variable flags to information like the associated display text. */
 	static const inline TArray<FStaticConsoleVariableFlagInfo> SupportedFlags =
 	{
@@ -309,5 +134,4 @@ struct FConsoleVariablesEditorCommandInfo
 		{ EConsoleVariableFlags::ECVF_SetByConsole, LOCTEXT("Source_SetByConsole", "Console") }
 	};
 };
-
 #undef LOCTEXT_NAMESPACE
