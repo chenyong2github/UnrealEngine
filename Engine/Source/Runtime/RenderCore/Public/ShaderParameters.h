@@ -14,11 +14,6 @@ class FShaderParameterMap;
 class FShaderParametersMetadata;
 struct FShaderCompilerEnvironment;
 
-namespace UE::ShaderParameters
-{
-	static constexpr const TCHAR* kUniformBufferConstantBufferPrefix = TEXT("UniformBufferConstants_");
-}
-
 RENDERCORE_API void CacheUniformBufferIncludes(TMap<const TCHAR*, struct FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform);
 
 

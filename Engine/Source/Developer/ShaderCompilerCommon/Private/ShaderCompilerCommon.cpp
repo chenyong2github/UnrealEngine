@@ -5,7 +5,6 @@
 #include "Modules/ModuleManager.h"
 #include "HlslccDefinitions.h"
 #include "HAL/FileManager.h"
-#include "ShaderParameters.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, ShaderCompilerCommon);
 
@@ -470,13 +469,6 @@ TCHAR* FindNextUniformBufferReference(TCHAR* SearchPtr, const TCHAR* SearchStrin
 	return nullptr;
 }
 
-FString UE::ShaderCompilerCommon::SanitizeUniformBufferName(const FString& InName)
-{
-	FString NewName(InName);
-	NewName.RemoveFromStart(UE::ShaderParameters::kUniformBufferConstantBufferPrefix);
-	return NewName;
-}
-
 void HandleReflectedGlobalConstantBufferMember(
 	const FString& MemberName,
 	uint32 ConstantBufferIndex,
@@ -526,10 +518,8 @@ void HandleReflectedUniformBuffer(
 	FShaderCompilerOutput& CompilerOutput
 )
 {
-	FString AdjustedUniformBufferName(UE::ShaderCompilerCommon::SanitizeUniformBufferName(UniformBufferName));
-
 	CompilerOutput.ParameterMap.AddParameterAllocation(
-		*AdjustedUniformBufferName,
+		*UniformBufferName,
 		ReflectionSlot,
 		BaseIndex,
 		BufferSize,

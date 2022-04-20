@@ -278,7 +278,7 @@ static FString CreateHLSLUniformBufferDeclaration(const TCHAR* Name,const FShade
 		return FString::Printf(
 			TEXT("#ifndef __UniformBuffer_%s_Definition__\r\n")
 			TEXT("#define __UniformBuffer_%s_Definition__\r\n")
-			TEXT("cbuffer %s%s\r\n")
+			TEXT("cbuffer %s\r\n")
 			TEXT("{\r\n")
 			TEXT("%s")
 			TEXT("}\r\n")
@@ -290,7 +290,6 @@ static FString CreateHLSLUniformBufferDeclaration(const TCHAR* Name,const FShade
 			TEXT("#endif\r\n"),
 			Name,
 			Name,
-			UE::ShaderParameters::kUniformBufferConstantBufferPrefix,
 			Name,
 			*Decl.ConstantBufferMembers,
 			*Decl.ResourceMembers,

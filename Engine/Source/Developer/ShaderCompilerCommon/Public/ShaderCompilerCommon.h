@@ -139,11 +139,6 @@ private:
 	bool bMovedLoosedParametersToRootConstantBuffer = false;
 };
 
-namespace UE::ShaderCompilerCommon
-{
-	extern SHADERCOMPILERCOMMON_API FString SanitizeUniformBufferName(const FString& InName);
-}
-
 extern SHADERCOMPILERCOMMON_API void HandleReflectedGlobalConstantBufferMember(
 	const FString& MemberName,
 	uint32 ConstantBufferIndex,
