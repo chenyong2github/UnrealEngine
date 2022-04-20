@@ -742,10 +742,15 @@ static void InitRHICapabilitiesForGL()
 		GSupportsQuadBufferStereo = (Result == GL_TRUE);
 	}
 
-	if( FOpenGL::SupportsTextureFilterAnisotropic())
+	if (FOpenGL::SupportsTextureFilterAnisotropic())
 	{
 		LOG_AND_GET_GL_INT_TEMP(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, 0);
 		GMaxOpenGLTextureFilterAnisotropic = Value_GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT;
+	}
+
+	if (FOpenGL::SupportsPixelLocalStorage())
+	{
+		LOG_AND_GET_GL_INT_TEMP(GL_MAX_SHADER_PIXEL_LOCAL_STORAGE_SIZE_EXT, 0);
 	}
 #undef LOG_AND_GET_GL_INT_TEMP
 
