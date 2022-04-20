@@ -126,7 +126,7 @@ void FGeomTools::ClipMeshWithPlane( TArray<FClipSMTriangle>& OutTris, TArray<FUt
 			int32 ThisVert = EdgeIdx;
 
 			// If start vert is inside, add it.
-			if(FMath::IsNegativeFloat(PlaneDist[ThisVert]))
+			if(PlaneDist[ThisVert] < 0.0f)
 			{
 				FinalVerts.Add( SrcTri->Vertices[ThisVert] );
 			}
@@ -134,7 +134,7 @@ void FGeomTools::ClipMeshWithPlane( TArray<FClipSMTriangle>& OutTris, TArray<FUt
 			// If start and next vert are on opposite sides, add intersection
 			int32 NextVert = (EdgeIdx+1)%3;
 
-			if(FMath::IsNegativeFloat(PlaneDist[EdgeIdx]) != FMath::IsNegativeFloat(PlaneDist[NextVert]))
+			if((PlaneDist[EdgeIdx] < 0.0f) != (PlaneDist[NextVert] < 0.0f))
 			{
 				// Find distance along edge that plane is
 				float Alpha = -PlaneDist[ThisVert] / (PlaneDist[NextVert] - PlaneDist[ThisVert]);
@@ -332,7 +332,7 @@ bool FGeomTools::VectorsOnSameSide(const FVector3f& Vec, const FVector3f& A, con
 	const FVector3f CrossA = Vec ^ A;
 	const FVector3f CrossB = Vec ^ B;
 	float DotWithEpsilon = SameSideDotProductEpsilon + ( CrossA | CrossB );
-	return !FMath::IsNegativeFloat(DotWithEpsilon);
+	return !(DotWithEpsilon < 0.0f);
 }
 
 /** Util to see if P lies within triangle created by A, B and C. */
@@ -467,7 +467,7 @@ bool FGeomTools::TriangulatePoly(TArray<FClipSMTriangle>& OutTris, const FClipSM
 				const FVector3f ABEdge = PolyVerts[BIndex].Pos - PolyVerts[AIndex].Pos;
 				const FVector3f ACEdge = PolyVerts[CIndex].Pos - PolyVerts[AIndex].Pos;
 				const float TriangleDeterminant = (ABEdge ^ ACEdge) | (FVector3f)InPoly.FaceNormal;
-				if(FMath::IsNegativeFloat(TriangleDeterminant))
+				if(TriangleDeterminant < 0.0f)
 				{
 					continue;
 				}
@@ -1468,7 +1468,7 @@ bool FGeomTools2D::TriangulatePoly(TArray<FVector2D>& OutTris, const TArray<FVec
 				// Check that this vertex is convex (cross product must be positive)
 				const FVector2D ABEdge = PolyVerts[BIndex] - PolyVerts[AIndex];
 				const FVector2D ACEdge = PolyVerts[CIndex] - PolyVerts[AIndex];
-				if (FMath::IsNegativeFloat(ABEdge ^ ACEdge))
+				if ((ABEdge ^ ACEdge) < 0.0f)
 				{
 					continue;
 				}

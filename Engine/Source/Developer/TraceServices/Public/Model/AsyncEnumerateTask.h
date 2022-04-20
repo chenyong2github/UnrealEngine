@@ -83,7 +83,7 @@ public:
 		// Iterate the pages owned by this task.
 		while (ScopeEntry && CurrentPageIndex < Data.EndPageIndex)
 		{
-			if (FMath::IsNegative(ScopeEntry->Time))
+			if (ScopeEntry->Time < 0.0)
 			{
 				check(CurrentStackDepth < SettingsType::MaxDepth);
 				FEnumerationStackEntry& StackEntry = EventStack[CurrentStackDepth++];

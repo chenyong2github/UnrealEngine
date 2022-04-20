@@ -1256,7 +1256,7 @@ static bool VectorsOnSameSide(const FVector& Vec, const FVector& A, const FVecto
 	const FVector CrossA = FVector::CrossProduct(Vec, A);
 	const FVector CrossB = FVector::CrossProduct(Vec, B);
 	float DotWithEpsilon = SameSideDotProductEpsilon + FVector::DotProduct(CrossA, CrossB);
-	return !FMath::IsNegativeFloat(DotWithEpsilon);
+	return !(DotWithEpsilon < 0.0f);
 }
 
 

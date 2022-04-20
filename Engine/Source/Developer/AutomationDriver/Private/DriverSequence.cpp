@@ -976,11 +976,11 @@ private:
 				return Result;
 			}
 
-			if (FMath::IsNegativeFloat(Delta) && ScrollableElement->IsScrolledToEnd())
+			if (Delta < 0.0f && ScrollableElement->IsScrolledToEnd())
 			{
 				return FStep::Failed();
 			}
-			else if (!FMath::IsNegativeFloat(Delta) && ScrollableElement->IsScrolledToBeginning())
+			else if (!(Delta < 0.0f) && ScrollableElement->IsScrolledToBeginning())
 			{
 				return FStep::Failed();
 			}

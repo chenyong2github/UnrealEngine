@@ -15,6 +15,7 @@
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/ResolveTypeAmbiguity.h"
+#include "Templates/TypeCompatibleBytes.h"
 
 #if PLATFORM_HAS_FENV_H 
 #include <fenv.h>
@@ -25,7 +26,6 @@
  */
 struct FGenericPlatformMath
 {
-
 	// load half (F16) to float
 	//https://gist.github.com/rygorous/2156668
 	static FORCEINLINE float LoadHalf(const uint16* Ptr)
@@ -578,37 +578,55 @@ struct FGenericPlatformMath
 	/** Return true if value is NaN (not a number). */
 	static FORCEINLINE bool IsNaN( float A ) 
 	{
-		return ((*(uint32*)&A) & 0x7FFFFFFFU) > 0x7F800000U;
+		return (BitCast<uint32>(A) & 0x7FFFFFFFU) > 0x7F800000U;
 	}
 	static FORCEINLINE bool IsNaN(double A)
 	{
-		return ((*(uint64*)&A) & 0x7FFFFFFFFFFFFFFFULL) > 0x7FF0000000000000ULL;
+		return (BitCast<uint64>(A) & 0x7FFFFFFFFFFFFFFFULL) > 0x7FF0000000000000ULL;
 	}
 
 	/** Return true if value is finite (not NaN and not Infinity). */
 	static FORCEINLINE bool IsFinite( float A )
 	{
-		return ((*(uint32*)&A) & 0x7F800000U) != 0x7F800000U;
+		return (BitCast<uint32>(A) & 0x7F800000U) != 0x7F800000U;
 	}
 	static FORCEINLINE bool IsFinite(double A)
 	{
-		return ((*(uint64*)&A) & 0x7FF0000000000000ULL) != 0x7FF0000000000000ULL;
+		return (BitCast<uint64>(A) & 0x7FF0000000000000ULL) != 0x7FF0000000000000ULL;
 	}
 
-	//UE_DEPRECATED(5.0, "Use IsNegative here.")	// LWC_TODO: Enable IsNegativeFloat/Double deprecations and fix engine calls.
-	static FORCEINLINE bool IsNegativeFloat(float A) { return IsNegative(A); }
+	static FORCEINLINE bool IsNegativeOrNegativeZero(float A)
+	{
+		return BitCast<uint32>(A) >= (uint32)0x80000000; // Detects sign bit.
+	}
 
-	//UE_DEPRECATED(5.0, "Use IsNegative here.")
-	static FORCEINLINE bool IsNegativeDouble(double A) { return IsNegative(A); }
+	static FORCEINLINE bool IsNegativeOrNegativeZero(double A)
+	{
+		return BitCast<uint64>(A) >= (uint64)0x8000000000000000; // Detects sign bit.
+	}
 
+	UE_DEPRECATED(5.1, "IsNegativeFloat has been deprecated in favor of IsNegativeOrNegativeZero or simply A < 0.")
+	static FORCEINLINE bool IsNegativeFloat(float A)
+	{
+		return IsNegativeOrNegativeZero(A);
+	}
+
+	UE_DEPRECATED(5.1, "IsNegativeDouble has been deprecated in favor of IsNegativeOrNegativeZero or simply A < 0.")
+	static FORCEINLINE bool IsNegativeDouble(double A)
+	{
+		return IsNegativeOrNegativeZero(A);
+	}
+
+	UE_DEPRECATED(5.1, "IsNegative has been deprecated in favor of IsNegativeOrNegativeZero or simply A < 0.")
 	static FORCEINLINE bool IsNegative(float A)
 	{
-		return ( A < 0.f );
+		return IsNegativeOrNegativeZero(A);
 	}
 
+	UE_DEPRECATED(5.1, "IsNegative has been deprecated in favor of IsNegativeOrNegativeZero or simply A < 0.")
 	static FORCEINLINE bool IsNegative(double A)
 	{
-		return ( A < 0.0 );
+		return IsNegativeOrNegativeZero(A);
 	}
 
 	/** Returns a random integer between 0 and RAND_MAX, inclusive */
