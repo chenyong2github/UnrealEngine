@@ -1,4 +1,6 @@
-﻿#include "PropertyBag.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "PropertyBag.h"
 #include "StructView.h"
 #include "Hash/CityHash.h"
 
