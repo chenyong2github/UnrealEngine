@@ -17,7 +17,7 @@ struct FSeparateTranslucencyDimensions
 		return FScreenPassTextureViewport(Extent, GetScaledRect(ViewRect, Scale));
 	}
 
-	FScreenPassTextureViewport GetInstancedStereoViewport(const FViewInfo& View, float InstancedStereoWidth) const;
+	FScreenPassTextureViewport GetInstancedStereoViewport(const FViewInfo& View) const;
 
 	// Extent of the separate translucency targets, if downsampled.
 	FIntPoint Extent = FIntPoint::ZeroValue;

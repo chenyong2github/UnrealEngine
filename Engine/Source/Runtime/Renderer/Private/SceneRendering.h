@@ -1492,6 +1492,11 @@ public:
 	 */
 	int32 GPUSceneViewId;
 
+	/**
+	 * The width in pixels of the ISR pair being rendered. This may be different than FamilySizeX if
+	 * we're using adaptive resolution stereo rendering. In that case, FamilySizeX represents the maximum size of
+	 * the family to ensure the backing render targets don't change between frames as the view size varies.
+	 */
 	uint32 InstancedStereoWidth = 0;
 
 #if WITH_EDITOR
@@ -1896,13 +1901,6 @@ public:
 	/** Feature level being rendered */
 	ERHIFeatureLevel::Type FeatureLevel;
 	EShaderPlatform ShaderPlatform;
-	
-	/** 
-	 * The width in pixels of the stereo view family being rendered. This may be different than FamilySizeX if
-	 * we're using adaptive resolution stereo rendering. In that case, FamilySizeX represents the maximum size of 
-	 * the family to ensure the backing render targets don't change between frames as the view size varies.
-	 */
-	uint32 InstancedStereoWidth;
 
 public:
 
