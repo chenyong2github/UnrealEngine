@@ -101,7 +101,10 @@ bool FDatasmithDeltaGenTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScen
 
 void FDatasmithDeltaGenTranslator::UnloadScene()
 {
-	Importer->UnloadScene();
+	if (Importer)
+	{
+		Importer->UnloadScene();
+	}
 }
 
 bool FDatasmithDeltaGenTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)

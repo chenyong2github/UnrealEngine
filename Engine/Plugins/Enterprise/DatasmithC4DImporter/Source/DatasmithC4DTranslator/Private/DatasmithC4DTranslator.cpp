@@ -60,7 +60,10 @@ bool FDatasmithC4DTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 
 void FDatasmithC4DTranslator::UnloadScene()
 {
-	Importer->UnloadScene();
+	if (Importer)
+	{
+		Importer->UnloadScene();
+	}
 }
 
 bool FDatasmithC4DTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)

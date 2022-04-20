@@ -71,8 +71,11 @@ bool FDatasmithPlmXmlTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 
 void FDatasmithPlmXmlTranslator::UnloadScene()
 {
-	Importer->UnloadScene();
-	Importer.Reset();
+	if (Importer)
+	{
+		Importer->UnloadScene();
+		Importer.Reset();
+	}
 }
 
 bool FDatasmithPlmXmlTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)

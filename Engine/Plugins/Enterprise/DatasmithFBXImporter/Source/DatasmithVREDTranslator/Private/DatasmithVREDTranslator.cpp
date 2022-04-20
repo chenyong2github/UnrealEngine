@@ -121,7 +121,10 @@ bool FDatasmithVREDTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 
 void FDatasmithVREDTranslator::UnloadScene()
 {
-	Importer->UnloadScene();
+	if (Importer)
+	{
+		Importer->UnloadScene();
+	}
 }
 
 bool FDatasmithVREDTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)

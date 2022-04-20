@@ -146,8 +146,11 @@ bool FDatasmithGLTFTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 
 void FDatasmithGLTFTranslator::UnloadScene()
 {
-	ShowLogMessages(Importer->GetLogMessages());
-	Importer->UnloadScene();
+	if (Importer)
+	{
+		ShowLogMessages(Importer->GetLogMessages());
+		Importer->UnloadScene();
+	}
 }
 
 bool FDatasmithGLTFTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)

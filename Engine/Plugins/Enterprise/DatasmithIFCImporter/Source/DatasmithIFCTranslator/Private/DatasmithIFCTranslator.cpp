@@ -89,7 +89,10 @@ bool FDatasmithIFCTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 
 void FDatasmithIFCTranslator::UnloadScene()
 {
-	Importer->UnloadScene();
+	if (Importer)
+	{
+		Importer->UnloadScene();
+	}
 }
 
 bool FDatasmithIFCTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)
