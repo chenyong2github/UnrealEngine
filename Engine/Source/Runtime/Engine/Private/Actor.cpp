@@ -870,7 +870,7 @@ void AActor::Serialize(FArchive& Ar)
 				ActorGuid.Invalidate();
 			}
 		}
-		else if ((Ar.GetPortFlags() & PPF_Duplicate) || (Ar.IsPersistent() && !ActorGuid.IsValid()))
+		else if (Ar.IsPersistent() && !ActorGuid.IsValid())
 		{
 			ActorGuid = FGuid::NewGuid();
 		}
