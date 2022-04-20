@@ -1206,7 +1206,7 @@ void FD3D12DynamicRHI::Init()
 #if INTEL_EXTENSIONS
 	if (IsRHIDeviceIntel() && bAllowVendorDevice)
 	{
-		const INTCExtensionVersion AtomicsRequiredVersion = { 3, 4, 1 }; //version 3.4.1
+		const INTCExtensionVersion AtomicsRequiredVersion = { 4, 4, 0 }; //version 4.4.0 Alchemist+
 		INTCExtensionVersion* SupportedExtensionsVersions = nullptr;
 		uint32_t SupportedExtensionsVersionCount = 0;
 		INTCExtensionInfo INTCExtensionInfo{};
@@ -1240,6 +1240,18 @@ void FD3D12DynamicRHI::Init()
 				}
 			}
 		}
+
+	#if D3D12_CORE_ENABLED
+		if (GRHISupportsAtomicUInt64)
+		{
+			D3D12_FEATURE_DATA_SHADER_MODEL D3D12ShaderModelLevel = { D3D_SHADER_MODEL_6_6 };
+			if (GetAdapter().GetD3DDevice()->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &D3D12ShaderModelLevel, sizeof(D3D12ShaderModelLevel)) == S_OK &&
+				D3D12ShaderModelLevel.HighestShaderModel >= D3D_SHADER_MODEL_6_6)
+			{
+				GRHISupportsDX12AtomicUInt64 = true;
+			}
+		}
+	#endif
 
 		check(IntelExtensionContext == nullptr);
 		INTCExtensionAppInfo AppInfo{};

@@ -1056,6 +1056,10 @@ void FD3D12Adapter::InitializeDevices()
 				if (D3D12Caps9.AtomicInt64OnTypedResourceSupported && D3D12Caps11.AtomicInt64OnDescriptorHeapResourceSupported)
 				{
 					GRHISupportsDX12AtomicUInt64 = true;
+				}
+
+				if (GRHISupportsDX12AtomicUInt64)
+				{
 					UE_LOG(LogD3D12RHI, Log, TEXT("Shader Model 6.6 atomic64 is supported"));
 				}
 				else
