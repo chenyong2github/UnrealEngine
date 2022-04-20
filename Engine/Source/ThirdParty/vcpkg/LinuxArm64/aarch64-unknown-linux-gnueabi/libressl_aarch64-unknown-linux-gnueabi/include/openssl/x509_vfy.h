@@ -1,4 +1,4 @@
-/* $OpenBSD: x509_vfy.h,v 1.30 2018/08/24 19:21:09 tb Exp $ */
+/* $OpenBSD: x509_vfy.h,v 1.32 2021/02/24 18:01:31 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -247,7 +247,7 @@ struct x509_store_ctx_st      /* X509_STORE_CTX */
 
 	/* The following is built up */
 	int valid;		/* if 0, rebuild chain */
-	int last_untrusted;	/* index of last untrusted cert */
+	int last_untrusted;	/* XXX: number of untrusted certs in chain!!! */
 	STACK_OF(X509) *chain; 		/* chain of X509s - built up and trusted */
 	X509_POLICY_TREE *tree;	/* Valid policy tree */
 
@@ -406,6 +406,9 @@ void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 
 /* Do not check certificate or CRL validity against current time. */
 #define X509_V_FLAG_NO_CHECK_TIME		0x200000
+
+/* Force the use of the legacy certificate verifcation */
+#define X509_V_FLAG_LEGACY_VERIFY		0x400000
 
 #define X509_VP_FLAG_DEFAULT			0x1
 #define X509_VP_FLAG_OVERWRITE			0x2

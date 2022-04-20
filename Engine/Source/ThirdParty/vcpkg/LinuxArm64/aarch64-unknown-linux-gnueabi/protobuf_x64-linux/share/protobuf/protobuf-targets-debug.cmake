@@ -38,11 +38,11 @@ list(APPEND _IMPORT_CHECK_FILES_FOR_protobuf::libprotoc "${_IMPORT_PREFIX}/debug
 # Import target "protobuf::protoc" for configuration "Debug"
 set_property(TARGET protobuf::protoc APPEND PROPERTY IMPORTED_CONFIGURATIONS DEBUG)
 set_target_properties(protobuf::protoc PROPERTIES
-  IMPORTED_LOCATION_DEBUG "${_IMPORT_PREFIX}/tools/protobuf/protoc-3.15.8.0"
+  IMPORTED_LOCATION_DEBUG "${_IMPORT_PREFIX}/tools/protobuf/protoc-3.18.0.0"
   )
 
 list(APPEND _IMPORT_CHECK_TARGETS protobuf::protoc )
-list(APPEND _IMPORT_CHECK_FILES_FOR_protobuf::protoc "${_IMPORT_PREFIX}/tools/protobuf/protoc-3.15.8.0" )
+list(APPEND _IMPORT_CHECK_FILES_FOR_protobuf::protoc "${_IMPORT_PREFIX}/tools/protobuf/protoc-3.18.0.0" )
 
 # Commands beyond this point should not need to know the version.
 set(CMAKE_IMPORT_FILE_VERSION)

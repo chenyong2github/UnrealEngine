@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2020, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2021, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "StringTools.hpp"
+// [CLI11:public_includes:set]
 #include <cstdint>
 #include <exception>
 #include <memory>
@@ -14,8 +14,12 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+// [CLI11:public_includes:end]
+
+#include "StringTools.hpp"
 
 namespace CLI {
+// [CLI11:type_tools_hpp:verbatim]
 
 // Type tools
 
@@ -32,7 +36,7 @@ constexpr enabler dummy = {};
 /// A copy of enable_if_t from C++14, compatible with C++11.
 ///
 /// We could check to see if C++14 is being used, but it does not hurt to redefine this
-/// (even Google does this: https://github.com/google/skia/blob/master/include/private/SkTLogic.h)
+/// (even Google does this: https://github.com/google/skia/blob/main/include/private/SkTLogic.h)
 /// It is not in the std namespace anyway, so no harm done.
 template <bool B, class T = void> using enable_if_t = typename std::enable_if<B, T>::type;
 
@@ -505,6 +509,7 @@ struct expected_count<T, typename std::enable_if<!is_mutable_container<T>::value
 
 // Enumeration of the different supported categorizations of objects
 enum class object_category : int {
+    char_value = 1,
     integral_value = 2,
     unsigned_integral = 4,
     enumeration = 6,
@@ -525,25 +530,34 @@ enum class object_category : int {
 
 };
 
+/// Set of overloads to classify an object according to type
+
 /// some type that is not otherwise recognized
 template <typename T, typename Enable = void> struct classify_object {
     static constexpr object_category value{object_category::other};
 };
 
-/// Set of overloads to classify an object according to type
+/// Signed integers
 template <typename T>
-struct classify_object<T,
-                       typename std::enable_if<std::is_integral<T>::value && std::is_signed<T>::value &&
-                                               !is_bool<T>::value && !std::is_enum<T>::value>::type> {
+struct classify_object<
+    T,
+    typename std::enable_if<std::is_integral<T>::value && !std::is_same<T, char>::value && std::is_signed<T>::value &&
+                            !is_bool<T>::value && !std::is_enum<T>::value>::type> {
     static constexpr object_category value{object_category::integral_value};
 };
 
 /// Unsigned integers
 template <typename T>
-struct classify_object<
-    T,
-    typename std::enable_if<std::is_integral<T>::value && std::is_unsigned<T>::value && !is_bool<T>::value>::type> {
+struct classify_object<T,
+                       typename std::enable_if<std::is_integral<T>::value && std::is_unsigned<T>::value &&
+                                               !std::is_same<T, char>::value && !is_bool<T>::value>::type> {
     static constexpr object_category value{object_category::unsigned_integral};
+};
+
+/// single character values
+template <typename T>
+struct classify_object<T, typename std::enable_if<std::is_same<T, char>::value && !std::is_enum<T>::value>::type> {
+    static constexpr object_category value{object_category::char_value};
 };
 
 /// Boolean values
@@ -658,6 +672,12 @@ template <typename T> struct classify_object<T, typename std::enable_if<is_mutab
 /// But this is cleaner and works better in this case
 
 template <typename T,
+          enable_if_t<classify_object<T>::value == object_category::char_value, detail::enabler> = detail::dummy>
+constexpr const char *type_name() {
+    return "CHAR";
+}
+
+template <typename T,
           enable_if_t<classify_object<T>::value == object_category::integral_value ||
                           classify_object<T>::value == object_category::integer_constructible,
                       detail::enabler> = detail::dummy>
@@ -767,6 +787,30 @@ inline std::string type_name() {
 
 // Lexical cast
 
+/// Convert to an unsigned integral
+template <typename T, enable_if_t<std::is_unsigned<T>::value, detail::enabler> = detail::dummy>
+bool integral_conversion(const std::string &input, T &output) noexcept {
+    if(input.empty()) {
+        return false;
+    }
+    char *val = nullptr;
+    std::uint64_t output_ll = std::strtoull(input.c_str(), &val, 0);
+    output = static_cast<T>(output_ll);
+    return val == (input.c_str() + input.size()) && static_cast<std::uint64_t>(output) == output_ll;
+}
+
+/// Convert to a signed integral
+template <typename T, enable_if_t<std::is_signed<T>::value, detail::enabler> = detail::dummy>
+bool integral_conversion(const std::string &input, T &output) noexcept {
+    if(input.empty()) {
+        return false;
+    }
+    char *val = nullptr;
+    std::int64_t output_ll = std::strtoll(input.c_str(), &val, 0);
+    output = static_cast<T>(output_ll);
+    return val == (input.c_str() + input.size()) && static_cast<std::int64_t>(output) == output_ll;
+}
+
 /// Convert a flag into an integer value  typically binary flags
 inline std::int64_t to_flag_value(std::string val) {
     static const std::string trueString("true");
@@ -810,39 +854,24 @@ inline std::int64_t to_flag_value(std::string val) {
     return ret;
 }
 
-/// Signed integers
+/// Integer conversion
 template <typename T,
-          enable_if_t<classify_object<T>::value == object_category::integral_value, detail::enabler> = detail::dummy>
+          enable_if_t<classify_object<T>::value == object_category::integral_value ||
+                          classify_object<T>::value == object_category::unsigned_integral,
+                      detail::enabler> = detail::dummy>
 bool lexical_cast(const std::string &input, T &output) {
-    try {
-        std::size_t n = 0;
-        std::int64_t output_ll = std::stoll(input, &n, 0);
-        output = static_cast<T>(output_ll);
-        return n == input.size() && static_cast<std::int64_t>(output) == output_ll;
-    } catch(const std::invalid_argument &) {
-        return false;
-    } catch(const std::out_of_range &) {
-        return false;
-    }
+    return integral_conversion(input, output);
 }
 
-/// Unsigned integers
+/// char values
 template <typename T,
-          enable_if_t<classify_object<T>::value == object_category::unsigned_integral, detail::enabler> = detail::dummy>
+          enable_if_t<classify_object<T>::value == object_category::char_value, detail::enabler> = detail::dummy>
 bool lexical_cast(const std::string &input, T &output) {
-    if(!input.empty() && input.front() == '-')
-        return false;  // std::stoull happily converts negative values to junk without any errors.
-
-    try {
-        std::size_t n = 0;
-        std::uint64_t output_ll = std::stoull(input, &n, 0);
-        output = static_cast<T>(output_ll);
-        return n == input.size() && static_cast<std::uint64_t>(output) == output_ll;
-    } catch(const std::invalid_argument &) {
-        return false;
-    } catch(const std::out_of_range &) {
-        return false;
+    if(input.size() == 1) {
+        output = static_cast<T>(input[0]);
+        return true;
     }
+    return integral_conversion(input, output);
 }
 
 /// Boolean values
@@ -867,15 +896,13 @@ bool lexical_cast(const std::string &input, T &output) {
 template <typename T,
           enable_if_t<classify_object<T>::value == object_category::floating_point, detail::enabler> = detail::dummy>
 bool lexical_cast(const std::string &input, T &output) {
-    try {
-        std::size_t n = 0;
-        output = static_cast<T>(std::stold(input, &n));
-        return n == input.size();
-    } catch(const std::invalid_argument &) {
-        return false;
-    } catch(const std::out_of_range &) {
+    if(input.empty()) {
         return false;
     }
+    char *val = nullptr;
+    auto output_ld = std::strtold(input.c_str(), &val);
+    output = static_cast<T>(output_ld);
+    return val == (input.c_str() + input.size());
 }
 
 /// complex
@@ -932,8 +959,7 @@ template <typename T,
           enable_if_t<classify_object<T>::value == object_category::enumeration, detail::enabler> = detail::dummy>
 bool lexical_cast(const std::string &input, T &output) {
     typename std::underlying_type<T>::type val;
-    bool retval = detail::lexical_cast(input, val);
-    if(!retval) {
+    if(!integral_conversion(input, val)) {
         return false;
     }
     output = static_cast<T>(val);
@@ -942,7 +968,22 @@ bool lexical_cast(const std::string &input, T &output) {
 
 /// wrapper types
 template <typename T,
-          enable_if_t<classify_object<T>::value == object_category::wrapper_value, detail::enabler> = detail::dummy>
+          enable_if_t<classify_object<T>::value == object_category::wrapper_value &&
+                          std::is_assignable<T &, typename T::value_type>::value,
+                      detail::enabler> = detail::dummy>
+bool lexical_cast(const std::string &input, T &output) {
+    typename T::value_type val;
+    if(lexical_cast(input, val)) {
+        output = val;
+        return true;
+    }
+    return from_stream(input, output);
+}
+
+template <typename T,
+          enable_if_t<classify_object<T>::value == object_category::wrapper_value &&
+                          !std::is_assignable<T &, typename T::value_type>::value && std::is_assignable<T &, T>::value,
+                      detail::enabler> = detail::dummy>
 bool lexical_cast(const std::string &input, T &output) {
     typename T::value_type val;
     if(lexical_cast(input, val)) {
@@ -958,7 +999,7 @@ template <
     enable_if_t<classify_object<T>::value == object_category::number_constructible, detail::enabler> = detail::dummy>
 bool lexical_cast(const std::string &input, T &output) {
     int val;
-    if(lexical_cast(input, val)) {
+    if(integral_conversion(input, val)) {
         output = T(val);
         return true;
     } else {
@@ -977,7 +1018,7 @@ template <
     enable_if_t<classify_object<T>::value == object_category::integer_constructible, detail::enabler> = detail::dummy>
 bool lexical_cast(const std::string &input, T &output) {
     int val;
-    if(lexical_cast(input, val)) {
+    if(integral_conversion(input, val)) {
         output = T(val);
         return true;
     }
@@ -997,8 +1038,36 @@ bool lexical_cast(const std::string &input, T &output) {
     return from_stream(input, output);
 }
 
+/// Non-string convertible from an int
+template <typename T,
+          enable_if_t<classify_object<T>::value == object_category::other && std::is_assignable<T &, int>::value,
+                      detail::enabler> = detail::dummy>
+bool lexical_cast(const std::string &input, T &output) {
+    int val;
+    if(integral_conversion(input, val)) {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4800)
+#endif
+        // with Atomic<XX> this could produce a warning due to the conversion but if atomic gets here it is an old style
+        // so will most likely still work
+        output = val;
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+        return true;
+    }
+    // LCOV_EXCL_START
+    // This version of cast is only used for odd cases in an older compilers the fail over
+    // from_stream is tested elsewhere an not relevant for coverage here
+    return from_stream(input, output);
+    // LCOV_EXCL_STOP
+}
+
 /// Non-string parsable by a stream
-template <typename T, enable_if_t<classify_object<T>::value == object_category::other, detail::enabler> = detail::dummy>
+template <typename T,
+          enable_if_t<classify_object<T>::value == object_category::other && !std::is_assignable<T &, int>::value,
+                      detail::enabler> = detail::dummy>
 bool lexical_cast(const std::string &input, T &output) {
     static_assert(is_istreamable<T>::value,
                   "option object type must have a lexical cast overload or streaming input operator(>>) defined, if it "
@@ -1021,7 +1090,7 @@ bool lexical_assign(const std::string &input, AssignTo &output) {
 /// Assign a value through lexical cast operations
 template <typename AssignTo,
           typename ConvertTo,
-          enable_if_t<std::is_same<AssignTo, ConvertTo>::value &&
+          enable_if_t<std::is_same<AssignTo, ConvertTo>::value && std::is_assignable<AssignTo &, AssignTo>::value &&
                           classify_object<AssignTo>::value != object_category::string_assignable &&
                           classify_object<AssignTo>::value != object_category::string_constructible,
                       detail::enabler> = detail::dummy>
@@ -1030,7 +1099,44 @@ bool lexical_assign(const std::string &input, AssignTo &output) {
         output = AssignTo{};
         return true;
     }
+
     return lexical_cast(input, output);
+}
+
+/// Assign a value through lexical cast operations
+template <typename AssignTo,
+          typename ConvertTo,
+          enable_if_t<std::is_same<AssignTo, ConvertTo>::value && !std::is_assignable<AssignTo &, AssignTo>::value &&
+                          classify_object<AssignTo>::value == object_category::wrapper_value,
+                      detail::enabler> = detail::dummy>
+bool lexical_assign(const std::string &input, AssignTo &output) {
+    if(input.empty()) {
+        typename AssignTo::value_type emptyVal{};
+        output = emptyVal;
+        return true;
+    }
+    return lexical_cast(input, output);
+}
+
+/// Assign a value through lexical cast operations for int compatible values
+/// mainly for atomic operations on some compilers
+template <typename AssignTo,
+          typename ConvertTo,
+          enable_if_t<std::is_same<AssignTo, ConvertTo>::value && !std::is_assignable<AssignTo &, AssignTo>::value &&
+                          classify_object<AssignTo>::value != object_category::wrapper_value &&
+                          std::is_assignable<AssignTo &, int>::value,
+                      detail::enabler> = detail::dummy>
+bool lexical_assign(const std::string &input, AssignTo &output) {
+    if(input.empty()) {
+        output = 0;
+        return true;
+    }
+    int val;
+    if(lexical_cast(input, val)) {
+        output = val;
+        return true;
+    }
+    return false;
 }
 
 /// Assign a value converted from a string in lexical cast to the output value directly
@@ -1344,10 +1450,11 @@ bool lexical_conversion(const std::vector<std ::string> &strings, AssignTo &outp
 }
 
 /// conversion for wrapper types
-template <
-    typename AssignTo,
-    class ConvertTo,
-    enable_if_t<classify_object<ConvertTo>::value == object_category::wrapper_value, detail::enabler> = detail::dummy>
+template <typename AssignTo,
+          class ConvertTo,
+          enable_if_t<classify_object<ConvertTo>::value == object_category::wrapper_value &&
+                          std::is_assignable<ConvertTo &, ConvertTo>::value,
+                      detail::enabler> = detail::dummy>
 bool lexical_conversion(const std::vector<std::string> &strings, AssignTo &output) {
     if(strings.empty() || strings.front().empty()) {
         output = ConvertTo{};
@@ -1356,6 +1463,26 @@ bool lexical_conversion(const std::vector<std::string> &strings, AssignTo &outpu
     typename ConvertTo::value_type val;
     if(lexical_conversion<typename ConvertTo::value_type, typename ConvertTo::value_type>(strings, val)) {
         output = ConvertTo{val};
+        return true;
+    }
+    return false;
+}
+
+/// conversion for wrapper types
+template <typename AssignTo,
+          class ConvertTo,
+          enable_if_t<classify_object<ConvertTo>::value == object_category::wrapper_value &&
+                          !std::is_assignable<AssignTo &, ConvertTo>::value,
+                      detail::enabler> = detail::dummy>
+bool lexical_conversion(const std::vector<std::string> &strings, AssignTo &output) {
+    using ConvertType = typename ConvertTo::value_type;
+    if(strings.empty() || strings.front().empty()) {
+        output = ConvertType{};
+        return true;
+    }
+    ConvertType val;
+    if(lexical_conversion<typename ConvertTo::value_type, typename ConvertTo::value_type>(strings, val)) {
+        output = val;
         return true;
     }
     return false;
@@ -1389,5 +1516,33 @@ void sum_flag_vector(const std::vector<std::string> &flags, T &output) {
     output = static_cast<T>(count);
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4800)
+#endif
+// with Atomic<XX> this could produce a warning due to the conversion but if atomic gets here it is an old style so will
+// most likely still work
+
+/// Sum a vector of flag representations
+/// The flag vector produces a series of strings in a vector,  simple true is represented by a "1",  simple false is
+/// by
+/// "-1" an if numbers are passed by some fashion they are captured as well so the function just checks for the most
+/// common true and false strings then uses stoll to convert the rest for summing
+template <typename T,
+          enable_if_t<!std::is_signed<T>::value && !std::is_unsigned<T>::value, detail::enabler> = detail::dummy>
+void sum_flag_vector(const std::vector<std::string> &flags, T &output) {
+    std::int64_t count{0};
+    for(auto &flag : flags) {
+        count += detail::to_flag_value(flag);
+    }
+    std::string out = detail::to_string(count);
+    lexical_cast(out, output);
+}
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+
 }  // namespace detail
+// [CLI11:type_tools_hpp:end]
 }  // namespace CLI

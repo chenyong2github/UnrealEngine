@@ -1,4 +1,4 @@
-/* $OpenBSD: ec.h,v 1.16 2019/01/19 01:17:41 tb Exp $ */
+/* $OpenBSD: ec.h,v 1.27 2021/09/12 16:23:19 tb Exp $ */
 /*
  * Originally written by Bodo Moeller for the OpenSSL project.
  */
@@ -97,7 +97,7 @@ extern "C" {
 
   
 #ifndef OPENSSL_ECC_MAX_FIELD_BITS
-# define OPENSSL_ECC_MAX_FIELD_BITS 661
+#define OPENSSL_ECC_MAX_FIELD_BITS 661
 #endif
 
 /** Enum for the point conversion form as defined in X9.62 (ECDSA)
@@ -250,6 +250,8 @@ const EC_POINT *EC_GROUP_get0_generator(const EC_GROUP *group);
  */
 int EC_GROUP_get_order(const EC_GROUP *group, BIGNUM *order, BN_CTX *ctx);
 
+int EC_GROUP_order_bits(const EC_GROUP *group);
+
 /** Gets the cofactor of a EC_GROUP
  *  \param  group     EC_GROUP object
  *  \param  cofactor  BIGNUM to which the cofactor is copied
@@ -280,6 +282,11 @@ unsigned char *EC_GROUP_get0_seed(const EC_GROUP *x);
 size_t EC_GROUP_get_seed_len(const EC_GROUP *);
 size_t EC_GROUP_set_seed(EC_GROUP *, const unsigned char *, size_t len);
 
+int EC_GROUP_set_curve(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a,
+    const BIGNUM *b, BN_CTX *ctx);
+int EC_GROUP_get_curve(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b,
+    BN_CTX *ctx);
+#if !defined(LIBRESSL_INTERNAL)
 /** Sets the parameter of a ec over GFp defined by y^2 = x^3 + a*x + b
  *  \param  group  EC_GROUP object
  *  \param  p      BIGNUM with the prime number
@@ -321,6 +328,8 @@ int EC_GROUP_set_curve_GF2m(EC_GROUP *group, const BIGNUM *p, const BIGNUM *a, c
  */
 int EC_GROUP_get_curve_GF2m(const EC_GROUP *group, BIGNUM *p, BIGNUM *a, BIGNUM *b, BN_CTX *ctx);
 #endif
+#endif
+
 /** Returns the number of bits needed to represent a field element 
  *  \param  group  EC_GROUP object
  *  \return number of bits needed to represent a field element
@@ -446,6 +455,22 @@ const EC_METHOD *EC_POINT_method_of(const EC_POINT *point);
  */
 int EC_POINT_set_to_infinity(const EC_GROUP *group, EC_POINT *point);
 
+int EC_POINT_set_affine_coordinates(const EC_GROUP *group, EC_POINT *p,
+    const BIGNUM *x, const BIGNUM *y, BN_CTX *ctx);
+int EC_POINT_get_affine_coordinates(const EC_GROUP *group, const EC_POINT *p,
+    BIGNUM *x, BIGNUM *y, BN_CTX *ctx);
+int EC_POINT_set_compressed_coordinates(const EC_GROUP *group, EC_POINT *p,
+    const BIGNUM *x, int y_bit, BN_CTX *ctx);
+
+#if defined(LIBRESSL_INTERNAL)
+
+int EC_POINT_set_Jprojective_coordinates(const EC_GROUP *group, EC_POINT *p,
+    const BIGNUM *x, const BIGNUM *y, const BIGNUM *z, BN_CTX *ctx);
+int EC_POINT_get_Jprojective_coordinates(const EC_GROUP *group,
+    const EC_POINT *p, BIGNUM *x, BIGNUM *y, BIGNUM *z, BN_CTX *ctx);
+
+#else
+
 /** Sets the jacobian projective coordinates of a EC_POINT over GFp
  *  \param  group  underlying EC_GROUP object
  *  \param  p      EC_POINT object
@@ -502,6 +527,7 @@ int EC_POINT_get_affine_coordinates_GFp(const EC_GROUP *group,
  */
 int EC_POINT_set_compressed_coordinates_GFp(const EC_GROUP *group, EC_POINT *p,
 	const BIGNUM *x, int y_bit, BN_CTX *ctx);
+
 #ifndef OPENSSL_NO_EC2M
 /** Sets the affine coordinates of a EC_POINT over GF2m
  *  \param  group  underlying EC_GROUP object
@@ -535,7 +561,9 @@ int EC_POINT_get_affine_coordinates_GF2m(const EC_GROUP *group,
  */
 int EC_POINT_set_compressed_coordinates_GF2m(const EC_GROUP *group, EC_POINT *p,
 	const BIGNUM *x, int y_bit, BN_CTX *ctx);
-#endif
+#endif /* OPENSSL_NO_EC2M */
+#endif /* !LIBRESSL_INTERNAL */
+
 /** Encodes a EC_POINT object to a octet string
  *  \param  group  underlying EC_GROUP object
  *  \param  p      EC_POINT object
@@ -680,7 +708,8 @@ int EC_GROUP_get_pentanomial_basis(const EC_GROUP *, unsigned int *k1,
 	unsigned int *k2, unsigned int *k3);
 #endif
 
-#define OPENSSL_EC_NAMED_CURVE	0x001
+#define OPENSSL_EC_EXPLICIT_CURVE	0x000
+#define OPENSSL_EC_NAMED_CURVE		0x001
 
 typedef struct ecpk_parameters_st ECPKPARAMETERS;
 
@@ -714,6 +743,7 @@ typedef struct ec_key_method_st EC_KEY_METHOD;
 /* some values for the flags field */
 #define EC_FLAG_NON_FIPS_ALLOW	0x1
 #define EC_FLAG_FIPS_CHECKED	0x2
+#define EC_FLAG_COFACTOR_ECDH	0x1000
 
 /** Creates a new EC_KEY object.
  *  \return EC_KEY object or NULL if an error occurred.
@@ -995,11 +1025,96 @@ EC_KEY *ECParameters_dup(EC_KEY *key);
 #endif
 
 #define EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid) \
-	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, EVP_PKEY_OP_PARAMGEN, \
-				EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID, nid, NULL)
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_PARAMGEN|EVP_PKEY_OP_KEYGEN, \
+	    EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID, nid, NULL)
 
+#define EVP_PKEY_CTX_set_ec_param_enc(ctx, flag) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_PARAMGEN|EVP_PKEY_OP_KEYGEN, \
+	    EVP_PKEY_CTRL_EC_PARAM_ENC, flag, NULL)
+
+#define EVP_PKEY_CTX_set_ecdh_cofactor_mode(ctx, flag) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_DERIVE, \
+	    EVP_PKEY_CTRL_EC_ECDH_COFACTOR, flag, NULL)
+
+#define EVP_PKEY_CTX_get_ecdh_cofactor_mode(ctx) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_DERIVE, \
+	    EVP_PKEY_CTRL_EC_ECDH_COFACTOR, -2, NULL)
+
+#define EVP_PKEY_CTX_set_ecdh_kdf_type(ctx, kdf) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_DERIVE, \
+	    EVP_PKEY_CTRL_EC_KDF_TYPE, kdf, NULL)
+
+#define EVP_PKEY_CTX_get_ecdh_kdf_type(ctx) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_DERIVE, \
+	    EVP_PKEY_CTRL_EC_KDF_TYPE, -2, NULL)
+
+#define EVP_PKEY_CTX_set_ecdh_kdf_md(ctx, md) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_DERIVE, \
+	    EVP_PKEY_CTRL_EC_KDF_MD, 0, (void *)(md))
+
+#define EVP_PKEY_CTX_get_ecdh_kdf_md(ctx, pmd) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_DERIVE, \
+	    EVP_PKEY_CTRL_GET_EC_KDF_MD, 0, (void *)(pmd))
+
+#define EVP_PKEY_CTX_set_ecdh_kdf_outlen(ctx, len) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_DERIVE, \
+	    EVP_PKEY_CTRL_EC_KDF_OUTLEN, len, NULL)
+
+#define EVP_PKEY_CTX_get_ecdh_kdf_outlen(ctx, plen) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_DERIVE, \
+	    EVP_PKEY_CTRL_GET_EC_KDF_OUTLEN, 0, \
+	    (void *)(plen))
+
+#define EVP_PKEY_CTX_set0_ecdh_kdf_ukm(ctx, p, plen) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_DERIVE, \
+	    EVP_PKEY_CTRL_EC_KDF_UKM, plen, (void *)(p))
+
+#define EVP_PKEY_CTX_get0_ecdh_kdf_ukm(ctx, p) \
+	EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, \
+	    EVP_PKEY_OP_DERIVE, \
+	    EVP_PKEY_CTRL_GET_EC_KDF_UKM, 0, (void *)(p))
+
+/* SM2 will skip the operation check so no need to pass operation here */
+#define EVP_PKEY_CTX_set1_id(ctx, id, id_len) \
+	EVP_PKEY_CTX_ctrl(ctx, -1, -1, \
+	    EVP_PKEY_CTRL_SET1_ID, (int)id_len, (void*)(id))
+
+#define EVP_PKEY_CTX_get1_id(ctx, id) \
+	EVP_PKEY_CTX_ctrl(ctx, -1, -1, \
+	    EVP_PKEY_CTRL_GET1_ID, 0, (void*)(id))
+
+#define EVP_PKEY_CTX_get1_id_len(ctx, id_len) \
+	EVP_PKEY_CTX_ctrl(ctx, -1, -1, \
+	    EVP_PKEY_CTRL_GET1_ID_LEN, 0, (void*)(id_len))
 
 #define EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID		(EVP_PKEY_ALG_CTRL + 1)
+#define EVP_PKEY_CTRL_EC_PARAM_ENC			(EVP_PKEY_ALG_CTRL + 2)
+#define EVP_PKEY_CTRL_EC_ECDH_COFACTOR			(EVP_PKEY_ALG_CTRL + 3)
+#define EVP_PKEY_CTRL_EC_KDF_TYPE			(EVP_PKEY_ALG_CTRL + 4)
+#define EVP_PKEY_CTRL_EC_KDF_MD				(EVP_PKEY_ALG_CTRL + 5)
+#define EVP_PKEY_CTRL_GET_EC_KDF_MD			(EVP_PKEY_ALG_CTRL + 6)
+#define EVP_PKEY_CTRL_EC_KDF_OUTLEN			(EVP_PKEY_ALG_CTRL + 7)
+#define EVP_PKEY_CTRL_GET_EC_KDF_OUTLEN			(EVP_PKEY_ALG_CTRL + 8)
+#define EVP_PKEY_CTRL_EC_KDF_UKM			(EVP_PKEY_ALG_CTRL + 9)
+#define EVP_PKEY_CTRL_GET_EC_KDF_UKM			(EVP_PKEY_ALG_CTRL + 10)
+#define EVP_PKEY_CTRL_SET1_ID				(EVP_PKEY_ALG_CTRL + 11)
+#define EVP_PKEY_CTRL_GET1_ID				(EVP_PKEY_ALG_CTRL + 12)
+#define EVP_PKEY_CTRL_GET1_ID_LEN			(EVP_PKEY_ALG_CTRL + 13)
+
+/* KDF types */
+#define EVP_PKEY_ECDH_KDF_NONE				1
+#define EVP_PKEY_ECDH_KDF_X9_63				2
 
 /* BEGIN ERROR CODES */
 /* The following lines are auto generated by the script mkerr.pl. Any changes
@@ -1172,6 +1287,7 @@ void ERR_load_EC_strings(void);
 #define EC_R_INVALID_COMPRESSED_POINT			 110
 #define EC_R_INVALID_COMPRESSION_BIT			 109
 #define EC_R_INVALID_CURVE				 141
+#define EC_R_INVALID_DIGEST				 151
 #define EC_R_INVALID_DIGEST_TYPE			 138
 #define EC_R_INVALID_ENCODING				 102
 #define EC_R_INVALID_FIELD				 103
@@ -1180,6 +1296,7 @@ void ERR_load_EC_strings(void);
 #define EC_R_INVALID_PENTANOMIAL_BASIS			 132
 #define EC_R_INVALID_PRIVATE_KEY			 123
 #define EC_R_INVALID_TRINOMIAL_BASIS			 137
+#define EC_R_KDF_PARAMETER_ERROR			 148
 #define EC_R_KEYS_NOT_SET				 140
 #define EC_R_MISSING_PARAMETERS				 124
 #define EC_R_MISSING_PRIVATE_KEY			 125
@@ -1190,12 +1307,15 @@ void ERR_load_EC_strings(void);
 #define EC_R_NO_FIELD_MOD				 133
 #define EC_R_NO_PARAMETERS_SET				 139
 #define EC_R_PASSED_NULL_PARAMETER			 134
+#define EC_R_PEER_KEY_ERROR				 149
 #define EC_R_PKPARAMETERS2GROUP_FAILURE			 127
 #define EC_R_POINT_AT_INFINITY				 106
 #define EC_R_POINT_IS_NOT_ON_CURVE			 107
+#define EC_R_SHARED_INFO_ERROR				 150
 #define EC_R_SLOT_FULL					 108
 #define EC_R_UNDEFINED_GENERATOR			 113
 #define EC_R_UNDEFINED_ORDER				 128
+#define EC_R_UNKNOWN_COFACTOR				 164
 #define EC_R_UNKNOWN_GROUP				 129
 #define EC_R_UNKNOWN_ORDER				 114
 #define EC_R_UNSUPPORTED_FIELD				 131

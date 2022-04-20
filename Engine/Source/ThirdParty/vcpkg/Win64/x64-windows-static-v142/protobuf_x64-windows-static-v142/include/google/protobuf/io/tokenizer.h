@@ -78,8 +78,8 @@ class PROTOBUF_EXPORT ErrorCollector {
   // Indicates that there was a warning in the input at the given line and
   // column numbers.  The numbers are zero-based, so you may want to add
   // 1 to each before printing them.
-  virtual void AddWarning(int line, ColumnNumber column,
-                          const std::string& message) {}
+  virtual void AddWarning(int /* line */, ColumnNumber /* column */,
+                          const std::string& /* message */) {}
 
  private:
   GOOGLE_DISALLOW_EVIL_CONSTRUCTORS(ErrorCollector);
@@ -217,8 +217,8 @@ class PROTOBUF_EXPORT Tokenizer {
   // result.  If the text is not from a Token of type TYPE_INTEGER originally
   // parsed by a Tokenizer, the result is undefined (possibly an assert
   // failure).
-  static bool ParseInteger(const std::string& text, uint64 max_value,
-                           uint64* output);
+  static bool ParseInteger(const std::string& text, uint64_t max_value,
+                           uint64_t* output);
 
   // Options ---------------------------------------------------------
 

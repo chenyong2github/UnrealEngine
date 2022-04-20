@@ -1,4 +1,4 @@
-/* $OpenBSD: ssl.h,v 1.166 2019/04/04 15:03:21 jsing Exp $ */
+/* $OpenBSD: ssl.h,v 1.209 2021/09/14 23:07:18 inoguchi Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -301,6 +301,7 @@ extern "C" {
 #define SSL_TXT_STREEBOG512		"STREEBOG512"
 
 #define SSL_TXT_DTLS1		"DTLSv1"
+#define SSL_TXT_DTLS1_2		"DTLSv1.2"
 #define SSL_TXT_SSLV2		"SSLv2"
 #define SSL_TXT_SSLV3		"SSLv3"
 #define SSL_TXT_TLSV1		"TLSv1"
@@ -356,7 +357,9 @@ extern "C" {
  * in SSL_CTX. */
 typedef struct ssl_st *ssl_crock_st;
 
+#if defined(LIBRESSL_INTERNAL)
 typedef struct tls_session_ticket_ext_st TLS_SESSION_TICKET_EXT;
+#endif
 typedef struct ssl_method_st SSL_METHOD;
 typedef struct ssl_cipher_st SSL_CIPHER;
 typedef struct ssl_session_st SSL_SESSION;
@@ -375,113 +378,6 @@ typedef int (*tls_session_ticket_ext_cb_fn)(SSL *s, const unsigned char *data,
     int len, void *arg);
 typedef int (*tls_session_secret_cb_fn)(SSL *s, void *secret, int *secret_len,
     STACK_OF(SSL_CIPHER) *peer_ciphers, SSL_CIPHER **cipher, void *arg);
-
-#ifndef OPENSSL_NO_SSL_INTERN
-
-/* used to hold info on the particular ciphers used */
-struct ssl_cipher_st {
-	int valid;
-	const char *name;		/* text name */
-	unsigned long id;		/* id, 4 bytes, first is version */
-
-	unsigned long algorithm_mkey;	/* key exchange algorithm */
-	unsigned long algorithm_auth;	/* server authentication */
-	unsigned long algorithm_enc;	/* symmetric encryption */
-	unsigned long algorithm_mac;	/* symmetric authentication */
-	unsigned long algorithm_ssl;	/* (major) protocol version */
-
-	unsigned long algo_strength;	/* strength and export flags */
-	unsigned long algorithm2;	/* Extra flags */
-	int strength_bits;		/* Number of bits really used */
-	int alg_bits;			/* Number of bits for algorithm */
-};
-
-
-/* Used to hold functions for SSLv3/TLSv1 functions */
-struct ssl_method_internal_st;
-
-struct ssl_method_st {
-	int (*ssl_dispatch_alert)(SSL *s);
-	int (*num_ciphers)(void);
-	const SSL_CIPHER *(*get_cipher)(unsigned ncipher);
-	const SSL_CIPHER *(*get_cipher_by_char)(const unsigned char *ptr);
-	int (*put_cipher_by_char)(const SSL_CIPHER *cipher, unsigned char *ptr);
-
-	const struct ssl_method_internal_st *internal;
-};
-
-/* Lets make this into an ASN.1 type structure as follows
- * SSL_SESSION_ID ::= SEQUENCE {
- *	version 		INTEGER,	-- structure version number
- *	SSLversion 		INTEGER,	-- SSL version number
- *	Cipher 			OCTET STRING,	-- the 3 byte cipher ID
- *	Session_ID 		OCTET STRING,	-- the Session ID
- *	Master_key 		OCTET STRING,	-- the master key
- *	KRB5_principal		OCTET STRING	-- optional Kerberos principal
- *	Time [ 1 ] EXPLICIT	INTEGER,	-- optional Start Time
- *	Timeout [ 2 ] EXPLICIT	INTEGER,	-- optional Timeout ins seconds
- *	Peer [ 3 ] EXPLICIT	X509,		-- optional Peer Certificate
- *	Session_ID_context [ 4 ] EXPLICIT OCTET STRING,   -- the Session ID context
- *	Verify_result [ 5 ] EXPLICIT INTEGER,   -- X509_V_... code for `Peer'
- *	HostName [ 6 ] EXPLICIT OCTET STRING,   -- optional HostName from servername TLS extension
- *	PSK_identity_hint [ 7 ] EXPLICIT OCTET STRING, -- optional PSK identity hint
- *	PSK_identity [ 8 ] EXPLICIT OCTET STRING,  -- optional PSK identity
- *	Ticket_lifetime_hint [9] EXPLICIT INTEGER, -- server's lifetime hint for session ticket
- *	Ticket [10]             EXPLICIT OCTET STRING, -- session ticket (clients only)
- *	Compression_meth [11]   EXPLICIT OCTET STRING, -- optional compression method
- *	SRP_username [ 12 ] EXPLICIT OCTET STRING -- optional SRP username
- *	}
- * Look in ssl/ssl_asn1.c for more details
- * I'm using EXPLICIT tags so I can read the damn things using asn1parse :-).
- */
-struct ssl_session_internal_st;
-
-struct ssl_session_st {
-	int ssl_version;	/* what ssl version session info is
-				 * being kept in here? */
-
-	int master_key_length;
-	unsigned char master_key[SSL_MAX_MASTER_KEY_LENGTH];
-
-	/* session_id - valid? */
-	unsigned int session_id_length;
-	unsigned char session_id[SSL_MAX_SSL_SESSION_ID_LENGTH];
-
-	/* this is used to determine whether the session is being reused in
-	 * the appropriate context. It is up to the application to set this,
-	 * via SSL_new */
-	unsigned int sid_ctx_length;
-	unsigned char sid_ctx[SSL_MAX_SID_CTX_LENGTH];
-
-	/* This is the cert for the other end. */
-	X509 *peer;
-
-	/* when app_verify_callback accepts a session where the peer's certificate
-	 * is not ok, we must remember the error for session reuse: */
-	long verify_result; /* only for servers */
-
-	long timeout;
-	time_t time;
-	int references;
-
-	const SSL_CIPHER *cipher;
-	unsigned long cipher_id;	/* when ASN.1 loaded, this
-					 * needs to be used to load
-					 * the 'cipher' structure */
-
-	STACK_OF(SSL_CIPHER) *ciphers; /* shared ciphers? */
-
-	char *tlsext_hostname;
-
-	/* RFC4507 info */
-	unsigned char *tlsext_tick;	/* Session ticket */
-	size_t tlsext_ticklen;		/* Session ticket length */
-	long tlsext_tick_lifetime_hint;	/* Session lifetime hint in seconds */
-
-	struct ssl_session_internal_st *internal;
-};
-
-#endif
 
 /* Allow initial connection to servers that don't support RI */
 #define SSL_OP_LEGACY_SERVER_CONNECT			0x00000004L
@@ -519,6 +415,9 @@ struct ssl_session_st {
 #if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
 #define SSL_OP_NO_TLSv1_3				0x20000000L
 #endif
+
+#define SSL_OP_NO_DTLSv1				0x40000000L
+#define SSL_OP_NO_DTLSv1_2				0x80000000L
 
 /* SSL_OP_ALL: various bug workarounds that should be rather harmless. */
 #define SSL_OP_ALL \
@@ -610,8 +509,10 @@ void SSL_set_msg_callback(SSL *ssl, void (*cb)(int write_p, int version,
 #define SSL_CTX_set_msg_callback_arg(ctx, arg) SSL_CTX_ctrl((ctx), SSL_CTRL_SET_MSG_CALLBACK_ARG, 0, (arg))
 #define SSL_set_msg_callback_arg(ssl, arg) SSL_ctrl((ssl), SSL_CTRL_SET_MSG_CALLBACK_ARG, 0, (arg))
 
+#ifndef LIBRESSL_INTERNAL
 struct ssl_aead_ctx_st;
 typedef struct ssl_aead_ctx_st SSL_AEAD_CTX;
+#endif
 
 #define SSL_MAX_CERT_LIST_DEFAULT 1024*100 /* 100k max cert list :-) */
 
@@ -635,7 +536,7 @@ typedef int (*GEN_SESSION_CB)(const SSL *ssl, unsigned char *id,
 
 typedef struct ssl_comp_st SSL_COMP;
 
-#ifndef OPENSSL_NO_SSL_INTERN
+#ifdef LIBRESSL_INTERNAL
 
 struct ssl_comp_st {
 	int id;
@@ -766,7 +667,7 @@ int SSL_select_next_proto(unsigned char **out, unsigned char *outlen,
     const unsigned char *in, unsigned int inlen, const unsigned char *client,
     unsigned int client_len);
 void SSL_get0_next_proto_negotiated(const SSL *s, const unsigned char **data,
-    unsigned *len);
+    unsigned int *len);
 
 #define OPENSSL_NPN_UNSUPPORTED	0
 #define OPENSSL_NPN_NEGOTIATED	1
@@ -782,6 +683,12 @@ void SSL_CTX_set_alpn_select_cb(SSL_CTX *ctx,
 void SSL_get0_alpn_selected(const SSL *ssl, const unsigned char **data,
     unsigned int *len);
 
+#if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
+typedef int (*SSL_psk_use_session_cb_func)(SSL *ssl, const EVP_MD *md,
+    const unsigned char **id, size_t *idlen, SSL_SESSION **sess);
+void SSL_set_psk_use_session_callback(SSL *s, SSL_psk_use_session_cb_func cb);
+#endif
+
 #define SSL_NOTHING	1
 #define SSL_WRITING	2
 #define SSL_READING	3
@@ -796,7 +703,7 @@ void SSL_get0_alpn_selected(const SSL *ssl, const unsigned char **data,
 #define SSL_MAC_FLAG_READ_MAC_STREAM 1
 #define SSL_MAC_FLAG_WRITE_MAC_STREAM 2
 
-#ifndef OPENSSL_NO_SSL_INTERN
+#if defined(LIBRESSL_INTERNAL)
 struct ssl_internal_st;
 
 struct ssl_st {
@@ -954,6 +861,13 @@ size_t SSL_get_peer_finished(const SSL *s, void *buf, size_t count);
 #define SSL_VERIFY_PEER			0x01
 #define SSL_VERIFY_FAIL_IF_NO_PEER_CERT	0x02
 #define SSL_VERIFY_CLIENT_ONCE		0x04
+#if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
+#define SSL_VERIFY_POST_HANDSHAKE	0x08
+
+int SSL_verify_client_post_handshake(SSL *s);
+void SSL_CTX_set_post_handshake_auth(SSL_CTX *ctx, int val);
+void SSL_set_post_handshake_auth(SSL *s, int val);
+#endif
 
 #define OpenSSL_add_ssl_algorithms()	SSL_library_init()
 #define SSLeay_add_ssl_algorithms()	SSL_library_init()
@@ -982,40 +896,53 @@ SSL_SESSION *PEM_read_SSL_SESSION(FILE *fp, SSL_SESSION **x,
 int PEM_write_bio_SSL_SESSION(BIO *bp, SSL_SESSION *x);
 int PEM_write_SSL_SESSION(FILE *fp, SSL_SESSION *x);
 
-#define SSL_AD_REASON_OFFSET		1000 /* offset to get SSL_R_... value from SSL_AD_... */
+/*
+ * TLS Alerts.
+ *
+ * https://www.iana.org/assignments/tls-parameters/#tls-parameters-6
+ */
 
-/* These alert types are for SSLv3 and TLSv1 */
-#define SSL_AD_CLOSE_NOTIFY		SSL3_AD_CLOSE_NOTIFY
-#define SSL_AD_UNEXPECTED_MESSAGE	SSL3_AD_UNEXPECTED_MESSAGE /* fatal */
-#define SSL_AD_BAD_RECORD_MAC		SSL3_AD_BAD_RECORD_MAC     /* fatal */
-#define SSL_AD_DECRYPTION_FAILED	TLS1_AD_DECRYPTION_FAILED
-#define SSL_AD_RECORD_OVERFLOW		TLS1_AD_RECORD_OVERFLOW
-#define SSL_AD_DECOMPRESSION_FAILURE	SSL3_AD_DECOMPRESSION_FAILURE/* fatal */
-#define SSL_AD_HANDSHAKE_FAILURE	SSL3_AD_HANDSHAKE_FAILURE/* fatal */
-#define SSL_AD_NO_CERTIFICATE		SSL3_AD_NO_CERTIFICATE /* Not for TLS */
-#define SSL_AD_BAD_CERTIFICATE		SSL3_AD_BAD_CERTIFICATE
-#define SSL_AD_UNSUPPORTED_CERTIFICATE	SSL3_AD_UNSUPPORTED_CERTIFICATE
-#define SSL_AD_CERTIFICATE_REVOKED	SSL3_AD_CERTIFICATE_REVOKED
-#define SSL_AD_CERTIFICATE_EXPIRED	SSL3_AD_CERTIFICATE_EXPIRED
-#define SSL_AD_CERTIFICATE_UNKNOWN	SSL3_AD_CERTIFICATE_UNKNOWN
-#define SSL_AD_ILLEGAL_PARAMETER	SSL3_AD_ILLEGAL_PARAMETER   /* fatal */
-#define SSL_AD_UNKNOWN_CA		TLS1_AD_UNKNOWN_CA	/* fatal */
-#define SSL_AD_ACCESS_DENIED		TLS1_AD_ACCESS_DENIED	/* fatal */
-#define SSL_AD_DECODE_ERROR		TLS1_AD_DECODE_ERROR	/* fatal */
-#define SSL_AD_DECRYPT_ERROR		TLS1_AD_DECRYPT_ERROR
-#define SSL_AD_EXPORT_RESTRICTION	TLS1_AD_EXPORT_RESTRICTION/* fatal */
-#define SSL_AD_PROTOCOL_VERSION		TLS1_AD_PROTOCOL_VERSION /* fatal */
-#define SSL_AD_INSUFFICIENT_SECURITY	TLS1_AD_INSUFFICIENT_SECURITY/* fatal */
-#define SSL_AD_INTERNAL_ERROR		TLS1_AD_INTERNAL_ERROR	/* fatal */
-#define SSL_AD_INAPPROPRIATE_FALLBACK	TLS1_AD_INAPPROPRIATE_FALLBACK /* fatal */
-#define SSL_AD_USER_CANCELLED		TLS1_AD_USER_CANCELLED
-#define SSL_AD_NO_RENEGOTIATION		TLS1_AD_NO_RENEGOTIATION
-#define SSL_AD_UNSUPPORTED_EXTENSION	TLS1_AD_UNSUPPORTED_EXTENSION
-#define SSL_AD_CERTIFICATE_UNOBTAINABLE TLS1_AD_CERTIFICATE_UNOBTAINABLE
-#define SSL_AD_UNRECOGNIZED_NAME	TLS1_AD_UNRECOGNIZED_NAME
-#define SSL_AD_BAD_CERTIFICATE_STATUS_RESPONSE TLS1_AD_BAD_CERTIFICATE_STATUS_RESPONSE
-#define SSL_AD_BAD_CERTIFICATE_HASH_VALUE TLS1_AD_BAD_CERTIFICATE_HASH_VALUE
-#define SSL_AD_UNKNOWN_PSK_IDENTITY	TLS1_AD_UNKNOWN_PSK_IDENTITY /* fatal */
+/* Obsolete alerts. */
+#ifndef LIBRESSL_INTERNAL
+#define SSL_AD_DECRYPTION_FAILED		21	/* Removed in TLSv1.1 */
+#define SSL_AD_NO_CERTIFICATE			41	/* Removed in TLSv1.0 */
+#define SSL_AD_EXPORT_RESTRICTION		60	/* Removed in TLSv1.1 */
+#endif
+
+#define SSL_AD_CLOSE_NOTIFY			0
+#define SSL_AD_UNEXPECTED_MESSAGE		10
+#define SSL_AD_BAD_RECORD_MAC			20
+#define SSL_AD_RECORD_OVERFLOW			22
+#define SSL_AD_DECOMPRESSION_FAILURE		30	/* Removed in TLSv1.3 */
+#define SSL_AD_HANDSHAKE_FAILURE		40
+#define SSL_AD_BAD_CERTIFICATE			42
+#define SSL_AD_UNSUPPORTED_CERTIFICATE		43
+#define SSL_AD_CERTIFICATE_REVOKED		44
+#define SSL_AD_CERTIFICATE_EXPIRED		45
+#define SSL_AD_CERTIFICATE_UNKNOWN		46
+#define SSL_AD_ILLEGAL_PARAMETER		47
+#define SSL_AD_UNKNOWN_CA			48
+#define SSL_AD_ACCESS_DENIED			49
+#define SSL_AD_DECODE_ERROR			50
+#define SSL_AD_DECRYPT_ERROR			51
+#define SSL_AD_PROTOCOL_VERSION			70
+#define SSL_AD_INSUFFICIENT_SECURITY		71
+#define SSL_AD_INTERNAL_ERROR			80
+#define SSL_AD_INAPPROPRIATE_FALLBACK		86
+#define SSL_AD_USER_CANCELLED			90
+#define SSL_AD_NO_RENEGOTIATION			100	/* Removed in TLSv1.3 */
+#define SSL_AD_MISSING_EXTENSION		109	/* Added in TLSv1.3. */
+#define SSL_AD_UNSUPPORTED_EXTENSION		110
+#define SSL_AD_CERTIFICATE_UNOBTAINABLE		111	/* Removed in TLSv1.3 */
+#define SSL_AD_UNRECOGNIZED_NAME		112
+#define SSL_AD_BAD_CERTIFICATE_STATUS_RESPONSE	113
+#define SSL_AD_BAD_CERTIFICATE_HASH_VALUE	114	/* Removed in TLSv1.3 */
+#define SSL_AD_UNKNOWN_PSK_IDENTITY		115
+#define SSL_AD_CERTIFICATE_REQUIRED		116
+#define SSL_AD_NO_APPLICATION_PROTOCOL		120
+
+/* Offset to get an SSL_R_... value from an SSL_AD_... value. */
+#define SSL_AD_REASON_OFFSET			1000
 
 #define SSL_ERROR_NONE			0
 #define SSL_ERROR_SSL			1
@@ -1088,6 +1015,7 @@ int PEM_write_SSL_SESSION(FILE *fp, SSL_SESSION *x);
 #define SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB	63
 #define SSL_CTRL_GET_TLSEXT_STATUS_REQ_CB_ARG	129
 #define SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG	64
+#define SSL_CTRL_GET_TLSEXT_STATUS_REQ_TYPE	127
 #define SSL_CTRL_SET_TLSEXT_STATUS_REQ_TYPE	65
 #define SSL_CTRL_GET_TLSEXT_STATUS_REQ_EXTS	66
 #define SSL_CTRL_SET_TLSEXT_STATUS_REQ_EXTS	67
@@ -1126,7 +1054,13 @@ int PEM_write_SSL_SESSION(FILE *fp, SSL_SESSION *x);
 
 #define SSL_CTRL_SET_ECDH_AUTO			94
 
+#if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
+#define SSL_CTRL_GET_PEER_SIGNATURE_NID			108
+#define SSL_CTRL_GET_PEER_TMP_KEY			109
+#define SSL_CTRL_GET_SERVER_TMP_KEY SSL_CTRL_GET_PEER_TMP_KEY
+#else
 #define SSL_CTRL_GET_SERVER_TMP_KEY		109
+#endif
 
 #define	SSL_CTRL_GET_CHAIN_CERTS			115
 
@@ -1136,6 +1070,10 @@ int PEM_write_SSL_SESSION(FILE *fp, SSL_SESSION *x);
 #define SSL_CTRL_SET_MAX_PROTO_VERSION			124
 #define SSL_CTRL_GET_MIN_PROTO_VERSION			130
 #define SSL_CTRL_GET_MAX_PROTO_VERSION			131
+
+#if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
+#define SSL_CTRL_GET_SIGNATURE_NID			132
+#endif
 
 #define DTLSv1_get_timeout(ssl, arg) \
 	SSL_ctrl(ssl,DTLS_CTRL_GET_TIMEOUT,0, (void *)arg)
@@ -1209,6 +1147,8 @@ int SSL_get_max_proto_version(SSL *ssl);
 int SSL_set_min_proto_version(SSL *ssl, uint16_t version);
 int SSL_set_max_proto_version(SSL *ssl, uint16_t version);
 
+const SSL_METHOD *SSL_CTX_get_ssl_method(const SSL_CTX *ctx);
+
 #ifndef LIBRESSL_INTERNAL
 #define SSL_CTRL_SET_CURVES			SSL_CTRL_SET_GROUPS
 #define SSL_CTRL_SET_CURVES_LIST		SSL_CTRL_SET_GROUPS_LIST
@@ -1219,15 +1159,31 @@ int SSL_set_max_proto_version(SSL *ssl, uint16_t version);
 #define SSL_set1_curves_list SSL_set1_groups_list
 #endif
 
-#define SSL_CTX_add_extra_chain_cert(ctx,x509) \
-	SSL_CTX_ctrl(ctx,SSL_CTRL_EXTRA_CHAIN_CERT,0,(char *)x509)
-#define SSL_CTX_get_extra_chain_certs(ctx,px509) \
-	SSL_CTX_ctrl(ctx,SSL_CTRL_GET_EXTRA_CHAIN_CERTS,0,px509)
+#define SSL_CTX_add_extra_chain_cert(ctx, x509) \
+	SSL_CTX_ctrl(ctx, SSL_CTRL_EXTRA_CHAIN_CERT, 0, (char *)x509)
+#define SSL_CTX_get_extra_chain_certs(ctx, px509) \
+	SSL_CTX_ctrl(ctx, SSL_CTRL_GET_EXTRA_CHAIN_CERTS, 0, px509)
+#define SSL_CTX_get_extra_chain_certs_only(ctx, px509) \
+	SSL_CTX_ctrl(ctx, SSL_CTRL_GET_EXTRA_CHAIN_CERTS, 1, px509)
 #define SSL_CTX_clear_extra_chain_certs(ctx) \
-	SSL_CTX_ctrl(ctx,SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS,0,NULL)
+	SSL_CTX_ctrl(ctx, SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS, 0, NULL)
 
 #define SSL_get_server_tmp_key(s, pk) \
 	SSL_ctrl(s,SSL_CTRL_GET_SERVER_TMP_KEY,0,pk)
+
+#if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
+#define SSL_get_signature_nid(s, pn) \
+	SSL_ctrl(s, SSL_CTRL_GET_SIGNATURE_NID, 0, pn)
+
+#define SSL_get_peer_signature_nid(s, pn) \
+	SSL_ctrl(s, SSL_CTRL_GET_PEER_SIGNATURE_NID, 0, pn)
+#define SSL_get_peer_tmp_key(s, pk) \
+	SSL_ctrl(s, SSL_CTRL_GET_PEER_TMP_KEY, 0, pk)
+
+int SSL_get_signature_type_nid(const SSL *ssl, int *nid);
+int SSL_get_peer_signature_type_nid(const SSL *ssl, int *nid);
+
+#endif /* LIBRESSL_HAS_TLS1_3 || LIBRESSL_INTERNAL */
 
 #ifndef LIBRESSL_INTERNAL
 /*
@@ -1273,6 +1229,9 @@ void BIO_ssl_shutdown(BIO *ssl_bio);
 
 STACK_OF(SSL_CIPHER) *SSL_CTX_get_ciphers(const SSL_CTX *ctx);
 int	SSL_CTX_set_cipher_list(SSL_CTX *, const char *str);
+#if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
+int SSL_CTX_set_ciphersuites(SSL_CTX *ctx, const char *str);
+#endif
 SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth);
 void	SSL_CTX_free(SSL_CTX *);
 int SSL_CTX_up_ref(SSL_CTX *ctx);
@@ -1281,6 +1240,7 @@ long SSL_CTX_get_timeout(const SSL_CTX *ctx);
 X509_STORE *SSL_CTX_get_cert_store(const SSL_CTX *);
 void SSL_CTX_set_cert_store(SSL_CTX *, X509_STORE *);
 X509 *SSL_CTX_get0_certificate(const SSL_CTX *ctx);
+EVP_PKEY *SSL_CTX_get0_privatekey(const SSL_CTX *ctx);
 int SSL_want(const SSL *s);
 int	SSL_clear(SSL *s);
 
@@ -1294,6 +1254,7 @@ const char *	SSL_CIPHER_get_version(const SSL_CIPHER *c);
 const char *	SSL_CIPHER_get_name(const SSL_CIPHER *c);
 unsigned long 	SSL_CIPHER_get_id(const SSL_CIPHER *c);
 uint16_t SSL_CIPHER_get_value(const SSL_CIPHER *c);
+const SSL_CIPHER *SSL_CIPHER_find(SSL *ssl, const unsigned char *ptr);
 int SSL_CIPHER_get_cipher_nid(const SSL_CIPHER *c);
 int SSL_CIPHER_get_digest_nid(const SSL_CIPHER *c);
 int SSL_CIPHER_get_kx_nid(const SSL_CIPHER *c);
@@ -1312,8 +1273,12 @@ int	SSL_set_rfd(SSL *s, int fd);
 int	SSL_set_wfd(SSL *s, int fd);
 void	SSL_set_bio(SSL *s, BIO *rbio, BIO *wbio);
 BIO *	SSL_get_rbio(const SSL *s);
+void	SSL_set0_rbio(SSL *s, BIO *rbio);
 BIO *	SSL_get_wbio(const SSL *s);
 int	SSL_set_cipher_list(SSL *s, const char *str);
+#if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
+int	SSL_set_ciphersuites(SSL *s, const char *str);
+#endif
 void	SSL_set_read_ahead(SSL *s, int yes);
 int	SSL_get_verify_mode(const SSL *s);
 int	SSL_get_verify_depth(const SSL *s);
@@ -1331,6 +1296,7 @@ int	SSL_use_certificate_ASN1(SSL *ssl, const unsigned char *d, int len);
 int	SSL_use_RSAPrivateKey_file(SSL *ssl, const char *file, int type);
 int	SSL_use_PrivateKey_file(SSL *ssl, const char *file, int type);
 int	SSL_use_certificate_file(SSL *ssl, const char *file, int type);
+int	SSL_use_certificate_chain_file(SSL *ssl, const char *file);
 int	SSL_CTX_use_RSAPrivateKey_file(SSL_CTX *ctx, const char *file, int type);
 int	SSL_CTX_use_PrivateKey_file(SSL_CTX *ctx, const char *file, int type);
 int	SSL_CTX_use_certificate_file(SSL_CTX *ctx, const char *file, int type);
@@ -1347,6 +1313,7 @@ const char *SSL_state_string(const SSL *s);
 const char *SSL_rstate_string(const SSL *s);
 const char *SSL_state_string_long(const SSL *s);
 const char *SSL_rstate_string_long(const SSL *s);
+const SSL_CIPHER *SSL_SESSION_get0_cipher(const SSL_SESSION *ss);
 size_t	SSL_SESSION_get_master_key(const SSL_SESSION *ss,
 	    unsigned char *out, size_t max_out);
 int	SSL_SESSION_get_protocol_version(const SSL_SESSION *s);
@@ -1360,6 +1327,9 @@ int	SSL_SESSION_set1_id(SSL_SESSION *s, const unsigned char *sid,
 	    unsigned int sid_len);
 int	SSL_SESSION_set1_id_context(SSL_SESSION *s,
 	    const unsigned char *sid_ctx, unsigned int sid_ctx_len);
+#if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
+int SSL_SESSION_is_resumable(const SSL_SESSION *s);
+#endif
 
 SSL_SESSION *SSL_SESSION_new(void);
 void	SSL_SESSION_free(SSL_SESSION *ses);
@@ -1368,6 +1338,10 @@ const unsigned char *SSL_SESSION_get_id(const SSL_SESSION *ss,
 	    unsigned int *len);
 const unsigned char *SSL_SESSION_get0_id_context(const SSL_SESSION *ss,
 	    unsigned int *len);
+#if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
+uint32_t SSL_SESSION_get_max_early_data(const SSL_SESSION *sess);
+int SSL_SESSION_set_max_early_data(SSL_SESSION *sess, uint32_t max_early_data);
+#endif
 unsigned long SSL_SESSION_get_ticket_lifetime_hint(const SSL_SESSION *s);
 int	SSL_SESSION_has_ticket(const SSL_SESSION *s);
 unsigned int SSL_SESSION_get_compress_id(const SSL_SESSION *ss);
@@ -1421,6 +1395,8 @@ int SSL_set_purpose(SSL *s, int purpose);
 int SSL_CTX_set_trust(SSL_CTX *s, int trust);
 int SSL_set_trust(SSL *s, int trust);
 int SSL_set1_host(SSL *s, const char *hostname);
+void SSL_set_hostflags(SSL *s, unsigned int flags);
+const char *SSL_get0_peername(SSL *s);
 
 X509_VERIFY_PARAM *SSL_CTX_get0_param(SSL_CTX *ctx);
 int SSL_CTX_set1_param(SSL_CTX *ctx, X509_VERIFY_PARAM *vpm);
@@ -1432,10 +1408,31 @@ void	SSL_free(SSL *ssl);
 int	SSL_up_ref(SSL *ssl);
 int 	SSL_accept(SSL *ssl);
 int 	SSL_connect(SSL *ssl);
+int	SSL_is_dtls(const SSL *s);
 int	SSL_is_server(const SSL *s);
 int 	SSL_read(SSL *ssl, void *buf, int num);
 int 	SSL_peek(SSL *ssl, void *buf, int num);
 int 	SSL_write(SSL *ssl, const void *buf, int num);
+
+#if defined(LIBRESSL_HAS_TLS1_3) || defined(LIBRESSL_INTERNAL)
+uint32_t SSL_CTX_get_max_early_data(const SSL_CTX *ctx);
+int SSL_CTX_set_max_early_data(SSL_CTX *ctx, uint32_t max_early_data);
+
+uint32_t SSL_get_max_early_data(const SSL *s);
+int SSL_set_max_early_data(SSL *s, uint32_t max_early_data);
+
+#define SSL_EARLY_DATA_NOT_SENT		0
+#define SSL_EARLY_DATA_REJECTED		1
+#define SSL_EARLY_DATA_ACCEPTED		2
+int SSL_get_early_data_status(const SSL *s);
+
+#define SSL_READ_EARLY_DATA_ERROR	0
+#define SSL_READ_EARLY_DATA_SUCCESS	1
+#define SSL_READ_EARLY_DATA_FINISH	2
+int SSL_read_early_data(SSL *s, void *buf, size_t num, size_t *readbytes);
+int SSL_write_early_data(SSL *s, const void *buf, size_t num, size_t *written);
+#endif
+
 long	SSL_ctrl(SSL *ssl, int cmd, long larg, void *parg);
 long	SSL_callback_ctrl(SSL *, int, void (*)(void));
 long	SSL_CTX_ctrl(SSL_CTX *ctx, int cmd, long larg, void *parg);
@@ -1470,6 +1467,10 @@ const SSL_METHOD *TLS_client_method(void);	/* TLS v1.0 or later */
 const SSL_METHOD *DTLSv1_method(void);		/* DTLSv1.0 */
 const SSL_METHOD *DTLSv1_server_method(void);	/* DTLSv1.0 */
 const SSL_METHOD *DTLSv1_client_method(void);	/* DTLSv1.0 */
+
+const SSL_METHOD *DTLSv1_2_method(void);	/* DTLSv1.2 */
+const SSL_METHOD *DTLSv1_2_server_method(void);	/* DTLSv1.2 */
+const SSL_METHOD *DTLSv1_2_client_method(void);	/* DTLSv1.2 */
 
 const SSL_METHOD *DTLS_method(void);		/* DTLS v1.0 or later */
 const SSL_METHOD *DTLS_server_method(void);	/* DTLS v1.0 or later */
@@ -1990,6 +1991,7 @@ void ERR_load_SSL_strings(void);
 #define SSL_R_MISSING_VERIFY_MESSAGE			 174
 #define SSL_R_MULTIPLE_SGC_RESTARTS			 346
 #define SSL_R_NON_SSLV2_INITIAL_PACKET			 175
+#define SSL_R_NO_APPLICATION_PROTOCOL			 235
 #define SSL_R_NO_CERTIFICATES_RETURNED			 176
 #define SSL_R_NO_CERTIFICATE_ASSIGNED			 177
 #define SSL_R_NO_CERTIFICATE_RETURNED			 178
@@ -2160,6 +2162,7 @@ void ERR_load_SSL_strings(void);
 #define SSL_R_X509_LIB					 268
 #define SSL_R_X509_VERIFICATION_SETUP_PROBLEMS		 269
 #define SSL_R_PEER_BEHAVING_BADLY			 666
+#define SSL_R_UNKNOWN					 999
 
 /*
  * OpenSSL compatible OPENSSL_INIT options

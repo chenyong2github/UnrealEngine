@@ -49,19 +49,19 @@ namespace internal {
 template <typename T>
 T UnwrapMapKey(const MapKey& map_key);
 template <>
-inline int32 UnwrapMapKey<int32>(const MapKey& map_key) {
+inline int32_t UnwrapMapKey<int32_t>(const MapKey& map_key) {
   return map_key.GetInt32Value();
 }
 template <>
-inline uint32 UnwrapMapKey<uint32>(const MapKey& map_key) {
+inline uint32_t UnwrapMapKey<uint32_t>(const MapKey& map_key) {
   return map_key.GetUInt32Value();
 }
 template <>
-inline int64 UnwrapMapKey<int64>(const MapKey& map_key) {
+inline int64_t UnwrapMapKey<int64_t>(const MapKey& map_key) {
   return map_key.GetInt64Value();
 }
 template <>
-inline uint64 UnwrapMapKey<uint64>(const MapKey& map_key) {
+inline uint64_t UnwrapMapKey<uint64_t>(const MapKey& map_key) {
   return map_key.GetUInt64Value();
 }
 template <>
@@ -77,19 +77,19 @@ inline std::string UnwrapMapKey<std::string>(const MapKey& map_key) {
 template <typename T>
 inline void SetMapKey(MapKey* map_key, const T& value);
 template <>
-inline void SetMapKey<int32>(MapKey* map_key, const int32& value) {
+inline void SetMapKey<int32_t>(MapKey* map_key, const int32_t& value) {
   map_key->SetInt32Value(value);
 }
 template <>
-inline void SetMapKey<uint32>(MapKey* map_key, const uint32& value) {
+inline void SetMapKey<uint32_t>(MapKey* map_key, const uint32_t& value) {
   map_key->SetUInt32Value(value);
 }
 template <>
-inline void SetMapKey<int64>(MapKey* map_key, const int64& value) {
+inline void SetMapKey<int64_t>(MapKey* map_key, const int64_t& value) {
   map_key->SetInt64Value(value);
 }
 template <>
-inline void SetMapKey<uint64>(MapKey* map_key, const uint64& value) {
+inline void SetMapKey<uint64_t>(MapKey* map_key, const uint64_t& value) {
   map_key->SetUInt64Value(value);
 }
 template <>
@@ -277,14 +277,26 @@ template <typename Derived, typename Key, typename T,
           WireFormatLite::FieldType kValueFieldType>
 void MapField<Derived, Key, T, kKeyFieldType, kValueFieldType>::Swap(
     MapFieldBase* other) {
+  MapFieldBase::Swap(other);
   MapField* other_field = down_cast<MapField*>(other);
-  std::swap(this->MapFieldBase::repeated_field_, other_field->repeated_field_);
   impl_.Swap(&other_field->impl_);
-  // a relaxed swap of the atomic
-  auto other_state = other_field->state_.load(std::memory_order_relaxed);
-  auto this_state = this->MapFieldBase::state_.load(std::memory_order_relaxed);
-  other_field->state_.store(this_state, std::memory_order_relaxed);
-  this->MapFieldBase::state_.store(other_state, std::memory_order_relaxed);
+}
+
+template <typename Derived, typename Key, typename T,
+          WireFormatLite::FieldType kKeyFieldType,
+          WireFormatLite::FieldType kValueFieldType>
+void MapField<Derived, Key, T, kKeyFieldType,
+              kValueFieldType>::UnsafeShallowSwap(MapFieldBase* other) {
+  InternalSwap(down_cast<MapField*>(other));
+}
+
+template <typename Derived, typename Key, typename T,
+          WireFormatLite::FieldType kKeyFieldType,
+          WireFormatLite::FieldType kValueFieldType>
+void MapField<Derived, Key, T, kKeyFieldType, kValueFieldType>::InternalSwap(
+    MapField* other) {
+  MapFieldBase::InternalSwap(other);
+  impl_.InternalSwap(&other->impl_);
 }
 
 template <typename Derived, typename Key, typename T,
@@ -293,13 +305,9 @@ template <typename Derived, typename Key, typename T,
 void MapField<Derived, Key, T, kKeyFieldType,
               kValueFieldType>::SyncRepeatedFieldWithMapNoLock() const {
   if (this->MapFieldBase::repeated_field_ == NULL) {
-    if (this->MapFieldBase::arena_ == NULL) {
-      this->MapFieldBase::repeated_field_ = new RepeatedPtrField<Message>();
-    } else {
-      this->MapFieldBase::repeated_field_ =
-          Arena::CreateMessage<RepeatedPtrField<Message> >(
-              this->MapFieldBase::arena_);
-    }
+    this->MapFieldBase::repeated_field_ =
+        Arena::CreateMessage<RepeatedPtrField<Message> >(
+            this->MapFieldBase::arena_);
   }
   const Map<Key, T>& map = impl_.GetMap();
   RepeatedPtrField<EntryType>* repeated_field =

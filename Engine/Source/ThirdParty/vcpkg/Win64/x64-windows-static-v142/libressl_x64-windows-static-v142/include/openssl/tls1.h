@@ -1,4 +1,4 @@
-/* $OpenBSD: tls1.h,v 1.39 2019/03/19 16:53:03 jsing Exp $ */
+/* $OpenBSD: tls1.h,v 1.49 2021/09/10 14:57:31 tb Exp $ */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -177,18 +177,7 @@ extern "C" {
 #define TLS1_VERSION_MAJOR		0x03
 #define TLS1_VERSION_MINOR		0x01
 
-#define TLS1_get_version(s) \
-		((s->version >> 8) == TLS1_VERSION_MAJOR ? s->version : 0)
-
-#define TLS1_get_client_version(s) \
-		((s->client_version >> 8) == TLS1_VERSION_MAJOR ? s->client_version : 0)
-
-/*
- * TLS Alert codes.
- *
- * https://www.iana.org/assignments/tls-parameters/#tls-parameters-6
- */
-
+#ifndef LIBRESSL_INTERNAL
 #define TLS1_AD_DECRYPTION_FAILED		21
 #define TLS1_AD_RECORD_OVERFLOW			22
 #define TLS1_AD_UNKNOWN_CA			48	/* fatal */
@@ -211,6 +200,7 @@ extern "C" {
 #define TLS1_AD_BAD_CERTIFICATE_HASH_VALUE	114
 /* Code 115 from RFC 4279. */
 #define TLS1_AD_UNKNOWN_PSK_IDENTITY		115	/* fatal */
+#endif
 
 /*
  * TLS ExtensionType values.
@@ -280,6 +270,15 @@ extern "C" {
 #define TLSEXT_TYPE_key_share			51
 #endif
 
+/*
+ * TLS 1.3 extension names from OpenSSL, where they decided to use a different
+ * name from that given in RFC 8446.
+ */
+#if defined(LIBRESSL_HAS_TLS1_3)
+#define TLSEXT_TYPE_psk				TLSEXT_TYPE_pre_shared_key
+#define TLSEXT_TYPE_psk_kex_modes		TLSEXT_TYPE_psk_key_exchange_modes
+#endif
+
 /* Temporary extension type */
 #define TLSEXT_TYPE_renegotiate                 0xff01
 
@@ -318,6 +317,9 @@ SSL_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_DEBUG_CB,(void (*)(void))cb)
 
 #define SSL_set_tlsext_debug_arg(ssl, arg) \
 SSL_ctrl(ssl,SSL_CTRL_SET_TLSEXT_DEBUG_ARG,0, (void *)arg)
+
+#define SSL_get_tlsext_status_type(ssl) \
+SSL_ctrl(ssl, SSL_CTRL_GET_TLSEXT_STATUS_REQ_TYPE, 0, NULL)
 
 #define SSL_set_tlsext_status_type(ssl, type) \
 SSL_ctrl(ssl,SSL_CTRL_SET_TLSEXT_STATUS_REQ_TYPE,type, NULL)
@@ -726,16 +728,18 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 #define TLS_CT_DSS_SIGN			2
 #define TLS_CT_RSA_FIXED_DH		3
 #define TLS_CT_DSS_FIXED_DH		4
+#define TLS_CT_GOST94_SIGN		21
+#define TLS_CT_GOST01_SIGN		22
 #define TLS_CT_ECDSA_SIGN		64
 #define TLS_CT_RSA_FIXED_ECDH		65
 #define TLS_CT_ECDSA_FIXED_ECDH 	66
-#define TLS_CT_GOST94_SIGN		21
-#define TLS_CT_GOST01_SIGN		22
-#define TLS_CT_GOST12_256_SIGN		238 /* FIXME: IANA */
-#define TLS_CT_GOST12_512_SIGN		239 /* FIXME: IANA */
+#define TLS_CT_GOST12_256_SIGN		67
+#define TLS_CT_GOST12_512_SIGN		68
+#define TLS_CT_GOST12_256_SIGN_COMPAT	238 /* pre-IANA, for compat */
+#define TLS_CT_GOST12_512_SIGN_COMPAT	239 /* pre-IANA, for compat */
 /* when correcting this number, correct also SSL3_CT_NUMBER in ssl3.h (see
  * comment there) */
-#define TLS_CT_NUMBER			11
+#define TLS_CT_NUMBER			13
 
 #define TLS1_FINISH_MAC_LENGTH		12
 
@@ -757,11 +761,13 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 #define TLS_MD_MASTER_SECRET_CONST		"master secret"
 #define TLS_MD_MASTER_SECRET_CONST_SIZE		13
 
+#if defined(LIBRESSL_INTERNAL)
 /* TLS Session Ticket extension struct. */
 struct tls_session_ticket_ext_st {
 	unsigned short length;
 	void *data;
 };
+#endif
 
 #ifdef  __cplusplus
 }

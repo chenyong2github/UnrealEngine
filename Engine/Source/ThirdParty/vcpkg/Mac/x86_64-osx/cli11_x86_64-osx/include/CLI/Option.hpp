@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2020, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2021, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -6,6 +6,7 @@
 
 #pragma once
 
+// [CLI11:public_includes:set]
 #include <algorithm>
 #include <functional>
 #include <memory>
@@ -14,6 +15,7 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+// [CLI11:public_includes:end]
 
 #include "Error.hpp"
 #include "Macros.hpp"
@@ -22,6 +24,7 @@
 #include "Validators.hpp"
 
 namespace CLI {
+// [CLI11:option_hpp:verbatim]
 
 using results_t = std::vector<std::string>;
 /// callback function definition
@@ -91,6 +94,9 @@ template <typename CRTP> class OptionBase {
 
     /// Changes the group membership
     CRTP *group(const std::string &name) {
+        if(!detail::valid_alias_name_string(name)) {
+            throw IncorrectConstruction("Group names may not contain newlines or null characters");
+        }
         group_ = name;
         return static_cast<CRTP *>(this);
     }
@@ -264,6 +270,9 @@ class Option : public OptionBase<Option> {
     /// A human readable default value, either manually set, captured, or captured by default
     std::string default_str_{};
 
+    /// If given, replace the text that describes the option type and usage in the help text
+    std::string option_text_{};
+
     /// A human readable type value, set when App creates this
     ///
     /// This is a lambda function so "types" can be dynamic, such as when a set prints its contents.
@@ -331,6 +340,10 @@ class Option : public OptionBase<Option> {
     bool run_callback_for_default_{false};
     /// flag indicating a separator needs to be injected after each argument call
     bool inject_separator_{false};
+    /// flag indicating that the option should trigger the validation and callback chain on each result when loaded
+    bool trigger_on_result_{false};
+    /// flag indicating that the option should force the callback regardless if any results present
+    bool force_callback_{false};
     ///@}
 
     /// Making an option by hand is not defined, it must be made by the App class
@@ -352,8 +365,8 @@ class Option : public OptionBase<Option> {
     /// True if the option was not passed
     bool empty() const { return results_.empty(); }
 
-    /// This class is true if option is passed.
-    explicit operator bool() const { return !empty(); }
+    /// This bool operator returns true if any arguments were passed or the option callback is forced
+    explicit operator bool() const { return !empty() || force_callback_; }
 
     /// Clear the parsed results (mostly for testing)
     void clear() {
@@ -414,6 +427,21 @@ class Option : public OptionBase<Option> {
     }
     /// Get the current value of allow extra args
     bool get_allow_extra_args() const { return allow_extra_args_; }
+    /// Set the value of trigger_on_parse which specifies that the option callback should be triggered on every parse
+    Option *trigger_on_parse(bool value = true) {
+        trigger_on_result_ = value;
+        return this;
+    }
+    /// The status of trigger on parse
+    bool get_trigger_on_parse() const { return trigger_on_result_; }
+
+    /// Set the value of force_callback
+    Option *force_callback(bool value = true) {
+        force_callback_ = value;
+        return this;
+    }
+    /// The status of force_callback
+    bool get_force_callback() const { return force_callback_; }
 
     /// Set the value of run_callback_for_default which controls whether the callback function should be called to set
     /// the default This is controlled automatically but could be manipulated by the user.
@@ -660,7 +688,7 @@ class Option : public OptionBase<Option> {
     /// The maximum number of arguments the option expects
     int get_type_size_max() const { return type_size_max_; }
 
-    /// The number of arguments the option expects
+    /// Return the inject_separator flag
     int get_inject_separator() const { return inject_separator_; }
 
     /// The environment variable associated to this value
@@ -736,6 +764,13 @@ class Option : public OptionBase<Option> {
         return this;
     }
 
+    Option *option_text(std::string text) {
+        option_text_ = std::move(text);
+        return this;
+    }
+
+    const std::string &get_option_text() const { return option_text_; }
+
     ///@}
     /// @name Help tools
     ///@{
@@ -746,7 +781,7 @@ class Option : public OptionBase<Option> {
     /// Use `get_name(true)` to get the positional name (replaces `get_pname`)
     std::string get_name(bool positional = false,  ///< Show the positional name
                          bool all_options = false  ///< Show every option
-                         ) const {
+    ) const {
         if(get_group().empty())
             return {};  // Hidden
 
@@ -805,7 +840,9 @@ class Option : public OptionBase<Option> {
 
     /// Process the callback
     void run_callback() {
-
+        if(force_callback_ && results_.empty()) {
+            add_result(default_str_);
+        }
         if(current_option_state_ == option_state::parsing) {
             _validate_results(results_);
             current_option_state_ = option_state::validated;
@@ -961,10 +998,10 @@ class Option : public OptionBase<Option> {
 
     /// Puts a result at the end
     Option *add_result(std::vector<std::string> s) {
+        current_option_state_ = option_state::parsing;
         for(auto &str : s) {
             _add_result(std::move(str), results_);
         }
-        current_option_state_ = option_state::parsing;
         return this;
     }
 
@@ -1123,7 +1160,8 @@ class Option : public OptionBase<Option> {
         results_.clear();
         try {
             add_result(val_str);
-            if(run_callback_for_default_) {
+            // if trigger_on_result_ is set the callback already ran
+            if(run_callback_for_default_ && !trigger_on_result_) {
                 run_callback();  // run callback sets the state we need to reset it again
                 current_option_state_ = option_state::parsing;
             } else {
@@ -1306,4 +1344,5 @@ class Option : public OptionBase<Option> {
     }
 };  // namespace CLI
 
+// [CLI11:option_hpp:end]
 }  // namespace CLI

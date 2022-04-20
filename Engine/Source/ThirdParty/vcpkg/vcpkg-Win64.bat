@@ -3,7 +3,7 @@
 setlocal
 
 :: this is a tag in the vcpkg repository
-set VCPKG_VERSION=2021.05.12
+set VCPKG_VERSION=2022.03.10
 
 :: enable manifest mode
 set VCPKG_FEATURE_FLAGS=manifests
@@ -14,15 +14,17 @@ set VCPKG_TRIPLETS=x64-windows-static-md-v142;x64-windows-static-v142
 :: the Unreal platform
 set UE_PLATFORM=Win64
 
+set VCPKG_DIR=%TEMP%\vcpkg-%UE_PLATFORM%-%VCPKG_VERSION%
+
 pushd %~dp0
 
 echo:
-echo === Checking out vcpkg to vcpkg ===
-git clone https://github.com/microsoft/vcpkg.git --depth 1 --branch %VCPKG_VERSION% vcpkg-%UE_PLATFORM%
+echo === Checking out vcpkg to %VCPKG_DIR% ===
+git clone --single-branch --branch %VCPKG_VERSION% -- https://github.com/microsoft/vcpkg.git %VCPKG_DIR%
 
 echo:
 echo === Bootstrapping vcpkg ===
-call vcpkg-%UE_PLATFORM%\bootstrap-vcpkg.bat -disableMetrics
+call %VCPKG_DIR%\bootstrap-vcpkg.bat -disableMetrics
 
 echo:
 echo === Making %UE_PLATFORM% artifacts writeable ===
@@ -34,7 +36,7 @@ FOR %%T IN (%VCPKG_TRIPLETS%) DO (
     mkdir .\%UE_PLATFORM%\%%T
     copy /Y .\vcpkg.json .\%UE_PLATFORM%\%%T\vcpkg.json
 
-    vcpkg-%UE_PLATFORM%\vcpkg.exe install ^
+    %VCPKG_DIR%\vcpkg.exe install ^
         --overlay-ports=.\overlay-ports ^
         --overlay-triplets=.\overlay-triplets ^
         --x-manifest-root=.\%UE_PLATFORM%\%%T ^

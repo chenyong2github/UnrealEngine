@@ -24,7 +24,7 @@ if [[ ! -d "${LINUX_MULTIARCH_ROOT}" ]]; then
 fi
 
 # this is a tag in the vcpkg repository
-VCPKG_VERSION=2021.05.12
+VCPKG_VERSION=2022.03.10
 
 # enable manifest mode
 VCPKG_FEATURE_FLAGS=manifests
@@ -37,13 +37,15 @@ else
 	exit 1
 fi
 
+VCPKG_ROOT=${TMPDIR-/tmp}/vcpkg-${VCPKG_SYSTEM}-${VCPKG_VERSION}
+
 echo
-echo === Checking out vcpkg to ${TMPDIR-/tmp}/vcpkg-${VCPKG_SYSTEM} ===
-git clone https://github.com/microsoft/vcpkg.git --depth 1 --branch $VCPKG_VERSION ${TMPDIR-/tmp}/vcpkg-${VCPKG_SYSTEM}
+echo === Checking out vcpkg to ${VCPKG_ROOT}===
+git clone --single-branch --branch $VCPKG_VERSION -- https://github.com/microsoft/vcpkg.git $VCPKG_ROOT
 
 echo
 echo === Bootstrapping vcpkg ===
-${TMPDIR-/tmp}/vcpkg-${VCPKG_SYSTEM}/bootstrap-vcpkg.sh -disableMetrics
+${VCPKG_ROOT}/bootstrap-vcpkg.sh -disableMetrics
 
 echo
 echo === Making Linux artifacts writeable ===
@@ -65,19 +67,30 @@ echo === Running vcpkg in manifest mode ===
 # --overlay-triplets tells it to resolve a named triplet via additional paths outside vcpkg/, PWD relative
 # --triplet names the triplet to configure the build with, our custom triplet file w/o .cmake extentions
 # --debug will provide extra information to stdout
-${TMPDIR-/tmp}/vcpkg-${VCPKG_SYSTEM}/vcpkg install \
+${VCPKG_ROOT}/vcpkg install \
 	--overlay-ports=$DIR/overlay-ports \
 	--overlay-triplets=$DIR/overlay-triplets \
 	--x-manifest-root=$DIR/Linux/x86_64-unknown-linux-gnu \
 	--x-packages-root=$DIR/Linux/x86_64-unknown-linux-gnu \
 	--triplet=x86_64-unknown-linux-gnu
 
-${TMPDIR-/tmp}/vcpkg-${VCPKG_SYSTEM}/vcpkg install \
+${VCPKG_ROOT}/vcpkg install \
 	--overlay-ports=$DIR/overlay-ports \
 	--overlay-triplets=$DIR/overlay-triplets \
 	--x-manifest-root=$DIR/LinuxArm64/aarch64-unknown-linux-gnueabi \
 	--x-packages-root=$DIR/LinuxArm64/aarch64-unknown-linux-gnueabi \
 	--triplet=aarch64-unknown-linux-gnueabi
+
+echo
+echo === Replacing symlinks with actual files ===
+for f in $(find $DIR/Linux -type l);
+do
+	rsync `realpath $f` $f
+done
+for f in $(find $DIR/LinuxArm64 -type l);
+do
+	rsync `realpath $f` $f
+done
 
 echo
 echo === Reconciling $VCPKG_SYSTEM artifacts ===

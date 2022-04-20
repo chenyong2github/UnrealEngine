@@ -1,7 +1,7 @@
 # Adapted from write_basic_package_version_file(... COMPATIBILITY AnyNewerVersion) output
 # ARCH_INDEPENDENT is only present in cmake 3.14 and onwards
 
-set(PACKAGE_VERSION "1.9.0")
+set(PACKAGE_VERSION "2.1.2")
 
 if(PACKAGE_VERSION VERSION_LESS PACKAGE_FIND_VERSION)
   set(PACKAGE_VERSION_COMPATIBLE FALSE)

@@ -168,7 +168,7 @@ if(NOT EXISTS "${Protobuf_PROTOC_EXECUTABLE}")
 endif()
 
 # Version info variable
-set(Protobuf_VERSION "3.15.8.0")
+set(Protobuf_VERSION "3.18.0.0")
 
 include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(Protobuf

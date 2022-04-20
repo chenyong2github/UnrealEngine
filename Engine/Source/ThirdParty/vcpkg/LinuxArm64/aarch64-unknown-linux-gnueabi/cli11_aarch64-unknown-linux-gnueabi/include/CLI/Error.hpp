@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2020, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2021, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -6,16 +6,19 @@
 
 #pragma once
 
+// [CLI11:public_includes:set]
 #include <exception>
 #include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
+// [CLI11:public_includes:end]
 
 // CLI library includes
 #include "StringTools.hpp"
 
 namespace CLI {
+// [CLI11:error_hpp:verbatim]
 
 // Use one of these on all error classes.
 // These are temporary and are undef'd at the end of this file.
@@ -176,7 +179,7 @@ class CallForVersion : public Success {
         : CallForVersion("This should be caught in your main function, see examples", ExitCodes::Success) {}
 };
 
-/// Does not output a diagnostic in CLI11_PARSE, but allows to return from main() with a specific error code.
+/// Does not output a diagnostic in CLI11_PARSE, but allows main() to return with a specific error code.
 class RuntimeError : public ParseError {
     CLI11_ERROR_DEF(ParseError, RuntimeError)
     explicit RuntimeError(int exit_code = 1) : RuntimeError("Runtime error", exit_code) {}
@@ -344,4 +347,5 @@ class OptionNotFound : public Error {
 
 /// @}
 
+// [CLI11:error_hpp:end]
 }  // namespace CLI
