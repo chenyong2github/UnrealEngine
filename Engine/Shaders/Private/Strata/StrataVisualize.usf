@@ -3,7 +3,7 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
-#ifdef SHADER_DEBUGSTRATATREE
+#ifdef SHADER_DEBUGSTRATATREE_PS
 #define STRATA_INLINE_SHADING 1
 #else
 #define STRATA_INLINE_SHADING 0
@@ -455,7 +455,7 @@ void VisualizeMaterialPS(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Material Visualize
 
-#if SHADER_DEBUGSTRATATREE
+#if SHADER_DEBUGSTRATATREE_TEST_CS
 
 [numthreads(1, 1, 1)]
 void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -486,18 +486,187 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	}
 }
 
-float4 GetMaterialOnSphere(
-	in float2 PixelPos,
+#endif // SHADER_DEBUGSTRATATREE_TEST_CS
+
+#if SHADER_DEBUGSTRATATREE_PS
+
+#include "../DeferredShadingCommon.ush"
+#define SUPPORT_CONTACT_SHADOWS 0
+#include "../DeferredLightingCommon.ush"
+
+#include "StrataEvaluation.ush"
+
+// These defines are needed for environment lighting in StrataLightingCommon
+#define ENABLE_DYNAMIC_SKY_LIGHT 1
+#define ENABLE_SKY_LIGHT 1
+#define SUPPORT_DFAO_INDIRECT_OCCLUSION 0
+#define STRATA_FASTPATH 0
+#define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES 0
+#include "../ReflectionEnvironmentShared.ush"
+#include "../SkyLightingDiffuseShared.ush"
+#include "../ReflectionEnvironmentComposite.ush"
+
+#define USE_STRATA_ENV_LIGHTING_COMMON 1
+#define USE_STRATA_FORWARD_LIGHTING_COMMON 1
+#include "StrataLightingCommon.ush"
+
+float4 GetBackgroundCheckboardColor(float2 UV)
+{
+	const float Count = 16.0f;
+	int2 UVi = int2(UV * Count);
+	bool bIsBlack = (UVi.x % 2) > 0 ? true : false;
+	bIsBlack = (UVi.y % 2) > 0 ? !bIsBlack : bIsBlack;
+	const float3 Color = (bIsBlack ? 0.04 : 0.18);
+	return float4(Color, 0.0);
+}
+
+void GetMaterialOnSphere(
+	in float4 SVPos,
 	in float2 Pos,
 	in float  Size,
 	in FStrataBSDF BSDF,
 	inout float4 OutColor)
 {
-	if (all(PixelPos > Pos) && all(PixelPos < (Pos + Size)))
+	const float2 PixelPos = SVPos.xy;
+
+	if (BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_SLAB && all(PixelPos > Pos) && all(PixelPos < (Pos + Size)))
 	{
-		OutColor = float4(StrataGetBSDFDiffuseColor(BSDF), 0);
+		const float2 UV = (PixelPos - Pos) / Size;
+		OutColor = GetBackgroundCheckboardColor(UV);
+
+		float3 AbsoluteWorldPosition = LWCHackToFloat(PrimaryView.WorldCameraOrigin);
+		float3 TranslatedWorldPosition = PrimaryView.TranslatedWorldCameraOrigin;
+		float SceneDepth = 0.0;
+
+		float3 V = -View.ViewForward;// float3(0, 0, 1);
+		const float3 RayO = V + (UV.x-0.5) * View.ViewRight + -(UV.y-0.5) * View.ViewUp;
+		const float3 RayD = -V;
+		const float4 Sphere = float4(0.0f, 0.0f, 0.f, 0.48);
+		const float2 Hit = RayIntersectSphere(RayO, RayD, Sphere);
+		if (Hit.x >= 0)
+		{
+			float3 P = RayO + RayD * Hit.x;
+			float3 N = normalize(P - Sphere.xyz);
+			const float ThicknessRatio = (Hit.y - Hit.x) / Sphere.w;
+
+			if (BSDF_GETISSIMPLEVOLUME(BSDF))
+			{
+				// Apply transmittance on the background
+
+				float3 DiffuseColor = SLAB_DIFFUSEALBEDO(BSDF);
+				FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(DiffuseColor, SLAB_SSSMFP(BSDF));
+				const float3 Transmittance = IsotropicMediumSlabTransmittance(PM, ThicknessRatio * STRATA_SIMPLEVOLUME_THICKNESS_M, 1.f);
+
+				OutColor.rgb *= Transmittance * BSDF.Coverage + (1.0f - BSDF.Coverage);
+			}
+			else
+			{
+				OutColor.rgb *= 0.0f;
+			}
+
+			// Create a head that will map to a single BSDF
+			FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+			StrataPixelHeader.BSDFCount = 1;
+
+			FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
+			FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;
+
+			float3x3 TangentBasis;
+			TangentBasis[2] = N;
+			TangentBasis[0] = normalize(N*float3(1, 0, 0));
+			TangentBasis[1] = cross(N, TangentBasis[0]);
+			TangentBasis[0] =-cross(N, TangentBasis[1]);
+
+			// Apply a white directional light
+			if(ForwardLightData.HasDirectionalLight)
+			{
+				FDeferredLightData DirLightData = (FDeferredLightData)0;
+				DirLightData.Color = ForwardLightData.DirectionalLightColor;
+				DirLightData.FalloffExponent = 0;
+				DirLightData.Direction = ForwardLightData.DirectionalLightDirection;
+				DirLightData.DistanceFadeMAD = ForwardLightData.DirectionalLightDistanceFadeMAD;
+				DirLightData.bRadialLight = false;
+				DirLightData.SpecularScale = 1;
+				float4 DirLightAttenuation = float4(1, 1, 1, 1);
+				DirLightData.ShadowedBits = 1;
+				DirLightData.ShadowMapChannelMask.x = 1;
+				DirLightData.HairTransmittance = InitHairTransmittanceData();
+
+				float Dither = 0.0f;
+				float3 ToLight = DirLightData.Direction;
+				float LightMask = 1.0f;
+				FRectTexture RectTexture = InitRectTexture();
+				uint LightChannelMask = 0xFFFFFFFF;
+				uint PrimitiveLightingChannelMask = LightChannelMask;
+
+				float3 BSDFColoredVisibility = 1.0f;
+
+				// Patch the BSDF to appear as a top layer
+				BSDF.LuminanceWeightV = 1.0f;
+				BSDF.LuminanceWeightL = 1.0f;
+				BSDF.bIsBottom = true;
+				BSDF.bIsTop = true;
+				BSDF.Coverage = 1.0f;
+				BSDF.Emissive = 0.0f;
+
+				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, ToLight);
+
+				bool bEvaluateHasBeenExecuted = false;
+				FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;
+				float3 DirLightLuminance = StrataForwardLightingCommon(
+					Dither,
+					Settings,
+					DirLightData,
+					ToLight,
+					LightMask,
+					DirLightAttenuation,
+					RectTexture,
+					LightChannelMask,
+					PrimitiveLightingChannelMask,
+					TranslatedWorldPosition,
+					SceneDepth,
+					BSDFColoredVisibility,
+					StrataPixelHeader,
+					StrataBSDFContext,
+					bEvaluateHasBeenExecuted,
+					BSDFEvaluate);
+
+				OutColor.rgb += DirLightLuminance * View.PreExposure;
+			}
+
+			// Apply the sky box
+			{
+				float3 ToLight = V;
+				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, ToLight);
+
+				const bool bEnableSpecular = ReflectionStruct.SkyLightParameters.y > 0.0f;
+				FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, bEnableSpecular, Settings);
+
+				float SSRReductionFactor = 0.0;
+				float3 DiffuseLighting = 0.0;
+				float3 SpecularLighting = 0.0;
+				StrataEnvLightingCommon(
+					StrataEnvLight,
+					StrataPixelHeader,
+					StrataBSDFContext,
+					BSDF,
+					N,	//in float3 BentNormal,
+					1.0,//in float3 BSDFThroughput,
+					0,	//in uint CaptureDataStartIndex,
+					0,	//in uint NumCulledReflectionCaptures,
+					1.0,//in float ScreenAmbientOcclusion,
+					1.0,//in float CloudVolumetricAOShadow,
+					1.0,//in float TopLayerSpecularContributionFactor,
+					TranslatedWorldPosition,
+					1.0,//in float CombinedScreenAndMaterialAO,
+					SSRReductionFactor,
+					DiffuseLighting,
+					SpecularLighting);
+
+				OutColor.rgb += (DiffuseLighting + SpecularLighting) * View.PreExposure;;
+			}
+		}
 	}
-	return OutColor;
 }
 
 void MaterialDebugStrataTreePS(
@@ -510,7 +679,7 @@ void MaterialDebugStrataTreePS(
 	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 	if (Header.BSDFCount > 0)
 	{
-		OutColor = float4(0.0f, 0.0f, 0.0f, 0.5f);
+		OutColor = float4(0.0f, 0.0f, 0.0f, 0.9f);
 
 		FStrataTree StrataTree = GetInitialisedStrataTree();
 		StrataUnpackInStrataTree(
@@ -521,21 +690,21 @@ void MaterialDebugStrataTreePS(
 		const float2 PixelPos = SVPos.xy;
 
 		float2 Pos = float2(100.0f, 100.0f);
-		const float SphereSize = 100.0f;
+		const float SphereSize = 200.0f;
 		for (int i = 0; i < StrataTree.BSDFCount; i++)
 		{
-			OutColor = GetMaterialOnSphere(
-				PixelPos,
+			GetMaterialOnSphere(
+				SVPos,
 				Pos,
 				SphereSize,
 				StrataTree.BSDFs[i],
 				OutColor);
-		
+
 			Pos.y += SphereSize + 10.0f;
 		}
 	}
 
-	OutColor = float4(pow(OutColor.rgb,1.0/2.2), OutColor.a);
+	OutColor = float4(pow(OutColor.rgb, 1.0 / 2.2), OutColor.a);
 }
 
-#endif // SHADER_DEBUGSTRATATREE
+#endif // SHADER_DEBUGSTRATATREE_PS

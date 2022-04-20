@@ -10,6 +10,9 @@
 
 #if STRATA_ENABLED
 
+#define USE_STRATA_ENV_LIGHTING_COMMON 1
+#include "StrataLightingCommon.ush"
+
 // Env. lighting evaluation for strata material.
 // Unpack BSDF on-the-fly
 FStrataDeferredLighting StrataEnvironmentLighting(
@@ -20,7 +23,7 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 	float3 TranslatedWorldPosition,
 	float3 CameraToPixel,
 	float3 V,
-	float AmbientOcclusion,
+	float ScreenAmbientOcclusion,
 	float TopLayerSpecularContributionFactor,
 	FStrataIntegrationSettings Settings,
 	FStrataMaterialContainer MaterialBuffer,
@@ -39,7 +42,7 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 	FUpsampleDFAOOutput UpsampleDFAOOutput = UpsampleDFAO(BufferUV, SceneDepth);
 #endif
 
-	float CombinedScreenAndMaterialAO = StrataGetAO(StrataPixelHeader) * AmbientOcclusion;
+	float CombinedScreenAndMaterialAO = StrataGetAO(StrataPixelHeader) * ScreenAmbientOcclusion;
 
 	
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
@@ -73,107 +76,27 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 		BentNormal = ApplyDFAO(UpsampleDFAOOutput, StrataEnvLight.DiffuseNormal);
 	#endif
 
-		// Diffuse component
 		float3 DiffuseLighting = 0;
-	#if ENABLE_DYNAMIC_SKY_LIGHT
-		const bool bProcessFrontFaceDiffuse = any(StrataEnvLight.DiffuseWeight > 0.0f);
-		const bool bProcessBackFaceDiffuse = any(StrataEnvLight.DiffuseBackFaceWeight > 0.0f);
-		if (bProcessFrontFaceDiffuse || bProcessBackFaceDiffuse)
-		{
-			// Compute the common sky visibility factors
-			FSkyLightVisibilityData SkyVisData = GetSkyLightVisibilityData(StrataBSDFContext.N, StrataBSDFContext.N, StrataGetAO(StrataPixelHeader), AmbientOcclusion, BentNormal);
-
-			if (bProcessFrontFaceDiffuse)
-			{
-				// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF)
-				float3 DiffuseLookup = GetSkySHDiffuse(BentNormal) * View.SkyLightColor.rgb;
-				// And accumulate
-				// Note: Use diffuse directional albedo (i.e., DiffuseWeight) as first order approximation for env. integration (STRATA_TODO instead compute SH coefficients for Chan)
-				DiffuseLighting = CloudVolumetricAOShadow * BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup + SkyVisData.SkyDiffuseLookUpAdd) * StrataEnvLight.DiffuseWeight;
-			}
-			if (bProcessBackFaceDiffuse)
-			{
-				// We do not evaluate back face sky light visibility data because all the data we have is for the front face only.  This could be evaluated at some cost.
-				// However, we do apply SkyVisData.SkyDiffuseLookUpMul for scaling consistency.
-
-				// Finally sample the sky diffuse contribution (spherical harmonic, Lambert BRDF) along the opposite normal direction
-				float3 DiffuseLookup = GetSkySHDiffuse(-BentNormal) * View.SkyLightColor.rgb;
-				// And accumulate
-				// Note: Use diffuse directional albedo (i.e., DiffuseWeight) as first order approximation for env. integration (STRATA_TODO instead compute SH coefficients for Chan)
-				DiffuseLighting += CloudVolumetricAOShadow * BSDFThroughput * (SkyVisData.SkyDiffuseLookUpMul * DiffuseLookup) * StrataEnvLight.DiffuseBackFaceWeight;
-			}
-		}
-	#endif // ENABLE_DYNAMIC_SKY_LIGHT
-
-		// Specular component
-		const bool bIsTopLayer = BSDF_GETISTOPLAYER(BSDF);
 		float3 SpecularLighting = 0;
-		if (any(StrataEnvLight.SpecularWeight > 0.0f))
-		{
-			float IndirectIrradiance = 0.0;						// STRATA_TODO GBuffer.IndirectIrradiance, that will likely have to take 8 mnore bits on the header
-		#if ENABLE_SKY_LIGHT && ALLOW_STATIC_LIGHTING
-			BRANCH
-			// Add in diffuse contribution from dynamic skylights so reflection captures will have something to mix with
-			if (ReflectionStruct.SkyLightParameters.y > 0 && ReflectionStruct.SkyLightParameters.z > 0)
-			{
-				IndirectIrradiance += GetDynamicSkyIndirectIrradiance(BentNormal, StrataBSDFContext.N);
-			}
-		#endif
+		StrataEnvLightingCommon(
+			StrataEnvLight,
+			StrataPixelHeader,
+			StrataBSDFContext,
+			BSDF,
+			BentNormal,
+			BSDFThroughput,
+			CaptureDataStartIndex,
+			NumCulledReflectionCaptures,
+			ScreenAmbientOcclusion,
+			CloudVolumetricAOShadow,
+			TopLayerSpecularContributionFactor,
+			TranslatedWorldPosition,
+			CombinedScreenAndMaterialAO,
+			SSRReductionFactor,
+			DiffuseLighting,
+			SpecularLighting);
 
-			// Compute some extra occlusion information from DFAO and sky light data
-			float IndirectSpecularOcclusion = 1.0f;
-			float3 ExtraIndirectSpecular = 0.0f;
-
-		#if SUPPORT_DFAO_INDIRECT_OCCLUSION
-			float IndirectDiffuseOcclusion;
-			const bool bTwoSideFoliage = false;
-			GetDistanceFieldAOSpecularOcclusion(BentNormal, StrataEnvLight.SpecularDirection, StrataEnvLight.SpecularSafeRoughness, bTwoSideFoliage, IndirectSpecularOcclusion, IndirectDiffuseOcclusion, ExtraIndirectSpecular);
-			// Apply DFAO to IndirectIrradiance before mixing with indirect specular
-			IndirectIrradiance *= IndirectDiffuseOcclusion;
-		#endif
-
-			float RoughnessSquared = StrataEnvLight.SpecularSafeRoughness * StrataEnvLight.SpecularSafeRoughness;
-			float SpecularOcclusion = IndirectSpecularOcclusion * GetSpecularOcclusion(StrataBSDFContext.SatNoV, RoughnessSquared, CombinedScreenAndMaterialAO);
-
-			const bool bCompositeSkylight = true;
-			SpecularLighting += BSDFThroughput * StrataEnvLight.SpecularWeight *
-				CompositeReflectionCapturesAndSkylightTWS(
-					(bIsTopLayer ? TopLayerSpecularContributionFactor : 1.0f) * SpecularOcclusion,
-					TranslatedWorldPosition,
-					StrataEnvLight.SpecularDirection,
-					StrataEnvLight.SpecularSafeRoughness,
-					IndirectIrradiance,
-					IndirectSpecularOcclusion,
-					ExtraIndirectSpecular,
-					NumCulledReflectionCaptures,
-					CaptureDataStartIndex,
-					0,
-					bCompositeSkylight);
-
-		#if STRATA_FASTPATH==0
-			if (BSDF_GETHASHAZINESS(BSDF))
-			{
-				SpecularLighting += BSDFThroughput * StrataEnvLight.SpecularHazeWeight *
-					CompositeReflectionCapturesAndSkylightTWS(
-						(bIsTopLayer ? TopLayerSpecularContributionFactor : 1.0f) * SpecularOcclusion,
-						TranslatedWorldPosition,
-						StrataEnvLight.SpecularDirection,
-						StrataEnvLight.SpecularHazeSafeRoughness,
-						IndirectIrradiance,
-						IndirectSpecularOcclusion,
-						ExtraIndirectSpecular,
-						NumCulledReflectionCaptures,
-						CaptureDataStartIndex,
-						0,
-						bCompositeSkylight);
-
-				// SSR is traced for the sharpest lob. The smoothest one does not rely on SSR so we need to lower energy coming from SSR according to the lobe blend weight.
-				// And we also try to make the transition smooth using Haziness
-				SSRReductionFactor -= bIsTopLayer ? dot(BSDFThroughput, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f)) * StrataEnvLight.SSRReduction : 0.0f;
-			}
-		#endif 
-		}
-
+		const bool bIsTopLayer = BSDF_GETISTOPLAYER(BSDF);
 		if (bIsTopLayer)
 		{
 			// The specular path weight applied on SSR. It must account for throughput even for top surface because it also contains coverage.

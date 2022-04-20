@@ -6,6 +6,7 @@
 #include "ScreenPass.h"
 #include "ShaderCompiler.h"
 #include "PixelShaderUtils.h"
+#include "BasePassRendering.h"
 
 
 static TAutoConsoleVariable<int32> CVarStrataClassificationDebug(
@@ -151,7 +152,8 @@ class FMaterialDebugStrataTreeCS : public FGlobalShader
 
 		// Stay debug and skip optimizations to reduce compilation time on this long shader.
 		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
-		OutEnvironment.SetDefine(TEXT("SHADER_DEBUGSTRATATREE"), 1);
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+		OutEnvironment.SetDefine(TEXT("SHADER_DEBUGSTRATATREE_TEST_CS"), 1);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FMaterialDebugStrataTreeCS, "/Engine/Private/Strata/StrataVisualize.usf", "MaterialDebugStrataTreeCS", SF_Compute);
@@ -166,6 +168,9 @@ class FMaterialDebugStrataTreePS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
+		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, ForwardLightData)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -185,7 +190,7 @@ class FMaterialDebugStrataTreePS : public FGlobalShader
 
 		// Stay debug and skip optimizations to reduce compilation time on this long shader.
 		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
-		OutEnvironment.SetDefine(TEXT("SHADER_DEBUGSTRATATREE"), 1);
+		OutEnvironment.SetDefine(TEXT("SHADER_DEBUGSTRATATREE_PS"), 1);
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FMaterialDebugStrataTreePS, "/Engine/Private/Strata/StrataVisualize.usf", "MaterialDebugStrataTreePS", SF_Pixel);
@@ -264,6 +269,9 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 					FMaterialDebugStrataTreePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMaterialDebugStrataTreePS::FParameters>();
 					PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+					PassParameters->ReflectionStruct = CreateReflectionUniformBuffer(View, UniformBuffer_SingleFrame);
+					PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
+					PassParameters->ForwardLightData = View.ForwardLightingResources.ForwardLightUniformBuffer;
 					PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 
 					FMaterialDebugStrataTreePS::FPermutationDomain PermutationVector;

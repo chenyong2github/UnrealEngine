@@ -2,6 +2,8 @@
 
 #pragma once
 
+#define USE_STRATA_FORWARD_LIGHTING_COMMON 1
+#include "StrataLightingCommon.ush"
 
 #define FORWARD_PER_PIXEL_SHADING (FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
@@ -29,126 +31,6 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	out float3 OutDiffuseLighting,
 	out float3 OutSubsurfaceLighting,
 	out float OutIndirectIrradiance);
-
-// Common function for forward lighting per pixel using light data
-float3 StrataForwardLightingCommon(
-	float Dither,
-	FStrataIntegrationSettings Settings,
-	FDeferredLightData LightData,
-	float3 ToLight,
-	float LightMask,
-	float4 LightAttenuation,
-	FRectTexture RectTexture,
-	uint LightChannelMask,
-	uint PrimitiveLightingChannelMask,
-	float3 AbsoluteWorldPosition,
-	float3 TranslatedWorldPosition,
-	float SceneDepth,
-	float3 BSDFColoredVisibility,
-	FStrataPixelHeader StrataPixelHeader,
-	FStrataBSDFContext StrataBSDFContext,
-	inout bool bEvaluateHasBeenExecuted,
-	inout FStrataEvaluateResult BSDFEvaluate)
-{
-	bEvaluateHasBeenExecuted = false;
-	float3 Color = 0.0;
-
-	if (LightMask > 0.0)
-	{
-		// Evaluate the ShadowTerm that can then be used when integrating the lighting
-		FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
-
-		float4 PrecomputedShadowFactors = HasZeroPrecShadowMask(StrataPixelHeader) ? 0.0f : 1.0f;
-	#if TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING
-		PrecomputedShadowFactors.x = ComputeDirectionalLightStaticShadowing(TranslatedWorldPosition).x;
-	#else
-		PrecomputedShadowFactors.x = 1;
-	#endif
-
-		const uint FakeShadingModelID = 0;
-		const float FakeContactShadowOpacity = 1.0f;
-		GetShadowTerms(SceneDepth, PrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity,
-			LightData, TranslatedWorldPosition, ToLight, LightAttenuation, Dither, ShadowTerms);
-
-		float Roughness = StrataGetBSDFRoughness(StrataBSDFContext.BSDF);
-		FAreaLightIntegrateContext AreaLightContext = InitAreaLightIntegrateContext();
-		BRANCH
-		if (ShadowTerms.SurfaceShadow + ShadowTerms.TransmissionShadow > 0)
-		{
-			BSDFEvaluate = (FStrataEvaluateResult)0;
-
-		#if NON_DIRECTIONAL_DIRECT_LIGHTING
-			float Lighting;
-			if (LightData.bRectLight)
-			{
-				FRect Rect = GetRect(ToLight, LightData);
-				if (!IsRectVisible(Rect))
-				{
-					LightMask = 0.0f; // Rect light can be non visible due to barn door occlusion
-				}
-				AreaLightContext = CreateRectIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Rect, RectTexture);
-				Lighting = IntegrateLight(Rect, RectTexture);
-
-				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
-				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings);
-				bEvaluateHasBeenExecuted = true;
-			}
-			else
-			{
-				FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
-				AreaLightContext = CreateCapsuleIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Capsule, LightData.bInverseSquared);
-				Lighting = IntegrateLight(Capsule, LightData.bInverseSquared);
-
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings);
-				bEvaluateHasBeenExecuted = true;
-			}
-
-			FLATTEN
-			if (LightChannelMask & PrimitiveLightingChannelMask)
-			{
-				float3 DiffuseLuminance = Diffuse_Lambert(BSDFEvaluate.DiffuseColor) * Lighting;
-				const float3 LightCommonMultiplier = LightData.Color * LightMask;
-				Color += (DiffuseLuminance * LightCommonMultiplier + BSDFEvaluate.EmissivePathValue) * BSDFColoredVisibility;
-			}
-		#else
-			if (LightData.bRectLight)
-			{
-				FRect Rect = GetRect(ToLight, LightData);
-				if (!IsRectVisible(Rect))
-				{
-					LightMask = 0.0f; // Rect light can be non visible due to barn door occlusion
-				}
-				AreaLightContext = CreateRectIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Rect, RectTexture);
-
-				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
-				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings);
-				bEvaluateHasBeenExecuted = true;
-			}
-			else
-			{
-				FCapsuleLight Capsule = GetCapsule(ToLight, LightData);
-				AreaLightContext = CreateCapsuleIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Capsule, LightData.bInverseSquared);
-
-				BSDFEvaluate = StrataIntegrateBSDF(StrataBSDFContext, ShadowTerms, AreaLightContext, Settings);
-				bEvaluateHasBeenExecuted = true;
-			}
-
-			FLATTEN
-			if (LightChannelMask & PrimitiveLightingChannelMask)
-			{
-				float3 DiffuseLuminance = BSDFEvaluate.IntegratedDiffuseValue;
-				float3 SpecularLuminance = BSDFEvaluate.IntegratedSpecularValue * LightData.SpecularScale;
-				const float3 LightCommonMultiplier = LightData.Color * LightMask;
-				Color += ((DiffuseLuminance + SpecularLuminance) * LightCommonMultiplier + BSDFEvaluate.EmissivePathValue) * BSDFColoredVisibility;
-			}
-		#endif
-		}
-	}
-
-	return Color;
-}
 
 // This code should map to GetForwardDirectLightingSplit
 float3 StrataForwardLighting(
@@ -257,7 +139,7 @@ float3 StrataForwardLighting(
 	if (StrataTree.BSDFCount > 0)
 	{
 		// Update tree (coverage/transmittance/luminace weights)
-		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, Settings, OutCoverage, OutTransmittancePreCoverage); ////////////////////////////////////////////////////////////////////
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, Settings, OutCoverage, OutTransmittancePreCoverage);
 
 		//
 		// Forward lighting
@@ -487,7 +369,6 @@ float3 StrataForwardLighting(
 							RectTexture,
 							LightChannelMask,
 							PrimitiveLightingChannelMask,
-							AbsoluteWorldPosition,
 							TranslatedWorldPosition,
 							SceneDepth,
 							LuminanceWeight(StrataBSDFContext, CurrentBSDF),
@@ -571,7 +452,6 @@ float3 StrataForwardLighting(
 						RectTexture,
 						LightChannelMask,
 						PrimitiveLightingChannelMask,
-						AbsoluteWorldPosition,
 						TranslatedWorldPosition,
 						SceneDepth,
 						LuminanceWeight(StrataBSDFContext, CurrentBSDF),
