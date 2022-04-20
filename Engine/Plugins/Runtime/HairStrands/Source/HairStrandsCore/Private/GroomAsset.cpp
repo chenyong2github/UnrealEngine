@@ -2272,7 +2272,8 @@ bool UGroomAsset::HasValidCardsData(uint32 GroupIndex) const
 	const FHairGroupsLOD& GroupsLOD = HairGroupsLOD[GroupIndex];
 	for (int32 LODIt = 0; LODIt < GroupsLOD.LODs.Num(); ++LODIt)
 	{
-		if (GroupsLOD.LODs[LODIt].GeometryType == EGroomGeometryType::Cards)
+		// Note: We don't condition/filter resource allocation based on GeometryType == EGroomGeometryType::Cards, because 
+		// geometry type can be switched at runtime (between cards/strands)
 		{
 			int32 SourceIt = 0;
 			if (const FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
@@ -2319,7 +2320,8 @@ bool UGroomAsset::CacheCardsGeometry(uint32 GroupIndex, const FString& StrandsKe
 		int32 SourceIt = 0;
 		if (FHairGroupsCardsSourceDescription* Desc = GetSourceDescription(HairGroupsCards, GroupIndex, LODIt, SourceIt))
 		{
-			if (GroupsLOD.LODs[LODIt].GeometryType == EGroomGeometryType::Cards)
+			// Note: We don't condition/filter resource allocation based on GeometryType == EGroomGeometryType::Cards, because 
+			// geometry type can be switched at runtime (between cards/strands)
 			{
 				UStaticMesh* CardsMesh = nullptr;
 				if (Desc->SourceType == EHairCardsSourceType::Procedural)
