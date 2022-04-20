@@ -2,6 +2,7 @@
 
 #include "DSP/FloatArrayMath.h"
 #include "CoreMinimal.h"
+#include "Math/UnrealMathVectorConstants.h"
 #include "SignalProcessingModule.h"
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
@@ -706,6 +707,42 @@ namespace Audio
 				OutDataPtr[i] = (InDataPtr[i] - MinValue) * Scale;
 			}
 		}
+	}
+	
+	float ArrayMaxAbsValue(const TArrayView<float> InView)
+	{
+		const int32 Num = InView.Num();
+		const float* Data = InView.GetData();
+
+		float Max = 0.f;
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		VectorRegister4Float MaxVector = VectorSetFloat1(0.f);
+		
+		if (NumToSimd)
+		{
+			for (int32 i = 0; i < NumToSimd; i += AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
+			{
+				VectorRegister4Float Input1 = VectorLoad(&Data[i]);
+
+				MaxVector = VectorMax(MaxVector, VectorAbs(Input1));
+			}
+
+			AlignedFloat4 OutArray(MaxVector);
+			
+			Max =  FMath::Max(FMath::Max(OutArray[0], OutArray[1]), FMath::Max(OutArray[2], OutArray[3]));
+		}
+
+		if (NumNotToSimd)
+		{
+			for (int32 i = NumToSimd; i < Num; ++i)
+			{
+				Max = FMath::Max(FMath::Abs(Data[i]), Max);
+			}
+		}
+
+		return Max;
 	}
 
 	void ArrayMultiplyInPlace(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToMultiply)
@@ -2260,6 +2297,90 @@ namespace Audio
 		TArrayView<float> BufferToSumToView(BufferToSumTo.GetData(), BufferToSumTo.Num());
 
 		ArrayMixIn(InFloatBufferView, BufferToSumToView, StartGain, EndGain);
+	}
+
+	void ArrayFloatToPcm16(TArrayView<const float> InView, TArrayView<int16> OutView)
+	{
+		check(InView.Num() == OutView.Num());
+
+		const int32 Num = InView.Num();
+		
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		const float* InputPtr = InView.GetData();
+		int16* OutPtr = OutView.GetData();
+
+		constexpr float ConversionValue = static_cast<float>(TNumericLimits<int16>::Max());
+
+		if(NumToSimd)
+		{
+			const VectorRegister4Float ConversionVector = VectorSetFloat1(ConversionValue);
+
+			for (int32 i = 0; i < NumToSimd; i += AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
+			{
+				const VectorRegister4Float InVector = VectorLoad(&InputPtr[i]);
+				const VectorRegister4Float ScaledVector = VectorMultiply(InVector, ConversionVector);
+				const VectorRegister4Int IntVector = VectorFloatToInt(ScaledVector);
+
+				const AlignedFloat4 ScaledFloatArray(ScaledVector);
+
+				OutPtr[i] =		(int16)ScaledFloatArray[0];
+				OutPtr[i + 1] =	(int16)ScaledFloatArray[1];
+				OutPtr[i + 2] =	(int16)ScaledFloatArray[2];
+				OutPtr[i + 3] =	(int16)ScaledFloatArray[3];
+			}
+		}
+
+		if(NumNotToSimd)
+		{
+			for (int32 i = NumToSimd; i < Num; i++)
+			{
+				OutPtr[i] = (int16)(InputPtr[i] * ConversionValue);
+			}
+		}
+	}
+	
+	void ArrayPcm16ToFloat(TArrayView<const int16> InView, TArrayView<float> OutView)
+	{
+		check(InView.Num() == OutView.Num());
+
+		const int32 Num = InView.Num();
+		
+		const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
+		const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
+
+		const int16* InputPtr = InView.GetData();
+		float* OutPtr = OutView.GetData();
+
+		constexpr float ConversionValue = 1.f / static_cast<float>(TNumericLimits<int16>::Max());
+
+		if(NumToSimd)
+		{
+			const VectorRegister4Float ConversionVector = VectorSetFloat1(ConversionValue);
+			AlignedFloat4 FloatArray(GlobalVectorConstants::FloatZero);
+
+			for (int32 i = 0; i < NumToSimd; i += AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
+			{
+				FloatArray[0] = (float)InputPtr[i];
+				FloatArray[1] = (float)InputPtr[i + 1];
+				FloatArray[2] = (float)InputPtr[i + 2];
+				FloatArray[3] = (float)InputPtr[i + 3];
+
+				const VectorRegister4Float InVector = FloatArray.ToVectorRegister();
+				const VectorRegister4Float ScaledVector = VectorMultiply(InVector, ConversionVector);
+			
+				VectorStore(ScaledVector, &OutPtr[i]);
+			}
+		}
+
+		if(NumNotToSimd)
+		{
+			for (int32 i = NumToSimd; i < Num; i++)
+			{
+				OutPtr[i] = (float)InputPtr[i] * ConversionValue;
+			}
+		}
 	}
 
 	FContiguousSparse2DKernelTransform::FContiguousSparse2DKernelTransform(const int32 NumInElements, const int32 NumOutElements)

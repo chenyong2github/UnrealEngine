@@ -112,6 +112,9 @@ namespace Audio
 	 */ 
 	SIGNALPROCESSING_API void ArrayMinMaxNormalize(TArrayView<const float> InView, TArray<float>& OutArray);
 
+	// Scale an array to fit within [-1.f, 1.f]
+	SIGNALPROCESSING_API float ArrayMaxAbsValue(const TArrayView<float> InView);
+
 	/** Multiply the second buffer in place by the first buffer. */
 	SIGNALPROCESSING_API void ArrayMultiplyInPlace(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToMultiply);
 	SIGNALPROCESSING_API void ArrayMultiplyInPlace(const FAlignedFloatBuffer& InFloatBuffer, FAlignedFloatBuffer& BufferToMultiply);
@@ -251,6 +254,9 @@ namespace Audio
 	/** This version of ArrayMixIn will fade from StartGain to EndGain. */
 	SIGNALPROCESSING_API void ArrayMixIn(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToSumTo, const float StartGain, const float EndGain);
 	SIGNALPROCESSING_API void ArrayMixIn(const FAlignedFloatBuffer& InFloatBuffer, FAlignedFloatBuffer& BufferToSumTo, const float StartGain, const float EndGain);
+
+	SIGNALPROCESSING_API void ArrayFloatToPcm16(TArrayView<const float> InView, TArrayView<int16> OutView);
+	SIGNALPROCESSING_API void ArrayPcm16ToFloat(TArrayView<const int16> InView, TArrayView<float> OutView);
 
 	/** FContiguousSparse2DKernelTransform
 	 *
