@@ -165,6 +165,19 @@ namespace GeometryCollection
 	CHAOS_API
 	GenerateTemporaryGuids(FTransformCollection* Collection, int32 StartIdx = 0, bool bForceInit=false);
 
+	/***
+	* Compute inner and outer radius from a set of vertices 
+	* @param Vertices		array containing the vertices used to computer the radii
+	* @param VertexStart	start index of the range of vertex to use within the array
+	* @param VertexCount	Number of vertices to use from VertexStart
+	* @param VertexCount	Total number of vertices to use (from VertexStart)
+	* @param OutInnerRadius	Computed InnerRadius ( existing value will be overriden )
+	* @param OutOuterRadius	Computed outerRadius ( existing value will be overriden )
+	*/
+	void 
+	CHAOS_API
+	ComputeInnerAndOuterRadiiFromGeometryVertices(const TManagedArray<FVector3f>& Vertices, const int32 VertexStart, const int32 VertexCount, float& OutInnerRadius, float& OutOuterRadius);
+
 };
 
 // AttributeTransfer implementation

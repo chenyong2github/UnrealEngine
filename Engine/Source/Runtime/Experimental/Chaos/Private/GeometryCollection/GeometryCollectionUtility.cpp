@@ -247,6 +247,34 @@ namespace GeometryCollection
 		(Collection->Parent)[TransformIndex4] = TransformIndex3;
 	}
 
+	void ComputeInnerAndOuterRadiiFromGeometryVertices(const TManagedArray<FVector3f>& Vertices, const int32 VertexStart, const int32 VertexCount, float& OutInnerRadius, float& OutOuterRadius)
+	{
+		// first compute the geometry center
+		FVector VertexSum{0.0 };
+		for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+		{
+			VertexSum += FVector(Vertices[VertexStart + VertexIndex]); 
+		}
+		FVector3f Center{0.};
+		if (VertexCount > 0)
+		{
+			// controlled precision loss, we are now back into the range of vertices
+			Center = FVector3f{VertexSum / static_cast<FVector::FReal>(VertexCount)};
+		}
+		
+		OutInnerRadius = VertexCount ? TNumericLimits<float>::Max() : 0.0f;
+		OutOuterRadius = 0.0f;
+		for (int32 VertexIndex = 0; VertexIndex < VertexCount; ++VertexIndex)
+		{
+			const FVector3f& Pt = Vertices[VertexStart + VertexIndex];
+			const float DistSq = FVector3f::DistSquared(Pt, Center);
+			OutInnerRadius = FMath::Min(OutInnerRadius, DistSq);
+			OutOuterRadius = FMath::Max(OutOuterRadius, DistSq);
+		}
+		OutInnerRadius = FMath::Sqrt(OutInnerRadius);
+		OutOuterRadius = FMath::Sqrt(OutOuterRadius);
+	}
+	
 	void AddGeometryProperties(FGeometryCollection * Collection)
 	{
 		if (Collection)

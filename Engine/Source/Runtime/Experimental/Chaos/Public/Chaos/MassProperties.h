@@ -48,6 +48,8 @@ namespace Chaos
 	void CHAOS_API CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Density, const FVec3& CenterOfMass,
 		FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
 
+	void CHAOS_API CalculateVolumeAndCenterOfMass(const FBox& BoundingBox, FVector::FReal& OutVolume, FVector& OutCenterOfMass);
+	void CHAOS_API CalculateInertiaAndRotationOfMass(const FBox& BoundingBox, const FVector::FReal Density, FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
 
 	// Combine a list of transformed inertia tensors into a single inertia. Also diagonalize the inertia
 	// and set the rotation of mass accordingly.

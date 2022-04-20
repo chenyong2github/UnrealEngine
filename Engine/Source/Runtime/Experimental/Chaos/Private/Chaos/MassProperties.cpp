@@ -90,6 +90,35 @@ namespace Chaos
 		return FinalRotation;
 	}
 
+	void CalculateVolumeAndCenterOfMass(const FBox& BoundingBox, FVector::FReal& OutVolume, FVector& OutCenterOfMass)
+	{
+		const FVector Extents = static_cast<FVector::FReal>(2) * BoundingBox.GetExtent(); // FBox::GetExtent() returns half the size, but FAABB::Extents() returns total size
+		OutVolume = Extents.X * Extents.Y * Extents.Z;
+		OutCenterOfMass = BoundingBox.GetCenter();
+	}
+
+	void CalculateInertiaAndRotationOfMass(const FBox& BoundingBox, const FVector::FReal Density, FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass)
+	{
+		const FVector Extents = static_cast<FVector::FReal>(2) * BoundingBox.GetExtent(); // FBox::GetExtent() returns half the size, but FAABB::Extents() returns total size
+		const FVector::FReal Volume = Extents.X * Extents.Y * Extents.Z;
+		const FVector::FReal Mass = Volume * Density;
+		const FVector::FReal ExtentsYZ = Extents.Y * Extents.Y + Extents.Z * Extents.Z;
+		const FVector::FReal ExtentsXZ = Extents.X * Extents.X + Extents.Z * Extents.Z;
+		const FVector::FReal ExtentsXY = Extents.X * Extents.X + Extents.Y * Extents.Y;
+		OutInertiaTensor = FMatrix33((Mass * ExtentsYZ) / 12., (Mass * ExtentsXZ) / 12., (Mass * ExtentsXY) / 12.);
+		OutRotationOfMass = FRotation3::Identity;
+	}
+	
+   	FMassProperties CalculateMassProperties(const FBox& BoundingBox, const FVector::FReal Density)
+	{
+    	FMassProperties MassProperties;
+    	CalculateVolumeAndCenterOfMass(BoundingBox, MassProperties.Volume, MassProperties.CenterOfMass);
+    	check(Density > 0);
+		MassProperties.Mass = MassProperties.Volume * Density;
+		CalculateInertiaAndRotationOfMass(BoundingBox, Density, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
+   		return MassProperties;
+   	}
+	
 	template<typename T, typename TSurfaces>
 	void CHAOS_API CalculateVolumeAndCenterOfMass(const TParticles<T, 3>& Vertices, const TSurfaces& Surfaces, T& OutVolume, TVec3<T>& OutCenterOfMass)
 	{
