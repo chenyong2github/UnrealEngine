@@ -7,27 +7,11 @@
 #include "Common.ush"
 
 Buffer<int> SrcBuffer;
-RWTexture2D<int4> DestTexture;
-uint2 SrcPitch; //x = number of SrcBuffer elements in a row of the source area, y = Number of components per texel in the source.
-uint4 DestPosSize; // xy = pos, zw = Size of the destination sub rect
-
-[numthreads(8,8,1)]
-void UpdateTexture2DSubresourceCS( uint2 ThreadId : SV_DispatchThreadID )
-{
-	if( all( ThreadId.xy < DestPosSize.zw ) )
-	{
-		int2 TexturePixelOffset = ThreadId.xy + DestPosSize.xy;
-
-		//supports textures with 1-4 components.  Textures with  < 4 components will simply ignore writes to the extra components via channel masking.		
-		int BufferOffset = (ThreadId.x * SrcPitch.y) + (ThreadId.y * SrcPitch.x);
-		DestTexture[TexturePixelOffset] = int4(SrcBuffer[BufferOffset].x, SrcBuffer[BufferOffset + 1].x, SrcBuffer[BufferOffset + 2].x, SrcBuffer[BufferOffset + 3].x);
-	}
-}
-
 RWTexture3D<int4> DestTexture3D;
 uint SrcDepthPitch; //number of SrcBuffer entries between z slices of the source volume
 uint4 DestPos; // xyz = starting offset in destination volume texture
 uint4 DestSize; //syz = size of the volume to update
+uint2 SrcPitch; //x = number of SrcBuffer elements in a row of the source area, y = Number of components per texel in the source.
 
 [numthreads(8, 8, 1)]
 void UpdateTexture3DSubresourceCS(uint3 ThreadId : SV_DispatchThreadID)
@@ -39,17 +23,6 @@ void UpdateTexture3DSubresourceCS(uint3 ThreadId : SV_DispatchThreadID)
 		//supports textures with 1-4 components.  Textures with  < 4 components will simply ignore writes to the extra components via channel masking.
 		int BufferOffset = (ThreadId.x * SrcPitch.y) + (ThreadId.y * SrcPitch.x) + (ThreadId.z * SrcDepthPitch);
 		DestTexture3D[TexturePixelOffset] = int4(SrcBuffer[BufferOffset].x, SrcBuffer[BufferOffset + 1].x, SrcBuffer[BufferOffset + 2].x, SrcBuffer[BufferOffset + 3].x);		
-	}
-}
-
-Texture2D<int4> SrcTexture;
-
-[numthreads(8,8,1)]
-void CopyTexture2DCS( uint3 ThreadId : SV_DispatchThreadID )
-{
-	if (all(ThreadId.xy >= DestPosSize.xy) && all(ThreadId.xy < DestPosSize.zw))
-	{
-		DestTexture[ThreadId.xy] = SrcTexture.Load(int3(ThreadId.x, ThreadId.y, 0));
 	}
 }
 
@@ -79,28 +52,18 @@ void CopyData1CS(uint3 ThreadId : SV_DispatchThreadID)
 
 Buffer<COMPONENT_TYPE> TSrcBuffer;
 RWTexture2D<COMPONENT_TYPE> TDestTexture;
-uint TSrcPitch;
+uint3 TSrcPosPitch;
+uint4 TDestPosSize; // xy = pos, zw = Size of the destination sub rect
 
 [numthreads(8,8,1)]
 void TUpdateTexture2DSubresourceCS( uint2 ThreadId : SV_DispatchThreadID )
 {
-	if( all( ThreadId.xy < DestPosSize.zw ) )
+	if( all( ThreadId.xy < TDestPosSize.zw ) )
 	{
-		int2 TexturePixelOffset = ThreadId.xy + DestPosSize.xy;
-		int BufferOffset = (ThreadId.y * TSrcPitch) + ThreadId.x;
-		TDestTexture[TexturePixelOffset] = TSrcBuffer[BufferOffset];
-	}
-}
-
-Texture2D<COMPONENT_TYPE> TSrcTexture;
-uint2 SrcPos;
-
-[numthreads(8,8,1)]
-void TCopyTexture2DCS( uint3 ThreadId : SV_DispatchThreadID )
-{
-	if (all(ThreadId.xy < DestPosSize.zw))
-	{
-		TDestTexture[DestPosSize.xy + ThreadId.xy] = TSrcTexture.Load(int3(SrcPos + ThreadId.xy, 0));
+		int2 DstTextureOffset = ThreadId.xy + TDestPosSize.xy;
+		int2 SrcTextureOffset = ThreadId.xy + TSrcPosPitch.xy;
+		int BufferOffset = (SrcTextureOffset.y * TSrcPosPitch.z) + SrcTextureOffset.x;
+		TDestTexture[DstTextureOffset] = TSrcBuffer[BufferOffset];
 	}
 }
 

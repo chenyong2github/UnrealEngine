@@ -8,49 +8,48 @@
 #include "Shader.h"
 #include "GlobalShader.h"
 
-class FUpdateTexture2DSubresouceCS : public FGlobalShader
+enum class EUpdateTextureValueType
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FUpdateTexture2DSubresouceCS, Global, ENGINE_API);
+	Float,
+	Int32,
+	Uint32
+};
+
+class FUpdateTexture2DSubresourceCS : public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FUpdateTexture2DSubresourceCS, Global, ENGINE_API);
 public:
-	FUpdateTexture2DSubresouceCS() {}
-	FUpdateTexture2DSubresouceCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FUpdateTexture2DSubresourceCS() {}
+	FUpdateTexture2DSubresourceCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader( Initializer )
 	{
-		SrcPitchParameter.Bind(Initializer.ParameterMap, TEXT("SrcPitch"), SPF_Mandatory);
-		SrcBuffer.Bind(Initializer.ParameterMap, TEXT("SrcBuffer"), SPF_Mandatory);
-		DestPosSizeParameter.Bind(Initializer.ParameterMap, TEXT("DestPosSize"), SPF_Mandatory);
-		DestTexture.Bind(Initializer.ParameterMap, TEXT("DestTexture"), SPF_Mandatory);
+		SrcPosPitchParameter.Bind(Initializer.ParameterMap, TEXT("TSrcPosPitch"), SPF_Mandatory);
+		SrcBuffer.Bind(Initializer.ParameterMap, TEXT("TSrcBuffer"), SPF_Mandatory);
+		DestPosSizeParameter.Bind(Initializer.ParameterMap, TEXT("TDestPosSize"), SPF_Mandatory);
+		DestTexture.Bind(Initializer.ParameterMap, TEXT("TDestTexture"), SPF_Mandatory);
 	}
 
-	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/UpdateTextureShaders.usf"); }
-	
-	static const TCHAR* GetFunctionName() { return TEXT("UpdateTexture2DSubresourceCS"); }
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	LAYOUT_FIELD(FShaderParameter, SrcPitchParameter);
+	LAYOUT_FIELD(FShaderParameter, SrcPosPitchParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, SrcBuffer);
 	LAYOUT_FIELD(FShaderParameter, DestPosSizeParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, DestTexture);
+
+	static inline TShaderRef<FUpdateTexture2DSubresourceCS> SelectShader(FGlobalShaderMap* GlobalShaderMap, EUpdateTextureValueType ValueType);
+
+protected:
+	template<typename ShaderType>
+	static inline TShaderRef<FUpdateTexture2DSubresourceCS> SelectShader(FGlobalShaderMap* GlobalShaderMap);
 };
 
-template<uint32 NumComponents>
-class TUpdateTexture2DSubresouceCS : public FGlobalShader
+template<EUpdateTextureValueType ValueType>
+class TUpdateTexture2DSubresourceCS : public FUpdateTexture2DSubresourceCS
 {
-	DECLARE_EXPORTED_SHADER_TYPE(TUpdateTexture2DSubresouceCS, Global, ENGINE_API);
+	DECLARE_EXPORTED_SHADER_TYPE(TUpdateTexture2DSubresourceCS, Global, ENGINE_API);
 public:
-	TUpdateTexture2DSubresouceCS() {}
-	TUpdateTexture2DSubresouceCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		SrcPitchParameter.Bind(Initializer.ParameterMap, TEXT("TSrcPitch"), SPF_Mandatory);
-		SrcBuffer.Bind(Initializer.ParameterMap, TEXT("TSrcBuffer"), SPF_Mandatory);
-		DestPosSizeParameter.Bind(Initializer.ParameterMap, TEXT("DestPosSize"), SPF_Mandatory);
-		DestTexture.Bind(Initializer.ParameterMap, TEXT("TDestTexture"), SPF_Mandatory);
-	}
+	TUpdateTexture2DSubresourceCS() {}
+	TUpdateTexture2DSubresourceCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FUpdateTexture2DSubresourceCS(Initializer)
+	{}
 
 	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/UpdateTextureShaders.usf"); }
 	
@@ -59,35 +58,45 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		const TCHAR* Type = nullptr;
-		static_assert(NumComponents >= 1u && NumComponents <= 4u, "Invalid NumComponents");
-		switch (NumComponents)
+		switch (ValueType)
 		{
-		case 1u: Type = TEXT("uint"); break;
-		case 2u: Type = TEXT("uint2"); break;
-		case 3u: Type = TEXT("uint3"); break;
-		case 4u: Type = TEXT("uint4"); break;
+		default: checkNoEntry();
+		case EUpdateTextureValueType::Float: OutEnvironment.SetDefine(TEXT("COMPONENT_TYPE"), TEXT("float4")); break;
+		case EUpdateTextureValueType::Int32: OutEnvironment.SetDefine(TEXT("COMPONENT_TYPE"), TEXT("int4")); break;
+		case EUpdateTextureValueType::Uint32: OutEnvironment.SetDefine(TEXT("COMPONENT_TYPE"), TEXT("uint4")); break;
 		}
-
-		OutEnvironment.SetDefine(TEXT("COMPONENT_TYPE"), Type);
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
-
-	LAYOUT_FIELD(FShaderParameter, SrcPitchParameter);
-	LAYOUT_FIELD(FShaderResourceParameter, SrcBuffer);
-	LAYOUT_FIELD(FShaderParameter, DestPosSizeParameter);
-	LAYOUT_FIELD(FShaderResourceParameter, DestTexture);
 };
 
-class FUpdateTexture3DSubresouceCS : public FGlobalShader
+template <typename ShaderType>
+inline TShaderRef<FUpdateTexture2DSubresourceCS> FUpdateTexture2DSubresourceCS::SelectShader(FGlobalShaderMap* GlobalShaderMap)
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FUpdateTexture3DSubresouceCS, Global, ENGINE_API);
+	TShaderRef<ShaderType> Shader = GlobalShaderMap->GetShader<ShaderType>();
+	return Shader;
+}
+
+inline TShaderRef<FUpdateTexture2DSubresourceCS> FUpdateTexture2DSubresourceCS::SelectShader(FGlobalShaderMap* GlobalShaderMap, EUpdateTextureValueType ValueType)
+{
+	switch (ValueType)
+	{
+	default: checkNoEntry();
+	case EUpdateTextureValueType::Float: return FUpdateTexture2DSubresourceCS::SelectShader<TUpdateTexture2DSubresourceCS<EUpdateTextureValueType::Float>>(GlobalShaderMap);
+	case EUpdateTextureValueType::Int32: return FUpdateTexture2DSubresourceCS::SelectShader<TUpdateTexture2DSubresourceCS<EUpdateTextureValueType::Int32>>(GlobalShaderMap);
+	case EUpdateTextureValueType::Uint32: return FUpdateTexture2DSubresourceCS::SelectShader<TUpdateTexture2DSubresourceCS<EUpdateTextureValueType::Uint32>>(GlobalShaderMap);
+	}
+}
+
+class FUpdateTexture3DSubresourceCS : public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FUpdateTexture3DSubresourceCS, Global, ENGINE_API);
 public:
-	FUpdateTexture3DSubresouceCS() {}
-	FUpdateTexture3DSubresouceCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FUpdateTexture3DSubresourceCS() {}
+	FUpdateTexture3DSubresourceCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 		SrcPitchParameter.Bind(Initializer.ParameterMap, TEXT("SrcPitch"), SPF_Mandatory);
@@ -118,85 +127,6 @@ public:
 	LAYOUT_FIELD(FShaderParameter, DestSizeParameter);
 
 	LAYOUT_FIELD(FShaderResourceParameter, DestTexture3D)
-};
-
-class FCopyTexture2DCS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FCopyTexture2DCS,Global);
-public:
-	FCopyTexture2DCS() {}
-	FCopyTexture2DCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader( Initializer )
-	{
-		SrcTexture.Bind(Initializer.ParameterMap, TEXT("SrcTexture"), SPF_Mandatory);
-		DestTexture.Bind(Initializer.ParameterMap, TEXT("DestTexture"), SPF_Mandatory);
-		DestPosSize.Bind(Initializer.ParameterMap, TEXT("DestPosSize"), SPF_Mandatory);
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	LAYOUT_FIELD(FShaderResourceParameter, SrcTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, DestTexture);
-	LAYOUT_FIELD(FShaderParameter, DestPosSize);
-};
-
-template<uint32 NumComponents, typename ComponentType = uint32>
-class TCopyTexture2DCS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(TCopyTexture2DCS, Global);
-public:
-	TCopyTexture2DCS() {}
-	TCopyTexture2DCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		SrcTexture.Bind(Initializer.ParameterMap, TEXT("TSrcTexture"), SPF_Mandatory);
-		DestTexture.Bind(Initializer.ParameterMap, TEXT("TDestTexture"), SPF_Mandatory);
-		SrcPosParameter.Bind(Initializer.ParameterMap, TEXT("SrcPos"), SPF_Mandatory);
-		DestPosSizeParameter.Bind(Initializer.ParameterMap, TEXT("DestPosSize"), SPF_Mandatory);
-	}
-
-	static const TCHAR* GetTypename(uint32 Dummy)
-	{
-		switch (NumComponents)
-		{
-		case 1u: return TEXT("uint"); break;
-		case 2u: return TEXT("uint2"); break;
-		case 3u: return TEXT("uint3"); break;
-		case 4u: return TEXT("uint4"); break;
-		}
-		return nullptr;
-	}
-
-	static const TCHAR* GetTypename(float Dummy)
-	{
-		switch (NumComponents)
-		{
-		case 1u: return TEXT("float"); break;
-		case 2u: return TEXT("float2"); break;
-		case 3u: return TEXT("float3"); break;
-		case 4u: return TEXT("float4"); break;
-		}
-		return nullptr;
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		static_assert(NumComponents >= 1u && NumComponents <= 4u, "Invalid NumComponents");
-		OutEnvironment.SetDefine(TEXT("COMPONENT_TYPE"), GetTypename((ComponentType)0));
-	}
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	LAYOUT_FIELD(FShaderResourceParameter, SrcTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, DestTexture);
-	LAYOUT_FIELD(FShaderParameter, SrcPosParameter);
-	LAYOUT_FIELD(FShaderParameter, DestPosSizeParameter);
 };
 
 template<uint32 ElementsPerThread>
