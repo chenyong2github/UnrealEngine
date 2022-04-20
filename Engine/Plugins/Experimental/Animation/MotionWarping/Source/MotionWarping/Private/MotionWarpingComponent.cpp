@@ -486,20 +486,29 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPostConvertToWorld(const FT
 	return FinalRootMotion;
 }
 
+bool UMotionWarpingComponent::FindAndUpdateWarpTarget(const FMotionWarpingTarget& WarpTarget)
+{
+	for (int32 Idx = 0; Idx < WarpTargets.Num(); Idx++)
+	{
+		if (WarpTargets[Idx].Name == WarpTarget.Name)
+		{
+			WarpTargets[Idx] = WarpTarget;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void UMotionWarpingComponent::AddOrUpdateWarpTarget(const FMotionWarpingTarget& WarpTarget)
 {
 	if (WarpTarget.Name != NAME_None)
 	{
-		for (int32 Idx = 0; Idx < WarpTargets.Num(); Idx++)
+		// if we did not find the target, add it
+		if (!FindAndUpdateWarpTarget(WarpTarget))
 		{
-			if (WarpTargets[Idx].Name == WarpTarget.Name)
-			{
-				WarpTargets[Idx] = WarpTarget;
-				return;
-			}
+			WarpTargets.Add(WarpTarget);
 		}
-
-		WarpTargets.Add(WarpTarget);
 
 		MARK_PROPERTY_DIRTY_FROM_NAME(UMotionWarpingComponent, WarpTargets, this);
 	}
