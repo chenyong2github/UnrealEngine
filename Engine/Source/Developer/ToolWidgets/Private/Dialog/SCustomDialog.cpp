@@ -26,7 +26,8 @@ void SCustomDialog::Construct(const FArguments& InArgs)
 	check(InArgs._Buttons.Num() > 0);
 	
 	OnClosed = InArgs._OnClosed;
-	SWindow::Construct( SWindow::FArguments()
+	
+	SWindow::Construct( SWindow::FArguments(InArgs._WindowArguments)
 		.Title(InArgs._Title)
 		.SizingRule(ESizingRule::Autosized)
 		.SupportsMaximize(false)
@@ -62,10 +63,10 @@ int32 SCustomDialog::ShowModal()
 
 void SCustomDialog::Show()
 {
-	TSharedRef<SWindow> Window = FSlateApplication::Get().AddWindow(StaticCastSharedRef<SWindow>(this->AsShared()), true);
+	const TSharedRef<SWindow> Window = FSlateApplication::Get().AddWindow(StaticCastSharedRef<SWindow>(this->AsShared()), true);
 	if (OnClosed.IsBound())
 	{
-		Window->GetOnWindowClosedEvent().AddLambda([this](const TSharedRef<SWindow>& Window) { OnClosed.Execute(); });
+		Window->GetOnWindowClosedEvent().AddLambda([this](const TSharedRef<SWindow>&) { OnClosed.Execute(); });
 	}
 }
 
@@ -94,6 +95,8 @@ TSharedRef<SWidget> SCustomDialog::CreateContentBox(const FArguments& InArgs)
 	if (InArgs._UseScrollBox)
 	{
 		ContentBox->AddSlot()
+		.VAlign(InArgs._VAlignContent)
+		.HAlign(InArgs._HAlignContent)
 		.Padding(InArgs._ContentAreaPadding)
 		[
 			SNew(SBox)
@@ -111,8 +114,8 @@ TSharedRef<SWidget> SCustomDialog::CreateContentBox(const FArguments& InArgs)
 	{
 		ContentBox->AddSlot()
 			.FillWidth(1.0f)
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
+			.VAlign(InArgs._VAlignContent)
+			.HAlign(InArgs._HAlignContent)
 			.Padding(InArgs._ContentAreaPadding)
 			[
 				InArgs._Content.Widget
@@ -149,17 +152,17 @@ TSharedRef<SWidget> SCustomDialog::CreateButtonBox(const FArguments& InArgs)
 				.MinDesiredSlotHeight(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotHeight"))
 			];
 
-	for (int32 i = 0; i < InArgs._Buttons.Num(); ++i)
+	bool bCanFocusLastPrimary = true;
+	bool bFocusedAnyButtonYet = false;
+	for (int32 ButtonIndex = 0; ButtonIndex < InArgs._Buttons.Num(); ++ButtonIndex)
 	{
-		const FButton& Button = InArgs._Buttons[i];
+		const FButton& Button = InArgs._Buttons[ButtonIndex];
 
 		const FButtonStyle* ButtonStyle = Button.bIsPrimary ?
 				&FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) :
 				&FAppStyle::Get().GetWidgetStyle< FButtonStyle >("Button");
-		ButtonPanel->AddSlot(ButtonPanel->GetChildren()->Num(), 0)
-		[
-			SNew(SButton)
-			.OnClicked(FOnClicked::CreateSP(this, &SCustomDialog::OnButtonClicked, Button.OnClicked, i))
+		TSharedRef<SButton> ButtonWidget = SNew(SButton)
+			.OnClicked(FOnClicked::CreateSP(this, &SCustomDialog::OnButtonClicked, Button.OnClicked, ButtonIndex))
 			.ButtonStyle(ButtonStyle)
 			[
 				SNew(SHorizontalBox)
@@ -170,10 +173,27 @@ TSharedRef<SWidget> SCustomDialog::CreateButtonBox(const FArguments& InArgs)
 					SNew(STextBlock)
 					.Text(Button.ButtonText)
 				]
-			]
-		];
-	}
+			];
 
+		ButtonPanel->AddSlot(ButtonPanel->GetChildren()->Num(), 0)
+		[
+			ButtonWidget
+		];
+
+		if (Button.bShouldFocus)
+		{
+			bCanFocusLastPrimary = false;
+		}
+		
+		const bool bIsLastButton = ButtonIndex == InArgs._Buttons.Num() - 1;
+		if (Button.bShouldFocus
+			|| (bCanFocusLastPrimary && Button.bIsPrimary)
+			|| (bIsLastButton && !bFocusedAnyButtonYet))
+		{
+			bFocusedAnyButtonYet = true;
+			SetWidgetToFocusOnActivate(ButtonWidget);
+		}
+	}
 	return ButtonBox;
 }
 

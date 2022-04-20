@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Widgets/SWindow.h"
 
 /**
@@ -40,18 +41,29 @@ public:
 		/** Called when the button is clicked */
 		FButton& SetOnClicked(FSimpleDelegate InOnClicked) { OnClicked = MoveTemp(InOnClicked); return *this; }
 
+		/**
+		 * Whether to focus this button. Focus rules:
+		 *  1: If a button has SetFocus(), use the last one
+		 *  2: If a button is marked primary, use the last one
+		 *  3: Otherwise, ise the last button
+		 */
+		FButton& SetFocus() { bShouldFocus = true; return *this; }
+		
 		FText ButtonText;
 		FSimpleDelegate OnClicked;
 		bool bIsPrimary = false;
+		bool bShouldFocus = false;
 	};
 
 	SLATE_BEGIN_ARGS(SCustomDialog) 
-		: _HAlignIcon(HAlign_Left)
+		:  _HAlignIcon(HAlign_Left)
 		, _VAlignIcon(VAlign_Center)
 		, _RootPadding(FMargin(4.f))
 		, _ButtonAreaPadding(FMargin(20.f, 0.f, 0.f, 0.f))
 		, _UseScrollBox(true)
 		, _ScrollBoxMaxHeight(300)
+		, _HAlignContent(HAlign_Left)
+		, _VAlignContent(VAlign_Center)
 	{
 		_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Auto);
 	}
@@ -69,6 +81,9 @@ public:
 
 		/** Event triggered when the dialog is closed, either because one of the buttons is pressed, or the windows is closed. */
 		SLATE_EVENT(FSimpleDelegate, OnClosed)
+
+		/** Provides default values for SWindow::FArguments not overriden by SCustomDialog. */
+		SLATE_ARGUMENT(SWindow::FArguments, WindowArguments)
 	
 
 		/*********** Cosmetic ***********/
@@ -106,6 +121,13 @@ public:
 		/** Max height for the scroll box (default: 300) */
 		SLATE_ARGUMENT(int32, ScrollBoxMaxHeight)
 
+	
+		/** HAlign to use for Content slot (default: HAlign_Left) */
+		SLATE_ARGUMENT(EHorizontalAlignment, HAlignContent)
+	
+		/** VAlign to use for Content slot (default: VAlign_Center) */
+		SLATE_ARGUMENT(EVerticalAlignment, VAlignContent)
+
 
 		/********** Legacy - do not use **********/
 	
@@ -132,7 +154,7 @@ private:
 	TSharedRef<SWidget> CreateButtonBox(const FArguments& InArgs);
 	
 	FReply OnButtonClicked(FSimpleDelegate OnClicked, int32 ButtonIndex);
-
+	
 	/** The index of the button that was pressed last. */
 	int32 LastPressedButton = -1;
 

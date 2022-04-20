@@ -16,7 +16,7 @@ public:
 	using FButton = SCustomDialog::FButton;
 
 	SLATE_BEGIN_ARGS(SMessageDialog)
-		: _WrapMessageAt(512.f)
+		:  _WrapMessageAt(512.f)
 	{}
 
 		/********** Functional **********/
@@ -32,6 +32,9 @@ public:
 
 		/** Event triggered when the dialog is closed, either because one of the buttons is pressed, or the windows is closed. */
 		SLATE_EVENT(FSimpleDelegate, OnClosed)
+
+		/** Provides default values for SWindow::FArguments not overriden by SCustomDialog. */
+		SLATE_ARGUMENT(SWindow::FArguments, WindowArguments)
 	
 		/********** Cosmetic **********/
 	
