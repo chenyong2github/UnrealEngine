@@ -67,6 +67,11 @@ struct TVec3
 		: x( v.X ), y( v.Y ), z( v.Z )
 	{}
 
+	TVec3 operator-() const
+	{
+		return TVec3<T>( -x, -y, -z );
+	}
+
 	TVec3 operator*( T Scalar ) const
 	{
 		return TVec3<T>(
@@ -227,6 +232,11 @@ class FQuadric
 {
 public:
 				FQuadric() {}
+				// Distance from point
+				FQuadric( const QVec3 p );
+				// Distance from line, n must be normalized
+				FQuadric( const QVec3 n, const QVec3 p );
+				// Distance from triangle
 				FQuadric( const QVec3 p0, const QVec3 p1, const QVec3 p2 );
 	
 	void		Zero();
