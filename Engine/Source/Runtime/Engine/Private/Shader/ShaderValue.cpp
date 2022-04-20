@@ -111,40 +111,38 @@ EValueType FType::GetFlatFieldType(int32 Index) const
 	}
 }
 
-bool FType::Merge(const FType& OtherType)
+FType CombineTypes(const FType& Lhs, const FType& Rhs)
 {
-	if (IsVoid())
+	if (Lhs.IsVoid() || Lhs.IsAny())
 	{
-		ValueType = OtherType.ValueType;
-		ObjectType = OtherType.ObjectType;
-		StructType = OtherType.StructType;
-		return true;
+		return Rhs;
+	}
+	if (Rhs.IsVoid() || Rhs.IsAny())
+	{
+		return Lhs;
 	}
 
-	if (IsStruct() || OtherType.IsStruct())
+	if (Lhs.IsNumericVector() && Rhs.IsNumericVector())
 	{
-		return StructType == OtherType.StructType;
-	}
-
-	if (IsObject() || OtherType.IsObject())
-	{
-		return ObjectType == OtherType.ObjectType;
-	}
-
-	if (ValueType != OtherType.ValueType)
-	{
-		const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
-		const FValueTypeDescription OtherTypeDesc = GetValueTypeDescription(OtherType);
-		const EValueComponentType ComponentType = CombineComponentTypes(TypeDesc.ComponentType, OtherTypeDesc.ComponentType);
+		const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs);
+		const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs);
+		const EValueComponentType ComponentType = CombineComponentTypes(LhsDesc.ComponentType, RhsDesc.ComponentType);
 		if (ComponentType == EValueComponentType::Void)
 		{
-			return false;
+			return Shader::EValueType::Void;
 		}
 
-		const int8 NumComponents = FMath::Max(TypeDesc.NumComponents, OtherTypeDesc.NumComponents);
-		ValueType = MakeValueType(ComponentType, NumComponents);
+		const int8 NumComponents = FMath::Max(LhsDesc.NumComponents, RhsDesc.NumComponents);
+		return MakeValueType(ComponentType, NumComponents);
 	}
-	return true;
+
+	// Non-numeric types can only combine if they are the same
+	if (Lhs == Rhs)
+	{
+		return Lhs;
+	}
+
+	return Shader::EValueType::Void;
 }
 
 const FStructField* FStructType::FindFieldByName(const TCHAR* InName) const
@@ -436,6 +434,7 @@ FValueComponentTypeDescription GetValueComponentTypeDescription(EValueComponentT
 	case EValueComponentType::Double: return FValueComponentTypeDescription(TEXT("double"), sizeof(double), EComponentBound::NegDoubleMax, EComponentBound::DoubleMax);
 	case EValueComponentType::Int: return FValueComponentTypeDescription(TEXT("int"), sizeof(int32), EComponentBound::IntMin, EComponentBound::IntMax);
 	case EValueComponentType::Bool: return FValueComponentTypeDescription(TEXT("bool"), 1u, EComponentBound::Zero, EComponentBound::One);
+	case EValueComponentType::Numeric: return FValueComponentTypeDescription(TEXT("Numeric"), sizeof(double), EComponentBound::NegDoubleMax, EComponentBound::DoubleMax);
 	default: checkNoEntry() return FValueComponentTypeDescription();
 	}
 }
@@ -453,6 +452,10 @@ EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueCompone
 	else if (Rhs == EValueComponentType::Void)
 	{
 		return Lhs;
+	}
+	else if (Lhs == EValueComponentType::Numeric && Rhs == EValueComponentType::Numeric)
+	{
+		return EValueComponentType::Numeric;
 	}
 	else if (Lhs == EValueComponentType::Double || Rhs == EValueComponentType::Double)
 	{
@@ -479,7 +482,7 @@ const TCHAR* FValueComponent::ToString(EValueComponentType Type, FStringBuilderB
 	case EValueComponentType::Int: OutString.Appendf(TEXT("%d"), Int); break;
 	case EValueComponentType::Bool: OutString.Append(AsBool() ? TEXT("true") : TEXT("false")); break;
 	case EValueComponentType::Float: OutString.Appendf(TEXT("%#.9gf"), Float); break;
-	default: checkNoEntry(); break; // TODO - double
+	default: checkNoEntry(); break; // TODO - double, Numeric
 	}
 	return OutString.ToString();
 }
@@ -500,6 +503,7 @@ const TCHAR* FValue::ToString(EValueStringFormat Format, FStringBuilderBase& Out
 		else
 		{
 			const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type.ValueType);
+			check(TypeDesc.ComponentType != EValueComponentType::Numeric);
 			if (TypeDesc.ComponentType != EValueComponentType::Double)
 			{
 				OutString.Appendf(TEXT("%s("), TypeDesc.Name);
@@ -520,7 +524,9 @@ const TCHAR* FValue::ToString(EValueStringFormat Format, FStringBuilderBase& Out
 		case EValueComponentType::Int: OutString.Appendf(TEXT("%d"), Component[Index].Int); break;
 		case EValueComponentType::Bool: OutString.Append(Component[Index].Bool ? TEXT("true") : TEXT("false")); break;
 		case EValueComponentType::Float: Private::FormatComponent_Double((double)Component[Index].Float, NumComponents, Format, OutString); break;
-		case EValueComponentType::Double: Private::FormatComponent_Double(Component[Index].Double, NumComponents, Format, OutString); break;
+		case EValueComponentType::Double:
+		case EValueComponentType::Numeric:
+			Private::FormatComponent_Double(Component[Index].Double, NumComponents, Format, OutString); break;
 		default: checkNoEntry(); break;
 		}
 	}
@@ -529,81 +535,6 @@ const TCHAR* FValue::ToString(EValueStringFormat Format, FStringBuilderBase& Out
 	{
 		OutString.Append(ClosingSuffix);
 	}
-
-
-
-
-	/*if (Format == EValueStringFormat::HLSL && ComponentType == EValueComponentType::Double)
-	{
-		// Construct an HLSL LWC Vector
-		TStringBuilder<256> TileValue;
-		TStringBuilder<256> OffsetValue;
-		for (int32 i = 0; i < NumComponents; ++i)
-		{
-			if (i > 0)
-			{
-				TileValue.Append(TEXT(", "));
-				OffsetValue.Append(TEXT(", "));
-			}
-
-			const FLargeWorldRenderScalar Value(Component[i].Double);
-			Private::FormatComponent_Double(Value.GetTileAsDouble(), NumComponents, Format, TileValue);
-			Private::FormatComponent_Double(Value.GetOffsetAsDouble(), NumComponents, Format, OffsetValue);
-		}
-
-		if (NumComponents > 1)
-		{
-			OutString.Appendf(TEXT("MakeLWCVector%d(float%d(%s), float%d(%s))"), NumComponents, NumComponents, TileValue.ToString(), NumComponents, OffsetValue.ToString());
-		}
-		else
-		{
-			OutString.Appendf(TEXT("MakeLWCScalar(%s, %s)"), TileValue.ToString(), OffsetValue.ToString());
-		}
-	}
-	else
-	{
-		if (Format == EValueStringFormat::HLSL)
-		{
-			const TCHAR* ComponentName = nullptr;
-			switch (ComponentType)
-			{
-			case EValueComponentType::Int: ComponentName = TEXT("int"); break;
-			case EValueComponentType::Bool: ComponentName = TEXT("bool"); break;
-			case EValueComponentType::Float: ComponentName = TEXT("float"); break;
-			default: checkNoEntry(); break; // Double is handled by above case
-			}
-			if (NumComponents > 1)
-			{
-				OutString.Appendf(TEXT("%s%d("), ComponentName, NumComponents);
-			}
-			else
-			{
-				OutString.Appendf(TEXT("%s("), ComponentName);
-			}
-		}
-
-		for (int32 i = 0; i < NumComponents; ++i)
-		{
-			if (i > 0)
-			{
-				OutString.Append(TEXT(", "));
-			}
-
-			switch (ComponentType)
-			{
-			case EValueComponentType::Int: OutString.Appendf(TEXT("%d"), Component[i].Int); break;
-			case EValueComponentType::Bool: OutString.Append(Component[i].Bool ? TEXT("true") : TEXT("false")); break;
-			case EValueComponentType::Float: Private::FormatComponent_Double((double)Component[i].Float, NumComponents, Format, OutString); break;
-			case EValueComponentType::Double: Private::FormatComponent_Double(Component[i].Double, NumComponents, Format, OutString); break;
-			default: checkNoEntry(); break;
-			}
-		}
-
-		if (Format == EValueStringFormat::HLSL)
-		{
-			OutString.Append(TEXT(")"));
-		}
-	}*/
 
 	return OutString.ToString();
 }
@@ -629,11 +560,17 @@ FValueTypeDescription GetValueTypeDescription(EValueType Type)
 	case EValueType::Bool2: return FValueTypeDescription(TEXT("bool2"), EValueComponentType::Bool, 2);
 	case EValueType::Bool3: return FValueTypeDescription(TEXT("bool3"), EValueComponentType::Bool, 3);
 	case EValueType::Bool4: return FValueTypeDescription(TEXT("bool4"), EValueComponentType::Bool, 4);
+	case EValueType::Numeric1: return FValueTypeDescription(TEXT("Numeric1"), EValueComponentType::Numeric, 1);
+	case EValueType::Numeric2: return FValueTypeDescription(TEXT("Numeric2"), EValueComponentType::Numeric, 2);
+	case EValueType::Numeric3: return FValueTypeDescription(TEXT("Numeric3"), EValueComponentType::Numeric, 3);
+	case EValueType::Numeric4: return FValueTypeDescription(TEXT("Numeric4"), EValueComponentType::Numeric, 4);
 	case EValueType::Float4x4: return FValueTypeDescription(TEXT("float4x4"), EValueComponentType::Float, 16);
 	case EValueType::Double4x4: return FValueTypeDescription(TEXT("FLWCMatrix"), EValueComponentType::Double, 16);
 	case EValueType::DoubleInverse4x4: return FValueTypeDescription(TEXT("FLWCInverseMatrix"), EValueComponentType::Double, 16);
+	case EValueType::Numeric4x4: return FValueTypeDescription(TEXT("Numeric4x4"), EValueComponentType::Numeric, 16);
 	case EValueType::Struct: return FValueTypeDescription(TEXT("struct"), EValueComponentType::Void, 0);
 	case EValueType::Object: return FValueTypeDescription(TEXT("object"), EValueComponentType::Void, 0);
+	case EValueType::Any: return FValueTypeDescription(TEXT("Any"), EValueComponentType::Void, 0);
 	default: checkNoEntry(); return FValueTypeDescription(TEXT("<INVALID>"), EValueComponentType::Void, 0);
 	}
 }
@@ -683,6 +620,17 @@ EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents)
 		default: break;
 		}
 		break;
+	case EValueComponentType::Numeric:
+		switch (NumComponents)
+		{
+		case 1: return EValueType::Numeric1;
+		case 2: return EValueType::Numeric2;
+		case 3: return EValueType::Numeric3;
+		case 4: return EValueType::Numeric4;
+		case 16: return EValueType::Numeric4x4;
+		default: break;
+		}
+		break;
 	case EValueComponentType::Int:
 		switch (NumComponents)
 		{
@@ -727,7 +675,23 @@ EValueType MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 Req
 EValueType MakeNonLWCType(EValueType Type)
 {
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
-	return MakeValueType(MakeNonLWCType(TypeDesc.ComponentType), TypeDesc.NumComponents);
+	check(IsNumericType(TypeDesc.ComponentType));
+	if (TypeDesc.ComponentType == EValueComponentType::Double)
+	{
+		return MakeValueType(MakeNonLWCType(TypeDesc.ComponentType), TypeDesc.NumComponents);
+	}
+	return Type;
+}
+
+EValueType MakeConcreteType(EValueType Type)
+{
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+	check(IsNumericType(TypeDesc.ComponentType));
+	if (TypeDesc.ComponentType == EValueComponentType::Numeric)
+	{
+		return MakeValueType(MakeConcreteType(TypeDesc.ComponentType), TypeDesc.NumComponents);
+	}
+	return Type;
 }
 
 EValueType MakeDerivativeType(EValueType Type)
@@ -737,83 +701,6 @@ EValueType MakeDerivativeType(EValueType Type)
 	{
 		return MakeValueType(EValueComponentType::Float, TypeDesc.NumComponents);
 	}
-	return EValueType::Void;
-}
-
-EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage)
-{
-	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs);
-	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs);
-	// Types with 0 components are non-arithmetic
-	if (LhsDesc.NumComponents > 0 && RhsDesc.NumComponents > 0)
-	{
-		if (Lhs == Rhs)
-		{
-			return Lhs;
-		}
-
-		EValueComponentType ComponentType = EValueComponentType::Void;
-		if (LhsDesc.ComponentType == RhsDesc.ComponentType)
-		{
-			ComponentType = LhsDesc.ComponentType;
-		}
-		else if (LhsDesc.ComponentType == EValueComponentType::Double || RhsDesc.ComponentType == EValueComponentType::Double)
-		{
-			ComponentType = EValueComponentType::Double;
-		}
-		else if (LhsDesc.ComponentType == EValueComponentType::Float || RhsDesc.ComponentType == EValueComponentType::Float)
-		{
-			ComponentType = EValueComponentType::Float;
-		}
-		else
-		{
-			ComponentType = EValueComponentType::Int;
-		}
-
-		if (ComponentType != EValueComponentType::Void)
-		{
-			if (LhsDesc.NumComponents == 1 || RhsDesc.NumComponents == 1)
-			{
-				// single component type is valid to combine with other type
-				return MakeValueType(ComponentType, FMath::Max(LhsDesc.NumComponents, RhsDesc.NumComponents));
-			}
-			else if (LhsDesc.NumComponents == RhsDesc.NumComponents)
-			{
-				return MakeValueType(ComponentType, LhsDesc.NumComponents);
-			}
-		}
-
-		OutErrorMessage = FString::Printf(TEXT("Arithmetic between types %s and %s are undefined"), LhsDesc.Name, RhsDesc.Name);
-	}
-	else
-	{
-		OutErrorMessage = FString::Printf(TEXT("Attempting to perform arithmetic on non-numeric types: %s %s"), LhsDesc.Name, RhsDesc.Name);
-	}
-
-	return EValueType::Void;
-}
-
-EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage)
-{
-	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs);
-	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs);
-
-	if (Lhs == Rhs)
-	{
-		if (LhsDesc.NumComponents > 0)
-		{
-			return MakeValueType(EValueComponentType::Bool, LhsDesc.NumComponents);
-		}
-		else
-		{
-			OutErrorMessage = FString::Printf(TEXT("Attempting to perform comparison on non-numeric types: %s %s"), LhsDesc.Name, RhsDesc.Name);
-		}
-	}
-	else
-	{
-		OutErrorMessage = FString::Printf(TEXT("Comparison between types %s and %s are undefined"), LhsDesc.Name, RhsDesc.Name);
-	}
-
 	return EValueType::Void;
 }
 
@@ -1071,6 +958,7 @@ inline FValue UnaryOp(const Operation& Op, const FValue& Value)
 		return FValue();
 	}
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Value.Type);
+	check(TypeDesc.ComponentType != EValueComponentType::Numeric);
 	const int8 NumComponents = TypeDesc.NumComponents;
 	
 	FValue Result;
@@ -1127,6 +1015,8 @@ inline FValue BinaryOp(const Operation& Op, const FValue& Lhs, const FValue& Rhs
 	}
 	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs.Type);
 	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs.Type);
+	check(LhsDesc.ComponentType != EValueComponentType::Numeric);
+	check(RhsDesc.ComponentType != EValueComponentType::Numeric);
 	const int8 NumComponents = GetNumComponentsResult(LhsDesc.NumComponents, RhsDesc.NumComponents);
 	
 	FValue Result;
@@ -1179,6 +1069,8 @@ inline FValue CompareOp(const Operation& Op, const FValue& Lhs, const FValue& Rh
 	}
 	const FValueTypeDescription LhsDesc = GetValueTypeDescription(Lhs.Type);
 	const FValueTypeDescription RhsDesc = GetValueTypeDescription(Rhs.Type);
+	check(LhsDesc.ComponentType != EValueComponentType::Numeric);
+	check(RhsDesc.ComponentType != EValueComponentType::Numeric);
 	const int8 NumComponents = GetNumComponentsResult(LhsDesc.NumComponents, RhsDesc.NumComponents);
 
 	FValue Result;
@@ -1263,6 +1155,7 @@ uint32 GetTypeHash(const FValue& Value)
 		case EValueComponentType::Double: ComponentHash = ::GetTypeHash(Value.Component[Index].Double); break;
 		case EValueComponentType::Int: ComponentHash = ::GetTypeHash(Value.Component[Index].Int); break;
 		case EValueComponentType::Bool: ComponentHash = ::GetTypeHash(Value.Component[Index].Bool); break;
+		case EValueComponentType::Numeric: ComponentHash = ::GetTypeHash(Value.Component[Index].Double); break;
 		default: checkNoEntry(); break;
 		}
 		Result = HashCombine(Result, ComponentHash);

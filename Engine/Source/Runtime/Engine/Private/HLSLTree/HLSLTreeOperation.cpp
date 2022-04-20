@@ -211,7 +211,7 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> 
 			Types.ResultType = FPreparedType(Shader::EValueType::Float3, IntermediateComponent);
 			break;
 		case EOperation::VecMulMatrix4:
-			switch (InputPreparedType[1].GetType().ValueType)
+			switch (InputPreparedType[1].Type.ValueType)
 			{
 			case Shader::EValueType::Double4x4:
 				// float3 * FLWCMatrix -> FLWCVector3
@@ -251,7 +251,7 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> 
 		}
 
 		const Shader::EValueComponentType IntermediateComponentType = IntermediateType.GetValueComponentType();
-		const int32 NumIntermediateComponents = IntermediateType.GetNumComponents();
+		const int32 NumIntermediateComponents = IntermediateType.Type.GetNumComponents();
 		for (int32 Index = 0; Index < InputPreparedType.Num(); ++Index)
 		{
 			Shader::EValueComponentType InputComponentType = InputPreparedType[Index].GetValueComponentType();
@@ -271,8 +271,9 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> 
 					break;
 				}
 			}
-			const int32 NumInputComponents = InputPreparedType[Index].GetNumComponents();
-			Types.InputType[Index] = Shader::MakeValueType(InputComponentType, (NumInputComponents == 1) ? 1 : NumIntermediateComponents);
+
+			const int32 NumInputComponents = InputPreparedType[Index].IsNumericScalar() ? 1 : NumIntermediateComponents;
+			Types.InputType[Index] = Shader::MakeValueType(InputComponentType, NumInputComponents);
 		}
 		Types.ResultType = IntermediateType;
 		Types.bIsLWC = (IntermediateComponentType == Shader::EValueComponentType::Double);
@@ -663,7 +664,7 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 		InputValue[Index] = Inputs[Index]->GetValueShader(Context, Scope, RequestedTypes.InputType[Index], Types.InputType[Index]);
 	}
 
-	const Shader::EValueType ResultType = Types.ResultType.GetType();
+	const Shader::EValueType ResultType = Types.ResultType.GetPreparedType();
 	check(Shader::IsNumericType(ResultType));
 
 	switch (Op)
@@ -778,7 +779,7 @@ void FExpressionOperation::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 	}
 
 	OutResult.Preshader.WriteOpcode(OpDesc.PreshaderOpcode);
-	OutResult.Type = Types.ResultType.GetType();
+	OutResult.Type = Types.ResultType.GetPreparedType();
 }
 
 } // namespace UE::HLSLTree

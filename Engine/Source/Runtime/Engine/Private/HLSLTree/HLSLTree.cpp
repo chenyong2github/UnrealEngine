@@ -534,7 +534,6 @@ FRequestedType::FRequestedType(const Shader::FType& InType, bool bDefaultRequest
 
 FRequestedType::FRequestedType(const FRequestedType& InType, bool bDefaultRequest)
 	: Type(InType.Type)
-	, DefaultType(InType.DefaultType)
 {
 	if (bDefaultRequest)
 	{
@@ -542,58 +541,13 @@ FRequestedType::FRequestedType(const FRequestedType& InType, bool bDefaultReques
 	}
 }
 
-int32 FRequestedType::GetNumComponentsRequested(int32 InDefaultNumComponents) const
-{
-	if (DefaultType == EDefaultRequestedType::Any)
-	{
-		return InDefaultNumComponents;
-	}
-
-	if (Type.IsVoid())
-	{
-		check(!RequestedComponents.Contains(true));
-		return 0;
-	}
-
-	const int32 MaxComponentIndex = RequestedComponents.FindLast(true);
-	if (MaxComponentIndex == INDEX_NONE)
-	{
-		return 0;
-	}
-
-	if (!Type.IsNumericVector())
-	{
-		return Type.GetNumComponents();
-	}
-
-	return MaxComponentIndex + 1;
-}
-
-Shader::FType FRequestedType::GetType(const Shader::FType& InDefaultType) const
-{
-	if (DefaultType == EDefaultRequestedType::Any)
-	{
-		return InDefaultType;
-	}
-
-	const int32 NumComponents = GetNumComponentsRequested(0);
-	if (NumComponents == 0)
-	{
-		return Shader::EValueType::Void;
-	}
-
-	if (!Type.IsNumericVector())
-	{
-		return Type;
-	}
-
-	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(Type);
-	return Shader::MakeValueType(TypeDesc.ComponentType, NumComponents);
-}
-
 Shader::EValueComponentType FRequestedType::GetValueComponentType() const
 {
-	if (Type.IsNumeric())
+	if (Type.IsAny())
+	{
+		return Shader::EValueComponentType::Numeric;
+	}
+	else if (Type.IsNumeric())
 	{
 		return Shader::GetValueTypeDescription(Type).ComponentType;
 	}
@@ -602,7 +556,7 @@ Shader::EValueComponentType FRequestedType::GetValueComponentType() const
 
 void FRequestedType::SetComponentRequest(int32 Index, bool bRequested)
 {
-	if (DefaultType != EDefaultRequestedType::Any)
+	if (!Type.IsAny())
 	{
 		if (bRequested)
 		{
@@ -626,21 +580,17 @@ void FRequestedType::SetFieldRequested(const Shader::FStructField* Field, bool b
 
 void FRequestedType::SetFieldRequested(const Shader::FStructField* Field, const FRequestedType& InRequest)
 {
-	const int32 NumFieldComponents = Field->GetNumComponents();
-	if (NumFieldComponents == 1)
+	if (Field->Type.IsNumericScalar())
 	{
-		for (int32 Index = 0; Index < 4; ++Index)
+		// Scalar fields can replicate, so field is requested if we request any of xyzw
+		if (InRequest.IsNumericVectorRequested())
 		{
-			// Scalar fields can replicate, so field is requested if we request any of xyzw
-			if (InRequest.IsComponentRequested(Index))
-			{
-				SetComponentRequest(Field->ComponentIndex, true);
-				break;
-			}
+			SetComponentRequest(Field->ComponentIndex, true);
 		}
 	}
 	else
 	{
+		const int32 NumFieldComponents = Field->GetNumComponents();
 		for (int32 Index = 0; Index < NumFieldComponents; ++Index)
 		{
 			SetComponentRequest(Field->ComponentIndex + Index, InRequest.IsComponentRequested(Index));
@@ -730,7 +680,7 @@ FPreparedType::FPreparedType(const Shader::FType& InType, const FPreparedCompone
 	}
 }
 
-int32 FPreparedType::GetNumComponents() const
+int32 FPreparedType::GetNumPreparedComponents() const
 {
 	auto Predicate = [](const FPreparedComponent& InComponent) { return !InComponent.IsNone(); };
 
@@ -741,43 +691,29 @@ int32 FPreparedType::GetNumComponents() const
 	}
 
 	const int32 MaxComponentIndex = PreparedComponents.FindLastByPredicate(Predicate);
-	if (MaxComponentIndex == INDEX_NONE)
-	{
-		return 0;
-	}
-
-	if (!Type.IsNumericVector())
-	{
-		return Type.GetNumComponents();
-	}
-
-	return MaxComponentIndex + 1;
+	return (MaxComponentIndex != INDEX_NONE) ? (MaxComponentIndex + 1) : 0;
 }
 
-bool FPreparedType::IsVoid() const
+bool FPreparedType::IsEmpty() const
 {
-	return GetNumComponents() == 0;
+	return GetNumPreparedComponents() == 0;
 }
 
-Shader::FType FPreparedType::GetType() const
+Shader::FType FPreparedType::GetPreparedType() const
 {
-	const int32 NumComponents = GetNumComponents();
-	if (NumComponents == 0)
-	{
-		return Shader::EValueType::Void;
-	}
-
 	if (!Type.IsNumericVector())
 	{
 		return Type;
 	}
 
+	const int32 NumPreparedComponents = GetNumPreparedComponents();
 	const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(Type);
-	return Shader::MakeValueType(TypeDesc.ComponentType, NumComponents);
+	return Shader::MakeValueType(TypeDesc.ComponentType, FMath::Max(NumPreparedComponents, 1));
 }
 
 Shader::EValueComponentType FPreparedType::GetValueComponentType() const
 {
+	check(!Type.IsAny());
 	if (Type.IsNumeric())
 	{
 		return Shader::GetValueTypeDescription(Type).ComponentType;
@@ -787,7 +723,7 @@ Shader::EValueComponentType FPreparedType::GetValueComponentType() const
 
 FRequestedType FPreparedType::GetRequestedType() const
 {
-	const int32 NumComponents = GetNumComponents();
+	const int32 NumComponents = GetNumPreparedComponents();
 	FRequestedType Result;
 	Result.Type = Type;
 	Result.RequestedComponents.Init(false, NumComponents);
@@ -815,11 +751,21 @@ EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope) cons
 EExpressionEvaluation FPreparedType::GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const
 {
 	EExpressionEvaluation Result = EExpressionEvaluation::ConstantZero;
-	for (int32 Index = 0; Index < RequestedType.GetNumComponentsRequested(PreparedComponents.Num()); ++Index)
+	if (IsNumericScalar())
 	{
-		if (RequestedType.IsComponentRequested(Index))
+		if (RequestedType.IsNumericVectorRequested())
 		{
-			Result = CombineEvaluations(Result, GetComponent(Index).GetEvaluation(Scope));
+			Result = GetComponent(0).GetEvaluation(Scope);
+		}
+	}
+	else
+	{
+		for (int32 Index = 0; Index < Type.GetNumComponents(); ++Index)
+		{
+			if (RequestedType.IsComponentRequested(Index))
+			{
+				Result = CombineEvaluations(Result, GetComponent(Index).GetEvaluation(Scope));
+			}
 		}
 	}
 	return Result;
@@ -851,11 +797,18 @@ FPreparedComponent FPreparedType::GetMergedComponent() const
 
 FPreparedComponent FPreparedType::GetComponent(int32 Index) const
 {
-	const int32 NumComponents = GetNumComponents();
-	const int32 ComponentIndex = (NumComponents == 1 && Index >= 0 && Index < 4) ? 0 : Index;
-	if (PreparedComponents.IsValidIndex(ComponentIndex))
+	if (Index >= 0)
 	{
-		return PreparedComponents[ComponentIndex];
+		const int32 ComponentIndex = (Type.IsNumericScalar() && Index < 4) ? 0 : Index;
+		if (PreparedComponents.IsValidIndex(ComponentIndex))
+		{
+			return PreparedComponents[ComponentIndex];
+		}
+
+		if (Index < Type.GetNumComponents())
+		{
+			return FPreparedComponent(EExpressionEvaluation::ConstantZero);
+		}
 	}
 
 	return FPreparedComponent(EExpressionEvaluation::None);
@@ -933,16 +886,17 @@ void FPreparedType::MergeEvaluation(EExpressionEvaluation Evaluation)
 
 void FPreparedType::SetLoopEvaluation(FEmitScope& Scope, const FRequestedType& RequestedType)
 {
-	const int32 NumComponents = GetNumComponents();
-	const int32 NumRequestedComponents = RequestedType.GetNumComponentsRequested(NumComponents);
-
-	if (NumComponents == 1 && FMath::IsWithinInclusive(NumRequestedComponents, 1, 4))
+	if (Type.IsNumericScalar())
 	{
 		// If we're a scalar type, set loop evaluation if any of xyzw are requested
-		PreparedComponents[0].SetLoopEvaluation(Scope);
+		if (RequestedType.IsNumericVectorRequested())
+		{
+			PreparedComponents[0].SetLoopEvaluation(Scope);
+		}
 	}
 	else
 	{
+		const int32 NumComponents = GetNumPreparedComponents();
 		for (int32 Index = 0; Index < NumComponents; ++Index)
 		{
 			if (RequestedType.IsComponentRequested(Index))
@@ -965,7 +919,7 @@ Shader::FComponentBounds FPreparedType::GetComponentBounds(int32 Index) const
 		return Shader::FComponentBounds(Shader::EComponentBound::Zero, Shader::EComponentBound::Zero);
 	}
 
-	const Shader::EValueComponentType ComponentType = GetType().GetComponentType(Index);
+	const Shader::EValueComponentType ComponentType = GetPreparedType().GetComponentType(Index);
 	check(ComponentType != Shader::EValueComponentType::Void);
 
 	const Shader::FValueComponentTypeDescription ComponentTypeDesc = Shader::GetValueComponentTypeDescription(ComponentType);
@@ -976,17 +930,26 @@ Shader::FComponentBounds FPreparedType::GetComponentBounds(int32 Index) const
 
 Shader::FComponentBounds FPreparedType::GetBounds(const FRequestedType& RequestedType) const
 {
-	const int32 NumComponents = GetNumComponents();
-	const int32 NumRequestedComponents = RequestedType.GetNumComponentsRequested(NumComponents);
+	const int32 NumComponents = GetNumPreparedComponents();
 
 	Shader::FComponentBounds Result(Shader::EComponentBound::DoubleMax, Shader::EComponentBound::NegDoubleMax);
-	for (int32 Index = 0; Index < NumRequestedComponents; ++Index)
+	if (IsNumericScalar())
 	{
-		if (RequestedType.IsComponentRequested(Index))
+		if (RequestedType.IsNumericVectorRequested())
 		{
-			const Shader::FComponentBounds ComponentBounds = GetComponentBounds(Index);
-			Result.Min = Shader::MinBound(Result.Min, ComponentBounds.Min);
-			Result.Max = Shader::MaxBound(Result.Max, ComponentBounds.Max);
+			Result = GetComponentBounds(0);
+		}
+	}
+	else
+	{
+		for (int32 Index = 0; Index < NumComponents; ++Index)
+		{
+			if (RequestedType.IsComponentRequested(Index))
+			{
+				const Shader::FComponentBounds ComponentBounds = GetComponentBounds(Index);
+				Result.Min = Shader::MinBound(Result.Min, ComponentBounds.Min);
+				Result.Max = Shader::MaxBound(Result.Max, ComponentBounds.Max);
+			}
 		}
 	}
 	return Result;
@@ -1013,37 +976,17 @@ FPreparedType FPreparedType::GetFieldType(const Shader::FStructField* Field) con
 
 FPreparedType MergePreparedTypes(const FPreparedType& Lhs, const FPreparedType& Rhs)
 {
-	// If one type is not initialized yet, just use the other type
-	if (!Lhs.IsInitialized())
+	const Shader::FType UpdatedType = Shader::CombineTypes(Lhs.Type, Rhs.Type);
+	if (UpdatedType.IsVoid())
 	{
-		return Rhs;
-	}
-	else if (!Rhs.IsInitialized())
-	{
-		return Lhs;
+		// Mismatched types
+		return FPreparedType();
 	}
 
-	int32 NumComponents = 0;
+	const int32 NumComponents = UpdatedType.GetNumComponents();
+
 	FPreparedType Result;
-	if (Lhs.IsNumeric() && Rhs.IsNumeric())
-	{
-		const Shader::FValueTypeDescription LhsDesc = Shader::GetValueTypeDescription(Lhs.Type);
-		const Shader::FValueTypeDescription RhsDesc = Shader::GetValueTypeDescription(Rhs.Type);
-		const Shader::EValueComponentType ComponentType = Shader::CombineComponentTypes(LhsDesc.ComponentType, RhsDesc.ComponentType);
-		NumComponents = FMath::Max(Lhs.GetNumComponents(), Rhs.GetNumComponents());
-		Result.Type = Shader::MakeValueType(ComponentType, NumComponents);
-	}
-	else
-	{
-		if (Lhs.Type != Rhs.Type)
-		{
-			// Mismatched non-numeric
-			return Result;
-		}
-		Result.Type = Lhs.Type;
-		NumComponents = Result.Type.GetNumComponents();
-	}
-
+	Result.Type = UpdatedType;
 	Result.PreparedComponents.Reset(NumComponents);
 	for (int32 Index = 0; Index < NumComponents; ++Index)
 	{
@@ -1072,37 +1015,31 @@ bool FPrepareValueResult::TryMergePreparedType(FEmitContext& Context, const Shad
 		return false;
 	}
 
-	if (!PreparedType.IsInitialized())
+	check(!Type.IsGeneric());
+
+	if (PreparedType.IsVoid())
 	{
 		PreparedType.PreparedComponents.Reset();
 		PreparedType.Type = Type;
 		return true;
 	}
 
-	if (!Type.IsNumericVector())
+	const Shader::FType UpdatedType = Shader::CombineTypes(PreparedType.Type, Type);
+	if (UpdatedType.IsVoid())
 	{
-		if (Type != PreparedType.Type)
-		{
-			return Context.Error(TEXT("Invalid type"));
-		}
-	}
-	else
-	{
-		const Shader::FValueTypeDescription TypeDesc = Shader::GetValueTypeDescription(Type);
-		const int32 PrevNumComponents = PreparedType.GetNumComponents();
-		if (PrevNumComponents == 1 && TypeDesc.NumComponents > 1)
-		{
-			// Once an expression is prepared as a scalar type, it's not valid to change later
-			// Other expressions may have already assumed this will be a scalar type, and its components will replicate
-			return Context.Error(TEXT("Type was already prepared as scalar"));
-		}
-
-		const Shader::FValueTypeDescription PrevTypeDesc = Shader::GetValueTypeDescription(PreparedType.Type);
-		const Shader::EValueComponentType ComponentType = Shader::CombineComponentTypes(PrevTypeDesc.ComponentType, TypeDesc.ComponentType);
-		const int32 NumComponents = FMath::Max<int32>(PrevNumComponents, TypeDesc.NumComponents);
-		PreparedType.Type = Shader::MakeValueType(ComponentType, NumComponents);
+		return Context.Errorf(TEXT("Expression was previously prepared as %s, now as %s, types are not compatible"),
+			PreparedType.Type.GetName(), Type.GetName());
 	}
 
+	if (PreparedType.Type.GetNumComponents() != UpdatedType.GetNumComponents())
+	{
+		// Don't allow the number of components to change
+		// Other expressions may depend on the previous number of components (especially scalar replication)
+		return Context.Errorf(TEXT("Expression was previously prepared as %s, now as %s, number of components don't match"),
+			PreparedType.Type.GetName(), Type.GetName());
+	}
+
+	PreparedType.Type = UpdatedType;
 	return true;
 }
 
@@ -1113,21 +1050,23 @@ bool FPrepareValueResult::SetTypeVoid()
 	return false;
 }
 
-bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluation Evaluation, const Shader::FType& Type)
+bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& RequestedType, EExpressionEvaluation Evaluation, const Shader::FType& InType)
 {
+	Shader::FType Type = InType.GetConcreteType();
 	if (TryMergePreparedType(Context, Type))
 	{
 		if (Evaluation != EExpressionEvaluation::None)
 		{
-			const int32 NumComponents = Type.GetNumComponents();
-			const int32 NumRequestedComponents = RequestedType.GetNumComponentsRequested(NumComponents);
-			
-			if (NumComponents == 1 && NumRequestedComponents > 0 && NumRequestedComponents <= 4)
+			if (Type.IsNumericScalar())
 			{
-				PreparedType.MergeComponent(0, Evaluation);
+				if (RequestedType.IsNumericVectorRequested())
+				{
+					PreparedType.MergeComponent(0, Evaluation);
+				}
 			}
 			else
 			{
+				const int32 NumComponents = Type.GetNumComponents();
 				for (int32 Index = 0; Index < NumComponents; ++Index)
 				{
 					if (RequestedType.IsComponentRequested(Index))
@@ -1149,7 +1088,7 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 
 bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& RequestedType, const FPreparedType& InPreparedType)
 {
-	Shader::FType Type = InPreparedType.GetType();
+	Shader::FType Type = InPreparedType.Type.GetConcreteType();
 	if (Type.IsNumericLWC())
 	{
 		const Shader::FComponentBounds Bounds = InPreparedType.GetBounds(RequestedType);
@@ -1161,15 +1100,16 @@ bool FPrepareValueResult::SetType(FEmitContext& Context, const FRequestedType& R
 
 	if (TryMergePreparedType(Context, Type))
 	{
-		const int32 NumComponents = Type.GetNumComponents();
-		const int32 NumRequestedComponents = RequestedType.GetNumComponentsRequested(NumComponents);
-		
-		if (NumComponents == 1 && NumRequestedComponents > 0 && NumRequestedComponents <= 4)
+		if (Type.IsNumericScalar())
 		{
-			PreparedType.MergeComponent(0, InPreparedType.GetComponent(0));
+			if (RequestedType.IsNumericVectorRequested())
+			{
+				PreparedType.MergeComponent(0, InPreparedType.GetComponent(0));
+			}
 		}
 		else
 		{
+			const int32 NumComponents = Type.GetNumComponents();
 			for (int32 Index = 0; Index < NumComponents; ++Index)
 			{
 				const FPreparedComponent& Component = InPreparedType.GetComponent(Index);
@@ -1264,7 +1204,7 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType) const
 {
 	const FPreparedType& PreparedType = Context.GetPreparedType(this);
-	return GetValueShader(Context, Scope, RequestedType, PreparedType, PreparedType.GetType());
+	return GetValueShader(Context, Scope, RequestedType, PreparedType, PreparedType.GetPreparedType());
 }
 
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType) const
@@ -1280,7 +1220,7 @@ FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitS
 FEmitShaderExpression* FExpression::GetValueShader(FEmitContext& Context, FEmitScope& Scope) const
 {
 	const FPreparedType& PreparedType = Context.GetPreparedType(this);
-	return GetValueShader(Context, Scope, PreparedType.GetRequestedType(), PreparedType, PreparedType.GetType());
+	return GetValueShader(Context, Scope, PreparedType.GetRequestedType(), PreparedType, PreparedType.GetPreparedType());
 }
 
 Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType, const Shader::FType& ResultType, Shader::FPreshaderData& OutPreshader) const
@@ -1324,7 +1264,7 @@ Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& 
 Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, Shader::FPreshaderData& OutPreshader) const
 {
 	const FPreparedType& PreparedType = Context.GetPreparedType(this);
-	return GetValuePreshader(Context, Scope, RequestedType, PreparedType, PreparedType.GetType(), OutPreshader);
+	return GetValuePreshader(Context, Scope, RequestedType, PreparedType, PreparedType.GetPreparedType(), OutPreshader);
 }
 
 Shader::FType FExpression::GetValuePreshader(FEmitContext& Context, FEmitScope& Scope, const Shader::FType& ResultType, Shader::FPreshaderData& OutPreshader) const
@@ -1368,7 +1308,7 @@ Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& 
 
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const FPreparedType& PreparedType) const
 {
-	return GetValueConstant(Context, Scope, RequestedType, PreparedType, PreparedType.GetType());
+	return GetValueConstant(Context, Scope, RequestedType, PreparedType, PreparedType.GetPreparedType());
 }
 
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, const Shader::FType& ResultType) const
@@ -1380,7 +1320,7 @@ Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& 
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType) const
 {
 	const FPreparedType PreparedType = Context.GetPreparedType(this);
-	return GetValueConstant(Context, Scope, RequestedType, PreparedType, PreparedType.GetType());
+	return GetValueConstant(Context, Scope, RequestedType, PreparedType, PreparedType.GetPreparedType());
 }
 
 Shader::FValue FExpression::GetValueConstant(FEmitContext& Context, FEmitScope& Scope, const FPreparedType& PreparedType, const Shader::FType& ResultType) const

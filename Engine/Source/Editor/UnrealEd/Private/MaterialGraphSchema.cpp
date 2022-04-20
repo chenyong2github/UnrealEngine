@@ -628,18 +628,24 @@ namespace Private
 {
 FLinearColor GetColorForConnectionType(const UGraphEditorSettings* Settings, UE::Shader::EValueType ConnectionType)
 {
-	if (ConnectionType == UE::Shader::EValueType::Struct)
+	using namespace UE::Shader;
+	if (ConnectionType == EValueType::Any)
+	{
+		return Settings->WildcardPinTypeColor;
+	}
+	else if (ConnectionType == EValueType::Struct)
 	{
 		return Settings->StructPinTypeColor;
 	}
-	else if (ConnectionType == UE::Shader::EValueType::Object)
+	else if (ConnectionType == EValueType::Object)
 	{
 		return Settings->ObjectPinTypeColor;
 	}
 	else
 	{
-		const UE::Shader::FValueTypeDescription TypeDesc = UE::Shader::GetValueTypeDescription(ConnectionType);
-		if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Float)
+		const FValueTypeDescription TypeDesc = GetValueTypeDescription(ConnectionType);
+		if (TypeDesc.ComponentType == EValueComponentType::Float ||
+			TypeDesc.ComponentType == EValueComponentType::Numeric)
 		{
 			if (TypeDesc.NumComponents == 1)
 			{
@@ -650,15 +656,15 @@ FLinearColor GetColorForConnectionType(const UGraphEditorSettings* Settings, UE:
 				return Settings->VectorPinTypeColor;
 			}
 		}
-		else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Double)
+		else if (TypeDesc.ComponentType == EValueComponentType::Double)
 		{
 			return Settings->DoublePinTypeColor;
 		}
-		else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Bool)
+		else if (TypeDesc.ComponentType == EValueComponentType::Bool)
 		{
 			return Settings->BooleanPinTypeColor;
 		}
-		else if (TypeDesc.ComponentType == UE::Shader::EValueComponentType::Int)
+		else if (TypeDesc.ComponentType == EValueComponentType::Int)
 		{
 			return Settings->IntPinTypeColor;
 		}

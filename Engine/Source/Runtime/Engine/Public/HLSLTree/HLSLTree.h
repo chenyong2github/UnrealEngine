@@ -134,12 +134,6 @@ private:
 	friend class FExpressionLocalPHI;
 };
 
-enum class EDefaultRequestedType : uint8
-{
-	None,
-	Any,
-};
-
 /**
  * FRequestedType is used when accessing various FExpression methods.  A requested type is represented by a concrete Shader::FType, along with a bit vector of components.  A bit set in this vector means the given component was requested.
  * This allows FExpressions to track access of particular components, which can enable various optimizations.  For example, a 'Swizzle' expression may only access the 'Y' component of its input.  So it might request a float2 value from
@@ -157,21 +151,24 @@ public:
 	FRequestedType(const Shader::FStructType* InType, bool bDefaultRequest = true) : FRequestedType(Shader::FType(InType), bDefaultRequest) {}
 	FRequestedType(const FName& InType, bool bDefaultRequest = true) : FRequestedType(Shader::FType(InType), bDefaultRequest) {}
 
-	FRequestedType(EDefaultRequestedType InType) : DefaultType(InType) { check(InType != EDefaultRequestedType::None); }
-
-	Shader::FType GetType(const Shader::FType& InDefaultType) const;
-	int32 GetNumComponentsRequested(int32 InDefaultNumComponents) const;
 	Shader::EValueComponentType GetValueComponentType() const;
 
 	bool IsComponentRequested(int32 Index) const
 	{
-		return (DefaultType == EDefaultRequestedType::Any) || (RequestedComponents.IsValidIndex(Index) ? (bool)RequestedComponents[Index] : false);
+		return Type.IsAny() || (RequestedComponents.IsValidIndex(Index) ? (bool)RequestedComponents[Index] : false);
 	}
 
-	bool IsStruct() const { return !IsVoid() && Type.IsStruct(); }
-	bool IsObject() const { return !IsVoid() && Type.IsObject(); }
-	bool IsNumeric() const { return !IsVoid() && Type.IsNumeric(); }
-	bool IsVoid() const { return (DefaultType != EDefaultRequestedType::Any) && RequestedComponents.Find(true) == INDEX_NONE; }
+	/** Check if any of xyzw are requested */
+	bool IsNumericVectorRequested() const
+	{
+		return Type.IsAny() || FMath::IsWithin(RequestedComponents.Find(true), 0, 4);
+	}
+
+	bool IsVoid() const { return Type.IsVoid(); }
+	bool IsStruct() const { return Type.IsStruct(); }
+	bool IsObject() const { return Type.IsObject(); }
+	bool IsNumeric() const { return Type.IsNumeric(); }
+	bool IsEmpty() const { return !Type.IsAny() && !RequestedComponents.Contains(true); }
 
 	void SetComponentRequest(int32 Index, bool bRequest = true);
 
@@ -193,9 +190,6 @@ public:
 	 * The type used to initialize the request. The actual 'Type' represented by the FRequestedType may be different, as vector types will truncate to the number of requested components
 	 */
 	Shader::FType Type;
-
-	/** Used to signify 'special' requested types */
-	EDefaultRequestedType DefaultType = EDefaultRequestedType::None;
 
 	/** 1 bit per component, a value of 'true' means the specified component is requsted */
 	TBitArray<> RequestedComponents;
@@ -287,16 +281,21 @@ public:
 	void SetField(const Shader::FStructField* Field, const FPreparedType& FieldType);
 	FPreparedType GetFieldType(const Shader::FStructField* Field) const;
 
-	int32 GetNumComponents() const;
+	/** For numeric vectors, the number of components in the prepared type will only include components that have valid evaluation */
+	int32 GetNumPreparedComponents() const;
+	Shader::FType GetPreparedType() const;
+
+	/** Converts to a requested type, based on IsRequestedEvaluation() */
 	FRequestedType GetRequestedType() const;
-	Shader::FType GetType() const;
+	
 	Shader::EValueComponentType GetValueComponentType() const;
-	const TCHAR* GetName() const { return GetType().GetName(); }
-	bool IsStruct() const { return !IsVoid() && Type.IsStruct(); }
-	bool IsObject() const { return !IsVoid() && Type.IsObject(); }
-	bool IsNumeric() const { return !IsVoid() && Type.IsNumeric(); }
-	bool IsInitialized() const { return !Type.IsVoid(); }
-	bool IsVoid() const;
+	const TCHAR* GetName() const { return Type.GetName(); }
+	bool IsVoid() const { return Type.IsVoid(); }
+	bool IsStruct() const { return Type.IsStruct(); }
+	bool IsObject() const { return Type.IsObject(); }
+	bool IsNumeric() const { return Type.IsNumeric(); }
+	bool IsNumericScalar() const { return Type.IsNumericScalar(); }
+	bool IsEmpty() const;
 
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope, const FRequestedType& RequestedType) const;

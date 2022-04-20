@@ -62,6 +62,9 @@ enum class EValueComponentType : uint8
 	Int,
 	Bool,
 
+	// May be any numeric type, stored internally as 'double' within FValue
+	Numeric,
+
 	Num,
 };
 static constexpr int32 NumValueComponentTypes = (int32)EValueComponentType::Num;
@@ -85,6 +88,8 @@ inline bool IsComponentTypeWithinBounds(EValueComponentType Type, FComponentBoun
 ENGINE_API EValueComponentType CombineComponentTypes(EValueComponentType Lhs, EValueComponentType Rhs);
 
 inline EValueComponentType MakeNonLWCType(EValueComponentType Type) { return Type == EValueComponentType::Double ? EValueComponentType::Float : Type; }
+inline EValueComponentType MakeConcreteType(EValueComponentType Type) { return Type == EValueComponentType::Numeric ? EValueComponentType::Float : Type; }
+inline bool IsGenericType(EValueComponentType Type) { return Type == EValueComponentType::Numeric; }
 inline bool IsLWCType(EValueComponentType Type) { return Type == EValueComponentType::Double; }
 
 enum class EValueType : uint8
@@ -111,6 +116,12 @@ enum class EValueType : uint8
 	Bool3,
 	Bool4,
 
+	// Any scalar/vector type
+	Numeric1,
+	Numeric2,
+	Numeric3,
+	Numeric4,
+
 	// float4x4
 	Float4x4,
 
@@ -119,8 +130,12 @@ enum class EValueType : uint8
 	Double4x4,
 	DoubleInverse4x4,
 
+	// Any matrix type
+	Numeric4x4,
+
 	Struct,
 	Object,
+	Any,
 
 	Num,
 };
@@ -139,16 +154,21 @@ struct FValueTypeDescription
 ENGINE_API FValueTypeDescription GetValueTypeDescription(EValueType Type);
 ENGINE_API EValueType FindValueType(FName Name);
 inline bool IsLWCType(EValueType Type) { return IsLWCType(GetValueTypeDescription(Type).ComponentType); }
+inline bool IsGenericType(EValueType Type) { return Type == EValueType::Any || IsGenericType(GetValueTypeDescription(Type).ComponentType); }
 ENGINE_API EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents);
 ENGINE_API EValueType MakeValueType(EValueType BaseType, int32 NumComponents);
 ENGINE_API EValueType MakeValueTypeWithRequestedNumComponents(EValueType BaseType, int8 RequestedNumComponents);
 ENGINE_API EValueType MakeNonLWCType(EValueType Type);
+ENGINE_API EValueType MakeConcreteType(EValueType Type);
 ENGINE_API EValueType MakeDerivativeType(EValueType Type);
-ENGINE_API EValueType MakeArithmeticResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
-ENGINE_API EValueType MakeComparisonResultType(EValueType Lhs, EValueType Rhs, FString& OutErrorMessage);
 
 inline bool IsNumericType(EValueType Type) { return IsNumericType(GetValueTypeDescription(Type).ComponentType); }
 
+inline bool IsNumericScalarType(EValueType Type)
+{
+	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
+	return IsNumericType(TypeDesc.ComponentType) && TypeDesc.NumComponents == 1;
+}
 inline bool IsNumericVectorType(EValueType Type)
 {
 	const FValueTypeDescription TypeDesc = GetValueTypeDescription(Type);
@@ -170,10 +190,14 @@ struct FType
 	const TCHAR* GetName() const;
 	FType GetDerivativeType() const;
 	FType GetNonLWCType() const { return IsNumericLWC() ? FType(MakeNonLWCType(ValueType)) : *this; }
+	FType GetConcreteType() const { return IsNumeric() ? FType(MakeConcreteType(ValueType)) : *this; }
 	bool IsVoid() const { return ValueType == EValueType::Void; }
 	bool IsStruct() const { return ValueType == EValueType::Struct; }
 	bool IsObject() const { return ValueType == EValueType::Object; }
+	bool IsAny() const { return ValueType == EValueType::Any; }
+	bool IsGeneric() const { return !IsStruct() && !IsObject() && IsGenericType(ValueType); }
 	bool IsNumeric() const { return !IsStruct() && !IsObject() && IsNumericType(ValueType); }
+	bool IsNumericScalar() const { return !IsStruct() && !IsObject() && IsNumericScalarType(ValueType); }
 	bool IsNumericVector() const { return !IsStruct() && !IsObject() && IsNumericVectorType(ValueType); }
 	bool IsNumericMatrix() const { return !IsStruct() && !IsObject() && IsNumericMatrixType(ValueType); }
 	bool IsNumericLWC() const { return IsNumeric() && IsLWCType(ValueType); }
@@ -181,7 +205,6 @@ struct FType
 	int32 GetNumFlatFields() const;
 	EValueComponentType GetComponentType(int32 Index) const;
 	EValueType GetFlatFieldType(int32 Index) const;
-	bool Merge(const FType& OtherType);
 
 	inline operator EValueType() const { return ValueType; }
 	inline operator bool() const { return !IsVoid(); }
@@ -221,6 +244,8 @@ inline bool operator!=(const EValueType& Lhs, const FType& Rhs)
 {
 	return !operator==(Lhs, Rhs);
 }
+
+ENGINE_API FType CombineTypes(const FType& Lhs, const FType& Rhs);
 
 struct FStructField
 {

@@ -376,7 +376,7 @@ FRequestedType FEmitContext::GetRequestedType(const FExpression* Expression) con
 
 Shader::FType FEmitContext::GetType(const FExpression* Expression) const
 {
-	return GetPreparedType(Expression).GetType();
+	return GetPreparedType(Expression).GetPreparedType();
 }
 
 EExpressionEvaluation FEmitContext::GetEvaluation(const FExpression* Expression, const FEmitScope& Scope, const FRequestedType& RequestedType) const
@@ -398,6 +398,12 @@ FPreparedType FEmitContext::PrepareExpression(const FExpression* InExpression, F
 		check(!bMarkLiveValues); // value should already be prepared at this point
 		Result = new(*Allocator) FPrepareValueResult();
 		PrepareValueMap.Add(InExpression, Result);
+	}
+
+	if (RequestedType.IsEmpty() && !Result->PreparedType.IsVoid())
+	{
+		// If RequestedType is 'Empty' (nothing requested), we can skip all but the first call to Prepare
+		return Result->PreparedType;
 	}
 
 	if (Result->bPreparingValue)
@@ -428,7 +434,7 @@ FPreparedType FEmitContext::PrepareExpression(const FExpression* InExpression, F
 	{
 		ResultType = Result->PreparedType;
 		check(!ResultType.IsVoid());
-		MarkInputType(InExpression, RequestedType.GetType(ResultType.GetType()));
+		MarkInputType(InExpression, RequestedType.Type.GetConcreteType());
 	}
 	return ResultType;
 }
@@ -767,6 +773,11 @@ void InternalFormatStrings(FStringBuilderBase* OutString0, FStringBuilderBase* O
 FEmitShaderExpression* FEmitContext::InternalEmitExpression(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, bool bInline, const Shader::FType& Type, FStringView Code)
 {
 	FEmitShaderExpression* ShaderValue = nullptr;
+
+	if (Code == TEXT("(((float3)0).z * Material.PreshaderBuffer[6].x)"))
+	{
+		int a = 0;
+	}
 
 	FXxHash64Builder Hasher;
 	Hasher.Update(Code.GetData(), Code.Len() * sizeof(TCHAR));
