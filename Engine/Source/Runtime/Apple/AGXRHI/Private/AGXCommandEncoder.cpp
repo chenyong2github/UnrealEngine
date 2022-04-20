@@ -774,36 +774,36 @@ void FAGXCommandEncoder::SetRenderPipelineState(FAGXShaderPipeline* PipelineStat
 	}
 }
 
-void FAGXCommandEncoder::SetViewport(mtlpp::Viewport const Viewport[], uint32 NumActive)
+void FAGXCommandEncoder::SetViewport(MTLViewport const Viewport[], uint32 NumActive)
 {
 	check(RenderCommandEncoder);
 	check(NumActive >= 1 && NumActive < ML_MaxViewports);
 	if (NumActive == 1)
 	{
-		[RenderCommandEncoder setViewport:*reinterpret_cast<const MTLViewport*>(&Viewport[0])];
+		[RenderCommandEncoder setViewport:Viewport[0]];
 	}
 #if PLATFORM_MAC
 	else
 	{
 		check(FAGXCommandQueue::SupportsFeature(EAGXFeaturesMultipleViewports));
-		[RenderCommandEncoder setViewports:reinterpret_cast<const MTLViewport*>(Viewport) count:(NSUInteger)NumActive];
+		[RenderCommandEncoder setViewports:Viewport count:NumActive];
 	}
 #endif
 }
 
-void FAGXCommandEncoder::SetFrontFacingWinding(mtlpp::Winding const InFrontFacingWinding)
+void FAGXCommandEncoder::SetFrontFacingWinding(MTLWinding InFrontFacingWinding)
 {
     check (RenderCommandEncoder);
 	{
-		[RenderCommandEncoder setFrontFacingWinding:(MTLWinding)InFrontFacingWinding];
+		[RenderCommandEncoder setFrontFacingWinding:InFrontFacingWinding];
 	}
 }
 
-void FAGXCommandEncoder::SetCullMode(mtlpp::CullMode const InCullMode)
+void FAGXCommandEncoder::SetCullMode(MTLCullMode InCullMode)
 {
     check (RenderCommandEncoder);
 	{
-		[RenderCommandEncoder setCullMode:(MTLCullMode)InCullMode];
+		[RenderCommandEncoder setCullMode:InCullMode];
 	}
 }
 
@@ -815,19 +815,19 @@ void FAGXCommandEncoder::SetDepthBias(float const InDepthBias, float const InSlo
 	}
 }
 
-void FAGXCommandEncoder::SetScissorRect(mtlpp::ScissorRect const Rect[], uint32 NumActive)
+void FAGXCommandEncoder::SetScissorRect(MTLScissorRect const Rect[], uint32 NumActive)
 {
     check(RenderCommandEncoder);
 	check(NumActive >= 1 && NumActive < ML_MaxViewports);
 	if (NumActive == 1)
 	{
-		[RenderCommandEncoder setScissorRect:*reinterpret_cast<const MTLScissorRect*>(&Rect[0])];
+		[RenderCommandEncoder setScissorRect:Rect[0]];
 	}
 #if PLATFORM_MAC
 	else
 	{
 		check(FAGXCommandQueue::SupportsFeature(EAGXFeaturesMultipleViewports));
-		[RenderCommandEncoder setScissorRects:reinterpret_cast<const MTLScissorRect*>(Rect) count:(NSUInteger)NumActive];
+		[RenderCommandEncoder setScissorRects:Rect count:NumActive];
 	}
 #endif
 }

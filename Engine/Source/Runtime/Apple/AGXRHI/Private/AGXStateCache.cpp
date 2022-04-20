@@ -27,13 +27,13 @@ static mtlpp::TriangleFillMode TranslateFillMode(ERasterizerFillMode FillMode)
 	};
 }
 
-static mtlpp::CullMode TranslateCullMode(ERasterizerCullMode CullMode)
+static MTLCullMode TranslateCullMode(ERasterizerCullMode CullMode)
 {
 	switch (CullMode)
 	{
-		case CM_CCW:	return mtlpp::CullMode::Front;
-		case CM_CW:		return mtlpp::CullMode::Back;
-		default:		return mtlpp::CullMode::None;
+		case CM_CCW:	return MTLCullModeFront;
+		case CM_CW:		return MTLCullModeBack;
+		default:		return MTLCullModeNone;
 	}
 }
 
@@ -328,12 +328,12 @@ void FAGXStateCache::Reset(void)
     PipelineBits = EAGXPipelineFlagMask;
 }
 
-static bool MTLScissorRectEqual(mtlpp::ScissorRect const& Left, mtlpp::ScissorRect const& Right)
+static bool MTLScissorRectEqual(MTLScissorRect const& Left, MTLScissorRect const& Right)
 {
 	return Left.x == Right.x && Left.y == Right.y && Left.width == Right.width && Left.height == Right.height;
 }
 
-void FAGXStateCache::SetScissorRect(bool const bEnable, mtlpp::ScissorRect const& Rect)
+void FAGXStateCache::SetScissorRect(bool bEnable, MTLScissorRect const& Rect)
 {
 	if (bScissorRectEnabled != bEnable || !MTLScissorRectEqual(Scissor[0], Rect))
 	{
@@ -997,7 +997,7 @@ void FAGXStateCache::SetRenderTargetsActive(bool const bActive)
 	bIsRenderTargetActive = bActive;
 }
 
-static bool MTLViewportEqual(mtlpp::Viewport const& Left, mtlpp::Viewport const& Right)
+static bool MTLViewportEqual(MTLViewport const& Left, MTLViewport const& Right)
 {
 	return FMath::IsNearlyEqual(Left.originX, Right.originX) &&
 			FMath::IsNearlyEqual(Left.originY, Right.originY) &&
@@ -1007,7 +1007,7 @@ static bool MTLViewportEqual(mtlpp::Viewport const& Left, mtlpp::Viewport const&
 			FMath::IsNearlyEqual(Left.zfar, Right.zfar);
 }
 
-void FAGXStateCache::SetViewport(const mtlpp::Viewport& InViewport)
+void FAGXStateCache::SetViewport(MTLViewport const& InViewport)
 {
 	if (!MTLViewportEqual(Viewport[0], InViewport))
 	{
@@ -1020,7 +1020,7 @@ void FAGXStateCache::SetViewport(const mtlpp::Viewport& InViewport)
 	
 	if (!bScissorRectEnabled)
 	{
-		mtlpp::ScissorRect Rect;
+		MTLScissorRect Rect;
 		Rect.x = InViewport.originX;
 		Rect.y = InViewport.originY;
 		Rect.width = InViewport.width;
@@ -1029,7 +1029,7 @@ void FAGXStateCache::SetViewport(const mtlpp::Viewport& InViewport)
 	}
 }
 
-void FAGXStateCache::SetViewport(uint32 Index, const mtlpp::Viewport& InViewport)
+void FAGXStateCache::SetViewport(uint32 Index, MTLViewport const& InViewport)
 {
 	check(Index < ML_MaxViewports);
 	
@@ -1046,7 +1046,7 @@ void FAGXStateCache::SetViewport(uint32 Index, const mtlpp::Viewport& InViewport
 	// This always sets the scissor rect because the RHI doesn't bother to expose proper scissor states for multiple viewports.
 	// This will have to change if we want to guarantee correctness in the mid to long term.
 	{
-		mtlpp::ScissorRect Rect;
+		MTLScissorRect Rect;
 		Rect.x = InViewport.originX;
 		Rect.y = InViewport.originY;
 		Rect.width = InViewport.width;
@@ -1055,7 +1055,7 @@ void FAGXStateCache::SetViewport(uint32 Index, const mtlpp::Viewport& InViewport
 	}
 }
 
-void FAGXStateCache::SetScissorRect(uint32 Index, bool const bEnable, mtlpp::ScissorRect const& Rect)
+void FAGXStateCache::SetScissorRect(uint32 Index, bool bEnable, MTLScissorRect const& Rect)
 {
 	check(Index < ML_MaxViewports);
 	if (!MTLScissorRectEqual(Scissor[Index], Rect))
@@ -1068,7 +1068,7 @@ void FAGXStateCache::SetScissorRect(uint32 Index, bool const bEnable, mtlpp::Sci
 	ActiveScissors = Index + 1;
 }
 
-void FAGXStateCache::SetViewports(const mtlpp::Viewport InViewport[], uint32 Count)
+void FAGXStateCache::SetViewports(MTLViewport const InViewport[], uint32 Count)
 {
 	check(Count >= 1 && Count < ML_MaxViewports);
 	
@@ -1883,7 +1883,7 @@ void FAGXStateCache::SetRenderState(FAGXCommandEncoder& CommandEncoder, FAGXComm
 		}
 		if (RasterBits & EAGXRenderFlagFrontFacingWinding)
 		{
-			CommandEncoder.SetFrontFacingWinding(mtlpp::Winding::CounterClockwise);
+			CommandEncoder.SetFrontFacingWinding(MTLWindingCounterClockwise);
 		}
 		if (RasterBits & EAGXRenderFlagCullMode)
 		{

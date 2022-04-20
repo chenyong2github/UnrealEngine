@@ -264,19 +264,19 @@ public:
 	 * @param Viewport The array of viewport dimensions to use.
 	 * @param NumActive The number of active viewport dimensions to use.
 	 */
-	void SetViewport(mtlpp::Viewport const Viewport[], uint32 NumActive);
+	void SetViewport(MTLViewport const Viewport[], uint32 NumActive);
 	
 	/*
 	 * The winding order of front-facing primitives.
 	 * @param FrontFacingWinding The front face winding.
 	 */
-	void SetFrontFacingWinding(mtlpp::Winding const FrontFacingWinding);
+	void SetFrontFacingWinding(MTLWinding const FrontFacingWinding);
 	
 	/*
 	 * Controls if primitives are culled when front facing, back facing, or not culled at all.
 	 * @param CullMode The cull mode.
 	 */
-	void SetCullMode(mtlpp::CullMode const CullMode);
+	void SetCullMode(MTLCullMode const CullMode);
 	
 	/*
 	 * Depth Bias.
@@ -291,7 +291,7 @@ public:
 	 * @param Rect The array of scissor rect dimensions.
 	 * @param NumActive The number of active scissor rect dimensions.
 	 */
-	void SetScissorRect(mtlpp::ScissorRect const Rect[], uint32 NumActive);
+	void SetScissorRect(MTLScissorRect const Rect[], uint32 NumActive);
 	
 	/*
 	 * Set how to rasterize triangle and triangle strip primitives.

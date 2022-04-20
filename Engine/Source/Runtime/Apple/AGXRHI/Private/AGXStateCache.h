@@ -45,15 +45,15 @@ public:
 	/** Reset cached state for reuse */
 	void Reset(void);
 
-	void SetScissorRect(bool const bEnable, mtlpp::ScissorRect const& Rect);
+	void SetScissorRect(bool bEnable, MTLScissorRect const& Rect);
 	void SetBlendFactor(FLinearColor const& InBlendFactor);
 	void SetStencilRef(uint32 const InStencilRef);
 	void SetComputeShader(FAGXComputeShader* InComputeShader);
 	bool SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets, FAGXQueryBuffer* QueryBuffer, bool const bRestart);
 	void InvalidateRenderTargets(void);
 	void SetRenderTargetsActive(bool const bActive);
-	void SetViewport(const mtlpp::Viewport& InViewport);
-	void SetViewports(const mtlpp::Viewport InViewport[], uint32 Count);
+	void SetViewport(MTLViewport const& InViewport);
+	void SetViewports(MTLViewport const InViewport[], uint32 Count);
 	void SetVertexStream(uint32 const Index, FAGXBuffer* Buffer, FAGXBufferData* Bytes, uint32 const Offset, uint32 const Length);
 	void SetGraphicsPipelineState(FAGXGraphicsPipelineState* State);
 	void BindUniformBuffer(EAGXShaderStages const Freq, uint32 const BufferIndex, FRHIUniformBuffer* BufferRHI);
@@ -129,7 +129,7 @@ public:
 	int32 GetNumRenderTargets() { return bHasValidColorTarget ? RenderPassInfo.GetNumColorRenderTargets() : -1; }
 	bool GetHasValidRenderTarget() const { return bHasValidRenderTarget; }
 	bool GetHasValidColorTarget() const { return bHasValidColorTarget; }
-	const mtlpp::Viewport& GetViewport(uint32 const Index) const { check(Index < ML_MaxViewports); return Viewport[Index]; }
+	MTLViewport const& GetViewport(uint32 const Index) const { check(Index < ML_MaxViewports); return Viewport[Index]; }
 	uint32 GetVertexBufferSize(uint32 const Index);
 	uint32 GetRenderTargetArraySize() const { return RenderTargetArraySize; }
 	const FRHIUniformBuffer** GetBoundUniformBuffers(EAGXShaderStages const Freq) { return (const FRHIUniformBuffer**)&BoundUniformBuffers[Freq][0]; }
@@ -175,8 +175,8 @@ private:
 	template <class ShaderType>
 	void SetResourcesFromTables(ShaderType Shader, uint32 ShaderStage);
 	
-	void SetViewport(uint32 Index, const mtlpp::Viewport& InViewport);
-	void SetScissorRect(uint32 Index, bool const bEnable, mtlpp::ScissorRect const& Rect);
+	void SetViewport(uint32 Index, MTLViewport const& InViewport);
+	void SetScissorRect(uint32 Index, bool bEnable, MTLScissorRect const& Rect);
 
 private:
 
@@ -274,8 +274,8 @@ private:
 	
 	uint32 RenderTargetArraySize;
 
-	mtlpp::Viewport Viewport[ML_MaxViewports];
-	mtlpp::ScissorRect Scissor[ML_MaxViewports];
+	MTLViewport Viewport[ML_MaxViewports];
+	MTLScissorRect Scissor[ML_MaxViewports];
 	
 	uint32 ActiveViewports;
 	uint32 ActiveScissors;

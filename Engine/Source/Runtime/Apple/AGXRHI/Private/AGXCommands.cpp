@@ -173,7 +173,7 @@ void FAGXRHICommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argumen
 void FAGXRHICommandContext::RHISetViewport(float MinX, float MinY,float MinZ, float MaxX, float MaxY,float MaxZ)
 {
 	@autoreleasepool {
-	mtlpp::Viewport Viewport;
+	MTLViewport Viewport;
 	Viewport.originX = MinX;
 	Viewport.originY = MinY;
 	Viewport.width = MaxX - MinX;
@@ -190,7 +190,7 @@ void FAGXRHICommandContext::RHISetStereoViewport(float LeftMinX, float RightMinX
 	if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesMultipleViewports))
 	{
 		@autoreleasepool {
-		mtlpp::Viewport Viewport[2];
+		MTLViewport Viewport[2];
 		
 		Viewport[0].originX = LeftMinX;
 		Viewport[0].originY = LeftMinY;
@@ -223,7 +223,7 @@ void FAGXRHICommandContext::RHISetMultipleViewports(uint32 Count, const FViewpor
 void FAGXRHICommandContext::RHISetScissorRect(bool bEnable,uint32 MinX,uint32 MinY,uint32 MaxX,uint32 MaxY)
 {
 	@autoreleasepool {
-	mtlpp::ScissorRect Scissor;
+	MTLScissorRect Scissor;
 	Scissor.x = MinX;
 	Scissor.y = MinY;
 	Scissor.width = MaxX - MinX;
@@ -232,7 +232,7 @@ void FAGXRHICommandContext::RHISetScissorRect(bool bEnable,uint32 MinX,uint32 Mi
 	// metal doesn't support 0 sized scissor rect
 	if (bEnable == false || Scissor.width == 0 || Scissor.height == 0)
 	{
-		mtlpp::Viewport const& Viewport = Context->GetCurrentState().GetViewport(0);
+		MTLViewport const& Viewport = Context->GetCurrentState().GetViewport(0);
 		CGSize FBSize = Context->GetCurrentState().GetFrameBufferSize();
 		
 		Scissor.x = Viewport.originX;

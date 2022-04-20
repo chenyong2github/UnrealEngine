@@ -1273,7 +1273,12 @@ bool FAGXContext::PrepareToDraw(uint32 PrimitiveType)
 		
 		if (bBindDepthStencilForUAVRaster)
 		{
-			mtlpp::ScissorRect Rect(0, 0, (NSUInteger)FBSize.width, (NSUInteger)FBSize.height);
+			MTLScissorRect Rect;
+			Rect.x = 0;
+			Rect.y = 0;
+			Rect.width = (NSUInteger)FBSize.width;
+			Rect.height = (NSUInteger)FBSize.height;
+
 			StateCache.SetScissorRect(false, Rect);
 		}
 		
