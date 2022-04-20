@@ -2615,10 +2615,15 @@ void FShaderCodeLibrary::InitForRuntime(EShaderPlatform ShaderPlatform)
 
 			// mount shader library from the plugins as they may also have global shaders
 			auto Plugins = IPluginManager::Get().GetEnabledPluginsWithContent();
-			ParallelFor(Plugins.Num(), [&](int32 Index)
+			// Note (FORT-469564): This should be a ParallelFor but that results in a deadlock for some users so for the time being we do it sequentially
+			// Explanation: There's a broad lock at the entrance of SCL that guards adding new libraries. Every plugin is trying to open a library now (to support VK bundles).
+			// Opening a library (new IoStore-based one) kicks off async work (even if we wait for it to complete right away, so essentially it's sync but done off - thread).
+			// What happens is when there are too many (more than cores) plugins each trying to take that lock, they take up all the worker threads.
+			// The original lock holder who tries to kick off the "async" work never sees it complete, because there's no worker thread to pick it up.
+			for (const TSharedRef<IPlugin>& Plugin : Plugins)
 			{
-				FShaderCodeLibraryPluginMountedCallback(*Plugins[Index]);
-			});
+				FShaderCodeLibraryPluginMountedCallback(*Plugin);
+			}
 		}
 		else
 		{
