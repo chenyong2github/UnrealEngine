@@ -12,6 +12,48 @@ class FAGXCommandQueue;
 class FAGXGraphicsPipelineState;
 struct FAGXCommandBufferFence;
 
+#if 0
+template<typename T>
+class TObjCWrapper : public FThreadSafeRefCountedObject
+{
+	using Pointer = T*;
+
+public:
+	UE_NONCOPYABLE(TObjCWrapper)
+
+	TObjCWrapper(Pointer InObject = nil)
+		: Impl([InObject retain])
+	{
+	}
+
+	~TObjCWrapper()
+	{
+		if (Impl)
+		{
+			[Impl release];
+			Impl = nil;
+		}
+	}
+
+	bool IsValid() const
+	{
+		return (Impl != nil);
+	}
+
+	Pointer AllocInit()
+	{
+		check(!IsValid());
+		Impl = [[T alloc] init];
+		return Impl;
+	}
+
+private:
+	Pointer Impl;
+};
+
+typedef TRefCountPtr<TObjCWrapper<MTLRenderPassDescriptor> > FMTLRenderPassDescriptor;
+#endif // 0
+
 /**
  * Enumeration for submission hints to avoid unclear bool values.
  */
@@ -122,10 +164,10 @@ public:
 	bool IsParallel(void) const;
 
 	/** @returns True if and only if there is valid render pass descriptor set on the encoder, otherwise false. */
-	bool IsRenderPassDescriptorValid(void) const;
+	bool IsRenderPassDescriptorValid() const;
 	
 	/** @returns The current render pass descriptor. */
-	mtlpp::RenderPassDescriptor const& GetRenderPassDescriptor(void) const;
+	MTLRenderPassDescriptor const* GetRenderPassDescriptor() const;
 	
 	/** @returns The active render command encoder or nil if there isn't one. */
 	id<MTLParallelRenderCommandEncoder> GetParallelRenderCommandEncoder() const;
@@ -148,13 +190,13 @@ public:
 #pragma mark - Public Command Encoder Mutators -
 
 	/**
- 	 * Begins encoding rendering commands into the current command buffer. No other encoder may be active & the mtlpp::RenderPassDescriptor must previously have been set.
+ 	 * Begins encoding rendering commands into the current command buffer. No other encoder may be active & the MTLRenderPassDescriptor must previously have been set.
 	 * @param NumChildren The number of child render-encoders to create. 
 	 */
 	void BeginParallelRenderCommandEncoding(uint32 NumChildren);
 
 	/**
- 	 * Begins encoding rendering commands into the current command buffer. No other encoder may be active & the mtlpp::RenderPassDescriptor must previously have been set.
+ 	 * Begins encoding rendering commands into the current command buffer. No other encoder may be active & the MTLRenderPassDescriptor must previously have been set.
 	 */
 	void BeginRenderCommandEncoding(void);
 	
@@ -201,15 +243,15 @@ public:
 	 * Set the render pass descriptor - no encoder may be active when this function is called.
 	 * @param RenderPass The render pass descriptor to set. May be nil.
 	 */
-	void SetRenderPassDescriptor(mtlpp::RenderPassDescriptor RenderPass);
+	void SetRenderPassDescriptor(MTLRenderPassDescriptor* InRenderPassDesc);
 	
 	/**
 	 * Set the render pass store actions, call after SetRenderPassDescriptor but before EndEncoding.
 	 * @param ColorStore The store actions for color targets.
-	 * @param DepthStore The store actions for the depth buffer - use mtlpp::StoreAction::Unknown if no depth-buffer bound.
-	 * @param StencilStore The store actions for the stencil buffer - use mtlpp::StoreAction::Unknown if no stencil-buffer bound.
+	 * @param DepthStore The store actions for the depth buffer - use MTLStoreActionUnknown if no depth-buffer bound.
+	 * @param StencilStore The store actions for the stencil buffer - use MTLStoreActionUnknown if no stencil-buffer bound.
 	 */
-	void SetRenderPassStoreActions(mtlpp::StoreAction const* const ColorStore, mtlpp::StoreAction const DepthStore, mtlpp::StoreAction const StencilStore);
+	void SetRenderPassStoreActions(MTLStoreAction const* ColorStore, MTLStoreAction DepthStore, MTLStoreAction StencilStore);
 	
 	/*
 	 * Sets the current render pipeline state object.
@@ -448,13 +490,13 @@ public:
     
 	FAGXBufferBindings ShaderBuffers[int(mtlpp::FunctionType::Kernel)+1];
 	
-	mtlpp::StoreAction ColorStoreActions[MaxSimultaneousRenderTargets];
-	mtlpp::StoreAction DepthStoreAction;
-	mtlpp::StoreAction StencilStoreAction;
+	MTLStoreAction ColorStoreActions[MaxSimultaneousRenderTargets];
+	MTLStoreAction DepthStoreAction;
+	MTLStoreAction StencilStoreAction;
 	
 	FAGXSubBufferRing RingBuffer;
 	
-	mtlpp::RenderPassDescriptor RenderPassDesc;
+	MTLRenderPassDescriptor* RenderPassDesc;
 	
 	mtlpp::CommandBuffer CommandBuffer;
 	id<MTLParallelRenderCommandEncoder> ParallelRenderCommandEncoder;

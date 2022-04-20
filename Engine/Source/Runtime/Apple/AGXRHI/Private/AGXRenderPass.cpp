@@ -124,11 +124,11 @@ void FAGXRenderPass::Submit(EAGXSubmitFlags Flags)
 	}
 }
 
-void FAGXRenderPass::BeginParallelRenderPass(mtlpp::RenderPassDescriptor RenderPass, uint32 NumParallelContextsInPass)
+void FAGXRenderPass::BeginParallelRenderPass(MTLRenderPassDescriptor* InRenderPassDesc, uint32 NumParallelContextsInPass)
 {
 	check(!bWithinRenderPass);
 	check(!RenderPassDesc);
-	check(RenderPass);
+	check(InRenderPassDesc);
 	check(CurrentEncoder.GetCommandBuffer());
 
 	if (!CurrentEncoder.GetParallelRenderCommandEncoder())
@@ -143,21 +143,21 @@ void FAGXRenderPass::BeginParallelRenderPass(mtlpp::RenderPassDescriptor RenderP
 			CurrentEncoder.EndEncoding();
 		}
 
-		CurrentEncoder.SetRenderPassDescriptor(RenderPass);
+		CurrentEncoder.SetRenderPassDescriptor(InRenderPassDesc);
 
 		CurrentEncoder.BeginParallelRenderCommandEncoding(NumParallelContextsInPass);
 
-		RenderPassDesc = RenderPass;
+		RenderPassDesc = InRenderPassDesc;
 
 		bWithinRenderPass = true;
 	}
 }
 
-void FAGXRenderPass::BeginRenderPass(mtlpp::RenderPassDescriptor RenderPass)
+void FAGXRenderPass::BeginRenderPass(MTLRenderPassDescriptor* InRenderPassDesc)
 {
 	check(!bWithinRenderPass);
 	check(!RenderPassDesc);
-	check(RenderPass);
+	check(InRenderPassDesc);
 	check(!CurrentEncoder.IsRenderCommandEncoderActive());
 	if (!CmdList.IsParallel() && !CmdList.IsImmediate() && !CurrentEncoder.GetCommandBuffer())
 	{
@@ -178,7 +178,7 @@ void FAGXRenderPass::BeginRenderPass(mtlpp::RenderPassDescriptor RenderPass)
 	State.SetStateDirty();
 	State.SetRenderTargetsActive(true);
 	
-	RenderPassDesc = RenderPass;
+	RenderPassDesc = InRenderPassDesc;
 	
 	CurrentEncoder.SetRenderPassDescriptor(RenderPassDesc);
 
@@ -194,78 +194,31 @@ void FAGXRenderPass::BeginRenderPass(mtlpp::RenderPassDescriptor RenderPass)
 	check(!PrologueEncoder.IsBlitCommandEncoderActive() && !PrologueEncoder.IsComputeCommandEncoderActive());
 }
 
-void FAGXRenderPass::RestartRenderPass(mtlpp::RenderPassDescriptor RenderPass)
+void FAGXRenderPass::RestartRenderPass(MTLRenderPassDescriptor* InRenderPassDesc)
 {
 	check(bWithinRenderPass);
 	check(RenderPassDesc);
 	check(CmdList.IsParallel() || CurrentEncoder.GetCommandBuffer());
 	
-	mtlpp::RenderPassDescriptor StartDesc;
-	if (RenderPass != nil)
+	MTLRenderPassDescriptor* StartDesc = nil;
+	if (InRenderPassDesc != nil)
 	{
 		// Just restart with the render pass we were given - the caller should have ensured that this is restartable
 		check(State.CanRestartRenderPass());
-		StartDesc = RenderPass;
+		StartDesc = InRenderPassDesc;
 	}
-	else if (State.PrepareToRestart(CurrentEncoder.IsRenderPassDescriptorValid() && (State.GetRenderPassDescriptor().GetPtr() == CurrentEncoder.GetRenderPassDescriptor().GetPtr())))
+	else if (State.PrepareToRestart(CurrentEncoder.IsRenderPassDescriptorValid() && (State.GetRenderPassDescriptor() == CurrentEncoder.GetRenderPassDescriptor())))
 	{
 		// Restart with the render pass we have in the state cache - the state cache says its safe
 		StartDesc = State.GetRenderPassDescriptor();
 	}
 	else
 	{
-		
-		METAL_FATAL_ERROR(TEXT("Failed to restart render pass with descriptor: %s"), *FString([RenderPassDesc.GetPtr() description]));
+		METAL_FATAL_ERROR(TEXT("Failed to restart render pass with descriptor: %s"), *FString([RenderPassDesc description]));
 	}
 	check(StartDesc);
 	
 	RenderPassDesc = StartDesc;
-	
-#if METAL_DEBUG_OPTIONS
-	if ((GetAGXDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation))
-	{
-		bool bAllLoadActionsOK = true;
-		ns::Array<mtlpp::RenderPassColorAttachmentDescriptor> Attachments = RenderPassDesc.GetColorAttachments();
-		for(uint i = 0; i < 8; i++)
-		{
-			mtlpp::RenderPassColorAttachmentDescriptor Desc = Attachments[i];
-			if(Desc && Desc.GetTexture())
-			{
-				bAllLoadActionsOK &= (Desc.GetLoadAction() != mtlpp::LoadAction::Clear);
-			}
-		}
-		if(RenderPassDesc.GetDepthAttachment() && RenderPassDesc.GetDepthAttachment().GetTexture())
-		{
-			bAllLoadActionsOK &= (RenderPassDesc.GetDepthAttachment().GetLoadAction() != mtlpp::LoadAction::Clear);
-		}
-		if(RenderPassDesc.GetStencilAttachment() && RenderPassDesc.GetStencilAttachment().GetTexture())
-		{
-			bAllLoadActionsOK &= (RenderPassDesc.GetStencilAttachment().GetLoadAction() != mtlpp::LoadAction::Clear);
-		}
-		
-		if (!bAllLoadActionsOK)
-		{
-			UE_LOG(LogAGX, Warning, TEXT("Tried to restart render encoding with a clear operation - this would erroneously re-clear any existing draw calls: %s"), *FString([RenderPassDesc.GetPtr() description]));
-			
-			for(uint i = 0; i< 8; i++)
-			{
-				mtlpp::RenderPassColorAttachmentDescriptor Desc = Attachments[i];
-				if(Desc && Desc.GetTexture())
-				{
-					Desc.SetLoadAction(mtlpp::LoadAction::Load);
-				}
-			}
-			if(RenderPassDesc.GetDepthAttachment() && RenderPassDesc.GetDepthAttachment().GetTexture())
-			{
-				RenderPassDesc.GetDepthAttachment().SetLoadAction(mtlpp::LoadAction::Load);
-			}
-			if(RenderPassDesc.GetStencilAttachment() && RenderPassDesc.GetStencilAttachment().GetTexture())
-			{
-				RenderPassDesc.GetStencilAttachment().SetLoadAction(mtlpp::LoadAction::Load);
-			}
-		}
-	}
-#endif
 	
 	// EndEncoding should provide the encoder fence...
 	if (CurrentEncoder.IsBlitCommandEncoderActive() || CurrentEncoder.IsComputeCommandEncoderActive() || CurrentEncoder.IsRenderCommandEncoderActive())

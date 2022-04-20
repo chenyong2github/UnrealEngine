@@ -25,11 +25,11 @@ public:
 	
     void Begin(bool const bParallelBegin = false);
 	
-    void BeginParallelRenderPass(mtlpp::RenderPassDescriptor RenderPass, uint32 NumParallelContextsInPass);
+    void BeginParallelRenderPass(MTLRenderPassDescriptor* InRenderPassDesc, uint32 NumParallelContextsInPass);
 
-    void BeginRenderPass(mtlpp::RenderPassDescriptor RenderPass);
+    void BeginRenderPass(MTLRenderPassDescriptor* InRenderPassDesc);
 
-    void RestartRenderPass(mtlpp::RenderPassDescriptor RenderPass);
+    void RestartRenderPass(MTLRenderPassDescriptor* InRenderPassDesc);
     
     void DrawPrimitive(uint32 PrimitiveType, uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances);
     
@@ -187,7 +187,7 @@ private:
 	// Disjoint ranges *are* permitted!
 	TMap<id<MTLBuffer>, TArray<NSRange>> OutstandingBufferUploads;
 
-    mtlpp::RenderPassDescriptor RenderPassDesc;
+    MTLRenderPassDescriptor* RenderPassDesc;
     
 	mtlpp::DispatchType ComputeDispatchType;
     uint32 NumOutstandingOps;

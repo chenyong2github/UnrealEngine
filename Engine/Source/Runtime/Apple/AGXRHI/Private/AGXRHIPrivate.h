@@ -203,7 +203,7 @@ void AGXSafeReleaseMetalTexture(FAGXTexture& Object);
 void AGXSafeReleaseMetalBuffer(FAGXBuffer& Buffer);
 
 // Safely release a render pass descriptor so that it may be reused.
-void AGXSafeReleaseMetalRenderPassDescriptor(mtlpp::RenderPassDescriptor& Desc);
+void AGXSafeReleaseMetalRenderPassDescriptor(MTLRenderPassDescriptor* Desc);
 
 // Access the underlying surface object from any kind of texture
 FAGXSurface* AGXGetMetalSurfaceFromRHITexture(FRHITexture* Texture);
@@ -239,14 +239,14 @@ FORCEINLINE int32 GetMetalCubeFace(ECubeFace Face)
 	}
 }
 
-FORCEINLINE mtlpp::LoadAction GetMetalRTLoadAction(ERenderTargetLoadAction LoadAction)
+FORCEINLINE MTLLoadAction GetMetalRTLoadAction(ERenderTargetLoadAction LoadAction)
 {
 	switch(LoadAction)
 	{
-		case ERenderTargetLoadAction::ENoAction: return mtlpp::LoadAction::DontCare;
-		case ERenderTargetLoadAction::ELoad: return mtlpp::LoadAction::Load;
-		case ERenderTargetLoadAction::EClear: return mtlpp::LoadAction::Clear;
-		default: return mtlpp::LoadAction::DontCare;
+		case ERenderTargetLoadAction::ENoAction: return MTLLoadActionDontCare;
+		case ERenderTargetLoadAction::ELoad: return MTLLoadActionLoad;
+		case ERenderTargetLoadAction::EClear: return MTLLoadActionClear;
+		default: return MTLLoadActionDontCare;
 	}
 }
 

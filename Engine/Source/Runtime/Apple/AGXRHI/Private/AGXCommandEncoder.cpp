@@ -51,10 +51,10 @@ FAGXCommandEncoder::FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEnco
 	
 	for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 	{
-		ColorStoreActions[i] = mtlpp::StoreAction::Unknown;
+		ColorStoreActions[i] = MTLStoreActionUnknown;
 	}
-	DepthStoreAction = mtlpp::StoreAction::Unknown;
-	StencilStoreAction = mtlpp::StoreAction::Unknown;
+	DepthStoreAction = MTLStoreActionUnknown;
+	StencilStoreAction = MTLStoreActionUnknown;
 }
 
 FAGXCommandEncoder::~FAGXCommandEncoder(void)
@@ -109,10 +109,10 @@ void FAGXCommandEncoder::Reset(void)
 	{
 		for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 		{
-			ColorStoreActions[i] = mtlpp::StoreAction::Unknown;
+			ColorStoreActions[i] = MTLStoreActionUnknown;
 		}
-		DepthStoreAction = mtlpp::StoreAction::Unknown;
-		StencilStoreAction = mtlpp::StoreAction::Unknown;
+		DepthStoreAction = MTLStoreActionUnknown;
+		StencilStoreAction = MTLStoreActionUnknown;
 	}
 	
 	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
@@ -301,12 +301,12 @@ bool FAGXCommandEncoder::IsParallel(void) const
 	return CommandList.IsParallel() && (Type == EAGXCommandEncoderCurrent);
 }
 
-bool FAGXCommandEncoder::IsRenderPassDescriptorValid(void) const
+bool FAGXCommandEncoder::IsRenderPassDescriptorValid() const
 {
 	return (RenderPassDesc != nil);
 }
 
-mtlpp::RenderPassDescriptor const& FAGXCommandEncoder::GetRenderPassDescriptor(void) const
+MTLRenderPassDescriptor const* FAGXCommandEncoder::GetRenderPassDescriptor() const
 {
 	return RenderPassDesc;
 }
@@ -349,7 +349,7 @@ void FAGXCommandEncoder::BeginParallelRenderCommandEncoding(uint32 NumChildren)
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
 	
-	ParallelRenderCommandEncoder = [[CommandBuffer.GetPtr() parallelRenderCommandEncoderWithDescriptor:RenderPassDesc.GetPtr()] retain];
+	ParallelRenderCommandEncoder = [[CommandBuffer.GetPtr() parallelRenderCommandEncoderWithDescriptor:RenderPassDesc] retain];
 	
 	EncoderNum++;
 	
@@ -384,7 +384,7 @@ void FAGXCommandEncoder::BeginRenderCommandEncoding(void)
 	
 	if (!CommandList.IsParallel() || Type == EAGXCommandEncoderPrologue)
 	{
-		RenderCommandEncoder = [[CommandBuffer.GetPtr() renderCommandEncoderWithDescriptor:RenderPassDesc.GetPtr()] retain];
+		RenderCommandEncoder = [[CommandBuffer.GetPtr() renderCommandEncoderWithDescriptor:RenderPassDesc] retain];
 		EncoderNum++;	
 	}
 	else
@@ -479,27 +479,32 @@ void FAGXCommandEncoder::EndEncoding(void)
 				{
 					check(RenderPassDesc);
 					
-					ns::Array<mtlpp::RenderPassColorAttachmentDescriptor> ColorAttachments = RenderPassDesc.GetColorAttachments();
+					MTLRenderPassColorAttachmentDescriptorArray* ColorAttachments = [RenderPassDesc colorAttachments];
 					for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 					{
-						if (ColorAttachments[i].GetTexture() && ColorAttachments[i].GetStoreAction() == mtlpp::StoreAction::Unknown)
+						MTLRenderPassColorAttachmentDescriptor* ColorAttachment = [ColorAttachments objectAtIndexedSubscript:i];
+						if ([ColorAttachment texture] && ([ColorAttachment storeAction] == MTLStoreActionUnknown))
 						{
-							mtlpp::StoreAction Action = ColorStoreActions[i];
-							check(Action != mtlpp::StoreAction::Unknown);
-							[RenderCommandEncoder setColorStoreAction:(MTLStoreAction)Action atIndex:i];
+							MTLStoreAction Action = ColorStoreActions[i];
+							check(Action != MTLStoreActionUnknown);
+							[RenderCommandEncoder setColorStoreAction:Action atIndex:i];
 						}
 					}
-					if (RenderPassDesc.GetDepthAttachment().GetTexture() && RenderPassDesc.GetDepthAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
+
+					MTLRenderPassDepthAttachmentDescriptor* DepthAttachment = [RenderPassDesc depthAttachment];
+					if ([DepthAttachment texture] && ([DepthAttachment storeAction] == MTLStoreActionUnknown))
 					{
-						mtlpp::StoreAction Action = DepthStoreAction;
-						check(Action != mtlpp::StoreAction::Unknown);
-						[RenderCommandEncoder setDepthStoreAction:(MTLStoreAction)Action];
+						MTLStoreAction Action = DepthStoreAction;
+						check(Action != MTLStoreActionUnknown);
+						[RenderCommandEncoder setDepthStoreAction:Action];
 					}
-					if (RenderPassDesc.GetStencilAttachment().GetTexture() && RenderPassDesc.GetStencilAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
+
+					MTLRenderPassStencilAttachmentDescriptor* StencilAttachment = [RenderPassDesc stencilAttachment];
+					if ([StencilAttachment texture] && ([StencilAttachment storeAction] == MTLStoreActionUnknown))
 					{
-						mtlpp::StoreAction Action = StencilStoreAction;
-						check(Action != mtlpp::StoreAction::Unknown);
-						[RenderCommandEncoder setStencilStoreAction:(MTLStoreAction)Action];
+						MTLStoreAction Action = StencilStoreAction;
+						check(Action != MTLStoreActionUnknown);
+						[RenderCommandEncoder setStencilStoreAction:Action];
 					}
 				}
 				
@@ -547,27 +552,32 @@ void FAGXCommandEncoder::EndEncoding(void)
 				{
 					check(RenderPassDesc);
 					
-					ns::Array<mtlpp::RenderPassColorAttachmentDescriptor> ColorAttachments = RenderPassDesc.GetColorAttachments();
+					MTLRenderPassColorAttachmentDescriptorArray* ColorAttachments = [RenderPassDesc colorAttachments];
 					for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 					{
-						if (ColorAttachments[i].GetTexture() && ColorAttachments[i].GetStoreAction() == mtlpp::StoreAction::Unknown)
+						MTLRenderPassColorAttachmentDescriptor* ColorAttachment = [ColorAttachments objectAtIndexedSubscript:i];
+						if ([ColorAttachment texture] && ([ColorAttachment storeAction] == MTLStoreActionUnknown))
 						{
-							mtlpp::StoreAction Action = ColorStoreActions[i];
-							check(Action != mtlpp::StoreAction::Unknown);
-							[ParallelRenderCommandEncoder setColorStoreAction:(MTLStoreAction)Action atIndex:i];
+							MTLStoreAction Action = ColorStoreActions[i];
+							check(Action != MTLStoreActionUnknown);
+							[ParallelRenderCommandEncoder setColorStoreAction:Action atIndex:i];
 						}
 					}
-					if (RenderPassDesc.GetDepthAttachment().GetTexture() && RenderPassDesc.GetDepthAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
+
+					MTLRenderPassDepthAttachmentDescriptor* DepthAttachment = [RenderPassDesc depthAttachment];
+					if ([DepthAttachment texture] && ([DepthAttachment storeAction] == MTLStoreActionUnknown))
 					{
-						mtlpp::StoreAction Action = DepthStoreAction;
-						check(Action != mtlpp::StoreAction::Unknown);
-						[ParallelRenderCommandEncoder setDepthStoreAction:(MTLStoreAction)Action];
+						MTLStoreAction Action = DepthStoreAction;
+						check(Action != MTLStoreActionUnknown);
+						[ParallelRenderCommandEncoder setDepthStoreAction:Action];
 					}
-					if (RenderPassDesc.GetStencilAttachment().GetTexture() && RenderPassDesc.GetStencilAttachment().GetStoreAction() == mtlpp::StoreAction::Unknown)
+
+					MTLRenderPassStencilAttachmentDescriptor* StencilAttachment = [RenderPassDesc stencilAttachment];
+					if ([StencilAttachment texture] && ([StencilAttachment storeAction] == MTLStoreActionUnknown))
 					{
-						mtlpp::StoreAction Action = StencilStoreAction;
-						check(Action != mtlpp::StoreAction::Unknown);
-						[ParallelRenderCommandEncoder setStencilStoreAction:(MTLStoreAction)Action];
+						MTLStoreAction Action = StencilStoreAction;
+						check(Action != MTLStoreActionUnknown);
+						[ParallelRenderCommandEncoder setStencilStoreAction:Action];
 					}
 				}
 
@@ -709,27 +719,27 @@ FAGXCommandBufferStats* FAGXCommandEncoder::GetCommandBufferStats(void)
 
 #pragma mark - Public Render State Mutators -
 
-void FAGXCommandEncoder::SetRenderPassDescriptor(mtlpp::RenderPassDescriptor RenderPass)
+void FAGXCommandEncoder::SetRenderPassDescriptor(MTLRenderPassDescriptor* InRenderPassDesc)
 {
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
-	check(RenderPass);
+	check(InRenderPassDesc);
 	
-	if(RenderPass.GetPtr() != RenderPassDesc.GetPtr())
+	if (InRenderPassDesc != RenderPassDesc)
 	{
 		AGXSafeReleaseMetalRenderPassDescriptor(RenderPassDesc);
-		RenderPassDesc = RenderPass;
+		RenderPassDesc = InRenderPassDesc;
 		{
 			for (uint32 i = 0; i < MaxSimultaneousRenderTargets; i++)
 			{
-				ColorStoreActions[i] = mtlpp::StoreAction::Unknown;
+				ColorStoreActions[i] = MTLStoreActionUnknown;
 			}
-			DepthStoreAction = mtlpp::StoreAction::Unknown;
-			StencilStoreAction = mtlpp::StoreAction::Unknown;
+			DepthStoreAction = MTLStoreActionUnknown;
+			StencilStoreAction = MTLStoreActionUnknown;
 		}
 	}
 	check(RenderPassDesc);
 	
-	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
+	for (uint32 Frequency = 0; Frequency < uint32(MTLFunctionTypeKernel)+1; Frequency++)
 	{
 		for (uint32 i = 0; i < ML_MaxBuffers; i++)
 		{
@@ -743,7 +753,7 @@ void FAGXCommandEncoder::SetRenderPassDescriptor(mtlpp::RenderPassDescriptor Ren
 	}
 }
 
-void FAGXCommandEncoder::SetRenderPassStoreActions(mtlpp::StoreAction const* const ColorStore, mtlpp::StoreAction const DepthStore, mtlpp::StoreAction const StencilStore)
+void FAGXCommandEncoder::SetRenderPassStoreActions(MTLStoreAction const* ColorStore, MTLStoreAction DepthStore, MTLStoreAction StencilStore)
 {
 	check(RenderPassDesc);
 	{
@@ -866,7 +876,7 @@ void FAGXCommandEncoder::SetVisibilityResultMode(mtlpp::VisibilityResultMode con
 {
     check (RenderCommandEncoder);
 	{
-		check(Mode == mtlpp::VisibilityResultMode::Disabled || RenderPassDesc.GetVisibilityResultBuffer());
+		check(Mode == mtlpp::VisibilityResultMode::Disabled || [RenderPassDesc visibilityResultBuffer]);
 		[RenderCommandEncoder setVisibilityResultMode:(MTLVisibilityResultMode)Mode offset:Offset];
 	}
 }

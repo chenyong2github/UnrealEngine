@@ -139,7 +139,7 @@ public:
 	bool NeedsToSetRenderTarget(const FRHIRenderPassInfo& RenderPassInfo);
 	bool HasValidDepthStencilSurface() const { return IsValidRef(DepthStencilSurface); }
     bool CanRestartRenderPass() const { return bCanRestartRenderPass; }
-	mtlpp::RenderPassDescriptor GetRenderPassDescriptor(void) const { return RenderPassDesc; }
+	MTLRenderPassDescriptor* GetRenderPassDescriptor(void) const { return RenderPassDesc; }
 	uint32 GetSampleCount(void) const { return SampleCount; }
     bool IsLinearBuffer(EAGXShaderStages ShaderStage, uint32 BindIndex);
 	FAGXShaderPipeline* GetPipelineState() const;
@@ -254,9 +254,9 @@ private:
 	FAGXTextureBindings ShaderTextures[EAGXShaderStages::Num];
 	FAGXSamplerBindings ShaderSamplers[EAGXShaderStages::Num];
 	
-	mtlpp::StoreAction ColorStore[MaxSimultaneousRenderTargets];
-	mtlpp::StoreAction DepthStore;
-	mtlpp::StoreAction StencilStore;
+	MTLStoreAction ColorStore[MaxSimultaneousRenderTargets];
+	MTLStoreAction DepthStore;
+	MTLStoreAction StencilStore;
 
 	FAGXQueryBuffer* VisibilityResults;
 	mtlpp::VisibilityResultMode VisibilityMode;
@@ -287,7 +287,7 @@ private:
 	FTextureRHIRef DepthStencilResolve;
 	/** A fallback depth-stencil surface for draw calls that write to depth without a depth-stencil surface bound. */
 	FTexture2DRHIRef FallbackDepthStencilSurface;
-	mtlpp::RenderPassDescriptor RenderPassDesc;
+	MTLRenderPassDescriptor* RenderPassDesc;
 	uint32 RasterBits;
     uint8 PipelineBits;
 	bool bIsRenderTargetActive;
