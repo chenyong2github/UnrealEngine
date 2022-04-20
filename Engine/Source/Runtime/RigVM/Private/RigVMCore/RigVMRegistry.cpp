@@ -118,7 +118,7 @@ const TArray<FRigVMTemplate>& FRigVMRegistry::GetTemplates() const
 	return Templates;
 }
 
-const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName& InName, const TArray<FRigVMTemplateArgument>& InArguments)
+const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName& InName, const TArray<FRigVMTemplateArgument>& InArguments, bool bAllowExecuteContext)
 {
 	FRigVMTemplate Template(InName, InArguments, INDEX_NONE);
 	if(const FRigVMTemplate* ExistingTemplate = FindTemplate(Template.GetNotation()))
@@ -142,7 +142,7 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 	{
 		if(Argument.Types[0].IsWildCard())
 		{
-			static TArray<FRigVMTemplateArgument::FType> AllTypes, AllArrayTypes;
+			static TArray<FRigVMTemplateArgument::FType> AllTypes, AllArrayTypes, ExecuteContextTypes;
 			if(AllTypes.IsEmpty())
 			{
 				AllTypes.Add(FRigVMTemplateArgument::FType(RigVMTypeUtils::BoolType));
@@ -163,17 +163,17 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 
 				struct FTypeTraverser
 				{
-					static EObjectFlags DisallowedFlags()
+					EObjectFlags DisallowedFlags()
 					{
 						return RF_BeginDestroyed | RF_FinishDestroyed;
 					}
 
-					static EObjectFlags NeededFlags()
+					EObjectFlags NeededFlags()
 					{
 						return RF_Public;
 					}
 					
-					static bool IsAllowedType(const FProperty* InProperty)
+					bool IsAllowedType(const FProperty* InProperty)
 					{
 						if(!InProperty->HasAnyPropertyFlags(
 							CPF_BlueprintVisible |
@@ -225,18 +225,14 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 						return false;
 					}
 
-					static bool IsAllowedType(const UEnum* InEnum)
+					bool IsAllowedType(const UEnum* InEnum)
 					{
 						return !InEnum->HasAnyFlags(DisallowedFlags()) && InEnum->HasAllFlags(NeededFlags());
 					}
 
-					static bool IsAllowedType(const UStruct* InStruct)
+					bool IsAllowedType(const UStruct* InStruct)
 					{
 						if(InStruct->HasAnyFlags(DisallowedFlags()) || !InStruct->HasAllFlags(NeededFlags()))
-						{
-							return false;
-						}
-						if(InStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 						{
 							return false;
 						}
@@ -254,7 +250,7 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 						return true;
 					}
 
-					static bool IsAllowedType(const UClass* InClass)
+					bool IsAllowedType(const UClass* InClass)
 					{
 						if(InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_Abstract))
 						{
@@ -267,24 +263,34 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 					}
 				};
 
+				FTypeTraverser Traverser;
+
 				// add all structs
 				for (TObjectIterator<UScriptStruct> ScriptIt; ScriptIt; ++ScriptIt)
 				{
 					UScriptStruct* ScriptStruct = *ScriptIt;
-					if(!FTypeTraverser::IsAllowedType(ScriptStruct))
+					if(!Traverser.IsAllowedType(ScriptStruct))
 					{
 						continue;
 					}
 					const FString CPPType = ScriptStruct->GetStructCPPName();
-					AllTypes.Add(FRigVMTemplateArgument::FType(CPPType, ScriptStruct));
-					AllArrayTypes.Add(FRigVMTemplateArgument::FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), ScriptStruct));
+
+					if(ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+					{
+						ExecuteContextTypes.Add(FRigVMTemplateArgument::FType(CPPType, ScriptStruct));
+					}
+					else
+					{
+						AllTypes.Add(FRigVMTemplateArgument::FType(CPPType, ScriptStruct));
+						AllArrayTypes.Add(FRigVMTemplateArgument::FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), ScriptStruct));
+					}
 				}
 
 				// add all enums
 				for (TObjectIterator<UEnum> EnumIt; EnumIt; ++EnumIt)
 				{
 					UEnum* Enum = (*EnumIt);
-					if(!FTypeTraverser::IsAllowedType(Enum))
+					if(!Traverser.IsAllowedType(Enum))
 					{
 						continue;
 					}
@@ -297,7 +303,7 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 				for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 				{
 					UClass* Class = *ClassIt;
-					if(!FTypeTraverser::IsAllowedType(Class))
+					if(!Traverser.IsAllowedType(Class))
 					{
 						continue;
 					}
@@ -308,7 +314,19 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 				}
 			}
 
-			Argument.Types = Argument.Types[0].IsArray() ? AllArrayTypes : AllTypes;
+			if(Argument.Types[0].IsArray())
+			{
+				Argument.Types = AllArrayTypes;
+			}
+			else
+			{
+				Argument.Types = AllTypes;
+				if(bAllowExecuteContext)
+				{
+					Argument.Types.Append(ExecuteContextTypes);
+				}
+			}
+			
 			Argument.bSingleton = false;
 			NumPermutations = Argument.Types.Num(); 
 		}

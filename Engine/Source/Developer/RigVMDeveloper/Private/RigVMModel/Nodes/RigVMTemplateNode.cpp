@@ -72,9 +72,22 @@ FText URigVMTemplateNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 		{
 			if (const FRigVMTemplateArgument* Arg = Template->FindArgument(RootPin->GetFName()))
 			{
+				FString Tooltip;
+
 				const TArray<int32> PermutationIndices = GetResolvedPermutationIndices();
-				const FString SupportedTypesJoined = FString::Join(Arg->GetSupportedTypeStrings(PermutationIndices), TEXT("\n"));
-				FString Tooltip = TEXT("Supported Types:\n\n") + SupportedTypesJoined;
+				if(PermutationIndices.Num() == GetTemplate()->NumPermutations())
+				{
+					if(Arg->GetTypes().Num() > 100)
+					{
+						Tooltip = TEXT("Supports any type.");
+					}
+				}
+				
+				if(Tooltip.IsEmpty())
+				{
+					const FString SupportedTypesJoined = FString::Join(Arg->GetSupportedTypeStrings(PermutationIndices), TEXT("\n"));
+					Tooltip = TEXT("Supported Types:\n\n") + SupportedTypesJoined;
+				}
 
 				if(!SuperToolTip.IsEmpty())
 				{
@@ -315,14 +328,16 @@ FString URigVMTemplateNode::GetInitialDefaultValueForPin(const FName& InRootPinN
 
 	for(const int32 PermutationIndex : PermutationIndices)
 	{
-		const FRigVMFunction* Permutation = GetTemplate()->GetPermutation(PermutationIndex);
-		check(Permutation);
+		FString NewDefaultValue;
+		
+		if(const FRigVMFunction* Permutation = GetTemplate()->GetPermutation(PermutationIndex))
+		{
+			const TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Permutation->Struct));
+			const FRigVMStruct* DefaultStruct = (const FRigVMStruct*)StructOnScope->GetStructMemory();
 
-		const TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Permutation->Struct));
-		const FRigVMStruct* DefaultStruct = (const FRigVMStruct*)StructOnScope->GetStructMemory();
-
-		const FString NewDefaultValue = DefaultStruct->ExportToFullyQualifiedText(
-			Cast<UScriptStruct>(StructOnScope->GetStruct()), InRootPinName);
+			NewDefaultValue = DefaultStruct->ExportToFullyQualifiedText(
+				Cast<UScriptStruct>(StructOnScope->GetStruct()), InRootPinName);
+		}
 
 		if(!NewDefaultValue.IsEmpty())
 		{

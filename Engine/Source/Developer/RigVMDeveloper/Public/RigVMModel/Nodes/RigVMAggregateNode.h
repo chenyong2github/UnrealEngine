@@ -42,7 +42,7 @@ public:
 
 private:
 
-	void InvalidateCache();
+	virtual void InvalidateCache() override;
 
 	mutable URigVMNode* FirstInnerNodeCache;
 	mutable URigVMNode* LastInnerNodeCache;

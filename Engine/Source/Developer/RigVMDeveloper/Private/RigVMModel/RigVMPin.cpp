@@ -1673,11 +1673,11 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 					return false;
 				};
 				
-				if(IsPinValidForTypeChange(InSourcePin, false, InUserLinkDirection) && !InTargetPin->IsExecuteContext())
+				if(IsPinValidForTypeChange(InSourcePin, false, InUserLinkDirection))
 				{
 					return TemplateNodeSupportsType(InSourcePin, InTargetPin->GetCPPType(), OutFailureReason);
 				}
-				else if(IsPinValidForTypeChange(InTargetPin, true, InUserLinkDirection) && !InSourcePin->IsExecuteContext())
+				else if(IsPinValidForTypeChange(InTargetPin, true, InUserLinkDirection))
 				{
 					return TemplateNodeSupportsType(InTargetPin, InSourcePin->GetCPPType(), OutFailureReason);
 				}

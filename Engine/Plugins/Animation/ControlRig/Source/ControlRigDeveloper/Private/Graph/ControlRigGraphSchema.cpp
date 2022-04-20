@@ -568,6 +568,21 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 				UserLinkDirection = ERigVMPinDirection::Input;
 			}
 
+			const bool bPinAIsWildCard = PinA->PinType.PinSubCategoryObject == RigVMTypeUtils::GetWildCardCPPTypeObject();
+			const bool bPinBIsWildCard = PinB->PinType.PinSubCategoryObject == RigVMTypeUtils::GetWildCardCPPTypeObject();
+			if(bPinAIsWildCard != bPinBIsWildCard)
+			{
+				// switch the user link direction if only one of the pins is a wildcard 
+				if(UserLinkDirection == ERigVMPinDirection::Input && bPinBIsWildCard)
+				{
+					UserLinkDirection = ERigVMPinDirection::Output;
+				}
+				else if(UserLinkDirection == ERigVMPinDirection::Output && bPinAIsWildCard)
+				{
+					UserLinkDirection = ERigVMPinDirection::Input;
+				}
+			}
+
 #if WITH_EDITOR
 
 			// check if we are trying to connect a loop iteration pin to a return
@@ -697,6 +712,19 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 		{
 			Swap(PinA, PinB);
 			UserLinkDirection = ERigVMPinDirection::Input;
+		}
+
+		if(PinA->IsWildCard() != PinB->IsWildCard())
+		{
+			// switch the user link direction if only one of the pins is a wildcard 
+			if(UserLinkDirection == ERigVMPinDirection::Input && PinB->IsWildCard())
+			{
+				UserLinkDirection = ERigVMPinDirection::Output;
+			}
+			else if(UserLinkDirection == ERigVMPinDirection::Output && PinA->IsWildCard())
+			{
+				UserLinkDirection = ERigVMPinDirection::Input;
+			}
 		}
 
 		const FRigVMByteCode* ByteCode = RigNodeA->GetController()->GetCurrentByteCode();

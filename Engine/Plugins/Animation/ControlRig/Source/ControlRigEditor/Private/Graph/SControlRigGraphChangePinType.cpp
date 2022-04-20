@@ -176,7 +176,16 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 			return Info;
 		}
 
+		static FArgumentInfo Make(const FRigVMTemplateArgument::FType& InType)
+		{
+			FArgumentInfo Info;
+			Info.Property = nullptr;
+			Info.Type = InType;
+			return Info;
+		}
+
 		const FProperty* Property;
+		FRigVMTemplateArgument::FType Type;
 	};
 
 	typedef TPair<FRigVMTemplateArgument::FType, FArgumentInfo> FTypePair;
@@ -219,13 +228,20 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 						{
 							continue;
 						}
-						
-						if(UScriptStruct* FunctionStruct = Template->GetPermutation(PermutationIndex)->Struct)
+
+						if(const FRigVMFunction* Permutation = Template->GetPermutation(PermutationIndex))
 						{
-							if(const FProperty* Property = FunctionStruct->FindPropertyByName(ArgumentName))
+							if(UScriptStruct* FunctionStruct = Permutation->Struct)
 							{
-								Types.Add(ArgumentType, FArgumentInfo::Make(Property));
+								if(const FProperty* Property = FunctionStruct->FindPropertyByName(ArgumentName))
+								{
+									Types.Add(ArgumentType, FArgumentInfo::Make(Property));
+								}
 							}
+						}
+						else
+						{
+							Types.Add(ArgumentType, FArgumentInfo::Make(ArgumentType));
 						}
 					}
 				}
@@ -280,8 +296,15 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 		for(int32 TypeIndex=0; TypeIndex < SortedTypes.Num(); TypeIndex++)
 		{
 			const FRigVMTemplateArgument::FType& Type = SortedTypes[TypeIndex].Key;
-			const FProperty* Property = SortedTypes[TypeIndex].Value.Property;
 			const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(Type.CPPType, Type.CPPTypeObject);
+
+			if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
+			{
+				if(ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+				{
+					continue;
+				}
+			}
 
 			MenuBuilder.AddMenuEntry(
 				FUIAction(FExecuteAction::CreateSP(this, &SControlRigChangePinType::HandlePinTypeChanged, Type)),

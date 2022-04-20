@@ -317,6 +317,10 @@ FName FRigVMTemplate::GetName() const
 	{
 		return *Left;
 	}
+	if (GetNotation().ToString().Split(TEXT("("), &Left, nullptr))
+	{
+		return *Left;
+	}
 	return NAME_None;
 }
 
@@ -360,6 +364,11 @@ FLinearColor FRigVMTemplate::GetColor(const TArray<int32>& InPermutationIndices)
 		FString NodeColorMetadata;
 
 		const FRigVMFunction* ResolvedFunction = GetPermutation(InPermutationIndex);
+		if(ResolvedFunction == nullptr)
+		{
+			return false;
+		}
+
 		ResolvedFunction->Struct->GetStringMetaDataHierarchical(NodeColorName, &NodeColorMetadata);
 		if (!NodeColorMetadata.IsEmpty())
 		{
@@ -411,6 +420,11 @@ FText FRigVMTemplate::GetTooltipText(const TArray<int32>& InPermutationIndices) 
 	auto VisitPermutation = [&ResolvedTooltipText, this](int32 InPermutationIndex) -> bool
 	{
 		const FRigVMFunction* ResolvedFunction = GetPermutation(InPermutationIndex);
+		if(ResolvedFunction == nullptr)
+		{
+			return false;
+		}
+		
 		const FText TooltipText = ResolvedFunction->Struct->GetToolTipText();
 		
 		if (!ResolvedTooltipText.IsEmpty())
@@ -461,6 +475,11 @@ FText FRigVMTemplate::GetDisplayNameForArgument(const FName& InArgumentName, con
 		auto VisitPermutation = [InArgumentName, &ResolvedDisplayName, this](int32 InPermutationIndex) -> bool
 		{
 			const FRigVMFunction* ResolvedFunction = GetPermutation(InPermutationIndex);
+			if(ResolvedFunction == nullptr)
+			{
+				return false;
+			}
+			
 			if(const FProperty* Property = ResolvedFunction->Struct->FindPropertyByName(InArgumentName))
 			{
 				const FText DisplayName = Property->GetDisplayNameText();

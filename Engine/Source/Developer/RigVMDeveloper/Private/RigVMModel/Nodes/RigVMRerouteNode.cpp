@@ -3,6 +3,7 @@
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
 
 const FString URigVMRerouteNode::RerouteName = TEXT("Reroute");
+const FString URigVMRerouteNode::RerouteArrayName = TEXT("RerouteArray");
 const FString URigVMRerouteNode::ValueName = TEXT("Value");
 
 URigVMRerouteNode::URigVMRerouteNode()
@@ -61,4 +62,32 @@ bool URigVMRerouteNode::GetShowsAsFullNode() const
 FLinearColor URigVMRerouteNode::GetNodeColor() const
 {
 	return FLinearColor::White;
+}
+
+FName URigVMRerouteNode::GetNotation() const
+{
+	return GetTemplate()->GetNotation();
+}
+
+const FRigVMTemplate* URigVMRerouteNode::GetTemplate() const
+{
+	if(CachedTemplate == nullptr)
+	{
+		bool bIsArray = false;
+		if(const URigVMPin* ValuePin = FindPin(ValueName))
+		{
+			bIsArray = ValuePin->IsArray();
+		}
+		CachedTemplate = FindOrAddTemplate(bIsArray);
+	}
+	return CachedTemplate;
+}
+
+const FRigVMTemplate* URigVMRerouteNode::FindOrAddTemplate(bool bIsArray)
+{
+	TArray<FRigVMTemplateArgument> Arguments;
+	Arguments.Emplace(TEXT("Value"), ERigVMPinDirection::IO, bIsArray ? FRigVMTemplateArgument::FType::Array() : FRigVMTemplateArgument::FType());
+		
+	return FRigVMRegistry::Get().GetOrAddTemplateFromArguments(
+		bIsArray ? *RerouteArrayName : *RerouteName, Arguments, true);
 }

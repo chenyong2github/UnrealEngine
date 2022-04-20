@@ -714,7 +714,7 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 			return nullptr;
 		}
 
-		FullyResolveTemplateNode(TemplateNode, Function, bSetupUndoRedo);
+		FullyResolveTemplateNode(TemplateNode, Template->FindPermutation(Function), bSetupUndoRedo);
 		
 		if(bSetupUndoRedo)
 		{
@@ -11712,10 +11712,23 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 	URigVMTemplateNode* Node = nullptr;
 
 	// determine what kind of node we need to create
-	const UScriptStruct* PotentialUnitStruct = Template->GetPermutation(0)->Struct;
-	if(PotentialUnitStruct && PotentialUnitStruct->IsChildOf(FRigVMStruct::StaticStruct()))
+	if(const FRigVMFunction* FirstFunction = Template->GetPermutation(0))
 	{
-		Node = NewObject<URigVMUnitNode>(Graph, *Name); 
+		const UScriptStruct* PotentialUnitStruct = FirstFunction->Struct;
+		if(PotentialUnitStruct && PotentialUnitStruct->IsChildOf(FRigVMStruct::StaticStruct()))
+		{
+			Node = NewObject<URigVMUnitNode>(Graph, *Name); 
+		}
+	}
+
+	if(Node == nullptr)
+	{
+		const FString TemplateName = Template->GetName().ToString();
+		if(TemplateName== URigVMRerouteNode::RerouteName ||
+			TemplateName== URigVMRerouteNode::RerouteArrayName)
+		{
+			Node = NewObject<URigVMRerouteNode>(Graph, *Name);
+		}
 	}
 
 	if(Node == nullptr)
@@ -14514,8 +14527,7 @@ void URigVMController::ResolveTemplateNodePins(URigVMTemplateNode* InNode, bool 
 
 		if(ResolvedPermutationIndices.Num() == 1)
 		{
-			const FRigVMFunction* ResolvedFunction = InNode->GetTemplate()->GetPermutation(ResolvedPermutationIndices[0]);
-			FullyResolveTemplateNode(InNode, ResolvedFunction, bSetupUndoRedo);
+			FullyResolveTemplateNode(InNode, ResolvedPermutationIndices[0], bSetupUndoRedo);
 		}
 
 		// resolve all wires on resolved pins
@@ -14582,7 +14594,7 @@ void URigVMController::ResolveTemplateNodeMetaData(URigVMTemplateNode* InNode, b
 	}
 }
 
-bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, const FRigVMFunction* InFunctionToResolve, bool bSetupUndoRedo)
+bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int32 InPermutationIndex, bool bSetupUndoRedo)
 {
 	if(bIsFullyResolvingTemplateNode)
 	{
@@ -14591,21 +14603,11 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, cons
 	TGuardValue<bool> ReentryGuard(bIsFullyResolvingTemplateNode, true);
 	
 	check(InNode);
-	check(InFunctionToResolve);
+	check(InPermutationIndex != INDEX_NONE);
 
 	const FRigVMTemplate* Template = InNode->GetTemplate();
-
-	const int32 PermutationIndex = Template->FindPermutation(InFunctionToResolve);
-	if(PermutationIndex == INDEX_NONE)
-	{
-		ReportErrorf(TEXT("Template %s doesn't support function %s::%s."),
-			*Template->GetNotation().ToString(),
-			*InFunctionToResolve->GetName()
-		);
-		return false;
-	}
-
-	const TArray<int32> PermutationIndices = {PermutationIndex};
+	const FRigVMFunction* ResolvedFunction = Template->GetPermutation(InPermutationIndex);
+	const TArray<int32> PermutationIndices = {InPermutationIndex};
 
 	// find all existing pins that we may need to change
 	TArray<FRigVMTemplateArgument> MissingPins;
@@ -14633,35 +14635,41 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, cons
 	}
 
 	// find all missing pins which are not arguments for the template
-	for (TFieldIterator<FProperty> It(InFunctionToResolve->Struct); It; ++It)
+	if(ResolvedFunction)
 	{
-		const FRigVMTemplateArgument ExpectedArgument(*It);
-		const FRigVMTemplateArgument::FType ExpectedType = ExpectedArgument.GetSupportedTypes()[0];
+		for (TFieldIterator<FProperty> It(ResolvedFunction->Struct); It; ++It)
+		{
+			const FRigVMTemplateArgument ExpectedArgument(*It);
+			const FRigVMTemplateArgument::FType ExpectedType = ExpectedArgument.GetSupportedTypes()[0];
 
-		if(URigVMPin* Pin = InNode->FindPin(It->GetFName().ToString()))
-		{
-			if(Pin->GetCPPType() != ExpectedType.CPPType)
+			if(URigVMPin* Pin = InNode->FindPin(It->GetFName().ToString()))
 			{
-				PinTypesToChange.Add(Pin, ExpectedType);
+				if(Pin->GetCPPType() != ExpectedType.CPPType)
+				{
+					PinTypesToChange.Add(Pin, ExpectedType);
+				}
 			}
-		}
-		else
-		{
-			MissingPins.Add(ExpectedArgument);
+			else
+			{
+				MissingPins.Add(ExpectedArgument);
+			}
 		}
 	}
 
 	// find all pins which don't have a matching arg on the function
-	for(URigVMPin* Pin : InNode->GetPins())
+	if(ResolvedFunction)
 	{
-		if(InFunctionToResolve->Struct->FindPropertyByName(Pin->GetFName()) == nullptr)
+		for(URigVMPin* Pin : InNode->GetPins())
 		{
-			PinsToRemove.Add(Pin);
+			if(ResolvedFunction->Struct->FindPropertyByName(Pin->GetFName()) == nullptr)
+			{
+				PinsToRemove.Add(Pin);
+			}
 		}
-	}
 
-	// update the cached resolved function name
-	InNode->ResolvedFunctionName = InFunctionToResolve->Name;
+		// update the cached resolved function name
+		InNode->ResolvedFunctionName = ResolvedFunction->Name;
+	}
 
 	// exit out early if there's nothing to do
 	if(PinTypesToChange.IsEmpty() && MissingPins.IsEmpty() && PinsToRemove.IsEmpty())
@@ -14718,20 +14726,23 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, cons
 	}
 
 	// add missing pins
-	for(const FRigVMTemplateArgument& MissingPin : MissingPins)
+	if(ResolvedFunction)
 	{
-		check(MissingPin.GetDirection() == ERigVMPinDirection::Hidden);
-		
-		FProperty* Property = InFunctionToResolve->Struct->FindPropertyByName(MissingPin.GetName());
-		check(Property);
+		for(const FRigVMTemplateArgument& MissingPin : MissingPins)
+		{
+			check(MissingPin.GetDirection() == ERigVMPinDirection::Hidden);
+			
+			FProperty* Property = ResolvedFunction->Struct->FindPropertyByName(MissingPin.GetName());
+			check(Property);
 
-		URigVMPin* Pin = NewObject<URigVMPin>(Cast<UObject>(InNode), MissingPin.GetName());
-		ConfigurePinFromProperty(Property, Pin, MissingPin.GetDirection());
+			URigVMPin* Pin = NewObject<URigVMPin>(Cast<UObject>(InNode), MissingPin.GetName());
+			ConfigurePinFromProperty(Property, Pin, MissingPin.GetDirection());
 
-		AddNodePin(InNode, Pin);
-		Notify(ERigVMGraphNotifType::PinAdded, Pin);
+			AddNodePin(InNode, Pin);
+			Notify(ERigVMGraphNotifType::PinAdded, Pin);
 
-		// we don't need to set the default value here since the pin is hidden
+			// we don't need to set the default value here since the pin is hidden
+		}
 	}
 
 	if (UnitNodeCreatedContext.IsValid())

@@ -34,7 +34,7 @@ public:
 
 	// Returns the notation of the node
 	UFUNCTION(BlueprintPure, Category = Template)
-	FName GetNotation() const;
+	virtual FName GetNotation() const;
 
 	// returns true if a pin supports a given type
 	bool SupportsType(const URigVMPin* InPin, const FString& InCPPType, FString* OutCPPType = nullptr);
@@ -49,7 +49,7 @@ public:
 	TArray<const FRigVMFunction*> GetResolvedPermutations(FRigVMTemplate::FTypeMap* OutTypes = nullptr) const;
 
 	// returns the template used for this node
-	const FRigVMTemplate* GetTemplate() const;
+	virtual const FRigVMTemplate* GetTemplate() const;
 
 	// returns the type map for the currently resolved pins
 	FRigVMTemplate::FTypeMap GetResolvedTypes() const;
@@ -73,7 +73,7 @@ public:
 
 protected:
 
-	void InvalidateCache();
+	virtual void InvalidateCache() override;
 
 	UPROPERTY()
 	FName TemplateNotation;
