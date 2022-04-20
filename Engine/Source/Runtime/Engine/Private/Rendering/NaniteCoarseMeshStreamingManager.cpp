@@ -245,17 +245,22 @@ namespace Nanite
 
 	void FCoarseMeshStreamingManager::RegisterComponent(const UPrimitiveComponent* Primitive, bool bCheckStaticMeshChanged)
 	{		
-		// Already registered or not a static mesh?
-		if ((Primitive->bAttachedToCoarseMeshStreamingManager && !bCheckStaticMeshChanged) || !Primitive->IsA<UStaticMeshComponent>())
+		// Not a static mesh or no nanite data
+		if (!Primitive->IsA<UStaticMeshComponent>())
 		{
 			return;
 		}
-				
 		UStaticMesh* StaticMesh = ((UStaticMeshComponent*)Primitive)->GetStaticMesh();
+		const FStreamableRenderResourceState& ResourceState = StaticMesh->GetStreamableResourceState();
+		if (StaticMesh == nullptr || !StaticMesh->HasValidNaniteData() || !ResourceState.bSupportsStreaming)
+		{
+			return;
+		}
+
+		FScopeLock ScopeLock(&UpdateCS);
+						
 		if (bCheckStaticMeshChanged && Primitive->bAttachedToCoarseMeshStreamingManager)
 		{
-			FScopeLock ScopeLock(&UpdateCS);
-
 			UStreamableRenderAsset** RegisteredAsset = ComponentToRenderAssetLookUpMap.Find(Primitive);
 			check(RegisteredAsset);
 
@@ -267,12 +272,10 @@ namespace Nanite
 		}
 
 		// Has new static mesh valid Nanite data?
-		if (Primitive->bAttachedToCoarseMeshStreamingManager || StaticMesh == nullptr || !StaticMesh->HasValidNaniteData())
+		if (Primitive->bAttachedToCoarseMeshStreamingManager)
 		{
 			return;
 		}
-
-		FScopeLock ScopeLock(&UpdateCS);
 
 		// Make sure it's not requested for release anymore
 		bool bNeedToAdd = true;
@@ -302,17 +305,26 @@ namespace Nanite
 
 	void FCoarseMeshStreamingManager::UnregisterComponent(const UPrimitiveComponent* Primitive)
 	{
+		// Not a static mesh or no nanite data
+		if (!Primitive->IsA<UStaticMeshComponent>())
+		{
+			return;
+		}
+		UStaticMesh* StaticMesh = ((UStaticMeshComponent*)Primitive)->GetStaticMesh();
+		const FStreamableRenderResourceState& ResourceState = StaticMesh->GetStreamableResourceState();
+		if (StaticMesh == nullptr || !StaticMesh->HasValidNaniteData() || !ResourceState.bSupportsStreaming)
+		{
+			return;
+		}
+
+		FScopeLock ScopeLock(&UpdateCS);
+
 		// Not tracked then early out
 		if (!Primitive->bAttachedToCoarseMeshStreamingManager)
 		{
 			return;
 		}
-
-		check(Primitive->IsA<UStaticMeshComponent>());
-		UStaticMesh* StaticMesh = ((UStaticMeshComponent*)Primitive)->GetStaticMesh();
-		check(StaticMesh && StaticMesh->HasValidNaniteData());
-
-		FScopeLock ScopeLock(&UpdateCS);
+		
 		UnregisterComponentInternal(Primitive, StaticMesh);
 	}
 
