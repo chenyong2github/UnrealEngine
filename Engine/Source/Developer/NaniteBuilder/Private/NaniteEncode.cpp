@@ -270,7 +270,7 @@ static void RemovePageFromRange(uint32& StartPage, uint32& NumPages, const uint3
 	}
 }
 
-FORCEINLINE static FVector2D OctahedronEncode(FVector3f N)
+FORCEINLINE static FVector2f OctahedronEncode(FVector3f N)
 {
 	FVector3f AbsN = N.GetAbs();
 	N /= (AbsN.X + AbsN.Y + AbsN.Z);
@@ -282,7 +282,7 @@ FORCEINLINE static FVector2D OctahedronEncode(FVector3f N)
 		N.Y = (N.Y >= 0.0f) ? (1.0f - AbsN.X) : (AbsN.X - 1.0f);
 	}
 	
-	return FVector2D(N.X, N.Y);
+	return FVector2f(N.X, N.Y);
 }
 
 FORCEINLINE static void OctahedronEncode(FVector3f N, int32& X, int32& Y, int32 QuantizationBits)
@@ -291,7 +291,7 @@ FORCEINLINE static void OctahedronEncode(FVector3f N, int32& X, int32& Y, int32 
 	const float Scale = 0.5f * QuantizationMaxValue;
 	const float Bias = 0.5f * QuantizationMaxValue + 0.5f;
 
-	FVector2D Coord = OctahedronEncode(N);
+	FVector2f Coord = OctahedronEncode(N);
 
 	X = FMath::Clamp(int32(Coord.X * Scale + Bias), 0, QuantizationMaxValue);
 	Y = FMath::Clamp(int32(Coord.Y * Scale + Bias), 0, QuantizationMaxValue);
@@ -313,37 +313,36 @@ FORCEINLINE static FVector3f OctahedronDecode(int32 X, int32 Y, int32 Quantizati
 FORCEINLINE static void OctahedronEncodePreciseSIMD( FVector3f N, int32& X, int32& Y, int32 QuantizationBits )
 {
 	const int32 QuantizationMaxValue = ( 1 << QuantizationBits ) - 1;
-	FVector2D ScalarCoord = OctahedronEncode( N );
+	FVector2f ScalarCoord = OctahedronEncode( N );
 
-	const VectorRegister Scale = VectorSetFloat1( 0.5f * QuantizationMaxValue );
-	const VectorRegister RcpScale = VectorSetFloat1( 2.0f / QuantizationMaxValue );
+	const VectorRegister4f Scale = VectorSetFloat1( 0.5f * QuantizationMaxValue );
+	const VectorRegister4f RcpScale = VectorSetFloat1( 2.0f / QuantizationMaxValue );
 	VectorRegister4Int IntCoord = VectorFloatToInt( VectorMultiplyAdd( MakeVectorRegister( ScalarCoord.X, ScalarCoord.Y, ScalarCoord.X, ScalarCoord.Y ), Scale, Scale ) );	// x0, y0, x1, y1
 	IntCoord = VectorIntAdd( IntCoord, MakeVectorRegisterInt( 0, 0, 1, 1 ) );
-	VectorRegister Coord = VectorMultiplyAdd( VectorIntToFloat( IntCoord ), RcpScale, GlobalVectorConstants::FloatMinusOne );	// Coord = Coord * 2.0f / QuantizationMaxValue - 1.0f
+	VectorRegister4f Coord = VectorMultiplyAdd( VectorIntToFloat( IntCoord ), RcpScale, GlobalVectorConstants::FloatMinusOne );	// Coord = Coord * 2.0f / QuantizationMaxValue - 1.0f
 
-	VectorRegister Nx = VectorSwizzle( Coord, 0, 2, 0, 2 );
-	VectorRegister Ny = VectorSwizzle( Coord, 1, 1, 3, 3 );
-	VectorRegister Nz = VectorSubtract( VectorSubtract( VectorOne(), VectorAbs( Nx ) ), VectorAbs( Ny ) );			// Nz = 1.0f - abs(Nx) - abs(Ny)
+	VectorRegister4f Nx = VectorSwizzle( Coord, 0, 2, 0, 2 );
+	VectorRegister4f Ny = VectorSwizzle( Coord, 1, 1, 3, 3 );
+	VectorRegister4f Nz = VectorSubtract( VectorSubtract( VectorOneFloat(), VectorAbs( Nx ) ), VectorAbs( Ny ) );			// Nz = 1.0f - abs(Nx) - abs(Ny)
 
-	VectorRegister T = VectorMin( Nz, VectorZero() );	// T = min(Nz, 0.0f)
+	VectorRegister4f T = VectorMin( Nz, VectorZeroFloat() );	// T = min(Nz, 0.0f)
 	
-	VectorRegister NxSign = VectorBitwiseAnd( Nx, GlobalVectorConstants::SignBit() );
-	VectorRegister NySign = VectorBitwiseAnd( Ny, GlobalVectorConstants::SignBit() );
+	VectorRegister4f NxSign = VectorBitwiseAnd( Nx, GlobalVectorConstants::SignBit() );
+	VectorRegister4f NySign = VectorBitwiseAnd( Ny, GlobalVectorConstants::SignBit() );
 
 	Nx = VectorAdd(Nx, VectorBitwiseXor( T, NxSign ) );	// Nx += T ^ NxSign
 	Ny = VectorAdd(Ny, VectorBitwiseXor( T, NySign ) );	// Ny += T ^ NySign
 	
-	VectorRegister RcpLen = VectorReciprocalSqrtAccurate( VectorMultiplyAdd( Nx, Nx, VectorMultiplyAdd( Ny, Ny, VectorMultiply( Nz, Nz ) ) ) );	// RcpLen = 1.0f / (Nx * Nx + Ny * Ny + Nz * Nz)
-	VectorRegister Dots =	VectorMultiply(RcpLen, 
-								VectorMultiplyAdd(Nx, VectorSetFloat1( N.X ), 
-								VectorMultiplyAdd(Ny, VectorSetFloat1( N.Y ),
-								VectorMultiply(Nz, VectorSetFloat1( N.Z ) ) ) ) );	// RcpLen * (Nx * N.x + Ny * N.y + Nz * N.z)
-	VectorRegister Mask = MakeVectorRegister( 0xFFFFFFFCu, 0xFFFFFFFCu, 0xFFFFFFFCu, 0xFFFFFFFCu );
-	VectorRegister LaneIndices = MakeVectorRegister( 0u, 1u, 2u, 3u );
+	VectorRegister4f Dots = VectorMultiplyAdd(Nx, VectorSetFloat1(N.X), VectorMultiplyAdd(Ny, VectorSetFloat1(N.Y), VectorMultiply(Nz, VectorSetFloat1(N.Z))));
+	VectorRegister4f Lengths = VectorSqrt(VectorMultiplyAdd(Nx, Nx, VectorMultiplyAdd(Ny, Ny, VectorMultiply(Nz, Nz))));
+	Dots = VectorDivide(Dots, Lengths);
+
+	VectorRegister4f Mask = MakeVectorRegister( 0xFFFFFFFCu, 0xFFFFFFFCu, 0xFFFFFFFCu, 0xFFFFFFFCu );
+	VectorRegister4f LaneIndices = MakeVectorRegister( 0u, 1u, 2u, 3u );
 	Dots = VectorBitwiseOr( VectorBitwiseAnd( Dots, Mask ), LaneIndices );
 	
 	// Calculate max component
-	VectorRegister MaxDot = VectorMax( Dots, VectorSwizzle( Dots, 2, 3, 0, 1 ) );
+	VectorRegister4f MaxDot = VectorMax( Dots, VectorSwizzle( Dots, 2, 3, 0, 1 ) );
 	MaxDot = VectorMax( MaxDot, VectorSwizzle( MaxDot, 1, 2, 3, 0 ) );
 
 	float fIndex = VectorGetComponent( MaxDot, 0 );
@@ -358,7 +357,7 @@ FORCEINLINE static void OctahedronEncodePreciseSIMD( FVector3f N, int32& X, int3
 FORCEINLINE static void OctahedronEncodePrecise(FVector3f N, int32& X, int32& Y, int32 QuantizationBits)
 {
 	const int32 QuantizationMaxValue = (1 << QuantizationBits) - 1;
-	FVector2D Coord = OctahedronEncode(N);
+	FVector2f Coord = OctahedronEncode(N);
 
 	const float Scale = 0.5f * QuantizationMaxValue;
 	const float Bias = 0.5f * QuantizationMaxValue;
