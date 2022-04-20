@@ -258,64 +258,6 @@ BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutDirtyPageFlags)
 END_SHADER_PARAMETER_STRUCT()
 
-class FRasterTechnique
-{
-public:
-	static bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters, int32 RasterTechnique)
-	{
-		if (RasterTechnique == int32(Nanite::ERasterTechnique::PlatformAtomics) &&
-			!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
-		{
-			// Only some platforms support native 64-bit atomics.
-			return false;
-		}
-
-		if ((RasterTechnique == int32(Nanite::ERasterTechnique::NVAtomics) ||
-			 RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			 RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
-			 RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
-			 RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-			 && !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(Parameters.Platform))
-		{
-			// Only supporting vendor extensions on PC D3D SM5+
-			return false;
-		}
-
-		if (GNaniteRequireDX12 != 0 &&
-			(RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			 RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11)))
-		{
-			// DX11 support is disabled, don't build vendor extension shaders for it.
-			// NOTE: NVAtomics are the same DXBC for DX11 and DX12 - we aren't forcing DXC yet, so keep those permutations
-			return false;
-		}
-
-		return true;
-	}
-
-	static void ModifyCompilationEnvironment(const FShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment, int32 RasterTechnique)
-	{
-		if (RasterTechnique == int32(Nanite::ERasterTechnique::NVAtomics) ||
-			RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
-			RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) ||
-			RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D11) ||
-			RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-		{
-			// Need to force optimization for driver injection to work correctly.
-			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
-			// https://gpuopen.com/gcn-shader-extensions-for-direct3d-and-vulkan/
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
-		}
-
-		if (RasterTechnique == int32(Nanite::ERasterTechnique::AMDAtomicsD3D12) || 
-			RasterTechnique == int32(Nanite::ERasterTechnique::INTCAtomicsD3D12))
-		{
-			// Force shader model 6.0+
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
-		}
-	}
-};
-
 class FPrimitiveFilter_CS : public FNaniteGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FPrimitiveFilter_CS);
@@ -371,9 +313,9 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FPrimitiveFilterDim : SHADER_PERMUTATION_BOOL("PRIMITIVE_FILTER");
 	class FDebugFlagsDim : SHADER_PERMUTATION_BOOL("DEBUG_FLAGS");
-	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
+	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
-	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FPrimitiveFilterDim, FDebugFlagsDim, FRasterTechniqueDim, FVirtualTextureTargetDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FCullingPassDim, FMultiViewDim, FPrimitiveFilterDim, FDebugFlagsDim, FDepthOnlyDim, FVirtualTextureTargetDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -383,9 +325,12 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 		}
 		
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		
-		if( !FRasterTechnique::ShouldCompilePermutation( Parameters, PermutationVector.Get<FRasterTechniqueDim>() ) )
+
+		// Only some platforms support native 64-bit atomics.
+		if (!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
+		{
 			return false;
+		}
 
 		// Skip permutations targeting other culling passes, as they are covered in the specialized VSM instance cull
 		if (PermutationVector.Get<FVirtualTextureTargetDim>() && PermutationVector.Get<FCullingPassDim>() != CULLING_PASS_OCCLUSION_POST)
@@ -400,7 +345,6 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 
 		FVirtualShadowMapArray::SetShaderDefines( OutEnvironment );	// Still needed for shader to compile
 
@@ -837,11 +781,11 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 	DECLARE_SHADER_TYPE(FMicropolyRasterizeCS, Material);
 
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
-	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
+	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FProgrammableRasterDim : SHADER_PERMUTATION_BOOL("IS_NANITE_PROGRAMMABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FMultiViewDim, FRasterTechniqueDim, FVisualizeDim, FVirtualTextureTargetDim, FProgrammableRasterDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FMultiViewDim, FDepthOnlyDim, FVisualizeDim, FVirtualTextureTargetDim, FProgrammableRasterDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -868,18 +812,20 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		
-		if( !FRasterTechnique::ShouldCompilePermutation( Parameters, PermutationVector.Get<FRasterTechniqueDim>() ) )
+		// Only some platforms support native 64-bit atomics.
+		if (!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
+		{
 			return false;
+		}
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == (int32)Nanite::ERasterTechnique::DepthOnly &&
-			PermutationVector.Get<FVisualizeDim>() )
+		if (PermutationVector.Get<FDepthOnlyDim>() && PermutationVector.Get<FVisualizeDim>())
 		{
 			// Visualization not supported with depth only
 			return false;
 		}
 
 		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
-			( !PermutationVector.Get<FMultiViewDim>() || PermutationVector.Get<FRasterTechniqueDim>() != (int32)Nanite::ERasterTechnique::DepthOnly ) )
+		  (!PermutationVector.Get<FMultiViewDim>() || !PermutationVector.Get<FDepthOnlyDim>()))
 		{
 			return false;
 		}
@@ -898,18 +844,11 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		
 		FNaniteMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 1);
 
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
-
-		// Have to do this for now because FXC takes a long time to compile the programmable shaders (sometimes indefinite)
-		if (!Parameters.MaterialParameters.bIsDefaultMaterial)
-		{
-			OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
-		}
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 	}
@@ -926,13 +865,13 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 {
 	DECLARE_SHADER_TYPE(FHWRasterizeVS, Material);
 
-	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
+	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
 	class FAutoShaderCullDim : SHADER_PERMUTATION_BOOL("NANITE_AUTO_SHADER_CULL");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FProgrammableRasterDim : SHADER_PERMUTATION_BOOL("IS_NANITE_PROGRAMMABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FPrimShaderDim, FAutoShaderCullDim, FVirtualTextureTargetDim, FProgrammableRasterDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FDepthOnlyDim, FMultiViewDim, FPrimShaderDim, FAutoShaderCullDim, FVirtualTextureTargetDim, FProgrammableRasterDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -954,7 +893,8 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 		
-		if (!FRasterTechnique::ShouldCompilePermutation(Parameters, PermutationVector.Get<FRasterTechniqueDim>()))
+		// Only some platforms support native 64-bit atomics.
+		if (!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
 		{
 			return false;
 		}
@@ -974,7 +914,7 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 
 		// VSM rendering is depth-only and multiview
 		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
-			( !PermutationVector.Get<FMultiViewDim>() || PermutationVector.Get<FRasterTechniqueDim>() != (int32)Nanite::ERasterTechnique::DepthOnly ) )
+		  (!PermutationVector.Get<FMultiViewDim>() || !PermutationVector.Get<FDepthOnlyDim>()))
 		{
 			return false;
 		}
@@ -1009,8 +949,6 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 		}
 
 		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), bIsPrimitiveShader ? 4 : 5); // Mesh and primitive shaders use an index of 4 instead of 5
-
-		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
@@ -1029,11 +967,11 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 	DECLARE_SHADER_TYPE(FHWRasterizeMS, Material);
 
 	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
-	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
+	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FProgrammableRasterDim : SHADER_PERMUTATION_BOOL("IS_NANITE_PROGRAMMABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FInterpOptDim, FRasterTechniqueDim, FMultiViewDim, FVirtualTextureTargetDim, FProgrammableRasterDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FInterpOptDim, FDepthOnlyDim, FMultiViewDim, FVirtualTextureTargetDim, FProgrammableRasterDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -1061,20 +999,21 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		if (!FRasterTechnique::ShouldCompilePermutation(Parameters, PermutationVector.Get<FRasterTechniqueDim>()))
+		// Only some platforms support native 64-bit atomics.
+		if (!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
 		{
 			return false;
 		}
 
 		if (PermutationVector.Get<FInterpOptDim>())
 		{
-			// TODO: PROG_RASTER (WIP optimization, always disable to save permutation count for now)
+			// TODO: WIP optimization, always disable to save permutation count for now
 			return false;
 		}
 
 		// VSM rendering is depth-only and multiview
 		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
-			( !PermutationVector.Get<FMultiViewDim>() || PermutationVector.Get<FRasterTechniqueDim>() != (int32)Nanite::ERasterTechnique::DepthOnly ) )
+		  (!PermutationVector.Get<FMultiViewDim>() || !PermutationVector.Get<FDepthOnlyDim>()))
 		{
 			return false;
 		}
@@ -1101,13 +1040,6 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 		OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER_TG_SIZE"), MSThreadGroupSize);
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
-
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-
-		FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());
-
-		// Force shader model 6.0+
-		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
@@ -1126,7 +1058,7 @@ public:
 	DECLARE_SHADER_TYPE(FHWRasterizePS, Material);
 
 	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
-	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
+	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FMeshShaderDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER");
 	class FPrimShaderDim : SHADER_PERMUTATION_BOOL("NANITE_PRIM_SHADER");
@@ -1137,7 +1069,7 @@ public:
 	using FPermutationDomain = TShaderPermutationDomain
 	<
 		FInterpOptDim,
-		FRasterTechniqueDim,
+		FDepthOnlyDim,
 		FMultiViewDim,
 		FMeshShaderDim,
 		FPrimShaderDim,
@@ -1166,19 +1098,19 @@ public:
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		if (!FRasterTechnique::ShouldCompilePermutation(Parameters, PermutationVector.Get<FRasterTechniqueDim>()))
+		// Only some platforms support native 64-bit atomics.
+		if (!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
 		{
 			return false;
 		}
 
 		if (PermutationVector.Get<FInterpOptDim>())
 		{
-			// TODO: PROG_RASTER (WIP optimization, always disable to save permutation count for now)
+			// WIP optimization, always disable to save permutation count for now
 			return false;
 		}
 
-		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::DepthOnly) &&
-			PermutationVector.Get<FVisualizeDim>())
+		if (PermutationVector.Get<FDepthOnlyDim>() && PermutationVector.Get<FVisualizeDim>())
 		{
 			// Visualization not supported with depth only
 			return false;
@@ -1206,7 +1138,7 @@ public:
 
 		// VSM rendering is depth-only and multiview
 		if (PermutationVector.Get<FVirtualTextureTargetDim>() &&
-			( !PermutationVector.Get<FMultiViewDim>() || PermutationVector.Get<FRasterTechniqueDim>() != (int32)Nanite::ERasterTechnique::DepthOnly ) )
+		  (!PermutationVector.Get<FMultiViewDim>() || !PermutationVector.Get<FDepthOnlyDim>()))
 		{
 			return false;
 		}
@@ -1234,8 +1166,6 @@ public:
 
 		OutEnvironment.SetRenderTargetOutputFormat(0, EPixelFormat::PF_R32_UINT);
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
-
-		return FRasterTechnique::ModifyCompilationEnvironment(Parameters, OutEnvironment, PermutationVector.Get<FRasterTechniqueDim>());		
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
@@ -1855,8 +1785,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 		PassParameters->RasterParameters = RasterContext.Parameters;
 		PassParameters->CullingParameters = CullingParameters;
 
-		const ERasterTechnique Technique = RasterContext.RasterTechnique;
-		PassParameters->OnlyCastShadowsPrimitives = Technique == ERasterTechnique::DepthOnly ? 1 : 0;
+		PassParameters->OnlyCastShadowsPrimitives = RasterContext.RasterMode == EOutputBufferMode::DepthOnly ? 1 : 0;
 
 		PassParameters->ImposterAtlas = Nanite::GStreamingManager.GetImposterDataSRV();
 
@@ -1909,7 +1838,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 		PermutationVector.Set<FInstanceCull_CS::FMultiViewDim>(bMultiView);
 		PermutationVector.Set<FInstanceCull_CS::FPrimitiveFilterDim>(CullingContext.PrimitiveFilterBuffer != nullptr);
 		PermutationVector.Set<FInstanceCull_CS::FDebugFlagsDim>(CullingContext.DebugFlags != 0);
-		PermutationVector.Set<FInstanceCull_CS::FRasterTechniqueDim>(int32(RasterContext.RasterTechnique));
+		PermutationVector.Set<FInstanceCull_CS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 		PermutationVector.Set<FInstanceCull_CS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 
 		auto ComputeShader = SharedContext.ShaderMap->GetShader<FInstanceCull_CS>(PermutationVector);
@@ -2221,7 +2150,6 @@ void AddPass_Rasterize(
 
 	FRDGBufferRef BinIndirectArgs = bProgrammableRaster ? BinningData.IndirectArgs : IndirectArgs;
 
-	const ERasterTechnique Technique = RasterContext.RasterTechnique;
 	const ERasterScheduling Scheduling = RasterContext.RasterScheduling;
 	const bool bMultiView = Views.Num() > 1 || VirtualShadowMapArray != nullptr;
 
@@ -2240,7 +2168,6 @@ void AddPass_Rasterize(
 	CreateSkipBarrierUAV(RasterParameters.OutVisBuffer64);
 	CreateSkipBarrierUAV(RasterParameters.OutDbgBuffer64);
 	CreateSkipBarrierUAV(RasterParameters.OutDbgBuffer32);
-	CreateSkipBarrierUAV(RasterParameters.LockBuffer);
 
 	const ERDGPassFlags ComputePassFlags = (Scheduling == ERasterScheduling::HardwareAndSoftwareOverlap) ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute;
 
@@ -2274,16 +2201,16 @@ void AddPass_Rasterize(
 
 	FHWRasterizePS::FPermutationDomain PermutationVectorPS;
 	PermutationVectorPS.Set<FHWRasterizePS::FInterpOptDim>(GNaniteMSInterp != 0 && bUseMeshShader && !bMultiView);
-	PermutationVectorPS.Set<FHWRasterizePS::FRasterTechniqueDim>(int32(Technique));
+	PermutationVectorPS.Set<FHWRasterizePS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 	PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>(bMultiView);
 	PermutationVectorPS.Set<FHWRasterizePS::FMeshShaderDim>(bUseMeshShader);
 	PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
-	PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
+	PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(RasterContext.VisualizeActive && RasterContext.RasterMode != EOutputBufferMode::DepthOnly);
 	PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 	PermutationVectorPS.Set<FHWRasterizePS::FProgrammableRasterDim>(bProgrammableRaster);
 
 	FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
-	PermutationVectorVS.Set<FHWRasterizeVS::FRasterTechniqueDim>(int32(Technique));
+	PermutationVectorVS.Set<FHWRasterizeVS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 	PermutationVectorVS.Set<FHWRasterizeVS::FMultiViewDim>(bMultiView);
 	PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
 	PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
@@ -2292,7 +2219,7 @@ void AddPass_Rasterize(
 
 	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
 	PermutationVectorMS.Set<FHWRasterizeMS::FInterpOptDim>(GNaniteMSInterp != 0);
-	PermutationVectorMS.Set<FHWRasterizeMS::FRasterTechniqueDim>(int32(Technique));
+	PermutationVectorMS.Set<FHWRasterizeMS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 	PermutationVectorMS.Set<FHWRasterizeMS::FMultiViewDim>(bMultiView);
 	PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 	PermutationVectorMS.Set<FHWRasterizeMS::FProgrammableRasterDim>(bProgrammableRaster);
@@ -2300,8 +2227,8 @@ void AddPass_Rasterize(
 	// SW Rasterize
 	FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FMultiViewDim>(bMultiView);
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FRasterTechniqueDim>(int32(Technique));
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVisualizeDim>(RasterContext.VisualizeActive && Technique != ERasterTechnique::DepthOnly);
+	PermutationVectorCS.Set<FMicropolyRasterizeCS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
+	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVisualizeDim>(RasterContext.VisualizeActive && RasterContext.RasterMode != EOutputBufferMode::DepthOnly);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FProgrammableRasterDim>(bProgrammableRaster);
 
@@ -2695,44 +2622,7 @@ FRasterContext InitRasterContext(
 		RasterContext.RasterScheduling = ERasterScheduling::HardwareOnly;
 	}
 
-	if (RasterMode == EOutputBufferMode::DepthOnly)
-	{
-		RasterContext.RasterTechnique = ERasterTechnique::DepthOnly;
-	}
-	else
-	{
-		// Determine what is providing support for atomics.
-#if PLATFORM_WINDOWS
-		const bool bIsDx12 = RHIGetInterfaceType() == ERHIInterfaceType::D3D12;
-
-		if (!FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(GShaderPlatformForFeatureLevel[SharedContext.FeatureLevel]))
-		{
-			RasterContext.RasterTechnique = ERasterTechnique::PlatformAtomics;
-		}
-		else if (IsRHIDeviceNVIDIA())
-		{
-			// Support is provided through NVAPI.
-			RasterContext.RasterTechnique = ERasterTechnique::NVAtomics;
-		}
-		else if (IsRHIDeviceAMD())
-		{
-			// Support is provided through AGS.
-			RasterContext.RasterTechnique = bIsDx12 ? ERasterTechnique::AMDAtomicsD3D12 : ERasterTechnique::AMDAtomicsD3D11;
-
-			// TODO: Currently the atomics only work properly in the hardware path on DX11. Disable any compute support with this technique.
-			if (!bIsDx12)
-			{
-				RasterContext.RasterScheduling = ERasterScheduling::HardwareOnly;
-			}
-		}
-		else if (IsRHIDeviceIntel())
-		{
-			RasterContext.RasterTechnique = bIsDx12 ? ERasterTechnique::INTCAtomicsD3D12 : ERasterTechnique::INTCAtomicsD3D11;
-		}
-#else
-		RasterContext.RasterTechnique = ERasterTechnique::PlatformAtomics;
-#endif
-	}
+	RasterContext.RasterMode = RasterMode;
 
 	const EPixelFormat PixelFormat64 = GPixelFormats[PF_R64_UINT].Supported ? PF_R64_UINT : PF_R32G32_UINT;
 
@@ -2741,11 +2631,10 @@ FRasterContext InitRasterContext(
 	RasterContext.VisBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PixelFormat64, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV | ETextureCreateFlags::Atomic64Compatible), TEXT("Nanite.VisBuffer64") );
 	RasterContext.DbgBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PixelFormat64, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV | ETextureCreateFlags::Atomic64Compatible), TEXT("Nanite.DbgBuffer64") );
 	RasterContext.DbgBuffer32	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DbgBuffer32") );
-	RasterContext.LockBuffer	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV), TEXT("Nanite.LockBuffer") );
-	
+
 	const uint32 ClearValue[4] = { 0, 0, 0, 0 };
 
-	if (RasterMode == EOutputBufferMode::DepthOnly)
+	if (RasterContext.RasterMode == EOutputBufferMode::DepthOnly)
 	{
 		// TODO: There may be a better way to do this...
 		if ( RasterContext.DepthBuffer->Desc.Dimension == ETextureDimension::Texture2DArray )
@@ -2776,12 +2665,6 @@ FRasterContext InitRasterContext(
 			RasterContext.Parameters.OutDbgBuffer32 = GraphBuilder.CreateUAV( RasterContext.DbgBuffer32 );
 			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutDbgBuffer64, ClearValue, RectMinMaxBufferSRV, NumRects );
 			AddClearUAVPass( GraphBuilder, RasterContext.Parameters.OutDbgBuffer32, ClearValue, RectMinMaxBufferSRV, NumRects );
-		}
-
-		if (RasterContext.RasterTechnique == ERasterTechnique::LockBufferFallback)
-		{
-			RasterContext.Parameters.LockBuffer = GraphBuilder.CreateUAV(RasterContext.LockBuffer);
-			AddClearUAVPass(GraphBuilder, RasterContext.Parameters.LockBuffer, ClearValue, RectMinMaxBufferSRV, NumRects);
 		}
 	}
 
@@ -2836,7 +2719,7 @@ static void CullRasterizeMultiPass(
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::CullRasterizeSplitViewRanges");
 
-	check(RasterContext.RasterTechnique == ERasterTechnique::DepthOnly);
+	check(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 
 	uint32 NextPrimaryViewIndex = 0;
 	while (NextPrimaryViewIndex < NumPrimaryViews)
@@ -2916,7 +2799,7 @@ void CullRasterize(
 	// Split rasterization into multiple passes if there are too many views. Only possible for depth-only rendering.
 	if (Views.Num() > NANITE_MAX_VIEWS_PER_CULL_RASTERIZE_PASS)
 	{
-		check(RasterContext.RasterTechnique == ERasterTechnique::DepthOnly);
+		check(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 		CullRasterizeMultiPass(
 			GraphBuilder,
 			RasterPipelines,
@@ -3224,7 +3107,7 @@ void CullRasterize(
 			FRDGTextureRef SceneDepth = SceneTextures.SceneDepthTexture;
 			FRDGTextureRef RasterizedDepth = RasterContext.VisBuffer64;
 
-			if( RasterContext.RasterTechnique == ERasterTechnique::DepthOnly )
+			if (RasterContext.RasterMode == EOutputBufferMode::DepthOnly)
 			{
 				SceneDepth = GraphBuilder.RegisterExternalTexture( GSystemTextures.BlackDummy );
 				RasterizedDepth = RasterContext.DepthBuffer;
@@ -3298,7 +3181,7 @@ void CullRasterize(
 		);
 	}
 
-	if (RasterContext.RasterTechnique != ERasterTechnique::DepthOnly)
+	if (RasterContext.RasterMode == EOutputBufferMode::DepthOnly)
 	{
 		// Pass index and number of clusters rendered in previous passes are irrelevant for depth-only rendering.
 		CullingContext.DrawPassIndex++;

@@ -14,41 +14,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FRasterParameters,)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<UlongType>,	OutVisBuffer64)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<UlongType>,	OutDbgBuffer64)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>,			OutDbgBuffer32)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>,			LockBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 namespace Nanite
 {
-
-enum class ERasterTechnique : uint8
-{
-	// [DEPRECATED] Use fallback lock buffer approach without 64-bit atomics (has race conditions).
-	LockBufferFallback = 0,
-
-	// Use 64-bit atomics provided by the platform.
-	PlatformAtomics = 1,
-
-	// [DEPRECATED] Use 64-bit atomics provided by Nvidia vendor extension.
-	NVAtomics = 2,
-
-	// [DEPRECATED] Use 64-bit atomics provided by AMD vendor extension [Direct3D 11].
-	AMDAtomicsD3D11 = 3,
-
-	// [DEPRECATED] Use 64-bit atomics provided by AMD vendor extension [Direct3D 12].
-	AMDAtomicsD3D12 = 4,
-
-	// Use 32-bit atomics for depth, no payload.
-	DepthOnly = 5,
-
-	// [DEPRECATED] Use 64-bit atomics provided by Intel vendor extension [Direct3D 11].
-	INTCAtomicsD3D11 = 6,
-
-	// [DEPRECATED] Use 64-bit atomics provided by Intel vendor extension [Direct3D 12].
-	INTCAtomicsD3D12 = 7,
-
-	// Add before this.
-	NumTechniques
-};
 
 enum class ERasterScheduling : uint8
 {
@@ -148,12 +117,11 @@ struct FRasterContext
 {
 	FVector2f			RcpViewSize;
 	FIntPoint			TextureSize;
-	ERasterTechnique	RasterTechnique;
+	EOutputBufferMode	RasterMode;
 	ERasterScheduling	RasterScheduling;
 
 	FRasterParameters	Parameters;
 
-	FRDGTextureRef		LockBuffer;
 	FRDGTextureRef		DepthBuffer;
 	FRDGTextureRef		VisBuffer64;
 	FRDGTextureRef		DbgBuffer64;

@@ -3,55 +3,18 @@
 #pragma once
 
 #include "../Common.ush"
+#include "/Engine/Shared/NaniteDefinitions.h"
 #if VIRTUAL_TEXTURE_TARGET
 #include "../VirtualShadowMaps/VirtualShadowMapPageAccessCommon.ush"
 #endif
 
-// Must match ERasterTechnique in NaniteCullRaster.h
-#define RASTER_TECHNIQUE_FALLBACK	0
-#define RASTER_TECHNIQUE_PLATFORM	1
-#define RASTER_TECHNIQUE_NVIDIA		2
-#define RASTER_TECHNIQUE_AMD_DX11	3
-#define RASTER_TECHNIQUE_AMD_DX12	4
-#define RASTER_TECHNIQUE_DEPTHONLY	5
-#define RASTER_TECHNIQUE_INTC_DX11	6
-#define RASTER_TECHNIQUE_INTC_DX12	7
-
-#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_FALLBACK
-#define COHERENCY_FLAG globallycoherent
-#else
-#define COHERENCY_FLAG 
-#endif
-
-RWTexture2D<uint>						OutDepthBuffer;
-RWTexture2DArray<uint>					OutDepthBufferArray;
-COHERENCY_FLAG RWTexture2D<UlongType>	OutVisBuffer64;
+RWTexture2D<uint>		OutDepthBuffer;
+RWTexture2DArray<uint>	OutDepthBufferArray;
+RWTexture2D<UlongType>	OutVisBuffer64;
 
 #if VISUALIZE
-COHERENCY_FLAG RWTexture2D<UlongType>	OutDbgBuffer64;
-RWTexture2D<uint>						OutDbgBuffer32;
-#endif
-
-RWTexture2D<uint> 						LockBuffer;
-
-#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_NVIDIA
-#define NV_SHADER_EXTN_SLOT u7
-#include "/Engine/Shared/ThirdParty/NVIDIA/nvHLSLExtns.h"
-
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_AMD_DX11
-#define AmdDxExtShaderIntrinsicsUAVSlot u7
-#include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx11.h"
-
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_AMD_DX12
-#include "/Engine/Shared/ThirdParty/AMD/ags_shader_intrinsics_dx12.h"
-
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_INTC_DX11
-#define INTEL_SHADER_EXT_UAV_SLOT u7
-#include "/Engine/Shared/ThirdParty/Intel/IntelExtensions.h"
-
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_INTC_DX12
-#define INTEL_SHADER_EXT_UAV_SLOT u7
-#include "/Engine/Shared/ThirdParty/Intel/IntelExtensions12.h"
+RWTexture2D<UlongType>	OutDbgBuffer64;
+RWTexture2D<uint>		OutDbgBuffer32;
 #endif
 
 void WritePixel(
@@ -70,38 +33,13 @@ void WritePixel(
 
 	const uint DepthInt = asuint(DeviceZ);
 
-#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_DEPTHONLY
+#if DEPTH_ONLY
 	InterlockedMax( OutDepthBuffer[ PixelPos ], DepthInt );
-#else
+#elif COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS
 	const UlongType Pixel = PackUlongType(uint2(PixelValue, DepthInt));
-
-#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_PLATFORM
-#if COMPILER_SUPPORTS_UINT64_IMAGE_ATOMICS
 	ImageInterlockedMaxUInt64(OutBuffer, PixelPos, Pixel);
 #else
 	#error UNKNOWN_ATOMIC_PLATFORM
-#endif
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_NVIDIA
-	NvInterlockedMaxUint64(OutBuffer, PixelPos, Pixel); 
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_AMD_DX11
-	AmdDxExtShaderIntrinsics_AtomicMaxU64(OutBuffer, PixelPos, Pixel);
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_AMD_DX12
-	AmdExtD3DShaderIntrinsics_AtomicMaxU64(OutBuffer, PixelPos, Pixel);
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_INTC_DX11
-	IntelExt_Init();
-	IntelExt_InterlockedMaxUint64(OutBuffer, PixelPos, Pixel);
-#elif RASTER_TECHNIQUE == RASTER_TECHNIQUE_INTC_DX12
-	IntelExt_Init();
-	IntelExt_InterlockedMaxUint64(OutBuffer, PixelPos, Pixel);
-#else
-	// YOLO SYNC: Surprisingly this seems to work in practice (for compute, not pixel). Tested on 2080Ti and 1080.
-	uint PrevDepth;
-	InterlockedMax(LockBuffer[PixelPos], DepthInt, PrevDepth);
-	if (DepthInt > PrevDepth)
-	{
-		OutBuffer[PixelPos] = Pixel;
-	}
-#endif
 #endif
 }
 
@@ -134,8 +72,7 @@ WritePixelPageTranslation InitializeWritePixelPageTranslation( FNaniteView Nanit
 
 // Write depth pixel with optional per-pixel page translation
 // Supports array texture targets (third coordinate of PixelPos)
-// Requires RASTER_TECHNIQUE == RASTER_TECHNIQUE_DEPTHONLY
-#if RASTER_TECHNIQUE == RASTER_TECHNIQUE_DEPTHONLY
+#if DEPTH_ONLY
 void WriteDepthTextureArray(
 	uint PixelValue,
 	uint3 PixelPos,

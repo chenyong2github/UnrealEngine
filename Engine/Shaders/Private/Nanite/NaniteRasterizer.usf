@@ -980,8 +980,7 @@ void MicropolyRasterize(
 	}
 }
 
-#define PIXEL_VALUE					(RASTER_TECHNIQUE != RASTER_TECHNIQUE_DEPTHONLY)
-#define VERTEX_TO_TRIANGLE_MASKS	(NANITE_PRIM_SHADER && PIXEL_VALUE)
+#define VERTEX_TO_TRIANGLE_MASKS	(NANITE_PRIM_SHADER && !DEPTH_ONLY)
 
 // Use barycentric intrinsics when available, otherwise prefer SV_Barycentrics.
 // If all else fails export them explicitly (incompatible with vertex reuse).
