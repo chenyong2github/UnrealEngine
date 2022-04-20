@@ -10,6 +10,7 @@ class FArchivedSessionHistoryController : public FServerSessionHistoryController
 public:
 	
 	FArchivedSessionHistoryController(FGuid SessionId, TSharedRef<IConcertSyncServer> SyncServer, SSessionHistory::FArguments Arguments);
+	virtual ~FArchivedSessionHistoryController() override;
 	
 protected:
 
@@ -20,4 +21,6 @@ protected:
 private:
 
 	const TSharedRef<IConcertSyncServer> SyncServer;
+
+	void OnActivityListColumnVisibilitySettingsUpdated(const FColumnVisibilitySnapshot& NewValue);
 };

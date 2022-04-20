@@ -4,16 +4,18 @@
 
 #include "CoreMinimal.h"
 
-struct FConcertSyncActivity;
-struct FConcertClientInfo;
-struct FConcertSyncPackageEventMetaData;
-struct FConcertSessionActivity;
 class IConcertSyncServer;
 class IConcertServerSession;
 class SConcertSessionPackageViewer;
 
+struct FConcertClientInfo;
+struct FConcertSessionActivity;
+struct FConcertSyncActivity;
+struct FConcertSyncPackageEventMetaData;
+struct FColumnVisibilitySnapshot;
+
 /** Manages SConcertSessionPackageViewer for a server. */
-class FConcertSessionPackageViewerController
+class FConcertSessionPackageViewerController : public TSharedFromThis<FConcertSessionPackageViewerController>
 {
 public:
 
@@ -37,4 +39,6 @@ private:
 	bool GetPackageEvent(const FConcertSessionActivity& Activity, FConcertSyncPackageEventMetaData& OutPackageEvent) const;
 	TOptional<int64> GetSizeOfPackageEvent(const FConcertSessionActivity& Activity) const;
 	void OnSessionProduced(const FConcertSyncActivity& ProducedActivity) const;
+	
+	void OnSessionContentColumnVisibilitySettingsUpdated(const FColumnVisibilitySnapshot& NewValue);
 };

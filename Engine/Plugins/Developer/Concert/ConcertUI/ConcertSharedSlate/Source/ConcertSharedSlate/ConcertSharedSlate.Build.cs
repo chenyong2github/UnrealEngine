@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 					"ConcertTransport",
 					"ConcertSyncCore",
 					"InputCore",
+					"Json",
 					"Projects",
 					"SlateCore",
 					"UndoHistory",

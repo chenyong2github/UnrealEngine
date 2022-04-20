@@ -67,7 +67,9 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 		.PackageActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetPackageActivitiesVisibility)
 		.TransactionActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTransactionActivitiesVisibility)
 		.DetailsAreaVisibility(EVisibility::Visible)
-		.IsAutoScrollEnabled(true);
+		.IsAutoScrollEnabled(true)
+		.ColumnVisibilitySnapshot(InArgs._ColumnVisibilitySnapshot)
+		.SaveColumnVisibilitySnapshot(InArgs._SaveColumnVisibilitySnapshot);
 
 	ChildSlot
 	[
@@ -101,7 +103,12 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 		[
 			ActivityListViewOptions->MakeStatusBar(
 				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetTotalActivityNum),
-				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum))
+				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum),
+				FConcertSessionActivitiesOptions::FExtendContextMenu::CreateLambda([this](FMenuBuilder& MenuBuilder)
+				{
+					MenuBuilder.AddSeparator();
+					AddEntriesForShowingHiddenRows(ActivityListView->GetHeaderRow().ToSharedRef(), MenuBuilder);
+				}))
 		]
 	];
 }
@@ -148,6 +155,11 @@ void SSessionHistory::HandleActivityAddedOrUpdated(const FConcertClientInfo& InC
 			ActivityListView->Append(NewActivity);
 		}
 	}
+}
+
+void SSessionHistory::OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot)
+{
+	ActivityListView->OnColumnVisibilitySettingsChanged(ColumnSnapshot);
 }
 
 void SSessionHistory::OnSearchTextChanged(const FText& InSearchText)

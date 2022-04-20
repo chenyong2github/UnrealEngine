@@ -5,12 +5,13 @@
 #include "CoreMinimal.h"
 #include "ActivityColumn.h"
 #include "Async/Future.h"
+#include "ConcertHeaderRowUtils.h"
+#include "ConcertSyncSessionTypes.h"
 #include "Misc/TextFilter.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Layout/SExpandableArea.h"
-#include "ConcertSyncSessionTypes.h"
 
 struct FConcertSessionActivity;
 struct FConcertClientInfo;
@@ -137,6 +138,12 @@ public:
 
 		/** Show/hide a message overlay above the activities list explaining why no activities are displayed. */
 		SLATE_ATTRIBUTE(FText, NoActivitiesReasonText)
+	
+		/** Optional snapshot to restore column visibilities with */
+		SLATE_ARGUMENT(FColumnVisibilitySnapshot, ColumnVisibilitySnapshot)
+		/** Called whenever the column visibility changes and should be saved */
+		SLATE_EVENT(UE::ConcertSharedSlate::FSaveColumnVisibilitySnapshot, SaveColumnVisibilitySnapshot)
+	
 	SLATE_END_ARGS();
 	
 	/**
@@ -177,10 +184,13 @@ public:
 
 	/** Asks the view to update the text search filter. */
 	FText UpdateTextFilter(const FText& InFilterText);
-
+	
+	void OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot);
+	
 	const TAttribute<FText>& GetHighlightText() const { return HighlightText; }
 	const TAttribute<ETimeFormat>& GetTimeFormat() const { return TimeFormat; }
 	TOptional<FConcertClientInfo> GetClientInfo(const FGuid& Guid) const { return GetActivityUserFn.IsBound() ? GetActivityUserFn.Execute(Guid) : TOptional<FConcertClientInfo>{}; }
+	TSharedPtr<SHeaderRow> GetHeaderRow() const { return HeaderRow; }
 
 private:
 
@@ -286,6 +296,9 @@ private:
 	TSharedPtr<TTextFilter<const FConcertSessionActivity&>> SearchTextFilter;
 
 	TSharedPtr<SHeaderRow> HeaderRow;
+
+	/** Flag used to suspend saving of the column visibility while OnColumnVisibilitySettingsChanged is active to prevent infinite event recursion. */
+	bool bIsUpdatingColumnVisibility = false;
 	
 	/** The expandable area under which the activity details are displayed. */
 	TSharedPtr<SExpandableArea> ExpandableDetails;
@@ -319,17 +332,20 @@ private:
 class CONCERTSHAREDSLATE_API FConcertSessionActivitiesOptions : public TSharedFromThis<FConcertSessionActivitiesOptions>
 {
 public:
-	/** Returns a Menu widgets containing the available options. */
-	TSharedRef<SWidget> MakeMenuWidget();
-
-	/** Makes a standard View Options widget, displaying the eye ball icon and showing the possible options. */
-	TSharedRef<SWidget> MakeViewOptionsWidget();
-
-	/** Makes a widgets saying how many operations are shown with respect to those filtered out. */
-	TSharedRef<SWidget> MakeDisplayedActivityCountWidget(TAttribute<int32> Total, TAttribute<int32> Displayed);
+	
+	DECLARE_DELEGATE_OneParam(FExtendContextMenu, FMenuBuilder&)
 
 	/** Makes a status bar widget displaying the activity shown and the standard view options button. */
-	TSharedRef<SWidget> MakeStatusBar(TAttribute<int32> Total, TAttribute<int32> Displayed);
+	TSharedRef<SWidget> MakeStatusBar(TAttribute<int32> Total, TAttribute<int32> Displayed, TOptional<FExtendContextMenu> ExtendMenu = {});
+	
+	/** Makes a widgets saying how many operations are shown with respect to those filtered out. */
+	TSharedRef<SWidget> MakeDisplayedActivityCountWidget(TAttribute<int32> Total, TAttribute<int32> Displayed);
+	
+	/** Makes a standard View Options widget, displaying the eye ball icon and showing the possible options. */
+	TSharedRef<SWidget> MakeViewOptionsWidget(TOptional<FExtendContextMenu> ExtendMenu = {});
+	
+	/** Returns a Menu widgets containing the available options. */
+	TSharedRef<SWidget> MakeMenuWidget(TOptional<FExtendContextMenu> ExtendMenu = {});
 
 	/** Returns the time format option. */
 	SConcertSessionActivities::ETimeFormat GetTimeFormat() const { return bDisplayRelativeTime ? SConcertSessionActivities::ETimeFormat::Relative : SConcertSessionActivities::ETimeFormat::Absolute; }

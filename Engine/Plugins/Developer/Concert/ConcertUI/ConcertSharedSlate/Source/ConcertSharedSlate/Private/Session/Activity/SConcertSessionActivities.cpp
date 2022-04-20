@@ -365,7 +365,17 @@ TSharedRef<SHeaderRow> SConcertSessionActivities::CreateHeaderRow(const FArgumen
 	checkf(!bContainsSummary, TEXT("Summary is already created by SConcertSessionActivities!"))
 	Columns.Add(ActivityColumn::Summary());
 	
-	HeaderRow = SNew(SHeaderRow);
+	HeaderRow = SNew(SHeaderRow)
+		.OnHiddenColumnsListChanged_Lambda([this, SaveCallback = InArgs._SaveColumnVisibilitySnapshot]()
+		{
+			// bIsUpdatingColumnVisibility is true when the columns visibility is being changed by OnColumnVisibilitySettingsChanged to prevent recursion
+			if (SaveCallback.IsBound() && !bIsUpdatingColumnVisibility)
+			{
+				const FColumnVisibilitySnapshot Snapshot = SnapshotColumnVisibilityState(HeaderRow.ToSharedRef());
+				SaveCallback.Execute(Snapshot);
+			}
+		});
+	
 	TSet<FName> DuplicateColumnDetection;
 	for (FActivityColumn& Column : Columns)
 	{
@@ -374,9 +384,16 @@ TSharedRef<SHeaderRow> SConcertSessionActivities::CreateHeaderRow(const FArgumen
 		
 		// SHeaderRow owns the columns and deletes them when destroyed
 		FActivityColumn* ManagedByHeaderRow = new FActivityColumn(MoveTemp(Column));
+		const bool bCanBeHidden = !ManagedByHeaderRow->ShouldGenerateWidget.IsSet(); 
+		if (bCanBeHidden)
+		{
+			ManagedByHeaderRow->OnGetMenuContent = FOnGetContent::CreateLambda([this, ColumnId = Column.ColumnId](){ return MakeHideColumnContextMenu(HeaderRow.ToSharedRef(), ColumnId); });
+		}
 		HeaderRow->AddColumn(*ManagedByHeaderRow);
 	}
-	
+
+	TGuardValue<bool> GuardValue(bIsUpdatingColumnVisibility, true);
+	RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), InArgs._ColumnVisibilitySnapshot);
 	return HeaderRow.ToSharedRef();
 }
 
@@ -735,6 +752,12 @@ FText SConcertSessionActivities::UpdateTextFilter(const FText& InFilterText)
 	return SearchTextFilter->GetFilterErrorText();
 }
 
+void SConcertSessionActivities::OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot)
+{
+	TGuardValue<bool> GuardValue(bIsUpdatingColumnVisibility, true);
+	UE::ConcertSharedSlate::RestoreColumnVisibilityState(GetHeaderRow().ToSharedRef(), ColumnSnapshot);
+}
+
 void SConcertSessionActivities::PopulateSearchStrings(const FConcertSessionActivity& Activity, TArray<FString>& OutSearchStrings)
 {
 	for (const SHeaderRow::FColumn& Column : HeaderRow->GetColumns())
@@ -822,7 +845,80 @@ void SConcertSessionActivities::SetDetailsPanelVisibility(const SWidget* Visible
 	LoadingDetailsPanel->SetVisibility(VisiblePanel == LoadingDetailsPanel.Get() ? EVisibility::Visible : EVisibility::Collapsed);
 }
 
-TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeMenuWidget()
+TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeStatusBar(TAttribute<int32> Total, TAttribute<int32> Displayed, TOptional<FExtendContextMenu> ExtendMenu)
+{
+	return SNew(SHorizontalBox)
+
+	// Operation count.
+	+SHorizontalBox::Slot()
+	.AutoWidth()
+	.VAlign(VAlign_Center)
+	[
+		MakeDisplayedActivityCountWidget(MoveTemp(Total), MoveTemp(Displayed))
+	]
+
+	// Gap Filler
+	+SHorizontalBox::Slot()
+	.FillWidth(1.0)
+	[
+		SNew(SSpacer)
+	]
+
+	// View option
+	+SHorizontalBox::Slot()
+	.AutoWidth()
+	[
+		MakeViewOptionsWidget(ExtendMenu)
+	];
+}
+
+TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeDisplayedActivityCountWidget(TAttribute<int32> Total, TAttribute<int32> Displayed)
+{
+	return SNew(STextBlock)
+		.Text_Lambda([Total = MoveTemp(Total), Displayed = MoveTemp(Displayed)]()
+		{
+			if (Total.Get() == Displayed.Get())
+			{
+				return FText::Format(LOCTEXT("OperationCount", "{0} operations"), Total.Get());
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("PartialOperationCount", "Showing {0} of {1} {1}|plural(one=operation,other=operations)"), Displayed.Get(), Total.Get());
+			}
+		});
+}
+
+TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeViewOptionsWidget(TOptional<FExtendContextMenu> ExtendMenu)
+{
+	return SNew(SComboButton)
+	.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
+	.ForegroundColor(FLinearColor::White)
+	.ContentPadding(0)
+	.OnGetMenuContent(this, &FConcertSessionActivitiesOptions::MakeMenuWidget, MoveTemp(ExtendMenu))
+	.HasDownArrow(true)
+	.ContentPadding(FMargin(1, 0))
+	.ButtonContent()
+	[
+		SNew(SHorizontalBox)
+
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		[
+			SNew(SImage).Image(FAppStyle::Get().GetBrush("GenericViewButton")) // The eye ball image.
+		]
+
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2, 0, 0, 0)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock).Text(LOCTEXT("ViewOptions", "View Options"))
+		]
+	];
+}
+
+TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeMenuWidget(TOptional<FExtendContextMenu> ExtendMenu)
 {
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 
@@ -912,81 +1008,13 @@ TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeMenuWidget()
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
+
+	if (ExtendMenu)
+	{
+		ExtendMenu->Execute(MenuBuilder);
+	}
 	
 	return MenuBuilder.MakeWidget();
-}
-
-TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeViewOptionsWidget()
-{
-	return SNew(SComboButton)
-	.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
-	.ForegroundColor(FLinearColor::White)
-	.ContentPadding(0)
-	.OnGetMenuContent(this, &FConcertSessionActivitiesOptions::MakeMenuWidget)
-	.HasDownArrow(true)
-	.ContentPadding(FMargin(1, 0))
-	.ButtonContent()
-	[
-		SNew(SHorizontalBox)
-
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SImage).Image(FAppStyle::Get().GetBrush("GenericViewButton")) // The eye ball image.
-		]
-
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(2, 0, 0, 0)
-		.VAlign(VAlign_Center)
-		[
-			SNew(STextBlock).Text(LOCTEXT("ViewOptions", "View Options"))
-		]
-	];
-}
-
-TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeDisplayedActivityCountWidget(TAttribute<int32> Total, TAttribute<int32> Displayed)
-{
-	return SNew(STextBlock)
-		.Text_Lambda([Total = MoveTemp(Total), Displayed = MoveTemp(Displayed)]()
-		{
-			if (Total.Get() == Displayed.Get())
-			{
-				return FText::Format(LOCTEXT("OperationCount", "{0} operations"), Total.Get());
-			}
-			else
-			{
-				return FText::Format(LOCTEXT("PartialOperationCount", "Showing {0} of {1} {1}|plural(one=operation,other=operations)"), Displayed.Get(), Total.Get());
-			}
-		});
-}
-
-TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeStatusBar(TAttribute<int32> Total, TAttribute<int32> Displayed)
-{
-	return SNew(SHorizontalBox)
-
-	// Operation count.
-	+SHorizontalBox::Slot()
-	.AutoWidth()
-	.VAlign(VAlign_Center)
-	[
-		MakeDisplayedActivityCountWidget(MoveTemp(Total), MoveTemp(Displayed))
-	]
-
-	// Gap Filler
-	+SHorizontalBox::Slot()
-	.FillWidth(1.0)
-	[
-		SNew(SSpacer)
-	]
-
-	// View option
-	+SHorizontalBox::Slot()
-	.AutoWidth()
-	[
-		MakeViewOptionsWidget()
-	];
 }
 
 void FConcertSessionActivitiesOptions::OnOptionToggled(const FName CheckBoxId)

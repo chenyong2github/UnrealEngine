@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConcertHeaderRowUtils.h"
+
 #include "Misc/TextFilter.h"
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -80,6 +82,11 @@ public:
 	SLATE_EVENT(FCanRemoveSession, CanDeleteArchivedSession)
 	/** Ask the user to confirm deleting - most obvious implementation is showing a dialog box */
 	SLATE_EVENT(FCanRemoveSession, CanDeleteActiveSession)
+
+	/** Optional snapshot to restore column visibilities with */
+	SLATE_ARGUMENT(FColumnVisibilitySnapshot, ColumnVisibilitySnapshot)
+	/** Called whenever the column visibility changes and should be saved */
+	SLATE_EVENT(UE::ConcertSharedSlate::FSaveColumnVisibilitySnapshot, SaveColumnVisibilitySnapshot)
 	
 	SLATE_END_ARGS();
 
@@ -119,7 +126,7 @@ private:
 	// Layout the sessions view and controls.
 	TSharedRef<SWidget> MakeControlBar(const FArguments& InArgs);
 	TSharedRef<SWidget> MakeButtonBar(const FArguments& InArgs);
-	TSharedRef<SWidget> MakeSessionTableView();
+	TSharedRef<SWidget> MakeSessionTableView(const FArguments& InArgs);
 	TSharedRef<SWidget> MakeSessionViewOptionsBar();
 	TSharedRef<ITableRow> OnGenerateSessionRowWidget(TSharedPtr<FConcertSessionItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
@@ -206,6 +213,7 @@ private:
 
 	// The session list view.
 	TSharedPtr<SListView<TSharedPtr<FConcertSessionItem>>> SessionsView;
+	TSharedPtr<SHeaderRow> SessionHeaderRow;
 
 	// The item corresponding to a row used to create/archive/restore a session. There is only one at the time
 	TSharedPtr<FConcertSessionItem> EditableSessionRow;

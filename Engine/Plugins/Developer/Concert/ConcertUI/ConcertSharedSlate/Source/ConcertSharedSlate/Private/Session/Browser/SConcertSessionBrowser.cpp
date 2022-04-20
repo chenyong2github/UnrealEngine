@@ -4,6 +4,10 @@
 
 #include "Algo/ForEach.h"
 #include "ConcertFrontendStyle.h"
+#include "ConcertHeaderRowUtils.h"
+
+#include "Algo/Find.h"
+
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionBrowserSettings.h"
 #include "Session/Browser/ConcertSessionItem.h"
@@ -74,7 +78,7 @@ void SConcertSessionBrowser::Construct(const FArguments& InArgs, TSharedRef<ICon
 
 TSharedRef<SWidget> SConcertSessionBrowser::MakeBrowserContent(const FArguments& InArgs)
 {
-	TSharedRef<SWidget> SessionTable = MakeSessionTableView();
+	TSharedRef<SWidget> SessionTable = MakeSessionTableView(InArgs);
 	return SNew(SBorder)
 		.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 		.Padding(FMargin(1.0f, 2.0f))
@@ -339,14 +343,16 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar(const FArguments& InAr
 	return RowBuilder.MakeWidget();
 }
 
-TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView()
+TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView(const FArguments& InArgs)
 {
+	using namespace UE::ConcertSharedSlate;
+
 	PrimarySortedColumn = ConcertBrowserUtils::IconColName;
 	PrimarySortMode = EColumnSortMode::Ascending;
 	SecondarySortedColumn = ConcertBrowserUtils::SessionColName;
 	SecondarySortMode = EColumnSortMode::Ascending;
 
-	return SAssignNew(SessionsView, SListView<TSharedPtr<FConcertSessionItem>>)
+	SessionsView = SNew(SListView<TSharedPtr<FConcertSessionItem>>)
 		.SelectionMode(ESelectionMode::Single)
 		.ListItemsSource(&Sessions)
 		.OnGenerateRow(this, &SConcertSessionBrowser::OnGenerateSessionRowWidget)
@@ -354,7 +360,15 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView()
 		.OnSelectionChanged(this, &SConcertSessionBrowser::OnSessionSelectionChanged)
 		.OnContextMenuOpening(this, &SConcertSessionBrowser::MakeContextualMenu)
 		.HeaderRow(
-			SNew(SHeaderRow)
+			SAssignNew(SessionHeaderRow, SHeaderRow)
+			.OnHiddenColumnsListChanged_Lambda([this, SaveCallback = InArgs._SaveColumnVisibilitySnapshot]()
+			{
+				if (SaveCallback.IsBound())
+				{
+					const FColumnVisibilitySnapshot Snapshot = SnapshotColumnVisibilityState(SessionHeaderRow.ToSharedRef());
+					SaveCallback.Execute(Snapshot);
+				}
+			})
 
 			+SHeaderRow::Column(ConcertBrowserUtils::IconColName)
 			.DefaultLabel(FText::GetEmpty())
@@ -362,30 +376,39 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView()
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::IconColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
 			.FixedWidth(20)
+			.ShouldGenerateWidget(true)
 
 			+SHeaderRow::Column(ConcertBrowserUtils::SessionColName)
 			.DefaultLabel(LOCTEXT("SessioName", "Session"))
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::SessionColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::SessionColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
+			.ShouldGenerateWidget(true)
 
 			+SHeaderRow::Column(ConcertBrowserUtils::ServerColName)
 			.DefaultLabel(LOCTEXT("Server", "Server"))
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::ServerColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::ServerColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
+			.OnGetMenuContent_Lambda([this](){ return MakeHideColumnContextMenu(SessionHeaderRow.ToSharedRef(), ConcertBrowserUtils::ServerColName); })
 
 			+SHeaderRow::Column(ConcertBrowserUtils::ProjectColName)
 			.DefaultLabel(LOCTEXT("Project", "Project"))
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::ProjectColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::ProjectColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
+			.OnGetMenuContent_Lambda([this](){ return MakeHideColumnContextMenu(SessionHeaderRow.ToSharedRef(), ConcertBrowserUtils::ProjectColName); })
 
 			+SHeaderRow::Column(ConcertBrowserUtils::VersionColName)
 			.DefaultLabel(LOCTEXT("Version", "Version"))
 			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::VersionColName)
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::VersionColName)
-			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged));
+			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
+			.OnGetMenuContent_Lambda([this](){ return MakeHideColumnContextMenu(SessionHeaderRow.ToSharedRef(), ConcertBrowserUtils::VersionColName); })
+			);
+
+	RestoreColumnVisibilityState(SessionHeaderRow.ToSharedRef(), InArgs._ColumnVisibilitySnapshot);
+	return SessionsView.ToSharedRef();
 }
 
 EColumnSortMode::Type SConcertSessionBrowser::GetColumnSortMode(const FName ColumnId) const
@@ -706,6 +729,8 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 			EUserInterfaceActionType::ToggleButton
 		);
 
+		MenuBuilder.AddSeparator();
+		UE::ConcertSharedSlate::AddEntriesForShowingHiddenRows(SessionHeaderRow.ToSharedRef(), MenuBuilder);
 		return MenuBuilder.MakeWidget();
 	};
 

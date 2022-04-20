@@ -25,7 +25,7 @@ namespace UE::MultiUserServer::PackageViewerColumns
 		return FActivityColumn(
 			SHeaderRow::Column(ColumnId)
 				.DefaultLabel(Label)
-				.ManualWidth(Width)
+				.FillSized(Width)
 			)
 			.ColumnSortOrder(static_cast<int32>(SortOrder))
 			.GenerateColumnWidget(FActivityColumn::FGenerateColumnWidget::CreateLambda([GetterFunc, FormatFunc](const TSharedRef<SConcertSessionActivities>& Owner, const TSharedRef<FConcertSessionActivity>& Activity, SOverlay::FScopedWidgetSlotArguments& Slot)

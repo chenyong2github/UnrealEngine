@@ -28,6 +28,8 @@ public:
 	void ResetActivityList();
 	void AppendActivity(FConcertSessionActivity Activity);
 
+	void OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot);
+
 private:
 
 	TSharedPtr<SConcertSessionActivities> ActivityListView;

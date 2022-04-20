@@ -2,6 +2,7 @@
 
 #include "SConcertSessionPackageViewer.h"
 
+#include "MultiUserServerUserSettings.h"
 #include "PackageViewerColumns.h"
 
 #include "Session/Activity/PredefinedActivityColumns.h"
@@ -37,7 +38,12 @@ void SConcertSessionPackageViewer::Construct(const FArguments& InArgs)
 		.PackageActivitiesVisibility(EVisibility::Visible)
 		.TransactionActivitiesVisibility(EVisibility::Collapsed)
 		.DetailsAreaVisibility(EVisibility::Collapsed)
-		.IsAutoScrollEnabled(true);
+		.IsAutoScrollEnabled(true)
+		.ColumnVisibilitySnapshot(UMultiUserServerUserSettings::GetUserSettings()->GetLiveSessionContentColumnVisibility())
+		.SaveColumnVisibilitySnapshot_Lambda([](const FColumnVisibilitySnapshot& Snapshot)
+		{
+			UMultiUserServerUserSettings::GetUserSettings()->SetLiveSessionContentColumnVisibility(Snapshot);
+		});
 
 	ChildSlot
 	[
@@ -63,8 +69,12 @@ void SConcertSessionPackageViewer::Construct(const FArguments& InArgs)
 		[
 			ActivityListViewOptions->MakeStatusBar(
 				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetTotalActivityNum),
-				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum)
-				)
+				TAttribute<int32>(ActivityListView.Get(), &SConcertSessionActivities::GetDisplayedActivityNum),
+				FConcertSessionActivitiesOptions::FExtendContextMenu::CreateLambda([this](FMenuBuilder& MenuBuilder)
+				{
+					MenuBuilder.AddSeparator();
+					AddEntriesForShowingHiddenRows(ActivityListView->GetHeaderRow().ToSharedRef(), MenuBuilder);
+				}))
 		]
 	];
 }
@@ -78,6 +88,11 @@ void SConcertSessionPackageViewer::AppendActivity(FConcertSessionActivity Activi
 {
 	const TSharedRef<FConcertSessionActivity> NewActivity = MakeShared<FConcertSessionActivity>(MoveTemp(Activity));
 	ActivityListView->Append(NewActivity);
+}
+
+void SConcertSessionPackageViewer::OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot)
+{
+	ActivityListView->OnColumnVisibilitySettingsChanged(ColumnSnapshot);
 }
 
 TOptional<int64> SConcertSessionPackageViewer::GetVersionOfPackageActivity(const FConcertSessionActivity& Activity, SConcertSessionActivities::FGetPackageEvent GetPackageEventFunc) const

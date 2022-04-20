@@ -28,4 +28,5 @@ private:
 	TSharedRef<IConcertSyncServer> SyncServer;
 	
 	void OnSessionProduced(const FConcertSyncActivity& ProducedActivity);
+	void OnActivityListColumnVisibilitySettingsUpdated(const FColumnVisibilitySnapshot& NewValue);
 };
