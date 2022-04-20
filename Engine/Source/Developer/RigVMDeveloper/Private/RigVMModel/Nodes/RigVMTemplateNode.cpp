@@ -13,6 +13,21 @@ URigVMTemplateNode::URigVMTemplateNode()
 {
 }
 
+void URigVMTemplateNode::PostLoad()
+{
+	Super::PostLoad();
+
+	// if there are brackets in the notation remove them
+	const FString OriginalNotation = TemplateNotation.ToString();
+	const FString SanitizedNotation = OriginalNotation.Replace(TEXT("[]"), TEXT(""));
+	if(OriginalNotation != SanitizedNotation)
+	{
+		TemplateNotation = *SanitizedNotation;
+	}
+	
+	InvalidateCache();
+}
+
 UScriptStruct* URigVMTemplateNode::GetScriptStruct() const
 {
 	if(const FRigVMFunction* Function = GetResolvedFunction())
@@ -113,9 +128,15 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, const FString& InC
 
 	const URigVMPin* RootPin = InPin->GetRootPin();
 
+	FString CPPType = InCPPType;
+
+	if(InPin->GetParentPin() == RootPin && RootPin->IsArray())
+	{
+		CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
+	}
+
 	// we always support the unknown type
-	if(((InCPPType == WildCardCPPType) && !InPin->IsArray()) ||
-		((InCPPType == WildCardArrayCPPType) && InPin->IsArray()))
+	if((InCPPType == WildCardCPPType) || (InCPPType == WildCardArrayCPPType))
 	{
 		if(const FRigVMTemplate* Template = GetTemplate())
 		{
@@ -125,6 +146,21 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, const FString& InC
 				if(Argument->IsSingleton())
 				{
 					return false;
+				}
+
+				if(RigVMTypeUtils::IsArrayType(CPPType))
+				{
+					if(Argument->GetArrayType() == FRigVMTemplateArgument::EArrayType_SingleValue)
+					{
+						return false;
+					}
+				}
+				else
+				{
+					if(Argument->GetArrayType() == FRigVMTemplateArgument::EArrayType_ArrayValue)
+					{
+						return false;
+					}
 				}
 				
 				if(OutCPPType)
@@ -137,13 +173,6 @@ bool URigVMTemplateNode::SupportsType(const URigVMPin* InPin, const FString& InC
 		return false;
 	}
 	
-	FString CPPType = InCPPType;
-
-	if(InPin->GetParentPin() == RootPin && RootPin->IsArray())
-	{
-		CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
-	}
-
 	if (const FRigVMTemplate* Template = GetTemplate())
 	{
 		const FString CacheKey = RootPin->GetName() + TEXT("|") + CPPType;
@@ -258,7 +287,7 @@ const FRigVMTemplate* URigVMTemplateNode::GetTemplate() const
 {
 	if(CachedTemplate == nullptr)
 	{
-		CachedTemplate = FRigVMRegistry::Get().FindTemplate(TemplateNotation);
+		CachedTemplate = FRigVMRegistry::Get().FindTemplate(GetNotation());
 	}
 	return CachedTemplate;
 }

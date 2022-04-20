@@ -37,10 +37,7 @@ public:
 
 private:
 
-	static const FRigVMTemplate* FindOrAddTemplate(bool bIsArray);
-
 	static const FString RerouteName;
-	static const FString RerouteArrayName;
 	static const FString ValueName;
 
 	UPROPERTY()

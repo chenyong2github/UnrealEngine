@@ -111,8 +111,35 @@ struct RIGVM_API FRigVMTemplateArgument
 			return CPPType;
 		}
 	};
+	
+	enum EArrayType
+	{
+		EArrayType_SingleValue,
+		EArrayType_ArrayValue,
+		EArrayType_Mixed,
+		EArrayType_Invalid
+	};
+
+	enum ETypeCategory
+	{
+		ETypeCategory_SingleAnyValue,
+		ETypeCategory_ArrayAnyValue,
+		ETypeCategory_SingleSimpleValue,
+		ETypeCategory_ArraySimpleValue,
+		ETypeCategory_SingleMathStructValue,
+		ETypeCategory_ArrayMathStructValue,
+		ETypeCategory_SingleScriptStructValue,
+		ETypeCategory_ArrayScriptStructValue,
+		ETypeCategory_SingleEnumValue,
+		ETypeCategory_ArrayEnumValue,
+		ETypeCategory_SingleObjectValue,
+		ETypeCategory_ArrayObjectValue,
+		ETypeCategory_ExecuteContext,
+		ETypeCategory_Invalid
+	};
 
 	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const FType& InType);
+	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<FType>& InTypes);
 
 	// returns the name of the argument
 	const FName& GetName() const { return Name; }
@@ -136,7 +163,10 @@ struct RIGVM_API FRigVMTemplateArgument
 	bool IsSingleton(const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
 	// returns true if the argument uses an array container
-	bool IsArray() const;
+	EArrayType GetArrayType() const;
+	
+	// Returns all compatible types given a category
+	static const TArray<FType> GetCompatibleTypes(ETypeCategory InCategory);
 
 protected:
 
@@ -223,9 +253,6 @@ public:
 
 	// returns the prefix for an argument in the notation
 	static const FString& GetArgumentNotationPrefix(const FRigVMTemplateArgument& InArgument);
-
-	// returns the suffix for an argument in the notation
-	static const FString& GetArgumentNotationSuffix(const FRigVMTemplateArgument& InArgument);
 
 	// returns the notation of an argument
 	static FString GetArgumentNotation(const FRigVMTemplateArgument& InArgument);

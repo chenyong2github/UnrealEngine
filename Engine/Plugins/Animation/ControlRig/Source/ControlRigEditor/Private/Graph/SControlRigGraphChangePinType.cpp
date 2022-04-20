@@ -293,10 +293,31 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 		static FName PropertyIcon(TEXT("Kismet.VariableList.TypeIcon"));
 		const UControlRigGraphSchema* Schema = GetDefault<UControlRigGraphSchema>();
 
+		const bool bHasAllTypes =
+			SortedTypes.Num() >=
+				FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue).Num();
+		
 		for(int32 TypeIndex=0; TypeIndex < SortedTypes.Num(); TypeIndex++)
 		{
 			const FRigVMTemplateArgument::FType& Type = SortedTypes[TypeIndex].Key;
 			const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(Type.CPPType, Type.CPPTypeObject);
+
+			if(bHasAllTypes && Type.CPPTypeObject)
+			{
+				if(Type.CPPTypeObject->IsA<UEnum>() || Type.CPPTypeObject->IsA<UClass>())
+				{
+					continue;
+				}
+
+				if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
+				{
+					if(!FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleMathStructValue).Contains(
+						FRigVMTemplateArgument::FType(ScriptStruct->GetStructCPPName(), ScriptStruct)))
+					{
+						continue;
+					}
+				}
+			}
 
 			if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
 			{

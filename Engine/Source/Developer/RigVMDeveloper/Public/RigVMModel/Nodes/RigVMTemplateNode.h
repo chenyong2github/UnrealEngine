@@ -21,6 +21,9 @@ public:
 	// default constructor
 	URigVMTemplateNode();
 
+	// UObject interface
+	virtual void PostLoad() override;
+
 	// URigVMNode interface
 	virtual FString GetNodeTitle() const override;
 	virtual FName GetMethodName() const;

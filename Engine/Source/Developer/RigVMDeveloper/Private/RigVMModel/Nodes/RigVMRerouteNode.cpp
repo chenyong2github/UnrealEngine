@@ -3,7 +3,6 @@
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
 
 const FString URigVMRerouteNode::RerouteName = TEXT("Reroute");
-const FString URigVMRerouteNode::RerouteArrayName = TEXT("RerouteArray");
 const FString URigVMRerouteNode::ValueName = TEXT("Value");
 
 URigVMRerouteNode::URigVMRerouteNode()
@@ -66,28 +65,29 @@ FLinearColor URigVMRerouteNode::GetNodeColor() const
 
 FName URigVMRerouteNode::GetNotation() const
 {
-	return GetTemplate()->GetNotation();
+	static constexpr TCHAR Format[] = TEXT("%s(io %s)");
+	static const FName RerouteNotation = *FString::Printf(Format, *RerouteName, *ValueName);
+	return RerouteNotation;
 }
 
 const FRigVMTemplate* URigVMRerouteNode::GetTemplate() const
 {
+	if(const FRigVMTemplate* SuperTemplate = Super::GetTemplate())
+	{
+		return SuperTemplate;
+	}
+	
 	if(CachedTemplate == nullptr)
 	{
-		bool bIsArray = false;
-		if(const URigVMPin* ValuePin = FindPin(ValueName))
-		{
-			bIsArray = ValuePin->IsArray();
-		}
-		CachedTemplate = FindOrAddTemplate(bIsArray);
+		TArray<FRigVMTemplateArgument::FType> Types;
+		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue));
+		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue));
+		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ExecuteContext));
+		
+		TArray<FRigVMTemplateArgument> Arguments;
+		Arguments.Emplace(TEXT("Value"), ERigVMPinDirection::IO, Types);
+		
+		CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*RerouteName, Arguments);
 	}
 	return CachedTemplate;
-}
-
-const FRigVMTemplate* URigVMRerouteNode::FindOrAddTemplate(bool bIsArray)
-{
-	TArray<FRigVMTemplateArgument> Arguments;
-	Arguments.Emplace(TEXT("Value"), ERigVMPinDirection::IO, bIsArray ? FRigVMTemplateArgument::FType::Array() : FRigVMTemplateArgument::FType());
-		
-	return FRigVMRegistry::Get().GetOrAddTemplateFromArguments(
-		bIsArray ? *RerouteArrayName : *RerouteName, Arguments, true);
 }

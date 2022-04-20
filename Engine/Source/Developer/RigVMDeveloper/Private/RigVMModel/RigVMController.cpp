@@ -11724,8 +11724,7 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 	if(Node == nullptr)
 	{
 		const FString TemplateName = Template->GetName().ToString();
-		if(TemplateName== URigVMRerouteNode::RerouteName ||
-			TemplateName== URigVMRerouteNode::RerouteArrayName)
+		if(TemplateName == URigVMRerouteNode::RerouteName)
 		{
 			Node = NewObject<URigVMRerouteNode>(Graph, *Name);
 		}
@@ -15004,9 +15003,23 @@ bool URigVMController::ResolveWildCardPinImpl(URigVMPin* InPinToResolve, const F
 	}
 
 	FString ResolvedCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
+
+	// change the pin's type to be of an array as well
 	if(InPinToResolve->IsArray())
 	{
 		ResolvedCPPType = RigVMTypeUtils::ArrayTypeFromBaseType(ResolvedCPPType);
+	}
+	else if(InPinToResolve->IsRootPin() && RigVMTypeUtils::IsArrayType(InCPPType))
+	{
+		if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPinToResolve->GetNode()))
+		{
+			const FString ArrayCPPType = RigVMTypeUtils::ArrayTypeFromBaseType(ResolvedCPPType);
+			FString ResolvedArrayCPPType;
+			if(TemplateNode->SupportsType(InPinToResolve, ArrayCPPType, &ResolvedArrayCPPType))
+			{
+				ResolvedCPPType = ResolvedArrayCPPType;
+			}
+		}
 	}
 
 	if(ChangePinType(InPinToResolve, ResolvedCPPType, CPPTypeObject, bSetupUndoRedo, false, false, false))
@@ -15143,11 +15156,20 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 	{
 		if(!TemplateNode->SupportsType(InPin, InCPPType, &CPPType))
 		{
+			ReportErrorf(TEXT("ChangePinType: %s doesn't support type '%s'."), *InPin->GetPinPath(), *InCPPType);
 			return false;
 		}
 
-		const FString BaseCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
-		CPPType = InPin->IsArray() ? RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType) : BaseCPPType;
+		// change the pin's type to be of an array as well
+		if(InPin->IsRootPin() && RigVMTypeUtils::IsArrayType(CPPType) != InPin->IsArray())
+		{
+			// nothing to do here - leave the type as is 
+		}
+		else
+		{
+			const FString BaseCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
+			CPPType = InPin->IsArray() ? RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType) : BaseCPPType;
+		}
 	}
 
 	FRigVMControllerCompileBracketScope CompileScope(this);

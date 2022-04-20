@@ -61,6 +61,24 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 {
 }
 
+FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<FType>& InTypes)
+: Index(INDEX_NONE)
+, Name(InName)
+, Direction(InDirection)
+, bSingleton(true)
+, Types(InTypes)
+{
+	check(Types.Num() > 0);
+	for(int32 TypeIndex=1;TypeIndex<Types.Num();TypeIndex++)
+	{
+		if(Types[TypeIndex] != Types[0])
+		{
+			bSingleton = false;
+			break;
+		}
+	}
+}
+
 bool FRigVMTemplateArgument::SupportsType(const FString& InCPPType, const TArray<int32>& InPermutationIndices, FType* OutType) const
 {
 	bool bFoundMatch = false;
@@ -124,13 +142,275 @@ bool FRigVMTemplateArgument::IsSingleton(const TArray<int32>& InPermutationIndic
 	return true;
 }
 
-bool FRigVMTemplateArgument::IsArray() const
+FRigVMTemplateArgument::EArrayType FRigVMTemplateArgument::GetArrayType() const
 {
 	if(Types.Num() > 0)
 	{
-		return Types[0].IsArray();
+		const EArrayType ArrayType = Types[0].IsArray() ? EArrayType::EArrayType_ArrayValue : EArrayType::EArrayType_SingleValue;
+		
+		if(IsSingleton())
+		{
+			return ArrayType;
+		}
+
+		for(int32 PermutationIndex=1;PermutationIndex<Types.Num();PermutationIndex++)
+		{
+			const EArrayType OtherArrayType = Types[PermutationIndex].IsArray() ? EArrayType::EArrayType_ArrayValue : EArrayType::EArrayType_SingleValue;
+			if(OtherArrayType != ArrayType)
+			{
+				return EArrayType::EArrayType_Mixed;
+			}
+		}
+
+		return ArrayType;
 	}
-	return false;
+
+	return EArrayType_Invalid;
+}
+
+const TArray<FRigVMTemplateArgument::FType> FRigVMTemplateArgument::GetCompatibleTypes(ETypeCategory InCategory)
+{
+	check(InCategory != ETypeCategory_Invalid);
+	
+	static TMap<ETypeCategory, TArray<FType>> CompatibleTypes;
+	if(CompatibleTypes.IsEmpty())
+	{
+		CompatibleTypes.Add(ETypeCategory_SingleAnyValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayAnyValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_SingleSimpleValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArraySimpleValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_SingleMathStructValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayMathStructValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_SingleScriptStructValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayScriptStructValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_SingleEnumValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayEnumValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_SingleObjectValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayObjectValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ExecuteContext, TArray<FType>());
+
+		TArray<FType>& SingleAnyValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleAnyValue);
+		TArray<FType>& ArrayAnyValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayAnyValue);
+		TArray<FType>& SingleSimpleValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleSimpleValue);
+		TArray<FType>& ArraySimpleValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArraySimpleValue);
+		TArray<FType>& SingleMathStructValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleMathStructValue);
+		TArray<FType>& ArrayMathStructValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayMathStructValue);
+		TArray<FType>& SingleScriptStructValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleScriptStructValue);
+		TArray<FType>& ArrayScriptStructValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayScriptStructValue);
+		TArray<FType>& SingleEnumValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleEnumValue);
+		TArray<FType>& ArrayEnumValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayEnumValue);
+		TArray<FType>& SingleObjectValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleObjectValue);
+		TArray<FType>& ArrayObjectValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayObjectValue);
+		TArray<FType>& ExecuteContextTypes = CompatibleTypes.FindChecked(ETypeCategory_ExecuteContext);
+
+		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::BoolType));
+		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::Int32Type));
+		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::UInt8Type));
+		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::FloatType));
+		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::DoubleType));
+		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::FNameType));
+		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::FStringType));
+
+		for(const FType& Type : SingleSimpleValueTypes)
+		{
+			ArraySimpleValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(Type.CPPType)));
+		}
+
+		SingleAnyValueTypes = SingleSimpleValueTypes;
+		ArrayAnyValueTypes = ArraySimpleValueTypes;
+
+		static const TArray<UScriptStruct*> MathTypes = { 
+			TBaseStructure<FRotator>::Get(),
+			TBaseStructure<FQuat>::Get(),
+			TBaseStructure<FTransform>::Get(),
+			TBaseStructure<FLinearColor>::Get(),
+			TBaseStructure<FColor>::Get(),
+			TBaseStructure<FPlane>::Get(),
+			TBaseStructure<FVector>::Get(),
+			TBaseStructure<FVector2D>::Get(),
+			TBaseStructure<FVector4>::Get(),
+			TBaseStructure<FBox2D>::Get()
+		};
+
+		for(UScriptStruct* MathType : MathTypes)
+		{
+			SingleMathStructValueTypes.Add(FType(MathType->GetStructCPPName(), MathType));
+			ArrayMathStructValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(MathType->GetStructCPPName()), MathType));
+		}
+
+		struct FTypeTraverser
+		{
+			static EObjectFlags DisallowedFlags()
+			{
+				return RF_BeginDestroyed | RF_FinishDestroyed;
+			}
+
+			static EObjectFlags NeededFlags()
+			{
+				return RF_Public;
+			}
+			
+			static bool IsAllowedType(const FProperty* InProperty)
+			{
+				if(!InProperty->HasAnyPropertyFlags(
+					CPF_BlueprintVisible |
+					CPF_BlueprintReadOnly |
+					CPF_Edit))
+				{
+					return false;
+				}
+
+				if(InProperty->IsA<FBoolProperty>() ||
+					InProperty->IsA<FUInt32Property>() ||
+					InProperty->IsA<FInt8Property>() ||
+					InProperty->IsA<FInt16Property>() ||
+					InProperty->IsA<FIntProperty>() ||
+					InProperty->IsA<FInt64Property>() ||
+					InProperty->IsA<FFloatProperty>() ||
+					InProperty->IsA<FDoubleProperty>() ||
+					InProperty->IsA<FNumericProperty>() ||
+					InProperty->IsA<FNameProperty>() ||
+					InProperty->IsA<FStrProperty>())
+				{
+					return true;
+				}
+
+				if(const FArrayProperty* ArrayProperty  = CastField<FArrayProperty>(InProperty))
+				{
+					return IsAllowedType(ArrayProperty->Inner);
+				}
+				if(const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
+				{
+					return IsAllowedType(StructProperty->Struct);
+				}
+				if(const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
+				{
+					return IsAllowedType(ObjectProperty->PropertyClass);
+				}
+				if(const FEnumProperty* EnumProperty = CastField<FEnumProperty>(InProperty))
+				{
+					return IsAllowedType(EnumProperty->GetEnum());
+				}
+				if(const FByteProperty* ByteProperty = CastField<FByteProperty>(InProperty))
+				{
+					if(const UEnum* Enum = ByteProperty->Enum)
+					{
+						return IsAllowedType(Enum);
+					}
+					return true;
+				}
+				return false;
+			}
+
+			static bool IsAllowedType(const UEnum* InEnum)
+			{
+				return !InEnum->HasAnyFlags(DisallowedFlags()) && InEnum->HasAllFlags(NeededFlags());
+			}
+
+			static bool IsAllowedType(const UStruct* InStruct)
+			{
+				if(InStruct->HasAnyFlags(DisallowedFlags()) || !InStruct->HasAllFlags(NeededFlags()))
+				{
+					return false;
+				}
+				if(InStruct->IsChildOf(FRigVMStruct::StaticStruct()))
+				{
+					return false;
+				}
+				if(InStruct->IsChildOf(FRigVMUnknownType::StaticStruct()))
+				{
+					return false;
+				}
+				for (TFieldIterator<FProperty> It(InStruct); It; ++It)
+				{
+					if(!IsAllowedType(*It))
+					{
+						return false;
+					}
+				}
+				return true;
+			}
+
+			static bool IsAllowedType(const UClass* InClass)
+			{
+				if(InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_Abstract))
+				{
+					return false;
+				}
+
+				// note: currently we don't allow UObjects
+				return false;
+				//return IsAllowedType(Cast<UStruct>(InClass));
+			}
+		};
+
+		// add all structs
+		for (TObjectIterator<UScriptStruct> ScriptIt; ScriptIt; ++ScriptIt)
+		{
+			UScriptStruct* ScriptStruct = *ScriptIt;
+			if(!FTypeTraverser::IsAllowedType(ScriptStruct))
+			{
+				continue;
+			}
+
+			const FString CPPType = ScriptStruct->GetStructCPPName();
+
+			if(ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+			{
+				ExecuteContextTypes.Add(FType(CPPType, ScriptStruct));
+			}
+			else
+			{
+				SingleAnyValueTypes.Add(FType(CPPType, ScriptStruct));
+				ArrayAnyValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), ScriptStruct));
+				SingleScriptStructValueTypes.Add(FType(CPPType, ScriptStruct));
+				ArrayScriptStructValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), ScriptStruct));
+			}
+		}
+
+		// add all enums
+		for (TObjectIterator<UEnum> EnumIt; EnumIt; ++EnumIt)
+		{
+			UEnum* Enum = (*EnumIt);
+			if(!FTypeTraverser::IsAllowedType(Enum))
+			{
+				continue;
+			}
+			const FString CPPType = Enum->CppType.IsEmpty() ? Enum->GetName() : Enum->CppType;
+			SingleAnyValueTypes.Add(FType(CPPType, Enum));
+			ArrayAnyValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), Enum));
+			SingleEnumValueTypes.Add(FType(CPPType, Enum));
+			ArrayEnumValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), Enum));
+		}
+
+		// add all classes
+		for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+		{
+			UClass* Class = *ClassIt;
+
+			// for now this always returns false
+			if(!FTypeTraverser::IsAllowedType(Class))
+			{
+				continue;
+			}
+
+			const FString CPPType = Class->GetPrefixCPP() + Class->GetName();
+			SingleAnyValueTypes.Add(FType(CPPType, Class));
+			ArrayAnyValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), Class));
+			SingleObjectValueTypes.Add(FType(CPPType, Class));
+			ArrayObjectValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), Class));
+		}
+
+		// check that matching categories have the same size
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleAnyValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayAnyValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleSimpleValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArraySimpleValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleMathStructValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayMathStructValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleScriptStructValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayScriptStructValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleEnumValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayEnumValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleObjectValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayObjectValue).Num());
+	}
+
+	return CompatibleTypes.FindChecked(InCategory);
 }
 
 const TArray<FRigVMTemplateArgument::FType>& FRigVMTemplateArgument::GetTypes() const
@@ -285,19 +565,11 @@ const FString& FRigVMTemplate::GetArgumentNotationPrefix(const FRigVMTemplateArg
 	return EmptyPrefix;
 }
 
-const FString& FRigVMTemplate::GetArgumentNotationSuffix(const FRigVMTemplateArgument& InArgument)
-{
-	static const FString EmptySuffix = FString();
-	static const FString ArraySuffix = TEXT("[]");
-	return InArgument.IsArray() ? ArraySuffix : EmptySuffix;
-}
-
 FString FRigVMTemplate::GetArgumentNotation(const FRigVMTemplateArgument& InArgument)
 {
-	return FString::Printf(TEXT("%s%s%s"),
+	return FString::Printf(TEXT("%s%s"),
 		*GetArgumentNotationPrefix(InArgument),
-		*InArgument.GetName().ToString(),
-		*GetArgumentNotationSuffix(InArgument));
+		*InArgument.GetName().ToString());
 }
 
 bool FRigVMTemplate::IsValid() const
@@ -730,7 +1002,7 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 			}
 		}
 		
-		if(Argument.IsArray())
+		if(Argument.GetArrayType() == FRigVMTemplateArgument::EArrayType_ArrayValue)
 		{
 			InOutTypes.Add(Argument.Name, FRigVMTemplateArgument::FType::Array());
 		}
