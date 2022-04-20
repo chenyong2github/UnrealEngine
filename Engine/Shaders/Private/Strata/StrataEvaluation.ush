@@ -160,7 +160,7 @@ void StrataUpdateBSDFContext(inout FStrataBSDFContext BSDFContext, float3 NewL)
 	Init(BSDFContext.Context, BSDFContext.N, BSDFContext.V, BSDFContext.L);
 	BSDFContext.H = normalize(BSDFContext.V + BSDFContext.L);
 	BSDFContext.R = 2 * dot(BSDFContext.V, BSDFContext.N) * BSDFContext.N - BSDFContext.V;
-	BSDFContext.TangentH = mul(BSDFContext.H, BSDFContext.TangentBasis);
+	BSDFContext.TangentH = mul(BSDFContext.TangentBasis, BSDFContext.H);
 	BSDFContext.SatNoL = saturate(BSDFContext.Context.NoL);
 	BSDFContext.SatNoV = saturate(BSDFContext.Context.NoV);
 }
