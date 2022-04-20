@@ -2,12 +2,20 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
+#include "Containers/UnrealString.h"
+#include "Containers/Array.h"
+#include "NUTEnum.h"
 
+
+// Forward declarations
 class APlayerController;
 class FUnitTestEnvironment;
 enum class EUnitTestFlags : uint32;
 class UUnitTest;
+
+
+// Globals
 
 /** The list of registered unit test environments, mapped to game name (unit test modules should add to this, within StartupModule) */
 extern TMap<FString, FUnitTestEnvironment*> UnitTestEnvironments;

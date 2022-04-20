@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
+// Includes
 #include "NetcodeUnitTest.h"
 #include "UnitLogging.h"
 

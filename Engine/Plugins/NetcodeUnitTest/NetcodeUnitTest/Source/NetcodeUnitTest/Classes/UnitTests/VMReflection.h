@@ -2,13 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UnitTest.h"
+#include "UObject/ObjectPtr.h"
 
 #include "VMReflection.generated.h"
 
+
+// Forward declarations
 class APawn;
 
 /**
@@ -34,7 +37,7 @@ class UVMTestClassA : public UObject
 
 public:
 	UPROPERTY()
-	TObjectPtr<UObject> AObjectRef;
+	TObjectPtr<UObject>	AObjectRef;
 
 	UPROPERTY()
 	uint8		ByteProp;
@@ -95,7 +98,7 @@ public:
 	uint8		BytePropArray[4];
 
 	UPROPERTY()
-	TObjectPtr<UObject> ObjectPropArray[2];
+	TObjectPtr<UObject>	ObjectPropArray[2];
 
 	UPROPERTY()
 	TArray<uint8>		DynBytePropArray;
@@ -104,7 +107,7 @@ public:
 	TArray<bool>		DynBoolPropArray;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UObject>> DynObjectPropArray;
+	TArray<TObjectPtr<UObject>>	DynObjectPropArray;
 
 	UPROPERTY()
 	TArray<FName>		DynNamePropArray;
@@ -143,10 +146,10 @@ public:
 	TArray<FText>		DynTextPropArray;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UClass>> DynClassPropArray;
+	TArray<TObjectPtr<UClass>>		DynClassPropArray;
 
 	UPROPERTY()
-	TArray<TObjectPtr<APawn>> DynPawnPropArray;
+	TArray<TObjectPtr<APawn>>		DynPawnPropArray;
 
 
 	UPROPERTY()
@@ -166,6 +169,6 @@ class UVMTestClassB : public UObject
 
 public:
 	UPROPERTY()
-	TObjectPtr<UObject> BObjectRef;
+	TObjectPtr<UObject>	BObjectRef;
 };
 

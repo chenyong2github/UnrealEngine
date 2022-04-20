@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "Containers/ArrayView.h"
 #include "Misc/App.h"
 #include "Misc/OutputDeviceFile.h"
 #include "Styling/SlateColor.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 
 #include "NetcodeUnitTest.h"
 #include "UnitTestBase.h"

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "Styling/CoreStyle.h"
 #include "Framework/Commands/Commands.h"
 

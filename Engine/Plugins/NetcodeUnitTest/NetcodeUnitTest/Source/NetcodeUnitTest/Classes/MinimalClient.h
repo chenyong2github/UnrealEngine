@@ -54,9 +54,8 @@
  *			perhaps keeping the MCP side within the UnitTask
  */
 
-
-#include "CoreMinimal.h"
-
+// Includes
+#include "UObject/ObjectPtr.h"
 #include "Engine/NetConnection.h"
 #include "Engine/PendingNetGame.h"
 
@@ -69,6 +68,11 @@
 
 // Forward declarations
 class FFuncReflection;
+class UMinimalClient;
+class UUnitTestNetConnection;
+class UUnitTestChannel;
+class UUnitTestActorChannel;
+class UUnitTestPackageMap;
 
 
 // Delegates
@@ -138,7 +142,7 @@ DECLARE_DELEGATE(FOnRPCFailure);
  */
 struct FMinClientParms
 {
-	friend class UMinimalClient;
+	friend UMinimalClient;
 
 
 	/** The flags used for configuring the minimal client */
@@ -210,7 +214,7 @@ protected:
  */
 struct FMinClientHooks
 {
-	friend class UMinimalClient;
+	friend UMinimalClient;
 
 
 	/** Delegate for notifying of successful minimal client connection*/
@@ -307,10 +311,10 @@ UCLASS()
 class NETCODEUNITTEST_API UMinimalClient :
 	public UObject, public FNetworkNotify, public FProtMinClientParms, public FProtMinClientHooks, public FUnitLogRedirect
 {
-	friend class UUnitTestNetConnection;
-	friend class UUnitTestChannel;
-	friend class UUnitTestActorChannel;
-	friend class UUnitTestPackageMap;
+	friend UUnitTestNetConnection;
+	friend UUnitTestChannel;
+	friend UUnitTestActorChannel;
+	friend UUnitTestPackageMap;
 
 	GENERATED_UCLASS_BODY()
 
@@ -553,13 +557,16 @@ protected:
 	bool bConnected;
 
 	/** Stores a reference to the created empty world, for execution and later cleanup */
-	UWorld* UnitWorld;
+	UPROPERTY()
+	TObjectPtr<UWorld> UnitWorld;
 
 	/** Stores a reference to the created unit test net driver, for execution and later cleanup */
-	UNetDriver* UnitNetDriver;
+	UPROPERTY()
+	TObjectPtr<UNetDriver> UnitNetDriver;
 
 	/** Stores a reference to the server connection */
-	UNetConnection* UnitConn;
+	UPROPERTY()
+	TObjectPtr<UNetConnection> UnitConn;
 
 	/** If notifying of net actor creation, this keeps track of new actor channel indexes pending notification */
 	TArray<int32> PendingNetActorChans;

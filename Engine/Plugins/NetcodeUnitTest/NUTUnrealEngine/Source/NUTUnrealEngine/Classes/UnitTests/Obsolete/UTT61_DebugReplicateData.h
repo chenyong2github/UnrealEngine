@@ -2,14 +2,19 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "UObject/ObjectPtr.h"
 #include "ClientUnitTest.h"
 
 #include "UTT61_DebugReplicateData.generated.h"
 
+
+// Forward declarations
 class AActor;
 class UActorChannel;
+
 
 /**
  * Implements UTT GameplayDebuggingComponent/ServerReplicateData crash
@@ -37,10 +42,12 @@ class UUTT61_DebugReplicateData : public UClientUnitTest
 
 protected:
 	/** Reference to the GameplayDebuggingReplicator class */
-	UClass* RepClass;
+	UPROPERTY()
+	TObjectPtr<UClass> RepClass;
 
 private:
 	/** Once the GameplayDebuggingReplicator is received, cache it */
+	UPROPERTY()
 	TWeakObjectPtr<AActor> Replicator;
 
 public:

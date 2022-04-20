@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+// Includes
 #include "Modules/ModuleManager.h"
-
 #include "INUTUnrealEngine.h"
 
 #include "UnrealEngineEnvironment.h"

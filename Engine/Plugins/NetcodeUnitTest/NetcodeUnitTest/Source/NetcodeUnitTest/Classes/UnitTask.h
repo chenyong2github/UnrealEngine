@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "UObject/ObjectMacros.h"
+#include "UObject/ObjectPtr.h"
 
 #include "UnitLogging.h"
 
@@ -12,6 +13,7 @@
 
 // Forward declarations
 struct FMinClientParms;
+class UUnitTest;
 
 
 
@@ -85,7 +87,7 @@ int32 GetUnitTaskPriority(EUnitTaskFlags InFlags);
 UCLASS(abstract)
 class NETCODEUNITTEST_API UUnitTask : public UObject, public FUnitLogRedirect
 {
-	friend class UUnitTest;
+	friend UUnitTest;
 
 	GENERATED_UCLASS_BODY()
 
@@ -94,7 +96,8 @@ protected:
 	EUnitTaskFlags UnitTaskFlags;
 
 	/** The UnitTest that owns this task */
-	UUnitTest* Owner;
+	UPROPERTY()
+	TObjectPtr<UUnitTest> Owner;
 
 	/** Whether or not the UnitTask has started */
 	bool bStarted;

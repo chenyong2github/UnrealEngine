@@ -2,11 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "Misc/App.h"
 #include "UnitTestEnvironment.h"
 
+
+// Forward declarations
 enum class EUnitTestFlags : uint32;
+
 
 /**
  * Implements unit test environment settings, for ShooterGame

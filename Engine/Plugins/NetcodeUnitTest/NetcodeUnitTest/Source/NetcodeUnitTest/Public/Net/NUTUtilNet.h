@@ -2,16 +2,18 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "Engine/Channel.h"
 #include "NetcodeUnitTest.h"
 #include "Engine/NetworkDelegates.h"
 #include "Engine/World.h"
 #include "Sockets.h"
+#include "UObject/GCObject.h"
 
 #include "Net/UnitTestPackageMap.h"
 
 
+// Forward declarations
 class APlayerController;
 class FInBunch;
 class FInternetAddr;
@@ -25,7 +27,6 @@ class UMinimalClient;
 class UUnitTestChannel;
 class UUnitTestNetDriver;
 class UClientUnitTest;
-
 
 
 // Delegates
@@ -253,9 +254,29 @@ public:
  */
 class FWorldTickHook
 {
+private:
+	// Internal GC hook, due to 'Init' function name conflict
+	class FInternalGCObject : public FGCObject
+	{
+	public:
+		FInternalGCObject() = delete;
+
+		FInternalGCObject(FWorldTickHook* InOwner)
+			: Owner(InOwner)
+		{
+		}
+
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override;
+
+	private:
+		FWorldTickHook* Owner;
+	};
+
 public:
 	FWorldTickHook(UWorld* InWorld)
 		: AttachedWorld(InWorld)
+		, InternalGC(this)
 	{
 	}
 
@@ -278,6 +299,9 @@ private:
 
 	/** Handle for PostTick dispatch delegate */
 	FDelegateHandle PostTickFlushDelegateHandle;
+
+	/** Internal GC */
+	FInternalGCObject InternalGC;
 };
 
 

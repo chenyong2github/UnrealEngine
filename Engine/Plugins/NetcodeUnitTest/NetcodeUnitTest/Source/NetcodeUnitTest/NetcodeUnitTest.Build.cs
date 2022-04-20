@@ -34,7 +34,6 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			// @todo #JohnBLowpri: Currently don't support standalone commandlet, with static builds (can't get past linker error in Win32)
 			if (Target.LinkType != TargetLinkType.Monolithic)
 			{
 				PrivateDependencyModuleNames.AddRange

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 

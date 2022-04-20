@@ -2,7 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
+#include "Delegates/DelegateCombinations.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NoExportTypes.h"
+#include "Internationalization/Text.h"
+#include "Containers/UnrealString.h"
 
 class SWindow;
 

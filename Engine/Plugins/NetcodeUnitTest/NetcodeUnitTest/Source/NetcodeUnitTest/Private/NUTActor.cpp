@@ -304,7 +304,7 @@ bool ANUTActor::VerifyEventWatcher()
 	bool bVerified = false;
 	TObjectPtr<UNetConnection>& EventWatcher = UNUTGlobals::Get().EventWatcher;
 
-	if (EventWatcher != nullptr)
+	if (EventWatcher)
 	{
 		UWorld* CurWorld = NUTUtil::GetPrimaryWorld();
 		UNetDriver* CurDriver = (CurWorld != nullptr ? NUTUtil::GetActiveNetDriver(CurWorld) : nullptr);

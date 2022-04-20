@@ -4,7 +4,7 @@
 #include "Stats/Stats.h"
 
 #if STATS
-
+#include "NetcodeUnitTest.h"
 #include "Stats/StatsData.h"
 
 

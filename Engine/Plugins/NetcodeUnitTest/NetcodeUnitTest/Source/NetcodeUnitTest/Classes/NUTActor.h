@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "UObject/ObjectMacros.h"
 #include "Misc/CoreMisc.h"
 #include "GameFramework/Actor.h"
@@ -12,6 +12,7 @@
 
 #include "NUTActor.generated.h"
 
+// Forward declarations
 class ANUTActor;
 
 /**

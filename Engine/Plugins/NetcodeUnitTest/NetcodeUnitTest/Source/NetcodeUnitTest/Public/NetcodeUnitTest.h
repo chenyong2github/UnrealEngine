@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
+#include "Logging/LogMacros.h"
 
-/**
- * Forward declarations
- */
 
+// Forward declarations
 class UUnitTestManager;
 
 

@@ -2,9 +2,11 @@
 
 #pragma once
 
+// Includes
 #include "Templates/SubclassOf.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/EngineBaseTypes.h"
+#include "UObject/ObjectPtr.h"
 
 #include "NetcodeUnitTest.h"
 #include "ProcessUnitTest.h"
@@ -82,7 +84,8 @@ protected:
 	FString BaseClientParameters;
 
 	/** Actors the server is allowed replicate to client (requires AllowActors flag). Use NotifyAllowNetActor for conditional allows. */
-	TArray<UClass*> AllowedClientActors;
+	UPROPERTY()
+	TArray<TObjectPtr<UClass>> AllowedClientActors;
 
 	/** Clientside RPC's that should be allowed to execute (requires minimal client NotifyProcessNetEvent flag) */
 	TArray<FString> AllowedClientRPCs;
@@ -125,6 +128,7 @@ protected:
 	/** Client state variables */
 protected:
 	/** Stores a reference to the replicated PlayerController (if set to wait for this), after NotifyHandleClientPlayer */
+	UPROPERTY()
 	TWeakObjectPtr<APlayerController> UnitPC;
 
 	/** Whether or not the UnitPC Pawn was fully setup (requires EUnitTestFlags::RequirePawn) */
@@ -134,12 +138,14 @@ protected:
 	bool bUnitPlayerStateSetup;
 
 	/** If EUnitTestFlags::RequireNUTActor is set, stores a reference to the replicated NUTActor */
+	UPROPERTY()
 	TWeakObjectPtr<ANUTActor> UnitNUTActor;
 
 	/** Whether or not UnitNUTActor is fully setup, i.e. has replicated its Owner */
 	bool bUnitNUTActorSetup;
 
 	/** If EUnitTestFlags::RequireBeacon is set, stores a reference to the replicated beacon */
+	UPROPERTY()
 	TWeakObjectPtr<AActor> UnitBeacon;
 
 	/** If EUnitTestFlags::RequirePing is true, whether or not we have already received the pong */
@@ -149,10 +155,23 @@ protected:
 	bool bPendingNetworkFailure;
 
 
-	/** Static variables */
 private:
-	/** Static reference to the OnlineBeaconClient static class */
-	static UClass* OnlineBeaconClass;
+	/** Cached reference to the OnlineBeaconClient static class */
+	UPROPERTY()
+	TObjectPtr<UClass> OnlineBeaconClass_Private;
+
+
+	void InitOnlineBeaconClass();
+
+	UClass* GetOnlineBeaconClass()
+	{
+		if (!OnlineBeaconClass_Private)
+		{
+			InitOnlineBeaconClass();
+		}
+
+		return OnlineBeaconClass_Private;
+	}
 
 
 	/**

@@ -2,11 +2,15 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "UObject/ObjectMacros.h"
 #include "Engine/Channel.h"
+#include "UObject/ObjectPtr.h"
+
 #include "UnitTestChannel.generated.h"
 
+
+// Forward declarations
 class FInBunch;
 class UNetConnection;
 class UMinimalClient;
@@ -29,7 +33,8 @@ class UUnitTestChannel : public UChannel
 
 public:
 	/** The minimal client which may require received bunch notifications */
-	UMinimalClient* MinClient;
+	UPROPERTY()
+	TObjectPtr<UMinimalClient> MinClient;
 
 	/** Whether or not this channel should verify it has been opened (resends initial packets until acked, like control channel) */
 	bool bVerifyOpen;

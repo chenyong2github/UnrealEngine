@@ -243,6 +243,16 @@ void FNetworkNotifyHook::NotifyControlMessage(UNetConnection* Connection, uint8 
  * FWorldTickHook
  */
 
+void FWorldTickHook::FInternalGCObject::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(Owner->AttachedWorld);
+}
+
+FString FWorldTickHook::FInternalGCObject::GetReferencerName() const
+{
+	return TEXT("FWorldTickHook::FInternalGCObject");
+}
+
 void FWorldTickHook::Init()
 {
 	if (AttachedWorld != nullptr)

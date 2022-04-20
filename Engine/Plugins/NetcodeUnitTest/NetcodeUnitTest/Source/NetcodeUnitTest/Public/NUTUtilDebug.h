@@ -3,15 +3,16 @@
 #pragma once
 
 // Includes
-
-#include "CoreMinimal.h"
 #include "NetcodeUnitTest.h"
 #include "NUTUtil.h"
 #include "Containers/StackTracker.h"
 
+
+// Forward declarations
 class FLogStackTraceManager;
 class FStackTraceManager;
 class UClientUnitTest;
+
 
 // Globals
 

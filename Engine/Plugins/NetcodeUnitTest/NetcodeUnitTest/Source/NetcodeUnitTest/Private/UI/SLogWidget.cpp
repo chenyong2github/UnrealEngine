@@ -176,16 +176,12 @@ void SLogWidget::Construct(const FArguments& Args)
 	auto ConditionalSlot =
 		[] (bool bCondition, SHorizontalBox::FSlot::FSlotArguments& InSlot) -> SHorizontalBox::FSlot::FSlotArguments&
 		{
-			if (bCondition)
+			if (!bCondition)
 			{
-				return InSlot;
+				InSlot.AttachWidget(SNullWidget::NullWidget);
 			}
-			else
-			{
-				return
-					SHorizontalBox::Slot()
-					.AutoWidth();
-			}
+
+			return InSlot;
 		};
 
 
@@ -219,8 +215,6 @@ void SLogWidget::Construct(const FArguments& Args)
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.ButtonStyle(FCoreStyle::Get(), "Toolbar.Button")
-						.ForegroundColor(FSlateColor::UseForeground())
 						.ToolTipText(FText::FromString(TEXT("Open the find bar for the current tab.")))
 						.OnClicked_Lambda(
 							[&]()
@@ -230,25 +224,7 @@ void SLogWidget::Construct(const FArguments& Args)
 						})
 						[
 							SNew(SImage)
-							// @todo #JohnBUI: The scaled image looks a bit fuzzy, so perhaps don't do that
-							//				(if you can figure out how to make it clip rather than scale though, do that)
-#if 1
 							.Image(&FCoreStyle::Get().GetWidgetStyle<FSearchBoxStyle>("SearchBox").GlassImage)
-#else
-							.Image_Lambda(
-								[]()
-								{
-									static FSlateBrush SearchBrush;
-
-									SearchBrush = FCoreStyle::Get().GetWidgetStyle<FSearchBoxStyle>("SearchBox").GlassImage;
-
-									// Tweak the size, so that the search button isn't oversized relative to other log window widgets
-									SearchBrush.ImageSize *= 0.8f;
-
-
-									return &SearchBrush;
-								})
-#endif
 							.ColorAndOpacity(FSlateColor::UseForeground())
 						]
 					]

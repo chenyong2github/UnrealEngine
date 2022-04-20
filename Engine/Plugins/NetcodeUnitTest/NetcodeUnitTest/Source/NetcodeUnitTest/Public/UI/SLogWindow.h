@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
 #include "Widgets/SWindow.h"
@@ -11,6 +11,7 @@
 #include "UnitLogging.h"
 
 
+// Forward declarations
 class SLogWidget;
 
 /**

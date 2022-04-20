@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "UObject/ObjectMacros.h"
 #include "UObject/Package.h"
+#include "UObject/ObjectPtr.h"
 
 #include "NUTGlobals.generated.h"
 

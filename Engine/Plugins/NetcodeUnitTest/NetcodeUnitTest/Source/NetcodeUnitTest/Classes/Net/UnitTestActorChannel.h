@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "UObject/ObjectMacros.h"
 #include "Engine/ActorChannel.h"
+#include "UObject/ObjectPtr.h"
 
 #include "UnitTestActorChannel.generated.h"
 
@@ -34,6 +35,7 @@ public:
 
 private:
 	/** Cached referenced to the minimal client that owns this actor channel */
-	UMinimalClient* MinClient;
+	UPROPERTY()
+	TObjectPtr<UMinimalClient> MinClient;
 };
 

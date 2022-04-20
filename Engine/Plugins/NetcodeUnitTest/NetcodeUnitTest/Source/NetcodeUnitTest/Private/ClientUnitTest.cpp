@@ -20,9 +20,6 @@
 #include "NUTUtilDebug.h"
 #include "NUTUtilReflection.h"
 
-
-UClass* UClientUnitTest::OnlineBeaconClass = FindObject<UClass>(ANY_PACKAGE, TEXT("OnlineBeaconClient"));
-
 // @todo #JohnB: Create a unit test for load-testing servers, using multiple instances of the minimal client,
 //					as a feature for engine testing and licensees in general (and to flesh-out support for multiple min clients,
 //					in the unit test code).
@@ -66,6 +63,11 @@ UClientUnitTest::UClientUnitTest(const FObjectInitializer& ObjectInitializer)
 	, bReceivedPong(false)
 	, bPendingNetworkFailure(false)
 {
+}
+
+void UClientUnitTest::InitOnlineBeaconClass()
+{
+	OnlineBeaconClass_Private = FindObject<UClass>(ANY_PACKAGE, TEXT("OnlineBeaconClient"));
 }
 
 void UClientUnitTest::NotifyAlterMinClient(FMinClientParms& Parms)
@@ -155,6 +157,8 @@ void UClientUnitTest::NotifyAllowNetActor(UClass* ActorClass, bool bActorChannel
 		bBlockActor = false;
 	}
 
+	const UClass* OnlineBeaconClass = GetOnlineBeaconClass();
+
 	check(OnlineBeaconClass != nullptr);
 
 	if (!!(UnitTestFlags & EUnitTestFlags::RequireBeacon) && ActorClass->IsChildOf(OnlineBeaconClass) && UnitBeacon == nullptr)
@@ -189,6 +193,8 @@ void UClientUnitTest::NotifyNetActor(UActorChannel* ActorChannel, AActor* Actor)
 			ResetTimeout(TEXT("NotifyNetActor - UnitNUTActor"));
 		}
 	}
+
+	const UClass* OnlineBeaconClass = GetOnlineBeaconClass();
 
 	check(OnlineBeaconClass != nullptr);
 

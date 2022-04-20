@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "Misc/CommandLine.h"
 #include "Input/Reply.h"
 #include "Styling/SlateColor.h"
@@ -15,6 +15,7 @@
 #include "UnitLogging.h"
 
 
+// Forward declarations
 class FUICommandList;
 class SEditableTextBox;
 enum class ESuspendState : uint8;

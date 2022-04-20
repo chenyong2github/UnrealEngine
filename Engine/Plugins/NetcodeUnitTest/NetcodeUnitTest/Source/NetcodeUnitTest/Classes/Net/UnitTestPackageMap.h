@@ -2,10 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "UObject/ObjectMacros.h"
 #include "Engine/PackageMapClient.h"
 #include "NetcodeUnitTest.h"
+#include "UObject/ObjectPtr.h"
+
 #include "UnitTestPackageMap.generated.h"
 
 
@@ -44,7 +46,8 @@ class UUnitTestPackageMap : public UPackageMapClient
 
 public:
 	/** Cached reference to the minimal client that owns this package map */
-	UMinimalClient* MinClient;
+	UPROPERTY()
+	TObjectPtr<UMinimalClient> MinClient;
 
 	/** Whether or not we are currently within execution of SerializeNewActor */
 	bool bWithinSerializeNewActor;

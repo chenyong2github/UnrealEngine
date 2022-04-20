@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "GameFramework/Actor.h"
 #include "NetcodeUnitTest.h"
 #include "EngineGlobals.h"
@@ -10,6 +10,7 @@
 #include "Misc/OutputDeviceError.h"
 
 
+// Forward declarations
 class UNetDriver;
 class UPackage;
 struct FStackTracker;

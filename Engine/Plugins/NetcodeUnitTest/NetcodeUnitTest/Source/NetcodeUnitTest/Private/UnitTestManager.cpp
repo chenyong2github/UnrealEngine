@@ -521,7 +521,7 @@ bool UUnitTestManager::WithinUnitTestLimits(UClass* PendingUnitTest/*=NULL*/)
 
 		uint32 FirstRunCount = 0;
 
-		for (auto CurUnitTest : ActiveUnitTests)
+		for (UUnitTest* CurUnitTest : ActiveUnitTests)
 		{
 			if (CurUnitTest->IsFirstTimeStats())
 			{
@@ -595,7 +595,7 @@ bool UUnitTestManager::WithinUnitTestLimits(UClass* PendingUnitTest/*=NULL*/)
 				SIZE_T ReturnVal = 0;
 				double PeakMemTime = InUnitTest->StartTime + (double)InUnitTest->TimeToPeakMem;
 
-				for (auto CurUnitTest : ActiveUnitTests)
+				for (UUnitTest* CurUnitTest : ActiveUnitTests)
 				{
 					if (CurUnitTest == InUnitTest)
 					{
@@ -758,7 +758,7 @@ void UUnitTestManager::NotifyLogWindowClosed(const TSharedRef<SWindow>& ClosedWi
 				return Element->LogWindow == ClosedWindow;
 			});
 
-		UUnitTest* CurUnitTest = (CurUnitTestRef != NULL ? *CurUnitTestRef : NULL);
+		UUnitTest* CurUnitTest = (CurUnitTestRef ? CurUnitTestRef->Get() : nullptr);
 
 		if (CurUnitTest != NULL)
 		{
@@ -822,7 +822,7 @@ void UUnitTestManager::NotifyCloseAllDialogResult(const TSharedRef<SWindow>& Dia
 		// Now abort all active unit tests
 		TArray<UUnitTest*> ActiveUnitTestsCopy(ActiveUnitTests);
 
-		for (auto CurUnitTest : ActiveUnitTestsCopy)
+		for (UUnitTest* CurUnitTest : ActiveUnitTestsCopy)
 		{
 			CurUnitTest->AbortUnitTest();
 		}
@@ -866,7 +866,7 @@ void UUnitTestManager::DumpStatus(bool bForce/*=false*/)
 		STATUS_LOG(ELogType::StyleUnderline, TEXT("Unit test status:"))
 		STATUS_LOG(, TEXT("- Number of active unit tests: %i"), ActiveUnitTests.Num());
 
-		for (auto CurUnitTest : ActiveUnitTests)
+		for (UUnitTest* CurUnitTest : ActiveUnitTests)
 		{
 			TotalMemoryUsage += CurUnitTest->CurrentMemoryUsage;
 
@@ -878,7 +878,7 @@ void UUnitTestManager::DumpStatus(bool bForce/*=false*/)
 
 		STATUS_LOG(, TEXT("- Number of pending unit tests: %i"), PendingUnitTests.Num());
 
-		for (auto CurClass : PendingUnitTests)
+		for (UClass* CurClass : PendingUnitTests)
 		{
 			UUnitTest* CurUnitTest =  Cast<UUnitTest>(CurClass->GetDefaultObject());
 
@@ -1084,7 +1084,7 @@ void UUnitTestManager::PrintFinalSummary()
 	TArray<FString> AbortList;
 	TArray<UUnitTest*> UnfinishedUnitTests;
 
-	for (auto CurUnitTest : FinishedUnitTests)
+	for (UUnitTest* CurUnitTest : FinishedUnitTests)
 	{
 		if (CurUnitTest->bAborted)
 		{
@@ -1115,7 +1115,7 @@ void UUnitTestManager::PrintFinalSummary()
 
 		bool bUnitTestCompleted = false;
 
-		for (auto CurUnitTest : FinishedUnitTests)
+		for (UUnitTest* CurUnitTest : FinishedUnitTests)
 		{
 			if (CurUnitTest->GetUnitTestName() == CurAbort)
 			{
@@ -1210,12 +1210,12 @@ void UUnitTestManager::PrintFinalSummary()
 			}
 		};
 
-	for (auto CurUnitTest : FinishedUnitTests)
+	for (UUnitTest* CurUnitTest : FinishedUnitTests)
 	{
 		StatusPrintResult(CurUnitTest, false);
 	}
 
-	for (auto CurUnitTest : UnfinishedUnitTests)
+	for (UUnitTest* CurUnitTest : UnfinishedUnitTests)
 	{
 		StatusPrintResult(CurUnitTest, true);
 	}
@@ -1303,7 +1303,7 @@ void UUnitTestManager::Tick(float DeltaTime)
 		double CurTime = FPlatformTime::Seconds();
 		const double NetTickInterval = 1.0 / 60.0;
 
-		for (auto CurUnitTest : ActiveUnitTestsCopy)
+		for (UUnitTest* CurUnitTest : ActiveUnitTestsCopy)
 		{
 			if (IsValid(CurUnitTest))
 			{
@@ -1343,7 +1343,7 @@ void UUnitTestManager::Tick(float DeltaTime)
 
 
 		// Now mark all of these unit tests, for garbage collection
-		for (auto CurUnitTest : FinishedUnitTests)
+		for (UUnitTest* CurUnitTest : FinishedUnitTests)
 		{
 			CurUnitTest->MarkAsGarbage();
 		}
@@ -1392,7 +1392,7 @@ void UUnitTestManager::Tick(float DeltaTime)
 
 		for (int32 i=ActiveUnitTests.Num()-1; i>=0; i--)
 		{
-			UUnitTest* CurUnitTest = ActiveUnitTests[i];
+			UUnitTest* CurUnitTest = ActiveUnitTests[i].Get();
 			SIZE_T CurMemUsage = CurUnitTest->CurrentMemoryUsage;
 
 
@@ -1412,7 +1412,7 @@ void UUnitTestManager::Tick(float DeltaTime)
 				{
 					uint8 CloseCount = 0;
 
-					for (auto CurFinished : FinishedUnitTests)
+					for (UUnitTest* CurFinished : FinishedUnitTests)
 					{
 						if (CurFinished->bAborted && CurFinished->GetClass() == UnitTestClass)
 						{
@@ -1594,7 +1594,7 @@ bool UUnitTestManager::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar
 		TObjectPtr<UUnitTest>* UnitTestRef = (InWorld != nullptr ? ActiveUnitTests.FindByPredicate(FindUnitTestByWorld) :
 									ActiveUnitTests.FindByPredicate(FindUnitTestByLog));
 
-		UUnitTest* AbortUnitTest = (UnitTestRef != nullptr ? *UnitTestRef : nullptr);
+		UUnitTest* AbortUnitTest = (UnitTestRef ? UnitTestRef->Get() : nullptr);
 
 		if (AbortUnitTest != nullptr)
 		{
@@ -1613,7 +1613,7 @@ bool UUnitTestManager::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar
 		TObjectPtr<UUnitTest>* UnitTestRef = (InWorld != nullptr ? ActiveUnitTests.FindByPredicate(FindUnitTestByWorld) :
 									ActiveUnitTests.FindByPredicate(FindUnitTestByLog));
 
-		UUnitTest* RestartUnitTest = (UnitTestRef != nullptr ? *UnitTestRef : nullptr);
+		UUnitTest* RestartUnitTest = (UnitTestRef ? UnitTestRef->Get() : nullptr);
 
 		if (RestartUnitTest != nullptr)
 		{
@@ -1673,7 +1673,7 @@ bool UUnitTestManager::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar
 			})
 			: nullptr);
 
-		UClientUnitTest* TargetUnitTest = (TargetUnitTestRef != nullptr ? Cast<UClientUnitTest>(*TargetUnitTestRef) : nullptr);
+		UClientUnitTest* TargetUnitTest = (TargetUnitTestRef ? Cast<UClientUnitTest>(TargetUnitTestRef->Get()) : nullptr);
 
 		// Alternatively, if a unit test has not launched started connecting to a server, its world may not be setup,
 		// so can detect by checking the active log unit test too
@@ -1937,7 +1937,7 @@ void UUnitTestManager::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosit
 
 				if (SourceInterface == nullptr)
 				{
-					for (auto CurUnitTest : ActiveUnitTests)
+					for (UUnitTest* CurUnitTest : ActiveUnitTests)
 					{
 						if (CurUnitTest->IsConnectionLogSource(GActiveReceiveUnitConnection))
 						{
@@ -1977,7 +1977,7 @@ void UUnitTestManager::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosit
 
 				if (SourceInterface == nullptr)
 				{
-					for (auto CurUnitTest : ActiveUnitTests)
+					for (UUnitTest* CurUnitTest : ActiveUnitTests)
 					{
 						UClientUnitTest* CurClientUnitTest = Cast<UClientUnitTest>(CurUnitTest);
 						UMinimalClient* CurMinClient = (CurClientUnitTest != nullptr ? CurClientUnitTest->MinClient : nullptr);
@@ -2022,7 +2022,7 @@ void UUnitTestManager::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosit
 
 						if (TimerObj != nullptr)
 						{
-							for (auto CurUnitTest : ActiveUnitTests)
+							for (UUnitTest* CurUnitTest : ActiveUnitTests)
 							{
 								if (CurUnitTest->IsTimerLogSource(TimerObj))
 								{

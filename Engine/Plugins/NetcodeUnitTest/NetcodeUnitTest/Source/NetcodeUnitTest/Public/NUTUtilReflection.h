@@ -11,6 +11,8 @@
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
 
+
+// Forward declarations
 class FStructOnScope;
 class FFuncReflection;
 

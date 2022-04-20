@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "Stats/Stats.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
@@ -12,6 +12,7 @@
 #include "Tickable.h"
 #include "UnitTestManager.generated.h"
 
+// Forward declarations
 class FLogWindowManager;
 class SLogWindow;
 class SWindow;

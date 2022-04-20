@@ -1,8 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+// Includes
 #include "Misc/AutomationTest.h"
-
 
 #include "UnitTestManager.h"
 #include "UnitTest.h"

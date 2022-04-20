@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+// Includes
 #include "Misc/EnumClassFlags.h"
 #include "Styling/SlateColor.h"
 

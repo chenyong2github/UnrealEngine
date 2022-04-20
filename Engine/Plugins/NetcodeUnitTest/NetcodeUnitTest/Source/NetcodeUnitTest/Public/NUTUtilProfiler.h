@@ -2,8 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "NetcodeUnitTest.h"
+// Includes
+#include "Misc/Build.h"
+#include "UObject/NameTypes.h"
+#include "Delegates/IDelegateInstance.h"
+
 
 #if STATS
 /**
