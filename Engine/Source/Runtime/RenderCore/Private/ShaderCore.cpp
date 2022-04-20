@@ -491,15 +491,10 @@ bool AllowGlobalShaderLoad()
 
 }
 
-bool FShaderParameterMap::FindParameterAllocation(const TCHAR* ParameterName,uint16& OutBufferIndex,uint16& OutBaseIndex,uint16& OutSize) const
+TOptional<FParameterAllocation> FShaderParameterMap::FindParameterAllocation(const FString& ParameterName) const
 {
-	const FParameterAllocation* Allocation = ParameterMap.Find(ParameterName);
-	if(Allocation)
+	if (const FParameterAllocation* Allocation = ParameterMap.Find(ParameterName))
 	{
-		OutBufferIndex = Allocation->BufferIndex;
-		OutBaseIndex = Allocation->BaseIndex;
-		OutSize = Allocation->Size;
-
 		if (Allocation->bBound)
 		{
 			// Can detect copy-paste errors in binding parameters.  Need to fix all the false positives before enabling.
@@ -507,12 +502,25 @@ bool FShaderParameterMap::FindParameterAllocation(const TCHAR* ParameterName,uin
 		}
 
 		Allocation->bBound = true;
+
+		return TOptional<FParameterAllocation>(*Allocation);
+	}
+
+	return TOptional<FParameterAllocation>();
+}
+
+bool FShaderParameterMap::FindParameterAllocation(const TCHAR* ParameterName, uint16& OutBufferIndex, uint16& OutBaseIndex, uint16& OutSize) const
+{
+	if (TOptional<FParameterAllocation> Allocation = FindParameterAllocation(ParameterName))
+	{
+		OutBufferIndex = Allocation->BufferIndex;
+		OutBaseIndex = Allocation->BaseIndex;
+		OutSize = Allocation->Size;
+
 		return true;
 	}
-	else
-	{
-		return false;
-	}
+
+	return false;
 }
 
 bool FShaderParameterMap::ContainsParameterAllocation(const TCHAR* ParameterName) const
@@ -523,12 +531,7 @@ bool FShaderParameterMap::ContainsParameterAllocation(const TCHAR* ParameterName
 void FShaderParameterMap::AddParameterAllocation(const TCHAR* ParameterName,uint16 BufferIndex,uint16 BaseIndex,uint16 Size,EShaderParameterType ParameterType)
 {
 	check(ParameterType < EShaderParameterType::Num);
-	FParameterAllocation Allocation;
-	Allocation.BufferIndex = BufferIndex;
-	Allocation.BaseIndex = BaseIndex;
-	Allocation.Size = Size;
-	Allocation.Type = ParameterType;
-	ParameterMap.Add(ParameterName,Allocation);
+	ParameterMap.Add(ParameterName, FParameterAllocation(BufferIndex, BaseIndex, Size, ParameterType));
 }
 
 void FShaderParameterMap::RemoveParameterAllocation(const TCHAR* ParameterName)
