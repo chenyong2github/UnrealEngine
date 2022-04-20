@@ -12,6 +12,7 @@ class UWorld;
 class UPoseSearchDatabase;
 struct FPoseSearchIndexAsset;
 class UAnimPreviewInstance;
+class UDebugSkelMeshComponent;
 
 enum class EPoseSearchFeaturesDrawMode : uint8
 {

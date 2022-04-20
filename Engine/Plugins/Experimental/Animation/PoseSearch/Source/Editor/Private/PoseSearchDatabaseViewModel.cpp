@@ -8,6 +8,7 @@
 #include "AnimPreviewInstance.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/MirrorDataTable.h"
+#include "Animation/AnimSequence.h"
 #include "EngineUtils.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
