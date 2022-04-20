@@ -4950,6 +4950,17 @@ void CompilerMSL::emit_custom_functions()
 			end_scope();
 			statement("");
 
+			// UE Change Begin: Implement texture2d_array override
+			statement("template<typename T, access A>");
+			statement("inline uint spvImageAtomicCoord(texture2d_array<T, A> tex, uint3 tc, uint element_pitch)");
+			begin_scope();
+			statement("const uint aligned_width = element_pitch;");
+			statement("const uint aligned_height = tex.get_height();");
+			statement("return (tc.z * aligned_height + tc.y) * aligned_width + tc.x;");
+			end_scope();
+			statement("");
+			// UE Change End: Implement texture2d_array override
+
 			statement("template <typename T, access A>");
 			statement("inline uint spvImageAtomicCoord(texture3d<T, A> tex, uint3 tc, uint element_pitch)");
 			begin_scope();
