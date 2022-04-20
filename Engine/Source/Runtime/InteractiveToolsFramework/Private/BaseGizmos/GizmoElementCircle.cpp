@@ -55,7 +55,7 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 
 		if (bDrawMesh)
 		{
-			if (const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState, ElementInteractionState))
+			if (const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState))
 			{
 				DrawDisc(PDI, WorldCenter, Axis0, Axis1, VertexColor, WorldRadius, NumSides, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 			}

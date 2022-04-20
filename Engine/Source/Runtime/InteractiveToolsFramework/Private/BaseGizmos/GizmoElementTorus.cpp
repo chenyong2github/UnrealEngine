@@ -23,7 +23,7 @@ void UGizmoElementTorus::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 
 	if (bVisibleViewDependent)
 	{
-		const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState, ElementInteractionState);
+		const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState);
 			
 		if (UseMaterial)
 		{

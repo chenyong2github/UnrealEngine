@@ -23,7 +23,7 @@ void UGizmoElementBox::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTr
 
 	if (bVisibleViewDependent)
 	{
-		const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState, ElementInteractionState);
+		const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState);
 
 		if (UseMaterial)
 		{

@@ -56,7 +56,7 @@ bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform
 		bool bNonUniformScaleWarning = true;
 		if (bNonUniformScaleWarning)
 		{
-			UE_LOG(LogGizmoElements, Warning, TEXT("Gizmo element library view-dependent alignment does not currently support non-uniform scale (%f, %f %f)."),
+			UE_LOG(LogGizmoElements, Warning, TEXT("Gizmo element library view-dependent alignment does not currently support non-uniform scale (%f %f %f)."),
 				Scale.X, Scale.Y, Scale.Z);
 			bNonUniformScaleWarning = false;
 		}
@@ -130,44 +130,43 @@ bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform
 	return true;
 }
 
-const UMaterialInterface* UGizmoElementBase::GetCurrentMaterial(const FRenderTraversalState& RenderState, EGizmoElementInteractionState InState) const
+const UMaterialInterface* UGizmoElementBase::GetCurrentMaterial(const FRenderTraversalState& RenderState) const
 {
-	if (InState == EGizmoElementInteractionState::Hovering)
+	EGizmoElementInteractionState CurrentState;
+
+	if (RenderState.InteractionState == EGizmoElementInteractionState::None)
 	{
-		if (HoverMaterial)
-		{
-			return HoverMaterial;
-		}
-		else if (RenderState.HoverMaterial.IsValid())
-		{
-			return RenderState.HoverMaterial.Get();
-		}
-	}
-	else if (InState == EGizmoElementInteractionState::Interacting)
-	{
-		if (InteractMaterial)
-		{
-			return InteractMaterial;
-		}
-		else if (RenderState.InteractMaterial.IsValid())
-		{
-			return RenderState.InteractMaterial.Get();
-		}
+		CurrentState = ElementInteractionState;
 	}
 	else
 	{
-		if (Material)
-		{
-			return Material;
-		}
-		else if (RenderState.Material.IsValid())
-		{
-			return RenderState.Material.Get();
-		}
-
+		CurrentState = RenderState.InteractionState;
 	}
 
-	return nullptr;
+	if (CurrentState == EGizmoElementInteractionState::Hovering)
+	{
+		if (RenderState.HoverMaterial.IsValid())
+		{
+			return RenderState.HoverMaterial.Get();
+		}
+		return HoverMaterial;
+	}
+
+	if (CurrentState == EGizmoElementInteractionState::Interacting)
+	{
+		if (RenderState.InteractMaterial.IsValid())
+		{
+			return RenderState.InteractMaterial.Get();
+		}
+		return InteractMaterial;
+	}
+
+	// CurrentState is None, so just return the regular material
+	if (RenderState.Material.IsValid())
+	{
+		return RenderState.Material.Get();
+	}
+	return Material;
 }
 
 void UGizmoElementBase::CacheRenderState(const FTransform& InLocalToWorldState, bool InVisibleViewDependent)
@@ -185,15 +184,19 @@ void UGizmoElementBase::ResetCachedRenderState()
 
 void UGizmoElementBase::UpdateRenderTraversalState(FRenderTraversalState& InRenderTraversalState)
 {
-	if (HoverMaterial)
+	if (InRenderTraversalState.InteractionState == EGizmoElementInteractionState::None)
+	{
+		InRenderTraversalState.InteractionState = ElementInteractionState;
+	}
+	if (!InRenderTraversalState.HoverMaterial.IsValid())
 	{
 		InRenderTraversalState.HoverMaterial = HoverMaterial;
 	}
-	if (InteractMaterial)
+	if (!InRenderTraversalState.InteractMaterial.IsValid())
 	{
 		InRenderTraversalState.InteractMaterial = InteractMaterial;
 	}
-	if (Material)
+	if (!InRenderTraversalState.Material.IsValid())
 	{
 		InRenderTraversalState.Material = Material;
 	}

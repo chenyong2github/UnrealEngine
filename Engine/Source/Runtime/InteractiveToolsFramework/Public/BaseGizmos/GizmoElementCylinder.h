@@ -42,7 +42,7 @@ public:
 	virtual void SetRadius(float InRadius);
 	virtual float GetRadius() const;
 
-	// Number of sides to use when rendering cylinder.
+	// Number of sides for tessellating cylinder.
 	virtual void SetNumSides(int32 InNumSides);
 	virtual int32 GetNumSides() const;
 
@@ -52,19 +52,19 @@ protected:
 	UPROPERTY()
 	FVector Base = FVector::ZeroVector;
 
-	// Direction of cylinder's axis.
+	// Cylinder axis direction.
 	UPROPERTY()
 	FVector Direction = FVector(0.0f, 0.0f, 1.0f);
 
-	// Height of cylinder
+	// Cylinder height.
 	UPROPERTY()
 	float Height = 1.0f;
 
-	// Radius of cylinder circle.
+	// Cylinder radius.
 	UPROPERTY()
 	float Radius = 0.5f;
 
-	// Number of sides for tessellating cylinder
+	// Number of sides for tessellating cylinder.
 	UPROPERTY()
 	int32 NumSides = 32;
 };

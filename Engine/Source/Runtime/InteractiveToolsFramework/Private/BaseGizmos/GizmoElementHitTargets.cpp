@@ -16,17 +16,35 @@ FInputRayHit UGizmoElementHitTarget::IsHit(const FInputDeviceRay& ClickPos) cons
 
 void UGizmoElementHitTarget::UpdateHoverState(bool bHovering)
 {
-	if (GizmoElement)
+	if (!GizmoElement)
+	{
+		return;
+	}
+
+	if (bHovering)
 	{
 		GizmoElement->SetElementInteractionState(EGizmoElementInteractionState::Hovering);
+	}
+	else
+	{
+		GizmoElement->SetElementInteractionState(EGizmoElementInteractionState::None);
 	}
 }
 
 void UGizmoElementHitTarget::UpdateInteractingState(bool bInteracting)
 {
-	if (GizmoElement)
+	if (!GizmoElement)
+	{
+		return;
+	}
+
+	if (bInteracting)
 	{
 		GizmoElement->SetElementInteractionState(EGizmoElementInteractionState::Interacting);
+	}
+	else
+	{
+		GizmoElement->SetElementInteractionState(EGizmoElementInteractionState::None);
 	}
 }
 

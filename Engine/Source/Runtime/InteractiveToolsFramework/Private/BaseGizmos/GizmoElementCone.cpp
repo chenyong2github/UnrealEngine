@@ -19,28 +19,27 @@ void UGizmoElementCone::Render(IToolsContextRenderAPI* RenderAPI, const FRenderT
 
 	FTransform LocalToWorldTransform = RenderState.LocalToWorldTransform;
 
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, LocalToWorldTransform, Base);
+	bool bVisibleViewDependent = GetViewDependentVisibility(View, LocalToWorldTransform, Origin);
 
 	if (bVisibleViewDependent)
 	{
-		const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState, ElementInteractionState);
+		const UMaterialInterface* UseMaterial = GetCurrentMaterial(RenderState);
 
 		if (UseMaterial)
 		{
 			FQuat AlignRot;
-			const bool bHasAlignRot = GetViewAlignRot(View, LocalToWorldTransform, Base, AlignRot);
+			const bool bHasAlignRot = GetViewAlignRot(View, LocalToWorldTransform, Origin, AlignRot);
 			const FVector AdjustedDir = bHasAlignRot ? AlignRot.RotateVector(Direction) : Direction;
 
-			FQuat Rotation = FRotationMatrix::MakeFromX(-AdjustedDir).ToQuat();
+			FQuat Rotation = FRotationMatrix::MakeFromX(AdjustedDir).ToQuat();
 
 			const FVector Scale(Height);
-			const FVector Origin = Base + AdjustedDir * Height;
 
-			LocalToWorldTransform = FTransform(Rotation, Origin, Scale) * LocalToWorldTransform;
+			FTransform RenderLocalToWorldTransform = FTransform(Rotation, Origin, Scale) * LocalToWorldTransform;
 			const float ConeSide = FMath::Sqrt(Height * Height + Radius * Radius);
 			const float Angle = FMath::Acos(Height / ConeSide);
 			FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-			DrawCone(PDI, LocalToWorldTransform.ToMatrixWithScale(), Angle, Angle, NumSides, false, FColor::White, UseMaterial->GetRenderProxy(), SDPG_Foreground);
+			DrawCone(PDI, RenderLocalToWorldTransform.ToMatrixWithScale(), Angle, Angle, NumSides, false, FColor::White, UseMaterial->GetRenderProxy(), SDPG_Foreground);
 		}
 	}
 	CacheRenderState(LocalToWorldTransform, bVisibleViewDependent);
@@ -52,33 +51,29 @@ FInputRayHit UGizmoElementCone::LineTrace(const FVector RayOrigin, const FVector
 {
 	if (IsHittableInView())
 	{
-		// @todo - modify ray-cone intersection to work with updated properties
-
-#if 0
 		bool bIntersects = false;
 		double RayParam = 0.0;
 
-		const FMatrix LocalToWorldMatrix = LocalToWorldTransform.ToMatrixNoScale();
-
-		const FVector Origin = LocalToWorldMatrix.TransformPosition(FVector::ZeroVector);
-		const FVector ConeDirection = (bWorld) ? Direction : FVector{ LocalToWorldMatrix.TransformVector(Direction) };
-		const double ConeHeight = Height * DynamicPixelToWorldScale;
-		const double ConeOffset = Offset * DynamicPixelToWorldScale;
-		const FVector ConeOrigin = Origin + ConeOffset * ConeDirection;
+		const double ConeSide = FMath::Sqrt(Height * Height + Radius * Radius);
+		const double CosAngle = Height / ConeSide;
+		const double ConeHeight = Height * CachedLocalToWorldTransform.GetScale3D().X;
+		const FVector ConeOrigin = CachedLocalToWorldTransform.TransformPosition(Origin);
+		const FVector ConeDirection = CachedLocalToWorldTransform.TransformVectorNoScale(Direction);
 
 		GizmoMath::RayConeIntersection(
-			ConeOrigin, 
-			ConeDirection, 
-			FMath::Cos(Angle), 
+			ConeOrigin,
+			ConeDirection,
+			CosAngle,
 			ConeHeight,
 			RayOrigin, RayDirection,
 			bIntersects, RayParam);
 
 		if (bIntersects)
 		{
-			return FInputRayHit(RayParam);
+			FInputRayHit RayHit(RayParam);
+			RayHit.HitOwner = this;
+			return RayHit;
 		}
-#endif
 	}
 
 	return FInputRayHit();
@@ -90,14 +85,14 @@ FBoxSphereBounds UGizmoElementCone::CalcBounds(const FTransform& LocalToWorld) c
 	return FBoxSphereBounds();
 }
 
-void UGizmoElementCone::SetBase(const FVector& InBase)
+void UGizmoElementCone::SetOrigin(const FVector& InOrigin)
 {
-	Base = InBase;
+	Origin = InOrigin;
 }
 
-FVector UGizmoElementCone::GetBase() const
+FVector UGizmoElementCone::GetOrigin() const
 {
-	return Base;
+	return Origin;
 }
 
 void UGizmoElementCone::SetDirection(const FVector& InDirection)

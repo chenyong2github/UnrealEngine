@@ -44,6 +44,11 @@ protected:
 	UPROPERTY()
 	bool bConstantScale = false;
 
+	// When true, this group is treated as a single element such that when LineTrace is called, if any of its sub-elements is hit, 
+	// this group will be returned as the owner of the hit. This should be used when a group of elements should be treated as a single handle.
+	UPROPERTY()
+	bool bHitOwner = false;
+		
 	// Gizmo elements within this group
 	UPROPERTY()
 	TArray<TObjectPtr<UGizmoElementBase>> Elements;

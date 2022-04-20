@@ -79,14 +79,17 @@ public:
 		// LocalToWorld uniform scale, non-uniform scale is not supported
 		double LocalToWorldScale;
 
-		// Material, element's material should override parent's material
+		// Material, if set, overrides the element's material
 		TWeakObjectPtr<UMaterialInterface> Material = nullptr;
 
-		// Hover material, element's hover material should override parent's hover material
+		// Hover material, if set, overrides the element's hover material
 		TWeakObjectPtr<UMaterialInterface> HoverMaterial = nullptr;
 
-		// Interact material, element's interact material should override parent's interact material
+		// Interact material, if set, overrides the element's interact material
 		TWeakObjectPtr<UMaterialInterface> InteractMaterial = nullptr;
+
+		// Interact state, if not equal to none, overrides the element's interact state
+		EGizmoElementInteractionState InteractionState = EGizmoElementInteractionState::None;
 	};
 
 public:
@@ -107,8 +110,8 @@ public:
 	// on view-dependent alignment settings. So it should be prepended to the local-to-world transform.
 	virtual bool GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
 
-	// Returns the current material for given object state. The materials in the object will override those in the RenderState.
-	virtual const UMaterialInterface* GetCurrentMaterial(const FRenderTraversalState& RenderState, EGizmoElementInteractionState InState) const;
+	// Returns the current material for given object state. The materials in the render state will override those in the element.
+	virtual const UMaterialInterface* GetCurrentMaterial(const FRenderTraversalState& RenderState) const;
 
 	// Reset the cached render state.
 	virtual void ResetCachedRenderState();

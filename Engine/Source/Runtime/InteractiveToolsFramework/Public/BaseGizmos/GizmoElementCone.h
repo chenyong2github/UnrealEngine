@@ -26,11 +26,11 @@ public:
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End UGizmoElementBase Interface.
 
-	// Location of center of cone's base circle.
-	virtual void SetBase(const FVector& InBase);
-	virtual FVector GetBase() const;
+	// Cone tip location.
+	virtual void SetOrigin(const FVector& InBase);
+	virtual FVector GetOrigin() const;
 
-	// Cone axis direction.
+	// Cone axis direction pointing from tip toward base of cone.
 	virtual void SetDirection(const FVector& InDirection);
 	virtual FVector GetDirection() const;
 
@@ -42,29 +42,29 @@ public:
 	virtual void SetRadius(float InRadius);
 	virtual float GetRadius() const;
 
-	// Number of sides to use when rendering cone.
+	// Number of sides for tessellating cone.
 	virtual void SetNumSides(int32 InNumSides);
 	virtual int32 GetNumSides() const;
 
 protected:
 
-	// Location of center of cone's base circle.
+	// Cone tip location.
 	UPROPERTY()
-	FVector Base = FVector::ZeroVector;
+	FVector Origin = FVector::ZeroVector;
 
-	// Direction of cone's axis.
+	// Cone axis direction pointing from tip toward base of cone.
 	UPROPERTY()
-	FVector Direction = FVector(0.0f, 0.0f, 1.0f);
+	FVector Direction = FVector(0.0f, 0.0f, -1.0f);
 
-	// Height of cone
+	// Cone height.
 	UPROPERTY()
 	float Height = 1.0f;
 
-	// Radius of cone circle.
+	// Cone radius.
 	UPROPERTY()
 	float Radius = 0.5f;
 
-	// Number of sides for tessellating cone
+	// Number of sides for tessellating cone.
 	UPROPERTY()
 	int32 NumSides = 32;
 };

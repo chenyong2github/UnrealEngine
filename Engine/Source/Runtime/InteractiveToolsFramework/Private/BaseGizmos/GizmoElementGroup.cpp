@@ -53,17 +53,27 @@ void UGizmoElementGroup::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 
 FInputRayHit UGizmoElementGroup::LineTrace(const FVector Start, const FVector Direction)
 {
+	FInputRayHit Hit;
+
 	if (IsHittable())
 	{
 		for (UGizmoElementBase* Element : Elements)
 		{
 			if (Element)
 			{
-				return Element->LineTrace(Start, Direction);
+				FInputRayHit NewHit = Element->LineTrace(Start, Direction);
+				if (!Hit.bHit || NewHit.HitDepth < Hit.HitDepth)
+				{
+					Hit = NewHit;
+					if (bHitOwner)
+					{
+						Hit.HitOwner = this;
+					}
+				}
 			}
 		}
 	}
-	return FInputRayHit();
+	return Hit;
 }
 
 FBoxSphereBounds UGizmoElementGroup::CalcBounds(const FTransform& LocalToWorld) const

@@ -86,6 +86,11 @@ FInputRayHit UGizmoElementArrow::LineTrace(const FVector RayOrigin, const FVecto
 		}
 	}
 
+	if (Hit.bHit)
+	{
+		Hit.HitOwner = this;
+	}
+
 	return Hit;
 }
 
@@ -229,11 +234,13 @@ void UGizmoElementArrow::UpdateArrowHead()
 	if (HeadType == EGizmoElementArrowHeadType::Cone)
 	{
 		check(ConeElement);
-		ConeElement->SetBase(Direction * (BodyLength - HeadLength * 0.1f));
-		ConeElement->SetDirection(Direction);
+		// head length is multiplied by 0.9f to prevent gap between body cylinder and head cone
+		ConeElement->SetOrigin(Direction * (BodyLength + HeadLength * 0.9f)); 
+		ConeElement->SetDirection(-Direction);
 		ConeElement->SetHeight(HeadLength);
 		ConeElement->SetRadius(HeadRadius);
 		ConeElement->SetNumSides(NumSides);
+		ConeElement->SetElementInteractionState(ElementInteractionState);
 	}
 	else // (HeadType == EGizmoElementArrowHeadType::Cube)
 	{
@@ -242,5 +249,6 @@ void UGizmoElementArrow::UpdateArrowHead()
 		BoxElement->SetUpDirection(Direction);
 		BoxElement->SetSideDirection(SideDirection);
 		BoxElement->SetDimensions(FVector(HeadLength, HeadLength, HeadLength));
+		BoxElement->SetElementInteractionState(ElementInteractionState);
 	}
 }
