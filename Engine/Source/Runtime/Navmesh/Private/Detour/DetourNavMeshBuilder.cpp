@@ -791,7 +791,6 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 				dtVcopy(con->endB, &offMeshCon.vertsB1[0]);
 
 				con->rad = offMeshCon.snapRadius;
-				con->height = offMeshCon.snapHeight;
 				con->setFlags(offMeshCon.type);
 				if (offMeshCon.userID)
 					con->userId = offMeshCon.userID;

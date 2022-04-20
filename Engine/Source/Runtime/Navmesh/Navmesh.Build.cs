@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 
             PrivateDependencyModuleNames.AddRange(new string[] { "Core" });
 
+			// This is an unsupported feature and has not been finished to production quality.
 			if (Target.bCompileNavmeshSegmentLinks)
 			{
 				PublicDefinitions.Add("WITH_NAVMESH_SEGMENT_LINKS=1");

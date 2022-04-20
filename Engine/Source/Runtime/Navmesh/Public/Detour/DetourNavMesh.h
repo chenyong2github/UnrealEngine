@@ -265,6 +265,7 @@ struct dtBVNode
 };
 
 //@UE BEGIN
+// This is an unsupported feature and has not been finished to production quality.
 #if WITH_NAVMESH_SEGMENT_LINKS
 struct dtOffMeshSegmentConnection
 {
@@ -275,9 +276,6 @@ struct dtOffMeshSegmentConnection
 
 	/// The radius of the endpoints. [Limit: >= 0]
 	dtReal rad;
-
-	/// The snap height of endpoints (less than 0 = use step height)
-	dtReal height;
 
 	/// The id of the offmesh connection. (User assigned when the navigation mesh is built.)
 	unsigned int userId;	

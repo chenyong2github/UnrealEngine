@@ -197,6 +197,7 @@ struct FRecastDebugGeometry
 	};
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 
+// This is an unsupported feature and has not been finished to production quality.
 #if WITH_NAVMESH_SEGMENT_LINKS
 	struct FOffMeshSegment
 	{
