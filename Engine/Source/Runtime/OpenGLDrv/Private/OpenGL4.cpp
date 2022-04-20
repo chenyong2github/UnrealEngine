@@ -17,7 +17,6 @@ GLint FOpenGL4::MaxComputeUAVUnits = -1;
 GLint FOpenGL4::MaxPixelUAVUnits = -1;
 
 bool FOpenGL4::bSupportsGPUMemoryInfo = false;
-bool FOpenGL4::bSupportsTextureView = true;
 
 void FOpenGL4::ProcessQueryGLInt()
 {
@@ -57,7 +56,6 @@ void FOpenGL4::ProcessExtensions( const FString& ExtensionsString )
 
 
 	bSupportsGPUMemoryInfo = ExtensionsString.Contains(TEXT("GL_NVX_gpu_memory_info"));
-	bSupportsTextureView = ExtensionsString.Contains(TEXT("GL_ARB_texture_view")) || (MajorVersion == 4 && MinorVersion >= 3) || (MajorVersion > 4);
 
 	//Process Queries after extensions to avoid queries that use functionality that might not be present
 	ProcessQueryGLInt();

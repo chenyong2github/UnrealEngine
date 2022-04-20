@@ -498,9 +498,8 @@ void FOpenGLDynamicRHI::CachedSetupTextureStageInner(FOpenGLContextState& Contex
 	}
 	
 	// Use the texture SRV's LimitMip value to specify the mip available for sampling
-	// This requires SupportsTextureBaseLevel & is a fallback for SupportsTextureView
-	// which should be preferred.
-	if(Target != GL_NONE && Target != GL_TEXTURE_BUFFER && Target != GL_TEXTURE_EXTERNAL_OES && !FOpenGL::SupportsTextureView())
+	// This requires SupportsTextureBaseLevel & is a fallback for TextureView
+	if (Target != GL_NONE && Target != GL_TEXTURE_BUFFER && Target != GL_TEXTURE_EXTERNAL_OES)
 	{
 		TPair<GLenum, GLenum>* MipLimits;
 		
@@ -638,9 +637,7 @@ void FOpenGLDynamicRHI::SetupTexturesForDraw( FOpenGLContextState& ContextState,
 			
 #if UE_BUILD_DEBUG
 			// Use the texture SRV's LimitMip value to specify the mip available for sampling
-			// This requires SupportsTextureBaseLevel & is a fallback for SupportsTextureView
-			// which should be preferred.
-			if(!FOpenGL::SupportsTextureView())
+			// This requires SupportsTextureBaseLevel & is a fallback for TextureView
 			{
 				// When trying to limit the mip available for sampling (as part of texture SRV)
 				// ensure that the texture is bound to only one sampler, or that all samplers

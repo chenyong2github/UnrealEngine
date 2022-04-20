@@ -1660,72 +1660,25 @@ FOpenGLShaderResourceView::FOpenGLShaderResourceView(FOpenGLTexture* InTexture, 
 	, Target      (InTexture->Target)
 	, Texture     (InTexture)
 	, LimitMip    (CreateInfo.MipLevel)
-	, OwnsResource(FOpenGL::SupportsTextureView())
+	, OwnsResource(false)
 {
-	check(CreateInfo.NumMipLevels == 1);
-
-	if (OwnsResource)
-	{
-		FOpenGL::GenTextures(1, &Resource);
-	}
-
-	const uint32 MipLevel = CreateInfo.MipLevel;
-	const uint32 NumMipLevels = CreateInfo.NumMipLevels;
 	const uint8 Format = (CreateInfo.Format == PF_Unknown)
 		? Texture->GetFormat()
 		: CreateInfo.Format;
-
+	
 	const bool bFormatsMatch = Format == Texture->GetFormat();
-	const bool bSRGB = CreateInfo.SRGBOverride == SRGBO_Default
-		? EnumHasAnyFlags(InTexture->GetDesc().Flags, TexCreate_SRGB)
-		: false;
 
 	if (Format == PF_X24_G8)
 	{
-		RunOnGLRenderContextThread([this, MipLevel, NumMipLevels]()
-		{
-			VERIFY_GL_SCOPE();
-			if (FOpenGL::SupportsTextureView())
-			{
-				// PF_X24_G8 doesn't correspond to a real format under OpenGL
-				// The solution is to create a view with the original format, and convert it to return the stencil index
-				// To match component locations, texture swizzle needs to be setup too
-				const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Texture->GetFormat()];
-
-				// create a second depth/stencil view
-				FOpenGL::TextureView(Resource, Target, Texture->GetResource(), GLFormat.InternalFormat[0], MipLevel, NumMipLevels, 0, 1);
-
-				// Use a texture stage that's not likely to be used for draws, to avoid waiting
-				FOpenGLContextState& ContextState = FOpenGLDynamicRHI::Get().GetContextStateForCurrentContext();
-				FOpenGLDynamicRHI::Get().CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, Resource, 0, NumMipLevels);
-
-				//set the texture to return the stencil index, and then force the components to match D3D
-				glTexParameteri(Target, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_STENCIL_INDEX);
-				glTexParameteri(Target, GL_TEXTURE_SWIZZLE_R, GL_ZERO);
-				glTexParameteri(Target, GL_TEXTURE_SWIZZLE_G, GL_RED);
-				glTexParameteri(Target, GL_TEXTURE_SWIZZLE_B, GL_ZERO);
-				glTexParameteri(Target, GL_TEXTURE_SWIZZLE_A, GL_ZERO);
-			}
-			else
-			{
-				UE_LOG(LogRHI, Fatal, TEXT("Cannot create a stencil SRV (PF_X24_G8) when texture views are unsupported."));
-			}
-		});
+		UE_LOG(LogRHI, Fatal, TEXT("Cannot create a stencil SRV (PF_X24_G8) when texture views are unsupported."));
 	}
 	else
 	{
-		RunOnGLRenderContextThread([this, Format, MipLevel, bSRGB, bFormatsMatch]()
+		RunOnGLRenderContextThread([this, bFormatsMatch]()
 		{
 			VERIFY_GL_SCOPE();
-			if (FOpenGL::SupportsTextureView())
-			{
-				FOpenGL::TextureView(Resource, Target, Texture->GetResource(), GOpenGLTextureFormats[Format].InternalFormat[bSRGB], MipLevel, 1, 0, 1);
-			}
-			else
-			{
-				checkf(bFormatsMatch, TEXT("SRVs cannot modify the pixel format of a texture when texture views are unsupported."));
-				Resource = Texture->GetResource();
-			}
+			checkf(bFormatsMatch, TEXT("SRVs cannot modify the pixel format of a texture when texture views are unsupported."));
+			Resource = Texture->GetResource();
 		});
 	}
 }

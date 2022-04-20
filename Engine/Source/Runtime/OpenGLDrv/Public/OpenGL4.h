@@ -15,8 +15,6 @@
 struct FOpenGL4 : public FOpenGL3
 {
 	static FORCEINLINE bool SupportsDrawIndirect()						{ return true; }
-	static FORCEINLINE bool SupportsTextureView()						{ return bSupportsTextureView; }
-
 
 	// Optional
 
@@ -124,6 +122,4 @@ protected:
 	static GLint MaxPixelUAVUnits;
 
 	static bool bSupportsGPUMemoryInfo;
-	static bool bSupportsTextureView;
-
 };
