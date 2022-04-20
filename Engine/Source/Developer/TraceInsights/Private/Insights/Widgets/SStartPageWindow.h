@@ -220,6 +220,8 @@ protected:
 /** Implements the Trace Store window. */
 class STraceStoreWindow : public SCompoundWidget
 {
+	friend class STraceListRow;
+
 public:
 	/** Default constructor. */
 	STraceStoreWindow();
@@ -459,6 +461,7 @@ private:
 
 	TSharedPtr<FTraceViewModelFilterCollection> Filters;
 
+	bool bSearchByCommandLine;
 	TSharedPtr<SSearchBox> FilterByNameSearchBox;
 	TSharedPtr<FTraceTextFilter> FilterByName;
 

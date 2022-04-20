@@ -123,6 +123,8 @@ void FInsightsStyle::FStyle::Initialize()
 	//////////////////////////////////////////////////
 
 	Set("WhiteBrush", new FSlateColorBrush(FLinearColor::White));
+	Set("DarkGreenBrush", new FSlateColorBrush(FLinearColor(0.0f, 0.25f, 0.0f, 1.0f)));
+
 	Set("SingleBorder", new FSlateBorderBrush(NAME_None, FMargin(1.0f)));
 	Set("DoubleBorder", new FSlateBorderBrush(NAME_None, FMargin(2.0f)));
 
@@ -268,6 +270,7 @@ void FInsightsStyle::FStyle::Initialize()
 	Set("Icons.ResetToDefault", new EDITOR_IMAGE_BRUSH("Icons/Profiler/profiler_ResetToDefault_32x", Icon16x16));
 	Set("Icons.DiffersFromDefault", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/ResetToDefault", Icon16x16));
 
+	Set("Icons.Console", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/Console", Icon16x16));
 	//Set("Icons.Filter", new CORE_IMAGE_BRUSH_SVG("Starship/Common/filter", Icon16x16));	//-> use FAppStyle "Icons.Filter"
 	Set("Icons.Filter.ToolBar", new CORE_IMAGE_BRUSH_SVG("Starship/Common/filter", Icon20x20));
 	Set("Icons.Find", new EDITOR_IMAGE_BRUSH_SVG("Starship/Common/TraceDataFiltering", Icon16x16));
