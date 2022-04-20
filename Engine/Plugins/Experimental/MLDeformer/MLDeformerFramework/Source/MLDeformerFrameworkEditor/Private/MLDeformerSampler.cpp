@@ -239,4 +239,4 @@ namespace UE::MLDeformer
 		return NumBytes;
 	}
 
-}	// namespace UE::VertexDeltaModel
+}	// namespace UE::MLDeformer

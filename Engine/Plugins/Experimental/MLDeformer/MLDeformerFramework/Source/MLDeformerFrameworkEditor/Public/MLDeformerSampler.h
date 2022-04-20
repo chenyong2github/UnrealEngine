@@ -6,7 +6,6 @@
 #include "MLDeformerModel.h"
 #include "UObject/ObjectPtr.h"
 
-class UVertexDeltaModel;
 class UDebugSkelMeshComponent;
 class UGeometryCacheComponent;
 class UWorld;
@@ -119,4 +118,4 @@ namespace UE::MLDeformer
 		/** The vertex delta space (pre or post skinning) used when calculating the deltas. */
 		EVertexDeltaSpace VertexDeltaSpace = EVertexDeltaSpace::PreSkinning;
 	};
-}	// namespace UE::VertexDeltaModel
+}	// namespace UE::MLDeformer

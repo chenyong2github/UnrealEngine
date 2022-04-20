@@ -9,7 +9,7 @@
 // Log category.
 MLDEFORMERFRAMEWORK_API DEFINE_LOG_CATEGORY(LogMLDeformer)
 
-#define LOCTEXT_NAMESPACE "VertexDeltaModelModule"
+#define LOCTEXT_NAMESPACE "MLDeformerModule"
 
 IMPLEMENT_MODULE(UE::MLDeformer::FMLDeformerModule, MLDeformerFramework)
 

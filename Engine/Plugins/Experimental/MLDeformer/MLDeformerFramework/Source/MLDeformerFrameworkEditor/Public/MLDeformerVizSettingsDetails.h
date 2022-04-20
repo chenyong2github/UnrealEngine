@@ -54,4 +54,4 @@ namespace UE::MLDeformer
 		IDetailCategoryBuilder* LiveSettingsCategory = nullptr;
 		IDetailCategoryBuilder* TrainingMeshesCategoryBuilder = nullptr;
 	};
-}	// namespace UE::VertexDeltaModel
+}	// namespace UE::MLDeformer

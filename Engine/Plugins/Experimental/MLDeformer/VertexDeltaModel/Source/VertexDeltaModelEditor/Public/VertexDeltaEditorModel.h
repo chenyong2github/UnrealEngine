@@ -61,9 +61,5 @@ namespace UE::VertexDeltaModel
 
 	protected:
 		void CreateGeomCacheActor(UWorld* World, int32 ActorID, const FName& Name, UGeometryCache* GeomCache, FLinearColor LabelColor, FLinearColor WireframeColor, const FText& LabelText, bool bIsTrainingActor);
-
-	protected:
-		FVector VertexDeltaMeanBackup = FVector::ZeroVector;
-		FVector VertexDeltaScaleBackup = FVector::OneVector;
 	};
 }	// namespace UE::VertexDeltaModel

@@ -139,4 +139,4 @@ namespace UE::MLDeformer
 	{
 		return GeometryCacheComponent.Get() ? GeometryCacheComponent->GetTimeAtFrame(InAnimFrameIndex) : 0.0f;
 	}
-}	// namespace UE::VertexDeltaModel
+}	// namespace UE::MLDeformer

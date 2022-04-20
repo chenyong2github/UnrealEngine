@@ -300,6 +300,6 @@ namespace UE::LegacyVertexDeltaModel
 	{
 		return FString(TEXT("/LegacyVertexDeltaModel/Deformers/DG_LegacyVertexDeltaModel_HeatMap.DG_LegacyVertexDeltaModel_HeatMap"));
 	}
-}	// namespace UE::VertexDeltaModel
+}	// namespace UE::LegacyVertexDeltaModel
 
 #undef LOCTEXT_NAMESPACE

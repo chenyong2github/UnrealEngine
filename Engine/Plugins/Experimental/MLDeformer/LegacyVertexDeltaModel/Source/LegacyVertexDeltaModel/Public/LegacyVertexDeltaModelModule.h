@@ -17,4 +17,4 @@ namespace UE::LegacyVertexDeltaModel
 		virtual void StartupModule() override;
 		// ~END IModuleInterface overrides.
 	};
-}	// namespace VertexDeltaModel
+}	// namespace UE::LegacyVertexDeltaModel

@@ -51,4 +51,4 @@ namespace UE::MLDeformer
 		IDetailCategoryBuilder* InputOutputCategoryBuilder = nullptr;
 		IDetailCategoryBuilder* SettingsCategoryBuilder = nullptr;
 	};
-}	// namespace UE::VertexDeltaModel
+}	// namespace UE::MLDeformer
