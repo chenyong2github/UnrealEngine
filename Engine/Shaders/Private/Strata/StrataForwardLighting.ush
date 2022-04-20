@@ -68,7 +68,7 @@ float3 StrataForwardLightingCommon(
 		const uint FakeShadingModelID = 0;
 		const float FakeContactShadowOpacity = 1.0f;
 		GetShadowTerms(SceneDepth, PrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity,
-			LightData, AbsoluteWorldPosition, ToLight, LightAttenuation, Dither, ShadowTerms);
+			LightData, TranslatedWorldPosition, ToLight, LightAttenuation, Dither, ShadowTerms);
 
 		float Roughness = StrataGetBSDFRoughness(StrataBSDFContext.BSDF);
 		FAreaLightIntegrateContext AreaLightContext = InitAreaLightIntegrateContext();
@@ -162,7 +162,6 @@ float3 StrataForwardLighting(
 	FMaterialPixelParameters MaterialParameters,
 	float SceneDepth,
 	float2 ScreenUV,
-	float3 L,
 	FStrataPixelHeader StrataPixelHeader,
 	FStrataData StrataData,
 	inout float3 OutTransmittancePreCoverage,
@@ -258,7 +257,7 @@ float3 StrataForwardLighting(
 	if (StrataTree.BSDFCount > 0)
 	{
 		// Update tree (coverage/transmittance/luminace weights)
-		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, L, Settings, OutCoverage, OutTransmittancePreCoverage);
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, Settings, OutCoverage, OutTransmittancePreCoverage); ////////////////////////////////////////////////////////////////////
 
 		//
 		// Forward lighting
@@ -270,8 +269,8 @@ float3 StrataForwardLighting(
 
 			if (StrataIsBSDFVisible(CurrentBSDF))
 			{
-				// Compute current BSDF transmittance
-				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
+				// Starting with environment lighting, the context does not specify a light
+				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V);
 					
 				////
 				//// Evaluate environment lighting
@@ -327,8 +326,11 @@ float3 StrataForwardLighting(
 							IndirectIrradiance *= IndirectOcclusion;
 						#endif
 
+							// For diffuse, we specify a perpendicular to the surface light direction for the transmittance to light to not be view dependent.
+							const float DiffuseEnvLightingNoL = 1.0f;
+
 							Color += (DiffuseIndirectLighting * DiffuseColorForIndirect + SubsurfaceIndirectLighting * SubsurfaceColorForIndirect) * 
-								LuminanceWeight(StrataBSDFContext, CurrentBSDF) * AOMultiBounce(StrataEnvLight.DiffuseColor, ShadingOcclusion.DiffOcclusion);
+								LuminanceWeight(DiffuseEnvLightingNoL, CurrentBSDF) * AOMultiBounce(StrataEnvLight.DiffuseColor, ShadingOcclusion.DiffOcclusion);
 						}
 					}
 				}
@@ -444,7 +446,8 @@ float3 StrataForwardLighting(
 				}
 			#endif
 
-				Color += (SurfaceLighting + BSDFEvaluate.EmissivePathValue) * LuminanceWeight(StrataBSDFContext, CurrentBSDF);
+				const float LightVolumeNoL = 1.0f;
+				Color += (SurfaceLighting + BSDFEvaluate.EmissivePathValue) * LuminanceWeight(LightVolumeNoL, CurrentBSDF);
 
 			#elif FORWARD_PER_PIXEL_SHADING
 
@@ -457,7 +460,7 @@ float3 StrataForwardLighting(
 					float DirLightMask = 1;
 					if (DirLightData.bRadialLight)
 					{
-						DirLightMask = GetLocalLightAttenuation(AbsoluteWorldPosition, DirLightData, ToDirLight, DirLightL);
+						DirLightMask = GetLocalLightAttenuation(TranslatedWorldPosition, DirLightData, ToDirLight, DirLightL);
 					}
 
 					bool bEvaluateHasBeenExecuted = false;
@@ -470,6 +473,8 @@ float3 StrataForwardLighting(
 					#if NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
 						DirectionalLightCloudShadow = BasePassInterpolants.VertexCloudShadow;
 					#endif
+
+						StrataUpdateBSDFContext(StrataBSDFContext, ToDirLight);
 
 						FStrataEvaluateResult BSDFEvaluate = (FStrataEvaluateResult)0;
 						Color += StrataForwardLightingCommon(
@@ -546,7 +551,7 @@ float3 StrataForwardLighting(
 					float LightMask = 1;
 					if (LightData.bRadialLight)
 					{
-						LightMask = GetLocalLightAttenuation(AbsoluteWorldPosition, LightData, ToLight, L);
+						LightMask = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
 					}
 
 					// Update the strata BSDF context accordgin to the new L

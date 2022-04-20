@@ -1791,9 +1791,6 @@ void FPixelShaderInOut_MainPS(
 	{
 		float2 ScreenUV = ScreenPositionToBufferUV(MaterialParameters.ScreenPosition);
 
-		float3 L = ResolvedView.DirectionalLightDirection;
-		float3 LightColor = ResolvedView.DirectionalLightColor.rgb * PI;
-
 		#if defined(FORCE_FULLY_ROUGH) && FORCE_FULLY_ROUGH
 		const bool bForceFullyRough = true;
 		#else
@@ -1814,7 +1811,6 @@ void FPixelShaderInOut_MainPS(
 			MaterialParameters,
 			GBuffer.Depth,
 			ScreenUV,
-			L,
 			StrataPixelHeader,
 			StrataData,
 			DualBlendSurfaceTransmittancePreCoverage,

@@ -2725,12 +2725,12 @@ FStrataIntegrationSettings InitStrataIntegrationSettings(bool bForceFullyRough, 
 
 // Forward declaration
 #if STRATA_USES_CONVERSION_FROM_LEGACY==0
-void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V, float3 L);
+void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V);
 void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree);
 void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree);
 void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V);
 #else
-void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V, float3 L);
+void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V);
 #endif
 
 // Update all Coverage/Transmittance/Weights for all BSDFs based on material topology
@@ -2739,7 +2739,6 @@ void StrataUpdateTree(
 	inout FStrataPixelHeader StrataPixelHeader,
 	inout FStrataTree StrataTree,
 	float3 V,
-	float3 L,
 	FStrataIntegrationSettings Settings)
 {
 #if STRATA_USES_CONVERSION_FROM_LEGACY==0
@@ -2751,7 +2750,7 @@ void StrataUpdateTree(
 	//
 	// Update the coverage/transmittance of each leaves (==BSDFs) of the strata tree.
 	//
-	UpdateAllBSDFsOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, Settings, StrataAddressing, V, L);
+	UpdateAllBSDFsOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, Settings, StrataAddressing, V);
 
 	//
 	// Propagate up the coverage/transmittance of each node in the strata tree.
@@ -2763,7 +2762,7 @@ void StrataUpdateTree(
 	//
 	UpdateAllBSDFWithBottomUpOperatorVisit(StrataTree);
 #else
-	LegacyUpdateBSDFsOperators(StrataPixelHeader, StrataTree, Settings, StrataAddressing, V, L);
+	LegacyUpdateBSDFsOperators(StrataPixelHeader, StrataTree, Settings, StrataAddressing, V);
 #endif
 }
 
@@ -2773,7 +2772,6 @@ void StrataUpdateTree(
 	inout FStrataTree StrataTree,
 	inout FStrataData StrataData,
 	float3 V,
-	float3 L,
 	FStrataIntegrationSettings Settings,
 	inout float OutCoverage,
 	inout float3 OutTransmittancePreCoverage)
@@ -2783,7 +2781,6 @@ void StrataUpdateTree(
 		StrataPixelHeader,
 		StrataTree,
 		V,
-		L,
 		Settings);
 
 	OutCoverage = saturate(StrataTree.Operators[StrataData.OperatorIndex].Coverage);
@@ -2834,8 +2831,7 @@ void PackStrataOut(
 	{
 		// Update tree (coverage/transmittance/luminace weights)
 		FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
-		const float3 NullLightDir = float3(0.0, 0.0, 1.0);
-		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, NullLightDir, Settings);
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, Settings);
 
 	#if STRATA_ADVANCED_DEBUG_ENABLED
 		if (Settings.SliceStoringDebugStrataTree > -1)

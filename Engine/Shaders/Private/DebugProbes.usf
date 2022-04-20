@@ -17,7 +17,7 @@ uint MaxBytesPerPixel;
 uint bRoughDiffuse;
 
 // Default functions for PackStrataOut to function properly
-void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V, float3 L) {}
+void UpdateAllBSDFsOperatorCoverageTransmittance(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V) {}
 void UpdateAllOperatorsCoverageTransmittance(inout FStrataTree StrataTree) {}
 void UpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataTree StrataTree) {}
 void PreUpdateAllBSDFWithBottomUpOperatorVisit(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataAddressing NullStrataAddressing, float3 V) {}

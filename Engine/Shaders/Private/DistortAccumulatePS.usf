@@ -103,11 +103,10 @@ void Main(
 	if (StrataTree.BSDFCount > 0)
 	{
 		const float3 V = MaterialParameters.CameraVector;
-		const float3 DummyL = float3(1, 0, 0);
 
 		// Update tree (coverage/transmittance/luminace weights)
 		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse /*bRoughDiffuseEnabled*/, Strata.PeelLayersAboveDepth);
-		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, DummyL, Settings);
+		StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, V, Settings);
 
 		RefractionWorldNormal = StrataTree.Operators[StrataData.OperatorIndex].TopDownRefractionWorldNormal;
 

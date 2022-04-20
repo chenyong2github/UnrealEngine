@@ -67,8 +67,7 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	inout FStrataBSDF CurrentBSDF,
 	FStrataIntegrationSettings Settings,
 	FStrataAddressing NullStrataAddressing,
-	float3 V,
-	float3 L
+	float3 V
 )
 {
 #if STRATA_INLINE_SHADING
@@ -92,7 +91,9 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 	PostProcessBSDFBeforeLighting(CurrentBSDF);
 
 	// Compute current BSDF transmittance
-	FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, L);
+	float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
+	float3 LEqualN = TangentBasis[2];
+	FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V, LEqualN);
 	FStrataEvaluateResult BSDFEvaluate = StrataEvaluateBSDF(StrataBSDFContext, Settings);
 
 	float CurrentBSDFCoverage		= CurrentBSDF.Coverage;
@@ -137,7 +138,6 @@ void UpdateSingleBSDFOperatorCoverageTransmittance(
 		Op.BottomUpRefractionLobeStat = RefractedLobe;
 	}
 	
-	float3x3 TangentBasis = StrataGetBSDFSharedBasis_InlineShading(StrataPixelHeader, CurrentBSDF, NullStrataAddressing);
 	Op.TopDownRefractionWorldNormal = TangentBasis[2];
 
 #undef Op
@@ -453,11 +453,11 @@ void PreUpdateAllBSDFWithBottomUpOperatorVisit_ThinFilm(
 ///////////////////////////////////////////////////////////////////////////////
 // Legacy materials conversion
 
-void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V, float3 NullLightDir)
+void LegacyUpdateBSDFsOperators(inout FStrataPixelHeader StrataPixelHeader, inout FStrataTree StrataTree, FStrataIntegrationSettings Settings, FStrataAddressing NullStrataAddressing, float3 V)
 {
 	// This must match what is done in StrataConvertLegacyMaterialDynamic
-	UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[0], Settings, NullStrataAddressing, V, NullLightDir);
-	UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[1], Settings, NullStrataAddressing, V, NullLightDir);
+	UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[0], Settings, NullStrataAddressing, V);
+	UpdateSingleBSDFOperatorCoverageTransmittance(StrataPixelHeader, StrataTree, StrataTree.BSDFs[1], Settings, NullStrataAddressing, V);
 
 	// MaxDistanceFromLeaves = 1 
 	UpdateSingleOperatorCoverageTransmittance(StrataTree, /*OperatorIndex*/2);

@@ -93,7 +93,7 @@ void MainPS(
 			const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, true /*bRoughDiffuseEnabled*/, 0 /*PeelLayersAboveDepth*/);
 			float3 TotalTransmittancePreCoverage = 0;
 			FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;	// Fake unused in StrataCreateBSDFContext when using Forward inline shading
-			StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, L, Settings, TotalCoverage, TotalTransmittancePreCoverage);
+			StrataUpdateTree(NullStrataAddressing, StrataPixelHeader, StrataTree, StrataData, V, Settings, TotalCoverage, TotalTransmittancePreCoverage);
 
 			// Extract averaged normal
 			WorldNormal = 0;
