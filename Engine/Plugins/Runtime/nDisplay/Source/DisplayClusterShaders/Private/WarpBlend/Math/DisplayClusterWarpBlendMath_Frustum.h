@@ -317,7 +317,7 @@ private:
 				return false;
 			}
 
-			const float Scale = 1.0f / ProjectedVertice.X;
+			const float Scale = Eye.ZNear / ProjectedVertice.X;
 
 			ProjectedVertice.Y *= Scale;
 			ProjectedVertice.Z *= Scale;
