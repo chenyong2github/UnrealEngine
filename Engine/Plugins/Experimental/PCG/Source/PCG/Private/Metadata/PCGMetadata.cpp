@@ -185,6 +185,29 @@ bool UPCGMetadata::HasAttribute(FName AttributeName) const
 	return Attributes.Contains(AttributeName);
 }
 
+void UPCGMetadata::GetAttributes(TArray<FName>& AttributeNames, TArray<EPCGMetadataTypes>& AttributeTypes) const
+{
+	AttributeNames.Reset();
+	AttributeTypes.Reset();
+
+	AttributeLock.ReadLock();
+	for (const TPair<FName, FPCGMetadataAttributeBase*>& Attribute : Attributes)
+	{
+		check(Attribute.Value && Attribute.Value->Name == Attribute.Key);
+		AttributeNames.Add(Attribute.Key);
+
+		if (Attribute.Value->GetTypeId() < static_cast<uint16>(EPCGMetadataTypes::Unknown))
+		{
+			AttributeTypes.Add(static_cast<EPCGMetadataTypes>(Attribute.Value->GetTypeId()));
+		}
+		else
+		{
+			AttributeTypes.Add(EPCGMetadataTypes::Unknown);
+		}
+	}
+	AttributeLock.ReadUnlock();
+}
+
 bool UPCGMetadata::ParentHasAttribute(FName AttributeName) const
 {
 	return Parent && Parent->HasAttribute(AttributeName);

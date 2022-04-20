@@ -18,7 +18,7 @@ public:
 	virtual ~FPCGMetadataAttributeBase() = default;
 
 	const UPCGMetadata* GetMetadata() const { return Metadata; }
-	int32 GetTypeId() const { return TypeId; }
+	int16 GetTypeId() const { return TypeId; }
 
 	virtual FPCGMetadataAttributeBase* Copy(FName NewName, UPCGMetadata* InMetadata, bool bKeepParent, bool bCopyEntries = true, bool bCopyValues = true) const = 0;
 
@@ -42,7 +42,7 @@ protected:
 
 	TObjectPtr<UPCGMetadata> Metadata = nullptr;
 	const FPCGMetadataAttributeBase* Parent = nullptr;
-	int32 TypeId = 0;
+	int16 TypeId = 0;
 	bool bAllowsInterpolation = false;
 
 public:

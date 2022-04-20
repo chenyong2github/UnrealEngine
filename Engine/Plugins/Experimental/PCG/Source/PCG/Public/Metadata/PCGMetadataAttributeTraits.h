@@ -4,6 +4,24 @@
 
 #include "CoreMinimal.h"
 
+#include "PCGMetadataAttributeTraits.generated.h"
+
+UENUM(BlueprintType)
+enum class EPCGMetadataTypes : uint8
+{
+	Float = 0,
+	Double,
+	Integer32,
+	Integer64,
+	Vector,
+	Vector4,
+	Quaternion,
+	Transform,
+	String,
+	Boolean,
+	Unknown = 255
+};
+
 namespace PCG
 {
 	namespace Private
@@ -11,21 +29,21 @@ namespace PCG
 		template<typename T>
 		struct MetadataTypes
 		{
-			enum { Id = sizeof(T) };
+			enum { Id = static_cast<uint16>(EPCGMetadataTypes::Unknown) + sizeof(T) };
 		};
 
-#define PCGMetadataGenerateDataTypes(Type, TypeId) template<> struct MetadataTypes<Type>{ enum {Id = 2048 + TypeId}; }
+#define PCGMetadataGenerateDataTypes(Type, TypeEnum) template<> struct MetadataTypes<Type>{ enum { Id = static_cast<uint16>(EPCGMetadataTypes::TypeEnum)}; }
 
-		PCGMetadataGenerateDataTypes(float, 0);
-		PCGMetadataGenerateDataTypes(double, 1);
-		PCGMetadataGenerateDataTypes(int32, 2);
-		PCGMetadataGenerateDataTypes(int64, 3);
-		PCGMetadataGenerateDataTypes(FVector, 4);
-		PCGMetadataGenerateDataTypes(FVector4, 5);
-		PCGMetadataGenerateDataTypes(FQuat, 6);
-		PCGMetadataGenerateDataTypes(FTransform, 7);
-		PCGMetadataGenerateDataTypes(FString, 8);
-		PCGMetadataGenerateDataTypes(bool, 9);
+		PCGMetadataGenerateDataTypes(float, Float);
+		PCGMetadataGenerateDataTypes(double, Double);
+		PCGMetadataGenerateDataTypes(int32, Integer32);
+		PCGMetadataGenerateDataTypes(int64, Integer64);
+		PCGMetadataGenerateDataTypes(FVector, Vector);
+		PCGMetadataGenerateDataTypes(FVector4, Vector4);
+		PCGMetadataGenerateDataTypes(FQuat, Quaternion);
+		PCGMetadataGenerateDataTypes(FTransform, Transform);
+		PCGMetadataGenerateDataTypes(FString, String);
+		PCGMetadataGenerateDataTypes(bool, Boolean);
 
 #undef PCGMetadataGenerateDataTypes
 
