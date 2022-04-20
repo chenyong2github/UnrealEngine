@@ -331,6 +331,8 @@ bool FOptimusDataTypeRegistry::RegisterType(
 			{
 				auto Prop = new FStructProperty(InScope, InName, RF_Public);
 				Prop->Struct = InStructType;
+				Prop->ArrayDim = 1;
+				Prop->ElementSize = InStructType->GetCppStructOps()->GetSize();
 				if (bIsHashable)
 				{
 					Prop->SetPropertyFlags(CPF_HasGetValueTypeHash);
