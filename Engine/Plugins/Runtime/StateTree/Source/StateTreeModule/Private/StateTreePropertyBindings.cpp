@@ -184,14 +184,15 @@ bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 	const FProperty* SourceProperty = PropertyAccesses[Copy.SourceAccessIndex].LeafProperty;
 	const FProperty* TargetProperty = PropertyAccesses[Copy.TargetAccessIndex].LeafProperty;
 
+	if (!TargetProperty)
+	{
+		return false;
+	}
+
+	// If source property is nullptr, we're binding directly to the source.
 	if (SourceProperty == nullptr)
 	{
 		return TargetProperty->IsA<FStructProperty>() || TargetProperty->IsA<FObjectPropertyBase>();
-	}
-	
-	if (!SourceProperty || !TargetProperty)
-	{
-		return false;
 	}
 
 	// Extract underlying types for enums

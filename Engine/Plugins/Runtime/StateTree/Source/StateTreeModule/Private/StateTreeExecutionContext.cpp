@@ -88,7 +88,7 @@ void FStateTreeExecutionContext::SetParameters(const FStateTreeParameters& Param
 			bool bMatchFound = false;
 			for (int32 Index = 0; Index < NumTreeDescs; Index++)
 			{
-				TreeDescIndex = ++TreeDescIndex % NumTreeDescs;
+				TreeDescIndex = (TreeDescIndex + 1) % NumTreeDescs;
 				if (TreeDescs[TreeDescIndex].IsMatching(ExternalDesc))
 				{
 					bMatchFound = true;
@@ -106,7 +106,7 @@ void FStateTreeExecutionContext::SetParameters(const FStateTreeParameters& Param
 		const uint16 DataViewIndex = TreeDescs[TreeDescIndex].DataViewIndex;
 		check(DataViewIndex != INDEX_NONE && DataViews.IsValidIndex(DataViewIndex));
 		DataViews[DataViewIndex] = FStateTreeDataView(ExternalDesc.Parameter);
-		TreeDescIndex = ++TreeDescIndex % NumTreeDescs;
+		TreeDescIndex = (TreeDescIndex + 1) % NumTreeDescs;
 	}
 }
 
