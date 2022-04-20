@@ -27,6 +27,7 @@ UMovieSceneMediaTrack::UMovieSceneMediaTrack(const FObjectInitializer& ObjectIni
 
 #if WITH_EDITORONLY_DATA
 	TrackTint = FColor(0, 0, 0, 200);
+	bSupportsDefaultSections = false;
 #endif
 }
 
