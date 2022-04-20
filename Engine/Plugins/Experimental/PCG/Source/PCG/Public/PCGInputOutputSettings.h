@@ -16,6 +16,7 @@ public:
 	// ~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("InputNode")); }
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::InputOutput; }
 #endif
 
 	virtual bool HasInLabel(const FName& Label) const override { return Label == NAME_None || PinLabels.Contains(Label); }

@@ -18,6 +18,7 @@ public:
 	// ~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("LinearDensityRemap")); }
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Density; }
 #endif
 
 protected:

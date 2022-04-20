@@ -63,6 +63,12 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = Graph)
 	FName NodeTitleOverride() const;
 
+	UFUNCTION(BlueprintNativeEvent, Category = Graph)
+	FLinearColor NodeColorOverride() const;
+
+	UFUNCTION(BlueprintNativeEvent, Category = Graph)
+	EPCGSettingsType NodeTypeOverride() const;
+
 	/** Called after object creation to setup the object callbacks */
 	void Initialize();
 
@@ -109,6 +115,8 @@ public:
 	// ~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("BlueprintNode")); }
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual EPCGSettingsType GetType() const override;
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const override;
 #endif
 

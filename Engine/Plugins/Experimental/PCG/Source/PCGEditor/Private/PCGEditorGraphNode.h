@@ -39,6 +39,7 @@ public:
 	virtual bool CanUserDeleteNode() const override;
 	virtual void ReconstructNode() override;
 	virtual void OnRenameNode(const FString& NewName);
+	virtual FLinearColor GetNodeTitleColor() const;
 	// ~End UEdGraphNode interface
 
 	UPCGNode* GetPCGNode() { return PCGNode; }
@@ -48,6 +49,8 @@ public:
 
 protected:
 	void OnNodeChanged(UPCGNode* InNode, bool bSettingsChanged);
+	void OnPickColor();
+	void OnColorPicked(FLinearColor NewColor);
 
 private:
 	UPROPERTY()

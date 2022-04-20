@@ -63,6 +63,7 @@ public:
 
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SubgraphNode")); }
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Subgraph; }
 #endif
 
 	virtual FName AdditionalTaskName() const override;

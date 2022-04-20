@@ -38,6 +38,8 @@ protected:
 	void UnregisterMenuExtensions();
 	void AddMenuEntry(FMenuBuilder& MenuBuilder);
 	void PopulateMenuActions(FMenuBuilder& MenuBuilder);
+	void RegisterSettings();
+	void UnregisterSettings();
 
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 	static EAssetTypeCategories::Type PCGAssetCategory;

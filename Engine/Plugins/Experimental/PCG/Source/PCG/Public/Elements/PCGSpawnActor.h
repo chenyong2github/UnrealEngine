@@ -37,6 +37,7 @@ public:
 
 #if WITH_EDITOR	
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("SpawnActorNode")); }
+	virtual EPCGSettingsType GetType() const override;
 #endif
 protected:
 	virtual FPCGElementPtr CreateElement() const override;

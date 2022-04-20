@@ -9,6 +9,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Toolkits/IToolkit.h"
+#include "ISettingsModule.h"
 
 #include "AssetTypeActions/PCGGraphAssetTypeActions.h"
 #include "AssetTypeActions/PCGSettingsAssetTypeActions.h"
@@ -16,6 +17,7 @@
 #include "PCGEditorGraphNodeFactory.h"
 #include "PCGGraphDetails.h"
 #include "PCGVolumeFactory.h"
+#include "PCGEditorSettings.h"
 
 #include "PCGSubsystem.h"
 
@@ -28,6 +30,7 @@ void FPCGEditorModule::StartupModule()
 	RegisterDetailsCustomizations();
 	RegisterAssetTypeActions();
 	RegisterMenuExtensions();
+	RegisterSettings();
 
 	GraphNodeFactory = MakeShareable(new FPCGEditorGraphNodeFactory());
 	FEdGraphUtilities::RegisterVisualNodeFactory(GraphNodeFactory);
@@ -40,6 +43,7 @@ void FPCGEditorModule::StartupModule()
 
 void FPCGEditorModule::ShutdownModule()
 {
+	UnregisterSettings();
 	UnregisterAssetTypeActions();
 	UnregisterDetailsCustomizations();
 	UnregisterMenuExtensions();
@@ -156,6 +160,25 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 				}
 			})),
 		NAME_None);
+}
+
+void FPCGEditorModule::RegisterSettings()
+{
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->RegisterSettings("Editor", "ContentEditors", "PCGEditor",
+			LOCTEXT("PCGEditorSettingsName", "PCG Editor"),
+			LOCTEXT("PCGEditorSettingsDescription", "Configure the look and feel of the PCG Editor."),
+			GetMutableDefault<UPCGEditorSettings>());
+	}
+}
+
+void FPCGEditorModule::UnregisterSettings()
+{
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->UnregisterSettings("Editor", "ContentEditors", "PCGEditor");
+	}
 }
 
 IMPLEMENT_MODULE(FPCGEditorModule, PCGEditor);

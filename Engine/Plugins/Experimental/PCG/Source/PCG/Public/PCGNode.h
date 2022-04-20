@@ -77,6 +77,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node)
 	FName NodeTitle = NAME_None;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node)
+	FLinearColor NodeTitleColor = FLinearColor::White;
+#endif // WITH_EDITORONLY_DATA
+
 #if WITH_EDITOR
 	FOnPCGNodeSettingsChanged OnNodeSettingsChangedDelegate;
 #endif

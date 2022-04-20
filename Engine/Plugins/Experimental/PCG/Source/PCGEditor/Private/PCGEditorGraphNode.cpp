@@ -3,6 +3,7 @@
 #include "PCGEditorGraphNode.h"
 
 #include "PCGEditorGraphSchema.h"
+#include "PCGEditorSettings.h"
 #include "PCGNode.h"
 #include "PCGSettings.h"
 
@@ -12,6 +13,8 @@
 #include "GraphEditorActions.h"
 #include "ToolMenu.h"
 #include "ToolMenuSection.h"
+
+#include "Widgets/Colors/SColorPicker.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphNode"
 
@@ -70,6 +73,13 @@ void UPCGEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, class UGrap
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
+		Section.AddMenuEntry(
+			"PCGNode_SetColor",
+			LOCTEXT("PCGNode_SetColor", "Set Node Color"),
+			LOCTEXT("PCGNode_SetColorTooltip", "Sets a specific color on the given node. Note that white maps to the default value"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "ColorPicker.Mode"),
+			FUIAction(FExecuteAction::CreateUObject(const_cast<UPCGEditorGraphNode*>(this), &UPCGEditorGraphNode::OnPickColor)));
+
 		Section.AddSubMenu("Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
 		{
 			{
@@ -164,6 +174,26 @@ void UPCGEditorGraphNode::OnNodeChanged(UPCGNode* InNode, bool bSettingsChanged)
 	if (InNode == PCGNode)
 	{
 		ReconstructNode();
+	}
+}
+
+void UPCGEditorGraphNode::OnPickColor()
+{
+	FColorPickerArgs PickerArgs;
+	PickerArgs.bIsModal = true;
+	PickerArgs.bUseAlpha = false;
+	PickerArgs.InitialColorOverride = GetNodeTitleColor();
+	PickerArgs.OnColorCommitted = FOnLinearColorValueChanged::CreateUObject(this, &UPCGEditorGraphNode::OnColorPicked);
+
+	OpenColorPicker(PickerArgs);
+}
+
+void UPCGEditorGraphNode::OnColorPicked(FLinearColor NewColor)
+{
+	if (PCGNode && GetNodeTitleColor() != NewColor)
+	{
+		PCGNode->Modify();
+		PCGNode->NodeTitleColor = NewColor;
 	}
 }
 
@@ -280,4 +310,29 @@ void UPCGEditorGraphNode::OnRenameNode(const FString& NewName)
 	}
 }
 
+FLinearColor UPCGEditorGraphNode::GetNodeTitleColor() const
+{
+	if (PCGNode)
+	{
+		if (PCGNode->NodeTitleColor != FLinearColor::White)
+		{
+			return PCGNode->NodeTitleColor;
+		}
+		else if (PCGNode->DefaultSettings)
+		{
+			FLinearColor SettingsColor = PCGNode->DefaultSettings->GetNodeTitleColor();
+			if (SettingsColor == FLinearColor::White)
+			{
+				SettingsColor = GetDefault<UPCGEditorSettings>()->GetColor(PCGNode->DefaultSettings);
+			}
+
+			if (SettingsColor != FLinearColor::White)
+			{
+				return SettingsColor;
+			}
+		}
+	}
+
+	return GetDefault<UPCGEditorSettings>()->DefaultNodeColor;
+}
 #undef LOCTEXT_NAMESPACE

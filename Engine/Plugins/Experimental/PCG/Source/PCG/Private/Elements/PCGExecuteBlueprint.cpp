@@ -94,6 +94,16 @@ FName UPCGBlueprintElement::NodeTitleOverride_Implementation() const
 	return NAME_None;
 }
 
+FLinearColor UPCGBlueprintElement::NodeColorOverride_Implementation() const
+{
+	return FLinearColor::White;
+}
+
+EPCGSettingsType UPCGBlueprintElement::NodeTypeOverride_Implementation() const
+{
+	return EPCGSettingsType::Blueprint;
+}
+
 void UPCGBlueprintSettings::SetupBlueprintEvent()
 {
 #if WITH_EDITOR
@@ -256,6 +266,30 @@ void UPCGBlueprintSettings::RefreshBlueprintElement()
 }
 
 #if WITH_EDITOR
+FLinearColor UPCGBlueprintSettings::GetNodeTitleColor() const
+{
+	if (BlueprintElementInstance && BlueprintElementInstance->NodeColorOverride() != FLinearColor::White)
+	{
+		return BlueprintElementInstance->NodeColorOverride();
+	}
+	else
+	{
+		return Super::GetNodeTitleColor();
+	}
+}
+
+EPCGSettingsType UPCGBlueprintSettings::GetType() const
+{
+	if (BlueprintElementInstance)
+	{
+		return BlueprintElementInstance->NodeTypeOverride();
+	}
+	else
+	{
+		return EPCGSettingsType::Blueprint;
+	}
+}
+
 void UPCGBlueprintSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const
 {
 #if WITH_EDITORONLY_DATA

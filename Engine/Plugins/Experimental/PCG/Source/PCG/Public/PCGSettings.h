@@ -22,6 +22,21 @@ enum class EPCGSettingsExecutionMode : uint8
 	Disabled
 };
 
+UENUM()
+enum class EPCGSettingsType : uint8
+{
+	InputOutput,
+	Spatial,
+	Density,
+	Blueprint,
+	Metadata,
+	Filter,
+	Sampler,
+	Artifact,
+	Subgraph,
+	Generic
+};
+
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGSettingsChanged, UPCGSettings*);
 #endif
@@ -50,6 +65,8 @@ public:
 
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const { return NAME_None; }
+	virtual FLinearColor GetNodeTitleColor() const { return FLinearColor::White; }
+	virtual EPCGSettingsType GetType() const { return EPCGSettingsType::Generic; }
 	/** Derived classes must implement this to communicate dependencies on external actors */
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const {}
 #endif
