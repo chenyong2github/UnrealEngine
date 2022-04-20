@@ -237,8 +237,12 @@ FDynamicMesh3 UStaticMeshComponentToolTarget::GetDynamicMesh()
 
 void UStaticMeshComponentToolTarget::CommitDynamicMesh(const FDynamicMesh3& Mesh, const FDynamicMeshCommitInfo& CommitInfo)
 {
-	FMeshDescription CurrentMeshDescription = *GetMeshDescription();
-	CommitDynamicMeshViaMeshDescription(MoveTemp(CurrentMeshDescription), *this, Mesh, CommitInfo);
+	const FMeshDescription* CurrentMeshDescription = GetMeshDescription();
+	if (ensureMsgf(CurrentMeshDescription, TEXT("Unable to commit mesh, perhaps the user deleted "
+		"the asset while the tool was active?")))
+	{
+		CommitDynamicMeshViaMeshDescription(FMeshDescription(*CurrentMeshDescription), *this, Mesh, CommitInfo);
+	}
 }
 
 UStaticMesh* UStaticMeshComponentToolTarget::GetStaticMesh() const
