@@ -1172,6 +1172,8 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 	// Set additional defines.
 	AdditionalDefines.SetDefine(TEXT("COMPILER_HLSL"), 1);
 	AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_ROV"), 1); // Assume min. spec HW supports with DX12/SM5
+
+	AdditionalDefines.SetDefine(TEXT("USE_WPO_PRECISE"), 1);
 	
 	if (bUseDXC)
 	{
@@ -1190,11 +1192,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 			AdditionalDefines.SetDefine(TEXT("PLATFORM_SUPPORTS_REAL_TYPES"), 1);
 		}
 	}
-	else
-	{
-		AdditionalDefines.SetDefine(TEXT("IR_LANGUAGE_DXBC"), 1);
-	}
-
+	
 	if (Input.bSkipPreprocessedCache)
 	{
 		if (!FFileHelper::LoadFileToString(PreprocessedShaderSource, *Input.VirtualSourceFilePath))

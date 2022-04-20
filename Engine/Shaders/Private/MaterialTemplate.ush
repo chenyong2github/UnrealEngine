@@ -2736,51 +2736,63 @@ half GetMaterialMaskedOpacity(FPixelMaterialInputs PixelMaterialInputs)
 }
 #endif
 
-// UE-102725: Workaround for precision issue that only occurs with world position offsets in DXBC shaders.
-#if IR_LANGUAGE_DXBC
-#define WPO_PRECISE(T) precise T
+// UE-102725: Workaround for precision issue that only occurs with world position offsets in D3D shaders.
+#if USE_WPO_PRECISE
+#define WPO_PRECISE(T) MakePrecise(T)
 #else
 #define WPO_PRECISE(T) T
 #endif
 
-WPO_PRECISE(float3) GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
+float3 GetMaterialWorldPositionOffsetInternal(FMaterialVertexParameters Parameters)
 {
-	#if IS_NANITE_PASS
-		BRANCH
-		if (!Parameters.bEvaluateWorldPositionOffset)
-		{
-			return float3(0,0,0);
-		}
-	#endif
-
-	#if USE_INSTANCING || USE_INSTANCE_CULLING
-		// skip if this instance is hidden
-		if (Parameters.PerInstanceParams.z < 1.f)
-		{
-			return float3(0,0,0);
-		}
-	#endif
 %s;
 }
 
-WPO_PRECISE(float3) GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Parameters)
+float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
 {
-	#if IS_NANITE_PASS
-		BRANCH
+#if IS_NANITE_PASS
+	BRANCH
 		if (!Parameters.bEvaluateWorldPositionOffset)
 		{
-			return float3(0,0,0);
+			return float3(0, 0, 0);
 		}
-	#endif
+#endif
 
-	#if USE_INSTANCING || USE_INSTANCE_CULLING
-		// skip if this instance is hidden
-		if (Parameters.PerInstanceParams.z < 1.f)
-		{
-			return float3(0,0,0);
-		}
-	#endif
+#if USE_INSTANCING || USE_INSTANCE_CULLING
+	// skip if this instance is hidden
+	if (Parameters.PerInstanceParams.z < 1.f)
+	{
+		return float3(0, 0, 0);
+	}
+#endif
+
+	return WPO_PRECISE(GetMaterialWorldPositionOffsetInternal(Parameters));
+}
+
+float3 GetMaterialPreviousWorldPositionOffsetInternal(FMaterialVertexParameters Parameters)
+{
 %s;
+}
+
+float3 GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Parameters)
+{
+#if IS_NANITE_PASS
+	BRANCH
+		if (!Parameters.bEvaluateWorldPositionOffset)
+		{
+			return float3(0, 0, 0);
+		}
+#endif
+
+#if USE_INSTANCING || USE_INSTANCE_CULLING
+	// skip if this instance is hidden
+	if (Parameters.PerInstanceParams.z < 1.f)
+	{
+		return float3(0, 0, 0);
+	}
+#endif
+
+	return WPO_PRECISE(GetMaterialPreviousWorldPositionOffsetInternal(Parameters));
 }
 
 
