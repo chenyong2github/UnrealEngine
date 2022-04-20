@@ -42,7 +42,7 @@ FAGXRenderPass::FAGXRenderPass(FAGXCommandList& InCmdList, FAGXStateCache& Cache
 , CurrentEncoder(InCmdList, EAGXCommandEncoderCurrent)
 , PrologueEncoder(InCmdList, EAGXCommandEncoderPrologue)
 , RenderPassDesc(nil)
-, ComputeDispatchType(mtlpp::DispatchType::Serial)
+, ComputeDispatchType(MTLDispatchTypeSerial)
 , NumOutstandingOps(0)
 , bWithinRenderPass(false)
 {
@@ -54,7 +54,7 @@ FAGXRenderPass::~FAGXRenderPass(void)
 	check(!PrologueEncoder.GetCommandBuffer());
 }
 
-void FAGXRenderPass::SetDispatchType(mtlpp::DispatchType Type)
+void FAGXRenderPass::SetDispatchType(MTLDispatchType Type)
 {
 	ComputeDispatchType = Type;
 }

@@ -409,18 +409,18 @@ void FAGXCommandEncoder::BeginRenderCommandEncoding(void)
 	}
 }
 
-void FAGXCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType DispatchType)
+void FAGXCommandEncoder::BeginComputeCommandEncoding(MTLDispatchType DispatchType)
 {
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
 	
-	if (DispatchType == mtlpp::DispatchType::Serial)
+	if (DispatchType == MTLDispatchTypeSerial)
 	{
 		ComputeCommandEncoder = [[CommandBuffer.GetPtr() computeCommandEncoder] retain];
 	}
 	else
 	{
-		ComputeCommandEncoder = [[CommandBuffer.GetPtr() computeCommandEncoderWithDispatchType:(MTLDispatchType)DispatchType] retain];
+		ComputeCommandEncoder = [[CommandBuffer.GetPtr() computeCommandEncoderWithDispatchType:DispatchType] retain];
 	}
 
 	EncoderNum++;

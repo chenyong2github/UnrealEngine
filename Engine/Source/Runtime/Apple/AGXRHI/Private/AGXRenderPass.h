@@ -21,7 +21,7 @@ public:
 	~FAGXRenderPass(void);
 	
 #pragma mark -
-	void SetDispatchType(mtlpp::DispatchType Type);
+	void SetDispatchType(MTLDispatchType Type);
 	
     void Begin(bool const bParallelBegin = false);
 	
@@ -189,7 +189,7 @@ private:
 
     MTLRenderPassDescriptor* RenderPassDesc;
     
-	mtlpp::DispatchType ComputeDispatchType;
+	MTLDispatchType ComputeDispatchType;
     uint32 NumOutstandingOps;
     bool bWithinRenderPass;
 };

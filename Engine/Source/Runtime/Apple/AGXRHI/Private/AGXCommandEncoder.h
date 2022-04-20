@@ -201,7 +201,7 @@ public:
 	void BeginRenderCommandEncoding(void);
 	
 	/** Begins encoding compute commands into the current command buffer. No other encoder may be active. */
-	void BeginComputeCommandEncoding(mtlpp::DispatchType Type = mtlpp::DispatchType::Serial);
+	void BeginComputeCommandEncoding(MTLDispatchType Type = MTLDispatchTypeSerial);
 	
 	/** Begins encoding blit commands into the current command buffer. No other encoder may be active. */
 	void BeginBlitCommandEncoding(void);
