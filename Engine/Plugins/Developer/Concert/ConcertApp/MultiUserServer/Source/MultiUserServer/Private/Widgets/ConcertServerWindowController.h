@@ -33,7 +33,7 @@ class FConcertServerWindowController : public TSharedFromThis<FConcertServerWind
 public:
 	
 	FConcertServerWindowController(const FConcertServerWindowInitParams& Params);
-	void CreateWindow();
+	TSharedRef<SWindow> CreateWindow();
 
 	/** Opens or draws attention to the tab for the given live or archived session ID */
 	void OpenSessionTab(const FGuid& SessionId);

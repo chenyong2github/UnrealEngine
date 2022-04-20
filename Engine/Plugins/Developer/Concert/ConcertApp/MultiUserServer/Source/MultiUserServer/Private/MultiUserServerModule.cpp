@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IMultiUserServerModule.h"
+#include "MultiUserServerModule.h"
 
 #include "ConcertConsoleCommandExecutor.h"
 #include "ConcertFrontendStyle.h"
 #include "ConcertServerStyle.h"
 #include "ConcertSyncServerLoopInitArgs.h"
+#include "ModalWindowManager.h"
+
 #include "Widgets/ConcertServerWindowController.h"
 
 #include "Features/IModularFeatures.h"
@@ -15,26 +17,23 @@
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 
-/**
- * 
- */
-class FConcertServerUIModule : public IMultiUserServerModule
+namespace UE::MultiUserServer
 {
-public:
-	virtual void StartupModule() override 
+    void FConcertServerUIModule::StartupModule() 
 	{
 		MultiUserServerLayoutIni = GConfig->GetConfigFilename(TEXT("MultiUserServerLayout"));
 	}
 	
-	virtual void ShutdownModule() override
+	void FConcertServerUIModule::ShutdownModule()
 	{
 		FConcertServerStyle::Shutdown();
-		
+
+    	ModalWindowManager.Reset();
 		WindowController.Reset();
 		FSlateApplication::Shutdown();
 	}
 	
-	virtual void InitSlateForServer(FConcertSyncServerLoopInitArgs& InitArgs) override
+	void FConcertServerUIModule::InitSlateForServer(FConcertSyncServerLoopInitArgs& InitArgs)
 	{
 		if (ensureMsgf(!WindowController.IsValid(), TEXT("InitSlateForServer is designed to be called at most once to create UI to run alongside the Multi User server.")))
 		{
@@ -44,47 +43,38 @@ public:
 		}
 	}
 	
-private:
+	void FConcertServerUIModule::PreInitializeMultiUser()
+    {
+    	FModuleManager::Get().LoadModuleChecked("EditorStyle");
+    	FConcertServerStyle::Initialize();
+    	FConcertFrontendStyle::Initialize();
 
-	/** Config path storing layout config. */
-	FString MultiUserServerLayoutIni;
+    	// Log history must be initialized before MU server loop init prints any messages	
+    	FModuleManager::Get().LoadModuleChecked("OutputLog");
+    }
+    
+    void FConcertServerUIModule::InitializeSlateApplication(TSharedRef<IConcertSyncServer> SyncServer)
+    {
+    	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
+    	const FText ApplicationTitle = LOCTEXT("AppTitle", "Unreal Multi User Server");
+    	FGlobalTabmanager::Get()->SetApplicationTitle(ApplicationTitle);
 
-	/** Handles execution of commands */
-	TUniquePtr<FConcertConsoleCommandExecutor> CommandExecutor;
-	
-	/** Creates and manages window. Only one instance per application. */
-	TSharedPtr<FConcertServerWindowController> WindowController;
+    	CommandExecutor = MakeUnique<FConcertConsoleCommandExecutor>();
+    	IModularFeatures::Get().RegisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), CommandExecutor.Get());
 
-	void PreInitializeMultiUser()
-	{
-		FModuleManager::Get().LoadModuleChecked("EditorStyle");
-		FConcertServerStyle::Initialize();
-		FConcertFrontendStyle::Initialize();
-
-		// Log history must be initialized before MU server loop init prints any messages	
-		FModuleManager::Get().LoadModuleChecked("OutputLog");
-	}
-	
-	void InitializeSlateApplication(TSharedRef<IConcertSyncServer> SyncServer)
-	{
-		FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
-		const FText ApplicationTitle = LOCTEXT("AppTitle", "Unreal Multi User Server");
-		FGlobalTabmanager::Get()->SetApplicationTitle(ApplicationTitle);
-
-		CommandExecutor = MakeUnique<FConcertConsoleCommandExecutor>();
-		IModularFeatures::Get().RegisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), CommandExecutor.Get());
-        
         WindowController = MakeShared<FConcertServerWindowController>(FConcertServerWindowInitParams{ SyncServer, MultiUserServerLayoutIni });
-		WindowController->CreateWindow();
-	}
-	
-	void TickSlate(double Tick)
-	{
-		FSlateApplication::Get().PumpMessages();
-		FSlateApplication::Get().Tick();
-	}
-};
+    	const TSharedRef<SWindow> MainWindow = WindowController->CreateWindow();
+    	
+    	ModalWindowManager = MakeShared<FModalWindowManager>(MainWindow);
+    }
+    
+    void FConcertServerUIModule::TickSlate(double Tick)
+    {
+    	FSlateApplication::Get().PumpMessages();
+    	FSlateApplication::Get().Tick();
+    }
+}
 
-IMPLEMENT_MODULE(FConcertServerUIModule, ConcertSyncServerUI);
+IMPLEMENT_MODULE(UE::MultiUserServer::FConcertServerUIModule, MultiUserServer);
 
 #undef LOCTEXT_NAMESPACE

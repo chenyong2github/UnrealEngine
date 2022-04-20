@@ -2,8 +2,9 @@
 
 #include "SConcertServerSessionBrowser.h"
 
+#include "ModalWindowManager.h"
+#include "MultiUserServerModule.h"
 #include "MultiUserServerUserSettings.h"
-
 #include "Session/Browser/SConcertSessionBrowser.h"
 #include "Widgets/Browser/ConcertServerSessionBrowserController.h"
 #include "Widgets/StatusBar/SConcertStatusBar.h"
@@ -17,11 +18,6 @@
 #include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
-
-SConcertServerSessionBrowser::~SConcertServerSessionBrowser()
-{
-	UnregisterFromOnRootWindowClosed();
-}
 
 void SConcertServerSessionBrowser::Construct(const FArguments& InArgs, TSharedRef<FConcertServerSessionBrowserController> InController)
 {
@@ -72,53 +68,18 @@ TSharedRef<SWidget> SConcertServerSessionBrowser::MakeSessionTableView(const FAr
 
 void SConcertServerSessionBrowser::RequestDeleteSession(const TSharedPtr<FConcertSessionItem>& SessionItem) 
 {
-	if (const TSharedPtr<SMessageDialog> PinnedDeleteSessionDialog = DeleteSessionDialog.Pin())
+	switch (SessionItem->Type)
 	{
-		// Force user to answer previous question first
-		PinnedDeleteSessionDialog->BringToFront();
-		PinnedDeleteSessionDialog->FlashWindow();
-	}
-	else
-	{
-		// Modal dialog would cause server to halt thread and stop communicating with connected clients
-		switch (SessionItem->Type)
-		{
-		case FConcertSessionItem::EType::ActiveSession:
-			DeleteActiveSessionWithNonModalQuestion(SessionItem); break;
-		case FConcertSessionItem::EType::ArchivedSession:
-			DeleteArchivedSessionWithNonModalQuestion(SessionItem); break;
-		default:
-			break;
-		}
-
-		// The dialog should be closed when the root window is closed
-		if (const TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
-			RootWindow && !RootWindow->GetOnWindowClosedEvent().IsBoundToObject(this))
-		{
-			RootWindow->GetOnWindowClosedEvent().AddSP(this, &SConcertServerSessionBrowser::OnRootWindowClosed);
-		}
+	case FConcertSessionItem::EType::ActiveSession:
+		DeleteActiveSessionWithFakeModalQuestion(SessionItem); break;
+	case FConcertSessionItem::EType::ArchivedSession:
+		DeleteArchivedSessionWithFakeModalQuestion(SessionItem); break;
+	default:
+		break;
 	}
 }
 
-void SConcertServerSessionBrowser::OnRootWindowClosed(const TSharedRef<SWindow>&) const
-{
-	if (const TSharedPtr<SMessageDialog> PinnedDeleteSessionDialog = DeleteSessionDialog.Pin())
-	{
-		PinnedDeleteSessionDialog->RequestDestroyWindow();
-	}
-	
-	UnregisterFromOnRootWindowClosed();
-}
-
-void SConcertServerSessionBrowser::UnregisterFromOnRootWindowClosed() const
-{
-	if (const TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow())
-	{
-		RootWindow->GetOnWindowClosedEvent().RemoveAll(this);
-	}
-}
-
-void SConcertServerSessionBrowser::DeleteArchivedSessionWithNonModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem)
+void SConcertServerSessionBrowser::DeleteArchivedSessionWithFakeModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem)
 {
 	const FText Message = FText::Format(
 	LOCTEXT("DeleteArchivedDescription", "Deleting a session will cause all associated data to be removed.\n\nDelete {0}?"),
@@ -138,17 +99,21 @@ void SConcertServerSessionBrowser::DeleteArchivedSessionWithNonModalQuestion(con
 		.Title(LOCTEXT("DisconnectUsersTitle", "Delete session?"))
 		.IconBrush("Icons.WarningWithColor.Large")
 		.Message(Message)
+		.UseScrollBox(false)
 		.Buttons({
 			SMessageDialog::FButton(LOCTEXT("DeleteArchivedButton", "Delete"))
 				.SetOnClicked(FSimpleDelegate::CreateLambda(DeleteArchived)),
-			SMessageDialog::FButton(LOCTEXT("CancelButton", "Cancel")).SetPrimary(true)
+			SMessageDialog::FButton(LOCTEXT("CancelButton", "Cancel"))
+				.SetPrimary(true)
+				.SetFocus()
 		});
-	
-	DeleteSessionDialog = Dialog;
-	Dialog->Show();
+
+	UE::MultiUserServer::FConcertServerUIModule::Get()
+		.GetModalWindowManager()
+		->ShowFakeModalWindow(Dialog);
 }
 
-void SConcertServerSessionBrowser::DeleteActiveSessionWithNonModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem)
+void SConcertServerSessionBrowser::DeleteActiveSessionWithFakeModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem)
 {
 	const int32 NumUsers = Controller.Pin()->GetNumConnectedClients(SessionItem->SessionId);
 	const FText Message = FText::Format(
@@ -170,14 +135,18 @@ void SConcertServerSessionBrowser::DeleteActiveSessionWithNonModalQuestion(const
 		.Title(LOCTEXT("DisconnectUsersTitle", "Force Users to Disconnect?"))
 		.IconBrush("Icons.WarningWithColor.Large")
 		.Message(Message)
+		.UseScrollBox(false)
 		.Buttons({
-			SMessageDialog::FButton(LOCTEXT("DeleteActiveButton", "Delete")).SetPrimary(true)
-				.SetOnClicked(FSimpleDelegate::CreateLambda(DeleteActive)),
+			SMessageDialog::FButton(LOCTEXT("DeleteActiveButton", "Delete"))
+				.SetPrimary(true)
+				.SetOnClicked(FSimpleDelegate::CreateLambda(DeleteActive))
+				.SetFocus(),
 			SMessageDialog::FButton(LOCTEXT("CancelButton", "Cancel"))
 		});
-	
-	DeleteSessionDialog = Dialog;
-	Dialog->Show();
+
+	UE::MultiUserServer::FConcertServerUIModule::Get()
+		.GetModalWindowManager()
+		->ShowFakeModalWindow(Dialog);
 }
 
 #undef LOCTEXT_NAMESPACE

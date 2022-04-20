@@ -29,7 +29,7 @@ FConcertServerWindowController::FConcertServerWindowController(const FConcertSer
 	SessionBrowserController = MakeShared<FConcertServerSessionBrowserController>();
 }
 
-void FConcertServerWindowController::CreateWindow()
+TSharedRef<SWindow> FConcertServerWindowController::CreateWindow()
 {
 	InitComponents();
 
@@ -78,6 +78,8 @@ void FConcertServerWindowController::CreateWindow()
 	RootWindow->ShowWindow();
 	constexpr bool bForceWindowToFront = true;
 	RootWindow->BringToFront(bForceWindowToFront);
+
+	return RootWindowRef;
 }
 
 void FConcertServerWindowController::OpenSessionTab(const FGuid& SessionId)

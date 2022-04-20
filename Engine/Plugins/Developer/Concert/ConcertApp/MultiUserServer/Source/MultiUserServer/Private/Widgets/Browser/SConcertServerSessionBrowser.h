@@ -20,7 +20,6 @@ public:
 		SLATE_EVENT(FSessionDelegate, DoubleClickLiveSession)
 		SLATE_EVENT(FSessionDelegate, DoubleClickArchivedSession)
 	SLATE_END_ARGS()
-	virtual ~SConcertServerSessionBrowser() override;
 
 	void Construct(const FArguments& InArgs, TSharedRef<FConcertServerSessionBrowserController> InController);
 
@@ -40,8 +39,6 @@ private:
 
 	/** We can ask the controller about information and notify it about UI events. */
 	TWeakPtr<FConcertServerSessionBrowserController> Controller;
-	/** Tracks whether there is a dialog asking the user to delete a session. Used to avoid opening multiple. */
-	TWeakPtr<SMessageDialog> DeleteSessionDialog;
 
 	bool bRequestedRefresh = false;
 
@@ -51,8 +48,6 @@ private:
 	TSharedRef<SWidget> MakeSessionTableView(const FArguments& InArgs);
 
 	void RequestDeleteSession(const TSharedPtr<FConcertSessionItem>& SessionItem);
-	void OnRootWindowClosed(const TSharedRef<SWindow>&) const;
-	void UnregisterFromOnRootWindowClosed() const;
-	void DeleteArchivedSessionWithNonModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem);
-	void DeleteActiveSessionWithNonModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem);
+	void DeleteArchivedSessionWithFakeModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem);
+	void DeleteActiveSessionWithFakeModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem);
 };
