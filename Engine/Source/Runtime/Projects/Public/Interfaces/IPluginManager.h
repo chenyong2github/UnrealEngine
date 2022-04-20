@@ -209,6 +209,13 @@ public:
 	virtual bool AddToPluginsList(const FString& PluginFilename, FText* OutFailReason = nullptr) = 0;
 
 	/**
+	 * Remove a single plugin from the list of plugins.
+	 *
+	 * @return True if the plugin was not in the list. False if it can't be removed (see OutFailReason).
+	 */
+	virtual bool RemoveFromPluginsList(const FString& PluginFilename, FText* OutFailReason = nullptr) = 0;
+
+	/**
 	 * Loads all plug-ins
 	 *
 	 * @param	LoadingPhase	Which loading phase we're loading plug-in modules from.  Only modules that are configured to be

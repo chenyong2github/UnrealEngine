@@ -254,6 +254,23 @@ void FPluginManager::RefreshPluginsList()
 	}
 }
 
+bool VerifyForSinglePluginForAddOrRemove(const FPluginDescriptor& Descriptor, FText& OutFailReason)
+{
+	if (!ensureMsgf(Descriptor.bExplicitlyLoaded, TEXT("VerifyForSinglePluginForAddOrRemove does not allow plugins with bIsPluginExtension set to true. Plugin: %s"), *Descriptor.FriendlyName))
+	{
+		OutFailReason = FText::Format(LOCTEXT("PluginIsNotExplicitlyLoaded", "Plugin '{0}' is not explicitly loaded"), FText::FromString(Descriptor.FriendlyName));
+		return false;
+	}
+
+	if (!ensureMsgf(!Descriptor.bIsPluginExtension, TEXT("VerifyForSinglePluginForAddOrRemove does not allow platform extensions. Plugin %s"), *Descriptor.FriendlyName))
+	{
+		OutFailReason = FText::Format(LOCTEXT("PluginIsExtension", "Plugin '{0}' is a platform extension"), FText::FromString(Descriptor.FriendlyName));
+		return false;
+	}
+
+	return true;
+}
+
 bool FPluginManager::AddToPluginsList(const FString& PluginFilename, FText* OutFailReason /*= nullptr*/)
 {
 #if (WITH_ENGINE && !IS_PROGRAM) || WITH_PLUGIN_SUPPORT
@@ -267,7 +284,13 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename, FText* OutF
 	// Read the plugin and load it
 	FPluginDescriptor Descriptor;
 	FText FailReason;
-	if (Descriptor.Load(PluginFilename, FailReason))
+	bool bSuccess = Descriptor.Load(PluginFilename, FailReason);
+	if (bSuccess)
+	{
+		bSuccess = VerifyForSinglePluginForAddOrRemove(Descriptor, FailReason);
+	}
+
+	if(bSuccess)
 	{
 		// Determine the plugin type
 		EPluginType PluginType = EPluginType::External;
@@ -316,6 +339,47 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename, FText* OutF
 #endif
 
 	return false;
+}
+
+bool FPluginManager::RemoveFromPluginsList(const FString& PluginFilename, FText* OutFailReason /*= nullptr*/)
+{
+#if (WITH_ENGINE && !IS_PROGRAM) || WITH_PLUGIN_SUPPORT
+	FString PluginName = FPaths::GetBaseFilename(PluginFilename);
+
+	TSharedRef<FPlugin>* MaybePlugin = AllPlugins.Find(PluginName);
+	if (MaybePlugin == nullptr)
+	{
+		return true;
+	}
+
+	const TSharedRef<FPlugin>& FoundPlugin = *MaybePlugin;
+
+	FText FailReason;
+	bool bSuccess = true;
+	if (FoundPlugin->IsEnabled())
+	{
+		FailReason = FText::Format(LOCTEXT("PluginIsEnabled", "Plugin '{0}' is enabled"), FText::FromString(PluginFilename));
+		bSuccess = false;
+	}
+
+	if(bSuccess)
+	{
+		bSuccess = VerifyForSinglePluginForAddOrRemove(FoundPlugin->Descriptor, FailReason);
+	}
+
+	if (!bSuccess)
+	{
+		if (OutFailReason)
+		{
+			*OutFailReason = FText::Format(LOCTEXT("RemoveFromPluginsListFailed", "Failed to remove plugin '{0}'\n{1}"), FText::FromString(PluginFilename), FailReason);
+		}
+		return false;
+	}
+
+	AllPlugins.Remove(PluginName);
+#endif
+
+	return true;
 }
 
 void FPluginManager::DiscoverAllPlugins()
@@ -974,7 +1038,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 		// If we made it here, we have all the required plugins
 		bHaveAllRequiredPlugins = true;
 
-		// check if the config already contais the plugin inis - if so, we don't need to scan anything, just use the ini to find paks to mount
+		// check if the config already contains the plugin inis - if so, we don't need to scan anything, just use the ini to find paks to mount
 		TArray<FString> BinaryConfigPlugins;
 		if (GConfig->GetArray(TEXT("BinaryConfig"), TEXT("BinaryConfigPlugins"), BinaryConfigPlugins, GEngineIni) && BinaryConfigPlugins.Num() > 0)
 		{

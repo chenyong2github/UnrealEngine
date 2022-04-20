@@ -177,14 +177,17 @@ struct FGameFeaturePluginStateMachineProperties
 	 */
 	FString PluginURL;
 
-	/** Once installed, this is the filename on disk of the .uplugin file. */
+	/** Filename on disk of the .uplugin file. */
 	FString PluginInstalledFilename;
 	
-	/** Once installed, this is the name of the plugin. */
+	/** Name of the plugin. */
 	FString PluginName;
 
 	/** Meta data parsed from the URL for a specific protocol. */
 	TUnion<FInstallBundlePluginProtocolMetaData> ProtocolMetadata;
+
+	/** Tracks whether or not this state machine added the pluging to the plugin manager. */
+	bool bAddedPluginToManager = false;
 
 	/** The desired state during a transition. */
 	EGameFeaturePluginState DestinationState = EGameFeaturePluginState::Uninitialized;

@@ -786,11 +786,18 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 		PendingBundles.Empty();
 		bUnmounted = false;
 
-		if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(StateProperties.PluginName))
+		if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(StateProperties.PluginName); 
+			Plugin && Plugin->GetDescriptor().bExplicitlyLoaded)
 		{
 			// The asset registry listens to FPackageName::OnContentPathDismounted() and 
 			// will automatically cleanup the asset registry state we added for this plugin.
-			IPluginManager::Get().UnmountExplicitlyLoadedPlugin(StateProperties.PluginName, nullptr);
+			verify(IPluginManager::Get().UnmountExplicitlyLoadedPlugin(StateProperties.PluginName, nullptr));
+		}
+
+		if (StateProperties.bAddedPluginToManager)
+		{
+			verify(IPluginManager::Get().RemoveFromPluginsList(StateProperties.PluginName));
+			StateProperties.bAddedPluginToManager = false;
 		}
 
 		if (StateProperties.GetPluginProtocol() != EGameFeaturePluginProtocol::InstallBundle)
@@ -985,14 +992,25 @@ struct FGameFeaturePluginState_Mounting : public FGameFeaturePluginState
 		checkf(FPaths::GetExtension(StateProperties.PluginInstalledFilename) == TEXT("uplugin"), TEXT("PluginInstalledFilename must have a uplugin extension. PluginURL: %s"), *StateProperties.PluginURL);
 
 		// refresh the plugins list to let the plugin manager know about it
-		const bool bAddedPlugin = IPluginManager::Get().AddToPluginsList(StateProperties.PluginInstalledFilename);
-		if (!bAddedPlugin)
+		TSharedPtr<IPlugin> MaybePlugin = IPluginManager::Get().FindPlugin(StateProperties.PluginName);
+		const bool bNeedsPluginMount = (MaybePlugin == nullptr || MaybePlugin->GetDescriptor().bExplicitlyLoaded);
+
+		if (MaybePlugin == nullptr)
 		{
-			StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Failed_To_Register_Plugin"));
-			return;
+			const bool bAddedPlugin = IPluginManager::Get().AddToPluginsList(StateProperties.PluginInstalledFilename);
+			if (!bAddedPlugin)
+			{
+				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorMounting, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Failed_To_Register_Plugin"));
+				return;
+			}
+
+			StateProperties.bAddedPluginToManager = true;
 		}
 		
-		IPluginManager::Get().MountExplicitlyLoadedPlugin(StateProperties.PluginName);
+		if (bNeedsPluginMount)
+		{
+			IPluginManager::Get().MountExplicitlyLoadedPlugin(StateProperties.PluginName);
+		}
 
 		// After the new plugin is mounted add the asset registry for that plugin.
 		if (StateProperties.GetPluginProtocol() == EGameFeaturePluginProtocol::InstallBundle)
