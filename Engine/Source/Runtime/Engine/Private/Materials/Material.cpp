@@ -153,6 +153,7 @@ FUObjectAnnotationSparseBool GMaterialsThatNeedExpressionsFlipped;
 FUObjectAnnotationSparseBool GMaterialsThatNeedCoordinateCheck;
 FUObjectAnnotationSparseBool GMaterialsThatNeedCommentFix;
 FUObjectAnnotationSparseBool GMaterialsThatNeedDecalFix;
+FUObjectAnnotationSparseBool GMaterialsThatNeedFeatureLevelSM6Fix;
 
 #endif // #if WITH_EDITOR
 
@@ -2510,6 +2511,11 @@ void UMaterial::Serialize(FArchive& Ar)
 			GMaterialsThatNeedDecalFix.Set(this);
 		}
 	}
+
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::MaterialFeatureLevelNodeFixForSM6)
+	{
+		GMaterialsThatNeedFeatureLevelSM6Fix.Set(this);
+	}
 #endif
 
 #if WITH_EDITOR
@@ -3444,6 +3450,17 @@ void UMaterial::PostLoad()
 	{
 		GMaterialsThatNeedCommentFix.Clear(this);
 		FixCommentPositions(EditorComments);
+	}
+
+	if (GMaterialsThatNeedFeatureLevelSM6Fix.Get(this))
+	{
+		GMaterialsThatNeedFeatureLevelSM6Fix.Clear(this);
+		if (FixFeatureLevelNodesForSM6(Expressions))
+		{
+			// Change this guid if you change the conversion logic.
+			static FGuid BackwardsCompatibilityFeatureLevelSM6ConversionGuid(TEXT("FC75DED7-2FB3-463B-B56C-8295871A340C"));
+			ReleaseResourcesAndMutateDDCKey(BackwardsCompatibilityFeatureLevelSM6ConversionGuid);
+		}
 	}
 #endif // #if WITH_EDITOR
 
@@ -5927,6 +5944,29 @@ bool UMaterial::HasFlippedCoordinates()
 	// Can't be sure coords are flipped if most are set out correctly
 	return ReversedInputCount > StandardInputCount;
 }
+
+bool UMaterial::FixFeatureLevelNodesForSM6(TArray<UMaterialExpression*> const& InExpressions)
+{
+	bool bRequiredChange = false;
+	for (int32 ExpressionIndex = 0; ExpressionIndex < InExpressions.Num(); ExpressionIndex++)
+	{
+		UMaterialExpressionFeatureLevelSwitch* Expression = Cast<UMaterialExpressionFeatureLevelSwitch>(InExpressions[ExpressionIndex]);
+		if (Expression != nullptr)
+		{
+			FExpressionInput const& ExpressionSM5 = Expression->Inputs[ERHIFeatureLevel::SM5];
+			FExpressionInput& ExpressionSM6 = Expression->Inputs[ERHIFeatureLevel::SM6];
+
+			if (ExpressionSM5.IsConnected() && !ExpressionSM6.IsConnected())
+			{
+				ExpressionSM6.Connect(ExpressionSM5.OutputIndex, ExpressionSM5.Expression);
+				bRequiredChange = true;
+			}
+		}
+	}
+
+	return bRequiredChange;
+}
+
 #endif //WITH_EDITORONLY_DATA
 
 void UMaterial::GetLightingGuidChain(bool bIncludeTextures, TArray<FGuid>& OutGuids) const

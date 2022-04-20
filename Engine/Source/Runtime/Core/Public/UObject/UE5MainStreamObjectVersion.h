@@ -212,6 +212,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// SoundWave Update to use EditorBuildData for it's RawData
 		SoundWaveVirtualizationUpdate,
 
+		// Fix material feature level nodes to account for new SM6 input pin.
+		MaterialFeatureLevelNodeFixForSM6,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

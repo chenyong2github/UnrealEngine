@@ -302,6 +302,7 @@ FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedExpressionsFlipped;
 FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedCoordinateCheck;
 FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedCommentFix;
 FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedSamplerFixup;
+FUObjectAnnotationSparseBool GMaterialFunctionsThatNeedFeatureLevelSM6Fix;
 #endif // #if WITH_EDITOR
 
 bool Engine_IsStrataEnabled();
@@ -12963,6 +12964,11 @@ void UMaterialFunction::Serialize(FArchive& Ar)
 			LibraryCategoriesText.Add(FText::FromString(Category));
 		}
 	}
+
+	if (Ar.IsLoading() && Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::MaterialFeatureLevelNodeFixForSM6)
+	{
+		GMaterialFunctionsThatNeedFeatureLevelSM6Fix.Set(this);
+	}
 #endif // #if WITH_EDITOR
 }
 
@@ -13020,6 +13026,12 @@ void UMaterialFunction::PostLoad()
 	{
 		GMaterialFunctionsThatNeedCommentFix.Clear(this);
 		UMaterial::FixCommentPositions(FunctionEditorComments);
+	}
+
+	if (GMaterialFunctionsThatNeedFeatureLevelSM6Fix.Get(this))
+	{
+		GMaterialFunctionsThatNeedFeatureLevelSM6Fix.Clear(this);
+		UMaterial::FixFeatureLevelNodesForSM6(FunctionExpressions);
 	}
 
 	if (GMaterialFunctionsThatNeedSamplerFixup.Get(this))

@@ -1773,6 +1773,10 @@ public:
 	 * Checks whether a Material is arranged in the old style, with inputs flowing from right to left
 	 */
 	bool HasFlippedCoordinates();
+
+	/** Fixup feature level nodes that haven't set the SM6 pin. Returns true if a fixup was needed. */
+	static bool FixFeatureLevelNodesForSM6(TArray<UMaterialExpression*> const& InExpressions);
+
 #endif //WITH_EDITORONLY_DATA
 
 private:
