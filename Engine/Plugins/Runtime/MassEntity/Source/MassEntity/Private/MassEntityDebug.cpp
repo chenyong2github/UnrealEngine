@@ -135,7 +135,7 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice LogFragmentSizes(
 	TEXT("Logs all the fragment types being used along with their sizes."),
 	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Params, UWorld* World, FOutputDevice& Ar)
 		{
-			for (const TWeakObjectPtr<const UStruct>& WeakStruct : FMassFragmentBitSet::DebugGetAllStructTypes())
+			for (const TWeakObjectPtr<const UScriptStruct>& WeakStruct : FMassFragmentBitSet::DebugGetAllStructTypes())
 			{
 				if (const UStruct* StructType = WeakStruct.Get())
 				{
@@ -164,7 +164,7 @@ FAutoConsoleCommandWithOutputDevice LogFragments(
 	TEXT("Logs all the known tags and fragments along with their \"index\" as stored via bitsets."),
 	FConsoleCommandWithOutputDeviceDelegate::CreateStatic([](FOutputDevice& OutputDevice)
 {
-	auto PrintKnownTypes = [&OutputDevice](TConstArrayView<TWeakObjectPtr<const UStruct>> AllStructs) {
+	auto PrintKnownTypes = [&OutputDevice](TConstArrayView<TWeakObjectPtr<const UScriptStruct>> AllStructs) {
 		int i = 0;
 		for (TWeakObjectPtr<const UStruct> Struct : AllStructs)
 		{
