@@ -327,7 +327,7 @@ public:
 			return false;
 		}
 
-		if (ShaderMode == VertexShadowDepth_VirtualShadowMap && !UseNonNaniteVirtualShadowMaps(Platform, GetMaxSupportedFeatureLevel(Platform)))
+		if (ShaderMode == VertexShadowDepth_VirtualShadowMap && !DoesPlatformSupportNonNaniteVirtualShadowMaps(Platform))
 		{
 			return false;
 		}
@@ -444,7 +444,7 @@ public:
 			return false;
 		}
 
-		if (ShaderMode == PixelShadowDepth_VirtualShadowMap && !UseNonNaniteVirtualShadowMaps(Platform, GetMaxSupportedFeatureLevel(Platform)))
+		if (ShaderMode == PixelShadowDepth_VirtualShadowMap && !DoesPlatformSupportNonNaniteVirtualShadowMaps(Platform))
 		{
 			return false;
 		}
