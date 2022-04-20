@@ -51,6 +51,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
 #include "ScopedTransaction.h"
+#include "Selection.h"
 #include "UpgradeNiagaraScriptResults.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/FileHelper.h"
@@ -2358,6 +2359,9 @@ void FNiagaraEditorUtilities::CreateAssetFromEmitter(TSharedRef<FNiagaraEmitterH
 		NewNode->NodeComment = CurrentComment;
 		NewNode->bCommentBubbleVisible = bCommentBubbleVisible;
 		NewNode->bCommentBubblePinned = bCommentBubblePinned;
+
+		// the duplicate action will select the duplicate emitter, adding a reference to it. We deselect here as it's a transient emitter to be garbage collected.
+		GEditor->GetSelectedObjects()->Deselect(DuplicateEmitter);
 	}
 }
 
