@@ -812,13 +812,14 @@ float4 DISKelMesh_QuatSlerp(float4 Quat1, float4 Quat2, float Slerp)
     return (Scale0 * Quat1) + (Scale1 * Quat2);
 }
 
-void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bone, in float Interp, in bool bWorldSpace, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
+void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bone, in float Interp, in bool bWorldSpace, out float3 OutPosition, out float4 OutRotation, out float3 OutScale, out float3 OutVelocity)
 {
 	// Early out for bad data
 	if ( DIContext.NumBones + DIContext.NumFilteredSockets == 0 )
 	{
 		OutPosition = float3(0.0f, 0.0f, 0.0f);
 		OutRotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		OutScale	= float3(0.0f, 0.0f, 0.0f);
 		OutVelocity = float3(0.0f, 0.0f, 0.0f);
 		return;
 	}
@@ -827,8 +828,10 @@ void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bon
 
     float3 PrevPosition = DIContext.MeshPrevSamplingBonesBuffer[Bone * 3].xyz;
     float4 PrevRotation = DIContext.MeshPrevSamplingBonesBuffer[Bone * 3 + 1];
+	float3 PrevScale	= DIContext.MeshPrevSamplingBonesBuffer[Bone * 3 + 2].xyz;
     float3 CurrPosition = DIContext.MeshCurrSamplingBonesBuffer[Bone * 3].xyz;
-    float4 CurrRotation = DIContext.MeshCurrSamplingBonesBuffer[Bone * 3 + 1];
+    float4 CurrRotation	= DIContext.MeshCurrSamplingBonesBuffer[Bone * 3 + 1];
+	float3 CurrScale	= DIContext.MeshCurrSamplingBonesBuffer[Bone * 3 + 2].xyz;
 
     if (bWorldSpace)
     {
@@ -836,32 +839,36 @@ void DISkelMesh_GetSkinnedBoneCommon(in FDISkelMeshContext DIContext, in int Bon
         CurrPosition = mul(float4(CurrPosition, 1), DIContext.InstanceTransform).xyz;
 		PrevRotation = NiagaraGPU_QuatMul(DIContext.InstancePrevRotation, PrevRotation);
 		CurrRotation = NiagaraGPU_QuatMul(DIContext.InstanceRotation, CurrRotation);
+		PrevScale = mul(PrevScale, (float3x3)DIContext.InstancePrevTransform);
+		CurrScale = mul(CurrScale, (float3x3)DIContext.InstanceTransform);
     }
     CurrPosition = lerp(PrevPosition, CurrPosition, Interp);
+	CurrScale	 = lerp(PrevScale, CurrScale, Interp);
 
     OutPosition = CurrPosition;
     OutRotation = DISKelMesh_QuatSlerp(PrevRotation, CurrRotation, Interp);
+	OutScale	= CurrScale;
     OutVelocity = (CurrPosition - PrevPosition) * DIContext.InstanceInvDeltaTime;
 }
 
-void DISkelMesh_GetSkinnedBone(in FDISkelMeshContext DIContext, in int Bone, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
+void DISkelMesh_GetSkinnedBone(in FDISkelMeshContext DIContext, in int Bone, out float3 OutPosition, out float4 OutRotation, out float3 OutScale, out float3 OutVelocity)
 {
-    DISkelMesh_GetSkinnedBoneCommon(DIContext, Bone, 1.0f, false, OutPosition, OutRotation, OutVelocity);
+    DISkelMesh_GetSkinnedBoneCommon(DIContext, Bone, 1.0f, false, OutPosition, OutRotation, OutScale, OutVelocity);
 }
 
-void DISkelMesh_GetSkinnedBoneInterpolated(in FDISkelMeshContext DIContext, in int Bone, in float Interp, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
+void DISkelMesh_GetSkinnedBoneInterpolated(in FDISkelMeshContext DIContext, in int Bone, in float Interp, out float3 OutPosition, out float4 OutRotation, out float3 OutScale, out float3 OutVelocity)
 {
-    DISkelMesh_GetSkinnedBoneCommon(DIContext, Bone, Interp, false, OutPosition, OutRotation, OutVelocity);
+    DISkelMesh_GetSkinnedBoneCommon(DIContext, Bone, Interp, false, OutPosition, OutRotation, OutScale, OutVelocity);
 }
 
-void DISkelMesh_GetSkinnedBoneWS(in FDISkelMeshContext DIContext, in int Bone, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
+void DISkelMesh_GetSkinnedBoneWS(in FDISkelMeshContext DIContext, in int Bone, out float3 OutPosition, out float4 OutRotation, out float3 OutScale, out float3 OutVelocity)
 {
-    DISkelMesh_GetSkinnedBoneCommon(DIContext, Bone, 1.0f, true, OutPosition, OutRotation, OutVelocity);
+    DISkelMesh_GetSkinnedBoneCommon(DIContext, Bone, 1.0f, true, OutPosition, OutRotation, OutScale, OutVelocity);
 }
 
-void DISkelMesh_GetSkinnedBoneInterpolatedWS(in FDISkelMeshContext DIContext, in int Bone, in float Interp, out float3 OutPosition, out float4 OutRotation, out float3 OutVelocity)
+void DISkelMesh_GetSkinnedBoneInterpolatedWS(in FDISkelMeshContext DIContext, in int Bone, in float Interp, out float3 OutPosition, out float4 OutRotation, out float3 OutScale, out float3 OutVelocity)
 {
-    DISkelMesh_GetSkinnedBoneCommon(DIContext, Bone, Interp, true, OutPosition, OutRotation, OutVelocity);
+    DISkelMesh_GetSkinnedBoneCommon(DIContext, Bone, Interp, true, OutPosition, OutRotation, OutScale, OutVelocity);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

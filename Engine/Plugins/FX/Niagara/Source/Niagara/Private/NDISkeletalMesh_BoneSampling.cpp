@@ -56,6 +56,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkeletonSamplingFunctions(TArray<FNia
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Bone")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Scale")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -72,6 +73,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkeletonSamplingFunctions(TArray<FNia
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Bone")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Scale")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -90,6 +92,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkeletonSamplingFunctions(TArray<FNia
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Scale")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -107,6 +110,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkeletonSamplingFunctions(TArray<FNia
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Interpolation")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetPositionDef(), TEXT("Position")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Rotation")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Scale")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Velocity")));
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -352,22 +356,22 @@ void UNiagaraDataInterfaceSkeletalMesh::BindSkeletonSamplingFunction(const FVMEx
 	//Bone Functions
 	if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataName)
 	{
-		ensure(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 10);
+		ensure(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 13);
 		TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandlerNoop, TNDIExplicitBinder<TInterpOff, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetSkinnedBoneData)>>>::BindIgnoreCPUAccess(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataWSName)
 	{
-		ensure(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 10);
+		ensure(BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 13);
 		TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandler, TNDIExplicitBinder<TInterpOff, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetSkinnedBoneData)>>>::BindIgnoreCPUAccess(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataInterpolatedName)
 	{
-		ensure(BindingInfo.GetNumInputs() == 3 && BindingInfo.GetNumOutputs() == 10);
+		ensure(BindingInfo.GetNumInputs() == 3 && BindingInfo.GetNumOutputs() == 13);
 		TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandlerNoop, TNDIExplicitBinder<TInterpOn, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetSkinnedBoneData)>>>::BindIgnoreCPUAccess(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataWSInterpolatedName)
 	{
-		ensure(BindingInfo.GetNumInputs() == 3 && BindingInfo.GetNumOutputs() == 10);
+		ensure(BindingInfo.GetNumInputs() == 3 && BindingInfo.GetNumOutputs() == 13);
 		TSkinningModeBinder<TNDIExplicitBinder<FNDITransformHandler, TNDIExplicitBinder<TInterpOn, NDI_FUNC_BINDER(UNiagaraDataInterfaceSkeletalMesh, GetSkinnedBoneData)>>>::BindIgnoreCPUAccess(this, BindingInfo, InstanceData, OutFunc);
 	}
 	else if (BindingInfo.Name == FSkeletalMeshInterfaceHelper::IsValidBoneName)
@@ -752,21 +756,25 @@ struct FBoneSocketSkinnedDataOutputHandler
 	FBoneSocketSkinnedDataOutputHandler(FVectorVMExternalFunctionContext& Context)
 		: Position(Context)
 		, Rotation(Context)
+		, Scale(Context)
 		, Velocity(Context)
 		, bNeedsPosition(Position.IsValid())
 		, bNeedsRotation(Rotation.IsValid())
+		, bNeedsScale(Scale.IsValid())
 		, bNeedsVelocity(Velocity.IsValid())
 	{
 	}
 
 	FNDIOutputParam<FVector3f> Position;
 	FNDIOutputParam<FQuat4f> Rotation;
+	FNDIOutputParam<FVector3f> Scale;
 	FNDIOutputParam<FVector3f> Velocity;
 
 	//TODO: Rotation + Scale too? Use quats so we can get proper interpolation between bone and parent.
 
 	const bool bNeedsPosition;
 	const bool bNeedsRotation;
+	const bool bNeedsScale;
 	const bool bNeedsVelocity;
 };
 
@@ -834,6 +842,10 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 				{
 					Output.Rotation.SetAndAdvance(FQuat4f::Identity);
 				}
+				if (Output.bNeedsScale)
+				{
+					Output.Scale.SetAndAdvance(FVector3f::ZeroVector);
+				}
 			}
 			else if (bIsSocket)
 			{
@@ -862,6 +874,18 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 
 					Output.Rotation.SetAndAdvance(Rotation);
 				}
+				if (Output.bNeedsScale)
+				{
+					FVector3f Scale = CurrSocketTransform.GetScale3D();
+					TransformHandler.TransformVector(Scale, InstanceTransform);
+					if (bInterpolated::Value)
+					{
+						FVector3f PrevScale = PrevSocketTransform.GetScale3D();
+						TransformHandler.TransformVector(PrevScale, PrevInstanceTransform);
+						Scale = FMath::Lerp(PrevScale, Scale, Interp);
+					}
+					Output.Scale.SetAndAdvance(Scale);
+				}
 			}
 			// Bone
 			else
@@ -887,6 +911,19 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 					}
 
 					Output.Rotation.SetAndAdvance(Rotation);
+				}
+
+				if (Output.bNeedsScale)
+				{
+					FVector3f Scale = SkinningHandler.GetSkinnedBoneScale(Accessor, Bone);
+					TransformHandler.TransformNotUnitVector(Scale, InstanceTransform);
+					if (bInterpolated::Value)
+					{
+						FVector3f PrevScale = SkinningHandler.GetSkinnedBonePreviousScale(Accessor, Bone);
+						TransformHandler.TransformNotUnitVector(PrevScale, PrevInstanceTransform);
+						Scale = FMath::Lerp(PrevScale, Scale, Interp);
+					}
+					Output.Scale.SetAndAdvance(Scale);
 				}
 			}
 

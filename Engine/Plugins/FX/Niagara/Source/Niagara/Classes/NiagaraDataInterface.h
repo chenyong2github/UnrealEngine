@@ -25,6 +25,8 @@ struct FNDITransformHandlerNoop
 	FORCEINLINE void TransformPosition(FVector3d& V, const FMatrix44d& M) const { }
 	FORCEINLINE void TransformVector(FVector3f& V, const FMatrix44f& M) const { }
 	FORCEINLINE void TransformVector(FVector3d& V, const FMatrix44d& M) const { }
+	FORCEINLINE void TransformNotUnitVector(FVector3f& V, const FMatrix44f& M) const { }
+	FORCEINLINE void TransformNotUnitVector(FVector3d& V, const FMatrix44d& M) const { }
 	FORCEINLINE void TransformRotation(FQuat4f& Q1, const FQuat4f& Q2) const { }
 	FORCEINLINE void TransformRotation(FQuat4d& Q1, const FQuat4d& Q2) const { }
 };
@@ -35,6 +37,8 @@ struct FNDITransformHandler
 	FORCEINLINE void TransformPosition(FVector3d& P, const FMatrix44d& M) const { P = M.TransformPosition(P); }
 	FORCEINLINE void TransformVector(FVector3f& V, const FMatrix44f& M) const { V = M.TransformVector(V).GetUnsafeNormal3(); }
 	FORCEINLINE void TransformVector(FVector3d& V, const FMatrix44d& M) const { V = M.TransformVector(V).GetUnsafeNormal3(); }
+	FORCEINLINE void TransformNotUnitVector(FVector3f& V, const FMatrix44f& M) const { V = M.TransformVector(V); }
+	FORCEINLINE void TransformNotUnitVector(FVector3d& V, const FMatrix44d& M) const { V = M.TransformVector(V); }
 	FORCEINLINE void TransformRotation(FQuat4f& Q1, const FQuat4f& Q2) const { Q1 = Q2 * Q1; }
 	FORCEINLINE void TransformRotation(FQuat4d& Q1, const FQuat4d& Q2) const { Q1 = Q2 * Q1; }
 };
