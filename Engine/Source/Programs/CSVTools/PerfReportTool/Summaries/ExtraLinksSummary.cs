@@ -24,8 +24,11 @@ namespace PerfSummaries
                 ReportText = Sections[0];
                 SummaryTableText = Sections[1];
 				LinkURL = Sections[2];
-                LinkTemplateCsvId = inLinkTemplateCsvId;
-            }
+				if (!LinkURL.StartsWith("http://") && !LinkURL.StartsWith("https://"))
+				{
+					LinkTemplateCsvId = inLinkTemplateCsvId;
+				}
+			}
             public string GetLinkString(bool bIsSummaryTable)
             {
                 if (bIsSummaryTable && LinkTemplateCsvId != null)
