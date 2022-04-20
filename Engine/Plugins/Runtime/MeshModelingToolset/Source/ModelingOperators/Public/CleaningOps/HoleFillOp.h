@@ -64,7 +64,6 @@ public:
 	// FDynamicMeshOperator implementation
 	void CalculateResult(FProgressCancel* Progress) override;
 
-	TArray<int> TriangleUVIsland;
 	bool FillSingleTriangleHole(const FEdgeLoop& Loop, int32& NewGroupID);
 };
 
