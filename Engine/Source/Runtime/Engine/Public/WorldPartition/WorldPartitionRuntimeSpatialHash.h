@@ -262,11 +262,11 @@ private:
 	UPROPERTY(EditAnywhere, Config, Category = RuntimeSettings)
 	TArray<FSpatialHashRuntimeGrid> Grids;
 
-	UPROPERTY(EditAnywhere, Category = RuntimeSettings, Transient, NonTransactional)
-	bool bPreviewGrids;
-
 	UPROPERTY(Transient)
 	mutable FWorldPartitionRuntimeSpatialHashGridPreviewer GridPreviewer;
+
+	/** Whether to preview runtime grids. */
+	bool bPreviewGrids;
 
 	TMap<FString, UWorldPartitionRuntimeCell*> PackagesToGenerateForCook;
 #endif
@@ -294,4 +294,5 @@ private:
 	TArray<const FSpatialHashStreamingGrid*> GetFilteredStreamingGrids() const;
 
 	friend class UWorldPartitionSubsystem;
+	friend class FWorldPartitionRuntimeSpatialHashDetails;
 };
