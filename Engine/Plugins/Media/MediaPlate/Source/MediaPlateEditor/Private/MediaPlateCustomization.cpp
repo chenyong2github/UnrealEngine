@@ -53,35 +53,15 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 		}
 	}
 
-	// Get media source property.
-	MediaSourceProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMediaPlateComponent, MediaSource));
-	
-	// Get media path property.
-	TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMediaPlateComponent, MediaPath));
+	// Get the bUseMediaSource property.
+	TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMediaPlateComponent, bUseMediaSource));
 	if (Property->IsValidHandle())
 	{
-		MediaPathProperty = Property->GetChildHandle("FilePath");
-		if (MediaPathProperty->IsValidHandle())
-		{
-			if (MediaSourceProperty->IsValidHandle())
-			{
-				// Get a callback when this changes so we can hide the media source property.
-				FSimpleDelegate OnUrlChangedDelegate = FSimpleDelegate::CreateSP(this,
-					&FMediaPlateCustomization::OnMediaPathChanged, &DetailBuilder);
-				MediaPathProperty->SetOnPropertyValueChanged(OnUrlChangedDelegate);
-
-				// Is the media path being used?
-				FString MediaPath;
-				if (MediaPathProperty->GetValue(MediaPath))
-				{
-					if (MediaPath.IsEmpty() == false)
-					{
-						// Yes, so hide the media source.
-						MediaSourceProperty->MarkHiddenByCustomization();
-					}
-				}
-			}
-		}
+		
+		// Get a callback when this changes so we can stop the player.
+		FSimpleDelegate OnUseMediaSourceChangedDelegate = FSimpleDelegate::CreateSP(this,
+			&FMediaPlateCustomization::OnUseMediaSourceChanged, &DetailBuilder);
+		Property->SetOnPropertyValueChanged(OnUseMediaSourceChangedDelegate);
 	}
 
 	// Add media control buttons.
@@ -326,10 +306,17 @@ FReply FMediaPlateCustomization::OnOpenMediaPlate()
 	return FReply::Handled();
 }
 
-void FMediaPlateCustomization::OnMediaPathChanged(IDetailLayoutBuilder* DetailBuilder)
+void FMediaPlateCustomization::OnUseMediaSourceChanged(IDetailLayoutBuilder* DetailBuilder)
 {
-	// Refresh the layout so we can show/hide the media source.
-	DetailBuilder->ForceRefreshDetails();
+	// Stop the player if we change the media source.
+	for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			MediaPlate->Stop();
+		}
+	}
 }
 
 float FMediaPlateCustomization::GetForwardRate(UMediaPlayer* MediaPlayer) const

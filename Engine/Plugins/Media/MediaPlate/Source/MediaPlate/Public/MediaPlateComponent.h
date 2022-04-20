@@ -79,12 +79,16 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
 	TObjectPtr<UMediaSoundComponent> SoundComponent;
 
-	/** URL (or file)  to play. This will take precedence over the MediaSource. */
+	/** Selects whether to use the media source or the media path. */
 	UPROPERTY(EditAnywhere, Category = MediaPlate)
+	bool bUseMediaSource;
+
+	/** URL (or file) to play. */
+	UPROPERTY(EditAnywhere, Category = MediaPlate, meta = (EditCondition = "!bUseMediaSource"))
 	FFilePath MediaPath;
 
-	/** What media to play. This will only be used if MediaPath is not valid. */
-	UPROPERTY(EditAnywhere, Category = MediaPlate)
+	/** What media to play. */
+	UPROPERTY(EditAnywhere, Category = MediaPlate, meta = (EditCondition = "bUseMediaSource"))
 	TObjectPtr<UMediaSource> MediaSource;
 
 	/** Enable smart caching for image sequences. */

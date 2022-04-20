@@ -38,20 +38,15 @@ private:
 	/** List of the media plates we are editing. */
 	TArray<TWeakObjectPtr<UMediaPlateComponent>> MediaPlatesList;
 
-	/** Stores our media source property. */
-	TSharedPtr<IPropertyHandle> MediaSourceProperty;
-	/** Stores our media path property. */
-	TSharedPtr<IPropertyHandle> MediaPathProperty;
-
 	/**
 	 * Called when the open media plate button is pressed.
 	 */
 	FReply OnOpenMediaPlate();
 
 	/**
-	 * Called when MediaPath changes.
+	 * Called when bUseMediaSource changes.
 	 */
-	void OnMediaPathChanged(IDetailLayoutBuilder* DetailBuilder);
+	void OnUseMediaSourceChanged(IDetailLayoutBuilder* DetailBuilder);
 
 	/**
 	 * Get the rate to use when we press the forward button.
