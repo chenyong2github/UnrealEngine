@@ -94,6 +94,8 @@ private:
 	/** Adds asset reference menu options to a menu builder. Returns true if any options were added. */
 	bool AddReferenceMenuOptions(UToolMenu* Menu);
 
+	bool AddPublicStateMenuOptions(UToolMenu* Menu);
+
 	/** Adds menu options related to working with collections */
 	bool AddCollectionMenuOptions(UToolMenu* Menu);
 
@@ -130,8 +132,11 @@ private:
 	/** Handler to check if all selected assets can have their Public state changed */
 	bool CanExecuteBulkSetPublicAsset();
 
-	/** Handler for getting the Public Asset check state */
-	ECheckBoxState GetPublicAssetCheckState();
+	/** Handler for determining the selected asset's Public state */
+	bool IsSelectedAssetPublic();
+
+	/** Handler for determining the selected asset's Private state */
+	bool IsSelectedAssetPrivate();
 
 	/** Handler for CopyReference */
 	void ExecuteCopyReference();
