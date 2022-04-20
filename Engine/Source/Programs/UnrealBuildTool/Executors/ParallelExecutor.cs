@@ -130,6 +130,7 @@ namespace UnrealBuildTool
 			public int ExitCode { get; private set; }
 			public TimeSpan ExecutionTime { get; private set; }
 			public TimeSpan ProcessorTime { get; private set; }
+			public string? AdditionalDescription { get; protected set; } = null;
 
 			public ExecuteResults(List<string> LogLines, int ExitCode, TimeSpan ExecutionTime, TimeSpan ProcessorTime)
 			{
@@ -295,6 +296,7 @@ namespace UnrealBuildTool
 			int ExitCode = int.MaxValue;
 			TimeSpan ExecutionTime = TimeSpan.Zero;
 			TimeSpan ProcessorTime = TimeSpan.Zero;
+			string? AdditionalDescription = null;
 			if (ExecuteTask.Status == TaskStatus.RanToCompletion)
 			{
 				ExecuteResults ExecuteTaskResult = ExecuteTask.Result;
@@ -302,6 +304,7 @@ namespace UnrealBuildTool
 				ExitCode = ExecuteTaskResult.ExitCode;
 				ExecutionTime = ExecuteTaskResult.ExecutionTime;
 				ProcessorTime = ExecuteTaskResult.ProcessorTime;
+				AdditionalDescription = ExecuteTaskResult.AdditionalDescription;
 			}
 
 			// Write it to the log
@@ -313,6 +316,10 @@ namespace UnrealBuildTool
 			else if (LogLines.Count > 0)
 			{
 				Description = $"{(Action.CommandDescription ?? Action.CommandPath.GetFileNameWithoutExtension())} {LogLines[0]}".Trim();
+			}
+			if (!string.IsNullOrEmpty(AdditionalDescription))
+            {
+				Description = $"{AdditionalDescription} {Description}";
 			}
 
 			lock (ProgressWriter)
