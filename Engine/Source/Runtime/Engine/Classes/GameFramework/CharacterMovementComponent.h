@@ -2966,9 +2966,6 @@ public:
 	int32 MaxFreeMoveCount;					// Limit on size of free list
 	int32 MaxSavedMoveCount;				// Limit on the size of the saved move buffer
 
-	/** RootMotion saved while animation is updated, so we can store it and replay if needed in case of a position correction. */
-	FRootMotionMovementParams RootMotionMovement;
-
 	uint32 bUpdatePosition:1; // when true, update the position (via ClientUpdatePosition)
 
 	// Mesh smoothing variables (for network smoothing)
