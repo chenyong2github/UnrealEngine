@@ -16,7 +16,7 @@ $ ProjectFile (FileReference): Path to the project file for the project containi
 
 $ Version (ReadOnlyBuildVersion): The current build version
 
-$ bIncludeAllTests (Boolean): Decides whether to compile with all the "Tests" folders from all dependent modules.
+$ IsTestTarget (Boolean): Whether this is a low level tests target.
 
 $ HostPlatform (UnrealTargetPlatform): Gets the host platform being built on
 
