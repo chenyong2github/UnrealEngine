@@ -1762,7 +1762,7 @@ static bool ComputeProjectedSphereShaft(
 			FVector::FReal Pxa = -Pza * Nza / Nxa;
 			FVector4 P = ProjMatrix.TransformFVector4(FVector4(FVec4Real(Axis.X * Pxa),FVec4Real(Axis.Y * Pxa),FVec4Real(Pza),1));
 			FVector::FReal X = (Dot3(P,Axis) / P.W + 1.0f * AxisSign) / 2.0f * AxisSign;
-			if((Nxa < FVector::FReal{0}) ^ (AxisSign < FVector::FReal{0}))
+			if(FMath::IsNegative(Nxa) ^ FMath::IsNegative(AxisSign))
 			{
 				InOutMaxX = FMath::Min(FMath::CeilToInt32(ViewSizeX * X + ViewX),InOutMaxX);
 			}
@@ -1778,7 +1778,7 @@ static bool ComputeProjectedSphereShaft(
 			FVector::FReal Pxb = -Pzb * Nzb / Nxb;
 			FVector4 P = ProjMatrix.TransformFVector4(FVector4(FVec4Real(Axis.X * Pxb), FVec4Real(Axis.Y * Pxb),FVec4Real(Pzb),1));
 			FVector::FReal X = (Dot3(P,Axis) / P.W + 1.0f * AxisSign) / 2.0f * AxisSign;
-			if((Nxb < FVector::FReal{0}) ^ (AxisSign < FVector::FReal{0}))
+			if(FMath::IsNegative(Nxb) ^ FMath::IsNegative(AxisSign))
 			{
 				InOutMaxX = FMath::Min(FMath::CeilToInt32(ViewSizeX * X + ViewX),InOutMaxX);
 			}

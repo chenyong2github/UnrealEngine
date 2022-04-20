@@ -432,7 +432,7 @@ bool FVertexSnappingImpl::GetClosestVertexOnComponent( const FSnapActor& SnapAct
 				// Vertex cannot be outside the view
 				&& !bOutside 
 				// In screen space the distance of the vertex must not be too far from the camera.  In any other axis the vertex cannot be beind the actor
-				&& ( ( CurrentAxis == EAxisList::Screen && DistanceFromCamera <= VertexSnappingConstants::MaxSquaredDistanceFromCamera ) || ( CurrentAxis != EAxisList::Screen && !( Distance < 0.0f ) ) )
+				&& ( ( CurrentAxis == EAxisList::Screen && DistanceFromCamera <= VertexSnappingConstants::MaxSquaredDistanceFromCamera ) || ( CurrentAxis != EAxisList::Screen && !FMath::IsNegativeFloat( Distance ) ) )
 				// The vertex must be closer than the current closest vertex
 				&& Distance < ClosestDistance )
 			{
@@ -506,7 +506,7 @@ FSnappingVertex FVertexSnappingImpl::GetClosestVertex( const TArray<FSnapActor>&
 				// we must have made some movement
 				&& !FMath::IsNearlyZero(Distance) 
 				// If not in screen space the vertex cannot be behind the point being snapped
-				&& ( CurrentAxis == EAxisList::Screen || !( Distance < 0.0f ) )
+				&& ( CurrentAxis == EAxisList::Screen || !FMath::IsNegativeFloat( Distance ) )
 				// The vertex must be closer than the current closest vertex
 				&& Distance < ClosestDistance )
 			{

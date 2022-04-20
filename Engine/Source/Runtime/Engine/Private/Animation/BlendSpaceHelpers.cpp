@@ -254,7 +254,7 @@ FDelaunayTriangleGenerator::ECircumCircleState FDelaunayTriangleGenerator::GetCi
 	const double Det = M00*M11*M22+M01*M12*M20+M02*M10*M21 - (M02*M11*M20+M01*M10*M22+M00*M12*M21);
 	
 	// When the vertices are sorted in a counterclockwise order, the determinant is positive if and only if Testpoint lies inside the circumcircle of T.
-	if (Det < 0.0)
+	if (FMath::IsNegative(Det))
 	{
 		return ECCS_Outside;
 	}

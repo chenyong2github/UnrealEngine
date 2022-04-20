@@ -300,7 +300,7 @@ ETextPluralForm FCulture::GetPluralForm(int32 Val, const ETextPluralType PluralT
 
 ETextPluralForm FCulture::GetPluralForm(double Val, const ETextPluralType PluralType) const
 {
-	if (Val < 0.0)
+	if (FMath::IsNegativeDouble(Val))
 	{
 		// Must be positive
 		Val *= -1.0;

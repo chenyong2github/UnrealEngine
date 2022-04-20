@@ -513,7 +513,7 @@ void FLODUtilities::RemoveLODs(FSkeletalMeshUpdateContext& UpdateContext, const 
 /** Given three direction vectors, indicates if A and B are on the same 'side' of Vec. */
 bool VectorsOnSameSide(const FVector2D& Vec, const FVector2D& A, const FVector2D& B)
 {
-	return !(((B.Y - A.Y)*(Vec.X - A.X)) + ((A.X - B.X)*(Vec.Y - A.Y)) < 0.0f);
+	return !FMath::IsNegativeFloat(((B.Y - A.Y)*(Vec.X - A.X)) + ((A.X - B.X)*(Vec.Y - A.Y)));
 }
 
 float PointToSegmentDistanceSquare(const FVector2D& A, const FVector2D& B, const FVector2D& P)
@@ -560,7 +560,7 @@ bool VectorsOnSameSide(const FVector3f& Vec, const FVector3f& A, const FVector3f
 	const FVector CrossA = FVector(Vec ^ A);
 	const FVector CrossB = FVector(Vec ^ B);
 	float DotWithEpsilon = SameSideDotProductEpsilon + (CrossA | CrossB);
-	return !(DotWithEpsilon < 0.0f);
+	return !FMath::IsNegativeFloat(DotWithEpsilon);
 }
 
 /** Util to see if P lies within triangle created by A, B and C. */

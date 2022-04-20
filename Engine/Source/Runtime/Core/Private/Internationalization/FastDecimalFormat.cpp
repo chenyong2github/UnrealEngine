@@ -514,7 +514,7 @@ void FractionalToString(const double InVal, const FDecimalNumberFormattingRules&
 		return;
 	}
 
-	const bool bIsNegative = FMath::IsNegativeOrNegativeZero(InVal);
+	const bool bIsNegative = FMath::IsNegativeDouble(InVal);
 
 	double IntegralPart = 0.0;
 	double FractionalPart = 0.0;

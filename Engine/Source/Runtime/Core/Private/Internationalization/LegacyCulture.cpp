@@ -221,7 +221,7 @@ ETextPluralForm FLegacyCultureImplementation::GetPluralForm(int32 Val, const ETe
 
 ETextPluralForm FLegacyCultureImplementation::GetPluralForm(double Val, const ETextPluralType PluralType) const
 {
-	checkf(!FMath::IsNegativeOrNegativeZero(Val), TEXT("GetPluralFormImpl requires a positive value"));
+	checkf(!FMath::IsNegativeDouble(Val), TEXT("GetPluralFormImpl requires a positive value"));
 	return GetDefaultPluralForm((int64)Val, PluralType);
 }
 

@@ -559,7 +559,7 @@ bool FMeshMergeHelpers::CheckWrappingUVs(const TArray<FVector2D>& UVs)
 	FVector2D Max(-FLT_MAX, -FLT_MAX);
 	for (const FVector2D& Coordinate : UVs)
 	{
-		if ((Coordinate.X < 0.0f || Coordinate.Y < 0.0f) || (Coordinate.X > (1.0f + KINDA_SMALL_NUMBER) || Coordinate.Y > (1.0f + KINDA_SMALL_NUMBER)))
+		if ((FMath::IsNegativeFloat(Coordinate.X) || FMath::IsNegativeFloat(Coordinate.Y)) || (Coordinate.X > (1.0f + KINDA_SMALL_NUMBER) || Coordinate.Y > (1.0f + KINDA_SMALL_NUMBER)))
 		{
 			bResult = true;
 			break;
@@ -583,7 +583,7 @@ bool FMeshMergeHelpers::CheckWrappingUVs(const FMeshDescription& MeshDescription
 	for (const FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
 	{
 		const FVector2D& Coordinate = FVector2D(VertexInstanceUVs.Get(VertexInstanceID, UVChannelIndex));
-		if ((Coordinate.X < 0.0f || Coordinate.Y < 0.0f) || (Coordinate.X > (1.0f + KINDA_SMALL_NUMBER) || Coordinate.Y > (1.0f + KINDA_SMALL_NUMBER)))
+		if ((FMath::IsNegativeFloat(Coordinate.X) || FMath::IsNegativeFloat(Coordinate.Y)) || (Coordinate.X > (1.0f + KINDA_SMALL_NUMBER) || Coordinate.Y > (1.0f + KINDA_SMALL_NUMBER)))
 		{
 			bResult = true;
 			break;

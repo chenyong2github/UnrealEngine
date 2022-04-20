@@ -762,7 +762,7 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	SetupViewFrustum(*this);
 
 	// Determine whether the view should reverse the cull mode due to a negative determinant.  Only do this for a valid scene
-	bReverseCulling = (Family && Family->Scene) ? ViewMatrices.GetViewMatrix().Determinant() < 0.0f : false;
+	bReverseCulling = (Family && Family->Scene) ? FMath::IsNegativeFloat(ViewMatrices.GetViewMatrix().Determinant()) : false;
 
 	// OpenGL Gamma space output in GLSL flips Y when rendering directly to the back buffer (so not needed on PC, as we never render directly into the back buffer)
 	auto ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
