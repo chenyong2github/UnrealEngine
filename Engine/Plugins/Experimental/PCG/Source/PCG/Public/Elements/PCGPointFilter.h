@@ -71,7 +71,8 @@ public:
 
 	virtual TArray<FName> InLabels() const override;
 	virtual TArray<FName> OutLabels() const override;
-	virtual bool HasDefaultLabels() const override { return false; }
+	virtual bool HasDefaultInLabel() const override { return false; }
+	virtual bool HasDefaultOutLabel() const override { return false; }
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;

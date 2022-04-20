@@ -35,20 +35,15 @@ void UPCGEditorGraphNode::Construct(UPCGNode* InPCGNode, EPCGEditorGraphNodeType
 	NodePosY = InPCGNode->PositionY;
 	
 	NodeType = InNodeType;
+
+	bCanRenameNode = (InNodeType == EPCGEditorGraphNodeType::Settings);
 }
 
 FText UPCGEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	if (PCGNode && PCGNode->DefaultSettings)
+	if (PCGNode)
 	{
-		if (PCGNode->DefaultSettings->AdditionalTaskName() != NAME_None)
-		{
-			return FText::FromName(PCGNode->DefaultSettings->AdditionalTaskName());
-		}
-		else
-		{
-			return FText::FromName(PCGNode->DefaultSettings->GetDefaultNodeName());
-		}
+		return FText::FromName(PCGNode->GetNodeTitle());
 	}
 	else
 	{
@@ -101,7 +96,7 @@ void UPCGEditorGraphNode::AllocateDefaultPins()
 {
 	if (NodeType == EPCGEditorGraphNodeType::Input || NodeType == EPCGEditorGraphNodeType::Settings)
 	{
-		if (!PCGNode || PCGNode->HasDefaultLabels())
+		if (!PCGNode || PCGNode->HasDefaultOutLabel())
 		{
 			CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, FName(TEXT("Out")));
 		}
@@ -117,7 +112,7 @@ void UPCGEditorGraphNode::AllocateDefaultPins()
 
 	if (NodeType == EPCGEditorGraphNodeType::Output || NodeType == EPCGEditorGraphNodeType::Settings)
 	{
-		if (!PCGNode || PCGNode->HasDefaultLabels())
+		if (!PCGNode || PCGNode->HasDefaultInLabel())
 		{
 			CreatePin(EEdGraphPinDirection::EGPD_Input, NAME_None, FName(TEXT("In")));
 		}
@@ -137,7 +132,7 @@ void UPCGEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 	if (FromPin->Direction == EEdGraphPinDirection::EGPD_Output)
 	{
 		FName InPinName = TEXT("In");
-		if (PCGNode && !PCGNode->HasDefaultLabels() && !PCGNode->InLabels().IsEmpty())
+		if (PCGNode && !PCGNode->HasDefaultInLabel() && !PCGNode->InLabels().IsEmpty())
 		{
 			InPinName = PCGNode->InLabels()[0];
 		}
@@ -148,7 +143,7 @@ void UPCGEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
 	else if (FromPin->Direction == EEdGraphPinDirection::EGPD_Input)
 	{
 		FName OutPinName = TEXT("Out");
-		if (PCGNode && !PCGNode->HasDefaultLabels() && !PCGNode->OutLabels().IsEmpty())
+		if (PCGNode && !PCGNode->HasDefaultOutLabel() && !PCGNode->OutLabels().IsEmpty())
 		{
 			OutPinName = PCGNode->OutLabels()[0];
 		}
@@ -164,7 +159,7 @@ bool UPCGEditorGraphNode::CanUserDeleteNode() const
 	return NodeType != EPCGEditorGraphNodeType::Input && NodeType != EPCGEditorGraphNodeType::Output;
 }
 
-void UPCGEditorGraphNode::OnNodeChanged(UPCGNode* InNode)
+void UPCGEditorGraphNode::OnNodeChanged(UPCGNode* InNode, bool bSettingsChanged)
 {
 	if (InNode == PCGNode)
 	{
@@ -185,13 +180,28 @@ void UPCGEditorGraphNode::ReconstructNode()
 	TArray<UEdGraphPin*> InputPins;
 	TArray<UEdGraphPin*> OutputPins;
 
+	// Reallocate the default pins if they had been removed previously
+	if((NodeType == EPCGEditorGraphNodeType::Output || NodeType == EPCGEditorGraphNodeType::Settings) && PCGNode->HasDefaultInLabel() && !FindPin(TEXT("In"), EEdGraphPinDirection::EGPD_Input))
+	{
+		FCreatePinParams FirstPinParams;
+		FirstPinParams.Index = 0;
+		CreatePin(EEdGraphPinDirection::EGPD_Input, NAME_None, FName(TEXT("In")), FirstPinParams);
+	}
+
+	if ((NodeType == EPCGEditorGraphNodeType::Input || NodeType == EPCGEditorGraphNodeType::Settings) && PCGNode->HasDefaultOutLabel() && !FindPin(TEXT("Out"), EEdGraphPinDirection::EGPD_Output))
+	{
+		FCreatePinParams FirstPinParams;
+		FirstPinParams.Index = 0;
+		CreatePin(EEdGraphPinDirection::EGPD_Output, NAME_None, FName(TEXT("Out")), FirstPinParams);
+	}
+
 	for (UEdGraphPin* Pin : Pins)
 	{
-		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && (Pin->PinName != TEXT("In") || !PCGNode->HasDefaultLabels()))
+		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && (Pin->PinName != TEXT("In") || !PCGNode->HasDefaultInLabel()))
 		{
 			InputPins.Add(Pin);
 		}
-		else if (Pin->Direction == EEdGraphPinDirection::EGPD_Output && (Pin->PinName != TEXT("Out") || !PCGNode->HasDefaultLabels()))
+		else if (Pin->Direction == EEdGraphPinDirection::EGPD_Output && (Pin->PinName != TEXT("Out") || !PCGNode->HasDefaultOutLabel()))
 		{
 			OutputPins.Add(Pin);
 		}
@@ -257,6 +267,17 @@ void UPCGEditorGraphNode::ReconstructNode()
 	}
 
 	OnNodeChangedDelegate.ExecuteIfBound();
+}
+
+void UPCGEditorGraphNode::OnRenameNode(const FString& NewName)
+{
+	FName TentativeName(NewName);
+
+	if (GetCanRenameNode() && PCGNode && PCGNode->GetNodeTitle() != TentativeName)
+	{
+		PCGNode->Modify();
+		PCGNode->NodeTitle = FName(NewName);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

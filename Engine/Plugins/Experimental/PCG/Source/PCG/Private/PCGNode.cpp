@@ -63,6 +63,29 @@ UPCGNode* UPCGNode::AddEdgeTo(FName InboundName, UPCGNode* To, FName OutboundNam
 	}
 }
 
+FName UPCGNode::GetNodeTitle() const
+{
+	if (NodeTitle != NAME_None)
+	{
+		return NodeTitle;
+	}
+	else if (DefaultSettings)
+	{
+		if (DefaultSettings->AdditionalTaskName() != NAME_None)
+		{
+			return DefaultSettings->AdditionalTaskName();
+		}
+#if WITH_EDITOR
+		else
+		{
+			return DefaultSettings->GetDefaultNodeName();
+		}
+#endif
+	}
+
+	return TEXT("Unnamed node");
+}
+
 bool UPCGNode::HasInLabel(const FName& Label) const
 {
 	return DefaultSettings && DefaultSettings->HasInLabel(Label);
@@ -83,9 +106,14 @@ TArray<FName> UPCGNode::OutLabels() const
 	return DefaultSettings ? DefaultSettings->OutLabels() : TArray<FName>();
 }
 
-bool UPCGNode::HasDefaultLabels() const
+bool UPCGNode::HasDefaultInLabel() const
 {
-	return !DefaultSettings || DefaultSettings->HasDefaultLabels();
+	return !DefaultSettings || DefaultSettings->HasDefaultInLabel();
+}
+
+bool UPCGNode::HasDefaultOutLabel() const
+{
+	return !DefaultSettings || DefaultSettings->HasDefaultOutLabel();
 }
 
 bool UPCGNode::IsInputPinConnected(const FName& Label) const
@@ -196,12 +224,12 @@ void UPCGNode::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChan
 		if (DefaultSettings)
 		{
 			DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
+			OnSettingsChanged(DefaultSettings);
 		}
 	}
-
-	if (DefaultSettings)
+	else if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, NodeTitle))
 	{
-		OnSettingsChanged(DefaultSettings);
+		OnNodeSettingsChangedDelegate.Broadcast(this, /*bSettingsChanged=*/false);
 	}
 }
 
@@ -209,7 +237,7 @@ void UPCGNode::OnSettingsChanged(UPCGSettings* InSettings)
 {
 	if (InSettings == DefaultSettings)
 	{
-		OnNodeSettingsChangedDelegate.Broadcast(this);
+		OnNodeSettingsChangedDelegate.Broadcast(this, /*bSettingsChanged=*/true);
 	}
 }
 

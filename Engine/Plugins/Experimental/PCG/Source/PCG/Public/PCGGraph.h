@@ -92,7 +92,7 @@ protected:
 #if WITH_EDITOR
 private:
 	void NotifyGraphChanged(bool bIsStructural);
-	void OnSettingsChanged(UPCGNode* InNode);
+	void OnSettingsChanged(UPCGNode* InNode, bool bSettingsChanged);
 	void OnStructuralSettingsChanged(UPCGNode* InNode);
 
 	bool bEnableGraphChangeNotifications = true;

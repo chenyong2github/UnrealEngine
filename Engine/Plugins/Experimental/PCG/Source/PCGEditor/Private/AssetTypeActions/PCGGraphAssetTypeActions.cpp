@@ -6,7 +6,7 @@
 
 #include "HAL/IConsoleManager.h"
 
-static TAutoConsoleVariable<bool> CVarPCGUseGraphEditor(TEXT("pcg.UseGraphEditor"), false, TEXT("Wheter to use use the new graph editor or not."));
+static TAutoConsoleVariable<bool> CVarPCGUseGraphEditor(TEXT("pcg.UseGraphEditor"), true, TEXT("Wheter to use use the new graph editor or not."));
 
 FText FPCGGraphAssetTypeActions::GetName() const
 {

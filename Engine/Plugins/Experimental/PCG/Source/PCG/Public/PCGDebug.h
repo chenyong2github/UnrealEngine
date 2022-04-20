@@ -24,20 +24,20 @@ struct PCG_API FPCGDebugVisualizationSettings
 public:
 	FPCGDebugVisualizationSettings();
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta=(ClampMin="0"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Debug, meta=(ClampMin="0"))
 	float PointScale = 1.0f;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Debug)
 	EPCGDebugVisScaleMethod ScaleMethod = EPCGDebugVisScaleMethod::Relative;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Debug)
 	TSoftObjectPtr<UStaticMesh> PointMesh;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Debug)
 	TSoftObjectPtr<UMaterialInterface> MaterialOverride;
 
 	/** Warning: enabling this flag will have severe performance impact */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Debug)
 	bool bCheckForDuplicates = false;
 
 	TSoftObjectPtr<UMaterialInterface> GetMaterial() const;

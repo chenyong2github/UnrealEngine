@@ -59,6 +59,10 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = Execution, meta = (HideSelfPin = "true"))
 	void LoopNTimes(UPARAM(ref) FPCGContext& InContext, int64 NumIterations, UPCGPointData*& OutData, const UPCGSpatialData* InA = nullptr, const UPCGSpatialData* InB = nullptr, UPCGPointData* OptionalOutData = nullptr) const;
 
+	/** Override for the default node name */
+	UFUNCTION(BlueprintNativeEvent, Category = Graph)
+	FName NodeTitleOverride() const;
+
 	/** Called after object creation to setup the object callbacks */
 	void Initialize();
 
@@ -80,6 +84,12 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input & Output")
 	TSet<FName> OutputPinLabels;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Input & Output")
+	bool bHasDefaultInPin = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings|Input & Output")
+	bool bHasDefaultOutPin = true;
 
 protected:
 #if WITH_EDITOR
@@ -103,10 +113,10 @@ public:
 #endif
 
 	virtual FName AdditionalTaskName() const override;
-	virtual bool HasInLabel(const FName& Label) const override;
-	virtual bool HasOutLabel(const FName& Label) const override;
 	virtual TArray<FName> InLabels() const override;
 	virtual TArray<FName> OutLabels() const override;
+	virtual bool HasDefaultInLabel() const override;
+	virtual bool HasDefaultOutLabel() const override;
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;

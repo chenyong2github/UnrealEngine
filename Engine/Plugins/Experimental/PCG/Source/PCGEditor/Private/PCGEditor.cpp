@@ -352,6 +352,7 @@ TSharedRef<SGraphEditor> FPCGEditor::CreateGraphEditorWidget()
 
 	SGraphEditor::FGraphEditorEvents InEvents;
 	InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FPCGEditor::OnSelectedNodesChanged);
+	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FPCGEditor::OnNodeTitleCommitted);
 
 	return SNew(SGraphEditor)
 		.AdditionalCommands(GraphEditorCommands)
@@ -377,6 +378,14 @@ void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 	PropertyDetailsWidget->SetObjects(SelectedObjects, /*bForceRefresh=*/true);
 
 	GetTabManager()->TryInvokeTab(FPCGEditor_private::PropertyDetailsID);
+}
+
+void FPCGEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged)
+{
+	if (NodeBeingChanged)
+	{
+		NodeBeingChanged->OnRenameNode(NewText.ToString());
+	}
 }
 
 TSharedRef<SDockTab> FPCGEditor::SpawnTab_GraphEditor(const FSpawnTabArgs& Args)

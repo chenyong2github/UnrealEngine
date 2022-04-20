@@ -43,7 +43,8 @@ public:
 	virtual bool HasOutLabel(const FName& Label) const;
 	virtual TArray<FName> InLabels() const { return TArray<FName>(); }
 	virtual TArray<FName> OutLabels() const { return TArray<FName>(); }
-	virtual bool HasDefaultLabels() const { return true; }
+	virtual bool HasDefaultInLabel() const { return true; }
+	virtual bool HasDefaultOutLabel() const { return true; }
 	
 	bool operator==(const UPCGSettings& Other) const;
 

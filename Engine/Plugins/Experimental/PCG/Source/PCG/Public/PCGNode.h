@@ -12,7 +12,7 @@ class UPCGEdge;
 class IPCGElement;
 
 #if WITH_EDITOR
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGNodeSettingsChanged, UPCGNode*);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPCGNodeSettingsChanged, UPCGNode*, bool);
 #endif
 
 UCLASS(ClassGroup = (Procedural))
@@ -40,6 +40,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Node)
 	UPCGNode* AddEdgeTo(FName InboundName, UPCGNode* To, FName OutboundName);
 
+	/** Returns the node title, based either on the current node label, or defaulted to its settings */
+	FName GetNodeTitle() const;
+
 	/** Returns true if one of the input pins matches with the given name */
 	bool HasInLabel(const FName& Label) const;
 
@@ -53,7 +56,8 @@ public:
 	TArray<FName> OutLabels() const;
 
 	/** Returns true if we want the default In/Out labels */
-	bool HasDefaultLabels() const;
+	bool HasDefaultInLabel() const;
+	bool HasDefaultOutLabel() const;
 
 	/** Returns true if the input pin is connected */
 	bool IsInputPinConnected(const FName& Label) const;
@@ -69,6 +73,9 @@ public:
 	/** Note: do not set this property directly from code, use SetDefaultSettings instead */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node, meta=(EditInline))
 	TObjectPtr<UPCGSettings> DefaultSettings;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node)
+	FName NodeTitle = NAME_None;
 
 #if WITH_EDITOR
 	FOnPCGNodeSettingsChanged OnNodeSettingsChangedDelegate;

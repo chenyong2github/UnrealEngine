@@ -89,6 +89,11 @@ void UPCGBlueprintElement::OnDependencyChanged(UObject* Object, FPropertyChanged
 
 #endif // WITH_EDITOR
 
+FName UPCGBlueprintElement::NodeTitleOverride_Implementation() const
+{
+	return NAME_None;
+}
+
 void UPCGBlueprintSettings::SetupBlueprintEvent()
 {
 #if WITH_EDITOR
@@ -215,7 +220,7 @@ void UPCGBlueprintSettings::OnBlueprintElementChanged(UPCGBlueprintElement* InEl
 		OnSettingsChangedDelegate.Broadcast(this);
 	}
 }
-#endif
+#endif // WITH_EDITOR
 
 void UPCGBlueprintSettings::SetElementType(TSubclassOf<UPCGBlueprintElement> InElementType, UPCGBlueprintElement*& ElementInstance)
 {
@@ -264,21 +269,18 @@ void UPCGBlueprintSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSe
 
 FName UPCGBlueprintSettings::AdditionalTaskName() const
 {
+	if (BlueprintElementInstance && BlueprintElementInstance->NodeTitleOverride() != NAME_None)
+	{
+		return BlueprintElementInstance->NodeTitleOverride();
+	}
+	else
+	{
 #if WITH_EDITOR
-	return BlueprintElementType && BlueprintElementType->ClassGeneratedBy ? BlueprintElementType->ClassGeneratedBy->GetFName() : Super::AdditionalTaskName();
+		return BlueprintElementType && BlueprintElementType->ClassGeneratedBy ? BlueprintElementType->ClassGeneratedBy->GetFName() : Super::AdditionalTaskName();
 #else
-	return BlueprintElementType ? BlueprintElementType->GetFName() : Super::AdditionalTaskName();
+		return BlueprintElementType ? BlueprintElementType->GetFName() : Super::AdditionalTaskName();
 #endif
-}
-
-bool UPCGBlueprintSettings::HasInLabel(const FName& Label) const
-{
-	return (Label == NAME_None || (BlueprintElementInstance && BlueprintElementInstance->InputPinLabels.Contains(Label)));
-}
-
-bool UPCGBlueprintSettings::HasOutLabel(const FName& Label) const
-{
-	return (Label == NAME_None || (BlueprintElementInstance && BlueprintElementInstance->OutputPinLabels.Contains(Label)));
+	}
 }
 
 TArray<FName> UPCGBlueprintSettings::InLabels() const
@@ -289,6 +291,16 @@ TArray<FName> UPCGBlueprintSettings::InLabels() const
 TArray<FName> UPCGBlueprintSettings::OutLabels() const
 {
 	return BlueprintElementInstance ? BlueprintElementInstance->OutputPinLabels.Array() : TArray<FName>();
+}
+
+bool UPCGBlueprintSettings::HasDefaultInLabel() const
+{
+	return !BlueprintElementInstance || BlueprintElementInstance->bHasDefaultInPin;
+}
+
+bool UPCGBlueprintSettings::HasDefaultOutLabel() const
+{
+	return !BlueprintElementInstance || BlueprintElementInstance->bHasDefaultOutPin;
 }
 
 FPCGElementPtr UPCGBlueprintSettings::CreateElement() const

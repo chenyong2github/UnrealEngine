@@ -38,6 +38,7 @@ public:
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	virtual bool CanUserDeleteNode() const override;
 	virtual void ReconstructNode() override;
+	virtual void OnRenameNode(const FString& NewName);
 	// ~End UEdGraphNode interface
 
 	UPCGNode* GetPCGNode() { return PCGNode; }
@@ -46,7 +47,7 @@ public:
 	FOnPCGEditorGraphNodeChanged OnNodeChangedDelegate;
 
 protected:
-	void OnNodeChanged(UPCGNode* InNode);
+	void OnNodeChanged(UPCGNode* InNode, bool bSettingsChanged);
 
 private:
 	UPROPERTY()

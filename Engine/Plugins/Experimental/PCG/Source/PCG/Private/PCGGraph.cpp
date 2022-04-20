@@ -17,6 +17,9 @@ UPCGGraph::UPCGGraph(const FObjectInitializer& ObjectInitializer)
 	InputNode->DefaultSettings = ObjectInitializer.CreateDefaultSubobject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings"));
 	OutputNode = ObjectInitializer.CreateDefaultSubobject<UPCGNode>(this, TEXT("DefaultOutputNode"));
 	OutputNode->DefaultSettings = ObjectInitializer.CreateDefaultSubobject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultOutputNodeSettings"));
+#if WITH_EDITORONLY_DATA
+	OutputNode->PositionX = 200;
+#endif
 
 	// Note: default connection from input to output
 	// should be added when creating from scratch,
@@ -431,9 +434,12 @@ void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 	OnGraphChangedDelegate.Broadcast(this, /*bIsStructural=*/bIsStructural);
 }
 
-void UPCGGraph::OnSettingsChanged(UPCGNode* InNode)
+void UPCGGraph::OnSettingsChanged(UPCGNode* InNode, bool bSettingsChanged)
 {
-	NotifyGraphChanged(/*bIsStructural=*/false);
+	if (bSettingsChanged)
+	{
+		NotifyGraphChanged(/*bIsStructural=*/false);
+	}
 }
 
 void UPCGGraph::OnStructuralSettingsChanged(UPCGNode* InNode)

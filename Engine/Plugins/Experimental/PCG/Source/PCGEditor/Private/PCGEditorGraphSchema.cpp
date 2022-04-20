@@ -88,8 +88,8 @@ bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* I
 		UPCGGraph* PCGGraph = PCGNodeA->GetGraph();
 		check(PCGGraph);
 
-		const FName& NodeAPinName = ((A->PinName == TEXT("Out") && PCGNodeA->HasDefaultLabels()) ? NAME_None : A->PinName);
-		const FName& NodeBPinName = ((B->PinName == TEXT("In") && PCGNodeB->HasDefaultLabels()) ? NAME_None : B->PinName);
+		const FName& NodeAPinName = ((A->PinName == TEXT("Out") && PCGNodeA->HasDefaultOutLabel()) ? NAME_None : A->PinName);
+		const FName& NodeBPinName = ((B->PinName == TEXT("In") && PCGNodeB->HasDefaultInLabel()) ? NAME_None : B->PinName);
 
 		PCGGraph->AddLabeledEdge(PCGNodeA, NodeAPinName, PCGNodeB, NodeBPinName);
 	}
@@ -113,12 +113,12 @@ void UPCGEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNod
 
 	if (TargetPin.Direction == EEdGraphPinDirection::EGPD_Input)
 	{
-		const FName& PinName = (TargetPin.PinName == TEXT("In") && PCGNode->HasDefaultLabels()) ? NAME_None : TargetPin.PinName;
+		const FName& PinName = (TargetPin.PinName == TEXT("In") && PCGNode->HasDefaultInLabel()) ? NAME_None : TargetPin.PinName;
 		PCGGraph->RemoveInboundEdges(PCGNode, PinName);
 	}
 	else if (TargetPin.Direction == EEdGraphPinDirection::EGPD_Output)
 	{
-		const FName& PinName = (TargetPin.PinName == TEXT("Out") && PCGNode->HasDefaultLabels()) ? NAME_None : TargetPin.PinName;
+		const FName& PinName = (TargetPin.PinName == TEXT("Out") && PCGNode->HasDefaultOutLabel()) ? NAME_None : TargetPin.PinName;
 		PCGGraph->RemoveOutboundEdges(PCGNode, PinName);
 	}
 }
