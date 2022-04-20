@@ -2819,7 +2819,7 @@ bool UGeomModifier_Split::OnApply()
 
 						// Make sure the line formed by the edge actually crosses the plane before checking for the intersection point.
 
-						if( FMath::IsNegativeFloat( CuttingPlane.PlaneDot( *v0 ) ) != FMath::IsNegativeFloat( CuttingPlane.PlaneDot( *v1 ) ) )
+						if( ( CuttingPlane.PlaneDot( *v0 ) < 0.0f ) != ( CuttingPlane.PlaneDot( *v1 ) < 0.0f ) )
 						{
 							FVector3f Intersection = FMath::LinePlaneIntersection( *v0, *v1, CuttingPlane );
 

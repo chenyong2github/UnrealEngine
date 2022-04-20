@@ -128,7 +128,7 @@ bool HModel::ResolveSurface(const FSceneView* View,int32 X,int32 Y,uint32& OutSu
 						FVector2D(Vertices[0].X,Vertices[0].Y),
 						FVector2D(Vertices[1].X,Vertices[1].Y),
 						FVector2D(Vertices[2].X,Vertices[2].Y),
-						(Surf.PolyFlags & PF_TwoSided) ? false : FMath::IsNegativeFloat(EdgeA.X * EdgeB.Y - EdgeA.Y * EdgeB.X) // Check if a surface is twosided when it is selected in the editor viewport
+						(Surf.PolyFlags & PF_TwoSided) ? false : (EdgeA.X * EdgeB.Y - EdgeA.Y * EdgeB.X < 0.0f) // Check if a surface is twosided when it is selected in the editor viewport
 						);
 				}
 			}

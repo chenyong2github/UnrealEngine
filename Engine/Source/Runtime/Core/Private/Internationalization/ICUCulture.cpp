@@ -1216,7 +1216,7 @@ ETextPluralForm FICUCultureImplementation::GetPluralForm(int32 Val, const ETextP
 
 ETextPluralForm FICUCultureImplementation::GetPluralForm(double Val, const ETextPluralType PluralType) const
 {
-	checkf(!FMath::IsNegativeDouble(Val), TEXT("GetPluralFormImpl requires a positive value"));
+	checkf(!FMath::IsNegativeOrNegativeZero(Val), TEXT("GetPluralFormImpl requires a positive value"));
 
 	const icu::PluralRules* ICUPluralRules = (PluralType == ETextPluralType::Cardinal) ? ICUCardinalPluralRules : ICUOrdinalPluralRules;
 	const icu::UnicodeString ICUPluralFormTag = ICUPluralRules->select(Val);
