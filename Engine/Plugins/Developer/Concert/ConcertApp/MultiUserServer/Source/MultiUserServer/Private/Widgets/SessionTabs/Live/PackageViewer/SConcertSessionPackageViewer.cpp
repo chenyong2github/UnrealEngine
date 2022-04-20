@@ -29,6 +29,7 @@ void SConcertSessionPackageViewer::Construct(const FArguments& InArgs)
 		.OnMapActivityToClient(InArgs._GetClientInfo)
 		.HighlightText(this, &SConcertSessionPackageViewer::HighlightSearchedText)
 		.Columns({
+			PackageViewerColumns::PackageUpdateTypeColumn(PackageViewerColumns::FGetPackageUpdateType::CreateSP(this, &SConcertSessionPackageViewer::GetPackageActivityUpdateType, InArgs._GetPackageEvent)),
 			PackageViewerColumns::SizeColumn(InArgs._GetSizeOfPackageActivity),
 			PackageViewerColumns::VersionColumn(PackageViewerColumns::FGetVersionOfPackageActivity::CreateSP(this, &SConcertSessionPackageViewer::GetVersionOfPackageActivity, InArgs._GetPackageEvent))
 		})
@@ -93,6 +94,16 @@ void SConcertSessionPackageViewer::AppendActivity(FConcertSessionActivity Activi
 void SConcertSessionPackageViewer::OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot)
 {
 	ActivityListView->OnColumnVisibilitySettingsChanged(ColumnSnapshot);
+}
+
+TOptional<EConcertPackageUpdateType> SConcertSessionPackageViewer::GetPackageActivityUpdateType(const FConcertSessionActivity& Activity, SConcertSessionActivities::FGetPackageEvent GetPackageEventFunc) const
+{
+	FConcertSyncPackageEventMetaData PackageEventMetaData;
+	if (GetPackageEventFunc.Execute(Activity, PackageEventMetaData))
+	{
+		return PackageEventMetaData.PackageInfo.PackageUpdateType;
+	}
+	return {};
 }
 
 TOptional<int64> SConcertSessionPackageViewer::GetVersionOfPackageActivity(const FConcertSessionActivity& Activity, SConcertSessionActivities::FGetPackageEvent GetPackageEventFunc) const

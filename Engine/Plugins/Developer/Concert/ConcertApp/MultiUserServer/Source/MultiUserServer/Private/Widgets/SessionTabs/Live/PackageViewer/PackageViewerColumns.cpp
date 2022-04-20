@@ -2,13 +2,18 @@
 
 #include "PackageViewerColumns.h"
 
+#include "ConcertServerStyle.h"
+
 #include "Math/UnitConversion.h"
+
+#include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 
-const FName UE::MultiUserServer::PackageViewerColumns::SizeColumnId		= TEXT("SizeColumnId");
-const FName UE::MultiUserServer::PackageViewerColumns::VersionColumnId	= TEXT("VersionColumnId");
+const FName UE::MultiUserServer::PackageViewerColumns::PackageUpdateTypeColumnId	= TEXT("PackageUpdateTypeColumnId");
+const FName UE::MultiUserServer::PackageViewerColumns::SizeColumnId					= TEXT("SizeColumnId");
+const FName UE::MultiUserServer::PackageViewerColumns::VersionColumnId				= TEXT("VersionColumnId");
 
 namespace UE::MultiUserServer::PackageViewerColumns
 {
@@ -52,6 +57,66 @@ namespace UE::MultiUserServer::PackageViewerColumns
 				OutSearchStrings.Add(Text);
 			}));
 	}
+}
+
+FActivityColumn UE::MultiUserServer::PackageViewerColumns::PackageUpdateTypeColumn(FGetPackageUpdateType GetPackageUpdateTypeFunc)
+{
+	return FActivityColumn(
+		SHeaderRow::Column(PackageUpdateTypeColumnId)
+			.HeaderContent()
+			[
+				SNew(SScaleBox)
+				.Stretch(EStretch::ScaleToFit)
+				[
+					SNew(SImage)
+					.Image(FConcertServerStyle::Get().GetBrush("Concert.SessionContent.ColumnHeader"))
+				]
+			]
+			.FixedWidth(22)
+			// Cannot be hidden
+			.ShouldGenerateWidget(true)
+		)
+		.ColumnSortOrder(static_cast<int32>(EPredefinedPackageColumnOrder::PackageUpdateType))
+		.GenerateColumnWidget(FActivityColumn::FGenerateColumnWidget::CreateLambda([GetPackageUpdateTypeFunc](const TSharedRef<SConcertSessionActivities>& Owner, const TSharedRef<FConcertSessionActivity>& Activity, SOverlay::FScopedWidgetSlotArguments& Slot)
+		{
+			if (const TOptional<EConcertPackageUpdateType> PackageUpdateType = GetPackageUpdateTypeFunc.Execute(Activity.Get()))
+			{
+				const TMap<EConcertPackageUpdateType, FName> PackageIcons {
+					{ EConcertPackageUpdateType::Added, TEXT("Concert.SessionContent.PackageAdded") },
+					{ EConcertPackageUpdateType::Deleted, TEXT("Concert.SessionContent.PackageDeleted") },
+					{ EConcertPackageUpdateType::Renamed, TEXT("Concert.SessionContent.PackageRenamed") },
+					{ EConcertPackageUpdateType::Saved, TEXT("Concert.SessionContent.PackageSaved") },
+					
+					// This one is not expected to be found but it's here for safety
+					{ EConcertPackageUpdateType::Dummy, TEXT("Concert.SessionContent.ColumnHeader")}
+				};
+				const TMap<EConcertPackageUpdateType, FText> ToolTips {
+					{ EConcertPackageUpdateType::Added, LOCTEXT("PackageUpdateTypeColumn.Tooltip.Added", "Added packaged") },
+					{ EConcertPackageUpdateType::Deleted, LOCTEXT("PackageUpdateTypeColumn.Tooltip.Deleted", "Deleted package") },
+					{ EConcertPackageUpdateType::Renamed, LOCTEXT("PackageUpdateTypeColumn.Tooltip.Renamed", "Renamed package") },
+					{ EConcertPackageUpdateType::Saved, LOCTEXT("PackageUpdateTypeColumn.Tooltip.Saved", "Saved package") },
+					
+					// This one is not expected to be found but it's here for safety
+					{ EConcertPackageUpdateType::Dummy, LOCTEXT("PackageUpdateTypeColumn.Tooltip.Dummy", "Dummy") }
+				};
+				static_assert(static_cast<int32>(EConcertPackageUpdateType::Count) == 5, "You must update this TMap when you update EConcertPackageUpdateType.");
+				
+				Slot
+				.HAlign(HAlign_Center)
+				.Padding(1)
+				[
+					SNew(SImage)
+					.Image(FConcertServerStyle::Get().GetBrush(PackageIcons[*PackageUpdateType]))
+					.DesiredSizeOverride(FVector2D(16.f, 16.f))
+					.ToolTipText(ToolTips[*PackageUpdateType])
+				];
+			}
+			else
+			{
+				checkNoEntry();
+				Slot[SNullWidget::NullWidget];
+			}
+		}));
 }
 
 FActivityColumn UE::MultiUserServer::PackageViewerColumns::SizeColumn(FGetSizeOfPackageActivity GetEventDataFunc)

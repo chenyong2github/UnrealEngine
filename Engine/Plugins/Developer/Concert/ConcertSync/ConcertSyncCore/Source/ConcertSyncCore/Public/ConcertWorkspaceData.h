@@ -19,6 +19,8 @@ enum class EConcertPackageUpdateType : uint8
 	Renamed,
 	/** This package has been deleted */
 	Deleted,
+
+	Count
 };
 
 USTRUCT()

@@ -103,7 +103,7 @@ FActivityColumn UE::ConcertSharedSlate::ActivityColumn::AvatarColor()
 	return FActivityColumn(
 		SHeaderRow::Column(AvatarColorColumnId)
 			.DefaultLabel(INVTEXT(""))
-			.ManualWidth(8)
+			.FixedWidth(8)
 			.ShouldGenerateWidget(true)
 		)
 		.ColumnSortOrder(static_cast<int32>(EPredefinedColumnOrder::AvatarColor))

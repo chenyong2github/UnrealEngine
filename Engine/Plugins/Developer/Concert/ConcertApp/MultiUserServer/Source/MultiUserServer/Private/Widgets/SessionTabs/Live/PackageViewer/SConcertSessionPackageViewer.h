@@ -43,6 +43,7 @@ private:
 	/** The searched text to highlight. */
 	FText SearchedText;
 
+	TOptional<EConcertPackageUpdateType> GetPackageActivityUpdateType(const FConcertSessionActivity& Activity, SConcertSessionActivities::FGetPackageEvent GetPackageEventFunc) const;
 	TOptional<int64> GetVersionOfPackageActivity(const FConcertSessionActivity& Activity, SConcertSessionActivities::FGetPackageEvent GetPackageEventFunc) const;
 
 	/** Invoked when the text in the search box widget changes. */
