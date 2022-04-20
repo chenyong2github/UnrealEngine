@@ -11,11 +11,11 @@
 
 PRAGMA_DISABLE_OPTIMIZATION
 
+DECLARE_STRUCTTYPEBITSET(FTestStructBaseBitSet, FTestStructSimpleBase);
+DEFINE_TYPEBITSET(FTestStructBaseBitSet);
+
 namespace FStructTypeBitSetTests
 {
-
-using FTestStructBaseBitSet = TStructTypeBitSet<FTestStructSimpleBase>;
-
 struct FTestStructBitSet : public TStructTypeBitSet<FTestStructSimple>
 {
 	FTestStructBitSet() = default;

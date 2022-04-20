@@ -569,4 +569,19 @@ private:
 	FBitArrayExt StructTypesBitArray;
 };
 
-template<typename TBaseStruct, typename TUStructType> FStructTracker TStructTypeBitSet<TBaseStruct, TUStructType>::StructTracker;
+#define DECLARE_STRUCTTYPEBITSET_EXPORTED(EXPORTED_API, ContainerTypeName, BaseStructType) template<> \
+	FStructTracker TStructTypeBitSet<BaseStructType, UScriptStruct>::StructTracker; \
+	template struct EXPORTED_API TStructTypeBitSet<BaseStructType, UScriptStruct>; \
+	using ContainerTypeName = TStructTypeBitSet<BaseStructType, UScriptStruct>;
+
+#define DECLARE_STRUCTTYPEBITSET(ContainerTypeName, BaseStructType) DECLARE_STRUCTTYPEBITSET_EXPORTED(, ContainerTypeName, BaseStructType)
+
+#define DECLARE_CLASSTYPEBITSET_EXPORTED(EXPORTED_API, ContainerTypeName, BaseStructType) template<> \
+	FStructTracker TStructTypeBitSet<BaseStructType, UClass>::StructTracker; \
+	template struct EXPORTED_API TStructTypeBitSet<BaseStructType, UClass>; \
+	using ContainerTypeName = TStructTypeBitSet<BaseStructType, UClass>;
+
+#define DECLARE_CLASSTYPEBITSET(ContainerTypeName, BaseStructType) DECLARE_STRUCTTYPEBITSET_EXPORTED(, ContainerTypeName, BaseStructType)
+
+#define DEFINE_TYPEBITSET(ContainerTypeName) template<> \
+	FStructTracker ContainerTypeName::StructTracker = FStructTracker();

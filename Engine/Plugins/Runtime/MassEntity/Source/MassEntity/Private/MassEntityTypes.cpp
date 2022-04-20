@@ -3,6 +3,11 @@
 #include "MassEntityTypes.h"
 #include "StructUtilsTypes.h"
 
+DEFINE_TYPEBITSET(FMassFragmentBitSet);
+DEFINE_TYPEBITSET(FMassTagBitSet);
+DEFINE_TYPEBITSET(FMassChunkFragmentBitSet);
+DEFINE_TYPEBITSET(FMassSharedFragmentBitSet);
+
 uint32 FMassArchetypeSharedFragmentValues::CalculateHash() const
 {
 	checkf(bSorted, TEXT("Expecting the containers to be sorted for the hash caluclation to be correct"));
