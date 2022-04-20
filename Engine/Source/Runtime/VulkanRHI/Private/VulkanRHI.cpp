@@ -246,11 +246,11 @@ void FVulkanDynamicRHI::Init()
 		GGPUCrashDebuggingEnabled = (GPUCrashDebuggingCVar && GPUCrashDebuggingCVar->GetInt() != 0) || FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging"));
 	}
 
-	InitInstance();
-
 #if VULKAN_USE_LLM
 	LLM(VulkanLLM::Initialize());
 #endif
+
+	InitInstance();
 
 	bIsStandaloneStereoDevice = IHeadMountedDisplayModule::IsAvailable() && IHeadMountedDisplayModule::Get().IsStandaloneStereoOnlyDevice();
 
