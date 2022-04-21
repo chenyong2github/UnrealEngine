@@ -644,53 +644,85 @@ void TraceVoxelsTranslucencyVolume(
 		GroupSize);
 }
 
-void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs)
+LumenRadianceCache::FUpdateInputs FDeferredShadingSceneRenderer::GetLumenTranslucencyGIVolumeRadianceCacheInputs(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View, 
+	const FLumenCardTracingInputs& TracingInputs)
+{
+	const FLumenTranslucencyLightingVolumeParameters VolumeParameters = GetTranslucencyLightingVolumeParameters(View);
+	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenTranslucencyVolumeRadianceCache::SetupRadianceCacheInputs(View);
+
+	FRadianceCacheConfiguration Configuration;
+	Configuration.bFarField = GTranslucencyVolumeRadianceCacheFarField != 0;
+
+	FMarkUsedRadianceCacheProbes MarkUsedRadianceCacheProbesCallbacks;
+
+	if (GLumenTranslucencyVolume && GLumenTranslucencyVolumeRadianceCache)
+	{
+		MarkUsedRadianceCacheProbesCallbacks.AddLambda([VolumeParameters](
+			FRDGBuilder& GraphBuilder, 
+			const FViewInfo& View, 
+			const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
+			{
+				MarkRadianceProbesUsedByTranslucencyVolume(
+					GraphBuilder,
+					View,
+					VolumeParameters,
+					RadianceCacheMarkParameters);
+			});
+	}
+
+	LumenRadianceCache::FUpdateInputs RadianceCacheUpdateInputs(
+		TracingInputs,
+		RadianceCacheInputs,
+		Configuration,
+		View,
+		nullptr,
+		nullptr,
+		MarkUsedRadianceCacheProbesCallbacks);
+
+	return RadianceCacheUpdateInputs;
+}
+
+void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
+	FRDGBuilder& GraphBuilder,
+	FViewInfo& View, 
+	const FLumenCardTracingInputs& TracingInputs,
+	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters)
 {
 	if (GLumenTranslucencyVolume)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "TranslucencyVolumeLighting");
 
-		for (FViewInfo& View : Views)
+		if (GLumenTranslucencyVolumeRadianceCache && !RadianceCacheParameters.RadianceProbeIndirectionTexture)
+		{
+			LumenRadianceCache::TInlineArray<LumenRadianceCache::FUpdateInputs> InputArray;
+			LumenRadianceCache::TInlineArray<LumenRadianceCache::FUpdateOutputs> OutputArray;
+
+			LumenRadianceCache::FUpdateInputs TranslucencyVolumeRadianceCacheUpdateInputs = GetLumenTranslucencyGIVolumeRadianceCacheInputs(
+				GraphBuilder,
+				View, 
+				TracingInputs);
+
+			if (TranslucencyVolumeRadianceCacheUpdateInputs.MarkUsedRadianceCacheProbes.IsBound())
+			{
+				InputArray.Add(TranslucencyVolumeRadianceCacheUpdateInputs);
+				OutputArray.Add(LumenRadianceCache::FUpdateOutputs(
+					View.ViewState->Lumen.TranslucencyVolumeRadianceCacheState,
+					RadianceCacheParameters));
+
+				LumenRadianceCache::UpdateRadianceCaches(
+					GraphBuilder, 
+					InputArray,
+					OutputArray,
+					Scene,
+					LumenCardRenderer.bPropagateGlobalLightingChange);
+			}
+		}
+
 		{
 			const FLumenTranslucencyLightingVolumeParameters VolumeParameters = GetTranslucencyLightingVolumeParameters(View);
 			const FIntVector TranslucencyGridSize = VolumeParameters.TranslucencyGIGridSize;
-			const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenTranslucencyVolumeRadianceCache::SetupRadianceCacheInputs(View);
-
-			LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
-
-			if (GLumenTranslucencyVolumeRadianceCache != 0)
-			{
-				FMarkUsedRadianceCacheProbes MarkUsedRadianceCacheProbesCallbacks;
-
-				MarkUsedRadianceCacheProbesCallbacks.AddLambda([VolumeParameters](
-					FRDGBuilder& GraphBuilder, 
-					const FViewInfo& View, 
-					const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
-					{
-						MarkRadianceProbesUsedByTranslucencyVolume(
-							GraphBuilder,
-							View,
-							VolumeParameters,
-							RadianceCacheMarkParameters);
-					});
-
-				FRadianceCacheConfiguration Configuration;
-				Configuration.bFarField = GTranslucencyVolumeRadianceCacheFarField != 0;
-
-				RenderRadianceCache(
-					GraphBuilder, 
-					TracingInputs, 
-					RadianceCacheInputs, 
-					Configuration,
-					Scene,
-					View, 
-					LumenCardRenderer.bPropagateGlobalLightingChange,
-					nullptr, 
-					nullptr, 
-					MarkUsedRadianceCacheProbesCallbacks,
-					View.ViewState->TranslucencyVolumeRadianceCacheState, 
-					RadianceCacheParameters);
-			}
 
 			FLumenTranslucencyLightingVolumeTraceSetupParameters TraceSetupParameters;
 			{

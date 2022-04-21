@@ -143,7 +143,7 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenRadianceCache");
 
-		const FRadianceCacheState& RadianceCacheState = GLumenVisualizeTranslucencyVolumeRadianceCache != 0 ? Views[0].ViewState->TranslucencyVolumeRadianceCacheState : Views[0].ViewState->RadianceCacheState;
+		const FRadianceCacheState& RadianceCacheState = GLumenVisualizeTranslucencyVolumeRadianceCache != 0 ? Views[0].ViewState->Lumen.TranslucencyVolumeRadianceCacheState : Views[0].ViewState->Lumen.RadianceCacheState;
 
 		FRDGTextureRef SceneColor = SceneTextures.Color.Resolve;
 		FRDGTextureRef SceneDepth = SceneTextures.Depth.Resolve;

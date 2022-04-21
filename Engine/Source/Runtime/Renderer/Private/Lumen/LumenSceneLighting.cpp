@@ -272,8 +272,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 			FLumenViewCardTracingInputs ViewCardTracingInputs(GraphBuilder, View);
 			ComputeLumenSceneVoxelLighting(GraphBuilder, View, FrameTemporaries, TracingInputs, ViewCardTracingInputs);
 		}
-
-		ComputeLumenTranslucencyGIVolume(GraphBuilder, TracingInputs);
 	}
 }
 

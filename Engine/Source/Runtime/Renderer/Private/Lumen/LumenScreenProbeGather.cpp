@@ -1463,7 +1463,8 @@ static void HairStrandsMarkUsedProbes(
 
 DECLARE_GPU_STAT(LumenScreenProbeGather);
 
-FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
+
+FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
 	FLumenSceneFrameTemporaries& FrameTemporaries,
@@ -1483,10 +1484,49 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	ScreenSpaceBentNormalParameters.ScreenBentNormal = SystemTextures.Black;
 	RadianceCacheParameters.RadianceProbeIndirectionTexture = nullptr;
 
+	FSSDSignalTextures Outputs;
+	LumenRadianceCache::FRadianceCacheInterpolationParameters TranslucencyVolumeRadianceCacheParameters;
+
 	if (GLumenIrradianceFieldGather != 0)
 	{
-		return RenderLumenIrradianceFieldGather(GraphBuilder, SceneTextures, FrameTemporaries, View);
+		Outputs = RenderLumenIrradianceFieldGather(GraphBuilder, SceneTextures, FrameTemporaries, View, TranslucencyVolumeRadianceCacheParameters);
 	}
+	else
+	{
+		Outputs = RenderLumenScreenProbeGather(
+			GraphBuilder, 
+			SceneTextures, 
+			FrameTemporaries, 
+			LightingChannelsTexture, 
+			View, 
+			PreviousViewInfos, 
+			bLumenUseDenoiserComposite, 
+			MeshSDFGridParameters, 
+			RadianceCacheParameters, 
+			ScreenSpaceBentNormalParameters,
+			TranslucencyVolumeRadianceCacheParameters);
+	}
+
+	FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, FrameTemporaries);
+	ComputeLumenTranslucencyGIVolume(GraphBuilder, View, TracingInputs, TranslucencyVolumeRadianceCacheParameters);
+
+	return Outputs;
+}
+
+FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextures& SceneTextures,
+	FLumenSceneFrameTemporaries& FrameTemporaries,
+	FRDGTextureRef LightingChannelsTexture,
+	FViewInfo& View,
+	FPreviousViewInfo* PreviousViewInfos,
+	bool& bLumenUseDenoiserComposite,
+	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+	FLumenScreenSpaceBentNormalParameters& ScreenSpaceBentNormalParameters,
+	LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters)
+{
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenScreenProbeGather");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenScreenProbeGather);
@@ -1735,19 +1775,44 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 				});
 		}
 
-		RenderRadianceCache(
-			GraphBuilder, 
-			TracingInputs, 
-			RadianceCacheInputs, 
+		LumenRadianceCache::TInlineArray<LumenRadianceCache::FUpdateInputs> InputArray;
+		LumenRadianceCache::TInlineArray<LumenRadianceCache::FUpdateOutputs> OutputArray;
+
+		InputArray.Add(LumenRadianceCache::FUpdateInputs(
+			TracingInputs,
+			RadianceCacheInputs,
 			FRadianceCacheConfiguration(),
+			View,
+			&ScreenProbeParameters,
+			BRDFProbabilityDensityFunctionSH,
+			MarkUsedRadianceCacheProbesCallbacks));
+
+		OutputArray.Add(LumenRadianceCache::FUpdateOutputs(
+			View.ViewState->Lumen.RadianceCacheState,
+			RadianceCacheParameters));
+
+		// Add the Translucency Volume radiance cache to the update so its dispatches can overlap
+		{
+			LumenRadianceCache::FUpdateInputs TranslucencyVolumeRadianceCacheUpdateInputs = GetLumenTranslucencyGIVolumeRadianceCacheInputs(
+				GraphBuilder,
+				View, 
+				TracingInputs);
+
+			if (TranslucencyVolumeRadianceCacheUpdateInputs.MarkUsedRadianceCacheProbes.IsBound())
+			{
+				InputArray.Add(TranslucencyVolumeRadianceCacheUpdateInputs);
+				OutputArray.Add(LumenRadianceCache::FUpdateOutputs(
+					View.ViewState->Lumen.TranslucencyVolumeRadianceCacheState,
+					TranslucencyVolumeRadianceCacheParameters));
+			}
+		}
+
+		LumenRadianceCache::UpdateRadianceCaches(
+			GraphBuilder, 
+			InputArray,
+			OutputArray,
 			Scene,
-			View, 
-			LumenCardRenderer.bPropagateGlobalLightingChange,
-			&ScreenProbeParameters, 
-			BRDFProbabilityDensityFunctionSH, 
-			MarkUsedRadianceCacheProbesCallbacks,
-			View.ViewState->RadianceCacheState, 
-			RadianceCacheParameters);
+			LumenCardRenderer.bPropagateGlobalLightingChange);
 
 		if (Lumen::UseLumenTranslucencyRadianceCacheReflections(View))
 		{

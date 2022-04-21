@@ -250,7 +250,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
 	FLumenSceneFrameTemporaries& FrameTemporaries,
-	const FViewInfo& View)
+	const FViewInfo& View,
+	LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "LumenIrradianceFieldGather");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, LumenIrradianceFieldGather);
@@ -275,19 +276,42 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGath
 		});
 
 	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
-	RenderRadianceCache(
-		GraphBuilder, 
-		TracingInputs, 
-		RadianceCacheInputs, 
+
+	LumenRadianceCache::TInlineArray<LumenRadianceCache::FUpdateInputs> InputArray;
+	LumenRadianceCache::TInlineArray<LumenRadianceCache::FUpdateOutputs> OutputArray;
+
+	InputArray.Add(LumenRadianceCache::FUpdateInputs(
+		TracingInputs,
+		RadianceCacheInputs,
 		FRadianceCacheConfiguration(),
-		Scene,
+		View,
+		nullptr,
+		nullptr,
+		Callbacks));
+
+	OutputArray.Add(LumenRadianceCache::FUpdateOutputs(
+		View.ViewState->Lumen.RadianceCacheState,
+		RadianceCacheParameters));
+
+	LumenRadianceCache::FUpdateInputs TranslucencyVolumeRadianceCacheUpdateInputs = GetLumenTranslucencyGIVolumeRadianceCacheInputs(
+		GraphBuilder,
 		View, 
-		LumenCardRenderer.bPropagateGlobalLightingChange,
-		nullptr, 
-		nullptr, 
-		Callbacks,
-		View.ViewState->RadianceCacheState, 
-		RadianceCacheParameters);
+		TracingInputs);
+
+	if (TranslucencyVolumeRadianceCacheUpdateInputs.MarkUsedRadianceCacheProbes.IsBound())
+	{
+		InputArray.Add(TranslucencyVolumeRadianceCacheUpdateInputs);
+		OutputArray.Add(LumenRadianceCache::FUpdateOutputs(
+			View.ViewState->Lumen.TranslucencyVolumeRadianceCacheState,
+			TranslucencyVolumeRadianceCacheParameters));
+	}
+
+	LumenRadianceCache::UpdateRadianceCaches(
+		GraphBuilder, 
+		InputArray,
+		OutputArray,
+		Scene,
+		LumenCardRenderer.bPropagateGlobalLightingChange);
 
 	FRDGTextureDesc DiffuseIndirectDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef DiffuseIndirect = GraphBuilder.CreateTexture(DiffuseIndirectDesc, TEXT("DiffuseIndirect"));

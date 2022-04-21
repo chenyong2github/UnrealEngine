@@ -764,7 +764,7 @@ void VisualizeLumenScene(
 	FLumenVisualizeSceneSoftwareRayTracingParameters VisualizeParameters;
 	SetupVisualizeParameters(GraphBuilder, View, Output.ViewRect, ColorGradingTexture, EyeAdaptationTexture, ViewTracingInputs, VisualizeMode, VisualizeTileIndex, VisualizeParameters);
 
-	const FRadianceCacheState& RadianceCacheState = View.ViewState->RadianceCacheState;
+	const FRadianceCacheState& RadianceCacheState = View.ViewState->Lumen.RadianceCacheState;
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize(View);
 
 	if (Lumen::ShouldVisualizeHardwareRayTracing(*View.Family))

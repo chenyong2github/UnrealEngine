@@ -37,6 +37,7 @@ namespace LumenRadianceCache
 {
 	class FRadianceCacheInputs;
 	class FRadianceCacheInterpolationParameters;
+	class FUpdateInputs;
 }
 class FRenderLightParameters;
 
@@ -484,7 +485,12 @@ private:
 		const FLumenCardTracingInputs& TracingInputs,
 		class FLumenViewCardTracingInputs& ViewTracingInputs);
 
-	void ComputeLumenTranslucencyGIVolume(FRDGBuilder& GraphBuilder, FLumenCardTracingInputs& TracingInputs);
+	LumenRadianceCache::FUpdateInputs GetLumenTranslucencyGIVolumeRadianceCacheInputs(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View, 
+		const FLumenCardTracingInputs& TracingInputs);
+
+	void ComputeLumenTranslucencyGIVolume(FRDGBuilder& GraphBuilder, FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters);
 
 	void CreateIndirectCapsuleShadows();
 
@@ -578,6 +584,18 @@ private:
 		const FMinimalSceneTextures& SceneTextures,
 		const FDistanceFieldAOParameters& Parameters);
 
+	FSSDSignalTextures RenderLumenFinalGather(
+		FRDGBuilder& GraphBuilder,
+		const FSceneTextures& SceneTextures,
+		FLumenSceneFrameTemporaries& FrameTemporaries,
+		FRDGTextureRef LightingChannelsTexture,
+		FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		bool& bLumenUseDenoiserComposite,
+		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		class FLumenScreenSpaceBentNormalParameters& ScreenSpaceBentNormalParameters);
+
 	FSSDSignalTextures RenderLumenScreenProbeGather(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
@@ -587,8 +605,9 @@ private:
 		FPreviousViewInfo* PreviousViewInfos,
 		bool& bLumenUseDenoiserComposite,
 		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
-		class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
-		class FLumenScreenSpaceBentNormalParameters& ScreenBentNormalParameters);
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		class FLumenScreenSpaceBentNormalParameters& ScreenBentNormalParameters,
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters);
 
 	void StoreLumenDepthHistory(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures, FViewInfo& View);
 
@@ -596,7 +615,8 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
 		FLumenSceneFrameTemporaries& FrameTemporaries,
-		const FViewInfo& View);
+		const FViewInfo& View,
+		LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters);
 
 	void RenderLumenProbe(
 		FRDGBuilder& GraphBuilder,
@@ -619,7 +639,7 @@ private:
 		const FSceneTextures& SceneTextures,
 		FLumenSceneFrameTemporaries& FrameTemporaries,
 		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
-		const class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
+		const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 		ELumenReflectionPass ReflectionPass,
 		const FTiledReflection* TiledReflectionInput,
 		const class FLumenFrontLayerTranslucencyGBufferParameters* FrontLayerReflectionGBuffer,

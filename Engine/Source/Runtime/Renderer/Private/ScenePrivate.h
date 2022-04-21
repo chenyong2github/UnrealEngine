@@ -463,75 +463,6 @@ public:
 	const class FDistanceFieldSceneData* LastUsedSceneDataForFullUpdate;
 };
 
-class FRadianceCacheClipmap
-{
-public:
-	/** World space bounds. */
-	FVector Center;
-	float Extent;
-
-	FVector ProbeCoordToWorldCenterBias;
-	float ProbeCoordToWorldCenterScale;
-
-	FVector WorldPositionToProbeCoordBias;
-	float WorldPositionToProbeCoordScale;
-
-	float ProbeTMin;
-
-	/** Offset applied to UVs so that only new or dirty areas of the volume texture have to be updated. */
-	FVector VolumeUVOffset;
-
-	/* Distance between two probes. */
-	float CellSize;
-};
-
-class FRadianceCacheState
-{
-public:
-	FRadianceCacheState()
-	{}
-
-	TArray<FRadianceCacheClipmap> Clipmaps;
-
-	float ClipmapWorldExtent = 0.0f;
-	float ClipmapDistributionBase = 0.0f;
-
-	/** Clipmaps of probe indexes, used to lookup the probe index for a world space position. */
-	TRefCountPtr<IPooledRenderTarget> RadianceProbeIndirectionTexture;
-
-	TRefCountPtr<IPooledRenderTarget> RadianceProbeAtlasTexture;
-	/** Texture containing radiance cache probes, ready for sampling with bilinear border. */
-	TRefCountPtr<IPooledRenderTarget> FinalRadianceAtlas;
-	TRefCountPtr<IPooledRenderTarget> FinalIrradianceAtlas;
-	TRefCountPtr<IPooledRenderTarget> ProbeOcclusionAtlas;
-
-	TRefCountPtr<IPooledRenderTarget> DepthProbeAtlasTexture;
-
-	TRefCountPtr<FRDGPooledBuffer> ProbeAllocator;
-	TRefCountPtr<FRDGPooledBuffer> ProbeFreeListAllocator;
-	TRefCountPtr<FRDGPooledBuffer> ProbeFreeList;
-	TRefCountPtr<FRDGPooledBuffer> ProbeLastUsedFrame;
-	TRefCountPtr<FRDGPooledBuffer> ProbeLastTracedFrame;
-	TRefCountPtr<FRDGPooledBuffer> ProbeWorldOffset;
-	TRefCountPtr<IPooledRenderTarget> OctahedralSolidAngleTextureRT;
-
-	void ReleaseTextures()
-	{
-		RadianceProbeIndirectionTexture.SafeRelease();
-		RadianceProbeAtlasTexture.SafeRelease();
-		FinalRadianceAtlas.SafeRelease();
-		FinalIrradianceAtlas.SafeRelease();
-		ProbeOcclusionAtlas.SafeRelease();
-		DepthProbeAtlasTexture.SafeRelease();
-		ProbeAllocator.SafeRelease();
-		ProbeFreeListAllocator.SafeRelease();
-		ProbeFreeList.SafeRelease();
-		ProbeLastUsedFrame.SafeRelease();
-		ProbeLastTracedFrame.SafeRelease();
-		ProbeWorldOffset.SafeRelease();
-	}
-};
-
 /** Maps a single primitive to it's per-view fading state data */
 typedef TMap<FPrimitiveComponentId, FPrimitiveFadingState> FPrimitiveFadingStateMap;
 
@@ -1091,9 +1022,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableCombinedTexture;
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableLayerTextures[GDF_Num];
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldMipTexture;
-	
-	FRadianceCacheState RadianceCacheState;
-	FRadianceCacheState TranslucencyVolumeRadianceCacheState;
 
 	/** Timestamp queries around separate translucency, used for auto-downsampling. */
 	FRenderQueryPoolRHIRef TimerQueryPool;

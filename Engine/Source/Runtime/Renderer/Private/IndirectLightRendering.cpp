@@ -864,7 +864,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			FLumenMeshSDFGridParameters MeshSDFGridParameters;
 			LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
 
-			DenoiserOutputs = RenderLumenScreenProbeGather(
+			DenoiserOutputs = RenderLumenFinalGather(
 				GraphBuilder, 
 				SceneTextures,
 				LumenFrameTemporaries,

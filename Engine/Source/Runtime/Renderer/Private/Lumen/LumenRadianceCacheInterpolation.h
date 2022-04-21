@@ -82,7 +82,6 @@ namespace LumenRadianceCache
 		RadianceCacheInterpolationParameters.PaddedRadianceProbeCoordToWorldPositionBias[Index] = FVector4f(Value);
 	}
 
-
 	void GetInterpolationParameters(
 		const FViewInfo& View, 
 		FRDGBuilder& GraphBuilder, 

@@ -390,7 +390,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 
 	if (LightingType == EHairLightingSourceType::Lumen)
 	{
-		const FRadianceCacheState& RadianceCacheState = View.ViewState->RadianceCacheState;
+		const FRadianceCacheState& RadianceCacheState = View.ViewState->Lumen.RadianceCacheState;
 		const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs(View);
 		LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, ParametersPS->RadianceCache);
 	}

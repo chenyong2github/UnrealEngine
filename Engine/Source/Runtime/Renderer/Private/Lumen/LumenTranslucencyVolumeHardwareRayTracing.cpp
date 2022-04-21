@@ -97,7 +97,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingTranslucencyVo
 void HardwareRayTraceTranslucencyVolume(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardTracingInputs& TracingInputs,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters,
 	FLumenTranslucencyLightingVolumeParameters VolumeParameters,
 	FLumenTranslucencyLightingVolumeTraceSetupParameters TraceSetupParameters,
