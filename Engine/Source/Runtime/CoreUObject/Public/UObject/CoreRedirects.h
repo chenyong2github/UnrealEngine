@@ -134,6 +134,9 @@ struct COREUOBJECT_API FCoreRedirectObjectName
 	/** Returns integer of degree of match. 0 if doesn't match at all, higher integer for better matches */
 	int32 MatchScore(const FCoreRedirectObjectName& Other) const;
 
+	/** Fills in any empty fields on this with the corresponding fields from Other. */
+	void UnionFieldsInline(const FCoreRedirectObjectName& Other);
+
 	/** Returns the name used as the key into the acceleration map */
 	FName GetSearchKey(ECoreRedirectFlags Type) const
 	{

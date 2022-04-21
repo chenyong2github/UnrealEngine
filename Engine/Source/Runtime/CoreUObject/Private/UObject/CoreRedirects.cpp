@@ -162,6 +162,22 @@ int32 FCoreRedirectObjectName::MatchScore(const FCoreRedirectObjectName& Other) 
 	return MatchScore;
 }
 
+void FCoreRedirectObjectName::UnionFieldsInline(const FCoreRedirectObjectName& Other)
+{
+	if (ObjectName.IsNone())
+	{
+		ObjectName = Other.ObjectName;
+	}
+	if (OuterName.IsNone())
+	{
+		OuterName = Other.OuterName;
+	}
+	if (PackageName.IsNone())
+	{
+		PackageName = Other.PackageName;
+	}
+}
+
 bool FCoreRedirectObjectName::HasValidCharacters() const
 {
 	// ObjectNames in Blueprint may contain spaces.
@@ -1104,19 +1120,42 @@ bool FCoreRedirects::AddSingleRedirect(const FCoreRedirect& NewRedirect, const F
 		if (ExistingRedirect.IdenticalMatchRules(NewRedirect))
 		{
 			bFoundDuplicate = true;
-			if (ExistingRedirect.NewName == NewRedirect.NewName && NewRedirect.HasValueChanges())
+			bool bIsSameNewName = ExistingRedirect.NewName == NewRedirect.NewName;
+			bool bOneIsPartialOtherIsFull = false;
+			if (!bIsSameNewName &&
+				ExistingRedirect.OldName.Matches(NewRedirect.OldName, FCoreRedirectObjectName::EMatchFlags::AllowPartialRHSMatch) &&
+				ExistingRedirect.NewName.Matches(NewRedirect.NewName, FCoreRedirectObjectName::EMatchFlags::AllowPartialRHSMatch))
 			{
-				// Merge value redirects as names are the same
-				ExistingRedirect.ValueChanges.Append(NewRedirect.ValueChanges);
+				bIsSameNewName = true;
+				bOneIsPartialOtherIsFull = true;
 			}
-			else if (ExistingRedirect.NewName != NewRedirect.NewName)
+
+			if (bIsSameNewName)
 			{
-				UE_LOG(LogLinker, Error, TEXT("AddRedirectList(%s) found conflicting redirectors for %s! Old: %s, New: %s"), *SourceString, *ExistingRedirect.OldName.ToString(), *ExistingRedirect.NewName.ToString(), *NewRedirect.NewName.ToString());
+				// Merge fields from the two duplicate redirects
+				bool bBothHaveValueChanges = ExistingRedirect.HasValueChanges() && NewRedirect.HasValueChanges();
+				ExistingRedirect.OldName.UnionFieldsInline(NewRedirect.OldName);
+				ExistingRedirect.NewName.UnionFieldsInline(NewRedirect.NewName);
+				ExistingRedirect.ValueChanges.Append(NewRedirect.ValueChanges);
+				if (bBothHaveValueChanges)
+				{
+					// No warning when there are values changes to merge
+				}
+				else if (bOneIsPartialOtherIsFull)
+				{
+					UE_LOG(LogLinker, Warning, TEXT("AddRedirectList(%s) found duplicate redirectors for %s to %s, one a FullPath and the other an ObjectName-only.")
+						TEXT(" This used to be required for StructRedirects but is no longer. Remove the ObjectName-only redirector and keep the FullPath."),
+						*SourceString, *ExistingRedirect.OldName.ToString(), *ExistingRedirect.NewName.ToString());
+				}
+				else
+				{
+					// ENABLE THIS ONCE INIS ARE CONVERTED
+					//UE_LOG(LogLinker, Warning, TEXT("AddRedirectList(%s) found duplicate redirectors for %s to %s!"), *SourceString, *ExistingRedirect.OldName.ToString(), *ExistingRedirect.NewName.ToString());
+				}
 			}
 			else
 			{
-				// ENABLE THIS ONCE INIS ARE CONVERTED
-				//UE_LOG(LogLinker, Error, TEXT("AddRedirectList(%s) found duplicate redirectors for %s to %s!), *SourceString, *ExistingRedirect.OldName.ToString(), *ExistingRedirect.NewName.ToString());
+				UE_LOG(LogLinker, Error, TEXT("AddRedirectList(%s) found conflicting redirectors for %s! Old: %s, New: %s"), *SourceString, *ExistingRedirect.OldName.ToString(), *ExistingRedirect.NewName.ToString(), *NewRedirect.NewName.ToString());
 			}
 			break;
 		}
