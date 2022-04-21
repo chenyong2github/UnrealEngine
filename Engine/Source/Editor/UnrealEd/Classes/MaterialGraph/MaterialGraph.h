@@ -53,7 +53,7 @@ struct FMaterialInputInfo
 
 	bool IsVisiblePin(const UMaterial* Material, bool bIgnoreMaterialAttributes = false) const
 	{
-		if (!Material->IsPropertySupported(Property))
+		if (!Material->IsPropertySupported(Property) && !bIgnoreMaterialAttributes)
 		{
 			return false;
 		}
