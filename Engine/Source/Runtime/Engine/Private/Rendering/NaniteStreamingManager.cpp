@@ -529,6 +529,9 @@ FStreamingManager::FStreamingManager() :
 #if !UE_BUILD_SHIPPING
 	,PrevUpdateTick(0)
 #endif
+#if WITH_EDITOR
+	,RequestOwner(nullptr)
+#endif
 {
 	NextRootPageVersion.SetNum(NANITE_MAX_GPU_PAGES);
 }
@@ -610,12 +613,12 @@ void FStreamingManager::ReleaseRHI()
 #endif
 
 	LLM_SCOPE_BYTAG(Nanite);
-	for (uint32 BufferIndex = 0; BufferIndex < MaxStreamingReadbackBuffers; ++BufferIndex)
+	for (FRHIGPUBufferReadback*& ReadbackBuffer : StreamingRequestReadbackBuffers)
 	{
-		if (StreamingRequestReadbackBuffers[BufferIndex])
+		if (ReadbackBuffer != nullptr)
 		{
-			delete StreamingRequestReadbackBuffers[BufferIndex];
-			StreamingRequestReadbackBuffers[BufferIndex] = nullptr;
+			delete ReadbackBuffer;
+			ReadbackBuffer = nullptr;
 		}
 	}
 
