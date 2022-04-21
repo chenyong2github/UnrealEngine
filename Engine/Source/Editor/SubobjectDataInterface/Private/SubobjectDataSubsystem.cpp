@@ -1775,7 +1775,11 @@ bool USubobjectDataSubsystem::ReparentSubobjects(const FReparentSubobjectParams&
 	}
 	
 	FSubobjectData* NewParentData = Params.NewParentHandle.GetData();
-	check(NewParentData);
+
+	if (!ensureMsgf(NewParentData, TEXT("There was no valid parent data given! Exiting...")))
+	{
+		return false;
+	}
 	
 	if (Params.BlueprintContext)
 	{
