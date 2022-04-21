@@ -2,10 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-
-#include "MetasoundDataReference.h"
 #include "MetasoundDataReferenceCollection.h"
+#include "MetasoundVertexData.h"
 
 namespace Metasound
 {
@@ -41,6 +39,18 @@ namespace Metasound
 		 * which other nodes can read.
 		 */
 		virtual FDataReferenceCollection GetOutputs() const = 0;
+
+		/** Bind data references to the interface of this operator.
+		 *
+		 * Operators should bind all data references to the vertices of the provided
+		 * InVertexData. This method is meant to replace GetInputs() and GetOutputs()
+		 * because it provides better error checking against mismatched vertex names.
+		 */
+		virtual void Bind(FVertexInterfaceData& InVertexData) const
+		{
+			InVertexData.GetInputs().Bind(GetInputs());
+			InVertexData.GetOutputs().Bind(GetOutputs());
+		}
 
 		/** Return the execution function to call during graph execution.
 		 *

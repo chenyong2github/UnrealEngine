@@ -7,6 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
 #include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
 
@@ -368,6 +369,148 @@ namespace Metasound
 
 			return MakeUnique<FDataReadReference>(*this);
 		}
+	};
+
+	/** EDataReferenceAccessType describes the underlying data reference access
+	 * type for a data reference contained in a FAnyDataReference. 
+	 *
+	 * This value can be used to determine which methods are supported for accessing 
+	 * a data reference using GetDataReadReference<>() or GetDataWriteReference<>()
+	 */
+	enum class EDataReferenceAccessType : uint8
+	{
+		None, //< The data is inaccessible, or the data reference does not exist.
+		Read, //< The data is accessible through a TDataReadReference.
+		Write //< The data is accessible through a TDataWriteReference.
+	};
+
+	/** Container for any data reference. 
+	 *
+	 * This container maintains the underlying containers access type (Read or Write)
+	 * and data type. This allows for convenient storage by implementing a virtual 
+	 * copy constructor and assignment operator.
+	 */
+	class FAnyDataReference : public IDataReference
+	{
+		// Private constructor. 
+		FAnyDataReference(EDataReferenceAccessType InAccessType, const IDataReference& InDataRef)
+		: AccessType(InAccessType)
+		, DataRefPtr(InDataRef.Clone())
+		{
+			check(DataRefPtr.IsValid());
+			check(EDataReferenceAccessType::None != InAccessType);
+		}
+
+	public:
+		/** Construct with a TDataReadReference. */
+		template<typename DataType>
+		FAnyDataReference(const TDataReadReference<DataType>& InDataRef)
+		: FAnyDataReference(EDataReferenceAccessType::Read, InDataRef)
+		{
+		}
+
+		/** Construct with a TDataWriteReference. */
+		template<typename DataType>
+		FAnyDataReference(const TDataWriteReference<DataType>& InDataRef)
+		: FAnyDataReference(EDataReferenceAccessType::Write, InDataRef)
+		{
+		}
+
+		/** Copy construct with a FAnyDataReference. */
+		FAnyDataReference(const FAnyDataReference& InOther)
+		: FAnyDataReference(InOther.AccessType, *InOther.DataRefPtr)
+		{
+		}
+
+		/** Assignment. */
+		FAnyDataReference& operator=(const FAnyDataReference& InOther)
+		{
+			AccessType = InOther.AccessType;
+			DataRefPtr = InOther.DataRefPtr->Clone();
+
+			check(DataRefPtr.IsValid());
+			check(EDataReferenceAccessType::None != AccessType);
+
+			return *this;
+		}
+
+		/** Returns the access type of the underlying data reference. */
+		EDataReferenceAccessType GetAccessType() const
+		{
+			return AccessType;
+		}
+
+		/** Returns the data type name of the underlying data reference. */
+		virtual const FName& GetDataTypeName() const override
+		{
+			check(DataRefPtr.IsValid());
+			return DataRefPtr->GetDataTypeName();
+		}
+		
+		/** Returns the data type ID of the underlying data reference. */
+		virtual const void* const GetDataTypeId() const override
+		{
+			check(DataRefPtr.IsValid());
+			return DataRefPtr->GetDataTypeId();
+		}
+
+		/** Returns a clone of the underlying data reference. */
+		virtual TUniquePtr<IDataReference> Clone() const override
+		{
+			check(DataRefPtr.IsValid());
+			return DataRefPtr->Clone();
+		}
+
+		/** Get access to a TDataReadReference. 
+		 *
+		 * This method will return a valid TDataReadReference of the templated data
+		 * type. The returned object is only valid if:
+		 *     1. The template paramter DataType matches that of the underlying data reference.
+		 *     2. The underlying data reference is has either Read or Write access.
+		 *
+		 * If this method's behavior is undefined and will assert if it is called 
+		 * with a mismatched data type or unsupported access type.
+		 */
+		template<typename DataType>
+		TDataReadReference<DataType> GetDataReadReference() const
+		{
+			check(DataRefPtr.IsValid());
+			check(IsDataReferenceOfType<DataType>(*DataRefPtr));
+
+			if (EDataReferenceAccessType::Read == AccessType)
+			{
+				return *static_cast<const TDataReadReference<DataType>*>(DataRefPtr.Get());
+			}
+			else 
+			{
+				check(EDataReferenceAccessType::Write == AccessType);
+				return *static_cast<const TDataWriteReference<DataType>*>(DataRefPtr.Get());
+			}
+		}
+
+		/** Get access to a TDataWriteReference. 
+		 *
+		 * This method will return a valid TDataWriteReference of the templated data
+		 * type. The returned object is only valid if:
+		 *     1. The template paramter DataType matches that of the underlying data reference.
+		 *     2. The underlying data reference is has Write access.
+		 *
+		 * If this method's behavior is undefined and will assert if it is called 
+		 * with a mismatched data type or unsupported access type.
+		 */
+		template<typename DataType>
+		TDataWriteReference<DataType> GetDataWriteReference() const
+		{
+			check(DataRefPtr.IsValid());
+			check(IsDataReferenceOfType<DataType>(*DataRefPtr));
+			check(EDataReferenceAccessType::Write == AccessType);
+			return *static_cast<const TDataWriteReference<DataType>*>(DataRefPtr.Get());
+		}
+
+	private:
+
+		EDataReferenceAccessType AccessType = EDataReferenceAccessType::None;
+		TUniquePtr<IDataReference> DataRefPtr;
 	};
 }
 

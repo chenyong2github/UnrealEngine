@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
 #include "MetasoundOperatorSettings.h"
@@ -10,64 +9,12 @@
 
 namespace Metasound
 {
+	template<typename VertexType>
+	class TVertexInterfaceGroupData;
+
 	class METASOUNDGRAPHCORE_API FDataReferenceCollection
 	{
-		// Convenience class to handle copying and moving of data refs
-		// without knowing data refs derived type.  
-		//
-		// Uses Clone() function as a virtual copy constructor.
-		class FDataRefWrapper 
-		{
-			public:
-				// Anything that implements a IDataReference interface
-				template<typename DataRefType>
-				FDataRefWrapper(const DataRefType& InDataReference)
-				:	DataRefPtr(InDataReference.Clone())
-				{
-				}
-
-				// Override copy constructor to use underlying Clone method.
-				FDataRefWrapper(const FDataRefWrapper& Other)
-				:	DataRefPtr(Other.CloneDataReference())
-				{
-				}
-
-				// Override equal operator to use underlying Clone method.
-				FDataRefWrapper& operator=(const FDataRefWrapper& Other)
-				{
-					DataRefPtr = Other.CloneDataReference();
-					return *this;
-				}
-
-				bool IsValid() const
-				{
-					return DataRefPtr.IsValid();
-				}
-
-				// Get underlying data ref
-				const IDataReference* GetDataReference() const
-				{
-					return DataRefPtr.Get();
-				}
-
-				// Clone underlying data ref
-				TUniquePtr<IDataReference> CloneDataReference() const
-				{
-					if (DataRefPtr.IsValid())
-					{
-						return DataRefPtr->Clone();
-					}
-				
-					return TUniquePtr<IDataReference>();
-				}
-
-			private:
-
-				TUniquePtr<IDataReference> DataRefPtr;
-		};
-
-
-		using FDataReferenceMap = TMap<FVertexName, FDataRefWrapper>;
+		using FDataReferenceMap = TMap<FVertexName, FAnyDataReference>;
 
 		public:
 
@@ -79,9 +26,9 @@ namespace Metasound
 			template<typename DataType>
 			void AddDataReadReference(const FVertexName& InName, const TDataReadReference<DataType>& InDataReference)
 			{
-				FDataRefWrapper Wrapper(InDataReference);
+				FAnyDataReference Wrapper(InDataReference);
 
-				AddDataReference(DataReadRefMap, InName, MoveTemp(Wrapper));
+				AddDataReference(InName, MoveTemp(Wrapper));
 			}
 
 			/** Add a readable data reference to the collection.
@@ -105,9 +52,9 @@ namespace Metasound
 			template<typename DataType>
 			void AddDataWriteReference(const FVertexName& InName, const TDataWriteReference<DataType>& InDataReference)
 			{
-				FDataRefWrapper Wrapper(InDataReference);
+				FAnyDataReference Wrapper(InDataReference);
 
-				AddDataReference(DataWriteRefMap, InName, MoveTemp(Wrapper));
+				AddDataReference(InName, MoveTemp(Wrapper));
 			}
 
 			/** Add a readable data reference from another collection.
@@ -150,6 +97,11 @@ namespace Metasound
 			 */
 			bool ContainsDataWriteReference(const FVertexName& InName, const FName& InTypeName) const;
 
+			/** Returns pointer to data reference if it exists for a given vertex name.
+			 *
+			 * If no data reference exists for the given vertex name, a nullptr is returned. 
+			 */
+			const FAnyDataReference* FindDataReference(const FVertexName& InName) const;
 
 			/** Query whether a readable data reference is within the collection. 
 			 *
@@ -160,7 +112,16 @@ namespace Metasound
 			template<typename DataType>
 			bool ContainsDataReadReference(const FVertexName& InName) const
 			{
-				return Contains<DataType>(DataReadRefMap, InName);
+				if (const FAnyDataReference* DataRef = FindDataReference(InName))
+				{
+					if (IsDataReferenceOfType<DataType>(*DataRef))
+					{
+						const EDataReferenceAccessType AccessType = DataRef->GetAccessType();
+						return (AccessType == EDataReferenceAccessType::Read) || (AccessType == EDataReferenceAccessType::Write);
+					}
+				}
+
+				return false;
 			}
 
 			/** Query whether a writable data reference is within the collection. 
@@ -172,7 +133,16 @@ namespace Metasound
 			template<typename DataType>
 			bool ContainsDataWriteReference(const FVertexName& InName) const
 			{
-				return Contains<DataType>(DataWriteRefMap, InName);
+				if (const FAnyDataReference* DataRef = FindDataReference(InName))
+				{
+					if (IsDataReferenceOfType<DataType>(*DataRef))
+					{
+						const EDataReferenceAccessType AccessType = DataRef->GetAccessType();
+						return AccessType == EDataReferenceAccessType::Write;
+					}
+				}
+
+				return false;
 			}
 
 			/** Returns a readable data ref from the collection.
@@ -184,15 +154,10 @@ namespace Metasound
 			template<typename DataType>
 			TDataReadReference<DataType> GetDataReadReference(const FVertexName& InName) const
 			{
-				typedef TDataReadReference<DataType> FDataRefType;
-
-				const IDataReference* DataRefPtr = GetDataReference(DataReadRefMap, InName);
-
+				const FAnyDataReference* DataRefPtr = FindDataReference(InName);
 				check(nullptr != DataRefPtr);
+				return DataRefPtr->GetDataReadReference<DataType>();
 
-				check(IsDataReferenceOfType<DataType>(*DataRefPtr));
-
-				return FDataRefType(*static_cast<const FDataRefType*>(DataRefPtr));
 			}
 
 			/** Returns a readable data ref from the collection or construct one
@@ -258,15 +223,10 @@ namespace Metasound
 			template<typename DataType>
 			TDataWriteReference<DataType> GetDataWriteReference(const FVertexName& InName) const
 			{
-				typedef TDataWriteReference<DataType> FDataRefType;
-
-				const IDataReference* DataRefPtr = GetDataReference(DataWriteRefMap, InName);
-
+				const FAnyDataReference* DataRefPtr = FindDataReference(InName);
 				check(nullptr != DataRefPtr);
 
-				check(IsDataReferenceOfType<DataType>(*DataRefPtr));
-
-				return FDataRefType(*static_cast<const FDataRefType*>(DataRefPtr));
+				return DataRefPtr->GetDataWriteReference<DataType>();
 			}
 
 			/** Returns a writable data ref from the collection or construct
@@ -292,29 +252,12 @@ namespace Metasound
 				}
 			}
 
+
 		private:
 
-			template<typename DataType>
-			bool Contains(const FDataReferenceMap& InMap, const FVertexName& InName) const
-			{
-				if (InMap.Contains(InName))
-				{
-					const IDataReference* DataRefPtr = InMap[InName].GetDataReference();
 
-					if (nullptr != DataRefPtr)
-					{
-						return IsDataReferenceOfType<DataType>(*DataRefPtr);
-					}
-				}
+			void AddDataReference(const FVertexName& InName, FAnyDataReference&& InDataReference);
 
-				return false;
-			}
-
-			const IDataReference* GetDataReference(const FDataReferenceMap& InMap, const FVertexName& InName) const;
-
-			void AddDataReference(FDataReferenceMap& InMap, const FVertexName& InName, FDataRefWrapper&& InDataReference);
-
-			FDataReferenceMap DataReadRefMap;
-			FDataReferenceMap DataWriteRefMap;
+			FDataReferenceMap DataRefMap;
 	};
 }
