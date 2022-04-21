@@ -333,8 +333,14 @@ float3 StrataForwardLighting(
 
 			#elif FORWARD_PER_PIXEL_SHADING
 
+
 				////
-				//// Evaluate Directional light only
+				//// Evaluate emissive
+				////
+				Color += BSDF_GETEMISSIVE(CurrentBSDF) * CurrentBSDF.LuminanceWeightV;
+
+				////
+				//// Evaluate the single directional light selected for forward lighting.
 				////
 				{
 					float3 DirLightL = DirLightData.Direction;	// Already normalized

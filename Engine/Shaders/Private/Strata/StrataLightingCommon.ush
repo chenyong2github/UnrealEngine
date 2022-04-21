@@ -82,7 +82,7 @@ float3 StrataForwardLightingCommon(
 			{
 				float3 DiffuseLuminance = Diffuse_Lambert(BSDFEvaluate.DiffuseColor) * Lighting;
 				const float3 LightCommonMultiplier = LightData.Color * LightMask;
-				Color += (DiffuseLuminance * LightCommonMultiplier + BSDFEvaluate.EmissivePathValue) * BSDFColoredVisibility;
+				Color += DiffuseLuminance * LightCommonMultiplier * BSDFColoredVisibility;
 			}
 		#else
 			if (LightData.bRectLight)
@@ -114,7 +114,7 @@ float3 StrataForwardLightingCommon(
 				float3 DiffuseLuminance = BSDFEvaluate.IntegratedDiffuseValue;
 				float3 SpecularLuminance = BSDFEvaluate.IntegratedSpecularValue * LightData.SpecularScale;
 				const float3 LightCommonMultiplier = LightData.Color * LightMask;
-				Color += ((DiffuseLuminance + SpecularLuminance) * LightCommonMultiplier + BSDFEvaluate.EmissivePathValue) * BSDFColoredVisibility;
+				Color += (DiffuseLuminance + SpecularLuminance) * LightCommonMultiplier * BSDFColoredVisibility;
 			}
 		#endif
 		}

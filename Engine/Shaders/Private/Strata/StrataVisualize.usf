@@ -572,6 +572,13 @@ void GetMaterialOnSphere(
 				OutColor.rgb *= 0.0f;
 			}
 
+			// Patch the BSDF to appear as a top layer
+			BSDF.LuminanceWeightV = 1.0f;
+			BSDF.LuminanceWeightL = 1.0f;
+			BSDF.bIsBottom = true;
+			BSDF.bIsTop = true;
+			BSDF.Coverage = 1.0f;
+
 			// Create a head that will map to a single BSDF
 			FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
 			StrataPixelHeader.BSDFCount = 1;
@@ -584,6 +591,9 @@ void GetMaterialOnSphere(
 			TangentBasis[0] = normalize(N*float3(1, 0, 0));
 			TangentBasis[1] = cross(N, TangentBasis[0]);
 			TangentBasis[0] =-cross(N, TangentBasis[1]);
+
+			// Apply emissive
+			OutColor.rgb += BSDF_GETEMISSIVE(BSDF) * View.PreExposure;
 
 			// Apply a white directional light
 			if(ForwardLightData.HasDirectionalLight)
@@ -608,14 +618,6 @@ void GetMaterialOnSphere(
 				uint PrimitiveLightingChannelMask = LightChannelMask;
 
 				float3 BSDFColoredVisibility = 1.0f;
-
-				// Patch the BSDF to appear as a top layer
-				BSDF.LuminanceWeightV = 1.0f;
-				BSDF.LuminanceWeightL = 1.0f;
-				BSDF.bIsBottom = true;
-				BSDF.bIsTop = true;
-				BSDF.Coverage = 1.0f;
-				BSDF.Emissive = 0.0f;
 
 				FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(TangentBasis, BSDF, V, ToLight);
 
