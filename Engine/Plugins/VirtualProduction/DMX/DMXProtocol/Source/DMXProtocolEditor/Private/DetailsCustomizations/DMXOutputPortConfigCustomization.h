@@ -18,8 +18,8 @@ struct FFrameRate;
 class IDetailPropertyRow;
 class IPropertyHandle;
 class IPropertyUtilities;
-class STextBlock;
 
+class STextBlock;
 
 /** Details customization for input and output port configs. */
 class FDMXOutputPortConfigCustomization

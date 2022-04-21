@@ -17,6 +17,7 @@
 #include "NiagaraNodeReroute.h"
 #include "NiagaraScriptVariable.h"
 
+#include "Misc/Base64.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Widgets/SNiagaraParameterName.h"
 #include "Widgets/Notifications/SNotificationList.h"

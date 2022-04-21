@@ -1,8 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AITestsCommon.h"
 #include "PropertyBag.h"
 #include "StructUtilsTestTypes.h"
+#include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "StructUtilsTests"
 

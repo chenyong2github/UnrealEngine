@@ -5,6 +5,7 @@
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMModule.h"
 #include "Algo/Sort.h"
+#include "UObject/UObjectIterator.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 

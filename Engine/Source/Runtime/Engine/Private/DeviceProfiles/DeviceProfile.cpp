@@ -2,6 +2,7 @@
 
 #include "DeviceProfiles/DeviceProfile.h"
 #include "Misc/Paths.h"
+#include "Scalability.h"
 #include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectHash.h"

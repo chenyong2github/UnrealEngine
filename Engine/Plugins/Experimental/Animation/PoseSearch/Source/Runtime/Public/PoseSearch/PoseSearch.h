@@ -12,6 +12,7 @@
 #include "Animation/AnimMetaData.h"
 #include "Animation/AnimNodeMessages.h"
 #include "Animation/AnimationAsset.h"
+#include "Animation/AnimSequence.h"
 #include "Animation/MotionTrajectoryTypes.h"
 #include "AlphaBlend.h"
 #include "BoneIndices.h"

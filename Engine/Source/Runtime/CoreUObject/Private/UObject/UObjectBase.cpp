@@ -350,7 +350,7 @@ bool UObjectBase::IsValidLowLevelFast(bool bRecursive /*= true*/) const
 			return false;
 		}
 	}
-	// Avoid infinite recursion so call IsValidLowLevelFast on the class object with bRecirsive = false.
+	// Avoid infinite recursion so call IsValidLowLevelFast on the class object with bRecursive = false.
 	if (bRecursive && !ClassPrivate->IsValidLowLevelFast(false))
 	{
 		UE_LOG(LogUObjectBase, Error, TEXT("Class object failed IsValidLowLevelFast test."));

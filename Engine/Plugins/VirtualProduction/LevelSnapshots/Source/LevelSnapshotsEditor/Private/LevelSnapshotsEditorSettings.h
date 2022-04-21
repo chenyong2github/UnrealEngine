@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Attribute.h"
 #include "UObject/Object.h"
 #include "LevelSnapshotsEditorSettings.generated.h"
 

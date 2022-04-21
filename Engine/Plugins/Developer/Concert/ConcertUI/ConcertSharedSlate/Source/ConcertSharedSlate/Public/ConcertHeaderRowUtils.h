@@ -7,6 +7,7 @@
 
 class FMenuBuilder;
 class SHeaderRow;
+class SWidget;
 
 USTRUCT()
 struct CONCERTSHAREDSLATE_API FColumnVisibilitySnapshot

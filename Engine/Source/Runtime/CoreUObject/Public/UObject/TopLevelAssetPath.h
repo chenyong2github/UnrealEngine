@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
+#include "Serialization/StructuredArchive.h"
 #include "UObject/NameTypes.h"
 
 class UObject;
