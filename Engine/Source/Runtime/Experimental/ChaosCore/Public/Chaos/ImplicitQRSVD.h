@@ -1,9 +1,4 @@
-
 // Copyright Epic Games, Inc. All Rights Reserved.
-
-/**
-SVD based on implicit QR with Wilkinson Shift
-*/
 #pragma once
 
 #include "Chaos/Matrix.h"
