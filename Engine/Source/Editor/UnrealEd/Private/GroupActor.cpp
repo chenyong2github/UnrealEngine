@@ -549,8 +549,8 @@ void AGroupActor::AddSelectedActorsToSelectedGroup()
 			}
 		}
 
-		AGroupActor* SelectedGroup = Cast<AGroupActor>(EditorWorld->ActiveGroupActors[SelectedGroupIndex]);
-		if( SelectedGroupIndex != -1 && SelectedGroup != NULL )
+		AGroupActor* SelectedGroup = SelectedGroupIndex != -1 ? Cast<AGroupActor>(EditorWorld->ActiveGroupActors[SelectedGroupIndex]) : nullptr;
+		if( SelectedGroup != nullptr )
 		{
 			ULevel* GroupLevel = SelectedGroup->GetLevel();
 
