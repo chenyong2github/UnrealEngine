@@ -197,7 +197,8 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	// FVector2D -> float2
 	Registry.RegisterType(
 	    TBaseStructure<FVector2D>::Get(),
-	    FShaderValueType::Get(EShaderFundamentalType::Float, 2),
+		FText::FromString(TEXT("Vector 2")),
+		FShaderValueType::Get(EShaderFundamentalType::Float, 2),
 	    {},
 	    bShowElements,
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
@@ -205,7 +206,8 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	// FVector -> float3
 	Registry.RegisterType(
 		TBaseStructure<FVector>::Get(),
-	    FShaderValueType::Get(EShaderFundamentalType::Float, 3),
+		FText::FromString(TEXT("Vector 3")),
+		FShaderValueType::Get(EShaderFundamentalType::Float, 3),
 		{},
 		bShowElements,
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
@@ -213,7 +215,8 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	// FVector4 -> float4
 	Registry.RegisterType(
 	    TBaseStructure<FVector4>::Get(),
-	    FShaderValueType::Get(EShaderFundamentalType::Float, 4),
+		FText::FromString(TEXT("Vector 4")),
+		FShaderValueType::Get(EShaderFundamentalType::Float, 4),
 	    {},
 	    bShowElements,
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
@@ -225,6 +228,14 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    {},
 	    bShowElements,
 	    EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
+
+	// FQuat -> float4
+	Registry.RegisterType(
+		TBaseStructure<FQuat>::Get(),
+		FShaderValueType::Get(EShaderFundamentalType::Float, 4),
+		{},
+		bShowElements,
+		EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable);
 
 	// FRotator -> float3x3
 	Registry.RegisterType(
