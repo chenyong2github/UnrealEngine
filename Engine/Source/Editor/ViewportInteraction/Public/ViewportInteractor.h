@@ -133,7 +133,6 @@ public:
 	/**
 	 * Gets the start and end point of the laser pointer for the specified hand
 	 *
-	 * @param HandIndex				Index of the hand to use
 	 * @param LasertPointerStart	(Out) The start location of the laser pointer in world space
 	 * @param LasertPointerEnd		(Out) The end location of the laser pointer in world space
 	 * @param bEvenIfBlocked		If true, returns a laser pointer even if the hand has UI in front of it (defaults to false)
@@ -198,7 +197,6 @@ public:
 	/**
 	 * Creates a hand transform and forward vector for a laser pointer for a given hand
 	 *
-	 * @param HandIndex			Index of the hand to use
 	 * @param OutHandTransform	The created hand transform
 	 * @param OutForwardVector	The forward vector of the hand
 	 *

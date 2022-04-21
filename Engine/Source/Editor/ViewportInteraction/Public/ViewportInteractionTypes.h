@@ -15,17 +15,26 @@ struct VIEWPORTINTERACTION_API FViewportActionKeyInput
 {
 	GENERATED_BODY()
 	
-	FViewportActionKeyInput() :
-		ActionType( NAME_None ),
-		Event( IE_Pressed ),
-		bIsInputCaptured( false )
+	FViewportActionKeyInput()
+		: ActionType( NAME_None )
+		, Event( IE_Pressed )
+		, bIsInputCaptured( false )
+		, bIsAxis( false )
 	{}
 
-	FViewportActionKeyInput( const FName& InActionType ) : 
-		ActionType( InActionType ),
-		Event( IE_Pressed ),
-		bIsInputCaptured( false )
+	FViewportActionKeyInput( const FName& InActionType )
+		: ActionType( InActionType )
+		, Event( IE_Pressed )
+		, bIsInputCaptured( false )
+		, bIsAxis( false )
 	{}
+
+	static FViewportActionKeyInput Axis(const FName& InActionType)
+	{
+		FViewportActionKeyInput Input(InActionType);
+		Input.bIsAxis = true;
+		return Input;
+	}
 
 	/** The name of this action */
 	UPROPERTY( BlueprintReadOnly, Category = Action )
@@ -39,6 +48,26 @@ struct VIEWPORTINTERACTION_API FViewportActionKeyInput
 	handle input events until it is no longer captured.  It's the captors responsibility to set this using OnVRAction(), or clear it when finished with capturing. */
 	UPROPERTY()
 	bool bIsInputCaptured;
+
+	UPROPERTY()
+	bool bIsAxis;
+
+	bool operator==(const FViewportActionKeyInput& Other) const
+	{
+		return ActionType == Other.ActionType &&
+			Event == Other.Event &&
+			bIsInputCaptured == Other.bIsInputCaptured &&
+			bIsAxis == Other.bIsAxis;
+	}
+
+	friend uint32 GetTypeHash(const FViewportActionKeyInput& Input)
+	{
+		uint32 Hash = GetTypeHash(Input.ActionType);
+		Hash = HashCombine(Hash, GetTypeHash(Input.Event));
+		Hash = HashCombine(Hash, GetTypeHash(Input.bIsInputCaptured));
+		Hash = HashCombine(Hash, GetTypeHash(Input.bIsAxis));
+		return Hash;
+	}
 };
 
 

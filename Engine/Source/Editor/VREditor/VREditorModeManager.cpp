@@ -134,14 +134,13 @@ bool FVREditorModeManager::IsVREditorActive() const
 }
 
 const static FName WMRSytemName = FName(TEXT("WindowsMixedRealityHMD"));
-const static FName OXRSytemName = FName(TEXT("OpenXR"));
 bool FVREditorModeManager::IsVREditorAvailable() const
 {
 	if (GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDEnabled())
 	{
-		// TODO: UE-71871/UE-73237 Work around for avoiding starting VRMode when using WMR
+		// TODO: UE-71871 Work around for avoiding starting VRMode when using WMR
 		FName SystemName = GEngine->XRSystem->GetSystemName();
-		const bool bIsWMR = SystemName == WMRSytemName || SystemName == OXRSytemName;
+		const bool bIsWMR = SystemName == WMRSytemName;
 		return !bIsWMR && !GEditor->IsPlayingSessionInEditor();
 	}
 	else

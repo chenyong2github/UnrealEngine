@@ -119,6 +119,12 @@ bool UViewportInteractor::HandleInputKey( FEditorViewportClient& ViewportClient,
 	FViewportActionKeyInput* Action = KeyToActionMap.Find( Key );
 	if ( Action != nullptr )	// Ignore key repeats
 	{
+		if ( Action->bIsAxis )
+		{
+			UE_LOG(LogInput, Warning, TEXT("UViewportInteractor: %s registered as axis but handled as key"), *Action->ActionType.ToString());
+			Action->bIsAxis = false;
+		}
+
 		Action->Event = Event;
 
 		if( !bHandled )
@@ -524,6 +530,12 @@ bool UViewportInteractor::HandleInputAxis( FEditorViewportClient& ViewportClient
 	FViewportActionKeyInput* KnownAction = KeyToActionMap.Find( Key );
 	if ( KnownAction != nullptr )	// Ignore key repeats
 	{
+		if (!KnownAction->bIsAxis)
+		{
+			UE_LOG(LogInput, Warning, TEXT("UViewportInteractor: %s registered as key but handled as axis"), *KnownAction->ActionType.ToString());
+			KnownAction->bIsAxis = true;
+		}
+
 		FViewportActionKeyInput Action( KnownAction->ActionType );
 
 		if( !bHandled )

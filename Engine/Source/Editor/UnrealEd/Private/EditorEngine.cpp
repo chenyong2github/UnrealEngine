@@ -2110,8 +2110,8 @@ float UEditorEngine::GetMaxTickRate( float DeltaTime, bool bAllowFrameRateSmooth
 	float MaxTickRate = 0.0f;
 	if( !ShouldThrottleCPUUsage() )
 	{
-		// do not limit fps in VR Preview mode
-		if (IsVRPreviewActive())
+		// do not limit fps in VR Preview mode or VR editor mode
+		if (IsVRPreviewActive() || GEnableVREditorHacks)
 		{
 			return 0.0f;
 		}

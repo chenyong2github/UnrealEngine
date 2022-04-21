@@ -66,6 +66,8 @@ public:
 		return KeyToActionMap;
 	}
 
+	virtual TMap<FViewportActionKeyInput, TArray<FKey>> GetKnownActionMappings(EControllerHand InHand = EControllerHand::AnyHand, FName InHMDDeviceType = NAME_None) const;
+
 	/** Initialize default values */
 	UFUNCTION( BlueprintNativeEvent, CallInEditor, Category = "UVREditorInteractor" )
 	void Init( class UVREditorMode* InVRMode );
@@ -73,6 +75,7 @@ public:
 	/** Sets up all components */
 	UFUNCTION( BlueprintNativeEvent, CallInEditor, Category = "UVREditorInteractor" )
 	void SetupComponent( AActor* OwningActor );
+
 
 	// ViewportInteractorInterface overrides
 	virtual void Shutdown_Implementation() override;
@@ -95,7 +98,7 @@ public:
 	void HandleInputAxis( FEditorViewportClient& ViewportClient, FViewportActionKeyInput& Action, const FKey Key, const float Delta, const float DeltaTime, bool& bOutWasHandled );
 
 	/** Toggles whether or not this controller is being used to scrub sequencer */
-	void ToggleSequencerScrubbingMode();;
+	void ToggleSequencerScrubbingMode();
 
 	/** Returns whether or not this controller is being used to scrub sequencer */
 	bool IsScrubbingSequencer() const;
