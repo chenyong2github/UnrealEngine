@@ -4275,10 +4275,12 @@ void FScene::UpdateRayTracingGroupBounds_AddPrimitives(const Experimental::TRobi
 			if (bInMap)
 			{
 				Group->Bounds = Group->Bounds + PrimitiveSceneInfo->Proxy->GetBounds();
+				Group->MinDrawDistance = FMath::Max(Group->MinDrawDistance, PrimitiveSceneInfo->Proxy->GetMinDrawDistance());
 			}
 			else
 			{
 				Group->Bounds = PrimitiveSceneInfo->Proxy->GetBounds();
+				Group->MinDrawDistance = PrimitiveSceneInfo->Proxy->GetMinDrawDistance();
 			}
 			Group->Primitives.Add(PrimitiveSceneInfo);
 		}

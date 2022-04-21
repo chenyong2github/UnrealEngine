@@ -628,12 +628,13 @@ FORCEINLINE bool ShouldCullForRayTracing(const FScene* RESTRICT Scene, FViewInfo
 	if (RayTracingCullingParameters.bCullUsingGroupIds && GroupId.IsValid())
 	{
 		const FBoxSphereBounds& GroupBounds = Scene->PrimitiveRayTracingGroups.GetByElementId(GroupId).Value.Bounds;
-		return RayTracing::ShouldCullBounds(RayTracingCullingParameters, GroupBounds, bIsFarFieldPrimitive);
+		const float GroupMinDrawDistance = Scene->PrimitiveRayTracingGroups.GetByElementId(GroupId).Value.MinDrawDistance;
+		return RayTracing::ShouldCullBounds(RayTracingCullingParameters, GroupBounds, GroupMinDrawDistance, bIsFarFieldPrimitive);
 	}
 	else
 	{
 		const FPrimitiveBounds& RESTRICT Bounds = Scene->PrimitiveBounds[PrimitiveIndex];
-		return RayTracing::ShouldCullBounds(RayTracingCullingParameters, Bounds.BoxSphereBounds, bIsFarFieldPrimitive);
+		return RayTracing::ShouldCullBounds(RayTracingCullingParameters, Bounds.BoxSphereBounds, Bounds.MinDrawDistance, bIsFarFieldPrimitive);
 	}
 };
 #endif //RHI_RAYTRACING

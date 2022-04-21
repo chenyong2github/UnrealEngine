@@ -2795,6 +2795,7 @@ public:
 	struct FRayTracingCullingGroup
 	{
 		FBoxSphereBounds Bounds;
+		float MinDrawDistance = 0.0f;
 		TArray<FPrimitiveSceneInfo*> Primitives;
 	};
 	Experimental::TRobinHoodHashMap<int32, FRayTracingCullingGroup> PrimitiveRayTracingGroups;
