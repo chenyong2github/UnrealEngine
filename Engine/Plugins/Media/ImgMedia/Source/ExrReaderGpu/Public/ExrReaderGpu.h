@@ -64,7 +64,7 @@ public:
 	* Reading in chunks allows the process of reading to be canceled midway through reading. 
 	* This function reads and discards the header and keeps the pointers to the scanlines. 
 	*/
-	bool OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOffsets, int32 NumLevels);
+	bool OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOffsets, int32 NumLevels, bool bCustomExr = false);
 
 	/** 
 	* Read a chunk of an Exr file previously open via OpenExrAndPrepareForPixelReading.

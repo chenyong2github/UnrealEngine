@@ -88,7 +88,7 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
 	FIntPoint DimensionInTiles = ConverterParams->FrameInfo.NumTiles / MipLevelDiv;
 	int32 NumTiles = ConverterParams->bCustomExr ? 1 : ConverterParams->FrameInfo.NumTiles.X * ConverterParams->FrameInfo.NumTiles.Y;
 	int32 NumMipLevels = ConverterParams->bMipsInSeparateFiles ? 1 : ConverterParams->NumMipLevels;
-	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, NumTiles, NumMipLevels))
+	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, NumTiles, NumMipLevels, ConverterParams->bCustomExr))
 	{
 		return Fail;
 	}
@@ -113,7 +113,7 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
 
 		if (ConverterParams->bCustomExr)
 		{
-			int64 TileStride = ConverterParams->TileDimWithBorders.X * ConverterParams->TileDimWithBorders.Y * ConverterParams->PixelSize;
+			const int64 TileStride = ConverterParams->TileDimWithBorders.X * ConverterParams->TileDimWithBorders.Y * ConverterParams->PixelSize;
 			ChunkReader.SeekTileWithinFileCustom(StartTileIndex, TileStride, ConverterParams->bMipsInSeparateFiles ? 0 : CurrentMipLevel, CurrentBufferPos);
 		}
 		else

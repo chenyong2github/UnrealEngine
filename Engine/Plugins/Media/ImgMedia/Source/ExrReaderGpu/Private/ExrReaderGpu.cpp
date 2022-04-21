@@ -251,7 +251,7 @@ bool FExrReader::GenerateTextureData(uint16* Buffer, int32 BufferSize, FString F
 	return true;
 }
 
-bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOffsets, int32 NumLevels)
+bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOffsets, int32 NumLevels, bool bCustomExr)
 {
 	if (FileHandle != nullptr)
 	{
@@ -279,7 +279,7 @@ bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOff
 		ELineOrder LineOrder = INCREASING_Y;
 		for (int Level = 0; Level < NumLevels; Level++)
 		{
-			LineOrTileOffsetsPerLevel[Level].SetNum(NumOffsets >> (Level * 2));
+			LineOrTileOffsetsPerLevel[Level].SetNum(bCustomExr ? 1 : NumOffsets >> (Level * 2));
 			ReadLineOrTileOffsets(FileHandle, LineOrder, LineOrTileOffsetsPerLevel[Level]);
 		}
 	}
