@@ -3,22 +3,24 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "Containers/UnrealString.h"
+#include "Containers/StringFwd.h"
 #include "Logging/LogVerbosity.h"
+#include "Misc/OutputDevice.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
+#include "Containers/UnrealString.h"
+#endif
+
+class FArchive;
+class FName;
+class FString;
 
 /** Helper functions used by FOutputDevice derived classes **/
 struct CORE_API FOutputDeviceHelper
 {
-	/**
-	 * Converts verbosity to a string
-	 * @param Verbosity verbosity enum
-	 * @returns String representation of the verbosity enum
-	 */
-	UE_DEPRECATED(4.27, "VerbosityToString has moved to LogVerbosity.h and been renamed to ToString.")
-	inline static const TCHAR* VerbosityToString(ELogVerbosity::Type Verbosity)
-	{
-		return ToString(Verbosity);
-	}
+	/** Append a formatted log line to the string builder. */
+	static void AppendFormatLogLine(FStringBuilderBase& Output, ELogVerbosity::Type Verbosity, const FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, double Time = -1.0, int32* OutCategoryIndex = nullptr);
+	static void AppendFormatLogLine(FUtf8StringBuilderBase& Output, ELogVerbosity::Type Verbosity, const FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, double Time = -1.0, int32* OutCategoryIndex = nullptr);
 
 	/**
 	 * Formats a log line with date, time, category and verbosity prefix
@@ -30,7 +32,7 @@ struct CORE_API FOutputDeviceHelper
 	 * @param OutCategoryIndex (if non-null) The index of the category within the return string is written here, or INDEX_NONE if the category is suppressed
 	 * @returns Formatted log line
 	 */
-	static FString FormatLogLine(ELogVerbosity::Type Verbosity, const class FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, const double Time = -1.0, int32* OutCategoryIndex = nullptr);
+	static FString FormatLogLine(ELogVerbosity::Type Verbosity, const FName& Category, const TCHAR* Message = nullptr, ELogTimes::Type LogTime = ELogTimes::None, double Time = -1.0, int32* OutCategoryIndex = nullptr);
 
 	/**
 	 * Formats, casts to ANSI char and serializes a message to archive. Optimized for small number of allocations and Serialize calls
@@ -42,5 +44,5 @@ struct CORE_API FOutputDeviceHelper
 	 * @param bSuppressEventTag True if the message date/time prefix should be suppressed
 	 * @param bAutoEmitLineTerminator True if the message should be automatically appended with a line terminator
 	 **/
-	static void FormatCastAndSerializeLine(class FArchive& Output, const TCHAR* Message, ELogVerbosity::Type Verbosity, const class FName& Category, const double Time, bool bSuppressEventTag, bool bAutoEmitLineTerminator);
+	static void FormatCastAndSerializeLine(FArchive& Output, const TCHAR* Message, ELogVerbosity::Type Verbosity, const FName& Category, double Time, bool bSuppressEventTag, bool bAutoEmitLineTerminator);
 };

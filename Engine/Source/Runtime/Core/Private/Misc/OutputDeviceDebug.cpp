@@ -3,34 +3,22 @@
 #include "Misc/OutputDeviceDebug.h"
 #include "CoreGlobals.h"
 #include "Misc/OutputDeviceHelper.h"
+#include "Misc/StringBuilder.h"
 
-/**
- * Serializes the passed in data unless the current event is suppressed.
- *
- * @param	Data	Text to log
- * @param	Event	Event name used for suppression purposes
- */
-void FOutputDeviceDebug::Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category, const double Time )
+void FOutputDeviceDebug::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const FName& Category, const double Time)
 {
-	static bool Entry=false;
-	if( !GIsCriticalError || Entry )
+	if (Verbosity != ELogVerbosity::SetColor)
 	{
-		if (Verbosity != ELogVerbosity::SetColor)
-		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("%s%s"),*FOutputDeviceHelper::FormatLogLine(Verbosity, Category, Data, GPrintLogTimes, Time),LINE_TERMINATOR);
-		}
-	}
-	else
-	{
-		Entry=true;
-		Serialize( Data, Verbosity, Category );
-		Entry=false;
+		TStringBuilder<512> Line;
+		FOutputDeviceHelper::AppendFormatLogLine(Line, Verbosity, Category, Data, GPrintLogTimes, Time);
+		Line.Append(LINE_TERMINATOR);
+		FPlatformMisc::LowLevelOutputDebugString(*Line);
 	}
 }
 
-void FOutputDeviceDebug::Serialize( const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category )
+void FOutputDeviceDebug::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const FName& Category)
 {
-	Serialize( Data, Verbosity, Category, -1.0 );
+	Serialize(Data, Verbosity, Category, -1.0);
 }
 
 bool FOutputDeviceDebug::CanBeUsedOnMultipleThreads() const

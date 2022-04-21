@@ -233,43 +233,64 @@ FString FDateTime::ToString() const
 
 FString FDateTime::ToString(const TCHAR* Format) const
 {
-	TStringBuilder<32> Result;
+	TStringBuilder<48> Result;
 	ToString(Format, Result);
 	return Result.ToString();
 }
 
 void FDateTime::ToString(const TCHAR* Format, FStringBuilderBase& Result) const
 {
-	if (Format != nullptr)
+	if (UNLIKELY(!Format))
 	{
-		while (*Format != TCHAR('\0'))
-		{
-			if ((*Format == TCHAR('%')) && (*(++Format) != TCHAR('\0')))
-			{
-				switch (*Format)
-				{
-				case TCHAR('a'): Result.Append(IsMorning() ? TEXT("am") : TEXT("pm")); break;
-				case TCHAR('A'): Result.Append(IsMorning() ? TEXT("AM") : TEXT("PM")); break;
-				case TCHAR('d'): Result.Appendf(TEXT("%02i"), GetDay()); break;
-				case TCHAR('D'): Result.Appendf(TEXT("%03i"), GetDayOfYear()); break;
-				case TCHAR('m'): Result.Appendf(TEXT("%02i"), GetMonth()); break;
-				case TCHAR('y'): Result.Appendf(TEXT("%02i"), GetYear() % 100); break;
-				case TCHAR('Y'): Result.Appendf(TEXT("%04i"), GetYear()); break;
-				case TCHAR('h'): Result.Appendf(TEXT("%02i"), GetHour12()); break;
-				case TCHAR('H'): Result.Appendf(TEXT("%02i"), GetHour()); break;
-				case TCHAR('M'): Result.Appendf(TEXT("%02i"), GetMinute()); break;
-				case TCHAR('S'): Result.Appendf(TEXT("%02i"), GetSecond()); break;
-				case TCHAR('s'): Result.Appendf(TEXT("%03i"), GetMillisecond()); break;
-				default:		 Result.AppendChar(*Format);
-				}
-			}
-			else
-			{
-				Result.AppendChar(*Format);
-			}
+		return;
+	}
 
-			// move to the next one
-			Format++;
+	const auto AppendZeroPaddedInteger = [](FStringBuilderBase& Output, int32 Value, int32 DigitCount)
+	{
+		const int32 OutputIndex = Output.AddUninitialized(DigitCount);
+		TCHAR* const OutputData = Output.GetData();
+		for (; DigitCount--; Value /= 10)
+		{
+			OutputData[OutputIndex + DigitCount] = TEXT('0') + (Value % 10);
+		}
+	};
+
+	int32 Year = 0, Month = 0, Day = 0;
+	const auto GetLocalDateIfZero = [this, &Year, &Month, &Day](int32 Arg)
+	{
+		if (Arg == 0)
+		{
+			GetDate(Year, Month, Day);
+		}
+	};
+	const auto GetLocalYear = [this, &Year, &GetLocalDateIfZero] { GetLocalDateIfZero(Year); return Year; };
+	const auto GetLocalMonth = [this, &Month, &GetLocalDateIfZero] { GetLocalDateIfZero(Month); return Month; };
+	const auto GetLocalDay = [this, &Day, &GetLocalDateIfZero] { GetLocalDateIfZero(Day); return Day; };
+
+	for (; *Format; ++Format)
+	{
+		if (*Format == TCHAR('%') && *++Format)
+		{
+			switch (*Format)
+			{
+			case TCHAR('a'): Result.Append(IsMorning() ? TEXT("am") : TEXT("pm")); break;
+			case TCHAR('A'): Result.Append(IsMorning() ? TEXT("AM") : TEXT("PM")); break;
+			case TCHAR('D'): AppendZeroPaddedInteger(Result, GetDayOfYear(), 3); break;
+			case TCHAR('d'): AppendZeroPaddedInteger(Result, GetLocalDay(), 2); break;
+			case TCHAR('m'): AppendZeroPaddedInteger(Result, GetLocalMonth(), 2); break;
+			case TCHAR('y'): AppendZeroPaddedInteger(Result, GetLocalYear() % 100, 2); break;
+			case TCHAR('Y'): AppendZeroPaddedInteger(Result, GetLocalYear(), 4); break;
+			case TCHAR('h'): AppendZeroPaddedInteger(Result, GetHour12(), 2); break;
+			case TCHAR('H'): AppendZeroPaddedInteger(Result, GetHour(), 2); break;
+			case TCHAR('M'): AppendZeroPaddedInteger(Result, GetMinute(), 2); break;
+			case TCHAR('S'): AppendZeroPaddedInteger(Result, GetSecond(), 2); break;
+			case TCHAR('s'): AppendZeroPaddedInteger(Result, GetMillisecond(), 3); break;
+			default:         Result.AppendChar(*Format);
+			}
+		}
+		else
+		{
+			Result.AppendChar(*Format);
 		}
 	}
 }
