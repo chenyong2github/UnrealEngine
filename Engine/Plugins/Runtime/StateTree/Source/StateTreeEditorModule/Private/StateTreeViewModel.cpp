@@ -460,6 +460,12 @@ void FStateTreeViewModel::MoveSelectedStates(UStateTreeState* TargetState, const
 			}
 		}
 
+		if (RelativeLocation == 0)
+		{
+			// Move into
+			TargetState->Modify();
+		}
+		
 		for (UStateTreeState* Parent : AffectedParents)
 		{
 			if (Parent)

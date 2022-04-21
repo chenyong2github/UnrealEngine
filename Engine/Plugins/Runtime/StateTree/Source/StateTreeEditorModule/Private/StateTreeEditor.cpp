@@ -110,6 +110,28 @@ void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedP
 		StateTree->EditorData = EditorData;
 	}
 
+	// @todo: Temporary fix
+	// Make sure all states are transactional
+	for (UStateTreeState* SubTree : EditorData->SubTrees)
+	{
+		TArray<UStateTreeState*> Stack;
+
+		Stack.Add(SubTree);
+		while (!Stack.IsEmpty())
+		{
+			if (UStateTreeState* State = Stack.Pop())
+			{
+				State->SetFlags(RF_Transactional);
+				
+				for (UStateTreeState* ChildState : State->Children)
+				{
+					Stack.Add(ChildState);
+				}
+			}
+		}
+	}
+
+
 	StateTreeViewModel = MakeShareable(new FStateTreeViewModel());
 	StateTreeViewModel->Init(EditorData);
 
