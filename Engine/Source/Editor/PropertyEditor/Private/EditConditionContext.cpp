@@ -13,16 +13,33 @@ FEditConditionContext::FEditConditionContext(FPropertyNode& InPropertyNode)
 	PropertyNode = InPropertyNode.AsShared();
 }
 
+FName FEditConditionContext::GetContextName() const
+{
+	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
+	if (!PinnedNode.IsValid())
+	{
+		return FName();
+	}
+
+	return PinnedNode->GetProperty()->GetOwnerStruct()->GetFName();
+}
+
 const FBoolProperty* FEditConditionContext::GetSingleBoolProperty(const TSharedPtr<FEditConditionExpression>& Expression) const
 {
-	if (!PropertyNode.IsValid())
+	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
+	if (!PinnedNode.IsValid())
 	{
 		return nullptr;
 	}
 
-	const FProperty* Property = PropertyNode.Pin()->GetProperty();
+	const FProperty* Property = PinnedNode->GetProperty();
+	if (Property == nullptr)
+	{
+		return nullptr;
+	}
 
 	const FBoolProperty* BoolProperty = nullptr;
+
 	for (const FCompiledToken& Token : Expression->Tokens)
 	{
 		if (const EditConditionParserTokens::FPropertyToken* PropertyToken = Token.Node.Cast<EditConditionParserTokens::FPropertyToken>())

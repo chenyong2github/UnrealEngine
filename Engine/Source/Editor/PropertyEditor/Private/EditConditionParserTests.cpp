@@ -25,6 +25,11 @@ struct FTestEditConditionContext : IEditConditionContext
 	FTestEditConditionContext(){}
 	virtual ~FTestEditConditionContext() {}
 
+	virtual FName GetContextName() const
+	{
+		return "TestEditConditionContext";
+	}
+
 	virtual TOptional<bool> GetBoolValue(const FString& PropertyName) const override
 	{
 		if (const bool* Value = BoolValues.Find(PropertyName))

@@ -119,20 +119,25 @@ static TOptional<FExpressionError> ConsumePropertyName(FExpressionTokenConsumer&
 }
 
 template <typename ValueType>
-static void LogEditConditionError(const TValueOrError<ValueType, FExpressionError>& Error)
+static void LogEditConditionError(const TValueOrError<ValueType, FExpressionError>& Error, const IEditConditionContext* Context = nullptr)
 {
 	if (!Error.HasError())
 	{
 		return;
 	}
 
-	static TSet<FString> ErrorsAlreadyLogged;
-	
-	const FString& Message = Error.GetError().Text.ToString();
-	if (!ErrorsAlreadyLogged.Find(Message))
+	const FString Message = Error.GetError().Text.ToString();
+	FString Formatted = Message;
+	if (Context != nullptr)
 	{
-		ErrorsAlreadyLogged.Add(Message);
-		UE_LOG(LogEditCondition, Error, TEXT("%s"), *Message);
+		Formatted = FString::Printf(TEXT("%s - %s"), *Context->GetContextName().ToString(), *Message);
+	}
+
+	static TSet<FString> ErrorsAlreadyLogged;
+	if (!ErrorsAlreadyLogged.Find(Formatted))
+	{
+		ErrorsAlreadyLogged.Add(Formatted);
+		UE_LOG(LogEditCondition, Error, TEXT("%s"), *Formatted);
 	}
 }
 
@@ -576,7 +581,6 @@ void CreateNumberOperators(TOperatorJumpTable<IEditConditionContext>& OperatorJu
 static FExpressionResult EnumPropertyEquals(const EditConditionParserTokens::FEnumToken& Enum, const EditConditionParserTokens::FPropertyToken& Property, const IEditConditionContext& Context, bool bNegate)
 {
 	TOptional<FString> TypeName = Context.GetTypeName(Property.PropertyName);
-
 	if (!TypeName.IsSet())
 	{
 		return MakeError(FText::Format(LOCTEXT("InvalidOperand_Type", "EditCondition attempted to use an invalid operand \"{0}\" (type error)."), FText::FromString(Property.PropertyName)));
@@ -588,7 +592,6 @@ static FExpressionResult EnumPropertyEquals(const EditConditionParserTokens::FEn
 	}
 
 	TOptional<FString> ValueProp = Context.GetEnumValue(Property.PropertyName);
-
 	if (!ValueProp.IsSet())
 	{
 		return MakeError(FText::Format(LOCTEXT("InvalidOperand_Value", "EditCondition attempted to use an invalid operand \"{0}\" (value error)."), FText::FromString(Property.PropertyName)));
@@ -735,10 +738,10 @@ TValueOrError<bool, FText> FEditConditionParser::Evaluate(const FEditConditionEx
 	}
 	else
 	{
-		LogEditConditionError(Result);
+		LogEditConditionError(Result, &Context);
 	}
 
-	const FText ErrorText = Result.HasError() ? Result.GetError().Text : FText::GetEmpty();
+	const FText ErrorText = Result.HasError() ? Result.StealError().Text : FText::GetEmpty();
 	return MakeError(ErrorText);
 }
 

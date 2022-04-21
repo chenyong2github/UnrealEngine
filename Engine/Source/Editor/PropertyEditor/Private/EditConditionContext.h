@@ -9,6 +9,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEditCondition, Log, All);
 class IEditConditionContext
 {
 public:
+	virtual FName GetContextName() const = 0;
+
 	virtual TOptional<bool> GetBoolValue(const FString& PropertyName) const = 0;
 	virtual TOptional<int64> GetIntegerValue(const FString& PropertyName) const = 0;
 	virtual TOptional<double> GetNumericValue(const FString& PropertyName) const = 0;
@@ -28,6 +30,8 @@ class FEditConditionContext : public IEditConditionContext
 public:
 	FEditConditionContext(FPropertyNode& InPropertyNode);
 	virtual ~FEditConditionContext() {}
+
+	virtual FName GetContextName() const override;
 
 	virtual TOptional<bool> GetBoolValue(const FString& PropertyName) const override;
 	virtual TOptional<int64> GetIntegerValue(const FString& PropertyName) const override;
