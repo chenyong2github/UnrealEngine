@@ -57,7 +57,12 @@ FVulkanQueryPool::FVulkanQueryPool(FVulkanDevice* InDevice, FVulkanCommandBuffer
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateQueryPool(Device->GetInstanceHandle(), &PoolCreateInfo, VULKAN_CPU_ALLOCATOR, &QueryPool));
 	
-	if (bInShouldAddReset && CommandBufferManager)
+	// If host query resets are supported, reset all new query pools on creation
+	if (Device->GetOptionalExtensions().HasEXTHostQueryReset)
+	{
+		VulkanRHI::vkResetQueryPoolEXT(Device->GetInstanceHandle(), QueryPool, 0, MaxQueries);
+	}
+	else if (bInShouldAddReset && CommandBufferManager)
 	{
 		CommandBufferManager->AddQueryPoolForReset(QueryPool, InMaxQueries);
 	}
@@ -105,7 +110,7 @@ bool FVulkanOcclusionQueryPool::InternalTryGetResults(bool bWait)
 	if (VulkanRHI::vkGetEventStatus(Device->GetInstanceHandle(), ResetEvent) == VK_EVENT_SET)
 	{
 		Result = VulkanRHI::vkGetQueryPoolResults(Device->GetInstanceHandle(), QueryPool, 0, NumUsedQueries, NumUsedQueries * sizeof(uint64), QueryOutput.GetData(), sizeof(uint64), VK_QUERY_RESULT_64_BIT);
-				if (Result == VK_SUCCESS)
+		if (Result == VK_SUCCESS)
 		{
 			State = EState::RT_PostGetResults;
 			return true;

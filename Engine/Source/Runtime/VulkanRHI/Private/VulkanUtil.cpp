@@ -203,6 +203,12 @@ void FVulkanGPUTiming::StartTiming(FVulkanCmdBuffer* CmdBuffer)
 		Pool->CurrentTimestamp = (Pool->CurrentTimestamp + 1) % Pool->BufferSize;
 		const uint32 QueryStartIndex = Pool->CurrentTimestamp * 2;
 
+		// If host query resets are supported, reset timestamp queries before writing to them (no need to consider host/GPU sync)
+		if (Device->GetOptionalExtensions().HasEXTHostQueryReset)
+		{
+			VulkanRHI::vkResetQueryPoolEXT(Device->GetInstanceHandle(), Pool->GetHandle(), QueryStartIndex, 2);
+		}
+
 		VulkanRHI::vkCmdWriteTimestamp(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, Pool->GetHandle(), QueryStartIndex);
 		Pool->TimestampListHandles[QueryStartIndex].CmdBuffer = CmdBuffer;
 		Pool->TimestampListHandles[QueryStartIndex].FenceCounter = CmdBuffer->GetFenceSignaledCounter();
@@ -226,8 +232,8 @@ void FVulkanGPUTiming::EndTiming(FVulkanCmdBuffer* CmdBuffer)
 		}
 		check(Pool->CurrentTimestamp < Pool->BufferSize);
 		const uint32 QueryStartIndex = Pool->CurrentTimestamp * 2;
-		const uint32 QueryEndIndex = Pool->CurrentTimestamp * 2 + 1;
-		check(QueryEndIndex == QueryStartIndex + 1);	// Make sure they're adjacent indices.
+		// Keep Start and End contiguous to fetch them together with a single AddPendingTimestampQuery(QueryStartIndex,2,...)
+		const uint32 QueryEndIndex = QueryStartIndex + 1;   
 
 		// In case we aren't reading queries, remove oldest
 		if (NumPendingQueries >= Pool->BufferSize)
@@ -240,8 +246,7 @@ void FVulkanGPUTiming::EndTiming(FVulkanCmdBuffer* CmdBuffer)
 		NumPendingQueries++;
 
 		VulkanRHI::vkCmdWriteTimestamp(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, Pool->GetHandle(), QueryEndIndex);
-		CmdBuffer->AddPendingTimestampQuery(QueryStartIndex, 1, Pool->GetHandle(), Pool->ResultsBuffer->GetHandle(), false);
-		CmdBuffer->AddPendingTimestampQuery(QueryEndIndex, 1, Pool->GetHandle(), Pool->ResultsBuffer->GetHandle(), false);
+		CmdBuffer->AddPendingTimestampQuery(QueryStartIndex, 2, Pool->GetHandle(), Pool->ResultsBuffer->GetHandle(), false);
 		Pool->TimestampListHandles[QueryEndIndex].CmdBuffer = CmdBuffer;
 		Pool->TimestampListHandles[QueryEndIndex].FenceCounter = CmdBuffer->GetFenceSignaledCounter();
 		Pool->TimestampListHandles[QueryEndIndex].FrameCount = CmdContext->GetFrameCounter();
@@ -281,7 +286,7 @@ uint64 FVulkanGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 		while (PendingQueries.Peek(TimestampIndex))
 		{
 			const uint32 QueryStartIndex = TimestampIndex * 2;
-			const uint32 QueryEndIndex = TimestampIndex * 2 + 1;
+			const uint32 QueryEndIndex = QueryStartIndex + 1;
 
 			const FVulkanTimingQueryPool::FCmdBufferFence& StartQuerySyncPoint = Pool->TimestampListHandles[QueryStartIndex];
 			const FVulkanTimingQueryPool::FCmdBufferFence& EndQuerySyncPoint = Pool->TimestampListHandles[QueryEndIndex];

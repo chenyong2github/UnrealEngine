@@ -4466,6 +4466,16 @@ void FWrapLayer::GetDeviceImageMemoryRequirementsKHR(VkResult Result, VkDevice D
 	}
 }
 
+void FWrapLayer::ResetQueryPoolEXT(VkResult Result, VkDevice Device, VkQueryPool QueryPool, uint32_t FirstQuery, uint32_t QueryCount)
+{
+	if (Result == VK_RESULT_MAX_ENUM)
+	{
+#if VULKAN_ENABLE_DUMP_LAYER
+		PrintfBeginResult(FString::Printf(TEXT("ResetQueryPoolEXT(Device=0x%p, QueryPool=0x%p, FirstQuery=%u, QueryCount=%u)")), Device, QueryPool, FirstQuery, QueryCount);
+#endif
+	}
+}
+
 #if VULKAN_ENABLE_IMAGE_TRACKING_LAYER
 namespace VulkanRHI
 {

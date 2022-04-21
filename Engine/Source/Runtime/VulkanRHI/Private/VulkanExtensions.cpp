@@ -43,6 +43,15 @@ TAutoConsoleVariable<int32> GVulkanRayTracingCVar(
 	ECVF_ReadOnly
 );
 
+TAutoConsoleVariable<int32> GVulkanAllowHostQueryResetCVar(
+	TEXT("r.Vulkan.AllowHostQueryReset"),
+	1,
+	TEXT("0: Do not enable support for Host Query Reset extension\n")
+	TEXT("1: Enable Host Query Reset (default)"),
+	ECVF_ReadOnly
+);
+
+
 #if VULKAN_HAS_DEBUGGING_ENABLED
 extern TAutoConsoleVariable<int32> GGPUValidationCvar;
 #endif
@@ -786,7 +795,7 @@ public:
 		: FVulkanDeviceExtension(InDevice, VK_AMD_BUFFER_MARKER_EXTENSION_NAME, VULKAN_SUPPORTS_AMD_BUFFER_MARKER)
 	{
 		const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
-		bEnabledInCode = GGPUCrashDebuggingEnabled && bAllowVendorDevice;
+		bEnabledInCode = bEnabledInCode && GGPUCrashDebuggingEnabled && bAllowVendorDevice;
 	}
 
 	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
@@ -806,7 +815,7 @@ public:
 		: FVulkanDeviceExtension(InDevice, VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME, VULKAN_SUPPORTS_NV_DIAGNOSTICS)
 	{
 		const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
-		bEnabledInCode = GGPUCrashDebuggingEnabled && bAllowVendorDevice;
+		bEnabledInCode = bEnabledInCode && GGPUCrashDebuggingEnabled && bAllowVendorDevice;
 	}
 
 	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
@@ -826,7 +835,7 @@ public:
 		: FVulkanDeviceExtension(InDevice, VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME, VULKAN_SUPPORTS_NV_DIAGNOSTICS)
 	{
 		const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
-		bEnabledInCode = GGPUCrashDebuggingEnabled && bAllowVendorDevice;
+		bEnabledInCode = bEnabledInCode && GGPUCrashDebuggingEnabled && bAllowVendorDevice;
 	}
 
 
@@ -856,6 +865,41 @@ public:
 private:
 	VkPhysicalDeviceDiagnosticsConfigFeaturesNV DeviceDiagnosticsConfigFeaturesNV;
 	VkDeviceDiagnosticsConfigCreateInfoNV DeviceDiagnosticsConfigCreateInfoNV;
+};
+
+
+// ***** VK_EXT_host_query_reset
+class FVulkanEXTHostQueryResetExtension : public FVulkanDeviceExtension
+{
+public:
+
+	FVulkanEXTHostQueryResetExtension(FVulkanDevice* InDevice)
+		: FVulkanDeviceExtension(InDevice, VK_EXT_HOST_QUERY_RESET_EXTENSION_NAME, VULKAN_EXTENSION_ENABLED, VK_API_VERSION_1_2)
+	{
+		bEnabledInCode = bEnabledInCode && (GVulkanAllowHostQueryResetCVar.GetValueOnAnyThread() != 0);
+	}
+
+	virtual void PrePhysicalDeviceFeatures(VkPhysicalDeviceFeatures2KHR& PhysicalDeviceFeatures2) override final
+	{
+		ZeroVulkanStruct(HostQueryResetFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES);
+		AddToPNext(PhysicalDeviceFeatures2, HostQueryResetFeatures);
+	}
+
+	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
+	{
+		ExtensionFlags.HasEXTHostQueryReset = HostQueryResetFeatures.hostQueryReset;
+	}
+
+	virtual void PreCreateDevice(VkDeviceCreateInfo& DeviceCreateInfo) override final
+	{
+		if (HostQueryResetFeatures.hostQueryReset == VK_TRUE)
+		{
+			AddToPNext(DeviceCreateInfo, HostQueryResetFeatures);
+		}
+	}
+
+private:
+	VkPhysicalDeviceHostQueryResetFeaturesEXT HostQueryResetFeatures;
 };
 
 
@@ -931,6 +975,7 @@ FVulkanDeviceExtensionArray FVulkanDeviceExtension::GetUESupportedDeviceExtensio
 	ADD_CUSTOM_EXTENSION(FVulkanKHRMultiviewExtension);
 	ADD_CUSTOM_EXTENSION(FVulkanKHRGetMemoryRequirements2Extension);
 	ADD_CUSTOM_EXTENSION(FVulkanEXTDescriptorIndexingExtension);
+	ADD_CUSTOM_EXTENSION(FVulkanEXTHostQueryResetExtension);
 
 	// Needed for Raytracing
 	ADD_CUSTOM_EXTENSION(FVulkanKHRBufferDeviceAddressExtension);
