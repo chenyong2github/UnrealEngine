@@ -786,6 +786,8 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 
 				if (bInitializedAnimInstance)
 				{
+					// Allow blueprints to respond to the event in editor
+					FEditorScriptExecutionGuard ScriptGuard;
 					OnAnimInitialized.Broadcast();
 				}
 			}
