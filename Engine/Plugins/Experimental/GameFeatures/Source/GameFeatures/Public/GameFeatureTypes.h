@@ -43,3 +43,18 @@ namespace GameFeaturePluginStatePrivate
 }
 typedef GameFeaturePluginStatePrivate::EGameFeaturePluginState EGameFeaturePluginState;
 #undef GAME_FEATURE_PLUGIN_STATE_ENUM
+
+#define GAME_FEATURE_PLUGIN_PROTOCOL_LIST(XPROTO)	\
+	XPROTO(File,			TEXT("file:"))			\
+	XPROTO(InstallBundle,	TEXT("installbundle:"))	\
+	XPROTO(Unknown,			TEXT(""))
+
+#define GAME_FEATURE_PLUGIN_PROTOCOL_ENUM(inEnum, inString) inEnum,
+enum class EGameFeaturePluginProtocol : uint8
+{
+	GAME_FEATURE_PLUGIN_PROTOCOL_LIST(GAME_FEATURE_PLUGIN_PROTOCOL_ENUM)
+	Count
+};
+#undef GAME_FEATURE_PLUGIN_PROTOCOL_ENUM
+
+ENUM_RANGE_BY_COUNT(EGameFeaturePluginProtocol, EGameFeaturePluginProtocol::Count);

@@ -376,6 +376,18 @@ FString UGameFeaturesSubsystem::GetPluginURL_InstallBundleProtocol(const FString
 	return GetPluginURL_InstallBundleProtocol(PluginName, MakeArrayView(&BundleName, 1));
 }
 
+EGameFeaturePluginProtocol UGameFeaturesSubsystem::GetPluginURLProtocol(FStringView PluginURL)
+{
+	for (EGameFeaturePluginProtocol Protocol : TEnumRange<EGameFeaturePluginProtocol>())
+	{
+		if (PluginURL.StartsWith(GameFeaturePluginProtocolPrefix(Protocol)))
+		{
+			return Protocol;
+		}
+	}
+	return EGameFeaturePluginProtocol::Unknown;
+}
+
 void UGameFeaturesSubsystem::OnGameFeatureTerminating(const FString& PluginName, const FString& PluginURL)
 {
 	for (UObject* Observer : Observers)

@@ -2,6 +2,8 @@
 
 #pragma once
 
+enum class EGameFeaturePluginProtocol : uint8;
+
 namespace GameFeaturePluginStatePrivate
 {
 	enum EGameFeaturePluginState : uint8;

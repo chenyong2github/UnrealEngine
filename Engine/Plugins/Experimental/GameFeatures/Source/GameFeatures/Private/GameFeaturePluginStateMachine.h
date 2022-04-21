@@ -130,21 +130,6 @@ Transition states are expected to transition the machine to another state after 
 
 // JMarcus TODO: move this stuff into UE::GameFeatures namespace
 
-#define GAME_FEATURE_PLUGIN_PROTOCOL_LIST(XPROTO)	\
-	XPROTO(File,			TEXT("file:"))			\
-	XPROTO(InstallBundle,	TEXT("installbundle:"))	\
-	XPROTO(Unknown,			TEXT(""))				
-
-#define GAME_FEATURE_PLUGIN_PROTOCOL_ENUM(inEnum, inString) inEnum,
-enum class EGameFeaturePluginProtocol : uint8
-{
-	GAME_FEATURE_PLUGIN_PROTOCOL_LIST(GAME_FEATURE_PLUGIN_PROTOCOL_ENUM)
-	Count,
-};
-#undef GAME_FEATURE_PLUGIN_PROTOCOL_ENUM
-
-ENUM_RANGE_BY_COUNT(EGameFeaturePluginProtocol, EGameFeaturePluginProtocol::Count);
-
 const TCHAR* GameFeaturePluginProtocolPrefix(EGameFeaturePluginProtocol Protocol);
 
 struct FInstallBundlePluginProtocolMetaData
