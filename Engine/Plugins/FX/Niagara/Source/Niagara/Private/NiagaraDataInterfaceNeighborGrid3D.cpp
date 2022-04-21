@@ -685,10 +685,11 @@ void UNiagaraDataInterfaceNeighborGrid3D::SetNumCells(FVectorVMExternalFunctionC
 		{
 			FIntVector OldNumCells = InstData->NumCells;
 			int OldMaxNeighborsPerCell = InstData->MaxNeighborsPerCell;
+			
+			InstData->NumCells.X = FMath::Max(1, NewNumCellsX);
+			InstData->NumCells.Y = FMath::Max(1, NewNumCellsY);
+			InstData->NumCells.Z = FMath::Max(1, NewNumCellsZ);
 
-			InstData->NumCells.X = NewNumCellsX;
-			InstData->NumCells.Y = NewNumCellsY;
-			InstData->NumCells.Z = NewNumCellsZ;
 			InstData->MaxNeighborsPerCell = NewMaxNeighborsPerCell;
 		
 			InstData->NeedsRealloc = OldNumCells != InstData->NumCells || OldMaxNeighborsPerCell != InstData->MaxNeighborsPerCell;

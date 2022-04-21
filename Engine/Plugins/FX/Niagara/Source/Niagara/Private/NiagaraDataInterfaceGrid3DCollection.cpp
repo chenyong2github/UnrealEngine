@@ -2472,10 +2472,9 @@ void UNiagaraDataInterfaceGrid3DCollection::SetNumCells(FVectorVMExternalFunctio
 		{
 			FIntVector OldNumCells = InstData->NumCells;
 
-
-			InstData->NumCells.X = NewNumCellsX;
-			InstData->NumCells.Y = NewNumCellsY;
-			InstData->NumCells.Z = NewNumCellsZ;
+			InstData->NumCells.X = FMath::Max(1, NewNumCellsX);
+			InstData->NumCells.Y = FMath::Max(1, NewNumCellsY);
+			InstData->NumCells.Z = FMath::Max(1, NewNumCellsZ);
 
 			if (!FMath::IsNearlyEqual(GNiagaraGrid3DResolutionMultiplier, 1.0f))
 			{
