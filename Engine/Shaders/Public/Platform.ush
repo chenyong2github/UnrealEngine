@@ -551,7 +551,7 @@ void ShaderYield()
 #endif
 
 #ifndef INVARIANT
-#define INVARIANT(X) X
+#define INVARIANT(X) (X)
 #endif
 
 #ifndef ENABLE_RE_Z
