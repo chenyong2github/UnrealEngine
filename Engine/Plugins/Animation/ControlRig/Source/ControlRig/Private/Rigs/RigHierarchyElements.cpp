@@ -539,7 +539,7 @@ void FRigControlSettings::Load(FArchive& Ar)
 	ControlEnum = nullptr;
 	if(!ControlEnumPathName.IsEmpty())
 	{
-		ControlEnum = FindObject<UEnum>(ANY_PACKAGE, *ControlEnumPathName);
+		ControlEnum = LoadObject<UEnum>(nullptr, *ControlEnumPathName);
 	}
 
 	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::RigHierarchyControlSpaceFavorites)
