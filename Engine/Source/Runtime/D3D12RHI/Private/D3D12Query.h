@@ -88,6 +88,7 @@ private:
 	public:
 		uint32 StartElement;    							// The first element in the batch (inclusive)
 		uint32 ElementCount;    							// The number of elements in the batch
+		uint32 NumQueriesInBatch;							// Maximum number of queries which are reserved for the batch
 		bool bOpen;             							// Is the batch still open for more begin/end queries?
 
 		TRefCountPtr<ID3D12QueryHeap> UsedQueryHeap;		// The query heap where all elements reside
@@ -107,6 +108,7 @@ private:
 		{
 			StartElement = 0;
 			ElementCount = 0;
+			NumQueriesInBatch = 0;
 			bOpen = false;
 			RenderQueries.Reset();
 
