@@ -9,6 +9,9 @@
 
 #include "Virtualization/VirtualizationSystem.h"
 
+struct IConsoleCommand;
+class FOutputDevice;
+
 /**
  * Configuring the backend hierarchy
  * 
@@ -136,6 +139,10 @@ private:
 	void ApplyDebugSettingsFromConfigFiles(const FConfigFile& ConfigFile);
 	void ApplyDebugSettingsFromFromCmdline();
 
+	void OnUpdateMissBackendsFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
+	void UpdateBackendDebugState();
+	bool ShouldDebugDisablePulling(FStringView BackendConfigName) const;	
+
 	void MountBackends(const FConfigFile& ConfigFile);
 	void ParseHierarchy(const FConfigFile& ConfigFile, const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
 	bool CreateBackend(const FConfigFile& ConfigFile, const TCHAR* GraphName, const FString& ConfigEntryName, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
@@ -210,9 +217,6 @@ private:
 	/** The name of the current project */
 	FString ProjectName;
 
-	/** Array of backend names that should have their pull operation disabled */
-	TArray<FString> BackendsToDisablePulls;
-
 	/** The critical section used to force single threaded access if bForceSingleThreaded is true */
 	FCriticalSection ForceSingleThreadedCS;
 
@@ -233,6 +237,14 @@ private:
 
 	/** Our notification Event */
 	FOnNotification NotificationEvent;
+
+	// Members after this point at used for debugging operations only!
+
+	/** Console commands that the manager has registered */
+	TArray<IConsoleCommand*> DebugConsoleCommands;
+	
+	/** Array of backend names that should have their pull operation disabled */
+	TArray<FString> DebugMissBackends;
 };
 
 } // namespace UE::Virtualization

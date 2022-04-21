@@ -37,26 +37,29 @@ enum class EPushResult
  */
 class IVirtualizationBackend
 {
-protected:
+public: 
 	/** Enum detailing which operations a backend can support */
 	enum class EOperations : uint8
 	{
 		/** Supports no operations, this should only occur when debug settings are applied */
 		None = 0,
 		/** Supports only push operations */
-		Push,
+		Push = 1 << 0,
 		/** Supports only pull operations */
-		Pull,
-		/** Supports both push and pull operations */
-		Both
+		Pull = 1 << 1,
 	};
 
+	FRIEND_ENUM_CLASS_FLAGS(EOperations);
+
+protected:
+	
 	IVirtualizationBackend(FStringView InConfigName, FStringView InDebugName, EOperations InSupportedOperations)
 		: SupportedOperations(InSupportedOperations)
+		, DebugDisabledOperations(EOperations::None)
 		, ConfigName(InConfigName)
 		, DebugName(InDebugName)
 	{
-		checkf(InSupportedOperations != EOperations::None, TEXT("Cannot create a backend without supporting at least one type of operation!"));
+		checkf(InSupportedOperations != EOperations::None, TEXT("Cannot create a backend with no supported operations!"));
 	}
 
 public:
@@ -164,29 +167,33 @@ public:
 		return true;
 	}
 	
-	/** Used when debugging to disable the pull operation */
-	void DisablePullOperationSupport()
+	/** 
+	 * Returns true if the given operation is supported, this is set when the backend is created
+	 * and should not change over it's life time.
+	 */
+	bool IsOperationSupported(EOperations Operation) const
 	{
-		if (SupportedOperations == EOperations::Pull)
+		return EnumHasAnyFlags(SupportedOperations, Operation);
+	}
+
+	/** Enable or disable the given operation based on the 'bIsDisabled' parameter */
+	void SetOperationDebugState(EOperations Operation, bool bIsDisabled)
+	{
+		if (bIsDisabled)
 		{
-			SupportedOperations = EOperations::None;
+			EnumAddFlags(DebugDisabledOperations, Operation);
+			
 		}
-		else if (SupportedOperations == EOperations::Both)
+		else
 		{
-			SupportedOperations = EOperations::Push;
+			EnumRemoveFlags(DebugDisabledOperations, Operation);
 		}
 	}
 
-	/** Return true if the backend supports push operations. Returning true allows ::PushData to be called.  */
-	bool SupportsPushOperations() const 
-	{ 
-		return SupportedOperations == EOperations::Push || SupportedOperations == EOperations::Both;  
-	}
-
-	/** Return true if the backend supports pull operations. Returning true allows ::PullData to be called.  */
-	bool SupportsPullOperations() const
-	{ 
-		return SupportedOperations == EOperations::Pull || SupportedOperations == EOperations::Both;  
+	/** Returns true if the given operation is disabled for debugging purposes */
+	bool IsOperationDebugDisabled(EOperations Operation) const
+	{
+		return EnumHasAnyFlags(DebugDisabledOperations, Operation);
 	}
 
 	/** Returns a string containing the name of the backend as it appears in the virtualization graph in the config file */
@@ -205,6 +212,8 @@ private:
 
 	/** The operations that this backend supports */
 	EOperations SupportedOperations;
+
+	EOperations DebugDisabledOperations;
 
 	/** The name assigned to the backend by the virtualization graph */
 	FString ConfigName;
@@ -236,6 +245,8 @@ public:
 	/** Returns the name used to identify the type in config ini files */
 	virtual FName GetName() = 0;
 };
+
+ENUM_CLASS_FLAGS(IVirtualizationBackend::EOperations);
 
 /**
  * This macro is used to generate a backend factories boilerplate code if you do not

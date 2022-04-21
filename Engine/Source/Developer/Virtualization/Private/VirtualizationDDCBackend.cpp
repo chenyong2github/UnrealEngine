@@ -18,7 +18,7 @@ static UE::DerivedData::FValueId ToDerivedDataValueId(const FIoHash& Id)
 }
 
 FDDCBackend::FDDCBackend(FStringView ProjectName, FStringView ConfigName, FStringView InDebugName)
-: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
+: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Push | EOperations::Pull)
 , BucketName(TEXT("BulkData"))
 , TransferPolicy(UE::DerivedData::ECachePolicy::None)
 , QueryPolicy(UE::DerivedData::ECachePolicy::None)

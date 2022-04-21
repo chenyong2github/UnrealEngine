@@ -1294,7 +1294,7 @@ private:
 };
 
 FHttpBackend::FHttpBackend(FStringView ProjectName, FStringView ConfigName, FStringView InDebugName)
-	: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
+	: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Push | EOperations::Pull)
 	, Namespace(TEXT("mirage"))
 	, Bucket(TEXT("default"))
 	, ChunkSize(-1)

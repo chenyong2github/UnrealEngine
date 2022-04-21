@@ -269,12 +269,22 @@ FVirtualizationManager::FVirtualizationManager()
 	// TODO: We should just be able to call the logging in the destructor, but 
 	// we need to fix the startup/shutdown ordering of Mirage first.
 	COOK_STAT(FCoreDelegates::OnExit.AddStatic(Profiling::LogStats));
+
+	DebugConsoleCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("VA.MissBackends"),
+		TEXT("A debug commnad which can be used to disable payload pulling on one or more backends"),
+		FConsoleCommandWithArgsAndOutputDeviceDelegate::CreateRaw(this, &FVirtualizationManager::OnUpdateMissBackendsFromConsole)));
 }
 
 FVirtualizationManager::~FVirtualizationManager()
 {
 	UE_LOG(LogVirtualization, Log, TEXT("Destroying backends"));
 	
+	for (IConsoleCommand* Cmd : DebugConsoleCommands)
+	{
+		IConsoleManager::Get().UnregisterConsoleObject(Cmd);
+	}
+
 	LocalCachableBackends.Empty();
 	PersistentStorageBackends.Empty();
 	PullEnabledBackends.Empty();
@@ -425,7 +435,7 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 		
 		// Debugging operation where we immediately try to pull the payload after each push (when possible) and assert 
 		// that the pulled payload is the same as the original
-		if (bValidateAfterPushOperation && bResult == true && Backend->SupportsPullOperations())
+		if (bValidateAfterPushOperation && bResult == true && Backend->IsOperationSupported(IVirtualizationBackend::EOperations::Pull))
 		{
 			for (FPushRequest& Request : ValidatedRequests)
 			{
@@ -479,6 +489,12 @@ FCompressedBuffer FVirtualizationManager::PullData(const FIoHash& Id)
 
 	for (IVirtualizationBackend* Backend : PullEnabledBackends)
 	{
+		// Skip if pulling has been disabled on this backend for debug purposes
+		if (Backend->IsOperationDebugDisabled(IVirtualizationBackend::EOperations::Pull))
+		{
+			continue;
+		}
+
 		FCompressedBuffer Payload = PullDataFromBackend(*Backend, Id);
 
 		if (Payload)
@@ -786,14 +802,110 @@ void FVirtualizationManager::ApplyDebugSettingsFromFromCmdline()
 	FString MissOptions;
 	if (FParse::Value(FCommandLine::Get(), TEXT("-VA-MissBackends="), MissOptions))
 	{
-		MissOptions.ParseIntoArray(BackendsToDisablePulls, TEXT("+"), true);
+		MissOptions.ParseIntoArray(DebugMissBackends, TEXT("+"), true);
 
 		UE_LOG(LogVirtualization, Warning, TEXT("Cmdline has disabled payload pulling for the following backends:"));
-		for (const FString& Backend : BackendsToDisablePulls)
+		for (const FString& Backend : DebugMissBackends)
 		{
 			UE_LOG(LogVirtualization, Warning, TEXT("\t%s"), *Backend);
 		}
 	}
+}
+
+void FVirtualizationManager::OnUpdateMissBackendsFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice)
+{
+	if (Args.IsEmpty())
+	{
+		OutputDevice.Log(TEXT("VA.MissBackends command help"));
+		OutputDevice.Log(TEXT("This command allows you to disable the pulling of payloads by specific backends"));
+		OutputDevice.Log(TEXT(""));
+		OutputDevice.Log(TEXT("Commands:"));
+		OutputDevice.Log(TEXT("VA.MissBackends reset            - Empties the list of backends, everything will function normally"));
+		OutputDevice.Log(TEXT("VA.MissBackends list             - Prints the list of backends affected"));
+		OutputDevice.Log(TEXT("VA.MissBackends set Name0 Name1  - List each backend that you want to fail to pull payloads"));
+		OutputDevice.Log(TEXT("VA.MissBackends set All          - All backends will fail to pull payloads"));
+		OutputDevice.Log(TEXT(""));
+		OutputDevice.Log(TEXT("Valid backend names:"));
+
+		for (const TUniquePtr<IVirtualizationBackend>& Backend : AllBackends)
+		{
+			OutputDevice.Logf(TEXT("\t%s"), *Backend->GetConfigName());
+		}
+	}
+	else if (Args.Num() == 1)
+	{
+		if (Args[0] == TEXT("reset"))
+		{
+			DebugMissBackends.Empty();
+			UpdateBackendDebugState();
+		}
+		else if (Args[0] == TEXT("list"))
+		{
+			if (!DebugMissBackends.IsEmpty())
+			{
+				OutputDevice.Log(TEXT("Disabled backends:"));
+				for (const FString& Backend : DebugMissBackends)
+				{
+					OutputDevice.Logf(TEXT("\t%s"), *Backend);
+				}
+			}
+			else
+			{
+				OutputDevice.Log(TEXT("No backends are disabled"));
+			}
+		}
+		else
+		{
+			OutputDevice.Log(ELogVerbosity::Error, TEXT("Invalid args for the VA.MissBackends command!"));
+		}
+	}
+	else if (Args[0] == TEXT("set"))
+	{	
+		DebugMissBackends.Empty(Args.Num() - 1);
+
+		for (int32 Index = 1; Index < Args.Num(); ++Index)
+		{
+			DebugMissBackends.Add(Args[Index]);
+		}
+
+		UpdateBackendDebugState();
+	}
+	else
+	{
+		OutputDevice.Log(ELogVerbosity::Error, TEXT("Invalid args for the VA.MissBackends command!"));
+	}
+}
+
+void FVirtualizationManager::UpdateBackendDebugState()
+{
+	for (TUniquePtr<IVirtualizationBackend>& Backend : AllBackends)
+	{
+		const bool bDisable = ShouldDebugDisablePulling(Backend->GetConfigName());
+		Backend->SetOperationDebugState(IVirtualizationBackend::EOperations::Pull, bDisable);
+	}
+}
+
+bool FVirtualizationManager::ShouldDebugDisablePulling(FStringView BackendConfigName) const
+{
+	if (DebugMissBackends.IsEmpty())
+	{
+		return false;
+	}
+
+	if (DebugMissBackends[0] == TEXT("All"))
+	{
+		return true;
+	}
+
+	for (const FString& Name : DebugMissBackends)
+	{
+		if (Name == BackendConfigName)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 void FVirtualizationManager::MountBackends(const FConfigFile& ConfigFile)
@@ -816,6 +928,9 @@ void FVirtualizationManager::MountBackends(const FConfigFile& ConfigFile)
 	// persistent storage backends in 'PullEnabledBackends'.
 	ParseHierarchy(ConfigFile, GraphName, TEXT("LocalStorageHierarchy"), FactoryLookupTable, LocalCachableBackends);
 	ParseHierarchy(ConfigFile, GraphName, TEXT("PersistentStorageHierarchy"), FactoryLookupTable, PersistentStorageBackends);
+
+	// Apply and disabled backends from the command line
+	UpdateBackendDebugState();
 }
 
 void FVirtualizationManager::ParseHierarchy(const FConfigFile& ConfigFile, const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray)
@@ -874,11 +989,6 @@ bool FVirtualizationManager::CreateBackend(const FConfigFile& ConfigFile, const 
 
 			}
 
-			if (BackendsToDisablePulls.Find(Backend->GetConfigName()) != INDEX_NONE  || BackendsToDisablePulls.Find(TEXT("All")) != INDEX_NONE)
-			{
-				Backend->DisablePullOperationSupport();
-			}
-			
 			if (Backend->Initialize(Cmdine))
 			{
 				AddBackend(MoveTemp(Backend), PushArray);
@@ -914,12 +1024,12 @@ void FVirtualizationManager::AddBackend(TUniquePtr<IVirtualizationBackend> Backe
 	// Get a reference pointer to use in the other backend arrays
 	IVirtualizationBackend* BackendRef = AllBackends.Last().Get();
 
-	if (BackendRef->SupportsPullOperations())
+	if (BackendRef->IsOperationSupported(IVirtualizationBackend::EOperations::Pull))
 	{
 		PullEnabledBackends.Add(BackendRef);
 	}
 
-	if (BackendRef->SupportsPushOperations())
+	if (BackendRef->IsOperationSupported(IVirtualizationBackend::EOperations::Push))
 	{
 		PushArray.Add(BackendRef);
 	}
@@ -947,7 +1057,7 @@ void FVirtualizationManager::CachePayload(const FIoHash& Id, const FCompressedBu
 
 		// Debugging operation where we immediately try to pull the payload after each push (when possible) and assert 
 		// that the pulled payload is the same as the original
-		if (bValidateAfterPushOperation && bResult && BackendToCache->SupportsPullOperations())
+		if (bValidateAfterPushOperation && bResult && BackendToCache->IsOperationSupported(IVirtualizationBackend::EOperations::Pull))
 		{
 			FCompressedBuffer PulledPayload = PullDataFromBackend(*BackendToCache, Id);
 			checkf(	Payload.GetRawHash() == PulledPayload.GetRawHash(), 

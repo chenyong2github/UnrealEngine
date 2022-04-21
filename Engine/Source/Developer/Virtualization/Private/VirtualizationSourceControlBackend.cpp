@@ -111,7 +111,7 @@ static void CreateDescription(const FString& ProjectName, const TArray<const FPu
 }
 
 FSourceControlBackend::FSourceControlBackend(FStringView ProjectName, FStringView ConfigName, FStringView InDebugName)
-	: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Both)
+	: IVirtualizationBackend(ConfigName, InDebugName, EOperations::Push | EOperations::Pull)
 	, ProjectName(ProjectName)
 {
 }
