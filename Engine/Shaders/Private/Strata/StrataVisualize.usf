@@ -396,7 +396,7 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 [numthreads(1, 1, 1)]
 void MaterialPrintInfoCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint2 PixelPos = View.CursorPosition;
+	const uint2 PixelPos = (float2(View.CursorPosition) * View.ViewResolutionFraction);
 	const float2 BufferUV = SvPositionToBufferUV(float4(PixelPos + 0.5f, 0, 0));
 	const float2 ScreenPosition = SvPositionToScreenPosition(float4(PixelPos, 0.5f, 1)).xy;
 	const float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
@@ -460,7 +460,7 @@ void VisualizeMaterialPS(
 [numthreads(1, 1, 1)]
 void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	const uint2 PixelPos = View.CursorPosition;
+	const uint2 PixelPos = (float2(View.CursorPosition) * View.ViewResolutionFraction);
 
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(PixelPos, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
@@ -683,7 +683,7 @@ void MaterialDebugStrataTreePS(
 {
 	OutColor = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
-	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(View.CursorPosition, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset((float2(View.CursorPosition) * View.ViewResolutionFraction), uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 	if (Header.BSDFCount > 0)
 	{
