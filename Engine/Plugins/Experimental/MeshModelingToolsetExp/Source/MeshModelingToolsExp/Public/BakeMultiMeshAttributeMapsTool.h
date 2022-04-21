@@ -103,8 +103,19 @@ class MESHMODELINGTOOLSEXP_API UBakeMultiMeshInputToolProperties : public UInter
 
 public:
 	/** Target mesh to sample to */
-	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Target Mesh", meta = (TransientToolProperty))
+	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Target Mesh", meta = (TransientToolProperty,
+		EditCondition = "TargetStaticMesh != nullptr", EditConditionHides))
 	TObjectPtr<UStaticMesh> TargetStaticMesh = nullptr;
+
+	/** Target mesh to sample to */
+	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Target Mesh", meta = (TransientToolProperty,
+		EditCondition = "TargetSkeletalMesh != nullptr", EditConditionHides))
+	TObjectPtr<USkeletalMesh> TargetSkeletalMesh = nullptr;
+
+	/** Target mesh to sample to */
+	UPROPERTY(VisibleAnywhere, Category = BakeInput, DisplayName = "Target Mesh", meta = (TransientToolProperty,
+		EditCondition = "TargetDynamicMesh != nullptr", EditConditionHides))
+	TObjectPtr<AActor> TargetDynamicMesh = nullptr;
 
 	/** UV channel to use for the target mesh */
 	UPROPERTY(EditAnywhere, Category = BakeInput, meta = (DisplayName = "Target Mesh UV Channel",

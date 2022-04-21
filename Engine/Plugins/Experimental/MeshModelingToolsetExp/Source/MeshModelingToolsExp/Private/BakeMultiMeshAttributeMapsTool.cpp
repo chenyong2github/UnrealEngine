@@ -465,6 +465,8 @@ void UBakeMultiMeshAttributeMapsTool::Setup()
 	InputMeshSettings->RestoreProperties(this);
 	AddToolPropertySource(InputMeshSettings);
 	InputMeshSettings->TargetStaticMesh = GetStaticMeshTarget(Target);
+	InputMeshSettings->TargetSkeletalMesh = GetSkeletalMeshTarget(Target);
+	InputMeshSettings->TargetDynamicMesh = GetDynamicMeshTarget(Target);
 	UpdateUVLayerNames(InputMeshSettings->TargetUVLayer, InputMeshSettings->TargetUVLayerNamesList, TargetMesh);
 	InputMeshSettings->WatchProperty(InputMeshSettings->TargetUVLayer, [this](FString) { OpState |= EBakeOpState::Evaluate; });
 	InputMeshSettings->WatchProperty(InputMeshSettings->ProjectionDistance, [this](float) { OpState |= EBakeOpState::Evaluate; });
