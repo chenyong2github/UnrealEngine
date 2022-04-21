@@ -1726,6 +1726,37 @@ bool URigVMController::UnresolveTemplateNodes(const TArray<URigVMTemplateNode*>&
 		FRigVMTemplate::FTypeMap Types;
 		Node->GetTemplate()->FullyResolve(Types, PermutationIndex);
 
+		// if the types' containers don't match the current pin containers try again
+		bool bTypesWereAdjusted = false;
+		FRigVMTemplate::FTypeMap AdjustedTypes = Types;
+		for(TPair<FName, FRigVMTemplateArgument::FType>& TypePair : AdjustedTypes)
+		{
+			if(URigVMPin* Pin = Node->FindPin(TypePair.Key.ToString()))
+			{
+				if(Pin->IsArray() != TypePair.Value.IsArray())
+				{
+					if(Pin->IsArray())
+					{
+						TypePair.Value.CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(TypePair.Value.CPPType);
+					}
+					else
+					{
+						TypePair.Value.CPPType = RigVMTypeUtils::BaseTypeFromArrayType(TypePair.Value.CPPType);
+					}
+					bTypesWereAdjusted = true;
+				}
+			}
+		}
+
+		if(bTypesWereAdjusted)
+		{
+			Node->GetTemplate()->FullyResolve(AdjustedTypes, PermutationIndex);
+			if(AdjustedTypes.Num() == Types.Num())
+			{
+				Types = AdjustedTypes;
+			}
+		}
+
 		for(const TPair<FName, FRigVMTemplateArgument::FType>& TypePair : Types)
 		{
 			const FName& PinName = TypePair.Key;
@@ -1742,9 +1773,21 @@ bool URigVMController::UnresolveTemplateNodes(const TArray<URigVMTemplateNode*>&
 				return false;
 			}
 
-			if(ChangePinType(Pin, ExpectedType.CPPType, ExpectedType.CPPTypeObject, bSetupUndoRedo, false, true, true))
+			if(ChangePinType(Pin, ExpectedType.CPPType, ExpectedType.CPPTypeObject, bSetupUndoRedo, false, true, !Pin->IsArray()))
 			{
 				bChangedAnyPin = true;
+
+				if(Pin->IsArray())
+				{
+					FRigVMTemplateArgument::FType ElementType = ExpectedType;
+					ElementType.CPPType = RigVMTypeUtils::BaseTypeFromArrayType(ElementType.CPPType);
+					
+					TArray<URigVMPin*> SubPins = Pin->GetSubPins();
+					for (URigVMPin* SubPin : SubPins)
+					{
+						ChangePinType(SubPin, ElementType.CPPType, ElementType.CPPTypeObject, bSetupUndoRedo, false, true, true);
+					}
+				}
 			}
 		}
 
@@ -14993,11 +15036,16 @@ bool URigVMController::ResolveWildCardPinImpl(URigVMPin* InPinToResolve, const F
 	{
 		for(URigVMPin* SubPin : InPinToResolve->GetSubPins())
 		{
+			const FString BaseCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
+			const FString TypeToResolveAgainst = SubPin->IsArray() ? RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType) : BaseCPPType;
+			
 			if(SubPin->IsWildCard())
 			{
-				const FString BaseCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
-				const FString TypeToResolveAgainst = SubPin->IsArray() ? RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType) : BaseCPPType; 
 				ResolveWildCardPinImpl(SubPin, TypeToResolveAgainst, CPPTypeObject, bSetupUndoRedo, false, false, bTraverseLinks);
+			}
+			else
+			{
+				ChangePinType(SubPin, TypeToResolveAgainst, InCPPTypeObject, bSetupUndoRedo, false, true, true);
 			}
 		}
 	}

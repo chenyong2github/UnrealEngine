@@ -1001,8 +1001,21 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 				continue;
 			}
 		}
-		
-		if(Argument.GetArrayType() == FRigVMTemplateArgument::EArrayType_ArrayValue)
+
+		const FRigVMTemplateArgument::EArrayType ArrayType = Argument.GetArrayType();
+		if(ArrayType == FRigVMTemplateArgument::EArrayType_Mixed)
+		{
+			InOutTypes.Add(Argument.Name, FRigVMTemplateArgument::FType());
+
+			if(const FRigVMTemplateArgument::FType* InputType = InputTypes.Find(Argument.Name))
+			{
+				if(InputType->IsArray())
+				{
+					InOutTypes.FindChecked(Argument.Name) = FRigVMTemplateArgument::FType::Array();
+				}
+			}
+		}
+		else if(ArrayType == FRigVMTemplateArgument::EArrayType_ArrayValue)
 		{
 			InOutTypes.Add(Argument.Name, FRigVMTemplateArgument::FType::Array());
 		}
