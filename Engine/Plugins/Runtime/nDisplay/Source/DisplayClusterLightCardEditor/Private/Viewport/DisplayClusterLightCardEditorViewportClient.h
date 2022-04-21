@@ -180,9 +180,6 @@ private:
 	
 	/** The renderer for the viewport, which can render the meshes with a variety of projection types */
 	TSharedPtr<FDisplayClusterMeshProjectionRenderer> MeshProjectionRenderer;
-
-	/** The current transaction for undo/redo */
-	FScopedTransaction* ScopedTransaction = nullptr;
 	
 	/** Indicates that the user is dragging an actor in the viewport */
 	bool bDraggingActor = false;
