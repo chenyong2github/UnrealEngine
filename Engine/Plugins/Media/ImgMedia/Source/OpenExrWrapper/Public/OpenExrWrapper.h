@@ -70,8 +70,10 @@ public:
 	FFrameRate GetFrameRate(const FFrameRate& DefaultValue) const;
 	int32 GetUncompressedSize() const;
 	int32 GetNumChannels() const;
+	bool ContainsMips() const;
+	int32 CalculateNumMipLevels(const FIntPoint& NumTiles) const;
 
-	// Gets tile dimensions. Returns false if image has no tiles.
+	/** Gets tile dimensions. Returns false if image has no tiles. */
 	bool GetTileSize(FIntPoint& OutTileSize) const;
 
 	bool HasInputFile() const;

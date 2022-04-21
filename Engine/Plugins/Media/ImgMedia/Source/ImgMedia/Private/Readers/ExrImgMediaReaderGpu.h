@@ -72,20 +72,6 @@ public:
 
 protected:
 
-	/* 
-	* These are all the required parameters to produce Buffer to Texture converter. 
-	*/
-	struct FSampleConverterParameters
-	{
-		FImgMediaFrameInfo FrameInfo;
-		FIntPoint FullResolution;
-		FIntPoint TileDimWithBorders;
-		TMap<int32, FIntRect> Viewports;
-		int32 NumMipLevels;
-		int32 PixelSize;
-		bool bCustomExr;
-	};
-
 	/** 
 	 * This function reads file in 16 MB chunks and if it detects that
 	 * Frame is pending for cancellation stops reading the file and returns false.

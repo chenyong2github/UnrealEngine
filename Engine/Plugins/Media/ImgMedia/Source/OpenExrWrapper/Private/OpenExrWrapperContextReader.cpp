@@ -136,6 +136,32 @@ int32 FOpenExrHeaderReader::GetNumChannels() const
 	return Attribute->chlist->num_channels;
 }
 
+bool FOpenExrHeaderReader::ContainsMips() const
+{
+	const exr_attribute_t* Attribute = nullptr;
+	exr_result_t Result = exr_get_attribute_by_name(*((exr_context_t*)FileContext.Get()), 0, EXR_ATTRIBUTE_TILEDESC, &Attribute);
+	if (Result == EXR_ERR_SUCCESS && Attribute)
+	{
+		exr_tile_level_mode_t TileMipMode = EXR_GET_TILE_LEVEL_MODE(*Attribute->tiledesc);
+		return TileMipMode == EXR_TILE_MIPMAP_LEVELS;
+	}
+	return false;
+}
+
+int32 FOpenExrHeaderReader::CalculateNumMipLevels(const FIntPoint& NumTiles) const
+{
+	const exr_attribute_t* Attribute = nullptr;
+	exr_result_t Result = exr_get_attribute_by_name(*((exr_context_t*)FileContext.Get()), 0, EXR_ATTRIBUTE_TILEDESC, &Attribute);
+	if (Result == EXR_ERR_SUCCESS && Attribute)
+	{
+		exr_tile_round_mode_t MipRoundMode = EXR_GET_TILE_ROUND_MODE(*Attribute->tiledesc);
+		int32 MinTileRes = FMath::Min(NumTiles.X, NumTiles.Y);
+		int32 NumMipLevels = (exr_tile_round_mode_t::EXR_TILE_ROUND_DOWN) ? FMath::FloorLog2(MinTileRes) : FMath::CeilLogTwo(MinTileRes);
+		return NumMipLevels + 1;
+	}
+	return 1;
+}
+
 bool FOpenExrHeaderReader::GetTileSize(FIntPoint& OutTileSize) const
 {
 	const exr_attribute_t* Attribute = nullptr;

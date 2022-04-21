@@ -72,22 +72,23 @@ bool FExrImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFrameIn
 }
 
 FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
-(uint16* Buffer
+	( uint16* Buffer
 	, const FString& ImagePath
 	, int32 FrameId
 	, const FIntRect& TileRegion
-	, const FIntPoint& FullTexDimInTiles
-	, const FIntPoint& TileDim
-	, const int32 PixelSize
-	, const bool bCustomExr)
+	, TSharedPtr<FSampleConverterParameters> ConverterParams
+	, const int32 CurrentMipLevel)
 {
 #if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
 	EReadResult bResult = Success;
 
 	int64 CurrentBufferPos = 0;
 	FExrReader ChunkReader;
-	int32 NumTiles = bCustomExr ? 1 : FullTexDimInTiles.X * FullTexDimInTiles.Y;
-	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, NumTiles))
+	int MipLevelDiv = 1 << CurrentMipLevel;
+	FIntPoint DimensionInTiles = ConverterParams->FrameInfo.NumTiles / MipLevelDiv;
+	int32 NumTiles = ConverterParams->bCustomExr ? 1 : ConverterParams->FrameInfo.NumTiles.X * ConverterParams->FrameInfo.NumTiles.Y;
+	int32 NumMipLevels = ConverterParams->bMipsInSeparateFiles ? 1 : ConverterParams->NumMipLevels;
+	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, NumTiles, NumMipLevels))
 	{
 		return Fail;
 	}
@@ -104,20 +105,20 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
 				break;
 			}
 		}
-		const uint16 Padding = bCustomExr ? 0 : FExrReader::TILE_PADDING;
-		const int64 TileByteStride = PixelSize * TileDim.X * TileDim.Y + Padding;
-		const int StartTileIndex = TileRow * FullTexDimInTiles.X + TileRegion.Min.X;
-		const int EndTileIndex = TileRow * FullTexDimInTiles.X + TileRegion.Max.X;
+		const uint16 Padding = ConverterParams->bCustomExr ? 0 : FExrReader::TILE_PADDING;
+		const int64 TileByteStride = ConverterParams->PixelSize * ConverterParams->TileDimWithBorders.X * ConverterParams->TileDimWithBorders.Y + Padding;
+		const int StartTileIndex = TileRow * DimensionInTiles.X + TileRegion.Min.X;
+		const int EndTileIndex = TileRow * DimensionInTiles.X + TileRegion.Max.X;
 		const int BytesToRead = (EndTileIndex - StartTileIndex) * TileByteStride;
 
-		if (bCustomExr)
+		if (ConverterParams->bCustomExr)
 		{
-			int64 TileStride = TileDim.X * TileDim.Y * PixelSize;
-			ChunkReader.SeekTileWithinFileCustom(StartTileIndex, TileStride, CurrentBufferPos);
+			int64 TileStride = ConverterParams->TileDimWithBorders.X * ConverterParams->TileDimWithBorders.Y * ConverterParams->PixelSize;
+			ChunkReader.SeekTileWithinFileCustom(StartTileIndex, TileStride, ConverterParams->bMipsInSeparateFiles ? 0 : CurrentMipLevel, CurrentBufferPos);
 		}
 		else
 		{
-			ChunkReader.SeekTileWithinFile(StartTileIndex, FullTexDimInTiles, CurrentBufferPos);
+			ChunkReader.SeekTileWithinFile(StartTileIndex, DimensionInTiles, ConverterParams->bMipsInSeparateFiles ? 0 : CurrentMipLevel, CurrentBufferPos);
 		}
 
 		if (!ChunkReader.ReadExrImageChunk(reinterpret_cast<char*>(Buffer) + CurrentBufferPos, BytesToRead))
@@ -259,8 +260,14 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTil
 						FMath::Min((int32)CurrentTileSelection.BottomRightY, FMath::CeilToInt(float(OutFrame->Info.NumTiles.Y) / MipLevelDiv)));
 					FIntPoint NumTiles = OutFrame->Info.NumTiles / MipLevelDiv;
 					int32 PixelSize = sizeof(uint16) * OutFrame->Info.NumChannels;
+					TSharedPtr<FSampleConverterParameters> ConverterParams = MakeShared<FSampleConverterParameters>();
+					ConverterParams->FrameInfo = OutFrame->Info;
+					ConverterParams->PixelSize = sizeof(uint16) * ConverterParams->FrameInfo.NumChannels;
+					ConverterParams->TileDimWithBorders = OutFrame->Info.TileDimensions + OutFrame->Info.TileBorder * 2;
+					ConverterParams->NumMipLevels = Loader->GetNumMipLevels();
+					ConverterParams->bCustomExr = OutFrame->Info.FormatName == TEXT("EXR CUSTOM");
 
-					EReadResult ReadResult = ReadTilesCustom((uint16*)MipDataPtr, Image, FrameId, TileRegion, NumTiles, OutFrame->Info.TileDimensions, PixelSize, true /*bCustomExr*/);
+					EReadResult ReadResult = ReadTilesCustom((uint16*)MipDataPtr, Image, FrameId, TileRegion, ConverterParams, CurrentMipLevel);
 					if (ReadResult != Fail)
 					{
 						OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);
@@ -394,6 +401,7 @@ bool FExrImgMediaReader::GetInfo(const FString& FilePath, FImgMediaFrameInfo& Ou
 	OutInfo.Srgb = false;
 	OutInfo.UncompressedSize = HeaderReader.GetUncompressedSize();
 	OutInfo.NumChannels = HeaderReader.GetNumChannels();
+	OutInfo.NumMipLevels = 1;
 
 	int32 CustomFormat = 0;
 	HeaderReader.GetIntAttribute(IImgMediaModule::CustomFormatAttributeName.Resolve().ToString(), CustomFormat);
@@ -418,12 +426,17 @@ bool FExrImgMediaReader::GetInfo(const FString& FilePath, FImgMediaFrameInfo& Ou
 	if (OutInfo.bHasTiles)
 	{
 		OutInfo.NumTiles = FIntPoint(OutInfo.Dim.X / (OutInfo.TileDimensions.X + OutInfo.TileBorder * 2), OutInfo.Dim.Y / (OutInfo.TileDimensions.Y + OutInfo.TileBorder * 2));
+		if (HeaderReader.ContainsMips())
+		{
+			OutInfo.NumMipLevels = HeaderReader.CalculateNumMipLevels(OutInfo.NumTiles);
+		}
 	}
 	else
 	{
 		OutInfo.TileDimensions = OutInfo.Dim;
 		OutInfo.NumTiles = FIntPoint(1, 1);
 	}
+
 
 	return (OutInfo.UncompressedSize > 0) && (OutInfo.Dim.GetMin() > 0);
 }

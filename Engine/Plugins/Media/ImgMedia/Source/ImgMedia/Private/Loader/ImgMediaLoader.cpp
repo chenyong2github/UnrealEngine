@@ -861,6 +861,8 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 		return;
 	}
 
+	NumMipLevels = FMath::Max(FirstFrameInfo.NumMipLevels, ImagePaths.Num());
+
 	SequenceDim = FirstFrameInfo.Dim;
 
 	if (FrameRateOverride.IsValid() && (FrameRateOverride.Numerator > 0))

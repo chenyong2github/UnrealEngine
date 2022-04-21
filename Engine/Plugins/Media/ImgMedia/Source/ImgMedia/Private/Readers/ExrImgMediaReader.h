@@ -49,6 +49,21 @@ protected:
 		Cancelled
 	};
 
+	/* 
+	* These are all the required parameters to produce Buffer to Texture converter. 
+	*/
+	struct FSampleConverterParameters
+	{
+		FImgMediaFrameInfo FrameInfo;
+		FIntPoint FullResolution;
+		FIntPoint TileDimWithBorders;
+		TMap<int32, FIntRect> Viewports;
+		int32 NumMipLevels;
+		int32 PixelSize;
+		bool bCustomExr;
+		bool bMipsInSeparateFiles;
+	};
+
 	/**
 	 * Get the frame information from the given input file.
 	 *
@@ -62,7 +77,7 @@ protected:
 	 * Reads tiles from exr files in tile rows based on Tile region. If frame is pending for cancelation
 	 * stops reading tiles at the current tile row.
 	*/
-	EReadResult ReadTilesCustom(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntRect& TileRegion, const FIntPoint& FullTexDimInTiles, const FIntPoint& TileDim, const int32 PixelSize, const bool bCustomExr);
+	EReadResult ReadTilesCustom(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntRect& TileRegion, TSharedPtr<FSampleConverterParameters> ConverterParams, const int32 CurrentMipLevel);
 
 	/**
 	 * Sets parameters of our custom format images.

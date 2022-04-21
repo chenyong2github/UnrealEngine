@@ -213,10 +213,18 @@ public:
 	/**
 	 * Get the number of mipmap levels we have.
 	 */
-	int32 GetNumMipLevels() const
+	int32 GetNumMipLevels() const 
+	{ 
+		return NumMipLevels; 
+	};
+
+	/**
+	 * If mips are stored in separate files we should make sure to read it.
+	 */
+	bool MipsInSeparateFiles() const
 	{
-		return ImagePaths.Num();
-	}
+		return ImagePaths.Num() > 1;
+	};
 
 	/**
 	 * Get the number of images in a single mip level.
@@ -502,6 +510,9 @@ private:
 
 	/** Total number of frames to load. */
 	int32 NumFramesToLoad;
+
+	/** Stores num of mip levels if the sequence is made out of files that contain all mips in one file. */
+	int32 NumMipLevels;
 
 	/** The image sequence reader to use. */
 	TSharedPtr<IImgMediaReader, ESPMode::ThreadSafe> Reader;

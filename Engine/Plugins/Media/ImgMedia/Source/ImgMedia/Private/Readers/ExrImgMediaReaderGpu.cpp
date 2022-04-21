@@ -157,7 +157,7 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 	ConverterParams->TileDimWithBorders = TileDim + OutFrame->Info.TileBorder * 2;
 	ConverterParams->NumMipLevels = Loader->GetNumMipLevels();
 	ConverterParams->bCustomExr = OutFrame->Info.FormatName == TEXT("EXR CUSTOM");
-
+	ConverterParams->bMipsInSeparateFiles = Loader->MipsInSeparateFiles();
 	{
 		// Loop over all mips.
 		FIntPoint CurrentMipDim = ConverterParams->FullResolution;
@@ -181,8 +181,8 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 			if (ReadThisMip)
 			{
 				FIntRect& Viewport = ConverterParams->Viewports.Add(CurrentMipLevel);
-				Viewport.Min = FIntPoint(ConverterParams->TileDimWithBorders.X * CurrentTileSelection.TopLeftX, ConverterParams->TileDimWithBorders.X * CurrentTileSelection.TopLeftY);
-				Viewport.Max = FIntPoint(ConverterParams->TileDimWithBorders.Y * CurrentTileSelection.BottomRightX, ConverterParams->TileDimWithBorders.Y * CurrentTileSelection.BottomRightY);
+				Viewport.Min = FIntPoint(ConverterParams->TileDimWithBorders.X * CurrentTileSelection.TopLeftX, ConverterParams->TileDimWithBorders.Y * CurrentTileSelection.TopLeftY);
+				Viewport.Max = FIntPoint(ConverterParams->TileDimWithBorders.X * CurrentTileSelection.BottomRightX, ConverterParams->TileDimWithBorders.Y * CurrentTileSelection.BottomRightY);
 				Viewport.Clip(FIntRect(FIntPoint::ZeroValue, CurrentMipDim));
 
 				const SIZE_T BufferSize = GetBufferSize(CurrentMipDim, ConverterParams->FrameInfo.NumChannels, bHasTiles, OutFrame->Info.NumTiles / MipLevelDiv, ConverterParams->bCustomExr);
@@ -190,8 +190,8 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 				BufferData = AllocateGpuBufferFromPool(BufferSize);
 				uint16* MipDataPtr = static_cast<uint16*>(BufferData->MappedBuffer);
 
-				// Get for our frame/mip level.
-				FString ImagePath = Loader->GetImagePath(FrameId, CurrentMipLevel);
+				// Get highest resolution mip level path.
+				FString ImagePath = Loader->GetImagePath(FrameId, ConverterParams->bMipsInSeparateFiles ? CurrentMipLevel : 0);
 				
 				EReadResult ReadResult = Fail;
 
@@ -206,9 +206,8 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 							(int32)CurrentTileSelection.TopLeftY,
 							FMath::Min((int32)CurrentTileSelection.BottomRightX, FMath::CeilToInt(float(OutFrame->Info.NumTiles.X) / MipLevelDiv)),
 							FMath::Min((int32)CurrentTileSelection.BottomRightY, FMath::CeilToInt(float(OutFrame->Info.NumTiles.Y) / MipLevelDiv)));
-						FIntPoint NumTiles = OutFrame->Info.NumTiles / MipLevelDiv;
 
-						ReadResult = ReadTilesCustom(MipDataPtr, ImagePath, FrameId, TileRegion, NumTiles, ConverterParams->TileDimWithBorders, ConverterParams->PixelSize, ConverterParams->bCustomExr);
+						ReadResult = ReadTilesCustom(MipDataPtr, ImagePath, FrameId, TileRegion, ConverterParams, CurrentMipLevel);
 					}
 					else
 					{
@@ -288,8 +287,9 @@ FExrImgMediaReaderGpu::EReadResult FExrImgMediaReaderGpu::ReadInChunks(uint16* B
 	int32 CurrentBufferPos = 0;
 	FExrReader ChunkReader;
 
-
-	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, Dim.Y))
+	// Since ReadInChunks is only utilized for exr files without tiles and mips, Num Mip levels is always 1.
+	const int32 NumLevels = 1;
+	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, Dim.Y, NumLevels))
 	{
 		return Fail;
 	}

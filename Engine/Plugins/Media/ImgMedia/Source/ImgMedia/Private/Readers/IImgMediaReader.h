@@ -48,6 +48,9 @@ struct FImgMediaFrameInfo
 
 	/** Tile border size in texels. This is required for more elaborate tile texel sampling. */
 	int32 TileBorder;
+
+	/** Number of Mip Levels. */
+	int32 NumMipLevels;
 };
 
 

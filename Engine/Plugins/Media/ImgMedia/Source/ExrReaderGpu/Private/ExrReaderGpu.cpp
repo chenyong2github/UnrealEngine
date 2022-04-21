@@ -251,7 +251,7 @@ bool FExrReader::GenerateTextureData(uint16* Buffer, int32 BufferSize, FString F
 	return true;
 }
 
-bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOffsets)
+bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOffsets, int32 NumLevels)
 {
 	if (FileHandle != nullptr)
 	{
@@ -273,14 +273,18 @@ bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOff
 		{
 			return false;
 		}
-		LineOrTileOffsets.SetNum(NumOffsets);
+		LineOrTileOffsetsPerLevel.SetNum(NumLevels);
 
 		// At the moment we support only increasing Y.
 		ELineOrder LineOrder = INCREASING_Y;
-		ReadLineOrTileOffsets(FileHandle, LineOrder, LineOrTileOffsets);
+		for (int Level = 0; Level < NumLevels; Level++)
+		{
+			LineOrTileOffsetsPerLevel[Level].SetNum(NumOffsets >> (Level * 2));
+			ReadLineOrTileOffsets(FileHandle, LineOrder, LineOrTileOffsetsPerLevel[Level]);
+		}
 	}
 
-	fseek(FileHandle, LineOrTileOffsets[0], SEEK_SET);
+	fseek(FileHandle, LineOrTileOffsetsPerLevel[0][0], SEEK_SET);
 
 	return true;
 }
@@ -306,24 +310,24 @@ bool FExrReader::ReadExrImageChunk(void* Buffer, int64 ChunkSize)
 	return NumElementsRead == NumElements;
 }
 
-bool FExrReader::SeekTileWithinFile(const int32 StartTileIndex, const FIntPoint& TexDimInTiles, int64& OutBufferOffset)
+bool FExrReader::SeekTileWithinFile(const int32 StartTileIndex, const FIntPoint& TexDimInTiles, const int32 Level, int64& OutBufferOffset)
 {
-	if (StartTileIndex >= LineOrTileOffsets.Num())
+	if (StartTileIndex >= LineOrTileOffsetsPerLevel[Level].Num())
 	{
 		UE_LOG(LogExrReaderGpu, Error, TEXT("Tile index is invalid."));
 		return false;
 	}
-	int64 LineOffset = LineOrTileOffsets[StartTileIndex];
-	OutBufferOffset = LineOffset - LineOrTileOffsets[0];
+	int64 LineOffset = LineOrTileOffsetsPerLevel[Level][StartTileIndex];
+	OutBufferOffset = LineOffset - LineOrTileOffsetsPerLevel[Level][0];
 	return fseek(FileHandle, LineOffset, SEEK_SET) == 0;
 }
 
-bool FExrReader::SeekTileWithinFileCustom(const int32 StartTileIndex, const int64 TileStride, int64& OutBufferOffset)
+bool FExrReader::SeekTileWithinFileCustom(const int32 StartTileIndex, const int64 TileStride, const int32 Level, int64& OutBufferOffset)
 {
 	// Our custom exr is written as one single tile. In Exr every tile starts with 20 byte padding.
 	// Therefore we want to ignore it, when we read custom tiles.
 	const int32 TilePadding = 20;
-	int64 LineOffset = TilePadding + LineOrTileOffsets[0] + StartTileIndex * TileStride;
+	int64 LineOffset = TilePadding + LineOrTileOffsetsPerLevel[Level][0] + StartTileIndex * TileStride;
 	OutBufferOffset = StartTileIndex * TileStride;
 	return fseek(FileHandle, LineOffset, SEEK_SET) == 0;
 }
@@ -336,7 +340,7 @@ bool FExrReader::CloseExrFile()
 		return false;
 	}
 	fclose(FileHandle);
-	LineOrTileOffsets.Empty();
+	LineOrTileOffsetsPerLevel.Empty();
 	return true;
 }
 
