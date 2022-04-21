@@ -636,6 +636,11 @@ public:
 	virtual void PostLoadDefaultObject(UObject* Object) override;
 	virtual void PostLoad() override;
 	// End of UClass interface
+
+protected:
+	// UClass interface
+	virtual void InitializeSparseClassDataFromArchetype() override;
+	// End of UClass interface
 };
 
 template<typename NodeType>
