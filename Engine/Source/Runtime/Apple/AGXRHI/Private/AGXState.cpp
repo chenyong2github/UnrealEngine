@@ -17,13 +17,13 @@ static uint32 GetMetalMaxAnisotropy(ESamplerFilter Filter, uint32 MaxAniso)
 	}
 }
 
-static mtlpp::SamplerMinMagFilter TranslateZFilterMode(ESamplerFilter Filter)
+static MTLSamplerMinMagFilter TranslateZFilterMode(ESamplerFilter Filter)
 {	switch (Filter)
 	{
-		case SF_Point:				return mtlpp::SamplerMinMagFilter::Nearest;
-		case SF_AnisotropicPoint:	return mtlpp::SamplerMinMagFilter::Nearest;
-		case SF_AnisotropicLinear:	return mtlpp::SamplerMinMagFilter::Linear;
-		default:					return mtlpp::SamplerMinMagFilter::Linear;
+		case SF_Point:				return MTLSamplerMinMagFilterNearest;
+		case SF_AnisotropicPoint:	return MTLSamplerMinMagFilterNearest;
+		case SF_AnisotropicLinear:	return MTLSamplerMinMagFilterLinear;
+		default:					return MTLSamplerMinMagFilterLinear;
 	}
 }
 
@@ -78,48 +78,48 @@ static MTLStencilOperation TranslateStencilOp(EStencilOp StencilOp)
 	};
 }
 
-static mtlpp::BlendOperation TranslateBlendOp(EBlendOperation BlendOp)
+static MTLBlendOperation TranslateBlendOp(EBlendOperation BlendOp)
 {
 	switch(BlendOp)
 	{
-		case BO_Subtract:	return mtlpp::BlendOperation::Subtract;
-		case BO_Min:		return mtlpp::BlendOperation::Min;
-		case BO_Max:		return mtlpp::BlendOperation::Max;
-		default:			return mtlpp::BlendOperation::Add;
+		case BO_Subtract:	return MTLBlendOperationSubtract;
+		case BO_Min:		return MTLBlendOperationMin;
+		case BO_Max:		return MTLBlendOperationMax;
+		default:			return MTLBlendOperationAdd;
 	};
 }
 
 
-static mtlpp::BlendFactor TranslateBlendFactor(EBlendFactor BlendFactor)
+static MTLBlendFactor TranslateBlendFactor(EBlendFactor BlendFactor)
 {
-	switch(BlendFactor)
+	switch (BlendFactor)
 	{
-		case BF_One:					return mtlpp::BlendFactor::One;
-		case BF_SourceColor:			return mtlpp::BlendFactor::SourceColor;
-		case BF_InverseSourceColor:		return mtlpp::BlendFactor::OneMinusSourceColor;
-		case BF_SourceAlpha:			return mtlpp::BlendFactor::SourceAlpha;
-		case BF_InverseSourceAlpha:		return mtlpp::BlendFactor::OneMinusSourceAlpha;
-		case BF_DestAlpha:				return mtlpp::BlendFactor::DestinationAlpha;
-		case BF_InverseDestAlpha:		return mtlpp::BlendFactor::OneMinusDestinationAlpha;
-		case BF_DestColor:				return mtlpp::BlendFactor::DestinationColor;
-		case BF_InverseDestColor:		return mtlpp::BlendFactor::OneMinusDestinationColor;
-		case BF_Source1Color:			return mtlpp::BlendFactor::Source1Color;
-		case BF_InverseSource1Color:	return mtlpp::BlendFactor::OneMinusSource1Color;
-		case BF_Source1Alpha:			return mtlpp::BlendFactor::Source1Alpha;
-		case BF_InverseSource1Alpha:	return mtlpp::BlendFactor::OneMinusSource1Alpha;
-		default:						return mtlpp::BlendFactor::Zero;
+		case BF_One:					return MTLBlendFactorOne;
+		case BF_SourceColor:			return MTLBlendFactorSourceColor;
+		case BF_InverseSourceColor:		return MTLBlendFactorOneMinusSourceColor;
+		case BF_SourceAlpha:			return MTLBlendFactorSourceAlpha;
+		case BF_InverseSourceAlpha:		return MTLBlendFactorOneMinusSourceAlpha;
+		case BF_DestAlpha:				return MTLBlendFactorDestinationAlpha;
+		case BF_InverseDestAlpha:		return MTLBlendFactorOneMinusDestinationAlpha;
+		case BF_DestColor:				return MTLBlendFactorDestinationColor;
+		case BF_InverseDestColor:		return MTLBlendFactorOneMinusDestinationColor;
+		case BF_Source1Color:			return MTLBlendFactorSource1Color;
+		case BF_InverseSource1Color:	return MTLBlendFactorOneMinusSource1Color;
+		case BF_Source1Alpha:			return MTLBlendFactorSource1Alpha;
+		case BF_InverseSource1Alpha:	return MTLBlendFactorOneMinusSource1Alpha;
+		default:						return MTLBlendFactorZero;
 	};
 }
 
-static mtlpp::ColorWriteMask TranslateWriteMask(EColorWriteMask WriteMask)
+static MTLColorWriteMask TranslateWriteMask(EColorWriteMask WriteMask)
 {
 	uint32 Result = 0;
-	Result |= (WriteMask & CW_RED) ? (mtlpp::ColorWriteMask::Red) : 0;
-	Result |= (WriteMask & CW_GREEN) ? (mtlpp::ColorWriteMask::Green) : 0;
-	Result |= (WriteMask & CW_BLUE) ? (mtlpp::ColorWriteMask::Blue) : 0;
-	Result |= (WriteMask & CW_ALPHA) ? (mtlpp::ColorWriteMask::Alpha) : 0;
+	Result |= (WriteMask & CW_RED)   ? (uint32)(MTLColorWriteMaskRed)   : 0;
+	Result |= (WriteMask & CW_GREEN) ? (uint32)(MTLColorWriteMaskGreen) : 0;
+	Result |= (WriteMask & CW_BLUE)  ? (uint32)(MTLColorWriteMaskBlue)  : 0;
+	Result |= (WriteMask & CW_ALPHA) ? (uint32)(MTLColorWriteMaskAlpha) : 0;
 	
-	return (mtlpp::ColorWriteMask)Result;
+	return (MTLColorWriteMask)Result;
 }
 
 static EBlendOperation TranslateBlendOp(MTLBlendOperation BlendOp)
@@ -166,67 +166,80 @@ static EColorWriteMask TranslateWriteMask(MTLColorWriteMask WriteMask)
 	return (EColorWriteMask)Result;
 }
 
-template <typename InitializerType, typename StateType>
+struct FObjCWrapperRetained
+{
+	FObjCWrapperRetained(id InObject = nil)
+		: Object([InObject retain])
+	{
+	}
+
+	~FObjCWrapperRetained()
+	{
+		[Object release];
+	}
+
+	id Object;
+};
+
+template <typename InitializerType>
 class FAGXStateObjectCache
 {
 public:
 	FAGXStateObjectCache()
 	{
-		
 	}
 	
 	~FAGXStateObjectCache()
 	{
-		
 	}
 	
-	StateType Find(InitializerType Init)
+	id Find(InitializerType Init)
 	{
-		if(IsRunningRHIInSeparateThread())
+		if (IsRunningRHIInSeparateThread())
 		{
 			Mutex.ReadLock();
 		}
 		
-		StateType* State = Cache.Find(Init);
-		
-		if(IsRunningRHIInSeparateThread())
+		TUniquePtr<FObjCWrapperRetained>* State = Cache.Find(Init);
+
+		if (IsRunningRHIInSeparateThread())
 		{
 			Mutex.ReadUnlock();
 		}
 		
-		return State ? *State : StateType(nullptr);
+		return State ? State->Get()->Object : nil;
 	}
 	
-	void Add(InitializerType Init, StateType const& State)
+	void Add(InitializerType Init, id State)
 	{
-		if(IsRunningRHIInSeparateThread())
+		if (IsRunningRHIInSeparateThread())
 		{
 			Mutex.WriteLock();
 		}
 		
-		Cache.Add(Init, State);
+		Cache.Add(Init, MakeUnique<FObjCWrapperRetained>(State));
 		
-		if(IsRunningRHIInSeparateThread())
+		if (IsRunningRHIInSeparateThread())
 		{
 			Mutex.WriteUnlock();
 		}
 	}
 	
 private:
-	TMap<InitializerType, StateType> Cache;
+	TMap<InitializerType, TUniquePtr<FObjCWrapperRetained> > Cache;
 	FRWLock Mutex;
 };
 
-static FAGXStateObjectCache<FSamplerStateInitializerRHI, FAGXSampler> Samplers;
+static FAGXStateObjectCache<FSamplerStateInitializerRHI> Samplers;
 
-static FAGXSampler FindOrCreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
+static id<MTLSamplerState> FindOrCreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
 {
-	FAGXSampler State = Samplers.Find(Initializer);
-	if (!State.GetPtr())
+	id<MTLSamplerState> State = (id<MTLSamplerState>)Samplers.Find(Initializer);
+	if (!State)
 	{
 		MTLSamplerDescriptor* Desc = [[MTLSamplerDescriptor alloc] init];
 		
-		switch(Initializer.Filter)
+		switch (Initializer.Filter)
 		{
 			case SF_AnisotropicLinear:
 			case SF_AnisotropicPoint:
@@ -266,16 +279,18 @@ static FAGXSampler FindOrCreateSamplerState(const FSamplerStateInitializerRHI& I
 #if PLATFORM_MAC
 		[Desc setBorderColor:Initializer.BorderColor == 0 ? MTLSamplerBorderColorTransparentBlack : MTLSamplerBorderColorOpaqueWhite];
 #endif
-		State = FAGXSampler([GMtlDevice newSamplerStateWithDescriptor:Desc], ns::Ownership::Assign);
+		State = [GMtlDevice newSamplerStateWithDescriptor:Desc];
 		
 		[Desc release];
 		
 		Samplers.Add(Initializer, State);
+
+		[State release];
 	}
 	return State;
 }
 
-FAGXSamplerState::FAGXSamplerState(const FSamplerStateInitializerRHI& Initializer)
+FAGXSamplerState::FAGXSamplerState(FSamplerStateInitializerRHI const& Initializer)
 {
 	State = FindOrCreateSamplerState(Initializer);
 #if !PLATFORM_MAC
@@ -292,14 +307,13 @@ FAGXSamplerState::~FAGXSamplerState()
 {
 }
 
-FAGXRasterizerState::FAGXRasterizerState(const FRasterizerStateInitializerRHI& Initializer)
+FAGXRasterizerState::FAGXRasterizerState(FRasterizerStateInitializerRHI const& Initializer)
 {
 	State = Initializer;
 }
 
 FAGXRasterizerState::~FAGXRasterizerState()
 {
-	
 }
 
 bool FAGXRasterizerState::GetInitializer(FRasterizerStateInitializerRHI& Init)
@@ -308,14 +322,14 @@ bool FAGXRasterizerState::GetInitializer(FRasterizerStateInitializerRHI& Init)
 	return true;
 }
 
-static FAGXStateObjectCache<FDepthStencilStateInitializerRHI, mtlpp::DepthStencilState> DepthStencilStates;
+static FAGXStateObjectCache<FDepthStencilStateInitializerRHI> DepthStencilStates;
 
-FAGXDepthStencilState::FAGXDepthStencilState(const FDepthStencilStateInitializerRHI& InInitializer)
+FAGXDepthStencilState::FAGXDepthStencilState(FDepthStencilStateInitializerRHI const& InInitializer)
 {
 	Initializer = InInitializer;
 
-	State = DepthStencilStates.Find(Initializer);
-	if (!State.GetPtr())
+	State = (id<MTLDepthStencilState>)DepthStencilStates.Find(Initializer);
+	if (!State)
 	{
 		MTLDepthStencilDescriptor* Desc = [[MTLDepthStencilDescriptor alloc] init];
 		
@@ -364,11 +378,13 @@ FAGXDepthStencilState::FAGXDepthStencilState(const FDepthStencilStateInitializer
 		}
 		
 		// bake out the descriptor
-		State = mtlpp::DepthStencilState([GMtlDevice newDepthStencilStateWithDescriptor:Desc], nullptr, ns::Ownership::Assign);
+		State = [GMtlDevice newDepthStencilStateWithDescriptor:Desc];
 		
 		[Desc release];
 		
 		DepthStencilStates.Add(Initializer, State);
+
+		[State release];
 	}
 	
 	// cache some pipeline state info
@@ -389,55 +405,56 @@ bool FAGXDepthStencilState::GetInitializer(FDepthStencilStateInitializerRHI& Ini
 
 
 // statics
-static FAGXStateObjectCache<FBlendStateInitializerRHI::FRenderTarget, mtlpp::RenderPipelineColorAttachmentDescriptor> BlendStates;
+static FAGXStateObjectCache<FBlendStateInitializerRHI::FRenderTarget> BlendStates;
 TMap<uint32, uint8> FAGXBlendState::BlendSettingsToUniqueKeyMap;
 uint8 FAGXBlendState::NextKey = 0;
 FCriticalSection FAGXBlendState::Mutex;
 
-FAGXBlendState::FAGXBlendState(const FBlendStateInitializerRHI& Initializer)
+FAGXBlendState::FAGXBlendState(FBlendStateInitializerRHI const& Initializer)
 {
 	bUseIndependentRenderTargetBlendStates = Initializer.bUseIndependentRenderTargetBlendStates;
 	bUseAlphaToCoverage = Initializer.bUseAlphaToCoverage;
-	for(uint32 RenderTargetIndex = 0;RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex)
+	for (uint32 RenderTargetIndex = 0; RenderTargetIndex < MaxSimultaneousRenderTargets; ++RenderTargetIndex)
 	{
 		// which initializer to use
-		const FBlendStateInitializerRHI::FRenderTarget& Init =
+		FBlendStateInitializerRHI::FRenderTarget const& Init =
 			Initializer.bUseIndependentRenderTargetBlendStates
 				? Initializer.RenderTargets[RenderTargetIndex]
 				: Initializer.RenderTargets[0];
 
 		// make a new blend state
-		mtlpp::RenderPipelineColorAttachmentDescriptor BlendState = BlendStates.Find(Init);
+		MTLRenderPipelineColorAttachmentDescriptor* BlendState = (MTLRenderPipelineColorAttachmentDescriptor*)BlendStates.Find(Init);
 
-		if (!BlendState.GetPtr())
+		if (!BlendState)
 		{
-			BlendState = mtlpp::RenderPipelineColorAttachmentDescriptor();
-			
+			BlendState = [[MTLRenderPipelineColorAttachmentDescriptor alloc] init];
+
 			// set values
-			BlendState.SetBlendingEnabled(
+			[BlendState setBlendingEnabled:
 				Init.ColorBlendOp != BO_Add || Init.ColorDestBlend != BF_Zero || Init.ColorSrcBlend != BF_One ||
-				Init.AlphaBlendOp != BO_Add || Init.AlphaDestBlend != BF_Zero || Init.AlphaSrcBlend != BF_One);
-			BlendState.SetSourceRgbBlendFactor(TranslateBlendFactor(Init.ColorSrcBlend));
-			BlendState.SetDestinationRgbBlendFactor(TranslateBlendFactor(Init.ColorDestBlend));
-			BlendState.SetRgbBlendOperation(TranslateBlendOp(Init.ColorBlendOp));
-			BlendState.SetSourceAlphaBlendFactor(TranslateBlendFactor(Init.AlphaSrcBlend));
-			BlendState.SetDestinationAlphaBlendFactor(TranslateBlendFactor(Init.AlphaDestBlend));
-			BlendState.SetAlphaBlendOperation(TranslateBlendOp(Init.AlphaBlendOp));
-			BlendState.SetWriteMask(TranslateWriteMask(Init.ColorWriteMask));
+				Init.AlphaBlendOp != BO_Add || Init.AlphaDestBlend != BF_Zero || Init.AlphaSrcBlend != BF_One];
+			[BlendState setSourceRGBBlendFactor:TranslateBlendFactor(Init.ColorSrcBlend)];
+			[BlendState setDestinationRGBBlendFactor:TranslateBlendFactor(Init.ColorDestBlend)];
+			[BlendState setRgbBlendOperation:TranslateBlendOp(Init.ColorBlendOp)];
+			[BlendState setSourceAlphaBlendFactor:TranslateBlendFactor(Init.AlphaSrcBlend)];
+			[BlendState setDestinationAlphaBlendFactor:TranslateBlendFactor(Init.AlphaDestBlend)];
+			[BlendState setAlphaBlendOperation:TranslateBlendOp(Init.AlphaBlendOp)];
+			[BlendState setWriteMask:TranslateWriteMask(Init.ColorWriteMask)];
 			
 			BlendStates.Add(Init, BlendState);
+
+			[BlendState release];
 		}
-		
-		RenderTargetStates[RenderTargetIndex].BlendState = BlendState;
+
+		RenderTargetStates[RenderTargetIndex].BlendState = mtlpp::RenderPipelineColorAttachmentDescriptor(BlendState);
 
 		// get the unique key
 		uint32 BlendBitMask =
-			((uint32)BlendState.GetSourceRgbBlendFactor() << 0) | ((uint32)BlendState.GetDestinationRgbBlendFactor() << 4) | ((uint32)BlendState.GetRgbBlendOperation() << 8) |
-			((uint32)BlendState.GetSourceAlphaBlendFactor() << 11) | ((uint32)BlendState.GetDestinationAlphaBlendFactor() << 15) | ((uint32)BlendState.GetAlphaBlendOperation() << 19) |
-			((uint32)BlendState.GetWriteMask() << 22);
+			((uint32)[BlendState sourceRGBBlendFactor] << 0) | ((uint32)[BlendState destinationRGBBlendFactor] << 4) | ((uint32)[BlendState rgbBlendOperation] << 8) |
+			((uint32)[BlendState sourceAlphaBlendFactor] << 11) | ((uint32)[BlendState destinationAlphaBlendFactor] << 15) | ((uint32)[BlendState alphaBlendOperation] << 19) |
+			((uint32)[BlendState writeMask] << 22);
 		
-		
-		if(IsRunningRHIInSeparateThread())
+		if (IsRunningRHIInSeparateThread())
 		{
 			Mutex.Lock();
 		}
@@ -451,7 +468,7 @@ FAGXBlendState::FAGXBlendState(const FBlendStateInitializerRHI& Initializer)
 		}
 		// set the key
 		RenderTargetStates[RenderTargetIndex].BlendStateKey = *Key;
-		if(IsRunningRHIInSeparateThread())
+		if (IsRunningRHIInSeparateThread())
 		{
 			Mutex.Unlock();
 		}

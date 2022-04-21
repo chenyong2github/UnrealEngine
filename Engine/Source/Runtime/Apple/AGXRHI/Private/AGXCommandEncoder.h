@@ -270,13 +270,13 @@ public:
 	 * The winding order of front-facing primitives.
 	 * @param FrontFacingWinding The front face winding.
 	 */
-	void SetFrontFacingWinding(MTLWinding const FrontFacingWinding);
+	void SetFrontFacingWinding(MTLWinding FrontFacingWinding);
 	
 	/*
 	 * Controls if primitives are culled when front facing, back facing, or not culled at all.
 	 * @param CullMode The cull mode.
 	 */
-	void SetCullMode(MTLCullMode const CullMode);
+	void SetCullMode(MTLCullMode CullMode);
 	
 	/*
 	 * Depth Bias.
@@ -318,7 +318,7 @@ public:
 	 * Set the DepthStencil state object.
 	 * @param DepthStencilState The depth-stencil state, must not be nil.
 	 */
-	void SetDepthStencilState(mtlpp::DepthStencilState const& DepthStencilState);
+	void SetDepthStencilState(id<MTLDepthStencilState> DepthStencilState);
 	
 	/*
 	 * Set the stencil reference value for both the back and front stencil buffers.
@@ -381,7 +381,7 @@ public:
 	 * @param Sampler The sampler state to bind or nil to clear.
 	 * @param Index The index to modify.
 	 */
-	void SetShaderSamplerState(mtlpp::FunctionType const FunctionType, mtlpp::SamplerState const& Sampler, NSUInteger const Index);
+	void SetShaderSamplerState(mtlpp::FunctionType FunctionType, id<MTLSamplerState> Sampler, NSUInteger Index);
 	
 	/*
 	 * Set the shader side-table data for FunctionType at Index.

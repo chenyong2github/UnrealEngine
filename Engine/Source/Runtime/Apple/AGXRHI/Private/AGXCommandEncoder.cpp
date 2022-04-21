@@ -856,11 +856,11 @@ void FAGXCommandEncoder::SetBlendColor(float const Red, float const Green, float
 	}
 }
 
-void FAGXCommandEncoder::SetDepthStencilState(mtlpp::DepthStencilState const& InDepthStencilState)
+void FAGXCommandEncoder::SetDepthStencilState(id<MTLDepthStencilState> InDepthStencilState)
 {
     check (RenderCommandEncoder);
 	{
-		[RenderCommandEncoder setDepthStencilState:InDepthStencilState.GetPtr()];
+		[RenderCommandEncoder setDepthStencilState:InDepthStencilState];
 	}
 }
 
@@ -1067,22 +1067,22 @@ void FAGXCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FAGX
 	}
 }
 
-void FAGXCommandEncoder::SetShaderSamplerState(mtlpp::FunctionType FunctionType, mtlpp::SamplerState const& Sampler, NSUInteger index)
+void FAGXCommandEncoder::SetShaderSamplerState(mtlpp::FunctionType FunctionType, id<MTLSamplerState> Sampler, NSUInteger index)
 {
 	check(index < ML_MaxSamplers);
 	switch (FunctionType)
 	{
 		case mtlpp::FunctionType::Vertex:
        		check (RenderCommandEncoder);
-			[RenderCommandEncoder setVertexSamplerState:Sampler.GetPtr() atIndex:index];
+			[RenderCommandEncoder setVertexSamplerState:Sampler atIndex:index];
 			break;
 		case mtlpp::FunctionType::Fragment:
 			check (RenderCommandEncoder);
-			[RenderCommandEncoder setFragmentSamplerState:Sampler.GetPtr() atIndex:index];
+			[RenderCommandEncoder setFragmentSamplerState:Sampler atIndex:index];
 			break;
 		case mtlpp::FunctionType::Kernel:
 			check (ComputeCommandEncoder);
-			[ComputeCommandEncoder setSamplerState:Sampler.GetPtr() atIndex:index];
+			[ComputeCommandEncoder setSamplerState:Sampler atIndex:index];
 			break;
 		default:
 			check(false);

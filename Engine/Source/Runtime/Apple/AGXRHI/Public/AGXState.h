@@ -12,68 +12,6 @@ THIRD_PARTY_INCLUDES_START
 #include "mtlpp.hpp"
 THIRD_PARTY_INCLUDES_END
 
-class FAGXSampler : public mtlpp::SamplerState
-{
-public:
-	FAGXSampler(ns::Ownership retain = ns::Ownership::Retain) : mtlpp::SamplerState(nullptr, nullptr, retain) { }
-	FAGXSampler(ns::Protocol<id<MTLSamplerState>>::type handle, ns::Ownership retain = ns::Ownership::Retain)
-	: mtlpp::SamplerState(handle, nullptr, retain) {}
-	
-	FAGXSampler(mtlpp::SamplerState&& rhs)
-	: mtlpp::SamplerState((mtlpp::SamplerState&&)rhs)
-	{
-		
-	}
-	
-	FAGXSampler(const FAGXSampler& rhs)
-	: mtlpp::SamplerState(rhs)
-	{
-		
-	}
-	
-	FAGXSampler(const SamplerState& rhs)
-	: mtlpp::SamplerState(rhs)
-	{
-		
-	}
-	
-	FAGXSampler(FAGXSampler&& rhs)
-	: mtlpp::SamplerState((mtlpp::SamplerState&&)rhs)
-	{
-		
-	}
-	
-	FAGXSampler& operator=(const FAGXSampler& rhs)
-	{
-		if (this != &rhs)
-		{
-			mtlpp::SamplerState::operator=(rhs);
-		}
-		return *this;
-	}
-	
-	FAGXSampler& operator=(FAGXSampler&& rhs)
-	{
-		mtlpp::SamplerState::operator=((mtlpp::SamplerState&&)rhs);
-		return *this;
-	}
-	
-	inline bool operator==(FAGXSampler const& rhs) const
-	{
-		return GetPtr() == rhs.GetPtr();
-	}
-	
-	inline bool operator!=(FAGXSampler const& rhs) const
-	{
-		return GetPtr() != rhs.GetPtr();
-	}
-	
-	friend uint32 GetTypeHash(FAGXSampler const& Hash)
-	{
-		return GetTypeHash(Hash.GetPtr());
-	}
-};
-
 class FAGXSamplerState : public FRHISamplerState
 {
 public:
@@ -84,9 +22,9 @@ public:
 	FAGXSamplerState(const FSamplerStateInitializerRHI& Initializer);
 	~FAGXSamplerState();
 
-	FAGXSampler State;
+	id<MTLSamplerState> State;
 #if !PLATFORM_MAC
-	FAGXSampler NoAnisoState;
+	id<MTLSamplerState> NoAnisoState;
 #endif
 };
 
@@ -97,7 +35,7 @@ public:
 	/**
 	 * Constructor/destructor
 	 */
-	FAGXRasterizerState(const FRasterizerStateInitializerRHI& Initializer);
+	FAGXRasterizerState(FRasterizerStateInitializerRHI const& Initializer);
 	~FAGXRasterizerState();
 	
 	virtual bool GetInitializer(FRasterizerStateInitializerRHI& Init) override final;
@@ -112,13 +50,13 @@ public:
 	/**
 	 * Constructor/destructor
 	 */
-	FAGXDepthStencilState(const FDepthStencilStateInitializerRHI& Initializer);
+	FAGXDepthStencilState(FDepthStencilStateInitializerRHI const& Initializer);
 	~FAGXDepthStencilState();
 	
 	virtual bool GetInitializer(FDepthStencilStateInitializerRHI& Init) override final;
 	
 	FDepthStencilStateInitializerRHI Initializer;
-	mtlpp::DepthStencilState State;
+	id<MTLDepthStencilState> State;
 	bool bIsDepthWriteEnabled;
 	bool bIsStencilWriteEnabled;
 };
@@ -130,7 +68,7 @@ public:
 	/**
 	 * Constructor/destructor
 	 */
-	FAGXBlendState(const FBlendStateInitializerRHI& Initializer);
+	FAGXBlendState(FBlendStateInitializerRHI const& Initializer);
 	~FAGXBlendState();
 	
 	virtual bool GetInitializer(FBlendStateInitializerRHI& Init) override final;

@@ -1395,12 +1395,12 @@ void FAGXStateCache::SetShaderTexture(EAGXShaderStages const Frequency, FAGXText
 	}
 }
 
-void FAGXStateCache::SetShaderSamplerState(EAGXShaderStages const Frequency, FAGXSamplerState* const Sampler, NSUInteger const Index)
+void FAGXStateCache::SetShaderSamplerState(EAGXShaderStages Frequency, FAGXSamplerState* const Sampler, NSUInteger Index)
 {
 	check(Frequency < EAGXShaderStages::Num);
 	check(Index < ML_MaxSamplers);
 	
-	if (ShaderSamplers[Frequency].Samplers[Index].GetPtr() != (Sampler ? Sampler->State.GetPtr() : nil))
+	if (ShaderSamplers[Frequency].Samplers[Index] != (Sampler ? Sampler->State : nil))
 	{
 		if (Sampler)
 		{
@@ -1914,8 +1914,8 @@ void FAGXStateCache::SetRenderState(FAGXCommandEncoder& CommandEncoder, FAGXComm
             
             if (DepthStencilState && RenderPassDesc && AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelFastValidation)
             {
-                METAL_FATAL_ASSERT(DepthStencilState->bIsDepthWriteEnabled == false || [[RenderPassDesc depthAttachment] texture] , TEXT("Attempting to set a depth-stencil state that writes depth but no depth texture is configured!\nState: %s\nRender Pass: %s"), *FString([DepthStencilState->State.GetPtr() description]), *FString([RenderPassDesc description]));
-                METAL_FATAL_ASSERT(DepthStencilState->bIsStencilWriteEnabled == false || [[RenderPassDesc stencilAttachment] texture], TEXT("Attempting to set a depth-stencil state that writes stencil but no stencil texture is configured!\nState: %s\nRender Pass: %s"), *FString([DepthStencilState->State.GetPtr() description]), *FString([RenderPassDesc description]));
+                METAL_FATAL_ASSERT(DepthStencilState->bIsDepthWriteEnabled == false || [[RenderPassDesc depthAttachment] texture] , TEXT("Attempting to set a depth-stencil state that writes depth but no depth texture is configured!\nState: %s\nRender Pass: %s"), *FString([DepthStencilState->State description]), *FString([RenderPassDesc description]));
+                METAL_FATAL_ASSERT(DepthStencilState->bIsStencilWriteEnabled == false || [[RenderPassDesc stencilAttachment] texture], TEXT("Attempting to set a depth-stencil state that writes stencil but no stencil texture is configured!\nState: %s\nRender Pass: %s"), *FString([DepthStencilState->State description]), *FString([RenderPassDesc description]));
             }
             
 			CommandEncoder.SetDepthStencilState(DepthStencilState ? DepthStencilState->State : nil);

@@ -95,7 +95,7 @@ public:
 	 * @param Sampler The sampler state to bind or nil to clear.
 	 * @param Index The index to modify.
 	 */
-	void SetShaderSamplerState(EAGXShaderStages const Frequency, FAGXSamplerState* const Sampler, NSUInteger const Index);
+	void SetShaderSamplerState(EAGXShaderStages Frequency, FAGXSamplerState* const Sampler, NSUInteger Index);
 
 	void SetShaderResourceView(FAGXContext* Context, EAGXShaderStages ShaderStage, uint32 BindIndex, FAGXShaderResourceView* RESTRICT SRV);
 	
@@ -228,9 +228,19 @@ private:
 	/** A structure of arrays for the current sampler binding settings. */
 	struct FAGXSamplerBindings
 	{
-		FAGXSamplerBindings() : Bound(0) {}
+		FAGXSamplerBindings()
+		{
+			for (uint32 SamplerIndex = 0; SamplerIndex < ML_MaxSamplers; ++SamplerIndex)
+			{
+				Samplers[SamplerIndex] = nil;
+			}
+
+			Bound = 0;
+		}
+
 		/** The bound sampler states or nil. */
-		ns::AutoReleased<FAGXSampler> Samplers[ML_MaxSamplers];
+		id<MTLSamplerState> Samplers[ML_MaxSamplers];
+
 		/** A bitmask for which samplers were bound by the application where a bit value of 1 is bound and 0 is unbound. */
 		uint16 Bound;
 	};
