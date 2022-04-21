@@ -72,6 +72,24 @@ class RENDERCORE_API FShaderPipelineCache : public FTickableObjectRenderThread
 	{
 		FPipelineCacheFileFormatPSO PSO;
 		FShaderPipelineCacheArchive* ReadRequests;
+
+		/** Tracks whether the shaders were preloaded. */
+		bool bShadersPreloaded = false;
+
+		/** 
+		 * Schedules preload for all the shaders in the PSO. No shaders are preloaded if one of them isn't in the library.
+		 * Multiple jobs can request to preload the same shaders and then release them independently.
+		 * 
+		 * @param OutRequiredShaders shader hashes of shaders that are actually required by this PSO
+		 * @param bOutCompatible if set to false, then this PSO type isn't supported (RTX as of now)
+		 */
+		bool PreloadShaders(TSet<FSHAHash>& OutRequiredShaders, bool& bOutCompatible);
+
+		/**
+		 * Releases preloaded entries for the shaders in the PSO. Symmetric to to PreloadShaders.
+		 * Multiple jobs can request to preload the same shaders and then release them independently.
+		 */
+		void ReleasePreloadedShaders();
 	};
 
 public:

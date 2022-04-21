@@ -860,6 +860,12 @@ public:
 		}
 	}
 
+	void ReleasePreloadedShader(int32 ShaderIndex)
+	{
+		SCOPED_LOADTIMER(FShaderLibraryInstance_PreloadShader);
+		Library->ReleasePreloadedShader(ShaderIndex);
+	}
+
 	TRefCountPtr<FShaderMapResource_SharedCode> GetResource(int32 ShaderMapIndex)
 	{
 		FRWScopeLock Locker(ResourceLock, SLT_ReadOnly);
@@ -2259,6 +2265,18 @@ public:
 		return false;
 	}
 
+	bool ReleasePreloadedShader(const FSHAHash& Hash)
+	{
+		int32 ShaderIndex = INDEX_NONE;
+		FShaderLibraryInstance* LibraryInstance = FindShaderLibraryForShader(Hash, ShaderIndex);
+		if (LibraryInstance)
+		{
+			LibraryInstance->ReleasePreloadedShader(ShaderIndex);
+			return true;
+		}
+		return false;
+	}
+
 	bool ContainsShaderCode(const FSHAHash& Hash)
 	{
 		int32 ShaderIndex = INDEX_NONE;
@@ -2691,6 +2709,15 @@ bool FShaderCodeLibrary::PreloadShader(const FSHAHash& Hash, FArchive* Ar)
 	{
 		OnSharedShaderCodeRequest.Broadcast(Hash, Ar);
 		return FShaderLibrariesCollection::Impl->PreloadShader(Hash, Ar);
+	}
+	return false;
+}
+
+bool FShaderCodeLibrary::ReleasePreloadedShader(const FSHAHash& Hash)
+{
+	if (FShaderLibrariesCollection::Impl)
+	{
+		return FShaderLibrariesCollection::Impl->ReleasePreloadedShader(Hash);
 	}
 	return false;
 }

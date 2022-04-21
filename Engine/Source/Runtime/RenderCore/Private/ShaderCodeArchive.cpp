@@ -1785,15 +1785,9 @@ void FIoStoreShaderCodeArchive::MarkPreloadEntrySkipped(int32 ShaderGroupIndex)
 
 bool FIoStoreShaderCodeArchive::PreloadShader(int32 ShaderIndex, FGraphEventArray& OutCompletionEvents)
 {
-	// [RCL] 2022-01-12 because PreloadShader API is unbalanced and there's code (eg. FShaderPipelineCache::PreparePipelineBatch) that calls PreloadShader but never ReleasePreloadedShader (which isn't
-	// even exposed to client code), this API is disabled to prevent leaking preload entries. Something to address separately - UE-139060.
-#if 0
 	LLM_SCOPE(ELLMTag::Shaders);
 	DebugVisualizer.MarkExplicitlyPreloadedForVisualization(ShaderIndex);
 	return PreloadShaderGroup(GetGroupIndexForShader(ShaderIndex), OutCompletionEvents);
-#else
-	return true;
-#endif
 }
 
 bool FIoStoreShaderCodeArchive::GroupOnlyContainsRaytracingShaders(int32 ShaderGroupIndex)

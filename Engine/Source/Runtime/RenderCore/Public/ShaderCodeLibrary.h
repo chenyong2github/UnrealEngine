@@ -195,6 +195,7 @@ struct RENDERCORE_API FShaderCodeLibrary
 	static TRefCountPtr<FShaderMapResource> LoadResource(const FSHAHash& Hash, FArchive* Ar);
 
 	static bool PreloadShader(const FSHAHash& Hash, FArchive* Ar);
+	static bool ReleasePreloadedShader(const FSHAHash& Hash);
 
 	static FVertexShaderRHIRef CreateVertexShader(EShaderPlatform Platform, const FSHAHash& Hash);
 	static FPixelShaderRHIRef CreatePixelShader(EShaderPlatform Platform, const FSHAHash& Hash);
