@@ -1453,90 +1453,13 @@ void SLevelViewport::BindViewCommands( FUICommandList& OutCommandList )
 		FCanExecuteAction::CreateSP( this, &SLevelViewport::CanExecuteActorLockSelected )
 		);
 
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_OnePane,
-		FExecuteAction::CreateSP(this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::OnePane),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::OnePane));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_TwoPanesH,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::TwoPanesHoriz ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::TwoPanesHoriz ));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_TwoPanesV,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::TwoPanesVert ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::TwoPanesVert ));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_ThreePanesLeft,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::ThreePanesLeft ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::ThreePanesLeft ));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_ThreePanesRight,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::ThreePanesRight ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::ThreePanesRight ));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_ThreePanesTop,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::ThreePanesTop ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::ThreePanesTop ));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_ThreePanesBottom,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::ThreePanesBottom ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::ThreePanesBottom ));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_FourPanesLeft,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::FourPanesLeft ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::FourPanesLeft ));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_FourPanesRight,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::FourPanesRight ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::FourPanesRight ));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_FourPanesTop,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::FourPanesTop ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::FourPanesTop ));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_FourPanesBottom,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::FourPanesBottom ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::FourPanesBottom ));
-
-	OutCommandList.MapAction(
-		ViewportActions.ViewportConfig_FourPanes2x2,
-		FExecuteAction::CreateSP( this, &SLevelViewport::OnSetViewportConfiguration, LevelViewportConfigurationNames::FourPanes2x2 ),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SLevelViewport::IsViewportConfigurationSet, LevelViewportConfigurationNames::FourPanes2x2 ));
-
-	auto ProcessViewportTypeActions = [&](FName InViewportTypeName, const FViewportTypeDefinition& InDefinition){
-		if (InDefinition.ActivationCommand.IsValid())
+	if (TSharedPtr<FLevelViewportLayout> LayoutPinned = ParentLayout.Pin())
+	{
+		if (TSharedPtr<FEditorViewportTabContent> ParentTabContentPinned = LayoutPinned->GetParentTabContent().Pin())
 		{
-			OutCommandList.MapAction(InDefinition.ActivationCommand, FUIAction(
-				FExecuteAction::CreateSP(this, &SLevelViewport::ToggleViewportTypeActivationWithinLayout, InViewportTypeName),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(this, &SLevelViewport::IsViewportTypeWithinLayoutEqual, InViewportTypeName)
-			));
+			ParentTabContentPinned->BindViewportLayoutCommands(OutCommandList, ConfigKey);
 		}
-	};
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	LevelEditorModule.IterateViewportTypes(ProcessViewportTypeActions);
+	}
 
 	FBufferVisualizationMenuCommands::Get().BindCommands(OutCommandList, Client);
 	FNaniteVisualizationMenuCommands::Get().BindCommands(OutCommandList, Client);
@@ -3939,10 +3862,12 @@ void SLevelViewport::SetViewportTypeWithinLayout(FName InLayoutType)
 	{
 		// Important - RefreshViewportConfiguration does not save config values. We save its state first, to ensure that .TypeWithinLayout (below) doesn't get overwritten
 		TSharedPtr<FEditorViewportTabContent> ViewportTabPinned = LayoutPinned->GetParentTabContent().Pin();
-		if (ViewportTabPinned.IsValid())
+		if (!ViewportTabPinned)
 		{
-			ViewportTabPinned->SaveConfig();
+			return;
 		}
+
+		ViewportTabPinned->SaveConfig();
 
 		const FString& IniSection = FLayoutSaveRestore::GetAdditionalLayoutConfigIni();
 		GConfig->SetString( *IniSection, *( ConfigKey.ToString() + TEXT(".TypeWithinLayout") ), *InLayoutType.ToString(), GEditorPerProjectIni );

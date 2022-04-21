@@ -342,6 +342,7 @@ public:
 	 * 
 	 * @param ConfigurationName		The name of the layout (for the names in namespace LevelViewportConfigurationNames)
 	 */
+	UE_DEPRECATED(5.1, "Moved to internal handling by FViewportTabContent. See FViewportTabContent::BindCommonViewportCommands")
 	void OnSetViewportConfiguration(FName ConfigurationName);
 
 	/**
@@ -350,18 +351,23 @@ public:
 	 * @param ConfigurationName		The name of the layout (for the names in namespace LevelViewportConfigurationNames)
 	 * @return						True, if the named layout is currently active
 	 */
+	UE_DEPRECATED(5.1, "Moved to internal handling by FViewportTabContent. See FViewportTabContent::BindCommonViewportCommands")
 	bool IsViewportConfigurationSet(FName ConfigurationName) const;
 
 	/** Get this level viewport widget's type within its parent layout */
+	UE_DEPRECATED(5.1, "Moved to internal handling by FViewportTabContent. See FViewportTabContent::BindCommonViewportCommands")
 	FName GetViewportTypeWithinLayout() const;
 
 	/** Set this level viewport widget's type within its parent layout */
+	UE_DEPRECATED(5.1, "Moved to internal handling by FViewportTabContent. See FViewportTabContent::BindCommonViewportCommands")
 	void SetViewportTypeWithinLayout(FName InLayoutType);
 
 	/** Activates the specified viewport type in the layout, if it's not already, or reverts to default if it is. */
+	UE_DEPRECATED(5.1, "Moved to internal handling by FViewportTabContent. See FViewportTabContent::BindCommonViewportCommands")
 	void ToggleViewportTypeActivationWithinLayout(FName InLayoutType);
 
 	/** Checks if the specified layout type matches our current viewport type. */
+	UE_DEPRECATED(5.1, "Moved to internal handling by FViewportTabContent. See FViewportTabContent::BindCommonViewportCommands")
 	bool IsViewportTypeWithinLayoutEqual(FName InLayoutType);
 
 	/** For the specified actor, See if we're forcing a preview */

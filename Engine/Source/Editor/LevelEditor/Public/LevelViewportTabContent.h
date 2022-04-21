@@ -21,10 +21,19 @@ public:
 	/** Starts the tab content object and creates the initial layout based on the layout string */
 	virtual void Initialize(AssetEditorViewportFactoryFunction Func, TSharedPtr<SDockTab> InParentTab, const FString& InLayoutString) override;
 
+	virtual void BindViewportLayoutCommands(FUICommandList& InOutCommandList, FName ViewportConfigKey) override;
+
 protected:
 	virtual TSharedPtr<FEditorViewportLayout> FactoryViewportLayout(bool bIsSwitchingLayouts) override;
 	virtual FName GetLayoutTypeNameFromLayoutString() const override;
 
 	void OnLayoutStartChange(bool bSwitchingLayouts);
 	void OnLayoutChanged();
+
+private:
+	void OnUIActionSetViewportConfiguration(FName InConfigurationName);
+	FName GetViewportTypeWithinLayout(FName InConfigKey) const;
+	void OnUIActionSetViewportTypeWithinLayout(FName InConfigKey, FName InLayoutType);
+	bool IsViewportTypeWithinLayoutEqual(FName InConfigName, FName InLayoutType) const;
+	bool IsViewportConfigurationChecked(FName InLayoutType) const;
 };

@@ -14,6 +14,7 @@
 class SDockTab;
 class FEditorViewportLayout;
 class IEditorViewportLayoutEntity;
+class FUICommandList;
 
 class EDITORFRAMEWORK_API FViewportTabContent
 {
@@ -35,6 +36,12 @@ public:
 	bool IsViewportConfigurationSet(const FName& ConfigurationName) const;
 
 	virtual void SetViewportConfiguration(const FName& ConfigurationName) {}
+
+	/**
+	 * Maps the common commands into the given command list for this layout to the given viewport based on the config key.
+	 * This call is only additive to the command list, and does not clear or erase already mapped actions.
+	 */
+	virtual void BindViewportLayoutCommands(FUICommandList& InOutCommandList, FName ViewportConfigKey) {}
 
 	const TMap< FName, TSharedPtr< IEditorViewportLayoutEntity > >* GetViewports() const;
 
