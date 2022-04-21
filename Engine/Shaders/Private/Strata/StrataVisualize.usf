@@ -466,22 +466,27 @@ void MaterialDebugStrataTreeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	FStrataPixelHeader Header = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 	if (Header.BSDFCount > 0)
 	{
-		FStrataTree StrataTree = GetInitialisedStrataTree();
-		StrataUnpackInStrataTree(
-			Strata.MaterialTextureArray,
-			StrataTree,
-			Strata.SliceStoringDebugStrataTree + STRATA_BASE_PASS_MRT_OUTPUT_COUNT);
+		const int SliceStoringDebugStrataTree = Strata.SliceStoringDebugStrataTree + STRATA_BASE_PASS_MRT_OUTPUT_COUNT;
 
+		FStrataTreeHeader StrataTreeHeader = (FStrataTreeHeader)0;
+		StrataUnpackInStrataTreeHeader(
+			Strata.MaterialTextureArray,
+			StrataTreeHeader,
+			SliceStoringDebugStrataTree);
 
 		FShaderPrintContext Context;
 		Context = InitShaderPrintContext(true, uint2(50, 50));
 
-		const int BSDFCount = StrataTree.BSDFCount;
+		const int BSDFCount = StrataTreeHeader.BSDFCount;
 		// We remove BSDF from operators to no confuse the user. Behind the scene BSDF are operators sitting the leaves of the tree.
-		const int OperatorCount = StrataTree.OperatorCount - StrataTree.BSDFCount;
+		const int OperatorCount = StrataTreeHeader.OperatorCount - StrataTreeHeader.BSDFCount;
 
 		Print(Context, BSDFCount, FontWhite, 2, 0);
 		Print(Context, TEXT("BSDFs"), FontWhite);
+		if (StrataTreeHeader.ConvertedFromLegacy)
+		{
+			Print(Context, TEXT(" (Converted from legacy material)"), FontWhite);
+		}
 		Newline(Context);
 		Print(Context, OperatorCount, FontWhite, 2, 0);
 		Print(Context, TEXT("Operators"), FontWhite);
@@ -684,11 +689,13 @@ void MaterialDebugStrataTreePS(
 	{
 		OutColor = float4(0.0f, 0.0f, 0.0f, 0.9f);
 
-		FStrataTree StrataTree = GetInitialisedStrataTree();
-		StrataUnpackInStrataTree(
+		const int SliceStoringDebugStrataTree = Strata.SliceStoringDebugStrataTree + STRATA_BASE_PASS_MRT_OUTPUT_COUNT;
+
+		FStrataTreeHeader StrataTreeHeader = (FStrataTreeHeader)0;
+		StrataUnpackInStrataTreeHeader(
 			Strata.MaterialTextureArray,
-			StrataTree,
-			Strata.SliceStoringDebugStrataTree + STRATA_BASE_PASS_MRT_OUTPUT_COUNT);
+			StrataTreeHeader,
+			SliceStoringDebugStrataTree);
 
 		const float2 PixelPos = SVPos.xy;
 
@@ -699,18 +706,24 @@ void MaterialDebugStrataTreePS(
 #if COMPILER_DXC == 1
 		LOOP
 #else
-		StrataTree.BSDFCount = min(StrataTree.BSDFCount, 2); 
+		StrataTree.BSDFCount = min(StrataTreeHeader.BSDFCount, 2);
 		STRATA_UNROLL_N(2)
 #endif
-		for (int i = 0; i < StrataTree.BSDFCount; i++)
+		for (int i = 0; i < StrataTreeHeader.BSDFCount; i++)
 		{
-			if (StrataTree.BSDFs[i].Coverage > 0.0f)
+			FStrataBSDF BSDF = StrataUnpackInStrataTreeBSDF(
+				i,
+				Strata.MaterialTextureArray,
+				StrataTreeHeader,
+				SliceStoringDebugStrataTree);
+
+			if (BSDF.Coverage > 0.0f)
 			{
 				GetMaterialOnSphere(
 					SVPos,
 					Pos,
 					SphereSize,
-					StrataTree.BSDFs[i],
+					BSDF,
 					OutColor);
 
 				Pos.y += SphereSize + 10.0f;
