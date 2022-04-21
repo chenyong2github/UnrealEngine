@@ -155,31 +155,131 @@ void FBulkDataRegistryEditorDomain::OnEndLoadPackage(const FEndLoadPackageContex
 	}
 }
 
-void FBulkDataRegistryEditorDomain::Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData)
+UE::BulkDataRegistry::ERegisterResult
+FBulkDataRegistryEditorDomain::TryRegister(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData)
 {
 	if (!BulkData.GetIdentifier().IsValid())
 	{
-		return;
+		return UE::BulkDataRegistry::ERegisterResult::Success;
 	}
 
-	FName PackageName = NAME_None;
+	bool bAllowedToReadWritePayloadIdFromCache = false;
+	FName PackageName;
 	UE::Serialization::FEditorBulkData CopyBulk(BulkData.CopyTornOff());
-	if (Owner
-		&& Owner->GetFileSize() // We only record the BulkDataList for disk packages
-		&& !Owner->GetHasBeenEndLoaded() // We only record BulkDatas that are loaded before the package finishes loading
-		&& CopyBulk.CanSaveForRegistry()
-		)
+	UE::Serialization::FEditorBulkData PendingPackageBulk;
+	if (Owner)
 	{
 		PackageName = Owner->GetFName();
-		AddPendingPackageBulkData(PackageName, CopyBulk);
+		if (Owner->GetFileSize() // We only cache the BulkDataList for disk packages
+			&& !Owner->GetHasBeenEndLoaded() // We only cache BulkDatas that are loaded before the package finishes loading
+			&& CopyBulk.CanSaveForRegistry()
+			)
+		{
+			bAllowedToReadWritePayloadIdFromCache = true;
+			PendingPackageBulk = CopyBulk;
+		}
 	}
 
 	{
 		FWriteScopeLock RegistryScopeLock(RegistryLock);
 		check(bActive); // Registrations should not come in after we destruct
-		Registry.Add(BulkData.GetIdentifier(), FRegisteredBulk(MoveTemp(CopyBulk), PackageName));
+		UE::BulkDataRegistry::Private::FRegisteredBulk& RegisteredBulk = Registry.FindOrAdd(BulkData.GetIdentifier());
+		if (RegisteredBulk.bRegistered)
+		{
+			bool bAllowSharing = false;
+			// If the original BulkData has left memory and a new bulkdata registers with the same package owner,
+			// assume that it is the same BulkData being reloaded and allow the sharing
+			bAllowSharing |= (!RegisteredBulk.bInMemory && PackageName == RegisteredBulk.PackageName);
+			if (!bAllowSharing)
+			{
+				return UE::BulkDataRegistry::ERegisterResult::AlreadyExists;
+			}
+
+			if (RegisteredBulk.PackageName.IsNone())
+			{
+				RegisteredBulk.PackageName = PackageName;
+			}
+			RegisteredBulk.bRegistered = true;
+			RegisteredBulk.bInMemory = true;
+			RegisteredBulk.bAllowedToWritePayloadIdToCache = false;
+			RegisteredBulk.bPayloadAvailable = true;
+
+			// For updated registrations, skip reading payloadid from cache, and call ResaveSizeTracker.Update rather than Register.
+			ResaveSizeTracker.UpdateRegistrationData(Owner, BulkData);
+			return UE::BulkDataRegistry::ERegisterResult::Success;
+		}
+		else
+		{
+			bool bCachedLocationMatches = false;
+			UE::Serialization::FEditorBulkData& TargetBulkData = RegisteredBulk.BulkData;
+
+			if (TargetBulkData.GetIdentifier().IsValid())
+			{
+				// This BulkData was added when loading the cached list of BulkData for the package, but has not been registered by an in-memory bulkdata
+				check(TargetBulkData.GetIdentifier() == BulkData.GetIdentifier());
+				bCachedLocationMatches = BulkData.LocationMatches(TargetBulkData);
+			}
+
+			if (!bCachedLocationMatches || !BulkData.HasPlaceholderPayloadId() || TargetBulkData.HasPlaceholderPayloadId())
+			{
+				// Copy the new BulkData over the value we got from the cache; the new BulkData is more authoritative
+				TargetBulkData = MoveTemp(CopyBulk);
+				RegisteredBulk.bAllowedToWritePayloadIdToCache = bAllowedToReadWritePayloadIdFromCache;
+			}
+			else
+			{
+				// Otherwise Keep the TargetBulkData, since it matches the location and has already calculated the PayloadId
+				RegisteredBulk.bAllowedToWritePayloadIdToCache = false;
+			}
+
+			RegisteredBulk.PackageName = PackageName;
+			RegisteredBulk.bRegistered = true;
+			RegisteredBulk.bInMemory = true;
+			RegisteredBulk.bPayloadAvailable = true;
+		}
+	}
+	if (bAllowedToReadWritePayloadIdFromCache)
+	{
+		AddPendingPackageBulkData(PackageName, MoveTemp(PendingPackageBulk));
 	}
 	ResaveSizeTracker.Register(Owner, BulkData);
+	return UE::BulkDataRegistry::ERegisterResult::Success;
+}
+
+void FBulkDataRegistryEditorDomain::UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData)
+{
+	if (!BulkData.GetIdentifier().IsValid())
+	{
+		UE_LOG(LogBulkDataRegistry, Warning, TEXT("UpdateRegistrationData called with invalid BulkData for Owner %s."),
+			Owner ? *Owner->GetName() : TEXT("<unknown>"));
+		return;
+	}
+
+	FName PackageName = Owner ? Owner->GetFName() : NAME_None;
+	{
+		FWriteScopeLock RegistryScopeLock(RegistryLock);
+		check(bActive); // Registrations should not come in after we destruct
+		UE::BulkDataRegistry::Private::FRegisteredBulk& RegisteredBulk = Registry.FindOrAdd(BulkData.GetIdentifier());
+		// Add the owner if we previously did not have an owner, otherwise keep the first owner
+		if (RegisteredBulk.PackageName.IsNone())
+		{
+			RegisteredBulk.PackageName = PackageName;
+		}
+		RegisteredBulk.BulkData = BulkData.CopyTornOff();
+		RegisteredBulk.bAllowedToWritePayloadIdToCache = false;
+		RegisteredBulk.bRegistered = true;
+		RegisteredBulk.bInMemory = true;
+		RegisteredBulk.bPayloadAvailable = true;
+	}
+	ResaveSizeTracker.UpdateRegistrationData(Owner, BulkData);
+}
+
+void FBulkDataRegistryEditorDomain::Unregister(const UE::Serialization::FEditorBulkData& BulkData)
+{
+	const FGuid& Key = BulkData.GetIdentifier();
+	FWriteScopeLock RegistryScopeLock(RegistryLock);
+	check(bActive); // Deregistrations should not come in after we destruct
+	Registry.Remove(Key);
 }
 
 void FBulkDataRegistryEditorDomain::OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData)
@@ -192,8 +292,11 @@ void FBulkDataRegistryEditorDomain::OnExitMemory(const UE::Serialization::FEdito
 	{
 		if (Existing->BulkData.IsMemoryOnlyPayload())
 		{
-			Registry.Remove(Key);
+			Existing->BulkData.Reset();
+			Existing->BulkData.TearOff(); // Keep the TearOff flag after resetting
+			Existing->bPayloadAvailable = false;
 		}
+		Existing->bInMemory = false;
 	}
 }
 
@@ -208,7 +311,7 @@ TFuture<UE::BulkDataRegistry::FMetaData> FBulkDataRegistryEditorDomain::GetMeta(
 		{
 			Existing = Registry.Find(BulkDataId);
 		}
-		if (!Existing)
+		if (!Existing || !Existing->bPayloadAvailable)
 		{
 			TPromise<UE::BulkDataRegistry::FMetaData> Promise;
 			Promise.SetValue(UE::BulkDataRegistry::FMetaData{ false, FIoHash(), 0 });
@@ -260,7 +363,7 @@ TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(cons
 			{
 				Existing = Registry.Find(BulkDataId);
 			}
-			if (!Existing)
+			if (!Existing || !Existing->bPayloadAvailable)
 			{
 				TPromise<UE::BulkDataRegistry::FData> Result;
 				Result.SetValue(UE::BulkDataRegistry::FData{ false, FCompressedBuffer() });
@@ -322,6 +425,30 @@ TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(cons
 		});
 }
 
+bool FBulkDataRegistryEditorDomain::TryGetBulkData(const FGuid& BulkDataId, UE::Serialization::FEditorBulkData* OutBulk,
+	FName* OutOwner)
+{
+	FReadScopeLock RegistryScopeLock(RegistryLock);
+	FRegisteredBulk* Existing = nullptr;
+	if (bActive)
+	{
+		Existing = Registry.Find(BulkDataId);
+	}
+	if (Existing)
+	{
+		if (OutBulk)
+		{
+			*OutBulk = Existing->BulkData;
+		}
+		if (OutOwner)
+		{
+			*OutOwner = Existing->PackageName;
+		}
+		return true;
+	}
+	return false;
+}
+
 uint64 FBulkDataRegistryEditorDomain::GetBulkDataResaveSize(FName PackageName)
 {
 	return ResaveSizeTracker.GetBulkDataResaveSize(PackageName);
@@ -343,7 +470,7 @@ void FBulkDataRegistryEditorDomain::Tick(float DeltaTime)
 	TickCook(DeltaTime, false /* bTickComplete */);
 }
 
-void FBulkDataRegistryEditorDomain::AddPendingPackageBulkData(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData)
+void FBulkDataRegistryEditorDomain::AddPendingPackageBulkData(FName PackageName, UE::Serialization::FEditorBulkData&& BulkData)
 {
 	FScopeLock PendingPackageScopeLock(&PendingPackageLock);
 	check(bActive); // Registrations should not come in after we destruct, and AsyncTasks should check bActive before calling
@@ -356,7 +483,7 @@ void FBulkDataRegistryEditorDomain::AddPendingPackageBulkData(FName PackageName,
 	{
 		return;
 	}
-	PendingPackage->AddBulkData(BulkData);
+	PendingPackage->AddBulkData(MoveTemp(BulkData));
 }
 
 void FBulkDataRegistryEditorDomain::AddTempLoadedPayload(const FGuid& RegistryKey, uint64 PayloadSize)
@@ -427,7 +554,7 @@ void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, T
 			const FGuid& BulkDataId = NewPending->GetBulkDataId();
 			if (Reader.IsError() || CachedBulkData.GetIdentifier() != BulkDataId)
 			{
-				UE_LOG(LogEditorDomain, Warning, TEXT("Corrupt cache data for BulkDataPayloadId %s."), WriteToString<192>(PackageName, TEXT("/"), BulkDataId).ToString());
+				UE_LOG(LogBulkDataRegistry, Warning, TEXT("Corrupt cache data for BulkDataPayloadId %s."), WriteToString<192>(PackageName, TEXT("/"), BulkDataId).ToString());
 				return;
 			}
 
@@ -457,11 +584,8 @@ void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, T
 
 			UE::Serialization::FEditorBulkData& ExistingBulkData = ExistingRegisteredBulk->BulkData;
 			check(ExistingBulkData.GetIdentifier() == BulkDataId);
-			if (ExistingBulkData.HasPlaceholderPayloadId())
+			if (ExistingBulkData.HasPlaceholderPayloadId() && CachedBulkData.LocationMatches(ExistingBulkData))
 			{
-				// BULKDATAREGISTRY_TODO: Implement LocationMatches
-				//&& CachedBulkData.LocationMatches(ExistingBulkData);
-
 				ExistingBulkData = CachedBulkData;
 			}
 		});
@@ -609,16 +733,17 @@ void FPendingPackage::ReadCache()
 			{
 				TargetBulkData = BulkData;
 				TargetRegisteredBulk.PackageName = PackageName;
+				TargetRegisteredBulk.bPayloadAvailable = true;
 			}
 			else
 			{
 				check(TargetBulkData.GetIdentifier() == BulkDataId);
-				// BULKDATAREGISTRY_TODO: Implement LocationMatches
-				// bCachedLocationMatches = BulkData.LocationMatches(TargetBulkData);
+				bCachedLocationMatches = BulkData.LocationMatches(TargetBulkData);
 				if (bCachedLocationMatches && !BulkData.HasPlaceholderPayloadId() && TargetBulkData.HasPlaceholderPayloadId())
 				{
 					TargetBulkData = BulkData;
 					TargetRegisteredBulk.PackageName = PackageName;
+					TargetRegisteredBulk.bPayloadAvailable = true;
 				}
 			}
 
@@ -723,8 +848,7 @@ void FUpdatePayloadWorker::DoWork()
 				break;
 			}
 
-			// BULKDATAREGISTRY_TODO: Implement LocationMatches
-			if (false) // !BulkData.LocationMatches(BulkData));
+			if (!BulkData.LocationMatches(RegisteredBulk->BulkData))
 			{
 				// Some caller has assigned a new BulkData. We need to abandon the BulkData we just loaded and give our callers the
 				// information about the new one
@@ -735,7 +859,7 @@ void FUpdatePayloadWorker::DoWork()
 				continue;
 			}
 
-			// Store the new payload in the Registry's entry for the BulkData; new MetaData requests will no longer need to wait for it
+			// Store the new PayloadId in the Registry's entry for the BulkData; new MetaData requests will no longer need to wait for it
 			RegisteredBulk->BulkData = BulkData;
 
 			// Mark that the next GetData call should remove the temporary payload
@@ -743,9 +867,10 @@ void FUpdatePayloadWorker::DoWork()
 			BulkDataRegistry->AddTempLoadedPayload(BulkData.GetIdentifier(), BulkData.GetPayloadSize());
 			BulkDataRegistry->PruneTempLoadedPayloads();
 
-			if (!RegisteredBulk->PackageName.IsNone())
+			if (RegisteredBulk->bAllowedToWritePayloadIdToCache)
 			{
 				BulkDataRegistry->WritePayloadIdToCache(RegisteredBulk->PackageName, BulkData);
+				RegisteredBulk->bAllowedToWritePayloadIdToCache = false;
 			}
 			break;
 		}

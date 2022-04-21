@@ -16,6 +16,22 @@
 #include "UObject/PackageResourceManager.h"
 #include "UObject/UObjectGlobals.h"
 
+DEFINE_LOG_CATEGORY(LogBulkDataRegistry);
+
+const TCHAR* LexToString(UE::BulkDataRegistry::ERegisterResult Value)
+{
+	using namespace UE::BulkDataRegistry;
+	switch (Value)
+	{
+	case ERegisterResult::Success:
+		return TEXT("Success");
+	case ERegisterResult::AlreadyExists:
+		return TEXT("AlreadyExists");
+	default:
+		return TEXT("InvalidResultCode");
+	}
+}
+
 namespace UE::BulkDataRegistry::Private
 {
 
@@ -29,7 +45,13 @@ public:
 	FBulkDataRegistryNull() = default;
 	virtual ~FBulkDataRegistryNull() {}
 
-	virtual void Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override {}
+	virtual UE::BulkDataRegistry::ERegisterResult
+		TryRegister(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override
+	{
+		return UE::BulkDataRegistry::ERegisterResult::Success;
+	}
+	virtual void UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override {}
+	virtual void Unregister(const UE::Serialization::FEditorBulkData& BulkData) override {}
 	virtual void OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData) override {}
 	virtual TFuture<UE::BulkDataRegistry::FMetaData> GetMeta(const FGuid& BulkDataId) override
 	{
@@ -43,6 +65,11 @@ public:
 		Promise.SetValue(UE::BulkDataRegistry::FData{ false, FCompressedBuffer() });
 		return Promise.GetFuture();
 	}
+	virtual bool TryGetBulkData(const FGuid & BulkDataId, UE::Serialization::FEditorBulkData* OutBulk = nullptr,
+		FName* OutOwner = nullptr) override
+	{
+		return false;
+	}
 	virtual uint64 GetBulkDataResaveSize(FName PackageName) override
 	{
 		return 0;
@@ -55,9 +82,15 @@ public:
 	FBulkDataRegistryTrackBulkDataToResave() = default;
 	virtual ~FBulkDataRegistryTrackBulkDataToResave() {}
 
-	virtual void Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override
+	virtual UE::BulkDataRegistry::ERegisterResult
+		TryRegister(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override
 	{
 		ResaveSizeTracker.Register(Owner, BulkData);
+		return UE::BulkDataRegistry::ERegisterResult::Success;
+	}
+	virtual void UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override
+	{
+		ResaveSizeTracker.UpdateRegistrationData(Owner, BulkData);
 	}
 	virtual uint64 GetBulkDataResaveSize(FName PackageName) override
 	{
@@ -190,6 +223,12 @@ void FResaveSizeTracker::Register(UPackage* Owner, const UE::Serialization::FEdi
 
 	FWriteScopeLock ScopeLock(Lock);
 	PackageBulkResaveSize.FindOrAdd(Owner->GetFName()) += BulkData.GetPayloadSize();
+}
+
+void FResaveSizeTracker::UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData)
+{
+	// Not yet implemented; we keep the values only from the first registration
+	// Implementing this would require keeping more data; we will need to know the previous payload size to subtract it
 }
 
 uint64 FResaveSizeTracker::GetBulkDataResaveSize(FName PackageName)

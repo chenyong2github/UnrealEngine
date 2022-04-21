@@ -27,15 +27,17 @@ class FBulkDataRegistryEditorDomain;
 /** Struct for storage of a BulkData in the registry, including the BulkData itself and data about cache status. */
 struct FRegisteredBulk
 {
-	FRegisteredBulk() = default;
-	FRegisteredBulk(UE::Serialization::FEditorBulkData&& InBulkData, FName InPackageName = NAME_None)
-		:BulkData(MoveTemp(InBulkData)), PackageName(InPackageName)
+	FRegisteredBulk()
+		: bHasTempPayload(false), bAllowedToWritePayloadIdToCache(false), bRegistered(false), bInMemory(false), bPayloadAvailable(false)
 	{
 	}
-
 	UE::Serialization::FEditorBulkData BulkData;
 	FName PackageName;
-	bool bHasTempPayload = false;
+	bool bHasTempPayload : 1;
+	bool bAllowedToWritePayloadIdToCache : 1;
+	bool bRegistered : 1;
+	bool bInMemory : 1;
+	bool bPayloadAvailable : 1;
 };
 
 /** Serialize an array of BulkDatas into or out of bytes saved/load from the registry's persistent cache. */
@@ -50,9 +52,9 @@ public:
 	FPendingPackage(const FPendingPackage& Other) = delete;
 
 	void Cancel();
-	void AddBulkData(const UE::Serialization::FEditorBulkData& BulkData)
+	void AddBulkData(UE::Serialization::FEditorBulkData&& BulkData)
 	{
-		BulkDatas.Add(BulkData);
+		BulkDatas.Add(MoveTemp(BulkData));
 	}
 	void OnEndLoad(bool& bOutShouldRemove, bool& bOutShouldWriteCache);
 	bool IsLoadInProgress() const
@@ -165,10 +167,16 @@ public:
 	virtual ~FBulkDataRegistryEditorDomain();
 
 	// IBulkDataRegistry interface
-	virtual void Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override;
+	virtual UE::BulkDataRegistry::ERegisterResult
+		TryRegister(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override;
+	virtual void UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) override;
+	virtual void Unregister(const UE::Serialization::FEditorBulkData& BulkData) override;
 	virtual void OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData) override;
 	virtual TFuture<UE::BulkDataRegistry::FMetaData> GetMeta(const FGuid& BulkDataId) override;
 	virtual TFuture<UE::BulkDataRegistry::FData> GetData(const FGuid& BulkDataId) override;
+	virtual bool TryGetBulkData(const FGuid& BulkDataId, UE::Serialization::FEditorBulkData* OutBulk = nullptr,
+		FName* OutOwner = nullptr) override;
+
 	virtual uint64 GetBulkDataResaveSize(FName PackageName) override;
 
 	// FTickableEditorObject/FTickableCookObject interface
@@ -178,7 +186,7 @@ public:
 	virtual TStatId GetStatId() const override { return TStatId(); }
 
 private:
-	void AddPendingPackageBulkData(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData);
+	void AddPendingPackageBulkData(FName PackageName, UE::Serialization::FEditorBulkData&& BulkData);
 	void PollPendingPackages(bool bWaitForCooldown);
 	void AddTempLoadedPayload(const FGuid& RegistryKey, uint64 PayloadSize);
 	void PruneTempLoadedPayloads();

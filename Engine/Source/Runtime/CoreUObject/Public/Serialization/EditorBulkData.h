@@ -13,6 +13,7 @@
 
 class FArchive;
 class UObject;
+namespace UE::BulkDataRegistry { enum class ERegisterResult : uint8; }
 
 // When enabled it will be possible for specific editor bulkdata objects to opt out of being virtualized
 // This is a development feature and not expected to be used!
@@ -299,14 +300,15 @@ public:
 	bool IsMemoryOnlyPayload() const;
 	/** Load the payload and set the correct payload id, if the bulkdata has a PlaceholderPayloadId. */
 	void UpdatePayloadId();
+	/** Return whether *this has the same source for the bulkdata (e.g. identical file locations if from file) as Other */
+	bool LocationMatches(const FEditorBulkData& Other) const;
 
 	/**
-	 * Register this BulkData with the BulkData registry, if it is valid for registration.
-	 * This function is called automatically when necessary by EditorBulkData internals, 
-	 * but external callers can call it to provide information about the owner if it was previously
-	 * registered anonymously by UpdatePayload.
+	 * Update the Owner of this BulkData in the BulkDataRegistry to include the Owner information.
+	 * Has no effect if the BulkData is not valid for registration.
+	 * The Owner information is lost and this function must be called again if the BulkData's payload information is modified.
 	 */
-	void Register(UObject* Owner);
+	void UpdateRegistrationOwner(UObject* Owner);
 
 #if UE_ENABLE_VIRTUALIZATION_TOGGLE
 	UE_DEPRECATED(5.0, "SetVirtualizationOptOut is an internal feature for development and will be removed without warning!")
@@ -439,7 +441,18 @@ private:
 		return EnumHasAnyFlags(InFlags, EFlags::StoredInPackageTrailer);
 	}
 
+	void Register(UObject* Owner, const TCHAR* LogCallerName, bool bAllowUpdateId);
+	/** Used when we need to clear the registration for our bulkdataId because its ownership is transferring elsewhere. */
 	void Unregister();
+	/**
+	 * Used when we want to keep registration of our BulkDataId tied to our Payload location, but this BulkData is exiting memory
+	 * and the registry needs to know so it can drop its copy of the payload and allow us to reregister later if reloaded.
+	 */
+	void OnExitMemory();
+	/** Check whether we should be registered, and register/unregister/update as necessary to match. */
+	void UpdateRegistrationData(UObject* Owner, const TCHAR* LogCallerName, bool bAllowUpdateId);
+	void LogRegisterError(UE::BulkDataRegistry::ERegisterResult Value, UObject* Owner, const FGuid& FailedBulkDataId,
+		const TCHAR* CallerName, bool bHandledbyCreateUniqueGuid) const;
 
 	/**
 	 * Checks to make sure that the payload we are saving is what we expect it to be. If not then we need to log an error to the

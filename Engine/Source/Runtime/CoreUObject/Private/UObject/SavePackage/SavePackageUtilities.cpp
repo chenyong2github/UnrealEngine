@@ -901,6 +901,10 @@ int32 GetNumPackagesSaved()
 #endif
 }
 
+#if WITH_EDITOR
+FAddResaveOnDemandPackage OnAddResaveOnDemandPackage;
+#endif
+
 } // end namespace UE::SavePackageUtilities
 
 FObjectSaveContextData::FObjectSaveContextData(UPackage* Package, const ITargetPlatform* InTargetPlatform, const TCHAR* InTargetFilename, uint32 InSaveFlags)

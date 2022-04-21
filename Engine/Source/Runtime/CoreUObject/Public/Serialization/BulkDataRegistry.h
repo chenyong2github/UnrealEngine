@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 #if WITH_EDITOR
 
 #include "Async/Future.h"
@@ -11,8 +13,8 @@
 #include "Containers/ArrayView.h"
 #include "Delegates/Delegate.h"
 #include "HAL/CriticalSection.h"
-#include "HAL/Platform.h"
 #include "IO/IoHash.h"
+#include "Misc/Optional.h"
 
 class IBulkDataRegistry;
 class UPackage;
@@ -20,7 +22,25 @@ struct FEndLoadPackageContext;
 struct FGuid;
 namespace UE::Serialization { class FEditorBulkData; }
 
+COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogBulkDataRegistry, Log, All);
 DECLARE_DELEGATE_RetVal(IBulkDataRegistry*, FSetBulkDataRegistry);
+
+#endif
+
+namespace UE::BulkDataRegistry
+{
+	// Define ERegisterResult even if !WITH_EDITOR to make it easier to use in EditorBulkData.cpp
+	enum class ERegisterResult : uint8
+	{
+		Success,
+		AlreadyExists,
+		InvalidResultCode,
+		// Update LexToString when adding new values
+	};
+}
+
+#if WITH_EDITOR
+const TCHAR* LexToString(UE::BulkDataRegistry::ERegisterResult Value);
 
 namespace UE::BulkDataRegistry
 {
@@ -43,7 +63,6 @@ namespace UE::BulkDataRegistry
 		/** The discovered data. Empty if data was not found. */
 		FCompressedBuffer Buffer;
 	};
-
 }
 
 /** Registers BulkDatas so that they can be referenced by guid during builds later in the editor process. */
@@ -56,7 +75,12 @@ public:
 	COREUOBJECT_API static IBulkDataRegistry& Get();
 	
 	/** Register a BulkData with the registry. Its payload and metadata will be fetchable by its GetIdentifier. */
-	virtual void Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) = 0;
+	virtual UE::BulkDataRegistry::ERegisterResult
+		TryRegister(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) = 0;
+	/** Change existing registration data to have the new values (keeping old Owner), or add if it doesn't exist. */
+	virtual void UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData) = 0;
+	/** Unregister the BulkData associated with a guid, because it is being modified. */
+	virtual void Unregister(const UE::Serialization::FEditorBulkData& BulkData) = 0;
 	/** Report that a BulkData is leaving memory and its in-memory payload (if it had one) is no longer available. */
 	virtual void OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData) = 0;
 
@@ -68,6 +92,13 @@ public:
 	 * Returns an empty buffer if not registered.
 	 */
 	virtual TFuture<UE::BulkDataRegistry::FData> GetData(const FGuid& BulkDataId) = 0;
+
+	/**
+	 * Returns the EditorBulkData and Owner for given id.
+	 * Returns true if and only if the BulkDataId is a known id. OutOwner may be null even if returning true.
+	 */
+	virtual bool TryGetBulkData(const FGuid& BulkDataId, UE::Serialization::FEditorBulkData* OutBulk = nullptr,
+		FName* OutOwner = nullptr) = 0;
 
 	/**
 	 * Report whether the Package had BulkDatas during load that upgrade or otherwise exist in memoryonly and
@@ -99,6 +130,7 @@ public:
 	COREUOBJECT_API ~FResaveSizeTracker();
 
 	COREUOBJECT_API void Register(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData);
+	COREUOBJECT_API void UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData);
 	COREUOBJECT_API uint64 GetBulkDataResaveSize(FName PackageName);
 
 private:

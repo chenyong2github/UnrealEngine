@@ -16,6 +16,9 @@
 #include "UObject/LinkerSave.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/PropertyPortFlags.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/SavePackage.h"
 #include "Virtualization/VirtualizationSystem.h"
 
 //#if WITH_EDITORONLY_DATA
@@ -376,7 +379,7 @@ FEditorBulkData& FEditorBulkData::operator=(FEditorBulkData&& Other)
 
 	Other.Reset();
 
-	Register(nullptr);
+	Register(nullptr, TEXT("operator=(FEditorBulkData &&)"), false /* bAllowUpdateId */);
 
 	return *this;
 }
@@ -429,7 +432,7 @@ FEditorBulkData& FEditorBulkData::operator=(const FEditorBulkData& Other)
 	}
 	else
 	{
-		Register(nullptr);
+		Register(nullptr, TEXT("operator=(const FEditorBulkData&)"), false /* bAllowUpdateId */);
 	}
 	return *this;
 }
@@ -441,7 +444,7 @@ FEditorBulkData::~FEditorBulkData()
 		AttachedAr->DetachBulkData(this, false);
 	}
 
-	Unregister();
+	OnExitMemory();
 }
 
 FEditorBulkData::FEditorBulkData(const FEditorBulkData& Other, ETornOff)
@@ -456,27 +459,9 @@ void FEditorBulkData::TearOff()
 	EnumAddFlags(Flags, EFlags::IsTornOff);
 }
 
-void FEditorBulkData::Register(UObject* Owner)
+void FEditorBulkData::UpdateRegistrationOwner(UObject* Owner)
 {
-#if WITH_EDITOR
-	if (BulkDataId.IsValid() && PayloadSize > 0 && !EnumHasAnyFlags(Flags, EFlags::IsTornOff))
-	{
-		IBulkDataRegistry::Get().Register(Owner ? Owner->GetPackage() : nullptr, *this);
-		EnumAddFlags(Flags, EFlags::HasRegistered);
-	}
-#endif
-}
-
-void FEditorBulkData::Unregister()
-{
-#if WITH_EDITOR
-	if (EnumHasAnyFlags(Flags, EFlags::HasRegistered))
-	{
-		check(!EnumHasAnyFlags(Flags, EFlags::IsTornOff));
-		IBulkDataRegistry::Get().OnExitMemory(*this);
-		EnumRemoveFlags(Flags, EFlags::HasRegistered);
-	}
-#endif
+	UpdateRegistrationData(Owner, TEXT("UpdateRegistrationOwner"), false /* bAllowUpdateId */);
 }
 
 static FGuid CreateUniqueGuid(const FGuid& NonUniqueGuid, const UObject* Owner, const TCHAR* DebugName)
@@ -503,6 +488,155 @@ static FGuid CreateUniqueGuid(const FGuid& NonUniqueGuid, const UObject* Owner, 
 		return FGuid::NewGuid();
 	}
 }
+
+void FEditorBulkData::Register(UObject* Owner, const TCHAR* ErrorLogCaller, bool bAllowUpdateId)
+{
+#if WITH_EDITOR
+	if (BulkDataId.IsValid() && PayloadSize > 0 && !EnumHasAnyFlags(Flags, EFlags::IsTornOff))
+	{
+		UPackage* OwnerPackage = Owner ? Owner->GetPackage() : nullptr;
+		UE::BulkDataRegistry::ERegisterResult Result = IBulkDataRegistry::Get().TryRegister(OwnerPackage, *this);
+		if (Result == UE::BulkDataRegistry::ERegisterResult::Success)
+		{
+			EnumAddFlags(Flags, EFlags::HasRegistered);
+		}
+		else
+		{
+			UE::BulkDataRegistry::ERegisterResult SecondResult = UE::BulkDataRegistry::ERegisterResult::InvalidResultCode;
+			if (Result == UE::BulkDataRegistry::ERegisterResult::AlreadyExists && bAllowUpdateId)
+			{
+				FGuid OldBulkDataId(BulkDataId);
+				BulkDataId = CreateUniqueGuid(OldBulkDataId, Owner, TEXT("BulkDataRegistryGuidCollision"));
+				SecondResult = IBulkDataRegistry::Get().TryRegister(OwnerPackage, *this);
+				if (SecondResult == UE::BulkDataRegistry::ERegisterResult::Success)
+				{
+					EnumAddFlags(Flags, EFlags::HasRegistered);
+					LogRegisterError(Result, Owner, OldBulkDataId, ErrorLogCaller, true/* bHandledByCreateUniqueGuid */);
+				}
+				else
+				{
+					BulkDataId = OldBulkDataId;
+				}
+			}
+			if (SecondResult != UE::BulkDataRegistry::ERegisterResult::Success)
+			{
+				LogRegisterError(Result, Owner, BulkDataId, ErrorLogCaller, false /* bHandledByCreateUniqueGuid */);
+			}
+		}
+	}
+#endif
+}
+
+void FEditorBulkData::OnExitMemory()
+{
+#if WITH_EDITOR
+	if (EnumHasAnyFlags(Flags, EFlags::HasRegistered))
+	{
+		check(!EnumHasAnyFlags(Flags, EFlags::IsTornOff));
+		IBulkDataRegistry::Get().OnExitMemory(*this);
+		EnumRemoveFlags(Flags, EFlags::HasRegistered);
+	}
+#endif
+}
+
+void FEditorBulkData::Unregister()
+{
+#if WITH_EDITOR
+	if (EnumHasAnyFlags(Flags, EFlags::HasRegistered))
+	{
+		check(!EnumHasAnyFlags(Flags, EFlags::IsTornOff));
+		IBulkDataRegistry::Get().Unregister(*this);
+		EnumRemoveFlags(Flags, EFlags::HasRegistered);
+	}
+#endif
+}
+
+void FEditorBulkData::UpdateRegistrationData(UObject* Owner, const TCHAR* ErrorLogCaller, bool bAllowUpdateId)
+{
+#if WITH_EDITOR
+	UPackage* OwnerPackage = Owner ? Owner->GetPackage() : nullptr;
+	bool bShouldRegister = BulkDataId.IsValid() && PayloadSize > 0 && !EnumHasAnyFlags(Flags, EFlags::IsTornOff);
+	if (EnumHasAnyFlags(Flags, EFlags::HasRegistered))
+	{
+		if (bShouldRegister)
+		{
+			IBulkDataRegistry::Get().UpdateRegistrationData(OwnerPackage, *this);
+		}
+		else
+		{
+			Unregister();
+		}
+	}
+	else
+	{
+		if (bShouldRegister)
+		{
+			Register(Owner, ErrorLogCaller, bAllowUpdateId);
+		}
+	}
+#endif
+}
+
+void FEditorBulkData::LogRegisterError(UE::BulkDataRegistry::ERegisterResult Value, UObject* Owner,
+	const FGuid& FailedBulkDataId, const TCHAR* CallerName, bool bHandledByCreateUniqueGuid) const
+{
+#if WITH_EDITOR
+	if (Value == UE::BulkDataRegistry::ERegisterResult::Success)
+	{
+		return;
+	}
+	bool bMessageLogged = false;
+	FString OwnerPathName = Owner ? Owner->GetPathName() : TEXT("<unknown>");
+	UPackage* OwnerPackage = Owner ? Owner->GetPackage() : nullptr;
+	CallerName = CallerName ? CallerName : TEXT("<unknown>");
+	if (Value == UE::BulkDataRegistry::ERegisterResult::AlreadyExists)
+	{
+		FEditorBulkData OtherBulkData;
+		FName OtherOwnerPackageFName;
+		bool bOtherExists = IBulkDataRegistry::Get().TryGetBulkData(FailedBulkDataId, &OtherBulkData, &OtherOwnerPackageFName);
+		FString OtherOwnerPackageName = !OtherOwnerPackageFName.IsNone() ? OtherOwnerPackageFName.ToString() : TEXT("<unknown>");
+
+		if (bHandledByCreateUniqueGuid)
+		{
+			if (UE::SavePackageUtilities::OnAddResaveOnDemandPackage.IsBound() && OwnerPackage)
+			{
+				static FName BulkDataDuplicatesSystemName(TEXT("BulkDataDuplicates"));
+				UE::SavePackageUtilities::OnAddResaveOnDemandPackage.Execute(BulkDataDuplicatesSystemName, OwnerPackage->GetFName());
+				UE_LOG(LogBulkDataRegistry, Display, TEXT("AddPackageToResave %s: BulkData %s collided with an ID in package %s."),
+					*OwnerPathName, *FailedBulkDataId.ToString(), *OtherOwnerPackageName);
+			}
+			else
+			{
+				FString SilenceWarningMessage;
+				if (OwnerPackage)
+				{
+					SilenceWarningMessage = TEXT(" To silence this warning, run the ResavePackagesCommandlet with \"-autocheckout -resaveondemand=bulkdataduplicates\".");
+				}
+				UE_LOG(LogBulkDataRegistry, Warning, TEXT("%s updated BulkData %s on load because it collided with an ID in package %s.%s"),
+					*OwnerPathName, *FailedBulkDataId.ToString(), *OtherOwnerPackageName, *SilenceWarningMessage);
+			}
+			bMessageLogged = true;
+		}
+		else if (bOtherExists)
+		{
+			UE_LOG(LogBulkDataRegistry, Warning,
+				TEXT("%s failed to register BulkData %s from %s in the BulkDataRegistry: it already exists with owner %s.\n")
+				TEXT("            Payload: %s\n")
+				TEXT("    ExistingPayload: %s"),
+				*OwnerPathName, *FailedBulkDataId.ToString(), CallerName, *OtherOwnerPackageName,
+				*WriteToString<64>(GetPayloadId()), *WriteToString<64>(OtherBulkData.GetPayloadId()));
+			bMessageLogged = true;
+		}
+	}
+	if (!bMessageLogged)
+	{
+		UE_LOG(LogBulkDataRegistry, Warning,
+			TEXT("%s failed to register BulkData %s from %s in the BulkDataRegistry: %s."),
+			*OwnerPathName, *FailedBulkDataId.ToString(), CallerName, LexToString(Value));
+	}
+#endif
+}
+
 
 void FEditorBulkData::CreateFromBulkData(FUntypedBulkData& InBulkData, const FGuid& InGuid, UObject* Owner)
 {
@@ -554,7 +688,10 @@ void FEditorBulkData::CreateFromBulkData(FUntypedBulkData& InBulkData, const FGu
 	{
 		EnumAddFlags(Flags, EFlags::LegacyKeyWasGuidDerived);
 	}
-	Register(Owner);
+	// bAllowUpdateId=true because we can encounter duplicates even with the newly
+	// created BulkDataId, if the user duplicated (before the fix for duplication) the owner
+	// of this bulkdata, without ever resaving this bulkdata's package
+	Register(Owner, TEXT("CreateFromBulkData"), true /* bAllowUpdateId */);
 }
 
 void FEditorBulkData::CreateLegacyUniqueIdentifier(UObject* Owner)
@@ -563,7 +700,10 @@ void FEditorBulkData::CreateLegacyUniqueIdentifier(UObject* Owner)
 	{
 		Unregister();
 		BulkDataId = CreateUniqueGuid(BulkDataId, Owner, TEXT("Unknown"));
-		Register(Owner);
+		// bAllowUpdateId=true because we can encounter duplicates even with the newly
+		// created BulkDataId, if the user duplicated (before the fix for duplication) the owner
+		// of this bulkdata, without ever resaving this bulkdata's package
+		Register(Owner, TEXT("CreateLegacyUniqueIdentifier"), true /* bAllowUpdateId */);
 	}
 }
 
@@ -622,7 +762,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 				
 				Payload = CompressedPayload.Decompress();	
 
-				Register(Owner);
+				Register(Owner, TEXT("Serialize/Transacting"), false /* bAllowUpdateId */);
 			}
 		}
 	}
@@ -682,7 +822,8 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 		{
 			checkf(Ar.IsCooking() == false, TEXT("FEditorBulkData::Serialize should not be called during a cook"));
 
-			const EFlags UpdatedFlags = BuildFlagsForSerialization(Ar, bKeepFileDataByReference);
+			EFlags UpdatedFlags = BuildFlagsForSerialization(Ar, bKeepFileDataByReference);
+			EnumRemoveFlags(UpdatedFlags, EFlags::TransientFlags);
 
 			// Go back in the archive and update the flags in the archive, we will only apply the updated flags to the current
 			// object later if we detect that the package saved successfully.
@@ -791,6 +932,12 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 		}
 		else if (Ar.IsLoading())
 		{
+			if (Ar.HasAllPortFlags(PPF_Duplicate) && BulkDataId.IsValid())
+			{
+				// When duplicating BulkDatas we need to create a new BulkDataId to respect the uniqueness contract
+				BulkDataId = CreateUniqueGuid(BulkDataId, Owner, TEXT("PPF_Duplicate serialization"));
+			}
+
 			OffsetInFile = INDEX_NONE;
 			PackagePath.Empty();
 			PackageSegment = EPackageSegment::Header;
@@ -872,7 +1019,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 
 			if (bAllowRegister)
 			{
-				Register(Owner);
+				Register(Owner, TEXT("Serialize/Persistent"), true /* bAllowUpdateId */);
 			}
 		}
 	}
@@ -1239,7 +1386,7 @@ void FEditorBulkData::PushData(const FPackagePath& InPackagePath)
 			OffsetInFile = INDEX_NONE;
 
 			// Update our information in the registry
-			Register(nullptr);
+			UpdateRegistrationData(nullptr, TEXT("PushData"), false /* bAllowUpdateId */);
 		}
 	}	
 }
@@ -1274,13 +1421,14 @@ bool FEditorBulkData::IsMemoryOnlyPayload() const
 
 void FEditorBulkData::Reset()
 {
+	// Unregister rather than allowing the Registry to keep our record, since we are changing the payload
+	Unregister();
 	// Note that we do not reset the BulkDataId
 	if (AttachedAr != nullptr)
 	{
 		AttachedAr->DetachBulkData(this, false);
 	}
 
-	Unregister();
 	PayloadContentId.Reset();
 	Payload.Reset();
 	PayloadSize = 0;
@@ -1321,14 +1469,19 @@ void FEditorBulkData::DetachFromDisk(FArchive* Ar, bool bEnsurePayloadIsLoaded)
 		OffsetInFile = INDEX_NONE;
 
 		EnumRemoveFlags(Flags, EFlags::ReferencesLegacyFile | EFlags::ReferencesWorkspaceDomain | EFlags::LegacyFileIsCompressed);
-
-		if (PayloadSize > 0)
+		if (EnumHasAnyFlags(Flags, EFlags::HasRegistered))
 		{
-			Register(nullptr);
-		}
-		else
-		{
-			Unregister();
+			if (bEnsurePayloadIsLoaded)
+			{
+				// We are e.g. renaming a package and should switch registration over to our in-memory Payload
+				UpdateRegistrationData(nullptr, TEXT("DetachFromDisk"), false /* bAllowUpdateId */);
+			}
+			else
+			{
+				// The package is unloading; we should instruct the bulkdataregistry to keep our old packagepath information,
+				// but will drop our is-registered flag
+				OnExitMemory();
+			}
 		}
 	}
 
@@ -1382,7 +1535,7 @@ void FEditorBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave, FCompressed
 				this->PackagePath = InPackagePath;
 				check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
 				this->OffsetInFile = DataStartOffset;
-				this->Flags = UpdatedFlags;
+				this->Flags = (this->Flags & EFlags::TransientFlags) | (UpdatedFlags & ~EFlags::TransientFlags);
 
 				if (CanUnloadData())
 				{
@@ -1391,8 +1544,7 @@ void FEditorBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave, FCompressed
 				}
 
 				// Update our information in the registry
-				// TODO: Pass Owner into Register once the AssetRegistry has been fixed to use the updated PackageGuid from the save
-				Register(nullptr);
+				UpdateRegistrationData(Owner, TEXT("SerializeToLegacyPath"), false /* bAllowUpdateId */);
 			};
 
 			LinkerSave.PostSaveCallbacks.Add(MoveTemp(OnSavePackage));
@@ -1410,7 +1562,7 @@ void FEditorBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave, FCompressed
 
 void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompressedBuffer PayloadToSerialize, EFlags UpdatedFlags, UObject* Owner)
 {
-	auto OnPayloadWritten = [this, UpdatedFlags](FLinkerSave& LinkerSave, const FPackageTrailer& Trailer) mutable
+	auto OnPayloadWritten = [this, UpdatedFlags, Owner](FLinkerSave& LinkerSave, const FPackageTrailer& Trailer) mutable
 	{
 		checkf(LinkerSave.IsCooking() == false, TEXT("FEditorBulkData::Serialize should not be called during a cook"));
 
@@ -1421,7 +1573,7 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 		// disk so that we can update the object's members to be redirected to the saved file.
 		if (!LinkerSave.GetFilename().IsEmpty())
 		{
-			auto OnSavePackage = [this, PayloadOffset, UpdatedFlags](const FPackagePath& InPackagePath, FObjectPostSaveContext ObjectSaveContext)
+			auto OnSavePackage = [this, PayloadOffset, UpdatedFlags, Owner](const FPackagePath& InPackagePath, FObjectPostSaveContext ObjectSaveContext)
 			{
 				if (!ObjectSaveContext.IsUpdatingLoadedPath())
 				{
@@ -1431,7 +1583,7 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 				this->PackagePath = InPackagePath;
 				check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
 				this->OffsetInFile = PayloadOffset;
-				this->Flags = UpdatedFlags;
+				this->Flags = (this->Flags & EFlags::TransientFlags) | (UpdatedFlags & ~EFlags::TransientFlags);
 
 				if (CanUnloadData())
 				{
@@ -1440,8 +1592,7 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 				}
 
 				// Update our information in the registry
-				// TODO: Pass Owner into Register once the AssetRegistry has been fixed to use the updated PackageGuid from the save
-				Register(nullptr);
+				UpdateRegistrationData(Owner, TEXT("SerializeToPackageTrailer"), false /* bAllowUpdateId */);
 			};
 
 			LinkerSave.PostSaveCallbacks.Add(MoveTemp(OnSavePackage));
@@ -1455,6 +1606,9 @@ void FEditorBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FIoHash&& InP
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorBulkData::UpdatePayloadImpl);
 
+	// Unregister before calling DetachBulkData; DetachFromDisk calls OnExitMemory which is incorrect since
+	// we are changing data rather than leaving memory
+	Unregister();
 	if (AttachedAr != nullptr)
 	{
 		AttachedAr->DetachBulkData(this, false);
@@ -1464,7 +1618,7 @@ void FEditorBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FIoHash&& InP
 
 	// We only take the payload if it has a length to avoid potentially holding onto a
 	// 0 byte allocation in the FSharedBuffer
-	if(InPayload.GetSize() > 0)
+	if (InPayload.GetSize() > 0)
 	{ 
 		Payload = MoveTemp(InPayload).MakeOwned();
 	}
@@ -1486,18 +1640,11 @@ void FEditorBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FIoHash&& InP
 	PackageSegment = EPackageSegment::Header;
 	OffsetInFile = INDEX_NONE;
 
-	if (PayloadSize > 0)
+	if (PayloadSize > 0 && !BulkDataId.IsValid())
 	{
-		if (!BulkDataId.IsValid())
-		{
-			BulkDataId = FGuid::NewGuid();
-		}
-		Register(Owner);
+		BulkDataId = FGuid::NewGuid();
 	}
-	else
-	{
-		Unregister();
-	}
+	UpdateRegistrationData(Owner, TEXT("UpdatePayloadImpl"), false /* bAllowUpdateId */);
 }
 
 FCompressedBuffer FEditorBulkData::GetDataInternal() const
@@ -1647,6 +1794,51 @@ void FEditorBulkData::UpdatePayloadId()
 {
 	UpdateKeyIfNeeded();
 }
+
+bool FEditorBulkData::LocationMatches(const FEditorBulkData& Other) const
+{
+	if (GetIdentifier() != Other.GetIdentifier())
+	{
+		// Different identifiers return false, even if location is the same
+		return false;
+	}
+	if (GetPayloadSize() == 0 || Other.GetPayloadSize() == 0)
+	{
+		// True if both of them have an empty payload, false if only one does
+		return GetPayloadSize() == 0 && Other.GetPayloadSize() == 0;
+	}
+	else if (IsDataVirtualized() || Other.IsDataVirtualized())
+	{
+		// Data is virtualized and will be looked up by PayloadContentId; use PayloadContentId
+		return IsDataVirtualized() && Other.IsDataVirtualized() &&
+			PayloadContentId == Other.PayloadContentId;
+	}
+	else if (!PackagePath.IsEmpty() || !Other.PackagePath.IsEmpty())
+	{
+		if (Other.PackagePath != PackagePath)
+		{
+			return false;
+		}
+		if ((HasPayloadSidecarFile() && CVarShouldLoadFromSidecar.GetValueOnAnyThread()) ||
+			CVarShouldLoadFromTrailer.GetValueOnAnyThread())
+		{
+			// Loading from the SidecarFile or PackageTrailer uses the PayloadContentId as
+			// the identifier to look up the location in the file
+			return PayloadContentId == Other.PayloadContentId;
+		}
+		else
+		{
+			// Loading from PackagePath without sidecar or trailer uses the OffsetInFile
+			return OffsetInFile == Other.OffsetInFile;
+		}
+	}
+	else
+	{
+		// BulkData is memory-only and therefore PayloadContentId is available, use PayloadContentId
+		return PayloadContentId == Other.PayloadContentId;
+	}
+}
+
 
 #if UE_ENABLE_VIRTUALIZATION_TOGGLE
 

@@ -54,7 +54,9 @@
 #include "AssetCompilingManager.h"
 #include "PackageHelperFunctions.h"
 #include "PackageTools.h"
+#include "String/ParseTokens.h"
 #include "UObject/PackageTrailer.h"
+#include "UObject/SavePackage.h"
 
 DEFINE_LOG_CATEGORY(LogContentCommandlet);
 
@@ -341,6 +343,22 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 	// This option will filter the package list and only save packages that are redirectors, or that reference redirectors
 	const bool bFixupRedirects = (Switches.Contains(TEXT("FixupRedirects")) || Switches.Contains(TEXT("FixupRedirectors")));
 
+	// ResaveOnDemand is a generic way for systems to specify during load that the commandlet should resave a package
+	ResaveOnDemandSystems = ParseResaveOnDemandSystems();
+	if (!ResaveOnDemandSystems.IsEmpty())
+	{
+		TStringBuilder<64> SystemNames;
+		for (FName SystemName : ResaveOnDemandSystems)
+		{
+			SystemNames << SystemName << TEXT(",");
+		}
+		SystemNames.RemoveSuffix(1); // Remove the trailing ,
+		UE_LOG(LogContentCommandlet, Display, TEXT("ResaveOnDemand=%s. Only saving packages that are reported via UE::SavePackageUtilities::OnAddResaveOnDemandPackage."),
+			*SystemNames);
+		bResaveOnDemand = true;
+		UE::SavePackageUtilities::OnAddResaveOnDemandPackage.BindUObject(this, &UResavePackagesCommandlet::OnAddResaveOnDemandPackage);
+	}
+
 	// This option allows the dependency graph and soft object path redirect map to be populated. This is useful if you want soft object references to redirectors to be followed to the destination asset at save time.
 	const bool bSearchAllAssets = Switches.Contains(TEXT("SearchAllAssets"));
 
@@ -568,6 +586,43 @@ void UResavePackagesCommandlet::ParseSourceControlOptions(const TArray<FString>&
 	}
 }
 
+void UResavePackagesCommandlet::OnAddResaveOnDemandPackage(FName SystemName, FName PackageName)
+{
+	FScopeLock ScopeLock(&ResaveOnDemandPackagesLock);
+	if (ResaveOnDemandSystems.Contains(SystemName))
+	{
+		ResaveOnDemandPackages.Add(PackageName);
+	}
+}
+
+
+TSet<FName> UResavePackagesCommandlet::ParseResaveOnDemandSystems()
+{
+	using namespace UE::String;
+	TSet<FName> SystemNames;
+
+	const TCHAR* CommandLineStream = FCommandLine::Get();
+	for (;;)
+	{
+		FString Token = FParse::Token(CommandLineStream, false /* bUseEscape */);
+		if (Token.IsEmpty())
+		{
+			break;
+		}
+		FString TokenSystemNames;
+		if (FParse::Value(*Token, TEXT("-resaveondemand="), TokenSystemNames))
+		{
+			UE::String::ParseTokensMultiple(TokenSystemNames, TConstArrayView<TCHAR>({ '+', ',' }),
+				[&SystemNames](FStringView TokenSystemName)
+				{
+					SystemNames.Add(FName(TokenSystemName));
+				}, EParseTokensOptions::Trim | EParseTokensOptions::SkipEmpty);
+		}
+	}
+	return SystemNames;
+}
+
+
 bool UResavePackagesCommandlet::ShouldSkipPackage(const FString& Filename)
 {
 	return false;
@@ -750,6 +805,16 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 			{
 				UE_LOG(LogContentCommandlet, Log, TEXT("Removing editor only data"));
 				Package->SetPackageFlags(PKG_FilterEditorOnly);
+			}
+
+			if (bResaveOnDemand && bSavePackage)
+			{
+				// Finish all async loading for the package, in case the systems marking it for load do so only from the async loading
+				FAssetCompilingManager::Get().FinishAllCompilation();
+				FlushAsyncLoading();
+				// Skip saving the package if no systems requested it
+				FScopeLock ScopeLock(&ResaveOnDemandPackagesLock);
+				bSavePackage = ResaveOnDemandPackages.Contains(Package->GetFName());
 			}
 
 			if (bSavePackage == true)

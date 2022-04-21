@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/Set.h"
 #include "Containers/Map.h"
+#include "Delegates/Delegate.h"
 #include "Misc/DateTime.h"
 #include "ObjectMacros.h"
 #include "Serialization/FileRegions.h"
@@ -175,6 +176,16 @@ namespace UE::SavePackageUtilities
 	COREUOBJECT_API void StartSavingEDLCookInfoForVerification();
 	COREUOBJECT_API void VerifyEDLCookInfo(bool bFullReferencesExpected = true);
 	COREUOBJECT_API void EDLCookInfoAddIterativelySkippedPackage(FName LongPackageName);
+
+#if WITH_EDITOR
+	/** void FAddResaveOnDemandPackage(FName SystemName, FName PackageName); */
+	DECLARE_DELEGATE_TwoParams(FAddResaveOnDemandPackage, FName, FName);
+	/**
+	 * Low-level systems execute this delegate during automated resave-on-demand to request that a package be resaved.
+	 * Automated resave managers like the ResavePackagesCommandlet subscribe to it to know which packages to save.
+	 */
+	extern COREUOBJECT_API FAddResaveOnDemandPackage OnAddResaveOnDemandPackage;
+#endif
 }
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogSavePackage, Log, All);
