@@ -7,6 +7,11 @@ using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
 
+///////////////////////////////////////////////////////////////////
+// If you are looking for supported version numbers, look in the
+// LinuxPlatformSDK.Versions.cs file next to this file
+///////////////////////////////////////////////////////////////////
+
 namespace UnrealBuildTool
 {
 	partial class LinuxPlatformSDK : UEBuildPlatformSDK

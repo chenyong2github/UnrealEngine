@@ -7,6 +7,11 @@ using EpicGames.Core;
 using System.Text.RegularExpressions;
 using System.Linq;
 
+///////////////////////////////////////////////////////////////////
+// If you are looking for supported version numbers, look in the
+// AndroidPlatformSDK.Versions.cs file next to this file
+///////////////////////////////////////////////////////////////////
+
 namespace UnrealBuildTool
 {
 	partial class AndroidPlatformSDK : UEBuildPlatformSDK

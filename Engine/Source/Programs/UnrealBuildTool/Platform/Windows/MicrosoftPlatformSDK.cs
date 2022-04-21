@@ -15,6 +15,11 @@ using System.Buffers.Binary;
 using UnrealBuildBase;
 using System.Runtime.Versioning;
 
+///////////////////////////////////////////////////////////////////
+// If you are looking for supported version numbers, look in the
+// MicrosoftPlatformSDK.Versions.cs file next to this file
+///////////////////////////////////////////////////////////////////
+
 namespace UnrealBuildTool
 {
 	internal partial class MicrosoftPlatformSDK : UEBuildPlatformSDK
