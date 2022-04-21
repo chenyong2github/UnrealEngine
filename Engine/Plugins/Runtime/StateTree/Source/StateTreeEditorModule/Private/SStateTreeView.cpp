@@ -179,7 +179,7 @@ void SStateTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurr
 {
 	if (bItemsDirty)
 	{
-		UpdateTree();
+		UpdateTree(/*bExpandPersistent*/true);
 	}
 
 	if (RequestedRenameState && !TreeView->IsPendingRefresh())

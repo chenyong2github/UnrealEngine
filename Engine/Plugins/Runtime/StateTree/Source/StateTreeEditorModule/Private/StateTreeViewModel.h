@@ -12,6 +12,13 @@ class UStateTreeState;
 class UStateTree;
 class FMenuBuilder;
 
+enum class FStateTreeViewModelInsert : uint8
+{
+	Before,
+	After,
+	Into,
+};
+
 /**
  * ModelView for editing StateTreeEditorData.
  */
@@ -27,13 +34,13 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChanged, const TArray<UStateTreeState*>& /*SelectedStates*/);
 
 	FStateTreeViewModel();
-	~FStateTreeViewModel();
+	virtual ~FStateTreeViewModel() override;
 
 	void Init(UStateTreeEditorData* InTreeData);
 
 	//~ FEditorUndoClient
-	void PostUndo(bool bSuccess);
-	void PostRedo(bool bSuccess);
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
 
 	// Selection handling.
 	void ClearSelection();
@@ -45,14 +52,14 @@ public:
 	bool HasSelection() const;
 
 	// Returns array of subtrees to edit.
-	TArray<UStateTreeState*>* GetSubTrees();
+	TArray<UStateTreeState*>* GetSubTrees() const;
 	int32 GetSubTreeCount() const;
 
 	// Gets and sets StateTree view expansion state store in the asset.
 	void GetPersistentExpandedStates(TSet<UStateTreeState*>& OutExpandedStates);
 	void SetPersistentExpandedStates(TSet<UStateTreeState*>& InExpandedStates);
 
-	// State manupulation commands
+	// State manipulation commands
 	void AddState(UStateTreeState* AfterState);
 	void AddChildState(UStateTreeState* ParentState);
 	void RenameState(UStateTreeState* State, FName NewName);
@@ -62,8 +69,8 @@ public:
 	void MoveSelectedStatesInto(UStateTreeState* TargetState);
 
 	// Force to update the view externally.
-	void NotifyAssetChangedExternally();
-	void NotifyStatesChangedExternally(const TSet<UStateTreeState*>& ChangedStates, const FPropertyChangedEvent& PropertyChangedEvent);
+	void NotifyAssetChangedExternally() const;
+	void NotifyStatesChangedExternally(const TSet<UStateTreeState*>& ChangedStates, const FPropertyChangedEvent& PropertyChangedEvent) const;
 
 	// Called when the whole asset is updated (i.e. undo/redo).
 	FOnAssetChanged& GetOnAssetChanged() { return OnAssetChanged; }
@@ -85,12 +92,11 @@ public:
 
 protected:
 	void GetExpandedStatesRecursive(UStateTreeState* State, TSet<UStateTreeState*>& ExpandedStates);
-	void MoveSelectedStates(UStateTreeState* TargetState, int32 RelativeLocation);
+	void MoveSelectedStates(UStateTreeState* TargetState, const FStateTreeViewModelInsert RelativeLocation);
 
-	void HandleIdentifierChanged(const UStateTree& StateTree);
-	void HandleParameterLayoutChanged(const UStateTree& StateTree);
+	void HandleIdentifierChanged(const UStateTree& StateTree) const;
 
-	UStateTreeEditorData* TreeData;	// TODO: is this safe? should we used TWeakObjectPtr here istead?
+	UStateTreeEditorData* TreeData;	// TODO: is this safe? should we used TWeakObjectPtr here instead?
 	TSet<FWeakObjectPtr> SelectedStates;
 	FOnAssetChanged OnAssetChanged;
 	FOnStatesChanged OnStatesChanged;

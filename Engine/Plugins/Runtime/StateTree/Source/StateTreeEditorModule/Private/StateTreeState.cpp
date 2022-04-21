@@ -40,7 +40,6 @@ FStateTreeTransition::FStateTreeTransition(const EStateTreeTransitionEvent InEve
 UStateTreeState::UStateTreeState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ID(FGuid::NewGuid())
-	, Parent(nullptr)
 {
 }
 
@@ -121,10 +120,23 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 					}
 				}
 				// TODO: Transition conditions.
+				
 			}
 		}
 	}
 }
+
+void UStateTreeState::PostLoad()
+{
+	Super::PostLoad();
+
+	// Make sure state has transactional flags to make it work with undo (to fix a bug where root states were created without this flag).
+	if (!HasAnyFlags(RF_Transactional))
+	{
+		SetFlags(RF_Transactional);
+	}
+}
+
 
 #endif
 

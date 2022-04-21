@@ -150,6 +150,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;;
 #endif
 
 	UStateTreeState* GetNextSiblingState() const;
@@ -159,7 +160,7 @@ public:
 	/** Adds child state with specified name. */
 	UStateTreeState& AddChildState(const FName ChildName, const EStateTreeStateType StateType = EStateTreeStateType::State)
 	{
-		UStateTreeState* ChildState = NewObject<UStateTreeState>(this);
+		UStateTreeState* ChildState = NewObject<UStateTreeState>(this, FName(), RF_Transactional);
 		check(ChildState);
 		ChildState->Name = ChildName;
 		ChildState->Parent = this;
@@ -230,14 +231,14 @@ public:
 	{
 		return Transitions.Emplace_GetRef(InEvent, InType, InState);
 	}
-
+ 
 	// ~StateTree Builder API
 
 	UPROPERTY(EditDefaultsOnly, Category = "State")
 	FName Name;
 
 	UPROPERTY(EditDefaultsOnly, Category = "State")
-	EStateTreeStateType Type;
+	EStateTreeStateType Type = EStateTreeStateType::State;
 
 	UPROPERTY(EditDefaultsOnly, Category = "State", Meta=(DirectStatesOnly))
 	FStateTreeStateLink LinkedState;
@@ -265,9 +266,8 @@ public:
 	TArray<UStateTreeState*> Children;
 
 	UPROPERTY(meta = (ExcludeFromHash))
-	bool bExpanded;
+	bool bExpanded = true;
 
 	UPROPERTY(meta = (ExcludeFromHash))
-	UStateTreeState* Parent;
-
+	UStateTreeState* Parent = nullptr;
 };

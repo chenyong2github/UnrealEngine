@@ -72,7 +72,7 @@ public:
 	 */
 	UStateTreeState& AddSubTree(const FName Name)
 	{
-		UStateTreeState* SubTreeState = NewObject<UStateTreeState>(this);
+		UStateTreeState* SubTreeState = NewObject<UStateTreeState>(this, FName(), RF_Transactional);
 		check(SubTreeState);
 		SubTreeState->Name = Name;
 		SubTrees.Add(SubTreeState);
