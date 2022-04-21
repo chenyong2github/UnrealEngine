@@ -577,8 +577,8 @@ void FDMXOutputPort::UpdateFromConfig(FDMXOutputPortConfig& InOutOutputPortConfi
 		FName ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
 
 		if (ProtocolName == OutputPortConfig.GetProtocolName() &&
-			bAutoCompleteDeviceAddressEnabled == bAutoCompleteDeviceAddressEnabled &&
-			AutoCompleteDeviceAddress == AutoCompleteDeviceAddress &&
+			bAutoCompleteDeviceAddressEnabled == OutputPortConfig.IsAutoCompleteDeviceAddressEnabled() &&
+			AutoCompleteDeviceAddress == OutputPortConfig.GetAutoCompleteDeviceAddress() &&
 			DeviceAddress == OutputPortConfig.GetDeviceAddress() &&
 			DestinationAddresses == OutputPortConfig.GetDestinationAddresses() &&
 			CommunicationType == OutputPortConfig.GetCommunicationType() &&

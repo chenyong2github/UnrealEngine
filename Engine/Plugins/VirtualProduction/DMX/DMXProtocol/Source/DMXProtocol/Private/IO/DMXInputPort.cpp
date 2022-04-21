@@ -455,8 +455,8 @@ void FDMXInputPort::UpdateFromConfig(FDMXInputPortConfig& InOutInputPortConfig, 
 		FName ProtocolName = Protocol.IsValid() ? Protocol->GetProtocolName() : NAME_None;
 
 		if (ProtocolName == InputPortConfig.GetProtocolName() &&
-			bAutoCompleteDeviceAddressEnabled == bAutoCompleteDeviceAddressEnabled &&
-			AutoCompleteDeviceAddress == AutoCompleteDeviceAddress &&
+			bAutoCompleteDeviceAddressEnabled == InputPortConfig.IsAutoCompleteDeviceAddressEnabled() &&
+			AutoCompleteDeviceAddress == InputPortConfig.GetAutoCompleteDeviceAddress() &&
 			DeviceAddress == InputPortConfig.GetDeviceAddress() &&
 			CommunicationType == InputPortConfig.GetCommunicationType())
 		{
