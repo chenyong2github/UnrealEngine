@@ -3880,15 +3880,19 @@ void SLevelViewport::SetViewportTypeWithinLayout(FName InLayoutType)
 
 void SLevelViewport::ToggleViewportTypeActivationWithinLayout(FName InLayoutType)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (GetViewportTypeWithinLayout() != InLayoutType)
 	{
 		SetViewportTypeWithinLayout(InLayoutType);
 	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool SLevelViewport::IsViewportTypeWithinLayoutEqual(FName InLayoutType)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return GetViewportTypeWithinLayout() == InLayoutType;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void SLevelViewport::StartPlayInEditorSession(UGameViewportClient* PlayClient, const bool bInSimulateInEditor)
