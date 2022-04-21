@@ -95,7 +95,7 @@ public:
 		FOpenXRHMD* OpenXRHMD;
 
 		TArray<XrActiveActionSet> ActionSets;
-		TArray<XrActiveActionSet> PluginActionSets;
+		TArray<XrActionSet> PluginActionSets;
 		TArray<XrPath> SubactionPaths;
 		TArray<FOpenXRAction> Actions;
 		TMap<EControllerHand, FOpenXRController> Controllers;
@@ -113,6 +113,8 @@ public:
 
 		template<typename T>
 		int32 SuggestBindings(XrInstance Instance, FOpenXRAction& Action, const TArray<T>& Mappings, TMap<FString, FInteractionProfile>& Profiles);
+
+		bool SuggestBindingForKey(XrInstance Instance, FOpenXRAction& Action, const FKey& Key, TMap<FString, FInteractionProfile>& Profiles);
 
 		/** handler to send all messages to */
 		TSharedRef<FGenericApplicationMessageHandler> MessageHandler;
