@@ -2116,6 +2116,12 @@ void FControlRigEditMode::HandleSelectionChanged()
 
 	// update the pivot transform of our selected objects (they could be animating)
 	RecalcPivotTransform();
+	//need to force the redraw also
+	if (IsInLevelEditor())
+	{
+		GEditor->RedrawLevelEditingViewports(true);
+	}
+
 }
 
 void FControlRigEditMode::BindCommands()
