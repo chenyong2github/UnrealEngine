@@ -19,7 +19,11 @@ class UDataInterfaceFloat : public UObject, public IDataInterface
 		return Name;
 	}
 
-	virtual bool GetDataImpl(const UE::DataInterface::FContext& Context) const override PURE_VIRTUAL(UDataInterfaceFloat::GetDataImpl, return false;)
+	virtual bool GetDataImpl(const UE::DataInterface::FContext& Context) const override
+	{
+		checkf(false, TEXT("UDataInterfaceFloat::GetDataImpl must be overridden"));
+		return false;
+	}
 };
 
 UCLASS()

@@ -9,6 +9,7 @@
 namespace UE::DataInterface
 {
 struct FParam;
+struct FContext;
 }
 
 UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
