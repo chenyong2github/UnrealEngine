@@ -29,6 +29,7 @@ public:
 	
 	/** ~Begin UObject interface */
 	virtual void PostLoad() override;
+	virtual void PostEditImport() override;
 	virtual void BeginDestroy() override;
 	/** ~End UObject interface */
 
@@ -110,10 +111,10 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UPCGNode>> OutboundNodes_DEPRECATED;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Node)
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Node, TextExportTransient)
 	TArray<TObjectPtr<UPCGEdge>> InboundEdges;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Node)
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Node, TextExportTransient)
 	TArray<TObjectPtr<UPCGEdge>> OutboundEdges;
 
 	// TODO: add this information:

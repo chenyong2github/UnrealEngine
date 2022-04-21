@@ -2,12 +2,12 @@
 
 #include "PCGEditorGraphNodeFactory.h"
 
-#include "PCGEditorGraphNode.h"
+#include "PCGEditorGraphNodeBase.h"
 #include "SPCGEditorGraphNode.h"
 
 TSharedPtr<SGraphNode> FPCGEditorGraphNodeFactory::CreateNode(UEdGraphNode* InNode) const
 {
-	if (UPCGEditorGraphNode* GraphNode = Cast<UPCGEditorGraphNode>(InNode))
+	if (UPCGEditorGraphNodeBase* GraphNode = Cast<UPCGEditorGraphNodeBase>(InNode))
 	{
 		TSharedRef<SGraphNode> VisualNode =
 			SNew(SPCGEditorGraphNode, GraphNode);

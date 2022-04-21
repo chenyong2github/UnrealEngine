@@ -39,6 +39,28 @@ private:
 	/** Whether we can delete all selected nodes */
 	bool CanDeleteSelectedNodes() const;
 
+	/** Copy all selected nodes in the graph */
+	void CopySelectedNodes();
+	/** Whether we can copy all selected nodes */
+	bool CanCopySelectedNodes() const;
+
+	/** Cut all selected nodes in the graph */
+	void CutSelectedNodes();
+	/** Whether we can cut all selected nodes */
+	bool CanCutSelectedNodes() const;
+
+	/** Paste nodes in the graph */
+	void PasteNodes();
+	/** Paste nodes in the graph at location*/
+	void PasteNodesHere(const FVector2D& Location);
+	/** Whether we can paste nodes */
+	bool CanPasteNodes() const;
+
+	/** Duplicate the currently selected nodes */
+	void DuplicateNodes();
+	/** Whether we are able to duplicate the currently selected nodes */
+	bool CanDuplicateNodes() const;
+
 	void OnAlignTop();
 	void OnAlignMiddle();
 	void OnAlignBottom();

@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]{
 					"AppFramework",
+					"ApplicationCore",
 					"AssetTools",
 					"DesktopWidgets",
 					"EditorStyle",

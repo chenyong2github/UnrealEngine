@@ -180,7 +180,7 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
 		const FName DefaultNodeName = InSettings->GetDefaultNodeName();
 		if (DefaultNodeName != NAME_None)
 		{
-			FName NodeName = MakeUniqueObjectName(GetOuter(), UPCGNode::StaticClass(), DefaultNodeName);
+			FName NodeName = MakeUniqueObjectName(this, UPCGNode::StaticClass(), DefaultNodeName);
 			Node->Rename(*NodeName.ToString());
 		}
 #endif
@@ -268,6 +268,23 @@ UPCGNode* UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, U
 bool UPCGGraph::Contains(UPCGNode* Node) const
 {
 	return Node == InputNode || Node == OutputNode || Nodes.Contains(Node);
+}
+
+void UPCGGraph::AddNode(UPCGNode* InNode)
+{
+	InNode->Rename(nullptr, this);
+
+#if WITH_EDITOR
+	const FName DefaultNodeName = InNode->DefaultSettings->GetDefaultNodeName();
+	if (DefaultNodeName != NAME_None)
+	{
+		FName NodeName = MakeUniqueObjectName(this, UPCGNode::StaticClass(), DefaultNodeName);
+		InNode->Rename(*NodeName.ToString());
+	}
+#endif
+
+	Nodes.Add(InNode);
+	OnNodeAdded(InNode);
 }
 
 void UPCGGraph::RemoveNode(UPCGNode* InNode)

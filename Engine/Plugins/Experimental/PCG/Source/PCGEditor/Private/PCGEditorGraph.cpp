@@ -5,6 +5,8 @@
 #include "PCGGraph.h"
 #include "PCGEdge.h"
 #include "PCGEditorGraphNode.h"
+#include "PCGEditorGraphNodeInput.h"
+#include "PCGEditorGraphNodeOutput.h"
 
 #include "EdGraph/EdGraphPin.h"
 
@@ -13,19 +15,19 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 	check(InPCGGraph && !PCGGraph);
 	PCGGraph = InPCGGraph;
 
-	TMap<UPCGNode*, UPCGEditorGraphNode*> NodeLookup;
+	TMap<UPCGNode*, UPCGEditorGraphNodeBase*> NodeLookup;
 	const bool bSelectNewNode = false;
 
 	UPCGNode* InputNode = PCGGraph->GetInputNode();
-	FGraphNodeCreator<UPCGEditorGraphNode> InputNodeCreator(*this);
-	UPCGEditorGraphNode* InputGraphNode = InputNodeCreator.CreateNode(bSelectNewNode);
+	FGraphNodeCreator<UPCGEditorGraphNodeInput> InputNodeCreator(*this);
+	UPCGEditorGraphNodeInput* InputGraphNode = InputNodeCreator.CreateNode(bSelectNewNode);
 	InputGraphNode->Construct(InputNode, EPCGEditorGraphNodeType::Input);
 	InputNodeCreator.Finalize();
 	NodeLookup.Add(InputNode, InputGraphNode);
 
 	UPCGNode* OutputNode = PCGGraph->GetOutputNode();
-	FGraphNodeCreator<UPCGEditorGraphNode> OutputNodeCreator(*this);
-	UPCGEditorGraphNode* OutputGraphNode = OutputNodeCreator.CreateNode(bSelectNewNode);
+	FGraphNodeCreator<UPCGEditorGraphNodeOutput> OutputNodeCreator(*this);
+	UPCGEditorGraphNodeOutput* OutputGraphNode = OutputNodeCreator.CreateNode(bSelectNewNode);
 	OutputGraphNode->Construct(OutputNode, EPCGEditorGraphNodeType::Output);
 	OutputNodeCreator.Finalize();
 	NodeLookup.Add(OutputNode, OutputGraphNode);
@@ -42,7 +44,7 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 	for (const auto& NodeLookupIt : NodeLookup)
 	{
 		UPCGNode* PCGNode = NodeLookupIt.Key;
-		UPCGEditorGraphNode* GraphNode = NodeLookupIt.Value;
+		UPCGEditorGraphNodeBase* GraphNode = NodeLookupIt.Value;
 
 		for (UPCGEdge* OutboundEdge : PCGNode->GetOutboundEdges())
 		{
@@ -55,7 +57,7 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 			}
 			
 			UPCGNode* OutboundNode = OutboundEdge->OutboundNode;
-			if (UPCGEditorGraphNode** ConnectedGraphNode = NodeLookup.Find(OutboundNode))
+			if (UPCGEditorGraphNodeBase** ConnectedGraphNode = NodeLookup.Find(OutboundNode))
 			{
 				const FName InPinName = (OutboundEdge->OutboundLabel == NAME_None ? TEXT("In") : OutboundEdge->OutboundLabel);
 

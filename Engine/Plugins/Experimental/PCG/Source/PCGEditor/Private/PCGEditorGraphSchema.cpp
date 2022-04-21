@@ -3,7 +3,7 @@
 #include "PCGEditorGraphSchema.h"
 
 #include "PCGEditorGraph.h"
-#include "PCGEditorGraphNode.h"
+#include "PCGEditorGraphNodeBase.h"
 #include "PCGEditorGraphSchemaActions.h"
 #include "PCGSettings.h"
 #include "PCGGraph.h"
@@ -78,8 +78,8 @@ bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* I
 		UEdGraphNode* NodeA = A->GetOwningNode();
 		UEdGraphNode* NodeB = B->GetOwningNode();
 
-		UPCGEditorGraphNode* PCGGraphNodeA = CastChecked<UPCGEditorGraphNode>(NodeA);
-		UPCGEditorGraphNode* PCGGraphNodeB = CastChecked<UPCGEditorGraphNode>(NodeB);
+		UPCGEditorGraphNodeBase* PCGGraphNodeA = CastChecked<UPCGEditorGraphNodeBase>(NodeA);
+		UPCGEditorGraphNodeBase* PCGGraphNodeB = CastChecked<UPCGEditorGraphNodeBase>(NodeB);
 
 		UPCGNode* PCGNodeA = PCGGraphNodeA->GetPCGNode();
 		UPCGNode* PCGNodeB = PCGGraphNodeB->GetPCGNode();
@@ -103,7 +103,7 @@ void UPCGEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNod
 
 	UEdGraphNode* GraphNode = TargetPin.GetOwningNode();
 
-	UPCGEditorGraphNode* PCGGraphNode = CastChecked<UPCGEditorGraphNode>(GraphNode);
+	UPCGEditorGraphNodeBase* PCGGraphNode = CastChecked<UPCGEditorGraphNodeBase>(GraphNode);
 
 	UPCGNode* PCGNode = PCGGraphNode->GetPCGNode();
 	check(PCGNode);
@@ -130,8 +130,8 @@ void UPCGEditorGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphP
 	UEdGraphNode* SourceGraphNode = SourcePin->GetOwningNode();
 	UEdGraphNode* TargetGraphNode = TargetPin->GetOwningNode();
 
-	UPCGEditorGraphNode* SourcePCGGraphNode = CastChecked<UPCGEditorGraphNode>(SourceGraphNode);
-	UPCGEditorGraphNode* TargetPCGGraphNode = CastChecked<UPCGEditorGraphNode>(TargetGraphNode);
+	UPCGEditorGraphNodeBase* SourcePCGGraphNode = CastChecked<UPCGEditorGraphNodeBase>(SourceGraphNode);
+	UPCGEditorGraphNodeBase* TargetPCGGraphNode = CastChecked<UPCGEditorGraphNodeBase>(TargetGraphNode);
 
 	UPCGNode* SourcePCGNode = SourcePCGGraphNode->GetPCGNode();
 	UPCGNode* TargetPCGNode = TargetPCGGraphNode->GetPCGNode();

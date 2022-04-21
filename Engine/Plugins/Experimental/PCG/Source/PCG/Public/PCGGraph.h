@@ -60,6 +60,7 @@ public:
 
 	bool Contains(UPCGNode* Node) const;
 	const TArray<UPCGNode*>& GetNodes() const { return Nodes; }
+	void AddNode(UPCGNode* InNode);
 	void RemoveNode(UPCGNode* InNode);
 	void RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To, const FName& ToLabel);
 	void RemoveAllInboundEdges(UPCGNode* InNode);

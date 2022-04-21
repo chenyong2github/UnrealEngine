@@ -33,6 +33,17 @@ void UPCGNode::PostLoad()
 	OutboundNodes_DEPRECATED.Reset();
 }
 
+void UPCGNode::PostEditImport()
+{
+	Super::PostEditImport();
+#if WITH_EDITOR
+	if (DefaultSettings)
+	{
+		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
+	}
+#endif
+}
+
 void UPCGNode::BeginDestroy()
 {
 #if WITH_EDITOR
@@ -204,7 +215,8 @@ void UPCGNode::RemoveOutboundEdge(UPCGEdge* InEdge)
 
 void UPCGNode::PreEditChange(FProperty* PropertyAboutToChange)
 {
-	if (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, DefaultSettings))
+	// To properly clean up old callbacks during paste we clear during null call since the Settings property doesn't get a specific call.
+	if (!PropertyAboutToChange || (PropertyAboutToChange && PropertyAboutToChange->GetFName() == GET_MEMBER_NAME_CHECKED(UPCGNode, DefaultSettings)))
 	{
 		if (DefaultSettings)
 		{

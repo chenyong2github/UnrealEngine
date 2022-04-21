@@ -9,7 +9,6 @@
 
 class UEdGraph;
 class UEdGraphPin;
-class UPCGEditorGraphNode;
 class UPCGSettings;
 
 USTRUCT()

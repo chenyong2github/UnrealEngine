@@ -2,10 +2,10 @@
 
 #include "SPCGEditorGraphNode.h"
 
-#include "PCGEditorGraphNode.h"
+#include "PCGEditorGraphNodeBase.h"
 #include "PCGNode.h"
 
-void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNode* InNode)
+void SPCGEditorGraphNode::Construct(const FArguments& InArgs, UPCGEditorGraphNodeBase* InNode)
 {
 	GraphNode = InNode;
 	PCGEditorGraphNode = InNode;

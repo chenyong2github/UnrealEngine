@@ -6,21 +6,19 @@
 #include "UObject/ObjectMacros.h"
 #include "PCGEditorGraphNodeBase.h"
 
-#include "PCGEditorGraphNode.generated.h"
-
-class UToolMenu;
+#include "PCGEditorGraphNodeInput.generated.h"
 
 UCLASS()
-class UPCGEditorGraphNode : public UPCGEditorGraphNodeBase
+class UPCGEditorGraphNodeInput : public UPCGEditorGraphNodeBase
 {
 	GENERATED_BODY()
 
 public:
 	// ~Begin UEdGraphNode interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-	virtual void GetNodeContextMenuActions(UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual void AllocateDefaultPins() override;
+	virtual bool CanUserDeleteNode() const override { return false; }
+	virtual bool CanDuplicateNode() const override { return false; }
 	virtual void ReconstructNode() override;
-	virtual void OnRenameNode(const FString& NewName);
 	// ~End UEdGraphNode interface
 };

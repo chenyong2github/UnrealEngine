@@ -3,10 +3,11 @@
 #include "PCGEditor.h"
 
 #include "PCGEditorGraph.h"
-#include "PCGEditorGraphNode.h"
+#include "PCGEditorGraphNodeBase.h"
 #include "PCGEditorGraphSchema.h"
 #include "PCGGraph.h"
 
+#include "EdGraphUtilities.h"
 #include "Editor.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UIAction.h"
@@ -15,12 +16,13 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "IDetailsView.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "Widgets/Docking/SDockTab.h"
-
+#include "SNodePanel.h"
 #include "ToolMenus.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "PCGGraphEditor"
 
@@ -187,9 +189,11 @@ void FPCGEditor::DeleteSelectedNodes()
 		UPCGGraph* PCGGraph = PCGEditorGraph->GetPCGGraph();
 		check(PCGEditorGraph && PCGGraph);
 
+		bool bChanged = false;
+
 		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 		{
-			UPCGEditorGraphNode* PCGEditorGraphNode = CastChecked<UPCGEditorGraphNode>(Object);
+			UPCGEditorGraphNodeBase* PCGEditorGraphNode = CastChecked<UPCGEditorGraphNodeBase>(Object);
 
 			if (PCGEditorGraphNode->CanUserDeleteNode())
 			{
@@ -198,11 +202,16 @@ void FPCGEditor::DeleteSelectedNodes()
 
 				PCGGraph->RemoveNode(PCGNode);
 				PCGEditorGraphNode->DestroyNode();
+				bChanged = true;
 			}
 		}
 
-		GraphEditorWidget->ClearSelectionSet();
-		GraphEditorWidget->NotifyGraphChanged();
+		if (bChanged)
+		{
+			GraphEditorWidget->ClearSelectionSet();
+			GraphEditorWidget->NotifyGraphChanged();
+			PCGGraphBeingEdited->MarkPackageDirty();
+		}
 	}
 }
 
@@ -212,7 +221,7 @@ bool FPCGEditor::CanDeleteSelectedNodes() const
 	{
 		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 		{
-			UPCGEditorGraphNode* PCGEditorGraphNode = CastChecked<UPCGEditorGraphNode>(Object);
+			UPCGEditorGraphNodeBase* PCGEditorGraphNode = CastChecked<UPCGEditorGraphNodeBase>(Object);
 
 			if (PCGEditorGraphNode->CanUserDeleteNode())
 			{
@@ -222,6 +231,157 @@ bool FPCGEditor::CanDeleteSelectedNodes() const
 	}
 
 	return false;
+}
+
+void FPCGEditor::CopySelectedNodes()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		const FGraphPanelSelectionSet SelectedNodes = GraphEditorWidget->GetSelectedNodes();
+
+		//TODO: evaluate creating a clipboard object instead of ownership hack
+		for (UObject* SelectedNode : SelectedNodes)
+		{
+			UEdGraphNode* GraphNode = CastChecked<UEdGraphNode>(SelectedNode);
+			GraphNode->PrepareForCopying();
+		}
+
+		FString ExportedText;
+		FEdGraphUtilities::ExportNodesToText(SelectedNodes, ExportedText);
+		FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+
+		for (UObject* SelectedNode : SelectedNodes)
+		{
+			UPCGEditorGraphNodeBase* PCGGraphNode = CastChecked<UPCGEditorGraphNodeBase>(SelectedNode);
+			PCGGraphNode->PostCopy();
+		}
+	}
+}
+
+bool FPCGEditor::CanCopySelectedNodes() const
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
+		{
+			if (UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
+			{
+				if (PCGEditorGraphNode->CanDuplicateNode())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
+void FPCGEditor::CutSelectedNodes()
+{
+	CopySelectedNodes();
+	DeleteSelectedNodes();
+}
+
+bool FPCGEditor::CanCutSelectedNodes() const
+{
+	return CanCopySelectedNodes() && CanDeleteSelectedNodes();
+}
+
+void FPCGEditor::PasteNodes()
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		PasteNodesHere(GraphEditorWidget->GetPasteLocation());
+	}
+}
+
+void FPCGEditor::PasteNodesHere(const FVector2D& Location)
+{
+	if (!GraphEditorWidget.IsValid() || !PCGEditorGraph)
+	{
+		return;
+	}
+
+	PCGEditorGraph->Modify();
+
+	// Clear the selection set (newly pasted stuff will be selected)
+	GraphEditorWidget->ClearSelectionSet();
+
+	// Grab the text to paste from the clipboard.
+	FString TextToImport;
+	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+
+	// Import the nodes
+	TSet<UEdGraphNode*> PastedNodes;
+	FEdGraphUtilities::ImportNodesFromText(PCGEditorGraph, TextToImport, /*out*/ PastedNodes);
+
+	//Average position of nodes so we can move them while still maintaining relative distances to each other
+	FVector2D AvgNodePosition(0.0f, 0.0f);
+
+	// Number of nodes used to calculate AvgNodePosition
+	int32 AvgCount = 0;
+
+	for (UEdGraphNode* PastedNode : PastedNodes)
+	{
+		if (PastedNode)
+		{
+			AvgNodePosition.X += PastedNode->NodePosX;
+			AvgNodePosition.Y += PastedNode->NodePosY;
+			++AvgCount;
+		}
+	}
+
+	if (AvgCount > 0)
+	{
+		float InvNumNodes = 1.0f / float(AvgCount);
+		AvgNodePosition.X *= InvNumNodes;
+		AvgNodePosition.Y *= InvNumNodes;
+	}
+
+	for (UEdGraphNode* PastedNode : PastedNodes)
+	{
+		GraphEditorWidget->SetNodeSelection(PastedNode, true);
+
+		PastedNode->NodePosX = (PastedNode->NodePosX - AvgNodePosition.X) + Location.X;
+		PastedNode->NodePosY = (PastedNode->NodePosY - AvgNodePosition.Y) + Location.Y;
+
+		PastedNode->SnapToGrid(SNodePanel::GetSnapGridSize());
+
+		PastedNode->CreateNewGuid();
+
+		if (UPCGEditorGraphNodeBase* PastedPCGGraphNode = Cast<UPCGEditorGraphNodeBase>(PastedNode))
+		{
+			if (UPCGNode* PastedPCGNode = PastedPCGGraphNode->GetPCGNode())
+			{
+				PCGGraphBeingEdited->AddNode(PastedPCGNode);
+
+				PastedPCGGraphNode->PostPaste();
+			}
+		}
+	}
+
+	GraphEditorWidget->NotifyGraphChanged();
+	PCGGraphBeingEdited->MarkPackageDirty();
+}
+
+bool FPCGEditor::CanPasteNodes() const
+{
+	FString ClipboardContent;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
+
+	return FEdGraphUtilities::CanImportNodesFromText(PCGEditorGraph, ClipboardContent);
+}
+
+void FPCGEditor::DuplicateNodes()
+{
+	CopySelectedNodes();
+	PasteNodes();
+}
+
+bool FPCGEditor::CanDuplicateNodes() const
+{
+	return CanCopySelectedNodes();
 }
 
 void FPCGEditor::OnAlignTop()
@@ -309,6 +469,22 @@ TSharedRef<SGraphEditor> FPCGEditor::CreateGraphEditorWidget()
 		FExecuteAction::CreateSP(this, &FPCGEditor::DeleteSelectedNodes),
 		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanDeleteSelectedNodes));
 
+	GraphEditorCommands->MapAction(FGenericCommands::Get().Copy,
+		FExecuteAction::CreateSP(this, &FPCGEditor::CopySelectedNodes),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanCopySelectedNodes));
+
+	GraphEditorCommands->MapAction(FGenericCommands::Get().Cut,
+		FExecuteAction::CreateSP(this, &FPCGEditor::CutSelectedNodes),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanCutSelectedNodes));
+
+	GraphEditorCommands->MapAction(FGenericCommands::Get().Paste,
+		FExecuteAction::CreateSP(this, &FPCGEditor::PasteNodes),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanPasteNodes));
+
+	GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
+		FExecuteAction::CreateSP(this, &FPCGEditor::DuplicateNodes),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanDuplicateNodes));
+
 	// Alignment Commands
 	GraphEditorCommands->MapAction(FGraphEditorCommands::Get().AlignNodesTop,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnAlignTop)
@@ -369,9 +545,12 @@ void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 
 	for (UObject* Object : NewSelection)
 	{
-		if (UPCGEditorGraphNode* GraphNode = Cast<UPCGEditorGraphNode>(Object))
+		if (UPCGEditorGraphNodeBase* GraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
 		{
-			SelectedObjects.Add(GraphNode->GetPCGNode()->DefaultSettings);
+			if (UPCGNode* PCGNode = GraphNode->GetPCGNode())
+			{
+				SelectedObjects.Add(PCGNode->DefaultSettings);
+			}
 		}
 	}
 

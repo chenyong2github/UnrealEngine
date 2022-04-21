@@ -5,7 +5,7 @@
 #include "SGraphNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
-class UPCGEditorGraphNode;
+class UPCGEditorGraphNodeBase;
 
 class SPCGEditorGraphNode : public SGraphNode
 {
@@ -13,7 +13,7 @@ public:
 	SLATE_BEGIN_ARGS(SPCGEditorGraphNode){}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, UPCGEditorGraphNode* InNode);
+	void Construct(const FArguments& InArgs, UPCGEditorGraphNodeBase* InNode);
 
 	//~ Begin SGraphNode Interface
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter, bool bMarkDirty = true) override;
@@ -23,5 +23,5 @@ protected:
 	void OnNodeChanged();
 
 private:
-	UPCGEditorGraphNode* PCGEditorGraphNode = nullptr;
+	UPCGEditorGraphNodeBase* PCGEditorGraphNode = nullptr;
 };
