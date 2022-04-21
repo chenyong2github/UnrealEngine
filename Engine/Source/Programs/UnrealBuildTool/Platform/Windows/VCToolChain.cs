@@ -1039,11 +1039,11 @@ namespace UnrealBuildTool
 
 				// Allow delay-loaded DLLs to be explicitly unloaded.
 				Arguments.Add("/DELAY:UNLOAD");
+			}
 
-				if (LinkEnvironment.bIsBuildingDLL)
-				{
-					Arguments.Add("/DLL");
-				}
+			if (LinkEnvironment.bIsBuildingDLL)
+			{
+				Arguments.Add("/DLL");
 			}
 
 			// Don't embed the full PDB path; we want to be able to move binaries elsewhere. They will always be side by side.
