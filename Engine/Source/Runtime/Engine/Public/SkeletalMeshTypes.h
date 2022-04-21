@@ -7,6 +7,7 @@
 #include "Materials/MaterialInterface.h"
 #include "ComponentReregisterContext.h"
 #include "SkeletalMeshLegacyCustomVersions.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class FMaterialRenderProxy;
 class FMeshElementCollector;
@@ -350,7 +351,7 @@ public:
 private:
 
 	/** List of components to reset */
-	TArray< class USkinnedMeshComponent*> MeshComponents;
+	TArray< TWeakObjectPtr<USkinnedMeshComponent>> MeshComponents;
 
 	/** Whether we'll refresh the component bounds as we reset */
 	bool bRefreshBounds;

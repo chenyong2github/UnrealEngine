@@ -7274,16 +7274,17 @@ FSkinnedMeshComponentRecreateRenderStateContext::~FSkinnedMeshComponentRecreateR
 	const int32 ComponentCount = MeshComponents.Num();
 	for (int32 ComponentIndex = 0; ComponentIndex < ComponentCount; ++ComponentIndex)
 	{
-		USkinnedMeshComponent* Component = MeshComponents[ComponentIndex];
-
-		if (bRefreshBounds)
+		if(USkinnedMeshComponent* Component = MeshComponents[ComponentIndex].Get())
 		{
-			Component->UpdateBounds();
-		}
+			if (bRefreshBounds)
+			{
+				Component->UpdateBounds();
+			}
 
-		if (Component->IsRegistered() && !Component->IsRenderStateCreated() && Component->ShouldCreateRenderState())
-		{
-			Component->CreateRenderState_Concurrent(nullptr);
+			if (Component->IsRegistered() && !Component->IsRenderStateCreated() && Component->ShouldCreateRenderState())
+			{
+				Component->CreateRenderState_Concurrent(nullptr);
+			}
 		}
 	}
 }
