@@ -247,6 +247,15 @@ public:
 
 protected:
 	/**
+	* Compute damage threshold for a specific transform
+	* this account for component level damage threshold as well as size specific ones
+	* @param DynamicCollection dynamic collection to use
+	* @param TransformIndex index of the transform to compute the threshold for
+	* #return damage threshold value
+	*/
+	float ComputeDamageThreshold(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex) const;
+		
+	/**
 	 * Build a physics thread cluster parent particle.
 	 *	\p CollectionClusterIndex - the source geometry collection transform index.
 	 *	\p ChildHandles - physics particle handles of the cluster children.
@@ -254,9 +263,9 @@ protected:
 	 *  \P Parameters - uh, yeah...  Other parameters.
 	 */
 
-	Chaos::TPBDRigidClusteredParticleHandle<Chaos::FReal, 3>* BuildClusters(
+	Chaos::FPBDRigidClusteredParticleHandle* BuildClusters_Internal(
 		const uint32 CollectionClusterIndex, 
-		TArray<Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>*>& ChildHandles,
+		TArray<Chaos::FPBDRigidParticleHandle*>& ChildHandles,
 		const TArray<int32>& ChildTransformGroupIndices,
 		const Chaos::FClusterCreationParameters & Parameters,
 		const Chaos::FUniqueIdx* ExistingIndex);
@@ -265,7 +274,7 @@ protected:
 	 * Traverses the parents of \p TransformIndex in \p GeometryCollection, counting
 	 * the number of levels until the next parent is \c INDEX_NONE.
 	 */
-	int32 CalculateHierarchyLevel(const FGeometryDynamicCollection& GeometryCollection, int32 TransformIndex) const;
+	static int32 CalculateHierarchyLevel(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex);
 
 	void InitializeRemoveOnFracture(FParticlesType& Particles, const TManagedArray<int32>& DynamicState);
 
