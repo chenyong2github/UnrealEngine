@@ -497,7 +497,11 @@ FMaterialPixelParameters FetchNaniteMaterialPixelParameters(FNaniteView NaniteVi
 
 	if (VisibleClusterIndex != 0xFFFFFFFF)
 	{
-		FVisibleCluster VisibleCluster           = GetVisibleCluster(VisibleClusterIndex, bHasPageData);
+#if VIRTUAL_TEXTURE_TARGET
+		FVisibleCluster VisibleCluster           = GetVisibleCluster( VisibleClusterIndex, VIRTUAL_TEXTURE_TARGET );
+#else
+		FVisibleCluster VisibleCluster           = GetVisibleCluster( VisibleClusterIndex );
+#endif
 		FInstanceSceneData InstanceData          = GetInstanceSceneData(VisibleCluster, false);
 		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 		FCluster Cluster                         = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);

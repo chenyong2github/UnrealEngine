@@ -43,15 +43,16 @@ void DrawImposter( FNaniteView NaniteView, FInstanceSceneData InstanceData, uint
 			float3 RayWorldDirection;
 			if( bOrtho )
 			{
-				RayWorldOrigin = LWCMultiply( float3( PixelClip, 1 ), NaniteView.ClipToWorld );
-				RayWorldDirection = LWCToFloat( LWCSubtract( LWCMultiply( float3( PixelClip, 0 ), NaniteView.ClipToWorld ), RayWorldOrigin ) );
+				float3 NearPoint = mul( float4( PixelPos + 0.5, 1, 1 ), NaniteView.SVPositionToTranslatedWorld ).xyz;
+				float3 FarPoint  = mul( float4( PixelPos + 0.5, 0, 1 ), NaniteView.SVPositionToTranslatedWorld ).xyz;
+				RayWorldOrigin = LWCSubtract( NearPoint, NaniteView.PreViewTranslation );
+				RayWorldDirection = FarPoint - NearPoint;
 				Noise = 0.5;
 			}
 			else
 			{
 				RayWorldOrigin = NaniteView.WorldCameraOrigin;
-				// TODO LWC - OK to subtract RayWorldOrigin, and convert to float?
-				RayWorldDirection = LWCHackToFloat(LWCMultiply( float3( PixelClip, 0 ), NaniteView.ClipToWorld ));
+				RayWorldDirection = mul( float4( PixelPos + 0.5, 0, 1 ), NaniteView.SVPositionToTranslatedWorld ).xyz;
 			}
 	
 			FRay RayLocal;
