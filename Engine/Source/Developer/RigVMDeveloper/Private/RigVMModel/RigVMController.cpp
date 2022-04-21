@@ -15565,21 +15565,26 @@ static UObject* FindObjectGloballyWithRedirectors(const TCHAR* InObjectName)
 	{
 		return Object;
 	}
-	
-	// Apply redirectors and do another lookup using the redirected name. GetRedirectedName
-	// will always return a valid name.
-	const FCoreRedirectObjectName NewObjectName = FCoreRedirects::GetRedirectedName(
-		ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Type_Struct | ECoreRedirectFlags::Type_Enum,
-		FCoreRedirectObjectName(InObjectName));
 
-	// If there was no package name, then there was no redirect set up for this type.
-	if (NewObjectName.PackageName.IsNone())
+	FCoreRedirectObjectName NewObjectName;
+	const bool bFoundRedirect = FCoreRedirects::RedirectNameAndValues(
+		ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Type_Struct | ECoreRedirectFlags::Type_Enum,
+		FCoreRedirectObjectName(InObjectName),
+		NewObjectName,
+		nullptr,
+		ECoreRedirectMatchFlags::None);
+
+	if (!bFoundRedirect)
 	{
 		return nullptr;
 	}
 
 	const FString RedirectedObjectName = NewObjectName.ObjectName.ToString();
-	UPackage *Package = FindPackage(nullptr, *NewObjectName.PackageName.ToString());
+	UPackage *Package = nullptr;
+	if (!NewObjectName.PackageName.IsNone())
+	{
+		Package = FindPackage(nullptr, *NewObjectName.PackageName.ToString());
+	}
 	if (Package != nullptr)
 	{
 		Object = FindObject<UField>(Package, *RedirectedObjectName);
