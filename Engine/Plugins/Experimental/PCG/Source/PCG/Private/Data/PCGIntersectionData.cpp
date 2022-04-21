@@ -83,7 +83,7 @@ FPCGPoint UPCGIntersectionData::TransformPoint(const FPCGPoint& InPoint) const
 { 
 	check(A && B);
 	const UPCGSpatialData* X = A->HasNonTrivialTransform() ? A : B;
-	const UPCGSpatialData* Y = X == A ? B : A;
+	const UPCGSpatialData* Y = (X == A) ? B : A;
 
 	FPCGPoint TransformedPoint = X->TransformPoint(InPoint);
 	if (TransformedPoint.Density > 0)
@@ -98,7 +98,7 @@ bool UPCGIntersectionData::GetPointAtPosition(const FVector& InPosition, FPCGPoi
 {
 	check(A && B);
 	const UPCGSpatialData* X = A->HasNonTrivialTransform() ? A : B;
-	const UPCGSpatialData* Y = X == A ? B : A;
+	const UPCGSpatialData* Y = (X == A) ? B : A;
 
 	FPCGPoint PointFromX;
 	if (!X->GetPointAtPosition(InPosition, PointFromX, OutMetadata))

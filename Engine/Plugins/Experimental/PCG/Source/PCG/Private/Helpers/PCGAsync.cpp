@@ -37,7 +37,7 @@ namespace FPCGAsync
 		for (int32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
 		{
 			const int32 StartIndex = TaskIndex * IterationsPerTask;
-			const int32 EndIndex = (TaskIndex == NumTasks - 1 ? NumIterations : StartIndex + IterationsPerTask);
+			const int32 EndIndex = (TaskIndex == NumTasks - 1) ? NumIterations : (StartIndex + IterationsPerTask);
 
 			AsyncTasks.Emplace(Async(EAsyncExecution::ThreadPool, [&PointFunc, StartIndex, EndIndex, &OutPoints]()
 			{
@@ -114,7 +114,7 @@ namespace FPCGAsync
 		for (int32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
 		{
 			const int32 StartIndex = TaskIndex * IterationsPerTask;
-			const int32 EndIndex = (TaskIndex == NumTasks - 1 ? NumIterations : StartIndex + IterationsPerTask);
+			const int32 EndIndex = (TaskIndex == NumTasks - 1) ? NumIterations : (StartIndex + IterationsPerTask);
 
 			AsyncTasks.Emplace(Async(EAsyncExecution::ThreadPool, [&PointFunc, StartIndex, EndIndex, &InFilterPoints, &OutFilterPoints]()
 				{

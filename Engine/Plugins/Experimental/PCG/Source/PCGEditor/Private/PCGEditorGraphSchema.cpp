@@ -70,8 +70,8 @@ bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* I
 	if (bModified)
 	{
 		check(InA && InB);
-		UEdGraphPin* A = (InA->Direction == EGPD_Output ? InA : InB);
-		UEdGraphPin* B = (InA->Direction == EGPD_Input ? InA : InB);
+		UEdGraphPin* A = (InA->Direction == EGPD_Output) ? InA : InB;
+		UEdGraphPin* B = (InA->Direction == EGPD_Input) ? InA : InB;
 		
 		check(A->Direction == EGPD_Output && B->Direction == EGPD_Input);
 
@@ -137,8 +137,8 @@ void UPCGEditorGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphP
 	UPCGNode* TargetPCGNode = TargetPCGGraphNode->GetPCGNode();
 	check(SourcePCGNode && TargetPCGNode);
 
-	const FName& SourcePinName = (SourcePin->PinName == TEXT("Out") ? NAME_None : SourcePin->PinName);
-	const FName& TargetPinName = (TargetPin->PinName == TEXT("In") ? NAME_None : TargetPin->PinName);
+	const FName& SourcePinName = (SourcePin->PinName == TEXT("Out") && SourcePCGNode->HasDefaultOutLabel()) ? NAME_None : SourcePin->PinName;
+	const FName& TargetPinName = (TargetPin->PinName == TEXT("In") && TargetPCGNode->HasDefaultInLabel()) ? NAME_None : TargetPin->PinName;
 
 	UPCGGraph* PCGGraph = SourcePCGNode->GetGraph();
 	PCGGraph->RemoveEdge(SourcePCGNode, SourcePinName, TargetPCGNode, TargetPinName);

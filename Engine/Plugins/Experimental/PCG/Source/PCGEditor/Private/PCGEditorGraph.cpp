@@ -48,7 +48,7 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 
 		for (UPCGEdge* OutboundEdge : PCGNode->GetOutboundEdges())
 		{
-			const FName OutPinName = (OutboundEdge->InboundLabel == NAME_None ? TEXT("Out") : OutboundEdge->InboundLabel);
+			const FName OutPinName = (OutboundEdge->InboundLabel == NAME_None) ? TEXT("Out") : OutboundEdge->InboundLabel;
 			UEdGraphPin* OutPin = GraphNode->FindPin(OutPinName);
 
 			if (!OutPin)
@@ -59,7 +59,7 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 			UPCGNode* OutboundNode = OutboundEdge->OutboundNode;
 			if (UPCGEditorGraphNodeBase** ConnectedGraphNode = NodeLookup.Find(OutboundNode))
 			{
-				const FName InPinName = (OutboundEdge->OutboundLabel == NAME_None ? TEXT("In") : OutboundEdge->OutboundLabel);
+				const FName InPinName = (OutboundEdge->OutboundLabel == NAME_None) ? TEXT("In") : OutboundEdge->OutboundLabel;
 
 				if(UEdGraphPin* InPin = (*ConnectedGraphNode)->FindPin(InPinName))
 				{
