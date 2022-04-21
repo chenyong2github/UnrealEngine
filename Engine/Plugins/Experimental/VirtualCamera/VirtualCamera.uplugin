@@ -79,6 +79,10 @@
 		{
 			"Name": "VirtualProductionUtilities",
 			"Enabled": true
+		},
+		{
+			"Name": "LiveLink",
+			"Enabled": true
 		}
 	]
 }
