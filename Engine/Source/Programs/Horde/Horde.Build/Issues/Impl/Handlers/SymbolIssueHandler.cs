@@ -93,6 +93,13 @@ namespace Horde.Build.IssueHandlers.Impl
 
 			SortedSet<string> symbolNames = new SortedSet<string>();
 			GetSymbolNames(eventData, symbolNames);
+
+			if (symbolNames.Count == 0)
+			{
+				fingerprint = null;
+				return false;
+			}
+
 			fingerprint = new NewIssueFingerprint(Type, symbolNames, null);
 			return true;
 		}
