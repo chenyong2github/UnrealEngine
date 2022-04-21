@@ -11,6 +11,11 @@ PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 extern const uint8 GShift[8]={0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
 extern const uint8 GMask [8]={0x00,0x01,0x03,0x07,0x0f,0x1f,0x3f,0x7f};
 
+static TAutoConsoleVariable<bool> CVarLogFatalOnOverflow(
+	TEXT("BitReader.LogFatalOnOverflow"),
+	false,
+	TEXT("LogFatal if BitReader Overflows"));
+
 // Optimized arbitrary bit range memory copy routine.
 
 void appBitsCpy( uint8* Dest, int32 DestBit, uint8* Src, int32 SrcBit, int32 BitCount )
@@ -242,8 +247,16 @@ void FBitReader::CountMemory(FArchive& Ar) const
 
 void FBitReader::SetOverflowed(int64 LengthBits)
 {
-	UE_LOG(LogNetSerialization, Error, TEXT("FBitReader::SetOverflowed() called! (ReadLen: %i, Remaining: %i, Max: %i)"),
+	if (CVarLogFatalOnOverflow.GetValueOnAnyThread())
+	{
+		UE_LOG(LogNetSerialization, Fatal, TEXT("FBitReader::SetOverflowed() called! (ReadLen: %i, Remaining: %i, Max: %i)"),
 			LengthBits, (Num - Pos), Num);
+	}
+	else
+	{
+		ensureMsgf(false, TEXT("FBitReader::SetOverflowed() called! (ReadLen: %i, Remaining: %i, Max: %i)"),
+			LengthBits, (Num - Pos), Num);
+	}
 
 	SetError();
 }
