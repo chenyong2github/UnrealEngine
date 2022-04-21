@@ -63,8 +63,8 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
 	// End of IDetailCustomization interface
     
-    EVisibility ShouldShowGenerateButtonForIcon(bool bCannotBeGenerated) const;
-
+    EVisibility ShouldShowGenerateButtonForIcon(bool bCannotBeGenerated, FString ImageToCheck) const;
+    
 private:
 	TArray<struct FPlatformIconInfo> IconNames;
 	TArray<struct FPlatformIconInfo> LaunchImageNames;
@@ -137,7 +137,7 @@ private:
 	// certificate request
 	FReply OnCertificateRequestClicked();
 
-	FReply OnGenerateImageClicked(const FString TargetImagePath, FIntPoint IconRequiredSize);
+	FReply OnGenerateImageClicked(const FString SourceImagePath, const FString TargetImagePath, FIntPoint IconRequiredSize);
 
 	// ssh key request
 	FReply OnGenerateSSHKey();
