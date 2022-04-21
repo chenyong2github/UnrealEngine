@@ -185,9 +185,12 @@ void FOptimusSkinnedMeshWriteDataProviderProxy::AllocateResources(FRDGBuilder& G
 	FSkeletalMeshDeformerHelpers::SetVertexFactoryBufferOverrides(SkeletalMeshObject, LodIndex, FSkeletalMeshDeformerHelpers::EOverrideType::Partial, PositionBufferExternal, TangentBufferExternal, ColorBufferExternal);
 
 #if RHI_RAYTRACING
-	// This can create RHI resources but it queues and doesn't actually build ray tracing structures. Not sure if we need to put inside a render graph pass?
-	// Also note that for ray tracing we may want to support a second graph execution if ray tracing LOD needs to be different to render LOD.
-	FSkeletalMeshDeformerHelpers::UpdateRayTracingGeometry(SkeletalMeshObject, LodIndex, PositionBufferExternal);
+	if (PositionBufferExternal.IsValid())
+	{
+		// This can create RHI resources but it queues and doesn't actually build ray tracing structures. Not sure if we need to put inside a render graph pass?
+		// Also note that for ray tracing we may want to support a second graph execution if ray tracing LOD needs to be different to render LOD.
+		FSkeletalMeshDeformerHelpers::UpdateRayTracingGeometry(SkeletalMeshObject, LodIndex, PositionBufferExternal);
+	}
 #endif
 }
 

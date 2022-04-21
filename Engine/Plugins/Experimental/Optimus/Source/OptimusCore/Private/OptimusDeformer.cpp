@@ -969,12 +969,18 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 	
 	for (const UOptimusNode* Node: InNodeGraph->GetAllNodes())
 	{
+		bool bConnectedInput = false;
+
 		const IOptimusDataInterfaceProvider* DataInterfaceProviderNode = Cast<const IOptimusDataInterfaceProvider>(Node);
 
 		if (DataInterfaceProviderNode)
 		{
 			for (const UOptimusNodePin* Pin: Node->GetPins())
 			{
+				if (Pin->GetDirection() == EOptimusNodePinDirection::Input && Pin->GetConnectedPins().Num())
+				{
+					bConnectedInput = true;
+				}
 				if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
 				{
 					DataInterfaceProviderNode = nullptr;
@@ -982,7 +988,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 				}
 			}
 		}
-		if (DataInterfaceProviderNode)
+		if (DataInterfaceProviderNode && bConnectedInput)
 		{
 			TerminalNodes.Add(Node);
 		}
@@ -992,7 +998,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 	{
 		Result.Set<TSharedRef<FTokenizedMessage>>(FTokenizedMessage::Create(
 			EMessageSeverity::Error,
-			LOCTEXT("NoDataInterfaceFound", "No data interface terminal nodes found. Compilation aborted.")));
+			LOCTEXT("NoOutputDataInterfaceFound", "No connected output data interface nodes found. Compilation aborted.")));
 		return Result;
 	}
 
