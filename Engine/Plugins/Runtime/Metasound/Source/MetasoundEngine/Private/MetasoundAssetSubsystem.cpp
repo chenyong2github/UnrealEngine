@@ -208,15 +208,18 @@ Metasound::Frontend::FNodeRegistryKey UMetaSoundAssetSubsystem::AddOrUpdateAsset
 		UObject* Object = nullptr;
 
 		FSoftObjectPath Path(InAssetData.ObjectPath);
-		if (InAssetData.IsAssetLoaded())
+		if (!FPackageName::GetPackageMountPoint(InAssetData.ObjectPath.ToString()).IsNone())
 		{
-			Object = Path.ResolveObject();
-			UE_LOG(LogMetaSound, Verbose, TEXT("Adding loaded asset '%s' to MetaSoundAsset registry."), *Object->GetName());
-		}
-		else
-		{
-			Object = Path.TryLoad();
-			UE_LOG(LogMetaSound, Verbose, TEXT("Loaded asset '%s' and adding to MetaSoundAsset registry."), *Object->GetName());
+			if (InAssetData.IsAssetLoaded())
+			{
+				Object = Path.ResolveObject();
+				UE_LOG(LogMetaSound, Verbose, TEXT("Adding loaded asset '%s' to MetaSoundAsset registry."), *Object->GetName());
+			}
+			else
+			{
+				Object = Path.TryLoad();
+				UE_LOG(LogMetaSound, Verbose, TEXT("Loaded asset '%s' and adding to MetaSoundAsset registry."), *Object->GetName());
+			}
 		}
 
 		if (Object)
