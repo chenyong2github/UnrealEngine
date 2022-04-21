@@ -14,14 +14,14 @@ namespace UnrealBuildTool
 	{
 		public override string GetMainVersion()
 		{
-			return "11.5";
+			return "13.3";
 		}
 
 		protected override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
 		{
 			if (RuntimePlatform.IsMac)
 			{
-				MinVersion = "11.0.0";
+				MinVersion = "12.4.0";
 				MaxVersion = "13.9.9";
 			}
 			else
