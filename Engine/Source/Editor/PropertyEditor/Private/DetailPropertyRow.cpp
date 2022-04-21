@@ -640,7 +640,7 @@ bool FDetailPropertyRow::HasEditCondition() const
 
 bool FDetailPropertyRow::GetEnabledState() const
 {
-	bool Result = IsParentEnabled.Get();
+	bool Result = IsParentEnabled.Get(true);
 
 	Result = Result && CustomIsEnabledAttrib.Get(true);
 
