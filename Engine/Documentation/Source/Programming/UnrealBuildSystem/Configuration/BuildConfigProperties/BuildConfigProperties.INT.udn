@@ -258,6 +258,8 @@ $ NumRemoteParallelProcesses : How many processes that will be executed in paral
 
 $ RemoteProcessOnly : Only run work remotely, for testing
 
+$ RetryFailedRemote : Retry actions locally when failed remotely.
+
 ### HybridExecutor
 
 $ MaxLocalActions : Maximum number of actions to execute locally.
