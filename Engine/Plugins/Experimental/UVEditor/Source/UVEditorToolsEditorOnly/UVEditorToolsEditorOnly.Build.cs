@@ -53,6 +53,11 @@ public class UVEditorToolsEditorOnly : ModuleRules
 				"ModelingOperators",
 				"ModelingOperatorsEditorOnly",
 				"UVEditorTools",
+
+				"ToolWidgets",
+				"EditorWidgets",
+				"ModelingEditorUI",
+				"PropertyEditor",
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
