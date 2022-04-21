@@ -281,8 +281,6 @@ bool FSwitchboardEditorModule::CreateNewConfig(const FSwitchboardNewConfigUserOp
 		*ScriptArgsFilepath
 	);
 
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *Arguments);
-
 	return LaunchSwitchboard(Arguments);
 }
 
