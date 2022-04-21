@@ -613,6 +613,9 @@ private:
 	/** Flag set between calls to StartTracking() and EndTracking() */
 	bool bIsTracking;
 
+	/** Guard to prevent modes from entering as part of their exit routine */
+	bool bIsExitingModesDuringTick = false;
+
 	FEditorViewportClient* HoveredViewportClient = nullptr;
 	FEditorViewportClient* FocusedViewportClient = nullptr;
 
