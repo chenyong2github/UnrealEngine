@@ -258,8 +258,11 @@ private:
 
 	/** Get the current platform's the selector module. Can return null */
 	static class IDeviceProfileSelectorModule* GetDeviceProfileSelectorModule();
+
+#if ALLOW_OTHER_PLATFORM_CONFIG && WITH_EDITOR
 	/** Get another platform's selector module. Can return null */
 	static class IDeviceProfileSelectorModule* GetPreviewDeviceProfileSelectorModule(class FConfigCacheIni* PreviewConfigSystem);
+#endif
 public:
 
 	static class UDeviceProfileManager* DeviceProfileManagerSingleton;

@@ -627,15 +627,18 @@ TArray<FSelectedFragmentProperties> UDeviceProfileManager::FindMatchingFragments
 	else
 #endif
 	{
-		bool bIsPreview = false;
-#if ALLOW_OTHER_PLATFORM_CONFIG
-		bIsPreview = ConfigSystem != GConfig;
+		IDeviceProfileSelectorModule* PreviewDPSelector = nullptr;
+#if ALLOW_OTHER_PLATFORM_CONFIG && WITH_EDITOR
+		if (ConfigSystem != GConfig)
+		{
+			PreviewDPSelector = GetPreviewDeviceProfileSelectorModule(ConfigSystem);
+			// previewing a DP with matching rules will run if conditions with the host device's data sources. It will likely not match the preview device's behavior.
+			UE_CLOG(!PreviewDPSelector && DPHasMatchingRules(ParentDP, ConfigSystem), LogInit, Warning, TEXT("Preview DP %s contains fragment matching rules, but no preview profile selector was found. The selected fragments for %s will likely not match the behavior of the intended preview device."), *ParentDP, *ParentDP);
+		}
 #endif
-		IDeviceProfileSelectorModule* DPSelector = bIsPreview ? GetPreviewDeviceProfileSelectorModule(ConfigSystem) : GetDeviceProfileSelectorModule();
+		IDeviceProfileSelectorModule* DPSelector = PreviewDPSelector ? PreviewDPSelector : GetDeviceProfileSelectorModule();
 		SelectedFragments = LoadAndProcessMatchingRulesFromConfig(ParentDP, DPSelector, ConfigSystem);
-		
-		// previewing a DP with matching rules will run if conditions with the host device's data sources. It will likely not match the preview device's behavior.
-		UE_CLOG(bIsPreview && !DPSelector && DPHasMatchingRules(ParentDP, ConfigSystem), LogInit, Warning, TEXT("Preview DP %s contains fragment matching rules, but no preview profile selector was found. The selected fragments for %s will likely not match the behavior of the intended preview device."), *ParentDP, *ParentDP);
+	
 	}
 	SelectedFragments = RemoveAllWhiteSpace(SelectedFragments);
 	if(!SelectedFragments.IsEmpty())

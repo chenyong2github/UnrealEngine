@@ -1102,9 +1102,9 @@ bool UDeviceProfileManager::AreTextureGroupsTheSame(UDeviceProfile* Profile1, UD
 	return false;
 }
 
+#if ALLOW_OTHER_PLATFORM_CONFIG && WITH_EDITOR
 IDeviceProfileSelectorModule* UDeviceProfileManager::GetPreviewDeviceProfileSelectorModule(FConfigCacheIni* PreviewConfigSystemIn)
 {
-#if ALLOW_OTHER_PLATFORM_CONFIG && WITH_EDITOR
 	// If we're getting the selector for previewing the PreviewDeviceProfileSelectionModule, this can be separately configured to preview a target device.
 	FString PreviewDeviceProfileSelectionModuleName;
 	if (PreviewConfigSystemIn->GetString(TEXT("DeviceProfileManager"), TEXT("PreviewDeviceProfileSelectionModule"), PreviewDeviceProfileSelectionModuleName, GEngineIni))
@@ -1115,11 +1115,9 @@ IDeviceProfileSelectorModule* UDeviceProfileManager::GetPreviewDeviceProfileSele
 			return DPSelectorModule;
 		}
 	}
-#else
-	checkNoEntry();
-#endif
 	return nullptr;
 }
+#endif
 
 IDeviceProfileSelectorModule* UDeviceProfileManager::GetDeviceProfileSelectorModule()
 {
