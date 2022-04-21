@@ -316,6 +316,14 @@ void SBlueprintHeaderView::Construct(const FArguments& InArgs)
 	];
 }
 
+SBlueprintHeaderView::~SBlueprintHeaderView()
+{
+	if (UBlueprint* Blueprint = SelectedBlueprint.Get())
+	{
+		Blueprint->OnChanged().RemoveAll(this);
+	}
+}
+
 FReply SBlueprintHeaderView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (CommandList.IsValid() && CommandList->ProcessCommandBindings(InKeyEvent))

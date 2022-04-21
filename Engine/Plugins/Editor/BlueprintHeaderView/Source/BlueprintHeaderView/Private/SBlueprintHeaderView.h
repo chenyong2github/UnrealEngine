@@ -100,6 +100,8 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
+	~SBlueprintHeaderView();
+
 	//~ SWidget interface
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	//~ End SWidget interface
