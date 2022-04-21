@@ -7,6 +7,7 @@
 #include "HAL/IConsoleManager.h"
 
 UE_DECLARE_LWC_TYPE(Vector2,,FVector2D);
+class IPlatformInputDeviceMapper;
 
 /**
  * The accuracy when dealing with physical characteristics of the monitor/screen of the device we're running on.
@@ -56,6 +57,11 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	 * Gets a pointer to the default platform feedback context implementation.
 	 */
 	static FFeedbackContext* GetFeedbackContext();
+
+	/**
+	 * Gets a pointer to the default platform input device manager.
+	 */
+	static IPlatformInputDeviceMapper* CreatePlatformInputDeviceManager();
 
 	/**
 	 * Creates an application instance.

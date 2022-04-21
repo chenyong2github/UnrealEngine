@@ -349,3 +349,83 @@ private:
 
 /** Static invalid platform user */
 const FPlatformUserId PLATFORMUSERID_NONE;
+
+/**
+ * Represents a single input device such as a gamepad, keyboard, or mouse.
+ *
+ * Has a globally unique identifier that is assigned by the IPlatformInputDeviceMapper
+ */
+struct FInputDeviceId
+{
+	FORCEINLINE explicit FInputDeviceId()
+		: InternalId(INDEX_NONE)
+	{}
+	
+	FInputDeviceId(const FInputDeviceId&) = default;
+	
+	/** Explicit function to create from an internal id */
+	FORCEINLINE static FInputDeviceId CreateFromInternalId(int32 InInternalId)
+	{
+		FInputDeviceId IdToReturn;
+		IdToReturn.InternalId = InInternalId;
+		return IdToReturn;
+	}
+	
+	FORCEINLINE int32 GetId() const
+	{
+		return InternalId;
+	}
+
+	/** Sees if this is a valid input device */
+	FORCEINLINE bool IsValid() const
+	{
+		return InternalId >= 0;
+	}
+
+	FORCEINLINE bool operator==(const FInputDeviceId& Other) const
+	{
+		return InternalId == Other.InternalId;
+	}
+
+	FORCEINLINE bool operator!=(const FInputDeviceId& Other) const
+	{
+		return InternalId != Other.InternalId;
+	}
+	
+	FORCEINLINE bool operator<(const FInputDeviceId& Other) const
+	{
+		return InternalId < Other.InternalId;
+	}
+
+	FORCEINLINE bool operator<=(const FInputDeviceId& Other) const
+	{
+		return InternalId <= Other.InternalId;
+	}
+
+	FORCEINLINE bool operator>(const FInputDeviceId& Other) const
+	{
+		return InternalId > Other.InternalId;
+	}
+
+	FORCEINLINE bool operator>=(const FInputDeviceId& Other) const
+	{
+		return InternalId >= Other.InternalId;
+	}
+
+	FORCEINLINE friend uint32 GetTypeHash(const FInputDeviceId& InputId)
+	{
+		return InputId.InternalId;
+	}
+	
+private:
+	
+	/**
+	 * Raw id, will be allocated by application layer
+	 * 
+	 * @see IPlatformInputDeviceMapper::AllocateNewInputDeviceId
+	 */
+	int32 InternalId;
+};
+
+/** Static invalid input device. */
+const FInputDeviceId INPUTDEVICEID_NONE;

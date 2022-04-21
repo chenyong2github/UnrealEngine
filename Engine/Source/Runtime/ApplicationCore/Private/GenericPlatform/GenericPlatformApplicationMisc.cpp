@@ -2,6 +2,7 @@
 
 #include "GenericPlatform/GenericPlatformApplicationMisc.h"
 #include "GenericPlatform/GenericApplication.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Misc/OutputDeviceAnsiError.h"
 #include "HAL/FeedbackContextAnsi.h"
 #include "Math/Color.h"
@@ -59,6 +60,11 @@ class FOutputDeviceError* FGenericPlatformApplicationMisc::GetErrorOutputDevice(
 class FFeedbackContext* FGenericPlatformApplicationMisc::GetFeedbackContext()
 {
 	return FPlatformOutputDevices::GetFeedbackContext();
+}
+
+IPlatformInputDeviceMapper* FGenericPlatformApplicationMisc::CreatePlatformInputDeviceManager()
+{
+	return new FGenericPlatformInputDeviceMapper(/* bUsingControllerIdAsUserId = */ true, /* bShouldBroadcastLegacyDelegates = */ true);
 }
 
 GenericApplication* FGenericPlatformApplicationMisc::CreateApplication()
