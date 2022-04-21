@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/LinkerLoadImportBehavior.h"
+#include "UObject/LinkerLoad.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/Package.h"
 
