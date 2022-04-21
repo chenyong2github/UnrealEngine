@@ -133,7 +133,7 @@ namespace UE::DatasmithImporter
 		{
 			DirectLink::FRawInfo::FDataPointInfo* SourceDataPointInfo;
 			{
-			FRWScopeLock ScopeLock(RawInfoLock, FRWScopeLockType::SLT_ReadOnly);
+				FRWScopeLock ScopeLock(RawInfoLock, FRWScopeLockType::SLT_ReadOnly);
 				SourceDataPointInfo = RawInfoCache.DataPointsInfo.Find(SourceHandle);
 			}
 			FSourceUri ExternalSourceUri(GetUriFromSourceHandle(SourceHandle));
