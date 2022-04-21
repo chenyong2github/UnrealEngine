@@ -3917,6 +3917,8 @@ static FString PerformFinalExpansions(const FString InString, const FString& Pla
 	FScopeLock Lock(&UE::ConfigCacheIni::Private::ExpansionsCriticalSection);
 
 	static FString LastPlatform;
+	static FString LastProject;
+
 	static FString PlatformExtensionEngineDir;
 	static FString PlatformExtensionProjectDir;
 	static FString ProjectNotForLicenseesDir;
@@ -3925,25 +3927,27 @@ static FString PerformFinalExpansions(const FString InString, const FString& Pla
 	if (LastPlatform != PlatformName)
 	{
 		LastPlatform = PlatformName;
+
 		PlatformExtensionEngineDir = FPaths::Combine(*FPaths::EnginePlatformExtensionsDir(), *PlatformName).Replace(*FPaths::EngineDir(), *(FString(EngineDir) + "/"));
 		PlatformExtensionProjectDir = FPaths::Combine(*FPaths::ProjectPlatformExtensionsDir(), *PlatformName).Replace(*FPaths::ProjectDir(), *(FString(ProjectDir) + "/"));
 	}
 
-	// cache some slow operations
-	if (ProjectNotForLicenseesDir.Len() == 0)
+	if (LastProject != ProjectDir)
 	{
-		if (FPaths::IsUnderDirectory(FPaths::ProjectDir(), FPaths::EngineDir()))
+		LastProject = ProjectDir;
+
+		if (FPaths::IsUnderDirectory(ProjectDir, FPaths::EngineDir()))
 		{
-			FString RelativeDir = FPaths::ProjectDir();
+			FString RelativeDir = ProjectDir;
 			FPaths::MakePathRelativeTo(RelativeDir, *FPaths::EngineDir());
 			ProjectNotForLicenseesDir = FPaths::Combine(FPaths::EngineDir(), TEXT("Restricted/NotForLicensees"), RelativeDir);
 			ProjectNoRedistDir = FPaths::Combine(FPaths::EngineDir(), TEXT("Restricted/NoRedist"), RelativeDir);
 		}
 		else
 		{
-			ProjectNotForLicenseesDir = FPaths::Combine(FPaths::ProjectDir(), TEXT("Restricted/NotForLicensees"));
-			ProjectNoRedistDir = FPaths::Combine(FPaths::ProjectDir(), TEXT("Restricted/NoRedist"));
-		}
+			ProjectNotForLicenseesDir = FPaths::Combine(ProjectDir, TEXT("Restricted/NotForLicensees"));
+			ProjectNoRedistDir = FPaths::Combine(ProjectDir, TEXT("Restricted/NoRedist"));
+		}	
 	}
 
 	FString OutString = InString.Replace(TEXT("{ENGINE}"), EngineDir);
