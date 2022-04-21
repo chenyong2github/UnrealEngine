@@ -3048,9 +3048,8 @@ bool FMaterial::HasShaders(const FMaterialShaderTypes& InTypes, const FVertexFac
 	return TryGetShaders(InTypes, InVertexFactoryType, UnusedShaders);
 }
 
-bool FMaterial::ShouldCacheShaders(const FMaterialShaderTypes& InTypes, const FVertexFactoryType* InVertexFactoryType) const
+bool FMaterial::ShouldCacheShaders(const EShaderPlatform ShaderPlatform, const FMaterialShaderTypes& InTypes, const FVertexFactoryType* InVertexFactoryType) const
 {
-	const EShaderPlatform ShaderPlatform = RenderingThreadShaderMap->GetShaderPlatform();
 	for (int32 FrequencyIndex = 0; FrequencyIndex < SF_NumGraphicsFrequencies; ++FrequencyIndex)
 	{
 		const FShaderType* ShaderType = InTypes.ShaderType[FrequencyIndex];

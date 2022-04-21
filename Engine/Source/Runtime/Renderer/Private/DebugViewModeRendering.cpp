@@ -288,7 +288,7 @@ void FDebugViewModeMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBa
 
 	FMaterialShaderTypes ShaderTypes;
 	DebugViewModeInterface->AddShaderTypes(FeatureLevel, VertexFactoryType, ShaderTypes);
-	if (!Material->ShouldCacheShaders(ShaderTypes, VertexFactoryType))
+	if (!Material->ShouldCacheShaders(GetFeatureLevelShaderPlatform(FeatureLevel), ShaderTypes, VertexFactoryType))
 	{
 		return;
 	}
