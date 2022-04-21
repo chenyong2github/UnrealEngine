@@ -25,5 +25,12 @@ public class UE4GameTarget : TargetRules
 			bCompileFreeType = false;
 			bCompileForSize = true;*/
 		}
+		else if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			if (Target.Configuration == UnrealTargetConfiguration.Shipping)
+			{
+				bUseLoggingInShipping = true;
+			}
+		}
 	}
 }
