@@ -522,7 +522,7 @@ public:
 	FD3D12FastConstantAllocator(FD3D12Device* Parent, FRHIGPUMask VisibiltyMask);
 
 	void* Allocate(uint32 Bytes, class FD3D12ResourceLocation& OutLocation, FD3D12ConstantBufferView* OutCBView);
-	void Cleanup() { UnderlyingResource.Clear(); }
+	void ClearResource() { UnderlyingResource.Clear(); }
 
 private:
 	FD3D12ResourceLocation UnderlyingResource;
