@@ -2,23 +2,27 @@
 
 #pragma once
 
-#include "RigVMModel/RigVMNode.h"
+#include "RigVMTemplateNode.h"
 #include "RigVMSelectNode.generated.h"
 
 /**
  * A select node is used to select between multiple values
  */
 UCLASS(BlueprintType)
-class RIGVMDEVELOPER_API URigVMSelectNode : public URigVMNode
+class RIGVMDEVELOPER_API URigVMSelectNode : public URigVMTemplateNode
 {
 	GENERATED_BODY()
 
 public:
 
+	// Override from URigVMTemplateNode
+	virtual FName GetNotation() const override;
+	virtual const FRigVMTemplate* GetTemplate() const override;
+
 	// Override from URigVMNode
 	virtual FString GetNodeTitle() const override { return SelectName; }
 	virtual FLinearColor GetNodeColor() const override { return FLinearColor::Black; }
-
+	
 protected:
 
 	virtual bool AllowsLinksOn(const URigVMPin* InPin) const override;

@@ -70,7 +70,6 @@ URigVMController::URigVMController()
 	, bIsRunningUnitTest(false)
 	, bIsFullyResolvingTemplateNode(false)
 {
-	SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
 }
 
 URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
@@ -85,7 +84,6 @@ URigVMController::URigVMController(const FObjectInitializer& ObjectInitializer)
 	, bIsFullyResolvingTemplateNode(false)
 {
 	ActionStack = CreateDefaultSubobject<URigVMActionStack>(TEXT("ActionStack"));
-	SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
 
 	ActionStack->OnModified().AddLambda([&](ERigVMGraphNotifType NotifType, URigVMGraph* InGraph, UObject* InSubject) -> void {
 		Notify(NotifType, InSubject);
@@ -511,6 +509,47 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 						*RigVMPythonUtils::Vector2DToPythonString(SelectNode->GetPosition()),
 						*NodeName));
 	}
+	else if (const URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(Node))
+	{
+		// add_free_reroute_node(bool bShowAsFullNode, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bIsConstant, const FName& InCustomWidgetName, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_free_reroute_node(%s, '%s', '%s', %s, '%s', '%s', %s, '%s')"),
+				*GraphName,
+				RerouteNode->GetShowsAsFullNode() ? TEXT("True") : TEXT("False"),
+				*RerouteNode->GetPins()[0]->GetCPPType(),
+				*RerouteNode->GetPins()[0]->GetCPPTypeObject()->GetPathName(),
+				RerouteNode->GetPins()[0]->IsDefinedAsConstant() ? TEXT("True") : TEXT("False"),
+				*RerouteNode->GetPins()[0]->GetCustomWidgetName().ToString(),
+				*RerouteNode->GetPins()[0]->GetDefaultValue(),
+				*RigVMPythonUtils::Vector2DToPythonString(RerouteNode->GetPosition()),
+				*NodeName));
+	}
+	else if (const URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(Node))
+	{
+		FString OpCodeString = StaticEnum<ERigVMOpCode>()->GetNameStringByValue((int64)ArrayNode->GetOpCode());
+		OpCodeString = RigVMPythonUtils::NameToPep8(OpCodeString);
+		OpCodeString.ToUpperInline();
+		
+		// add_array_node(opcode, cpp_type, cpp_type_object, position=[0.0, 0.0], node_name='', undo=True)
+		if (ArrayNode->GetCPPTypeObject())
+		{
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_array_node_from_object_path(unreal.RigVMOpCode.%s, '%s', '%s', %s, '%s')"),
+					*GraphName,
+					*OpCodeString,
+					*ArrayNode->GetCPPType(),
+					*ArrayNode->GetCPPTypeObject()->GetPathName(),
+					*RigVMPythonUtils::Vector2DToPythonString(ArrayNode->GetPosition()),
+					*NodeName));	
+		}
+		else
+		{
+			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_array_node(unreal.RigVMOpCode.%s, '%s', None, %s, '%s')"),
+					*GraphName,
+					*OpCodeString,
+					*ArrayNode->GetCPPType(),
+					*RigVMPythonUtils::Vector2DToPythonString(ArrayNode->GetPosition()),
+					*NodeName));	
+		}
+	}
 	else if (const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
 	{
 		// add_template_node(notation, position=[0.0, 0.0], node_name='', undo=True)
@@ -563,51 +602,10 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 					*ContainedGraphName));
 		}
 	}
-	else if (const URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(Node))
-	{
-		// add_free_reroute_node(bool bShowAsFullNode, const FString& InCPPType, const FName& InCPPTypeObjectPath, bool bIsConstant, const FName& InCustomWidgetName, const FString& InDefaultValue, const FVector2D& InPosition = FVector2D::ZeroVector, const FString& InNodeName = TEXT(""), bool bSetupUndoRedo = true);
-		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_free_reroute_node(%s, '%s', '%s', %s, '%s', '%s', %s, '%s')"),
-				*GraphName,
-				RerouteNode->GetShowsAsFullNode() ? TEXT("True") : TEXT("False"),
-				*RerouteNode->GetPins()[0]->GetCPPType(),
-				*RerouteNode->GetPins()[0]->GetCPPTypeObject()->GetPathName(),
-				RerouteNode->GetPins()[0]->IsDefinedAsConstant() ? TEXT("True") : TEXT("False"),
-				*RerouteNode->GetPins()[0]->GetCustomWidgetName().ToString(),
-				*RerouteNode->GetPins()[0]->GetDefaultValue(),
-				*RigVMPythonUtils::Vector2DToPythonString(RerouteNode->GetPosition()),
-				*NodeName));
-	}
 	else if (Node->IsA<URigVMFunctionEntryNode>() || Node->IsA<URigVMFunctionReturnNode>())
 	{
 		
 		
-	}
-	else if (const URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(Node))
-	{
-		FString OpCodeString = StaticEnum<ERigVMOpCode>()->GetNameStringByValue((int64)ArrayNode->GetOpCode());
-		OpCodeString = RigVMPythonUtils::NameToPep8(OpCodeString);
-		OpCodeString.ToUpperInline();
-		
-		// add_array_node(opcode, cpp_type, cpp_type_object, position=[0.0, 0.0], node_name='', undo=True)
-		if (ArrayNode->GetCPPTypeObject())
-		{
-			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_array_node_from_object_path(unreal.RigVMOpCode.%s, '%s', '%s', %s, '%s')"),
-					*GraphName,
-					*OpCodeString,
-					*ArrayNode->GetCPPType(),
-					*ArrayNode->GetCPPTypeObject()->GetPathName(),
-					*RigVMPythonUtils::Vector2DToPythonString(ArrayNode->GetPosition()),
-					*NodeName));	
-		}
-		else
-		{
-			Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_array_node(unreal.RigVMOpCode.%s, '%s', None, %s, '%s')"),
-					*GraphName,
-					*OpCodeString,
-					*ArrayNode->GetCPPType(),
-					*RigVMPythonUtils::Vector2DToPythonString(ArrayNode->GetPosition()),
-					*NodeName));	
-		}
 	}
 	else
 	{
@@ -1053,6 +1051,7 @@ URigVMVariableNode* URigVMController::AddVariableNode(const FName& InVariableNam
 
 	if (!bIsGetter)
 	{
+		UScriptStruct* ExecuteContextStruct = Graph->GetExecuteContextStruct();
 		URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
 		ExecutePin->CPPType = ExecuteContextStruct->GetStructCPPName();
 		ExecutePin->CPPTypeObject = ExecuteContextStruct;
@@ -7194,7 +7193,10 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 	
 	check(InPin);
 
-	if(!InPin->IsUObject() && bValidatePinDefaults)
+	if(!InPin->IsUObject()
+		&& InPin->GetCPPType() != RigVMTypeUtils::FStringType
+		&& InPin->GetCPPType() != RigVMTypeUtils::FNameType
+		&& bValidatePinDefaults)
 	{
 		ensure(!InDefaultValue.IsEmpty());
 	}
@@ -10366,6 +10368,7 @@ URigVMLibraryNode* URigVMController::AddFunctionToLibrary(const FName& InFunctio
 	
 	if (bMutable)
 	{
+		UScriptStruct* ExecuteContextStruct = Graph->GetExecuteContextStruct();
 		URigVMPin* ExecutePin = NewObject<URigVMPin>(CollapseNode, FRigVMStruct::ExecuteContextName);
 		ExecutePin->CPPType = FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName());
 		ExecutePin->CPPTypeObject = ExecuteContextStruct;
@@ -11450,6 +11453,7 @@ URigVMBranchNode* URigVMController::AddBranchNode(const FVector2D& InPosition, c
 	URigVMBranchNode* Node = NewObject<URigVMBranchNode>(Graph, *Name);
 	Node->Position = InPosition;
 
+	UScriptStruct* ExecuteContextStruct = Graph->GetExecuteContextStruct();
 	URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
 	ExecutePin->DisplayName = FRigVMStruct::ExecuteName;
 	ExecutePin->CPPType = FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName());
@@ -12093,7 +12097,8 @@ URigVMArrayNode* URigVMController::AddArrayNode(ERigVMOpCode InOpCode, const FSt
 		static URigVMPin* AddExecutePin(URigVMController* InController, URigVMNode* InNode, ERigVMPinDirection InDirection = ERigVMPinDirection::IO, const FName& InName = NAME_None)
 		{
 			const FName PinName = InName.IsNone() ? FRigVMStruct::ExecuteContextName : InName;
-			URigVMPin* Pin = AddPin(InController, InNode, PinName, InDirection, false, FString::Printf(TEXT("F%s"), *InController->ExecuteContextStruct->GetName()), InController->ExecuteContextStruct);
+			UScriptStruct* ExecuteContextStruct = InController->GetGraph()->GetExecuteContextStruct();
+			URigVMPin* Pin = AddPin(InController, InNode, PinName, InDirection, false, FString::Printf(TEXT("F%s"), *ExecuteContextStruct->GetName()), ExecuteContextStruct);
 			if(PinName == FRigVMStruct::ExecuteContextName)
 			{
 				Pin->DisplayName = FRigVMStruct::ExecuteName;
@@ -12323,13 +12328,6 @@ void URigVMController::ForEveryPinRecursively(URigVMNode* InNode, TFunction<void
 	{
 		ForEveryPinRecursively(Pin, OnEachPinFunction);
 	}
-}
-
-void URigVMController::SetExecuteContextStruct(UScriptStruct* InExecuteContextStruct)
-{
-	check(InExecuteContextStruct);
-	ensure(InExecuteContextStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()));
-	ExecuteContextStruct = InExecuteContextStruct;
 }
 
 FString URigVMController::GetValidNodeName(const FString& InPrefix)
@@ -14934,11 +14932,22 @@ bool URigVMController::ResolveWildCardPinImpl(URigVMPin* InPinToResolve, const F
 	
 	if(URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPinToResolve->GetNode()))
 	{
-		const FString BaseCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
-		const FString TypeToResolveAgainst = InPinToResolve->GetRootPin()->IsArray() ? RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType) : BaseCPPType; 
-		if(!TemplateNode->SupportsType(InPinToResolve->GetRootPin(), TypeToResolveAgainst, &CPPType))
+		URigVMPin* RootPin = InPinToResolve->GetRootPin();
+		if (RootPin != InPinToResolve)
 		{
-			return false;
+			const FString BaseCPPType = RigVMTypeUtils::IsArrayType(CPPType) ? RigVMTypeUtils::BaseTypeFromArrayType(CPPType) : CPPType;
+			const FString TypeToResolveAgainst = InPinToResolve->GetRootPin()->IsArray() ? RigVMTypeUtils::ArrayTypeFromBaseType(BaseCPPType) : BaseCPPType; 
+			if(!TemplateNode->SupportsType(InPinToResolve->GetRootPin(), TypeToResolveAgainst, &CPPType))
+			{
+				return false;
+			}			
+		}
+		else
+		{
+			if(!TemplateNode->SupportsType(InPinToResolve->GetRootPin(), CPPType, &CPPType))
+			{
+				return false;
+			}
 		}
 	}
 

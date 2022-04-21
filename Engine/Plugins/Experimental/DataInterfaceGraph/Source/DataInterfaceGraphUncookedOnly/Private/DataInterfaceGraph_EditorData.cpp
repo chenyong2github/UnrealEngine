@@ -18,6 +18,9 @@ UDataInterfaceGraph_EditorData::UDataInterfaceGraph_EditorData(const FObjectInit
 	RigVMGraph = ObjectInitializer.CreateDefaultSubobject<URigVMGraph>(this, TEXT("RigVMGraph"));
 	RigVMFunctionLibrary = ObjectInitializer.CreateDefaultSubobject<URigVMFunctionLibrary>(this, TEXT("RigVMFunctionLibrary"));
 	RigVMGraph->SetDefaultFunctionLibrary(RigVMFunctionLibrary);
+
+	RigVMGraph->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
+	RigVMFunctionLibrary->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
 	
 	auto MakeEdGraph = [this, &ObjectInitializer](FName InName) -> UDataInterfaceGraph_EdGraph*
 	{
@@ -57,6 +60,9 @@ void UDataInterfaceGraph_EditorData::Initialize(bool bRecompileVM)
 		}
 	}
 
+	RigVMGraph->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
+	RigVMFunctionLibrary->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
+	
 	RootGraph->Initialize(this);
 	FunctionLibraryEdGraph->Initialize(this);
 	if(EntryPointGraph)
@@ -181,7 +187,6 @@ URigVMController* UDataInterfaceGraph_EditorData::GetOrCreateRigVMController(URi
 	}
 
 	URigVMController* Controller = NewObject<URigVMController>(this);
-	Controller->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
 	Controller->SetGraph(InRigVMGraph);
 	Controller->OnModified().AddUObject(this, &UDataInterfaceGraph_EditorData::HandleModifiedEvent);
 

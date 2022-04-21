@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/Nodes/RigVMRerouteNode.h"
+#include "RigVMModel/RigVMGraph.h"
 
 const FString URigVMRerouteNode::RerouteName = TEXT("Reroute");
 const FString URigVMRerouteNode::ValueName = TEXT("Value");
@@ -82,7 +83,9 @@ const FRigVMTemplate* URigVMRerouteNode::GetTemplate() const
 		TArray<FRigVMTemplateArgument::FType> Types;
 		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue));
 		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue));
-		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ExecuteContext));
+
+		UScriptStruct* ExecuteStruct = GetGraph()->GetExecuteContextStruct();
+		Types.Add(FRigVMTemplateArgument::FType(ExecuteStruct->GetStructCPPName(), ExecuteStruct));
 		
 		TArray<FRigVMTemplateArgument> Arguments;
 		Arguments.Emplace(TEXT("Value"), ERigVMPinDirection::IO, Types);

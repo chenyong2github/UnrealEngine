@@ -300,6 +300,11 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 		for(int32 TypeIndex=0; TypeIndex < SortedTypes.Num(); TypeIndex++)
 		{
 			const FRigVMTemplateArgument::FType& Type = SortedTypes[TypeIndex].Key;
+			if (Type.CPPTypeObject != nullptr && !IsValid(Type.CPPTypeObject))
+			{
+				continue;
+			}
+			
 			const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(Type.CPPType, Type.CPPTypeObject);
 
 			if(bHasAllTypes && Type.CPPTypeObject)

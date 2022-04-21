@@ -834,9 +834,6 @@ public:
 	// Determine affected assets for a potential bulk edit on a library node
 	TArray<FAssetData> GetAffectedAssets(ERigVMControllerBulkEditType InEditType, bool bForceLoad = false, bool bNotify = true);
 
-	// Sets the execute context struct type to use
-	void SetExecuteContextStruct(UScriptStruct* InExecuteContextStruct);
-
 	// A delegate that can be set to change the struct unfolding behaviour
 	FRigVMController_ShouldStructUnfoldDelegate UnfoldStructDelegate;
 
@@ -1097,9 +1094,6 @@ public:
 private: 
 	UPROPERTY(transient)
 	TArray<TObjectPtr<URigVMGraph>> Graphs;
-
-	UPROPERTY()
-	TObjectPtr<UScriptStruct> ExecuteContextStruct;
 
 	UPROPERTY(transient)
 	TObjectPtr<URigVMActionStack> ActionStack;

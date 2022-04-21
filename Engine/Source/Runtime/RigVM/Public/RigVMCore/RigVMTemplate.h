@@ -134,7 +134,6 @@ struct RIGVM_API FRigVMTemplateArgument
 		ETypeCategory_ArrayEnumValue,
 		ETypeCategory_SingleObjectValue,
 		ETypeCategory_ArrayObjectValue,
-		ETypeCategory_ExecuteContext,
 		ETypeCategory_Invalid
 	};
 

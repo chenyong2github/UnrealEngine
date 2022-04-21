@@ -367,6 +367,64 @@ FString URigVMTemplateNode::GetInitialDefaultValueForPin(const FName& InRootPinN
 			NewDefaultValue = DefaultStruct->ExportToFullyQualifiedText(
 				Cast<UScriptStruct>(StructOnScope->GetStruct()), InRootPinName);
 		}
+		else
+		{
+			const FRigVMTemplate* Template = GetTemplate();
+			const FRigVMTemplateArgument* Argument = Template->FindArgument(InRootPinName);
+			const FRigVMTemplateArgument::FType Type = Argument->GetTypes()[PermutationIndex];
+
+			if (Type.IsArray())
+			{
+				NewDefaultValue = TEXT("()");
+			}
+			else
+			{
+				if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
+				{
+					TArray<uint8, TAlignedHeapAllocator<16>> TempBuffer;
+					TempBuffer.AddUninitialized(ScriptStruct->GetStructureSize());
+
+					// call the struct constructor to initialize the struct
+					ScriptStruct->InitializeDefaultValue(TempBuffer.GetData());
+
+					ScriptStruct->ExportText(NewDefaultValue, TempBuffer.GetData(), nullptr, nullptr, PPF_None, nullptr);
+					ScriptStruct->DestroyStruct(TempBuffer.GetData());				
+				}
+				else if (UEnum* Enum = Cast<UEnum>(Type.CPPTypeObject))
+				{
+					NewDefaultValue = Enum->GetNameStringByValue(0);
+				}
+				else if(UClass* Class = Cast<UClass>(Type.CPPTypeObject))
+				{
+					// not supporting objects yet
+					ensure(false);
+				}
+				else if (Type.CPPType == RigVMTypeUtils::FloatType)
+				{
+					NewDefaultValue = TEXT("0.000000");				
+				}
+				else if (Type.CPPType == RigVMTypeUtils::DoubleType)
+				{
+					NewDefaultValue = TEXT("0.000000");
+				}
+				else if (Type.CPPType == RigVMTypeUtils::Int32Type)
+				{
+					NewDefaultValue = TEXT("0");
+				}
+				else if (Type.CPPType == RigVMTypeUtils::BoolType)
+				{
+					NewDefaultValue = TEXT("False");
+				}
+				else if (Type.CPPType == RigVMTypeUtils::FStringType)
+				{
+					NewDefaultValue = TEXT("");
+				}
+				else if (Type.CPPType == RigVMTypeUtils::FNameType)
+				{
+					NewDefaultValue = TEXT("");
+				}
+			}			
+		}
 
 		if(!NewDefaultValue.IsEmpty())
 		{

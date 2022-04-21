@@ -187,8 +187,7 @@ const TArray<FRigVMTemplateArgument::FType> FRigVMTemplateArgument::GetCompatibl
 		CompatibleTypes.Add(ETypeCategory_ArrayEnumValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_SingleObjectValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_ArrayObjectValue, TArray<FType>());
-		CompatibleTypes.Add(ETypeCategory_ExecuteContext, TArray<FType>());
-
+		
 		TArray<FType>& SingleAnyValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleAnyValue);
 		TArray<FType>& ArrayAnyValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayAnyValue);
 		TArray<FType>& SingleSimpleValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleSimpleValue);
@@ -201,8 +200,7 @@ const TArray<FRigVMTemplateArgument::FType> FRigVMTemplateArgument::GetCompatibl
 		TArray<FType>& ArrayEnumValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayEnumValue);
 		TArray<FType>& SingleObjectValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleObjectValue);
 		TArray<FType>& ArrayObjectValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayObjectValue);
-		TArray<FType>& ExecuteContextTypes = CompatibleTypes.FindChecked(ETypeCategory_ExecuteContext);
-
+		
 		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::BoolType));
 		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::Int32Type));
 		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::UInt8Type));
@@ -355,11 +353,7 @@ const TArray<FRigVMTemplateArgument::FType> FRigVMTemplateArgument::GetCompatibl
 
 			const FString CPPType = ScriptStruct->GetStructCPPName();
 
-			if(ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
-			{
-				ExecuteContextTypes.Add(FType(CPPType, ScriptStruct));
-			}
-			else
+			if(!ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 			{
 				SingleAnyValueTypes.Add(FType(CPPType, ScriptStruct));
 				ArrayAnyValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), ScriptStruct));

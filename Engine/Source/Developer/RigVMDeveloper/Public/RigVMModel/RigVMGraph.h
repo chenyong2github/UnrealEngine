@@ -149,6 +149,11 @@ public:
 	// subscribe to changes happening within the Graph.
 	FRigVMGraphModifiedEvent& OnModified();
 
+	// Sets the execute context struct type to use
+	void SetExecuteContextStruct(UScriptStruct* InExecuteContextStruct);
+	
+	UScriptStruct* GetExecuteContextStruct() const;
+
 	void PrepareCycleChecking(URigVMPin* InPin, bool bAsInput);
 	virtual bool CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection = ERigVMPinDirection::IO);
 	
@@ -172,6 +177,9 @@ private:
 
 	UPROPERTY()
 	TWeakObjectPtr<URigVMGraph> DefaultFunctionLibraryPtr;
+
+	UPROPERTY()
+	TObjectPtr<UScriptStruct> ExecuteContextStruct;
 
 	TSharedPtr<FRigVMParserAST> DiagnosticsAST;
 	TSharedPtr<FRigVMParserAST> RuntimeAST;

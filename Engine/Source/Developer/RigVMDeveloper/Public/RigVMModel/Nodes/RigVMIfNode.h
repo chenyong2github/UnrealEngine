@@ -2,23 +2,26 @@
 
 #pragma once
 
-#include "RigVMModel/RigVMNode.h"
+#include "RigVMTemplateNode.h"
 #include "RigVMIfNode.generated.h"
 
 /**
  * A if node is used to pick between two values
  */
 UCLASS(BlueprintType)
-class RIGVMDEVELOPER_API URigVMIfNode : public URigVMNode
+class RIGVMDEVELOPER_API URigVMIfNode : public URigVMTemplateNode
 {
 	GENERATED_BODY()
 
 public:
 
+	// Override from URigVMTemplateNode
+	virtual FName GetNotation() const override;
+	virtual const FRigVMTemplate* GetTemplate() const override;
+
 	// Override from URigVMNode
 	virtual FString GetNodeTitle() const override { return IfName; }
 	virtual FLinearColor GetNodeColor() const override { return FLinearColor::Black; }
-
 private:
 
 	static const FString IfName;

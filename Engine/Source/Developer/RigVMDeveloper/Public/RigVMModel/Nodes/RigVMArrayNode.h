@@ -2,8 +2,8 @@
 
 #pragma once
 
+#include "RigVMTemplateNode.h"
 #include "RigVMCore/RigVMExternalVariable.h"
-#include "RigVMModel/RigVMNode.h"
 #include "RigVMArrayNode.generated.h"
 
 /**
@@ -11,7 +11,7 @@
  * array operations such as SetNum, GetAtIndex etc.
  */
 UCLASS(BlueprintType)
-class RIGVMDEVELOPER_API URigVMArrayNode : public URigVMNode
+class RIGVMDEVELOPER_API URigVMArrayNode : public URigVMTemplateNode
 {
 	GENERATED_BODY()
 
@@ -31,6 +31,12 @@ public:
 
 	// Override of the node color
 	virtual FLinearColor GetNodeColor() const override;
+
+    // Override of the template notation
+	virtual FName GetNotation() const override;
+	
+	// Override of the template
+	virtual const FRigVMTemplate* GetTemplate() const override;
 
 	// Returns the op code of this node
 	UFUNCTION(BlueprintCallable, Category = RigVMArrayNode)

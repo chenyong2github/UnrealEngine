@@ -112,6 +112,9 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 
 	Model->SetDefaultFunctionLibrary(FunctionLibrary);
 
+	Model->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
+	FunctionLibrary->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
+
 	Validator = ObjectInitializer.CreateDefaultSubobject<UControlRigValidator>(this, TEXT("ControlRigValidator"));
 
 	DebugBoneRadius = 1.f;
@@ -146,6 +149,8 @@ void UControlRigBlueprint::InitializeModelIfRequired(bool bRecompileVM)
 
 	if (Controllers.Num() == 0)
 	{
+		Model->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
+		FunctionLibrary->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
 		GetOrCreateController(Model);
 		GetOrCreateController(FunctionLibrary);
 
@@ -1427,7 +1432,6 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 	}
 
 	URigVMController* Controller = NewObject<URigVMController>(this);
-	Controller->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
 	Controller->SetGraph(InGraph);
 	Controller->OnModified().AddUObject(this, &UControlRigBlueprint::HandleModifiedEvent);
 
@@ -1856,6 +1860,7 @@ URigVMGraph* UControlRigBlueprint::GetTemplateModel()
 	{
 		TemplateModel = NewObject<URigVMGraph>(this, TEXT("TemplateModel"));
 		TemplateModel->SetFlags(RF_Transient);
+		TemplateModel->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
 	}
 	return TemplateModel;
 #else
@@ -1869,7 +1874,6 @@ URigVMController* UControlRigBlueprint::GetTemplateController()
 	if (TemplateController == nullptr)
 	{
 		TemplateController = NewObject<URigVMController>(this, TEXT("TemplateController"));
-		TemplateController->SetExecuteContextStruct(FControlRigExecuteContext::StaticStruct());
 		TemplateController->SetGraph(GetTemplateModel());
 		TemplateController->EnableReporting(false);
 		TemplateController->SetFlags(RF_Transient);

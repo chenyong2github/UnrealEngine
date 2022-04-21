@@ -14,6 +14,7 @@ URigVMGraph::URigVMGraph()
 , RuntimeAST(nullptr)
 , bEditable(true)
 {
+	SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
 }
 
 const TArray<URigVMNode*>& URigVMGraph::GetNodes() const
@@ -331,6 +332,22 @@ TArray<FRigVMGraphVariableDescription> URigVMGraph::GetOutputArguments() const
 FRigVMGraphModifiedEvent& URigVMGraph::OnModified()
 {
 	return ModifiedEvent;
+}
+
+void URigVMGraph::SetExecuteContextStruct(UScriptStruct* InExecuteContextStruct)
+{
+	check(InExecuteContextStruct);
+	ensure(InExecuteContextStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()));
+	ExecuteContextStruct = InExecuteContextStruct;
+}
+
+UScriptStruct* URigVMGraph::GetExecuteContextStruct() const
+{
+	if (URigVMGraph* RootGraph = GetRootGraph())
+	{
+		return RootGraph->ExecuteContextStruct.Get();
+	}
+	return nullptr;
 }
 
 void URigVMGraph::Notify(ERigVMGraphNotifType InNotifType, UObject* InSubject)
