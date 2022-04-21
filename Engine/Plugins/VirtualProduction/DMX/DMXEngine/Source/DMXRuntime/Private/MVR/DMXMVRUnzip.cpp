@@ -141,7 +141,7 @@ bool FDMXMVRUnzip::InitializeFromDataInternal(const uint8* DataPtr, const int64 
 	// Step 0: retrieve the trailer magic
 	TArray<uint8> Magic;
 	bool bIndexFound = false;
-	uint64 Index = 0;
+	int64 Index = 0;
 	for (Index = Data.Num() - 1; Index >= 0; Index--)
 	{
 		Magic.Insert(Data[Index], 0);
