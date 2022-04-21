@@ -90,6 +90,13 @@ namespace Chaos
 			return !static_cast<bool>(VectorMaskBits(IsFalse));
 		}
 
+		FORCEINLINE_DEBUGGABLE FAABBVectorized& Thicken(const VectorRegister4Float& Thickness)
+		{
+			Min = VectorSubtract(Min, Thickness);
+			Max = VectorAdd(Max, Thickness);
+			return *this;
+		}
+
 	private:
 		VectorRegister4Float Min, Max;
 	};

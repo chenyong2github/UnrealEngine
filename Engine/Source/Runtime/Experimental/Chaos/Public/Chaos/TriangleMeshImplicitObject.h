@@ -166,7 +166,6 @@ namespace Chaos
 		template <typename SQVisitor>
 		FORCEINLINE_DEBUGGABLE void Overlap(const FAABBVectorized& AABB, SQVisitor& Visitor) const
 		{
-			CSV_SCOPED_TIMING_STAT(PhysicsVerbose, BVHOverlap);
 			const auto BoundsFilter = [&AABB](const FAABBVectorized& Bounds) -> EFilterResult
 			{
 				FAABBVectorized CleanBounds(Bounds.GetMin(), Bounds.GetMax());

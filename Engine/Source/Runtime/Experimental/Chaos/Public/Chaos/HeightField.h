@@ -286,6 +286,48 @@ namespace Chaos
 				OutBounds = FAABB3(FVec3((FReal)X, (FReal)Y, MinZ), FVec3((FReal)X + 1, (FReal)Y + 1, MaxZ));
 			}
 
+			FORCEINLINE void GetBounds(TVec2<int32> CellIdx, TVec2<int32> Area, FAABBVectorized& OutBounds) const
+			{
+				FRealSingle MinHeight = UE_BIG_NUMBER;
+				FRealSingle MaxHeight = -UE_BIG_NUMBER;
+
+				const int32 EndIndexX = CellIdx[0] + Area[0];
+				int32 FirstIndexX = FMath::Min<int32>(CellIdx[0], EndIndexX);
+				FirstIndexX = FMath::Max<int32>(FirstIndexX, 0);
+				int32 LastIndexX = FMath::Max<int32>(CellIdx[0], EndIndexX);
+				// Increment LastIndex to look into the four corners of a cell 
+				LastIndexX++;
+				LastIndexX = FMath::Min<int32>(LastIndexX, NumCols);
+				
+				const int32 EndIndexY = CellIdx[1] + Area[1];
+				int32 FirstIndexY = FMath::Min<int32>(CellIdx[1], EndIndexY);
+				FirstIndexY = FMath::Max<int32>(FirstIndexY, 0);
+				int32 LastIndexY = FMath::Max<int32>(CellIdx[1], EndIndexY);
+				LastIndexY++;
+				LastIndexY = FMath::Min<int32>(LastIndexY, NumRows);
+
+				for (int IndexY = FirstIndexY; IndexY <= LastIndexY; IndexY++)
+				{
+					for (int IndexX = FirstIndexX; IndexX <= LastIndexX; IndexX++)
+					{
+						const int32 Index = IndexY * (NumCols - 1) + IndexX + IndexY;
+						if (Index < Heights.Num())
+						{
+							MinHeight = FMath::Min<FRealSingle>(Heights[Index], MinHeight);
+							MaxHeight = FMath::Max<FRealSingle>(Heights[Index], MaxHeight);
+						}
+					}
+				}
+
+				const FRealSingle MinValueSingle = static_cast<FRealSingle>(MinValue);
+				const FRealSingle HeightPerUnitSingle = static_cast<FRealSingle>(HeightPerUnit);
+				MinHeight = MinValueSingle + MinHeight * HeightPerUnitSingle;
+				MaxHeight = MinValueSingle + MaxHeight * HeightPerUnitSingle;
+
+				OutBounds = FAABBVectorized(MakeVectorRegisterFloat(static_cast<FRealSingle>(FirstIndexX), static_cast<FRealSingle>(FirstIndexY), MinHeight, 0.0f),
+											MakeVectorRegisterFloat(static_cast<FRealSingle>(LastIndexX), static_cast<FRealSingle>(LastIndexY), MaxHeight, 0.0f));
+			}
+
 			FORCEINLINE void GetPointsScaled(int32 Index, FVec3 OutPts[4]) const
 			{
 				GetPoints(Index, OutPts);
@@ -305,8 +347,21 @@ namespace Chaos
 				OutPts[2] *= Scale;
 				OutPts[3] *= Scale;
 
-				const FVec3 Scale3(Scale);
-				OutBounds = FAABB3::FromPoints(OutBounds.Min() * Scale3, OutBounds.Max() * Scale3);
+				OutBounds = FAABB3::FromPoints(OutBounds.Min() * Scale, OutBounds.Max() * Scale);
+			}
+
+			FORCEINLINE void GetBoundsScaled(TVec2<int32> CellIdx, TVec2<int32> Area, FAABBVectorized& OutBounds) const
+			{
+				GetBounds(CellIdx, Area, OutBounds);
+
+				VectorRegister4Float ScaleSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(Scale.X, Scale.Y, Scale.Z, 0.0));
+
+				VectorRegister4Float P0 = VectorMultiply(OutBounds.GetMin(), ScaleSimd);
+				VectorRegister4Float P1 = VectorMultiply(OutBounds.GetMax(), ScaleSimd);
+				VectorRegister4Float Min = VectorMin(P0, P1);
+				VectorRegister4Float Max = VectorMax(P0, P1);
+
+				OutBounds = FAABBVectorized(Min, Max);
 			}
 
 			FORCEINLINE FReal GetMinHeight() const
