@@ -8,7 +8,7 @@ FInputRayHit UGizmoLambdaHitTarget::IsHit(const FInputDeviceRay& ClickPos) const
 {
 	if (IsHitFunction)
 	{
-		return IsHit(ClickPos);
+		return IsHitFunction(ClickPos);
 	}
 	return FInputRayHit();
 }
