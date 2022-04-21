@@ -790,6 +790,9 @@ namespace iPhonePackager
 
             AppDomain.CurrentDomain.AssemblyResolve += new ResolveEventHandler(CurrentDomain_AssemblyResolve);
 
+			// Force UTF-8 encoding so UBT and the engine can parse the IPP output consistently.
+			Console.OutputEncoding = Encoding.UTF8;
+
             // A simple, top-level try-catch block
             try
             {

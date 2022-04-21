@@ -236,6 +236,7 @@ namespace iPhonePackager
 					CertTool.StartInfo.UseShellExecute = false;
 					CertTool.StartInfo.Arguments = string.Format("find-certificate -a -c \"{0}\" -p", SearchPrefix);
 					CertTool.StartInfo.RedirectStandardOutput = true;
+					CertTool.StartInfo.StandardOutputEncoding = Encoding.UTF8;
 					CertTool.OutputDataReceived += new DataReceivedEventHandler(OutputReceivedCertToolProcessCall);
 					CertTool.Start();
 					CertTool.BeginOutputReadLine();
@@ -418,6 +419,7 @@ namespace iPhonePackager
 				CertTool.StartInfo.UseShellExecute = false;
 				CertTool.StartInfo.Arguments = "find-identity -p codesigning -v";
 				CertTool.StartInfo.RedirectStandardOutput = true;
+				CertTool.StartInfo.StandardOutputEncoding = Encoding.UTF8;
 				CertTool.OutputDataReceived += new DataReceivedEventHandler (OutputReceivedCertToolProcessCall);
 				CertTool.Start ();
 				CertTool.BeginOutputReadLine ();

@@ -471,7 +471,8 @@ namespace UnrealBuildTool
                 Process IPPProcess = new Process();
 
 				string IPPCmd = "certificates " + ((ProjectFile != null) ? ("\"" + ProjectFile.ToString() + "\"") : "Engine") + " -bundlename " + ProjectSettings.BundleIdentifier + (bForDistribtion ? " -distribution" : "");
-				
+				IPPProcess.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+				IPPProcess.StartInfo.StandardErrorEncoding = Encoding.UTF8;
 				IPPProcess.StartInfo.WorkingDirectory = Unreal.EngineDirectory.ToString();
 				IPPProcess.OutputDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
 				IPPProcess.ErrorDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
@@ -524,6 +525,8 @@ namespace UnrealBuildTool
                 Log.TraceInformation("Provision not specified or not found for " + ((ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : "UnrealGame") + ", searching for compatible match...");
                 Process IPPProcess = new Process();
 
+				IPPProcess.StartInfo.StandardOutputEncoding = Encoding.UTF8;
+				IPPProcess.StartInfo.StandardErrorEncoding = Encoding.UTF8;
 				IPPProcess.OutputDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
 				IPPProcess.ErrorDataReceived += new DataReceivedEventHandler(IPPDataReceivedHandler);
 				IPPProcess.StartInfo.WorkingDirectory = Unreal.EngineDirectory.ToString();

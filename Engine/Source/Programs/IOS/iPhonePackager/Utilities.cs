@@ -957,6 +957,10 @@ namespace iPhonePackager
 			CertChain[0] = new X509CertificateEntry(BouncyCert);
 
 			AsymmetricCipherKeyPair KeyPair = LoadKeyPairFromDiskBouncy(KeyFilename);
+			if (KeyPair == null || KeyPair.Private == null)
+			{
+				throw new InvalidDataException("The key pair provided does contain a private key.  Make sure you provide the same key pair that was used to generate the original certificate signing request");
+			}
 
 			Store.SetKeyEntry(FriendlyName, new AsymmetricKeyEntry(KeyPair.Private), CertChain);
 
