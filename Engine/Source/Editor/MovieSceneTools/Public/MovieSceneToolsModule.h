@@ -18,6 +18,7 @@ class UMovieScene;
 class UMovieSceneSection;
 class UMovieSceneEventSectionBase;
 class IMovieSceneToolsTrackImporter;
+class ULevelSequence;
 
 class IMovieSceneToolsTakeData
 {
@@ -78,6 +79,7 @@ private:
 	static bool UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section);
 	static void PostDuplicateEventSection(UMovieSceneEventSectionBase* Section);
 	static void RemoveForCookEventSection(UMovieSceneEventSectionBase* Section);
+	static void PostDuplicateEvent(ULevelSequence* LevelSequence);
 
 private:
 

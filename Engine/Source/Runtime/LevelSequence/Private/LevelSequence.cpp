@@ -39,6 +39,9 @@
 #if WITH_EDITOR
 	#include "UObject/SequencerObjectVersion.h"
 	#include "UObject/ObjectRedirector.h"
+
+ULevelSequence::FPostDuplicateEvent ULevelSequence::PostDuplicateEvent;
+
 #endif
 
 static TAutoConsoleVariable<int32> CVarDefaultLockEngineToDisplayRate(
@@ -234,6 +237,13 @@ void ULevelSequence::PostDuplicate(bool bDuplicateForPIE)
 	else
 	{
 		DirectorClass = nullptr;
+	}
+#endif
+
+#if WITH_EDITOR
+	if (PostDuplicateEvent.IsBound())
+	{
+		PostDuplicateEvent.Execute(this);
 	}
 #endif
 }

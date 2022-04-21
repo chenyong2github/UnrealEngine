@@ -23,7 +23,12 @@ class UK2Node_CustomEvent;
 
 class UAnimSeqExportOption;
 class UMovieSceneUserImportFBXControlRigSettings;
+
+class ULevelSequenceAnimSequenceLink;
+class UAnimSequenceLevelSequenceLink;
+
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnRenderMovieStopped, bool, bSuccess);
+
 
 USTRUCT(BlueprintType)
 struct SEQUENCERSCRIPTINGEDITOR_API FSequencerBoundObjects
@@ -136,9 +141,28 @@ public:
 	 * @ExportOption The export options for the sequence.
 	 * @InBinding Binding to export that has a skelmesh component on it
 	 * @InAnimSequenceFilename File to create
+	 * @bCreateLink If true will create a link between the animation sequence and the level sequence
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
-	static bool ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence, UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOption, const FSequencerBindingProxy& Binding);
+	static bool ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence, UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOption, const FSequencerBindingProxy& Binding, bool bCreateLink);
+
+	/*
+	 * Get the link to the level sequence if it exists on this anim sequence
+	 *
+	 * @InAnimSequence AnimSequence to get links from
+	 * @return Returns the link object if it exists, nullptr if it doesn't
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
+	UAnimSequenceLevelSequenceLink* GetLevelSequenceLinkFromAnimSequence(UAnimSequence* InAnimSequence);
+
+	/*
+	 * Get the links to the anim sequences if they exist on this level sequence
+	 *
+	 * @InLevelSequence LevelSequence to get links from
+	 * @return Returns the link object if it exists, nullptr if it doesn't
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
+	ULevelSequenceAnimSequenceLink* GetAnimSequenceLinkFromLevelSequence(ULevelSequence* InLevelSequence);
 
 	/*
 	 * Import FBX onto Passed in Bindings

@@ -82,6 +82,10 @@
 #include "EditorModeManager.h"
 #include "EditModes/SkeletalAnimationTrackEditMode.h"
 
+#include "LevelSequence.h"
+#include "LevelSequenceAnimSequenceLink.h"
+#include "AnimSequenceLevelSequenceLink.h"
+#include "EditorAnimUtils.h"
 
 #define LOCTEXT_NAMESPACE "FMovieSceneToolsModule"
 
@@ -186,6 +190,7 @@ void FMovieSceneToolsModule::StartupModule()
 	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint.BindStatic(UpgradeLegacyEventEndpointForSection);
 	UMovieSceneEventSectionBase::PostDuplicateSectionEvent.BindStatic(PostDuplicateEventSection);
 	UMovieSceneEventSectionBase::RemoveForCookEvent.BindStatic(RemoveForCookEventSection);
+	ULevelSequence::PostDuplicateEvent.BindStatic(PostDuplicateEvent);
 
 	auto OnObjectsReplaced = [](const TMap<UObject*, UObject*>& ReplacedObjects)
 	{
@@ -219,6 +224,7 @@ void FMovieSceneToolsModule::ShutdownModule()
 	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint = UMovieSceneEventSectionBase::FUpgradeLegacyEventEndpoint();
 	UMovieSceneEventSectionBase::PostDuplicateSectionEvent = UMovieSceneEventSectionBase::FPostDuplicateEvent();
 	UMovieSceneEventSectionBase::RemoveForCookEvent = UMovieSceneEventSectionBase::FRemoveForCookEvent();
+	ULevelSequence::PostDuplicateEvent = ULevelSequence::FPostDuplicateEvent();
 
 	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
 	{
@@ -315,6 +321,49 @@ void FMovieSceneToolsModule::RemoveForCookEventSection(UMovieSceneEventSectionBa
 	if (SequenceDirectorBP)
 	{
 		FMovieSceneEventUtils::RemoveEndpointsForEventSection(Section, SequenceDirectorBP);
+	}
+}
+
+//When we duplicate a ULevelSequence we check to see if there are any linked UAnimSequences in the asset user data,
+//if so we make a copy of the anim sequence, and then set the links to the copies.
+void FMovieSceneToolsModule::PostDuplicateEvent(ULevelSequence* LevelSequence)
+{
+	if (LevelSequence && LevelSequence->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()))
+	{
+		if (IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >(LevelSequence))
+		{
+			ULevelSequenceAnimSequenceLink* LevelAnimLink = AssetUserDataInterface->GetAssetUserData< ULevelSequenceAnimSequenceLink >();
+			if (LevelAnimLink)
+			{
+				for (FLevelSequenceAnimSequenceLinkItem& Item : LevelAnimLink->AnimSequenceLinks)
+				{
+					if (UAnimSequence* AnimSequence = Item.ResolveAnimSequence())
+					{
+						TArray<UAnimSequence*> AnimSequencesToDuplicate;
+						AnimSequencesToDuplicate.Add(AnimSequence);
+						UPackage* DestinationPackage = AnimSequence->GetPackage();
+						EditorAnimUtils::FNameDuplicationRule NameRule;
+						NameRule.FolderPath = FPackageName::GetLongPackagePath(AnimSequence->GetPathName()) / TEXT("");
+						TMap<UAnimSequence*, UAnimSequence*> DuplicatedAnimAssets = EditorAnimUtils::DuplicateAssets<UAnimSequence>(AnimSequencesToDuplicate, DestinationPackage, &NameRule);
+						for (TPair<UAnimSequence*, UAnimSequence*>& Duplicates : DuplicatedAnimAssets)
+						{
+							if (UAnimSequence* NewAnimSequence = Duplicates.Value)
+							{
+								Item.PathToAnimSequence = FSoftObjectPath(NewAnimSequence);
+								if (IInterface_AssetUserData* AnimAssetUserData = Cast< IInterface_AssetUserData >(NewAnimSequence))
+								{
+									UAnimSequenceLevelSequenceLink* AnimLevelLink = AnimAssetUserData->GetAssetUserData< UAnimSequenceLevelSequenceLink >();
+									if (AnimLevelLink)
+									{
+										AnimLevelLink->SetLevelSequence(LevelSequence);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 

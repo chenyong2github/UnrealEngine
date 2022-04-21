@@ -8,28 +8,28 @@
 class UAnimSequence;
 
 /** Link To Anim Sequence that we are linked too.*/
-USTRUCT()
+USTRUCT(BlueprintType)
 struct LEVELSEQUENCE_API FLevelSequenceAnimSequenceLinkItem
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = Property)
 	FGuid SkelTrackGuid;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = Property)
 	FSoftObjectPath PathToAnimSequence;
 
 	//From Editor Only UAnimSeqExportOption we cache this since we can re-import dynamically
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = Property)
 	bool bExportTransforms = true;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = Property)
 	bool bExportMorphTargets = true;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = Property)
 	bool bExportAttributeCurves = true;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = Property)
 	bool bExportMaterialCurves = true;
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = Property)
 	bool bRecordInWorldSpace = false;
 
 	void SetAnimSequence(UAnimSequence* InAnimSequence);
@@ -38,12 +38,12 @@ public:
 };
 
 /** Link To Set of Anim Sequences that we may be linked to.*/
-UCLASS()
+UCLASS(BlueprintType)
 class LEVELSEQUENCE_API ULevelSequenceAnimSequenceLink : public UAssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = Links)
 	TArray< FLevelSequenceAnimSequenceLinkItem> AnimSequenceLinks;
 };

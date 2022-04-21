@@ -30,6 +30,11 @@
 #include "BlueprintActionMenuItem.h"
 #include "EdGraphSchema_K2.h"
 
+#include "AssetData.h"
+#include "LevelSequenceAnimSequenceLink.h"
+#include "AnimSequenceLevelSequenceLink.h"
+
+
 #define LOCTEXT_NAMESPACE "SequencerTools"
 
 bool USequencerToolsFunctionLibrary::RenderMovie(UMovieSceneCapture* InCaptureSettings, FOnRenderMovieStopped OnFinishedCallback)
@@ -283,7 +288,7 @@ static USkeletalMeshComponent* GetSkelMeshComponent(IMovieScenePlayer* Player, c
 	return nullptr;
 }
 
-bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence,  UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOptions,const FSequencerBindingProxy& Binding)
+bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence,  UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOptions,const FSequencerBindingProxy& Binding, bool bCreateLink)
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (Binding.Sequence != Sequence || !AnimSequence)
@@ -322,10 +327,101 @@ bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSeq
 	Player->Stop();
 	World->DestroyActor(OutActor);
 
+	//create the link to the anim sequence
+	if (bResult && bCreateLink)
+	{
+		//create from anim sequence back to level sequence
+		if (IInterface_AssetUserData* AnimAssetUserData = Cast< IInterface_AssetUserData >(AnimSequence))
+		{
+			UAnimSequenceLevelSequenceLink* AnimLevelLink = AnimAssetUserData->GetAssetUserData< UAnimSequenceLevelSequenceLink >();
+			if (!AnimLevelLink)
+			{
+				AnimLevelLink = NewObject<UAnimSequenceLevelSequenceLink>(AnimSequence, NAME_None, RF_Public | RF_Transactional);
+				AnimAssetUserData->AddAssetUserData(AnimLevelLink);
+			}
+
+			AnimLevelLink->SetLevelSequence(Sequence);
+			AnimLevelLink->SkelTrackGuid = Binding.BindingID;
+		}
+		//create from level sequence to anim sequence, trickier since we can have multiples here.
+		if (IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >(Sequence))
+		{
+			bool bAddItem = true;
+			ULevelSequenceAnimSequenceLink* LevelAnimLink = AssetUserDataInterface->GetAssetUserData< ULevelSequenceAnimSequenceLink >();
+			if (LevelAnimLink)
+			{
+				for (FLevelSequenceAnimSequenceLinkItem& LevelAnimLinkItem : LevelAnimLink->AnimSequenceLinks)
+				{
+					if (LevelAnimLinkItem.SkelTrackGuid == Binding.BindingID)
+					{
+						bAddItem = false;
+						UAnimSequence* OtherAnimSequence = LevelAnimLinkItem.ResolveAnimSequence();
+
+						if (OtherAnimSequence != AnimSequence)
+						{
+							if (IInterface_AssetUserData* OtherAnimAssetUserData = Cast< IInterface_AssetUserData >(OtherAnimSequence))
+							{
+								UAnimSequenceLevelSequenceLink* OtherAnimLevelLink = OtherAnimAssetUserData->GetAssetUserData< UAnimSequenceLevelSequenceLink >();
+								if (OtherAnimLevelLink)
+								{
+									OtherAnimAssetUserData->RemoveUserDataOfClass(UAnimSequenceLevelSequenceLink::StaticClass());
+								}
+							}
+						}
+						LevelAnimLinkItem.PathToAnimSequence = FSoftObjectPath(AnimSequence);
+						LevelAnimLinkItem.bExportMorphTargets = ExportOptions->bExportMorphTargets;
+						LevelAnimLinkItem.bExportAttributeCurves = ExportOptions->bExportAttributeCurves;
+						LevelAnimLinkItem.bExportMaterialCurves = ExportOptions->bExportMaterialCurves;
+						LevelAnimLinkItem.bExportTransforms = ExportOptions->bExportTransforms;
+						LevelAnimLinkItem.bRecordInWorldSpace = ExportOptions->bRecordInWorldSpace;
+
+						break;
+					}
+				}
+			}
+			else
+			{
+				LevelAnimLink = NewObject<ULevelSequenceAnimSequenceLink>(Sequence, NAME_None, RF_Public | RF_Transactional);
+
+			}
+			if (bAddItem == true)
+			{
+				FLevelSequenceAnimSequenceLinkItem LevelAnimLinkItem;
+				LevelAnimLinkItem.SkelTrackGuid = Binding.BindingID;
+				LevelAnimLinkItem.PathToAnimSequence = FSoftObjectPath(AnimSequence);
+				LevelAnimLinkItem.bExportMorphTargets = ExportOptions->bExportMorphTargets;
+				LevelAnimLinkItem.bExportAttributeCurves = ExportOptions->bExportAttributeCurves;
+				LevelAnimLinkItem.bExportMaterialCurves = ExportOptions->bExportMaterialCurves;
+				LevelAnimLinkItem.bExportTransforms = ExportOptions->bExportTransforms;
+				LevelAnimLinkItem.bRecordInWorldSpace = ExportOptions->bRecordInWorldSpace;
+
+				LevelAnimLink->AnimSequenceLinks.Add(LevelAnimLinkItem);
+				AssetUserDataInterface->AddAssetUserData(LevelAnimLink);
+			}
+		}
+	}
 	return bResult;
 }
 
+UAnimSequenceLevelSequenceLink* USequencerToolsFunctionLibrary::GetLevelSequenceLinkFromAnimSequence(UAnimSequence* InAnimSequence)
+{
+	if (IInterface_AssetUserData* AnimAssetUserData = Cast< IInterface_AssetUserData >(InAnimSequence))
+	{
+		UAnimSequenceLevelSequenceLink* AnimLevelLink = AnimAssetUserData->GetAssetUserData< UAnimSequenceLevelSequenceLink >();
+		return AnimLevelLink;
+	}
+	return nullptr;
+}
 
+ULevelSequenceAnimSequenceLink* USequencerToolsFunctionLibrary::GetAnimSequenceLinkFromLevelSequence(ULevelSequence* InLevelSequence)
+{
+	if (IInterface_AssetUserData* AssetUserDataInterface = Cast< IInterface_AssetUserData >(InLevelSequence))
+	{
+		ULevelSequenceAnimSequenceLink* LevelAnimLink = AssetUserDataInterface->GetAssetUserData< ULevelSequenceAnimSequenceLink >();
+		return LevelAnimLink;
+	}
+	return nullptr;
+}
 
 TArray<FGuid> AddActors(UWorld* World, UMovieSceneSequence* InSequence, UMovieScene* InMovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID,const TArray<TWeakObjectPtr<AActor> >& InActors)
 {

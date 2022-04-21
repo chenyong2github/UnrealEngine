@@ -7,16 +7,16 @@
 class ULevelSequence;
 
 /** Link To Level Sequence That may be driving the anim sequence*/
-UCLASS()
+UCLASS(BlueprintType)
 class LEVELSEQUENCE_API UAnimSequenceLevelSequenceLink : public UAssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = Property)
 	FGuid SkelTrackGuid;
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = Property)
 	FSoftObjectPath PathToLevelSequence;
 
 	void SetLevelSequence(ULevelSequence* InLevelSequence);
