@@ -140,8 +140,12 @@ private:
 	void ApplyDebugSettingsFromFromCmdline();
 
 	void OnUpdateMissBackendsFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
+	void OnUpdateMissChanceFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
+
 	void UpdateBackendDebugState();
+
 	bool ShouldDebugDisablePulling(FStringView BackendConfigName) const;	
+	bool ShouldDebugFailPulling() const;
 
 	void MountBackends(const FConfigFile& ConfigFile);
 	void ParseHierarchy(const FConfigFile& ConfigFile, const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
@@ -154,6 +158,7 @@ private:
 	bool TryCacheDataToBackend(IVirtualizationBackend& Backend, const FIoHash& Id, const FCompressedBuffer& Payload);
 	bool TryPushDataToBackend(IVirtualizationBackend& Backend, TArrayView<FPushRequest> Requests);
 
+	FCompressedBuffer PullDataFromAllBackends(const FIoHash& Id);
 	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FIoHash& Id);
 
 	/** 
@@ -245,6 +250,9 @@ private:
 	
 	/** Array of backend names that should have their pull operation disabled */
 	TArray<FString> DebugMissBackends;
+
+	/** The chance that a payload pull can just 'fail' to allow for testing */
+	float DebugMissChance;
 };
 
 } // namespace UE::Virtualization
