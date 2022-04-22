@@ -4,6 +4,7 @@
 
 #include "HAL/PlatformTime.h"
 #include "IVirtualizationBackend.h"
+#include "Logging/MessageLog.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
@@ -16,6 +17,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "VirtualizationFilterSettings.h"
 
+#define LOCTEXT_NAMESPACE "Virtualization"
 
 namespace UE::Virtualization
 {
@@ -1331,3 +1333,5 @@ bool FVirtualizationManager::ShouldVirtualizeAsDefault() const
 }
 
 } // namespace UE::Virtualization
+
+#undef LOCTEXT_NAMESPACE

@@ -29,16 +29,21 @@ private:
 	FText GetNotificationText() const;
 
 	void OnNotificationEvent(UE::Virtualization::IVirtualizationSystem::ENotification Notification, const FIoHash& PayloadId);
+	void OnWarningReasonOk();
+	void OnWarningReasonIgnore();
 
 	SVerticalBox::FSlot* GridSlot = nullptr;
 
 	FCriticalSection NotificationCS;
 
 	TSharedPtr<SNotificationItem> PullRequestNotificationItem;
+	TSharedPtr<SNotificationItem> PullRequestFailedNotificationItem;
 
 	TSharedPtr<class SScrollBox> ScrollBox;
 
 	bool	IsPulling = false;
-	uint32	NumPullRequests = 0;
 	float	PullNotificationTimer = 0.0f;
+	uint32	NumPullRequests = 0;
+	uint32	NumPullRequestFailures = 0;
 };
+
