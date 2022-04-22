@@ -1758,9 +1758,10 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 			}
 			else if (Ar.IsSaving())
 			{
-				ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+
 				FSkeletalMeshRenderData* LocalSkeletalMeshRenderData = GetSkeletalMeshRenderData();
 #if WITH_EDITORONLY_DATA
+				ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 				const ITargetPlatform* ArchiveCookingTarget = Ar.CookingTarget();
 				constexpr bool bIsSerializeSaving = true;
 				if (ArchiveCookingTarget)
