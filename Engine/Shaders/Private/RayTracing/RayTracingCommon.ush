@@ -92,8 +92,6 @@
 [shader("miss")] void name(inout payload_type payload_name)
 #endif //RAY_TRACING_ENTRY_MISS
 
-#ifndef OVERRIDE_PLATFORM_RAYTRACING_INSTANCE_DESCRITOR
-#define OVERRIDE_PLATFORM_RAYTRACING_INSTANCE_DESCRITOR
 
 // Must match D3D12_RAYTRACING_INSTANCE_FLAGS / VkGeometryInstanceFlagBitsKHR
 #define PLATFORM_RAYTRACING_INSTANCE_FLAG_NONE								0
@@ -139,6 +137,9 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Instance descriptor
+
+#ifndef OVERRIDE_PLATFORM_RAYTRACING_INSTANCE_DESCRITOR
+#define OVERRIDE_PLATFORM_RAYTRACING_INSTANCE_DESCRITOR
 
 // Must match D3D12_RAYTRACING_INSTANCE_DESC / VkAccelerationStructureInstanceKHR
 struct FRayTracingInstanceDescriptor
