@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/MovieSceneSkeletalAnimationTemplate.h"
+#include "Evaluation/MovieSceneTemplateCommon.h"
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimSingleNodeInstance.h"
@@ -14,6 +15,9 @@
 #include "Rendering/MotionVectorSimulation.h"
 #include "Systems/MovieSceneMotionVectorSimulationSystem.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemTask.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "MovieSceneTracksComponentTypes.h"
 #include "UObject/StrongObjectPtr.h"
 #include "SkeletalMeshRestoreState.h"
 #include "AnimSequencerInstanceProxy.h"
@@ -440,6 +444,36 @@ namespace MovieScene
 			}
 		}
 		
+		// Determines whether the skeletal mesh component has a component transform property tag
+		bool ContainsTransform(IMovieScenePlayer& Player, USkeletalMeshComponent* SkeletalMeshComponent) const
+		{
+			using namespace UE::MovieScene;
+			UMovieSceneEntitySystemLinker* Linker = Player.GetEvaluationTemplate().GetEntitySystemLinker();
+
+			bool bContainsTransform = false;
+
+			auto HarvestTransforms = [SkeletalMeshComponent, &bContainsTransform](UObject* BoundObject)
+			{
+				if (BoundObject == SkeletalMeshComponent)
+				{
+					bContainsTransform = true;
+				}
+			};
+					
+			FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+
+			FMovieSceneTracksComponentTypes* Components = FMovieSceneTracksComponentTypes::Get();
+			FEntityTaskBuilder()
+				.Read(BuiltInComponents->BoundObject)
+				// Only include component transforms
+				.FilterAll({ Components->ComponentTransform.PropertyTag })
+				// Only read things with the resolved properties on - this ensures we do not read any intermediate component transforms for blended properties
+				.FilterAny({ BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty })
+				.Iterate_PerEntity(&Linker->EntityManager, HarvestTransforms);
+
+			return bContainsTransform;
+		}
+		
 		void SetAnimPosition(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, USkeletalMeshComponent* SkeletalMeshComponent, FName SlotName, FObjectKey Section, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, 
 			bool bPlaying, bool bFireNotifies, bool bForceCustomMode, const UMovieSceneSkeletalAnimationSection* AnimSection, FFrameTime CurrentTime)
 		{
@@ -469,7 +503,13 @@ namespace MovieScene
 					RootMotion.GetValue().bBlendFirstChildOfRoot = bBlendFirstChildOfRoot;
 				}
 
-				SequencerInst->UpdateAnimTrackWithRootMotion(InAnimSequence, GetTypeHash(AnimTypeID),RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, AnimSection->Params.MirrorDataTable.Get());
+				// If Sequencer has a transform track, we want to set the initial transform so that root motion (if it exists) can be applied relative to that.
+				const bool bContainsTransform = ContainsTransform(Player, SkeletalMeshComponent);
+				TOptional<FTransform> CurrentTransform = bContainsTransform ? SkeletalMeshComponent->GetRelativeTransform() : TOptional<FTransform>();
+								
+				const bool bSwapRootBoneWithComponentRoot = AnimSection->Params.bSwapRootBoneWithComponentRoot;
+				FAnimSequencerData AnimSequencerData(InAnimSequence, GetTypeHash(AnimTypeID), RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, bSwapRootBoneWithComponentRoot, CurrentTransform, AnimSection->Params.MirrorDataTable.Get());
+				SequencerInst->UpdateAnimTrackWithRootMotion(AnimSequencerData);
 			}
 			else if (UAnimInstance* AnimInst = GetSourceAnimInstance(SkeletalMeshComponent))
 			{
@@ -501,6 +541,8 @@ namespace MovieScene
 			bool bFireNotifies, float DeltaTime, bool bPlaying, bool bResetDynamics, bool bForceCustomMode, const UMovieSceneSkeletalAnimationSection* AnimSection,
 			FFrameTime CurrentTime)
 		{
+			using namespace UE::MovieScene;
+
 			static const bool bLooping = false;
 
 			if (!CanPlayAnimation(SkeletalMeshComponent, InAnimSequence))
@@ -528,8 +570,14 @@ namespace MovieScene
 					RootMotion.GetValue().RootMotion = RootMotionTransform.GetValue();
 					RootMotion.GetValue().bBlendFirstChildOfRoot = bBlendFirstChildOfRoot;
 				}
+							
+				// If Sequencer has a transform track for the skeletal mesh component, we want to set the initial transform so that root motion (if it exists) can be applied relative to that.
+				const bool bContainsTransform = ContainsTransform(Player, SkeletalMeshComponent);
+				TOptional<FTransform> CurrentTransform = bContainsTransform ? SkeletalMeshComponent->GetRelativeTransform() : TOptional<FTransform>();
 
-				SequencerInst->UpdateAnimTrackWithRootMotion(InAnimSequence, GetTypeHash(AnimTypeID), RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, AnimSection->Params.MirrorDataTable.Get());
+				const bool bSwapRootBoneWithComponentRoot = AnimSection->Params.bSwapRootBoneWithComponentRoot;
+				FAnimSequencerData AnimSequencerData(InAnimSequence, GetTypeHash(AnimTypeID), RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, bSwapRootBoneWithComponentRoot, CurrentTransform, AnimSection->Params.MirrorDataTable.Get());
+				SequencerInst->UpdateAnimTrackWithRootMotion(AnimSequencerData);
 			}
 			else if (UAnimInstance* AnimInst = GetSourceAnimInstance(SkeletalMeshComponent))
 			{

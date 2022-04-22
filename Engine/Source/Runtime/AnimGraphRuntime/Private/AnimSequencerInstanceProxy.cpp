@@ -60,7 +60,40 @@ bool FAnimSequencerInstanceProxy::Evaluate(FPoseContext& Output)
 			}
 		}
 	}
+	
+	RootBoneTransform.Reset();
+
+	if (bSwapRootBoneWithComponentRoot)
+	{
+		for (const FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
+		{
+			if (BoneIndex.IsRootBone())
+			{
+				RootBoneTransform = Output.Pose[BoneIndex];
+				Output.Pose[BoneIndex] = FTransform::Identity;
+				break;
+			}
+		}
+	}
+
 	return true;
+}
+
+void FAnimSequencerInstanceProxy::PostEvaluate(UAnimInstance* InAnimInstance)
+{
+	if (GetSkelMeshComponent() && bSwapRootBoneWithComponentRoot)
+	{
+		if (RootBoneTransform.IsSet())
+		{
+			FTransform RelativeTransform = RootBoneTransform.GetValue();
+
+			if (InitialTransform.IsSet())
+			{
+				RelativeTransform = RootBoneTransform.GetValue() * InitialTransform.GetValue();
+			}
+			GetSkelMeshComponent()->SetRelativeLocationAndRotation(RelativeTransform.GetLocation(), RelativeTransform.GetRotation().Rotator());
+		}
+	}
 }
 
 void FAnimSequencerInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
@@ -209,6 +242,13 @@ void FAnimSequencerInstanceProxy::UpdateAnimTrackWithRootMotion(UAnimSequenceBas
 void FAnimSequencerInstanceProxy::UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies, UMirrorDataTable* InMirrorDataTable)
 {
 	UpdateAnimTrack(InAnimSequence, SequenceId, RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, InMirrorDataTable);
+}
+
+void FAnimSequencerInstanceProxy::UpdateAnimTrackWithRootMotion(const FAnimSequencerData& InAnimSequencerData)
+{
+	bSwapRootBoneWithComponentRoot = InAnimSequencerData.bSwapRootBoneWithComponentRoot;
+	InitialTransform = InAnimSequencerData.InitialTransform;
+	UpdateAnimTrack(InAnimSequencerData.AnimSequence, InAnimSequencerData.SequenceId, InAnimSequencerData.RootMotion, InAnimSequencerData.FromPosition, InAnimSequencerData.ToPosition, InAnimSequencerData.Weight, InAnimSequencerData.bFireNotifies, InAnimSequencerData.MirrorDataTable);
 }
 
 void FAnimSequencerInstanceProxy::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId, const TOptional<FRootMotionOverride>& InRootMotionOverride, TOptional<float> InFromPosition, float InToPosition, float Weight, bool bFireNotifies, UMirrorDataTable* InMirrorDataTable)

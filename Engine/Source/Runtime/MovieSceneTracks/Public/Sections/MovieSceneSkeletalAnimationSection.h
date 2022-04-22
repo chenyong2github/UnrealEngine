@@ -69,6 +69,10 @@ struct FMovieSceneSkeletalAnimationParams
 	UPROPERTY(EditAnywhere, Category = "Animation")
 	bool bForceCustomMode;
 
+	/** If on the root bone transform will be swapped to the component transform*/
+	UPROPERTY(EditAnywhere, Category = "Animation")
+	bool bSwapRootBoneWithComponentRoot;
+
 	UPROPERTY()
 	float StartOffset_DEPRECATED;
 

@@ -34,6 +34,7 @@ FMovieSceneSkeletalAnimationParams::FMovieSceneSkeletalAnimationParams()
 	Weight.SetDefault(1.f);
 	bSkipAnimNotifiers = false;
 	bForceCustomMode = false;
+	bSwapRootBoneWithComponentRoot = false;
 }
 
 UMovieSceneSkeletalAnimationSection::UMovieSceneSkeletalAnimationSection( const FObjectInitializer& ObjectInitializer )

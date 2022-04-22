@@ -56,6 +56,34 @@ struct FRootMotionOverride
 	FTransform RootMotion;
 };
 
+struct ANIMGRAPHRUNTIME_API FAnimSequencerData
+{
+	FAnimSequencerData(UAnimSequenceBase* InAnimSequence, int32 InSequenceId, const TOptional<FRootMotionOverride>& InRootMotion, float InFromPosition, float InToPosition, float InWeight, bool bInFireNotifies, bool bInSwapRootBoneWithComponentRoot, TOptional<FTransform> InInitialTransform, UMirrorDataTable* InMirrorDataTable)
+		: AnimSequence(InAnimSequence)
+		, SequenceId(InSequenceId)
+		, RootMotion(InRootMotion)
+		, FromPosition(InFromPosition)
+		, ToPosition(InToPosition)
+		, Weight(InWeight)
+		, bFireNotifies(bInFireNotifies)
+		, bSwapRootBoneWithComponentRoot(bInSwapRootBoneWithComponentRoot)
+		, InitialTransform(InInitialTransform)
+		, MirrorDataTable(InMirrorDataTable)
+	{
+	}
+
+	UAnimSequenceBase* AnimSequence;
+	int32 SequenceId;
+	const TOptional<FRootMotionOverride>& RootMotion;
+	float FromPosition;
+	float ToPosition;
+	float Weight;
+	bool bFireNotifies;
+	bool bSwapRootBoneWithComponentRoot;
+	TOptional<FTransform> InitialTransform;
+	UMirrorDataTable* MirrorDataTable;
+};
+
 /** Quick n dirty RTTI to allow for derived classes to insert nodes of different types */
 #define SEQUENCER_INSTANCE_PLAYER_TYPE(TYPE, BASE) \
 	static const FName& GetTypeId() { static FName Type(TEXT(#TYPE)); return Type; } \
@@ -91,6 +119,7 @@ public:
 	// FAnimInstanceProxy interface
 	virtual void Initialize(UAnimInstance* InAnimInstance) override;
 	virtual bool Evaluate(FPoseContext& Output) override;
+	virtual void PostEvaluate(UAnimInstance* InAnimInstance) override;
 	virtual void UpdateAnimationNode(const FAnimationUpdateContext& InContext) override;
 
 	/** Update an animation sequence player in this instance */
@@ -100,7 +129,10 @@ public:
 	UE_DEPRECATED(5.0, "Please use the UpdateAnimTrackWithRootMotion that takes a MirrorDataTable")
 	void UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
 	
+	UE_DEPRECATED(5.1, "Please use the UpdateAnimTrackWithRootMotion that takes FAnimSequencerData")
 	void UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FRootMotionOverride>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies, UMirrorDataTable* InMirrorDataTable);
+
+	void UpdateAnimTrackWithRootMotion(const FAnimSequencerData& InAnimSequencerData);
 
 	/** Reset all nodes in this instance */
 	virtual void ResetNodes();
@@ -146,4 +178,8 @@ protected:
 	void InitAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId);
 	void EnsureAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId);
 	void ClearSequencePlayerAndMirrorMaps();
+
+	bool bSwapRootBoneWithComponentRoot = false;
+	TOptional<FTransform> InitialTransform;
+	TOptional<FTransform> RootBoneTransform;
 };
