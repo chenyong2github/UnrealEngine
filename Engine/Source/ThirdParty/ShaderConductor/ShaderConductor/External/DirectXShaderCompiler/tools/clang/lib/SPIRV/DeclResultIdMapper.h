@@ -13,8 +13,6 @@
 #include <tuple>
 #include <vector>
 
-#include "dxc/DXIL/DxilSemantic.h"
-#include "dxc/DXIL/DxilSigPoint.h"
 #include "dxc/Support/SPIRVOptions.h"
 #include "spirv/unified1/spirv.hpp11"
 #include "clang/AST/Attr.h"
@@ -25,126 +23,12 @@
 #include "llvm/ADT/SmallVector.h"
 
 #include "GlPerVertex.h"
+#include "StageVar.h"
 
 namespace clang {
 namespace spirv {
 
 class SpirvEmitter;
-
-/// A struct containing information about a particular HLSL semantic.
-struct SemanticInfo {
-  llvm::StringRef str;            ///< The original semantic string
-  const hlsl::Semantic *semantic; ///< The unique semantic object
-  llvm::StringRef name;           ///< The semantic string without index
-  uint32_t index;                 ///< The semantic index
-  SourceLocation loc;             ///< Source code location
-
-  bool isValid() const { return semantic != nullptr; }
-
-  inline hlsl::Semantic::Kind getKind() const;
-  /// \brief Returns true if this semantic is a SV_Target.
-  inline bool isTarget() const;
-};
-
-/// \brief The class containing HLSL and SPIR-V information about a Vulkan stage
-/// (builtin/input/output) variable.
-class StageVar {
-public:
-  inline StageVar(const hlsl::SigPoint *sig, SemanticInfo semaInfo,
-                  const VKBuiltInAttr *builtin, QualType astType,
-                  uint32_t locCount)
-      : sigPoint(sig), semanticInfo(std::move(semaInfo)), builtinAttr(builtin),
-        type(astType), value(nullptr), isBuiltin(false),
-        storageClass(spv::StorageClass::Max), location(nullptr),
-        locationCount(locCount), entryPoint(nullptr),
-        locOrBuiltinDecorateAttr(false) {
-    isBuiltin = builtinAttr != nullptr;
-  }
-
-  const hlsl::SigPoint *getSigPoint() const { return sigPoint; }
-  const SemanticInfo &getSemanticInfo() const { return semanticInfo; }
-  std::string getSemanticStr() const;
-
-  QualType getAstType() const { return type; }
-
-  SpirvVariable *getSpirvInstr() const { return value; }
-  void setSpirvInstr(SpirvVariable *spvInstr) { value = spvInstr; }
-
-  const VKBuiltInAttr *getBuiltInAttr() const { return builtinAttr; }
-
-  bool isSpirvBuitin() const { return isBuiltin; }
-  void setIsSpirvBuiltin() { isBuiltin = true; }
-
-  spv::StorageClass getStorageClass() const { return storageClass; }
-  void setStorageClass(spv::StorageClass sc) { storageClass = sc; }
-
-  const VKLocationAttr *getLocationAttr() const { return location; }
-  void setLocationAttr(const VKLocationAttr *loc) { location = loc; }
-
-  const VKIndexAttr *getIndexAttr() const { return indexAttr; }
-  void setIndexAttr(const VKIndexAttr *idx) { indexAttr = idx; }
-
-  uint32_t getLocationCount() const { return locationCount; }
-
-  SpirvFunction *getEntryPoint() const { return entryPoint; }
-  void setEntryPoint(SpirvFunction *entry) { entryPoint = entry; }
-  bool hasLocOrBuiltinDecorateAttr() const { return locOrBuiltinDecorateAttr; }
-  void setIsLocOrBuiltinDecorateAttr() { locOrBuiltinDecorateAttr = true; }
-
-private:
-  /// HLSL SigPoint. It uniquely identifies each set of parameters that may be
-  /// input or output for each entry point.
-  const hlsl::SigPoint *sigPoint;
-  /// Information about HLSL semantic string.
-  SemanticInfo semanticInfo;
-  /// SPIR-V BuiltIn attribute.
-  const VKBuiltInAttr *builtinAttr;
-  /// The AST QualType.
-  QualType type;
-  /// SPIR-V instruction.
-  SpirvVariable *value;
-  /// Indicates whether this stage variable should be a SPIR-V builtin.
-  bool isBuiltin;
-  /// SPIR-V storage class this stage variable belongs to.
-  spv::StorageClass storageClass;
-  /// Location assignment if input/output variable.
-  const VKLocationAttr *location;
-  /// Index assignment if PS output variable
-  const VKIndexAttr *indexAttr;
-  /// How many locations this stage variable takes.
-  uint32_t locationCount;
-  /// Entry point for this stage variable. If this stage variable is not
-  /// specific for an entry point e.g., built-in, it must be nullptr.
-  SpirvFunction *entryPoint;
-  bool locOrBuiltinDecorateAttr;
-};
-
-/// \brief The struct containing information of stage variable's location and
-/// index. This information will be used to check the duplication of stage
-/// variable's location and index.
-struct StageVariableLocationInfo {
-  SpirvFunction *entryPoint;
-  spv::StorageClass sc;
-  uint32_t location;
-  uint32_t index;
-
-  static inline StageVariableLocationInfo getEmptyKey() {
-    return {nullptr, spv::StorageClass::Max, 0, 0};
-  }
-  static inline StageVariableLocationInfo getTombstoneKey() {
-    return {nullptr, spv::StorageClass::Max, 0xffffffff, 0xffffffff};
-  }
-  static unsigned getHashValue(const StageVariableLocationInfo &Val) {
-    return llvm::hash_combine(Val.entryPoint) ^
-           llvm::hash_combine(Val.location) ^ llvm::hash_combine(Val.index) ^
-           llvm::hash_combine(static_cast<uint32_t>(Val.sc));
-  }
-  static bool isEqual(const StageVariableLocationInfo &LHS,
-                      const StageVariableLocationInfo &RHS) {
-    return LHS.entryPoint == RHS.entryPoint && LHS.sc == RHS.sc &&
-           LHS.location == RHS.location && LHS.index == RHS.index;
-  }
-};
 
 class ResourceVar {
 public:
@@ -392,6 +276,14 @@ public:
   /// for it.
   SpirvInstruction *createOrUpdateStringVar(const VarDecl *);
 
+  /// \brief Returns an instruction that represents the given VarDecl.
+  /// VarDecl must be a variable of vk::ext_result_id<Type> type.
+  ///
+  /// This function inspects the VarDecl for an initialization expression. If
+  /// initialization expression is not found, it will emit an error because the
+  /// variable with result id requires an initialization.
+  SpirvInstruction *createResultId(const VarDecl *var);
+
   /// \brief Creates an Enum constant.
   void createEnumConstant(const EnumConstantDecl *decl);
 
@@ -447,11 +339,15 @@ public:
   /// VarDecls (such as some ray tracing enums).
   void tryToCreateImplicitConstVar(const ValueDecl *);
 
-  /// \brief Creates a variable for hull shader output patch with Output
-  /// storage class, and registers the SPIR-V variable for the given decl.
-  SpirvInstruction *createHullMainOutputPatch(const ParmVarDecl *param,
-                                              const QualType retType,
-                                              uint32_t numOutputControlPoints);
+  /// \brief Creates instructions to copy output stage variables defined by
+  /// outputPatchDecl to hullMainOutputPatch that is a variable for the
+  /// OutputPatch argument passing. outputControlPointType is the template
+  /// parameter type of OutputPatch and numOutputControlPoints is the number of
+  /// output control points.
+  void copyHullOutStageVarsToOutputPatch(SpirvInstruction *hullMainOutputPatch,
+                                         const ParmVarDecl *outputPatchDecl,
+                                         QualType outputControlPointType,
+                                         uint32_t numOutputControlPoints);
 
   /// \brief An enum class for representing what the DeclContext is used for
   enum class ContextUsageKind {
@@ -464,9 +360,12 @@ public:
   };
 
   /// Raytracing specific functions
-  /// \brief Creates a ShaderRecordBufferEXT or ShaderRecordBufferNV block from the given decl.
-  SpirvVariable *createShaderRecordBuffer(const VarDecl *decl, ContextUsageKind kind);
-  SpirvVariable *createShaderRecordBuffer(const HLSLBufferDecl *decl, ContextUsageKind kind);
+  /// \brief Creates a ShaderRecordBufferEXT or ShaderRecordBufferNV block from
+  /// the given decl.
+  SpirvVariable *createShaderRecordBuffer(const VarDecl *decl,
+                                          ContextUsageKind kind);
+  SpirvVariable *createShaderRecordBuffer(const HLSLBufferDecl *decl,
+                                          ContextUsageKind kind);
 
 private:
   /// The struct containing SPIR-V information of a AST Decl.
@@ -504,7 +403,8 @@ public:
   /// \brief Returns the information for the given decl.
   ///
   /// This method will panic if the given decl is not registered.
-  SpirvInstruction *getDeclEvalInfo(const ValueDecl *decl, SourceLocation loc);
+  SpirvInstruction *getDeclEvalInfo(const ValueDecl *decl, SourceLocation loc,
+                                    SourceRange range = {});
 
   /// \brief Returns the instruction pointer for the given function if already
   /// registered; otherwise, treats the given function as a normal decl and
@@ -559,11 +459,12 @@ public:
   /// This method is specially for writing back per-vertex data at the time of
   /// OpEmitVertex in GS.
   bool writeBackOutputStream(const NamedDecl *decl, QualType type,
-                             SpirvInstruction *value);
+                             SpirvInstruction *value, SourceRange range = {});
 
   /// \brief Negates to get the additive inverse of SV_Position.y if requested.
   SpirvInstruction *invertYIfRequested(SpirvInstruction *position,
-                                       SourceLocation loc);
+                                       SourceLocation loc,
+                                       SourceRange range = {});
 
   /// \brief Reciprocates to get the multiplicative inverse of SV_Position.w
   /// if requested.
@@ -608,9 +509,23 @@ public:
     return value;
   }
 
-  /// \brief Decorate variable with spirv intrinsic attributes
-  void decorateVariableWithIntrinsicAttrs(const NamedDecl *decl,
-                                          SpirvVariable *varInst);
+  /// Decorate with spirv intrinsic attributes with lamda function variable
+  /// check
+  void decorateWithIntrinsicAttrs(
+      const NamedDecl *decl, SpirvVariable *varInst,
+      llvm::function_ref<void(VKDecorateExtAttr *)> extraFunctionForDecoAttr =
+          [](VKDecorateExtAttr *) {});
+
+  /// \brief Creates instructions to load the value of output stage variable
+  /// defined by outputPatchDecl and store it to ptr. Since the output stage
+  /// variable for OutputPatch is an array whose number of elements is the
+  /// number of output control points, we need ctrlPointID to indicate which
+  /// output control point is the target for copy. outputControlPointType is the
+  /// template parameter type of OutputPatch.
+  void storeOutStageVarsToStorage(const DeclaratorDecl *outputPatchDecl,
+                                  SpirvConstant *ctrlPointID,
+                                  QualType outputControlPointType,
+                                  SpirvInstruction *ptr);
 
 private:
   /// \brief Wrapper method to create a fatal error message and report it
@@ -660,6 +575,15 @@ private:
       llvm::DenseSet<StageVariableLocationInfo, StageVariableLocationInfo>
           *stageVariableLocationInfo,
       const StageVar &var, uint32_t location, uint32_t index);
+
+  /// \brief Decorates vars with locations assigned by nextLocs.
+  /// stageVariableLocationInfo will be used to check the duplication of stage
+  /// variable locations.
+  bool assignLocations(
+      const std::vector<const StageVar *> &vars,
+      llvm::function_ref<uint32_t(uint32_t)> nextLocs,
+      llvm::DenseSet<StageVariableLocationInfo, StageVariableLocationInfo>
+          *stageVariableLocationInfo);
 
   /// \brief Decorates all stage input (if forInput is true) or output (if
   /// forInput is false) variables with proper location and returns true on
@@ -725,11 +649,6 @@ private:
   SpirvVariable *createSpirvStageVar(StageVar *, const NamedDecl *decl,
                                      const llvm::StringRef name,
                                      SourceLocation);
-
-  // Create intermediate output variable to communicate patch constant
-  // data in hull shader since workgroup memory is not allowed there.
-  SpirvVariable *createSpirvIntermediateOutputStageVar(
-      const NamedDecl *decl, const llvm::StringRef name, QualType asType);
 
   /// Returns true if all vk:: attributes usages are valid.
   bool validateVKAttributes(const NamedDecl *decl);
@@ -833,15 +752,17 @@ private:
   bool getImplicitRegisterType(const ResourceVar &var,
                                char *registerTypeOut) const;
 
-  /// Decorate with spirv intrinsic attributes with lamda function variable
-  /// check
-  template <typename Functor>
-  void decorateWithIntrinsicAttrs(const NamedDecl *decl, SpirvVariable *varInst,
-                                  Functor func);
+  /// \brief Decorates stage variable with spirv intrinsic attributes. If
+  /// it is BuiltIn or Location decoration, sets locOrBuiltinDecorateAttr
+  /// of stageVar as true.
+  void decorateStageVarWithIntrinsicAttrs(const NamedDecl *decl,
+                                          StageVar *stageVar,
+                                          SpirvVariable *varInst);
 
 private:
   SpirvBuilder &spvBuilder;
   SpirvEmitter &theEmitter;
+  FeatureManager &featureManager;
   const SpirvCodeGenOptions &spirvOptions;
   ASTContext &astContext;
   SpirvContext &spvContext;
@@ -968,8 +889,8 @@ DeclResultIdMapper::DeclResultIdMapper(ASTContext &context,
                                        SpirvEmitter &emitter,
                                        FeatureManager &features,
                                        const SpirvCodeGenOptions &options)
-    : spvBuilder(spirvBuilder), theEmitter(emitter), spirvOptions(options),
-      astContext(context), spvContext(spirvContext),
+    : spvBuilder(spirvBuilder), theEmitter(emitter), featureManager(features),
+      spirvOptions(options), astContext(context), spvContext(spirvContext),
       diags(context.getDiagnostics()), entryFunction(nullptr),
       needsLegalization(false), needsFlatteningCompositeResources(false),
       glPerVertex(context, spirvContext, spirvBuilder) {}

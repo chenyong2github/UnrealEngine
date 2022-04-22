@@ -136,6 +136,9 @@ endif()
 if (${ENABLE_SPIRV_CODEGEN})
   add_definitions(-DENABLE_SPIRV_CODEGEN)
 endif()
+
+# Building dxil2spv off by default while it's in early development.
+option(ENABLE_DXIL2SPV "Enables DXIL to SPIR-V translation." OFF)
 # SPIRV change ends
 
 include(VersionFromVCS)
@@ -479,10 +482,10 @@ execute_process(
 # streams into the GUI console. So, we explicitly catch and report them.
 if( NOT "${LLVMBUILDOUTPUT}" STREQUAL "")
   message(STATUS "llvm-build output: ${LLVMBUILDOUTPUT}")
-  if( NOT "${LLVMBUILDRESULT}" STREQUAL "0" )
-    message(FATAL_ERROR
-      "Unexpected failure executing llvm-build: '${LLVMBUILDERRORS}'")
-  endif()
+endif()
+if( NOT "${LLVMBUILDRESULT}" STREQUAL "0" )
+  message(FATAL_ERROR
+    "Unexpected failure executing llvm-build: ${LLVMBUILDERRORS}")
 endif()
 
 # Include the generated CMake fragment. This will define properties from the

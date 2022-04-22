@@ -88,20 +88,21 @@ public:
     // Normal instruction kinds
     // In alphabetical order
 
-    IK_AccessChain,                 // OpAccessChain
-    IK_ArrayLength,                 // OpArrayLength
-    IK_Atomic,                      // OpAtomic*
-    IK_Barrier,                     // Op*Barrier
-    IK_BinaryOp,                    // Binary operations
-    IK_BitFieldExtract,             // OpBitFieldExtract
-    IK_BitFieldInsert,              // OpBitFieldInsert
-    IK_CompositeConstruct,          // OpCompositeConstruct
-    IK_CompositeExtract,            // OpCompositeExtract
-    IK_CompositeInsert,             // OpCompositeInsert
-    IK_CopyObject,                  // OpCopyObject
-    IK_DemoteToHelperInvocationEXT, // OpDemoteToHelperInvocationEXT
-    IK_ExtInst,                     // OpExtInst
-    IK_FunctionCall,                // OpFunctionCall
+    IK_AccessChain,              // OpAccessChain
+    IK_ArrayLength,              // OpArrayLength
+    IK_Atomic,                   // OpAtomic*
+    IK_Barrier,                  // Op*Barrier
+    IK_BinaryOp,                 // Binary operations
+    IK_BitFieldExtract,          // OpBitFieldExtract
+    IK_BitFieldInsert,           // OpBitFieldInsert
+    IK_CompositeConstruct,       // OpCompositeConstruct
+    IK_CompositeExtract,         // OpCompositeExtract
+    IK_CompositeInsert,          // OpCompositeInsert
+    IK_CopyObject,               // OpCopyObject
+    IK_DemoteToHelperInvocation, // OpDemoteToHelperInvocation
+    IK_IsHelperInvocationEXT,    // OpIsHelperInvocationEXT
+    IK_ExtInst,                  // OpExtInst
+    IK_FunctionCall,             // OpFunctionCall
 
     IK_EndPrimitive, // OpEndPrimitive
     IK_EmitVertex,   // OpEmitVertex
@@ -220,6 +221,8 @@ public:
 protected:
   // Forbid creating SpirvInstruction directly
   SpirvInstruction(Kind kind, spv::Op opcode, QualType astResultType,
+                   SourceLocation loc, SourceRange range = {});
+  SpirvInstruction(Kind kind, spv::Op opcode, const SpirvType *resultType,
                    SourceLocation loc, SourceRange range = {});
 
 protected:
@@ -473,7 +476,8 @@ public:
 
   // OpDecorateString/OpMemberDecorateString
   SpirvDecoration(SourceLocation loc, SpirvInstruction *target,
-                  spv::Decoration decor, llvm::StringRef stringParam,
+                  spv::Decoration decor,
+                  llvm::ArrayRef<llvm::StringRef> stringParam,
                   llvm::Optional<uint32_t> index = llvm::None);
 
   // Used for creating OpDecorateId instructions
@@ -589,7 +593,7 @@ public:
 
 protected:
   SpirvMerge(Kind kind, spv::Op opcode, SourceLocation loc,
-             SpirvBasicBlock *mergeBlock);
+             SpirvBasicBlock *mergeBlock, SourceRange range = {});
 
   // For LLVM-style RTTI
   static bool classof(const SpirvInstruction *inst) {
@@ -604,7 +608,8 @@ private:
 class SpirvLoopMerge : public SpirvMerge {
 public:
   SpirvLoopMerge(SourceLocation loc, SpirvBasicBlock *mergeBlock,
-                 SpirvBasicBlock *contTarget, spv::LoopControlMask mask);
+                 SpirvBasicBlock *contTarget, spv::LoopControlMask mask,
+                 SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvLoopMerge)
 
@@ -626,7 +631,7 @@ private:
 class SpirvSelectionMerge : public SpirvMerge {
 public:
   SpirvSelectionMerge(SourceLocation loc, SpirvBasicBlock *mergeBlock,
-                      spv::SelectionControlMask mask);
+                      spv::SelectionControlMask mask, SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvSelectionMerge)
 
@@ -680,13 +685,15 @@ public:
   virtual llvm::ArrayRef<SpirvBasicBlock *> getTargetBranches() const = 0;
 
 protected:
-  SpirvBranching(Kind kind, spv::Op opcode, SourceLocation loc);
+  SpirvBranching(Kind kind, spv::Op opcode, SourceLocation loc,
+                 SourceRange range = {});
 };
 
 /// \brief OpBranch instruction
 class SpirvBranch : public SpirvBranching {
 public:
-  SpirvBranch(SourceLocation loc, SpirvBasicBlock *target);
+  SpirvBranch(SourceLocation loc, SpirvBasicBlock *target,
+              SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvBranch)
 
@@ -742,7 +749,7 @@ private:
 /// \brief OpKill instruction
 class SpirvKill : public SpirvTerminator {
 public:
-  SpirvKill(SourceLocation loc);
+  SpirvKill(SourceLocation loc, SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvKill)
 
@@ -877,12 +884,13 @@ class SpirvAtomic : public SpirvInstruction {
 public:
   SpirvAtomic(spv::Op opcode, QualType resultType, SourceLocation loc,
               SpirvInstruction *pointer, spv::Scope, spv::MemorySemanticsMask,
-              SpirvInstruction *value = nullptr);
+              SpirvInstruction *value = nullptr, SourceRange range = {});
   SpirvAtomic(spv::Op opcode, QualType resultType, SourceLocation loc,
               SpirvInstruction *pointer, spv::Scope,
               spv::MemorySemanticsMask semanticsEqual,
               spv::MemorySemanticsMask semanticsUnequal,
-              SpirvInstruction *value, SpirvInstruction *comparator);
+              SpirvInstruction *value, SpirvInstruction *comparator,
+              SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvAtomic)
 
@@ -921,7 +929,8 @@ class SpirvBarrier : public SpirvInstruction {
 public:
   SpirvBarrier(SourceLocation loc, spv::Scope memoryScope,
                spv::MemorySemanticsMask memorySemantics,
-               llvm::Optional<spv::Scope> executionScope = llvm::None);
+               llvm::Optional<spv::Scope> executionScope = llvm::None,
+               SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvBarrier)
 
@@ -1010,6 +1019,9 @@ private:
 class SpirvBinaryOp : public SpirvInstruction {
 public:
   SpirvBinaryOp(spv::Op opcode, QualType resultType, SourceLocation loc,
+                SpirvInstruction *op1, SpirvInstruction *op2,
+                SourceRange range = {});
+  SpirvBinaryOp(spv::Op opcode, const SpirvType *resultType, SourceLocation loc,
                 SpirvInstruction *op1, SpirvInstruction *op2,
                 SourceRange range = {});
 
@@ -1110,10 +1122,13 @@ public:
   }
 
   bool isSpecConstant() const;
+  void setLiteral(bool literal = true) { literalConstant = literal; }
+  bool isLiteral() { return literalConstant; }
 
 protected:
-  SpirvConstant(Kind, spv::Op, const SpirvType *);
-  SpirvConstant(Kind, spv::Op, QualType);
+  SpirvConstant(Kind, spv::Op, const SpirvType *, bool literal = false);
+  SpirvConstant(Kind, spv::Op, QualType, bool literal = false);
+  bool literalConstant;
 };
 
 class SpirvConstantBoolean : public SpirvConstant {
@@ -1141,7 +1156,9 @@ private:
 class SpirvConstantInteger : public SpirvConstant {
 public:
   SpirvConstantInteger(QualType type, llvm::APInt value,
-                       bool isSpecConst = false, bool literal = false);
+                       bool isSpecConst = false);
+  SpirvConstantInteger(const SpirvType *type, llvm::APInt value,
+                       bool isSpecConst = false);
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvConstantInteger)
 
@@ -1155,12 +1172,9 @@ public:
   bool invokeVisitor(Visitor *v) override;
 
   llvm::APInt getValue() const { return value; }
-  void setLiteral(bool l = true) { isLiteral = l; }
-  bool getLiteral() { return isLiteral; }
 
 private:
   llvm::APInt value;
-  bool isLiteral;
 };
 
 class SpirvConstantFloat : public SpirvConstant {
@@ -1228,7 +1242,8 @@ public:
 class SpirvCompositeConstruct : public SpirvInstruction {
 public:
   SpirvCompositeConstruct(QualType resultType, SourceLocation loc,
-                          llvm::ArrayRef<SpirvInstruction *> constituentsVec);
+                          llvm::ArrayRef<SpirvInstruction *> constituentsVec,
+                          SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvCompositeConstruct)
 
@@ -1252,7 +1267,8 @@ class SpirvCompositeExtract : public SpirvInstruction {
 public:
   SpirvCompositeExtract(QualType resultType, SourceLocation loc,
                         SpirvInstruction *composite,
-                        llvm::ArrayRef<uint32_t> indices);
+                        llvm::ArrayRef<uint32_t> indices,
+                        SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvCompositeExtract)
 
@@ -1276,7 +1292,8 @@ class SpirvCompositeInsert : public SpirvInstruction {
 public:
   SpirvCompositeInsert(QualType resultType, SourceLocation loc,
                        SpirvInstruction *composite, SpirvInstruction *object,
-                       llvm::ArrayRef<uint32_t> indices);
+                       llvm::ArrayRef<uint32_t> indices,
+                       SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvCompositeInsert)
 
@@ -1300,7 +1317,7 @@ private:
 /// \brief EmitVertex instruction
 class SpirvEmitVertex : public SpirvInstruction {
 public:
-  SpirvEmitVertex(SourceLocation loc);
+  SpirvEmitVertex(SourceLocation loc, SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvEmitVertex)
 
@@ -1315,7 +1332,7 @@ public:
 /// \brief EndPrimitive instruction
 class SpirvEndPrimitive : public SpirvInstruction {
 public:
-  SpirvEndPrimitive(SourceLocation loc);
+  SpirvEndPrimitive(SourceLocation loc, SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvEndPrimitive)
 
@@ -1331,7 +1348,8 @@ public:
 class SpirvExtInst : public SpirvInstruction {
 public:
   SpirvExtInst(QualType resultType, SourceLocation loc, SpirvExtInstImport *set,
-               uint32_t inst, llvm::ArrayRef<SpirvInstruction *> operandsVec);
+               uint32_t inst, llvm::ArrayRef<SpirvInstruction *> operandsVec,
+               SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvExtInst)
 
@@ -1357,7 +1375,8 @@ class SpirvFunctionCall : public SpirvInstruction {
 public:
   SpirvFunctionCall(QualType resultType, SourceLocation loc,
                     SpirvFunction *function,
-                    llvm::ArrayRef<SpirvInstruction *> argsVec);
+                    llvm::ArrayRef<SpirvInstruction *> argsVec,
+                    SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvFunctionCall)
 
@@ -1577,7 +1596,7 @@ class SpirvImageQuery : public SpirvInstruction {
 public:
   SpirvImageQuery(spv::Op opcode, QualType resultType, SourceLocation loc,
                   SpirvInstruction *img, SpirvInstruction *lod = nullptr,
-                  SpirvInstruction *coord = nullptr);
+                  SpirvInstruction *coord = nullptr, SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvImageQuery)
 
@@ -1604,7 +1623,8 @@ private:
 class SpirvImageSparseTexelsResident : public SpirvInstruction {
 public:
   SpirvImageSparseTexelsResident(QualType resultType, SourceLocation loc,
-                                 SpirvInstruction *resCode);
+                                 SpirvInstruction *resCode,
+                                 SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvImageSparseTexelsResident)
 
@@ -1734,7 +1754,8 @@ private:
 class SpirvSelect : public SpirvInstruction {
 public:
   SpirvSelect(QualType resultType, SourceLocation loc, SpirvInstruction *cond,
-              SpirvInstruction *trueId, SpirvInstruction *falseId);
+              SpirvInstruction *trueId, SpirvInstruction *falseId,
+              SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvSelect)
 
@@ -1875,7 +1896,7 @@ private:
 class SpirvUnaryOp : public SpirvInstruction {
 public:
   SpirvUnaryOp(spv::Op opcode, QualType resultType, SourceLocation loc,
-               SpirvInstruction *op);
+               SpirvInstruction *op, SourceRange range = {});
 
   SpirvUnaryOp(spv::Op opcode, const SpirvType *resultType, SourceLocation loc,
                SpirvInstruction *op);
@@ -1901,7 +1922,8 @@ class SpirvVectorShuffle : public SpirvInstruction {
 public:
   SpirvVectorShuffle(QualType resultType, SourceLocation loc,
                      SpirvInstruction *vec1, SpirvInstruction *vec2,
-                     llvm::ArrayRef<uint32_t> componentsVec);
+                     llvm::ArrayRef<uint32_t> componentsVec,
+                     SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvVectorShuffle)
 
@@ -1925,7 +1947,8 @@ private:
 class SpirvArrayLength : public SpirvInstruction {
 public:
   SpirvArrayLength(QualType resultType, SourceLocation loc,
-                   SpirvInstruction *structure, uint32_t arrayMember);
+                   SpirvInstruction *structure, uint32_t arrayMember,
+                   SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvArrayLength)
 
@@ -1973,7 +1996,7 @@ class SpirvRayQueryOpKHR : public SpirvInstruction {
 public:
   SpirvRayQueryOpKHR(QualType resultType, spv::Op opcode,
                      llvm::ArrayRef<SpirvInstruction *> vecOperands, bool flags,
-                     SourceLocation loc);
+                     SourceLocation loc, SourceRange range = {});
 
   DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvRayQueryOpKHR)
 
@@ -2006,22 +2029,41 @@ public:
   bool invokeVisitor(Visitor *v) override;
 };
 
-/// \brief OpDemoteToHelperInvocationEXT instruction.
+/// \brief OpDemoteToHelperInvocation instruction.
 /// Demote fragment shader invocation to a helper invocation. Any stores to
 /// memory after this instruction are suppressed and the fragment does not write
 /// outputs to the framebuffer. Unlike the OpKill instruction, this does not
 /// necessarily terminate the invocation. It is not considered a flow control
 /// instruction (flow control does not become non-uniform) and does not
 /// terminate the block.
-class SpirvDemoteToHelperInvocationEXT : public SpirvInstruction {
+class SpirvDemoteToHelperInvocation : public SpirvInstruction {
 public:
-  SpirvDemoteToHelperInvocationEXT(SourceLocation);
+  SpirvDemoteToHelperInvocation(SourceLocation);
 
-  DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvDemoteToHelperInvocationEXT)
+  DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvDemoteToHelperInvocation)
 
   // For LLVM-style RTTI
   static bool classof(const SpirvInstruction *inst) {
-    return inst->getKind() == IK_DemoteToHelperInvocationEXT;
+    return inst->getKind() == IK_DemoteToHelperInvocation;
+  }
+
+  bool invokeVisitor(Visitor *v) override;
+};
+
+/// \brief OpIsHelperInvocationEXT instruction.
+/// Result is true if the invocation is currently a helper invocation, otherwise
+/// result is false. An invocation is currently a helper invocation if it was
+/// originally invoked as a helper invocation or if it has been demoted to a
+/// helper invocation by OpDemoteToHelperInvocationEXT.
+class SpirvIsHelperInvocationEXT : public SpirvInstruction {
+public:
+  SpirvIsHelperInvocationEXT(QualType, SourceLocation);
+
+  DEFINE_RELEASE_MEMORY_FOR_CLASS(SpirvIsHelperInvocationEXT)
+
+  // For LLVM-style RTTI
+  static bool classof(const SpirvInstruction *inst) {
+    return inst->getKind() == IK_IsHelperInvocationEXT;
   }
 
   bool invokeVisitor(Visitor *v) override;

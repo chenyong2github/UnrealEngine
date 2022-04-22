@@ -324,6 +324,12 @@ bool MacroPairCompareIsLessThan(
   return left.first->getName().compare(right.first->getName()) < 0;
 }
 
+bool ParsedSemanticDefineCompareIsLessThan(
+    const ParsedSemanticDefine &left,
+    const ParsedSemanticDefine &right) {
+    return left.Name < right.Name;
+}
+
 ParsedSemanticDefineList
 CollectUserMacrosParsedByCompiler(CompilerInstance &compiler) {
   ParsedSemanticDefineList parsedDefines;
@@ -508,7 +514,6 @@ ParsedSemanticDefineList hlsl::CollectSemanticDefinesParsedByCompiler(
   }
 
   if (!macros.empty()) {
-    std::sort(macros.begin(), macros.end(), MacroPairCompareIsLessThan);
     MacroExpander expander(pp);
     for (std::pair<const IdentifierInfo *, MacroInfo *> m : macros) {
       std::string expandedValue;
@@ -519,6 +524,7 @@ ParsedSemanticDefineList hlsl::CollectSemanticDefinesParsedByCompiler(
     }
   }
 
+  std::stable_sort(parsedDefines.begin(), parsedDefines.end(), ParsedSemanticDefineCompareIsLessThan);
   return parsedDefines;
 }
 
@@ -547,7 +553,7 @@ void SetupCompilerCommon(CompilerInstance &compiler,
   if (opts.WarningAsError)
     compiler.getDiagnostics().setWarningsAsErrors(true);
   compiler.getDiagnostics().setIgnoreAllWarnings(!opts.OutputWarnings);
-  compiler.getLangOpts().HLSLVersion = (unsigned)opts.HLSLVersion;
+  compiler.getLangOpts().HLSLVersion = opts.HLSLVersion;
   compiler.getLangOpts().StrictUDTCasting = opts.StrictUDTCasting;
   compiler.getLangOpts().UseMinPrecision = !opts.Enable16BitTypes;
   compiler.getLangOpts().EnableDX9CompatMode = opts.EnableDX9CompatMode;
@@ -558,11 +564,11 @@ void SetupCompilerCommon(CompilerInstance &compiler,
   compiler.getLangOpts().EnablePayloadAccessQualifiers = opts.EnablePayloadQualifiers;
   compiler.getLangOpts().EnableShortCircuit = opts.EnableShortCircuit;
   compiler.getLangOpts().EnableBitfields = opts.EnableBitfields;
+#ifdef ENABLE_SPIRV_CODEGEN
+  compiler.getLangOpts().SPIRV = opts.GenSPIRV;
+#endif
   compiler.getDiagnostics().setIgnoreAllWarnings(!opts.OutputWarnings);
   compiler.getCodeGenOpts().MainFileName = pMainFile;
-  // UE Change Begin: Enable Vulkan specific features in rewriter.
-  compiler.getLangOpts().SPIRV = opts.GenSPIRV;
-  // UE Change End: Enable Vulkan specific features in rewriter.
 
   PreprocessorOptions &PPOpts = compiler.getPreprocessorOpts();
   if (rewrite != nullptr) {
@@ -1030,8 +1036,9 @@ DoRewriteUnused(_In_ DxcLangExtensionsHelper *pHelper, _In_ LPCSTR pFileName,
 
   ASTHelper astHelper;
 
-  // Convert HLSLVersion into argument to properly initialize the compiler
+  // Parse compiler arguments
   hlsl::options::DxcOpts opts;
+  opts.HLSLVersion = hlsl::LangStd::v2015;
   hlsl::options::MainArgs optsArgs{static_cast<int>(argCount), pArgs, 0};
   CComPtr<IDxcOperationResult> optsArgResult;
   ReadOptsAndValidate(optsArgs, opts, &optsArgResult);
@@ -1701,8 +1708,9 @@ public:
       std::unique_ptr<llvm::MemoryBuffer> pBuffer(llvm::MemoryBuffer::getMemBufferCopy(Data, fakeName));
       std::unique_ptr<ASTUnit::RemappedFile> pRemap(new ASTUnit::RemappedFile(fakeName, pBuffer.release()));
 
-	  // Parser compile arguments
+	  // Parse compiler arguments
       hlsl::options::DxcOpts opts;
+      opts.HLSLVersion = hlsl::LangStd::v2015;
       hlsl::options::MainArgs optsArgs{static_cast<int>(argCount), pArgs, 0};
       ReadOptsAndValidate(optsArgs, opts, ppResult);
 
@@ -1726,7 +1734,7 @@ public:
       // Optional file name for pSource. Used in errors and include handlers.
       _In_opt_ LPCWSTR pSourceName, _In_count_(defineCount) DxcDefine *pDefines,
       _In_ UINT32 defineCount,
-	  _In_count_(argCount) const char **pArgs, _In_ UINT32 argCount,
+      _In_count_(argCount) const char **pArgs, _In_ UINT32 argCount,
       // user-provided interface to handle #include directives (optional)
       _In_opt_ IDxcIncludeHandler *pIncludeHandler,
       _In_ UINT32 rewriteOption,
@@ -1754,8 +1762,9 @@ public:
       std::unique_ptr<llvm::MemoryBuffer> pBuffer(llvm::MemoryBuffer::getMemBufferCopy(Data, fName));
       std::unique_ptr<ASTUnit::RemappedFile> pRemap(new ASTUnit::RemappedFile(fName, pBuffer.release()));
 
-	  // Parser compile arguments
+	  // Parse compiler arguments
       hlsl::options::DxcOpts opts;
+      opts.HLSLVersion = hlsl::LangStd::v2015;
       hlsl::options::MainArgs optsArgs{static_cast<int>(argCount), pArgs, 0};
       ReadOptsAndValidate(optsArgs, opts, ppResult);
 

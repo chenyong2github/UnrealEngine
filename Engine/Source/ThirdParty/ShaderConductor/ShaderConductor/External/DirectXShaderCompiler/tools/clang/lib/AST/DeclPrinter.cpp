@@ -867,6 +867,11 @@ void DeclPrinter::VisitStaticAssertDecl(StaticAssertDecl *D) {
 // C++ declarations
 //----------------------------------------------------------------------------
 void DeclPrinter::VisitNamespaceDecl(NamespaceDecl *D) {
+  // UE Change Begin: Don't emit built-in "vk" namesapce
+  if (D->getNameAsString() == "vk") {
+    return;
+  }
+  // UE Change End: Don't emit built-in "vk" namesapce
   if (D->isInline())
     Out << "inline ";
   Out << "namespace " << *D << " {\n";
@@ -1132,7 +1137,9 @@ void DeclPrinter::PrintLineDirective(Decl *D) {
   const auto Loc = D->getLocation();
   const auto &SM = D->getASTContext().getSourceManager();
   PresumedLoc PLoc = SM.getPresumedLoc(Loc);
-  Out << "#line " << PLoc.getLine() << " \"" << PLoc.getFilename() << "\"\n";
+  if (const char *DeclFilename = PLoc.getFilename()) {
+    Out << "#line " << PLoc.getLine() << " \"" << DeclFilename << "\"\n";
+  }
 }
 // UE Change End: Print #line directive
 

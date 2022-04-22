@@ -338,8 +338,18 @@ clang::CXXRecordDecl* DeclareTemplateTypeWithHandle(
             uint8_t templateArgCount,
   _In_opt_  clang::TypeSourceInfo* defaultTypeArgValue);
 
+clang::CXXRecordDecl* DeclareTemplateTypeWithHandleInDeclContext(
+            clang::ASTContext& context,
+            clang::DeclContext *declContext,
+            llvm::StringRef name,
+            uint8_t templateArgCount,
+  _In_opt_  clang::TypeSourceInfo* defaultTypeArgValue);
+
 clang::CXXRecordDecl* DeclareUIntTemplatedTypeWithHandle(
   clang::ASTContext& context, llvm::StringRef typeName, llvm::StringRef templateParamName);
+clang::CXXRecordDecl *DeclareUIntTemplatedTypeWithHandleInDeclContext(
+    clang::ASTContext &context, clang::DeclContext *declContext,
+    llvm::StringRef typeName, llvm::StringRef templateParamName);
 clang::CXXRecordDecl *DeclareConstantBufferViewType(clang::ASTContext& context, bool bTBuf);
 clang::CXXRecordDecl* DeclareRayQueryType(clang::ASTContext& context);
 clang::CXXRecordDecl *DeclareResourceType(clang::ASTContext &context,
@@ -401,6 +411,7 @@ bool IsHLSLAggregateType(clang::QualType type);
 clang::QualType GetHLSLResourceResultType(clang::QualType type);
 unsigned GetHLSLResourceTemplateUInt(clang::QualType type);
 bool IsIncompleteHLSLResourceArrayType(clang::ASTContext& context, clang::QualType type);
+clang::QualType GetHLSLResourceTemplateParamType(clang::QualType type);
 clang::QualType GetHLSLInputPatchElementType(clang::QualType type);
 unsigned GetHLSLInputPatchCount(clang::QualType type);
 clang::QualType GetHLSLOutputPatchElementType(clang::QualType type);

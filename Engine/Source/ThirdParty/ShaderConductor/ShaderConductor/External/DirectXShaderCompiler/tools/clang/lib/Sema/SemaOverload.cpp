@@ -5137,7 +5137,8 @@ static ExprResult CheckConvertedConstantExpression(Sema &S, Expr *From,
                                                    QualType T, APValue &Value,
                                                    Sema::CCEKind CCE,
                                                    bool RequireInt) {
-  assert((S.getLangOpts().CPlusPlus11 || S.getLangOpts().HLSLVersion >= 2017) &&
+  assert((S.getLangOpts().CPlusPlus11 ||
+          S.getLangOpts().HLSLVersion >= hlsl::LangStd::v2017) &&
          "converted constant expression outside C++11");
 
   if (checkPlaceholderForOverload(S, From))
@@ -11835,9 +11836,12 @@ Sema::BuildCallToMemberFunction(Scope *S, Expr *MemExprE,
     Qualifier = UnresExpr->getQualifier();
 
     QualType ObjectType = UnresExpr->getBaseType();
-    Expr::Classification ObjectClassification
-      = UnresExpr->isArrow()? Expr::Classification::makeSimpleLValue()
-                            : UnresExpr->getBase()->Classify(Context);
+    // HLSL Change Begin - This is a reference
+    Expr::Classification ObjectClassification =
+        (getLangOpts().HLSL || UnresExpr->isArrow())
+            ? Expr::Classification::makeSimpleLValue()
+            : UnresExpr->getBase()->Classify(Context);
+    // HLSL Change End - This is a reference
 
     // Add overload candidates
     OverloadCandidateSet CandidateSet(UnresExpr->getMemberLoc(),
@@ -12691,9 +12695,14 @@ Expr *Sema::FixOverloadedFunctionReference(Expr *E, DeclAccessPair Found,
         if (MemExpr->getQualifier())
           Loc = MemExpr->getQualifierLoc().getBeginLoc();
         CheckCXXThisCapture(Loc);
-        Base = new (Context) CXXThisExpr(Loc,
-                                         MemExpr->getBaseType(),
-                                         /*isImplicit=*/true);
+        // HLSL Change Begin - This is a reference
+        if (getLangOpts().HLSL)
+          Base = genereateHLSLThis(Loc, MemExpr->getBaseType(),
+                                   /*isImplicit=*/true);
+        else
+          Base = new (Context) CXXThisExpr(Loc, MemExpr->getBaseType(),
+                                           /*isImplicit=*/true);
+        // HLSL Change End - This is a reference
       }
     } else
       Base = MemExpr->getBase();

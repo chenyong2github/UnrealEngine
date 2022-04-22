@@ -75,10 +75,10 @@ public:
   TEST_METHOD(RunIncludes);
   TEST_METHOD(RunStructMethods);
   TEST_METHOD(RunPredefines);
-  TEST_METHOD(RunUTF16OneByte);
-  TEST_METHOD(RunUTF16TwoByte);
-  TEST_METHOD(RunUTF16ThreeByteBadChar);
-  TEST_METHOD(RunUTF16ThreeByte);
+  TEST_METHOD(RunWideOneByte);
+  TEST_METHOD(RunWideTwoByte);
+  TEST_METHOD(RunWideThreeByteBadChar);
+  TEST_METHOD(RunWideThreeByte);
   TEST_METHOD(RunNonUnicode);
   TEST_METHOD(RunEffect);
   TEST_METHOD(RunSemanticDefines);
@@ -239,7 +239,7 @@ public:
         ::WEX::Logging::Log::Error(L"\nCompilation failed.\n");
         CComPtr<IDxcBlobEncoding> pErrorBuffer;
         IFT((*ppResult)->GetErrorBuffer(&pErrorBuffer));
-        std::wstring errorStr = BlobToUtf16(pErrorBuffer);
+        std::wstring errorStr = BlobToWide(pErrorBuffer);
         ::WEX::Logging::Log::Error(errorStr.data());
         VERIFY_SUCCEEDED(hrStatus);
         return;
@@ -297,7 +297,8 @@ public:
     // Run rewrite no function body on the source code
     VERIFY_SUCCEEDED(pRewriter->RewriteUnchangedWithInclude(
         source.BlobEncoding, fileName.c_str(), myDefines, myDefinesCount,
-        m_pIncludeHandler, rewriteOption, &pRewriteResult));
+        /*pArgs*/ nullptr, 0, m_pIncludeHandler, rewriteOption,
+        &pRewriteResult));
 
     CComPtr<IDxcBlob> result;
     VERIFY_SUCCEEDED(pRewriteResult->GetResult(&result));
@@ -408,17 +409,18 @@ TEST_F(RewriterTest, RunPredefines) {
 
 static const UINT32 CP_UTF16 = 1200;
 
-TEST_F(RewriterTest, RunUTF16OneByte) {
+TEST_F(RewriterTest, RunWideOneByte) {
   CComPtr<IDxcRewriter> pRewriter;
   VERIFY_SUCCEEDED(CreateRewriter(&pRewriter));
   CComPtr<IDxcOperationResult> pRewriteResult;
 
-  WCHAR utf16text[] = { L"\x0069\x006e\x0074\x0020\x0069\x003b" }; // "int i;"
+  WCHAR widetext[] = { L"\x0069\x006e\x0074\x0020\x0069\x003b" }; // "int i;"
 
   CComPtr<IDxcBlobEncoding> source;
-  CreateBlobPinned(utf16text, sizeof(utf16text), CP_UTF16, &source);
+  CreateBlobPinned(widetext, sizeof(widetext), DXC_CP_WIDE, &source);
 
-  VERIFY_SUCCEEDED(pRewriter->RewriteUnchanged(source, 0, 0, &pRewriteResult));
+  VERIFY_SUCCEEDED(pRewriter->RewriteUnchanged(source, 0, 0, /*pArgs*/ nullptr,
+                                               0, &pRewriteResult));
 
   CComPtr<IDxcBlob> result;
   VERIFY_SUCCEEDED(pRewriteResult->GetResult(&result));
@@ -426,17 +428,18 @@ TEST_F(RewriterTest, RunUTF16OneByte) {
   VERIFY_IS_TRUE(strcmp(BlobToUtf8(result).c_str(), "// Rewrite unchanged result:\n\x63\x6f\x6e\x73\x74\x20\x69\x6e\x74\x20\x69\x3b\n") == 0); // const added by default
 }
 
-TEST_F(RewriterTest, RunUTF16TwoByte) {
+TEST_F(RewriterTest, RunWideTwoByte) {
   CComPtr<IDxcRewriter> pRewriter;
   VERIFY_SUCCEEDED(CreateRewriter(&pRewriter));
   CComPtr<IDxcOperationResult> pRewriteResult;
 
-  WCHAR utf16text[] = { L"\x0069\x006e\x0074\x0020\x00ed\x00f1\x0167\x003b" }; // "int (i w/ acute)(n w/tilde)(t w/ 2 strokes);"
+  WCHAR widetext[] = { L"\x0069\x006e\x0074\x0020\x00ed\x00f1\x0167\x003b" }; // "int (i w/ acute)(n w/tilde)(t w/ 2 strokes);"
 
   CComPtr<IDxcBlobEncoding> source;
-  CreateBlobPinned(utf16text, sizeof(utf16text), CP_UTF16, &source);
+  CreateBlobPinned(widetext, sizeof(widetext), DXC_CP_WIDE, &source);
 
-  VERIFY_SUCCEEDED(pRewriter->RewriteUnchanged(source, 0, 0, &pRewriteResult));
+  VERIFY_SUCCEEDED(pRewriter->RewriteUnchanged(source, 0, 0, /*pArgs*/ nullptr,
+                                               0, &pRewriteResult));
 
   CComPtr<IDxcBlob> result;
   VERIFY_SUCCEEDED(pRewriteResult->GetResult(&result));
@@ -444,17 +447,18 @@ TEST_F(RewriterTest, RunUTF16TwoByte) {
   VERIFY_IS_TRUE(strcmp(BlobToUtf8(result).c_str(), "// Rewrite unchanged result:\n\x63\x6f\x6e\x73\x74\x20\x69\x6e\x74\x20\xc3\xad\xc3\xb1\xc5\xa7\x3b\n") == 0); // const added by default
 }
 
-TEST_F(RewriterTest, RunUTF16ThreeByteBadChar) {
+TEST_F(RewriterTest, RunWideThreeByteBadChar) {
   CComPtr<IDxcRewriter> pRewriter;
   VERIFY_SUCCEEDED(CreateRewriter(&pRewriter));
   CComPtr<IDxcOperationResult> pRewriteResult;
 
-  WCHAR utf16text[] = { L"\x0069\x006e\x0074\x0020\x0041\x2655\x265a\x003b" }; // "int A(white queen)(black king);"
+  WCHAR widetext[] = { L"\x0069\x006e\x0074\x0020\x0041\x2655\x265a\x003b" }; // "int A(white queen)(black king);"
 
   CComPtr<IDxcBlobEncoding> source;
-  CreateBlobPinned(utf16text, sizeof(utf16text), CP_UTF16, &source);
+  CreateBlobPinned(widetext, sizeof(widetext), DXC_CP_WIDE, &source);
 
-  VERIFY_SUCCEEDED(pRewriter->RewriteUnchanged(source, 0, 0, &pRewriteResult));
+  VERIFY_SUCCEEDED(pRewriter->RewriteUnchanged(source, 0, 0, /*pArgs*/ nullptr,
+                                               0, &pRewriteResult));
 
   CComPtr<IDxcBlob> result;
   VERIFY_SUCCEEDED(pRewriteResult->GetResult(&result));
@@ -462,17 +466,18 @@ TEST_F(RewriterTest, RunUTF16ThreeByteBadChar) {
   VERIFY_IS_TRUE(strcmp(BlobToUtf8(result).c_str(), "// Rewrite unchanged result:\n\x63\x6f\x6e\x73\x74\x20\x69\x6e\x74\x20\x41\x3b\n") == 0); //"const int A;" -> should remove the weird characters
 }
 
-TEST_F(RewriterTest, RunUTF16ThreeByte) {
+TEST_F(RewriterTest, RunWideThreeByte) {
   CComPtr<IDxcRewriter> pRewriter;
   VERIFY_SUCCEEDED(CreateRewriter(&pRewriter));
   CComPtr<IDxcOperationResult> pRewriteResult;
 
-  WCHAR utf16text[] = { L"\x0069\x006e\x0074\x0020\x1e8b\x003b" }; // "int (x with dot above);"
+  WCHAR widetext[] = { L"\x0069\x006e\x0074\x0020\x1e8b\x003b" }; // "int (x with dot above);"
 
   CComPtr<IDxcBlobEncoding> source;
-  CreateBlobPinned(utf16text, sizeof(utf16text), CP_UTF16, &source);
+  CreateBlobPinned(widetext, sizeof(widetext), DXC_CP_WIDE, &source);
 
-  VERIFY_SUCCEEDED(pRewriter->RewriteUnchanged(source, 0, 0, &pRewriteResult));
+  VERIFY_SUCCEEDED(pRewriter->RewriteUnchanged(source, 0, 0, /*pArgs*/ nullptr,
+                                               0, &pRewriteResult));
 
   CComPtr<IDxcBlob> result;
   VERIFY_SUCCEEDED(pRewriteResult->GetResult(&result));
@@ -490,7 +495,8 @@ TEST_F(RewriterTest, RunNonUnicode) {
   CComPtr<IDxcBlobEncoding> source;
   CreateBlobPinned(greektext, sizeof(greektext), 1253, &source); // 1253 == ANSI Greek
 
-  VERIFY_SUCCEEDED(pRewriter->RewriteUnchanged(source, 0, 0, &pRewriteResult));
+  VERIFY_SUCCEEDED(pRewriter->RewriteUnchanged(source, 0, 0, /*pArgs*/ nullptr,
+                                               0, &pRewriteResult));
 
   CComPtr<IDxcBlob> result;
   VERIFY_SUCCEEDED(pRewriteResult->GetResult(&result));
@@ -527,8 +533,8 @@ TEST_F(RewriterTest, RunNoFunctionBody) {
   // Run rewrite no function body on the source code
   VERIFY_SUCCEEDED(pRewriter->RewriteUnchangedWithInclude(
       source.BlobEncoding, L"vector-assignments_noerr.hlsl", myDefines,
-      myDefinesCount, /*pIncludeHandler*/ nullptr, RewriterOptionMask::SkipFunctionBody,
-      &pRewriteResult));
+      myDefinesCount, /*pArgs*/ nullptr, 0, /*pIncludeHandler*/ nullptr,
+      RewriterOptionMask::SkipFunctionBody, &pRewriteResult));
 
   CComPtr<IDxcBlob> result;
   VERIFY_SUCCEEDED(pRewriteResult->GetResult(&result));
@@ -556,7 +562,7 @@ TEST_F(RewriterTest, RunNoStatic) {
   // Run rewrite no function body on the source code
   VERIFY_SUCCEEDED(pRewriter->RewriteUnchangedWithInclude(
       source.BlobEncoding, L"attributes_noerr.hlsl", myDefines, myDefinesCount,
-      /*pIncludeHandler*/ nullptr,
+      /*pArgs*/ nullptr, 0, /*pIncludeHandler*/ nullptr,
       RewriterOptionMask::SkipFunctionBody | RewriterOptionMask::SkipStatic,
       &pRewriteResult));
 
@@ -610,7 +616,7 @@ TEST_F(RewriterTest, RunForceExtern) {  CComPtr<IDxcRewriter> pRewriter;
   // Run rewrite no function body on the source code
   VERIFY_SUCCEEDED(pRewriter->RewriteUnchangedWithInclude(
       source.BlobEncoding, L"vector-assignments_noerr.hlsl", myDefines,
-      myDefinesCount, /*pIncludeHandler*/ nullptr,
+      myDefinesCount, /*pArgs*/ nullptr, 0, /*pIncludeHandler*/ nullptr,
       RewriterOptionMask::SkipFunctionBody |
           RewriterOptionMask::GlobalExternByDefault,
       &pRewriteResult));
@@ -648,7 +654,7 @@ TEST_F(RewriterTest, RunKeepUserMacro) {  CComPtr<IDxcRewriter> pRewriter;
   // Run rewrite no function body on the source code
   VERIFY_SUCCEEDED(pRewriter->RewriteUnchangedWithInclude(
       source.BlobEncoding, L"vector-assignments_noerr.hlsl", myDefines,
-      myDefinesCount, /*pIncludeHandler*/ nullptr,
+      myDefinesCount, /*pArgs*/ nullptr, 0, /*pIncludeHandler*/ nullptr,
       RewriterOptionMask::KeepUserMacro,
       &pRewriteResult));
 
@@ -740,7 +746,7 @@ TEST_F(RewriterTest, RunRewriterFails) {
   ::WEX::Logging::Log::Comment(L"\nCompilation failed as expected.\n");
   CComPtr<IDxcBlobEncoding> pErrorBuffer;
   IFT(pRewriteResult->GetErrorBuffer(&pErrorBuffer));
-  std::wstring errorStr = BlobToUtf16(pErrorBuffer);
+  std::wstring errorStr = BlobToWide(pErrorBuffer);
   
   ::WEX::Logging::Log::Comment(errorStr.data());
 

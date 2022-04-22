@@ -84,6 +84,8 @@ const char *kDxBreakMDName = "dx.break.br";
 const char *kDxIsHelperGlobalName = "dx.ishelper";
 
 const char *kHostLayoutTypePrefix = "hostlayout.";
+
+const char* kWaveOpsIncludeHelperLanesString = "waveops-include-helper-lanes";
 }
 
 void SetDxilHook(Module &M);
@@ -122,7 +124,7 @@ DxilModule::DxilModule(Module *pModule)
   DXASSERT_NOMSG(m_pModule != nullptr);
   SetDxilHook(*m_pModule);
 
-#if defined(_DEBUG) || defined(DBG)
+#ifndef NDEBUG
   // Pin LLVM dump methods.
   void (__thiscall Module::*pfnModuleDump)() const = &Module::dump;
   void (__thiscall Type::*pfnTypeDump)() const = &Type::dump;
@@ -231,10 +233,19 @@ const Function *DxilModule::GetEntryFunction() const {
   return m_pEntryFunc;
 }
 
-llvm::SmallVector<llvm::Function *, 64> DxilModule::GetExportedFunctions() const {
+llvm::SmallVector<llvm::Function *, 64> DxilModule::GetExportedFunctions() {
     llvm::SmallVector<llvm::Function *, 64> ret;
     for (auto const& fn : m_DxilEntryPropsMap) {
+      if (fn.first != nullptr) {
         ret.push_back(const_cast<llvm::Function*>(fn.first));
+      }
+    }
+    if (ret.empty()) {
+      auto *entryFunction = m_pEntryFunc;
+      if (entryFunction == nullptr) {
+        entryFunction = GetPatchConstantFunction();
+      }
+      ret.push_back(entryFunction);
     }
     return ret;
 }
@@ -575,6 +586,14 @@ void DxilModule::SetAllResourcesBound(bool ResourcesBound) {
 
 bool DxilModule::GetAllResourcesBound() const {
   return m_bAllResourcesBound;
+}
+
+void DxilModule::SetResMayAlias(bool resMayAlias) {
+  m_bResMayAlias = resMayAlias;
+}
+
+bool DxilModule::GetResMayAlias() const {
+  return m_bResMayAlias;
 }
 
 void DxilModule::SetLegacyResourceReservation(bool legacyResourceReservation) {
@@ -1549,6 +1568,7 @@ void DxilModule::LoadDxilMetadata() {
     m_bUseMinPrecision = !m_ShaderFlags.GetUseNativeLowPrecision();
     m_bDisableOptimizations = m_ShaderFlags.GetDisableOptimizations();
     m_bAllResourcesBound = m_ShaderFlags.GetAllResourcesBound();
+    m_bResMayAlias = !m_ShaderFlags.GetResMayNotAlias();
   }
 
   // Now that we have the UseMinPrecision flag, set shader model:
@@ -1609,7 +1629,7 @@ void DxilModule::LoadDxilMetadata() {
     m_pMDHelper->LoadDxilTypeSystem(*m_pTypeSystem.get());
   } catch (hlsl::Exception &) {
     m_bMetadataErrors = true;
-#ifdef DBG
+#ifndef NDEBUG
     throw;
 #endif
     m_pTypeSystem->GetStructAnnotationMap().clear();
@@ -1621,7 +1641,7 @@ void DxilModule::LoadDxilMetadata() {
     m_pMDHelper->LoadDxrPayloadAnnotations(*m_pTypeSystem.get());
   } catch (hlsl::Exception &) {
     m_bMetadataErrors = true;
-#ifdef DBG
+#ifndef NDEBUG
     throw;
 #endif
     m_pTypeSystem->GetPayloadAnnotationMap().clear();

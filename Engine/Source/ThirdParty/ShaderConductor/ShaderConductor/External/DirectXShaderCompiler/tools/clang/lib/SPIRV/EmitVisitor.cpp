@@ -23,6 +23,9 @@
 #include "clang/SPIRV/String.h"
 // clang-format on
 
+namespace clang {
+namespace spirv {
+
 namespace {
 
 static const uint32_t kMaximumCharOpSource = 0xFFFA;
@@ -35,7 +38,7 @@ static const uint32_t kEmittedSourceForOpSource = 1;
 /// can be encoded in a sequence of OpSourceContinued instructions following an
 /// OpSource instruction.
 void chopString(llvm::StringRef original,
-                llvm::SmallVectorImpl<llvm::StringRef> *chopped,
+                llvm::SmallVectorImpl<std::string> *chopped,
                 uint32_t maxCharInOpSource, uint32_t maxCharInContinue) {
   chopped->clear();
   if (original.size() > maxCharInOpSource) {
@@ -110,11 +113,19 @@ bool isDebugLineLegalForOp(spv::Op op) {
 }
 
 // Returns SPIR-V version that will be used in SPIR-V header section.
-uint32_t getHeaderVersion(llvm::StringRef env) {
-  if (env == "vulkan1.1")
-    return 0x00010300u;
-  if (env == "vulkan1.2" || env == "universal1.5")
+uint32_t getHeaderVersion(spv_target_env env) {
+  if (env >= SPV_ENV_UNIVERSAL_1_6)
+    return 0x00010600u;
+  if (env >= SPV_ENV_UNIVERSAL_1_5)
     return 0x00010500u;
+  if (env >= SPV_ENV_UNIVERSAL_1_4)
+    return 0x00010400u;
+  if (env >= SPV_ENV_UNIVERSAL_1_3)
+    return 0x00010300u;
+  if (env >= SPV_ENV_UNIVERSAL_1_2)
+    return 0x00010200u;
+  if (env >= SPV_ENV_UNIVERSAL_1_1)
+    return 0x00010100u;
   return 0x00010000u;
 }
 
@@ -142,13 +153,25 @@ std::string ReadSourceCode(llvm::StringRef filePath) {
   }
 }
 
+// Returns a vector of strings after chopping |inst| for the operand size
+// limitation of OpSource.
+llvm::SmallVector<std::string, 2> getChoppedSourceCode(SpirvSource *inst) {
+  std::string text = ReadSourceCode(inst->getFile()->getString());
+  if (text.empty()) {
+    text = inst->getSource().str();
+  }
+  llvm::SmallVector<std::string, 2> choppedSrcCode;
+  if (!text.empty()) {
+    chopString(text, &choppedSrcCode, kMaximumCharOpSource,
+               kMaximumCharOpSourceContinued);
+  }
+  return choppedSrcCode;
+}
+
 constexpr uint32_t kGeneratorNumber = 14;
 constexpr uint32_t kToolVersion = 0;
 
 } // anonymous namespace
-
-namespace clang {
-namespace spirv {
 
 EmitVisitor::Header::Header(uint32_t bound_, uint32_t version_)
     // We are using the unfied header, which shows spv::Version as the newest
@@ -296,7 +319,7 @@ void EmitVisitor::emitDebugLine(spv::Op op, const SourceLocation &loc,
   }
 
   auto fileId = debugMainFileId;
-  const auto &sm = astContext.getSourceManager();
+  const auto &sm = astContext->getSourceManager();
   const char *fileName = sm.getPresumedLoc(loc).getFilename();
   if (fileName)
     fileId = getOrCreateOpStringId(fileName);
@@ -447,7 +470,7 @@ void EmitVisitor::finalizeInstruction(std::vector<uint32_t> *section) {
 
 std::vector<uint32_t> EmitVisitor::takeBinary() {
   std::vector<uint32_t> result;
-  Header header(takeNextId(), getHeaderVersion(spvOptions.targetEnv));
+  Header header(takeNextId(), getHeaderVersion(featureManager.getTargetEnv()));
   auto headerBinary = header.takeBinary();
   result.insert(result.end(), headerBinary.begin(), headerBinary.end());
   result.insert(result.end(), preambleBinary.begin(), preambleBinary.end());
@@ -585,8 +608,16 @@ bool EmitVisitor::visit(SpirvExecutionMode *inst) {
   initInstruction(inst);
   curInst.push_back(getOrAssignResultId<SpirvFunction>(inst->getEntryPoint()));
   curInst.push_back(static_cast<uint32_t>(inst->getExecutionMode()));
-  curInst.insert(curInst.end(), inst->getParams().begin(),
-                 inst->getParams().end());
+  if (inst->getopcode() == spv::Op::OpExecutionMode) {
+    curInst.insert(curInst.end(), inst->getParams().begin(),
+                   inst->getParams().end());
+  } else {
+    for (uint32_t param : inst->getParams()) {
+      curInst.push_back(typeHandler.getOrCreateConstantInt(
+          llvm::APInt(32, param), context.getUIntType(32),
+          /*isSpecConst */ false));
+    }
+  }
   finalizeInstruction(&preambleBinary);
   return true;
 }
@@ -611,20 +642,15 @@ bool EmitVisitor::visit(SpirvSource *inst) {
   if (spvOptions.debugInfoRich)
     return true;
 
-  // Emit the OpString for the file name.
-  uint32_t fileId = debugMainFileId;
-  if (inst->hasFile()) {
-    fileId = getOrCreateOpStringId(inst->getFile()->getString());
-    if (!debugMainFileId)
-      debugMainFileId = fileId;
-  }
-
-  if (emittedSource[fileId] != 0)
+  // Return if we already emitted this OpSource.
+  uint32_t fileId = getSourceFileId(inst);
+  if (isSourceWithFileEmitted(fileId))
     return true;
 
-  // If generating OpSource, no result id is generated so just need to
-  // remember it was emitted.
-  emittedSource[fileId] = kEmittedSourceForOpSource;
+  setFileOfSourceToDebugSourceId(fileId, kEmittedSourceForOpSource);
+
+  if (!debugMainFileId)
+    debugMainFileId = fileId;
 
   initInstruction(inst);
   curInst.push_back(static_cast<uint32_t>(inst->getSourceLanguage()));
@@ -635,38 +661,27 @@ bool EmitVisitor::visit(SpirvSource *inst) {
     curInst.push_back(fileId);
 
   // Chop up the source into multiple segments if it is too long.
-  llvm::Optional<llvm::StringRef> firstSnippet = llvm::None;
-  llvm::SmallVector<llvm::StringRef, 2> choppedSrcCode;
-  std::string text;
+  llvm::SmallVector<std::string, 2> choppedSrcCode;
   if (spvOptions.debugInfoSource && inst->hasFile()) {
-    text = ReadSourceCode(inst->getFile()->getString());
-    if (!text.empty()) {
-      chopString(text, &choppedSrcCode, kMaximumCharOpSource,
-                 kMaximumCharOpSourceContinued);
-      if (!choppedSrcCode.empty()) {
-        firstSnippet = llvm::Optional<llvm::StringRef>(choppedSrcCode.front());
-      }
-    }
-
-    if (firstSnippet.hasValue()) {
+    choppedSrcCode = getChoppedSourceCode(inst);
+    if (!choppedSrcCode.empty()) {
       // Note: in order to improve performance and avoid multiple copies, we
       // encode this (potentially large) string directly into the
       // debugFileBinary.
-      const auto &words = string::encodeSPIRVString(firstSnippet.getValue());
+      const auto &words = string::encodeSPIRVString(choppedSrcCode.front());
       const auto numWordsInInstr = curInst.size() + words.size();
       curInst[0] |= static_cast<uint32_t>(numWordsInInstr) << 16;
       debugFileBinary.insert(debugFileBinary.end(), curInst.begin(),
                              curInst.end());
       debugFileBinary.insert(debugFileBinary.end(), words.begin(), words.end());
-    } else {
-      curInst[0] |= static_cast<uint32_t>(curInst.size()) << 16;
-      debugFileBinary.insert(debugFileBinary.end(), curInst.begin(),
-                             curInst.end());
     }
-  } else {
+  }
+
+  if (choppedSrcCode.empty()) {
     curInst[0] |= static_cast<uint32_t>(curInst.size()) << 16;
     debugFileBinary.insert(debugFileBinary.end(), curInst.begin(),
                            curInst.end());
+    return true;
   }
 
   // Now emit OpSourceContinued for the [second:last] snippet.
@@ -730,12 +745,30 @@ bool EmitVisitor::visit(SpirvVariable *inst) {
                           : &globalVarsBinary);
   emitDebugNameForInstruction(getOrAssignResultId<SpirvInstruction>(inst),
                               inst->getDebugName());
+
   if (spvOptions.enableReflect && inst->hasBinding() &&
       !inst->getHlslUserType().empty()) {
-    typeHandler.emitDecoration(
-        getOrAssignResultId<SpirvInstruction>(inst),
-        spv::Decoration::UserTypeGOOGLE,
-        string::encodeSPIRVString(inst->getHlslUserType().lower()));
+    std::pair<llvm::StringRef, llvm::StringRef> splitUserType =
+        inst->getHlslUserType().split('<');
+    std::string formattedUserType = splitUserType.first.lower();
+
+    // Format and append template arguments.
+    if (!splitUserType.second.empty()) {
+      llvm::SmallVector<llvm::StringRef, 4> templateParams;
+      splitUserType.second.split(templateParams, ", ");
+      if (templateParams.size() > 0) {
+        formattedUserType += ":<";
+        formattedUserType += templateParams[0];
+        for (size_t i = 1; i < templateParams.size(); i++) {
+          formattedUserType += ",";
+          formattedUserType += templateParams[i];
+        }
+      }
+    }
+
+    typeHandler.emitDecoration(getOrAssignResultId<SpirvInstruction>(inst),
+                               spv::Decoration::UserTypeGOOGLE,
+                               string::encodeSPIRVString(formattedUserType));
   }
   return true;
 }
@@ -1342,8 +1375,16 @@ bool EmitVisitor::visit(SpirvRayTracingOpNV *inst) {
   return true;
 }
 
-bool EmitVisitor::visit(SpirvDemoteToHelperInvocationEXT *inst) {
+bool EmitVisitor::visit(SpirvDemoteToHelperInvocation *inst) {
   initInstruction(inst);
+  finalizeInstruction(&mainBinary);
+  return true;
+}
+
+bool EmitVisitor::visit(SpirvIsHelperInvocationEXT *inst) {
+  initInstruction(inst);
+  curInst.push_back(inst->getResultTypeId());
+  curInst.push_back(getOrAssignResultId<SpirvInstruction>(inst));
   finalizeInstruction(&mainBinary);
   return true;
 }
@@ -1388,8 +1429,7 @@ void EmitVisitor::generateDebugSourceContinued(uint32_t textId,
 
 void EmitVisitor::generateChoppedSource(uint32_t fileId, SpirvDebugSource *inst) {
   // Chop up the source into multiple segments if it is too long.
-  llvm::Optional<llvm::StringRef> firstSnippet = llvm::None;
-  llvm::SmallVector<llvm::StringRef, 2> choppedSrcCode;
+  llvm::SmallVector<std::string, 2> choppedSrcCode;
   std::string text;
   uint32_t textId = 0;
   if (spvOptions.debugInfoSource) {
@@ -1399,12 +1439,9 @@ void EmitVisitor::generateChoppedSource(uint32_t fileId, SpirvDebugSource *inst)
       // OpString literal minus terminating null.
       uint32_t maxChar = spvOptions.debugSourceLen * sizeof(uint32_t) - 1;
       chopString(text, &choppedSrcCode, maxChar, maxChar);
-      if (!choppedSrcCode.empty()) {
-        firstSnippet = llvm::Optional<llvm::StringRef>(choppedSrcCode.front());
-      }
     }
-    if (firstSnippet.hasValue())
-      textId = getOrCreateOpStringId(firstSnippet.getValue());
+    if (!choppedSrcCode.empty())
+      textId = getOrCreateOpStringId(choppedSrcCode.front());
   }
   // Generate DebugSource
   generateDebugSource(fileId, textId, inst);
@@ -1884,10 +1921,9 @@ bool EmitVisitor::visit(SpirvIntrinsicInstruction *inst) {
   }
 
   for (const auto operand : inst->getOperands()) {
-    // TODO: Handle Literals with other types.
-    auto literalOperand = dyn_cast<SpirvConstantInteger>(operand);
-    if (literalOperand && literalOperand->getLiteral()) {
-      curInst.push_back(literalOperand->getValue().getZExtValue());
+    auto literalOperand = dyn_cast<SpirvConstant>(operand);
+    if (literalOperand && literalOperand->isLiteral()) {
+      typeHandler.emitLiteral(literalOperand, curInst);
     } else {
       curInst.push_back(getOrAssignResultId<SpirvInstruction>(operand));
     }
@@ -2402,9 +2438,9 @@ uint32_t EmitTypeHandler::emitType(const SpirvType *type) {
     // Emit Block or BufferBlock decorations if necessary.
     auto interfaceType = structType->getInterfaceType();
     if (interfaceType == StructInterfaceType::StorageBuffer)
-      // BufferBlock decoration is deprecated in Vulkan 1.2 and later.
+      // The BufferBlock decoration requires SPIR-V version 1.3 or earlier.
       emitDecoration(id,
-                     featureManager.isTargetEnvVulkan1p2OrAbove()
+                     featureManager.isTargetEnvSpirv1p4OrAbove()
                          ? spv::Decoration::Block
                          : spv::Decoration::BufferBlock,
                      {});
@@ -2451,6 +2487,24 @@ uint32_t EmitTypeHandler::emitType(const SpirvType *type) {
     initTypeInstruction(spv::Op::OpTypeRayQueryKHR);
     curTypeInst.push_back(id);
     finalizeTypeInstruction();
+  } else if (const auto *spvIntrinsicType =
+                 dyn_cast<SpirvIntrinsicType>(type)) {
+    initTypeInstruction(static_cast<spv::Op>(spvIntrinsicType->getOpCode()));
+    curTypeInst.push_back(id);
+    for (const SpvIntrinsicTypeOperand &operand :
+         spvIntrinsicType->getOperands()) {
+      if (operand.isTypeOperand) {
+        curTypeInst.push_back(emitType(operand.operand_as_type));
+      } else {
+        auto *literal = dyn_cast<SpirvConstant>(operand.operand_as_inst);
+        if (literal && literal->isLiteral()) {
+          emitLiteral(literal, curTypeInst);
+        } else {
+          curTypeInst.push_back(getOrAssignResultId(operand.operand_as_inst));
+        }
+      }
+    }
+    finalizeTypeInstruction();
   }
   // Hybrid Types
   // Note: The type lowering pass should lower all types to SpirvTypes.
@@ -2465,6 +2519,50 @@ uint32_t EmitTypeHandler::emitType(const SpirvType *type) {
   }
 
   return id;
+}
+
+template <typename vecType>
+void EmitTypeHandler::emitIntLiteral(const SpirvConstantInteger *intLiteral,
+                                     vecType &outInst) {
+  const auto &literalVal = intLiteral->getValue();
+  bool positive = !literalVal.isNegative();
+  if (literalVal.getBitWidth() <= 32) {
+    outInst.push_back(positive ? literalVal.getZExtValue()
+                               : literalVal.getSExtValue());
+  } else {
+    assert(literalVal.getBitWidth() == 64);
+    uint64_t val =
+        positive ? literalVal.getZExtValue() : literalVal.getSExtValue();
+    outInst.push_back(static_cast<unsigned>(val));
+    outInst.push_back(static_cast<unsigned>(val >> 32));
+  }
+}
+
+template <typename vecType>
+void EmitTypeHandler::emitFloatLiteral(const SpirvConstantFloat *fLiteral,
+                                       vecType &outInst) {
+  const auto &literalVal = fLiteral->getValue();
+  const auto bitwidth = llvm::APFloat::getSizeInBits(literalVal.getSemantics());
+  if (bitwidth <= 32) {
+    outInst.push_back(literalVal.bitcastToAPInt().getZExtValue());
+  } else {
+    assert(bitwidth == 64);
+    uint64_t val = literalVal.bitcastToAPInt().getZExtValue();
+    outInst.push_back(static_cast<unsigned>(val));
+    outInst.push_back(static_cast<unsigned>(val >> 32));
+  }
+}
+
+template <typename VecType>
+void EmitTypeHandler::emitLiteral(const SpirvConstant *literal,
+                                  VecType &outInst) {
+  if (auto boolLiteral = dyn_cast<SpirvConstantBoolean>(literal)) {
+    outInst.push_back(static_cast<unsigned>(boolLiteral->getValue()));
+  } else if (auto intLiteral = dyn_cast<SpirvConstantInteger>(literal)) {
+    emitIntLiteral(intLiteral, outInst);
+  } else if (auto fLiteral = dyn_cast<SpirvConstantFloat>(literal)) {
+    emitFloatLiteral(fLiteral, outInst);
+  }
 }
 
 void EmitTypeHandler::emitDecoration(uint32_t typeResultId,

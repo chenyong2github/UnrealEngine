@@ -46,14 +46,13 @@ public:
   };
 
 public:
-  EmitTypeHandler(ASTContext &astCtx, SpirvContext &spvContext,
-                  const SpirvCodeGenOptions &opts,
+  EmitTypeHandler(ASTContext *astCtx, SpirvContext &spvContext,
+                  const SpirvCodeGenOptions &opts, FeatureManager &featureMgr,
                   std::vector<uint32_t> *debugVec,
                   std::vector<uint32_t> *decVec,
                   std::vector<uint32_t> *typesVec,
                   const std::function<uint32_t()> &takeNextIdFn)
-      : astContext(astCtx), context(spvContext),
-        featureManager(astCtx.getDiagnostics(), opts),
+      : astContext(astCtx), context(spvContext), featureManager(featureMgr),
         debugVariableBinary(debugVec), annotationsBinary(decVec),
         typeConstantBinary(typesVec), takeNextIdFunction(takeNextIdFn),
         emittedConstantInts({}), emittedConstantFloats({}),
@@ -109,6 +108,12 @@ public:
   uint32_t getOrCreateConstantComposite(SpirvConstantComposite *);
   uint32_t getOrCreateConstantNull(SpirvConstantNull *);
   uint32_t getOrCreateConstantBool(SpirvConstantBoolean *);
+  template <typename vecType>
+  void emitLiteral(const SpirvConstant *, vecType &outInst);
+  template <typename vecType>
+  void emitFloatLiteral(const SpirvConstantFloat *, vecType &outInst);
+  template <typename vecType>
+  void emitIntLiteral(const SpirvConstantInteger *, vecType &outInst);
 
 private:
   void initTypeInstruction(spv::Op op);
@@ -140,13 +145,13 @@ private:
   template <unsigned N>
   DiagnosticBuilder emitError(const char (&message)[N],
                               SourceLocation loc = {}) {
-    const auto diagId = astContext.getDiagnostics().getCustomDiagID(
+    const auto diagId = astContext->getDiagnostics().getCustomDiagID(
         clang::DiagnosticsEngine::Error, message);
-    return astContext.getDiagnostics().Report(loc, diagId);
+    return astContext->getDiagnostics().Report(loc, diagId);
   }
 
 private:
-  ASTContext &astContext;
+  ASTContext *astContext;
   SpirvContext &context;
   FeatureManager featureManager;
   std::vector<uint32_t> curTypeInst;
@@ -193,10 +198,11 @@ public:
   };
 
 public:
-  EmitVisitor(ASTContext &astCtx, SpirvContext &spvCtx,
-              const SpirvCodeGenOptions &opts)
-      : Visitor(opts, spvCtx), astContext(astCtx), id(0),
-        typeHandler(astCtx, spvCtx, opts, &debugVariableBinary,
+  EmitVisitor(ASTContext *astCtx, SpirvContext &spvCtx,
+              const SpirvCodeGenOptions &opts, FeatureManager &featureMgr)
+      : Visitor(opts, spvCtx), astContext(astCtx), featureManager(featureMgr),
+        id(0),
+        typeHandler(astCtx, spvCtx, opts, featureMgr, &debugVariableBinary,
                     &annotationsBinary, &typeConstantBinary,
                     [this]() -> uint32_t { return takeNextId(); }),
         debugMainFileId(0), debugInfoExtInstId(0), debugLineStart(0),
@@ -267,7 +273,8 @@ public:
   bool visit(SpirvVectorShuffle *) override;
   bool visit(SpirvArrayLength *) override;
   bool visit(SpirvRayTracingOpNV *) override;
-  bool visit(SpirvDemoteToHelperInvocationEXT *) override;
+  bool visit(SpirvDemoteToHelperInvocation *) override;
+  bool visit(SpirvIsHelperInvocationEXT *) override;
   bool visit(SpirvRayQueryOpKHR *) override;
   bool visit(SpirvReadClock *) override;
   bool visit(SpirvRayTracingTerminateOpKHR *) override;
@@ -362,19 +369,43 @@ private:
   // TODO: Add a method for adding OpMemberName instructions for struct members
   // using the type information.
 
+  // Returns the SPIR-V result id of the OpString for the File operand of
+  // OpSource instruction.
+  uint32_t getSourceFileId(SpirvSource *inst) {
+    uint32_t fileId = debugMainFileId;
+    if (inst->hasFile()) {
+      fileId = getOrCreateOpStringId(inst->getFile()->getString());
+    }
+    return fileId;
+  }
+
+  // Returns true if we already emitted the OpSource instruction whose File
+  // operand is |fileId|.
+  bool isSourceWithFileEmitted(uint32_t fileId) {
+    return emittedSource[fileId] != 0;
+  }
+
+  // Inserts the file id of OpSource instruction to the id of its
+  // corresponding DebugSource instruction.
+  void setFileOfSourceToDebugSourceId(uint32_t fileId, uint32_t dbg_src_id) {
+    emittedSource[fileId] = dbg_src_id;
+  }
+
 private:
   /// Emits error to the diagnostic engine associated with this visitor.
   template <unsigned N>
   DiagnosticBuilder emitError(const char (&message)[N],
                               SourceLocation loc = {}) {
-    const auto diagId = astContext.getDiagnostics().getCustomDiagID(
+    const auto diagId = astContext->getDiagnostics().getCustomDiagID(
         clang::DiagnosticsEngine::Error, message);
-    return astContext.getDiagnostics().Report(loc, diagId);
+    return astContext->getDiagnostics().Report(loc, diagId);
   }
 
 private:
   // Object that holds Clang AST nodes.
-  ASTContext &astContext;
+  ASTContext *astContext;
+  // Feature manager.
+  FeatureManager featureManager;
   // The last result-id that's been used so far.
   uint32_t id;
   // Handler for emitting types and their related instructions.

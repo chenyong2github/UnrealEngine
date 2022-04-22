@@ -105,6 +105,9 @@ static HRESULT ThreadMallocDxcCreateInstance(
   else if (IsEqualCLSID(rclsid, CLSID_DxcIntelliSense)) {
     hr = CreateDxcIntelliSense(riid, ppv);
   }
+  else if (IsEqualCLSID(rclsid, CLSID_DxcContainerBuilder)) {
+    hr = CreateDxcContainerBuilder(riid, ppv);
+  }
   // UE Change Begin: Enable DxcRewriter as it's needed for Metal backend.
   else if (IsEqualCLSID(rclsid, CLSID_DxcRewriter)) {
     hr = CreateDxcRewriter(riid, ppv);
@@ -120,9 +123,6 @@ static HRESULT ThreadMallocDxcCreateInstance(
   }
   else if (IsEqualCLSID(rclsid, CLSID_DxcLinker)) {
     hr = CreateDxcLinker(riid, ppv);
-  }
-  else if (IsEqualCLSID(rclsid, CLSID_DxcContainerBuilder)) {
-    hr = CreateDxcContainerBuilder(riid, ppv);
   }
   else if (IsEqualCLSID(rclsid, CLSID_DxcPdbUtils)) {
     hr = CreateDxcPdbUtils(riid, ppv);

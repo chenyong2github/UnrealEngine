@@ -1061,7 +1061,9 @@ std::string getHlslResourceTypeName(QualType type) {
         name == "RWTexture2DArray" || name == "Buffer" || name == "RWBuffer" ||
         name == "SubpassInput" || name == "SubpassInputMS" ||
         name == "InputPatch" || name == "OutputPatch") {
-      return name;
+      // Get resource type name with template params. Operation is safe because
+      // type has already been null checked.
+      return type.getLocalUnqualifiedType().getAsString();
     }
   }
 
@@ -1141,6 +1143,14 @@ bool isRelaxedPrecisionType(QualType type, const SpirvCodeGenOptions &opts) {
       return isRelaxedPrecisionType(sampledType, opts);
     }
   }
+
+  // Reference types
+  if (const auto *refType = type->getAs<ReferenceType>())
+    return isRelaxedPrecisionType(refType->getPointeeType(), opts);
+
+  // Pointer types
+  if (const auto *ptrType = type->getAs<PointerType>())
+    return isRelaxedPrecisionType(ptrType->getPointeeType(), opts);
 
   return false;
 }
@@ -1243,6 +1253,25 @@ bool isOrContainsNonFpColMajorMatrix(const ASTContext &astContext,
     }
   }
 
+  return false;
+}
+
+bool isTypeInVkNamespace(const RecordType *type) {
+  if (const auto *nameSpaceDecl =
+          dyn_cast<NamespaceDecl>(type->getDecl()->getDeclContext())) {
+    return nameSpaceDecl->getName() == "vk";
+  }
+  return false;
+}
+
+bool isExtResultIdType(QualType type) {
+  if (const auto *elaboratedType = type->getAs<ElaboratedType>()) {
+    if (const auto *recordType = elaboratedType->getAs<RecordType>()) {
+      if (!isTypeInVkNamespace(recordType))
+        return false;
+      return recordType->getDecl()->getName() == "ext_result_id";
+    }
+  }
   return false;
 }
 

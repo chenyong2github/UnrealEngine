@@ -13,6 +13,7 @@
 #include "clang/AST/HlslTypes.h"
 #include "clang/SPIRV/AstTypeProbe.h"
 #include "clang/SPIRV/SpirvFunction.h"
+#include "clang/SPIRV/SpirvUtils.h"
 
 namespace {
 /// Returns the :packoffset() annotation on the given decl. Returns nullptr if
@@ -117,34 +118,14 @@ bool LowerTypeVisitor::visitInstruction(SpirvInstruction *instr) {
     }
     break;
   }
-  // Variables and function parameters must have a pointer type.
+  // Variables and function parameters must have a corresponding HLSL types set.
   case spv::Op::OpFunctionParameter:
   case spv::Op::OpVariable: {
     if (auto *var = dyn_cast<SpirvVariable>(instr)) {
       if (var->hasBinding() && var->getHlslUserType().empty()) {
         var->setHlslUserType(getHlslResourceTypeName(var->getAstResultType()));
       }
-
-      auto vkImgFeatures = spvContext.getVkImageFeaturesForSpirvVariable(var);
-      if (vkImgFeatures.format != spv::ImageFormat::Unknown) {
-        if (const auto *imageType = dyn_cast<ImageType>(resultType)) {
-          resultType = spvContext.getImageType(imageType, vkImgFeatures.format);
-          instr->setResultType(resultType);
-        }
-      }
     }
-    const SpirvType *pointerType =
-        spvContext.getPointerType(resultType, instr->getStorageClass());
-    instr->setResultType(pointerType);
-    break;
-  }
-  // Access chains must have a pointer type. The storage class for the pointer
-  // is the same as the storage class of the access base.
-  case spv::Op::OpAccessChain: {
-    const auto *pointerType = spvContext.getPointerType(
-        resultType,
-        cast<SpirvAccessChain>(instr)->getBase()->getStorageClass());
-    instr->setResultType(pointerType);
     break;
   }
   // OpImageTexelPointer's result type must be a pointer with image storage
@@ -175,6 +156,11 @@ bool LowerTypeVisitor::visitInstruction(SpirvInstruction *instr) {
   default:
     break;
   }
+
+  // Apply additional SPIR-V type transformations, including ensuring variables
+  // and function parameters have a pointer type.
+  SpirvUtils utils(context);
+  utils.applyResultTypeTransformations(instr);
 
   // The instruction does not have a result-type, so nothing to do.
   return true;
@@ -446,7 +432,7 @@ const SpirvType *LowerTypeVisitor::lowerType(QualType type,
     // If this struct is derived from some other struct, place an implicit
     // field at the very beginning for the base struct.
     if (const auto *cxxDecl = dyn_cast<CXXRecordDecl>(decl)) {
-      for (const auto base : cxxDecl->bases()) {
+      for (const auto &base : cxxDecl->bases()) {
         fields.push_back(HybridStructType::FieldInfo(base.getType()));
       }
     }
@@ -521,6 +507,22 @@ const SpirvType *LowerTypeVisitor::lowerType(QualType type,
   return 0;
 }
 
+const SpirvType *
+LowerTypeVisitor::lowerVkTypeInVkNamespace(QualType type, llvm::StringRef name,
+                                           SpirvLayoutRule rule,
+                                           SourceLocation srcLoc) {
+  if (name == "ext_type") {
+    auto typeId = hlsl::GetHLSLResourceTemplateUInt(type);
+    return spvContext.getCreatedSpirvIntrinsicType(typeId);
+  }
+  if (name == "ext_result_id") {
+    QualType realType = hlsl::GetHLSLResourceTemplateParamType(type);
+    return lowerType(realType, rule, llvm::None, srcLoc);
+  }
+  emitError("unknown type %0 in vk namespace", srcLoc) << type;
+  return nullptr;
+}
+
 const SpirvType *LowerTypeVisitor::lowerResourceType(QualType type,
                                                      SpirvLayoutRule rule,
                                                      SourceLocation srcLoc) {
@@ -534,6 +536,10 @@ const SpirvType *LowerTypeVisitor::lowerResourceType(QualType type,
   const auto *recordType = type->getAs<RecordType>();
   assert(recordType);
   const llvm::StringRef name = recordType->getDecl()->getName();
+
+  if (isTypeInVkNamespace(recordType)) {
+    return lowerVkTypeInVkNamespace(type, name, rule, srcLoc);
+  }
 
   // TODO: avoid string comparison once hlsl::IsHLSLResouceType() does that.
 
@@ -740,13 +746,17 @@ const SpirvType *LowerTypeVisitor::lowerResourceType(QualType type,
   if (name == "SubpassInput" || name == "SubpassInputMS") {
     const auto sampledType = hlsl::GetHLSLResourceResultType(type);
 
+	// UE Change Begin: Force subpass OpTypeImage depth flag to be set to 0
+
+    const ImageType::WithDepth depthType = getCodeGenOptions().forceSubpassImageDepthFalse ? ImageType::WithDepth::No : ImageType::WithDepth::Unknown; 
     return spvContext.getImageType(
         lowerType(getElementType(astContext, sampledType), rule,
                   /*isRowMajor*/ llvm::None, srcLoc),
-        spv::Dim::SubpassData, ImageType::WithDepth::Unknown,
+        spv::Dim::SubpassData, depthType,
         /*isArrayed=*/false,
         /*isMultipleSampled=*/name == "SubpassInputMS",
         ImageType::WithSampler::No, spv::ImageFormat::Unknown);
+	// UE Change End: Force subpass OpTypeImage depth flag to be set to 0
   }
 
   return nullptr;
