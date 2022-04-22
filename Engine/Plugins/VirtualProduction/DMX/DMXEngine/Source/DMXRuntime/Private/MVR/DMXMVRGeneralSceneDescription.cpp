@@ -262,8 +262,8 @@ namespace UE::DMXRuntime::DMXMVRFixture::Private
 
 		if (AddressNode)
 		{
-			int32 Universe;
-			int32 Address;
+			int32 Universe = -1;
+			int32 Address = -1;
 
 			auto ParseAddressStringLambda = [](const FXmlNode* const InAddressNode, int32& OutUniverse, int32& OutAddress) -> const bool
 			{

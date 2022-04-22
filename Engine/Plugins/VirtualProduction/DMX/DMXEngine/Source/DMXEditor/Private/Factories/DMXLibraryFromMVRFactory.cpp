@@ -108,7 +108,6 @@ UDMXLibrary* UDMXLibraryFromMVRFactory::CreateDMXLibraryAsset(UObject* Parent, E
 		return nullptr;
 	}
 
-	check(sizeof(this) == sizeof(int64));
 	ImportSubsystem->BroadcastAssetPostImport(this, NewDMXLibrary);
 	
 	return NewDMXLibrary;
