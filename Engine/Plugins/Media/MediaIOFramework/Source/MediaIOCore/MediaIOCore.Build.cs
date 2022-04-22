@@ -25,12 +25,22 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"TimeManagement"
 				});
-
+			
 			PrivateIncludePaths.AddRange(
 				new string[] {
 				});
 
-            PrivateDependencyModuleNames.AddRange(
+			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux ||
+			    Target.Platform == UnrealTargetPlatform.Mac)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"GPUTextureTransfer"
+					});
+			}
+
+			PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
                     "AudioMixer",

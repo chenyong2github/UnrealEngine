@@ -14,9 +14,13 @@
 #include "MediaIOCoreSamples.h"
 #include "Misc/App.h"
 #include "Misc/ScopeLock.h"
+#include "PixelFormat.h"
 #include "TimedDataInputCollection.h"
 #include "TimeSynchronizableMediaSource.h"
 
+#if PLATFORM_DESKTOP
+#include "GPUTextureTransferModule.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "MediaIOCorePlayerBase"
 
@@ -55,6 +59,12 @@ namespace MediaIOCorePlayerDetail
 		TEXT("All media player will stop logging the frame timecode when a new frame is captured."),
 		FConsoleCommandDelegate::CreateLambda([]() { MediaIOCorePlayerDetail::bLogTimecode = false; }),
 		ECVF_Cheat);
+
+	static TAutoConsoleVariable<int32> CVarEnableGPUDirectInput(
+		TEXT("MediaIO.EnableGPUDirectInput"), 0,
+		TEXT("Whether to enable GPU direct for faster video frame copies. (Experimental)"),
+		ECVF_RenderThreadSafe);
+
 }
 
 /* FMediaIOCoreMediaOption structors
@@ -81,6 +91,11 @@ FMediaIOCorePlayerBase::FMediaIOCorePlayerBase(IMediaEventSink& InEventSink)
 	, PreviousFrameTimespan(FTimespan::Zero())
 {
 	Samples = new FMediaIOCoreSamples();
+
+#if PLATFORM_DESKTOP
+	FGPUTextureTransferModule& Module = FGPUTextureTransferModule::Get();
+	GPUTextureTransfer = Module.GetTextureTransfer();
+#endif
 }
 
 FMediaIOCorePlayerBase::~FMediaIOCorePlayerBase()
@@ -183,7 +198,14 @@ bool FMediaIOCorePlayerBase::Open(const FString& Url, const IMediaOptions* Optio
 	ITimeManagementModule::Get().GetTimedDataInputCollection().Add(this);
 
 	OpenUrl = Url;
-	return ReadMediaOptions(Options);
+	bool bReadMediaOptions = ReadMediaOptions(Options);
+
+	if (MediaIOCorePlayerDetail::CVarEnableGPUDirectInput.GetValueOnAnyThread())
+	{
+		CreateAndRegisterTextures(Options);
+	}
+
+	return bReadMediaOptions;
 }
 
 bool FMediaIOCorePlayerBase::Open(const TSharedRef<FArchive, ESPMode::ThreadSafe>& /*Archive*/, const FString& /*OriginalUrl*/, const IMediaOptions* /*Options*/)
@@ -495,6 +517,243 @@ bool FMediaIOCorePlayerBase::IsTimecodeLogEnabled()
 	return MediaIOCorePlayerDetail::bLogTimecode;
 #else
 	return false;
+#endif
+}
+
+bool FMediaIOCorePlayerBase::CanUseGPUTextureTransfer()
+{
+#if PLATFORM_DESKTOP
+	return GPUTextureTransfer && MediaIOCorePlayerDetail::CVarEnableGPUDirectInput.GetValueOnAnyThread();
+#else
+	return false;
+#endif
+}
+
+void FMediaIOCorePlayerBase::OnSampleDestroyed(TRefCountPtr<FRHITexture> InTexture)
+{
+	FScopeLock ScopeLock(&TexturesCriticalSection);
+	if (InTexture && RegisteredTextures.Contains(InTexture))
+	{
+		Textures.Add(InTexture);
+	}
+}
+
+void FMediaIOCorePlayerBase::RegisterSampleBuffer(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample)
+{
+#if PLATFORM_DESKTOP
+	if (!RegisteredBuffers.Contains(InSample->GetMutableBuffer()))
+	{
+		RegisteredBuffers.Add(InSample->GetMutableBuffer());
+
+		// Enqueue buffer registration on the render  thread to ensure it happens before the call to TransferTexture
+		ENQUEUE_RENDER_COMMAND(RegisterSampleBuffers)([this, InSample](FRHICommandList& CommandList)
+			{
+				if (!InSample->GetMutableBuffer())
+				{
+					UE_LOG(LogMediaIOCore, Error, TEXT("A buffer was not available while performing a gpu texture transfer."));
+					return;
+				}
+
+				if (!InSample->GetTexture())
+				{
+					UE_LOG(LogMediaIOCore, Error, TEXT("A texture was not available while performing a gpu texture transfer."));
+					return;
+				}
+
+				const uint32 TextureWidth = InSample->GetTexture()->GetDesc().Extent.X;
+				const uint32 TextureHeight = InSample->GetTexture()->GetDesc().Extent.Y;
+				uint32 TextureStride = TextureWidth * 4;
+
+				EPixelFormat Format = InSample->GetTexture()->GetFormat();
+				if (Format == PF_R32G32B32A32_UINT)
+				{
+					TextureStride *= 4;
+				}
+
+				UE_LOG(LogMediaIOCore, Verbose, TEXT("Registering buffer %u"), reinterpret_cast<std::uintptr_t>(InSample->GetMutableBuffer()));
+				UE::GPUTextureTransfer::FRegisterDMABufferArgs Args;
+				Args.Buffer = InSample->GetMutableBuffer();
+				Args.Width = TextureWidth;
+				Args.Height = TextureHeight;
+				Args.Stride = TextureStride;
+				Args.PixelFormat = Format == PF_B8G8R8A8 ? UE::GPUTextureTransfer::EPixelFormat::PF_8Bit : UE::GPUTextureTransfer::EPixelFormat::PF_10Bit;
+				GPUTextureTransfer->RegisterBuffer(Args);
+			});
+	}
+	else
+	{
+		UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("Buffer already registered: %u"), reinterpret_cast<std::uintptr_t>(InSample->GetMutableBuffer()));
+	}
+#endif
+}
+
+void FMediaIOCorePlayerBase::UnregisterSampleBuffers()
+{
+#if PLATFORM_DESKTOP
+	ENQUEUE_RENDER_COMMAND(UnregisterSampleBuffers)([TextureTransfer = GPUTextureTransfer, BuffersToUnregister = RegisteredBuffers](FRHICommandList& CommandList)
+		{
+			if (TextureTransfer)
+			{
+				for (void* RegisteredBuffer : BuffersToUnregister)
+				{
+					TextureTransfer->UnregisterBuffer(RegisteredBuffer);
+				}
+			}
+		});
+
+	RegisteredBuffers.Reset();
+#endif
+}
+
+void FMediaIOCorePlayerBase::CreateAndRegisterTextures(const IMediaOptions* Options)
+{
+#if PLATFORM_DESKTOP
+	ENQUEUE_RENDER_COMMAND(MediaIOCorePlayerCreateTextures)(
+		[this, Options](FRHICommandListImmediate& CommandList)
+		{
+			if (!GPUTextureTransfer)
+			{
+				UE_LOG(LogMediaIOCore, Error, TEXT("Could not register textures for gpu texture transfer, as the GPUTextureTransfer object was null."));
+				return;
+			}
+
+			for (uint8 Index = 0; Index < GetNumVideoFrameBuffers(); Index++)
+			{
+				TRefCountPtr<FRHITexture> RHITexture;
+				const FString TextureName = FString::Printf(TEXT("FMediaIOCorePlayerTexture %d"), Index);
+				FRHIResourceCreateInfo CreateInfo(*TextureName);
+
+				uint32 TextureWidth = VideoTrackFormat.Dim.X;
+				const uint32 TextureHeight = VideoTrackFormat.Dim.Y;
+				uint32 Stride = TextureWidth;
+				EPixelFormat InputFormat = EPixelFormat::PF_Unknown;
+
+				EMediaIOCoreColorFormat ColorFormat = GetColorFormat();
+
+				if (ColorFormat == EMediaIOCoreColorFormat::YUV8)
+				{
+					InputFormat = EPixelFormat::PF_B8G8R8A8;
+					TextureWidth /= 2;
+					Stride = TextureWidth * 4;
+				}
+				else if (ColorFormat == EMediaIOCoreColorFormat::YUV10)
+				{
+					InputFormat = EPixelFormat::PF_R32G32B32A32_UINT;
+					TextureWidth /= 6;
+					Stride = TextureWidth * 16;
+				}
+				else
+				{
+					checkf(false, TEXT("Format not supported"));
+				}
+
+				TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
+
+				ETextureCreateFlags CreateFlags = TexCreate_Shared;
+				if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
+				{
+					CreateFlags = TexCreate_External;
+				}
+
+				FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(*TextureName, FIntPoint(TextureWidth, TextureHeight), InputFormat, FClearValueBinding::White, CreateFlags);
+				RHICreateTargetableShaderResource(CreateDesc, TexCreate_RenderTargetable, RHITexture, DummyTexture2DRHI);
+
+				UE_LOG(LogMediaIOCore, Verbose, TEXT("Registering texture %u"), reinterpret_cast<std::uintptr_t>(RHITexture->GetNativeResource()));
+
+				UE::GPUTextureTransfer::FRegisterDMATextureArgs Args;
+				Args.RHITexture = RHITexture.GetReference();
+				Args.Stride = Stride;
+				Args.Width = TextureWidth;
+				Args.Height = TextureHeight;
+				Args.RHIResourceMemory = nullptr;
+				Args.PixelFormat = ColorFormat == EMediaIOCoreColorFormat::YUV8 ? UE::GPUTextureTransfer::EPixelFormat::PF_8Bit : UE::GPUTextureTransfer::EPixelFormat::PF_10Bit;
+
+				GPUTextureTransfer->RegisterTexture(Args);
+				RegisteredTextures.Add(RHITexture);
+
+				{
+					FScopeLock Lock(&TexturesCriticalSection);
+					Textures.Add(RHITexture);
+				}
+			}
+		});
+
+	FRenderCommandFence RenderFence;
+	RenderFence.BeginFence();
+	RenderFence.Wait();
+#endif
+}
+
+void FMediaIOCorePlayerBase::UnregisterTextures()
+{
+#if PLATFORM_DESKTOP
+	// Keep a copy of the textures to make sure they were not destoryed before this gets executed.
+	ENQUEUE_RENDER_COMMAND(UnregisterSampleBuffers)([TextureTransfer = GPUTextureTransfer, TexturesToUnregister = RegisteredTextures](FRHICommandList& CommandList)
+		{
+			if (TextureTransfer)
+			{
+				for (const TRefCountPtr<FRHITexture>& RHITexture : TexturesToUnregister)
+				{
+					UE_LOG(LogMediaIOCore, Verbose, TEXT("Unregistering texture %u"), reinterpret_cast<std::uintptr_t>(RHITexture->GetNativeResource()));
+					TextureTransfer->UnregisterTexture(RHITexture.GetReference());
+				}
+			}
+		});
+
+	RegisteredTextures.Reset();
+
+	{
+		FScopeLock Lock(&TexturesCriticalSection);
+		Textures.Reset();
+	}
+#endif
+}
+
+void FMediaIOCorePlayerBase::PreGPUTransfer(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample)
+{
+#if PLATFORM_DESKTOP
+	// Register the buffer and the texture
+	TRefCountPtr<FRHITexture> Texture = Textures.Pop();
+	if (Texture && RegisteredTextures.Contains(Texture))
+	{
+		InSample->SetTexture(Texture);
+		InSample->SetDestructionCallback([MediaPlayerWeakPtr = TWeakPtr<FMediaIOCorePlayerBase>(AsShared())](TRefCountPtr<FRHITexture> InTexture)
+		{
+			if (TSharedPtr<FMediaIOCorePlayerBase> MediaPlayerPtr = MediaPlayerWeakPtr.Pin())
+			{
+				MediaPlayerPtr->OnSampleDestroyed(InTexture);
+			}
+		});
+
+		RegisterSampleBuffer(InSample);
+	}
+	else
+	{
+		UE_LOG(LogMediaIOCore, Display, TEXT("Unregistered texture %u encountered while doing a gpu texture transfer."), Texture ? reinterpret_cast<std::uintptr_t>(Texture->GetNativeResource()) : 0);
+	}
+#endif
+}
+
+void FMediaIOCorePlayerBase::ExecuteGPUTransfer(const TSharedPtr<FMediaIOCoreTextureSampleBase>& InSample)
+{
+#if PLATFORM_DESKTOP
+	ENQUEUE_RENDER_COMMAND(StartGPUTextureTransferCopy)(
+		[MediaPlayerWeakPtr = TWeakPtr<FMediaIOCorePlayerBase>(AsShared()), InSample](FRHICommandListImmediate& RHICmdList)
+	{
+		if (InSample->GetTexture())
+		{
+			if (TSharedPtr<FMediaIOCorePlayerBase> MediaPlayerPtr = MediaPlayerWeakPtr.Pin();
+				MediaPlayerPtr != nullptr && MediaPlayerPtr->GPUTextureTransfer != nullptr)
+			{
+				void* Buffer = InSample->GetMutableBuffer();
+				UE_LOG(LogMediaIOCore, Verbose, TEXT("Starting Transfer with buffer %u"), reinterpret_cast<std::uintptr_t>(Buffer));
+				MediaPlayerPtr->GPUTextureTransfer->TransferTexture(Buffer, InSample->GetTexture(), UE::GPUTextureTransfer::ETransferDirection::CPU_TO_GPU);
+				MediaPlayerPtr->GPUTextureTransfer->BeginSync((InSample)->GetMutableBuffer(), UE::GPUTextureTransfer::ETransferDirection::CPU_TO_GPU);
+				MediaPlayerPtr->AddVideoSample(InSample.ToSharedRef());
+				MediaPlayerPtr->GPUTextureTransfer->EndSync(InSample->GetMutableBuffer());
+			}
+		}
+	});
 #endif
 }
 

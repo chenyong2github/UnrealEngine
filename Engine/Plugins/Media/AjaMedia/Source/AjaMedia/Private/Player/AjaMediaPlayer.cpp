@@ -7,7 +7,6 @@
 #include "MediaIOCoreEncodeTime.h"
 #include "MediaIOCoreFileWriter.h"
 #include "MediaIOCoreSamples.h"
-#include "GPUTextureTransferModule.h"
 #include "HAL/PlatformAtomics.h"
 #include "HAL/PlatformProcess.h"
 #include "IAjaMediaModule.h"
@@ -46,11 +45,6 @@ static FAutoConsoleCommand AjaWriteOutputRawDataCmd(
 	FConsoleCommandDelegate::CreateLambda([]() { bAjaWriteOutputRawDataCmdEnable = true; })
 	);
 
-static TAutoConsoleVariable<int32> CVarAjaEnableGPUDirect(
-	TEXT("Aja.EnableGPUDirectInput"), 0,
-	TEXT("Whether to enable GPU direct for faster video frame copies. (Experimental)"),
-	ECVF_RenderThreadSafe);
-
 /* FAjaVideoPlayer structors
  *****************************************************************************/
 
@@ -80,8 +74,6 @@ FAjaMediaPlayer::FAjaMediaPlayer(IMediaEventSink& InEventSink)
 	, SupportedSampleTypes(EMediaIOSampleType::None)
 	, bPauseRequested(false)
 {
-	FGPUTextureTransferModule& Module = FGPUTextureTransferModule::Get();
-	GPUTextureTransfer = Module.GetTextureTransfer();
 }
 
 
@@ -167,8 +159,8 @@ bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 		LastVideoFormatIndex = AjaOptions.VideoFormatIndex;
 	}
 	{
-		const EAjaMediaSourceColorFormat ColorFormat = (EAjaMediaSourceColorFormat)(Options->GetMediaOption(AjaMediaOption::ColorFormat, (int64)EAjaMediaSourceColorFormat::YUV2_8bit));
-		switch(ColorFormat)
+		AjaColorFormat= (EAjaMediaSourceColorFormat)(Options->GetMediaOption(AjaMediaOption::ColorFormat, (int64)EAjaMediaSourceColorFormat::YUV2_8bit));
+		switch(AjaColorFormat)
 		{
 		case EAjaMediaSourceColorFormat::YUV2_8bit:
 			if (AjaOptions.bUseKey)
@@ -217,7 +209,6 @@ bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 	MaxNumAudioFrameBuffer = Options->GetMediaOption(AjaMediaOption::MaxAudioFrameBuffer, (int64)8);
 	MaxNumMetadataFrameBuffer = Options->GetMediaOption(AjaMediaOption::MaxAncillaryFrameBuffer, (int64)8);
 	MaxNumVideoFrameBuffer = Options->GetMediaOption(AjaMediaOption::MaxVideoFrameBuffer, (int64)8);
-	PixelFormat = (EAjaMediaSourceColorFormat)(Options->GetMediaOption(AjaMediaOption::ColorFormat, (int64)EAjaMediaSourceColorFormat::YUV2_8bit));
 
 	check(InputChannel == nullptr);
 	InputChannel = new AJA::AJAInputChannel();
@@ -259,12 +250,6 @@ bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 		FEngineAnalytics::GetProvider().RecordEvent(TEXT("MediaFramework.AjaSourceOpened"), EventAttributes);
 	}
 #endif
-
-
-	if (CVarAjaEnableGPUDirect.GetValueOnAnyThread())
-	{
-		CreateAndRegisterTextures(Options);
-	}
 
 	return true;
 }
@@ -526,7 +511,9 @@ bool FAjaMediaPlayer::OnRequestInputBuffer(const AJA::AJARequestInputBufferData&
 	// Video
 	if (bUseVideo && InRequestBuffer.VideoBufferSize > 0 && InRequestBuffer.bIsProgressivePicture)
 	{
-		if (CVarAjaEnableGPUDirect.GetValueOnAnyThread())
+		const bool bCanUseGPUTextureTransfer = CanUseGPUTextureTransfer();
+
+		if (bCanUseGPUTextureTransfer)
 		{
 			if (!Textures.Num())
 			{
@@ -538,28 +525,9 @@ bool FAjaMediaPlayer::OnRequestInputBuffer(const AJA::AJARequestInputBufferData&
 		AjaThreadCurrentTextureSample = TextureSamplePool->AcquireShared();
 		AjaThreadCurrentTextureSample->RequestBuffer(InRequestBuffer.VideoBufferSize);
 
-		if (CVarAjaEnableGPUDirect.GetValueOnAnyThread())
+		if (bCanUseGPUTextureTransfer)
 		{
-			FScopeLock Lock(&TexturesCriticalSection);
-			TRefCountPtr<FRHITexture> Texture = Textures.Pop();
-			if (Texture && RegisteredTextures.Contains(Texture))
-			{
-				AjaThreadCurrentTextureSample->SetTexture(Texture);
-
-				AjaThreadCurrentTextureSample->SetDestructionCallback([MediaPlayerWeakPtr = TWeakPtr<FAjaMediaPlayer>(AsShared())](TRefCountPtr<FRHITexture> InTexture)
-				{
-					if (TSharedPtr<FAjaMediaPlayer> MediaPlayer = MediaPlayerWeakPtr.Pin())
-					{
-						MediaPlayer->OnSampleDestroyed(InTexture);
-					}
-				});
-			}
-			else
-			{
-				UE_LOG(LogAjaMedia, Error, TEXT("Unregistered texture %u encountered while doing a gpu texture transfer."), Texture ? reinterpret_cast<std::uintptr_t>(Texture->GetNativeResource()) : 0);
-			}
-
-			RegisterSampleBuffer(AjaThreadCurrentTextureSample);
+			PreGPUTransfer(AjaThreadCurrentTextureSample);
 		}
 
 		OutRequestedBuffer.VideoBuffer = reinterpret_cast<uint8_t*>(AjaThreadCurrentTextureSample->GetMutableBuffer());
@@ -715,7 +683,7 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 			break;
 		}
 
-		if (bEncodeTimecodeInTexel && DecodedTimecode.IsSet() && InVideoFrame.bIsProgressivePicture && !CVarAjaEnableGPUDirect.GetValueOnAnyThread())
+		if (bEncodeTimecodeInTexel && DecodedTimecode.IsSet() && InVideoFrame.bIsProgressivePicture)
 		{
 			FTimecode SetTimecode = DecodedTimecode.GetValue();
 			FMediaIOCoreEncodeTime EncodeTime(EncodePixelFormat, InVideoFrame.VideoBuffer, InVideoFrame.Stride, InVideoFrame.Width, InVideoFrame.Height);
@@ -732,25 +700,9 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 		{
 			if (AjaThreadCurrentTextureSample->SetProperties(InVideoFrame.Stride, InVideoFrame.Width, InVideoFrame.Height, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bIsSRGBInput))
 			{
-				if (GPUTextureTransfer && CVarAjaEnableGPUDirect.GetValueOnAnyThread())
+				if (CanUseGPUTextureTransfer())
 				{
-					// We must start transfer on render thread
-					ENQUEUE_RENDER_COMMAND(StartGPUTextureTransferCopy)(
-						[this, CurrentSample = AjaThreadCurrentTextureSample](FRHICommandListImmediate& RHICmdList)
-						{
-							if (CurrentSample->GetTexture())
-							{
-								if (GPUTextureTransfer)
-								{
-									void* Buffer = CurrentSample->GetMutableBuffer();
-									UE_LOG(LogAjaMedia, Verbose, TEXT("Starting Transfer with buffer %u"), reinterpret_cast<std::uintptr_t>(Buffer));
-									GPUTextureTransfer->TransferTexture(Buffer, CurrentSample->GetTexture(), UE::GPUTextureTransfer::ETransferDirection::CPU_TO_GPU);
-									GPUTextureTransfer->BeginSync((CurrentSample)->GetMutableBuffer(), UE::GPUTextureTransfer::ETransferDirection::CPU_TO_GPU);
-									Samples->AddVideo(CurrentSample.ToSharedRef());
-									GPUTextureTransfer->EndSync(CurrentSample->GetMutableBuffer());
-								}
-							}
-						});
+					ExecuteGPUTransfer(AjaThreadCurrentTextureSample);
 				}
 				else
 				{
@@ -822,174 +774,9 @@ void FAjaMediaPlayer::SetupSampleChannels()
 	Samples->InitializeMetadataBuffer(MetadataSettings);
 }
 
-void FAjaMediaPlayer::OnSampleDestroyed(TRefCountPtr<FRHITexture> InTexture)
+void FAjaMediaPlayer::AddVideoSample(const TSharedRef<FMediaIOCoreTextureSampleBase>& InSample)
 {
-	FScopeLock ScopeLock(&TexturesCriticalSection);
-	if (InTexture && RegisteredTextures.Contains(InTexture))
-	{
-		Textures.Add(InTexture);
-	}
-}
-
-void FAjaMediaPlayer::RegisterSampleBuffer(const TSharedPtr<FAjaMediaTextureSample>& InSample)
-{
-	if (!RegisteredBuffers.Contains(InSample->GetMutableBuffer()))
-	{
-		RegisteredBuffers.Add(InSample->GetMutableBuffer());
-
-		// Enqueue buffer registration on the render  thread to ensure it happens before the call to TransferTexture
-		ENQUEUE_RENDER_COMMAND(RegisterSampleBuffers)([this, InSample](FRHICommandList& CommandList)
-			{
-				if (!InSample->GetMutableBuffer())
-				{
-					UE_LOG(LogAjaMedia, Error, TEXT("A buffer was not available while performing a gpu texture transfer."));
-					return;
-				}
-
-				if (!InSample->GetTexture())
-				{
-					UE_LOG(LogAjaMedia, Error, TEXT("A texture was not available while performing a gpu texture transfer."));
-					return;
-				}
-
-				const uint32 TextureWidth = InSample->GetTexture()->GetDesc().Extent.X;
-				const uint32 TextureHeight = InSample->GetTexture()->GetDesc().Extent.Y;
-				uint32 TextureStride = TextureWidth * 4;
-
-				EPixelFormat Format = InSample->GetTexture()->GetFormat();
-				if (Format == PF_R32G32B32A32_UINT)
-				{
-					TextureStride *= 4;
-				}
-
-				UE_LOG(LogAjaMedia, Verbose, TEXT("Registering buffer %u"), reinterpret_cast<std::uintptr_t>(InSample->GetMutableBuffer()));
-				UE::GPUTextureTransfer::FRegisterDMABufferArgs Args;
-				Args.Buffer = InSample->GetMutableBuffer();
-				Args.Width = TextureWidth;
-				Args.Height = TextureHeight;
-				Args.Stride = TextureStride;
-				Args.PixelFormat = Format == PF_B8G8R8A8 ? UE::GPUTextureTransfer::EPixelFormat::PF_8Bit : UE::GPUTextureTransfer::EPixelFormat::PF_10Bit;
-				GPUTextureTransfer->RegisterBuffer(Args);
-			});
-	}
-	else
-	{
-		UE_LOG(LogAjaMedia, VeryVerbose, TEXT("Buffer already registered: %u"), reinterpret_cast<std::uintptr_t>(AjaThreadCurrentTextureSample->GetMutableBuffer()));
-	}
-}
-
-void FAjaMediaPlayer::UnregisterSampleBuffers()
-{
-	ENQUEUE_RENDER_COMMAND(UnregisterSampleBuffers)([TextureTransfer =GPUTextureTransfer, BuffersToUnregister = RegisteredBuffers](FRHICommandList& CommandList)
-	{
-		if (TextureTransfer)
-		{
-			for (void* RegisteredBuffer : BuffersToUnregister)
-			{
-				TextureTransfer->UnregisterBuffer(RegisteredBuffer);
-			}
-		}
-	});
-	
-	RegisteredBuffers.Reset();
-}
-
-void FAjaMediaPlayer::CreateAndRegisterTextures(const IMediaOptions* Options)
-{
-	ENQUEUE_RENDER_COMMAND(AjaMediaPlayerCreateTextures)(
-		[this, Options](FRHICommandListImmediate& CommandList)
-		{
-			if (!GPUTextureTransfer)
-			{
-				UE_LOG(LogAjaMedia, Error, TEXT("Could not register textures for gpu texture transfer, as the GPUTextureTransfer object was null."));
-				return;
-			}
-
-			for (uint8 Index = 0; Index < MaxNumVideoFrameBuffer; Index++)
-			{
-				TRefCountPtr<FRHITexture> RHITexture;
-				const FString TextureName = FString::Printf(TEXT("FAjaMediaPlayerTexture %d"), Index);
-				FRHIResourceCreateInfo CreateInfo(*TextureName);
-				
-				uint32 TextureWidth = VideoTrackFormat.Dim.X;
-				const uint32 TextureHeight = VideoTrackFormat.Dim.Y;
-				uint32 Stride = TextureWidth;
-				EPixelFormat InputFormat = EPixelFormat::PF_Unknown;
-
-				if (PixelFormat == EAjaMediaSourceColorFormat::YUV2_8bit)
-				{
-					InputFormat = EPixelFormat::PF_B8G8R8A8;
-					TextureWidth /= 2;
-					Stride = TextureWidth * 4;
-				}
-				else if (PixelFormat == EAjaMediaSourceColorFormat::YUV_10bit)
-				{
-					InputFormat = EPixelFormat::PF_R32G32B32A32_UINT;
-					TextureWidth /= 6;
-					Stride = TextureWidth * 16;
-				}
-				else
-				{
-					checkf(false, TEXT("Format not supported"));
-				}
-
-				TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-
-				ETextureCreateFlags CreateFlags = TexCreate_Shared;
-				if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
-				{
-					CreateFlags = TexCreate_External;
-				}
-
-				FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(*TextureName, FIntPoint(TextureWidth, TextureHeight), InputFormat, FClearValueBinding::White, CreateFlags);
-				RHICreateTargetableShaderResource(CreateDesc, TexCreate_RenderTargetable, RHITexture, DummyTexture2DRHI);
-
-				UE_LOG(LogAjaMedia, Verbose, TEXT("Registering texture %u"), reinterpret_cast<std::uintptr_t>(RHITexture->GetNativeResource()));
-
-				UE::GPUTextureTransfer::FRegisterDMATextureArgs Args;
-				Args.RHITexture = RHITexture.GetReference();
-				Args.Stride = Stride;
-				Args.Width = TextureWidth;
-				Args.Height = TextureHeight;
-				Args.RHIResourceMemory = nullptr;
-				Args.PixelFormat = PixelFormat == EAjaMediaSourceColorFormat::YUV2_8bit ? UE::GPUTextureTransfer::EPixelFormat::PF_8Bit : UE::GPUTextureTransfer::EPixelFormat::PF_10Bit;
-				
-				GPUTextureTransfer->RegisterTexture(Args);
-				RegisteredTextures.Add(RHITexture);
-
-				{
-					FScopeLock Lock(&TexturesCriticalSection);
-					Textures.Add(RHITexture);
-				}
-			}
-		});
-
-	FRenderCommandFence RenderFence;
-	RenderFence.BeginFence();
-	RenderFence.Wait();
-}
-
-void FAjaMediaPlayer::UnregisterTextures()
-{
-	// Keep a copy of the textures to make sure they were not destoryed before this gets executed.
-	ENQUEUE_RENDER_COMMAND(UnregisterSampleBuffers)([TextureTransfer = GPUTextureTransfer, TexturesToUnregister = RegisteredTextures](FRHICommandList& CommandList)
-		{
-			if (TextureTransfer)
-			{
-				for (const TRefCountPtr<FRHITexture>& RHITexture : TexturesToUnregister)
-				{
-					UE_LOG(LogAjaMedia, Verbose, TEXT("Unregistering texture %u"), reinterpret_cast<std::uintptr_t>(RHITexture->GetNativeResource()));
-					TextureTransfer->UnregisterTexture(RHITexture.GetReference());
-				}
-			}
-		});
-
-	RegisteredTextures.Reset();
-
-	{
-		FScopeLock Lock(&TexturesCriticalSection);
-		Textures.Reset();
-	}
+	Samples->AddVideo(InSample);
 }
 
 bool FAjaMediaPlayer::SetRate(float Rate)
