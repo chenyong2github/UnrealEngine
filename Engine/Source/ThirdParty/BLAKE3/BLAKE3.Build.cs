@@ -5,7 +5,7 @@ using System.IO;
 
 public class BLAKE3 : ModuleRules
 {
-	protected readonly string Version = "0.3.7";
+	protected readonly string Version = "1.3.1";
 
 	public BLAKE3(ReadOnlyTargetRules Target) : base(Target)
 	{
