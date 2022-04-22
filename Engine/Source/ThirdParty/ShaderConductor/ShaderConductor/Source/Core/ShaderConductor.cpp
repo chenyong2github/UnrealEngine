@@ -97,9 +97,78 @@ static bool ParseSpirvCrossOption(const ShaderConductor::MacroDefine& define, co
 static bool ParseSpirvCrossOptionCommon(spirv_cross::CompilerGLSL::Options& opt, const ShaderConductor::MacroDefine& define)
 {
     PARSE_SPIRVCROSS_OPTION(define, "reconstruct_global_uniforms", opt.reconstruct_global_uniforms);
-	PARSE_SPIRVCROSS_OPTION(define, "force_zero_initialized_variables", opt.force_zero_initialized_variables);
     return false;
 }
+
+static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, const ShaderConductor::MacroDefine& define)
+{
+    PARSE_SPIRVCROSS_OPTION(define, "emit_push_constant_as_uniform_buffer", opt.emit_push_constant_as_uniform_buffer);
+    PARSE_SPIRVCROSS_OPTION(define, "emit_uniform_buffer_as_plain_uniforms", opt.emit_uniform_buffer_as_plain_uniforms);
+    PARSE_SPIRVCROSS_OPTION(define, "flatten_multidimensional_arrays", opt.flatten_multidimensional_arrays);
+    PARSE_SPIRVCROSS_OPTION(define, "force_flattened_io_blocks", opt.force_flattened_io_blocks);
+    PARSE_SPIRVCROSS_OPTION(define, "emit_ssbo_alias_type_name", opt.emit_ssbo_alias_type_name);
+    PARSE_SPIRVCROSS_OPTION(define, "separate_texture_types", opt.separate_texture_types);
+    PARSE_SPIRVCROSS_OPTION(define, "disable_ssbo_block_layout", opt.disable_ssbo_block_layout);
+    PARSE_SPIRVCROSS_OPTION(define, "force_ubo_std140_layout", opt.force_ubo_std140_layout);
+    PARSE_SPIRVCROSS_OPTION(define, "disable_explicit_binding", opt.disable_explicit_binding);
+    PARSE_SPIRVCROSS_OPTION(define, "enable_texture_buffer", opt.enable_texture_buffer);
+	PARSE_SPIRVCROSS_OPTION(define, "ovr_multiview_view_count", opt.ovr_multiview_view_count);
+	PARSE_SPIRVCROSS_OPTION(define, "pad_ubo_blocks", opt.pad_ubo_blocks);
+	PARSE_SPIRVCROSS_OPTION(define, "force_temporary", opt.force_temporary);
+	PARSE_SPIRVCROSS_OPTION(define, "force_glsl_clipspace", opt.force_glsl_clipspace);
+    return false;
+}
+
+static bool ParseSpirvCrossOptionHlsl(spirv_cross::CompilerHLSL::Options& opt, const ShaderConductor::MacroDefine& define)
+{
+    PARSE_SPIRVCROSS_OPTION(define, "reconstruct_semantics", opt.reconstruct_semantics);
+    PARSE_SPIRVCROSS_OPTION(define, "reconstruct_cbuffer_names", opt.reconstruct_cbuffer_names);
+    PARSE_SPIRVCROSS_OPTION(define, "implicit_resource_binding", opt.implicit_resource_binding);
+    return false;
+}
+
+static bool ParseSpirvCrossOptionMetal(spirv_cross::CompilerMSL::Options& opt, const ShaderConductor::MacroDefine& define)
+{
+    PARSE_SPIRVCROSS_OPTION(define, "ios_support_base_vertex_instance", opt.ios_support_base_vertex_instance);
+    PARSE_SPIRVCROSS_OPTION(define, "swizzle_texture_samples", opt.swizzle_texture_samples);
+    PARSE_SPIRVCROSS_OPTION(define, "texel_buffer_texture_width", opt.texel_buffer_texture_width);
+    // Use Metal's native texture-buffer type for HLSL buffers.
+    PARSE_SPIRVCROSS_OPTION(define, "texture_buffer_native", opt.texture_buffer_native);
+    // Use Metal's native frame-buffer fetch API for subpass inputs.
+    PARSE_SPIRVCROSS_OPTION(define, "use_framebuffer_fetch_subpasses", opt.use_framebuffer_fetch_subpasses);
+    // Storage buffer robustness - clamps access to SSBOs to the size of the buffer.
+    PARSE_SPIRVCROSS_OPTION(define, "enforce_storge_buffer_bounds", opt.enforce_storge_buffer_bounds);
+    PARSE_SPIRVCROSS_OPTION(define, "buffer_size_buffer_index", opt.buffer_size_buffer_index);
+    // Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess.
+    PARSE_SPIRVCROSS_OPTION(define, "capture_output_to_buffer", opt.capture_output_to_buffer);
+    PARSE_SPIRVCROSS_OPTION(define, "shader_output_buffer_index", opt.shader_output_buffer_index);
+    // Allow the caller to specify the various auxiliary Metal buffer indices.
+    PARSE_SPIRVCROSS_OPTION(define, "indirect_params_buffer_index", opt.indirect_params_buffer_index);
+    PARSE_SPIRVCROSS_OPTION(define, "shader_patch_output_buffer_index", opt.shader_patch_output_buffer_index);
+    PARSE_SPIRVCROSS_OPTION(define, "shader_tess_factor_buffer_index", opt.shader_tess_factor_buffer_index);
+    PARSE_SPIRVCROSS_OPTION(define, "shader_input_wg_index", opt.shader_input_wg_index);
+    // Allow the caller to specify the Metal translation should use argument buffers.
+    PARSE_SPIRVCROSS_OPTION(define, "argument_buffers", opt.argument_buffers);
+    //PARSE_SPIRVCROSS_OPTION(define, "argument_buffer_offset", opt.argument_buffer_offset);
+    PARSE_SPIRVCROSS_OPTION(define, "invariant_float_math", opt.invariant_float_math);
+    // Emulate texturecube_array with texture2d_array for iOS where this type is not available.
+    PARSE_SPIRVCROSS_OPTION(define, "emulate_cube_array", opt.emulate_cube_array);
+    // Allow user to enable decoration binding.
+    PARSE_SPIRVCROSS_OPTION(define, "enable_decoration_binding", opt.enable_decoration_binding);
+
+    // Specify dimension of subpass input attachments.
+    static const char* subpassInputDimIdent = "subpass_input_dimension";
+    static const size_t subpassInputDimIdentLen = std::strlen(subpassInputDimIdent);
+    if (!strncmp(define.name, subpassInputDimIdent, subpassInputDimIdentLen))
+    {
+        int binding = std::stoi(define.name + subpassInputDimIdentLen);
+        opt.subpass_input_dimensions[static_cast<uint32_t>(binding)] = std::stoi(define.value);
+    }
+
+    return false;
+}
+// UE Change End: Clean up parameter parsing
+
 
 // UE Change Begin: Improved support for PLS and FBF
 struct Remap
@@ -347,77 +416,6 @@ static bool GatherFBFRemaps(std::vector<FBFArg>& FBFArgs, const ShaderConductor:
 }
 // UE Change End: Improved support for PLS and FBF
 
-static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, const ShaderConductor::MacroDefine& define)
-{
-    PARSE_SPIRVCROSS_OPTION(define, "emit_push_constant_as_uniform_buffer", opt.emit_push_constant_as_uniform_buffer);
-    PARSE_SPIRVCROSS_OPTION(define, "emit_uniform_buffer_as_plain_uniforms", opt.emit_uniform_buffer_as_plain_uniforms);
-    PARSE_SPIRVCROSS_OPTION(define, "flatten_multidimensional_arrays", opt.flatten_multidimensional_arrays);
-    PARSE_SPIRVCROSS_OPTION(define, "force_flattened_io_blocks", opt.force_flattened_io_blocks);
-    PARSE_SPIRVCROSS_OPTION(define, "emit_ssbo_alias_type_name", opt.emit_ssbo_alias_type_name);
-    PARSE_SPIRVCROSS_OPTION(define, "ovr_multiview_view_count", opt.ovr_multiview_view_count);
-    PARSE_SPIRVCROSS_OPTION(define, "emit_ssbo_alias_type_name", opt.emit_ssbo_alias_type_name);
-    PARSE_SPIRVCROSS_OPTION(define, "separate_texture_types", opt.separate_texture_types);
-    PARSE_SPIRVCROSS_OPTION(define, "disable_ssbo_block_layout", opt.disable_ssbo_block_layout);
-    PARSE_SPIRVCROSS_OPTION(define, "force_ubo_std140_layout", opt.force_ubo_std140_layout);
-    PARSE_SPIRVCROSS_OPTION(define, "disable_explicit_binding", opt.disable_explicit_binding);
-    PARSE_SPIRVCROSS_OPTION(define, "enable_texture_buffer", opt.enable_texture_buffer);
-	PARSE_SPIRVCROSS_OPTION(define, "ovr_multiview_view_count", opt.ovr_multiview_view_count);
-	PARSE_SPIRVCROSS_OPTION(define, "pad_ubo_blocks", opt.pad_ubo_blocks);
-	PARSE_SPIRVCROSS_OPTION(define, "force_temporary", opt.force_temporary);
-	PARSE_SPIRVCROSS_OPTION(define, "force_glsl_clipspace", opt.force_glsl_clipspace);
-    return false;
-}
-
-static bool ParseSpirvCrossOptionHlsl(spirv_cross::CompilerHLSL::Options& opt, const ShaderConductor::MacroDefine& define)
-{
-    PARSE_SPIRVCROSS_OPTION(define, "reconstruct_semantics", opt.reconstruct_semantics);
-    PARSE_SPIRVCROSS_OPTION(define, "reconstruct_cbuffer_names", opt.reconstruct_cbuffer_names);
-    PARSE_SPIRVCROSS_OPTION(define, "implicit_resource_binding", opt.implicit_resource_binding);
-    return false;
-}
-
-static bool ParseSpirvCrossOptionMetal(spirv_cross::CompilerMSL::Options& opt, const ShaderConductor::MacroDefine& define)
-{
-    PARSE_SPIRVCROSS_OPTION(define, "ios_support_base_vertex_instance", opt.ios_support_base_vertex_instance);
-    PARSE_SPIRVCROSS_OPTION(define, "swizzle_texture_samples", opt.swizzle_texture_samples);
-    PARSE_SPIRVCROSS_OPTION(define, "texel_buffer_texture_width", opt.texel_buffer_texture_width);
-    // Use Metal's native texture-buffer type for HLSL buffers.
-    PARSE_SPIRVCROSS_OPTION(define, "texture_buffer_native", opt.texture_buffer_native);
-    // Use Metal's native frame-buffer fetch API for subpass inputs.
-    PARSE_SPIRVCROSS_OPTION(define, "use_framebuffer_fetch_subpasses", opt.use_framebuffer_fetch_subpasses);
-    // Storage buffer robustness - clamps access to SSBOs to the size of the buffer.
-    PARSE_SPIRVCROSS_OPTION(define, "enforce_storge_buffer_bounds", opt.enforce_storge_buffer_bounds);
-    PARSE_SPIRVCROSS_OPTION(define, "buffer_size_buffer_index", opt.buffer_size_buffer_index);
-    // Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess.
-    PARSE_SPIRVCROSS_OPTION(define, "capture_output_to_buffer", opt.capture_output_to_buffer);
-    PARSE_SPIRVCROSS_OPTION(define, "shader_output_buffer_index", opt.shader_output_buffer_index);
-    // Allow the caller to specify the various auxiliary Metal buffer indices.
-    PARSE_SPIRVCROSS_OPTION(define, "indirect_params_buffer_index", opt.indirect_params_buffer_index);
-    PARSE_SPIRVCROSS_OPTION(define, "shader_patch_output_buffer_index", opt.shader_patch_output_buffer_index);
-    PARSE_SPIRVCROSS_OPTION(define, "shader_tess_factor_buffer_index", opt.shader_tess_factor_buffer_index);
-    PARSE_SPIRVCROSS_OPTION(define, "shader_input_wg_index", opt.shader_input_wg_index);
-    // Allow the caller to specify the Metal translation should use argument buffers.
-    PARSE_SPIRVCROSS_OPTION(define, "argument_buffers", opt.argument_buffers);
-    //PARSE_SPIRVCROSS_OPTION(define, "argument_buffer_offset", opt.argument_buffer_offset);
-    PARSE_SPIRVCROSS_OPTION(define, "invariant_float_math", opt.invariant_float_math);
-    // Emulate texturecube_array with texture2d_array for iOS where this type is not available.
-    PARSE_SPIRVCROSS_OPTION(define, "emulate_cube_array", opt.emulate_cube_array);
-    // Allow user to enable decoration binding.
-    PARSE_SPIRVCROSS_OPTION(define, "enable_decoration_binding", opt.enable_decoration_binding);
-
-    // Specify dimension of subpass input attachments.
-    static const char* subpassInputDimIdent = "subpass_input_dimension";
-    static const size_t subpassInputDimIdentLen = std::strlen(subpassInputDimIdent);
-    if (!strncmp(define.name, subpassInputDimIdent, subpassInputDimIdentLen))
-    {
-        int binding = std::stoi(define.name + subpassInputDimIdentLen);
-        opt.subpass_input_dimensions[static_cast<uint32_t>(binding)] = std::stoi(define.value);
-    }
-
-    return false;
-}
-// UE Change End: Clean up parameter parsing
-
 namespace
 {
     bool dllDetaching = false;
@@ -566,8 +564,10 @@ namespace
                 {
                     IFT(m_createInstanceFunc(CLSID_DxcLibrary, __uuidof(IDxcLibrary), reinterpret_cast<void**>(&m_library)));
                     IFT(m_createInstanceFunc(CLSID_DxcCompiler, __uuidof(IDxcCompiler), reinterpret_cast<void**>(&m_compiler)));
+#ifdef _WIN32
                     IFT(m_createInstanceFunc(CLSID_DxcContainerReflection, __uuidof(IDxcContainerReflection),
                                              reinterpret_cast<void**>(&m_containerReflection)));
+#endif
                     // UE Change Begin: Add functionality to rewrite HLSL to remove unused code and globals.
                     IFT(m_createInstanceFunc(CLSID_DxcRewriter, __uuidof(IDxcRewriter), reinterpret_cast<void**>(&m_rewriter)));
                     // UE Change End: Add functionality to rewrite HLSL to remove unused code and globals.
@@ -584,7 +584,11 @@ namespace
                 throw std::runtime_error("COULDN'T load dxcompiler.");
             }
 
+#ifdef _WIN32
             m_linkerSupport = (CreateLinker() != nullptr);
+#else
+			m_linkerSupport = false;
+#endif
         }
 
     private:
@@ -623,7 +627,7 @@ namespace
             }
 
             std::string utf8FileName;
-            if (!Unicode::UTF16ToUTF8String(fileName, &utf8FileName))
+            if (!Unicode::WideToUTF8String(fileName, &utf8FileName))
             {
                 return E_FAIL;
             }
@@ -730,10 +734,10 @@ namespace
         IFTARG(sourceBlob->GetBufferSize() >= 4);
 
         std::wstring shaderNameUtf16;
-        Unicode::UTF8ToUTF16String(source.fileName, &shaderNameUtf16);
+        Unicode::UTF8ToWideString(source.fileName, &shaderNameUtf16);
 
         std::wstring entryPointUtf16;
-        Unicode::UTF8ToUTF16String(source.entryPoint, &entryPointUtf16);
+        Unicode::UTF8ToWideString(source.entryPoint, &entryPointUtf16);
 
         std::vector<DxcDefine> dxcDefines;
         std::vector<std::wstring> dxcDefineStrings;
@@ -745,7 +749,7 @@ namespace
             const auto& define = source.defines[i];
 
             std::wstring nameUtf16Str;
-            Unicode::UTF8ToUTF16String(define.name, &nameUtf16Str);
+            Unicode::UTF8ToWideString(define.name, &nameUtf16Str);
             dxcDefineStrings.emplace_back(std::move(nameUtf16Str));
             const wchar_t* nameUtf16 = dxcDefineStrings.back().c_str();
 
@@ -753,7 +757,7 @@ namespace
             if (define.value != nullptr)
             {
                 std::wstring valueUtf16Str;
-                Unicode::UTF8ToUTF16String(define.value, &valueUtf16Str);
+                Unicode::UTF8ToWideString(define.value, &valueUtf16Str);
                 dxcDefineStrings.emplace_back(std::move(valueUtf16Str));
                 valueUtf16 = dxcDefineStrings.back().c_str();
             }
@@ -1058,7 +1062,7 @@ namespace
             const auto& define = source.defines[i];
 
             std::wstring nameUtf16Str;
-            Unicode::UTF8ToUTF16String(define.name, &nameUtf16Str);
+            Unicode::UTF8ToWideString(define.name, &nameUtf16Str);
             dxcDefineStrings.emplace_back(std::move(nameUtf16Str));
             const wchar_t* nameUtf16 = dxcDefineStrings.back().c_str();
 
@@ -1066,7 +1070,7 @@ namespace
             if (define.value != nullptr)
             {
                 std::wstring valueUtf16Str;
-                Unicode::UTF8ToUTF16String(define.value, &valueUtf16Str);
+                Unicode::UTF8ToWideString(define.value, &valueUtf16Str);
                 dxcDefineStrings.emplace_back(std::move(valueUtf16Str));
                 valueUtf16 = dxcDefineStrings.back().c_str();
             }
@@ -1084,10 +1088,10 @@ namespace
         IFTARG(sourceBlob->GetBufferSize() >= 4);
 
         std::wstring shaderNameUtf16;
-        Unicode::UTF8ToUTF16String(source.fileName, &shaderNameUtf16);
+        Unicode::UTF8ToWideString(source.fileName, &shaderNameUtf16);
 
         std::wstring entryPointUtf16;
-        Unicode::UTF8ToUTF16String(source.entryPoint, &entryPointUtf16);
+        Unicode::UTF8ToWideString(source.entryPoint, &entryPointUtf16);
 
         std::vector<std::wstring> dxcArgStrings;
 
@@ -1205,7 +1209,7 @@ namespace
             for (uint32_t arg = 0; arg < options.numDXCArgs; ++arg)
             {
                 std::wstring argUTF16;
-                Unicode::UTF8ToUTF16String(options.DXCArgs[arg], &argUTF16);
+                Unicode::UTF8ToWideString(options.DXCArgs[arg], &argUTF16);
                 if (argUTF16.compare(0, 8, L"-Oconfig") == 0)
                 {
                     // Replace previous '-O' argument with the custom configuration
@@ -1433,13 +1437,13 @@ namespace
 						if (!strcmp(Define.name, "remap_glsl"))
 						{
 							std::vector<std::string> Args;
-								std::stringstream ss(Define.value);
-								std::string Arg;
+							std::stringstream ss(Define.value);
+							std::string Arg;
 
-								while (std::getline(ss, Arg, ' '))
-								{
-									Args.push_back(Arg);
-								}
+							while (std::getline(ss, Arg, ' '))
+							{
+								Args.push_back(Arg);
+							}
 
 							if (Args.size() < 3)
 								continue;
@@ -1467,7 +1471,7 @@ namespace
 				compiler->remap_ext_framebuffer_fetch(fetch.input_index, fetch.color_attachment, true);
 			}
 			// UE Change End: Improved support for PLS and FBF
-			 
+
 			// UE Change Begin: Force Glsl Clipspace when using ES
 			if (glslOpts.force_glsl_clipspace)
 			{
@@ -1992,13 +1996,13 @@ namespace ShaderConductor
                                                           &moduleBlobs[i]));
             IFTARG(moduleBlobs[i]->GetBufferSize() >= 4);
 
-            Unicode::UTF8ToUTF16String(modules.modules[i]->name, &moduleNames[i]);
+            Unicode::UTF8ToWideString(modules.modules[i]->name, &moduleNames[i]);
             moduleNamesUtf16[i] = moduleNames[i].c_str();
             IFT(linker->RegisterLibrary(moduleNamesUtf16[i], moduleBlobs[i]));
         }
 
         std::wstring entryPointUtf16;
-        Unicode::UTF8ToUTF16String(modules.entryPoint, &entryPointUtf16);
+        Unicode::UTF8ToWideString(modules.entryPoint, &entryPointUtf16);
 
         const std::wstring shaderProfile = ShaderProfileName(modules.stage, options.shaderModel);
         CComPtr<IDxcOperationResult> linkResult;
