@@ -460,7 +460,7 @@ void FStateTreeViewModel::MoveSelectedStates(UStateTreeState* TargetState, const
 			}
 		}
 
-		if (RelativeLocation == FStateTreeViewModelInsert::Before)
+		if (RelativeLocation == FStateTreeViewModelInsert::Into)
 		{
 			// Move into
 			TargetState->Modify();
