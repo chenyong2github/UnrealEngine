@@ -60,7 +60,7 @@ public:
 	/** Get names of all the source bone chains. */
 	void GetSourceChainNames(TArray<FName>& OutNames) const;
 	/** Remove invalid chain mappings (no longer existing in currently referenced source/target IK Rig assets) */
-	void CleanChainMapping(const bool bForceReinitialization=true);
+	void CleanChainMapping(const bool bForceReinitialization=true) const;
 	/** Use fuzzy string search to find "best" Source chain to map to each Target chain */
 	void AutoMapChains() const;
 	/** Callback when IK Rig chain is renamed. Retains existing mappings using the new name */
