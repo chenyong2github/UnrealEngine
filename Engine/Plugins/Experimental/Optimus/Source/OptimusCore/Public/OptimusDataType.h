@@ -77,7 +77,7 @@ struct OPTIMUSCORE_API FOptimusDataType
 	// Size of the shader value that can hold a value of this type. If this type is not a
 	// shader value, then this value is zero.
 	UPROPERTY()
-	int32 ShaderValueSize;
+	int32 ShaderValueSize = 0;
 	
 	UPROPERTY()
 	FName TypeCategory;
