@@ -1232,23 +1232,46 @@ bool FRemoteControlModule::DestroyTransientPreset(FName PresetName)
 {
 	if (URemoteControlPreset* Preset = ResolvePreset(PresetName))
 	{
+		return DestroyTransientPreset(Preset);
+	}
+
+	return false;
+}
+
+bool FRemoteControlModule::DestroyTransientPreset(const FGuid& PresetId)
+{
+	if (URemoteControlPreset* Preset = ResolvePreset(PresetId))
+	{
+		return DestroyTransientPreset(Preset);
+	}
+
+	return false;
+}
+
+bool FRemoteControlModule::IsPresetTransient(FName PresetName) const
+{
+	if (URemoteControlPreset* Preset = ResolvePreset(PresetName))
+	{
 		for (const FAssetData& TransientAssetData : TransientPresets)
 		{
 			if (TransientAssetData.GetAsset() == Preset)
 			{
-				// This call will also remove the asset from TransientPresets
-				OnAssetRemoved(TransientAssetData);
-				
-				FAssetRegistryModule::AssetDeleted(Preset);
+				return true;
+			}
+		}
+	}
 
-				if (UPackage* Package = Preset->GetPackage())
-				{
-					Package->MarkAsGarbage();
-				}
+	return false;
+}
 
-				Preset->ClearFlags(RF_Public | RF_Standalone);
-				Preset->MarkAsGarbage();
-
+bool FRemoteControlModule::IsPresetTransient(const FGuid& PresetId) const
+{
+	if (URemoteControlPreset* Preset = ResolvePreset(PresetId))
+	{
+		for (const FAssetData& TransientAssetData : TransientPresets)
+		{
+			if (TransientAssetData.GetAsset() == Preset)
+			{
 				return true;
 			}
 		}
@@ -1442,6 +1465,32 @@ void FRemoteControlModule::OnAssetRenamed(const FAssetData& AssetData, const FSt
 	CachedPresetNamesById.Add(PresetId, AssetData.AssetName);
 
 	CachedPresetsByName.FindOrAdd(AssetData.AssetName).AddUnique(AssetData);
+}
+
+bool FRemoteControlModule::DestroyTransientPreset(URemoteControlPreset* Preset)
+{
+	for (const FAssetData& TransientAssetData : TransientPresets)
+	{
+		if (TransientAssetData.GetAsset() == Preset)
+		{
+			// This call will also remove the asset from TransientPresets
+			OnAssetRemoved(TransientAssetData);
+
+			FAssetRegistryModule::AssetDeleted(Preset);
+
+			if (UPackage* Package = Preset->GetPackage())
+			{
+				Package->MarkAsGarbage();
+			}
+
+			Preset->ClearFlags(RF_Public | RF_Standalone);
+			Preset->MarkAsGarbage();
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool FRemoteControlModule::PropertyModificationShouldUseSetter(UObject* Object, FProperty* Property)

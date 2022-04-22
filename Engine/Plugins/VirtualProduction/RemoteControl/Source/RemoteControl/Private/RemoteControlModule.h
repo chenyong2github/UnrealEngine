@@ -39,6 +39,9 @@ public:
 	virtual URemoteControlPreset* ResolvePreset(const FGuid& PresetId) const override;
 	virtual URemoteControlPreset* CreateTransientPreset() override;
 	virtual bool DestroyTransientPreset(FName PresetName) override;
+	virtual bool DestroyTransientPreset(const FGuid& PresetId) override;
+	virtual bool IsPresetTransient(FName PresetName) const override;
+	virtual bool IsPresetTransient(const FGuid& PresetId) const override;
 	virtual void GetPresets(TArray<TSoftObjectPtr<URemoteControlPreset>>& OutPresets) const override;
 	virtual void GetPresetAssets(TArray<FAssetData>& OutPresetAssets, bool bIncludeTransient = true) const override;
 	virtual const TMap<FName, FEntityMetadataInitializer>& GetDefaultMetadataInitializers() const override;
@@ -58,6 +61,9 @@ private:
 	void OnAssetAdded(const FAssetData& AssetData);
 	void OnAssetRemoved(const FAssetData& AssetData);
 	void OnAssetRenamed(const FAssetData& AssetData, const FString&);
+
+	/** Destroy a transient preset using an object reference. */
+	bool DestroyTransientPreset(URemoteControlPreset* Preset);
 
 	/** Determines if a property modification should use a setter or default to deserializing directly onto an object. */
 	static bool PropertyModificationShouldUseSetter(UObject* Object, FProperty* Property);

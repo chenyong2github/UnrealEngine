@@ -609,6 +609,31 @@ struct FRCWebSocketPresetRegisterBody : public FRCRequest
 };
 
 /**
+ * Holds a request made via websocket to automatically destroy a transient preset when the calling client disconnects.
+ */
+USTRUCT()
+struct FRCWebSocketTransientPresetAutoDestroyBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketTransientPresetAutoDestroyBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
+
+	/**
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * Name of the transient preset to mark for automatic destruction.
+	 */
+	UPROPERTY()
+	FString PresetName;
+};
+
+/**
  * Holds a request made via websocket to register for spawn/destroy events about a given actor type.
  */
 USTRUCT()

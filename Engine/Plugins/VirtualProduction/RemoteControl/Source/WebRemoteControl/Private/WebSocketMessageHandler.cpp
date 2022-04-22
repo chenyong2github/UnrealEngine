@@ -268,6 +268,12 @@ void FWebSocketMessageHandler::RegisterRoutes(FWebRemoteControlModule* WebRemote
 	));
 
 	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
+		TEXT("Register a transient preset to be automatically destroyed when the calling client disconnects from WebSocket. If multiple clients call this, it will be destroyed once all the clients disconnect."),
+		TEXT("preset.transient.autodestroy"),
+		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketTransientPresetAutoDestroy)
+		));
+
+	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
 		TEXT("Subscribe to events emitted when actors of a particular type are added to/deleted from/renamed in the editor world"),
 		TEXT("actors.register"),
 		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketActorRegister)
@@ -442,6 +448,39 @@ void FWebSocketMessageHandler::HandleWebSocketPresetUnregister(const FRemoteCont
 			RegisteredClients->Remove(WebSocketMessage.ClientId);
 		}
 	}
+}
+
+void FWebSocketMessageHandler::HandleWebSocketTransientPresetAutoDestroy(const FRemoteControlWebSocketMessage& WebSocketMessage)
+{
+	FRCWebSocketTransientPresetAutoDestroyBody Body;
+	if (!WebRemoteControlInternalUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Body))
+	{
+		return;
+	}
+
+	URemoteControlPreset* Preset = nullptr;
+	IRemoteControlModule& RemoteControl = IRemoteControlModule::Get();
+
+	bool bIsTransient;
+	FGuid PresetId;
+
+	if (FGuid::ParseExact(Body.PresetName, EGuidFormats::Digits, PresetId))
+	{
+		Preset = RemoteControl.ResolvePreset(PresetId);
+		bIsTransient = RemoteControl.IsPresetTransient(PresetId);
+	}
+	else
+	{
+		Preset = RemoteControl.ResolvePreset(*Body.PresetName);
+		bIsTransient = RemoteControl.IsPresetTransient(*Body.PresetName);
+	}
+
+	if (!bIsTransient || !Preset)
+	{
+		return;
+	}
+
+	TransientPresetAutoDestroyClients.FindOrAdd(Preset->GetPresetId()).Add(WebSocketMessage.ClientId);
 }
 
 void FWebSocketMessageHandler::HandleWebSocketActorRegister(const FRemoteControlWebSocketMessage& WebSocketMessage)
@@ -817,6 +856,23 @@ void FWebSocketMessageHandler::OnConnectionClosedCallback(FGuid ClientId)
 	for (const TWeakObjectPtr<UClass>& WatchedClass : WatchedClasses)
 	{
 		UnregisterClientForActorClass(ClientId, WatchedClass.Get());
+	}
+
+	IRemoteControlModule& RemoteControl = IRemoteControlModule::Get();
+
+	// Clean up transient presets registered to auto-destroy for this client
+	for (auto Iter = TransientPresetAutoDestroyClients.CreateIterator(); Iter; ++Iter)
+	{
+		const FGuid& PresetId = Iter.Key();
+		TArray<FGuid>& ClientList = Iter.Value();
+
+		ClientList.Remove(ClientId);
+		if (ClientList.Num() == 0)
+		{
+			RemoteControl.DestroyTransientPreset(PresetId);
+			PresetNotificationMap.Remove(PresetId);
+			Iter.RemoveCurrent();
+		}
 	}
 
 	/** Remove this client's config. */

@@ -90,6 +90,9 @@ private:
 	/** Handles unregistration to callbacks to a given preset */
 	void HandleWebSocketPresetUnregister(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
+	/** Handles unregistration to callbacks to a given preset */
+	void HandleWebSocketTransientPresetAutoDestroy(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
 	/** Handles registration to callbacks for creation/destruction/rename of a given actor type */
 	void HandleWebSocketActorRegister(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
@@ -300,6 +303,9 @@ private:
 
 	/** Presets that had their layout modified for a frame. */
 	TSet<FGuid> PerFrameModifiedPresetLayouts;
+
+	/** Map from transient preset ID to clients which, when all disconnected, will automatically destroy the preset. */
+	TMap<FGuid, TArray<FGuid>> TransientPresetAutoDestroyClients;
 	
 	/** Holds the ID of the client currently making a request. Used to prevent sending back notifications to it. */
 	const FGuid& ActingClientId;

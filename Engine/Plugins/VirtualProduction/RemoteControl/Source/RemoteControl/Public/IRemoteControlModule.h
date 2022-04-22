@@ -332,11 +332,32 @@ public:
 	virtual URemoteControlPreset* CreateTransientPreset() = 0;
 
 	/**
-	 * Destroy a transient preset.
+	 * Destroy a transient preset using its name.
 	 * @arg PresetName name of the preset to destroy.
 	 * @return true if a transient preset with that name existed and was destroyed.
 	 */
 	virtual bool DestroyTransientPreset(FName PresetName) = 0;
+
+	/**
+	 * Destroy a transient preset using its id.
+     * @arg PresetId id of the preset to destroy.
+	 * @return true if a transient preset with that name existed and was destroyed.
+	 */
+	virtual bool DestroyTransientPreset(const FGuid& PresetId) = 0;
+
+	/**
+	 * Check whether a preset is transient using its name.
+	 * @arg PresetName name of the preset to check.
+	 * @return true if the preset exists and is transient.
+	 */
+	virtual bool IsPresetTransient(FName PresetName) const = 0;
+
+	/**
+	 * Check whether a preset is transient using its id.
+     * @arg PresetId id of the preset to check.
+	 * @return true if the preset exists and is transient.
+	 */
+	virtual bool IsPresetTransient(const FGuid& PresetId) const = 0;
 
 	/**
 	 * Get all the presets currently registered with the module.
