@@ -2645,8 +2645,10 @@ void UHierarchicalInstancedStaticMeshComponent::PostBuildStats()
 	const TArray<FClusterNode>& ClusterTree = *ClusterTreePtr;
 	FString MeshName = GetStaticMesh() ? GetStaticMesh()->GetPathName() : FString(TEXT("null"));
 	check(PerInstanceRenderData.IsValid());
-	bool bIsGrass = !PerInstanceSMData.Num();
-	NumInst = bIsGrass ? PerInstanceRenderData->InstanceBuffer.GetNumInstances() : PerInstanceSMData.Num();
+
+	// Non-nanite HISMs that were built with AcceptPrebuiltTree won't have PerInstanceSMData, so get the instance count from the buffer
+	int32 NumInst = PerInstanceSMData.Num() == 0 ? PerInstanceRenderData->InstanceBuffer.GetNumInstances() : PerInstanceSMData.Num();
+	bool bIsGrass = GetViewRelevanceType() == EHISMViewRelevanceType::Grass;
 
 	UE_LOG(LogStaticMesh, Display, TEXT("Built a foliage hierarchy with %d instances, %d nodes, %f instances / leaf (desired %d) and %d verts in LOD0. Grass? %d    %s"), NumInst, ClusterTree.Num(), ActualInstancesPerLeaf(), DesiredInstancesPerLeaf(), GetVertsForLOD(0), bIsGrass), *MeshName);
 #endif
@@ -2693,6 +2695,7 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTree()
 	}
 }
 
+// TODO: Move this implementation to UGrassInstancedStaticMeshComponent.cpp for UE 5.2
 void UHierarchicalInstancedStaticMeshComponent::BuildTreeAnyThread(
 	TArray<FMatrix>& InstanceTransforms, 
 	TArray<float>& InstanceCustomDataFloats,
@@ -2721,6 +2724,7 @@ void UHierarchicalInstancedStaticMeshComponent::BuildTreeAnyThread(
 	OutSortedInstances = MoveTemp(Builder.Result->SortedInstances);
 }
 
+// TODO: Move this implementation to UGrassInstancedStaticMeshComponent.cpp for UE 5.2
 void UHierarchicalInstancedStaticMeshComponent::AcceptPrebuiltTree(TArray<FInstancedStaticMeshInstanceData>& InInstanceData, TArray<FClusterNode>& InClusterTree, int32 InOcclusionLayerNumNodes, int32 InNumBuiltRenderInstances)
 {
 	checkSlow(IsInGameThread());

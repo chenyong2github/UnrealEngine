@@ -255,7 +255,9 @@ public:
 	virtual bool ShouldCreatePhysicsState() const override;
 
 	bool BuildTreeIfOutdated(bool Async, bool ForceUpdate);
+	UE_DEPRECATED(5.1, "The BuildTreeAnyThread method is moving to UGrassInstancedStaticMeshComponent. Please update your project to use the new component and method or your project may not compile in the next udpate.")
 	static void BuildTreeAnyThread(TArray<FMatrix>& InstanceTransforms, TArray<float>& InstanceCustomDataFloats, int32 NumCustomDataFloats, const FBox& MeshBox, TArray<FClusterNode>& OutClusterTree, TArray<int32>& OutSortedInstances, TArray<int32>& OutInstanceReorderTable, int32& OutOcclusionLayerNum, int32 MaxInstancesPerLeaf, bool InGenerateInstanceScalingRange);
+	UE_DEPRECATED(5.1, "The AcceptPrebuiltTree method is moving to UGrassInstancedStaticMeshComponent. Please update your project to use the new component and method or your project may not compile in the next udpate.")
 	void AcceptPrebuiltTree(TArray<FInstancedStaticMeshInstanceData>& InInstanceData, TArray<FClusterNode>& InClusterTree, int32 InOcclusionLayerNumNodes, int32 InNumBuiltRenderInstances);
 	bool IsAsyncBuilding() const { return bIsAsyncBuilding; }
 	bool IsTreeFullyBuilt() const { return !bIsOutOfDate; }
@@ -273,7 +275,7 @@ public:
 
 	virtual void PropagateLightingScenarioChange() override;
 
-	virtual EHISMViewRelevanceType GetViewRelevanceType() const { return PerInstanceSMData.Num() ? EHISMViewRelevanceType::HISM : EHISMViewRelevanceType::Grass; }
+	EHISMViewRelevanceType GetViewRelevanceType() const { return ViewRelevanceType; }
 
 protected:
 	void BuildTree();
@@ -308,6 +310,7 @@ protected:
 	mutable FBox AccumulatedNavigationDirtyArea;
 
 	FGraphEventArray BuildTreeAsyncTasks;
+	EHISMViewRelevanceType ViewRelevanceType = EHISMViewRelevanceType::HISM;
 
 protected:
 	friend FStaticLightingTextureMapping_InstancedStaticMesh;

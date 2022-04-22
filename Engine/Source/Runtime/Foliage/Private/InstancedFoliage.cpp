@@ -5641,6 +5641,8 @@ UFoliageInstancedStaticMeshComponent::UFoliageInstancedStaticMeshComponent(const
 #if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = false;
 #endif
+
+	ViewRelevanceType = EHISMViewRelevanceType::Foliage;
 }
 
 void UFoliageInstancedStaticMeshComponent::ReceiveComponentDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
