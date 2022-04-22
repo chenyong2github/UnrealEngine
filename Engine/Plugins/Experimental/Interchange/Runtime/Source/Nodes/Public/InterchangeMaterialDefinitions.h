@@ -202,6 +202,57 @@ namespace Interchange
 				const FName SheenRoughness = TEXT("SheenRoughness"); // Type: float
 			}
 		}
+
+		namespace StandardSurface
+		{
+			const FName Name = TEXT("standard_surface");
+
+			namespace Parameters
+			{
+				const FName Base = TEXT("base");
+				const FName BaseColor = TEXT("base_color");
+				const FName DiffuseRoughness = TEXT("diffuse_roughness");
+				const FName Metalness = TEXT("metalness");
+				const FName Specular = TEXT("specular");
+				const FName SpecularColor = TEXT("specular_color");
+				const FName SpecularRoughness = TEXT("specular_roughness");
+				const FName SpecularIOR = TEXT("specular_IOR");
+				const FName SpecularAnisotropy = TEXT("specular_anisotropy");
+				const FName SpecularRotation = TEXT("specular_rotation");
+				const FName Transmission = TEXT("transmission");
+				const FName TransmissionColor = TEXT("transmission_color");
+				const FName TransmissionDepth = TEXT("transmission_depth");
+				const FName TransmissionScatter = TEXT("transmission_scatter");
+				const FName TransmissionScatterAnisotropy = TEXT("transmission_scatter_anisotropy");
+				const FName TransmissionDispersion = TEXT("transmission_dispersion");
+				const FName TransmissionExtraRoughness = TEXT("transmission_extra_roughness");
+				const FName Subsurface = TEXT("subsurface");
+				const FName SubsurfaceColor = TEXT("subsurface_color");
+				const FName SubsurfaceRadius = TEXT("subsurface_radius");
+				const FName SubsurfaceScale = TEXT("subsurface_scale");
+				const FName SubsurfaceAnisotropy = TEXT("subsurface_anisotropy");
+				const FName Sheen = TEXT("sheen");
+				const FName SheenColor = TEXT("sheen_color");
+				const FName SheenRoughness = TEXT("sheen_roughness");
+				const FName Coat = TEXT("coat");
+				const FName CoatColor = TEXT("coat_color");
+				const FName CoatRoughness = TEXT("coat_roughness");
+				const FName CoatAnisotropy = TEXT("coat_anisotropy");
+				const FName CoatRotation = TEXT("coat_rotation");
+				const FName CoatIOR = TEXT("coat_IOR");
+				const FName CoatNormal = TEXT("coat_normal");
+				const FName CoatAffectColor = TEXT("coat_affect_color");
+				const FName CoatAffectRoughness = TEXT("coat_affect_roughness");
+				const FName ThinFilmThickness = TEXT("thin_film_thickness");
+				const FName ThinFilmIOR = TEXT("thin_film_IOR");
+				const FName Emission = TEXT("emission");
+				const FName EmissionColor = TEXT("emission_color");
+				const FName Opacity = TEXT("opacity");
+				const FName ThinWalled = TEXT("thin_walled");
+				const FName Normal = TEXT("normal");
+				const FName Tangent = TEXT("tangent");
+			}
+		}
 	}
 }
 }

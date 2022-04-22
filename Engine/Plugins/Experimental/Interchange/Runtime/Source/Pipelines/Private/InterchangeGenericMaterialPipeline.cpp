@@ -35,6 +35,7 @@
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Templates/Function.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -77,7 +78,7 @@ void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeB
 			if (UInterchangeMaterialFactoryNode* MaterialFactoryNode = CreateMaterialFactoryNode(ShaderGraphNode))
 			{
 				//By default we do not create the materials, every node with mesh attribute can enable them. So we wont create unused materials.
-				MaterialFactoryNode->SetEnabled(false);
+				MaterialFactoryNode->SetEnabled(true);
 			}
 		}
 	}
@@ -179,6 +180,20 @@ bool UInterchangeGenericMaterialPipeline::IsLambertModel(const UInterchangeShade
 	const bool bHasDiffuseInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::DiffuseColor);
 
 	return bHasDiffuseInput;
+}
+
+bool UInterchangeGenericMaterialPipeline::IsStandardSurfaceModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+{
+	using namespace UE::Interchange::Materials;
+	FString ShaderType;
+	ShaderGraphNode->GetCustomShaderType(ShaderType);
+
+	if(ShaderType == StandardSurface::Name.ToString())
+	{
+		return true;
+	}
+
+	return false;
 }
 
 bool UInterchangeGenericMaterialPipeline::HandlePhongModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
@@ -380,6 +395,92 @@ bool UInterchangeGenericMaterialPipeline::HandlePBRModel(const UInterchangeShade
 	}
 
 	return bShadingModelHandled;
+}
+
+bool UInterchangeGenericMaterialPipeline::HandleStandardSurfaceModel(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
+{
+	if(IsStandardSurfaceModel(ShaderGraphNode))
+	{
+		UInterchangeMaterialExpressionFactoryNode* FunctionCallExpression = NewObject<UInterchangeMaterialExpressionFactoryNode>(BaseNodeContainer, NAME_None);
+		FunctionCallExpression->SetCustomExpressionClassName(UMaterialExpressionMaterialFunctionCall::StaticClass()->GetName());
+		FString FunctionCallExpressionUid = MaterialFactoryNode->GetUniqueID() + TEXT("StandardSurface");
+		FunctionCallExpression->InitializeNode(FunctionCallExpressionUid, TEXT("StandardSurface"), EInterchangeNodeContainerType::FactoryData);
+
+		BaseNodeContainer->AddNode(FunctionCallExpression);
+		BaseNodeContainer->SetNodeParentUid(FunctionCallExpressionUid, MaterialFactoryNode->GetUniqueID());
+
+		const FName MaterialFunctionMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialFunctionCall, MaterialFunction);
+
+		FunctionCallExpression->AddStringAttribute(
+			MaterialFunctionMemberName.ToString(),
+			TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'"));
+		FunctionCallExpression->AddApplyAndFillDelegates<FString>(MaterialFunctionMemberName.ToString(), UMaterialExpressionMaterialFunctionCall::StaticClass(), MaterialFunctionMemberName);
+
+		using namespace UE::Interchange::Materials;
+
+		auto ConnectMaterialExpressionOutputToInput = [&](const FString & InputName, bool bLinearParsingValue, bool bNormalParsingValue)
+		{
+			TGuardValue<bool> ParsingForLinearInputGuard(bParsingForLinearInput, bLinearParsingValue);
+			TGuardValue<bool> ParsingForNormalInputGuard(bParsingForNormalInput, bNormalParsingValue);
+
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, InputName, FunctionCallExpression->GetUniqueID());
+
+			if(ExpressionFactoryNode.Get<0>())
+			{
+				UInterchangeShaderPortsAPI::ConnectOuputToInput(FunctionCallExpression, InputName,
+																ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
+			}
+		};
+
+		using ArgumentsType = TTuple<FString, bool, bool>;
+		// TODO: We need to support all standard surface inputs
+		static ArgumentsType ArgumentsPerInputs[]
+		{
+			ArgumentsType{StandardSurface::Parameters::Base.ToString(), false, false},				// BaseWeight
+			ArgumentsType{StandardSurface::Parameters::BaseColor.ToString(), false, false},			// BaseColor
+			ArgumentsType{StandardSurface::Parameters::Metalness.ToString(), true, false},			// Metallic
+			ArgumentsType{StandardSurface::Parameters::Specular.ToString(), true, false},			// SpecularWeight
+			ArgumentsType{StandardSurface::Parameters::SpecularRoughness.ToString(), true, false},	// SpecularRoughness
+			ArgumentsType{StandardSurface::Parameters::Normal.ToString(), false, true}				// Normal
+		};
+
+		for(const ArgumentsType & Arguments : ArgumentsPerInputs)
+		{
+			const FString& InputName = Arguments.Get<0>();
+			bool bLinearParsingValue = Arguments.Get<1>();
+			bool bNormalParsingValue = Arguments.Get<2>();
+			ConnectMaterialExpressionOutputToInput(InputName, bLinearParsingValue, bNormalParsingValue);
+		}
+
+		MaterialFactoryNode->ConnectOutputToBaseColor(FunctionCallExpressionUid, PBR::Parameters::BaseColor.ToString());
+		MaterialFactoryNode->ConnectOutputToMetallic(FunctionCallExpressionUid, PBR::Parameters::Metallic.ToString());
+		MaterialFactoryNode->ConnectOutputToRoughness(FunctionCallExpressionUid, PBR::Parameters::Roughness.ToString());
+		MaterialFactoryNode->ConnectOutputToSpecular(FunctionCallExpressionUid, PBR::Parameters::Specular.ToString());
+		MaterialFactoryNode->ConnectOutputToNormal(FunctionCallExpressionUid, PBR::Parameters::Normal.ToString());
+
+		// We can't have all shading models at once, so we have to make a choice here
+		if(UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, StandardSurface::Parameters::Sheen))
+		{
+			MaterialFactoryNode->SetCustomShadingModel(MSM_Cloth);
+		}
+		else if(UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, StandardSurface::Parameters::Coat))
+		{
+			MaterialFactoryNode->SetCustomShadingModel(MSM_ClearCoat);
+		}
+		else if(UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, StandardSurface::Parameters::Subsurface))
+		{
+			MaterialFactoryNode->SetCustomShadingModel(MSM_Subsurface);
+		}
+		else
+		{
+			MaterialFactoryNode->SetCustomShadingModel(MSM_DefaultLit);
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 bool UInterchangeGenericMaterialPipeline::HandleClearCoat(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
@@ -1236,6 +1337,11 @@ TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> UInterchangeGenericM
 UInterchangeMaterialFactoryNode* UInterchangeGenericMaterialPipeline::CreateMaterialFactoryNode(const UInterchangeShaderGraphNode* ShaderGraphNode)
 {
 	UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>( CreateBaseMaterialFactoryNode(ShaderGraphNode, UInterchangeMaterialFactoryNode::StaticClass()) );
+
+	if(HandleStandardSurfaceModel(ShaderGraphNode, MaterialFactoryNode))
+	{
+		return MaterialFactoryNode;
+	}
 
 	if (!HandlePhongModel(ShaderGraphNode, MaterialFactoryNode))
 	{
