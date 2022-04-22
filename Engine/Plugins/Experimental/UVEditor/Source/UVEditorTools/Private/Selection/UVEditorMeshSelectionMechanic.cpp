@@ -426,12 +426,9 @@ void UUVEditorMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 		[this](UUVToolSelectionAPI::EUVEditorSelectionMode NewMode) {
 			SetSelectionMode(NewMode);
 		});
-	// Make sure we match the activated button
-	FModeChangeOptions ModeChangeOptions;
-	ModeChangeOptions.bEmitChanges = false;
-	SetSelectionMode(ViewportButtonsAPI->GetSelectionMode(), 
-		ModeChangeOptions); // convert, broadcast, don't emit
 
+	// Make sure we match the activated button
+	SelectionMode = ViewportButtonsAPI->GetSelectionMode();
 	SetIsEnabled(bIsEnabled);
 }
 
@@ -571,11 +568,17 @@ void UUVEditorMeshSelectionMechanic::SetSelectionMode(
 	using namespace UVEditorMeshSelectionMechanicLocals;
 
 	ESelectionMode OldMode = SelectionMode;
-	if (OldMode == TargetMode || !SelectionAPI)
+	if (OldMode == TargetMode)
 	{
 		return;
 	}
 	SelectionMode = TargetMode;
+
+	if (SelectionAPI == nullptr)
+	{
+		return; // From this point on, if we don't have a SelectionAPI assigned yet, we won't do anything further for this.
+		        // This might happen during initialization.
+	}
 
 	if (ViewportButtonsAPI)
 	{
