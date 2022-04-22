@@ -235,8 +235,8 @@ class TimecodeViewController : UITableViewController {
                     let tentacleCell = tableView.dequeueReusableCell(withIdentifier: "tentaclePeripheral") as! TentaclePeripheralTableViewCell
                     tentacleCell.nameLabel.text = Tentacle.nameString(advertisement: &device.advertisement)
                     tentacleCell.checkImageView.isHidden = !isSelected
-                    tentacleCell.batteryImageView.image = isCurrent ? TentacleIcon.tentacleBatteryIcon(forPercent: UInt(device.advertisement.battery)) : nil
-                    tentacleCell.signalImageView.image = isCurrent ? TentacleIcon.tentacleSignalStrengthIcon(forRssiValue: Int(device.advertisement.rssi), linkMode: device.advertisement.linkMode) : TentacleIcon.tentacleSignalStrengthIcon(with: 0)
+                    tentacleCell.batteryImageView.image = isCurrent ? TentacleIcon.batteryIcon(forPercent: UInt(device.advertisement.battery)) : nil
+                    tentacleCell.signalImageView.image = isCurrent ? TentacleIcon.signalStrengthIcon(forRssiValue: Int(device.advertisement.rssi)) : TentacleIcon.signalStrengthIcon(with: 0)
 
                     cell = tentacleCell
                 }
@@ -392,7 +392,7 @@ extension TimecodeViewController : TentacleDelegate {
                 if Tentacle.devicesIdentical(d, device) {
 
                     if d.advertisement.battery != device.advertisement.battery ||
-                        TentacleIcon.tentacleSignalStrengthIcon(forRssiValue: Int(d.advertisement.rssi), linkMode: d.advertisement.linkMode).hashValue != TentacleIcon.tentacleSignalStrengthIcon(forRssiValue: Int(device.advertisement.rssi), linkMode: device.advertisement.linkMode).hashValue ||
+                        TentacleIcon.signalStrengthIcon(forRssiValue:Int(d.advertisement.rssi)).hashValue != TentacleIcon.signalStrengthIcon(forRssiValue: Int(device.advertisement.rssi)).hashValue ||
                         Tentacle.nameString(advertisement: &d.advertisement) != Tentacle.nameString(advertisement: &device.advertisement) {
                         self.tentacleDevices[i] = device
                         self.tableView.reloadRows(at: [ IndexPath(row: i + 1, section: 0) ], with: .none)

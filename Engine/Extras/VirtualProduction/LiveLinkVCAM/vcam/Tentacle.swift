@@ -126,7 +126,7 @@ class Tentacle : NSObject {
         let timecode  = TentacleTimecodeAtTimestamp(device.timecode, frameRate, dropFrame, timestamp);
 
         let stringPointer = initStringPointer(capacity: TENTACLE_TIMECODE_STRING_LENGTH)
-        TentacleTimecodeString(timecode, dropFrame, stringPointer)
+        TentacleTimecodeString(timecode, frameRate, dropFrame, stringPointer)
         return String(cString: stringPointer)
     }
 }
@@ -134,7 +134,7 @@ class Tentacle : NSObject {
 
 extension Tentacle : TentacleBluetoothControllerDelegate {
 
-    func didReceiveAdvertisment(forDeviceIndex deviceIndex: Int) {
+    func didReceiveAdvertisement(forDeviceIndex deviceIndex: Int) {
 
         
         var device = TentacleDeviceCacheGetDevice(Int32(deviceIndex))

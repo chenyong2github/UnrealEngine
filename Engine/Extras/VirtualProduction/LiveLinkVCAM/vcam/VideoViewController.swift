@@ -454,6 +454,8 @@ class VideoViewController : BaseViewController {
     
     func sendOSCAddressPattern(_ pattern : OSCAddressPattern, point : CGPoint, finger : Int, force : CGFloat) {
 
+        Log.debug("\(pattern.rawValue) finger \(finger) @ \(point.x),\(point.y)")
+        
         guard let textureAspectRatio = self.pixelBufferAspectRatio else { return }
 
         // we need to adjust for the size of the top toolbar in the view : this toolbar is *over* the
@@ -536,8 +538,9 @@ class VideoViewController : BaseViewController {
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
 
         guard relayTouchEvents else { return }
-        
+
         for touch in touches {
+            
             
             if let fingerIndex = self.currentTouches.firstIndex(of: touch) {
                 self.sendOSCAddressPattern(OSCAddressPattern.touchEnded, point: touch.location(in: self.arView), finger: fingerIndex, force: touch.force)
@@ -549,7 +552,9 @@ class VideoViewController : BaseViewController {
         
         // compress the array : remove all nils from the end
         if let lastNonNilIndex = self.currentTouches.lastIndex(where: { $0 != nil }) {
-            self.currentTouches.removeSubrange(lastNonNilIndex..<self.currentTouches.count)
+            if lastNonNilIndex < (self.currentTouches.count - 1)  {
+                self.currentTouches.removeSubrange((lastNonNilIndex + 1)..<self.currentTouches.count)
+            }
         } else {
             self.currentTouches.removeAll()
         }

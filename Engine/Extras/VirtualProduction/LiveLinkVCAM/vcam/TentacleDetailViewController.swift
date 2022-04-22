@@ -44,7 +44,7 @@ class TentacleDetailViewController : UIViewController {
         isActive = Tentacle.devicesIdentical(self.device, Tentacle.shared?.activeDevice)
         
         self.navigationItem.title = Tentacle.nameString(advertisement: &self.device.advertisement)
-        iconImageView.image = TentacleIcon.tentacleIcon(with: UInt(self.device.advertisement.icon))
+        iconImageView.image = TentacleIcon.deviceIcon(with: UInt(self.device.advertisement.icon), productId: self.device.advertisement.productId)
         uuidLabel.text = Tentacle.advertisementIdString(advertisement: self.device.advertisement)
     }
     

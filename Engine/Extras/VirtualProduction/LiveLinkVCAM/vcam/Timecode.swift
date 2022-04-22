@@ -153,7 +153,7 @@ func clockFrequency() -> Double {
         source = timecodeSource
         valid = true
 
-        hours = Int32(timeInterval / 3600.0)
+        hours = Int32(timeInterval / 3600.0) % 24
         minutes = Int32(UInt64(timeInterval / 60.0) % 60)
         seconds = Int32(UInt64(timeInterval) % 60)
         
