@@ -1119,7 +1119,7 @@ namespace BlueprintEditorPromotionTestHelper
 
 				Test->AddInfo(TEXT("Promoted the return pin on the add mesh node to a variable"));
 
-				const FName OldVarName(TEXT("NewVar_0")); // Default variable name
+				const FName OldVarName(TEXT("NewVar")); // Default variable name
 				const FName NewVarName(TEXT("MyMesh"));
 				FBlueprintEditorUtils::RenameMemberVariable(BlueprintObject, OldVarName, NewVarName);
 				Test->TestNotEqual(TEXT("New variable was renamed"), FBlueprintEditorUtils::FindMemberVariableGuidByName(BlueprintObject, OldVarName), FBlueprintEditorUtils::FindMemberVariableGuidByName(BlueprintObject, NewVarName));
