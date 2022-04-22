@@ -256,7 +256,7 @@ IPooledRenderTarget* FSubsurfaceProfileTexture::GetSSProfilesPreIntegratedTextur
 	int32 SSProfilesPreIntegratedTextureResolution = FMath::RoundUpToPowerOfTwo(FMath::Max(CVarSSProfilesPreIntegratedTextureResolution.GetValueOnAnyThread(), 32));
 	
 	// Generate the new preintegrated texture if needed.
-	if (!GSSProfilesPreIntegratedTexture || 
+	if (!GSSProfilesPreIntegratedTexture ||
 		GSSProfilesPreIntegratedTexture->GetDesc().Extent != SSProfilesPreIntegratedTextureResolution ||
 		ForceUpdateSSProfilesPreIntegratedTexture())
 	{
