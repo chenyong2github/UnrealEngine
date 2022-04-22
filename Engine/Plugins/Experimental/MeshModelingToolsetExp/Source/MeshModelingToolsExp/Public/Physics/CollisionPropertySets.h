@@ -132,6 +132,9 @@ public:
 	bool bShowHidden = false;
 
 	UPROPERTY(EditAnywhere, Category = "Collision Visualization")
+	bool bRandomColors = true;
+
+	UPROPERTY(EditAnywhere, Category = "Collision Visualization", meta = (EditCondition = "!bRandomColors"))
 	FColor Color = FColor::Red;
 };
 

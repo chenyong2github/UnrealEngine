@@ -9,6 +9,7 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "DynamicSubmesh3.h"
 #include "Polygroups/PolygroupUtil.h"
+#include "Util/ColorConstants.h"
 
 #include "ShapeApproximation/ShapeDetection3.h"
 #include "ShapeApproximation/MeshSimpleShapeApproximation.h"
@@ -233,6 +234,7 @@ void USetCollisionGeometryTool::Setup()
 	AddToolPropertySource(VizSettings);
 	VizSettings->WatchProperty(VizSettings->LineThickness, [this](float NewValue) { bVisualizationDirty = true; });
 	VizSettings->WatchProperty(VizSettings->Color, [this](FColor NewValue) { bVisualizationDirty = true; });
+	VizSettings->WatchProperty(VizSettings->bRandomColors, [this](bool bNewValue) { bVisualizationDirty = true; });
 	VizSettings->WatchProperty(VizSettings->bShowHidden, [this](bool bNewValue) { bVisualizationDirty = true; });
 
 	// add option for collision properties
@@ -419,7 +421,7 @@ void USetCollisionGeometryTool::OnTick(float DeltaTime)
 				// update visualization
 				PreviewGeom->RemoveAllLineSets();
 				UE::PhysicsTools::InitializePreviewGeometryLines(*GeneratedCollision, PreviewGeom,
-					VizSettings->Color, VizSettings->LineThickness, 0.0f, 16);
+					VizSettings->Color, VizSettings->LineThickness, 0.0f, 16, VizSettings->bRandomColors);
 
 				// update property set
 				CollisionProps->Reset();
@@ -504,10 +506,11 @@ void USetCollisionGeometryTool::UpdateVisualization()
 {
 	float UseThickness = VizSettings->LineThickness;
 	FColor UseColor = VizSettings->Color;
+	int32 ColorIdx = 0;
 	PreviewGeom->UpdateAllLineSets([&](ULineSetComponent* LineSet)
 	{
 		LineSet->SetAllLinesThickness(UseThickness);
-		LineSet->SetAllLinesColor(UseColor);
+		LineSet->SetAllLinesColor(VizSettings->bRandomColors ? LinearColors::SelectFColor(ColorIdx++) : UseColor);
 	});
 
 	LineMaterial = ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager(), !VizSettings->bShowHidden);

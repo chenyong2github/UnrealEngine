@@ -14,7 +14,7 @@ namespace UE
 		 * Spheres and Capsules are drawn as 3-axis wireframes. Convexes are added as wireframes.
 		 */
 		void MESHMODELINGTOOLSEXP_API InitializePreviewGeometryLines(const FPhysicsDataCollection& PhysicsData, UPreviewGeometry* PreviewGeom,
-			const FColor& LineColor, float LineThickness, float DepthBias = 0.0, int32 CircleStepResolution = 16 );
+			const FColor& LineColor, float LineThickness, float DepthBias = 0.0, int32 CircleStepResolution = 16, bool bRandomColors = true );
 	}
 }
 

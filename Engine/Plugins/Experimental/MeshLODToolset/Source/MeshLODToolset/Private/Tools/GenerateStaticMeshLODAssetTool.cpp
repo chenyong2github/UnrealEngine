@@ -14,6 +14,7 @@
 #include "DynamicMeshEditor.h"
 #include "DynamicMesh/MeshTransforms.h"
 #include "DynamicMesh/MeshTangents.h"
+#include "Util/ColorConstants.h"
 
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMeshToMeshDescription.h"
@@ -402,7 +403,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 		PhysicsData.CopyGeometryToAggregate();
 		UE::PhysicsTools::InitializePreviewGeometryLines(PhysicsData,
 														 CollisionPreview,
-														 CollisionVizSettings->Color, CollisionVizSettings->LineThickness, 0.0f, 16);
+														 CollisionVizSettings->Color, CollisionVizSettings->LineThickness, 0.0f, 16, CollisionVizSettings->bRandomColors);
 
 		// Must happen on main thread, and GenerateProcess might be in use by an Op somewhere else
 		GenerateProcess->GraphEvalCriticalSection.Lock();
@@ -430,6 +431,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	AddToolPropertySource(CollisionVizSettings);
 	CollisionVizSettings->WatchProperty(CollisionVizSettings->LineThickness, [this](float NewValue) { bCollisionVisualizationDirty = true; });
 	CollisionVizSettings->WatchProperty(CollisionVizSettings->Color, [this](FColor NewValue) { bCollisionVisualizationDirty = true; });
+	CollisionVizSettings->WatchProperty(CollisionVizSettings->bRandomColors, [this](bool bNewValue) { bCollisionVisualizationDirty = true; });
 	CollisionVizSettings->WatchProperty(CollisionVizSettings->bShowHidden, [this](bool bNewValue) { bCollisionVisualizationDirty = true; });
 
 	CollisionPreview = NewObject<UPreviewGeometry>(this);
@@ -533,10 +535,11 @@ void UGenerateStaticMeshLODAssetTool::UpdateCollisionVisualization()
 	FColor UseColor = CollisionVizSettings->Color;
 	LineMaterial = ToolSetupUtil::GetDefaultLineComponentMaterial(GetToolManager(), !CollisionVizSettings->bShowHidden);
 
+	int32 ColorIdx = 0;
 	CollisionPreview->UpdateAllLineSets([&](ULineSetComponent* LineSet)
 	{
 		LineSet->SetAllLinesThickness(UseThickness);
-		LineSet->SetAllLinesColor(UseColor);
+		LineSet->SetAllLinesColor(CollisionVizSettings->bRandomColors ? LinearColors::SelectFColor(ColorIdx++) : UseColor);
 	});
 	CollisionPreview->SetAllLineSetsMaterial(LineMaterial);
 }
