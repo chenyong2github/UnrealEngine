@@ -16,11 +16,17 @@
 #pragma warning(disable : 4324)
 #endif
 
+#include "ThirdPartyWarningDisabler.h" // WITH_UE
+NNI_THIRD_PARTY_INCLUDES_START
+#undef TEXT
+#undef check
+
 #include <absl/container/flat_hash_set.h>
 #include <absl/container/flat_hash_map.h>
 
 #include <absl/container/node_hash_set.h>
 #include <absl/container/node_hash_map.h>
+NNI_THIRD_PARTY_INCLUDES_END // WITH_UE
 
 #ifdef _MSC_VER
 #pragma warning(pop)
