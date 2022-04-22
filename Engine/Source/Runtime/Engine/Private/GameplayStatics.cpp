@@ -2406,37 +2406,44 @@ FMemoryReader UGameplayStatics::StripSaveGameHeader(const TArray<uint8>& SaveDat
 	return MemoryReader;
 }
 
-float UGameplayStatics::GetWorldDeltaSeconds(const UObject* WorldContextObject)
+double UGameplayStatics::GetWorldDeltaSeconds(const UObject* WorldContextObject)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	return World ? World->GetDeltaSeconds() : 0.f;
+	return World ? World->GetDeltaSeconds() : 0.0;
 }
 
-float UGameplayStatics::GetTimeSeconds(const UObject* WorldContextObject)
+double UGameplayStatics::GetTimeSeconds(const UObject* WorldContextObject)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	return World ? World->GetTimeSeconds() : 0.f;
+	return World ? World->GetTimeSeconds() : 0.0;
 }
 
-float UGameplayStatics::GetUnpausedTimeSeconds(const UObject* WorldContextObject)
+double UGameplayStatics::GetUnpausedTimeSeconds(const UObject* WorldContextObject)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	return World ? World->GetUnpausedTimeSeconds() : 0.f;
+	return World ? World->GetUnpausedTimeSeconds() : 0.0;
 }
 
-float UGameplayStatics::GetRealTimeSeconds(const UObject* WorldContextObject)
+double UGameplayStatics::GetRealTimeSeconds(const UObject* WorldContextObject)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	return World ? World->GetRealTimeSeconds() : 0.f;
+	return World ? World->GetRealTimeSeconds() : 0.0;
 }
 
-float UGameplayStatics::GetAudioTimeSeconds(const UObject* WorldContextObject)
+double UGameplayStatics::GetAudioTimeSeconds(const UObject* WorldContextObject)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	return World ? World->GetAudioTimeSeconds() : 0.f;
+	return World ? World->GetAudioTimeSeconds() : 0.0;
 }
 
 void UGameplayStatics::GetAccurateRealTime(int32& Seconds, float& PartialSeconds)
+{
+	double TimeSeconds = FPlatformTime::Seconds() - GStartTime;
+	Seconds = floor(TimeSeconds);
+	PartialSeconds = TimeSeconds - double(Seconds);
+}
+
+void UGameplayStatics::GetAccurateRealTime(int32& Seconds, double& PartialSeconds)
 {
 	double TimeSeconds = FPlatformTime::Seconds() - GStartTime;
 	Seconds = floor(TimeSeconds);

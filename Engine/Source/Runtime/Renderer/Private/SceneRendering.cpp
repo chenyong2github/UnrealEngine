@@ -2673,7 +2673,7 @@ FSceneRenderer::FSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilie
 		// rendering differences in materials.
 		if (bAnyViewIsLocked)
 		{
-			ViewFamily.Time = FGameTime::CreateDilated(0.0f, ViewFamily.Time.GetDeltaRealTimeSeconds(), 0.0f, ViewFamily.Time.GetDeltaWorldTimeSeconds());
+			ViewFamily.Time = FGameTime::CreateDilated(0.0, ViewFamily.Time.GetDeltaRealTimeSeconds(), 0.0, ViewFamily.Time.GetDeltaWorldTimeSeconds());
 		}
 
 		if (HitProxyConsumer)

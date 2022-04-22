@@ -142,13 +142,11 @@ private:
 /** Contains all the timings of a gaming frame, to handle pause and time dilation (for instance bullet time) of the world. */
 struct ENGINE_API FGameTime
 {
-	using FTimeType = float;
-
 	FORCEINLINE_DEBUGGABLE FGameTime()
-		: RealTimeSeconds(FTimeType(0))
-		, WorldTimeSeconds(FTimeType(0))
-		, DeltaRealTimeSeconds(FTimeType(0))
-		, DeltaWorldTimeSeconds(FTimeType(0))
+		: RealTimeSeconds(0.0)
+		, WorldTimeSeconds(0.0)
+		, DeltaRealTimeSeconds(0.0f)
+		, DeltaWorldTimeSeconds(0.0f)
 	{ }
 
 	FGameTime(const FGameTime&) = default;
@@ -157,36 +155,36 @@ struct ENGINE_API FGameTime
 	// Returns the game time since GStartTime.
 	static FGameTime GetTimeSinceAppStart();
 
-	static FORCEINLINE_DEBUGGABLE FGameTime CreateUndilated(FTimeType InRealTimeSeconds, FTimeType InDeltaRealTimeSeconds)
+	static FORCEINLINE_DEBUGGABLE FGameTime CreateUndilated(double InRealTimeSeconds, float InDeltaRealTimeSeconds)
 	{
 		return FGameTime::CreateDilated(InRealTimeSeconds, InDeltaRealTimeSeconds, InRealTimeSeconds, InDeltaRealTimeSeconds);
 	}
 
-	static FORCEINLINE_DEBUGGABLE FGameTime CreateDilated(FTimeType InRealTimeSeconds, FTimeType InDeltaRealTimeSeconds, FTimeType InWorldTimeSeconds, FTimeType InDeltaWorldTimeSeconds)
+	static FORCEINLINE_DEBUGGABLE FGameTime CreateDilated(double InRealTimeSeconds, float InDeltaRealTimeSeconds, double InWorldTimeSeconds, float InDeltaWorldTimeSeconds)
 	{
 		return FGameTime(InRealTimeSeconds, InDeltaRealTimeSeconds, InWorldTimeSeconds, InDeltaWorldTimeSeconds);
 	}
 
 	/** Returns time in seconds since level began play, but IS NOT paused when the game is paused, and IS NOT dilated/clamped. */
-	FORCEINLINE_DEBUGGABLE FTimeType GetRealTimeSeconds() const
+	FORCEINLINE_DEBUGGABLE double GetRealTimeSeconds() const
 	{
 		return RealTimeSeconds;
 	}
 
 	/** Returns frame delta time in seconds with no adjustment for time dilation and pause. */
-	FORCEINLINE_DEBUGGABLE FTimeType GetDeltaRealTimeSeconds() const
+	FORCEINLINE_DEBUGGABLE float GetDeltaRealTimeSeconds() const
 	{
 		return DeltaRealTimeSeconds;
 	}
 
 	/** Returns time in seconds since level began play, but IS paused when the game is paused, and IS dilated/clamped. */
-	FORCEINLINE_DEBUGGABLE FTimeType GetWorldTimeSeconds() const
+	FORCEINLINE_DEBUGGABLE double GetWorldTimeSeconds() const
 	{
 		return WorldTimeSeconds;
 	}
 
 	/** Returns frame delta time in seconds adjusted by e.g. time dilation. */
-	FORCEINLINE_DEBUGGABLE FTimeType GetDeltaWorldTimeSeconds() const
+	FORCEINLINE_DEBUGGABLE float GetDeltaWorldTimeSeconds() const
 	{
 		return DeltaWorldTimeSeconds;
 	}
@@ -194,24 +192,24 @@ struct ENGINE_API FGameTime
 	/** Returns how much world time is slowed compared to real time. */
 	FORCEINLINE_DEBUGGABLE float GetTimeDilation() const
 	{
-		ensure(DeltaRealTimeSeconds > FTimeType(0));
-		return float(DeltaWorldTimeSeconds / DeltaRealTimeSeconds);
+		ensure(DeltaRealTimeSeconds > 0.0f);
+		return DeltaWorldTimeSeconds / DeltaRealTimeSeconds;
 	}
 
 	/** Returns whether the world time is paused. */
 	FORCEINLINE_DEBUGGABLE bool IsPaused() const
 	{
-		return DeltaWorldTimeSeconds == FTimeType(0);
+		return DeltaWorldTimeSeconds == 0.0f;
 	}
 
 private:
-	FTimeType RealTimeSeconds;
-	FTimeType WorldTimeSeconds;
+	double RealTimeSeconds;
+	double WorldTimeSeconds;
 
-	FTimeType DeltaRealTimeSeconds;
-	FTimeType DeltaWorldTimeSeconds;
+	float DeltaRealTimeSeconds;
+	float DeltaWorldTimeSeconds;
 
-	FORCEINLINE_DEBUGGABLE FGameTime(FTimeType InRealTimeSeconds, FTimeType InDeltaRealTimeSeconds, FTimeType InWorldTimeSeconds, FTimeType InDeltaWorldTimeSeconds)
+	FORCEINLINE_DEBUGGABLE FGameTime(double InRealTimeSeconds, float InDeltaRealTimeSeconds, double InWorldTimeSeconds, float InDeltaWorldTimeSeconds)
 		: RealTimeSeconds(InRealTimeSeconds)
 		, WorldTimeSeconds(InWorldTimeSeconds)
 		, DeltaRealTimeSeconds(InDeltaRealTimeSeconds)
@@ -337,7 +335,7 @@ private:
 	/** The context we are running in. Can be used to get the FWorldContext from Engine*/
 	FName WorldContextHandle;
 	/** Real time which we started traveling at  */
-	double SeamlessTravelStartTime = 0.f;
+	double SeamlessTravelStartTime = 0.0;
 
 	/** copy data between the old world and the new world */
 	void CopyWorldData();
@@ -1209,7 +1207,7 @@ public:
 	/** Cached view information from the last rendered frame. */
 	TArray<FWorldCachedViewInfo>				CachedViewInfoRenderedLastFrame;
 	/** WorldTimeSeconds when this world was last rendered. */
-	float										LastRenderTime = 0.0f;
+	double										LastRenderTime = 0.0;
 
 	/** The current renderer feature level of this world */
 	TEnumAsByte<ERHIFeatureLevel::Type> FeatureLevel;
@@ -1779,16 +1777,16 @@ public:
 	double LastTimeUnbuiltLightingWasEncountered;
 
 	/**  Time in seconds since level began play, but IS paused when the game is paused, and IS dilated/clamped. */
-	float TimeSeconds;
+	double TimeSeconds;
 
 	/**  Time in seconds since level began play, but IS NOT paused when the game is paused, and IS dilated/clamped. */
-	float UnpausedTimeSeconds;
+	double UnpausedTimeSeconds;
 
 	/** Time in seconds since level began play, but IS NOT paused when the game is paused, and IS NOT dilated/clamped. */
-	float RealTimeSeconds;
+	double RealTimeSeconds;
 
 	/** Time in seconds since level began play, but IS paused when the game is paused, and IS NOT dilated/clamped. */
-	float AudioTimeSeconds;
+	double AudioTimeSeconds;
 
 	/** Frame delta time in seconds with no adjustment for time dilation. */
 	float DeltaRealTimeSeconds;
@@ -1797,7 +1795,7 @@ public:
 	float DeltaTimeSeconds;
 
 	/** time at which to start pause **/
-	float PauseDelay;
+	double PauseDelay;
 
 	/** Current location of this world origin */
 	FIntVector OriginLocation;
@@ -2599,28 +2597,28 @@ public:
 	 *
 	 * @return time in seconds since world was brought up for play
 	 */
-	float GetTimeSeconds() const;
+	double GetTimeSeconds() const;
 
 	/**
 	* Returns time in seconds since world was brought up for play, IS NOT stopped when game pauses, IS dilated/clamped
 	*
 	* @return time in seconds since world was brought up for play
 	*/
-	float GetUnpausedTimeSeconds() const;
+	double GetUnpausedTimeSeconds() const;
 
 	/**
 	* Returns time in seconds since world was brought up for play, does NOT stop when game pauses, NOT dilated/clamped
 	*
 	* @return time in seconds since world was brought up for play
 	*/
-	float GetRealTimeSeconds() const;
+	double GetRealTimeSeconds() const;
 
 	/**
 	* Returns time in seconds since world was brought up for play, IS stopped when game pauses, NOT dilated/clamped
 	*
 	* @return time in seconds since world was brought up for play
 	*/
-	float GetAudioTimeSeconds() const;
+	double GetAudioTimeSeconds() const;
 
 	/**
 	 * Returns the frame delta time in seconds adjusted by e.g. time dilation.
@@ -2637,7 +2635,7 @@ public:
 	FGameTime GetTime() const;
 
 	/** Helper for getting the time since a certain time. */
-	float TimeSince( float Time ) const;
+	double TimeSince(double Time) const;
 
 	/** Creates a new physics scene for this world. */
 	void CreatePhysicsScene(const AWorldSettings* Settings = nullptr);
@@ -4254,23 +4252,23 @@ private:
 //////////////////////////////////////////////////////////////////////////
 // UWorld inlines:
 
-FORCEINLINE_DEBUGGABLE float UWorld::GetTimeSeconds() const
+FORCEINLINE_DEBUGGABLE double UWorld::GetTimeSeconds() const
 {
 	return TimeSeconds;
 }
 
-FORCEINLINE_DEBUGGABLE float UWorld::GetUnpausedTimeSeconds() const
+FORCEINLINE_DEBUGGABLE double UWorld::GetUnpausedTimeSeconds() const
 {
 	return UnpausedTimeSeconds;
 }
 
-FORCEINLINE_DEBUGGABLE float UWorld::GetRealTimeSeconds() const
+FORCEINLINE_DEBUGGABLE double UWorld::GetRealTimeSeconds() const
 {
 	checkSlow(!IsInActualRenderingThread());
 	return RealTimeSeconds;
 }
 
-FORCEINLINE_DEBUGGABLE float UWorld::GetAudioTimeSeconds() const
+FORCEINLINE_DEBUGGABLE double UWorld::GetAudioTimeSeconds() const
 {
 	return AudioTimeSeconds;
 }
@@ -4287,7 +4285,7 @@ FORCEINLINE_DEBUGGABLE FGameTime UWorld::GetTime() const
 		TimeSeconds, DeltaTimeSeconds);
 }
 
-FORCEINLINE_DEBUGGABLE float UWorld::TimeSince(float Time) const
+FORCEINLINE_DEBUGGABLE double UWorld::TimeSince(double Time) const
 {
 	return GetTimeSeconds() - Time;
 }

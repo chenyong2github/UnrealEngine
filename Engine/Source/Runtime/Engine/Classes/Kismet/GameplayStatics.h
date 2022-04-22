@@ -1155,27 +1155,30 @@ public:
 
 	/** Returns the frame delta time in seconds, adjusted by time dilation. */
 	UFUNCTION(BlueprintPure, Category = "Utilities|Time", meta = (WorldContext="WorldContextObject"))
-	static float GetWorldDeltaSeconds(const UObject* WorldContextObject);
+	static double GetWorldDeltaSeconds(const UObject* WorldContextObject);
 
 	/** Returns time in seconds since world was brought up for play, adjusted by time dilation and IS stopped when game pauses */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject"))
-	static float GetTimeSeconds(const UObject* WorldContextObject);
+	static double GetTimeSeconds(const UObject* WorldContextObject);
 
 	/** Returns time in seconds since world was brought up for play, adjusted by time dilation and IS NOT stopped when game pauses */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject"))
-	static float GetUnpausedTimeSeconds(const UObject* WorldContextObject);
+	static double GetUnpausedTimeSeconds(const UObject* WorldContextObject);
 
 	/** Returns time in seconds since world was brought up for play, does NOT stop when game pauses, NOT dilated/clamped */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject"))
-	static float GetRealTimeSeconds(const UObject* WorldContextObject);
+	static double GetRealTimeSeconds(const UObject* WorldContextObject);
 	
 	/** Returns time in seconds since world was brought up for play, IS stopped when game pauses, NOT dilated/clamped. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject"))
-	static float GetAudioTimeSeconds(const UObject* WorldContextObject);
+	static double GetAudioTimeSeconds(const UObject* WorldContextObject);
+
+	UE_DEPRECATED(5.1, "This method has been deprecated and will be removed. Use the double version instead.")
+	static void GetAccurateRealTime(int32& Seconds, float& PartialSeconds);
 
 	/** Returns time in seconds since the application was started. Unlike the other time functions this is accurate to the exact time this function is called instead of set once per frame. */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time")
-	static void GetAccurateRealTime(int32& Seconds, float& PartialSeconds);
+	static void GetAccurateRealTime(int32& Seconds, double& PartialSeconds);
 
 	/*~ DVRStreaming API */
 	

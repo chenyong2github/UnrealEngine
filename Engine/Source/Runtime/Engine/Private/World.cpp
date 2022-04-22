@@ -4729,10 +4729,10 @@ void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime, FRegist
 	// Don't reset time for seamless world transitions.
 	if (bResetTime)
 	{
-		TimeSeconds = 0.0f;
-		UnpausedTimeSeconds = 0.0f;
-		RealTimeSeconds = 0.0f;
-		AudioTimeSeconds = 0.0f;
+		TimeSeconds = 0.0;
+		UnpausedTimeSeconds = 0.0;
+		RealTimeSeconds = 0.0;
+		AudioTimeSeconds = 0.0;
 	}
 
 	// Get URL Options

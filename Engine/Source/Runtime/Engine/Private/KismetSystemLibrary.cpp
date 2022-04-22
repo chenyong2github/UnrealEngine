@@ -199,10 +199,10 @@ bool UKismetSystemLibrary::DoesImplementInterface(const UObject* TestObject, TSu
 	return false;
 }
 
-float UKismetSystemLibrary::GetGameTimeInSeconds(const UObject* WorldContextObject)
+double UKismetSystemLibrary::GetGameTimeInSeconds(const UObject* WorldContextObject)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	return World ? World->GetTimeSeconds() : 0.f;
+	return World ? World->GetTimeSeconds() : 0.0;
 }
 
 int64 UKismetSystemLibrary::GetFrameCount()

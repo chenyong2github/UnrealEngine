@@ -258,9 +258,9 @@ void FWidgetRenderer::DrawWindow(
 			FRenderThreadUpdateContext RenderThreadUpdateContext =
 			{
 				&(ScopedDrawBuffer.GetDrawBuffer()),
-				static_cast<float>(FApp::GetCurrentTime() - GStartTime),
+				(FApp::GetCurrentTime() - GStartTime),
 				static_cast<float>(FApp::GetDeltaTime()),
-				static_cast<float>(FPlatformTime::Seconds() - GStartTime),
+				(FPlatformTime::Seconds() - GStartTime),
 				static_cast<float>(FApp::GetDeltaTime()),
 				RenderTarget,
 				Renderer.Get(),
@@ -321,9 +321,9 @@ bool FWidgetRenderer::DrawInvalidationRoot(TSharedRef<SVirtualWindow>& VirtualWi
 				FRenderThreadUpdateContext RenderThreadUpdateContext =
 				{
 					&(ScopedDrawBuffer.GetDrawBuffer()),
-					static_cast<float>(FApp::GetCurrentTime() - GStartTime),
+					(FApp::GetCurrentTime() - GStartTime),
 					static_cast<float>(FApp::GetDeltaTime()),
-					static_cast<float>(FPlatformTime::Seconds() - GStartTime),
+					(FPlatformTime::Seconds() - GStartTime),
 					static_cast<float>(FApp::GetDeltaTime()),
 					static_cast<FRenderTarget*>(RenderTarget->GameThread_GetRenderTargetResource()),
 					Renderer.Get(),

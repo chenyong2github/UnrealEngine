@@ -2732,7 +2732,7 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	int32 Value = CVarRenderTimeFrozen.GetValueOnAnyThread();
 	if(Value)
 	{
-		Time = FGameTime::CreateDilated(0.0f, Time.GetDeltaRealTimeSeconds(), 0.0f, Time.GetDeltaWorldTimeSeconds());
+		Time = FGameTime::CreateDilated(0.0, Time.GetDeltaRealTimeSeconds(), 0.0, Time.GetDeltaWorldTimeSeconds());
 	}
 
 	DebugViewShaderMode = ChooseDebugViewShaderMode();

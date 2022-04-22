@@ -130,7 +130,7 @@ public:
 	 * on the game thread is unaffected.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Screenshot", meta=(editcondition = "bOverride_OverrideTimeTo"))
-	float OverrideTimeTo;
+	double OverrideTimeTo;
 
 	/**
 	 * Disables Anti-Aliasing, Motion Blur, Screen Space Reflections, Eye Adaptation, Tonemapper and Contact

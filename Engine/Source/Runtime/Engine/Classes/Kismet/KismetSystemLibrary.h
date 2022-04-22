@@ -193,7 +193,7 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 	 * @param WorldContextObject	World context
 	 */
 	UFUNCTION(BlueprintPure, Category="Utilities|Time", meta=(WorldContext="WorldContextObject") )
-	static float GetGameTimeInSeconds(const UObject* WorldContextObject);
+	static double GetGameTimeInSeconds(const UObject* WorldContextObject);
 
 	/** Returns the value of GFrameCounter, a running count of the number of frames that have occurred. */
 	UFUNCTION(BlueprintPure, Category = "Utilities")
