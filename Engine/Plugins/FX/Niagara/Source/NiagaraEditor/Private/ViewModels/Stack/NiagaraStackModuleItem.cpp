@@ -143,10 +143,10 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 	bIsScratchModuleCache.Reset();
 	DisplayNameCache.Reset();
 
-	if (FunctionCallNode != nullptr && FunctionCallNode->ScriptIsValid())
+	if (FunctionCallNode != nullptr && (FunctionCallNode->HasValidScriptAndGraph() || FunctionCallNode->Signature.IsValid()))
 	{
 		// Determine if meta-data requires that we add our own refresh button here.
-		if (FunctionCallNode->FunctionScript)
+		if (FunctionCallNode->HasValidScriptAndGraph())
 		{
 			UNiagaraGraph* Graph = FunctionCallNode->GetCalledGraph();
 			const TMap<FNiagaraVariable, TObjectPtr<UNiagaraScriptVariable>>& MetaDataMap = Graph->GetAllMetaData();
@@ -867,7 +867,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 				false));
 		}
 	}
-	else if (!FunctionCallNode->ScriptIsValid())
+	else if (FunctionCallNode->HasValidScriptAndGraph() == false && FunctionCallNode->Signature.IsValid() == false)
 	{
 		FStackIssue InvalidScriptError(
 			EStackIssueSeverity::Error,

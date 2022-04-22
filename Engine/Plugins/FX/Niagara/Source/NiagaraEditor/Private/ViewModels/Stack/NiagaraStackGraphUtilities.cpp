@@ -1801,9 +1801,9 @@ UNiagaraNodeFunctionCall* FNiagaraStackGraphUtilities::AddScriptModuleToStack(FA
 	NewModuleNode->FunctionScriptAssetObjectPath = ModuleScriptAsset.ObjectPath;
 	ModuleNodeCreator.Finalize();
 
-	if (NewModuleNode->FunctionScript == nullptr)
+	if (NewModuleNode->HasValidScriptAndGraph() == false)
 	{
-		// If the module script is null, add parameter map inputs and outputs so that the node can be wired into the graph correctly.
+		// If the module script or graph are invalid, add parameter map inputs and outputs so that the node can be wired into the owning graph correctly.
 		const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 		NewModuleNode->CreatePin(EGPD_Input, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("InputMap"));
 		NewModuleNode->CreatePin(EGPD_Output, NiagaraSchema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT("OutputMap"));

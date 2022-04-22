@@ -97,7 +97,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Debug")
 	bool bInheritDebugStatus = true;
 
-	NIAGARAEDITOR_API bool ScriptIsValid() const;
+	NIAGARAEDITOR_API bool HasValidScriptAndGraph() const;
 
 	//Begin UObject interface
 	virtual void PostLoad()override;

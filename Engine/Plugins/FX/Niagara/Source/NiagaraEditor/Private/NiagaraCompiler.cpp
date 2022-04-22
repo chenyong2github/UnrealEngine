@@ -169,7 +169,7 @@ void FNiagaraCompileRequestDuplicateData::DuplicateReferencedGraphsRecursive(UNi
 			{
 				UNiagaraScript* FunctionScript = FunctionCallNode->FunctionScript;
 				bool bFunctionCallOwnsScript = FunctionScript != nullptr && FunctionScript->GetOuter() == FunctionCallNode;
-				if(FunctionScript != nullptr && bFunctionCallOwnsScript == false)
+				if(FunctionCallNode->HasValidScriptAndGraph() && bFunctionCallOwnsScript == false)
 				{
 					// If the function call doesn't already own the script it's pointing at then script needs to be duplicated since it's a referenced
 					// script and will need to be preprocessed.

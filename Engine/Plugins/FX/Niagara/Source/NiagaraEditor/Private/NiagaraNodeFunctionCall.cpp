@@ -280,10 +280,9 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 	}
 
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
-	if (FunctionScript)
+	if (HasValidScriptAndGraph())
 	{
-		UNiagaraScriptSource* Source = GetFunctionScriptSource();
-		UNiagaraGraph* Graph = Source->NodeGraph;
+		UNiagaraGraph* Graph = GetCalledGraph();
 
 		//These pins must be refreshed and kept in the correct order for the function
 		TArray<FNiagaraVariable> Inputs;
@@ -586,7 +585,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 	UNiagaraGraph* CallerGraph = GetNiagaraGraph();
 	FVersionedNiagaraScriptData* ScriptData = GetScriptData();
-	if (ScriptData)
+	if (ScriptData && HasValidScriptAndGraph())
 	{
 		if (InvalidScriptVersionReference.IsValid())
 		{
@@ -1014,25 +1013,20 @@ bool UNiagaraNodeFunctionCall::RefreshFromExternalChanges()
 
 void UNiagaraNodeFunctionCall::GatherExternalDependencyData(ENiagaraScriptUsage InMasterUsage, const FGuid& InMasterUsageId, TArray<FNiagaraCompileHash>& InReferencedCompileHashes, TArray<FString>& InReferencedObjs) const
 {
-	if (FunctionScript)
+	if (HasValidScriptAndGraph())
 	{
-		UNiagaraScriptSource* Source = GetFunctionScriptSource();
-		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraGraph>(Source->NodeGraph);
-		
 		// We don't know which graph type we're referencing, so we try them all... may need to replace this with something faster in the future.
-		if (FunctionGraph)
+		UNiagaraGraph* FunctionGraph = GetCalledGraph();
+		FunctionGraph->RebuildCachedCompileIds();
+		for (int32 i = (int32)ENiagaraScriptUsage::Function; i <= (int32)ENiagaraScriptUsage::DynamicInput; i++)
 		{
-			FunctionGraph->RebuildCachedCompileIds();
-			for (int32 i = (int32)ENiagaraScriptUsage::Function; i <= (int32)ENiagaraScriptUsage::DynamicInput; i++)
+			FGuid FoundGuid = FunctionGraph->GetBaseId((ENiagaraScriptUsage)i, FGuid(0, 0, 0, 0));
+			FNiagaraCompileHash FoundCompileHash = FunctionGraph->GetCompileDataHash((ENiagaraScriptUsage)i, FGuid(0, 0, 0, 0));
+			if (FoundGuid.IsValid() && FoundCompileHash.IsValid())
 			{
-				FGuid FoundGuid = FunctionGraph->GetBaseId((ENiagaraScriptUsage)i, FGuid(0, 0, 0, 0));
-				FNiagaraCompileHash FoundCompileHash = FunctionGraph->GetCompileDataHash((ENiagaraScriptUsage)i, FGuid(0, 0, 0, 0));
-				if (FoundGuid.IsValid() && FoundCompileHash.IsValid())
-				{
-					InReferencedCompileHashes.AddUnique(FoundCompileHash);
-					InReferencedObjs.Add(FunctionGraph->GetPathName());
-					FunctionGraph->GatherExternalDependencyData((ENiagaraScriptUsage)i, FGuid(0, 0, 0, 0), InReferencedCompileHashes, InReferencedObjs);
-				}
+				InReferencedCompileHashes.AddUnique(FoundCompileHash);
+				InReferencedObjs.Add(FunctionGraph->GetPathName());
+				FunctionGraph->GatherExternalDependencyData((ENiagaraScriptUsage)i, FGuid(0, 0, 0, 0), InReferencedCompileHashes, InReferencedObjs);
 			}
 		}
 	}
@@ -1044,17 +1038,9 @@ void UNiagaraNodeFunctionCall::UpdateCompileHashForNode(FSHA1& HashState) const
 	HashState.UpdateWithString(*GetFunctionName(), GetFunctionName().Len());
 }
 
-bool UNiagaraNodeFunctionCall::ScriptIsValid() const
+bool UNiagaraNodeFunctionCall::HasValidScriptAndGraph() const
 {
-	if (FunctionScript != nullptr)
-	{
-		return true;
-	}
-	else if (Signature.IsValid())
-	{
-		return true;
-	}
-	return false;
+	return FunctionScript != nullptr && GetCalledGraph() != nullptr;
 }
 
 void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
@@ -1067,8 +1053,6 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		// Looks like this function call is not yet hooked up. Skip it to prevent cascading errors in the compilation
 		return;
 	}
-	UNiagaraScriptSource* Source = GetFunctionScriptSource();
-
 	
 	Super::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
 	if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())
@@ -1077,10 +1061,15 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		return;
 	}
 
-	
-	if (Source)
+	if (HasValidScriptAndGraph() == false && Signature.IsValid() == false)
 	{
-		UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraGraph>(Source->NodeGraph);
+		RouteParameterMapAroundMe(OutHistory, bRecursive);
+		return;
+	}
+
+	if (HasValidScriptAndGraph())
+	{
+		UNiagaraGraph* FunctionGraph = GetCalledGraph();
 
 		UNiagaraNodeOutput* OutputNode = FunctionGraph->FindOutputNode(ENiagaraScriptUsage::Function);
 		if (OutputNode == nullptr)
@@ -1182,7 +1171,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 			OutHistory.RegisterConstantPin(MatchedConstants[i].Value, MatchedConstants[i].Key);
 		}
 	}
-	else if (!ScriptIsValid() || Signature.bRequiresExecPin)
+	else if (Signature.bRequiresExecPin)
 	{
 		RouteParameterMapAroundMe(OutHistory, bRecursive);
 	}

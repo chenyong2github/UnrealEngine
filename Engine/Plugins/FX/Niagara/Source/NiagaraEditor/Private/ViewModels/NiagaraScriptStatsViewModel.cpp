@@ -761,15 +761,24 @@ EShaderPlatform FNiagaraScriptStatsViewModel::ColumnNameToShaderPlatform(const F
 
 void FNiagaraScriptStatsViewModel::BuildShaderPlatformDetails()
 {
+	TArray<EShaderPlatform, TInlineAllocator<SP_StaticPlatform_Last + 1>> StaticShaderPlatforms;
+	StaticShaderPlatforms.Add(SP_PCD3D_SM5);
+	StaticShaderPlatforms.Add(SP_VULKAN_SM5);
+	StaticShaderPlatforms.Add(SP_OPENGL_ES3_1_ANDROID); 
+	StaticShaderPlatforms.Add(SP_VULKAN_ES3_1_ANDROID);
+	StaticShaderPlatforms.Add(SP_VULKAN_SM5_ANDROID);
+	StaticShaderPlatforms.Add(SP_METAL_SM5);
+	StaticShaderPlatforms.Add(SP_METAL);
+	StaticShaderPlatforms.Add(SP_METAL_MRT);
+
 	TArray<EShaderPlatform, TInlineAllocator<SP_StaticPlatform_Last + 1>> ValidShaderPlatforms;
-	ValidShaderPlatforms.Add(SP_PCD3D_SM5);
-	ValidShaderPlatforms.Add(SP_VULKAN_SM5);
-	ValidShaderPlatforms.Add(SP_OPENGL_ES3_1_ANDROID); 
-	ValidShaderPlatforms.Add(SP_VULKAN_ES3_1_ANDROID);
-	ValidShaderPlatforms.Add(SP_VULKAN_SM5_ANDROID);
-	ValidShaderPlatforms.Add(SP_METAL_SM5);
-	ValidShaderPlatforms.Add(SP_METAL);
-	ValidShaderPlatforms.Add(SP_METAL_MRT);
+	for (EShaderPlatform StaticShaderPlatform : StaticShaderPlatforms)
+	{
+		if (FDataDrivenShaderPlatformInfo::IsValid(StaticShaderPlatform))
+		{
+			ValidShaderPlatforms.Add(StaticShaderPlatform);
+		}
+	}
 
 	for (int32 iPlatform = SP_StaticPlatform_First; iPlatform <= SP_StaticPlatform_Last; ++iPlatform)
 	{

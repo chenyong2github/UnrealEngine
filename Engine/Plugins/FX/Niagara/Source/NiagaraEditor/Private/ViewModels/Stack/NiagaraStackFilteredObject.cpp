@@ -119,7 +119,7 @@ void UNiagaraStackFilteredObject::AppendEmitterCategory(TSharedPtr<FNiagaraScrip
 		bool bIsFirst = true;
 		for (UNiagaraNodeFunctionCall* ModuleNode : ModuleNodes)
 		{
-			if (ModuleNode && ModuleNode->ScriptIsValid())
+			if (ModuleNode && (ModuleNode->HasValidScriptAndGraph() || ModuleNode->Signature.IsValid()))
 			{
 				RefreshChildrenForFunctionCall(ModuleNode, ModuleNode, CurrentChildren, NewChildren, NewIssues, true);
 			}
