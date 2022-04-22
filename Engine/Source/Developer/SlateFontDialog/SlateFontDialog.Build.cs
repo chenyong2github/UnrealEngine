@@ -12,7 +12,6 @@ public class SlateFontDialog : ModuleRules
 				"Core",
 				"CoreUObject",
 				"AppFramework",
-				"EditorStyle",
 				"InputCore",
 				"Slate",
 				"SlateCore"
