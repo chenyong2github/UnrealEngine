@@ -247,14 +247,11 @@ public:
 	{
 		if (!Buffer.IsValid())
 		{
-			FRHICommandList* UnusedCmdList = new FRHICommandList(FRHIGPUMask::All());
-			GetPooledFreeBuffer(*UnusedCmdList, FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4f), 1), Buffer, TEXT("WhiteVertexBufferWithRDG"));
+			Buffer = AllocatePooledBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4f), 1), TEXT("WhiteVertexBufferWithRDG"));
 
 			FVector4f* BufferData = (FVector4f*)RHILockBuffer(Buffer->GetRHI(), 0, sizeof(FVector4f), RLM_WriteOnly);
 			*BufferData = FVector4f(1.0f, 1.0f, 1.0f, 1.0f);
 			RHIUnlockBuffer(Buffer->GetRHI());
-			delete UnusedCmdList;
-			UnusedCmdList = nullptr;
 		}
 	}
 };

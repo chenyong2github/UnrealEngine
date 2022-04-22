@@ -52,6 +52,41 @@ inline FRHITexture* TryGetRHI(FRDGTextureRef Texture)
 	return Texture ? Texture->GetRHI() : nullptr;
 }
 
+inline FRHIBuffer* TryGetRHI(FRDGBuffer* Buffer)
+{
+	return Buffer ? Buffer->GetRHI() : nullptr;
+}
+
+inline FRHIBuffer* TryGetRHI(FRDGPooledBuffer* Buffer)
+{
+	return Buffer ? Buffer->GetRHI() : nullptr;
+}
+
+inline FRHIShaderResourceView* TryGetSRV(FRDGPooledBuffer* Buffer)
+{
+	return Buffer ? Buffer->GetSRV() : 0;
+}
+
+inline uint64 TryGetSize(const FRDGBuffer* Buffer)
+{
+	return Buffer ? Buffer->GetSize() : 0;
+}
+
+inline uint64 TryGetSize(const FRDGPooledBuffer* Buffer)
+{
+	return Buffer ? Buffer->GetSize() : 0;
+}
+
+inline bool IsRegistered(FRDGBuilder& GraphBuilder, const TRefCountPtr<IPooledRenderTarget>& RenderTarget)
+{
+	return GraphBuilder.FindExternalTexture(RenderTarget) != nullptr;
+}
+
+inline bool IsRegistered(FRDGBuilder& GraphBuilder, const TRefCountPtr<FRDGPooledBuffer>& Buffer)
+{
+	return GraphBuilder.FindExternalBuffer(Buffer) != nullptr;
+}
+
 /** Returns the pooled render target from an RDG texture if it exists, or null otherwise. */
 UE_DEPRECATED(5.0, "Accessing the underlying pooled render target has been deprecated. Use TryGetRHI() instead.")
 inline IPooledRenderTarget* TryGetPooledRenderTarget(FRDGTextureRef Texture)
@@ -588,7 +623,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	{
 		checkf(IndirectArgsBuffer->Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("The buffer %s needs to be a vertex buffer to be used as an indirect dispatch parameters"), IndirectArgsBuffer->Name);
 		checkf(IndirectArgsBuffer->Desc.Usage & BUF_DrawIndirect, TEXT("The buffer %s for indirect dispatch parameters was not flagged with BUF_DrawIndirect"), IndirectArgsBuffer->Name);
-		ValidateIndirectArgsBuffer(IndirectArgsBuffer->Desc.GetTotalNumBytes(), IndirectArgOffset);
+		ValidateIndirectArgsBuffer(IndirectArgsBuffer->GetSize(), IndirectArgOffset);
 	}
 
 	/**
@@ -1180,11 +1215,22 @@ private:
 #define RDG_WAIT_FOR_TASKS(GraphBuilder) RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, true)
 
 // Allocates an RDG pooled buffer instance. Attempts to reuse allocation if Out has a value. Returns true a new instance was allocated, or false if the existing allocation was reused.
-RENDERCORE_API bool GetPooledFreeBuffer(
-	FRHICommandList& RHICmdList,
+RENDERCORE_API bool AllocatePooledBuffer(
 	const FRDGBufferDesc& Desc,
 	TRefCountPtr<FRDGPooledBuffer>& Out,
-	const TCHAR* InDebugName);
+	const TCHAR* Name,
+	ERDGPooledBufferAlignment Alignment = ERDGPooledBufferAlignment::Page);
+
+RENDERCORE_API TRefCountPtr<FRDGPooledBuffer> AllocatePooledBuffer(
+	const FRDGBufferDesc& Desc,
+	const TCHAR* Name,
+	ERDGPooledBufferAlignment Alignment = ERDGPooledBufferAlignment::Page);
+
+//UE_DEPRECATED(5.1, "GetPooledFreeBuffer is deprecated. Use AllocatePooledBuffer instead.")
+inline bool GetPooledFreeBuffer(FRHICommandList& RHICmdList, const FRDGBufferDesc& Desc, TRefCountPtr<FRDGPooledBuffer>& Out, const TCHAR* Name)
+{
+	return AllocatePooledBuffer(Desc, Out, Name);
+}
 
 RENDERCORE_API bool AllocatePooledTexture(
 	const FRDGTextureDesc& Desc,

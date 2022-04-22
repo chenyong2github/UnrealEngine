@@ -2,20 +2,38 @@
 
 #pragma once
 
-inline FRDGTextureRef FRDGBuilder::FindExternalTexture(FRHITexture* ExternalTexture) const
+inline FRDGTexture* FRDGBuilder::FindExternalTexture(FRHITexture* ExternalTexture) const
 {
-	if (const FRDGTextureRef* FoundTexturePtr = ExternalTextures.Find(ExternalTexture))
+	if (FRDGTexture* const* FoundTexturePtr = ExternalTextures.Find(ExternalTexture))
 	{
 		return *FoundTexturePtr;
 	}
 	return nullptr;
 }
 
-inline FRDGTextureRef FRDGBuilder::FindExternalTexture(IPooledRenderTarget* ExternalTexture) const
+inline FRDGTexture* FRDGBuilder::FindExternalTexture(IPooledRenderTarget* ExternalTexture) const
 {
 	if (ExternalTexture)
 	{
 		return FindExternalTexture(ExternalTexture->GetRHI());
+	}
+	return nullptr;
+}
+
+inline FRDGBuffer* FRDGBuilder::FindExternalBuffer(FRHIBuffer* ExternalBuffer) const
+{
+	if (FRDGBuffer* const* FoundBufferPtr = ExternalBuffers.Find(ExternalBuffer))
+	{
+		return *FoundBufferPtr;
+	}
+	return nullptr;
+}
+
+inline FRDGBuffer* FRDGBuilder::FindExternalBuffer(FRDGPooledBuffer* ExternalBuffer) const
+{
+	if (ExternalBuffer)
+	{
+		return FindExternalBuffer(ExternalBuffer->GetRHI());
 	}
 	return nullptr;
 }
@@ -234,12 +252,7 @@ inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, const void* Ini
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateUploadBuffer(Buffer, InitialData, InitialDataSize));
 
-	if (InitialDataSize == 0)
-	{
-		return;
-	}
-
-	if (!EnumHasAnyFlags(InitialDataFlags, ERDGInitialDataFlags::NoCopy))
+	if (InitialDataSize > 0 && !EnumHasAnyFlags(InitialDataFlags, ERDGInitialDataFlags::NoCopy))
 	{
 		void* InitialDataCopy = Alloc(InitialDataSize, 16);
 		FMemory::Memcpy(InitialDataCopy, InitialData, InitialDataSize);

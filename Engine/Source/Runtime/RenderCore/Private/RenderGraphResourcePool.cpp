@@ -1,27 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	RenderTargetPool.cpp: Scene render target pool manager.
-=============================================================================*/
-
 #include "RenderGraphResourcePool.h"
 #include "RenderGraphResources.h"
+#include "Trace/Trace.inl"
+#include "ProfilingDebugging/CountersTrace.h"
 
-uint64 ComputeHash(const FRDGBufferDesc& Desc)
-{
-	return CityHash64((const char*)&Desc, sizeof(FRDGBufferDesc));
-}
+TRACE_DECLARE_INT_COUNTER(BufferPoolCount, TEXT("BufferPool/BufferCount"));
+TRACE_DECLARE_INT_COUNTER(BufferPoolCreateCount, TEXT("BufferPool/BufferCreateCount"));
+TRACE_DECLARE_INT_COUNTER(BufferPoolReleaseCount, TEXT("BufferPool/BufferReleaseCount"));
+TRACE_DECLARE_MEMORY_COUNTER(BufferPoolSize, TEXT("BufferPool/Size"));
 
-TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(
-	FRHICommandList& RHICmdList,
-	const FRDGBufferDesc& Desc,
-	const TCHAR* InDebugName)
+UE_TRACE_EVENT_BEGIN(Cpu, FRDGBufferPool_CreateBuffer, NoSync)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+	UE_TRACE_EVENT_FIELD(uint32, SizeInBytes)
+UE_TRACE_EVENT_END()
+
+TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(const FRDGBufferDesc& Desc, const TCHAR* InDebugName, ERDGPooledBufferAlignment Alignment)
 {
 	const uint64 BufferPageSize = 64 * 1024;
 
 	FRDGBufferDesc AlignedDesc = Desc;
-	AlignedDesc.NumElements = Align(AlignedDesc.BytesPerElement * AlignedDesc.NumElements, BufferPageSize) / AlignedDesc.BytesPerElement;
-	const uint64 BufferHash = ComputeHash(AlignedDesc);
+
+	switch (Alignment)
+	{
+	case ERDGPooledBufferAlignment::PowerOfTwo:
+		AlignedDesc.NumElements = FMath::RoundUpToPowerOfTwo(AlignedDesc.BytesPerElement * AlignedDesc.NumElements) / AlignedDesc.BytesPerElement;
+		// Fall through to align up to page size for small buffers; helps with reuse.
+
+	case ERDGPooledBufferAlignment::Page:
+		AlignedDesc.NumElements = Align(AlignedDesc.BytesPerElement * AlignedDesc.NumElements, BufferPageSize) / AlignedDesc.BytesPerElement;
+	}
+
+	const uint32 BufferHash = GetTypeHash(AlignedDesc);
 	
 	// First find if available.
 	for (int32 Index = 0; Index < AllocatedBufferHashes.Num(); ++Index)
@@ -57,9 +67,17 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(
 
 	// Allocate new one
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FRDGBufferPool::CreateBuffer);
+		const uint32 NumBytes = AlignedDesc.GetSize();
 
-		const uint32 NumBytes = AlignedDesc.GetTotalNumBytes();
+#if CPUPROFILERTRACE_ENABLED
+		UE_TRACE_LOG_SCOPED_T(Cpu, FRDGBufferPool_CreateBuffer, CpuChannel)
+			<< FRDGBufferPool_CreateBuffer.Name(InDebugName)
+			<< FRDGBufferPool_CreateBuffer.SizeInBytes(NumBytes);
+#endif
+
+		TRACE_COUNTER_ADD(BufferPoolCount, 1);
+		TRACE_COUNTER_ADD(BufferPoolCreateCount, 1);
+		TRACE_COUNTER_ADD(BufferPoolSize, NumBytes);
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
 		TRefCountPtr<FRHIBuffer> BufferRHI;
@@ -78,11 +96,13 @@ TRefCountPtr<FRDGPooledBuffer> FRDGBufferPool::FindFreeBuffer(
 			InitialAccess = RHIGetDefaultResourceState(Usage, false);
 			BufferRHI = RHICreateStructuredBuffer(Desc.BytesPerElement, NumBytes, Usage, InitialAccess, CreateInfo);
 		}
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::AccelerationStructure)
 		{
 			InitialAccess = ERHIAccess::BVHWrite;
 			BufferRHI = RHICreateBuffer(NumBytes, Desc.Usage, 0, InitialAccess, CreateInfo);
 		}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		else
 		{
 			check(0);
@@ -114,6 +134,8 @@ void FRDGBufferPool::TickPoolElements()
 	const uint32 kFramesUntilRelease = 30;
 
 	int32 BufferIndex = 0;
+	int32 NumReleasedBuffers = 0;
+	int64 NumReleasedBufferBytes = 0;
 
 	while (BufferIndex < AllocatedBuffers.Num())
 	{
@@ -125,14 +147,23 @@ void FRDGBufferPool::TickPoolElements()
 
 		if (bIsUnused && bNotRequestedRecently)
 		{
+			NumReleasedBufferBytes += Buffer->GetAlignedDesc().GetSize();
+
 			AllocatedBuffers.RemoveAtSwap(BufferIndex);
 			AllocatedBufferHashes.RemoveAtSwap(BufferIndex);
+
+			++NumReleasedBuffers;
 		}
 		else
 		{
 			++BufferIndex;
 		}
 	}
+
+	TRACE_COUNTER_SUBTRACT(BufferPoolSize, NumReleasedBufferBytes);
+	TRACE_COUNTER_SUBTRACT(BufferPoolCount, NumReleasedBuffers);
+	TRACE_COUNTER_SET(BufferPoolReleaseCount, NumReleasedBuffers);
+	TRACE_COUNTER_SET(BufferPoolCreateCount, 0);
 
 	++FrameCounter;
 }

@@ -4,6 +4,8 @@
 #include "RHIStaticStates.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Hash/CityHash.h"
+#include "Trace/Trace.inl"
+#include "ProfilingDebugging/CountersTrace.h"
 
 /** The global render targets pool. */
 TGlobalResource<FRenderTargetPool> GRenderTargetPool;
@@ -12,6 +14,12 @@ DEFINE_LOG_CATEGORY_STATIC(LogRenderTargetPool, Warning, All);
 
 CSV_DEFINE_CATEGORY(RenderTargetPool, !UE_SERVER);
 
+TRACE_DECLARE_INT_COUNTER(RenderTargetPoolCount, TEXT("RenderTargetPool/Count"));
+TRACE_DECLARE_MEMORY_COUNTER(RenderTargetPoolSize, TEXT("RenderTargetPool/Size"));
+
+UE_TRACE_EVENT_BEGIN(Cpu, FRenderTargetPool_CreateTexture, NoSync)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+UE_TRACE_EVENT_END()
 
 TRefCountPtr<IPooledRenderTarget> CreateRenderTarget(FRHITexture* Texture, const TCHAR* Name)
 {
@@ -94,7 +102,10 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElement(FRHITexture
 
 	if (!Found)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FRenderTargetPool::CreateTexture);
+#if CPUPROFILERTRACE_ENABLED
+		UE_TRACE_LOG_SCOPED_T(Cpu, FRenderTargetPool_CreateTexture, CpuChannel)
+			<< FRenderTargetPool_CreateTexture.Name(Name);
+#endif
 
 		const ERHIAccess AccessInitial = ERHIAccess::SRVMask;
 		FRHITextureCreateDesc CreateDesc(Desc, AccessInitial, Name);
@@ -128,6 +139,8 @@ TRefCountPtr<IPooledRenderTarget> FRenderTargetPool::FindFreeElement(FRHITexture
 		}
 
 		AllocationLevelInKB += ComputeSizeInKB(*Found);
+		TRACE_COUNTER_ADD(RenderTargetPoolCount, 1);
+		TRACE_COUNTER_SET(RenderTargetPoolSize, (int64)AllocationLevelInKB * 1024);
 
 		FoundIndex = PooledRenderTargets.Num() - 1;
 		Found->Desc.DebugName = Name;
@@ -182,6 +195,8 @@ bool FRenderTargetPool::FindFreeElement(const FRHITextureCreateInfo& Desc, TRefC
 			if (Current->IsFree())
 			{
 				AllocationLevelInKB -= ComputeSizeInKB(*Current);
+				TRACE_COUNTER_SUBTRACT(RenderTargetPoolCount, 1);
+				TRACE_COUNTER_SET(RenderTargetPoolSize, (int64)AllocationLevelInKB * 1024);
 				int32 Index = FindIndex(Current);
 				check(Index >= 0);
 				FreeElementAtIndex(Index);
@@ -297,6 +312,8 @@ void FRenderTargetPool::TickPoolElements()
 		if (OldestElementIndex != -1)
 		{
 			AllocationLevelInKB -= ComputeSizeInKB(*PooledRenderTargets[OldestElementIndex]);
+			TRACE_COUNTER_SUBTRACT(RenderTargetPoolCount, 1);
+			TRACE_COUNTER_SET(RenderTargetPoolSize, (int64)AllocationLevelInKB * 1024);
 
 			// we assume because of reference counting the resource gets released when not needed any more
 			// we don't use Remove() to not shuffle around the elements for better transparency on RenderTargetPoolEvents
@@ -386,6 +403,9 @@ void FRenderTargetPool::FreeUnusedResource(TRefCountPtr<IPooledRenderTarget>& In
 		if (Element->IsFree())
 		{
 			AllocationLevelInKB -= ComputeSizeInKB(*Element);
+			TRACE_COUNTER_SUBTRACT(RenderTargetPoolCount, 1);
+			TRACE_COUNTER_SET(RenderTargetPoolSize, (int64)AllocationLevelInKB * 1024);
+
 			// we assume because of reference counting the resource gets released when not needed any more
 			DeferredDeleteArray.Add(PooledRenderTargets[Index]);
 			FreeElementAtIndex(Index);
@@ -404,6 +424,9 @@ void FRenderTargetPool::FreeUnusedResources()
 		if (Element && Element->IsFree())
 		{
 			AllocationLevelInKB -= ComputeSizeInKB(*Element);
+			TRACE_COUNTER_SUBTRACT(RenderTargetPoolCount, 1);
+			TRACE_COUNTER_SET(RenderTargetPoolSize, (int64)AllocationLevelInKB * 1024);
+
 			// we assume because of reference counting the resource gets released when not needed any more
 			// we don't use Remove() to not shuffle around the elements for better transparency on RenderTargetPoolEvents
 			DeferredDeleteArray.Add(PooledRenderTargets[i]);

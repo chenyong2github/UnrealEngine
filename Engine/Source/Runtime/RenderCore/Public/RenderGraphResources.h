@@ -269,11 +269,18 @@ public:
 protected:
 	FRDGViewableResource(const TCHAR* InName, ERDGViewableResourceType InType);
 
-	enum class ETransientExtractionHint
+	enum class ETransientExtractionHint : uint8
 	{
 		None,
 		Disable,
 		Enable
+	};
+
+	enum class EFirstBarrier : uint8
+	{
+		Split,
+		ImmediateRequested,
+		ImmediateConfirmed
 	};
 
 	/** Whether this is an externally registered resource. */
@@ -309,11 +316,8 @@ protected:
 	/** If true, the resource has been queued for an upload operation. */
 	uint8 bQueuedForUpload : 1;
 
-	/** If true, this resource is a swap chain texture. */
-	uint8 bSwapChain : 1;
-
-	/** If true, the swap chain transition has been moved to occur at the latest possible time. */
-	uint8 bSwapChainAlreadyMoved : 1;
+	/** If true, this resource should skip the prologue split barrier and perform transition right away. */
+	EFirstBarrier FirstBarrier : 2;
 
 	/** If true, the resource is access through at least one UAV. */
 	uint8 bUAVAccessed : 1;
@@ -370,6 +374,11 @@ public:
 
 	/** Returns the referenced parent render graph resource. */
 	virtual FRDGViewableResource* GetParent() const = 0;
+
+	ERDGViewableResourceType GetParentType() const
+	{
+		return ::GetParentType(Type);
+	}
 
 	FRDGViewHandle GetHandle() const
 	{
@@ -433,6 +442,8 @@ class RENDERCORE_API FRDGTexture final
 	: public FRDGViewableResource
 {
 public:
+	static const ERDGViewableResourceType StaticType = ERDGViewableResourceType::Texture;
+
 	const FRDGTextureDesc Desc;
 	const ERDGTextureFlags Flags;
 
@@ -491,7 +502,11 @@ private:
 		MergeState.SetNum(SubresourceCount);
 		LastProducers.Reserve(SubresourceCount);
 		LastProducers.SetNum(SubresourceCount);
-		bSwapChain = EnumHasAnyFlags(Desc.Flags, ETextureCreateFlags::Presentable);
+
+		if (EnumHasAnyFlags(Desc.Flags, ETextureCreateFlags::Presentable))
+		{
+			FirstBarrier = EFirstBarrier::ImmediateRequested;
+		}
 	}
 
 	/** Returns RHI texture without access checks. */
@@ -616,15 +631,16 @@ class FRDGTextureSRVDesc final
 public:
 	FRDGTextureSRVDesc() = default;
 
-	FRDGTextureRef Texture = nullptr;
+	FRDGTextureSRVDesc(FRDGTexture* InTexture)
+	{
+		Texture = InTexture;
+		NumMipLevels = InTexture->Desc.NumMips;
+	}
 
 	/** Create SRV that access all sub resources of texture. */
 	static FRDGTextureSRVDesc Create(FRDGTextureRef Texture)
 	{
-		FRDGTextureSRVDesc Desc;
-		Desc.Texture = Texture;
-		Desc.NumMipLevels = Texture->Desc.NumMips;
-		return Desc;
+		return FRDGTextureSRVDesc(Texture);
 	}
 
 	/** Create SRV that access one specific mip level. */
@@ -653,6 +669,23 @@ public:
 		Desc.MetaData = MetaData;
 		return Desc;
 	}
+
+	bool operator == (const FRDGTextureSRVDesc& Other) const
+	{
+		return Texture == Other.Texture && FRHITextureSRVCreateInfo::operator==(Other);
+	}
+
+	bool operator != (const FRDGTextureSRVDesc& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	friend uint32 GetTypeHash(const FRDGTextureSRVDesc& Desc)
+	{
+		return HashCombine(GetTypeHash(static_cast<const FRHITextureSRVCreateInfo&>(Desc)), GetTypeHash(Desc.Texture));
+	}
+
+	FRDGTextureRef Texture = nullptr;
 };
 
 /** Render graph tracked SRV. */
@@ -660,6 +693,8 @@ class FRDGTextureSRV final
 	: public FRDGShaderResourceView
 {
 public:
+	static const ERDGViewType StaticType = ERDGViewType::TextureSRV;
+
 	/** Descriptor of the graph tracked SRV. */
 	const FRDGTextureSRVDesc Desc;
 
@@ -701,6 +736,21 @@ public:
 		return Desc;
 	}
 
+	bool operator == (const FRDGTextureUAVDesc& Other) const
+	{
+		return Texture == Other.Texture && FRHITextureUAVCreateInfo::operator==(Other);
+	}
+
+	bool operator != (const FRDGTextureUAVDesc& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	friend uint32 GetTypeHash(const FRDGTextureUAVDesc& Desc)
+	{
+		return HashCombine(GetTypeHash(static_cast<const FRHITextureUAVCreateInfo&>(Desc)), GetTypeHash(Desc.Texture));
+	}
+
 	FRDGTextureRef Texture = nullptr;
 };
 
@@ -709,6 +759,8 @@ class FRDGTextureUAV final
 	: public FRDGUnorderedAccessView
 {
 public:
+	static const ERDGViewType StaticType = ERDGViewType::TextureUAV;
+
 	/** Descriptor of the graph tracked UAV. */
 	const FRDGTextureUAVDesc Desc;
 
@@ -745,7 +797,7 @@ struct FRDGBufferDesc
 	{
 		VertexBuffer,
 		StructuredBuffer,
-		AccelerationStructure
+		AccelerationStructure UE_DEPRECATED(5.1, "AccelerationStructure is deprecated")
 	};
 
 	/** Create the descriptor for an indirect RHI call.
@@ -760,7 +812,7 @@ struct FRDGBufferDesc
 	{
 		FRDGBufferDesc Desc;
 		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = (EBufferUsageFlags)(BUF_Static | BUF_DrawIndirect | BUF_UnorderedAccess | BUF_ShaderResource);
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
 		Desc.BytesPerElement = sizeof(IndirectParameterStruct);
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -770,7 +822,7 @@ struct FRDGBufferDesc
 	{
 		FRDGBufferDesc Desc;
 		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = (EBufferUsageFlags)(BUF_Static | BUF_DrawIndirect | BUF_UnorderedAccess | BUF_ShaderResource);
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::DrawIndirect | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
 		Desc.BytesPerElement = 4;
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -780,7 +832,7 @@ struct FRDGBufferDesc
 	{
 		FRDGBufferDesc Desc;
 		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
-		Desc.Usage = (EBufferUsageFlags)(BUF_Static | BUF_UnorderedAccess | BUF_ShaderResource);
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
 		Desc.BytesPerElement = BytesPerElement;
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -798,7 +850,7 @@ struct FRDGBufferDesc
 	{
 		FRDGBufferDesc Desc;
 		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = (EBufferUsageFlags)(BUF_Static | BUF_UnorderedAccess | BUF_ShaderResource);
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource;
 		Desc.BytesPerElement = BytesPerElement;
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -817,7 +869,7 @@ struct FRDGBufferDesc
 		check(NumBytes % 4 == 0);
 		FRDGBufferDesc Desc;
 		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
-		Desc.Usage = (EBufferUsageFlags)(BUF_UnorderedAccess | BUF_ShaderResource | BUF_ByteAddressBuffer);
+		Desc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::ByteAddressBuffer;
 		Desc.BytesPerElement = 4;
 		Desc.NumElements = NumBytes / 4;
 		return Desc;
@@ -835,7 +887,7 @@ struct FRDGBufferDesc
 	{
 		FRDGBufferDesc Desc;
 		Desc.UnderlyingType = EUnderlyingType::VertexBuffer;
-		Desc.Usage = (EBufferUsageFlags)(BUF_Static | BUF_ShaderResource);
+		Desc.Usage = EBufferUsageFlags::ShaderResource;
 		Desc.BytesPerElement = BytesPerElement;
 		Desc.NumElements = NumElements;
 		return Desc;
@@ -849,10 +901,63 @@ struct FRDGBufferDesc
 		return Desc;
 	}
 
+	static FRDGBufferDesc CreateStructuredUploadDesc(uint32 BytesPerElement, uint32 NumElements)
+	{
+		FRDGBufferDesc Desc;
+		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
+		Desc.Usage = EBufferUsageFlags::ShaderResource;
+		Desc.BytesPerElement = BytesPerElement;
+		Desc.NumElements = NumElements;
+		return Desc;
+	}
+
+	template<typename ParameterStruct>
+	static FRDGBufferDesc CreateStructuredUploadDesc(uint32 NumElements)
+	{
+		FRDGBufferDesc Desc = CreateStructuredUploadDesc(sizeof(ParameterStruct), NumElements);
+		Desc.Metadata = ParameterStruct::FTypeInfo::GetStructMetadata();
+		return Desc;
+	}
+
+	static FRDGBufferDesc CreateByteAddressUploadDesc(uint32 NumBytes)
+	{
+		check(NumBytes % 4 == 0);
+		FRDGBufferDesc Desc;
+		Desc.UnderlyingType = EUnderlyingType::StructuredBuffer;
+		Desc.Usage = EBufferUsageFlags::ShaderResource | EBufferUsageFlags::ByteAddressBuffer;
+		Desc.BytesPerElement = 4;
+		Desc.NumElements = NumBytes / 4;
+		return Desc;
+	}
+
+	template<typename ParameterStruct>
+	static FRDGBufferDesc CreateByteAddressUploadDesc(uint32 NumElements)
+	{
+		FRDGBufferDesc Desc = CreateByteAddressUploadDesc(sizeof(ParameterStruct) * NumElements);
+		Desc.Metadata = ParameterStruct::FTypeInfo::GetStructMetadata();
+		return Desc;
+	}
+
 	/** Returns the total number of bytes allocated for a such buffer. */
+	uint32 GetSize() const
+	{
+		return BytesPerElement * NumElements;
+	}
+
+	//UE_DEPRECATED(5.1, "GetTotalNumBytes is deprecated, use GetSize instead.")
 	uint32 GetTotalNumBytes() const
 	{
 		return BytesPerElement * NumElements;
+	}
+
+	friend uint32 GetTypeHash(const FRDGBufferDesc& Desc)
+	{
+		uint32 Hash = GetTypeHash(Desc.BytesPerElement);
+		Hash = HashCombine(Hash, GetTypeHash(Desc.NumElements));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.Usage));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.UnderlyingType));
+		Hash = HashCombine(Hash, GetTypeHash(Desc.Metadata));
+		return Hash;
 	}
 
 	bool operator == (const FRDGBufferDesc& Other) const
@@ -876,7 +981,7 @@ struct FRDGBufferDesc
 	uint32 NumElements = 1;
 
 	/** Bitfields describing the uses of that buffer. */
-	EBufferUsageFlags Usage = BUF_None;
+	EBufferUsageFlags Usage = EBufferUsageFlags::None;
 
 	/** The underlying RHI type to use. */
 	EUnderlyingType UnderlyingType = EUnderlyingType::VertexBuffer;
@@ -893,8 +998,10 @@ inline const TCHAR* GetBufferUnderlyingTypeName(FRDGBufferDesc::EUnderlyingType 
 		return TEXT("VertexBuffer");
 	case FRDGBufferDesc::EUnderlyingType::StructuredBuffer:
 		return TEXT("StructuredBuffer");
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	case FRDGBufferDesc::EUnderlyingType::AccelerationStructure:
 		return TEXT("AccelerationStructure");
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return TEXT("");
 }
@@ -913,6 +1020,21 @@ struct FRDGBufferSRVDesc final
 		BytesPerElement = GPixelFormats[Format].BlockBytes;
 	}
 
+	bool operator == (const FRDGBufferSRVDesc& Other) const
+	{
+		return Buffer == Other.Buffer && FRHIBufferSRVCreateInfo::operator==(Other);
+	}
+
+	bool operator != (const FRDGBufferSRVDesc& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	friend uint32 GetTypeHash(const FRDGBufferSRVDesc& Desc)
+	{
+		return HashCombine(GetTypeHash(static_cast<const FRHIBufferSRVCreateInfo&>(Desc)), GetTypeHash(Desc.Buffer));
+	}
+
 	FRDGBufferRef Buffer = nullptr;
 };
 
@@ -927,6 +1049,21 @@ struct FRDGBufferUAVDesc final
 		: FRHIBufferUAVCreateInfo(InFormat)
 		, Buffer(InBuffer)
 	{}
+
+	bool operator == (const FRDGBufferUAVDesc& Other) const
+	{
+		return Buffer == Other.Buffer && FRHIBufferUAVCreateInfo::operator==(Other);
+	}
+
+	bool operator != (const FRDGBufferUAVDesc& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	friend uint32 GetTypeHash(const FRDGBufferUAVDesc& Desc)
+	{
+		return HashCombine(GetTypeHash(static_cast<const FRHIBufferUAVCreateInfo&>(Desc)), GetTypeHash(Desc.Buffer));
+	}
 
 	FRDGBufferRef Buffer = nullptr;
 };
@@ -956,14 +1093,29 @@ public:
 	/** Returns the RHI buffer. */
 	FORCEINLINE FRHIBuffer* GetRHI() const { return Buffer; }
 
-	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
-	FORCEINLINE FRHIBuffer* GetVertexBufferRHI() const { return Buffer; }
+	/** Returns the default SRV. */
+	FORCEINLINE FRHIShaderResourceView* GetSRV()
+	{
+		if (!CachedSRV)
+		{
+			CachedSRV = GetOrCreateSRV(FRHIBufferSRVCreateInfo());
+		}
+		return CachedSRV;
+	}
 
-	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
-	FORCEINLINE FRHIBuffer* GetStructuredBufferRHI() const { return Buffer; }
+	FORCEINLINE uint32 GetSize() const
+	{
+		return Desc.GetSize();
+	}
+
+	FORCEINLINE uint32 GetAlignedSize() const
+	{
+		return Desc.BytesPerElement * NumAllocatedElements;
+	}
 
 private:
 	TRefCountPtr<FRHIBuffer> Buffer;
+	FRHIShaderResourceView* CachedSRV = nullptr;
 	FRHIBufferViewCache ViewCache;
 
 	FRDGBufferDesc GetAlignedDesc() const
@@ -987,6 +1139,8 @@ class RENDERCORE_API FRDGBuffer final
 	: public FRDGViewableResource
 {
 public:
+	static const ERDGViewableResourceType StaticType = ERDGViewableResourceType::Buffer;
+
 	FRDGBufferDesc Desc;
 	const ERDGBufferFlags Flags;
 
@@ -1025,6 +1179,11 @@ public:
 	FRDGBufferHandle GetHandle() const
 	{
 		return Handle;
+	}
+
+	FORCEINLINE uint32 GetSize() const
+	{
+		return Desc.GetSize();
 	}
 
 private:
@@ -1112,6 +1271,8 @@ class FRDGBufferSRV final
 	: public FRDGShaderResourceView
 {
 public:
+	static const ERDGViewType StaticType = ERDGViewType::BufferSRV;
+
 	/** Descriptor of the graph tracked SRV. */
 	const FRDGBufferSRVDesc Desc;
 
@@ -1136,6 +1297,8 @@ class FRDGBufferUAV final
 	: public FRDGUnorderedAccessView
 {
 public:
+	static const ERDGViewType StaticType = ERDGViewType::BufferUAV;
+
 	/** Descriptor of the graph tracked UAV. */
 	const FRDGBufferUAVDesc Desc;
 
@@ -1154,6 +1317,50 @@ private:
 	friend FRDGViewRegistry;
 	friend FRDGAllocator;
 };
+
+template <typename ViewableResourceType>
+inline ViewableResourceType* GetAs(FRDGViewableResource* Resource)
+{
+	check(ViewableResourceType::StaticType == Resource->Type);
+	return static_cast<ViewableResourceType*>(Resource);
+}
+
+template <typename ViewType>
+inline ViewType* GetAs(FRDGView* View)
+{
+	check(ViewType::StaticType == View->Type);
+	return static_cast<ViewType*>(View);
+}
+
+inline FRDGBuffer* GetAsBuffer(FRDGViewableResource* Resource)
+{
+	return GetAs<FRDGBuffer>(Resource);
+}
+
+inline FRDGTexture* GetAsTexture(FRDGViewableResource* Resource)
+{
+	return GetAs<FRDGTexture>(Resource);
+}
+
+inline FRDGBufferUAV* GetAsBufferUAV(FRDGView* View)
+{
+	return GetAs<FRDGBufferUAV>(View);
+}
+
+inline FRDGBufferSRV* GetAsBufferSRV(FRDGView* View)
+{
+	return GetAs<FRDGBufferSRV>(View);
+}
+
+inline FRDGTextureUAV* GetAsTextureUAV(FRDGView* View)
+{
+	return GetAs<FRDGTextureUAV>(View);
+}
+
+inline FRDGTextureSRV* GetAsTextureSRV(FRDGView* View)
+{
+	return GetAs<FRDGTextureSRV>(View);
+}
 
 inline FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo(const FRDGParameterStruct& ParameterStruct);
 

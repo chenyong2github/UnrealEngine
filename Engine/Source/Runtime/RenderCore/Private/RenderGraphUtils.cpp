@@ -381,13 +381,13 @@ void AddCopyBufferPass(FRDGBuilder& GraphBuilder, FRDGBufferRef DstBuffer, FRDGB
 	const uint64 NumBytes = Parameters->SrcBuffer->Desc.NumElements * Parameters->SrcBuffer->Desc.BytesPerElement;
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("CopyBuffer(%s Size=%ubytes)", SrcBuffer->Name, SrcBuffer->Desc.GetTotalNumBytes()),
+		RDG_EVENT_NAME("CopyBuffer(%s Size=%ubytes)", SrcBuffer->Name, SrcBuffer->Desc.GetSize()),
 		Parameters,
 		ERDGPassFlags::Copy,
 		[&Parameters, SrcBuffer, DstBuffer, NumBytes](FRHICommandList& RHICmdList)
-		{
-			RHICmdList.CopyBufferRegion(DstBuffer->GetRHI(), 0, SrcBuffer->GetRHI(), 0, NumBytes);
-		});
+	{
+		RHICmdList.CopyBufferRegion(DstBuffer->GetRHI(), 0, SrcBuffer->GetRHI(), 0, NumBytes);
+	});
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FClearBufferUAVParameters, )
@@ -402,7 +402,7 @@ void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint
 	Parameters->BufferUAV = BufferUAV;
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("ClearBuffer(%s Size=%ubytes)", BufferUAV->GetParent()->Name, BufferUAV->GetParent()->Desc.GetTotalNumBytes()),
+		RDG_EVENT_NAME("ClearBuffer(%s Size=%ubytes)", BufferUAV->GetParent()->Name, BufferUAV->GetParent()->Desc.GetSize()),
 		Parameters,
 		ERDGPassFlags::Compute,
 		[&Parameters, BufferUAV, Value](FRHIComputeCommandList& RHICmdList)
@@ -418,14 +418,14 @@ void AddClearUAVFloatPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV,
 	Parameters->BufferUAV = BufferUAV;
 
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("ClearBuffer(%s Size=%ubytes)", BufferUAV->GetParent()->Name, BufferUAV->GetParent()->Desc.GetTotalNumBytes()),
+		RDG_EVENT_NAME("ClearBuffer(%s Size=%ubytes)", BufferUAV->GetParent()->Name, BufferUAV->GetParent()->Desc.GetSize()),
 		Parameters,
 		ERDGPassFlags::Compute,
 		[&Parameters, BufferUAV, Value](FRHIComputeCommandList& RHICmdList)
-		{
-			RHICmdList.ClearUAVFloat(BufferUAV->GetRHI(), FVector4f(Value, Value, Value, Value));
-			BufferUAV->MarkResourceAsUsed();
-		});
+	{
+		RHICmdList.ClearUAVFloat(BufferUAV->GetRHI(), FVector4f(Value, Value, Value, Value));
+		BufferUAV->MarkResourceAsUsed();
+	});
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FClearTextureUAVParameters, )
@@ -907,14 +907,12 @@ void FComputeShaderUtils::ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* 
 		FIntVector(FMath::DivideAndRoundUp<int32>(PassParameters->NumEntries, 64), 1, 1));
 }
 
-
-
 class FInitIndirectArgs1DCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FInitIndirectArgs1DCS);
 	SHADER_USE_PARAMETER_STRUCT(FInitIndirectArgs1DCS, FGlobalShader)
 
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, InputCountBuffer)
 		SHADER_PARAMETER(uint32, Multiplier)
 		SHADER_PARAMETER(uint32, Divisor)
@@ -923,8 +921,8 @@ class FInitIndirectArgs1DCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer< uint >, IndirectDispatchArgsOut)
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FInitIndirectArgs1DCS, "/Engine/Private/Tools/SetupIndirectArgs.usf", "InitIndirectArgs1DCS", SF_Compute);
 
+IMPLEMENT_GLOBAL_SHADER(FInitIndirectArgs1DCS, "/Engine/Private/Tools/SetupIndirectArgs.usf", "InitIndirectArgs1DCS", SF_Compute);
 
 FRDGBufferRef FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(FRDGBuilder& GraphBuilder, FRDGBufferRef& InputCountBuffer, const TCHAR* OutputBufferName, uint32 Divisor, uint32 InputCountOffset, uint32 Multiplier)
 {
@@ -950,7 +948,6 @@ FRDGBufferRef FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(FRDGBuilder& Gra
 
 	return IndirectArgsBuffer;
 }
-
 
 FRDGBufferRef CreateStructuredBuffer(
 	FRDGBuilder& GraphBuilder,
@@ -1033,11 +1030,11 @@ FRDGWaitForTasksScope::~FRDGWaitForTasksScope()
 	}
 }
 
-bool GetPooledFreeBuffer(
-	FRHICommandList& RHICmdList,
+bool AllocatePooledBuffer(
 	const FRDGBufferDesc& Desc,
 	TRefCountPtr<FRDGPooledBuffer>& Out,
-	const TCHAR* InDebugName)
+	const TCHAR* Name,
+	ERDGPooledBufferAlignment Alignment)
 {
 	if (Out && Out->Desc == Desc)
 	{
@@ -1046,8 +1043,13 @@ bool GetPooledFreeBuffer(
 	}
 
 	// New allocation.
-	Out = GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Desc, InDebugName);
+	Out = GRenderGraphResourcePool.FindFreeBuffer(Desc, Name, Alignment);
 	return true;
+}
+
+TRefCountPtr<FRDGPooledBuffer> AllocatePooledBuffer(const FRDGBufferDesc& Desc, const TCHAR* Name, ERDGPooledBufferAlignment Alignment)
+{
+	return GRenderGraphResourcePool.FindFreeBuffer(Desc, Name, Alignment);
 }
 
 bool AllocatePooledTexture(const FRDGTextureDesc& Desc, TRefCountPtr<IPooledRenderTarget>& Out, const TCHAR* Name)

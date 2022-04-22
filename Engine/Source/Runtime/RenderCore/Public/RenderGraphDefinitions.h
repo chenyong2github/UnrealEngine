@@ -191,6 +191,21 @@ enum class ERDGViewType : uint8
 	MAX
 };
 
+inline ERDGViewableResourceType GetParentType(ERDGViewType ViewType)
+{
+	switch (ViewType)
+	{
+	case ERDGViewType::TextureUAV:
+	case ERDGViewType::TextureSRV:
+		return ERDGViewableResourceType::Texture;
+	case ERDGViewType::BufferUAV:
+	case ERDGViewType::BufferSRV:
+		return ERDGViewableResourceType::Buffer;
+	}
+	checkNoEntry();
+	return ERDGViewableResourceType::MAX;
+}
+
 enum class ERDGResourceExtractionFlags : uint8
 {
 	None = 0,
@@ -217,6 +232,18 @@ enum class ERDGInitialDataFlags : uint8
 	 NoCopy = 1 << 0
 };
 ENUM_CLASS_FLAGS(ERDGInitialDataFlags)
+
+enum class ERDGPooledBufferAlignment : uint8
+{
+	// The buffer size is not aligned.
+	None,
+
+	// The buffer size is aligned up to the next page size.
+	Page,
+
+	// The buffer size is aligned up to the next power of two.
+	PowerOfTwo
+};
 
 /** Returns the equivalent parent resource type for a view type. */
 inline ERDGViewableResourceType GetViewableResourceType(ERDGViewType ViewType)
@@ -706,6 +733,8 @@ using FRDGTextureRef = FRDGTexture*;
 using FRDGTextureHandle = TRDGHandle<FRDGTexture, uint16>;
 using FRDGTextureRegistry = TRDGHandleRegistry<FRDGTextureHandle, ERDGHandleRegistryDestructPolicy::Never>;
 using FRDGTextureBitArray = TRDGHandleBitArray<FRDGTextureHandle>;
+
+struct FRDGBufferDesc;
 
 class FRDGBuffer;
 using FRDGBufferRef = FRDGBuffer*;

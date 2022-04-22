@@ -571,7 +571,7 @@ const TRefCountPtr<FRDGPooledBuffer>& FRDGBuilder::ConvertToExternalBuffer(FRDGB
 		Buffer->bExternal = 1;
 		Buffer->bForceNonTransient = 1;
 		BeginResourceRHI(GetProloguePassHandle(), Buffer);
-		ExternalBuffers.Add(Buffer->PooledBuffer, Buffer);
+		ExternalBuffers.Add(Buffer->GetRHIUnchecked(), Buffer);
 	}
 	return GetPooledBuffer(Buffer);
 }
@@ -662,7 +662,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	return RegisterExternalTexture(ExternalPooledTexture, Name, Flags);
 }
 
-FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
+FRDGTexture* FRDGBuilder::RegisterExternalTexture(
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 	const TCHAR* Name,
 	ERDGTextureFlags Flags)
@@ -671,7 +671,7 @@ FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
 	FRHITexture* ExternalTextureRHI = ExternalPooledTexture->GetRHI();
 	IF_RDG_ENABLE_DEBUG(checkf(ExternalTextureRHI, TEXT("Attempted to register texture %s, but its RHI texture is null."), Name));
 
-	if (FRDGTextureRef FoundTexture = FindExternalTexture(ExternalTextureRHI))
+	if (FRDGTexture* FoundTexture = FindExternalTexture(ExternalTextureRHI))
 	{
 		return FoundTexture;
 	}
@@ -743,9 +743,9 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalBuffer(ExternalPooledBuffer, Name, Flags));
 
-	if (FRDGBufferRef* FoundBufferPtr = ExternalBuffers.Find(ExternalPooledBuffer.GetReference()))
+	if (FRDGBuffer* FoundBuffer = FindExternalBuffer(ExternalPooledBuffer))
 	{
-		return *FoundBufferPtr;
+		return FoundBuffer;
 	}
 
 	const FRDGBufferDesc& Desc = ExternalPooledBuffer->Desc;
@@ -768,7 +768,7 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 		Buffer->SetFinalizedAccess(ERHIAccess::ReadOnlyExclusiveMask);
 	}
 
-	ExternalBuffers.Add(ExternalPooledBuffer, Buffer);
+	ExternalBuffers.Add(Buffer->GetRHIUnchecked(), Buffer);
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalBuffer(Buffer));
 	IF_RDG_ENABLE_TRACE(Trace.AddResource(Buffer));
@@ -1025,9 +1025,9 @@ void FRDGBuilder::Compile()
 				Texture->bUsedByAsyncComputePass |= bAsyncComputePass;
 				Texture->bCulled = false;
 
-				if (Texture->bSwapChain && !Texture->bSwapChainAlreadyMoved)
+				if (Texture->FirstBarrier == FRDGTexture::EFirstBarrier::ImmediateRequested)
 				{
-					Texture->bSwapChainAlreadyMoved = 1;
+					Texture->FirstBarrier = FRDGTexture::EFirstBarrier::ImmediateConfirmed;
 					Texture->FirstPass = PassHandle;
 					GetWholeResource(Texture->GetState()).SetPass(ERHIPipeline::Graphics, PassHandle);
 				}
@@ -1419,9 +1419,9 @@ void FRDGBuilder::Execute()
 
 	// Create the epilogue pass at the end of the graph just prior to compilation.
 	{
-		bInDebugPassScope = true;
+		bSkipAuxiliaryPasses = true;
 		SetupEmptyPass(EpiloguePass = Passes.Allocate<FRDGSentinelPass>(Allocator, RDG_EVENT_NAME("Graph Epilogue")));
-		bInDebugPassScope = false;
+		bSkipAuxiliaryPasses = false;
 	}
 
 	const FRDGPassHandle ProloguePassHandle = GetProloguePassHandle();
@@ -1436,9 +1436,9 @@ void FRDGBuilder::Execute()
 	{
 		BeginFlushResourcesRHI();
 
-		SetupBufferUploads();
-
 		Compile();
+
+		SetupBufferUploads();
 
 		IF_RDG_GPU_SCOPES(GPUScopeStacks.ReserveOps(Passes.Num()));
 		IF_RDG_CPU_SCOPES(CPUScopeStacks.ReserveOps());
@@ -1463,6 +1463,8 @@ void FRDGBuilder::Execute()
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RDG_CollectResources);
 			SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::CollectResources", FColor::Magenta);
 
+			UniformBuffersToCreate.Reserve(UniformBuffers.Num());
+
 			EnumerateExtendedLifetimeResources(Textures, [](FRDGTexture* Texture)
 			{
 				++Texture->ReferenceCount;
@@ -1474,7 +1476,7 @@ void FRDGBuilder::Execute()
 			});
 
 			// Null out any culled external resources so that the reference is freed up.
-	
+
 			for (const auto& Pair : ExternalTextures)
 			{
 				FRDGTexture* Texture = Pair.Value;
@@ -1760,7 +1762,7 @@ void FRDGBuilder::Execute()
 
 FRDGPass* FRDGBuilder::SetupPass(FRDGPass* Pass)
 {
-	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateAddPass(Pass, bInDebugPassScope));
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateAddPass(Pass, bSkipAuxiliaryPasses));
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE_CONDITIONAL(RDGBuilder_SetupPass, GRDGVerboseCSVStats != 0);
 
 	const FRDGParameterStruct PassParameters = Pass->GetParameters();
@@ -1995,15 +1997,11 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 					PassState.MergeState[Index] = &PassState.State[Index];
 				}
 			}
-
-			PassState.Texture->bCulled = false;
 		}
 
 		for (auto& PassState : Pass->BufferStates)
 		{
 			PassState.MergeState = &PassState.State;
-
-			PassState.Buffer->bCulled = false;
 		}
 
 		check(!EnumHasAnyFlags(PassPipeline, ERHIPipeline::AsyncCompute));
@@ -2020,9 +2018,9 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 
 	IF_RDG_ENABLE_DEBUG(VisualizePassOutputs(Pass));
 
-	#if RDG_DUMP_RESOURCES
-		DumpResourcePassOutputs( Pass);
-	#endif
+#if RDG_DUMP_RESOURCES
+	DumpResourcePassOutputs(Pass);
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2033,6 +2031,11 @@ void FRDGBuilder::SetupBufferUploads()
 
 	for (FUploadedBuffer& UploadedBuffer : UploadedBuffers)
 	{
+		if (UploadedBuffer.Buffer->bCulled)
+		{
+			continue;
+		}
+
 		if (UploadedBuffer.bUseDataCallbacks)
 		{
 			UploadedBuffer.Data = UploadedBuffer.DataCallback();
@@ -2042,7 +2045,7 @@ void FRDGBuilder::SetupBufferUploads()
 		if (UploadedBuffer.Data && UploadedBuffer.DataSize)
 		{
 			ConvertToExternalBuffer(UploadedBuffer.Buffer);
-			check(UploadedBuffer.DataSize <= UploadedBuffer.Buffer->Desc.GetTotalNumBytes());
+			check(UploadedBuffer.DataSize <= UploadedBuffer.Buffer->Desc.GetSize());
 		}
 	}
 }
@@ -2053,6 +2056,11 @@ void FRDGBuilder::SubmitBufferUploads()
 
 	for (const FUploadedBuffer& UploadedBuffer : UploadedBuffers)
 	{
+		if (UploadedBuffer.Buffer->bCulled)
+		{
+			continue;
+		}
+
 		if (UploadedBuffer.Data && UploadedBuffer.DataSize)
 		{
 #if PLATFORM_NEEDS_GPU_UAV_RESOURCE_INIT_WORKAROUND
@@ -2305,9 +2313,9 @@ void FRDGBuilder::CreateUniformBuffers()
 
 void FRDGBuilder::AddProloguePass()
 {
-	bInDebugPassScope = true;
+	bSkipAuxiliaryPasses = true;
 	ProloguePass = SetupEmptyPass(Passes.Allocate<FRDGSentinelPass>(Allocator, RDG_EVENT_NAME("Graph Prologue (Graphics)")));
-	bInDebugPassScope = false;
+	bSkipAuxiliaryPasses = false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2503,7 +2511,7 @@ void FRDGBuilder::BeginResourcesRHI(FRDGPass* ResourcePass, FRDGPassHandle Execu
 
 		for (FRDGViewHandle ViewHandle : PassToBegin->Views)
 		{
-			BeginResourceRHI(ExecutePassHandle, Views[ViewHandle]);
+			InitRHI(Views[ViewHandle]);
 		}
 	}
 }
@@ -2662,12 +2670,16 @@ void FRDGBuilder::AddEpilogueTransition(FRDGBufferRef Buffer)
 		EpilogueResourceAccesses.Emplace(Buffer->GetRHI(), Buffer->EpilogueAccess);
 	}
 
-	if (!Buffer->bTransient)
+	if (Buffer->Allocation)
 	{
+		ActivePooledBuffers.Emplace(MoveTemp(Buffer->Allocation));
+	}
+	else if (!Buffer->bTransient)
+	{
+		// Non-transient buffers need to be 'resurrected' to hold the last reference in the chain.
+		// Transient buffers don't have that restriction since there's no actual pooling happening.
 		ActivePooledBuffers.Emplace(Buffer->PooledBuffer);
 	}
-
-	Buffer->Allocation = nullptr;
 }
 
 void FRDGBuilder::AddTransition(FRDGPassHandle PassHandle, FRDGTextureRef Texture, const FRDGTextureSubresourceStateIndirect& StateAfter)
@@ -3124,7 +3136,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureRef Tex
 	}
 }
 
-void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureSRVRef SRV)
+void FRDGBuilder::InitRHI(FRDGTextureSRVRef SRV)
 {
 	check(SRV);
 
@@ -3140,7 +3152,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureSRVRef 
 	SRV->ResourceRHI = Texture->ViewCache->GetOrCreateSRV(TextureRHI, SRV->Desc);
 }
 
-void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureUAVRef UAV)
+void FRDGBuilder::InitRHI(FRDGTextureUAVRef UAV)
 {
 	check(UAV);
 
@@ -3204,11 +3216,13 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferRef Buff
 
 	if (!Buffer->bTransient)
 	{
-		SetRHI(Buffer, GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Buffer->Desc, Buffer->Name), PassHandle);
+		const ERDGPooledBufferAlignment Alignment = Buffer->bQueuedForUpload ? ERDGPooledBufferAlignment::PowerOfTwo : ERDGPooledBufferAlignment::Page;
+
+		SetRHI(Buffer, GRenderGraphResourcePool.FindFreeBuffer(Buffer->Desc, Buffer->Name, Alignment), PassHandle);
 	}
 }
 
-void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferSRVRef SRV)
+void FRDGBuilder::InitRHI(FRDGBufferSRVRef SRV)
 {
 	check(SRV);
 
@@ -3234,7 +3248,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferSRVRef S
 	SRV->ResourceRHI = Buffer->ViewCache->GetOrCreateSRV(BufferRHI, SRVCreateInfo);
 }
 
-void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferUAV* UAV)
+void FRDGBuilder::InitRHI(FRDGBufferUAV* UAV)
 {
 	check(UAV);
 
@@ -3259,7 +3273,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferUAV* UAV
 	UAV->ResourceRHI = Buffer->ViewCache->GetOrCreateUAV(Buffer->GetRHIUnchecked(), UAVCreateInfo);
 }
 
-void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGView* View)
+void FRDGBuilder::InitRHI(FRDGView* View)
 {
 	if (View->HasRHI())
 	{
@@ -3269,16 +3283,16 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGView* View)
 	switch (View->Type)
 	{
 	case ERDGViewType::TextureUAV:
-		BeginResourceRHI(PassHandle, static_cast<FRDGTextureUAV*>(View));
+		InitRHI(static_cast<FRDGTextureUAV*>(View));
 		break;
 	case ERDGViewType::TextureSRV:
-		BeginResourceRHI(PassHandle, static_cast<FRDGTextureSRV*>(View));
+		InitRHI(static_cast<FRDGTextureSRV*>(View));
 		break;
 	case ERDGViewType::BufferUAV:
-		BeginResourceRHI(PassHandle, static_cast<FRDGBufferUAV*>(View));
+		InitRHI(static_cast<FRDGBufferUAV*>(View));
 		break;
 	case ERDGViewType::BufferSRV:
-		BeginResourceRHI(PassHandle, static_cast<FRDGBufferSRV*>(View));
+		InitRHI(static_cast<FRDGBufferSRV*>(View));
 		break;
 	}
 }
@@ -3352,12 +3366,12 @@ void FRDGBuilder::EndResourceRHI(FRDGPassHandle PassHandle, FRDGBufferRef Buffer
 void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 {
 #if SUPPORTS_VISUALIZE_TEXTURE
-	if (bInDebugPassScope)
+	if (bSkipAuxiliaryPasses)
 	{
 		return;
 	}
 
-	bInDebugPassScope = true;
+	bSkipAuxiliaryPasses = true;
 
 
 	Pass->GetParameters().EnumerateTextures([&](FRDGParameter Parameter)
@@ -3425,7 +3439,7 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 		}
 	});
 
-	bInDebugPassScope = false;
+	bSkipAuxiliaryPasses = false;
 #endif
 }
 
@@ -3436,11 +3450,11 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 		return;
 	}
 
-	if (bInDebugPassScope)
+	if (bSkipAuxiliaryPasses)
 	{
 		return;
 	}
-	bInDebugPassScope = true;
+	bSkipAuxiliaryPasses = true;
 
 	RDG_EVENT_SCOPE(*this, "RDG ClobberResources");
 
@@ -3535,7 +3549,7 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 		}
 	});
 
-	bInDebugPassScope = false;
+	bSkipAuxiliaryPasses = false;
 }
 
 #endif //! RDG_ENABLE_DEBUG

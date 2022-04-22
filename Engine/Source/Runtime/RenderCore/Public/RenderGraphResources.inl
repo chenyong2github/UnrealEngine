@@ -78,7 +78,7 @@ inline FPooledRenderTargetDesc Translate(const FRHITextureDesc& InDesc)
 inline FRHIBufferCreateInfo Translate(const FRDGBufferDesc& InDesc)
 {
 	FRHIBufferCreateInfo CreateInfo;
-	CreateInfo.Size = InDesc.GetTotalNumBytes();
+	CreateInfo.Size = InDesc.GetSize();
 	if (InDesc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
 	{
 		CreateInfo.Stride = 0;

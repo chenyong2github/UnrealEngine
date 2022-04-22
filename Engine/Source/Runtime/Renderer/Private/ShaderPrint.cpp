@@ -94,13 +94,7 @@ namespace ShaderPrint
 	public:
 		void InitRHI() override
 		{
-			if (!Buffer.IsValid())
-			{
-				FRHICommandList* UnusedCmdList = new FRHICommandList(FRHIGPUMask::All());
-				GetPooledFreeBuffer(*UnusedCmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderPrintItem), 1), Buffer, TEXT("ShaderPrint.EmptyValueBuffer"));
-				delete UnusedCmdList;
-				UnusedCmdList = nullptr;
-			}
+			Buffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderPrintItem), 1), TEXT("ShaderPrint.EmptyValueBuffer"));
 		}
 	};
 

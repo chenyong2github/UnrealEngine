@@ -32,11 +32,10 @@ FRDGViewableResource::FRDGViewableResource(const TCHAR* InName, const ERDGViewab
 	, TransientExtractionHint(ETransientExtractionHint::None)
 	, bFinalizedAccess(0)
 	, bLastOwner(1)
-	, bCulled(1)
+	, bCulled(!IsImmediateMode())
 	, bUsedByAsyncComputePass(0)
 	, bQueuedForUpload(0)
-	, bSwapChain(0)
-	, bSwapChainAlreadyMoved(0)
+	, FirstBarrier(EFirstBarrier::Split)
 	, bUAVAccessed(0)
 {}
 

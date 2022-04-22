@@ -1284,10 +1284,12 @@ struct FRDGResourceDumpContext
 			}
 		}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::AccelerationStructure)
 		{
 			return;
 		}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Dump the resource's binary to a .bin file.
 		if (bDumpResourceBinary && DumpBufferMode == 2)
@@ -1751,7 +1753,7 @@ static const TCHAR* GetPassEventNameWithGPUMask(const FRDGPass* Pass, FString& O
 
 void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 {
-	if (bInDebugPassScope)
+	if (bSkipAuxiliaryPasses)
 	{
 		return;
 	}
@@ -1767,7 +1769,7 @@ void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 		return;
 	}
 
-	bInDebugPassScope = true;
+	bSkipAuxiliaryPasses = true;
 
 	TArray<TSharedPtr<FJsonValue>> InputResourceNames;
 	TArray<TSharedPtr<FJsonValue>> OutputResourceNames;
@@ -1993,7 +1995,7 @@ void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 
 	GRDGResourceDumpContext->PassesCount++;
 
-	bInDebugPassScope = false;
+	bSkipAuxiliaryPasses = false;
 }
 
 #if RDG_DUMP_RESOURCES_AT_EACH_DRAW

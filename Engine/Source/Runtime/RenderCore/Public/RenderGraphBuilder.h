@@ -26,8 +26,12 @@ public:
 	~FRDGBuilder();
 
 	/** Finds an RDG texture associated with the external texture, or returns null if none is found. */
-	FRDGTextureRef FindExternalTexture(FRHITexture* Texture) const;
-	FRDGTextureRef FindExternalTexture(IPooledRenderTarget* ExternalPooledTexture) const;
+	FRDGTexture* FindExternalTexture(FRHITexture* Texture) const;
+	FRDGTexture* FindExternalTexture(IPooledRenderTarget* ExternalPooledTexture) const;
+
+	/** Finds an RDG buffer associated with the external buffer, or returns null if none is found. */
+	FRDGBuffer* FindExternalBuffer(FRHIBuffer* Buffer) const;
+	FRDGBuffer* FindExternalBuffer(FRDGPooledBuffer* ExternalPooledBuffer) const;
 
 	/** Registers a external pooled render target texture to be tracked by the render graph. The name of the registered RDG texture is pulled from the pooled render target. */
 	FRDGTextureRef RegisterExternalTexture(
@@ -107,7 +111,7 @@ public:
 	// Allocation Methods
 
 	/** Allocates raw memory using an allocator tied to the lifetime of the graph. */
-	void* Alloc(uint64 SizeInBytes, uint32 AlignInBytes);
+	void* Alloc(uint64 SizeInBytes, uint32 AlignInBytes = 16);
 
 	/** Allocates POD memory using an allocator tied to the lifetime of the graph. Does not construct / destruct. */
 	template <typename PODType>
@@ -469,11 +473,11 @@ private:
 	FRDGUniformBufferRegistry UniformBuffers;
 
 	/** Uniform buffers which were used in a pass. */
-	TArray<FRDGUniformBufferHandle, TInlineAllocator<32, FRDGArrayAllocator>> UniformBuffersToCreate;
+	TArray<FRDGUniformBufferHandle, FRDGArrayAllocator> UniformBuffersToCreate;
 
 	/** Tracks external resources to their registered render graph counterparts for de-duplication. */
 	TSortedMap<FRHITexture*, FRDGTexture*, FRDGArrayAllocator> ExternalTextures;
-	TSortedMap<FRDGPooledBuffer*, FRDGBuffer*, FRDGArrayAllocator> ExternalBuffers;
+	TSortedMap<FRHIBuffer*, FRDGBuffer*, FRDGArrayAllocator> ExternalBuffers;
 
 	/** Tracks the latest RDG resource to own an alias of a pooled resource (multiple RDG resources can reference the same pooled resource). */
 	TMap<FRDGPooledTexture*, FRDGTexture*, FRDGSetAllocator> PooledTextureOwnershipMap;
@@ -596,6 +600,7 @@ private:
 	/** Array of all active parallel execute tasks. */
 	FGraphEventArray ParallelExecuteEvents;
 
+	/** Tracks the final access used on resources in order to call SetTrackedAccess. */
 	TArray<FRHITrackedAccessInfo, FRDGArrayAllocator> EpilogueResourceAccesses;
 
 	/** Texture state used for intermediate operations. Held here to avoid re-allocating. */
@@ -621,7 +626,7 @@ private:
 #endif
 
 	/** Tracks whether we are in a scope of adding passes to the builder. Used to avoid recursion. */
-	bool bInDebugPassScope = false;
+	bool bSkipAuxiliaryPasses = false;
 
 #if WITH_MGPU
 	/** Name for the temporal effect used to synchronize multi-frame resources. */
@@ -653,16 +658,17 @@ private:
 
 	void BeginResourcesRHI(FRDGPass* ResourcePass, FRDGPassHandle ExecutePassHandle);
 	void BeginResourceRHI(FRDGPassHandle, FRDGTexture* Texture);
-	void BeginResourceRHI(FRDGPassHandle, FRDGTextureSRV* SRV);
-	void BeginResourceRHI(FRDGPassHandle, FRDGTextureUAV* UAV);
 	void BeginResourceRHI(FRDGPassHandle, FRDGBuffer* Buffer);
-	void BeginResourceRHI(FRDGPassHandle, FRDGBufferSRV* SRV);
-	void BeginResourceRHI(FRDGPassHandle, FRDGBufferUAV* UAV);
-	void BeginResourceRHI(FRDGPassHandle, FRDGView* View);
 
 	void EndResourcesRHI(FRDGPass* ResourcePass, FRDGPassHandle ExecutePassHandle);
 	void EndResourceRHI(FRDGPassHandle, FRDGTexture* Texture, uint32 ReferenceCount);
 	void EndResourceRHI(FRDGPassHandle, FRDGBuffer* Buffer, uint32 ReferenceCount);
+
+	void InitRHI(FRDGView* View);
+	void InitRHI(FRDGBufferSRV* SRV);
+	void InitRHI(FRDGBufferUAV* UAV);
+	void InitRHI(FRDGTextureSRV* SRV);
+	void InitRHI(FRDGTextureUAV* UAV);
 
 	void SetupParallelExecute();
 	void DispatchParallelExecute(IRHICommandContext* RHICmdContext);
