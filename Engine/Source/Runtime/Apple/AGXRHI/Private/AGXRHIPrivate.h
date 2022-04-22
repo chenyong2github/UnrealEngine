@@ -252,10 +252,6 @@ FORCEINLINE MTLLoadAction GetMetalRTLoadAction(ERenderTargetLoadAction LoadActio
 
 MTLPrimitiveType AGXTranslatePrimitiveType(uint32 PrimitiveType);
 
-#if PLATFORM_MAC
-mtlpp::PrimitiveTopologyClass AGXTranslatePrimitiveTopology(uint32 PrimitiveType);
-#endif
-
 mtlpp::PixelFormat AGXToSRGBFormat(mtlpp::PixelFormat LinMTLFormat);
 
 uint8 AGXGetMetalPixelFormatKey(mtlpp::PixelFormat Format);
