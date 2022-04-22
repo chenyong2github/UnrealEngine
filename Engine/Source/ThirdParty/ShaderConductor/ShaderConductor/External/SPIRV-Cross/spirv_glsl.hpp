@@ -52,16 +52,14 @@ enum PlsFormat
 	PlsR32UI
 };
 
+// UE Change Begin: Improved support for PLS and FBF
 struct PlsRemap
 {
 	uint32_t id;
-	// UE Change Begin: Improved support for PLS and FBF
 	std::string name;
-	// UE Change End: Improved support for PLS and FBF
 	PlsFormat format;
 };
 
-// UE Change Begin: Improved support for PLS and FBF
 struct PlsInOutRemap
 {
 	uint32_t input_id;
@@ -97,6 +95,11 @@ public:
 
 		// Debug option to always emit temporary variables for all expressions.
 		bool force_temporary = false;
+		// Debug option, can be increased in an attempt to workaround SPIRV-Cross bugs temporarily.
+		// If this limit has to be increased, it points to an implementation bug.
+		// In certain scenarios, the maximum number of debug iterations may increase beyond this limit
+		// as long as we can prove we're making certain kinds of forward progress.
+		uint32_t force_recompile_max_debug_iterations = 3;
 
 		// If true, Vulkan GLSL features are used instead of GL-compatible features.
 		// Mostly useful for debugging SPIR-V files.
@@ -147,6 +150,13 @@ public:
 		// what happens on legacy GLSL targets for blocks and structs.
 		bool force_flattened_io_blocks = false;
 
+		// For opcodes where we have to perform explicit additional nan checks, very ugly code is generated.
+		// If we opt-in, ignore these requirements.
+		// In opcodes like NClamp/NMin/NMax and FP compare, ignore NaN behavior.
+		// Use FClamp/FMin/FMax semantics for clamps and lets implementation choose ordered or unordered
+		// compares.
+		bool relax_nan_checks = false;
+
 		// UE Change Begin: Reconstruct global uniforms from $Globals cbuffer
 		bool reconstruct_global_uniforms = false;
 		// UE Change End: Reconstruct global uniforms from $Globals cbuffer
@@ -183,7 +193,7 @@ public:
 		// UE Change Begin: Emit structure padding to support uniform buffers with offsets
 		bool pad_ubo_blocks = false;
 		// UE Change End: Emit structure padding to support uniform buffers with offsets
-		
+
 		// UE Change Begin: Force Glsl Clipspace when using ES
 		bool force_glsl_clipspace = false;
 		// UE Change End: Force Glsl Clipspace when using ES
@@ -399,7 +409,7 @@ protected:
 	// TODO remove this function when all subgroup ops are supported (or make it always return true)
 	static bool is_supported_subgroup_op_in_opengl(spv::Op op);
 
-	void reset();
+	void reset(uint32_t iteration_count);
 	void emit_function(SPIRFunction &func, const Bitset &return_flags);
 
 	bool has_extension(const std::string &ext) const;
@@ -414,6 +424,11 @@ protected:
 
 	virtual void emit_instruction(const Instruction &instr);
 	void emit_block_instructions(SPIRBlock &block);
+
+	// For relax_nan_checks.
+	GLSLstd450 get_remapped_glsl_op(GLSLstd450 std450_op) const;
+	spv::Op get_remapped_spirv_op(spv::Op op) const;
+
 	virtual void emit_glsl_op(uint32_t result_type, uint32_t result_id, uint32_t op, const uint32_t *args,
 	                          uint32_t count);
 	virtual void emit_spv_amd_shader_ballot_op(uint32_t result_type, uint32_t result_id, uint32_t op,
@@ -438,22 +453,21 @@ protected:
 	virtual void emit_subgroup_op(const Instruction &i);
 	virtual std::string type_to_glsl(const SPIRType &type, uint32_t id = 0);
 	virtual std::string builtin_to_glsl(spv::BuiltIn builtin, spv::StorageClass storage);
-	
-	// UE Change Begin: Emit structure padding to support uniform buffers with offsets
-        void emit_struct_member_padding(const SPIRType &type, uint32_t index);
-	// UE Change End: Emit structure padding to support uniform buffers with offsets
-
 	virtual void emit_struct_member(const SPIRType &type, uint32_t member_type_id, uint32_t index,
 	                                const std::string &qualifier = "", uint32_t base_offset = 0);
 	virtual void emit_struct_padding_target(const SPIRType &type);
 	virtual std::string image_type_glsl(const SPIRType &type, uint32_t id = 0);
-	std::string constant_expression(const SPIRConstant &c);
+	std::string constant_expression(const SPIRConstant &c, bool inside_block_like_struct_scope = false);
 	virtual std::string constant_op_expression(const SPIRConstantOp &cop);
 	virtual std::string constant_expression_vector(const SPIRConstant &c, uint32_t vector);
 	virtual void emit_fixup();
 	virtual std::string variable_decl(const SPIRType &type, const std::string &name, uint32_t id = 0);
 	virtual bool variable_decl_is_remapped_storage(const SPIRVariable &var, spv::StorageClass storage) const;
 	virtual std::string to_func_call_arg(const SPIRFunction::Parameter &arg, uint32_t id);
+
+	// UE Change Begin: Emit structure padding to support uniform buffers with offsets
+	void emit_struct_member_padding(const SPIRType &type, uint32_t index);
+	// UE Change End: Emit structure padding to support uniform buffers with offsets
 
 	struct TextureFunctionBaseArguments
 	{
@@ -639,7 +653,7 @@ protected:
 		bool supports_extensions = false;
 		bool supports_empty_struct = false;
 		bool array_is_value_type = true;
-		bool buffer_offset_array_is_value_type = true;
+		bool array_is_value_type_in_buffer_blocks = true;
 		bool comparison_image_samples_scalar = false;
 		bool native_pointers = false;
 		bool support_small_type_sampling_result = false;
@@ -649,6 +663,7 @@ protected:
 		bool support_pointer_to_pointer = false;
 		bool support_precise_qualifier = false;
 		bool support_64bit_switch = false;
+		bool workgroup_size_is_hidden = false;
 	} backend;
 
 	void emit_struct(SPIRType &type);
@@ -672,6 +687,7 @@ protected:
 	void emit_block_chain(SPIRBlock &block);
 	void emit_hoisted_temporaries(SmallVector<std::pair<TypeID, ID>> &temporaries);
 	std::string constant_value_macro_name(uint32_t id);
+	int get_constant_mapping_to_workgroup_component(const SPIRConstant &constant) const;
 	void emit_constant(const SPIRConstant &constant);
 	void emit_specialization_constant_op(const SPIRConstantOp &constant);
 	std::string emit_continue_block(uint32_t continue_block, bool follow_true_block, bool follow_false_block);
@@ -778,7 +794,7 @@ protected:
 	void append_global_func_args(const SPIRFunction &func, uint32_t index, SmallVector<std::string> &arglist);
 	std::string to_non_uniform_aware_expression(uint32_t id);
 	std::string to_expression(uint32_t id, bool register_expression_read = true);
-	std::string to_composite_constructor_expression(uint32_t id, bool uses_buffer_offset);
+	std::string to_composite_constructor_expression(uint32_t id, bool block_like_type);
 	std::string to_rerolled_array_expression(const std::string &expr, const SPIRType &type);
 	std::string to_enclosed_expression(uint32_t id, bool register_expression_read = true);
 	std::string to_unpacked_expression(uint32_t id, bool register_expression_read = true);
@@ -918,13 +934,13 @@ protected:
 	// GL_EXT_shader_pixel_local_storage support.
 	std::vector<PlsRemap> pls_inputs;
 	std::vector<PlsRemap> pls_outputs;
+	std::string pls_decl(const PlsRemap &variable);
+
 	// UE Change Begin: Improved support for PLS and FBF
 	std::vector<PlsInOutRemap> pls_inouts;
-	// UE Change End: Improved support for PLS and FBF
-	std::string pls_decl(const PlsRemap &variable);
-	// UE Change Begin: Improved support for PLS and FBF
 	std::string pls_decl(const PlsInOutRemap &variable);
 	// UE Change End: Improved support for PLS and FBF
+
 	const char *to_pls_qualifiers_glsl(const SPIRVariable &variable);
 	void emit_pls();
 	void remap_pls_variables();
@@ -947,6 +963,7 @@ protected:
 
 	void check_function_call_constraints(const uint32_t *args, uint32_t length);
 	void handle_invalid_expression(uint32_t id);
+	void force_temporary_and_recompile(uint32_t id);
 	void find_static_extensions();
 
 	std::string emit_for_loop_initializers(const SPIRBlock &block);
@@ -994,6 +1011,8 @@ protected:
 
 	void fixup_type_alias();
 	void reorder_type_alias();
+	void fixup_anonymous_struct_names();
+	void fixup_anonymous_struct_names(std::unordered_set<uint32_t> &visited, const SPIRType &type);
 
 	static const char *vector_swizzle(int vecsize, int index);
 

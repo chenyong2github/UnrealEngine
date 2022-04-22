@@ -462,6 +462,10 @@ string CompilerHLSL::type_to_glsl(const SPIRType &type, uint32_t id)
 			if (hlsl_options.shader_model < 60)
 				SPIRV_CROSS_THROW("64-bit integers only supported in SM 6.0.");
 			return "uint64_t";
+		case SPIRType::AccelerationStructure:
+			return "RaytracingAccelerationStructure";
+		case SPIRType::RayQuery:
+			return "RayQuery<RAY_FLAG_NONE>";
 		default:
 			return "???";
 		}
@@ -726,6 +730,11 @@ void CompilerHLSL::emit_builtin_inputs_in_struct()
 		case BuiltInSubgroupGtMask:
 		case BuiltInSubgroupGeMask:
 			// Handled specially.
+			break;
+
+		case BuiltInHelperInvocation:
+			if (hlsl_options.shader_model < 50 || get_entry_point().model != ExecutionModelFragment)
+				SPIRV_CROSS_THROW("Helper Invocation input is only supported in PS 5.0 or higher.");
 			break;
 
 		case BuiltInClipDistance:
@@ -994,6 +1003,8 @@ std::string CompilerHLSL::builtin_to_glsl(spv::BuiltIn builtin, spv::StorageClas
 		return "WaveGetLaneIndex()";
 	case BuiltInSubgroupSize:
 		return "WaveGetLaneCount()";
+	case BuiltInHelperInvocation:
+		return "IsHelperLane()";
 
 	default:
 		return CompilerGLSL::builtin_to_glsl(builtin, storage);
@@ -1113,6 +1124,11 @@ void CompilerHLSL::emit_builtin_variables()
 			type = "uint4";
 			break;
 
+		case BuiltInHelperInvocation:
+			if (hlsl_options.shader_model < 50)
+				SPIRV_CROSS_THROW("Need SM 5.0 for Helper Invocation.");
+			break;
+
 		case BuiltInClipDistance:
 			array_size = clip_distance_count;
 			type = "float";
@@ -1177,6 +1193,7 @@ void CompilerHLSL::emit_composite_constants()
 
 		if (type.basetype == SPIRType::Struct || !type.array.empty())
 		{
+			add_resource_name(c.self);
 			auto name = to_name(c.self);
 			statement("static const ", variable_decl(type, name), " = ", constant_expression(c), ";");
 			emitted = true;
@@ -1223,16 +1240,23 @@ void CompilerHLSL::emit_specialization_constants_and_structs()
 			else if (c.specialization)
 			{
 				auto &type = get<SPIRType>(c.constant_type);
+				add_resource_name(c.self);
 				auto name = to_name(c.self);
 
-				// HLSL does not support specialization constants, so fallback to macros.
-				c.specialization_constant_macro_name =
-				    constant_value_macro_name(get_decoration(c.self, DecorationSpecId));
+				if (has_decoration(c.self, DecorationSpecId))
+				{
+					// HLSL does not support specialization constants, so fallback to macros.
+					c.specialization_constant_macro_name =
+							constant_value_macro_name(get_decoration(c.self, DecorationSpecId));
 
-				statement("#ifndef ", c.specialization_constant_macro_name);
-				statement("#define ", c.specialization_constant_macro_name, " ", constant_expression(c));
-				statement("#endif");
-				statement("static const ", variable_decl(type, name), " = ", c.specialization_constant_macro_name, ";");
+					statement("#ifndef ", c.specialization_constant_macro_name);
+					statement("#define ", c.specialization_constant_macro_name, " ", constant_expression(c));
+					statement("#endif");
+					statement("static const ", variable_decl(type, name), " = ", c.specialization_constant_macro_name, ";");
+				}
+				else
+					statement("static const ", variable_decl(type, name), " = ", constant_expression(c), ";");
+
 				emitted = true;
 			}
 		}
@@ -1240,6 +1264,7 @@ void CompilerHLSL::emit_specialization_constants_and_structs()
 		{
 			auto &c = id.get<SPIRConstantOp>();
 			auto &type = get<SPIRType>(c.basetype);
+			add_resource_name(c.self);
 			auto name = to_name(c.self);
 			statement("static const ", variable_decl(type, name), " = ", constant_op_expression(c), ";");
 			emitted = true;
@@ -1336,7 +1361,8 @@ void CompilerHLSL::emit_resources()
 		}
 	});
 
-	if (execution.model == ExecutionModelVertex && hlsl_options.shader_model <= 30)
+	if (execution.model == ExecutionModelVertex && hlsl_options.shader_model <= 30 &&
+	    active_output_builtins.get(BuiltInPosition))
 	{
 		statement("uniform float4 gl_HalfPixel;");
 		emitted = true;
@@ -2097,13 +2123,24 @@ void CompilerHLSL::emit_struct_member(const SPIRType &type, uint32_t member_type
 	          variable_decl(membertype, to_member_name(type, index)), packing_offset, ";");
 }
 
+void CompilerHLSL::emit_rayquery_function(const char *commited, const char *candidate, const uint32_t *ops)
+{
+	flush_variable_declaration(ops[0]);
+	uint32_t is_commited = evaluate_constant_u32(ops[3]);
+	emit_op(ops[0], ops[1], join(to_expression(ops[2]), is_commited ? commited : candidate), false);
+}
+
 void CompilerHLSL::emit_buffer_block(const SPIRVariable &var)
 {
 	auto &type = get<SPIRType>(var.basetype);
 
 	bool is_uav = var.storage == StorageClassStorageBuffer || has_decoration(type.self, DecorationBufferBlock);
 
-	if (is_uav)
+	if (flattened_buffer_blocks.count(var.self))
+	{
+		emit_buffer_block_flattened(var);
+	}
+	else if (is_uav)
 	{
 		Bitset flags = ir.get_buffer_block_flags(var);
 		bool is_readonly = flags.get(DecorationNonWritable) && !is_hlsl_force_storage_buffer_as_uav(var.self);
@@ -2236,7 +2273,11 @@ void CompilerHLSL::emit_buffer_block(const SPIRVariable &var)
 
 void CompilerHLSL::emit_push_constant_block(const SPIRVariable &var)
 {
-	if (root_constants_layout.empty())
+	if (flattened_buffer_blocks.count(var.self))
+	{
+		emit_buffer_block_flattened(var);
+	}
+	else if (root_constants_layout.empty())
 	{
 		emit_buffer_block(var);
 	}
@@ -2394,7 +2435,7 @@ void CompilerHLSL::emit_function_prototype(SPIRFunction &func, const Bitset &ret
 		out_argument += " ";
 		out_argument += "spvReturnValue";
 		out_argument += type_to_array_glsl(type);
-		arglist.push_back(move(out_argument));
+		arglist.push_back(std::move(out_argument));
 	}
 
 	for (auto &arg : func.arguments)
@@ -2469,6 +2510,16 @@ void CompilerHLSL::emit_hlsl_entry_point()
 		uint32_t y = execution.workgroup_size.y;
 		uint32_t z = execution.workgroup_size.z;
 
+		if (!execution.workgroup_size.constant && execution.flags.get(ExecutionModeLocalSizeId))
+		{
+			if (execution.workgroup_size.id_x)
+				x = get<SPIRConstant>(execution.workgroup_size.id_x).scalar();
+			if (execution.workgroup_size.id_y)
+				y = get<SPIRConstant>(execution.workgroup_size.id_y).scalar();
+			if (execution.workgroup_size.id_z)
+				z = get<SPIRConstant>(execution.workgroup_size.id_z).scalar();
+		}
+
 		auto x_expr = wg_x.id ? get<SPIRConstant>(wg_x.id).specialization_constant_macro_name : to_string(x);
 		auto y_expr = wg_y.id ? get<SPIRConstant>(wg_y.id).specialization_constant_macro_name : to_string(y);
 		auto z_expr = wg_z.id ? get<SPIRConstant>(wg_z.id).specialization_constant_macro_name : to_string(z);
@@ -2531,6 +2582,7 @@ void CompilerHLSL::emit_hlsl_entry_point()
 		case BuiltInPointCoord:
 		case BuiltInSubgroupSize:
 		case BuiltInSubgroupLocalInvocationId:
+		case BuiltInHelperInvocation:
 			break;
 
 		case BuiltInSubgroupEqMask:
@@ -2750,7 +2802,7 @@ void CompilerHLSL::emit_hlsl_entry_point()
 
 void CompilerHLSL::emit_fixup()
 {
-	if (is_vertex_like_shader())
+	if (is_vertex_like_shader() && active_output_builtins.get(BuiltInPosition))
 	{
 		// Do various mangling on the gl_Position.
 		if (hlsl_options.shader_model <= 30)
@@ -3291,6 +3343,11 @@ string CompilerHLSL::to_resource_binding(const SPIRVariable &var)
 		resource_flags = HLSL_BINDING_AUTO_SAMPLER_BIT;
 		break;
 
+	case SPIRType::AccelerationStructure:
+		space = 't'; // SRV
+		resource_flags = HLSL_BINDING_AUTO_SRV_BIT;
+		break;
+
 	case SPIRType::Struct:
 	{
 		auto storage = type.storage;
@@ -3538,6 +3595,8 @@ void CompilerHLSL::emit_glsl_op(uint32_t result_type, uint32_t id, uint32_t eop,
 	uint32_t integer_width = get_integer_width_for_glsl_instruction(op, args, count);
 	auto int_type = to_signed_basetype(integer_width);
 	auto uint_type = to_unsigned_basetype(integer_width);
+
+	op = get_remapped_glsl_op(op);
 
 	switch (op)
 	{
@@ -4011,7 +4070,7 @@ void CompilerHLSL::read_access_chain(string *expr, const string &lhs, const SPIR
 	if (lhs.empty())
 	{
 		assert(expr);
-		*expr = move(load_expr);
+		*expr = std::move(load_expr);
 	}
 	else
 		statement(lhs, " = ", load_expr, ";");
@@ -4807,6 +4866,8 @@ void CompilerHLSL::emit_instruction(const Instruction &instruction)
 	auto int_type = to_signed_basetype(integer_width);
 	auto uint_type = to_unsigned_basetype(integer_width);
 
+	opcode = get_remapped_spirv_op(opcode);
+
 	switch (opcode)
 	{
 	case OpAccessChain:
@@ -5357,7 +5418,7 @@ void CompilerHLSL::emit_instruction(const Instruction &instruction)
 				                        image_format_to_components(get<SPIRType>(var->basetype).image.format), imgexpr);
 		}
 
-		if (var && var->forwardable)
+		if (var)
 		{
 			bool forward = forced_temporaries.find(id) == end(forced_temporaries);
 			auto &e = emit_op(result_type, id, imgexpr, forward);
@@ -5601,7 +5662,12 @@ void CompilerHLSL::emit_instruction(const Instruction &instruction)
 	}
 
 	case OpIsHelperInvocationEXT:
-		SPIRV_CROSS_THROW("helperInvocationEXT() is not supported in HLSL.");
+		if (hlsl_options.shader_model < 50 || get_entry_point().model != ExecutionModelFragment)
+			SPIRV_CROSS_THROW("Helper Invocation input is only supported in PS 5.0 or higher.");
+		// Helper lane state with demote is volatile by nature.
+		// Do not forward this.
+		emit_op(ops[0], ops[1], "IsHelperLane()", false);
+		break;
 
 	case OpBeginInvocationInterlockEXT:
 	case OpEndInvocationInterlockEXT:
@@ -5609,6 +5675,143 @@ void CompilerHLSL::emit_instruction(const Instruction &instruction)
 			SPIRV_CROSS_THROW("Rasterizer order views require Shader Model 5.1.");
 		break; // Nothing to do in the body
 
+	case OpRayQueryInitializeKHR:
+	{
+		flush_variable_declaration(ops[0]);
+
+		std::string ray_desc_name = get_unique_identifier();
+		statement("RayDesc ", ray_desc_name, " = {", to_expression(ops[4]), ", ", to_expression(ops[5]), ", ",
+			to_expression(ops[6]), ", ", to_expression(ops[7]), "};");
+
+		statement(to_expression(ops[0]), ".TraceRayInline(", 
+			to_expression(ops[1]), ", ", // acc structure
+			to_expression(ops[2]), ", ", // ray flags
+			to_expression(ops[3]), ", ", // mask
+			ray_desc_name, ");"); // ray
+		break;
+	}
+	case OpRayQueryProceedKHR:
+	{
+		flush_variable_declaration(ops[0]);
+		emit_op(ops[0], ops[1], join(to_expression(ops[2]), ".Proceed()"), false);
+		break;
+	}	
+	case OpRayQueryTerminateKHR:
+	{
+		flush_variable_declaration(ops[0]);
+		statement(to_expression(ops[0]), ".Abort();");
+		break;
+	}
+	case OpRayQueryGenerateIntersectionKHR:
+	{
+		flush_variable_declaration(ops[0]);
+		statement(to_expression(ops[0]), ".CommitProceduralPrimitiveHit(", ops[1], ");");
+		break;
+	}
+	case OpRayQueryConfirmIntersectionKHR:
+	{
+		flush_variable_declaration(ops[0]);
+		statement(to_expression(ops[0]), ".CommitNonOpaqueTriangleHit();");
+		break;
+	}
+	case OpRayQueryGetIntersectionTypeKHR:
+	{
+		emit_rayquery_function(".CommittedStatus()", ".CandidateType()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionTKHR:
+	{
+		emit_rayquery_function(".CommittedRayT()", ".CandidateTriangleRayT()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionInstanceCustomIndexKHR:
+	{
+		emit_rayquery_function(".CommittedInstanceID()", ".CandidateInstanceID()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionInstanceIdKHR:
+	{
+		emit_rayquery_function(".CommittedInstanceIndex()", ".CandidateInstanceIndex()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionInstanceShaderBindingTableRecordOffsetKHR:
+	{
+		emit_rayquery_function(".CommittedInstanceContributionToHitGroupIndex()", 
+			".CandidateInstanceContributionToHitGroupIndex()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionGeometryIndexKHR:
+	{
+		emit_rayquery_function(".CommittedGeometryIndex()",
+				".CandidateGeometryIndex()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionPrimitiveIndexKHR:
+	{
+		emit_rayquery_function(".CommittedPrimitiveIndex()", ".CandidatePrimitiveIndex()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionBarycentricsKHR:
+	{
+		emit_rayquery_function(".CommittedTriangleBarycentrics()", ".CandidateTriangleBarycentrics()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionFrontFaceKHR:
+	{
+		emit_rayquery_function(".CommittedTriangleFrontFace()", ".CandidateTriangleFrontFace()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionCandidateAABBOpaqueKHR:
+	{
+		flush_variable_declaration(ops[0]);
+		emit_op(ops[0], ops[1], join(to_expression(ops[2]), ".CandidateProceduralPrimitiveNonOpaque()"), false);
+		break;
+	}
+	case OpRayQueryGetIntersectionObjectRayDirectionKHR:
+	{
+		emit_rayquery_function(".CommittedObjectRayDirection()", ".CandidateObjectRayDirection()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionObjectRayOriginKHR:
+	{
+		flush_variable_declaration(ops[0]);
+		emit_rayquery_function(".CommittedObjectRayOrigin()", ".CandidateObjectRayOrigin()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionObjectToWorldKHR:
+	{
+		emit_rayquery_function(".CommittedObjectToWorld4x3()", ".CandidateObjectToWorld4x3()", ops);
+		break;
+	}
+	case OpRayQueryGetIntersectionWorldToObjectKHR:
+	{
+		emit_rayquery_function(".CommittedWorldToObject4x3()", ".CandidateWorldToObject4x3()", ops);
+		break;
+	}
+	case OpRayQueryGetRayFlagsKHR:
+	{
+		flush_variable_declaration(ops[0]);
+		emit_op(ops[0], ops[1], join(to_expression(ops[2]), ".RayFlags()"), false);
+		break;
+	}
+	case OpRayQueryGetRayTMinKHR:
+	{
+		flush_variable_declaration(ops[0]);
+		emit_op(ops[0], ops[1], join(to_expression(ops[2]), ".RayTMin()"), false);
+		break;
+	}
+	case OpRayQueryGetWorldRayOriginKHR:
+	{
+		flush_variable_declaration(ops[0]);
+		emit_op(ops[0], ops[1], join(to_expression(ops[2]), ".WorldRayOrigin()"), false);
+		break;
+	}
+	case OpRayQueryGetWorldRayDirectionKHR:
+	{
+		flush_variable_declaration(ops[0]);
+		emit_op(ops[0], ops[1], join(to_expression(ops[2]), ".WorldRayDirection()"), false);
+		break;
+	}
 	default:
 		CompilerGLSL::emit_instruction(instruction);
 		break;
@@ -5688,7 +5891,7 @@ void CompilerHLSL::require_texture_query_variant(uint32_t var_id)
 
 void CompilerHLSL::set_root_constant_layouts(std::vector<RootConstants> layout)
 {
-	root_constants_layout = move(layout);
+	root_constants_layout = std::move(layout);
 }
 
 void CompilerHLSL::add_vertex_attribute_remap(const HLSLVertexAttributeRemap &vertex_attributes)
@@ -5813,6 +6016,7 @@ string CompilerHLSL::compile()
 	// SM 4.1 does not support precise for some reason.
 	backend.support_precise_qualifier = hlsl_options.shader_model >= 50 || hlsl_options.shader_model == 40;
 
+	fixup_anonymous_struct_names();
 	fixup_type_alias();
 	reorder_type_alias();
 	build_function_control_flow_graphs_and_analyze();
@@ -5828,10 +6032,7 @@ string CompilerHLSL::compile()
 	uint32_t pass_count = 0;
 	do
 	{
-		if (pass_count >= 3)
-			SPIRV_CROSS_THROW("Over 3 compilation loops detected. Must be a bug!");
-
-		reset();
+		reset(pass_count);
 
 		// Move constructor for this type is broken on GCC 4.9 ...
 		buffer.reset();
