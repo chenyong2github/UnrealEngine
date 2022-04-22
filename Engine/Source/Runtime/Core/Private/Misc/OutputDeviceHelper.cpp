@@ -130,7 +130,14 @@ void FOutputDeviceHelper::FormatCastAndSerializeLine(
 	if (bAutoEmitLineTerminator)
 	{
 		// Use Windows line endings on Linux for compatibility with Windows tools like notepad.exe
-		Format.Append(PLATFORM_UNIX ? "\r\n" : LINE_TERMINATOR_ANSI);
+		if constexpr (PLATFORM_UNIX)
+		{
+			Format.Append("\r\n");
+		}
+		else
+		{
+			Format.Append(LINE_TERMINATOR_ANSI);
+		}
 	}
 
 	Output.Serialize(Format.GetData(), Format.Len() * sizeof(UTF8CHAR));
