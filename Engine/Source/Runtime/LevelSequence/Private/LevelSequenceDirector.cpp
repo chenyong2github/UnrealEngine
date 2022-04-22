@@ -7,6 +7,9 @@
 #include "LevelSequencePlayer.h"
 #include "IMovieScenePlayer.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "MovieSceneSequence.h"
+#include "Misc/QualifiedFrameTime.h"
+#include "Evaluation/MovieScenePlayback.h"
 
 UWorld* ULevelSequenceDirector::GetWorld() const
 {
@@ -16,6 +19,52 @@ UWorld* ULevelSequenceDirector::GetWorld() const
 	}
 	return GetTypedOuter<UWorld>();
 }
+
+FQualifiedFrameTime ULevelSequenceDirector::GetMasterSequenceTime() const
+{
+	using namespace UE::MovieScene;
+
+	if (IMovieScenePlayer* PlayerInterface = IMovieScenePlayer::Get(static_cast<uint16>(MovieScenePlayerIndex)))
+	{
+		FMovieSceneRootEvaluationTemplateInstance& EvaluationTemplate = PlayerInterface->GetEvaluationTemplate();
+		UMovieSceneSequence* RootSequence = EvaluationTemplate.GetRootSequence();
+		const FSequenceInstance* RootSequenceInstance = EvaluationTemplate.FindInstance(MovieSceneSequenceID::Root);
+		if (RootSequenceInstance && RootSequence)
+		{
+			// Put the qualified frame time into 'display' rate
+			FFrameRate DisplayRate = RootSequence->GetMovieScene()->GetDisplayRate();
+			FMovieSceneContext Context = RootSequenceInstance->GetContext();
+
+			FFrameTime DisplayRateTime = ConvertFrameTime(Context.GetTime(), Context.GetFrameRate(), DisplayRate);
+			return FQualifiedFrameTime(DisplayRateTime, DisplayRate);
+		}
+	}
+	return FQualifiedFrameTime(0, FFrameRate());
+}
+
+FQualifiedFrameTime ULevelSequenceDirector::GetCurrentTime() const
+{
+	using namespace UE::MovieScene;
+
+	if (IMovieScenePlayer* PlayerInterface = IMovieScenePlayer::Get(static_cast<uint16>(MovieScenePlayerIndex)))
+	{
+		FMovieSceneRootEvaluationTemplateInstance& EvaluationTemplate = PlayerInterface->GetEvaluationTemplate();
+
+		UMovieSceneSequence* SubSequence = EvaluationTemplate.GetSequence(FMovieSceneSequenceID(SubSequenceID));
+		const FSequenceInstance* SequenceInstance = EvaluationTemplate.FindInstance(FMovieSceneSequenceID(SubSequenceID));
+		if (SequenceInstance && SubSequence)
+		{
+			// Put the qualified frame time into 'display' rate
+			FFrameRate DisplayRate = SubSequence->GetMovieScene()->GetDisplayRate();
+			FMovieSceneContext Context = SequenceInstance->GetContext();
+
+			FFrameTime DisplayRateTime = ConvertFrameTime(Context.GetTime(), Context.GetFrameRate(), DisplayRate);
+			return FQualifiedFrameTime(DisplayRateTime, DisplayRate);
+		}
+	}
+	return FQualifiedFrameTime(0, FFrameRate());
+}
+
 
 TArray<UObject*> ULevelSequenceDirector::GetBoundObjects(FMovieSceneObjectBindingID ObjectBinding)
 {

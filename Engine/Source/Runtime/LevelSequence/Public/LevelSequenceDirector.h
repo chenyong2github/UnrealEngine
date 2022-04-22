@@ -21,7 +21,20 @@ public:
 	/** Called when this director is created */
 	UFUNCTION(BlueprintImplementableEvent, Category="Sequencer")
 	void OnCreated();
+	
+	/**
+	 * Get the current time for the outermost (root, or master) sequence
+	 * @return The current playback position of the master sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Director")
+	FQualifiedFrameTime GetMasterSequenceTime() const;
 
+	/**
+	 * Get the current time for this director's sub-sequence (or the master sequence, if this is a master sequence director)
+	 * @return The current playback position of this director's sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Director")
+	FQualifiedFrameTime GetCurrentTime() const;
 
 	/**
 	 * Resolve the bindings inside this sub-sequence that relate to the specified ID
@@ -29,7 +42,7 @@ public:
 	 *
 	 * @param ObjectBinding The ID for the object binding inside this sub-sequence or one of its children to resolve
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequencer")
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Director")
 	TArray<UObject*> GetBoundObjects(FMovieSceneObjectBindingID ObjectBinding);
 
 
@@ -39,7 +52,7 @@ public:
 	 *
 	 * @param ObjectBinding The ID for the object binding inside this sub-sequence or one of its children to resolve
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequencer")
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Director")
 	UObject* GetBoundObject(FMovieSceneObjectBindingID ObjectBinding);
 
 
@@ -49,7 +62,7 @@ public:
 	 *
 	 * @param ObjectBinding The ID for the object binding inside this sub-sequence or one of its children to resolve
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequencer")
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Director")
 	TArray<AActor*> GetBoundActors(FMovieSceneObjectBindingID ObjectBinding);
 
 
@@ -59,13 +72,13 @@ public:
 	 *
 	 * @param ObjectBinding The ID for the object binding inside this sub-sequence or one of its children to resolve
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequencer")
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Director")
 	AActor* GetBoundActor(FMovieSceneObjectBindingID ObjectBinding);
 
 	/*
 	 * Get the current sequence that this director is playing back within 
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequencer")
+	UFUNCTION(BlueprintCallable, Category="Sequencer|Director")
 	UMovieSceneSequence* GetSequence();
 
 public:
