@@ -26,7 +26,8 @@ namespace UnrealBuildTool.Rules
 			new string[] {
 			}
 			);
-		}
 
+			PublicDefinitions.Add("STRUCTUTILS_STRICT_CONFORMANCE=" + (Target.WindowsPlatform.bStrictConformanceMode ? "1" : "0"));
+		}
 	}
 }
