@@ -9,17 +9,8 @@
 #include "TextureTransferBase.h"
 #endif
 
-#if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_LINUX
-#define VULKAN_PLATFORM 1
-#else
-#define VULKAN_PLATFORM 0
-#endif
-
-#if VULKAN_PLATFORM
-#include "IVulkanDynamicRHI.h"
-#endif
-
 #include "CoreMinimal.h"
+#include "IVulkanDynamicRHI.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/App.h"
@@ -66,10 +57,7 @@ void FGPUTextureTransferModule::StartupModule()
 #elif PLATFORM_LINUX
 				const TArray<const ANSICHAR*> ExtentionsToAdd{ VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME, VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME };
 #endif
-
-#if VULKAN_PLATFORM
 				IVulkanDynamicRHI::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
-#endif
 			}
 
 			TransferObjects.AddDefaulted(RHI_MAX);
@@ -190,14 +178,12 @@ void FGPUTextureTransferModule::InitializeTextureTransfer()
 		InitializeArgs.RHI = RHI;
 		InitializeArgs.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
 		InitializeArgs.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
-#if VULKAN_PLATFORM
 		if (RHI == UE::GPUTextureTransfer::ERHI::Vulkan)
 		{
 			IVulkanDynamicRHI* DynRHI = GetIVulkanDynamicRHI();
 			InitializeArgs.VulkanInstance = DynRHI->RHIGetVkInstance();
 			FMemory::Memcpy(InitializeArgs.RHIDeviceUUID, DynRHI->RHIGetVulkanDeviceUUID(), 16);
 		}
-#endif
 
 		const uint8 RHIIndex = static_cast<uint8>(RHI);
 		if (TextureTransfer->Initialize(InitializeArgs))

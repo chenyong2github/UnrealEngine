@@ -6,6 +6,8 @@
 
 #include "AjaMediaPrivate.h"
 #include "AjaMediaSource.h"
+#include "GPUTextureTransferModule.h"
+#include "GPUTextureTransfer.h"
 #include "HAL/CriticalSection.h"
 #include "Templates/PimplPtr.h"
 
@@ -41,6 +43,7 @@ namespace AJA
  */
 class FAjaMediaPlayer
 	: public FMediaIOCorePlayerBase
+	, public TSharedFromThis<FAjaMediaPlayer>
 	, protected AJA::IAJAInputOutputChannelCallbackInterface
 {
 	using Super = FMediaIOCorePlayerBase;
@@ -99,23 +102,18 @@ protected:
 	/** Verify if we lost some frames since last Tick*/
 	void VerifyFrameDropCount();
 
+
 	virtual bool IsHardwareReady() const override;
 
 	//~ FMediaIOCorePlayerBase interface
 	virtual void SetupSampleChannels() override;
 
-	virtual uint32 GetNumVideoFrameBuffers() const override
-	{
-		return MaxNumVideoFrameBuffer;
-	}
-
-	virtual EMediaIOCoreColorFormat GetColorFormat() const override
-	{
-		return AjaColorFormat == EAjaMediaSourceColorFormat::YUV2_8bit ? EMediaIOCoreColorFormat::YUV8 : EMediaIOCoreColorFormat::YUV10;
-	}
-
-	virtual void AddVideoSample(const TSharedRef<FMediaIOCoreTextureSampleBase>& InSample) override;
-
+private:
+	void OnSampleDestroyed(TRefCountPtr<FRHITexture> InTexture);
+	void RegisterSampleBuffer(const TSharedPtr<FAjaMediaTextureSample>& InSample);
+	void UnregisterSampleBuffers();
+	void CreateAndRegisterTextures(const IMediaOptions* Options);
+	void UnregisterTextures();
 private:
 
 	/** Audio, MetaData, Texture  sample object pool. */
@@ -185,5 +183,17 @@ private:
 	/** Flag to indicate that pause is being requested */
 	std::atomic<bool> bPauseRequested;
 
-	EAjaMediaSourceColorFormat AjaColorFormat = EAjaMediaSourceColorFormat::YUV2_8bit;
+	FCriticalSection TexturesCriticalSection;
+	
+	/** GPU Texture transfer object */
+	UE::GPUTextureTransfer::TextureTransferPtr GPUTextureTransfer;
+
+	/** Pool of textures registerd with GPU Texture transfer. */
+	TArray<TRefCountPtr<FRHITexture>> Textures;
+	/** Buffers Registered with GPU Texture Transfer */
+	TSet<void*> RegisteredBuffers;
+	/** Pool of textures registerd with GPU Texture transfer. */
+	TSet<TRefCountPtr<FRHITexture>> RegisteredTextures;
+
+	EAjaMediaSourceColorFormat PixelFormat = EAjaMediaSourceColorFormat::YUV2_8bit;
 };
