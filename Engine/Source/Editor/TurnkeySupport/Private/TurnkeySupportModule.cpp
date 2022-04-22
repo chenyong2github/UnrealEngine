@@ -2266,6 +2266,11 @@ void FTurnkeySupportModule::UpdateSdkInfoForAllDevices()
 
 				for (ITargetDevicePtr Device : Devices)
 				{
+					if (!Device.IsValid())
+					{
+						UE_LOG(LogTurnkeySupport, Log, TEXT("Platform %s returned an invlid device from GetAllDevices, which is not expected"), *PlatformName.ToString());
+						continue;
+					}
 					FString DeviceId = Device->GetId().ToString();
 					if (GetSdkInfoForDeviceId(DeviceId).Status == ETurnkeyPlatformSdkStatus::Unknown)
 					{
