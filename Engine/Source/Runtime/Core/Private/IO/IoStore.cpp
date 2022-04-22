@@ -641,8 +641,8 @@ public:
 		}
 
 		const uint64 CompressionBlockSize = TocResource.Header.CompressionBlockSize;
-		int32 FirstBlockIndex = int32(OffsetLength.GetOffset() / CompressionBlockSize);
-		int32 LastBlockIndex = int32((Align(OffsetLength.GetOffset() + OffsetLength.GetLength(), CompressionBlockSize) - 1) / CompressionBlockSize);
+		int32 FirstBlockIndex = int32(ChunkInfo.Offset / CompressionBlockSize);
+		int32 LastBlockIndex = int32((Align(ChunkInfo.Offset + ChunkInfo.Size, CompressionBlockSize) - 1) / CompressionBlockSize);
 
 		ChunkInfo.CompressedSize = 0;
 		ChunkInfo.PartitionIndex = -1;
