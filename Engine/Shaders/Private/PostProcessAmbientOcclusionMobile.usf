@@ -6,6 +6,7 @@
 
 #include "Common.ush"
 #include "PostProcessCommon.ush"
+#include "DeferredShadingCommon.ush"
 
 // GTAO
 #if HORIZONSEARCH_INTEGRAL_SPATIALFILTER_COMPUTE_SHADER || HORIZONSEARCH_INTEGRAL_COMPUTE_SHADER || SPATIALFILTER_COMPUTE_SHADER || HORIZONSEARCH_INTEGRAL_PIXEL_SHADER || SPATIALFILTER_PIXEL_SHADER
@@ -208,9 +209,9 @@ half3 GetNormal(half2 UV, int2 ThreadPos, float3 ViewSpacePosMid)
 	half3 ViewSpaceNormal;
 
 #if USE_NORMALBUFFER
-
 	// Get the normal from the normal buffer
-	half3 WorldNormal = Texture2DSample(NormalTexture, NormalSampler, UV).xyz;
+	float4 WorldNormalRoughness = Texture2DSample(NormalTexture, NormalSampler, UV);
+	float3 WorldNormal = OctahedronToUnitVector( WorldNormalRoughness.xy * 2.0f - 1.0f );
 	ViewSpaceNormal = normalize(mul(WorldNormal, (half3x3)ResolvedView.TranslatedWorldToView));
 
 #else

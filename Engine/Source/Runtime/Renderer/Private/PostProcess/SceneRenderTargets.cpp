@@ -1355,7 +1355,7 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R32_FLOAT, FClearValueBinding(FLinearColor(FarDepth,FarDepth,FarDepth,FarDepth)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthAux, TEXT("SceneDepthAux"));
 	}
-	else if (AllowScreenSpaceReflection(ShaderPlatform))
+	else if (AllowScreenSpaceReflection(ShaderPlatform) || IsUsingEpicQualityMobileAmbientOcclusion(ShaderPlatform))
 	{
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferAFormat(), FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
 		Desc.Flags |= GFastVRamConfig.GBufferA;
@@ -2537,8 +2537,7 @@ static void SetupMobileSceneTextureUniformParameters(
 	// Mobile world normal
 	{
 		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(SceneContext.GetCurrentFeatureLevel());
-		const bool bUseWorldNormalRoughness = AllowScreenSpaceReflection(ShaderPlatform) && !IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
-		SceneTextureParameters.WorldNormalRoughnessTexture = bUseWorldNormalRoughness ? GetRDG(SceneContext.WorldNormalRoughness) : BlackDefault2D;
+		SceneTextureParameters.WorldNormalRoughnessTexture = SceneContext.WorldNormalRoughness ? GetRDG(SceneContext.WorldNormalRoughness) : BlackDefault2D;
 		SceneTextureParameters.WorldNormalRoughnessTextureSampler = TStaticSamplerState<>::GetRHI();
 	}
 

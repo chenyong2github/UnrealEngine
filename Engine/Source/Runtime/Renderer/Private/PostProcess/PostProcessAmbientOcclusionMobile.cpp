@@ -58,10 +58,12 @@ class FGTAOMobile_HorizonSearchIntegral : public FGlobalShader
 public:
 	class FLUTTextureTypeDim : SHADER_PERMUTATION_INT("PREINTEGRATED_LUT_TYPE", 3);
 	class FShaderQualityDim : SHADER_PERMUTATION_INT("SHADER_QUALITY", 3);
+	class FUseNormalBuffer : SHADER_PERMUTATION_BOOL("USE_NORMALBUFFER");
 
 	using FCommonPermutationDomain = TShaderPermutationDomain<
 		FLUTTextureTypeDim,
-		FShaderQualityDim>;
+		FShaderQualityDim,
+		FUseNormalBuffer>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -94,18 +96,18 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("USE_NORMALBUFFER"), 0);
 	}
 
-	static FCommonPermutationDomain BuildPermutationVector(int32 LUTTextureType, int32 ShaderQuality)
+	static FCommonPermutationDomain BuildPermutationVector(int32 LUTTextureType, int32 ShaderQuality, bool bUseNormalBuffer)
 	{
 		FCommonPermutationDomain PermutationVector;
 		PermutationVector.Set<FLUTTextureTypeDim>(LUTTextureType);
 		PermutationVector.Set<FShaderQualityDim>(ShaderQuality);
+		PermutationVector.Set<FUseNormalBuffer>(bUseNormalBuffer);
 		return PermutationVector;
 	}
 
-	static void SetupShaderParameters(FParameters& ShaderParameters, FRDGBuilder& GraphBuilder, const FViewInfo& View, const FIntRect& ViewRect, const FIntPoint& DepthBufferSize, const FIntPoint& BufferSize, const FVector4& FallOffStartEndScaleBias, const FVector4& WorldRadiusAdjSinCosDeltaAngleThickness, FRDGTextureRef SceneDepthTexture)
+	static void SetupShaderParameters(FParameters& ShaderParameters, FRDGBuilder& GraphBuilder, const FViewInfo& View, const FIntRect& ViewRect, const FIntPoint& DepthBufferSize, const FIntPoint& BufferSize, const FVector4& FallOffStartEndScaleBias, const FVector4& WorldRadiusAdjSinCosDeltaAngleThickness, FRDGTextureRef SceneDepthTexture, FRDGTextureRef WorldNormalRoughnessTexture)
 	{
 		const FFinalPostProcessSettings& Settings = View.FinalPostProcessSettings;
 
@@ -122,6 +124,9 @@ public:
 
 		ShaderParameters.SceneDepthTexture = SceneDepthTexture;
 		ShaderParameters.SceneDepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+		ShaderParameters.NormalTexture = WorldNormalRoughnessTexture;
+		ShaderParameters.NormalSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 		if (GSystemTextures.GTAOPreIntegrated.IsValid())
 		{
@@ -179,10 +184,10 @@ public:
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), ThreadGroupSizeY);
 	}
 
-	static FPermutationDomain BuildPermutationVector(int32 LUTTextureType, int32 ShaderQuality)
+	static FPermutationDomain BuildPermutationVector(int32 LUTTextureType, int32 ShaderQuality, bool bUseNormalBuffer)
 	{
 		FPermutationDomain PermutationVector;
-		PermutationVector.Set<Super::FCommonPermutationDomain>(Super::BuildPermutationVector(LUTTextureType, ShaderQuality));
+		PermutationVector.Set<Super::FCommonPermutationDomain>(Super::BuildPermutationVector(LUTTextureType, ShaderQuality, bUseNormalBuffer));
 		return PermutationVector;
 	}
 };
@@ -231,10 +236,10 @@ public:
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), ThreadGroupSizeY);
 	}
 
-	static FPermutationDomain BuildPermutationVector(int32 LUTTextureType, int32 ShaderQuality)
+	static FPermutationDomain BuildPermutationVector(int32 LUTTextureType, int32 ShaderQuality, bool bUseNormalBuffer)
 	{
 		FPermutationDomain PermutationVector;
-		PermutationVector.Set<Super::FCommonPermutationDomain>(Super::BuildPermutationVector(LUTTextureType, ShaderQuality));
+		PermutationVector.Set<Super::FCommonPermutationDomain>(Super::BuildPermutationVector(LUTTextureType, ShaderQuality, bUseNormalBuffer));
 		return PermutationVector;
 	}
 };
@@ -356,10 +361,10 @@ public:
 		OutEnvironment.SetDefine(TEXT("HORIZONSEARCH_INTEGRAL_PIXEL_SHADER"), 1u);
 	}
 
-	static FPermutationDomain BuildPermutationVector(int32 LUTTextureType, int32 ShaderQuality)
+	static FPermutationDomain BuildPermutationVector(int32 LUTTextureType, int32 ShaderQuality, bool bUseNormalBuffer)
 	{
 		FPermutationDomain PermutationVector;
-		PermutationVector.Set<Super::FCommonPermutationDomain>(Super::BuildPermutationVector(LUTTextureType, ShaderQuality));
+		PermutationVector.Set<Super::FCommonPermutationDomain>(Super::BuildPermutationVector(LUTTextureType, ShaderQuality, bUseNormalBuffer));
 		return PermutationVector;
 	}
 };
@@ -420,7 +425,7 @@ void FMobileSceneRenderer::ReleaseAmbientOcclusionOutputs()
 	GAmbientOcclusionMobileOutputs.Release();
 }
 
-void FMobileSceneRenderer::RenderAmbientOcclusion(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ)
+void FMobileSceneRenderer::RenderAmbientOcclusion(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ, const TRefCountPtr<IPooledRenderTarget>& WorldNormalRoughness)
 {
 	checkSlow(GAmbientOcclusionMobileOutputs.IsValid() && SceneDepthZ.IsValid());
 
@@ -430,15 +435,15 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRHICommandListImmediate& RHIC
 	FRDGBuilder GraphBuilder(RHICmdList);
 
 	FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneDepthZ, TEXT("SceneDepthTexture"));
-
+	FRDGTextureRef WorldNormalRoughnessTexture = GraphBuilder.RegisterExternalTexture(WorldNormalRoughness, TEXT("WorldNormalRoughnessTexture"));
 	FRDGTextureRef AmbientOcclusionTexture = GraphBuilder.RegisterExternalTexture(GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture, TEXT("AmbientOcclusionTexture"));
 
-	RenderAmbientOcclusion(GraphBuilder, SceneDepthTexture, AmbientOcclusionTexture);
+	RenderAmbientOcclusion(GraphBuilder, SceneDepthTexture, WorldNormalRoughnessTexture, AmbientOcclusionTexture);
 
 	GraphBuilder.Execute();
 }
 
-void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture)
+void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef WorldNormalRoughnessTexture, FRDGTextureRef AmbientOcclusionTexture)
 {
 	static const auto GTAOThicknessBlendCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.GTAO.ThicknessBlend"));
 	static const auto GTAOFalloffStartRatioCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.GTAO.FalloffStartRatio"));
@@ -492,13 +497,13 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 		if (GetMaxWorkGroupInvocations() >= 1024 && CVarMobileAmbientOcclusionShaderType.GetValueOnRenderThread() == 0)
 		{
 			FGTAOMobile_HorizonSearchIntegralSpatialFilterCS::FParameters* HorizonSearchIntegralSpatialFilterParameters = GraphBuilder.AllocParameters<FGTAOMobile_HorizonSearchIntegralSpatialFilterCS::FParameters>();
-			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralSpatialFilterParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, WorldRadiusAdjSinCosDeltaAngleThickness, SceneDepthTexture);
+			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralSpatialFilterParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, WorldRadiusAdjSinCosDeltaAngleThickness, SceneDepthTexture, WorldNormalRoughnessTexture);
 			
 			HorizonSearchIntegralSpatialFilterParameters->Power_Intensity_ScreenPixelsToSearch = FVector4(Settings.AmbientOcclusionPower * 0.5f, Settings.AmbientOcclusionIntensity, 0.0f, 0.0f);
 
 			HorizonSearchIntegralSpatialFilterParameters->OutTexture = AmbientOcclusionTextureUAV;
 
-			auto ComputeShaderPermutationVector = FGTAOMobile_HorizonSearchIntegralSpatialFilterCS::BuildPermutationVector(MobileGTAOPreIntegratedTextureType, MobileAmbientOcclusionQuality - 1);
+			auto ComputeShaderPermutationVector = FGTAOMobile_HorizonSearchIntegralSpatialFilterCS::BuildPermutationVector(MobileGTAOPreIntegratedTextureType, MobileAmbientOcclusionQuality - 1, MobileAmbientOcclusionQuality > 2);
 			TShaderMapRef<FGTAOMobile_HorizonSearchIntegralSpatialFilterCS> ComputeShader(View.ShaderMap, ComputeShaderPermutationVector);
 
 			FComputeShaderUtils::AddPass(
@@ -515,11 +520,11 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 			FScreenPassRenderTarget HorizonSearchIntegralRT(HorizonSearchIntegralTexture, ViewRect, ERenderTargetLoadAction::EClear);
 
 			FGTAOMobile_HorizonSearchIntegralPS::FParameters* HorizonSearchIntegralParameters = GraphBuilder.AllocParameters<FGTAOMobile_HorizonSearchIntegralPS::FParameters>();
-			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, WorldRadiusAdjSinCosDeltaAngleThickness, SceneDepthTexture);
+			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, WorldRadiusAdjSinCosDeltaAngleThickness, SceneDepthTexture, WorldNormalRoughnessTexture);
 
 			HorizonSearchIntegralParameters->RenderTargets[0] = HorizonSearchIntegralRT.GetRenderTargetBinding();
 
-			auto HorizonSearchIntegralShaderPermutationVector = FGTAOMobile_HorizonSearchIntegralPS::BuildPermutationVector(MobileGTAOPreIntegratedTextureType, MobileAmbientOcclusionQuality - 1);
+			auto HorizonSearchIntegralShaderPermutationVector = FGTAOMobile_HorizonSearchIntegralPS::BuildPermutationVector(MobileGTAOPreIntegratedTextureType, MobileAmbientOcclusionQuality - 1, MobileAmbientOcclusionQuality > 2);
 			TShaderMapRef<FGTAOMobile_HorizonSearchIntegralPS> HorizonSearchIntegralShader(View.ShaderMap, HorizonSearchIntegralShaderPermutationVector);
 
 			ClearUnusedGraphResources(HorizonSearchIntegralShader, HorizonSearchIntegralParameters);
@@ -609,11 +614,11 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 		else
 		{
 			FGTAOMobile_HorizonSearchIntegralCS::FParameters* HorizonSearchIntegralParameters = GraphBuilder.AllocParameters<FGTAOMobile_HorizonSearchIntegralCS::FParameters>();
-			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, WorldRadiusAdjSinCosDeltaAngleThickness, SceneDepthTexture);
+			FGTAOMobile_HorizonSearchIntegral::SetupShaderParameters(HorizonSearchIntegralParameters->Common, GraphBuilder, View, ViewRect, DepthBufferSize, BufferSize, FallOffStartEndScaleBias, WorldRadiusAdjSinCosDeltaAngleThickness, SceneDepthTexture, WorldNormalRoughnessTexture);
 
 			HorizonSearchIntegralParameters->OutTexture = HorizonSearchIntegralTextureUAV;
 
-			auto HorizonSearchIntegralShaderPermutationVector = FGTAOMobile_HorizonSearchIntegralCS::BuildPermutationVector(MobileGTAOPreIntegratedTextureType, MobileAmbientOcclusionQuality - 1);
+			auto HorizonSearchIntegralShaderPermutationVector = FGTAOMobile_HorizonSearchIntegralCS::BuildPermutationVector(MobileGTAOPreIntegratedTextureType, MobileAmbientOcclusionQuality - 1, MobileAmbientOcclusionQuality > 2);
 			TShaderMapRef<FGTAOMobile_HorizonSearchIntegralCS> HorizonSearchIntegralShader(View.ShaderMap, HorizonSearchIntegralShaderPermutationVector);
 
 			FComputeShaderUtils::AddPass(

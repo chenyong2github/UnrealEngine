@@ -760,7 +760,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bRequriesAmbientOcclusionPass)
 	{
-		RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ);
+		RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ, SceneContext.WorldNormalRoughness ? SceneContext.WorldNormalRoughness : GSystemTextures.BlackDummy);
 	}
 
 	if (bDeferredShading)
