@@ -1983,16 +1983,28 @@ public:
 		if (IsLibraryInitializedForRuntime())
 		{
 			LLM_SCOPE(ELLMTag::Shaders);
-			FRWScopeLock WriteLock(NamedLibrariesMutex, SLT_Write);
-
-			// create a named library if one didn't exist
-			TUniquePtr<FNamedShaderLibrary>* LibraryPtr = NamedLibrariesStack.Find(Name);
-			FNamedShaderLibrary* Library = LibraryPtr ? LibraryPtr->Get() : nullptr;
-			const bool bAddNewNamedLibrary(Library == nullptr);
-			if (bAddNewNamedLibrary)
+			bool bAddNewNamedLibrary = false;
+			FNamedShaderLibrary* Library = nullptr;
 			{
-				Library = new FNamedShaderLibrary(Name, ShaderPlatform, Directory);
+				// scope of this lock should be as limited as possible - particularly, OpenShaderCode will start async work which is not a good idea to do while holding a lock
+				FRWScopeLock WriteLock(NamedLibrariesMutex, SLT_Write);
+
+				// create a named library if one didn't exist
+				TUniquePtr<FNamedShaderLibrary>* LibraryPtr = NamedLibrariesStack.Find(Name);
+				if (LIKELY(LibraryPtr))
+				{
+					Library = LibraryPtr->Get();
+				}
+				else
+				{
+					bAddNewNamedLibrary = true;
+					Library = new FNamedShaderLibrary(Name, ShaderPlatform, Directory);
+				}
 			}
+			// note, that since we're out of NamedLibrariesMutex locks now, other threads may arrive at the same point and acquire the same Library pointer
+			// (or create yet another new named library). In the latter case, the duplicate library will be deleted later, since we will re-check (under a lock)
+			// the presence of the same name in NamedLibrariesStack.  In the former case (two threads sharing the same Library pointer), we rely on FNamedShaderLibrary::OpenShaderCode
+			// implementation being thread-safe (which it is).
 
 			// if we're able to open the library by name, it's not chunked
 			if (Library->OpenShaderCode(Directory, Name))
@@ -2066,12 +2078,27 @@ public:
 			{
 				if (bAddNewNamedLibrary)
 				{
-					UE_LOG(LogShaderLibrary, Display, TEXT("Logical shader library '%s' has been created, components %d"), *Name, Library->GetNumComponents());
-					NamedLibrariesStack.Emplace(Name, Library);
+					// re-check that the library indeed was added right now - we can have multiple threads race to create it as described above
+					FRWScopeLock WriteLock(NamedLibrariesMutex, SLT_Write);
+					TUniquePtr<FNamedShaderLibrary>* LibraryPtr = NamedLibrariesStack.Find(Name);
+					if (LibraryPtr == nullptr)
+					{
+						UE_LOG(LogShaderLibrary, Display, TEXT("Logical shader library '%s' has been created, components %d"), *Name, Library->GetNumComponents());
+						NamedLibrariesStack.Emplace(Name, Library);
+					}
+					else 
+					{
+						// this is where concurrent work from thread(s) that lost the race to create the same library gets wasted.
+						delete Library;
+						Library = nullptr;
+					}
 				}
 
-				// Inform the pipeline cache that the state of loaded libraries has changed
-				FShaderPipelineCache::ShaderLibraryStateChanged(FShaderPipelineCache::Opened, ShaderPlatform, Name);
+				// Inform the pipeline cache that the state of loaded libraries has changed (unless we had to delete the duplicate)
+				if (Library != nullptr)
+				{
+					FShaderPipelineCache::ShaderLibraryStateChanged(FShaderPipelineCache::Opened, ShaderPlatform, Name);
+				}
 			}
 		}
 
@@ -2633,15 +2660,10 @@ void FShaderCodeLibrary::InitForRuntime(EShaderPlatform ShaderPlatform)
 
 			// mount shader library from the plugins as they may also have global shaders
 			auto Plugins = IPluginManager::Get().GetEnabledPluginsWithContent();
-			// Note (FORT-469564): This should be a ParallelFor but that results in a deadlock for some users so for the time being we do it sequentially
-			// Explanation: There's a broad lock at the entrance of SCL that guards adding new libraries. Every plugin is trying to open a library now (to support VK bundles).
-			// Opening a library (new IoStore-based one) kicks off async work (even if we wait for it to complete right away, so essentially it's sync but done off - thread).
-			// What happens is when there are too many (more than cores) plugins each trying to take that lock, they take up all the worker threads.
-			// The original lock holder who tries to kick off the "async" work never sees it complete, because there's no worker thread to pick it up.
-			for (const TSharedRef<IPlugin>& Plugin : Plugins)
+			ParallelFor(Plugins.Num(), [&](int32 Index)
 			{
-				FShaderCodeLibraryPluginMountedCallback(*Plugin);
-			}
+				FShaderCodeLibraryPluginMountedCallback(*Plugins[Index]);
+			});
 		}
 		else
 		{
