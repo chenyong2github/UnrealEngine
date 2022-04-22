@@ -32,7 +32,7 @@ alignas(alignof(VectorRegister4Float)) static float GScratch[16];
 alignas(alignof(VectorRegister4Double)) static double GScratchDouble[16];
 static float GSum;
 static double GSumDouble;
-static bool GPassing = true;
+static bool GPassing;
 
 #define MATHTEST_INLINE FORCENOINLINE // if you want to do performance testing change to FORCEINLINE or FORCEINLINE_DEBUGGABLE
 
@@ -1645,12 +1645,6 @@ bool RunDoubleVectorTest()
 	V0 = MakeVectorRegisterDouble(-3.0, 6.0, -3.0, 0.0);
 	LogTest<double>(TEXT("VectorCross"), TestVectorsEqual(V0, V1));
 
-	V0 = MakeVectorRegisterDouble(2.0, 4.0, 6.0, 8.0);
-	V1 = MakeVectorRegisterDouble(4.0, 3.0, 2.0, 1.0);
-	V1 = VectorPow(V0, V1);
-	V0 = MakeVectorRegister(16.0, 64.0, 36.0, 8.0);
-	LogTest<double>(TEXT("VectorPow"), TestVectorsEqual(V0, V1, 0.001));
-
 	// Vector component comparisons
 
 	// VectorCompareGT
@@ -1878,44 +1872,24 @@ bool RunDoubleVectorTest()
 	LogTest<double>(TEXT("VectorMergeXYZ_VecW-2"), TestVectorsEqual(V2, V3));
 
 	V0 = MakeVectorRegister(1.0, 1.0e6, 1.3e-8, 35.0);
-	V1 = VectorReciprocalEstimate(V0);
+	V1 = VectorReciprocal(V0);
 	V3 = VectorMultiply(V1, V0);
-	LogTest<double>(TEXT("VectorReciprocalEstimate"), TestVectorsEqual(VectorOneDouble(), V3, 0.008));
+	LogTest<double>(TEXT("VectorReciprocal"), TestVectorsEqual(VectorOneDouble(), V3, 0.008));
 
 	V0 = MakeVectorRegister(1.0, 1.0e6, 1.3e-8, 35.0);
-	V1 = VectorReciprocal(V0);
+	V1 = VectorReciprocalAccurate(V0);
 	V3 = VectorMultiply(V1, V0);
 	LogTest<double>(TEXT("VectorReciprocalAccurate"), TestVectorsEqual(VectorOneDouble(), V3, 1e-7));
 
 	V0 = MakeVectorRegister(1.0, 1.0e6, 1.3e-8, 35.0);
-	V1 = VectorReciprocalSqrtEstimate(V0);
-	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
-	LogTest<double>(TEXT("VectorReciprocalSqrtEstimate"), TestVectorsEqual(VectorOneDouble(), V3, 0.007));
-
-	V0 = MakeVectorRegister(1.0, 1.0e6, 1.3e-8, 35.0);
 	V1 = VectorReciprocalSqrt(V0);
 	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
+	LogTest<double>(TEXT("VectorReciprocalSqrt"), TestVectorsEqual(VectorOneDouble(), V3, 0.007));
+
+	V0 = MakeVectorRegister(1.0, 1.0e6, 1.3e-8, 35.0);
+	V1 = VectorReciprocalSqrtAccurate(V0);
+	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
 	LogTest<double>(TEXT("VectorReciprocalSqrtAccurate"), TestVectorsEqual(VectorOneDouble(), V3, 1e-6));
-
-	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
-	V1 = VectorReciprocalLenEstimate(V0);
-	V0 = MakeVectorRegister(0.25f, 0.25f, 0.25f, 0.25f);
-	LogTest<double>(TEXT("VectorReciprocalLenEstimate"), TestVectorsEqual(V0, V1, 0.004));
-
-	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
-	V1 = VectorReciprocalLen(V0);
-	V0 = MakeVectorRegister(0.25f, 0.25f, 0.25f, 0.25f);
-	LogTest<double>(TEXT("VectorReciprocalLenAccurate"), TestVectorsEqual(V0, V1, 0.0001));
-
-	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
-	V1 = VectorNormalizeEstimate(V0);
-	V0 = MakeVectorRegister(0.5f, -0.5f, 0.5f, -0.5f);
-	LogTest<double>(TEXT("VectorNormalizeEstimate"), TestVectorsEqual(V0, V1, 0.004));
-
-	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
-	V1 = VectorNormalize(V0);
-	V0 = MakeVectorRegister(0.5f, -0.5f, 0.5f, -0.5f);
-	LogTest<double>(TEXT("VectorNormalizeAccurate"), TestVectorsEqual(V0, V1, 1e-8));
 
 	// VectorMod
 	V0 = MakeVectorRegister(0.0, 3.2, 2.8, 1.5);
@@ -1929,12 +1903,6 @@ bool RunDoubleVectorTest()
 	V2 = TestReferenceMod(V0, V1);
 	V3 = VectorMod(V0, V1);
 	LogTest<double>(TEXT("VectorMod negative"), TestVectorsEqual(V2, V3));
-
-	V0 = MakeVectorRegister(89.9, 180.0, -256.0, -270.1);
-	V1 = MakeVectorRegister(360.0, 0.1, 360.0, 180.0);
-	V2 = TestReferenceMod(V0, V1);
-	V3 = VectorMod(V0, V1);
-	LogTest<double>(TEXT("VectorMod common"), TestVectorsEqual(V2, V3));
 
 	// VectorSign
 	V0 = MakeVectorRegister(2.0, -2.0, 0.0, -3.0);
@@ -2392,22 +2360,17 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	LogTest<float>( TEXT("VectorPow"), TestVectorsEqual( V0, V1, 0.001f ) );
 
 	V0 = MakeVectorRegister( 2.0f, -2.0f, 2.0f, -2.0f );
-	V1 = VectorReciprocalLenEstimate( V0 );
+	V1 = VectorReciprocalLen( V0 );
 	V0 = MakeVectorRegister( 0.25f, 0.25f, 0.25f, 0.25f );
-	LogTest<float>( TEXT("VectorReciprocalLenEstimate"), TestVectorsEqual( V0, V1, 0.004f ) );
-
-	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
-	V1 = VectorReciprocalLen(V0);
-	V0 = MakeVectorRegister(0.25f, 0.25f, 0.25f, 0.25f);
-	LogTest<float>(TEXT("VectorReciprocalLenAccurate"), TestVectorsEqual(V0, V1, 0.0001f));
+	LogTest<float>( TEXT("VectorReciprocalLen"), TestVectorsEqual( V0, V1, 0.004f ) );
 
 	V0 = MakeVectorRegister( 2.0f, -2.0f, 2.0f, -2.0f );
-	V1 = VectorNormalizeEstimate( V0 );
+	V1 = VectorNormalize( V0 );
 	V0 = MakeVectorRegister( 0.5f, -0.5f, 0.5f, -0.5f );
-	LogTest<float>( TEXT("VectorNormalizeEstimate"), TestVectorsEqual( V0, V1, 0.004f ) );
+	LogTest<float>( TEXT("VectorNormalize"), TestVectorsEqual( V0, V1, 0.004f ) );
 
 	V0 = MakeVectorRegister(2.0f, -2.0f, 2.0f, -2.0f);
-	V1 = VectorNormalize(V0);
+	V1 = VectorNormalizeAccurate(V0);
 	V0 = MakeVectorRegister(0.5f, -0.5f, 0.5f, -0.5f);
 	LogTest<float>(TEXT("VectorNormalizeAccurate"), TestVectorsEqual(V0, V1, 1e-8f));
 
@@ -2645,22 +2608,22 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	LogTest<float>( TEXT("VectorMergeXYZ_VecW-2"), TestVectorsEqual( V2, V3 ) );
 
 	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
-	V1 = VectorReciprocalEstimate( V0 );
+	V1 = VectorReciprocal( V0 );
 	V3 = VectorMultiply(V1, V0);
-	LogTest<float>( TEXT("VectorReciprocalEstimate"), TestVectorsEqual( VectorOne(), V3, 0.008f ) );
+	LogTest<float>( TEXT("VectorReciprocal"), TestVectorsEqual( VectorOne(), V3, 0.008f ) );
 
 	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
-	V1 = VectorReciprocal( V0 );
+	V1 = VectorReciprocalAccurate( V0 );
 	V3 = VectorMultiply(V1, V0);
 	LogTest<float>( TEXT("VectorReciprocalAccurate"), TestVectorsEqual( VectorOne(), V3, 1e-7f) );
 
 	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
-	V1 = VectorReciprocalSqrtEstimate( V0 );
+	V1 = VectorReciprocalSqrt( V0 );
 	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
-	LogTest<float>( TEXT("VectorReciprocalSqrtEstimate"), TestVectorsEqual( VectorOne(), V3, 0.007f ) );
+	LogTest<float>( TEXT("VectorReciprocalSqrt"), TestVectorsEqual( VectorOne(), V3, 0.007f ) );
 
 	V0 = MakeVectorRegister( 1.0f, 1.0e6f, 1.3e-8f, 35.0f );
-	V1 = VectorReciprocalSqrt( V0 );
+	V1 = VectorReciprocalSqrtAccurate( V0 );
 	V3 = VectorMultiply(VectorMultiply(V1, V1), V0);
 	LogTest<float>( TEXT("VectorReciprocalSqrtAccurate"), TestVectorsEqual( VectorOne(), V3, 1e-6f ) );
 
@@ -2688,12 +2651,6 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V2 = TestReferenceMod(V0, V1);
 	V3 = VectorMod(V0, V1);
 	LogTest<float>( TEXT("VectorMod negative"), TestVectorsEqual(V2, V3));
-
-	V0 = MakeVectorRegister(89.9f, 180.0f, -256.0f, -270.1f);
-	V1 = MakeVectorRegister(360.0f, 0.1f, 360.0f, 180.0f);
-	V2 = TestReferenceMod(V0, V1);
-	V3 = VectorMod(V0, V1);
-	LogTest<float>(TEXT("VectorMod common"), TestVectorsEqual(V2, V3));
 
 	// VectorSign
 	V0 = MakeVectorRegister(2.0f, -2.0f, 0.0f, -3.0f);

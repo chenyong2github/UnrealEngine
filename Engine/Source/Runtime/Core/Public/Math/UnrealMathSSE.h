@@ -1890,12 +1890,8 @@ FORCEINLINE VectorRegister4Double VectorCross(const VectorRegister4Double& Vec1,
  */
 FORCEINLINE VectorRegister4Float VectorPow( const VectorRegister4Float& Base, const VectorRegister4Float& Exponent )
 {
-#if UE_PLATFORM_MATH_USE_SVML
-	return _mm_pow_ps(Base, Exponent);
-#else
 	// using SseMath library
 	return SSE::exp_ps(_mm_mul_ps(SSE::log_ps(Base), Exponent));
-#endif
 /*
 	// old version, keeping for reference in case something breaks and we need to debug it.
 	union { VectorRegister4Float v; float f[4]; } B, E;
@@ -1907,11 +1903,6 @@ FORCEINLINE VectorRegister4Float VectorPow( const VectorRegister4Float& Base, co
 
 FORCEINLINE VectorRegister4Double VectorPow(const VectorRegister4Double& Base, const VectorRegister4Double& Exponent)
 {
-#if UE_PLATFORM_MATH_USE_SVML_AVX
-	return _mm256_pow_pd(Base, Exponent);
-#elif UE_PLATFORM_MATH_USE_SVML
-	return VectorRegister4Double(_mm_pow_pd(Base.XY, Exponent.XY), _mm_pow_pd(Base.ZW, Exponent.ZW));
-#else
 	AlignedDouble4 Values(Base);
 	AlignedDouble4 Exponents(Exponent);
 
@@ -1920,51 +1911,80 @@ FORCEINLINE VectorRegister4Double VectorPow(const VectorRegister4Double& Base, c
 	Values[2] = FMath::Pow(Values[2], Exponents[2]);
 	Values[3] = FMath::Pow(Values[3], Exponents[3]);
 	return Values.ToVectorRegister();
-#endif
 }
 
 /**
- * Return the square root of each component
- *
- * @param Vector	Vector
- * @return			VectorRegister4Float(sqrt(Vec.X), sqrt(Vec.Y), sqrt(Vec.Z), sqrt(Vec.W))
- */
-FORCEINLINE VectorRegister4Float VectorSqrt(const VectorRegister4Float& Vec)
-{
-	return _mm_sqrt_ps(Vec);
-}
+* Returns an estimate of 1/sqrt(c) for each component of the vector
+*
+* @param Vector		Vector 
+* @return			VectorRegister4Float(1/sqrt(t), 1/sqrt(t), 1/sqrt(t), 1/sqrt(t))
+*/
+//#define VectorReciprocalSqrt(Vec)		_mm_rsqrt_ps( Vec )
 
-FORCEINLINE VectorRegister4Double VectorSqrt(const VectorRegister4Double& Vec)
-{
-#if UE_PLATFORM_MATH_USE_AVX
-	return _mm256_sqrt_pd(Vec);
-#else
-	return VectorRegister4Double(_mm_sqrt_pd(Vec.XY), _mm_sqrt_pd(Vec.ZW));
-#endif
-}
-
-/**
- * Returns an estimate of 1/sqrt(c) for each component of the vector
- *
- * @param Vector		Vector
- * @return			VectorRegister4Float(1/sqrt(t), 1/sqrt(t), 1/sqrt(t), 1/sqrt(t))
- */
-FORCEINLINE VectorRegister4Float VectorReciprocalSqrtEstimate(const VectorRegister4Float& Vec)
+FORCEINLINE VectorRegister4Float VectorReciprocalSqrt(const VectorRegister4Float& Vec)
 {
 	return _mm_rsqrt_ps(Vec);
 }
 
-/**
- * Return the reciprocal of the square root of each component
- *
- * @param Vector		Vector 
- * @return			VectorRegister4Float(1/sqrt(Vec.X), 1/sqrt(Vec.Y), 1/sqrt(Vec.Z), 1/sqrt(Vec.W))
- */
-FORCEINLINE VectorRegister4Float VectorReciprocalSqrt(const VectorRegister4Float& Vec)
+FORCEINLINE VectorRegister4Double VectorReciprocalSqrt(const VectorRegister4Double& Vec)
 {
-#if UE_PLATFORM_MATH_USE_SVML
-	return _mm_invsqrt_ps(Vec);
+	// Not an estimate.
+	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
+	Result.XY = _mm_sqrt_pd(Vec.XY);
+	Result.ZW = _mm_sqrt_pd(Vec.ZW);
 #else
+	Result = _mm256_sqrt_pd(Vec);
+#endif
+	return VectorDivide(GlobalVectorConstants::DoubleOne, Result);
+}
+
+#define VectorSqrt(Vec) _mm_sqrt_ps(Vec)
+
+/**
+ * Computes an estimate of the reciprocal of a vector (component-wise) and returns the result.
+ *
+ * @param Vec	1st vector
+ * @return		VectorRegister4Float( (Estimate) 1.0f / Vec.x, (Estimate) 1.0f / Vec.y, (Estimate) 1.0f / Vec.z, (Estimate) 1.0f / Vec.w )
+ */
+
+FORCEINLINE VectorRegister4Float VectorReciprocal(const VectorRegister4Float& Vec)
+{
+	return _mm_rcp_ps(Vec);
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocal(const VectorRegister4Double& Vec)
+{
+	// Not an estimate.
+	return VectorDivide(GlobalVectorConstants::DoubleOne, Vec);
+}
+
+/**
+* Return Reciprocal Length of the vector (estimate)
+*
+* @param Vector		Vector 
+* @return			VectorRegister4Float(rlen, rlen, rlen, rlen) when rlen = 1/sqrt(dot4(V))
+*/
+FORCEINLINE VectorRegister4Float VectorReciprocalLen( const VectorRegister4Float& Vector )
+{
+	VectorRegister4Float RecipLen = VectorDot4( Vector, Vector );
+	return VectorReciprocalSqrt( RecipLen );
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocalLen(const VectorRegister4Double& Vector)
+{
+	VectorRegister4Double RecipLen = VectorDot4(Vector, Vector);
+	return VectorReciprocalSqrt(RecipLen);
+}
+
+/**
+* Return the reciprocal of the square root of each component
+*
+* @param Vector		Vector 
+* @return			VectorRegister4Float(1/sqrt(Vec.X), 1/sqrt(Vec.Y), 1/sqrt(Vec.Z), 1/sqrt(Vec.W))
+*/
+FORCEINLINE VectorRegister4Float VectorReciprocalSqrtAccurate(const VectorRegister4Float& Vec)
+{
 	// Perform two passes of Newton-Raphson iteration on the hardware estimate
 	//    v^-0.5 = x
 	// => x^2 = v^-1
@@ -1981,7 +2001,7 @@ FORCEINLINE VectorRegister4Float VectorReciprocalSqrt(const VectorRegister4Float
 	const VectorRegister4Float VecDivBy2 = VectorMultiply(Vec, OneHalf);
 
 	// Initial estimate
-	const VectorRegister4Float x0 = VectorReciprocalSqrtEstimate(Vec);
+	const VectorRegister4Float x0 = VectorReciprocalSqrt(Vec);
 
 	// First iteration
 	VectorRegister4Float x1 = VectorMultiply(x0, x0);
@@ -1994,71 +2014,18 @@ FORCEINLINE VectorRegister4Float VectorReciprocalSqrt(const VectorRegister4Float
 	x2 = VectorMultiplyAdd(x1, x2, x1);
 
 	return x2;
-#endif
 }
 
-FORCEINLINE VectorRegister4Double VectorReciprocalSqrt(const VectorRegister4Double& Vec)
+FORCEINLINE VectorRegister4Double VectorReciprocalSqrtAccurate(const VectorRegister4Double& Vec)
 {
-#if UE_PLATFORM_MATH_USE_SVML_AVX
-	return _mm256_invsqrt_pd(Vec);
-#elif UE_PLATFORM_MATH_USE_SVML
-	return VectorRegister4Double(_mm_invsqrt_pd(Vec.XY), _mm_invsqrt_pd(Vec.ZW));
-#elif UE_PLATFORM_MATH_USE_AVX
-	return VectorDivide(GlobalVectorConstants::DoubleOne, _mm256_sqrt_pd(Vec));
+	VectorRegister4Double Result;
+#if !UE_PLATFORM_MATH_USE_AVX
+	Result.XY = _mm_sqrt_pd(Vec.XY);
+	Result.ZW = _mm_sqrt_pd(Vec.ZW);
 #else
-	return VectorDivide(GlobalVectorConstants::DoubleOne, VectorRegister4Double(_mm_sqrt_pd(Vec.XY), _mm_sqrt_pd(Vec.ZW)));
+	Result = _mm256_sqrt_pd(Vec);
 #endif
-}
-
-FORCEINLINE VectorRegister4Double VectorReciprocalSqrtEstimate(const VectorRegister4Double& Vec)
-{
-	// TODO: Not an estimate
-	return VectorReciprocalSqrt(Vec);
-}
-
-
-/**
- * Return Reciprocal Length of the vector
- *
- * @param Vector	Vector
- * @return			VectorRegister4Float(rlen, rlen, rlen, rlen) when rlen = 1/sqrt(dot4(V))
- */
-FORCEINLINE VectorRegister4Float VectorReciprocalLen(const VectorRegister4Float& Vector)
-{
-	return VectorReciprocalSqrt(VectorDot4(Vector, Vector));
-}
-
-FORCEINLINE VectorRegister4Double VectorReciprocalLen(const VectorRegister4Double& Vector)
-{
-	return VectorReciprocalSqrt(VectorDot4(Vector, Vector));
-}
-
-/**
- * Return Reciprocal Length of the vector (estimate)
- *
- * @param Vector	Vector
- * @return			VectorRegister4Float(rlen, rlen, rlen, rlen) when rlen = 1/sqrt(dot4(V))
- */
-FORCEINLINE VectorRegister4Float VectorReciprocalLenEstimate(const VectorRegister4Float& Vector)
-{
-	return VectorReciprocalSqrtEstimate(VectorDot4(Vector, Vector));
-}
-
-FORCEINLINE VectorRegister4Double VectorReciprocalLenEstimate(const VectorRegister4Double& Vector)
-{
-	return VectorReciprocalSqrtEstimate(VectorDot4(Vector, Vector));
-}
-
-/**
- * Computes an estimate of the reciprocal of a vector (component-wise) and returns the result.
- *
- * @param Vec	1st vector
- * @return		VectorRegister4Float( (Estimate) 1.0f / Vec.x, (Estimate) 1.0f / Vec.y, (Estimate) 1.0f / Vec.z, (Estimate) 1.0f / Vec.w )
- */
-
-FORCEINLINE VectorRegister4Float VectorReciprocalEstimate(const VectorRegister4Float& Vec)
-{
-	return _mm_rcp_ps(Vec);
+	return VectorDivide(GlobalVectorConstants::DoubleOne, Result);
 }
 
 /**
@@ -2067,7 +2034,7 @@ FORCEINLINE VectorRegister4Float VectorReciprocalEstimate(const VectorRegister4F
  * @param Vec	1st vector
  * @return		VectorRegister4Float( 1.0f / Vec.x, 1.0f / Vec.y, 1.0f / Vec.z, 1.0f / Vec.w )
  */
-FORCEINLINE VectorRegister4Float VectorReciprocal(const VectorRegister4Float& Vec)
+FORCEINLINE VectorRegister4Float VectorReciprocalAccurate(const VectorRegister4Float& Vec)
 {
 	// Perform two passes of Newton-Raphson iteration on the hardware estimate
 	//   x1 = x0 - f(x0) / f'(x0)
@@ -2082,7 +2049,7 @@ FORCEINLINE VectorRegister4Float VectorReciprocal(const VectorRegister4Float& Ve
 	// => x1 = x0 - (x0 * Vec - 1) * x0 = 2 * x0 - Vec * x0^2 
 
 	// Initial estimate
-	const VectorRegister4Float x0 = VectorReciprocalEstimate(Vec);
+	const VectorRegister4Float x0 = VectorReciprocal(Vec);
 
 	// First iteration
 	const VectorRegister4Float x0Squared = VectorMultiply(x0, x0);
@@ -2097,15 +2064,15 @@ FORCEINLINE VectorRegister4Float VectorReciprocal(const VectorRegister4Float& Ve
 	return x2;
 }
 
-FORCEINLINE VectorRegister4Double VectorReciprocal(const VectorRegister4Double& Vec)
+FORCEINLINE VectorRegister4Double VectorReciprocalAccurate(const VectorRegister4Double& Vec)
 {
 	return VectorDivide(GlobalVectorConstants::DoubleOne, Vec);
 }
 
-FORCEINLINE VectorRegister4Double VectorReciprocalEstimate(const VectorRegister4Double& Vec)
+FORCEINLINE VectorRegister4Float VectorLerp(const VectorRegister4Float &Vec1, const VectorRegister4Float &Vec2, const VectorRegister4Float &Vec3)
 {
-	// Not an estimate.
-	return VectorReciprocal(Vec);
+	VectorRegister4Float SubVec = VectorSubtract(GlobalVectorConstants::FloatOne, Vec3);
+	return VectorMultiplyAdd(Vec2, Vec3, VectorMultiply(Vec1, SubVec));
 }
 
 /**
@@ -2757,8 +2724,7 @@ FORCEINLINE VectorRegister4Double VectorTruncate(const VectorRegister4Double& V)
 	return Result;
 }
 
-FORCEINLINE VectorRegister4Float VectorRound(const VectorRegister4Float &Vec)
-{
+FORCEINLINE VectorRegister4Float VectorRound(const VectorRegister4Float &Vec) {
 #if UE_PLATFORM_MATH_USE_SSE4_1
 	return _mm_round_ps(Vec, _MM_FROUND_TO_NEAREST_INT |_MM_FROUND_NO_EXC);
 #else
@@ -2837,10 +2803,6 @@ FORCEINLINE VectorRegister4Float VectorMod(const VectorRegister4Float& X, const 
 {
 	// Check against invalid divisor
 	VectorRegister4Float InvalidDivisorMask = VectorCompareLE(VectorAbs(Y), GlobalVectorConstants::SmallNumber);
-
-#if UE_PLATFORM_MATH_USE_SVML
-	VectorRegister4Float Result = _mm_fmod_ps(X, Y);
-#else
 	// Promote to doubles for better intermediate precision.
 	VectorRegister4Double DoubleX = MakeVectorRegisterDouble(X);
 	VectorRegister4Double DoubleY = MakeVectorRegisterDouble(Y);
@@ -2849,32 +2811,21 @@ FORCEINLINE VectorRegister4Float VectorMod(const VectorRegister4Float& X, const 
 	VectorRegister4Double DoubleResult = VectorNegateMultiplyAdd(DoubleY, Temp, DoubleX);
 	// Convert back to floats. This is safe (in terms of not exceeding [-FLT_MAX,FLT_MAX]) because the answer is less than or equal to Abs(X) by definition.
 	VectorRegister4Float Result = MakeVectorRegisterFloatFromDouble(DoubleResult);
-#endif
-
 	// Return 0 where divisor Y was too small	
 	Result = VectorSelect(InvalidDivisorMask, GlobalVectorConstants::FloatZero, Result);
 	return Result;
-
 }
 
 FORCEINLINE VectorRegister4Double VectorMod(const VectorRegister4Double& X, const VectorRegister4Double& Y)
 {
 	// Check against invalid divisor
 	VectorRegister4Double InvalidDivisorMask = VectorCompareLE(VectorAbs(Y), GlobalVectorConstants::DoubleSmallNumber);
-
-#if UE_PLATFORM_MATH_USE_SVML_AVX
-	VectorRegister4Double DoubleResult = _mm256_fmod_pd(X, Y);
-#elif UE_PLATFORM_MATH_USE_SVML
-	VectorRegister4Double DoubleResult = VectorRegister4Double(_mm_fmod_pd(X.XY, Y.XY), _mm_fmod_pd(X.ZW, Y.ZW));
-#else
 	// R = X - (Y * (Trunc(X / Y))
 	VectorRegister4Double Temp = VectorTruncate(VectorDivide(X, Y));
 	VectorRegister4Double DoubleResult = VectorNegateMultiplyAdd(Y, Temp, X);
-#endif
-
 	// Return 0 where divisor Y was too small
-	DoubleResult = VectorSelect(InvalidDivisorMask, GlobalVectorConstants::DoubleZero, DoubleResult);
-	return DoubleResult;
+	VectorRegister4Double Result = VectorSelect(InvalidDivisorMask, GlobalVectorConstants::DoubleZero, DoubleResult);
+	return Result;
 }
 
 FORCEINLINE VectorRegister4Float VectorSign(const VectorRegister4Float& X)
@@ -3039,9 +2990,9 @@ FORCEINLINE VectorRegister4Float VectorSin(const VectorRegister4Float& V)
 FORCEINLINE VectorRegister4Double VectorSin(const VectorRegister4Double& V)
 {
 #if UE_PLATFORM_MATH_USE_SVML_AVX
-	return _mm256_sin_pd(V);
+		return _mm256_sin_pd(V);
 #elif UE_PLATFORM_MATH_USE_SVML
-	return VectorRegister4Double(_mm_sin_pd(V.XY), _mm_sin_pd(V.ZW));
+		return VectorRegister4Double(_mm_sin_pd(V.XY), _mm_sin_pd(V.ZW));
 #else
 	AlignedDouble4 Doubles(V);
 	Doubles[0] = FMath::Sin(Doubles[0]);
@@ -3057,6 +3008,7 @@ FORCEINLINE VectorRegister4Float VectorCos(const VectorRegister4Float& V)
 #if UE_PLATFORM_MATH_USE_SVML
 	return _mm_cos_ps(V);
 #else
+	//return VectorSin(VectorAdd(V, GlobalVectorConstants::PiByTwo));
 	return SSE::cos_ps(V);
 #endif
 }
@@ -3064,9 +3016,9 @@ FORCEINLINE VectorRegister4Float VectorCos(const VectorRegister4Float& V)
 FORCEINLINE VectorRegister4Double VectorCos(const VectorRegister4Double& V)
 {
 #if UE_PLATFORM_MATH_USE_SVML_AVX
-	return _mm256_cos_pd(V);
+		return _mm256_cos_pd(V);
 #elif UE_PLATFORM_MATH_USE_SVML
-	return VectorRegister4Double(_mm_cos_pd(V.XY), _mm_cos_pd(V.ZW));
+		return VectorRegister4Double(_mm_cos_pd(V.XY), _mm_cos_pd(V.ZW));
 #else
 	AlignedDouble4 Doubles(V);
 	Doubles[0] = FMath::Cos(Doubles[0]);

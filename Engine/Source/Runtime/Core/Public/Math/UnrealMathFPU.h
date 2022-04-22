@@ -36,15 +36,7 @@ struct VectorRegister2Double
 */
 struct alignas(16) VectorRegister4Double
 {
-	union
-	{
-		struct
-		{
-			VectorRegister2Double XY;
-			VectorRegister2Double ZW;
-		};
-		double V[4];
-	};
+	double V[4];
 
 	VectorRegister4Double() = default;
 
@@ -343,8 +335,7 @@ FORCEINLINE VectorRegister4Double VectorOneDouble(void)
  * @param ComponentIndex	Which component to get, X=0, Y=1, Z=2, W=3
  * @return					The component as a float
  */
-template <uint32 ComponentIndex>
-FORCEINLINE float VectorGetComponentImpl(const VectorRegister4Float& Vec)
+FORCEINLINE float VectorGetComponent(const VectorRegister4Float& Vec, uint32 ComponentIndex)
 {
 	return Vec.V[ComponentIndex];
 }
@@ -354,8 +345,7 @@ FORCEINLINE float VectorGetComponentDynamic(const VectorRegister4Float& Vec, uin
 	return Vec.V[ComponentIndex];
 }
 
-template <uint32 ComponentIndex>
-FORCEINLINE double VectorGetComponentImpl(const VectorRegister4Double& Vec)
+FORCEINLINE double VectorGetComponent(const VectorRegister4Double& Vec, uint32 ComponentIndex)
 {
 	return Vec.V[ComponentIndex];
 }
@@ -364,8 +354,6 @@ FORCEINLINE double VectorGetComponentDynamic(const VectorRegister4Double& Vec, u
 {
 	return Vec.V[ComponentIndex];
 }
-
-#define VectorGetComponent(Vec, ComponentIndex) VectorGetComponentImpl<ComponentIndex>(Vec)
 
 
 /**
@@ -1215,20 +1203,10 @@ FORCEINLINE VectorRegister4Double VectorPow(const VectorRegister4Double& Base, c
 	return Vec;
 }
 
-FORCEINLINE VectorRegister4Float VectorSqrt(const VectorRegister4Float& Vec)
-{
-	return MakeVectorRegisterFloat(FMath::Sqrt(Vec.V[0]), FMath::Sqrt(Vec.V[1]), FMath::Sqrt(Vec.V[2]), FMath::Sqrt(Vec.V[3]));
-}
-
-FORCEINLINE VectorRegister4Double VectorSqrt(const VectorRegister4Double& Vec)
-{
-	return MakeVectorRegisterDouble(FMath::Sqrt(Vec.V[0]), FMath::Sqrt(Vec.V[1]), FMath::Sqrt(Vec.V[2]), FMath::Sqrt(Vec.V[3]));
-}
-
 /**
 * Returns an estimate of 1/sqrt(c) for each component of the vector
 *
-* @param Vector		Vector
+* @param Vector		Vector 
 * @return			VectorRegister(1/sqrt(t), 1/sqrt(t), 1/sqrt(t), 1/sqrt(t))
 */
 FORCEINLINE VectorRegister4Float VectorReciprocalSqrt(const VectorRegister4Float& Vec)
@@ -1241,37 +1219,6 @@ FORCEINLINE VectorRegister4Double VectorReciprocalSqrt(const VectorRegister4Doub
 	return MakeVectorRegisterDouble(1.0 / FMath::Sqrt(Vec.V[0]), 1.0 / FMath::Sqrt(Vec.V[1]), 1.0 / FMath::Sqrt(Vec.V[2]), 1.0 / FMath::Sqrt(Vec.V[3]));
 }
 
-/**
-* Returns an estimate of 1/sqrt(c) for each component of the vector
-*
-* @param Vector		Vector 
-* @return			VectorRegister(1/sqrt(t), 1/sqrt(t), 1/sqrt(t), 1/sqrt(t))
-*/
-FORCEINLINE VectorRegister4Float VectorReciprocalSqrtEstimate(const VectorRegister4Float& Vec)
-{
-	return MakeVectorRegisterFloat(FMath::InvSqrtEst(Vec.V[0]), FMath::InvSqrtEst(Vec.V[1]), FMath::InvSqrtEst(Vec.V[2]), FMath::InvSqrtEst(Vec.V[3]));
-}
-
-FORCEINLINE VectorRegister4Double VectorReciprocalSqrtEstimate(const VectorRegister4Double& Vec)
-{
-	return MakeVectorRegisterDouble(FMath::InvSqrtEst(Vec.V[0]), FMath::InvSqrtEst(Vec.V[1]), FMath::InvSqrtEst(Vec.V[2]), FMath::InvSqrtEst(Vec.V[3]));
-}
-
-/**
- * Computes the reciprocal of a vector (component-wise) and returns the result.
- *
- * @param Vec	1st vector
- * @return		VectorRegister4Float( 1.0f / Vec.x, 1.0f / Vec.y, 1.0f / Vec.z, 1.0f / Vec.w )
- */
-FORCEINLINE VectorRegister4Float VectorReciprocal(const VectorRegister4Float& Vec)
-{
-	return VectorDivide(GlobalVectorConstants::FloatOne, Vec);
-}
-
-FORCEINLINE VectorRegister4Double VectorReciprocal(const VectorRegister4Double& Vec)
-{
-	return VectorDivide(GlobalVectorConstants::DoubleOne, Vec);
-}
 
 /**
  * Computes an estimate of the reciprocal of a vector (component-wise) and returns the result.
@@ -1279,14 +1226,14 @@ FORCEINLINE VectorRegister4Double VectorReciprocal(const VectorRegister4Double& 
  * @param Vec	1st vector
  * @return		VectorRegister( (Estimate) 1.0f / Vec.x, (Estimate) 1.0f / Vec.y, (Estimate) 1.0f / Vec.z, (Estimate) 1.0f / Vec.w )
  */
-FORCEINLINE VectorRegister4Float VectorReciprocalEstimate(const VectorRegister4Float& Vec)
+FORCEINLINE VectorRegister4Float VectorReciprocal(const VectorRegister4Float& Vec)
 {
-	return VectorReciprocal(Vec);
+	return MakeVectorRegisterFloat(1.0f / Vec.V[0], 1.0f / Vec.V[1], 1.0f / Vec.V[2], 1.0f / Vec.V[3]);
 }
 
-FORCEINLINE VectorRegister4Double VectorReciprocalEstimate(const VectorRegister4Double& Vec)
+FORCEINLINE VectorRegister4Double VectorReciprocal(const VectorRegister4Double& Vec)
 {
-	return VectorReciprocal(Vec);
+	return MakeVectorRegisterDouble(1.0 / Vec.V[0], 1.0 / Vec.V[1], 1.0 / Vec.V[2], 1.0 / Vec.V[3]);
 }
 
 /**
@@ -1321,21 +1268,39 @@ FORCEINLINE VectorRegister4Double VectorReciprocalLen(const VectorRegister4Doubl
 	return Result;
 }
 
+
 /**
- * Return Reciprocal Length of the vector (estimate)
- *
- * @param Vector		Vector
- * @return			VectorRegister4Float(rlen, rlen, rlen, rlen) when rlen = 1/sqrt(dot4(V))
- */
-FORCEINLINE VectorRegister4Float VectorReciprocalLenEstimate(const VectorRegister4Float& Vector)
+* Return the reciprocal of the square root of each component
+*
+* @param Vec		Vector 
+* @return			VectorRegister(1/sqrt(Vec.X), 1/sqrt(Vec.Y), 1/sqrt(Vec.Z), 1/sqrt(Vec.W))
+*/
+FORCEINLINE VectorRegister4Float VectorReciprocalSqrtAccurate(const VectorRegister4Float& Vec)
 {
-	return VectorReciprocalLen(Vector);
+	return VectorReciprocalSqrt(Vec);
 }
 
-FORCEINLINE VectorRegister4Double VectorReciprocalLenEstimate(const VectorRegister4Double& Vector)
+FORCEINLINE VectorRegister4Double VectorReciprocalSqrtAccurate(const VectorRegister4Double& Vec)
 {
-	return VectorReciprocalLen(Vector);
+	return VectorReciprocalSqrt(Vec);
 }
+
+/**
+ * Computes the reciprocal of a vector (component-wise) and returns the result.
+ *
+ * @param Vec	1st vector
+ * @return		VectorRegister( 1.0f / Vec.x, 1.0f / Vec.y, 1.0f / Vec.z, 1.0f / Vec.w )
+ */
+FORCEINLINE VectorRegister4Float VectorReciprocalAccurate(const VectorRegister4Float& Vec)
+{
+	return VectorReciprocal(Vec);
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocalAccurate(const VectorRegister4Double& Vec)
+{
+	return VectorReciprocal(Vec);
+}
+
 
 /**
 * Loads XYZ and sets W=0
@@ -2262,20 +2227,10 @@ FORCEINLINE VectorRegister4Float VectorTruncate(const VectorRegister4Float& Vec)
 	return MakeVectorRegisterFloat(FMath::TruncToFloat(Vec.V[0]), FMath::TruncToFloat(Vec.V[1]), FMath::TruncToFloat(Vec.V[2]), FMath::TruncToFloat(Vec.V[3]));
 }
 
+
 FORCEINLINE VectorRegister4Double VectorTruncate(const VectorRegister4Double& Vec)
 {
 	return MakeVectorRegisterDouble(FMath::TruncToDouble(Vec.V[0]), FMath::TruncToDouble(Vec.V[1]), FMath::TruncToDouble(Vec.V[2]), FMath::TruncToDouble(Vec.V[3]));
-}
-
-
-FORCEINLINE VectorRegister4Float VectorRound(const VectorRegister4Float& Vec)
-{
-	return MakeVectorRegisterFloat(FMath::RoundToFloat(Vec.V[0]), FMath::RoundToFloat(Vec.V[1]), FMath::RoundToFloat(Vec.V[2]), FMath::RoundToFloat(Vec.V[3]));
-}
-
-FORCEINLINE VectorRegister4Double VectorRound(const VectorRegister4Double& Vec)
-{
-	return MakeVectorRegisterDouble(FMath::RoundToDouble(Vec.V[0]), FMath::RoundToDouble(Vec.V[1]), FMath::RoundToDouble(Vec.V[2]), FMath::RoundToDouble(Vec.V[3]));
 }
 
 
@@ -2686,18 +2641,3 @@ FORCEINLINE VectorRegister4Int VectorIntLoad1(const void* Ptr)
 		IntSplat,
 		IntSplat);
 }
-
-//
-// TODO: Engine doesn't currently compile with PLATFORM_ENABLE_VECTORINTRINSICS=0, but when it does these need to be fixed up.
-//
-
-#define VectorSetZero()								MakeVectorRegisterFloat(0.f, 0.f, 0.f, 0.f)
-#define VectorSet1(F)								VectorSetFloat1(F)
-#define VectorIntSet1(F)							MakeVectorRegisterInt(F, F, F, F)
-#define VectorCastIntToFloat(Vec)                   VectorLoad((float*)(Vec.V))
-#define VectorCastFloatToInt(Vec)                   VectorIntLoad(Vec.V)
-#define VectorShuffleImmediate(Vec, I0, I1, I2, I3) VectorShuffle(Vec, Vec, I3, I2, I1, I0) // ShuffleImmediate shuffle is reversed from our logical shuffle.
-#define VectorShiftLeftImm(Vec, ImmAmt)             static_assert(false, "Unimplemented") // TODO: implement
-#define VectorShiftRightImmArithmetic(Vec, ImmAmt)  static_assert(false, "Unimplemented") // TODO: implement
-#define VectorShiftRightImmLogical(Vec, ImmAmt)		static_assert(false, "Unimplemented") // TODO: implement
-#define VectorIntExpandLow16To32(V0)				static_assert(false, "Unimplemented") // TODO: implement
