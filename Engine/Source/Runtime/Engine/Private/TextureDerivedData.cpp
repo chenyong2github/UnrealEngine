@@ -1359,7 +1359,7 @@ static bool LoadDerivedStreamingMips(FTexturePlatformData& PlatformData, int32 F
 		for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
 		{
 			const FTexture2DMipMap& Mip = Mips[MipIndex];
-			if (Mip.IsPagedToDerivedData())
+			if (Mip.IsPagedToDerivedData() && !Mip.BulkData.IsBulkDataLoaded())
 			{
 				TStringBuilder<256> MipNameBuilder;
 				MipNameBuilder.Append(DebugContext).Appendf(TEXT(" [MIP %d]"), MipIndex);
@@ -1376,7 +1376,7 @@ static bool LoadDerivedStreamingMips(FTexturePlatformData& PlatformData, int32 F
 		for (int32 MipIndex = FirstMipToLoad; MipIndex < Mips.Num(); ++MipIndex)
 		{
 			const FTexture2DMipMap& Mip = Mips[MipIndex];
-			if (Mip.IsPagedToDerivedData())
+			if (Mip.IsPagedToDerivedData() && !Mip.BulkData.IsBulkDataLoaded())
 			{
 				TStringBuilder<256> MipNameBuilder;
 				MipNameBuilder.Append(DebugContext).Appendf(TEXT(" [MIP %d]"), MipIndex);
@@ -1427,12 +1427,10 @@ static bool LoadDerivedStreamingVTChunks(const TArray<FVirtualTextureDataChunk>&
 	for (int32 ChunkIndex = 0; ChunkIndex < Chunks.Num(); ++ChunkIndex)
 	{
 		const FVirtualTextureDataChunk& Chunk = Chunks[ChunkIndex];
-		if (!Chunk.DerivedDataKey.IsEmpty())
+		if (!Chunk.DerivedDataKey.IsEmpty() && !Chunk.BulkData.IsBulkDataLoaded())
 		{
-			TStringBuilder<256> ChunkNameBuilder;
-			ChunkNameBuilder.Append(DebugContext).Appendf(TEXT(" [Chunk %d]"), ChunkIndex);
 			FCacheGetChunkRequest& Request = Requests.AddDefaulted_GetRef();
-			Request.Name = ChunkNameBuilder;
+			Request.Name = FSharedString(WriteToString<256>(DebugContext, TEXT(" [Chunk ]"), ChunkIndex, TEXT("]")));
 			Request.Key = ConvertLegacyCacheKey(Chunk.DerivedDataKey);
 			Request.UserData = ChunkIndex;
 		}
@@ -1785,7 +1783,6 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, FStringView De
 		void* MipData = Mip.BulkData.Realloc(int64(MipBuffer.GetSize()));
 		FMemory::Memcpy(MipData, MipBuffer.GetData(), MipBuffer.GetSize());
 		Mip.BulkData.Unlock();
-		Mip.SetPagedToDerivedData(false);
 	};
 
 	if (!LoadDerivedStreamingMips(*this, FirstMipToLoad, DebugContext, StoreMip))
@@ -1800,7 +1797,6 @@ bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, FStringView De
 		void* ChunkData = Chunk.BulkData.Realloc(int64(ChunkBuffer.GetSize()));
 		FMemory::Memcpy(ChunkData, ChunkBuffer.GetData(), ChunkBuffer.GetSize());
 		Chunk.BulkData.Unlock();
-		Chunk.DerivedDataKey.Empty();
 	};
 
 	if (VTData && !LoadDerivedStreamingVTChunks(VTData->Chunks, DebugContext, StoreChunk))
@@ -2065,12 +2061,10 @@ bool FTexturePlatformData::CanBeLoaded() const
 {
 	for (const FTexture2DMipMap& Mip : Mips)
 	{
-#if WITH_EDITORONLY_DATA
-		if (Mip.IsPagedToDerivedData())
+		if (Mip.DerivedData.HasData())
 		{
 			return true;
 		}
-#endif 
 		if (Mip.BulkData.CanLoadFromDisk())
 		{
 			return true;
@@ -2984,7 +2978,7 @@ bool UTexture::IsAsyncCacheComplete() const
 	{
 		if (const FTexturePlatformData* PlatformData = *RunningPlatformDataPtr)
 		{
-			if (PlatformData->AsyncTask && !PlatformData->AsyncTask->Poll())
+			if (!PlatformData->IsAsyncWorkComplete())
 			{
 				return false;
 			}
@@ -2997,7 +2991,7 @@ bool UTexture::IsAsyncCacheComplete() const
 		{
 			if (const FTexturePlatformData* PlatformData = Kvp.Value)
 			{
-				if (PlatformData->AsyncTask && !PlatformData->AsyncTask->Poll())
+				if (!PlatformData->IsAsyncWorkComplete())
 				{
 					return false;
 				}
@@ -3007,7 +3001,7 @@ bool UTexture::IsAsyncCacheComplete() const
 
 	return true;
 }
-	
+
 bool UTexture::TryCancelCachePlatformData()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UTexture::TryCancelCachePlatformData);

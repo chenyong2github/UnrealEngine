@@ -543,25 +543,30 @@ bool FVirtualTextureDataChunk::ShortenKey(const FString& CacheKey, FString& Resu
 	return true;
 }
 
-int64 FVirtualTextureDataChunk::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC)
+int64 FVirtualTextureDataChunk::StoreInDerivedDataCache(const FStringView InKey, const FStringView InName, const bool bInReplaceExisting)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureDataChunk::StoreInDerivedDataCache);
-
-	int64 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
-	check(BulkDataSizeInBytes > 0);
-
+	using namespace UE;
 	using namespace UE::DerivedData;
 
-	FValue DerivedData = FValue::Compress(FSharedBuffer::MakeView(BulkData.Lock(LOCK_READ_ONLY), BulkDataSizeInBytes));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureDataChunk::StoreInDerivedDataCache);
+
+	const int64 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
+	check(BulkDataSizeInBytes > 0);
+
+	const FSharedString Name = InName;
+	const FCacheKey Key = ConvertLegacyCacheKey(InKey);
+	FValue Value = FValue::Compress(FSharedBuffer::MakeView(BulkData.Lock(LOCK_READ_ONLY), BulkDataSizeInBytes));
 	BulkData.Unlock();
 
 	FRequestOwner AsyncOwner(EPriority::Normal);
-	const ECachePolicy Policy = bReplaceExistingDDC ? ECachePolicy::Store : ECachePolicy::Default;
-	GetCache().PutValue({{{TextureName}, ConvertLegacyCacheKey(InDerivedDataKey), MoveTemp(DerivedData), Policy}}, AsyncOwner);
+	const ECachePolicy Policy = bInReplaceExisting ? ECachePolicy::Store : ECachePolicy::Default;
+	GetCache().PutValue({{Name, Key, MoveTemp(Value), Policy}}, AsyncOwner);
 	AsyncOwner.KeepAlive();
 
-	DerivedDataKey = InDerivedDataKey;
+	DerivedDataKey = InKey;
 	ShortenKey(DerivedDataKey, ShortDerivedDataKey);
+
+	DerivedData = FDerivedData(Name, Key);
 
 	// remove the actual bulkdata so when we serialize the owning FVirtualTextureBuiltData, this is actually serializing only the meta data
 	BulkData.RemoveBulkData();

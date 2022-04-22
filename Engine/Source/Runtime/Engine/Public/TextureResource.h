@@ -16,6 +16,7 @@
 #include "RHI.h"
 #include "RenderResource.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/DerivedData.h"
 #include "Engine/TextureDefines.h"
 #include "UnrealClient.h"
 #include "Templates/UniquePtr.h"
@@ -49,7 +50,10 @@ struct FTexture2DMipMap
 	/** Depth of the mip-map. */
 	int32 SizeZ;
 
-	/** Bulk data if stored in the package. */
+	/** Reference to the data for the mip if it can be streamed. */
+	UE::FDerivedData DerivedData;
+
+	/** Stores the data for the mip when it is loaded. */
 	FByteBulkData BulkData;
 
 	/** Default constructor. */
@@ -64,21 +68,22 @@ struct FTexture2DMipMap
 	ENGINE_API void Serialize(FArchive& Ar, UObject* Owner, int32 MipIndex);
 
 #if WITH_EDITORONLY_DATA
-	/** The file region type appropriate for this mip's pixel format. */
+	/** The file region type appropriate for the pixel format of this mip-map. */
 	EFileRegionType FileRegionType = EFileRegionType::None;
 
-	/** Whether this mip is stored in the derived data cache. */
+	UE_DEPRECATED(5.1, "Use DerivedData.HasData().")
 	bool bPagedToDerivedData = false;
 
-	bool IsPagedToDerivedData() const { return bPagedToDerivedData; }
-	void SetPagedToDerivedData(bool InValue) { bPagedToDerivedData = InValue; }
+	/** Whether this mip-map is stored in the derived data cache. */
+	inline bool IsPagedToDerivedData() const { return DerivedData.HasData(); }
 
-	/**
-	 * Place mip-map data in the derived data cache associated with the provided
-	 * key.
-	 */
-	int64 StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC);
+	UE_DEPRECATED(5.1, "Setting DerivedData is sufficient to control this state.")
+	inline void SetPagedToDerivedData(bool InValue)
+	{
+	}
 
+	/** Place mip-map data in the derived data cache associated with the provided key. */
+	int64 StoreInDerivedDataCache(FStringView Key, FStringView Name, bool bReplaceExisting);
 #endif // #if WITH_EDITORONLY_DATA
 };
 
@@ -161,7 +166,7 @@ public:
 
 	ENGINE_API virtual void InitRHI() override;
 	ENGINE_API virtual void ReleaseRHI() override;
-	
+
 	// Dynamic cast methods.
 	ENGINE_API virtual FVirtualTexture2DResource* GetVirtualTexture2DResource() { return this; }
 	// Dynamic cast methods (const).

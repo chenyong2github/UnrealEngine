@@ -155,29 +155,33 @@ void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 #if WITH_EDITORONLY_DATA
 	if (!Ar.IsFilterEditorOnly())
 	{
+		bool bLocalPagedToDerivedData = DerivedData.HasData();
 		Ar << FileRegionType;
-		Ar << bPagedToDerivedData;
+		Ar << bLocalPagedToDerivedData;
 	}
 #endif // #if WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITORONLY_DATA
-int64 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC)
+int64 FTexture2DMipMap::StoreInDerivedDataCache(const FStringView InKey, const FStringView InName, const bool bInReplaceExisting)
 {
+	using namespace UE;
 	using namespace UE::DerivedData;
 
-	int64 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
+	const int64 BulkDataSizeInBytes = BulkData.GetBulkDataSize();
 	check(BulkDataSizeInBytes > 0);
 
-	FValue DerivedData;
-	DerivedData = FValue::Compress(FSharedBuffer::MakeView(BulkData.Lock(LOCK_READ_ONLY), BulkDataSizeInBytes));
+	const FSharedString Name = InName;
+	const FCacheKey Key = ConvertLegacyCacheKey(InKey);
+	FValue Value = FValue::Compress(FSharedBuffer::MakeView(BulkData.Lock(LOCK_READ_ONLY), BulkDataSizeInBytes));
 	BulkData.Unlock();
 
 	FRequestOwner AsyncOwner(EPriority::Normal);
-	GetCache().PutValue({{{TextureName}, ConvertLegacyCacheKey(InDerivedDataKey), MoveTemp(DerivedData)}}, AsyncOwner);
+	const ECachePolicy Policy = bInReplaceExisting ? ECachePolicy::Store : ECachePolicy::Default;
+	GetCache().PutValue({{Name, Key, MoveTemp(Value), Policy}}, AsyncOwner);
 	AsyncOwner.KeepAlive();
 
-	SetPagedToDerivedData(true);
+	DerivedData = FDerivedData(Name, Key);
 	BulkData.RemoveBulkData();
 	return BulkDataSizeInBytes;
 }

@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "PixelFormat.h"
 #include "Serialization/BulkData.h"
+#include "Serialization/DerivedData.h"
 #include "Engine/Texture.h"
 #include "HAL/ThreadSafeBool.h"
 
@@ -35,6 +36,9 @@ struct FVirtualTextureChunkHeader
 
 struct FVirtualTextureDataChunk
 {
+	/** Reference to the data for the chunk if it can be streamed. */
+	UE::FDerivedData DerivedData;
+	/** Stores the data for the chunk when it is loaded. */
 	FByteBulkData BulkData;
 	FSHAHash BulkDataHash;
 	uint32 SizeInBytes;
@@ -66,7 +70,7 @@ struct FVirtualTextureDataChunk
 	bool ShortenKey(const FString& CacheKey, FString& Result);
 	FThreadSafeBool bFileAvailableInVTDDCDache;
 	bool bCorruptDataLoadedFromDDC = false;
-	int64 StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC);
+	int64 StoreInDerivedDataCache(FStringView InKey, FStringView InName, bool bReplaceExisting);
 #endif // WITH_EDITORONLY_DATA
 };
 

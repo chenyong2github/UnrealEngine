@@ -47,13 +47,13 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/Optional.h"
 #include "Misc/ScopeRWLock.h"
+#include "Misc/ScopeExit.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Serialization/BulkDataRegistry.h"
 #include "TextureDerivedDataBuildUtils.h"
 #include "VT/VirtualTextureChunkDDCCache.h"
 #include "VT/VirtualTextureDataBuilder.h"
 #include "TextureEncodingSettings.h"
-#include <atomic>
 
 static TAutoConsoleVariable<int32> CVarVTValidateCompressionOnLoad(
 	TEXT("r.VT.ValidateCompressionOnLoad"),
@@ -725,6 +725,7 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 // DDC1 primary fetch/build work function
 void FTextureCacheDerivedDataWorker::DoWork()
 {
+	using namespace UE;
 	using namespace UE::DerivedData;
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTextureCacheDerivedDataWorker::DoWork);
@@ -808,6 +809,33 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		FMemoryReaderView Ar(RawDerivedData.GetView(), /*bIsPersistent=*/ true);
 		DerivedData->Serialize(Ar, NULL);
 		bSucceeded = true;
+
+		if (bForVirtualTextureStreamingBuild)
+		{
+			if (DerivedData->VTData && DerivedData->VTData->IsInitialized())
+			{
+				const FSharedString Name(TexturePathName);
+				for (FVirtualTextureDataChunk& Chunk : DerivedData->VTData->Chunks)
+				{
+					if (!Chunk.DerivedDataKey.IsEmpty())
+					{
+						Chunk.DerivedData = FDerivedData(Name, ConvertLegacyCacheKey(Chunk.DerivedDataKey));
+					}
+				}
+			}
+		}
+		else
+		{
+			if (const int32 StreamingMipCount = FMath::Max(0, DerivedData->Mips.Num() - DerivedData->GetNumNonStreamingMips()))
+			{
+				const FSharedString Name(TexturePathName);
+				for (int32 MipIndex = 0; MipIndex < StreamingMipCount; ++MipIndex)
+				{
+					DerivedData->Mips[MipIndex].DerivedData = FDerivedData(Name, ConvertLegacyCacheKey(DerivedData->GetDerivedDataMipKeyString(MipIndex, DerivedData->Mips[MipIndex])));
+				}
+			}
+		}
+
 		// Load any streaming (not inline) mips that are necessary for our platform.
 		if (bForDDC)
 		{
@@ -1062,7 +1090,8 @@ public:
 		{
 			return;
 		}
-		
+
+		TOptional<FTextureStatusMessageContext> StatusMessage;
 		if (IsInGameThread() && OwnerPriority == EPriority::Blocking)
 		{
 			// this gets sent whether or not we are building the texture, and is a rare edge case for UI feedback.
@@ -1087,7 +1116,7 @@ public:
 
 		FBuildDefinition FetchOrBuildDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, InSettingsFetchOrBuild, bUseCompositeTexture);
 		DerivedData.FetchOrBuildDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchOrBuildDefinition, Texture, bUseCompositeTexture));
-		
+
 		bool bBuildKicked = false;
 		if (InSettingsFetchFirst)
 		{
@@ -1104,13 +1133,13 @@ public:
 				FBuildPolicyBuilder BuildPolicyBuilder(bInlineMips ? EBuildPolicy::Cache : (EBuildPolicy::CacheQuery | EBuildPolicy::SkipData));
 				if (!bInlineMips)
 				{
-					BuildPolicyBuilder.AddValuePolicy(FValueId::FromName("Description"_ASV), EBuildPolicy::Cache);
-					BuildPolicyBuilder.AddValuePolicy(FValueId::FromName("MipTail"_ASV), EBuildPolicy::Cache);
+					BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("Description")), EBuildPolicy::Cache);
+					BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("MipTail")), EBuildPolicy::Cache);
 				}
 
 				BuildSession.Get().Build(FetchDefinition, {}, BuildPolicyBuilder.Build(), *Owner,
-					[this, 
-					 FetchOrBuildDefinition = MoveTemp(FetchOrBuildDefinition), 
+					[this,
+					 FetchOrBuildDefinition = MoveTemp(FetchOrBuildDefinition),
 					 Flags,
 					 FetchOrBuildMetadata = InFetchOrBuildMetadata ? *InFetchOrBuildMetadata : FTexturePlatformData::FTextureEncodeResultMetadata()
 					](FBuildCompleteParams&& Params)
@@ -1120,7 +1149,7 @@ public:
 						default:
 						case EStatus::Ok:
 							return EndBuild(MoveTemp(Params));
-						case EStatus::Error:							
+						case EStatus::Error:
 							this->DerivedData.ResultMetadata = FetchOrBuildMetadata;
 							return BeginBuild(FetchOrBuildDefinition, Flags);
 						}
@@ -1136,6 +1165,11 @@ public:
 				this->DerivedData.ResultMetadata = *InFetchOrBuildMetadata;
 			}
 			BeginBuild(FetchOrBuildDefinition, Flags);
+		}
+
+		if (StatusMessage.IsSet())
+		{
+			Owner->Wait();
 		}
 	}
 
@@ -1175,8 +1209,8 @@ private:
 		else
 		{
 			FBuildPolicyBuilder BuildPolicyBuilder(EBuildPolicy::Build | EBuildPolicy::CacheQuery | EBuildPolicy::CacheStoreOnBuild | EBuildPolicy::SkipData);
-			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName("Description"_ASV), EBuildPolicy::Default);
-			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName("MipTail"_ASV), EBuildPolicy::Default);
+			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("Description")), EBuildPolicy::Default);
+			BuildPolicyBuilder.AddValuePolicy(FValueId::FromName(ANSITEXTVIEW("MipTail")), EBuildPolicy::Default);
 			BuildPolicy = BuildPolicyBuilder.Build();
 		}
 
@@ -1193,9 +1227,8 @@ private:
 			[](const FValue& Value) { return Value.GetData().GetRawSize(); }, uint64(0));
 		if (Params.Status != EStatus::Canceled)
 		{
-			WriteDerivedData(MoveTemp(Params.Output));
+			WriteDerivedData(MoveTemp(Params));
 		}
-		StatusMessage.Reset();
 	}
 
 	void Finalize(bool& bOutFoundInCache, uint64& OutProcessedByteCount) final
@@ -1374,46 +1407,49 @@ public:
 
 private:
 
-	static bool DeserializeTextureFromValues(FTexturePlatformData& DerivedData, const UE::DerivedData::FBuildOutput& Output, int32 FirstMipToLoad, bool bInlineMips)
+	static bool DeserializeTextureFromValues(FTexturePlatformData& DerivedData, UE::DerivedData::FBuildCompleteParams&& Params, int32 FirstMipToLoad, bool bInlineMips)
 	{
+		using namespace UE;
 		using namespace UE::DerivedData;
-		const FValueWithId& Value = Output.GetValue(FValueId::FromName("Description"_ASV));
+
+		const FBuildOutput& Output = Params.Output;
+		const FValueWithId& Value = Output.GetValue(FValueId::FromName(ANSITEXTVIEW("Description")));
 		if (!Value)
 		{
 			UE_LOG(LogTexture, Error, TEXT("Missing texture description for build of '%s' by %s."),
-				*WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
+				*Output.GetName(), *WriteToString<32>(Output.GetFunction()));
 			return false;
 		}
 
 		FCbObject TextureDescription(Value.GetData().Decompress());
 
-		FCbFieldViewIterator SizeIt = TextureDescription["Size"_ASV].AsArrayView().CreateViewIterator();
+		FCbFieldViewIterator SizeIt = TextureDescription[ANSITEXTVIEW("Size")].AsArrayView().CreateViewIterator();
 		DerivedData.SizeX = SizeIt++->AsInt32();
 		DerivedData.SizeY = SizeIt++->AsInt32();
 		int32 NumSlices = SizeIt++->AsInt32();
 
 		UEnum* PixelFormatEnum = UTexture::GetPixelFormatEnum();
-		FUtf8StringView PixelFormatStringView = TextureDescription["PixelFormat"_ASV].AsString();
+		FUtf8StringView PixelFormatStringView = TextureDescription[ANSITEXTVIEW("PixelFormat")].AsString();
 		FName PixelFormatName(PixelFormatStringView.Len(), PixelFormatStringView.GetData());
 		DerivedData.PixelFormat = (EPixelFormat)PixelFormatEnum->GetValueByName(PixelFormatName);
 
-		const bool bCubeMap = TextureDescription["bCubeMap"_ASV].AsBool();
-		DerivedData.OptData.ExtData = TextureDescription["ExtData"_ASV].AsUInt32();
-		DerivedData.OptData.NumMipsInTail = TextureDescription["NumMipsInTail"_ASV].AsUInt32();
+		const bool bCubeMap = TextureDescription[ANSITEXTVIEW("bCubeMap")].AsBool();
+		DerivedData.OptData.ExtData = TextureDescription[ANSITEXTVIEW("ExtData")].AsUInt32();
+		DerivedData.OptData.NumMipsInTail = TextureDescription[ANSITEXTVIEW("NumMipsInTail")].AsUInt32();
 		const bool bHasOptData = (DerivedData.OptData.NumMipsInTail != 0) || (DerivedData.OptData.ExtData != 0);
 		static constexpr uint32 BitMask_CubeMap = 1u << 31u;
 		static constexpr uint32 BitMask_HasOptData = 1u << 30u;
 		static constexpr uint32 BitMask_NumSlices = BitMask_HasOptData - 1u;
 		DerivedData.PackedData = (NumSlices & BitMask_NumSlices) | (bCubeMap ? BitMask_CubeMap : 0) | (bHasOptData ? BitMask_HasOptData : 0);
 
-		int32 NumMips = TextureDescription["NumMips"_ASV].AsInt32();
-		int32 NumStreamingMips = TextureDescription["NumStreamingMips"_ASV].AsInt32();
+		int32 NumMips = TextureDescription[ANSITEXTVIEW("NumMips")].AsInt32();
+		int32 NumStreamingMips = TextureDescription[ANSITEXTVIEW("NumStreamingMips")].AsInt32();
 
-		FCbArrayView MipArrayView = TextureDescription["Mips"_ASV].AsArrayView();
+		FCbArrayView MipArrayView = TextureDescription[ANSITEXTVIEW("Mips")].AsArrayView();
 		if (NumMips != MipArrayView.Num())
 		{
 			UE_LOG(LogTexture, Error, TEXT("Mismatched mip quantity (%d and %d) for build of '%s' by %s."),
-				NumMips, MipArrayView.Num(), *WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
+				NumMips, MipArrayView.Num(), *Output.GetName(), *WriteToString<32>(Output.GetFunction()));
 			return false;
 		}
 		check(NumMips >= (int32)DerivedData.OptData.NumMipsInTail);
@@ -1422,11 +1458,11 @@ private:
 		FSharedBuffer MipTailData;
 		if (NumMips > NumStreamingMips)
 		{
-			const FValueWithId& MipTailValue = Output.GetValue(FValueId::FromName("MipTail"_ASV));
+			const FValueWithId& MipTailValue = Output.GetValue(FValueId::FromName(ANSITEXTVIEW("MipTail")));
 			if (!MipTailValue)
 			{
 				UE_LOG(LogTexture, Error, TEXT("Missing texture mip tail for build of '%s' by %s."),
-					*WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
+					*Output.GetName(), *WriteToString<32>(Output.GetFunction()));
 				return false;
 			}
 			MipTailData = MipTailValue.GetData().Decompress();
@@ -1437,60 +1473,65 @@ private:
 		for (FCbFieldView MipFieldView : MipArrayView)
 		{
 			FCbObjectView MipObjectView = MipFieldView.AsObjectView();
-			FTexture2DMipMap* NewMip = new FTexture2DMipMap();
+			TUniquePtr<FTexture2DMipMap> NewMip = MakeUnique<FTexture2DMipMap>();
 
-			FCbFieldViewIterator MipSizeIt = MipObjectView["Size"_ASV].AsArrayView().CreateViewIterator();
+			FCbFieldViewIterator MipSizeIt = MipObjectView[ANSITEXTVIEW("Size")].AsArrayView().CreateViewIterator();
 			NewMip->SizeX = MipSizeIt++->AsInt32();
 			NewMip->SizeY = MipSizeIt++->AsInt32();
 			NewMip->SizeZ = MipSizeIt++->AsInt32();
-			NewMip->FileRegionType = static_cast<EFileRegionType>(MipObjectView["FileRegion"_ASV].AsInt32());
+			NewMip->FileRegionType = static_cast<EFileRegionType>(MipObjectView[ANSITEXTVIEW("FileRegion")].AsInt32());
 			
 			if (MipIndex >= NumStreamingMips)
 			{
-				uint64 MipSize = MipObjectView["NumBytes"_ASV].AsUInt64();
-				FMemoryView MipView = MipTailData.GetView().Mid(MipObjectView["MipOffset"_ASV].AsUInt64(), MipSize);
+				uint64 MipSize = MipObjectView[ANSITEXTVIEW("NumBytes")].AsUInt64();
+				FMemoryView MipView = MipTailData.GetView().Mid(MipObjectView[ANSITEXTVIEW("MipOffset")].AsUInt64(), MipSize);
 
 				NewMip->BulkData.Lock(LOCK_READ_WRITE);
 				void* MipAllocData = NewMip->BulkData.Realloc(int64(MipSize));
 				MakeMemoryView(MipAllocData, MipSize).CopyFrom(MipView);
 				NewMip->BulkData.Unlock();
-				NewMip->SetPagedToDerivedData(false);
-			}
-			else if (bInlineMips && (MipIndex >= FirstMipToLoad))
-			{
-				const FValueWithId& StreamingMipValue = Output.GetValue(FTexturePlatformData::MakeMipId(MipIndex));
-				if (!StreamingMipValue)
-				{
-					delete NewMip;
-					UE_LOG(LogTexture, Error, TEXT("Missing texture streaming mip '%d' for build of '%s' by %s."),
-						MipIndex, *WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
-					return false;
-				}
-				FSharedBuffer StreamingMipData = StreamingMipValue.GetData().Decompress();
-				uint64 MipSize = StreamingMipData.GetSize();
-
-				NewMip->BulkData.Lock(LOCK_READ_WRITE);
-				void* MipAllocData = NewMip->BulkData.Realloc(int64(MipSize));
-				MakeMemoryView(MipAllocData, MipSize).CopyFrom(StreamingMipData.GetView());
-				NewMip->BulkData.Unlock();
-				NewMip->SetPagedToDerivedData(false);
 			}
 			else
 			{
-				NewMip->SetPagedToDerivedData(true);
+				const FValueId MipId = FTexturePlatformData::MakeMipId(MipIndex);
+				const FValueWithId& MipValue = Output.GetValue(MipId);
+				if (!MipValue)
+				{
+					UE_LOG(LogTexture, Error, TEXT("Missing streaming texture mip %d for build of '%s' by %s."),
+						MipIndex, *Output.GetName(), *WriteToString<32>(Output.GetFunction()));
+					return false;
+				}
+
+				if (bInlineMips && (MipIndex >= FirstMipToLoad))
+				{
+					NewMip->BulkData.Lock(LOCK_READ_WRITE);
+					const uint64 MipSize = MipValue.GetRawSize();
+					void* MipData = NewMip->BulkData.Realloc(IntCastChecked<int64>(MipSize));
+					ON_SCOPE_EXIT { NewMip->BulkData.Unlock(); };
+					if (!MipValue.GetData().TryDecompressTo(MakeMemoryView(MipData, MipSize)))
+					{
+						UE_LOG(LogTexture, Error, TEXT("Failed to decompress streaming texture mip %d for build of '%s' by %s."),
+							MipIndex, *Output.GetName(), *WriteToString<32>(Output.GetFunction()));
+						return false;
+					}
+				}
+
+				FSharedString MipName(WriteToString<256>(Output.GetName(), TEXT(" [MIP "), MipIndex, TEXT("]")));
+				NewMip->DerivedData = FDerivedData(MoveTemp(MipName), Params.CacheKey, MipId);
 			}
 
-			DerivedData.Mips.Add(NewMip);
+			DerivedData.Mips.Add(NewMip.Release());
 			++MipIndex;
 		}
 
 		return true;
 	}
 
-	void WriteDerivedData(UE::DerivedData::FBuildOutput&& Output)
+	void WriteDerivedData(UE::DerivedData::FBuildCompleteParams&& Params)
 	{
 		using namespace UE::DerivedData;
 
+		const FBuildOutput& Output = Params.Output;
 		const FSharedString& Name = Output.GetName();
 		const FUtf8SharedString& Function = Output.GetFunction();
 
@@ -1543,7 +1584,7 @@ private:
 			return;
 		}
 
-		DeserializeTextureFromValues(DerivedData, Output, FirstMipToLoad, bInlineMips);
+		DeserializeTextureFromValues(DerivedData, MoveTemp(Params), FirstMipToLoad, bInlineMips);
 	}
 
 	static UE::DerivedData::EPriority ConvertPriority(EQueuedWorkPriority SourcePriority)
@@ -1590,7 +1631,6 @@ private:
 	bool bInlineMips;
 	int32 FirstMipToLoad;
 	uint64 BuildOutputSize = 0;
-	TOptional<FTextureStatusMessageContext> StatusMessage;
 	UE::TextureDerivedData::FTextureBuildInputResolver InputResolver;
 	FRWLock Lock;
 }; // end DDC2 fetch/build task (FTextureBuildTask)
