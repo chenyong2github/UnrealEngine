@@ -35,6 +35,9 @@ static_assert(FPackageTrailer::FHeader::StaticHeaderSizeOnDisk == 28, "FPackageT
 static_assert(Private::FLookupTableEntry::SizeOnDisk == 49, "FLookupTableEntry size has been changed, if this was intentional then update this assert");
 static_assert(FPackageTrailer::FFooter::SizeOnDisk == 20, "FPackageTrailer::FFooter size has been changed, if this was intentional then update this assert");
 
+namespace
+{
+
 /** Utility for recording failed package open reasons */
 void LogPackageOpenFailureMessage(const FPackagePath& PackagePath)
 {
@@ -53,6 +56,30 @@ void LogPackageOpenFailureMessage(const FPackagePath& PackagePath)
 		UE_LOG(LogSerialization, Error, TEXT("Could not open (%s) to read FPackageTrailer with an unknown error"), *PackagePath.GetDebugName());
 	}
 }
+
+/* Utility for finding a lookup table entry for reading from inside of a FHeader*/
+const Private::FLookupTableEntry* FindEntryInHeader(const FPackageTrailer::FHeader& Header, const FIoHash& Id)
+{
+	const Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Id](const Private::FLookupTableEntry& Entry)->bool
+		{
+			return Entry.Identifier == Id;
+		});
+
+	return Entry;
+}
+
+/* Utility for finding a lookup table entry for writing from inside of a FHeader */
+Private::FLookupTableEntry* FindEntryInHeader(FPackageTrailer::FHeader& Header, const FIoHash& Id)
+{
+	Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Id](const Private::FLookupTableEntry& Entry)->bool
+		{
+			return Entry.Identifier == Id;
+		});
+
+	return Entry;
+}
+
+} //namespace
 
 namespace Private
 {
@@ -428,10 +455,7 @@ FCompressedBuffer FPackageTrailer::LoadLocalPayload(const FIoHash& Id, FArchive&
 {
 	// TODO: This method should be able to load the payload in all cases, but we need a good way of passing the Archive/PackagePath 
 	// to the trailer etc. Would work if we stored the package path in the trailer.
-	const Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Id](const Private::FLookupTableEntry& Entry)->bool
-		{
-			return Entry.Identifier == Id;
-		});
+	const Private::FLookupTableEntry* Entry = FindEntryInHeader(Header, Id);
 
 	if (Entry == nullptr || Entry->AccessMode != EPayloadAccessMode::Local)
 	{
@@ -449,10 +473,7 @@ FCompressedBuffer FPackageTrailer::LoadLocalPayload(const FIoHash& Id, FArchive&
 
 bool FPackageTrailer::UpdatePayloadAsVirtualized(const FIoHash& Identifier)
 {
-	Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Identifier](const Private::FLookupTableEntry& Entry)->bool
-		{
-			return Entry.Identifier == Identifier;
-		});
+	Private::FLookupTableEntry* Entry = FindEntryInHeader(Header, Identifier);
 
 	if (Entry != nullptr)
 	{
@@ -470,10 +491,7 @@ bool FPackageTrailer::UpdatePayloadAsVirtualized(const FIoHash& Identifier)
 
 EPayloadStatus FPackageTrailer::FindPayloadStatus(const FIoHash& Id) const
 {
-	const Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Id](const Private::FLookupTableEntry& Entry)->bool
-		{
-			return Entry.Identifier == Id;
-		});
+	const Private::FLookupTableEntry* Entry = FindEntryInHeader(Header, Id);
 
 	if (Entry == nullptr)
 	{
@@ -505,10 +523,7 @@ int64 FPackageTrailer::FindPayloadOffsetInFile(const FIoHash& Id) const
 {
 	if (!Id.IsZero())
 	{
-		const Private::FLookupTableEntry* Entry = Header.PayloadLookupTable.FindByPredicate([&Id](const Private::FLookupTableEntry& Entry)->bool
-			{
-				return Entry.Identifier == Id;
-			});
+		const Private::FLookupTableEntry* Entry = FindEntryInHeader(Header, Id);
 
 		//TODO Better way to return an error?
 		check(TrailerPositionInFile != INDEX_NONE);
@@ -539,6 +554,21 @@ int64 FPackageTrailer::FindPayloadOffsetInFile(const FIoHash& Id) const
 	{
 		return INDEX_NONE;
 	}
+}
+
+int64 FPackageTrailer::FindPayloadSizeOnDisk(const FIoHash& Id) const
+{
+	if (!Id.IsZero())
+	{
+		const Private::FLookupTableEntry* Entry = FindEntryInHeader(Header, Id);
+
+		if (Entry != nullptr)
+		{
+			return Entry->CompressedSize;
+		}
+	}
+
+	return INDEX_NONE;
 }
 
 int64 FPackageTrailer::GetTrailerLength() const

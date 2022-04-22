@@ -366,6 +366,9 @@ public:
 	/** Returns the absolute offset of the payload in the package file, invalid and virtualized payloads will return INDEX_NONE */
 	[[nodiscard]] int64 FindPayloadOffsetInFile(const FIoHash& Id) const;
 
+	/** Returns the size of the payload on as stored on disk, invalid and virtualized payloads will return INDEX_NONE */
+	[[nodiscard]] int64 FindPayloadSizeOnDisk(const FIoHash& Id) const;
+
 	/** Returns the total size of the of the trailer on disk in bytes */
 	[[nodiscard]] int64 GetTrailerLength() const;
 
