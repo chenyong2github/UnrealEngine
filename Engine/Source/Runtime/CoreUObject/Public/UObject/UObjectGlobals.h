@@ -288,6 +288,96 @@ COREUOBJECT_API UObject* StaticFindObjectChecked( UClass* Class, UObject* InOute
 /** Internal version of StaticFindObject that will not assert on GIsSavingPackage or IsGarbageCollecting() */
 COREUOBJECT_API UObject* StaticFindObjectSafe( UClass* Class, UObject* InOuter, const TCHAR* Name, bool ExactClass=false );
 
+/**
+ * Fast version of StaticFindAllObjects that relies on the passed in FName being the object name without any group/package qualifiers.
+ * This will find all objects matching the specified name and class.
+ *
+ * @param	OutFoundObjects	Array of objects matching the search parameters
+ * @param	ObjectClass		The to be found object's class
+ * @param	ObjectName		Object name to look for relative to InOuter
+ * @param	ExactClass		Whether to require an exact match with the passed in class
+ * @param	ExclusiveFlags	Ignores objects that contain any of the specified exclusive flags
+ * @param	ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
+ *
+ * @return	Returns true if any objects were found, false otherwise
+ */
+COREUOBJECT_API bool StaticFindAllObjectsFast(TArray<UObject*>& OutFoundObjects, UClass* ObjectClass, FName ObjectName, bool ExactClass = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
+
+/**
+ * Fast version of StaticFindAllObjects that relies on the passed in FName being the object name without any group/package qualifiers.
+ * This will find all objects matching the specified name and class.
+ * This version of StaticFindAllObjectsFast will not assert on GIsSavingPackage or IsGarbageCollecting()
+ * 
+ * @param	OutFoundObjects	Array of objects matching the search parameters
+ * @param	ObjectClass		The to be found object's class
+ * @param	ObjectName		Object name to look for relative to InOuter
+ * @param	ExactClass		Whether to require an exact match with the passed in class
+ * @param	ExclusiveFlags	Ignores objects that contain any of the specified exclusive flags
+ * @param	ExclusiveInternalFlags  Ignores objects that contain any of the specified internal exclusive flags
+ *
+ * @return	Returns true if any objects were found, false otherwise
+ */
+COREUOBJECT_API bool StaticFindAllObjectsFastSafe(TArray<UObject*>& OutFoundObjects, UClass* ObjectClass, FName ObjectName, bool ExactClass = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
+
+/**
+ * Tries to find all objects matching the search paramters in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
+ *
+ * @param	OutFoundObjects	Array of objects matching the search parameters
+ * @param	Class			The to be found object's class
+ * @param	Name			The object path to search for an object, relative to InOuter
+ * @param	ExactClass		Whether to require an exact match with the passed in class
+ *
+ * @return	Returns true if any objects were found, false otherwise
+ */
+COREUOBJECT_API bool StaticFindAllObjects(TArray<UObject*>& OutFoundObjects, UClass* Class, const TCHAR* Name, bool ExactClass = false);
+
+/**
+ * Tries to find all objects matching the search paramters in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
+ * This version of StaticFindAllObjects will not assert on GIsSavingPackage or IsGarbageCollecting()
+ * 
+ * @param	OutFoundObjects	Array of objects matching the search parameters
+ * @param	Class			The to be found object's class
+ * @param	Name			The object path to search for an object, relative to InOuter
+ * @param	ExactClass		Whether to require an exact match with the passed in class
+ *
+ * @return	Returns true if any objects were found, false otherwise
+ */
+COREUOBJECT_API bool StaticFindAllObjectsSafe(TArray<UObject*>& OutFoundObjects, UClass* Class, const TCHAR* Name, bool ExactClass = false);
+
+
+enum class EFindFirstObjectOptions
+{
+	None = 0, // Unused / defaults to Quiet
+	ExactClass = 1 << 1 // Whether to require an exact match with the passed in class
+};
+ENUM_CLASS_FLAGS(EFindFirstObjectOptions);
+
+/**
+ * Tries to find the first objects matching the search paramters in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
+ *
+ * @param	Class						The to be found object's class
+ * @param	Name						The object path to search for an object, relative to InOuter
+ * @param	Options						Search options
+ * @param	AmbiguousMessageVerbosity	Verbosity with which to print a message if the search result is ambiguous
+ * @param	InCurrentOperation			Current operation to be logged with ambiguous search warning
+ *
+ * @return	Returns a pointer to an object if found, null otherwise
+ */
+COREUOBJECT_API UObject* StaticFindFirstObject(UClass* Class, const TCHAR* Name, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging, const TCHAR* InCurrentOperation = nullptr);
+
+/**
+ * Tries to find the first objects matching the search paramters in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
+ * This version of StaticFindFirstObject will not assert on GIsSavingPackage or IsGarbageCollecting()
+ * 
+ * @param	Class						The to be found object's class
+ * @param	Name						The object path to search for an object, relative to InOuter
+ * @param	Options						Search options
+ * @param	AmbiguousMessageVerbosity	Verbosity with which to print a message if the search result is ambiguous
+ * @param	InCurrentOperation			Current operation to be logged with ambiguous search warning
+ *
+ * @return	Returns a pointer to an object if found, null otherwise
+ */
+COREUOBJECT_API UObject* StaticFindFirstObjectSafe(UClass* Class, const TCHAR* Name, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging, const TCHAR* InCurrentOperation = nullptr);
 
 /**
  * Parse a reference to an object from a text representation
@@ -1534,6 +1624,26 @@ template< class T >
 inline T* FindObjectSafe( UObject* Outer, const TCHAR* Name, bool ExactClass=false )
 {
 	return (T*)StaticFindObjectSafe( T::StaticClass(), Outer, Name, ExactClass );
+}
+
+/**
+ * Find an optional object with proper handling of potential ambiguity.
+ * @see StaticFindFirstObject()
+ */
+template< class T >
+inline T* FindFirstObject(const TCHAR* Name, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging, const TCHAR* CurrentOperation = nullptr)
+{
+	return (T*)StaticFindFirstObject(T::StaticClass(), Name, Options, AmbiguousMessageVerbosity, CurrentOperation);
+}
+
+/**
+ * Find an optional object with proper handling of potential ambiguity without asserting on GIsSavingPackage or IsGarbageCollecting()
+ * @see StaticFindFirstObject()
+ */
+template< class T >
+inline T* FindFirstObjectSafe(const TCHAR* Name, EFindFirstObjectOptions Options = EFindFirstObjectOptions::None, ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging, const TCHAR* CurrentOperation = nullptr)
+{
+	return (T*)StaticFindFirstObjectSafe(T::StaticClass(), Name, Options, AmbiguousMessageVerbosity, CurrentOperation);
 }
 
 /** 

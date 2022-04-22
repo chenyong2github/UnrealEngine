@@ -822,6 +822,95 @@ bool DoesObjectPossiblyExist(const UObject* InOuter, FName ObjectName)
 	return ThreadHash.HashOuter.Contains(Hash);
 }
 
+bool StaticFindAllObjectsFastInternal(TArray<UObject*>& OutFoundObjects, const UClass* ObjectClass, FName ObjectName, bool bExactClass, EObjectFlags ExcludeFlags, EInternalObjectFlags ExclusiveInternalFlags)
+{
+	INC_DWORD_STAT(STAT_FindObjectFast);
+
+	ExclusiveInternalFlags |= EInternalObjectFlags::Unreachable;
+
+	FObjectSearchPath SearchPath(ObjectName);
+	const int32 Hash = GetObjectHash(SearchPath.Inner);
+	uint32 NumFoundObjects = 0; // Keeping track of the number of objects foundn. We allow OutFoundObjects to not be empty
+
+	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
+	FHashTableLock HashLock(ThreadHash);
+
+	FHashBucket* Bucket = ThreadHash.Hash.Find(Hash);
+	if (Bucket)
+	{
+		for (FHashBucketIterator It(*Bucket); It; ++It)
+		{
+			UObject* Object = (UObject*)*It;
+
+			if
+				((Object->GetFName() == SearchPath.Inner)
+
+					/* Don't return objects that have any of the exclusive flags set */
+					&& !Object->HasAnyFlags(ExcludeFlags)
+
+					/** If a class was specified, check that the object is of the correct class */
+					&& (ObjectClass == nullptr || (bExactClass ? Object->GetClass() == ObjectClass : Object->IsA(ObjectClass)))
+
+					/** Include (or not) pending kill objects */
+					&& !Object->HasAnyInternalFlags(ExclusiveInternalFlags)
+
+					/** Ensure that the partial path provided matches the object found */
+					&& SearchPath.MatchOuterNames(Object->GetOuter()))
+			{
+				checkf(!Object->IsUnreachable(), TEXT("%s"), *Object->GetFullName());
+				OutFoundObjects.Add(Object);
+				NumFoundObjects++;
+			}
+		}
+	}
+	return !!NumFoundObjects;
+}
+
+UObject* StaticFindFirstObjectFastInternal(const UClass* ObjectClass, FName ObjectName, bool bExactClass, EObjectFlags ExcludeFlags, EInternalObjectFlags ExclusiveInternalFlags)
+{
+	INC_DWORD_STAT(STAT_FindObjectFast);
+
+	ExclusiveInternalFlags |= EInternalObjectFlags::Unreachable;
+
+	UObject* Result = nullptr;
+	FObjectSearchPath SearchPath(ObjectName);
+	const int32 Hash = GetObjectHash(SearchPath.Inner);
+	uint32 NumFoundObjects = 0; // Keeping track of the number of objects found. We allow OutFoundObjects to not be empty
+
+	FUObjectHashTables& ThreadHash = FUObjectHashTables::Get();
+	FHashTableLock HashLock(ThreadHash);
+
+	FHashBucket* Bucket = ThreadHash.Hash.Find(Hash);
+	if (Bucket)
+	{
+		for (FHashBucketIterator It(*Bucket); It; ++It)
+		{
+			UObject* Object = (UObject*)*It;
+
+			if
+				((Object->GetFName() == SearchPath.Inner)
+
+					/* Don't return objects that have any of the exclusive flags set */
+					&& !Object->HasAnyFlags(ExcludeFlags)
+
+					/** If a class was specified, check that the object is of the correct class */
+					&& (ObjectClass == nullptr || (bExactClass ? Object->GetClass() == ObjectClass : Object->IsA(ObjectClass)))
+
+					/** Include (or not) pending kill objects */
+					&& !Object->HasAnyInternalFlags(ExclusiveInternalFlags)
+
+					/** Ensure that the partial path provided matches the object found */
+					&& SearchPath.MatchOuterNames(Object->GetOuter()))
+			{
+				checkf(!Object->IsUnreachable(), TEXT("%s"), *Object->GetFullName());
+				Result = Object;
+				break;
+			}
+		}
+	}
+	return Result;
+}
+
 // Assumes that ThreadHash's critical is already locked
 FORCEINLINE static void AddToOuterMap(FUObjectHashTables& ThreadHash, UObjectBase* Object)
 {

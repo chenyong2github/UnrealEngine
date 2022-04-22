@@ -346,6 +346,27 @@ UObject* StaticFindObjectFastSafe(UClass* ObjectClass, UObject* ObjectPackage, F
 	return FoundObject;
 }
 
+#if WITH_EDITOR
+static UObject* LoadObjectWhenImportingT3D(UClass* ObjectClass, const TCHAR* OrigInName)
+{
+	UObject* MatchingObject = nullptr;
+	static bool s_bCurrentlyLoading = false;
+	if (s_bCurrentlyLoading == false)
+	{
+		FString NameCheck = OrigInName;
+		if (NameCheck.Contains(TEXT("."), ESearchCase::CaseSensitive) &&
+			!NameCheck.Contains(TEXT("'"), ESearchCase::CaseSensitive) &&
+			!NameCheck.Contains(TEXT(":"), ESearchCase::CaseSensitive))
+		{
+			s_bCurrentlyLoading = true;
+			MatchingObject = StaticLoadObject(ObjectClass, nullptr, OrigInName, nullptr, LOAD_NoWarn, nullptr);
+			s_bCurrentlyLoading = false;
+		}
+	}
+	return MatchingObject;
+}
+
+#endif // WITH_EDITOR
 //
 // Find an optional object.
 //
@@ -360,25 +381,12 @@ UObject* StaticFindObject( UClass* ObjectClass, UObject* InObjectPackage, const 
 	UObject* MatchingObject = nullptr;
 #if WITH_EDITOR
 	// If the editor is running, and T3D is being imported, ensure any packages referenced are fully loaded.
-	if ((GIsEditor == true) && (GIsImportingT3D == true))// && (ObjectPackage != ANY_PACKAGE) && (ObjectPackage != NULL))
+	if ((GIsEditor == true) && (GIsImportingT3D == true))
 	{
-		static bool s_bCurrentlyLoading = false;
-
-		if (s_bCurrentlyLoading == false)
+		MatchingObject = LoadObjectWhenImportingT3D(ObjectClass, OrigInName);
+		if (MatchingObject)
 		{
-			FString NameCheck = OrigInName;
-			if (NameCheck.Contains(TEXT("."), ESearchCase::CaseSensitive) && 
-				!NameCheck.Contains(TEXT("'"), ESearchCase::CaseSensitive) && 
-				!NameCheck.Contains(TEXT(":"), ESearchCase::CaseSensitive) )
-			{
-				s_bCurrentlyLoading = true;
-				MatchingObject = StaticLoadObject(ObjectClass, nullptr, OrigInName, nullptr,  LOAD_NoWarn, nullptr);
-				s_bCurrentlyLoading = false;
-				if (MatchingObject != nullptr)
-				{
-					return MatchingObject;
-				}
-			}
+			return MatchingObject;
 		}
 	}
 #endif	//#if !WITH_EDITOR
@@ -437,6 +445,128 @@ UObject* StaticFindObjectSafe( UClass* ObjectClass, UObject* ObjectParent, const
 	}
 }
 
+bool StaticFindAllObjectsFast(TArray<UObject*>& OutFoundObjects, UClass* ObjectClass, FName ObjectName, bool ExactClass, EObjectFlags ExclusiveFlags, EInternalObjectFlags ExclusiveInternalFlags)
+{
+	UE_CLOG(UE::IsSavingPackage(nullptr) || IsGarbageCollectingOnGameThread(), LogUObjectGlobals, Fatal, TEXT("Illegal call to StaticFindAllObjectsFast() while serializing object data or garbage collecting!"));
+
+	// We don't want to return any objects that are currently being background loaded unless we're using FindObject during async loading.
+	ExclusiveInternalFlags |= IsInAsyncLoadingThread() ? EInternalObjectFlags::None : EInternalObjectFlags::AsyncLoading;
+	return StaticFindAllObjectsFastInternal(OutFoundObjects, ObjectClass, ObjectName, ExactClass, ExclusiveFlags, ExclusiveInternalFlags);
+}
+
+bool StaticFindAllObjectsFastSafe(TArray<UObject*>& OutFoundObjects, UClass* ObjectClass, FName ObjectName, bool ExactClass, EObjectFlags ExclusiveFlags, EInternalObjectFlags ExclusiveInternalFlags)
+{
+	bool bFoundObjects = false;
+	if (!UE::IsSavingPackage(nullptr) && !IsGarbageCollectingOnGameThread())
+	{
+		// We don't want to return any objects that are currently being background loaded unless we're using FindObject during async loading.
+		ExclusiveInternalFlags |= IsInAsyncLoadingThread() ? EInternalObjectFlags::None : EInternalObjectFlags::AsyncLoading;
+		bFoundObjects = StaticFindAllObjectsFastInternal(OutFoundObjects, ObjectClass, ObjectName, ExactClass, ExclusiveFlags, ExclusiveInternalFlags);
+	}
+	return bFoundObjects;
+}
+
+bool StaticFindAllObjects(TArray<UObject*>& OutFoundObjects, UClass* ObjectClass, const TCHAR* OrigInName, bool ExactClass)
+{
+	INC_DWORD_STAT(STAT_FindObject);
+
+	UE_CLOG(UE::IsSavingPackage(nullptr), LogUObjectGlobals, Fatal, TEXT("Illegal call to StaticFindAllObjects() while serializing object data!"));
+	UE_CLOG(IsGarbageCollectingOnGameThread(), LogUObjectGlobals, Fatal, TEXT("Illegal call to StaticFindAllObjects() while collecting garbage!"));
+
+#if WITH_EDITOR
+	// If the editor is running, and T3D is being imported, ensure any packages referenced are fully loaded.
+	if ((GIsEditor == true) && (GIsImportingT3D == true))
+	{
+		UObject* MatchingObject = LoadObjectWhenImportingT3D(ObjectClass, OrigInName);
+		if (MatchingObject != nullptr)
+		{
+			OutFoundObjects.Add(MatchingObject);
+			return true;
+		}
+	}
+#endif	//#if !WITH_EDITOR
+
+	// Don't resolve the name since we're searching in any package
+	FString InName = OrigInName;
+	ConstructorHelpers::StripObjectClass(InName);
+	FName ObjectName(*InName, FNAME_Add);
+
+	return StaticFindAllObjectsFast(OutFoundObjects, ObjectClass, ObjectName, ExactClass);
+}
+
+bool StaticFindAllObjectsSafe(TArray<UObject*>& OutFoundObjects, UClass* ObjectClass, const TCHAR* OrigInName, bool ExactClass)
+{
+	bool bFoundObjects = false;
+	if (!UE::IsSavingPackage(nullptr) && !IsGarbageCollectingOnGameThread())
+	{
+		bFoundObjects = StaticFindAllObjects(OutFoundObjects, ObjectClass, OrigInName, ExactClass);
+	}
+	return bFoundObjects;
+}
+
+UObject* StaticFindFirstObject(UClass* Class, const TCHAR* Name, EFindFirstObjectOptions Options /*= EFindFirstObjectOptions::None*/, ELogVerbosity::Type AmbiguousMessageVerbosity /*= ELogVerbosity::Warning*/, const TCHAR* InCurrentOperation /*= nullptr*/)
+{
+	UObject* Result = nullptr;
+	// Don't resolve the name since we're searching in any package
+	FString InName = Name;
+	ConstructorHelpers::StripObjectClass(InName);
+	FName ObjectName(*InName, FNAME_Add);
+
+	if (AmbiguousMessageVerbosity == ELogVerbosity::NoLogging)
+	{
+		Result = StaticFindFirstObjectFastInternal(Class, ObjectName, !!(Options & EFindFirstObjectOptions::ExactClass));
+	}
+	else
+	{
+		TArray<UObject*> FoundObjects;
+		if (StaticFindAllObjectsFast(FoundObjects, Class, ObjectName, !!(Options & EFindFirstObjectOptions::ExactClass)))
+		{
+			Result = FoundObjects[0];
+			if (AmbiguousMessageVerbosity != ELogVerbosity::NoLogging && FoundObjects.Num() > 1)
+			{
+				TStringBuilder<256> Message;
+				Message.Append(TEXT("StaticFindFirstObject: Ambiguous object name "));
+				Message.Append(Name);
+				if (InCurrentOperation)
+				{
+					Message.Append(TEXT(" while "));
+					Message.Append(InCurrentOperation);
+				}
+				Message.Append(TEXT(", will return "));
+				Message.Append(Result->GetPathName());
+				Message.Append(TEXT(" but could also be: "));
+				for (int32 ObjectIndex = 1; ObjectIndex < FoundObjects.Num(); ++ObjectIndex)
+				{
+					Message.Append(FoundObjects[ObjectIndex]->GetPathName());
+					if (ObjectIndex < FoundObjects.Num() - 1)
+					{
+						Message.Append(TEXT(","));
+					}
+				}
+
+				if (AmbiguousMessageVerbosity == ELogVerbosity::Fatal)
+				{
+					UE_LOG(LogUObjectGlobals, Fatal, TEXT("%s"), *Message.ToString());
+				}
+				else
+				{
+					GLog->CategorizedLogf(TEXT("LogUObjectGlobals"), AmbiguousMessageVerbosity, TEXT("%s"), *Message.ToString());
+				}
+			}
+		}
+	}
+	return Result;
+}
+
+UObject* StaticFindFirstObjectSafe(UClass* Class, const TCHAR* Name, EFindFirstObjectOptions Options /*= EFindFirstObjectOptions::None*/, ELogVerbosity::Type AmbiguousMessageVerbosity /*= ELogVerbosity::Warning*/, const TCHAR* InCurrentOperation /*= nullptr*/)
+{
+	UObject* Result = nullptr;
+	if (!UE::IsSavingPackage(nullptr) && !IsGarbageCollectingOnGameThread())
+	{
+		Result = StaticFindFirstObject(Class, Name, Options, AmbiguousMessageVerbosity, InCurrentOperation);
+	}
+	return Result;
+}
 
 //
 // Global property setting.
