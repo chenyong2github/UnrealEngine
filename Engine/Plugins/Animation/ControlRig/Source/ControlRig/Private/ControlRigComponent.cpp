@@ -461,6 +461,7 @@ void UControlRigComponent::ClearMappedElements()
 	}
 
 	MappedElements.Reset();
+	MappedElements = UserDefinedElements;
 	ValidateMappingData();
 	Initialize();
 }
@@ -1194,6 +1195,18 @@ void UControlRigComponent::ValidateMappingData()
 
 			AActor* MappedOwner = MappedElement.ComponentReference.OtherActor == nullptr ? GetOwner() : ToRawPtr(MappedElement.ComponentReference.OtherActor);
 			MappedElement.SceneComponent = Cast<USceneComponent>(MappedElement.ComponentReference.GetComponent(MappedOwner));
+
+			// try again with the path to the component
+			if (MappedElement.SceneComponent == nullptr)
+			{
+				FComponentReference TempReference;
+				TempReference.PathToComponent = MappedElement.ComponentReference.ComponentProperty.ToString();
+				if (USceneComponent* TempSceneComponent = Cast<USceneComponent>(TempReference.GetComponent(MappedOwner)))
+				{
+					MappedElement.ComponentReference = TempReference;
+					MappedElement.SceneComponent = TempSceneComponent;
+				}
+			}
 
 			if (MappedElement.SceneComponent == nullptr ||
 				MappedElement.SceneComponent == this ||

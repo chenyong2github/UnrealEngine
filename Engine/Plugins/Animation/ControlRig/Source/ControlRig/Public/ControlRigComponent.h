@@ -267,6 +267,9 @@ public:
 	void Update(float DeltaTime = 0.f);
 
 	UPROPERTY(EditAnywhere, Category = "Animation")
+	TArray<FControlRigComponentMappedElement> UserDefinedElements;
+
+	UPROPERTY(VisibleAnywhere, Category = "Animation")
 	TArray<FControlRigComponentMappedElement> MappedElements;
 
 	/** Removes all mapped elements from the component */
