@@ -11,6 +11,13 @@
 using namespace UE::Geometry;
 
 
+// This CVar controls whether scene hit queries will hit volume surfaces.
+// When enabled, Volumes with a valid CollisionProfile will be included as snap targets
+TAutoConsoleVariable<bool> CVarEnableModelingVolumeSnapping(
+	TEXT("modeling.EnableVolumeSnapping"),
+	false,
+	TEXT("Enable snapping to volumes"));
+
 namespace UE
 {
 namespace Local
@@ -384,8 +391,10 @@ bool FSceneGeometrySpatialCache::EnableComponentTracking(UPrimitiveComponent* Co
 		return true;
 	}
 
+	bool bEnableVolumes = CVarEnableModelingVolumeSnapping.GetValueOnAnyThread();
+
 	TSharedPtr<ISceneGeometrySpatial> NewSpatial;
-	if (Cast<UBrushComponent>(Component) != nullptr)
+	if (bEnableVolumes && Cast<UBrushComponent>(Component) != nullptr)
 	{
 		IdentifierOut = FSceneGeometryID{ UniqueIDGenerator++ };
 

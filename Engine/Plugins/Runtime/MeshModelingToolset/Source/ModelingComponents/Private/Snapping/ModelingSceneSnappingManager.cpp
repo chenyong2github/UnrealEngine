@@ -15,12 +15,19 @@
 #include "Engine/StaticMesh.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/BrushComponent.h"
 #include "Components/DynamicMeshComponent.h"
 #include "UObject/UObjectGlobals.h"
 
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "USceneSnappingManager"
+
+
+
+// defined in SceneGeometrySpatialCache.cpp
+extern TAutoConsoleVariable<bool> CVarEnableModelingVolumeSnapping;
+
 
 static double SnapToIncrement(double fValue, double fIncrement, double offset = 0)
 {
@@ -330,11 +337,19 @@ static bool FindNearestVisibleObjectHit_Internal(
 		return false;
 	}
 
+	bool bEnableVolumes = CVarEnableModelingVolumeSnapping.GetValueOnAnyThread();
+
 	double NearestVisible = TNumericLimits<double>::Max();
 	for (const FHitResult& CurResult : OutHits)
 	{
 		// if we have hit Component in the SpatialCache, prefer to use that
 		if (SpatialCache && SpatialCache->HaveCacheForComponent(CurResult.GetComponent()) )
+		{
+			continue;
+		}
+
+		// filtering out any volume hits here will disable volume snapping
+		if (bEnableVolumes == false && Cast<UBrushComponent>(CurResult.GetComponent()) != nullptr)
 		{
 			continue;
 		}
