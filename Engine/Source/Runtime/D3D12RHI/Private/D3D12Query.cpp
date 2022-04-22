@@ -201,6 +201,7 @@ bool FD3D12Device::GetQueryData(FD3D12RenderQuery& Query, bool bWait)
 
 void FD3D12CommandContext::RHIBeginOcclusionQueryBatch(uint32 NumQueriesInBatch)
 {
+	NumQueriesInBatch = RHIConsoleVariables::GInsertOuterOcclusionQuery ? NumQueriesInBatch + 1 : NumQueriesInBatch;	// account for additional outer occlusion query if utilized
 	GetParentDevice()->GetOcclusionQueryHeap(CommandQueueType)->StartQueryBatch(*this, NumQueriesInBatch);
 	if (RHIConsoleVariables::GInsertOuterOcclusionQuery)
 	{
