@@ -768,10 +768,9 @@ void FAGXCommandEncoder::SetRenderPassStoreActions(MTLStoreAction const* ColorSt
 
 void FAGXCommandEncoder::SetRenderPipelineState(FAGXShaderPipeline* PipelineState)
 {
-	check (RenderCommandEncoder);
-	{
-		[RenderCommandEncoder setRenderPipelineState:PipelineState->RenderPipelineState.GetPtr()];
-	}
+	check(RenderCommandEncoder);
+
+	[RenderCommandEncoder setRenderPipelineState:PipelineState->RenderPipelineState];
 }
 
 void FAGXCommandEncoder::SetViewport(MTLViewport const Viewport[], uint32 NumActive)
@@ -1108,7 +1107,7 @@ void FAGXCommandEncoder::SetComputePipelineState(FAGXShaderPipeline* State)
 {
 	check (ComputeCommandEncoder);
 	{
-		[ComputeCommandEncoder setComputePipelineState:State->ComputePipelineState.GetPtr()];
+		[ComputeCommandEncoder setComputePipelineState:State->ComputePipelineState];
 	}
 }
 

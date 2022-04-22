@@ -65,22 +65,19 @@ private:
 @interface FAGXShaderPipeline : FApplePlatformObject
 {
 @public
-	mtlpp::RenderPipelineState RenderPipelineState;
-	mtlpp::ComputePipelineState ComputePipelineState;
+	id<MTLRenderPipelineState> RenderPipelineState;
+	id<MTLComputePipelineState> ComputePipelineState;
 	TArray<uint32> BufferDataSizes[SF_NumStandardFrequencies];
 	TMap<uint8, uint8> TextureTypes[SF_NumStandardFrequencies];
 	FAGXDebugShaderResourceMask ResourceMask[SF_NumStandardFrequencies];
-	mtlpp::RenderPipelineReflection RenderPipelineReflection;
-	mtlpp::ComputePipelineReflection ComputePipelineReflection;
+	MTLRenderPipelineReflection* RenderPipelineReflection;
+	MTLComputePipelineReflection* ComputePipelineReflection;
 #if METAL_DEBUG_OPTIONS
-	ns::String VertexSource;
-	ns::String FragmentSource;
-	ns::String ComputeSource;
-	mtlpp::RenderPipelineDescriptor RenderDesc;
-	mtlpp::ComputePipelineDescriptor ComputeDesc;
+	NSString* VertexSource;
+	NSString* FragmentSource;
+	NSString* ComputeSource;
 #endif
 }
-- (instancetype)init;
 - (void)initResourceMask;
 - (void)initResourceMask:(EShaderFrequency)Frequency;
 @end

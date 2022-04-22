@@ -39,62 +39,60 @@ FAGXShaderPipeline* FAGXComputeShader::GetPipeline()
 {
 	if (!Pipeline)
 	{
-		mtlpp::Function Func = GetCompiledFunction();
-		check(Func);
+		id<MTLFunction> Func = GetCompiledFunction().GetPtr();
+		check(Func != nil);
 
-		ns::Error Error;
-		mtlpp::ComputePipelineDescriptor Descriptor;
-		Descriptor.SetLabel(Func.GetName());
-		Descriptor.SetComputeFunction(Func);
+		NSError* Error = nil;
+		MTLComputePipelineDescriptor* Descriptor = [[MTLComputePipelineDescriptor alloc] init];
+		[Descriptor setLabel:[Func name]];
+		[Descriptor setComputeFunction:Func];
 		if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesTextureBuffers))
 		{
-			Descriptor.SetMaxTotalThreadsPerThreadgroup(NumThreadsX*NumThreadsY*NumThreadsZ);
+			[Descriptor setMaxTotalThreadsPerThreadgroup:(NumThreadsX * NumThreadsY * NumThreadsZ)];
 		}
 
 		if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesPipelineBufferMutability))
 		{
-			ns::AutoReleased<ns::Array<mtlpp::PipelineBufferDescriptor>> PipelineBuffers = Descriptor.GetBuffers();
+			MTLPipelineBufferDescriptorArray* PipelineBuffers = [Descriptor buffers];
 
 			uint32 ImmutableBuffers = Bindings.ConstantBuffers;
-			while(ImmutableBuffers)
+			while (ImmutableBuffers)
 			{
 				uint32 Index = __builtin_ctz(ImmutableBuffers);
 				ImmutableBuffers &= ~(1 << Index);
 
 				if (Index < ML_MaxBuffers)
 				{
-					ns::AutoReleased<mtlpp::PipelineBufferDescriptor> PipelineBuffer = PipelineBuffers[Index];
-					PipelineBuffer.SetMutability(mtlpp::Mutability::Immutable);
+					[[PipelineBuffers objectAtIndexedSubscript:Index] setMutability:MTLMutabilityImmutable];
 				}
 			}
 			if (SideTableBinding > 0)
 			{
-				ns::AutoReleased<mtlpp::PipelineBufferDescriptor> PipelineBuffer = PipelineBuffers[SideTableBinding];
-				PipelineBuffer.SetMutability(mtlpp::Mutability::Immutable);
+				[[PipelineBuffers objectAtIndexedSubscript:SideTableBinding] setMutability:MTLMutabilityImmutable];
 			}
 		}
 
-		mtlpp::ComputePipelineState Kernel;
-		mtlpp::ComputePipelineReflection Reflection;
+		id<MTLComputePipelineState> Kernel = nil;
+#if METAL_DEBUG_OPTIONS
+		MTLAutoreleasedComputePipelineReflection* Reflection = nil;
+#endif
 
 		METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("NewComputePipeline: %d_%d"), SourceLen, SourceCRC)));
 #if METAL_DEBUG_OPTIONS
 		if (GetAGXDeviceContext().GetCommandQueue().GetRuntimeDebuggingLevel() >= EAGXDebugLevelFastValidation)
 		{
-			ns::AutoReleasedError ComputeError;
-			mtlpp::AutoReleasedComputePipelineReflection ComputeReflection;
-
-			NSUInteger ComputeOption = mtlpp::PipelineOption::ArgumentInfo | mtlpp::PipelineOption::BufferTypeInfo;
-			Kernel = GMtlppDevice.NewComputePipelineState(Descriptor, mtlpp::PipelineOption(ComputeOption), &ComputeReflection, &ComputeError);
-			Error = ComputeError;
-			Reflection = ComputeReflection;
+			Kernel = [GMtlDevice newComputePipelineStateWithDescriptor:Descriptor
+															  options:(MTLPipelineOptionArgumentInfo | MTLPipelineOptionBufferTypeInfo)
+														   reflection:Reflection
+														   		error:&Error];
 		}
 		else
 #endif // METAL_DEBUG_OPTIONS
 		{
-			ns::AutoReleasedError ComputeError;
-			Kernel = GMtlppDevice.NewComputePipelineState(Descriptor, mtlpp::PipelineOption(0), nil, &ComputeError);
-			Error = ComputeError;
+			Kernel = [GMtlDevice newComputePipelineStateWithDescriptor:Descriptor
+															  options:MTLPipelineOptionNone
+														   reflection:nil
+														   		error:&Error];
 		}
 
 		if (Kernel == nil)
@@ -106,14 +104,12 @@ FAGXShaderPipeline* FAGXComputeShader::GetPipeline()
 		Pipeline = [FAGXShaderPipeline new];
 		Pipeline->ComputePipelineState = Kernel;
 #if METAL_DEBUG_OPTIONS
-		Pipeline->ComputePipelineReflection = Reflection;
+		Pipeline->ComputePipelineReflection = [*Reflection retain];
 		Pipeline->ComputeSource = GetSourceCode();
-		if (Reflection)
-		{
-			Pipeline->ComputeDesc = Descriptor;
-		}
 #endif // METAL_DEBUG_OPTIONS
 		METAL_DEBUG_OPTION(FMemory::Memzero(Pipeline->ResourceMask, sizeof(Pipeline->ResourceMask)));
+
+		[Descriptor release];
 	}
 	check(Pipeline);
 
