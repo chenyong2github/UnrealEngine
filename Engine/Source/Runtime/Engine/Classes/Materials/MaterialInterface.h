@@ -822,6 +822,10 @@ public:
 	*/
 	ENGINE_API virtual void CacheShaders(EMaterialShaderPrecompileMode CompileMode = EMaterialShaderPrecompileMode::Default) {}
 
+#if WITH_EDITOR
+	ENGINE_API virtual void CacheGivenTypesForCooking(EShaderPlatform Platform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*> PipelineTypes, const TArray<const FShaderType*>& ShaderTypes) {}
+#endif
+
 	/** @brief Checks to see if this material has all its shaders cached.
 	*
 	* Materials are not guaranteed to have all their shaders compiled after loading.  It can be useful to

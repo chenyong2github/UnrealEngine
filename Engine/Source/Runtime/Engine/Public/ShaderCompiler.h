@@ -26,6 +26,7 @@
 #include "Containers/HashTable.h"
 #include "Containers/List.h"
 #include "Hash/Blake3.h"
+#include "SceneTypes.h"
 
 class FShaderCompileJob;
 class FShaderPipelineCompileJob;
@@ -1234,6 +1235,12 @@ struct FODSCRequestPayload
 	/** The shader platform to compile for. */
 	EShaderPlatform ShaderPlatform;
 
+	/** Which feature level to compile for. */
+	ERHIFeatureLevel::Type FeatureLevel;
+
+	/** Which material quality level to compile for. */
+	EMaterialQualityLevel::Type QualityLevel;
+
 	/** Which material do we compile for?. */
 	FString MaterialName;
 
@@ -1250,7 +1257,7 @@ struct FODSCRequestPayload
 	FString RequestHash;
 
 	ENGINE_API FODSCRequestPayload() {};
-	ENGINE_API FODSCRequestPayload(EShaderPlatform InShaderPlatform, const FString& InMaterialName, const FString& InVertexFactoryName, const FString& InPipelineName, const TArray<FString>& InShaderTypeNames, const FString& InRequestHash);
+	ENGINE_API FODSCRequestPayload(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQualityLevel, const FString& InMaterialName, const FString& InVertexFactoryName, const FString& InPipelineName, const TArray<FString>& InShaderTypeNames, const FString& InRequestHash);
 
 	/**
 	* Serializes FODSCRequestPayload value from or into this archive.
@@ -1280,6 +1287,10 @@ struct FShaderRecompileData
 
 	/** Shader platform */
 	EShaderPlatform ShaderPlatform = SP_NumPlatforms;
+
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::SM5;
+
+	EMaterialQualityLevel::Type QualityLevel = EMaterialQualityLevel::High;
 
 	/** All filenames that have been changed during the shader compilation. */
 	TArray<FString>* ModifiedFiles = nullptr;
@@ -1315,6 +1326,8 @@ struct FShaderRecompileData
 	{
 		PlatformName = Other.PlatformName;
 		ShaderPlatform = Other.ShaderPlatform;
+		FeatureLevel = Other.FeatureLevel;
+		QualityLevel = Other.QualityLevel;
 		ModifiedFiles = Other.ModifiedFiles;
 		MeshMaterialMaps = Other.MeshMaterialMaps;
 		MaterialsToLoad = Other.MaterialsToLoad;
@@ -1326,6 +1339,8 @@ struct FShaderRecompileData
 
 		return *this;
 	}
+
+	ENGINE_API friend FArchive& operator<<(FArchive& Ar, FShaderRecompileData& Elem);
 };
 
 #if WITH_EDITOR

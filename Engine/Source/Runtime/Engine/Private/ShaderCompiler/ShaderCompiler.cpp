@@ -2276,13 +2276,13 @@ void FShaderCompileThreadRunnable::WriteNewTasks()
 
 			// Write out the file that the worker app is waiting for, which has all the information needed to compile the shader.
 			// 'Only' indicates that the worker should keep checking for more tasks after this one
-			FArchive* TransferFile = NULL;
+			FArchive* TransferFile = nullptr;
 
 			int32 RetryCount = 0;
 			// Retry over the next two seconds if we can't write out the input file
 			// Anti-virus and indexing applications can interfere and cause this write to fail
 			//@todo - switch to shared memory or some other method without these unpredictable hazards
-			while (TransferFile == NULL && RetryCount < 2000)
+			while (TransferFile == nullptr && RetryCount < 2000)
 			{
 				if (RetryCount > 0)
 				{
@@ -2290,12 +2290,12 @@ void FShaderCompileThreadRunnable::WriteNewTasks()
 				}
 				TransferFile = IFileManager::Get().CreateFileWriter(*TransferFileName, FILEWRITE_EvenIfReadOnly);
 				RetryCount++;
-				if (TransferFile == NULL)
+				if (TransferFile == nullptr)
 				{
 					UE_LOG(LogShaderCompilers, Warning, TEXT("Could not create the shader compiler transfer file '%s', retrying..."), *TransferFileName);
 				}
 			}
-			if (TransferFile == NULL)
+			if (TransferFile == nullptr)
 			{
 				UE_LOG(LogShaderCompilers, Fatal, TEXT("Could not create the shader compiler transfer file '%s'."), *TransferFileName);
 			}
@@ -2585,7 +2585,7 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 		{
 			UE_LOG(LogShaderCompilers, Fatal, TEXT("Can't compile shaders for format %s, couldn't load compiler dll"), *Format.ToString());
 		}
-		CA_ASSUME(Compiler != NULL);
+		CA_ASSUME(Compiler != nullptr);
 
 		if (IsValidRef(SingleJob->Input.SharedEnvironment))
 		{
@@ -2623,7 +2623,7 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 		{
 			UE_LOG(LogShaderCompilers, Fatal, TEXT("Can't compile shaders for format %s, couldn't load compiler dll"), *Format.ToString());
 		}
-		CA_ASSUME(Compiler != NULL);
+		CA_ASSUME(Compiler != nullptr);
 
 		// Verify same platform on all stages
 		for (int32 Index = 1; Index < PipelineJob->StageJobs.Num(); ++Index)
@@ -2813,7 +2813,7 @@ int32 FShaderCompileThreadRunnable::CompilingLoop()
 	return NumActiveThreads;
 }
 
-FShaderCompilerStats* GShaderCompilerStats = NULL;
+FShaderCompilerStats* GShaderCompilerStats = nullptr;
 
 void FShaderCompilerStats::WriteStats(FOutputDevice* Ar)
 {
@@ -3326,7 +3326,7 @@ double FShaderCompilerStats::GetTimeShaderCompilationWasActive()
 	return Sum;
 }
 
-FShaderCompilingManager* GShaderCompilingManager = NULL;
+FShaderCompilingManager* GShaderCompilingManager = nullptr;
 
 bool FShaderCompilingManager::AllTargetPlatformSupportsRemoteShaderCompiling()
 {
@@ -3941,7 +3941,7 @@ FProcHandle FShaderCompilingManager::LaunchWorker(const FString& WorkingDirector
 		// Disambiguate between SCW.exe missing vs other errors.
 		static bool bFirstLaunch = true;
 		uint32 WorkerId = 0;
-		FProcHandle WorkerHandle = FPlatformProcess::CreateProc(*ShaderCompileWorkerName, *WorkerParameters, true, false, false, &WorkerId, PriorityModifier, NULL, NULL);
+		FProcHandle WorkerHandle = FPlatformProcess::CreateProc(*ShaderCompileWorkerName, *WorkerParameters, true, false, false, &WorkerId, PriorityModifier, nullptr, nullptr);
 		if (WorkerHandle.IsValid())
 		{
 			// Process launched at least once successfully
@@ -4958,7 +4958,7 @@ void FShaderCompilingManager::FinishCompilation(const TCHAR* MaterialName, const
 	const double StartTime = FPlatformTime::Seconds();
 
 	FText StatusUpdate;
-	if ( MaterialName != NULL )
+	if ( MaterialName != nullptr)
 	{
 		FFormatNamedArguments Args;
 		Args.Add( TEXT("MaterialName"), FText::FromString( MaterialName ) );
@@ -6233,7 +6233,10 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 		TArray<FString> MaterialsToLoad;
 		FString ShaderTypesToLoad;
 		ODSCRecompileCommand CommandType = ParseRecompileCommandString(Cmd, MaterialsToLoad, ShaderTypesToLoad);
-		GODSCManager->AddThreadedRequest(MaterialsToLoad, ShaderTypesToLoad, GMaxRHIShaderPlatform, CommandType);
+
+		ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(GMaxRHIShaderPlatform);
+		const EMaterialQualityLevel::Type ActiveQualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+		GODSCManager->AddThreadedRequest(MaterialsToLoad, ShaderTypesToLoad, GMaxRHIShaderPlatform, TargetFeatureLevel, ActiveQualityLevel, CommandType);
 #endif
 		return true;
 	}
@@ -6323,7 +6326,7 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 					}
 					else
 					{
-						Material->PreEditChange(NULL);
+						Material->PreEditChange(nullptr);
 						Material->PostEditChange();
 					}
 #endif // WITH_EDITOR
@@ -6353,7 +6356,7 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 #if WITH_EDITOR
 					// <Pre/Post>EditChange will force a re-creation of the resource,
 					// in turn recompiling the shader.
-					Material->PreEditChange(NULL);
+					Material->PreEditChange(nullptr);
 					Material->PostEditChange();
 #endif // WITH_EDITOR
 				}
@@ -7217,7 +7220,7 @@ bool RecompileChangedShadersForPlatform(const FString& PlatformName)
 	// figure out what shader platforms to recompile
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
 	ITargetPlatform* TargetPlatform = TPM->FindTargetPlatform(PlatformName);
-	if (TargetPlatform == NULL)
+	if (TargetPlatform == nullptr)
 	{
 		UE_LOG(LogShaders, Display, TEXT("Failed to find target platform module for %s"), *PlatformName);
 		return false;
@@ -7267,15 +7270,27 @@ bool RecompileChangedShadersForPlatform(const FString& PlatformName)
 	return false;
 }
 
-FArchive& operator<<(FArchive& Ar, FODSCRequestPayload& Elem)
+FArchive& operator<<(FArchive& Ar, FODSCRequestPayload& Payload)
 {
-	uint32 ConvertedShaderPlatform = (uint32)Elem.ShaderPlatform;
-	Ar << ConvertedShaderPlatform;
-	Ar << Elem.MaterialName;
-	Ar << Elem.VertexFactoryName;
-	Ar << Elem.PipelineName;
-	Ar << Elem.ShaderTypeNames;
-	Ar << Elem.RequestHash;
+	int32 iShaderPlatform = static_cast<int32>(Payload.ShaderPlatform);
+	int32 iFeatureLevel = static_cast<int32>(Payload.FeatureLevel);
+	int32 iQualityLevel = static_cast<int32>(Payload.QualityLevel);
+
+	Ar << iShaderPlatform;
+	Ar << iFeatureLevel;
+	Ar << iQualityLevel;
+	Ar << Payload.MaterialName;
+	Ar << Payload.VertexFactoryName;
+	Ar << Payload.PipelineName;
+	Ar << Payload.ShaderTypeNames;
+	Ar << Payload.RequestHash;
+
+	if (Ar.IsLoading())
+	{
+		Payload.ShaderPlatform = static_cast<EShaderPlatform>(iShaderPlatform);
+		Payload.FeatureLevel = static_cast<ERHIFeatureLevel::Type>(iFeatureLevel);
+		Payload.QualityLevel = static_cast<EMaterialQualityLevel::Type>(iQualityLevel);
+	}
 
 	return Ar;
 }
@@ -7298,6 +7313,31 @@ FShaderRecompileData::FShaderRecompileData(const FString& InPlatformName, EShade
 {
 }
 
+FArchive& operator<<(FArchive& Ar, FShaderRecompileData& RecompileData)
+{
+
+	int32 iShaderPlatform = static_cast<int32>(RecompileData.ShaderPlatform);
+	int32 iFeatureLevel = static_cast<int32>(RecompileData.FeatureLevel);
+	int32 iQualityLevel = static_cast<int32>(RecompileData.QualityLevel);
+
+	Ar << RecompileData.MaterialsToLoad;
+	Ar << RecompileData.ShaderTypesToLoad;
+	Ar << iShaderPlatform;
+	Ar << iFeatureLevel;
+	Ar << iQualityLevel;
+	Ar << RecompileData.CommandType;
+	Ar << RecompileData.ShadersToRecompile;
+
+	if (Ar.IsLoading())
+	{
+		RecompileData.ShaderPlatform = static_cast<EShaderPlatform>(iShaderPlatform);
+		RecompileData.FeatureLevel = static_cast<ERHIFeatureLevel::Type>(iFeatureLevel);
+		RecompileData.QualityLevel = static_cast<EMaterialQualityLevel::Type>(iQualityLevel);
+	}
+
+	return Ar;
+}
+
 extern ENGINE_API const TCHAR* ODSCCmdEnumToString(ODSCRecompileCommand Cmd)
 {
 	switch (Cmd)
@@ -7318,6 +7358,57 @@ extern ENGINE_API const TCHAR* ODSCCmdEnumToString(ODSCRecompileCommand Cmd)
 }
 
 #if WITH_EDITOR
+
+void CompileGlobalShaderMapForRemote(
+	const TArray<const FShaderType*>& OutdatedShaderTypes, 
+	const TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, 
+	const EShaderPlatform ShaderPlatform, 
+	const ITargetPlatform* TargetPlatform,
+	TArray<uint8>* OutArray)
+{
+	UE_LOG(LogShaders, Display, TEXT("Recompiling global shaders."));
+
+	// Kick off global shader recompiles
+	BeginRecompileGlobalShaders(OutdatedShaderTypes, OutdatedShaderPipelineTypes, ShaderPlatform, TargetPlatform);
+
+	// Block on global shaders
+	FinishRecompileGlobalShaders();
+
+	// Write the shader compilation info to memory, converting FName to strings
+	FMemoryWriter MemWriter(*OutArray, true);
+	FNameAsStringProxyArchive Ar(MemWriter);
+
+	TOptional<FArchiveCookData> CookData;
+	FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
+	if (TargetPlatform != nullptr)
+	{
+		CookData.Emplace(*TargetPlatform, CookContext);
+	}
+	Ar.SetCookData(CookData.GetPtrOrNull());
+
+	// save out the global shader map to the byte array
+	SaveGlobalShadersForRemoteRecompile(Ar, ShaderPlatform);
+}
+
+void SaveShaderMapsForRemote(ITargetPlatform* TargetPlatform, const TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap>>>& CompiledShaderMaps, TArray<uint8>* OutArray)
+{
+	// write the shader compilation info to memory, converting fnames to strings
+	FMemoryWriter MemWriter(*OutArray, true);
+	FNameAsStringProxyArchive Ar(MemWriter);
+
+	TOptional<FArchiveCookData> CookData;
+	FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
+	if (TargetPlatform != nullptr)
+	{
+		CookData.Emplace(*TargetPlatform, CookContext);
+	}
+
+	Ar.SetCookData(CookData.GetPtrOrNull());
+
+	// save out the shader map to the byte array
+	FMaterialShaderMap::SaveForRemoteRecompile(Ar, CompiledShaderMaps);
+}
+
 void RecompileShadersForRemote(
 	FShaderRecompileData& Args,
 	const FString& OutputDirectory)
@@ -7327,7 +7418,7 @@ void RecompileShadersForRemote(
 	// figure out what shader platforms to recompile
 	ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
 	ITargetPlatform* TargetPlatform = TPM->FindTargetPlatform(Args.PlatformName);
-	if (TargetPlatform == NULL)
+	if (TargetPlatform == nullptr)
 	{
 		UE_LOG(LogShaders, Display, TEXT("Failed to find target platform module for %s"), *Args.PlatformName);
 		return;
@@ -7352,7 +7443,7 @@ void RecompileShadersForRemote(
 	for (int32 Index = 0; Index < Args.MaterialsToLoad.Num(); Index++)
 	{
 		UE_LOG(LogShaders, Verbose, TEXT("   --> %s"), *Args.MaterialsToLoad[Index]);
-		MaterialsToCompile.Add(LoadObject<UMaterialInterface>(NULL, *Args.MaterialsToLoad[Index]));
+		MaterialsToCompile.Add(LoadObject<UMaterialInterface>(nullptr, *Args.MaterialsToLoad[Index]));
 	}
 
 	UE_LOG(LogShaders, Verbose, TEXT("  Done!"));
@@ -7367,43 +7458,14 @@ void RecompileShadersForRemote(
 	// Pick up new changes to shader files
 	FlushShaderFileCache();
 
-	if (Args.ShadersToRecompile.Num())
+	// If we have an explicit list of shaders to compile from ODSC just compile those.
+	if (Args.ShadersToRecompile.Num() && (Args.MeshMaterialMaps != nullptr))
 	{
-		UE_LOG(LogShaders, Display, TEXT("Received %d shaders to compile."), Args.ShadersToRecompile.Num());
+		TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap>>> CompiledShaderMaps;
+		UMaterial::CompileODSCMaterialsForRemoteRecompile(Args.ShadersToRecompile, CompiledShaderMaps);
+		SaveShaderMapsForRemote(TargetPlatform, CompiledShaderMaps, Args.MeshMaterialMaps);
 	}
-
-	for (const FODSCRequestPayload& payload: Args.ShadersToRecompile)
-	{
-		UE_LOG(LogShaders, Display, TEXT(""));
-		UE_LOG(LogShaders, Display, TEXT("\tMaterial:    %s "), *payload.MaterialName);
-		UE_LOG(LogShaders, Display, TEXT("\tVF Type:     %s "), *payload.VertexFactoryName);
-
-		MaterialsToCompile.Add(LoadObject<UMaterialInterface>(NULL, *payload.MaterialName));
-
-		const FVertexFactoryType* VFType = FVertexFactoryType::GetVFByName(payload.VertexFactoryName);
-		if (VFType)
-		{
-			OutdatedFactoryTypes.Add(VFType);
-		}
-
-		const FShaderPipelineType* PipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(payload.PipelineName);
-		if (PipelineType)
-		{
-			OutdatedShaderPipelineTypes.Add(PipelineType);
-		}
-
-		for (const FString& ShaderTypeName : payload.ShaderTypeNames)
-		{
-			UE_LOG(LogShaders, Display, TEXT("\tShader Type: %s"), *ShaderTypeName);
-
-			const FShaderType* ShaderType = FShaderType::GetShaderTypeByName(*ShaderTypeName);
-			if (ShaderType)
-			{
-				OutdatedShaderTypes.Add(ShaderType);
-			}
-		}
-	}
-
+	else
 	{
 		for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); FormatIndex++)
 		{
@@ -7424,32 +7486,11 @@ void RecompileShadersForRemote(
 						UE_LOG(LogShaders, Display, TEXT("\t%s..."), ShaderType->GetName());
 					}
 
-					if (ShaderTypes.Num() > 0 || ShaderPipelineTypes.Num() > 0)
-					{
-						BeginRecompileGlobalShaders(ShaderTypes, ShaderPipelineTypes, ShaderPlatform, TargetPlatform);
-						FinishRecompileGlobalShaders();
-					}
-
-					// write the shader compilation info to memory, converting fnames to strings
-					FMemoryWriter MemWriter(*Args.GlobalShaderMap, true);
-					FNameAsStringProxyArchive Ar(MemWriter);
-
-					TOptional<FArchiveCookData> CookData;
-					FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
-					if (TargetPlatform != nullptr)
-					{
-						CookData.Emplace(*TargetPlatform, CookContext);
-					}
-					Ar.SetCookData(CookData.GetPtrOrNull());
-
-					// save out the global shader map to the byte array
-					SaveGlobalShadersForRemoteRecompile(Ar, ShaderPlatform);
+					CompileGlobalShaderMapForRemote(ShaderTypes, ShaderPipelineTypes, ShaderPlatform, TargetPlatform, Args.GlobalShaderMap);
 				}
 				else if (Args.CommandType == ODSCRecompileCommand::Global ||
 						 Args.CommandType == ODSCRecompileCommand::Changed)
 				{
-					UE_LOG(LogShaders, Display, TEXT("Recompiling global shaders."));
-
 					// Explicitly get outdated types for global shaders.
 					const FGlobalShaderMap* ShaderMap = GGlobalShaderMap[ShaderPlatform];
 					if (ShaderMap)
@@ -7459,50 +7500,16 @@ void RecompileShadersForRemote(
 
 					UE_LOG(LogShaders, Display, TEXT("\tFound %d outdated shader types."), OutdatedShaderTypes.Num() + OutdatedShaderPipelineTypes.Num());
 
-					// Kick off global shader recompiles
-					BeginRecompileGlobalShaders(OutdatedShaderTypes, OutdatedShaderPipelineTypes, ShaderPlatform, TargetPlatform);
-
-					// Block on global shaders
-					FinishRecompileGlobalShaders();
-
-					// write the shader compilation info to memory, converting fnames to strings
-					FMemoryWriter MemWriter(*Args.GlobalShaderMap, true);
-					FNameAsStringProxyArchive Ar(MemWriter);
-
-					TOptional<FArchiveCookData> CookData;
-					FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
-					if (TargetPlatform != nullptr)
-					{
-						CookData.Emplace(*TargetPlatform, CookContext);
-					}
-					Ar.SetCookData(CookData.GetPtrOrNull());
-
-					// save out the global shader map to the byte array
-					SaveGlobalShadersForRemoteRecompile(Ar, ShaderPlatform);
+					CompileGlobalShaderMapForRemote(OutdatedShaderTypes, OutdatedShaderPipelineTypes, ShaderPlatform, TargetPlatform, Args.GlobalShaderMap);
 				}
 
 				// we only want to actually compile mesh shaders if a client directly requested it
 				if ((Args.CommandType == ODSCRecompileCommand::Material || Args.CommandType == ODSCRecompileCommand::Changed) &&
 					Args.MeshMaterialMaps != nullptr)
 				{
-					TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap> > > CompiledShaderMaps;
+					TMap<FString, TArray<TRefCountPtr<FMaterialShaderMap>>> CompiledShaderMaps;
 					UMaterial::CompileMaterialsForRemoteRecompile(MaterialsToCompile, ShaderPlatform, TargetPlatform, CompiledShaderMaps);
-
-					// write the shader compilation info to memory, converting fnames to strings
-					FMemoryWriter MemWriter(*Args.MeshMaterialMaps, true);
-					FNameAsStringProxyArchive Ar(MemWriter);
-
-					TOptional<FArchiveCookData> CookData;
-					FArchiveCookContext CookContext(nullptr /*InPackage*/, FArchiveCookContext::ECookTypeUnknown);
-					if (TargetPlatform != nullptr)
-					{
-						CookData.Emplace(*TargetPlatform, CookContext);
-					}
-
-					Ar.SetCookData(CookData.GetPtrOrNull());
-
-					// save out the shader map to the byte array
-					FMaterialShaderMap::SaveForRemoteRecompile(Ar, CompiledShaderMaps);
+					SaveShaderMapsForRemote(TargetPlatform, CompiledShaderMaps, Args.MeshMaterialMaps);
 				}
 
 				// save it out so the client can get it (and it's up to date next time)

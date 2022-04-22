@@ -1296,19 +1296,11 @@ void FNetworkFileServerClientConnection::ProcessRecompileShaders( FArchive& In, 
 	TArray<uint8> GlobalShaderMap;
 	FShaderRecompileData RecompileData(ConnectedPlatformName, &RecompileModifiedFiles, &MeshMaterialMaps, &GlobalShaderMap);
 
-	// tell other side all the materials to load, by pathname
-	In << RecompileData.MaterialsToLoad;
-	In << RecompileData.ShaderTypesToLoad;
-	int32 iShaderPlatform = static_cast<int32>(RecompileData.ShaderPlatform);
-	In << iShaderPlatform;
-	RecompileData.ShaderPlatform = static_cast<EShaderPlatform>(iShaderPlatform);
-	In << RecompileData.CommandType;
-	In << RecompileData.ShadersToRecompile;
+	In << RecompileData;
 
 	NetworkFileDelegates->RecompileShadersDelegate.ExecuteIfBound(RecompileData);
 
 	// tell other side what to do!
-	Out << RecompileModifiedFiles;
 	Out << MeshMaterialMaps;
 	Out << GlobalShaderMap;
 }

@@ -51,12 +51,14 @@ public:
 	 *
 	 * @return false if no longer needs ticking
 	 */
-	void AddThreadedRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType);
+	void AddThreadedRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, ODSCRecompileCommand RecompileCommandType);
 
 	/**
 	 * Add a request to compile a pipeline (VS/PS) of shaders.  The results are submitted and processed in an async manner.
 	 *
 	 * @param ShaderPlatform - Which shader platform to compile for.
+	 * @param FeatureLevel - Which feature level to compile for.
+	 * @param QualityLevel - Which material quality level to compile for.
 	 * @param MaterialName - The name of the material to compile.
 	 * @param VertexFactoryName - The name of the vertex factory type we should compile.
 	 * @param PipelineName - The name of the shader pipeline we should compile.
@@ -64,7 +66,7 @@ public:
 	 *
 	 * @return false if no longer needs ticking
 	 */
-	void AddThreadedShaderPipelineRequest(EShaderPlatform ShaderPlatform, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames);
+	void AddThreadedShaderPipelineRequest(EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames);
 private:
 
 	void OnEnginePreExit();

@@ -207,21 +207,23 @@ bool FShaderPlatformSettings::CheckShaders()
 				TMap<FName, TArray<FMaterialStatsUtils::FRepresentativeShaderInfo>> ShaderTypeNamesAndDescriptions;
 				FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(ShaderTypeNamesAndDescriptions, Data.MaterialResourcesStats);
 
-				TArray<FVertexFactoryType*> VFTypes;
-				TArray<FShaderType*> ShaderTypes;
+				TArray<const FVertexFactoryType*> VFTypes;
+				TArray<const FShaderPipelineType*> PipelineTypes;
+				TArray<const FShaderType*> ShaderTypes;
 				for (auto& DescriptionPair : ShaderTypeNamesAndDescriptions)
 				{
-					FVertexFactoryType* VFType = FindVertexFactoryType(DescriptionPair.Key);
+					const FVertexFactoryType* VFType = FindVertexFactoryType(DescriptionPair.Key);
 					check(VFType);
 
 					auto& DescriptionArray = DescriptionPair.Value;
 					for (const FMaterialStatsUtils::FRepresentativeShaderInfo& ShaderInfo : DescriptionArray)
 					{
-						FShaderType* ShaderType = FindShaderTypeByName(ShaderInfo.ShaderName);
+						const FShaderType* ShaderType = FindShaderTypeByName(ShaderInfo.ShaderName);
 						if (ShaderType && VFType)
 						{
 							VFTypes.Add(VFType);
 							ShaderTypes.Add(ShaderType);
+							PipelineTypes.Add(nullptr);
 						}
 					}
 				}
@@ -232,7 +234,7 @@ bool FShaderPlatformSettings::CheckShaders()
 				if (bSuccess)
 				{
 					// Compile just the types we want.
-					Data.MaterialResourcesStats->CacheGivenTypes(PlatformShaderID, VFTypes, ShaderTypes);
+					Data.MaterialResourcesStats->CacheGivenTypes(PlatformShaderID, VFTypes, PipelineTypes, ShaderTypes);
 				}
 
 				Data.bCompilingShaders = true;

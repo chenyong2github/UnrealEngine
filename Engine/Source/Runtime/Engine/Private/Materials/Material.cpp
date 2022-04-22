@@ -2189,7 +2189,7 @@ void UMaterial::CacheResourceShadersForRendering(bool bRegenerateId, EMaterialSh
 			if (AdditionalPlatform != SP_NumPlatforms)
 			{
 				ResourcesToCache.Reset();
-				CacheResourceShadersForCooking(AdditionalPlatform,ResourcesToCache);
+				CacheResourceShadersForCooking(AdditionalPlatform, ResourcesToCache);
 				for (int32 i = 0; i < ResourcesToCache.Num(); ++i)
 				{
 					FMaterialResource* Resource = ResourcesToCache[i];
@@ -2302,6 +2302,28 @@ void UMaterial::CacheShaders(EMaterialShaderPrecompileMode CompileMode)
 {
 	CacheResourceShadersForRendering(false, CompileMode);
 }
+
+#if WITH_EDITOR
+void UMaterial::CacheGivenTypesForCooking(EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*> PipelineTypes, const TArray<const FShaderType*>& ShaderTypes)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMaterial::CacheGivenTypes);
+
+	if (QualityLevel == EMaterialQualityLevel::Num)
+	{
+		QualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+	}
+
+	FMaterialResource* CurrentResource = FindOrCreateMaterialResource(MaterialResources, this, nullptr, FeatureLevel, QualityLevel);
+	check(CurrentResource);
+
+	// Prepare the resource for compilation, but don't compile the completed shader map.
+	const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, EMaterialShaderPrecompileMode::None);
+	if (bSuccess)
+	{
+		CurrentResource->CacheGivenTypes(ShaderPlatform, VFTypes, PipelineTypes, ShaderTypes);
+	}
+}
+#endif
 
 bool UMaterial::IsComplete() const
 {
@@ -4649,6 +4671,7 @@ void UMaterial::RestoreMaterialShadersFromMemory(const TMap<FMaterialShaderMap*,
 #endif // WITH_EDITOR
 }
 
+#if WITH_EDITOR
 void UMaterial::CompileMaterialsForRemoteRecompile(
 	const TArray<UMaterialInterface*>& MaterialsToCompile,
 	EShaderPlatform ShaderPlatform,
@@ -4700,6 +4723,111 @@ void UMaterial::CompileMaterialsForRemoteRecompile(
 		}
 	}
 }
+
+void UMaterial::CompileODSCMaterialsForRemoteRecompile(TArray<FODSCRequestPayload> ShadersToRecompile, TMap<FString, TArray<TRefCountPtr<class FMaterialShaderMap>>>& OutShaderMaps)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMaterial::CompileODSCMaterialsForRemoteRecompile);
+
+	// Build a map from UMaterial / UMaterialInstance to the resources which are being compiled
+	TMap<FString, TArray<FMaterialResource*> > CompilingResources;
+
+	if (ShadersToRecompile.Num())
+	{
+		UE_LOG(LogShaders, Display, TEXT("Received %d shaders to compile."), ShadersToRecompile.Num());
+	}
+
+	// Group all shader types we need to compile by material so we can issue them all in a single call.
+	struct FShadersToCompile
+	{
+		EShaderPlatform ShaderPlatform;
+		ERHIFeatureLevel::Type FeatureLevel;
+		EMaterialQualityLevel::Type QualityLevel;
+		TArray<const FVertexFactoryType*> VFTypes;
+		TArray<const FShaderPipelineType*> PipelineTypes;
+		TArray<const FShaderType*> ShaderTypes;
+	};
+	TMap<UMaterialInterface*, FShadersToCompile> CoalescedShadersToCompile;
+
+	for (const FODSCRequestPayload& payload : ShadersToRecompile)
+	{
+		UE_LOG(LogShaders, Display, TEXT(""));
+		UE_LOG(LogShaders, Display, TEXT("Material:    %s "), *payload.MaterialName);
+
+		UMaterialInterface* MaterialInterface = LoadObject<UMaterialInterface>(nullptr, *payload.MaterialName);
+		if (MaterialInterface)
+		{
+			FShadersToCompile& Shaders = CoalescedShadersToCompile.FindOrAdd(MaterialInterface);
+			const FVertexFactoryType* VFType = FVertexFactoryType::GetVFByName(payload.VertexFactoryName);
+			const FShaderPipelineType* PipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(payload.PipelineName);
+
+			if (VFType)
+			{
+				UE_LOG(LogShaders, Display, TEXT("VF Type:     %s "), *payload.VertexFactoryName);
+				Shaders.ShaderPlatform = payload.ShaderPlatform;
+				Shaders.FeatureLevel = payload.FeatureLevel;
+				Shaders.QualityLevel = payload.QualityLevel;
+				Shaders.VFTypes.Add(VFType);
+
+				if (PipelineType)
+				{
+					UE_LOG(LogShaders, Display, TEXT("Pipeline Type: %s"), *payload.PipelineName);
+
+					Shaders.PipelineTypes.Add(PipelineType);
+					Shaders.ShaderTypes.Add(nullptr);
+				}
+				else
+				{
+					for (const FString& ShaderTypeName : payload.ShaderTypeNames)
+					{
+						const FShaderType* ShaderType = FShaderType::GetShaderTypeByName(*ShaderTypeName);
+						if (ShaderType)
+						{
+							UE_LOG(LogShaders, Display, TEXT("\tShader Type: %s"), *ShaderTypeName);
+
+							Shaders.PipelineTypes.Add(nullptr);
+							Shaders.ShaderTypes.Add(ShaderType);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	for (const auto& Entry : CoalescedShadersToCompile)
+	{
+		UMaterialInterface* MaterialInterface = Entry.Key;
+		const FShadersToCompile& Shaders = Entry.Value;
+
+		TArray<FMaterialResource*>& ResourceArray = CompilingResources.Add(MaterialInterface->GetPathName(), TArray<FMaterialResource*>());
+		MaterialInterface->CacheGivenTypesForCooking(Shaders.ShaderPlatform, Shaders.FeatureLevel, Shaders.QualityLevel, Shaders.VFTypes, Shaders.PipelineTypes, Shaders.ShaderTypes);
+
+		FMaterialResource* MaterialResource = MaterialInterface->GetMaterialResource(Shaders.FeatureLevel, Shaders.QualityLevel);
+		check(MaterialResource);
+		check(MaterialResource->GetFeatureLevel() == Shaders.FeatureLevel);
+		check(MaterialResource->GetQualityLevel() == Shaders.QualityLevel);
+		ResourceArray.Add(MaterialResource);
+	}
+
+	// Wait until all compilation is finished and all of the gathered FMaterialResources have their GameThreadShaderMap up to date
+	GShaderCompilingManager->FinishAllCompilation();
+
+	// This is heavy handed, but wait until we've set the render thread shader map before proceeding to delete the FMaterialResource below.
+	// This is code that should be run on the cooker so shouldn't be a big deal.
+	FlushRenderingCommands();
+
+	for (TMap<FString, TArray<FMaterialResource*> >::TIterator It(CompilingResources); It; ++It)
+	{
+		TArray<FMaterialResource*>& ResourceArray = It.Value();
+		TArray<TRefCountPtr<FMaterialShaderMap> >& OutShaderMapArray = OutShaderMaps.Add(It.Key(), TArray<TRefCountPtr<FMaterialShaderMap> >());
+
+		for (int32 Index = 0; Index < ResourceArray.Num(); Index++)
+		{
+			FMaterialResource* CurrentResource = ResourceArray[Index];
+			OutShaderMapArray.Add(CurrentResource->GetGameThreadShaderMap());
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 bool UMaterial::UpdateLightmassTextureTracking()
 {

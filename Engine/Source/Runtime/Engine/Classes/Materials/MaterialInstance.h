@@ -871,6 +871,9 @@ public:
 #endif // WITH_EDITOR
 
 	ENGINE_API virtual void CacheShaders(EMaterialShaderPrecompileMode CompileMode) override;
+#if WITH_EDITOR
+	ENGINE_API virtual void CacheGivenTypesForCooking(EShaderPlatform Platform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*> PipelineTypes, const TArray<const FShaderType*>& ShaderTypes) override;
+#endif
 	ENGINE_API virtual bool IsComplete() const override;
 
 protected:

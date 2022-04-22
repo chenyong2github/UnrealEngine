@@ -2527,7 +2527,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 }
 
 #if WITH_EDITOR
-void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<FVertexFactoryType*>& VFTypes, const TArray<FShaderType*>& ShaderTypes, const ITargetPlatform* TargetPlatform)
+void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*>& PipelineTypes, const TArray<const FShaderType*>& ShaderTypes)
 {
 	if (CompileErrors.Num())
 	{
@@ -2545,31 +2545,52 @@ void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<FVertexFa
 		TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::CacheGivenTypes);
 		check(IsInGameThread());
 		checkf(ShaderTypes.Num() == VFTypes.Num(), TEXT("The size of the shader type array and vertex factory type array must match."));
+		checkf(PipelineTypes.Num() == ShaderTypes.Num(), TEXT("The size of the pipeline type array and shader type array must match.  Pass in null entries if pipelines are not used."));
 		checkf(GameThreadShaderMap, TEXT("Shader map is not initialized.  Please call CacheShaders first."));
 		checkf(GetGameThreadCompilingShaderMapId() != 0, TEXT("Material is not prepared to compile yet.  Please call CacheShaders first."));
 
 		TArray<FShaderCommonCompileJobPtr> CompileJobs;
 		for (int i = 0; i < VFTypes.Num(); ++i)
 		{
-			FVertexFactoryType* VFType = VFTypes[i];
+			const FVertexFactoryType* VFType = VFTypes[i];
 			check(VFType);
 
-			FShaderType* ShaderType = ShaderTypes[i];
-			check(ShaderType);
-			check(ShaderType->AsMeshMaterialShaderType());
+			const FShaderPipelineType* PipelineType = PipelineTypes[i];
+			const FShaderType* ShaderType = ShaderTypes[i];
 
-			ShaderType->AsMeshMaterialShaderType()->BeginCompileShader(
-				EShaderCompileJobPriority::ForceLocal,
-				GetGameThreadCompilingShaderMapId(),
-				0,
-				Platform,
-				GameThreadShaderMap->GetPermutationFlags(),
-				this,
-				GameThreadPendingCompilerEnvironment,
-				VFType,
-				CompileJobs,
-				nullptr,
-				nullptr);
+			if (PipelineType)
+			{
+				FMeshMaterialShaderType::BeginCompileShaderPipeline(
+					EShaderCompileJobPriority::ForceLocal,
+					GetGameThreadCompilingShaderMapId(),
+					0,
+					Platform,
+					GameThreadShaderMap->GetPermutationFlags(),
+					this,
+					GameThreadPendingCompilerEnvironment,
+					VFType,
+					PipelineType,
+					CompileJobs,
+					nullptr,
+					nullptr);
+			}
+			else if (ShaderType)
+			{
+				check(ShaderType->AsMeshMaterialShaderType());
+
+				ShaderType->AsMeshMaterialShaderType()->BeginCompileShader(
+					EShaderCompileJobPriority::ForceLocal,
+					GetGameThreadCompilingShaderMapId(),
+					0,
+					Platform,
+					GameThreadShaderMap->GetPermutationFlags(),
+					this,
+					GameThreadPendingCompilerEnvironment,
+					VFType,
+					CompileJobs,
+					nullptr,
+					nullptr);
+			}
 		}
 
 		GShaderCompilingManager->SubmitJobs(CompileJobs, GetBaseMaterialPathName(), GameThreadShaderMap->GetDebugDescription());
@@ -2962,7 +2983,7 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 						ShaderStageNamesToCompile.Add(ShaderType->GetName());
 					}
 
-					GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile);
+					GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, GetFeatureLevel(), GetQualityLevel(), MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile);
 				}
 				else 
 #endif
@@ -3010,7 +3031,7 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 						TArray<FString> ShaderStageNamesToCompile;
 						ShaderStageNamesToCompile.Add(ShaderType->GetName());
 
-						GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile);
+						GODSCManager->AddThreadedShaderPipelineRequest(ShaderPlatform, GetFeatureLevel(), GetQualityLevel(), MaterialName, VFTypeName, PipelineName, ShaderStageNamesToCompile);
 					}
 					else
 #endif

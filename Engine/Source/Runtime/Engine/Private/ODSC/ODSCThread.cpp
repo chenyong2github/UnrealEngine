@@ -8,22 +8,26 @@
 #include "HAL/RunnableThread.h"
 #include "ShaderCompiler.h"
 
-FODSCRequestPayload::FODSCRequestPayload(EShaderPlatform InShaderPlatform, const FString& InMaterialName, const FString& InVertexFactoryName, const FString& InPipelineName, const TArray<FString>& InShaderTypeNames, const FString& InRequestHash)
-	: ShaderPlatform(InShaderPlatform), MaterialName(InMaterialName), VertexFactoryName(InVertexFactoryName), PipelineName(InPipelineName), ShaderTypeNames(std::move(InShaderTypeNames)), RequestHash(InRequestHash)
+FODSCRequestPayload::FODSCRequestPayload(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQualityLevel, const FString& InMaterialName, const FString& InVertexFactoryName, const FString& InPipelineName, const TArray<FString>& InShaderTypeNames, const FString& InRequestHash)
+	: ShaderPlatform(InShaderPlatform), FeatureLevel(InFeatureLevel), QualityLevel(InQualityLevel), MaterialName(InMaterialName), VertexFactoryName(InVertexFactoryName), PipelineName(InPipelineName), ShaderTypeNames(std::move(InShaderTypeNames)), RequestHash(InRequestHash)
 {
 
 }
 
-FODSCMessageHandler::FODSCMessageHandler(EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType) 
+FODSCMessageHandler::FODSCMessageHandler(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQualityLevel, ODSCRecompileCommand InRecompileCommandType)
 :	ShaderPlatform(InShaderPlatform),
+	FeatureLevel(InFeatureLevel),
+	QualityLevel(InQualityLevel),
 	RecompileCommandType(InRecompileCommandType)
 {
 }
 
-FODSCMessageHandler::FODSCMessageHandler(const TArray<FString>& InMaterials, const FString& ShaderTypesToLoad, EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType) :
+FODSCMessageHandler::FODSCMessageHandler(const TArray<FString>& InMaterials, const FString& ShaderTypesToLoad, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQualityLevel, ODSCRecompileCommand InRecompileCommandType) :
 	MaterialsToLoad(std::move(InMaterials)),
 	ShaderTypesToLoad(ShaderTypesToLoad),
 	ShaderPlatform(InShaderPlatform),
+	FeatureLevel(InFeatureLevel),
+	QualityLevel(InQualityLevel),
 	RecompileCommandType(InRecompileCommandType)
 {
 }
@@ -33,10 +37,15 @@ void FODSCMessageHandler::FillPayload(FArchive& Payload)
 	// When did we start this request?
 	RequestStartTime = FPlatformTime::Seconds();
 
+	int32 ConvertedShaderPlatform = static_cast<int32>(ShaderPlatform);
+	int32 ConvertedFeatureLevel = static_cast<int32>(FeatureLevel);
+	int32 ConvertedQualityLevel = static_cast<int32>(QualityLevel);
+
 	Payload << MaterialsToLoad;
 	Payload << ShaderTypesToLoad;
-	uint32 ConvertedShaderPlatform = (uint32)ShaderPlatform;
 	Payload << ConvertedShaderPlatform;
+	Payload << ConvertedFeatureLevel;
+	Payload << ConvertedQualityLevel;
 	Payload << RecompileCommandType;
 	Payload << RequestBatch;
 }
@@ -110,12 +119,12 @@ void FODSCThread::Tick()
 	Process();
 }
 
-void FODSCThread::AddRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType)
+void FODSCThread::AddRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, ODSCRecompileCommand RecompileCommandType)
 {
-	PendingMaterialThreadedRequests.Enqueue(new FODSCMessageHandler(MaterialsToCompile, ShaderTypesToLoad, ShaderPlatform, RecompileCommandType));
+	PendingMaterialThreadedRequests.Enqueue(new FODSCMessageHandler(MaterialsToCompile, ShaderTypesToLoad, ShaderPlatform, FeatureLevel, QualityLevel, RecompileCommandType));
 }
 
-void FODSCThread::AddShaderPipelineRequest(EShaderPlatform ShaderPlatform, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames)
+void FODSCThread::AddShaderPipelineRequest(EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames)
 {
 	FString RequestString = (MaterialName + VertexFactoryName + PipelineName);
 	for (const auto& ShaderTypeName : ShaderTypeNames)
@@ -127,7 +136,7 @@ void FODSCThread::AddShaderPipelineRequest(EShaderPlatform ShaderPlatform, const
 	FScopeLock Lock(&RequestHashCriticalSection);
 	if (!RequestHashes.Contains(RequestHash))
 	{
-		PendingMeshMaterialThreadedRequests.Enqueue(FODSCRequestPayload(ShaderPlatform, MaterialName, VertexFactoryName, PipelineName, ShaderTypeNames, RequestHash));
+		PendingMeshMaterialThreadedRequests.Enqueue(FODSCRequestPayload(ShaderPlatform, FeatureLevel, QualityLevel, MaterialName, VertexFactoryName, PipelineName, ShaderTypeNames, RequestHash));
 		RequestHashes.Add(RequestHash);
 	}
 }
@@ -213,7 +222,7 @@ void FODSCThread::Process()
 	// process any specific mesh material shader requests.
 	if (PayloadsToAggregate.Num())
 	{
-		FODSCMessageHandler* RequestHandler = new FODSCMessageHandler(PayloadsToAggregate[0].ShaderPlatform, ODSCRecompileCommand::Material);
+		FODSCMessageHandler* RequestHandler = new FODSCMessageHandler(PayloadsToAggregate[0].ShaderPlatform, PayloadsToAggregate[0].FeatureLevel, PayloadsToAggregate[0].QualityLevel, ODSCRecompileCommand::Material);
 		for (const FODSCRequestPayload& payload : PayloadsToAggregate)
 		{
 			RequestHandler->AddPayload(payload);

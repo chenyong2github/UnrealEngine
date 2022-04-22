@@ -2120,9 +2120,6 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 #if WITH_EDITOR
 	check(!HasAnyFlags(RF_NeedPostLoad));
 	check(BaseMaterial!=nullptr && !BaseMaterial->HasAnyFlags(RF_NeedPostLoad));
-#endif
-
-#if WITH_EDITOR
 	UpdateCachedData();
 #endif
 
@@ -2159,6 +2156,33 @@ void UMaterialInstance::CacheShaders(EMaterialShaderPrecompileMode CompileMode)
 {
 	InitStaticPermutation(CompileMode);
 }
+
+#if WITH_EDITOR
+void UMaterialInstance::CacheGivenTypesForCooking(EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*> PipelineTypes, const TArray<const FShaderType*>& ShaderTypes)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMaterialInstance::CacheGivenTypes);
+
+	if (bHasStaticPermutationResource)
+	{
+		UMaterial* BaseMaterial = GetMaterial();
+
+		if (QualityLevel == EMaterialQualityLevel::Num)
+		{
+			QualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
+		}
+
+		FMaterialResource* CurrentResource = FindOrCreateMaterialResource(StaticPermutationMaterialResources, BaseMaterial, nullptr, FeatureLevel, QualityLevel);
+		check(CurrentResource);
+
+		// Prepare the resource for compilation, but don't compile the completed shader map.
+		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, EMaterialShaderPrecompileMode::None);
+		if (bSuccess)
+		{
+			CurrentResource->CacheGivenTypes(ShaderPlatform, VFTypes, PipelineTypes, ShaderTypes);
+		}
+	}
+}
+#endif
 
 bool UMaterialInstance::GetMaterialLayers(FMaterialLayersFunctions& OutLayers, TMicRecursionGuard RecursionGuard) const
 {
@@ -3343,7 +3367,7 @@ void UMaterialInstance::GetReferencedTexturesAndOverrides(TSet<const UTexture*>&
 
 void UMaterialInstance::UpdateCachedData()
 {
-	// Overriden for MIC/MID
+	// Overridden for MIC/MID
 }
 
 void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewParameters, FMaterialUpdateContext* MaterialUpdateContext)

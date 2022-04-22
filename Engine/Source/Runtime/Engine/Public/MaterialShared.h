@@ -1712,10 +1712,11 @@ public:
 	/**
 	 * Submits local compile jobs for the exact given shader types and vertex factory type combination.
 	 * @note CacheShaders() should be called first to prepare the resource for compilation.
-	 * @note The arrays of shader types and vertex factory types must match.
+	 * @note The arrays of shader types, pipeline types and vertex factory types must match.
+	 * @note Entries in the PipelineTypes and ShaderTypes arrays can contain null entries.
 	 * @note These compile jobs are submitted async and it is up to client code to block on results if needed.
 	 */
-	ENGINE_API void CacheGivenTypes(EShaderPlatform ShaderPlatform, const TArray<FVertexFactoryType*>& VFTypes, const TArray<FShaderType*>& ShaderTypes, const ITargetPlatform* TargetPlatform = nullptr);
+	ENGINE_API void CacheGivenTypes(EShaderPlatform ShaderPlatform, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*>& PipelineTypes, const TArray<const FShaderType*>& ShaderTypes);
 #endif
 
 	/**

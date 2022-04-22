@@ -16,8 +16,8 @@ class FRunnableThread;
 class FODSCMessageHandler : public IPlatformFile::IFileServerMessageHandler
 {
 public:
-	FODSCMessageHandler(EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType);
-	FODSCMessageHandler(const TArray<FString>& InMaterials, const FString& ShaderTypesToLoad, EShaderPlatform InShaderPlatform, ODSCRecompileCommand InRecompileCommandType);
+	FODSCMessageHandler(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQualityLevel, ODSCRecompileCommand InRecompileCommandType);
+	FODSCMessageHandler(const TArray<FString>& InMaterials, const FString& ShaderTypesToLoad, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQualityLevel, ODSCRecompileCommand InRecompileCommandType);
 	/** Subclass fills out an archive to send to the server */
 	virtual void FillPayload(FArchive& Payload) override;
 
@@ -43,6 +43,12 @@ private:
 
 	/** Which shader platform we are compiling for */
 	EShaderPlatform ShaderPlatform;
+
+	/** Which feature level to compile for. */
+	ERHIFeatureLevel::Type FeatureLevel;
+
+	/** Which material quality level to compile for. */
+	EMaterialQualityLevel::Type QualityLevel;
 
 	/** Whether or not to recompile changed shaders */
 	ODSCRecompileCommand RecompileCommandType = ODSCRecompileCommand::None;
@@ -94,12 +100,14 @@ public:
 	 *
 	 * @return false if no longer needs ticking
 	 */
-	void AddRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ODSCRecompileCommand RecompileCommandType);
+	void AddRequest(const TArray<FString>& MaterialsToCompile, const FString& ShaderTypesToLoad, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, ODSCRecompileCommand RecompileCommandType);
 
 	/**
 	 * Add a request to compile a pipeline (VS/PS) of shaders.  The results are submitted and processed in an async manner.
 	 *
 	 * @param ShaderPlatform - Which shader platform to compile for.
+	 * @param FeatureLevel - Which feature level to compile for.
+	 * @param QualityLevel - Which material quality level to compile for.
 	 * @param MaterialName - The name of the material to compile.
 	 * @param VertexFactoryName - The name of the vertex factory type we should compile.
 	 * @param PipelineName - The name of the shader pipeline we should compile.
@@ -107,7 +115,7 @@ public:
 	 *
 	 * @return false if no longer needs ticking
 	 */
-	void AddShaderPipelineRequest(EShaderPlatform ShaderPlatform, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames);
+	void AddShaderPipelineRequest(EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type FeatureLevel, EMaterialQualityLevel::Type QualityLevel, const FString& MaterialName, const FString& VertexFactoryName, const FString& PipelineName, const TArray<FString>& ShaderTypeNames);
 
 	/**
 	 * Get completed requests.  Clears internal arrays.  Called on Game thread.
