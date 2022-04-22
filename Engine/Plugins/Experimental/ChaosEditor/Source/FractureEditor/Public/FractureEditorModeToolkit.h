@@ -18,6 +18,8 @@ class FFractureToolContext;
 class FGeometryCollection;
 class SGeometryCollectionOutliner;
 class SGeometryCollectionHistogram;
+class SGeometryCollectionStatistics;
+struct FGeometryCollectionStatistics;
 class AGeometryCollectionActor;
 class UGeometryCollectionComponent;
 class UGeometryCollection;
@@ -71,6 +73,16 @@ public:
 
 private:
 	FFractureEditorModeToolkit* Toolkit;
+};
+
+struct FTextAndSlateColor
+{
+	FTextAndSlateColor(const FText& InText, const FSlateColor& InColor)
+		: Text(InText)
+		, Color(InColor)
+	{}
+	FText Text;
+	FSlateColor Color;
 };
 
 class FRACTUREEDITOR_API FFractureEditorModeToolkit : public FModeToolkit, public FGCObject
@@ -143,7 +155,7 @@ public:
 	static void AddAdditionalAttributesIfRequired(UGeometryCollection* GeometryCollectionObject);
 	int32 GetLevelCount();
 
-	FText GetStatisticsSummary() const;
+	void GetStatisticsSummary(FGeometryCollectionStatistics& Stats) const;
 	FText GetSelectionInfo() const;
 
 	/** Returns the number of Mode specific tabs in the mode toolbar **/ 
@@ -218,5 +230,6 @@ private:
 	FMinorTabConfig HierarchyTabInfo;
 	TWeakPtr<SDockTab> StatisticsTab;
 	FMinorTabConfig StatisticsTabInfo;
+	TSharedPtr<SGeometryCollectionStatistics> StatisticsView;
 
 };

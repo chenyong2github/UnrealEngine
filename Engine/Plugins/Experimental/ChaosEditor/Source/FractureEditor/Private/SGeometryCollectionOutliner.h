@@ -47,6 +47,10 @@ public:
 	/** What is displayed in Outliner text */
 	UPROPERTY(EditAnywhere, Category = OutlinerSettings, meta = (DisplayName = "Item Text"))
 	EOutlinerItemNameEnum ItemText;
+
+	/** whther to use level coloring */
+	UPROPERTY(EditAnywhere, Category = OutlinerSettings, meta = (DisplayName = "Color By Level"))
+	bool ColorByLevel;
 };
 
 
@@ -54,7 +58,7 @@ class FGeometryCollectionTreeItem : public TSharedFromThis<FGeometryCollectionTr
 {
 public:
 	virtual ~FGeometryCollectionTreeItem() {}
-	virtual TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable) = 0;
+	virtual TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, bool bNoExtraColumn = false) = 0;
 	virtual void GetChildren(FGeometryCollectionTreeItemList& OutChildren) = 0;
 	virtual UGeometryCollectionComponent* GetComponent() const = 0;
 
@@ -68,6 +72,8 @@ public:
 
 	//void MakeDynamicStateMenu(UToolMenu* Menu, SGeometryCollectionOutliner& Outliner);
 	void GenerateContextMenu(UToolMenu* Menu, SGeometryCollectionOutliner& Outliner);
+
+	static FColor GetColorPerDepth(uint32 Depth);
 };
 
 class FGeometryCollectionTreeItemComponent : public FGeometryCollectionTreeItem
@@ -81,7 +87,7 @@ public:
 	}
 
 	/** FGeometryCollectionTreeItem interface */
-	virtual TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable);
+	virtual TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, bool bNoExtraColumn = false);
 	virtual void GetChildren(FGeometryCollectionTreeItemList& OutChildren) override;
 	virtual UGeometryCollectionComponent* GetComponent() const override { return Component.Get(); }
 
@@ -127,7 +133,7 @@ public:
 	{}
 
 	/** FGeometryCollectionTreeItem interface */
-	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable);//, const TAttribute<FText>& InFilterText) = 0;
+	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, bool bNoExtraColumn = false);
 	virtual void GetChildren(FGeometryCollectionTreeItemList& OutChildren) override;
 	virtual int32 GetBoneIndex() const override { return BoneIndex; }
 	virtual UGeometryCollectionComponent* GetComponent() const { return ParentComponentItem->GetComponent(); }
@@ -161,6 +167,7 @@ public:
 	void RegenerateItems();
 
 	TSharedRef<ITableRow> MakeTreeRowWidget(FGeometryCollectionTreeItemPtr InInfo, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> OnGeneratePinnedRowWidget(FGeometryCollectionTreeItemPtr InItem, const TSharedRef<STableViewBase>& InOwnerTable, bool bPinned);
 	void OnGetChildren(TSharedPtr<FGeometryCollectionTreeItem> InInfo, TArray< TSharedPtr<FGeometryCollectionTreeItem> >& OutChildren);
 	TSharedPtr<SWidget> OnOpenContextMenu();
 

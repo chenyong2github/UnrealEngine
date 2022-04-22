@@ -73,6 +73,19 @@ void FGeometryCollectionTreeItem::GenerateContextMenu(UToolMenu* Menu, SGeometry
 	Section.AddSubMenu("FractureToolSetInitialDynamicStateMenu", NSLOCTEXT("Fracture", "FractureToolSetInitialDynamicStateMenu", "Initial Dynamic State"), FText(),FNewToolMenuDelegate::CreateLambda(MakeDynamicStateMenu));
 }
 
+FColor FGeometryCollectionTreeItem::GetColorPerDepth(uint32 Depth)
+{
+	const FColor ColorsPerDepth[] =
+	{
+		FColor::Cyan,
+		FColor::Orange,
+		FColor::Emerald,
+		FColor::Yellow,
+	};
+	const uint32 ColorPerDepthCount = sizeof(ColorsPerDepth) / sizeof(FColor);
+	return ColorsPerDepth[Depth % ColorPerDepthCount];
+}
+
 void FGeometryCollectionTreeItemBone::OnDragEnter(FDragDropEvent const& InDragDropEvent)
 {
 	TSharedPtr<FDragDropOperation> Operation = InDragDropEvent.GetOperation();
@@ -148,6 +161,7 @@ FReply FGeometryCollectionTreeItemBone::OnDrop(const FDragDropEvent& DragDropEve
 UOutlinerSettings::UOutlinerSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, ItemText(EOutlinerItemNameEnum::BoneIndex)
+	, ColorByLevel(false)
 {}
 
 
@@ -165,6 +179,8 @@ void SGeometryCollectionOutliner::Construct(const FArguments& InArgs)
 		.OnGetChildren(this, &SGeometryCollectionOutliner::OnGetChildren)
 		.OnContextMenuOpening(this, &SGeometryCollectionOutliner::OnOpenContextMenu)
 		.AllowInvisibleItemSelection(true)
+		.ShouldStackHierarchyHeaders(true)
+		.OnGeneratePinnedRow(this, &SGeometryCollectionOutliner::OnGeneratePinnedRowWidget, true)
 		.HighlightParentNodesForSelection(true)
 		.OnSetExpansionRecursive(this, &SGeometryCollectionOutliner::ExpandRecursive)
 	];
@@ -178,6 +194,11 @@ void SGeometryCollectionOutliner::RegenerateItems()
 TSharedRef<ITableRow> SGeometryCollectionOutliner::MakeTreeRowWidget(FGeometryCollectionTreeItemPtr InItem, const TSharedRef<STableViewBase>& InOwnerTable)
 {
 	return InItem->MakeTreeRowWidget(InOwnerTable);
+}
+
+TSharedRef<ITableRow> SGeometryCollectionOutliner::OnGeneratePinnedRowWidget(FGeometryCollectionTreeItemPtr InItem, const TSharedRef<STableViewBase>& InOwnerTable, bool bPinned)
+{
+	return InItem->MakeTreeRowWidget(InOwnerTable, true);
 }
 
 void SGeometryCollectionOutliner::OnGetChildren(FGeometryCollectionTreeItemPtr InItem, TArray<FGeometryCollectionTreeItemPtr>& OutChildren)
@@ -384,7 +405,7 @@ void SGeometryCollectionOutliner::SetInitialDynamicState(int32 InDynamicState)
 	RegenerateItems();
 }
 
-TSharedRef<ITableRow> FGeometryCollectionTreeItemComponent::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable)
+TSharedRef<ITableRow> FGeometryCollectionTreeItemComponent::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, bool bNoExtraColumn)
 {
 	FString ActorName = Component->GetOwner()->GetActorLabel();
 	FString ComponentName = Component->GetClass()->GetFName().ToString();
@@ -576,7 +597,7 @@ bool FGeometryCollectionTreeItemComponent::FilterBoneIndex(int32 BoneIndex) cons
 	return true;	
 }
 
-TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable)
+TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, bool bNoExtraColumn)
 {
 	UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
 	FText ItemText = ParentComponentItem->GetDisplayNameForBone(Guid);
@@ -597,6 +618,14 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 		const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;
 		if (ensure(GetBoneIndex() >= 0 && GetBoneIndex() < SimulationType.Num()))
 		{
+			const bool bHasLevelAttribute = GeometryCollectionPtr->HasAttribute("Level", FGeometryCollection::TransformGroup);
+			if (bHasLevelAttribute && OutlinerSettings->ColorByLevel)
+			{
+				TManagedArray<int32>& Level = GeometryCollectionPtr->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
+				TextColor = FSlateColor(FGeometryCollectionTreeItem::GetColorPerDepth((uint32)Level[GetBoneIndex()]));
+			}
+			else
+			{
 			switch (SimulationType[GetBoneIndex()])
 			{
 			case FGeometryCollection::ESimulationTypes::FST_None:
@@ -622,6 +651,7 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 				ensureMsgf(false, TEXT("Invalid Geometry Collection simulation type encountered."));
 				break;
 			}
+			}
 
 			InitialDynamicState = GeometryCollectionPtr->InitialDynamicState[GetBoneIndex()];
 		}
@@ -639,6 +669,28 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 		InitialDynamicState = INDEX_NONE;
 	}
 	
+	if (bNoExtraColumn)
+	{
+		// short version 
+		return SNew(STableRow<FGeometryCollectionTreeItemPtr>, InOwnerTable)
+		.Content()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+				.Padding(2.0f, 4.0f)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(ItemText)
+					.ColorAndOpacity(TextColor)
+				]
+		]
+		.OnDragDetected(this, &FGeometryCollectionTreeItem::OnDragDetected)
+		.OnDrop(this, &FGeometryCollectionTreeItem::OnDrop)
+		.OnDragEnter(this, &FGeometryCollectionTreeItem::OnDragEnter)
+		.OnDragLeave(this, &FGeometryCollectionTreeItem::OnDragLeave);
+	}
+	// full item 
 	return SNew(STableRow<FGeometryCollectionTreeItemPtr>, InOwnerTable)
 		.Content()
 		[
@@ -652,13 +704,14 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 					.ColorAndOpacity(TextColor)
 				]
 			+ SHorizontalBox::Slot()
-				.Padding(2.0f, 2.0f)
-				.FillWidth(1.0f)
-				.HAlign(HAlign_Right)
-				[
-					SNew(STextBlock)
-					.Text(GettextFromInitialDynamicState(InitialDynamicState))
-				]
+					.Padding(2.0f, 2.0f)
+					.FillWidth(1.0f)
+					.HAlign(HAlign_Right)
+					[
+						SNew(STextBlock)
+						.Text(GettextFromInitialDynamicState(InitialDynamicState))
+						.ColorAndOpacity(TextColor)
+					]
 		]
 		.OnDragDetected(this, &FGeometryCollectionTreeItem::OnDragDetected)
 		.OnDrop(this, &FGeometryCollectionTreeItem::OnDrop)

@@ -50,6 +50,7 @@
 #include "FractureToolAutoCluster.h" 
 #include "SGeometryCollectionOutliner.h"
 #include "SGeometryCollectionHistogram.h"
+#include "SGeometryCollectionStatistics.h"
 #include "FractureSelectionTools.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
@@ -633,8 +634,9 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateStatisticsTab(const FSpaw
 		.AreaTitleFont(FEditorStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 		.BodyContent()
 		[
-			SNew(STextBlock)
-			.Text(this, &FFractureEditorModeToolkit::GetStatisticsSummary)
+			SAssignNew(StatisticsView, SGeometryCollectionStatistics)
+			//SNew(STextBlock)
+			//.Text(LOCTEXT("Statt", "Statt")) //this, &FFractureEditorModeToolkit::GetStatisticsSummary)
 		];
 	TSharedPtr<SDockTab> CreatedTab = SNew(SDockTab)
 		[
@@ -682,7 +684,14 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 			UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
 			OutlinerView->RegenerateItems();
 		}
-
+		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UOutlinerSettings, ColorByLevel))
+		{
+			UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
+			OutlinerView->RegenerateItems();
+			FGeometryCollectionStatistics Stats;
+			GetStatisticsSummary(Stats);
+			StatisticsView->SetStatistics(Stats);
+		}
 	}
 }
 
@@ -1404,6 +1413,13 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 		HistogramView->SetComponents(ComponentsToEdit, GetLevelViewValue());
 	}
 
+	if (StatisticsView)
+	{
+		FGeometryCollectionStatistics Stats;
+		GetStatisticsSummary(Stats);
+		StatisticsView->SetStatistics(Stats);
+	}
+
 	if (ActiveTool != nullptr)
 	{
 		ActiveTool->SelectedBonesChanged();
@@ -1805,9 +1821,8 @@ FText FFractureEditorModeToolkit::GetSelectionInfo() const
 }
 
 
-FText FFractureEditorModeToolkit::GetStatisticsSummary() const
+void FFractureEditorModeToolkit::GetStatisticsSummary(FGeometryCollectionStatistics& Stats) const
 {
-
 	TArray<const FGeometryCollection*> GeometryCollectionArray;
 	if (USelection* SelectedActors = GEditor->GetSelectedActors())
 	{
@@ -1831,8 +1846,6 @@ FText FFractureEditorModeToolkit::GetStatisticsSummary() const
 	}
 
 
-	FString Buffer;
-
 	if (GeometryCollectionArray.Num() > 0)
 	{
 		TArray<int32> LevelTransformsAll;
@@ -1844,9 +1857,6 @@ FText FFractureEditorModeToolkit::GetStatisticsSummary() const
 			const FGeometryCollection* GeometryCollection = GeometryCollectionArray[Idx];
 
 			check(GeometryCollection);
-
-
-			Buffer += FString::Printf(TEXT("Sum of the selected Geometry Collections\n\n"));
 
 			if(GeometryCollection->HasAttribute("Level", FGeometryCollection::TransformGroup))
 			{
@@ -1887,14 +1897,14 @@ FText FFractureEditorModeToolkit::GetStatisticsSummary() const
 			}
 		}
 
+		Stats.CountsPerLevel.Reset();
 		for (int32 Level = 0; Level < LevelMax; ++Level)
 		{
-			Buffer += FString::Printf(TEXT("Level: %d \t - \t %d\n"), Level, LevelTransformsAll[Level]);
+			Stats.CountsPerLevel.Add(LevelTransformsAll[Level]);
 		}
-		Buffer += FString::Printf(TEXT("\nEmbedded: %d"), EmbeddedCount);
-	}
 
-	return FText::FromString(Buffer);
+		Stats.EmbeddedCount = EmbeddedCount;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
