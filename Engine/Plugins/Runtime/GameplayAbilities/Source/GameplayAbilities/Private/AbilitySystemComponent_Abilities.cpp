@@ -2338,7 +2338,7 @@ void UAbilitySystemComponent::MonitoredTagChanged(const FGameplayTag Tag, int32 
 
 			if (!Spec || !HasNetworkAuthorityToActivateTriggeredAbility(*Spec))
 			{
-				return;
+				continue;
 			}
 
 			if (Spec->Ability)
