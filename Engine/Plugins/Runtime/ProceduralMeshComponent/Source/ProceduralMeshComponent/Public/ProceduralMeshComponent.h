@@ -260,6 +260,7 @@ public:
 	void SetCollisionConvexMeshes(const TArray< TArray<FVector> >& ConvexMeshes);
 
 	//~ Begin Interface_CollisionDataProvider Interface
+	virtual bool GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const override;
 	virtual bool GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData) override;
 	virtual bool ContainsPhysicsTriMeshData(bool InUseAllTriData) const override;
 	virtual bool WantsNegXTriMesh() override{ return false; }

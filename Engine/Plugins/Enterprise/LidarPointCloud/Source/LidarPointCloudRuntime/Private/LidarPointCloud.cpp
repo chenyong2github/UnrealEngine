@@ -1210,6 +1210,13 @@ void ULidarPointCloud::CalculateNormals(TArray64<FLidarPointCloudPoint*>* Points
 	});
 }
 
+bool ULidarPointCloud::GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const
+{
+	OutTriMeshEstimates.VerticeCount = Octree.GetCollisionData()->Vertices.Num();
+	
+	return true;
+}
+
 bool ULidarPointCloud::GetPhysicsTriMeshData(FTriMeshCollisionData* CollisionData, bool InUseAllTriData)
 {
 	CollisionData->Vertices = Octree.GetCollisionData()->Vertices;

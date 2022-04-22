@@ -1228,6 +1228,16 @@ void UMRMeshBodyHolder::Cleanup()
 	BodyInstance.TermBody();
 }
 
+bool UMRMeshBodyHolder::GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const
+{
+	if (BrickDataReceipt.IsValid() && Indices->Num() > 0)
+	{
+		OutTriMeshEstimates.VerticeCount = PositionData->Num();
+	}
+
+	return true;
+}
+
 bool UMRMeshBodyHolder::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData)
 {
 	if (BrickDataReceipt.IsValid() && Indices->Num() > 0)

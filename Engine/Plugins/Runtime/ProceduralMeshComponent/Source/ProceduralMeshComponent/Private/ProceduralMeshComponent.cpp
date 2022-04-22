@@ -949,6 +949,19 @@ FBoxSphereBounds UProceduralMeshComponent::CalcBounds(const FTransform& LocalToW
 	return Ret;
 }
 
+bool UProceduralMeshComponent::GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const
+{
+	for (const FProcMeshSection& Section : ProcMeshSections)
+	{
+		if (Section.bEnableCollision)
+		{
+			OutTriMeshEstimates.VerticeCount += Section.ProcVertexBuffer.Num();
+		}
+	}
+
+	return true;
+}
+
 bool UProceduralMeshComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData)
 {
 	int32 VertexBase = 0; // Base vertex index for current section

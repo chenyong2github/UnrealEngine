@@ -631,6 +631,13 @@ void UModelComponent::InvalidateCollisionData()
 }
 #endif // WITH_EDITOR
 
+bool UModelComponent::GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const
+{
+	check(Model);
+	OutTriMeshEstimates.VerticeCount = Model->VertexBuffer.Vertices.Num();
+	return true;
+}
+
 bool UModelComponent::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool InUseAllTriData)
 {
 	check(Model);

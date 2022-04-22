@@ -5057,6 +5057,18 @@ bool USkeletalMesh::ContainsPhysicsTriMeshData(bool InUseAllTriData) const
 	return GetEnablePerPolyCollision();
 }
 
+bool USkeletalMesh::GetTriMeshSizeEstimates(struct FTriMeshCollisionDataEstimates& OutTriMeshEstimates, bool bInUseAllTriData) const
+{
+#if WITH_EDITORONLY_DATA
+	if (GetResourceForRendering() && GetEnablePerPolyCollision())
+	{
+		OutTriMeshEstimates.VerticeCount = GetResourceForRendering()->LODRenderData[0].GetNumVertices();
+	}
+#endif // #if WITH_EDITORONLY_DATA
+
+	return true;
+}
+
 bool USkeletalMesh::GetPhysicsTriMeshData(FTriMeshCollisionData* CollisionData, bool bInUseAllTriData)
 {
 #if WITH_EDITORONLY_DATA
