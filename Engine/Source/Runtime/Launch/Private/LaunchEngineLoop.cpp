@@ -5319,7 +5319,13 @@ void FEngineLoop::Tick()
 		const UWorld* const GameViewportWorld = GameViewport ? GameViewport->GetWorld() : nullptr;
 		UDemoNetDriver* const CurrentDemoNetDriver = GameViewportWorld ? GameViewportWorld->GetDemoNetDriver() : nullptr;
 
+		// Optionally validate that Slate has not modified any replicated properties for client replay recording.
+		FDemoSavedPropertyState PreSlateObjectStates;
 		const bool bValidateReplicatedProperties = CurrentDemoNetDriver && CVarDoAsyncEndOfFrameTasksValidateReplicatedProperties.GetValueOnGameThread() != 0;
+		if (bValidateReplicatedProperties)
+		{
+			PreSlateObjectStates = CurrentDemoNetDriver->SavePropertyState();
+		}
 
 		if (bDoConcurrentSlateTick)
 		{
@@ -5345,27 +5351,7 @@ void FEngineLoop::Tick()
 				},
 				ConcurrentTaskCompleteEvent);
 				check(ConcurrentTask.IsValid());
-
-				// If we're validating, we want to only test the slate tick so wait for the task
-				if (bValidateReplicatedProperties)
-				{
-					CSV_SCOPED_SET_WAIT_STAT(ConcurrentWithSlate);
-
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_ConcurrentWithSlateTickTasks_Wait);
-					check(ConcurrentTaskCompleteEvent);
-					ConcurrentTaskCompleteEvent->Wait();
-					FPlatformProcess::ReturnSynchEventToPool(ConcurrentTaskCompleteEvent);
-					ConcurrentTaskCompleteEvent = nullptr;
-					ConcurrentTask = nullptr;
-				}
 			}
-		}
-
-		// Optionally validate that Slate has not modified any replicated properties for client replay recording.
-		FDemoSavedPropertyState PreSlateObjectStates;
-		if (bValidateReplicatedProperties)
-		{
-			PreSlateObjectStates = CurrentDemoNetDriver->SavePropertyState();
 		}
 #endif
 
