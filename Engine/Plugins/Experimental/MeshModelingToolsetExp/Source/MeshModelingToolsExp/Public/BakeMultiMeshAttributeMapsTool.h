@@ -40,7 +40,7 @@ class MESHMODELINGTOOLSEXP_API UBakeMultiMeshAttributeMapsToolProperties : publi
 public:
 	/** The map types to generate */
 	UPROPERTY(EditAnywhere, Category = BakeOutput, meta=(DisplayName="Output Types", Bitmask, BitmaskEnum=EBakeMapType,
-		ValidEnumValues="TangentSpaceNormal, Texture"))
+		ValidEnumValues="TangentSpaceNormal, ObjectSpaceNormal, Position, Texture"))
 	int32 MapTypes = (int32) EBakeMapType::None;
 
 	/** The map type index to preview */
