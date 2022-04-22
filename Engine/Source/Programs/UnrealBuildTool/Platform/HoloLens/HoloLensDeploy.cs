@@ -222,6 +222,11 @@ namespace UnrealBuildTool
 			string OutputAppX = Path.Combine(OutputDirectory, OutputName + Extension);
 			string SigningCertificate = @"Build\HoloLens\SigningCertificate.pfx";
 			string SigningCertificatePath = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, SigningCertificate);
+			if (!File.Exists(SigningCertificatePath))
+			{
+				SigningCertificate = @"Platforms\HoloLens\Build\SigningCertificate.pfx";
+				SigningCertificatePath = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, SigningCertificate);
+			}
 
 			string MapFilename = Path.Combine(IntermediateDirectory, OutputName + ".pkgmap");
 			var LocalRoot = Receipt.ProjectDir;

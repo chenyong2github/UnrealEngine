@@ -36,7 +36,6 @@ namespace UnrealBuildTool
 		//private UnrealTargetPlatform Platform;
 		private WindowsArchitecture Architecture;
 		private string? TargetSettings;
-		private string? BuildResourceProjectRelativePath;
 		private string? ProjectPath;
 		private string? OutputPath;
 		private string? IntermediatePath;
@@ -425,17 +424,30 @@ namespace UnrealBuildTool
 		private bool CopyAndReplaceBinaryIntermediate(string ResourceFileName, bool AllowEngineFallback = true, Action<string, string>? CopyOp = null)
 		{
 			string TargetPath = Path.Combine(IntermediatePath!, BuildResourceSubPath);
-			string SourcePath = Path.Combine(ProjectPath!, BuildResourceProjectRelativePath!, BuildResourceSubPath);
 
 			CopyOp = CopyOp ?? File.Copy;
 
-			// Try falling back to the engine defaults if requested
+			// look in project normal Build location
+			string SourcePath = Path.Combine(ProjectPath!, "Build", "HoloLens", BuildResourceSubPath);
 			bool bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
+
+			// look in Platform Extensions next
 			if (!bFileExists)
 			{
-				if (AllowEngineFallback)
+				SourcePath = Path.Combine(ProjectPath!, "Platforms", "HoloLens", "Build", BuildResourceSubPath);
+				bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
+			}
+
+			// look in Engine, if allowed
+			if (!bFileExists && AllowEngineFallback)
+			{
+				SourcePath = Path.Combine(Unreal.EngineDirectory.FullName, "Build", "HoloLens", EngineResourceSubPath);
+				bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
+
+				// look in Platform extensions too
+				if (!bFileExists)
 				{
-					SourcePath = Path.Combine(Unreal.EngineDirectory.FullName, BuildResourceProjectRelativePath!, EngineResourceSubPath);
+					SourcePath = Path.Combine(Unreal.EngineDirectory.FullName, "Platforms", "HoloLens", "Build", EngineResourceSubPath);
 					bFileExists = File.Exists(Path.Combine(SourcePath, ResourceFileName));
 				}
 			}
@@ -777,7 +789,6 @@ namespace UnrealBuildTool
 			//Platform = TargetPlatform;
 			Architecture = TargetArchitecture;
 			TargetSettings = "/Script/HoloLensPlatformEditor.HoloLensTargetSettings";
-			BuildResourceProjectRelativePath = "Build\\HoloLens";
 			BuildResourceSubPath = "Resources";
 			StoreResourceSubPath = WindowsExports.GetArchitectureSubpath(Architecture) + "\\" + BuildResourceSubPath;
 
@@ -1159,7 +1170,6 @@ namespace UnrealBuildTool
 			WinMDReferences = new List<WinMDRegistrationInfo>();
 			//Platform = TargetPlatform;
 			TargetSettings = "/Script/HoloLensPlatformEditor.HoloLensTargetSettings";
-			BuildResourceProjectRelativePath = "Build\\HoloLens";
 			BuildResourceSubPath = "AssetsResources";
 			StoreResourceSubPath =  BuildResourceSubPath;
 
