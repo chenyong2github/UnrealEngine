@@ -205,7 +205,7 @@ void UZoneGraphCrowdLaneAnnotations::DebugDrawCanvas(UCanvas* Canvas, APlayerCon
 	const FColor OldDrawColor = Canvas->DrawColor;
 	const UFont* RenderFont = GEngine->GetSmallFont();
 
-	const FFontRenderInfo FontInfo = Canvas->CreateFontRenderInfo(true, true);
+	const FFontRenderInfo FontInfo = Canvas->CreateFontRenderInfo(/*bClipText*/true, /*bEnableShadow*/true);
 
 	Canvas->SetDrawColor(FColor::White);
 	static const FVector ZOffset(0, 0, 35.0f);
@@ -265,7 +265,7 @@ void UZoneGraphCrowdLaneAnnotations::DebugDrawCanvas(UCanvas* Canvas, APlayerCon
 				if (bDisplayTags)
 				{
 					const FZoneGraphTagMask Mask = ZoneGraphAnnotationSubsystem->GetAnnotationTags(LaneHandle);
-					Canvas->DrawText(RenderFont, FString::Printf(TEXT("%s\n0x%08X"), *UE::ZoneGraph::Helpers::GetTagMaskString(Mask, TEXT(", ")), Mask.GetValue()), ScreenLoc.X, ScreenLoc.Y, 1.0f, 1.0f, FontInfo);
+					Canvas->DrawText(RenderFont, FString::Printf(TEXT("%s\n0x%08X"), *UE::ZoneGraph::Helpers::GetTagMaskString(Mask, TEXT(", ")), Mask.GetValue()), ScreenLoc.X, ScreenLoc.Y, /*XScale*/1.0f, /*YScale*/1.0f, FontInfo);
 				}
 
 				// Tracking
@@ -273,7 +273,7 @@ void UZoneGraphCrowdLaneAnnotations::DebugDrawCanvas(UCanvas* Canvas, APlayerCon
 				{
 					if (TrackingData->NumEntitiesOnLane > 0)
 					{
-						Canvas->DrawText(RenderFont, FString::Printf(TEXT("Num Entities: %d"), TrackingData->NumEntitiesOnLane), ScreenLoc.X, ScreenLoc.Y + 20, 1.0f, 1.0f, FontInfo);
+						Canvas->DrawText(RenderFont, FString::Printf(TEXT("Num Entities: %d"), TrackingData->NumEntitiesOnLane), ScreenLoc.X, ScreenLoc.Y + 20, /*XScale*/1.0f, /*YScale*/1.0f, FontInfo);
 					}
 				}
 			}
@@ -297,7 +297,7 @@ void UZoneGraphCrowdLaneAnnotations::DebugDrawCanvas(UCanvas* Canvas, APlayerCon
 							}
 
 							const FVector ScreenLoc = Canvas->Project(Slot.Position + ZOffset);
-							Canvas->DrawText(RenderFont, TEXT("OCCUPIED"), ScreenLoc.X, ScreenLoc.Y, 1.0f, 1.0f, FontInfo);
+							Canvas->DrawText(RenderFont, TEXT("OCCUPIED"), ScreenLoc.X, ScreenLoc.Y, /*XScale*/1.0f, /*YScale*/1.0f, FontInfo);
 						}
 					}
 				}
