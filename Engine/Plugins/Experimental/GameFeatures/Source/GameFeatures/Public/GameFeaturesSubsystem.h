@@ -272,8 +272,8 @@ public:
 	 */
 	bool GetPluginURLByName(const FString& PluginName, FString& OutPluginURL) const;
 
-	// @TODO: Deprecate GetPluginURLForBuiltInPluginByName
 	/** If the specified plugin is a built-in plugin, return the URL used to identify it. Returns true if the plugin exists, false if it was not found */
+	UE_DEPRECATED(5.1, "Use GetPluginURLByName instead")
 	bool GetPluginURLForBuiltInPluginByName(const FString& PluginName, FString& OutPluginURL) const;
 
 	/** Get the plugin path from the plugin URL */

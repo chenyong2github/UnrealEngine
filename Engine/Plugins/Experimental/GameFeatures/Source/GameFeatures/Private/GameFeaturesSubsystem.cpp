@@ -93,7 +93,7 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			if (Args.Num() > 0)
 			{
 				FString PluginURL;
-				if (!UGameFeaturesSubsystem::Get().GetPluginURLForBuiltInPluginByName(Args[0], /*out*/ PluginURL))
+				if (!UGameFeaturesSubsystem::Get().GetPluginURLByName(Args[0], /*out*/ PluginURL))
 				{
 					PluginURL = Args[0];
 				}
@@ -114,7 +114,7 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			if (Args.Num() > 0)
 			{
 				FString PluginURL;
-				if (!UGameFeaturesSubsystem::Get().GetPluginURLForBuiltInPluginByName(Args[0], /*out*/ PluginURL))
+				if (!UGameFeaturesSubsystem::Get().GetPluginURLByName(Args[0], /*out*/ PluginURL))
 				{
 					PluginURL = Args[0];
 				}
@@ -135,7 +135,7 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 			if (Args.Num() > 0)
 			{
 				FString PluginURL;
-				if (!UGameFeaturesSubsystem::Get().GetPluginURLForBuiltInPluginByName(Args[0], /*out*/ PluginURL))
+				if (!UGameFeaturesSubsystem::Get().GetPluginURLByName(Args[0], /*out*/ PluginURL))
 				{
 					PluginURL = Args[0];
 				}
@@ -156,7 +156,7 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 				if (Args.Num() > 0)
 				{
 					FString PluginURL;
-					if (!UGameFeaturesSubsystem::Get().GetPluginURLForBuiltInPluginByName(Args[0], /*out*/ PluginURL))
+					if (!UGameFeaturesSubsystem::Get().GetPluginURLByName(Args[0], /*out*/ PluginURL))
 					{
 						PluginURL = Args[0];
 					}
