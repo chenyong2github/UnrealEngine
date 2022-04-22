@@ -52,7 +52,7 @@ struct FBuoyancyComponentBaseAsyncInput : public FBuoyancyComponentAsyncInput
 {
 	TArray<UWaterBodyComponent*> WaterBodyComponents;
 	TArray<FSphericalPontoon> Pontoons;
-	float SmoothedWorldTimeSeconds;
+	float SmoothedWorldTimeSeconds = 0.f;
 
 	FBuoyancyComponentBaseAsyncInput()
 		: FBuoyancyComponentAsyncInput(EAsyncBuoyancyComponentDataType::AsyncBuoyancyBase)
