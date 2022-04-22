@@ -4,8 +4,8 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
-#include "Serialization/StructuredArchive.h"
 #include "UObject/NameTypes.h"
+#include "Serialization/StructuredArchive.h"
 
 class UObject;
 class CORE_API FString;
