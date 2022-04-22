@@ -217,7 +217,8 @@ struct FTextureBuildSettings
 
 	/** Default settings. */
 	FTextureBuildSettings()
-		: bDoScaleMipsForAlphaCoverage(false)
+		: ForceRecompressDDCUID(0)
+		, bDoScaleMipsForAlphaCoverage(false)
 		, AlphaCoverageThresholds(0, 0, 0, 0)
 		, bUseNewMipFilter(false)
 		, MipSharpening(0.0f)
