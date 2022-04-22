@@ -58,7 +58,7 @@ private:
 
 	//~ Begin UAudioGameplayVolumeComponentBase interface
 	virtual TSharedPtr<FProxyVolumeMutator> FactoryMutator() const override;
-	virtual void FillMutator(TSharedPtr<FProxyVolumeMutator> Mutator) const override;
+	virtual void CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutator>& Mutator) const override;
 	//~ End UAudioGameplayVolumeComponentBase interface
 
 	// The desired LPF frequency cutoff (in hertz) of sounds outside the volume when the player is inside the volume

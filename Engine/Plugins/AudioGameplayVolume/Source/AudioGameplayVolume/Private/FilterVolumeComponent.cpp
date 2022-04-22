@@ -56,10 +56,8 @@ TSharedPtr<FProxyVolumeMutator> UFilterVolumeComponent::FactoryMutator() const
 	return MakeShared<FProxyMutator_Filter>();
 }
 
-void UFilterVolumeComponent::FillMutator(TSharedPtr<FProxyVolumeMutator> Mutator) const
+void UFilterVolumeComponent::CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutator>& Mutator) const
 {
-	Super::FillMutator(Mutator);
-
 	TSharedPtr<FProxyMutator_Filter> FilterMutator = StaticCastSharedPtr<FProxyMutator_Filter>(Mutator);
 	FilterMutator->ExteriorLPF = ExteriorLPF;
 	FilterMutator->ExteriorLPFTime = ExteriorLPFTime;

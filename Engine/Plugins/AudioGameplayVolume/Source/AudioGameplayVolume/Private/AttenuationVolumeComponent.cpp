@@ -56,10 +56,8 @@ TSharedPtr<FProxyVolumeMutator> UAttenuationVolumeComponent::FactoryMutator() co
 	return MakeShared<FProxyMutator_Attenuation>();
 }
 
-void UAttenuationVolumeComponent::FillMutator(TSharedPtr<FProxyVolumeMutator> Mutator) const
+void UAttenuationVolumeComponent::CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutator>& Mutator) const
 {
-	Super::FillMutator(Mutator);
-
 	TSharedPtr<FProxyMutator_Attenuation> AttenuationMutator = StaticCastSharedPtr<FProxyMutator_Attenuation>(Mutator);
 	AttenuationMutator->ExteriorVolume = ExteriorVolume;
 	AttenuationMutator->ExteriorTime = ExteriorTime;

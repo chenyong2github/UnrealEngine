@@ -47,7 +47,7 @@ private:
 
 	//~ Begin UAudioGameplayVolumeComponentBase interface
 	virtual TSharedPtr<FProxyVolumeMutator> FactoryMutator() const override;
-	virtual void FillMutator(TSharedPtr<FProxyVolumeMutator> Mutator) const override;
+	virtual void CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutator>& Mutator) const override;
 	//~ End UAudioGameplayVolumeComponentBase interface
 
 	/** Submix send settings to use for this component. Allows audio to dynamically send to submixes based on source and listener locations (relative to parent volume.) */

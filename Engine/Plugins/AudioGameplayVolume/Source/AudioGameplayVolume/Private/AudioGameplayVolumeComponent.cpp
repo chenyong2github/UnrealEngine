@@ -26,7 +26,7 @@ TSharedPtr<FProxyVolumeMutator> UAudioGameplayVolumeComponentBase::CreateMutator
 	TSharedPtr<FProxyVolumeMutator> ProxyMutator = FactoryMutator();
 	if (ProxyMutator.IsValid())
 	{
-		FillMutator(ProxyMutator);
+		CopyAudioDataToMutatorBase(ProxyMutator);
 	}
 
 	return ProxyMutator;
@@ -35,13 +35,6 @@ TSharedPtr<FProxyVolumeMutator> UAudioGameplayVolumeComponentBase::CreateMutator
 TSharedPtr<FProxyVolumeMutator> UAudioGameplayVolumeComponentBase::FactoryMutator() const
 {
 	return TSharedPtr<FProxyVolumeMutator>();
-}
-
-void UAudioGameplayVolumeComponentBase::FillMutator(TSharedPtr<FProxyVolumeMutator> Mutator) const
-{
-	check(Mutator.IsValid());
-	Mutator->PayloadType = PayloadType;
-	Mutator->Priority = Priority;
 }
 
 void UAudioGameplayVolumeComponentBase::NotifyDataChanged() const
@@ -57,6 +50,15 @@ void UAudioGameplayVolumeComponentBase::NotifyDataChanged() const
 			}
 		}
 	}
+}
+
+void UAudioGameplayVolumeComponentBase::CopyAudioDataToMutatorBase(TSharedPtr<FProxyVolumeMutator>& Mutator) const
+{
+	check(Mutator.IsValid());
+	Mutator->PayloadType = PayloadType;
+	Mutator->Priority = Priority;
+
+	CopyAudioDataToMutator(Mutator);
 }
 
 UAudioGameplayVolumeProxyComponent::UAudioGameplayVolumeProxyComponent(const FObjectInitializer& ObjectInitializer)

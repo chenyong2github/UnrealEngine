@@ -35,8 +35,8 @@ protected:
 	/** Create this component's type of mutator */
 	virtual TSharedPtr<FProxyVolumeMutator> FactoryMutator() const;
 
-	/** Fill the mutator with data from our component */
-	virtual void FillMutator(TSharedPtr<FProxyVolumeMutator> Mutator) const;
+	/** Override in child classes to copy additional data needed to mutators */
+	virtual void CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutator>& Mutator) const {}
 
 	/** Notify our parent volume our proxy may need updating */
 	void NotifyDataChanged() const;
@@ -44,6 +44,11 @@ protected:
 	// The priority of this component.  In the case of overlapping volumes or multiple affecting components, the highest priority is chosen.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AudioGameplay", Meta = (AllowPrivateAccess = "true"))
 	int32 Priority = 0;
+
+private:
+
+	/** Called for you during mutator creation. See CopyAudioDataToMutator for adding data to derived classes */
+	void CopyAudioDataToMutatorBase(TSharedPtr<FProxyVolumeMutator>& Mutator) const;
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAudioGameplayVolumeProxyStateChange);
