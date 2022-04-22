@@ -33,7 +33,7 @@ class StartViewController : BaseViewController {
     
     public var multicastWatchdogSocket  : GCDAsyncUdpSocket?
     
-    private var liveLink : LiveLink?
+    private var liveLink : LiveLinkProvider?
     private var liveLinkTimer : Timer?
     
     @objc dynamic let appSettings = AppSettings.shared
@@ -111,11 +111,6 @@ class StartViewController : BaseViewController {
             self.liveLink?.removeCameraSubject(change.oldValue!)
             self.liveLink?.addCameraSubject(self.appSettings.liveLinkSubjectName)
         }))
-        observers.append(observe(\.appSettings.engineVersion, options: [.old,.new], changeHandler: { object, change in
-            if LiveLink.initialized {
-                self.restartView.isHidden = !LiveLink.requiresRestart
-            }
-        }))
         
         NotificationCenter.default.addObserver(self, selector: #selector(gameControllerDidConnectNotification), name: .GCControllerDidConnect, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(gameControllerDidDisconnectNotification), name: .GCControllerDidDisconnect, object: nil)
@@ -126,42 +121,23 @@ class StartViewController : BaseViewController {
                 gc.playerIndex = .index1
             }
         }
+        
+        LiveLink.initialize(self)
+        restartLiveLink()
     }
      
     func restartLiveLink() {
 
-        do {
-            try LiveLink.initialize(self)
-
-        } catch LiveLinkError.unknownEngineVersion {
-
-            // if there is no engine version (first run), then we ask the user to choose.
-            let askVersionAlert = UIAlertController(title: NSLocalizedString("version-title", value:"Engine Version", comment: "Title of an settings screen."),
-                                                    message: NSLocalizedString("version-choose", value:"Choose the version of Unreal Engine you will be connecting to. This selection can be modified later in the app's settings.", comment: "Message for seelecting the correct version of unreal engine."), preferredStyle: .alert)
-            askVersionAlert.addAction(UIAlertAction(title: "Unreal Engine 4", style: .default, handler: { _ in
-                LiveLink.engineVersion = .ue4
-                self.restartLiveLink()
-            }))
-            askVersionAlert.addAction(UIAlertAction(title: "Unreal Engine 5", style: .default, handler: { _ in
-                LiveLink.engineVersion = .ue5
-                self.restartLiveLink()
-            }))
-            self.present(askVersionAlert, animated: true)
-            return
-        } catch {
-            
-        }
-        
         // stop the provider & restart livelink here
         if self.liveLink != nil {
             Log.info("Restarting Messaging Engine.")
-            try? LiveLink.restart()
+            LiveLink.restart()
             self.liveLink = nil
         }
 
         Log.info("Initializing LiveLink Provider.")
 
-        self.liveLink = try? LiveLink("VCAM IOS")
+        self.liveLink = LiveLink.createProvider("Live Link VCAM")
         self.liveLink?.addCameraSubject(AppSettings.shared.liveLinkSubjectName)
 
         if let videoViewController = self.presentedViewController as? VideoViewController {
@@ -190,16 +166,12 @@ class StartViewController : BaseViewController {
         
         liveLinkTimer?.invalidate()
         liveLinkTimer = Timer.scheduledTimer(withTimeInterval: 1.0/10.0, repeats: true, block: { timer in
-            self.liveLink?.updateSubject(AppSettings.shared.liveLinkSubjectName, transform: simd_float4x4(), time: Timecode.create().toTimeInterval())
+            self.liveLink?.updateSubject(AppSettings.shared.liveLinkSubjectName, withTransform: simd_float4x4(), atTime: Timecode.create().toTimeInterval())
         })
     }
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
-        if !LiveLink.initialized {
-            restartLiveLink();
-        }
     }
     
     override func viewDidDisappear(_ animated: Bool) {
@@ -368,12 +340,9 @@ extension StartViewController : GCDAsyncUdpSocketDelegate {
     }
 }
 
-extension StartViewController : UE5LiveLinkLogDelegate, UE4LiveLinkLogDelegate {
+extension StartViewController : LiveLinkLogDelegate {
 
-    func ue5LogMessage(_ message: String!) {
-        Log.info(message)
-    }
-    func ue4LogMessage(_ message: String!) {
+    func logMessage(_ message: String!) {
         Log.info(message)
     }
 }

@@ -33,7 +33,7 @@ class SettingsViewController : UITableViewController {
         
         switch cell.reuseIdentifier {
 
-        case "liveLink":
+        case "subjectName":
             cell.detailTextLabel?.text = appSettings.liveLinkSubjectName
 
         case "timecode":
@@ -48,4 +48,28 @@ class SettingsViewController : UITableViewController {
         self.navigationController?.dismiss(animated: true, completion: nil)
     }
 
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+
+        if let vc = segue.destination as? SingleValueViewController {
+            
+            if segue.identifier == "subjectName" {
+                
+                vc.navigationItem.title = Localized.subjectName()
+                vc.mode = .edit
+                vc.allowedType = .unreal
+                vc.initialValue = AppSettings.shared.liveLinkSubjectName
+                vc.placeholderValue = AppSettings.defaultLiveLinkSubjectName()
+                vc.finished = { (action, value) in
+                    
+                    if action == .done {
+                        
+                        let v = value!.trimmed()
+                        
+                        AppSettings.shared.liveLinkSubjectName = v.isEmpty ? AppSettings.defaultLiveLinkSubjectName() : value!.toUnrealCompatibleString()
+                        self.tableView.reloadData()
+                    }
+                }
+            }
+        }
+    }
 }

@@ -26,7 +26,6 @@ class AppSettings : NSObject {
         static let didAcceptEULA = "didAcceptEULA"
         static let lastConnectionAddress = "lastConnectionAddress"
         
-        static let engineVersion = "engineVersion"
         static let liveLinkSubjectName = "liveLinkSubjectName"
 
         static let timecodeSource = "timecodeSource"
@@ -44,7 +43,6 @@ class AppSettings : NSObject {
             Keys.didAcceptEULA : false,
             Keys.lastConnectionAddress : "",
 
-            Keys.engineVersion : "",
             Keys.liveLinkSubjectName : defaultLiveLinkSubjectName(),
             
             Keys.timecodeSource : 1,
@@ -86,12 +84,6 @@ class AppSettings : NSObject {
     @objc dynamic var lastConnectionAddress : String = UserDefaults.standard.string(forKey: Keys.lastConnectionAddress) ?? "" {
         didSet {
             UserDefaults.standard.set(lastConnectionAddress, forKey: Keys.lastConnectionAddress)
-        }
-    }
-
-    @objc dynamic var engineVersion : String = UserDefaults.standard.string(forKey: Keys.engineVersion) ?? "" {
-        didSet {
-            UserDefaults.standard.set(engineVersion, forKey: Keys.engineVersion)
         }
     }
 

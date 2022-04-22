@@ -150,7 +150,7 @@ class LogActivityItemSource : NSObject, UIActivityItemSource {
             return url
         } else {
 
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("LiveLinkFace.log")
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("LiveLinkVCAM.log")
             if let fileHandle = FileUtility.createFileAtURL(url, overwrite: true) {
                 let logItems = Log.items;
                 for item in logItems {

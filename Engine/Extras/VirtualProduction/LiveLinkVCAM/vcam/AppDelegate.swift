@@ -30,7 +30,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func applicationWillTerminate(_ application: UIApplication) {
-        try? LiveLink.shutdown()
+        LiveLink.shutdown()
     }
 
     // MARK: UISceneSession Lifecycle

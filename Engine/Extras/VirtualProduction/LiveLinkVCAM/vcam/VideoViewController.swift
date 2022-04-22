@@ -36,7 +36,7 @@ class VideoViewController : BaseViewController {
 
     var oscConnection : OSCTCPConnection?
 
-    weak var liveLink : LiveLink?
+    weak var liveLink : LiveLinkProvider?
     private var decoder : VideoDecoder?
     var dismissOnDisconnect = false
     

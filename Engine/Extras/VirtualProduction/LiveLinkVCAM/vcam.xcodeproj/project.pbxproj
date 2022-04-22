@@ -8,10 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		8B01BF2C26CA7DD1001872D2 /* LaunchScreen_iPad.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8B01BF2A26CA7DD1001872D2 /* LaunchScreen_iPad.storyboard */; };
-		8B05A923275E172F0080AB2A /* Tentacle.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8BBE89CC2758D17F0008F6A0 /* Tentacle.xcframework */; };
-		8B05A924275E172F0080AB2A /* Tentacle.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8BBE89CC2758D17F0008F6A0 /* Tentacle.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8B05A926275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B05A925275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift */; };
 		8B4542DA27A7CFB7001703EE /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B4542D927A7CFB6001703EE /* GameController.framework */; };
+		8B58775E27BE4B1E00D78749 /* LiveLinkProvider.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */; platformFilter = ios; };
+		8B58775F27BE4B1E00D78749 /* LiveLinkProvider.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8B751C67257A407C00755F39 /* ToolView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B751C66257A407C00755F39 /* ToolView.swift */; };
 		8B751C74257A4C2C00755F39 /* Toast.xib in Resources */ = {isa = PBXBuildFile; fileRef = 8B751C73257A4C2C00755F39 /* Toast.xib */; };
 		8B751C76257A4F5F00755F39 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B751C75257A4F5F00755F39 /* ToastView.swift */; };
@@ -42,13 +42,9 @@
 		8BAAA9F826BA87C0007D376D /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 8BAAA9FA26BA87C0007D376D /* InfoPlist.strings */; };
 		8BB93C472608A28900293541 /* CocoaAsyncSocket in Frameworks */ = {isa = PBXBuildFile; productRef = 8BB93C462608A28900293541 /* CocoaAsyncSocket */; };
 		8BB93C4A2608A2DE00293541 /* SwiftEntryKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8BB93C492608A2DE00293541 /* SwiftEntryKit */; };
-		8BC2656D2790799500C23415 /* LiveLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC2656C2790799500C23415 /* LiveLink.swift */; };
 		8BC2656F279186C400C23415 /* MultipleChoiceViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC2656E279186C400C23415 /* MultipleChoiceViewController.swift */; };
-		8BC265742795AEE800C23415 /* UE4LiveLinkProvider.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8BC265702795AEDE00C23415 /* UE4LiveLinkProvider.framework */; platformFilter = ios; };
-		8BC265752795AEE800C23415 /* UE4LiveLinkProvider.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8BC265702795AEDE00C23415 /* UE4LiveLinkProvider.framework */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		8BC265762795AEE900C23415 /* UE5LiveLinkProvider.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8BC265712795AEDE00C23415 /* UE5LiveLinkProvider.framework */; platformFilter = ios; };
-		8BC265772795AEE900C23415 /* UE5LiveLinkProvider.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8BC265712795AEDE00C23415 /* UE5LiveLinkProvider.framework */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		8BC26579279FFFE400C23415 /* LiveLinkViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC26578279FFFE400C23415 /* LiveLinkViewController.swift */; };
+		8BCA6C9128129A550034C7F7 /* Tentacle.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8BCA6C8F28129A4C0034C7F7 /* Tentacle.xcframework */; };
+		8BCA6C9228129A550034C7F7 /* Tentacle.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8BCA6C8F28129A4C0034C7F7 /* Tentacle.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		8BD09C902625E10100A4C301 /* Timecode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD09C8F2625E10100A4C301 /* Timecode.swift */; };
 		8BD09C932625E1EC00A4C301 /* Kronos in Frameworks */ = {isa = PBXBuildFile; productRef = 8BD09C922625E1EC00A4C301 /* Kronos */; };
 		8BD09C952625E34400A4C301 /* Localized.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD09C942625E34400A4C301 /* Localized.swift */; };
@@ -80,9 +76,8 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				8BC265772795AEE900C23415 /* UE5LiveLinkProvider.framework in Embed Frameworks */,
-				8BC265752795AEE800C23415 /* UE4LiveLinkProvider.framework in Embed Frameworks */,
-				8B05A924275E172F0080AB2A /* Tentacle.xcframework in Embed Frameworks */,
+				8B58775F27BE4B1E00D78749 /* LiveLinkProvider.framework in Embed Frameworks */,
+				8BCA6C9228129A550034C7F7 /* Tentacle.xcframework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -93,6 +88,7 @@
 		8B01BF2B26CA7DD1001872D2 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen_iPad.storyboard; sourceTree = "<group>"; };
 		8B05A925275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoViewController+ARCoachingOverlayViewDelegate.swift"; sourceTree = "<group>"; };
 		8B4542D927A7CFB6001703EE /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
+		8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = LiveLinkProvider.framework; sourceTree = "<group>"; };
 		8B751C66257A407C00755F39 /* ToolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolView.swift; sourceTree = "<group>"; };
 		8B751C73257A4C2C00755F39 /* Toast.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = Toast.xib; sourceTree = "<group>"; };
 		8B751C75257A4F5F00755F39 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
@@ -137,12 +133,8 @@
 		8BAAA9FB26BA87C4007D376D /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		8BAAA9FC26BA87C6007D376D /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		8BAAA9FD26BA87C7007D376D /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/InfoPlist.strings; sourceTree = "<group>"; };
-		8BBE89CC2758D17F0008F6A0 /* Tentacle.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Tentacle.xcframework; path = ../../ThirdPartyNotUE/TentacleSync/Tentacle.xcframework; sourceTree = "<group>"; };
-		8BC2656C2790799500C23415 /* LiveLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveLink.swift; sourceTree = "<group>"; };
 		8BC2656E279186C400C23415 /* MultipleChoiceViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MultipleChoiceViewController.swift; sourceTree = "<group>"; };
-		8BC265702795AEDE00C23415 /* UE4LiveLinkProvider.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = UE4LiveLinkProvider.framework; sourceTree = "<group>"; };
-		8BC265712795AEDE00C23415 /* UE5LiveLinkProvider.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = UE5LiveLinkProvider.framework; sourceTree = "<group>"; };
-		8BC26578279FFFE400C23415 /* LiveLinkViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveLinkViewController.swift; sourceTree = "<group>"; };
+		8BCA6C8F28129A4C0034C7F7 /* Tentacle.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Tentacle.xcframework; path = "TentacleSDK-2.1.3/apple/build/Tentacle.xcframework"; sourceTree = "<group>"; };
 		8BD09C8F2625E10100A4C301 /* Timecode.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Timecode.swift; sourceTree = "<group>"; };
 		8BD09C942625E34400A4C301 /* Localized.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Localized.swift; sourceTree = "<group>"; };
 		8BD09C962625E4C200A4C301 /* Extensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
@@ -172,15 +164,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8BC265742795AEE800C23415 /* UE4LiveLinkProvider.framework in Frameworks */,
-				8BC265762795AEE900C23415 /* UE5LiveLinkProvider.framework in Frameworks */,
 				8BD09C932625E1EC00A4C301 /* Kronos in Frameworks */,
-				8B05A923275E172F0080AB2A /* Tentacle.xcframework in Frameworks */,
 				8BB93C4A2608A2DE00293541 /* SwiftEntryKit in Frameworks */,
 				8B83F35225A46E000060B452 /* NetworkExtension.framework in Frameworks */,
+				8BCA6C9128129A550034C7F7 /* Tentacle.xcframework in Frameworks */,
 				8B881935266A48090061F926 /* Easing in Frameworks */,
 				8BB93C472608A28900293541 /* CocoaAsyncSocket in Frameworks */,
 				8B4542DA27A7CFB7001703EE /* GameController.framework in Frameworks */,
+				8B58775E27BE4B1E00D78749 /* LiveLinkProvider.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -190,9 +181,8 @@
 		8B7D847824DEA02500D01C13 = {
 			isa = PBXGroup;
 			children = (
-				8BC265702795AEDE00C23415 /* UE4LiveLinkProvider.framework */,
-				8BC265712795AEDE00C23415 /* UE5LiveLinkProvider.framework */,
-				8BBE89CC2758D17F0008F6A0 /* Tentacle.xcframework */,
+				8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */,
+				8BCA6C8F28129A4C0034C7F7 /* Tentacle.xcframework */,
 				8B7D848324DEA02600D01C13 /* vcam */,
 				8B7D848224DEA02600D01C13 /* Products */,
 				8B7D84C424DEA08E00D01C13 /* Frameworks */,
@@ -232,11 +222,9 @@
 				8BF7850F257A2EB000E7BAF8 /* ConnectButton.swift */,
 				8BD09CA8262B0CBA00A4C301 /* HeaderView.swift */,
 				8B88193126678A7C0061F926 /* BaseViewController.swift */,
-				8BC2656C2790799500C23415 /* LiveLink.swift */,
 				8B9C22EA255AB85A00C371BB /* StartViewController.swift */,
 				8BD53B0C258E276B00E1121E /* StartViewController+OSCTCPConnectionDelegate.swift */,
 				8BD09C9C2629AA4E00A4C301 /* SettingsViewController.swift */,
-				8BC26578279FFFE400C23415 /* LiveLinkViewController.swift */,
 				8BD09CA02629AB0700A4C301 /* SingleValueViewController.swift */,
 				8BC2656E279186C400C23415 /* MultipleChoiceViewController.swift */,
 				8BD09C9D2629AA4E00A4C301 /* TimecodeViewController.swift */,
@@ -397,7 +385,6 @@
 				8BF78510257A2EB000E7BAF8 /* ConnectButton.swift in Sources */,
 				8B932C5424DEE8E00089EB8F /* JPEGVideoDecoder.swift in Sources */,
 				8BD09C992629AA1900A4C301 /* Tentacle.swift in Sources */,
-				8BC2656D2790799500C23415 /* LiveLink.swift in Sources */,
 				8B932C6B24E284EC0089EB8F /* OSCPacket.swift in Sources */,
 				8BD53B18258E2F2B00E1121E /* EULAViewController.swift in Sources */,
 				8BD53B1D258E312500E1121E /* ObjCUtility.m in Sources */,
@@ -412,7 +399,6 @@
 				8BA84E2625763C11007EAA7B /* LogViewController.swift in Sources */,
 				8B05A926275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift in Sources */,
 				8BD09CA12629AB0700A4C301 /* SingleValueViewController.swift in Sources */,
-				8BC26579279FFFE400C23415 /* LiveLinkViewController.swift in Sources */,
 				8B932C6924E284EC0089EB8F /* OSCUtility.swift in Sources */,
 				8B932C6C24E284EC0089EB8F /* OSCTCPConnection.swift in Sources */,
 				8BD09C9F2629AA4E00A4C301 /* TimecodeViewController.swift in Sources */,
@@ -619,7 +605,7 @@
 				CODE_SIGN_ENTITLEMENTS = vcam/VCAM.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development: Brian Smith (H95H5LFFKT)";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 96DBZ92D3Y;
 				ENABLE_BITCODE = NO;
@@ -629,7 +615,7 @@
 				INFOPLIST_FILE = vcam/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.1.0;
 				OTHER_CFLAGS = (
 					"-DUE_BUILD_SHIPPING=1",
 					"-DIS_MONOLITHIC=1",
@@ -660,7 +646,7 @@
 				CODE_SIGN_ENTITLEMENTS = vcam/VCAM.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Distribution: Epic Games International, S.a.r.l. (96DBZ92D3Y)";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 1;
 				DEFINES_MODULE = NO;
 				DEVELOPMENT_TEAM = 96DBZ92D3Y;
 				ENABLE_BITCODE = NO;
@@ -670,7 +656,7 @@
 				INFOPLIST_FILE = vcam/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.1.0;
 				OTHER_CFLAGS = (
 					"-DUE_BUILD_SHIPPING=1",
 					"-DIS_MONOLITHIC=1",
