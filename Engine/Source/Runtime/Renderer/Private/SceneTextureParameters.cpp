@@ -6,9 +6,9 @@
 #include "SceneTextures.h"
 #include "SystemTextures.h"
 
-FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder)
+FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	return GetSceneTextureParameters(GraphBuilder, FSceneTextures::Get(GraphBuilder));
+	return GetSceneTextureParameters(GraphBuilder, View.GetSceneTextures());
 }
 
 FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures)

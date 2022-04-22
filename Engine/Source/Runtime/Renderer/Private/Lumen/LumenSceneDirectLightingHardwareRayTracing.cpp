@@ -180,7 +180,7 @@ void SetLumenHardwareRayTracedDirectLightingShadowsParameters(
 {
 	SetLumenHardwareRayTracingSharedParameters(
 		GraphBuilder,
-		GetSceneTextureParameters(GraphBuilder),
+		GetSceneTextureParameters(GraphBuilder, View),
 		View,
 		TracingInputs,
 		&Parameters->SharedParameters

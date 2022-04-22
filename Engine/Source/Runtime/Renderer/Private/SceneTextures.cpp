@@ -541,9 +541,9 @@ ENUM_CLASS_FLAGS(FSceneTextureExtentState::ERenderTargetHistory);
 
 FSceneTexturesConfig FSceneTexturesConfig::GlobalInstance;
 
-FSceneTexturesConfig FSceneTexturesConfig::Create(const FSceneViewFamily& ViewFamily)
+void FSceneTexturesConfig::InitializeViewFamily(FViewFamilyInfo& ViewFamily)
 {
-	FSceneTexturesConfig Config;
+	FSceneTexturesConfig& Config = ViewFamily.SceneTexturesConfig;
 	Config.FeatureLevel = ViewFamily.GetFeatureLevel();
 	Config.ShadingPath = FSceneInterface::GetShadingPath(Config.FeatureLevel);
 	Config.ShaderPlatform = GetFeatureLevelShaderPlatform(Config.FeatureLevel);
@@ -580,32 +580,43 @@ FSceneTexturesConfig FSceneTexturesConfig::Create(const FSceneViewFamily& ViewFa
 		const FGBufferParams GBufferParams = FShaderCompileUtilities::FetchGBufferParamsRuntime(Config.ShaderPlatform);
 
 		// GBuffer configuration information is expensive to compute, the results are cached between runs.
-		if (!IsSceneTexturesValid() || GlobalInstance.GBufferParams != GBufferParams)
+		struct FGBufferBindingCache
+		{
+			FGBufferParams GBufferParams;
+			FGBufferBinding GBufferA;
+			FGBufferBinding GBufferB;
+			FGBufferBinding GBufferC;
+			FGBufferBinding GBufferD;
+			FGBufferBinding GBufferE;
+			FGBufferBinding GBufferVelocity;
+			bool bInitialized = false;
+		};
+		static FGBufferBindingCache BindingCache;
+
+		if (!BindingCache.bInitialized || BindingCache.GBufferParams != GBufferParams)
 		{
 			const FGBufferInfo GBufferInfo = FetchFullGBufferInfo(GBufferParams);
 
-			Config.GBufferA = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferA"));
-			Config.GBufferB = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferB"));
-			Config.GBufferC = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferC"));
-			Config.GBufferD = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferD"));
-			Config.GBufferE = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferE"));
-			Config.GBufferVelocity = FindGBufferBindingByName(GBufferInfo, TEXT("Velocity"));
+			BindingCache.GBufferParams = GBufferParams;
+			BindingCache.GBufferA = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferA"));
+			BindingCache.GBufferB = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferB"));
+			BindingCache.GBufferC = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferC"));
+			BindingCache.GBufferD = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferD"));
+			BindingCache.GBufferE = FindGBufferBindingByName(GBufferInfo, TEXT("GBufferE"));
+			BindingCache.GBufferVelocity = FindGBufferBindingByName(GBufferInfo, TEXT("Velocity"));
+
+			BindingCache.bInitialized = true;
 		}
-		// Same GBuffer configuration is the same, reuse results from previous config.
-		else
-		{
-			Config.GBufferA = GlobalInstance.GBufferA;
-			Config.GBufferB = GlobalInstance.GBufferB;
-			Config.GBufferC = GlobalInstance.GBufferC;
-			Config.GBufferD = GlobalInstance.GBufferD;
-			Config.GBufferE = GlobalInstance.GBufferE;
-			Config.GBufferVelocity = GlobalInstance.GBufferVelocity;
-		}
+
+		Config.GBufferA = BindingCache.GBufferA;
+		Config.GBufferB = BindingCache.GBufferB;
+		Config.GBufferC = BindingCache.GBufferC;
+		Config.GBufferD = BindingCache.GBufferD;
+		Config.GBufferE = BindingCache.GBufferE;
+		Config.GBufferVelocity = BindingCache.GBufferVelocity;
 
 		Config.GBufferParams = GBufferParams;
 	}
-
-	return Config;
 }
 
 void FSceneTexturesConfig::Set(const FSceneTexturesConfig& Config)
@@ -618,11 +629,14 @@ const FSceneTexturesConfig& FSceneTexturesConfig::Get()
 	return GlobalInstance;
 }
 
-FSceneTextures& FMinimalSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& Config)
+void FMinimalSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamilyInfo& ViewFamily)
 {
-	checkf(IsSceneTexturesValid(), TEXT("Attempted to create scene textures with an empty config."));
+	const FSceneTexturesConfig& Config = ViewFamily.SceneTexturesConfig;
+	FSceneTextures& SceneTextures = ViewFamily.SceneTextures;
 
-	FSceneTextures& SceneTextures = GraphBuilder.Blackboard.Create<FSceneTextures>(Config);
+	checkf(Config.IsValid(), TEXT("Attempted to create scene textures with an empty config."));
+
+	SceneTextures.Config = Config;
 
 	// Scene Depth
 
@@ -706,7 +720,7 @@ FSceneTextures& FMinimalSceneTextures::Create(FRDGBuilder& GraphBuilder, const F
 	// Custom Depth
 	SceneTextures.CustomDepth = FCustomDepthTextures::Create(GraphBuilder, Config.Extent, Config.FeatureLevel, Config.CustomDepthDownsampleFactor);
 
-	return SceneTextures;
+	ViewFamily.bIsSceneTexturesInitialized = true;
 }
 
 FSceneTextureShaderParameters FMinimalSceneTextures::GetSceneTextureShaderParameters(ERHIFeatureLevel::Type FeatureLevel) const
@@ -723,9 +737,12 @@ FSceneTextureShaderParameters FMinimalSceneTextures::GetSceneTextureShaderParame
 	return OutSceneTextureShaderParameters;
 }
 
-FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTexturesConfig& Config)
+void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamilyInfo& ViewFamily)
 {
-	FSceneTextures& SceneTextures = FMinimalSceneTextures::Create(GraphBuilder, Config);
+	const FSceneTexturesConfig& Config = ViewFamily.SceneTexturesConfig;
+	FSceneTextures& SceneTextures = ViewFamily.SceneTextures;
+
+	FMinimalSceneTextures::InitializeViewFamily(GraphBuilder, ViewFamily);
 
 	if (Config.ShadingPath == EShadingPath::Deferred)
 	{
@@ -844,15 +861,6 @@ FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTe
 		SceneTextures.QuadOverdraw = GraphBuilder.CreateTexture(QuadOverdrawDesc, TEXT("QuadOverdrawTexture"));
 	}
 #endif
-
-	return SceneTextures;
-}
-
-const FSceneTextures& FSceneTextures::Get(FRDGBuilder& GraphBuilder)
-{
-	const FSceneTextures* SceneTextures = GraphBuilder.Blackboard.Get<FSceneTextures>();
-	checkf(SceneTextures, TEXT("FSceneTextures was not initialized. Call FSceneTextures::Create() first."));
-	return *SceneTextures;
 }
 
 uint32 FSceneTextures::GetGBufferRenderTargets(TStaticArray<FTextureRenderTargetBinding, MaxSimultaneousRenderTargets>& RenderTargets) const
@@ -950,7 +958,7 @@ void FSceneTextureExtracts::QueueExtractions(FRDGBuilder& GraphBuilder, const FS
 	// uniform buffer will reference all extracted textures. No transitions will be required since the textures are left
 	// in a shader resource state.
 	auto* PassParameters = GraphBuilder.AllocParameters<FSceneTextureShaderParameters>();
-	*PassParameters = CreateSceneTextureShaderParameters(GraphBuilder, SceneTextures.Config.FeatureLevel, SetupMode);
+	*PassParameters = CreateSceneTextureShaderParameters(GraphBuilder, &SceneTextures, SceneTextures.Config.FeatureLevel, SetupMode);
 
 	// We want these textures in a SRV Compute | Raster state.
 	const ERDGPassFlags PassFlags = ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::Compute | ERDGPassFlags::NeverCull;
@@ -993,6 +1001,7 @@ void QueueSceneTextureExtractions(FRDGBuilder& GraphBuilder, const FSceneTexture
 
 void SetupSceneTextureUniformParameters(
 	FRDGBuilder& GraphBuilder,
+	const FSceneTextures* SceneTextures,
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode,
 	FSceneTextureUniformParameters& SceneTextureParameters)
@@ -1013,7 +1022,7 @@ void SetupSceneTextureUniformParameters(
 	SceneTextureParameters.CustomDepthTexture = SystemTextures.DepthDummy;
 	SceneTextureParameters.CustomStencilTexture = SystemTextures.StencilDummySRV;
 
-	if (const FSceneTextures* SceneTextures = GraphBuilder.Blackboard.Get<FSceneTextures>())
+	if (SceneTextures)
 	{
 		const EShaderPlatform ShaderPlatform = SceneTextures->Config.ShaderPlatform;
 
@@ -1085,12 +1094,13 @@ void SetupSceneTextureUniformParameters(
 
 TRDGUniformBufferRef<FSceneTextureUniformParameters> CreateSceneTextureUniformBuffer(
 	FRDGBuilder& GraphBuilder,
+	const FSceneTextures* SceneTextures,
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode)
 {
-	FSceneTextureUniformParameters* SceneTextures = GraphBuilder.AllocParameters<FSceneTextureUniformParameters>();
-	SetupSceneTextureUniformParameters(GraphBuilder, FeatureLevel, SetupMode, *SceneTextures);
-	return GraphBuilder.CreateUniformBuffer(SceneTextures);
+	FSceneTextureUniformParameters* SceneTexturesParameters = GraphBuilder.AllocParameters<FSceneTextureUniformParameters>();
+	SetupSceneTextureUniformParameters(GraphBuilder, SceneTextures, FeatureLevel, SetupMode, *SceneTexturesParameters);
+	return GraphBuilder.CreateUniformBuffer(SceneTexturesParameters);
 }
 
 EMobileSceneTextureSetupMode Translate(ESceneTextureSetupMode InSetupMode)
@@ -1109,6 +1119,7 @@ EMobileSceneTextureSetupMode Translate(ESceneTextureSetupMode InSetupMode)
 
 void SetupMobileSceneTextureUniformParameters(
 	FRDGBuilder& GraphBuilder,
+	const FSceneTextures* SceneTextures,
 	EMobileSceneTextureSetupMode SetupMode,
 	FMobileSceneTextureUniformParameters& SceneTextureParameters)
 {
@@ -1139,7 +1150,7 @@ void SetupMobileSceneTextureUniformParameters(
 	SceneTextureParameters.GBufferDTextureSampler = TStaticSamplerState<>::GetRHI();
 	SceneTextureParameters.SceneDepthAuxTextureSampler = TStaticSamplerState<>::GetRHI();
 
-	if (const FSceneTextures* SceneTextures = GraphBuilder.Blackboard.Get<FSceneTextures>())
+	if (SceneTextures)
 	{
 		if (EnumHasAnyFlags(SetupMode, EMobileSceneTextureSetupMode::SceneColor) && HasBeenProduced(SceneTextures->Color.Resolve))
 		{
@@ -1220,38 +1231,45 @@ void SetupMobileSceneTextureUniformParameters(
 
 TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> CreateMobileSceneTextureUniformBuffer(
 	FRDGBuilder& GraphBuilder,
+	const FSceneTextures* SceneTextures,
 	EMobileSceneTextureSetupMode SetupMode)
 {
-	FMobileSceneTextureUniformParameters* SceneTextures = GraphBuilder.AllocParameters<FMobileSceneTextureUniformParameters>();
-	SetupMobileSceneTextureUniformParameters(GraphBuilder, SetupMode, *SceneTextures);
-	return GraphBuilder.CreateUniformBuffer(SceneTextures);
+	FMobileSceneTextureUniformParameters* SceneTexturesParameters = GraphBuilder.AllocParameters<FMobileSceneTextureUniformParameters>();
+	SetupMobileSceneTextureUniformParameters(GraphBuilder, SceneTextures, SetupMode, *SceneTexturesParameters);
+	return GraphBuilder.CreateUniformBuffer(SceneTexturesParameters);
 }
 
 FSceneTextureShaderParameters CreateSceneTextureShaderParameters(
 	FRDGBuilder& GraphBuilder,
+	const FSceneTextures* SceneTextures,
 	ERHIFeatureLevel::Type FeatureLevel,
 	ESceneTextureSetupMode SetupMode)
 {
 	FSceneTextureShaderParameters Parameters;
 	if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
 	{
-		Parameters.SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, SetupMode);
+		Parameters.SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, SceneTextures, FeatureLevel, SetupMode);
 	}
 	else if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
 	{
-		Parameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, Translate(SetupMode));
+		Parameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures, Translate(SetupMode));
 	}
 	return Parameters;
 }
 
 bool IsSceneTexturesValid()
 {
-	return FSceneTexturesConfig::Get().ShadingPath != EShadingPath::Num;
+	return FSceneTexturesConfig::Get().IsValid();
 }
 
 FIntPoint GetSceneTextureExtent()
 {
 	return FSceneTexturesConfig::Get().Extent;
+}
+
+FIntPoint GetSceneTextureExtentFromView(const FViewInfo& View)
+{
+	return View.GetSceneTexturesConfig().Extent;
 }
 
 ERHIFeatureLevel::Type GetSceneTextureFeatureLevel()

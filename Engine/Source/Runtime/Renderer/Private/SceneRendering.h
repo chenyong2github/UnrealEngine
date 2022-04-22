@@ -39,6 +39,7 @@
 #include "Strata/Strata.h"
 #include "GPUScene.h"
 #include "CanvasTypes.h"
+#include "SceneTextures.h"
 
 // Forward declarations.
 class FScene;
@@ -1685,6 +1686,11 @@ public:
 	// @return range (start is inclusive, end is exclusive)
 	FInt32Range GetDynamicMeshElementRange(uint32 PrimitiveIndex) const;
 
+	/** Get scene textures or config from the view family associated with this view */
+	const FSceneTexturesConfig& GetSceneTexturesConfig() const;
+	const FSceneTextures& GetSceneTextures() const;
+	const FSceneTextures* GetSceneTexturesChecked() const;
+
 	/**
 	 * Collector for view-dependent data.
 	 */
@@ -1868,11 +1874,33 @@ public:
 
 	bool bShadowDepthRenderCompleted;
 
+	bool bIsSceneTexturesInitialized = false;
+
 	/** Lights added if wholescenepointlight shadow would have been rendered (ignoring r.SupportPointLightWholeSceneShadows). Used for warning about unsupported features. */	
 	TArray<FString, SceneRenderingAllocator> UsedWholeScenePointLightNames;
 
 	/** Size of the family. */
 	FIntPoint FamilySize;
+
+	FSceneTexturesConfig SceneTexturesConfig;
+
+	/** Get scene textures associated with this view family -- asserts or checks that they have been initialized */
+	inline FSceneTextures& GetSceneTextures()
+	{
+		checkf(bIsSceneTexturesInitialized, TEXT("FSceneTextures was not initialized. Call FSceneTextures::InitializeViewFamily() first."));
+		return SceneTextures;
+	}
+
+	inline FSceneTextures* GetSceneTexturesChecked()
+	{
+		return bIsSceneTexturesInitialized ? &SceneTextures : nullptr;
+	}
+
+private:
+	friend struct FMinimalSceneTextures;
+	friend struct FSceneTextures;
+
+	FSceneTextures SceneTextures;
 };
 
 /**
@@ -2042,6 +2070,9 @@ public:
 	}
 
 	void SetActiveViewFamily(FViewFamilyInfo& ViewFamily);
+
+	FORCEINLINE FSceneTextures& GetActiveSceneTextures() const { return ActiveViewFamily->GetSceneTextures(); }
+	FORCEINLINE FSceneTexturesConfig& GetActiveSceneTexturesConfig() const { return ActiveViewFamily->SceneTexturesConfig; }
 
 protected:
 
@@ -2606,3 +2637,36 @@ void VirtualTextureFeedbackEnd(FRDGBuilder& GraphBuilder);
 
 /** Creates a half resolution checkerboard min / max depth buffer from the input full resolution depth buffer. */
 FRDGTextureRef CreateHalfResolutionDepthCheckerboardMinMax(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, FRDGTextureRef SceneDepth);
+
+inline const FSceneTexturesConfig& FViewInfo::GetSceneTexturesConfig() const
+{
+	return ((const FViewFamilyInfo*)Family)->SceneTexturesConfig;
+}
+
+inline const FSceneTextures& FViewInfo::GetSceneTextures() const
+{
+	return ((FViewFamilyInfo*)Family)->GetSceneTextures();
+}
+
+inline const FSceneTextures* FViewInfo::GetSceneTexturesChecked() const
+{
+	return ((FViewFamilyInfo*)Family)->GetSceneTexturesChecked();
+}
+
+/**
+  * Returns a family from an array of views, with the assumption that all point to the same view family, which will be
+  * true for the "Views" array in the scene renderer, initialized by SetActiveViewFamily.  There are some utility functions
+  * that receive the Views array, rather than the renderer itself, and this avoids confusing code that accesses Views[0],
+  * in addition to validating the assumption that all Views have the same Family.
+  */
+inline FViewFamilyInfo& GetViewFamily(const TArrayView<FViewInfo>& Views)
+{
+	check(Views.Num() == 1 || Views[0].Family == Views.Last().Family);
+	return *(FViewFamilyInfo*)Views[0].Family;
+}
+
+inline FViewFamilyInfo& GetViewFamily(const TArrayView<const FViewInfo>& Views)
+{
+	check(Views.Num() == 1 || Views[0].Family == Views.Last().Family);
+	return *(FViewFamilyInfo*)Views[0].Family;
+}

@@ -1955,7 +1955,7 @@ void UpdateRadianceCaches(
 				RenderLumenHardwareRayTracingRadianceCache(
 					GraphBuilder,
 					Scene,
-					GetSceneTextureParameters(GraphBuilder),
+					GetSceneTextureParameters(GraphBuilder, View),
 					View,
 					Inputs.TracingInputs,
 					RadianceCacheParameters,

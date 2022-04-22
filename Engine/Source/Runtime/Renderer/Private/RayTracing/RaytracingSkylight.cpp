@@ -417,7 +417,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	FRDGTextureUAV* RayDistanceUAV = GraphBuilder.CreateUAV(OutHitDistanceTexture);
 
 	// Fill Scene Texture parameters
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, Views[0]);
 
 	int32 ViewIndex = 0;
 	for (FViewInfo& View : Views)
@@ -768,7 +768,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 		View.ViewRect.Min.X, View.ViewRect.Min.Y,
 		View.ViewRect.Width(), View.ViewRect.Height(),
 		FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
-		GetSceneTextureExtent(),
+		View.GetSceneTexturesConfig().Extent,
 		VertexShader);
 	RHICmdList.EndRenderPass();
 	GVisualizeTexture.SetCheckPoint(RHICmdList, SkyLightMipTreeRT);

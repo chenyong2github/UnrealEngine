@@ -780,7 +780,7 @@ void VisualizeLumenScene(
 		LumenVisualize::VisualizeHardwareRayTracing(
 			GraphBuilder,
 			Scene,
-			GetSceneTextureParameters(GraphBuilder),
+			GetSceneTextureParameters(GraphBuilder, View),
 			View,
 			TracingInputs,
 			IndirectTracingParameters,

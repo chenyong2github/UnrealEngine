@@ -1275,7 +1275,7 @@ void FViewInfo::SetupUniformBufferParameters(
 {
 	check(Family);
 
-	const FSceneTexturesConfig& SceneTexturesConfig = FSceneTexturesConfig::Get();
+	const FSceneTexturesConfig& SceneTexturesConfig = GetSceneTexturesConfig();
 
 	// Create the view's uniform buffer.
 

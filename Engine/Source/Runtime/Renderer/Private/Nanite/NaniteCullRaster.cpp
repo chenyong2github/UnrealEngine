@@ -3106,7 +3106,7 @@ void CullRasterize(
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "BuildPreviousOccluderHZB");
 			
-			FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+			FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneView);
 
 			FRDGTextureRef SceneDepth = SceneTextures.SceneDepthTexture;
 			FRDGTextureRef RasterizedDepth = RasterContext.VisBuffer64;

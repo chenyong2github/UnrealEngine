@@ -281,7 +281,7 @@ FScreenPassTexture AddEditorPrimitivePass(
 	check(Inputs.SceneDepth.IsValid());
 	check(Inputs.BasePassType != FEditorPrimitiveInputs::EBasePassType::MAX);
 
-	const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+	const FSceneTextures& SceneTextures = View.GetSceneTextures();
 	const uint32 NumSamples = SceneTextures.Config.EditorPrimitiveNumSamples;
 	const FViewInfo* EditorView = CreateEditorPrimitiveView(View, Inputs.SceneColor.ViewRect, NumSamples);
 

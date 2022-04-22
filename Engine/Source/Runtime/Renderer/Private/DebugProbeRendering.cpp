@@ -144,7 +144,7 @@ void StampDeferredDebugProbeMaterialPS(
 		{
 			// Make sure we do not write depth so that we can safely read it from texture parameters
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding();
-			PassParameters->SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, View.GetFeatureLevel(), ESceneTextureSetupMode::SceneDepth);
+			PassParameters->SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, View.GetSceneTexturesChecked(), View.GetFeatureLevel(), ESceneTextureSetupMode::SceneDepth);
 
 			CommonStampDeferredDebugProbeDrawCall<false, CF_Always>(GraphBuilder, View, PassParameters, RENDER_BASEPASS);
 		}

@@ -159,9 +159,9 @@ int32 GetCapsuleShadowDownsampleFactor()
 	return GCapsuleShadowsFullResolution ? 1 : 2;
 }
 
-FIntPoint GetBufferSizeForCapsuleShadows()
+FIntPoint GetBufferSizeForCapsuleShadows(const FViewInfo& View)
 {
-	return FIntPoint::DivideAndRoundDown(GetSceneTextureExtent(), GetCapsuleShadowDownsampleFactor());
+	return FIntPoint::DivideAndRoundDown(View.GetSceneTexturesConfig().Extent, GetCapsuleShadowDownsampleFactor());
 }
 
 enum class ECapsuleShadowingType
@@ -500,7 +500,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 	FRDGTextureRef RayTracedShadowsRT = nullptr;
 
 	{
-		const FIntPoint BufferSize = GetBufferSizeForCapsuleShadows();
+		const FIntPoint BufferSize = GetBufferSizeForCapsuleShadows(Views[0]);
 		const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(BufferSize, PF_G16R16F, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_UAV));
 		RayTracedShadowsRT = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
 	}
@@ -985,7 +985,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(FRDGBuilder& Gr
 	FRDGTextureRef RayTracedShadowsRT = nullptr;
 
 	{
-		const FIntPoint BufferSize = GetBufferSizeForCapsuleShadows();
+		const FIntPoint BufferSize = GetBufferSizeForCapsuleShadows(Views[0]);
 		const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(BufferSize, PF_G16R16F, FClearValueBinding::None, TexCreate_RenderTargetable | TexCreate_UAV));
 		// Reuse temporary target from RTDF shadows
 		RayTracedShadowsRT = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
@@ -1230,7 +1230,7 @@ void FDeferredShadingSceneRenderer::RenderCapsuleShadowsForMovableSkylight(
 		if (bAnyViewsUseCapsuleShadows)
 		{
 			FRDGTextureRef NewBentNormal = nullptr;
-			AllocateOrReuseAORenderTarget(GraphBuilder, NewBentNormal, TEXT("CapsuleBentNormal"), PF_FloatRGBA);
+			AllocateOrReuseAORenderTarget(GraphBuilder, Views[0], NewBentNormal, TEXT("CapsuleBentNormal"), PF_FloatRGBA);
 
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{

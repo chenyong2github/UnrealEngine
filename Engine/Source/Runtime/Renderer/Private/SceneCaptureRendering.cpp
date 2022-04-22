@@ -251,7 +251,7 @@ void CopySceneCaptureComponentToTarget(
 						View.ViewRect.Min.X, View.ViewRect.Height() - View.ViewRect.Min.Y,
 						View.ViewRect.Width(), -View.ViewRect.Height(),
 						View.UnconstrainedViewRect.Size(),
-						GetSceneTextureExtent(),
+						View.GetSceneTexturesConfig().Extent,
 						VertexShader,
 						EDRF_UseTriangleOptimization);
 				}
@@ -265,7 +265,7 @@ void CopySceneCaptureComponentToTarget(
 						View.ViewRect.Min.X, View.ViewRect.Min.Y,
 						View.ViewRect.Width(), View.ViewRect.Height(),
 						View.UnconstrainedViewRect.Size(),
-						GetSceneTextureExtent(),
+						View.GetSceneTexturesConfig().Extent,
 						VertexShader,
 						EDRF_UseTriangleOptimization);
 				}
@@ -506,7 +506,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 		}
 
 		FRDGTextureRef OutputTexture = RegisterExternalTexture(GraphBuilder, Target->GetRenderTargetTexture(), TEXT("OutputTexture"));
-		const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+		const FMinimalSceneTextures& SceneTextures = SceneRenderer->GetActiveSceneTextures();
 
 		const FIntPoint TargetSize(UnconstrainedViewRect.Width(), UnconstrainedViewRect.Height());
 		{

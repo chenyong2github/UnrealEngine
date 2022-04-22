@@ -119,7 +119,7 @@ FScreenPassTexture AddVisualizeComplexityPass(FRDGBuilder& GraphBuilder, const F
 
 	PassParameters->MiniFontTexture = GetMiniFontTexture();
 
-	const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+	const FSceneTextures& SceneTextures = View.GetSceneTextures();
 	const EDebugViewShaderMode DebugViewShaderMode = View.Family->GetDebugViewShaderMode();
 
 	PassParameters->DebugViewShaderMode = DVSM_ShaderComplexity;

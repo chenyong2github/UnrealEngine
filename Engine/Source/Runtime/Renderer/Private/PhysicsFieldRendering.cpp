@@ -92,7 +92,7 @@ static FPhysicsFieldRayMarchingCS::FParameters* CreateShaderParameters(FRDGBuild
 	FRDGTextureRef& OutputTexture, const int32 TargetIndex)
 {
 	const FIntPoint OutputResolution(OutputTexture->Desc.Extent);
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 	FPhysicsFieldRayMarchingCS::FParameters* Parameters = GraphBuilder.AllocParameters<FPhysicsFieldRayMarchingCS::FParameters>();
 	Parameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
@@ -124,7 +124,7 @@ static void AddPhysicsFieldRayMarchingPass(
 	const FPhysicsFieldResource* PhysicsFieldResource,
 	FRDGTextureRef& OutputTexture)
 {
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 	const FIntPoint OutputResolution(OutputTexture->Desc.Extent);
 	if(GPhysicsFieldTargetType < EFieldPhysicsType::Field_PhysicsType_Max)

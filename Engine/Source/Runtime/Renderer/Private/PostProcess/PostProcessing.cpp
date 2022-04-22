@@ -2469,7 +2469,7 @@ FRDGTextureRef AddProcessPlanarReflectionPass(
 	{
 		check(ViewState);
 
-		FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+		FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 		const FTemporalAAHistory& InputHistory = View.PrevViewInfo.TemporalAAHistory;
 		FTemporalAAHistory* OutputHistory = &ViewState->PrevFrameViewInfo.TemporalAAHistory;

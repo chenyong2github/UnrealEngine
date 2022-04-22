@@ -991,7 +991,7 @@ void CullMeshObjectsToViewGrid(
 
 	{
 		// Allocate buffers using scene render targets size so we won't reallocate every frame with dynamic resolution
-		const FIntPoint BufferSize = GetSceneTextureExtent();
+		const FIntPoint BufferSize = View.GetSceneTexturesConfig().Extent;
 		const FIntPoint MaxCardGridSizeXY = FIntPoint::DivideAndRoundUp(BufferSize, GridPixelsPerCellXY);
 		MaxCullGridCells = MaxCardGridSizeXY.X * MaxCardGridSizeXY.Y * GridSizeZ;
 		ensure(MaxCullGridCells >= NumCullGridCells);

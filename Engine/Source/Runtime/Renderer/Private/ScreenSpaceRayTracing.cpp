@@ -1068,7 +1068,7 @@ void RenderScreenSpaceReflections(
 	// Alloc inputs for denoising.
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-			GetSceneTextureExtent(),
+			View.GetSceneTexturesConfig().Extent,
 			PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
 			TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV);
 

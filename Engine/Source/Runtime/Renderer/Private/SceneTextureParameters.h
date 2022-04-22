@@ -20,7 +20,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSceneTextureParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 /** Constructs scene texture parameters from the scene context. */
-FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder);
+FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
 /** Constructs scene texture parameters from the scene texture blackboard struct. */
 FSceneTextureParameters GetSceneTextureParameters(FRDGBuilder& GraphBuilder, const FSceneTextures& SceneTextures);

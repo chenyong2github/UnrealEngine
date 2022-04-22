@@ -18,7 +18,7 @@ void FNiagaraRenderViewDataManager::PostOpaqueRender(FPostOpaqueRenderParameters
 	Parameters.Velocity = Params.VelocityTexture;
 }
 
-void FNiagaraRenderViewDataManager::GetSceneTextureParameters(FRDGBuilder& GraphBuilder, FNiagaraSceneTextureParameters& OutParameters) const
+void FNiagaraRenderViewDataManager::GetSceneTextureParameters(FRDGBuilder& GraphBuilder, const FSceneTextures* SceneTextures, FNiagaraSceneTextureParameters& OutParameters) const
 {
 	OutParameters = Parameters;
 
@@ -27,7 +27,7 @@ void FNiagaraRenderViewDataManager::GetSceneTextureParameters(FRDGBuilder& Graph
 	{
 		if ( !Parameters.SceneTextures )
 		{
-			OutParameters.SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, LocalFeatureLevel, ESceneTextureSetupMode::SceneVelocity);
+			OutParameters.SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, SceneTextures, LocalFeatureLevel, ESceneTextureSetupMode::SceneVelocity);
 		}
 		OutParameters.MobileSceneTextures = nullptr;
 		OutParameters.Depth = Parameters.Depth;
@@ -38,7 +38,7 @@ void FNiagaraRenderViewDataManager::GetSceneTextureParameters(FRDGBuilder& Graph
 	{
 		if ( !Parameters.MobileSceneTextures )
 		{
-			OutParameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, EMobileSceneTextureSetupMode::None);
+			OutParameters.MobileSceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures, EMobileSceneTextureSetupMode::None);
 		}
 		OutParameters.SceneTextures = nullptr;
 		// These will not work correctly, all scene textures should be accessed through SceneTextures UB

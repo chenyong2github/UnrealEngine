@@ -774,7 +774,7 @@ static FHairStrandsTransmittanceMaskData InternalRenderHairStrandsTransmittanceM
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsTransmittanceMask);
 
 	// Note: GbufferB.a store the shading model on the 4 lower bits (MATERIAL_SHADINGMODEL_HAIR)
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 	bool bHasFoundLight = false;
 	if (!IsHairStrandsForVoxelTransmittanceAndShadowEnable())
@@ -870,7 +870,7 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsOnePassTransmittanceMask(
 		if (HairStrands::HasViewHairStrandsVoxelData(View))
 		{
 			// Note: GbufferB.a store the shading model on the 4 lower bits (MATERIAL_SHADINGMODEL_HAIR)
-			FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+			FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 			FHairStrandsTransmittanceLightParams DummyParams;
 
 			Out.TransmittanceMask = AddHairStrandsVoxelTransmittanceMaskPass(
@@ -934,7 +934,7 @@ static void InternalRenderHairStrandsShadowMask(
 	DECLARE_GPU_STAT(HairStrandsOpaqueMask);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrands::OpaqueShadowMask");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsOpaqueMask);
-	const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+	const FMinimalSceneTextures& SceneTextures = View.GetSceneTextures();
 
 	bool bHasDeepShadow = false;
 	if (!IsHairStrandsForVoxelTransmittanceAndShadowEnable())

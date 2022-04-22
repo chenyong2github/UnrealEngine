@@ -179,7 +179,7 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyPS,TEXT("/Engine/Private/HitProxyPixelS
 
 #if WITH_EDITOR
 
-void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRenderer, const FSceneTexturesConfig& SceneTexturesConfig, FRDGTextureRef& OutHitProxyTexture, FRDGTextureRef& OutHitProxyDepthTexture)
+void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRenderer, FRDGTextureRef& OutHitProxyTexture, FRDGTextureRef& OutHitProxyDepthTexture)
 {
 	auto& ViewFamily = *SceneRenderer->ActiveViewFamily;
 	auto FeatureLevel = ViewFamily.Scene->GetFeatureLevel();
@@ -197,7 +197,10 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, const FSceneRenderer* SceneRe
 	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
 	FRDGSystemTextures::Create(GraphBuilder);
 
-	const FMinimalSceneTextures& SceneTextures = FMinimalSceneTextures::Create(GraphBuilder, SceneTexturesConfig);
+	const FSceneTexturesConfig& SceneTexturesConfig = ViewFamily.SceneTexturesConfig;
+
+	FMinimalSceneTextures::InitializeViewFamily(GraphBuilder, ViewFamily);
+	const FMinimalSceneTextures& SceneTextures = ViewFamily.GetSceneTextures();
 
 	// Create a texture to store the resolved light attenuation values, and a render-targetable surface to hold the unresolved light attenuation values.
 	{
@@ -330,7 +333,7 @@ static void DoRenderHitProxies(
 
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(HitProxyTexture, ERenderTargetLoadAction::ELoad);
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(HitProxyDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, SceneRenderer->FeatureLevel, ESceneTextureSetupMode::None);
+		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, &SceneRenderer->GetActiveSceneTextures(), SceneRenderer->FeatureLevel, ESceneTextureSetupMode::None);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("HitProxies::Render"),
@@ -570,11 +573,13 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 #if WITH_EDITOR
-	FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(*ActiveViewFamily);
+	FSceneTexturesConfig::InitializeViewFamily(*ActiveViewFamily);
+	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
+	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
 	FRDGTextureRef HitProxyTexture = nullptr;
 	FRDGTextureRef HitProxyDepthTexture = nullptr;
-	InitHitProxyRender(GraphBuilder, this, SceneTexturesConfig, HitProxyTexture, HitProxyDepthTexture);
+	InitHitProxyRender(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture);
 
 	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(Scene->GPUScene.IsEnabled(), GraphBuilder);
 
@@ -610,13 +615,14 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 #if WITH_EDITOR
-	const FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(*ActiveViewFamily);
+	FSceneTexturesConfig::InitializeViewFamily(*ActiveViewFamily);
+	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
 	FRDGTextureRef HitProxyTexture = nullptr;
 	FRDGTextureRef HitProxyDepthTexture = nullptr;
 
-	InitHitProxyRender(GraphBuilder, this, SceneTexturesConfig, HitProxyTexture, HitProxyDepthTexture);
+	InitHitProxyRender(GraphBuilder, this, HitProxyTexture, HitProxyDepthTexture);
 
 	const FIntPoint HitProxyTextureSize = HitProxyDepthTexture->Desc.Extent;
 

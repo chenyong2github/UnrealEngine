@@ -278,7 +278,7 @@ FScreenPassTexture AddPixelInspectorPass(FRDGBuilder& GraphBuilder, const FViewI
 
 	// Perform copies of scene textures data into staging resources for visualization.
 	{
-		FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+		FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 		// GBufferF is optional, so it may be a dummy texture. Revert it to null if so.
 		if (SceneTextures.GBufferFTexture->Desc.Extent != Inputs.OriginalSceneColor.Texture->Desc.Extent)

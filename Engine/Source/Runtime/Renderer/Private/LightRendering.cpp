@@ -230,7 +230,7 @@ FDeferredLightVS::FParameters FDeferredLightVS::GetParameters(const FViewInfo& V
 		View.ViewRect.Min.X, View.ViewRect.Min.Y,
 		View.ViewRect.Width(), View.ViewRect.Height(),
 		View.ViewRect.Size(),
-		GetSceneTextureExtent());
+		View.GetSceneTexturesConfig().Extent);
 
 	return Out;
 }
@@ -2017,7 +2017,7 @@ static void InternalRenderLight(
 					View.ViewRect.Min.X, View.ViewRect.Min.Y,	
 					View.ViewRect.Width(), View.ViewRect.Height(),
 					View.ViewRect.Size(),
-					GetSceneTextureExtent(),
+					View.GetSceneTexturesConfig().Extent,
 					VertexShader,
 					EDRF_UseTriangleOptimization);
 			}

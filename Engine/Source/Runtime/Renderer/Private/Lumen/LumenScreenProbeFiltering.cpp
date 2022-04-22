@@ -482,7 +482,7 @@ void FilterScreenProbes(
 		PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 		PassParameters->HistoryScreenPositionScaleBias = ScreenProbeGatherState.ProbeHistoryScreenPositionScaleBias;
 
-		const FIntPoint SceneTexturesExtent = GetSceneTextureExtent();
+		const FIntPoint SceneTexturesExtent = View.GetSceneTexturesConfig().Extent;
 		const FVector2D InvBufferSize(1.0f / SceneTexturesExtent.X, 1.0f / SceneTexturesExtent.Y);
 
 		// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
@@ -555,7 +555,7 @@ void FilterScreenProbes(
 		ScreenProbeGatherWriteableState.HistoryScreenProbeSceneDepth = GraphBuilder.ConvertToExternalTexture(ScreenProbeParameters.ScreenProbeSceneDepth);
 		ScreenProbeGatherWriteableState.HistoryScreenProbeTranslatedWorldPosition = GraphBuilder.ConvertToExternalTexture(ScreenProbeParameters.ScreenProbeTranslatedWorldPosition);
 		ScreenProbeGatherWriteableState.ProbeHistoryViewRect = View.ViewRect;
-		ScreenProbeGatherWriteableState.ProbeHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(GetSceneTextureExtent(), View.ViewRect);
+		ScreenProbeGatherWriteableState.ProbeHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(View.GetSceneTexturesConfig().Extent, View.ViewRect);
 	}
 
 	const uint32 ConvertToSHThreadGroupSize = FScreenProbeConvertToIrradianceCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution);

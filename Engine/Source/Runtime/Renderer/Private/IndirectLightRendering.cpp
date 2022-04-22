@@ -1293,7 +1293,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 						View.ViewRect.Min.X, View.ViewRect.Min.Y,
 						View.ViewRect.Width(), View.ViewRect.Height(),
 						View.ViewRect.Size(),
-						GetSceneTextureExtent(),
+						View.GetSceneTexturesConfig().Extent,
 						VertexShader,
 						View.StereoViewIndex,
 						false, // TODO.
@@ -1337,7 +1337,7 @@ static void AddSkyReflectionPass(
 
 		// Setups all shader parameters related to distance field AO
 		{
-			FIntPoint AOBufferSize = GetBufferSizeForAO();
+			FIntPoint AOBufferSize = GetBufferSizeForAO(View);
 			PassParameters->PS.AOBufferBilinearUVMax = FVector2f(
 				(View.ViewRect.Width() / GAODownsampleFactor - 0.51f) / AOBufferSize.X, // 0.51 - so bilateral gather4 won't sample invalid texels
 				(View.ViewRect.Height() / GAODownsampleFactor - 0.51f) / AOBufferSize.Y);
@@ -1552,7 +1552,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 
 	const bool bReflectionEnv = ShouldDoReflectionEnvironment(Scene, *ActiveViewFamily);
 
-	FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 	const auto& SceneColorTexture = SceneTextures.Color;
 
 	IScreenSpaceDenoiser::FReflectionsInputs DenoiserInputs;
@@ -1829,7 +1829,7 @@ void FDeferredShadingSceneRenderer::RenderGlobalIlluminationPluginVisualizations
 		return;
 	}
 
-	const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+	const FSceneTextures& SceneTextures = GetActiveSceneTextures();
 
 	// Get the resources passed to GI plugins
 	FGlobalIlluminationPluginResources GIPluginResources;

@@ -73,7 +73,7 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FLumenScreenSpaceBentNormalParameters OutParameters;
 
 	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
-	FRDGTextureDesc ScreenBentNormalDesc(FRDGTextureDesc::Create2D(GetSceneTextureExtent(), PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	FRDGTextureDesc ScreenBentNormalDesc(FRDGTextureDesc::Create2D(View.GetSceneTexturesConfig().Extent, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FRDGTextureRef ScreenBentNormal = GraphBuilder.CreateTexture(ScreenBentNormalDesc, TEXT("Lumen.ScreenProbeGather.ScreenBentNormal"));
 
 	int32 NumPixelRays = 4;

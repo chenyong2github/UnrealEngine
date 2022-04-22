@@ -97,12 +97,12 @@ void AddStrataOpaqueRoughRefractionPasses(
 
 		if (TempTexture == nullptr)
 		{
-			TempTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(GetSceneTextureExtent(), PF_FloatRGBA, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("Strata.RoughRefrac.TempTexture"));
+			TempTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(View.GetSceneTexturesConfig().Extent, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("Strata.RoughRefrac.TempTexture"));
 		}
 
 		FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor = View.StrataViewData.SceneData->SeparatedOpaqueRoughRefractionSceneColor;
 
-		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
+		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, View);
 		FOpaqueRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueRoughRefractionPS::FParameters>();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->SceneTextures = GetSceneTextureShaderParameters(SceneTextures.UniformBuffer);
@@ -159,7 +159,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 	{
 		const FViewInfo& View = Views[ViewIndex];
 
-		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
+		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, View);
 		FOpaqueRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueRoughRefractionPS::FParameters>();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->SceneTextures = GetSceneTextureShaderParameters(SceneTextures.UniformBuffer);
@@ -217,7 +217,7 @@ void AddStrataOpaqueRoughRefractionPasses(
 
 		FRDGTextureRef SeparatedOpaqueRoughRefractionSceneColor = View.StrataViewData.SceneData->SeparatedOpaqueRoughRefractionSceneColor;
 
-		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
+		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, View);
 		FOpaqueRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FOpaqueRoughRefractionPS::FParameters>();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->SceneTextures = GetSceneTextureShaderParameters(SceneTextures.UniformBuffer);
@@ -483,7 +483,7 @@ void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, 
 			ShaderPrint::RequestSpaceForLines((TraceDomainSize * TraceDomainSize + SlabInterfaceLineCount * SlabInterfaceLineCount * 2) * 2); // overallocate * 2 for on the fly added debug
 			ShaderPrint::RequestSpaceForCharacters(256);
 
-			FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
+			FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, View);
 			FVisualizeRoughRefractionPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeRoughRefractionPS::FParameters>();
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->SampleCountTexture = SampleCountTextureSRV;

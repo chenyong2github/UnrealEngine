@@ -329,7 +329,7 @@ void GenerateImportanceSamplingRays(
 				PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
 				PassParameters->ProbeHistoryScreenPositionScaleBias = ScreenProbeGatherState.ProbeHistoryScreenPositionScaleBias;
 
-				const FIntPoint SceneTexturesExtent = GetSceneTextureExtent();
+				const FIntPoint SceneTexturesExtent = View.GetSceneTexturesConfig().Extent;
 				const FVector2D InvBufferSize(1.0f / SceneTexturesExtent.X, 1.0f / SceneTexturesExtent.Y);
 
 				// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering

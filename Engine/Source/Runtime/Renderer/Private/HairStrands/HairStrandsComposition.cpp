@@ -524,7 +524,7 @@ static void InternalRenderHairComposition(
 				const bool bWriteFullGBuffer	= View.Family->ViewMode == VMI_VisualizeBuffer || (GHairWriteGBufferData == 3);
 				if (bWriteFullGBuffer || bWritePartialGBuffer)
 				{
-					const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+					const FSceneTextures& SceneTextures = View.GetSceneTextures();
 					const FRDGTextureRef GBufferATexture = SceneTextures.GBufferA;
 					const FRDGTextureRef GBufferBTexture = SceneTextures.GBufferB;
 					const FRDGTextureRef GBufferCTexture = SceneTextures.GBufferC;

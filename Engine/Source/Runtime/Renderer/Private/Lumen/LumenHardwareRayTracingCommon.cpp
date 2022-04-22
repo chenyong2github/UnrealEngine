@@ -176,7 +176,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 )
 {
 	SharedParameters->SceneTextures = SceneTextures;
-	SharedParameters->SceneTexturesStruct = FSceneTextures::Get(GraphBuilder).UniformBuffer;
+	SharedParameters->SceneTexturesStruct = View.GetSceneTextures().UniformBuffer;
 	SharedParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 	//SharedParameters->ViewUniformBuffer = View.ViewUniformBuffer;

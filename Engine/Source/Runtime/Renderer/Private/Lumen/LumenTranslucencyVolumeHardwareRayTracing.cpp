@@ -115,7 +115,7 @@ void HardwareRayTraceTranslucencyVolume(
 
 		SetLumenHardwareRayTracingSharedParameters(
 			GraphBuilder,
-			GetSceneTextureParameters(GraphBuilder),
+			GetSceneTextureParameters(GraphBuilder, View),
 			View,
 			TracingInputs,
 			&PassParameters->SharedParameters);

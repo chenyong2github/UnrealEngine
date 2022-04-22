@@ -740,7 +740,7 @@ void LumenRadiosity::AddRadiosityPass(
 		FLumenRadiosityHardwareRayTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenRadiosityHardwareRayTracingRGS::FParameters>();
 		SetLumenHardwareRayTracingSharedParameters(
 			GraphBuilder,
-			GetSceneTextureParameters(GraphBuilder),
+			GetSceneTextureParameters(GraphBuilder, View),
 			View,
 			TracingInputs,
 			&PassParameters->SharedParameters

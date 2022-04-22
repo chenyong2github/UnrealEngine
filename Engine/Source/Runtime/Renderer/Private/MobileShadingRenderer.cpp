@@ -730,7 +730,9 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	FRHICommandListExecutor::GetImmediateCommandList().PollOcclusionQueries();
 	GraphBuilder.RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
-	FSceneTexturesConfig SceneTexturesConfig = FSceneTexturesConfig::Create(*ActiveViewFamily);
+	FSceneTexturesConfig::InitializeViewFamily(*ActiveViewFamily);
+	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
+	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
 	// Initialize global system textures (pass-through if already initialized).
 	GSystemTextures.InitializeTextures(GraphBuilder.RHICmdList, FeatureLevel);
@@ -771,7 +773,8 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLMM_SceneSim));
 
-	FSceneTextures& SceneTextures = FSceneTextures::Create(GraphBuilder, SceneTexturesConfig);
+	FSceneTextures::InitializeViewFamily(GraphBuilder, *ActiveViewFamily);
+	FSceneTextures& SceneTextures = GetActiveSceneTextures();
 
 	if (bUseVirtualTexturing)
 	{
@@ -833,7 +836,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bShouldRenderCustomDepth)
 	{
 		SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::None;
-		SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures.MobileSetupMode);
+		SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, SceneTextures.MobileSetupMode);
 
 		RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel));
 	}
@@ -852,7 +855,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 
 		SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::SceneDepth;
-		SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures.MobileSetupMode);
+		SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, SceneTextures.MobileSetupMode);
 
 		if (bRequiresShadowProjections)
 		{
@@ -883,7 +886,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::All;
 	SceneTextures.MobileSetupMode &= ~EMobileSceneTextureSetupMode::SceneVelocity;
-	SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures.MobileSetupMode);
+	SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, SceneTextures.MobileSetupMode);
 
 	if (bShouldRenderVelocities)
 	{
@@ -896,7 +899,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderVelocities(GraphBuilder, SceneTextures, EVelocityPass::Translucent, false);
 
 		SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::All;
-		SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures.MobileSetupMode);
+		SceneTextures.MobileUniformBuffer = CreateMobileSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, SceneTextures.MobileSetupMode);
 	}
 
 	FRendererModule& RendererModule = static_cast<FRendererModule&>(GetRendererModule());
@@ -930,7 +933,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 				FMobilePostProcessingInputs PostProcessingInputs;
 				PostProcessingInputs.ViewFamilyTexture = ViewFamilyTexture;
-				PostProcessingInputs.SceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, EMobileSceneTextureSetupMode::All);
+				PostProcessingInputs.SceneTextures = CreateMobileSceneTextureUniformBuffer(GraphBuilder, &SceneTextures, EMobileSceneTextureSetupMode::All);
 
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 				{
@@ -1291,7 +1294,7 @@ void MobileDeferredCopyBuffer(FRHICommandListImmediate& RHICmdList, const FViewI
 		View.ViewRect.Min.X, View.ViewRect.Min.Y,
 		View.ViewRect.Width(), View.ViewRect.Height(),
 		FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
-		FSceneTexturesConfig::Get().Extent,
+		View.GetSceneTexturesConfig().Extent,
 		VertexShader);
 }
 

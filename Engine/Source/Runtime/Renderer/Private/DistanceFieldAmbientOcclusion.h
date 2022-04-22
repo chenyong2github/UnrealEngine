@@ -22,7 +22,7 @@ const int32 GAODownsampleFactor = 2;
 
 extern const uint32 UpdateObjectsGroupSize;
 
-extern FIntPoint GetBufferSizeForAO();
+extern FIntPoint GetBufferSizeForAO(const FViewInfo& View);
 
 class FDistanceFieldAOParameters
 {

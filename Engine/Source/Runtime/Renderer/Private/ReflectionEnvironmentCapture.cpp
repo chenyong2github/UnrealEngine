@@ -541,7 +541,7 @@ void CaptureSceneToScratchCubemap(
 			PassParameters->SkyLightCaptureParameters = SkyLightParametersValue;
 		}
 
-		const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+		const FMinimalSceneTextures& SceneTextures = View.GetSceneTextures();
 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneColorSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

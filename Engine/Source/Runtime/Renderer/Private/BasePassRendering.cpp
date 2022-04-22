@@ -918,7 +918,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		RDG_EVENT_SCOPE(GraphBuilder, "BasePass_ViewExtensions");
 		auto* PassParameters = GraphBuilder.AllocParameters<FPostBasePassViewExtensionParameters>();
 		PassParameters->RenderTargets = BasePassRenderTargets;
-		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, FeatureLevel, ESceneTextureSetupMode::None);
+		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, &GetActiveSceneTextures(), FeatureLevel, ESceneTextureSetupMode::None);
 
 		GraphBuilder.AddPass(
 			{},

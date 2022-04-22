@@ -146,9 +146,9 @@ int32 GetDFShadowDownsampleFactor()
 	return GFullResolutionDFShadowing ? 1 : GAODownsampleFactor;
 }
 
-FIntPoint GetBufferSizeForDFShadows()
+FIntPoint GetBufferSizeForDFShadows(const FViewInfo& View)
 {
-	return FIntPoint::DivideAndRoundDown(GetSceneTextureExtent(), GetDFShadowDownsampleFactor());
+	return FIntPoint::DivideAndRoundDown(View.GetSceneTexturesConfig().Extent, GetDFShadowDownsampleFactor());
 }
 
 class FCullObjectsForShadowCS : public FGlobalShader
@@ -830,7 +830,7 @@ void RayTraceShadows(
 		}
 
 		PassParameters->DownsampleFactor = GetDFShadowDownsampleFactor();
-		const FIntPoint OutputBufferSize = GetBufferSizeForDFShadows();
+		const FIntPoint OutputBufferSize = GetBufferSizeForDFShadows(View);
 		PassParameters->InvOutputBufferSize = FVector2f(1.f / OutputBufferSize.X, 1.f / OutputBufferSize.Y);
 		PassParameters->ShadowFactorsTexture = PrevOutputTexture;
 		PassParameters->ShadowFactorsSampler = TStaticSamplerState<>::GetRHI();
@@ -935,7 +935,7 @@ FRDGTextureRef FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 			}
 
 			{
-				const FIntPoint BufferSize = GetBufferSizeForDFShadows();
+				const FIntPoint BufferSize = GetBufferSizeForDFShadows(View);
 				FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(BufferSize, PF_G16R16F, FClearValueBinding::None, TexCreate_UAV));
 				Desc.Flags |= GFastVRamConfig.DistanceFieldShadows;
 				SDFShadowViewGPUData.RayTracedShadowsTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));
@@ -1000,7 +1000,7 @@ FRDGTextureRef FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 
 		if (!SDFShadowViewGPUData.RayTracedShadowsTexture)
 		{
-			const FIntPoint BufferSize = GetBufferSizeForDFShadows();
+			const FIntPoint BufferSize = GetBufferSizeForDFShadows(View);
 			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(BufferSize, PF_G16R16F, FClearValueBinding::None, TexCreate_UAV));
 			Desc.Flags |= GFastVRamConfig.DistanceFieldShadows;
 			SDFShadowViewGPUData.RayTracedShadowsTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracedShadows"));

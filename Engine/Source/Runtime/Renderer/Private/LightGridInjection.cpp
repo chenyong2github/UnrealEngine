@@ -647,7 +647,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 #endif // ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 
 		// Allocate buffers using the scene render targets size so we won't reallocate every frame with dynamic resolution
-		const FIntPoint MaxLightGridSizeXY = FIntPoint::DivideAndRoundUp(GetSceneTextureExtent(), GLightGridPixelSize);
+		const FIntPoint MaxLightGridSizeXY = FIntPoint::DivideAndRoundUp(View.GetSceneTexturesConfig().Extent, GLightGridPixelSize);
 
 		const int32 MaxNumCells = MaxLightGridSizeXY.X * MaxLightGridSizeXY.Y * GLightGridSizeZ * NumCulledGridPrimitiveTypes;
 

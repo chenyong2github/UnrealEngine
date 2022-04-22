@@ -370,7 +370,7 @@ void RenderReflectionEnvironmentSkyLighting(FRHICommandListImmediate& RHICmdList
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters);
 
-		const FIntPoint TargetSize = GetSceneTextureExtent();
+		const FIntPoint TargetSize = View.GetSceneTexturesConfig().Extent;
 
 		DrawRectangle(
 			RHICmdList,
@@ -495,7 +495,7 @@ static void RenderDirectionalLight(FRHICommandListImmediate& RHICmdList, const F
 
 		FMobileDirectionalLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, LightMaterial.MaterialProxy, *LightMaterial.Material, PassParameters);
 
-		const FIntPoint TargetSize = GetSceneTextureExtent();
+		const FIntPoint TargetSize = View.GetSceneTexturesConfig().Extent;
 
 		DrawRectangle(
 			RHICmdList,

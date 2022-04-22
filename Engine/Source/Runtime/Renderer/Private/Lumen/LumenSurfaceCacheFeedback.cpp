@@ -58,7 +58,7 @@ namespace Lumen
 {
 	constexpr uint32 FeedbackBufferElementStride = 2;
 
-	uint32 GetFeedbackBufferSize();
+	uint32 GetFeedbackBufferSize(const FViewFamilyInfo& ViewFamily);
 	uint32 GetCompactedFeedbackBufferSize();
 };
 
@@ -73,9 +73,9 @@ uint32 Lumen::GetFeedbackBufferTileWrapMask()
 	return GetFeedbackBufferTileSize() - 1;
 }
 
-uint32 Lumen::GetFeedbackBufferSize()
+uint32 Lumen::GetFeedbackBufferSize(const FViewFamilyInfo& ViewFamily)
 {
-	const FSceneTexturesConfig& SceneTexturesConfig = FSceneTexturesConfig::Get();
+	const FSceneTexturesConfig& SceneTexturesConfig = ViewFamily.SceneTexturesConfig;
 	const FIntPoint SceneTextureExtentInTiles = FIntPoint::DivideAndRoundUp(SceneTexturesConfig.Extent, Lumen::GetFeedbackBufferTileSize());
 	const uint32 FeedbackBufferSize = SceneTextureExtentInTiles.X * SceneTextureExtentInTiles.Y;
 	return FeedbackBufferSize;
@@ -103,9 +103,9 @@ FLumenSurfaceCacheFeedback::~FLumenSurfaceCacheFeedback()
 	}
 }
 
-void FLumenSurfaceCacheFeedback::AllocateFeedbackResources(FRDGBuilder& GraphBuilder, FFeedbackResources& Resouces) const
+void FLumenSurfaceCacheFeedback::AllocateFeedbackResources(FRDGBuilder& GraphBuilder, FFeedbackResources& Resouces, const FViewFamilyInfo& ViewFamily) const
 {
-	Resouces.BufferSize = Lumen::GetFeedbackBufferSize();
+	Resouces.BufferSize = Lumen::GetFeedbackBufferSize(ViewFamily);
 
 	Resouces.BufferAllocator = GraphBuilder.CreateBuffer(
 		FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1),
@@ -398,7 +398,7 @@ FRHIGPUBufferReadback* FLumenSurfaceCacheFeedback::GetLatestReadbackBuffer()
 	return LatestReadbackBuffer;
 }
 
-void FLumenSceneData::UpdateSurfaceCacheFeedback(const TArray<FVector, TInlineAllocator<2>>& LumenSceneCameraOrigins, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests)
+void FLumenSceneData::UpdateSurfaceCacheFeedback(const TArray<FVector, TInlineAllocator<2>>& LumenSceneCameraOrigins, TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests, const FViewFamilyInfo& ViewFamily)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSurfaceCacheFeedback);
 
@@ -470,7 +470,7 @@ void FLumenSceneData::UpdateSurfaceCacheFeedback(const TArray<FVector, TInlineAl
 					float Distance = FMath::Sqrt(DistanceSquared);
 
 					// Change priority based on the normalized number of hits and make those request less important than low res resident pages
-					const float NormalizeNumberOfHits = PageHitNum / float(Lumen::GetFeedbackBufferSize());
+					const float NormalizeNumberOfHits = PageHitNum / float(Lumen::GetFeedbackBufferSize(ViewFamily));
 					Distance += 2500.0f + 2500.0f * (1.0f - NormalizeNumberOfHits);
 
 					// Requested missing page
@@ -527,7 +527,7 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 		{
 			ensure(FrameTemporaries.SurfaceCacheFeedbackResources.Buffer == nullptr);
 
-			LumenSceneData.SurfaceCacheFeedback.AllocateFeedbackResources(GraphBuilder, FrameTemporaries.SurfaceCacheFeedbackResources);
+			LumenSceneData.SurfaceCacheFeedback.AllocateFeedbackResources(GraphBuilder, FrameTemporaries.SurfaceCacheFeedbackResources, *ActiveViewFamily);
 		}
 
 		if (LumenSceneData.CardPageLastUsedBuffer && LumenSceneData.CardPageHighResLastUsedBuffer)

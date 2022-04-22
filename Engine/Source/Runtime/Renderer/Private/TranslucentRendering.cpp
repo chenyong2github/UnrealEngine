@@ -380,8 +380,9 @@ FSeparateTranslucencyDimensions UpdateTranslucencyTimers(FRHICommandListImmediat
 	}
 
 	FSeparateTranslucencyDimensions Dimensions;
-	Dimensions.Extent = GetScaledExtent(GetSceneTextureExtent(), EffectiveScale);
-	Dimensions.NumSamples = GetSceneTextureNumSamples();
+	const FSceneTexturesConfig& Config = GetViewFamily(Views).SceneTexturesConfig;
+	Dimensions.Extent = GetScaledExtent(Config.Extent, EffectiveScale);
+	Dimensions.NumSamples = Config.NumSamples;
 	Dimensions.Scale = EffectiveScale;
 	return Dimensions;
 }
@@ -908,7 +909,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 	};
 
 	SetupSharedBasePassParameters(GraphBuilder, View, bLumenGIEnabled, BasePassParameters.Shared);
-	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, SceneTextureSetupMode, BasePassParameters.SceneTextures);
+	SetupSceneTextureUniformParameters(GraphBuilder, View.GetSceneTexturesChecked(), View.FeatureLevel, SceneTextureSetupMode, BasePassParameters.SceneTextures);
 	Strata::BindStrataForwardPasslUniformParameters(GraphBuilder, View, BasePassParameters.Strata);
 
 	const FLightSceneProxy* SelectedForwardDirectionalLightProxy = View.ForwardLightingResources.SelectedForwardDirectionalLightProxy;
@@ -1010,7 +1011,7 @@ TRDGUniformBufferRef<FTranslucentBasePassUniformParameters> CreateTranslucentBas
 		FIntPoint ViewportExtent = View.ViewRect.Size();
 
 		// Scene render targets might not exist yet; avoids NaNs.
-		FIntPoint EffectiveBufferSize = GetSceneTextureExtent();
+		FIntPoint EffectiveBufferSize = View.GetSceneTexturesConfig().Extent;
 		EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
 		EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
 

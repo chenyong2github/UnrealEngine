@@ -11,7 +11,7 @@
 
 class FDistanceFieldAOParameters;
 
-extern void AllocateOrReuseAORenderTarget(FRDGBuilder& GraphBuilder, FRDGTextureRef& Target, const TCHAR* Name, EPixelFormat Format, ETextureCreateFlags Flags = TexCreate_None);
+extern void AllocateOrReuseAORenderTarget(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef& Target, const TCHAR* Name, EPixelFormat Format, ETextureCreateFlags Flags = TexCreate_None);
 
 extern void UpdateHistory(
 	FRDGBuilder& GraphBuilder,

@@ -65,7 +65,7 @@ FDeferredDecalPassTextures GetDeferredDecalPassTextures(
 
 	auto* Parameters = GraphBuilder.AllocParameters<FDecalPassUniformParameters>();
 	const ESceneTextureSetupMode TextureReadAccess = ESceneTextureSetupMode::GBufferA | ESceneTextureSetupMode::SceneDepth | ESceneTextureSetupMode::CustomDepth;
-	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, TextureReadAccess, Parameters->SceneTextures);
+	SetupSceneTextureUniformParameters(GraphBuilder, &SceneTextures, View.FeatureLevel, TextureReadAccess, Parameters->SceneTextures);
 	Parameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 	PassTextures.DecalPassUniformBuffer = GraphBuilder.CreateUniformBuffer(Parameters);
 

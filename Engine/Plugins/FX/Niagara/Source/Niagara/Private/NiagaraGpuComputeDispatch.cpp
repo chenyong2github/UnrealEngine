@@ -1714,7 +1714,7 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 			}
 
 			FNiagaraSceneTextureParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraSceneTextureParameters>();
-			GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, *PassParameters);
+			GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, nullptr, *PassParameters);
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("Niagara::PreInitViews"),
@@ -1745,7 +1745,7 @@ void FNiagaraGpuComputeDispatch::PostInitViews(FRDGBuilder& GraphBuilder, TArray
 	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
 		FNiagaraSceneTextureParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraSceneTextureParameters>();
-		GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, *PassParameters);
+		GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, GetViewFamily(Views).GetSceneTexturesChecked(), *PassParameters);
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Niagara::PostInitViews"),
@@ -1782,7 +1782,7 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 		FNiagaraSceneTextureParameters* PassParameters = GraphBuilder.AllocParameters<FNiagaraSceneTextureParameters>();
 		// TODO: This will cause a fragment->compute barrier on a scene textures which could be costly especially on mobile GPUs
 		// Will be nice to avoid executing this if we know that there are no simulations that require access to a scene textures
-		GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, *PassParameters);
+		GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, GetViewFamily(Views).GetSceneTexturesChecked(), *PassParameters);
 
  		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("Niagara::PostRenderOpaque"),

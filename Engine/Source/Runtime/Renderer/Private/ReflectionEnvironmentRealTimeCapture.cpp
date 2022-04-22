@@ -587,7 +587,8 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 							// Setup the depth buffer
 							if (bUseDepthBuffer)
 							{
-								FRDGTextureDesc CubeDepthTextureDesc = FRDGTextureDesc::Create2D(FIntPoint(CubeWidth, CubeWidth), PF_DepthStencil, GetSceneDepthClearValue(),
+								FRDGTextureDesc CubeDepthTextureDesc = FRDGTextureDesc::Create2D(FIntPoint(CubeWidth, CubeWidth), PF_DepthStencil,
+									MainView.GetSceneTexturesConfig().DepthClearValue,
 									TexCreate_DepthStencilTargetable | TexCreate_ShaderResource);
 								CubeDepthTexture = GraphBuilder.CreateTexture(CubeDepthTextureDesc, TEXT("SkyLight.CubeDepthTexture"));
 								PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(CubeDepthTexture, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilNop);
@@ -641,7 +642,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						else
 						{
 							RDG_EVENT_SCOPE(GraphBuilder, "Capture Sky Raw", CubeFace);
-							FSceneTextureShaderParameters SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, SceneRenderer.FeatureLevel, ESceneTextureSetupMode::SceneDepth);
+							FSceneTextureShaderParameters SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, &SceneRenderer.GetActiveSceneTextures(), SceneRenderer.FeatureLevel, ESceneTextureSetupMode::SceneDepth);
 							SceneRenderer.RenderSkyAtmosphereInternal(GraphBuilder, SceneTextures, SkyRC);
 						}
 

@@ -2440,7 +2440,7 @@ void FMobileSceneRenderer::RenderMobileShadowProjections(
 	FRDGTextureRef ScreenShadowMaskTexture = GraphBuilder.RegisterExternalTexture(GScreenSpaceShadowMaskTextureMobileOutputs.ScreenSpaceShadowMaskTextureMobile, TEXT("ScreenSpaceShadowMaskTextureMobile"));
 	AddClearRenderTargetPass(GraphBuilder, ScreenShadowMaskTexture);
 
-	const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+	const FMinimalSceneTextures& SceneTextures = GetActiveSceneTextures();
 	for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 	{
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;

@@ -268,7 +268,8 @@ void FARCameraSceneViewExtension::RenderARCamera_RenderThread(FRDGBuilder& Graph
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FRenderARCameraPassParameters>();
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(ViewFamilyTexture, ERenderTargetLoadAction::ELoad);
-	PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, InView.FeatureLevel, ESceneTextureSetupMode::None);
+	check(InView.bIsViewInfo);
+	PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, ((const FViewInfo&)InView).GetSceneTexturesChecked(), InView.FeatureLevel, ESceneTextureSetupMode::None);
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("ARCameraOverlay"),

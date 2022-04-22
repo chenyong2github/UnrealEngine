@@ -146,9 +146,9 @@ FDistanceFieldAOParameters::FDistanceFieldAOParameters(float InOcclusionMaxDista
 	}
 }
 
-FIntPoint GetBufferSizeForAO()
+FIntPoint GetBufferSizeForAO(const FViewInfo& View)
 {
-	return FIntPoint::DivideAndRoundDown(GetSceneTextureExtent(), GAODownsampleFactor);
+	return FIntPoint::DivideAndRoundDown(View.GetSceneTexturesConfig().Extent, GAODownsampleFactor);
 }
 
 // Sample set restricted to not self-intersect a surface based on cone angle .475882232
@@ -257,7 +257,7 @@ FDFAOUpsampleParameters DistanceField::SetupAOUpsampleParameters(const FViewInfo
 {
 	const float DistanceFadeScaleValue = 1.0f / ((1.0f - GAOViewFadeDistanceScale) * GetMaxAOViewDistance());
 
-	const FIntPoint AOBufferSize = GetBufferSizeForAO();
+	const FIntPoint AOBufferSize = GetBufferSizeForAO(View);
 	const FVector2f UVMax(
 		(View.ViewRect.Width() / GAODownsampleFactor - 0.51f) / AOBufferSize.X, // 0.51 - so bilateral gather4 won't sample invalid texels
 		(View.ViewRect.Height() / GAODownsampleFactor - 0.51f) / AOBufferSize.Y);
@@ -432,7 +432,7 @@ void ComputeDistanceFieldNormal(
 					0, 0,
 					View.ViewRect.Width(), View.ViewRect.Height(),
 					FIntPoint(View.ViewRect.Width() / GAODownsampleFactor, View.ViewRect.Height() / GAODownsampleFactor),
-					GetSceneTextureExtent(),
+					View.GetSceneTexturesConfig().Extent,
 					VertexShader);
 			});
 		}
@@ -807,7 +807,7 @@ void FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 	FRDGTextureRef DistanceFieldNormal = nullptr;
 
 	{
-		const FIntPoint BufferSize = GetBufferSizeForAO();
+		const FIntPoint BufferSize = GetBufferSizeForAO(View);
 		const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(BufferSize, PF_FloatRGBA, FClearValueBinding::Transparent, GFastVRamConfig.DistanceFieldNormal | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_ShaderResource);
 		DistanceFieldNormal = GraphBuilder.CreateTexture(Desc, TEXT("DistanceFieldNormal"));
 	}

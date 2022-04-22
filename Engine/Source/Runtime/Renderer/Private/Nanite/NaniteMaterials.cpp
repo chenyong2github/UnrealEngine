@@ -640,9 +640,10 @@ void EmitDepthTargets(
 	}
 #endif
 
+	const FSceneTexturesConfig& Config = View.GetSceneTexturesConfig();
 	const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
-	const FIntPoint SceneTexturesExtent = GetSceneTextureExtent();	
-	const FClearValueBinding DefaultDepthStencil = GetSceneDepthClearValue();
+	const FIntPoint SceneTexturesExtent = Config.Extent;
+	const FClearValueBinding DefaultDepthStencil = Config.DepthClearValue;
 
 	float DefaultDepth = 0.0f;
 	uint32 DefaultStencil = 0;

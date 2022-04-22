@@ -700,7 +700,7 @@ static void AddDeepShadowInfoPass(
 		return;
 	}
 
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
 	FDeepShadowInfoCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDeepShadowInfoCS::FParameters>();
@@ -766,7 +766,7 @@ static void AddVoxelPageRaymarchingPass(
 		return;
 	}
 
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
 	for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
@@ -885,7 +885,7 @@ static void AddPlotBSDFPass(
 	FRDGTextureRef& OutputTexture)
 {
 	
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
 	FHairStrandsPlotBSDFPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsPlotBSDFPS::FParameters>();
@@ -975,7 +975,7 @@ static void AddPlotSamplePass(
 	const FHairStrandsDebugData::Data& DebugData,
 	FRDGTextureRef& OutputTexture)
 {
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 	const FIntPoint Resolution(OutputTexture->Desc.Extent);
 	FHairStrandsPlotSamplePS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsPlotSamplePS::FParameters>();
@@ -1206,7 +1206,7 @@ static void InternalRenderHairStrandsDebugInfo(
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsDebug");
 
 	// Only render debug information for the main view
-	const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+	const FSceneTextures& SceneTextures = View.GetSceneTextures();
 
 	// Bookmark for calling debug rendering from the plugin
 	{

@@ -219,7 +219,7 @@ void SetupTranslucencyDepthPassUniformBuffer(
 	// Note - scene depth can be bound by the material for use in depth fades
 	// This is incorrect when rendering a shadowmap as it's not from the camera's POV
 	// Set the scene depth texture to something safe when rendering shadow depths
-	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::None, TranslucencyDepthPassParameters.SceneTextures);
+	SetupSceneTextureUniformParameters(GraphBuilder, View.GetSceneTexturesChecked(), View.FeatureLevel, ESceneTextureSetupMode::None, TranslucencyDepthPassParameters.SceneTextures);
 
 	TranslucencyDepthPassParameters.ProjectionMatrix = FTranslationMatrix44f(FVector3f(ShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation())) * ShadowInfo->TranslatedWorldToClipInnerMatrix;
 

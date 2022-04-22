@@ -1735,7 +1735,8 @@ void UpdateSurfaceCacheMeshCards(
 	const TArray<FVector, TInlineAllocator<2>>& LumenSceneCameraOrigins,
 	float LumenSceneDetail,
 	float MaxCardUpdateDistanceFromCamera,
-	TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests)
+	TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests,
+	const FViewFamilyInfo& ViewFamily)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateMeshCards);
 
@@ -1793,7 +1794,7 @@ void UpdateSurfaceCacheMeshCards(
 		}
 	}
 
-	LumenSceneData.UpdateSurfaceCacheFeedback(LumenSceneCameraOrigins, SurfaceCacheRequests);
+	LumenSceneData.UpdateSurfaceCacheFeedback(LumenSceneCameraOrigins, SurfaceCacheRequests, ViewFamily);
 
 	if (SurfaceCacheRequests.Num() > 0)
 	{
@@ -2096,7 +2097,8 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 				LumenSceneCameraOrigins,
 				LumenSceneDetail,
 				MaxCardUpdateDistanceFromCamera,
-				SurfaceCacheRequests);
+				SurfaceCacheRequests,
+				*ActiveViewFamily);
 
 			LumenSceneData.ProcessLumenSurfaceCacheRequests(
 				Views[0],
@@ -2598,7 +2600,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder, 
 			}
 
 			FLumenCardPassUniformParameters* PassUniformParameters = GraphBuilder.AllocParameters<FLumenCardPassUniformParameters>();
-			SetupSceneTextureUniformParameters(GraphBuilder, Scene->GetFeatureLevel(), /*SceneTextureSetupMode*/ ESceneTextureSetupMode::None, PassUniformParameters->SceneTextures);
+			SetupSceneTextureUniformParameters(GraphBuilder, &GetActiveSceneTextures(), Scene->GetFeatureLevel(), /*SceneTextureSetupMode*/ ESceneTextureSetupMode::None, PassUniformParameters->SceneTextures);
 			PassUniformParameters->EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, Views[0]);
 
 			{

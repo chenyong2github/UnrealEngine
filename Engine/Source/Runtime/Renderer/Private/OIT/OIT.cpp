@@ -938,7 +938,7 @@ namespace OIT
 		}
 
 		// Scene render targets might not exist yet; avoids NaNs.
-		FIntPoint EffectiveBufferSize = GetSceneTextureExtent();
+		FIntPoint EffectiveBufferSize = View.GetSceneTexturesConfig().Extent;
 		EffectiveBufferSize.X = FMath::Max(EffectiveBufferSize.X, 1);
 		EffectiveBufferSize.Y = FMath::Max(EffectiveBufferSize.Y, 1);
 

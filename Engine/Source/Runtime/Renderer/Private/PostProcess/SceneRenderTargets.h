@@ -68,31 +68,31 @@ public:
 	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
 	static FClearValueBinding GetDefaultColorClear()
 	{
-		return GetSceneColorClearValue();
+		return FSceneTexturesConfig::Get().ColorClearValue;
 	}
 
 	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
 	static FClearValueBinding GetDefaultDepthClear()
 	{
-		return GetSceneDepthClearValue();
+		return FSceneTexturesConfig::Get().DepthClearValue;
 	}
 
 	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
 	static FIntPoint GetBufferSizeXY()
 	{
-		return GetSceneTextureExtent();
+		return FSceneTexturesConfig::Get().Extent;
 	}
 
 	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
 	static int32 GetMSAACount()
 	{
-		return GetSceneTextureNumSamples();
+		return FSceneTexturesConfig::Get().NumSamples;
 	}
 
 	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
 	static ERHIFeatureLevel::Type GetCurrentFeatureLevel()
 	{
-		return GetSceneTextureFeatureLevel();
+		return FSceneTexturesConfig::Get().FeatureLevel;
 	}
 
 	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")

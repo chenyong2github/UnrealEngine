@@ -208,7 +208,7 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 
 		const uint32 ViewMode = FMath::Max(0, CVarStrataDebugVisualizeMode.GetValueOnRenderThread());
 
-		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder);
+		FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, View);
 
 		// Print Material info
 		if(ViewMode >= 1 && ViewMode != 3)
@@ -227,7 +227,7 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 				PassParameters->RWPositionOffsetBuffer = PrintOffsetBufferUAV;
 				PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
-				PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder);
+				PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 				ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
 
 				TShaderMapRef<FMaterialPrintInfoCS> ComputeShader(View.ShaderMap);
@@ -242,7 +242,7 @@ static void AddVisualizeMaterialPasses(FRDGBuilder& GraphBuilder, const FViewInf
 			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 			PassParameters->ViewMode = ViewMode;
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
-			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder);
+			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
 			ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
 

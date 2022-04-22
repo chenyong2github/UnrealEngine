@@ -137,7 +137,7 @@ static void AddHairStrandsEnvironmentAOPass(
 	FRDGTextureRef Output)
 {
 	check(Output);
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 	const FIntRect Viewport = View.ViewRect;
 	const FIntRect HalfResViewport = FIntRect::DivideAndRoundUp(Viewport, 2);
@@ -357,7 +357,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	if (!bSkyLight && !bDynamicSkyLight && !bHasStaticLighting && !bReflectionEnv)
 		return;
 
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 	check(VirtualVoxelResources.IsValid());
 

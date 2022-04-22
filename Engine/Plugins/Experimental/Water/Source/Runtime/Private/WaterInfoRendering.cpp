@@ -336,7 +336,7 @@ static void UpdateWaterInfoRendering_RenderThread(
 
 		if (DepthRenderer->Scene->GetShadingPath() == EShadingPath::Mobile)
 		{
-			const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+			const FMinimalSceneTextures& SceneTextures = View.GetSceneTextures();
 			const bool bNeedsFlippedRenderTarget = false;
 			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
 			CopySceneCaptureComponentToTarget(
@@ -384,7 +384,7 @@ static void UpdateWaterInfoRendering_RenderThread(
 			ColorRenderer->Render(GraphBuilder);
 		}
 
-		const FMinimalSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+		const FMinimalSceneTextures& SceneTextures = View.GetSceneTextures();
 		FRDGTextureDesc ColorTextureDesc(TargetTexture->Desc);
 		ColorTextureDesc.Format = PF_A32B32G32R32F;
 		FRDGTextureRef ColorTexture = GraphBuilder.CreateTexture(ColorTextureDesc, TEXT("WaterInfoColor"));

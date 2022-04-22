@@ -43,9 +43,9 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FLightmapDensityPassUniformParameters, "LightmapDensityPass", SceneTextures);
 
-void SetupLightmapDensityPassUniformBuffer(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FLightmapDensityPassUniformParameters& LightmapDensityPassParameters)
+void SetupLightmapDensityPassUniformBuffer(FRDGBuilder& GraphBuilder, const FSceneTextures* SceneTextures, ERHIFeatureLevel::Type FeatureLevel, FLightmapDensityPassUniformParameters& LightmapDensityPassParameters)
 {
-	SetupSceneTextureUniformParameters(GraphBuilder, FeatureLevel, ESceneTextureSetupMode::None, LightmapDensityPassParameters.SceneTextures);
+	SetupSceneTextureUniformParameters(GraphBuilder, SceneTextures, FeatureLevel, ESceneTextureSetupMode::None, LightmapDensityPassParameters.SceneTextures);
 
 	LightmapDensityPassParameters.GridTexture = GEngine->LightMapDensityTexture->GetResource()->TextureRHI;
 	LightmapDensityPassParameters.GridTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
@@ -61,10 +61,10 @@ void SetupLightmapDensityPassUniformBuffer(FRDGBuilder& GraphBuilder, ERHIFeatur
 	LightmapDensityPassParameters.VertexMappedColor = GEngine->LightMapDensityVertexMappedColor;
 }
 
-TRDGUniformBufferRef<FLightmapDensityPassUniformParameters> CreateLightmapDensityPassUniformBuffer(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel)
+TRDGUniformBufferRef<FLightmapDensityPassUniformParameters> CreateLightmapDensityPassUniformBuffer(FRDGBuilder& GraphBuilder, const FSceneTextures* SceneTextures, ERHIFeatureLevel::Type FeatureLevel)
 {
 	auto* UniformBufferParameters = GraphBuilder.AllocParameters<FLightmapDensityPassUniformParameters>();
-	SetupLightmapDensityPassUniformBuffer(GraphBuilder, FeatureLevel, *UniformBufferParameters);
+	SetupLightmapDensityPassUniformBuffer(GraphBuilder, SceneTextures, FeatureLevel, *UniformBufferParameters);
 	return GraphBuilder.CreateUniformBuffer(UniformBufferParameters);
 }
 
@@ -92,7 +92,7 @@ void RenderLightMapDensities(
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FLightMapDensitiesPassParameters>();
 		PassParameters->View = View.GetShaderParameters();
-		PassParameters->Pass = CreateLightmapDensityPassUniformBuffer(GraphBuilder, View.GetFeatureLevel());
+		PassParameters->Pass = CreateLightmapDensityPassUniformBuffer(GraphBuilder, View.GetSceneTexturesChecked(), View.GetFeatureLevel());
 		PassParameters->RenderTargets = RenderTargets;
 		FScene* Scene = View.Family->Scene->GetRenderScene();
 		check(Scene != nullptr);

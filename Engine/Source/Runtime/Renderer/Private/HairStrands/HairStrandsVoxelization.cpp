@@ -180,7 +180,7 @@ static void AddVirtualVoxelInjectOpaquePass(
 	const FHairStrandsVoxelResources& VoxelResources,
 	const FHairStrandsMacroGroupData& MacroGroup)
 {
-	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, View);
 
 	const uint32 TotalPageCount = VoxelResources.Parameters.Common.PageIndexCount;
 	const uint32 PageResolution = VoxelResources.Parameters.Common.PageResolution;

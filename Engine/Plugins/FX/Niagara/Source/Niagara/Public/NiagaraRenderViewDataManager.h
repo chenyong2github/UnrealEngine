@@ -29,7 +29,7 @@ public:
 
 	void ClearSceneTextureParameters();
 
-	void GetSceneTextureParameters(FRDGBuilder& GraphBuilder, FNiagaraSceneTextureParameters& InParameters) const;
+	void GetSceneTextureParameters(FRDGBuilder& GraphBuilder, const FSceneTextures* SceneTextures, FNiagaraSceneTextureParameters& InParameters) const;
 
 	virtual void InitDynamicRHI() override;
 

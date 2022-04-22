@@ -336,7 +336,7 @@ void RenderFrontLayerTranslucencyGBuffer(
 
 	{
 		FLumenFrontLayerTranslucencyGBufferPassUniformParameters& GBufferPassParameters = *GraphBuilder.AllocParameters<FLumenFrontLayerTranslucencyGBufferPassUniformParameters>();
-		SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::All, GBufferPassParameters.SceneTextures);
+		SetupSceneTextureUniformParameters(GraphBuilder, &SceneTextures, View.FeatureLevel, ESceneTextureSetupMode::All, GBufferPassParameters.SceneTextures);
 
 		PassParameters->GBufferPass = GraphBuilder.CreateUniformBuffer(&GBufferPassParameters);
 	}
