@@ -35,7 +35,8 @@ UFoliageType* FFoliageEditUtility::SaveFoliageTypeObject(UFoliageType* InFoliage
 		TSharedRef<SDlgPickAssetPath> SaveFoliageTypeDialog =
 			SNew(SDlgPickAssetPath)
 			.Title(LOCTEXT("SaveFoliageTypeDialogTitle", "Choose Location for Foliage Type Asset"))
-			.DefaultAssetPath(FText::FromString(PackageName));
+			.DefaultAssetPath(FText::FromString(PackageName))
+			.AllowReadOnlyFolders(false);
 
 		if (SaveFoliageTypeDialog->ShowModal() != EAppReturnType::Cancel)
 		{
