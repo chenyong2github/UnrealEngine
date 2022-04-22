@@ -819,12 +819,12 @@ float STableViewBase::ScrollTo( float InScrollOffset)
 	const float NewScrollOffset = FMath::Clamp( InScrollOffset, -10.0f, GetNumItemsBeingObserved()+10.0f );
 	float AmountScrolled = FMath::Abs( DesiredScrollOffset - NewScrollOffset );
 
-	SetScrollOffset( NewScrollOffset );
-	
-	if ( bWasAtEndOfList && NewScrollOffset >= DesiredScrollOffset )
+	if (bWasAtEndOfList && NewScrollOffset >= DesiredScrollOffset)
 	{
 		AmountScrolled = 0;
 	}
+
+	SetScrollOffset( NewScrollOffset );
 
 	return AmountScrolled;
 }
