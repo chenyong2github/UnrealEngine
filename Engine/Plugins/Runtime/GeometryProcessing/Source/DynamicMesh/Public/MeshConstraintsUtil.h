@@ -172,6 +172,27 @@ s	 * EdgeROI that are seams, as well as vertices incident to edges in EdgeROI th
 			                                    FVertexConstraint& VertexConstraintA,
 			                                    FVertexConstraint& VertexConstraintB);
 
+	enum class EBoundaryType
+	{
+		Mesh = 0,
+		Group = 1,
+		MaterialID = 2
+	};
+
+	/**
+	 * Create polycurve projection targets at group boundaries. 
+	 * Vertices on multiple boundaries are fixed, as well as vertices at boundary "corners" 
+	 * (where the angle formed between adjacent boundary edges is above a given threshold.)
+	 * 
+	 * @param Constraints (out) constraint data to add new constraints to
+	 * @param Mesh the mesh to constrain
+	 * @param CornerAngleThreshold angle threshold (in degrees) above which adjacent edges are considered a corner
+	 */
+	static void SetBoundaryConstraintsWithProjection(
+		FMeshConstraints& Constraints,
+		const EBoundaryType BoundaryToConstrain,
+		const FDynamicMesh3& Mesh,
+		double CornerAngleThreshold = 45.0);
 
 private:
 	FMeshConstraintsUtil() = delete;		// this class is not constructible

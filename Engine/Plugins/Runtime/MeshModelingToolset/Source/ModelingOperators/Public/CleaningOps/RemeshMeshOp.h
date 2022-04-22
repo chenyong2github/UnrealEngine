@@ -65,6 +65,8 @@ public:
 	float SmoothingStrength, TargetEdgeLength;
 	ERemeshSmoothingType SmoothingType;
 	bool bDiscardAttributes, bPreserveSharpEdges, bFlips, bSplits, bCollapses, bReproject, bPreventNormalFlips, bPreventTinyTriangles;
+	bool bReprojectConstraints = false;
+	double BoundaryCornerAngleThreshold = 45.0;
 
 	// When true, result will have attributes object regardless of whether attributes 
 	// were discarded or present initially.

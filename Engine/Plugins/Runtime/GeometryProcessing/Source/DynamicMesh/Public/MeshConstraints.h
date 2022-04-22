@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Spatial/SpatialInterfaces.h"   // for projection target
+#include "Polyline3.h"
 
 namespace UE
 {
@@ -175,16 +176,16 @@ public:
 		Target(nullptr)
 	{}
 
-	explicit FVertexConstraint(IProjectionTarget* Target) :
+	explicit FVertexConstraint(IProjectionTarget* Target, int FixedSetID = InvalidSetID) :
 		bCannotDelete(false),
-		bCanMove(false),
-		FixedSetID(InvalidSetID),
+		bCanMove(true),
+		FixedSetID(FixedSetID),
 		Target(Target)
 	{}
 
 	bool IsUnconstrained() const 
 	{
-		return ( (bCanMove == true) && (bCannotDelete == false) );
+		return ( (bCanMove == true) && (bCannotDelete == false) && (Target == nullptr) );
 	}
 
 	/** @return an unconstrained vertex constraint (ie not constrained at all) */
@@ -202,11 +203,30 @@ public:
 	{
 		bCannotDelete = bCannotDelete || OtherConstraint.bCannotDelete;
 		bCanMove = bCanMove && OtherConstraint.bCanMove;
+		// TODO: What should happen if both constraints have projection targets?
+		Target = OtherConstraint.Target;
 	}
 
 };
 
 
+class FMeshConstraintCurve : public FPolyline3d, public IProjectionTarget
+{
+public:
+
+	virtual FVector3d Project(const FVector3d& Point, int /*Identifier*/) override
+	{
+		int32 NearestSegmentIdx;
+		double NearestSegmentParam;
+		double DistSqr = DistanceSquared(Point, NearestSegmentIdx, NearestSegmentParam);
+		return GetSegmentPoint(NearestSegmentIdx, NearestSegmentParam);
+	}
+};
+
+struct DYNAMICMESH_API FConstraintProjectionData
+{
+	TArray<TSharedPtr<FMeshConstraintCurve>> ProjectionCurves;
+};
 
 
 /**
@@ -226,6 +246,10 @@ protected:
 	int FixedSetIDCounter;
 
 public:
+
+	/** Additional data for constraint curve projection */
+	FConstraintProjectionData ProjectionData;
+
 
 	FMeshConstraints()
 	{
@@ -361,6 +385,19 @@ public:
 	void SetOrUpdateVertexConstraint(int VertexID, const FVertexConstraint& vc)
 	{
 		Vertices.Add(VertexID, vc);
+	}
+
+	void SetOrCombineVertexConstraint(int VertexID, const FVertexConstraint& vc)
+	{
+		FVertexConstraint* Found = Vertices.Find(VertexID);
+		if (Found != nullptr)
+		{
+			Found->CombineConstraint(vc);
+		}
+		else
+		{
+			Vertices.Add(VertexID, vc);
+		}
 	}
 
 	/** Clear the constraint on the given VertexID */

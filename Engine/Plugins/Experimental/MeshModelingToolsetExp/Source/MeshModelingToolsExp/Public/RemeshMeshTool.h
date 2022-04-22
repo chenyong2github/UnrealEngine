@@ -87,6 +87,15 @@ public:
 	/** Enable projection back to input mesh */
 	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
 	bool bReproject;
+
+	/** Project constrained vertices back to original constraint curves */
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay)
+	bool bReprojectConstraints;
+
+	/** Angle threshold in degrees for classifying a boundary vertex as a corner. Corners will be fixed if Reproject Constraints is active. */
+	UPROPERTY(EditAnywhere, Category = Remeshing, AdvancedDisplay, meta = (EditCondition = "bReprojectConstraints", UIMin = "0", UIMax = "180", ClampMin = "0", ClampMax = "180"))
+	float BoundaryCornerAngleThreshold;
+
 };
 
 

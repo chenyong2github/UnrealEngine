@@ -392,11 +392,11 @@ public:
 			T d = TNumericLimits<T>::Max();
 			if (t >= seg.Extent)
 			{
-				d = seg.EndPoint().DistanceSquared(QueryPoint);
+				d = TVector<T>::DistSquared(seg.EndPoint(), QueryPoint);
 			}
 			else if (t <= -seg.Extent)
 			{
-				d = seg.StartPoint().DistanceSquared(QueryPoint);
+				d = TVector<T>::DistSquared(seg.StartPoint(), QueryPoint);
 			}
 			else
 			{

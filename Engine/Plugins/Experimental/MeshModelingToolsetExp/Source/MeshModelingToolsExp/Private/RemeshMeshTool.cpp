@@ -64,6 +64,8 @@ URemeshMeshToolProperties::URemeshMeshToolProperties()
 	bSplits = true;
 	bCollapses = true;
 	bReproject = true;
+	bReprojectConstraints = false;
+	BoundaryCornerAngleThreshold = 45.0;
 	bPreventNormalFlips = true;
 	bPreventTinyTriangles = true;
 	bUseTargetEdgeLength = false;
@@ -219,6 +221,8 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 	Op->bPreventNormalFlips = BasicProperties->bPreventNormalFlips;
 	Op->bPreventTinyTriangles = BasicProperties->bPreventTinyTriangles;
 	Op->bReproject = BasicProperties->bReproject;
+	Op->bReprojectConstraints = BasicProperties->bReprojectConstraints;
+	Op->BoundaryCornerAngleThreshold = BasicProperties->BoundaryCornerAngleThreshold;
 	Op->bSplits = BasicProperties->bSplits;
 	Op->RemeshIterations = BasicProperties->RemeshIterations;
 	Op->MaxRemeshIterations = BasicProperties->MaxRemeshIterations;

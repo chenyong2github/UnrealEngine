@@ -118,14 +118,41 @@ void FRemeshMeshOp::CalculateResult(FProgressCancel* Progress)
 
 	Remesher->DEBUG_CHECK_LEVEL = 0;
 
-	FMeshConstraints constraints;
-	FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(constraints, *TargetMesh,
-														 MeshBoundaryConstraint,
-														 GroupBoundaryConstraint,
-														 MaterialBoundaryConstraint,
-														 true, !bPreserveSharpEdges);
+	FMeshConstraints Constraints;
+	constexpr bool bAllowSeamSplits = true;
+	constexpr bool bAllowSeamCollpase = false;
+	const bool bAllowSeamSmoothing = !bPreserveSharpEdges;
 
-	Remesher->SetExternalConstraints(MoveTemp(constraints));
+	FMeshConstraintsUtil::ConstrainAllBoundariesAndSeams(Constraints,
+		*TargetMesh,
+		MeshBoundaryConstraint,
+		GroupBoundaryConstraint,
+		MaterialBoundaryConstraint,
+		bAllowSeamSplits,
+		bAllowSeamSmoothing,
+		bAllowSeamCollpase);
+
+	if (bReprojectConstraints)
+	{
+		Constraints.ProjectionData.ProjectionCurves.Reset();
+
+		if ( MeshBoundaryConstraint != EEdgeRefineFlags::NoConstraint )
+		{
+			FMeshConstraintsUtil::SetBoundaryConstraintsWithProjection(Constraints, FMeshConstraintsUtil::EBoundaryType::Mesh, *TargetMesh, BoundaryCornerAngleThreshold);
+		}
+
+		if (GroupBoundaryConstraint != EEdgeRefineFlags::NoConstraint)
+		{
+			FMeshConstraintsUtil::SetBoundaryConstraintsWithProjection(Constraints, FMeshConstraintsUtil::EBoundaryType::Group, *TargetMesh, BoundaryCornerAngleThreshold);
+		}
+
+		if (MaterialBoundaryConstraint != EEdgeRefineFlags::NoConstraint)
+		{
+			FMeshConstraintsUtil::SetBoundaryConstraintsWithProjection(Constraints, FMeshConstraintsUtil::EBoundaryType::MaterialID, *TargetMesh, BoundaryCornerAngleThreshold);
+		}
+	}
+
+	Remesher->SetExternalConstraints(MoveTemp(Constraints));
 
 	if (ProjectionTarget == nullptr)
 	{
