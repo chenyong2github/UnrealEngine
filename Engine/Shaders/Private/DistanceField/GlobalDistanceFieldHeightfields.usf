@@ -1,16 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	GlobalDistanceFieldHeighfields.usf
-=============================================================================*/
-
-#include "Common.ush"
+#include "../Common.ush"
+#include "../HeightfieldLightingShared.ush"
 #include "GlobalDistanceFieldShared.ush"
-#include "HeightfieldLightingShared.ush"
 #include "GlobalDistanceFieldUtils.ush"
-
-#define GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS / 8)
-#define GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_NUM (GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X * GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X)
 
 RWStructuredBuffer<uint> RWMarkedHeightfieldPageBuffer;
 RWTexture3D<UNORM float> RWPageAtlasTexture;
@@ -45,7 +38,7 @@ uint3 PageGridCoordToPageTableTextureCoord(uint3 PageGridCoord)
 	return PageTableTextureCoord;
 }
 
-groupshared uint GroupMarkedPage[256];
+groupshared uint GroupMarkedPage[64];
 
 [numthreads(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y, 1)]
 void MarkHeightfieldPagesCS(
@@ -54,7 +47,7 @@ void MarkHeightfieldPagesCS(
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
 	uint3 VoxelCoord = uint3(GroupThreadId.xy, 0);
-	uint ThreadIndex = GroupThreadId.x + GroupThreadId.y * 16;
+	uint ThreadIndex = GroupThreadId.x + GroupThreadId.y * THREADGROUP_SIZE_X;
 	uint IndexInPageBuffer = GroupId.x;
 	uint PackedPageGridCoord = PageUpdateTileBuffer[IndexInPageBuffer];
 
@@ -114,20 +107,6 @@ void MarkHeightfieldPagesCS(
 				GroupMarkedPage[ThreadIndex] = 1;
 			}
 		}
-	}
-
-	GroupMemoryBarrierWithGroupSync();
-
-	if (ThreadIndex < 128)
-	{
-		GroupMarkedPage[ThreadIndex] = GroupMarkedPage[ThreadIndex] + GroupMarkedPage[ThreadIndex + 64];
-	}
-
-	GroupMemoryBarrierWithGroupSync();
-
-	if (ThreadIndex < 64)
-	{
-		GroupMarkedPage[ThreadIndex] = GroupMarkedPage[ThreadIndex] + GroupMarkedPage[ThreadIndex + 64];
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -219,8 +198,8 @@ void BuildHeightfieldComposeTilesCS(
 		if (bMarkedHeightfieldPage)
 		{
 			uint DestIndex;
-			InterlockedAdd(RWPageComposeHeightfieldIndirectArgBuffer[0], GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_NUM, DestIndex);
-			RWPageComposeHeightfieldTileBuffer[DestIndex / GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_NUM] = PackedPageGridCoord;
+			InterlockedAdd(RWPageComposeHeightfieldIndirectArgBuffer[0], 1, DestIndex);
+			RWPageComposeHeightfieldTileBuffer[DestIndex] = PackedPageGridCoord;
 		}
 	}
 }
@@ -230,22 +209,16 @@ void ComposeHeightfieldsIntoPagesCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint PackedPageTile = ComposeTileBuffer[GroupId.x / GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_NUM];
-	uint LinearPageGroupOffset = GroupId.x % GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_NUM;
-
-	uint3 PageGroupOffset;
-	PageGroupOffset.x = LinearPageGroupOffset % GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X;
-	PageGroupOffset.y = LinearPageGroupOffset / GLOBAL_DISTANCE_FIELD_PAGE_HEIGHFIELD_GROUP_X;
-	PageGroupOffset.z = 0;
+	uint PackedPageTile = ComposeTileBuffer[GroupId.x];
 
 	uint3 PageGridCoord;
 	PageGridCoord.x = PackedPageTile & 0xFF;
 	PageGridCoord.y = (PackedPageTile >> 8) & 0xFF;
 	PageGridCoord.z = (PackedPageTile >> 16) & 0xFF;
 
-	uint3 TexelCoordInPage = uint3(PageGroupOffset.xy * 8 + GroupThreadId.xy, 0);
+	uint3 TexelCoordInPage = uint3(GroupThreadId.xy, 0);
 
-	int3 PageCoord = PageGridCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + TexelCoordInPage - 1;
+	float3 PageCoord = PageGridCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + TexelCoordInPage - GLOBAL_DISTANCE_FIELD_PAGE_BORDER;
 	float3 VoxelWorldCenter = PageCoord * PageCoordToVoxelCenterScale + PageCoordToVoxelCenterBias;
 
 	uint3 PageTableTextureCoord = PageGridCoordToPageTableTextureCoord(PageGridCoord);
@@ -262,7 +235,7 @@ void ComposeHeightfieldsIntoPagesCS(
 		float4 MinMaxHeightfieldUV;
 		float2 HeightfieldUV = GetHeightfieldUV(HeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
 
-		if (all(HeightfieldUV > MinMaxHeightfieldUV.xy) && all(HeightfieldUV < MinMaxHeightfieldUV.zw))
+		if (all(HeightfieldUV >= MinMaxHeightfieldUV.xy) && all(HeightfieldUV <= MinMaxHeightfieldUV.zw))
 		{
 			ValidHeightfieldIndex = HeightfieldIndex;
 			break;
@@ -275,7 +248,7 @@ void ComposeHeightfieldsIntoPagesCS(
 		float4 MinMaxHeightfieldUV;
 		float2 HeightfieldUV = GetHeightfieldUV(ValidHeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
 
-		if (all(HeightfieldUV > MinMaxHeightfieldUV.xy) && all(HeightfieldUV < MinMaxHeightfieldUV.zw))
+		if (all(HeightfieldUV >= MinMaxHeightfieldUV.xy) && all(HeightfieldUV <= MinMaxHeightfieldUV.zw))
 		{
 			float3 WorldHeightfieldNormal;
 			float HeightfieldVisibility;

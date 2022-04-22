@@ -14,8 +14,11 @@
 
 class FShaderParameterMap;
 
-/** Must match global distance field shaders. */
-const int32 GMaxGlobalDistanceFieldClipmaps = 6;
+namespace GlobalDistanceField
+{
+	/** Must match global distance field shaders. */
+	const int32 MaxClipmaps = 6;
+}
 
 class FGlobalDistanceFieldParameterData
 {
@@ -26,10 +29,10 @@ public:
 		FPlatformMemory::Memzero(this, sizeof(FGlobalDistanceFieldParameterData));
 	}
 
-	FVector4f CenterAndExtent[GMaxGlobalDistanceFieldClipmaps];
-	FVector4f WorldToUVAddAndMul[GMaxGlobalDistanceFieldClipmaps];
-	FVector4f MipWorldToUVScale[GMaxGlobalDistanceFieldClipmaps];
-	FVector4f MipWorldToUVBias[GMaxGlobalDistanceFieldClipmaps];
+	FVector4f CenterAndExtent[GlobalDistanceField::MaxClipmaps];
+	FVector4f WorldToUVAddAndMul[GlobalDistanceField::MaxClipmaps];
+	FVector4f MipWorldToUVScale[GlobalDistanceField::MaxClipmaps];
+	FVector4f MipWorldToUVBias[GlobalDistanceField::MaxClipmaps];
 	float MipFactor;
 	float MipTransition;
 	FRHITexture* PageAtlasTexture;
@@ -50,10 +53,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FGlobalDistanceFieldParameters2, )
 	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldCoverageAtlasTexture)
 	SHADER_PARAMETER_TEXTURE(Texture3D<uint>, GlobalDistanceFieldPageTableTexture)
 	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldMipTexture)
-	SHADER_PARAMETER_ARRAY(FVector4f, GlobalVolumeCenterAndExtent, [GMaxGlobalDistanceFieldClipmaps])
-	SHADER_PARAMETER_ARRAY(FVector4f, GlobalVolumeWorldToUVAddAndMul, [GMaxGlobalDistanceFieldClipmaps])
-	SHADER_PARAMETER_ARRAY(FVector4f, GlobalDistanceFieldMipWorldToUVScale, [GMaxGlobalDistanceFieldClipmaps])
-	SHADER_PARAMETER_ARRAY(FVector4f, GlobalDistanceFieldMipWorldToUVBias, [GMaxGlobalDistanceFieldClipmaps])
+	SHADER_PARAMETER_ARRAY(FVector4f, GlobalVolumeCenterAndExtent, [GlobalDistanceField::MaxClipmaps])
+	SHADER_PARAMETER_ARRAY(FVector4f, GlobalVolumeWorldToUVAddAndMul, [GlobalDistanceField::MaxClipmaps])
+	SHADER_PARAMETER_ARRAY(FVector4f, GlobalDistanceFieldMipWorldToUVScale, [GlobalDistanceField::MaxClipmaps])
+	SHADER_PARAMETER_ARRAY(FVector4f, GlobalDistanceFieldMipWorldToUVBias, [GlobalDistanceField::MaxClipmaps])
 	SHADER_PARAMETER(float, GlobalDistanceFieldMipFactor)
 	SHADER_PARAMETER(float, GlobalDistanceFieldMipTransition)
 	SHADER_PARAMETER(int32, GlobalDistanceFieldClipmapSizeInPages)
@@ -127,10 +130,10 @@ public:
 			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldPageTableTexture, ParameterData.PageTableTexture ? ParameterData.PageTableTexture : GBlackVolumeTexture->TextureRHI.GetReference());
 			SetTextureParameter(RHICmdList, ShaderRHI, GlobalDistanceFieldMipTexture, ParameterData.MipTexture ? ParameterData.MipTexture : GBlackVolumeTexture->TextureRHI.GetReference());
 
-			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalVolumeCenterAndExtent, ParameterData.CenterAndExtent, GMaxGlobalDistanceFieldClipmaps);
-			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalVolumeWorldToUVAddAndMul, ParameterData.WorldToUVAddAndMul, GMaxGlobalDistanceFieldClipmaps);
-			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalDistanceFieldMipWorldToUVScale, ParameterData.MipWorldToUVScale, GMaxGlobalDistanceFieldClipmaps);
-			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalDistanceFieldMipWorldToUVBias, ParameterData.MipWorldToUVBias, GMaxGlobalDistanceFieldClipmaps);
+			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalVolumeCenterAndExtent, ParameterData.CenterAndExtent, GlobalDistanceField::MaxClipmaps);
+			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalVolumeWorldToUVAddAndMul, ParameterData.WorldToUVAddAndMul, GlobalDistanceField::MaxClipmaps);
+			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalDistanceFieldMipWorldToUVScale, ParameterData.MipWorldToUVScale, GlobalDistanceField::MaxClipmaps);
+			SetShaderValueArray(RHICmdList, ShaderRHI, GlobalDistanceFieldMipWorldToUVBias, ParameterData.MipWorldToUVBias, GlobalDistanceField::MaxClipmaps);
 			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldMipFactor, ParameterData.MipFactor);
 			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldMipTransition, ParameterData.MipTransition);
 			SetShaderValue(RHICmdList, ShaderRHI, GlobalDistanceFieldClipmapSizeInPages, ParameterData.ClipmapSizeInPages);

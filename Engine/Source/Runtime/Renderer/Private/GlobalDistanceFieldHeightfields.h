@@ -39,7 +39,7 @@ class FMarkHeightfieldPagesCS : public FGlobalShader
 
 	static FIntVector GetGroupSize()
 	{
-		return FIntVector(16, 16, 1);
+		return FIntVector(8, 8, 1);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -51,7 +51,7 @@ class FMarkHeightfieldPagesCS : public FGlobalShader
 	}												   
 };
 
-IMPLEMENT_GLOBAL_SHADER(FMarkHeightfieldPagesCS, "/Engine/Private/GlobalDistanceFieldHeightfields.usf", "MarkHeightfieldPagesCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FMarkHeightfieldPagesCS, "/Engine/Private/DistanceField/GlobalDistanceFieldHeightfields.usf", "MarkHeightfieldPagesCS", SF_Compute);
 
 class FBuildHeightfieldComposeTilesIndirectArgBufferCS : public FGlobalShader
 {
@@ -78,7 +78,7 @@ class FBuildHeightfieldComposeTilesIndirectArgBufferCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FBuildHeightfieldComposeTilesIndirectArgBufferCS, "/Engine/Private/GlobalDistanceFieldHeightfields.usf", "BuildHeightfieldComposeTilesIndirectArgBufferCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBuildHeightfieldComposeTilesIndirectArgBufferCS, "/Engine/Private/DistanceField/GlobalDistanceFieldHeightfields.usf", "BuildHeightfieldComposeTilesIndirectArgBufferCS", SF_Compute);
 
 class FBuildHeightfieldComposeTilesCS : public FGlobalShader
 {
@@ -114,7 +114,7 @@ class FBuildHeightfieldComposeTilesCS : public FGlobalShader
 	}												   
 };
 
-IMPLEMENT_GLOBAL_SHADER(FBuildHeightfieldComposeTilesCS, "/Engine/Private/GlobalDistanceFieldHeightfields.usf", "BuildHeightfieldComposeTilesCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBuildHeightfieldComposeTilesCS, "/Engine/Private/DistanceField/GlobalDistanceFieldHeightfields.usf", "BuildHeightfieldComposeTilesCS", SF_Compute);
 
 class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 {
@@ -169,6 +169,6 @@ class FComposeHeightfieldsIntoPagesCS : public FGlobalShader
 	}												   
 };
 
-IMPLEMENT_GLOBAL_SHADER(FComposeHeightfieldsIntoPagesCS, "/Engine/Private/GlobalDistanceFieldHeightfields.usf", "ComposeHeightfieldsIntoPagesCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FComposeHeightfieldsIntoPagesCS, "/Engine/Private/DistanceField/GlobalDistanceFieldHeightfields.usf", "ComposeHeightfieldsIntoPagesCS", SF_Compute);
 
 extern FRDGBufferRef UploadHeightfieldDescriptions(FRDGBuilder& GraphBuilder, const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions);

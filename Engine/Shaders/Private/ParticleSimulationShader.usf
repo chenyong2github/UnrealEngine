@@ -8,7 +8,7 @@
 #include "SceneTexturesCommon.ush"
 
 #if DISTANCE_FIELD_COLLISION
-	#include "GlobalDistanceFieldShared.ush"
+	#include "DistanceField/GlobalDistanceFieldShared.ush"
 #endif
 
 #define IMPROVED_DEPTH_BUFFER_COLLISION 1

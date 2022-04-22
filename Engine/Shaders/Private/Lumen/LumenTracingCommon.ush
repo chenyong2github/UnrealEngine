@@ -11,8 +11,8 @@
 #include "../FastMath.ush"
 #include "../SHCommon.ush"
 #define DISTANCE_FIELD_IN_VIEW_UB 1
-#include "../GlobalDistanceFieldShared.ush"
-#include "../GlobalDistanceFieldUtils.ush"
+#include "../DistanceField/GlobalDistanceFieldShared.ush"
+#include "../DistanceField/GlobalDistanceFieldUtils.ush"
 #include "../DistanceFieldLightingShared.ush"
 #define USE_GLOBAL_GPU_SCENE_DATA 1
 #include "../SceneData.ush"
@@ -1216,21 +1216,9 @@ void ConeTraceVoxels(
 
 		if (!bOutsideValidRegion)
 		{
-			float3 DistanceFieldGradient = -TraceInput.ConeDirection;
+			float3 SampleNormal = ComputeGlobalDistanceFieldNormal(SampleWorldPosition, SDFTraceResult.HitClipmapIndex, -TraceInput.ConeDirection);
 
-			float3 ClipmapVolumeUV = ComputeGlobalUV(SampleWorldPosition, SDFTraceResult.HitClipmapIndex);
-			uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, SDFTraceResult.HitClipmapIndex);
-
-			if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
-			{
-				float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, PageIndex);
-				DistanceFieldGradient = GlobalDistanceFieldPageCentralDiff(PageUV);
-			}
-
-			float DistanceFieldGradientLength = length(DistanceFieldGradient);
-			float3 SampleNormal = DistanceFieldGradientLength > 0.001 ? DistanceFieldGradient / DistanceFieldGradientLength : -TraceInput.ConeDirection;
 			float4 StepLighting = SampleVoxelLighting(SampleWorldPosition, -SampleNormal, VoxelClipmapIndex);
-
 			StepLighting.xyz = StepLighting.xyz * (1.0f / max(StepLighting.w, 0.1));
 
 			float VoxelSelfLightingBias = 1.0f;
@@ -1241,6 +1229,16 @@ void ConeTraceVoxels(
 			}
 
 			LightingAndAlpha.xyz = StepLighting.xyz * VoxelSelfLightingBias;
+
+			// Debug visualization
+			#if ENABLE_VISUALIZE_MODE == 1
+			{
+				if (VisualizeMode == VISUALIZE_MODE_GEOMETRY_NORMALS)
+				{
+					LightingAndAlpha.xyz = (SampleNormal * 0.5f + 0.5f) * View.OneOverPreExposure;
+				}
+			}
+			#endif
 		}
 	}
 

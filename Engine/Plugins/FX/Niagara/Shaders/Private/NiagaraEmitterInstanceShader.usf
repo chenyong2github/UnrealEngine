@@ -10,7 +10,7 @@ NiagaraSimulationShader.usf:
 
 #if GPU_SIMULATION
 	#include "/Engine/Private/Common.ush"
-	#include "/Engine/Private/GlobalDistanceFieldShared.ush"
+	#include "/Engine/Private/DistanceField/GlobalDistanceFieldShared.ush"
 #else
 	const static float PI = 3.1415926535897932f;
 #endif

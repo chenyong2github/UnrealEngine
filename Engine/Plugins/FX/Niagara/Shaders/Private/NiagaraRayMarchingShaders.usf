@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Private/Common.ush"
-#include "/Engine/Private/GlobalDistanceFieldShared.ush"
+#include "/Engine/Private/DistanceField/GlobalDistanceFieldShared.ush"
 #include "NiagaraAsyncGpuTraceCommon.ush"
 
 #if !defined(THREADGROUP_SIZE_X)

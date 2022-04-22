@@ -8,7 +8,7 @@
 #include "DeferredShadingCommon.ush"
 #include "DistanceFieldLightingShared.ush"
 #include "DistanceFieldAOShared.ush"
-#include "GlobalDistanceFieldShared.ush"
+#include "DistanceField/GlobalDistanceFieldShared.ush"
 
 uint ObjectBoundingGeometryIndexCount;
 

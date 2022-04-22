@@ -1009,7 +1009,7 @@ public:
 
 	bool bInitializedGlobalDistanceFieldOrigins;
 	bool bGlobalDistanceFieldPendingReset = false;
-	FGlobalDistanceFieldClipmapState GlobalDistanceFieldClipmapState[GMaxGlobalDistanceFieldClipmaps];
+	FGlobalDistanceFieldClipmapState GlobalDistanceFieldClipmapState[GlobalDistanceField::MaxClipmaps];
 	int32 GlobalDistanceFieldUpdateIndex;
 	FVector GlobalDistanceFieldCameraVelocityOffset;
 	bool bGlobalDistanceFieldUpdateViewOrigin = true;

@@ -67,14 +67,6 @@ FAutoConsoleVariableRef CVarLumenVisualizeIndirectDiffuse(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenVisualizeStats = 0;
-FAutoConsoleVariableRef CVarLumenVisualizeStats(
-	TEXT("r.Lumen.Visualize.Stats"),
-	GLumenVisualizeStats,
-	TEXT("Print out Lumen scene stats."),
-	ECVF_RenderThreadSafe
-);
-
 int32 GVisualizeLumenSceneTraceMeshSDFs = 1;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneTraceMeshSDFs(
 	TEXT("r.Lumen.Visualize.TraceMeshSDFs"),
@@ -352,32 +344,6 @@ public:
 };
 
 IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenSceneCS, "/Engine/Private/Lumen/LumenVisualize.usf", "VisualizeQuadsCS", SF_Compute);
-
-class FVisualizeLumenSceneStatsCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FVisualizeLumenSceneStatsCS)
-	SHADER_USE_PARAMETER_STRUCT(FVisualizeLumenSceneStatsCS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, GlobalDistanceFieldPageFreeListAllocatorBuffer)
-		SHADER_PARAMETER(uint32, GlobalDistanceFieldMaxPageNum)
-	END_SHADER_PARAMETER_STRUCT()
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), 1);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenSceneStatsCS, "/Engine/Private/Lumen/LumenVisualize.usf", "VisualizeStatsCS", SF_Compute);
 
 class FVisualizeLumenVoxelsCS : public FGlobalShader
 {
@@ -695,27 +661,6 @@ void FDeferredShadingSceneRenderer::RenderLumenMiscVisualizations(FRDGBuilder& G
 					FIntVector(GroupSize.X, GroupSize.Y, 1));
 			}
 		}
-	}
-
-	if (bAnyLumenActive
-		&& GLumenVisualizeStats != 0
-		&& View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer)
-	{
-		FRDGBufferRef GlobalDistanceFieldPageFreeListAllocatorBuffer = GraphBuilder.RegisterExternalBuffer(View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer, TEXT("PageFreeListAllocator"));
-
-		FVisualizeLumenSceneStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenSceneStatsCS::FParameters>();
-		ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);
-		PassParameters->GlobalDistanceFieldPageFreeListAllocatorBuffer = GraphBuilder.CreateSRV(GlobalDistanceFieldPageFreeListAllocatorBuffer, PF_R32_UINT);
-		PassParameters->GlobalDistanceFieldMaxPageNum = View.GlobalDistanceFieldInfo.ParameterData.MaxPageNum;
-
-		auto ComputeShader = View.ShaderMap->GetShader<FVisualizeLumenSceneStatsCS>();
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("LumenSceneStats"),
-			ComputeShader,
-			PassParameters,
-			FIntVector(1, 1, 1));
 	}
 
 	RenderLumenRadianceCacheVisualization(GraphBuilder, SceneTextures);

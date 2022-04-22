@@ -10,7 +10,7 @@
 #include "HeightFogCommon.ush"
 #include "SHCommon.ush"
 #include "DistanceFieldAOShared.ush"
-#include "GlobalDistanceFieldShared.ush"
+#include "DistanceField/GlobalDistanceFieldShared.ush"
 #include "VolumeLightingCommon.ush"
 #include "VolumetricLightmapShared.ush"
 #include "ForwardShadowingCommon.ush"

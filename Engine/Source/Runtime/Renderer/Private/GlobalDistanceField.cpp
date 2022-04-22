@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	GlobalDistanceField.cpp
-=============================================================================*/
-
 #include "GlobalDistanceField.h"
 #include "DistanceFieldLightingShared.h"
 #include "RendererModule.h"
@@ -25,7 +21,7 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceField(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GGlobalDistanceFieldOccupancyRatio = 0.5f;
+float GGlobalDistanceFieldOccupancyRatio = 0.4f;
 FAutoConsoleVariableRef CVarAOGlobalDistanceFieldOccupancyRatio(
 	TEXT("r.AOGlobalDistanceField.OccupancyRatio"),
 	GGlobalDistanceFieldOccupancyRatio,
@@ -197,11 +193,10 @@ FAutoConsoleVariableRef CVarAOGlobalDistanceFieldFastCameraMode(
 	ECVF_RenderThreadSafe
 );
 
-int32 GAOGlobalDistanceFieldAverageCulledObjectsPerPage = 512;
-FAutoConsoleVariableRef CVarAOGlobalDistanceFieldAverageCulledObjectsPerPage(
-	TEXT("r.AOGlobalDistanceField.AverageCulledObjectsPerPage"),
-	GAOGlobalDistanceFieldAverageCulledObjectsPerPage,
-	TEXT("Average expected number of objects per page, used to preallocate memory for the cull grid."),
+static TAutoConsoleVariable<int32> CVarAOGlobalDistanceFieldAverageCulledObjectsPerCell(
+	TEXT("r.AOGlobalDistanceField.AverageCulledObjectsPerCell"),
+	512,
+	TEXT("Average expected number of objects per cull grid cell, used to preallocate memory for the cull grid."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -237,6 +232,13 @@ FAutoConsoleVariableRef CVarLumenScenGlobalSDFUncoveredMinStepScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarGlobalDistanceFieldDebug(
+	TEXT("r.GlobalDistanceField.Debug"),
+	0,
+	TEXT("Debug drawing for the Global Distance Field. Requires r.ShaderPrint=1."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData& ParameterData)
 {
 	FGlobalDistanceFieldParameters2 ShaderParameters;
@@ -246,7 +248,7 @@ FGlobalDistanceFieldParameters2 SetupGlobalDistanceFieldParameters(const FGlobal
 	ShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DUintIfNull(ParameterData.PageTableTexture);
 	ShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(ParameterData.MipTexture);
 
-	for (int32 Index = 0; Index < GMaxGlobalDistanceFieldClipmaps; Index++)
+	for (int32 Index = 0; Index < GlobalDistanceField::MaxClipmaps; Index++)
 	{
 		ShaderParameters.GlobalVolumeCenterAndExtent[Index] = ParameterData.CenterAndExtent[Index];
 		ShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = ParameterData.WorldToUVAddAndMul[Index];
@@ -306,16 +308,20 @@ int32 GetNumGlobalDistanceFieldClipmaps(bool bLumenEnabled, float LumenSceneView
 	{
 		WantedClipmaps++;
 	}
-	return FMath::Clamp<int32>(WantedClipmaps, 0, GMaxGlobalDistanceFieldClipmaps);
+	return FMath::Clamp<int32>(WantedClipmaps, 0, GlobalDistanceField::MaxClipmaps);
 }
 
 // Global Distance Field Pages
 // Must match GlobalDistanceFieldShared.ush
-const int32 GGlobalDistanceFieldPageResolutionInAtlas = 16; // Includes 1 texel bilinear filter margin
-const int32 GGlobalDistanceFieldCoveragePageResolutionInAtlas = 8; // Includes 1 texel bilinear filter margin
-const int32 GGlobalDistanceFieldPageResolution = GGlobalDistanceFieldPageResolutionInAtlas - 2;
-const int32 GGlobalDistanceFieldPageAtlasSizeInPagesX = 32;
-const int32 GGlobalDistanceFieldPageAtlasSizeInPagesY = 32;
+namespace GlobalDistanceField
+{
+	const int32 CullGridFactor = 4;
+	const int32 PageAtlasSizeInPagesX = 128;
+	const int32 PageAtlasSizeInPagesY = 128;
+}
+const int32 GGlobalDistanceFieldPageResolutionInAtlas = 8; // Includes 0.5 texel trilinear filter margin
+const int32 GGlobalDistanceFieldCoveragePageResolutionInAtlas = 4; // Includes 0.5 texel trilinear filter margin
+const int32 GGlobalDistanceFieldPageResolution = GGlobalDistanceFieldPageResolutionInAtlas - 1;
 const int32 GGlobalDistanceFieldInfluenceRangeInVoxels = 4;
 
 int32 GlobalDistanceField::GetClipmapResolution(bool bLumenEnabled)
@@ -327,7 +333,7 @@ int32 GlobalDistanceField::GetClipmapResolution(bool bLumenEnabled)
 		DFResolution = Lumen::GetGlobalDFResolution();
 	}
 
-	return FMath::DivideAndRoundUp(DFResolution, GGlobalDistanceFieldPageResolution) * GGlobalDistanceFieldPageResolution;
+	return FMath::DivideAndRoundUp(DFResolution, 4 * GGlobalDistanceFieldPageResolution) * 4 * GGlobalDistanceFieldPageResolution;
 }
 
 int32 GlobalDistanceField::GetMipFactor()
@@ -342,7 +348,7 @@ int32 GlobalDistanceField::GetClipmapMipResolution(bool bLumenEnabled)
 
 float GlobalDistanceField::GetClipmapExtent(int32 ClipmapIndex, const FScene* Scene, bool bLumenEnabled)
 {
-	if (bLumenEnabled)
+	if (bLumenEnabled) 
 	{
 		const float InnerClipmapDistance = Lumen::GetGlobalDFClipmapExtent();
 		return InnerClipmapDistance * FMath::Pow(2.f, ClipmapIndex);
@@ -381,11 +387,11 @@ FIntVector GlobalDistanceField::GetPageAtlasSizeInPages(bool bLumenEnabled, floa
 		* (GAOGlobalDistanceFieldCacheMostlyStaticSeparately ? 2 : 1)
 		* FMath::Clamp(GGlobalDistanceFieldOccupancyRatio, 0.1f, 1.0f));
 
-	const int32 RequiredNumberOfPagesInZ = FMath::DivideAndRoundUp(RequiredNumberOfPages, GGlobalDistanceFieldPageAtlasSizeInPagesX * GGlobalDistanceFieldPageAtlasSizeInPagesY);
+	const int32 RequiredNumberOfPagesInZ = FMath::DivideAndRoundUp(RequiredNumberOfPages, GlobalDistanceField::PageAtlasSizeInPagesX * GlobalDistanceField::PageAtlasSizeInPagesY);
 
 	const FIntVector PageAtlasTextureSizeInPages = FIntVector(
-		GGlobalDistanceFieldPageAtlasSizeInPagesX,
-		GGlobalDistanceFieldPageAtlasSizeInPagesY,
+		GlobalDistanceField::PageAtlasSizeInPagesX,
+		GlobalDistanceField::PageAtlasSizeInPagesY,
 		RequiredNumberOfPagesInZ);
 
 	return PageAtlasTextureSizeInPages;
@@ -407,7 +413,6 @@ int32 GlobalDistanceField::GetMaxPageNum(bool bLumenEnabled, float LumenSceneVie
 {
 	const FIntVector PageAtlasTextureSizeInPages = GlobalDistanceField::GetPageAtlasSizeInPages(bLumenEnabled, LumenSceneViewDistance);
 	int32 MaxPageNum = PageAtlasTextureSizeInPages.X * PageAtlasTextureSizeInPages.Y * PageAtlasTextureSizeInPages.Z;
-	ensureMsgf(MaxPageNum < UINT16_MAX, TEXT("Page index is stored in a uint16, and 0xFFFF is reserved as invalid."));
 	return MaxPageNum;
 }
 
@@ -463,7 +468,7 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance, b
 			MipTextureResolution.Z = MipTexture->GetDesc().Depth;
 		}
 
-		for (int32 ClipmapIndex = 0; ClipmapIndex < GMaxGlobalDistanceFieldClipmaps; ClipmapIndex++)
+		for (int32 ClipmapIndex = 0; ClipmapIndex < GlobalDistanceField::MaxClipmaps; ClipmapIndex++)
 		{
 			if (ClipmapIndex < Clipmaps.Num())
 			{
@@ -841,7 +846,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						PageTableTextureResolution.X,
 						PageTableTextureResolution.Y,
 						PageTableTextureResolution.Z,
-						PF_R16_UINT,
+						PF_R32_UINT,
 						FClearValueBinding::None,
 						TexCreate_None,
 						TexCreate_ShaderResource | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
@@ -909,7 +914,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						PageTableTextureResolution.X,
 						PageTableTextureResolution.Y,
 						PageTableTextureResolution.Z,
-						PF_R16_UINT,
+						PF_R32_UINT,
 						FClearValueBinding::None,
 						TexCreate_None,
 						TexCreate_ShaderResource | TexCreate_UAV | TexCreate_ReduceMemoryWithTilingMode | TexCreate_3DTiling,
@@ -1156,7 +1161,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 void FViewInfo::SetupDefaultGlobalDistanceFieldUniformBufferParameters(FViewUniformShaderParameters& ViewUniformShaderParameters) const
 {
 	// Initialize global distance field members to defaults, because View.GlobalDistanceFieldInfo is not valid yet
-	for (int32 Index = 0; Index < GMaxGlobalDistanceFieldClipmaps; Index++)
+	for (int32 Index = 0; Index < GlobalDistanceField::MaxClipmaps; Index++)
 	{
 		ViewUniformShaderParameters.GlobalVolumeCenterAndExtent[Index] = FVector4f(0);
 		ViewUniformShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = FVector4f(0);
@@ -1183,7 +1188,7 @@ void FViewInfo::SetupGlobalDistanceFieldUniformBufferParameters(FViewUniformShad
 {
 	check(GlobalDistanceFieldInfo.bInitialized);
 
-	for (int32 Index = 0; Index < GMaxGlobalDistanceFieldClipmaps; Index++)
+	for (int32 Index = 0; Index < GlobalDistanceField::MaxClipmaps; Index++)
 	{
 		ViewUniformShaderParameters.GlobalVolumeCenterAndExtent[Index] = GlobalDistanceFieldInfo.ParameterData.CenterAndExtent[Index];
 		ViewUniformShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = GlobalDistanceFieldInfo.ParameterData.WorldToUVAddAndMul[Index];
@@ -1271,7 +1276,7 @@ class FCullObjectsToClipmapCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FCullObjectsToClipmapCS, "/Engine/Private/GlobalDistanceField.usf", "CullObjectsToClipmapCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCullObjectsToClipmapCS, "/Engine/Private/DistanceField/GlobalDistanceField.usf", "CullObjectsToClipmapCS", SF_Compute);
 
 class FClearIndirectArgBufferCS : public FGlobalShader
 {
@@ -1280,6 +1285,7 @@ class FClearIndirectArgBufferCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWPageUpdateIndirectArgBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCullGridUpdateIndirectArgBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWPageComposeIndirectArgBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1300,7 +1306,7 @@ class FClearIndirectArgBufferCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FClearIndirectArgBufferCS, "/Engine/Private/GlobalDistanceField.usf", "ClearIndirectArgBufferCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FClearIndirectArgBufferCS, "/Engine/Private/DistanceField/GlobalDistanceField.usf", "ClearIndirectArgBufferCS", SF_Compute);
 
 class FBuildGridTilesCS : public FGlobalShader
 {
@@ -1309,15 +1315,21 @@ class FBuildGridTilesCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWGridTileBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWGridIndirectArgBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWPageTileBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWPageIndirectArgBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCullGridTileBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWCullGridIndirectArgBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, UpdateBoundsBuffer)
 		SHADER_PARAMETER(uint32, NumUpdateBounds)
 		SHADER_PARAMETER(float, InfluenceRadiusSq)
-		SHADER_PARAMETER(FIntVector, GridResolution)
-		SHADER_PARAMETER(FVector3f, GridCoordToWorldCenterScale)
-		SHADER_PARAMETER(FVector3f, GridCoordToWorldCenterBias)
-		SHADER_PARAMETER(FVector3f, TileWorldExtent)
+		SHADER_PARAMETER(FIntVector, PageGridResolution)
+		SHADER_PARAMETER(FVector3f, PageGridCoordToWorldCenterScale)
+		SHADER_PARAMETER(FVector3f, PageGridCoordToWorldCenterBias)
+		SHADER_PARAMETER(FVector3f, PageGridTileWorldExtent)
+		SHADER_PARAMETER(FIntVector, CullGridResolution)
+		SHADER_PARAMETER(FVector3f, CullGridCoordToWorldCenterScale)
+		SHADER_PARAMETER(FVector3f, CullGridCoordToWorldCenterBias)
+		SHADER_PARAMETER(FVector3f, CullGridTileWorldExtent)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -1327,7 +1339,8 @@ class FBuildGridTilesCS : public FGlobalShader
 
 	static int32 GetGroupSize()
 	{
-		return 64;
+		static_assert(GlobalDistanceField::CullGridFactor == 4, "Shader is hard coded for CullGridFactor=4");
+		return 4;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -1337,7 +1350,7 @@ class FBuildGridTilesCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FBuildGridTilesCS, "/Engine/Private/GlobalDistanceField.usf", "BuildGridTilesCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FBuildGridTilesCS, "/Engine/Private/DistanceField/GlobalDistanceField.usf", "BuildGridTilesCS", SF_Compute);
 
 class FCullObjectsToGridCS : public FGlobalShader
 {
@@ -1371,7 +1384,7 @@ class FCullObjectsToGridCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FCullObjectsToGridCS, "/Engine/Private/GlobalDistanceField.usf", "CullObjectsToGridCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FCullObjectsToGridCS, "/Engine/Private/DistanceField/GlobalDistanceField.usf", "CullObjectsToGridCS", SF_Compute);
 
 class FComposeObjectsIntoPagesCS : public FGlobalShader
 {
@@ -1437,7 +1450,7 @@ class FComposeObjectsIntoPagesCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FComposeObjectsIntoPagesCS, "/Engine/Private/GlobalDistanceField.usf", "ComposeObjectsIntoPagesCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FComposeObjectsIntoPagesCS, "/Engine/Private/DistanceField/GlobalDistanceField.usf", "ComposeObjectsIntoPagesCS", SF_Compute);
 
 class FInitPageFreeListCS : public FGlobalShader
 {
@@ -1467,7 +1480,7 @@ class FInitPageFreeListCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FInitPageFreeListCS, "/Engine/Private/GlobalDistanceField.usf", "InitPageFreeListCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FInitPageFreeListCS, "/Engine/Private/DistanceField/GlobalDistanceField.usf", "InitPageFreeListCS", SF_Compute);
 
 class FAllocatePagesCS : public FGlobalShader
 {
@@ -1546,7 +1559,7 @@ class FAllocatePagesCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FAllocatePagesCS, "/Engine/Private/GlobalDistanceField.usf", "AllocatePagesCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FAllocatePagesCS, "/Engine/Private/DistanceField/GlobalDistanceField.usf", "AllocatePagesCS", SF_Compute);
 
 class FPageFreeListReturnIndirectArgBufferCS : public FGlobalShader
 {
@@ -1573,7 +1586,7 @@ class FPageFreeListReturnIndirectArgBufferCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FPageFreeListReturnIndirectArgBufferCS, "/Engine/Private/GlobalDistanceField.usf", "PageFreeListReturnIndirectArgBufferCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FPageFreeListReturnIndirectArgBufferCS, "/Engine/Private/DistanceField/GlobalDistanceField.usf", "PageFreeListReturnIndirectArgBufferCS", SF_Compute);
 
 class FPageFreeListReturnCS : public FGlobalShader
 {
@@ -1607,7 +1620,7 @@ class FPageFreeListReturnCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FPageFreeListReturnCS, "/Engine/Private/GlobalDistanceField.usf", "PageFreeListReturnCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FPageFreeListReturnCS, "/Engine/Private/DistanceField/GlobalDistanceField.usf", "PageFreeListReturnCS", SF_Compute);
 
 class FPropagateMipDistanceCS : public FGlobalShader
 {
@@ -1654,7 +1667,37 @@ class FPropagateMipDistanceCS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FPropagateMipDistanceCS, "/Engine/Private/GlobalDistanceFieldMip.usf", "PropagateMipDistanceCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FPropagateMipDistanceCS, "/Engine/Private/DistanceField/GlobalDistanceFieldMip.usf", "PropagateMipDistanceCS", SF_Compute);
+
+class FGlobalDistanceFieldDebugCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FGlobalDistanceFieldDebugCS)
+	SHADER_USE_PARAMETER_STRUCT(FGlobalDistanceFieldDebugCS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, GlobalDistanceFieldPageFreeListAllocatorBuffer)
+		SHADER_PARAMETER(uint32, GlobalDistanceFieldMaxPageNum)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileDistanceFieldShaders(Parameters.Platform);
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 4;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FGlobalDistanceFieldDebugCS, "/Engine/Private/DistanceField/GlobalDistanceFieldDebug.usf", "GlobalDistanceFieldDebugCS", SF_Compute);
 
 /** 
  * Updates the global distance field for a view.  
@@ -1677,7 +1720,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 	if (DistanceFieldSceneData.NumObjectsInBuffer > 0 || DistanceFieldSceneData.HeightfieldPrimitives.Num() > 0)
 	{
-		const int32 NumClipmaps = FMath::Clamp<int32>(GetNumGlobalDistanceFieldClipmaps(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance), 0, GMaxGlobalDistanceFieldClipmaps);
+		const int32 NumClipmaps = FMath::Clamp<int32>(GetNumGlobalDistanceFieldClipmaps(bLumenEnabled, View.FinalPostProcessSettings.LumenSceneViewDistance), 0, GlobalDistanceField::MaxClipmaps);
 		ComputeUpdateRegionsAndUpdateViewState(GraphBuilder.RHICmdList, View, Scene, GlobalDistanceFieldInfo, NumClipmaps, MaxOcclusionDistance, bLumenEnabled);
 
 		// Recreate the view uniform buffer now that we have updated GlobalDistanceFieldInfo
@@ -1963,11 +2006,19 @@ void UpdateGlobalDistanceFieldVolume(
 						const FVector PageGridCoordToWorldCenterScale = ClipmapSize / FVector(PageGridResolution);
 						const FVector PageGridCoordToWorldCenterBias = Clipmap.Bounds.Min + 0.5f * PageGridCoordToWorldCenterScale;
 
+						const FIntVector CullGridResolution = FComputeShaderUtils::GetGroupCount(PageGridResolution, GlobalDistanceField::CullGridFactor);
+						const int32 CullGridSize = CullGridResolution.X * CullGridResolution.Y * CullGridResolution.Z;
+						const FVector CullTileWorldExtent = ClipmapVoxelExtent * GGlobalDistanceFieldPageResolutionInAtlas * GlobalDistanceField::CullGridFactor;
+						const FVector CullGridCoordToWorldCenterScale = ClipmapSize / FVector(CullGridResolution);
+						const FVector CullGridCoordToWorldCenterBias = Clipmap.Bounds.Min + 0.5 * CullGridCoordToWorldCenterScale;
+
 						FRDGBufferRef PageUpdateTileBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PageGridSize), TEXT("PageUpdateTiles"));
 						FRDGBufferRef PageComposeTileBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PageGridSize), TEXT("PageComposeTiles"));
 						FRDGBufferRef PageComposeHeightfieldTileBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PageGridSize), TEXT("PageComposeHeightfieldTiles"));
+						FRDGBufferRef CullGridUpdateTileBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), CullGridSize), TEXT("CullGridUpdateTiles"));
 
 						FRDGBufferRef PageUpdateIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("PageUpdateIndirectArgs"));
+						FRDGBufferRef CullGridUpdateIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("CullGridUpdateIndirectArgs"));
 						FRDGBufferRef PageComposeIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("PageComposeIndirectArgs"));
 						FRDGBufferRef PageComposeHeightfieldIndirectArgBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("PageComposeHeightfieldIndirectArgs"));
 
@@ -1975,6 +2026,7 @@ void UpdateGlobalDistanceFieldVolume(
 						{
 							FClearIndirectArgBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearIndirectArgBufferCS::FParameters>();
 							PassParameters->RWPageUpdateIndirectArgBuffer = GraphBuilder.CreateUAV(PageUpdateIndirectArgBuffer, PF_R32_UINT);
+							PassParameters->RWCullGridUpdateIndirectArgBuffer = GraphBuilder.CreateUAV(CullGridUpdateIndirectArgBuffer, PF_R32_UINT);
 							PassParameters->RWPageComposeIndirectArgBuffer = GraphBuilder.CreateUAV(PageComposeIndirectArgBuffer, PF_R32_UINT);
 
 							auto ComputeShader = View.ShaderMap->GetShader<FClearIndirectArgBufferCS>();
@@ -1991,19 +2043,27 @@ void UpdateGlobalDistanceFieldVolume(
 						{
 							FBuildGridTilesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildGridTilesCS::FParameters>();
 							PassParameters->View = View.ViewUniformBuffer;
-							PassParameters->RWGridTileBuffer = GraphBuilder.CreateUAV(PageUpdateTileBuffer, PF_R32_UINT);
-							PassParameters->RWGridIndirectArgBuffer = GraphBuilder.CreateUAV(PageUpdateIndirectArgBuffer, PF_R32_UINT);
+							PassParameters->RWPageTileBuffer = GraphBuilder.CreateUAV(PageUpdateTileBuffer, PF_R32_UINT);
+							PassParameters->RWPageIndirectArgBuffer = GraphBuilder.CreateUAV(PageUpdateIndirectArgBuffer, PF_R32_UINT);
+							PassParameters->RWCullGridTileBuffer = GraphBuilder.CreateUAV(CullGridUpdateTileBuffer, PF_R32_UINT);
+							PassParameters->RWCullGridIndirectArgBuffer = GraphBuilder.CreateUAV(CullGridUpdateIndirectArgBuffer, PF_R32_UINT);
 							PassParameters->UpdateBoundsBuffer = GraphBuilder.CreateSRV(UpdateBoundsBuffer, PF_A32B32G32R32F);
 							PassParameters->NumUpdateBounds = NumUpdateBounds;
-							PassParameters->GridResolution = PageGridResolution;
-							PassParameters->GridCoordToWorldCenterScale = (FVector3f)PageGridCoordToWorldCenterScale;
-							PassParameters->GridCoordToWorldCenterBias = (FVector3f)PageGridCoordToWorldCenterBias;
-							PassParameters->TileWorldExtent = (FVector3f)PageTileWorldExtent;
 							PassParameters->InfluenceRadiusSq = ClipmapInfluenceRadius * ClipmapInfluenceRadius;
+							// Page grid
+							PassParameters->PageGridResolution = PageGridResolution;
+							PassParameters->PageGridCoordToWorldCenterScale = (FVector3f)PageGridCoordToWorldCenterScale;
+							PassParameters->PageGridCoordToWorldCenterBias = (FVector3f)PageGridCoordToWorldCenterBias;
+							PassParameters->PageGridTileWorldExtent = (FVector3f)PageTileWorldExtent;
+							// Cull grid
+							PassParameters->CullGridResolution = CullGridResolution;
+							PassParameters->CullGridCoordToWorldCenterScale = (FVector3f)CullGridCoordToWorldCenterScale;
+							PassParameters->CullGridCoordToWorldCenterBias = (FVector3f)CullGridCoordToWorldCenterBias;
+							PassParameters->CullGridTileWorldExtent = (FVector3f)CullTileWorldExtent;
 
 							auto ComputeShader = View.ShaderMap->GetShader<FBuildGridTilesCS>();
 
-							const FIntVector GroupSize = PageGridResolution;
+							const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(PageGridResolution, FBuildGridTilesCS::GetGroupSize());
 
 							FComputeShaderUtils::AddPass(
 								GraphBuilder,
@@ -2112,10 +2172,10 @@ void UpdateGlobalDistanceFieldVolume(
 							}
 						}
 
-						const uint32 AverageCulledObjectsPerPage = FMath::Clamp(GAOGlobalDistanceFieldAverageCulledObjectsPerPage, 1, 8192);
+						const uint32 AverageCulledObjectsPerPage = FMath::Clamp(CVarAOGlobalDistanceFieldAverageCulledObjectsPerCell.GetValueOnRenderThread(), 1, 8192);
 						FRDGBufferRef CullGridAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("CullGridAllocator"));
-						FRDGBufferRef CullGridObjectHeader = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2 * PageGridSize), TEXT("CullGridObjectHeader"));
-						FRDGBufferRef CullGridObjectArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), PageGridSize * AverageCulledObjectsPerPage), TEXT("CullGridObjectArray"));
+						FRDGBufferRef CullGridObjectHeader = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2 * CullGridSize), TEXT("CullGridObjectHeader"));
+						FRDGBufferRef CullGridObjectArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), CullGridSize * AverageCulledObjectsPerPage), TEXT("CullGridObjectArray"));
 
 						FDistanceFieldObjectBufferParameters DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
 						FDistanceFieldAtlasParameters DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
@@ -2130,15 +2190,15 @@ void UpdateGlobalDistanceFieldVolume(
 							PassParameters->RWCullGridAllocator = GraphBuilder.CreateUAV(CullGridAllocator, PF_R32_UINT);
 							PassParameters->RWCullGridObjectHeader = GraphBuilder.CreateUAV(CullGridObjectHeader, PF_R32_UINT);
 							PassParameters->RWCullGridObjectArray = GraphBuilder.CreateUAV(CullGridObjectArray, PF_R32_UINT);
-							PassParameters->CullGridIndirectArgBuffer = PageUpdateIndirectArgBuffer;
-							PassParameters->CullGridTileBuffer = GraphBuilder.CreateSRV(PageUpdateTileBuffer, PF_R32_UINT);
+							PassParameters->CullGridIndirectArgBuffer = CullGridUpdateIndirectArgBuffer;
+							PassParameters->CullGridTileBuffer = GraphBuilder.CreateSRV(CullGridUpdateTileBuffer, PF_R32_UINT);
 							PassParameters->ObjectIndexBuffer = GraphBuilder.CreateSRV(ObjectIndexBuffer, PF_R32_UINT);
 							PassParameters->ObjectIndexNumBuffer = GraphBuilder.CreateSRV(ObjectIndexNumBuffer, PF_R32_UINT);
 							PassParameters->DistanceFieldObjectBuffers = DistanceFieldObjectBuffers;
-							PassParameters->CullGridResolution = PageGridResolution;
-							PassParameters->CullGridCoordToWorldCenterScale = (FVector3f)PageGridCoordToWorldCenterScale;
-							PassParameters->CullGridCoordToWorldCenterBias = (FVector3f)PageGridCoordToWorldCenterBias;
-							PassParameters->CullTileWorldExtent = (FVector3f)PageTileWorldExtent;
+							PassParameters->CullGridResolution = CullGridResolution;
+							PassParameters->CullGridCoordToWorldCenterScale = (FVector3f)CullGridCoordToWorldCenterScale;
+							PassParameters->CullGridCoordToWorldCenterBias = (FVector3f)CullGridCoordToWorldCenterBias;
+							PassParameters->CullTileWorldExtent = (FVector3f)CullTileWorldExtent;
 							PassParameters->InfluenceRadiusSq = ClipmapInfluenceRadius * ClipmapInfluenceRadius;
 
 							auto ComputeShader = View.ShaderMap->GetShader<FCullObjectsToGridCS>();
@@ -2148,7 +2208,7 @@ void UpdateGlobalDistanceFieldVolume(
 								RDG_EVENT_NAME("CullObjectsToGrid"),
 								ComputeShader,
 								PassParameters,
-								PageUpdateIndirectArgBuffer,
+								CullGridUpdateIndirectArgBuffer,
 								0);
 						}
 
@@ -2190,7 +2250,7 @@ void UpdateGlobalDistanceFieldVolume(
 
 								PassParameters->CullGridObjectHeader = GraphBuilder.CreateSRV(CullGridObjectHeader, PF_R32_UINT);
 								PassParameters->CullGridObjectArray = GraphBuilder.CreateSRV(CullGridObjectArray, PF_R32_UINT);
-								PassParameters->CullGridResolution = PageGridResolution;
+								PassParameters->CullGridResolution = CullGridResolution;
 
 								PassParameters->DistanceFieldObjectBuffers = DistanceFieldObjectBuffers;
 								PassParameters->DistanceFieldAtlas = DistanceFieldAtlas;
@@ -2277,7 +2337,7 @@ void UpdateGlobalDistanceFieldVolume(
 							PassParameters->InfluenceRadius = ClipmapInfluenceRadius;
 							PassParameters->InfluenceRadiusSq = ClipmapInfluenceRadius * ClipmapInfluenceRadius;
 							PassParameters->ClipmapVoxelExtent = ClipmapVoxelExtent.X;
-							PassParameters->CullGridResolution = PageGridResolution;
+							PassParameters->CullGridResolution = CullGridResolution;
 							PassParameters->PageGridResolution = PageGridResolution;
 							PassParameters->InvPageGridResolution = FVector3f::OneVector / (FVector3f)PageGridResolution;
 							PassParameters->ClipmapResolution = FIntVector(ClipmapResolution);
@@ -2464,6 +2524,25 @@ void UpdateGlobalDistanceFieldVolume(
 
 			ResourceAccessFinalizer.Finalize(GraphBuilder);
 		}
+
+		if (CVarGlobalDistanceFieldDebug.GetValueOnRenderThread() != 0 && View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer)
+		{
+			FRDGBufferRef PageFreeListAllocatorBuffer = GraphBuilder.RegisterExternalBuffer(View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer, TEXT("GlobalDistanceField.PageFreeListAllocator"));
+
+			FGlobalDistanceFieldDebugCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGlobalDistanceFieldDebugCS::FParameters>();
+			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);
+			PassParameters->GlobalDistanceFieldPageFreeListAllocatorBuffer = GraphBuilder.CreateSRV(PageFreeListAllocatorBuffer, PF_R32_UINT);
+			PassParameters->GlobalDistanceFieldMaxPageNum = View.GlobalDistanceFieldInfo.ParameterData.MaxPageNum;
+
+			auto ComputeShader = View.ShaderMap->GetShader<FGlobalDistanceFieldDebugCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("GlobalDistanceFieldDebug"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(1, 1, 1));
+		}
 	}
 
 	if (GDFReadbackRequest && GlobalDistanceFieldInfo.Clipmaps.Num() > 0)
@@ -2483,7 +2562,7 @@ void GlobalDistanceField::ExpandDistanceFieldUpdateTrackingBounds(const FSceneVi
 {
 	// Global Distance Field is interested in any updates which in ClipmapInfluenceBounds range of it's clipmaps
 
-	const int32 NumClipmaps = FMath::Clamp<int32>(GetNumGlobalDistanceFieldClipmaps(false, 1.0f), 0, GMaxGlobalDistanceFieldClipmaps);
+	const int32 NumClipmaps = FMath::Clamp<int32>(GetNumGlobalDistanceFieldClipmaps(false, 1.0f), 0, GlobalDistanceField::MaxClipmaps);
 	for (int32 ClipmapIndex = 0; ClipmapIndex < NumClipmaps; ClipmapIndex++)
 	{
 		const FGlobalDistanceFieldClipmapState& ClipmapViewState = ViewState->GlobalDistanceFieldClipmapState[ClipmapIndex];

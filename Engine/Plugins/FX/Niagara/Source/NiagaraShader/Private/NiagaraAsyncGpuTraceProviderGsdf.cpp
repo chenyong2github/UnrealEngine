@@ -82,7 +82,7 @@ static void AssignGlobalDistanceFieldParameters(const FGlobalDistanceFieldParame
 	ShaderParameters.GlobalDistanceFieldPageTableTexture = OrBlack3DUintIfNull(ParameterData.PageTableTexture);
 	ShaderParameters.GlobalDistanceFieldMipTexture = OrBlack3DIfNull(ParameterData.MipTexture);
 
-	for (int32 Index = 0; Index < GMaxGlobalDistanceFieldClipmaps; Index++)
+	for (int32 Index = 0; Index < GlobalDistanceField::MaxClipmaps; Index++)
 	{
 		ShaderParameters.GlobalVolumeCenterAndExtent[Index] = ParameterData.CenterAndExtent[Index];
 		ShaderParameters.GlobalVolumeWorldToUVAddAndMul[Index] = ParameterData.WorldToUVAddAndMul[Index];

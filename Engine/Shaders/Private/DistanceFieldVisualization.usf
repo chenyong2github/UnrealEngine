@@ -1,15 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	DistanceFieldVisualization.usf
-=============================================================================*/
-
 #include "Common.ush"
 #include "DeferredShadingCommon.ush"
 #include "DistanceFieldLightingShared.ush"
 #include "DistanceFieldAOShared.ush"
-#include "GlobalDistanceFieldShared.ush"
-#include "GlobalDistanceFieldUtils.ush"
+#include "DistanceField/GlobalDistanceFieldShared.ush"
+#include "DistanceField/GlobalDistanceFieldUtils.ush"
 #include "ReflectionEnvironmentShared.ush"
 
 RWTexture2D<float4> RWVisualizeMeshDistanceFields;
@@ -152,19 +148,8 @@ void VisualizeMeshDistanceFieldCS(
 
 	if (GlobalSDFTraceResultIsHit(SDFTraceResult))
 	{
-		WorldHitNormal = -WorldRayDirection;
-
 		float3 WorldRayEnd = WorldRayStart + WorldRayDirection * SDFTraceResult.HitTime;
-		float3 ClipmapVolumeUV = ComputeGlobalUV(WorldRayEnd, SDFTraceResult.HitClipmapIndex);
-		uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, SDFTraceResult.HitClipmapIndex);
-
-		if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
-		{
-			float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, PageIndex);
-			WorldHitNormal = GlobalDistanceFieldPageCentralDiff(PageUV);
-		}
-
-		WorldHitNormal = normalize(WorldHitNormal);
+		WorldHitNormal = ComputeGlobalDistanceFieldNormal(WorldRayEnd, SDFTraceResult.HitClipmapIndex, -WorldRayDirection);
 		bHit = true;
 	}
 

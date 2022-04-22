@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	GlobalDistanceFieldUtils.ush
-=============================================================================*/
-
 #define TWO_SIDED_BAND_SIZE 4.0f
 #define DEFAULT_BAND_SIZE 4.0f
 

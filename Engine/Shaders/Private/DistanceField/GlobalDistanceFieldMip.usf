@@ -1,11 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	GlobalDistanceFieldMip.usf
-=============================================================================*/
-
-#include "Common.ush"
-#include "DeferredShadingCommon.ush"
+#include "../Common.ush"
+#include "../DeferredShadingCommon.ush"
 #include "GlobalDistanceFieldShared.ush"
 
 RWTexture3D<float> RWMipTexture;

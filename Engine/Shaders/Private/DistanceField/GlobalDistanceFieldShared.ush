@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	GlobalDistanceFieldShared.ush
-=============================================================================*/
-
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 
 #if IS_MATERIAL_SHADER
@@ -69,16 +65,17 @@
 #endif
 
 // Must match GlobalDistanceField.cpp
-#define GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS 16 // Includes 1 texel bilinear filter margin
-#define GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS - 2)
-#define GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X 32
-#define GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_Y 32
+#define GLOBAL_DISTANCE_FIELD_PAGE_BORDER 0.5f
+#define GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS 8 // Includes 0.5 texel trilinear filter margin
+#define GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS - 1)
+#define GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X 128
+#define GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_Y 128
 #define GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS 4
-#define GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID 0xFFFF
+#define GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID 0xFFFFFFFF
 
 // Coverage is a payload layer alongside the SDF
-#define GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS 8 // Includes 1 texel bilinear filter margin
-#define GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION (GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS - 2)
+#define GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS 4 // Includes 0.5 texel trilinear filter margin
+#define GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION (GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS - 1)
 #define GLOBAL_DISTANCE_FIELD_COVERAGE_DOWNSAMPLE_FACTOR (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS / GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS)
 
 uint3 GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(uint PageLinearIndex)
@@ -89,9 +86,9 @@ uint3 GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(uint PageLinearIndex)
 	//PageAtlasOffset.z = ((PageLinearIndex / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X) / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_Y);
 
 	// Same as above, but with bit operations
-	PageAtlasOffset.x = PageLinearIndex & 0x1F;
-	PageAtlasOffset.y = (PageLinearIndex >> 5) & 0x1F;
-	PageAtlasOffset.z = PageLinearIndex >> 10;
+	PageAtlasOffset.x = PageLinearIndex & 0x7F;
+	PageAtlasOffset.y = (PageLinearIndex >> 7) & 0x7F;
+	PageAtlasOffset.z = PageLinearIndex >> 14;
 
 	return PageAtlasOffset;
 }
@@ -109,10 +106,10 @@ void ComputeGlobalDistanceFieldPageUV(float3 VolumeUV, uint PageIndex, out float
 	uint3 PageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageIndex);
 	float3 VolumePageUV = frac(VolumeUV * GlobalDistanceFieldClipmapSizeInPages);
 
-	float3 PageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + 1.0f;
+	float3 PageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + 0.5f;
 	OutPageUV = PageAtlasCoord * GlobalDistanceFieldInvPageAtlasSize;
 
-	float3 CoveragePageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION + 1.0f;
+	float3 CoveragePageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION + 0.5f;
 	OutCoveragePageUV = CoveragePageAtlasCoord * GlobalDistanceFieldInvCoverageAtlasSize;
 }
 
@@ -120,7 +117,7 @@ float3 ComputeGlobalDistanceFieldPageUV(float3 VolumeUV, uint PageIndex)
 {
 	uint3 PageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageIndex);
 	float3 VolumePageUV = frac(VolumeUV * GlobalDistanceFieldClipmapSizeInPages);
-	float3 PageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + 1.0f;
+	float3 PageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + 0.5f;
 	float3 PageUV = PageAtlasCoord * GlobalDistanceFieldInvPageAtlasSize;
 	return PageUV;
 }
@@ -129,7 +126,7 @@ float3 ComputeGlobalDistanceFieldCoveragePageUV(float3 VolumeUV, uint PageIndex)
 {
 	uint3 PageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(PageIndex);
 	float3 VolumePageUV = frac(VolumeUV * GlobalDistanceFieldClipmapSizeInPages);
-	float3 CoveragePageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION + 1.0f;
+	float3 CoveragePageAtlasCoord = PageAtlasOffset * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION_IN_ATLAS + VolumePageUV * GLOBAL_DISTANCE_FIELD_COVERAGE_PAGE_RESOLUTION + 0.5f;
 	float3 CoveragePageUV = CoveragePageAtlasCoord * GlobalDistanceFieldInvCoverageAtlasSize;
 	return CoveragePageUV;
 }
@@ -229,19 +226,44 @@ float SampleGlobalDistanceField(float3 WorldPosition, float MaxDistance, int Min
 	return Distance;
 }
 
-float3 GlobalDistanceFieldPageCentralDiff(float3 PageUV)
+float GlobalDistanceFieldSampleClipmap(float3 ClipmapVolumeUV, uint ClipmapIndex)
 {
-	// Distance field pages have a 1 texel border and can't bilinear sample further than 0.5 texel from that border
-	float3 TexelOffset = 0.5f * GlobalDistanceFieldInvPageAtlasSize;
+	float DistanceFieldValue = 1.0f;
 
-	float R = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x + TexelOffset.x, PageUV.y, PageUV.z), 0).x;
-	float L = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x - TexelOffset.x, PageUV.y, PageUV.z), 0).x;
-	float F = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x, PageUV.y + TexelOffset.y, PageUV.z), 0).x;
-	float B = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x, PageUV.y - TexelOffset.y, PageUV.z), 0).x;
-	float U = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x, PageUV.y, PageUV.z + TexelOffset.z), 0).x;
-	float D = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x, PageUV.y, PageUV.z - TexelOffset.z), 0).x;
+	// Wrap UV sampling
+	ClipmapVolumeUV = frac(ClipmapVolumeUV);
+
+	uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
+	if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+	{
+		float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, PageIndex);
+		DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+	}
+
+	return DistanceFieldValue;
+}
+
+float3 GlobalDistanceFieldPageCentralDiff(float3 ClipmapVolumeUV, uint ClipmapIndex)
+{
+	float3 TexelOffset = 0.5f * GlobalVolumeTexelSize;
+
+	float R = GlobalDistanceFieldSampleClipmap(ClipmapVolumeUV + float3(+TexelOffset.x, 0, 0), ClipmapIndex);
+	float L = GlobalDistanceFieldSampleClipmap(ClipmapVolumeUV + float3(-TexelOffset.x, 0, 0), ClipmapIndex);
+	float F = GlobalDistanceFieldSampleClipmap(ClipmapVolumeUV + float3(0, +TexelOffset.y, 0), ClipmapIndex);
+	float B = GlobalDistanceFieldSampleClipmap(ClipmapVolumeUV + float3(0, -TexelOffset.y, 0), ClipmapIndex);
+	float U = GlobalDistanceFieldSampleClipmap(ClipmapVolumeUV + float3(0, 0, +TexelOffset.z), ClipmapIndex);
+	float D = GlobalDistanceFieldSampleClipmap(ClipmapVolumeUV + float3(0, 0, -TexelOffset.z), ClipmapIndex);
 
 	return float3(R - L, F - B, U - D);
+}
+
+float3 ComputeGlobalDistanceFieldNormal(float3 SampleWorldPosition, uint ClipmapIndex, float3 FallbackNormal)
+{
+	float3 ClipmapVolumeUV = ComputeGlobalUV(SampleWorldPosition, ClipmapIndex);
+	float3 DistanceFieldGradient = GlobalDistanceFieldPageCentralDiff(ClipmapVolumeUV, ClipmapIndex);
+	float DistanceFieldGradientLength = length(DistanceFieldGradient);
+	float3 DistanceFieldNormal = DistanceFieldGradientLength > 0.001f ? DistanceFieldGradient / DistanceFieldGradientLength : FallbackNormal;
+	return DistanceFieldNormal;
 }
 
 // Returns vector (unnormalized) to the nearest surface point.
@@ -270,7 +292,7 @@ float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
 				// Find a page which where narrow band isn't clipped
 				if (DistanceFieldValue < 0.9f)
 				{
-					float3 PageCentralDiff = GlobalDistanceFieldPageCentralDiff(PageUV);
+					float3 PageCentralDiff = GlobalDistanceFieldPageCentralDiff(ClipmapVolumeUV, ClipmapIndex);
 
 					const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * ClipmapVoxelExtent;
 					const float PageDistanceDecodeFactor = 2.0f * ClipmapInfluenceRange;

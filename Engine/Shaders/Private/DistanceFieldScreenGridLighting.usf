@@ -1,14 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	DistanceFieldScreenGridLighting.usf
-=============================================================================*/
-
 #include "Common.ush"
 #include "DeferredShadingCommon.ush"
 #include "DistanceFieldLightingShared.ush"
 #include "DistanceFieldAOShared.ush"
-#include "GlobalDistanceFieldShared.ush"
+#include "DistanceField/GlobalDistanceFieldShared.ush"
 #include "Strata/Strata.ush"
 
 // Pass a debug value through the pipeline instead of a bent normal

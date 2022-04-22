@@ -171,57 +171,6 @@ void VisualizeQuadsCS(
 	RWSceneColor[OutputScreenCoord] = FinalColor;
 }
 
-StructuredBuffer<uint> GlobalDistanceFieldPageFreeListAllocatorBuffer;
-uint GlobalDistanceFieldMaxPageNum;
-
-[numthreads(1, 1, 1)]
-void VisualizeStatsCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
-{
-	int NumFreePages = -1;
-	if (GlobalDistanceFieldMaxPageNum > 0)
-	{
-		NumFreePages = GlobalDistanceFieldMaxPageNum - GlobalDistanceFieldPageFreeListAllocatorBuffer[0];
-	}
-
-	float2 Origin = float2(0.8, 0.2);
-	float2 TextPos = Origin;
-	TextPos = ShaderPrintSymbol(TextPos, _G_);
-	TextPos = ShaderPrintSymbol(TextPos, _D_);
-	TextPos = ShaderPrintSymbol(TextPos, _F_);
-	TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-	TextPos = ShaderPrintSymbol(TextPos, _P_);
-	TextPos = ShaderPrintSymbol(TextPos, _A_);
-	TextPos = ShaderPrintSymbol(TextPos, _G_);
-	TextPos = ShaderPrintSymbol(TextPos, _E_);
-	TextPos = ShaderPrintSymbol(TextPos, _S_);
-	TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos.x = Origin.x;
-
-	TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-	TextPos = ShaderPrintSymbol(TextPos, _A_);
-	TextPos = ShaderPrintSymbol(TextPos, _L_);
-	TextPos = ShaderPrintSymbol(TextPos, _L_);
-	TextPos = ShaderPrintSymbol(TextPos, _O_);
-	TextPos = ShaderPrintSymbol(TextPos, _C_);
-	TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-	TextPos = ShaderPrint(TextPos, NumFreePages);
-	TextPos = ShaderPrintNewline(TextPos);
-	TextPos.x = Origin.x;
-
-	TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-	TextPos = ShaderPrintSymbol(TextPos, _M_);
-	TextPos = ShaderPrintSymbol(TextPos, _A_);
-	TextPos = ShaderPrintSymbol(TextPos, _X_);
-	TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-	TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-	TextPos = ShaderPrintSymbol(TextPos, _SPC_);
-	TextPos = ShaderPrint(TextPos, GlobalDistanceFieldMaxPageNum);
-}
-
 uint3 VoxelLightingGridResolution;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
