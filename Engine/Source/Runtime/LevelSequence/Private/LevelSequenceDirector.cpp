@@ -8,7 +8,6 @@
 #include "IMovieScenePlayer.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "MovieSceneSequence.h"
-#include "Misc/QualifiedFrameTime.h"
 #include "Evaluation/MovieScenePlayback.h"
 
 UWorld* ULevelSequenceDirector::GetWorld() const

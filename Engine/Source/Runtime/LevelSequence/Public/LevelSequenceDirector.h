@@ -7,6 +7,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "MovieSceneSequenceID.h"
 #include "MovieSceneObjectBindingID.h"
+#include "Misc/QualifiedFrameTime.h"
 #include "LevelSequenceDirector.generated.h"
 
 class IMovieScenePlayer;
