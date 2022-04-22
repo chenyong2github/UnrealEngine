@@ -398,6 +398,8 @@ struct FPropertyAccessLibrary
 
 	FPropertyAccessLibrary() = default;
 
+	ENGINE_API const FPropertyAccessLibrary& operator =(const FPropertyAccessLibrary& Other);
+
 private:
 	friend struct FPropertyAccessSystem;
 	friend struct FPropertyAccessEditorSystem;

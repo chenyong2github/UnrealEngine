@@ -600,6 +600,32 @@ struct FPropertyAccessSystem
 	}
 };
 
+const FPropertyAccessLibrary& FPropertyAccessLibrary::operator =(const FPropertyAccessLibrary& Other)
+{
+	PathSegments = Other.PathSegments;
+	SrcPaths = Other.SrcPaths;
+	DestPaths = Other.DestPaths;
+	CopyBatchArray = Other.CopyBatchArray; 
+
+	if (Other.bHasBeenPostLoaded)
+	{
+		SrcAccesses = Other.SrcAccesses;
+		DestAccesses = Other.DestAccesses;
+		Indirections = Other.Indirections;
+		bHasBeenPostLoaded = Other.bHasBeenPostLoaded;
+	}
+	else
+	{
+		SrcAccesses.Empty();
+		DestAccesses.Empty();
+		Indirections.Empty();
+		bHasBeenPostLoaded = false;
+		::FPropertyAccessSystem::PatchPropertyOffsets(*this);
+	}
+	
+	return *this;
+}
+
 namespace PropertyAccess
 {
 	void PostLoadLibrary(FPropertyAccessLibrary& InLibrary)

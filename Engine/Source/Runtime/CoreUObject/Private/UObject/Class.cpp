@@ -5197,10 +5197,16 @@ void* UClass::CreateSparseClassData()
 		SparseClassData = FMemory::Malloc(SparseClassDataStruct->GetStructureSize(), SparseClassDataStruct->GetMinAlignment());
 		SparseClassDataStruct->InitializeStruct(SparseClassData);
 	}
-
 	if (SparseClassData)
 	{
-		InitializeSparseClassDataFromArchetype();
+		// initialize per class data from the archetype if we have one
+		const void* SparseArchetypeData = GetArchetypeForSparseClassData();
+		UScriptStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
+
+		if (SparseArchetypeData && SparseClassDataStruct->IsChildOf(SparseClassDataArchetypeStruct))
+		{
+			SparseClassDataArchetypeStruct->CopyScriptStruct(SparseClassData, SparseArchetypeData);
+		}
 	}
 
 	return SparseClassData;
@@ -5213,20 +5219,6 @@ void UClass::CleanupSparseClassData()
 		SparseClassDataStruct->DestroyStruct(SparseClassData);
 		FMemory::Free(SparseClassData);
 		SparseClassData = nullptr;
-	}
-}
-
-void UClass::InitializeSparseClassDataFromArchetype()
-{
-	check(SparseClassData);
-
-	// initialize per class data from the archetype if we have one
-	const void* SparseArchetypeData = GetArchetypeForSparseClassData();
-	UScriptStruct* SparseClassDataArchetypeStruct = GetSparseClassDataArchetypeStruct();
-
-	if (SparseArchetypeData && SparseClassDataStruct->IsChildOf(SparseClassDataArchetypeStruct))
-	{
-		SparseClassDataArchetypeStruct->CopyScriptStruct(SparseClassData, SparseArchetypeData);
 	}
 }
 

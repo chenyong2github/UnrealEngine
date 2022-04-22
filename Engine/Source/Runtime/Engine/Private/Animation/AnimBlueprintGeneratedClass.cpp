@@ -634,12 +634,6 @@ void UAnimBlueprintGeneratedClass::PostLoad()
 	});
 }
 
-void UAnimBlueprintGeneratedClass::InitializeSparseClassDataFromArchetype()
-{
-	// ABPGC sparse data is generated per-instance, so there is nothing to copy
-	Super::InitializeSparseClassDataFromArchetype(); // Re-adding to fix FORT-470715
-}
-
 void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 {
 	AnimBlueprintFunctions.Empty();
