@@ -51,7 +51,7 @@ bool FEdgeLoop::InitializeFromVertices(const TArray<int>& VerticesIn, bool bAuto
 		Edges[i] = Mesh->FindEdge(a, b);
 		if (Edges[i] == FDynamicMesh3::InvalidID)
 		{
-			checkf(false, TEXT("EdgeLoop.FromVertices: invalid edge [%d,%d]"), a, b);
+			ensureMsgf(false, TEXT("EdgeLoop.FromVertices: invalid edge [%d,%d]"), a, b);
 			return false;
 		}
 	}

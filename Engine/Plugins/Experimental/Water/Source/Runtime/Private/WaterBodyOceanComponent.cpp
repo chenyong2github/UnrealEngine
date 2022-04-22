@@ -155,13 +155,20 @@ void UWaterBodyOceanComponent::GenerateWaterBodyMesh()
 
 	FVector OceanLocation = GetComponentLocation();
 	FPolygon2d OceanBoundingPolygon = FPolygon2d::MakeRectangle(FVector2d(OceanLocation.X, OceanLocation.Y), VisualExtents.X, VisualExtents.Y);
-	FGeneralPolygon2d FinalPoly(OceanBoundingPolygon);
-	FinalPoly.AddHole(Island);
 
 	FConstrainedDelaunay2d Triangulation;
 	Triangulation.FillRule = FConstrainedDelaunay2d::EFillRule::Positive;
-	Triangulation.Add(FinalPoly);
-	Triangulation.Triangulate();
+	Triangulation.Add(OceanBoundingPolygon);
+	if (!Island.IsClockwise())
+	{
+		Island.Reverse();
+	}
+	Triangulation.Add(Island);
+	bool bTriangulationSuccess = Triangulation.Triangulate();
+	if (!bTriangulationSuccess)
+	{
+		UE_LOG(LogWater, Warning, TEXT("Failed correctly triangulate ocean bounding curve; input may have self-intersections (%s"), *GetOwner()->GetActorNameOrLabel());
+	}
 
 	if (Triangulation.Triangles.Num() == 0)
 	{
@@ -196,11 +203,10 @@ void UWaterBodyOceanComponent::GenerateWaterBodyMesh()
 		FInsetMeshRegion Inset(&OceanMesh);
 		Inset.InsetDistance = -1 * ShapeDilation / 2.f;
 
-		for (FIndex3i Triangle : OceanMesh.GetTrianglesBuffer())
+		Inset.Triangles.Reserve(OceanMesh.TriangleCount());
+		for (int32 Idx : OceanMesh.TriangleIndicesItr())
 		{
-			Inset.Triangles.Add(Triangle.A);
-			Inset.Triangles.Add(Triangle.B);
-			Inset.Triangles.Add(Triangle.C);
+			Inset.Triangles.Add(Idx);
 		}
 		
 		if (Inset.Apply())
