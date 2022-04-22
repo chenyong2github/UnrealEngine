@@ -426,15 +426,8 @@ void PathTracingKernel(
 			
 			uint NearestRecordIndex = 0;
 			float3 RecordIrradiance;
-			
-			float3 PosKey = EncodePositionKey(HitPosition, Payload.WorldNormal, IrradianceCachingParameters.Spacing); // RT_LWC_TODO
-			uint3 Key = EncodeVoxelKey(PosKey);
-			uint NormalDirectionBits = EncodeNormalBits(Payload.WorldNormal);			
-			uint HashKey = 0;		
-			HashKey = MurmurAdd( HashKey, Key.x );
-			HashKey = MurmurAdd( HashKey, Key.y );
-			HashKey = MurmurAdd( HashKey, Key.z );
-			HashKey = MurmurAdd( HashKey, NormalDirectionBits );	
+				
+			uint HashKey = EncodeICHashKey(HitPosition, Payload.WorldNormal, IrradianceCachingParameters.Spacing);
 			uint Index;
 			if (ICHashTableFind(HashKey, Index))
 			{

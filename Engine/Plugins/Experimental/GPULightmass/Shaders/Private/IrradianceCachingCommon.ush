@@ -119,6 +119,19 @@ uint EncodeNormalBits(float3 WorldNormal)
 			;
 }
 
+uint EncodeICHashKey(float3 WorldPosition, float3 WorldNormal, float Spacing)
+{
+	float3 PosKey = EncodePositionKey(WorldPosition, WorldNormal, Spacing); // RT_LWC_TODO
+	uint3 Key = EncodeVoxelKey(PosKey);
+	uint NormalDirectionBits = EncodeNormalBits(WorldNormal);			
+	uint HashKey = 0;		
+	HashKey = MurmurAdd( HashKey, NormalDirectionBits << 26);
+	HashKey = MurmurAdd( HashKey, Key.x << 17);
+	HashKey = MurmurAdd( HashKey, Key.y << 8);
+	HashKey = MurmurAdd( HashKey, Key.z << 0);
+	return HashKey;
+}
+
 #define ATOMIC_ADD_FLOAT(Value, Increment) \
 { \
 	uint NewValue = asuint(Increment); \
@@ -137,14 +150,7 @@ uint EncodeNormalBits(float3 WorldNormal)
 
 void EmitGeometryHitPoint(FFinalGatherHitPoint HitPoint, uint Size)
 {
-	uint3 Key = EncodeVoxelKey(EncodePositionKey(HitPoint.WorldPosition, HitPoint.WorldNormal, Size));
-	uint NormalDirectionBits = EncodeNormalBits(HitPoint.WorldNormal);
-	
-	uint HashKey = 0;
-	HashKey = MurmurAdd( HashKey, Key.x );
-	HashKey = MurmurAdd( HashKey, Key.y );
-	HashKey = MurmurAdd( HashKey, Key.z );
-	HashKey = MurmurAdd( HashKey, NormalDirectionBits );
+	uint HashKey = EncodeICHashKey(HitPoint.WorldPosition, HitPoint.WorldNormal, Size);
 	uint Index;
 	if (ICHashTableAdd(HashKey, Index))
 	{

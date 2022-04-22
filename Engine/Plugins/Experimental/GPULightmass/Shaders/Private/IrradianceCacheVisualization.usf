@@ -25,14 +25,8 @@ void VisualizeIrradianceCachePS(
 			
 	uint NearestRecordIndex = 0;
 	float3 RecordIrradiance;
-	
-	uint3 Key = EncodeVoxelKey(EncodePositionKey(WorldPosition, ShadingNormal, IrradianceCachingParameters.Spacing));		
-	uint NormalDirectionBits = EncodeNormalBits(ShadingNormal);				
-	uint HashKey = 0;
-	HashKey = MurmurAdd( HashKey, Key.x );
-	HashKey = MurmurAdd( HashKey, Key.y );
-	HashKey = MurmurAdd( HashKey, Key.z );
-	HashKey = MurmurAdd( HashKey, NormalDirectionBits );
+			
+	uint HashKey = EncodeICHashKey(WorldPosition, ShadingNormal, IrradianceCachingParameters.Spacing);
 	uint Index;
 	if (ICHashTableFind(HashKey, Index))
 	{
