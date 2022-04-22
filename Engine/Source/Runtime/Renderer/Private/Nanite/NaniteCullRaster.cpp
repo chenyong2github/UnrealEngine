@@ -846,6 +846,7 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		FNaniteMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 1);
 
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
@@ -936,6 +937,7 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
+		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 0);
 
 		const bool bIsPrimitiveShader = PermutationVector.Get<FPrimShaderDim>();
 		
@@ -1032,6 +1034,7 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 		FNaniteMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
+		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 0);
 		OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER"), 1);
 		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), 4); // Mesh and primitive shaders use an index of 4 instead of 5
 
@@ -1166,6 +1169,7 @@ public:
 
 		OutEnvironment.SetRenderTargetOutputFormat(0, EPixelFormat::PF_R32_UINT);
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
+		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 0);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
