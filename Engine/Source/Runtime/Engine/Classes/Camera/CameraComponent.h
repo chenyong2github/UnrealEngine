@@ -114,6 +114,7 @@ public:
 	// UActorComponent interface
 	virtual void OnRegister() override;
 	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 #if WITH_EDITOR
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	virtual void CheckForErrors() override;
@@ -170,6 +171,9 @@ protected:
 
 	/** Ensure the proxy mesh is in the correct place */
 	void UpdateProxyMeshTransform();
+
+	/* Update draw frustum values */
+	void UpdateDrawFrustum();
 
 #endif	// WITH_EDITORONLY_DATA
 
