@@ -92,7 +92,7 @@ public sealed class BuildCMakeLib : BuildCommand
 		public static DirectoryReference MakeRootDirectory = DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Extras", "ThirdPartyNotUE", "GNU_Make", "make-3.81");
 
 		private DirectoryReference PlatformEngineRoot => IsPlatformExtension
-			? DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Platforms", Platform.ToString())
+			? DirectoryReference.Combine(Unreal.RootDirectory, "Engine", "Platforms", PlatformOrGroupName)
 			: DirectoryReference.Combine(Unreal.RootDirectory, "Engine");
 
 		private DirectoryReference GetTargetLibRootDirectory(TargetLib TargetLib)
@@ -137,7 +137,7 @@ public sealed class BuildCMakeLib : BuildCommand
 
 			// First check for an overridden CMakeLists.txt in the BuildForUE/Platform directory
 			DirectoryReference CMakeDirectory = GetTargetLibBuildScriptDirectory(TargetLib);
-			if (!FileReference.Exists(FileReference.Combine(CMakeDirectory, IsPlatformExtension ? "" : Platform.ToString(), "CMakeLists.txt")))
+			if (!FileReference.Exists(FileReference.Combine(CMakeDirectory, IsPlatformExtension ? "" : PlatformOrGroupName, "CMakeLists.txt")))
 			{
 				// If not available then check BuildForUE
 				CMakeDirectory = GetTargetLibBaseBuildScriptDirectory(TargetLib);
@@ -153,7 +153,7 @@ public sealed class BuildCMakeLib : BuildCommand
 
 		protected DirectoryReference GetProjectsDirectory(TargetLib TargetLib, string TargetConfiguration) =>
 			DirectoryReference.Combine(GetTargetLibRootDirectory(TargetLib), "Build",
-				IsPlatformExtension ? "" : Platform.ToString(),
+				IsPlatformExtension ? "" : PlatformOrGroupName,
 				VariantDirectory ?? "",
 				SeparateProjectPerConfig ? TargetLib.BuildMap[TargetConfiguration] : "");
 
@@ -167,11 +167,11 @@ public sealed class BuildCMakeLib : BuildCommand
 			}
 
 			// First check for an overriden toolchain in the BuildForUE/Platform directory
-			FileReference ToolChainPath = FileReference.Combine(GetTargetLibBuildScriptDirectory(TargetLib), IsPlatformExtension ? "" : Platform.ToString(), ToolchainName);
+			FileReference ToolChainPath = FileReference.Combine(GetTargetLibBuildScriptDirectory(TargetLib), IsPlatformExtension ? "" : PlatformOrGroupName, ToolchainName);
 			if (!FileReference.Exists(ToolChainPath))
 			{
 				// If not available then use the top level toolchain path
-				ToolChainPath = FileReference.Combine(PlatformEngineRoot, "Source", "ThirdParty", "CMake", "PlatformScripts", IsPlatformExtension ? "" : Platform.ToString(), ToolchainName);
+				ToolChainPath = FileReference.Combine(PlatformEngineRoot, "Source", "ThirdParty", "CMake", "PlatformScripts", IsPlatformExtension ? "" : PlatformOrGroupName, ToolchainName);
 			}
 
 			return ToolChainPath;
@@ -179,20 +179,20 @@ public sealed class BuildCMakeLib : BuildCommand
 
 		protected FileReference GetProjectIncludePath(TargetLib TargetLib, string TargetConfiguration)
 		{
-			return FileReference.Combine(GetTargetLibBuildScriptDirectory(TargetLib), IsPlatformExtension ? "" : Platform.ToString(), TargetLib.CMakeProjectIncludeFile);
+			return FileReference.Combine(GetTargetLibBuildScriptDirectory(TargetLib), IsPlatformExtension ? "" : PlatformOrGroupName, TargetLib.CMakeProjectIncludeFile);
 		}
 
 		protected DirectoryReference GetOutputLibraryDirectory(TargetLib TargetLib, string TargetConfiguration)
 		{
-			return DirectoryReference.Combine(GetTargetLibRootDirectory(TargetLib), TargetLib.LibOutputPath, IsPlatformExtension ? "" : Platform.ToString(), VariantDirectory ?? "", TargetConfiguration ?? "");
+			return DirectoryReference.Combine(GetTargetLibRootDirectory(TargetLib), TargetLib.LibOutputPath, IsPlatformExtension ? "" : PlatformOrGroupName, VariantDirectory ?? "", TargetConfiguration ?? "");
 		}
 
 		protected DirectoryReference GetOutputBinaryDirectory(TargetLib TargetLib, string TargetConfiguration)
 		{
-			return DirectoryReference.Combine(PlatformEngineRoot, TargetLib.BinOutputPath, IsPlatformExtension ? "" : Platform.ToString(), VariantDirectory ?? "", TargetConfiguration ?? "");
+			return DirectoryReference.Combine(PlatformEngineRoot, TargetLib.BinOutputPath, IsPlatformExtension ? "" : PlatformOrGroupName, VariantDirectory ?? "", TargetConfiguration ?? "");
 		}
 
-		public abstract UnrealTargetPlatform Platform { get; }
+		public abstract string PlatformOrGroupName { get; }
 
 		public virtual bool HasBinaries => false;
 		public virtual bool UseResponseFiles => false;
@@ -211,10 +211,11 @@ public sealed class BuildCMakeLib : BuildCommand
 
 		public virtual string FriendlyName
 		{
-			get { return VariantDirectory == null ? Platform.ToString() : string.Format("{0}-{1}", Platform, VariantDirectory); }
+			get { return VariantDirectory == null ? PlatformOrGroupName : string.Format("{0}-{1}", PlatformOrGroupName, VariantDirectory); }
 		}
 
-		public virtual string CMakeCommand => BuildHostPlatform.Current.Platform.IsInGroup(UnrealPlatformGroup.Windows)
+		public virtual string CMakeCommand =>
+			BuildHostPlatform.Current.Platform.IsInGroup(UnrealPlatformGroup.Microsoft)
 			? FileReference.Combine(CMakeRootDirectory, "bin", "cmake.exe").FullName
 			: BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac
 			? FileReference.Combine(CMakeRootDirectory, "bin", "cmake").FullName
@@ -398,9 +399,9 @@ public sealed class BuildCMakeLib : BuildCommand
 		public override string CMakeGeneratorName => "Unix Makefiles";
 
 		public override string MakeCommand =>
-			BuildHostPlatform.Current.Platform.IsInGroup(UnrealPlatformGroup.Windows)
+			BuildHostPlatform.Current.Platform.IsInGroup(UnrealPlatformGroup.Microsoft)
 			? FileReference.Combine(MakeRootDirectory, "bin", "make.exe").FullName
-			: BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac
+			: BuildHostPlatform.Current.Platform.IsInGroup(UnrealPlatformGroup.Apple)
 			? FileReference.Combine(MakeRootDirectory, "bin", "make").FullName
 			: "make";
 	}
@@ -568,7 +569,7 @@ public sealed class BuildCMakeLib : BuildCommand
 		// ================================================================================
 		// ThirdPartyNotUE
 		// NOTE: these are Windows executables
-		if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+		if (BuildHostPlatform.Current.Platform.IsInGroup(UnrealPlatformGroup.Microsoft))
 		{
 			string CMakePath = DirectoryReference.Combine(TargetPlatform.CMakeRootDirectory, "bin").FullName;
 			string MakePath = DirectoryReference.Combine(TargetPlatform.MakeRootDirectory, "bin").FullName;
@@ -714,7 +715,7 @@ public sealed class BuildCMakeLib : BuildCommand
 
 class VS2017TargetPlatform_Win64 : BuildCMakeLib.VS2017TargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win64;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Win64);
 	public override string DebugDatabaseExtension => "pdb";
 	public override string DynamicLibraryExtension => "dll";
 	public override string StaticLibraryExtension => "lib";
@@ -723,7 +724,7 @@ class VS2017TargetPlatform_Win64 : BuildCMakeLib.VS2017TargetPlatform
 
 class VS2019TargetPlatform_Win64 : BuildCMakeLib.VS2019TargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win64;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Win64);
 	public override string DebugDatabaseExtension => "pdb";
 	public override string DynamicLibraryExtension => "dll";
 	public override string StaticLibraryExtension => "lib";
@@ -732,7 +733,7 @@ class VS2019TargetPlatform_Win64 : BuildCMakeLib.VS2019TargetPlatform
 
 class NMakeTargetPlatform_Win64 : BuildCMakeLib.NMakeTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win64;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Win64);
 	public override string DebugDatabaseExtension => "pdb";
 	public override string DynamicLibraryExtension => "dll";
 	public override string StaticLibraryExtension => "lib";
@@ -741,7 +742,7 @@ class NMakeTargetPlatform_Win64 : BuildCMakeLib.NMakeTargetPlatform
 
 class MakefileTargetPlatform_Win64 : BuildCMakeLib.MakefileTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win64;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Win64);
 	public override string DebugDatabaseExtension => "pdb";
 	public override string DynamicLibraryExtension => "dll";
 	public override string StaticLibraryExtension => "lib";
@@ -750,7 +751,7 @@ class MakefileTargetPlatform_Win64 : BuildCMakeLib.MakefileTargetPlatform
 
 class VS2019TargetPlatform_HoloLens : BuildCMakeLib.VS2019TargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.HoloLens;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.HoloLens);
 	public override string DebugDatabaseExtension => "pdb";
 	public override string DynamicLibraryExtension => "dll";
 	public override string StaticLibraryExtension => "lib";
@@ -771,46 +772,66 @@ class VS2019TargetPlatform_HoloLens : BuildCMakeLib.VS2019TargetPlatform
 	}
 }
 
-class NMakeTargetPlatform_Linux : BuildCMakeLib.NMakeTargetPlatform
+class NMakeTargetPlatform_Unix : BuildCMakeLib.NMakeTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Linux;
+	public override string PlatformOrGroupName => nameof(UnrealPlatformGroup.Unix);
 	public override string StaticLibraryExtension => "a";
 	public override string VariantDirectory => Architecture;
 	public override bool IsPlatformExtension => false;
 
 	private readonly string Architecture;
 
-	public NMakeTargetPlatform_Linux(string Architecture)
+	public NMakeTargetPlatform_Unix(string Architecture)
 	{
 		this.Architecture = Architecture;
 	}
 }
 
-class MakefileTargetPlatform_Linux : BuildCMakeLib.MakefileTargetPlatform
+class MakefileTargetPlatform_Unix : BuildCMakeLib.MakefileTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Linux;
+	public override string PlatformOrGroupName => nameof(UnrealPlatformGroup.Unix);
 	public override string StaticLibraryExtension => "a";
 	public override string VariantDirectory => Architecture;
 	public override bool IsPlatformExtension => false;
 
 	private readonly string Architecture;
 
-	public MakefileTargetPlatform_Linux(string Architecture)
+	public MakefileTargetPlatform_Unix(string Architecture)
 	{
 		this.Architecture = Architecture;
+	}
+}
+
+class NMakeTargetPlatform_Linux : NMakeTargetPlatform_Unix
+{
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Linux);
+
+	public NMakeTargetPlatform_Linux(string Architecture)
+		: base(Architecture)
+	{
+	}
+}
+
+class MakefileTargetPlatform_Linux : MakefileTargetPlatform_Unix
+{
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Linux);
+
+	public MakefileTargetPlatform_Linux(string Architecture)
+		: base(Architecture)
+	{
 	}
 }
 
 class XcodeTargetPlatform_Mac : BuildCMakeLib.XcodeTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Mac;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Mac);
 	public override string StaticLibraryExtension => "a";
 	public override bool IsPlatformExtension => false;
 }
 
 class MakefileTargetPlatform_Mac : BuildCMakeLib.MakefileTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Mac;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Mac);
 	public override string StaticLibraryExtension => "a";
 	public override string VariantDirectory => Architecture;
 	public override bool IsPlatformExtension => false;
@@ -831,7 +852,7 @@ class MakefileTargetPlatform_Mac : BuildCMakeLib.MakefileTargetPlatform
 
 class XcodeTargetPlatform_IOS : BuildCMakeLib.XcodeTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.IOS;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.IOS);
 	public override string StaticLibraryExtension => "a";
 	public override bool IsPlatformExtension => false;
 
@@ -844,7 +865,7 @@ class XcodeTargetPlatform_IOS : BuildCMakeLib.XcodeTargetPlatform
 
 class MakefileTargetPlatform_IOS : BuildCMakeLib.MakefileTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.IOS;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.IOS);
 	public override string StaticLibraryExtension => "a";
 	public override string VariantDirectory => Architecture;
 	public override bool IsPlatformExtension => false;
@@ -870,7 +891,7 @@ class MakefileTargetPlatform_IOS : BuildCMakeLib.MakefileTargetPlatform
 		string SysRoot = (Result.Output ?? "").Trim();
 		if (Result.ExitCode != 0 || !DirectoryExists(SysRoot))
 		{
-			throw new AutomationException("Failed to locate iPhone SDK \"{0}\"", GetSdkName());
+			throw new AutomationException("Failed to locate iPhoneOS SDK \"{0}\":{1}{2}", GetSdkName(), Environment.NewLine, SysRoot);
 		}
 		return SysRoot;
 	}
@@ -880,7 +901,7 @@ class MakefileTargetPlatform_IOS : BuildCMakeLib.MakefileTargetPlatform
 
 class XcodeTargetPlatform_TVOS : BuildCMakeLib.XcodeTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.TVOS;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.TVOS);
 	public override string StaticLibraryExtension => "a";
 	public override bool IsPlatformExtension => false;
 
@@ -893,7 +914,7 @@ class XcodeTargetPlatform_TVOS : BuildCMakeLib.XcodeTargetPlatform
 
 class MakefileTargetPlatform_TVOS : BuildCMakeLib.MakefileTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.TVOS;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.TVOS);
 	public override string StaticLibraryExtension => "a";
 	public override string VariantDirectory => Architecture;
 	public override bool IsPlatformExtension => false;
@@ -919,7 +940,7 @@ class MakefileTargetPlatform_TVOS : BuildCMakeLib.MakefileTargetPlatform
 		string SysRoot = (Result.Output ?? "").Trim();
 		if (Result.ExitCode != 0 || !DirectoryExists(SysRoot))
 		{
-			throw new AutomationException("Failed to locate iPhone SDK \"{0}\"", GetSdkName());
+			throw new AutomationException("Failed to locate tvOS SDK \"{0}\":{1}{2}", GetSdkName(), Environment.NewLine, SysRoot);
 		}
 		return SysRoot;
 	}
@@ -929,7 +950,7 @@ class MakefileTargetPlatform_TVOS : BuildCMakeLib.MakefileTargetPlatform
 
 class NMakeTargetPlatform_Android : BuildCMakeLib.NMakeTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Android;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Android);
 	public override string StaticLibraryExtension => "a";
 	public override string VariantDirectory => Architecture;
 	public override bool IsPlatformExtension => false;
@@ -944,7 +965,7 @@ class NMakeTargetPlatform_Android : BuildCMakeLib.NMakeTargetPlatform
 
 class MakefileTargetPlatform_Android : BuildCMakeLib.MakefileTargetPlatform
 {
-	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Android;
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Android);
 	public override string StaticLibraryExtension => "a";
 	public override string VariantDirectory => Architecture;
 	public override bool IsPlatformExtension => false;
