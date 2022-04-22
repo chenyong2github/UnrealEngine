@@ -226,11 +226,18 @@ namespace UnrealBuildTool
 				Log.TraceVerbose("Compile Env {0}: {1}", Name, Def);
 			}
 
-			foreach(string CircularlyReferencedModuleName in Rules.CircularlyReferencedDependentModules)
+			if (Rules.bValidateCircularDependencies || Rules.bTreatAsEngineModule)
 			{
-				if(CircularlyReferencedModuleName != "BlueprintContext" && !CircularDependenciesAllowList.Any(x => x.Key == Name && x.Value == CircularlyReferencedModuleName))
+				foreach (string CircularlyReferencedModuleName in Rules.CircularlyReferencedDependentModules)
 				{
-					Log.TraceWarning("Found reference between '{0}' and '{1}'. Support for circular references is being phased out; please do not introduce new ones.", Name, CircularlyReferencedModuleName);
+					if (CircularlyReferencedModuleName != "BlueprintContext" &&
+					    !CircularDependenciesAllowList.Any(x =>
+						    x.Key == Name && x.Value == CircularlyReferencedModuleName))
+					{
+						Log.TraceWarning(
+							"Found reference between '{0}' and '{1}'. Support for circular references is being phased out; please do not introduce new ones.",
+							Name, CircularlyReferencedModuleName);
+					}
 				}
 			}
 

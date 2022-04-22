@@ -1055,6 +1055,13 @@ namespace UnrealBuildTool
 			get { return bLegacyPublicIncludePathsPrivate ?? ((DefaultBuildSettings < BuildSettingsVersion.V2) ? Target.bLegacyPublicIncludePaths : false); }
 		}
 		private bool? bLegacyPublicIncludePathsPrivate;
+		
+		/// <summary>
+		/// Whether circular dependencies will be validated against the allow list
+		/// Circular module dependencies result in slower builds. Disabling this option is strongly discouraged.
+        /// This option is ignored for Engine modules which will always be validated against the allow list.
+		/// </summary>
+		public bool bValidateCircularDependencies = true;
 
 		/// <summary>
 		/// Which stanard to use for compiling this module
