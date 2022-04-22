@@ -1134,6 +1134,11 @@ void UGameInstance::SetPersistentTravelURL(FURL InURL)
 {
 	check(WorldContext);
 	WorldContext->LastURL = InURL;
+
+#if WITH_EDITOR
+	// Strip any PIE prefix from the map name
+	WorldContext->LastURL.Map = UWorld::StripPIEPrefixFromPackageName(WorldContext->LastURL.Map, WorldContext->PIEPrefix);
+#endif
 }
 
 bool UGameInstance::EnableListenServer(bool bEnable, int32 PortOverride /*= 0*/)
