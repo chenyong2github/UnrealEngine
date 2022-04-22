@@ -11,6 +11,7 @@
 class FOpenXRHMD;
 struct FInputActionKeyMapping;
 struct FInputAxisKeyMapping;
+struct FKey;
 
 // On some platforms the XrPath type becomes ambiguous for overloading
 FORCEINLINE uint32 GetTypeHash(const TPair<XrPath, XrPath>& Pair)

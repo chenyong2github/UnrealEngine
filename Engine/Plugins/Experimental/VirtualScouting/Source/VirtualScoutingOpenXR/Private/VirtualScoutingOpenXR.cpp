@@ -2,9 +2,11 @@
 
 #include "VirtualScoutingOpenXR.h"
 
+#include "Logging/LogMacros.h"
+#include "Modules/ModuleManager.h"
+
 #if WITH_EDITOR
 
-#include "Logging/LogMacros.h"
 #include "IVREditorModule.h"
 #include "ViewportWorldInteraction.h"
 #include "VREditorMode.h"
