@@ -2400,7 +2400,7 @@ UObject* FLinkerLoad::FindExistingExport(int32 ExportIndex)
 	if (OuterObject)
 	{
 		// find the class of this object
-		UClass* TheClass;
+		UClass* TheClass = nullptr;
 		if (Export.ClassIndex.IsNull())
 		{
 			TheClass = UClass::StaticClass();
@@ -2409,9 +2409,24 @@ UObject* FLinkerLoad::FindExistingExport(int32 ExportIndex)
 		{
 			// Check if this object export is a non-native class, non-native classes are always exports.
 			// If so, then use the outer object as a package.
-			UObject* ClassPackage = Export.ClassIndex.IsExport() ? LinkerRoot : nullptr;
-			const bool bAnyPackage = ClassPackage == nullptr;
-			TheClass = (UClass*)StaticFindObjectFast(UClass::StaticClass(), ClassPackage, ImpExp(Export.ClassIndex).ObjectName, /*bExactClass*/false, bAnyPackage);
+			UObject* ClassPackage = nullptr;
+			if (Export.ClassIndex.IsExport())
+			{
+				ClassPackage = LinkerRoot;
+			}
+			else
+			{
+				FObjectImport& ClassImport = Imp(Export.ClassIndex);
+				ClassPackage = StaticFindObjectFast(UPackage::StaticClass(), nullptr, ClassImport.ClassPackage, /*bExactClass*/true);
+			}
+			if (ClassPackage)
+			{
+				TheClass = (UClass*)StaticFindObjectFast(UClass::StaticClass(), ClassPackage, ImpExp(Export.ClassIndex).ObjectName, /*bExactClass*/false);
+			}
+			else
+			{
+				TheClass = FindFirstObject<UClass>(*ImpExp(Export.ClassIndex).ObjectName.ToString(), EFindFirstObjectOptions::None, ELogVerbosity::Fatal, TEXT("finding existing export"));
+			}
 		}
 
 		// if the class exists, try to find the object
@@ -5583,7 +5598,7 @@ bool FLinkerLoad::CreateImportClassAndPackage( FName ClassName, FName PackageNam
 	return true;
 }
 
-TArray<FName> FLinkerLoad::FindPreviousNamesForClass(FString CurrentClassPath, bool bIsInstance)
+TArray<FName> FLinkerLoad::FindPreviousNamesForClass(const FString& CurrentClassPath, bool bIsInstance)
 {
 	TArray<FName> OldNames;
 	TArray<FCoreRedirectObjectName> OldObjectNames;
@@ -5604,6 +5619,34 @@ TArray<FName> FLinkerLoad::FindPreviousNamesForClass(FString CurrentClassPath, b
 			for (FCoreRedirectObjectName& OldObjectName : OldObjectNames)
 			{
 				OldNames.AddUnique(OldObjectName.ObjectName);
+			}
+		}
+	}
+
+	return OldNames;
+}
+
+TArray<FString> FLinkerLoad::FindPreviousPathNamesForClass(const FString& CurrentClassPath, bool bIsInstance)
+{
+	TArray<FString> OldNames;
+	TArray<FCoreRedirectObjectName> OldObjectNames;
+
+	if (FCoreRedirects::FindPreviousNames(ECoreRedirectFlags::Type_Class, FCoreRedirectObjectName(CurrentClassPath), OldObjectNames))
+	{
+		for (FCoreRedirectObjectName& OldObjectName : OldObjectNames)
+		{
+			OldNames.AddUnique(OldObjectName.ToString());
+		}
+	}
+
+	if (bIsInstance)
+	{
+		OldObjectNames.Empty();
+		if (FCoreRedirects::FindPreviousNames(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, FCoreRedirectObjectName(CurrentClassPath), OldObjectNames))
+		{
+			for (FCoreRedirectObjectName& OldObjectName : OldObjectNames)
+			{
+				OldNames.AddUnique(OldObjectName.ToString());
 			}
 		}
 	}
@@ -5658,6 +5701,42 @@ FName FLinkerLoad::FindNewNameForClass(FName OldClassName, bool bIsInstance)
 		}
 	}
 	return NAME_None;
+}
+
+FString FLinkerLoad::FindNewPathNameForClass(const FString& OldClassNameOrPathName, bool bIsInstance)
+{
+	FCoreRedirectObjectName OldName = FCoreRedirectObjectName(OldClassNameOrPathName);
+	FCoreRedirectObjectName NewName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class, OldName);
+	FString NewClassPathName;
+
+	if (NewName != OldName)
+	{
+		NewClassPathName = NewName.ToString();
+	}
+	else if (bIsInstance)
+	{
+		// Also check instance types
+		NewName = FCoreRedirects::GetRedirectedName(ECoreRedirectFlags::Type_Class | ECoreRedirectFlags::Category_InstanceOnly, OldName);
+
+		if (NewName != OldName)
+		{
+			NewClassPathName = NewName.ToString();
+		}
+	}
+	if (!NewClassPathName.IsEmpty() && !FPackageName::IsValidObjectPath(NewClassPathName))
+	{
+		TArray<UObject*> FoundClasses;
+		UClass* ExistingClass = FindFirstObject<UClass>(*NewClassPathName, EFindFirstObjectOptions::None, ELogVerbosity::Fatal, TEXT("FindNewPathNameForClass"));
+		if (ExistingClass)
+		{
+			NewClassPathName = ExistingClass->GetPathName();
+		}
+		else
+		{
+			UE_LOG(LogLinker, Fatal, TEXT("No classes that match \"%s\" class name found when looking for redirected class"), *NewClassPathName);
+		}
+	}
+	return NewClassPathName;
 }
 
 bool FLinkerLoad::IsKnownMissingPackage(FName PackageName)
@@ -5864,10 +5943,11 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FixupExportMap()
 					const FName OuterClassName = GetExportClassName(Export.OuterIndex);
 					if (OuterClassName == NAME_BlueprintGeneratedClass || OuterClassName == NAME_Blueprint)
 					{
-						static const UClass* ActorComponentClass = FindObjectChecked<UClass>(ANY_PACKAGE, TEXT("ActorComponent"), true);
+						static const UClass* ActorComponentClass = FindObjectChecked<UClass>(nullptr, TEXT("/Script/Engine.ActorComponent"), true);
 						static const FString BPGeneratedClassPostfix(TEXT("_C"));
 						const FString NameClassString = NameClass.ToString();
-						UClass* Class = FindObject<UClass>(ANY_PACKAGE, *NameClassString);
+						UPackage* ClassPackage = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, NamePackage));
+						UClass* Class = Cast<UClass>(StaticFindObjectFast(UClass::StaticClass(), ClassPackage, NameClass));
 
 						// It is (obviously) a component if the class is a child of actor component
 						// and (almost certainly) a component if the class cannot be loaded but it ends in _C meaning it was generated from a blueprint

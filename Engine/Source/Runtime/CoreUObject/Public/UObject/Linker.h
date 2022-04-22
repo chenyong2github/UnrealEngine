@@ -130,7 +130,7 @@ public:
 			check(ImportMap.IsValidIndex(Index.ToImport()));
 			return &ImportMap[Index.ToImport()];
 		}
-		return NULL;
+		return nullptr;
 	}
 
 	/**
@@ -160,12 +160,191 @@ public:
 			check(ExportMap.IsValidIndex(Index.ToExport()));
 			return &ExportMap[Index.ToExport()];
 		}
-		return NULL;
+		return nullptr;
 	}
 
 	/** Serializes the searchable name map */
 	COREUOBJECT_API void SerializeSearchableNamesMap(FArchive &Ar);
 	COREUOBJECT_API void SerializeSearchableNamesMap(FStructuredArchive::FSlot Slot);
+
+	/**
+	 * Return the path name of the UObject represented by the specified import.
+	 * (can be used with StaticFindObject)
+	 *
+	 * @param	ImportIndex	index into the ImportMap for the resource to get the name for
+	 *
+	 * @return	the path name of the UObject represented by the resource at ImportIndex
+	 */
+	COREUOBJECT_API FString GetImportPathName(int32 ImportIndex);
+	/**
+	 * Return the path name of the UObject represented by the specified import.
+	 * (can be used with StaticFindObject)
+	 *
+	 * @param	PackageIndex	package index for the resource to get the name for
+	 *
+	 * @return	the path name of the UObject represented by the resource at PackageIndex, or the empty string if this isn't an import
+	 */
+	FString GetImportPathName(FPackageIndex PackageIndex)
+	{
+		if (PackageIndex.IsImport())
+		{
+			return GetImportPathName(PackageIndex.ToImport());
+		}
+		return FString();
+	}
+	/**
+	 * Return the path name of the UObject represented by the specified export.
+	 * (can be used with StaticFindObject)
+	 *
+	 * @param	RootPackagePath			Name of the root package for this export
+	 * @param	ExportIndex				index into the ExportMap for the resource to get the name for	 
+	 * @param	bResolveForcedExports	if true, the package name part of the return value will be the export's original package,
+	 *									not the name of the package it's currently contained within.
+	 *
+	 * @return	the path name of the UObject represented by the resource at ExportIndex
+	 */
+	COREUOBJECT_API FString GetExportPathName(const FString& RootPackagePath, int32 ExportIndex, bool bResolveForcedExports = false);
+
+	/**
+	 * Return the full name of the UObject represented by the specified import.
+	 *
+	 * @param	ImportIndex	index into the ImportMap for the resource to get the name for
+	 *
+	 * @return	the full name of the UObject represented by the resource at ImportIndex
+	 */
+
+	COREUOBJECT_API FString GetImportFullName(int32 ImportIndex);
+	/**
+	 * Return the full name of the UObject represented by the specified package index
+	 *
+	 * @param	PackageIndex	package index for the resource to get the name for
+	 *
+	 * @return	the full name of the UObject represented by the resource at PackageIndex
+	 */
+	FString GetImportFullName(FPackageIndex PackageIndex)
+	{
+		if (PackageIndex.IsImport())
+		{
+			return GetImportFullName(PackageIndex.ToImport());
+		}
+		return FString();
+	}
+
+	/**
+	 * Return the full name of the UObject represented by the specified export.
+	 *
+	 * @param	RootPackagePath			Name of the root package for this export
+	 * @param	ExportIndex				index into the ExportMap for the resource to get the name for
+	 * @param	bResolveForcedExports	if true, the package name part of the return value will be the export's original package,
+	 *									not the name of the package it's currently contained within.
+	 *
+	 * @return	the full name of the UObject represented by the resource at ExportIndex
+	 */
+	COREUOBJECT_API FString GetExportFullName(const FString& RootPackagePath, int32 ExportIndex, bool bResolveForcedExports = false);
+
+	/**
+	 * Return the outermost resource package index of the resource pointed by LinkerIndex
+	 * @param LinkerIndex the resource to find the outermost of
+	 * @return the package index of the outermost
+	 */
+	FPackageIndex ResourceGetOutermost(FPackageIndex LinkerIndex) const;
+
+	/**
+	 * Return if a resource has the specified other resource in its outer chain
+	 * @param LinkerIndex the package index of the resource to verify
+	 * @param OuterIndex the package index of the possible outer for the resource
+	 * @return true if the resource pointed by LinkerIndex is in the resource pointed by OuterIndex
+	 */
+	bool ResourceIsIn(FPackageIndex LinkerIndex, FPackageIndex OuterIndex) const;
+
+	/**
+	 * Return if two resources share the same outermost
+	 * @param LinkerIndexLHS the package index of the first resource
+	 * @param LinkerIndexRHS the package index of the second resource
+	 * @return true if they share an outer
+	 */
+	bool DoResourcesShareOutermost(FPackageIndex LinkerIndexLHS, FPackageIndex LinkerIndexRHS) const;
+
+	/**
+	 * Return if the import is in any export
+	 * @param ImportIndex the import to verify
+	 * @return true if an export is in the import outer chain
+	 */
+	bool ImportIsInAnyExport(int32 ImportIndex) const;
+
+	/**
+	 * Return if any export is in the import
+	 * @param ImportIndex the import to verify
+	 * @return true if the import is in any export outer chain
+	 */
+	bool AnyExportIsInImport(int32 ImportIndex) const;
+
+	/**
+	 * Return if any export share an outer with the import
+	 * @param ImportIndex the import to verify
+	 * @reutrn true if any export share the same outer has the import
+	 */
+	bool AnyExportShareOuterWithImport(int32 ImportIndex) const;
+
+	/** 
+	 * Gets the class name for the specified index in the export map.
+	 * @param ExportIdx			Export index
+	 * @return Class name of the export at specified index
+	 */
+	COREUOBJECT_API FName GetExportClassName(int32 ExportIdx);
+	/** 
+	 * Gets the class name for the specified index in the export map.
+	 * @param PackageIndex		PackageIndex that represents the export index
+	 * @return Class name of the export at specified PackageIndex if the PackageIndex represents an export. Otherwise NAME_None
+	 */
+	FName GetExportClassName(FPackageIndex PackageIndex)
+	{
+		if (PackageIndex.IsExport())
+		{
+			return GetExportClassName(PackageIndex.ToExport());
+		}
+		return FName();
+	}
+	/** 
+	 * Gets the class name for the specified index in the import map.
+	 * @param ImportIdx			Import index
+	 * @return Class name of the import at specified index
+	 */
+	FName GetImportClassName(int32 ImportIdx)
+	{
+		return ImportMap[ImportIdx].ClassName;
+	}
+	/** 
+	 * Gets the class name for the specified index in the import map.
+	 * @param ImportIdx			Import PackageIndex
+	 * @return Class name of the import at specified PackageIndex if the PackageIndex represents an import. Otherwise NAME_None
+	 */
+	FName GetImportClassName(FPackageIndex PackageIndex)
+	{
+		if (PackageIndex.IsImport())
+		{
+			return GetImportClassName(PackageIndex.ToImport());
+		}
+		return FName();
+	}
+	/** 
+	 * Gets the class name for the specified PackageIndex.
+	 * @param RootPackagePath	Name of the root package these linker tables represent
+	 * @param PackageIndex		PackageIndex for the entry in the linker tables (import or export)
+	 * @return Class name of the export at specified PackageIndex if the PackageIndex is non-null. Otherwise NAME_None
+	 */
+	FName GetClassName(FPackageIndex PackageIndex)
+	{
+		if (PackageIndex.IsImport())
+		{
+			return GetImportClassName(PackageIndex);
+		}
+		else if (PackageIndex.IsExport())
+		{
+			return GetExportClassName(PackageIndex);
+		}
+		return FName();
+	}
 
 	/** Returns the amount of memory allocated by this container, not including sizeof(*this). */
 	COREUOBJECT_API SIZE_T GetAllocatedSize() const;
@@ -262,45 +441,6 @@ public:
 
 	virtual ~FLinker();
 
-	/** Gets the class name for the specified index in the export map. */
-	COREUOBJECT_API FName GetExportClassName(int32 ExportIdx);
-	/** Gets the class name for the specified index in the import map. */
-	FName GetExportClassName(FPackageIndex PackageIndex)
-	{
-		if (PackageIndex.IsExport())
-		{
-			return GetExportClassName(PackageIndex.ToExport());
-		}
-		return NAME_None;
-	}
-	/** Gets the class name for the specified index in the import map. */
-	FName GetImportClassName(int32 ImportIdx)
-	{
-		return ImportMap[ImportIdx].ClassName;
-	}
-	/** Gets the class name for the specified index in the import map. */
-	FName GetImportClassName(FPackageIndex PackageIndex)
-	{
-		if (PackageIndex.IsImport())
-		{
-			return GetImportClassName(PackageIndex.ToImport());
-		}
-		return NAME_None;
-	}
-	/** Gets the class name for the specified package index. */
-	FName GetClassName(FPackageIndex PackageIndex)
-	{
-		if (PackageIndex.IsImport())
-		{
-			return GetImportClassName(PackageIndex);
-		}
-		else if (PackageIndex.IsExport())
-		{
-			return GetExportClassName(PackageIndex);
-		}
-		return NAME_None;
-	}
-
 	FORCEINLINE ELinkerType::Type GetType() const
 	{
 		return LinkerType;
@@ -316,35 +456,11 @@ public:
 	 */
 	void Serialize(FArchive& Ar);
 	void AddReferencedObjects(FReferenceCollector& Collector);
-	/**
-	 * Return the path name of the UObject represented by the specified import. 
-	 * (can be used with StaticFindObject)
-	 * 
-	 * @param	ImportIndex	index into the ImportMap for the resource to get the name for
-	 *
-	 * @return	the path name of the UObject represented by the resource at ImportIndex
-	 */
-	COREUOBJECT_API FString GetImportPathName(int32 ImportIndex);
-	/**
-	 * Return the path name of the UObject represented by the specified import. 
-	 * (can be used with StaticFindObject)
-	 * 
-	 * @param	PackageIndex	package index for the resource to get the name for
-	 *
-	 * @return	the path name of the UObject represented by the resource at PackageIndex, or the empty string if this isn't an import
-	 */
-	FString GetImportPathName(FPackageIndex PackageIndex)
-	{
-		if (PackageIndex.IsImport())
-		{
-			return GetImportPathName(PackageIndex.ToImport());
-		}
-		return FString();
-	}
+	
 	/**
 	 * Return the path name of the UObject represented by the specified export.
 	 * (can be used with StaticFindObject)
-	 * 
+	 *
 	 * @param	ExportIndex				index into the ExportMap for the resource to get the name for
 	 * @param	FakeRoot				Optional name to replace use as the root package of this object instead of the linker
 	 * @param	bResolveForcedExports	if true, the package name part of the return value will be the export's original package,
@@ -352,11 +468,12 @@ public:
 	 *
 	 * @return	the path name of the UObject represented by the resource at ExportIndex
 	 */
-	COREUOBJECT_API FString GetExportPathName(int32 ExportIndex, const TCHAR* FakeRoot=NULL,bool bResolveForcedExports=false);
+	COREUOBJECT_API FString GetExportPathName(int32 ExportIndex, const TCHAR* FakeRoot = nullptr, bool bResolveForcedExports = false);
+
 	/**
 	 * Return the path name of the UObject represented by the specified export.
 	 * (can be used with StaticFindObject)
-	 * 
+	 *
 	 * @param	PackageIndex			package index for the resource to get the name for
 	 * @param	FakeRoot				Optional name to replace use as the root package of this object instead of the linker
 	 * @param	bResolveForcedExports	if true, the package name part of the return value will be the export's original package,
@@ -364,7 +481,7 @@ public:
 	 *
 	 * @return	the path name of the UObject represented by the resource at PackageIndex, or the empty string if this isn't an export
 	 */
-	FString GetExportPathName(FPackageIndex PackageIndex, const TCHAR* FakeRoot=NULL,bool bResolveForcedExports=false)
+	FString GetExportPathName(FPackageIndex PackageIndex, const TCHAR* FakeRoot = nullptr, bool bResolveForcedExports = false)
 	{
 		if (PackageIndex.IsExport())
 		{
@@ -374,9 +491,9 @@ public:
 	}
 
 	/**
-	 * Return the path name of the UObject represented by the specified import. 
+	 * Return the path name of the UObject represented by the specified import.
 	 * (can be used with StaticFindObject)
-	 * 
+	 *
 	 * @param	PackageIndex	package index
 	 *
 	 * @return	the path name of the UObject represented by the resource at PackageIndex, or the empty string if this is null
@@ -393,33 +510,10 @@ public:
 		}
 		return FString();
 	}
-	/**
-	 * Return the full name of the UObject represented by the specified import.
-	 * 
-	 * @param	ImportIndex	index into the ImportMap for the resource to get the name for
-	 *
-	 * @return	the full name of the UObject represented by the resource at ImportIndex
-	 */
-	COREUOBJECT_API FString GetImportFullName(int32 ImportIndex);
-	/**
-	 * Return the full name of the UObject represented by the specified package index
-	 * 
-	 * @param	PackageIndex	package index for the resource to get the name for
-	 *
-	 * @return	the full name of the UObject represented by the resource at PackageIndex
-	 */
-	FString GetImportFullName(FPackageIndex PackageIndex)
-	{
-		if (PackageIndex.IsImport())
-		{
-			return GetImportFullName(PackageIndex.ToImport());
-		}
-		return FString();
-	}
 
 	/**
 	 * Return the full name of the UObject represented by the specified export.
-	 * 
+	 *
 	 * @param	ExportIndex				index into the ExportMap for the resource to get the name for
 	 * @param	FakeRoot				Optional name to replace use as the root package of this object instead of the linker
 	 * @param	bResolveForcedExports	if true, the package name part of the return value will be the export's original package,
@@ -427,10 +521,11 @@ public:
 	 *
 	 * @return	the full name of the UObject represented by the resource at ExportIndex
 	 */
-	COREUOBJECT_API FString GetExportFullName(int32 ExportIndex, const TCHAR* FakeRoot=NULL,bool bResolveForcedExports=false);
+	COREUOBJECT_API FString GetExportFullName(int32 ExportIndex, const TCHAR* FakeRoot = nullptr, bool bResolveForcedExports = false);
+
 	/**
 	 * Return the full name of the UObject represented by the specified package index
-	 * 
+	 *
 	 * @param	PackageIndex			package index for the resource to get the name for
 	 * @param	FakeRoot				Optional name to replace use as the root package of this object instead of the linker
 	 * @param	bResolveForcedExports	if true, the package name part of the return value will be the export's original package,
@@ -438,7 +533,7 @@ public:
 	 *
 	 * @return	the full name of the UObject represented by the resource at PackageIndex
 	 */
-	FString GetExportFullName(FPackageIndex PackageIndex, const TCHAR* FakeRoot=NULL,bool bResolveForcedExports=false)
+	FString GetExportFullName(FPackageIndex PackageIndex, const TCHAR* FakeRoot = nullptr, bool bResolveForcedExports = false)
 	{
 		if (PackageIndex.IsExport())
 		{
@@ -449,7 +544,7 @@ public:
 
 	/**
 	 * Return the full name of the UObject represented by the specified export.
-	 * 
+	 *
 	 * @param	PackageIndex	package index
 	 *
 	 * @return	the path name of the UObject represented by the resource at PackageIndex, or the empty string if this is null
@@ -467,50 +562,6 @@ public:
 		return FString();
 	}
 
-	/**
-	 * Return the outermost resource package index of the resource pointed by LinkerIndex
-	 * @param LinkerIndex the resource to find the outermost of
-	 * @return the package index of the outermost
-	 */
-	FPackageIndex ResourceGetOutermost(FPackageIndex LinkerIndex) const;
-
-	/**
-	 * Return if a resource has the specified other resource in its outer chain
-	 * @param LinkerIndex the package index of the resource to verify
-	 * @param OuterIndex the package index of the possible outer for the resource
-	 * @return true if the resource pointed by LinkerIndex is in the resource pointed by OuterIndex
-	 */
-	bool ResourceIsIn(FPackageIndex LinkerIndex, FPackageIndex OuterIndex) const;
-
-	/**
-	 * Return if two resources share the same outermost
-	 * @param LinkerIndexLHS the package index of the first resource
-	 * @param LinkerIndexRHS the package index of the second resource
-	 * @return true if they share an outer
-	 */
-	bool DoResourcesShareOutermost(FPackageIndex LinkerIndexLHS, FPackageIndex LinkerIndexRHS) const;
-
-	/**
-	 * Return if the import is in any export
-	 * @param ImportIndex the import to verify
-	 * @return true if an export is in the import outer chain
-	 */
-	bool ImportIsInAnyExport(int32 ImportIndex) const;
-
-	/**
-	 * Return if any export is in the import
-	 * @param ImportIndex the import to verify
-	 * @return true if the import is in any export outer chain
-	 */
-	bool AnyExportIsInImport(int32 ImportIndex) const;
-
-	/**
-	 * Return if any export share an outer with the import
-	 * @param ImportIndex the import to verify
-	 * @reutrn true if any export share the same outer has the import
-	 */
-	bool AnyExportShareOuterWithImport(int32 ImportIndex) const;
-	
 	/**
 	 * Tell this linker to start SHA calculations
 	 */

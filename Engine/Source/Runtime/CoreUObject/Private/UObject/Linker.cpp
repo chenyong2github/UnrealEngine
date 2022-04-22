@@ -127,11 +127,11 @@ void FLinkerTables::SerializeSearchableNamesMap(FStructuredArchive::FSlot Slot)
 	Slot << SearchableNamesMap;
 }
 
-FName FLinker::GetExportClassName( int32 i )
+FName FLinkerTables::GetExportClassName(int32 ExportIndex)
 {
-	if (ExportMap.IsValidIndex(i))
+	if (ExportMap.IsValidIndex(ExportIndex))
 	{
-		FObjectExport& Export = ExportMap[i];
+		FObjectExport& Export = ExportMap[ExportIndex];
 		if( !Export.ClassIndex.IsNull() )
 		{
 			return ImpExp(Export.ClassIndex).ObjectName;
@@ -225,7 +225,6 @@ void FLinker::AddReferencedObjects(FReferenceCollector& Collector)
 #endif
 }
 
-// FLinker interface.
 /**
  * Return the path name of the UObject represented by the specified import. 
  * (can be used with StaticFindObject)
@@ -234,16 +233,16 @@ void FLinker::AddReferencedObjects(FReferenceCollector& Collector)
  *
  * @return	the path name of the UObject represented by the resource at ImportIndex
  */
-FString FLinker::GetImportPathName(int32 ImportIndex)
+FString FLinkerTables::GetImportPathName(int32 ImportIndex)
 {
 	FString Result;
 	for (FPackageIndex LinkerIndex = FPackageIndex::FromImport(ImportIndex); !LinkerIndex.IsNull();)
 	{
 		const FObjectResource& Resource = ImpExp(LinkerIndex);
 		bool bSubobjectDelimiter=false;
-
-		if (Result.Len() > 0 && GetClassName(LinkerIndex) != NAME_Package
-			&& (Resource.OuterIndex.IsNull() || GetClassName(Resource.OuterIndex) == NAME_Package) )
+		checkf(LinkerIndex.IsImport(), TEXT("Found an export while traversing the import map"));
+		if (Result.Len() > 0 && GetImportClassName(LinkerIndex) != NAME_Package
+			&& (Resource.OuterIndex.IsNull() || GetImportClassName(Resource.OuterIndex) == NAME_Package) )
 		{
 			bSubobjectDelimiter = true;
 		}
@@ -270,17 +269,17 @@ FString FLinker::GetImportPathName(int32 ImportIndex)
 /**
  * Return the path name of the UObject represented by the specified export.
  * (can be used with StaticFindObject)
- * 
+ *
+ * @param	RootPackagePath			Name of the root package for this export
  * @param	ExportIndex				index into the ExportMap for the resource to get the name for
- * @param	FakeRoot				Optional name to replace use as the root package of this object instead of the linker
  * @param	bResolveForcedExports	if true, the package name part of the return value will be the export's original package,
  *									not the name of the package it's currently contained within.
  *
  * @return	the path name of the UObject represented by the resource at ExportIndex
  */
-FString FLinker::GetExportPathName(int32 ExportIndex, const TCHAR* FakeRoot,bool bResolveForcedExports/*=false*/)
+FString FLinkerTables::GetExportPathName(const FString& RootPackagePath, int32 ExportIndex, bool bResolveForcedExports/*=false*/)
 {
-	FString Result;
+	TStringBuilder<64> Result;
 
 	bool bForcedExport = false;
 	bool bHasOuterImport = false;
@@ -296,42 +295,44 @@ FString FLinker::GetExportPathName(int32 ExportIndex, const TCHAR* FakeRoot,bool
 			if ((Resource.OuterIndex.IsNull() || GetClassName(Resource.OuterIndex) == NAME_Package)
 			  && GetClassName(LinkerIndex) != NAME_Package)
 			{
-				Result = FString(SUBOBJECT_DELIMITER) + Result;
+				Result.Prepend(SUBOBJECT_DELIMITER);
 			}
 			else
 			{
-				Result = FString(TEXT(".")) + Result;
+				Result.Prepend(TEXT("."));
 			}
 		}
-		Result = Resource.ObjectName.ToString() + Result;
+		Result.Prepend(Resource.ObjectName.ToString());
 		bForcedExport = bForcedExport || (LinkerIndex.IsExport() ? Exp(LinkerIndex).bForcedExport : false);
 	}
 
-	if ((bForcedExport && FakeRoot == nullptr && bResolveForcedExports) ||
+	if ((bForcedExport && bResolveForcedExports) ||
 		// if the export we are building the path of has an import in its outer chain, no need to append the LinkerRoot path
 		bHasOuterImport )
 	{
 		// Result already contains the correct path name for this export
-		return Result;
+		return Result.ToString();
 	}
 
-	return (FakeRoot ? FakeRoot : LinkerRoot->GetPathName()) + TEXT(".") + Result;
+	Result.Prepend(TEXT("."));
+	Result.Prepend(RootPackagePath);
+	return Result.ToString();
 }
 
-FString FLinker::GetImportFullName(int32 ImportIndex)
+FString FLinkerTables::GetImportFullName(int32 ImportIndex)
 {
 	return ImportMap[ImportIndex].ClassName.ToString() + TEXT(" ") + GetImportPathName(ImportIndex);
 }
 
-FString FLinker::GetExportFullName(int32 ExportIndex, const TCHAR* FakeRoot,bool bResolveForcedExports/*=false*/)
+FString FLinkerTables::GetExportFullName(const FString& RootPackagePath, int32 ExportIndex, bool bResolveForcedExports/*=false*/)
 {
 	FPackageIndex ClassIndex = ExportMap[ExportIndex].ClassIndex;
 	FName ClassName = ClassIndex.IsNull() ? FName(NAME_Class) : ImpExp(ClassIndex).ObjectName;
 
-	return ClassName.ToString() + TEXT(" ") + GetExportPathName(ExportIndex, FakeRoot, bResolveForcedExports);
+	return ClassName.ToString() + TEXT(" ") + GetExportPathName(RootPackagePath, ExportIndex, bResolveForcedExports);
 }
 
-FPackageIndex FLinker::ResourceGetOutermost(FPackageIndex LinkerIndex) const
+FPackageIndex FLinkerTables::ResourceGetOutermost(FPackageIndex LinkerIndex) const
 {
 	const FObjectResource* Res = &ImpExp(LinkerIndex);
 	while (!Res->OuterIndex.IsNull())
@@ -342,7 +343,7 @@ FPackageIndex FLinker::ResourceGetOutermost(FPackageIndex LinkerIndex) const
 	return LinkerIndex;
 }
 
-bool FLinker::ResourceIsIn(FPackageIndex LinkerIndex, FPackageIndex OuterIndex) const
+bool FLinkerTables::ResourceIsIn(FPackageIndex LinkerIndex, FPackageIndex OuterIndex) const
 {
 	LinkerIndex = ImpExp(LinkerIndex).OuterIndex;
 	while (!LinkerIndex.IsNull())
@@ -356,12 +357,12 @@ bool FLinker::ResourceIsIn(FPackageIndex LinkerIndex, FPackageIndex OuterIndex) 
 	return false;
 }
 
-bool FLinker::DoResourcesShareOutermost(FPackageIndex LinkerIndexLHS, FPackageIndex LinkerIndexRHS) const
+bool FLinkerTables::DoResourcesShareOutermost(FPackageIndex LinkerIndexLHS, FPackageIndex LinkerIndexRHS) const
 {
 	return ResourceGetOutermost(LinkerIndexLHS) == ResourceGetOutermost(LinkerIndexRHS);
 }
 
-bool FLinker::ImportIsInAnyExport(int32 ImportIndex) const
+bool FLinkerTables::ImportIsInAnyExport(int32 ImportIndex) const
 {
 	FPackageIndex LinkerIndex = ImportMap[ImportIndex].OuterIndex;
 	while (!LinkerIndex.IsNull())
@@ -376,7 +377,7 @@ bool FLinker::ImportIsInAnyExport(int32 ImportIndex) const
 
 }
 
-bool FLinker::AnyExportIsInImport(int32 ImportIndex) const
+bool FLinkerTables::AnyExportIsInImport(int32 ImportIndex) const
 {
 	FPackageIndex OuterIndex = FPackageIndex::FromImport(ImportIndex);
 	for (int32 ExportIndex = 0; ExportIndex < ExportMap.Num(); ++ExportIndex)
@@ -389,7 +390,7 @@ bool FLinker::AnyExportIsInImport(int32 ImportIndex) const
 	return false;
 }
 
-bool FLinker::AnyExportShareOuterWithImport(int32 ImportIndex) const
+bool FLinkerTables::AnyExportShareOuterWithImport(int32 ImportIndex) const
 {
 	FPackageIndex Import = FPackageIndex::FromImport(ImportIndex);
 	for (int32 ExportIndex = 0; ExportIndex < ExportMap.Num(); ++ExportIndex)
@@ -401,6 +402,26 @@ bool FLinker::AnyExportShareOuterWithImport(int32 ImportIndex) const
 		}
 	}
 	return false;
+}
+
+FString FLinker::GetExportPathName(int32 ExportIndex, const TCHAR* FakeRoot /*= nullptr*/, bool bResolveForcedExports/*=false*/)
+{	
+	if (FakeRoot)
+	{
+		// This is to mimic the original behavior where bResolveForcedExports was only respected if FakeRoot was not specified
+		bResolveForcedExports = false;
+	}
+	return FLinkerTables::GetExportPathName(FakeRoot ? FakeRoot : LinkerRoot->GetPathName(), ExportIndex, bResolveForcedExports);
+}
+
+FString FLinker::GetExportFullName(int32 ExportIndex, const TCHAR* FakeRoot /*= nullptr*/, bool bResolveForcedExports/*=false*/)
+{
+	if (FakeRoot)
+	{
+		// This is to mimic the original behavior where bResolveForcedExports was only respected if FakeRoot was not specified
+		bResolveForcedExports = false;
+	}
+	return FLinkerTables::GetExportFullName(FakeRoot ? FakeRoot : LinkerRoot->GetPathName(), ExportIndex, bResolveForcedExports);
 }
 
 /**

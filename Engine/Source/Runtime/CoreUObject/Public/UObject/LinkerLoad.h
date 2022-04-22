@@ -266,14 +266,29 @@ public:
 	 * @param bIsInstance If true, we're an instance, so check instance only maps as well
 	 * @return Names without path of all classes that were redirected to this name. Empty if none found.
 	 */
-	COREUOBJECT_API static TArray<FName> FindPreviousNamesForClass(FString CurrentClassPath, bool bIsInstance);
+	COREUOBJECT_API static TArray<FName> FindPreviousNamesForClass(const FString& CurrentClassPath, bool bIsInstance);
+
+	/**
+	 * Utility functions to query the object name redirects list for previous names for a class
+	 * @param CurrentClassPath The current name of the class, with a full path
+	 * @param bIsInstance If true, we're an instance, so check instance only maps as well
+	 * @return Names without path of all classes that were redirected to this name. Empty if none found.
+	 */
+	COREUOBJECT_API static TArray<FString> FindPreviousPathNamesForClass(const FString& CurrentClassPath, bool bIsInstance);
 
 	/** 
 	 * Utility functions to query the object name redirects list for the current name for a class
 	 * @param OldClassName An old class name, without path
-	 * @return Current full path of the class. It will be None if no redirect found
+	 * @return Current name of the class. It will be None if no redirect found
 	 */
 	COREUOBJECT_API static FName FindNewNameForClass(FName OldClassName, bool bIsInstance);
+
+	/**
+	 * Utility functions to query the object name redirects list for the current name for a class
+	 * @param OldClassNameOrPathName An old class name or pathname
+	 * @return Current full path of the class. It will be empty if no redirect found
+	 */
+	COREUOBJECT_API static FString FindNewPathNameForClass(const FString& OldClassNameOrPathName, bool bIsInstance);
 
 	/** 
 	* Utility functions to query the enum name redirects list for the current name for an enum
