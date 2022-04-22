@@ -484,10 +484,6 @@ void USkeletalMeshComponent::FinalizePoseEvaluationResult(const USkeletalMesh* I
 			OutBoneSpaceTransforms[MeshPoseIndex.GetInt()] = InFinalPose[BoneIndex];
 		}
 	}
-	else
-	{
-		OutBoneSpaceTransforms = InMesh->GetRefSkeleton().GetRefBonePose();
-	}
 
 	OutRootBoneTranslation = OutBoneSpaceTransforms[0].GetTranslation() - InMesh->GetRefSkeleton().GetRefBonePose()[0].GetTranslation();
 }
