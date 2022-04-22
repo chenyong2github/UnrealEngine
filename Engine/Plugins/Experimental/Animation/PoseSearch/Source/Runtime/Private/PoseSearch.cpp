@@ -16,9 +16,7 @@
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
-#include "Animation/AnimNodeBase.h"
 #include "Animation/AnimMetaData.h"
-#include "Animation/AnimNodeBase.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimationPoseData.h"
@@ -73,28 +71,19 @@ static bool IsSamplingRangeValid(FFloatInterval Range)
 
 static inline float CompareFeatureVectors(int32 NumValues, const float* A, const float* B, const float* Weights)
 {
-	double Dissimilarity = 0.f;
+	Eigen::Map<const Eigen::ArrayXf> VA(A, NumValues);
+	Eigen::Map<const Eigen::ArrayXf> VB(B, NumValues);
+	Eigen::Map<const Eigen::ArrayXf> VW(Weights, NumValues);
 
-	for (int32 ValueIdx = 0; ValueIdx != NumValues; ++ValueIdx)
-	{
-		const float Diff = A[ValueIdx] - B[ValueIdx];
-		Dissimilarity += Weights[ValueIdx] * (Diff * Diff);
-	}
-
-	return (float)Dissimilarity;
+	return ((VA - VB).square() * VW).sum();
 }
 
 static inline float CompareFeatureVectors(int32 NumValues, const float* A, const float* B)
 {
-	double Dissimilarity = 0.f;
+	Eigen::Map<const Eigen::ArrayXf> VA(A, NumValues);
+	Eigen::Map<const Eigen::ArrayXf> VB(B, NumValues);
 
-	for (int32 ValueIdx = 0; ValueIdx != NumValues; ++ValueIdx)
-	{
-		const float Diff = A[ValueIdx] - B[ValueIdx];
-		Dissimilarity += Diff * Diff;
-	}
-
-	return (float)Dissimilarity;
+	return (VA - VB).square().sum();
 }
 
 static FLinearColor GetColorForFeature(FPoseSearchFeatureDesc Feature, const FPoseSearchFeatureVectorLayout* Layout)
@@ -5196,8 +5185,6 @@ FSearchResult Search(FSearchContext& SearchContext)
 			}
 		}
 	}
-
-	ensure(BestPoseIdx != INDEX_NONE);
 
 	Result.PoseCost = BestPoseCost;
 	Result.PoseIdx = BestPoseIdx;

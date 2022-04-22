@@ -364,8 +364,11 @@ void UpdateMotionMatchingState(
 	// Jump to the candidate pose if the stepper couldn't continue to the next frame
 	if (!PoseStepper.CanContinue())
 	{
-		FSearchResult Result = Search(SearchContext);
-		InOutMotionMatchingState.JumpToPose(Context, Settings, Result);
+		FSearchResult SearchResult = Search(SearchContext);
+		if (SearchResult.IsValid())
+		{
+			InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
+		}
 	}
 
 	// Do a search when enough time has elapsed since the last pose jump
@@ -380,46 +383,48 @@ void UpdateMotionMatchingState(
 		}
 
 		// Search the database for the nearest match to the updated query vector
-		FSearchResult Result = Search(SearchContext);
-
-		// Consider the search result better if it is more similar to the query than the current pose we're playing back from the database
-		check(Result.PoseCost.Dissimilarity >= 0.0f);
-		bool bBetterPose = true;
-		if (CurrentPoseCost.IsValid())
+		FSearchResult SearchResult = Search(SearchContext);
+		if (SearchResult.IsValid())
 		{
-			if ((CurrentPoseCost.TotalCost <= Result.PoseCost.TotalCost) || (CurrentPoseCost.Dissimilarity <= Result.PoseCost.Dissimilarity))
+			// Consider the search result better if it is more similar to the query than the current pose we're playing back from the database
+			check(SearchResult.PoseCost.Dissimilarity >= 0.0f);
+			bool bBetterPose = true;
+			if (CurrentPoseCost.IsValid())
 			{
-				bBetterPose = false;
+				if ((CurrentPoseCost.TotalCost <= SearchResult.PoseCost.TotalCost) || (CurrentPoseCost.Dissimilarity <= SearchResult.PoseCost.Dissimilarity))
+				{
+					bBetterPose = false;
+				}
+				else
+				{
+					checkSlow(CurrentPoseCost.Dissimilarity > 0.0f && CurrentPoseCost.Dissimilarity > SearchResult.PoseCost.Dissimilarity);
+					const float RelativeSimilarityGain = -1.0f * (SearchResult.PoseCost.Dissimilarity - CurrentPoseCost.Dissimilarity) / CurrentPoseCost.Dissimilarity;
+					bBetterPose = RelativeSimilarityGain >= Settings.MinPercentImprovement / 100.0f;
+				}
 			}
-			else
+
+			// Ignore the candidate poses from the same anim when they are too near to the current pose
+			bool bNearbyPose = false;
+			const FPoseSearchIndexAsset* StateSearchIndexAsset = InOutMotionMatchingState.GetCurrentSearchIndexAsset();
+			if (StateSearchIndexAsset == SearchResult.SearchIndexAsset)
 			{
-				checkSlow(CurrentPoseCost.Dissimilarity > 0.0f && CurrentPoseCost.Dissimilarity > Result.PoseCost.Dissimilarity);
-				const float RelativeSimilarityGain = -1.0f * (Result.PoseCost.Dissimilarity - CurrentPoseCost.Dissimilarity) / CurrentPoseCost.Dissimilarity;
-				bBetterPose = RelativeSimilarityGain >= Settings.MinPercentImprovement / 100.0f;
+				// We need to check in terms of PoseIdx rather than AssetTime because
+				// for blendspaces, AssetTime is not in seconds, but in the normalized range 
+				// [0, 1] so comparing to `PoseJumpThresholdTime` will not make sense		
+				bNearbyPose = FMath::Abs(InOutMotionMatchingState.DbPoseIdx - SearchResult.PoseIdx) * Database->Schema->SamplingInterval < Settings.PoseJumpThresholdTime;
+
+				// Handle looping anims when checking for the pose being too close
+				if (!bNearbyPose && Database->IsSourceAssetLooping(StateSearchIndexAsset))
+				{
+					bNearbyPose = FMath::Abs(StateSearchIndexAsset->NumPoses - InOutMotionMatchingState.DbPoseIdx - SearchResult.PoseIdx) * Database->Schema->SamplingInterval < Settings.PoseJumpThresholdTime;
+				}
 			}
-		}
 
-		// Ignore the candidate poses from the same anim when they are too near to the current pose
-		bool bNearbyPose = false;
-		const FPoseSearchIndexAsset* StateSearchIndexAsset = InOutMotionMatchingState.GetCurrentSearchIndexAsset();
-		if (StateSearchIndexAsset == Result.SearchIndexAsset)
-		{
-			// We need to check in terms of PoseIdx rather than AssetTime because
-			// for blendspaces, AssetTime is not in seconds, but in the normalized range 
-			// [0, 1] so comparing to `PoseJumpThresholdTime` will not make sense		
-			bNearbyPose = FMath::Abs(InOutMotionMatchingState.DbPoseIdx - Result.PoseIdx) * Database->Schema->SamplingInterval < Settings.PoseJumpThresholdTime;
-
-			// Handle looping anims when checking for the pose being too close
-			if (!bNearbyPose && Database->IsSourceAssetLooping(StateSearchIndexAsset))
+			// Start playback from the candidate pose if we determined it was a better option
+			if (bBetterPose && !bNearbyPose)
 			{
-				bNearbyPose = FMath::Abs(StateSearchIndexAsset->NumPoses - InOutMotionMatchingState.DbPoseIdx - Result.PoseIdx) * Database->Schema->SamplingInterval < Settings.PoseJumpThresholdTime;
+				InOutMotionMatchingState.JumpToPose(Context, Settings, SearchResult);
 			}
-		}
-
-		// Start playback from the candidate pose if we determined it was a better option
-		if (bBetterPose && !bNearbyPose)
-		{
-			InOutMotionMatchingState.JumpToPose(Context, Settings, Result);
 		}
 	}
 

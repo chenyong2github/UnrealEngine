@@ -48,11 +48,13 @@ void FAnimNode_MotionMatching::Evaluate_AnyThread(FPoseContext& Output)
 #endif
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
+	MotionMatchingState.RootMotionTransformDelta = FTransform::Identity;
+
 	const UE::Anim::IAnimRootMotionProvider* RootMotionProvider = UE::Anim::IAnimRootMotionProvider::Get();
 
 	if (ensureMsgf(RootMotionProvider, TEXT("Could not get Root Motion Provider.")))
 	{
-		if (ensureMsgf(RootMotionProvider->HasRootMotion(Output.CustomAttributes), TEXT("Motion Matching Output no Root Motion Attribute.")))
+		if (RootMotionProvider->HasRootMotion(Output.CustomAttributes))
 		{
 			RootMotionProvider->ExtractRootMotion(Output.CustomAttributes, MotionMatchingState.RootMotionTransformDelta);
 		}

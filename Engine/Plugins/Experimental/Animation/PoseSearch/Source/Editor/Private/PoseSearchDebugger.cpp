@@ -1743,13 +1743,6 @@ void SDebuggerView::DrawFeatures(
 	DrawParams.LabelPrefix = TEXT("S");
 	SetDrawFlags(DrawParams, Reflection->SelectedPoseDrawOptions);
 
-	FSkeletonDrawParams SkeletonDrawParams;
-	const bool bDrawSelectedPose = Reflection->bDrawSelectedSkeleton;
-	if (bDrawSelectedPose)
-	{
-		SkeletonDrawParams.Flags |= ESkeletonDrawFlags::SelectedPose;
-	}
-
 	// Draw any selected database vectors
 	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : Selected)
 	{
@@ -1789,6 +1782,11 @@ void SDebuggerView::DrawFeatures(
 		Draw(DrawParams);
 	}
 
+	FSkeletonDrawParams SkeletonDrawParams;
+	if (Reflection->bDrawSelectedSkeleton)
+	{
+		SkeletonDrawParams.Flags |= ESkeletonDrawFlags::SelectedPose;
+	}
 	if (Reflection->bDrawActiveSkeleton)
 	{
 		SkeletonDrawParams.Flags |= ESkeletonDrawFlags::ActivePose;
