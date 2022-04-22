@@ -1392,14 +1392,40 @@ void UMovieScene::MoveBindingContents(const FGuid& SourceBindingId, const FGuid&
 
 	FMovieSceneSpawnable* DestinationSpawnable = FindSpawnable(DestinationBindingId);
 
-	for (FMovieScenePossessable& Possessable : Possessables)
+	for( auto PossesableIter( Possessables.CreateIterator() ); PossesableIter; ++PossesableIter )
 	{
-		if (Possessable.GetParent() == SourceBindingId)
+		FMovieScenePossessable& SourcePossessable = *PossesableIter;
+		
+		// If there is a possessable whose parent is the binding we're moving contents for, 
+		// that possessable needs to be remapped to the new destination parent
+		if (SourcePossessable.GetParent() == SourceBindingId)
 		{
-			Possessable.SetParent(DestinationBindingId);
-			if (DestinationSpawnable)
+			// But if there is already a possessable for that destination binding, don't keep the source possessable around.
+			bool bAlreadyExists = false;
+			for (FMovieScenePossessable& DestinationPossessable : Possessables)
 			{
-				DestinationSpawnable->AddChildPossessable(Possessable.GetGuid());
+				if (DestinationPossessable.GetName() == SourcePossessable.GetName() &&
+					DestinationPossessable.GetParent() == DestinationBindingId)
+				{
+					FGuid CurGuid = SourcePossessable.GetGuid();
+
+					// Found it!
+					Possessables.RemoveAt( PossesableIter.GetIndex() );
+
+					RemoveBinding( CurGuid );
+
+					bAlreadyExists = true;
+					break;
+				}
+			}
+
+			if (!bAlreadyExists)
+			{
+				SourcePossessable.SetParent(DestinationBindingId);
+				if (DestinationSpawnable)
+				{
+					DestinationSpawnable->AddChildPossessable(SourcePossessable.GetGuid());
+				}
 			}
 		}
 	}
