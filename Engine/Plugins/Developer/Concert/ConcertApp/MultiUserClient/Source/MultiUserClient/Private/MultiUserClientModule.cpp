@@ -1064,7 +1064,7 @@ private:
 	/**
 	 * Launch a Concert collaboration server on the local machine.
 	 */
-	virtual void LaunchConcertServer() override
+	virtual void LaunchConcertServer(TOptional<FServerLaunchOverrides> LaunchOverrides = {}) override
 	{
 		FAsyncTaskNotificationConfig NotificationConfig;
 		NotificationConfig.bKeepOpenOnFailure = true;
@@ -1105,7 +1105,7 @@ private:
 			return;
 		}
 
-		FString CmdLineArgs = GenerateConcertServerCommandLine();
+		FString CmdLineArgs = GenerateConcertServerCommandLine(LaunchOverrides);
 		FProcHandle ProcHandle = FPlatformProcess::CreateProc(*ServerPath, *CmdLineArgs, true, false, false, nullptr, 0, nullptr, nullptr, nullptr);
 		if (ProcHandle.IsValid())
 		{
@@ -1203,7 +1203,7 @@ private:
 
 			// Launch Server
 			CommandList->MapAction(FConcertUICommands::Get().LaunchServer,
-				FExecuteAction::CreateRaw(this, &FMultiUserClientModule::LaunchConcertServer)
+				FExecuteAction::CreateLambda([this](){ LaunchConcertServer();} )
 			);
 
 			UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.LevelEditorToolBar.User");
@@ -1295,7 +1295,7 @@ private:
 #endif
 
 private:
-	FString GenerateConcertServerCommandLine() const
+	FString GenerateConcertServerCommandLine(TOptional<FServerLaunchOverrides> LaunchOverrides) const
 	{
 		// @note FH: Those settings are UDP Messaging specific
 
@@ -1341,6 +1341,14 @@ private:
 				{
 					CmdLine += ',';
 					CmdLine += Settings[i];
+				}
+			}
+
+			if (LaunchOverrides)
+			{
+				if (!LaunchOverrides->ServerName.IsEmpty())
+				{
+					CmdLine += FString::Printf(TEXT(" -CONCERTSERVER=\"%s\""), *(LaunchOverrides->ServerName));
 				}
 			}
 

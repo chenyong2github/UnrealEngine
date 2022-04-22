@@ -8,6 +8,12 @@
 
 class IConcertSyncClient;
 
+struct FServerLaunchOverrides
+{
+	/** The name of the server upon launch */
+	FString ServerName;
+};
+
 /**
  * Interface for the Multi-User module.
  */
@@ -71,7 +77,7 @@ public:
 	 * Launches a server (if none are running) on the local machine. On success, the server is launched. On
 	 * failure, an asynchronous notification (banner) is displayed to the user.
 	 */
-	virtual void LaunchConcertServer() = 0;
+	virtual void LaunchConcertServer(TOptional<FServerLaunchOverrides> LaunchOverrides = {}) = 0;
 
 	/**
 	 * Shuts down all local servers running. Do nothing if no servers are running.
