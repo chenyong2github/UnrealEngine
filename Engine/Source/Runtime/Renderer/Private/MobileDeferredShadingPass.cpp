@@ -35,13 +35,15 @@ class FMobileDirectionalLightFunctionPS : public FMaterialShader
 	DECLARE_SHADER_TYPE(FMobileDirectionalLightFunctionPS, Material);
 	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FMobileDirectionalLightFunctionPS, FMaterialShader)
 
-	class FEnableClustredLights		: SHADER_PERMUTATION_BOOL("ENABLE_CLUSTERED_LIGHTS");
-	class FEnableClustredReflection	: SHADER_PERMUTATION_BOOL("ENABLE_CLUSTERED_REFLECTION");
-	class FEnableSkyLight			: SHADER_PERMUTATION_BOOL("ENABLE_SKY_LIGHT");
-	class FApplyCSM					: SHADER_PERMUTATION_BOOL("APPLY_CSM");
-	class FShadowQuality			: SHADER_PERMUTATION_INT("MOBILE_SHADOW_QUALITY", 4);
+	class FEnableShadingModelSupport	: SHADER_PERMUTATION_BOOL("ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED");
+	class FEnableClustredLights			: SHADER_PERMUTATION_BOOL("ENABLE_CLUSTERED_LIGHTS");
+	class FEnableClustredReflection		: SHADER_PERMUTATION_BOOL("ENABLE_CLUSTERED_REFLECTION");
+	class FEnableSkyLight				: SHADER_PERMUTATION_BOOL("ENABLE_SKY_LIGHT");
+	class FApplyCSM						: SHADER_PERMUTATION_BOOL("APPLY_CSM");
+	class FShadowQuality				: SHADER_PERMUTATION_INT("MOBILE_SHADOW_QUALITY", 4);
 	
-	using FPermutationDomain = TShaderPermutationDomain< 
+	using FPermutationDomain = TShaderPermutationDomain<
+		FEnableShadingModelSupport,
 		FEnableClustredLights, 
 		FEnableClustredReflection, 
 		FEnableSkyLight,
@@ -50,7 +52,6 @@ class FMobileDirectionalLightFunctionPS : public FMaterialShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FMobileDirectionalLightShaderParameters, MobileDirectionalLight)
-		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
 		SHADER_PARAMETER(FMatrix44f, TranslatedWorldToLight)
 		SHADER_PARAMETER(FVector4f, LightFunctionParameters)
@@ -81,6 +82,12 @@ class FMobileDirectionalLightFunctionPS : public FMaterialShader
 		{
 			PermutationVector.Set<FShadowQuality>(0);
 		}
+
+		if (!MobileEnableExtenedGBuffer(Platform))
+		{
+			PermutationVector.Set<FEnableShadingModelSupport>(false);
+		}
+
 		return PermutationVector;
 	}
 
@@ -103,7 +110,7 @@ class FMobileDirectionalLightFunctionPS : public FMaterialShader
 		return true;
 	}
 
-	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bInlineReflectionAndSky, bool bDynamicShadows, bool bSkyLight)
+	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bInlineReflectionAndSky, bool bShadingModelSupport, bool bDynamicShadows, bool bSkyLight)
 	{
 		bool bUseClusteredLights = GMobileUseClusteredDeferredShading != 0;
 		bool bClustredReflection = bInlineReflectionAndSky && (View.NumBoxReflectionCaptures + View.NumSphereReflectionCaptures) > 0;
@@ -112,6 +119,7 @@ class FMobileDirectionalLightFunctionPS : public FMaterialShader
 		int32 ShadowQuality = bDynamicShadows && !bMobileUsesShadowMaskTexture ? (int32)GetShadowQuality() : 0;
 				
 		FPermutationDomain PermutationVector;
+		PermutationVector.Set<FMobileDirectionalLightFunctionPS::FEnableShadingModelSupport>(bShadingModelSupport);
 		PermutationVector.Set<FMobileDirectionalLightFunctionPS::FEnableClustredLights>(bUseClusteredLights);
 		PermutationVector.Set<FMobileDirectionalLightFunctionPS::FEnableClustredReflection>(bClustredReflection);
 		PermutationVector.Set<FMobileDirectionalLightFunctionPS::FEnableSkyLight>(bEnableSkyLight);
@@ -140,10 +148,11 @@ public:
 	DECLARE_SHADER_TYPE(FMobileRadialLightFunctionPS,Material);
 	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FMobileRadialLightFunctionPS, FMaterialShader)
 
-	class FSpotLightDim			: SHADER_PERMUTATION_BOOL("IS_SPOT_LIGHT");
-	class FIESProfileDim		: SHADER_PERMUTATION_BOOL("USE_IES_PROFILE");
-	class FSpotLightShadowDim	: SHADER_PERMUTATION_BOOL("SUPPORT_SPOTLIGHTS_SHADOW");
-	using FPermutationDomain = TShaderPermutationDomain<FSpotLightDim, FIESProfileDim, FSpotLightShadowDim>;
+	class FEnableShadingModelSupport: SHADER_PERMUTATION_BOOL("ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED");
+	class FSpotLightDim				: SHADER_PERMUTATION_BOOL("IS_SPOT_LIGHT");
+	class FIESProfileDim			: SHADER_PERMUTATION_BOOL("USE_IES_PROFILE");
+	class FSpotLightShadowDim		: SHADER_PERMUTATION_BOOL("SUPPORT_SPOTLIGHTS_SHADOW");
+	using FPermutationDomain = TShaderPermutationDomain<FEnableShadingModelSupport, FSpotLightDim, FIESProfileDim, FSpotLightShadowDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FMatrix44f, TranslatedWorldToLight)
@@ -153,8 +162,6 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FMobileMovableLocalLightShadowParameters, MobileMovableLocalLightShadow)
 		SHADER_PARAMETER_TEXTURE(Texture2D, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
-		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
-		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
@@ -183,6 +190,11 @@ public:
 			PermutationVector.Set<FSpotLightShadowDim>(false);
 		}
 
+		if (!MobileEnableExtenedGBuffer(Platform))
+		{
+			PermutationVector.Set<FEnableShadingModelSupport>(false);
+		}
+
 		return PermutationVector;
 	}
 
@@ -191,7 +203,6 @@ public:
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("USE_LIGHT_FUNCTION"), Parameters.MaterialParameters.bIsDefaultMaterial ? 0 : 1);
 		OutEnvironment.SetDefine(TEXT("MATERIAL_SHADER"), 1);
-		OutEnvironment.SetDefine(TEXT("GLOBAL_PREINTEGRATEDGF"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_SHADOWMASKTEXTURE"), 0);
 		OutEnvironment.SetDefine(TEXT("ENABLE_CLUSTERED_LIGHTS"), 0);
 	}
@@ -218,13 +229,14 @@ public:
 	DECLARE_GLOBAL_SHADER(FMobileReflectionEnvironmentSkyLightingPS);
 	SHADER_USE_PARAMETER_STRUCT(FMobileReflectionEnvironmentSkyLightingPS, FGlobalShader);
 	
-	class FEnableClustredReflection	: SHADER_PERMUTATION_BOOL("ENABLE_CLUSTERED_REFLECTION");
-	class FEnableSkyLight			: SHADER_PERMUTATION_BOOL("ENABLE_SKY_LIGHT");
-	using FPermutationDomain = TShaderPermutationDomain<FEnableClustredReflection, FEnableSkyLight>;
+	class FEnableShadingModelSupport	: SHADER_PERMUTATION_BOOL("ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED");
+	class FEnableClustredReflection		: SHADER_PERMUTATION_BOOL("ENABLE_CLUSTERED_REFLECTION");
+	class FEnableSkyLight				: SHADER_PERMUTATION_BOOL("ENABLE_SKY_LIGHT");
+	
+	using FPermutationDomain = TShaderPermutationDomain<FEnableShadingModelSupport, FEnableClustredReflection, FEnableSkyLight>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionsParameters)
 		SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCaptureData)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -235,11 +247,26 @@ public:
 		{
 			return false;
 		}
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (!MobileEnableExtenedGBuffer(Parameters.Platform) && PermutationVector.Get<FEnableShadingModelSupport>())
+		{
+			return false;
+		}
+
 		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SUPPORTS_TEXTURECUBE_ARRAY"), 1);
 	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FMobileReflectionEnvironmentSkyLightingPS, "/Engine/Private/MobileDeferredShading.usf", "MobileReflectionEnvironmentSkyLightingPS", SF_Pixel);
+
+extern uint8 GetMobileShadingModelStencilValue(FMaterialShadingModelField ShadingModel);
 
 constexpr uint32 GetLightingChannel(uint32 LightingChannelMask)
 {
@@ -310,40 +337,51 @@ void RenderReflectionEnvironmentSkyLighting(FRHICommandListImmediate& RHICmdList
 		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 		GET_STENCIL_MOBILE_SM_MASK(0xff), 0x00>::GetRHI();
 
-	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-
-	FMobileReflectionEnvironmentSkyLightingPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FMobileReflectionEnvironmentSkyLightingPS::FEnableClustredReflection>(bClustredReflection);
-	PermutationVector.Set<FMobileReflectionEnvironmentSkyLightingPS::FEnableSkyLight>(bSkyLight);
-	TShaderMapRef<FMobileReflectionEnvironmentSkyLightingPS> PixelShader(View.ShaderMap, PermutationVector);
-	
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit);
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
-
 	FMobileReflectionEnvironmentSkyLightingPS::FParameters PassParameters;
 	PassParameters.View = GetShaderBinding(View.ViewUniformBuffer);
 	PassParameters.ReflectionCaptureData = GetShaderBinding(View.ReflectionCaptureUniformBuffer);
-	FReflectionUniformParameters ReflectionUniformParameters;
-	SetupReflectionUniformParameters(View, ReflectionUniformParameters);
-	PassParameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
-	SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters);
-	
-	const FIntPoint TargetSize = GetSceneTextureExtent();
 
-	DrawRectangle(
-		RHICmdList,
-		0, 0,
-		View.ViewRect.Width(), View.ViewRect.Height(),
-		View.ViewRect.Min.X, View.ViewRect.Min.Y,
-		View.ViewRect.Width(), View.ViewRect.Height(),
-		FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
-		TargetSize,
-		VertexShader);
+	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
+
+	// Do two passes, first masking DefautLit, second masking all other shading models
+	int32 NumPasses = MobileEnableExtenedGBuffer(Scene.GetShaderPlatform()) ? 2 : 1;
+	uint8 PassShadingModelStencilValue[2] =
+	{
+		GetMobileShadingModelStencilValue(MSM_DefaultLit),
+		GetMobileShadingModelStencilValue(FMaterialShadingModelField())
+	};
+			
+	for (int32 PassIndex = 0; PassIndex < NumPasses; PassIndex++)
+	{
+		const bool bEnableShadingModelSupport = (PassIndex > 0);
+		
+		FMobileReflectionEnvironmentSkyLightingPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FMobileReflectionEnvironmentSkyLightingPS::FEnableShadingModelSupport>(bEnableShadingModelSupport);
+		PermutationVector.Set<FMobileReflectionEnvironmentSkyLightingPS::FEnableClustredReflection>(bClustredReflection);
+		PermutationVector.Set<FMobileReflectionEnvironmentSkyLightingPS::FEnableSkyLight>(bSkyLight);
+		TShaderMapRef<FMobileReflectionEnvironmentSkyLightingPS> PixelShader(View.ShaderMap, PermutationVector);
+		
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+		uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(PassShadingModelStencilValue[PassIndex]);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters);
+
+		const FIntPoint TargetSize = GetSceneTextureExtent();
+
+		DrawRectangle(
+			RHICmdList,
+			0, 0,
+			View.ViewRect.Width(), View.ViewRect.Height(),
+			View.ViewRect.Min.X, View.ViewRect.Min.Y,
+			View.ViewRect.Width(), View.ViewRect.Height(),
+			FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
+			TargetSize,
+			VertexShader);
+	}
 }
 
 template<uint32 LightingChannelIdx>
@@ -369,8 +407,6 @@ static void RenderDirectionalLight(FRHICommandListImmediate& RHICmdList, const F
 	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
 
 	uint8 LightingChannelStencilValue = GetLightingChannelStencilValue(LightingChannel);
-	// Shade only MSM_DefaultLit pixels
-	uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit) | STENCIL_LIGHTING_CHANNELS_MASK(LightingChannelStencilValue);
 	if (LightingChannel == 1u)
 	{
 		SetDirectionalLightDepthStencilState<1u>(GraphicsPSOInit);
@@ -392,27 +428,9 @@ static void RenderDirectionalLight(FRHICommandListImmediate& RHICmdList, const F
 		LightFunctionMaterialProxy = DirectionalLight.Proxy->GetLightFunctionMaterial();
 	}
 
-	// Skylights with static lighting already had their diffuse contribution baked into lightmaps
-	const bool bSkyLight = Scene.SkyLight && !Scene.SkyLight->bHasStaticLighting && View.Family->EngineShowFlags.SkyLighting;
-	const bool bDynamicShadows = DirectionalLight.Proxy->CastsDynamicShadow() && (LightingChannel == 0u) && View.Family->EngineShowFlags.DynamicShadows;
-
-	FMobileDirectionalLightFunctionPS::FPermutationDomain PermutationVector = FMobileDirectionalLightFunctionPS::BuildPermutationVector(View, bInlineReflectionAndSky, bDynamicShadows, bSkyLight);
-	FCachedLightMaterial LightMaterial;
-	TShaderRef<FMobileDirectionalLightFunctionPS> PixelShader;
-	GetLightMaterial(DefaultLightMaterial, LightFunctionMaterialProxy, PermutationVector.ToDimensionValueId(), LightMaterial, PixelShader);
-	
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
-
 	FMobileDirectionalLightFunctionPS::FParameters PassParameters;
-	PassParameters.MobileDirectionalLight = Scene.UniformBuffers.MobileDirectionalLightUniformBuffers[LightingChannel+1];
+	PassParameters.MobileDirectionalLight = Scene.UniformBuffers.MobileDirectionalLightUniformBuffers[LightingChannel + 1];
 	PassParameters.ReflectionCaptureData = GetShaderBinding(View.ReflectionCaptureUniformBuffer);
-	FReflectionUniformParameters ReflectionUniformParameters;
-	SetupReflectionUniformParameters(View, ReflectionUniformParameters);
-	PassParameters.ReflectionsParameters = CreateUniformBufferImmediate(ReflectionUniformParameters, UniformBuffer_SingleDraw);
 	PassParameters.LightFunctionParameters = FVector4f(1.0f, 1.0f, 0.0f, 0.0f);
 
 	const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(View.GetShaderPlatform());
@@ -427,7 +445,7 @@ static void RenderDirectionalLight(FRHICommandListImmediate& RHICmdList, const F
 		PassParameters.ScreenSpaceShadowMaskTexture = GSystemTextures.WhiteDummy->GetRHI();
 		PassParameters.ScreenSpaceShadowMaskSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
-	
+
 	{
 		const bool bUseMovableLight = !DirectionalLight.Proxy->HasStaticShadowing();
 		PassParameters.LightFunctionParameters2 = FVector3f(DirectionalLight.Proxy->GetLightFunctionFadeDistance(), DirectionalLight.Proxy->GetLightFunctionDisabledBrightness(), bUseMovableLight ? 1.0f : 0.0f);
@@ -437,19 +455,58 @@ static void RenderDirectionalLight(FRHICommandListImmediate& RHICmdList, const F
 		const FMatrix WorldToLight = DirectionalLight.Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));
 		PassParameters.TranslatedWorldToLight = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToLight);
 	}
-	FMobileDirectionalLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, LightMaterial.MaterialProxy, *LightMaterial.Material, PassParameters);
+
+	// Skylights with static lighting already had their diffuse contribution baked into lightmaps
+	const bool bSkyLight = Scene.SkyLight && !Scene.SkyLight->bHasStaticLighting && View.Family->EngineShowFlags.SkyLighting;
+	const bool bDynamicShadows = DirectionalLight.Proxy->CastsDynamicShadow() && (LightingChannel == 0u) && View.Family->EngineShowFlags.DynamicShadows;
+
+	// Do two passes, first masking DefautLit, second masking all other shading models
+	int32 NumPasses = MobileEnableExtenedGBuffer(Scene.GetShaderPlatform()) ? 2 : 1;
+	uint8 PassShadingModelStencilValue[2] =
+	{
+		GetMobileShadingModelStencilValue(MSM_DefaultLit),
+		GetMobileShadingModelStencilValue(FMaterialShadingModelField())
+	};
 	
-	const FIntPoint TargetSize = GetSceneTextureExtent();
-	
-	DrawRectangle(
-		RHICmdList, 
-		0, 0, 
-		View.ViewRect.Width(), View.ViewRect.Height(), 
-		View.ViewRect.Min.X, View.ViewRect.Min.Y, 
-		View.ViewRect.Width(), View.ViewRect.Height(),
-		FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()), 
-		TargetSize, 
-		VertexShader);
+	for (int32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
+	{
+		const bool bEnableShadingModelSupport = (PassIndex > 0);
+		
+		FMobileDirectionalLightFunctionPS::FPermutationDomain PermutationVector = FMobileDirectionalLightFunctionPS::BuildPermutationVector(
+			View,
+			bInlineReflectionAndSky,
+			bEnableShadingModelSupport,
+			bDynamicShadows,
+			bSkyLight
+		);
+		FCachedLightMaterial LightMaterial;
+		TShaderRef<FMobileDirectionalLightFunctionPS> PixelShader;
+		GetLightMaterial(DefaultLightMaterial, LightFunctionMaterialProxy, PermutationVector.ToDimensionValueId(), LightMaterial, PixelShader);
+
+		uint8 StencilRef = 
+			GET_STENCIL_MOBILE_SM_MASK(PassShadingModelStencilValue[PassIndex]) | 
+			STENCIL_LIGHTING_CHANNELS_MASK(LightingChannelStencilValue);
+
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
+
+		FMobileDirectionalLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, LightMaterial.MaterialProxy, *LightMaterial.Material, PassParameters);
+
+		const FIntPoint TargetSize = GetSceneTextureExtent();
+
+		DrawRectangle(
+			RHICmdList,
+			0, 0,
+			View.ViewRect.Width(), View.ViewRect.Height(),
+			View.ViewRect.Min.X, View.ViewRect.Min.Y,
+			View.ViewRect.Width(), View.ViewRect.Height(),
+			FIntPoint(View.ViewRect.Width(), View.ViewRect.Height()),
+			TargetSize,
+			VertexShader);
+	}
 }
 
 static void RenderDirectionalLights(FRHICommandListImmediate& RHICmdList, const FScene& Scene, const FViewInfo& View, const FCachedLightMaterial& DefaultLightMaterial)
@@ -641,32 +698,16 @@ static void RenderLocalLight(
 	FDeferredLightVS::FPermutationDomain PermutationVectorVS;
 	PermutationVectorVS.Set<FDeferredLightVS::FRadialLight>(true);
 	TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVectorVS);
+	FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View, &LightSceneInfo);
 		
 	const FMaterialRenderProxy* LightFunctionMaterialProxy = nullptr;
 	if (View.Family->EngineShowFlags.LightFunctions)
 	{
 		LightFunctionMaterialProxy = LightSceneInfo.Proxy->GetLightFunctionMaterial();
 	}
+
 	FMobileRadialLightFunctionPS::FParameters PassParameters;
 	const bool bShouldCastShadow = LightSceneInfo.SetupMobileMovableLocalLightShadowParameters(View, VisibleLightInfos, PassParameters.MobileMovableLocalLightShadow);
-	FMobileRadialLightFunctionPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FMobileRadialLightFunctionPS::FSpotLightDim>(bIsSpotLight);
-	PermutationVector.Set<FMobileRadialLightFunctionPS::FIESProfileDim>(bUseIESTexture);
-	PermutationVector.Set<FMobileRadialLightFunctionPS::FSpotLightShadowDim>(bShouldCastShadow);
-	FCachedLightMaterial LightMaterial;
-	TShaderRef<FMobileRadialLightFunctionPS> PixelShader;
-	GetLightMaterial(DefaultLightMaterial, LightFunctionMaterialProxy, PermutationVector.ToDimensionValueId(), LightMaterial, PixelShader);
-			
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-		
-	// Shade only MSM_DefaultLit pixels
-	uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit) | STENCIL_LIGHTING_CHANNELS_MASK(LightingChannelStencilValue);
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
-
-	FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View, &LightSceneInfo);
-	SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
 
 	PassParameters.DeferredLightUniforms = TUniformBufferRef<FDeferredLightUniformStruct>::CreateUniformBufferImmediate(GetDeferredLightParameters(View, LightSceneInfo), EUniformBufferUsage::UniformBuffer_SingleFrame);
 	PassParameters.IESTexture = IESTextureResource->TextureRHI;
@@ -679,17 +720,49 @@ static void RenderLocalLight(
 	const FVector InverseScale = FVector(1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X);
 	const FMatrix WorldToLight = LightSceneInfo.Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));
 	PassParameters.TranslatedWorldToLight = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToLight);
-	PassParameters.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
-	PassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, LightMaterial.MaterialProxy, *LightMaterial.Material, PassParameters);
 
-	if (LightType == LightType_Point)
+	// Do two passes, first masking DefautLit, second masking all other shading models
+	int32 NumPasses = MobileEnableExtenedGBuffer(Scene.GetShaderPlatform()) ? 2 : 1;
+	uint8 PassShadingModelStencilValue[2] =
 	{
-		StencilingGeometry::DrawSphere(RHICmdList);
-	}
-	else // LightType_Spot
+		GetMobileShadingModelStencilValue(MSM_DefaultLit),
+		GetMobileShadingModelStencilValue(FMaterialShadingModelField())
+	};
+
+	for (int32 PassIndex = 0; PassIndex < NumPasses; PassIndex++)
 	{
-		StencilingGeometry::DrawCone(RHICmdList);
+		const bool bEnableShadingModelSupport = (PassIndex > 0);
+
+		FMobileRadialLightFunctionPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FMobileRadialLightFunctionPS::FEnableShadingModelSupport>(bEnableShadingModelSupport);
+		PermutationVector.Set<FMobileRadialLightFunctionPS::FSpotLightDim>(bIsSpotLight);
+		PermutationVector.Set<FMobileRadialLightFunctionPS::FIESProfileDim>(bUseIESTexture);
+		PermutationVector.Set<FMobileRadialLightFunctionPS::FSpotLightShadowDim>(bShouldCastShadow);
+		FCachedLightMaterial LightMaterial;
+		TShaderRef<FMobileRadialLightFunctionPS> PixelShader;
+		GetLightMaterial(DefaultLightMaterial, LightFunctionMaterialProxy, PermutationVector.ToDimensionValueId(), LightMaterial, PixelShader);
+
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+		uint8 StencilRef = 
+			GET_STENCIL_MOBILE_SM_MASK(PassShadingModelStencilValue[PassIndex]) | 
+			STENCIL_LIGHTING_CHANNELS_MASK(LightingChannelStencilValue);
+
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
+
+		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
+		FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, LightMaterial.MaterialProxy, *LightMaterial.Material, PassParameters);
+
+		if (LightType == LightType_Point)
+		{
+			StencilingGeometry::DrawSphere(RHICmdList);
+		}
+		else // LightType_Spot
+		{
+			StencilingGeometry::DrawCone(RHICmdList);
+		}
 	}
 }
 
@@ -713,27 +786,7 @@ static void RenderSimpleLights(
 	FDeferredLightVS::FPermutationDomain PermutationVectorVS;
 	PermutationVectorVS.Set<FDeferredLightVS::FRadialLight>(true);
 	TShaderMapRef<FDeferredLightVS> VertexShader(View.ShaderMap, PermutationVectorVS);
-	TShaderRef<FMobileRadialLightFunctionPS> PixelShader;
-	{
-		const FMaterialShaderMap* MaterialShaderMap = DefaultMaterial.Material->GetRenderingThreadShaderMap();
-		FMobileRadialLightFunctionPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FMobileRadialLightFunctionPS::FSpotLightDim>(false);
-		PermutationVector.Set<FMobileRadialLightFunctionPS::FIESProfileDim>(false);
-		PixelShader = MaterialShaderMap->GetShader<FMobileRadialLightFunctionPS>(PermutationVector);
-	}
 
-	// Setup PSOs we going to use for light rendering 
-	FGraphicsPipelineStateInitializer GraphicsPSOLight;
-	{
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOLight);
-		// Use additive blending for color
-		GraphicsPSOLight.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
-		GraphicsPSOLight.PrimitiveType = PT_TriangleList;
-		GraphicsPSOLight.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-		GraphicsPSOLight.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-		GraphicsPSOLight.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-		SetLocalLightRasterizerAndDepthState<0u, true>(GraphicsPSOLight, View, FSphere());
-	}
 	// Setup stencil mask PSO
 	FGraphicsPipelineStateInitializer GraphicsPSOLightMask;
 	{
@@ -751,6 +804,40 @@ static void RenderSimpleLights(
 		GraphicsPSOLightMask.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 		GraphicsPSOLightMask.BoundShaderState.PixelShaderRHI = nullptr;
 	}
+
+	const FMaterialShaderMap* MaterialShaderMap = DefaultMaterial.Material->GetRenderingThreadShaderMap();
+
+	// Setup PSOs we going to use for light rendering 
+	// Do two passes, first masking DefautLit, second masking all other shading models
+	int32 NumPasses = MobileEnableExtenedGBuffer(Scene.GetShaderPlatform()) ? 2 : 1;
+	uint8 PassShadingModelStencilValue[2] =
+	{
+		GetMobileShadingModelStencilValue(MSM_DefaultLit),
+		GetMobileShadingModelStencilValue(FMaterialShadingModelField())
+	};
+	TShaderRef<FMobileRadialLightFunctionPS> PassPixelShaders[2];
+	FGraphicsPipelineStateInitializer GraphicsPSOLight[2];
+
+	for (int32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
+	{
+		const bool bEnableShadingModelSupport = (PassIndex > 0);
+		
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOLight[PassIndex]);
+		// Use additive blending for color
+		GraphicsPSOLight[PassIndex].BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+		GraphicsPSOLight[PassIndex].PrimitiveType = PT_TriangleList;
+		GraphicsPSOLight[PassIndex].BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
+		GraphicsPSOLight[PassIndex].BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		SetLocalLightRasterizerAndDepthState<0u, true>(GraphicsPSOLight[PassIndex], View, FSphere());
+
+		TShaderRef<FMobileRadialLightFunctionPS> PixelShader;
+		FMobileRadialLightFunctionPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FMobileRadialLightFunctionPS::FEnableShadingModelSupport>(bEnableShadingModelSupport);
+		PermutationVector.Set<FMobileRadialLightFunctionPS::FSpotLightDim>(false);
+		PermutationVector.Set<FMobileRadialLightFunctionPS::FIESProfileDim>(false);
+		PassPixelShaders[PassIndex] = MaterialShaderMap->GetShader<FMobileRadialLightFunctionPS>(PermutationVector);
+		GraphicsPSOLight[PassIndex].BoundShaderState.PixelShaderRHI = PassPixelShaders[PassIndex].GetPixelShader();
+	}
 		
 	for (int32 LightIndex = 0; LightIndex < SimpleLights.InstanceData.Num(); LightIndex++)
 	{
@@ -767,10 +854,8 @@ static void RenderSimpleLights(
 
 		// Render light mask
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOLightMask, 1);
-
 		FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View, LightBounds);
 		SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), ParametersVS);
-
 		StencilingGeometry::DrawSphere(RHICmdList);
 
 		// Render light
@@ -780,17 +865,16 @@ static void RenderSimpleLights(
 		PassParameters.IESTexture = GWhiteTexture->TextureRHI;
 		PassParameters.IESTextureSampler = GWhiteTexture->SamplerStateRHI;
 
-		// Shade only MSM_DefaultLit pixels
-		uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit);
-
+		for (int32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
 		{
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight, StencilRef);
-			FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, DefaultMaterial.MaterialProxy, *DefaultMaterial.Material, PassParameters);
-		}
+			uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(PassShadingModelStencilValue[PassIndex]);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight[PassIndex], StencilRef);
+			FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PassPixelShaders[PassIndex], View, DefaultMaterial.MaterialProxy, *DefaultMaterial.Material, PassParameters);
 
-		// Apply the point or spot light with some approximately bounding geometry,
-		// So we can get speedups from depth testing and not processing pixels outside of the light's influence.
-		StencilingGeometry::DrawSphere(RHICmdList);
+			// Apply the point or spot light with some approximately bounding geometry,
+			// So we can get speedups from depth testing and not processing pixels outside of the light's influence.
+			StencilingGeometry::DrawSphere(RHICmdList);
+		}
 	}
 }
 

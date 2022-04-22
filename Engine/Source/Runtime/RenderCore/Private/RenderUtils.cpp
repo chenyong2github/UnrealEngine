@@ -1228,6 +1228,17 @@ RENDERCORE_API bool MobileUsesShadowMaskTexture(const FStaticShaderPlatform Plat
 	return IsMobileDistanceFieldEnabled(Platform) || (!IsMobileDeferredShadingEnabled(Platform) && IsMobileMovableSpotlightShadowsEnabled(Platform) && MobileForwardEnableLocalLights(Platform));
 }
 
+// Whether to support more than 4 color attachments for GBuffer. Required for shading models with a custom data
+RENDERCORE_API bool MobileEnableExtenedGBuffer(FStaticShaderPlatform ShaderPlatform)
+{
+	// Android GLES: uses PLS for deferred shading and limited to 128 bits
+	// Vulkan requires:
+		// maxDescriptorSetInputAttachments > 4
+		// maxColorAttachments > 4
+	// iOS: A8+
+	return (ShaderPlatform != SP_OPENGL_ES3_1_ANDROID) && false;
+}
+
 RENDERCORE_API bool MobileBasePassAlwaysUsesCSM(const FStaticShaderPlatform Platform)
 {
 	static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.Shadow.CSMShaderCullingMethod"));

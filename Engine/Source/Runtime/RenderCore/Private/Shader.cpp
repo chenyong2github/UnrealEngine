@@ -1567,7 +1567,7 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 			{
 				if (MobileShadingPathCVar->GetInt() != 0)
 				{
-					KeyString += TEXT("_MobDSh");
+					KeyString += (MobileEnableExtenedGBuffer(Platform) ? TEXT("_MobDShEx") : TEXT("_MobDSh"));
 				}
 				else
 				{

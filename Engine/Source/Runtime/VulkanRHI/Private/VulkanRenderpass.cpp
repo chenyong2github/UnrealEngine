@@ -93,7 +93,7 @@ public:
 
 			check(RTLayout.GetDepthStencilAttachmentReference());
 
-			// depth as Input0
+			// Depth as Input0
 			InputAttachments1[0].SetAttachment(DepthStencilAttachmentOG, VK_IMAGE_ASPECT_DEPTH_BIT);
 			InputAttachments1[0].layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
@@ -131,7 +131,7 @@ public:
 
 			//const VkAttachmentReference* ColorRef = RTLayout.GetColorAttachmentReferences();
 			//uint32 NumColorAttachments = RTLayout.GetNumColorAttachments();
-			check(RTLayout.GetNumColorAttachments() == 4); //current layout is SceneColor, GBufferA/B/C
+			//check(RTLayout.GetNumColorAttachments() == 5); //current layout is SceneColor, GBufferA/B/C/D
 
 			// 1. Write to SceneColor and GBuffer, input DepthStencil
 			{
@@ -148,7 +148,7 @@ public:
 				SubpassDesc.SetMultiViewMask(MultiviewMask);
 #endif
 				
-				// depth as Input0
+				// Depth as Input0
 				TSubpassDependencyClass& SubpassDep = SubpassDependencies[NumDependencies++];
 				SubpassDep.srcSubpass = 0;
 				SubpassDep.dstSubpass = 1;
@@ -165,23 +165,26 @@ public:
 				SubpassDesc.SetColorAttachments(ColorAttachmentReferences, 1); // SceneColor only
 				SubpassDesc.SetDepthStencilAttachment(&DepthStencilAttachment);
 
-				// GBuffer as Input2/3/4
+				// Depth as Input0
 				InputAttachments2[0].attachment = DepthStencilAttachment.attachment;
 				InputAttachments2[0].layout = DepthStencilAttachment.layout;
 				InputAttachments2[0].SetAspect(VK_IMAGE_ASPECT_DEPTH_BIT);
 
+				// SceneColor write only
 				InputAttachments2[1].attachment = VK_ATTACHMENT_UNUSED;
 				InputAttachments2[1].layout = VK_IMAGE_LAYOUT_UNDEFINED;
 				InputAttachments2[1].SetAspect(0);
-
-				for (int32 i = 2; i < 5; ++i)
+				
+				// GBufferA/B/C/D as Input2/3/4/5
+				int32 NumColorInputs = ColorAttachmentReferences.Num() - 1;
+				for (int32 i = 2; i < (NumColorInputs + 2); ++i)
 				{
 					InputAttachments2[i].attachment = ColorAttachmentReferences[i - 1].attachment;
 					InputAttachments2[i].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 					InputAttachments2[i].SetAspect(VK_IMAGE_ASPECT_COLOR_BIT);
 				}
 
-				SubpassDesc.SetInputAttachments(InputAttachments2, 5);
+				SubpassDesc.SetInputAttachments(InputAttachments2, NumColorInputs + 2);
 #if VULKAN_SUPPORTS_RENDERPASS2
 				if (bApplyFragmentShadingRate)
 				{

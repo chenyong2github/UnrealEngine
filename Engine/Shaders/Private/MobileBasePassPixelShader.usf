@@ -67,11 +67,14 @@
 // SceneDepthAux always enabled for IOS, on other platforms only enabled when in forward and MobileHDR=true
 #define USE_SCENE_DEPTH_AUX ((METAL_PROFILE || (!DEFERRED_SHADING_PATH && OUTPUT_MOBILE_HDR) || (DEFERRED_SHADING_PATH && USE_GLES_FBF_DEFERRED)) && (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !COMPILER_SWITCH)
 
-#if DEFERRED_SHADING_PATH
-	#define SV_TargetDepthAux SV_Target4
+#if DEFERRED_SHADING_PATH && MOBILE_EXTENDED_GBUFFER
+	#define SV_TargetDepthAux SV_Target5	
+#elif DEFERRED_SHADING_PATH
+	#define SV_TargetDepthAux SV_Target4	
 #else
 	#define SV_TargetDepthAux SV_Target1
 #endif
+
 #define TRANSLUCENCY_NON_DIRECTIONAL (MATERIALBLENDING_ANY_TRANSLUCENT && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER)
 
 #include "SHCommon.ush"
@@ -184,14 +187,17 @@ void Main(
 	, in float4 SvPosition : SV_Position
 	OPTIONAL_IsFrontFace
 #if DEFERRED_SHADING_PATH
-#if USE_GLES_FBF_DEFERRED
+	#if USE_GLES_FBF_DEFERRED
 	, out HALF4_TYPE OutProxy : SV_Target0
-#else
+	#else
 	, out HALF4_TYPE OutColor : SV_Target0
-#endif
+	#endif
 	, out HALF4_TYPE OutGBufferA : SV_Target1
 	, out HALF4_TYPE OutGBufferB : SV_Target2
-	, out HALF4_TYPE OutGBufferC : SV_Target3  
+	, out HALF4_TYPE OutGBufferC : SV_Target3
+	#if MOBILE_EXTENDED_GBUFFER
+	, out HALF4_TYPE OutGBufferD : SV_Target4
+	#endif
 #else
 	, out HALF4_TYPE OutColor : SV_Target0
 #endif
@@ -203,8 +209,13 @@ void Main(
 #endif
 	)
 {  
-#if DEFERRED_SHADING_PATH && USE_GLES_FBF_DEFERRED
-	half4 OutColor;	
+#if DEFERRED_SHADING_PATH 
+	#if USE_GLES_FBF_DEFERRED
+		half4 OutColor;
+	#endif
+	#if !MOBILE_EXTENDED_GBUFFER
+		half4 OutGBufferD;
+	#endif
 #endif
 
 #if MOBILE_MULTI_VIEW
@@ -389,7 +400,6 @@ void Main(
 	half Shadow = GetPrimaryPrecomputedShadowMask(LightmapVTPageTableResult, Interpolants, MaterialParameters).r;
 
 #if DEFERRED_SHADING_PATH
-	float4 OutGBufferD;
 	float4 OutGBufferE;
 	float4 OutGBufferF;
 	float4 OutGBufferVelocity = 0;

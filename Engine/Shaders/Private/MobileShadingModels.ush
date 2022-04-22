@@ -51,10 +51,11 @@
 #define DEFERRED_SHADING_PATH 0
 #endif
 
-// Enable shading model support for deferred shading once the gbuffer has capacity.
-#define MOBILE_SHADINGMODEL_SUPPORT_DEFERRED 0
+#ifndef ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED
+#define ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED 0
+#endif
 
-#define MOBILE_SHADINGMODEL_SUPPORT (!MOBILE_DEFERRED_SHADING || MOBILE_SHADINGMODEL_SUPPORT_DEFERRED)
+#define MOBILE_SHADINGMODEL_SUPPORT (!MOBILE_DEFERRED_SHADING || ENABLE_SHADINGMODEL_SUPPORT_MOBILE_DEFERRED)
 
 /*------------------------------------------------------------------------------
 	Mobile Shading Models

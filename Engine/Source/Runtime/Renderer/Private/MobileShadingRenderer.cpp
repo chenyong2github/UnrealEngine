@@ -1297,7 +1297,7 @@ void MobileDeferredCopyBuffer(FRHICommandListImmediate& RHICmdList, const FViewI
 
 void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const FSortedLightSetSceneInfo& SortedLightSet, FRDGTextureRef ViewFamilyTexture, FSceneTextures& SceneTextures)
 {
-	TArray<FRDGTextureRef, TInlineAllocator<5>> ColorTargets;
+	TArray<FRDGTextureRef, TInlineAllocator<6>> ColorTargets;
 
 	// If we are using GL and don't have FBF support, use PLS
 	bool bUsingPixelLocalStorage = IsAndroidOpenGLESPlatform(ShaderPlatform) && GSupportsPixelLocalStorage;
@@ -1312,7 +1312,13 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const FSort
 		ColorTargets.Add(SceneTextures.GBufferA);
 		ColorTargets.Add(SceneTextures.GBufferB);
 		ColorTargets.Add(SceneTextures.GBufferC);
-		if(bRequiresSceneDepthAux)
+		
+		if (MobileEnableExtenedGBuffer(ShaderPlatform))
+		{
+			ColorTargets.Add(SceneTextures.GBufferD);
+		}
+
+		if (bRequiresSceneDepthAux)
 		{
 			ColorTargets.Add(SceneTextures.DepthAux.Target);
 		}

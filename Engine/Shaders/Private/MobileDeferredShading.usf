@@ -13,10 +13,9 @@
 #define MobileSceneTextures		MobileBasePass.SceneTextures
 #define ForwardLightData		MobileBasePass.Forward
 #define PlanarReflectionStruct	MobileBasePass.PlanarReflection
-#ifndef GLOBAL_PREINTEGRATEDGF
+#define ReflectionStruct		MobileBasePass.ReflectionsParameters
 #define PreIntegratedGF			ReflectionStruct.PreIntegratedGF
 #define PreIntegratedGFSampler	ReflectionStruct.PreIntegratedGFSampler
-#endif
 
 #include "MobileLightingCommon.ush"
 #include "IESLightProfilesCommon.ush"
@@ -38,29 +37,37 @@
 
 void FetchGBuffer(in float2 UV, out float4 GBufferA, out float4 GBufferB, out float4 GBufferC, out float4 GBufferD, out float SceneDepth)
 {
+	GBufferD = 0;
+
 #if VULKAN_PROFILE
 	GBufferA = VulkanSubpassFetch1(); 
 	GBufferB = VulkanSubpassFetch2(); 
-	GBufferC = VulkanSubpassFetch3(); 
-	GBufferD = 0;
+	GBufferC = VulkanSubpassFetch3();
+	#if MOBILE_EXTENDED_GBUFFER
+		GBufferD = VulkanSubpassFetch4();
+	#endif
 	SceneDepth = ConvertFromDeviceZ(VulkanSubpassDepthFetch());
 #elif METAL_PROFILE
 	GBufferA = SubpassFetchRGBA_1(); 
 	GBufferB = SubpassFetchRGBA_2(); 
 	GBufferC = SubpassFetchRGBA_3(); 
-	GBufferD = 0; 
+	#if MOBILE_EXTENDED_GBUFFER
+		GBufferD = SubpassFetchRGBA_4();
+	#endif
 	SceneDepth = ConvertFromDeviceZ(SubpassFetchR_4());
 #elif USE_GLES_FBF_DEFERRED
 	GBufferA = GLSubpassFetch1(); 
 	GBufferB = GLSubpassFetch2(); 
 	GBufferC = GLSubpassFetch3();  
-	GBufferD = 0;   
+	GBufferD = 0; // PLS is limited to 128bits
 	SceneDepth = ConvertFromDeviceZ(DepthbufferFetchES2());
 #else
 	GBufferA = Texture2DSampleLevel(MobileSceneTextures.GBufferATexture, MobileSceneTextures.GBufferATextureSampler, UV, 0); 
 	GBufferB = Texture2DSampleLevel(MobileSceneTextures.GBufferBTexture, MobileSceneTextures.GBufferBTextureSampler, UV, 0);
 	GBufferC = Texture2DSampleLevel(MobileSceneTextures.GBufferCTexture, MobileSceneTextures.GBufferCTextureSampler, UV, 0);
-	GBufferD = 0;
+	#if MOBILE_EXTENDED_GBUFFER
+		GBufferD = Texture2DSampleLevel(MobileSceneTextures.GBufferDTexture, MobileSceneTextures.GBufferDTextureSampler, UV, 0);
+	#endif
 	SceneDepth = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, UV, 0).r);
 #endif
 }
@@ -306,15 +313,15 @@ void MobileRadialLightPS(
 }
 
 void MobileReflectionEnvironmentSkyLightingPS(
-	noperspective float4 UVAndScreenPos : TEXCOORD0,
-	float4 SvPosition : SV_POSITION,
+	noperspective float4 UVAndScreenPos : TEXCOORD0
+	, float4 SvPosition : SV_POSITION
 #if USE_GLES_FBF_DEFERRED
-	out HALF4_TYPE OutProxyAdditive : SV_Target0,
-	out HALF4_TYPE OutGBufferA : SV_Target1,
-	out HALF4_TYPE OutGBufferB : SV_Target2,
-	out HALF4_TYPE OutGBufferC : SV_Target3
+	, out HALF4_TYPE OutProxyAdditive : SV_Target0
+	, out HALF4_TYPE OutGBufferA : SV_Target1
+	, out HALF4_TYPE OutGBufferB : SV_Target2
+	, out HALF4_TYPE OutGBufferC : SV_Target3
 #else
-	out HALF4_TYPE OutColor : SV_Target0
+	, out HALF4_TYPE OutColor : SV_Target0
 #endif
 )
 {

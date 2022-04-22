@@ -14,6 +14,21 @@
 #include "MeshPassProcessor.inl"
 #include "Engine/TextureCube.h"
 
+uint8 GetMobileShadingModelStencilValue(FMaterialShadingModelField ShadingModel)
+{
+	if (ShadingModel.HasOnlyShadingModel(MSM_DefaultLit))
+	{
+		return 1u;
+	}
+	else if (ShadingModel.HasOnlyShadingModel(MSM_Unlit))
+	{
+		return 0u;
+	}
+	
+	// mark everyhing as MSM_DefaultLit if extended GBuffer is not supported
+	return MobileEnableExtenedGBuffer(GMaxRHIShaderPlatform) ? 2u : 1u;
+}
+
 bool MobileUsesNoLightMapPermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 {
 	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
@@ -331,8 +346,7 @@ void MobileBasePass::SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRen
 	
 	if (bUsesDeferredShading)
 	{
-		// store into [1-3] bits
-		uint8 ShadingModel = Material.GetShadingModels().IsLit() ? MSM_DefaultLit : MSM_Unlit;
+		uint8 ShadingModel = GetMobileShadingModelStencilValue(Material.GetShadingModels());
 		StencilValue |= GET_STENCIL_MOBILE_SM_MASK(ShadingModel);
 		StencilValue |= STENCIL_LIGHTING_CHANNELS_MASK(PrimitiveSceneProxy ? PrimitiveSceneProxy->GetLightingChannelStencilValue() : 0x00);
 	}

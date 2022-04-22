@@ -42,10 +42,10 @@
 #define STENCIL_LIGHTING_CHANNELS_MASK(Value) uint8(((Value) & 0x7) << STENCIL_LIGHTING_CHANNELS_BIT_ID)
 
 // Mobile specific
-// Sky material mask
-#define STENCIL_MOBILE_SKY_MASK GET_STENCIL_BIT_MASK(SANDBOX,1)
-// Store shading model into stencil [1-3] bits
-#define GET_STENCIL_MOBILE_SM_MASK(Value) uint8(((Value) & 0x7) << 1)
+// Store shading model into stencil [1-2] bits
+#define GET_STENCIL_MOBILE_SM_MASK(Value) uint8(((Value) & 0x3) << 1)
+// Sky material mask - bit 3
+#define STENCIL_MOBILE_SKY_MASK uint8(1 << 3)
 
 class FSceneRenderTargets
 {
