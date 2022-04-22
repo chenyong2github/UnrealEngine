@@ -10,6 +10,7 @@
 #include "ActorPartitionSubsystem.generated.h"
 
 class FBaseActorPartition;
+class UWorldPartition;
 
 #if WITH_EDITOR
 /**
@@ -178,8 +179,10 @@ private:
 
 #if WITH_EDITOR
 	void OnActorPartitionHashInvalidated(const FCellCoord& Hash);
+	void OnWorldPartitionInitialized(UWorldPartition* InWorldPartition);
 
 	void InitializeActorPartition();
+	void UninitializeActorPartition();
 
 	TMap<FCellCoord, TMap<FActorPartitionIdentifier, TWeakObjectPtr<APartitionActor>>> PartitionedActors;
 	TUniquePtr<FBaseActorPartition> ActorPartition;
