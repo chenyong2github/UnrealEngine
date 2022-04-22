@@ -152,7 +152,10 @@ inline void UpdateSleepState(FPBDIslandSolver* IslandSolver, FPBDRigidsSOAs& Par
 		// Island constraints are updating their sleeping flag + awaken one 
 		for (auto& IslandConstraint : IslandSolver->GetConstraints())
 		{
-			IslandConstraint->SetIsSleeping(bIsSleeping);
+			if (FConstraintHandle* ConstraintHandle = IslandConstraint.Get())
+			{
+				ConstraintHandle->SetIsSleeping(bIsSleeping);
+			}
 		}
 	}
 }
