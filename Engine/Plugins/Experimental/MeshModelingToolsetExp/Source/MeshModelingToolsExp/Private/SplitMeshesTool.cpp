@@ -211,13 +211,20 @@ void USplitMeshesTool::UpdateSplitMeshes()
 				}
 			}
 			
-			// reposition mesh
-			FAxisAlignedBox3d Bounds = Submesh.GetBounds();
-			MeshTransforms::Translate(Submesh, -Bounds.Center());
+			// TODO: Consider whether to expose bCenterPivots as an option to the user
+			constexpr bool bCenterPivots = false;
+			FVector3d Origin = FVector3d::ZeroVector;
+			if (bCenterPivots)
+			{
+				// reposition mesh
+				FAxisAlignedBox3d Bounds = Submesh.GetBounds();
+				Origin = Bounds.Center();
+				MeshTransforms::Translate(Submesh, -Origin);
+			}
 
 			SplitInfo.Meshes[k] = MoveTemp(Submesh);
 			SplitInfo.Materials[k] = MoveTemp(NewMaterials);
-			SplitInfo.Origins[k] = Bounds.Center();
+			SplitInfo.Origins[k] = Origin;
 		}
 	}
 

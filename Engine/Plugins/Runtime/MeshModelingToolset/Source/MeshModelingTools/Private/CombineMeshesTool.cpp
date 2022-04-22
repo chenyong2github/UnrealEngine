@@ -173,8 +173,24 @@ void UCombineMeshesTool::CreateNewAsset()
 	AccumulateDMesh.Attributes()->EnableTangents();
 	AccumulateDMesh.Attributes()->EnableMaterialID();
 	AccumulateDMesh.Attributes()->EnablePrimaryColors();
-	FTransform3d AccumToWorld(Box.GetCenter());
-	FTransform3d ToAccum(-Box.GetCenter());
+	constexpr bool bCenterPivot = false;
+	FVector3d Origin = FVector3d::ZeroVector;
+	if (bCenterPivot)
+	{
+		// Place the pivot at the bounding box center
+		Origin = Box.GetCenter();
+	}
+	else if (!Targets.IsEmpty())
+	{
+		// Use the average pivot
+		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
+		{
+			Origin += UE::ToolTarget::GetLocalToWorldTransform(Targets[ComponentIdx]).TransformPosition(FVector3d::ZeroVector);
+		}
+		Origin /= Targets.Num();
+	}
+	FTransform3d AccumToWorld(Origin);
+	FTransform3d ToAccum(-Origin);
 
 	FSimpleShapeSet3d SimpleCollision;
 	UE::Geometry::FComponentCollisionSettings CollisionSettings;
