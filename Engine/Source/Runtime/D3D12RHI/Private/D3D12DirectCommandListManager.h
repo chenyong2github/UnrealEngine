@@ -280,18 +280,31 @@ public:
 	FORCEINLINE FD3D12Fence& GetFence() { check(CommandListFence); return *CommandListFence; }
 
 	/** Get the breadcrumb resource which is written during command context recording */
-	FD3D12Resource* GetBreadCrumbResource() { return DiagnosticBuffer.BreadCrumbResource.GetReference(); }
+	FD3D12Resource* GetDiagnosticBufferResource() { return DiagnosticBuffer.Resource.GetReference(); }
+
+	uint32 GetBreadCrumbsBufferSize() const { return DiagnosticBuffer.BreadCrumbsSize; }
 
 	/** Get the CPU readable data from the breadcrumb data - this data is still valid after the Device is Lost */
-	const void* GetBreadCrumbResourceAddress() const { return DiagnosticBuffer.BreadCrumbResourceAddress; }
+	const void* GetBreadCrumbBufferData() const
+	{
+		return DiagnosticBuffer.CpuAddress
+			? reinterpret_cast<const uint8*>(DiagnosticBuffer.CpuAddress) + DiagnosticBuffer.BreadCrumbsOffset
+			: nullptr;
+	}
+
 	const FD3D12DiagnosticBufferData* GetDiagnosticBufferData() const
 	{ 
-		const uint8* Address = DiagnosticBuffer.BreadCrumbResourceAddress ? reinterpret_cast<const uint8*>(GetBreadCrumbResourceAddress()) + DiagnosticBufferOffset : nullptr;
+		const uint8* Address = DiagnosticBuffer.CpuAddress
+			? reinterpret_cast<const uint8*>(DiagnosticBuffer.CpuAddress) + DiagnosticBuffer.DiagnosticsOffset
+			: nullptr;
 		return reinterpret_cast<const FD3D12DiagnosticBufferData*>(Address);
 	}
+
 	const D3D12_GPU_VIRTUAL_ADDRESS GetDiagnosticBufferGPUAddress() const
 	{ 
-		return DiagnosticBuffer.BreadCrumbResourceGPUAddress ? DiagnosticBuffer.BreadCrumbResourceGPUAddress + DiagnosticBufferOffset : 0;
+		return DiagnosticBuffer.GpuAddress
+			? DiagnosticBuffer.GpuAddress + DiagnosticBuffer.DiagnosticsOffset
+			: 0;
 	}
 
 	void WaitForCommandQueueFlush();
@@ -381,18 +394,23 @@ protected:
 	// Helper data used to track GPU progress on this command queue
 	struct FDiagnosticBuffer
 	{
-		TRefCountPtr<FD3D12Heap> BreadCrumbHeap;
-		TRefCountPtr<FD3D12Resource> BreadCrumbResource;
+		TRefCountPtr<FD3D12Heap> Heap;
+		TRefCountPtr<FD3D12Resource> Resource;
 
-		void* BreadCrumbResourceAddress;
-		D3D12_GPU_VIRTUAL_ADDRESS BreadCrumbResourceGPUAddress;
+		void* CpuAddress;
+		D3D12_GPU_VIRTUAL_ADDRESS GpuAddress;
+
+		uint32 BreadCrumbsOffset = 0;
+		uint32 BreadCrumbsSize = 0;
+
+		uint32 DiagnosticsOffset = 0;
+		uint32 DiagnosticsSize = 0;
 	};
 
 	virtual FDiagnosticBuffer CreateDiagnosticBuffer(FD3D12Adapter *Adapter, FD3D12Device *Device, const D3D12_RESOURCE_DESC& Desc, const TCHAR* Name);
 	void DestroyDiagnosticBuffer(FDiagnosticBuffer& Buffer);
 
 	FDiagnosticBuffer DiagnosticBuffer;
-	uint32 DiagnosticBufferOffset = 0;
 
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
 	uint64 CmdListTimingQueryBatchTokens[2];

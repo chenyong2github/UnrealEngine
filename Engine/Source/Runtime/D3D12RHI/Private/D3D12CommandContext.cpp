@@ -152,15 +152,15 @@ FD3D12CommandContext::~FD3D12CommandContext()
 void FD3D12CommandContext::WriteGPUEventStackToBreadCrumbData(bool bBeginEvent)
 {
 	// Write directly to command list if breadcrumb resource is available
-	FD3D12Resource* BreadCrumbResource = GetCommandListManager().GetBreadCrumbResource();
+	FD3D12Resource* BreadCrumbResource = GetCommandListManager().GetDiagnosticBufferResource();
 	ID3D12GraphicsCommandList2* CommandList2 = CommandListHandle.GraphicsCommandList2();
 	if (BreadCrumbResource && CommandList2)
 	{
 		// Find the max parameter count from the resource
-		int MaxParameterCount = BreadCrumbResource->GetDesc().Width / sizeof(uint32);
+		const int32 MaxParameterCount = GetCommandListManager().GetBreadCrumbsBufferSize() / sizeof(uint32);
 
 		// allocate the parameters on the stack if smaller than 4K
-		int ParameterCount = GPUEventStack.Num() < (MaxParameterCount - 2) ? GPUEventStack.Num() + 2 : MaxParameterCount;
+		int32 ParameterCount = GPUEventStack.Num() < (MaxParameterCount - 2) ? GPUEventStack.Num() + 2 : MaxParameterCount;
 		size_t MemSize = ParameterCount * (sizeof(D3D12_WRITEBUFFERIMMEDIATE_PARAMETER) + sizeof(D3D12_WRITEBUFFERIMMEDIATE_PARAMETER));
 		const bool bAllocateOnStack = (MemSize < 4096);
 		void* Mem = bAllocateOnStack ? FMemory_Alloca(MemSize) : FMemory::Malloc(MemSize);
@@ -172,7 +172,23 @@ void FD3D12CommandContext::WriteGPUEventStackToBreadCrumbData(bool bBeginEvent)
 			for (int i = 0; i < ParameterCount; ++i)
 			{
 				Parameters[i].Dest = BreadCrumbResource->GetGPUVirtualAddress() + 4 * i;
+
+			#if 1 // This is more accurate, but may have a higher theoretical GPU overhead
+				if (bBeginEvent)
+				{
+					// The write operation is guaranteed to occur after all preceding commands in the command stream have started, including previous.
+					// We use this mode because we want to know which ops have started on the GPU.
+					Modes[i] = D3D12_WRITEBUFFERIMMEDIATE_MODE_MARKER_IN;
+				}
+				else
+				{
+					// The write operation is deferred until all previous commands in the command stream have completed through the GPU pipeline, including previous WriteBufferImmediate operations.
+					// We want this mode when ending breadcrumb scopes because the GPU might start the next scope before we hit a problem in the current one in some cases (when there are no barriers).
+					Modes[i] = D3D12_WRITEBUFFERIMMEDIATE_MODE_MARKER_OUT;
+				}
+			#else // This is less accurate (we don't know for sure if the event has finished), but has lower theoretical GPU overhead
 				Modes[i] = D3D12_WRITEBUFFERIMMEDIATE_MODE_MARKER_IN;
+			#endif
 
 				// Write event stack count first
 				if (i == 0)

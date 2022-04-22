@@ -424,16 +424,21 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 			// Allocate persistent CPU readable memory which will still be valid after a device lost and wrap this data in a placed resource
 			// so the GPU command list can write to it
 			const uint32 EventBufferSize = MaxEventCount * sizeof(uint32);
-			const uint32 BreadCrumbBufferSize = EventBufferSize + ShaderDiagnosticBufferSize;
-
-			DiagnosticBufferOffset = EventBufferSize;
+			const uint32 TotalBufferSize = EventBufferSize + ShaderDiagnosticBufferSize;
 
 			// Create the platform-specific diagnostic buffer
 			TCHAR TempStr[MAX_SPRINTF] = TEXT("");
-			FCString::Sprintf(TempStr, TEXT("BreadCrumbResource_%s"), Name);
+			FCString::Sprintf(TempStr, TEXT("DiagnosticBuffer (%s)"), Name);
 
-			const D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(BreadCrumbBufferSize, D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER);
-			DiagnosticBuffer = CreateDiagnosticBuffer(Adapter, Device, BufferDesc, Name);
+			const D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(TotalBufferSize, D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER);
+			DiagnosticBuffer = CreateDiagnosticBuffer(Adapter, Device, BufferDesc, TempStr);
+
+			// Diagnostic buffer is split between breadcrumb events and diagnostic messages.
+			DiagnosticBuffer.BreadCrumbsOffset = 0;
+			DiagnosticBuffer.BreadCrumbsSize = EventBufferSize;
+
+			DiagnosticBuffer.DiagnosticsOffset = DiagnosticBuffer.BreadCrumbsOffset + DiagnosticBuffer.BreadCrumbsSize;
+			DiagnosticBuffer.DiagnosticsSize = ShaderDiagnosticBufferSize;
 		}
 	}
 }
@@ -1162,12 +1167,12 @@ FD3D12CommandListManager::FDiagnosticBuffer FD3D12CommandListManager::CreateDiag
 
 void FD3D12CommandListManager::DestroyDiagnosticBuffer(FDiagnosticBuffer& Buffer)
 {
-	Buffer.BreadCrumbResource.SafeRelease();
-	Buffer.BreadCrumbHeap.SafeRelease();
+	Buffer.Resource.SafeRelease();
+	Buffer.Heap.SafeRelease();
 
-	VirtualFree(Buffer.BreadCrumbResourceAddress, 0, MEM_RELEASE);
-	Buffer.BreadCrumbResourceAddress = nullptr;
-	Buffer.BreadCrumbResourceGPUAddress = 0;
+	VirtualFree(Buffer.CpuAddress, 0, MEM_RELEASE);
+	Buffer.CpuAddress = nullptr;
+	Buffer.GpuAddress = 0;
 }
 
 FD3D12FenceCore* FD3D12FenceCorePool::ObtainFenceCore(uint32 GPUIndex)

@@ -209,7 +209,7 @@ static FString GetD3D12TextureFlagString(uint32 TextureFlags)
 /** Log the GPU progress of the given CommandListManager to the Error log if breadcrumb data is available */
 static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12CommandListManager& CommandListManager)
 {
-	uint32* BreadCrumbData = (uint32*)CommandListManager.GetBreadCrumbResourceAddress();
+	uint32* BreadCrumbData = (uint32*)CommandListManager.GetBreadCrumbBufferData();
 	if (BreadCrumbData == nullptr)
 	{
 		return false;
@@ -219,29 +219,29 @@ static bool LogBreadcrumbData(D3D12RHI::FD3DGPUProfiler& GPUProfiler, FD3D12Comm
 	bool bBeginEvent = BreadCrumbData[1] > 0;
 	check(EventCount >= 0 && EventCount < (MAX_GPU_BREADCRUMB_DEPTH - 2));
 
-	FString gpu_progress = FString::Printf(TEXT("[GPUBreadCrumb]\t%s Queue %d - %s"), GetD3DCommandQueueTypeName(CommandListManager.GetQueueType()), 
+	FString GpuProgress = FString::Printf(TEXT("[GPUBreadCrumb]\t%s Queue %d - %s"), GetD3DCommandQueueTypeName(CommandListManager.GetQueueType()), 
 		CommandListManager.GetGPUIndex(), EventCount == 0 ? TEXT("No Data") : (bBeginEvent ? TEXT("Begin: ") : TEXT("End: ")));
 	for (uint32 EventIndex = 0; EventIndex < EventCount; ++EventIndex)
 	{
 		if (EventIndex > 0)
 		{
-			gpu_progress.Append(TEXT(" - "));
+			GpuProgress.Append(TEXT(" - "));
 		}
 
 		// get the crc and try and translate back into a string
-		uint32 event_crc = BreadCrumbData[EventIndex + 2];
-		const FString* event_name = GPUProfiler.FindEventString(event_crc);
-		if (event_name)
+		uint32 EventCrc = BreadCrumbData[EventIndex + 2];
+		const FString* EventName = GPUProfiler.FindEventString(EventCrc);
+		if (EventName)
 		{
-			gpu_progress.Append(*event_name);
+			GpuProgress.Append(*EventName);
 		}
 		else
 		{
-			gpu_progress.Append(TEXT("Unknown Event"));
+			GpuProgress.Append(TEXT("Unknown Event"));
 		}
 	}
 
-	UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *gpu_progress);
+	UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *GpuProgress);
 
 	const FD3D12DiagnosticBufferData* DiagnosticData = CommandListManager.GetDiagnosticBufferData();
 	if (DiagnosticData && DiagnosticData->Counter)
