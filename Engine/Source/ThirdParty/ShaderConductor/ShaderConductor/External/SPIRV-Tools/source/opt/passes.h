@@ -19,6 +19,9 @@
 
 #include "source/opt/aggressive_dead_code_elim_pass.h"
 #include "source/opt/amd_ext_to_khr.h"
+// UE Change Begin: Added support for Android driver patch pass to fix platform specific issues
+#include "source/opt/android_driver_patch_pass.h"
+// UE Change End: Added support for Android driver patch pass to fix platform specific issues
 #include "source/opt/block_merge_pass.h"
 #include "source/opt/ccp_pass.h"
 #include "source/opt/cfg_cleanup_pass.h"
@@ -34,6 +37,7 @@
 #include "source/opt/desc_sroa.h"
 #include "source/opt/eliminate_dead_constant_pass.h"
 #include "source/opt/eliminate_dead_functions_pass.h"
+#include "source/opt/eliminate_dead_input_components_pass.h"
 #include "source/opt/eliminate_dead_members_pass.h"
 #include "source/opt/empty_pass.h"
 #include "source/opt/fix_storage_class.h"
@@ -69,6 +73,7 @@
 #include "source/opt/reduce_load_size.h"
 #include "source/opt/redundancy_elimination.h"
 #include "source/opt/relax_float_ops_pass.h"
+#include "source/opt/remove_dontinline_pass.h"
 #include "source/opt/remove_duplicates_pass.h"
 #include "source/opt/remove_unused_interface_variables_pass.h"
 #include "source/opt/replace_desc_array_access_using_var_index.h"
@@ -76,16 +81,15 @@
 #include "source/opt/scalar_replacement_pass.h"
 #include "source/opt/set_spec_constant_default_value_pass.h"
 #include "source/opt/simplification_pass.h"
+#include "source/opt/spread_volatile_semantics.h"
 #include "source/opt/ssa_rewrite_pass.h"
 #include "source/opt/strength_reduction_pass.h"
 #include "source/opt/strip_debug_info_pass.h"
-#include "source/opt/strip_reflect_info_pass.h"
+#include "source/opt/strip_nonsemantic_info_pass.h"
 #include "source/opt/unify_const_pass.h"
 #include "source/opt/upgrade_memory_model.h"
 #include "source/opt/vector_dce.h"
 #include "source/opt/workaround1209.h"
 #include "source/opt/wrap_opkill.h"
-// UE Change Begin: Added support for Android driver patch pass to fix platform specific issues
-#include "source/opt/android_driver_patch_pass.h"
-// UE Change End: Added support for Android driver patch pass to fix platform specific issues
+
 #endif  // SOURCE_OPT_PASSES_H_

@@ -116,7 +116,7 @@ if(${COMPILER_IS_LIKE_GNU})
     set(SPIRV_WARNINGS ${SPIRV_WARNINGS} -Werror)
   endif()
 elseif(MSVC)
-  set(SPIRV_WARNINGS -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS /wd4800)
+  set(SPIRV_WARNINGS -D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS /wd4800 /wd4819)
 
   if(${SPIRV_WERROR})
     set(SPIRV_WARNINGS ${SPIRV_WARNINGS} /WX)
@@ -242,7 +242,7 @@ if(NOT COMMAND find_host_program)
   endmacro()
 endif()
 
-# Tests require python3
+# Tests require Python3
 # UE Change Begin: Support CMake 3.12+ in finding python3
 if(CMAKE_VERSION VERSION_LESS 3.12)
   find_package(PythonInterp 3 REQUIRED)
