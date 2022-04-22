@@ -231,103 +231,13 @@ float3 GetLumenGeometryNormal()
 	return Normal;
 }
 
-RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
-	FPackedMaterialClosestHitPayload, PackedPayload,
-	FRayTracingIntersectionAttributes, Attributes)
+void GetMaterialPayload(
+	FPixelMaterialInputs PixelMaterialInputs,
+	FMaterialPixelParameters MaterialParameters,
+	FVertexFactoryInterpolantsVSToPS Interpolants,
+	bool bIsEnableSkyLightContribution,
+	inout FMaterialClosestHitPayload Payload)
 {
-	PackedPayload.HitT = RayTCurrent();
-
-#if USE_MATERIAL_CLOSEST_HIT_SHADER
-
-	bool bIsLumenPayload = PackedPayload.IsLumenPayload();
-	if (bIsLumenPayload)
-	{
-		float3 SurfaceNormal = GetLumenGeometryNormal();
-		const int PrimitiveIndex = GetInstanceUserData();
-		const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
-
-		PackedPayload.SetGeometryNormal(SurfaceNormal);
-		PackedPayload.SetSceneInstanceIndex(
-			GetGPUSceneInstanceIndex(PrimitiveIndex, PrimitiveInstanceIndex)
-		);
-	}
-
-	if (PackedPayload.IsMinimalPayloadMode())
-	{
-		// Minimal payload mode only fills FMinimalPayload::HitT, skipping actual material evaluation.
-		// This mode is used when tracing shadow rays against masked geometry.
-		// Dynamic branch is used to avoid compiling an extra shader permutation.
-		return;
-	}
-
-	GlobalTextureMipBias = PackedPayload.GetMipBias();
-
-	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
-
-	ResolvedView = ResolveView();
-
-	FVertexFactoryInterpolantsVSToPS Interpolants;
-	float4 SvPosition = float4(PixelCoord.xy, 0.0, 1.0);
-	
-	FRayCone PropagatedCone = PropagateRayCone(PackedPayload.GetRayCone(), 0 /* surface curvature */, RayTCurrent());
-	CalcInterpolants(PropagatedCone, Attributes, Interpolants);
-
-#if VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
-	float3 GeoNormal = 0;
-	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(WorldRayOrigin(), WorldRayDirection(), RayTCurrent(), PrimitiveIndex(), Attributes, HitKind(), GeoNormal);
-#else
-	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
-#endif
-	FPixelMaterialInputs PixelMaterialInputs;
-
-	{
-		float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
-		float3 TranslatedWorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
-		
-		bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
-
-		// #dxr_todo: UE-72130 support world position offset 
-		// #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
-		// CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
-		// #else
-		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
-		// #endif
-	}
-
-	FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
-
-	/**
-	 * Set common material attributes for both full and simplified materials
-	 **/
-	Payload.ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
-
-	#if MATERIALBLENDING_ALPHACOMPOSITE
-		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE;
-	#elif MATERIALBLENDING_ALPHAHOLDOUT
-		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT;
-	#elif MATERIALBLENDING_TRANSLUCENT
-		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
-	#elif MATERIALBLENDING_ADDITIVE
-		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ADDITIVE;
-	#elif MATERIALBLENDING_MODULATE
-		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_MODULATE;
-	#else
-		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
-	#endif
-
-	Payload.BlendingMode = MaterialBlendingMode;
-	Payload.PrimitiveLightingChannelMask = GetPrimitive_LightingChannelMask(MaterialParameters.PrimitiveId);
-
-	Payload.HitT = RayTCurrent();
-	if (HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)
-	{
-		Payload.SetFrontFace();
-	}
-
-#if TWO_SIDED_MATERIAL
-	Payload.SetTwoSided();
-#endif
-
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 #if MATERIALBLENDING_TRANSLUCENT && REFRACTION_USE_INDEX_OF_REFRACTION
@@ -447,7 +357,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		Payload.WorldNormal,
 		VolumetricLightmapBrickTextureUVs,
 		Payload.ShadingModelID,
-		PackedPayload.IsEnableSkyLightContribution(),
+		bIsEnableSkyLightContribution,
 		DiffuseIndirectLighting,
 		SubsurfaceIndirectLighting,
 		IndirectIrradiance);
@@ -460,7 +370,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	
 	Payload.IndirectIrradiance += DiffuseIndirectLighting; // Contains both lightmap & skylight
 
-#else
+#else // SIMPLIFIED_MATERIAL_SHADER
 
 	/**
 	 * Set material attributes for simplified materials
@@ -499,7 +409,108 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	Payload.Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	Payload.Ior = 1;
 
+#endif // SIMPLIFIED_MATERIAL_SHADER
+}
+
+RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
+	FPackedMaterialClosestHitPayload, PackedPayload,
+	FRayTracingIntersectionAttributes, Attributes)
+{
+	PackedPayload.HitT = RayTCurrent();
+
+#if USE_MATERIAL_CLOSEST_HIT_SHADER
+
+	bool bIsLumenPayload = PackedPayload.IsLumenPayload();
+	if (bIsLumenPayload)
+	{
+		float3 SurfaceNormal = GetLumenGeometryNormal();
+		const int PrimitiveIndex = GetInstanceUserData();
+		const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
+
+		PackedPayload.SetGeometryNormal(SurfaceNormal);
+		PackedPayload.SetSceneInstanceIndex(
+			GetGPUSceneInstanceIndex(PrimitiveIndex, PrimitiveInstanceIndex)
+		);
+	}
+
+	if (PackedPayload.IsMinimalPayloadMode())
+	{
+		// Minimal payload mode only fills FMinimalPayload::HitT, skipping actual material evaluation.
+		// This mode is used when tracing shadow rays against masked geometry.
+		// Dynamic branch is used to avoid compiling an extra shader permutation.
+		return;
+	}
+
+	GlobalTextureMipBias = PackedPayload.GetMipBias();
+
+	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
+
+	ResolvedView = ResolveView();
+
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+	float4 SvPosition = float4(PixelCoord.xy, 0.0, 1.0);
+	
+	FRayCone PropagatedCone = PropagateRayCone(PackedPayload.GetRayCone(), 0 /* surface curvature */, RayTCurrent());
+	CalcInterpolants(PropagatedCone, Attributes, Interpolants);
+
+#if VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
+	float3 GeoNormal = 0;
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(WorldRayOrigin(), WorldRayDirection(), RayTCurrent(), PrimitiveIndex(), Attributes, HitKind(), GeoNormal);
+#else
+	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
 #endif
+	FPixelMaterialInputs PixelMaterialInputs;
+
+	{
+		float4 ScreenPosition = SvPositionToResolvedScreenPosition(SvPosition);
+		float3 TranslatedWorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+		
+		bool bIsFrontFace = HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE;
+
+		// #dxr_todo: UE-72130 support world position offset 
+		// #if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS
+		// CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
+		// #else
+		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, SvPosition, ScreenPosition, bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
+		// #endif
+	}
+
+	FMaterialClosestHitPayload Payload = (FMaterialClosestHitPayload)0;
+
+	/**
+	 * Set common material attributes for both full and simplified materials
+	 **/
+	Payload.ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
+
+	#if MATERIALBLENDING_ALPHACOMPOSITE
+		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE;
+	#elif MATERIALBLENDING_ALPHAHOLDOUT
+		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT;
+	#elif MATERIALBLENDING_TRANSLUCENT
+		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
+	#elif MATERIALBLENDING_ADDITIVE
+		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_ADDITIVE;
+	#elif MATERIALBLENDING_MODULATE
+		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_MODULATE;
+	#else
+		uint MaterialBlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
+	#endif
+
+	Payload.BlendingMode = MaterialBlendingMode;
+	Payload.PrimitiveLightingChannelMask = GetPrimitive_LightingChannelMask(MaterialParameters.PrimitiveId);
+
+	Payload.HitT = RayTCurrent();
+	if (HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)
+	{
+		Payload.SetFrontFace();
+	}
+
+#if TWO_SIDED_MATERIAL
+	Payload.SetTwoSided();
+#endif
+
+	// Fill payload with material data
+	GetMaterialPayload(PixelMaterialInputs, MaterialParameters, Interpolants, PackedPayload.IsEnableSkyLightContribution(), Payload);
 
 	PackedPayload = PackRayTracingPayload(Payload, PropagatedCone);
 
@@ -508,10 +519,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	{
 		const int PrimitiveIndex = GetInstanceUserData();
 		const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
-
-		PackedPayload.SetSceneInstanceIndex(
-			GetGPUSceneInstanceIndex(PrimitiveIndex, PrimitiveInstanceIndex)
-		);
+		PackedPayload.SetSceneInstanceIndex(GetGPUSceneInstanceIndex(PrimitiveIndex, PrimitiveInstanceIndex));
 	}
 
 #endif // USE_MATERIAL_CLOSEST_HIT_SHADER
