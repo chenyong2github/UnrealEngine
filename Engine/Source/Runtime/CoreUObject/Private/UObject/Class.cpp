@@ -51,6 +51,7 @@
 #include "HAL/ThreadSafeCounter.h"
 #include "Math/InterpCurvePoint.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/TopLevelAssetPath.h"
 
 // This flag enables some expensive class tree validation that is meant to catch mutations of 
 // the class tree outside of SetSuperStruct. It has been disabled because loading blueprints 
@@ -6390,6 +6391,12 @@ UScriptStruct* TBaseStructure<FAssetBundleData>::Get()
 UScriptStruct* TBaseStructure<FTestUninitializedScriptStructMembersTest>::Get()
 {
 	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("TestUninitializedScriptStructMembersTest"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FTopLevelAssetPath>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("TopLevelAssetPath"));
 	return ScriptStruct;
 }
 

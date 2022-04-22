@@ -1688,6 +1688,21 @@ struct FSoftClassPath : public FSoftObjectPath
 {
 };
 
+/**
+ * A struct that can reference a top level asset such as '/Path/To/Package.AssetName'
+ * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\TopLevelAssetPath.h
+ */
+USTRUCT(noexport, BlueprintType)
+struct FTopLevelAssetPath
+{
+	/** Name of the package containing the asset e.g. /Path/To/Package */
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = TopLevelAssetPath)
+	FName PackageName;
+	/** Name of the asset within the package e.g. 'AssetName' */
+	UPROPERTY(EditAnywhere, SaveGame, BlueprintReadWrite, Category = TopLevelAssetPath)
+	FName AssetName;
+};
+
 /** 
  * A type of primary asset, used by the Asset Manager system.
  * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\PrimaryAssetId.h

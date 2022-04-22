@@ -17,6 +17,7 @@ class CORE_API FString;
  *  b) storing an empty FString for a subobject path as FSoftObjectPath allows
  * Can also be used to reference the package itself in which case the second name is NAME_None
  * and the object resolves to the string `/Path/To/Package`
+ * This struct is mirrored and exposed to the UE reflection system in NoExportTypes.h
 */
 struct COREUOBJECT_API FTopLevelAssetPath
 {

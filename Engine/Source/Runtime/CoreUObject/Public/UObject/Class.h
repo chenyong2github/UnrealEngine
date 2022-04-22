@@ -3695,7 +3695,11 @@ template<> struct TBaseStructure<FTestUninitializedScriptStructMembersTest>
 	COREUOBJECT_API static UScriptStruct* Get();
 };
 
-
+struct FTopLevelAssetPath;
+template<> struct TBaseStructure<FTopLevelAssetPath>
+{
+	COREUOBJECT_API static UScriptStruct* Get();
+};
 
 // TBaseStructure for explicit core variant types only. e.g. FVector3d returns "Vector3d" struct. 
 template< class T > struct TVariantStructure
