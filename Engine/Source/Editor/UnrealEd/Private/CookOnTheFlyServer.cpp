@@ -4333,6 +4333,7 @@ void FSaveCookedPackageContext::SetupPackage()
 
 	SaveFlags = SAVE_KeepGUID | SAVE_Async
 		| (COTFS.IsCookFlagSet(ECookInitializationFlags::Unversioned) ? SAVE_Unversioned : 0);
+	SaveFlags |= COTFS.IsCookFlagSet(ECookInitializationFlags::CookEditorOptional) ? SAVE_Optional : SAVE_None;
 
 	// removing editor only packages only works when cooking in commandlet and non iterative cooking
 	// also doesn't work in multiprocess cooking

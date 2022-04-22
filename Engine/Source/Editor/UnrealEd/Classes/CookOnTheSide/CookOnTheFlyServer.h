@@ -57,6 +57,8 @@ enum class ECookInitializationFlags
 	IterateSharedBuild =						0x00010000, // iterate from a build in the SharedIterativeBuild directory 
 	IgnoreIniSettingsOutOfDate =				0x00020000, // if the inisettings say the cook is out of date keep using the previously cooked build
 	IgnoreScriptPackagesOutOfDate =				0x00040000, // for incremental cooking, ignore script package changes
+	//unused =									0x00080000,
+	CookEditorOptional =						0x00100000,	// enable producing the cooked output of optional editor packages that can be use in the editor when loading cooked data
 };
 ENUM_CLASS_FLAGS(ECookInitializationFlags);
 

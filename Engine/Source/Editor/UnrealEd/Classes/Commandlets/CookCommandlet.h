@@ -39,6 +39,8 @@ class UCookCommandlet
 	bool bSkipEditorContent;
 	/** Save all cooked packages without versions. These are then assumed to be current version on load. This is dangerous but results in smaller patch sizes. */
 	bool bUnversioned;
+	/** Produce editor optional package output when cooking. */
+	bool bCookEditorOptional;
 	/** Generate manifests for building streaming install packages */
 	bool bGenerateStreamingInstallManifests;
 	/** Error if we access engine content (useful for dlc) */
