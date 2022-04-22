@@ -5013,6 +5013,10 @@ bool FRepLayout::DiffProperties(
 	TConstRepDataBuffer<SourceType> Source,
 	const EDiffPropertiesFlags DiffFlags) const
 {
+	if (IsEmpty())
+	{
+		return false;
+	}
 
 	// Currently, only lifetime properties init from their defaults, so default to that,
 	// but also diff conditional properties if requested.

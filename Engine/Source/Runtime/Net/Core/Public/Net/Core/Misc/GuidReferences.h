@@ -70,6 +70,23 @@ public:
 
 	~FGuidReferences();
 
+	FGuidReferences& operator=(const FGuidReferences& Other) = delete;
+
+	FGuidReferences(const FGuidReferences& Other)
+		: ParentIndex(Other.ParentIndex)
+		, CmdIndex(Other.CmdIndex)
+		, NumBufferBits(Other.NumBufferBits)
+		, UnmappedGUIDs(Other.UnmappedGUIDs)
+		, MappedDynamicGUIDs(Other.MappedDynamicGUIDs)
+		, Buffer(Other.Buffer)
+		, Array(nullptr)
+	{
+		if (Other.Array)
+		{
+			Array = new FGuidReferencesMap(*Other.Array);
+		}
+	}
+
 	void CountBytes(FArchive& Ar) const
 	{
 		UnmappedGUIDs.CountBytes(Ar);
