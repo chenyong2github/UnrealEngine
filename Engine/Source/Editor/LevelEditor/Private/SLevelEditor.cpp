@@ -387,6 +387,8 @@ SLevelEditor::~SLevelEditor()
 		{
 			SelectedElements->ClearSelection(FTypedElementSelectionOptions());
 		}
+		SelectedElements->OnPreChange().Clear();
+		SelectedElements->OnChanged().Clear();
 		SelectedElements->RemoveFromRoot();
 		SelectedElements = nullptr;
 
