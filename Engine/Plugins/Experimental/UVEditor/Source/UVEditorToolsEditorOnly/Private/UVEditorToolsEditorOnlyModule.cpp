@@ -2,6 +2,9 @@
 
 #include "UVEditorToolsEditorOnlyModule.h"
 
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+
 #include "DetailsCustomizations/UVUnwrapToolCustomizations.h"
 
 #include "Operators/UVEditorRecomputeUVsOp.h"
