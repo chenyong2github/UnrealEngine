@@ -732,7 +732,7 @@ FRHIBlendState* FProjectedShadowInfo::GetBlendStateForProjection(
 			if (bMobileModulatedProjections)
 			{
 				// Color modulate shadows, ignore alpha.
-				BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One>::GetRHI();
+				BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One, CW_NONE>::GetRHI();
 			}
 			else
 			{
@@ -894,7 +894,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 
 	// Depth test wo/ writes, no color writing.
 	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
-	DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
+	DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE, BO_Add, BF_Zero, BF_SourceColor, BO_Add, BF_Zero, BF_One, CW_NONE>::GetRHI());
 
 	// If this is a preshadow, mask the projection by the receiver primitives.
 	if (bPreShadow || bSelfShadowOnly)

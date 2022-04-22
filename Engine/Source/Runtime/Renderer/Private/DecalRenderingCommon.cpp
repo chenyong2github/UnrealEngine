@@ -784,21 +784,21 @@ namespace DecalRendering
 				if (DecalBlendDesc.bWriteEmissive)
 				{
 					// Treat blend as emissive
-					return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_One>::GetRHI();
+					return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_One, BO_Add, BF_Zero, BF_One, CW_NONE>::GetRHI();
 				}
 				else
 				{
 					// Treat blend as non-emissive
-					return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI();
+					return TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One, CW_NONE>::GetRHI();
 				}
 			}
 			else if (DecalBlendDesc.BlendMode == BLEND_AlphaComposite)
 			{
-				return TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
+				return TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One, CW_NONE>::GetRHI();
 			}
 			else if (DecalBlendDesc.BlendMode == BLEND_Modulate)
 			{
-				return TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_InverseSourceAlpha>::GetRHI();
+				return TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One, CW_NONE>::GetRHI();
 			}
 		}
 		else
