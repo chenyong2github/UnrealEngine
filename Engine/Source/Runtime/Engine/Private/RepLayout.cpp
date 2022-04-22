@@ -3375,7 +3375,7 @@ static FGuidReferencesMap* PrepReceivedArray(
 		{
 			NewGuidReferencesArray = &ParentGuidReferences->FindOrAdd(AbsOffset);
 
-			NewGuidReferencesArray->Array = new FGuidReferencesMap;
+			NewGuidReferencesArray->Array.Reset(new FGuidReferencesMap());
 			NewGuidReferencesArray->ParentIndex = Cmd.ParentIndex;
 			NewGuidReferencesArray->CmdIndex = CmdIndex;
 		}
@@ -3412,7 +3412,7 @@ static FGuidReferencesMap* PrepReceivedArray(
 	// Re-compute the base data values since they could have changed after the resize above
 	*OutBaseData = DataArray->GetData();
 
-	return NewGuidReferencesArray ? NewGuidReferencesArray->Array : nullptr;
+	return NewGuidReferencesArray ? NewGuidReferencesArray->Array.Get() : nullptr;
 }
 
 /** Struct containing parameters that don't change or can be shared throughout recursion of ReceiveProperties_r */
@@ -4050,7 +4050,7 @@ void FRepLayout::GatherGuidReferences_r(
 		{
 			check(Cmds[GuidReferences.CmdIndex].Type == ERepLayoutCmdType::DynamicArray);
 
-			GatherGuidReferences_r(GuidReferences.Array, OutReferencedGuids, OutTrackedGuidMemoryBytes);
+			GatherGuidReferences_r(GuidReferences.Array.Get(), OutReferencedGuids, OutTrackedGuidMemoryBytes);
 			continue;
 		}
 
@@ -4109,7 +4109,7 @@ bool FRepLayout::MoveMappedObjectToUnmapped_r(FGuidReferencesMap* GuidReferences
 		{
 			check(Cmds[GuidReferences.CmdIndex].Type == ERepLayoutCmdType::DynamicArray);
 
-			if (MoveMappedObjectToUnmapped_r(GuidReferences.Array, GUID, OwningObject))
+			if (MoveMappedObjectToUnmapped_r(GuidReferences.Array.Get(), GUID, OwningObject))
 			{
 				bFoundGUID = true;
 			}
@@ -4230,7 +4230,7 @@ void FRepLayout::UpdateUnmappedObjects_r(
 
 				const int32 NewMaxOffset = FMath::Min(ShadowArray->Num() * Cmd.ElementSize, Array->Num() * Cmd.ElementSize);
 
-				UpdateUnmappedObjects_r(RepState, GuidReferences.Array, OriginalObject, Connection, ShadowArrayData, ArrayData, NewMaxOffset, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+				UpdateUnmappedObjects_r(RepState, GuidReferences.Array.Get(), OriginalObject, Connection, ShadowArrayData, ArrayData, NewMaxOffset, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
 			}
 			else
 			{
@@ -4238,7 +4238,7 @@ void FRepLayout::UpdateUnmappedObjects_r(
 				FRepObjectDataBuffer ArrayData(Array->GetData());
 				const int32 NewMaxOffset = Array->Num() * Cmd.ElementSize;
 
-				UpdateUnmappedObjects_r(RepState, GuidReferences.Array, OriginalObject, Connection, nullptr, ArrayData, NewMaxOffset, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
+				UpdateUnmappedObjects_r(RepState, GuidReferences.Array.Get(), OriginalObject, Connection, nullptr, ArrayData, NewMaxOffset, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
 			}
 			continue;
 		}
@@ -5013,6 +5013,10 @@ bool FRepLayout::DiffProperties(
 	TConstRepDataBuffer<SourceType> Source,
 	const EDiffPropertiesFlags DiffFlags) const
 {
+	if (IsEmpty())
+	{
+		return false;
+	}
 
 	// Currently, only lifetime properties init from their defaults, so default to that,
 	// but also diff conditional properties if requested.

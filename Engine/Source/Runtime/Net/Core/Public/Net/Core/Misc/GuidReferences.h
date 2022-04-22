@@ -35,8 +35,7 @@ class NETCORE_API FGuidReferences
 {
 public:
 	FGuidReferences():
-		NumBufferBits(0),
-		Array(nullptr)
+		NumBufferBits(0)
 	{}
 
 	FGuidReferences(
@@ -50,8 +49,7 @@ public:
 		ParentIndex(InParentIndex),
 		CmdIndex(InCmdIndex),
 		UnmappedGUIDs(InUnmappedGUIDs),
-		MappedDynamicGUIDs(InMappedDynamicGUIDs),
-		Array(nullptr)
+		MappedDynamicGUIDs(InMappedDynamicGUIDs)
 	{
 		NumBufferBits = UE_PTRDIFF_TO_INT32(InReader.GetPosBits() - InMark.GetPos());
 		InMark.Copy(InReader, Buffer);
@@ -68,7 +66,22 @@ public:
 		Array(InArray)
 	{}
 
-	~FGuidReferences();
+	FGuidReferences& operator=(const FGuidReferences& Other) = delete;
+
+	FGuidReferences(const FGuidReferences& Other)
+		: ParentIndex(Other.ParentIndex)
+		, CmdIndex(Other.CmdIndex)
+		, NumBufferBits(Other.NumBufferBits)
+		, UnmappedGUIDs(Other.UnmappedGUIDs)
+		, MappedDynamicGUIDs(Other.MappedDynamicGUIDs)
+		, Buffer(Other.Buffer)
+		, Array(nullptr)
+	{
+		if (Other.Array.IsValid())
+		{
+			Array.Reset(new FGuidReferencesMap(*Other.Array));
+		}
+	}
 
 	void CountBytes(FArchive& Ar) const
 	{
@@ -107,5 +120,5 @@ public:
 	 * If this FGuidReferences instance is owned by an Array Property that contains nested GUID References,
 	 * then this will be a valid FGuidReferencesMap containing the nested FGuidReferences.
 	 */
-	FGuidReferencesMap* Array;
+	TUniquePtr<FGuidReferencesMap> Array;
 };
