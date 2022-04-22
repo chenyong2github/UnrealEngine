@@ -230,6 +230,7 @@ void FIKRetargetDefaultMode::Enter()
 	Controller->Editor.Pin()->GetPersonaToolkit()->GetPreviewScene()->SetAllowMeshHitProxies(true);
 	Controller->SourceSkelMeshComponent->bSelectable = true;
 	Controller->TargetSkelMeshComponent->bSelectable = true;
+	Controller->AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::RunRetarget);
 
 	// deselect when entering mode
 	SetSelectedComponent(nullptr);

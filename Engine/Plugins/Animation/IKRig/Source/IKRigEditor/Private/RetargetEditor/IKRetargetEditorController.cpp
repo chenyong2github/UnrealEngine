@@ -232,6 +232,8 @@ void FIKRetargetEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPla
 	{
 		SourceAnimInstance->SetAnimationAsset(AssetToPlay);
 		PreviousAsset = AssetToPlay;
+		// tell asset to output the retargeted pose
+		AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::RunRetarget);
 	}
 }
 
@@ -240,6 +242,8 @@ void FIKRetargetEditorController::PlayPreviousAnimationAsset() const
 	if (PreviousAsset)
 	{
 		SourceAnimInstance->SetAnimationAsset(PreviousAsset);
+		// tell asset to output the retarget
+		AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::RunRetarget);
 	}
 }
 
@@ -252,6 +256,8 @@ void FIKRetargetEditorController::HandleGoToRetargetPose() const
 	SourceSkelMeshComponent->ShowReferencePose(true);
 	// have to move component back to offset position because ShowReferencePose() sets it back to origin
 	AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, SourceSkelMeshComponent);
+	// tell asset to output the retarget pose
+	AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::ShowRetargetPose);
 }
 
 void FIKRetargetEditorController::HandleEditPose() const
@@ -288,7 +294,7 @@ bool FIKRetargetEditorController::CanEditPose() const
 
 bool FIKRetargetEditorController::IsEditingPose() const
 {
-	return AssetController->GetEditRetargetPoseMode();
+	return AssetController->GetAsset()->GetOutputMode() == ERetargeterOutputMode::EditRetargetPose;
 }
 
 void FIKRetargetEditorController::HandleNewPose()

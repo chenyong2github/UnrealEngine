@@ -98,10 +98,6 @@ public:
 	FQuat GetRotationOffsetForRetargetPoseBone(FName BoneName) const;
 	/** Add a delta translation to the root bone (used in Edit Mode in the retarget editor) */
 	void AddTranslationOffsetToRetargetRootBone(FVector TranslationOffset) const;
-	/** Get whether in mode to output retarget pose (true) or run retarget (false). */
-	bool GetEditRetargetPoseMode() const;
-	/** Set whether retarget asset should be in "Edit Pose" mode. */
-	void SetEditRetargetPoseMode(const bool bMode) const;
 	/** Add a numbered suffix to the given pose name to make it unique. */
 	FName MakePoseNameUnique(FName PoseName) const;
 	/** END RETARGET POSE EDITING */

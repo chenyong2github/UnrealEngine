@@ -182,6 +182,14 @@ public:
 	void SortHierarchically(const FIKRigSkeleton& Skeleton);
 };
 
+#if WITH_EDITOR
+enum class ERetargeterOutputMode : uint8
+{
+	RunRetarget,
+	ShowRetargetPose,
+	EditRetargetPose
+};
+#endif
 
 UCLASS(Blueprintable)
 class IKRIG_API UIKRetargeter : public UObject
@@ -225,7 +233,8 @@ public:
 #endif
 
 #if WITH_EDITOR
-	bool IsInEditRetargetPoseMode() const { return bEditRetargetPoseMode; }
+	ERetargeterOutputMode GetOutputMode() const { return bOutputMode; }
+	void SetOutputMode(const ERetargeterOutputMode InMode) { bOutputMode = InMode; }
 #endif
 
 private:
@@ -292,8 +301,7 @@ public:
 private:
 	/** A special editor-only mode which forces the retargeter to output the current retarget reference pose,
 	* rather than actually running the retarget and outputting the retargeted pose. Used in Edit-Pose mode.*/
-	UPROPERTY()
-	bool bEditRetargetPoseMode = false;
+	ERetargeterOutputMode bOutputMode;
 
 	/** The controller responsible for managing this asset's data (all editor mutation goes through this) */
 	UPROPERTY(Transient)

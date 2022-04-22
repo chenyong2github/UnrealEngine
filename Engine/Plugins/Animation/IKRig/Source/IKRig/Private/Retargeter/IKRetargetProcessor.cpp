@@ -1403,7 +1403,9 @@ TArray<FTransform>&  UIKRetargetProcessor::RunRetargeter(const TArray<FTransform
 	// in edit mode we just want to see the edited reference pose, not actually run the retargeting
 	// as long as the retargeter is reinitialized after every modification to the limb rotation offsets,
 	// then the TargetSkeleton.RetargetGlobalPose will contain the updated retarget pose.
-	if (RetargeterAsset->IsInEditRetargetPoseMode() && RetargeterAsset->GetTargetIKRig())
+	const ERetargeterOutputMode CurrentMode = RetargeterAsset->GetOutputMode();
+	const bool bOutputRetargetPose = CurrentMode == ERetargeterOutputMode::EditRetargetPose || CurrentMode == ERetargeterOutputMode::ShowRetargetPose;
+	if (bOutputRetargetPose && RetargeterAsset->GetTargetIKRig())
 	{
 		const FName RootBoneName = RetargeterAsset->GetTargetIKRig()->GetRetargetRoot();
 		TargetSkeleton.GenerateRetargetPose(RetargeterAsset->GetCurrentRetargetPose(), RootBoneName);

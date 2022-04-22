@@ -474,16 +474,6 @@ void UIKRetargeterController::AddTranslationOffsetToRetargetRootBone(FVector Tra
 	Asset->RetargetPoses[Asset->CurrentRetargetPose].AddTranslationDeltaToRoot(TranslationOffset);
 }
 
-bool UIKRetargeterController::GetEditRetargetPoseMode() const
-{
-	return GetAsset()->bEditRetargetPoseMode;
-}
-
-void UIKRetargeterController::SetEditRetargetPoseMode(const bool bMode) const
-{
-	GetAsset()->bEditRetargetPoseMode = bMode;
-}
-
 FName UIKRetargeterController::MakePoseNameUnique(FName PoseName) const
 {
 	FName UniqueName = PoseName;

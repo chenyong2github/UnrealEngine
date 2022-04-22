@@ -414,7 +414,7 @@ void FIKRetargetEditPoseMode::Enter()
 	Controller->AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, Controller->SourceSkelMeshComponent);
 
 	// put asset in mode where target mesh will output retarget pose (for preview purposes)
-	Controller->AssetController->SetEditRetargetPoseMode(true);
+	Controller->AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::EditRetargetPose);
 }
 
 void FIKRetargetEditPoseMode::Exit()
@@ -425,7 +425,7 @@ void FIKRetargetEditPoseMode::Exit()
 		return;
 	}
 
-	Controller->AssetController->SetEditRetargetPoseMode(false);
+	Controller->AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::RunRetarget);
 }
 
 void FIKRetargetEditPoseMode::UpdateWidgetTransform()
