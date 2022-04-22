@@ -2,9 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
+#include "Internationalization/Text.h"
+#include "Math/Vector2D.h"
 #include "Misc/Attribute.h"
+#include "UObject/SoftObjectPath.h"
 #include "UObject/Object.h"
+
 #include "LevelSnapshotsEditorSettings.generated.h"
 
 UCLASS(config = Engine, defaultconfig)
