@@ -794,6 +794,11 @@ FNiagaraVariableAttributeBinding FNiagaraConstants::GetAttributeDefaultBinding(c
 
 const FNiagaraVariable* FNiagaraConstants::GetKnownConstant(const FName& InName, bool bAllowPartialNameMatch)
 {
+	return GetKnownConstantInfo(InName, bAllowPartialNameMatch).ConstantVar;
+}
+
+const FNiagaraKnownConstantInfo FNiagaraConstants::GetKnownConstantInfo(const FName& InName, bool bAllowPartialNameMatch)
+{
 	const TArray<FNiagaraVariable>& EngineConstants = GetEngineConstants();
 
 	if (!bAllowPartialNameMatch)
@@ -805,7 +810,7 @@ const FNiagaraVariable* FNiagaraConstants::GetKnownConstant(const FName& InName,
 
 		if (FoundSystemVar)
 		{
-			return FoundSystemVar;
+			return FNiagaraKnownConstantInfo(FoundSystemVar, ENiagaraKnownConstantType::Other);
 		}
 	}
 	else
@@ -813,7 +818,7 @@ const FNiagaraVariable* FNiagaraConstants::GetKnownConstant(const FName& InName,
 		int32 FoundIdx = FNiagaraVariable::SearchArrayForPartialNameMatch(EngineConstants, InName);
 		if (FoundIdx != INDEX_NONE)
 		{
-			return &EngineConstants[FoundIdx];
+			return FNiagaraKnownConstantInfo(&EngineConstants[FoundIdx], ENiagaraKnownConstantType::Other);
 		}
 	}
 
@@ -827,7 +832,7 @@ const FNiagaraVariable* FNiagaraConstants::GetKnownConstant(const FName& InName,
 
 		if (FoundAttribVar)
 		{
-			return FoundAttribVar;
+			return FNiagaraKnownConstantInfo(FoundAttribVar, ENiagaraKnownConstantType::Attribute);
 		}
 	}
 	else
@@ -835,10 +840,11 @@ const FNiagaraVariable* FNiagaraConstants::GetKnownConstant(const FName& InName,
 		int32 FoundIdx = FNiagaraVariable::SearchArrayForPartialNameMatch(Attributes, InName);
 		if (FoundIdx != INDEX_NONE)
 		{
-			return &Attributes[FoundIdx];
+			return FNiagaraKnownConstantInfo(&Attributes[FoundIdx], ENiagaraKnownConstantType::Attribute);
 		}
 	}
-	return nullptr;
+
+	return FNiagaraKnownConstantInfo(nullptr, ENiagaraKnownConstantType::Other);
 }
 
 #undef LOCTEXT_NAMESPACE

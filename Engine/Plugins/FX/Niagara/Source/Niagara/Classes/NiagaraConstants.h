@@ -139,6 +139,28 @@
 #define TRANSLATOR_PARAM_BEGIN_DEFAULTS                  INiagaraModule::GetVar_BeginDefaults()
 #define TRANSLATOR_PARAM_CALL_ID                  		 INiagaraModule::GetVar_CallID()
 
+enum class ENiagaraKnownConstantType : uint8
+{
+	Attribute,
+	Other,
+};
+
+struct FNiagaraKnownConstantInfo
+{
+	FNiagaraKnownConstantInfo()
+		: ConstantVar(nullptr)
+		, ConstantType(ENiagaraKnownConstantType::Other)
+	{};
+
+	FNiagaraKnownConstantInfo(const FNiagaraVariable* InConstantVar, const ENiagaraKnownConstantType InConstantType)
+		: ConstantVar(InConstantVar)
+		, ConstantType(InConstantType)
+	{};
+
+	const FNiagaraVariable* ConstantVar = nullptr;
+	const ENiagaraKnownConstantType ConstantType = ENiagaraKnownConstantType::Other;
+};
+
 struct NIAGARA_API FNiagaraConstants
 {
 	static void Init();
@@ -162,6 +184,7 @@ struct NIAGARA_API FNiagaraConstants
 	static const FNiagaraVariableMetaData* GetConstantMetaData(const FNiagaraVariable& InVar);
 
 	static const FNiagaraVariable* GetKnownConstant(const FName& InName, bool bAllowPartialNameMatch);
+	static const FNiagaraKnownConstantInfo GetKnownConstantInfo(const FName& InName, bool bAllowPartialNameMatch);
 	static const FNiagaraVariable *FindStaticSwitchConstant(const FName& InName);
 
 	static bool IsEngineManagedAttribute(const FNiagaraVariable& Var);
