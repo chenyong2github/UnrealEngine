@@ -23,6 +23,10 @@
 #include "GameFeaturesProjectPolicies.h"
 #include "Containers/Ticker.h"
 
+#if WITH_EDITOR
+#include "PluginUtils.h"
+#endif //if WITH_EDITOR
+
 namespace UE::GameFeatures
 {
 	static const FString StateMachineErrorNamespace(TEXT("GameFeaturePlugin.StateMachine."));
@@ -1191,6 +1195,12 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 
 		StateProperties.GameFeatureData = nullptr;
 
+#if WITH_EDITOR
+		// This will properly unload any plugin asset that could be opened in the editor
+		// and ensure standalone packages get unloaded as well
+		verify(FPluginUtils::UnloadPluginAssets(StateProperties.PluginName));
+#endif //if WITH_EDITOR
+
 		bRequestedGC = true;
 		GarbageCollectAndUpdateStateMachineDeferred();
 	}
@@ -1286,7 +1296,9 @@ struct FGameFeaturePluginState_Unloading : public FGameFeaturePluginState
 	{
 		if (bRequestedGC)
 		{
+#if !WITH_EDITOR // Disabled in editor since it's likely to report unloaded assets because of standalone packages
 			UE::GameFeatures::VerifyAssetsUnloaded(StateProperties.PluginName, true);
+#endif //if !WITH_EDITOR
 
 			StateStatus.SetTransition(EGameFeaturePluginState::Registered);
 			return;

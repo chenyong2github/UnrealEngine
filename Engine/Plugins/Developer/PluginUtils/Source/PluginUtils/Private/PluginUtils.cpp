@@ -785,6 +785,86 @@ bool FPluginUtils::UnloadPlugins(const TConstArrayView<TSharedRef<IPlugin>> Plug
 		return true;
 	}
 
+	{
+		FText ErrorMsg;
+		if (!UnloadPluginsAssets(Plugins, &ErrorMsg))
+		{
+			// If some assets fail to unload, log an error, but unmount the plugins anyway
+			UE_LOG(LogPluginUtils, Error, TEXT("Failed to unload some assets prior to unmounting plugins\n%s"), *ErrorMsg.ToString());
+		}
+	}
+
+	// Unmount the plugins
+	//
+	bool bSuccess = true;
+	{
+		FTextBuilder ErrorBuilder;
+		bool bPluginUnmounted = false;
+
+		for (const TSharedRef<IPlugin>& Plugin : Plugins)
+		{
+			if (Plugin->IsEnabled())
+			{
+				bPluginUnmounted = true;
+
+				FText FailReason;
+				if (!IPluginManager::Get().UnmountExplicitlyLoadedPlugin(Plugin->GetName(), &FailReason))
+				{
+					UE_LOG(LogPluginUtils, Error, TEXT("Plugin %s cannot be unloaded: %s"), *Plugin->GetName(), *FailReason.ToString());
+					ErrorBuilder.AppendLine(FailReason);
+					bSuccess = false;
+				}
+			}
+		}
+
+		if (bPluginUnmounted)
+		{
+			IPluginManager::Get().RefreshPluginsList();
+		}
+
+		if (!bSuccess && OutFailReason)
+		{
+			*OutFailReason = ErrorBuilder.ToText();
+		}
+	}
+	return bSuccess;
+}
+
+bool FPluginUtils::UnloadPlugins(const TConstArrayView<FString> PluginNames, FText* OutFailReason /*= nullptr*/)
+{
+	TArray<TSharedRef<IPlugin>> Plugins;
+	Plugins.Reserve(PluginNames.Num());
+	for (const FString& PluginName : PluginNames)
+	{
+		if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName))
+		{
+			Plugins.Add(Plugin.ToSharedRef());
+		}
+	}
+	return UnloadPlugins(Plugins, OutFailReason);
+}
+
+bool FPluginUtils::UnloadPluginAssets(const TSharedRef<IPlugin>& Plugin, FText* OutFailReason /*= nullptr*/)
+{
+	return UnloadPluginsAssets({ Plugin }, OutFailReason);
+}
+
+bool FPluginUtils::UnloadPluginAssets(const FString& PluginName, FText* OutFailReason /*= nullptr*/)
+{
+	if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName))
+	{
+		return UnloadPluginAssets(Plugin.ToSharedRef(), OutFailReason);
+	}
+	return true;
+}
+
+bool FPluginUtils::UnloadPluginsAssets(const TConstArrayView<TSharedRef<IPlugin>> Plugins, FText* OutFailReason /*= nullptr*/)
+{
+	if (Plugins.Num() == 0)
+	{
+		return true;
+	}
+
 	TArray<FString> PluginContentMountPoints;
 	PluginContentMountPoints.Reserve(Plugins.Num());
 
@@ -838,54 +918,24 @@ bool FPluginUtils::UnloadPlugins(const TConstArrayView<TSharedRef<IPlugin>> Plug
 				FText ErrorMsg;
 				UPackageTools::UnloadPackages(PackagesToUnload.Array(), ErrorMsg, /*bUnloadDirtyPackages=*/true);
 
-				// Log an error if some packages fail to unload, but unmount the plugins anyway.
 				// @note UnloadPackages returned bool indicates whether some packages were unloaded
 				// To tell whether all packages were successfully unloaded we must check the ErrorMsg output param
 				if (!ErrorMsg.IsEmpty())
 				{
-					UE_LOG(LogPluginUtils, Error, TEXT("%s"), *ErrorMsg.ToString());
+					if (OutFailReason)
+					{
+						*OutFailReason = MoveTemp(ErrorMsg);
+					}
+					return false;
 				}
 			}
 		}
 	}
 
-	// Unmount the plugins
-	//
-	bool bSuccess = true;
-	{
-		FTextBuilder ErrorBuilder;
-		bool bPluginUnmounted = false;
-
-		for (const TSharedRef<IPlugin>& Plugin : Plugins)
-		{
-			if (Plugin->IsEnabled())
-			{
-				bPluginUnmounted = true;
-
-				FText FailReason;
-				if (!IPluginManager::Get().UnmountExplicitlyLoadedPlugin(Plugin->GetName(), &FailReason))
-				{
-					UE_LOG(LogPluginUtils, Error, TEXT("Plugin %s cannot be unloaded: %s"), *Plugin->GetName(), *FailReason.ToString());
-					ErrorBuilder.AppendLine(FailReason);
-					bSuccess = false;
-				}
-			}
-		}
-
-		if (bPluginUnmounted)
-		{
-			IPluginManager::Get().RefreshPluginsList();
-		}
-
-		if (!bSuccess && OutFailReason)
-		{
-			*OutFailReason = ErrorBuilder.ToText();
-		}
-	}
-	return bSuccess;
+	return true;
 }
 
-bool FPluginUtils::UnloadPlugins(const TConstArrayView<FString> PluginNames, FText* OutFailReason /*= nullptr*/)
+bool FPluginUtils::UnloadPluginsAssets(const TConstArrayView<FString> PluginNames, FText* OutFailReason /*= nullptr*/)
 {
 	TArray<TSharedRef<IPlugin>> Plugins;
 	Plugins.Reserve(PluginNames.Num());
@@ -896,7 +946,7 @@ bool FPluginUtils::UnloadPlugins(const TConstArrayView<FString> PluginNames, FTe
 			Plugins.Add(Plugin.ToSharedRef());
 		}
 	}
-	return UnloadPlugins(Plugins, OutFailReason);
+	return UnloadPluginsAssets(Plugins, OutFailReason);
 }
 
 bool FPluginUtils::AddToPluginSearchPathIfNeeded(const FString& Dir, bool bRefreshPlugins, bool bUpdateProjectFile)

@@ -29,6 +29,16 @@ namespace UnrealBuildTool.Rules
 					"Projects",
 				}
 			);
+
+			if (Target.bBuildEditor)
+			{
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"PluginUtils",
+					}
+				);
+			}
 		}
 	}
 }

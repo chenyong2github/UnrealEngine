@@ -38,6 +38,11 @@
 		{
 			"Name": "AssetReferenceRestrictions",
 			"Enabled": true
+		},
+		{
+			"Name": "PluginUtils",
+			"Enabled": true,
+			"TargetAllowList": [ "Editor" ]
 		}
 	]
 }
