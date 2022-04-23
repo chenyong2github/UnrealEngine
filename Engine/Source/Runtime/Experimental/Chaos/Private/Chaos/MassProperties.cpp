@@ -5,6 +5,7 @@
 #include "Chaos/Matrix.h"
 #include "Chaos/Particles.h"
 #include "Chaos/TriangleMesh.h"
+#include "Chaos/Utilities.h"
 #include "ChaosCheck.h"
 
 
@@ -23,13 +24,13 @@ namespace Chaos
 		if (Trace <= UE_SMALL_NUMBER)
 		{
 			// Tiny inertia - numerical instability would follow. We should not get this unless we have bad input.
-			return FRotation3::FromElements(FVec3(0), 1);
+			return FRotation3::FromIdentity();
 		}
 
 		if ((OffDiagSize / Trace) < UE_SMALL_NUMBER)
 		{
 			// Almost diagonal matrix - we are already in local space.
-			return FRotation3::FromElements(FVec3(0), 1);
+			return FRotation3::FromIdentity();
 		}
 
 		FReal Size = static_cast<FReal>(FMath::Sqrt((FMath::Square(Inertia.M[0][0] - Trace) + FMath::Square(Inertia.M[1][1] - Trace) + FMath::Square(Inertia.M[2][2] - Trace) + 2. * OffDiagSize) / 6.));
@@ -84,11 +85,21 @@ namespace Chaos
 		FinalRotation = FRotation3(RotationMatrix.GetTransposed());
 		if (!ensure(FMath::IsNearlyEqual((float)FinalRotation.Size(), 1.0f, UE_KINDA_SMALL_NUMBER)))
 		{
-			return FRotation3::FromElements(FVec3(0), 1);
+			return FRotation3::FromIdentity();
 		}
 		
 		return FinalRotation;
 	}
+
+	void TransformToLocalSpace(FMassProperties& MassProperties)
+	{
+		// Diagonalize inertia
+		const FRotation3 InertiaRotation = TransformToLocalSpace(MassProperties.InertiaTensor);
+
+		// Calculate net rotation
+		MassProperties.RotationOfMass = MassProperties.RotationOfMass * InertiaRotation;
+	}
+
 
 	void CalculateVolumeAndCenterOfMass(const FBox& BoundingBox, FVector::FReal& OutVolume, FVector& OutCenterOfMass)
 	{
@@ -219,39 +230,47 @@ namespace Chaos
 	FMassProperties Combine(const TArray<FMassProperties>& MPArray)
 	{
 		FMassProperties NewMP = CombineWorldSpace(MPArray);
-		NewMP.RotationOfMass = TransformToLocalSpace(NewMP.InertiaTensor);
+		TransformToLocalSpace(NewMP);
 		return NewMP;
 	}
 
 	FMassProperties CombineWorldSpace(const TArray<FMassProperties>& MPArray)
 	{
 		check(MPArray.Num() > 0);
-		if (MPArray.Num() == 1)
+
+		if ((MPArray.Num() == 1) && MPArray[0].RotationOfMass.IsIdentity())
+		{
 			return MPArray[0];
+		}
+
 		FMassProperties NewMP;
+
 		for (const FMassProperties& Child : MPArray)
 		{
 			NewMP.Volume += Child.Volume;
-			const FMatrix33 ChildRI = Child.RotationOfMass.ToMatrix();
-			const FMatrix33 ChildWorldSpaceI = ChildRI.GetTransposed() * Child.InertiaTensor * ChildRI;
-			NewMP.InertiaTensor += ChildWorldSpaceI;
+			NewMP.InertiaTensor += Utilities::ComputeWorldSpaceInertia(Child.RotationOfMass, Child.InertiaTensor);
 			NewMP.CenterOfMass += Child.CenterOfMass * Child.Mass;
 			NewMP.Mass += Child.Mass;
 		}
 		check(NewMP.Mass > UE_SMALL_NUMBER);
 		NewMP.CenterOfMass /= NewMP.Mass;
-		for (const FMassProperties& Child : MPArray)
+
+		if (MPArray.Num() > 1)
 		{
-			const FReal M = Child.Mass;
-			const FVec3 ParentToChild = Child.CenterOfMass - NewMP.CenterOfMass;
-			const FReal P0 = ParentToChild[0];
-			const FReal P1 = ParentToChild[1];
-			const FReal P2 = ParentToChild[2];
-			const FReal MP0P0 = M * P0 * P0;
-			const FReal MP1P1 = M * P1 * P1;
-			const FReal MP2P2 = M * P2 * P2;
-			NewMP.InertiaTensor += FMatrix33(MP1P1 + MP2P2, -M * P1 * P0, -M * P2 * P0, MP2P2 + MP0P0, -M * P2 * P1, MP1P1 + MP0P0);
+			for (const FMassProperties& Child : MPArray)
+			{
+				const FReal M = Child.Mass;
+				const FVec3 ParentToChild = Child.CenterOfMass - NewMP.CenterOfMass;
+				const FReal P0 = ParentToChild[0];
+				const FReal P1 = ParentToChild[1];
+				const FReal P2 = ParentToChild[2];
+				const FReal MP0P0 = M * P0 * P0;
+				const FReal MP1P1 = M * P1 * P1;
+				const FReal MP2P2 = M * P2 * P2;
+				NewMP.InertiaTensor += FMatrix33(MP1P1 + MP2P2, -M * P1 * P0, -M * P2 * P0, MP2P2 + MP0P0, -M * P2 * P1, MP1P1 + MP0P0);
+			}
 		}
+
 		return NewMP;
 	}
 

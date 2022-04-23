@@ -31,6 +31,7 @@ namespace BodyUtils
 
 	/** 
 	 * Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. 
+	 * The inertia returned will be diagonal, and there may be a non-identity rotation of mass.
 	 * Note: this includes a call to ModifyMassProperties, so the BodyInstance modifiers will be included in the calculation.
 	 */
 	Chaos::FMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, const TArray<FPhysicsShapeHandle>& Shapes, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass = false);

@@ -497,24 +497,21 @@ namespace ChaosInterface
 		}
 
 		Chaos::FMatrix33 Tensor;
-		Chaos::FRotation3 RotationOfMass;
 
 		// If no shapes contribute to mass, or they are scaled to zero, we may end up with zero mass here
 		if ((TotalMass > 0.f) && (MassPropertiesList.Num() > 0))
 		{
 			TotalCenterOfMass /= TotalMass;
 
-			// NOTE: If multiple items in the list, rotation of mass will be zero, but if only 1 item is the list the item is returned directly and we may have a rotation of mass
 			Chaos::FMassProperties CombinedMassProperties = Chaos::CombineWorldSpace(MassPropertiesList);
+			ensure(CombinedMassProperties.RotationOfMass.IsIdentity());
 			Tensor = CombinedMassProperties.InertiaTensor;
-			RotationOfMass = CombinedMassProperties.RotationOfMass;
 		}
 		else
 		{
 			// @todo(chaos): We should support shape-less particles as long as their mass an inertia are set directly
 			// For now hard-code a 50cm sphere with density 1g/cc
 			Tensor = Chaos::FMatrix33(5.24e5f, 5.24e5f, 5.24e5f);
-			RotationOfMass = Chaos::FRotation3::Identity;
 			TotalMass = 523.0f;
 			TotalVolume = 523000;
 		}
@@ -523,7 +520,7 @@ namespace ChaosInterface
 		OutProperties.Mass = TotalMass;
 		OutProperties.Volume = TotalVolume;
 		OutProperties.CenterOfMass = TotalCenterOfMass;
-		OutProperties.RotationOfMass = RotationOfMass;
+		OutProperties.RotationOfMass = Chaos::FRotation3::Identity;
 	}
 
 

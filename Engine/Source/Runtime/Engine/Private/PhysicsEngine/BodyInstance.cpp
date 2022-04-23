@@ -3327,14 +3327,9 @@ void FBodyInstance::UpdateMassProperties()
 					{
 						// The component scale is already built into the geometry, but if the user has set up a CoM
 						// modifier, it will need to be transformed by the component scale.
+						const bool bInertiaScaleIncludeMass = false;
 						FTransform MassModifierTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), Scale3D);
-						TotalMassProperties = BodyUtils::ComputeMassProperties(this, Shapes, MassModifierTransform, false/*bInertiaScaleIncludeMass*/);
-
-#if WITH_CHAOS
-						// @todo(chaos): this is starting to get messy - we should probably just split off the PhysX implementation now
-						// Make the inertia diagonal and calculate the rotation of mass
-						TotalMassProperties.RotationOfMass = Chaos::TransformToLocalSpace(TotalMassProperties.InertiaTensor);
-#endif
+						TotalMassProperties = BodyUtils::ComputeMassProperties(this, Shapes, MassModifierTransform, bInertiaScaleIncludeMass);
 					}
 				}
 

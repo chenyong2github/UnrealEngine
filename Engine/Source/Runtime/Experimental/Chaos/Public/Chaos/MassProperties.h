@@ -34,6 +34,7 @@ namespace Chaos
 	};
 
 	FRotation3 CHAOS_API TransformToLocalSpace(FMatrix33& Inertia);
+	void CHAOS_API TransformToLocalSpace(FMassProperties& MassProperties);
 
 	template<typename T, typename TSurfaces>
 	void CHAOS_API CalculateVolumeAndCenterOfMass(const TParticles<T,3>& Vertices, const TSurfaces& Surfaces, T& OutVolume, TVec3<T>& OutCenterOfMass);
@@ -51,13 +52,14 @@ namespace Chaos
 	void CHAOS_API CalculateVolumeAndCenterOfMass(const FBox& BoundingBox, FVector::FReal& OutVolume, FVector& OutCenterOfMass);
 	void CHAOS_API CalculateInertiaAndRotationOfMass(const FBox& BoundingBox, const FVector::FReal Density, FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
 
-	// Combine a list of transformed inertia tensors into a single inertia. Also diagonalize the inertia
-	// and set the rotation of mass accordingly.
+	// Combine a list of transformed inertia tensors into a single inertia. Also diagonalize the inertia and set the rotation of mass accordingly. 
+	// This is equivalent to a call to CombineWorldSpace followed by TransformToLocalSpace.
+	// @see CombineWorldSpace()
 	FMassProperties CHAOS_API Combine(const TArray<FMassProperties>& MPArray);
 
-	// Combine a list of transformed inertia tensors into a single inertia. 
-	// NOTE: If there is more than one item in the list, the output may be non-diagonaly and will have a zero rotation.
-	// If there is only 1 item in the list it will return it directly, so the rotation of mass may be non-zero.
+	// Combine a list of transformed inertia tensors into a single inertia tensor.
+	// @note The inertia matrix is not diagonalized, and any rotation will be built into the matrix (RotationOfMass will always be Identity)
+	// @see Combine()
 	FMassProperties CHAOS_API CombineWorldSpace(const TArray<FMassProperties>& MPArray);
 
 

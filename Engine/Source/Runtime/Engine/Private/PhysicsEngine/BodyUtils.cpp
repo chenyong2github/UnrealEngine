@@ -102,6 +102,9 @@ namespace BodyUtils
 		Chaos::FMassProperties MassProps;
 		ChaosInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, GetBodyInstanceDensity(OwningBodyInstance));
 
+		// Diagonalize the inertia
+		Chaos::TransformToLocalSpace(MassProps);
+
 		// Apply the BodyInstance's mass and inertia modifiers
 		return ApplyMassPropertiesModifiers(OwningBodyInstance, MassProps, MassModifierTransform, bInertaScaleIncludeMass);
 	}
@@ -111,6 +114,9 @@ namespace BodyUtils
 		// Calculate the mass properties based on the shapes assuming uniform density
 		Chaos::FMassProperties MassProps;
 		ChaosInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, bContributesToMass, GetBodyInstanceDensity(OwningBodyInstance));
+
+		// Diagonalize the inertia
+		Chaos::TransformToLocalSpace(MassProps);
 
 		// Apply the BodyInstance's mass and inertia modifiers
 		return ApplyMassPropertiesModifiers(OwningBodyInstance, MassProps, MassModifierTransform, bInertaScaleIncludeMass);
