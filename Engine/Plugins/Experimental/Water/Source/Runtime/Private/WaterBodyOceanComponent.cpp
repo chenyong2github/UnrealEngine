@@ -164,11 +164,7 @@ void UWaterBodyOceanComponent::GenerateWaterBodyMesh()
 		Island.Reverse();
 	}
 	Triangulation.Add(Island);
-	bool bTriangulationSuccess = Triangulation.Triangulate();
-	if (!bTriangulationSuccess)
-	{
-		UE_LOG(LogWater, Warning, TEXT("Failed correctly triangulate ocean bounding curve; input may have self-intersections (%s"), *GetOwner()->GetActorNameOrLabel());
-	}
+	Triangulation.Triangulate();
 
 	if (Triangulation.Triangles.Num() == 0)
 	{

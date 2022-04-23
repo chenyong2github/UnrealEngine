@@ -78,11 +78,7 @@ void UWaterBodyLakeComponent::GenerateWaterBodyMesh()
 	FConstrainedDelaunay2d Triangulation;
 	Triangulation.FillRule = FConstrainedDelaunay2d::EFillRule::Positive;
 	Triangulation.Add(LakePoly);
-	bool bTriangulationSuccess = Triangulation.Triangulate();
-	if (!bTriangulationSuccess)
-	{
-		UE_LOG(LogWater, Warning, TEXT("Failed correctly triangulate lake bounding curve; input may have self-intersections (%s"), *GetOwner()->GetActorNameOrLabel());
-	}
+	Triangulation.Triangulate();
 
 	if (Triangulation.Triangles.Num() == 0)
 	{
