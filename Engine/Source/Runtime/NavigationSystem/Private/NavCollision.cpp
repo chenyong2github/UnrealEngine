@@ -141,6 +141,8 @@ FDerivedDataNavCollisionCooker::FDerivedDataNavCollisionCooker(FName InFormat, U
 
 bool FDerivedDataNavCollisionCooker::Build( TArray<uint8>& OutData )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDerivedDataNavCollisionCooker::Build);
+
 	if ((NavCollisionInstance->ConvexShapeIndices.Num() == 0) ||
 		(NavCollisionInstance->GetTriMeshCollision().VertexBuffer.Num() == 0 && NavCollisionInstance->GetConvexCollision().VertexBuffer.Num() == 0))
 	{
@@ -545,6 +547,8 @@ void UNavCollision::PostLoad()
 
 FByteBulkData* UNavCollision::GetCookedData(FName Format)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UNavCollision::GetCookedData);
+
 	const bool bUseConvexCollision = bGatherConvexGeometry || (BoxCollision.Num() > 0) || (CylinderCollision.Num() > 0);
 	if (IsTemplate() || !bUseConvexCollision)
 	{

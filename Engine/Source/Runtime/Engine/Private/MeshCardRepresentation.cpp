@@ -191,6 +191,8 @@ void BeginCacheMeshCardRepresentation(const ITargetPlatform* TargetPlatform, USt
 
 void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, UStaticMesh* GenerateSource, int32 MaxLumenMeshCards, bool bGenerateDistanceFieldAsIfTwoSided, FSourceMeshDataForDerivedDataTask* OptionalSourceMeshData)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationData::CacheDerivedData);
+
 	TArray<uint8> DerivedData;
 
 	COOK_STAT(auto Timer = CardRepresentationCookStats::UsageStats.TimeSyncWork());
