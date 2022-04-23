@@ -88,7 +88,13 @@ void FMeshOcclusionMapBaker::Bake()
 			//FVector3d DetailTriNormal = DetailMesh.GetTriNormal(DetailTriID);
 			FVector3d DetailTriNormal;
 			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailTriNormal.X);
-			Normalize(DetailTriNormal);
+			if (!DetailTriNormal.Normalize())
+			{
+				// degenerate triangle normal
+				OutOcclusion = 0.0;
+				OutNormal = DefaultNormal;
+				return;
+			}
 
 			FVector3d BaseTangentX, BaseTangentY;
 			if (WantBentNormal() && NormalSpace == ESpace::Tangent)

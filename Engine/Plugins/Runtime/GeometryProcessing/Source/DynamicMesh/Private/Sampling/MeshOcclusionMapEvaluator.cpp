@@ -194,7 +194,11 @@ FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFu
 
 	FVector3f DetailTriNormal;
 	DetailSampler->TriBaryInterpolateNormal(DetailMesh, DetailTriID, SampleData.DetailBaryCoords, DetailTriNormal);
-	Normalize(DetailTriNormal);
+	if (!DetailTriNormal.Normalize())
+	{
+		// degenerate triangle normal
+		return FOcclusionTuple(0.0, DefaultNormal);
+	}
 
 	FVector3d BaseTangentX, BaseTangentY;
 	if constexpr (WANT_BENT_NORMAL(ComputeType) && ComputeSpace == ESpace::Tangent)
