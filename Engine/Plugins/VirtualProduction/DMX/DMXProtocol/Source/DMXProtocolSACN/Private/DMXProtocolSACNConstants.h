@@ -63,3 +63,8 @@ enum
 	VHD_H_FLAG = 0x20,
 	VHD_D_FLAG = 0x10
 };
+
+enum
+{
+	ACN_DMX_START_CODE_PER_ADDRESS_PRIORITY = 0xDD
+};
