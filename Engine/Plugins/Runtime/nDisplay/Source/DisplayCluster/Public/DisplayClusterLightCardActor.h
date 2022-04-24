@@ -85,6 +85,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (UIMin = 0, ClampMin = 0))
 	float Feathering;
 
+	/** Used to flag this light card as a proxy of a "real" light card. Used by the LightCard Editor */
+	UPROPERTY(Transient)
+	bool bIsProxy = false;
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")
 	TObjectPtr<USceneComponent> DefaultSceneRootComponent;

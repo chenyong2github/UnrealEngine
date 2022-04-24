@@ -10,33 +10,39 @@ struct FMeshProjectionVSToPS
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
 	float4 Position : SV_POSITION;
 	float4 SavedWorldPosition : POSITION1;
+	float Azimuth : CUSTOM_AZIMUTH;
 };
 
 void AzimuthalVS(FVertexFactoryInput Input, out FMeshProjectionVSToPS Output)
 {
 	ResolvedView = ResolveView();
 
-	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+	const FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
 	Output.SavedWorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
-	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
+	const float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
 
-	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, Output.SavedWorldPosition.xyz, TangentToLocal);
+	const FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, Output.SavedWorldPosition.xyz, TangentToLocal);
 	Output.SavedWorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 
 	// Project the vertex view position onto a unit sphere
-	float4 ViewPosition = mul(Output.SavedWorldPosition, ResolvedView.TranslatedWorldToView);
-	float rho = length(ViewPosition.xyz);
-	float3 UnitPosition = ViewPosition.xyz / rho;
+	const float4 ViewPosition = mul(Output.SavedWorldPosition, ResolvedView.TranslatedWorldToView);
+	const float Rho = length(ViewPosition.xyz);
+	const float3 UnitPosition = ViewPosition.xyz / Rho;
 	
 	// Compute the position in view space of the point on the projection plane using azimthual equidistance projection
-	float2 PolarCoords = float2(acos(UnitPosition.z), atan2(UnitPosition.y, UnitPosition.x));
-	float3 PlanePosition = float3(PolarCoords.x * cos(PolarCoords.y), PolarCoords.x * sin(PolarCoords.y), 1);
 	
+	const float Azimuth = acos(UnitPosition.z); // 0 <= azimuth <= pi
+	const float Theta = atan2(UnitPosition.y, UnitPosition.x); // -pi <= theta <= pi
+		
+	const float2 PolarCoords = float2(Azimuth, Theta);
+	const float3 PlanePosition = float3(PolarCoords.x * cos(PolarCoords.y), PolarCoords.x * sin(PolarCoords.y), 1);
+		
 	// Project the plane position into view space
-	float4 ProjectedPosition = float4(PlanePosition * rho / length(PlanePosition), 1);
+	const float4 ProjectedPosition = float4(PlanePosition * Rho / length(PlanePosition), 1);
 	
+	Output.Azimuth = Azimuth;
 	Output.Position = mul(ProjectedPosition, ResolvedView.ViewToClip);
 }
 
@@ -44,15 +50,16 @@ void PerspectiveVS(FVertexFactoryInput Input, out FMeshProjectionVSToPS Output)
 {
 	ResolvedView = ResolveView();
 
-	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+	const FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
 	Output.SavedWorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
-	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
+	const float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
 
-	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, Output.SavedWorldPosition.xyz, TangentToLocal);
+	const FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, Output.SavedWorldPosition.xyz, TangentToLocal);
 	Output.SavedWorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToPS(Input, VFIntermediates, VertexParameters);
 	
+	Output.Azimuth = 0;
 	Output.Position = mul(Output.SavedWorldPosition, ResolvedView.TranslatedWorldToClip);
 }
 
@@ -64,11 +71,17 @@ void MainPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 OutputC
 
 	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
 	
-	float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
-	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
-	
+	const float3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
+	const float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+		
 	OutputColor = float4(Emissive, Opacity);
 
-	float gamma = 2.2;
-	OutputColor.rgb = pow(OutputColor.rgb, gamma);
+	static const float Gamma = 2.2;
+	OutputColor.rgb = pow(OutputColor.rgb, Gamma);
+	
+	static const float AzimuthFeatherStart = radians(180 - 30);
+	static const float AzimuthFeatherEnd   = radians(180 - 15);
+	
+	const float AlphaBlendWeight = saturate((Input.Azimuth - AzimuthFeatherStart) / (AzimuthFeatherEnd - AzimuthFeatherStart));
+	OutputColor.a = lerp(OutputColor.a, 0, AlphaBlendWeight);
 }

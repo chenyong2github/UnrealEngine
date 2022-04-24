@@ -155,6 +155,9 @@ void ADisplayClusterLightCardActor::UpdateLightCardMaterialInstance()
 {
 	if (UMaterialInstanceDynamic* LightCardMaterialInstance = Cast<UMaterialInstanceDynamic>(LightCardComponent->GetMaterial(0)))
 	{
+		// Showing proxy with low opacity to make it less distracting when it doesn't line up well with its projection in the Light Card Editor.
+		constexpr float ProxyOpacity = 0.25;
+
 		LightCardMaterialInstance->ClearParameterValues();
 
 		LightCardMaterialInstance->SetTextureParameterValue(TEXT("Texture"), Texture);
@@ -163,7 +166,7 @@ void ADisplayClusterLightCardActor::UpdateLightCardMaterialInstance()
 		LightCardMaterialInstance->SetVectorParameterValue(TEXT("CardColor"), Color);
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Exposure"), Exposure);
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("EmissiveStrength"), Exposure);
-		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Opacity"), Opacity);
+		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Opacity"), bIsProxy ? ProxyOpacity : Opacity);
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Feather"), Feathering);
 	}
 }

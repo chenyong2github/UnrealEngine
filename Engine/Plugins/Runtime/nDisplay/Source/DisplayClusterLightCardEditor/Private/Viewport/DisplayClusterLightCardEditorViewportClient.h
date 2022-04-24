@@ -194,7 +194,7 @@ private:
 	FVector DragWidgetOffset;
 
 	/** The current projection mode the 3D viewport is being displayed with */
-	EDisplayClusterMeshProjectionType ProjectionMode = EDisplayClusterMeshProjectionType::Perspective;
+	EDisplayClusterMeshProjectionType ProjectionMode = EDisplayClusterMeshProjectionType::Azimuthal;
 
 	/** The component of the root actor that is acting as the projection origin. Can be either the root component (stage origin) or a view origin component */
 	TWeakObjectPtr<USceneComponent> ProjectionOriginComponent;

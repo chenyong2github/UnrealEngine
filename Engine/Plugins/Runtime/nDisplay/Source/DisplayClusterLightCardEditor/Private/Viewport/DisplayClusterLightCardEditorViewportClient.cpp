@@ -87,6 +87,8 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	SetIsSimulateInEditorViewport(true);
 	
 	UpdatePreviewActor(LightCardEditorPtr.Pin()->GetActiveRootActor().Get());
+
+	SetProjectionMode(EDisplayClusterMeshProjectionType::Azimuthal);
 }
 
 FDisplayClusterLightCardEditorViewportClient::~FDisplayClusterLightCardEditorViewportClient()
@@ -115,12 +117,6 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 	}
 
 	SetViewLocation(Location);
-
-	// View rotation is also locked for the azimuthal projection
-	if (ProjectionMode != EDisplayClusterMeshProjectionType::Perspective)
-	{
-		SetViewRotation(FVector::UpVector.Rotation());
-	}
 
 	CachedEditorWidgetTransform = CalcEditorWidgetTransform();
 
@@ -659,6 +655,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				
 					LightCardProxy->SetActorLocation(LightCard->GetActorLocation() - RootActor->GetActorLocation());
 					LightCardProxy->SetActorRotation(LightCard->GetActorRotation() - RootActor->GetActorRotation());
+					LightCardProxy->bIsProxy = true;
 
 					LightCardProxies.Add(FLightCardProxy(LightCard.Get(), LightCardProxy));
 					
@@ -773,7 +770,11 @@ void FDisplayClusterLightCardEditorViewportClient::SetProjectionMode(EDisplayClu
 
 	FindProjectionOriginComponent();
 
-	Viewport->InvalidateHitProxy();
+	if (Viewport)
+	{
+		Viewport->InvalidateHitProxy();
+	}
+
 	bShouldCheckHitProxy = true;
 }
 
