@@ -1349,6 +1349,7 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 	AllocateFoveationTexture(RHICmdList);
 	AllocateVirtualTextureFeedbackBuffer(RHICmdList);
 	AllocateDebugViewModeTargets(RHICmdList);
+	AllocateWorldNormalRoughnessTarget(RHICmdList);
 	
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(GetCurrentFeatureLevel());
 	if (IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform))
@@ -1356,12 +1357,6 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandListImmediate& 
 		float FarDepth = (float)ERHIZBuffer::FarPlane;
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_R32_FLOAT, FClearValueBinding(FLinearColor(FarDepth,FarDepth,FarDepth,FarDepth)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthAux, TEXT("SceneDepthAux"));
-	}
-	else if (AllowScreenSpaceReflection(ShaderPlatform))
-	{
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferAFormat(), FClearValueBinding(FLinearColor(0, 0, 1, 0)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
-		Desc.Flags |= GFastVRamConfig.GBufferA;
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, WorldNormalRoughness, TEXT("WorldNormalRoughness"));
 	}
 }
 
@@ -1594,6 +1589,22 @@ void FSceneRenderTargets::AllocateFoveationTexture(FRHICommandList& RHICmdList)
 		{
 			FoveationTexture = CreateRenderTarget(Texture, TEXT("ShadingRate"));
 		}
+	}
+}
+
+void FSceneRenderTargets::AllocateWorldNormalRoughnessTarget(FRHICommandList& RHICmdList)
+{
+	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+	bool bNeedWorldNormalRoughness = AllowScreenSpaceReflection(ShaderPlatform) || IsUsingEpicQualityMobileAmbientOcclusion(ShaderPlatform);
+	if (bNeedWorldNormalRoughness)
+	{
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, GetGBufferAFormat(), FClearValueBinding(FLinearColor(0, 0, 1, 0)), TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
+		Desc.Flags |= GFastVRamConfig.GBufferA;
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, WorldNormalRoughness, TEXT("WorldNormalRoughness"));
+	}
+	else
+	{
+		WorldNormalRoughness.SafeRelease();
 	}
 }
 
@@ -2027,6 +2038,9 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	VirtualTextureFeedback.SafeRelease();
 	VirtualTextureFeedbackUAV.SafeRelease();
 
+	GAmbientOcclusionMobileOutputs.AmbientOcclusionTexture.SafeRelease();
+	GAmbientOcclusionMobileOutputs.IntermediateBlurTexture.SafeRelease();
+
 	for (int32 i = 0; i < UE_ARRAY_COUNT(OptionalShadowDepthColor); i++)
 	{
 		OptionalShadowDepthColor[i].SafeRelease();
@@ -2333,6 +2347,13 @@ bool FSceneRenderTargets::IsAllocateRenderTargetsRequired() const
 	{
 		bAllocateRequired = true;
 	}
+
+	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
+	bool bNeedWorldNormalRoughness = AllowScreenSpaceReflection(ShaderPlatform) || IsUsingEpicQualityMobileAmbientOcclusion(ShaderPlatform);
+	if (bNeedWorldNormalRoughness != (WorldNormalRoughness != nullptr))
+	{
+		bAllocateRequired = true;
+	}
 	
 	return bAllocateRequired || !AreShadingPathRenderTargetsAllocated(GetSceneColorFormatType()) || !AreRenderTargetClearsValid(GetSceneColorFormatType());
 }
@@ -2545,9 +2566,7 @@ static void SetupMobileSceneTextureUniformParameters(
 
 	// Mobile world normal
 	{
-		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(SceneContext.GetCurrentFeatureLevel());
-		const bool bUseWorldNormalRoughness = AllowScreenSpaceReflection(ShaderPlatform) && !IsMobileDeferredShadingEnabled(GMaxRHIShaderPlatform);
-		SceneTextureParameters.WorldNormalRoughnessTexture = (bUseWorldNormalRoughness && SceneContext.WorldNormalRoughness)? GetRDG(SceneContext.WorldNormalRoughness) : BlackDefault2D;
+		SceneTextureParameters.WorldNormalRoughnessTexture = SceneContext.WorldNormalRoughness? GetRDG(SceneContext.WorldNormalRoughness) : BlackDefault2D;
 		SceneTextureParameters.WorldNormalRoughnessTextureSampler = TStaticSamplerState<>::GetRHI();
 	}
 

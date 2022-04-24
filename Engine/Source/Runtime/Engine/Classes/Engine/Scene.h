@@ -164,6 +164,13 @@ FORCEINLINE bool IsUsingMobileAmbientOcclusion(EShaderPlatform ShaderPlatform)
 	return IsMobileAmbientOcclusionEnabled(ShaderPlatform) && MobileAmbientOcclusionQualityQualityCVar->GetValueOnAnyThread() > 0;
 }
 
+FORCEINLINE bool IsUsingEpicQualityMobileAmbientOcclusion(EShaderPlatform ShaderPlatform)
+{
+	static const auto MobileAmbientOcclusionQualityQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusionQuality"));
+
+	return IsMobileAmbientOcclusionEnabled(ShaderPlatform) && MobileAmbientOcclusionQualityQualityCVar->GetValueOnAnyThread() > 2;
+}
+
 USTRUCT(BlueprintType)
 struct FColorGradePerRangeSettings
 {

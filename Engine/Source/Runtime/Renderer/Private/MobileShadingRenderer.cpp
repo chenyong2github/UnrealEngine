@@ -336,11 +336,13 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		&& ViewFamily.EngineShowFlags.Lighting
 		&& !Views[0].bIsReflectionCapture
 		&& !Views[0].bIsPlanarReflection
+		&& !Views[0].bIsSceneCapture
 		&& !ViewFamily.EngineShowFlags.HitProxies
 		&& !ViewFamily.EngineShowFlags.VisualizeLightCulling
 		&& !ViewFamily.UseDebugViewPS()
 		// Only support forward shading, we don't want to break tiled deferred shading.
-		&& !bDeferredShading;
+		&& !bDeferredShading
+		&& (Scene->World && Scene->World->WorldType != EWorldType::EditorPreview && Scene->World->WorldType != EWorldType::Inactive);
 
 	bRequriesScreenSpaceReflectionPass = AllowScreenSpaceReflection(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.ScreenSpaceReflectionIntensity > 0
@@ -724,7 +726,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bRequriesAmbientOcclusionPass)
 	{
-		RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ);
+		RenderAmbientOcclusion(RHICmdList, SceneContext.SceneDepthZ, SceneContext.WorldNormalRoughness);
 	}
 
 	if (bDeferredShading)
@@ -906,7 +908,7 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
 
-	if (bRequriesScreenSpaceReflectionPass && SceneContext.WorldNormalRoughness)
+	if (SceneContext.WorldNormalRoughness)
 	{
 		SceneColorRenderPassInfo.ColorRenderTargets[1].RenderTarget = SceneContext.GetWorldNormalRoughnessSurface();
 		SceneColorRenderPassInfo.ColorRenderTargets[1].ResolveTarget = nullptr;

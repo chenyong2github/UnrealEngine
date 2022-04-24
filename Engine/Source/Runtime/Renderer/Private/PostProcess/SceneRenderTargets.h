@@ -600,12 +600,14 @@ private:
 	/** Allocates render targets for use with the current shading path. */
 	void AllocateRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews);
 
-
 	/** Allocates common depth render targets that are used by both mobile and deferred rendering paths */
 	void AllocateCommonDepthTargets(FRHICommandList& RHICmdList);
 
 	/** Allocates a texture for controlling variable resolution rendering. */
 	void AllocateFoveationTexture(FRHICommandList& RHICmdList);
+
+	/** Allocates a render target storing world-space normal for mobile forward rendering paths. */
+	void AllocateWorldNormalRoughnessTarget(FRHICommandList& RHICmdList);
 
 	/** Determine the appropriate render target dimensions. */
 	FIntPoint ComputeDesiredSize(const FSceneViewFamily& ViewFamily);
