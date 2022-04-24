@@ -79,8 +79,8 @@ void MainPS(FMeshProjectionVSToPS Input OPTIONAL_IsFrontFace, out float4 OutputC
 	static const float Gamma = 2.2;
 	OutputColor.rgb = pow(OutputColor.rgb, Gamma);
 	
-	static const float AzimuthFeatherStart = radians(180 - 30);
-	static const float AzimuthFeatherEnd   = radians(180 - 15);
+	static const float AzimuthFeatherStart = radians(180 - 45);
+	static const float AzimuthFeatherEnd   = radians(180 - 30);
 	
 	const float AlphaBlendWeight = saturate((Input.Azimuth - AzimuthFeatherStart) / (AzimuthFeatherEnd - AzimuthFeatherStart));
 	OutputColor.a = lerp(OutputColor.a, 0, AlphaBlendWeight);

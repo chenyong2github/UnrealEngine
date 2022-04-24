@@ -154,7 +154,7 @@ private:
 	void PixelToWorld(const FSceneView& View, const FIntPoint& PixelPos, FVector& OutOrigin, FVector& OutDirection);
 
 	/** Calculates the world transform to render the editor widget with to align it with the selected light card */
-	FTransform CalcEditorWidgetTransform();
+	bool CalcEditorWidgetTransform(FTransform& WidgetTransformBeforeMapProjection, FTransform& WidgetTransformAfterMapProjection);
 
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
@@ -187,8 +187,11 @@ private:
 	/** The LC editor widget used to manipulate light cards */
 	TSharedPtr<FDisplayClusterLightCardEditorWidget> EditorWidget;
 
-	/** The cached editor widget transform calculated for the editor widget on the last tick */
-	FTransform CachedEditorWidgetTransform;
+	/** The cached editor widget transform after map projection calculated for the editor widget on the last tick */
+	FTransform CachedEditorWidgetTransformAfterMapProjection;
+
+	/** The cached editor widget transform before map projection calculated for the editor widget on the last tick */
+	FTransform CachedEditorWidgetTransformBeforeMapProjection;
 
 	/** The offset between the widget's origin and the place it was clicked when a drag action was started */
 	FVector DragWidgetOffset;

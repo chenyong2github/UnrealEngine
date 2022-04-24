@@ -118,7 +118,7 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 
 	SetViewLocation(Location);
 
-	CachedEditorWidgetTransform = CalcEditorWidgetTransform();
+	CalcEditorWidgetTransform(CachedEditorWidgetTransformBeforeMapProjection, CachedEditorWidgetTransformAfterMapProjection);
 
 	// Tick the preview scene world.
 	if (!GIntraFrameDebuggingGameThread)
@@ -328,7 +328,7 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, 
 {
 	if (SelectedLightCards.Num())
 	{
-		EditorWidget->SetTransform(CachedEditorWidgetTransform);
+		EditorWidget->SetTransform(CachedEditorWidgetTransformAfterMapProjection);
 		EditorWidget->Draw(View, PDI);
 	}
 }
@@ -434,7 +434,7 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(const FInputE
 		FVector Direction;
 		PixelToWorld(*View, MousePos, Origin, Direction);
 
-		DragWidgetOffset = Direction - (CachedEditorWidgetTransform.GetTranslation() - Origin).GetSafeNormal();
+		DragWidgetOffset = Direction - (CachedEditorWidgetTransformBeforeMapProjection.GetTranslation() - Origin).GetSafeNormal();
 	}
 
 	FEditorViewportClient::TrackingStarted(InInputState, bIsDraggingWidget, bNudge);
@@ -1354,43 +1354,48 @@ void FDisplayClusterLightCardEditorViewportClient::PixelToWorld(const FSceneView
 	OutDirection = InvViewMatrix.TransformVector(UnprojectedViewPos).GetSafeNormal();
 }
 
-FTransform FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform()
+bool FDisplayClusterLightCardEditorViewportClient::CalcEditorWidgetTransform(FTransform& WidgetTransformBeforeMapProjection, FTransform& WidgetTransformAfterMapProjection)
 {
-	if (SelectedLightCards.Num())
+	if (!SelectedLightCards.Num())
 	{
-		TWeakObjectPtr<ADisplayClusterLightCardActor> LastSelected = SelectedLightCards.Last();
-		if (LastSelected.IsValid())
-		{
-			FVector LightCardPosition = LastSelected->GetLightCardTransform().GetTranslation();
-
-			FTransform WidgetTransform(FRotator::ZeroRotator, LightCardPosition, FVector::OneVector);
-
-			if (ProjectionMode != EDisplayClusterMeshProjectionType::Perspective)
-			{
-				FSceneViewInitOptions SceneVewInitOptions;
-				GetSceneViewInitOptions(SceneVewInitOptions);
-				FViewMatrices ViewMatrices(SceneVewInitOptions);
-
-				const FVector ViewPos = ViewMatrices.GetViewMatrix().TransformPosition(LightCardPosition);
-				const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, ProjectionMode);
-				const FVector ProjectedPosition = ViewMatrices.GetInvViewMatrix().TransformPosition(ProjectedViewPos);
-
-				WidgetTransform.SetTranslation(ProjectedPosition);
-			}
-
-			const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
-			const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
-			const FVector AzimuthalVector = FVector::ZAxisVector ^ RadialVector;
-			const FVector InclinationVector = RadialVector ^ AzimuthalVector;
-
-			FRotator Orientation = FMatrix(AzimuthalVector, InclinationVector, RadialVector, FVector::ZeroVector).Rotator();
-			WidgetTransform.SetRotation(Orientation.Quaternion());
-
-			return WidgetTransform;
-		}
+		return false;
 	}
 
-	return FTransform();
+	TWeakObjectPtr<ADisplayClusterLightCardActor> LastSelected = SelectedLightCards.Last();
+
+	if (!LastSelected.IsValid())
+	{
+		return false;
+	}
+
+	FVector LightCardPosition = LastSelected->GetLightCardTransform().GetTranslation();
+
+	WidgetTransformAfterMapProjection = WidgetTransformBeforeMapProjection = FTransform(FRotator::ZeroRotator, LightCardPosition, FVector::OneVector);
+
+	if (ProjectionMode != EDisplayClusterMeshProjectionType::Perspective)
+	{
+		FSceneViewInitOptions SceneVewInitOptions;
+		GetSceneViewInitOptions(SceneVewInitOptions);
+		FViewMatrices ViewMatrices(SceneVewInitOptions);
+
+		const FVector ViewPos = ViewMatrices.GetViewMatrix().TransformPosition(LightCardPosition);
+		const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, ProjectionMode);
+		const FVector ProjectedPosition = ViewMatrices.GetInvViewMatrix().TransformPosition(ProjectedViewPos);
+
+		WidgetTransformAfterMapProjection.SetTranslation(ProjectedPosition);
+	}
+
+	const FVector ProjectionOrigin = ProjectionOriginComponent.IsValid() ? ProjectionOriginComponent->GetComponentLocation() : FVector::ZeroVector;
+	const FVector RadialVector = (LightCardPosition - ProjectionOrigin).GetSafeNormal();
+	const FVector AzimuthalVector = FVector::ZAxisVector ^ RadialVector;
+	const FVector InclinationVector = RadialVector ^ AzimuthalVector;
+
+	FRotator Orientation = FMatrix(AzimuthalVector, InclinationVector, RadialVector, FVector::ZeroVector).Rotator();
+
+	WidgetTransformBeforeMapProjection.SetRotation(Orientation.Quaternion());
+	WidgetTransformAfterMapProjection.SetRotation(Orientation.Quaternion());
+
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE
