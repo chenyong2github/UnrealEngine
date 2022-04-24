@@ -27,7 +27,15 @@ struct APPLICATIONCORE_API FWindowsPlatformApplicationMisc : public FGenericPlat
 	/** Windows platform only */
 	/** Function should retrieve the DPI value for the provided monitor information structure */
 	static int32 GetMonitorDPI(const FMonitorInfo& MonitorInfo);
-	static bool ProbablyHasIntegratedGPU();
+
+	struct FGPUInfo
+	{
+		uint32 VendorId = 0;
+		uint32 DeviceId = 0;
+		uint64 DedicatedVideoMemory = 0;
+	};
+
+	static FGPUInfo GetBestGPUInfo();
 	/** End Windows platform only */
 };
 

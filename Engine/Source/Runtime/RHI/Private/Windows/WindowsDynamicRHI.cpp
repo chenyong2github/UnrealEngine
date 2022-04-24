@@ -137,6 +137,8 @@ static bool DefaultFeatureLevelES31()
 		return true;
 	}
 
+	FWindowsPlatformApplicationMisc::FGPUInfo BestGPUInfo = FWindowsPlatformApplicationMisc::GetBestGPUInfo();
+
 	FString MinMemorySizeBucketString;
 	FString MinIntegratedMemorySizeBucketString;
 	if (GConfig->GetString(TEXT("PerformanceMode"), TEXT("MinMemorySizeBucket"), MinMemorySizeBucketString, GEngineIni) && GConfig->GetString(TEXT("PerformanceMode"), TEXT("MinIntegratedMemorySizeBucket"), MinIntegratedMemorySizeBucketString, GEngineIni))
@@ -157,7 +159,8 @@ static bool DefaultFeatureLevelES31()
 			// Force Performance mode for machines with too little memory when shared with the GPU
 			if (MinIntegratedMemorySizeBucketString == BucketString)
 			{
-				if (FPlatformMemory::GetMemorySizeBucket() >= EPlatformMemorySizeBucket(EnumIndex) && FWindowsPlatformApplicationMisc::ProbablyHasIntegratedGPU())
+				const int MIN_GPU_MEMORY = 512 * 1024 * 1024;
+				if (FPlatformMemory::GetMemorySizeBucket() >= EPlatformMemorySizeBucket(EnumIndex) && BestGPUInfo.DedicatedVideoMemory < MIN_GPU_MEMORY)
 				{
 					ForceES31 = true;
 
@@ -184,6 +187,23 @@ static bool DefaultFeatureLevelES31()
 		FParse::Value(Line+1, TEXT("DeviceName="), DeviceName);
 
 		if (RHIName.Compare("D3D11_ES31", ESearchCase::IgnoreCase) == 0 && GPUBrand.Compare(DeviceName, ESearchCase::IgnoreCase) == 0)
+		{
+			ForceES31 = true;
+
+			return true;
+		}
+
+		FString VendorId;
+		FParse::Value(Line + 1, TEXT("VendorId="), VendorId);
+		uint32 VendorIdInt = FParse::HexNumber(*VendorId);
+
+		FString DeviceId;
+		FParse::Value(Line + 1, TEXT("DeviceId="), DeviceId);
+		uint32 DeviceIdInt = FParse::HexNumber(*DeviceId);
+
+		if (BestGPUInfo.VendorId && BestGPUInfo.DeviceId &&
+			BestGPUInfo.VendorId == VendorIdInt && BestGPUInfo.DeviceId == DeviceIdInt &&
+			RHIName.Compare("D3D11_ES31", ESearchCase::IgnoreCase) == 0)
 		{
 			ForceES31 = true;
 

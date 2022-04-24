@@ -311,15 +311,16 @@ int32 FWindowsPlatformApplicationMisc::GetMonitorDPI(const FMonitorInfo& Monitor
 	return DisplayDPI;
 }
 
-// Looks for an adapter with >= 512 MB of dedicated video memory and assumes we use it.
-bool FWindowsPlatformApplicationMisc::ProbablyHasIntegratedGPU()
+// Looks for an adapter with the most dedicated video memory
+FWindowsPlatformApplicationMisc::FGPUInfo FWindowsPlatformApplicationMisc::GetBestGPUInfo()
 { 
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
 	if (CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&DXGIFactory1) != S_OK || !DXGIFactory1)
 	{
-		return false;
+		return {};
 	}
 
+	DXGI_ADAPTER_DESC BestDesc = {};
 	TRefCountPtr<IDXGIAdapter> TempAdapter;
 	for (uint32 AdapterIndex = 0; DXGIFactory1->EnumAdapters(AdapterIndex, TempAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
 	{
@@ -328,15 +329,14 @@ bool FWindowsPlatformApplicationMisc::ProbablyHasIntegratedGPU()
 			DXGI_ADAPTER_DESC Desc;
 			TempAdapter->GetDesc(&Desc);
 
-			const int MIN_GPU_MEMORY = 512 * 1024 * 1024;
-			if (Desc.DedicatedVideoMemory >= MIN_GPU_MEMORY)
+			if (Desc.DedicatedVideoMemory > BestDesc.DedicatedVideoMemory || AdapterIndex == 0)
 			{
-				return false;
+				BestDesc = Desc;
 			}
 		}
 	}
 
-	return true;
+	return FGPUInfo{ BestDesc.VendorId, BestDesc.DeviceId, BestDesc.DedicatedVideoMemory };
 }
 
 float FWindowsPlatformApplicationMisc::GetDPIScaleFactorAtPoint(float X, float Y)

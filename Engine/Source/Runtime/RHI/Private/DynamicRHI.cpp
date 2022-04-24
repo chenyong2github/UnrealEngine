@@ -146,10 +146,40 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 	{
 		FDriverDenyListEntry DenyListEntry = DetectedGPUHardware.FindDriverDenyListEntry();
 
+		TArray<FString> DeviceCanUpdateDriverList;
+		GConfig->GetArray(TEXT("Devices"), TEXT("DeviceCanUpdateDriverList"), DeviceCanUpdateDriverList, GHardwareIni);
+
+		bool bVendorHasEntries = false;
+		bool bDeviceCanUpdateDriver = false;
+		for (const FString& DeviceCanUpdateDriverString : DeviceCanUpdateDriverList)
+		{
+			const TCHAR* Line = *DeviceCanUpdateDriverString;
+
+			FString VendorId;
+			FParse::Value(Line + 1, TEXT("VendorId="), VendorId);
+			uint32 VendorIdInt = FParse::HexNumber(*VendorId);
+
+			FString DeviceId;
+			FParse::Value(Line + 1, TEXT("DeviceId="), DeviceId);
+			uint32 DeviceIdInt = FParse::HexNumber(*DeviceId);
+
+			bVendorHasEntries |= DriverInfo.VendorId && DriverInfo.VendorId == VendorIdInt;
+
+			if (DriverInfo.VendorId && GRHIDeviceId &&
+				DriverInfo.VendorId == VendorIdInt && GRHIDeviceId == DeviceIdInt)
+			{
+				bDeviceCanUpdateDriver = true;
+				break;
+			}
+		}
+
 		GRHIAdapterDriverOnDenyList = DenyListEntry.IsValid();
 		FGenericCrashContext::SetEngineData(TEXT("RHI.DriverBlacklisted"), DenyListEntry.IsValid() ? TEXT("true") : TEXT("false"));
 
-		if (DenyListEntry.IsValid())
+		// Only alert users who are capable of updating their driver. Assume vendors with an empty list can always update.
+		bool bShowPrompt = bDeviceCanUpdateDriver || !bVendorHasEntries;
+
+		if (DenyListEntry.IsValid() && bShowPrompt)
 		{
 			bool bLatestDenied = DetectedGPUHardware.IsLatestDenied();
 
@@ -295,6 +325,7 @@ void RHIInit(bool bHasEditorToken)
 				FGenericCrashContext::SetEngineData(TEXT("RHI.DriverDate"), GRHIAdapterDriverDate);
 				FGenericCrashContext::SetEngineData(TEXT("RHI.FeatureLevel"), FeatureLevelString);
 				FGenericCrashContext::SetEngineData(TEXT("RHI.GPUVendor"), RHIVendorIdToString());
+				FGenericCrashContext::SetEngineData(TEXT("RHI.DeviceId"), FString::Printf(TEXT("%04X"), GRHIDeviceId));
 
 #if TEXTURE_PROFILER_ENABLED
 				FTextureProfiler::Get()->Init();
