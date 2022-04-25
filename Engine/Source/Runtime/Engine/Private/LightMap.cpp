@@ -2413,9 +2413,9 @@ void FLightMap2D::EncodeTextures( UWorld* InWorld, ULevel* LightingScenario, boo
 
 		if (!bIncludeNonVirtualTextures)
 		{
-			// If we exclusively using VT lightmaps, don't need to worry about max size of a given texture sheet
-			// Also just make square textures, don't need 2x1 aspect ratio
-			PackedLightAndShadowMapTextureSizeX = 32 * 1024; // FTextureLayout uses uint16 for size in some places
+			// If we exclusively using VT lightmaps, just make square textures, don't need 2x1 aspect ratio
+			// YW: while it's possible to create huge VT lightmaps (like 32k), it hurts multithread lightmap encoding performance seriously.
+			// Packed lightmaps with 1k - 2k resolution should be enough to reduce drawcalls
 			PackedLightAndShadowMapTextureSizeY = PackedLightAndShadowMapTextureSizeX;
 		}
 

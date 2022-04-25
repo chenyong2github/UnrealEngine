@@ -9,6 +9,7 @@
 #include "LightmapRenderer.h"
 #include "GPULightmassModule.h"
 #include "Async/ParallelFor.h"
+#include "Compression/OodleDataCompression.h"
 
 namespace GPULightmass
 {
@@ -17,14 +18,19 @@ TDoubleLinkedList<FTileDataLayer*> FTileDataLayer::AllUncompressedTiles;
 
 int64 FTileDataLayer::Compress(bool bParallelCompression)
 {
-	const int32 CompressMemoryBound = FCompression::CompressMemoryBound(NAME_LZ4, sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
+	const int32 CompressMemoryBound = FOodleDataCompression::CompressedBufferSizeNeeded(sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
 
 	if (Data.Num() > 0)
 	{
 		CompressedData.Empty();
 		CompressedData.AddUninitialized(CompressMemoryBound);
 		int32 CompressedSize = CompressMemoryBound;
-		check(FCompression::CompressMemory(NAME_LZ4, CompressedData.GetData(), CompressedSize, Data.GetData(), sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize));
+
+		CompressedSize = FOodleDataCompression::Compress(
+			CompressedData.GetData(), CompressedSize,
+			Data.GetData(), sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize,
+			FOodleDataCompression::ECompressor::Selkie, FOodleDataCompression::ECompressionLevel::VeryFast);
+		
 		CompressedData.SetNum(CompressedSize);
 		Data.Empty();
 
@@ -58,8 +64,10 @@ void FTileDataLayer::Decompress()
 	if (CompressedData.Num() != 0)
 	{
 		Data.Empty();
-		Data.AddUninitialized(GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
-		check(FCompression::UncompressMemory(NAME_LZ4, Data.GetData(), sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize, CompressedData.GetData(), CompressedData.Num()));
+		Data.AddUninitialized(GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);		
+		check(FOodleDataCompression::Decompress(
+			Data.GetData(), sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize,
+			CompressedData.GetData(), CompressedData.Num()));
 		CompressedData.Empty();
 	}
 	else
@@ -75,7 +83,7 @@ void FTileDataLayer::Evict()
 
 	TArray<FTileDataLayer*> TileDataLayersToCompress;
 
-	while (AllUncompressedTiles.Num() > 16384)
+	while (AllUncompressedTiles.Num() > 65536) // 4 gig
 	{
 		FTileDataLayer* TileDataLayerToCompress = AllUncompressedTiles.GetTail()->GetValue();
 		AllUncompressedTiles.RemoveNode(AllUncompressedTiles.GetTail(), false);

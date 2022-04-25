@@ -8,15 +8,13 @@
 #include "UObject/GCObjectScopeGuard.h"
 #include "VT/LightmapVirtualTexture.h"
 #include "Engine/MapBuildDataRegistry.h"
-// TBB suffers from extreme fragmentation problem in editor
-#include "Core/Private/HAL/Allocators/AnsiAllocator.h"
 
 namespace GPULightmass
 {
 
 struct FTileDataLayer
 {
-	TArray<FLinearColor, FAnsiAllocator> Data;
+	TArray<FLinearColor> Data;
 	TArray<uint8> CompressedData;
 
 	TDoubleLinkedList<FTileDataLayer*>::TDoubleLinkedListNode Node;

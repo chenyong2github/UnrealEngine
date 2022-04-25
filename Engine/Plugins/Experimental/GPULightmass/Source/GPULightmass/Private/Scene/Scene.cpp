@@ -1719,8 +1719,9 @@ void CopyRectTiled(
 	int32 TileBorderSize = 0
 )
 {
-	for (int32 Y = DstRect.Min.Y; Y < DstRect.Max.Y; Y++)
+	ParallelFor(DstRect.Max.Y - DstRect.Min.Y, [&](int32 dy)
 	{
+		int32 Y = DstRect.Min.Y + dy;
 		for (int32 X = DstRect.Min.X; X < DstRect.Max.X; X++)
 		{
 			FIntPoint SrcPosition = FIntPoint(X, Y) - DstRect.Min + SrcMin;
@@ -1735,7 +1736,7 @@ void CopyRectTiled(
 
 			Func(DstLinearIndex, SrcTilePosition, SrcLinearIndex);
 		}
-	}
+	});
 }
 
 void ReadbackVolumetricLightmapDataLayerFromGPU(FRHICommandListImmediate& RHICmdList, FVolumetricLightmapDataLayer& Layer, FIntVector Dimensions)

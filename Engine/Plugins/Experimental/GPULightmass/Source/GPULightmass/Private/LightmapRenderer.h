@@ -66,7 +66,7 @@ struct FLightmapReadbackGroup
 		// Duplicate some metadata so the async thread doesn't need to access FLightmapReadbackGroup
 		FIntPoint SizeInTiles;
 		int32 RowPitchInPixels[3];
-		TArray<FLinearColor, FAnsiAllocator> Texture[3];
+		TArray<FLinearColor> Texture[3];
 
 		volatile int32 bDenoisingFinished = 0;
 	};
@@ -84,7 +84,7 @@ struct FLightmapTileDenoiseGroup
 
 	struct FTextureData
 	{
-		TArray<FLinearColor, FAnsiAllocator> Texture[2];
+		TArray<FLinearColor> Texture[2];
 
 		volatile int32 bDenoisingFinished = 0;
 	};
