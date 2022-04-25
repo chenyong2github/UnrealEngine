@@ -39,7 +39,7 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 	// Test Named Empty Object
 	{
 		Writer.Reset();
-		Writer.SetName("Object"_ASV);
+		Writer.SetName(ANSITEXTVIEW("Object"));
 		Writer.BeginObject();
 		Writer.EndObject();
 		FCbField Field = Writer.Save();
@@ -54,16 +54,16 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		Writer.BeginObject();
-		Writer.SetName("Integer"_ASV).AddInteger(0);
-		Writer.SetName("Float"_ASV).AddFloat(0.0f);
+		Writer.SetName(ANSITEXTVIEW("Integer")).AddInteger(0);
+		Writer.SetName(ANSITEXTVIEW("Float")).AddFloat(0.0f);
 		Writer.EndObject();
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Object, Basic) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Object, Basic).IsObject()"), Field.IsObject());
 			FCbObjectView Object = Field.AsObjectView();
-			TestTrue(TEXT("FCbWriter(Object, Basic).AsObjectView()[Integer]"), Object["Integer"_ASV].IsInteger());
-			TestTrue(TEXT("FCbWriter(Object, Basic).AsObjectView()[Float]"), Object["Float"_ASV].IsFloat());
+			TestTrue(TEXT("FCbWriter(Object, Basic).AsObjectView()[Integer]"), Object[ANSITEXTVIEW("Integer")].IsInteger());
+			TestTrue(TEXT("FCbWriter(Object, Basic).AsObjectView()[Float]"), Object[ANSITEXTVIEW("Float")].IsFloat());
 		}
 	}
 
@@ -71,16 +71,16 @@ bool FCbWriterObjectTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		Writer.BeginObject();
-		Writer.SetName("Field1"_ASV).AddInteger(0);
-		Writer.SetName("Field2"_ASV).AddInteger(1);
+		Writer.SetName(ANSITEXTVIEW("Field1")).AddInteger(0);
+		Writer.SetName(ANSITEXTVIEW("Field2")).AddInteger(1);
 		Writer.EndObject();
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Object, Uniform) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			TestTrue(TEXT("FCbWriter(Object, Uniform).IsObject()"), Field.IsObject());
 			FCbObjectView Object = Field.AsObjectView();
-			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field1]"), Object["Field1"_ASV].IsInteger());
-			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field2]"), Object["Field2"_ASV].IsInteger());
+			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field1]"), Object[ANSITEXTVIEW("Field1")].IsInteger());
+			TestTrue(TEXT("FCbWriter(Object, Uniform).AsObjectView()[Field2]"), Object[ANSITEXTVIEW("Field2")].IsInteger());
 		}
 	}
 
@@ -110,7 +110,7 @@ bool FCbWriterArrayTest::RunTest(const FString& Parameters)
 	// Test Named Empty Array
 	{
 		Writer.Reset();
-		Writer.SetName("Array"_ASV);
+		Writer.SetName(ANSITEXTVIEW("Array"));
 		Writer.BeginArray();
 		Writer.EndArray();
 		FCbField Field = Writer.Save();
@@ -186,12 +186,12 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 	// Test Null with Name
 	{
 		Writer.Reset();
-		Writer.SetName("Null"_ASV);
+		Writer.SetName(ANSITEXTVIEW("Null"));
 		Writer.AddNull();
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Null, Name) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Null, Name).GetName()"), Field.GetName(), "Null"_U8SV);
+			TestEqual(TEXT("FCbWriter(Null, Name).GetName()"), Field.GetName(), UTF8TEXTVIEW("Null"));
 			TestTrue(TEXT("FCbWriter(Null, Name).HasName()"), Field.HasName());
 			TestTrue(TEXT("FCbWriter(Null, Name).IsNull()"), Field.IsNull());
 		}
@@ -208,9 +208,9 @@ bool FCbWriterNullTest::RunTest(const FString& Parameters)
 		Writer.EndArray();
 
 		Writer.BeginObject();
-		Writer.SetName("N1"_ASV).AddNull();
-		Writer.SetName("N2"_ASV).AddNull();
-		Writer.SetName("N3"_ASV).AddNull();
+		Writer.SetName(ANSITEXTVIEW("N1")).AddNull();
+		Writer.SetName(ANSITEXTVIEW("N2")).AddNull();
+		Writer.SetName(ANSITEXTVIEW("N3")).AddNull();
 		Writer.EndObject();
 
 		FCbFieldIterator Fields = Writer.Save();
@@ -278,12 +278,12 @@ bool FCbWriterBinaryTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		const uint8 BinaryValue[] = { 1, 2, 3, 4, 5, 6 };
-		Writer.SetName("Binary"_ASV);
+		Writer.SetName(ANSITEXTVIEW("Binary"));
 		Writer.AddBinary(BinaryValue, sizeof(BinaryValue));
 		FCbField Field = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(Binary, Array) Validate"), ValidateCompactBinary(Field.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
-			TestEqual(TEXT("FCbWriter(Binary, Array).GetName()"), Field.GetName(), "Binary"_U8SV);
+			TestEqual(TEXT("FCbWriter(Binary, Array).GetName()"), Field.GetName(), UTF8TEXTVIEW("Binary"));
 			TestTrue(TEXT("FCbWriter(Binary, Array).HasName()"), Field.HasName());
 			TestTrue(TEXT("FCbWriter(Binary, Array).IsBinary()"), Field.IsBinary());
 			TestTrue(TEXT("FCbWriter(Binary, Array).AsBinaryView()"), Field.AsBinaryView().EqualBytes(MakeMemoryView(BinaryValue)));
@@ -320,17 +320,17 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 	// Test Basic Strings
 	{
 		Writer.Reset();
-		Writer.SetName("String"_ASV).AddString("Value"_ASV);
-		Writer.SetName("String"_ASV).AddString(TEXTVIEW("Value"));
+		Writer.SetName(ANSITEXTVIEW("String")).AddString(ANSITEXTVIEW("Value"));
+		Writer.SetName(ANSITEXTVIEW("String")).AddString(TEXTVIEW("Value"));
 		FCbFieldIterator Fields = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(String, Basic) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Basic).GetName()"), Field.GetName(), "String"_U8SV);
+				TestEqual(TEXT("FCbWriter(String, Basic).GetName()"), Field.GetName(), UTF8TEXTVIEW("String"));
 				TestTrue(TEXT("FCbWriter(String, Basic).HasName()"), Field.HasName());
 				TestTrue(TEXT("FCbWriter(String, Basic).IsString()"), Field.IsString());
-				TestEqual(TEXT("FCbWriter(String, Basic).AsString()"), Field.AsString(), "Value"_U8SV);
+				TestEqual(TEXT("FCbWriter(String, Basic).AsString()"), Field.AsString(), UTF8TEXTVIEW("Value"));
 			}
 		}
 	}
@@ -360,14 +360,14 @@ bool FCbWriterStringTest::RunTest(const FString& Parameters)
 	{
 		Writer.Reset();
 		WIDECHAR Value[2] = { 0xd83d, 0xde00 };
-		Writer.AddString("\xf0\x9f\x98\x80"_ASV);
+		Writer.AddString(ANSITEXTVIEW("\xf0\x9f\x98\x80"));
 		Writer.AddString(FWideStringView(Value, UE_ARRAY_COUNT(Value)));
 		FCbFieldIterator Fields = Writer.Save();
 		if (TestEqual(TEXT("FCbWriter(String, Unicode) Validate"), ValidateCompactBinaryRange(Fields.GetOuterBuffer(), ECbValidateMode::All), ECbValidateError::None))
 		{
 			for (FCbFieldView Field : Fields)
 			{
-				TestEqual(TEXT("FCbWriter(String, Unicode).AsString()"), Field.AsString(), "\xf0\x9f\x98\x80"_U8SV);
+				TestEqual(TEXT("FCbWriter(String, Unicode).AsString()"), Field.AsString(), UTF8TEXTVIEW("\xf0\x9f\x98\x80"));
 			}
 		}
 	}
@@ -550,9 +550,9 @@ bool FCbWriterBoolTest::RunTest(const FString& Parameters)
 		Writer.EndArray();
 
 		Writer.BeginObject();
-		Writer.SetName("B1"_ASV).AddBool(false);
-		Writer.SetName("B2"_ASV).AddBool(false);
-		Writer.SetName("B3"_ASV).AddBool(false);
+		Writer.SetName(ANSITEXTVIEW("B1")).AddBool(false);
+		Writer.SetName(ANSITEXTVIEW("B2")).AddBool(false);
+		Writer.SetName(ANSITEXTVIEW("B3")).AddBool(false);
 		Writer.EndObject();
 
 		FCbFieldIterator Fields = Writer.Save();
@@ -812,8 +812,8 @@ bool FCbWriterCustomByNameTest::RunTest(const FString& Parameters)
 	};
 	const FCustomValue Values[] =
 	{
-		{ "Type1"_U8SV, {1, 2, 3} },
-		{ "Type2"_U8SV, {4, 5, 6} },
+		{ UTF8TEXTVIEW("Type1"), {1, 2, 3} },
+		{ UTF8TEXTVIEW("Type2"), {4, 5, 6} },
 	};
 
 	for (const FCustomValue& Value : Values)
@@ -848,44 +848,44 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		Writer.BeginObject();
 
 		const uint8 LocalField[] = { uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42 };
-		Writer.AddField("FieldViewCopy"_ASV, FCbFieldView(LocalField));
-		Writer.AddField("FieldCopy"_ASV, FCbField(FSharedBuffer::Clone(MakeMemoryView(LocalField))));
+		Writer.AddField(ANSITEXTVIEW("FieldViewCopy"), FCbFieldView(LocalField));
+		Writer.AddField(ANSITEXTVIEW("FieldCopy"), FCbField(FSharedBuffer::Clone(MakeMemoryView(LocalField))));
 
 		const uint8 LocalObject[] = { uint8(ECbFieldType::Object | ECbFieldType::HasFieldName), 1, 'O', 7,
 			uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42,
 			uint8(ECbFieldType::Null | ECbFieldType::HasFieldName), 1, 'N' };
-		Writer.AddObject("ObjectViewCopy"_ASV, FCbObjectView(LocalObject));
-		Writer.AddObject("ObjectCopy"_ASV, FCbObject(FSharedBuffer::Clone(MakeMemoryView(LocalObject))));
+		Writer.AddObject(ANSITEXTVIEW("ObjectViewCopy"), FCbObjectView(LocalObject));
+		Writer.AddObject(ANSITEXTVIEW("ObjectCopy"), FCbObject(FSharedBuffer::Clone(MakeMemoryView(LocalObject))));
 
 		const uint8 LocalArray[] = { uint8(ECbFieldType::UniformArray | ECbFieldType::HasFieldName), 1, 'A', 4, 2,
 			uint8(ECbFieldType::IntegerPositive), 42, 21 };
-		Writer.AddArray("ArrayViewCopy"_ASV, FCbArrayView(LocalArray));
-		Writer.AddArray("ArrayCopy"_ASV, FCbArray(FSharedBuffer::Clone(MakeMemoryView(LocalArray))));
+		Writer.AddArray(ANSITEXTVIEW("ArrayViewCopy"), FCbArrayView(LocalArray));
+		Writer.AddArray(ANSITEXTVIEW("ArrayCopy"), FCbArray(FSharedBuffer::Clone(MakeMemoryView(LocalArray))));
 
-		Writer.AddNull("Null"_ASV);
+		Writer.AddNull(ANSITEXTVIEW("Null"));
 
-		Writer.BeginObject("Binary"_ASV);
+		Writer.BeginObject(ANSITEXTVIEW("Binary"));
 		{
-			Writer.AddBinary("Empty"_ASV, FMemoryView());
-			Writer.AddBinary("Value"_ASV, MakeMemoryView("BinaryValue"));
-			Writer.AddBinary("LargeViewValue"_ASV, MakeMemoryView(FString::ChrN(256, TEXT('.'))));
-			Writer.AddBinary("LargeValue"_ASV, FSharedBuffer::Clone(MakeMemoryView(FString::ChrN(256, TEXT('!')))));
+			Writer.AddBinary(ANSITEXTVIEW("Empty"), FMemoryView());
+			Writer.AddBinary(ANSITEXTVIEW("Value"), MakeMemoryView("BinaryValue"));
+			Writer.AddBinary(ANSITEXTVIEW("LargeViewValue"), MakeMemoryView(FString::ChrN(256, TEXT('.'))));
+			Writer.AddBinary(ANSITEXTVIEW("LargeValue"), FSharedBuffer::Clone(MakeMemoryView(FString::ChrN(256, TEXT('!')))));
 		}
 		Writer.EndObject();
 
-		Writer.BeginObject("Strings"_ASV);
+		Writer.BeginObject(ANSITEXTVIEW("Strings"));
 		{
-			Writer.AddString("AnsiString"_ASV, "AnsiValue"_ASV);
-			Writer.AddString("WideString"_ASV, FString::ChrN(256, TEXT('.')));
-			Writer.AddString("EmptyAnsiString"_ASV, FAnsiStringView());
-			Writer.AddString("EmptyWideString"_ASV, FWideStringView());
-			Writer.AddString("EmptyUtf8String"_U8SV, FUtf8StringView());
+			Writer.AddString(ANSITEXTVIEW("AnsiString"), ANSITEXTVIEW("AnsiValue"));
+			Writer.AddString(ANSITEXTVIEW("WideString"), FString::ChrN(256, TEXT('.')));
+			Writer.AddString(ANSITEXTVIEW("EmptyAnsiString"), FAnsiStringView());
+			Writer.AddString(ANSITEXTVIEW("EmptyWideString"), FWideStringView());
+			Writer.AddString(UTF8TEXTVIEW("EmptyUtf8String"), FUtf8StringView());
 			Writer.AddString("AnsiStringLiteral", "AnsiValue");
 			Writer.AddString("WideStringLiteral", TEXT("AnsiValue"));
 		}
 		Writer.EndObject();
 
-		Writer.BeginArray("Integers"_ASV);
+		Writer.BeginArray(ANSITEXTVIEW("Integers"));
 		{
 			Writer.AddInteger(int32(-1));
 			Writer.AddInteger(int64(-1));
@@ -900,7 +900,7 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		}
 		Writer.EndArray();
 
-		Writer.BeginArray("UniformIntegers"_ASV);
+		Writer.BeginArray(ANSITEXTVIEW("UniformIntegers"));
 		{
 			Writer.AddInteger(0);
 			Writer.AddInteger(MAX_int32);
@@ -910,41 +910,41 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		}
 		Writer.EndArray();
 
-		Writer.AddFloat("Float32"_ASV, 1.0f);
-		Writer.AddFloat("Float64as32"_ASV, 2.0);
-		Writer.AddFloat("Float64"_ASV, 3.0e100);
+		Writer.AddFloat(ANSITEXTVIEW("Float32"), 1.0f);
+		Writer.AddFloat(ANSITEXTVIEW("Float64as32"), 2.0);
+		Writer.AddFloat(ANSITEXTVIEW("Float64"), 3.0e100);
 
-		Writer.AddBool("False"_ASV, false);
-		Writer.AddBool("True"_ASV, true);
+		Writer.AddBool(ANSITEXTVIEW("False"), false);
+		Writer.AddBool(ANSITEXTVIEW("True"), true);
 
-		Writer.AddObjectAttachment("ObjectAttachment"_ASV, FIoHash());
-		Writer.AddBinaryAttachment("BinaryAttachment"_ASV, FIoHash());
-		Writer.AddAttachment("Attachment"_ASV, FCbAttachment());
+		Writer.AddObjectAttachment(ANSITEXTVIEW("ObjectAttachment"), FIoHash());
+		Writer.AddBinaryAttachment(ANSITEXTVIEW("BinaryAttachment"), FIoHash());
+		Writer.AddAttachment(ANSITEXTVIEW("Attachment"), FCbAttachment());
 
-		Writer.AddHash("Hash"_ASV, FIoHash());
-		Writer.AddUuid("Uuid"_ASV, FGuid());
+		Writer.AddHash(ANSITEXTVIEW("Hash"), FIoHash());
+		Writer.AddUuid(ANSITEXTVIEW("Uuid"), FGuid());
 
-		Writer.AddDateTimeTicks("DateTimeZero"_ASV, 0);
-		Writer.AddDateTime("DateTime2020"_ASV, FDateTime(2020, 5, 13, 15, 10));
+		Writer.AddDateTimeTicks(ANSITEXTVIEW("DateTimeZero"), 0);
+		Writer.AddDateTime(ANSITEXTVIEW("DateTime2020"), FDateTime(2020, 5, 13, 15, 10));
 
-		Writer.AddTimeSpanTicks("TimeSpanZero"_ASV, 0);
-		Writer.AddTimeSpan("TimeSpan"_ASV, FTimespan(1, 2, 4, 8));
+		Writer.AddTimeSpanTicks(ANSITEXTVIEW("TimeSpanZero"), 0);
+		Writer.AddTimeSpan(ANSITEXTVIEW("TimeSpan"), FTimespan(1, 2, 4, 8));
 
-		Writer.AddObjectId("ObjectIdZero"_ASV, FCbObjectId());
-		Writer.AddObjectId("ObjectId"_ASV, FCbObjectId(MakeMemoryView<uint8>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})));
+		Writer.AddObjectId(ANSITEXTVIEW("ObjectIdZero"), FCbObjectId());
+		Writer.AddObjectId(ANSITEXTVIEW("ObjectId"), FCbObjectId(MakeMemoryView<uint8>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12})));
 
-		Writer.BeginObject("NestedObjects"_ASV);
+		Writer.BeginObject(ANSITEXTVIEW("NestedObjects"));
 		{
-			Writer.BeginObject("Empty"_ASV);
+			Writer.BeginObject(ANSITEXTVIEW("Empty"));
 			Writer.EndObject();
 
-			Writer.BeginObject("Null"_ASV);
-			Writer.AddNull("Null"_ASV);
+			Writer.BeginObject(ANSITEXTVIEW("Null"));
+			Writer.AddNull(ANSITEXTVIEW("Null"));
 			Writer.EndObject();
 		}
 		Writer.EndObject();
 
-		Writer.BeginArray("NestedArrays"_ASV);
+		Writer.BeginArray(ANSITEXTVIEW("NestedArrays"));
 		{
 			Writer.BeginArray();
 			Writer.EndArray();
@@ -969,32 +969,32 @@ bool FCbWriterComplexTest::RunTest(const FString& Parameters)
 		}
 		Writer.EndArray();
 
-		Writer.BeginArray("ArrayOfObjects"_ASV);
+		Writer.BeginArray(ANSITEXTVIEW("ArrayOfObjects"));
 		{
 			Writer.BeginObject();
 			Writer.EndObject();
 
 			Writer.BeginObject();
-			Writer.AddNull("Null"_ASV);
+			Writer.AddNull(ANSITEXTVIEW("Null"));
 			Writer.EndObject();
 		}
 		Writer.EndArray();
 
-		Writer.BeginArray("LargeArray"_ASV);
+		Writer.BeginArray(ANSITEXTVIEW("LargeArray"));
 		for (int Index = 0; Index < 256; ++Index)
 		{
 			Writer.AddInteger(Index - 128);
 		}
 		Writer.EndArray();
 
-		Writer.BeginArray("LargeUniformArray"_ASV);
+		Writer.BeginArray(ANSITEXTVIEW("LargeUniformArray"));
 		for (int Index = 0; Index < 256; ++Index)
 		{
 			Writer.AddInteger(Index);
 		}
 		Writer.EndArray();
 
-		Writer.BeginArray("NestedUniformArray"_ASV);
+		Writer.BeginArray(ANSITEXTVIEW("NestedUniformArray"));
 		for (int Index = 0; Index < 16; ++Index)
 		{
 			Writer.BeginArray();
@@ -1047,48 +1047,48 @@ bool FCbWriterStreamTest::RunTest(const FString& Parameters)
 		Writer.BeginObject();
 
 		const uint8 LocalField[] = { uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42 };
-		Writer << "FieldCopy"_ASV << FCbFieldView(LocalField);
+		Writer << ANSITEXTVIEW("FieldCopy") << FCbFieldView(LocalField);
 
 		const uint8 LocalObject[] = { uint8(ECbFieldType::Object | ECbFieldType::HasFieldName), 1, 'O', 7,
 			uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42,
 			uint8(ECbFieldType::Null | ECbFieldType::HasFieldName), 1, 'N' };
-		Writer << "ObjectCopy"_ASV << FCbObjectView(LocalObject);
+		Writer << ANSITEXTVIEW("ObjectCopy") << FCbObjectView(LocalObject);
 
 		const uint8 LocalArray[] = { uint8(ECbFieldType::UniformArray | ECbFieldType::HasFieldName), 1, 'A', 4, 2,
 			uint8(ECbFieldType::IntegerPositive), 42, 21 };
-		Writer << "ArrayCopy"_ASV << FCbArrayView(LocalArray);
+		Writer << ANSITEXTVIEW("ArrayCopy") << FCbArrayView(LocalArray);
 
-		Writer << "Null"_ASV << nullptr;
+		Writer << ANSITEXTVIEW("Null") << nullptr;
 
-		Writer << "Strings"_ASV;
+		Writer << ANSITEXTVIEW("Strings");
 		Writer.BeginObject();
 		Writer
-			<< "AnsiString"_ASV << "AnsiValue"_ASV
-			<< "AnsiStringLiteral"_ASV << "AnsiValue"
-			<< "WideString"_ASV << TEXTVIEW("WideValue")
-			<< "WideStringLiteral"_ASV << TEXT("WideValue");
+			<< ANSITEXTVIEW("AnsiString") << ANSITEXTVIEW("AnsiValue")
+			<< ANSITEXTVIEW("AnsiStringLiteral") << "AnsiValue"
+			<< ANSITEXTVIEW("WideString") << TEXTVIEW("WideValue")
+			<< ANSITEXTVIEW("WideStringLiteral") << TEXT("WideValue");
 		Writer.EndObject();
 
-		Writer << "Integers"_ASV;
+		Writer << ANSITEXTVIEW("Integers");
 		Writer.BeginArray();
 		Writer << int32(-1) << int64(-1) << uint32(1) << uint64(1);
 		Writer.EndArray();
 
-		Writer << "Float32"_ASV << 1.0f;
-		Writer << "Float64"_ASV << 2.0;
+		Writer << ANSITEXTVIEW("Float32") << 1.0f;
+		Writer << ANSITEXTVIEW("Float64") << 2.0;
 
-		Writer << "False"_ASV << false << "True"_ASV << true;
+		Writer << ANSITEXTVIEW("False") << false << ANSITEXTVIEW("True") << true;
 
-		Writer << "Attachment"_ASV << FCbAttachment();
+		Writer << ANSITEXTVIEW("Attachment") << FCbAttachment();
 
-		Writer << "Hash"_ASV << FIoHash();
-		Writer << "Uuid"_ASV << FGuid();
+		Writer << ANSITEXTVIEW("Hash") << FIoHash();
+		Writer << ANSITEXTVIEW("Uuid") << FGuid();
 
-		Writer << "DateTime"_ASV << FDateTime(2020, 5, 13, 15, 10);
-		Writer << "TimeSpan"_ASV << FTimespan(1, 2, 4, 8);
+		Writer << ANSITEXTVIEW("DateTime") << FDateTime(2020, 5, 13, 15, 10);
+		Writer << ANSITEXTVIEW("TimeSpan") << FTimespan(1, 2, 4, 8);
 
-		Writer << "ObjectIdZero"_ASV << FCbObjectId();
-		Writer << "ObjectId"_ASV << FCbObjectId(MakeMemoryView<uint8>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}));
+		Writer << ANSITEXTVIEW("ObjectIdZero") << FCbObjectId();
+		Writer << ANSITEXTVIEW("ObjectId") << FCbObjectId(MakeMemoryView<uint8>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}));
 
 		Writer << "LiteralName" << nullptr;
 
@@ -1126,10 +1126,10 @@ bool FCbWriterStateTest::RunTest(const FString& Parameters)
 	//Writer.Save(MakeMemoryView(ZeroFieldLarge));
 
 	// Assert on empty name.
-	//Writer.SetName(""_ASV);
+	//Writer.SetName(ANSITEXTVIEW(""));
 
 	// Assert on name after name.
-	//Writer.SetName("Field"_ASV).SetName("Field"_ASV);
+	//Writer.SetName(ANSITEXTVIEW("Field")).SetName(ANSITEXTVIEW("Field"));
 
 	// Assert on missing name.
 	//Writer.BeginObject();
@@ -1138,7 +1138,7 @@ bool FCbWriterStateTest::RunTest(const FString& Parameters)
 
 	// Assert on name in array.
 	//Writer.BeginArray();
-	//Writer.SetName("Field"_ASV);
+	//Writer.SetName(ANSITEXTVIEW("Field"));
 	//Writer.EndArray();
 
 	// Assert on save in object.
@@ -1163,7 +1163,7 @@ bool FCbWriterStateTest::RunTest(const FString& Parameters)
 
 	// Assert on object end after name with no value.
 	//Writer.BeginObject();
-	//Writer.SetName("Field"_ASV);
+	//Writer.SetName(ANSITEXTVIEW("Field"));
 	//Writer.EndObject();
 
 	// Assert on writing a field with no value.

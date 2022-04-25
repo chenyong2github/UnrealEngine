@@ -44,7 +44,7 @@ int32        GetNum(const FString& String);
  *
  * - Do not use the u8"..." prefix (gives the wrong array type until C++20).
  * - Use UTF8TEXT("...") for array literals (type is const UTF8CHAR[n]).
- * - Use "..."_U8SV for string view literals (type is FUtf8StringView).
+ * - Use UTF8TEXTVIEW("...") for string view literals (type is FUtf8StringView).
  * - Use \uxxxx or \Uxxxxxxxx escape sequences rather than \x to specify Unicode code points.
  */
 class CORE_API FString

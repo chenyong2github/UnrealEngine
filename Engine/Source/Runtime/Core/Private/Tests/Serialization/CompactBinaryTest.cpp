@@ -208,7 +208,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		constexpr const ANSICHAR NoneBytes[] = { ANSICHAR(FieldType), 4, 'N', 'a', 'm', 'e' };
 		FCbFieldView NoneField(NoneBytes);
 		TestEqual(TEXT("FCbFieldView(None|Type|Name)::GetSize()"), NoneField.GetSize(), uint64(sizeof(NoneBytes)));
-		TestEqual(TEXT("FCbFieldView(None|Type|Name)::GetName()"), NoneField.GetName(), "Name"_U8SV);
+		TestEqual(TEXT("FCbFieldView(None|Type|Name)::GetName()"), NoneField.GetName(), UTF8TEXTVIEW("Name"));
 		TestTrue(TEXT("FCbFieldView(None|Type|Name)::HasName()"), NoneField.HasName());
 		TestFalse(TEXT("!FCbFieldView(None|Type|Name)::HasValue()"), NoneField.HasValue());
 		TestEqual(TEXT("FCbFieldView(None|Type|Name)::GetHash()"), NoneField.GetHash(), FIoHash::HashBuffer(MakeMemoryView(NoneBytes)));
@@ -240,7 +240,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		constexpr const ANSICHAR NoneBytes[] = { ANSICHAR(FieldType), 4, 'N', 'a', 'm', 'e' };
 		FCbFieldView NoneField(NoneBytes + 1, FieldType);
 		TestEqual(TEXT("FCbFieldView(None|Name)::GetSize()"), NoneField.GetSize(), uint64(sizeof(NoneBytes)));
-		TestEqual(TEXT("FCbFieldView(None|Name)::GetName()"), NoneField.GetName(), "Name"_U8SV);
+		TestEqual(TEXT("FCbFieldView(None|Name)::GetName()"), NoneField.GetName(), UTF8TEXTVIEW("Name"));
 		TestTrue(TEXT("FCbFieldView(None|Name)::HasName()"), NoneField.HasName());
 		TestFalse(TEXT("!FCbFieldView(None|Name)::HasValue()"), NoneField.HasValue());
 		TestEqual(TEXT("FCbFieldView(None|Name)::GetHash()"), NoneField.GetHash(), FIoHash::HashBuffer(MakeMemoryView(NoneBytes)));
@@ -258,7 +258,7 @@ bool FCbFieldNoneTest::RunTest(const FString& Parameters)
 		constexpr const uint8 NoneBytes[] = { uint8(FieldType), 0 };
 		FCbFieldView NoneField(NoneBytes + 1, FieldType);
 		TestEqual(TEXT("FCbFieldView(None|EmptyName)::GetSize()"), NoneField.GetSize(), uint64(sizeof(NoneBytes)));
-		TestEqual(TEXT("FCbFieldView(None|EmptyName)::GetName()"), NoneField.GetName(), ""_U8SV);
+		TestEqual(TEXT("FCbFieldView(None|EmptyName)::GetName()"), NoneField.GetName(), UTF8TEXTVIEW(""));
 		TestTrue(TEXT("FCbFieldView(None|EmptyName)::HasName()"), NoneField.HasName());
 		TestFalse(TEXT("!FCbFieldView(None|EmptyName)::HasValue()"), NoneField.HasValue());
 		TestEqual(TEXT("FCbFieldView(None|EmptyName)::GetHash()"), NoneField.GetHash(), FIoHash::HashBuffer(MakeMemoryView(NoneBytes)));
@@ -341,9 +341,9 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		TestIntObject(Object, 0, 1);
 
 		// Find fields that do not exist.
-		TestFalse(TEXT("FCbObjectView()::Find(Missing)"), Object.FindView("Field"_U8SV).HasValue());
-		TestFalse(TEXT("FCbObjectView()::FindViewIgnoreCase(Missing)"), Object.FindViewIgnoreCase("Field"_U8SV).HasValue());
-		TestFalse(TEXT("FCbObjectView()::operator[](Missing)"), Object["Field"_U8SV].HasValue());
+		TestFalse(TEXT("FCbObjectView()::Find(Missing)"), Object.FindView(UTF8TEXTVIEW("Field")).HasValue());
+		TestFalse(TEXT("FCbObjectView()::FindViewIgnoreCase(Missing)"), Object.FindViewIgnoreCase(UTF8TEXTVIEW("Field")).HasValue());
+		TestFalse(TEXT("FCbObjectView()::operator[](Missing)"), Object[UTF8TEXTVIEW("Field")].HasValue());
 
 		// Advance an iterator past the last field.
 		FCbFieldViewIterator It = Object.CreateViewIterator();
@@ -368,12 +368,12 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		TestIntObject(Object, 3, sizeof(Value));
 		TestIntObject(Field.AsObjectView(), 3, sizeof(Value));
 		TestTrue(TEXT("FCbObjectView::Equals()"), Object.Equals(Field.AsObjectView()));
-		TestEqual(TEXT("FCbObjectView::Find()"), Object.FindView("B"_ASV).AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView::Find()"), Object.FindView("b"_ASV).AsInt32(4), 4);
-		TestEqual(TEXT("FCbObjectView::FindViewIgnoreCase()"), Object.FindViewIgnoreCase("B"_ASV).AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView::FindViewIgnoreCase()"), Object.FindViewIgnoreCase("b"_ASV).AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView::operator[]"), Object["B"_ASV].AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView::operator[]"), Object["b"_ASV].AsInt32(4), 4);
+		TestEqual(TEXT("FCbObjectView::Find()"), Object.FindView(ANSITEXTVIEW("B")).AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView::Find()"), Object.FindView(ANSITEXTVIEW("b")).AsInt32(4), 4);
+		TestEqual(TEXT("FCbObjectView::FindViewIgnoreCase()"), Object.FindViewIgnoreCase(ANSITEXTVIEW("B")).AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView::FindViewIgnoreCase()"), Object.FindViewIgnoreCase(ANSITEXTVIEW("b")).AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView::operator[]"), Object[ANSITEXTVIEW("B")].AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView::operator[]"), Object[ANSITEXTVIEW("b")].AsInt32(4), 4);
 	}
 
 	// Test FCbFieldView(UniformObject, NotEmpty)
@@ -386,16 +386,16 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		TestIntObject(Object, 3, sizeof(Value));
 		TestIntObject(Field.AsObjectView(), 3, sizeof(Value));
 		TestTrue(TEXT("FCbObjectView(Uniform)::Equals()"), Object.Equals(Field.AsObjectView()));
-		TestEqual(TEXT("FCbObjectView(Uniform)::Find()"), Object.FindView("B"_ASV).AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView(Uniform)::Find()"), Object.Find("B"_ASV).AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView(Uniform)::Find()"), Object.FindView("b"_ASV).AsInt32(4), 4);
-		TestEqual(TEXT("FCbObjectView(Uniform)::Find()"), Object.Find("b"_ASV).AsInt32(4), 4);
-		TestEqual(TEXT("FCbObjectView(Uniform)::FindViewIgnoreCase()"), Object.FindViewIgnoreCase("B"_ASV).AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView(Uniform)::FindViewIgnoreCase()"), Object.FindIgnoreCase("B"_ASV).AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView(Uniform)::FindViewIgnoreCase()"), Object.FindViewIgnoreCase("b"_ASV).AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView(Uniform)::FindViewIgnoreCase()"), Object.FindIgnoreCase("b"_ASV).AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView(Uniform)::operator[]"), Object["B"_ASV].AsInt32(), 2);
-		TestEqual(TEXT("FCbObjectView(Uniform)::operator[]"), Object["b"_ASV].AsInt32(4), 4);
+		TestEqual(TEXT("FCbObjectView(Uniform)::Find()"), Object.FindView(ANSITEXTVIEW("B")).AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView(Uniform)::Find()"), Object.Find(ANSITEXTVIEW("B")).AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView(Uniform)::Find()"), Object.FindView(ANSITEXTVIEW("b")).AsInt32(4), 4);
+		TestEqual(TEXT("FCbObjectView(Uniform)::Find()"), Object.Find(ANSITEXTVIEW("b")).AsInt32(4), 4);
+		TestEqual(TEXT("FCbObjectView(Uniform)::FindViewIgnoreCase()"), Object.FindViewIgnoreCase(ANSITEXTVIEW("B")).AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView(Uniform)::FindViewIgnoreCase()"), Object.FindIgnoreCase(ANSITEXTVIEW("B")).AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView(Uniform)::FindViewIgnoreCase()"), Object.FindViewIgnoreCase(ANSITEXTVIEW("b")).AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView(Uniform)::FindViewIgnoreCase()"), Object.FindIgnoreCase(ANSITEXTVIEW("b")).AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView(Uniform)::operator[]"), Object[ANSITEXTVIEW("B")].AsInt32(), 2);
+		TestEqual(TEXT("FCbObjectView(Uniform)::operator[]"), Object[ANSITEXTVIEW("b")].AsInt32(4), 4);
 
 		TestTrue(TEXT("FCbObject::AsField()"), Object.GetOuterBuffer() == Object.AsField().AsObject().GetOuterBuffer());
 
@@ -445,7 +445,7 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		for (FCbFieldIterator It = ObjectClone.CreateIterator(); It; ++It)
 		{
 			FCbField Field = *It;
-			TestEqual(TEXT("FCbObject::CreateIterator().GetName()"), Field.GetName(), "F"_U8SV);
+			TestEqual(TEXT("FCbObject::CreateIterator().GetName()"), Field.GetName(), UTF8TEXTVIEW("F"));
 			TestEqual(TEXT("FCbObject::CreateIterator().AsInt32()"), Field.AsInt32(), 8);
 			TestTrue(TEXT("FCbObject::CreateIterator().IsOwned()"), Field.IsOwned());
 		}
@@ -469,8 +469,8 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 			FCbField(FCbFieldView(Buffer + 1, ECbFieldType(ObjectType)), FSharedBuffer::MakeView(MakeMemoryView(Buffer))).GetBuffer().ToShared().GetView().EqualBytes(MakeMemoryView(Buffer)));
 
 		// Access Missing Field
-		TestFalse(TEXT("FCbObject()[Missing]"), ObjectClone["M"_ASV].HasValue());
-		TestFalse(TEXT("FCbField(Object)[Missing]"), ObjectClone.AsField()["M"_ASV].HasValue());
+		TestFalse(TEXT("FCbObject()[Missing]"), ObjectClone[ANSITEXTVIEW("M")].HasValue());
+		TestFalse(TEXT("FCbField(Object)[Missing]"), ObjectClone.AsField()[ANSITEXTVIEW("M")].HasValue());
 	}
 
 	// Test FCbObjectView as FCbFieldViewIterator
@@ -755,13 +755,13 @@ bool FCbFieldStringTest::RunTest(const FString& Parameters)
 	{
 		uint8 Value[9];
 		WriteVarUInt(uint64(1) << 31, Value);
-		TestFieldError<ECbFieldType::String>(TEXT("String, OutOfRangeSize"), Value, ECbFieldError::RangeError, "ABC"_U8SV);
+		TestFieldError<ECbFieldType::String>(TEXT("String, OutOfRangeSize"), Value, ECbFieldError::RangeError, UTF8TEXTVIEW("ABC"));
 	}
 
 	// Test FCbFieldView(None) as String
 	{
 		FCbFieldView Field;
-		TestFieldError<ECbFieldType::String>(TEXT("String, None"), Field, ECbFieldError::TypeError, "ABC"_U8SV);
+		TestFieldError<ECbFieldType::String>(TEXT("String, None"), Field, ECbFieldError::TypeError, UTF8TEXTVIEW("ABC"));
 	}
 
 	return true;
@@ -1273,26 +1273,26 @@ bool FCbFieldCustomByNameTest::RunTest(const FString& Parameters)
 	// Test FCbFieldView(CustomByName, ABC, Empty)
 	{
 		const uint8 Value[] = {4, 3, 'A', 'B', 'C'};
-		TestField<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty"), Value, FCbCustomByName{"ABC"_U8SV});
-		TestField<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty, View"), Value, FMemoryView(), MakeMemoryView<uint8>({1, 2, 3}), ECbFieldError::None, FCustomByNameAccessor("ABC"_U8SV));
-		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty, InvalidCase"), Value, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByNameAccessor("abc"_U8SV));
+		TestField<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty"), Value, FCbCustomByName{UTF8TEXTVIEW("ABC")});
+		TestField<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty, View"), Value, FMemoryView(), MakeMemoryView<uint8>({1, 2, 3}), ECbFieldError::None, FCustomByNameAccessor(UTF8TEXTVIEW("ABC")));
+		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty, InvalidCase"), Value, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByNameAccessor(UTF8TEXTVIEW("abc")));
 	}
 
 	// Test FCbFieldView(CustomByName, ABC, Value)
 	{
 		const uint8 Value[] = {8, 3, 'A', 'B', 'C', 1, 2, 3, 4};
-		TestFieldNoClone<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value"), Value, FCbCustomByName{"ABC"_U8SV, MakeMemoryView(Value).Right(4)});
-		TestFieldNoClone<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value, View"), Value, MakeMemoryView(Value).Right(4), FMemoryView(), ECbFieldError::None, FCustomByNameAccessor("ABC"_U8SV));
-		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value, InvalidCase"), Value, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByNameAccessor("abc"_U8SV));
+		TestFieldNoClone<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value"), Value, FCbCustomByName{UTF8TEXTVIEW("ABC"), MakeMemoryView(Value).Right(4)});
+		TestFieldNoClone<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value, View"), Value, MakeMemoryView(Value).Right(4), FMemoryView(), ECbFieldError::None, FCustomByNameAccessor(UTF8TEXTVIEW("ABC")));
+		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value, InvalidCase"), Value, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByNameAccessor(UTF8TEXTVIEW("abc")));
 	}
 
 	// Test FCbFieldView(None) as CustomByName
 	{
 		FCbFieldView DefaultField;
-		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, None"), DefaultField, ECbFieldError::TypeError, FCbCustomByName{"ABC"_U8SV, MakeMemoryView<uint8>({1, 2, 3})});
-		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, None, View"), DefaultField, ECbFieldError::TypeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByNameAccessor("ABC"_U8SV));
+		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, None"), DefaultField, ECbFieldError::TypeError, FCbCustomByName{UTF8TEXTVIEW("ABC"), MakeMemoryView<uint8>({1, 2, 3})});
+		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, None, View"), DefaultField, ECbFieldError::TypeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByNameAccessor(UTF8TEXTVIEW("ABC")));
 		const uint8 DefaultValue[] = {1, 2, 3};
-		TestEqual(TEXT("FCbFieldView()::AsCustom(Name)"), DefaultField.AsCustom("ABC"_U8SV, MakeMemoryView(DefaultValue)), MakeMemoryView(DefaultValue));
+		TestEqual(TEXT("FCbFieldView()::AsCustom(Name)"), DefaultField.AsCustom(UTF8TEXTVIEW("ABC"), MakeMemoryView(DefaultValue)), MakeMemoryView(DefaultValue));
 	}
 
 	return true;
@@ -1826,22 +1826,22 @@ bool FCbFieldParseTest::RunTest(const FString& Parameters)
 		for (FCbFieldViewIterator It = Object.CreateViewIterator(); It;)
 		{
 			const FCbFieldViewIterator Last = It;
-			if (It.GetName().Equals("A"_U8SV))
+			if (It.GetName().Equals(UTF8TEXTVIEW("A")))
 			{
 				A = It.AsUInt32();
 				++It;
 			}
-			if (It.GetName().Equals("B"_U8SV))
+			if (It.GetName().Equals(UTF8TEXTVIEW("B")))
 			{
 				B = It.AsUInt32();
 				++It;
 			}
-			if (It.GetName().Equals("C"_U8SV))
+			if (It.GetName().Equals(UTF8TEXTVIEW("C")))
 			{
 				C = It.AsUInt32();
 				++It;
 			}
-			if (It.GetName().Equals("D"_U8SV))
+			if (It.GetName().Equals(UTF8TEXTVIEW("D")))
 			{
 				D = It.AsUInt32();
 				++It;
