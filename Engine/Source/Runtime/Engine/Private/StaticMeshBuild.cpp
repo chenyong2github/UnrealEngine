@@ -113,24 +113,24 @@ static TAutoConsoleVariable<int32> CVarStaticMeshDisableThreadedBuild(
 
 #endif // #if WITH_EDITOR
 
-void UStaticMesh::Build(bool bInSilent, TArray<FText>* OutErrors)
+void UStaticMesh::Build(const FBuildParameters& BuildParameters)
 {
 #if WITH_EDITOR
 	FFormatNamedArguments Args;
-	Args.Add( TEXT("Path"), FText::FromString( GetPathName() ) );
-	const FText StatusUpdate = FText::Format( LOCTEXT("BeginStaticMeshBuildingTask", "({Path}) Building"), Args );
+	Args.Add(TEXT("Path"), FText::FromString(GetPathName()));
+	const FText StatusUpdate = FText::Format(LOCTEXT("BeginStaticMeshBuildingTask", "({Path}) Building"), Args);
 	FScopedSlowTask StaticMeshBuildingSlowTask(1, StatusUpdate);
-	if (!bInSilent)
+	if (!BuildParameters.bInSilent)
 	{
 		StaticMeshBuildingSlowTask.MakeDialogDelayed(1.0f);
 	}
 	StaticMeshBuildingSlowTask.EnterProgressFrame(1);
 #endif // #if WITH_EDITOR
 
-	BatchBuild({ this }, bInSilent, nullptr, OutErrors);
+	BatchBuild({ this }, BuildParameters, nullptr);
 }
 
-void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bInSilent, TFunction<bool(UStaticMesh*)> InProgressCallback, TArray<FText>* OutErrors)
+void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, const FBuildParameters& BuildParameters, TFunction<bool(UStaticMesh*)> InProgressCallback)
 {
 #if WITH_EDITOR
 	check(IsInGameThread());
@@ -181,7 +181,7 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 		{
 			GCardRepresentationAsyncQueue->CancelBuilds(StaticMeshesToProcess);
 		}
-		
+
 		TMap<UStaticMesh*, TArray<UStaticMeshComponent*>> StaticMeshComponents;
 		StaticMeshComponents.Reserve(InStaticMeshes.Num());
 
@@ -233,12 +233,12 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 			};
 
 		auto LaunchAsyncBuild =
-			[OutErrors](UStaticMesh* StaticMesh)
+			[BuildParameters](UStaticMesh* StaticMesh)
 			{
 				// Only launch async compile if errors are not required
-				if (OutErrors == nullptr && FStaticMeshCompilingManager::Get().IsAsyncCompilationAllowed(StaticMesh))
+				if (BuildParameters.OutErrors == nullptr && FStaticMeshCompilingManager::Get().IsAsyncCompilationAllowed(StaticMesh))
 				{
-					TUniquePtr<FStaticMeshBuildContext> Context = MakeUnique<FStaticMeshBuildContext>();
+					TUniquePtr<FStaticMeshBuildContext> Context = MakeUnique<FStaticMeshBuildContext>(BuildParameters);
 					StaticMesh->BeginBuildInternal(Context.Get());
 
 					FQueuedThreadPool* StaticMeshThreadPool = FStaticMeshCompilingManager::Get().GetThreadPool();
@@ -286,7 +286,7 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 						StaticMesh,
 						Async(
 							EAsyncExecution::LargeThreadPool,
-							[StaticMesh, bInSilent, OutErrors, &OutErrorsLock, &bCancelled]()
+							[StaticMesh, BuildParameters, &OutErrorsLock, &bCancelled]()
 							{
 								if (bCancelled.load(std::memory_order_relaxed))
 								{
@@ -294,11 +294,11 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 								}
 
 								TArray<FText> Errors;
-								const bool bHasRenderDataChanged = StaticMesh->ExecuteBuildInternal(bInSilent, &Errors);
-								if (OutErrors)
+								const bool bHasRenderDataChanged = StaticMesh->ExecuteBuildInternal(BuildParameters);
+								if (BuildParameters.OutErrors)
 								{
 									FScopeLock ScopeLock(&OutErrorsLock);
-									OutErrors->Append(Errors);
+									BuildParameters.OutErrors->Append(Errors);
 								}
 
 								return bHasRenderDataChanged;
@@ -334,10 +334,10 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 					{
 						break;
 					}
-				
+
 					StaticMesh->BeginBuildInternal();
 
-					const bool bHasRenderDataChanged = StaticMesh->ExecuteBuildInternal(bInSilent, OutErrors);
+					const bool bHasRenderDataChanged = StaticMesh->ExecuteBuildInternal(BuildParameters);
 
 					StaticMesh->FinishBuildInternal(StaticMeshComponents.FindChecked(StaticMesh), bHasRenderDataChanged);
 					FinalizeStaticMesh(StaticMesh);
@@ -353,6 +353,22 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 #else
 	UE_LOG(LogStaticMesh, Fatal, TEXT("UStaticMesh::Build should not be called on non-editor builds."));
 #endif
+}
+
+void UStaticMesh::Build(bool bInSilent, TArray<FText>* OutErrors)
+{
+	FBuildParameters BuildParameters;
+	BuildParameters.bInSilent = bInSilent;
+	BuildParameters.OutErrors = OutErrors;
+	Build(BuildParameters);
+}
+
+void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bInSilent, TFunction<bool(UStaticMesh*)> InProgressCallback, TArray<FText>* OutErrors)
+{
+	FBuildParameters BuildParameters;
+	BuildParameters.bInSilent = bInSilent;
+	BuildParameters.OutErrors = OutErrors;
+	BatchBuild(InStaticMeshes, BuildParameters, InProgressCallback);
 }
 
 #if WITH_EDITOR
@@ -414,7 +430,7 @@ void UStaticMesh::BeginBuildInternal(FStaticMeshBuildContext* Context)
 	}
 }
 
-bool UStaticMesh::ExecuteBuildInternal(bool bInSilent, TArray<FText>* OutErrors)
+bool UStaticMesh::ExecuteBuildInternal(const FBuildParameters& BuildParameters)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::ExecuteBuildInternal);
 
@@ -437,6 +453,16 @@ bool UStaticMesh::ExecuteBuildInternal(bool bInSilent, TArray<FText>* OutErrors)
 	// Free existing render data and recache.
 	CacheDerivedData();
 	PrepareDerivedDataForActiveTargetPlatforms();
+
+	if (BuildParameters.bInEnforceLightmapRestrictions)
+	{
+		EnforceLightmapRestrictions();
+	}
+
+	if (BuildParameters.bInRebuildUVChannelData)
+	{
+		UpdateUVChannelData(true);
+	}
 
 	// InitResources will send commands to other threads that will
 	// use our RenderData, we must mark it as ready to be used since
@@ -485,9 +511,9 @@ bool UStaticMesh::ExecuteBuildInternal(bool bInSilent, TArray<FText>* OutErrors)
 					UE_LOG(LogStaticMesh, Warning, TEXT("%s"), *WarningMsg.ToString());
 				}
 
-				if (!bInSilent && OutErrors)
+				if (!BuildParameters.bInSilent && BuildParameters.OutErrors)
 				{
-					OutErrors->Add(WarningMsg);
+					BuildParameters.OutErrors->Add(WarningMsg);
 				}
 			}
 		}
@@ -508,9 +534,9 @@ bool UStaticMesh::ExecuteBuildInternal(bool bInSilent, TArray<FText>* OutErrors)
 			{
 				UE_LOG(LogStaticMesh, Warning, TEXT("%s"), *WarningMsg.ToString());
 			}
-			if (!bInSilent && OutErrors)
+			if (!BuildParameters.bInSilent && BuildParameters.OutErrors)
 			{
-				OutErrors->Add(WarningMsg);
+				BuildParameters.OutErrors->Add(WarningMsg);
 			}
 		}
 
@@ -530,9 +556,9 @@ bool UStaticMesh::ExecuteBuildInternal(bool bInSilent, TArray<FText>* OutErrors)
 				UE_LOG(LogStaticMesh, Warning, TEXT("%s"), *WarningMsg.ToString());
 			}
 
-			if (!bInSilent && OutErrors)
+			if (!BuildParameters.bInSilent && BuildParameters.OutErrors)
 			{
-				OutErrors->Add(WarningMsg);
+				BuildParameters.OutErrors->Add(WarningMsg);
 			}
 		}
 
@@ -552,9 +578,9 @@ bool UStaticMesh::ExecuteBuildInternal(bool bInSilent, TArray<FText>* OutErrors)
 				UE_LOG(LogStaticMesh, Warning, TEXT("%s"), *WarningMsg.ToString());
 			}
 
-			if (!bInSilent && OutErrors)
+			if (!BuildParameters.bInSilent && BuildParameters.OutErrors)
 			{
-				OutErrors->Add(WarningMsg);
+				BuildParameters.OutErrors->Add(WarningMsg);
 			}
 		}
 
@@ -565,7 +591,7 @@ bool UStaticMesh::ExecuteBuildInternal(bool bInSilent, TArray<FText>* OutErrors)
 	return bHasRenderDataChanged;
 }
 
-void UStaticMesh::FinishBuildInternal(const TArray<UStaticMeshComponent*> & InAffectedComponents, bool bHasRenderDataChanged, bool bShouldComputeExtendedBounds)
+void UStaticMesh::FinishBuildInternal(const TArray<UStaticMeshComponent*>& InAffectedComponents, bool bHasRenderDataChanged, bool bShouldComputeExtendedBounds)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UStaticMesh::PostBuildInternal);
 

@@ -207,7 +207,7 @@ void FStaticMeshAsyncBuildWorker::DoWork()
 
 	if (BuildContext.IsValid())
 	{
-		BuildContext->bHasRenderDataChanged = StaticMesh->ExecuteBuildInternal(true, nullptr);
+		BuildContext->bHasRenderDataChanged = StaticMesh->ExecuteBuildInternal(BuildContext->BuildParameters);
 	}
 }
 
@@ -3700,8 +3700,8 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	{
 		// Force an update of LOD group settings
 
-		// Dont rebuild inside here.  We're doing that below.
-		bool bRebuild = false;
+		// Don't rebuild inside here.  We're doing that below.
+		constexpr bool bRebuild = false;
 		SetLODGroup(LODGroup, bRebuild);
 	}
 #if WITH_EDITORONLY_DATA
@@ -3745,10 +3745,21 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		}
 	}
 
-	//Don't use the render data here because the property that just changed might be invalidating the current RenderData.
-	EnforceLightmapRestrictions(/*bUseRenderData=*/false);
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		// Only unbuild lighting for properties which affect static lighting
+		if (PropertyName == UStaticMesh::GetLightMapResolutionName()
+			|| PropertyName == UStaticMesh::GetLightMapCoordinateIndexName())
+		{
+			SetLightingGuid();
+		}
+	}
 
-	Build(/*bSilent=*/ true);
+	UStaticMesh::FBuildParameters BuildParameters;
+	BuildParameters.bInSilent = true;
+	BuildParameters.bInRebuildUVChannelData = true;
+	BuildParameters.bInEnforceLightmapRestrictions = true;
+	Build(BuildParameters);
 
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UStaticMesh, bHasNavigationData)
 		|| PropertyName == UStaticMesh::GetBodySetupName())
@@ -3757,20 +3768,7 @@ void UStaticMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		// of NavCollision. We need to let related StaticMeshComponents know
 		BroadcastNavCollisionChange();
 	}
-
-	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
-	{
-		// Only unbuild lighting for properties which affect static lighting
-		if (PropertyName == UStaticMesh::GetLightMapResolutionName()
-			|| PropertyName == UStaticMesh::GetLightMapCoordinateIndexName())
-		{
-			FStaticMeshComponentRecreateRenderStateContext Context(this, true);
-			SetLightingGuid();
-		}
-	}
 	
-	UpdateUVChannelData(true);
-
 	for (UAssetUserData* Datum : AssetUserData)
 	{
 		if (Datum != nullptr)

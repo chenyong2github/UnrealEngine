@@ -1595,11 +1595,40 @@ public:
 	ENGINE_API static void CancelAllPendingStreamingActions();
 
 	/**
+	 * Contains all the parameters required to build the mesh.
+	 */
+	struct FBuildParameters
+	{
+		// Required to work around a Clang bug
+#if PLATFORM_COMPILER_CLANG
+		FBuildParameters()
+			: bInSilent(false)
+			, OutErrors(nullptr)
+			, bInRebuildUVChannelData(false)
+			, bInEnforceLightmapRestrictions(false)
+		{
+		}
+#endif
+
+		// If true will not popup a progress dialog.
+		bool bInSilent = false;
+
+		// If provided, will contain the errors that occurred during this process.This will prevent async static mesh compilation because OutErrors could get out of scope.
+		TArray<FText>* OutErrors = nullptr;
+
+		// Whether to completely rebuild the UV Channel data after the render data has been computed.
+		bool bInRebuildUVChannelData = false;
+
+		// Whether to call EnforceLightmapRestrictions as part of the build process.
+		bool bInEnforceLightmapRestrictions = false;
+	};
+
+	/**
 	 * Rebuilds renderable data for this static mesh, automatically made async if enabled.
 	 * @param		bInSilent	If true will not popup a progress dialog.
 	 * @param [out]	OutErrors	If provided, will contain the errors that occurred during this process. This will prevent async static mesh compilation because OutErrors could get out of scope.
 	 */
-	ENGINE_API void Build(bool bInSilent = false, TArray<FText>* OutErrors = nullptr);
+	ENGINE_API void Build(bool bInSilent, TArray<FText>* OutErrors = nullptr);
 
 	/**
 	 * Rebuilds renderable data for a batch of static meshes.
@@ -1608,7 +1637,21 @@ public:
 	 * @param		InProgressCallback	If provided, will be used to abort task and report progress to higher level functions (should return true to continue, false to abort).
 	 * @param [out]	OutErrors			If provided, will contain the errors that occurred during this process. This will prevent async static mesh compilation because OutErrors could get out of scope.
 	 */
-	ENGINE_API static void BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bInSilent = false, TFunction<bool(UStaticMesh*)> InProgressCallback = nullptr, TArray<FText>* OutErrors = nullptr);
+	ENGINE_API static void BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bInSilent, TFunction<bool(UStaticMesh*)> InProgressCallback = nullptr, TArray<FText>* OutErrors = nullptr);
+
+	/**
+	 * Rebuilds renderable data for this static mesh, automatically made async if enabled.
+	 * @param		BuildParameters	  Contains all the information required to build the mesh.
+	 */
+	ENGINE_API void Build(const FBuildParameters& BuildParameters = FBuildParameters());
+
+	/**
+	 * Rebuilds renderable data for a batch of static meshes.
+	 * @param		InStaticMeshes		The list of all static meshes to build.
+	 * @param		BuildParameters	    Contains all the parameters required to build the mesh.
+	 * @param		InProgressCallback	If provided, will be used to abort task and report progress to higher level functions (should return true to continue, false to abort).
+	 */
+	ENGINE_API static void BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, const FBuildParameters& BuildParameters = FBuildParameters(), TFunction<bool(UStaticMesh*)> InProgressCallback = nullptr);
 
 	/**
 	 * Initialize the static mesh's render resources.
@@ -1914,7 +1957,7 @@ private:
 	/**
 	 * Build the static mesh
 	 */
-	bool ExecuteBuildInternal(bool bSilent, TArray<FText>* OutErrors);
+	bool ExecuteBuildInternal(const FBuildParameters& BuildParameters);
 
 	/**
 	 * Complete the static mesh building process - Can't be done in parallel.
@@ -2003,5 +2046,11 @@ public:
 class FStaticMeshBuildContext : public FStaticMeshCompilationContext
 {
 public:
+	FStaticMeshBuildContext(const UStaticMesh::FBuildParameters& InBuildParameters)
+		: BuildParameters(InBuildParameters)
+	{
+	}
+
+	UStaticMesh::FBuildParameters BuildParameters;
 	bool bHasRenderDataChanged = false;
 };
