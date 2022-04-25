@@ -9,7 +9,7 @@
 
 #include "Virtualization/VirtualizationSystem.h"
 
-struct IConsoleCommand;
+class IConsoleObject;
 class FOutputDevice;
 
 /**
@@ -211,9 +211,6 @@ private:
 	
 	/** Should payloads in engine plugin content packages before filtered out and never virtualized */
 	bool bFilterEnginePluginContent;
-
-	/** Debugging option: When enabled all public operations will be performed as single threaded. This is intended to aid debugging and not for production use.*/
-	bool bForceSingleThreaded;
 	
 	/**
 	 * Debugging option: When enabled we will immediately 'pull' each payload after it has been 'pushed' and compare it to the original payload source to make 
@@ -250,8 +247,11 @@ private:
 
 	struct FDebugValues
 	{
-		/** Console commands that the manager has registered */
-		TArray<IConsoleCommand*> ConsoleCommands;
+		/** All of the console commands/variables that we register, so they can be unregistered when the manager is destroyed */
+		TArray<IConsoleObject*> ConsoleObjects;
+
+		/** When enabled all public operations will be performed as single threaded */
+		bool bSingleThreaded = false;
 
 		/** Array of backend names that should have their pull operation disabled */
 		TArray<FString> MissBackends;
