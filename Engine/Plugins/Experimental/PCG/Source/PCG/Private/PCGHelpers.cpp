@@ -109,7 +109,7 @@ namespace PCGHelpers
 #if WITH_EDITOR
 	APCGWorldActor* GetPCGWorldActor(UWorld* InWorld)
 	{
-		return InWorld && InWorld->GetSubsystem<UPCGSubsystem>() ? InWorld->GetSubsystem<UPCGSubsystem>()->GetPCGWorldActor() : nullptr;
+		return (InWorld && InWorld->GetSubsystem<UPCGSubsystem>()) ? InWorld->GetSubsystem<UPCGSubsystem>()->GetPCGWorldActor() : nullptr;
 	}
 
 	void GatherDependencies(UObject* Object, TSet<TObjectPtr<UObject>>& OutDependencies)

@@ -32,7 +32,7 @@ void UPCGMetadata::Initialize(const UPCGMetadata* InParent)
 		return;
 	}
 
-	Parent = (InParent != this ? InParent : nullptr);
+	Parent = ((InParent != this) ? InParent : nullptr);
 	ItemKeyOffset = Parent ? Parent->GetItemCountForChild() : 0;
 	AddAttributes(InParent);
 }

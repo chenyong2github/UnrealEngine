@@ -86,7 +86,7 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 	const int32 NumMaterials = ISMC->GetNumMaterials();
 	for (int32 MaterialIndex = 0; MaterialIndex < NumMaterials; ++MaterialIndex)
 	{
-		ISMC->SetMaterial(MaterialIndex, MaterialIndex < InMaterials.Num() ? InMaterials[MaterialIndex] : nullptr);
+		ISMC->SetMaterial(MaterialIndex, (MaterialIndex < InMaterials.Num()) ? InMaterials[MaterialIndex] : nullptr);
 	}
 
 	ISMC->RegisterComponent();

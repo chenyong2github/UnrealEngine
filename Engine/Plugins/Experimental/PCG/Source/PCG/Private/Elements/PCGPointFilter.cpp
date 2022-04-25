@@ -798,7 +798,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 			FPCGPoint ThresholdPoint;
 			if (ThresholdPoints) // not null only in the direct match case
 			{
-				ThresholdPoint = (*ThresholdPoints)[ThresholdPoints->Num() > 1 ? Index : 0];
+				ThresholdPoint = (*ThresholdPoints)[(ThresholdPoints->Num() > 1) ? Index : 0];
 			}
 			else if(ThresholdSpatialData)
 			{

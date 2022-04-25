@@ -8,7 +8,7 @@ FString FPCGContext::GetTaskName() const
 {
 	if (Node)
 	{
-		const FName NodeName = (Node->NodeTitle != NAME_None ? Node->NodeTitle : Node->GetFName());
+		const FName NodeName = ((Node->NodeTitle != NAME_None) ? Node->NodeTitle : Node->GetFName());
 
 		const UPCGSettings* Settings = GetInputSettings<UPCGSettings>();
 		const FName NodeAdditionalName = Settings ? Settings->AdditionalTaskName() : NAME_None;

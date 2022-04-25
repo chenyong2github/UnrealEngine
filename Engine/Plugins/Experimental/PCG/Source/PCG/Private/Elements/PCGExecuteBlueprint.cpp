@@ -310,7 +310,7 @@ FName UPCGBlueprintSettings::AdditionalTaskName() const
 	else
 	{
 #if WITH_EDITOR
-		return BlueprintElementType && BlueprintElementType->ClassGeneratedBy ? BlueprintElementType->ClassGeneratedBy->GetFName() : Super::AdditionalTaskName();
+		return (BlueprintElementType && BlueprintElementType->ClassGeneratedBy) ? BlueprintElementType->ClassGeneratedBy->GetFName() : Super::AdditionalTaskName();
 #else
 		return BlueprintElementType ? BlueprintElementType->GetFName() : Super::AdditionalTaskName();
 #endif

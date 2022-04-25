@@ -15,7 +15,7 @@ namespace PCGUnionDataMaths
 		}
 		else if (DensityFunction == EPCGUnionDensityFunction::Binary)
 		{
-			return InOtherDensity > 0 ? 1.0f : InDensityToUpdate;
+			return (InOtherDensity > 0) ? 1.0f : InDensityToUpdate;
 		}
 		else // Maximum
 		{
@@ -281,7 +281,7 @@ const UPCGPointData* UPCGUnionData::CreatePointData(FPCGContext* Context) const
 			{
 				for (FPCGPoint& TargetPoint : TargetPoints)
 				{
-					TargetPoint.Density = (TargetPoint.Density > 0 ? 1.0f : 0);
+					TargetPoint.Density = ((TargetPoint.Density > 0) ? 1.0f : 0);
 				}
 			}
 		}
