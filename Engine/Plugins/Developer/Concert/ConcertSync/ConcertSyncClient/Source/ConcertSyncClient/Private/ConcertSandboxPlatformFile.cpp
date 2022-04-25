@@ -784,7 +784,7 @@ bool FConcertSandboxPlatformFile::CopyFileWithSCC(
 	}
 	else if (InParam.bShouldMakeWritableIfNoSourceControl)
 	{
-		if (!LowerLevel->SetReadOnly(InToFilename, false))
+		if (LowerLevel->FileExists(InToFilename) && !LowerLevel->SetReadOnly(InToFilename, false))
 		{
 			FText Failure = FText::Format(
 				NSLOCTEXT("Concert", "CanMakeWritable", "Can't make file '{0}' writable when persiting sandbox state!"),
