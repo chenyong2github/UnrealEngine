@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-class FIndexerUtilities
+class ASSETSEARCH_API FIndexerUtilities
 {
 public:
 	static void IterateIndexableProperties(const UObject* InObject, TFunctionRef<void(const FProperty* /*Property*/, const FString& /*Value*/)> Callback);

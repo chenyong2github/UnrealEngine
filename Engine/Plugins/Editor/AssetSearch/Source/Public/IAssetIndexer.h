@@ -7,7 +7,7 @@
 class UObject;
 class FSearchSerializer;
 
-class IAssetIndexer
+class ASSETSEARCH_API IAssetIndexer
 {
 public:
 
