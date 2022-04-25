@@ -208,6 +208,22 @@ void UPCGMetadata::GetAttributes(TArray<FName>& AttributeNames, TArray<EPCGMetad
 	AttributeLock.ReadUnlock();
 }
 
+FName UPCGMetadata::GetSingleAttributeNameOrNone() const
+{
+	FName SingleAttributeName = NAME_None;
+	AttributeLock.ReadLock();
+	if (Attributes.Num() == 1)
+	{
+		TArray<FName, TInlineAllocator<1>> Keys;
+		Attributes.GenerateKeyArray(Keys);
+		check(Keys.Num() == 1);
+		SingleAttributeName = Keys[0];
+	}
+	AttributeLock.ReadUnlock();
+
+	return SingleAttributeName;
+}
+
 bool UPCGMetadata::ParentHasAttribute(FName AttributeName) const
 {
 	return Parent && Parent->HasAttribute(AttributeName);

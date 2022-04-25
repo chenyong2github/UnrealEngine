@@ -27,7 +27,7 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 	const FName AttributeToRename = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGMetadataRenameSettings, AttributeToRename), Settings->AttributeToRename, Params);
 	const FName NewAttributeName = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGMetadataRenameSettings, NewAttributeName), Settings->NewAttributeName, Params);
 
-	if (AttributeToRename == NAME_None || NewAttributeName == NAME_None)
+	if (NewAttributeName == NAME_None)
 	{
 		UE_LOG(LogPCG, Warning, TEXT("Metadata rename operation cannot rename from %s to %s"), *AttributeToRename.ToString(), *NewAttributeName.ToString());
 		// Bypass
@@ -49,7 +49,14 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 		// otherwise, keep it as is.
 		const UPCGMetadata* Metadata = SpatialInput->Metadata;
 
-		if (!Metadata || !Metadata->HasAttribute(AttributeToRename))
+		if (!Metadata)
+		{
+			continue;
+		}
+
+		const FName LocalAttributeToRename = ((AttributeToRename != NAME_None) ? AttributeToRename : Metadata->GetSingleAttributeNameOrNone());
+
+		if (!Metadata->HasAttribute(LocalAttributeToRename))
 		{
 			continue;
 		}
@@ -57,7 +64,7 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 		//TODO: this might require to execute on the main thread
 		UPCGSpatialData* NewSpatialData = Cast<UPCGSpatialData>(StaticDuplicateObject(SpatialInput, const_cast<UPCGSpatialData*>(SpatialInput), FName()));
 		NewSpatialData->InitializeFromData(SpatialInput);
-		NewSpatialData->Metadata->RenameAttribute(AttributeToRename, NewAttributeName);
+		NewSpatialData->Metadata->RenameAttribute(LocalAttributeToRename, NewAttributeName);
 
 		Output.Data = NewSpatialData;
 	}
@@ -74,7 +81,14 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 		
 		const UPCGMetadata* Metadata = InputParams->Metadata;
 
-		if (!Metadata || !Metadata->HasAttribute(AttributeToRename))
+		if (!Metadata)
+		{
+			continue;
+		}
+
+		const FName LocalAttributeToRename = ((AttributeToRename != NAME_None) ? AttributeToRename : Metadata->GetSingleAttributeNameOrNone());
+
+		if (!Metadata->HasAttribute(LocalAttributeToRename))
 		{
 			continue;
 		}
@@ -84,7 +98,7 @@ bool FPCGMetadataRenameElement::ExecuteInternal(FPCGContext* Context) const
 		// Note: we will not parent the metadata here to ensure that the 0th entry is present on this metadata
 		// We will instead do a copy (and keep its parent, etc.)
 		NewParams->Metadata->InitializeAsCopy(Metadata);
-		NewParams->Metadata->RenameAttribute(AttributeToRename, NewAttributeName);
+		NewParams->Metadata->RenameAttribute(LocalAttributeToRename, NewAttributeName);
 
 		Output.Data = NewParams;
 	}

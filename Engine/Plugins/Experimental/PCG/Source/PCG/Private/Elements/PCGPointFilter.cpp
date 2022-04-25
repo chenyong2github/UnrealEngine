@@ -620,17 +620,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 	bool bUseSpatialQuery = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGPointFilterSettings, bUseSpatialQuery), Settings->bUseSpatialQuery, Params);
 
 	// Validate basic input data
-	if (TargetFilterType == EPCGPointTargetFilterType::Metadata && TargetAttributeName == NAME_None)
-	{
-		PCGE_LOG(Error, "Point filter cannot filter on an unnamed metadata attribute (Target Attribute Name)");
-		return true;
-	}
-	else if (ThresholdFilterType == EPCGPointThresholdType::Metadata && ThresholdAttributeName == NAME_None)
-	{
-		PCGE_LOG(Error, "Point filter cannot filter on an unnamed metadata attribute (Threshold Attribute Name)");
-		return true;
-	}
-	else if (ThresholdFilterType == EPCGPointThresholdType::Property && !FilterData.IsEmpty() && Cast<UPCGSpatialData>(FilterData[0].Data) == nullptr)
+	if (ThresholdFilterType == EPCGPointThresholdType::Property && !FilterData.IsEmpty() && Cast<UPCGSpatialData>(FilterData[0].Data) == nullptr)
 	{
 		PCGE_LOG(Error, "Cannot filter by property on a non-spatial filter data");
 		return true;
@@ -691,6 +681,8 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 			ThresholdPoints = &TargetPoints;
 		}
 
+		const FName LocalTargetAttributeName = ((TargetAttributeName != NAME_None || !TargetMetadata) ? TargetAttributeName : TargetMetadata->GetSingleAttributeNameOrNone());
+
 		// Additional validation
 		if (TargetFilterType == EPCGPointTargetFilterType::Metadata)
 		{
@@ -699,12 +691,14 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 				PCGE_LOG(Error, "Target data to filter has no metadata which is required to filter by metadata");
 				continue;
 			}
-			else if (!TargetMetadata->GetConstAttribute(TargetAttributeName))
+			else if (!TargetMetadata->GetConstAttribute(LocalTargetAttributeName))
 			{
-				PCGE_LOG(Error, "Target metadata does not have the %s attribute", *TargetAttributeName.ToString());
+				PCGE_LOG(Error, "Target metadata does not have the %s attribute", *LocalTargetAttributeName.ToString());
 				continue;
 			}
 		}
+
+		const FName LocalThresholdAttributeName = ((ThresholdAttributeName != NAME_None || !ThresholdMetadata) ? ThresholdAttributeName : ThresholdMetadata->GetSingleAttributeNameOrNone());
 		
 		if (ThresholdFilterType == EPCGPointThresholdType::Metadata)
 		{
@@ -713,9 +707,9 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 				PCGE_LOG(Error, "Filter data has no metadata which is required to filter by metadata");
 				continue;
 			}
-			else if (!ThresholdMetadata->GetConstAttribute(ThresholdAttributeName))
+			else if (!ThresholdMetadata->GetConstAttribute(LocalThresholdAttributeName))
 			{
-				PCGE_LOG(Error, "Filter metadata does not have the %s attribute", *ThresholdAttributeName.ToString());
+				PCGE_LOG(Error, "Filter metadata does not have the %s attribute", *LocalThresholdAttributeName.ToString());
 				continue;
 			}
 		}
@@ -742,7 +736,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 			TargetFilterType, 
 			TargetPointProperty, 
 			TargetMetadata,
-			TargetAttributeName,
+			LocalTargetAttributeName,
 			TargetType);
 
 		if (TargetType == EPCGPointFilterConstantType::Unknown)
@@ -756,7 +750,7 @@ bool FPCGPointFilterElement::ExecuteInternal(FPCGContext* Context) const
 			ThresholdFilterType,
 			ThresholdPointProperty,
 			ThresholdMetadata,
-			ThresholdAttributeName,
+			LocalThresholdAttributeName,
 			ThresholdConstantType,
 			Integer64Constant,
 			FloatConstant,

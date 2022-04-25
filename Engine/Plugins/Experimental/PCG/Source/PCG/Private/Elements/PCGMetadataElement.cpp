@@ -100,10 +100,12 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
+		const FName LocalSourceAttribute = ((SourceAttribute != NAME_None) ? SourceAttribute : OriginalData->Metadata->GetSingleAttributeNameOrNone());
+
 		// Check if the attribute exists
-		if ((Target == EPCGMetadataOperationTarget::AttributeToProperty || Target == EPCGMetadataOperationTarget::AttributeToAttribute) && !OriginalData->Metadata->HasAttribute(SourceAttribute))
+		if ((Target == EPCGMetadataOperationTarget::AttributeToProperty || Target == EPCGMetadataOperationTarget::AttributeToAttribute) && !OriginalData->Metadata->HasAttribute(LocalSourceAttribute))
 		{
-			PCGE_LOG(Warning, "Input does not have the %s attribute", *SourceAttribute.ToString());
+			PCGE_LOG(Warning, "Input does not have the %s attribute", *LocalSourceAttribute.ToString());
 			continue;
 		}
 
@@ -252,91 +254,91 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 			{
 				auto DensitySetter = [](FPCGPoint& InPoint, const float& InValue) { InPoint.Density = InValue; };
 
-				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(SourceAttribute);
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
 				if(!PCGMetadataOperations::SetValue<float, float>(AttributeBase, SampledPoints, DensitySetter))
 				{
-					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *SourceAttribute.ToString());
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
 				}
 			}
 			else if (PointProperty == EPCGPointProperties::Extents)
 			{
 				auto ExtentsSetter = [](FPCGPoint& InPoint, const FVector& InValue) { InPoint.Extents = InValue; };
 
-				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(SourceAttribute);
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
 				if(!PCGMetadataOperations::SetValue<float, FVector>(AttributeBase, SampledPoints, ExtentsSetter) &&
 					!PCGMetadataOperations::SetValue<FVector, FVector>(AttributeBase, SampledPoints, ExtentsSetter))
 				{
-					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *SourceAttribute.ToString());
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
 				}
 			}
 			else if (PointProperty == EPCGPointProperties::Color)
 			{
 				auto ColorSetter = [](FPCGPoint& InPoint, const FVector4& InValue) { InPoint.Color = InValue; };
 
-				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(SourceAttribute);
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
 				if(!PCGMetadataOperations::SetValue<float, FVector4>(AttributeBase, SampledPoints, ColorSetter) &&
 					!PCGMetadataOperations::SetValue<FVector4, FVector4>(AttributeBase, SampledPoints, ColorSetter))
 				{
-					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *SourceAttribute.ToString());
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
 				}
 			}
 			else if (PointProperty == EPCGPointProperties::Position)
 			{
 				auto PositionSetter = [](FPCGPoint& InPoint, const FVector& InValue) { InPoint.Transform.SetLocation(InValue); };
 
-				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(SourceAttribute);
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
 				if (!PCGMetadataOperations::SetValue<float, FVector>(AttributeBase, SampledPoints, PositionSetter) &&
 					!PCGMetadataOperations::SetValue<FVector, FVector>(AttributeBase, SampledPoints, PositionSetter))
 				{
-					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *SourceAttribute.ToString());
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
 				}
 			}
 			else if (PointProperty == EPCGPointProperties::Rotation)
 			{
 				auto RotationSetter = [](FPCGPoint& InPoint, const FQuat& InValue) { InPoint.Transform.SetRotation(InValue.GetNormalized()); };
 
-				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(SourceAttribute);
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
 				if (!PCGMetadataOperations::SetValue<FQuat, FQuat>(AttributeBase, SampledPoints, RotationSetter))
 				{
-					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *SourceAttribute.ToString());
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
 				}
 			}
 			else if (PointProperty == EPCGPointProperties::Scale)
 			{
 				auto ScaleSetter = [](FPCGPoint& InPoint, const FVector& InValue) { InPoint.Transform.SetScale3D(InValue); };
 
-				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(SourceAttribute);
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
 				if (!PCGMetadataOperations::SetValue<float, FVector>(AttributeBase, SampledPoints, ScaleSetter) &&
 					!PCGMetadataOperations::SetValue<FVector, FVector>(AttributeBase, SampledPoints, ScaleSetter))
 				{
-					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *SourceAttribute.ToString());
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
 				}
 			}
 			else if (PointProperty == EPCGPointProperties::Transform)
 			{
 				auto TransformSetter = [](FPCGPoint& InPoint, const FTransform& InValue) { InPoint.Transform = InValue; };
 
-				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(SourceAttribute);
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
 				if (!PCGMetadataOperations::SetValue<FVector, FTransform>(AttributeBase, SampledPoints, TransformSetter) &&
 					!PCGMetadataOperations::SetValue<FTransform, FTransform>(AttributeBase, SampledPoints, TransformSetter))
 				{
-					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *SourceAttribute.ToString());
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
 				}
 			}
 			else if (PointProperty == EPCGPointProperties::Steepness)
 			{
 				auto SteepnessSetter = [](FPCGPoint& InPoint, const float& InValue) { InPoint.Steepness = InValue; };
 
-				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(SourceAttribute);
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
 				if (!PCGMetadataOperations::SetValue<float, float>(AttributeBase, SampledPoints, SteepnessSetter))
 				{
-					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *SourceAttribute.ToString());
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
 				}
 			}
 		}
 		else // Attribute to attribute
 		{
-			SampledData->Metadata->CopyAttribute(SourceAttribute, DestinationAttribute);
+			SampledData->Metadata->CopyAttribute(LocalSourceAttribute, DestinationAttribute);
 		}
 	}
 

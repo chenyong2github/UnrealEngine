@@ -26,6 +26,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 	{
 		//Pass-through
 		Context->OutputData = Context->InputData;
+		CleanupAndValidateOutputLabels(Context);
 		return true;
 	}
 	else
@@ -86,15 +87,7 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 
 			if (bDone)
 			{
-				// Cleanup any residual labels if the node isn't supposed to produce them
-				// TODO: this is a bit of a crutch, could be refactored out if we review the way we push tagged data
-				if (Settings && Settings->OutLabels().Num() == 0)
-				{
-					for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
-					{
-						TaggedData.Pin = NAME_None;
-					}
-				}
+				CleanupAndValidateOutputLabels(Context);
 
 				if (IsCacheable(Settings) && Context->Cache)
 				{
@@ -162,6 +155,41 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 #endif
 
 		return bDone;
+	}
+}
+
+void IPCGElement::CleanupAndValidateOutputLabels(FPCGContext* Context) const
+{
+	check(Context);
+	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
+
+	if (!IsPassthrough() && Settings)
+	{
+		// Cleanup any residual labels if the node isn't supposed to produce them
+		// TODO: this is a bit of a crutch, could be refactored out if we review the way we push tagged data
+		TArray<FName> OutLabels = Settings->OutLabels();
+		if ((Settings->HasDefaultOutLabel() && OutLabels.Num() == 0) || (!Settings->HasDefaultOutLabel() && OutLabels.Num() == 1))
+		{
+			const FName& DefaultLabel = Settings->HasDefaultOutLabel() ? NAME_None : OutLabels[0];
+			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
+			{
+				TaggedData.Pin = DefaultLabel;
+			}
+		}
+
+		// Validate all out data for errors in labels
+#if WITH_EDITOR
+		if (Settings->ExecutionMode != EPCGSettingsExecutionMode::Disabled)
+		{
+			for (FPCGTaggedData& TaggedData : Context->OutputData.TaggedData)
+			{
+				if (TaggedData.Pin != NAME_None && !OutLabels.Contains(TaggedData.Pin))
+				{
+					PCGE_LOG(Warning, "Output generated for pin %s but cannot be routed", *TaggedData.Pin.ToString());
+				}
+			}
+		}
+#endif
 	}
 }
 

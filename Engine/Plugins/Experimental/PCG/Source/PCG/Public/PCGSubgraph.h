@@ -138,6 +138,7 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
+	virtual bool IsPassthrough() const override { return true; }
 };
 
 class PCG_API FPCGInputForwardingElement : public FSimplePCGElement
@@ -147,5 +148,6 @@ public:
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
+	virtual bool IsPassthrough() const override { return true; }
 	FPCGDataCollection Input;
 };

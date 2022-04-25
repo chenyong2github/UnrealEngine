@@ -42,9 +42,13 @@ protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const = 0;
 	virtual bool IsCancellable() const { return true; }
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const { return true; }
+	virtual bool IsPassthrough() const { return false; }
 #if WITH_EDITOR
 	virtual bool ShouldLog() const { return true; }
 #endif
+
+private:
+	void CleanupAndValidateOutputLabels(FPCGContext* Context) const;
 };
 
 /**

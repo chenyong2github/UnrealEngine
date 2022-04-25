@@ -83,8 +83,7 @@ UPCGMetadata* UPCGSpatialData::CreateEmptyMetadata()
 
 void UPCGSpatialData::InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride)
 {
-	check(InSource);
-	if (!TargetActor)
+	if (InSource && !TargetActor)
 	{
 		TargetActor = InSource->TargetActor;
 	}
@@ -94,5 +93,12 @@ void UPCGSpatialData::InitializeFromData(const UPCGSpatialData* InSource, const 
 		Metadata = NewObject<UPCGMetadata>(this);
 	}
 
-	Metadata->Initialize(InMetadataParentOverride ? InMetadataParentOverride : InSource->Metadata);
+	if (InMetadataParentOverride || InSource)
+	{
+		Metadata->Initialize(InMetadataParentOverride ? InMetadataParentOverride : InSource->Metadata);
+	}
+	else
+	{
+		UE_LOG(LogPCG, Warning, TEXT("InitializeFromData has both no source and no metadata override"));
+	}
 }

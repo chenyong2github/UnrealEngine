@@ -27,20 +27,22 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 
 	const FName PartitionAttribute = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGMetadataPartitionSettings, PartitionAttribute), Settings->PartitionAttribute, Params);
 
-	if (PartitionAttribute == NAME_None)
-	{
-		PCGE_LOG(Error, "Metadata partition has no specified attribute");
-		return true;
-	}
-
 	for (const FPCGTaggedData& Input : Inputs)
 	{
 		const UPCGSpatialData* SpatialInput = Cast<const UPCGSpatialData>(Input.Data);
 		check(SpatialInput);
 
-		if (!SpatialInput->ConstMetadata() || !SpatialInput->ConstMetadata()->HasAttribute(PartitionAttribute))
+		if (!SpatialInput->ConstMetadata())
 		{
-			PCGE_LOG(Error, "Input does not have the %s attribute", *PartitionAttribute.ToString());
+			PCGE_LOG(Error, "Input does not have metadata");
+			continue;
+		}
+
+		const FName LocalPartitionAttribute = ((PartitionAttribute != NAME_None) ? PartitionAttribute : SpatialInput->ConstMetadata()->GetSingleAttributeNameOrNone());
+
+		if (!SpatialInput->ConstMetadata()->HasAttribute(LocalPartitionAttribute))
+		{
+			PCGE_LOG(Error, "Input does not have the %s attribute", *LocalPartitionAttribute.ToString());
 			continue;
 		}
 
@@ -55,7 +57,7 @@ bool FPCGMetadataPartitionElement::ExecuteInternal(FPCGContext* Context) const
 
 		const TArray<FPCGPoint>& SourcePoints = InputData->GetPoints();
 		const UPCGMetadata* SourceMetadata = InputData->ConstMetadata();
-		const FPCGMetadataAttributeBase* AttributeBase = SourceMetadata->GetConstAttribute(PartitionAttribute);
+		const FPCGMetadataAttributeBase* AttributeBase = SourceMetadata->GetConstAttribute(LocalPartitionAttribute);
 		check(AttributeBase);
 
 		TMap<PCGMetadataValueKey, UPCGPointData*> ValueToData;
