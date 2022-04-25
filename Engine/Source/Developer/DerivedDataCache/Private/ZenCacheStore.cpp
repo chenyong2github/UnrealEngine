@@ -640,24 +640,24 @@ void FZenCacheStore::Put(
 		FCbWriter BatchWriter;
 		BatchWriter.BeginObject();
 		{
-			BatchWriter << "Method"_ASV << "PutCacheRecords";
-			BatchWriter.BeginObject("Params"_ASV);
+			BatchWriter << ANSITEXTVIEW("Method") << "PutCacheRecords";
+			BatchWriter.BeginObject(ANSITEXTVIEW("Params"));
 			{
 				ECachePolicy BatchDefaultPolicy = Batch[0].Policy.GetRecordPolicy();
-				BatchWriter << "DefaultPolicy"_ASV << *WriteToString<128>(BatchDefaultPolicy);
+				BatchWriter << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
 
-				BatchWriter.BeginArray("Requests"_ASV);
+				BatchWriter.BeginArray(ANSITEXTVIEW("Requests"));
 				for (const FCachePutRequest& Request : Batch)
 				{
 					const FCacheRecord& Record = Request.Record;
 
 					BatchWriter.BeginObject();
 					{
-						BatchWriter.SetName("Record"_ASV);
+						BatchWriter.SetName(ANSITEXTVIEW("Record"));
 						Record.Save(BatchPackage, BatchWriter);
 						if (!Request.Policy.IsUniform() || Request.Policy.GetRecordPolicy() != BatchDefaultPolicy)
 						{
-							BatchWriter.SetName("Policy"_ASV);
+							BatchWriter.SetName(ANSITEXTVIEW("Policy"));
 							Request.Policy.Save(BatchWriter);
 						}
 					}
@@ -675,14 +675,14 @@ void FZenCacheStore::Put(
 
 		{
 			Zen::FZenScopedRequestPtr Request(RequestPool.Get());
-			HttpResult = Request->PerformRpc(TEXT("/z$/$rpc"_SV), BatchPackage, BatchResponse);
+			HttpResult = Request->PerformRpc(TEXTVIEW("/z$/$rpc"), BatchPackage, BatchResponse);
 		}
 
 		int32 RequestIndex = 0;
 		if (HttpResult == Zen::FZenHttpRequest::Result::Success)
 		{
 			const FCbObject& ResponseObj = BatchResponse.GetObject();
-			for (FCbField ResponseField : ResponseObj["Result"_ASV])
+			for (FCbField ResponseField : ResponseObj[ANSITEXTVIEW("Result")])
 			{
 				if (RequestIndex >= Batch.Num())
 				{
@@ -752,21 +752,21 @@ void FZenCacheStore::Get(
 		FCbWriter BatchRequest;
 		BatchRequest.BeginObject();
 		{
-			BatchRequest << "Method"_ASV << "GetCacheRecords"_ASV;
-			BatchRequest.BeginObject("Params"_ASV);
+			BatchRequest << ANSITEXTVIEW("Method") << ANSITEXTVIEW("GetCacheRecords");
+			BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
 			{
 				ECachePolicy BatchDefaultPolicy = Batch[0].Policy.GetRecordPolicy();
-				BatchRequest << "DefaultPolicy"_ASV << *WriteToString<128>(BatchDefaultPolicy);
+				BatchRequest << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
 
-				BatchRequest.BeginArray("Requests"_ASV);
+				BatchRequest.BeginArray(ANSITEXTVIEW("Requests"));
 				for (const FCacheGetRequest& Request : Batch)
 				{
 					BatchRequest.BeginObject();
 					{
-						BatchRequest << "Key"_ASV << Request.Key;
+						BatchRequest << ANSITEXTVIEW("Key") << Request.Key;
 						if (!Request.Policy.IsUniform() || Request.Policy.GetRecordPolicy() != BatchDefaultPolicy)
 						{
-							BatchRequest.SetName("Policy"_ASV);
+							BatchRequest.SetName(ANSITEXTVIEW("Policy"));
 							Request.Policy.Save(BatchRequest);
 						}
 					}
@@ -792,7 +792,7 @@ void FZenCacheStore::Get(
 		{
 			const FCbObject& ResponseObj = BatchResponse.GetObject();
 			
-			for (FCbField RecordField : ResponseObj["Result"_ASV])
+			for (FCbField RecordField : ResponseObj[ANSITEXTVIEW("Result")])
 			{
 				if (RequestIndex >= Batch.Num())
 				{
@@ -873,18 +873,18 @@ void FZenCacheStore::PutValue(
 		FCbWriter BatchWriter;
 		BatchWriter.BeginObject();
 		{
-			BatchWriter << "Method"_ASV << "PutCacheValues"_ASV;
-			BatchWriter.BeginObject("Params"_ASV);
+			BatchWriter << ANSITEXTVIEW("Method") << ANSITEXTVIEW("PutCacheValues");
+			BatchWriter.BeginObject(ANSITEXTVIEW("Params"));
 			{
 				ECachePolicy BatchDefaultPolicy = Batch[0].Policy;
-				BatchWriter << "DefaultPolicy"_ASV << *WriteToString<128>(BatchDefaultPolicy);
+				BatchWriter << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
 
 				BatchWriter.BeginArray("Requests");
 				for (const FCachePutValueRequest& Request : Batch)
 				{
 					BatchWriter.BeginObject();
 					{
-						BatchWriter << "Key"_ASV << Request.Key;
+						BatchWriter << ANSITEXTVIEW("Key") << Request.Key;
 						const FValue& Value = Request.Value;
 						BatchWriter.AddBinaryAttachment("RawHash", Value.GetRawHash());
 						if (Value.HasData())
@@ -893,7 +893,7 @@ void FZenCacheStore::PutValue(
 						}
 						if (Request.Policy != BatchDefaultPolicy)
 						{
-							BatchWriter << "Policy"_ASV << WriteToString<128>(Request.Policy);
+							BatchWriter << ANSITEXTVIEW("Policy") << WriteToString<128>(Request.Policy);
 						}
 					}
 					BatchWriter.EndObject();
@@ -909,14 +909,14 @@ void FZenCacheStore::PutValue(
 		Zen::FZenHttpRequest::Result HttpResult = Zen::FZenHttpRequest::Result::Failed;
 		{
 			Zen::FZenScopedRequestPtr Request(RequestPool.Get());
-			HttpResult = Request->PerformRpc(TEXT("/z$/$rpc"_SV), BatchPackage, BatchResponse);
+			HttpResult = Request->PerformRpc(TEXTVIEW("/z$/$rpc"), BatchPackage, BatchResponse);
 		}
 
 		int32 RequestIndex = 0;
 		if (HttpResult == Zen::FZenHttpRequest::Result::Success)
 		{
 			const FCbObject& ResponseObj = BatchResponse.GetObject();
-			for (FCbField ResponseField : ResponseObj["Result"_ASV])
+			for (FCbField ResponseField : ResponseObj[ANSITEXTVIEW("Result")])
 			{
 				if (RequestIndex >= Batch.Num())
 				{
@@ -984,21 +984,21 @@ void FZenCacheStore::GetValue(
 			FCbWriter BatchRequest;
 			BatchRequest.BeginObject();
 			{
-				BatchRequest << "Method"_ASV << "GetCacheValues"_ASV;
-				BatchRequest.BeginObject("Params"_ASV);
+				BatchRequest << ANSITEXTVIEW("Method") << ANSITEXTVIEW("GetCacheValues");
+				BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
 				{
 					ECachePolicy BatchDefaultPolicy = Batch[0].Policy;
-					BatchRequest << "DefaultPolicy"_ASV << *WriteToString<128>(BatchDefaultPolicy);
+					BatchRequest << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
 
 					BatchRequest.BeginArray("Requests");
 					for (const FCacheGetValueRequest& Request : Batch)
 					{
 						BatchRequest.BeginObject();
 					{
-							BatchRequest << "Key"_ASV << Request.Key;
+							BatchRequest << ANSITEXTVIEW("Key") << Request.Key;
 							if (Request.Policy != BatchDefaultPolicy)
 							{
-								BatchRequest << "Policy"_ASV << WriteToString<128>(Request.Policy);
+								BatchRequest << ANSITEXTVIEW("Policy") << WriteToString<128>(Request.Policy);
 							}
 					}
 						BatchRequest.EndObject();
@@ -1015,7 +1015,7 @@ void FZenCacheStore::GetValue(
 			{
 				LLM_SCOPE_BYTAG(UntaggedDDCResult);
 				Zen::FZenScopedRequestPtr Request(RequestPool.Get());
-				HttpResult = Request->PerformRpc(TEXT("/z$/$rpc"_SV), BatchRequest.Save().AsObject(), BatchResponse);
+				HttpResult = Request->PerformRpc(TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), BatchResponse);
 			}
 
 			int32 RequestIndex = 0;
@@ -1023,7 +1023,7 @@ void FZenCacheStore::GetValue(
 			{
 				const FCbObject& ResponseObj = BatchResponse.GetObject();
 
-				for (FCbFieldView ResultField : ResponseObj["Result"_ASV])
+				for (FCbFieldView ResultField : ResponseObj[ANSITEXTVIEW("Result")])
 				{
 					if (RequestIndex >= Batch.Num())
 					{
@@ -1110,38 +1110,38 @@ void FZenCacheStore::GetChunks(
 		FCbWriter BatchRequest;
 		BatchRequest.BeginObject();
 		{
-			BatchRequest << "Method"_ASV << "GetCacheChunks";
-			BatchRequest.AddInteger("MethodVersion"_ASV, 1);
-			BatchRequest.BeginObject("Params"_ASV);
+			BatchRequest << ANSITEXTVIEW("Method") << "GetCacheChunks";
+			BatchRequest.AddInteger(ANSITEXTVIEW("MethodVersion"), 1);
+			BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
 			{
 				ECachePolicy DefaultPolicy = Batch[0].Policy;
-				BatchRequest << "DefaultPolicy"_ASV << WriteToString<128>(DefaultPolicy);
-				BatchRequest.BeginArray("ChunkRequests"_ASV);
+				BatchRequest << ANSITEXTVIEW("DefaultPolicy") << WriteToString<128>(DefaultPolicy);
+				BatchRequest.BeginArray(ANSITEXTVIEW("ChunkRequests"));
 				for (const FCacheGetChunkRequest& Request : Batch)
 				{
 					BatchRequest.BeginObject();
 					
-					BatchRequest << "Key"_ASV << Request.Key;
+					BatchRequest << ANSITEXTVIEW("Key") << Request.Key;
 
 					if (Request.Id.IsValid())
 					{
-						BatchRequest.AddObjectId("ValueId"_ASV, Request.Id);
+						BatchRequest.AddObjectId(ANSITEXTVIEW("ValueId"), Request.Id);
 					}
 					if (Request.RawOffset != 0)
 					{
-						BatchRequest << "RawOffset"_ASV << Request.RawOffset;
+						BatchRequest << ANSITEXTVIEW("RawOffset") << Request.RawOffset;
 					}
 					if (Request.RawSize != MAX_uint64)
 					{
-						BatchRequest << "RawSize"_ASV << Request.RawSize;
+						BatchRequest << ANSITEXTVIEW("RawSize") << Request.RawSize;
 					}
 					if (!Request.RawHash.IsZero())
 					{
-						BatchRequest << "ChunkId"_ASV << Request.RawHash;
+						BatchRequest << ANSITEXTVIEW("ChunkId") << Request.RawHash;
 					}
 					if (Request.Policy != DefaultPolicy)
 					{
-						BatchRequest << "Policy"_ASV << WriteToString<128>(Request.Policy);
+						BatchRequest << ANSITEXTVIEW("Policy") << WriteToString<128>(Request.Policy);
 					}
 
 					BatchRequest.EndObject();
@@ -1166,7 +1166,7 @@ void FZenCacheStore::GetChunks(
 		{
 			const FCbObject& ResponseObj = BatchResponse.GetObject();
 
-			for (FCbFieldView ResultView : ResponseObj["Result"_ASV])
+			for (FCbFieldView ResultView : ResponseObj[ANSITEXTVIEW("Result")])
 			{
 				if (RequestIndex >= Batch.Num())
 				{
@@ -1187,7 +1187,7 @@ void FZenCacheStore::GetChunks(
 				}
 				else
 				{
-					FCbFieldView HashView = ResultObject["RawHash"_ASV];
+					FCbFieldView HashView = ResultObject[ANSITEXTVIEW("RawHash")];
 					RawHash = HashView.AsHash();
 					if (!HashView.HasError())
 					{
@@ -1204,7 +1204,7 @@ void FZenCacheStore::GetChunks(
 						}
 						else
 						{
-							FCbFieldView RawSizeField = ResultObject["RawSize"_ASV];
+							FCbFieldView RawSizeField = ResultObject[ANSITEXTVIEW("RawSize")];
 							uint64 TotalSize = RawSizeField.AsUInt64();
 							Succeeded = !RawSizeField.HasError();
 							if (Succeeded)

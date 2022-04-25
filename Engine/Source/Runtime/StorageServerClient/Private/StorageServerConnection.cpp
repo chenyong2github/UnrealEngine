@@ -609,11 +609,11 @@ bool FStorageServerConnection::ReadChunkRequest(const FIoChunkId& ChunkId, uint6
 	{
 		if (HaveQuery)
 		{
-			ResourceBuilder.Append("&"_ASV);
+			ResourceBuilder.Append(ANSITEXTVIEW("&"));
 		}
 		else
 		{
-			ResourceBuilder.Append("?"_ASV);
+			ResourceBuilder.Append(ANSITEXTVIEW("?"));
 			HaveQuery = true;
 		}
 	};

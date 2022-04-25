@@ -401,25 +401,25 @@ void FBuildJob::CreateContext()
 	const IBuildFunction* Function = BuildSystem.GetFunctionRegistry().FindFunction(FunctionName);
 	if (BuildSystem.GetVersion() != Action.Get().GetBuildSystemVersion())
 	{
-		return CompleteWithError(WriteToUtf8String<192>("Failed because the build system is version "_ASV,
-			BuildSystem.GetVersion(), " when version "_ASV,
-			Action.Get().GetBuildSystemVersion(), " is expected."_ASV));
+		return CompleteWithError(WriteToUtf8String<192>(ANSITEXTVIEW("Failed because the build system is version "),
+			BuildSystem.GetVersion(), ANSITEXTVIEW(" when version "),
+			Action.Get().GetBuildSystemVersion(), ANSITEXTVIEW(" is expected.")));
 	}
 	else if (!Function)
 	{
-		return CompleteWithError(WriteToUtf8String<128>("Failed because the function "_ASV, FunctionName,
-			" was not found."_ASV));
+		return CompleteWithError(WriteToUtf8String<128>(ANSITEXTVIEW("Failed because the function "), FunctionName,
+			ANSITEXTVIEW(" was not found.")));
 	}
 	else if (!Function->GetVersion().IsValid())
 	{
-		return CompleteWithError(WriteToUtf8String<128>("Failed because the function "_ASV, FunctionName,
-			" has a version of zero."_ASV));
+		return CompleteWithError(WriteToUtf8String<128>(ANSITEXTVIEW("Failed because the function "), FunctionName,
+			ANSITEXTVIEW(" has a version of zero.")));
 	}
 	else if (Function->GetVersion() != Action.Get().GetFunctionVersion())
 	{
-		return CompleteWithError(WriteToUtf8String<192>("Failed because the function "_ASV, FunctionName,
-			" is version "_ASV, Function->GetVersion(), " when version "_ASV,
-			Action.Get().GetFunctionVersion(), " is expected."_ASV));
+		return CompleteWithError(WriteToUtf8String<192>(ANSITEXTVIEW("Failed because the function "), FunctionName,
+			ANSITEXTVIEW(" is version "), Function->GetVersion(), ANSITEXTVIEW(" when version "),
+			Action.Get().GetFunctionVersion(), ANSITEXTVIEW(" is expected.")));
 	}
 	else
 	{
@@ -533,7 +533,7 @@ void FBuildJob::EndCacheQuery(FCacheGetResponse&& Response)
 {
 	if (Response.Status == EStatus::Canceled)
 	{
-		return CompleteWithError("Build was canceled."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Build was canceled."));
 	}
 	if (Response.Status == EStatus::Ok)
 	{
@@ -545,7 +545,7 @@ void FBuildJob::EndCacheQuery(FCacheGetResponse&& Response)
 	}
 	if (!EnumHasAnyFlags(BuildPolicy.GetCombinedPolicy() & Context->GetBuildPolicyMask(), EBuildPolicy::Build))
 	{
-		return CompleteWithError("Failed to fetch from the cache and build policy does not allow execution."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Failed to fetch from the cache and build policy does not allow execution."));
 	}
 	return AdvanceToState(EBuildJobState::ExecuteRemote);
 }
@@ -618,11 +618,11 @@ void FBuildJob::EnterResolveKey()
 	}
 	if (DefinitionKey != FBuildKey::Empty)
 	{
-		return CompleteWithError("Failed to resolve null key."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Failed to resolve null key."));
 	}
 	if (!InputResolver)
 	{
-		return CompleteWithError("Failed to resolve key due to null input resolver."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Failed to resolve key due to null input resolver."));
 	}
 }
 
@@ -637,7 +637,7 @@ void FBuildJob::EndResolveKey(FBuildKeyResolvedParams&& Params)
 {
 	if (Params.Status == EStatus::Canceled)
 	{
-		return CompleteWithError("Build was canceled."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Build was canceled."));
 	}
 	if (Params.Status == EStatus::Ok && Params.Definition)
 	{
@@ -645,7 +645,7 @@ void FBuildJob::EndResolveKey(FBuildKeyResolvedParams&& Params)
 	}
 	else
 	{
-		return CompleteWithError(WriteToUtf8String<128>("Failed to resolve key "_ASV, Params.Key, "."_ASV));
+		return CompleteWithError(WriteToUtf8String<128>(ANSITEXTVIEW("Failed to resolve key "), Params.Key, ANSITEXTVIEW(".")));
 	}
 }
 
@@ -659,7 +659,7 @@ void FBuildJob::EnterResolveInputMeta()
 	}
 	if (!InputResolver)
 	{
-		return CompleteWithError("Failed to resolve input metadata due to null input resolver."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Failed to resolve input metadata due to null input resolver."));
 	}
 }
 
@@ -674,7 +674,7 @@ void FBuildJob::EndResolveInputMeta(FBuildInputMetaResolvedParams&& Params)
 {
 	if (Params.Status == EStatus::Canceled)
 	{
-		return CompleteWithError("Build was canceled."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Build was canceled."));
 	}
 	if (Params.Status == EStatus::Ok)
 	{
@@ -682,7 +682,7 @@ void FBuildJob::EndResolveInputMeta(FBuildInputMetaResolvedParams&& Params)
 	}
 	else
 	{
-		return CompleteWithError("Failed to resolve input metadata."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Failed to resolve input metadata."));
 	}
 }
 
@@ -732,7 +732,7 @@ void FBuildJob::EnterResolveInputData()
 
 	if (!InputResolver)
 	{
-		return CompleteWithError("Failed to resolve input data due to null input resolver."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Failed to resolve input data due to null input resolver."));
 	}
 }
 
@@ -757,7 +757,7 @@ void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
 {
 	if (Params.Status == EStatus::Canceled)
 	{
-		return CompleteWithError("Build was canceled."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Build was canceled."));
 	}
 	if (Params.Status == EStatus::Ok)
 	{
@@ -779,7 +779,7 @@ void FBuildJob::EndResolveInputData(FBuildInputDataResolvedParams&& Params)
 	}
 	else
 	{
-		return CompleteWithError("Failed to resolve input data."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Failed to resolve input data."));
 	}
 }
 
@@ -833,7 +833,7 @@ void FBuildJob::EndExecuteRemote(FBuildWorkerActionCompleteParams&& Params)
 {
 	if (Params.Status == EStatus::Canceled)
 	{
-		return CompleteWithError("Build was canceled."_ASV);
+		return CompleteWithError(ANSITEXTVIEW("Build was canceled."));
 	}
 	if (Params.Output)
 	{
@@ -888,13 +888,13 @@ void FBuildJob::EnterExecuteLocal()
 		}
 		else if (EnumHasAnyFlags(BuildStatus, EBuildStatus::BuildTryRemote))
 		{
-			return CompleteWithError("Failed because build policy does not allow local execution, "
-				"and remote execution failed to build."_ASV);
+			return CompleteWithError(ANSITEXTVIEW("Failed because build policy does not allow local execution, "
+				"and remote execution failed to build."));
 		}
 		else
 		{
-			return CompleteWithError("Failed because build policy does not allow local execution, "
-				"and remote execution was not available."_ASV);
+			return CompleteWithError(ANSITEXTVIEW("Failed because build policy does not allow local execution, "
+				"and remote execution was not available."));
 		}
 	}
 
@@ -907,9 +907,10 @@ void FBuildJob::EnterExecuteLocal()
 		}
 		else
 		{
-			CompleteWithError(WriteToUtf8String<256>("Failed because input '"_ASV, Key, "' with hash "_ASV,
-				RawHash, " ("_ASV, RawSize, " bytes) was resolved with hash "_ASV, Buffer.GetRawHash(),
-				" ("_ASV, Buffer.GetRawSize(), " bytes)."_ASV));
+			CompleteWithError(WriteToUtf8String<256>(ANSITEXTVIEW("Failed because input '"), Key,
+				ANSITEXTVIEW("' with hash "), RawHash, ANSITEXTVIEW(" ("), RawSize,
+				ANSITEXTVIEW(" bytes) was resolved with hash "), Buffer.GetRawHash(),
+				ANSITEXTVIEW(" ("), Buffer.GetRawSize(), ANSITEXTVIEW(" bytes).")));
 		}
 	});
 	Action.Reset();
@@ -1034,7 +1035,7 @@ void FBuildJob::CompleteWithError(FUtf8StringView Error)
 	{
 		return;
 	}
-	OutputBuilder.AddLog({"LogDerivedDataBuild"_ASV, Error, EBuildOutputLogLevel::Error});
+	OutputBuilder.AddLog({ANSITEXTVIEW("LogDerivedDataBuild"), Error, EBuildOutputLogLevel::Error});
 	return SetOutputNoCheck(OutputBuilder.Build(), EBuildJobState::Complete);
 }
 
@@ -1054,7 +1055,7 @@ void FBuildJob::AdvanceToState(EBuildJobState NewState)
 			NewState = EBuildJobState::Complete;
 			if (Output.IsNull())
 			{
-				OutputBuilder.AddLog({"LogDerivedDataBuild"_ASV, "Build was canceled."_ASV, EBuildOutputLogLevel::Error});
+				OutputBuilder.AddLog({ANSITEXTVIEW("LogDerivedDataBuild"), ANSITEXTVIEW("Build was canceled."), EBuildOutputLogLevel::Error});
 			}
 		}
 

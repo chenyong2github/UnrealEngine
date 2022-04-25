@@ -241,7 +241,7 @@ public:
 
 	TConstArrayView<FStringView> GetHostPlatforms() const final
 	{
-		static constexpr FStringView HostPlatforms[]{TEXT("Win64"_SV), TEXT("Linux"_SV), TEXT("Mac"_SV)};
+		static constexpr FStringView HostPlatforms[]{TEXTVIEW("Win64"), TEXTVIEW("Linux"), TEXTVIEW("Mac")};
 		return HostPlatforms;
 	}
 
@@ -509,28 +509,28 @@ FCbObject FRemoteBuildExecutionRequest::BuildWorkerDescriptor(const FBuildWorker
 	FCbWriter WorkerDescriptor;
 	WorkerDescriptor.BeginObject();
 
-	WorkerDescriptor.AddString("name"_ASV, Worker.GetName());
-	WorkerDescriptor.AddString("path"_ASV, Worker.GetPath());
-	WorkerDescriptor.AddString("host"_ASV, Worker.GetHostPlatform());
-	WorkerDescriptor.AddUuid("buildsystem_version"_ASV, Worker.GetBuildSystemVersion());
-	WorkerDescriptor.AddInteger("timeout"_ASV, TimeoutSeconds);
-	WorkerDescriptor.AddInteger("cores"_ASV, 1);
-	//WorkerDescriptor.AddInteger("memory"_ASV, 1 * 1024 * 1024 * 1024);
+	WorkerDescriptor.AddString(ANSITEXTVIEW("name"), Worker.GetName());
+	WorkerDescriptor.AddString(ANSITEXTVIEW("path"), Worker.GetPath());
+	WorkerDescriptor.AddString(ANSITEXTVIEW("host"), Worker.GetHostPlatform());
+	WorkerDescriptor.AddUuid(ANSITEXTVIEW("buildsystem_version"), Worker.GetBuildSystemVersion());
+	WorkerDescriptor.AddInteger(ANSITEXTVIEW("timeout"), TimeoutSeconds);
+	WorkerDescriptor.AddInteger(ANSITEXTVIEW("cores"), 1);
+	//WorkerDescriptor.AddInteger(ANSITEXTVIEW("memory"), 1 * 1024 * 1024 * 1024);
 
-	WorkerDescriptor.BeginArray("environment"_ASV);
+	WorkerDescriptor.BeginArray(ANSITEXTVIEW("environment"));
 	Worker.IterateEnvironment([&WorkerDescriptor](FStringView Name, FStringView Value)
 		{
 			WorkerDescriptor.AddString(WriteToString<256>(Name, "=", Value));
 		});
 	WorkerDescriptor.EndArray();
 
-	WorkerDescriptor.BeginArray("executables"_ASV);
+	WorkerDescriptor.BeginArray(ANSITEXTVIEW("executables"));
 	Worker.IterateExecutables([&WorkerDescriptor](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
 			WorkerDescriptor.BeginObject();
-			WorkerDescriptor.AddString("name"_ASV, Key);
-			WorkerDescriptor.AddBinaryAttachment("hash"_ASV, RawHash);
-			WorkerDescriptor.AddInteger("size"_ASV, RawSize);
+			WorkerDescriptor.AddString(ANSITEXTVIEW("name"), Key);
+			WorkerDescriptor.AddBinaryAttachment(ANSITEXTVIEW("hash"), RawHash);
+			WorkerDescriptor.AddInteger(ANSITEXTVIEW("size"), RawSize);
 			WorkerDescriptor.EndObject();
 		});
 	WorkerDescriptor.EndArray();
@@ -539,23 +539,23 @@ FCbObject FRemoteBuildExecutionRequest::BuildWorkerDescriptor(const FBuildWorker
 	Worker.IterateFiles([&WorkerDescriptor](FStringView Key, const FIoHash& RawHash, uint64 RawSize)
 		{
 			WorkerDescriptor.BeginObject();
-			WorkerDescriptor.AddString("name"_ASV, Key);
-			WorkerDescriptor.AddBinaryAttachment("hash"_ASV, RawHash);
-			WorkerDescriptor.AddInteger("size"_ASV, RawSize);
+			WorkerDescriptor.AddString(ANSITEXTVIEW("name"), Key);
+			WorkerDescriptor.AddBinaryAttachment(ANSITEXTVIEW("hash"), RawHash);
+			WorkerDescriptor.AddInteger(ANSITEXTVIEW("size"), RawSize);
 			WorkerDescriptor.EndObject();
 		});
 	WorkerDescriptor.EndArray();
 
-	WorkerDescriptor.BeginArray("dirs"_ASV);
+	WorkerDescriptor.BeginArray(ANSITEXTVIEW("dirs"));
 	WorkerDescriptor.AddString(WriteToString<256>("Engine/Binaries/", Worker.GetHostPlatform()));
 	WorkerDescriptor.EndArray();
 
-	WorkerDescriptor.BeginArray("functions"_ASV);
+	WorkerDescriptor.BeginArray(ANSITEXTVIEW("functions"));
 	Worker.IterateFunctions([&WorkerDescriptor](FUtf8StringView Name, const FGuid& Version)
 		{
 			WorkerDescriptor.BeginObject();
-			WorkerDescriptor.AddString("name"_ASV, Name);
-			WorkerDescriptor.AddUuid("version"_ASV, Version);
+			WorkerDescriptor.AddString(ANSITEXTVIEW("name"), Name);
+			WorkerDescriptor.AddUuid(ANSITEXTVIEW("version"), Version);
 			WorkerDescriptor.EndObject();
 		});
 	WorkerDescriptor.EndArray();

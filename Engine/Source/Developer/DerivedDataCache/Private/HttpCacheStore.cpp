@@ -4092,19 +4092,19 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 	RefsUri << "api/v1/refs/" << StructuredNamespace;
 	FCbWriter RequestWriter;
 	RequestWriter.BeginObject();
-	RequestWriter.BeginArray("ops"_ASV);
+	RequestWriter.BeginArray(ANSITEXTVIEW("ops"));
 	uint32 OpIndex = 0;
 	for (const FCacheGetValueRequest& ValueRef : ValueRefs)
 	{
 		RequestWriter.BeginObject();
-		RequestWriter.AddInteger("opId"_ASV, OpIndex);
-		RequestWriter.AddString("op"_ASV, "GET"_ASV);
+		RequestWriter.AddInteger(ANSITEXTVIEW("opId"), OpIndex);
+		RequestWriter.AddString(ANSITEXTVIEW("op"), ANSITEXTVIEW("GET"));
 		FCacheKey Key = ValueRef.Key;
 		FString Bucket(Key.Bucket.ToString());
 		Bucket.ToLowerInline();
-		RequestWriter.AddString("bucket"_ASV, Bucket);
-		RequestWriter.AddString("key"_ASV, LexToString(Key.Hash));
-		RequestWriter.AddBool("resolveAttachments"_ASV, true);
+		RequestWriter.AddString(ANSITEXTVIEW("bucket"), Bucket);
+		RequestWriter.AddString(ANSITEXTVIEW("key"), LexToString(Key.Hash));
+		RequestWriter.AddBool(ANSITEXTVIEW("resolveAttachments"), true);
 		RequestWriter.EndObject();
 		++OpIndex;
 	}
@@ -4140,7 +4140,7 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 
 			const FCbObjectView ResponseObject = FCbObjectView(Request->GetResponseBuffer().GetData());
 
-			FCbArrayView ResultsArrayView = ResponseObject["results"_ASV].AsArrayView();
+			FCbArrayView ResultsArrayView = ResponseObject[ANSITEXTVIEW("results")].AsArrayView();
 
 			if (ResultsArrayView.Num() != ValueRefs.Num())
 			{
@@ -4157,9 +4157,9 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 			for (FCbFieldView ResultFieldView : ResultsArrayView)
 			{
 				FCbObjectView ResultObjectView = ResultFieldView.AsObjectView();
-				uint32 OpId = ResultObjectView["opId"_ASV].AsUInt32();
-				FCbObjectView ResponseObjectView = ResultObjectView["response"_ASV].AsObjectView();
-				int32 StatusCode = ResultObjectView["statusCode"_ASV].AsInt32();
+				uint32 OpId = ResultObjectView[ANSITEXTVIEW("opId")].AsUInt32();
+				FCbObjectView ResponseObjectView = ResultObjectView[ANSITEXTVIEW("response")].AsObjectView();
+				int32 StatusCode = ResultObjectView[ANSITEXTVIEW("statusCode")].AsInt32();
 
 				if (OpId >= (uint32)ValueRefs.Num())
 				{
@@ -4187,8 +4187,8 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 					continue;
 				}
 
-				const FIoHash RawHash = ResponseObjectView["RawHash"_ASV].AsHash();
-				const uint64 RawSize = ResponseObjectView["RawSize"_ASV].AsUInt64(MAX_uint64);
+				const FIoHash RawHash = ResponseObjectView[ANSITEXTVIEW("RawHash")].AsHash();
+				const uint64 RawSize = ResponseObjectView[ANSITEXTVIEW("RawSize")].AsUInt64(MAX_uint64);
 				if (RawHash.IsZero() || RawSize == MAX_uint64)
 				{
 					UE_LOG(LogDerivedDataCache, Display, TEXT("%s: Cache miss with invalid value for %s from '%s'"),

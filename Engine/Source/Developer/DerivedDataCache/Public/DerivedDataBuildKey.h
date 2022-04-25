@@ -70,7 +70,7 @@ inline uint32 GetTypeHash(const FBuildKey& Key)
 template <typename CharType>
 inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FBuildKey& Key)
 {
-	return Builder << "Build/"_ASV << Key.Hash;
+	return Builder << ANSITEXTVIEW("Build/") << Key.Hash;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -98,7 +98,7 @@ inline uint32 GetTypeHash(const FBuildActionKey& Key)
 template <typename CharType>
 inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FBuildActionKey& Key)
 {
-	return Builder << "BuildAction/"_ASV << Key.Hash;
+	return Builder << ANSITEXTVIEW("BuildAction/") << Key.Hash;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

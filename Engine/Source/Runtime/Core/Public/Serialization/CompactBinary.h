@@ -56,7 +56,7 @@
  *         }
  *     }
  *
- *     for (FCbFieldView Format : Params.FindView("Formats"_ASV))
+ *     for (FCbFieldView Format : Params.FindView(ANSITEXTVIEW("Formats")))
  *     {
  *         BeginCompress(FName(Format.AsString()));
  *     }

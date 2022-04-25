@@ -137,18 +137,18 @@ bool FAnalysisCache::FFileContents::Save()
 	FCbWriter Writer;
 	Writer.BeginObject();
 	Writer << "Version" << CurrentVersion;
-	Writer.BeginArray("Index"_ASV);
+	Writer.BeginArray(ANSITEXTVIEW("Index"));
 	for (auto Entry : IndexEntries)
 	{
 		Writer.BeginObject();
-		Writer << "N"_ASV << Entry.Name;
-		Writer << "I"_ASV << Entry.Id;
-		Writer << "F"_ASV << Entry.Flags;
-		Writer.AddBinary("UD"_ASV, &Entry.UserData, UserDataSize);
+		Writer << ANSITEXTVIEW("N") << Entry.Name;
+		Writer << ANSITEXTVIEW("I") << Entry.Id;
+		Writer << ANSITEXTVIEW("F") << Entry.Flags;
+		Writer.AddBinary(ANSITEXTVIEW("UD"), &Entry.UserData, UserDataSize);
 		Writer.EndObject();
 	}
 	Writer.EndArray();
-	Writer.BeginArray("Blocks"_ASV);
+	Writer.BeginArray(ANSITEXTVIEW("Blocks"));
 	for (const FBlockEntry& Entry : Blocks)
 	{
 		Writer.AddBinary(&Entry, sizeof(FBlockEntry));
@@ -195,15 +195,15 @@ bool FAnalysisCache::FFileContents::Load()
 		return false;
 	}
 
-	FCbArrayView IndexArray = Package.GetObject().Find("Index"_ASV).AsArrayView();
+	FCbArrayView IndexArray = Package.GetObject().Find(ANSITEXTVIEW("Index")).AsArrayView();
 	IndexEntries.Reserve(IndexArray.Num());
 	for (FCbFieldView IndexEntry : IndexArray)
 	{
 		FCbObjectView IndexEntryObj = IndexEntry.AsObjectView();
-		FUtf8StringView NameView = IndexEntryObj["N"_ASV].AsString();
-		const uint32 Id = IndexEntryObj["I"_ASV].AsUInt32();
-		const uint32 Flags = IndexEntryObj["F"_ASV].AsUInt32();
-		FMemoryView UserData = IndexEntryObj["UD"_ASV].AsBinaryView();
+		FUtf8StringView NameView = IndexEntryObj[ANSITEXTVIEW("N")].AsString();
+		const uint32 Id = IndexEntryObj[ANSITEXTVIEW("I")].AsUInt32();
+		const uint32 Flags = IndexEntryObj[ANSITEXTVIEW("F")].AsUInt32();
+		FMemoryView UserData = IndexEntryObj[ANSITEXTVIEW("UD")].AsBinaryView();
 		FIndexEntry& Entry = IndexEntries.AddZeroed_GetRef();
 		Entry.Name = FString(NameView);
 		Entry.Id = Id;
@@ -213,7 +213,7 @@ bool FAnalysisCache::FFileContents::Load()
 		check(Remainder.GetSize() == 0);
 	}
 
-	FCbArrayView BlockArray = Package.GetObject().Find("Blocks"_ASV).AsArrayView();
+	FCbArrayView BlockArray = Package.GetObject().Find(ANSITEXTVIEW("Blocks")).AsArrayView();
 	Blocks.Reserve(BlockArray.Num());
 	
 	for (FCbFieldView BlockEntryView : BlockArray)

@@ -47,18 +47,18 @@ bool TAsciiSetTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("AdvanceToLast"),	*FAsciiSet::FindLastOrEnd("NonWhitespaceNonWhitespace", Whitespaces), '\0');
 
 	constexpr FAsciiSet Lowercase("abcdefghijklmnopqrstuvwxyz");
-	TestEqual(TEXT("TrimPrefixWithout"),		FAsciiSet::TrimPrefixWithout("ABcdEF"_ASV, Lowercase), "cdEF"_ASV);
-	TestEqual(TEXT("FindPrefixWithout"),		FAsciiSet::FindPrefixWithout("ABcdEF"_ASV, Lowercase), "AB"_ASV);
-	TestEqual(TEXT("TrimSuffixWithout"),		FAsciiSet::TrimSuffixWithout("ABcdEF"_ASV, Lowercase), "ABcd"_ASV);
-	TestEqual(TEXT("FindSuffixWithout"),		FAsciiSet::FindSuffixWithout("ABcdEF"_ASV, Lowercase), "EF"_ASV);
-	TestEqual(TEXT("TrimPrefixWithout none"),	FAsciiSet::TrimPrefixWithout("same"_ASV, Lowercase), "same"_ASV);
-	TestEqual(TEXT("FindPrefixWithout none"),	FAsciiSet::FindPrefixWithout("same"_ASV, Lowercase), ""_ASV);
-	TestEqual(TEXT("TrimSuffixWithout none"),	FAsciiSet::TrimSuffixWithout("same"_ASV, Lowercase), "same"_ASV);
-	TestEqual(TEXT("FindSuffixWithout none"),	FAsciiSet::FindSuffixWithout("same"_ASV, Lowercase), ""_ASV);
-	TestEqual(TEXT("TrimPrefixWithout empty"),	FAsciiSet::TrimPrefixWithout(""_ASV, Lowercase), ""_ASV);
-	TestEqual(TEXT("FindPrefixWithout empty"),	FAsciiSet::FindPrefixWithout(""_ASV, Lowercase), ""_ASV);
-	TestEqual(TEXT("TrimSuffixWithout empty"),	FAsciiSet::TrimSuffixWithout(""_ASV, Lowercase), ""_ASV);
-	TestEqual(TEXT("FindSuffixWithout empty"),	FAsciiSet::FindSuffixWithout(""_ASV, Lowercase), ""_ASV);
+	TestEqual(TEXT("TrimPrefixWithout"),		FAsciiSet::TrimPrefixWithout(ANSITEXTVIEW("ABcdEF"), Lowercase), ANSITEXTVIEW("cdEF"));
+	TestEqual(TEXT("FindPrefixWithout"),		FAsciiSet::FindPrefixWithout(ANSITEXTVIEW("ABcdEF"), Lowercase), ANSITEXTVIEW("AB"));
+	TestEqual(TEXT("TrimSuffixWithout"),		FAsciiSet::TrimSuffixWithout(ANSITEXTVIEW("ABcdEF"), Lowercase), ANSITEXTVIEW("ABcd"));
+	TestEqual(TEXT("FindSuffixWithout"),		FAsciiSet::FindSuffixWithout(ANSITEXTVIEW("ABcdEF"), Lowercase), ANSITEXTVIEW("EF"));
+	TestEqual(TEXT("TrimPrefixWithout none"),	FAsciiSet::TrimPrefixWithout(ANSITEXTVIEW("same"), Lowercase), ANSITEXTVIEW("same"));
+	TestEqual(TEXT("FindPrefixWithout none"),	FAsciiSet::FindPrefixWithout(ANSITEXTVIEW("same"), Lowercase), ANSITEXTVIEW(""));
+	TestEqual(TEXT("TrimSuffixWithout none"),	FAsciiSet::TrimSuffixWithout(ANSITEXTVIEW("same"), Lowercase), ANSITEXTVIEW("same"));
+	TestEqual(TEXT("FindSuffixWithout none"),	FAsciiSet::FindSuffixWithout(ANSITEXTVIEW("same"), Lowercase), ANSITEXTVIEW(""));
+	TestEqual(TEXT("TrimPrefixWithout empty"),	FAsciiSet::TrimPrefixWithout(ANSITEXTVIEW(""), Lowercase), ANSITEXTVIEW(""));
+	TestEqual(TEXT("FindPrefixWithout empty"),	FAsciiSet::FindPrefixWithout(ANSITEXTVIEW(""), Lowercase), ANSITEXTVIEW(""));
+	TestEqual(TEXT("TrimSuffixWithout empty"),	FAsciiSet::TrimSuffixWithout(ANSITEXTVIEW(""), Lowercase), ANSITEXTVIEW(""));
+	TestEqual(TEXT("FindSuffixWithout empty"),	FAsciiSet::FindSuffixWithout(ANSITEXTVIEW(""), Lowercase), ANSITEXTVIEW(""));
 
 
 	auto TestHasFunctions = [&](auto MakeString)

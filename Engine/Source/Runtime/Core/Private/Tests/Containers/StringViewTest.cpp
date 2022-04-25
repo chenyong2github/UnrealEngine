@@ -106,8 +106,8 @@ bool FStringViewTestCtor::RunTest(const FString& Parameters)
 	// Create using string view literals
 	{
 		FStringView View = TEXTVIEW("Test");
-		FAnsiStringView ViewAnsi = "Test"_ASV;
-		FWideStringView ViewWide = WIDETEXT("Test"_WSV);
+		FAnsiStringView ViewAnsi = ANSITEXTVIEW("Test");
+		FWideStringView ViewWide = WIDETEXTVIEW("Test");
 	}
 
 	// Verify that class template argument deduction is working

@@ -95,7 +95,7 @@ bool FCbAttachmentTest::RunTest(const FString& Parameters)
 	{
 		FCbWriter Writer;
 		Writer.BeginObject();
-		Writer << "Name"_ASV << 42;
+		Writer << ANSITEXTVIEW("Name") << 42;
 		Writer.EndObject();
 		FCbObject Object = Writer.Save().AsObject();
 		FCbAttachment Attachment(Object);
@@ -130,7 +130,7 @@ bool FCbAttachmentTest::RunTest(const FString& Parameters)
 	{
 		FCbWriter Writer;
 		Writer.BeginObject();
-		Writer << "Name"_ASV << 42;
+		Writer << ANSITEXTVIEW("Name") << 42;
 		Writer.EndObject();
 		FCbObject Object = Writer.Save().AsObject();
 		FCbObject ObjectView = FCbObject::MakeView(Object);
@@ -200,7 +200,7 @@ bool FCbAttachmentTest::RunTest(const FString& Parameters)
 	{
 		FCbWriter ValueWriter;
 		ValueWriter.BeginObject();
-		ValueWriter << "Name"_ASV << 42;
+		ValueWriter << ANSITEXTVIEW("Name") << 42;
 		ValueWriter.EndObject();
 		const FCbObject Value = ValueWriter.Save().AsObject();
 		TestEqual(TEXT("FCbAttachment(LoadObjectView).Validate"),

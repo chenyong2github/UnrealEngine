@@ -93,7 +93,7 @@ FSharedBuffer FBuildJobContext::FindInput(FUtf8StringView Key) const
 				<< TEXT(" and raw size ") << Input->GetRawSize() << TEXT(" but has raw hash ") << RawHash
 				<< TEXT(" and raw size ") << Buffer.GetSize() << TEXT(" after decompression for build of '")
 				<< Job.GetName() << TEXT("' by ") << Job.GetFunction() << TEXT(".");
-			OutputBuilder.AddLog({"LogDerivedDataBuild"_ASV, FTCHARToUTF8(Error), EBuildOutputLogLevel::Error});
+			OutputBuilder.AddLog({ANSITEXTVIEW("LogDerivedDataBuild"), FTCHARToUTF8(Error), EBuildOutputLogLevel::Error});
 			UE_LOG(LogDerivedDataBuild, Error, TEXT("%.*s"), Error.Len(), Error.GetData());
 		}
 	}

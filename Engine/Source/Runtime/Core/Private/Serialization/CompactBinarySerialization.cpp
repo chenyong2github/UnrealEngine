@@ -282,13 +282,13 @@ public:
 		if (FUtf8StringView Name = Field.GetName(); !Name.IsEmpty())
 		{
 			AppendQuotedString(Name);
-			Builder << ": "_ASV;
+			Builder << ANSITEXTVIEW(": ");
 		}
 
 		switch (FCbValue Accessor = Field.GetValue(); Accessor.GetType())
 		{
 		case ECbFieldType::Null:
-			Builder << "null"_ASV;
+			Builder << ANSITEXTVIEW("null");
 			break;
 		case ECbFieldType::Object:
 		case ECbFieldType::UniformObject:
@@ -341,10 +341,10 @@ public:
 			Builder.Appendf(UTF8TEXT("%.17g"), Accessor.AsFloat64());
 			break;
 		case ECbFieldType::BoolFalse:
-			Builder << "false"_ASV;
+			Builder << ANSITEXTVIEW("false");
 			break;
 		case ECbFieldType::BoolTrue:
-			Builder << "true"_ASV;
+			Builder << ANSITEXTVIEW("true");
 			break;
 		case ECbFieldType::ObjectAttachment:
 		case ECbFieldType::BinaryAttachment:
@@ -439,13 +439,13 @@ private:
 			{
 				switch (Char)
 				{
-				case '\\': Builder << "\\\\"_ASV; break;
-				case '\"': Builder << "\\\""_ASV; break;
-				case '\b': Builder << "\\b"_ASV; break;
-				case '\f': Builder << "\\f"_ASV; break;
-				case '\n': Builder << "\\n"_ASV; break;
-				case '\r': Builder << "\\r"_ASV; break;
-				case '\t': Builder << "\\t"_ASV; break;
+				case '\\': Builder << ANSITEXTVIEW("\\\\"); break;
+				case '\"': Builder << ANSITEXTVIEW("\\\""); break;
+				case '\b': Builder << ANSITEXTVIEW("\\b"); break;
+				case '\f': Builder << ANSITEXTVIEW("\\f"); break;
+				case '\n': Builder << ANSITEXTVIEW("\\n"); break;
+				case '\r': Builder << ANSITEXTVIEW("\\r"); break;
+				case '\t': Builder << ANSITEXTVIEW("\\t"); break;
 				default:
 					Builder.Appendf(UTF8TEXT("\\u%04x"), uint32(Char));
 					break;

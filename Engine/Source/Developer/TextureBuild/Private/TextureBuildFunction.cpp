@@ -326,7 +326,7 @@ FGuid FTextureBuildFunction::GetVersion() const
 
 void FTextureBuildFunction::Configure(UE::DerivedData::FBuildConfigContext& Context) const
 {
-	Context.SetCacheBucket(UE::DerivedData::FCacheBucket("Texture"_ASV));
+	Context.SetCacheBucket(UE::DerivedData::FCacheBucket(ANSITEXTVIEW("Texture")));
 	Context.SetRequiredMemory(EstimateTextureBuildMemoryUsage(Context.FindConstant(UTF8TEXTVIEW("Settings"))));
 }
 
@@ -406,7 +406,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 		FCbWriter DescriptionWriter;
 		DescriptionWriter.BeginObject();
 
-		DescriptionWriter.BeginArray("Size"_ASV);
+		DescriptionWriter.BeginArray(ANSITEXTVIEW("Size"));
 		DescriptionWriter.AddInteger(CompressedMips[0].SizeX);
 		DescriptionWriter.AddInteger(CompressedMips[0].SizeY);
 		// this is brittle ; CompressedMips[] should report NumSlices itself
@@ -414,14 +414,14 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 		DescriptionWriter.AddInteger(NumSlices);
 		DescriptionWriter.EndArray();
 
-		DescriptionWriter.AddString("PixelFormat"_ASV, GetPixelFormatString((EPixelFormat)CompressedMips[0].PixelFormat));
-		DescriptionWriter.AddBool("bCubeMap"_ASV, BuildSettings.bCubemap);
-		DescriptionWriter.AddInteger("ExtData"_ASV, ExtData);
-		DescriptionWriter.AddInteger("NumMips"_ASV, MipCount);
-		DescriptionWriter.AddInteger("NumStreamingMips"_ASV, FirstInlineMip);
-		DescriptionWriter.AddInteger("NumMipsInTail"_ASV, NumMipsInTail);
+		DescriptionWriter.AddString(ANSITEXTVIEW("PixelFormat"), GetPixelFormatString((EPixelFormat)CompressedMips[0].PixelFormat));
+		DescriptionWriter.AddBool(ANSITEXTVIEW("bCubeMap"), BuildSettings.bCubemap);
+		DescriptionWriter.AddInteger(ANSITEXTVIEW("ExtData"), ExtData);
+		DescriptionWriter.AddInteger(ANSITEXTVIEW("NumMips"), MipCount);
+		DescriptionWriter.AddInteger(ANSITEXTVIEW("NumStreamingMips"), FirstInlineMip);
+		DescriptionWriter.AddInteger(ANSITEXTVIEW("NumMipsInTail"), NumMipsInTail);
 
-		DescriptionWriter.BeginArray("Mips"_ASV);
+		DescriptionWriter.BeginArray(ANSITEXTVIEW("Mips"));
 		int64 MipOffset = 0;
 		for (int32 MipIndex = 0; MipIndex < MipCount; ++MipIndex)
 		{
@@ -429,7 +429,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 
 			DescriptionWriter.BeginObject();
 			
-			DescriptionWriter.BeginArray("Size"_ASV);
+			DescriptionWriter.BeginArray(ANSITEXTVIEW("Size"));
 			DescriptionWriter.AddInteger(CompressedMip.SizeX);
 			DescriptionWriter.AddInteger(CompressedMip.SizeY);
 			DescriptionWriter.AddInteger(CompressedMip.SizeZ);
@@ -443,12 +443,12 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 			const bool bIsInlineMip = MipIndex >= FirstInlineMip;
 
 			EFileRegionType FileRegion = FFileRegion::SelectType(EPixelFormat(CompressedMip.PixelFormat));
-			DescriptionWriter.AddInteger("FileRegion"_ASV, static_cast<int32>(FileRegion));
+			DescriptionWriter.AddInteger(ANSITEXTVIEW("FileRegion"), static_cast<int32>(FileRegion));
 			if (bIsInlineMip)
 			{
-				DescriptionWriter.AddInteger("MipOffset"_ASV, MipOffset);
+				DescriptionWriter.AddInteger(ANSITEXTVIEW("MipOffset"), MipOffset);
 			}
-			DescriptionWriter.AddInteger("NumBytes"_ASV, CompressedMip.RawData.Num());
+			DescriptionWriter.AddInteger(ANSITEXTVIEW("NumBytes"), CompressedMip.RawData.Num());
 
 			DescriptionWriter.EndObject();
 
@@ -461,14 +461,14 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 
 		DescriptionWriter.EndObject();
 		FCbObject DescriptionObject = DescriptionWriter.Save().AsObject();
-		Context.AddValue(UE::DerivedData::FValueId::FromName("Description"_ASV), DescriptionObject);
+		Context.AddValue(UE::DerivedData::FValueId::FromName(ANSITEXTVIEW("Description")), DescriptionObject);
 	}
 
 	// Streaming mips
 	for (int32 MipIndex = 0; MipIndex < FirstInlineMip; ++MipIndex)
 	{
 		TAnsiStringBuilder<16> MipName;
-		MipName << "Mip"_ASV << MipIndex;
+		MipName << ANSITEXTVIEW("Mip") << MipIndex;
 
 		FSharedBuffer MipData = MakeSharedBufferFromArray(MoveTemp(CompressedMips[MipIndex].RawData));
 		Context.AddValue(UE::DerivedData::FValueId::FromName(MipName), MipData);
@@ -484,6 +484,6 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 	FCompositeBuffer MipTail(MipTailComponents);
 	if (MipTail.GetSize() > 0)
 	{
-		Context.AddValue(UE::DerivedData::FValueId::FromName("MipTail"_ASV), MipTail);
+		Context.AddValue(UE::DerivedData::FValueId::FromName(ANSITEXTVIEW("MipTail")), MipTail);
 	}
 }

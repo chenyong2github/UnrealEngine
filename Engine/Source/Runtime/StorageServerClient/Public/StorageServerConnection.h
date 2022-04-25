@@ -31,27 +31,27 @@ inline FAnsiStringView GetMimeTypeString(EStorageServerContentType ContentType)
 	switch (ContentType)
 	{
 		case EStorageServerContentType::CbObject:
-			return "application/ue-x-cb"_ASV;
+			return ANSITEXTVIEW("application/ue-x-cb");
 		case EStorageServerContentType::Binary:
-			return "application/octet-stream"_ASV;
+			return ANSITEXTVIEW("application/octet-stream");
 		case EStorageServerContentType::CompressedBinary:
-			return "application/x-ue-comp"_ASV;
+			return ANSITEXTVIEW("application/x-ue-comp");
 		default:
-			return "unknown"_ASV;
+			return ANSITEXTVIEW("unknown");
 	};
 };
 
 inline EStorageServerContentType GetMimeType(const FAnsiStringView& ContentType)
 {
-	if (ContentType == "application/octet-stream"_ASV)
+	if (ContentType == ANSITEXTVIEW("application/octet-stream"))
 	{
 		return EStorageServerContentType::Binary;
 	}
-	else if (ContentType == "application/x-ue-comp"_ASV)
+	else if (ContentType == ANSITEXTVIEW("application/x-ue-comp"))
 	{
 		return EStorageServerContentType::CompressedBinary;
 	}
-	else if (ContentType == "application/x-ue-cb"_ASV)
+	else if (ContentType == ANSITEXTVIEW("application/x-ue-cb"))
 	{
 		return EStorageServerContentType::CbObject;
 	}

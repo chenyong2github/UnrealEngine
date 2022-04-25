@@ -169,16 +169,16 @@ FCbPackage FCacheRecord::Save() const
 void FCacheRecord::Save(FCbPackage& Attachments, FCbWriter& Writer) const
 {
 	Writer.BeginObject();
-	Writer << "Key"_ASV << GetKey();
+	Writer << ANSITEXTVIEW("Key") << GetKey();
 
 	if (const FCbObject& Meta = GetMeta())
 	{
-		Writer.AddObject("Meta"_ASV, Meta);
+		Writer.AddObject(ANSITEXTVIEW("Meta"), Meta);
 	}
 	TConstArrayView<FValueWithId> Values = GetValues();
 	if (!Values.IsEmpty())
 	{
-		Writer.BeginArray("Values"_ASV);
+		Writer.BeginArray(ANSITEXTVIEW("Values"));
 		for (const FValueWithId& Value : Values)
 		{
 			if (Value.HasData())
@@ -186,9 +186,9 @@ void FCacheRecord::Save(FCbPackage& Attachments, FCbWriter& Writer) const
 				Attachments.AddAttachment(FCbAttachment(Value.GetData()));
 			}
 			Writer.BeginObject();
-			Writer.AddObjectId("Id"_ASV, Value.GetId());
-			Writer.AddBinaryAttachment("RawHash"_ASV, Value.GetRawHash());
-			Writer.AddInteger("RawSize"_ASV, Value.GetRawSize());
+			Writer.AddObjectId(ANSITEXTVIEW("Id"), Value.GetId());
+			Writer.AddBinaryAttachment(ANSITEXTVIEW("RawHash"), Value.GetRawHash());
+			Writer.AddInteger(ANSITEXTVIEW("RawSize"), Value.GetRawSize());
 			Writer.EndObject();
 		}
 		Writer.EndArray();
@@ -201,13 +201,13 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCb
 	const FCbObjectView ObjectView = Object;
 
 	// Check for the previous format of cache record. Remove this check in 5.1.
-	if (ObjectView["Value"_ASV] || ObjectView["Attachments"_ASV])
+	if (ObjectView[ANSITEXTVIEW("Value")] || ObjectView[ANSITEXTVIEW("Attachments")])
 	{
 		return FOptionalCacheRecord();
 	}
 
 	FCacheKey Key;
-	FCbObjectView KeyObject = ObjectView["Key"_ASV].AsObjectView();
+	FCbObjectView KeyObject = ObjectView[ANSITEXTVIEW("Key")].AsObjectView();
 	auto TrySetBucketName = [](FUtf8StringView Name, FCacheKey& Key)
 	{
 		if (Private::IsValidCacheBucketName(Name))
@@ -217,24 +217,24 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCb
 		}
 		return false;
 	};
-	if (!TrySetBucketName(KeyObject["Bucket"_ASV].AsString(), Key))
+	if (!TrySetBucketName(KeyObject[ANSITEXTVIEW("Bucket")].AsString(), Key))
 	{
 		return FOptionalCacheRecord();
 	}
-	Key.Hash = KeyObject["Hash"_ASV].AsHash();
+	Key.Hash = KeyObject[ANSITEXTVIEW("Hash")].AsHash();
 
 	FCacheRecordBuilder Builder(Key);
 
-	Builder.SetMeta(Object["Meta"_ASV].AsObject());
+	Builder.SetMeta(Object[ANSITEXTVIEW("Meta")].AsObject());
 
 	auto LoadValue = [&Attachments](const FCbObjectView& ValueObject)
 	{
-		const FValueId Id = ValueObject["Id"_ASV].AsObjectId();
+		const FValueId Id = ValueObject[ANSITEXTVIEW("Id")].AsObjectId();
 		if (Id.IsNull())
 		{
 			return FValueWithId();
 		}
-		const FIoHash RawHash = ValueObject["RawHash"_ASV].AsHash();
+		const FIoHash RawHash = ValueObject[ANSITEXTVIEW("RawHash")].AsHash();
 		if (const FCbAttachment* Attachment = Attachments.FindAttachment(RawHash))
 		{
 			if (const FCompressedBuffer& Compressed = Attachment->AsCompressedBinary())
@@ -242,7 +242,7 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCb
 				return FValueWithId(Id, Compressed);
 			}
 		}
-		const uint64 RawSize = ValueObject["RawSize"_ASV].AsUInt64(MAX_uint64);
+		const uint64 RawSize = ValueObject[ANSITEXTVIEW("RawSize")].AsUInt64(MAX_uint64);
 		if (!RawHash.IsZero() && RawSize != MAX_uint64)
 		{
 			return FValueWithId(Id, RawHash, RawSize);
@@ -253,7 +253,7 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCb
 		}
 	};
 
-	for (FCbFieldView ValueField : ObjectView["Values"_ASV])
+	for (FCbFieldView ValueField : ObjectView[ANSITEXTVIEW("Values")])
 	{
 		FValueWithId Value = LoadValue(ValueField.AsObjectView());
 		if (!Value)

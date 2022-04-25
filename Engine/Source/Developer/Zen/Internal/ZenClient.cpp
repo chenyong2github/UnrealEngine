@@ -40,32 +40,32 @@ bool SendData(FSocket& Socket, FMemoryView Data)
 
 void CreateHttpUpgradeRequest(const TArray<FString>& Protocols, FAnsiStringBuilderBase& OutRequest)
 {
-	const FAnsiStringView Endpoint = "/zen"_ASV;
+	const FAnsiStringView Endpoint = ANSITEXTVIEW("/zen");
 
-	OutRequest << "GET "_ASV << Endpoint << " HTTP/1.1\r\n"_ASV;
-	OutRequest << "Upgrade: websocket\r\n"_ASV;
-	OutRequest << "Connection: upgrade\r\n"_ASV;
-	OutRequest << "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"_ASV;
+	OutRequest << ANSITEXTVIEW("GET ") << Endpoint << ANSITEXTVIEW(" HTTP/1.1\r\n");
+	OutRequest << ANSITEXTVIEW("Upgrade: websocket\r\n");
+	OutRequest << ANSITEXTVIEW("Connection: upgrade\r\n");
+	OutRequest << ANSITEXTVIEW("Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n");
 
 	if (Protocols.Num())
 	{
-		OutRequest << "Sec-WebSocket-Protocol: "_ASV;
+		OutRequest << ANSITEXTVIEW("Sec-WebSocket-Protocol: ");
 
 		for (int32 Idx = 0, Count = Protocols.Num(); Idx < Count; ++Idx)
 		{
 			if (Idx > 0)
 			{
-				OutRequest << " "_ASV;
+				OutRequest << ANSITEXTVIEW(" ");
 			}
 
 			FTCHARToUTF8 Utf8(*Protocols[Idx]);
 			OutRequest << FAnsiStringView(Utf8.Get(), Utf8.Length());
 		}
 		
-		OutRequest << "\r\n"_ASV;
+		OutRequest << ANSITEXTVIEW("\r\n");
 	}
 
-	OutRequest << "\r\n"_ASV;
+	OutRequest << ANSITEXTVIEW("\r\n");
 }
 
 bool ReceieveHttpUpgradeResponse(FSocket& Socket, FAnsiStringBuilderBase& Response)
@@ -98,7 +98,7 @@ bool ReceieveHttpUpgradeResponse(FSocket& Socket, FAnsiStringBuilderBase& Respon
 				return true;
 			}
 
-			Response << Line << "\n"_ASV;
+			Response << Line << ANSITEXTVIEW("\n");
 		}
 	}
 }
@@ -111,7 +111,7 @@ bool ValidateHandshake(FAnsiStringView UpgradeResponse, FString& OutReason)
 		FAnsiStringView StatusLine = UpgradeResponse.Left(NewLineIndex);
 		UpgradeResponse.RightChopInline(NewLineIndex + 1);
 
-		if (StatusLine != "HTTP/1.1 101 Switching Protocols"_ASV)
+		if (StatusLine != ANSITEXTVIEW("HTTP/1.1 101 Switching Protocols"))
 		{
 			FUTF8ToTCHAR Str(StatusLine.GetData(), StatusLine.Len());
 			OutReason = Str.Get(); 
@@ -483,7 +483,7 @@ bool FZenClient::Connect(FStringView Host, int32 Port)
 
 void FZenClient::Disconnect()
 {
-	CloseConnection(TEXT(""_SV));
+	CloseConnection(TEXTVIEW(""));
 }
 
 bool FZenClient::SendRequestMessage(FZenWebSocketMessage&& RequestMessage, FOnStreamResponse&& OnResponse)

@@ -367,7 +367,7 @@ bool FCbValidateAttachmentTest::RunTest(const FString& Parameters)
 	{
 		TCbWriter<256> Writer;
 		Writer.BeginObject();
-		Writer.AddNull("N"_ASV);
+		Writer.AddNull(ANSITEXTVIEW("N"));
 		Writer.EndObject();
 		FBufferArchive Buffer;
 		FCbAttachment(Writer.Save().AsObject()).Save(Buffer);
@@ -401,7 +401,7 @@ bool FCbValidateAttachmentTest::RunTest(const FString& Parameters)
 		FBufferArchive Buffer;
 		FCbWriter Writer;
 		Writer.AddBinaryAttachment(FIoHash::HashBuffer(BinaryView));
-		Writer.SetName("Name"_ASV).AddBinary(BinaryView);
+		Writer.SetName(ANSITEXTVIEW("Name")).AddBinary(BinaryView);
 		Writer.Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(NameOnValue)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::InvalidPackageFormat);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(NameOnValue, Mode)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All & ~ECbValidateMode::Package), ECbValidateError::None);
@@ -409,7 +409,7 @@ bool FCbValidateAttachmentTest::RunTest(const FString& Parameters)
 	{
 		FBufferArchive Buffer;
 		FCbWriter Writer;
-		Writer.SetName("Name"_ASV).AddBinaryAttachment(FIoHash::HashBuffer(BinaryView));
+		Writer.SetName(ANSITEXTVIEW("Name")).AddBinaryAttachment(FIoHash::HashBuffer(BinaryView));
 		Writer.AddBinary(BinaryView);
 		Writer.Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryAttachment(NameOnHash)"), ValidateCompactBinaryAttachment(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::InvalidPackageFormat);
@@ -532,7 +532,7 @@ bool FCbValidatePackageTest::RunTest(const FString& Parameters)
 		FBufferArchive Buffer;
 		TCbWriter<256> Writer;
 		Writer.AddHash(CommonRootObjectHash);
-		Writer.SetName("Name"_ASV);
+		Writer.SetName(ANSITEXTVIEW("Name"));
 		Writer.AddObject(CommonRootObject);
 		Writer.AddNull();
 		Writer.Save(Buffer);
@@ -542,7 +542,7 @@ bool FCbValidatePackageTest::RunTest(const FString& Parameters)
 	{
 		FBufferArchive Buffer;
 		TCbWriter<256> Writer;
-		Writer.SetName("Name"_ASV);
+		Writer.SetName(ANSITEXTVIEW("Name"));
 		Writer.AddHash(CommonRootObjectHash);
 		Writer.AddObject(CommonRootObject);
 		Writer.AddNull();
@@ -556,7 +556,7 @@ bool FCbValidatePackageTest::RunTest(const FString& Parameters)
 		Writer.AddHash(CommonRootObjectHash);
 		Writer.AddObject(CommonRootObject);
 		Writer.AddBinaryAttachment(BinaryBufferHash);
-		Writer.SetName("Name"_ASV).AddBinary(BinaryBuffer);
+		Writer.SetName(ANSITEXTVIEW("Name")).AddBinary(BinaryBuffer);
 		Writer.AddNull();
 		Writer.Save(Buffer);
 		TestEqual(TEXT("ValidateCompactBinaryPackage(NameOnAttachment)"), ValidateCompactBinaryPackage(MakeMemoryView(Buffer), ECbValidateMode::All), ECbValidateError::InvalidPackageFormat);

@@ -186,15 +186,15 @@ FCacheRecordPolicy FCacheRecordPolicy::Transform(const TFunctionRef<ECachePolicy
 void FCacheRecordPolicy::Save(FCbWriter& Writer) const
 {
 	Writer.BeginObject();
-	Writer.AddString("BasePolicy"_ASV, WriteToUtf8String<128>(GetBasePolicy()));
+	Writer.AddString(ANSITEXTVIEW("BasePolicy"), WriteToUtf8String<128>(GetBasePolicy()));
 	if (!IsUniform())
 	{
-		Writer.BeginArray("ValuePolicies"_ASV);
+		Writer.BeginArray(ANSITEXTVIEW("ValuePolicies"));
 		for (const FCacheValuePolicy& Value : GetValuePolicies())
 		{
 			Writer.BeginObject();
-			Writer.AddObjectId("Id"_ASV, Value.Id);
-			Writer.AddString("Policy"_ASV, WriteToUtf8String<128>(Value.Policy));
+			Writer.AddObjectId(ANSITEXTVIEW("Id"), Value.Id);
+			Writer.AddString(ANSITEXTVIEW("Policy"), WriteToUtf8String<128>(Value.Policy));
 			Writer.EndObject();
 		}
 		Writer.EndArray();
@@ -204,17 +204,17 @@ void FCacheRecordPolicy::Save(FCbWriter& Writer) const
 
 FOptionalCacheRecordPolicy FCacheRecordPolicy::Load(const FCbObjectView Object)
 {
-	const FUtf8StringView BasePolicyText = Object["BasePolicy"_ASV].AsString();
+	const FUtf8StringView BasePolicyText = Object[ANSITEXTVIEW("BasePolicy")].AsString();
 	if (BasePolicyText.IsEmpty())
 	{
 		return {};
 	}
 
 	FCacheRecordPolicyBuilder Builder(ParseCachePolicy(BasePolicyText));
-	for (const FCbFieldView Value : Object["ValuePolicies"_ASV])
+	for (const FCbFieldView Value : Object[ANSITEXTVIEW("ValuePolicies")])
 	{
-		const FValueId Id = Value["Id"_ASV].AsObjectId();
-		const FUtf8StringView PolicyText = Value["Policy"_ASV].AsString();
+		const FValueId Id = Value[ANSITEXTVIEW("Id")].AsObjectId();
+		const FUtf8StringView PolicyText = Value[ANSITEXTVIEW("Policy")].AsString();
 		if (Id.IsNull() || PolicyText.IsEmpty())
 		{
 			return {};

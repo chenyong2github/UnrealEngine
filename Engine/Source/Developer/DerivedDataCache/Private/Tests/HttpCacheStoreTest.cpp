@@ -796,7 +796,7 @@ bool CacheStore::RunTest(const FString& Parameters)
 	{
 		TCbWriter<64> MetaWriter;
 		MetaWriter.BeginObject();
-		MetaWriter.AddInteger("MetaKey"_ASV, 42);
+		MetaWriter.AddInteger(ANSITEXTVIEW("MetaKey"), 42);
 		MetaWriter.EndObject();
 		FCbObject MetaObject = MetaWriter.Save().AsObject();
 
