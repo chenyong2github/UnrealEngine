@@ -162,6 +162,15 @@ public:
 	int32 AddElements(int32 NumberElements, FName Group);
 
 	/**
+	* Insert elements to a group
+	* @param NumberElements - The number of array entries to add
+	* @param Position - The position in the managed array where to insert entries.
+	* @param Group - The group to append entries to.
+	* @return starting index of the new ManagedArray<T> entries (same as Position).
+	*/
+	int32 InsertElements(int32 NumberElements, int32 Position, FName Group);
+
+	/**
 	* Returns attribute(Name) of Type(T) from the group
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
@@ -253,6 +262,14 @@ public:
 	* Remove the element at index and reindex the dependent arrays 
 	*/
 	virtual void RemoveElements(const FName & Group, const TArray<int32> & SortedDeletionList, FProcessingParameters Params = FProcessingParameters());
+
+	/**
+	* Remove the elements at Position and reindex the dependent arrays 
+	* @param Group - The group that manages the attributes
+	* @param NumberElements - The number of array entries to remove
+	* @param Position - The position from which to remove entries
+	*/
+	virtual void RemoveElements(const FName& Group, int32 NumberElements, int32 Position);
 
 
 	/**

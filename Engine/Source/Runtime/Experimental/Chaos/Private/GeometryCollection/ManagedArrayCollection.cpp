@@ -59,6 +59,16 @@ void FManagedArrayCollection::RemoveElements(const FName& Group, const TArray<in
 	}
 }
 
+void FManagedArrayCollection::RemoveElements(const FName& Group, int32 NumberElements, int32 Position)
+{
+	TArray<int32> SortedDeletionList;
+	SortedDeletionList.SetNumUninitialized(NumberElements);
+	for (int32 Idx = 0; Idx < NumberElements; ++Idx)
+	{
+		SortedDeletionList[Idx] = Position + Idx;
+	}
+	RemoveElements(Group, SortedDeletionList);
+}
 
 TArray<FName> FManagedArrayCollection::GroupNames() const
 {
@@ -120,6 +130,35 @@ int32 FManagedArrayCollection::AddElements(int32 NumberElements, FName Group)
 	SetDefaults(Group, StartSize, NumberElements);
 
 	return StartSize;
+}
+
+int32 FManagedArrayCollection::InsertElements(int32 NumberElements, int32 Position, FName Group)
+{
+	const int32 OldGroupSize = AddElements(NumberElements, Group);
+	const int32 NewGroupSize = OldGroupSize + NumberElements;
+	check(Position <= OldGroupSize);
+	const int32 NumberElementsToMove = OldGroupSize - Position;
+	const int32 MoveToPosition = Position + NumberElements;
+
+	TArray<int32> NewOrder;
+	NewOrder.SetNumUninitialized(NewGroupSize);
+
+	for (int32 Idx = 0; Idx < Position; ++Idx)
+	{
+		NewOrder[Idx] = Idx;
+	}
+	for (int32 Idx = Position; Idx < MoveToPosition; ++Idx)
+	{
+		NewOrder[Idx] = Idx + NumberElementsToMove;
+	}
+	for (int32 Idx = MoveToPosition; Idx < NewGroupSize; ++Idx)
+	{
+		NewOrder[Idx] = Idx - NumberElements;
+	}
+
+	ReorderElements(Group, NewOrder);
+
+	return Position;
 }
 
 void FManagedArrayCollection::RemoveAttribute(FName Name, FName Group)
