@@ -5072,6 +5072,12 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, bo
 			}
 		}
 	}
+#else
+	if (PersistentLevel)
+	{
+		check(bCleanupResources);
+		PersistentLevel->CleanupLevel();
+	}
 #endif //WITH_EDITOR
 
 	for (int32 LevelIndex = 0; LevelIndex < GetNumLevels(); ++LevelIndex)
