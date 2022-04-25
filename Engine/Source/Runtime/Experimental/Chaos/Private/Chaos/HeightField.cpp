@@ -316,6 +316,14 @@ namespace Chaos
 				bParallel[Axis] = FMath::IsNearlyZero(Dir[Axis], (FReal)1.e-8);
 				InvDir[Axis] = bParallel[Axis] ? 0 : 1 / Dir[Axis];
 			}
+
+			StartPointSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(StartPoint.X, StartPoint.Y, StartPoint.Z, 0.0));
+			DirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(Dir.X, Dir.Y, Dir.Z, 0.0));
+			Parallel = VectorCompareLT(VectorAbs(DirSimd), GlobalVectorConstants::SmallNumber);
+			InvDirSimd = VectorBitwiseNotAnd(Parallel, VectorDivide(VectorOne(), DirSimd));
+			Inflation3DSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(Inflation3D.X, Inflation3D.Y, Inflation3D.Z, 0.0));
+			Inflation3DSimd = VectorAbs(Inflation3DSimd);
+
 		}
 
 		bool VisitSweep(int32 Payload, FReal& CurrentLength)
@@ -325,7 +333,7 @@ namespace Chaos
 
 			const int32 FullIndex = Payload + SubY;
 
-			auto TestTriangle = [&](int32 FaceIndex, const FVec3& A, const FVec3& B, const FVec3& C) -> bool
+			auto TestTriangle = [&](int32 FaceIndex, const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& C) -> bool
 			{
 				if(OutTime == 0)
 				{
@@ -333,17 +341,20 @@ namespace Chaos
 				}
 
 				//Convert into local space of A to get better precision
-				VectorRegister4Float AReg = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(A.X, A.Y, A.Z, 0.0));
-				VectorRegister4Float BReg = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(B.X, B.Y, B.Z, 0.0));
-				VectorRegister4Float CReg = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(C.X, C.Y, C.Z, 0.0));
+				FTriangleRegister Triangle(VectorZero(), VectorSubtract(B, A), VectorSubtract(C, A));
 
-				FTriangleRegister Triangle(VectorZero(), VectorSubtract(BReg, AReg), VectorSubtract(CReg, AReg));
+				const UE::Math::TQuat<FReal>& RotationDouble = StartTM.GetRotation();
+				VectorRegister4Float Rotation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RotationDouble.X, RotationDouble.Y, RotationDouble.Z, RotationDouble.W));
+				// Normalize rotation
+				Rotation = VectorNormalizeSafe(Rotation, GlobalVectorConstants::Float0001);
 
-				FReal Time;
-				FVec3 LocalHitPosition;
-				FVec3 HitNormal;
-				const FRigidTransform3 LocalStartTM(StartTM.GetTranslation() - A,StartTM.GetRotation());
-				if(GJKRaycast2<FReal>(Triangle, OtherGeom, LocalStartTM, Dir, CurrentLength, Time, LocalHitPosition, HitNormal, Thickness, bComputeMTD))
+				const UE::Math::TVector<FReal>& TranslationDouble = StartTM.GetTranslation();
+				VectorRegister4Float Translation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(TranslationDouble.X, TranslationDouble.Y, TranslationDouble.Z, 0.0));
+				Translation = VectorSubtract(Translation, A);
+
+				FRealSingle Time;
+				VectorRegister4Float OutPositionSimd, OutNormalSimd;
+				if(GJKRaycast2ImplSimd(Triangle, OtherGeom, Rotation, Translation, DirSimd, static_cast<FRealSingle>(CurrentLength), Time, OutPositionSimd, OutNormalSimd, bComputeMTD, GlobalVectorConstants::Float1000))
 				{
 					if(Time < OutTime)
 					{
@@ -357,8 +368,18 @@ namespace Chaos
 
 						if(!bHole)
 						{
-							OutNormal = HitNormal;
-							OutPosition = LocalHitPosition + A;
+							alignas(16) FRealSingle OutFloat[4];
+							VectorStoreAligned(OutNormalSimd, OutFloat);
+							OutNormal.X = OutFloat[0];
+							OutNormal.Y = OutFloat[1];
+							OutNormal.Z = OutFloat[2];
+
+							OutPositionSimd = VectorAdd(OutPositionSimd, A);
+							VectorStoreAligned(OutPositionSimd, OutFloat);
+							OutPosition.X = OutFloat[0];
+							OutPosition.Y = OutFloat[1];
+							OutPosition.Z = OutFloat[2];
+
 							OutTime = Time;
 							OutFaceIndex = FaceIndex;
 
@@ -368,13 +389,17 @@ namespace Chaos
 								// we adopt the triangle normal but this leaves us with an incorrect MTD from the GJK call
 								// above. #TODO possibly re-do GJK with a plane, or some geom vs.plane special case to solve
 								// both triangles as planes 
-								const FVec3 AB = B - A;
-								const FVec3 AC = C - A;
+								const VectorRegister4Float AB = VectorSubtract(B, A);
+								const VectorRegister4Float AC = VectorSubtract(C, A);
 
-								FVec3 TriNormal = FVec3::CrossProduct(AB, AC);
-								TriNormal.SafeNormalize();
+								VectorRegister4Float TriNormal = VectorCross(AB, AC);
+								TriNormal = VectorNormalize(TriNormal);
 
-								OutNormal = TriNormal;
+								VectorStoreAligned(TriNormal, OutFloat);
+								OutNormal.X = OutFloat[0];
+								OutNormal.Y = OutFloat[1];
+								OutNormal.Z = OutFloat[2];
+
 								CurrentLength = 0;
 								return false;
 							}
@@ -387,16 +412,12 @@ namespace Chaos
 				return true;
 			};
 
-			FVec3 Points[4];
-			FAABB3 CellBounds;
-			HfData->GetPointsAndBoundsScaled(FullIndex, Points, CellBounds);
-			CellBounds.ThickenSymmetrically(Inflation3D);
+			VectorRegister4Float Points[4];
+			FAABBVectorized CellBounds;
+			HfData->GetPointsAndBoundsScaledSimd(FullIndex, Points, CellBounds);
+			CellBounds.Thicken(Inflation3DSimd);
 
-			// Check cell bounds
-			//todo: can do it without raycast
-			FReal TOI;
-			FVec3 HitPoint;
-			if (CellBounds.RaycastFast(StartPoint, Dir, InvDir, bParallel, CurrentLength, 1.0f / CurrentLength, TOI, HitPoint))
+			if (CellBounds.RaycastFast(StartPointSimd, InvDirSimd, Parallel, VectorSetFloat1(static_cast<FRealSingle>(CurrentLength))))
 			{
 				bool bContinue = TestTriangle(Payload * 2, Points[0], Points[1], Points[3]);
 				if (bContinue)
@@ -404,6 +425,7 @@ namespace Chaos
 					TestTriangle(Payload * 2 + 1, Points[0], Points[3], Points[2]);
 				}
 			}
+
 			return OutTime > 0;
 		}
 
@@ -411,6 +433,12 @@ namespace Chaos
 		FVec3 OutPosition;
 		FVec3 OutNormal;
 		int32 OutFaceIndex;
+
+		VectorRegister4Float StartPointSimd;
+		VectorRegister4Float InvDirSimd;
+		VectorRegister4Float DirSimd;
+		VectorRegister4Float Parallel;
+		VectorRegister4Float Inflation3DSimd;
 
 	private:
 

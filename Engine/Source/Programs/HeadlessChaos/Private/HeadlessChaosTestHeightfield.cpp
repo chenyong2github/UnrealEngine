@@ -24,9 +24,9 @@ namespace ChaosTest {
 			FReal Count = 0;
 			for(int32 Row = 0; Row < Rows; ++Row)
 			{
-				for(int32 Col = 0; Col < Columns; ++Col)
+				for(int32 Col = 0; Col < Columns; ++Col, ++Count)
 				{
-					Heights[Row * Columns + Col] = CountToWorldScale * Count++;
+					Heights[Row * Columns + Col] = CountToWorldScale * Count;
 				}
 			}
 
@@ -455,9 +455,253 @@ namespace ChaosTest {
 	}
 
 
+	void SweepSphereTest()
+	{
+		const int32 Columns = 10;
+		const int32 Rows = 10;
+		const FReal CountToWorldScale = 1;
+
+
+		TSphere<FReal, 3> Sphere(FVec3(0.0, 0.0, 0.0), 1.0);
+		{
+
+			TArray<FReal> Heights;
+			Heights.AddZeroed(Rows * Columns);
+
+			FReal Count = 0;
+			for (int32 Row = 0; Row < Rows; ++Row)
+			{
+				for (int32 Col = 0; Col < Columns; ++Col, ++Count)
+				{
+					Heights[Row * Columns + Col] = CountToWorldScale * Count;
+				}
+			}
+
+			auto ComputeExpectedNormal = [&](const FVec3& Scale)
+			{
+				//Compute expected normal
+				const FVec3 A(0, 0, 0);
+				const FVec3 B(Scale[0], 0, CountToWorldScale * Scale[2]);
+				const FVec3 C(0, Scale[1], Columns * CountToWorldScale * Scale[2]);
+
+				FVec3 ExpectedNormal = FVec3::CrossProduct((B - A), (C - A));
+				ExpectedNormal.SafeNormalize();
+				return ExpectedNormal;
+			};
+
+			auto AlongZTest = [&](const FVec3& Scale)
+			{
+				TArray<FReal> HeightsCopy = Heights;
+				FHeightField Heightfield(MoveTemp(HeightsCopy), TArray<uint8>(), Rows, Columns, Scale);
+				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
+
+				//test straight down sweep
+				Count = 0;
+				FReal TOI;
+				FVec3 Position, Normal, FaceNormal;
+				int32 FaceIdx;
+
+				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
+
+				int32 ExpectedFaceIdx = 0;
+				for (int32 Row = 0; Row < Rows-1; ++Row)
+				{
+					for (int32 Col = 0; Col < Columns-1; ++Col)
+					{
+						const FVec3 Start(Col * Scale[0] + 0.5, Row * Scale[1]+0.5, 1000 * Scale[2]);
+						FRigidTransform3 StartTM(Start, TRotation<FReal, 3>());
+						FVec3 Dir(0, 0, -1);
+
+						bool Result = Heightfield.SweepGeom(Sphere, StartTM, Dir, 2000 * Scale[2], TOI, Position, Normal, FaceIdx, FaceNormal, 0.0, true);
+						EXPECT_TRUE(Result);
+						const FReal ExpectedTOI = -1.0;
+						EXPECT_NEAR(TOI, ExpectedTOI, 1e-2);
+						FVec3 AddGeomSize(1.0, 0.0, 1.0);
+						FVec3 ExpectedPos(Col ,Row , Heights[Row * Columns + Col]);
+						ExpectedPos += AddGeomSize;
+						ExpectedPos *= Scale;
+						EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
+						EXPECT_VECTOR_NEAR(Normal, ExpectedNormal, 1e-2);
+
+					}
+				}
+			};
+
+			AlongZTest(FVec3(1));
+			AlongZTest(FVec3(1, 1, 3));
+			AlongZTest(FVec3(1, 1, .3));
+
+
+			auto AlongXTest = [&](const FVec3& Scale)
+			{
+				TArray<FReal> HeightsCopy = Heights;
+				FHeightField Heightfield(MoveTemp(HeightsCopy), TArray<uint8>(), Rows, Columns, Scale);
+				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
+
+				//test straight down sweep
+				Count = 0;
+				FReal TOI;
+				FVec3 Position, Normal, FaceNormal;
+				int32 FaceIdx;
+
+				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
+
+				int32 ExpectedFaceIdx = 0;
+				for (int32 Row = 0; Row < Rows - 1; ++Row)
+				{
+					for (int32 Col = 0; Col < Columns - 1; ++Col)
+					{
+
+						const FVec3 Start(-Scale[0], Row * Scale[1], Heights[Row * Columns + Col] * Scale[2] + 0.01 * Scale[2]);
+						FRigidTransform3 StartTM(Start, TRotation<FReal, 3>());
+						FVec3 Dir(1, 0, 0);
+
+						bool Result = Heightfield.SweepGeom(Sphere, StartTM, Dir, 2000 * Scale[0], TOI, Position, Normal, FaceIdx, FaceNormal, 0.0, true);
+
+						EXPECT_TRUE(Result);
+						const FReal ExpectedTOI = -1.0;
+						EXPECT_NEAR(TOI, ExpectedTOI, 1e-2);
+
+						FVec3 ExpectedPos(1.0, Row, Scale[2] * (1.0 + Row * Columns) );
+						EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
+						EXPECT_VECTOR_NEAR(Normal, ExpectedNormal, 1e-2);
+					}
+				}
+			};
+
+			AlongXTest(FVec3(1));
+			AlongXTest(FVec3(1, 1, 3));
+			AlongXTest(FVec3(1, 1, .3));
+		}
+	}
+
+	void SweepBoxTest()
+	{
+		const int32 Columns = 10;
+		const int32 Rows = 10;
+		const FReal CountToWorldScale = 1;
+
+
+		TBox<FReal, 3> Box(FVec3(-0.05, -0.05, -0.05), FVec3(0.05, 0.05, 0.05));
+		{
+
+			TArray<FReal> Heights;
+			Heights.AddZeroed(Rows * Columns);
+
+			FReal Count = 0;
+			for (int32 Row = 0; Row < Rows; ++Row)
+			{
+				for (int32 Col = 0; Col < Columns; ++Col, ++Count)
+				{
+					Heights[Row * Columns + Col] = CountToWorldScale * Count;
+				}
+			}
+
+			auto ComputeExpectedNormal = [&](const FVec3& Scale)
+			{
+				//Compute expected normal
+				const FVec3 A(0, 0, 0);
+				const FVec3 B(Scale[0], 0, CountToWorldScale * Scale[2]);
+				const FVec3 C(0, Scale[1], Columns * CountToWorldScale * Scale[2]);
+
+				FVec3 ExpectedNormal = FVec3::CrossProduct((B - A), (C - A));
+				ExpectedNormal.SafeNormalize();
+				return ExpectedNormal;
+			};
+
+			auto AlongZTest = [&](const FVec3& Scale)
+			{
+				TArray<FReal> HeightsCopy = Heights;
+				FHeightField Heightfield(MoveTemp(HeightsCopy), TArray<uint8>(), Rows, Columns, Scale);
+				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
+
+				//test straight down sweep
+				Count = 0;
+				FReal TOI;
+				FVec3 Position, Normal, FaceNormal;
+				int32 FaceIdx;
+
+				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
+
+				int32 ExpectedFaceIdx = 0;
+				for (int32 Row = 0; Row < Rows - 1; ++Row)
+				{
+					for (int32 Col = 0; Col < Columns - 1; ++Col)
+					{
+						const FVec3 Start(Col * Scale[0] + 0.5, Row * Scale[1] + 0.5, 1000 * Scale[2]);
+						FRigidTransform3 StartTM(Start, TRotation<FReal, 3>());
+						FVec3 Dir(0, 0, -1);
+
+						bool Result = Heightfield.SweepGeom(Box, StartTM, Dir, 2000 * Scale[2], TOI, Position, Normal, FaceIdx, FaceNormal, 0.0, true);
+						EXPECT_TRUE(Result);
+						FVec3 AddGeomSize(1.0, 0.0, 1.0);
+						FVec3 ExpectedPos(Col, Row, Heights[Row * Columns + Col]);
+						ExpectedPos += AddGeomSize;
+						ExpectedPos *= Scale;
+						EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
+						EXPECT_VECTOR_NEAR(Normal, ExpectedNormal, 1e-2);
+
+					}
+				}
+			};
+
+			AlongZTest(FVec3(1));
+			AlongZTest(FVec3(1, 1, 3));
+			AlongZTest(FVec3(1, 1, .3));
+
+
+			auto AlongXTest = [&](const FVec3& Scale)
+			{
+				TArray<FReal> HeightsCopy = Heights;
+				FHeightField Heightfield(MoveTemp(HeightsCopy), TArray<uint8>(), Rows, Columns, Scale);
+				const auto& Bounds = Heightfield.BoundingBox();	//Current API forces us to do this to cache the bounds
+
+				//test straight down sweep
+				Count = 0;
+				FReal TOI;
+				FVec3 Position, Normal, FaceNormal;
+				int32 FaceIdx;
+
+				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
+
+				int32 ExpectedFaceIdx = 0;
+				for (int32 Row = 0; Row < Rows - 1; ++Row)
+				{
+					for (int32 Col = 0; Col < Columns - 1; ++Col)
+					{
+
+						const FVec3 Start(-Scale[0], Row * Scale[1], Heights[Row * Columns + Col] * Scale[2] + 0.01 * Scale[2]);
+						FRigidTransform3 StartTM(Start, TRotation<FReal, 3>());
+						FVec3 Dir(1, 0, 0);
+
+						bool Result = Heightfield.SweepGeom(Box, StartTM, Dir, 2000 * Scale[0], TOI, Position, Normal, FaceIdx, FaceNormal, 0.0, true);
+
+						EXPECT_TRUE(Result);
+
+						FVec3 ExpectedPos(1.0, Row, Scale[2] * (1.0 + Row * Columns));
+						EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
+						EXPECT_VECTOR_NEAR(Normal, ExpectedNormal, 1e-2);
+					}
+				}
+			};
+
+			AlongXTest(FVec3(1));
+			AlongXTest(FVec3(1, 1, 3));
+			AlongXTest(FVec3(1, 1, .3));
+		}
+	}
+
+	void SweepTest()
+	{
+		SweepSphereTest();
+		SweepBoxTest();
+	}
+	
+
 	TEST(ChaosTests, Heightfield)
 	{
 		ChaosTest::Raycast();
+		ChaosTest::SweepTest();
 		EditHeights();
 		SUCCEED();
 	}

@@ -286,6 +286,28 @@ namespace Chaos
 				OutBounds = FAABB3(FVec3((FReal)X, (FReal)Y, MinZ), FVec3((FReal)X + 1, (FReal)Y + 1, MaxZ));
 			}
 
+			FORCEINLINE void GetPointsAndBoundsSimd(int32 Index, VectorRegister4Float OutPts[4], FAABBVectorized& OutBounds) const
+			{
+				const FRealSingle H0 = static_cast<FRealSingle>(MinValue + Heights[Index] * HeightPerUnit);
+				const FRealSingle H1 = static_cast<FRealSingle>(MinValue + Heights[Index + 1] * HeightPerUnit);
+				const FRealSingle H2 = static_cast<FRealSingle>(MinValue + Heights[Index + NumCols] * HeightPerUnit);
+				const FRealSingle H3 = static_cast<FRealSingle>(MinValue + Heights[Index + NumCols + 1] * HeightPerUnit);
+
+				const int32 X = Index % (NumCols);
+				const int32 Y = Index / (NumCols);
+
+				OutPts[0] = MakeVectorRegisterFloat((FRealSingle)X, (FRealSingle)Y, H0, 0.0f );
+				OutPts[1] = MakeVectorRegisterFloat((FRealSingle)X + 1, (FRealSingle)Y, H1, 0.0f);
+				OutPts[2] = MakeVectorRegisterFloat((FRealSingle)X, (FRealSingle)Y + 1, H2, 0.0f);
+				OutPts[3] = MakeVectorRegisterFloat((FRealSingle)X + 1, (FRealSingle)Y + 1, H3, 0.0f);
+
+				const FRealSingle MinZ = FMath::Min<FRealSingle>(H0, FMath::Min<FRealSingle>(H1, FMath::Min<FRealSingle>(H2, H3)));
+				const FRealSingle MaxZ = FMath::Max<FRealSingle>(H0, FMath::Max<FRealSingle>(H1, FMath::Max<FRealSingle>(H2, H3)));
+
+				OutBounds = FAABBVectorized(MakeVectorRegisterFloat((FRealSingle)X, (FRealSingle)Y, MinZ, 0.0f),
+											MakeVectorRegisterFloat((FRealSingle)X + 1, (FRealSingle)Y + 1, MaxZ, 0.0f));
+			}
+			
 			FORCEINLINE void GetBounds(TVec2<int32> CellIdx, TVec2<int32> Area, FAABBVectorized& OutBounds) const
 			{
 				FRealSingle MinHeight = UE_BIG_NUMBER;
@@ -348,6 +370,25 @@ namespace Chaos
 				OutPts[3] *= Scale;
 
 				OutBounds = FAABB3::FromPoints(OutBounds.Min() * Scale, OutBounds.Max() * Scale);
+			}
+
+			FORCEINLINE void GetPointsAndBoundsScaledSimd(int32 Index, VectorRegister4Float OutPts[4], FAABBVectorized& OutBounds) const
+			{
+				GetPointsAndBoundsSimd(Index, OutPts, OutBounds);
+
+				VectorRegister4Float ScaleSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(Scale.X, Scale.Y, Scale.Z, 0.0));
+
+				OutPts[0] = VectorMultiply(OutPts[0], ScaleSimd);
+				OutPts[1] = VectorMultiply(OutPts[1], ScaleSimd);
+				OutPts[2] = VectorMultiply(OutPts[2], ScaleSimd);
+				OutPts[3] = VectorMultiply(OutPts[3], ScaleSimd);
+
+				VectorRegister4Float P0 = VectorMultiply(OutBounds.GetMin(), ScaleSimd);
+				VectorRegister4Float P1 = VectorMultiply(OutBounds.GetMax(), ScaleSimd);
+				VectorRegister4Float Min = VectorMin(P0, P1);
+				VectorRegister4Float Max = VectorMax(P0, P1);
+
+				OutBounds = FAABBVectorized(Min, Max);
 			}
 
 			FORCEINLINE void GetBoundsScaled(TVec2<int32> CellIdx, TVec2<int32> Area, FAABBVectorized& OutBounds) const
