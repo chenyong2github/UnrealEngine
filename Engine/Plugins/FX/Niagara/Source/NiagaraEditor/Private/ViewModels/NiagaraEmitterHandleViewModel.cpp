@@ -23,6 +23,7 @@
 #include "ViewModels/Stack/NiagaraStackRenderItemGroup.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
 #include "NiagaraMessages.h"
+#include "Widgets/SNiagaraDebugger.h"
 
 #define LOCTEXT_NAMESPACE "EmitterHandleViewModel"
 
@@ -350,6 +351,12 @@ bool FNiagaraEmitterHandleViewModel::GetIsRenamePending() const
 void FNiagaraEmitterHandleViewModel::SetIsRenamePending(bool bInIsRenamePending)
 {
 	bIsRenamePending = bInIsRenamePending;
+}
+
+void FNiagaraEmitterHandleViewModel::BeginDebugEmitter()
+{
+	if (EmitterHandle)
+		SNiagaraDebugger::InvokeDebugger(*EmitterHandle);
 }
 
 FNiagaraEmitterHandleViewModel::FOnPropertyChanged& FNiagaraEmitterHandleViewModel::OnPropertyChanged()

@@ -30,6 +30,12 @@ public:
 	static void UnregisterTabSpawner();
 	static TSharedRef<class SDockTab> SpawnNiagaraDebugger(const class FSpawnTabArgs& Args);
 
+	static void InvokeDebugger(UNiagaraComponent* InComponent);
+	static void InvokeDebugger(UNiagaraSystem* InSystem);
+	static void InvokeDebugger(FNiagaraEmitterHandle& InEmitterHandle);
+
+	static void InvokeDebugger(UNiagaraSystem* InSystem, TArray<FNiagaraEmitterHandle>& InSelectedHandles, TArray<FNiagaraVariableBase>& InAttributes);
+
 	void FocusDebugTab();
 	void FocusOutlineTab();
 

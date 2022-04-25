@@ -37,6 +37,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "ScopedTransaction.h"
 #include "Widgets/SNullWidget.h"
+#include "Widgets/SNiagaraDebugger.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterPanelViewModel"
 
@@ -396,6 +397,22 @@ void INiagaraParameterPanelViewModel::DuplicateParameters(const TArray<FNiagaraP
 		Transaction.Cancel();
 	}
 		
+}
+
+bool INiagaraParameterPanelViewModel::GetCanDebugParameters(const TArray<FNiagaraParameterPanelItem>& ItemsToDebug) const
+{
+	for (const FNiagaraParameterPanelItem& ItemToDebug : ItemsToDebug)
+	{
+		const FNiagaraVariableBase& Var = ItemToDebug.GetVariable();
+		if (Var.IsInNameSpace(FNiagaraConstants::UserNamespaceString) ||
+			Var.IsInNameSpace(FNiagaraConstants::SystemNamespaceString) ||
+			Var.IsInNameSpace(FNiagaraConstants::EmitterNamespaceString) ||
+			Var.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespaceString))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool INiagaraParameterPanelViewModel::GetCanDuplicateParameterAndToolTip(const TArray<FNiagaraParameterPanelItem>& ItemsToDuplicate, FText& OutCanDuplicateParameterToolTip) const
@@ -1316,6 +1333,15 @@ TSharedPtr<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateContextM
 				LOCTEXT("ChangeNamespaceModifierToolTip", "Edit the namespace modifier for the selected parameter."),
 				FNewMenuDelegate::CreateSP(this, &FNiagaraSystemToolkitParameterPanelViewModel::GetChangeNamespaceModifierSubMenu, false, SelectedItem));
 			
+			MenuBuilder.AddMenuSeparator();
+			bool bCanDebugParameter = GetCanDebugParameters(Items);
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("DebugParameter", "Watch Parameter In Niagara Debugger"),
+				LOCTEXT("DebugParameterToolTip", "Open the Niagara Debugger and add this Parameter to the list of tracked parameters.\r\nParticles parameters will show up alongside each particle.\r\nSystem, Emitter, and User parameters will be attached to the System in the world."), 
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &FNiagaraSystemToolkitParameterPanelViewModel::DebugParameters, Items),
+					FCanExecuteAction::CreateLambda([bCanDebugParameter]() {return bCanDebugParameter; })));
 
 			MenuBuilder.AddMenuSeparator();
 
@@ -1349,6 +1375,28 @@ TSharedPtr<SWidget> FNiagaraSystemToolkitParameterPanelViewModel::CreateContextM
 FNiagaraParameterUtilities::EParameterContext FNiagaraSystemToolkitParameterPanelViewModel::GetParameterContext() const
 {
 	return FNiagaraParameterUtilities::EParameterContext::System;
+}
+
+void FNiagaraSystemToolkitParameterPanelViewModel::DebugParameters(const TArray<FNiagaraParameterPanelItem> Items) const
+{
+	TArray<FNiagaraVariableBase> Attributes;
+	for (const FNiagaraParameterPanelItem& Item : Items)
+	{
+		Attributes.Emplace(Item.GetVariable());
+	}
+
+	const TArray<FGuid> EmitterHandles = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	UNiagaraSystem* System = &SystemViewModel->GetSystem();
+	if (System)
+	{
+		TArray< FNiagaraEmitterHandle> Handles;
+		for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+		{
+			if (EmitterHandles.Contains(Handle.GetId() ))
+				Handles.Add(Handle);
+		}
+		SNiagaraDebugger::InvokeDebugger(System, Handles, Attributes);
+	}
 }
 
 const TArray<FNiagaraParameterPanelCategory>& FNiagaraSystemToolkitParameterPanelViewModel::GetDefaultCategories() const

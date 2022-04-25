@@ -36,6 +36,8 @@ protected:
 
 	FNiagaraComponentDetails();
 
+	FReply OnResetSelectedSystem();
+	FReply OnDebugSelectedSystem();
 private:
 	TWeakObjectPtr<UNiagaraComponent> Component;
 	IDetailLayoutBuilder* Builder;

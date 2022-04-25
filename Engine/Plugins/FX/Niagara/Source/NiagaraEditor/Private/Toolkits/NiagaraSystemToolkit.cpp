@@ -773,15 +773,7 @@ bool FNiagaraSystemToolkit::IsDrawOptionEnabled(int32 Element) const
 
 void FNiagaraSystemToolkit::OpenDebugHUD()
 {
-#if WITH_NIAGARA_DEBUGGER
-	TSharedPtr<SDockTab> DebugTab = FGlobalTabmanager::Get()->TryInvokeTab(SNiagaraDebugger::DebugWindowName);
-
-	if (DebugTab.IsValid())
-	{
-		TSharedRef<SNiagaraDebugger> Content = StaticCastSharedRef<SNiagaraDebugger>(DebugTab->GetContent());
-		Content->FocusDebugTab();
-	}
-#endif
+	SNiagaraDebugger::InvokeDebugger(&SystemViewModel->GetSystem());
 }
 
 void FNiagaraSystemToolkit::OpenDebugOutliner()

@@ -131,6 +131,8 @@ public:
 	/** Remove a serialized message from the Emitter this viewmodel is managing. */
 	NIAGARAEDITOR_API void RemoveMessage(const FGuid& MessageKey) const;
 
+	void BeginDebugEmitter();
+
 private:
 	/** The system view model which owns this emitter handle view model. */
 	TWeakPtr<FNiagaraSystemViewModel> OwningSystemViewModelWeak;

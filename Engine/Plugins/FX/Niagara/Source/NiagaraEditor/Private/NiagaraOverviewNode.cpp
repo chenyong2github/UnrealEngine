@@ -221,6 +221,18 @@ void UNiagaraOverviewNode::GetNodeContextMenuActions(class UToolMenu* Menu, clas
 							FExecuteAction::CreateSP(EmitterHandleViewModel, &FNiagaraEmitterHandleViewModel::SetIsRenamePending, true)
 						)
 					);
+
+					Section.AddSeparator("DebugEmitterSplit");
+					Section.AddMenuEntry(
+						"DebugEmitter",
+						LOCTEXT("DebugEmitter", "Watch Emitter In Niagara Debugger"),
+						LOCTEXT("DebugEmitterToolTip", "Open Niagara Debugger and track this emitter in the world"),
+						FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateSP(EmitterHandleViewModel, &FNiagaraEmitterHandleViewModel::BeginDebugEmitter)
+						)
+					);
+					Section.AddSeparator("DebugEmitterSplit2");
 				}
 
 				Section.AddMenuEntry(

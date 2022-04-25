@@ -48,6 +48,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "UObject/WeakObjectPtr.h"
 #include "NiagaraUserRedirectionParameterStore.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/SNiagaraDebugger.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraComponentDetails"
 
@@ -577,10 +579,26 @@ void FNiagaraComponentDetails::OnWorldDestroyed(class UWorld* InWorld)
 
 void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
+
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
 	Builder = &DetailBuilder;
 
 	static const FName ParamCategoryName = TEXT("NiagaraComponent_Parameters");
+	static const FName ParamUtilitiesName = TEXT("NiagaraComponent_Utilities");
 	static const FName ScriptCategoryName = TEXT("Parameters");
+
+	static bool bFirstTime = true;
+	if (bFirstTime)
+	{
+		const FText DisplayName = LOCTEXT("Particles", "Particles");
+		TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("NiagaraComponent", "Particles", DisplayName);
+		Section->AddCategory(TEXT("Niagara"));
+		Section->AddCategory(ParamCategoryName);
+		Section->AddCategory(ParamUtilitiesName); 
+		Section->AddCategory(TEXT("Activation"));
+		bFirstTime = false;
+	}
 
 	TSharedPtr<IPropertyHandle> LocalOverridesPropertyHandle = DetailBuilder.GetProperty("OverrideParameters");
 	if (LocalOverridesPropertyHandle.IsValid())
@@ -612,7 +630,6 @@ void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	if (ObjectsCustomized.Num() == 1 && ObjectsCustomized[0]->IsA<UNiagaraComponent>())
 	{
 		Component = CastChecked<UNiagaraComponent>(ObjectsCustomized[0].Get());
-
 		if (GEngine)
 		{
 			GEngine->OnWorldDestroyed().AddRaw(this, &FNiagaraComponentDetails::OnWorldDestroyed);
@@ -634,6 +651,118 @@ void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 				.Text(LOCTEXT("OverrideParameterMultiselectionUnsupported", "Multiple override parameter sets cannot be edited simultaneously."))
 			];
 	}
+
+
+	IDetailCategoryBuilder& CustomCategory = DetailBuilder.EditCategory(ParamUtilitiesName, LOCTEXT("ParamUtilsCategoryName", "Niagara Utilities"), ECategoryPriority::Important);
+
+	CustomCategory.AddCustomRow(FText::GetEmpty())
+		.WholeRowContent()
+		.HAlign(HAlign_Left)
+		[
+			SNew(SBox)
+			.MaxDesiredWidth(300.f)
+			[
+				SNew(SUniformGridPanel)
+				.SlotPadding(2.0f)
+				+ SUniformGridPanel::Slot(0, 0)
+				[
+					SNew(SButton)
+					.OnClicked(this, &FNiagaraComponentDetails::OnDebugSelectedSystem)
+					.ToolTipText(LOCTEXT("DebugButtonTooltip", "Open Niagara Debugger and point to the first selected particle system"))
+					.HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("DebugButton", "Debug"))
+					]
+				]
+				+ SUniformGridPanel::Slot(1, 0)
+				[
+					SNew(SButton)
+					.OnClicked(this, &FNiagaraComponentDetails::OnResetSelectedSystem)
+					.ToolTipText(LOCTEXT("ResetEmitterButtonTooltip", "Resets the selected particle systems."))
+					.HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ResetEmitterButton", "Reset"))
+					]
+				]
+			]
+		];
 }
 
+FReply FNiagaraComponentDetails::OnResetSelectedSystem()
+{
+	if (!Builder)
+		return FReply::Handled();
+
+	const TArray< TWeakObjectPtr<UObject> >& SelectedObjects = Builder->GetSelectedObjects();
+
+	for (int32 Idx = 0; Idx < SelectedObjects.Num(); ++Idx)
+	{
+		if (SelectedObjects[Idx].IsValid())
+		{
+			if (AActor* Actor = Cast<AActor>(SelectedObjects[Idx].Get()))
+			{
+				for (UActorComponent* AC : Actor->GetComponents())
+				{
+					UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(AC);
+					if (NiagaraComponent)
+					{
+						NiagaraComponent->Activate(true);
+						NiagaraComponent->ReregisterComponent();
+					}
+				}
+			}
+			else if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(SelectedObjects[Idx].Get()))
+			{
+				NiagaraComponent->Activate(true);
+				NiagaraComponent->ReregisterComponent();
+			}
+			
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply FNiagaraComponentDetails::OnDebugSelectedSystem()
+{
+	if (!Builder)
+		return FReply::Handled();
+
+	const TArray< TWeakObjectPtr<UObject> >& SelectedObjects = Builder->GetSelectedObjects();
+
+	UNiagaraComponent* NiagaraComponentToUse = nullptr;
+	for (int32 Idx = 0; Idx < SelectedObjects.Num(); ++Idx)
+	{
+		if (SelectedObjects[Idx].IsValid())
+		{
+			if (AActor* Actor = Cast<AActor>(SelectedObjects[Idx].Get()))
+			{
+				for (UActorComponent* AC : Actor->GetComponents())
+				{
+					UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(AC);
+					if (NiagaraComponent)
+					{
+						NiagaraComponentToUse = NiagaraComponent;
+						break;
+					}
+				}
+			}
+			else if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(SelectedObjects[Idx].Get()))
+			{
+				NiagaraComponentToUse = NiagaraComponent;
+				break;
+			}
+		}
+	}
+
+	if (NiagaraComponentToUse)
+	{
+		//FSpawnTabArgs Args;
+		SNiagaraDebugger::InvokeDebugger(NiagaraComponentToUse);
+	}
+
+	return FReply::Handled();
+}
 #undef LOCTEXT_NAMESPACE

@@ -1757,20 +1757,31 @@ void FNiagaraEditorModule::OnExecParticleInvoked(const TCHAR* Str)
 				AActor* Actor = static_cast<AActor*>(*It);
 				checkSlow(Actor->IsA(AActor::StaticClass()));
 
-				ANiagaraActor* Emitter = Cast<ANiagaraActor>(Actor);
-				if (Emitter)
+				for (UActorComponent* AC : Actor->GetComponents())
 				{
-					Emitter->ResetInLevel();
+					UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(AC);
+					if (NiagaraComponent)
+					{
+						NiagaraComponent->Activate(true);
+						NiagaraComponent->ReregisterComponent();
+					}
 				}
 			}
 		}
 		else if (FParse::Command(&Str, TEXT("ALL")))
 		{
 			// Reset ALL emitters in the level
-			for (TObjectIterator<ANiagaraActor> It; It; ++It)
+			for (TObjectIterator<AActor> It; It; ++It)
 			{
-				ANiagaraActor* Emitter = *It;
-				Emitter->ResetInLevel();
+				for (UActorComponent* AC : It->GetComponents())
+				{
+					UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(AC);
+					if (NiagaraComponent)
+					{
+						NiagaraComponent->Activate(true);
+						NiagaraComponent->ReregisterComponent();
+					}
+				}
 			}
 		}
 	}
