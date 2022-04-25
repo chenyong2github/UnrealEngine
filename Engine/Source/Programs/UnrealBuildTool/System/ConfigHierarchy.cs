@@ -1144,6 +1144,10 @@ namespace UnrealBuildTool
 			{
 				yield return FileReference.Combine(GetGameAgnosticSavedDir(), "Config", PlatformName + "Editor", BaseIniName + ".ini");
 			}
+			else if (Type == ConfigHierarchyType.EditorPerProjectUserSettings)
+			{
+				yield return FileReference.Combine(GetGeneratedConfigDir(ProjectDir), PlatformName + "Editor", BaseIniName + ".ini");
+			}
 			else
 			{
 				yield return FileReference.Combine(GetGeneratedConfigDir(ProjectDir), PlatformName, BaseIniName + ".ini");

@@ -277,11 +277,14 @@ namespace UnrealBuildTool
 			}
 
 			// Check if we're using LiveCode instead
-			ConfigHierarchy EditorPerProjectHierarchy = ConfigCache.ReadHierarchy(ConfigHierarchyType.EditorPerProjectUserSettings, DirectoryReference.FromFile(TargetDesc.ProjectFile), TargetDesc.Platform);
-			bool bEnableLiveCode;
-			if(EditorPerProjectHierarchy.GetBool("/Script/LiveCoding.LiveCodingSettings", "bEnabled", out bEnableLiveCode) && bEnableLiveCode)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) // Temporary - new 5.0 projects will have live coding setting on for platforms that don't support it.
 			{
-				return false;
+				ConfigHierarchy EditorPerProjectHierarchy = ConfigCache.ReadHierarchy(ConfigHierarchyType.EditorPerProjectUserSettings, DirectoryReference.FromFile(TargetDesc.ProjectFile), TargetDesc.Platform);
+				bool bEnableLiveCode;
+				if(EditorPerProjectHierarchy.GetBool("/Script/LiveCoding.LiveCodingSettings", "bEnabled", out bEnableLiveCode) && bEnableLiveCode)
+				{
+					return false;
+				}
 			}
 
 			bool bIsRunning = false;
