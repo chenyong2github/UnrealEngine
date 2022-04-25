@@ -83,12 +83,6 @@ void UImgMediaSource::RemoveTargetObject(AActor* InActor)
 }
 
 
-void UImgMediaSource::SetMipLevelDistance(float Distance)
-{
-	MipMapInfo->SetMipLevelDistance(Distance);
-}
-
-
 /* IMediaOptions interface
  *****************************************************************************/
 

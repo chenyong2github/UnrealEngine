@@ -51,24 +51,6 @@ namespace ImgMediaLoader
 		}
 	}
 	
-
-	FMediaTextureTilingDescription GetTilingDescription(const FImgMediaLoader* Loader)
-	{
-		FMediaTextureTilingDescription TilingDesc;
-		
-		if (Loader->IsTiled())
-		{
-			const int32 NumX = Loader->GetNumTilesX();
-			const int32 NumY = Loader->GetNumTilesY();
-
-			TilingDesc.TileBorderSize = 0; // todo: get from loader once accessible from metadata
-			TilingDesc.TileSize = FIntPoint(Loader->GetSequenceDim().X / NumX, Loader->GetSequenceDim().Y / NumY);
-			TilingDesc.TileNum = FIntPoint(NumX, NumY);
-		}
-		
-		return TilingDesc;
-	}
-
 	// Check if the existing tiles contain all of the requested ones. (Is existing a superset of requested?)
 	bool ContainsMipTiles(const TMap<int32, FImgMediaTileSelection>& ExistingTiles, const TMap<int32, FImgMediaTileSelection>& RequestedTiles)
 	{
@@ -95,25 +77,6 @@ namespace ImgMediaLoader
 		// Requested tiles already exist, or the request was empty.
 		return true;
 	}
-
-	// Reduce the selected tiles region for higher mip levels, always ensuring that all tiles at the base level are included.
-	FImgMediaTileSelection DownscaleTileSelection(const FImgMediaTileSelection& InTopLevelSelection, int32 InMipLevel)
-	{
-		if (InMipLevel <= 0)
-		{
-			return InTopLevelSelection;
-		}
-		
-		const int32 MipLevelDiv = 1 << InMipLevel;
-
-		FImgMediaTileSelection OutSelection;
-		OutSelection.TopLeftX = (uint16)(InTopLevelSelection.TopLeftX / MipLevelDiv);
-		OutSelection.TopLeftY = (uint16)(InTopLevelSelection.TopLeftY / MipLevelDiv);
-		OutSelection.BottomRightX = (uint16)FMath::CeilToInt(float(InTopLevelSelection.BottomRightX) / MipLevelDiv);
-		OutSelection.BottomRightY = (uint16)FMath::CeilToInt(float(InTopLevelSelection.BottomRightY) / MipLevelDiv);
-
-		return OutSelection;
-	}
 }
 
 /* FImgMediaLoader structors
@@ -131,8 +94,7 @@ FImgMediaLoader::FImgMediaLoader(const TSharedRef<FImgMediaScheduler, ESPMode::T
 	, bFillGapsInSequence(bInFillGapsInSequence)
 	, bReadVirtualTextureTiles(bInReadVirtualTextureTiles)
 	, bIsTiled(false)
-	, NumTilesX(0)
-	, NumTilesY(0)
+	, TilingDescription()
 	, NumLoadAhead(0)
 	, NumLoadBehind(0)
 	, Scheduler(InScheduler)
@@ -242,7 +204,7 @@ TSharedPtr<FImgMediaTextureSample, ESPMode::ThreadSafe> FImgMediaLoader::GetFram
 
 	ImgMediaLoader::CheckAndUpdateImgDimensions(SequenceDim, Frame->Get()->Info.Dim);
 
-	if (!Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameStartTime, 0), NextStartTime - FrameStartTime, GetNumMipLevels(), ImgMediaLoader::GetTilingDescription(this)))
+	if (!Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameStartTime, 0), NextStartTime - FrameStartTime, GetNumMipLevels(), TilingDescription))
 	{
 		return nullptr;
 	}
@@ -543,7 +505,7 @@ IMediaSamples::EFetchBestSampleResult FImgMediaLoader::FetchBestVideoSampleForTi
 
 					ImgMediaLoader::CheckAndUpdateImgDimensions(SequenceDim, Frame->Get()->Info.Dim);
 
-					if (Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameNumberToTime(MaxIdx), QueuedSampleFetch.CurrentSequenceIndex), FTimespan::FromSeconds(Duration), GetNumMipLevels(), ImgMediaLoader::GetTilingDescription(this)))
+					if (Sample->Initialize(*Frame->Get(), SequenceDim, FMediaTimeStamp(FrameNumberToTime(MaxIdx), QueuedSampleFetch.CurrentSequenceIndex), FTimespan::FromSeconds(Duration), GetNumMipLevels(), TilingDescription))
 					{
 						OutSample = Sample;
 						CSV_EVENT(ImgMedia, TEXT("LoaderFetchHit %d %d-%d"), MaxIdx, StartIndex, EndIndex);
@@ -885,14 +847,12 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 		MinBandwidthForMipLevel0 /= FrameTime;
 	}
 
-#if 0
-	// todo: enable once both the CPU & GPU reader use the same tile count logic.
 	if (FirstFrameInfo.bHasTiles)
 	{
-		NumTilesX = FirstFrameInfo.NumTiles.X;
-		NumTilesY = FirstFrameInfo.NumTiles.Y;
+		TilingDescription.TileBorderSize = FirstFrameInfo.TileBorder;
+		TilingDescription.TileNum = FirstFrameInfo.NumTiles;
+		TilingDescription.TileSize = FirstFrameInfo.TileDimensions;
 	}
-#endif
 
 	// If we have no mips or tiles, then get rid of our MipMapInfoObject.
 	// Otherwise, set it up.
@@ -904,8 +864,7 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 		}
 		else
 		{
-			MipMapInfo->SetTextureInfo(SequenceName, GetNumMipLevels(), NumTilesX, NumTilesY,
-				SequenceDim);
+			MipMapInfo->SetTextureInfo(SequenceName, GetNumMipLevels(), TilingDescription.TileNum, SequenceDim);
 			if (GetNumMipLevels() > 1)
 			{
 				UncompressedSize = (UncompressedSize * 4) / 3;
@@ -1099,8 +1058,8 @@ void FImgMediaLoader::FindMips(const FString& SequencePath)
 
 void FImgMediaLoader::GetTileInformation()
 {
-	NumTilesX = 1;
-	NumTilesY = 1;
+	TilingDescription.TileNum.X = 1;
+	TilingDescription.TileNum.Y = 1;
 
 	// Do we have tiles?
 	if (bIsTiled)
@@ -1123,7 +1082,7 @@ void FImgMediaLoader::GetTileInformation()
 				int32 YLength = Path.Len() - (YIndex + 1);
 				FString NumberString = Path.Right(YLength);
 				// We count from 0, so add 1 to get the number of tiles.
-				NumTilesY = FMath::Max(NumTilesY, FCString::Atoi(*NumberString) + 1);
+				TilingDescription.TileNum.Y = FMath::Max(TilingDescription.TileNum.Y, FCString::Atoi(*NumberString) + 1);
 
 				// Find the last x.
 				int32 XIndex = 0;
@@ -1133,7 +1092,7 @@ void FImgMediaLoader::GetTileInformation()
 					XIndex++;
 					int32 XLength = Path.Len() - XIndex - YLength - 2;
 					NumberString = Path.Mid(XIndex, XLength);
-					NumTilesX = FMath::Max(NumTilesX, FCString::Atoi(*NumberString) + 1);
+					TilingDescription.TileNum.X = FMath::Max(TilingDescription.TileNum.X, FCString::Atoi(*NumberString) + 1);
 				}
 			}
 		}
@@ -1408,19 +1367,20 @@ void FImgMediaLoader::GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMedia
 			}
 		}
 	}
+	else if(MipMapInfo.IsValid() && MipMapInfo->HasObjects())
+	{
+		OutMipsAndTiles = MipMapInfo->GetVisibleTiles();
+	}
 	else
 	{
-		FImgMediaTileSelection BaseTileSelection;
-		BaseTileSelection.SetAllVisible();
-
-		const int32 MipLevel = MipMapInfo.IsValid() ? MipMapInfo->GetDesiredMipLevel(BaseTileSelection) : 0;
-
-		OutMipsAndTiles.Emplace(MipLevel, ImgMediaLoader::DownscaleTileSelection(BaseTileSelection, MipLevel));
-
-		// Reproducing the previous mip-threshold logic by adding all higher mip levels.
-		for (int32 HigherMipLevel = MipLevel + 1; HigherMipLevel < GetNumMipLevels(); ++HigherMipLevel)
+		//Fallback case where we activate all mips and tiles.
+		for (int32 MipLevel = 0; MipLevel < GetNumMipLevels(); ++MipLevel)
 		{
-			OutMipsAndTiles.Emplace(HigherMipLevel, ImgMediaLoader::DownscaleTileSelection(BaseTileSelection, HigherMipLevel));
+			FImgMediaTileSelection& Selection = OutMipsAndTiles.FindOrAdd(MipLevel);
+
+			int32 NumTilesX = FMath::Max(1, GetNumTilesX() >> MipLevel);
+			int32 NumTilesY = FMath::Max(1, GetNumTilesY() >> MipLevel);
+			Selection.SetVisibleRegion(0u, 0u, IntCastChecked<uint16>(NumTilesX), IntCastChecked<uint16>(NumTilesY));
 		}
 	}
 }

@@ -144,14 +144,6 @@ public:
 	void RemoveTargetObject(AActor* InActor);
 
 	/**
-	 * Manually set when mip level 0 should appear.
-	 *
-	 * @param Distance Furthest distance from the camera when mip level 0 should be at 100%.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
-	void SetMipLevelDistance(float Distance);
-
-	/**
 	 * Get our mipmap info object.
 	 *
 	 * @return	Mipmap info object.

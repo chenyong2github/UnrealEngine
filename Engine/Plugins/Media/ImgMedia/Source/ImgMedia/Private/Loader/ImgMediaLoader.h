@@ -6,6 +6,7 @@
 #include "Containers/LruCache.h"
 #include "Containers/Queue.h"
 #include "IMediaSamples.h"
+#include "IMediaTextureSample.h"
 #include "IMediaView.h"
 #include "ImgMediaMipMapInfo.h"
 #include "Misc/FrameRate.h"
@@ -241,7 +242,7 @@ public:
 	 */
 	int32 GetNumTilesX() const
 	{
-		return NumTilesX;
+		return TilingDescription.TileNum.X;
 	}
 
 	/**
@@ -249,12 +250,12 @@ public:
 	 */
 	int32 GetNumTilesY() const
 	{
-		return NumTilesY;
+		return TilingDescription.TileNum.Y;
 	}
 
 	bool IsTiled() const
 	{
-		return (NumTilesX > 1) || (NumTilesY > 1);
+		return (TilingDescription.TileNum.X > 1) || (TilingDescription.TileNum.Y > 1);
 	}
 
 	/**
@@ -496,11 +497,8 @@ private:
 	/** True if this sequence contains tiles. */
 	bool bIsTiled;
 
-	/** Number of tiles in the X direction. */
-	int32 NumTilesX;
-
-	/** Number of tiles in the Y direction. */
-	int32 NumTilesY;
+	/** Tiling description. */
+	FMediaTextureTilingDescription TilingDescription;
 
 	/** The number of frames to load ahead of the play head. */
 	int32 NumLoadAhead;

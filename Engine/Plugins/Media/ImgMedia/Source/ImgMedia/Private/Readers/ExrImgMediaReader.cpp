@@ -52,23 +52,7 @@ FExrImgMediaReader::~FExrImgMediaReader()
 
 bool FExrImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFrameInfo& OutInfo)
 {
-	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = LoaderPtr.Pin();
-	if (Loader.IsValid() == false)
-	{
-		return false;
-	}
-
-	// Get tile info.
-	int32 NumTilesX = Loader->GetNumTilesX();
-	int32 NumTilesY = Loader->GetNumTilesY();
-	if (GetInfo(ImagePath, OutInfo))
-	{
-		OutInfo.Dim.X *= NumTilesX;
-		OutInfo.Dim.Y *= NumTilesY;
-		OutInfo.UncompressedSize *= NumTilesY * NumTilesX;
-		return true;
-	}
-	return false;
+	return GetInfo(ImagePath, OutInfo);
 }
 
 FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom

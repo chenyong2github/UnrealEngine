@@ -57,49 +57,12 @@ public:
 	void GetMediaTexturesFromPlayer(TArray<UMediaTexture*>& OutMediaTextures, IMediaPlayer* Player);
 
 	/**
-	 * Get information on the main viewport.
-	 *
-	 * @return Distance adjustment for this viewport compared to the reference viewport.
-	 */
-	float GetViewportInfo() { return ViewportDistAdjust; }
-
-	/**
 	 * Get information on all appropriate cameras.
 	 *
 	 * @return Array of info on each camera.
 	 */
 	const TArray<FImgMediaMipMapCameraInfo>& GetCameraInfo() { return CameraInfos; };
 
-	/**
-	 * Get the width (in physical space) of the reference near plane used in mipmap calculations.
-	 *
-	 * @return Width
-	 */
-	float GetRefNearPlaneWidth() const { return RefNearPlaneWidth; }
-
-	/**
-	 * Get the distance of the reference near plane from the camera used in mipmap calculations.
-	 *
-	 * @return Distance.
-	 */
-	float GetRefNearPlaneDistance() const { return RefNearPlaneDistance; }
-
-	/**
-	 * Get the size of the reference object.
-	 */
-	float GetRefObjectWidth() const { return RefObjectWidth; }
-
-	/**
-	 * Get the size of the texture for the reference object.
-	 */
-	float GetRefObjectTextureWidth() const { return RefObjectTextureWidth; }
-
-	/**
-	 * Get the distance of mip level 0 for the reference object.
-	 *
-	 * @return Distance.
-	 */
-	float GetMipLevel0Distance() const { return MipLevel0Distance; }
 
 	/**
 	 * See if we want to output some debug.
@@ -121,33 +84,8 @@ protected:
 	/** Array of info on each camera used for mipmap calculations. */
 	TArray<FImgMediaMipMapCameraInfo> CameraInfos;
 
-	/** Reference camera FOV used in mipmap calculations. */
-	const float RefCameraFOV = 90.0f;
-	/** Size of reference near plane (in physical space) used to calculate MipLevelDistance. */
-	float RefNearPlaneWidth;
-	/** Distance of reference near plan used in mipmap calculations. */
-	const float RefNearPlaneDistance = 10.0f;
-	/** Size of reference object used to calculate MipLevelDistances. */
-	const float RefObjectWidth = 100.0f;
-	/** Distance of reference object used to calculate MipLevelDistances. */
-	const float RefObjectDistance = 100.0f;
-	/** Texture size of reference object used to calculate MipLevelDistances. */
-	const float RefObjectTextureWidth = 1024.0f;
-	/** Size of reference frame buffer used to calculate MipLevelDistances. */
-	const float RefFrameBufferWidth = 1920.0f;
-
-	/** Distance for reference object for mip level 0. */
-	float MipLevel0Distance;
-	/** Adjustment needed for main viewport. */
-	float ViewportDistAdjust;
-
 	/** Do we want to output debug information? */
 	bool bIsDebugEnabled;
-
-	/**
-	 * Updates our info on the main viewport.
-	 */
-	void UpdateViewportInfo();
 
 	/**
 	 * Updates our info on the cameras based on current state.
@@ -157,16 +95,10 @@ protected:
 	/**
 	 * Add a SceneView to our camera info.
 	 * 
+	 * @param Viewport		The camera's viewport size rectangle.
 	 * @param SceneView		The scene view we want to add.
 	 */
-	void AddCameraInfo(FSceneView* SceneView);
-
-	/** Calculate the size of the near plane in physical space.
-	 *
-	 * @param InFOV FOV of camera in degrees.
-	 * @return Size of near plane.
-	 */
-	float CalculateNearPlaneSize(float InFOV) const;
+	void AddCameraInfo(FViewport* Viewport, FSceneView* SceneView);
 
 	/**
 	 * Called when the cvar changes.

@@ -16,7 +16,6 @@ class SEditableTextBox;
 
 class FImgMediaMipMapInfo;
 struct FImgMediaMipMapCameraInfo;
-struct FImgMediaMipMapObjectInfo;
 
 /**
  * Implements a details view customization for the UImgMediaSource class.

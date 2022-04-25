@@ -9,49 +9,48 @@
 #include "UObject/WeakObjectPtrTemplates.h"
 
 class AActor;
+class UMeshComponent;
 class UMediaTexture;
+
+/**
+ * Holds size, tiling and mips sequence information.
+ */
+struct FSequenceInfo
+{
+	/** Name of this sequence. */
+	FName Name;
+	/** Pixel dimensions of this sequence. */
+	FIntPoint Dim;
+	/** Number of tiles in the X, Y directions. */
+	FIntPoint NumTiles;
+	/** Number of mip levels. */
+	int32 NumMipLevels;
+	/** 
+	* Check if the sequence has tiles.
+	* 
+	* @return True if the tile counts are above one.
+	*/
+	FORCEINLINE bool IsTiled() const
+	{
+		return (NumTiles.X > 1) || (NumTiles.Y > 1);
+	}
+};
 
 /**
  * Holds info on a camera which we can use for mipmap calculations.
  */
 struct FImgMediaMipMapCameraInfo
 {
-	FImgMediaMipMapCameraInfo(const FVector& InLocation,
-		const FMatrix& InViewMatrix,
-		float InScreenSize, float InDistAdjust)
-		: Location(InLocation)
-		, ViewMatrix(InViewMatrix)
-		, ScreenSize(InScreenSize)
-		, DistAdjust(InDistAdjust)
-	{
-	}
-
 	/** Position of camera. */
 	FVector Location;
-	/** View projection matrix of camera. */
+	/** View matrix of camera. */
 	FMatrix ViewMatrix;
-
-	/** Size of screen. */
-	float ScreenSize;
-	/** Adjustment needed to mip level distance calculations due to camera FOV, etc. */
-	float DistAdjust;
-};
-
-/** 
- * Describes a single object which is using our img sequence.
- */
-struct FImgMediaMipMapObjectInfo
-{
-	/** Actor that is using our img sequence. */
-	TWeakObjectPtr<class AActor> Object;
-	/** Width of this object. */
-	float Width;
-	/** Height of this object. */
-	float Height;
-	/** LOD bias for the mipmap level. */
-	float LODBias;
-	/** Multiplier to apply to the distance to account for this object (e.g. its size). */
-	float DistAdjust;
+	/** View projection matrix of camera. */
+	FMatrix ViewProjectionMatrix;
+	/** Active viewport size. */
+	FIntRect ViewportRect;
+	/** View mip bias. */
+	float MaterialTextureMipBias;
 };
 
 /**
@@ -73,7 +72,7 @@ struct FImgMediaTileSelection
 
 	FImgMediaTileSelection()
 	{
-		SetAllVisible();
+		SetAllNotVisible();
 	}
 
 	/**
@@ -96,6 +95,22 @@ struct FImgMediaTileSelection
 		TopLeftY = 0xffff;
 		BottomRightX = 0;
 		BottomRightY = 0;
+	}
+
+	/**
+	 * Marks visible tile region.
+	 * 
+	 * @param InTopLeftX Top-left coordinate horizontal component.
+	 * @param InTopLeftY Top-left coordinate vertical component.
+	 * @param InBottomRightX Bottom-right coordinate horizontal component.
+	 * @param InBottomRightY Bottom-rightcoordinate vertical component.
+	 */
+	void SetVisibleRegion(uint16 InTopLeftX, uint16 InTopLeftY, uint16 InBottomRightX, uint16 InBottomRightY)
+	{
+		TopLeftX = InTopLeftX;
+		TopLeftY = InTopLeftY;
+		BottomRightX = InBottomRightX;
+		BottomRightY = InBottomRightY;
 	}
 
 	/**
@@ -151,6 +166,38 @@ struct FImgMediaTileSelection
 };
 
 /**
+ * Describes a single object which is using our img sequence.
+ * Base class for various objects such as planes or spheres.
+ */
+class FImgMediaMipMapObjectInfo
+{
+public:
+	FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, float InLODBias = 0.0f);
+	virtual ~FImgMediaMipMapObjectInfo() = default;
+
+	/**
+	 * Calculate visible tiles per mip level.
+	 *
+	 * @param InCameraInfos Active camera information
+	 * @param InSequenceInfo Active image sequence information
+	 * @param VisibleTiles Updated list of visible tiles per mip level
+	 */
+	virtual bool CalculateVisibleTiles(const TArray<FImgMediaMipMapCameraInfo>& InCameraInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const;
+
+	/**
+	 * Get the registered mesh component.
+	 *
+	 * @return Mesh component
+	 */
+	UMeshComponent* GetMeshComponent() const;
+protected:
+	/** Mesh component onto which the media is displayed. */
+	TWeakObjectPtr<class UMeshComponent> MeshComponent;
+	/** LOD bias for the mipmap level. */
+	float LODBias;
+};
+
+/**
  * Contains information for working with mip maps.
  */
 class FImgMediaMipMapInfo : public IMediaOptions::FDataContainer, public FTickableGameObject
@@ -187,27 +234,15 @@ public:
 	void ClearAllObjects();
 
 	/**
-	 * Get our mip level distances.
-	 * @return Distances
-	 */
-	const TArray<float>& GetMipLevelDistances() const { return MipLevelDistances; }
-
-	/**
-	 * Manually set when mip level 0 should appear.
-	 *
-	 * @param Distance Furthest distance from the camera when mip level 0 should be at 100%.
-	 */
-	void SetMipLevelDistance(float Distance);
-
-	/**
 	 * Provide information on the texture needed for our image sequence.
 	 *
 	 * @param InSequenceName Name of this sequence.
-	 * @param NumMipMaps Number of mipmaps in our image sequence.
-	 * @param Dim Dimensions of the textures in our image sequence.
+	 * @param InNumMipMaps Number of mipmaps in our image sequence.
+	 * @param InNumTiles Number of tiles in our image sequence.
+	 * @param InSequenceDim Dimensions of the textures in our image sequence.
 	 */
-	void SetTextureInfo(FName InSequenceName, int32 NumMipMaps, int32 InNumTilesX, int32 InNumTilesY,
-		const FIntPoint& Dim);
+	void SetTextureInfo(FName InSequenceName, int32 InNumMipMaps, const FIntPoint& InNumTiles,
+		const FIntPoint& InSequenceDim);
 
 	/**
 	 * Get what mipmap level should be used.
@@ -217,34 +252,7 @@ public:
 	 * @param TileSelection Will be set with which tiles are visible.
 	 * @return Mipmap level.
 	 */
-	int32 GetDesiredMipLevel(FImgMediaTileSelection& InTileSelection);
-
-	/**
-	 * Calculate object distance to camera. 
-	 * 
-	 * @param InCameraLocation Postion of camera.
-	 * @param InObjectLocation Position of object.
-	 * @return Distance.
-	 */
-	IMGMEDIA_API static float GetObjectDistToCamera(const FVector& InCameraLocation, const FVector& InObjectLocation);
-	
-	/**
-	 * Determine which mip level to use for a given distance.
-	 *
-	 * @param InDistance Distance to use.
-	 * @param InMipLevelDistances Distances for each mip level.
-	 * @return Mip level.
-	 */
-	IMGMEDIA_API static int GetMipLevelForDistance(float InDistance, const TArray<float>& InMipLevelDistances);
-
-	/**
-	 * Determine the size of an object.
-	 *
-	 * @param InActor Object to get the size of.
-	 * @param Width		Will be set to the width of the object.
-	 * @param Height	Will be set to the height of the object.
-	 */
-	void GetObjectSize(const AActor* InActor, float& Width, float& Height);
+	TMap<int32, FImgMediaTileSelection> GetVisibleTiles();
 	
 	/**
 	 * Get information on all our cameras.
@@ -254,19 +262,18 @@ public:
 	const TArray<FImgMediaMipMapCameraInfo>& GetCameraInfo() const { return CameraInfos; }
 
 	/**
-	 * Get adjustment needed for distance to take the viewport size into account compared
-	 * to the reference viewport
-	 *
-	 * @return Adjustment factor.
-	 */
-	float GetViewportDistAdjust() const { return ViewportDistAdjust; }
-
-	/**
 	 * Get information on objects that are using our textures.
 	 * 
 	 * @return Array of objects.
 	 */
 	const TArray<FImgMediaMipMapObjectInfo*>& GetObjects() const { return Objects; }
+
+	/**
+	 * Check if any scene objects are using our img sequence.
+	 *
+	 * @return True if any object is active.
+	 */
+	bool HasObjects() const { return Objects.Num() > 0; }
 
 	//~ FTickableGameObject interface
 	virtual void Tick(float DeltaTime) override;
@@ -279,54 +286,21 @@ protected:
 	 */
 	void UpdateMipLevelCache();
 
-	/** Decide which tiles are visible and update CachedTileSelection.
-	 *
-	 * @param CameraInfo				View info to compute visibility from.
-	 * @param ObjectLocation			Position of object.
-	 * @param NextTileXVector			Vector to go from one tile to the next in the X axis.
-	 * @param NextTileYVector			Vector to go from one tile to the next in the Y axis.
-	 * @param TileRadiusInWorldSpace	Radius of a bounding sphere for a tile.
-	 */
-	void CalculateTileVisibility(const FImgMediaMipMapCameraInfo& CameraInfo,
-		const FVector& ObjectLocation, const FVector& NextTileXVector,
-		const FVector& NextTileYVector, float TileRadiusInWorldSpace);
-
-
-	/**
-	 * Updates the MipLevelDistances based on current information.
-	 */
-	void UpdateMipLevelDistances();
-
-	/** Name of this sequence. */
-	FName SequenceName;
-	/** Number of tiles in the X direction. */
-	int32 NumTilesX;
-	/** Number of tiles in the Y direction. */
-	int32 NumTilesY;
-
-	/** Ideal distance for mip level 0. */
-	float MipLevel0Distance;
-	/** True if MipLevel0Distance has been set manually. */
-	bool bIsMipLevel0DistanceSetManually;
-
-	/** Ideal distances for all mip maps. */
-	TArray<float> MipLevelDistances;
-
 	/** Array of objects that are using our img sequence. */
 	TArray<FImgMediaMipMapObjectInfo*> Objects;
 
-	/** Adjustment for current size of viewport, used in mipmap calculations. */
-	float ViewportDistAdjust;
 	/** Info for each camera, used in mipmap calculations. */
 	TArray<FImgMediaMipMapCameraInfo> CameraInfos;
+
+	/** Size, tiling and mips sequence information. */
+	FSequenceInfo SequenceInfo;
 	
 	/** Protects info variables. */
 	FCriticalSection InfoCriticalSection;
 
 	/** Desired mipmap level at this current time. */
-	int32 CachedMipLevel;
-	/** Desired tiles at this current tmie. */
-	FImgMediaTileSelection CachedTileSelection;
+	TMap<int32, FImgMediaTileSelection> CachedVisibleTiles;
+
 	/** True if the cached mipmap data has been calculated this frame. */
-	bool bIsCachedMipLevelValid;
+	bool bIsCacheValid;
 };

@@ -30,34 +30,7 @@ static TAutoConsoleVariable<bool> CVarImgMediaMipMapDebugEnable(
 	ECVF_Default);
 
 FImgMediaMipMapInfoManager::FImgMediaMipMapInfoManager()
-	: RefNearPlaneWidth(0.0f)
-	, MipLevel0Distance(0.0f)
-	, ViewportDistAdjust(0.0f)
 {
-	// Get size of the near plane in physical space.
-	RefNearPlaneWidth = CalculateNearPlaneSize(RefCameraFOV);
-
-	// Get size of the near plane in physical space.
-	float NearPlaneWidth = RefNearPlaneWidth;
-
-	// Calculate how big the object is at the near plane (i.e. the screen).
-	float ObjectWidth = RefObjectWidth;
-	float ObjectDistance = RefObjectDistance;
-	float NearPlaneDistance = GetRefNearPlaneDistance();
-	float ObjectWidthAtNearPlane = (ObjectWidth / ObjectDistance) * NearPlaneDistance;
-
-	float FrameBufferWidth = RefFrameBufferWidth;
-	float ObjectTextureWidth = RefObjectTextureWidth;
-
-	// Calculate how big in frame buffer pixels the object is on the screen.
-	float ObjectPixelWidth = (ObjectWidthAtNearPlane / NearPlaneWidth) * FrameBufferWidth;
-	// Calculate how many texels are displayed per frame buffer pixel.
-	float ObjectTexelsPerPixel = ObjectTextureWidth / ObjectPixelWidth;
-	// How far the object should be so that one texel covers one frame buffer pixel.
-	float ObjectDistanceForOneTexelPerPixel = ObjectDistance / ObjectTexelsPerPixel;
-
-	MipLevel0Distance = ObjectDistanceForOneTexelPerPixel;
-
 	CVarImgMediaMipMapDebugEnable.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateRaw(this, &FImgMediaMipMapInfoManager::OnCVarMipMapDebugEnable));
 	
 	// Make sure info is set up.
@@ -132,24 +105,7 @@ void FImgMediaMipMapInfoManager::GetMediaTexturesFromPlayer(TArray<UMediaTexture
 
 void FImgMediaMipMapInfoManager::Tick(float DeltaTime)
 {
-	UpdateViewportInfo();
 	UpdateCameraInfo();
-}
-
-void FImgMediaMipMapInfoManager::UpdateViewportInfo()
-{
-	// Get main viewport.
-	UEngine* Engine = GEngine;
-	if (Engine != nullptr)
-	{
-		UGameViewportClient* Viewport = Engine->GameViewport;
-		if (Viewport != nullptr)
-		{
-			FVector2D ViewportSize;
-			Viewport->GetViewportSize(ViewportSize);
-			ViewportDistAdjust = RefFrameBufferWidth / ViewportSize.X;
-		}
-	}
 }
 
 void FImgMediaMipMapInfoManager::UpdateCameraInfo()
@@ -160,30 +116,34 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 	UGameViewportClient* GameViewportClient = GEngine->GameViewport;
 	if (GameViewportClient != nullptr)
 	{
-		UWorld* World = GameViewportClient->GetWorld();
-		if (World != nullptr)
+		FViewport* Viewport = GameViewportClient->Viewport;
+		if (Viewport != nullptr)
 		{
-			for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+			UWorld* World = GameViewportClient->GetWorld();
+			if (World != nullptr)
 			{
-				APlayerController* PlayerController = Iterator->Get();
-				ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer();
-				if (LocalPlayer != nullptr)
+				for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
 				{
-					// Get the scene view.
-					FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
-						LocalPlayer->ViewportClient->Viewport,
-						World->Scene,
-						LocalPlayer->ViewportClient->EngineShowFlags)
-						.SetRealtimeUpdate(true));
-					FVector ViewLocation;
-					FRotator ViewRotation;
-					FSceneView* SceneView = LocalPlayer->CalcSceneView(&ViewFamily, ViewLocation, ViewRotation, LocalPlayer->ViewportClient->Viewport);
-
-					// Did we get a view?
-					if (SceneView != nullptr)
+					APlayerController* PlayerController = Iterator->Get();
+					ULocalPlayer* LocalPlayer = PlayerController->GetLocalPlayer();
+					if (LocalPlayer != nullptr)
 					{
-						// Add camera info for this scene view.
-						AddCameraInfo(SceneView);
+						// Get the scene view.
+						FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+							LocalPlayer->ViewportClient->Viewport,
+							World->Scene,
+							LocalPlayer->ViewportClient->EngineShowFlags)
+							.SetRealtimeUpdate(true));
+						FVector ViewLocation;
+						FRotator ViewRotation;
+						FSceneView* SceneView = LocalPlayer->CalcSceneView(&ViewFamily, ViewLocation, ViewRotation, LocalPlayer->ViewportClient->Viewport);
+
+						// Did we get a view?
+						if (SceneView != nullptr)
+						{
+							// Add camera info for this scene view.
+							AddCameraInfo(Viewport, SceneView);
+						}
 					}
 				}
 			}
@@ -217,7 +177,7 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 						FSceneView* SceneView = ViewportClient->CalcSceneView(&ViewFamily);
 						
 						// Add camera info for this scene view.
-						AddCameraInfo(SceneView);
+						AddCameraInfo(Viewport, SceneView);
 					}
 				}
 			}
@@ -226,27 +186,16 @@ void FImgMediaMipMapInfoManager::UpdateCameraInfo()
 #endif
 }
 
-void FImgMediaMipMapInfoManager::AddCameraInfo(FSceneView* SceneView)
+void FImgMediaMipMapInfoManager::AddCameraInfo(FViewport* Viewport, FSceneView* SceneView)
 {
-	float FOV = SceneView->FOV;
-	float ViewRectWidth = SceneView->UnscaledViewRect.Width();
-	float ViewRectHeight = SceneView->UnscaledViewRect.Height();
-		
-	const FVector& ViewLocation = SceneView->ViewMatrices.GetViewOrigin();
-	
-	float NearPlaneSize = CalculateNearPlaneSize(FOV);
-	float DistAdjust = NearPlaneSize / RefNearPlaneWidth;
-	DistAdjust *= RefFrameBufferWidth / ViewRectWidth;
+	FImgMediaMipMapCameraInfo Info;
+	Info.Location = SceneView->ViewMatrices.GetViewOrigin();
+	Info.ViewMatrix = SceneView->ViewMatrices.GetViewMatrix();
+	Info.ViewProjectionMatrix = SceneView->ViewMatrices.GetViewProjectionMatrix();
+	Info.ViewportRect = FIntRect(FIntPoint::ZeroValue, Viewport->GetSizeXY());
+	Info.MaterialTextureMipBias = SceneView->MaterialTextureMipBias;
 
-	CameraInfos.Emplace(ViewLocation, SceneView->ViewMatrices.GetViewProjectionMatrix(), ViewRectWidth, DistAdjust);
-}
-
-float FImgMediaMipMapInfoManager::CalculateNearPlaneSize(float InFOV) const
-{
-	float NearPlaneDistance = RefNearPlaneDistance;
-	float NearPlaneWidth = FMath::Tan(FMath::DegreesToRadians(InFOV) * 0.5f) * NearPlaneDistance * 2.0f;
-
-	return NearPlaneWidth;
+	CameraInfos.Emplace(MoveTemp(Info));
 }
 
 void FImgMediaMipMapInfoManager::OnCVarMipMapDebugEnable(IConsoleVariable* Var)
