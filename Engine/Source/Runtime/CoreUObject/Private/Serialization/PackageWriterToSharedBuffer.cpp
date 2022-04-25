@@ -38,7 +38,7 @@ void FPackageWriterRecords::BeginPackage(FPackage* Record, const IPackageWriter:
 void FPackageWriterRecords::WritePackageData(const IPackageWriter::FPackageInfo& Info,
 	FLargeMemoryWriter& ExportsArchive, const TArray<FFileRegion>& FileRegions)
 {
-	FPackage& Record = FindRecordChecked(Info.InputPackageName);
+	FPackage& Record = FindRecordChecked(Info.PackageName);
 	int64 DataSize = ExportsArchive.TotalSize();
 	checkf(DataSize > 0, TEXT("IPackageWriter->WritePackageData must not be called with an empty ExportsArchive"));
 	checkf(static_cast<uint64>(DataSize) >= Info.HeaderSize,
@@ -51,19 +51,19 @@ void FPackageWriterRecords::WritePackageData(const IPackageWriter::FPackageInfo&
 void FPackageWriterRecords::WriteBulkData(const IPackageWriter::FBulkDataInfo& Info, const FIoBuffer& BulkData,
 	const TArray<FFileRegion>& FileRegions)
 {
-	FPackage& Record = FindRecordChecked(Info.InputPackageName);
+	FPackage& Record = FindRecordChecked(Info.PackageName);
 	Record.BulkDatas.Add(FBulkData{ Info, IoBufferToSharedBuffer(BulkData), FileRegions });
 }
 
 void FPackageWriterRecords::WriteAdditionalFile(const IPackageWriter::FAdditionalFileInfo& Info,
 	const FIoBuffer& FileData)
 {
-	FPackage& Record = FindRecordChecked(Info.InputPackageName);
+	FPackage& Record = FindRecordChecked(Info.PackageName);
 	FAdditionalFile& AdditionalFile = Record.AdditionalFiles.Add_GetRef(FAdditionalFile{ Info, IoBufferToSharedBuffer(FileData) });
 	FIoChunkId ChunkId = CreateExternalFileChunkId(AdditionalFile.Info.Filename);
 	if (AdditionalFile.Info.ChunkId.IsValid() && AdditionalFile.Info.ChunkId != ChunkId)
 	{
-		UE_LOG(LogPackageWriter, Warning, TEXT("PackageWriter->WriteAdditionalFile called with an unexpected chunkid: Should match CreateExternalFileChunkId (Package: %s Filename: %s)"), *Info.InputPackageName.ToString(), *AdditionalFile.Info.Filename);
+		UE_LOG(LogPackageWriter, Warning, TEXT("PackageWriter->WriteAdditionalFile called with an unexpected chunkid: Should match CreateExternalFileChunkId (Package: %s Filename: %s)"), *Info.PackageName.ToString(), *AdditionalFile.Info.Filename);
 	}
 	else
 	{
@@ -74,7 +74,7 @@ void FPackageWriterRecords::WriteAdditionalFile(const IPackageWriter::FAdditiona
 void FPackageWriterRecords::WriteLinkerAdditionalData(const IPackageWriter::FLinkerAdditionalDataInfo& Info,
 	const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions)
 {
-	FPackage& Record = FindRecordChecked(Info.InputPackageName);
+	FPackage& Record = FindRecordChecked(Info.PackageName);
 	Record.LinkerAdditionalDatas.Add(
 		FLinkerAdditionalData{ Info, IoBufferToSharedBuffer(Data), FileRegions });
 }

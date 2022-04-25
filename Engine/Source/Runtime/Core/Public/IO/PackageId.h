@@ -17,7 +17,7 @@ class FPackageId
 public:
 	FPackageId() = default;
 
-	CORE_API static FPackageId FromName(const FName& Name, bool bAsOptional = false);
+	CORE_API static FPackageId FromName(const FName& Name);
 
 	static FPackageId FromValue(const uint64 Value)
 	{

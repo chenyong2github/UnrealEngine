@@ -1847,7 +1847,7 @@ ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
 			SaveContext.TotalPackageSizeUncompressed += Size;
 
 			IPackageWriter::FAdditionalFileInfo FileInfo;
-			FileInfo.OutputPackageName = FileInfo.InputPackageName = SaveContext.GetPackage()->GetFName();
+			FileInfo.PackageName = SaveContext.GetPackage()->GetFName();
 			FileInfo.Filename = *Writer.GetArchiveName();
 
 			FIoBuffer FileData(FIoBuffer::AssumeOwnership, Writer.ReleaseOwnership(), Size);
@@ -1991,25 +1991,22 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 		if (PackageWriter)
 		{
 			IPackageWriter::FPackageInfo PackageInfo;
-			PackageInfo.InputPackageName = SaveContext.GetPackage()->GetFName();
-			// Adjust the OutputPackageName and LooseFilePath if needed
+			PackageInfo.PackageName = SaveContext.GetPackage()->GetFName();
+			// Adjust LooseFilePath if needed
 			if (bIsOptionalRealm)
 			{
 				// Optional output have the form PackagePath.o.ext
-				FString OutputPackageName = PackageInfo.InputPackageName.ToString() + FPackagePath::GetOptionalSegmentExtensionModifier();
-				PackageInfo.OutputPackageName = *OutputPackageName;
 				PackageInfo.LooseFilePath = FPathViews::ChangeExtension(SaveContext.GetFilename(), TEXT("o.") + FPaths::GetExtension(SaveContext.GetFilename()));
 				PackageInfo.MultiOutputIndex = 1;
 			}
 			else
 			{
-				PackageInfo.OutputPackageName = PackageInfo.InputPackageName;
 				PackageInfo.LooseFilePath = SaveContext.GetFilename();
 			}
 			PackageInfo.HeaderSize = Linker->Summary.TotalHeaderSize;
 
-			FPackageId PackageId = FPackageId::FromName(PackageInfo.OutputPackageName);
-			PackageInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
+			FPackageId PackageId = FPackageId::FromName(PackageInfo.PackageName);
+			PackageInfo.ChunkId = CreateIoChunkId(PackageId.Value(), PackageInfo.MultiOutputIndex, EIoChunkType::ExportBundleData);
 
 			PackageWriter->WritePackageData(PackageInfo, *Writer, Linker->FileRegions);
 		}

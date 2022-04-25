@@ -15,39 +15,38 @@ FPackageStoreManifest::FPackageStoreManifest(const FString& InCookedOutputPath)
 	FPaths::NormalizeFilename(CookedOutputPath);
 }
 
-void FPackageStoreManifest::BeginPackage(FName InputPackageName)
+void FPackageStoreManifest::BeginPackage(FName PackageName)
 {
 	FScopeLock Lock(&CriticalSection);
-	FPackageInfo& PackageInfo = MainPackageInfoByNameMap.FindOrAdd(InputPackageName);
-	PackageInfo.PackageName = InputPackageName;
-	if (PackageInfo.PackageChunkId.IsValid())
+	FPackageInfo& PackageInfo = PackageInfoByNameMap.FindOrAdd(PackageName);
+	PackageInfo.PackageName = PackageName;
+	for (const FIoChunkId& ExportBundleChunkId : PackageInfo.ExportBundleChunkIds)
 	{
-		FileNameByChunkIdMap.Remove(PackageInfo.PackageChunkId);
+		FileNameByChunkIdMap.Remove(ExportBundleChunkId);
 	}
 	for (const FIoChunkId& BulkDataChunkId : PackageInfo.BulkDataChunkIds)
 	{
 		FileNameByChunkIdMap.Remove(BulkDataChunkId);
 	}
 	PackageInfo.BulkDataChunkIds.Reset();
-	OptionalPackageInfoByNameMap.Remove(InputPackageName);
 }
 
-void FPackageStoreManifest::AddPackageData(FName InputPackageName, FName OutputPackageName, const FString& FileName, const FIoChunkId& ChunkId)
+void FPackageStoreManifest::AddPackageData(FName PackageName, const FString& FileName, const FIoChunkId& ChunkId)
 {
 	FScopeLock Lock(&CriticalSection);
-	FPackageInfo* PackageInfo = GetPackageInfo_NoLock(InputPackageName, OutputPackageName);
+	FPackageInfo* PackageInfo = GetPackageInfo_NoLock(PackageName);
 	check(PackageInfo);
-	PackageInfo->PackageChunkId = ChunkId;
+	PackageInfo->ExportBundleChunkIds.Add(ChunkId);
 	if (!FileName.IsEmpty())
 	{
 		FileNameByChunkIdMap.Add(ChunkId, FileName);
 	}
 }
 
-void FPackageStoreManifest::AddBulkData(FName InputPackageName, FName OutputPackageName, const FString& FileName, const FIoChunkId& ChunkId)
+void FPackageStoreManifest::AddBulkData(FName PackageName, const FString& FileName, const FIoChunkId& ChunkId)
 {
 	FScopeLock Lock(&CriticalSection);
-	FPackageInfo* PackageInfo = GetPackageInfo_NoLock(InputPackageName, OutputPackageName);
+	FPackageInfo* PackageInfo = GetPackageInfo_NoLock(PackageName);
 	check(PackageInfo);
 	PackageInfo->BulkDataChunkIds.Add(ChunkId);
 	if (!FileName.IsEmpty())
@@ -105,7 +104,15 @@ FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 			Writer->WriteObjectStart();
 		}
 		Writer->WriteValue(TEXT("Name"), PackageInfo.PackageName.ToString());
-		Writer->WriteValue(TEXT("PackageChunkId"), ChunkIdToString(PackageInfo.PackageChunkId));
+		if (!PackageInfo.ExportBundleChunkIds.IsEmpty())
+		{
+			Writer->WriteArrayStart(TEXT("ExportBundleChunkIds"));
+			for (const FIoChunkId& ChunkId : PackageInfo.ExportBundleChunkIds)
+			{
+				Writer->WriteValue(ChunkIdToString(ChunkId));
+			}
+			Writer->WriteArrayEnd();
+		}
 		if (!PackageInfo.BulkDataChunkIds.IsEmpty())
 		{
 			Writer->WriteArrayStart(TEXT("BulkDataChunkIds"));
@@ -119,26 +126,12 @@ FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 	};
 
 	Writer->WriteArrayStart(TEXT("Packages"));
-	for (const auto& PackageNameInfoPair : MainPackageInfoByNameMap)
+	for (const auto& PackageNameInfoPair : PackageInfoByNameMap)
 	{
 		const FPackageInfo& PackageInfo = PackageNameInfoPair.Value;
 		WritePackageInfoObject(PackageInfo);
 	}
 	Writer->WriteArrayEnd();
-
-	Writer->WriteArrayStart(TEXT("OptionalPackages"));
-	for (const auto& PackageNameInfoPair : OptionalPackageInfoByNameMap)
-	{
-		Writer->WriteObjectStart();
-		Writer->WriteValue(TEXT("PackageName"), PackageNameInfoPair.Key.ToString());
-		{
-			const FPackageInfo& PackageInfo = PackageNameInfoPair.Value;
-			WritePackageInfoObject(PackageInfo, TEXT("PackageInfo"));
-		}
-		Writer->WriteObjectEnd();
-	}
-	Writer->WriteArrayEnd();
-
 
 	Writer->WriteObjectEnd();
 	Writer->Close();
@@ -154,8 +147,7 @@ FIoStatus FPackageStoreManifest::Save(const TCHAR* Filename) const
 FIoStatus FPackageStoreManifest::Load(const TCHAR* Filename)
 {
 	FScopeLock Lock(&CriticalSection);
-	MainPackageInfoByNameMap.Empty();
-	OptionalPackageInfoByNameMap.Empty();
+	PackageInfoByNameMap.Empty();
 	FileNameByChunkIdMap.Empty();
 
 	auto ChunkIdFromString = [](const FString& ChunkIdString)
@@ -212,7 +204,17 @@ FIoStatus FPackageStoreManifest::Load(const TCHAR* Filename)
 	auto ReadPackageInfo = [&ChunkIdFromString](TSharedPtr<FJsonObject> PackageObject, FPackageInfo& PackageInfo)
 	{
 		check(!PackageInfo.PackageName.IsNone());
-		PackageInfo.PackageChunkId = ChunkIdFromString(PackageObject->Values.FindRef(TEXT("PackageChunkId"))->AsString());
+		
+		TSharedPtr<FJsonValue> ExportBundleChunkIdsValue = PackageObject->Values.FindRef(TEXT("ExportBundleChunkIds"));
+		if (ExportBundleChunkIdsValue.IsValid())
+		{
+			TArray<TSharedPtr<FJsonValue>> ExportBundleChunkIdsArray = ExportBundleChunkIdsValue->AsArray();
+			PackageInfo.ExportBundleChunkIds.Reserve(ExportBundleChunkIdsArray.Num());
+			for (const TSharedPtr<FJsonValue>& ExportBundleChunkIdValue : ExportBundleChunkIdsArray)
+			{
+				PackageInfo.ExportBundleChunkIds.Add(ChunkIdFromString(ExportBundleChunkIdValue->AsString()));
+			}
+		}
 
 		TSharedPtr<FJsonValue> BulkDataChunkIdsValue = PackageObject->Values.FindRef(TEXT("BulkDataChunkIds"));
 		if (BulkDataChunkIdsValue.IsValid())
@@ -227,31 +229,15 @@ FIoStatus FPackageStoreManifest::Load(const TCHAR* Filename)
 	};
 
 	TArray<TSharedPtr<FJsonValue>> PackagesArray = JsonObject->Values.FindRef(TEXT("Packages"))->AsArray();
-	MainPackageInfoByNameMap.Reserve(PackagesArray.Num());
+	PackageInfoByNameMap.Reserve(PackagesArray.Num());
 	for (const TSharedPtr<FJsonValue>& PackageValue : PackagesArray)
 	{
 		TSharedPtr<FJsonObject> PackageObject = PackageValue->AsObject();
 		FName PackageName = FName(PackageObject->Values.FindRef(TEXT("Name"))->AsString());
 
-		FPackageInfo& PackageInfo = MainPackageInfoByNameMap.FindOrAdd(PackageName);
+		FPackageInfo& PackageInfo = PackageInfoByNameMap.FindOrAdd(PackageName);
 		PackageInfo.PackageName = PackageName;
 		ReadPackageInfo(PackageObject, PackageInfo);
-	}
-
-	TArray<TSharedPtr<FJsonValue>> OptionalPackagesArray = JsonObject->Values.FindRef(TEXT("OptionalPackages"))->AsArray();
-	OptionalPackageInfoByNameMap.Reserve(OptionalPackagesArray.Num());
-	for (const TSharedPtr<FJsonValue>& PackageNameInfoPair : OptionalPackagesArray)
-	{
-		TSharedPtr<FJsonObject> PairObject = PackageNameInfoPair->AsObject();
-		FName InputPackageName = FName(PairObject->Values.FindRef(TEXT("PackageName"))->AsString());
-
-		TSharedPtr<FJsonObject> PackageObject = PairObject->Values.FindRef(TEXT("PackageInfo"))->AsObject();
-		FName OutputPackageName = FName(PackageObject->Values.FindRef(TEXT("Name"))->AsString());
-
-		FPackageInfo PackageInfo;
-		PackageInfo.PackageName = OutputPackageName;
-		ReadPackageInfo(PackageObject, PackageInfo);
-		OptionalPackageInfoByNameMap.Add(InputPackageName, MoveTemp(PackageInfo));
 	}
 
 	return FIoStatus::Ok;
@@ -273,10 +259,7 @@ TArray<FPackageStoreManifest::FPackageInfo> FPackageStoreManifest::GetPackages()
 {
 	FScopeLock Lock(&CriticalSection);
 	TArray<FPackageInfo> Packages;
-	MainPackageInfoByNameMap.GenerateValueArray(Packages);
-	TArray<FPackageInfo> OptionalPackages;
-	OptionalPackageInfoByNameMap.GenerateValueArray(OptionalPackages);
-	Packages.Append(MoveTemp(OptionalPackages));
+	PackageInfoByNameMap.GenerateValueArray(Packages);
 	return Packages;
 }
 
@@ -296,32 +279,8 @@ const FPackageStoreManifest::FZenServerInfo* FPackageStoreManifest::ReadZenServe
 	return ZenServerInfo.Get();
 }
 
-FPackageStoreManifest::FPackageInfo* FPackageStoreManifest::GetPackageInfo_NoLock(FName InputPackageName, FName OutputPackageName)
+FPackageStoreManifest::FPackageInfo* FPackageStoreManifest::GetPackageInfo_NoLock(FName PackageName)
 {
-	FPackageInfo* PackageInfo = nullptr;
-	if (InputPackageName == OutputPackageName)
-	{
-		PackageInfo = MainPackageInfoByNameMap.Find(InputPackageName);
-	}
-	else
-	{
-		TArray<FPackageInfo*, TInlineAllocator<2>> PackageInfos;
-		OptionalPackageInfoByNameMap.MultiFindPointer(InputPackageName, PackageInfos);
-		FPackageInfo** PackageInfoPtr = PackageInfos.FindByPredicate([OutputPackageName](FPackageInfo* Info)
-			{
-				return Info->PackageName == OutputPackageName;
-			});
-		// If we didn't find any, create one
-		if (PackageInfoPtr == nullptr)
-		{
-			PackageInfo = &OptionalPackageInfoByNameMap.Add(InputPackageName);
-			PackageInfo->PackageName = OutputPackageName;
-		}
-		else
-		{
-			PackageInfo = *PackageInfoPtr;
-		}
-	}
-	return PackageInfo;
+	return PackageInfoByNameMap.Find(PackageName);
 }
 

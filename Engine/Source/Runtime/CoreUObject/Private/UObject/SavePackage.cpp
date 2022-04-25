@@ -3857,7 +3857,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 							TotalPackageSizeUncompressed += Size;
 
 							IPackageWriter::FAdditionalFileInfo FileInfo;
-							FileInfo.OutputPackageName = FileInfo.InputPackageName = InOuter->GetFName();
+							FileInfo.PackageName = InOuter->GetFName();
 							FileInfo.Filename = *Writer.GetArchiveName();
 
 							FIoBuffer FileData(FIoBuffer::AssumeOwnership, Writer.ReleaseOwnership(), Size);
@@ -4137,11 +4137,11 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						if (PackageWriter)
 						{
 							IPackageWriter::FPackageInfo PackageInfo;
-							PackageInfo.OutputPackageName = PackageInfo.InputPackageName = InOuter->GetFName();
+							PackageInfo.PackageName = InOuter->GetFName();
 							PackageInfo.LooseFilePath = Filename;
 							PackageInfo.HeaderSize = Linker->Summary.TotalHeaderSize;
 
-							FPackageId PackageId = FPackageId::FromName(PackageInfo.OutputPackageName);
+							FPackageId PackageId = FPackageId::FromName(PackageInfo.PackageName);
 							PackageInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
 
 							PackageWriter->WritePackageData(PackageInfo, *Writer, Linker->FileRegions);

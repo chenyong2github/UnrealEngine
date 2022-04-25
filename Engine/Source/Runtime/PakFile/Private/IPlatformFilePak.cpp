@@ -7756,6 +7756,23 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 					UE_LOG(LogPakFile, Display, TEXT("Mounted IoStore container \"%s\""), *UtocPath);
 					Pak->IoContainerHeader = MakeUnique<FIoContainerHeader>(MountResult.ConsumeValueOrDie());
 					FilePackageStore->Mount(Pak->IoContainerHeader.Get(), PakOrder);
+#if WITH_EDITOR
+					FString OptionalSegmentUtocPath = FPaths::ChangeExtension(InPakFilename, FString::Printf(TEXT("%s.utoc"), FPackagePath::GetOptionalSegmentExtensionModifier()));
+					if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*OptionalSegmentUtocPath))
+					{
+						MountResult = IoDispatcherFileBackend->Mount(*OptionalSegmentUtocPath, PakOrder, EncryptionKeyGuid, EncryptionKey);
+						if (MountResult.IsOk())
+						{
+							Pak->OptionalSegmentIoContainerHeader = MakeUnique<FIoContainerHeader>(MountResult.ConsumeValueOrDie());
+							FilePackageStore->Mount(Pak->OptionalSegmentIoContainerHeader.Get(), PakOrder);
+							UE_LOG(LogPakFile, Display, TEXT("Mounted optional segment extension IoStore container \"%s\""), *OptionalSegmentUtocPath);
+						}
+						else
+						{
+							UE_LOG(LogPakFile, Warning, TEXT("Failed to mount optional segment extension IoStore container \"%s\" [%s]"), *OptionalSegmentUtocPath, *MountResult.Status().ToString());
+						}
+					}
+#endif
 				}
 				else
 				{
@@ -7841,6 +7858,14 @@ bool FPakPlatformFile::Unmount(const TCHAR* InPakFilename)
 			}
 			FString ContainerPath = FPaths::ChangeExtension(InPakFilename, FString());
 			bRemovedContainerFile = IoDispatcherFileBackend->Unmount(*ContainerPath);
+#if WITH_EDITOR
+			if (UnmountedPak && UnmountedPak->OptionalSegmentIoContainerHeader.IsValid())
+			{
+				FilePackageStore->Unmount(UnmountedPak->OptionalSegmentIoContainerHeader.Get());
+				FString OptionalSegmentContainerPath = ContainerPath + FPackagePath::GetOptionalSegmentExtensionModifier();
+				IoDispatcherFileBackend->Unmount(*OptionalSegmentContainerPath);
+			}
+#endif
 		}
 
 		if (UnmountedPak)

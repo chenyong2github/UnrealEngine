@@ -102,6 +102,15 @@ EPackageStoreEntryStatus FFilePackageStore::GetPackageStoreEntry(FPackageId Pack
 		OutPackageStoreEntry.ExportInfo.ExportBundleCount = FindEntry->ExportBundleCount;
 		OutPackageStoreEntry.ImportedPackageIds = MakeArrayView(FindEntry->ImportedPackages.Data(), FindEntry->ImportedPackages.Num());
 		OutPackageStoreEntry.ShaderMapHashes = MakeArrayView(FindEntry->ShaderMapHashes.Data(), FindEntry->ShaderMapHashes.Num());
+#if WITH_EDITOR
+		const FFilePackageStoreEntry* FindOptionalSegmentEntry = OptionalSegmentStoreEntriesMap.FindRef(PackageId);
+		if (FindOptionalSegmentEntry)
+		{
+			OutPackageStoreEntry.OptionalSegmentExportInfo.ExportCount = FindOptionalSegmentEntry->ExportCount;
+			OutPackageStoreEntry.OptionalSegmentExportInfo.ExportBundleCount = FindOptionalSegmentEntry->ExportBundleCount;
+			OutPackageStoreEntry.OptionalSegmentImportedPackageIds = MakeArrayView(FindOptionalSegmentEntry->ImportedPackages.Data(), FindOptionalSegmentEntry->ImportedPackages.Num());
+		}
+#endif
 		return EPackageStoreEntryStatus::Ok;
 	}
 	return EPackageStoreEntryStatus::Missing;
@@ -142,9 +151,13 @@ void FFilePackageStore::Mount(const FIoContainerHeader* ContainerHeader, uint32 
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
 	FWriteScopeLock _(EntriesLock);
-	MountedContainers.Add({ ContainerHeader, Order });
+	MountedContainers.Add({ ContainerHeader, Order, NextSequence++ });
 	Algo::Sort(MountedContainers, [](const FMountedContainer& A, const FMountedContainer& B)
 		{
+			if (A.Order == B.Order)
+			{
+				return A.Sequence < B.Sequence;
+			}
 			return A.Order < B.Order;
 		});
 	bNeedsUpdate = true;
@@ -178,18 +191,21 @@ void FFilePackageStore::Update()
 	StoreEntriesMap.Empty();
 	LocalizedPackages.Empty();
 	RedirectsPackageMap.Empty();
+#if WITH_EDITOR
+	OptionalSegmentStoreEntriesMap.Empty();
+#endif
 
 	uint32 TotalPackageCount = 0;
 	for (const FMountedContainer& MountedContainer : MountedContainers)
 	{
-		TotalPackageCount += MountedContainer.ContainerHeader->PackageCount;
+		TotalPackageCount += MountedContainer.ContainerHeader->PackageIds.Num();
 	}
 
 	StoreEntriesMap.Reserve(TotalPackageCount);
 	for (const FMountedContainer& MountedContainer : MountedContainers)
 	{
 		const FIoContainerHeader* ContainerHeader = MountedContainer.ContainerHeader;
-		TArrayView<const FFilePackageStoreEntry> ContainerStoreEntries(reinterpret_cast<const FFilePackageStoreEntry*>(ContainerHeader->StoreEntries.GetData()), ContainerHeader->PackageCount);
+		TArrayView<const FFilePackageStoreEntry> ContainerStoreEntries(reinterpret_cast<const FFilePackageStoreEntry*>(ContainerHeader->StoreEntries.GetData()), ContainerHeader->PackageIds.Num());
 		int32 Index = 0;
 		for (const FFilePackageStoreEntry& StoreEntry : ContainerStoreEntries)
 		{
@@ -198,6 +214,18 @@ void FFilePackageStore::Update()
 			StoreEntriesMap.FindOrAdd(PackageId, &StoreEntry);
 			++Index;
 		}
+
+#if WITH_EDITOR
+		TArrayView<const FFilePackageStoreEntry> ContainerOptionalSegmentStoreEntries(reinterpret_cast<const FFilePackageStoreEntry*>(ContainerHeader->OptionalSegmentStoreEntries.GetData()), ContainerHeader->OptionalSegmentPackageIds.Num());
+		Index = 0;
+		for (const FFilePackageStoreEntry& OptionalSegmentStoreEntry : ContainerOptionalSegmentStoreEntries)
+		{
+			const FPackageId& PackageId = ContainerHeader->OptionalSegmentPackageIds[Index];
+			check(PackageId.IsValid());
+			OptionalSegmentStoreEntriesMap.FindOrAdd(PackageId, &OptionalSegmentStoreEntry);
+			++Index;
+		}
+#endif
 
 		for (const FIoContainerHeaderLocalizedPackage& LocalizedPackage : ContainerHeader->LocalizedPackages)
 		{

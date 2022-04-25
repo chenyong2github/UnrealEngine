@@ -37,9 +37,10 @@ FArchive& operator<<(FArchive& Ar, FIoContainerHeader& ContainerHeader)
 		return Ar;
 	}
 	Ar << ContainerHeader.ContainerId;
-	Ar << ContainerHeader.PackageCount;
 	Ar << ContainerHeader.PackageIds;
 	Ar << ContainerHeader.StoreEntries;
+	Ar << ContainerHeader.OptionalSegmentPackageIds;
+	Ar << ContainerHeader.OptionalSegmentStoreEntries;
 	if (Ar.IsLoading())
 	{
 		ContainerHeader.RedirectsNameMap = LoadNameBatch(Ar);

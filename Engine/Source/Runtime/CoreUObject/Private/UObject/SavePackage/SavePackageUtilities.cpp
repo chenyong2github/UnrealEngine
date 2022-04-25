@@ -1973,7 +1973,7 @@ ESavePackageResult CreatePayloadSidecarFile(FLinkerSave& Linker, const FPackageP
 	if (PackageWriter)
 	{
 		IPackageWriter::FAdditionalFileInfo SidecarSegmentInfo;
-		SidecarSegmentInfo.OutputPackageName = SidecarSegmentInfo.InputPackageName = PackagePath.GetPackageFName();
+		SidecarSegmentInfo.PackageName = PackagePath.GetPackageFName();
 		SidecarSegmentInfo.Filename = TargetFilePath;
 		FIoBuffer FileData(FIoBuffer::AssumeOwnership, Ar.ReleaseOwnership(), DataSize);
 		PackageWriter->WriteAdditionalFile(SidecarSegmentInfo, FileData);
@@ -2275,26 +2275,23 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 			};
 
 			IPackageWriter::FBulkDataInfo BulkInfo;
-			BulkInfo.InputPackageName = InOuter->GetFName();
-			// Adjust the OutputPackageName and LooseFilePath if needed
+			BulkInfo.PackageName = InOuter->GetFName();
+			// Adjust LooseFilePath if needed
 			if (bIsOptionalRealm)
 			{
 				// Optional output have the form PackagePath.o.ext
-				FString OutputPackageName = BulkInfo.InputPackageName.ToString() + FPackagePath::GetOptionalSegmentExtensionModifier();
-				BulkInfo.OutputPackageName = *OutputPackageName;
 				BulkInfo.LooseFilePath = FPathViews::ChangeExtension(Filename, TEXT("o.") + FPaths::GetExtension(Filename));
 				BulkInfo.MultiOutputIndex = 1;
 			}
 			else
 			{
-				BulkInfo.OutputPackageName = BulkInfo.InputPackageName;
 				BulkInfo.LooseFilePath = Filename;
 			}
-			FPackageId PackageId = FPackageId::FromName(BulkInfo.OutputPackageName);
+			FPackageId PackageId = FPackageId::FromName(BulkInfo.PackageName);
 				
 			if (BulkArchive->TotalSize())
 			{
-				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::BulkData);
+				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), BulkInfo.MultiOutputIndex, EIoChunkType::BulkData);
 				BulkInfo.BulkDataType = bSeparateSegmentsEnabled ?
 					IPackageWriter::FBulkDataInfo::BulkSegment : IPackageWriter::FBulkDataInfo::AppendToExports;
 				BulkInfo.LooseFilePath = FPathViews::ChangeExtension(BulkInfo.LooseFilePath, LexToString(EPackageExtension::BulkDataDefault));

@@ -204,7 +204,6 @@ private:
 		FName FromPackageName;
 		int32 FromPackageNameLen = 0;
 		FPackageId FromPackageId;
-		FPackageId FromOptionalPackageId;
 		bool bIsScriptImport = false;
 		bool bIsImportOfPackage = false;
 		bool bIsImportOptional = false;
@@ -295,7 +294,6 @@ private:
 	bool bPermanentMark = false;
 
 	bool bIsRedirected = false;
-	bool bIsOptional = false;
 
 	friend class FPackageStoreOptimizer;
 };
@@ -341,8 +339,14 @@ public:
 	FPackageStorePackage* CreatePackageFromPackageStoreHeader(const FName& Name, const FIoBuffer& Buffer, const FPackageStoreEntryResource& PackageStoreEntry) const;
 	void FinalizePackage(FPackageStorePackage* Package);
 	FIoBuffer CreatePackageBuffer(const FPackageStorePackage* Package, const FIoBuffer& CookedExportsBuffer, TArray<FFileRegion>* InOutFileRegions) const;
-	FPackageStoreEntryResource CreatePackageStoreEntry(const FPackageStorePackage* Package) const;
-	FIoContainerHeader CreateContainerHeader(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries) const;
+	FPackageStoreEntryResource CreatePackageStoreEntry(const FPackageStorePackage* Package, const FPackageStorePackage* OptionalSegmentPackage) const;
+	enum EContainerHeaderInclusionFilter
+	{
+		IncludeNonOptionalSegments = 0x1,
+		IncludeOptionalSegments = 0x2,
+		IncludeAllSegments = IncludeNonOptionalSegments | IncludeOptionalSegments
+	};
+	FIoContainerHeader CreateContainerHeader(const FIoContainerId& ContainerId, TArrayView<const FPackageStoreEntryResource> PackageStoreEntries, EContainerHeaderInclusionFilter InclusionFilter) const;
 	IOSTOREUTILITIES_API FIoBuffer CreateScriptObjectsBuffer() const;
 	void LoadScriptObjectsBuffer(const FIoBuffer& ScriptObjectsBuffer);
 	void ProcessRedirects(const TMap<FPackageId, FPackageStorePackage*>& PackagesMap, bool bIsBuildingDLC) const;

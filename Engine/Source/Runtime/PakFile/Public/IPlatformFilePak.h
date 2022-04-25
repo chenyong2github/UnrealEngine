@@ -799,6 +799,9 @@ private:
 	bool bIsMounted;
 
 	TUniquePtr<FIoContainerHeader> IoContainerHeader;
+#if WITH_EDITOR
+	TUniquePtr<FIoContainerHeader> OptionalSegmentIoContainerHeader;
+#endif
 
 	static inline int32 CDECL CompareFilenameHashes(const void* Left, const void* Right)
 	{

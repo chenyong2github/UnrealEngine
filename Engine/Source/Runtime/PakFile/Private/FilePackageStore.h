@@ -35,6 +35,7 @@ private:
 	{
 		const FIoContainerHeader* ContainerHeader;
 		uint32 Order;
+		uint32 Sequence;
 	};
 
 #if WITH_EDITOR
@@ -53,6 +54,7 @@ private:
 	FRWLock EntriesLock;
 	FCriticalSection UpdateLock;
 	TArray<FMountedContainer> MountedContainers;
+	TAtomic<uint32> NextSequence{ 0 };
 	TMap<FPackageId, const FFilePackageStoreEntry*> StoreEntriesMap;
 	TMap<FPackageId, TTuple<FName, FPackageId>> RedirectsPackageMap;
 	TMap<FPackageId, FName> LocalizedPackages;
@@ -63,6 +65,9 @@ private:
 	FCriticalSection UncookedPackageRootsLock;
 	TSet<FString> PendingUncookedPackageRoots;
 	TMap<FPackageId, FUncookedPackage> UncookedPackagesMap;
+#endif
+#if WITH_EDITOR
+	TMap<FPackageId, const FFilePackageStoreEntry*> OptionalSegmentStoreEntriesMap;
 #endif
 
 	static thread_local int32 LockedOnThreadCount;

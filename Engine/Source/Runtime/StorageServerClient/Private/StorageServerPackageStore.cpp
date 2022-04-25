@@ -21,8 +21,8 @@ FStorageServerPackageStore::FStorageServerPackageStore(FStorageServerConnection&
 			FIoContainerHeader ContainerHeader;
 			Ar << ContainerHeader;
 			StoreEntriesData = MoveTemp(ContainerHeader.StoreEntries);
-			StoreEntriesMap.Reserve(ContainerHeader.PackageCount);
-			TArrayView<const FFilePackageStoreEntry> StoreEntries(reinterpret_cast<const FFilePackageStoreEntry*>(StoreEntriesData.GetData()), ContainerHeader.PackageCount);
+			StoreEntriesMap.Reserve(ContainerHeader.PackageIds.Num());
+			TArrayView<const FFilePackageStoreEntry> StoreEntries(reinterpret_cast<const FFilePackageStoreEntry*>(StoreEntriesData.GetData()), ContainerHeader.PackageIds.Num());
 			int32 Index = 0;
 			for (const FFilePackageStoreEntry& StoreEntry : StoreEntries)
 			{

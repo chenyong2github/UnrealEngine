@@ -89,9 +89,7 @@ public:
 	struct FPackageInfo
 	{
 		/** Associated Package Name Entry from BeginPackage */
-		FName		InputPackageName;
-		/** Output Package Name (Input Package can produce multiple output) */
-		FName		OutputPackageName;
+		FName		PackageName;
 		FString		LooseFilePath;
 		uint64		HeaderSize = 0;
 		FIoChunkId	ChunkId = FIoChunkId::InvalidChunkId;
@@ -117,9 +115,7 @@ public:
 		};
 
 		/** Associated Package Name Entry */
-		FName		InputPackageName;
-		/** Output Package Name (Input Package can produce multiple output) */
-		FName		OutputPackageName;
+		FName		PackageName;
 		EType		BulkDataType = BulkSegment;
 		FString		LooseFilePath;
 		FIoChunkId	ChunkId = FIoChunkId::InvalidChunkId;
@@ -133,9 +129,7 @@ public:
 	struct FAdditionalFileInfo
 	{
 		/** Associated Package Name Entry */
-		FName		InputPackageName;
-		/** Output Package Name (Input Package can produce multiple output) */
-		FName		OutputPackageName;
+		FName		PackageName;
 		FString		Filename;
 		FIoChunkId	ChunkId = FIoChunkId::InvalidChunkId;
 		uint32		MultiOutputIndex = 0;
@@ -147,9 +141,7 @@ public:
 	struct FLinkerAdditionalDataInfo
 	{
 		/** Associated Package Name Entry */
-		FName	InputPackageName;
-		/** Output Package Name (Input Package can produce multiple output) */
-		FName	OutputPackageName;
+		FName	PackageName;
 		uint32	MultiOutputIndex = 0;
 	};
 	/** Write separate data written by UObjects via FLinkerSave::AdditionalDataToAppend. */

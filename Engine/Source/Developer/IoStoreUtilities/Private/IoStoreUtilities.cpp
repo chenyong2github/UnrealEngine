@@ -304,6 +304,9 @@ struct FCookedFileStatData
 		MemoryMappedBulkData,
 		ShaderLibrary,
 		Regions,
+		OptionalSegmentPackageHeader,
+		OptionalSegmentPackageData,
+		OptionalSegmentBulkData,
 		Invalid
 	};
 
@@ -370,6 +373,10 @@ public:
 		Extensions.Emplace(*FString::Printf(TEXT(".ubulk%s"), FFileRegion::RegionsFileExtension), FCookedFileStatData::Regions);
 		Extensions.Emplace(*FString::Printf(TEXT(".m.ubulk%s"), FFileRegion::RegionsFileExtension), FCookedFileStatData::Regions);
 		Extensions.Emplace(TEXT(".ushaderbytecode"), FCookedFileStatData::ShaderLibrary);
+		Extensions.Emplace(TEXT(".o.umap"), FCookedFileStatData::OptionalSegmentPackageHeader);
+		Extensions.Emplace(TEXT(".o.uasset"), FCookedFileStatData::OptionalSegmentPackageHeader);
+		Extensions.Emplace(TEXT(".o.uexp"), FCookedFileStatData::OptionalSegmentPackageData);
+		Extensions.Emplace(TEXT(".o.ubulk"), FCookedFileStatData::OptionalSegmentBulkData);
 	}
 
 	int32 Num() const
@@ -445,9 +452,13 @@ struct FLegacyCookedPackage
 	FString FileName;
 	uint64 UAssetSize = 0;
 	uint64 UExpSize = 0;
+	FString OptionalSegmentFileName;
+	uint64 OptionalSegmentUAssetSize = 0;
+	uint64 OptionalSegmentUExpSize = 0;
 	uint64 TotalBulkDataSize = 0;
 	uint64 DiskLayoutOrder = MAX_uint64;
 	FPackageStorePackage* OptimizedPackage = nullptr;
+	FPackageStorePackage* OptimizedOptionalSegmentPackage = nullptr;
 	TArray<FShaderInfo*> Shaders;
 	const FPackageStoreEntryResource* PackageStoreEntry = nullptr;
 };
@@ -460,6 +471,8 @@ enum class EContainerChunkType
 	BulkData,
 	OptionalBulkData,
 	MemoryMappedBulkData,
+	OptionalSegmentPackageData,
+	OptionalSegmentBulkData,
 	Invalid
 };
 
@@ -515,8 +528,8 @@ public:
 			FIoContainerHeader ContainerHeader;
 			Ar << ContainerHeader;
 
-			PackageEntries.Reserve(ContainerHeader.PackageCount);
-			TArrayView<const FFilePackageStoreEntry> FilePackageEntries = MakeArrayView<const FFilePackageStoreEntry>(reinterpret_cast<const FFilePackageStoreEntry*>(ContainerHeader.StoreEntries.GetData()), ContainerHeader.PackageCount);
+			PackageEntries.Reserve(ContainerHeader.PackageIds.Num());
+			TArrayView<const FFilePackageStoreEntry> FilePackageEntries = MakeArrayView<const FFilePackageStoreEntry>(reinterpret_cast<const FFilePackageStoreEntry*>(ContainerHeader.StoreEntries.GetData()), ContainerHeader.PackageIds.Num());
 
 			int32 Idx = 0;
 			for (const FFilePackageStoreEntry& FilePackageEntry : FilePackageEntries)
@@ -539,9 +552,9 @@ public:
 		{
 			FName PackageName = FName(PackageInfo.PackageName);
 			PackageNameToPackageInfoMap.Add(PackageName, &PackageInfo);
-			if (PackageInfo.PackageChunkId.IsValid())
+			for (const FIoChunkId& ChunkId : PackageInfo.ExportBundleChunkIds)
 			{
-				ChunkIdToPackageNameMap.Add(PackageInfo.PackageChunkId, PackageName);
+				ChunkIdToPackageNameMap.Add(ChunkId, PackageName);
 			}
 			for (const FIoChunkId& ChunkId : PackageInfo.BulkDataChunkIds)
 			{
@@ -759,10 +772,13 @@ struct FContainerTargetSpec
 {
 	FIoContainerId ContainerId;
 	FIoContainerHeader Header;
+	FIoContainerHeader OptionalSegmentHeader;
 	FName Name;
 	FGuid EncryptionKeyGuid;
 	FString OutputPath;
+	FString OptionalSegmentOutputPath;
 	TSharedPtr<IIoStoreWriter> IoStoreWriter;
+	TSharedPtr<IIoStoreWriter> OptionalSegmentIoStoreWriter;
 	TArray<FContainerTargetFile> TargetFiles;
 	TArray<TUniquePtr<FIoStoreReader>> PatchSourceReaders;
 	EIoContainerFlags ContainerFlags = EIoContainerFlags::None;
@@ -1359,48 +1375,76 @@ static void ParsePackageAssetsFromFiles(TArray<FLegacyCookedPackage*>& Packages,
 	TArray<FPackageFileSummary> PackageFileSummaries;
 	PackageFileSummaries.SetNum(TotalPackageCount);
 
+	TArray<FPackageFileSummary> OptionalSegmentPackageFileSummaries;
+	OptionalSegmentPackageFileSummaries.SetNum(TotalPackageCount);
+
 	uint8* UAssetMemory = nullptr;
+	uint8* OptionalSegmentUAssetMemory = nullptr;
+
 	TArray<uint8*> PackageAssetBuffers;
 	PackageAssetBuffers.SetNum(TotalPackageCount);
+
+	TArray<uint8*> OptionalSegmentPackageAssetBuffers;
+	OptionalSegmentPackageAssetBuffers.SetNum(TotalPackageCount);
 
 	UE_LOG(LogIoStore, Display, TEXT("Reading package assets..."));
 	{
 		IOSTORE_CPU_SCOPE(ReadUAssetFiles);
 
 		uint64 TotalUAssetSize = 0;
+		uint64 TotalOptionalSegmentUAssetSize = 0;
 		for (const FLegacyCookedPackage* Package : Packages)
 		{
 			TotalUAssetSize += Package->UAssetSize;
+			TotalOptionalSegmentUAssetSize += Package->OptionalSegmentUAssetSize;
 		}
 		UAssetMemory = reinterpret_cast<uint8*>(FMemory::Malloc(TotalUAssetSize));
 		uint8* UAssetMemoryPtr = UAssetMemory;
+		OptionalSegmentUAssetMemory = reinterpret_cast<uint8*>(FMemory::Malloc(TotalOptionalSegmentUAssetSize));
+		uint8* OptionalSegmentUAssetMemoryPtr = OptionalSegmentUAssetMemory;
+
 		for (int32 Index = 0; Index < TotalPackageCount; ++Index)
 		{
 			PackageAssetBuffers[Index] = UAssetMemoryPtr;
 			UAssetMemoryPtr += Packages[Index]->UAssetSize;
+			OptionalSegmentPackageAssetBuffers[Index] = OptionalSegmentUAssetMemoryPtr;
+			OptionalSegmentUAssetMemoryPtr += Packages[Index]->OptionalSegmentUAssetSize;
 		}
 
 		TAtomic<uint64> CurrentFileIndex{ 0 };
-		ParallelFor(TotalPackageCount, [&ReadCount, &PackageAssetBuffers, &Packages, &CurrentFileIndex](int32 Index)
+		ParallelFor(TotalPackageCount, [&ReadCount, &PackageAssetBuffers, &OptionalSegmentPackageAssetBuffers, &Packages, &CurrentFileIndex](int32 Index)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ReadUAssetFile);
 			FLegacyCookedPackage* Package = Packages[Index];
-			if (!Package->UAssetSize)
+			if (Package->UAssetSize)
 			{
-				return;
+				uint8* Buffer = PackageAssetBuffers[Index];
+				TUniquePtr<IFileHandle> FileHandle(FPlatformFileManager::Get().GetPlatformFile().OpenRead(*Package->FileName));
+				if (FileHandle)
+				{
+					bool bSuccess = FileHandle->Read(Buffer, Package->UAssetSize);
+					UE_CLOG(!bSuccess, LogIoStore, Warning, TEXT("Failed reading file '%s'"), *Package->FileName);
+				}
+				else
+				{
+					UE_LOG(LogIoStore, Warning, TEXT("Couldn't open file '%s'"), *Package->FileName);
+				}
 			}
-			uint8* Buffer = PackageAssetBuffers[Index];
-			IFileHandle* FileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenRead(*Package->FileName);
-			if (FileHandle)
+			if (Package->OptionalSegmentUAssetSize)
 			{
-				bool bSuccess = FileHandle->Read(Buffer, Package->UAssetSize);
-				UE_CLOG(!bSuccess, LogIoStore, Warning, TEXT("Failed reading file '%s'"), *Package->FileName);
-				delete FileHandle;
+				uint8* Buffer = OptionalSegmentPackageAssetBuffers[Index];
+				TUniquePtr<IFileHandle> FileHandle(FPlatformFileManager::Get().GetPlatformFile().OpenRead(*Package->OptionalSegmentFileName));
+				if (FileHandle)
+				{
+					bool bSuccess = FileHandle->Read(Buffer, Package->OptionalSegmentUAssetSize);
+					UE_CLOG(!bSuccess, LogIoStore, Warning, TEXT("Failed reading file '%s'"), *Package->OptionalSegmentFileName);
+				}
+				else
+				{
+					UE_LOG(LogIoStore, Warning, TEXT("Couldn't open file '%s'"), *Package->OptionalSegmentFileName);
+				}
 			}
-			else
-			{
-				UE_LOG(LogIoStore, Warning, TEXT("Couldn't open file '%s'"), *Package->FileName);
-			}
+
 			uint64 LocalFileIndex = CurrentFileIndex.IncrementExchange() + 1;
 			UE_CLOG(LocalFileIndex % 1000 == 0, LogIoStore, Display, TEXT("Reading %d/%d: '%s'"), LocalFileIndex, Packages.Num(), *Package->FileName);
 		}, EParallelForFlags::Unbalanced);
@@ -1412,15 +1456,16 @@ static void ParsePackageAssetsFromFiles(TArray<FLegacyCookedPackage*>& Packages,
 		ParallelFor(TotalPackageCount, [
 				&ReadCount,
 				&PackageAssetBuffers,
+				&OptionalSegmentPackageAssetBuffers,
 				&PackageFileSummaries,
 				&Packages,
 				&PackageStoreOptimizer](int32 Index)
 		{
-			uint8* PackageBuffer = PackageAssetBuffers[Index];
 			FLegacyCookedPackage* Package = Packages[Index];
 
 			if (Package->UAssetSize)
 			{
+				uint8* PackageBuffer = PackageAssetBuffers[Index];
 				FIoBuffer CookedHeaderBuffer = FIoBuffer(FIoBuffer::Wrap, PackageBuffer, Package->UAssetSize);
 				Package->OptimizedPackage = PackageStoreOptimizer.CreatePackageFromCookedHeader(Package->PackageName, CookedHeaderBuffer);
 			}
@@ -1429,10 +1474,18 @@ static void ParsePackageAssetsFromFiles(TArray<FLegacyCookedPackage*>& Packages,
 				Package->OptimizedPackage = PackageStoreOptimizer.CreateMissingPackage(Package->PackageName);
 			}
 			check(Package->OptimizedPackage->GetId() == Package->GlobalPackageId);
+			if (Package->OptionalSegmentUAssetSize)
+			{
+				uint8* OptionalSegmentPackageBuffer = OptionalSegmentPackageAssetBuffers[Index];
+				FIoBuffer OptionalSegmentCookedHeaderBuffer = FIoBuffer(FIoBuffer::Wrap, OptionalSegmentPackageBuffer, Package->OptionalSegmentUAssetSize);
+				Package->OptimizedOptionalSegmentPackage = PackageStoreOptimizer.CreatePackageFromCookedHeader(Package->PackageName, OptionalSegmentCookedHeaderBuffer);
+				check(Package->OptimizedOptionalSegmentPackage->GetId() == Package->GlobalPackageId);
+			}
 		}, EParallelForFlags::Unbalanced);
 	}
 
 	FMemory::Free(UAssetMemory);
+	FMemory::Free(OptionalSegmentUAssetMemory);
 }
 
 static void ParsePackageAssetsFromPackageStore(FCookedPackageStore& PackageStore, TArray<FLegacyCookedPackage*>& Packages, const FPackageStoreOptimizer& PackageStoreOptimizer)
@@ -1956,6 +2009,21 @@ void InitializeContainerTargetsAndPackages(
 			}
 			OutTargetFile.NormalizedSourcePath = UexpPath;
 		}
+		else if (CookedFileStatData->FileType == FCookedFileStatData::OptionalSegmentPackageHeader)
+		{
+			FStringView NormalizedSourcePathView(SourceFile.NormalizedPath);
+			int32 ExtensionStartIndex = GetFullExtensionStartIndex(NormalizedSourcePathView);
+			TStringBuilder<512> UexpPath;
+			UexpPath.Append(NormalizedSourcePathView.Left(ExtensionStartIndex));
+			UexpPath.Append(TEXT(".o.uexp"));
+			CookedFileStatData = Arguments.CookedFileStatMap.Find(*UexpPath);
+			if (!CookedFileStatData)
+			{
+				UE_LOG(LogIoStore, Warning, TEXT("Couldn't find .o.uexp file for: '%s'"), *SourceFile.NormalizedPath);
+				return false;
+			}
+			OutTargetFile.NormalizedSourcePath = UexpPath;
+		}
 		else
 		{
 			OutTargetFile.NormalizedSourcePath = SourceFile.NormalizedPath;
@@ -1993,6 +2061,17 @@ void InitializeContainerTargetsAndPackages(
 				OutTargetFile.ChunkType = EContainerChunkType::MemoryMappedBulkData;
 				OutTargetFile.ChunkId = CreateIoChunkId(OutTargetFile.Package->GlobalPackageId.Value(), 0, EIoChunkType::MemoryMappedBulkData);
 				OutTargetFile.Package->TotalBulkDataSize += CookedFileStatData->FileSize;
+				break;
+			case FCookedFileStatData::OptionalSegmentPackageData:
+				OutTargetFile.ChunkType = EContainerChunkType::OptionalSegmentPackageData;
+				OutTargetFile.ChunkId = CreateIoChunkId(OutTargetFile.Package->GlobalPackageId.Value(), 1, EIoChunkType::ExportBundleData);
+				OutTargetFile.Package->OptionalSegmentFileName = SourceFile.NormalizedPath; // .o.uasset path
+				OutTargetFile.Package->OptionalSegmentUAssetSize = OriginalCookedFileStatData->FileSize;
+				OutTargetFile.Package->OptionalSegmentUExpSize = CookedFileStatData->FileSize;
+				break;
+			case FCookedFileStatData::OptionalSegmentBulkData:
+				OutTargetFile.ChunkType = EContainerChunkType::OptionalSegmentBulkData;
+				OutTargetFile.ChunkId = CreateIoChunkId(OutTargetFile.Package->GlobalPackageId.Value(), 1, EIoChunkType::BulkData);
 				break;
 			default:
 				UE_LOG(LogIoStore, Fatal, TEXT("Unexpected file type %d for file '%s'"), CookedFileStatData->FileType, *OutTargetFile.NormalizedSourcePath);
@@ -2100,6 +2179,16 @@ void InitializeContainerTargetsAndPackages(
 			OutTargetFile.Package->FileName = SourceFile.NormalizedPath;
 			OutTargetFile.Package->UAssetSize = OutTargetFile.SourceSize;
 		}
+		else if (Extension == TEXT(".o.uasset") || Extension == TEXT(".o.umap"))
+		{
+			OutTargetFile.ChunkType = EContainerChunkType::OptionalSegmentPackageData;
+			OutTargetFile.Package->OptionalSegmentFileName = SourceFile.NormalizedPath;
+			OutTargetFile.Package->OptionalSegmentUAssetSize = OutTargetFile.SourceSize;
+		}
+		else if (Extension == TEXT(".o.ubulk"))
+		{
+			OutTargetFile.ChunkType = EContainerChunkType::OptionalSegmentBulkData;
+		}
 		else
 		{
 			UE_LOG(LogIoStore, Warning, TEXT("Unexpected file: '%s'"), *SourceFile.NormalizedPath);
@@ -2142,6 +2231,7 @@ void InitializeContainerTargetsAndPackages(
 
 		{
 			IOSTORE_CPU_SCOPE(ProcessSourceFiles);
+			bool bHasOptionalSegmentPackages = false;
 			for (const FContainerSourceFile& SourceFile : ContainerSource.SourceFiles)
 			{
 				FContainerTargetFile TargetFile;
@@ -2173,8 +2263,17 @@ void InitializeContainerTargetsAndPackages(
 					check(TargetFile.Package);
 					ContainerTarget->Packages.Add(TargetFile.Package);
 				}
+				else if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentPackageData)
+				{
+					bHasOptionalSegmentPackages = true;
+				}
 
 				ContainerTarget->TargetFiles.Emplace(MoveTemp(TargetFile));
+			}
+
+			if (bHasOptionalSegmentPackages)
+			{
+				ContainerTarget->OptionalSegmentOutputPath = ContainerTarget->OutputPath + FPackagePath::GetOptionalSegmentExtensionModifier();
 			}
 		}
 	}
@@ -2511,6 +2610,12 @@ private:
 				if (TargetFile.ChunkType == EContainerChunkType::PackageData)
 				{
 					SourceBuffer = Manager.PackageStoreOptimizer.CreatePackageBuffer(TargetFile.Package->OptimizedPackage, SourceBuffer, bHasUpdatedExportBundleRegions ? nullptr : &FileRegions);
+					bHasUpdatedExportBundleRegions = true;
+				}
+				else if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentPackageData)
+				{
+					check(TargetFile.Package->OptimizedOptionalSegmentPackage);
+					SourceBuffer = Manager.PackageStoreOptimizer.CreatePackageBuffer(TargetFile.Package->OptimizedOptionalSegmentPackage, SourceBuffer, bHasUpdatedExportBundleRegions ? nullptr : &FileRegions);
 					bHasUpdatedExportBundleRegions = true;
 				}
 				OnSourceBufferLoaded();
@@ -3087,6 +3192,11 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				ContainerTarget->IoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OutputPath, ContainerSettings);
 				ContainerTarget->IoStoreWriter->EnableDiskLayoutOrdering(ContainerTarget->PatchSourceReaders);
 				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
+				if (!ContainerTarget->OptionalSegmentOutputPath.IsEmpty())
+				{
+					ContainerTarget->OptionalSegmentIoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OptionalSegmentOutputPath, ContainerSettings);
+					IoStoreWriters.Add(ContainerTarget->OptionalSegmentIoStoreWriter);
+				}
 			}
 		}
 	}
@@ -3123,14 +3233,21 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 		{
 			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 			{
-				if (TargetFile.ChunkType != EContainerChunkType::PackageData)
+				if (TargetFile.ChunkType != EContainerChunkType::PackageData && TargetFile.ChunkType != EContainerChunkType::OptionalSegmentPackageData)
 				{
 					FIoWriteOptions WriteOptions;
 					WriteOptions.DebugName = *TargetFile.DestinationPath;
 					WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
 					WriteOptions.bIsMemoryMapped = TargetFile.ChunkType == EContainerChunkType::MemoryMappedBulkData;
 					WriteOptions.FileName = TargetFile.DestinationPath;
-					ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+					if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentBulkData)
+					{
+						ContainerTarget->OptionalSegmentIoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+					}
+					else
+					{
+						ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+					}
 				}
 			}
 		}
@@ -3154,6 +3271,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	{
 		check(Package->OptimizedPackage);
 		PackageStoreOptimizer.FinalizePackage(Package->OptimizedPackage);
+		if (Package->OptimizedOptionalSegmentPackage)
+		{
+			PackageStoreOptimizer.FinalizePackage(Package->OptimizedOptionalSegmentPackage);
+		}
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Creating disk layout..."));
@@ -3171,31 +3292,51 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			TArray<FPackageStoreEntryResource> PackageStoreEntries;
 			for (FContainerTargetFile& TargetFile : ContainerTarget->TargetFiles)
 			{
-				if (TargetFile.ChunkType == EContainerChunkType::PackageData)
+				if (TargetFile.ChunkType == EContainerChunkType::PackageData || TargetFile.ChunkType == EContainerChunkType::OptionalSegmentPackageData)
 				{
 					check(TargetFile.Package);
 					FIoWriteOptions WriteOptions;
 					WriteOptions.DebugName = *TargetFile.DestinationPath;
 					WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
 					WriteOptions.FileName = TargetFile.DestinationPath;
-					ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
-					PackageStoreEntries.Add(PackageStoreOptimizer.CreatePackageStoreEntry(TargetFile.Package->OptimizedPackage));
+					if (TargetFile.ChunkType == EContainerChunkType::OptionalSegmentPackageData)
+					{
+						check(ContainerTarget->OptionalSegmentIoStoreWriter);
+						check(TargetFile.Package->OptimizedOptionalSegmentPackage);
+						ContainerTarget->OptionalSegmentIoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+					}
+					else
+					{
+						ContainerTarget->IoStoreWriter->Append(TargetFile.ChunkId, WriteRequestManager.Read(TargetFile), WriteOptions);
+						PackageStoreEntries.Add(PackageStoreOptimizer.CreatePackageStoreEntry(TargetFile.Package->OptimizedPackage, TargetFile.Package->OptimizedOptionalSegmentPackage));
+					}
 				}
 			}
 
-			ContainerTarget->Header = PackageStoreOptimizer.CreateContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries);
-			FLargeMemoryWriter HeaderAr(0, true);
-			HeaderAr << ContainerTarget->Header;
-			int64 DataSize = HeaderAr.TotalSize();
-			FIoBuffer ContainerHeaderBuffer(FIoBuffer::AssumeOwnership, HeaderAr.ReleaseOwnership(), DataSize);
-			
-			FIoWriteOptions WriteOptions;
-			WriteOptions.DebugName = TEXT("ContainerHeader");
-			WriteOptions.bForceUncompressed = true;
-			ContainerTarget->IoStoreWriter->Append(
-				CreateIoChunkId(ContainerTarget->ContainerId.Value(), 0, EIoChunkType::ContainerHeader),
-				ContainerHeaderBuffer,
-				WriteOptions);
+			auto WriteContainerHeaderChunk = [](FIoContainerHeader& Header, IIoStoreWriter* IoStoreWriter)
+			{
+				FLargeMemoryWriter HeaderAr(0, true);
+				HeaderAr << Header;
+				int64 DataSize = HeaderAr.TotalSize();
+				FIoBuffer ContainerHeaderBuffer(FIoBuffer::AssumeOwnership, HeaderAr.ReleaseOwnership(), DataSize);
+
+				FIoWriteOptions WriteOptions;
+				WriteOptions.DebugName = TEXT("ContainerHeader");
+				WriteOptions.bForceUncompressed = true;
+				IoStoreWriter->Append(
+					CreateIoChunkId(Header.ContainerId.Value(), 0, EIoChunkType::ContainerHeader),
+					ContainerHeaderBuffer,
+					WriteOptions);
+			};
+
+			ContainerTarget->Header = PackageStoreOptimizer.CreateContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries, FPackageStoreOptimizer::IncludeNonOptionalSegments);
+			WriteContainerHeaderChunk(ContainerTarget->Header, ContainerTarget->IoStoreWriter.Get());
+
+			if (ContainerTarget->OptionalSegmentIoStoreWriter)
+			{
+				ContainerTarget->OptionalSegmentHeader = PackageStoreOptimizer.CreateContainerHeader(ContainerTarget->ContainerId, PackageStoreEntries, FPackageStoreOptimizer::IncludeOptionalSegments);
+				WriteContainerHeaderChunk(ContainerTarget->OptionalSegmentHeader, ContainerTarget->OptionalSegmentIoStoreWriter.Get());
+			}
 		}
 
 		// Check if we need to dump the final order of the packages. Useful, to debug packing.
@@ -3997,7 +4138,7 @@ int32 Describe(
 			Job.RawLocalizedPackages = ContainerHeader.LocalizedPackages;
 			Job.RawPackageRedirects = ContainerHeader.PackageRedirects;
 
-			TArrayView<FFilePackageStoreEntry> StoreEntries(reinterpret_cast<FFilePackageStoreEntry*>(ContainerHeader.StoreEntries.GetData()), ContainerHeader.PackageCount);
+			TArrayView<FFilePackageStoreEntry> StoreEntries(reinterpret_cast<FFilePackageStoreEntry*>(ContainerHeader.StoreEntries.GetData()), ContainerHeader.PackageIds.Num());
 
 			int32 PackageIndex = 0;
 			Job.Packages.Reserve(StoreEntries.Num());
@@ -5149,7 +5290,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 		ZenStoreWriter->BeginPackage(BeginPackageInfo);
 
 		IPackageWriter::FPackageInfo PackageStorePackageInfo;
-		PackageStorePackageInfo.OutputPackageName = PackageStorePackageInfo.InputPackageName = PackageInfo.PackageName;
+		PackageStorePackageInfo.PackageName = PackageInfo.PackageName;
 		PackageStorePackageInfo.LooseFilePath = PackageInfo.FileName;
 		PackageStorePackageInfo.ChunkId = PackageInfo.Chunk.Value;
 
@@ -5159,7 +5300,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 		for (const FBulkDataInfo& BulkDataInfo : PackageInfo.BulkData)
 		{
 			IPackageWriter::FBulkDataInfo PackageStoreBulkDataInfo;
-			PackageStoreBulkDataInfo.OutputPackageName = PackageStoreBulkDataInfo.InputPackageName = PackageInfo.PackageName;
+			PackageStoreBulkDataInfo.PackageName = PackageInfo.PackageName;
 			PackageStoreBulkDataInfo.LooseFilePath = BulkDataInfo.FileName;
 			PackageStoreBulkDataInfo.ChunkId = BulkDataInfo.Chunk.Value;
 			PackageStoreBulkDataInfo.BulkDataType = BulkDataInfo.BulkDataType;

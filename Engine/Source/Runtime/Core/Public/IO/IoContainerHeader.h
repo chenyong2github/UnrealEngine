@@ -65,6 +65,7 @@ enum class EIoContainerHeaderVersion : uint32
 {
 	Initial = 0,
 	LocalizedPackages = 1,
+	OptionalSegmentPackages = 2,
 
 	LatestPlusOne,
 	Latest = LatestPlusOne - 1
@@ -78,9 +79,10 @@ struct FIoContainerHeader
 	};
 
 	FIoContainerId ContainerId;
-	uint32 PackageCount = 0;
 	TArray<FPackageId> PackageIds;
-	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount]
+	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageIds.Num()]
+	TArray<FPackageId> OptionalSegmentPackageIds;
+	TArray<uint8> OptionalSegmentStoreEntries; //FPackageStoreEntry[OptionalSegmentPackageIds.Num()]
 	TArray<FDisplayNameEntryId> RedirectsNameMap;
 	TArray<FIoContainerHeaderLocalizedPackage> LocalizedPackages;
 	TArray<FIoContainerHeaderPackageRedirect> PackageRedirects;

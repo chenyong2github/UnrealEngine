@@ -230,7 +230,7 @@ void FZenStoreWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWri
 
 	FIoBuffer CookedHeaderBuffer = FIoBuffer(PackageData.Data(), Info.HeaderSize, PackageData);
 	FIoBuffer CookedExportsBuffer = FIoBuffer(PackageData.Data() + Info.HeaderSize, PackageData.DataSize() - Info.HeaderSize, PackageData);
-	TUniquePtr<FPackageStorePackage> Package{PackageStoreOptimizer->CreatePackageFromCookedHeader(Info.OutputPackageName, CookedHeaderBuffer)};
+	TUniquePtr<FPackageStorePackage> Package{PackageStoreOptimizer->CreatePackageFromCookedHeader(Info.PackageName, CookedHeaderBuffer)};
 	PackageStoreOptimizer->FinalizePackage(Package.Get());
 	TArray<FFileRegion> FileRegionsCopy(FileRegions);
 	for (FFileRegion& Region : FileRegionsCopy)
@@ -239,8 +239,7 @@ void FZenStoreWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWri
 		Region.Offset -= Info.HeaderSize;
 	}
 	FIoBuffer PackageBuffer = PackageStoreOptimizer->CreatePackageBuffer(Package.Get(), CookedExportsBuffer, &FileRegionsCopy);
-	FIoChunkId ChunkId = CreateIoChunkId(Package->GetId().Value(), 0, EIoChunkType::ExportBundleData);
-	PackageStoreManifest.AddPackageData(Info.InputPackageName, Info.OutputPackageName, Info.LooseFilePath, Info.ChunkId);
+	PackageStoreManifest.AddPackageData(Info.PackageName, Info.LooseFilePath, Info.ChunkId);
 	for (FFileRegion& Region : FileRegionsCopy)
 	{
 		// Adjust regions once more so they are relative to the exports bundle buffer
@@ -252,7 +251,7 @@ void FZenStoreWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWri
 
 	FCbObjectId ChunkOid = ToObjectId(Info.ChunkId);
 
-	FPendingPackageState& ExistingState = GetPendingPackage(Info.InputPackageName);
+	FPendingPackageState& ExistingState = GetPendingPackage(Info.PackageName);
 
 	FPackageDataEntry& Entry = ExistingState.PackageData;
 
@@ -263,7 +262,7 @@ void FZenStoreWriter::WritePackageData(const FPackageInfo& Info, FLargeMemoryWri
 
 	Entry.Info				= Info;
 	Entry.ChunkId			= ChunkOid;
-	Entry.PackageStoreEntry = PackageStoreOptimizer->CreatePackageStoreEntry(Package.Get());
+	Entry.PackageStoreEntry = PackageStoreOptimizer->CreatePackageStoreEntry(Package.Get(), nullptr); // TODO: Can we separate out the optional segment package store entry and do this when we commit instead?
 	Entry.IsValid			= true;
 
 	if (EntryCreatedEvent.IsBound())
@@ -283,12 +282,12 @@ void FZenStoreWriter::WriteIoStorePackageData(const FPackageInfo& Info, const FI
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(WriteIoStorePackageData);
 
-	PackageStoreManifest.AddPackageData(Info.InputPackageName, Info.OutputPackageName, Info.LooseFilePath, Info.ChunkId);
+	PackageStoreManifest.AddPackageData(Info.PackageName, Info.LooseFilePath, Info.ChunkId);
 	//WriteFileRegions(*FPaths::ChangeExtension(Info.LooseFilePath, FString(".uexp") + FFileRegion::RegionsFileExtension), FileRegionsCopy);
 
 	FCbObjectId ChunkOid = ToObjectId(Info.ChunkId);
 
-	FPendingPackageState& ExistingState = GetPendingPackage(Info.InputPackageName);
+	FPendingPackageState& ExistingState = GetPendingPackage(Info.PackageName);
 
 	FPackageDataEntry& Entry = ExistingState.PackageData;
 
@@ -311,7 +310,7 @@ void FZenStoreWriter::WriteBulkData(const FBulkDataInfo& Info, const FIoBuffer& 
 
 	FCbObjectId ChunkOid = ToObjectId(Info.ChunkId);
 
-	FPendingPackageState& ExistingState = GetPendingPackage(Info.InputPackageName);
+	FPendingPackageState& ExistingState = GetPendingPackage(Info.PackageName);
 
 	FBulkDataEntry& BulkEntry = ExistingState.BulkData.AddDefaulted_GetRef(); 
 
@@ -326,7 +325,7 @@ void FZenStoreWriter::WriteBulkData(const FBulkDataInfo& Info, const FIoBuffer& 
 	BulkEntry.ChunkId	= ChunkOid;
 	BulkEntry.IsValid	= true;
 
-	PackageStoreManifest.AddBulkData(Info.InputPackageName, Info.OutputPackageName, Info.LooseFilePath, Info.ChunkId);
+	PackageStoreManifest.AddBulkData(Info.PackageName, Info.LooseFilePath, Info.ChunkId);
 
 	//	WriteFileRegions(*(Info.LooseFilePath + FFileRegion::RegionsFileExtension), FileRegions);
 }
@@ -335,7 +334,7 @@ void FZenStoreWriter::WriteAdditionalFile(const FAdditionalFileInfo& Info, const
 {
 	const FZenFileSystemManifest::FManifestEntry& ManifestEntry = ZenFileSystemManifest->CreateManifestEntry(Info.Filename);
 	
-	FPendingPackageState& ExistingState = GetPendingPackage(Info.InputPackageName);
+	FPendingPackageState& ExistingState = GetPendingPackage(Info.PackageName);
 
 	FFileDataEntry& FileEntry = ExistingState.FileData.AddDefaulted_GetRef();
 	
@@ -776,7 +775,6 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 				CommitEventArgs.AdditionalFiles.Add(FAdditionalFileInfo
 				{ 
 					CommitInfo.PackageName,
-					CommitInfo.PackageName,
 					File.ZenManifestClientPath,
 					File.Info.ChunkId
 				});
@@ -1084,7 +1082,7 @@ void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageO
 			FIoBuffer HeaderBuffer;
 
 			{
-				FIoContainerHeader Header = PackageStoreOptimizer->CreateContainerHeader(ContainerId, PackageStoreEntries);
+				FIoContainerHeader Header = PackageStoreOptimizer->CreateContainerHeader(ContainerId, PackageStoreEntries, FPackageStoreOptimizer::IncludeAllSegments);
 				FLargeMemoryWriter HeaderAr(0, true);
 				HeaderAr << Header;
 				int64 DataSize = HeaderAr.TotalSize();
