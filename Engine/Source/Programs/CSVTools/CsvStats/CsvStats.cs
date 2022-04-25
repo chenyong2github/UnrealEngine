@@ -48,6 +48,7 @@ namespace CSVStats
 		public bool bIsCsvBin;
 		public CsvBinVersion BinVersion = CsvBinVersion.COUNT;
 		public CsvBinCompressionLevel BinCompressionLevel = CsvBinCompressionLevel.None;
+		public int SampleCount = 0;
 	};
 
 
@@ -886,6 +887,7 @@ namespace CSVStats
 				FileInfoOut.bIsCsvBin = true;
 				FileInfoOut.BinVersion = (CsvBinVersion)version;
 				FileInfoOut.BinCompressionLevel = compressionLevel;
+				FileInfoOut.SampleCount = sampleCount;
 			}
 
 			if (justHeader)
@@ -1548,21 +1550,17 @@ namespace CSVStats
 		}
 
 
-		public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0, bool bGenerateCsvIdIfMissing=false, CsvFileInfo FileInfoOut=null)
+		public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0, bool bGenerateCsvIdIfMissing=false, CsvFileInfo FileInfoOut=null, bool bJustHeader=false)
         {
 			CsvStats statsOut;
 			if (csvFilename.EndsWith(".csv.bin"))
 			{
-				statsOut = ReadBinFile(csvFilename, statNames, numRowsToSkip, false, FileInfoOut);
+				statsOut = ReadBinFile(csvFilename, statNames, numRowsToSkip, bJustHeader, FileInfoOut);
 			}
 			else
 			{
 				string[] lines = ReadLinesFromFile(csvFilename);
-				statsOut = ReadCSVFromLines(lines, statNames, numRowsToSkip);
-				if ( FileInfoOut != null )
-				{
-					FileInfoOut.bIsCsvBin = false;
-				}
+				statsOut = ReadCSVFromLines(lines, statNames, numRowsToSkip, bJustHeader, FileInfoOut);
 			}
 			if (bGenerateCsvIdIfMissing)
 			{
@@ -1646,7 +1644,7 @@ namespace CSVStats
             return false;
         }
 
-        public static CsvStats ReadCSVFromLines(string[] linesArray, string[] statNames, int numRowsToSkip = 0, bool skipReadingData=false)
+        public static CsvStats ReadCSVFromLines(string[] linesArray, string[] statNames, int numRowsToSkip = 0, bool skipReadingData=false, CsvFileInfo fileInfo=null)
         {
             List<string> lines = linesArray.ToList();
 
@@ -1684,10 +1682,18 @@ namespace CSVStats
                 lines.RemoveAt(lines.Count - 1);
             }
 
-            if (skipReadingData)
+			// First line is headings, last line contains build info 
+			int numSamples = lines.Count - (bHasMetaData ? 2 : 1);
+			if (fileInfo != null)
+			{
+				fileInfo.bIsCsvBin = false;
+				fileInfo.SampleCount = numSamples;
+			}
+
+			if (skipReadingData)
             {
-				int dataLineCount = bHasMetaData ? lines.Count-2 : lines.Count-1;
-                lines.RemoveRange(1, dataLineCount);
+				lines.RemoveRange(1, numSamples);
+				numSamples = 0;
             }
 
 			// Get the list of lower case stat names, expanding wildcards
@@ -1717,9 +1723,6 @@ namespace CSVStats
                 }
                 statNamesLowercase = newStatNamesLowercase.ToArray();
             }
-
-            // First line is headings, last line contains build info 
-            int numSamples = lines.Count - (bHasMetaData ? 2 : 1);
 
             // Create the stats
             int eventHeadingIndex = -1;

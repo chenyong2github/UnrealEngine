@@ -12,7 +12,7 @@ namespace CSVInfo
 {
     class Version
     {
-        private static string VersionString = "1.04";
+        private static string VersionString = "1.05";
 
         public static string Get() { return VersionString; }
     };
@@ -73,6 +73,7 @@ namespace CSVInfo
                 "Format: \n" +
                 "  <csvfilename>\n"+
 				"  [-showaverages]\n"+
+				"  [-forceFullRead] (always reads the full CSV)\n" +
 				"  [-quiet] (no logging. Just throws returns a non-zero error code if the CSV is bad)\n" +
 				"  [-toJson <filename>]";
 
@@ -91,8 +92,10 @@ namespace CSVInfo
             bool showAverages = GetBoolArg("showAverages");
 			bool showTotals= GetBoolArg("showTotals");
 			string jsonFilename = GetArg("toJson",false);
+			bool bReadJustHeader = !GetBoolArg("forceFullRead") && !showAverages && !showTotals;
 
-			CsvStats csvStats = CsvStats.ReadCSVFile(csvFilename, null);
+			CSVStats.CsvFileInfo fileInfo = new CsvFileInfo();
+			CsvStats csvStats = CsvStats.ReadCSVFile(csvFilename, null, 0, false, fileInfo, bReadJustHeader);
 
 			if ( GetBoolArg("quiet") )
 			{
@@ -105,7 +108,7 @@ namespace CSVInfo
 				// TODO: Fix this when we upgrade to .Net 5.0 and use System.Text.Json
 				List<string> jsonLines = new List<string>();
 				jsonLines.Add("{");
-				jsonLines.Add("  \"sampleCount\":" + csvStats.SampleCount+",");
+				jsonLines.Add("  \"sampleCount\":" + fileInfo.SampleCount+",");
 
 				if (csvStats.metaData != null)
 				{
@@ -168,7 +171,7 @@ namespace CSVInfo
 			else
 			{
 				// Write out the sample count
-				Console.Out.WriteLine("Sample Count: " + csvStats.SampleCount);
+				Console.Out.WriteLine("Sample Count: " + fileInfo.SampleCount);
 
 				List<string> statLines = new List<string>();
 				foreach (StatSamples stat in csvStats.Stats.Values.ToArray())
