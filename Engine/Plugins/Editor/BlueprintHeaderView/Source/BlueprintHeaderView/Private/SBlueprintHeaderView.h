@@ -157,7 +157,8 @@ private:
 	void OnCopy() const;
 	bool CanCopy() const;
 	void OnSelectAll();
-
+	FReply BrowseToAssetClicked() const;
+	FReply OpenAssetEditorClicked() const;
 private:
 	/** List of UI Commands for this scope */
 	TSharedPtr<FUICommandList> CommandList;

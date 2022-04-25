@@ -267,6 +267,36 @@ void SBlueprintHeaderView::Construct(const FArguments& InArgs)
 				]
 			]
 			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ToolTipText(LOCTEXT("BrowseToBlueprintTooltip", "Browse to Selected Blueprint in Content Browser"))
+				.OnClicked(this, &SBlueprintHeaderView::BrowseToAssetClicked)
+				.ContentPadding(4.0f)
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.BrowseContent"))
+				]
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Left)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				.ToolTipText(LOCTEXT("EditBlueprintTooltip", "Open Selected Blueprint in Blueprint Editor"))
+				.OnClicked(this, &SBlueprintHeaderView::OpenAssetEditorClicked)
+				.ContentPadding(4.0f)
+				.Content()
+				[
+					SNew(SImage)
+					.Image(FEditorStyle::GetBrush("Icons.Edit"))
+				]
+			]
+			+SHorizontalBox::Slot()
 			.HAlign(HAlign_Right)
 			[
 				SNew(SComboButton)
@@ -695,6 +725,28 @@ bool SBlueprintHeaderView::CanCopy() const
 void SBlueprintHeaderView::OnSelectAll()
 {
 	ListView->SetItemSelection(ListItems, true);
+}
+
+FReply SBlueprintHeaderView::BrowseToAssetClicked() const
+{
+	if (UBlueprint* Blueprint = SelectedBlueprint.Get())
+	{
+		TArray<FAssetData> AssetsToSync;
+		AssetsToSync.Emplace(Blueprint);
+		GEditor->SyncBrowserToObjects(AssetsToSync);
+	}
+
+	return FReply::Handled();
+}
+
+FReply SBlueprintHeaderView::OpenAssetEditorClicked() const
+{
+	if (UBlueprint* Blueprint = SelectedBlueprint.Get())
+	{
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
+	}
+
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE
