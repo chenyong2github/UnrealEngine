@@ -8,40 +8,6 @@
 #include "Delegates/Delegate.h"
 #include "Logging/LogMacros.h"
 
-namespace UE
-{
-namespace Input
-{
-
-	/** Represents the connection status of a given FInputDeviceId */
-	enum class APPLICATIONCORE_API EInputDeviceConnectionState : uint8
-	{
-		/** This is not a valid input device */
-		Invalid,
-
-		/** It is not known if this device is connected or not */
-		Unknown,
-
-		/** Device is definitely connected */
-		Disconnected,
-
-		/** Definitely connected and powered on */
-		Connected
-	};
-
-	/** Data about an input device's current state */
-	struct APPLICATIONCORE_API FInputDeviceState
-	{
-		/** The platform user that this input device belongs to */
-		FPlatformUserId OwningPlatformUser = PLATFORMUSERID_NONE;
-
-		/** The connection state of this input device */
-		EInputDeviceConnectionState ConnectionState = EInputDeviceConnectionState::Invalid;
-	};
-	
-}	// namespace Input
-}	// namespace UE
-
 DECLARE_LOG_CATEGORY_EXTERN(LogInputDeviceMapper, Log, All);
 
 /**
@@ -129,7 +95,7 @@ public:
 	 * @param NewState		The new connection state of the given device
 	 * @return				True if the connection state was set successfully
 	 */
-	virtual bool Internal_SetInputDeviceConnectionState(FInputDeviceId DeviceId, UE::Input::EInputDeviceConnectionState NewState);
+	virtual bool Internal_SetInputDeviceConnectionState(FInputDeviceId DeviceId, EInputDeviceConnectionState NewState);
 	
 	/**
 	 * Gets the connection state of the given input device.
@@ -137,7 +103,7 @@ public:
 	 * @param DeviceId		The device to get the connection state of
 	 * @return				The connection state of the given device. EInputDeviceConnectionState::Unknown if the device is not mapped
 	 */
-	virtual UE::Input::EInputDeviceConnectionState GetInputDeviceConnectionState(const FInputDeviceId DeviceId) const;
+	virtual EInputDeviceConnectionState GetInputDeviceConnectionState(const FInputDeviceId DeviceId) const;
 
 	/**
 	 * Maps the given Input Device to the given userID. This will broadcast the OnInputDeviceConnectionChange delegate.
@@ -148,7 +114,7 @@ public:
 	 * @param ConnectionState	The connection state of the device
 	 * @return					True if the input device was successfully mapped
 	 */
-	virtual bool Internal_MapInputDeviceToUser(FInputDeviceId DeviceId, FPlatformUserId UserId, UE::Input::EInputDeviceConnectionState ConnectionState);
+	virtual bool Internal_MapInputDeviceToUser(FInputDeviceId DeviceId, FPlatformUserId UserId, EInputDeviceConnectionState ConnectionState);
 
 	/**
 	 * Change the user mapping of the given input device from an old user to a new one.
@@ -173,7 +139,7 @@ public:
 	 * @param FPlatformUserId		The User ID whose input device has changed
 	 * @param FInputDeviceId		The Input Device ID that has changed connection
 	 */
-	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnUserInputDeviceConnectionChange, UE::Input::EInputDeviceConnectionState /* NewConnectionState */, FPlatformUserId /* PlatformUserId */, FInputDeviceId /* InputDeviceId */);
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnUserInputDeviceConnectionChange, EInputDeviceConnectionState /* NewConnectionState */, FPlatformUserId /* PlatformUserId */, FInputDeviceId /* InputDeviceId */);
 
 	/**
 	 * Callback for handling an Input Device pairing change.
@@ -237,7 +203,7 @@ protected:
 	static FOnUserInputDevicePairingChange OnInputDevicePairingChange;
 	
 	/** A map of all input devices to their current state */
-	TMap<FInputDeviceId, UE::Input::FInputDeviceState> MappedInputDevices;
+	TMap<FInputDeviceId, FPlatformInputDeviceState> MappedInputDevices;
 
 	/** Highest used platform user id. Incremented in AllocateNewUserId and Internal_MapInputDeviceToUser by default. */
 	FPlatformUserId LastPlatformUserId = PLATFORMUSERID_NONE;

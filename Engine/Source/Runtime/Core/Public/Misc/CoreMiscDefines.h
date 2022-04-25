@@ -429,3 +429,29 @@ private:
 
 /** Static invalid input device. */
 const FInputDeviceId INPUTDEVICEID_NONE;
+
+/** Represents the connection status of a given FInputDeviceId */
+enum class EInputDeviceConnectionState : uint8
+{
+	/** This is not a valid input device */
+	Invalid,
+
+	/** It is not known if this device is connected or not */
+	Unknown,
+
+	/** Device is definitely connected */
+	Disconnected,
+
+	/** Definitely connected and powered on */
+	Connected
+};
+
+/** Data about an input device's current state */
+struct FPlatformInputDeviceState
+{
+	/** The platform user that this input device belongs to */
+	FPlatformUserId OwningPlatformUser = PLATFORMUSERID_NONE;
+
+	/** The connection state of this input device */
+	EInputDeviceConnectionState ConnectionState = EInputDeviceConnectionState::Invalid;
+};

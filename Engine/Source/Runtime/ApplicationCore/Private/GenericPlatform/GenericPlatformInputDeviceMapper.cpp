@@ -28,7 +28,7 @@ int32 IPlatformInputDeviceMapper::GetAllInputDevicesForUser(const FPlatformUserI
 {
 	OutInputDevices.Reset();
 	
-	for (TPair<FInputDeviceId, UE::Input::FInputDeviceState> MappedDevice : MappedInputDevices)
+	for (TPair<FInputDeviceId, FPlatformInputDeviceState> MappedDevice : MappedInputDevices)
 	{
 		if (MappedDevice.Value.OwningPlatformUser == UserId)
 		{
@@ -46,10 +46,9 @@ int32 IPlatformInputDeviceMapper::GetAllInputDevices(TArray<FInputDeviceId>& Out
 
 int32 IPlatformInputDeviceMapper::GetAllConnectedInputDevices(TArray<FInputDeviceId>& OutInputDevices) const
 {
-	using namespace UE::Input;
 	OutInputDevices.Reset();
 	
-	for (TPair<FInputDeviceId, FInputDeviceState> MappedDevice : MappedInputDevices)
+	for (TPair<FInputDeviceId, FPlatformInputDeviceState> MappedDevice : MappedInputDevices)
 	{
 		if(MappedDevice.Value.ConnectionState == EInputDeviceConnectionState::Connected)
 		{
@@ -65,7 +64,7 @@ int32 IPlatformInputDeviceMapper::GetAllActiveUsers(TArray<FPlatformUserId>& Out
 	OutUsers.Reset();
 
 	// Add the owning platform user for each input device
-	for (TPair<FInputDeviceId, UE::Input::FInputDeviceState> MappedDevice : MappedInputDevices)
+	for (TPair<FInputDeviceId, FPlatformInputDeviceState> MappedDevice : MappedInputDevices)
 	{
 		OutUsers.AddUnique(MappedDevice.Value.OwningPlatformUser);
 	}
@@ -80,7 +79,7 @@ bool IPlatformInputDeviceMapper::IsUnpairedUserId(const FPlatformUserId Platform
 
 bool IPlatformInputDeviceMapper::IsInputDeviceMappedToUnpairedUser(const FInputDeviceId InputDevice) const
 {
-	if (const UE::Input::FInputDeviceState* DeviceState = MappedInputDevices.Find(InputDevice))
+	if (const FPlatformInputDeviceState* DeviceState = MappedInputDevices.Find(InputDevice))
 	{
 		return IsUnpairedUserId(DeviceState->OwningPlatformUser);
 	}
@@ -89,7 +88,7 @@ bool IPlatformInputDeviceMapper::IsInputDeviceMappedToUnpairedUser(const FInputD
 
 FPlatformUserId IPlatformInputDeviceMapper::GetUserForInputDevice(FInputDeviceId DeviceId) const
 {
-	if (const UE::Input::FInputDeviceState* FoundState = MappedInputDevices.Find(DeviceId))
+	if (const FPlatformInputDeviceState* FoundState = MappedInputDevices.Find(DeviceId))
 	{
 		return FoundState->OwningPlatformUser;
 	}
@@ -101,7 +100,7 @@ FInputDeviceId IPlatformInputDeviceMapper::GetPrimaryInputDeviceForUser(FPlatfor
 	FInputDeviceId FoundDevice = INPUTDEVICEID_NONE;
 
 	// By default look for the lowest input device mapped to this user
-	for (const TPair<FInputDeviceId, UE::Input::FInputDeviceState>& DeviceMapping : MappedInputDevices)
+	for (const TPair<FInputDeviceId, FPlatformInputDeviceState>& DeviceMapping : MappedInputDevices)
 	{
 		if (DeviceMapping.Value.OwningPlatformUser == UserId)
 		{
@@ -115,7 +114,7 @@ FInputDeviceId IPlatformInputDeviceMapper::GetPrimaryInputDeviceForUser(FPlatfor
 	return FoundDevice;
 }
 
-bool IPlatformInputDeviceMapper::Internal_SetInputDeviceConnectionState(FInputDeviceId DeviceId, UE::Input::EInputDeviceConnectionState NewState)
+bool IPlatformInputDeviceMapper::Internal_SetInputDeviceConnectionState(FInputDeviceId DeviceId, EInputDeviceConnectionState NewState)
 {
 	if (!DeviceId.IsValid())
 	{
@@ -138,16 +137,15 @@ bool IPlatformInputDeviceMapper::Internal_SetInputDeviceConnectionState(FInputDe
 	return Internal_MapInputDeviceToUser(DeviceId, OwningUser, NewState);
 }
 
-UE::Input::EInputDeviceConnectionState IPlatformInputDeviceMapper::GetInputDeviceConnectionState(const FInputDeviceId DeviceId) const
+EInputDeviceConnectionState IPlatformInputDeviceMapper::GetInputDeviceConnectionState(const FInputDeviceId DeviceId) const
 {
-	using namespace UE::Input;
 	EInputDeviceConnectionState State = EInputDeviceConnectionState::Unknown;
 
 	if (!DeviceId.IsValid())
 	{
 		State = EInputDeviceConnectionState::Invalid;
 	}
-	else if (const FInputDeviceState* MappedDeviceState = MappedInputDevices.Find(DeviceId))
+	else if (const FPlatformInputDeviceState* MappedDeviceState = MappedInputDevices.Find(DeviceId))
 	{
 		State = MappedDeviceState->ConnectionState;
 	}
@@ -155,7 +153,7 @@ UE::Input::EInputDeviceConnectionState IPlatformInputDeviceMapper::GetInputDevic
 	return State;
 }
 
-bool IPlatformInputDeviceMapper::Internal_MapInputDeviceToUser(FInputDeviceId DeviceId, FPlatformUserId UserId, UE::Input::EInputDeviceConnectionState ConnectionState)
+bool IPlatformInputDeviceMapper::Internal_MapInputDeviceToUser(FInputDeviceId DeviceId, FPlatformUserId UserId, EInputDeviceConnectionState ConnectionState)
 {
 	if (!DeviceId.IsValid())
 	{
@@ -177,8 +175,7 @@ bool IPlatformInputDeviceMapper::Internal_MapInputDeviceToUser(FInputDeviceId De
 	}
 	
 	// Store the connection state of the input device
-	using namespace UE::Input;
-	FInputDeviceState& InputDeviceState = MappedInputDevices.FindOrAdd(DeviceId);
+	FPlatformInputDeviceState& InputDeviceState = MappedInputDevices.FindOrAdd(DeviceId);
 	InputDeviceState.OwningPlatformUser = UserId;
 	InputDeviceState.ConnectionState = ConnectionState;
 	
@@ -202,10 +199,8 @@ bool IPlatformInputDeviceMapper::Internal_ChangeInputDeviceUserMapping(FInputDev
 		return false;
 	}
 
-	using namespace UE::Input;
-
 	// Update the existing device state to be the new owning platform user
-	if (FInputDeviceState* ExistingDeviceState = MappedInputDevices.Find(DeviceId))
+	if (FPlatformInputDeviceState* ExistingDeviceState = MappedInputDevices.Find(DeviceId))
 	{
 		// Only change the platform user of this device if the old user matches up with the one that was given
 		if (ensureMsgf(ExistingDeviceState->OwningPlatformUser == OldUserId, TEXT("Attempting to change the Input Device User Mapping with a mismatched OldUserId!")))
