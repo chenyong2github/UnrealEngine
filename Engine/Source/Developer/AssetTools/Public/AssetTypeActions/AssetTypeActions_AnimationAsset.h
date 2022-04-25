@@ -29,6 +29,9 @@ private:
 	/** Handler for when FindSkeleton is selected */
 	void ExecuteFindSkeleton(TArray<TWeakObjectPtr<UAnimationAsset>> Objects);
 
+	/** Handler for when ReplaceSkeleton is selected */
+	void ExecuteReplaceSkeleton(TArray<TWeakObjectPtr<UAnimationAsset>> Objects);
+
 	/** Handle menu item for wanting to open asset in a new editor */
 	void ExecuteOpenInNewWindow(TArray<TWeakObjectPtr<UAnimationAsset>> Objects);
 

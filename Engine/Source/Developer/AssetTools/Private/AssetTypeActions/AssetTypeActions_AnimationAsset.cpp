@@ -48,6 +48,17 @@ void FAssetTypeActions_AnimationAsset::GetActions(const TArray<UObject*>& InObje
 			FCanExecuteAction()
 			)
 		);
+
+	Section.AddMenuEntry(
+		"AnimSequenceBase_ReplaceSkeleton",
+		LOCTEXT("AnimSequenceBase_ReplaceSkeleton", "Replace Skeleton"),
+		LOCTEXT("AnimSequenceBase_ReplaceSkeletonTooltip", "Associate a different skeleton with the selected animation assets in the content browser."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Persona.RetargetManager"),
+		FUIAction(
+			FExecuteAction::CreateSP( this, &FAssetTypeActions_AnimationAsset::ExecuteReplaceSkeleton, AnimAssets ),
+			FCanExecuteAction()
+			)
+		);
 }
 
 UThumbnailInfo* FAssetTypeActions_AnimationAsset::GetThumbnailInfo(UObject* Asset) const
@@ -215,6 +226,17 @@ void FAssetTypeActions_AnimationAsset::ExecuteFindSkeleton(TArray<TWeakObjectPtr
 	{
 		FAssetTools::Get().SyncBrowserToAssets(ObjectsToSync);
 	}
+}
+
+void FAssetTypeActions_AnimationAsset::ExecuteReplaceSkeleton(TArray<TWeakObjectPtr<UAnimationAsset>> Objects)
+{
+	TArray<TObjectPtr<UObject>> LoadedAnimAssets;
+	for (const TWeakObjectPtr<UAnimationAsset>& AnimAsset : Objects)
+	{
+		LoadedAnimAssets.Add(AnimAsset.Get());
+	}
+
+	ReplaceMissingSkeleton(LoadedAnimAssets);
 }
 
 bool FAssetTypeActions_AnimationAsset::ReplaceMissingSkeleton(TArray<TObjectPtr<UObject>> InAnimationAssets) const
