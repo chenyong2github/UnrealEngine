@@ -27,15 +27,12 @@ namespace UnrealBuildTool.Rules
 			bool bHasCoretech = System.Type.GetType("CoreTech") != null;
 			bool bHasTechSoft = System.Type.GetType("TechSoft") != null;
 
-			// Support for Windows only
-			bool bIsPlateformSupported = Target.Platform == UnrealTargetPlatform.Win64;
-
-			if (bIsPlateformSupported && bHasCoretech)
+			if (Target.Platform == UnrealTargetPlatform.Win64 && bHasCoretech)
 			{
 				PublicDependencyModuleNames.Add("CoreTech");
 			}
 
-			if (bIsPlateformSupported && bHasTechSoft)
+			if ((Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux) && bHasTechSoft)
 			{
 				PublicDependencyModuleNames.Add("TechSoft");
 			}
