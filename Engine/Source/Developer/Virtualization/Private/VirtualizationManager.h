@@ -139,13 +139,16 @@ private:
 	void ApplyDebugSettingsFromConfigFiles(const FConfigFile& ConfigFile);
 	void ApplyDebugSettingsFromFromCmdline();
 
-	void OnUpdateMissBackendsFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
-	void OnUpdateMissChanceFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
+	void RegisterConsoleCommands();
+
+	void OnUpdateDebugMissBackendsFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
+	void OnUpdateDebugMissChanceFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
+	void OnUpdateDebugMissCountFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
 
 	void UpdateBackendDebugState();
 
 	bool ShouldDebugDisablePulling(FStringView BackendConfigName) const;	
-	bool ShouldDebugFailPulling() const;
+	bool ShouldDebugFailPulling();
 
 	void MountBackends(const FConfigFile& ConfigFile);
 	void ParseHierarchy(const FConfigFile& ConfigFile, const TCHAR* GraphName, const TCHAR* HierarchyKey, const FRegistedFactories& FactoryLookupTable, FBackendArray& PushArray);
@@ -245,14 +248,20 @@ private:
 
 	// Members after this point at used for debugging operations only!
 
-	/** Console commands that the manager has registered */
-	TArray<IConsoleCommand*> DebugConsoleCommands;
-	
-	/** Array of backend names that should have their pull operation disabled */
-	TArray<FString> DebugMissBackends;
+	struct FDebugValues
+	{
+		/** Console commands that the manager has registered */
+		TArray<IConsoleCommand*> ConsoleCommands;
 
-	/** The chance that a payload pull can just 'fail' to allow for testing */
-	float DebugMissChance;
+		/** Array of backend names that should have their pull operation disabled */
+		TArray<FString> MissBackends;
+
+		/** The chance that a payload pull can just 'fail' to allow for testing */
+		float MissChance;
+
+		/** The number of upcoming payload pulls that should be failed */
+		std::atomic<int32> MissCount = 0;
+	} DebugValues;
 };
 
 } // namespace UE::Virtualization
