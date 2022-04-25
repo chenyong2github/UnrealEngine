@@ -1575,7 +1575,7 @@ bool FMobileSceneRenderer::RequiresMultiPass(FRHICommandListImmediate& RHICmdLis
 	}
 
 	// All iOS support frame_buffer_fetch
-	if (IsMetalMobilePlatform(ShaderPlatform))
+	if (IsMetalMobilePlatform(ShaderPlatform) && GSupportsShaderFramebufferFetch)
 	{
 		return false;
 	}
