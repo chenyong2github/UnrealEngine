@@ -40,5 +40,21 @@ FText UInterchangeResultMeshWarning_TooManyUVs::GetText() const
 	return FText::Format(LOCTEXT("TooManyUVs", "Reached the maximum number of UV Channels for mesh '{MeshName}' - discarding {ExcessUVs} {ExcessUVs}|plural(one=channel,other=channels)."), Args);
 }
 
+FText UInterchangeResultTextureWarning_TextureFileDoNotExist::GetText() const
+{
+	FFormatNamedArguments Args
+	{
+		{ TEXT("TextureName"), FText::FromString(TextureName) },
+		{ TEXT("MaterialName"), FText::FromString(MaterialName) }
+	};
+
+	if (MaterialName.IsEmpty())
+	{
+		return FText::Format(LOCTEXT("TextureFileDoNotExist", "Cannot open texture file '{TextureName}'."), Args);
+	}
+	
+	return FText::Format(LOCTEXT("TextureFileDoNotExist", "Cannot open texture file '{TextureName}' when importing material '{MaterialName}'."), Args);
+}
+
 
 #undef LOCTEXT_NAMESPACE

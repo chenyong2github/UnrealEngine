@@ -6,6 +6,7 @@
 #include "FbxConvert.h"
 #include "FbxHelper.h"
 #include "FbxInclude.h"
+#include "Fbx/InterchangeFbxMessages.h"
 #include "InterchangeMaterialDefinitions.h"
 #include "InterchangeResultsContainer.h"
 #include "InterchangeSceneNode.h"
@@ -14,6 +15,8 @@
 #include "InterchangeTextureNode.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+
+
 
 #define LOCTEXT_NAMESPACE "InterchangeFbxMaterial"
 
@@ -110,48 +113,55 @@ namespace UE
 				if (TextureCount > 0)
 				{
 					FbxFileTexture* FbxTexture = Property.GetSrcObject<FbxFileTexture>(0);
-
 					FString TextureFilename = UTF8_TO_TCHAR(FbxTexture->GetFileName());
-					FString TextureName = FPaths::GetBaseFilename(TextureFilename);
-
-					UInterchangeShaderNode* TextureSampleShader = NewObject<UInterchangeShaderNode>(&NodeContainer);
-					TextureSampleShader->SetCustomShaderType(TextureSample::Name.ToString());
-
-					FString TextureSampleShaderUid = ShaderGraphNode->GetUniqueID() + TEXT("\\Textures\\") + TextureName;
-					TextureSampleShader->InitializeNode(TextureSampleShaderUid, TextureName, EInterchangeNodeContainerType::TranslatedAsset);
-
-					NodeContainer.AddNode(TextureSampleShader);
-					NodeContainer.SetNodeParentUid(TextureSampleShaderUid, ShaderGraphNode->GetUniqueID());
-
-					FString TextureNodeUid = TEXT("\\Texture\\") + TextureFilename;
-					const UInterchangeTexture2DNode* TextureNode = Cast<const UInterchangeTexture2DNode>(NodeContainer.GetNode(TextureNodeUid));
-
-					if (!TextureNode)
+					//Only import texture that exist on disk
+					if(!TextureFilename.IsEmpty() && FPaths::FileExists(TextureFilename))
 					{
-						TextureNode = CreateTexture2DNode(NodeContainer, TextureNodeUid, TextureFilename);
+						FString TextureName = FPaths::GetBaseFilename(TextureFilename);
+						UInterchangeShaderNode* TextureSampleShader = NewObject<UInterchangeShaderNode>(&NodeContainer);
+						TextureSampleShader->SetCustomShaderType(TextureSample::Name.ToString());
+
+						FString TextureSampleShaderUid = ShaderGraphNode->GetUniqueID() + TEXT("\\Textures\\") + TextureName;
+						TextureSampleShader->InitializeNode(TextureSampleShaderUid, TextureName, EInterchangeNodeContainerType::TranslatedAsset);
+
+						NodeContainer.AddNode(TextureSampleShader);
+						NodeContainer.SetNodeParentUid(TextureSampleShaderUid, ShaderGraphNode->GetUniqueID());
+
+						FString TextureNodeUid = TEXT("\\Texture\\") + TextureFilename;
+						const UInterchangeTexture2DNode* TextureNode = Cast<const UInterchangeTexture2DNode>(NodeContainer.GetNode(TextureNodeUid));
+
+						if (!TextureNode)
+						{
+							TextureNode = CreateTexture2DNode(NodeContainer, TextureNodeUid, TextureFilename);
+						}
+
+						TextureSampleShader->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
+
+						if (!FMath::IsNearlyEqual(FbxTexture->GetScaleU(), 1.0) || !FMath::IsNearlyEqual(FbxTexture->GetScaleV(), 1.0))
+						{
+							UInterchangeShaderNode* TextureCoordinateShader = NewObject<UInterchangeShaderNode>(&NodeContainer);
+							TextureCoordinateShader->SetCustomShaderType(TextureCoordinate::Name.ToString());
+
+							FString TextureCoordinateShaderUid = TextureSampleShader->GetUniqueID() + TEXT("_Coordinate");
+							TextureCoordinateShader->InitializeNode(TextureCoordinateShaderUid, TextureName + TEXT("_Coordinate"), EInterchangeNodeContainerType::TranslatedAsset);
+
+							NodeContainer.AddNode(TextureCoordinateShader);
+							NodeContainer.SetNodeParentUid(TextureCoordinateShaderUid, ShaderGraphNode->GetUniqueID());
+
+							TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::UTiling.ToString()), (float)FbxTexture->GetScaleU());
+							TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::VTiling.ToString()), (float)FbxTexture->GetScaleV());
+
+							UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(TextureSampleShader, TextureSample::Inputs::Coordinates.ToString(), TextureCoordinateShaderUid);
+						}
+
+						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, TextureSampleShaderUid);
 					}
-
-					TextureSampleShader->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
-
-					if (!FMath::IsNearlyEqual(FbxTexture->GetScaleU(), 1.0) || !FMath::IsNearlyEqual(FbxTexture->GetScaleV(), 1.0))
+					else
 					{
-						UInterchangeShaderNode* TextureCoordinateShader = NewObject<UInterchangeShaderNode>(&NodeContainer);
-						TextureCoordinateShader->SetCustomShaderType(TextureCoordinate::Name.ToString());
-
-						FString TextureCoordinateShaderUid = TextureSampleShader->GetUniqueID() + TEXT("_Coordinate");
-						TextureCoordinateShader->InitializeNode(TextureCoordinateShaderUid, TextureName + TEXT("_Coordinate"), EInterchangeNodeContainerType::TranslatedAsset);
-
-						NodeContainer.AddNode(TextureCoordinateShader);
-						NodeContainer.SetNodeParentUid(TextureCoordinateShaderUid, ShaderGraphNode->GetUniqueID());
-
-						TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::UTiling.ToString()), (float)FbxTexture->GetScaleU());
-						TextureCoordinateShader->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureCoordinate::Inputs::VTiling.ToString()), (float)FbxTexture->GetScaleV());
-
-						UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(TextureSampleShader, TextureSample::Inputs::Coordinates.ToString(), TextureCoordinateShaderUid);
+						UInterchangeResultTextureWarning_TextureFileDoNotExist* Message = Parser.AddMessage<UInterchangeResultTextureWarning_TextureFileDoNotExist>();
+						Message->TextureName = TextureFilename;
+						Message->MaterialName = ShaderGraphNode->GetDisplayLabel();
 					}
-
-					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, TextureSampleShaderUid);
-
 				}
 				else if (DataType.GetType() == eFbxDouble || DataType.GetType() == eFbxFloat || DataType.GetType() == eFbxInt)
 				{

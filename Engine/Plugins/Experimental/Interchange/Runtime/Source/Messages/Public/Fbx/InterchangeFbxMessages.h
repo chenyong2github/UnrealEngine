@@ -22,6 +22,19 @@ public:
 	FString MeshName;
 };
 
+/**
+ * Base class for FBX parser warnings
+ */
+UCLASS()
+class INTERCHANGEMESSAGES_API UInterchangeResultTextureWarning : public UInterchangeResultWarning
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY()
+	FString TextureName;
+};
 
 /**
  * Base class for FBX parser errors
@@ -85,3 +98,20 @@ public:
 	int32 ExcessUVs;
 };
 
+/**
+ * A generic class for FBX parser warnings, with no additional metadata, and where the text is specified by the user
+ */
+UCLASS()
+class INTERCHANGEMESSAGES_API UInterchangeResultTextureWarning_TextureFileDoNotExist : public UInterchangeResultTextureWarning
+{
+	GENERATED_BODY()
+
+public:
+	virtual FText GetText() const override;
+
+	UPROPERTY()
+	FText Text;
+
+	UPROPERTY()
+	FString MaterialName;
+};
