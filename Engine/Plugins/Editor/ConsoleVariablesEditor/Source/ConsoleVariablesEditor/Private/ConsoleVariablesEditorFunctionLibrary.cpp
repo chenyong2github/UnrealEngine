@@ -3,9 +3,13 @@
 #include "ConsoleVariablesEditorFunctionLibrary.h"
 
 #include "ConsoleVariablesAsset.h"
+#include "ConsoleVariablesEditorCommandInfo.h"
 #include "ConsoleVariablesEditorLog.h"
 #include "ConsoleVariablesEditorModule.h"
+
 #include "MultiUser/ConsoleVariableSyncData.h"
+
+#include "AssetRegistry/AssetData.h"
 #include "Widgets/Input/SCheckBox.h"
 
 UConsoleVariablesAsset* UConsoleVariablesEditorFunctionLibrary::GetCurrentlyLoadedPreset()
@@ -27,7 +31,7 @@ void UConsoleVariablesEditorFunctionLibrary::LoadPresetIntoConsoleVariablesEdito
 	
 	const FConsoleVariablesEditorModule& ConsoleVariablesEditorModule = FConsoleVariablesEditorModule::Get();
 
-	ConsoleVariablesEditorModule.OpenConsoleVariablesDialogWithAssetSelected(InAsset);
+	ConsoleVariablesEditorModule.OpenConsoleVariablesDialogWithAssetSelected(FAssetData(InAsset));
 }
 
 bool UConsoleVariablesEditorFunctionLibrary::CopyCurrentListToAsset(UConsoleVariablesAsset* InAsset)

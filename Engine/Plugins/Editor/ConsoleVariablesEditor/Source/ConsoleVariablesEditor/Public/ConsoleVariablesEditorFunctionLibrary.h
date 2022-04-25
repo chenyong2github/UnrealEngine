@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "ConsoleVariablesEditorFunctionLibrary.generated.h"
 
+class FString;
 class UConsoleVariablesAsset;
 
 /** An asset used to track collections of console variables that can be recalled and edited using the Console Variables Editor. */
