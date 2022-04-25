@@ -151,27 +151,27 @@ void AGXSafeReleaseMetalTexture(FAGXSurface* Surface, FAGXTexture& Texture)
 }
 
 #if !PLATFORM_IOS
-static mtlpp::PixelFormat AGX_ToSRGBFormat_NonAppleMacGPU(mtlpp::PixelFormat MTLFormat)
+static MTLPixelFormat AGX_ToSRGBFormat_NonAppleMacGPU(MTLPixelFormat MTLFormat)
 {
 	switch (MTLFormat)
 	{
-		case mtlpp::PixelFormat::RGBA8Unorm:
-			MTLFormat = mtlpp::PixelFormat::RGBA8Unorm_sRGB;
+		case MTLPixelFormatRGBA8Unorm:
+			MTLFormat = MTLPixelFormatRGBA8Unorm_sRGB;
 			break;
-		case mtlpp::PixelFormat::BGRA8Unorm:
-			MTLFormat = mtlpp::PixelFormat::BGRA8Unorm_sRGB;
+		case MTLPixelFormatBGRA8Unorm:
+			MTLFormat = MTLPixelFormatBGRA8Unorm_sRGB;
 			break;
-		case mtlpp::PixelFormat::BC1_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC1_RGBA_sRGB;
+		case MTLPixelFormatBC1_RGBA:
+			MTLFormat = MTLPixelFormatBC1_RGBA_sRGB;
 			break;
-		case mtlpp::PixelFormat::BC2_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC2_RGBA_sRGB;
+		case MTLPixelFormatBC2_RGBA:
+			MTLFormat = MTLPixelFormatBC2_RGBA_sRGB;
 			break;
-		case mtlpp::PixelFormat::BC3_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC3_RGBA_sRGB;
+		case MTLPixelFormatBC3_RGBA:
+			MTLFormat = MTLPixelFormatBC3_RGBA_sRGB;
 			break;
-		case mtlpp::PixelFormat::BC7_RGBAUnorm:
-			MTLFormat = mtlpp::PixelFormat::BC7_RGBAUnorm_sRGB;
+		case MTLPixelFormatBC7_RGBAUnorm:
+			MTLFormat = MTLPixelFormatBC7_RGBAUnorm_sRGB;
 			break;
 		default:
 			break;
@@ -180,53 +180,53 @@ static mtlpp::PixelFormat AGX_ToSRGBFormat_NonAppleMacGPU(mtlpp::PixelFormat MTL
 }
 #endif
 
-static mtlpp::PixelFormat AGX_ToSRGBFormat_AppleGPU(mtlpp::PixelFormat MTLFormat)
+static MTLPixelFormat AGX_ToSRGBFormat_AppleGPU(MTLPixelFormat MTLFormat)
 {
 	switch (MTLFormat)
 	{
-		case mtlpp::PixelFormat::RGBA8Unorm:
-			MTLFormat = mtlpp::PixelFormat::RGBA8Unorm_sRGB;
+		case MTLPixelFormatRGBA8Unorm:
+			MTLFormat = MTLPixelFormatRGBA8Unorm_sRGB;
 			break;
-		case mtlpp::PixelFormat::BGRA8Unorm:
-			MTLFormat = mtlpp::PixelFormat::BGRA8Unorm_sRGB;
+		case MTLPixelFormatBGRA8Unorm:
+			MTLFormat = MTLPixelFormatBGRA8Unorm_sRGB;
 			break;
-		case mtlpp::PixelFormat::R8Unorm:
-			MTLFormat = mtlpp::PixelFormat::R8Unorm_sRGB;
+		case MTLPixelFormatR8Unorm:
+			MTLFormat = MTLPixelFormatR8Unorm_sRGB;
 			break;
-		case mtlpp::PixelFormat::PVRTC_RGBA_2BPP:
-			MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_2BPP_sRGB;
+		case MTLPixelFormatPVRTC_RGBA_2BPP:
+			MTLFormat = MTLPixelFormatPVRTC_RGBA_2BPP_sRGB;
 			break;
-		case mtlpp::PixelFormat::PVRTC_RGBA_4BPP:
-			MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB;
+		case MTLPixelFormatPVRTC_RGBA_4BPP:
+			MTLFormat = MTLPixelFormatPVRTC_RGBA_4BPP_sRGB;
 			break;
-		case mtlpp::PixelFormat::ASTC_4x4_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_4x4_sRGB;
+		case MTLPixelFormatASTC_4x4_LDR:
+			MTLFormat = MTLPixelFormatASTC_4x4_sRGB;
 			break;
-		case mtlpp::PixelFormat::ASTC_6x6_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_6x6_sRGB;
+		case MTLPixelFormatASTC_6x6_LDR:
+			MTLFormat = MTLPixelFormatASTC_6x6_sRGB;
 			break;
-		case mtlpp::PixelFormat::ASTC_8x8_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_8x8_sRGB;
+		case MTLPixelFormatASTC_8x8_LDR:
+			MTLFormat = MTLPixelFormatASTC_8x8_sRGB;
 			break;
-		case mtlpp::PixelFormat::ASTC_10x10_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_10x10_sRGB;
+		case MTLPixelFormatASTC_10x10_LDR:
+			MTLFormat = MTLPixelFormatASTC_10x10_sRGB;
 			break;
-		case mtlpp::PixelFormat::ASTC_12x12_LDR:
-			MTLFormat = mtlpp::PixelFormat::ASTC_12x12_sRGB;
+		case MTLPixelFormatASTC_12x12_LDR:
+			MTLFormat = MTLPixelFormatASTC_12x12_sRGB;
 			break;
 #if PLATFORM_MAC
 		// Fix for Apple silicon M1 macs that can support BC pixel formats even though they are Apple family GPUs.
-		case mtlpp::PixelFormat::BC1_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC1_RGBA_sRGB;
+		case MTLPixelFormatBC1_RGBA:
+			MTLFormat = MTLPixelFormatBC1_RGBA_sRGB;
 			break;
-		case mtlpp::PixelFormat::BC2_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC2_RGBA_sRGB;
+		case MTLPixelFormatBC2_RGBA:
+			MTLFormat = MTLPixelFormatBC2_RGBA_sRGB;
 			break;
-		case mtlpp::PixelFormat::BC3_RGBA:
-			MTLFormat = mtlpp::PixelFormat::BC3_RGBA_sRGB;
+		case MTLPixelFormatBC3_RGBA:
+			MTLFormat = MTLPixelFormatBC3_RGBA_sRGB;
 			break;
-		case mtlpp::PixelFormat::BC7_RGBAUnorm:
-			MTLFormat = mtlpp::PixelFormat::BC7_RGBAUnorm_sRGB;
+		case MTLPixelFormatBC7_RGBAUnorm:
+			MTLFormat = MTLPixelFormatBC7_RGBAUnorm_sRGB;
 			break;
 #endif
 		default:
@@ -235,7 +235,7 @@ static mtlpp::PixelFormat AGX_ToSRGBFormat_AppleGPU(mtlpp::PixelFormat MTLFormat
 	return MTLFormat;
 }
 
-mtlpp::PixelFormat AGXToSRGBFormat(mtlpp::PixelFormat MTLFormat)
+MTLPixelFormat AGXToSRGBFormat(MTLPixelFormat MTLFormat)
 {
 	if([GMtlDevice supportsFamily:MTLGPUFamilyApple1])
 	{
@@ -323,15 +323,15 @@ void FAGXSurface::MakeAliasable(void)
 	// TODO
 }
 
-uint8 AGXGetMetalPixelFormatKey(mtlpp::PixelFormat Format)
+uint8 AGXGetMetalPixelFormatKey(MTLPixelFormat Format)
 {
 	struct FAGXPixelFormatKeyMap
 	{
 		FRWLock Mutex;
-		uint8 NextKey = 1; // 0 is reserved for mtlpp::PixelFormat::Invalid
+		uint8 NextKey = 1; // 0 is reserved for MTLPixelFormatInvalid
 		TMap<uint64, uint8> Map;
 
-		uint8 Get(mtlpp::PixelFormat Format)
+		uint8 Get(MTLPixelFormat Format)
 		{
 			FRWScopeLock Lock(Mutex, SLT_ReadOnly);
 			uint8* Key = Map.Find((uint64)Format);
@@ -352,12 +352,12 @@ uint8 AGXGetMetalPixelFormatKey(mtlpp::PixelFormat Format)
 		FAGXPixelFormatKeyMap()
 		{
 			// Add depth stencil formats first, so we don't have to use 6 bits for them in the pipeline hash
-			Get(mtlpp::PixelFormat::Depth32Float);
-			Get(mtlpp::PixelFormat::Stencil8);
-			Get(mtlpp::PixelFormat::Depth32Float_Stencil8);
+			Get(MTLPixelFormatDepth32Float);
+			Get(MTLPixelFormatStencil8);
+			Get(MTLPixelFormatDepth32Float_Stencil8);
 #if PLATFORM_MAC
-			Get(mtlpp::PixelFormat::Depth24Unorm_Stencil8);
-			Get(mtlpp::PixelFormat::Depth16Unorm);
+			Get(MTLPixelFormatDepth24Unorm_Stencil8);
+			Get(MTLPixelFormatDepth16Unorm);
 #endif
 		}
 	} static PixelFormatKeyMap;
@@ -368,7 +368,7 @@ uint8 AGXGetMetalPixelFormatKey(mtlpp::PixelFormat Format)
 FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
 	: bIsRenderTarget(IsRenderTarget(InDesc.Flags))
 {
-	MTLFormat = (mtlpp::PixelFormat)GPixelFormats[InDesc.Format].PlatformFormat;
+	MTLFormat = (MTLPixelFormat)GPixelFormats[InDesc.Format].PlatformFormat;
 	if (EnumHasAnyFlags(InDesc.Flags, TexCreate_SRGB))
 	{
 		MTLFormat = AGXToSRGBFormat(MTLFormat);
@@ -379,7 +379,7 @@ FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
 
 	if (InDesc.IsTextureCube())
 	{
-		Desc = mtlpp::TextureDescriptor::TextureCubeDescriptor(MTLFormat, InDesc.Extent.X, (InDesc.NumMips > 1));
+		Desc = mtlpp::TextureDescriptor::TextureCubeDescriptor((mtlpp::PixelFormat)MTLFormat, InDesc.Extent.X, (InDesc.NumMips > 1));
 	}
 	else if (InDesc.IsTexture3D())
 	{
@@ -387,14 +387,14 @@ FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
 		Desc.SetWidth(InDesc.Extent.X);
 		Desc.SetHeight(InDesc.Extent.Y);
 		Desc.SetDepth(InDesc.Depth);
-		Desc.SetPixelFormat(MTLFormat);
+		Desc.SetPixelFormat((mtlpp::PixelFormat)MTLFormat);
 		Desc.SetArrayLength(1);
 		Desc.SetMipmapLevelCount(1);
 		Desc.SetSampleCount(1);
 	}
 	else
 	{
-		Desc = mtlpp::TextureDescriptor::Texture2DDescriptor(MTLFormat, InDesc.Extent.X, InDesc.Extent.Y, (InDesc.NumMips > 1));
+		Desc = mtlpp::TextureDescriptor::Texture2DDescriptor((mtlpp::PixelFormat)MTLFormat, InDesc.Extent.X, InDesc.Extent.Y, (InDesc.NumMips > 1));
 		Desc.SetArrayLength(InDesc.ArraySize);
 	}
 
@@ -622,7 +622,7 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 
 		if(bBufferCompatibleOption && (EnumHasAllFlags(CreateDesc.Flags, TexCreate_UAV | TexCreate_NoTiling) || EnumHasAllFlags(CreateDesc.Flags, TexCreate_AtomicCompatible)))
 		{
-			const uint32 MinimumByteAlignment = GMtlppDevice.GetMinimumLinearTextureAlignmentForPixelFormat(CreateDesc.MTLFormat);
+			const uint32 MinimumByteAlignment = GMtlppDevice.GetMinimumLinearTextureAlignmentForPixelFormat((mtlpp::PixelFormat)CreateDesc.MTLFormat);
 			const NSUInteger BytesPerRow = Align(CreateDesc.Desc.GetWidth() * GPixelFormats[CreateDesc.Format].BlockBytes, MinimumByteAlignment);
 
 			// Backing buffer resource options must match the texture we are going to create from it
@@ -898,7 +898,7 @@ id <MTLBuffer> FAGXSurface::AllocSurface(uint32 MipIndex, uint32 ArrayIndex, ERe
 		&& GetDesc().Dimension == ETextureDimension::Texture2D
 		&& EnumHasAnyFlags(GetDesc().Flags, TexCreate_SRGB)
 		&& LockMode == RLM_WriteOnly
-		&& Texture.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB)
+		&& (MTLPixelFormat)Texture.GetPixelFormat() == MTLPixelFormatRGBA8Unorm_sRGB)
 	{
 		DestStride = FMath::Max<uint32>(GetDesc().Extent.X >> MipIndex, 1);
 	}
@@ -945,7 +945,7 @@ void FAGXSurface::UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuffe
 	if (   GetDesc().Format == PF_G8
 		&& GetDesc().Dimension == ETextureDimension::Texture2D
 		&& EnumHasAnyFlags(GetDesc().Flags, TexCreate_SRGB)
-		&& Texture.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB)
+		&& (MTLPixelFormat)Texture.GetPixelFormat() == MTLPixelFormatRGBA8Unorm_sRGB)
 	{
 		TArray<uint8> Data;
 		uint8* ExpandedMem = (uint8*) SourceBuffer.contents;
@@ -981,7 +981,7 @@ void FAGXSurface::UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuffe
 		
 		mtlpp::BlitOption Options = mtlpp::BlitOption::None;
 #if !PLATFORM_MAC
-		if (Texture.GetPixelFormat() >= mtlpp::PixelFormat::PVRTC_RGB_2BPP && Texture.GetPixelFormat() <= mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB)
+		if ((MTLPixelFormat)Texture.GetPixelFormat() >= MTLPixelFormatPVRTC_RGB_2BPP && (MTLPixelFormat)Texture.GetPixelFormat() <= MTLPixelFormatPVRTC_RGBA_4BPP_sRGB)
 		{
 			Options = mtlpp::BlitOption::RowLinearPVRTC;
 		}
@@ -1033,7 +1033,7 @@ void FAGXSurface::UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuffe
 	else
 	{
 #if !PLATFORM_MAC
-		if (Texture.GetPixelFormat() >= mtlpp::PixelFormat::PVRTC_RGB_2BPP && Texture.GetPixelFormat() <= mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB) // @todo Calculate correct strides and byte-counts
+		if ((MTLPixelFormat)Texture.GetPixelFormat() >= MTLPixelFormatPVRTC_RGB_2BPP && (MTLPixelFormat)Texture.GetPixelFormat() <= MTLPixelFormatPVRTC_RGBA_4BPP_sRGB) // @todo Calculate correct strides and byte-counts
 		{
 			Stride = 0;
 			BytesPerImage = 0;
@@ -1163,7 +1163,7 @@ void* FAGXSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode Lo
 			if (   GetDesc().Format == PF_G8
 				&& GetDesc().Dimension == ETextureDimension::Texture2D
 				&& EnumHasAnyFlags(GetDesc().Flags, TexCreate_SRGB)
-				&& Texture.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB)
+				&& (MTLPixelFormat)Texture.GetPixelFormat() == MTLPixelFormatRGBA8Unorm_sRGB)
 			{
 				TArray<uint8> Data;
 				uint8* ExpandedMem = (uint8*)SourceData.GetContents();
@@ -1310,7 +1310,7 @@ uint32 FAGXSurface::GetMipSize(uint32 MipIndex, uint32* Stride, bool bSingleLaye
 		NumBlocksY = FMath::Max<uint32>(NumBlocksY, 2);
 	}
 #if PLATFORM_MAC
-	else if (PixelFormat == PF_G8 && EnumHasAnyFlags(GetDesc().Flags, TexCreate_SRGB) && Texture.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB)
+	else if (PixelFormat == PF_G8 && EnumHasAnyFlags(GetDesc().Flags, TexCreate_SRGB) && (MTLPixelFormat)Texture.GetPixelFormat() == MTLPixelFormatRGBA8Unorm_sRGB)
 	{
 		// RGBA_sRGB is the closest match - so expand the data.
 		NumBlocksX *= 4;
@@ -1658,7 +1658,7 @@ static FAGXBuffer InternalCopyTexture2DUpdateRegion(FRHITexture2D* TextureRHI, c
 	// Expand R8_sRGB into RGBA8_sRGB for Mac.
 	if (   Texture->GetFormat() == PF_G8
 		&& EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB)
-		&& Texture->Texture.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB)
+		&& (MTLPixelFormat)Texture->Texture.GetPixelFormat() == MTLPixelFormatRGBA8Unorm_sRGB)
 	{
 		const uint32 BufferSize = UpdateRegion.Height * UpdateRegion.Width * sizeof(uint32);
 		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
@@ -1703,7 +1703,7 @@ static void InternalUpdateTexture2D(FAGXContext& Context, FRHITexture2D* Texture
 		
 		mtlpp::BlitOption Options = mtlpp::BlitOption::None;
 #if !PLATFORM_MAC
-		if (Tex.GetPixelFormat() >= mtlpp::PixelFormat::PVRTC_RGB_2BPP && Tex.GetPixelFormat() <= mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB)
+		if ((MTLPixelFormat)Tex.GetPixelFormat() >= MTLPixelFormatPVRTC_RGB_2BPP && (MTLPixelFormat)Tex.GetPixelFormat() <= MTLPixelFormatPVRTC_RGBA_4BPP_sRGB)
 		{
 			Options = mtlpp::BlitOption::RowLinearPVRTC;
 		}
@@ -1781,7 +1781,7 @@ void FAGXDynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI, uint32 MipInd
 		{
 #if PLATFORM_MAC
 			TArray<uint32> ExpandedData;
-			if (Texture->GetFormat() == PF_G8 && EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB) && Tex.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB)
+			if (Texture->GetFormat() == PF_G8 && EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB) && (MTLPixelFormat)Tex.GetPixelFormat() == MTLPixelFormatRGBA8Unorm_sRGB)
 			{
 				ExpandedData.AddZeroed(UpdateRegion.Height * UpdateRegion.Width);
 				InternalExpandR8ToStandardRGBA((uint32*)ExpandedData.GetData(), UpdateRegion, SourcePitch, SourceData);
@@ -1833,7 +1833,7 @@ static void InternalUpdateTexture3D(FAGXContext& Context, FRHITexture3D* Texture
 		const uint32 BytesPerImage = SourceRowPitch * UpdateRegion.Height;
 		mtlpp::BlitOption Options = mtlpp::BlitOption::None;
 #if !PLATFORM_MAC
-		if (Tex.GetPixelFormat() >= mtlpp::PixelFormat::PVRTC_RGB_2BPP && Tex.GetPixelFormat() <= mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB)
+		if ((MTLPixelFormat)Tex.GetPixelFormat() >= MTLPixelFormatPVRTC_RGB_2BPP && (MTLPixelFormat)Tex.GetPixelFormat() <= MTLPixelFormatPVRTC_RGBA_4BPP_sRGB)
 		{
 			Options = mtlpp::BlitOption::RowLinearPVRTC;
 		}
@@ -1937,7 +1937,7 @@ void FAGXDynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI,uint32 MipInde
 		FAGXTexture Tex = Texture->Texture;
 		
 #if PLATFORM_MAC
-		checkf(!(Texture->GetFormat() == PF_G8 && EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB) && Tex.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB), TEXT("AGXRHI does not support PF_G8_sRGB on 3D, array or cube textures as it requires manual, CPU-side expansion to RGBA8_sRGB which is expensive!"));
+		checkf(!(Texture->GetFormat() == PF_G8 && EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB) && (MTLPixelFormat)Tex.GetPixelFormat() == MTLPixelFormatRGBA8Unorm_sRGB), TEXT("AGXRHI does not support PF_G8_sRGB on 3D, array or cube textures as it requires manual, CPU-side expansion to RGBA8_sRGB which is expensive!"));
 #endif
 		if(Tex.GetStorageMode() == mtlpp::StorageMode::Private)
 		{
@@ -2112,7 +2112,7 @@ void FAGXRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITe
 						
 						mtlpp::BlitOption Options = mtlpp::BlitOption::None;
 #if !PLATFORM_MAC
-						if (MetalSrcTexture->Texture.GetPixelFormat() >= mtlpp::PixelFormat::PVRTC_RGB_2BPP && MetalSrcTexture->Texture.GetPixelFormat() <= mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB)
+						if ((MTLPixelFormat)MetalSrcTexture->Texture.GetPixelFormat() >= MTLPixelFormatPVRTC_RGB_2BPP && (MTLPixelFormat)MetalSrcTexture->Texture.GetPixelFormat() <= MTLPixelFormatPVRTC_RGBA_4BPP_sRGB)
 						{
 							Options = mtlpp::BlitOption::RowLinearPVRTC;
 						}

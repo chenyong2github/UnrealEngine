@@ -340,7 +340,7 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 		uint8 InFormat = InLinearTextureMapKey.Key;
 		const FAGXLinearTextureDescriptor& LinearTextureDesc = InLinearTextureMapKey.Value;
 		
-		mtlpp::PixelFormat MTLFormat = (mtlpp::PixelFormat)GAGXBufferFormats[InFormat].LinearTextureFormat;
+		MTLPixelFormat MTLFormat = (MTLPixelFormat)GAGXBufferFormats[InFormat].LinearTextureFormat;
 		
 		mtlpp::TextureDescriptor Desc;
 		NSUInteger TexUsage = mtlpp::TextureUsage::Unknown;
@@ -354,7 +354,7 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 		}
 		
 		uint32 BytesPerElement = (0 == LinearTextureDesc.BytesPerElement) ? GPixelFormats[InFormat].BlockBytes : LinearTextureDesc.BytesPerElement;
-		if (MTLFormat == mtlpp::PixelFormat::RG11B10Float && MTLFormat != (mtlpp::PixelFormat)GPixelFormats[InFormat].PlatformFormat)
+		if (MTLFormat == MTLPixelFormatRG11B10Float && MTLFormat != (MTLPixelFormat)GPixelFormats[InFormat].PlatformFormat)
 		{
 			BytesPerElement = 4;
 		}
@@ -373,7 +373,7 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 		if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesTextureBuffers))
 		{
 			NSUInteger Options = ((NSUInteger) Mode) << mtlpp::ResourceStorageModeShift;
-			Desc = mtlpp::TextureDescriptor::TextureBufferDescriptor(MTLFormat, NumElements, mtlpp::ResourceOptions(Options), mtlpp::TextureUsage(TexUsage));
+			Desc = mtlpp::TextureDescriptor::TextureBufferDescriptor((mtlpp::PixelFormat)MTLFormat, NumElements, mtlpp::ResourceOptions(Options), mtlpp::TextureUsage(TexUsage));
 			Desc.SetAllowGPUOptimisedContents(false);
 		}
 		else
@@ -422,7 +422,7 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 			check(RowBytes % MinimumByteAlignment == 0);
 			check((RowBytes * Height) + Offset <= Length);
 
-			Desc = mtlpp::TextureDescriptor::Texture2DDescriptor(MTLFormat, Width, Height, NO);
+			Desc = mtlpp::TextureDescriptor::Texture2DDescriptor((mtlpp::PixelFormat)MTLFormat, Width, Height, NO);
 			Desc.SetStorageMode(Mode);
 			Desc.SetCpuCacheMode(CurrentBuffer.GetCpuCacheMode());
 			Desc.SetUsage((mtlpp::TextureUsage)TexUsage);
@@ -434,7 +434,7 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 			FAGXTexture NewTexture = MTLPP_VALIDATE(mtlpp::Buffer, Buffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewTexture(Desc, Offset, RowBytes));
 			METAL_FATAL_ASSERT(NewTexture, TEXT("Failed to create linear texture, desc %s from buffer %s"), *FString([Desc description]), *FString([Buffer description]));
 			
-			check(GAGXBufferFormats[InFormat].LinearTextureFormat == mtlpp::PixelFormat::RG11B10Float || GAGXBufferFormats[InFormat].LinearTextureFormat == (mtlpp::PixelFormat)NewTexture.GetPixelFormat());
+			check(GAGXBufferFormats[InFormat].LinearTextureFormat == MTLPixelFormatRG11B10Float || GAGXBufferFormats[InFormat].LinearTextureFormat == (MTLPixelFormat)NewTexture.GetPixelFormat());
 			Backing.Views.Add(InLinearTextureMapKey, NewTexture);
 		}
 	}
@@ -478,7 +478,7 @@ struct FAGXRHICommandCreateLinearTexture : public FRHICommand<FAGXRHICommandCrea
 
 void FAGXRHIBuffer::CreateLinearTexture(EPixelFormat InFormat, FRHIResource* InParent, const FAGXLinearTextureDescriptor* InLinearTextureDescriptor)
 {
-	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) && GAGXBufferFormats[InFormat].LinearTextureFormat != mtlpp::PixelFormat::Invalid)
+	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) && GAGXBufferFormats[InFormat].LinearTextureFormat != MTLPixelFormatInvalid)
 	{
 		if (IsRunningRHIInSeparateThread() && !IsInRHIThread() && !FRHICommandListExecutor::GetImmediateCommandList().Bypass())
 		{
@@ -504,7 +504,7 @@ void FAGXRHIBuffer::CreateLinearTexture(EPixelFormat InFormat, FRHIResource* InP
 ns::AutoReleased<FAGXTexture> FAGXRHIBuffer::GetLinearTexture(EPixelFormat InFormat, const FAGXLinearTextureDescriptor* InLinearTextureDescriptor)
 {
 	ns::AutoReleased<FAGXTexture> Texture;
-	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) && GAGXBufferFormats[InFormat].LinearTextureFormat != mtlpp::PixelFormat::Invalid)
+	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) && GAGXBufferFormats[InFormat].LinearTextureFormat != MTLPixelFormatInvalid)
 	{
 		LinearTextureMapKey MapKey = (InLinearTextureDescriptor != nullptr) ? LinearTextureMapKey(InFormat, *InLinearTextureDescriptor) : LinearTextureMapKey(InFormat, FAGXLinearTextureDescriptor());
 

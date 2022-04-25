@@ -139,7 +139,7 @@ extern bool GAGXSupportsCaptureManager;
 struct FAGXBufferFormat
 {
 	// Valid linear texture pixel formats - potentially different than the actual texture formats
-	mtlpp::PixelFormat LinearTextureFormat;
+	MTLPixelFormat LinearTextureFormat;
 	// Metal buffer data types for manual ALU format conversions
 	uint8 DataFormat;
 };
@@ -252,9 +252,9 @@ FORCEINLINE MTLLoadAction GetMetalRTLoadAction(ERenderTargetLoadAction LoadActio
 
 MTLPrimitiveType AGXTranslatePrimitiveType(uint32 PrimitiveType);
 
-mtlpp::PixelFormat AGXToSRGBFormat(mtlpp::PixelFormat LinMTLFormat);
+MTLPixelFormat AGXToSRGBFormat(MTLPixelFormat LinMTLFormat);
 
-uint8 AGXGetMetalPixelFormatKey(mtlpp::PixelFormat Format);
+uint8 AGXGetMetalPixelFormatKey(MTLPixelFormat Format);
 
 template<typename TRHIType>
 static FORCEINLINE typename TAGXResourceTraits<TRHIType>::TConcreteType* ResourceCast(TRHIType* Resource)

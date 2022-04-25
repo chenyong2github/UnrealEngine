@@ -628,153 +628,153 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 #if METAL_DEBUG_OPTIONS
 	FMemory::Memset(GAGXBufferFormats, 255);
 #endif
-	GAGXBufferFormats[PF_Unknown              ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_A32B32G32R32F        ] = { mtlpp::PixelFormat::RGBA32Float, (uint8)EMetalBufferFormat::RGBA32Float };
-	GAGXBufferFormats[PF_B8G8R8A8             ] = { mtlpp::PixelFormat::RGBA8Unorm, (uint8)EMetalBufferFormat::RGBA8Unorm }; // mtlpp::PixelFormat::BGRA8Unorm/EMetalBufferFormat::BGRA8Unorm,  < We don't support this as a vertex-format so we have code to swizzle in the shader
-	GAGXBufferFormats[PF_G8                   ] = { mtlpp::PixelFormat::R8Unorm, (uint8)EMetalBufferFormat::R8Unorm };
-	GAGXBufferFormats[PF_G16                  ] = { mtlpp::PixelFormat::R16Unorm, (uint8)EMetalBufferFormat::R16Unorm };
-	GAGXBufferFormats[PF_DXT1                 ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_DXT3                 ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_DXT5                 ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_UYVY                 ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_FloatRGB             ] = { mtlpp::PixelFormat::RG11B10Float, (uint8)EMetalBufferFormat::RG11B10Half };
-	GAGXBufferFormats[PF_FloatRGBA            ] = { mtlpp::PixelFormat::RGBA16Float, (uint8)EMetalBufferFormat::RGBA16Half };
-	GAGXBufferFormats[PF_DepthStencil         ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ShadowDepth          ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_R32_FLOAT            ] = { mtlpp::PixelFormat::R32Float, (uint8)EMetalBufferFormat::R32Float };
-	GAGXBufferFormats[PF_G16R16               ] = { mtlpp::PixelFormat::RG16Unorm, (uint8)EMetalBufferFormat::RG16Unorm };
-	GAGXBufferFormats[PF_G16R16F              ] = { mtlpp::PixelFormat::RG16Float, (uint8)EMetalBufferFormat::RG16Half };
-	GAGXBufferFormats[PF_G16R16F_FILTER       ] = { mtlpp::PixelFormat::RG16Float, (uint8)EMetalBufferFormat::RG16Half };
-	GAGXBufferFormats[PF_G32R32F              ] = { mtlpp::PixelFormat::RG32Float, (uint8)EMetalBufferFormat::RG32Float };
-	GAGXBufferFormats[PF_A2B10G10R10          ] = { mtlpp::PixelFormat::RGB10A2Unorm, (uint8)EMetalBufferFormat::RGB10A2Unorm };
-	GAGXBufferFormats[PF_A16B16G16R16         ] = { mtlpp::PixelFormat::RGBA16Unorm, (uint8)EMetalBufferFormat::RGBA16Half };
-	GAGXBufferFormats[PF_D24                  ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_R16F                 ] = { mtlpp::PixelFormat::R16Float, (uint8)EMetalBufferFormat::RG16Half };
-	GAGXBufferFormats[PF_R16F_FILTER          ] = { mtlpp::PixelFormat::R16Float, (uint8)EMetalBufferFormat::RG16Half };
-	GAGXBufferFormats[PF_BC5                  ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_V8U8                 ] = { mtlpp::PixelFormat::RG8Snorm, (uint8)EMetalBufferFormat::RG8Unorm };
-	GAGXBufferFormats[PF_A1                   ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_FloatR11G11B10       ] = { mtlpp::PixelFormat::RG11B10Float, (uint8)EMetalBufferFormat::RG11B10Half }; // < May not work on tvOS
-	GAGXBufferFormats[PF_A8                   ] = { mtlpp::PixelFormat::A8Unorm, (uint8)EMetalBufferFormat::R8Unorm };
-	GAGXBufferFormats[PF_R32_UINT             ] = { mtlpp::PixelFormat::R32Uint, (uint8)EMetalBufferFormat::R32Uint };
-	GAGXBufferFormats[PF_R32_SINT             ] = { mtlpp::PixelFormat::R32Sint, (uint8)EMetalBufferFormat::R32Sint };
-	GAGXBufferFormats[PF_PVRTC2               ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_PVRTC4               ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_R16_UINT             ] = { mtlpp::PixelFormat::R16Uint, (uint8)EMetalBufferFormat::R16Uint };
-	GAGXBufferFormats[PF_R16_SINT             ] = { mtlpp::PixelFormat::R16Sint, (uint8)EMetalBufferFormat::R16Sint };
-	GAGXBufferFormats[PF_R16G16B16A16_UINT    ] = { mtlpp::PixelFormat::RGBA16Uint, (uint8)EMetalBufferFormat::RGBA16Uint };
-	GAGXBufferFormats[PF_R16G16B16A16_SINT    ] = { mtlpp::PixelFormat::RGBA16Sint, (uint8)EMetalBufferFormat::RGBA16Sint };
-	GAGXBufferFormats[PF_R5G6B5_UNORM         ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::R5G6B5Unorm };
-	GAGXBufferFormats[PF_B5G5R5A1_UNORM       ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::B5G5R5A1Unorm };
-	GAGXBufferFormats[PF_R8G8B8A8             ] = { mtlpp::PixelFormat::RGBA8Unorm, (uint8)EMetalBufferFormat::RGBA8Unorm };
-	GAGXBufferFormats[PF_A8R8G8B8             ] = { mtlpp::PixelFormat::RGBA8Unorm, (uint8)EMetalBufferFormat::RGBA8Unorm }; // mtlpp::PixelFormat::BGRA8Unorm/EMetalBufferFormat::BGRA8Unorm,  < We don't support this as a vertex-format so we have code to swizzle in the shader
-	GAGXBufferFormats[PF_BC4                  ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_R8G8                 ] = { mtlpp::PixelFormat::RG8Unorm, (uint8)EMetalBufferFormat::RG8Unorm };
-	GAGXBufferFormats[PF_ATC_RGB              ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ATC_RGBA_E           ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ATC_RGBA_I           ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_X24_G8               ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ETC1                 ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ETC2_RGB             ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ETC2_RGBA            ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_R32G32B32A32_UINT    ] = { mtlpp::PixelFormat::RGBA32Uint, (uint8)EMetalBufferFormat::RGBA32Uint };
-	GAGXBufferFormats[PF_R16G16_UINT          ] = { mtlpp::PixelFormat::RG16Uint, (uint8)EMetalBufferFormat::RG16Uint };
-	GAGXBufferFormats[PF_R32G32_UINT          ] = { mtlpp::PixelFormat::RG32Uint, (uint8)EMetalBufferFormat::RG32Uint };
-	GAGXBufferFormats[PF_ASTC_4x4             ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ASTC_6x6             ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ASTC_8x8             ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ASTC_10x10           ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ASTC_12x12           ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ASTC_4x4_HDR         ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ASTC_6x6_HDR         ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ASTC_8x8_HDR         ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ASTC_10x10_HDR       ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ASTC_12x12_HDR       ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_BC6H                 ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_BC7                  ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_R8_UINT              ] = { mtlpp::PixelFormat::R8Uint, (uint8)EMetalBufferFormat::R8Uint };
-	GAGXBufferFormats[PF_R8                   ] = { mtlpp::PixelFormat::R8Unorm, (uint8)EMetalBufferFormat::R8Unorm };
-	GAGXBufferFormats[PF_L8                   ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::R8Unorm };
-	GAGXBufferFormats[PF_XGXR8                ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_R8G8B8A8_UINT        ] = { mtlpp::PixelFormat::RGBA8Uint, (uint8)EMetalBufferFormat::RGBA8Uint };
-	GAGXBufferFormats[PF_R8G8B8A8_SNORM       ] = { mtlpp::PixelFormat::RGBA8Snorm, (uint8)EMetalBufferFormat::RGBA8Snorm };
-	GAGXBufferFormats[PF_R16G16B16A16_UNORM   ] = { mtlpp::PixelFormat::RGBA16Unorm, (uint8)EMetalBufferFormat::RGBA16Unorm };
-	GAGXBufferFormats[PF_R16G16B16A16_SNORM   ] = { mtlpp::PixelFormat::RGBA16Snorm, (uint8)EMetalBufferFormat::RGBA16Snorm };
-	GAGXBufferFormats[PF_PLATFORM_HDR_0       ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_PLATFORM_HDR_1       ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_PLATFORM_HDR_2       ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_NV12                 ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_Unknown              ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_A32B32G32R32F        ] = { MTLPixelFormatRGBA32Float, (uint8)EMetalBufferFormat::RGBA32Float };
+	GAGXBufferFormats[PF_B8G8R8A8             ] = { MTLPixelFormatRGBA8Unorm, (uint8)EMetalBufferFormat::RGBA8Unorm }; // MTLPixelFormatBGRA8Unorm/EMetalBufferFormat::BGRA8Unorm,  < We don't support this as a vertex-format so we have code to swizzle in the shader
+	GAGXBufferFormats[PF_G8                   ] = { MTLPixelFormatR8Unorm, (uint8)EMetalBufferFormat::R8Unorm };
+	GAGXBufferFormats[PF_G16                  ] = { MTLPixelFormatR16Unorm, (uint8)EMetalBufferFormat::R16Unorm };
+	GAGXBufferFormats[PF_DXT1                 ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_DXT3                 ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_DXT5                 ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_UYVY                 ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_FloatRGB             ] = { MTLPixelFormatRG11B10Float, (uint8)EMetalBufferFormat::RG11B10Half };
+	GAGXBufferFormats[PF_FloatRGBA            ] = { MTLPixelFormatRGBA16Float, (uint8)EMetalBufferFormat::RGBA16Half };
+	GAGXBufferFormats[PF_DepthStencil         ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ShadowDepth          ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_R32_FLOAT            ] = { MTLPixelFormatR32Float, (uint8)EMetalBufferFormat::R32Float };
+	GAGXBufferFormats[PF_G16R16               ] = { MTLPixelFormatRG16Unorm, (uint8)EMetalBufferFormat::RG16Unorm };
+	GAGXBufferFormats[PF_G16R16F              ] = { MTLPixelFormatRG16Float, (uint8)EMetalBufferFormat::RG16Half };
+	GAGXBufferFormats[PF_G16R16F_FILTER       ] = { MTLPixelFormatRG16Float, (uint8)EMetalBufferFormat::RG16Half };
+	GAGXBufferFormats[PF_G32R32F              ] = { MTLPixelFormatRG32Float, (uint8)EMetalBufferFormat::RG32Float };
+	GAGXBufferFormats[PF_A2B10G10R10          ] = { MTLPixelFormatRGB10A2Unorm, (uint8)EMetalBufferFormat::RGB10A2Unorm };
+	GAGXBufferFormats[PF_A16B16G16R16         ] = { MTLPixelFormatRGBA16Unorm, (uint8)EMetalBufferFormat::RGBA16Half };
+	GAGXBufferFormats[PF_D24                  ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_R16F                 ] = { MTLPixelFormatR16Float, (uint8)EMetalBufferFormat::RG16Half };
+	GAGXBufferFormats[PF_R16F_FILTER          ] = { MTLPixelFormatR16Float, (uint8)EMetalBufferFormat::RG16Half };
+	GAGXBufferFormats[PF_BC5                  ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_V8U8                 ] = { MTLPixelFormatRG8Snorm, (uint8)EMetalBufferFormat::RG8Unorm };
+	GAGXBufferFormats[PF_A1                   ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_FloatR11G11B10       ] = { MTLPixelFormatRG11B10Float, (uint8)EMetalBufferFormat::RG11B10Half }; // < May not work on tvOS
+	GAGXBufferFormats[PF_A8                   ] = { MTLPixelFormatA8Unorm, (uint8)EMetalBufferFormat::R8Unorm };
+	GAGXBufferFormats[PF_R32_UINT             ] = { MTLPixelFormatR32Uint, (uint8)EMetalBufferFormat::R32Uint };
+	GAGXBufferFormats[PF_R32_SINT             ] = { MTLPixelFormatR32Sint, (uint8)EMetalBufferFormat::R32Sint };
+	GAGXBufferFormats[PF_PVRTC2               ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_PVRTC4               ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_R16_UINT             ] = { MTLPixelFormatR16Uint, (uint8)EMetalBufferFormat::R16Uint };
+	GAGXBufferFormats[PF_R16_SINT             ] = { MTLPixelFormatR16Sint, (uint8)EMetalBufferFormat::R16Sint };
+	GAGXBufferFormats[PF_R16G16B16A16_UINT    ] = { MTLPixelFormatRGBA16Uint, (uint8)EMetalBufferFormat::RGBA16Uint };
+	GAGXBufferFormats[PF_R16G16B16A16_SINT    ] = { MTLPixelFormatRGBA16Sint, (uint8)EMetalBufferFormat::RGBA16Sint };
+	GAGXBufferFormats[PF_R5G6B5_UNORM         ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::R5G6B5Unorm };
+	GAGXBufferFormats[PF_B5G5R5A1_UNORM       ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::B5G5R5A1Unorm };
+	GAGXBufferFormats[PF_R8G8B8A8             ] = { MTLPixelFormatRGBA8Unorm, (uint8)EMetalBufferFormat::RGBA8Unorm };
+	GAGXBufferFormats[PF_A8R8G8B8             ] = { MTLPixelFormatRGBA8Unorm, (uint8)EMetalBufferFormat::RGBA8Unorm }; // MTLPixelFormatBGRA8Unorm/EMetalBufferFormat::BGRA8Unorm,  < We don't support this as a vertex-format so we have code to swizzle in the shader
+	GAGXBufferFormats[PF_BC4                  ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_R8G8                 ] = { MTLPixelFormatRG8Unorm, (uint8)EMetalBufferFormat::RG8Unorm };
+	GAGXBufferFormats[PF_ATC_RGB              ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ATC_RGBA_E           ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ATC_RGBA_I           ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_X24_G8               ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ETC1                 ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ETC2_RGB             ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ETC2_RGBA            ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_R32G32B32A32_UINT    ] = { MTLPixelFormatRGBA32Uint, (uint8)EMetalBufferFormat::RGBA32Uint };
+	GAGXBufferFormats[PF_R16G16_UINT          ] = { MTLPixelFormatRG16Uint, (uint8)EMetalBufferFormat::RG16Uint };
+	GAGXBufferFormats[PF_R32G32_UINT          ] = { MTLPixelFormatRG32Uint, (uint8)EMetalBufferFormat::RG32Uint };
+	GAGXBufferFormats[PF_ASTC_4x4             ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ASTC_6x6             ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ASTC_8x8             ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ASTC_10x10           ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ASTC_12x12           ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ASTC_4x4_HDR         ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ASTC_6x6_HDR         ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ASTC_8x8_HDR         ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ASTC_10x10_HDR       ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ASTC_12x12_HDR       ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_BC6H                 ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_BC7                  ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_R8_UINT              ] = { MTLPixelFormatR8Uint, (uint8)EMetalBufferFormat::R8Uint };
+	GAGXBufferFormats[PF_R8                   ] = { MTLPixelFormatR8Unorm, (uint8)EMetalBufferFormat::R8Unorm };
+	GAGXBufferFormats[PF_L8                   ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::R8Unorm };
+	GAGXBufferFormats[PF_XGXR8                ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_R8G8B8A8_UINT        ] = { MTLPixelFormatRGBA8Uint, (uint8)EMetalBufferFormat::RGBA8Uint };
+	GAGXBufferFormats[PF_R8G8B8A8_SNORM       ] = { MTLPixelFormatRGBA8Snorm, (uint8)EMetalBufferFormat::RGBA8Snorm };
+	GAGXBufferFormats[PF_R16G16B16A16_UNORM   ] = { MTLPixelFormatRGBA16Unorm, (uint8)EMetalBufferFormat::RGBA16Unorm };
+	GAGXBufferFormats[PF_R16G16B16A16_SNORM   ] = { MTLPixelFormatRGBA16Snorm, (uint8)EMetalBufferFormat::RGBA16Snorm };
+	GAGXBufferFormats[PF_PLATFORM_HDR_0       ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_PLATFORM_HDR_1       ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_PLATFORM_HDR_2       ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_NV12                 ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
 	
-	GAGXBufferFormats[PF_ETC2_R11_EAC         ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_ETC2_RG11_EAC        ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ETC2_R11_EAC         ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_ETC2_RG11_EAC        ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
 
-	GAGXBufferFormats[PF_G16R16_SNORM         ] = { mtlpp::PixelFormat::RG16Snorm, (uint8)EMetalBufferFormat::RG16Snorm };
-	GAGXBufferFormats[PF_R8G8_UINT            ] = { mtlpp::PixelFormat::RG8Uint, (uint8)EMetalBufferFormat::RG8Uint };
-	GAGXBufferFormats[PF_R32G32B32_UINT       ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_R32G32B32_SINT       ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_R32G32B32F           ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
-	GAGXBufferFormats[PF_R8_SINT              ] = { mtlpp::PixelFormat::R8Sint, (uint8)EMetalBufferFormat::R8Sint };
-	GAGXBufferFormats[PF_R64_UINT             ] = { mtlpp::PixelFormat::Invalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_G16R16_SNORM         ] = { MTLPixelFormatRG16Snorm, (uint8)EMetalBufferFormat::RG16Snorm };
+	GAGXBufferFormats[PF_R8G8_UINT            ] = { MTLPixelFormatRG8Uint, (uint8)EMetalBufferFormat::RG8Uint };
+	GAGXBufferFormats[PF_R32G32B32_UINT       ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_R32G32B32_SINT       ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_R32G32B32F           ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
+	GAGXBufferFormats[PF_R8_SINT              ] = { MTLPixelFormatR8Sint, (uint8)EMetalBufferFormat::R8Sint };
+	GAGXBufferFormats[PF_R64_UINT             ] = { MTLPixelFormatInvalid, (uint8)EMetalBufferFormat::Unknown };
 
 	// Initialize the platform pixel format map.
-	GPixelFormats[PF_Unknown			].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
-	GPixelFormats[PF_A32B32G32R32F		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA32Float;
-	GPixelFormats[PF_B8G8R8A8			].PlatformFormat	= (uint32)mtlpp::PixelFormat::BGRA8Unorm;
-	GPixelFormats[PF_G8					].PlatformFormat	= (uint32)mtlpp::PixelFormat::R8Unorm;
-	GPixelFormats[PF_G16				].PlatformFormat	= (uint32)mtlpp::PixelFormat::R16Unorm;
-	GPixelFormats[PF_R32G32B32A32_UINT	].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA32Uint;
-	GPixelFormats[PF_R16G16_UINT		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG16Uint;
-	GPixelFormats[PF_R32G32_UINT		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG32Uint;
+	GPixelFormats[PF_Unknown			].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
+	GPixelFormats[PF_A32B32G32R32F		].PlatformFormat	= (uint32)MTLPixelFormatRGBA32Float;
+	GPixelFormats[PF_B8G8R8A8			].PlatformFormat	= (uint32)MTLPixelFormatBGRA8Unorm;
+	GPixelFormats[PF_G8					].PlatformFormat	= (uint32)MTLPixelFormatR8Unorm;
+	GPixelFormats[PF_G16				].PlatformFormat	= (uint32)MTLPixelFormatR16Unorm;
+	GPixelFormats[PF_R32G32B32A32_UINT	].PlatformFormat	= (uint32)MTLPixelFormatRGBA32Uint;
+	GPixelFormats[PF_R16G16_UINT		].PlatformFormat	= (uint32)MTLPixelFormatRG16Uint;
+	GPixelFormats[PF_R32G32_UINT		].PlatformFormat	= (uint32)MTLPixelFormatRG32Uint;
 		
 #if PLATFORM_IOS
-    GPixelFormats[PF_DXT1				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+    GPixelFormats[PF_DXT1				].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 	GPixelFormats[PF_DXT1				].Supported			= false;
-    GPixelFormats[PF_DXT3				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+    GPixelFormats[PF_DXT3				].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 	GPixelFormats[PF_DXT3				].Supported			= false;
-    GPixelFormats[PF_DXT5				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+    GPixelFormats[PF_DXT5				].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 	GPixelFormats[PF_DXT5				].Supported			= false;
-	GPixelFormats[PF_BC5				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+	GPixelFormats[PF_BC5				].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 	GPixelFormats[PF_BC5				].Supported			= false;
-	GPixelFormats[PF_PVRTC2				].PlatformFormat	= (uint32)mtlpp::PixelFormat::PVRTC_RGBA_2BPP;
+	GPixelFormats[PF_PVRTC2				].PlatformFormat	= (uint32)MTLPixelFormatPVRTC_RGBA_2BPP;
 	GPixelFormats[PF_PVRTC2				].Supported			= true;
-	GPixelFormats[PF_PVRTC4				].PlatformFormat	= (uint32)mtlpp::PixelFormat::PVRTC_RGBA_4BPP;
+	GPixelFormats[PF_PVRTC4				].PlatformFormat	= (uint32)MTLPixelFormatPVRTC_RGBA_4BPP;
 	GPixelFormats[PF_PVRTC4				].Supported			= true;
-	GPixelFormats[PF_PVRTC4				].PlatformFormat	= (uint32)mtlpp::PixelFormat::PVRTC_RGBA_4BPP;
+	GPixelFormats[PF_PVRTC4				].PlatformFormat	= (uint32)MTLPixelFormatPVRTC_RGBA_4BPP;
 	GPixelFormats[PF_PVRTC4				].Supported			= true;
-	GPixelFormats[PF_ASTC_4x4			].PlatformFormat	= (uint32)mtlpp::PixelFormat::ASTC_4x4_LDR;
+	GPixelFormats[PF_ASTC_4x4			].PlatformFormat	= (uint32)MTLPixelFormatASTC_4x4_LDR;
 	GPixelFormats[PF_ASTC_4x4			].Supported			= true;
-	GPixelFormats[PF_ASTC_6x6			].PlatformFormat	= (uint32)mtlpp::PixelFormat::ASTC_6x6_LDR;
+	GPixelFormats[PF_ASTC_6x6			].PlatformFormat	= (uint32)MTLPixelFormatASTC_6x6_LDR;
 	GPixelFormats[PF_ASTC_6x6			].Supported			= true;
-	GPixelFormats[PF_ASTC_8x8			].PlatformFormat	= (uint32)mtlpp::PixelFormat::ASTC_8x8_LDR;
+	GPixelFormats[PF_ASTC_8x8			].PlatformFormat	= (uint32)MTLPixelFormatASTC_8x8_LDR;
 	GPixelFormats[PF_ASTC_8x8			].Supported			= true;
-	GPixelFormats[PF_ASTC_10x10			].PlatformFormat	= (uint32)mtlpp::PixelFormat::ASTC_10x10_LDR;
+	GPixelFormats[PF_ASTC_10x10			].PlatformFormat	= (uint32)MTLPixelFormatASTC_10x10_LDR;
 	GPixelFormats[PF_ASTC_10x10			].Supported			= true;
-	GPixelFormats[PF_ASTC_12x12			].PlatformFormat	= (uint32)mtlpp::PixelFormat::ASTC_12x12_LDR;
+	GPixelFormats[PF_ASTC_12x12			].PlatformFormat	= (uint32)MTLPixelFormatASTC_12x12_LDR;
 	GPixelFormats[PF_ASTC_12x12			].Supported			= true;
 
 #if !PLATFORM_TVOS
 	if ([GMtlDevice supportsFamily:MTLGPUFamilyApple6])
 	{
-		GPixelFormats[PF_ASTC_4x4_HDR].PlatformFormat		= (uint32)mtlpp::PixelFormat::ASTC_4x4_HDR;
+		GPixelFormats[PF_ASTC_4x4_HDR].PlatformFormat		= (uint32)MTLPixelFormatASTC_4x4_HDR;
 		GPixelFormats[PF_ASTC_4x4_HDR].Supported			= true;
-		GPixelFormats[PF_ASTC_6x6_HDR].PlatformFormat		= (uint32)mtlpp::PixelFormat::ASTC_6x6_HDR;
+		GPixelFormats[PF_ASTC_6x6_HDR].PlatformFormat		= (uint32)MTLPixelFormatASTC_6x6_HDR;
 		GPixelFormats[PF_ASTC_6x6_HDR].Supported			= true;
-		GPixelFormats[PF_ASTC_8x8_HDR].PlatformFormat		= (uint32)mtlpp::PixelFormat::ASTC_8x8_HDR;
+		GPixelFormats[PF_ASTC_8x8_HDR].PlatformFormat		= (uint32)MTLPixelFormatASTC_8x8_HDR;
 		GPixelFormats[PF_ASTC_8x8_HDR].Supported			= true;
-		GPixelFormats[PF_ASTC_10x10_HDR].PlatformFormat		= (uint32)mtlpp::PixelFormat::ASTC_10x10_HDR;
+		GPixelFormats[PF_ASTC_10x10_HDR].PlatformFormat		= (uint32)MTLPixelFormatASTC_10x10_HDR;
 		GPixelFormats[PF_ASTC_10x10_HDR].Supported			= true;
-		GPixelFormats[PF_ASTC_12x12_HDR].PlatformFormat		= (uint32)mtlpp::PixelFormat::ASTC_12x12_HDR;
+		GPixelFormats[PF_ASTC_12x12_HDR].PlatformFormat		= (uint32)MTLPixelFormatASTC_12x12_HDR;
 		GPixelFormats[PF_ASTC_12x12_HDR].Supported			= true;
 	}
 #endif
 	// used with virtual textures
-	GPixelFormats[PF_ETC2_RGB	  		].PlatformFormat	= (uint32)mtlpp::PixelFormat::ETC2_RGB8;
+	GPixelFormats[PF_ETC2_RGB	  		].PlatformFormat	= (uint32)MTLPixelFormatETC2_RGB8;
 	GPixelFormats[PF_ETC2_RGB			].Supported			= true;
-	GPixelFormats[PF_ETC2_RGBA	  		].PlatformFormat	= (uint32)mtlpp::PixelFormat::EAC_RGBA8;
+	GPixelFormats[PF_ETC2_RGBA	  		].PlatformFormat	= (uint32)MTLPixelFormatEAC_RGBA8;
 	GPixelFormats[PF_ETC2_RGBA			].Supported			= true;
-	GPixelFormats[PF_ETC2_R11_EAC	  	].PlatformFormat	= (uint32)mtlpp::PixelFormat::EAC_R11Unorm;
+	GPixelFormats[PF_ETC2_R11_EAC	  	].PlatformFormat	= (uint32)MTLPixelFormatEAC_R11Unorm;
 	GPixelFormats[PF_ETC2_R11_EAC		].Supported			= true;
-	GPixelFormats[PF_ETC2_RG11_EAC		].PlatformFormat	= (uint32)mtlpp::PixelFormat::EAC_RG11Unorm;
+	GPixelFormats[PF_ETC2_RG11_EAC		].PlatformFormat	= (uint32)MTLPixelFormatEAC_RG11Unorm;
 	GPixelFormats[PF_ETC2_RG11_EAC		].Supported			= true;
 
 	// IOS HDR format is BGR10_XR (32bits, 3 components)
@@ -783,7 +783,7 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GPixelFormats[PF_PLATFORM_HDR_0		].BlockSizeZ		= 1;
 	GPixelFormats[PF_PLATFORM_HDR_0		].BlockBytes		= 4;
 	GPixelFormats[PF_PLATFORM_HDR_0		].NumComponents		= 3;
-	GPixelFormats[PF_PLATFORM_HDR_0		].PlatformFormat	= (uint32)mtlpp::PixelFormat::BGR10_XR_sRGB;
+	GPixelFormats[PF_PLATFORM_HDR_0		].PlatformFormat	= (uint32)MTLPixelFormatBGR10_XR_sRGB;
 	GPixelFormats[PF_PLATFORM_HDR_0		].Supported			= GRHISupportsHDROutput;
 		
 #if PLATFORM_TVOS
@@ -792,43 +792,43 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if (![GMtlDevice supportsFeatureSet:MTLFeatureSet_iOS_GPUFamily3_v2])
 #endif
 	{
-		GPixelFormats[PF_FloatRGB			].PlatformFormat 	= (uint32)mtlpp::PixelFormat::RGBA16Float;
+		GPixelFormats[PF_FloatRGB			].PlatformFormat 	= (uint32)MTLPixelFormatRGBA16Float;
 		GPixelFormats[PF_FloatRGBA			].BlockBytes		= 8;
-		GPixelFormats[PF_FloatR11G11B10		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA16Float;
+		GPixelFormats[PF_FloatR11G11B10		].PlatformFormat	= (uint32)MTLPixelFormatRGBA16Float;
 		GPixelFormats[PF_FloatR11G11B10		].BlockBytes		= 8;
 		GPixelFormats[PF_FloatR11G11B10		].Supported			= true;
 	}
 	else
 	{
-		GPixelFormats[PF_FloatRGB			].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG11B10Float;
+		GPixelFormats[PF_FloatRGB			].PlatformFormat	= (uint32)MTLPixelFormatRG11B10Float;
 		GPixelFormats[PF_FloatRGB			].BlockBytes		= 4;
-		GPixelFormats[PF_FloatR11G11B10		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG11B10Float;
+		GPixelFormats[PF_FloatR11G11B10		].PlatformFormat	= (uint32)MTLPixelFormatRG11B10Float;
 		GPixelFormats[PF_FloatR11G11B10		].BlockBytes		= 4;
 		GPixelFormats[PF_FloatR11G11B10		].Supported			= true;
 	}
 	
-		GPixelFormats[PF_DepthStencil		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth32Float_Stencil8;
+		GPixelFormats[PF_DepthStencil		].PlatformFormat	= (uint32)MTLPixelFormatDepth32Float_Stencil8;
 		GPixelFormats[PF_DepthStencil		].BlockBytes		= 4;
 
 	GPixelFormats[PF_DepthStencil		].Supported			= true;
-	GPixelFormats[PF_ShadowDepth		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth32Float;
+	GPixelFormats[PF_ShadowDepth		].PlatformFormat	= (uint32)MTLPixelFormatDepth32Float;
 	GPixelFormats[PF_ShadowDepth		].BlockBytes		= 4;
 	GPixelFormats[PF_ShadowDepth		].Supported			= true;
 		
-	GPixelFormats[PF_BC5				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
-	GPixelFormats[PF_R5G6B5_UNORM		].PlatformFormat	= (uint32)mtlpp::PixelFormat::B5G6R5Unorm;
+	GPixelFormats[PF_BC5				].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
+	GPixelFormats[PF_R5G6B5_UNORM		].PlatformFormat	= (uint32)MTLPixelFormatB5G6R5Unorm;
 	GPixelFormats[PF_R5G6B5_UNORM       ].Supported         = true;
-	GPixelFormats[PF_B5G5R5A1_UNORM     ].PlatformFormat    = (uint32)mtlpp::PixelFormat::BGR5A1Unorm;
+	GPixelFormats[PF_B5G5R5A1_UNORM     ].PlatformFormat    = (uint32)MTLPixelFormatBGR5A1Unorm;
 	GPixelFormats[PF_B5G5R5A1_UNORM     ].Supported         = true;
 #else
-    GPixelFormats[PF_DXT1				].PlatformFormat	= (uint32)mtlpp::PixelFormat::BC1_RGBA;
-    GPixelFormats[PF_DXT3				].PlatformFormat	= (uint32)mtlpp::PixelFormat::BC2_RGBA;
-    GPixelFormats[PF_DXT5				].PlatformFormat	= (uint32)mtlpp::PixelFormat::BC3_RGBA;
+    GPixelFormats[PF_DXT1				].PlatformFormat	= (uint32)MTLPixelFormatBC1_RGBA;
+    GPixelFormats[PF_DXT3				].PlatformFormat	= (uint32)MTLPixelFormatBC2_RGBA;
+    GPixelFormats[PF_DXT5				].PlatformFormat	= (uint32)MTLPixelFormatBC3_RGBA;
 	
-	GPixelFormats[PF_FloatRGB			].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG11B10Float;
+	GPixelFormats[PF_FloatRGB			].PlatformFormat	= (uint32)MTLPixelFormatRG11B10Float;
 	GPixelFormats[PF_FloatRGB			].BlockBytes		= 4;
 	
-	GPixelFormats[PF_FloatR11G11B10		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG11B10Float;
+	GPixelFormats[PF_FloatR11G11B10		].PlatformFormat	= (uint32)MTLPixelFormatRG11B10Float;
 	GPixelFormats[PF_FloatR11G11B10		].BlockBytes		= 4;
 	GPixelFormats[PF_FloatR11G11B10		].Supported			= true;
 	
@@ -838,101 +838,101 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GPixelFormats[PF_PLATFORM_HDR_0		].BlockSizeZ		= 1;
 	GPixelFormats[PF_PLATFORM_HDR_0		].BlockBytes		= 8;
 	GPixelFormats[PF_PLATFORM_HDR_0		].NumComponents		= 4;
-	GPixelFormats[PF_PLATFORM_HDR_0		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA16Float;
+	GPixelFormats[PF_PLATFORM_HDR_0		].PlatformFormat	= (uint32)MTLPixelFormatRGBA16Float;
 	GPixelFormats[PF_PLATFORM_HDR_0		].Supported			= GRHISupportsHDROutput;
 		
 	// Use Depth28_Stencil8 when it is available for consistency
 	if(bSupportsD24S8)
 	{
-		GPixelFormats[PF_DepthStencil	].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth24Unorm_Stencil8;
+		GPixelFormats[PF_DepthStencil	].PlatformFormat	= (uint32)MTLPixelFormatDepth24Unorm_Stencil8;
 	}
 	else
 	{
-		GPixelFormats[PF_DepthStencil	].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth32Float_Stencil8;
+		GPixelFormats[PF_DepthStencil	].PlatformFormat	= (uint32)MTLPixelFormatDepth32Float_Stencil8;
 	}
 	GPixelFormats[PF_DepthStencil		].BlockBytes		= 4;
 	GPixelFormats[PF_DepthStencil		].Supported			= true;
 	if (bSupportsD16)
 	{
-		GPixelFormats[PF_ShadowDepth		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth16Unorm;
+		GPixelFormats[PF_ShadowDepth		].PlatformFormat	= (uint32)MTLPixelFormatDepth16Unorm;
 		GPixelFormats[PF_ShadowDepth		].BlockBytes		= 2;
 	}
 	else
 	{
-		GPixelFormats[PF_ShadowDepth		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth32Float;
+		GPixelFormats[PF_ShadowDepth		].PlatformFormat	= (uint32)MTLPixelFormatDepth32Float;
 		GPixelFormats[PF_ShadowDepth		].BlockBytes		= 4;
 	}
 	GPixelFormats[PF_ShadowDepth		].Supported			= true;
 	if(bSupportsD24S8)
 	{
-		GPixelFormats[PF_D24			].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth24Unorm_Stencil8;
+		GPixelFormats[PF_D24			].PlatformFormat	= (uint32)MTLPixelFormatDepth24Unorm_Stencil8;
 	}
 	else
 	{
-		GPixelFormats[PF_D24			].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth32Float;
+		GPixelFormats[PF_D24			].PlatformFormat	= (uint32)MTLPixelFormatDepth32Float;
 	}
 	GPixelFormats[PF_D24				].Supported			= true;
 	GPixelFormats[PF_BC4				].Supported			= true;
-	GPixelFormats[PF_BC4				].PlatformFormat	= (uint32)mtlpp::PixelFormat::BC4_RUnorm;
+	GPixelFormats[PF_BC4				].PlatformFormat	= (uint32)MTLPixelFormatBC4_RUnorm;
 	GPixelFormats[PF_BC5				].Supported			= true;
-	GPixelFormats[PF_BC5				].PlatformFormat	= (uint32)mtlpp::PixelFormat::BC5_RGUnorm;
+	GPixelFormats[PF_BC5				].PlatformFormat	= (uint32)MTLPixelFormatBC5_RGUnorm;
 	GPixelFormats[PF_BC6H				].Supported			= true;
-	GPixelFormats[PF_BC6H               ].PlatformFormat	= (uint32)mtlpp::PixelFormat::BC6H_RGBUfloat;
+	GPixelFormats[PF_BC6H               ].PlatformFormat	= (uint32)MTLPixelFormatBC6H_RGBUfloat;
 	GPixelFormats[PF_BC7				].Supported			= true;
-	GPixelFormats[PF_BC7				].PlatformFormat	= (uint32)mtlpp::PixelFormat::BC7_RGBAUnorm;
-	GPixelFormats[PF_R5G6B5_UNORM		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
-	GPixelFormats[PF_B5G5R5A1_UNORM		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+	GPixelFormats[PF_BC7				].PlatformFormat	= (uint32)MTLPixelFormatBC7_RGBAUnorm;
+	GPixelFormats[PF_R5G6B5_UNORM		].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
+	GPixelFormats[PF_B5G5R5A1_UNORM		].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 #endif
-	GPixelFormats[PF_UYVY				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
-	GPixelFormats[PF_FloatRGBA			].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA16Float;
+	GPixelFormats[PF_UYVY				].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
+	GPixelFormats[PF_FloatRGBA			].PlatformFormat	= (uint32)MTLPixelFormatRGBA16Float;
 	GPixelFormats[PF_FloatRGBA			].BlockBytes		= 8;
-    GPixelFormats[PF_X24_G8				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Stencil8;
+    GPixelFormats[PF_X24_G8				].PlatformFormat	= (uint32)MTLPixelFormatStencil8;
     GPixelFormats[PF_X24_G8				].BlockBytes		= 1;
-	GPixelFormats[PF_R32_FLOAT			].PlatformFormat	= (uint32)mtlpp::PixelFormat::R32Float;
-	GPixelFormats[PF_G16R16				].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG16Unorm;
+	GPixelFormats[PF_R32_FLOAT			].PlatformFormat	= (uint32)MTLPixelFormatR32Float;
+	GPixelFormats[PF_G16R16				].PlatformFormat	= (uint32)MTLPixelFormatRG16Unorm;
 	GPixelFormats[PF_G16R16				].Supported			= true;
-	GPixelFormats[PF_G16R16F			].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG16Float;
-	GPixelFormats[PF_G16R16F_FILTER		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG16Float;
-	GPixelFormats[PF_G32R32F			].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG32Float;
-	GPixelFormats[PF_A2B10G10R10		].PlatformFormat    = (uint32)mtlpp::PixelFormat::RGB10A2Unorm;
-	GPixelFormats[PF_A16B16G16R16		].PlatformFormat    = (uint32)mtlpp::PixelFormat::RGBA16Unorm;
-	GPixelFormats[PF_R16F				].PlatformFormat	= (uint32)mtlpp::PixelFormat::R16Float;
-	GPixelFormats[PF_R16F_FILTER		].PlatformFormat	= (uint32)mtlpp::PixelFormat::R16Float;
-	GPixelFormats[PF_V8U8				].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG8Snorm;
-	GPixelFormats[PF_A1					].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+	GPixelFormats[PF_G16R16F			].PlatformFormat	= (uint32)MTLPixelFormatRG16Float;
+	GPixelFormats[PF_G16R16F_FILTER		].PlatformFormat	= (uint32)MTLPixelFormatRG16Float;
+	GPixelFormats[PF_G32R32F			].PlatformFormat	= (uint32)MTLPixelFormatRG32Float;
+	GPixelFormats[PF_A2B10G10R10		].PlatformFormat    = (uint32)MTLPixelFormatRGB10A2Unorm;
+	GPixelFormats[PF_A16B16G16R16		].PlatformFormat    = (uint32)MTLPixelFormatRGBA16Unorm;
+	GPixelFormats[PF_R16F				].PlatformFormat	= (uint32)MTLPixelFormatR16Float;
+	GPixelFormats[PF_R16F_FILTER		].PlatformFormat	= (uint32)MTLPixelFormatR16Float;
+	GPixelFormats[PF_V8U8				].PlatformFormat	= (uint32)MTLPixelFormatRG8Snorm;
+	GPixelFormats[PF_A1					].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 	// A8 does not allow writes in Metal. So we will fake it with R8.
 	// If you change this you must also change the swizzle pattern in Platform.ush
 	// See Texture2DSample_A8 in Common.ush and A8_SAMPLE_MASK in Platform.ush
-	GPixelFormats[PF_A8					].PlatformFormat	= (uint32)mtlpp::PixelFormat::R8Unorm;
-	GPixelFormats[PF_R32_UINT			].PlatformFormat	= (uint32)mtlpp::PixelFormat::R32Uint;
-	GPixelFormats[PF_R32_SINT			].PlatformFormat	= (uint32)mtlpp::PixelFormat::R32Sint;
-	GPixelFormats[PF_R16G16B16A16_UINT	].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA16Uint;
-	GPixelFormats[PF_R16G16B16A16_SINT	].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA16Sint;
-	GPixelFormats[PF_R8G8B8A8			].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA8Unorm;
-	GPixelFormats[PF_R8G8B8A8_UINT		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA8Uint;
-	GPixelFormats[PF_R8G8B8A8_SNORM		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA8Snorm;
-	GPixelFormats[PF_R8G8				].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG8Unorm;
-	GPixelFormats[PF_R16_SINT			].PlatformFormat	= (uint32)mtlpp::PixelFormat::R16Sint;
-	GPixelFormats[PF_R16_UINT			].PlatformFormat	= (uint32)mtlpp::PixelFormat::R16Uint;
-	GPixelFormats[PF_R8_UINT			].PlatformFormat	= (uint32)mtlpp::PixelFormat::R8Uint;
-	GPixelFormats[PF_R8					].PlatformFormat	= (uint32)mtlpp::PixelFormat::R8Unorm;
+	GPixelFormats[PF_A8					].PlatformFormat	= (uint32)MTLPixelFormatR8Unorm;
+	GPixelFormats[PF_R32_UINT			].PlatformFormat	= (uint32)MTLPixelFormatR32Uint;
+	GPixelFormats[PF_R32_SINT			].PlatformFormat	= (uint32)MTLPixelFormatR32Sint;
+	GPixelFormats[PF_R16G16B16A16_UINT	].PlatformFormat	= (uint32)MTLPixelFormatRGBA16Uint;
+	GPixelFormats[PF_R16G16B16A16_SINT	].PlatformFormat	= (uint32)MTLPixelFormatRGBA16Sint;
+	GPixelFormats[PF_R8G8B8A8			].PlatformFormat	= (uint32)MTLPixelFormatRGBA8Unorm;
+	GPixelFormats[PF_R8G8B8A8_UINT		].PlatformFormat	= (uint32)MTLPixelFormatRGBA8Uint;
+	GPixelFormats[PF_R8G8B8A8_SNORM		].PlatformFormat	= (uint32)MTLPixelFormatRGBA8Snorm;
+	GPixelFormats[PF_R8G8				].PlatformFormat	= (uint32)MTLPixelFormatRG8Unorm;
+	GPixelFormats[PF_R16_SINT			].PlatformFormat	= (uint32)MTLPixelFormatR16Sint;
+	GPixelFormats[PF_R16_UINT			].PlatformFormat	= (uint32)MTLPixelFormatR16Uint;
+	GPixelFormats[PF_R8_UINT			].PlatformFormat	= (uint32)MTLPixelFormatR8Uint;
+	GPixelFormats[PF_R8					].PlatformFormat	= (uint32)MTLPixelFormatR8Unorm;
 
-	GPixelFormats[PF_R16G16B16A16_UNORM ].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA16Unorm;
-	GPixelFormats[PF_R16G16B16A16_SNORM ].PlatformFormat	= (uint32)mtlpp::PixelFormat::RGBA16Snorm;
+	GPixelFormats[PF_R16G16B16A16_UNORM ].PlatformFormat	= (uint32)MTLPixelFormatRGBA16Unorm;
+	GPixelFormats[PF_R16G16B16A16_SNORM ].PlatformFormat	= (uint32)MTLPixelFormatRGBA16Snorm;
 
-	GPixelFormats[PF_NV12				].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+	GPixelFormats[PF_NV12				].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 	GPixelFormats[PF_NV12				].Supported			= false;
 	
-	GPixelFormats[PF_G16R16_SNORM		].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG16Snorm;
-	GPixelFormats[PF_R8G8_UINT			].PlatformFormat	= (uint32)mtlpp::PixelFormat::RG8Uint;
-	GPixelFormats[PF_R32G32B32_UINT		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+	GPixelFormats[PF_G16R16_SNORM		].PlatformFormat	= (uint32)MTLPixelFormatRG16Snorm;
+	GPixelFormats[PF_R8G8_UINT			].PlatformFormat	= (uint32)MTLPixelFormatRG8Uint;
+	GPixelFormats[PF_R32G32B32_UINT		].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 	GPixelFormats[PF_R32G32B32_UINT		].Supported			= false;
-	GPixelFormats[PF_R32G32B32_SINT		].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+	GPixelFormats[PF_R32G32B32_SINT		].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 	GPixelFormats[PF_R32G32B32_SINT		].Supported			= false;
-	GPixelFormats[PF_R32G32B32F			].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+	GPixelFormats[PF_R32G32B32F			].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 	GPixelFormats[PF_R32G32B32F			].Supported			= false;
-	GPixelFormats[PF_R8_SINT			].PlatformFormat	= (uint32)mtlpp::PixelFormat::R8Sint;
-	GPixelFormats[PF_R64_UINT			].PlatformFormat	= (uint32)mtlpp::PixelFormat::Invalid;
+	GPixelFormats[PF_R8_SINT			].PlatformFormat	= (uint32)MTLPixelFormatR8Sint;
+	GPixelFormats[PF_R64_UINT			].PlatformFormat	= (uint32)MTLPixelFormatInvalid;
 	GPixelFormats[PF_R64_UINT			].Supported			= false;
 
 #if METAL_DEBUG_OPTIONS

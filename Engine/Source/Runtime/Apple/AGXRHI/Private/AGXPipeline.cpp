@@ -149,14 +149,14 @@ struct FAGXGraphicsPipelineKey
 			EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[i];
 			if (TargetFormat == PF_Unknown) { continue; }
 
-			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
+			MTLPixelFormat MetalFormat = (MTLPixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
 			ETextureCreateFlags Flags = Init.RenderTargetFlags[i];
 			if (EnumHasAnyFlags(Flags, TexCreate_SRGB))
 			{
 #if PLATFORM_MAC // Expand as R8_sRGB is iOS only.
-				if (MetalFormat == mtlpp::PixelFormat::R8Unorm)
+				if (MetalFormat == MTLPixelFormatR8Unorm)
 				{
-					MetalFormat = mtlpp::PixelFormat::RGBA8Unorm;
+					MetalFormat = MTLPixelFormatRGBA8Unorm;
 				}
 #endif
 				MetalFormat = AGXToSRGBFormat(MetalFormat);
@@ -175,21 +175,21 @@ struct FAGXGraphicsPipelineKey
 		{
 			case PF_DepthStencil:
 			{
-				mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat;
+				MTLPixelFormat MetalFormat = (MTLPixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat;
 				if (Init.DepthTargetLoadAction != ERenderTargetLoadAction::ENoAction || Init.DepthTargetStoreAction != ERenderTargetStoreAction::ENoAction)
 				{
 					DepthFormatKey = AGXGetMetalPixelFormatKey(MetalFormat);
 				}
 				if (Init.StencilTargetLoadAction != ERenderTargetLoadAction::ENoAction || Init.StencilTargetStoreAction != ERenderTargetStoreAction::ENoAction)
 				{
-					StencilFormatKey = AGXGetMetalPixelFormatKey(mtlpp::PixelFormat::Stencil8);
+					StencilFormatKey = AGXGetMetalPixelFormatKey(MTLPixelFormatStencil8);
 				}
 				bHasActiveTargets |= true;
 				break;
 			}
 			case PF_ShadowDepth:
 			{
-				DepthFormatKey = AGXGetMetalPixelFormatKey((mtlpp::PixelFormat)GPixelFormats[PF_ShadowDepth].PlatformFormat);
+				DepthFormatKey = AGXGetMetalPixelFormatKey((MTLPixelFormat)GPixelFormats[PF_ShadowDepth].PlatformFormat);
 				bHasActiveTargets |= true;
 				break;
 			}
@@ -204,7 +204,7 @@ struct FAGXGraphicsPipelineKey
 		FAGXPixelShader* PixelShader = (FAGXPixelShader*)Init.BoundShaderState.PixelShaderRHI;
 		if ( PixelShader && ( ( PixelShader->Bindings.InOutMask.IsFieldEnabled(CrossCompiler::FShaderBindingInOutMask::DepthStencilMaskIndex) && DepthFormatKey == 0 ) || (bHasActiveTargets == false && PixelShader->Bindings.NumUAVs > 0) ) )
 		{
-			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat;
+			MTLPixelFormat MetalFormat = (MTLPixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat;
 			DepthFormatKey = AGXGetMetalPixelFormatKey(MetalFormat);
 		}
 		
@@ -567,7 +567,7 @@ static bool ConfigureRenderPipelineDescriptor(MTLRenderPipelineDescriptor* Rende
 				MetalFormat = MTLPixelFormatRGBA8Unorm;
 			}
 #endif
-			MetalFormat = (MTLPixelFormat)AGXToSRGBFormat((mtlpp::PixelFormat)MetalFormat);
+			MetalFormat = (MTLPixelFormat)AGXToSRGBFormat((MTLPixelFormat)MetalFormat);
 		}
 		
 		MTLRenderPipelineColorAttachmentDescriptor* Attachment = [ColorAttachments objectAtIndexedSubscript:ActiveTargetIndex];

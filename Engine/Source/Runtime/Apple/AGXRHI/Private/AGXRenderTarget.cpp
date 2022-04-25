@@ -290,7 +290,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 #else
 			mtlpp::StorageMode StorageMode = mtlpp::StorageMode::Shared;
 #endif
-			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[Surface->GetDesc().Format].PlatformFormat;
+			MTLPixelFormat MetalFormat = (MTLPixelFormat)GPixelFormats[Surface->GetDesc().Format].PlatformFormat;
 			mtlpp::TextureDescriptor Desc;
 			Desc.SetTextureType(Texture.GetTextureType());
 			Desc.SetPixelFormat(Texture.GetPixelFormat());

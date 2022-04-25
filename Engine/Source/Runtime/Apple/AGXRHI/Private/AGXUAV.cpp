@@ -104,26 +104,26 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 		{
 			// Determine the appropriate metal format for the view.
 			// This format will be non-sRGB. We convert to sRGB below if required.
-			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[Format].PlatformFormat;
+			MTLPixelFormat MetalFormat = (MTLPixelFormat)GPixelFormats[Format].PlatformFormat;
 
 			if (Format == PF_X24_G8)
 			{
 				// Stencil buffer view of a depth texture
 				check(SourceTexture->GetDesc().Format == PF_DepthStencil);
-				switch (SourceTexture->Texture.GetPixelFormat())
+				switch ((MTLPixelFormat)SourceTexture->Texture.GetPixelFormat())
 				{
 					default:
 						checkNoEntry();
 						break;
 
 #if PLATFORM_MAC
-					case mtlpp::PixelFormat::Depth24Unorm_Stencil8:
-						MetalFormat = mtlpp::PixelFormat::X24_Stencil8;
+					case MTLPixelFormatDepth24Unorm_Stencil8:
+						MetalFormat = MTLPixelFormatX24_Stencil8;
 						break;
 #endif
 
-					case mtlpp::PixelFormat::Depth32Float_Stencil8:
-						MetalFormat = mtlpp::PixelFormat::X32_Stencil8;
+					case MTLPixelFormatDepth32Float_Stencil8:
+						MetalFormat = MTLPixelFormatX32_Stencil8;
 						break;
 				}
 			}
@@ -136,9 +136,9 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 					{
 #if PLATFORM_MAC
 						// R8Unorm has been expanded in the source surface for sRGBA support - we need to expand to RGBA to enable compatible texture format view for non apple silicon macs
-						if (Format == PF_G8 && SourceTexture->Texture.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB)
+						if (Format == PF_G8 && (MTLPixelFormat)SourceTexture->Texture.GetPixelFormat() == MTLPixelFormatRGBA8Unorm_sRGB)
 						{
-							MetalFormat = mtlpp::PixelFormat::RGBA8Unorm;
+							MetalFormat = MTLPixelFormatRGBA8Unorm;
 						}
 #endif
 					}
@@ -154,7 +154,7 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 			bool bUseSourceTex =
 				   MipLevel == 0
 				&& NumMips == SourceTexture->Texture.GetMipmapLevelCount()
-				&& MetalFormat == SourceTexture->Texture.GetPixelFormat();
+				&& MetalFormat == (MTLPixelFormat)SourceTexture->Texture.GetPixelFormat();
 
 			if (bUseSourceTex)
 			{
@@ -171,7 +171,7 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 				ns::Range Slices(0, SourceTexture->Texture.GetArrayLength() * (SourceTexture->GetDesc().IsTextureCube() ? 6 : 1));
 
 				TextureView = SourceTexture->Texture.NewTextureView(
-					MetalFormat,
+					(mtlpp::PixelFormat)MetalFormat,
 					SourceTexture->Texture.GetTextureType(),
 					ns::Range(MipLevel, NumMips),
 					Slices);

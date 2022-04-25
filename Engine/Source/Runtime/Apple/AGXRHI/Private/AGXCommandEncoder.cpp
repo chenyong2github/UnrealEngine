@@ -1053,9 +1053,9 @@ void FAGXCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FAGX
 	{
 		uint8 Swizzle[4] = {0,0,0,0};
 		assert(sizeof(Swizzle) == sizeof(uint32));
-		if (Texture.GetPixelFormat() == mtlpp::PixelFormat::X32_Stencil8
+		if ((MTLPixelFormat)Texture.GetPixelFormat() == MTLPixelFormatX32_Stencil8
 #if PLATFORM_MAC
-		 ||	Texture.GetPixelFormat() == mtlpp::PixelFormat::X24_Stencil8
+		 ||	(MTLPixelFormat)Texture.GetPixelFormat() == MTLPixelFormatX24_Stencil8
 #endif
 		)
 		{

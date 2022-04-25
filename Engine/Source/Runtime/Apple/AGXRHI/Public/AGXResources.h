@@ -138,7 +138,7 @@ struct FAGXTextureDesc
 	FAGXTextureDesc(FRHITextureDesc const& InDesc);
 	
 	mtlpp::TextureDescriptor Desc;
-	mtlpp::PixelFormat MTLFormat;
+	MTLPixelFormat MTLFormat;
 	bool bMemoryless = false;
 	bool bIsRenderTarget = false;
 	uint8 FormatKey = 0;

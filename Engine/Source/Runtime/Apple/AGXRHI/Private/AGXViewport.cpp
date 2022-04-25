@@ -178,7 +178,7 @@ void FAGXViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen,E
 		Format = PF_B8G8R8A8;
 	}
 	
-	mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[Format].PlatformFormat;
+	MTLPixelFormat MetalFormat = (MTLPixelFormat)GPixelFormats[Format].PlatformFormat;
 	
 	if (IsValidRef(BackBuffer[Index]) && Format != BackBuffer[Index]->GetFormat())
 	{
@@ -205,9 +205,9 @@ void FAGXViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen,E
 		
 		MetalLayer.drawableSize = CGSizeMake(InSizeX, InSizeY);
 		
-		if (MetalFormat != (mtlpp::PixelFormat)MetalLayer.pixelFormat)
+		if (MetalFormat != MetalLayer.pixelFormat)
 		{
-			MetalLayer.pixelFormat = (MTLPixelFormat)MetalFormat;
+			MetalLayer.pixelFormat = MetalFormat;
 		}
 		
 		if (bUseHDR != MetalLayer.wantsExtendedDynamicRangeContent)
@@ -227,9 +227,9 @@ void FAGXViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen,E
 		FIOSView* IOSView = AppDelegate.IOSView;
 		CAMetalLayer* MetalLayer = (CAMetalLayer*) IOSView.layer;
 		
-		if (MetalFormat != (mtlpp::PixelFormat) MetalLayer.pixelFormat)
+		if (MetalFormat != MetalLayer.pixelFormat)
 		{
-			MetalLayer.pixelFormat = (MTLPixelFormat) MetalFormat;
+			MetalLayer.pixelFormat = MetalFormat;
 		}
 		
 		[IOSView UpdateRenderWidth:InSizeX andHeight:InSizeY];

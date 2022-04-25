@@ -70,56 +70,56 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FAGXDeallocHandler)
 }
 @end
 
-static mtlpp::PixelFormat FromSRGBFormat(mtlpp::PixelFormat Format)
+static MTLPixelFormat FromSRGBFormat(MTLPixelFormat Format)
 {
-	mtlpp::PixelFormat MTLFormat = Format;
+	MTLPixelFormat MTLFormat = Format;
 	
 	switch (Format)
 	{
-		case mtlpp::PixelFormat::RGBA8Unorm_sRGB:
-			MTLFormat = mtlpp::PixelFormat::RGBA8Unorm;
+		case MTLPixelFormatRGBA8Unorm_sRGB:
+			MTLFormat = MTLPixelFormatRGBA8Unorm;
 			break;
-		case mtlpp::PixelFormat::BGRA8Unorm_sRGB:
-			MTLFormat = mtlpp::PixelFormat::BGRA8Unorm;
+		case MTLPixelFormatBGRA8Unorm_sRGB:
+			MTLFormat = MTLPixelFormatBGRA8Unorm;
 			break;
 #if PLATFORM_MAC
-		case mtlpp::PixelFormat::BC1_RGBA_sRGB:
-			MTLFormat = mtlpp::PixelFormat::BC1_RGBA;
+		case MTLPixelFormatBC1_RGBA_sRGB:
+			MTLFormat = MTLPixelFormatBC1_RGBA;
 			break;
-		case mtlpp::PixelFormat::BC2_RGBA_sRGB:
-			MTLFormat = mtlpp::PixelFormat::BC2_RGBA;
+		case MTLPixelFormatBC2_RGBA_sRGB:
+			MTLFormat = MTLPixelFormatBC2_RGBA;
 			break;
-		case mtlpp::PixelFormat::BC3_RGBA_sRGB:
-			MTLFormat = mtlpp::PixelFormat::BC3_RGBA;
+		case MTLPixelFormatBC3_RGBA_sRGB:
+			MTLFormat = MTLPixelFormatBC3_RGBA;
 			break;
-		case mtlpp::PixelFormat::BC7_RGBAUnorm_sRGB:
-			MTLFormat = mtlpp::PixelFormat::BC7_RGBAUnorm;
+		case MTLPixelFormatBC7_RGBAUnorm_sRGB:
+			MTLFormat = MTLPixelFormatBC7_RGBAUnorm;
 			break;
 #endif //PLATFORM_MAC
 #if PLATFORM_IOS
-		case mtlpp::PixelFormat::R8Unorm_sRGB:
-			MTLFormat = mtlpp::PixelFormat::R8Unorm;
+		case MTLPixelFormatR8Unorm_sRGB:
+			MTLFormat = MTLPixelFormatR8Unorm;
 			break;
-		case mtlpp::PixelFormat::PVRTC_RGBA_2BPP_sRGB:
-			MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_2BPP;
+		case MTLPixelFormatPVRTC_RGBA_2BPP_sRGB:
+			MTLFormat = MTLPixelFormatPVRTC_RGBA_2BPP;
 			break;
-		case mtlpp::PixelFormat::PVRTC_RGBA_4BPP_sRGB:
-			MTLFormat = mtlpp::PixelFormat::PVRTC_RGBA_4BPP;
+		case MTLPixelFormatPVRTC_RGBA_4BPP_sRGB:
+			MTLFormat = MTLPixelFormatPVRTC_RGBA_4BPP;
 			break;
-		case mtlpp::PixelFormat::ASTC_4x4_sRGB:
-			MTLFormat = mtlpp::PixelFormat::ASTC_4x4_LDR;
+		case MTLPixelFormatASTC_4x4_sRGB:
+			MTLFormat = MTLPixelFormatASTC_4x4_LDR;
 			break;
-		case mtlpp::PixelFormat::ASTC_6x6_sRGB:
-			MTLFormat = mtlpp::PixelFormat::ASTC_6x6_LDR;
+		case MTLPixelFormatASTC_6x6_sRGB:
+			MTLFormat = MTLPixelFormatASTC_6x6_LDR;
 			break;
-		case mtlpp::PixelFormat::ASTC_8x8_sRGB:
-			MTLFormat = mtlpp::PixelFormat::ASTC_8x8_LDR;
+		case MTLPixelFormatASTC_8x8_sRGB:
+			MTLFormat = MTLPixelFormatASTC_8x8_LDR;
 			break;
-		case mtlpp::PixelFormat::ASTC_10x10_sRGB:
-			MTLFormat = mtlpp::PixelFormat::ASTC_10x10_LDR;
+		case MTLPixelFormatASTC_10x10_sRGB:
+			MTLFormat = MTLPixelFormatASTC_10x10_LDR;
 			break;
-		case mtlpp::PixelFormat::ASTC_12x12_sRGB:
-			MTLFormat = mtlpp::PixelFormat::ASTC_12x12_LDR;
+		case MTLPixelFormatASTC_12x12_sRGB:
+			MTLFormat = MTLPixelFormatASTC_12x12_LDR;
 			break;
 #endif //PLATFORM_IOS
 		default:
@@ -129,12 +129,12 @@ static mtlpp::PixelFormat FromSRGBFormat(mtlpp::PixelFormat Format)
 	return MTLFormat;
 }
 
-static EPixelFormat MetalToRHIPixelFormat(mtlpp::PixelFormat Format)
+static EPixelFormat MetalToRHIPixelFormat(MTLPixelFormat Format)
 {
 	Format = FromSRGBFormat(Format);
 	for (uint32 i = 0; i < PF_MAX; i++)
 	{
-		if((mtlpp::PixelFormat)GPixelFormats[i].PlatformFormat == Format)
+		if((MTLPixelFormat)GPixelFormats[i].PlatformFormat == Format)
 		{
 			return (EPixelFormat)i;
 		}

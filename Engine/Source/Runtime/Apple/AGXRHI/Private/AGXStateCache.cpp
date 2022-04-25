@@ -747,21 +747,21 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				case PF_DepthStencil:
 				case PF_D24:
 				{
-					mtlpp::PixelFormat DepthStencilFormat = Surface.Texture ? (mtlpp::PixelFormat)Surface.Texture.GetPixelFormat() : mtlpp::PixelFormat::Invalid;
+					MTLPixelFormat DepthStencilFormat = Surface.Texture ? (MTLPixelFormat)Surface.Texture.GetPixelFormat() : MTLPixelFormatInvalid;
 					
 					switch(DepthStencilFormat)
 					{
-						case mtlpp::PixelFormat::Depth32Float:
+						case MTLPixelFormatDepth32Float:
 							StencilTexture =  nil;
 							break;
-						case mtlpp::PixelFormat::Stencil8:
+						case MTLPixelFormatStencil8:
 							StencilTexture = DepthTexture;
 							break;
-						case mtlpp::PixelFormat::Depth32Float_Stencil8:
+						case MTLPixelFormatDepth32Float_Stencil8:
 							StencilTexture = DepthTexture;
 							break;
 #if PLATFORM_MAC
-						case mtlpp::PixelFormat::Depth24Unorm_Stencil8:
+						case MTLPixelFormatDepth24Unorm_Stencil8:
 							StencilTexture = DepthTexture;
 							break;
 #endif
@@ -791,7 +791,7 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				DepthClearValue = 1.0f;
 			}
 
-			bool const bCombinedDepthStencilUsingStencil = (DepthTexture && (mtlpp::PixelFormat)DepthTexture.GetPixelFormat() != mtlpp::PixelFormat::Depth32Float && RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingStencil());
+			bool const bCombinedDepthStencilUsingStencil = (DepthTexture && (MTLPixelFormat)DepthTexture.GetPixelFormat() != MTLPixelFormatDepth32Float && RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingStencil());
 			bool const bUsingDepth = (RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingDepth() || (bCombinedDepthStencilUsingStencil));
 			if (DepthTexture && bUsingDepth)
 			{
@@ -882,7 +882,7 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
             //if we're dealing with a samplecount mismatch we just bail on stencil entirely as stencil
             //doesn't have an autoresolve target to use.
 			
-			bool const bCombinedDepthStencilUsingDepth = (StencilTexture && StencilTexture.GetPixelFormat() != mtlpp::PixelFormat::Stencil8 && RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingDepth());
+			bool const bCombinedDepthStencilUsingDepth = (StencilTexture && (MTLPixelFormat)StencilTexture.GetPixelFormat() != MTLPixelFormatStencil8 && RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingDepth());
 			bool const bUsingStencil = RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingStencil() || (bCombinedDepthStencilUsingDepth);
 			if (StencilTexture && bUsingStencil)
 			{
