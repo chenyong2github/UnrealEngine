@@ -5,6 +5,7 @@
 #include "Sound/AudioVolume.h"
 
 // Forward Declarations 
+class FProxyVolumeMutator;
 struct FAudioProxyMutatorSearchResult;
 
 /**
@@ -71,9 +72,11 @@ public:
 
 	FAudioGameplayVolumeListener() = default;
 
-	void Update(const FAudioProxyMutatorSearchResult& Result, const FVector& InPosition, uint32 InWorldID);
+	void Update(const FAudioProxyMutatorSearchResult& Result, const FVector& InPosition, uint32 InDeviceId);
 
 	const TSet<uint32>& GetCurrentProxies() const { return CurrentProxies; }
+
+	uint32 GetOwningDeviceId() const { return OwningDeviceId; }
 
 	bool GetAffectedByLegacySystem() const { return bAffectedByLegacySystem; }
 	void SetAffectedByLegacySystem(bool bIsAffected) { bAffectedByLegacySystem = bIsAffected; }
@@ -84,12 +87,14 @@ protected:
 
 	FInterpolatedInteriorSettings InteriorSettings;
 
+	uint32 OwningDeviceId = INDEX_NONE;
 	FVector Position = FVector::ZeroVector;
-	uint32 WorldID = INDEX_NONE;
-	bool bNewListener = true;
+
 	bool bAffectedByLegacySystem = false;
 
 	TSet<uint32> CurrentProxies;
 	TSet<uint32> PreviousProxies;
+
+	TArray<TSharedPtr<FProxyVolumeMutator>> ActiveMutators;
 };
 

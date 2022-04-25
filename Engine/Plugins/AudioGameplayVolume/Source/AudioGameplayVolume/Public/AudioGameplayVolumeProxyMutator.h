@@ -108,6 +108,10 @@ public:
 
 	virtual void Apply(FInteriorSettings& InteriorSettings) const;
 	virtual void Apply(FAudioProxyActiveSoundParams& Params) const {}
+	virtual void Apply(FAudioGameplayVolumeListener& Listener) const {}
+
+	virtual void Remove(FAudioProxyActiveSoundParams& Params) const {}
+	virtual void Remove(FAudioGameplayVolumeListener& Listener) const {}
 
 	bool HasPayloadType(PayloadFlags InType) const;
 

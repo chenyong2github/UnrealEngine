@@ -55,18 +55,11 @@ void FInterpolatedInteriorSettings::UpdateInteriorValues()
 	ExteriorLPFInterp = Interpolate(CurrentTime, ExteriorLPFEndTime);
 }
 
-void FAudioGameplayVolumeListener::Update(const FAudioProxyMutatorSearchResult& Result, const FVector& InPosition, uint32 InWorldID)
+void FAudioGameplayVolumeListener::Update(const FAudioProxyMutatorSearchResult& Result, const FVector& InPosition, uint32 InDeviceId)
 {
 	check(IsInAudioThread());
 
-	// If we have a different worldID, this is a new listener; we'll need to exit our previous proxies and enter our current ones
-	if (WorldID != InWorldID)
-	{
-		bNewListener = true;
-	}
-
 	Position = InPosition;
-	WorldID = InWorldID;
 
 	Swap(PreviousProxies, CurrentProxies);
 	CurrentProxies = Result.VolumeSet;
@@ -74,14 +67,31 @@ void FAudioGameplayVolumeListener::Update(const FAudioProxyMutatorSearchResult& 
 	TSet<uint32> EnteredProxies = CurrentProxies.Difference(PreviousProxies);
 	TSet<uint32> ExitedProxies = PreviousProxies.Difference(CurrentProxies);
 
-	if (bNewListener || EnteredProxies.Num() || ExitedProxies.Num())
+	// Remove the mutators we were previously affected by and add the new ones if:
+	// We are a new listener to this audio device OR if we have entered or exited any proxies
+	bool bMutatorsOutOfDate = (OwningDeviceId != InDeviceId) || EnteredProxies.Num() || ExitedProxies.Num();
+
+	if (bMutatorsOutOfDate)
 	{
+		OwningDeviceId = InDeviceId;
+
+		// Call remove on all the mutators we were previously affected by 
+		for (const TSharedPtr<FProxyVolumeMutator>& Mutator : ActiveMutators)
+		{
+			Mutator->Remove(*this);
+		}
+
+		// Now cache and apply the currently matching mutators
+		ActiveMutators = Result.MatchingMutators;
+		for (const TSharedPtr<FProxyVolumeMutator>& Mutator : ActiveMutators)
+		{
+			Mutator->Apply(*this);
+		}
+
 		// Reapply interior from mutators
 		InteriorSettings.Apply(Result.InteriorSettings);
 	}
 
 	// Update interpolation
 	InteriorSettings.UpdateInteriorValues();
-
-	bNewListener = false;
 }

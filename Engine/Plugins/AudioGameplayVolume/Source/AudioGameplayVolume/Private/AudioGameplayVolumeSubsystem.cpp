@@ -465,7 +465,7 @@ void UAudioGameplayVolumeSubsystem::UpdateFromListeners()
 
 			// Reassign the set of all proxy volumes (regardless of payload type)
 			Swap(TempVolumeSet, Result.VolumeSet);
-			AGVListeners[i].Update(Result, ProxySearch.Location, ProxySearch.WorldID);
+			AGVListeners[i].Update(Result, ProxySearch.Location, DeviceHandle.GetDeviceID());
 
 			if (FAudioGameplayVolumeProxyInfo* ProxyInfo = WorldProxyLists.Find(ProxySearch.WorldID))
 			{
