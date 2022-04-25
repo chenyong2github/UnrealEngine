@@ -150,6 +150,9 @@ void FConnectionDrawingPolicy::SetHoveredPins(const TSet< FEdGraphPinReference >
 		}
 	}
 
+	// When we have only a single pin selected, we'll extend selection to apply the hover effect on the links
+	const bool bMakeConnectedPinsHovered = (InHoveredPins.Num() == 1);
+
 	// Convert the widget pointer for hovered pins to be EdGraphPin pointers for their connected nets (both ends of any connection)
 	for (auto PinIt = InHoveredPins.CreateConstIterator(); PinIt; ++PinIt)
 	{
@@ -159,9 +162,12 @@ void FConnectionDrawingPolicy::SetHoveredPins(const TSet< FEdGraphPinReference >
 			{
 				HoveredPins.Add(Pin);
 
-				for (auto LinkIt = Pin->LinkedTo.CreateConstIterator(); LinkIt; ++LinkIt)
+				if (bMakeConnectedPinsHovered)
 				{
-					HoveredPins.Add(*LinkIt);
+					for (auto LinkIt = Pin->LinkedTo.CreateConstIterator(); LinkIt; ++LinkIt)
+					{
+						HoveredPins.Add(*LinkIt);
+					}
 				}
 			}
 		}
@@ -599,3 +605,14 @@ bool FGraphSplineOverlapResult::GetPins(const class SGraphPanel& InGraphPanel, U
 	return (OutPin1 != nullptr) && (OutPin2 != nullptr);
 }
 
+void FGraphSplineOverlapResult::GetPinWidgets(const class SGraphPanel& InGraphPanel, TSharedPtr<class SGraphPin>& OutPin1, TSharedPtr<class SGraphPin>& OutPin2) const
+{
+	OutPin1 = nullptr;
+	OutPin2 = nullptr;
+
+	if (IsValid())
+	{
+		OutPin1 = Pin1Handle.FindInGraphPanel(InGraphPanel);
+		OutPin2 = Pin2Handle.FindInGraphPanel(InGraphPanel);
+	}
+}
