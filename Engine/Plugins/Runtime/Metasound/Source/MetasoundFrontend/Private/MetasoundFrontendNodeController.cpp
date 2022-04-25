@@ -690,56 +690,23 @@ namespace Metasound
 			return IGraphController::GetInvalidHandle();
 		}
 
-		FMetasoundFrontendVersionNumber FBaseNodeController::FindHighestMinorVersionInRegistry() const
-		{
-			const FMetasoundFrontendClassMetadata& Metadata = GetClassMetadata();
-			const FMetasoundFrontendVersionNumber& CurrentVersion = Metadata.GetVersion();
-			Metasound::FNodeClassName NodeClassName = Metadata.GetClassName().ToNodeClassName();
-
-			FMetasoundFrontendClass ClassWithMajorVersion;
-			if (ISearchEngine::Get().FindClassWithMajorVersion(NodeClassName, CurrentVersion.Major, ClassWithMajorVersion))
-			{
-				if (ClassWithMajorVersion.Metadata.GetVersion().Minor >= CurrentVersion.Minor)
-				{
-					return ClassWithMajorVersion.Metadata.GetVersion();
-				}
-			}
-
-			return FMetasoundFrontendVersionNumber::GetInvalid();
-		}
-
-		FMetasoundFrontendVersionNumber FBaseNodeController::FindHighestVersionInRegistry() const
-		{
-			const FMetasoundFrontendClassMetadata& Metadata = GetClassMetadata();
-			const FMetasoundFrontendVersionNumber& CurrentVersion = Metadata.GetVersion();
-			Metasound::FNodeClassName NodeClassName = Metadata.GetClassName().ToNodeClassName();
-
-			FMetasoundFrontendClass ClassWithHighestVersion;
-			if (ISearchEngine::Get().FindClassWithHighestVersion(NodeClassName, ClassWithHighestVersion))
-			{
-				if (ClassWithHighestVersion.Metadata.GetVersion().Major >= CurrentVersion.Major)
-				{
-					return ClassWithHighestVersion.Metadata.GetVersion();
-				}
-			}
-
-			return FMetasoundFrontendVersionNumber::GetInvalid();
-
-		}
-
 		FNodeHandle FBaseNodeController::ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion, TArray<FVertexNameAndType>* OutDisconnectedInputs, TArray<FVertexNameAndType>* OutDisconnectedOutputs)
 		{
 			const FMetasoundFrontendClassMetadata Metadata = GetClassMetadata();
-			const TArray<FMetasoundFrontendClass> Versions = ISearchEngine::Get().FindClassesWithName(Metadata.GetClassName().ToNodeClassName(), false /* bInSortByVersion */);
 
-			auto IsClassOfNewVersion = [InNewVersion](const FMetasoundFrontendClass& RegisteredClass)
-			{
-				return RegisteredClass.Metadata.GetVersion() == InNewVersion;
-			};
+			// Lookup new version in node registry
+			FNodeRegistryKey NewVersionRegistryKey = NodeRegistryKey::CreateKey(Metadata.GetType(), Metadata.GetClassName().ToString(), InNewVersion.Major, InNewVersion.Minor);
+			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+			checkf(nullptr != Registry, TEXT("The metasound node registry should always be available if the metasound plugin is loaded"));
 
-			const FMetasoundFrontendClass* RegisteredClass = Versions.FindByPredicate(IsClassOfNewVersion);
-			if (!ensure(RegisteredClass))
+			FMetasoundFrontendClass NewMetasoundClass;
+			const bool bFoundNewClass = Registry->FindFrontendClassFromRegistered(NewVersionRegistryKey, NewMetasoundClass);
+			if (!bFoundNewClass)
 			{
+				FString ClassNameString = Metadata.GetClassName().ToString();
+				FString NewVersionString = InNewVersion.ToString();
+				UE_LOG(LogMetaSound, Error, TEXT("Failed to change class version from %s to %s for class %s. %s %s is not registered."), *Metadata.GetVersion().ToString(), *NewVersionString, *ClassNameString, *ClassNameString, *NewVersionString);
+
 				return this->AsShared();
 			}
 
@@ -818,13 +785,13 @@ namespace Metasound
 			// Make sure classes are up-to-date with registered versions of class.
 			// Note that this may break other nodes in the graph that have stale
 			// class API, but that's on the caller to fix-up or report invalid state.
-			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(RegisteredClass->Metadata);
+			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(NewMetasoundClass.Metadata);
 			FDocumentHandle Document = GetOwningGraph()->GetOwningDocument();
 
 			constexpr bool bRefreshFromRegistry = true;
 			ensureAlways(Document->FindOrAddClass(RegistryKey, bRefreshFromRegistry).Get() != nullptr);
 
-			FNodeHandle ReplacementNode = GetOwningGraph()->AddNode(RegisteredClass->Metadata, ReplacedNodeGuid);
+			FNodeHandle ReplacementNode = GetOwningGraph()->AddNode(NewMetasoundClass.Metadata, ReplacedNodeGuid);
 			if (!ensureAlways(ReplacementNode->IsValid()))
 			{
 				return this->AsShared();
@@ -918,7 +885,7 @@ namespace Metasound
 
 			if (bInUseHighestMinorVersion)
 			{
-				if (!ISearchEngine::Get().FindClassWithMajorVersion(NodeClassName, NodeClassMetadata.GetVersion().Major, OutInterfaceUpdates.RegistryClass))
+				if (!ISearchEngine::Get().FindClassWithHighestMinorVersion(NodeClassName, NodeClassMetadata.GetVersion().Major, OutInterfaceUpdates.RegistryClass))
 				{
 					Algo::Transform(NodeClassInterface.Inputs, OutInterfaceUpdates.RemovedInputs, [&](const FMetasoundFrontendClassInput& Input) { return &Input; });
 					Algo::Transform(NodeClassInterface.Outputs, OutInterfaceUpdates.RemovedOutputs, [&](const FMetasoundFrontendClassOutput& Output) { return &Output; });
@@ -927,20 +894,20 @@ namespace Metasound
 			}
 			else
 			{
-				constexpr bool bSortByVersion = true;
-				const TArray<FMetasoundFrontendClass> Classes = ISearchEngine::Get().FindClassesWithName(NodeClassName, bSortByVersion);
-				const FMetasoundFrontendClass* ExactClass = Classes.FindByPredicate([CurrentVersion = &NodeClassMetadata.GetVersion()](const FMetasoundFrontendClass& AvailableClass)
-				{
-					return AvailableClass.Metadata.GetVersion() == *CurrentVersion;
-				});
+				// Find class with same metadata in the node registry.
+				FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+				checkf(nullptr != Registry, TEXT("The metasound node registry should always be available if the metasound plugin is loaded"));
+				FMetasoundFrontendClass RegisteredClass;
+				bool bFoundRegisteredClass = Registry->FindFrontendClassFromRegistered(NodeRegistryKey::CreateKey(GetClassMetadata()), OutInterfaceUpdates.RegistryClass);
 
-				if (!ExactClass)
+				if (!bFoundRegisteredClass)
 				{
+					// If the class was not found, mark all inputs and outputs as removed.
+					UE_LOG(LogMetaSound, Warning, TEXT("Could not find registered version of interface. %s %s is not registered."), *NodeClassMetadata.GetClassName().ToString(), *NodeClassMetadata.GetVersion().ToString());
 					Algo::Transform(NodeClassInterface.Inputs, OutInterfaceUpdates.RemovedInputs, [&](const FMetasoundFrontendClassInput& Input) { return &Input; });
 					Algo::Transform(NodeClassInterface.Outputs, OutInterfaceUpdates.RemovedOutputs, [&](const FMetasoundFrontendClassOutput& Output) { return &Output; });
 					return false;
 				}
-				OutInterfaceUpdates.RegistryClass = *ExactClass;
 			}
 
 			Algo::Transform(OutInterfaceUpdates.RegistryClass.Interface.Inputs, OutInterfaceUpdates.AddedInputs, [&](const FMetasoundFrontendClassInput& Input) { return &Input; });
@@ -1005,10 +972,7 @@ namespace Metasound
 			}
 
 			FMetasoundFrontendClass RegistryClass;
-			if (!ISearchEngine::Get().FindClassWithMajorVersion(
-				NodeClassMetadata.GetClassName().ToNodeClassName(),
-				NodeClassMetadata.GetVersion().Major,
-				RegistryClass))
+			if (!ISearchEngine::Get().FindClassWithHighestMinorVersion( NodeClassMetadata.GetClassName().ToNodeClassName(), NodeClassMetadata.GetVersion().Major, RegistryClass))
 			{
 				return false;
 			}

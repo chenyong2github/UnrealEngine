@@ -712,12 +712,19 @@ void UMetasoundEditorGraphExternalNode::ReconstructNode()
 
 FMetasoundFrontendVersionNumber UMetasoundEditorGraphExternalNode::FindHighestVersionInRegistry() const
 {
-	return GetConstNodeHandle()->FindHighestVersionInRegistry();
-}
+	using namespace Metasound::Frontend;
 
-FMetasoundFrontendVersionNumber UMetasoundEditorGraphExternalNode::FindHighestMinorVersionInRegistry() const
-{
-	return GetConstNodeHandle()->FindHighestMinorVersionInRegistry();
+	FMetasoundFrontendClass HighestVersionClass;
+	FMetasoundFrontendVersionNumber HighestVersionNumber = FMetasoundFrontendVersionNumber::GetInvalid();
+
+	Metasound::Frontend::FConstNodeHandle NodeHandle = GetConstNodeHandle();
+	const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
+	if (ISearchEngine::Get().FindClassWithHighestVersion(Metadata.GetClassName(), HighestVersionClass))
+	{
+		HighestVersionNumber = HighestVersionClass.Metadata.GetVersion();
+	}
+
+	return HighestVersionNumber;
 }
 
 bool UMetasoundEditorGraphExternalNode::CanAutoUpdate() const

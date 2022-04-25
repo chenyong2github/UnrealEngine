@@ -472,18 +472,13 @@ namespace Metasound
 			/** Returns interface version if node is a required member of a given interface, otherwise returns invalid version. */
 			virtual const FMetasoundFrontendVersion& GetInterfaceVersion() const = 0;
 
-			/** Returns the highest minor version number available from the class registry that shares this node's name & major version. */
-			virtual FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const = 0;
-
-			/** Returns the highest version number available from the class registry that shares this node's name. */
-			virtual FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const = 0;
-
 			/**
 			  * Replaces this node with a new node of the provided version number, and attempts to 
 			  * rebuild edges where possible with matching vertex names that share the same DataType.
 			  * Returns a node handle to the new node.  If operation fails, returns a handle to this node.
 			  */
 			virtual FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion, TArray<FVertexNameAndType>* OutDisconnectedInputs, TArray<FVertexNameAndType>* OutDisconnectedOutputs) = 0;
+
 
 			/** Returns an input with the given id.
 			 *

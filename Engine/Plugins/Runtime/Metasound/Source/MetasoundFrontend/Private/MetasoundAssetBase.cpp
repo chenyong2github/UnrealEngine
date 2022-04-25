@@ -218,7 +218,7 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 		RegistryKey = FMetasoundFrontendRegistryContainer::Get()->RegisterNode(MakeUnique<FNodeRegistryEntry>(AssetName, *Doc, AssetClassInfo.AssetPath));
 	}
 
-	if (NodeRegistryKey::IsValid(RegistryKey))
+	if (NodeRegistryKey::IsValid(RegistryKey) && FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(RegistryKey))
 	{
 #if WITH_EDITORONLY_DATA
 		// Refresh Asset Registry Info if successfully registered with Frontend
@@ -227,7 +227,6 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(Metasound::Frontend::FMetaSo
 		AssetClassInfo.AssetClassID = FGuid(DocumentClassMetadata.GetClassName().Name.ToString());
 		FNodeClassName ClassName = DocumentClassMetadata.GetClassName().ToNodeClassName();
 		FMetasoundFrontendClass GraphClass;
-		ensure(ISearchEngine::Get().FindClassWithMajorVersion(ClassName, DocumentClassMetadata.GetVersion().Major, GraphClass));
 
 		AssetClassInfo.Version = DocumentClassMetadata.GetVersion();
 

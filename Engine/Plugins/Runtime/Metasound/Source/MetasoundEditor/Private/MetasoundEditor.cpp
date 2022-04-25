@@ -2607,11 +2607,14 @@ namespace Metasound
 			{
 				if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(Object))
 				{
-					FMetasoundFrontendVersionNumber HighestVersion = ExternalNode->FindHighestVersionInRegistry();
-					Metasound::Frontend::FConstNodeHandle NodeHandle = ExternalNode->GetConstNodeHandle();
+					Metasound::Frontend::FNodeHandle NodeHandle = ExternalNode->GetNodeHandle();
 					const FMetasoundFrontendClassMetadata& Metadata = NodeHandle->GetClassMetadata();
+
+					// Check for new version
+					FMetasoundFrontendVersionNumber HighestVersion = ExternalNode->FindHighestVersionInRegistry();
 					const bool bHasNewVersion = HighestVersion.IsValid() && HighestVersion > Metadata.GetVersion();
 
+					// Check for non-native classes
 					const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(Metadata);
 					const bool bIsClassNative = FMetasoundFrontendRegistryContainer::Get()->IsNodeNative(RegistryKey);
 
@@ -2622,8 +2625,7 @@ namespace Metasound
 						constexpr TArray<INodeController::FVertexNameAndType>* DisconnectedInputs = nullptr;
 						constexpr TArray<INodeController::FVertexNameAndType>* DisconnectedOutputs = nullptr;
 
-						FNodeHandle ExistingNode = ExternalNode->GetNodeHandle();
-						FNodeHandle NewNode = ExistingNode->ReplaceWithVersion(HighestVersion, DisconnectedInputs, DisconnectedOutputs);
+						FNodeHandle NewNode = NodeHandle->ReplaceWithVersion(HighestVersion, DisconnectedInputs, DisconnectedOutputs);
 						bReplacedNodes = true;
 					}
 				}

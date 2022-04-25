@@ -60,8 +60,6 @@ namespace Metasound
 
 			virtual bool CanAutoUpdate(FClassInterfaceUpdates& OutInterfaceUpdates) const override;
 			virtual FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion, TArray<FVertexNameAndType>* OutDisconnectedInputs, TArray<FVertexNameAndType>* OutDisconnectedOutputs) override;
-			virtual FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const override;
-			virtual FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const override;
 
 			virtual const FVertexName& GetNodeName() const override;
 

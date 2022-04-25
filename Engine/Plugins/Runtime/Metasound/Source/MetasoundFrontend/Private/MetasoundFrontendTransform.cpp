@@ -569,16 +569,21 @@ namespace Metasound
 					return;
 				}
 
-				FMetasoundFrontendVersionNumber UpdateVersion = NodeHandle->FindHighestMinorVersionInRegistry();
-				if (UpdateVersion.IsValid() && UpdateVersion > ClassMetadata.GetVersion())
+				// Check if a updated minor version exists.
+				FMetasoundFrontendClass ClassWithHighestMinorVersion;
+				bool bFoundClassInSearchEngine = Frontend::ISearchEngine::Get().FindClassWithHighestMinorVersion(ClassMetadata.GetClassName(), ClassMetadata.GetVersion().Major, ClassWithHighestMinorVersion);
+
+				if (bFoundClassInSearchEngine && (ClassWithHighestMinorVersion.Metadata.GetVersion() > ClassMetadata.GetVersion()))
 				{
+					const FMetasoundFrontendVersionNumber UpdateVersion = ClassWithHighestMinorVersion.Metadata.GetVersion();
+
 					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating '%s' node class '%s': Newer version '%s' found."), *DebugAssetPath, *ClassMetadata.GetClassName().ToString(), *UpdateVersion.ToString());
 
 					NodesToUpdate.Add(TPair<FNodeHandle, FMetasoundFrontendVersionNumber>(NodeHandle, UpdateVersion));
 				}
 				else if (InterfaceUpdates.ContainsChanges())
 				{
-					UpdateVersion = ClassMetadata.GetVersion();
+					const FMetasoundFrontendVersionNumber UpdateVersion = ClassMetadata.GetVersion();
 					UE_LOG(LogMetaSound, Display, TEXT("Auto-Updating '%s' node class '%s (%s)': Interface change detected."), *DebugAssetPath, *ClassMetadata.GetClassName().ToString(), *UpdateVersion.ToString());
 
 					NodesToUpdate.Add(TPair<FNodeHandle, FMetasoundFrontendVersionNumber>(NodeHandle, UpdateVersion));
@@ -589,7 +594,7 @@ namespace Metasound
 #if WITH_EDITORONLY_DATA
 				else
 				{
-					NodesToUpdate.Add(TPair<FNodeHandle, FMetasoundFrontendVersionNumber>(NodeHandle, UpdateVersion));
+					NodesToUpdate.Add(TPair<FNodeHandle, FMetasoundFrontendVersionNumber>(NodeHandle, ClassMetadata.GetVersion()));
 				}
 #endif // WITH_EDITORONLY_DATA
 			}, EMetasoundFrontendClassType::External);
@@ -1113,14 +1118,33 @@ namespace Metasound
 				// with an "Invalid" interface version.
 				if (ensure(Interfaces.IsEmpty()))
 				{
-					constexpr bool bIncludeAllVersions = true;
-					TArray<FMetasoundFrontendInterface> AllInterfaces = ISearchEngine::Get().FindAllInterfaces(bIncludeAllVersions);
+					// At the time when version 1.4 of the document was introduced, 
+					// these were the only available interfaces. 
+					static const FMetasoundFrontendVersion PreexistingInterfaceVersions[] = {
+						FMetasoundFrontendVersion{"MetaSound", {1, 0}},
+						FMetasoundFrontendVersion{"MonoSource", {1, 0}},
+						FMetasoundFrontendVersion{"StereoSource", {1, 0}},
+						FMetasoundFrontendVersion{"MonoSource", {1, 1}},
+						FMetasoundFrontendVersion{"StereoSource", {1, 1}}
+					};
+					static const int32 NumPreexistingInterfaceVersions = sizeof(PreexistingInterfaceVersions) / sizeof(PreexistingInterfaceVersions[0]);
+
+					TArray<FMetasoundFrontendInterface> CandidateInterfaces;
+					IInterfaceRegistry& InterfaceRegistry = IInterfaceRegistry::Get();
+					for (int32 i = 0; i < NumPreexistingInterfaceVersions; i++)
+					{
+						FMetasoundFrontendInterface Interface;
+						if (InterfaceRegistry.FindInterface(GetInterfaceRegistryKey(PreexistingInterfaceVersions[i]), Interface))
+						{
+							CandidateInterfaces.Add(Interface);
+						}
+					}
 
 					const FMetasoundFrontendGraphClass& RootGraph = InDocument->GetRootGraphClass();
 					const TArray<FMetasoundFrontendClass>& Dependencies = InDocument->GetDependencies();
 					const TArray<FMetasoundFrontendGraphClass>& Subgraphs = InDocument->GetSubgraphs();
 
-					if (const FMetasoundFrontendInterface* Interface = FindMostSimilarInterfaceSupportingEnvironment(RootGraph, Dependencies, Subgraphs, AllInterfaces))
+					if (const FMetasoundFrontendInterface* Interface = FindMostSimilarInterfaceSupportingEnvironment(RootGraph, Dependencies, Subgraphs, CandidateInterfaces))
 					{
 						UE_LOG(LogMetaSound, Display, TEXT("Assigned interface [InterfaceVersion:%s] to document [RootGraphClassName:%s]"),
 							*Interface->Version.ToString(), *RootGraph.Metadata.GetClassName().ToString());

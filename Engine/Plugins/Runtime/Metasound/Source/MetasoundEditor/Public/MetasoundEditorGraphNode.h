@@ -219,7 +219,6 @@ public:
 	virtual void CacheTitle() override;
 
 	FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const;
-	FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const;
 	bool CanAutoUpdate() const;
 
 	// Validates node and returns whether or not the node is valid.

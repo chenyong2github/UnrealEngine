@@ -55,7 +55,6 @@ namespace EngineTestMetasoundSourcePrivate
 	Metasound::Frontend::FNodeHandle AddNode(Metasound::Frontend::IGraphController& InGraph, const Metasound::FNodeClassName& InClassName)
 	{
 		FMetasoundFrontendClass NodeClass;
-		ensure(Metasound::Frontend::ISearchEngine::Get().FindClassWithHighestVersion(InClassName, NodeClass));
 		Metasound::Frontend::FNodeHandle Node = InGraph.AddNode(NodeClass.Metadata);
 		check(Node->IsValid());
 		return Node;
