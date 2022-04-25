@@ -156,6 +156,11 @@ void FClothConstraints::CreateRules()
 	}
 	if (BendingElementConstraints)
 	{
+		ConstraintInits[ConstraintInitIndex++] =
+			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			{
+				BendingElementConstraints->ApplyProperties(Dt, Evolution->GetIterations());
+			};
 		ConstraintRules[ConstraintRuleIndex++] =
 			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
 			{
@@ -347,11 +352,31 @@ void FClothConstraints::SetBendingConstraints(const TArray<TVec2<int32>>& Edges,
 	++NumConstraintRules;
 }
 
+void FClothConstraints::SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers, bool bUseXPBDConstraints)
+{
+	check(Evolution);
+
+	// TODO Add XPBD
+	BendingElementConstraints = MakeShared<Softs::FPBDBendingConstraints>(
+		Evolution->Particles(),
+		ParticleOffset, NumParticles,
+		MoveTemp(BendingElements),
+		StiffnessMultipliers,
+		BucklingStiffnessMultipliers,
+		/*InStiffness =*/ Softs::FSolverVec2::UnitVector,
+		/*InBucklingRatio=*/ (Softs::FSolverReal)0.f,
+		/*InBucklingStiffnessMultiplier =*/ Softs::FSolverVec2::UnitVector,
+		/*bTrimKinematicConstraints =*/ true);
+	++NumConstraintInits;  // Uses init to update the property tables
+	++NumConstraintRules;
+}
+
 void FClothConstraints::SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, Softs::FSolverReal BendingStiffness)
 {
 	check(Evolution);
 
-	BendingElementConstraints = MakeShared<Softs::FPBDBendingConstraints>(Evolution->Particles(), MoveTemp(BendingElements), BendingStiffness);  // TODO: Strip kinematic constraints
+	BendingElementConstraints = MakeShared<Softs::FPBDBendingConstraints>(Evolution->Particles(), MoveTemp(BendingElements), BendingStiffness);
+	++NumConstraintInits;  // Uses init to update the property tables
 	++NumConstraintRules;
 }
 
@@ -520,7 +545,7 @@ void FClothConstraints::SetEdgeProperties(const Softs::FSolverVec2& EdgeStiffnes
 	}
 }
 
-void FClothConstraints::SetBendingProperties(const Softs::FSolverVec2& BendingStiffness)
+void FClothConstraints::SetBendingProperties(const Softs::FSolverVec2& BendingStiffness, Softs::FSolverReal BucklingRatio, const Softs::FSolverVec2& BucklingStiffness)
 {
 	if (BendingConstraints)
 	{
@@ -529,6 +554,10 @@ void FClothConstraints::SetBendingProperties(const Softs::FSolverVec2& BendingSt
 	if (XBendingConstraints)
 	{
 		XBendingConstraints->SetProperties(BendingStiffness);
+	}
+	if (BendingElementConstraints)
+	{
+		BendingElementConstraints->SetProperties(BendingStiffness, BucklingRatio, BucklingStiffness);
 	}
 }
 

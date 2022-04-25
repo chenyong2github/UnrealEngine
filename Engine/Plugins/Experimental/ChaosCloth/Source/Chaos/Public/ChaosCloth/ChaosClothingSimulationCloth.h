@@ -35,6 +35,8 @@ namespace Chaos
 			FRealSingle InMinPerParticleMass,
 			const TVec2<FRealSingle>& InEdgeStiffness,
 			const TVec2<FRealSingle>& InBendingStiffness,
+			FRealSingle InBucklingRatio,
+			const TVec2<FRealSingle>& InBucklingStiffness,
 			bool bInUseBendingElements,
 			const TVec2<FRealSingle>& InAreaStiffness,
 			FRealSingle InVolumeStiffness,
@@ -195,6 +197,8 @@ namespace Chaos
 		FRealSingle MinPerParticleMass;
 		TVec2<FRealSingle> EdgeStiffness;
 		TVec2<FRealSingle> BendingStiffness;
+		FRealSingle BucklingRatio;
+		TVec2<FRealSingle> BucklingStiffness;
 		bool bUseBendingElements;
 		TVec2<FRealSingle> AreaStiffness;
 		FRealSingle VolumeStiffness;

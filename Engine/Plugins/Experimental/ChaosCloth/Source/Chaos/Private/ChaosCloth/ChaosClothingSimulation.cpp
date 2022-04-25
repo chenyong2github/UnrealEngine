@@ -31,6 +31,7 @@
 #include "Chaos/PBDSpringConstraints.h"
 #include "Chaos/PBDCollisionSpringConstraints.h"
 #include "Chaos/PBDTriangleMeshCollisions.h"
+#include "Chaos/PBDBendingConstraints.h"
 #include "Chaos/VelocityField.h"
 #endif  // #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 
@@ -395,6 +396,8 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->MinPerParticleMass,
 		TVec2<FRealSingle>(ClothConfig->EdgeStiffnessWeighted.Low, ClothConfig->EdgeStiffnessWeighted.High),
 		TVec2<FRealSingle>(ClothConfig->BendingStiffnessWeighted.Low, ClothConfig->BendingStiffnessWeighted.High),
+		ClothConfig->BucklingRatio,
+		TVec2<FRealSingle>(ClothConfig->BucklingStiffnessWeighted.Low, ClothConfig->BucklingStiffnessWeighted.High),
 		ClothConfig->bUseBendingElements,
 		TVec2<FRealSingle>(ClothConfig->AreaStiffnessWeighted.Low, ClothConfig->AreaStiffnessWeighted.High),
 		ClothConfig->VolumeStiffness,
@@ -819,6 +822,8 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->MinPerParticleMass,
 			TVec2<FRealSingle>(ClothConfig->EdgeStiffnessWeighted.Low, ClothConfig->EdgeStiffnessWeighted.High),
 			TVec2<FRealSingle>(ClothConfig->BendingStiffnessWeighted.Low, ClothConfig->BendingStiffnessWeighted.High),
+			ClothConfig->BucklingRatio,
+			TVec2<FRealSingle>(ClothConfig->BucklingStiffnessWeighted.Low, ClothConfig->BucklingStiffnessWeighted.High),
 			ClothConfig->bUseBendingElements,
 			TVec2<FRealSingle>(ClothConfig->AreaStiffnessWeighted.Low, ClothConfig->AreaStiffnessWeighted.High),
 			ClothConfig->VolumeStiffness,
@@ -1838,6 +1843,29 @@ void FClothingSimulation::DebugDrawBendingConstraint(FPrimitiveDrawInterface* PD
 				const FVec3 Pos1 = FVec3(Positions[Constraint[1]]) + LocalSpaceLocation;
 
 				DrawLine(PDI, Pos0, Pos1, FLinearColor::Black);
+			}
+		}
+
+		if (const Softs::FPBDBendingConstraints* const BendingConstraints = ClothConstraints.GetBendingElementConstraints().Get())
+		{
+			const TArray<TVec4<int32>>& Constraints = BendingConstraints->GetConstraints();
+			const TArray<FSolverReal>& RestAngles = BendingConstraints->GetRestAngles();
+
+			// Color constraint edge with red or blue: Red = Buckled, Blue = Not Buckled. This is based on its current configuration, not the values used
+			// in the actual simulation.
+			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
+			{
+				const Softs::FSolverVec3& P1 = Positions[Constraints[ConstraintIndex][0]];
+				const Softs::FSolverVec3& P2 = Positions[Constraints[ConstraintIndex][1]];
+				const Softs::FSolverVec3& P3 = Positions[Constraints[ConstraintIndex][2]];
+				const Softs::FSolverVec3& P4 = Positions[Constraints[ConstraintIndex][3]];
+				const Softs::FSolverReal Angle = Softs::FPBDBendingConstraintsBase::CalcAngle(P1, P2, P3, P4);
+				
+				const bool bIsBuckled = BendingConstraints->AngleIsBuckled(Angle, RestAngles[ConstraintIndex]);
+
+				const FVec3 Pos0 = FVec3(P1) + LocalSpaceLocation;
+				const FVec3 Pos1 = FVec3(P2) + LocalSpaceLocation;
+				DrawLine(PDI, Pos0, Pos1, bIsBuckled ? FLinearColor::Red : FLinearColor::Blue);
 			}
 		}
 	}

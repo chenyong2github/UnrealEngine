@@ -31,6 +31,8 @@ namespace Chaos
 		// ---- Cloth interface ----
 		void SetEdgeConstraints(const TArray<TVec3<int32>>& SurfaceElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints);
 		void SetBendingConstraints(const TArray<TVec2<int32>>& Edges, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints);
+		void SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers, bool bUseXPBDConstraints);
+		UE_DEPRECATED(5.1, "Use SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers, bool bUseXPBDConstraints) instead.")
 		void SetBendingConstraints(TArray<TVec4<int32>>&& BendingElements, Softs::FSolverReal BendingStiffness);
 		void SetAreaConstraints(const TArray<TVec3<int32>>& SurfaceElements, const TConstArrayView<FRealSingle>& StiffnessMultipliers, bool bUseXPBDConstraints);
 		void SetVolumeConstraints(const TArray<TVec2<int32>>& DoubleBendingEdges, Softs::FSolverReal VolumeStiffness);
@@ -56,7 +58,7 @@ namespace Chaos
 		void Enable(bool bEnable);
 
 		void SetEdgeProperties(const Softs::FSolverVec2& EdgeStiffness);
-		void SetBendingProperties(const Softs::FSolverVec2& BendingStiffness);
+		void SetBendingProperties(const Softs::FSolverVec2& BendingStiffness, Softs::FSolverReal BucklingRatio = 0.f, const Softs::FSolverVec2& BucklingStiffnessMultiplier = Softs::FSolverVec2::UnitVector);
 		void SetAreaProperties(const Softs::FSolverVec2& AreaStiffness);
 		void SetThinShellVolumeProperties(Softs::FSolverReal VolumeStiffness);
 		void SetVolumeProperties(Softs::FSolverReal VolumeStiffness);

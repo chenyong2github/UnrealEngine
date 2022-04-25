@@ -133,12 +133,14 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 
 	// Bending constraints
 	const TConstArrayView<FRealSingle>& BendingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BendingStiffness];
-	if (Cloth->BendingStiffness[0] > (FRealSingle)0. || (Cloth->BendingStiffness[1] > (FRealSingle)0. && BendingStiffnessMultipliers.Num() == NumParticles))
+	const TConstArrayView<FRealSingle>& BucklingStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::BucklingStiffness];
+	if (Cloth->BendingStiffness[0] > (FRealSingle)0. || (Cloth->BendingStiffness[1] > (FRealSingle)0. && BendingStiffnessMultipliers.Num() == NumParticles) ||
+		Cloth->BucklingStiffness[0] > (FRealSingle)0. || (Cloth->BucklingStiffness[1] > (FRealSingle)0. && BucklingStiffnessMultipliers.Num() == NumParticles))
 	{
 		if (Cloth->bUseBendingElements)
 		{
 			TArray<Chaos::TVec4<int32>> BendingElements = TriangleMesh.GetUniqueAdjacentElements();
-			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), (Softs::FSolverReal)Cloth->BendingStiffness[0]);  // TODO: Add support for weight maps
+			ClothConstraints.SetBendingConstraints(MoveTemp(BendingElements), BendingStiffnessMultipliers, BucklingStiffnessMultipliers, Cloth->bUseXPBDConstraints);
 		}
 		else
 		{
@@ -280,7 +282,7 @@ void FClothingSimulationCloth::FLODData::Update(FClothingSimulationSolver* Solve
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
 	ClothConstraints.SetMaximumDistanceProperties((Softs::FSolverReal)Cloth->MaxDistancesMultiplier * MeshScale);
 	ClothConstraints.SetEdgeProperties(Softs::FSolverVec2((Softs::FSolverReal)Cloth->EdgeStiffness[0], (Softs::FSolverReal)Cloth->EdgeStiffness[1]));
-	ClothConstraints.SetBendingProperties(Softs::FSolverVec2((Softs::FSolverReal)Cloth->BendingStiffness[0], (Softs::FSolverReal)Cloth->BendingStiffness[1]));
+	ClothConstraints.SetBendingProperties(Softs::FSolverVec2((Softs::FSolverReal)Cloth->BendingStiffness[0], (Softs::FSolverReal)Cloth->BendingStiffness[1]), Cloth->BucklingRatio, Softs::FSolverVec2((Softs::FSolverReal)Cloth->BucklingStiffness[0], (Softs::FSolverReal)Cloth->BucklingStiffness[1]));
 	ClothConstraints.SetAreaProperties(Softs::FSolverVec2((FSolverReal)Cloth->AreaStiffness[0], (Softs::FSolverReal)Cloth->AreaStiffness[1]));
 	ClothConstraints.SetLongRangeAttachmentProperties(
 		Softs::FSolverVec2((Softs::FSolverReal)Cloth->TetherStiffness[0], (Softs::FSolverReal)Cloth->TetherStiffness[1]),
@@ -340,6 +342,8 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	FRealSingle InMinPerParticleMass,
 	const TVec2<FRealSingle>& InEdgeStiffness,
 	const TVec2<FRealSingle>& InBendingStiffness,
+	FRealSingle InBucklingRatio,
+	const TVec2<FRealSingle>& InBucklingStiffness,
 	bool bInUseBendingElements,
 	const TVec2<FRealSingle>& InAreaStiffness,
 	FRealSingle InVolumeStiffness,
@@ -381,6 +385,8 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, MinPerParticleMass(InMinPerParticleMass)
 	, EdgeStiffness(InEdgeStiffness)
 	, BendingStiffness(InBendingStiffness)
+	, BucklingRatio(InBucklingRatio)
+	, BucklingStiffness(InBucklingStiffness)
 	, bUseBendingElements(bInUseBendingElements)
 	, AreaStiffness(InAreaStiffness)
 	, VolumeStiffness(InVolumeStiffness)
