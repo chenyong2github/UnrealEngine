@@ -26,6 +26,7 @@
 #include "RayTracingInstanceBufferUtil.h"
 #include "ScreenPass.h"
 #include "RayTracingDynamicGeometryCollection.h"
+#include "ShaderCompiler.h"
 
 class FCopyConvergedLightmapTilesCS : public FGlobalShader
 {
@@ -1421,6 +1422,13 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FLightmapRenderer::Finalize);
 
+	bool bIsCompilingShaders = GShaderCompilingManager && GShaderCompilingManager->IsCompiling();
+
+	if (bIsCompilingShaders)
+	{
+		return;
+	}
+	
 	if (PendingTileRequests.Num() == 0)
 	{
 		return;
@@ -3657,6 +3665,7 @@ void FLightmapRenderer::BackgroundTick()
 
 void FLightmapRenderer::BumpRevision()
 {
+	FrameNumber = 0;
 	CurrentRevision++;
 
 	for (TArray<FLightmapTileRequest>& FrameRequests : TilesVisibleLastFewFrames)
@@ -3664,6 +3673,7 @@ void FLightmapRenderer::BumpRevision()
 		FrameRequests.Empty();
 	}	
 
+	PendingTileRequests.Empty();
 	RecordedTileRequests.Empty();
 
 	LightmapTilePoolGPU.UnmapAll();

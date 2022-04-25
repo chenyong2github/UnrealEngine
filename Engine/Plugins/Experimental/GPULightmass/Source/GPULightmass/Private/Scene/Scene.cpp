@@ -23,6 +23,7 @@
 #include "Editor.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "LightmapDenoising.h"
+#include "ShaderCompiler.h"
 #include "Misc/FileHelper.h"
 #include "Components/ReflectionCaptureComponent.h"
 
@@ -1521,7 +1522,10 @@ void FScene::RemoveGeometryInstanceFromComponent(ULandscapeComponent* InComponen
 				{
 					const int8 SubSectionIdx = SubX + SubY * LandscapeRenderState.NumSubsections;
 
-					LandscapeRenderState.SectionRayTracingStates[SubSectionIdx]->Geometry.ReleaseResource();
+					if (LandscapeRenderState.SectionRayTracingStates[SubSectionIdx].IsValid())
+					{
+						LandscapeRenderState.SectionRayTracingStates[SubSectionIdx]->Geometry.ReleaseResource();
+					}
 				}
 			}
 		}
@@ -1592,27 +1596,35 @@ void FScene::BackgroundTick()
 
 	if (Percentage < 100 || GPULightmass->Settings->Mode == EGPULightmassMode::BakeWhatYouSee)
 	{
-		if (bNeedsVoxelization)
+		bool bIsCompilingShaders = GShaderCompilingManager && GShaderCompilingManager->IsCompiling();
+
+		if (!bIsCompilingShaders)
 		{
-			GatherImportanceVolumes();
+			if (bNeedsVoxelization)
+			{
+				GatherImportanceVolumes();
+
+				ENQUEUE_RENDER_COMMAND(BackgroundTickRenderThread)([&RenderState = RenderState](FRHICommandListImmediate&) mutable {
+					RenderState.VolumetricLightmapRenderer->VoxelizeScene();
+					RenderState.VolumetricLightmapRenderer->FrameNumber = 0;
+					RenderState.VolumetricLightmapRenderer->SamplesTaken = 0;
+				});
+
+				bNeedsVoxelization = false;
+			}
 
 			ENQUEUE_RENDER_COMMAND(BackgroundTickRenderThread)([&RenderState = RenderState](FRHICommandListImmediate&) mutable {
-				RenderState.VolumetricLightmapRenderer->VoxelizeScene();
-				RenderState.VolumetricLightmapRenderer->FrameNumber = 0;
-				RenderState.VolumetricLightmapRenderer->SamplesTaken = 0;
+				RenderState.BackgroundTick();
 			});
-
-			bNeedsVoxelization = false;
 		}
-
-		ENQUEUE_RENDER_COMMAND(BackgroundTickRenderThread)([&RenderState = RenderState](FRHICommandListImmediate&) mutable {
-			RenderState.BackgroundTick();
-		});
 	}
 	else
 	{
-		ApplyFinishedLightmapsToWorld();
-		GPULightmass->World->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().Broadcast();
+		if (!bNeedsVoxelization)
+		{
+			ApplyFinishedLightmapsToWorld();
+			GPULightmass->World->GetSubsystem<UGPULightmassSubsystem>()->OnLightBuildEnded().Broadcast();
+		}
 	}
 }
 
