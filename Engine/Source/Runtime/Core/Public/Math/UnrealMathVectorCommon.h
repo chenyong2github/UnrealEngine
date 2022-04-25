@@ -366,16 +366,56 @@ FORCEINLINE void VectorStoreFloat1(const VectorRegister4Double& Vec, int64* Dst)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Wrappers for clarifying "accurate" versus "estimate" for some functions,
+// important for old functions which were ambiguous in their precision.
+
+// Returns accurate reciprocal square root.
+FORCEINLINE VectorRegister4Float VectorReciprocalSqrtAccurate(const VectorRegister4Float& Vec)
+{
+	return VectorReciprocalSqrt(Vec);
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocalSqrtAccurate(const VectorRegister4Double& Vec)
+{
+	return VectorReciprocalSqrt(Vec);
+}
+
+/**
+ * Computes the reciprocal of a vector (component-wise) and returns the result.
+ *
+ * @param Vec	1st vector
+ * @return		VectorRegister( 1.0f / Vec.x, 1.0f / Vec.y, 1.0f / Vec.z, 1.0f / Vec.w )
+ */
+FORCEINLINE VectorRegister4Float VectorReciprocalAccurate(const VectorRegister4Float& Vec)
+{
+	return VectorReciprocal(Vec);
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocalAccurate(const VectorRegister4Double& Vec)
+{
+	return VectorReciprocal(Vec);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Returns a normalized 4 vector = Vector / |Vector|.
 // There is no handling of zero length vectors, use VectorNormalizeSafe if this is a possible input.
 template<typename TVectorRegisterType>
-FORCEINLINE TVectorRegisterType VectorNormalizeAccurate( const TVectorRegisterType& Vector )
+FORCEINLINE TVectorRegisterType VectorNormalize( const TVectorRegisterType& Vector )
 {
-	const TVectorRegisterType SquareSum = VectorDot4(Vector, Vector);
-	const TVectorRegisterType InvLength = VectorReciprocalSqrtAccurate(SquareSum);
-	const TVectorRegisterType NormalizedVector = VectorMultiply(InvLength, Vector);
-	return NormalizedVector;
+	return VectorMultiply(Vector, VectorReciprocalLen(Vector));
+}
+
+template<typename TVectorRegisterType>
+FORCEINLINE TVectorRegisterType VectorNormalizeAccurate(const TVectorRegisterType& Vector)
+{
+	return VectorNormalize(Vector);
+}
+
+template<typename TVectorRegisterType>
+FORCEINLINE TVectorRegisterType VectorNormalizeEstimate(const TVectorRegisterType& Vector)
+{
+	return VectorMultiply(Vector, VectorReciprocalLenEstimate(Vector));
 }
 
 // Returns ((Vector dot Vector) >= 1e-8) ? (Vector / |Vector|) : DefaultValue
@@ -475,6 +515,19 @@ template<> FORCEINLINE VectorRegister4Double FGenericPlatformMath::Max(const Vec
 	return VectorMax(A, B);
 }
 
+/** Lerp between two vectors */
+FORCEINLINE VectorRegister4Float VectorLerp(const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& Alpha)
+{
+	VectorRegister4Float SubVec = VectorSubtract(GlobalVectorConstants::FloatOne, Alpha);
+	return VectorMultiplyAdd(B, Alpha, VectorMultiply(A, SubVec));
+}
+
+FORCEINLINE VectorRegister4Double VectorLerp(const VectorRegister4Double& A, const VectorRegister4Double& B, const VectorRegister4Double& Alpha)
+{
+	VectorRegister4Double SubVec = VectorSubtract(GlobalVectorConstants::DoubleOne, Alpha);
+	return VectorMultiplyAdd(B, Alpha, VectorMultiply(A, SubVec));
+}
+
 // TCustomLerp for FMath::Lerp<VectorRegister4Float>()
 template<>
 struct TCustomLerp<VectorRegister4Float>
@@ -484,8 +537,7 @@ struct TCustomLerp<VectorRegister4Float>
 	// Specialization of Lerp function that works with vector registers
 	static FORCEINLINE VectorRegister4Float Lerp(const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& Alpha)
 	{
-		const VectorRegister4Float Delta = VectorSubtract(B, A);
-		return VectorMultiplyAdd(Alpha, Delta, A);
+		return VectorLerp(A, B, Alpha);
 	}
 };
 
@@ -498,8 +550,7 @@ struct TCustomLerp<VectorRegister4Double>
 	// Specialization of Lerp function that works with vector registers
 	static FORCEINLINE VectorRegister4Double Lerp(const VectorRegister4Double& A, const VectorRegister4Double& B, const VectorRegister4Double& Alpha)
 	{
-		const VectorRegister4Double Delta = VectorSubtract(B, A);
-		return VectorMultiplyAdd(Alpha, Delta, A);
+		return VectorLerp(A, B, Alpha);
 	}
 };
 
@@ -798,23 +849,6 @@ FORCEINLINE VectorRegister4Float VectorSet(uint32 X, uint32 Y, uint32 Z, uint32 
 {
 	return VectorSet(float(X), float(Y), float(Z), float(W));
 }
-
-/**
- * Normalize vector
- *
- * @param Vector		Vector to normalize
- * @return			Normalized VectorRegister4Float
- */
-FORCEINLINE VectorRegister4Float VectorNormalize(const VectorRegister4Float& Vec)
-{
-	return VectorMultiply(Vec, VectorReciprocalLen(Vec));
-}
-
-FORCEINLINE VectorRegister4Double VectorNormalize(const VectorRegister4Double& Vec)
-{
-	return VectorMultiply(Vec, VectorReciprocalLen(Vec));
-}
-
 
 FORCEINLINE VectorRegister4Float VectorFractional(const VectorRegister4Float& Vec)
 {

@@ -907,12 +907,6 @@ FORCEINLINE VectorRegister4Double VectorMultiplyAdd(VectorRegister4Double Vec1, 
 	return Result;
 }
 
-FORCEINLINE VectorRegister4Float VectorLerp(const VectorRegister4Float &Vec1, const VectorRegister4Float &Vec2, const VectorRegister4Float &Vec3)
-{
-	VectorRegister4Float SubVec = VectorSubtract(GlobalVectorConstants::FloatOne, Vec3);
-	return VectorMultiplyAdd(Vec2, Vec3, VectorMultiply(Vec1, SubVec));
-}
-
 /**
  * Multiplies two vectors (component-wise) and subtracts the result from the third vector.
  *
@@ -1588,36 +1582,17 @@ FORCEINLINE VectorRegister4Double VectorPow(const VectorRegister4Double& Base, c
 }
 
 /**
-* Returns an estimate of 1/sqrt(c) for each component of the vector
-*
-* @param Vector		Vector 
-* @return			VectorRegister4Float(1/sqrt(t), 1/sqrt(t), 1/sqrt(t), 1/sqrt(t))
-*/
-FORCEINLINE VectorRegister4Float VectorReciprocalSqrt(const VectorRegister4Float& Vec)
-{
-	return vrsqrteq_f32(Vec);
-}
-
-FORCEINLINE VectorRegister4Double VectorReciprocalSqrt(const VectorRegister4Double& Vec)
-{
-	VectorRegister4Double Result;
-	Result.XY = vrsqrteq_f64(Vec.XY);
-	Result.ZW = vrsqrteq_f64(Vec.ZW);
-	return Result;
-}
-
-/**
  * Computes an estimate of the reciprocal of a vector (component-wise) and returns the result.
  *
  * @param Vec	1st vector
  * @return		VectorRegister4Float( (Estimate) 1.0f / Vec.x, (Estimate) 1.0f / Vec.y, (Estimate) 1.0f / Vec.z, (Estimate) 1.0f / Vec.w )
  */
-FORCEINLINE VectorRegister4Float VectorReciprocal(const VectorRegister4Float& Vec)
+FORCEINLINE VectorRegister4Float VectorReciprocalEstimate(const VectorRegister4Float& Vec)
 {
 	return vrecpeq_f32(Vec);
 }
 
-FORCEINLINE VectorRegister4Double VectorReciprocal(const VectorRegister4Double& Vec)
+FORCEINLINE VectorRegister4Double VectorReciprocalEstimate(const VectorRegister4Double& Vec)
 {
 	VectorRegister4Double Result;
 	Result.XY = vrecpeq_f64(Vec.XY);
@@ -1627,68 +1602,18 @@ FORCEINLINE VectorRegister4Double VectorReciprocal(const VectorRegister4Double& 
 
 
 /**
-* Return Reciprocal Length of the vector
-*
-* @param Vector		Vector 
-* @return			VectorRegister4Float(rlen, rlen, rlen, rlen) when rlen = 1/sqrt(dot4(V))
-*/
-#define VectorReciprocalLen(Vector)		VectorReciprocalSqrt( VectorDot4( Vector, Vector ) )
-
-
-/**
-* Return the reciprocal of the square root of each component
-*
-* @param Vector		Vector
-* @return			VectorRegister4Float(1/sqrt(Vec.X), 1/sqrt(Vec.Y), 1/sqrt(Vec.Z), 1/sqrt(Vec.W))
-*/
-FORCEINLINE VectorRegister4Float VectorReciprocalSqrtAccurate(const VectorRegister4Float& Vec)
-{
-	// Perform a single pass of Newton-Raphson iteration on the hardware estimate
-	// This is a builtin instruction (VRSQRTS)
-
-	// Initial estimate
-	VectorRegister4Float RecipSqrt = VectorReciprocalSqrt(Vec);
-
-	// Two refinement
-	RecipSqrt = VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);
-	return VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);
-}
-
-#define VectorSqrt(Vec) vsqrtq_f32(Vec)
-
-FORCEINLINE VectorRegister4Double VectorReciprocalSqrtAccurate(const VectorRegister4Double& Vec)
-{
-	// Perform a single pass of Newton-Raphson iteration on the hardware estimate
-	// This is a builtin instruction (VRSQRTS)
-
-	// Initial estimate
-	VectorRegister4Double RecipSqrt = VectorReciprocalSqrt(Vec);
-
-	// Two refinement
-	VectorRegister4Double Tmp;
-	Tmp.XY = vrsqrtsq_f64(Vec.XY, VectorMultiply(RecipSqrt.XY, RecipSqrt.XY));
-	Tmp.ZW = vrsqrtsq_f64(Vec.ZW, VectorMultiply(RecipSqrt.ZW, RecipSqrt.ZW));
-	RecipSqrt = VectorMultiply(Tmp, RecipSqrt);
-
-	Tmp.XY = vrsqrtsq_f64(Vec.XY, VectorMultiply(RecipSqrt.XY, RecipSqrt.XY));
-	Tmp.ZW = vrsqrtsq_f64(Vec.ZW, VectorMultiply(RecipSqrt.ZW, RecipSqrt.ZW));
-	return VectorMultiply(Tmp, RecipSqrt);
-}
-
-
-/**
  * Computes the reciprocal of a vector (component-wise) and returns the result.
  *
  * @param Vec	1st vector
  * @return		VectorRegister4Float( 1.0f / Vec.x, 1.0f / Vec.y, 1.0f / Vec.z, 1.0f / Vec.w )
  */
-FORCEINLINE VectorRegister4Float VectorReciprocalAccurate(const VectorRegister4Float& Vec)
+FORCEINLINE VectorRegister4Float VectorReciprocal(const VectorRegister4Float& Vec)
 {
 	// Perform two passes of Newton-Raphson iteration on the hardware estimate
 	// The built-in instruction (VRECPS) is not as accurate
 
 	// Initial estimate
-	VectorRegister4Float Reciprocal = VectorReciprocal(Vec);
+	VectorRegister4Float Reciprocal = VectorReciprocalEstimate(Vec);
 
 	// First iteration
 	VectorRegister4Float Squared = VectorMultiply(Reciprocal, Reciprocal);
@@ -1701,10 +1626,120 @@ FORCEINLINE VectorRegister4Float VectorReciprocalAccurate(const VectorRegister4F
 	return VectorNegateMultiplyAdd(Vec, Squared, Double);
 }
 
-FORCEINLINE VectorRegister4Double VectorReciprocalAccurate(const VectorRegister4Double& Vec)
+FORCEINLINE VectorRegister4Double VectorReciprocal(const VectorRegister4Double& Vec)
 {
 	return VectorDivide(GlobalVectorConstants::DoubleOne, Vec);
 }
+
+
+/**
+ * Return the square root of each component
+ *
+ * @param Vector	Vector
+ * @return			VectorRegister4Float(sqrt(Vec.X), sqrt(Vec.Y), sqrt(Vec.Z), sqrt(Vec.W))
+ */
+FORCEINLINE VectorRegister4Float VectorSqrt(const VectorRegister4Float& Vec)
+{
+	return vsqrtq_f32(Vec);
+}
+
+FORCEINLINE VectorRegister4Double VectorSqrt(const VectorRegister4Double& Vec)
+{
+	VectorRegister4Double Result;
+	Result.XY = vsqrtq_f64(Vec.XY);
+	Result.ZW = vsqrtq_f64(Vec.ZW);
+	return Result;
+}
+
+/**
+ * Returns an estimate of 1/sqrt(c) for each component of the vector
+ *
+ * @param Vector	Vector 
+ * @return			VectorRegister4Float(1/sqrt(t), 1/sqrt(t), 1/sqrt(t), 1/sqrt(t))
+ */
+FORCEINLINE VectorRegister4Float VectorReciprocalSqrtEstimate(const VectorRegister4Float& Vec)
+{
+	return vrsqrteq_f32(Vec);
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocalSqrtEstimate(const VectorRegister4Double& Vec)
+{
+	VectorRegister4Double Result;
+	Result.XY = vrsqrteq_f64(Vec.XY);
+	Result.ZW = vrsqrteq_f64(Vec.ZW);
+	return Result;
+}
+
+/**
+ * Return the reciprocal of the square root of each component
+ *
+ * @param Vector	Vector
+ * @return			VectorRegister4Float(1/sqrt(Vec.X), 1/sqrt(Vec.Y), 1/sqrt(Vec.Z), 1/sqrt(Vec.W))
+ */
+FORCEINLINE VectorRegister4Float VectorReciprocalSqrt(const VectorRegister4Float& Vec)
+{
+	// Perform a single pass of Newton-Raphson iteration on the hardware estimate
+	// This is a builtin instruction (VRSQRTS)
+
+	// Initial estimate
+	VectorRegister4Float RecipSqrt = VectorReciprocalSqrtEstimate(Vec);
+
+	// Two refinement
+	RecipSqrt = VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);
+	return VectorMultiply(vrsqrtsq_f32(Vec, VectorMultiply(RecipSqrt, RecipSqrt)), RecipSqrt);
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocalSqrt(const VectorRegister4Double& Vec)
+{
+	// Perform a single pass of Newton-Raphson iteration on the hardware estimate
+	// This is a builtin instruction (VRSQRTS)
+
+	// Initial estimate
+	VectorRegister4Double RecipSqrt = VectorReciprocalSqrtEstimate(Vec);
+
+	// Two refinement
+	VectorRegister4Double Tmp;
+	Tmp.XY = vrsqrtsq_f64(Vec.XY, VectorMultiply(RecipSqrt.XY, RecipSqrt.XY));
+	Tmp.ZW = vrsqrtsq_f64(Vec.ZW, VectorMultiply(RecipSqrt.ZW, RecipSqrt.ZW));
+	RecipSqrt = VectorMultiply(Tmp, RecipSqrt);
+
+	Tmp.XY = vrsqrtsq_f64(Vec.XY, VectorMultiply(RecipSqrt.XY, RecipSqrt.XY));
+	Tmp.ZW = vrsqrtsq_f64(Vec.ZW, VectorMultiply(RecipSqrt.ZW, RecipSqrt.ZW));
+	return VectorMultiply(Tmp, RecipSqrt);
+}
+
+/**
+ * Return Reciprocal Length of the vector
+ *
+ * @param Vector	Vector
+ * @return			VectorRegister4Float(rlen, rlen, rlen, rlen) when rlen = 1/sqrt(dot4(V))
+ */
+FORCEINLINE VectorRegister4Float VectorReciprocalLen(const VectorRegister4Float& Vector)
+{
+	return VectorReciprocalSqrt(VectorDot4(Vector, Vector));
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocalLen(const VectorRegister4Double& Vector)
+{
+	return VectorReciprocalSqrt(VectorDot4(Vector, Vector));
+}
+
+/**
+ * Return Reciprocal Length of the vector (estimate)
+ *
+ * @param Vector	Vector
+ * @return			VectorRegister4Float(rlen, rlen, rlen, rlen) when rlen = 1/sqrt(dot4(V)) (estimate)
+ */
+FORCEINLINE VectorRegister4Float VectorReciprocalLenEstimate(const VectorRegister4Float& Vector)
+{
+	return VectorReciprocalSqrtEstimate(VectorDot4(Vector, Vector));
+}
+
+FORCEINLINE VectorRegister4Double VectorReciprocalLenEstimate(const VectorRegister4Double& Vector)
+{
+	return VectorReciprocalSqrtEstimate(VectorDot4(Vector, Vector));
+}
+
 
 /**
 * Loads XYZ and sets W=0
