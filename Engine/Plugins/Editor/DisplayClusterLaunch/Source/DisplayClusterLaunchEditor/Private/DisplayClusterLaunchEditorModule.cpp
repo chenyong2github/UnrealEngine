@@ -15,17 +15,23 @@
 
 #include "Shared/UdpMessagingSettings.h"
 
+#include "Algo/RemoveIf.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Editor.h"
 #include "EngineUtils.h"
+#include "FileHelpers.h"
 #include "Engine/GameEngine.h"
-#include "Framework/Commands/Commands.h"
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
 #include "Misc/ConfigCacheIni.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterLaunchEditorModule"
+
+void CloseAllMenus()
+{
+	FSlateApplication::Get().DismissAllMenus();
+}
 
 FString EnumToString(const TCHAR* EnumName, const int32 EnumValue)
 {
@@ -52,26 +58,6 @@ static UWorld* GetCurrentWorld()
 	}
 	return CurrentWorld;
 }
-
-class FDisplayClusterLaunchUiCommands : public TCommands<FDisplayClusterLaunchUiCommands>
-{
-public:
-	FDisplayClusterLaunchUiCommands()
-		: TCommands<FDisplayClusterLaunchUiCommands>(
-			"DisplayClusterLaunch",
-			LOCTEXT("DisplayClusterLaunchCommands", "DisplayClusterLaunch UI Commands"),
-			NAME_None,
-			FDisplayClusterLaunchEditorStyle::Get().GetStyleSetName()
-		)
-	{}
-
-	virtual void RegisterCommands() override
-	{
-		UI_COMMAND(LaunchDisplayCluster, "Launch nDisplay", "Launch nDisplay", EUserInterfaceActionType::Button, FInputChord());
-	}
-
-	TSharedPtr<FUICommandInfo> LaunchDisplayCluster;
-};
 
 FDisplayClusterLaunchEditorModule& FDisplayClusterLaunchEditorModule::Get()
 {
@@ -213,60 +199,70 @@ FString GetConcertSessionName()
 	return Settings->bAutoGenerateSessionName ? AppendRandomNumbersToString("nDisplayLaunchSession") : Settings->ExplicitSessionName;
 }
 
-FString GetConcertArguments()
+FString GetConcertArguments(const FString& ServerName, const FString& SessionName)
 {
 	const UConcertClientConfig* ConcertClientConfig = GetDefault<UConcertClientConfig>();
 	ensureAlwaysMsgf (ConcertClientConfig, TEXT("%hs: Unable to launch nDisplay because there is no UConcertClientConfig object."));
 
 	FString ReturnValue =
 		FString::Printf(TEXT("-CONCERTISHEADLESS -CONCERTRETRYAUTOCONNECTONERROR -CONCERTAUTOCONNECT -CONCERTSERVER=\"%s\" -CONCERTSESSION=\"%s\""),
-			 *GetConcertServerName(), *GetConcertSessionName());
+			 *ServerName, *SessionName);
 
 	return ReturnValue;
 }
 
-void LaunchConcertServerIfNotRunning()
+void LaunchConcertServerIfNotRunning(const FString& ServerName, const FString& SessionName)
 {
 	IMultiUserClientModule& MultiUserClientModule = IMultiUserClientModule::Get();
 	if (!MultiUserClientModule.IsConcertServerRunning())
 	{
-		MultiUserClientModule.LaunchConcertServer();
+		FServerLaunchOverrides Overrides;
+		Overrides.ServerName = ServerName;
+		
+		MultiUserClientModule.LaunchConcertServer(Overrides);
 	}
 }
 
 void FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess()
 {
-	if (!SelectedDisplayClusterConfigActor.IsValid())
-	{
-		UE_LOG(LogDisplayClusterLaunchEditor, Error, TEXT("%hs: Unable to launch nDisplay because there is no valid selected nDisplay configuration."), __FUNCTION__);
-		return;
-	}
-
+	TArray<TWeakObjectPtr<ADisplayClusterRootActor>> ConfigsInWorld = GetAllDisplayClusterConfigsInWorld();
 	if (!DoesCurrentWorldHaveDisplayClusterConfig())
 	{
-		UE_LOG(LogDisplayClusterLaunchEditor, Error, TEXT("%hs: Unable to launch nDisplay because there are no valid selected nDisplay configurations in the world."), __FUNCTION__);
+		UE_LOG(LogDisplayClusterLaunchEditor, Error, TEXT("%hs: Unable to launch nDisplay because there are no valid nDisplay configurations in the world."), __FUNCTION__);
 		return;
 	}
 
-	if (SelectedDisplayClusterConfigActorNodes.Num() == 0)
+	if (!SelectedDisplayClusterConfigActor.IsValid())
 	{
-		UE_LOG(LogDisplayClusterLaunchEditor, Error, TEXT("%hs: Unable to launch nDisplay because there are no selected nDisplay nodes."), __FUNCTION__);
-		return;
+		for (const TWeakObjectPtr<ADisplayClusterRootActor>& Config : ConfigsInWorld)
+		{
+			if (ADisplayClusterRootActor* ConfigPtr = Config.Get())
+			{
+				TArray<FString> NodeNames;
+				ConfigPtr->GetConfigData()->Cluster->Nodes.GenerateKeyArray(NodeNames);
+
+				if (NodeNames.Num() > 0)
+				{
+					SetSelectedDisplayClusterConfigActor(ConfigPtr);
+					break;
+				}
+			}
+		}
 	}
 
+	UDisplayClusterConfigurationData* ConfigDataToUse = nullptr;
 	FString ConfigActorPath;
+	
+	// If it's valid we need to check the selected nodes against the current config. If they don't exist, we need to get the first one.
 	if (const ADisplayClusterRootActor* ConfigActor = Cast<ADisplayClusterRootActor>(SelectedDisplayClusterConfigActor.ResolveObject()))
 	{
-		const FString FilePath = FPaths::Combine(FPaths::ProjectSavedDir(), "Temp.ndisplay");
-		UDisplayClusterConfigurationData* ConfigDataCopy = DuplicateObject(ConfigActor->GetConfigData(), GetTransientPackage());
+		// Duplicate existing config data so we can make non-destructive edits
+		ConfigDataToUse = DuplicateObject(ConfigActor->GetConfigData(), GetTransientPackage());
 
-		if (!ConfigDataCopy->Scene)
-		{
-			ConfigDataCopy->Scene = NewObject<UDisplayClusterConfigurationScene>(ConfigDataCopy, NAME_None,
-			RF_ArchetypeObject | RF_Public );
-		}
-		
-		if (!ensureAlways(IDisplayClusterConfiguration::Get().SaveConfig(ConfigDataCopy, FilePath)))
+		ApplyDisplayClusterConfigOverrides(ConfigDataToUse);
+
+		const FString FilePath = FPaths::Combine(FPaths::ProjectSavedDir(), "Temp.ndisplay");
+		if (!ensureAlways(IDisplayClusterConfiguration::Get().SaveConfig(ConfigDataToUse, FilePath)))
 		{
 			UE_LOG(LogDisplayClusterLaunchEditor, Error, TEXT("%hs: Unable to launch nDisplay because the selected nDisplay Configuration could not be saved to a .ndisplay file. See the log for more information."), __FUNCTION__);
 			return;
@@ -295,8 +291,11 @@ void FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess()
 	FString ConcertArguments;
 	if (GetConnectToMultiUser())
 	{
-		ConcertArguments = GetConcertArguments();
-		LaunchConcertServerIfNotRunning();
+		const FString ServerName = GetConcertServerName();
+		const FString SessionName = GetConcertSessionName();
+		
+		ConcertArguments = GetConcertArguments(ServerName, SessionName);
+		LaunchConcertServerIfNotRunning(ServerName, SessionName);
 	}
 
 	for (const FString& Node : SelectedDisplayClusterConfigActorNodes)
@@ -305,10 +304,59 @@ void FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess()
 		FString ConcatenatedConsoleCommands;
 		FString ConcatenatedDPCvars;
 		FString ConcatenatedLogCommands;
+
+		// Fullscreen/Windowed
+		if (UDisplayClusterConfigurationClusterNode** NodePtrPtr = ConfigDataToUse->Cluster->Nodes.Find(Node))
+		{
+			if (const UDisplayClusterConfigurationClusterNode* NodePtr = *NodePtrPtr)
+			{
+				if (NodePtr->bIsFullscreen)
+				{
+					ConcatenatedCommandLineArguments += "-fullscreen ";
+				}
+				else
+				{
+					ConcatenatedCommandLineArguments +=
+						FString::Printf(
+							TEXT("-windowed -forceres -WinX=%i -WinY=%i, -ResX=%i, -ResY=%i "),
+								NodePtr->WindowRect.X, NodePtr->WindowRect.Y,
+								NodePtr->WindowRect.W, NodePtr->WindowRect.H
+						);
+				}
+			}
+		}
+		
+		// Open a modal to prompt for save, if dirty. Yes = Save & Continue. No = Continue Without Saving. Cancel = Stop Opening Assets.
+		UPackage* PackageToSave = nullptr;
+        		
+		if (UWorld* World = GetCurrentWorld())
+		{
+			if (ULevel* Level = World->GetCurrentLevel())
+			{
+				PackageToSave = Level->GetPackage();
+			}
+		}
+
+		if (PackageToSave)
+		{
+			const FEditorFileUtils::EPromptReturnCode DialogueResponse =
+					FEditorFileUtils::PromptForCheckoutAndSave(
+						{PackageToSave},
+						true,
+						true,
+						LOCTEXT("SavePackagesTitle", "Save Packages"),
+						LOCTEXT("ConfirmOpenLevelFormat", "Do you want to save the current level?\n\nCancel to abort launch.\n")
+					);
+		
+			if (DialogueResponse == FEditorFileUtils::EPromptReturnCode::PR_Cancelled)
+			{
+				return;
+			}
+		}
 	
 		GetProjectSettingsArguments(ProjectSettings, ConcatenatedCommandLineArguments, ConcatenatedConsoleCommands, ConcatenatedDPCvars,
 					 ConcatenatedLogCommands);
-
+		
 		AddUdpMessagingArguments(ConcatenatedCommandLineArguments);
 
 		// Add nDisplay node information
@@ -336,23 +384,30 @@ void FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess()
 
 		void* WritePipe = nullptr;
 
-		FProcHandle Process = FPlatformProcess::CreateProc(
-			*EditorBinary, *Params,
-			ProjectSettings->bCloseEditorOnLaunch,
-			false, false, NULL,
-			0, NULL, WritePipe
+		ActiveProcesses.Add(
+			FPlatformProcess::CreateProc(
+				*EditorBinary, *Params,
+				ProjectSettings->bCloseEditorOnLaunch,
+				false, false, NULL,
+				0, NULL, WritePipe
+			)
 		);
 	}
 }
 
+void FDisplayClusterLaunchEditorModule::TerminateActiveDisplayClusterProcesses()
+{
+	for (FProcHandle& Process : ActiveProcesses)
+	{
+		FPlatformProcess::TerminateProc(Process);
+		FPlatformProcess::CloseProc(Process);
+	}
+
+	RemoveTerminatedNodeProcesses();
+}
+
 void FDisplayClusterLaunchEditorModule::OnFEngineLoopInitComplete()
 {
-	Actions = MakeShared<FUICommandList>();
-	FDisplayClusterLaunchUiCommands::Register();
-
-	Actions->MapAction(FDisplayClusterLaunchUiCommands::Get().LaunchDisplayCluster,
-		FExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess));
-	
 	RegisterProjectSettings();
 	RegisterToolbarItem();
 }
@@ -365,12 +420,19 @@ void FDisplayClusterLaunchEditorModule::RegisterToolbarItem()
 
 	FToolMenuSection& Section = Menu->AddSection("DisplayClusterLaunch");
 
-	FToolMenuEntry DisplayClusterLaunchButton =
-		FToolMenuEntry::InitToolBarButton(FDisplayClusterLaunchUiCommands::Get().LaunchDisplayCluster,
+	const FToolMenuEntry DisplayClusterLaunchButton =
+		FToolMenuEntry::InitToolBarButton("DisplayClusterLaunchToolbarButton",
+			FUIAction(
+				FExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::OnClickToolbarButton)
+			),
 			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Toolbar.Play"));
-	DisplayClusterLaunchButton.SetCommandList(Actions);
+			TAttribute<FText>::Create(
+				TAttribute<FText>::FGetter::CreateRaw(this, &FDisplayClusterLaunchEditorModule::GetToolbarButtonTooltipText)
+			),
+			TAttribute<FSlateIcon>::Create(
+				TAttribute<FSlateIcon>::FGetter::CreateRaw(this, &FDisplayClusterLaunchEditorModule::GetToolbarButtonIcon)
+			)
+		);
 
 	const FToolMenuEntry DisplayClusterLaunchComboButton = FToolMenuEntry::InitComboButton(
 		"DisplayClusterLaunchMenu",
@@ -384,6 +446,64 @@ void FDisplayClusterLaunchEditorModule::RegisterToolbarItem()
 
 	Section.AddEntry(DisplayClusterLaunchButton);
 	Section.AddEntry(DisplayClusterLaunchComboButton);
+}
+
+FText FDisplayClusterLaunchEditorModule::GetToolbarButtonTooltipText()
+{
+	if (ActiveProcesses.Num() == 1)
+	{
+		return LOCTEXT("TerminateActiveProcess","Terminate active nDisplay process");
+	}
+	else if (ActiveProcesses.Num() > 1)
+	{
+		return FText::Format(LOCTEXT("TerminateActiveProcessesFormat","Terminate {0} active nDisplay processes"), ActiveProcesses.Num());
+	}
+
+	if (!SelectedDisplayClusterConfigActor.ResolveObject())
+	{
+		return LOCTEXT("GenericLaunchDisplayClusterProcessText_NoConfig", "Launch an nDisplay instance using the first Config Actor found in the current level and the first node found in that configuration.\n\nSet specific configurations and nodes using the overflow menu.");
+	}
+
+	if (SelectedDisplayClusterConfigActorNodes.Num() == 0)
+	{
+		return FText::Format(
+			LOCTEXT("GenericLaunchDisplayClusterProcessText_NoNodesFormat", "Launch an nDisplay instance using the Config Actor named '{0}' and the first node found in this configuration.\n\nSet specific configurations and nodes using the overflow menu."),
+				FText::FromString(SelectedDisplayClusterConfigActor.GetAssetName())
+		);
+	}
+
+	FString ConfigActorName = SelectedDisplayClusterConfigActor.ResolveObject()->GetName();
+
+	const FString SplitTerm = "_C";
+	if (ConfigActorName.Contains(SplitTerm))
+	{
+		ConfigActorName = ConfigActorName.Left(ConfigActorName.Find(SplitTerm));
+	}
+	
+	return FText::Format(
+		LOCTEXT("LaunchDisplayClusterProcessesFormat", "Launch the following nodes:\n\n{0}\n\nFrom this configuration:\n\n{1}"),
+			GetSelectedNodesListText(), FText::FromString(ConfigActorName)
+		);
+}
+
+FSlateIcon FDisplayClusterLaunchEditorModule::GetToolbarButtonIcon()
+{
+	RemoveTerminatedNodeProcesses();
+
+	return FSlateIcon(FAppStyle::Get().GetStyleSetName(),
+		ActiveProcesses.Num() > 0 ? "Icons.Toolbar.Stop" : "Icons.Toolbar.Play");
+}
+
+void FDisplayClusterLaunchEditorModule::OnClickToolbarButton()
+{
+	if (ActiveProcesses.Num() == 0)
+	{
+		LaunchDisplayClusterProcess();
+	}
+	else
+	{
+		TerminateActiveDisplayClusterProcesses();
+	}
 }
 
 void FDisplayClusterLaunchEditorModule::RemoveToolbarItem()
@@ -406,6 +526,21 @@ void FDisplayClusterLaunchEditorModule::RegisterProjectSettings() const
 			LOCTEXT("DisplayClusterLaunchSettingsDescription", "Configure the nDisplay Launch user settings"),
 			GetMutableDefault<UDisplayClusterLaunchEditorProjectSettings>());
 	}
+}
+
+FText FDisplayClusterLaunchEditorModule::GetSelectedNodesListText() const
+{
+	if (SelectedDisplayClusterConfigActorNodes.Num() > 0)
+	{
+		FString JoinedNodes = FString::Join(SelectedDisplayClusterConfigActorNodes, TEXT("\n"));
+		int32 IndexOfBreakOrLengthIfNoBreakFound = JoinedNodes.Find(TEXT("\n"));
+		if (IndexOfBreakOrLengthIfNoBreakFound == INDEX_NONE) { IndexOfBreakOrLengthIfNoBreakFound = JoinedNodes.Len(); }
+		JoinedNodes.InsertAt(IndexOfBreakOrLengthIfNoBreakFound, " ({0})");
+	
+		return FText::Format(FText::FromString(JoinedNodes), LOCTEXT("PrimaryNode", "Primary"));
+	}
+
+	return FText::GetEmpty();
 }
 
 TArray<TWeakObjectPtr<ADisplayClusterRootActor>> FDisplayClusterLaunchEditorModule::GetAllDisplayClusterConfigsInWorld()
@@ -434,6 +569,52 @@ bool FDisplayClusterLaunchEditorModule::DoesCurrentWorldHaveDisplayClusterConfig
 	return bAreConfigsFoundInWorld;
 }
 
+void FDisplayClusterLaunchEditorModule::ApplyDisplayClusterConfigOverrides(UDisplayClusterConfigurationData* ConfigDataCopy)
+{
+	if (!ConfigDataCopy->Scene)
+	{
+		ConfigDataCopy->Scene = NewObject<UDisplayClusterConfigurationScene>(ConfigDataCopy, NAME_None,
+		RF_ArchetypeObject | RF_Public );
+	}
+
+	// A Primary Node should always be automatically selected, but this code preempts a crash. Normally we use the PN specified in the UI.
+	// If one is not specified in the UI, we check to see if the primary node specified
+	// in the original config is in our node array selection from the UI.
+	// If it isn't, in the loop below we'll use the first active node.
+	bool bIsConfigPrimaryNodeInActiveNodes = false;
+	const bool bIsPrimaryNodeUnset = SelectedDisplayClusterConfigActorPrimaryNode.IsEmpty();
+	if (bIsPrimaryNodeUnset)
+	{
+		bIsConfigPrimaryNodeInActiveNodes =
+			SelectedDisplayClusterConfigActorNodes.Contains(ConfigDataCopy->Cluster->PrimaryNode.Id);
+	}
+	else
+	{
+		ConfigDataCopy->Cluster->PrimaryNode.Id = SelectedDisplayClusterConfigActorPrimaryNode;
+	}
+
+	TMap<FString, UDisplayClusterConfigurationClusterNode*> ActiveNodes;
+	TMap<FString, UDisplayClusterConfigurationClusterNode*> NodesInConfig = ConfigDataCopy->Cluster->Nodes;
+	for (int32 NodeIndex = 0; NodeIndex < SelectedDisplayClusterConfigActorNodes.Num(); NodeIndex++)
+	{
+		FString NodeId = SelectedDisplayClusterConfigActorNodes[NodeIndex];
+		if (UDisplayClusterConfigurationClusterNode** Node = NodesInConfig.Find(NodeId))
+		{
+			ActiveNodes.Add(NodeId, *Node);
+
+			(*Node)->Host = "127.0.0.1";
+
+			// If we haven't specified a primary node and the config's primary node is not in our selection, use the first active node.
+			if (bIsPrimaryNodeUnset && !bIsConfigPrimaryNodeInActiveNodes && ActiveNodes.Num() == 1)
+			{
+				ConfigDataCopy->Cluster->PrimaryNode.Id = NodeId;
+			}
+		}
+	}
+
+	ConfigDataCopy->Cluster->Nodes = ActiveNodes;
+}
+
 void FDisplayClusterLaunchEditorModule::SetSelectedDisplayClusterConfigActor(ADisplayClusterRootActor* SelectedActor)
 {
 	if (SelectedActor)
@@ -445,6 +626,8 @@ void FDisplayClusterLaunchEditorModule::SetSelectedDisplayClusterConfigActor(ADi
 			SelectedDisplayClusterConfigActor = AsSoftObjectPath;
 
 			SelectedDisplayClusterConfigActorNodes.Empty();
+
+			SelectFirstNode(SelectedActor);
 		}
 	}
 }
@@ -458,6 +641,18 @@ void FDisplayClusterLaunchEditorModule::ToggleDisplayClusterConfigActorNodeSelec
 	else
 	{
 		SelectedDisplayClusterConfigActorNodes.Add(InNodeName);
+	}
+
+	// Clear SelectedDisplayClusterConfigActorPrimaryNode if no nodes are selected
+	if (SelectedDisplayClusterConfigActorNodes.Num() == 0)
+	{
+		SelectedDisplayClusterConfigActorPrimaryNode = "";
+	}
+
+	// If a single node is selected, SelectedDisplayClusterConfigActorPrimaryNode must be this node
+	if (SelectedDisplayClusterConfigActorNodes.Num() == 1)
+	{
+		SelectedDisplayClusterConfigActorPrimaryNode = SelectedDisplayClusterConfigActorNodes[0];
 	}
 }
 
@@ -478,19 +673,49 @@ void FDisplayClusterLaunchEditorModule::SetSelectedConsoleVariablesAsset(const F
 	}
 }
 
+void FDisplayClusterLaunchEditorModule::SelectFirstNode(ADisplayClusterRootActor* InConfig)
+{
+	TArray<FString> NodeNames;
+	InConfig->GetConfigData()->Cluster->Nodes.GenerateKeyArray(NodeNames);
+
+	if (NodeNames.Num() == 0)
+	{
+		UE_LOG(LogDisplayClusterLaunchEditor, Error, TEXT("%hs: Unable to launch nDisplay because there are no nDisplay nodes in the selected nDisplay Config named '{0}'."), __FUNCTION__, *InConfig->GetActorNameOrLabel());
+		return;
+	}
+		
+	SelectedDisplayClusterConfigActorNodes.SetNum(
+		Algo::StableRemoveIf(
+			SelectedDisplayClusterConfigActorNodes,
+			[NodeNames](const FString& SelectedNode)
+			{
+				return !NodeNames.Contains(SelectedNode);
+			}
+		)
+	);
+
+	if (SelectedDisplayClusterConfigActorNodes.Num() == 0)
+	{
+		const FString& NodeName = NodeNames[0];
+		UE_LOG(LogDisplayClusterLaunchEditor, Warning, TEXT("%hs: Selected nDisplay nodes were not found on the selected DisplayClusterRootActor. We will select the first valid node."), __FUNCTION__);
+		SelectedDisplayClusterConfigActorNodes.Add(NodeName);
+		UE_LOG(LogDisplayClusterLaunchEditor, Log, TEXT("%hs: Adding first valid node named '{0}' to selected nodes."), __FUNCTION__, *NodeName);
+	}
+}
+
 TSharedRef<SWidget>  FDisplayClusterLaunchEditorModule::CreateToolbarMenuEntries()
 {
 	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
 	
-	FMenuBuilder MenuBuilder(true, Actions);
+	FMenuBuilder MenuBuilder(false, nullptr);
 
 	TArray<TWeakObjectPtr<ADisplayClusterRootActor>> DisplayClusterConfigs = GetAllDisplayClusterConfigsInWorld();
 
 	MenuBuilder.BeginSection("DisplayClusterLaunch", LOCTEXT("DisplayClusterLauncher", "Launch nDisplay"));
 	{
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("DisplayClusterLaunchLastNode", "Launch Last Node"),
-			LOCTEXT("DisplayClusterLaunchLastNodeTooltip", "Launch the last node."),
+			LOCTEXT("DisplayClusterLaunchLastNode", "Launch Last Node Configuration"),
+			LOCTEXT("DisplayClusterLaunchLastNodeTooltip", "Launch the last node configuration."),
 			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.Toolbar.Play"),
 			FUIAction(
 				FExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess),
@@ -572,63 +797,140 @@ void FDisplayClusterLaunchEditorModule::AddDisplayClusterLaunchConfigurations(IA
 
 void FDisplayClusterLaunchEditorModule::AddDisplayClusterLaunchNodes(IAssetRegistry* AssetRegistry, FMenuBuilder& MenuBuilder)
 {
-	if (ADisplayClusterRootActor* SelectedActor = Cast<ADisplayClusterRootActor>(SelectedDisplayClusterConfigActor.ResolveObject()))
+	MenuBuilder.BeginSection("DisplayClusterLaunchNodes", LOCTEXT("DisplayClusterLaunchNodes", "Nodes"));
 	{
-		TArray<FString> NodeNames;
-		SelectedActor->GetConfigData()->Cluster->Nodes.GenerateKeyArray(NodeNames);
-
-		if (NodeNames.Num() > 0)
-		{
-			MenuBuilder.BeginSection("DisplayClusterLaunchNodes", LOCTEXT("DisplayClusterLaunchNodes", "Nodes"));
-			{
-				const TAttribute<FText> SelectedDisplayClusterNodeNames =
-					TAttribute<FText>::Create(
-						[this]()
-						{
-							if (SelectedDisplayClusterConfigActorNodes.Num() > 0)
-							{
-								return FText::FromString(FString::Join(SelectedDisplayClusterConfigActorNodes, TEXT(", ")));
-							}
-							return LOCTEXT("NoDisplayClusterLaunchNodesSelected", "Please select nDisplay nodes to launch.");
-						}
-					);
-				
-				MenuBuilder.AddSubMenu(
-					SelectedDisplayClusterNodeNames,
-					LOCTEXT("SelectDisplayClusterNodes","Select nDisplay Nodes"),
-					FNewMenuDelegate::CreateLambda([this, NodeNames](FMenuBuilder& NewMenuBuilder)
+		// Submenu for node selection. Using a WrapperSubMenu to avoid the menu automatically closing when selecting nodes
+		// AddWrapperSubMenu does not allow for TAttribute<FText> Labels, it just copies the FText input so we need this entry to display live data
+		MenuBuilder.AddMenuEntry(
+			TAttribute<FText>::CreateLambda(
+				[this] ()
+				{
+					const int32 NodeCount = SelectedDisplayClusterConfigActorNodes.Num();
+										
+					if (NodeCount > 0)
 					{
-						for (const FString& NodeName : NodeNames)
+						if (NodeCount == 1)
 						{
-							const FText DisplayClusterNodeName = FText::FromString(NodeName);
-							const FText DisplayClusterNodeTooltip =
-								FText::Format(LOCTEXT("SelectDisplayClusterNodeFormat","Select node '{0}'"), DisplayClusterNodeName);
-							
-							NewMenuBuilder.AddMenuEntry(
-								DisplayClusterNodeName,
-								DisplayClusterNodeTooltip,
+							return FText::Format(
+								LOCTEXT("SelectedSingleNodeFormat", "'{0}' Selected"),
+								FText::FromString(SelectedDisplayClusterConfigActorNodes[0]));
+						}
+						else
+						{
+							return FText::Format(
+								LOCTEXT("SelectedMultipleNodesFormat", "Selected {0} Nodes"), FText::AsNumber(NodeCount));
+						}
+					}
+					else
+					{
+						return LOCTEXT("NoDisplayClusterLaunchNodesSelected", "Please select nDisplay nodes to launch.");
+					}
+				}
+			),
+			TAttribute<FText>::CreateRaw(
+					this, &FDisplayClusterLaunchEditorModule::GetSelectedNodesListText
+			),
+			FSlateIcon(FDisplayClusterLaunchEditorStyle::Get().GetStyleSetName(),"Icons.DisplayClusterNode"),
+			FUIAction(
+				FExecuteAction(),
+				FCanExecuteAction::CreateLambda([]() { return false; })
+			),
+			NAME_None,
+			EUserInterfaceActionType::None
+		);
+		
+		MenuBuilder.AddWrapperSubMenu(
+			LOCTEXT("SelectDisplayClusterNodes","Select nDisplay Nodes"),
+			LOCTEXT("SelectDisplayClusterNodesTooltip","Select nDisplay Nodes.\nThe first node selected will be designated as the primary node when launched unless otherwise specified."),
+			FOnGetContent::CreateLambda([this]()
+			{
+				FMenuBuilder NewMenuBuilder(false, nullptr);
+
+				NewMenuBuilder.AddSubMenu(
+					TAttribute<FText>::CreateLambda([this]()
+					{
+						return
+							FText::Format(
+								LOCTEXT("SelectPrimaryNodeFormat","Select Primary Node ({0})"),
+								SelectedDisplayClusterConfigActorPrimaryNode.IsEmpty() ? LOCTEXT("None", "None") :
+								FText::FromString(SelectedDisplayClusterConfigActorPrimaryNode));
+					}),
+					LOCTEXT("SelectPrimaryNode", "Select the Primary Node"),
+					FNewMenuDelegate::CreateLambda([this](FMenuBuilder& InMenuBuilder)
+					{
+						const FText NodeTooltip =
+							LOCTEXT("MakePrimaryNodeTooltip", "Make this node the new Primary Node. Does not affect the original configuration.");
+						
+						for (const FString& SelectedNode : SelectedDisplayClusterConfigActorNodes)
+						{
+							InMenuBuilder.AddMenuEntry(
+								FText::FromString(SelectedNode),
+								NodeTooltip,
 								FSlateIcon(),
 								FUIAction(
-									FExecuteAction::CreateRaw(
-										this, &FDisplayClusterLaunchEditorModule::ToggleDisplayClusterConfigActorNodeSelected, NodeName),
+									FExecuteAction::CreateLambda([this, SelectedNode]()
+									{
+										SelectedDisplayClusterConfigActorPrimaryNode = SelectedNode;
+									}),
 									FCanExecuteAction(),
-									FIsActionChecked::CreateRaw(
-										this, &FDisplayClusterLaunchEditorModule::IsDisplayClusterConfigActorNodeSelected, NodeName)
+									FIsActionChecked::CreateLambda([this, SelectedNode]()
+									{
+										return SelectedDisplayClusterConfigActorPrimaryNode == SelectedNode;
+									})
 								),
 								NAME_None,
-								EUserInterfaceActionType::Check
+								EUserInterfaceActionType::RadioButton
 							);
 						}
 					}),
-					FUIAction(FExecuteAction(), FCanExecuteAction::CreateRaw(this, &FDisplayClusterLaunchEditorModule::DoesCurrentWorldHaveDisplayClusterConfig)),
+					FUIAction(
+						FExecuteAction(),
+						FCanExecuteAction::CreateLambda([this]()
+						{
+							return SelectedDisplayClusterConfigActorNodes.Num() > 0;
+						})
+					),
 					NAME_None,
-					EUserInterfaceActionType::None,
-					false,
-					FSlateIcon(FDisplayClusterLaunchEditorStyle::Get().GetStyleSetName(),"Icons.DisplayClusterNode")
+					EUserInterfaceActionType::None
 				);
-			}
-			MenuBuilder.EndSection();
-		}
+
+				NewMenuBuilder.AddSeparator();
+
+				if (ADisplayClusterRootActor* SelectedActor = Cast<ADisplayClusterRootActor>(SelectedDisplayClusterConfigActor.ResolveObject()))
+				{
+					TArray<FString> NodeNames;
+				   SelectedActor->GetConfigData()->Cluster->Nodes.GenerateKeyArray(NodeNames);
+				
+				   for (const FString& NodeName : NodeNames)
+				   {
+					   const FText DisplayClusterNodeName = FText::FromString(NodeName);
+					
+					   const FText DisplayClusterNodeTooltip =
+						   FText::Format(LOCTEXT("SelectDisplayClusterNodeFormat","Select node '{0}'"), DisplayClusterNodeName);
+					
+					   NewMenuBuilder.AddMenuEntry(
+						   DisplayClusterNodeName,
+						   DisplayClusterNodeTooltip,
+						   FSlateIcon(),
+						   FUIAction(
+							   FExecuteAction::CreateRaw(
+								   this, &FDisplayClusterLaunchEditorModule::ToggleDisplayClusterConfigActorNodeSelected, NodeName),
+							   FCanExecuteAction(),
+							   FIsActionChecked::CreateRaw(
+								   this, &FDisplayClusterLaunchEditorModule::IsDisplayClusterConfigActorNodeSelected, NodeName)
+						   ),
+						   NAME_None,
+						   EUserInterfaceActionType::Check
+					   );
+				   }
+				}
+
+				return NewMenuBuilder.MakeWidget();
+			}),
+			FSlateIcon(FDisplayClusterLaunchEditorStyle::Get().GetStyleSetName(),"Icons.DisplayClusterNode")
+		);
+
+		MenuBuilder.EndSection();
 	}
 }
 
@@ -692,6 +994,7 @@ void FDisplayClusterLaunchEditorModule::AddOptionsToToolbarMenu(FMenuBuilder& Me
 				{
 					UDisplayClusterLaunchEditorProjectSettings* Settings = GetMutableDefault<UDisplayClusterLaunchEditorProjectSettings>();
 					Settings->bConnectToMultiUser = !GetConnectToMultiUser();
+					Settings->SaveConfig();
 				}),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateRaw(this, &FDisplayClusterLaunchEditorModule::GetConnectToMultiUser)
@@ -709,6 +1012,7 @@ void FDisplayClusterLaunchEditorModule::AddOptionsToToolbarMenu(FMenuBuilder& Me
 				{
 					UDisplayClusterLaunchEditorProjectSettings* Settings = GetMutableDefault<UDisplayClusterLaunchEditorProjectSettings>();
 					Settings->bEnableUnrealInsights = !Settings->bEnableUnrealInsights;
+					Settings->SaveConfig();
 				}),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this](){ return GetDefault<UDisplayClusterLaunchEditorProjectSettings>()->bEnableUnrealInsights; })
@@ -726,6 +1030,7 @@ void FDisplayClusterLaunchEditorModule::AddOptionsToToolbarMenu(FMenuBuilder& Me
 				{
 					UDisplayClusterLaunchEditorProjectSettings* Settings = GetMutableDefault<UDisplayClusterLaunchEditorProjectSettings>();
 					Settings->bCloseEditorOnLaunch = !Settings->bCloseEditorOnLaunch;
+					Settings->SaveConfig();
 				}),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this](){ return GetDefault<UDisplayClusterLaunchEditorProjectSettings>()->bCloseEditorOnLaunch; })
@@ -750,6 +1055,19 @@ void FDisplayClusterLaunchEditorModule::AddOptionsToToolbarMenu(FMenuBuilder& Me
 bool FDisplayClusterLaunchEditorModule::GetConnectToMultiUser() const
 {
 	return GetDefault<UDisplayClusterLaunchEditorProjectSettings>()->bConnectToMultiUser;
+}
+
+void FDisplayClusterLaunchEditorModule::RemoveTerminatedNodeProcesses()
+{
+	ActiveProcesses.SetNum(
+		Algo::StableRemoveIf(
+			ActiveProcesses,
+			[](FProcHandle& Handle)
+			{
+				return !FPlatformProcess::IsProcRunning(Handle);
+			}
+		)
+	);
 }
 
 #undef LOCTEXT_NAMESPACE

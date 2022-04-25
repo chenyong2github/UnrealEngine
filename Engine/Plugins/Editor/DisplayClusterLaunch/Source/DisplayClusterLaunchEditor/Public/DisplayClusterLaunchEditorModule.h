@@ -2,19 +2,26 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "Modules/ModuleInterface.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/SoftObjectPath.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 class ADisplayClusterRootActor;
 class FMenuBuilder;
+class FName;
+class FString;
+class FText;
 class FUICommandList;
 class IAssetRegistry;
 class ISettingsSection;
 class SWidget;
 
 struct FAssetData;
+struct FProcHandle;
 struct FSoftObjectPath;
+struct FSlateIcon;
 
 class FDisplayClusterLaunchEditorModule : public IModuleInterface
 {
@@ -34,24 +41,35 @@ public:
 	//~ End IModuleInterface Interface
 	
 	static void OpenProjectSettings();
-	
+
 	void LaunchDisplayClusterProcess();
+	void TerminateActiveDisplayClusterProcesses();
 
 private:
 
 	void OnFEngineLoopInitComplete();
 
 	void RegisterToolbarItem();
+	FText GetToolbarButtonTooltipText();
+	FSlateIcon GetToolbarButtonIcon();
+	void OnClickToolbarButton();
 	void RemoveToolbarItem();
+	
 	void RegisterProjectSettings() const;
+
+	/** Returns a list of selected nodes as FText separated by new lines with the Primary Node marked. */
+	FText GetSelectedNodesListText() const;
 
 	TArray<TWeakObjectPtr<ADisplayClusterRootActor>> GetAllDisplayClusterConfigsInWorld();
 	bool DoesCurrentWorldHaveDisplayClusterConfig();
+	void ApplyDisplayClusterConfigOverrides(class UDisplayClusterConfigurationData* ConfigDataCopy);
 
 	void SetSelectedDisplayClusterConfigActor(ADisplayClusterRootActor* SelectedActor);
 	void ToggleDisplayClusterConfigActorNodeSelected(FString InNodeName);
 	bool IsDisplayClusterConfigActorNodeSelected(FString InNodeName);
 	void SetSelectedConsoleVariablesAsset(const FAssetData InConsoleVariablesAsset);
+
+	void SelectFirstNode(ADisplayClusterRootActor* InConfig);
 	
 	TSharedRef<SWidget> CreateToolbarMenuEntries();
 	void AddDisplayClusterLaunchConfigurations(
@@ -62,11 +80,15 @@ private:
 
 	bool GetConnectToMultiUser() const;
 
-	TSharedPtr<FUICommandList> Actions;
+	void RemoveTerminatedNodeProcesses();
 
 	bool bAreConfigsFoundInWorld = false;
 
 	FSoftObjectPath SelectedDisplayClusterConfigActor;
-	TSet<FString> SelectedDisplayClusterConfigActorNodes;
+	TArray<FString> SelectedDisplayClusterConfigActorNodes;
+	FString SelectedDisplayClusterConfigActorPrimaryNode;
+	
 	FName SelectedConsoleVariablesAssetName = NAME_None;
+
+	TArray<FProcHandle> ActiveProcesses; 
 };

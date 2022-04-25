@@ -67,7 +67,7 @@ public:
 		CommandLineArguments =
 		{
 			"messaging", "dc_cluster", "nosplash", "fixedseed", "NoVerifyGC", "noxrstereo", "xrtrackingonly", "RemoteControlIsHeadless",
-			"dx12", "dc_dev_mono", "unattended", "handleensurepercent=0", "fullscreen",
+			"dx12", "dc_dev_mono", "unattended", "handleensurepercent=0", 
 			"ini:Engine:[/Script/Engine.Engine]:GameEngine=/Script/DisplayCluster.DisplayClusterGameEngine,[/Script/Engine.Engine]:GameViewportClientClassName=/Script/DisplayCluster.DisplayClusterViewportClient,[/Script/Engine.UserInterfaceSettings]:bAllowHighDPIInGameMode=True",
 			"ini:Game:[/Script/EngineSettings.GeneralProjectSettings]:bUseBorderlessWindow=True"
 		};
