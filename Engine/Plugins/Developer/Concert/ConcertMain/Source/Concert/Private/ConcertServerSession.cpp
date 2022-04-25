@@ -2,6 +2,7 @@
 
 #include "ConcertServerSession.h"
 #include "ConcertLogGlobal.h"
+#include "ConcertMessages.h"
 #include "IConcertEndpoint.h"
 #include "Scratchpad/ConcertScratchpad.h"
 
@@ -177,12 +178,17 @@ void FConcertServerSession::HandleDiscoverAndJoinSessionEvent(const FConcertMess
 	JoinReply.ConcertProtocolVersion = EConcertMessageVersion::LatestVersion;
 	JoinReply.SessionServerEndpointId = SessionInfo.ServerEndpointId;
 
+	const FConcertSessionInfo& InSessionInfo = GetSessionInfo();
 	if (SessionClients.Contains(Context.SenderConcertEndpointId))
 	{
 		JoinReply.ConnectionResult = EConcertConnectionResult::AlreadyConnected;
 		JoinReply.SessionClients = GetSessionClients();
 	}
-	// TODO: check connection requirement
+	else if (InSessionInfo.State == EConcertSessionState::Transient)
+	{
+		JoinReply.ConnectionResult = EConcertConnectionResult::ConnectionRefused;
+	}
+		// TODO: check connection requirement
 	else // if (CheckConnectionRequirement(Message->ClientInfo))
 	{
 		// Accept the connection

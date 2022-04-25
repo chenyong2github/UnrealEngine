@@ -22,6 +22,17 @@ enum class EConcertServerFlags : uint8
 };
 ENUM_CLASS_FLAGS(EConcertServerFlags)
 
+
+UENUM()
+enum class EConcertSessionState : uint8
+{
+	/** Session is a normal state and can be joined. */
+	Normal = 0,
+
+	/** Session is in a transient state and cannot be joined. */
+	Transient
+};
+
 UENUM()
 enum class EConcertPayloadCompressionType : uint8
 {
@@ -203,13 +214,17 @@ struct FConcertSessionInfo
 	UPROPERTY(VisibleAnywhere, Category = "Session Info")
 	FString OwnerDeviceName;
 
-	/** Settings pertaining to project, change list number etc */ 
+	/** Settings pertaining to project, change list number etc */
 	UPROPERTY(VisibleAnywhere, Category="Session Info")
 	FConcertSessionSettings Settings;
 
 	/** Version information for this session. This is set during creation, and updated each time the session is restored */
 	UPROPERTY()
 	TArray<FConcertSessionVersionInfo> VersionInfos;
+
+	/** Current state of the session used to determine joinability by clients. */
+	UPROPERTY()
+	EConcertSessionState State = EConcertSessionState::Normal;
 };
 
 /** Holds filter rules used when migrating session data */
