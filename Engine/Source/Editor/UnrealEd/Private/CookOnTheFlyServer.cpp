@@ -167,11 +167,11 @@ static FAutoConsoleVariableRef CVarCookDisplayRepeatTime(
 	TEXT("Controls the time before the cooker will repeat the same progress message.\n"),
 	ECVF_Default);
 
-float GCookProgressRetryBusyTime = 1.0f;
+float GCookProgressRetryBusyTime = 0.01f;
 static FAutoConsoleVariableRef CVarCookRetryBusyTime(
 	TEXT("Cook.retrybusytime"),
 	GCookProgressRetryBusyTime,
-	TEXT("Controls the time between retry attempts at save and load when the save and load queues are busy.\n"),
+	TEXT("Controls the time between retry attempts at save and load when the save and load queues are busy and there is no other work to do.\n"),
 	ECVF_Default);
 
 float GCookProgressWarnBusyTime = 120.0f;
