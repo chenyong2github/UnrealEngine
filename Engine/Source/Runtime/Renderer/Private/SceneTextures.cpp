@@ -772,16 +772,6 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 	{
 		ETextureCreateFlags FlagsToAdd = TexCreate_None;
 		
-		if (Config.ShadingPath == EShadingPath::Mobile)
-		{
-			FlagsToAdd |= TexCreate_InputAttachmentRead;
-
-			if (!Config.bKeepDepthContent)
-			{
-				FlagsToAdd |= TexCreate_Memoryless;
-			}
-		}
-		
 		if (Config.GBufferA.Index >= 0)
 		{
 			const FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(Config.Extent, Config.GBufferA.Format, FClearValueBinding::Transparent, Config.GBufferA.Flags | FlagsToAdd | GFastVRamConfig.GBufferA));

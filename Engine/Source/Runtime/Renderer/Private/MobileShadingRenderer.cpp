@@ -216,6 +216,13 @@ static void SetupGBufferFlags(FSceneTexturesConfig& SceneTexturesConfig, bool bR
 	SceneTexturesConfig.GBufferC.Flags|= AddFlags;
 	SceneTexturesConfig.GBufferD.Flags|= AddFlags;
 	SceneTexturesConfig.GBufferE.Flags|= AddFlags;
+	
+	// Mobile uses FBF/subpassLoad to fetch data from GBuffer, and FBF does not always work with sRGB targets 
+	SceneTexturesConfig.GBufferA.Flags &= (~TexCreate_SRGB);
+	SceneTexturesConfig.GBufferB.Flags &= (~TexCreate_SRGB);
+	SceneTexturesConfig.GBufferC.Flags &= (~TexCreate_SRGB);
+	SceneTexturesConfig.GBufferD.Flags &= (~TexCreate_SRGB);
+	SceneTexturesConfig.GBufferE.Flags &= (~TexCreate_SRGB);
 }
 
 FMobileSceneRenderer::FMobileSceneRenderer(TArrayView<const FSceneViewFamily*> InViewFamilies, FHitProxyConsumer* HitProxyConsumer)
@@ -486,7 +493,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	
 	if (bDeferredShading) 
 	{
-		SetupGBufferFlags(SceneTexturesConfig, bRequiresMultiPass);
+		SetupGBufferFlags(SceneTexturesConfig, bRequiresMultiPass || GraphBuilder.IsDumpingFrame());
 	}
 
 	// Update the pixel projected reflection extent according to the settings in the PlanarReflectionComponent.
