@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 /* date = January 18th 2022 1:40 pm */
 
 #ifndef SYMS_AGGREGATE_PROC_MAP_H

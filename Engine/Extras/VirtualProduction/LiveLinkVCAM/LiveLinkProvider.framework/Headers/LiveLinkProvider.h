@@ -1,6 +1,4 @@
-//
-//  Copyright Epic Games, Inc. All Rights Reserved.
-//
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #import <Foundation/Foundation.h>
 #import <simd/simd.h>
