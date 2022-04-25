@@ -67,6 +67,9 @@ public:
 };
 using FEmitShaderDependencies = TArray<FEmitShaderNode*, TInlineAllocator<8>>;
 
+/**
+ * Represents an HLSL expression
+ */
 class FEmitShaderExpression final : public FEmitShaderNode
 {
 public:
@@ -80,9 +83,19 @@ public:
 	virtual FEmitShaderExpression* AsExpression() override { return this; }
 	inline bool IsInline() const { return Value == nullptr; }
 
+	/**
+	 * String used to reference this expression.
+	 * For inline epxressions, this will be the actual HLSL.  Otherwise it will be the name of a local variable
+	 */
 	const TCHAR* Reference = nullptr;
+
+	/** For non-inline expressions, this holds the actual HLSL.  Otherwise it will be nullptr */
 	const TCHAR* Value = nullptr;
+
+	/** Type of the HLSL */
 	Shader::FType Type;
+
+	/** Hash of the string, used to deduplicate identical expressions */
 	FXxHash64 Hash;
 };
 
@@ -162,6 +175,11 @@ void InternalFormatStrings(FStringBuilderBase* OutString0,
 	const FFormatArgList& ArgList);
 } // namespace Private
 
+/**
+ * FormatString() provides printf-like functionality, except dependencies are automatically extracted from the list of Args
+ * In addition, a single '%' is used for all format specifiers, since the Args list is strongly typed
+ * Not all printf arg types are currently supported, but more can be added by extending FFormatArgVariant to support more types
+ */
 template<typename FormatType, typename... Types>
 void FormatString(FStringBuilderBase& OutString, FEmitShaderDependencies& OutDependencies, const FormatType& Format, Types... Args)
 {
@@ -186,6 +204,10 @@ enum class EEmitScopeState : uint8
 	Dead,
 };
 
+/**
+ * FEmitScopes mostly track FScopes, except they hold transient state used while emitting HLSL
+ * The exception is FFunction, which allows FScopes to be dynamically injected into the hierarchy, which will result in FEmitScopes matching this dynamic hierarchy
+ */
 class FEmitScope
 {
 public:
@@ -261,6 +283,10 @@ struct FTargetParameters
 	const ITargetPlatform* TargetPlatform = nullptr;
 };
 
+/**
+ * Used to associate owner objects (such as UMaterialExpression) with the FExpressions used to generate their input
+ * This is currently only used to color pins/wires based on types in the material editor
+ */
 struct FConnectionKey
 {
 	FConnectionKey() = default;
@@ -308,6 +334,7 @@ public:
 		return InternalError(FStringView(String.ToString(), String.Len()));
 	}
 
+	/** Finds or creates arbitrary data that's associated with this context. This can be used to provide custom inputs/outputs to FExpression/FStatement implementations */
 	template<typename T>
 	T& AcquireData()
 	{
@@ -373,6 +400,14 @@ public:
 
 	FEmitShaderExpression* InternalEmitExpression(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, bool bInline, const Shader::FType& Type, FStringView Code);
 
+	/**
+	 * Generate a snippit of HLSL code, strings with identical contents will be deduplicated, and their dependencies will be merged
+	 * @param Scope the scope where the code should be included
+	 * @param Dependencies a list of explicit dependencies, dependencies are automatically extracted from the given vargs, so this is typically not needed
+	 * @param Type the type of the HLSL expression
+	 * @param Format printf-style format string, except all format specifiers use a single '%' character with no additional characters
+	 * @param Args variable list of args to fill in the format string, 'FEmitShaderExpression*' is directly supported here to inject the expression's value, as well as include it as a dependency
+	 */
 	template<typename FormatType, typename... Types>
 	FEmitShaderExpression* EmitExpressionWithDependencies(FEmitScope& Scope, TArrayView<FEmitShaderNode*> Dependencies, const Shader::FType& Type, const FormatType& Format, Types... Args)
 	{
@@ -560,7 +595,12 @@ public:
 	int32 NumExpressionLocals = 0;
 	int32 NumExpressionLocalPHIs = 0;
 
-	// TODO - Material values required for preshaders, need to decouple preshaders from material system
+	/**
+	 * TODO - Material values required for preshaders, need to decouple preshaders from material system
+	 * Current plan is to implement support for externally registered preshader opcodes, and move the preshader opcodes related to material parameters into a separate module.
+	 * This would require a runtime parallel to CustomDataMap, in order to pass the relevant material data to the preshader VM in a generic way.
+	 * Would also need some generic interface between the preshaders generated here, and the preshaders stored in FMaterialCompilationOutput
+	 */
 	const FMaterial* Material = nullptr;
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	uint32 UniformPreshaderOffset = 0u;

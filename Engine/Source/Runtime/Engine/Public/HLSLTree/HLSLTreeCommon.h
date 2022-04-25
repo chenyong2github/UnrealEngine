@@ -53,6 +53,23 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
+/** Forwards to another expression, but will fallback to the 'DefaultValue' constant if the forwarded expression fails */
+class FExpressionDefaultValue : public FExpressionForward
+{
+public:
+	explicit FExpressionDefaultValue(const FExpression* InExpression, const Shader::FValue& InDefaultValue)
+		: FExpressionForward(InExpression)
+		, DefaultValue(InDefaultValue)
+	{}
+
+	Shader::FValue DefaultValue;
+
+	virtual void ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const override;
+	virtual const FExpression* ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const override;
+	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
+	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
+};
+
 class FExpressionGetStructField : public FExpression
 {
 public:
@@ -106,7 +123,9 @@ public:
 		: ConditionExpression(InCondition)
 		, TrueExpression(InTrue)
 		, FalseExpression(InFalse)
-	{}
+	{
+		check(ConditionExpression);
+	}
 
 	const FExpression* ConditionExpression;
 	const FExpression* TrueExpression;
@@ -154,6 +173,11 @@ public:
 	virtual void EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const override;
 };
 
+/**
+ * Similar to FExpressionSwizzle, except swizzle parameters are extracted from a 'Mask' expression, which is expected to generate a 'bool4' component mask (which is then used to initialize a FSwizzleParameters)
+ * The 'Mask' input is required to be constant (otherwise an error is generated)
+ * This is used to support material StaticParameterMask expressions, in most cases FExpressionSwizzle is a better choice
+ */
 class FExpressionComponentMask : public FExpression
 {
 public:

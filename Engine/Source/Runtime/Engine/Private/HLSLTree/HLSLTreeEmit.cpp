@@ -222,7 +222,7 @@ bool FEmitContext::InternalError(FStringView ErrorMessage)
 		{
 			CurrentOwners = OwnerStack.Last()->GetOwners();
 		}
-		Errors->AddError(CurrentOwners, ErrorMessage);
+		Errors->AddErrorInternal(CurrentOwners, ErrorMessage);
 	}
 	NumErrors++;
 	return false;
@@ -376,7 +376,7 @@ FRequestedType FEmitContext::GetRequestedType(const FExpression* Expression) con
 
 Shader::FType FEmitContext::GetType(const FExpression* Expression) const
 {
-	return GetPreparedType(Expression).GetPreparedType();
+	return GetPreparedType(Expression).GetResultType();
 }
 
 EExpressionEvaluation FEmitContext::GetEvaluation(const FExpression* Expression, const FEmitScope& Scope, const FRequestedType& RequestedType) const
@@ -435,6 +435,10 @@ FPreparedType FEmitContext::PrepareExpression(const FExpression* InExpression, F
 		ResultType = Result->PreparedType;
 		check(!ResultType.IsVoid());
 		MarkInputType(InExpression, RequestedType.Type.GetConcreteType());
+	}
+	else
+	{
+		int a = 0;
 	}
 	return ResultType;
 }
@@ -774,7 +778,7 @@ FEmitShaderExpression* FEmitContext::InternalEmitExpression(FEmitScope& Scope, T
 {
 	FEmitShaderExpression* ShaderValue = nullptr;
 
-	if (Code == TEXT("(((float3)0).z * Material.PreshaderBuffer[6].x)"))
+	if (Code.Contains(TEXT("((float2)Local21).xyz")))
 	{
 		int a = 0;
 	}
@@ -1150,6 +1154,10 @@ FEmitShaderExpression* FEmitContext::EmitCast(FEmitScope& Scope, FEmitShaderExpr
 {
 	check(ShaderValue);
 	check(!DestType.IsVoid());
+
+	// TODO - could handle generic types here, cast to 'Any' should just return ShaderValue, cast to 'Numeric' could check number of components
+	// Not sure if this is needed in practice
+	check(!DestType.IsGeneric());
 
 	if (ShaderValue->Type == DestType)
 	{

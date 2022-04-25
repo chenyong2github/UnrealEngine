@@ -10,9 +10,7 @@
 class FMemStackBase;
 class UTexture;
 
-namespace UE
-{
-namespace Shader
+namespace UE::Shader
 {
 
 struct FStructType;
@@ -305,7 +303,10 @@ public:
 	void EmitDeclarationsCode(FStringBuilderBase& OutCode) const;
 
 	const FStructType* NewType(const FStructTypeInitializer& Initializer);
+
+	/** An external struct type is opaque is far as the system is concerned, it's expected to be defined by the engine's HLSL code */
 	const FStructType* NewExternalType(FStringView Name);
+	
 	const FStructType* FindType(uint64 Hash) const;
 
 private:
@@ -339,6 +340,7 @@ struct FMemoryImageValue
 	uint32 Size;
 };
 
+/** The value of a single component within FValue.  The actual type of the component is only known by FValue::Type */
 union FValueComponent
 {
 	FValueComponent() : Packed(0u) {}
@@ -360,6 +362,10 @@ union FValueComponent
 };
 static_assert(sizeof(FValueComponent) == sizeof(uint64), "bad packing");
 
+/**
+ * Can store a numeric/struct shader value of any type
+ * Values are represented as a flat list of components
+ */
 struct FValue
 {
 	FValue() = default;
@@ -494,7 +500,7 @@ struct FValue
 	inline FValueComponent GetComponent(int32 Index) const
 	{
 		// Return scalar value for any request to xyzw
-		const int32 ComponentIndex = (GetNumComponents() == 1 && Index >= 0 && Index < 4) ? 0 : Index;
+		const int32 ComponentIndex = (Type.IsNumericScalar() && Index >= 0 && Index < 4) ? 0 : Index;
 		if (Component.IsValidIndex(ComponentIndex))
 		{
 			return Component[ComponentIndex];
@@ -567,8 +573,8 @@ ENGINE_API FValue Cross(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Append(const FValue& Lhs, const FValue& Rhs);
 
 ENGINE_API FValue Cast(const FValue& Value, EValueType Type);
-}
-}
+
+} // namespace UE::Shader
 
 DECLARE_INTRINSIC_TYPE_LAYOUT(UE::Shader::EValueType);
 DECLARE_INTRINSIC_TYPE_LAYOUT(UE::Shader::EValueComponentType);

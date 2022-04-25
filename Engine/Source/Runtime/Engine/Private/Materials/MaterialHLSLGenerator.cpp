@@ -140,9 +140,9 @@ static const UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenera
 		FMaterialInputDescription InputDescription;
 		if (Material->GetExpressionInputDescription(InputProperty, InputDescription))
 		{
+			UE::Shader::FValue DefaultValue = UE::Shader::Cast(FMaterialAttributeDefinitionMap::GetDefaultValue(InputProperty), InputDescription.Type);
 			if (InputDescription.bUseConstant)
 			{
-				UE::Shader::FValue DefaultValue = UE::Shader::Cast(FMaterialAttributeDefinitionMap::GetDefaultValue(InputProperty), InputDescription.Type);
 				if (InputDescription.ConstantValue != DefaultValue)
 				{
 					Expression = Generator.NewConstant(InputDescription.ConstantValue);
@@ -152,6 +152,10 @@ static const UE::HLSLTree::FExpression* CompileMaterialInput(FMaterialHLSLGenera
 			{
 				check(InputDescription.Input);
 				Expression = InputDescription.Input->TryAcquireHLSLExpression(Generator, Scope, (int32)InputProperty);
+				if (Expression)
+				{
+					Expression = Generator.GetTree().NewExpression<FExpressionDefaultValue>(Expression, DefaultValue);
+				}
 			}
 		}
 	}
@@ -206,10 +210,12 @@ bool FMaterialHLSLGenerator::GenerateResult(UE::HLSLTree::FScope& Scope)
 
 					if (AttributesExpression)
 					{
+						AttributesExpression = GetTree().NewExpression<FExpressionDefaultValue>(AttributesExpression, CachedTree.GetMaterialAttributesDefaultValue());
+
 						const FString& WPOName = FMaterialAttributeDefinitionMap::GetAttributeName(MP_WorldPositionOffset);
 						const FStructField* WPOField = CachedTree.GetMaterialAttributesType()->FindFieldByName(*WPOName);
 
-						FRequestedType PrevRequestedType;
+						FRequestedType PrevRequestedType(CachedTree.GetMaterialAttributesType());
 						PrevRequestedType.SetFieldRequested(WPOField);
 
 						const FExpression* PrevAttributesExpression = GetTree().GetPreviousFrame(AttributesExpression, PrevRequestedType);
@@ -707,6 +713,10 @@ const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateBranch(UE::HLSL
 	const UE::HLSLTree::FExpression* FalseExpression)
 {
 	using namespace UE::HLSLTree;
+
+	check(ConditionExpression);
+	check(TrueExpression);
+	check(FalseExpression);
 
 	FXxHash64 Hash;
 	{

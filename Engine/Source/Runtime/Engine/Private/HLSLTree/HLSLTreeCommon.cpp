@@ -120,7 +120,9 @@ void FExpressionConstant::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDer
 	}
 }
 
-bool FExpressionConstant::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+namespace Private
+{
+FPreparedType PrepareConstant(const Shader::FValue& Value)
 {
 	const int32 NumComponents = Value.Type.GetNumComponents();
 	FPreparedType ResultType(Value.Type);
@@ -130,7 +132,13 @@ bool FExpressionConstant::PrepareValue(FEmitContext& Context, FEmitScope& Scope,
 		const Shader::FValueComponent Component = Value.GetComponent(Index);
 		ResultType.PreparedComponents.Add(Component.Packed ? EExpressionEvaluation::Constant : EExpressionEvaluation::ConstantZero);
 	}
-	return OutResult.SetType(Context, RequestedType, ResultType);
+	return ResultType;
+}
+} // namespace Private
+
+bool FExpressionConstant::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	return OutResult.SetType(Context, RequestedType, Private::PrepareConstant(Value));
 }
 
 void FExpressionConstant::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
@@ -138,6 +146,50 @@ void FExpressionConstant::EmitValuePreshader(FEmitContext& Context, FEmitScope& 
 	Context.PreshaderStackPosition++;
 	OutResult.Type = Value.Type;
 	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(Value);
+}
+
+void FExpressionDefaultValue::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
+{
+	const Shader::FType DerivativeType = DefaultValue.Type.GetDerivativeType();
+	if (!DerivativeType.IsVoid())
+	{
+		const FExpressionDerivatives ExpressionDerivative = Tree.GetAnalyticDerivatives(Expression);
+		if (ExpressionDerivative.IsValid())
+		{
+			OutResult.ExpressionDdx = Tree.NewExpression<FExpressionDefaultValue>(ExpressionDerivative.ExpressionDdx, Shader::FValue(DerivativeType));
+			OutResult.ExpressionDdy = Tree.NewExpression<FExpressionDefaultValue>(ExpressionDerivative.ExpressionDdy, Shader::FValue(DerivativeType));
+		}
+	}
+}
+
+const FExpression* FExpressionDefaultValue::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
+{
+	return Tree.NewExpression<FExpressionDefaultValue>(Tree.GetPreviousFrame(Expression, RequestedType), DefaultValue);
+}
+
+bool FExpressionDefaultValue::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
+{
+	FPreparedType ResultType = Context.PrepareExpression(Expression, Scope, RequestedType);
+	if (ResultType.IsVoid())
+	{
+		ResultType = Private::PrepareConstant(DefaultValue);
+	}
+	return OutResult.SetType(Context, RequestedType, ResultType);
+}
+
+void FExpressionDefaultValue::EmitValuePreshader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValuePreshaderResult& OutResult) const
+{
+	const FPreparedType& PreparedType = Context.GetPreparedType(Expression);
+	if (!PreparedType.IsVoid())
+	{
+		// If 'Exrpession' is valid, use that
+		return FExpressionForward::EmitValuePreshader(Context, Scope, RequestedType, OutResult);
+	}
+
+	// Otherwise emit the default value
+	Context.PreshaderStackPosition++;
+	OutResult.Type = DefaultValue.Type;
+	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(DefaultValue);
 }
 
 void FExpressionGetStructField::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const
@@ -308,8 +360,11 @@ void FExpressionSelect::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDeriv
 {
 	const FExpressionDerivatives TrueDerivatives = Tree.GetAnalyticDerivatives(TrueExpression);
 	const FExpressionDerivatives FalseDerivatives = Tree.GetAnalyticDerivatives(FalseExpression);
-	OutResult.ExpressionDdx = Tree.NewExpression<FExpressionSelect>(ConditionExpression, TrueDerivatives.ExpressionDdx, FalseDerivatives.ExpressionDdx);
-	OutResult.ExpressionDdy = Tree.NewExpression<FExpressionSelect>(ConditionExpression, TrueDerivatives.ExpressionDdy, FalseDerivatives.ExpressionDdy);
+	if (TrueDerivatives.IsValid() && FalseDerivatives.IsValid())
+	{
+		OutResult.ExpressionDdx = Tree.NewExpression<FExpressionSelect>(ConditionExpression, TrueDerivatives.ExpressionDdx, FalseDerivatives.ExpressionDdx);
+		OutResult.ExpressionDdy = Tree.NewExpression<FExpressionSelect>(ConditionExpression, TrueDerivatives.ExpressionDdy, FalseDerivatives.ExpressionDdy);
+	}
 }
 
 const FExpression* FExpressionSelect::ComputePreviousFrame(FTree& Tree, const FRequestedType& RequestedType) const
@@ -435,29 +490,26 @@ namespace Private
 {
 FRequestedType GetRequestedSwizzleType(const FSwizzleParameters& Params, const FRequestedType& RequestedType)
 {
-	int32 MaxSwizzledComponentIndex = 0;
-	FRequestedType RequestedInputType;
+	const Shader::EValueType InputType = Shader::MakeValueType(RequestedType.GetValueComponentType(), Params.GetNumInputComponents());
+	FRequestedType RequestedInputType(InputType, false);
 	if (Params.NumComponents == 1)
 	{
-		MaxSwizzledComponentIndex = Params.GetSwizzleComponentIndex(0);
 		if (RequestedType.IsNumericVectorRequested())
 		{
-			RequestedInputType.SetComponentRequest(MaxSwizzledComponentIndex);
+			RequestedInputType.SetComponentRequest(Params.GetSwizzleComponentIndex(0));
 		}
 	}
 	else
 	{
 		for (int32 Index = 0; Index < Params.NumComponents; ++Index)
 		{
-			const int32 SwizzledComponentIndex = Params.GetSwizzleComponentIndex(Index);
-			MaxSwizzledComponentIndex = FMath::Max(MaxSwizzledComponentIndex, SwizzledComponentIndex);
 			if (RequestedType.IsComponentRequested(Index))
 			{
+				const int32 SwizzledComponentIndex = Params.GetSwizzleComponentIndex(Index);
 				RequestedInputType.SetComponentRequest(SwizzledComponentIndex);
 			}
 		}
 	}
-	RequestedInputType.Type = Shader::MakeValueType(RequestedType.GetValueComponentType(), MaxSwizzledComponentIndex + 1);
 	return RequestedInputType;
 }
 } // namespace Private
@@ -498,6 +550,10 @@ bool SwizzlePrepareValue(FEmitContext& Context,
 {
 	const FRequestedType RequestedInputType = Private::GetRequestedSwizzleType(Parameters, RequestedType);
 	const FPreparedType& InputType = Context.PrepareExpression(Input, Scope, RequestedInputType);
+	if (InputType.IsVoid())
+	{
+		return false;
+	}
 
 	FPreparedType ResultType;
 	ResultType.Type = Shader::MakeValueType(InputType.GetValueComponentType(), Parameters.NumComponents);
@@ -517,9 +573,12 @@ void SwizzleEmitValueShader(FEmitContext& Context,
 	FEmitValueShaderResult& OutResult)
 {
 	const FRequestedType RequestedInputType = Private::GetRequestedSwizzleType(Parameters, RequestedType);
-	FEmitShaderExpression* EmitInput = Input->GetValueShader(Context, Scope, RequestedInputType);
-	const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(EmitInput->Type);
 
+	// Make sure the input is cast to the explicit requested type, this ensures it will have enough components for the swizzle
+	// Alternately, we could avoid the cast, and update the logic to insert 0s for swizzle access to invalid components
+	FEmitShaderExpression* EmitInput = Input->GetValueShader(Context, Scope, RequestedInputType, RequestedInputType.Type);
+
+	const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(EmitInput->Type);
 	bool bSkipSwizzle = (InputTypeDesc.NumComponents == Parameters.NumComponents);
 	if (bSkipSwizzle)
 	{
@@ -642,7 +701,7 @@ FSwizzleParameters GetComponentMaskSwizzle(FEmitContext& Context, FEmitScope& Sc
 	const Shader::FBoolValue MaskValue = Mask->GetValueConstant(Context, Scope, Shader::EValueType::Bool4).AsBool();
 	return MakeSwizzleMask(MaskValue[0], MaskValue[1], MaskValue[2], MaskValue[3]);
 }
-}
+} // namespace Private
 
 bool FExpressionComponentMask::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
@@ -738,6 +797,11 @@ const FExpression* FExpressionAppend::ComputePreviousFrame(FTree& Tree, const FR
 bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const
 {
 	const FPreparedType& LhsType = Context.PrepareExpression(Lhs, Scope, RequestedType);
+	if (LhsType.IsVoid())
+	{
+		return false;
+	}
+
 	const int32 NumRequestedComponents = RequestedType.Type.GetNumComponents();
 	const int32 NumLhsComponents = LhsType.Type.GetNumComponents();
 	const int32 NumRhsComponents = FMath::Max(NumRequestedComponents - NumLhsComponents, 1);
@@ -753,19 +817,15 @@ bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 	}
 
 	const FPreparedType& RhsType = Context.PrepareExpression(Rhs, Scope, RhsRequestedType);
-	if (!RhsType.IsVoid() && LhsType.GetValueComponentType() != RhsType.GetValueComponentType())
-	{
-		return Context.Error(TEXT("Type mismatch"));
-	}
-	
 	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, LhsType, RhsType);
+	check(!Types.ResultType.IsNumericScalar()); // Appending 2 values should never result in a scalar
+	if (Types.ResultType.IsVoid())
+	{
+		return false;
+	}
+
 	Context.MarkInputType(Lhs, Types.LhsType);
 	Context.MarkInputType(Rhs, Types.RhsType);
-
-	if (Types.ResultType.IsNumericScalar())
-	{
-		int a = 0;
-	}
 
 	return OutResult.SetType(Context, RequestedType, Types.ResultType);
 }
@@ -773,7 +833,7 @@ bool FExpressionAppend::PrepareValue(FEmitContext& Context, FEmitScope& Scope, c
 void FExpressionAppend::EmitValueShader(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FEmitValueShaderResult& OutResult) const
 {
 	const Private::FAppendTypes Types = Private::GetAppendTypes(RequestedType, Context.GetPreparedType(Lhs), Context.GetPreparedType(Rhs));
-	const Shader::FType ResultType = Types.ResultType.GetPreparedType();
+	const Shader::FType ResultType = Types.ResultType.GetResultType();
 	FEmitShaderExpression* LhsValue = Lhs->GetValueShader(Context, Scope, Types.LhsRequestedType, Types.LhsType);
 
 	if (Types.RhsType == Shader::EValueType::Void)
@@ -812,7 +872,7 @@ void FExpressionAppend::EmitValuePreshader(FEmitContext& Context, FEmitScope& Sc
 
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::AppendVector);
 	}
-	OutResult.Type = Types.ResultType.GetPreparedType();
+	OutResult.Type = Types.ResultType.GetResultType();
 }
 
 void FExpressionSwitchBase::ComputeAnalyticDerivatives(FTree& Tree, FExpressionDerivatives& OutResult) const

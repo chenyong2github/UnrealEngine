@@ -47,28 +47,15 @@ class FEmitShaderExpression;
 
 static constexpr int32 MaxNumPreviousScopes = 2;
 
+/** Used to report any errors generating when preparing the HLSLTree */
 class FErrorHandlerInterface
 {
 public:
-	virtual ~FErrorHandlerInterface() {}
-
-	bool AddError(UObject* InOwner, FStringView InError)
-	{
-		AddErrorInternal(MakeArrayView(&InOwner, 1), InError);
-		return false;
-	}
-
-	bool AddError(TConstArrayView<UObject*> InOwners, FStringView InError)
-	{
-		AddErrorInternal(InOwners, InError);
-		return false;
-	}
-
-protected:
+	/** Recieves a list of owners for the node that generated the error, along with the error message */
 	virtual void AddErrorInternal(TConstArrayView<UObject*> InOwners, FStringView InError) = 0;
 };
 
-class FNullErrorHandler : public FErrorHandlerInterface
+class FNullErrorHandler final : public FErrorHandlerInterface
 {
 public:
 	virtual void AddErrorInternal(TConstArrayView<UObject*> InOwners, FStringView InError) override
@@ -89,6 +76,14 @@ private:
 	friend class FTree;
 };
 
+/**
+ * OwnedNodes track 1 or more UObject 'owners'
+ * When generating HLSLTree for materials, the owner will typically be the UMaterialExpression that created the node, or the UMaterial itself
+ * Since certain nodes (FExpressions) are deduplicated and shared, it's possible to have multiple owners, if multiple owners attempt to create a node with the same parameters
+ * Tracking owners is important for the following reasons:
+ * - Attributing any generated errors to the owner(s)
+ * - Tracking input/output types (to color wires/pins in the material editor for example)
+ */
 class FOwnedNode : public FNode
 {
 public:
@@ -158,7 +153,7 @@ public:
 		return Type.IsAny() || (RequestedComponents.IsValidIndex(Index) ? (bool)RequestedComponents[Index] : false);
 	}
 
-	/** Check if any of xyzw are requested */
+	/** Check if any of xyzw are requested, any of these components will request a numeric scalar type */
 	bool IsNumericVectorRequested() const
 	{
 		return Type.IsAny() || FMath::IsWithin(RequestedComponents.Find(true), 0, 4);
@@ -168,10 +163,11 @@ public:
 	bool IsStruct() const { return Type.IsStruct(); }
 	bool IsObject() const { return Type.IsObject(); }
 	bool IsNumeric() const { return Type.IsNumeric(); }
+
+	/** No requested components */
 	bool IsEmpty() const { return !Type.IsAny() && !RequestedComponents.Contains(true); }
 
 	void SetComponentRequest(int32 Index, bool bRequest = true);
-
 
 	/** Marks the given field as requested (or not) */
 	void SetFieldRequested(const Shader::FStructField* Field, bool bRequest = true);
@@ -187,7 +183,8 @@ public:
 	FRequestedType GetField(const Shader::FStructField* Field) const;
 
 	/**
-	 * The type used to initialize the request. The actual 'Type' represented by the FRequestedType may be different, as vector types will truncate to the number of requested components
+	 * The actual type that was requested.  Specific componets of this type are requested by setting RequestedComponents
+	 * Shader::EValueType::Any is a valid type here, which means that RequestedComponents is ignored, and IsComponentRequested() will be true for any component
 	 */
 	Shader::FType Type;
 
@@ -281,9 +278,11 @@ public:
 	void SetField(const Shader::FStructField* Field, const FPreparedType& FieldType);
 	FPreparedType GetFieldType(const Shader::FStructField* Field) const;
 
-	/** For numeric vectors, the number of components in the prepared type will only include components that have valid evaluation */
+	/** Returns the number of components, only including components with valid evaluation */
 	int32 GetNumPreparedComponents() const;
-	Shader::FType GetPreparedType() const;
+
+	/** For numeric vectors, the number of components in the result type will only include components that have valid evaluation */
+	Shader::FType GetResultType() const;
 
 	/** Converts to a requested type, based on IsRequestedEvaluation() */
 	FRequestedType GetRequestedType() const;
@@ -295,6 +294,8 @@ public:
 	bool IsObject() const { return Type.IsObject(); }
 	bool IsNumeric() const { return Type.IsNumeric(); }
 	bool IsNumericScalar() const { return Type.IsNumericScalar(); }
+
+	/** Either void, or no prepared components */
 	bool IsEmpty() const;
 
 	EExpressionEvaluation GetEvaluation(const FEmitScope& Scope) const;
@@ -314,7 +315,8 @@ public:
 	void EnsureNumComponents(int32 NumComponents);
 
 	/**
-	 * The type used to initialize the this. The actual 'Type' represented by the FPreparedType may be different, as vector types will truncate to the number of prepared components
+	 * The prepared type.  Status of components within this type can be configured by setting PreparedComponents
+	 * Components within Type that don't have a coorisponding entry in PreparedComponents are considered to have ConstantZero evaluation
 	 */
 	Shader::FType Type;
 
@@ -393,6 +395,8 @@ struct FExpressionDerivatives
  * Unlike statements, expressions are not expected to execute in any particular order.
  * Examples include constant literals, variable accessors, and various types of math operations
  * This is an abstract base class, with derived classes representing various types of expression
+ * Derived expression classes should provide a constructor to fully initialize all fields.  All types given to this constructor must be hashable via HLSLTree::AppendHash().
+ * A unique hash value will be generated for each expression, by hashing the constructor arguments, which will be used to deduplicate expressions
  */
 class FExpression : public FOwnedNode
 {
@@ -466,8 +470,14 @@ protected:
 	/**
 	 * Computes a FPreparedType for this expression, given a FRequestedType.  Will be called multiple times, with potentially different requested types, if the FExpression is used multiple times.
 	 * In this case, all the prepared types will be merged together if possible (or generate an error otherwise).
+	 * PrepareValue will be called in two phases, first with Context.bMarkLiveValues=false, then with bMarkLiveValues=true.
+	 * If Context.bMarkLiveValues is true, the expression should record any state to signal to the client that it's active.
+	 * For example, a material expression parameter might add the parameter name or texture value to the material data.  This is typically done through the Context.FindData() interface.
+	 * If Context.bMarkLiveValues is true, the expression should also take care *not* to call Context.PrepareExpression for any nested expressions that are not relevant to the final result.
+	 * For example, in a multiply expression where one input is 0, the other input is not relevant, and can be skipped.
 	 * The EExpressionEvaluation set by this is important for determining which EmitValue*** methods may be called
 	 * A given FExpression implementation must support at least one of EmitValueShader/EmitValuePreshader, but doesn't need to support both
+	 * TODO? - It feels messy to have PrepareValue() used for both of these phases, possibly better to have a separate MarkLive() virtual method...in practice that would often lead to duplicate code however
 	 */
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const = 0;
 
@@ -494,13 +504,22 @@ private:
 	friend class FExpressionForward;
 };
 
+/**
+ * Functions are a way to dynamically inject new scopes into the tree
+ * They are used to represent calls to material functions using execution flow, and to inject dynamic branches without explicit control flow
+ */
 class FFunction final : public FNode
 {
 public:
 	FScope& GetRootScope() const { return *RootScope; }
 
+	/** The root scope of the function */
 	FScope* RootScope = nullptr;
+
+	/** The scope where this function is called, when HLSL is emitted, the RootScope will be injected here */
 	FScope* CalledScope = nullptr;
+
+	/** Function output expressions, should be expressions nested under RootScope */
 	TArray<const FExpression*, TInlineAllocator<8>> OutputExpressions;
 };
 
@@ -560,6 +579,10 @@ public:
 
 	FScope& GetRootScope() const { return *RootScope; }
 
+	/**
+	 * Creates a new FExpression-derived type by passing the given arguments to the constructor
+	 * Given arguments are hashed, and may result in returning an existing expression if the hash matches
+	 */
 	template<typename T, typename... ArgTypes>
 	inline const FExpression* NewExpression(ArgTypes&&... Args)
 	{

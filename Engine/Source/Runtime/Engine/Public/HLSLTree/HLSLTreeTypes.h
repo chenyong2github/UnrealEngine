@@ -142,10 +142,20 @@ struct FSwizzleParameters
 	FSwizzleParameters() : NumComponents(0), bHasSwizzle(false) { SwizzleComponentIndex[0] = SwizzleComponentIndex[1] = SwizzleComponentIndex[2] = SwizzleComponentIndex[3] = INDEX_NONE; }
 	explicit FSwizzleParameters(int8 IndexR, int8 IndexG = INDEX_NONE, int8 IndexB = INDEX_NONE, int8 IndexA = INDEX_NONE);
 
-	int32 GetSwizzleComponentIndex(int32 Index) const
+	inline int32 GetSwizzleComponentIndex(int32 Index) const
 	{
 		const int32 ComponentIndex = (NumComponents == 1) ? 0 : Index;
 		return SwizzleComponentIndex[ComponentIndex];
+	}
+
+	inline int32 GetNumInputComponents() const
+	{
+		int32 MaxComponentIndex = INDEX_NONE;
+		for (int32 i = 0; i < NumComponents; ++i)
+		{
+			MaxComponentIndex = FMath::Max<int32>(MaxComponentIndex, SwizzleComponentIndex[i]);
+		}
+		return (MaxComponentIndex != INDEX_NONE) ? (MaxComponentIndex + 1) : 0;
 	}
 
 	int8 SwizzleComponentIndex[4];

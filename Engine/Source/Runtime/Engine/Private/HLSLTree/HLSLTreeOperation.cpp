@@ -272,8 +272,10 @@ FOperationTypes GetOperationTypes(EOperation Op, TConstArrayView<FPreparedType> 
 				}
 			}
 
-			const int32 NumInputComponents = InputPreparedType[Index].IsNumericScalar() ? 1 : NumIntermediateComponents;
-			Types.InputType[Index] = Shader::MakeValueType(InputComponentType, NumInputComponents);
+			// No implicit conversion from FLWCScalar to FLWCVector types
+			// Could potentially add overloads to LWCOperations.ush to allow this
+			const bool bInputScalar = (InputPreparedType[Index].IsNumericScalar() && InputComponentType != Shader::EValueComponentType::Double);
+			Types.InputType[Index] = Shader::MakeValueType(InputComponentType, bInputScalar ? 1 : NumIntermediateComponents);
 		}
 		Types.ResultType = IntermediateType;
 		Types.bIsLWC = (IntermediateComponentType == Shader::EValueComponentType::Double);
@@ -664,7 +666,7 @@ void FExpressionOperation::EmitValueShader(FEmitContext& Context, FEmitScope& Sc
 		InputValue[Index] = Inputs[Index]->GetValueShader(Context, Scope, RequestedTypes.InputType[Index], Types.InputType[Index]);
 	}
 
-	const Shader::EValueType ResultType = Types.ResultType.GetPreparedType();
+	const Shader::EValueType ResultType = Types.ResultType.GetResultType();
 	check(Shader::IsNumericType(ResultType));
 
 	switch (Op)
@@ -779,7 +781,7 @@ void FExpressionOperation::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 	}
 
 	OutResult.Preshader.WriteOpcode(OpDesc.PreshaderOpcode);
-	OutResult.Type = Types.ResultType.GetPreparedType();
+	OutResult.Type = Types.ResultType.GetResultType();
 }
 
 } // namespace UE::HLSLTree

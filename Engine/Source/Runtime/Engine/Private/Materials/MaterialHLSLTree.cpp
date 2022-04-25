@@ -1263,11 +1263,11 @@ void FExpressionVertexInterpolator::EmitValueShader(FEmitContext& Context, FEmit
 	if (InterpolatorIndex >= 0)
 	{
 		const FVertexInterpolator& Interpolator = EmitMaterialData.VertexInterpolators[InterpolatorIndex];
-		const Shader::FType LocalType = Interpolator.PreparedType.GetPreparedType();
+		const Shader::FType LocalType = Interpolator.PreparedType.GetResultType();
 
 		// Request all non-shader components in preshader, only shader components will be packed in interpolator
 		FRequestedType RequestedPreshaderType(RequestedType, false);
-		for (int32 Index = 0; Index < Interpolator.PreparedType.GetNumPreparedComponents(); ++Index)
+		for (int32 Index = 0; Index < Interpolator.PreparedType.PreparedComponents.Num(); ++Index)
 		{
 			const EExpressionEvaluation ComponentEvaluation = Interpolator.PreparedType.GetComponent(Index).Evaluation;
 			if (RequestedType.IsComponentRequested(Index) && ComponentEvaluation != EExpressionEvaluation::Shader)
@@ -1312,11 +1312,11 @@ void FEmitData::AddInterpolator(const FExpression* Expression, const FRequestedT
 		InterpolatorIndex = VertexInterpolators.Emplace(Expression);
 	}
 
-	const Shader::FType LocalType = PreparedType.GetPreparedType();
+	const Shader::FType LocalType = PreparedType.GetResultType();
 	FVertexInterpolator& Interpolator = VertexInterpolators[InterpolatorIndex];
 	Interpolator.RequestedType = FRequestedType(RequestedType, false);
 	Interpolator.PreparedType = PreparedType;
-	for (int32 ComponentIndex = 0; ComponentIndex < PreparedType.GetNumPreparedComponents(); ++ComponentIndex)
+	for (int32 ComponentIndex = 0; ComponentIndex < PreparedType.PreparedComponents.Num(); ++ComponentIndex)
 	{
 		if (RequestedType.IsComponentRequested(ComponentIndex))
 		{
@@ -1344,7 +1344,7 @@ void FEmitData::EmitInterpolatorStatements(FEmitContext& Context, FEmitScope& Sc
 	for (int32 Index = 0; Index < VertexInterpolators.Num(); ++Index)
 	{
 		const FVertexInterpolator& Interpolator = VertexInterpolators[Index];
-		FEmitShaderExpression* EmitExpression = Interpolator.Expression->GetValueShader(Context, Scope, Interpolator.RequestedType, Interpolator.PreparedType, Interpolator.PreparedType.GetPreparedType());
+		FEmitShaderExpression* EmitExpression = Interpolator.Expression->GetValueShader(Context, Scope, Interpolator.RequestedType, Interpolator.PreparedType, Interpolator.PreparedType.GetResultType());
 		Context.EmitStatement(Scope, TEXT("MaterialPackVertexInterpolator%(Parameters, %);"), Index, EmitExpression);
 	}
 }
@@ -1413,7 +1413,7 @@ void FEmitData::EmitInterpolatorShader(FEmitContext& Context, FStringBuilderBase
 	for (int32 Index = 0; Index < VertexInterpolators.Num(); ++Index)
 	{
 		const FVertexInterpolator& Interpolator = VertexInterpolators[Index];
-		const Shader::FType Type = Interpolator.PreparedType.GetPreparedType();
+		const Shader::FType Type = Interpolator.PreparedType.GetResultType();
 		const TCHAR* TypeName = Type.GetName();
 
 		TStringBuilder<1024> ReadCode;

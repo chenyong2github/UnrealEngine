@@ -4924,7 +4924,7 @@ static void SetMaterialInputDescription(FScalarMaterialInput& Input, bool bHidde
 
 static void SetMaterialInputDescription(FShadingModelMaterialInput& Input, bool bHidden, FMaterialInputDescription& OutDescription)
 {
-	OutDescription.Type = UE::Shader::EValueType::Void;
+	OutDescription.Type = UE::Shader::EValueType::Int1;
 	OutDescription.Input = &Input;
 	OutDescription.bUseConstant = false;
 	OutDescription.bHidden = bHidden;

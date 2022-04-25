@@ -245,7 +245,16 @@ bool UMaterialExpressionStaticSwitch::GenerateHLSLExpression(FMaterialHLSLGenera
 		return false;
 	}
 
-	OutExpression = Generator.GenerateBranch(Scope, ConditionExpression, TrueExpression, FalseExpression);
+	if (TrueExpression && FalseExpression)
+	{
+		// Dynamic branch requires both true/false expression to be valid
+		OutExpression = Generator.GenerateBranch(Scope, ConditionExpression, TrueExpression, FalseExpression);
+	}
+	else
+	{
+		// Select can handle missing values
+		OutExpression = Generator.GetTree().NewExpression<FExpressionSelect>(ConditionExpression, TrueExpression, FalseExpression);
+	}
 	return true;
 }
 
