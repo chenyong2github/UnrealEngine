@@ -2,6 +2,7 @@
 
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "Misc/OutputDeviceHelper.h"
+#include "Serialization/Archive.h"
 
 void FOutputDeviceArchiveWrapper::Flush()
 {
