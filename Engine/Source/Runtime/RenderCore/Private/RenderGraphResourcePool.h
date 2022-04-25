@@ -29,6 +29,8 @@ public:
 
 	TRefCountPtr<FRDGPooledBuffer> FindFreeBuffer(const FRDGBufferDesc& Desc, const TCHAR* InDebugName, ERDGPooledBufferAlignment Alignment = ERDGPooledBufferAlignment::Page);
 
+	void DumpMemoryUsage(FOutputDevice& OutputDevice);
+
 private:
 	void ReleaseDynamicRHI() override;
 
