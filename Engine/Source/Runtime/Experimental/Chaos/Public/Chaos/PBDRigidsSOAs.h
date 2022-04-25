@@ -469,6 +469,10 @@ public:
 							bGeometryCollectionDirty = true;
 							return true;
 						}
+						else
+						{
+							AddToActiveArray(PBDRigid);
+						}
 					}
 					else
 					{
@@ -532,6 +536,10 @@ public:
 						{
 							FellAsleepGeometryCollectionArray.Insert(PBDRigid);
 							bGeometryCollectionDirty = true;
+						}
+						else
+						{
+							RemoveFromActiveArray(PBDRigid, /*bStillDirty=*/true);
 						}
 					}
 					else
