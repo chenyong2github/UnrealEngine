@@ -5,8 +5,7 @@
 #include "CoreMinimal.h"
 #include "RHI.h"
 #include "Containers/DynamicRHIResourceArray.h"
-
-class FRDGBuilder;
+#include "RenderGraphDefinitions.h"
 
 /*
  * Can store arbitrary data so long as it follows alignment restrictions. Intended mostly for read only data uploaded from CPU.
@@ -177,4 +176,85 @@ public:
 			bUploadViaCreate = bInUploadViaCreate;
 		}
 	}
+};
+
+RENDERCORE_API void MemsetResource(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, const FMemsetResourceParams& Params);
+RENDERCORE_API void MemcpyResource(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource, FRDGViewableResource* SrcResource, const FMemcpyResourceParams& Params);
+
+RENDERCORE_API FRDGBuffer* ResizeBufferIfNeeded(FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& ExternalBuffer, const FRDGBufferDesc& BufferDesc, const TCHAR* Name);
+RENDERCORE_API FRDGBuffer* ResizeBufferIfNeeded(FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& ExternalBuffer, EPixelFormat Format, uint32 NumElements, const TCHAR* Name);
+RENDERCORE_API FRDGBuffer* ResizeStructuredBufferIfNeeded(FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& ExternalBuffer, uint32 NumBytes, const TCHAR* Name);
+RENDERCORE_API FRDGBuffer* ResizeByteAddressBufferIfNeeded(FRDGBuilder& GraphBuilder, TRefCountPtr<FRDGPooledBuffer>& ExternalBuffer, uint32 NumBytes, const TCHAR* Name);
+
+class FRDGScatterUploadBuffer
+{
+public:
+	enum { PrimitiveDataStrideInFloat4s = FScatterUploadBuffer::PrimitiveDataStrideInFloat4s };
+
+	RENDERCORE_API void Init(FRDGBuilder& GraphBuilder, uint32 NumElements, uint32 NumBytesPerElement, bool bInFloat4Buffer, const TCHAR* Name);
+
+	RENDERCORE_API void ResourceUploadTo(FRDGBuilder& GraphBuilder, FRDGViewableResource* DstResource);
+
+	void Add(uint32 Index, const void* Data, uint32 Num = 1)
+	{
+		void* Dst = Add_GetRef(Index, Num);
+		FMemory::ParallelMemcpy(Dst, Data, Num * NumBytesPerElement, EMemcpyCachePolicy::StoreUncached);
+	}
+
+	void* Add_GetRef(uint32 Index, uint32 Num = 1)
+	{
+		checkSlow(NumScatters + Num <= MaxScatters);
+		checkSlow(ScatterData != nullptr);
+		checkSlow(UploadData != nullptr);
+
+		uint32* ScatterWriteData = ScatterData + NumScatters;
+
+		for (uint32 i = 0; i < Num; i++)
+		{
+			ScatterWriteData[i] = Index + i;
+		}
+
+		void* Result = UploadData + NumScatters * NumBytesPerElement;
+		NumScatters += Num;
+		return Result;
+	}
+
+	void* Set_GetRef(uint32 ElementIndex, uint32 ElementScatterOffset, uint32 Num = 1)
+	{
+		checkSlow(ElementIndex + Num <= MaxScatters);
+		checkSlow(ScatterData != nullptr);
+		checkSlow(UploadData != nullptr);
+
+		for (uint32 i = 0; i < Num; i++)
+		{
+			ScatterData[ElementIndex + i] = ElementScatterOffset + i;
+		}
+		return UploadData + ElementIndex * NumBytesPerElement;
+	}
+
+	/**
+	 * Get pointer to an element data area, given the index of the element (not the destination scatter offset).
+	 */
+	FORCEINLINE void* GetRef(uint32 ElementIndex)
+	{
+		checkSlow(ScatterData != nullptr);
+		checkSlow(UploadData != nullptr);
+
+		return UploadData + ElementIndex * NumBytesPerElement;
+	}
+
+private:
+	RENDERCORE_API void Reset();
+
+	TRefCountPtr<FRDGPooledBuffer> ScatterBuffer;
+	TRefCountPtr<FRDGPooledBuffer> UploadBuffer;
+
+	uint32* ScatterData = nullptr;
+	uint8* UploadData = nullptr;
+
+	uint32 	NumScatters = 0;
+	uint32 	MaxScatters = 0;
+	uint32	NumBytesPerElement = 0;
+
+	bool bFloat4Buffer = false;
 };
