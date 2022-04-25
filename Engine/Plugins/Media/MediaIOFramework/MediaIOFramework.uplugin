@@ -27,8 +27,7 @@
 		{
 			"Name": "GPUTextureTransfer",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit", 
-			"PlatformAllowList": [ "Win64", "Linux" ]
+			"LoadingPhase": "PostConfigInit"
 		}
 	],
 	"DocsURL": "",

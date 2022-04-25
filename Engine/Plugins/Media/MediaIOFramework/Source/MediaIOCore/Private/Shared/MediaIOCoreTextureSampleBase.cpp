@@ -2,6 +2,9 @@
 
 #include "MediaIOCoreTextureSampleBase.h"
 
+#include "RHI.h"
+#include "RHIResources.h"
+
 FMediaIOCoreTextureSampleBase::FMediaIOCoreTextureSampleBase()
 	: Duration(FTimespan::Zero())
 	, SampleFormat(EMediaTextureSampleFormat::Undefined)
@@ -119,4 +122,21 @@ void* FMediaIOCoreTextureSampleBase::RequestBuffer(uint32 InBufferSize)
 	FreeSample();
 	Buffer.SetNumUninitialized(InBufferSize); // Reset the array without shrinking (Does not destruct items, does not de-allocate memory).
 	return Buffer.GetData();
+}
+
+#if WITH_ENGINE
+FRHITexture* FMediaIOCoreTextureSampleBase::GetTexture() const
+{
+	return Texture.GetReference();
+}
+#endif
+
+void FMediaIOCoreTextureSampleBase::SetTexture(TRefCountPtr<FRHITexture> InRHITexture)
+{
+	Texture = MoveTemp(InRHITexture);
+}
+
+void FMediaIOCoreTextureSampleBase::SetDestructionCallback(TFunction<void(TRefCountPtr<FRHITexture>)> InDestructionCallback)
+{
+	DestructionCallback = InDestructionCallback;
 }

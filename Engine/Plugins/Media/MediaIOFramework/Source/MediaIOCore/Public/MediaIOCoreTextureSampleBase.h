@@ -5,6 +5,9 @@
 #include "IMediaTextureSample.h"
 #include "MediaObjectPool.h"
 #include "Misc/FrameRate.h"
+#include "Templates/RefCounting.h"
+
+class FRHITexture;
 
 /**
  * Implements the IMediaTextureSample/IMediaPoolable interface.
@@ -114,14 +117,9 @@ public:
 public:
 	//~ IMediaTextureSample interface
 
-	virtual const void* GetBuffer() override
-	{
-		return Buffer.GetData();
-	}
-
 	virtual FIntPoint GetDim() const override
 	{
-		switch(GetFormat())
+		switch (GetFormat())
 		{
 		case EMediaTextureSampleFormat::CharAYUV:
 		case EMediaTextureSampleFormat::CharNV12:
@@ -158,13 +156,6 @@ public:
 		return Stride;
 	}
 
-#if WITH_ENGINE
-	virtual FRHITexture* GetTexture() const override
-	{
-		return nullptr;
-	}
-#endif //WITH_ENGINE
-
 	virtual FMediaTimeStamp GetTime() const override
 	{
 		return FMediaTimeStamp(Time);
@@ -185,11 +176,62 @@ public:
 		return bIsSRGBInput;
 	}
 
+	virtual const void* GetBuffer() override
+	{
+		// Don't return the buffer if we have a texture to force the media player to use the texture if available. 
+		if (Texture)
+		{
+			return nullptr;
+		}
+
+		if (ExternalBuffer)
+		{
+			return ExternalBuffer;
+		}
+
+		return Buffer.GetData();
+
+	}
+
+	void* GetMutableBuffer()
+	{
+		if (ExternalBuffer)
+		{
+			return ExternalBuffer;
+		}
+
+		return Buffer.GetData();
+	}
+
+#if WITH_ENGINE
+	virtual FRHITexture* GetTexture() const override;
+#endif //WITH_ENGINE
+
+	void SetBuffer(void* InBuffer)
+	{
+		ExternalBuffer = InBuffer;
+	}
+
+	void SetTexture(TRefCountPtr<FRHITexture> InRHITexture);
+	void SetDestructionCallback(TFunction<void(TRefCountPtr<FRHITexture>)> InDestructionCallback);
+
+private:
+	/** Hold a texture to be used for gpu texture transfers. */
+	TRefCountPtr<FRHITexture> Texture;
+
+	/** Called when the sample is destroyed by its pool. */
+	TFunction<void(TRefCountPtr<FRHITexture>)> DestructionCallback;
+
 public:
 	//~ IMediaPoolable interface
 
 	virtual void ShutdownPoolable() override
 	{
+		if (DestructionCallback)
+		{
+			DestructionCallback(Texture);
+		}
+
 		FreeSample();
 	}
 
@@ -219,8 +261,8 @@ protected:
 
 	/** Pointer to raw pixels */
 	TArray<uint8, TAlignedHeapAllocator<4096>> Buffer;
+	void* ExternalBuffer = nullptr;
 
 	/** Wheter the sample is in sRGB space and requires an explicit conversion to linear */
 	bool bIsSRGBInput;
 };
-

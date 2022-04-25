@@ -2,15 +2,24 @@
 
 #include "GPUTextureTransferModule.h"
 
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 #include "D3D11TextureTransfer.h"
 #include "D3D12TextureTransfer.h"
 #include "VulkanTextureTransfer.h"
 #include "TextureTransferBase.h"
 #endif
 
-#include "CoreMinimal.h"
+#if DVP_SUPPORTED_PLATFORM || PLATFORM_LINUX
+#define VULKAN_PLATFORM 1
+#else
+#define VULKAN_PLATFORM 0
+#endif
+
+#if VULKAN_PLATFORM
 #include "IVulkanDynamicRHI.h"
+#endif
+
+#include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformDriver.h"
 #include "HAL/PlatformMisc.h"
 #include "Misc/App.h"
@@ -40,7 +49,7 @@ void FGPUTextureTransferModule::StartupModule()
 	{
 		if (LoadGPUDirectBinary())
 		{
-#if PLATFORM_WINDOWS		
+#if DVP_SUPPORTED_PLATFORM		
 			const TCHAR* DynamicRHIModuleName = GetSelectedDynamicRHIModuleName(false);
 #elif PLATFORM_LINUX
 			const TCHAR* DynamicRHIModuleName = TEXT("VulkanRHI");
@@ -52,12 +61,15 @@ void FGPUTextureTransferModule::StartupModule()
 			// We cannot use GDynmicRHI here because it hasn't been assigned yet.
 			if (TEXT("VulkanRHI") == FString(DynamicRHIModuleName))
 			{
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 				const TArray<const ANSICHAR*> ExtentionsToAdd{ VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME, VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
 #elif PLATFORM_LINUX
 				const TArray<const ANSICHAR*> ExtentionsToAdd{ VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME, VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME, VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, VK_KHR_SURFACE_EXTENSION_NAME };
 #endif
+
+#if VULKAN_PLATFORM
 				IVulkanDynamicRHI::AddEnabledDeviceExtensionsAndLayers(ExtentionsToAdd, TArray<const ANSICHAR*>());
+#endif
 			}
 
 			TransferObjects.AddDefaulted(RHI_MAX);
@@ -76,7 +88,7 @@ void FGPUTextureTransferModule::ShutdownModule()
 
 UE::GPUTextureTransfer::TextureTransferPtr FGPUTextureTransferModule::GetTextureTransfer()
 {
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 	UE::GPUTextureTransfer::ERHI SupportedRHI = ConvertRHI(RHIGetInterfaceType());
 	if (SupportedRHI == UE::GPUTextureTransfer::ERHI::Invalid) 
 	{
@@ -95,7 +107,7 @@ UE::GPUTextureTransfer::TextureTransferPtr FGPUTextureTransferModule::GetTexture
 
 bool FGPUTextureTransferModule::IsAvailable()
 {
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 	return FModuleManager::Get().IsModuleLoaded("GPUTextureTransfer");
 #else
 	return false;
@@ -109,7 +121,7 @@ FGPUTextureTransferModule& FGPUTextureTransferModule::Get()
 
 bool FGPUTextureTransferModule::LoadGPUDirectBinary()
 {
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 	FString GPUDirectPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/NVIDIA/GPUDirect"), FPlatformProcess::GetBinariesSubdirectory());
 	FPlatformProcess::PushDllDirectory(*GPUDirectPath);
 
@@ -134,7 +146,7 @@ bool FGPUTextureTransferModule::LoadGPUDirectBinary()
 
 void FGPUTextureTransferModule::InitializeTextureTransfer()
 {
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 	bIsGPUTextureTransferAvailable = true;
 	// This must be called on game thread 
 	const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(GRHIAdapterName);
@@ -178,12 +190,14 @@ void FGPUTextureTransferModule::InitializeTextureTransfer()
 		InitializeArgs.RHI = RHI;
 		InitializeArgs.RHIDevice = GDynamicRHI->RHIGetNativeDevice();
 		InitializeArgs.RHICommandQueue = GDynamicRHI->RHIGetNativeGraphicsQueue();
+#if VULKAN_PLATFORM
 		if (RHI == UE::GPUTextureTransfer::ERHI::Vulkan)
 		{
 			IVulkanDynamicRHI* DynRHI = GetIVulkanDynamicRHI();
 			InitializeArgs.VulkanInstance = DynRHI->RHIGetVkInstance();
 			FMemory::Memcpy(InitializeArgs.RHIDeviceUUID, DynRHI->RHIGetVulkanDeviceUUID(), 16);
 		}
+#endif
 
 		const uint8 RHIIndex = static_cast<uint8>(RHI);
 		if (TextureTransfer->Initialize(InitializeArgs))
@@ -191,12 +205,12 @@ void FGPUTextureTransferModule::InitializeTextureTransfer()
 			TransferObjects[RHIIndex] = TextureTransfer;
 		}
 	});
-#endif // PLATFORM_WINDOWS
+#endif // DVP_SUPPORTED_PLATFORM
 }
 
 void FGPUTextureTransferModule::UninitializeTextureTransfer()
 {
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 	ENQUEUE_RENDER_COMMAND(UninitializeGPUTextureTransfer)(
 		[this](FRHICommandListImmediate& RHICmdList) mutable
 		{

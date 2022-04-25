@@ -25,18 +25,19 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"TimeManagement"
 				});
-
+			
 			PrivateIncludePaths.AddRange(
 				new string[] {
 				});
-
-            PrivateDependencyModuleNames.AddRange(
+			
+			PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
                     "AudioMixer",
 	                "AudioMixerCore",
+					"GPUTextureTransfer",
                     "RenderCore",
-                    "SignalProcessing",
+                    "SignalProcessing", 
 	                "SoundFieldRendering"
 				});
 

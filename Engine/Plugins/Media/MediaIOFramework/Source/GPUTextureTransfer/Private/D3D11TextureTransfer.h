@@ -2,10 +2,9 @@
 
 #pragma once
 
-#if PLATFORM_WINDOWS
-
 #include "TextureTransferBase.h"
 
+#if DVP_SUPPORTED_PLATFORM
 struct ID3D11Device;
 
 namespace UE::GPUTextureTransfer::Private
@@ -25,4 +24,4 @@ private:
 };
 }
 
-#endif // PLATFORM_WINDOWS
+#endif // DVP_SUPPORTED_PLATFORM

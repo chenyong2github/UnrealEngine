@@ -2,9 +2,9 @@
 
 #pragma once
 
-#if PLATFORM_WINDOWS
-
 #include "TextureTransferBase.h"
+
+#if DVP_SUPPORTED_PLATFORM
 #include "IVulkanDynamicRHI.h"
 
 namespace UE::GPUTextureTransfer::Private

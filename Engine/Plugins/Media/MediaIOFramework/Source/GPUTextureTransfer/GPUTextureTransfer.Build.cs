@@ -10,40 +10,38 @@ namespace UnrealBuildTool.Rules
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "GPUDirect");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+				PrivateDependencyModuleNames.Add("VulkanRHI");
+				PublicDefinitions.Add("DVP_SUPPORTED_PLATFORM=1");
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
+				PrivateDependencyModuleNames.Add("VulkanRHI");
+				PublicDefinitions.Add("DVP_SUPPORTED_PLATFORM=0");
 			}
-				
-			PublicDefinitions.Add("PERF_LOGGING=0");
+			else
+			{
+				PublicDefinitions.Add("DVP_SUPPORTED_PLATFORM=0");
+			}
 
 			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"Core",
-					"RHI"
-				});
-
-			PublicIncludePaths.AddRange(
-					new string[]
-				{
-				});
-
-			PrivateIncludePaths.AddRange(
-				new string[] {
-				});
+            	new string[]
+                {
+                    "Core",
+                    "RHI"
+                });
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"GPUDirect",
+                	"GPUDirect",
 					"RenderCore",
-					"RHI",
-					"VulkanRHI",
+					"RHI"
 				});
 
-			if (Target.bBuildEditor == true)
+			PublicDefinitions.Add("PERF_LOGGING=0");
+
+			if (Target.bBuildEditor)
 			{
 				PrivateDependencyModuleNames.Add("EditorFramework");
 				PrivateDependencyModuleNames.Add("UnrealEd");

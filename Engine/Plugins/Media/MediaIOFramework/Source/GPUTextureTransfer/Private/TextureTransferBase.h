@@ -4,7 +4,7 @@
 
 #include "GPUTextureTransfer.h"
 
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/PreWindowsApi.h"
 #include "DVPAPI.h"
@@ -102,4 +102,4 @@ namespace UE::GPUTextureTransfer::Private
 		FCriticalSection CriticalSection;
 	};
 }
-#endif // PLATFORM_WINDOWS
+#endif // DVP_SUPPORTED_PLATFORM

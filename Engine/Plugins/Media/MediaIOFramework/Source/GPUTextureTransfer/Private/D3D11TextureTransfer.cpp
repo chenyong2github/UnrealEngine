@@ -2,11 +2,10 @@
 
 #include "D3D11TextureTransfer.h"
 
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/PreWindowsApi.h"
 
-#include "DVPAPI.h"
 #include "dvpapi_d3d11.h"
 
 #include "Windows/PostWindowsApi.h"
@@ -74,4 +73,4 @@ DVPStatus FD3D11TextureTransfer::UnbindBuffer_Impl(DVPBufferHandle InBufferHandl
 
 }
 
-#endif // PLATFORM_WINDOWS
+#endif // DVP_SUPPORTED_PLATFORM

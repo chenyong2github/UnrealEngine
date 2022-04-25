@@ -32,7 +32,6 @@ namespace UnrealBuildTool.Rules
 				new string[] {
 					"Blackmagic",
 					"Engine",
-					"GPUTextureTransfer",
 					"MediaUtils",
 					"Projects",
 					"SlateCore"

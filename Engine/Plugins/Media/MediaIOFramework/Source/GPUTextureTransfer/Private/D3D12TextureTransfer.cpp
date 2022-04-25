@@ -2,11 +2,10 @@
 
 #include "D3D12TextureTransfer.h"
 
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/PreWindowsApi.h"
 
-#include "DVPAPI.h"
 #include "dvpapi_d3d12.h"
 
 #include "Windows/PostWindowsApi.h"
@@ -112,4 +111,4 @@ namespace UE::GPUTextureTransfer::Private
 	}
 }
 
-#endif // PLATFORM_WINDOWS
+#endif // DVP_SUPPORTED_PLATFORM

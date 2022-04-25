@@ -4,7 +4,7 @@
 #include "GPUTextureTransferModule.h"
 #include "Misc/ScopeLock.h"
 
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "Windows/MinWindows.h"
 #include "Windows/HideWindowsPlatformTypes.h"
@@ -281,7 +281,7 @@ namespace UE::GPUTextureTransfer::Private
 			DVP_CALL(dvpFreeBuffer(TextureInfo->DVPHandle));
 			if (TextureInfo->External.Handle)
 			{
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 				::CloseHandle(TextureInfo->External.Handle);
 #endif
 			}
@@ -298,7 +298,7 @@ namespace UE::GPUTextureTransfer::Private
 				dvpFreeBuffer(It.Value().DVPHandle);
 				if (It.Value().External.Handle)
 				{
-#if PLATFORM_WINDOWS
+#if DVP_SUPPORTED_PLATFORM
 					::CloseHandle(It.Value().External.Handle);
 #endif
 				}
@@ -368,4 +368,4 @@ namespace UE::GPUTextureTransfer::Private
 	}
 
 }
-#endif // PLATFORM_WINDOWS
+#endif // DVP_SUPPORTED_PLATFORM

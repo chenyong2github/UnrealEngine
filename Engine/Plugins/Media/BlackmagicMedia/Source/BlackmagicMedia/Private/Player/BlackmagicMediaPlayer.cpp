@@ -7,7 +7,6 @@
 #include "BlackmagicMediaSource.h"
 
 #include "Engine/GameEngine.h"
-#include "GPUTextureTransferModule.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformProcess.h"
 #include "IBlackmagicMediaModule.h"
@@ -34,13 +33,6 @@
 #define LOCTEXT_NAMESPACE "BlackmagicMediaPlayer"
 
 DECLARE_CYCLE_STAT(TEXT("Blackmagic MediaPlayer Process received frame"), STAT_Blackmagic_MediaPlayer_ProcessReceivedFrame, STATGROUP_Media);
-
-
-static TAutoConsoleVariable<int32> CVarBlackmagicEnableGPUDirect(
-	TEXT("Blackmagic.EnableGPUDirectInput"), 0,
-	TEXT("Whether to enable GPU direct for faster video frame copies. (Experimental)"),
-	ECVF_RenderThreadSafe);
-
 
 bool bBlackmagicWriteOutputRawDataCmdEnable = false;
 static FAutoConsoleCommand BlackmagicWriteOutputRawDataCmd(
@@ -298,25 +290,28 @@ namespace BlackmagicMediaPlayerHelpers
 							EncodeTime.Render(SetTimecode.Hours, SetTimecode.Minutes, SetTimecode.Seconds, SetTimecode.Frames);
 						}
 
-						const bool bUseGPUDirect = !!CVarBlackmagicEnableGPUDirect.GetValueOnAnyThread();
-						bool bGPUDirectTexturesAvailable = true;
-						if (bUseGPUDirect)
+						bool bGPUDirectTexturesAvailable = false;
+						if (MediaPlayer->CanUseGPUTextureTransfer())
 						{
 							if (!MediaPlayer->Textures.Num())
 							{
 								bGPUDirectTexturesAvailable = false;
 								UE_LOG(LogBlackmagicMedia, Error, TEXT("No texture available while doing a gpu texture transfer."));
 							}
+							else
+							{
+								bGPUDirectTexturesAvailable = true;
+							}
 						}
 
 						auto TextureSample = MediaPlayer->TextureSamplePool->AcquireShared();
 						bool bInitializeResult = false;
-						if (bGPUDirectTexturesAvailable && bUseGPUDirect)
+						if (bGPUDirectTexturesAvailable)
 						{
 							bInitializeResult = TextureSample->SetProperties(InFrameInfo.VideoPitch, InFrameInfo.VideoWidth, InFrameInfo.VideoHeight, SampleFormat, DecodedTime, MediaPlayer->VideoFrameRate, DecodedTimecode, bIsSRGBInput);
 							if (bInitializeResult)
 							{
-								TextureSample->SetBlackmagicBuffer(InFrameInfo.VideoBuffer);
+								TextureSample->SetBuffer(InFrameInfo.VideoBuffer);
 							}
 						}
 						else
@@ -335,45 +330,10 @@ namespace BlackmagicMediaPlayerHelpers
 
 						if (bInitializeResult)
 						{
-							if (bGPUDirectTexturesAvailable && bUseGPUDirect)
+							if (bGPUDirectTexturesAvailable && MediaPlayer->CanUseGPUTextureTransfer())
 							{
-								// Register the buffer and the texture
-								TRefCountPtr<FRHITexture> Texture = MediaPlayer->Textures.Pop();
-								if (Texture && MediaPlayer->RegisteredTextures.Contains(Texture))
-								{
-									TextureSample->SetTexture(Texture);
-									TextureSample->SetDestructionCallback([MediaPlayerWeakPtr = TWeakPtr<FBlackmagicMediaPlayer>(MediaPlayer->AsShared())](TRefCountPtr<FRHITexture> InTexture)
-									{
-										if (TSharedPtr<FBlackmagicMediaPlayer> MediaPlayerPtr = MediaPlayerWeakPtr.Pin())
-										{
-											MediaPlayerPtr->OnSampleDestroyed(InTexture);
-										}
-									});
-
-									MediaPlayer->RegisterSampleBuffer(TextureSample);
-								}
-								else
-								{
-									UE_LOG(LogBlackmagicMedia, Display, TEXT("Unregistered texture %u encountered while doing a gpu texture transfer."), Texture ? reinterpret_cast<std::uintptr_t>(Texture->GetNativeResource()) : 0);
-								}
-
-								ENQUEUE_RENDER_COMMAND(StartGPUTextureTransferCopy)(
-									[MediaPlayerWeakPtr = TWeakPtr<FBlackmagicMediaPlayer>(MediaPlayer->AsShared()), TextureSample](FRHICommandListImmediate& RHICmdList)
-									{
-										if (TextureSample->GetTexture())
-										{
-											if (TSharedPtr<FBlackmagicMediaPlayer> MediaPlayerPtr = MediaPlayerWeakPtr.Pin();
-												MediaPlayerPtr != nullptr && MediaPlayerPtr->GPUTextureTransfer != nullptr)
-											{ 
-												void* Buffer = TextureSample->GetBlackmagicBuffer();
-												UE_LOG(LogBlackmagicMedia, Verbose, TEXT("Starting Transfer with buffer %u"), reinterpret_cast<std::uintptr_t>(Buffer));
-												MediaPlayerPtr->GPUTextureTransfer->TransferTexture(Buffer, TextureSample->GetTexture(), UE::GPUTextureTransfer::ETransferDirection::CPU_TO_GPU);
-												MediaPlayerPtr->GPUTextureTransfer->BeginSync((TextureSample)->GetBlackmagicBuffer(), UE::GPUTextureTransfer::ETransferDirection::CPU_TO_GPU);
-												MediaPlayerPtr->Samples->AddVideo(TextureSample);
-												MediaPlayerPtr->GPUTextureTransfer->EndSync(TextureSample->GetBlackmagicBuffer());
-											}
-										}
-									});
+								MediaPlayer->PreGPUTransfer(TextureSample);
+								MediaPlayer->ExecuteGPUTransfer(TextureSample);
 							}
 							else
 							{
@@ -480,8 +440,6 @@ FBlackmagicMediaPlayer::FBlackmagicMediaPlayer(IMediaEventSink& InEventSink)
 	, bVerifyFrameDropCount(false)
 	, SupportedSampleTypes(EMediaIOSampleType::None)
 {
-	FGPUTextureTransferModule& Module = FGPUTextureTransferModule::Get();
-	GPUTextureTransfer = Module.GetTextureTransfer();
 }
 
 FBlackmagicMediaPlayer::~FBlackmagicMediaPlayer()
@@ -547,8 +505,9 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 	ChannelOptions.CallbackPriority = 10;
 	ChannelOptions.bReadVideo = Options->GetMediaOption(BlackmagicMediaOption::CaptureVideo, true);
 	ChannelOptions.FormatInfo.DisplayMode = Options->GetMediaOption(BlackmagicMediaOption::BlackmagicVideoFormat, (int64)BlackmagicMediaOption::DefaultVideoFormat);
-	ColorFormat = (EBlackmagicMediaSourceColorFormat)(Options->GetMediaOption(BlackmagicMediaOption::ColorFormat, (int64)EBlackmagicMediaSourceColorFormat::YUV8));
-	ChannelOptions.PixelFormat = ColorFormat == EBlackmagicMediaSourceColorFormat::YUV8 ? BlackmagicDesign::EPixelFormat::pf_8Bits : BlackmagicDesign::EPixelFormat::pf_10Bits;
+	BlackmagicColorFormat = (EBlackmagicMediaSourceColorFormat)(Options->GetMediaOption(BlackmagicMediaOption::ColorFormat, (int64)EBlackmagicMediaSourceColorFormat::YUV8));
+
+	ChannelOptions.PixelFormat = BlackmagicColorFormat == EBlackmagicMediaSourceColorFormat::YUV8 ? BlackmagicDesign::EPixelFormat::pf_8Bits : BlackmagicDesign::EPixelFormat::pf_10Bits;
 	const bool bIsSRGBInput = Options->GetMediaOption(BlackmagicMediaOption::SRGBInput, true);
 
 	const EMediaIOTimecodeFormat TimecodeFormat = (EMediaIOTimecodeFormat)(Options->GetMediaOption(BlackmagicMediaOption::TimecodeFormat, (int64)EMediaIOTimecodeFormat::None));
@@ -609,185 +568,8 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 	}
 #endif
 
-	if (bSuccess && CVarBlackmagicEnableGPUDirect.GetValueOnAnyThread())
-	{
-		CreateAndRegisterTextures(Options);
-	}
-
 	return bSuccess;
 }
-
-void FBlackmagicMediaPlayer::OnSampleDestroyed(TRefCountPtr<FRHITexture> InTexture)
-{
-	// Can be called after object destruction
-	FScopeLock ScopeLock(&TexturesCriticalSection);
-	if (InTexture && RegisteredTextures.Contains(InTexture))
-	{
-		Textures.Add(InTexture);
-	}
-}
-
-void FBlackmagicMediaPlayer::RegisterSampleBuffer(const TSharedPtr<FBlackmagicMediaTextureSample>& InSample)
-{
-	if (!RegisteredBuffers.Contains(InSample->GetBlackmagicBuffer()))
-	{
-		RegisteredBuffers.Add(InSample->GetBlackmagicBuffer());
-
-		// Enqueue buffer registration on the render  thread to ensure it happens before the call to TransferTexture
-		ENQUEUE_RENDER_COMMAND(RegisterSampleBuffers)([this, InSample](FRHICommandList& CommandList)
-			{
-				if (!InSample->GetBlackmagicBuffer())
-				{
-					UE_LOG(LogBlackmagicMedia, Error, TEXT("A buffer was not available while performing a gpu texture transfer."));
-					return;
-				}
-
-				if (!InSample->GetTexture())
-				{
-					UE_LOG(LogBlackmagicMedia, Error, TEXT("A texture was not available while performing a gpu texture transfer."));
-					return;
-				}
-
-				const uint32 TextureWidth = InSample->GetTexture()->GetDesc().Extent.X;
-				const uint32 TextureHeight = InSample->GetTexture()->GetDesc().Extent.Y;
-				uint32 TextureStride = TextureWidth * 4;
-
-				EPixelFormat Format = InSample->GetTexture()->GetFormat();
-				if (Format == PF_R32G32B32A32_UINT)
-				{
-					TextureStride *= 4;
-				}
-
-				UE_LOG(LogBlackmagicMedia, Verbose, TEXT("Registering buffer %u"), reinterpret_cast<std::uintptr_t>(InSample->GetBlackmagicBuffer()));
-				UE::GPUTextureTransfer::FRegisterDMABufferArgs Args;
-				Args.Buffer = InSample->GetBlackmagicBuffer();
-				Args.Width = TextureWidth;
-				Args.Height = TextureHeight;
-				Args.Stride = TextureStride;
-				Args.PixelFormat = Format == PF_B8G8R8A8 ? UE::GPUTextureTransfer::EPixelFormat::PF_8Bit : UE::GPUTextureTransfer::EPixelFormat::PF_10Bit;
-				GPUTextureTransfer->RegisterBuffer(Args);
-			});
-	}
-	else
-	{
-		UE_LOG(LogBlackmagicMedia, VeryVerbose, TEXT("Buffer already registered: %u"), reinterpret_cast<std::uintptr_t>(InSample->GetBlackmagicBuffer()));
-	}
-}
-
-void FBlackmagicMediaPlayer::UnregisterSampleBuffers()
-{
-	ENQUEUE_RENDER_COMMAND(UnregisterSampleBuffers)([TextureTransfer = GPUTextureTransfer, BuffersToUnregister = RegisteredBuffers](FRHICommandList& CommandList)
-		{
-			if (TextureTransfer)
-			{
-				for (void* RegisteredBuffer : BuffersToUnregister)
-				{
-					TextureTransfer->UnregisterBuffer(RegisteredBuffer);
-				}
-			}
-		});
-
-	RegisteredBuffers.Reset();
-}
-
-void FBlackmagicMediaPlayer::CreateAndRegisterTextures(const IMediaOptions * Options)
-{
-	ENQUEUE_RENDER_COMMAND(BlackmagicMediaPlayerCreateTextures)(
-		[this, Options](FRHICommandListImmediate& CommandList)
-		{
-			if (!GPUTextureTransfer)
-			{
-				UE_LOG(LogBlackmagicMedia, Error, TEXT("Could not register textures for gpu texture transfer, as the GPUTextureTransfer object was null."));
-				return;
-			}
-
-			for (uint8 Index = 0; Index < MaxNumVideoFrameBuffer; Index++)
-			{
-				TRefCountPtr<FRHITexture> RHITexture;
-				const FString TextureName = FString::Printf(TEXT("FBlackmagicMediaPlayerTexture %d"), Index);
-				FRHIResourceCreateInfo CreateInfo(*TextureName);
-
-				uint32 TextureWidth = VideoTrackFormat.Dim.X;
-				const uint32 TextureHeight = VideoTrackFormat.Dim.Y;
-				uint32 Stride = TextureWidth;
-				EPixelFormat InputFormat = EPixelFormat::PF_Unknown;
-
-				if (ColorFormat == EBlackmagicMediaSourceColorFormat::YUV8)
-				{
-					InputFormat = EPixelFormat::PF_B8G8R8A8;
-					TextureWidth /= 2;
-					Stride = TextureWidth * 4;
-				}
-				else if (ColorFormat == EBlackmagicMediaSourceColorFormat::YUV10)
-				{
-					InputFormat = EPixelFormat::PF_R32G32B32A32_UINT;
-					TextureWidth /= 6;
-					Stride = TextureWidth * 16;
-				}
-				else
-				{
-					checkf(false, TEXT("Format not supported"));
-				}
-
-				TRefCountPtr<FRHITexture2D> DummyTexture2DRHI;
-
-				ETextureCreateFlags CreateFlags = TexCreate_Shared;
-				if (RHIGetInterfaceType() == ERHIInterfaceType::Vulkan)
-				{
-					CreateFlags = TexCreate_External;
-				}
-
-				FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(*TextureName, FIntPoint(TextureWidth, TextureHeight), InputFormat, FClearValueBinding::White, CreateFlags);
-				RHICreateTargetableShaderResource(CreateDesc, TexCreate_RenderTargetable, RHITexture, DummyTexture2DRHI);
-
-				UE_LOG(LogBlackmagicMedia, Verbose, TEXT("Registering texture %u"), reinterpret_cast<std::uintptr_t>(RHITexture->GetNativeResource()));
-
-				UE::GPUTextureTransfer::FRegisterDMATextureArgs Args;
-				Args.RHITexture = RHITexture.GetReference();
-				Args.Stride = Stride;
-				Args.Width = TextureWidth;
-				Args.Height = TextureHeight;
-				Args.RHIResourceMemory = nullptr;
-				Args.PixelFormat = ColorFormat == EBlackmagicMediaSourceColorFormat::YUV8 ? UE::GPUTextureTransfer::EPixelFormat::PF_8Bit : UE::GPUTextureTransfer::EPixelFormat::PF_10Bit;
-
-				GPUTextureTransfer->RegisterTexture(Args);
-				RegisteredTextures.Add(RHITexture);
-
-				{
-					FScopeLock Lock(&TexturesCriticalSection);
-					Textures.Add(RHITexture);
-				}
-			}
-		});
-
-	FRenderCommandFence RenderFence;
-	RenderFence.BeginFence();
-	RenderFence.Wait();
-}
-
-void FBlackmagicMediaPlayer::UnregisterTextures()
-{
-	// Keep a copy of the textures to make sure they were not destoryed before this gets executed.
-	ENQUEUE_RENDER_COMMAND(UnregisterSampleBuffers)([TextureTransfer = GPUTextureTransfer, TexturesToUnregister = RegisteredTextures](FRHICommandList& CommandList)
-		{
-			if (TextureTransfer)
-			{
-				for (const TRefCountPtr<FRHITexture>& RHITexture : TexturesToUnregister)
-				{
-					UE_LOG(LogBlackmagicMedia, Verbose, TEXT("Unregistering texture %u"), reinterpret_cast<std::uintptr_t>(RHITexture->GetNativeResource()));
-					TextureTransfer->UnregisterTexture(RHITexture.GetReference());
-				}
-			}
-		});
-
-	RegisteredTextures.Reset();
-
-	{
-		FScopeLock Lock(&TexturesCriticalSection);
-		Textures.Reset();
-	}
-}
-
 
 void FBlackmagicMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 {
@@ -859,6 +641,11 @@ void FBlackmagicMediaPlayer::SetupSampleChannels()
 	FMediaIOSamplingSettings AudioSettings = BaseSettings;
 	AudioSettings.BufferSize = MaxNumAudioFrameBuffer;
 	Samples->InitializeAudioBuffer(AudioSettings);
+}
+
+void FBlackmagicMediaPlayer::AddVideoSample(const TSharedRef<FMediaIOCoreTextureSampleBase>& InSample)
+{
+	Samples->AddVideo(InSample);
 }
 
 #undef LOCTEXT_NAMESPACE
