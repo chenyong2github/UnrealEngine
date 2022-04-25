@@ -10,7 +10,7 @@ Tags:error
 
 [TOC(start:2 end:3)]
 
-Unreal Engine 4 provides a mechanism for alerting you to potential problems in the form of map check errors and warnings instead of having to hunt down issues manually without knowing what is causing the problem or how to fix it. These errors are an automated way to find out where problems lie and allows you to get them fixed before they have a serious impact on your game. 
+Unreal Engine provides a mechanism for alerting you to potential problems in the form of map check errors and warnings instead of having to hunt down issues manually without knowing what is causing the problem or how to fix it. These errors are an automated way to find out where problems lie and allows you to get them fixed before they have a serious impact on your game. 
 
 
 

@@ -31,9 +31,7 @@ This will compile the current Blueprint (default keyboard short cut of F7). Any 
 [EXCERPT:EditGlobalOptions]
 
 
-This will open the Blueprint Properties in the Details Pane of the Blueprint Editor:
-
-![](k2_blueprintProps.png)
+This will open the Blueprint Properties in the Details Pane of the Blueprint Editor.
 
 Here you can add Blueprint Interfaces, re-parent the Blueprint, and change some other properties that exist solely on the Blueprint.
 

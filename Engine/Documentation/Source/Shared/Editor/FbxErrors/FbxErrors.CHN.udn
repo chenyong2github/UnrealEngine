@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title:FBX 导入错误
 Crumbs:%ROOT%, Engine, Engine/Content, Engine/Content/FBX
@@ -384,7 +384,7 @@ FBX 导入器将在导出时生成适当的平滑数据（即使工具不支持�
 
 (#SkeletalMesh_ExceedsMaxBoneCount)
 [EXCERPT:SkeletalMesh_ExceedsMaxBoneCount]
-骨架网格体骨骼过多。虚幻引擎 4 当前支持的最大骨骼数为 65536。
+骨架网格体骨骼过多。虚幻引擎 当前支持的最大骨骼数为 65536。
 
 [/EXCERPT:SkeletalMesh_ExceedsMaxBoneCount]
 

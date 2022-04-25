@@ -379,7 +379,7 @@ The importer is trying to recreate skeleton, but it failed because an asset exis
 
 (#SkeletalMesh_ExceedsMaxBoneCount)
 [EXCERPT:SkeletalMesh_ExceedsMaxBoneCount]
-Your Skeletal Mesh has too many bones, Unreal Engine 4's current max bone count is 65536.
+Your Skeletal Mesh has too many bones, Unreal Engine's current max bone count is 65536.
 
 [/EXCERPT:SkeletalMesh_ExceedsMaxBoneCount]
 

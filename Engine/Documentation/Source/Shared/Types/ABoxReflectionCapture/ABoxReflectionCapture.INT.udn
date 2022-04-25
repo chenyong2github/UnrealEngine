@@ -5,5 +5,5 @@ Description:Overview of the BoxReflectionCapture class
 
 [EXCERPT:ABoxReflectionCapture]
 
-The Box Reflection Capture Actor is one of two Reflection Capture Actors available in Unreal Engine 4. Many of these can be placed around the world with almost no performance impact as they are calculated before run time.
+The Box Reflection Capture Actor captures an image of the surrounding area for use in reflections, best suited for use in rectangular hallways and interior rooms. You can place any number of these Actors with little impact on runtime performance.
 [/EXCERPT:ABoxReflectionCapture]

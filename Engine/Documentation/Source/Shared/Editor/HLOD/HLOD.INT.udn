@@ -3,10 +3,9 @@ Title:HLOD System
 Crumbs:
 
 [EXCERPT:main]
-###Hierarchical Level of Detail (HLODs)
-Has been developed as a way to increase performance and keep the quality bar high for projects using Unreal Engine 4.11 or later. 
+Hierarchical Levels of Detail (HLODs) are a way to increase performance while keeping the quality bar high. 
 
-HLODs can replace multiple Static Mesh Actors with single, combined Static Mesh Actor at long view distances. This helps reduce the number of Actors that need to be rendered for the scene, increasing performance by lowering the number of draw calls per frame. 
+Each HLOD combines multiple Static Mesh Objects into a single object with simplified geometry. At long distances, the HLOD is drawn instead of those individual Static Mesh Objects. This reduces the number of Actors that need to be rendered each frame, increasing performance.
 [VAR:ToolTipFullLink]
 Engine/HLOD
 [/VAR]

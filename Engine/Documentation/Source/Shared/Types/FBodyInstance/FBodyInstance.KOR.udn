@@ -23,24 +23,6 @@ Engine/Physics/PhysicsBodies#physics
 
 
 
-[EXCERPT:bUseAsyncScene]
-
-PhysX 는 Synchronous (동기식)과 Asynchronous (비동기식), 두 가지 피직스 모드로 실행되며, 언리얼 엔진 4 에는 여기에 맞는 두 가지 씬이 있습니다.
-
-동기식 씬은 상자나 탈것의 낙하처럼 대부분의 고전적 물리 현상이 벌어지는 곳입니다. 게임플레이시 순서가 확실한 차이를 만드는 경우, 동기식 씬이 사용됩니다.
-
-비동기식은 디스트럭터블 액터 시뮬레이션같은 것이 벌어지는 곳입니다. 여기서 순서는 중요치 않은데, 대부분의 피직스 오브젝트끼리는 직접 상호작용하여 게임플레이에 영향을 끼칠 일이 없기 때문입니다.
-
-기본적으로 한 씬의 시뮬레이션 액터는 다른 씬의 액터와 상호작용하지 않습니다. 예외라면 양쪽 씬 모두에 놓여있는 스태틱 액터를 들 수 있습니다.
-
-블로킹이나 실행 순서 관련해서 내부적으로 진행되는 일이 약간 더 있는데, 자세한 정보는 PhysX 문서를 참고해 주시기 바랍니다.
-[VAR:ToolTipFullLink]
-Engine/Physics/PhysicsBodies#physics
-[/VAR]
-[/EXCERPT:bUseAsyncScene]
-
-
-
 
 [EXCERPT:PhysMaterialOverride]
 

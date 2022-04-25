@@ -11,7 +11,7 @@ The skeleton mode lets you view properties of a skeleton asset.
 
 ### Overview
 
-In Unreal Engine 4, Skeletons are assets that are separate from Skeletal Meshes. Each Skeletal Mesh requires a Skeleton to be associated with it, and all animation assets (such as Animation Sequences, Animation Montages, and Blend Spaces) are associated with the Skeleton, not with the Skeletal Mesh.
+In Unreal Engine, Skeletons are assets that are separate from Skeletal Meshes. Each Skeletal Mesh requires a Skeleton to be associated with it, and all animation assets (such as Animation Sequences, Animation Montages, and Blend Spaces) are associated with the Skeleton, not with the Skeletal Mesh.
 
 ### What is a Skeleton?
 
@@ -21,7 +21,7 @@ If you are familiar with digital content creation, you may already feel like you
 A typical character skeleton as you might see in Maya.
 
 
-An important distinction is that a Skeleton asset is NOT the same thing as the bone hierarchy found within a Skeletal Mesh. In Unreal Engine 4, the Skeleton asset is less like a 3D representation of an actual skeleton and more like a list which holds bone and hierarchy information for a specific type of character or Skeletal Mesh. It is through this list that animation associations are made. 
+An important distinction is that a Skeleton asset is NOT the same thing as the bone hierarchy found within a Skeletal Mesh. In Unreal Engine, the Skeleton asset is less like a 3D representation of an actual skeleton and more like a list which holds bone and hierarchy information for a specific type of character or Skeletal Mesh. It is through this list that animation associations are made. 
 
 In terms of its place in the animation system, it is probably best to think of a Skeleton asset as an intermediary between Skeletal Meshes and animations. Multiple Skeletal Meshes can use the same Skeleton asset, and any Skeletal Meshes using the same Skeleton asset will be able to share animations.
 
@@ -85,7 +85,7 @@ Changing the properties listed in defaults mode will save the values in the asse
 
 ### Overview
 
-In Unreal Engine 4, Skeletons are assets that are separate from Skeletal Meshes. Each Skeletal Mesh requires a Skeleton to be associated with it, and all animation assets (such as Animation Sequences, Animation Montages, and Blend Spaces) are associated with the Skeleton, not with the Skeletal Mesh.
+In Unreal Engine, Skeletons are assets that are separate from Skeletal Meshes. Each Skeletal Mesh requires a Skeleton to be associated with it, and all animation assets (such as Animation Sequences, Animation Montages, and Blend Spaces) are associated with the Skeleton, not with the Skeletal Mesh.
 
 ### What is a Skeleton?
 
@@ -95,7 +95,7 @@ If you are familiar with digital content creation, you may already feel like you
 A typical character skeleton as you might see in Maya.
 
 
-An important distinction is that a Skeleton asset is NOT the same thing as the bone hierarchy found within a Skeletal Mesh. In Unreal Engine 4, the Skeleton asset is less like a 3D representation of an actual skeleton and more like a list which holds bone and hierarchy information for a specific type of character or Skeletal Mesh. It is through this list that animation associations are made. 
+An important distinction is that a Skeleton asset is NOT the same thing as the bone hierarchy found within a Skeletal Mesh. In Unreal Engine, the Skeleton asset is less like a 3D representation of an actual skeleton and more like a list which holds bone and hierarchy information for a specific type of character or Skeletal Mesh. It is through this list that animation associations are made. 
 
 In terms of its place in the animation system, it is probably best to think of a Skeleton asset as an intermediary between Skeletal Meshes and animations. Multiple Skeletal Meshes can use the same Skeleton asset, and any Skeletal Meshes using the same Skeleton asset will be able to share animations.
 
@@ -152,8 +152,6 @@ Engine/Animation/AnimBlueprints/Interface#assetbrowsertab
 Animation Notifies tab lists all the custom animation notifies that are used. 
 
 This does not display blueprint notifies (such as Play sound or Play particle effect), but it does display custom made notifies. 
-
-![](CustomAnimNotify.PNG)
 
 In this panel, you can remove, rename the custom animation notifies. If you remove or rename, please note that you will have to resave all animations that have this notify. 
 Otherwise it will not be removed or renamed correctly.

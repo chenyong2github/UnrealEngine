@@ -23,24 +23,6 @@ Engine/Physics/PhysicsBodies#physics
 
 
 
-[EXCERPT:bUseAsyncScene]
-
-PhysX 运行两个物理模式：同步和异步。虚幻引擎 4 有两个场景匹配此模式。
-
-最常见的物理任务在同步场景中发生，如坠落的木箱或载具。排序对游戏进程存在影响时使用同步场景。
-
-在异步场景中模拟可破坏 Actor 之类的资源。在这里排序则无关紧要，因为大多数物体直接交互的方式并不会影响游戏进程。
-
-一个场景中的模拟 Actor 默认不会与另一个场景中的 Actor 进行交互。而静态 Actor 则是例外，因为它们被放置到了两个场景中。
-
-后台下还有更多关于分块和执行顺序的内容，请查阅 PhysX 文档中的更多内容。
-[VAR:ToolTipFullLink]
-Engine/Physics/PhysicsBodies#physics
-[/VAR]
-[/EXCERPT:bUseAsyncScene]
-
-
-
 
 [EXCERPT:PhysMaterialOverride]
 

@@ -616,7 +616,7 @@ Engine/Rendering/Materials/ExpressionReference/Math#linearinterpolate
 [EXCERPT:UMaterialExpressionMultiply]
 The Multiply expression takes two inputs, multiplies them together, and outputs the result. Similar to Photoshop's multiply layer blend. The multiplication happens per channel, meaning that the R channel of the first is multiplied by the second; the G channel of the first is multiplied by the second, and so on. Both inputs must have the same number of values unless one of the values is a single float value. 
 
-Note: Do not forget that materials in UE4 are not limited to [0,1]! If colors/values are greater than 1, Multiply will actually brighten colors. 
+Note: Do not forget that materials in UE are not limited to [0,1]! If colors/values are greater than 1, Multiply will actually brighten colors. 
 
 [VAR:ToolTipFullLink]
 Engine/Rendering/Materials/ExpressionReference/Math#multiply
@@ -826,7 +826,7 @@ Engine/Rendering/Materials/ExpressionReference/Utility#blackbody
 [/EXCERPT:UMaterialExpressionBlackBody]
 
 [EXCERPT:UMaterialExpressionBumpOffset]
-BumpOffset is the Unreal Engine 4 term for what is commonly known as 'parallax mapping'. The BumpOffset expression allows a material to give the illusion of depth without the need for additional geometry.
+BumpOffset is the Unreal Engine term for what is commonly known as 'parallax mapping'. The BumpOffset expression allows a material to give the illusion of depth without the need for additional geometry.
 
  BumpOffset materials use a grayscale heightmap to give depth information. The brighter the value in the heightmap, the more 'popped out' the material will be; these areas will parallax (shift) as a camera moves across the surface. Darker areas in the heightmap are 'further away' and will shift the least. 
 
@@ -976,7 +976,7 @@ Engine/Rendering/Materials/ExpressionReference/Vector#cameravectorws
 [/EXCERPT:UMaterialExpressionCameraVectorWS]
 
 [EXCERPT:UMaterialExpressionLightVector]
-This expression is deprecated in Unreal Engine 4 as lighting calculations are now deferred.
+This expression is deprecated as lighting calculations are now deferred.
 
 [VAR:ToolTipFullLink]
 Engine/Rendering/Materials/ExpressionReference/Vector#lightvector

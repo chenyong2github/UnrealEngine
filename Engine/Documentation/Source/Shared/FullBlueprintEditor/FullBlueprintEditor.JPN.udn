@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:FullBlueprintEditorCommands RTTs
 Crumbs:
@@ -33,8 +33,6 @@ Crumbs:
 
 
 ブループリント エディタの [詳細] ペインで Blueprint プロパティが開きます。
-
-![](k2_blueprintProps.png)
 
 ここでは、ブループリント インターフェースの追加、ブループリントの親を変更、およびブループリントのみに存在する他のいくつかのプロパティを変更することができます。
 

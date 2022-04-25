@@ -617,7 +617,7 @@ Engine/Rendering/Materials/ExpressionReference/Math#linearinterpolate
 [EXCERPT:UMaterialExpressionMultiply]
 Multiply (곱하기) 표현식은 두 입력을 받아 서로 곱한 다음 결과를 출력합니다. 포포토샵의 멀티플라이 레이어 블렌드와 유사합니다. 곱하기는 채널별로 이루어집니다. 즉 첫째의 R은 둘째의 R로, 첫째의 G는 둘째의 G로 곱하는 식입니다. 둘 중 하나가 단일 실수값이 아닌 다음에야 두 입력은 채널 수가 같아야 합니다.
 
-주: UE4의 범위는 [0,1]로 제한되어있지 않음에 유의하십시오! Multiply 결과 색/값이 1보다 크면 색이 밝아집니다.
+주: UE의 범위는 [0,1]로 제한되어있지 않음에 유의하십시오! Multiply 결과 색/값이 1보다 크면 색이 밝아집니다.
 
 [VAR:ToolTipFullLink]
 Engine/Rendering/Materials/ExpressionReference/Math#multiply
@@ -827,7 +827,7 @@ Engine/Rendering/Materials/ExpressionReference/Utility#blackbody
 [/EXCERPT:UMaterialExpressionBlackBody]
 
 [EXCERPT:UMaterialExpressionBumpOffset]
-BumpOffset 은 흔히 'parallax mapping' (시차 매핑)이라 알려진 것에 대한 언리얼 엔진 4 용어입니다. BumpOffset 표현식으로 별도의 지오메트리 추가 없이 머티리얼에 입체감을 줄 수 있습니다. 
+BumpOffset 은 흔히 'parallax mapping' (시차 매핑)이라 알려진 것에 대한 언리얼 엔진 용어입니다. BumpOffset 표현식으로 별도의 지오메트리 추가 없이 머티리얼에 입체감을 줄 수 있습니다. 
 
 BumpOffset 머티리얼은 회색조 하이트맵 (heightmap, 높이맵)을 사용하여 깊이 정보를 나타냅니다. 하이트맵에서 밝은 부분은 더욱 '튀어나와' 보이며, 이러한 부분은 표면을 따라 움직이는 카메라로 보면 시차를 (많이 움직인 것으로) 보이게 됩니다. 하이트맵의 어두운 부분은 '멀어 보이는' 부분으로, 조금 움직이는 부분입니다.
 
@@ -977,7 +977,7 @@ Engine/Rendering/Materials/ExpressionReference/Vector#cameravectorws
 [/EXCERPT:UMaterialExpressionCameraVectorWS]
 
 [EXCERPT:UMaterialExpressionLightVector]
-언리얼 엔진 4 에서 라이팅 계산이 디퍼드 방식으로 바뀌어서 이 표현식은 폐기상태가 되었습니다.
+서 라이팅 계산이 디퍼드 방식으로 바뀌어서 이 표현식은 폐기상태가 되었습니다.
 
 [VAR:ToolTipFullLink]
 Engine/Rendering/Materials/ExpressionReference/Vector#lightvector

@@ -617,7 +617,7 @@ Engine/Rendering/Materials/ExpressionReference/Math#linearinterpolate
 [EXCERPT:UMaterialExpressionMultiply]
 Multiply 表現式は、 2 つの入力値を受け取り、その入力値を掛け合わせて結果を出力します。Photoshop のレイヤーのブレンドモードの乗算に似た機能です。乗算はチャンネルごとに計算されます。つまり最初の R チャンネルが 2 番目の値と掛けられ、最初の G チャンネルが 2 番目の値と掛けられるというようになります。片方の値が single float 値でない限り、両方の入力は同等の入力値でなくてはいけません。 
 
-注意：UE4 のマテリアルは [0,1] に制限されていないことを忘れないでください！カラー / 値が 1 より大きい場合、Multiply 表現式は実際にカラーを明るくします。 
+注意：UE のマテリアルは [0,1] に制限されていないことを忘れないでください！カラー / 値が 1 より大きい場合、Multiply 表現式は実際にカラーを明るくします。 
 
 [VAR:ToolTipFullLink]
 Engine/Rendering/Materials/ExpressionReference/Math#multiply
@@ -827,7 +827,7 @@ Engine/Rendering/Materials/ExpressionReference/Utility#blackbody
 [/EXCERPT:UMaterialExpressionBlackBody]
 
 [EXCERPT:UMaterialExpressionBumpOffset]
-BumpOffset は一般的に「視差マッピング」の名で知られているアンリアル エンジン 4 の用語です。BumpOffset 表現式は、ジオメトリを追加することなく深度の錯覚を与えることができます。
+BumpOffset は一般的に「視差マッピング」の名で知られているアンリアル エンジン の用語です。BumpOffset 表現式は、ジオメトリを追加することなく深度の錯覚を与えることができます。
 
  BumpOffset マテリアルはグレースケールの高さマップを使用して深度情報を与えます。高さマップの値が明るいほどマテリアルが「飛び出し」、カメラがサーフェスを移動するとその領域は視差 (シフト) します。高さマップの暗い領域は「遠く離れた」部分で、ほとんどシフトしません。 
 

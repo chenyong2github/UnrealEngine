@@ -617,7 +617,7 @@ Engine/Rendering/Materials/ExpressionReference/Math#linearinterpolate
 [EXCERPT:UMaterialExpressionMultiply]
 Multiply 表达式接受两个输入，将它们相乘并输出结果。与 Photoshop 的乘层混合相似。这个乘法在每个通道上进行，意味着第一个输入的 R 通道将乘以第二个输入，第一个输入的 G 通道将乘以第二个输入，以此类推。两个输入必须拥有相同的值，除非其中一个值是一个单一浮点值。 
 
-注意：请牢记 UE4 中的材质不仅限于 [0,1]！如颜色/值大于 1，乘法将使颜色更加明亮。
+注意：请牢记 UE 中的材质不仅限于 [0,1]！如颜色/值大于 1，乘法将使颜色更加明亮。
 
 [VAR:ToolTipFullLink]
 Engine/Rendering/Materials/ExpressionReference/Math#multiply
@@ -827,7 +827,7 @@ Engine/Rendering/Materials/ExpressionReference/Utility#blackbody
 [/EXCERPT:UMaterialExpressionBlackBody]
 
 [EXCERPT:UMaterialExpressionBumpOffset]
-BumpOffset 是虚幻引擎 4 中的术语，通常被称为“视差映射”。BumpOffset 表达式能够使材质不需要额外几何体便能拥有深度效果。
+BumpOffset 是虚幻引擎 中的术语，通常被称为“视差映射”。BumpOffset 表达式能够使材质不需要额外几何体便能拥有深度效果。
 
  BumpOffset 材质使用灰度高度图提供深度信息。高度图中的值越明亮，材质便会越“突出”；当摄像机沿表面移动时，这些区域将形成视差（移位）。高度图中较暗的区域则会“更远”，移位程度最小。 
 
@@ -977,7 +977,7 @@ Engine/Rendering/Materials/ExpressionReference/Vector#cameravectorws
 [/EXCERPT:UMaterialExpressionCameraVectorWS]
 
 [EXCERPT:UMaterialExpressionLightVector]
-不建议在虚幻引擎 4 中使用此表达式，因为光照计算现在已延迟。
+不建议在虚幻引擎 中使用此表达式，因为光照计算现在已延迟。
 
 [VAR:ToolTipFullLink]
 Engine/Rendering/Materials/ExpressionReference/Vector#lightvector

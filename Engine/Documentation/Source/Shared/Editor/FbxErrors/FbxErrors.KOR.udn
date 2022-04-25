@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title:FBX 임포트 오류
 Crumbs:%ROOT%, Engine, Engine/Content, Engine/Content/FBX
@@ -380,7 +380,7 @@ LOD 에 파일을 하나만 선택해야 합니다.
 
 (#SkeletalMesh_ExceedsMaxBoneCount)
 [EXCERPT:SkeletalMesh_ExceedsMaxBoneCount]
-스켈레탈 메시에 본이 너무 많습니다. 현재 언리얼 엔진 4 의 최대 본 수는 65536 입니다.
+스켈레탈 메시에 본이 너무 많습니다. 현재 언리얼 엔진 의 최대 본 수는 65536 입니다.
 
 [/EXCERPT:SkeletalMesh_ExceedsMaxBoneCount]
 

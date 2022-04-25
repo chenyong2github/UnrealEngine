@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability: Docs
 Title: 常见的工具用户界面菜单项
 Description: 多个关卡编辑器工具的常见菜单项的描述。
@@ -109,8 +109,8 @@ Crumbs:
 [PUBLISH:Rocket]
 * **Browse documentation（浏览文档）** - 打开一个浏览器窗口，并导航到关于该工具的文档处。
 * **Forums** - 打开一个浏览器窗口并导航到虚幻引擎论坛。您可以在这里与其他用户讨论虚幻引擎。
-* **Answer Hub** - 打开一个浏览器窗口并导航到虚幻引擎4问答中心。您可以在这里提问并寻找其他用户和专家提供的有用答案。
-* **Wiki** - 打开一个浏览器并导航到虚幻引擎4官方Wiki。您可以在这里找到用户以及Epic专家制作的实用教程和示例。
+* **Answer Hub** - 打开一个浏览器窗口并导航到虚幻引擎问答中心。您可以在这里提问并寻找其他用户和专家提供的有用答案。
+* **Wiki** - 打开一个浏览器并导航到虚幻引擎官方Wiki。您可以在这里找到用户以及Epic专家制作的实用教程和示例。
 * **Visit EpicGames.com（访问EpicGames.com）** - 在浏览器窗口中打开EpicGames.com。
 * **About Unreal Editor（关于虚幻编辑器）** - 显示应用程序的制作人员、版权信息、及版本信息。
 [/PUBLISH:Rocket]

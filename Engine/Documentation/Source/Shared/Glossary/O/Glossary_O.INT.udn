@@ -19,6 +19,6 @@ Object
 
 [COMMENT:none]
 [EXCERPT:Glossary_Object]
-The base building blocks in the Unreal Engine are called **Objects** and contain a lot of the essential "under the hood" functionality for your game assets. Just about everything in Unreal Engine 4 inherits (or gets some functionality) from an Object. In C++, `UObject` is the base class of all objects; it implements features such as garbage collections, metadata (`UProperty`) support for exposing variables to the Unreal Editor, and serialization for loading and saving.
+The base building blocks in the Unreal Engine are called **Objects** and contain a lot of the essential "under the hood" functionality for your game assets. Just about everything in Unreal Engine inherits (or gets some functionality) from an Object. In C++, `UObject` is the base class of all objects; it implements features such as garbage collections, metadata (`UProperty`) support for exposing variables to the Unreal Editor, and serialization for loading and saving.
 [/EXCERPT:Glossary_Object]
 [/COMMENT]

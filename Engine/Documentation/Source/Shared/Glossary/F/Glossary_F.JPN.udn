@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810557
+INTSourceChangelist:3810557
 Title:F
 Crumbs:Shared/Glossary
 Description:
@@ -37,7 +37,7 @@ FBX ファイル
 
 [COMMENT:none]
 [EXCERPT:Glossary_FBX_file]
-**FBX** は Autodesk 社が開発し、所有するファイル形式です。スタティックメッシュ、スケルタルメッシュ、そしてアニメーションを UE4 へインポートする際に使用するファイル形式です。
+**FBX** は Autodesk 社が開発し、所有するファイル形式です。スタティックメッシュ、スケルタルメッシュ、そしてアニメーションを UE へインポートする際に使用するファイル形式です。
 [/EXCERPT:Glossary_FBX_file]
 [EXCERPT:Glossary_Flow_Control]
 **フロー制御** オペレーションにより、ブループリントでの実行フローを明確に制御することができます。この制御は、ある条件が True またはFalse、特定のブランチの複数実行、複数のブランチをある一定の順序で実行するなど、 

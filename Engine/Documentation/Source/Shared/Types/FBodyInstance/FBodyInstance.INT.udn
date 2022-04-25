@@ -22,24 +22,6 @@ Engine/Physics/PhysicsBodies#physics
 
 
 
-[EXCERPT:bUseAsyncScene]
-
-PhysX runs two physics modes: Synchronous and Asynchronous, and Unreal Engine 4 has two scenes that match these.
-
-The Synchronous scene is where most classic physics tasks take place such as a falling crate or vehicle. Where order really makes a difference on gameplay, the Synchronous scene is used.
-
-In the Asynchronous is where things like Destructible Actors are simulated. Here, order does not matter as most Physics objects are not interacting directly with each other in a way that affects gameplay.
-
-By default, simulating Actors in one scene will not interact with Actors in the other scene. The exception is Static Actors, as they are placed into both scenes.
-
-Under the hood, there is a bit more going on about blocking and execution order, consult the PhysX documentation for more information.
-[VAR:ToolTipFullLink]
-Engine/Physics/PhysicsBodies#physics
-[/VAR]
-[/EXCERPT:bUseAsyncScene]
-
-
-
 
 [EXCERPT:PhysMaterialOverride]
 

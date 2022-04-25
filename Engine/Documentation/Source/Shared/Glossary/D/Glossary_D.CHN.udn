@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810557
+INTSourceChangelist:3810557
 Title:D
 Crumbs:Shared/Glossary
 Description:
@@ -64,7 +64,7 @@ _Blueprint_中包含的变量、本地代码中定义的组件以及复制、导
 默认（Defaults）模式下为这些属性设置的值。
 [/EXCERPT:Glossary_Defaults_Mode]
 [EXCERPT:Glossary_Details_panel]
- **细节面板（Details panel）** 是关卡编辑器（Level Editor）中的一个面板，其中包含各个元素的属性信息。UE4中的许多工具和编辑器都包含细节面板：关卡编辑器、Matinee、Persona等。
+ **细节面板（Details panel）** 是关卡编辑器（Level Editor）中的一个面板，其中包含各个元素的属性信息。UE中的许多工具和编辑器都包含细节面板：关卡编辑器、Matinee、Persona等。
 [/EXCERPT:Glossary_Details_panel]
 [EXCERPT:Glossary_Director_Group]
  **导演组（Director Group）** 是一种控制摄像机视点的特定类型Matinee组。您可以使用导演组来切换镜头之间的摄像机视点。每个Matinee序列只能有一个导演组。

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:FullBlueprintEditorCommands RTTs
 Crumbs:
@@ -32,9 +32,7 @@ Crumbs:
 [EXCERPT:EditGlobalOptions]
 
 
-这会在蓝图编辑器的 Details 面板中打开 Blueprint Properties：
-
-![](k2_blueprintProps.png)
+这会在蓝图编辑器的 Details 面板中打开 Blueprint Properties。
 
 可在此处添加蓝图接口、重设蓝图父项，并修改单独存在于蓝图中的部分其他属性。
 
