@@ -539,67 +539,7 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 
 	if (Scene)
 	{
-		// test for HQ reflection parameter existence
-		if (HQReflectionCubemaps[0].IsBound() || HQReflectionCubemaps[1].IsBound() || HQReflectionCubemaps[2].IsBound())
-		{
-			static const int32 MaxNumReflections = FPrimitiveSceneInfo::MaxCachedReflectionCaptureProxies;
-			static_assert(MaxNumReflections == 3, "Update reflection array initializations to match MaxCachedReflectionCaptureProxies");
-			// set reflection parameters
-			FTexture* ReflectionCubemapTextures[MaxNumReflections] = { GBlackTextureCube, GBlackTextureCube, GBlackTextureCube };
-			FVector4f CapturePositions[MaxNumReflections] = { FVector4f(0, 0, 0, 0), FVector4f(0, 0, 0, 0), FVector4f(0, 0, 0, 0) };
-			FVector4f CaptureTilePositions[MaxNumReflections] = { FVector4f(0, 0, 0, 0), FVector4f(0, 0, 0, 0), FVector4f(0, 0, 0, 0) };
-			FVector4f ReflectionParams(0.0f, 0.0f, 0.0f, 0.0f);
-			FVector4f ReflectanceMaxValueRGBMParams(0.0f, 0.0f, 0.0f, 0.0f);
-			FMatrix44f CaptureBoxTransformArray[MaxNumReflections] = { FMatrix44f(EForceInit::ForceInitToZero), FMatrix44f(EForceInit::ForceInitToZero), FMatrix44f(EForceInit::ForceInitToZero) };
-			FVector4f CaptureBoxScalesArray[MaxNumReflections] = { FVector4f(EForceInit::ForceInitToZero), FVector4f(EForceInit::ForceInitToZero), FVector4f(EForceInit::ForceInitToZero) };
-			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy ? PrimitiveSceneProxy->GetPrimitiveSceneInfo() : nullptr;
-			if (PrimitiveSceneInfo)
-			{
-				for (int32 i = 0; i < MaxNumReflections; i++)
-				{
-					const FReflectionCaptureProxy* ReflectionProxy = PrimitiveSceneInfo->CachedReflectionCaptureProxies[i];
-					if (ReflectionProxy)
-					{
-						CapturePositions[i] = ReflectionProxy->RelativePosition;
-						CapturePositions[i].W = ReflectionProxy->InfluenceRadius;
-						CaptureTilePositions[i] = FVector4f(ReflectionProxy->TilePosition, 0);
-						if (ReflectionProxy->EncodedHDRCubemap)
-						{
-							ReflectionCubemapTextures[i] = ReflectionProxy->EncodedHDRCubemap->GetResource();
-						}
-						//To keep ImageBasedReflectionLighting coherence with PC, use AverageBrightness instead of InvAverageBrightness to calculate the IBL contribution
-						ReflectionParams[i] = ReflectionProxy->EncodedHDRAverageBrightness;
-
-						ReflectanceMaxValueRGBMParams[i] = ReflectionProxy->MaxValueRGBM;
-						if (ReflectionProxy->Shape == EReflectionCaptureShape::Box)
-						{
-							CaptureBoxTransformArray[i] = ReflectionProxy->BoxTransform;
-							CaptureBoxScalesArray[i] = FVector4f(ReflectionProxy->BoxScales, ReflectionProxy->BoxTransitionDistance);
-						}
-					}
-					else if (Scene->SkyLight != nullptr && Scene->SkyLight->ProcessedTexture != nullptr)
-					{
-						// NegativeInfluence to signal the shader we are defaulting to SkyLight if there are no ReflectionComponents in the Level
-						CapturePositions[i].W = -1.0f;
-						ReflectionCubemapTextures[i] = Scene->SkyLight->ProcessedTexture;
-						ReflectionParams[3] = FMath::FloorLog2(Scene->SkyLight->ProcessedTexture->GetSizeX());
-						break;
-					}
-				}
-			}
-
-			for (int32 i = 0; i < MaxNumReflections; i++)
-			{
-				ShaderBindings.AddTexture(HQReflectionCubemaps[i], HQReflectionSamplers[i], ReflectionCubemapTextures[i]->SamplerStateRHI, ReflectionCubemapTextures[i]->TextureRHI);
-			}
-			ShaderBindings.Add(HQReflectionInvAverageBrigtnessParams, ReflectionParams);
-			ShaderBindings.Add(HQReflectanceMaxValueRGBMParams, ReflectanceMaxValueRGBMParams);
-			ShaderBindings.Add(HQReflectionPositionsAndRadii, CapturePositions);
-			ShaderBindings.Add(HQReflectionTilePositions, CaptureTilePositions);
-			ShaderBindings.Add(HQReflectionCaptureBoxTransformArray, CaptureBoxTransformArray);
-			ShaderBindings.Add(HQReflectionCaptureBoxScalesArray, CaptureBoxScalesArray);
-		}
-		else if (ReflectionParameter.IsBound())
+		if (ReflectionParameter.IsBound())
 		{
 			FRHIUniformBuffer* ReflectionUB = GDefaultMobileReflectionCaptureUniformBuffer.GetUniformBufferRHI();
 			FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy ? PrimitiveSceneProxy->GetPrimitiveSceneInfo() : nullptr;
@@ -625,13 +565,6 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 	{
 		int32 UniformBufferIndex = PrimitiveSceneProxy ? GetFirstLightingChannelFromMask(PrimitiveSceneProxy->GetLightingChannelMask()) + 1 : 0;
 		ShaderBindings.Add(MobileDirectionLightBufferParam, Scene->UniformBuffers.MobileDirectionalLightUniformBuffers[UniformBufferIndex]);
-	}
-
-	if (CSMDebugHintParams.IsBound())
-	{
-		static const auto CVarsCSMDebugHint = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.Mobile.Shadow.CSMDebugHint"));
-		float CSMDebugValue = CVarsCSMDebugHint->GetValueOnRenderThread();
-		ShaderBindings.Add(CSMDebugHintParams, CSMDebugValue);
 	}
 
 	if (UseCSMParameter.IsBound())

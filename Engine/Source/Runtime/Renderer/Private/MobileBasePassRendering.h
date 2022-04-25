@@ -248,21 +248,7 @@ public:
 		
 		MobileDirectionLightBufferParam.Bind(Initializer.ParameterMap, FMobileDirectionalLightShaderParameters::StaticStructMetadata.GetShaderVariableName());
 		ReflectionParameter.Bind(Initializer.ParameterMap, FMobileReflectionCaptureShaderParameters::StaticStructMetadata.GetShaderVariableName());
-
-		HQReflectionCubemaps[0].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemap0"));
-		HQReflectionSamplers[0].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemapSampler0"));
-		HQReflectionCubemaps[1].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemap1"));
-		HQReflectionSamplers[1].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemapSampler1"));
-		HQReflectionCubemaps[2].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemap2"));
-		HQReflectionSamplers[2].Bind(Initializer.ParameterMap, TEXT("ReflectionCubemapSampler2"));
-		HQReflectionInvAverageBrigtnessParams.Bind(Initializer.ParameterMap, TEXT("ReflectionAverageBrigtness"));
-		HQReflectanceMaxValueRGBMParams.Bind(Initializer.ParameterMap, TEXT("ReflectanceMaxValueRGBM"));
-		HQReflectionPositionsAndRadii.Bind(Initializer.ParameterMap, TEXT("ReflectionPositionsAndRadii"));
-		HQReflectionTilePositions.Bind(Initializer.ParameterMap, TEXT("ReflectionTilePositions"));
-		HQReflectionCaptureBoxTransformArray.Bind(Initializer.ParameterMap, TEXT("CaptureBoxTransformArray"));
-		HQReflectionCaptureBoxScalesArray.Bind(Initializer.ParameterMap, TEXT("CaptureBoxScalesArray"));
-						
-		CSMDebugHintParams.Bind(Initializer.ParameterMap, TEXT("CSMDebugHint"));
+				
 		UseCSMParameter.Bind(Initializer.ParameterMap, TEXT("UseCSM"));
 	}
 
@@ -271,18 +257,6 @@ public:
 private:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, MobileDirectionLightBufferParam);
 	LAYOUT_FIELD(FShaderUniformBufferParameter, ReflectionParameter);
-
-	// HQ reflection bound as loose params
-	LAYOUT_ARRAY(FShaderResourceParameter, HQReflectionCubemaps, 3);
-	LAYOUT_ARRAY(FShaderResourceParameter, HQReflectionSamplers, 3);
-	LAYOUT_FIELD(FShaderParameter, HQReflectionInvAverageBrigtnessParams);
-	LAYOUT_FIELD(FShaderParameter, HQReflectanceMaxValueRGBMParams);
-	LAYOUT_FIELD(FShaderParameter, HQReflectionPositionsAndRadii);
-	LAYOUT_FIELD(FShaderParameter, HQReflectionTilePositions);
-	LAYOUT_FIELD(FShaderParameter, HQReflectionCaptureBoxTransformArray);
-	LAYOUT_FIELD(FShaderParameter, HQReflectionCaptureBoxScalesArray);
-
-	LAYOUT_FIELD(FShaderParameter, CSMDebugHintParams);
 	LAYOUT_FIELD(FShaderParameter, UseCSMParameter);
 	
 public:

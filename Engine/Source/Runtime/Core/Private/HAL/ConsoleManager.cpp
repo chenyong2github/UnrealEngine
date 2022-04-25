@@ -2591,12 +2591,6 @@ static TAutoConsoleVariable<int32> CVarMobileUseCSMShaderBranch(
 		 "1: Use a single shader pemutation with a branch in a shader to apply CSM (only with r.AllowStaticLighting=0)"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
-static TAutoConsoleVariable<float> CVarsCSMDebugHint(
-	TEXT("r.Mobile.Shadow.CSMDebugHint"),
-	0.0f,
-	TEXT(""),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly);
-
 static TAutoConsoleVariable<int32> CVarMobileAllowDistanceFieldShadows(
 	TEXT("r.Mobile.AllowDistanceFieldShadows"),
 	1,
