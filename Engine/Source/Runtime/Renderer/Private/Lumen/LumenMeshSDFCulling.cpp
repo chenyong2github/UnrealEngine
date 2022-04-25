@@ -175,8 +175,9 @@ class FMeshSDFObjectCullPS : public FGlobalShader
 	class FCullToFroxelGrid : SHADER_PERMUTATION_BOOL("CULL_TO_FROXEL_GRID");
 	class FCullMeshTypeSDF : SHADER_PERMUTATION_BOOL("CULL_MESH_SDF");
 	class FCullMeshTypeHeightfield : SHADER_PERMUTATION_BOOL("CULL_MESH_HEIGHTFIELD");
+	class FOffsetDataStructure : SHADER_PERMUTATION_INT("OFFSET_DATA_STRUCT", 3);
 	
-	using FPermutationDomain = TShaderPermutationDomain<FCullToFroxelGrid, FCullMeshTypeSDF, FCullMeshTypeHeightfield>;
+	using FPermutationDomain = TShaderPermutationDomain<FCullToFroxelGrid, FCullMeshTypeSDF, FCullMeshTypeHeightfield, FOffsetDataStructure>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -919,6 +920,8 @@ void CullObjectsToGrid(
 	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FCullToFroxelGrid >(GridSizeZ > 1);
 	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FCullMeshTypeSDF >(DistanceFieldSceneData.NumObjectsInBuffer > 0);
 	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FCullMeshTypeHeightfield >(Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData));
+	extern int32 GDistanceFieldOffsetDataStructure;
+	PermutationVectorPS.Set< FMeshSDFObjectCullPS::FOffsetDataStructure >(GDistanceFieldOffsetDataStructure);
 	auto PixelShader = View.ShaderMap->GetShader<FMeshSDFObjectCullPS>(PermutationVectorPS);
 
 	ClearUnusedGraphResources(VertexShader, &PassParameters->VS);

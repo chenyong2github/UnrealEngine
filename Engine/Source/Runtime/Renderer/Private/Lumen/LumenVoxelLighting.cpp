@@ -495,6 +495,9 @@ class FVoxelTraceCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, ClipmapIndex)
 	END_SHADER_PARAMETER_STRUCT()
 
+	class FOffsetDataStructure : SHADER_PERMUTATION_INT("OFFSET_DATA_STRUCT", 3);
+	using FPermutationDomain = TShaderPermutationDomain<FOffsetDataStructure>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
@@ -1203,7 +1206,11 @@ void UpdateVoxelVisBuffer(
 					PassParameters->VoxelCoordToUVScale = (FVector3f)Clipmap.VoxelCoordToUVScale;
 					PassParameters->VoxelCoordToUVBias = (FVector3f)Clipmap.VoxelCoordToUVBias;
 
-					auto ComputeShader = View.ShaderMap->GetShader<FVoxelTraceCS>();
+					FVoxelTraceCS::FPermutationDomain PermutationVector;
+					extern int32 GDistanceFieldOffsetDataStructure;
+					PermutationVector.Set<FVoxelTraceCS::FOffsetDataStructure>(GDistanceFieldOffsetDataStructure);
+
+					auto ComputeShader = View.ShaderMap->GetShader<FVoxelTraceCS>(PermutationVector);
 
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,

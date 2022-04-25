@@ -259,7 +259,8 @@ class FScreenProbeTraceMeshSDFsCS : public FGlobalShader
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
 	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("SCENE_TRACE_MESH_SDFS");
 	class FTraceHeightfields : SHADER_PERMUTATION_BOOL("SCENE_TRACE_HEIGHTFIELDS");
-	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHairStrands, FTraceMeshSDFs, FTraceHeightfields>;
+	class FOffsetDataStructure : SHADER_PERMUTATION_INT("OFFSET_DATA_STRUCT", 3);
+	using FPermutationDomain = TShaderPermutationDomain<FStructuredImportanceSampling, FHairStrands, FTraceMeshSDFs, FTraceHeightfields, FOffsetDataStructure>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -629,6 +630,8 @@ void TraceScreenProbes(
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FTraceMeshSDFs >(bTraceMeshSDFs);
 				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FTraceHeightfields >(bTraceHeightfields);
+				extern int32 GDistanceFieldOffsetDataStructure;
+				PermutationVector.Set< FScreenProbeTraceMeshSDFsCS::FOffsetDataStructure >(GDistanceFieldOffsetDataStructure);
 				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTraceMeshSDFsCS>(PermutationVector);
 
 				FComputeShaderUtils::AddPass(

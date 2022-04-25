@@ -24,7 +24,6 @@
 CSV_DEFINE_CATEGORY(DistanceField, true);
 
 extern int32 GDFReverseAtlasAllocationOrder;
-extern int32 GDFShadowOffsetDataStructure;
 
 static TAutoConsoleVariable<int32> CVarBrickAtlasSizeXYInBricks(
 	TEXT("r.DistanceFields.BrickAtlasSizeXYInBricks"),
@@ -43,6 +42,13 @@ static TAutoConsoleVariable<int32> CVarTextureUploadLimitKBytes(
 	8192,	
 	TEXT("Max KB of distance field texture data to upload per frame from streaming requests."),
 	ECVF_RenderThreadSafe);
+
+int32 GDistanceFieldOffsetDataStructure = 0;
+static FAutoConsoleVariableRef CVarShadowOffsetDataStructure(
+	TEXT("r.DistanceFields.OffsetDataStructure"),
+	GDistanceFieldOffsetDataStructure,
+	TEXT("Which data structure to store offset in, 0 - base, 1 - buffer, 2 - texture"),
+	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
 static int32 MinIndirectionAtlasSizeXYZ = 64;
 static FAutoConsoleVariableRef CVarMinIndirectionAtlasSizeXYZ(
@@ -492,11 +498,11 @@ void FDistanceFieldSceneData::AsyncUpdate(FDistanceFieldAsyncUpdateParameters Up
 
 		uint32* DestIndirectionTable = nullptr;
 		FVector4f* DestIndirection2Table = nullptr;
-		if (GDFShadowOffsetDataStructure == 0)
+		if (GDistanceFieldOffsetDataStructure == 0)
 		{
 			DestIndirectionTable = (uint32*)IndirectionTableUploadBuffer.Add_GetRef(MipState.IndirectionTableOffset, NumIndirectionEntries);
 		}
-		else if (GDFShadowOffsetDataStructure == 1)
+		else if (GDistanceFieldOffsetDataStructure == 1)
 		{
 			DestIndirection2Table = (FVector4f*)Indirection2TableUploadBuffer.Add_GetRef(MipState.IndirectionTableOffset, NumIndirectionEntries);
 		}
@@ -524,11 +530,11 @@ void FDistanceFieldSceneData::AsyncUpdate(FDistanceFieldAsyncUpdateParameters Up
 				}
 			}
 			
-			if (GDFShadowOffsetDataStructure == 0)
+			if (GDistanceFieldOffsetDataStructure == 0)
 			{
 				DestIndirectionTable[i] = GlobalBrickIndex;
 			}
-			else if (GDFShadowOffsetDataStructure == 1)
+			else if (GDistanceFieldOffsetDataStructure == 1)
 			{
 				// This null check isn't really needed but to make static analysis happy
 				if (DestIndirection2Table)
@@ -536,7 +542,7 @@ void FDistanceFieldSceneData::AsyncUpdate(FDistanceFieldAsyncUpdateParameters Up
 					DestIndirection2Table[i] = BrickOffset;
 				}
 			}
-			else if (GDFShadowOffsetDataStructure == 2)
+			else if (GDistanceFieldOffsetDataStructure == 2)
 			{
 				const FIntVector IndirectionCoord = FIntVector(
 					i % MipState.IndirectionDimensions.X,
@@ -702,7 +708,7 @@ void FDistanceFieldSceneData::ProcessStreamingRequestsFromGPU(
 						check(AssetState.ReversedMips.Num() > 1);
 						const FDistanceFieldAssetMipState MipState = AssetState.ReversedMips.Pop();
 						
-						if (GDFShadowOffsetDataStructure == 0 || GDFShadowOffsetDataStructure == 1)
+						if (GDistanceFieldOffsetDataStructure == 0 || GDistanceFieldOffsetDataStructure == 1)
 						{
 							IndirectionTableAllocator.Free(MipState.IndirectionTableOffset, MipState.IndirectionDimensions.X * MipState.IndirectionDimensions.Y * MipState.IndirectionDimensions.Z);
 						}
@@ -1192,7 +1198,7 @@ void EncodeAssetData(const FDistanceFieldAssetState& AssetState, const int32 Rev
 	VolumeToIndirectionAdd.Y *= MipBuiltData.IndirectionDimensions.Y;
 	VolumeToIndirectionAdd.Z *= MipBuiltData.IndirectionDimensions.Z;
 
-	if (GDFShadowOffsetDataStructure != 0)
+	if (GDistanceFieldOffsetDataStructure != 0)
 	{
 		VolumeToIndirectionAdd.X += MipState.IndirectionAtlasOffset.X;
 		VolumeToIndirectionAdd.Y += MipState.IndirectionAtlasOffset.Y;
@@ -1325,7 +1331,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 
 		for (const FDistanceFieldAssetMipState& MipState : AssetState.ReversedMips)
 		{
-			if (GDFShadowOffsetDataStructure == 0 || GDFShadowOffsetDataStructure == 1)
+			if (GDistanceFieldOffsetDataStructure == 0 || GDistanceFieldOffsetDataStructure == 1)
 			{
 				IndirectionTableAllocator.Free(MipState.IndirectionTableOffset, MipState.IndirectionDimensions.X * MipState.IndirectionDimensions.Y * MipState.IndirectionDimensions.Z);
 			}
@@ -1380,7 +1386,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 		NewMipState.IndirectionDimensions = MipBuiltData.IndirectionDimensions;
 		const int32 NumIndirectionEntries = NewMipState.IndirectionDimensions.X * NewMipState.IndirectionDimensions.Y * NewMipState.IndirectionDimensions.Z;
 		
-		if (GDFShadowOffsetDataStructure == 0 || GDFShadowOffsetDataStructure == 1)
+		if (GDistanceFieldOffsetDataStructure == 0 || GDistanceFieldOffsetDataStructure == 1)
 		{
 			NewMipState.IndirectionTableOffset = IndirectionTableAllocator.Allocate(NumIndirectionEntries);
 		}
@@ -1407,12 +1413,12 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 	const uint32 AssetDataSizeBytes = FMath::RoundUpToPowerOfTwo(NumAssets) * AssetDataStrideFloat4s * sizeof(FVector4f);
 	ResizeResourceIfNeeded(GraphBuilder.RHICmdList, AssetDataBuffer, AssetDataSizeBytes, TEXT("DistanceFields.AssetData"));
 
-	if (GDFShadowOffsetDataStructure == 0)
+	if (GDistanceFieldOffsetDataStructure == 0)
 	{
 		const uint32 IndirectionTableSizeBytes = FMath::Max<uint32>(FMath::RoundUpToPowerOfTwo(IndirectionTableAllocator.GetMaxSize()) * sizeof(uint32), 16);
 		ResizeResourceIfNeeded(GraphBuilder.RHICmdList, IndirectionTable, IndirectionTableSizeBytes, TEXT("DistanceFields.IndirectionTable"));
 	}
-	else if (GDFShadowOffsetDataStructure == 1)
+	else if (GDistanceFieldOffsetDataStructure == 1)
 	{
 		const uint32 Indirection2TableNumElements = FMath::Max<uint32>(FMath::RoundUpToPowerOfTwo(IndirectionTableAllocator.GetMaxSize()), 16);
 		ResizeResourceIfNeeded(GraphBuilder.RHICmdList, Indirection2Table, PF_A2B10G10R10, Indirection2TableNumElements, TEXT("DistanceFields.Indirection2Table"));
@@ -1449,11 +1455,11 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 		if (NumIndirectionTableAdds > 0)
 		{
 			// Allocate staging buffer space for the indirection table compute scatter
-			if (GDFShadowOffsetDataStructure == 0)
+			if (GDistanceFieldOffsetDataStructure == 0)
 			{
 				IndirectionTableUploadBuffer.Init(NumIndirectionTableAdds, sizeof(uint32), false, TEXT("DistanceFields.IndirectionTableUploadBuffer"));
 			}
-			else if (GDFShadowOffsetDataStructure == 1)
+			else if (GDistanceFieldOffsetDataStructure == 1)
 			{
 				Indirection2TableUploadBuffer.Init(NumIndirectionTableAdds, sizeof(FVector4f), true, TEXT("DistanceFields.Indirection2TableUploadBuffer"));
 			}
@@ -1509,7 +1515,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 
 				if (NumIndirectionTableAdds > 0)
 				{
-					if (GDFShadowOffsetDataStructure == 0)
+					if (GDistanceFieldOffsetDataStructure == 0)
 					{
 						RHICmdList.Transition({
 						   FRHITransitionInfo(IndirectionTable.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
@@ -1521,7 +1527,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 							FRHITransitionInfo(IndirectionTable.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
 							});
 					}
-					else if (GDFShadowOffsetDataStructure == 1)
+					else if (GDistanceFieldOffsetDataStructure == 1)
 					{
 						RHICmdList.Transition({
 						   FRHITransitionInfo(Indirection2Table.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)

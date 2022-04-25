@@ -123,13 +123,6 @@ FAutoConsoleVariableRef CVarAverageHeightFieldObjectsPerShadowCullTile(
 	TEXT("Determines how much memory should be allocated in height field object culling data structures.  Too much = memory waste, too little = flickering due to buffer overflow."),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 
-int32 GDFShadowOffsetDataStructure = 0;
-static FAutoConsoleVariableRef CVarShadowOffsetDataStructure(
-	TEXT("r.DFShadowOffsetDataStructure"),
-	GDFShadowOffsetDataStructure,
-	TEXT("Which data structure to store offset in, 0 - base, 1 - buffer, 2 - texture"),
-	ECVF_RenderThreadSafe | ECVF_ReadOnly);
-
 int32 GDFShadowCompactCulledObjects = 1;
 static FAutoConsoleVariableRef CVarCompactCulledObjects(
 	TEXT("r.DFShadowCompactCulledObjects"),
@@ -263,7 +256,6 @@ enum EDistanceFieldShadowingType
 	DFS_PointLightTiledCulling
 };
 
-//template<EDistanceFieldShadowingType ShadowingType, uint32 DFShadowQuality, EDistanceFieldPrimitiveType PrimitiveType, bool bHasPrevOutput>
 class FDistanceFieldShadowingCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FDistanceFieldShadowingCS);
@@ -840,7 +832,8 @@ void RayTraceShadows(
 		PermutationVector.Set< FDistanceFieldShadowingCS::FShadowQuality >(DFShadowQuality);
 		PermutationVector.Set< FDistanceFieldShadowingCS::FPrimitiveType >(PrimitiveType);
 		PermutationVector.Set< FDistanceFieldShadowingCS::FHasPreviousOutput >(bHasPrevOutput);
-		PermutationVector.Set< FDistanceFieldShadowingCS::FOffsetDataStructure >(GDFShadowOffsetDataStructure);
+		extern int32 GDistanceFieldOffsetDataStructure;
+		PermutationVector.Set< FDistanceFieldShadowingCS::FOffsetDataStructure >(GDistanceFieldOffsetDataStructure);
 		PermutationVector.Set<FDistanceFieldShadowingCS::FCompactCulledObjects>(GDFShadowCompactCulledObjects != 0);
 		auto ComputeShader = View.ShaderMap->GetShader< FDistanceFieldShadowingCS >(PermutationVector);
 
