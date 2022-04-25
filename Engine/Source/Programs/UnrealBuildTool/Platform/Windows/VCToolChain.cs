@@ -1036,10 +1036,10 @@ namespace UnrealBuildTool
 				{
 					Arguments.Add("/STACK:" + LinkEnvironment.DefaultStackSize);
 				}
-
-				// Allow delay-loaded DLLs to be explicitly unloaded.
-				Arguments.Add("/DELAY:UNLOAD");
 			}
+
+			// Allow delay-loaded DLLs to be explicitly unloaded.
+			Arguments.Add("/DELAY:UNLOAD");
 
 			if (LinkEnvironment.bIsBuildingDLL)
 			{
