@@ -34,11 +34,6 @@ import * as Preview from './preview'
 const roboStartupLogger = new ContextualLogger('Robo Startup')
 VersionReader.init(roboStartupLogger)
 
-
-const USER_WORKSPACE_EXCLUDE_PATTERNS: (RegExp | string)[] = [
-	'horde-p4bridge-'
-]
-
 // I seem to have broken this
 const DEBUG_SKIP_BRANCH_SETUP = false;
 
@@ -219,11 +214,6 @@ export class RoboMerge {
 		return graphBot && graphBot.settings.object
 	}
 
-	async getWorkspacesForUser(user: string) {
-		return (await this.p4.find_workspaces(user))
-			.filter(ws => !USER_WORKSPACE_EXCLUDE_PATTERNS.some(entry => ws.client.match(entry)))
-	}
-
 	stop() {
 		roboAnalytics!.stop()
 	}
@@ -315,8 +305,8 @@ function _checkForAutoPauseBots(branches: Branch[], logger: ContextualLogger) {
 		let paused = 0
 		for (const branch of branches) {
 			if (branch.bot) {
-				branch.bot.pause('Paused due to command line arguments or environment variables', 'robomerge')
-				++paused
+				// branch.bot.pause('Paused due to command line arguments or environment variables', 'robomerge')
+				// ++paused
 
 				// This should always be true
 				if (branch.bot instanceof NodeBot) {

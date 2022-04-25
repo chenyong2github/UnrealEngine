@@ -10,6 +10,7 @@ import { RoboMerge } from './robo';
 import { roboAnalytics } from './roboanalytics';
 import { Status } from './status';
 import { getPreview } from './preview'
+import * as p4util from '../common/p4util';
 
 // Reminder that RoboMerge variable is null in this file! ${RoboMerge}
 
@@ -143,7 +144,7 @@ export class IPC {
 	}
 
 	private async getWorkspaces(username: string): Promise<OperationReturnType> {
-		const workspaces = await this.robo.getWorkspacesForUser(username)
+		const workspaces = await p4util.getWorkspacesForUser(this.robo.p4, username)
 		
 		if (!workspaces) {
 			return {
