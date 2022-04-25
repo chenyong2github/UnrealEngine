@@ -2963,34 +2963,27 @@ void UCookOnTheFlyServer::ReleaseCookedPlatformData(UE::Cook::FPackageData& Pack
 	if (bCompletedSave)
 	{
 		FGeneratorPackage* GeneratorPackage = PackageData.GetGeneratorPackage();
-		if (GeneratorPackage && PackageData.HasCompletedGeneration())
+		if (GeneratorPackage)
 		{
-			UObject* SplitObject = GeneratorPackage->FindSplitDataObject();
-			if (!SplitObject || !PackageData.GetPackage())
+			if (PackageData.HasCompletedGeneration()) // bCompletedSave can be true if !HasCompletedGeneration in the case of a GC request from BeginPrepareSave
 			{
-				UE_LOG(LogCook, Error, TEXT("PackageSplitter: %s was GarbageCollected before we finished saving it. This will cause a failure later when we attempt to save it again and generate a second time. Splitter=%s."),
-					(!PackageData.GetPackage() ? TEXT("UPackage") : TEXT("SplitDataObject")), *GeneratorPackage->GetSplitDataObjectName().ToString());
+				GeneratorPackage->SetGeneratorSaved(PackageData.GetPackage());
 			}
-			else
-			{
-				GeneratorPackage->GetCookPackageSplitterInstance()->PostSaveGeneratorPackage(PackageData.GetPackage(), SplitObject);
-			}
-
-			PackageData.ResetGenerationProgress();
-			if (IsCookByTheBookMode() && GeneratorPackage->IsComplete())
+			if (GeneratorPackage->IsComplete())
 			{
 				PackageData.DestroyGeneratorPackage();
 			}
 		}
-		else
-		{
-			PackageData.ResetGenerationProgress();
-		}
+		PackageData.ResetGenerationProgress();
 
 		FGeneratorPackage* OwnerGeneratorPackage = PackageData.GetGeneratedOwner();
 		if (OwnerGeneratorPackage)
 		{
 			OwnerGeneratorPackage->SetGeneratedSaved(PackageData);
+			if (OwnerGeneratorPackage->IsComplete())
+			{
+				PackageData.DestroyGeneratorPackage();
+			}
 		}
 	}
 	PackageData.ClearCookedPlatformData();
@@ -3837,7 +3830,8 @@ void UCookOnTheFlyServer::ShutdownCookOnTheFly()
 		CookOnTheFlyRequestManager->Shutdown();
 		CookOnTheFlyRequestManager.Reset();
 		ClearHierarchyTimers();
-		ConditionalUninstallImportBehaviorCallback();
+
+		ShutdownCookSession();
 	}
 }
 
@@ -3972,6 +3966,7 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 	}
 
 	TArray<UPackage*> GCKeepPackages;
+	TArray<FPackageData*> GCKeepPackageDatas;
 	for (FPackageData* PackageData : PackageDatas->GetSaveQueue())
 	{
 		// Generator packages that have started generation and have not yet finished saving should not be garbage
@@ -3980,6 +3975,7 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 		if (PackageData->GetGeneratorPackage())
 		{
 			GCKeepPackages.Add(PackageData->GetPackage());
+			GCKeepPackageDatas.Add(PackageData);
 		}
 	}
 
@@ -3987,23 +3983,24 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 	// and make sure that they are not garbage collected until the jobs have
 	// completed.
 	{
-		TSet<UPackage*> UniquePendingPackages;
+		TMap<FPackageData*, UPackage*> UniquePendingPackages;
 		for (FPendingCookedPlatformData& PendingData : PackageDatas->GetPendingCookedPlatformDatas())
 		{
 			if (UObject* Object = PendingData.Object.Get())
 			{	
 				if (UPackage* Package = Object->GetPackage())
 				{
-					UniquePendingPackages.Add(Package);
+					UniquePendingPackages.Add(&PendingData.PackageData, Package);
 				}	
 			}
 		}
 
 		GCKeepPackages.Reserve(GCKeepPackages.Num() + UniquePendingPackages.Num());
-		for (UPackage* Package : UniquePendingPackages)
+		for (const TPair<FPackageData*,UPackage*>& Pair : UniquePendingPackages)
 		{
-			GCKeepPackages.Add(Package);
-		}	
+			GCKeepPackages.Add(Pair.Value);
+			GCKeepPackageDatas.Add(Pair.Key);
+		}
 	}
 
 	const bool bPartialGC = IsCookFlagSet(ECookInitializationFlags::EnablePartialGC);
@@ -4017,16 +4014,16 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 		TMap<const FPackageData*, int32> DependenciesCount;
 
 		TSet<FName> KeepPackages;
-		for (const FPackageData* PackageData : *PackageDatas)
+		for (FPackageData* PackageData : *PackageDatas)
 		{
-			if (PackageData->GetState() == UE::Cook::EPackageState::Save)
+			if (!PackageData->IsInProgress())
 			{
-				// already handled above
 				continue;
 			}
 			const TArray<FName>& NeededPackages = GetFullPackageDependencies(PackageData->GetPackageName());
 			DependenciesCount.Add(PackageData, NeededPackages.Num());
 			KeepPackages.Append(NeededPackages);
+			GCKeepPackageDatas.Add(PackageData);
 		}
 
 		TSet<FName> LoadedPackages;
@@ -4085,6 +4082,10 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 			}
 		}
 	}
+	for (FPackageData* PackageData : GCKeepPackageDatas)
+	{
+		PackageData->SetKeepReferencedDuringGC(true);
+	}
 }
 
 void UCookOnTheFlyServer::CookerAddReferencedObjects(FReferenceCollector& Collector)
@@ -4128,6 +4129,10 @@ void UCookOnTheFlyServer::PostGarbageCollect()
 		{
 			GeneratorPackage->PostGarbageCollect();
 		}
+	}
+	for (FPackageData* PackageData : *PackageDatas.Get())
+	{
+		PackageData->SetKeepReferencedDuringGC(false);
 	}
 
 	CookedPackageCountSinceLastGC = 0;
@@ -6978,8 +6983,6 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	BuildDefinitions->Wait();
 	
 	GetDerivedDataCacheRef().WaitForQuiescence(true);
-
-	ConditionalUninstallImportBehaviorCallback();
 	
 	UCookerSettings const* CookerSettings = GetDefault<UCookerSettings>();
 
@@ -7200,7 +7203,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	{
 		FCoreUObjectDelegates::PackageCreatedForLoad.RemoveAll(this);
 	}
-	PlatformManager->ClearSessionPlatforms();
+	ShutdownCookSession();
 
 	PrintFinishStats();
 
@@ -7208,6 +7211,17 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	ClearHierarchyTimers();
 
 	UE_LOG(LogCook, Display, TEXT("Done!"));
+}
+
+void UCookOnTheFlyServer::ShutdownCookSession()
+{
+	PlatformManager->ClearSessionPlatforms();
+	for (UE::Cook::FPackageData* PackageData : *PackageDatas)
+	{
+		PackageData->DestroyGeneratorPackage();
+	}
+
+	ConditionalUninstallImportBehaviorCallback();
 }
 
 void UCookOnTheFlyServer::PrintFinishStats()

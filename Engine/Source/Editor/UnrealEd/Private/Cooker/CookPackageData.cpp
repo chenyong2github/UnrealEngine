@@ -56,7 +56,7 @@ FPackageData::FPackageData(FPackageDatas& PackageDatas, const FName& InPackageNa
 	, bIsVisited(0), bIsPreloadAttempted(0)
 	, bIsPreloaded(0), bHasSaveCache(0), bHasBeginPrepareSaveFailed(0), bCookedPlatformDataStarted(0)
 	, bCookedPlatformDataCalled(0), bCookedPlatformDataComplete(0), bMonitorIsCooked(0)
-	, bInitializedGeneratorSave(0), bCompletedGeneration(0), bGenerated(0)
+	, bInitializedGeneratorSave(0), bCompletedGeneration(0), bGenerated(0), bKeepReferencedDuringGC(0)
 {
 	SetState(EPackageState::Idle);
 	SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
@@ -1127,7 +1127,17 @@ FGeneratorPackage::FGeneratorPackage(UE::Cook::FPackageData& InOwner, const UObj
 
 FGeneratorPackage::~FGeneratorPackage()
 {
+	ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown::Canceled);
 	ClearGeneratedPackages();
+}
+
+void FGeneratorPackage::ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown Status)
+{
+	if (!bNotifiedCompletion)
+	{
+		bNotifiedCompletion = true;
+		CookPackageSplitterInstance->Teardown(Status);
+	}
 }
 
 void FGeneratorPackage::ClearGeneratedPackages()
@@ -1237,7 +1247,7 @@ void FGeneratorPackage::PostGarbageCollect()
 	}
 	else
 	{
-		// After the Generator Package is saved, we drop its referenced and it can be garbage collected
+		// After the Generator Package is saved, we drop our references to it and it can be garbage collected
 		// If we have any packages left to populate, our splitter contract requires that it be garbage collected;
 		// we promise that the package is not partially GC'd during calls to TryPopulateGeneratedPackage
 		// The splitter can opt-out of this contract and keep it referenced itself if it desires.
@@ -1245,6 +1255,7 @@ void FGeneratorPackage::PostGarbageCollect()
 		if (OwnerPackage)
 		{
 			if (RemainingToPopulate > 0 &&
+				!Owner.IsKeepReferencedDuringGC() &&
 				!CookPackageSplitterInstance->UseInternalReferenceToAvoidGarbageCollect())
 			{
 				UE_LOG(LogCook, Error, TEXT("PackageSplitter found the Generator package still in memory after it should have been deleted by GC.")
@@ -1265,15 +1276,20 @@ void FGeneratorPackage::PostGarbageCollect()
 	bool bHasIssuedWarning = false;
 	for (FGeneratedStruct& GeneratedStruct : PackagesToGenerate)
 	{
-		GeneratedStruct.bHasCreatedPackage = false;
-		if (!GeneratedStruct.bHasSaved && !bHasIssuedWarning)
+		if (FindObject<UPackage>(nullptr, *GeneratedStruct.PackageData->GetPackageName().ToString()))
 		{
-			if (FindObject<UPackage>(nullptr, *GeneratedStruct.PackageData->GetPackageName().ToString()))
+			if (!GeneratedStruct.PackageData->IsKeepReferencedDuringGC() &&
+				!GeneratedStruct.bHasSaved &&
+				!bHasIssuedWarning)
 			{
 				UE_LOG(LogCook, Warning, TEXT("PackageSplitter found a package it generated that was not removed from memory during garbage collection. This will cause errors later during population.")
 					TEXT("\n\tSplitter=%s, Generated=%s."), *GetSplitDataObjectName().ToString(), *GeneratedStruct.PackageData->GetPackageName().ToString());
 				bHasIssuedWarning = true; // Only issue the warning once per GC
 			}
+		}
+		else
+		{
+			GeneratedStruct.bHasCreatedPackage = false;
 		}
 	}
 }
@@ -1288,6 +1304,25 @@ UPackage* FGeneratorPackage::CreateGeneratedUPackage(FGeneratorPackage::FGenerat
 	GeneratedPackage->SetPersistentGuid(OwnerPackage->GetPersistentGuid());
 	GeneratedStruct.bHasCreatedPackage = true;
 	return GeneratedPackage;
+}
+
+void FGeneratorPackage::SetGeneratorSaved(UPackage* GeneratorUPackage)
+{
+	UObject* SplitObject = FindSplitDataObject();
+	if (!SplitObject || !GeneratorUPackage)
+	{
+		UE_LOG(LogCook, Error, TEXT("PackageSplitter: %s was GarbageCollected before we finished saving it. This will cause a failure later when we attempt to save it again and generate a second time. Splitter=%s."),
+			(!GeneratorUPackage ? TEXT("UPackage") : TEXT("SplitDataObject")), *GetSplitDataObjectName().ToString());
+	}
+	else
+	{
+		GetCookPackageSplitterInstance()->PostSaveGeneratorPackage(GeneratorUPackage, SplitObject);
+	}
+	bOwnerHasSaved = true;
+	if (IsComplete())
+	{
+		ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown::Complete);
+	}
 }
 
 void FGeneratorPackage::SetGeneratedSaved(FPackageData& PackageData)
@@ -1307,6 +1342,10 @@ void FGeneratorPackage::SetGeneratedSaved(FPackageData& PackageData)
 	GeneratedStruct->bHasSaved = true;
 	--RemainingToPopulate;
 	check(RemainingToPopulate >= 0);
+	if (IsComplete())
+	{
+		ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown::Complete);
+	}
 }
 
 bool FGeneratorPackage::IsComplete() const

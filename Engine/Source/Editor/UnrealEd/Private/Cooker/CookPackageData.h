@@ -453,6 +453,12 @@ public:
 	 */
 	const FInstigator& GetInstigator() const { return Instigator; }
 
+	/** Get whether COTFS is keeping this package referenced referenced during GC. */
+	bool IsKeepReferencedDuringGC() const { return static_cast<bool>(bKeepReferencedDuringGC); }
+	/** Set whether COTFS is keeping this package referenced referenced during GC. */
+	void SetKeepReferencedDuringGC(bool Value) { bKeepReferencedDuringGC = Value != 0; }
+
+
 private:
 	friend struct UE::Cook::FPackageDatas;
 
@@ -561,6 +567,7 @@ private:
 	uint32 bInitializedGeneratorSave : 1;
 	uint32 bCompletedGeneration : 1;
 	uint32 bGenerated : 1;
+	uint32 bKeepReferencedDuringGC : 1;
 };
 
 /**
@@ -638,12 +645,16 @@ public:
 	/** Call CreatePackage and set PackageData for deterministic generated packages, and update status. */
 	UPackage* CreateGeneratedUPackage(FGeneratedStruct& GeneratedStruct,
 		const UPackage* OwnerPackage, const TCHAR* GeneratedPackageName);
-	/** Mark that the generated package has been populated, to keep track of when *this is no longer needed. */
+	/** Mark that the generator package has saved, to keep track of when *this is no longer needed. */
+	void SetGeneratorSaved(UPackage* GeneratorUPackage);
+	/** Mark that the generated package has saved, to keep track of when *this is no longer needed. */
 	void SetGeneratedSaved(FPackageData& PackageData);
 	/** Return whether list has been generated and all generated packages have been populated */
 	bool IsComplete() const;
 
 private:
+	void ConditionalNotifyCompletion(ICookPackageSplitter::ETeardown Status);
+
 	/** PackageData for the package that is being split */
 	const UE::Cook::FPackageData& Owner;
 	/** Name of the object that prompted the splitter creation */
@@ -660,6 +671,8 @@ private:
 	bool bClearedOldPackagesWithGC = false;
 	bool bQueuedGeneratedPackages = false;
 	bool bWasOwnerReloaded = false;
+	bool bOwnerHasSaved = false;
+	bool bNotifiedCompletion = false;
 };
 
 

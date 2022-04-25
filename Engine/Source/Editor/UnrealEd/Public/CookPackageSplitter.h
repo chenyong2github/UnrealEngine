@@ -20,6 +20,14 @@ class ICookPackageSplitter
 public:
 	virtual ~ICookPackageSplitter() {}
 
+	enum class ETeardown
+	{
+		Complete,
+		Canceled,
+	};
+	/** Do teardown actions after all packages have saved, or when the cook is cancelled. Always called before destruction. */
+	virtual void Teardown(ETeardown Status) {}
+
 	/** Data sent to the cooker to describe each desired generated package */
 	struct FGeneratedPackage
 	{

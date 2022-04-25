@@ -777,6 +777,9 @@ private:
 	*/
 	void CookByTheBookFinished();
 
+	/** Clears session-lifetime data from COTFS and CookPackageDatas. */
+	void ShutdownCookSession();
+
 	/** Print some stats when finishing or cancelling CookByTheBook */
 	void PrintFinishStats();
 
