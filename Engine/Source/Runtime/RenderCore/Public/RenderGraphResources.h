@@ -267,7 +267,7 @@ public:
 	}
 
 protected:
-	FRDGViewableResource(const TCHAR* InName, ERDGViewableResourceType InType);
+	FRDGViewableResource(const TCHAR* InName, ERDGViewableResourceType InType, bool bSkipTracking);
 
 	enum class ETransientExtractionHint : uint8
 	{
@@ -282,6 +282,33 @@ protected:
 		ImmediateRequested,
 		ImmediateConfirmed
 	};
+
+	enum class EAccessMode : uint8
+	{
+		Internal,
+		External
+	};
+
+	struct FAccessModeState
+	{
+		using FQueueIndex = TRDGHandle<FAccessModeState, uint16>;
+
+		bool IsQueued() const { return QueueIndex.IsValid(); }
+		bool IsExternalAccess() const { return Mode == EAccessMode::External && !IsQueued(); }
+
+		FAccessModeState()
+			: Pipelines(ERHIPipeline::None)
+			, Mode(EAccessMode::Internal)
+			, bLocked(0)
+		{}
+
+		ERHIAccess			Access			= ERHIAccess::None;
+		ERHIPipeline		Pipelines		: 2;
+		EAccessMode			Mode			: 1;
+		uint8				bLocked			: 1;
+		FQueueIndex QueueIndex;
+
+	} AccessModeState;
 
 	/** Whether this is an externally registered resource. */
 	uint8 bExternal : 1;
@@ -300,9 +327,6 @@ protected:
 
 	/** Whether this resource is allowed to be both transient and extracted. */
 	ETransientExtractionHint TransientExtractionHint : 2;
-
-	/** (External | Extracted only) If true, the resource is locked in its current state and will not be transitioned any more. */
-	uint8 bFinalizedAccess : 1;
 
 	/** Whether this resource is the last owner of its allocation (i.e. nothing aliases the allocation later in the execution timeline). */
 	uint8 bLastOwner : 1;
@@ -325,6 +349,9 @@ protected:
 	FRDGPassHandle FirstPass;
 	FRDGPassHandle LastPass;
 
+	/** The state of the resource at the graph epilogue. */
+	ERHIAccess EpilogueAccess = ERHIAccess::SRVMask;
+
 private:
 	/** Number of references in passes and deferred queries. */
 	uint16 ReferenceCount = 0;
@@ -332,20 +359,16 @@ private:
 	/** Scratch index allocated for the resource in the pass being setup. */
 	uint16 PassStateIndex = 0;
 
-	/** The state of the resource at the graph epilogue. */
-	ERHIAccess EpilogueAccess = ERHIAccess::SRVMask;
-
-	/** The valid set of access states for finalized access. */
-	IF_RDG_ENABLE_DEBUG(ERHIAccess FinalizedAccessMask = ERHIAccess::Unknown);
-
-	void SetFinalizedAccess(ERHIAccess InValidAccessMask)
+	void SetExternalAccessMode(ERHIAccess InReadOnlyAccess, ERHIPipeline InPipelines)
 	{
-		bFinalizedAccess = 1;
+		check(!AccessModeState.bLocked);
 
-		// Finalized resources are not always added to the pass states (unless marked as such within the graph), so marked as not culled here.
+		AccessModeState.Mode = EAccessMode::External;
+		AccessModeState.Access = InReadOnlyAccess;
+		AccessModeState.Pipelines = InPipelines;
+
+		// External access resources are not always added to the pass states (unless marked as such within the graph), so marked as not culled here.
 		bCulled = 0;
-
-		IF_RDG_ENABLE_DEBUG(FinalizedAccessMask = InValidAccessMask);
 	}
 
 #if RDG_ENABLE_TRACE
@@ -491,7 +514,7 @@ public:
 
 private:
 	FRDGTexture(const TCHAR* InName, const FRDGTextureDesc& InDesc, ERDGTextureFlags InFlags)
-		: FRDGViewableResource(InName, ERDGViewableResourceType::Texture)
+		: FRDGViewableResource(InName, ERDGViewableResourceType::Texture, EnumHasAnyFlags(InFlags, ERDGTextureFlags::SkipTracking))
 		, Desc(InDesc)
 		, Flags(InFlags)
 		, Layout(InDesc)
@@ -506,6 +529,11 @@ private:
 		if (EnumHasAnyFlags(Desc.Flags, ETextureCreateFlags::Presentable))
 		{
 			FirstBarrier = EFirstBarrier::ImmediateRequested;
+		}
+
+		if (EnumHasAnyFlags(Desc.Flags, ETextureCreateFlags::Foveation))
+		{
+			EpilogueAccess = ERHIAccess::ShadingRateSource;
 		}
 	}
 
@@ -944,7 +972,7 @@ struct FRDGBufferDesc
 		return BytesPerElement * NumElements;
 	}
 
-	//UE_DEPRECATED(5.1, "GetTotalNumBytes is deprecated, use GetSize instead.")
+	UE_DEPRECATED(5.1, "GetTotalNumBytes is deprecated, use GetSize instead.")
 	uint32 GetTotalNumBytes() const
 	{
 		return BytesPerElement * NumElements;
@@ -1188,7 +1216,7 @@ public:
 
 private:
 	FRDGBuffer(const TCHAR* InName, const FRDGBufferDesc& InDesc, ERDGBufferFlags InFlags)
-		: FRDGViewableResource(InName, ERDGViewableResourceType::Buffer)
+		: FRDGViewableResource(InName, ERDGViewableResourceType::Buffer, EnumHasAnyFlags(InFlags, ERDGBufferFlags::SkipTracking))
 		, Desc(InDesc)
 		, Flags(InFlags)
 	{}

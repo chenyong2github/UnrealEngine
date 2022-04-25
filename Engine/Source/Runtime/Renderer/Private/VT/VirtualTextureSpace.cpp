@@ -540,12 +540,14 @@ void FVirtualTextureSpace::FinalizeTextures(FRDGBuilder& GraphBuilder)
 		FTextureEntry& PageTableEntry = PageTable[TextureIndex];
 		if (PageTableEntry.RenderTarget)
 		{
-			FRDGTextureRef PageTableTexture = GraphBuilder.RegisterExternalTexture(PageTableEntry.RenderTarget);
-			GraphBuilder.FinalizeTextureAccess(PageTableTexture, ERHIAccess::SRVMask);
+			// It's only necessary to enable external access mode on textures modified by RDG this frame.
+			if (FRDGTexture* Texture = GraphBuilder.FindExternalTexture(PageTableEntry.RenderTarget))
+			{
+				GraphBuilder.UseExternalAccessMode(Texture, ERHIAccess::SRVMask);
+			}
 		}
 	}
 }
-
 
 void FVirtualTextureSpace::DumpToConsole(bool verbose)
 {

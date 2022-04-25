@@ -591,57 +591,149 @@ const TRefCountPtr<IPooledRenderTarget>& FRDGBuilder::ConvertToExternalTexture(F
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-BEGIN_SHADER_PARAMETER_STRUCT(FFinalizePassParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FAccessModePassParameters, )
 	RDG_TEXTURE_ACCESS_ARRAY(Textures)
 	RDG_BUFFER_ACCESS_ARRAY(Buffers)
 END_SHADER_PARAMETER_STRUCT()
 
-void FRDGBuilder::FinalizeResourceAccess(FRDGTextureAccessArray&& InTextures, FRDGBufferAccessArray&& InBuffers)
+void FRDGBuilder::UseExternalAccessMode(FRDGViewableResource* Resource, ERHIAccess ReadOnlyAccess, ERHIPipeline Pipelines)
 {
-	auto* PassParameters = AllocParameters<FFinalizePassParameters>();
-	PassParameters->Textures = Forward<FRDGTextureAccessArray&&>(InTextures);
-	PassParameters->Buffers = Forward<FRDGBufferAccessArray&&>(InBuffers);
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateUseExternalAccessMode(Resource, ReadOnlyAccess, Pipelines));
 
-	// Take reference to pass parameters version since we've moved the memory.
-	const auto& LocalTextures = PassParameters->Textures;
-	const auto& LocalBuffers = PassParameters->Buffers;
-
-#if RDG_ENABLE_DEBUG
+	if (!GRDGAsyncCompute || !GSupportsEfficientAsyncCompute)
 	{
-		const FRDGPassHandle FinalizePassHandle(Passes.Num());
+		Pipelines = ERHIPipeline::Graphics;
+	}
 
-		for (FRDGTextureAccess TextureAccess : LocalTextures)
+	auto& AccessModeState = Resource->AccessModeState;
+
+	// We already validated that back-to-back calls to UseExternalAccessMode are valid only if the parameters match,
+	// so we can safely no-op this call.
+	if (AccessModeState.Mode == FRDGViewableResource::EAccessMode::External)
+	{
+		return;
+	}
+
+	// We have to flush the queue when going from QueuedInternal -> External. A queued internal state
+	// implies that the resource was in an external access mode before, so it needs an 'end' pass to 
+	// contain any passes which might have used the resource in its external state.
+	if (AccessModeState.QueueIndex.IsValid())
+	{
+		FlushAccessModeQueue();
+	}
+
+	check(AccessModeState.QueueIndex.IsNull());
+	AccessModeState.QueueIndex = FRDGViewableResource::FAccessModeState::FQueueIndex(AccessModeQueue.Num());
+	AccessModeQueue.Emplace(Resource);
+
+	Resource->SetExternalAccessMode(ReadOnlyAccess, Pipelines);
+}
+
+void FRDGBuilder::UseInternalAccessMode(FRDGViewableResource* Resource)
+{
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateUseInternalAccessMode(Resource));
+
+	auto& AccessModeState = Resource->AccessModeState;
+
+	// Just no-op if the resource is already in (or queued for) the 'Internal state.
+	if (AccessModeState.Mode == FRDGViewableResource::EAccessMode::Internal)
+	{
+		return;
+	}
+
+	// If the resource has a queued transition to the external access state, then we can safely back it out.
+	if (AccessModeState.QueueIndex.IsValid())
+	{
+		AccessModeQueue[AccessModeState.QueueIndex.GetIndex()] = nullptr;
+		AccessModeState.QueueIndex = {};
+	}
+	else
+	{
+		AccessModeState.QueueIndex = FRDGViewableResource::FAccessModeState::FQueueIndex(AccessModeQueue.Num());
+		AccessModeQueue.Emplace(Resource);
+	}
+
+	AccessModeState.Mode = FRDGViewableResource::EAccessMode::Internal;
+}
+
+void FRDGBuilder::FlushAccessModeQueue()
+{
+	if (AccessModeQueue.IsEmpty() || bSkipAuxiliaryPasses)
+	{
+		return;
+	}
+
+	bSkipAuxiliaryPasses = true;
+
+	FAccessModePassParameters* ParametersByPipeline[] =
+	{
+		AllocParameters<FAccessModePassParameters>(),
+		AllocParameters<FAccessModePassParameters>()
+	};
+
+	ERHIPipeline ParameterPipelines = ERHIPipeline::None;
+
+	for (FRDGViewableResource* Resource : AccessModeQueue)
+	{
+		if (!Resource)
 		{
-			UserValidation.ValidateFinalize(TextureAccess.GetTexture(), TextureAccess.GetAccess(), FinalizePassHandle);
+			continue;
 		}
 
-		for (FRDGBufferAccess BufferAccess : LocalBuffers)
+		const auto& AccessModeState = Resource->AccessModeState;
+
+		ParameterPipelines |= AccessModeState.Pipelines;
+
+		for (uint32 PipelineIndex = 0; PipelineIndex < GetRHIPipelineCount(); ++PipelineIndex)
 		{
-			UserValidation.ValidateFinalize(BufferAccess.GetBuffer(), BufferAccess.GetAccess(), FinalizePassHandle);
+			const ERHIPipeline Pipeline = static_cast<ERHIPipeline>(1 << PipelineIndex);
+
+			if (EnumHasAnyFlags(AccessModeState.Pipelines, Pipeline))
+			{
+				switch (Resource->Type)
+				{
+				case ERDGViewableResourceType::Texture:
+					ParametersByPipeline[PipelineIndex]->Textures.Emplace(GetAsTexture(Resource), AccessModeState.Access);
+					break;
+				case ERDGViewableResourceType::Buffer:
+					ParametersByPipeline[PipelineIndex]->Buffers.Emplace(GetAsBuffer(Resource), AccessModeState.Access);
+					break;
+				}
+			}
 		}
 	}
-#endif
 
-	AddPass(
-		RDG_EVENT_NAME("FinalizeResourceAccess(Textures: %d, Buffers: %d)", LocalTextures.Num(), LocalBuffers.Num()),
-		PassParameters,
-		// Use all of the work flags so that any access is valid.
-		ERDGPassFlags::Copy | ERDGPassFlags::Compute | ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass |
-		// We're not writing to anything, so we have to tell the pass not to cull.
-		ERDGPassFlags::NeverCull,
-		[](FRHICommandList&) {});
-
-	// bFinalized must be set after adding the finalize pass, as future declarations of the resource will be ignored.
-
-	for (FRDGTextureAccess TextureAccess : LocalTextures)
+	if (EnumHasAnyFlags(ParameterPipelines, ERHIPipeline::Graphics))
 	{
-		TextureAccess->SetFinalizedAccess(TextureAccess.GetAccess());
+		FAccessModePassParameters* Parameters = ParametersByPipeline[GetRHIPipelineIndex(ERHIPipeline::Graphics)];
+
+		AddPass(
+			RDG_EVENT_NAME("AccessModePass[Graphics] (Textures: %d, Buffers: %d)", Parameters->Textures.Num(), Parameters->Buffers.Num()),
+			Parameters,
+			// Use all of the work flags so that any access is valid.
+			ERDGPassFlags::Copy | ERDGPassFlags::Compute | ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::NeverCull,
+			[](FRHICommandList&) {});
 	}
 
-	for (FRDGBufferAccess BufferAccess : LocalBuffers)
+	if (EnumHasAnyFlags(ParameterPipelines, ERHIPipeline::AsyncCompute))
 	{
-		BufferAccess->SetFinalizedAccess(BufferAccess.GetAccess());
+		FAccessModePassParameters* Parameters = ParametersByPipeline[GetRHIPipelineIndex(ERHIPipeline::AsyncCompute)];
+
+		AddPass(
+			RDG_EVENT_NAME("AccessModePass[AsyncCompute] (Textures: %d, Buffers: %d)", Parameters->Textures.Num(), Parameters->Buffers.Num()),
+			Parameters,
+			ERDGPassFlags::AsyncCompute | ERDGPassFlags::NeverCull,
+			[](FRHIComputeCommandList&) {});
 	}
+
+	for (FRDGViewableResource* Resource : AccessModeQueue)
+	{
+		Resource->AccessModeState.QueueIndex = {};
+	}
+
+	AccessModeQueue.Reset();
+
+	bSkipAuxiliaryPasses = false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -677,44 +769,9 @@ FRDGTexture* FRDGBuilder::RegisterExternalTexture(
 	}
 
 	const FRDGTextureDesc Desc = Translate(ExternalPooledTexture->GetDesc());
-	bool bFinalizedAccess = false;
-
-	if (!EnumHasAnyFlags(Flags, ERDGTextureFlags::ForceTracking) &&
-		!EnumHasAnyFlags(Desc.Flags, TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV | TexCreate_DepthStencilResolveTarget))
-	{
-		Flags |= ERDGTextureFlags::ReadOnly;
-		bFinalizedAccess = true;
-	}
-
-	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, Desc, Flags);
+	FRDGTexture* Texture = Textures.Allocate(Allocator, Name, Desc, Flags);
 	SetRHI(Texture, ExternalPooledTexture.GetReference(), GetProloguePassHandle());
-
 	Texture->bExternal = true;
-
-
-	if (EnumHasAnyFlags(ExternalTextureRHI->GetFlags(), TexCreate_Foveation))
-	{
-		Texture->EpilogueAccess = ERHIAccess::ShadingRateSource;
-	}
-
-	// Textures that are created read-only are not transitioned by RDG.
-	if (bFinalizedAccess)
-	{
-		ERHIAccess ValidAccessMask = ERHIAccess::ReadOnlyExclusiveMask;
-
-		if (EnumHasAnyFlags(Desc.Flags, TexCreate_CPUReadback))
-		{
-			ValidAccessMask |= ERHIAccess::CopyDest;
-		}
-
-		if (EnumHasAnyFlags(Desc.Flags, TexCreate_Foveation))
-		{
-			ValidAccessMask |= ERHIAccess::ShadingRateSource;
-		}
-
-		Texture->SetFinalizedAccess(ValidAccessMask);
-	}
-
 	ExternalTextures.Add(Texture->GetRHIUnchecked(), Texture);
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateRegisterExternalTexture(Texture));
@@ -748,25 +805,9 @@ FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
 		return FoundBuffer;
 	}
 
-	const FRDGBufferDesc& Desc = ExternalPooledBuffer->Desc;
-	bool bFinalizedAccess = false;
-
-	if (!EnumHasAnyFlags(Flags, ERDGBufferFlags::ForceTracking) && !EnumHasAnyFlags(Desc.Usage, BUF_UnorderedAccess))
-	{
-		Flags |= ERDGBufferFlags::ReadOnly;
-		bFinalizedAccess = true;
-	}
-
-	FRDGBufferRef Buffer = Buffers.Allocate(Allocator, Name, ExternalPooledBuffer->Desc, Flags);
+	FRDGBuffer* Buffer = Buffers.Allocate(Allocator, Name, ExternalPooledBuffer->Desc, Flags);
 	SetRHI(Buffer, ExternalPooledBuffer, GetProloguePassHandle());
-
 	Buffer->bExternal = true;
-
-	// Buffers that are created read-only are not transitioned by RDG.
-	if (bFinalizedAccess)
-	{
-		Buffer->SetFinalizedAccess(ERHIAccess::ReadOnlyExclusiveMask);
-	}
 
 	ExternalBuffers.Add(Buffer->GetRHIUnchecked(), Buffer);
 
@@ -1416,6 +1457,7 @@ void FRDGBuilder::Execute()
 	SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::Execute", FColor::Magenta);
 
 	GRDGTransientResourceAllocator.ReleasePendingDeallocations();
+	FlushAccessModeQueue();
 
 	// Create the epilogue pass at the end of the graph just prior to compilation.
 	{
@@ -1787,13 +1829,12 @@ FRDGPass* FRDGBuilder::SetupPass(FRDGPass* Pass)
 	{
 		TryAddView(TextureView);
 
-		if (Texture->bFinalizedAccess)
+		if (Texture->AccessModeState.IsExternalAccess())
 		{
-			// Finalized resources expected to remain in the same state, so are ignored by the graph.
-			// As only External | Extracted resources can be finalized by the user, the graph doesn't
-			// need to track them any more for culling / transition purposes. Validation checks that these
-			// invariants are true.
-			IF_RDG_ENABLE_DEBUG(UserValidation.ValidateFinalizedAccess(Texture, Access, Pass));
+			// Resources in external access mode are expected to remain in the same state and are ignored by the graph.
+			// As only External | Extracted resources can be set as external by the user, the graph doesn't need to track
+			// them any more for culling / transition purposes. Validation checks that these invariants are true.
+			IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExternalAccess(Texture, Access, Pass));
 			return;
 		}
 
@@ -1843,13 +1884,12 @@ FRDGPass* FRDGBuilder::SetupPass(FRDGPass* Pass)
 	{
 		TryAddView(BufferView);
 
-		if (Buffer->bFinalizedAccess)
+		if (Buffer->AccessModeState.IsExternalAccess())
 		{
-			// Finalized resources expected to remain in the same state, so are ignored by the graph.
-			// As only External | Extracted resources can be finalized by the user, the graph doesn't
-			// need to track them any more for culling / transition purposes. Validation checks that these
-			// invariants are true.
-			IF_RDG_ENABLE_DEBUG(UserValidation.ValidateFinalizedAccess(Buffer, Access, Pass));
+			// Resources in external access mode are expected to remain in the same state and are ignored by the graph.
+			// As only External | Extracted resources can be set as external by the user, the graph doesn't need to track
+			// them any more for culling / transition purposes. Validation checks that these invariants are true.
+			IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExternalAccess(Buffer, Access, Pass));
 			return;
 		}
 
@@ -2570,14 +2610,13 @@ void FRDGBuilder::CreatePassBarriers()
 
 void FRDGBuilder::AddEpilogueTransition(FRDGTextureRef Texture)
 {
-	check(Texture->HasRHI() || (Texture->bCulled && !Texture->bExternal));
-
-	if (Texture->bCulled || !Texture->bLastOwner)
+	if (!Texture->HasRHI() || Texture->bCulled || !Texture->bLastOwner)
 	{
 		return;
 	}
 
-	if (!Texture->bFinalizedAccess)
+	// Only textures with internal access mode are transitioned to their epilogue state.
+	if (Texture->AccessModeState.Mode == FRDGViewableResource::EAccessMode::Internal)
 	{
 		const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
 
@@ -2603,12 +2642,13 @@ void FRDGBuilder::AddEpilogueTransition(FRDGTextureRef Texture)
 		AddTransition(EpiloguePassHandle, Texture, ScratchTextureState);
 		ScratchTextureState.Reset();
 	}
+	// External access mode textures are left in their last external state.
 	else
 	{
 		Texture->EpilogueAccess = Texture->GetState()[0].Access;
 	}
 
-	// Resources that were finalized on registration could have an unknown epilogue state.
+	// Resources that were marked for external access on registration (via SkipTracking) could have an unknown epilogue state.
 	if (Texture->EpilogueAccess != ERHIAccess::Unknown)
 	{
 		EpilogueResourceAccesses.Emplace(Texture->GetRHI(), Texture->EpilogueAccess);
@@ -2620,22 +2660,21 @@ void FRDGBuilder::AddEpilogueTransition(FRDGTextureRef Texture)
 	}
 	else if (!Texture->bTransient)
 	{
-		// Non-transient render targets need to be 'resurrected' to hold the last reference in the chain.
-		// Transient render targets don't have that restriction since there's no actual pooling happening.
+		// Non-transient textures need to be 'resurrected' to hold the last reference in the chain.
+		// Transient textures don't have that restriction since there's no actual pooling happening.
 		ActivePooledTextures.Emplace(Texture->RenderTarget);
 	}
 }
 
 void FRDGBuilder::AddEpilogueTransition(FRDGBufferRef Buffer)
 {
-	check(Buffer->HasRHI() || (Buffer->bCulled && !Buffer->bExternal));
-
-	if (Buffer->bCulled || !Buffer->bLastOwner)
+	if (!Buffer->HasRHI() || Buffer->bCulled || !Buffer->bLastOwner)
 	{
 		return;
 	}
 
-	if (!Buffer->bFinalizedAccess)
+	// Only buffers with internal access mode are transitioned to their epilogue state.
+	if (Buffer->AccessModeState.Mode == FRDGViewableResource::EAccessMode::Internal)
 	{
 		const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
 
@@ -2659,12 +2698,13 @@ void FRDGBuilder::AddEpilogueTransition(FRDGBufferRef Buffer)
 
 		AddTransition(Buffer->LastPass, Buffer, SubresourceState);
 	}
+	// External access mode buffers are left in their last external state.
 	else
 	{
 		Buffer->EpilogueAccess = Buffer->GetState().Access;
 	}
 
-	// Resources that were finalized on registration could have an unknown epilogue state.
+	// Resources that were marked for external access on registration (via SkipTracking) could have an unknown epilogue state.
 	if (Buffer->EpilogueAccess != ERHIAccess::Unknown)
 	{
 		EpilogueResourceAccesses.Emplace(Buffer->GetRHI(), Buffer->EpilogueAccess);

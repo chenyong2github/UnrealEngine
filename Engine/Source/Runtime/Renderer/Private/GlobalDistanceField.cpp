@@ -763,13 +763,13 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 
 			if (!ViewState.GlobalDistanceFieldPageFreeListAllocatorBuffer)
 			{
-				GetPooledFreeBuffer(RHICmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), ViewState.GlobalDistanceFieldPageFreeListAllocatorBuffer, TEXT("PageFreeListAllocator"));
+				ViewState.GlobalDistanceFieldPageFreeListAllocatorBuffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("PageFreeListAllocator"));
 			}
 
 			if (!ViewState.GlobalDistanceFieldPageFreeListBuffer
 				|| ViewState.GlobalDistanceFieldPageFreeListBuffer->Desc.NumElements != MaxPageNum)
 			{
-				GetPooledFreeBuffer(RHICmdList, FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxPageNum), ViewState.GlobalDistanceFieldPageFreeListBuffer, TEXT("PageFreeList"));
+				ViewState.GlobalDistanceFieldPageFreeListBuffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxPageNum), TEXT("PageFreeList"));
 			}
 
 			if (!ViewState.GlobalDistanceFieldPageAtlasTexture
@@ -2488,47 +2488,47 @@ void UpdateGlobalDistanceFieldVolume(
 				}
 			}
 
-			FRDGResourceAccessFinalizer ResourceAccessFinalizer;
+			FRDGExternalAccessQueue ExternalAccessQueue;
 
 			for (int32 CacheType = StartCacheType; CacheType < GDF_Num; CacheType++)
 			{
 				if (PageTableLayerTextures[CacheType])
 				{
-					GlobalDistanceFieldInfo.PageTableLayerTextures[CacheType] = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, PageTableLayerTextures[CacheType]);
+					GlobalDistanceFieldInfo.PageTableLayerTextures[CacheType] = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, PageTableLayerTextures[CacheType]);
 				}
 			}
 
 			if (PageFreeListAllocatorBuffer)
 			{
-				GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer = ConvertToFinalizedExternalBuffer(GraphBuilder, ResourceAccessFinalizer, PageFreeListAllocatorBuffer);
+				GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer = ConvertToExternalAccessBuffer(GraphBuilder, ExternalAccessQueue, PageFreeListAllocatorBuffer);
 			}
 
 			if (PageFreeListBuffer)
 			{
-				GlobalDistanceFieldInfo.PageFreeListBuffer = ConvertToFinalizedExternalBuffer(GraphBuilder, ResourceAccessFinalizer, PageFreeListBuffer);
+				GlobalDistanceFieldInfo.PageFreeListBuffer = ConvertToExternalAccessBuffer(GraphBuilder, ExternalAccessQueue, PageFreeListBuffer);
 			}
 
 			if (PageAtlasTexture)
 			{
-				GlobalDistanceFieldInfo.PageAtlasTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, PageAtlasTexture);
+				GlobalDistanceFieldInfo.PageAtlasTexture = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, PageAtlasTexture);
 			}
 
 			if (CoverageAtlasTexture)
 			{
-				GlobalDistanceFieldInfo.CoverageAtlasTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, CoverageAtlasTexture);
+				GlobalDistanceFieldInfo.CoverageAtlasTexture = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, CoverageAtlasTexture);
 			}
 
 			if (PageTableCombinedTexture)
 			{
-				GlobalDistanceFieldInfo.PageTableCombinedTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, PageTableCombinedTexture);
+				GlobalDistanceFieldInfo.PageTableCombinedTexture = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, PageTableCombinedTexture);
 			}
 
 			if (MipTexture)
 			{
-				GlobalDistanceFieldInfo.MipTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, MipTexture);
+				GlobalDistanceFieldInfo.MipTexture = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, MipTexture);
 			}
 
-			ResourceAccessFinalizer.Finalize(GraphBuilder);
+			ExternalAccessQueue.Submit(GraphBuilder);
 		}
 
 		if (CVarGlobalDistanceFieldDebug.GetValueOnRenderThread() != 0 && View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer)

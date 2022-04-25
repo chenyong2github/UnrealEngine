@@ -245,32 +245,19 @@ public:
 	/** (External | Extracted only) Sets the access to transition to after execution at the end of the graph. Overwrites any previously set final access. */
 	void SetBufferAccessFinal(FRDGBufferRef Buffer, ERHIAccess Access);
 
-	/** Finalizes the access of multiple resources so that they are immutable for the remainder of the graph. This immediately forces all resources into
-	 *  their finalized states. The resources cannot be used in any other state within the graph and must be used on the graphics pipe. This is designed
-	 *  for complex cases where resources are produced early in the graph and transitioned to a read-only state. Finalized access resources can be used
-	 *  outside of RDG pass parameters on any future pass without invoking RHI validation failures.
+	/** Configures the resource for external access for all subsequent passes, or until UseInternalAccessMode is called.
+	 *  Only read-only access states are allowed. When in external access mode, it is safe to access the underlying RHI
+	 *  resource directly in later RDG passes. This method is only allowed for registered or externally converted resources.
+	 *  The method effectively guarantees that RDG will transition the resource into the desired state for all subsequent
+	 *  passes so long as the resource remains externally accessible.
 	 */
-	void FinalizeResourceAccess(FRDGTextureAccessArray&& Textures, FRDGBufferAccessArray&& Buffers);
+	void UseExternalAccessMode(FRDGViewableResource* Resource, ERHIAccess ReadOnlyAccess, ERHIPipeline Pipelines = ERHIPipeline::Graphics);
 
-	inline void FinalizeTextureAccess(FRDGTextureAccessArray&& InTextures)
-	{
-		FinalizeResourceAccess(Forward<FRDGTextureAccessArray&&>(InTextures), {});
-	}
-
-	inline void FinalizeBufferAccess(FRDGBufferAccessArray&& InBuffers)
-	{
-		FinalizeResourceAccess({}, Forward<FRDGBufferAccessArray&&>(InBuffers));
-	}
-
-	inline void FinalizeTextureAccess(FRDGTextureRef Texture, ERHIAccess Access)
-	{
-		FinalizeResourceAccess({ FRDGTextureAccess(Texture, Access) }, {});
-	}
-
-	inline void FinalizeBufferAccess(FRDGBufferRef Buffer, ERHIAccess Access)
-	{
-		FinalizeResourceAccess({}, { FRDGBufferAccess(Buffer, Access) });
-	}
+	/** Use this method to resume tracking of a resource after calling UseExternalAccessMode. It is safe to call this method
+	 *  even if external access mode was not enabled (it will simply no-op). It is not valid to access the underlying RHI
+	 *  resource in any pass added after calling this method.
+	 */
+	void UseInternalAccessMode(FRDGViewableResource* Resource);
 
 	/** Flag a resource that is produced by a pass but never used or extracted to not emit an 'unused' warning. */
 	void RemoveUnusedTextureWarning(FRDGTextureRef Texture);
@@ -362,6 +349,53 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		return FindExternalTexture(ExternalPooledTexture);
 	}
+
+	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
+	inline void FinalizeResourceAccess(FRDGTextureAccessArray&& InTextures, FRDGBufferAccessArray&& InBuffers)
+	{
+		for (FRDGTextureAccess Texture : InTextures)
+		{
+			UseExternalAccessMode(Texture.GetTexture(), Texture.GetAccess());
+		}
+
+		for (FRDGBufferAccess Buffer : InBuffers)
+		{
+			UseExternalAccessMode(Buffer.GetBuffer(), Buffer.GetAccess());
+		}
+	}
+
+	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
+	inline void FinalizeTextureAccess(FRDGTextureAccessArray&& InTextures)
+	{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FinalizeResourceAccess(Forward<FRDGTextureAccessArray&&>(InTextures), {});
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
+	inline void FinalizeBufferAccess(FRDGBufferAccessArray&& InBuffers)
+	{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FinalizeResourceAccess({}, Forward<FRDGBufferAccessArray&&>(InBuffers));
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
+	inline void FinalizeTextureAccess(FRDGTextureRef Texture, ERHIAccess Access)
+	{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FinalizeResourceAccess({ FRDGTextureAccess(Texture, Access) }, {});
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
+	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
+	inline void FinalizeBufferAccess(FRDGBufferRef Buffer, ERHIAccess Access)
+	{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FinalizeResourceAccess({}, { FRDGBufferAccess(Buffer, Access) });
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 
 private:
@@ -603,6 +637,9 @@ private:
 	/** Tracks the final access used on resources in order to call SetTrackedAccess. */
 	TArray<FRHITrackedAccessInfo, FRDGArrayAllocator> EpilogueResourceAccesses;
 
+	/** Contains resources queued for either access mode change passes. */
+	TArray<FRDGViewableResource*, FRDGArrayAllocator> AccessModeQueue;
+
 	/** Texture state used for intermediate operations. Held here to avoid re-allocating. */
 	FRDGTextureSubresourceStateIndirect ScratchTextureState;
 
@@ -619,6 +656,7 @@ private:
 	bool bDispatchHint = false;
 	bool bFlushResourcesRHI = false;
 	bool bParallelExecuteEnabled = false;
+	bool bInAccessModeQueueFlush = false;
 
 #if RDG_ENABLE_DEBUG
 	FRDGUserValidation UserValidation;
@@ -677,6 +715,8 @@ private:
 	void SubmitBufferUploads();
 	void BeginFlushResourcesRHI();
 	void EndFlushResourcesRHI();
+
+	void FlushAccessModeQueue();
 
 	void SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, ERHIPipeline PassPipeline, bool bEmptyParameters);
 	FRDGPass* SetupPass(FRDGPass* Pass);

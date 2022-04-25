@@ -1234,7 +1234,7 @@ void FRenderGraphTrack::BuildDrawState(FRenderGraphTrackDrawStateBuilder& Builde
 
 			const auto IsPacketCulled = [&](const FResourcePacket& Packet)
 			{
-				if (Packet.bCulled || Packet.bTransientUntracked)
+				if (Packet.bCulled || Packet.bTrackingSkipped || Packet.bTransientUntracked)
 				{
 					return true;
 				}

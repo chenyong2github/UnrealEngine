@@ -197,6 +197,8 @@ FRDGPassRef FRDGBuilder::AddPass(
 
 	Flags |= ERDGPassFlags::NeverCull;
 
+	FlushAccessModeQueue();
+
 	LambdaPassType* Pass = Passes.Allocate<LambdaPassType>(Allocator, MoveTemp(Name), Flags, MoveTemp(ExecuteLambda));
 	SetupEmptyPass(Pass);
 	return Pass;
@@ -213,6 +215,8 @@ FRDGPassRef FRDGBuilder::AddPassInternal(
 	using LambdaPassType = TRDGLambdaPass<ParameterStructType, ExecuteLambdaType>;
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateAddPass(ParameterStruct, ParametersMetadata, Name, Flags));
+
+	FlushAccessModeQueue();
 
 	FRDGPass* Pass = Allocator.AllocNoDestruct<LambdaPassType>(
 		MoveTemp(Name),

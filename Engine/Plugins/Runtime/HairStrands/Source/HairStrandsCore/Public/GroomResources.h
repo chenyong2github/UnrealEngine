@@ -15,7 +15,7 @@
 
 inline uint32 GetBufferTotalNumBytes(const FRDGExternalBuffer& In) 
 {
-	return In.Buffer ? In.Buffer->Desc.GetTotalNumBytes() : 0;
+	return In.Buffer ? In.Buffer->GetSize() : 0;
 }
 
 enum class EHairStrandsResourcesType : uint8

@@ -176,12 +176,8 @@ void TrackLandscapeRDGTextures(FRDGBuilder& GraphBuilder, TMap<FTexture2DResourc
 		// We need a debug name that will last until the graph is executed: 
 		TrackedTexture.DebugName = GraphBuilder.AllocObject<FString>(TrackedTexture.TextureResource->GetTextureName().ToString());
 
-		// Register the texture to the GraphBuilder : we'll read from / write to it like a render target : 
-		TRefCountPtr<IPooledRenderTarget> RenderTarget = CreateRenderTarget(TrackedTexture.TextureResource->TextureRHI, **TrackedTexture.DebugName);
-
-		// Force tracking on the external texture if necessary, so that it can be copied from/to via CopyTexture within the graph : 
-		ERDGTextureFlags TextureFlags = (TrackedTexture.bNeedsForceTracking || TrackedTexture.bNeedsScratch) ? ERDGTextureFlags::ForceTracking : ERDGTextureFlags::ReadOnly;
-		TrackedTexture.ExternalTextureRef = GraphBuilder.RegisterExternalTexture(RenderTarget, **TrackedTexture.DebugName, TextureFlags);
+		// Register the texture to the GraphBuilder : we'll read from / write to it like a render target :
+		TrackedTexture.ExternalTextureRef = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(TrackedTexture.TextureResource->TextureRHI, **TrackedTexture.DebugName));
 
 		if (TrackedTexture.bNeedsScratch)
 		{

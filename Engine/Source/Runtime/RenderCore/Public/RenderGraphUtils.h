@@ -1103,96 +1103,133 @@ void AddReadbackBufferPass(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, FRDG
 	GraphBuilder.AddPass(MoveTemp(Name), PassParameters, ERDGPassFlags::Readback, MoveTemp(ExecuteLambda));
 }
 
-/** Batches up RDG resource access finalizations and submits them all at once to RDG. */
-class FRDGResourceAccessFinalizer
+/** Batches up RDG external resource access mode requests and submits them all at once to RDG. */
+class FRDGExternalAccessQueue
 {
 public:
-	FRDGResourceAccessFinalizer() = default;
-	~FRDGResourceAccessFinalizer()
+	FRDGExternalAccessQueue() = default;
+
+	~FRDGExternalAccessQueue()
 	{
-		checkf(IsEmpty(), TEXT("Finalize must be called before destruction."));
+		checkf(IsEmpty(), TEXT("Submit must be called before destruction."));
 	}
 
-	void Reserve(uint32 TextureCount, uint32 BufferCount)
+	void Reserve(uint32 ResourceCount)
 	{
-		Textures.Reserve(TextureCount);
-		Buffers.Reserve(BufferCount);
+		Resources.Reserve(ResourceCount);
 	}
 
-	void AddTexture(FRDGTextureRef Texture, ERHIAccess Access)
+	void Add(FRDGViewableResource* Resource, ERHIAccess Access = ERHIAccess::SRVMask, ERHIPipeline Pipelines = ERHIPipeline::Graphics)
 	{
-		if (Texture)
+		if (Resource)
 		{
-			checkf(IsValidAccess(Access) && Access != ERHIAccess::Unknown, TEXT("Attempted to finalize texture %s with an invalid access %s."), Texture->Name, *GetRHIAccessName(Access));
-			Textures.Emplace(Texture, Access);
+			checkf(IsValidAccess(Access) && Access != ERHIAccess::Unknown, TEXT("Attempted to finalize texture %s with an invalid access %s."), Resource->Name, *GetRHIAccessName(Access));
+			Resources.Emplace(Resource, Access, Pipelines);
 		}
 	}
 
-	void AddBuffer(FRDGBufferRef Buffer, ERHIAccess Access)
+	void Submit(FRDGBuilder& GraphBuilder)
 	{
-		if (Buffer)
+		for (FResource Resource : Resources)
 		{
-			checkf(IsValidAccess(Access) && Access != ERHIAccess::Unknown, TEXT("Attempted to finalize buffer %s with an invalid access %s."), Buffer->Name, *GetRHIAccessName(Access));
-			Buffers.Emplace(Buffer, Access);
+			GraphBuilder.UseExternalAccessMode(Resource.Resource, Resource.Access, Resource.Pipelines);
 		}
-	}
-
-	void Finalize(FRDGBuilder& GraphBuilder)
-	{
-		if (!IsEmpty())
-		{
-			GraphBuilder.FinalizeResourceAccess(MoveTemp(Textures), MoveTemp(Buffers));
-		}
+		Resources.Reset();
 	}
 
 	bool IsEmpty() const
 	{
-		return Textures.IsEmpty() && Buffers.IsEmpty();
+		return Resources.IsEmpty();
+	}
+
+	UE_DEPRECATED(5.1, "Reserve with two parameters is deprecated.")
+	void Reserve(uint32 TextureCount, uint32 BufferCount)
+	{
+		Resources.Reserve(TextureCount + BufferCount);
+	}
+
+	UE_DEPRECATED(5.1, "Finalize is deprecated. Call Submit instead.")
+	void Finalize(FRDGBuilder& GraphBuilder)
+	{
+		Submit(GraphBuilder);
+	}
+
+	UE_DEPRECATED(5.1, "AddTexture is deprecated. Call Add instead.")
+	void AddTexture(FRDGTextureRef Texture, ERHIAccess Access)
+	{
+		Add(Texture, Access);
+	}
+
+	UE_DEPRECATED(5.1, "AddBuffer is deprecated. Call Add instead.")
+	void AddBuffer(FRDGBufferRef Buffer, ERHIAccess Access)
+	{
+		Add(Buffer, Access);
 	}
 
 private:
-	FRDGTextureAccessArray Textures;
-	FRDGBufferAccessArray Buffers;
+	struct FResource
+	{
+		FResource() = default;
+
+		FResource(FRDGViewableResource* InResource, ERHIAccess InAccess, ERHIPipeline InPipelines)
+			: Resource(InResource)
+			, Access(InAccess)
+			, Pipelines(InPipelines)
+		{}
+
+		FRDGViewableResource* Resource;
+		ERHIAccess Access;
+		ERHIPipeline Pipelines;
+	};
+
+	TArray<FResource, FRDGArrayAllocator> Resources;
 };
 
-inline const TRefCountPtr<IPooledRenderTarget>& ConvertToFinalizedExternalTexture(
-	FRDGBuilder& GraphBuilder,
-	FRDGResourceAccessFinalizer& ResourceAccessFinalizer,
-	FRDGTextureRef Texture,
-	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
-{
-	ResourceAccessFinalizer.AddTexture(Texture, AccessFinal);
-	return GraphBuilder.ConvertToExternalTexture(Texture);
-}
+UE_DEPRECATED(5.1, "FRDGResourceAccessFinalizer is deprecated. Use FRDGExternalAccessQueue instead.")
+typedef FRDGExternalAccessQueue FRDGResourceAccessFinalizer;
 
-inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToFinalizedExternalBuffer(
+inline const TRefCountPtr<IPooledRenderTarget>& ConvertToExternalAccessTexture(
 	FRDGBuilder& GraphBuilder,
-	FRDGResourceAccessFinalizer& ResourceAccessFinalizer,
-	FRDGBufferRef Buffer,
-	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
-{
-	ResourceAccessFinalizer.AddBuffer(Buffer, AccessFinal);
-	return GraphBuilder.ConvertToExternalBuffer(Buffer);
-}
-
-inline const TRefCountPtr<IPooledRenderTarget>& ConvertToFinalizedExternalTexture(
-	FRDGBuilder& GraphBuilder,
-	FRDGTextureRef Texture,
-	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
+	FRDGTexture* Texture,
+	ERHIAccess Access = ERHIAccess::SRVMask,
+	ERHIPipeline Pipelines = ERHIPipeline::Graphics)
 {
 	const TRefCountPtr<IPooledRenderTarget>& PooledTexture = GraphBuilder.ConvertToExternalTexture(Texture);
-	GraphBuilder.FinalizeTextureAccess(Texture, AccessFinal);
+	GraphBuilder.UseExternalAccessMode(Texture, Access, Pipelines);
 	return PooledTexture;
 }
 
-inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToFinalizedExternalBuffer(
+inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToExternalAccessBuffer(
 	FRDGBuilder& GraphBuilder,
-	FRDGBufferRef Buffer,
-	ERHIAccess AccessFinal)
+	FRDGBuffer* Buffer,
+	ERHIAccess Access = ERHIAccess::SRVMask,
+	ERHIPipeline Pipelines = ERHIPipeline::Graphics)
 {
 	const TRefCountPtr<FRDGPooledBuffer>& PooledBuffer = GraphBuilder.ConvertToExternalBuffer(Buffer);
-	GraphBuilder.FinalizeBufferAccess(Buffer, AccessFinal);
+	GraphBuilder.UseExternalAccessMode(Buffer, Access, Pipelines);
 	return PooledBuffer;
+}
+
+inline const TRefCountPtr<IPooledRenderTarget>& ConvertToExternalAccessTexture(
+	FRDGBuilder& GraphBuilder,
+	FRDGExternalAccessQueue& ExternalAccessQueue,
+	FRDGTexture* Texture,
+	ERHIAccess Access = ERHIAccess::SRVMask,
+	ERHIPipeline Pipelines = ERHIPipeline::Graphics)
+{
+	ExternalAccessQueue.Add(Texture, Access, Pipelines);
+	return GraphBuilder.ConvertToExternalTexture(Texture);
+}
+
+inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToExternalAccessBuffer(
+	FRDGBuilder& GraphBuilder,
+	FRDGExternalAccessQueue& ExternalAccessQueue,
+	FRDGBuffer* Buffer,
+	ERHIAccess Access = ERHIAccess::SRVMask,
+	ERHIPipeline Pipelines = ERHIPipeline::Graphics)
+{
+	ExternalAccessQueue.Add(Buffer, Access, Pipelines);
+	return GraphBuilder.ConvertToExternalBuffer(Buffer);
 }
 
 /** Scope used to wait for outstanding tasks when the scope destructor is called. Used for command list recording tasks. */
@@ -1226,12 +1263,6 @@ RENDERCORE_API TRefCountPtr<FRDGPooledBuffer> AllocatePooledBuffer(
 	const TCHAR* Name,
 	ERDGPooledBufferAlignment Alignment = ERDGPooledBufferAlignment::Page);
 
-//UE_DEPRECATED(5.1, "GetPooledFreeBuffer is deprecated. Use AllocatePooledBuffer instead.")
-inline bool GetPooledFreeBuffer(FRHICommandList& RHICmdList, const FRDGBufferDesc& Desc, TRefCountPtr<FRDGPooledBuffer>& Out, const TCHAR* Name)
-{
-	return AllocatePooledBuffer(Desc, Out, Name);
-}
-
 RENDERCORE_API bool AllocatePooledTexture(
 	const FRDGTextureDesc& Desc,
 	TRefCountPtr<IPooledRenderTarget>& Out,
@@ -1242,36 +1273,48 @@ RENDERCORE_API TRefCountPtr<IPooledRenderTarget> AllocatePooledTexture(const FRD
 //////////////////////////////////////////////////////////////////////////
 //! Deprecated Functions
 
-UE_DEPRECATED(5.0, "ConvertToExternalBuffer has been refactored to FRDGBuilder::ConvertToExternalBuffer.")
-inline void ConvertToExternalBuffer(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer)
+UE_DEPRECATED(5.1, "GetPooledFreeBuffer is deprecated. Use AllocatePooledBuffer instead.")
+inline bool GetPooledFreeBuffer(FRHICommandList& RHICmdList, const FRDGBufferDesc& Desc, TRefCountPtr<FRDGPooledBuffer>& Out, const TCHAR* Name)
 {
-	OutPooledBuffer = GraphBuilder.ConvertToExternalBuffer(Buffer);
+	return AllocatePooledBuffer(Desc, Out, Name);
 }
 
-UE_DEPRECATED(5.0, "ConvertToExternalTexture has been refactored to FRDGBuilder::ConvertToExternalTexture.")
-inline void ConvertToExternalTexture(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget)
+UE_DEPRECATED(5.1, "ConvertToFinalizedExternalTexture has been refactored to ConvertToExternalAccessTexture.")
+inline const TRefCountPtr<IPooledRenderTarget>& ConvertToFinalizedExternalTexture(
+	FRDGBuilder& GraphBuilder,
+	FRDGExternalAccessQueue& ExternalAccessQueue,
+	FRDGTextureRef Texture,
+	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
 {
-	OutPooledRenderTarget = GraphBuilder.ConvertToExternalTexture(Texture);
+	return ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, Texture, AccessFinal);
 }
 
-UE_DEPRECATED(5.0, "ConvertToUntrackedExternalTexture has been refactored to ConvertToFinalizedExternalTexture.")
-inline void ConvertToUntrackedExternalTexture(
+UE_DEPRECATED(5.1, "ConvertToFinalizedExternalBuffer has been refactored to ConvertToExternalAccessBuffer.")
+inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToFinalizedExternalBuffer(
+	FRDGBuilder& GraphBuilder,
+	FRDGExternalAccessQueue& ExternalAccessQueue,
+	FRDGBufferRef Buffer,
+	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
+{
+	return ConvertToExternalAccessBuffer(GraphBuilder, ExternalAccessQueue, Buffer, AccessFinal);
+}
+
+UE_DEPRECATED(5.1, "ConvertToFinalizedExternalTexture has been refactored to ConvertToExternalAccessTexture.")
+inline const TRefCountPtr<IPooledRenderTarget>& ConvertToFinalizedExternalTexture(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef Texture,
-	TRefCountPtr<IPooledRenderTarget>& OutPooledRenderTarget,
-	ERHIAccess AccessFinal)
+	ERHIAccess AccessFinal = ERHIAccess::SRVMask)
 {
-	OutPooledRenderTarget = ConvertToFinalizedExternalTexture(GraphBuilder, Texture, AccessFinal);
+	return ConvertToExternalAccessTexture(GraphBuilder, Texture, AccessFinal);
 }
 
-UE_DEPRECATED(5.0, "ConvertToUntrackedExternalTexture has been refactored to ConvertToFinalizedExternalBuffer.")
-inline void ConvertToUntrackedExternalBuffer(
+UE_DEPRECATED(5.1, "ConvertToFinalizedExternalBuffer has been refactored to ConvertToExternalAccessBuffer.")
+inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToFinalizedExternalBuffer(
 	FRDGBuilder& GraphBuilder,
 	FRDGBufferRef Buffer,
-	TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer,
 	ERHIAccess AccessFinal)
 {
-	OutPooledBuffer = ConvertToFinalizedExternalBuffer(GraphBuilder, Buffer, AccessFinal);
+	return ConvertToExternalAccessBuffer(GraphBuilder, Buffer, AccessFinal);
 }
 
 UE_DEPRECATED(5.0, "RegisterExternalTextureWithFallback no longer requires ERenderTargetTexture")

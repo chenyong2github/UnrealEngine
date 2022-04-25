@@ -4059,10 +4059,6 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 				if (LayerTrackedTexture == nullptr)
 				{
 					LayerTrackedTexture = &(OutTrackedTextures.Add(LayerHeightmap.Texture, FLandscapeRDGTrackedTexture(LayerHeightmap.Texture)));
-					// Layer heightmaps were not created with TexCreate_RenderTargetable and are therefore considered as ReadOnly by the RDG, which prevents their resource access from being automatically managed
-					//  (i.e. transfered to CopySrc when we copy them and back to SRVMask at the end) so we need to force the RDG to track them:
-					// TODO [jonathan.bard] : remove this if we don't use the texture array :
-					LayerTrackedTexture->bNeedsForceTracking = true;
 				}
 			}
 		}
@@ -4301,7 +4297,7 @@ namespace EditLayersHeightmapLocalMerge_RenderThread
 			TRefCountPtr<IPooledRenderTarget> RenderTarget = CreateRenderTarget(TextureResolveInfo.Texture->TextureRHI, **DebugName);
 
 			// Force tracking on the external texture, so that it can be copied to via CopyTexture within the graph : 
-			FRDGTextureRef DestinationTexture = GraphBuilder.RegisterExternalTexture(RenderTarget, ERDGTextureFlags::ForceTracking);
+			FRDGTextureRef DestinationTexture = GraphBuilder.RegisterExternalTexture(RenderTarget);
 
 			FRHICopyTextureInfo CopyTextureInfo;
 			// We want to copy all mips : 
@@ -6017,9 +6013,6 @@ namespace EditLayersWeightmapLocalMerge_RenderThread
 				{
 					TrackedTexture = &(OutTrackedTextures.Add(VisibleEditLayersWeightmapTexture, FLandscapeRDGTrackedTexture(VisibleEditLayersWeightmapTexture)));
 				}
-				// Source weightmaps were not created with TexCreate_RenderTargetable and are therefore considered as ReadOnly by the RDG, which prevents their resource access from being automatically managed
-				//  (i.e. transfered to CopySrc when we copy them) so we need to force the RDG to track them: 
-				TrackedTexture->bNeedsForceTracking = true;
 				TrackedTexture->bNeedsSRV = true;
 			}
 		}
@@ -6033,9 +6026,6 @@ namespace EditLayersWeightmapLocalMerge_RenderThread
 				TrackedTexture = &(OutTrackedTextures.Add(TextureResolveInfo.Texture, FLandscapeRDGTrackedTexture(TextureResolveInfo.Texture)));
 			}
 
-			// Destination weightmaps were not created with TexCreate_RenderTargetable and are therefore considered as ReadOnly by the RDG, which prevents their resource access from being automatically managed
-			//  (i.e. transfered to CopyDst when we copy to them and back to SRVMask at the end) so we need to force the RDG to track them: 
-			TrackedTexture->bNeedsForceTracking = true;
 			TrackedTexture->bNeedsSRV = true;
 		}
 	}

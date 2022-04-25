@@ -97,8 +97,10 @@ public:
 
 	void ValidateSetAccessFinal(FRDGViewableResource* Resource, ERHIAccess AccessFinal);
 
-	void ValidateFinalize(FRDGViewableResource* Resource, ERHIAccess Access, FRDGPassHandle ConvertToUntrackedPassHandle);
-	void ValidateFinalizedAccess(FRDGViewableResource* Resource, ERHIAccess Access, const FRDGPass* Pass);
+	void ValidateUseExternalAccessMode(FRDGViewableResource* Resource, ERHIAccess ReadOnlyAccess, ERHIPipeline Pipelines);
+	void ValidateUseInternalAccessMode(FRDGViewableResource* Resaource);
+
+	void ValidateExternalAccess(FRDGViewableResource* Resource, ERHIAccess Access, const FRDGPass* Pass);
 
 	/** Traverses all resources in the pass and marks whether they are externally accessible by user pass implementations. */
 	static void SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAccess);

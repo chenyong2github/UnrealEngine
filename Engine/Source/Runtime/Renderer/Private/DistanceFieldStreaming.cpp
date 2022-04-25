@@ -1324,6 +1324,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 
 	TArray<FDistanceFieldAssetMipId> AssetDataUploads;
 
+	FRDGExternalAccessQueue ExternalAccessQueue;
+
 	for (FSetElementId AssetSetId : DistanceFieldAssetRemoves)
 	{
 		const FDistanceFieldAssetState& AssetState = AssetStateArray[AssetSetId];
@@ -1566,10 +1568,10 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 			});
 		}
 
-		FRDGTextureRef DistanceFieldBrickVolumeTextureRDG = GraphBuilder.RegisterExternalTexture(DistanceFieldBrickVolumeTexture, TEXT("DistanceFields.DistanceFieldBrickVolumeTexture"));
-
 		if (NumBrickUploads > 0)
 		{
+			FRDGTextureRef DistanceFieldBrickVolumeTextureRDG = GraphBuilder.RegisterExternalTexture(DistanceFieldBrickVolumeTexture, TEXT("DistanceFields.DistanceFieldBrickVolumeTexture"));
+
 			// GRHIMaxDispatchThreadGroupsPerDimension can be MAX_int32 so we need to do this math in 64-bit.
 			const int32 MaxBrickUploadsPerPass = (int32)FMath::Min<int64>((int64)GRHIMaxDispatchThreadGroupsPerDimension.Z * FScatterUploadDistanceFieldAtlasCS::GetGroupSize() / DistanceField::BrickSize, MAX_int32);
 
@@ -1595,10 +1597,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 					FComputeShaderUtils::GetGroupCount(FIntVector(DistanceField::BrickSize, DistanceField::BrickSize, NumBrickUploadsThisPass * DistanceField::BrickSize), FScatterUploadDistanceFieldAtlasCS::GetGroupSize()));
 			}
 
-			DistanceFieldBrickVolumeTexture = GraphBuilder.ConvertToExternalTexture(DistanceFieldBrickVolumeTextureRDG);
+			ExternalAccessQueue.Add(DistanceFieldBrickVolumeTextureRDG, ERHIAccess::SRVMask);
 		}
-
-		GraphBuilder.FinalizeTextureAccess(DistanceFieldBrickVolumeTextureRDG, ERHIAccess::SRVMask);
 	}
 	
 	if (bIndirectionAtlasResized)
@@ -1618,6 +1618,8 @@ void FDistanceFieldSceneData::UpdateDistanceFieldAtlas(
 		ListMeshDistanceFields(bDumpAssetStats);
 		GDistanceFieldAtlasLogStats = 0;
 	}
+
+	ExternalAccessQueue.Submit(GraphBuilder);
 }
 
 void FDistanceFieldSceneData::ListMeshDistanceFields(bool bDumpAssetStats) const

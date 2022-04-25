@@ -101,9 +101,6 @@ struct FRDGViewableResourceDebugData
 
 	/** Tracks whether this resource was clobbered by the builder prior to use. */
 	bool bHasBeenClobbered = false;
-
-	/** Tracks which pass performed a finalize operation on the resource. */
-	FRDGPassHandle FinalizePass;
 };
 
 FRDGViewableResourceDebugData& FRDGViewableResource::GetViewableDebugData() const
@@ -239,7 +236,6 @@ void FRDGUserValidation::ValidateRegisterExternalTexture(
 {
 	checkf(Name, TEXT("Attempted to register external texture with NULL name."));
 	checkf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture."));
-	checkf(!EnumHasAnyFlags(Flags, ERDGTextureFlags::ReadOnly) || !EnumHasAnyFlags(Flags, ERDGTextureFlags::ForceTracking), TEXT("External texture %s cannot be ReadOnly and ForceTracking (flags are mutually exclusive)"), Name);
 	ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
 }
 
@@ -247,7 +243,6 @@ void FRDGUserValidation::ValidateRegisterExternalBuffer(const TRefCountPtr<FRDGP
 {
 	checkf(Name, TEXT("Attempted to register external buffer with NULL name."));
 	checkf(ExternalPooledBuffer.IsValid(), TEXT("Attempted to register NULL external buffer."));
-	checkf(!EnumHasAnyFlags(Flags, ERDGBufferFlags::ReadOnly) || !EnumHasAnyFlags(Flags, ERDGBufferFlags::ForceTracking), TEXT("External buffer %s cannot be ReadOnly and ForceTracking (flags are mutually exclusive)"), Name);
 	ExecuteGuard(TEXT("RegisterExternalBuffer"), Name);
 }
 
@@ -279,7 +274,7 @@ void FRDGUserValidation::ValidateCreateTexture(const FRDGTextureDesc& Desc, cons
 	const bool bIsUAVForMSAATexture = bIsMSAA && bCanHaveUAV;
 	checkf(!bIsUAVForMSAATexture, TEXT("TexCreate_UAV is not allowed on MSAA texture %s."), Name);
 
-	checkf(!EnumHasAnyFlags(Flags, ERDGTextureFlags::ReadOnly), TEXT("Cannot create texture %s with the ReadOnly flag. Only registered textures can use this flag."), Name);
+	checkf(!EnumHasAnyFlags(Flags, ERDGTextureFlags::SkipTracking), TEXT("Cannot create texture %s with the SkipTracking flag. Only registered textures can use this flag."), Name);
 }
 
 void FRDGUserValidation::ValidateCreateBuffer(const FRDGBufferDesc& Desc, const TCHAR* Name, ERDGBufferFlags Flags)
@@ -287,7 +282,7 @@ void FRDGUserValidation::ValidateCreateBuffer(const FRDGBufferDesc& Desc, const 
 	checkf(Name, TEXT("Creating a buffer requires a valid debug name."));
 	ExecuteGuard(TEXT("CreateBuffer"), Name);
 
-	checkf(Desc.GetTotalNumBytes() > 0, TEXT("Creating buffer '%s' is zero bytes in size."), Name);
+	checkf(Desc.GetSize() > 0, TEXT("Creating buffer '%s' is zero bytes in size."), Name);
 
 	const bool bIsByteAddress = (Desc.Usage & BUF_ByteAddressBuffer) == BUF_ByteAddressBuffer;
 
@@ -296,7 +291,7 @@ void FRDGUserValidation::ValidateCreateBuffer(const FRDGBufferDesc& Desc, const 
 		checkf(Desc.BytesPerElement == 4, TEXT("Creating buffer '%s' as a structured buffer that is also byte addressable, BytesPerElement must be 4! Instead it is %d"), Name, Desc.BytesPerElement);
 	}
 
-	checkf(!EnumHasAnyFlags(Flags, ERDGBufferFlags::ReadOnly), TEXT("Cannot create buffer %s with the ReadOnly flag. Only registered buffers can use this flag."), Name);
+	checkf(!EnumHasAnyFlags(Flags, ERDGBufferFlags::SkipTracking), TEXT("Cannot create buffer %s with the SkipTracking flag. Only registered buffers can use this flag."), Name);
 }
 
 void FRDGUserValidation::ValidateCreateSRV(const FRDGTextureSRVDesc& Desc)
@@ -380,6 +375,7 @@ void FRDGUserValidation::ValidateUploadBuffer(FRDGBufferRef Buffer, const void* 
 	checkf(!Buffer->bQueuedForUpload, TEXT("Buffer %s already has an upload queued. Only one upload can be done for each graph."), Buffer->Name);
 	check(InitialData || InitialDataSize == 0);
 }
+
 void FRDGUserValidation::ValidateUploadBuffer(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, const FRDGBufferInitialDataFreeCallback& InitialDataFreeCallback)
 {
 	check(Buffer);
@@ -480,29 +476,46 @@ void FRDGUserValidation::ValidateSetAccessFinal(FRDGViewableResource* Resource, 
 	check(Resource);
 	check(AccessFinal != ERHIAccess::Unknown && IsValidAccess(AccessFinal));
 	checkf(Resource->bExternal || Resource->bExtracted, TEXT("Cannot set final access on non-external resource '%s' unless it is first extracted or preallocated."), Resource->Name);
-	checkf(!Resource->bFinalizedAccess, TEXT("Cannot set final access on finalized resource %s."), Resource->Name);
+	checkf(Resource->AccessModeState.Mode == FRDGViewableResource::EAccessMode::Internal, TEXT("Cannot set final access on a resource in external access mode: %s."), Resource->Name);
 }
 
-void FRDGUserValidation::ValidateFinalize(FRDGViewableResource* Resource, ERHIAccess AccessFinal, FRDGPassHandle FinalizePass)
+void FRDGUserValidation::ValidateUseExternalAccessMode(FRDGViewableResource* Resource, ERHIAccess ReadOnlyAccess, ERHIPipeline Pipelines)
 {
 	check(Resource);
-	check(AccessFinal != ERHIAccess::Unknown && IsValidAccess(AccessFinal));
-	checkf(IsReadOnlyAccess(AccessFinal), TEXT("Cannot convert resource %s to untracked with access %s. Access must be read-only."), Resource->Name, *GetRHIAccessName(AccessFinal));
-	checkf(Resource->bExternal || Resource->bExtracted, TEXT("Cannot convert resource %s to untracked unless it is first extracted or made external."), Resource->Name);
-	Resource->GetViewableDebugData().FinalizePass = FinalizePass;
+	check(Pipelines != ERHIPipeline::None);
+
+	const auto& AccessModeState = Resource->AccessModeState;
+	checkf(!AccessModeState.bLocked, TEXT("Resource is locked in external access mode by the SkipTracking resource flag: %s."), Resource->Name);
+	checkf(IsReadOnlyAccess(ReadOnlyAccess), TEXT("A read only access is required when use external access mode. (Resource: %s, Access: %s, Pipelines: %s)"), Resource->Name, *GetRHIAccessName(ReadOnlyAccess), *GetRHIPipelineName(Pipelines));
+	checkf(
+		AccessModeState.Mode == FRDGViewableResource::EAccessMode::Internal ||
+		(AccessModeState.Access == ReadOnlyAccess && AccessModeState.Pipelines == Pipelines),
+		TEXT("UseExternalAccessMode called on a resource that is already in external access mode, but different parameters were used.\n")
+		TEXT("Resource: %s\n")
+		TEXT("\tExisting Access: %s, Requested Access: %s\n")
+		TEXT("\tExisting Pipelines: %s, Requested Pipelines: %s\n"),
+		Resource->Name, *GetRHIAccessName(AccessModeState.Access), *GetRHIAccessName(ReadOnlyAccess), *GetRHIPipelineName(AccessModeState.Pipelines), *GetRHIPipelineName(Pipelines));
 }
 
-void FRDGUserValidation::ValidateFinalizedAccess(FRDGViewableResource* Resource, ERHIAccess Access, const FRDGPass* Pass)
+void FRDGUserValidation::ValidateUseInternalAccessMode(FRDGViewableResource* Resource)
 {
-	ensureMsgf(EnumHasAnyFlags(Resource->FinalizedAccessMask, Access),
-		TEXT("Resource %s was finalized with access %s, but is being used in pass %s with access %s. Any future pass must use a subset of the finalized access state."),
-		Resource->Name, *GetRHIAccessName(Resource->FinalizedAccessMask), Pass->GetName(), *GetRHIAccessName(Access), *GetRHIPipelineName(Pass->GetPipeline()));
+	check(Resource);
 
-#if 0 // TODO: Need to account for read-only resources. 
-	ensureMsgf(Pass->GetPipeline() == ERHIPipeline::Graphics,
-		TEXT("Resource %s was finalized but is being used on the async compute pass %s. Only graphics pipe access is allowed for finalized resources."),
-		Resource->Name, Pass->GetName());
-#endif
+	const auto& AccessModeState = Resource->AccessModeState;
+	checkf(!AccessModeState.bLocked, TEXT("Resource is locked in external access mode by the SkipTracking resource flag: %s."), Resource->Name);
+}
+
+void FRDGUserValidation::ValidateExternalAccess(FRDGViewableResource* Resource, ERHIAccess Access, const FRDGPass* Pass)
+{
+	const auto& AccessModeState = Resource->AccessModeState;
+
+	ensureMsgf(EnumHasAnyFlags(AccessModeState.Access, Access),
+		TEXT("Resource %s is in external access mode and is valid for access with the following states: %s, but is being used in pass %s with access %s."),
+		Resource->Name, *GetRHIAccessName(AccessModeState.Access), Pass->GetName(), *GetRHIAccessName(Access));
+ 
+	ensureMsgf(EnumHasAnyFlags(AccessModeState.Pipelines, Pass->GetPipeline()),
+		TEXT("Resource %s is in external access mode and is valid for access on the following pipelines: %s, but is being used on the %s pipe in pass %s."),
+		Resource->Name, *GetRHIPipelineName(AccessModeState.Pipelines), *GetRHIPipelineName(Pass->GetPipeline()), Pass->GetName());
 }
 
 void FRDGUserValidation::ValidateAddPass(const FRDGEventName& Name, ERDGPassFlags Flags)
@@ -561,18 +574,6 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 		}
 	};
 
-	const auto MarkTextureAsProduced = [&](FRDGTextureRef Texture)
-	{
-		checkf(!EnumHasAnyFlags(Texture->Flags, ERDGTextureFlags::ReadOnly), TEXT("Pass %s is attempting to write to texture %s which is marked as ReadOnly."), Pass->GetName(), Texture->Name);
-		MarkAsProduced(Texture);
-	};
-
-	const auto MarkBufferAsProduced = [&](FRDGBufferRef Buffer)
-	{
-		checkf(!EnumHasAnyFlags(Buffer->Flags, ERDGBufferFlags::ReadOnly), TEXT("Pass %s is attempting to write to buffer %s which is marked as ReadOnly."), Pass->GetName(), Buffer->Name);
-		MarkAsProduced(Buffer);
-	};
-
 	const auto MarkAsConsumed = [&] (FRDGViewableResource* Resource)
 	{
 		ensureMsgf(Resource->bProduced || Resource->bExternal || Resource->bQueuedForUpload,
@@ -611,7 +612,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 
 		if (IsWritableAccess(Access))
 		{
-			MarkBufferAsProduced(Buffer);
+			MarkAsProduced(Buffer);
 			bCanProduce = true;
 		}
 	};
@@ -622,7 +623,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 
 		if (IsWritableAccess(Access))
 		{
-			MarkTextureAsProduced(Texture);
+			MarkAsProduced(Texture);
 			bCanProduce = true;
 		}
 	};
@@ -664,7 +665,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 			{
 				FRDGTextureRef Texture = UAV->GetParent();
 				CheckNotCopy(Texture);
-				MarkTextureAsProduced(Texture);
+				MarkAsProduced(Texture);
 			}
 		}
 		break;
@@ -685,7 +686,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 			{
 				FRDGBufferRef Buffer = UAV->GetParent();
 				CheckNotCopy(Buffer);
-				MarkBufferAsProduced(Buffer);
+				MarkAsProduced(Buffer);
 			}
 		}
 		break;
@@ -772,7 +773,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 				CheckValidResource(Texture);
 				if (DepthStencil.GetDepthStencilAccess().IsAnyWrite())
 				{
-					MarkTextureAsProduced(Texture);
+					MarkAsProduced(Texture);
 				}
 				else
 				{
@@ -816,7 +817,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 						PassName, ResolveTexture->Name);
 
 					CheckValidResource(Texture);
-					MarkTextureAsProduced(ResolveTexture);
+					MarkAsProduced(ResolveTexture);
 				}
 
 				if (Texture)
@@ -829,7 +830,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 					CheckValidResource(Texture);
 
 					/** Mark the pass as a producer for render targets with a store action. */
-					MarkTextureAsProduced(Texture);
+					MarkAsProduced(Texture);
 				}
 				else
 				{

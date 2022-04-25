@@ -1453,7 +1453,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 
 	if (Scene)
 	{
-		FRDGResourceAccessFinalizer ResourceAccessFinalizer;
+		FRDGExternalAccessQueue ExternalAccessQueue;
 
 		check(ShouldRenderVolumetricCloud(Scene, ActiveViewFamily->EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
@@ -1866,12 +1866,12 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 										FilterTracedCloudTexture(&SpatiallyFilteredShadowTexture, VolumetricCloudParams.VolumetricCloud.CloudShadowmapSizeInvSize[LightIndex], CloudShadowTextureTexelWorldSizeInvSize, false);
 									}
 									ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex] = SpatiallyFilteredShadowTexture;
-									ViewInfo.VolumetricCloudShadowExtractedRenderTarget[LightIndex] = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
+									ViewInfo.VolumetricCloudShadowExtractedRenderTarget[LightIndex] = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
 								}
 								else
 								{
 									ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex] = GraphBuilder.RegisterExternalTexture(CloudShadowTemporalRT.CurrentRenderTarget());
-									ViewInfo.VolumetricCloudShadowExtractedRenderTarget[LightIndex] = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
+									ViewInfo.VolumetricCloudShadowExtractedRenderTarget[LightIndex] = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
 								}
 
 							}
@@ -1887,12 +1887,12 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 										FilterTracedCloudTexture(&SpatiallyFilteredShadowTexture, VolumetricCloudParams.VolumetricCloud.CloudShadowmapSizeInvSize[LightIndex], CloudShadowTextureTexelWorldSizeInvSize, false);
 									}
 									ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex] = SpatiallyFilteredShadowTexture;
-									ViewInfo.VolumetricCloudShadowExtractedRenderTarget[LightIndex] = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
+									ViewInfo.VolumetricCloudShadowExtractedRenderTarget[LightIndex] = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
 								}
 								else
 								{
 									ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex] = NewCloudShadowTexture;
-									ViewInfo.VolumetricCloudShadowExtractedRenderTarget[LightIndex] = ConvertToFinalizedExternalTexture(GraphBuilder, ResourceAccessFinalizer, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
+									ViewInfo.VolumetricCloudShadowExtractedRenderTarget[LightIndex] = ConvertToExternalAccessTexture(GraphBuilder, ExternalAccessQueue, ViewInfo.VolumetricCloudShadowRenderTarget[LightIndex]);
 								}
 							}
 						}
@@ -1928,7 +1928,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 			CleanUpCloudDataPass(GraphBuilder);
 		}
 
-		ResourceAccessFinalizer.Finalize(GraphBuilder);
+		ExternalAccessQueue.Submit(GraphBuilder);
 	}
 	else
 	{

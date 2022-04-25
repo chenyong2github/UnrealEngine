@@ -22,7 +22,7 @@ const FRDGSystemTextures& FRDGSystemTextures::Create(FRDGBuilder& GraphBuilder)
 {
 	const auto Register = [&](const TRefCountPtr<IPooledRenderTarget>& RenderTarget)
 	{
-		return TryRegisterExternalTexture(GraphBuilder, RenderTarget, ERDGTextureFlags::ReadOnly);
+		return TryRegisterExternalTexture(GraphBuilder, RenderTarget, ERDGTextureFlags::SkipTracking);
 	};
 
 	auto& SystemTextures = GraphBuilder.Blackboard.Create<FRDGSystemTextures>();
@@ -913,72 +913,72 @@ void FSystemTextures::ReleaseDynamicRHI()
 
 FRDGTextureRef FSystemTextures::GetBlackDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(BlackDummy, TEXT("BlackDummy"));
+	return GraphBuilder.RegisterExternalTexture(BlackDummy, TEXT("BlackDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetBlackAlphaOneDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(BlackAlphaOneDummy, TEXT("BlackAlphaOneDummy"));
+	return GraphBuilder.RegisterExternalTexture(BlackAlphaOneDummy, TEXT("BlackAlphaOneDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetBlackArrayDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(BlackArrayDummy, TEXT("BlackArrayDummy"));
+	return GraphBuilder.RegisterExternalTexture(BlackArrayDummy, TEXT("BlackArrayDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetWhiteDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(WhiteDummy, TEXT("WhiteDummy"));
+	return GraphBuilder.RegisterExternalTexture(WhiteDummy, TEXT("WhiteDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetMaxFP16Depth(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(MaxFP16Depth, TEXT("MaxFP16Depth"));
+	return GraphBuilder.RegisterExternalTexture(MaxFP16Depth, TEXT("MaxFP16Depth"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetDepthDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(DepthDummy, TEXT("DepthDummy"));
+	return GraphBuilder.RegisterExternalTexture(DepthDummy, TEXT("DepthDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetStencilDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(StencilDummy, TEXT("StencilDummy"));
+	return GraphBuilder.RegisterExternalTexture(StencilDummy, TEXT("StencilDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetGreenDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(GreenDummy, TEXT("GreenDummy"));
+	return GraphBuilder.RegisterExternalTexture(GreenDummy, TEXT("GreenDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetDefaultNormal8Bit(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(DefaultNormal8Bit, TEXT("DefaultNormal8Bit"));
+	return GraphBuilder.RegisterExternalTexture(DefaultNormal8Bit, TEXT("DefaultNormal8Bit"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetMidGreyDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(MidGreyDummy, TEXT("MidGreyDummy"));
+	return GraphBuilder.RegisterExternalTexture(MidGreyDummy, TEXT("MidGreyDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetVolumetricBlackDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(VolumetricBlackDummy, TEXT("VolumetricBlackDummy"));
+	return GraphBuilder.RegisterExternalTexture(VolumetricBlackDummy, TEXT("VolumetricBlackDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetVolumetricBlackUintDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(VolumetricBlackUintDummy, TEXT("VolumetricBlackUintDummy"));
+	return GraphBuilder.RegisterExternalTexture(VolumetricBlackUintDummy, TEXT("VolumetricBlackUintDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetZeroUIntDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(ZeroUIntDummy, TEXT("ZeroUIntDummy"));
+	return GraphBuilder.RegisterExternalTexture(ZeroUIntDummy, TEXT("ZeroUIntDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 FRDGTextureRef FSystemTextures::GetZeroUIntArrayDummy(FRDGBuilder& GraphBuilder) const
 {
-	return GraphBuilder.RegisterExternalTexture(ZeroUIntArrayDummy, TEXT("ZeroUIntArrayDummy"));
+	return GraphBuilder.RegisterExternalTexture(ZeroUIntArrayDummy, TEXT("ZeroUIntArrayDummy"), ERDGTextureFlags::SkipTracking);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1350,7 +1350,7 @@ FRDGTextureRef GetInternalDefaultTexture(
 
 	if (HashDefaultTextures.IsValid(Index) && DefaultTextures[Index].Texture != nullptr)
 	{
-		return GraphBuilder.RegisterExternalTexture(DefaultTextures[Index].Texture);
+		return GraphBuilder.RegisterExternalTexture(DefaultTextures[Index].Texture, ERDGTextureFlags::SkipTracking);
 	}
 
 	FDefaultTexture Entry;
@@ -1415,7 +1415,7 @@ FRDGTextureRef GetInternalDefaultTexture(
 
 	Index = DefaultTextures.Add(Entry);
 	HashDefaultTextures.Add(Hash, Index);
-	return GraphBuilder.RegisterExternalTexture(Entry.Texture);
+	return GraphBuilder.RegisterExternalTexture(Entry.Texture, ERDGTextureFlags::SkipTracking);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1474,7 +1474,7 @@ FRDGBufferRef GetInternalDefaultBuffer(
 	if (HashDefaultBuffers.IsValid(Index) && DefaultBuffers[Index].Buffer != nullptr)
 	{
 		check(DefaultBuffers[Index].Hash == Hash); //Sanitycheck
-		return GraphBuilder.RegisterExternalBuffer(DefaultBuffers[Index].Buffer);
+		return GraphBuilder.RegisterExternalBuffer(DefaultBuffers[Index].Buffer, ERDGBufferFlags::SkipTracking);
 	}
 
 	const uint32 BufferSize = NumBytePerElement * NumElements;
@@ -1530,7 +1530,7 @@ FRDGBufferRef GetInternalDefaultBuffer(
 
 	Index = DefaultBuffers.Add(Entry);
 	HashDefaultBuffers.Add(Hash, Index);
-	return GraphBuilder.RegisterExternalBuffer(Entry.Buffer);
+	return GraphBuilder.RegisterExternalBuffer(Entry.Buffer, ERDGBufferFlags::SkipTracking);
 }
 
 FVector4f GetClearBindingValue(EPixelFormat Format, FClearValueBinding Value)

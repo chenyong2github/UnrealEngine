@@ -294,7 +294,7 @@ IPooledRenderTarget* FSubsurfaceProfileTexture::GetSSProfilesPreIntegratedTextur
 			FPixelShaderUtils::AddFullscreenPass(GraphBuilder, GlobalShaderMap, RDG_EVENT_NAME("SSS::SSProfilePreIntegrated"), PixelShader, PassParameters, ViewRect);
 		}
 
-		GSSProfilesPreIntegratedTexture = ConvertToFinalizedExternalTexture(GraphBuilder, ProfileTexture);
+		GSSProfilesPreIntegratedTexture = ConvertToExternalAccessTexture(GraphBuilder, ProfileTexture);
 	}
 
 	return GSSProfilesPreIntegratedTexture;

@@ -131,12 +131,16 @@ enum class ERDGBufferFlags : uint8
 	/** Tag the buffer to survive through frame, that is important for multi GPU alternate frame rendering. */
 	MultiFrame = 1 << 0,
 
-	/** The buffer may only be used for read-only access within the graph. This flag is only allowed for registered buffers. */
-	ReadOnly = 1 << 1, 
+	/** The buffer is ignored by RDG tracking and will never be transitioned. Use the flag when registering a buffer with no writable GPU flags.
+	 *  Write access is not allowed for the duration of the graph. This flag is intended as an optimization to cull out tracking of read-only
+	 *  buffers that are used frequently throughout the graph. Note that it's the user's responsibility to ensure the resource is in the correct
+	 *  readable state for use with RDG passes, as RDG does not know the exact state of the resource.
+	 */
+	SkipTracking = 1 << 1,
 
-	/** Force the graph to track this resource even if it can be considered as readonly (no UAV, no RTV, etc.) This allows the graph copying from and to textures, and handling the corresponding transitions, for example.
-	 This flag is only allowed for registered buffers. Mutually exclusive with ReadOnly. */
-	ForceTracking = 1 << 2,
+	// Deprecated Enums
+	ReadOnly      UE_DEPRECATED(5.1, "ReadOnly is deprecated. Use SkipTracking instead.")                                            = 0,
+	ForceTracking UE_DEPRECATED(5.1, "ForceTracking is deprecated. Resources now opt-out of tracking explicitly with SkipTracking.") = 0
 };
 ENUM_CLASS_FLAGS(ERDGBufferFlags);
 
@@ -148,15 +152,19 @@ enum class ERDGTextureFlags : uint8
 	/** Tag the texture to survive through frame, that is important for multi GPU alternate frame rendering. */
 	MultiFrame = 1 << 0,
 
-	/** The texture may only be used for read-only access within the graph. This flag is only allowed for registered textures. */
-	ReadOnly = 1 << 1,
+	/** The buffer is ignored by RDG tracking and will never be transitioned. Use the flag when registering a buffer with no writable GPU flags.
+	 *  Write access is not allowed for the duration of the graph. This flag is intended as an optimization to cull out tracking of read-only
+	 *  buffers that are used frequently throughout the graph. Note that it's the user's responsibility to ensure the resource is in the correct
+	 *  readable state for use with RDG passes, as RDG does not know the exact state of the resource.
+	 */
+	SkipTracking = 1 << 1,
 
 	/** Prevents metadata decompression on this texture. */
 	MaintainCompression = 1 << 2,
 
-	/** Force the graph to track this resource even if it can be considered as readonly (no UAV, no RTV, etc.) This allows the graph copying from and to textures, and handling the corresponding transitions, for example.
-	 This flag is only allowed for registered buffers. Mutually exclusive with ReadOnly. */
-	ForceTracking = 1 << 3,
+	// Deprecated Enums
+	ReadOnly      UE_DEPRECATED(5.1, "ReadOnly is deprecated. Use SkipTracking instead.")                                            = 0,
+	ForceTracking UE_DEPRECATED(5.1, "ForceTracking is deprecated. Resources now opt-out of tracking explicitly with SkipTracking.") = 0
 };
 ENUM_CLASS_FLAGS(ERDGTextureFlags);
 

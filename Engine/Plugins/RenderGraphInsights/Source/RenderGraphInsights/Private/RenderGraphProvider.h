@@ -86,6 +86,7 @@ public:
 	bool bExternal{};
 	bool bExtracted{};
 	bool bCulled{};
+	bool bTrackingSkipped{};
 	bool bTransient{};
 	bool bTransientUntracked{};
 	bool bTransientCacheHit{};

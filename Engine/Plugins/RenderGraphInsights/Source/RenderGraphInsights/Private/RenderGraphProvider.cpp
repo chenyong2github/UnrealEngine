@@ -65,6 +65,7 @@ FResourcePacket::FResourcePacket(const UE::Trace::IAnalyzer::FOnEventContext& Co
 	, bExternal(Context.EventData.GetValue<bool>("IsExternal"))
 	, bExtracted(Context.EventData.GetValue<bool>("IsExtracted"))
 	, bCulled(Context.EventData.GetValue<bool>("IsCulled"))
+	, bTrackingSkipped(Context.EventData.GetValue<bool>("IsTrackingSkipped"))
 	, bTransient(Context.EventData.GetValue<bool>("IsTransient"))
 	, bTransientUntracked(Context.EventData.GetValue<bool>("IsTransientUntracked"))
 	, bTransientCacheHit(Context.EventData.GetValue<bool>("IsTransientCacheHit"))

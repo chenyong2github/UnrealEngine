@@ -1146,9 +1146,9 @@ struct FRDGResourceDumpContext
 		}
 
 		// Verify the texture is able to do resource transitions.
-		if (EnumHasAnyFlags(SubresourceDesc.Texture->Flags, ERDGTextureFlags::ReadOnly))
+		if (EnumHasAnyFlags(SubresourceDesc.Texture->Flags, ERDGTextureFlags::SkipTracking))
 		{
-			UE_LOG(LogRendererCore, Warning, TEXT("Not dumping %s because has ERDGTextureFlags::ReadOnly."), SubresourceDesc.Texture->Name);
+			UE_LOG(LogRendererCore, Warning, TEXT("Not dumping %s because has ERDGTextureFlags::SkipTracking."), SubresourceDesc.Texture->Name);
 			return;
 		}
 
@@ -1266,7 +1266,7 @@ struct FRDGResourceDumpContext
 		}
 
 		const FRDGBufferDesc& Desc = Buffer->Desc;
-		const int32 ByteSize = Desc.GetTotalNumBytes();
+		const int32 ByteSize = Desc.GetSize();
 
 		bool bDumpResourceInfos;
 		bool bDumpResourceBinary;
@@ -1303,9 +1303,9 @@ struct FRDGResourceDumpContext
 			}
 
 			// Verify the texture is able to do resource transitions.
-			if (EnumHasAnyFlags(Buffer->Flags, ERDGBufferFlags::ReadOnly))
+			if (EnumHasAnyFlags(Buffer->Flags, ERDGBufferFlags::SkipTracking))
 			{
-				UE_LOG(LogRendererCore, Warning, TEXT("Not dumping %s because has ERDGBufferFlags::ReadOnly."), Buffer->Name);
+				UE_LOG(LogRendererCore, Warning, TEXT("Not dumping %s because has ERDGBufferFlags::SkipTracking."), Buffer->Name);
 				return;
 			}
 

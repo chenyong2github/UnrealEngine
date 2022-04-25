@@ -21,7 +21,7 @@ inline bool NeedsUAVBarrier(const FRDGSubresourceState& Previous, const FRDGSubr
 	return NeedsUAVBarrier(Previous.NoUAVBarrierFilter.GetUniqueHandle(), Next.NoUAVBarrierFilter.GetUniqueHandle());
 }
 
-FRDGViewableResource::FRDGViewableResource(const TCHAR* InName, const ERDGViewableResourceType InType)
+FRDGViewableResource::FRDGViewableResource(const TCHAR* InName, const ERDGViewableResourceType InType, bool bSkipTracking)
 	: FRDGResource(InName)
 	, Type(InType)
 	, bExternal(0)
@@ -30,14 +30,19 @@ FRDGViewableResource::FRDGViewableResource(const TCHAR* InName, const ERDGViewab
 	, bTransient(0)
 	, bForceNonTransient(0)
 	, TransientExtractionHint(ETransientExtractionHint::None)
-	, bFinalizedAccess(0)
 	, bLastOwner(1)
 	, bCulled(!IsImmediateMode())
 	, bUsedByAsyncComputePass(0)
 	, bQueuedForUpload(0)
 	, FirstBarrier(EFirstBarrier::Split)
 	, bUAVAccessed(0)
-{}
+{
+	if (bSkipTracking)
+	{
+		SetExternalAccessMode(ERHIAccess::ReadOnlyExclusiveMask, ERHIPipeline::All);
+		AccessModeState.bLocked = 1;
+	}
+}
 
 bool FRDGProducerState::IsDependencyRequired(FRDGProducerState LastProducer, ERHIPipeline LastPipeline, FRDGProducerState NextState, ERHIPipeline NextPipeline)
 {

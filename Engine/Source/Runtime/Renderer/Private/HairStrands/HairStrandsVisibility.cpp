@@ -2814,6 +2814,8 @@ void AddMeshDrawTransitionPass(
 	const FViewInfo& ViewInfo,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas)
 {
+	FRDGExternalAccessQueue ExternalAccessQueue;
+
 	for (const FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
 	{
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroup.PrimitivesInfos)
@@ -2821,26 +2823,22 @@ void AddMeshDrawTransitionPass(
 			FHairGroupPublicData* HairGroupPublicData = PrimitiveInfo.PublicDataPtr;
 			check(HairGroupPublicData);
 
-			FRDGResourceAccessFinalizer ResourceAccessFinalizer;
-
 			FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.PositionBuffer.Buffer,			ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.PrevPositionBuffer.Buffer,		ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.TangentBuffer.Buffer,				ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.Attribute0Buffer.Buffer,			ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.Attribute1Buffer.Buffer,			ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.MaterialBuffer.Buffer,			ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.PositionOffsetBuffer.Buffer,		ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(VFInput.Strands.PrevPositionOffsetBuffer.Buffer,	ERHIAccess::SRVMask);
+			ExternalAccessQueue.Add(VFInput.Strands.PositionBuffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.PrevPositionBuffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.TangentBuffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.Attribute0Buffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.Attribute1Buffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.MaterialBuffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.PositionOffsetBuffer.Buffer);
+			ExternalAccessQueue.Add(VFInput.Strands.PrevPositionOffsetBuffer.Buffer);
 
 			FRDGBufferRef CulledVertexIdBuffer = Register(GraphBuilder, HairGroupPublicData->CulledVertexIdBuffer, ERDGImportedBufferFlags::None).Buffer;
 			FRDGBufferRef CulledVertexRadiusScaleBuffer = Register(GraphBuilder, HairGroupPublicData->CulledVertexRadiusScaleBuffer, ERDGImportedBufferFlags::None).Buffer;
 			FRDGBufferRef DrawIndirectBuffer = Register(GraphBuilder, HairGroupPublicData->DrawIndirectBuffer, ERDGImportedBufferFlags::None).Buffer;
-			ResourceAccessFinalizer.AddBuffer(CulledVertexIdBuffer,								ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(CulledVertexRadiusScaleBuffer,					ERHIAccess::SRVMask);
-			ResourceAccessFinalizer.AddBuffer(DrawIndirectBuffer,								ERHIAccess::IndirectArgs);
-
-			ResourceAccessFinalizer.Finalize(GraphBuilder);
+			ExternalAccessQueue.Add(CulledVertexIdBuffer);
+			ExternalAccessQueue.Add(CulledVertexRadiusScaleBuffer);
+			ExternalAccessQueue.Add(DrawIndirectBuffer, ERHIAccess::IndirectArgs);
 
 			if (GetHairVisibilityRenderMode() != HairVisibilityRenderMode_ComputeRaster)
 			{
@@ -2855,6 +2853,8 @@ void AddMeshDrawTransitionPass(
 			}
 		}
 	}
+
+	ExternalAccessQueue.Submit(GraphBuilder);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
