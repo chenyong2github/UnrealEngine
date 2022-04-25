@@ -111,6 +111,8 @@ namespace UE::DatasmithImporter
 		ensureMsgf(!Instance, TEXT("There can only be one instance of FDirectLinkManager."));
 	}
 
+	FDirectLinkManager::~FDirectLinkManager() = default;
+
 	void FDirectLinkManager::Clear()
 	{
 		Endpoint->RemoveEndpointObserver(this);

@@ -56,6 +56,9 @@ namespace UE::DatasmithImporter
 	class FDirectLinkManager: public IDirectLinkManager, public DirectLink::IEndpointObserver
 	{
 	public:
+
+		virtual ~FDirectLinkManager();
+
 		/**
 		 * Static instance that can be used internally to avoid relying on IDirectLinkExtensionModule to get the DirectLink manager.
 		 */
