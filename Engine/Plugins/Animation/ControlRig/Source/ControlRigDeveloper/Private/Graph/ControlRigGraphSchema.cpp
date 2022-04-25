@@ -714,6 +714,16 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 			UserLinkDirection = ERigVMPinDirection::Input;
 		}
 
+		if (!PinA)
+		{
+			return FPinConnectionResponse(ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW, FString::Printf(TEXT("Pin %s not found"), *A->GetName()));
+		}
+
+		if (!PinB)
+		{
+			return FPinConnectionResponse(ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW, FString::Printf(TEXT("Pin %s not found"), *B->GetName()));
+		}
+
 		if(PinA->IsWildCard() != PinB->IsWildCard())
 		{
 			// switch the user link direction if only one of the pins is a wildcard 
