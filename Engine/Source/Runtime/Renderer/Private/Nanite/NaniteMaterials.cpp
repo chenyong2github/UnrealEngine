@@ -97,7 +97,7 @@ class FEmitMaterialDepthPS : public FNaniteGlobalShader
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
@@ -137,7 +137,7 @@ class FEmitSceneDepthPS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_TEXTURE( Texture2D<UlongType>,	VisBuffer64 )
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		RENDER_TARGET_BINDING_SLOTS()
@@ -165,7 +165,7 @@ class FEmitSceneStencilPS : public FNaniteGlobalShader
 		
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
@@ -200,7 +200,7 @@ class FEmitSceneDepthStencilPS : public FNaniteGlobalShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(uint32, StencilClear)
 		SHADER_PARAMETER(uint32, StencilDecal)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 		RENDER_TARGET_BINDING_SLOTS()
@@ -226,7 +226,7 @@ class FDepthExportCS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedView>, InViews)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER(FIntVector4, DepthExportConfig)
 		SHADER_PARAMETER(FIntVector4, ViewRectMax)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
@@ -281,7 +281,7 @@ public:
 		SHADER_PARAMETER(uint32, MaterialSlotCount)
 		SHADER_PARAMETER(uint32, MaterialBinCount)
 		SHADER_PARAMETER(uint32, RowTileCount)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, MaterialIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, MaterialTileRemap)
@@ -333,8 +333,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 	SHADER_PARAMETER(uint32,		MaterialRemapCount)
 	SHADER_PARAMETER(FIntPoint,		GridSize)
 
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, HierarchyBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, HierarchyBuffer)
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 
@@ -454,7 +454,7 @@ void DrawBasePass(
 			PassParameters->View					= View.ViewUniformBuffer;
 			PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 			PassParameters->PageConstants			= RasterResults.PageConstants;
-			PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
+			PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 			PassParameters->VisBuffer64				= VisBuffer64;
 			PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 			PassParameters->MaterialDepthTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
@@ -501,8 +501,8 @@ void DrawBasePass(
 		PassParameters->RayTracingCutError	= GRayTracingCutError;
 		PassParameters->MaterialRemapCount	= TileRemaps;
 			
-		PassParameters->ClusterPageData		= Nanite::GStreamingManager.GetClusterPageDataSRV();
-		PassParameters->HierarchyBuffer		= Nanite::GStreamingManager.GetHierarchySRV();
+		PassParameters->ClusterPageData		= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
+		PassParameters->HierarchyBuffer		= Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
 
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 
@@ -574,8 +574,8 @@ void DrawBasePass(
 				0.0f
 			);
 
-			UniformParams.ClusterPageData = PassParameters->ClusterPageData;
-			UniformParams.HierarchyBuffer = PassParameters->HierarchyBuffer;
+			UniformParams.ClusterPageData = PassParameters->ClusterPageData->GetRHI();
+			UniformParams.HierarchyBuffer = PassParameters->HierarchyBuffer->GetRHI();
 
 			UniformParams.VisibleClustersSWHW = PassParameters->VisibleClustersSWHW->GetRHI();
 
@@ -707,7 +707,7 @@ void EmitDepthTargets(
 		PassParameters->InViews					= GraphBuilder.CreateSRV(ViewsBuffer);
 		PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 		PassParameters->PageConstants			= PageConstants;
-		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
+		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTexturesExtent.X, StencilDecalMask, Nanite::FGlobalResources::GetMaxVisibleClusters());
 		PassParameters->ViewRectMax				= FIntVector4(View.ViewRect.Max.X, View.ViewRect.Max.Y, 0, 0);
 		PassParameters->VisBuffer64				= VisBuffer64;
@@ -758,7 +758,7 @@ void EmitDepthTargets(
 			PassParameters->PageConstants				= PageConstants;
 			PassParameters->StencilClear				= DefaultStencil;
 			PassParameters->StencilDecal				= StencilDecalMask;
-			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
+			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 			PassParameters->VisBuffer64					= VisBuffer64;
 			PassParameters->MaterialSlotTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 			PassParameters->RenderTargets[0]			= FRenderTargetBinding(MaterialResolve, ERenderTargetLoadAction::ELoad);
@@ -793,7 +793,7 @@ void EmitDepthTargets(
 				PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 				PassParameters->PageConstants				= PageConstants;
 				PassParameters->VisBuffer64					= VisBuffer64;
-				PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
+				PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 				PassParameters->MaterialSlotTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 				PassParameters->RenderTargets[0]			= FRenderTargetBinding(MaterialResolve,	ERenderTargetLoadAction::ELoad);
 				PassParameters->RenderTargets[1]			= bEmitVelocity ? FRenderTargetBinding(VelocityBuffer, ERenderTargetLoadAction::ELoad) : FRenderTargetBinding();
@@ -820,7 +820,7 @@ void EmitDepthTargets(
 				PassParameters->View						= View.ViewUniformBuffer;
 				PassParameters->VisibleClustersSWHW			= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 				PassParameters->PageConstants				= PageConstants;
-				PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
+				PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 				PassParameters->MaterialResolve				= MaterialResolve;
 				PassParameters->VisBuffer64					= VisBuffer64;
 				PassParameters->RenderTargets.DepthStencil	= FDepthStencilBinding
@@ -850,7 +850,7 @@ void EmitDepthTargets(
 			auto* PassParameters = GraphBuilder.AllocParameters<FEmitMaterialDepthPS::FParameters>();
 
 			PassParameters->DummyZero = 0u;
-			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV();
+			PassParameters->ClusterPageData				= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 			PassParameters->MaterialSlotTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 			PassParameters->MaterialDepthTable			= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
 			PassParameters->PageConstants				= PageConstants;
@@ -1008,7 +1008,7 @@ void DrawLumenMeshCapturePass(
 
 		PassParameters->PS.VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 		PassParameters->PS.PageConstants = CullingContext.PageConstants;
-		PassParameters->PS.ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
+		PassParameters->PS.ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 
 		PassParameters->PS.VisBuffer64 = RasterContext.VisBuffer64;
 
@@ -1169,8 +1169,8 @@ void DrawLumenMeshCapturePass(
 		PassParameters->RenderFlags = CullingContext.RenderFlags;
 		PassParameters->RayTracingCutError = GRayTracingCutError;
 
-		PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
-		PassParameters->HierarchyBuffer = Nanite::GStreamingManager.GetHierarchySRV();
+		PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
+		PassParameters->HierarchyBuffer = Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
 
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 
@@ -1219,8 +1219,8 @@ void DrawLumenMeshCapturePass(
 				UniformParams.MaterialConfig = FIntVector4(0, 1, 1, 0); // Tile based material culling is not required for Lumen, as each card is rendered as a small rect
 				UniformParams.RectScaleOffset = FVector4f(1.0f, 1.0f, 0.0f, 0.0f); // This will be overridden in vertex shader
 
-				UniformParams.ClusterPageData = PassParameters->ClusterPageData;
-				UniformParams.HierarchyBuffer = PassParameters->HierarchyBuffer;
+				UniformParams.ClusterPageData = PassParameters->ClusterPageData->GetRHI();
+				UniformParams.HierarchyBuffer = PassParameters->HierarchyBuffer->GetRHI();
 
 				UniformParams.VisibleClustersSWHW = PassParameters->VisibleClustersSWHW->GetRHI();
 

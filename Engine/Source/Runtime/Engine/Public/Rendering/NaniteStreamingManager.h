@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "NaniteResources.h"
 #include "UnifiedBuffer.h"
-#include "RenderGraphResources.h"
+#include "RenderGraphBuilder.h"
 #include "RHIGPUReadback.h"
 
 namespace UE
@@ -138,13 +138,29 @@ public:
 	ENGINE_API bool IsAsyncUpdateInProgress();
 	ENGINE_API void	SubmitFrameStreamingRequests(FRDGBuilder& GraphBuilder);		// Called once per frame after the last request has been added.
 
-	const TRefCountPtr< FRDGPooledBuffer >&	GetStreamingRequestsBuffer()		{ return StreamingRequestsBuffer; }
-	uint32									GetStreamingRequestsBufferVersion() { return StreamingRequestsBufferVersion; }
+	FRDGBuffer* GetStreamingRequestsBuffer(FRDGBuilder& GraphBuilder) const
+	{
+		return GraphBuilder.RegisterExternalBuffer(StreamingRequestsBuffer);
+	}
 
-	FRHIShaderResourceView*				GetClusterPageDataSRV() const			{ return ClusterPageData.DataBuffer.SRV; }
-	FRHIShaderResourceView*				GetHierarchySRV() const					{ return Hierarchy.DataBuffer.SRV; }
-	FRHIShaderResourceView*				GetImposterDataSRV() const				{ return ImposterData.DataBuffer.SRV; }
-	uint32								GetMaxStreamingPages() const			{ return MaxStreamingPages; }
+	uint32		GetStreamingRequestsBufferVersion() { return StreamingRequestsBufferVersion; }
+
+	FRDGBufferSRV* GetHierarchySRV(FRDGBuilder& GraphBuilder) const
+	{
+		return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Hierarchy.DataBuffer));
+	}
+
+	FRDGBufferSRV* GetClusterPageDataSRV(FRDGBuilder& GraphBuilder) const
+	{
+		return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(ClusterPageData.DataBuffer));
+	}
+
+	FRDGBufferSRV* GetImposterDataSRV(FRDGBuilder& GraphBuilder) const
+	{
+		return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(ImposterData.DataBuffer));
+	}
+
+	uint32		GetMaxStreamingPages() const			{ return MaxStreamingPages; }
 
 	inline bool HasResourceEntries() const
 	{
@@ -167,13 +183,13 @@ private:
 
 		FGrowOnlySpanAllocator	Allocator;
 
-		FScatterUploadBuffer	UploadBuffer;
-		FRWByteAddressBuffer	DataBuffer;
+		FRDGScatterUploadBuffer	UploadBuffer;
+		TRefCountPtr<FRDGPooledBuffer>			DataBuffer;
 
-		void	Release()
+		void Release()
 		{
-			UploadBuffer.Release();
-			DataBuffer.Release();
+			UploadBuffer = {};
+			DataBuffer = {};
 		}
 	};
 
@@ -184,7 +200,7 @@ private:
 	};
 
 	FHeapBuffer				ClusterPageData;	// FPackedCluster*, GeometryData { Index, Position, TexCoord, TangentX, TangentZ }*
-	FScatterUploadBuffer	ClusterFixupUploadBuffer;
+	FRDGScatterUploadBuffer ClusterFixupUploadBuffer;
 	FHeapBuffer				Hierarchy;
 	FHeapBuffer				ImposterData;
 	TRefCountPtr< FRDGPooledBuffer > StreamingRequestsBuffer;
@@ -265,8 +281,7 @@ private:
 
 	uint32 GPUPageIndexToGPUOffset(uint32 PageIndex) const;
 
-	// Returns whether any work was done and page/hierarchy buffers were transitioned to compute writable state
-	bool ProcessNewResources( FRDGBuilder& GraphBuilder);
+	void ProcessNewResources( FRDGBuilder& GraphBuilder);
 	
 	uint32 DetermineReadyPages();
 	void InstallReadyPages( uint32 NumReadyPages );

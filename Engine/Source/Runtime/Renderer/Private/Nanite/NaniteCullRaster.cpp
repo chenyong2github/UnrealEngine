@@ -362,7 +362,7 @@ class FInstanceCull_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FRasterParameters, RasterParameters )
 
-		SHADER_PARAMETER_SRV( ByteAddressBuffer, ImposterAtlas )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, ImposterAtlas )
 		
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FInstanceDraw >, InInstanceDraws )
 
@@ -492,8 +492,8 @@ class FNodeAndClusterCull_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE( FCullingParameters, CullingParameters )
 		SHADER_PARAMETER_STRUCT_INCLUDE( FGPUSceneParameters, GPUSceneParameters)
 
-		SHADER_PARAMETER_SRV( ByteAddressBuffer,				ClusterPageData )
-		SHADER_PARAMETER_SRV( ByteAddressBuffer,				HierarchyBuffer )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,				ClusterPageData )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,				HierarchyBuffer )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FUintVector2 >,		InTotalPrevDrawClusters )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >,						OffsetClustersArgsSWHW )
 
@@ -682,7 +682,7 @@ class FRasterBinBuild_CS : public FNaniteGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, InClusterOffsetSWHW)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
 
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
@@ -758,7 +758,7 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER( uint32,		VisualizeModeBitMask )
 	SHADER_PARAMETER( uint32,		ActiveRasterizerBin )
 
-	SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageData )
+	SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, ClusterPageData )
 	SHADER_PARAMETER_SRV( ByteAddressBuffer, MaterialSlotTable )
 
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -1350,7 +1350,7 @@ FCullingContext InitCullingContext(
 		CullingContext.ClusterClassifyArgs			= nullptr;
 	}
 
-	CullingContext.StreamingRequests = GraphBuilder.RegisterExternalBuffer(Nanite::GStreamingManager.GetStreamingRequestsBuffer());
+	CullingContext.StreamingRequests = Nanite::GStreamingManager.GetStreamingRequestsBuffer(GraphBuilder);
 	
 	if (CullingContext.Configuration.bSupportsMultiplePasses)
 	{
@@ -1535,8 +1535,8 @@ static void AddPass_NodeAndClusterCull(
 	PassParameters->CullingParameters		= CullingParameters;
 	PassParameters->MaxNodes				= Nanite::FGlobalResources::GetMaxNodes();
 		
-	PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
-	PassParameters->HierarchyBuffer			= Nanite::GStreamingManager.GetHierarchySRV();
+	PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
+	PassParameters->HierarchyBuffer			= Nanite::GStreamingManager.GetHierarchySRV(GraphBuilder);
 		
 	check(CullingContext.DrawPassIndex == 0 || CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA); // sanity check
 	if (CullingContext.RenderFlags & NANITE_RENDER_FLAG_HAS_PREV_DRAW_DATA)
@@ -1791,7 +1791,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 
 		PassParameters->OnlyCastShadowsPrimitives = RasterContext.RasterMode == EOutputBufferMode::DepthOnly ? 1 : 0;
 
-		PassParameters->ImposterAtlas = Nanite::GStreamingManager.GetImposterDataSRV();
+		PassParameters->ImposterAtlas = Nanite::GStreamingManager.GetImposterDataSRV(GraphBuilder);
 
 		PassParameters->OutQueueState						= GraphBuilder.CreateUAV( CullingContext.QueueState );
 		
@@ -1991,7 +1991,7 @@ static void AddPass_Binning(
 
 	PassParameters->GPUSceneParameters		= GPUSceneParameters;
 	PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
-	PassParameters->ClusterPageData			= GStreamingManager.GetClusterPageDataSRV();
+	PassParameters->ClusterPageData			= GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 	PassParameters->MaterialSlotTable		= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 	PassParameters->InClusterCountSWHW		= GraphBuilder.CreateSRV(ClusterCountSWHW);
 	PassParameters->InClusterOffsetSWHW		= GraphBuilder.CreateSRV(ClusterOffsetSWHW, PF_R32_UINT);
@@ -2425,7 +2425,7 @@ void AddPass_Rasterize(
 	}
 
 	RasterPassParameters->View = Scene.UniformBuffers.ViewUniformBuffer;
-	RasterPassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
+	RasterPassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 	RasterPassParameters->GPUSceneParameters = GPUSceneParameters;
 	RasterPassParameters->RasterParameters = RasterParameters;
 	RasterPassParameters->VisualizeModeBitMask = RasterContext.VisualizeModeBitMask;
@@ -2824,10 +2824,7 @@ void CullRasterize(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "Nanite::CullRasterize");
 
-	AddPassIfDebug(GraphBuilder, RDG_EVENT_NAME("CheckIsAsyncUpdateInProgress"), [](FRHICommandListImmediate&)
-	{
-		check(!Nanite::GStreamingManager.IsAsyncUpdateInProgress());
-	});
+	check(!Nanite::GStreamingManager.IsAsyncUpdateInProgress());
 
 	if (RasterContext.RasterScheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
 	{

@@ -15,7 +15,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteVisualizeLevelInstanceParameters, )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVisibleCluster>, VisibleClustersSWHW)
 	SHADER_PARAMETER(FIntVector4, PageConstants)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
@@ -31,7 +31,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteSelectionOutlineParameters, )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FVisibleCluster>, VisibleClustersSWHW)
 	SHADER_PARAMETER(FIntVector4, PageConstants)
-	SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageData )
+	SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, ClusterPageData )
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, VisBuffer64)
 

@@ -96,7 +96,7 @@ class FNaniteVisualizeCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(uint32, MaxVisibleClusters)
 		SHADER_PARAMETER(uint32, RenderFlags)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, DbgBuffer64)
@@ -122,7 +122,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER(FIntVector4, ViewRect)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, MaterialComplexity)
 		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialSlotTable)
@@ -158,7 +158,7 @@ public:
 		SHADER_PARAMETER(float, InvShaderBudget)
 		SHADER_PARAMETER(FVector3f, SelectionColor)
 		SHADER_PARAMETER(uint32, DebugViewMode)
-		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepth)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, MaterialResolve)
@@ -260,7 +260,7 @@ void AddVisualizationPasses(
 				PassParameters->View					= View.ViewUniformBuffer;
 				PassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 				PassParameters->PageConstants			= Data.PageConstants;
-				PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
+				PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 				PassParameters->VisBuffer64				= VisBuffer64;
 				PassParameters->MaterialSlotTable		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialSlotSRV();
 				PassParameters->MaterialDepthTable		= Scene->NaniteMaterials[ENaniteMeshPass::BasePass].GetMaterialDepthSRV();
@@ -334,7 +334,7 @@ void AddVisualizationPasses(
 				FNaniteVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteVisualizeCS::FParameters>();
 
 				PassParameters->View = View.ViewUniformBuffer;
-				PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
+				PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 				PassParameters->VisualizeConfig = GetVisualizeConfig(Visualization.ModeID, Visualization.bCompositeScene, GNaniteVisualizeEdgeDetect != 0);
 				PassParameters->VisualizeScales = GetVisualizeScales(Visualization.ModeID);
 				PassParameters->PageConstants = Data.PageConstants;
@@ -418,7 +418,7 @@ void DrawVisualization(
 		FNaniteVisualizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FNaniteVisualizeCS::FParameters>();
 
 		PassParameters->View					= View.ViewUniformBuffer;
-		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
+		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 		PassParameters->VisualizeConfig			= GetVisualizeConfig();
 		PassParameters->PageConstants			= RasterResults.PageConstants;
 		PassParameters->MaxVisibleClusters		= RasterResults.MaxVisibleClusters;
@@ -542,7 +542,7 @@ void RenderDebugViewMode(
 	PassParameters->InvShaderBudget = 1.0f / float(NaniteShaderBudget);
 	PassParameters->SelectionColor = FVector3f(SelectionColor.R, SelectionColor.G, SelectionColor.B);
 	PassParameters->DebugViewMode = uint32(DebugViewMode);
-	PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
+	PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 	PassParameters->VisBuffer64 = RasterResults.VisBuffer64;
 	PassParameters->SceneDepth = InputDepthTexture;
 	PassParameters->MaterialResolve = RasterResults.MaterialResolve;

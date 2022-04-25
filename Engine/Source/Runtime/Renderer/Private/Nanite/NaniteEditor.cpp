@@ -26,7 +26,7 @@ class FEmitHitProxyIdPS : public FNaniteGlobalShader
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
 		SHADER_PARAMETER(FIntVector4, PageConstants)
-		SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageData )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, ClusterPageData )
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 
@@ -121,7 +121,7 @@ void DrawHitProxies(
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 		PassParameters->PageConstants = RasterResults.PageConstants;
-		PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
+		PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 		PassParameters->VisBuffer64 = VisBuffer64;
 		PassParameters->MaterialHitProxyTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 
@@ -171,7 +171,7 @@ void GetEditorSelectionPassParameters(
 	OutPassParameters->VisibleClustersSWHW		= GraphBuilder.CreateSRV(VisibleClustersSWHW);
 	OutPassParameters->MaxVisibleClusters		= Nanite::FGlobalResources::GetMaxVisibleClusters();
 	OutPassParameters->PageConstants			= NaniteRasterResults->PageConstants;
-	OutPassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV();
+	OutPassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 	OutPassParameters->VisBuffer64				= VisBuffer64;
 	OutPassParameters->MaterialHitProxyTable	= Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
 	OutPassParameters->OutputToInputScale		= FScreenTransform::ChangeRectFromTo(ViewportRect, View.ViewRect).Scale;
@@ -240,7 +240,7 @@ void GetEditorVisualizeLevelInstancePassParameters(
 	OutPassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 	OutPassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 	OutPassParameters->PageConstants = NaniteRasterResults->PageConstants;
-	OutPassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
+	OutPassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 	OutPassParameters->MaterialResolve = NaniteRasterResults->MaterialResolve;
 	OutPassParameters->VisBuffer64 = VisBuffer64;
 	OutPassParameters->MaterialHitProxyTable = Scene.NaniteMaterials[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();

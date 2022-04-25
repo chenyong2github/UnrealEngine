@@ -250,7 +250,7 @@ class FCalculateClusterStatsCS : public FNaniteGlobalShader
 		SHADER_PARAMETER( uint32, MaxVisibleClusters )
 		SHADER_PARAMETER( uint32, RenderFlags )
 
-		SHADER_PARAMETER_SRV( ByteAddressBuffer,	ClusterPageData )
+		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,	ClusterPageData )
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer, VisibleClustersSWHW )
 		SHADER_PARAMETER_RDG_BUFFER_UAV( RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
@@ -458,7 +458,7 @@ void ExtractStats(
 			PassParameters->MaxVisibleClusters = Nanite::FGlobalResources::GetMaxVisibleClusters();
 			PassParameters->RenderFlags = CullingContext.RenderFlags;
 
-			PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV();
+			PassParameters->ClusterPageData = GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 			PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
 
