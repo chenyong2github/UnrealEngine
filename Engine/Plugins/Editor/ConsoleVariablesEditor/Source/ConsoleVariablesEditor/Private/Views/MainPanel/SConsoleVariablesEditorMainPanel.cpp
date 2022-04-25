@@ -12,9 +12,13 @@
 #include "Views/MainPanel/SConsoleVariablesEditorCustomConsoleInputBox.h"
 
 #include "ContentBrowserModule.h"
+#include "DetailsViewArgs.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IContentBrowserSingleton.h"
+#include "IDetailsView.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "SPositiveActionButton.h"
 #include "Styling/AppStyle.h"
 #include "Styling/StyleColors.h"
