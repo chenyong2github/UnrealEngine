@@ -242,9 +242,9 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		Ar << TempGuid;
 	}
 	
-	if ( Settings.ForceRecompressDDCUID != 0 )
+	if (Settings.CompressionCacheId.IsValid())
 	{
-		TempUint32 = Settings.ForceRecompressDDCUID; Ar << TempUint32;
+		TempGuid = Settings.CompressionCacheId; Ar << TempGuid;
 	}
 
 	// Note - compression quality is added to the DDC by the formats (based on whether they
@@ -754,7 +754,7 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.AlphaCoverageThresholds = FVector4f(0,0,0,0);
 	}
 
-	OutBuildSettings.ForceRecompressDDCUID = Texture.ForceRecompressDDCUID;
+	OutBuildSettings.CompressionCacheId = Texture.CompressionCacheId;
 	OutBuildSettings.bUseNewMipFilter = Texture.bUseNewMipFilter;
 	OutBuildSettings.bComputeBokehAlpha = (Texture.LODGroup == TEXTUREGROUP_Bokeh);
 	OutBuildSettings.bReplicateAlpha = false;

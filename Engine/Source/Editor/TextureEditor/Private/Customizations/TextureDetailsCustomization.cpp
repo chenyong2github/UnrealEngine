@@ -4,14 +4,12 @@
 #include "Misc/MessageDialog.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Engine/Texture.h"
-//#include "Engine/Texture2D.h"
 #include "Editor.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "IDetailPropertyRow.h"
 #include "DetailCategoryBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
-#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "FTextureDetails"
 
@@ -36,58 +34,9 @@ void FTextureDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	DetailBuilder.EditCategory("Adjustments");
 	DetailBuilder.EditCategory("File Path");
 
-	ForceRecompressDDCUIDPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UTexture, ForceRecompressDDCUID));
 	MaxTextureSizePropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UTexture, MaxTextureSize));
 	VirtualTextureStreamingPropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UTexture, VirtualTextureStreaming));
-		
-	if( ForceRecompressDDCUIDPropertyHandle->IsValidHandle() )
-	{
-		IDetailCategoryBuilder& CompressionCategory = DetailBuilder.EditCategory("Compression");
-		IDetailPropertyRow& ForceRecompressDDCUIDPropertyRow = CompressionCategory.AddProperty(GET_MEMBER_NAME_CHECKED(UTexture, ForceRecompressDDCUID));
-		TSharedPtr<SWidget> NameWidget;
-		TSharedPtr<SWidget> ValueWidget;
-		FDetailWidgetRow Row;
-		ForceRecompressDDCUIDPropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
 
-		const bool bShowChildren = true;
-		ForceRecompressDDCUIDPropertyRow.CustomWidget(bShowChildren)
-			.NameContent()
-			.MinDesiredWidth(Row.NameWidget.MinWidth)
-			.MaxDesiredWidth(Row.NameWidget.MaxWidth)
-			[
-				NameWidget.ToSharedRef()
-			]
-			.ValueContent()
-			.MinDesiredWidth(Row.ValueWidget.MinWidth)
-			.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
-			.VAlign(VAlign_Fill)
-			.HAlign(HAlign_Fill)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				[
-					ValueWidget.ToSharedRef()
-				]
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					SNew(SButton)
-					.OnClicked(this, &FTextureDetails::OnForceRecompressDDCUIDClicked)
-					.ContentPadding(FMargin(2))
-					.Content()
-					[
-						SNew(STextBlock)
-						.Justification(ETextJustify::Center)
-						.Font(IDetailLayoutBuilder::GetDetailFont())
-						.Text(LOCTEXT("ForceRecompressDDCUIDRandom", "Random"))
-						.ToolTipText(LOCTEXT("ForceRecompressDDCUIDRandomTooltip", "Generate a random UID"))
-					]
-				]
-			];
-	}
-	
 	// Customize MaxTextureSize
 	if( MaxTextureSizePropertyHandle->IsValidHandle() )
 	{
@@ -143,26 +92,6 @@ void FTextureDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			DetailBuilder.HideProperty(VirtualTextureStreamingPropertyHandle);
 		}
 	}
-}
-
-FReply FTextureDetails::OnForceRecompressDDCUIDClicked()
-{
-	UTexture* Texture = Cast<UTexture>(TextureBeingCustomized.Get());
-	if ( Texture == nullptr )
-	{
-		return FReply::Unhandled();
-	}
-
-	// get a good random value :
-	FGuid Guid = FGuid::NewGuid();
-	uint32 RandomValue = Guid.A ^ Guid.B ^ Guid.C ^ Guid.D;
-
-	// don't just store the value, call SetValue so you get PostEditChange, etc.
-	//Texture->ForceRecompressDDCUID = RandomValue;
-	check( ForceRecompressDDCUIDPropertyHandle );
-	ForceRecompressDDCUIDPropertyHandle->SetValue( RandomValue );
-
-	return FReply::Handled();
 }
 
 /** @return The value or unset if properties with multiple values are viewed */

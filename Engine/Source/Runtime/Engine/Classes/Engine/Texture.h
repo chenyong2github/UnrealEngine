@@ -1179,10 +1179,10 @@ public:
 	/** The compression quality for generated ASTC textures (i.e. mobile platform textures). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta = (DisplayName = "ASTC Compression Quality"), AdvancedDisplay)
 	TEnumAsByte<enum ETextureCompressionQuality> CompressionQuality;
-	
-	/** Increment ForceRecompressDDCUID to force recompression (change the DDC key) */
-	UPROPERTY(EditAnywhere, Category=Compression, meta=(DisplayName="Force Recompress UID"), AdvancedDisplay, meta=(NoResetToDefault))
-	uint32 ForceRecompressDDCUID;
+
+	/** Change this optional ID to force the texture to be recompressed by changing its cache key. */
+	UPROPERTY(EditAnywhere, Category=Compression, meta=(NoResetToDefault), meta=(DisplayName = "Compression Cache ID"), AdvancedDisplay)
+	FGuid CompressionCacheId;
 
 	/** Removed. */
 	UPROPERTY()

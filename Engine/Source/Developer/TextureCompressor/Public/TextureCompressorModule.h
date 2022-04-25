@@ -70,8 +70,8 @@ struct FColorAdjustmentParameters
  */
 struct FTextureBuildSettings
 {
-	/** Force recompress by changing DDC key */
-	uint32 ForceRecompressDDCUID;
+	/** An optional ID to change the cache key. */
+	FGuid CompressionCacheId;
 	/** Format specific config object view or null if no format specific config is applied as part of this build. */
 	FCbObjectView FormatConfigOverride;
 	/** Color adjustment parameters. */
@@ -217,8 +217,7 @@ struct FTextureBuildSettings
 
 	/** Default settings. */
 	FTextureBuildSettings()
-		: ForceRecompressDDCUID(0)
-		, bDoScaleMipsForAlphaCoverage(false)
+		: bDoScaleMipsForAlphaCoverage(false)
 		, AlphaCoverageThresholds(0, 0, 0, 0)
 		, bUseNewMipFilter(false)
 		, MipSharpening(0.0f)
