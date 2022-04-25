@@ -1874,8 +1874,6 @@ public:
 
 	bool bShadowDepthRenderCompleted;
 
-	bool bIsSceneTexturesInitialized = false;
-
 	/** Lights added if wholescenepointlight shadow would have been rendered (ignoring r.SupportPointLightWholeSceneShadows). Used for warning about unsupported features. */	
 	TArray<FString, SceneRenderingAllocator> UsedWholeScenePointLightNames;
 

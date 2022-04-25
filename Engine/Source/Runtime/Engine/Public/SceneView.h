@@ -1749,6 +1749,8 @@ public:
 	*/
 	bool bIsFirstViewInMultipleViewFamily = true;
 
+	bool bIsSceneTexturesInitialized = false;
+
 	/** 
 	 * Which component of the scene rendering should be output to the final render target.
 	 * If SCS_FinalColorLDR this indicates do nothing.
