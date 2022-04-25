@@ -119,12 +119,13 @@ public:
 		TMeshAABBTree3<MeshType> FlatSpatial(&UVSpaceMesh, true);
 
 		const int32 LinearImageSize = Tile.Num();
+		TexelInteriorSamples.Init(0, LinearImageSize);
+		TexelQueryUVChart.Init(IndexConstants::InvalidID, LinearImageSize);
+		
 		const int32 LinearSampleSize = Tile.Num() * PixelSampler.Num();
 		TexelType.Init(EmptyTexel, LinearSampleSize);
-		TexelInteriorSamples.Init(0, LinearImageSize);
 		TexelQueryUV.Init(FVector2f::Zero(), LinearSampleSize);
 		TexelQueryTriangle.Init(IndexConstants::InvalidID, LinearSampleSize);
-		TexelQueryUVChart.Init(IndexConstants::InvalidID, LinearImageSize);
 
 		const FVector2d TexelSize = Dimensions.GetTexelSize();
 		const double TexelDiag = TexelSize.Length();

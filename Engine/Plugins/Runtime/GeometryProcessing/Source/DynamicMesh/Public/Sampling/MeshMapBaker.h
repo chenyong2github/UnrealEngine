@@ -161,7 +161,7 @@ protected:
 	const bool bParallel = true;
 
 	FDynamicMesh3 FlatMesh;
-	TMeshSurfaceUVSampler<FMeshMapEvaluator::FCorrespondenceSample> DetailCorrespondenceSampler;
+	FMeshSurfaceUVSampler MeshUVSampler;
 
 	FImageDimensions Dimensions = FImageDimensions(128, 128);
 

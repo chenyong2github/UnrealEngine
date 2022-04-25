@@ -112,6 +112,11 @@ public:
 		TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction,
 		FSceneSample& DefaultsInResultsOut) const;
 
+	bool IsValidSample(
+		const FVector3d& Position,
+		const FVector3d& Normal,
+		TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction) const;
+
 
 	const FSpatialPhotoSet3f& GetBaseColorPhotoSet() { return BaseColorPhotoSet; }
 	const FSpatialPhotoSet1f& GetRoughnessPhotoSet() { return RoughnessPhotoSet; }

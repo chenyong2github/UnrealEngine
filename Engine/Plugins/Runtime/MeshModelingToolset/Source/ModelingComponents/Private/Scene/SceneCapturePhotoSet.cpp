@@ -326,6 +326,14 @@ bool FSceneCapturePhotoSet::ComputeSample(
 	return true;
 }
 
+bool FSceneCapturePhotoSet::IsValidSample(
+	const FVector3d& Position,
+	const FVector3d& Normal,
+	TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction) const
+{
+	return BaseColorPhotoSet.IsValidSample(Position, Normal, VisibilityFunction);
+}
+
 void FSceneCapturePhotoSet::SetEnableWriteDebugImages(bool bEnable, FString FolderName)
 {
 	bWriteDebugImages = bEnable;

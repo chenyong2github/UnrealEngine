@@ -177,9 +177,10 @@ void FMeshMapBaker::Bake()
 		UseStrategy = ECorrespondenceStrategy::NearestPoint;
 	}
 
-	// This sampler finds the correspondence between target surface and detail surface.
-	DetailCorrespondenceSampler.Initialize(Mesh, UVOverlay, EMeshSurfaceSamplerQueryType::TriangleAndUV, FMeshMapEvaluator::FCorrespondenceSample(),
-		[Mesh, NormalOverlay, UseStrategy, this](const FMeshUVSampleInfo& SampleInfo, FMeshMapEvaluator::FCorrespondenceSample& ValueOut)
+	// Computes the correspondence sample assuming the SampleInfo is valid
+	// Returns true if the correspondence is valid and false otherwise
+	auto ComputeCorrespondenceSample
+		= [Mesh, NormalOverlay, UseStrategy, this](const FMeshUVSampleInfo& SampleInfo, FMeshMapEvaluator::FCorrespondenceSample& ValueOut)
 	{
 		NormalOverlay->GetTriBaryInterpolate<double>(SampleInfo.TriangleIndex, &SampleInfo.BaryCoords.X, &ValueOut.BaseNormal.X);
 		Normalize(ValueOut.BaseNormal);
@@ -199,6 +200,11 @@ void FMeshMapBaker::Bake()
 			ValueOut.DetailMesh = GetDetailMeshTrianglePoint_Nearest(DetailSampler, SampleInfo.SurfacePoint,
 				ValueOut.DetailTriID, ValueOut.DetailBaryCoords);
 		}
+		else if (UseStrategy == ECorrespondenceStrategy::Custom && DetailSampler->SupportsCustomCorrespondence())
+		{
+			ValueOut.DetailMesh = DetailSampler->ComputeCustomCorrespondence(SampleInfo, ValueOut);
+			check(false); // @Incomplete
+		}
 		else	// Fall back to raycast strategy
 		{
 			checkSlow(DetailSampler->SupportsRaycastCorrespondence());
@@ -211,7 +217,18 @@ void FMeshMapBaker::Bake()
 				ValueOut.DetailTriID, ValueOut.DetailBaryCoords, SampleThickness,
 				(UseStrategy == ECorrespondenceStrategy::RaycastStandardThenNearest));
 		}
-	});
+
+		if (ValueOut.DetailMesh && DetailSampler->IsTriangle(ValueOut.DetailMesh, ValueOut.DetailTriID))
+		{
+			return DetailSampler->IsValidCorrespondence(ValueOut);
+		}
+
+		return false;
+	};
+
+	// This computes a FMeshUVSampleInfo to pass to the ComputeCorrespondenceSample function, which will find the
+	// correspondence between the target surface and detail surface.
+	MeshUVSampler.Initialize(Mesh, UVOverlay, EMeshSurfaceSamplerQueryType::TriangleAndUV);
 
 	// Create a temporary output float buffer for the full image dimensions.
 	const FImageTile FullImageTile(FVector2i(0,0), FVector2i(Dimensions.GetWidth(), Dimensions.GetHeight()));
@@ -275,7 +292,7 @@ void FMeshMapBaker::Bake()
 		}
 	};
 
-	auto WriteQueuedOutput = [this, &WriteToOutputBuffer](FMeshMapBakerQueue& Queue)
+	auto WriteToOutputBufferQueued = [this, &WriteToOutputBuffer](FMeshMapBakerQueue& Queue)
 	{
 		constexpr auto AddFn = [](const float& In, float& Out)
 		{
@@ -297,7 +314,7 @@ void FMeshMapBaker::Bake()
 	};
 
 	FMeshMapBakerQueue OutputQueue(NumTiles);
-	ParallelFor(NumTiles, [this, &Tiles, &GutterTexelsPerTile, &OutputQueue, &WriteToOutputBuffer, &WriteQueuedOutput](int32 TileIdx)
+	ParallelFor(NumTiles, [this, &Tiles, &GutterTexelsPerTile, &OutputQueue, &WriteToOutputBuffer, &WriteToOutputBufferQueued, &ComputeCorrespondenceSample](int32 TileIdx)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMapBaker::Bake_EvalTile);
 
@@ -350,6 +367,7 @@ void FMeshMapBaker::Bake()
 						continue;
 					}
 
+					// Iterate over all the samples in the pixel
 					for (int32 SampleIdx = 0; SampleIdx < NumSamples; ++SampleIdx)
 					{
 						const int64 LinearIdx = OccupancyMapLinearIdx * NumSamples + SampleIdx;
@@ -358,11 +376,22 @@ void FMeshMapBaker::Bake()
 							const FVector2d UVPosition = (FVector2d)OccupancyMap.TexelQueryUV[LinearIdx];
 							const int32 UVTriangleID = OccupancyMap.TexelQueryTriangle[LinearIdx];
 
-							FMeshMapEvaluator::FCorrespondenceSample Sample;
-							DetailCorrespondenceSampler.SampleUV(UVTriangleID, UVPosition, Sample);
-							if (Sample.DetailMesh && DetailSampler->IsTriangle(Sample.DetailMesh, Sample.DetailTriID))
+							// Compute the per-sample correspondence data
+							bool bValidSample = false;
+							FMeshUVSampleInfo SampleInfo;
+							if (MeshUVSampler.QuerySampleInfo(UVTriangleID, UVPosition, SampleInfo))
 							{
-								BakeSample(*TileBuffer, Sample, UVPosition, ImageCoords, OccupancyMap);
+								FMeshMapEvaluator::FCorrespondenceSample Sample;
+								if (ComputeCorrespondenceSample(SampleInfo, Sample))
+								{
+									BakeSample(*TileBuffer, Sample, UVPosition, ImageCoords, OccupancyMap);
+									bValidSample = true;
+								}
+							}
+
+							if (bValidSample == false)
+							{
+								// RecordInvalidSample(Sample, UVPosition, ImageCoords); // TODO
 							}
 						}
 					}
@@ -384,7 +413,7 @@ void FMeshMapBaker::Bake()
 
 		// Accumulate 'Add' float data to image tile buffer
 		OutputQueue.Post(TileIdx, TileBuffer);
-		WriteQueuedOutput(OutputQueue);
+		WriteToOutputBufferQueued(OutputQueue);
 	}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
 
 	if (CancelF())
@@ -407,7 +436,7 @@ void FMeshMapBaker::Bake()
 		// The queue only acquires the process lock if the next item in the queue
 		// is ready. This could mean that there are potential leftovers in the queue
 		// after the parallel for. Write them out now.
-		WriteQueuedOutput(OutputQueue);
+		WriteToOutputBufferQueued(OutputQueue);
 	}
 	
 	if (CancelF())
@@ -515,6 +544,7 @@ void FMeshMapBaker::Bake()
 	}
 }
 
+// Precondition: Must be passed a valid Sample
 void FMeshMapBaker::BakeSample(
 	FMeshMapTileBuffer& TileBuffer,
 	const FMeshMapEvaluator::FCorrespondenceSample& Sample,
@@ -555,20 +585,25 @@ void FMeshMapBaker::BakeSample(
 			const int64 OccupancyMapFilterIdx = OccupancyMap.Tile.GetIndexFromSourceCoords(SourceCoords);
 			const int32 BufferTilePixelUVChart = OccupancyMap.TexelQueryUVChart[OccupancyMapFilterIdx];
 
+			// Get the weight and value buffers for this pixel
 			const int64 BufferTilePixelLinearIdx = Tile.GetIndexFromSourceCoords(SourceCoords);
 			float* PixelBuffer = TileBuffer.GetPixel(BufferTilePixelLinearIdx);
 			float& PixelWeight = TileBuffer.GetPixelWeight(BufferTilePixelLinearIdx);
 
-			// Apply filter using double linear weighting (once per axis)
-			FVector2d TexelDistance = Dimensions.GetTexelUV(SourceCoords) - UVPosition;
-			TexelDistance.X *= Dimensions.GetWidth();
-			TexelDistance.Y *= Dimensions.GetHeight();
+			// Compute the filter weight based on the UV distance from the pixel center to the sample position
+			// Note: There will be no contribution if the sample and pixel are on different UV charts
+			float FilterWeight = Weight * static_cast<float>(SampleUVChart == BufferTilePixelUVChart);
+			{
+				FVector2d TexelDistance = Dimensions.GetTexelUV(SourceCoords) - UVPosition;
+				TexelDistance.X *= Dimensions.GetWidth();
+				TexelDistance.Y *= Dimensions.GetHeight();
+				FilterWeight *= TextureFilterEval(TexelDistance);
+			}
 
-			float FilterWeight = TextureFilterEval(TexelDistance);
-			FilterWeight *= (SampleUVChart == BufferTilePixelUVChart); // Zero the contribution if the sample and pixel are on different UV charts
-			FilterWeight *= Weight;
+			// Update the weight of this pixel
 			PixelWeight += FilterWeight;
 
+			// Update the value of this pixel for each evaluator
 			for (const int32 Idx : EvaluatorIds)
 			{
 				const FMeshMapEvaluator::FEvaluationContext& Context = BakeContexts[Idx];

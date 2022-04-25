@@ -172,11 +172,9 @@ public:
 	// Material Baking Settings
 	//
 
-	/** If Value is > 1, Multisample output baked textures by this amount in each direction (eg 4 == 16x supersampling).
-	 *  WIP feature currently disabled
-	 */
-	UPROPERTY(EditAnywhere, Category = MaterialSettings, meta = (ClampMin = "0", ClampMax = "8", UIMin = "0", UIMax = "4", EditCondition="false"))
-	int32 MultiSamplingAA = 0;
+	/** Number of samples per pixel */
+	UPROPERTY(EditAnywhere, Category = MaterialSettings)
+	EBakeTextureSamplesPerPixel SamplesPerPixel = EBakeTextureSamplesPerPixel::Sample1;
 
 	/** If Value is zero, use MaterialSettings resolution, otherwise override the render capture resolution */
 	UPROPERTY(EditAnywhere, Category = MaterialSettings, meta = (ClampMin = "0"))

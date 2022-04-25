@@ -9,6 +9,7 @@
 #include "Image/ImageTile.h"
 #include "Image/ImageBuilder.h"
 #include "MeshCurvature.h"
+#include "MeshMapEvaluator.h"
 
 
 namespace UE
@@ -146,6 +147,22 @@ public:
 
 	/** @return true if triangle ray intersection correspondence is supported */
 	virtual bool SupportsRaycastCorrespondence() const = 0;
+
+	/** @return true if a user-defined correspondence test is supported */
+	virtual bool SupportsCustomCorrespondence() const
+	{
+		return false;
+	}
+
+	virtual void* ComputeCustomCorrespondence(const FMeshUVSampleInfo& SampleInfo, FMeshMapEvaluator::FCorrespondenceSample& ValueOut) const
+	{
+		return nullptr;
+	}
+
+	virtual bool IsValidCorrespondence(const FMeshMapEvaluator::FCorrespondenceSample& CorrespondenceSample) const
+	{
+		return true;
+	}
 
 	/**
 	 * @param Point query point

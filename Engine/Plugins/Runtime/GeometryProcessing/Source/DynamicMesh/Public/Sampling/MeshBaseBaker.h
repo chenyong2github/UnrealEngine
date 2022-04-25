@@ -34,7 +34,9 @@ public:
 		/** Use RaycastStandard but fall back to NearestPoint if none of the rays hit */
 		RaycastStandardThenNearest,
 		/** Assume that BakeTarget == DetailMesh and so no mapping is necessary */
-		Identity
+		Identity,
+		/** Use user-defined strategy for finding correspondence */
+		Custom
 	};
 
 	// Setters

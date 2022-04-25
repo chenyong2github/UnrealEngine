@@ -81,6 +81,12 @@ public:
 		const PixelType& DefaultValue
 	) const;
 
+	bool IsValidSample(
+		const FVector3d& Position, 
+		const FVector3d& Normal, 
+		TFunctionRef<bool(const FVector3d&,const FVector3d&)> VisibilityFunction
+	) const;
+
 protected:
 	TArray<TSharedPtr<TSpatialPhoto<PixelType>, ESPMode::ThreadSafe>> Photos;
 };
@@ -151,6 +157,63 @@ PixelType TSpatialPhotoSet<PixelType, RealType>::ComputeSample(
 	}
 
 	return BestSample;
+}
+
+
+// TODO Consider refactoring this to deduplicate code from ComputeSample, or not, since this is called in a tight inner loop
+template<typename PixelType, typename RealType>
+bool TSpatialPhotoSet<PixelType, RealType>::IsValidSample(
+	const FVector3d& Position, 
+	const FVector3d& Normal, 
+	TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction) const
+{
+	double DotTolerance = -0.1;		// dot should be negative for normal pointing towards photo
+
+	double MinDot = 1.0;
+
+	int32 NumPhotos = Num();
+	for (int32 pi = 0; pi < NumPhotos; ++pi)
+	{
+		const TSpatialPhoto<PixelType>& Photo = *Photos[pi];
+		check(Photo.Dimensions.IsSquare());
+
+		FVector3d ViewDirection = Photo.Frame.X();
+		double ViewDot = ViewDirection.Dot(Normal);
+		if (ViewDot > DotTolerance || ViewDot > MinDot)
+		{
+			continue;
+		}
+
+		FFrame3d ViewPlane = Photo.Frame;
+		ViewPlane.Origin += Photo.NearPlaneDist * ViewDirection;
+
+		double ViewPlaneWidthWorld = Photo.NearPlaneDist * FMathd::Tan(Photo.HorzFOVDegrees * 0.5 * FMathd::DegToRad);
+		double ViewPlaneHeightWorld = ViewPlaneWidthWorld;
+
+		FVector3d RayOrigin = Photo.Frame.Origin;
+		FVector3d RayDir = Normalized(Position - RayOrigin);
+		FVector3d HitPoint;
+		bool bHit = ViewPlane.RayPlaneIntersection(RayOrigin, RayDir, 0, HitPoint);
+		if (bHit)
+		{
+			bool bVisible = VisibilityFunction(Position, HitPoint);
+			if ( bVisible )
+			{
+				double PlaneX = (HitPoint - ViewPlane.Origin).Dot(ViewPlane.Y());
+				double PlaneY = (HitPoint - ViewPlane.Origin).Dot(ViewPlane.Z());
+
+				//FVector2d PlanePos = ViewPlane.ToPlaneUV(HitPoint, 0);
+				double u = PlaneX / ViewPlaneWidthWorld;
+				double v = -(PlaneY / ViewPlaneHeightWorld);
+				if (FMathd::Abs(u) < 1 && FMathd::Abs(v) < 1)
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
 }
 
 

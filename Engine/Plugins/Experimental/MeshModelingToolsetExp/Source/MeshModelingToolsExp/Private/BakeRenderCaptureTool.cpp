@@ -28,6 +28,36 @@ using namespace UE::Geometry;
 // Implementation details
 //
 
+
+
+// TODO Reimplement this when the render capture algorithm is refactored to decouple the visibility checking from the evaluation
+class FSceneCapturePhotoSetSampler : public FMeshBakerDynamicMeshSampler
+{
+public:
+	FSceneCapturePhotoSetSampler(
+		const FSceneCapturePhotoSet* SceneCapture,
+		TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction,
+		const FDynamicMesh3* Mesh,
+		const FDynamicMeshAABBTree3* Spatial,
+		const FMeshTangentsd* Tangents = nullptr) :
+		FMeshBakerDynamicMeshSampler(Mesh, Spatial, Tangents),
+		SceneCapture(SceneCapture),
+		VisibilityFunction(VisibilityFunction)
+	{
+	}
+
+	virtual bool IsValidCorrespondence(const FMeshMapEvaluator::FCorrespondenceSample& Sample) const override
+	{
+		return SceneCapture->IsValidSample(Sample.BaseSample.SurfacePoint, Sample.BaseNormal, VisibilityFunction);
+	}
+
+public:
+	const FSceneCapturePhotoSet* SceneCapture = nullptr;
+	TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction;
+};
+
+
+
 static FName BaseColorTexParamName = FName("BaseColor");
 static FName RoughnessTexParamName = FName("Roughness");
 static FName MetallicTexParamName = FName("Metallic");
@@ -77,8 +107,7 @@ public:
 		// output texture options
 		int32 TextureImageSize = 1024;
 
-		// supersampling parameter
-		int32 AntiAliasMultiSampling = 0;
+		EBakeTextureSamplesPerPixel SamplesPerPixel = EBakeTextureSamplesPerPixel::Sample1;
 
 		//
 		// Mesh settings
@@ -115,7 +144,7 @@ public:
 		Options.bUsePackedMRS = UseSettings.MaterialSettings.bPackedMRSMap;
 
 		Options.TextureImageSize = UseSettings.MaterialSettings.TextureSize;
-		Options.AntiAliasMultiSampling = FMath::Max(1, UseSettings.MultiSamplingAA);
+		Options.SamplesPerPixel = UseSettings.SamplesPerPixel;
 
 		return Options;
 	}
@@ -174,33 +203,36 @@ static void ImageBuildersFromPhotoSet(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ImageBuildersFromPhotoSet);
 
-	FDynamicMeshAABBTree3 Spatial(BaseMesh, true);
+	FDynamicMeshAABBTree3 BaseMeshSpatial(BaseMesh, true);
 
 	double RayOffsetHackDist = (double)(100.0f * FMathf::ZeroTolerance * BaseMesh->GetBounds().MinDim() );
-	auto VisibilityFunction = [&Spatial, RayOffsetHackDist](const FVector3d& SurfPos, const FVector3d& ImagePosWorld)
+	auto VisibilityFunction = [&BaseMeshSpatial, RayOffsetHackDist](const FVector3d& SurfPos, const FVector3d& ImagePosWorld)
 	{
 		FVector3d RayDir = ImagePosWorld - SurfPos;
 		double Dist = Normalize(RayDir);
 		FVector3d RayOrigin = SurfPos + RayOffsetHackDist * RayDir;
-		int32 HitTID = Spatial.FindNearestHitTriangle(FRay3d(RayOrigin, RayDir), IMeshSpatial::FQueryOptions(Dist));
+		int32 HitTID = BaseMeshSpatial.FindNearestHitTriangle(FRay3d(RayOrigin, RayDir), IMeshSpatial::FQueryOptions(Dist));
 		return (HitTID == IndexConstants::InvalidID);
 	};
 
 	FMeshMapBaker Baker;
-	FMeshBakerDynamicMeshSampler Sampler(BaseMesh, &Spatial, BaseMeshTangents.Get());
-	Baker.SetDetailSampler(&Sampler);
 	Baker.SetTargetMesh(BaseMesh);
 	Baker.SetTargetMeshTangents(BaseMeshTangents);
 	Baker.SetDimensions(FImageDimensions(Options.TextureImageSize, Options.TextureImageSize));
-	Baker.SetSamplesPerPixel(1); // TODO Support multisampling (must work with infill)
-	Baker.SetFilter(FMeshMapBaker::EBakeFilterType::None); // TODO Support texture filtering (must work with infill)
+	Baker.SetSamplesPerPixel(static_cast<int32>(Options.SamplesPerPixel));
+	Baker.SetFilter(FMeshMapBaker::EBakeFilterType::BSpline);
 	Baker.SetTargetMeshUVLayer(Options.TargetUVLayer);
+
+	FSceneCapturePhotoSetSampler Sampler(SceneCapture, VisibilityFunction, BaseMesh, &BaseMeshSpatial, BaseMeshTangents.Get());
+	Baker.SetDetailSampler(&Sampler);
 	Baker.SetCorrespondenceStrategy(FMeshMapBaker::ECorrespondenceStrategy::Identity);
 
 	TMap<ERenderCaptureType, int32> CaptureTypeToEvaluatorIndexMap;
 
-	FVector4f InvalidColor(0, -1, 0, 1);
-	FVector3f DefaultNormal = FVector3f::UnitZ();
+	// Pixels in the output textures which don't map onto the mesh have a light grey color (except the normal map which
+	// will show a color corresponding to a unit z tangent space normal)
+	const FVector4f InvalidColor(.42, .42, .42, 1);
+	const FVector3f DefaultNormal = FVector3f::UnitZ();
 
 	FSceneCapturePhotoSet::FSceneSample DefaultColorSample;
 	DefaultColorSample.BaseColor = FVector3f(InvalidColor.X, InvalidColor.Y, InvalidColor.Z);
@@ -313,11 +345,13 @@ static void ImageBuildersFromPhotoSet(
 		}
 	}
 
+	// TODO Remove the FMeshImageBakingCache and reimplement infill to work with the new baking framework
+
 	FMeshImageBakingCache TempBakeCache;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ImageBuildersFromPhotoSet_MakeMeshImageBakingCache);
 
-		TempBakeCache.SetDetailMesh(BaseMesh, &Spatial);
+		TempBakeCache.SetDetailMesh(BaseMesh, &BaseMeshSpatial);
 		TempBakeCache.SetBakeTargetMesh(BaseMesh);
 		TempBakeCache.SetDimensions(FImageDimensions(Options.TextureImageSize, Options.TextureImageSize));
 		TempBakeCache.SetUVLayer(Options.TargetUVLayer);
@@ -500,7 +534,7 @@ void UBakeRenderCaptureTool::Setup()
 
 	Settings->MapPreview = BaseColorTexParamName.ToString(); // We always bake the base color
 	Settings->WatchProperty(Settings->MapPreview, [this](FString) { UpdateVisualization(); GetToolManager()->PostInvalidation(); });
-	Settings->WatchProperty(Settings->MultiSamplingAA, [this](int32) { OpState |= EBakeOpState::Evaluate; });
+	Settings->WatchProperty(Settings->SamplesPerPixel, [this](EBakeTextureSamplesPerPixel) { OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->RenderCaptureResolution, [this](int32) {  OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->MaterialSettings, [this](FMaterialProxySettingsRC) { OpState |= EBakeOpState::Evaluate; });
 	Settings->WatchProperty(Settings->CaptureFieldOfView, [this](float) { OpState |= EBakeOpState::Evaluate; });

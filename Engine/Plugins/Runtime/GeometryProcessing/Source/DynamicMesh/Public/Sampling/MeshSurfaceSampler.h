@@ -102,7 +102,7 @@ struct FMeshUVSampleInfo
 };
 
 
-/** Types of query that TMeshSurfaceUVSampler supports */
+/** Types of query that FMeshSurfaceUVSampler/TMeshSurfaceUVSampler supports */
 enum class EMeshSurfaceSamplerQueryType
 {
 	/** Query with arbitrary UV value */
@@ -113,6 +113,57 @@ enum class EMeshSurfaceSamplerQueryType
 
 
 /**
+ * FMeshSurfaceUVSampler computes FMeshUVSampleInfo's on a given mesh at given UV-space positions, this info can then
+ * be used by an external function to compute some application-specific sample.
+ *
+ * Note: This class is similar to TMeshSurfaceUVSampler (the "old" class) but provides a more convenient API. This class
+ * computes the sample info and that's it. The old class computes the sample info internally but also immediately
+ * forwards it to an application-specific sampling function which must be provided as a callback and hence has a fixed
+ * signature and requires that the sample type is passed as a template parameter. Also the old class is more awkward to
+ * use when sampling multiple things, see the documentation of TMeshSurfaceUVSampler for more details.
+ */
+class FMeshSurfaceUVSampler
+{
+public:
+	virtual ~FMeshSurfaceUVSampler() {}
+
+	/**
+	 * Initialize the sampler.
+	 * @param Mesh      Mesh to sample
+	 * @param UVOverlay UV overlay of Mesh
+	 * @param QueryType Type of query functions we will call. Some queries are simpler and do not require spatial data structures
+	 */
+	virtual void Initialize(const FDynamicMesh3* Mesh, const FDynamicMeshUVOverlay* UVOverlay, EMeshSurfaceSamplerQueryType QueryType);
+
+	/**
+	 * Fill in the given SampleInfo for the given UV location.
+	 * @pre The Initialize function must have been called with EMeshSurfaceSamplerQueryType::UVOnly
+	 * @return If the query location is not on a triangle in the Mesh then return false (SampleInfo will be invalid)
+	 */
+	virtual bool QuerySampleInfo(const FVector2d& UV, FMeshUVSampleInfo& SampleInfo);
+
+	/**
+	 * Fill in the given SampleInfo for the given UV location in the given UVTriangleID.
+	 * @return If the query location is not on a triangle in the Mesh then return false (SampleInfo will be invalid)
+	 */
+	virtual bool QuerySampleInfo(int32 UVTriangleID, const FVector2d& UV, FMeshUVSampleInfo& SampleInfo);
+
+protected:
+
+	const FDynamicMesh3* Mesh = nullptr;
+	const FDynamicMeshUVOverlay* UVOverlay = nullptr;
+	EMeshSurfaceSamplerQueryType QueryType = EMeshSurfaceSamplerQueryType::TriangleAndUV;
+
+	// BV tree for finding triangle for a given UV. Not always initialized.
+	FDynamicMeshUVMesh UVMeshAdapter;
+	TMeshAABBTree3<FDynamicMeshUVMesh> UVMeshSpatial;
+	bool bUVMeshSpatialInitialized = false;
+	void InitializeUVMeshSpatial();
+};
+
+/**
+ * Consider using FMeshSurfaceUVSampler instead, it is more flexible and easier to understand!
+ *
  * TMeshSurfaceUVSampler computes point samples of the given SampleType at positions on the mesh
  * based on UV-space positions. The standard use case for this class is to compute samples used
  * in building Normal Maps, AO Maps, etc.
