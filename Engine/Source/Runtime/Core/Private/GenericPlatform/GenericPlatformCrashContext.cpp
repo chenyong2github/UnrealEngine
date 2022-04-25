@@ -1219,6 +1219,18 @@ void FGenericCrashContext::CapturePortableCallStack(void* ErrorProgramCounter, v
 	SetPortableCallStack(StackTraceCursor, StackTraceDepth);
 }
 
+void FGenericCrashContext::CaptureThreadPortableCallStack(const uint64 ThreadId, void* Context)
+{
+	// Capture the stack trace
+	static const int StackTraceMaxDepth = 100;
+	uint64 StackTrace[StackTraceMaxDepth];
+	FMemory::Memzero(StackTrace);
+	int32 StackTraceDepth = FPlatformStackWalk::CaptureThreadStackBackTrace(ThreadId, StackTrace, StackTraceMaxDepth, Context);
+
+	// Generate the portable callstack from it
+	SetPortableCallStack(StackTrace, StackTraceDepth);
+}
+
 void FGenericCrashContext::CapturePortableCallStack(int32 NumStackFramesToIgnore, void* Context)
 {
 	CapturePortableCallStack(nullptr, Context);

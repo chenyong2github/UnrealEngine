@@ -473,11 +473,18 @@ public:
 	void SetNumMinidumpFramesToIgnore(int32 InNumMinidumpFramesToIgnore);
 
 	/**
-	 * Generate raw call stack for crash report (image base + offset)
+	 * Generate raw call stack for crash report (image base + offset) for the calling thread
 	 * @param ErrorProgramCounter The program counter of where the occur occurred in the callstack being captured
 	 * @param Context Optional thread context information
 	 */
 	void CapturePortableCallStack(void* ErrorProgramCounter, void* Context);
+
+	/**
+	 * Generate raw call stack for crash report (image base + offset) for a different thread
+	 * @param InThreadId The thread id of the thread to capture the callstack for
+	 * @param Context Optional thread context information
+	 */
+	void CaptureThreadPortableCallStack(const uint64 ThreadId, void* Context);
 
 	UE_DEPRECATED(5.0, "")
 	void CapturePortableCallStack(int32 NumStackFramesToIgnore, void* Context);

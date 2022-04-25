@@ -531,8 +531,12 @@ bool FUnixPlatformStackWalk::ProgramCounterToHumanReadableString( int32 CurrentC
 			// Get filename, source file and line number
 			FUnixCrashContext* UnixContext = static_cast< FUnixCrashContext* >( Context );
 
-			// for ensure, use the fast path - do not even attempt to get detailed info as it will result in long hitch
-			bool bAddDetailedInfo = UnixContext ? UnixContext->GetType() != ECrashContextType::Ensure : false;
+			// do not even attempt to get detailed info for continuable events (like ensure) as it will result in long hitch, use the fast path
+			bool bAddDetailedInfo = false;
+			if (UnixContext)
+			{
+				bAddDetailedInfo = !FPlatformCrashContext::IsTypeContinuable(UnixContext->GetType());
+			}
 
 			// Program counters in the backtrace point to the location from where the execution will be resumed (in all frames except the one where we crashed),
 			// which results in callstack pointing to the next lines in code. In order to determine the source line where the actual call happened, we need to go
@@ -944,44 +948,67 @@ void ReportGPUCrash(const TCHAR* ErrorMessage, void* ProgramCounter)
 	FPlatformMisc::RaiseException(1);
 }
 
-static FCriticalSection EnsureLock;
+static FCriticalSection ReportLock;
 static bool bReentranceGuard = false;
 
 void ReportEnsure(const TCHAR* ErrorMessage, void* ProgramCounter)
 {
 	// Simple re-entrance guard.
-	EnsureLock.Lock();
+	ReportLock.Lock();
 
 	if (bReentranceGuard)
 	{
-		EnsureLock.Unlock();
+		ReportLock.Unlock();
 		return;
 	}
 
 	bReentranceGuard = true;
 
 	FUnixCrashContext EnsureContext(ECrashContextType::Ensure, ErrorMessage);
-	EnsureContext.InitFromEnsureHandler(ErrorMessage, ProgramCounter);
+	EnsureContext.InitFromDiagnostics(ProgramCounter);
 
 	EnsureContext.CaptureStackTrace(ProgramCounter);
-	EnsureContext.GenerateCrashInfoAndLaunchReporter(true);
+	EnsureContext.GenerateCrashInfoAndLaunchReporter();
 
 	bReentranceGuard = false;
-	EnsureLock.Unlock();
+	ReportLock.Unlock();
+}
+
+void ReportStall(const TCHAR* Message, uint32 ThreadId)
+{
+	// Simple re-entrance guard.
+	ReportLock.Lock();
+
+	if (bReentranceGuard)
+	{
+		ReportLock.Unlock();
+		return;
+	}
+
+	bReentranceGuard = true;
+
+	FUnixCrashContext StallContext(ECrashContextType::Stall, Message);
+	StallContext.InitFromDiagnostics();
+
+	StallContext.CaptureThreadStackTrace(ThreadId);
+	StallContext.GenerateCrashInfoAndLaunchReporter();
+
+	bReentranceGuard = false;
+	ReportLock.Unlock();
 }
 
 void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumStackFrames, uint32 HungThreadId)
 {
-	EnsureLock.Lock();
+	ReportLock.Lock();
 	if (!bReentranceGuard)
 	{
 		bReentranceGuard = true;
 
-		FUnixCrashContext EnsureContext(ECrashContextType::Hang, ErrorMessage);
-		EnsureContext.SetPortableCallStack(StackFrames, NumStackFrames);
-		EnsureContext.GenerateCrashInfoAndLaunchReporter(true);
+		FUnixCrashContext HangContext(ECrashContextType::Hang, ErrorMessage);
+		HangContext.SetPortableCallStack(StackFrames, NumStackFrames);
+		HangContext.GenerateCrashInfoAndLaunchReporter();
 
 		bReentranceGuard = false;
 	}
-	EnsureLock.Unlock();
+	ReportLock.Unlock();
 }

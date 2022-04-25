@@ -21,10 +21,6 @@ TRACE_DECLARE_FLOAT_COUNTER(StallTimeSeconds, TEXT("StallDetector/TimeSeconds"))
 // use the heart beat clock to account for process suspend
 #define STALL_DETECTOR_HEART_BEAT_CLOCK 1
 
-#if STALL_DETECTOR_DEBUG && _MSC_VER
-#pragma optimize( "", off )
-#endif // STALL_DETECTOR_DEBUG && _MSC_VER
-
 #if STALL_DETECTOR_HEART_BEAT_CLOCK
  #include "HAL/ThreadHeartBeat.h"
 #endif // STALL_DETECTOR_HEART_BEAT_CLOCK

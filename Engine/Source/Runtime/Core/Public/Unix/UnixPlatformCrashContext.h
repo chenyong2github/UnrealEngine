@@ -45,8 +45,8 @@ struct CORE_API FUnixCrashContext : public FGenericCrashContext
 	/** Memory reserved for minidump-style callstack info */
 	char MinidumpCallstackInfo[16384];
 
-	/** Fake siginfo used when handling ensure()s */
-	static __thread siginfo_t	FakeSiginfoForEnsures;
+	/** Fake siginfo used when handling ensure(), etc */
+	static __thread siginfo_t	FakeSiginfoForDiagnostics;
 
 	/** The PC of the first function used when handling a crash. Used to figure out the number of frames to ignore */
 	uint64* FirstCrashHandlerFrame = nullptr;
@@ -79,27 +79,31 @@ struct CORE_API FUnixCrashContext : public FGenericCrashContext
 	void InitFromSignal(int32 InSignal, siginfo_t* InInfo, void* InContext);
 
 	/**
-	 * Inits the crash context from ensure handler
+	 * Inits the crash context from some diagnostic handler (ensure, stall, etc...)
 	 *
-	 * @param EnsureMessage Message about the ensure that failed
-	 * @param CrashAddress address where "crash" happened
+	 * @param InAddress address where the event happened, for optional callstack trimming
 	 */
-	void InitFromEnsureHandler(const TCHAR* EnsureMessage, const void* CrashAddress);
+	void InitFromDiagnostics(const void* InAddress = nullptr);
 
 	/**
-	 * Populates crash context stack trace and a few related fields
+	 * Populates crash context stack trace and a few related fields for the calling thread
 	 *
 	 */
 	void CaptureStackTrace(void* ErrorProgramCounter);
 
 	/**
+	 * Populates crash context stack trace and a few related fields for another thread
+	 *
+	 * @param ThreadId The thread to capture the stack trace from
+	 */
+	void CaptureThreadStackTrace(uint32_t ThreadId);
+
+	/**
 	 * Generates a new crash report containing information needed for the crash reporter and launches it; may not return.
 	 *
-	 * @param bReportingNonCrash if true, we are not reporting a crash (but e.g. ensure()), so don't re-raise the signal.
-	 *
-	 * @return If bReportingNonCrash is false, the function will not return
+	 * @return If the crash type is not continuable, the function will not return
 	 */
-	void GenerateCrashInfoAndLaunchReporter(bool bReportingNonCrash = false) const;
+	void GenerateCrashInfoAndLaunchReporter() const;
 
 	/**
 	 * Sets whether this crash represents a non-crash event like an ensure

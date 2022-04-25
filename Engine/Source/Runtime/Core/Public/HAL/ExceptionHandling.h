@@ -38,6 +38,7 @@ extern CORE_API void ReportHang(const TCHAR*, const uint64* StackFrames, int32 N
 extern CORE_API void ReportAssert(const TCHAR* ErrorMessage, void* ProgramCounter);
 extern CORE_API void ReportGPUCrash(const TCHAR* ErrorMessage, void* ProgramCounter);
 extern CORE_API void ReportEnsure(const TCHAR* ErrorMessage, void* ProgramCounter);
+extern CORE_API void ReportStall(const TCHAR* ErrorMessage, uint32 ThreadId);
 extern CORE_API void ReportHang(const TCHAR*, const uint64* StackFrames, int32 NumStackFrames, uint32 HungThreadId);
 #elif PLATFORM_HOLOLENS
 #include "HoloLens/HoloLensSystemIncludes.h"

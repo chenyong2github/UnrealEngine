@@ -621,7 +621,7 @@ FPlatformErrorReport CollectErrorReport(FRecoveryService* RecoveryService, uint3
 	if (RecoveryService && 
 		DirectoryExists && 
 		SharedCrashContext.UserSettings.bSendUsageData && 
-		!FGenericCrashContext::IsTypeContinuable(SharedCrashContext.CrashType)
+		!FPlatformCrashContext::IsTypeContinuable(SharedCrashContext.CrashType)
 	{
 		RecoveryService->CollectFiles(ReportDirectoryAbsolutePath);
 	}
