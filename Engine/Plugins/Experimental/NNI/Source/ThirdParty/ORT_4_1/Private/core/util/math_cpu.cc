@@ -14,6 +14,10 @@
 * limitations under the License.
 */
 // Modifications Copyright (c) Microsoft.
+#include "ThirdPartyWarningDisabler.h"
+NNI_THIRD_PARTY_INCLUDES_START
+#undef check
+#undef TEXT
 
 #include "core/util/math_cpuonly.h"
 #include "core/util/math.h"
@@ -895,3 +899,4 @@ SPECIALIZED_DOT(float)
 
 }  // namespace math
 }  // namespace onnxruntime
+NNI_THIRD_PARTY_INCLUDES_END

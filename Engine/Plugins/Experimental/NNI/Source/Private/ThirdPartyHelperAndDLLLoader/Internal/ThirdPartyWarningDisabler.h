@@ -16,6 +16,8 @@ Many third party headers require some care when importing. NNI third party inclu
 
 #ifdef PLATFORM_NNI_MICROSOFT
 #define NNI_THIRD_PARTY_INCLUDES_START THIRD_PARTY_INCLUDES_START \
+	__pragma(warning(disable: 4100)) /* C4100: 'inline_element_size': unreferenced formal parameter*/ \
+	__pragma(warning(disable: 4127)) /* C4127: conditional expression is constant*/ \
 	__pragma(warning(disable: 4191)) /* C4191: 'reinterpret_cast': unsafe conversion from unsafe conversion from 'X' to 'Y' */ \
 	__pragma(warning(disable: 4497)) /* C4497: nonstandard extension 'sealed' used: replace with 'final' */ \
 	__pragma(warning(disable: 6001)) /* C6001: Using uninitialized memory '*pNode'. */ \
