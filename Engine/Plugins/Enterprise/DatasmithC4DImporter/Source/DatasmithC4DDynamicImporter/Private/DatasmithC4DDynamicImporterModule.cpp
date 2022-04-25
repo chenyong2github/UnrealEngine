@@ -97,6 +97,13 @@ public:
 		FString EnvVariable = FPlatformMisc::GetEnvironmentVariable(TEXT("DATASMITHC4D_DEBUG"));
 		bDebugMode = !EnvVariable.IsEmpty();
 	}
+	
+	virtual void ShutdownModule() override
+	{
+#ifdef _CINEWARE_SDK_
+		cineware::UnloadCineware();
+#endif
+	}
 
 #ifdef _CINEWARE_SDK_
 	FReply RedirectToEndpoint(const FGeometry& Geometry, const FPointerEvent& Event)

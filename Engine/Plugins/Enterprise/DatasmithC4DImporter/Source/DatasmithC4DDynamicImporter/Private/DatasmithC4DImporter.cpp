@@ -2059,7 +2059,7 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithC4DDynamicImporter::ImportPolyg
 	FString HashString = BytesToHex(PolygonHash.GetBytes(), PolygonHash.GetSize());
 
 	TOptional<FString> MelangeID = MelangeObjectID(PolyObject);
-	if (!MelangeID.IsSet())
+	if (!MelangeID.IsSet() || (PolyObject && PolyObject->GetPointCount() < 3))
 	{
 		return nullptr;
 	}
@@ -2148,7 +2148,7 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithC4DDynamicImporter::ImportPolyg
 		MeshActorElement->AddMaterialOverride(MaterialIDElement);
 
 		// If we have an unassigned material, we *must* set it on the base mesh, as we can't create a material overrides to "clear" a material slot
-		if (!bMeshHasMaterialAssignments || MaterialName.IsEmpty())
+		if (!bMeshHasMaterialAssignments)
 		{
 			ResultMeshElement->SetMaterial(*MaterialName, SlotIndex);
 		}
@@ -2844,16 +2844,10 @@ void FDatasmithC4DDynamicImporter::ImportAnimations(TSharedPtr<IDatasmithActorEl
 void FDatasmithC4DDynamicImporter::ImportDrivenAnimations(TSharedPtr<IDatasmithActorElement> ActorElement, cineware::Int32 FrameNumber)
 {
 	bool IsAddedNull = false;
-	cineware::BaseObject* Object = *ActorElementToAnimationSources.Find(ActorElement.Get());
+	if (!ActorElement.IsValid())
+		return;
 
-	/*for (int32 TagIndex = 0; TagIndex < ActorElement->GetTagsCount(); ++TagIndex)
-	{
-		if (FString(ActorElement->GetTag(TagIndex)) == FString("AddedNull"))
-		{
-			IsAddedNull = true;
-			break;
-		}
-	}*/
+	cineware::BaseObject* Object = *ActorElementToAnimationSources.Find(ActorElement.Get());
 
 	// an object might be not exist for the actual frame
 	if (Object == nullptr || IsAddedNull)
@@ -2998,15 +2992,15 @@ void FDatasmithC4DDynamicImporter::ImportDrivenAnimations(TSharedPtr<IDatasmithA
 	bool needsToBeAdded = false;
 	TSharedPtr<IDatasmithTransformAnimationElement> Animation = nullptr;
 
-	if (BaseObjectImportedAnimationElement.Contains(Object))
+	if (BaseObjectImportedAnimationElement.Contains(ActorElement->GetName()))
 	{
-		Animation = *BaseObjectImportedAnimationElement.Find(Object);
+		Animation = *BaseObjectImportedAnimationElement.Find(ActorElement->GetName());
 		needsToBeAdded = false;
 	}
 	else
 	{
 		Animation = FDatasmithSceneFactory::CreateTransformAnimation(ActorElement->GetName());
-		BaseObjectImportedAnimationElement.Add(Object, Animation);
+		BaseObjectImportedAnimationElement.Add(ActorElement->GetName(), Animation);
 		needsToBeAdded = true;
 	}
 
@@ -3661,7 +3655,7 @@ TSharedPtr<IDatasmithMeshElement> FDatasmithC4DDynamicImporter::ImportMesh(cinew
 
 	// Reserve space for attributes. These might not be enough as some of these polygons might be quads or n-gons, but its better than nothing
 	MeshDescription.ReserveNewVertices(PointCount);
-	MeshDescription.ReserveNewVertexInstances(PolygonCount);
+	MeshDescription.ReserveNewVertexInstances(PointCount);
 	MeshDescription.ReserveNewEdges(PolygonCount);
 	MeshDescription.ReserveNewPolygons(PolygonCount);
 	MeshDescription.ReserveNewPolygonGroups(NumSlots);

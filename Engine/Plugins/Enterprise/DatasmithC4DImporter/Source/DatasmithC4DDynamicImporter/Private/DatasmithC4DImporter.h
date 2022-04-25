@@ -203,7 +203,7 @@ private:
 	TMap<cineware::BaseObject*, TMap<int32, TMap<EDatasmithTransformType, FVector>>> BaseObjectImportedTransformType;
 
 	/** Storage of all parsed objects from the melange document, used so we can import all animations afterwards */
-	TMap<cineware::BaseObject*, TSharedPtr<IDatasmithTransformAnimationElement>> BaseObjectImportedAnimationElement;
+	TMap<FString, TSharedPtr<IDatasmithTransformAnimationElement>> BaseObjectImportedAnimationElement;
 
 	/** Maps an instance to the corresponding original node, used so that we can redirect animations to the original nodes */
 	TMap<cineware::BaseObject*, cineware::BaseObject*> InstancedSubObjectsToOriginals;

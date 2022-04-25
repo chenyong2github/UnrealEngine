@@ -113,7 +113,7 @@ namespace UnrealBuildTool.Rules
 					PublicDefinitions.Add("MAXON_TARGET_WINDOWS");
 
 
-					PublicDefinitions.Add("CINEWARE_LOCATION=\"C:/Program Files/Maxon Cinema 4D R24/cineware.dll\"");
+					PublicDefinitions.Add("CINEWARE_LOCATION=\"C:/Program Files/Maxon Cinema 4D R25/cineware.dll\"");
 
 					PublicAdditionalLibraries.Add(Path.Combine(CinewareSDKLocation, "libraries", "cinema.framework_Release_64bit.lib"));
 					PublicAdditionalLibraries.Add(Path.Combine(CinewareSDKLocation, "libraries", "core.framework_Release_64bit.lib"));
@@ -126,7 +126,7 @@ namespace UnrealBuildTool.Rules
 					PublicDefinitions.Add("MAXON_TARGET_MACOS");
 					PublicDefinitions.Add("MAXON_TARGET_OSX");
 
-					PublicDefinitions.Add("CINEWARE_LOCATION=\"/Applications/Maxon Cinema 4D R24/cineware.bundle/Contents/MacOS/cineware\"");
+					PublicDefinitions.Add("CINEWARE_LOCATION=\"/Applications/Maxon Cinema 4D R25/cineware.bundle/Contents/MacOS/cineware\"");
 
 					PublicAdditionalLibraries.Add(Path.Combine(CinewareSDKLocation, "libraries", "libcinema.framework.a"));
 					PublicAdditionalLibraries.Add(Path.Combine(CinewareSDKLocation, "libraries", "libcore.framework.a"));
