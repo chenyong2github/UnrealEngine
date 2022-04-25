@@ -702,3 +702,8 @@ FORCEINLINE bool IsGarbageCollecting()
 {
 	return GIsGarbageCollecting;
 }
+
+/**
+* Whether garbage collection is locking the global uobject hash tables
+*/
+COREUOBJECT_API bool IsGarbageCollectingAndLockingUObjectHashTables();

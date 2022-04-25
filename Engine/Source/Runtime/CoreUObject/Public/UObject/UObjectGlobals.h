@@ -254,7 +254,7 @@ COREUOBJECT_API UObject* StaticFindObjectFast(UClass* Class, UObject* InOuter, F
 
 /**
  * Fast and safe version of StaticFindObject that relies on the passed in FName being the object name without any group/package qualifiers.
- * It will not assert on GIsSavingPackage or IsGarbageCollecting(). If called from within package saving code or GC, will return nullptr
+ * It will not assert on GIsSavingPackage or IsGarbageCollectingAndLockingUObjectHashTables(). If called from within package saving code or GC, will return nullptr
  * This will only find top level packages or subobjects nested directly within a passed in outer.
  *
  * @param	Class			The to be found object's class
@@ -285,7 +285,7 @@ COREUOBJECT_API UObject* StaticFindObject( UClass* Class, UObject* InOuter, cons
 /** Version of StaticFindObject() that will assert if the object is not found */
 COREUOBJECT_API UObject* StaticFindObjectChecked( UClass* Class, UObject* InOuter, const TCHAR* Name, bool ExactClass=false );
 
-/** Internal version of StaticFindObject that will not assert on GIsSavingPackage or IsGarbageCollecting() */
+/** Internal version of StaticFindObject that will not assert on GIsSavingPackage or IsGarbageCollectingAndLockingUObjectHashTables() */
 COREUOBJECT_API UObject* StaticFindObjectSafe( UClass* Class, UObject* InOuter, const TCHAR* Name, bool ExactClass=false );
 
 /**
@@ -1617,7 +1617,7 @@ inline T* FindObjectChecked( UObject* Outer, const TCHAR* Name, bool ExactClass=
 }
 
 /**
- * Find an object without asserting on GIsSavingPackage or IsGarbageCollecting()
+ * Find an object without asserting on GIsSavingPackage or IsGarbageCollectingAndLockingUObjectHashTables()
  * @see StaticFindObjectSafe()
  */
 template< class T > 

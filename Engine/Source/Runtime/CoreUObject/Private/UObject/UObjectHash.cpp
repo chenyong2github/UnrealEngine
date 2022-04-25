@@ -481,7 +481,7 @@ public:
 	FORCEINLINE FHashTableLock(FUObjectHashTables& InTables)
 	{
 #if THREADSAFE_UOBJECTS
-		if (!(IsGarbageCollecting() && IsInGameThread()))
+		if (!(IsGarbageCollectingAndLockingUObjectHashTables() && IsInGameThread()))
 		{
 			Tables = &InTables;
 			InTables.Lock();

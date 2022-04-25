@@ -45,6 +45,8 @@ DEFINE_LOG_CATEGORY(LogGarbage);
 
 /** Object count during last mark phase																				*/
 FThreadSafeCounter		GObjectCountDuringLastMarkPhase;
+/** Whether UObject hash tables are locked by GC */
+bool GIsGarbageCollectingAndLockingUObjectHashTables = false;
 /** Whether incremental object purge is in progress										*/
 bool GObjIncrementalPurgeIsInProgress = false;
 /** Whether GC is currently routing BeginDestroy to objects										*/
@@ -77,6 +79,20 @@ static double GLastGCTime = 0;
 static const uint32 GNumTokensPerPointer = sizeof(void*) / sizeof(uint32); //-V514
 
 FThreadSafeBool GIsGarbageCollecting(false);
+class FIsGarbageCollectingScope
+{
+	bool bOldValue = false;
+public:
+	FIsGarbageCollectingScope()
+		: bOldValue(GIsGarbageCollecting)
+	{
+		GIsGarbageCollecting = true;
+	}
+	~FIsGarbageCollectingScope()
+	{
+		GIsGarbageCollecting = bOldValue;
+	}
+};
 
 int32 FGCReferenceTokenStream::MaxStackSize = 1;
 
@@ -87,27 +103,75 @@ const FGCReferenceInfo FGCReferenceInfo::EndOfStreamToken(GCRT_EndOfStream, 0);
 */
 void NotifyUnreachableObjects(const TArrayView<FUObjectItem*>& UnreachableObjects);
 
-/** Locks all UObject hash tables when performing GC */
-class FGCScopeLock
+enum FGCLockBehavior : int32
 {
+	Default = 0,
+	Legacy = 1,
+};
+static int32 GGCLockBehavior = FGCLockBehavior::Default;
+static FAutoConsoleVariable CVarGCLockBehavior(
+	TEXT("gc.LockBehavior"),
+	GGCLockBehavior,
+	TEXT("Set the GC lock behavior: 0=Default, 1=Legacy (more restrictive and less performant)."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* Variable)
+	{
+		GGCLockBehavior = FMath::Clamp(Variable->GetInt(), 0, 1);
+	}),
+	ECVF_Default);
+
+/** Locks all UObject hash tables for performing GC reachability analysis.
+ * Can be queried with IsGarbageCollectingAndLockingUObjectHashTables().
+ * */
+class FGCHashTableScopeLock
+{
+	bool bEnabled = (GGCLockBehavior == FGCLockBehavior::Default);
+public:
+
+	FORCEINLINE FGCHashTableScopeLock()
+	{
+		if (bEnabled)
+		{
+			GIsGarbageCollectingAndLockingUObjectHashTables = true;
+			LockUObjectHashTables();
+		}
+	}
+	FORCEINLINE ~FGCHashTableScopeLock()
+	{
+		if (bEnabled)
+		{
+			UnlockUObjectHashTables();
+			GIsGarbageCollectingAndLockingUObjectHashTables = false;
+		}
+	}
+};
+
+/** Locks all UObject hash tables when performing GC */
+class FGCLegacyHashTableScopeLock
+{
+	bool bEnabled = (GGCLockBehavior == FGCLockBehavior::Legacy);
 	/** Previous value of the GetGarbageCollectingFlag() */
-	bool bPreviousGabageCollectingFlagValue;
+	bool bPreviousGabageCollectingFlagValue = GIsGarbageCollectingAndLockingUObjectHashTables;
 public:
 
 	/**
 	 * We're storing the value of GetGarbageCollectingFlag in the constructor, it's safe as only
 	 * one thread is ever going to be setting it and calling this code - the game thread.
 	 **/
-	FORCEINLINE FGCScopeLock()
-		: bPreviousGabageCollectingFlagValue(GIsGarbageCollecting)
+	FORCEINLINE FGCLegacyHashTableScopeLock()
 	{
-		LockUObjectHashTables();
-		GIsGarbageCollecting = true;
+		if (bEnabled)
+		{
+			LockUObjectHashTables();
+			GIsGarbageCollectingAndLockingUObjectHashTables = true;
+		}
 	}
-	FORCEINLINE ~FGCScopeLock()
+	FORCEINLINE ~FGCLegacyHashTableScopeLock()
 	{
-		GIsGarbageCollecting = bPreviousGabageCollectingFlagValue;
-		UnlockUObjectHashTables();
+		if (bEnabled)
+		{
+			GIsGarbageCollectingAndLockingUObjectHashTables = bPreviousGabageCollectingFlagValue;
+			UnlockUObjectHashTables();
+		}
 	}
 };
 
@@ -1588,6 +1652,7 @@ static bool ShouldForceSingleThreadedGC()
 
 void AcquireGCLock()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(AcquireGCLock);
 	const double StartTime = FPlatformTime::Seconds();
 	FGCCSyncObject::Get().GCLock();
 	const double ElapsedTime = FPlatformTime::Seconds() - StartTime;
@@ -1603,19 +1668,19 @@ void ReleaseGCLock()
 }
 
 /** Locks GC within a scope but only if it hasn't been locked already */
-struct FConditionalGCLock
+struct FLegacyConditionalIncrementalGCLock
 {
 	bool bNeedsUnlock;
-	FConditionalGCLock()
+	FLegacyConditionalIncrementalGCLock()
 		: bNeedsUnlock(false)
 	{
-		if (!FGCCSyncObject::Get().IsGCLocked())
+		if ((GGCLockBehavior == FGCLockBehavior::Legacy) && !FGCCSyncObject::Get().IsGCLocked())
 		{
 			AcquireGCLock();
 			bNeedsUnlock = true;
 		}
 	}
-	~FConditionalGCLock()
+	~FLegacyConditionalIncrementalGCLock()
 	{
 		if (bNeedsUnlock)
 		{
@@ -1689,7 +1754,7 @@ void IncrementalPurgeGarbage(bool bUseTimeLimit, double TimeLimit)
 	{
 		// Lock before settting GCStartTime as it could be slow to lock if async loading is in progress
 		// but we still want to perform some GC work otherwise we'd be keeping objects in memory for a long time
-		FConditionalGCLock ScopedGCLock;
+		FLegacyConditionalIncrementalGCLock ScopedGCLock;
 
 		// Keep track of start time to enforce time limit unless bForceFullPurge is true;
 		GCStartTime = FPlatformTime::Seconds();
@@ -1767,7 +1832,8 @@ bool IncrementalDestroyGarbage(bool bUseTimeLimit, double TimeLimit)
 	const int32	TimeLimitEnforcementGranularityForDeletion = 100;
 
 	// Set 'I'm garbage collecting' flag - might be checked inside UObject::Destroy etc.
-	FGCScopeLock GCLock;
+	FGCLegacyHashTableScopeLock GCLegacyHashTableLock;
+	FIsGarbageCollectingScope IsGarbageCollectingScope;
 
 	if( !GObjFinishDestroyHasBeenRoutedToAllObjects && !bTimeLimitReached )
 	{
@@ -2068,6 +2134,10 @@ bool IsIncrementalPurgePending()
 	return GObjIncrementalPurgeIsInProgress || GObjPurgeIsRequired;
 }
 
+bool IsGarbageCollectingAndLockingUObjectHashTables()
+{
+	return GIsGarbageCollectingAndLockingUObjectHashTables;
+}
 
 // This counts how many times GC was skipped
 static int32 GNumAttemptsSinceLastGC = 0;
@@ -2214,15 +2284,12 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 	GNumAttemptsSinceLastGC = 0;
 
 	// Flush streaming before GC if requested
-	if (GFlushStreamingOnGC)
+	if (GFlushStreamingOnGC && IsAsyncLoading())
 	{
-		if (IsAsyncLoading())
-		{
-			UE_LOG(LogGarbage, Log, TEXT("CollectGarbageInternal() is flushing async loading"));
-		}
-		FGCCSyncObject::Get().GCUnlock();
+		UE_LOG(LogGarbage, Log, TEXT("CollectGarbageInternal() is flushing async loading"));
+		ReleaseGCLock();
 		FlushAsyncLoading();
-		FGCCSyncObject::Get().GCLock();
+		AcquireGCLock();
 	}
 
 	// Route callbacks so we can ensure that we are e.g. not in the middle of loading something by flushing
@@ -2236,7 +2303,8 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 	{
 		// Set 'I'm garbage collecting' flag - might be checked inside various functions.
 		// This has to be unlocked before we call post GC callbacks
-		FGCScopeLock GCLock;
+		FGCLegacyHashTableScopeLock GCLegacyHashTableLock;
+		FIsGarbageCollectingScope IsGarbageCollectingScope;
 
 		UE_LOG(LogGarbage, Log, TEXT("Collecting garbage%s"), IsAsyncLoading() ? TEXT(" while async loading") : TEXT(""));
 
@@ -2250,79 +2318,79 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 				FMemory::Trim();
 			}
 		}
-		check(!GObjIncrementalPurgeIsInProgress);
-		check(!GObjPurgeIsRequired);
 
-		// This can happen if someone disables clusters from the console (gc.CreateGCClusters)
-		if (!GCreateGCClusters && GUObjectClusters.GetNumAllocatedClusters())
+		// Reachability analysis.
+		// When exiting this scope all objects to be destroyed have been marked unreachable and any weak references have been cleared.
 		{
-			GUObjectClusters.DissolveClusters(true);
-		}
+			// With the new FGCLockBehavior::Default behavior hash tables are only locked during this scope of reachability analysis.
+			FGCHashTableScopeLock GCHashTableLock;
+
+			check(!GObjIncrementalPurgeIsInProgress);
+			check(!GObjPurgeIsRequired);
+
+			// This can happen if someone disables clusters from the console (gc.CreateGCClusters)
+			if (!GCreateGCClusters && GUObjectClusters.GetNumAllocatedClusters())
+			{
+				GUObjectClusters.DissolveClusters(true);
+			}
 
 #if VERIFY_DISREGARD_GC_ASSUMPTIONS
-		// Only verify assumptions if option is enabled. This avoids false positives in the Editor or commandlets.
-		if (GShouldVerifyGCAssumptions)
-		{
-			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CollectGarbageInternal.VerifyGCAssumptions"), STAT_CollectGarbageInternal_VerifyGCAssumptions, STATGROUP_GC);
-			const double StartTime = FPlatformTime::Seconds();
-			if (GUObjectArray.DisregardForGCEnabled())
+			// Only verify assumptions if option is enabled. This avoids false positives in the Editor or commandlets.
+			if (GShouldVerifyGCAssumptions)
 			{
-				VerifyGCAssumptions();
+				DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CollectGarbageInternal.VerifyGCAssumptions"), STAT_CollectGarbageInternal_VerifyGCAssumptions, STATGROUP_GC);
+				const double StartTime = FPlatformTime::Seconds();
+				if (GUObjectArray.DisregardForGCEnabled())
+				{
+					VerifyGCAssumptions();
+				}
+				if (GUObjectClusters.GetNumAllocatedClusters())
+				{
+					VerifyClustersAssumptions();
+				}
+				VerifyObjectFlagMirroring();
+				UE_LOG(LogGarbage, Log, TEXT("%f ms for Verify GC Assumptions"), (FPlatformTime::Seconds() - StartTime) * 1000);
 			}
-			if (GUObjectClusters.GetNumAllocatedClusters())
-			{
-				VerifyClustersAssumptions();
-			}
-			VerifyObjectFlagMirroring();
-			UE_LOG(LogGarbage, Log, TEXT("%f ms for Verify GC Assumptions"), (FPlatformTime::Seconds() - StartTime) * 1000);
-		}
 #endif
 
-		const EFastReferenceCollectorOptions Options = 
-			// Fall back to single threaded GC if processor count is 1 or parallel GC is disabled
-			// or detailed per class gc stats are enabled (not thread safe)
-			(ShouldForceSingleThreadedGC() ? EFastReferenceCollectorOptions::None : EFastReferenceCollectorOptions::Parallel) |
-			// Run with GC clustering code enabled only if clustering is enabled and there's actual allocated clusters
-			((!!GCreateGCClusters && GUObjectClusters.GetNumAllocatedClusters()) ? EFastReferenceCollectorOptions::WithClusters : EFastReferenceCollectorOptions::None) |
-			// Toggle between PendingKill enabled or disabled
-			(UObjectBaseUtility::IsPendingKillEnabled() ? EFastReferenceCollectorOptions::WithPendingKill : EFastReferenceCollectorOptions::None);
+			const EFastReferenceCollectorOptions Options = 
+				// Fall back to single threaded GC if processor count is 1 or parallel GC is disabled
+				// or detailed per class gc stats are enabled (not thread safe)
+				(ShouldForceSingleThreadedGC() ? EFastReferenceCollectorOptions::None : EFastReferenceCollectorOptions::Parallel) |
+				// Run with GC clustering code enabled only if clustering is enabled and there's actual allocated clusters
+				((!!GCreateGCClusters && GUObjectClusters.GetNumAllocatedClusters()) ? EFastReferenceCollectorOptions::WithClusters : EFastReferenceCollectorOptions::None) |
+				// Toggle between PendingKill enabled or disabled
+				(UObjectBaseUtility::IsPendingKillEnabled() ? EFastReferenceCollectorOptions::WithPendingKill : EFastReferenceCollectorOptions::None);
 
-		// Perform reachability analysis.
-		{
-			const double StartTime = FPlatformTime::Seconds();
-			FRealtimeGC TagUsedRealtimeGC;
+			// Perform reachability analysis.
+			{
+				const double StartTime = FPlatformTime::Seconds();
+				FRealtimeGC TagUsedRealtimeGC;
 
-			TagUsedRealtimeGC.PerformReachabilityAnalysis(KeepFlags, Options);
-			UE_LOG(LogGarbage, Log, TEXT("%f ms for GC"), (FPlatformTime::Seconds() - StartTime) * 1000);
-		}
+				TagUsedRealtimeGC.PerformReachabilityAnalysis(KeepFlags, Options);
+				UE_LOG(LogGarbage, Log, TEXT("%f ms for GC"), (FPlatformTime::Seconds() - StartTime) * 1000);
+			}
 
-		FGCArrayPool& ArrayPool = FGCArrayPool::Get();
-		TArray<FGCArrayStruct*> AllArrays;
-		ArrayPool.GetAllArrayStructsFromPool(AllArrays);
-		// This needs to happen before clusters get dissolved otherwisise cluster information will be missing from history
-		ArrayPool.UpdateGCHistory(AllArrays);
+			FGCArrayPool& ArrayPool = FGCArrayPool::Get();
+			TArray<FGCArrayStruct*> AllArrays;
+			ArrayPool.GetAllArrayStructsFromPool(AllArrays);
+			// This needs to happen before clusters get dissolved otherwisise cluster information will be missing from history
+			ArrayPool.UpdateGCHistory(AllArrays);
 
-		// Reconstruct clusters if needed
-		if (GUObjectClusters.ClustersNeedDissolving())
-		{
-			const double StartTime = FPlatformTime::Seconds();
-			GUObjectClusters.DissolveClusters();
-			UE_LOG(LogGarbage, Log, TEXT("%f ms for dissolving GC clusters"), (FPlatformTime::Seconds() - StartTime) * 1000);
-		}
+			// Reconstruct clusters if needed
+			if (GUObjectClusters.ClustersNeedDissolving())
+			{
+				const double StartTime = FPlatformTime::Seconds();
+				GUObjectClusters.DissolveClusters();
+				UE_LOG(LogGarbage, Log, TEXT("%f ms for dissolving GC clusters"), (FPlatformTime::Seconds() - StartTime) * 1000);
+			}
 
-		// Fire post-reachability analysis hooks
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(BroadcastPostReachabilityAnalysis);
-			FCoreUObjectDelegates::PostReachabilityAnalysis.Broadcast();
-		}
-
-		{
 			ArrayPool.DumpGarbageReferencers(AllArrays);
-		
+
 			GatherUnreachableObjects(!(Options & EFastReferenceCollectorOptions::Parallel));
 			NotifyUnreachableObjects(GUnreachableObjects);
 
-			// This needs to happen after NotifyGarbageReferencers and GatherUnreachableObjects since both can mark more objects as unreachable
+			// This needs to happen after GatherUnreachableObjects since it can mark more objects as unreachable
 			ArrayPool.ClearWeakReferences(AllArrays);
 
 			// Now return arrays back to the pool and free some memory if requested
@@ -2342,12 +2410,27 @@ void CollectGarbageInternal(EObjectFlags KeepFlags, bool bPerformFullPurge)
 
 			// Make sure nothing will be using potentially freed arrays
 			AllArrays.Empty();
+		}
+		if (GGCLockBehavior == FGCLockBehavior::Default)
+		{
+			// With the new FGCLockBehavior::Default behavior the hash tables lock was released when exiting the reachability analysis scope above.
+			// BeginDestroy, FinishDestroy, destructors and callbacks are allowed to call functions like StaticAllocateObject and StaticFindObject.
+			// Now release the GC lock to allow async loading and other threads to perform UObject operations under the FGCScopeGuard.
+			ReleaseGCLock();
+		}
+		// The old FGCLockBehavior::Legacy behavior keeps the GC and hash table locks until GC is completed,
+		// and no threads are allowed to perform UObject operations yet.
 
-			if (bPerformFullPurge || !GIncrementalBeginDestroyEnabled)
-			{
-				UnhashUnreachableObjects(/**bUseTimeLimit = */ false);
-				FScopedCBDProfile::DumpProfile();
-			}
+		// Fire post-reachability analysis hooks
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(BroadcastPostReachabilityAnalysis);
+			FCoreUObjectDelegates::PostReachabilityAnalysis.Broadcast();
+		}
+
+		if (bPerformFullPurge || !GIncrementalBeginDestroyEnabled)
+		{
+			UnhashUnreachableObjects(/**bUseTimeLimit = */ false);
+			FScopedCBDProfile::DumpProfile();
 		}
 
 		// Set flag to indicate that we are relying on a purge to be performed.
@@ -2539,8 +2622,12 @@ void CollectGarbage(EObjectFlags KeepFlags, bool bPerformFullPurge)
 	// Perform actual garbage collection
 	CollectGarbageInternal(KeepFlags, bPerformFullPurge);
 
-	// Other threads are free to use UObjects
-	ReleaseGCLock();
+	if (GGCLockBehavior == FGCLockBehavior::Legacy)
+	{
+		// Release the GC lock to allow async loading and other threads to perform UObject operations under the FGCScopeGuard.
+		ReleaseGCLock();
+	}
+	// With the new FGCLockBehavior::Default behavior the lock was released after reachability analysis inside CollectGarbageInternal
 }
 
 bool TryCollectGarbage(EObjectFlags KeepFlags, bool bPerformFullPurge)
@@ -2563,8 +2650,12 @@ bool TryCollectGarbage(EObjectFlags KeepFlags, bool bPerformFullPurge)
 		// Perform actual garbage collection
 		CollectGarbageInternal(KeepFlags, bPerformFullPurge);
 
-		// Other threads are free to use UObjects
-		ReleaseGCLock();
+		if (GGCLockBehavior == FGCLockBehavior::Legacy)
+		{
+			// Release the GC lock to allow async loading and other threads to perform UObject operations under the FGCScopeGuard.
+			ReleaseGCLock();
+		}
+		// With the new FGCLockBehavior::Default behavior the lock was released after reachability analysis inside CollectGarbageInternal
 	}
 	else
 	{
