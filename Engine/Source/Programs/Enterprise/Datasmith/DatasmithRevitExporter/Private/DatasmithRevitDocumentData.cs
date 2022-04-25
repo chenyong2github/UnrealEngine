@@ -1227,6 +1227,8 @@ namespace DatasmithRevitExporter
 							(ExistingActor as FDatasmithFacadeActorMesh)?.SetMesh(null);
 						}
 
+						ElementData.BaseElementType = InElement.Document.GetElement(InElement.GetTypeId()) as ElementType;
+						ElementData.CurrentElement = InElement;
 						ElementData.InitializePivotPlacement(ref InWorldTransform);
 						ElementData.InitializeElement(InWorldTransform, ElementData);
 						ElementData.MeshMaterialsMap.Clear();

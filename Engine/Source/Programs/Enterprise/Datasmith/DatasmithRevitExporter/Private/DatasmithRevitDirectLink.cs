@@ -338,25 +338,43 @@ namespace DatasmithRevitExporter
 			
 				DirectLink.bHasChanges = true;
 
-				if (ModifiedElement.GetType() == typeof(RevitLinkInstance))
+				if (ModifiedElement != null)
 				{
-					DirectLink.ModifiedLinkedDocuments.Add((ModifiedElement as RevitLinkInstance).GetLinkDocument());
-				}
-				else
-				{
-					// Handles a case where Revit won't notify us about modified mullions and their transform remains obsolte, thus wrong.
-					ElementCategoryFilter Filter = new ElementCategoryFilter(BuiltInCategory.OST_CurtainWallMullions);
-					IList<ElementId> DependentElements = ModifiedElement.GetDependentElements(Filter);
-					if (DependentElements != null && DependentElements.Count > 0)
+					if (ModifiedElement.GetType() == typeof(RevitLinkInstance))
 					{
-						foreach (ElementId DepElemId in DependentElements)
+						DirectLink.ModifiedLinkedDocuments.Add((ModifiedElement as RevitLinkInstance).GetLinkDocument());
+					}
+					else if (ModifiedElement.GetType() == typeof(RevitLinkType))
+					{
+						foreach (KeyValuePair<ElementId, FCachedDocumentData> Link in DirectLink.RootCache.LinkedDocumentsCache)
 						{
-							DirectLink.RootCache.SetElementModified(true, DepElemId);
+							RevitLinkInstance LinkInstance = DirectLink.RootCache.SourceDocument.GetElement(Link.Key) as RevitLinkInstance;
+							if (LinkInstance != null)
+							{
+								RevitLinkType LinkType = DirectLink.RootCache.SourceDocument.GetElement(LinkInstance.GetTypeId()) as RevitLinkType;
+								if (LinkType != null && LinkType.Id == ModifiedElement.Id && RevitLinkType.IsLoaded(DirectLink.RootCache.SourceDocument, LinkType.Id))
+								{
+									Link.Value.SetAllElementsModified();
+								}
+							}
 						}
 					}
-				}
+					else
+					{
+						// Handles a case where Revit won't notify us about modified mullions and their transform remains obsolte, thus wrong.
+						ElementCategoryFilter Filter = new ElementCategoryFilter(BuiltInCategory.OST_CurtainWallMullions);
+						IList<ElementId> DependentElements = ModifiedElement.GetDependentElements(Filter);
+						if (DependentElements != null && DependentElements.Count > 0)
+						{
+							foreach (ElementId DepElemId in DependentElements)
+							{
+								DirectLink.RootCache.SetElementModified(true, DepElemId);
+							}
+						}
+					}
 
-				DirectLink.RootCache.SetElementModified(true, ElemId);
+					DirectLink.RootCache.SetElementModified(true, ElemId);
+				}
 			}
 
 			if (DirectLink.bHasChanges && bAutoSync)
@@ -834,6 +852,11 @@ namespace DatasmithRevitExporter
 					if (!CacheData.CachedElements.ContainsKey(Entry.Key))
 					{
 						continue;
+					}
+
+					if (!CacheData.SourceDocument.IsValidObject)
+					{
+						return;
 					}
 
 					Element RevitElement = CacheData.SourceDocument.GetElement(Entry.Key);
