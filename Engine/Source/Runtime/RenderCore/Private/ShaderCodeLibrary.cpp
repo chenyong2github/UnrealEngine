@@ -403,7 +403,7 @@ void FCompactFullName::ParseFromString(const FStringView& InSrc)
 	// do not split by '/' as this splits the original FName into per-path components
 	UE::String::ParseTokensMultiple(InSrc.TrimStartAndEnd(), {TEXT(' '), TEXT('.'), /*TEXT('/'),*/ TEXT('\t')},
 		[&Fields](FStringView Field) { if (!Field.IsEmpty()) { Fields.Add(Field); } });
-	if (Fields.Num() == 1 && Fields[0] == TEXT("empty"_SV))
+	if (Fields.Num() == 1 && Fields[0] == TEXTVIEW("empty"))
 	{
 		ObjectClassAndPath.Empty();
 	}

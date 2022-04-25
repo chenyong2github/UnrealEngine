@@ -803,11 +803,11 @@ void FMemAllocTable::AddDefaultColumns()
 							// Ignore symbols by function prefix.
 							FStringView IgnoreSymbolsByFunctionName[] =
 							{
-								TEXT("FMemory::"_SV),
-								TEXT("FMallocWrapper::"_SV),
-								TEXT("FMallocPoisonProxy::"_SV),
-								TEXT("Malloc"_SV),
-								TEXT("Realloc"_SV),
+								TEXTVIEW("FMemory::"),
+								TEXTVIEW("FMallocWrapper::"),
+								TEXTVIEW("FMallocPoisonProxy::"),
+								TEXTVIEW("Malloc"),
+								TEXTVIEW("Realloc"),
 							};
 							for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFunctionName); ++StringIndex)
 							{
@@ -824,7 +824,7 @@ void FMemAllocTable::AddDefaultColumns()
 								// Ignore symbols by file, specified as RegexPattern strings.
 								FStringView IgnoreSymbolsByFilePath[] =
 								{
-									TEXT(".*/Containers/.*"_SV),
+									TEXTVIEW(".*/Containers/.*"),
 								};
 								for (uint32 StringIndex = 0; StringIndex < UE_ARRAY_COUNT(IgnoreSymbolsByFilePath); ++StringIndex)
 								{

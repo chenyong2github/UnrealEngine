@@ -451,11 +451,11 @@ TIoStatusOr<FIoBuffer> FZenStoreHttpClient::ReadOpLogUri(FStringBuilderBase& Chu
 	{
 		if (bHaveQuery)
 		{
-			ChunkUri.Append(TEXT("&"_WSV));
+			ChunkUri.AppendChar(TEXT('&'));
 		}
 		else
 		{
-			ChunkUri.Append(TEXT("?"_WSV));
+			ChunkUri.AppendChar(TEXT('?'));
 			bHaveQuery = true;
 		}
 	};

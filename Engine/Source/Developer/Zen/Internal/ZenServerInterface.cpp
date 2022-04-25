@@ -1087,7 +1087,7 @@ FZenServiceInstance::GetStats(FZenStats& Stats)
 				Request.Reset();
 
 				TArray64<uint8> GetBuffer;
-				FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("/stats/z$"_SV), &GetBuffer, Zen::EContentType::CbObject);
+				FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXTVIEW("/stats/z$"), &GetBuffer, Zen::EContentType::CbObject);
 
 				FZenStats Stats;
 

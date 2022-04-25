@@ -847,7 +847,7 @@ static void BeginLoadDerivedChunks(TIndirectArray<FStreamedAudioChunk>& Chunks, 
 		const FStreamedAudioChunk& Chunk = Chunks[ChunkIndex];
 		if (!Chunk.DerivedDataKey.IsEmpty())
 		{
-			OutHandles[ChunkIndex] = DDC.GetAsynchronous(*Chunk.DerivedDataKey, TEXT("Unknown SoundWave"_SV));
+			OutHandles[ChunkIndex] = DDC.GetAsynchronous(*Chunk.DerivedDataKey, TEXTVIEW("Unknown SoundWave"));
 		}
 	}
 }
@@ -992,14 +992,14 @@ int32 FStreamedAudioPlatformData::GetChunkFromDDC(int32 ChunkIndex, uint8** OutC
 	{
 		if (bMakeSureChunkIsLoaded)
 		{
-			if (DDC.GetSynchronous(*Chunk.DerivedDataKey, TempData, TEXT("Unknown SoundWave"_SV)))
+			if (DDC.GetSynchronous(*Chunk.DerivedDataKey, TempData, TEXTVIEW("Unknown SoundWave")))
 			{
 				ChunkDataSize = DeserializeChunkFromDDC(TempData, Chunk, ChunkIndex, OutChunkData);
 			}
 		}
 		else
 		{
-			AsyncHandle = DDC.GetAsynchronous(*Chunk.DerivedDataKey, TEXT("Unknown SoundWave"_SV));
+			AsyncHandle = DDC.GetAsynchronous(*Chunk.DerivedDataKey, TEXTVIEW("Unknown SoundWave"));
 		}
 	}
 	else if (Chunk.bLoadedFromCookedPackage)
@@ -1088,7 +1088,7 @@ bool FStreamedAudioPlatformData::AreDerivedChunksAvailable(FStringView InContext
 
 bool FStreamedAudioPlatformData::AreDerivedChunksAvailable() const
 {
-	return AreDerivedChunksAvailable(TEXT("DerivedAudioChunks"_SV));
+	return AreDerivedChunksAvailable(TEXTVIEW("DerivedAudioChunks"));
 }
 
 #endif // #if WITH_EDITORONLY_DATA

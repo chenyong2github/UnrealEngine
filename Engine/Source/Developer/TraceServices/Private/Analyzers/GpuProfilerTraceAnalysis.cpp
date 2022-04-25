@@ -93,7 +93,7 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 				else
 				{
 					FTimingProfilerEvent Event;
-					Event.TimerIndex = TimingProfilerProvider.AddGpuTimer(TEXT("<unknown>"_SV));
+					Event.TimerIndex = TimingProfilerProvider.AddGpuTimer(TEXTVIEW("<unknown>"));
 					EventTypeMap.Add(EventType, Event.TimerIndex);
 					ThisTimeline.AppendBeginEvent(LastTime, Event);
 				}

@@ -1391,7 +1391,7 @@ void FEditorDomainSaveClient::ConnectionWarning(FStringView Message, FStringView
 		{
 			LastConnectionWarningTimeSeconds = CurrentTime;
 		}
-		FStringView DefaultConsequence = TEXT("EditorDomainSave is currently unavailable"_SV);
+		FStringView DefaultConsequence = TEXTVIEW("EditorDomainSave is currently unavailable");
 		if (Consequence.Len() == 0)
 		{
 			Consequence = DefaultConsequence;

@@ -269,7 +269,7 @@ public:
 
 	TConstArrayView<FStringView> GetHostPlatforms() const final
 	{
-		static constexpr FStringView HostPlatforms[]{TEXT("Win64"_SV)};
+		static constexpr FStringView HostPlatforms[]{TEXTVIEW("Win64")};
 		return HostPlatforms;
 	}
 

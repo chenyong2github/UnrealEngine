@@ -2493,7 +2493,7 @@ FString FTexturePlatformData::GetDerivedDataMipKeyString(int32 MipIndex, const F
 
 UE::DerivedData::FValueId FTexturePlatformData::MakeMipId(int32 MipIndex)
 {
-	return UE::DerivedData::FValueId::FromName(WriteToString<16>(TEXT("Mip"_SV), MipIndex));
+	return UE::DerivedData::FValueId::FromName(WriteToString<16>(TEXTVIEW("Mip"), MipIndex));
 }
 
 #endif // WITH_EDITORONLY_DATA
