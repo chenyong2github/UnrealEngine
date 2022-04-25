@@ -293,6 +293,8 @@ private:
 
 	void FilterDatabaseRows();
 
+	void ComputeFilteredDatabaseRowsColors();
+
 	/** Sets dynamic data for each row, such as score at the current time */
 	void UpdateRows(const FTraceMotionMatchingStateMessage& State, const UPoseSearchDatabase& Database);
 
