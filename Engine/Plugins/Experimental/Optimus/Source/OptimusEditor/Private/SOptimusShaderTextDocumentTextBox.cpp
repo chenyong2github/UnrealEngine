@@ -14,6 +14,8 @@
 #include "Widgets/Text/SMultiLineEditableText.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Application/SlateUser.h"
+#include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "OptimusShaderTextDocumentTextBox"
 
@@ -49,6 +51,12 @@ static TCHAR GetMatchedCloseBrace(const TCHAR& InCharacter)
 		(InCharacter == TEXT('[') ? TEXT(']') : TEXT(')'));
 }
 
+static bool IsWhiteSpace(const TCHAR& InCharacter)
+{
+	return InCharacter == TEXT(' ') || InCharacter == TEXT('\r') || InCharacter == TEXT('\n');
+}
+
+
 FOptimusShaderTextEditorDocumentTextBoxCommands::FOptimusShaderTextEditorDocumentTextBoxCommands() 
 	: TCommands<FOptimusShaderTextEditorDocumentTextBoxCommands>(
 		"OptimusShaderTextEditorDocumentTextBox", // Context name for fast lookup
@@ -64,11 +72,14 @@ void FOptimusShaderTextEditorDocumentTextBoxCommands::RegisterCommands()
 	UI_COMMAND(Search, "Search", "Search for a String", EUserInterfaceActionType::Button, FInputChord(EKeys::F, EModifierKey::Control));
 	UI_COMMAND(NextOccurrence, "Next Occurrence", "Go to Next Occurrence", EUserInterfaceActionType::Button, FInputChord(EKeys::F3, EModifierKey::None));
 	UI_COMMAND(PreviousOccurrence, "Previous Occurrence", "Go to Previous Occurrence", EUserInterfaceActionType::Button, FInputChord(EKeys::F3, EModifierKey::Shift));
+	
+	UI_COMMAND(ToggleComment, "Toggle Comment", "Comment/Uncomment selected lines", EUserInterfaceActionType::Button, FInputChord(EKeys::Slash, EModifierKey::Control));
 }
 
 SOptimusShaderTextDocumentTextBox::SOptimusShaderTextDocumentTextBox()
 	: bIsSearchBarHidden(true)
-	, CommandList(MakeShared<FUICommandList>())
+	, TopLevelCommandList(MakeShared<FUICommandList>())
+	, TextCommandList(MakeShared<FUICommandList>())
 {
 }
 
@@ -90,6 +101,9 @@ void SOptimusShaderTextDocumentTextBox::Construct(const FArguments& InArgs)
 	
 	const FTextBlockStyle &TextStyle = FOptimusEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("TextEditor.NormalText");
 	const FSlateFontInfo &Font = TextStyle.Font;
+
+	const bool bReadOnly = InArgs._IsReadOnly.Get();
+	const FOptimusShaderTextEditorDocumentTextBoxCommands& Commands = FOptimusShaderTextEditorDocumentTextBoxCommands::Get();
 	
 	Text =
 		SNew(SMultiLineEditableText)
@@ -98,13 +112,25 @@ void SOptimusShaderTextDocumentTextBox::Construct(const FArguments& InArgs)
 			.Text(InArgs._Text)
 			.OnTextChanged(InArgs._OnTextChanged)
 			.OnKeyCharHandler(this, &SOptimusShaderTextDocumentTextBox::OnTextKeyChar)
+			.OnKeyDownHandler(this, &SOptimusShaderTextDocumentTextBox::OnTextKeyDown)
 			// By default, the Tab key gets routed to "next widget". We want to disable that behaviour.
 			.OnIsTypedCharValid_Lambda([](const TCHAR InChar) { return true; })
 			.Marshaller(InArgs._Marshaller)
 			.AutoWrapText(false)
 			.ClearTextSelectionOnFocusLoss(false)
 			.AllowContextMenu(true)
-			.IsReadOnly(InArgs._IsReadOnly)
+			.ContextMenuExtender(
+				FMenuExtensionDelegate::CreateLambda(
+					[this, bReadOnly, Commands](FMenuBuilder& InBuilder)
+					{
+						if (!bReadOnly)
+						{
+							InBuilder.PushCommandList(TextCommandList);
+							InBuilder.AddMenuEntry(Commands.ToggleComment);
+						}
+						
+					}))
+			.IsReadOnly(bReadOnly)
 			.HScrollBar(HScrollBar)
 			.VScrollBar(VScrollBar);
 
@@ -149,18 +175,24 @@ void SOptimusShaderTextDocumentTextBox::RegisterCommands()
 	
 	const FOptimusShaderTextEditorDocumentTextBoxCommands& Commands = FOptimusShaderTextEditorDocumentTextBoxCommands::Get();
 	
-	CommandList->MapAction(
+	TopLevelCommandList->MapAction(
 		Commands.Search,
 		FExecuteAction::CreateSP(this, &SOptimusShaderTextDocumentTextBox::OnTriggerSearch)
 	);
 
-	CommandList->MapAction(
+	TopLevelCommandList->MapAction(
 		Commands.NextOccurrence,
 		FExecuteAction::CreateSP(this, &SOptimusShaderTextDocumentTextBox::OnGoToNextOccurrence)
 	);
-	CommandList->MapAction(
+	TopLevelCommandList->MapAction(
 		Commands.PreviousOccurrence,
 		FExecuteAction::CreateSP(this, &SOptimusShaderTextDocumentTextBox::OnGoToPreviousOccurrence)
+	);
+	
+	
+	TextCommandList->MapAction(
+		Commands.ToggleComment,
+		FExecuteAction::CreateSP(this, &SOptimusShaderTextDocumentTextBox::OnToggleComment)
 	);
 }
 
@@ -176,7 +208,7 @@ FReply SOptimusShaderTextDocumentTextBox::OnPreviewKeyDown(const FGeometry& MyGe
 		}
 	}
 
-	if (CommandList->ProcessCommandBindings(InKeyEvent))
+	if (TopLevelCommandList->ProcessCommandBindings(InKeyEvent))
 	{
 		return FReply::Handled();
 	}
@@ -295,8 +327,142 @@ void SOptimusShaderTextDocumentTextBox::OnGoToPreviousOccurrence()
 	OnSearchResultNavigationButtonClicked(SSearchBox::SearchDirection::Previous);
 }
 
-FReply SOptimusShaderTextDocumentTextBox::OnTextKeyChar(const FGeometry& MyGeometry,
-	const FCharacterEvent& InCharacterEvent)
+FReply SOptimusShaderTextDocumentTextBox::OnTextKeyDown(
+	const FGeometry& MyGeometry,
+	const FKeyEvent& InKeyEvent) const
+{
+	if (TextCommandList->ProcessCommandBindings(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+
+	// Let SMultiLineEditableText::OnKeyDown handle it.
+	return FReply::Unhandled();
+}
+
+
+void SOptimusShaderTextDocumentTextBox::OnToggleComment() const
+{
+	SMultiLineEditableText::FScopedEditableTextTransaction Transaction(Text);
+	
+	const FTextLocation CursorLocation = Text->GetCursorLocation();
+	
+	const FTextSelection Selection = Text->GetSelection();
+	const FTextLocation SelectionStart =
+		CursorLocation == Selection.GetBeginning() ? Selection.GetEnd() : Selection.GetBeginning();
+	
+	// Need to shift the selection according to the new indentation
+	FTextLocation NewCursorLocation = CursorLocation;
+	FTextLocation NewSelectionStart = SelectionStart;
+		
+	const int32 StartLine = Selection.GetBeginning().GetLineIndex();
+	const int32 EndLine = Selection.GetEnd().GetLineIndex();
+
+	bool bShouldComment = false;
+	bool bAreAllLinesEmpty = true;
+	int32 MinNumLeadingSpaces = INDEX_NONE;
+	for (int32 Index = StartLine; Index <= EndLine; Index++)
+	{
+		FString Line;
+		Text->GetTextLine(Index, Line);
+		// Empty lines are not considered when deciding whether to comment/uncomment
+		const int32 NumSpaces = GetNumSpacesAtStartOfLine(Line);
+		if (NumSpaces >= Line.Len())	
+		{
+			continue;
+		}
+
+		bAreAllLinesEmpty = false;
+		
+		FStringView LineView(&Line[NumSpaces]);
+		if (!LineView.StartsWith(TEXT("//")))
+		{
+			bShouldComment = true;
+		}
+
+		MinNumLeadingSpaces =
+			MinNumLeadingSpaces == INDEX_NONE ?
+			NumSpaces : FMath::Min(MinNumLeadingSpaces, NumSpaces);
+	}
+
+	// Find nearest tab
+	MinNumLeadingSpaces = MinNumLeadingSpaces / 4 * 4;
+
+	// Single line comment or single line no-op should move the cursor down
+	const bool bShouldGoToNewLine = !Text->AnyTextSelected() && (bShouldComment || bAreAllLinesEmpty);
+	
+	for (int32 Index = StartLine; Index <= EndLine; Index++)
+	{
+		FString Line;
+		Text->GetTextLine(Index, Line);
+
+		if (!Line.IsEmpty())
+		{
+			const int32 NumSpaces = GetNumSpacesAtStartOfLine(Line);
+			if (NumSpaces < Line.Len())
+			{
+				int32 LineShift = 0;
+				if (bShouldComment)
+				{
+					Text->GoTo(FTextLocation(Index, MinNumLeadingSpaces));
+					Text->InsertTextAtCursor(TEXT("// "));
+					LineShift = 3;
+				}
+				else
+				{
+					int32 CommentOffset = Line.Find("//");
+					if (ensure(CommentOffset != INDEX_NONE))
+					{
+						int32 ContentOffset =
+							Line.IsValidIndex(CommentOffset+2) && Line[CommentOffset+2] == TEXT(' ') ?
+								3 : 2;
+						Text->SelectText({Index, CommentOffset}, {Index, CommentOffset+ContentOffset});
+						Text->DeleteSelectedText();
+						LineShift = -ContentOffset;
+					}
+				}
+
+				if (Index == CursorLocation.GetLineIndex())
+				{
+					NewCursorLocation = FTextLocation(CursorLocation, LineShift);
+				}
+					
+				if (Index == SelectionStart.GetLineIndex())
+				{
+					NewSelectionStart = FTextLocation(SelectionStart, LineShift);
+				}	
+			}
+		}
+	}
+
+	if (bShouldGoToNewLine)
+	{
+		// Automatically go to the next line if there is no selection
+		int32 LineIndex = CursorLocation.GetLineIndex() + 1;
+		if (LineIndex < Text->GetTextLineCount())
+		{
+			FString Line;
+			Text->GetTextLine(LineIndex, Line);
+			
+			int32 Offset = FMath::Min(CursorLocation.GetOffset(), Line.Len());
+			
+			Text->GoTo({LineIndex, Offset});
+		}
+		else
+		{
+			Text->GoTo(NewCursorLocation);
+		}
+	}
+	else
+	{
+		Text->SelectText(NewSelectionStart, NewCursorLocation);
+	}
+}
+
+
+FReply SOptimusShaderTextDocumentTextBox::OnTextKeyChar(
+	const FGeometry& MyGeometry,
+	const FCharacterEvent& InCharacterEvent) const
 {
 	if (Text->IsTextReadOnly())
 	{
@@ -428,16 +594,62 @@ FReply SOptimusShaderTextDocumentTextBox::OnTextKeyChar(const FGeometry& MyGeome
 	}
 	else if (IsOpenBrace(Character))
 	{
-		SMultiLineEditableText::FScopedEditableTextTransaction Transaction(Text);
+		const TCHAR CloseBrace = GetMatchedCloseBrace(Character);
+		const FTextLocation CursorLocation = Text->GetCursorLocation();
+		FString Line;
+		Text->GetCurrentTextLine(Line);
 		
-		// auto insert the matched close brace
-		Text->InsertTextAtCursor(FString::Chr(Character));
-		Text->InsertTextAtCursor(FString::Chr(GetMatchedCloseBrace(Character)));
-		
-		const FTextLocation NewCursorLocation(Text->GetCursorLocation(), -1);
-		Text->GoTo(NewCursorLocation);
+		bool bShouldAutoInsertBraces = false;
 
-		return FReply::Handled();
+		if (CursorLocation.GetOffset() < Line.Len())
+		{
+			const TCHAR NextChar = Text->GetCharacterAt(CursorLocation);
+
+			if (IsWhiteSpace(NextChar))
+			{
+				bShouldAutoInsertBraces = true;
+			}
+			else if (IsCloseBrace(NextChar))
+			{
+				int32 BraceBalancePrior = 0;
+				for (int32 Index = 0; Index < CursorLocation.GetOffset() && Index < Line.Len(); Index++)
+				{
+					BraceBalancePrior += (Line[Index] == Character);
+					BraceBalancePrior -= (Line[Index] == CloseBrace);
+				}
+				
+				int32 BraceBalanceLater = 0;
+				for (int32 Index = CursorLocation.GetOffset(); Index < Line.Len(); Index++)
+				{
+					BraceBalanceLater += (Line[Index] == Character);
+					BraceBalanceLater -= (Line[Index] == CloseBrace);
+				}
+
+				if (BraceBalancePrior >= -BraceBalanceLater)
+				{
+					bShouldAutoInsertBraces = true;
+				}
+			}
+		}
+		else
+		{
+			bShouldAutoInsertBraces = true;
+		}
+		
+		// auto insert if we have more open braces
+		// on the left side than close braces on the right side
+		if (bShouldAutoInsertBraces)
+		{
+			// auto insert the matched close brace
+			SMultiLineEditableText::FScopedEditableTextTransaction Transaction(Text);
+			Text->InsertTextAtCursor(FString::Chr(Character));
+			Text->InsertTextAtCursor(FString::Chr(CloseBrace));
+			const FTextLocation NewCursorLocation(Text->GetCursorLocation(), -1);
+			Text->GoTo(NewCursorLocation);
+			return FReply::Handled();
+		}
+
+		return FReply::Unhandled();
 	}
 	else if (IsCloseBrace(Character))
 	{
@@ -469,6 +681,7 @@ FReply SOptimusShaderTextDocumentTextBox::OnTextKeyChar(const FGeometry& MyGeome
 		return FReply::Unhandled();
 	}
 }
+
 
 void SOptimusShaderTextDocumentTextBox::HandleAutoIndent() const
 {

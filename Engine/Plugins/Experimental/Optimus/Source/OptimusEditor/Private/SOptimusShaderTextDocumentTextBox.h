@@ -27,6 +27,8 @@ public:
 	TSharedPtr<FUICommandInfo> Search;
 	TSharedPtr<FUICommandInfo> NextOccurrence;
 	TSharedPtr<FUICommandInfo> PreviousOccurrence;
+	
+	TSharedPtr<FUICommandInfo> ToggleComment;
 };
 
 class SOptimusShaderTextDocumentTextBox : public SCompoundWidget
@@ -78,10 +80,15 @@ private:
 	void OnSearchResultNavigationButtonClicked(SSearchBox::SearchDirection InDirection);
 	void OnGoToNextOccurrence();
 	void OnGoToPreviousOccurrence();
+
+	FReply OnTextKeyDown(const FGeometry& MyGeometry,
+		const FKeyEvent& InCharacterEvent) const;
+
+	void OnToggleComment() const;
 	
 	FReply OnTextKeyChar(const FGeometry& MyGeometry,
-		const FCharacterEvent& InCharacterEvent);
-
+		const FCharacterEvent& InCharacterEvent) const;
+	
 	// Figure out if we need to auto-indent.
 	void HandleAutoIndent() const;
 
@@ -92,5 +99,9 @@ private:
 	bool bIsSearchBarHidden;
 	TSharedPtr<SOptimusShaderTextSearchWidget> SearchBar;
 
-	TSharedRef<FUICommandList> CommandList;
+	// Top level command list is processed during preview key down
+	// such that its commands are given the priority
+	TSharedRef<FUICommandList> TopLevelCommandList;
+	
+	TSharedRef<FUICommandList> TextCommandList;
 };
