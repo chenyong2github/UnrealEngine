@@ -55,7 +55,7 @@ public:
 
 void SLidarPointCloudEditorViewport::Construct(const FArguments& InArgs)
 {
-	PreviewScene.SetFloorVisibility(false, true);
+	PreviewScene.SetFloorVisibility(false);
 	PreviewScene.SetEnvironmentVisibility(false);
 
 	PointCloudEditorPtr = InArgs._PointCloudEditor;
@@ -101,7 +101,7 @@ void SLidarPointCloudEditorViewport::Construct(const FArguments& InArgs)
 }
 
 SLidarPointCloudEditorViewport::SLidarPointCloudEditorViewport()
-	: PreviewScene(FPreviewScene::ConstructionValues(), FLT_MAX)
+	: PreviewScene(FPreviewScene::ConstructionValues())
 {
 }
 
