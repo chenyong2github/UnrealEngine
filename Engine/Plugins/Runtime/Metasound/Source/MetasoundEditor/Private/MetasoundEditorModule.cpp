@@ -67,6 +67,25 @@ namespace Metasound
 	namespace Editor
 	{
 		static const FName AssetToolName { "AssetTools" };
+		
+		const FSlateBrush* FEditorDataType::GetIconBrush(const bool bIsConstructorType) const
+		{
+			if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+			{
+				if (PinType.IsArray())
+				{
+					return bIsConstructorType ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArray")) : MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ArrayPin"));
+				}
+				else
+				{
+					return bIsConstructorType ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPin")) : FEditorStyle::GetBrush("Icons.BulletPoint");
+				}
+			}
+			else
+			{
+				return PinType.IsArray() ? FEditorStyle::GetBrush("Graph.ArrayPin.Connected") : FEditorStyle::GetBrush("Icons.BulletPoint");
+			}
+		}
 
 		template <typename T>
 		void AddAssetAction(IAssetTools& AssetTools, TArray<TSharedPtr<FAssetTypeActions_Base>>& AssetArray)
@@ -135,6 +154,12 @@ namespace Metasound
 					Set("MetasoundEditor.Graph.Node.Math.Power", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_power_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Math.Logarithm", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_math_logarithm_40x.png")), Icon40x40));
 					Set("MetasoundEditor.Graph.Node.Conversion", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_conversion_40x.png")), Icon40x40));
+					
+					Set("MetasoundEditor.Graph.ConstructorPinArray", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/array_pin_rotated.png")), Icon16));
+					Set("MetasoundEditor.Graph.ConstructorPinArrayDisconnected", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/array_pin_rotated_disconnected.png")), Icon16));
+					Set("MetasoundEditor.Graph.ArrayPin", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/array_pin.png")), Icon16));
+					Set("MetasoundEditor.Graph.ConstructorPin", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/square_pin_rotated.png")), Icon16));
+					Set("MetasoundEditor.Graph.ConstructorPinDisconnected", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/square_pin_rotated_disconnected.png")), Icon16));
 
 					// Analyzers
 					Set("MetasoundEditor.Analyzers.BackgroundColor", FLinearColor(0.0075f, 0.0075f, 0.0075, 1.0f));
@@ -460,7 +485,8 @@ namespace Metasound
 									//}
 
 									// Differentiate stronger numeric types associated with audio
-									if (DataTypeName == GetMetasoundDataTypeName<FTime>())
+									if (DataTypeName == GetMetasoundDataTypeName<FTime>() || 
+										DataTypeName == CreateArrayTypeNameFromElementTypeName(GetMetasoundDataTypeName<FTime>()))
 									{
 										PinSubCategory = FGraphBuilder::PinSubCategoryTime;
 									}

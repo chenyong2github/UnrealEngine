@@ -361,9 +361,12 @@ namespace Metasound
 		{
 		public:
 			virtual ~FMetasoundInputDetailCustomization() = default;
-
+			
 			virtual void CustomizeDetails(IDetailLayoutBuilder& InDetailLayout) override;
 			virtual bool IsDefaultEditable() const override;
+
+		protected: 
+			virtual void CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout) override;
 
 		private:
 			bool GetInputInheritsDefault() const;

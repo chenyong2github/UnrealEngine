@@ -250,6 +250,10 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInput : public UMetasoundEditorGr
 	GENERATED_BODY()
 
 public:
+	/** Whether this input is a constructor pin (value is only read on construction, and is not updated at runtime). */
+	UPROPERTY(Transient, EditAnywhere, Category = General)
+	bool ConstructorPin = false;
+
 	virtual int32 GetSortOrderIndex() const override;
 	virtual void SetSortOrderIndex(int32 InSortOrderIndex) override;
 

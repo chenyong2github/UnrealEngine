@@ -9,6 +9,7 @@
 #include "MetasoundFrontendRegistries.h"
 #include "Modules/ModuleInterface.h"
 #include "PropertyHandle.h"
+#include "Styling/SlateStyleRegistry.h"
 #include "Templates/Function.h"
 
 // Forward Declarations
@@ -55,6 +56,9 @@ namespace Metasound
 				, RegistryInfo(InRegistryInfo)
 			{
 			}
+
+			// Get the corresponding icon brush for this type 
+			const FSlateBrush* GetIconBrush(const bool bIsConstructorType) const;
 		};
 
 		class METASOUNDEDITOR_API FMetasoundDefaultLiteralCustomizationBase

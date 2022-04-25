@@ -487,19 +487,66 @@ namespace Metasound
 			{
 				TSharedRef<SWidget> TextWidget = SGraphPaletteItem::CreateTextSlotWidget(InCreateData, bIsReadOnly);
 
-				TSharedRef<SHorizontalBox> LayoutWidget = SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
+				bool bIsConstructorPin = false;
+
+				const FSlateBrush* IconBrush = nullptr;
+				const FVector2D IconSize16 = FVector2D(16.0f, 16.0f);
+				FSlateColor IconColor = FSlateColor::UseForeground();
+
+				const bool bIsInterfaceMember = InterfaceVersion.IsValid();
+				const FSlateBrush* InterfaceIconBrush = bIsInterfaceMember ? FEditorStyle::GetBrush("Icons.Lock") : FStyleDefaults::GetNoBrush();
+
+				if (TSharedPtr<FMetasoundGraphMemberSchemaAction> GraphMemberAction = StaticCastSharedPtr<FMetasoundGraphMemberSchemaAction>(InCreateData->Action))
+				{
+
+					UMetasoundEditorGraphMember* GraphMember = GraphMemberAction->GetGraphMember();
+					if (const UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GraphMember))
+					{
+						bIsConstructorPin = Input->ConstructorPin;
+					}
+					FName DataTypeName = GraphMember->GetDataType(); 
+
+					IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+					if (const FEditorDataType* EditorDataType = EditorModule.FindDataType(DataTypeName))
+					{
+						FEdGraphPinType PinType = EditorDataType->PinType;
+						if (const UMetasoundEditorGraphSchema* Schema = GetDefault<UMetasoundEditorGraphSchema>())
+						{
+							IconColor = Schema->GetPinTypeColor(PinType);
+						}
+
+						IconBrush = EditorDataType->GetIconBrush(bIsConstructorPin);
+					}
+				}
+
+				TSharedRef<SHorizontalBox> LayoutWidget = SNew(SHorizontalBox);
+				LayoutWidget->AddSlot()
 				.AutoWidth()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush(InterfaceVersion.IsValid() ? "Icons.Lock" : "Icons.BulletPoint"))
-					.ToolTipText(InterfaceVersion.IsValid() ? FText::Format(LOCTEXT("InterfaceMemberToolTipFormat", "Cannot Add/Remove: Member of interface '{0}'"), FText::FromName(InterfaceVersion.Name)): FText())
-					.ColorAndOpacity(FSlateColor::UseForeground())
-					.DesiredSizeOverride(FVector2D(16, 16))
-				]
-				+ SHorizontalBox::Slot()
+					.Image(IconBrush)
+					.ColorAndOpacity(IconColor)
+					.DesiredSizeOverride(IconSize16)
+				];
+
+				if (bIsInterfaceMember)
+				{
+					LayoutWidget->AddSlot()
+					.AutoWidth()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					[
+						SNew(SImage)
+						.Image(InterfaceIconBrush)
+						.ToolTipText(bIsInterfaceMember ? FText::Format(LOCTEXT("InterfaceMemberToolTipFormat", "Cannot Add/Remove: Member of interface '{0}'"), FText::FromName(InterfaceVersion.Name)) : FText())
+						.ColorAndOpacity(FSlateColor::UseForeground())
+						.DesiredSizeOverride(IconSize16)
+					];
+				}
+				
+				LayoutWidget->AddSlot()
 				.AutoWidth()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)

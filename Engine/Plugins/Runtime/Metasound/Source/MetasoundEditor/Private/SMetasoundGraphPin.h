@@ -203,6 +203,43 @@ namespace Metasound
 						]
 					];
 			}
+
+			virtual const FSlateBrush* GetPinIcon() const
+			{
+				const bool bIsConnected = ParentPinType::IsConnected();
+				bool bIsConstructorPin = false;
+				if (const UEdGraphPin* Pin = ParentPinType::GetPinObj())
+				{
+					if (const UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(Pin->GetOwningNode()))
+					{
+						if (const UMetasoundEditorGraphMemberNode* MemberNode = Cast<UMetasoundEditorGraphMemberNode>(Node))
+						{
+							if (const UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(MemberNode->GetMember()))
+							{
+								bIsConstructorPin = Input->ConstructorPin; 
+							}
+						}
+					}
+				}
+
+				if (bIsConstructorPin)
+				{
+					if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+					{
+						if (ParentPinType::IsArray())
+						{
+							return bIsConnected ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArray")) : 
+								MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArrayDisconnected"));
+						}
+						else
+						{
+							return bIsConnected ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPin")) : 
+								MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinDisconnected"));
+						}
+					}
+				}
+				return SGraphPin::GetPinIcon();
+			}
 		};
 
 		class SMetasoundGraphPin : public TMetasoundGraphPin<SGraphPin>

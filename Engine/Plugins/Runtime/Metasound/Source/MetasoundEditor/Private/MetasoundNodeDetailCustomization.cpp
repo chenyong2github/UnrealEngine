@@ -55,8 +55,11 @@ namespace Metasound
 
 			static const FText OverrideInputDefaultText = LOCTEXT("OverridePresetInputDefault", "Override Inherited Default");
 			static const FText OverrideInputDefaultTooltip = LOCTEXT("OverridePresetInputTooltip",
-				"Enables overriding the input's inherited default value otherwise provided by the referenced graph."
-				"Setting to true disables auto-updating the input's default value if modified on the referenced asset.");
+				"Enables overriding the input's inherited default value otherwise provided by the referenced graph. Setting to true disables auto-updating the input's default value if modified on the referenced asset.");
+
+			static const FText ConstructorPinText = LOCTEXT("ConstructorPinText", "Is Constructor Pin");
+			static const FText ConstructorPinTooltip = LOCTEXT("ConstructorPinTooltip",
+				"Whether this input is a constructor pin (value is only read on construction, and is not updated at runtime).");
 
 			void GetDataTypeFromElementPropertyHandle(TSharedPtr<IPropertyHandle> ElementPropertyHandle, Frontend::FDataTypeRegistryInfo& OutDataTypeInfo)
 			{
@@ -726,7 +729,7 @@ namespace Metasound
 			[
 				SNew(STextBlock)
 				.Text(InRowName)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Font(IDetailLayoutBuilder::GetDetailFontBold())
 			]
 			.ValueContent()
 			[
@@ -1253,6 +1256,19 @@ namespace Metasound
 						FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
 					}
 				}
+			}
+		}
+		void FMetasoundInputDetailCustomization::CustomizeGeneralCategory(IDetailLayoutBuilder& InDetailLayout)
+		{
+			FMetasoundVertexDetailCustomization::CustomizeGeneralCategory(InDetailLayout);
+
+			if (UMetasoundEditorGraphInput* Input = Cast<UMetasoundEditorGraphInput>(GraphMember.Get()))
+			{
+				IDetailCategoryBuilder& CategoryBuilder = FMetasoundMemberDetailCustomization::GetGeneralCategoryBuilder(InDetailLayout);
+				// TODO: Remove ConstructorPin bool from UMetasoundEditorGraphInput and add constructor pin bool property from frontend here 
+				/*IDetailPropertyRow* Row = CategoryBuilder.AddExternalObjectProperty(TArray<UObject*>({ Input }), GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphInput, ConstructorPin));
+				auto PropertyEnabled = TAttribute<bool>::CreateLambda([this] { return !GetDocumentHandle()->GetRootGraphClass().PresetOptions.bIsPreset; });
+				Row->EditCondition(PropertyEnabled, { });*/
 			}
 		}
 
