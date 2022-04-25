@@ -148,6 +148,14 @@ void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 	BulkData.Serialize(Ar, Owner, MipIdx, false);
 #endif
 
+	// Streaming mips are saved with a size of 0 because they are stored separately.
+	// IsBulkDataLoaded() returns true for this empty bulk data. Remove the empty
+	// bulk data to allow unloaded streaming mips to be detected.
+	if (Ar.IsLoading() && BulkData.GetBulkDataSize() == 0)
+	{
+		BulkData.RemoveBulkData();
+	}
+
 	Ar << SizeX;
 	Ar << SizeY;
 	Ar << SizeZ;
