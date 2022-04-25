@@ -284,15 +284,27 @@ public:
  * Raw struct to serialize for network. We need to custom netserialize to optimize
  * the vector serialize as much as possible and rather than have the property system
  * iterate an array of reflected structs we handle everything in the NetSerialize for
- * the container (FGeometryCollectionRepData)
+ * the container (FGeometryCollectionClusterRep)
  */
-struct FGeometryCollectionRepPose
+struct FGeometryCollectionClusterRep
 {
-	FVector Position;
-	FVector LinearVelocity;
-	FVector AngularVelocity;
+	FVector_NetQuantize100 Position;
+	FVector_NetQuantize100 LinearVelocity;
+	FVector_NetQuantize100 AngularVelocity;
 	FQuat Rotation;
-	uint16 ParticleIndex;
+	uint16 ClusterIdx;
+	int8 ObjectState;
+
+	bool ClusterChanged(const FGeometryCollectionClusterRep& Other) const
+	{
+		return Other.ObjectState != ObjectState
+			|| Other.ClusterIdx != ClusterIdx
+			|| Other.ObjectState != ObjectState
+			|| Other.Position != Position
+			|| Other.LinearVelocity != LinearVelocity
+			|| Other.AngularVelocity != AngularVelocity
+			|| Other.Rotation != Rotation;
+	}
 };
 
 /**
@@ -310,8 +322,11 @@ struct FGeometryCollectionRepData
 
 	}
 
-	// Array of per-particle data required to synchronize clients
-	TArray<FGeometryCollectionRepPose> Poses;
+	//Array of one off pieces that became activated
+	TArray<uint16> OneOffActivated;
+
+	// Array of cluster data requires to synchronize clients
+	TArray<FGeometryCollectionClusterRep> Clusters;
 
 	// Version counter, every write to the rep data is a new state so Identical only references this version
 	// as there's no reason to compare the Poses array.
@@ -368,6 +383,7 @@ public:
 
 	virtual bool HasAnySockets() const override { return false; }
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	virtual void AsyncPhysicsTickComponent(float DeltaTime, float SimTime) override;
 	//~ Begin USceneComponent Interface.
 
 
@@ -786,24 +802,13 @@ protected:
 	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = Network)
 	int32 ReplicationAbandonClusterLevel;
 
-	UPROPERTY(ReplicatedUsing=OnRep_RepData)
+	UPROPERTY(Replicated)
 	FGeometryCollectionRepData RepData;
-
-	/** Called on non-authoritative clients when receiving new repdata from the server */
-	UFUNCTION()
-	void OnRep_RepData(const FGeometryCollectionRepData& OldData);
 
 	/** Called post solve to allow authoritative components to update their replication data */
 	void UpdateRepData();
 
 private:
-
-	/** 
-	 * Notifies all clients that a server has abandoned control of a particle, clients should restore the strain
-	 * values on abandoned particles and their children then fracture them before continuing
-	 */
-	UFUNCTION(NetMulticast, Reliable)
-	void NetAbandonCluster(int32 TransformIndex);
 
 	bool bRenderStateDirty;
 	bool bEnableBoneSelection;
@@ -875,6 +880,14 @@ private:
 
 	void IncrementSleepTimer(float DeltaTime);
 	bool CalculateInnerSphere(int32 TransformIndex, FSphere& SphereOut) const;
+	void ProcessRepData();
+
+	/** The clusters we need to replicate */
+	TUniquePtr<TSet<Chaos::FPBDRigidClusteredParticleHandle*>> ClustersToRep;
+
+	/** One off activation is processed in the same order as server so remember the last one we processed */
+	int32 OneOffActivatedProcessed = 0;
+	int32 VersionProcessed = INDEX_NONE;
 
 	/** True if GeometryCollection transforms have changed from previous tick. */
 	bool bIsMoving;
