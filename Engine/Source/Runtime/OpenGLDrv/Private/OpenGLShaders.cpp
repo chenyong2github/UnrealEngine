@@ -4045,8 +4045,10 @@ void FOpenGLShaderParameterCache::CommitPackedUniformBuffers(FOpenGLLinkedProgra
 		{
 			const FOpenGLUniformBuffer* UniformBuffer = (FOpenGLUniformBuffer*)RHIUniformBuffers[BufferIndex].GetReference();
 
-			if (!UniformBuffer->bIsEmulatedUniformBuffer)
+			if (UniformBuffer && !UniformBuffer->bIsEmulatedUniformBuffer)
+			{
 				continue;
+			}
 
 			// Workaround for null UBs (FORT-323429), additional logging here is to give us a chance to investigate the higher level issue causing the null UB.
 #if !UE_BUILD_SHIPPING
