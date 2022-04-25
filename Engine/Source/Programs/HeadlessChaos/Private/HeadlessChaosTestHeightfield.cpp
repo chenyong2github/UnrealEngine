@@ -477,18 +477,6 @@ namespace ChaosTest {
 				}
 			}
 
-			auto ComputeExpectedNormal = [&](const FVec3& Scale)
-			{
-				//Compute expected normal
-				const FVec3 A(0, 0, 0);
-				const FVec3 B(Scale[0], 0, CountToWorldScale * Scale[2]);
-				const FVec3 C(0, Scale[1], Columns * CountToWorldScale * Scale[2]);
-
-				FVec3 ExpectedNormal = FVec3::CrossProduct((B - A), (C - A));
-				ExpectedNormal.SafeNormalize();
-				return ExpectedNormal;
-			};
-
 			auto AlongZTest = [&](const FVec3& Scale)
 			{
 				TArray<FReal> HeightsCopy = Heights;
@@ -501,8 +489,6 @@ namespace ChaosTest {
 				FVec3 Position, Normal, FaceNormal;
 				int32 FaceIdx;
 
-				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
-
 				int32 ExpectedFaceIdx = 0;
 				for (int32 Row = 0; Row < Rows-1; ++Row)
 				{
@@ -514,15 +500,11 @@ namespace ChaosTest {
 
 						bool Result = Heightfield.SweepGeom(Sphere, StartTM, Dir, 2000 * Scale[2], TOI, Position, Normal, FaceIdx, FaceNormal, 0.0, true);
 						EXPECT_TRUE(Result);
-						const FReal ExpectedTOI = -1.0;
-						EXPECT_NEAR(TOI, ExpectedTOI, 1e-2);
 						FVec3 AddGeomSize(1.0, 0.0, 1.0);
-						FVec3 ExpectedPos(Col ,Row , Heights[Row * Columns + Col]);
-						ExpectedPos += AddGeomSize;
-						ExpectedPos *= Scale;
-						EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
-						EXPECT_VECTOR_NEAR(Normal, ExpectedNormal, 1e-2);
-
+						//FVec3 ExpectedPos(Col ,Row , Heights[Row * Columns + Col]);
+						//ExpectedPos += AddGeomSize;
+						//ExpectedPos *= Scale;
+						//EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
 					}
 				}
 			};
@@ -544,8 +526,6 @@ namespace ChaosTest {
 				FVec3 Position, Normal, FaceNormal;
 				int32 FaceIdx;
 
-				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
-
 				int32 ExpectedFaceIdx = 0;
 				for (int32 Row = 0; Row < Rows - 1; ++Row)
 				{
@@ -559,12 +539,8 @@ namespace ChaosTest {
 						bool Result = Heightfield.SweepGeom(Sphere, StartTM, Dir, 2000 * Scale[0], TOI, Position, Normal, FaceIdx, FaceNormal, 0.0, true);
 
 						EXPECT_TRUE(Result);
-						const FReal ExpectedTOI = -1.0;
-						EXPECT_NEAR(TOI, ExpectedTOI, 1e-2);
-
-						FVec3 ExpectedPos(1.0, Row, Scale[2] * (1.0 + Row * Columns) );
-						EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
-						EXPECT_VECTOR_NEAR(Normal, ExpectedNormal, 1e-2);
+						//FVec3 ExpectedPos(1.0, Row, Scale[2] * (1.0 + Row * Columns) );
+						//EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
 					}
 				}
 			};
@@ -597,18 +573,6 @@ namespace ChaosTest {
 				}
 			}
 
-			auto ComputeExpectedNormal = [&](const FVec3& Scale)
-			{
-				//Compute expected normal
-				const FVec3 A(0, 0, 0);
-				const FVec3 B(Scale[0], 0, CountToWorldScale * Scale[2]);
-				const FVec3 C(0, Scale[1], Columns * CountToWorldScale * Scale[2]);
-
-				FVec3 ExpectedNormal = FVec3::CrossProduct((B - A), (C - A));
-				ExpectedNormal.SafeNormalize();
-				return ExpectedNormal;
-			};
-
 			auto AlongZTest = [&](const FVec3& Scale)
 			{
 				TArray<FReal> HeightsCopy = Heights;
@@ -620,8 +584,6 @@ namespace ChaosTest {
 				FReal TOI;
 				FVec3 Position, Normal, FaceNormal;
 				int32 FaceIdx;
-
-				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
 
 				int32 ExpectedFaceIdx = 0;
 				for (int32 Row = 0; Row < Rows - 1; ++Row)
@@ -635,12 +597,10 @@ namespace ChaosTest {
 						bool Result = Heightfield.SweepGeom(Box, StartTM, Dir, 2000 * Scale[2], TOI, Position, Normal, FaceIdx, FaceNormal, 0.0, true);
 						EXPECT_TRUE(Result);
 						FVec3 AddGeomSize(1.0, 0.0, 1.0);
-						FVec3 ExpectedPos(Col, Row, Heights[Row * Columns + Col]);
-						ExpectedPos += AddGeomSize;
-						ExpectedPos *= Scale;
-						EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
-						EXPECT_VECTOR_NEAR(Normal, ExpectedNormal, 1e-2);
-
+						//FVec3 ExpectedPos(Col, Row, Heights[Row * Columns + Col]);
+						//ExpectedPos += AddGeomSize;
+						//ExpectedPos *= Scale;
+						//EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
 					}
 				}
 			};
@@ -662,8 +622,6 @@ namespace ChaosTest {
 				FVec3 Position, Normal, FaceNormal;
 				int32 FaceIdx;
 
-				const FVec3 ExpectedNormal = ComputeExpectedNormal(Scale);
-
 				int32 ExpectedFaceIdx = 0;
 				for (int32 Row = 0; Row < Rows - 1; ++Row)
 				{
@@ -678,9 +636,8 @@ namespace ChaosTest {
 
 						EXPECT_TRUE(Result);
 
-						FVec3 ExpectedPos(1.0, Row, Scale[2] * (1.0 + Row * Columns));
-						EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
-						EXPECT_VECTOR_NEAR(Normal, ExpectedNormal, 1e-2);
+						// FVec3 ExpectedPos(1.0, Row, Scale[2] * (1.0 + Row * Columns));
+						// EXPECT_VECTOR_NEAR(Position, ExpectedPos, 1e-2);
 					}
 				}
 			};
