@@ -2120,19 +2120,6 @@ FRHICOMMAND_MACRO(FRHICommandBackBufferWaitTrackingBeginFrame)
 };
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
-#if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
-FRHICOMMAND_MACRO(FRHICommandFlushTextureCacheBOP)
-{
-	FRHITexture* Texture;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandFlushTextureCacheBOP(FRHITexture* TextureIn)
-		:	Texture(TextureIn)
-	{}
-	
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-#endif // #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
-
 FRHICOMMAND_MACRO(FRHICommandCopyBufferRegion)
 {
 	FRHIBuffer* DestBuffer;
@@ -2995,18 +2982,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ALLOC_COMMAND(FRHICommandBroadcastTemporalEffect<FRHIBuffer>)(EffectName, AllocArray(Buffers));
 	}
 #endif // WITH_MGPU
-
-#if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
-	FORCEINLINE_DEBUGGABLE void RHIFlushTextureCacheBOP(FRHITexture* Texture)
-	{
-		if (Bypass())
-		{
-			GetContext().RHIFlushTextureCacheBOP(Texture);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandFlushTextureCacheBOP)(Texture);
-	}
-#endif // #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
 
 #if RHI_RAYTRACING
 	void BuildAccelerationStructure(FRHIRayTracingGeometry* Geometry);
