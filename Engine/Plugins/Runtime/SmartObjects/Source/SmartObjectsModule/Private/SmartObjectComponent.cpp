@@ -176,20 +176,18 @@ void USmartObjectComponent::BindTagsDelegates(FSmartObjectRuntime& RuntimeInstan
 	if (Subsystem != nullptr)
 	{
 		// Register callback when Tags in the component are modified to mirror the change in the Runtime instance
-		// The lambda capture assumes that the RuntimeInstance will be valid as long as
-		// OnRuntimeInstanceUnbound or OnRuntimeInstanceDestroyed are not called
 		OnComponentTagsModifiedHandle = AbilitySystemComponent.RegisterGenericGameplayTagEvent().AddLambda
-		([Subsystem, &RuntimeInstance](const FGameplayTag Tag, const int32 NewCount)
+		([Subsystem, Handle = RuntimeInstance.GetRegisteredHandle()](const FGameplayTag Tag, const int32 NewCount)
 		{
 			// This specific delegate is only invoked whenever a tag is added or removed (but not if just count is increased)
 			// so we can add or remove the tag on the instance (no reference counting)
 			if (NewCount)
 			{
-				Subsystem->AddTagToInstance(RuntimeInstance, Tag);
+				Subsystem->AddTagToInstance(Handle, Tag);
 			}
 			else
 			{
-				Subsystem->RemoveTagFromInstance(RuntimeInstance, Tag);
+				Subsystem->RemoveTagFromInstance(Handle, Tag);
 			}
 		});
 
