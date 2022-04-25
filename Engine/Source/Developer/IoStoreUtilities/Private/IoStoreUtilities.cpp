@@ -3885,7 +3885,7 @@ int32 Describe(
 
 	TMap<FPackageObjectIndex, FScriptObjectDesc> ScriptObjectByGlobalIdMap;
 	FLargeMemoryReader ScriptObjectsArchive(ScriptObjectsBuffer.ValueOrDie().Data(), ScriptObjectsBuffer.ValueOrDie().DataSize());
-	TArray<FNameEntryId> GlobalNameMap = LoadNameBatch(ScriptObjectsArchive);
+	TArray<FDisplayNameEntryId> GlobalNameMap = LoadNameBatch(ScriptObjectsArchive);
 	int32 NumScriptObjects = 0;
 	ScriptObjectsArchive << NumScriptObjects;
 	const FScriptObjectEntry* ScriptObjectEntries = reinterpret_cast<const FScriptObjectEntry*>(ScriptObjectsBuffer.ValueOrDie().Data() + ScriptObjectsArchive.Tell());
@@ -3895,7 +3895,7 @@ int32 Describe(
 		FMappedName MappedName = ScriptObjectEntry.Mapped;
 		check(MappedName.IsGlobal());
 		FScriptObjectDesc& ScriptObjectDesc = ScriptObjectByGlobalIdMap.Add(ScriptObjectEntry.GlobalIndex);
-		ScriptObjectDesc.Name = FName::CreateFromDisplayId(GlobalNameMap[MappedName.GetIndex()], MappedName.GetNumber());
+		ScriptObjectDesc.Name = GlobalNameMap[MappedName.GetIndex()].ToName(MappedName.GetNumber());
 		ScriptObjectDesc.GlobalImportIndex = ScriptObjectEntry.GlobalIndex;
 		ScriptObjectDesc.OuterIndex = ScriptObjectEntry.OuterIndex;
 	}
@@ -4106,13 +4106,13 @@ int32 Describe(
 			HeaderDataReader << VersioningInfo;
 		}
 
-		TArray<FNameEntryId> PackageNameMap;
+		TArray<FDisplayNameEntryId> PackageNameMap;
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(LoadNameBatch);
 			PackageNameMap = LoadNameBatch(HeaderDataReader);
 		}
 
-		Job.PackageDesc->PackageName = FName::CreateFromDisplayId(PackageNameMap[PackageSummary->Name.GetIndex()], PackageSummary->Name.GetNumber());
+		Job.PackageDesc->PackageName = PackageNameMap[PackageSummary->Name.GetIndex()].ToName(PackageSummary->Name.GetNumber());
 		Job.PackageDesc->PackageFlags = PackageSummary->PackageFlags;
 		Job.PackageDesc->NameCount = PackageNameMap.Num();
 		
@@ -4132,7 +4132,7 @@ int32 Describe(
 			const FExportMapEntry& ExportMapEntry = ExportMap[ExportIndex];
 			FExportDesc& ExportDesc = Job.PackageDesc->Exports[ExportIndex];
 			ExportDesc.Package = Job.PackageDesc;
-			ExportDesc.Name = FName::CreateFromDisplayId(PackageNameMap[ExportMapEntry.ObjectName.GetIndex()], ExportMapEntry.ObjectName.GetNumber());
+			ExportDesc.Name = PackageNameMap[ExportMapEntry.ObjectName.GetIndex()].ToName(ExportMapEntry.ObjectName.GetNumber());
 			ExportDesc.OuterIndex = ExportMapEntry.OuterIndex;
 			ExportDesc.ClassIndex = ExportMapEntry.ClassIndex;
 			ExportDesc.SuperIndex = ExportMapEntry.SuperIndex;

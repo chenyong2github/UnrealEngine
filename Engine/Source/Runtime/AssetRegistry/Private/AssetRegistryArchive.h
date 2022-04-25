@@ -25,7 +25,7 @@ public:
 	void WaitForTasks();
 
 private:
-	TArray<FNameEntryId> Names;
+	TArray<FDisplayNameEntryId> Names;
 	TRefCountPtr<const FixedTagPrivate::FStore> Tags;
 	TFuture<void> Task;
 
@@ -72,7 +72,7 @@ public:
 	void SerializeTagsAndBundles(const FAssetData& In);
 
 private:
-	TMap<FNameEntryId, uint32> Names;
+	TMap<FDisplayNameEntryId, uint32> Names;
 	FixedTagPrivate::FStoreBuilder Tags;
 	FArchive& TargetAr;
 

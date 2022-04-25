@@ -187,9 +187,9 @@ FPackageStorePackage* FPackageStoreOptimizer::CreatePackageFromPackageStoreHeade
 	}
 	Package->PackageFlags = PackageStoreHeaderData.Summary.PackageFlags;
 	Package->CookedHeaderSize = PackageStoreHeaderData.Summary.CookedHeaderSize;
-	for (const FNameEntryId& DisplayIndex : PackageStoreHeaderData.NameMap)
+	for (FDisplayNameEntryId DisplayId : PackageStoreHeaderData.NameMap)
 	{
-		Package->NameMapBuilder.AddName(FName::CreateFromDisplayId(DisplayIndex, 0));
+		Package->NameMapBuilder.AddName(DisplayId);
 	}
 	ProcessImports(PackageStoreHeaderData, Package);
 	ProcessExports(PackageStoreHeaderData, Package);
@@ -319,7 +319,7 @@ FPackageStoreOptimizer::FPackageStoreHeaderData FPackageStoreOptimizer::LoadPack
 		HeaderDataReader << VersioningInfo;
 	}
 
-	TArray<FNameEntryId>& NameMap = PackageStoreHeaderData.NameMap;
+	TArray<FDisplayNameEntryId>& NameMap = PackageStoreHeaderData.NameMap;
 	NameMap = LoadNameBatch(HeaderDataReader);
 
 	for (FPackageId PackageId : PackageStoreEntry.ImportedPackageIds)
@@ -654,7 +654,7 @@ void FPackageStoreOptimizer::ProcessExports(const FPackageStoreHeaderData& Packa
 	Package->Exports.SetNum(ExportCount);
 	Package->ExportGraphNodes.Reserve(ExportCount * 2);
 
-	const TArray<FNameEntryId>& NameMap = PackageStoreHeaderData.NameMap;
+	const TArray<FDisplayNameEntryId>& NameMap = PackageStoreHeaderData.NameMap;
 
 	Package->ImportedPublicExportHashes = PackageStoreHeaderData.ImportedPublicExportHashes;
 	for (int32 ExportIndex = 0; ExportIndex < ExportCount; ++ExportIndex)
@@ -663,7 +663,7 @@ void FPackageStoreOptimizer::ProcessExports(const FPackageStoreHeaderData& Packa
 		Package->ExportsSerialSize += ExportEntry.CookedSerialSize;
 
 		FPackageStorePackage::FExport& Export = Package->Exports[ExportIndex];
-		Export.ObjectName = FName::CreateFromDisplayId(NameMap[ExportEntry.ObjectName.GetIndex()], ExportEntry.ObjectName.GetNumber());
+		Export.ObjectName = ExportEntry.ObjectName.ResolveName(NameMap);
 		Export.PublicExportHash = ExportEntry.PublicExportHash;
 		Export.OuterIndex = ExportEntry.OuterIndex;
 		Export.ClassIndex = ExportEntry.ClassIndex;
@@ -1809,7 +1809,7 @@ FIoBuffer FPackageStoreOptimizer::CreateScriptObjectsBuffer() const
 void FPackageStoreOptimizer::LoadScriptObjectsBuffer(const FIoBuffer& ScriptObjectsBuffer)
 {
 	FLargeMemoryReader ScriptObjectsArchive(ScriptObjectsBuffer.Data(), ScriptObjectsBuffer.DataSize());
-	TArray<FNameEntryId> NameMap = LoadNameBatch(ScriptObjectsArchive);
+	TArray<FDisplayNameEntryId> NameMap = LoadNameBatch(ScriptObjectsArchive);
 	int32 NumScriptObjects;
 	ScriptObjectsArchive << NumScriptObjects;
 	for (int32 Index = 0; Index < NumScriptObjects; ++Index)
@@ -1818,7 +1818,7 @@ void FPackageStoreOptimizer::LoadScriptObjectsBuffer(const FIoBuffer& ScriptObje
 		ScriptObjectsArchive << Entry;
 		FScriptObjectData& ImportData = ScriptObjectsMap.Add(Entry.GlobalIndex);
 		FMappedName MappedName = Entry.Mapped;
-		ImportData.ObjectName = FName::CreateFromDisplayId(NameMap[MappedName.GetIndex()], MappedName.GetNumber());
+		ImportData.ObjectName = NameMap[MappedName.GetIndex()].ToName(MappedName.GetNumber());
 		ImportData.GlobalIndex = Entry.GlobalIndex;
 		ImportData.OuterIndex = Entry.OuterIndex;
 		ImportData.CDOClassIndex = Entry.CDOClassIndex;

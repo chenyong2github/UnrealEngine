@@ -101,11 +101,11 @@ FAssetRegistryWriter::FAssetRegistryWriter(const FAssetRegistryWriterOptions& Op
 	check(!IsLoading());
 }
 
-static TArray<FNameEntryId> FlattenIndex(const TMap<FNameEntryId, uint32>& Names)
+static TArray<FDisplayNameEntryId> FlattenIndex(const TMap<FDisplayNameEntryId, uint32>& Names)
 {
-	TArray<FNameEntryId> Out;
+	TArray<FDisplayNameEntryId> Out;
 	Out.SetNumZeroed(Names.Num());
-	for (TPair<FNameEntryId, uint32> Pair : Names)
+	for (TPair<FDisplayNameEntryId, uint32> Pair : Names)
 	{
 		Out[Pair.Value] = Pair.Key;
 	}
@@ -126,7 +126,7 @@ FAssetRegistryWriter::~FAssetRegistryWriter()
 
 FArchive& FAssetRegistryWriter::operator<<(FName& Value)
 {
-	FNameEntryId EntryId = Value.GetDisplayIndex();
+	FDisplayNameEntryId EntryId(Value);
 
 	uint32 Index = Names.FindOrAdd(EntryId, Names.Num());
 	check((Index & AssetRegistryNumberedNameBit) == 0);
@@ -162,7 +162,7 @@ FAssetRegistryReader::FAssetRegistryReader(FArchive& Inner, int32 NumWorkers)
 
 	if (NumWorkers > 0)
 	{
-		TFunction<TArray<FNameEntryId> ()> GetFutureNames = LoadNameBatchAsync(*this, NumWorkers);
+		TFunction<TArray<FDisplayNameEntryId> ()> GetFutureNames = LoadNameBatchAsync(*this, NumWorkers);
 
 		FixedTagPrivate::FAsyncStoreLoader StoreLoader;
 		Task = StoreLoader.ReadInitialDataAndKickLoad(*this, NumWorkers);
@@ -205,7 +205,7 @@ FArchive& FAssetRegistryReader::operator<<(FName& Out)
 		*this << Number;
 	}
 
-	Out = FName::CreateFromDisplayId(Names[Index], Number);
+	Out = Names[Index].ToName(Number);
 
 	return *this;
 }

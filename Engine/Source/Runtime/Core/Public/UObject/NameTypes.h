@@ -85,7 +85,12 @@ struct FNameEntryId
 	uint32 ToUnstableInt() const { return Value; }
 
 	/** Create from unstable int produced by this process */
-	CORE_API static FNameEntryId FromUnstableInt(uint32 UnstableInt);
+	static FNameEntryId FromUnstableInt(uint32 UnstableInt)
+	{
+		FNameEntryId Id;
+		Id.Value = UnstableInt;
+		return Id;
+	}
 
 	FORCEINLINE static FNameEntryId FromEName(EName Ename)
 	{
@@ -836,7 +841,9 @@ public:
 	 */
 	static FName CreateFromDisplayId(FNameEntryId DisplayId, int32 Number)
 	{
-		check(ResolveEntry(DisplayId)->IsNumbered() == false); // This id should be unnumbered i.e. returned from GetDisplayIndex on an FName.
+#if UE_FNAME_OUTLINE_NUMBER
+		checkSlow(ResolveEntry(DisplayId)->IsNumbered() == false); // This id should be unnumbered i.e. returned from GetDisplayIndex on an FName.
+#endif
 		return FName(GetComparisonIdFromDisplayId(DisplayId), DisplayId, Number);
 	}
 

@@ -81,7 +81,7 @@ struct FIoContainerHeader
 	uint32 PackageCount = 0;
 	TArray<FPackageId> PackageIds;
 	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount]
-	TArray<FNameEntryId> RedirectsNameMap;
+	TArray<FDisplayNameEntryId> RedirectsNameMap;
 	TArray<FIoContainerHeaderLocalizedPackage> LocalizedPackages;
 	TArray<FIoContainerHeaderPackageRedirect> PackageRedirects;
 

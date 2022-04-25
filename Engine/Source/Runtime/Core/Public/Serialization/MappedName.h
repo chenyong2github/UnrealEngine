@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/NameBatchSerialization.h"
 
 /**
  * Index and name number into a name map.
@@ -83,6 +84,11 @@ public:
 		return Index != Other.Index || Number != Other.Number;
 	}
 
+	FName ResolveName(TConstArrayView<FDisplayNameEntryId> Names) const
+	{
+		return Names[GetIndex()].ToName(GetNumber());
+	}
+
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FMappedName& MappedName);
 
 private:
@@ -112,8 +118,7 @@ public:
 		check(MappedName.GetType() == NameMapType);
 		check(MappedName.GetIndex() < uint32(NameEntries.Num()));
 
-		FNameEntryId NameEntry = NameEntries[MappedName.GetIndex()];
-		return FName::CreateFromDisplayId(NameEntry, MappedName.GetNumber());
+		return NameEntries[MappedName.GetIndex()].ToName(MappedName.GetNumber());
 	}
 
 	bool TryGetName(const FMappedName& MappedName, FName& OutName) const
@@ -123,8 +128,7 @@ public:
 		uint32 Index = MappedName.GetIndex();
 		if (Index < uint32(NameEntries.Num()))
 		{
-			FNameEntryId NameEntry = NameEntries[MappedName.GetIndex()];
-			OutName = FName::CreateFromDisplayId(NameEntry, MappedName.GetNumber());
+			OutName = NameEntries[MappedName.GetIndex()].ToName(MappedName.GetNumber());
 
 			return true;
 		}
@@ -134,15 +138,11 @@ public:
 
 	FMinimalName GetMinimalName(const FMappedName& MappedName) const
 	{
-		check(MappedName.GetType() == NameMapType);
-		check(MappedName.GetIndex() < uint32(NameEntries.Num()));
-
-		FNameEntryId DisplayId = NameEntries[MappedName.GetIndex()];
-		FNameEntryId ComparisonId = FName::GetComparisonIdFromDisplayId(DisplayId);
-		return NameToMinimalName(FName(ComparisonId, DisplayId, MappedName.GetNumber()));
+		// Wasteful, looks up display name then discards it
+		return NameToMinimalName(GetName(MappedName));
 	}
 
 private:
-	TArray<FNameEntryId> NameEntries;
+	TArray<FDisplayNameEntryId> NameEntries;
 	FMappedName::EType NameMapType = FMappedName::EType::Global;
 };
