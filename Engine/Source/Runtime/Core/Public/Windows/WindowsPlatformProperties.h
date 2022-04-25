@@ -78,6 +78,11 @@ struct FWindowsPlatformProperties
 		return IS_DEDICATED_SERVER;
 	}
 
+	static FORCEINLINE bool SupportsMemoryMappedFiles()
+	{
+		return true;
+	}
+
 	static FORCEINLINE bool SupportsAudioStreaming()
 	{
 		return !IsServerOnly();
