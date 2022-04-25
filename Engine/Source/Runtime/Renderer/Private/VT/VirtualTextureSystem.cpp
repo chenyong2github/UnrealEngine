@@ -2390,7 +2390,7 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 					{
 						FVirtualTexturePhysicalSpace* RESTRICT PhysicalSpace = Producer.GetPhysicalSpaceForPhysicalGroup(ProducerPhysicalGroupIndex);
 						FTexturePagePool& RESTRICT PagePool = PhysicalSpace->GetPagePool();
-						if (PagePool.AnyFreeAvailable(Frame, PageFreeThreshold))
+						if (PagePool.AnyFreeAvailable(Frame, bLockTile ? 0 : PageFreeThreshold))
 						{
 							const uint32 pAddress = PagePool.Alloc(this, Frame, ProducerHandle, ProducerPhysicalGroupIndex, TileToLoad.Local_vAddress, TileToLoad.Local_vLevel, bLockTile);
 							check(pAddress != ~0u);
@@ -2670,6 +2670,11 @@ float FVirtualTextureSystem::GetGlobalMipBias() const
 	}
 
 	return UTexture2D::GetGlobalMipMapLODBias() + MaxResidencyMipMapBias;
+}
+
+bool FVirtualTextureSystem::IsPendingRootPageMap(IAllocatedVirtualTexture* AllocatedVT) const
+{
+	return AllocatedVTsToMap.Find(AllocatedVT) != INDEX_NONE;
 }
 
 #if !UE_BUILD_SHIPPING

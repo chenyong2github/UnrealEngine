@@ -13,7 +13,7 @@ class FVirtualTextureSystem;
 
 /**
  * Concrete implementation of an adaptive virtual texture.
- * This allocates multiple virtual textures within the same space: one each for a grid of UV ranges, and an additional persistent one for the low mips.
+ * This allocates multiple virtual textures within the same space: one each for a grid of UV ranges, and an additional persistent one for the low resolution mips.
  * We then use an additional page table indirection texture in the shader to select the correct page table address range for our sampled UV.
  * We use the virtual texture feedback to decide when to increase or decrease the resolution of each UV range.
  * When we change resolution for a range we directly remap the page table entires. This removes the cost and any visual glitch from regenerating the pages.
@@ -107,6 +107,8 @@ private:
 	FHashTable GridIndexMap;
 	/** Map from AllocatedVT pointer to allocation slot index. */
 	FHashTable AllocatedVTMap;
+	/** Indices to AllocationSlots array for newly allocated virtual textures that are pending their root page before we can use them. */
+	TArray<int32> SlotsPendingRootPageMap;
 	/** Binary heap to track least recently used entries in AllocationSlots array. Used to decide what slots to evict next. */
 	FBinaryHeap<uint32, uint32> LRUHeap;
 

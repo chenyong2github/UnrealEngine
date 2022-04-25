@@ -32,7 +32,7 @@ static TAutoConsoleVariable<int32> CVarAVTMaxPageResidency(
 
 static TAutoConsoleVariable<int32> CVarAVTAgeToFree(
 	TEXT("r.VT.AVT.AgeToFree"),
-	300,
+	60,
 	TEXT("Number of frames for an allocation to be unused before it is considered for free"),
 	ECVF_RenderThreadSafe
 );
@@ -546,6 +546,16 @@ void FAdaptiveVirtualTexture::Allocate(FVirtualTextureSystem* InSystem, uint32 I
 		// Mark allocation as used.
 		const uint32 Key = (InFrame << 4) | InNewLevel;
 		LRUHeap.Update(Key, InAllocationIndex);
+
+		// Queue indirection texture update unless this allocation slot is already marked as pending.
+		if (SlotsPendingRootPageMap.Find(InAllocationIndex) == INDEX_NONE)
+		{
+			const uint32 vAddress = NewAllocatedVT->GetVirtualAddress();
+			const uint32 vAddressX = FMath::ReverseMortonCode2(vAddress);
+			const uint32 vAddressY = FMath::ReverseMortonCode2(vAddress >> 1);
+			const uint32 PackedIndirectionValue = (1 << 28) | (InNewLevel << 24) | (vAddressY << 12) | vAddressX;
+			TextureUpdates.Add(FIndirectionTextureUpdate{ X, Y, PackedIndirectionValue });
+		}
 	}
 	else
 	{
@@ -562,6 +572,9 @@ void FAdaptiveVirtualTexture::Allocate(FVirtualTextureSystem* InSystem, uint32 I
 			AllocationSlots[InAllocationIndex].AllocatedVT = NewAllocatedVT;
 		}
 
+		// Add to pending for later indirection texture update.
+		SlotsPendingRootPageMap.Add(InAllocationIndex);
+
 		// Add to allocation structures.
 		GridIndexMap.Add(GetGridIndexHash(InGridIndex), InAllocationIndex);
 		AllocatedVTMap.Add(GetAllocatedVTHash(NewAllocatedVT), InAllocationIndex);
@@ -571,13 +584,6 @@ void FAdaptiveVirtualTexture::Allocate(FVirtualTextureSystem* InSystem, uint32 I
 
 		NumAllocated++;
 	}
-
-	// Queue indirection texture update.
-	const uint32 vAddress = NewAllocatedVT->GetVirtualAddress();
-	const uint32 vAddressX = FMath::ReverseMortonCode2(vAddress);
-	const uint32 vAddressY = FMath::ReverseMortonCode2(vAddress >> 1);
-	const uint32 PackedIndirectionValue = (1 << 28) | (InNewLevel << 24) | (vAddressY << 12) | vAddressX;
-	TextureUpdates.Add(FIndirectionTextureUpdate{ X, Y, PackedIndirectionValue });
 }
 
 void FAdaptiveVirtualTexture::Free(FVirtualTextureSystem* InSystem, uint32 InAllocationIndex, uint32 InFrame)
@@ -592,6 +598,7 @@ void FAdaptiveVirtualTexture::Free(FVirtualTextureSystem* InSystem, uint32 InAll
 	AllocatedVTMap.Remove(GetAllocatedVTHash(OldAllocatedVT), InAllocationIndex);
 	AllocationSlots[InAllocationIndex] = FAllocation(0, nullptr);
 	FreeSlots.Add(InAllocationIndex);
+	SlotsPendingRootPageMap.RemoveAllSwap([InAllocationIndex](int32& V) { return V == InAllocationIndex; });
 
 	NumAllocated--;
 	check(NumAllocated >= 0);
@@ -684,6 +691,30 @@ void FAdaptiveVirtualTexture::UpdateAllocations(FVirtualTextureSystem* InSystem,
 			uint32 PackedRequest = RequestsToMap[RequestIndex];
 			Allocate(InSystem, PackedRequest, InFrame);
 			RequestsToMap.RemoveAtSwap(RequestIndex, 1, false);
+		}
+	}
+
+	// Check if any pending allocation slots are now ready.
+	// Pending slots are ones where the virtual texture locked root page(s) remain unmapped.
+	// If the root page is unmapped then we may return bad data from a sample.
+	for (int32 Index = 0; Index < SlotsPendingRootPageMap.Num(); ++Index)
+	{
+		const int32 AllocationSlotIndex = SlotsPendingRootPageMap[Index];
+		FAllocation const& Allocation = AllocationSlots[AllocationSlotIndex];
+		FAllocatedVirtualTexture* AllocatedVT = Allocation.AllocatedVT;
+		if (!InSystem->IsPendingRootPageMap(AllocatedVT))
+		{
+			SlotsPendingRootPageMap.RemoveAtSwap(Index--);
+
+			// Ready for use so that we can now queue the indirection texture update.
+			const uint32 vAddress = AllocatedVT->GetVirtualAddress();
+			const uint32 vAddressX = FMath::ReverseMortonCode2(vAddress);
+			const uint32 vAddressY = FMath::ReverseMortonCode2(vAddress >> 1);
+			const uint32 vLevel = AllocatedVT->GetMaxLevel();
+			const uint32 PackedIndirectionValue = (1 << 28) | (vLevel << 24) | (vAddressY << 12) | vAddressX;
+			const uint32 X = Allocation.GridIndex % GridSize.X;
+			const uint32 Y = Allocation.GridIndex / GridSize.X;
+			TextureUpdates.Add(FIndirectionTextureUpdate{ X, Y, PackedIndirectionValue });
 		}
 	}
 

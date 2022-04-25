@@ -86,6 +86,8 @@ public:
 
 	float GetGlobalMipBias() const;
 
+	bool IsPendingRootPageMap(IAllocatedVirtualTexture* AllocatedVT) const;
+
 private:
 	friend class FFeedbackAnalysisTask;
 	friend class FAddRequestedTilesTask;
