@@ -232,7 +232,7 @@ void FProtocolRangeViewModel::CopyFromCurrentPropertyValue() const
 {
 	check(IsValid());
 
-	// @note: if this fails, amend IsValid above to account for it
+	// @note: if this fails, ammend IsValid above to account for it
 	const TSharedPtr<const FRemoteControlField> ExposedEntity = GetPreset()->GetExposedEntity<FRemoteControlField>(GetBinding()->GetPropertyId()).Pin();
 	FRCFieldPathInfo FieldPathInfo = ExposedEntity->FieldPathInfo;
 
