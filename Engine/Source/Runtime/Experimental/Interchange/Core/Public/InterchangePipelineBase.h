@@ -20,6 +20,17 @@ enum class EInterchangePipelineTask : uint8
 	Export
 };
 
+UENUM()
+enum class EInterchangeReimportType : uint8
+{
+	AssetReimport,
+	SceneReimport,
+	AssetCustomLODImport, //The import for custom LOD is there because we use a copy of the asset import data pipeline stack.
+	AssetCustomLODReimport,
+	AssetAlternateSkinningImport, //The import for custom LOD is there because we use a copy of the asset import data pipeline stack.
+	AssetAlternateSkinningReimport,
+};
+
 UCLASS(BlueprintType, Blueprintable, Experimental, EditInlineNew, Abstract)
 class INTERCHANGECORE_API UInterchangePipelineBase : public UObject
 {
@@ -116,7 +127,7 @@ public:
 	/**
 	 * This function is called before showing the import dialog it is not called when doing a re-import.
 	 */
-	virtual void PreDialogCleanup(const FName PipelineStackName) {};
+	virtual void PreDialogCleanup(const FName PipelineStackName) {}
 
 	/**
 	 * This function should return true if all the pipeline settings are in a valid state to start the import.
@@ -128,9 +139,12 @@ public:
 	}
 
 	/**
-	 * This function is call before showing the re-import dialog it is not call when importing a new assets.
+	 * This function is call only when we do a re-import before we show the pipeline dialog. Pipeline that override it can change the existing settings according to the re-import type.
+	 * The function is also call when we import or re-import custom LOD and alternate skinning.
+	 * @Param ReimportType - Tell pipeline what re-import type the user want to achieve.
+	 * @Param ReimportAsset - This is an optional parameter which is set when re-importing an asset.
 	 */
-	virtual void SetupReimportData(TObjectPtr<UObject> ReimportObject) {};
+	virtual void AdjustSettingsForReimportType(EInterchangeReimportType ReimportType, TObjectPtr<UObject> ReimportAsset) {}
 
 	/**
 	 * This function is used to add the given message object directly into the results for this operation.

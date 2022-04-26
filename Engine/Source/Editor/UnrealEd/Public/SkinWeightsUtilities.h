@@ -42,9 +42,9 @@ public:
 	static bool RemoveSkinnedWeightProfileData(USkeletalMesh* SkeletalMesh, const FName& ProfileName, int32 LODIndex);
 
 	/*
-	 * Ask user a FBX file path for a particular LOD
+	 * Ask user a file path for a particular LOD
 	 */
-	static FString PickSkinWeightFBXPath(int32 LODIndex, USkeletalMesh* SkeletalMesh);
+	static FString PickSkinWeightPath(int32 LODIndex, USkeletalMesh* SkeletalMesh);
 private:
 	FSkinWeightsUtilities() {}
 };

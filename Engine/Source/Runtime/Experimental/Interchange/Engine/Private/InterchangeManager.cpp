@@ -719,7 +719,7 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 
 	if ( ImportAssetParameters.OverridePipelines.Num() == 0 )
 	{
-		const bool bIsUnattended = FApp::IsUnattended() || GIsAutomationTesting;
+		const bool bIsUnattended = FApp::IsUnattended() || GIsAutomationTesting || ImportAssetParameters.bIsAutomated;
 
 #if WITH_EDITORONLY_DATA
 		const bool bShowPipelineStacksConfigurationDialog = !bIsUnattended
@@ -756,7 +756,15 @@ UInterchangeManager::ImportInternal(const FString& ContentPath, const UInterchan
 				{
 					//Duplicate the pipeline saved in the asset import data
 					UInterchangePipelineBase* GeneratedPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(SourcePipeline, GetTransientPackage()));
-					GeneratedPipeline->SetupReimportData(ImportAssetParameters.ReimportAsset);
+
+					if (ImportType == UE::Interchange::EImportType::ImportType_Scene)
+					{
+						GeneratedPipeline->AdjustSettingsForReimportType(EInterchangeReimportType::SceneReimport, nullptr);
+					}
+					else
+					{
+						GeneratedPipeline->AdjustSettingsForReimportType(EInterchangeReimportType::AssetReimport, ImportAssetParameters.ReimportAsset);
+					}
 					PipelineStack.Add(GeneratedPipeline);
 				}
 				else

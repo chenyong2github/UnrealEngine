@@ -13,6 +13,24 @@
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+void UInterchangeGenericMeshPipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
+{
+	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
+	if(ImportType == EInterchangeReimportType::AssetCustomLODImport
+		|| ImportType == EInterchangeReimportType::AssetCustomLODImport
+		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningImport
+		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningReimport)
+	{
+		bCreatePhysicsAsset = false;
+		PhysicsAsset = nullptr;
+	}
+	else if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(ReimportAsset))
+	{
+		//Set the skeleton to the current asset skeleton
+		CommonSkeletalMeshesAndAnimationsProperties->Skeleton = SkeletalMesh->GetSkeleton();
+	}
+}
+
 void UInterchangeGenericMeshPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	if (!InBaseNodeContainer)

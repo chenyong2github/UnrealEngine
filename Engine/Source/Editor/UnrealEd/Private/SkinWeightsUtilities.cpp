@@ -32,7 +32,10 @@
 #include "DesktopPlatformModule.h"
 #include "EditorDirectories.h"
 #include "Framework/Application/SlateApplication.h"
+#include "InterchangeAssetImportData.h"
+#include "InterchangeFilePickerBase.h"
 #include "InterchangeManager.h"
+#include "InterchangeProjectSettings.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/CoreMisc.h"
@@ -109,7 +112,7 @@ bool FSkinWeightsUtilities::ImportAlternateSkinWeight(USkeletalMesh* SkeletalMes
 
 		//TODO create a pipeline that set all the proper skeletalmesh options (look at the legacy system setup)
 		UE::Interchange::FAssetImportResultRef AssetImportResult = InterchangeManager.ImportAssetAsync(ImportAssetPath, ScopedSourceData.GetSourceData(), ImportAssetParameters);
-		AssetImportResult->WaitUntilDone();
+		AssetImportResult->WaitUntilDone(); //TODO, do not stall the main thread here, WaitUntilDone will tick taskgraph so the job can complete even if we wait on the game thread.
 		if (USkeletalMesh* ImportedSkeletalMesh = Cast< USkeletalMesh >(AssetImportResult->GetFirstAssetOfClass(USkeletalMesh::StaticClass())))
 		{
 			ImportedObject = ImportedSkeletalMesh;
@@ -315,7 +318,7 @@ bool FSkinWeightsUtilities::ReimportAlternateSkinWeight(USkeletalMesh* SkeletalM
 		}
 		else
 		{
-			const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(TargetLODIndex, SkeletalMesh);
+			const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightPath(TargetLODIndex, SkeletalMesh);
 			if (!PickedFileName.IsEmpty() && FPaths::FileExists(PickedFileName))
 			{
 				bResult |= FSkinWeightsUtilities::ImportAlternateSkinWeight(SkeletalMesh, PickedFileName, TargetLODIndex, ProfileInfo.Name);
@@ -383,58 +386,112 @@ bool FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* Skelet
 	return bBuildSuccess;
 }
 
-FString FSkinWeightsUtilities::PickSkinWeightFBXPath(int32 LODIndex, USkeletalMesh* SkeletalMesh)
+FString FSkinWeightsUtilities::PickSkinWeightPath(int32 LODIndex, USkeletalMesh* SkeletalMesh)
 {
 	FString PickedFileName("");
+	
+	bool bUseInterchangeFramework = false;
+#if WITH_EDITOR
+	bUseInterchangeFramework = GetDefault<UEditorExperimentalSettings>()->bEnableInterchangeFramework;
+#endif
+	const UInterchangeAssetImportData* SelectedInterchangeAssetImportData = Cast<UInterchangeAssetImportData>(SkeletalMesh->GetAssetImportData());
 
-	FString ExtensionStr;
-	ExtensionStr += TEXT("FBX files|*.fbx|");
-
-	// First, display the file open dialog for selecting the file.
-	TArray<FString> OpenFilenames;
-	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	bool bOpen = false;
-	if (DesktopPlatform)
+	if (bUseInterchangeFramework && SelectedInterchangeAssetImportData)
 	{
-		// Try and retrieve the path containing the original skeletal mesh source data, and set it as default path for the file dialog
-		UFbxSkeletalMeshImportData* ImportData = SkeletalMesh ? Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->GetAssetImportData()) : nullptr;
-		FString DefaultPath;
-		FString TempString;
-		if (ImportData)
+		const FString& FirstSourceFile = SelectedInterchangeAssetImportData->ScriptGetFirstFilename();
+		FString DefaultPath = FPaths::GetPath(FirstSourceFile);
+		// Otherwise resort back to last imported directory
+		if (!FPaths::DirectoryExists(DefaultPath))
 		{
-			ImportData->GetImportContentFilename(DefaultPath, TempString);
-			DefaultPath = FPaths::GetPath(DefaultPath);
+			DefaultPath = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::GENERIC_IMPORT);
 		}
-		
-		// Otherwise resort back to last FBX directory
-		if(!FPaths::DirectoryExists(DefaultPath))
+
+		//Ask the user for a file path
+		const UInterchangeProjectSettings* InterchangeProjectSettings = GetDefault<UInterchangeProjectSettings>();
+		UInterchangeFilePickerBase* FilePicker = nullptr;
+
+		//In runtime we do not have any pipeline configurator
+#if WITH_EDITORONLY_DATA
+		TSoftClassPtr <UInterchangeFilePickerBase> FilePickerClass = InterchangeProjectSettings->FilePickerClass;
+		if (FilePickerClass.IsValid())
 		{
-			DefaultPath = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::FBX);
-		}		
-		
-		const FString DialogTitle = TEXT("Pick FBX file containing Skin Weight data for LOD ") + FString::FormatAsNumber(LODIndex);
-		bOpen = DesktopPlatform->OpenFileDialog(
-			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
-			DialogTitle,
-			*DefaultPath,
-			TEXT(""),
-			*ExtensionStr,
-			EFileDialogFlags::None,
-			OpenFilenames
-		);
+			UClass* FilePickerClassLoaded = FilePickerClass.LoadSynchronous();
+			if (FilePickerClassLoaded)
+			{
+				FilePicker = NewObject<UInterchangeFilePickerBase>(GetTransientPackage(), FilePickerClassLoaded, NAME_None, RF_NoFlags);
+			}
+		}
+#endif
+		if (FilePicker)
+		{
+			FInterchangeFilePickerParameters Parameters;
+			Parameters.bAllowMultipleFiles = false;
+			Parameters.DefaultPath = DefaultPath;
+			Parameters.Title = FText::Format(NSLOCTEXT("FSkinWeightsUtilities", "PickSkinWeightPath_Title", "Choose a file to import alternate skinning for LOD {0}"), FText::AsNumber(LODIndex));
+			TArray<FString> Filenames;
+
+			if (FilePicker->ScriptedFilePickerForTranslatorAssetType(EInterchangeTranslatorAssetType::Meshes, Parameters, Filenames))
+			{
+				ensure(Filenames.Num() == 1);
+				PickedFileName = Filenames[0];
+				FEditorDirectories::Get().SetLastDirectory(ELastDirectory::GENERIC_IMPORT, FPaths::GetPath(PickedFileName));
+			}
+			else
+			{
+				// Error
+			}
+		}
 	}
-
-	if (bOpen)
+	else
 	{
-		if (OpenFilenames.Num() == 1)
+		bool bOpen = false;
+		TArray<FString> OpenFilenames;
+		FString ExtensionStr;
+		ExtensionStr += TEXT("FBX files|*.fbx|");
+
+		// First, display the file open dialog for selecting the file.
+		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+		if (DesktopPlatform)
 		{
-			PickedFileName = OpenFilenames[0];
-			// Set last directory path for FBX files
-			FEditorDirectories::Get().SetLastDirectory(ELastDirectory::FBX, FPaths::GetPath(PickedFileName));
-		}
-		else
-		{
-			// Error
+			// Try and retrieve the path containing the original skeletal mesh source data, and set it as default path for the file dialog
+			UFbxSkeletalMeshImportData* ImportData = SkeletalMesh ? Cast<UFbxSkeletalMeshImportData>(SkeletalMesh->GetAssetImportData()) : nullptr;
+			FString DefaultPath;
+			FString TempString;
+			if (ImportData)
+			{
+				ImportData->GetImportContentFilename(DefaultPath, TempString);
+				DefaultPath = FPaths::GetPath(DefaultPath);
+			}
+		
+			// Otherwise resort back to last FBX directory
+			if(!FPaths::DirectoryExists(DefaultPath))
+			{
+				DefaultPath = FEditorDirectories::Get().GetLastDirectory(ELastDirectory::FBX);
+			}		
+
+			const FString DialogTitle = TEXT("Pick FBX file containing Skin Weight data for LOD ") + FString::FormatAsNumber(LODIndex);
+			bOpen = DesktopPlatform->OpenFileDialog(
+				FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
+				DialogTitle,
+				*DefaultPath,
+				TEXT(""),
+				*ExtensionStr,
+				EFileDialogFlags::None,
+				OpenFilenames
+			);
+			if (bOpen)
+			{
+				if (OpenFilenames.Num() == 1)
+				{
+					PickedFileName = OpenFilenames[0];
+					// Set last directory path for FBX files
+					FEditorDirectories::Get().SetLastDirectory(ELastDirectory::FBX, FPaths::GetPath(PickedFileName));
+				}
+				else
+				{
+					// Error
+				}
+			}
 		}
 	}
 

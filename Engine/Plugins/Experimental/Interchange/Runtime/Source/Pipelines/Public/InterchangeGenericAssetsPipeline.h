@@ -80,8 +80,8 @@ public:
 
 	virtual bool IsSettingsAreValid() const override;
 
-	virtual void SetupReimportData(TObjectPtr<UObject> ReimportObject) override;
 
+	virtual void AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset) override;
 protected:
 
 	virtual void ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;

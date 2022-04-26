@@ -77,6 +77,19 @@ namespace UE::Interchange::Private
 #endif
 }
 
+void UInterchangeGenericTexturePipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
+{
+	bool bIsObjectATexture = ReimportAsset.IsNull() ? false : ReimportAsset.IsA(UTexture::StaticClass());
+	if( (!bIsObjectATexture && ImportType == EInterchangeReimportType::AssetReimport)
+		|| ImportType == EInterchangeReimportType::AssetCustomLODImport
+		|| ImportType == EInterchangeReimportType::AssetCustomLODReimport
+		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningImport
+		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningReimport)
+	{
+		bImportTextures = false;
+	}
+}
+
 void UInterchangeGenericTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	if (!InBaseNodeContainer)

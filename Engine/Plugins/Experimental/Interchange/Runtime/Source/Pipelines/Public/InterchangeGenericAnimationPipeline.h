@@ -100,7 +100,7 @@ public:
 	UPROPERTY()
 	FString SourceAnimationName;
 
-	virtual void SetupReimportData(TObjectPtr<UObject> ReimportObject) override;
+	virtual void AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset) override;
 	
 protected:
 

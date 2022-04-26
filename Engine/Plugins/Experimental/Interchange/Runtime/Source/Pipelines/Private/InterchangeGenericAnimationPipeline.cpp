@@ -41,14 +41,25 @@ namespace UE::Interchange::Private
 	}
 }
 
-void UInterchangeGenericAnimationPipeline::SetupReimportData(TObjectPtr<UObject> ReimportObject)
+void UInterchangeGenericAnimationPipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
 {
 	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
-	if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(ReimportObject))
+	if (ImportType == EInterchangeReimportType::AssetCustomLODImport
+		|| ImportType == EInterchangeReimportType::AssetCustomLODImport
+		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningImport
+		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningReimport)
 	{
-		//Set the skeleton to the current asset skeleton and re-import only the animation
-		CommonSkeletalMeshesAndAnimationsProperties->Skeleton = AnimSequence->GetSkeleton();
-		CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations = true;
+		bImportAnimations = false;
+		CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations = false;
+	}
+	else if(ImportType == EInterchangeReimportType::AssetReimport)
+	{
+		if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(ReimportAsset))
+		{
+			//Set the skeleton to the current asset skeleton and re-import only the animation
+			CommonSkeletalMeshesAndAnimationsProperties->Skeleton = AnimSequence->GetSkeleton();
+			CommonSkeletalMeshesAndAnimationsProperties->bImportOnlyAnimations = true;
+		}
 	}
 }
 

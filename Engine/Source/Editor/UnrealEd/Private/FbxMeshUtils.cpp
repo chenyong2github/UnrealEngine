@@ -25,6 +25,13 @@
 #include "ImportUtils/SkeletalMeshImportUtils.h"
 #include "ImportUtils/StaticMeshImportUtils.h"
 
+#include "Async/Async.h"
+#include "InterchangeAssetImportData.h"
+#include "InterchangeManager.h"
+#include "InterchangeMeshUtilities.h"
+#include "InterchangeProjectSettings.h"
+#include "Settings/EditorExperimentalSettings.h"
+
 #if WITH_APEX_CLOTHING
 	#include "ApexClothingUtils.h"
 #endif // #if WITH_APEX_CLOTHING
@@ -90,9 +97,50 @@ namespace FbxMeshUtils
 
 	bool ImportStaticMeshLOD( UStaticMesh* BaseStaticMesh, const FString& Filename, int32 LODLevel)
 	{
+		if (!BaseStaticMesh)
+		{
+			UE_LOG(LogExportMeshUtils, Log, TEXT("Cannot import custom LOD because the staticmesh is NULL."));
+			return false;
+		}
+
+		//We will use interchange only if interchange is enabled and the mesh we want to add a LOD was imported with interchange
+		const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
+		const UInterchangeAssetImportData* SelectedInterchangeAssetImportData = Cast<UInterchangeAssetImportData>(BaseStaticMesh->GetAssetImportData());
+		if (EditorExperimentalSettings->bEnableInterchangeFramework && SelectedInterchangeAssetImportData)
+		{
+			UInterchangeSourceData* SourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(Filename);
+			//Call interchange mesh utilities to import custom LOD
+			UInterchangeMeshUtilities::ImportCustomLodAsync(BaseStaticMesh, LODLevel, SourceData).Then([BaseStaticMesh, LODLevel](TFuture<bool> Result)
+				{
+					bool bResult = Result.Get();
+					Async(EAsyncExecution::TaskGraphMainThread, [BaseStaticMesh, LODLevel, bResult]()
+						{
+							if (bResult)
+							{
+								// Notification of success
+								FNotificationInfo NotificationInfo(FText::GetEmpty());
+								NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "LODImportSuccessful", "Static mesh LOD {0} imported successfully!"), FText::AsNumber(LODLevel));
+								NotificationInfo.ExpireDuration = 5.0f;
+								FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+							}
+							else
+							{
+								// Notification of failure
+								FNotificationInfo NotificationInfo(FText::GetEmpty());
+								NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "LODImportFail", "Failed to import static mesh LOD {0}!"), FText::AsNumber(LODLevel));
+								NotificationInfo.ExpireDuration = 5.0f;
+								FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+							}
+						});
+				});
+
+			return true;
+		}
+
 		bool bSuccess = false;
 
 		UE_LOG(LogExportMeshUtils, Log, TEXT("Fbx LOD loading"));
+
 		// logger for all error/warnings
 		// this one prints all messages that are stored in FFbxImporter
 		// this function seems to get called outside of FBX factory
@@ -243,13 +291,47 @@ namespace FbxMeshUtils
 
 	bool ImportSkeletalMeshLOD( class USkeletalMesh* SelectedSkelMesh, const FString& Filename, int32 LODLevel)
 	{
-		UnFbx::FFbxImporter* FFbxImporter = UnFbx::FFbxImporter::GetInstance();
 		//Make sure skeletal mesh is valid
 		if (!SelectedSkelMesh)
 		{
-			FFbxImporter->AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("FBXImport_NoSelectedSkeletalMesh", "Cannot import a LOD if there is not a valid selected skeletal mesh.")), FFbxErrors::Generic_MeshNotFound);
+			UE_LOG(LogExportMeshUtils, Error, TEXT("Cannot import a LOD if there is not a valid selected skeletal mesh."));
 			return false;
 		}
+
+		//We will use interchange only if interchange is enable and the skeletalmesh we want to add a LOD was import with interchange
+		const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
+		UInterchangeAssetImportData* SelectedInterchangeAssetImportData = Cast<UInterchangeAssetImportData>(SelectedSkelMesh->GetAssetImportData());
+		if (EditorExperimentalSettings->bEnableInterchangeFramework && SelectedInterchangeAssetImportData)
+		{
+			UInterchangeSourceData* SourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(Filename);
+			//Call interchange mesh utilities to import custom LOD
+			UInterchangeMeshUtilities::ImportCustomLodAsync(SelectedSkelMesh, LODLevel, SourceData).Then([SelectedSkelMesh, LODLevel](TFuture<bool> Result)
+				{
+					bool bResult = Result.Get();
+					Async(EAsyncExecution::TaskGraphMainThread, [SelectedSkelMesh, LODLevel, bResult]()
+						{
+							if (bResult)
+							{
+								// Notification of success
+								FNotificationInfo NotificationInfo(FText::GetEmpty());
+								NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "LODImportSuccessful", "Mesh for LOD {0} imported successfully!"), FText::AsNumber(LODLevel));
+								NotificationInfo.ExpireDuration = 5.0f;
+								FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+							}
+							else
+							{
+								// Notification of failure
+								FNotificationInfo NotificationInfo(FText::GetEmpty());
+								NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "LODImportFail", "Failed to import mesh for LOD {0}!"), FText::AsNumber(LODLevel));
+								NotificationInfo.ExpireDuration = 5.0f;
+								FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+							}
+						});
+				});
+			return true;
+		}
+
+		UnFbx::FFbxImporter* FFbxImporter = UnFbx::FFbxImporter::GetInstance();
 
 		bool bSuccess = false;
 
@@ -617,21 +699,17 @@ namespace FbxMeshUtils
 		USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(SelectedMesh);
 		UStaticMesh* StaticMesh = Cast<UStaticMesh>(SelectedMesh);
 
-		if( !SkeletalMesh && !StaticMesh )
-		{
-			return false;
-		}
-
 		FString FilenameToImport("");
-
-		if(SkeletalMesh)
+		UInterchangeAssetImportData* SelectedInterchangeAssetImportData = nullptr;
+		if (SkeletalMesh)
 		{
-			if(SkeletalMesh->IsValidLODIndex(LODLevel))
+			if (SkeletalMesh->IsValidLODIndex(LODLevel))
 			{
 				FilenameToImport = SkeletalMesh->GetLODInfo(LODLevel)->SourceImportFilename.IsEmpty() ?
 					SkeletalMesh->GetLODInfo(LODLevel)->SourceImportFilename :
 					UAssetImportData::ResolveImportFilename(SkeletalMesh->GetLODInfo(LODLevel)->SourceImportFilename, nullptr);
 			}
+			SelectedInterchangeAssetImportData = Cast<UInterchangeAssetImportData>(SkeletalMesh->GetAssetImportData());
 		}
 		else if (StaticMesh)
 		{
@@ -642,12 +720,54 @@ namespace FbxMeshUtils
 					SourceModel.SourceImportFilename :
 					UAssetImportData::ResolveImportFilename(SourceModel.SourceImportFilename, nullptr);
 			}
+			SelectedInterchangeAssetImportData = Cast<UInterchangeAssetImportData>(StaticMesh->GetAssetImportData());
+		}
+		else
+		{
+			//We support only staticmesh and skeletalmesh asset for LOD import
+			return false;
 		}
 
 		// Check the file exists first
 		const bool bSourceFileExists = FPaths::FileExists(FilenameToImport);
 		// We'll give the user a chance to choose a new file if a previously set file fails to import
 		const bool bPromptOnFail = bSourceFileExists;
+
+		//We will use interchange only if interchange is enable and the skeletalmesh we want to add a LOD was import with interchange
+		const UEditorExperimentalSettings* EditorExperimentalSettings = GetDefault<UEditorExperimentalSettings>();
+		if(EditorExperimentalSettings->bEnableInterchangeFramework && SelectedInterchangeAssetImportData)
+		{
+			auto CustomLodImportContinuation = [bNotifyCB, SkeletalMesh, StaticMesh, LODLevel](TFuture<bool> Result)
+			{
+				bool bResult = Result.Get();
+				Async(EAsyncExecution::TaskGraphMainThread, [bNotifyCB, SkeletalMesh, StaticMesh, LODLevel, bResult]()
+					{
+						if (bNotifyCB && bResult)
+						{
+							if (SkeletalMesh)
+							{
+								GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostLODImport(SkeletalMesh, LODLevel);
+							}
+							else if (StaticMesh)
+							{
+								GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostLODImport(StaticMesh, LODLevel);
+							}
+						}
+					});
+			};
+
+			if(!bSourceFileExists)
+			{
+				//Call interchange mesh utilities to import custom LOD
+				UInterchangeMeshUtilities::ImportCustomLodAsync(SelectedMesh, LODLevel).Then(CustomLodImportContinuation);
+			}
+			else
+			{
+				UInterchangeSourceData* SourceData = UInterchangeManager::GetInterchangeManager().CreateSourceData(FilenameToImport);
+				UInterchangeMeshUtilities::ImportCustomLodAsync(SelectedMesh, LODLevel, SourceData).Then(CustomLodImportContinuation);
+			}
+			return true;
+		}
 		
 		if(!bSourceFileExists || FilenameToImport.IsEmpty())
 		{

@@ -21,7 +21,8 @@ public class InterchangeEngine : ModuleRules
 				"AssetRegistry",
 				"SlateCore",
 				"Slate",
-				"DeveloperSettings"
+				"DeveloperSettings",
+				"SkeletalMeshUtilitiesCommon",
 			}
 		);
 	}

@@ -40,6 +40,19 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+void UInterchangeGenericMaterialPipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
+{
+	bool bIsObjectAMaterial = ReimportAsset.IsNull() ? false : ReimportAsset->IsA(UMaterialInterface::StaticClass());
+	if ((!bIsObjectAMaterial && ImportType == EInterchangeReimportType::AssetReimport)
+		|| ImportType == EInterchangeReimportType::AssetCustomLODImport
+		|| ImportType == EInterchangeReimportType::AssetCustomLODReimport
+		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningImport
+		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningReimport)
+	{
+		MaterialImport = EInterchangeMaterialImportOption::DoNotImport;
+	}
+}
+
 void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
 	if (!InBaseNodeContainer)

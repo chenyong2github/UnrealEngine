@@ -1531,6 +1531,15 @@ public:
 	FOnExtendedBoundsChanged& GetOnExtendedBoundsChanged() { return OnExtendedBoundsChanged; }
 	FOnMeshChanged& GetOnMeshChanged() { return OnMeshChanged; }
 
+	/*
+	 * Add or change the LOD data specified by LodIndex with the content of the sourceStaticMesh.
+	 *
+	 * @Param SourceStaticMesh - The data we want to use to add or modify the specified lod
+	 * @Param LodIndex - The lod index we want to add or modify.
+	 * @Param SourceDataFilename - The source filename thta need to set into the LOD to allow re-import.
+	 */
+	ENGINE_API bool SetCustomLOD(const UStaticMesh* SourceStaticMesh, int32 LodIndex, const FString& SourceDataFilename);
+
 	//SourceModels API
 	ENGINE_API FStaticMeshSourceModel& AddSourceModel();
 

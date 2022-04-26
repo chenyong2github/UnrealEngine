@@ -64,48 +64,39 @@ namespace UE::Interchange::Utilities::Private
 		return ExtensionStrAll;
 	}
 
-	bool FilePickerDialog(const FString& Extensions, FString& OutFilename)
+	bool FilePickerDialog(const FString& Extensions, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames)
 	{
 		// First, display the file open dialog for selecting the file.
-		TArray<FString> OpenFilenames;
 		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-		bool bOpen = false;
 		if (DesktopPlatform)
 		{
-			FText PromptTitle = NSLOCTEXT("InterchangeUtilities_OpenFileDialog", "FilePickerDialog", "Select a file");
-			bOpen = DesktopPlatform->OpenFileDialog(
+			FText PromptTitle = Parameters.Title.IsEmpty() ? NSLOCTEXT("InterchangeUtilities_OpenFileDialog", "FilePickerDialog", "Select a file") : Parameters.Title;
+
+			const EFileDialogFlags::Type DialogFlags = Parameters.bAllowMultipleFiles ? EFileDialogFlags::Multiple : EFileDialogFlags::None;
+
+			return DesktopPlatform->OpenFileDialog(
 				FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
 				PromptTitle.ToString(),
-				TEXT(""),
+				Parameters.DefaultPath,
 				TEXT(""),
 				*Extensions,
-				EFileDialogFlags::None,
-				OpenFilenames
+				DialogFlags,
+				OutFilenames
 			);
-		}
-		FString SelectFilename;
-		// Only continue if we pressed OK and have only one file selected.
-		if (bOpen)
-		{
-			if (OpenFilenames.Num() >= 1)
-			{
-				OutFilename = OpenFilenames[0];
-				return true;
-			}
 		}
 
 		return false;
 	}
 } //ns UE::Interchange::Utilities::Private
 
-bool UInterchangeFilePickerGeneric::FilePickerForTranslatorAssetType(const EInterchangeTranslatorAssetType TranslatorAssetType, FString& OutFilename)
+bool UInterchangeFilePickerGeneric::FilePickerForTranslatorAssetType(const EInterchangeTranslatorAssetType TranslatorAssetType, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames)
 {
 	FString Extensions = UE::Interchange::Utilities::Private::GetOpenFileDialogExtensions(UInterchangeManager::GetInterchangeManager().GetSupportedAssetTypeFormats(TranslatorAssetType));
-	return UE::Interchange::Utilities::Private::FilePickerDialog(Extensions, OutFilename);
+	return UE::Interchange::Utilities::Private::FilePickerDialog(Extensions, Parameters, OutFilenames);
 }
 
-bool UInterchangeFilePickerGeneric::FilePickerForTranslatorType(const EInterchangeTranslatorType TranslatorType, FString& OutFilename)
+bool UInterchangeFilePickerGeneric::FilePickerForTranslatorType(const EInterchangeTranslatorType TranslatorType, FInterchangeFilePickerParameters& Parameters, TArray<FString>& OutFilenames)
 {
 	FString Extensions = UE::Interchange::Utilities::Private::GetOpenFileDialogExtensions(UInterchangeManager::GetInterchangeManager().GetSupportedFormats(TranslatorType));
-	return UE::Interchange::Utilities::Private::FilePickerDialog(Extensions, OutFilename);
+	return UE::Interchange::Utilities::Private::FilePickerDialog(Extensions, Parameters, OutFilenames);
 }

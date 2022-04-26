@@ -3929,6 +3929,126 @@ FStaticMeshSourceModel& UStaticMesh::GetSourceModel(int32 Index)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+bool UStaticMesh::SetCustomLOD(const UStaticMesh* SourceStaticMesh, int32 DestinationLodIndex, const FString& SourceDataFilename)
+{
+
+#if WITH_EDITORONLY_DATA
+	if (!ensure(SourceStaticMesh) || SourceStaticMesh->GetNumSourceModels() <= 0)
+	{
+		return false;
+	}
+
+	const int32 SourceLodIndex = (SourceStaticMesh->GetNumSourceModels() > DestinationLodIndex) ? DestinationLodIndex : 0;
+	if(!SourceStaticMesh->IsSourceModelValid(SourceLodIndex))
+	{
+		return false;
+	}
+
+	const FMeshDescription* SourceMeshDescription = SourceStaticMesh->GetMeshDescription(SourceLodIndex);
+	if(!SourceMeshDescription)
+	{
+		return false;
+	}
+
+	if(DestinationLodIndex >= GetNumSourceModels())
+	{
+		// Add one LOD 
+		AddSourceModel();
+		if (GetNumSourceModels() <= DestinationLodIndex)
+		{
+			DestinationLodIndex = GetNumSourceModels() - 1;
+		}
+	}
+
+	//To restore the material and section data, we need to know which material the source is using
+	const TArray<FStaticMaterial>& SourceMaterials = SourceStaticMesh->GetStaticMaterials();
+	TMap<int32, FName> SourceImportedMaterialNameUsed;
+	{
+		FStaticMeshConstAttributes SourceAttributes(*SourceMeshDescription);
+		TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = SourceAttributes.GetPolygonGroupMaterialSlotNames();
+		for (FPolygonGroupID PolygonGroupID : SourceMeshDescription->PolygonGroups().GetElementIDs())
+		{
+			const int32 SourceMaterialIndex = PolygonGroupID.GetValue();
+			check(SourceMaterials.IsValidIndex(SourceMaterialIndex));
+			SourceImportedMaterialNameUsed.FindOrAdd(SourceMaterialIndex) = MaterialSlotNames[PolygonGroupID];
+		}
+	}
+
+	TArray<FStaticMaterial>& DestinationMaterials = GetStaticMaterials();
+
+	FMeshDescription* DestinationMeshDescription = GetMeshDescription(DestinationLodIndex);
+	if (DestinationMeshDescription == nullptr)
+	{
+		DestinationMeshDescription = CreateMeshDescription(DestinationLodIndex);
+		check(DestinationMeshDescription != nullptr);
+		CommitMeshDescription(DestinationLodIndex);
+
+		//Make sure an imported mesh do not get reduce if there was no mesh data before reimport.
+		//In this case we have a generated LOD convert to a custom LOD
+		FStaticMeshSourceModel& SrcModel = GetSourceModel(DestinationLodIndex);
+		SrcModel.ReductionSettings.MaxDeviation = 0.0f;
+		SrcModel.ReductionSettings.PercentTriangles = 1.0f;
+		SrcModel.ReductionSettings.PercentVertices = 1.0f;
+	}
+	else
+	{
+		// clear out the old mesh data
+		DestinationMeshDescription->Empty();
+	}
+
+	//Make sure all materials use by the new LOD is pointing on a valid static material
+	for(const TPair<int32, FName>& SourceImportedMaterialNamePair : SourceImportedMaterialNameUsed)
+	{
+		bool bFoundMatch = false;
+		FName NameSearch = SourceImportedMaterialNamePair.Value;
+			
+		for (int32 MaterialIndex = 0; MaterialIndex < DestinationMaterials.Num(); ++MaterialIndex)
+		{
+			const FStaticMaterial& StaticMaterial = DestinationMaterials[MaterialIndex];
+			if (NameSearch == StaticMaterial.ImportedMaterialSlotName)
+			{
+				bFoundMatch = true;
+				break;
+			}
+		}
+
+		if (!bFoundMatch)
+		{
+			//Add the missing material slot
+			FStaticMaterial StaticMaterial(nullptr, NameSearch, NameSearch);
+		}
+	}
+
+	//Copy the mesh description of the source into the destination
+	*DestinationMeshDescription = *SourceMeshDescription;
+
+	if(IsInGameThread())
+	{
+		PostEditChange();
+		MarkPackageDirty();
+	}
+	else
+	{
+		UStaticMesh* ThisMesh = this;
+		Async(EAsyncExecution::TaskGraphMainThread, [ThisMesh]()
+		{
+			ThisMesh->PostEditChange();
+			ThisMesh->MarkPackageDirty();
+		});
+	}
+
+	if (IsSourceModelValid(DestinationLodIndex))
+	{
+		FStaticMeshSourceModel& SourceModel = GetSourceModel(DestinationLodIndex);
+		SourceModel.SourceImportFilename = UAssetImportData::SanitizeImportFilename(SourceDataFilename, nullptr);
+		SourceModel.bImportWithBaseMesh = false;
+	}
+	return true;
+#else
+	return false;
+#endif //!WITH_EDITORONLY_DATA
+}
+
 FStaticMeshSourceModel& UStaticMesh::AddSourceModel()
 {
 	WaitUntilAsyncPropertyReleased(EStaticMeshAsyncProperties::SourceModels);

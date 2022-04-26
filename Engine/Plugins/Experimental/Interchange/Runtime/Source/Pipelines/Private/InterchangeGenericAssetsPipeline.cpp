@@ -106,26 +106,26 @@ bool UInterchangeGenericAssetsPipeline::IsSettingsAreValid() const
 	return Super::IsSettingsAreValid();
 }
 
-void UInterchangeGenericAssetsPipeline::SetupReimportData(TObjectPtr<UObject> ReimportObject)
+void UInterchangeGenericAssetsPipeline::AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset)
 {
 	if (TexturePipeline)
 	{
-		TexturePipeline->SetupReimportData(ReimportObject);
+		TexturePipeline->AdjustSettingsForReimportType(ImportType, ReimportAsset);
 	}
 
 	if (MaterialPipeline)
 	{
-		MaterialPipeline->SetupReimportData(ReimportObject);
+		MaterialPipeline->AdjustSettingsForReimportType(ImportType, ReimportAsset);
 	}
 
 	if (MeshPipeline)
 	{
-		MeshPipeline->SetupReimportData(ReimportObject);
+		MeshPipeline->AdjustSettingsForReimportType(ImportType, ReimportAsset);
 	}
 
 	if (AnimationPipeline)
 	{
-		AnimationPipeline->SetupReimportData(ReimportObject);
+		AnimationPipeline->AdjustSettingsForReimportType(ImportType, ReimportAsset);
 	}
 }
 

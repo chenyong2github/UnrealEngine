@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_EDITOR
+
 #include "CoreMinimal.h"
 #include "MeshBuild.h"
 #include "Engine/SkeletalMesh.h"
@@ -9,6 +11,7 @@
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Framework/Commands/UIAction.h"
 #include "Animation/MorphTarget.h"
+
 
 namespace ClothingAssetUtils
 {
@@ -79,6 +82,16 @@ public:
 	* @param DesiredLODs   - The array of LOD index to remove the LOD from. The order is irrelevant since the array will be sorted to be reverse iterate.
 	*/
 	static void RemoveLODs(FSkeletalMeshUpdateContext& UpdateContext, const TArray<int32>& DesiredLODs);
+
+	/*
+	 * Add or change the LOD data specified by LodIndex with the content of the sourceSkeletalMesh.
+	 *
+	 * @Param DestinationSkeletalMesh - Skeletal mesh receiving the LOD data.
+	 * @Param SourceSkeletalMesh - Skeletal mesh providing the LOD data we want to use to add or modify the specified destination LOD at LodIndex. The LOD we want to import is always the base LOD of the source mesh.
+	 * @Param LodIndex - The destination lod index we want to add or modify.
+	 * @Param SourceDataFilename - The file name we use to import the source skeletal mesh.
+	 */
+	static bool SetCustomLOD(USkeletalMesh* DestinationSkeletalMesh, USkeletalMesh* SourceSkeletalMesh, const int32 LodIndex, const FString& SourceDataFilename);
 
 	/**
 	*	Simplifies the static mesh based upon various user settings for DesiredLOD.
@@ -151,7 +164,7 @@ public:
 	
 	static void RestoreClothingFromBackup(USkeletalMesh* SkeletalMesh, TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings);
 	static void RestoreClothingFromBackup(USkeletalMesh* SkeletalMesh, TArray<ClothingAssetUtils::FClothingAssetMeshBinding>& ClothingBindings, const int32 LODIndex);
-	
+
 	/**
 	 * Before building skeletalmesh base LOD (LOD index 0) using MeshUtilities.BuildSkeletalMesh, we want to adjust the imported faces material index to point on the correct sk material. We use the material name to match the material.
 	 * @param Materials - The skeletalmesh material list to fit the import data face material
@@ -177,7 +190,6 @@ private:
 
 	/** Generate the editor-only data stored for a skin weight profile (relies on bone indices) */
 	static void GenerateImportedSkinWeightProfileData(FSkeletalMeshLODModel& LODModelDest, FImportedSkinWeightProfileData& ImportedProfileData);
-	
 
 	/**
 	 *	Simplifies the static mesh based upon various user settings for DesiredLOD
@@ -205,3 +217,5 @@ private:
 	*/
 	static void ClearGeneratedMorphTarget(USkeletalMesh* SkeletalMesh, int32 DesiredLOD);
 };
+
+#endif //WITH_EDITOR
