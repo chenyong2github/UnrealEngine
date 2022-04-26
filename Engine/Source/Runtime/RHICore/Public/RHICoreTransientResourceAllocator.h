@@ -976,7 +976,7 @@ public:
 	struct FInitializer
 	{
 		// Creates a default initializer using common RHI CVars.
-		static FInitializer CreateDefault();
+		static RHICORE_API FInitializer CreateDefault();
 
 		static const uint32 kDefaultResourceCacheSize = 256;
 

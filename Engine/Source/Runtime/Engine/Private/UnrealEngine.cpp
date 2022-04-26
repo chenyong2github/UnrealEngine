@@ -825,7 +825,7 @@ bool ParseResolution(const TCHAR* InResolution, uint32& OutX, uint32& OutY, int3
 	return false;
 }
 
-void HDRSettingChangedSinkCallback()
+void ENGINE_API HDRSettingChangedSinkCallback()
 {
 	static const auto CVarHDROutputEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.EnableHDROutput"));
 	check(CVarHDROutputEnabled);
