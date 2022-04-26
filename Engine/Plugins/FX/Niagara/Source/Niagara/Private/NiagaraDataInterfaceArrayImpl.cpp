@@ -16,14 +16,6 @@ const FName FNiagaraDataInterfaceArrayImplHelper::Function_SetArrayElemName(TEXT
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_AddName(TEXT("Add"));
 const FName FNiagaraDataInterfaceArrayImplHelper::Function_RemoveLastElemName(TEXT("RemoveLastElem"));
 
-int32 GNiagaraArraySupportRW = 0;
-static FAutoConsoleVariableRef CVarNiagaraArraySupportRW(
-	TEXT("fx.NiagaraArraySupportRW"),
-	GNiagaraArraySupportRW,
-	TEXT("Allows the GPU to RW to the array, this comes with the caveat that all arrays will use a UAV slot."),
-	ECVF_Default
-);
-
 #if WITH_EDITORONLY_DATA
 bool FNiagaraDataInterfaceArrayImplHelper::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
 {
@@ -68,10 +60,5 @@ bool FNiagaraDataInterfaceArrayImplHelper::UpgradeFunctionCall(FNiagaraFunctionS
 	return true;
 }
 #endif
-
-bool FNiagaraDataInterfaceArrayImplHelper::SupportsGpuRW()
-{
-	return GNiagaraArraySupportRW != 0;
-}
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ArrayImpl);
