@@ -44,9 +44,19 @@ namespace Horde.Build.Models
 			{
 				return false;
 			}
-			if (fingerprint.Keys.Count > 0 && other.Keys.Count > 0 && !fingerprint.Keys.Any(x => other.Keys.Contains(x)))
+			if (fingerprint.Keys.Count == 0)
 			{
-				return false;
+				if (other.Keys.Count > 0)
+				{
+					return false;
+				}
+			}
+			else
+			{
+				if (!fingerprint.Keys.Any(x => other.Keys.Contains(x)))
+				{
+					return false;
+				}
 			}
 			if (fingerprint.RejectKeys != null && fingerprint.RejectKeys.Any(x => other.Keys.Contains(x)))
 			{
