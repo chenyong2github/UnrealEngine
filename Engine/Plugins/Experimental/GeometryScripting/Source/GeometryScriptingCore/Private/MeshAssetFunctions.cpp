@@ -165,7 +165,7 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 	// flush any pending rendering commands, which might want to touch this StaticMesh while we are rebuilding it
 	FlushRenderingCommands();
 
-	if (Options.bEmitTransaction)
+	if (Options.bEmitTransaction && GEditor)
 	{
 		GEditor->BeginTransaction(LOCTEXT("UpdateStaticMesh", "Update Static Mesh"));
 	}
@@ -256,7 +256,7 @@ UDynamicMesh*  UGeometryScriptLibrary_StaticMeshFunctions::CopyMeshToStaticMesh(
 		ToStaticMeshAsset->PostEditChange();
 	}
 
-	if (Options.bEmitTransaction)
+	if (Options.bEmitTransaction && GEditor)
 	{
 		GEditor->EndTransaction();
 	}
