@@ -318,7 +318,7 @@ private:
 };
 
 USTRUCT()
-struct FBoundActorProxy
+struct LEVELSEQUENCE_API FBoundActorProxy
 {
 	GENERATED_BODY()
 
