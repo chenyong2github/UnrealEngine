@@ -7,6 +7,10 @@
 #include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
 
+#ifndef PLATFORM_SUPPORTS_ALL_THREAD_BACKTRACES
+	#define PLATFORM_SUPPORTS_ALL_THREAD_BACKTRACES (PLATFORM_WINDOWS || PLATFORM_MAC)
+#endif
+
 /**
  * Manages runnables and runnable threads.
  */
@@ -57,7 +61,7 @@ public:
 		return Get().GetThreadNameInternal(ThreadId);
 	}
 
-#if PLATFORM_WINDOWS || PLATFORM_MAC
+#if PLATFORM_SUPPORTS_ALL_THREAD_BACKTRACES
 	struct FThreadStackBackTrace
 	{
 		uint32 ThreadId;
