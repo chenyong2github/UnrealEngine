@@ -248,25 +248,6 @@ namespace NavigationHelper
 			// AND has full colliding capabilities 
 			&& BodySetup.DefaultInstance.GetCollisionEnabled() == ECollisionEnabled::QueryAndPhysics;
 	}
-
-	//////////////////////////////////////////////////////////////////////////
-	// DEPRECATED FUNCTIONS
-
-	void DefaultNavLinkProcessorImpl(FCompositeNavModifier* OUT CompositeModifier, const AActor* Actor, const TArray<FNavigationLink>& IN NavLinks)
-	{
-		if (Actor)
-		{
-			DefaultNavLinkProcessorImpl(CompositeModifier, FNavLinkOwnerData(*Actor), NavLinks);
-		}
-	}
-
-	void DefaultNavLinkSegmentProcessorImpl(FCompositeNavModifier* OUT CompositeModifier, const AActor* Actor, const TArray<FNavigationSegmentLink>& IN NavLinks)
-	{
-		if (Actor)
-		{
-			DefaultNavLinkSegmentProcessorImpl(CompositeModifier, FNavLinkOwnerData(*Actor), NavLinks);
-		}
-	}
 }
 
 #include "NavLinkHostInterface.h"

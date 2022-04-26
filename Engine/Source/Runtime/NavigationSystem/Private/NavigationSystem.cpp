@@ -398,8 +398,6 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 	, bWorldInitDone(false)
 	, bCleanUpDone(false)
 	, CurrentlyDrawnNavDataIndex(0)
-	, NavOctree(nullptr)
-	, bNavOctreeLock(false)
 {
 #if WITH_EDITOR
 	NavUpdateLockFlags = 0;
@@ -4655,92 +4653,6 @@ void UNavigationSystemV1::UnregisterNavigationInvoker(AActor* Invoker)
 	{
 		UnregisterInvoker(*Invoker);
 	}
-}
-
-//----------------------------------------------------------------------//
-// DEPRECATED
-//----------------------------------------------------------------------//
-void UNavigationSystemV1::RequestRegistration(ANavigationData* NavData, bool bTriggerRegistrationProcessing)
-{
-	if (NavData)
-	{
-		RequestRegistrationDeferred(*NavData);
-	}	
-}
-
-FVector UNavigationSystemV1::ProjectPointToNavigation(UObject* WorldContextObject, const FVector& Point, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass, const FVector QueryExtent)
-{
-	FNavLocation ProjectedPoint(Point);
-
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-	if (NavSys)
-	{
-		ANavigationData* UseNavData = NavData ? NavData : NavSys->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
-		if (UseNavData)
-		{
-			NavSys->ProjectPointToNavigation(Point, ProjectedPoint, QueryExtent.IsNearlyZero() ? INVALID_NAVEXTENT : QueryExtent, UseNavData,
-				UNavigationQueryFilter::GetQueryFilter(*UseNavData, WorldContextObject, FilterClass));
-		}
-	}
-
-	return ProjectedPoint.Location;
-}
-
-FVector UNavigationSystemV1::GetRandomReachablePointInRadius(UObject* WorldContextObject, const FVector& Origin, float Radius, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
-{
-	FNavLocation RandomPoint;
-
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-	if (NavSys)
-	{
-		ANavigationData* UseNavData = NavData ? NavData : NavSys->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
-		if (UseNavData)
-		{
-			NavSys->GetRandomReachablePointInRadius(Origin, Radius, RandomPoint, UseNavData, UNavigationQueryFilter::GetQueryFilter(*UseNavData, WorldContextObject, FilterClass));
-		}
-	}
-
-	return RandomPoint.Location;
-}
-
-FVector UNavigationSystemV1::GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, float Radius, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
-{
-	FNavLocation RandomPoint;
-
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-	if (NavSys)
-	{
-		ANavigationData* UseNavData = NavData ? NavData : NavSys->GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
-		if (UseNavData)
-		{
-			NavSys->GetRandomPointInNavigableRadius(Origin, Radius, RandomPoint, UseNavData, UNavigationQueryFilter::GetQueryFilter(*UseNavData, WorldContextObject, FilterClass));
-		}
-	}
-
-	return RandomPoint.Location;
-}
-
-bool UNavigationSystemV1::K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
-{
-	return K2_GetRandomLocationInNavigableRadius(WorldContextObject, Origin, RandomLocation, Radius, NavData, FilterClass);
-}
-
-void UNavigationSystemV1::SimpleMoveToActor(AController* Controller, const AActor* Goal)
-{
-	UE_LOG(LogNavigation, Error, TEXT("SimpleMoveToActor is deprecated. Use UAIBlueprintHelperLibrary::SimpleMoveToActor instead"));
-}
-
-void UNavigationSystemV1::SimpleMoveToLocation(AController* Controller, const FVector& Goal)
-{
-	UE_LOG(LogNavigation, Error, TEXT("SimpleMoveToLocation is deprecated. Use UAIBlueprintHelperLibrary::SimpleMoveToLocation instead"));
-}
-
-ANavigationData* UNavigationSystemV1::CreateNavigationDataInstance(const FNavDataConfig& NavConfig)
-{
-	return CreateNavigationDataInstanceInLevel(NavConfig, nullptr);
 }
 
 //----------------------------------------------------------------------//

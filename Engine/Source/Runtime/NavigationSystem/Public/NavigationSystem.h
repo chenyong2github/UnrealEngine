@@ -687,8 +687,6 @@ public:
 
 	/** Adds NavData to registration candidates queue - NavDataRegistrationQueue*/
 	virtual void RequestRegistrationDeferred(ANavigationData& NavData);
-	UE_DEPRECATED(4.24, "This version of RequestRegistration is deprecated. Please use the RequestRegistrationDeferred as the registration request is always queued now.")
-	virtual void RequestRegistration(ANavigationData* NavData, bool bTriggerRegistrationProcessing = true);
 
 protected:
 	void ApplySupportedAgentsFilter();
@@ -1216,59 +1214,6 @@ public:
 	// DEPRECATED
 	//----------------------------------------------------------------------//
 public:
-	UE_DEPRECATED(4.16, "This version of ProjectPointToNavigation is deprecated. Please use the new version")
-	UFUNCTION(BlueprintPure, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject", DisplayName = "ProjectPointToNavigation_DEPRECATED", ScriptNoExport, DeprecatedFunction, DeprecationMessage = "This version of ProjectPointToNavigation is deprecated. Please use the new version"))
-	static FVector ProjectPointToNavigation(UObject* WorldContextObject, const FVector& Point, ANavigationData* NavData = NULL, TSubclassOf<UNavigationQueryFilter> FilterClass = NULL, const FVector QueryExtent = FVector::ZeroVector);
-	UE_DEPRECATED(4.16, "This version of GetRandomReachablePointInRadius is deprecated. Please use the new version")
-	UFUNCTION(BlueprintPure, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject", DisplayName = "GetRandomReachablePointInRadius_DEPRECATED", ScriptNoExport, DeprecatedFunction, DeprecationMessage = "This version of GetRandomReachablePointInRadius is deprecated. Please use the new version"))
-	static FVector GetRandomReachablePointInRadius(UObject* WorldContextObject, const FVector& Origin, float Radius, ANavigationData* NavData = NULL, TSubclassOf<UNavigationQueryFilter> FilterClass = NULL);
-	UE_DEPRECATED(4.16, "This version of GetRandomPointInNavigableRadius is deprecated. Please use the new version")
-	UFUNCTION(BlueprintPure, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject", DisplayName = "GetRandomPointInNavigableRadius_DEPRECATED", ScriptNoExport, DeprecatedFunction, DeprecationMessage = "This version of GetRandomPointInNavigableRadius is deprecated. Please use the new version"))
-	static FVector GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, float Radius, ANavigationData* NavData = NULL, TSubclassOf<UNavigationQueryFilter> FilterClass = NULL);
-	UE_DEPRECATED(4.20, "SimpleMoveToActor is deprecated. Use UAIBlueprintHelperLibrary::SimpleMoveToActor instead")
-	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (DisplayName = "SimpleMoveToActor_DEPRECATED", ScriptNoExport, DeprecatedFunction, DeprecationMessage = "SimpleMoveToActor is deprecated. Use AIBlueprintHelperLibrary::SimpleMoveToActor instead"))
-	static void SimpleMoveToActor(AController* Controller, const AActor* Goal);
-	UE_DEPRECATED(4.20, "SimpleMoveToLocation is deprecated. Use UAIBlueprintHelperLibrary::SimpleMoveToLocation instead")
-	UFUNCTION(BlueprintCallable, Category = "AI|Navigation", meta = (DisplayName = "SimpleMoveToLocation_DEPRECATED", ScriptNoExport, DeprecatedFunction, DeprecationMessage = "SimpleMoveToLocation is deprecated. Use AIBlueprintHelperLibrary::SimpleMoveToLocation instead"))
-	static void SimpleMoveToLocation(AController* Controller, const FVector& Goal);
-	UE_DEPRECATED(4.20, "UNavigationSystemV1::GetDefaultWalkableArea is deprecated. Use FNavigationSystem::GetDefaultWalkableArea instead")
-	static TSubclassOf<UNavAreaBase> GetDefaultWalkableArea() { return FNavigationSystem::GetDefaultWalkableArea(); }
-	UE_DEPRECATED(4.20, "UNavigationSystemV1::GetDefaultObstacleArea is deprecated. Use FNavigationSystem::GetDefaultObstacleArea instead")
-	static TSubclassOf<UNavAreaBase> GetDefaultObstacleArea() { return FNavigationSystem::GetDefaultObstacleArea(); }
-	UE_DEPRECATED(4.22, "This version is deprecated.  Please use GetRandomLocationInNavigableRadius instead")
-	UFUNCTION(BlueprintPure, Category = "AI|Navigation", meta = (WorldContext = "WorldContextObject", DisplayName = "GetRandomPointInNavigableRadius", ScriptName = "GetRandomPointInNavigableRadius"))
-	static bool K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData = NULL, TSubclassOf<UNavigationQueryFilter> FilterClass = NULL);
-	UE_DEPRECATED(4.23, "This function is deprecated.  Please use CreateNavigationDataInstanceInLevel instead")
-	virtual ANavigationData* CreateNavigationDataInstance(const FNavDataConfig& NavConfig);
-	
-	UE_DEPRECATED(4.24, "This function is deprecated and no longer used. NavigationSystem is no longer involved in storing navoctree element IDs. See FNavigationOctree for more details.")
-	void SetObjectsNavOctreeId(const UObject& Object, FOctreeElementId2 Id) {}
-
-	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
-	TMap<uint32, FOctreeElementId2> ObjectToOctreeId;
-	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
-	TSet<FNavigationDirtyElement> PendingOctreeUpdates;
-	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
-	TSharedPtr<FNavigationOctree, ESPMode::ThreadSafe> NavOctree;
-	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
-	TMultiMap<UObject*, FWeakObjectPtr> OctreeChildNodesMap;
-	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access OctreeController instead")
-	uint8 bNavOctreeLock : 1;
-
-	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
-	UPROPERTY(config, EditAnywhere, Category = NavigationSystem)
-	float DirtyAreasUpdateFreq = 60;
-	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
-	float DirtyAreasUpdateTime = 0;
-	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
-	TArray<FNavigationDirtyArea> DirtyAreas;
-	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
-	uint8 bCanAccumulateDirtyAreas : 1;
-#if !UE_BUILD_SHIPPING
-	UE_DEPRECATED(4.24, "This member is deprecated and no longer used.  Please access DirtyAreasController instead")
-	uint8 bDirtyAreasReportedWhileAccumulationLocked : 1;
-#endif // !UE_BUILD_SHIPPING
-
 	UE_DEPRECATED(4.26, "This version of RemoveNavigationBuildLock is deprecated. Please use the new version")
 	void RemoveNavigationBuildLock(uint8 Flags, bool bSkipRebuildInEditor) { RemoveNavigationBuildLock(Flags, bSkipRebuildInEditor ? ELockRemovalRebuildAction::RebuildIfNotInEditor : ELockRemovalRebuildAction::Rebuild);}
 };

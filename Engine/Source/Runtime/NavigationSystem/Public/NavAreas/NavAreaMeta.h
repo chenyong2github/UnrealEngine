@@ -20,10 +20,4 @@ class NAVIGATIONSYSTEM_API UNavAreaMeta : public UNavArea
 
 public:
 	UNavAreaMeta(const FObjectInitializer& ObjectInitializer);
-
-	UE_DEPRECATED(4.20, "UNavAreaMeta::PickAreaClass is deprecated. Use UNavArea::PickAreaClassForAgent instead")
-	static TSubclassOf<UNavArea> PickAreaClass(TSubclassOf<UNavArea> AreaClass, const AActor* Actor, const FNavAgentProperties& NavAgent);
-
-	UE_DEPRECATED(4.20, "UNavAreaMeta::PickAreaClass is deprecated. Use UNavArea::PickAreaClassForAgent instead")
-	virtual TSubclassOf<UNavArea> PickAreaClass(const AActor* Actor, const FNavAgentProperties& NavAgent);
 };
