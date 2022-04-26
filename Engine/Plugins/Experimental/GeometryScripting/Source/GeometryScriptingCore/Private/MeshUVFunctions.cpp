@@ -714,4 +714,68 @@ UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::AutoGenerateXAtlasMeshUVs(
 
 
 
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshUVFunctions::GetMeshPerVertexUVs(
+	UDynamicMesh* TargetMesh, 
+	int UVSetIndex,
+	FGeometryScriptUVList& UVList, 
+	bool& bIsValidUVSet,
+	bool& bHasVertexIDGaps,
+	bool& bHasSplitUVs,
+	UGeometryScriptDebug* Debug)
+{
+	UVList.Reset();
+	TArray<FVector2D>& UVs = *UVList.List;
+	bHasVertexIDGaps = false;
+	bIsValidUVSet = false;
+	bHasSplitUVs = false;
+	if (TargetMesh)
+	{
+		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			const FDynamicMeshUVOverlay* UVOverlay = (ReadMesh.HasAttributes() && UVSetIndex < ReadMesh.Attributes()->NumUVLayers()) ?
+				ReadMesh.Attributes()->GetUVLayer(UVSetIndex) : nullptr;
+			if (UVOverlay == nullptr)
+			{
+				UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("GetMeshPerVertexUVs_InvalidUVSet", "GetMeshPerVertexUVs: UVSetIndex does not exist on TargetMesh"));
+				return;
+			}
+
+			bHasVertexIDGaps = ! ReadMesh.IsCompactV();
+
+			UVs.Init(FVector2D::Zero(), ReadMesh.MaxVertexID());
+			TArray<int32> ElemIndex;		// set to elementID of first element seen at each vertex, if we see a second element ID, it is a split vertex
+			ElemIndex.Init(-1, UVs.Num());
+
+			for (int32 tid : ReadMesh.TriangleIndicesItr())
+			{
+				if (UVOverlay->IsSetTriangle(tid))
+				{
+					FIndex3i TriV = ReadMesh.GetTriangle(tid);
+					FIndex3i TriE = UVOverlay->GetTriangle(tid);
+					for (int j = 0; j < 3; ++j)
+					{
+						if (ElemIndex[TriV[j]] == -1)
+						{
+							UVs[TriV[j]] = (FVector2D)UVOverlay->GetElement(TriE[j]);
+							ElemIndex[TriV[j]] = TriE[j];
+						}
+						else if (ElemIndex[TriV[j]] != TriE[j])
+						{
+							bHasSplitUVs = true;
+						}
+					}
+				}
+			}
+
+			bIsValidUVSet = true;
+		});
+	}
+
+	return TargetMesh;
+}
+
+
+
 #undef LOCTEXT_NAMESPACE

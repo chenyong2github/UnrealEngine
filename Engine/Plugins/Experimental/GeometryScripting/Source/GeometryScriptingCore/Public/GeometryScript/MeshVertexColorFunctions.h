@@ -17,6 +17,11 @@ class GEOMETRYSCRIPTINGCORE_API UGeometryScriptLibrary_MeshVertexColorFunctions 
 	GENERATED_BODY()
 public:
 
+	/**
+	 * Set all vertex colors (optionally specific channels) in the TargetMesh VertexColor Overlay to a constant value
+	 * @param Color the constant color to set
+	 * @param Flags specify which RGBA channels to set (default all channels)
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|VertexColor", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	SetMeshConstantVertexColor(
@@ -26,6 +31,10 @@ public:
 		bool bClearExisting = false,
 		UGeometryScriptDebug* Debug = nullptr);
 
+	/**
+	 * Set all vertex colors in the TargetMesh VertexColor Overlay to the specified per-vertex colors
+	 * @param VertexColorList per-vertex colors. Size must be less than or equal to the MaxVertexID of TargetMesh  (ie gaps are supported)
+	 */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|VertexColor", meta=(ScriptMethod))
 	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh*
 	SetMeshPerVertexColors(
@@ -33,6 +42,22 @@ public:
 		FGeometryScriptColorList VertexColorList,
 		UGeometryScriptDebug* Debug = nullptr);
 
-
+	/**
+	 * Get a list of single vertex colors for each mesh vertex in the TargetMesh, derived from the VertexColor Overlay.
+	 * The VertexColor Overlay may store multiple colors for a single vertex (ie different colors for that vertex on different triangles)
+	 * In such cases the colors can either be averaged, or the last color seen will be used, depending on the bBlendSplitVertexValues parameter.
+	 * @param ColorList output color list will be stored here. Size will be equal to the MaxVertexID of TargetMesh  (not the VertexCount!)
+	 * @param bIsValidColorSet will be set to true if the VertexColor Overlay was valid
+	 * @param bHasVertexIDGaps will be set to true if some vertex indices in TargetMesh were invalid, ie MaxVertexID > VertexCount 
+	 * @param bBlendSplitVertexValues control how multiple colors at the same vertex should be interpreted
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|VertexColor", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	GetMeshPerVertexColors( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptColorList& ColorList, 
+		bool& bIsValidColorSet,
+		bool& bHasVertexIDGaps,
+		bool bBlendSplitVertexValues = true);
 };
 

@@ -138,4 +138,88 @@ UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::SetMeshPerVertexC
 	return TargetMesh;
 }
 
+
+
+
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::GetMeshPerVertexColors(
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptColorList& ColorList, 
+	bool& bIsValidColorSet,
+	bool& bHasVertexIDGaps,
+	bool bBlendSplitVertexValues)
+{
+	ColorList.Reset();
+	TArray<FLinearColor>& Colors = *ColorList.List;
+	bHasVertexIDGaps = false;
+	bIsValidColorSet = false;
+	if (TargetMesh)
+	{
+		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			Colors.Init(FLinearColor::Black, ReadMesh.MaxVertexID());
+			bHasVertexIDGaps = ! ReadMesh.IsCompactV();
+
+			if (ReadMesh.HasAttributes() && ReadMesh.Attributes()->HasPrimaryColors() )
+			{
+				const FDynamicMeshColorOverlay* ColorOverlay = ReadMesh.Attributes()->PrimaryColors();
+
+				if (bBlendSplitVertexValues)
+				{
+					TArray<int32> ColorCounts;
+					ColorCounts.Init(0, ReadMesh.MaxVertexID());
+					for (int32 tid : ReadMesh.TriangleIndicesItr())
+					{
+						if (ColorOverlay->IsSetTriangle(tid))
+						{
+							FIndex3i TriV = ReadMesh.GetTriangle(tid);
+							FVector4f A, B, C;
+							ColorOverlay->GetTriElements(tid, A, B, C);
+							Colors[TriV.A] += ToLinearColor(A);
+							ColorCounts[TriV.A]++;
+							Colors[TriV.B] += ToLinearColor(B);
+							ColorCounts[TriV.B]++;
+							Colors[TriV.C] += ToLinearColor(B);
+							ColorCounts[TriV.C]++;
+						}
+					}
+
+					for (int32 k = 0; k < ColorCounts.Num(); ++k)
+					{
+						if (ColorCounts[k] > 1)
+						{
+							Colors[k] *= 1.0f / (float)ColorCounts[k];
+						}
+					}
+				}
+				else
+				{
+					for (int32 tid : ReadMesh.TriangleIndicesItr())
+					{
+						if (ColorOverlay->IsSetTriangle(tid))
+						{
+							FIndex3i TriV = ReadMesh.GetTriangle(tid);
+							FVector4f A, B, C;
+							ColorOverlay->GetTriElements(tid, A, B, C);
+							Colors[TriV.A] = ToLinearColor(A);
+							Colors[TriV.B] = ToLinearColor(B);
+							Colors[TriV.C] = ToLinearColor(B);
+						}
+					}
+				}
+				
+				bIsValidColorSet = true;
+			}
+		});
+	}
+
+	return TargetMesh;
+}
+
+
+
+
 #undef LOCTEXT_NAMESPACE

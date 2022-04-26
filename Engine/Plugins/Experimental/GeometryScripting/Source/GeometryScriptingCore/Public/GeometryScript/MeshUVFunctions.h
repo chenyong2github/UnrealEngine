@@ -264,4 +264,26 @@ public:
 		FGeometryScriptXAtlasOptions Options,
 		UGeometryScriptDebug* Debug = nullptr );
 
+
+	/**
+	 * Get a list of single vertex UVs for each mesh vertex in the TargetMesh, derived from the specified UV Overlay.
+	 * The UV Overlay may store multiple UVs for a single vertex (along UV seams)
+	 * In such cases an arbitrary UV will be stored for that vertex, and bHasSplitUVs will be returned as true
+	 * @param UVSetIndex index of UV Set to read
+	 * @param UVList output UV list will be stored here. Size will be equal to the MaxVertexID of TargetMesh  (not the VertexCount!)
+	 * @param bIsValidUVSet will be set to true if the UV Overlay was valid
+	 * @param bHasVertexIDGaps will be set to true if some vertex indices in TargetMesh were invalid, ie MaxVertexID > VertexCount 
+	 * @param bHasSplitUVs will be set to true if there were split UVs in the UV overlay
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|UVs", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	GetMeshPerVertexUVs( 
+		UDynamicMesh* TargetMesh, 
+		int UVSetIndex,
+		FGeometryScriptUVList& UVList, 
+		bool& bIsValidUVSet,
+		bool& bHasVertexIDGaps,
+		bool& bHasSplitUVs,
+		UGeometryScriptDebug* Debug = nullptr);
+
 };

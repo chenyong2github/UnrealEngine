@@ -126,4 +126,24 @@ public:
 		bool& bIsValidTriangle, 
 		bool bDeferChangeNotifications = false );
 
+
+
+	/**
+	 * Get a list of single normal vectors for each mesh vertex in the TargetMesh, derived from the Normals Overlay.
+	 * The Normals Overlay may store multiple normals for a single vertex (ie split normals)
+	 * In such cases the normals can either be averaged, or the last normal seen will be used, depending on the bAverageSplitVertexValues parameter.
+	 * @param NormalList output normal list will be stored here. Size will be equal to the MaxVertexID of TargetMesh  (not the VertexCount!)
+	 * @param bIsValidNormalSet will be set to true if the Normal Overlay was valid
+	 * @param bHasVertexIDGaps will be set to true if some vertex indices in TargetMesh were invalid, ie MaxVertexID > VertexCount 
+	 * @param bAverageSplitVertexValues control how multiple normals at the same vertex should be interpreted
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Normals", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	GetMeshPerVertexNormals( 
+		UDynamicMesh* TargetMesh, 
+		FGeometryScriptVectorList& NormalList, 
+		bool& bIsValidNormalSet,
+		bool& bHasVertexIDGaps,
+		bool bAverageSplitVertexValues = true);
+
 };

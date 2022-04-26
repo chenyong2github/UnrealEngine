@@ -281,4 +281,78 @@ UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::SetMeshTriangleNormal
 
 
 
+
+UDynamicMesh* UGeometryScriptLibrary_MeshNormalsFunctions::GetMeshPerVertexNormals(
+	UDynamicMesh* TargetMesh, 
+	FGeometryScriptVectorList& NormalList, 
+	bool& bIsValidNormalSet,
+	bool& bHasVertexIDGaps,
+	bool bAverageSplitVertexValues)
+{
+	NormalList.Reset();
+	TArray<FVector>& Normals = *NormalList.List;
+	bHasVertexIDGaps = false;
+	bIsValidNormalSet = false;
+	if (TargetMesh)
+	{
+		TargetMesh->ProcessMesh([&](const FDynamicMesh3& ReadMesh)
+		{
+			bHasVertexIDGaps = ! ReadMesh.IsCompactV();
+
+			if (ReadMesh.HasAttributes() && ReadMesh.Attributes()->NumNormalLayers() > 0 )
+			{
+				const FDynamicMeshNormalOverlay* NormalOverlay = ReadMesh.Attributes()->PrimaryNormals();
+
+				if (bAverageSplitVertexValues)
+				{
+					Normals.Init(FVector::Zero(), ReadMesh.MaxVertexID());
+					for (int32 tid : ReadMesh.TriangleIndicesItr())
+					{
+						if (NormalOverlay->IsSetTriangle(tid))
+						{
+							FIndex3i TriV = ReadMesh.GetTriangle(tid);
+							FVector3f A, B, C;
+							NormalOverlay->GetTriElements(tid, A, B, C);
+							Normals[TriV.A] += (FVector)A;
+							Normals[TriV.B] += (FVector)B;
+							Normals[TriV.C] += (FVector)C;
+						}
+					}
+
+					for (int32 k = 0; k < Normals.Num(); ++k)
+					{
+						if (Normals[k].SquaredLength() > 0)
+						{
+							Normalize(Normals[k]);
+						}
+					}
+				}
+				else
+				{
+					Normals.Init(FVector::UnitZ(), ReadMesh.MaxVertexID());
+					for (int32 tid : ReadMesh.TriangleIndicesItr())
+					{
+						if (NormalOverlay->IsSetTriangle(tid))
+						{
+							FIndex3i TriV = ReadMesh.GetTriangle(tid);
+							FVector3f A, B, C;
+							NormalOverlay->GetTriElements(tid, A, B, C);
+							Normals[TriV.A] = (FVector)A;
+							Normals[TriV.B] = (FVector)B;
+							Normals[TriV.C] = (FVector)C;
+						}
+					}
+				}
+
+				bIsValidNormalSet = true;
+			}
+		});
+	}
+
+	return TargetMesh;
+}
+
+
+
+
 #undef LOCTEXT_NAMESPACE
