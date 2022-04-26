@@ -86,6 +86,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Parameters
 
+uint				bDynamicSkyLight;
 uint				bHasStaticLighting;
 Texture3D<float4>	HairEnergyLUTTexture;
 
@@ -752,10 +753,16 @@ float3 ReflectionEnvironmentSH(
 	float3 Lighting = 0;
 
 	// Sky lighting (already pre-exposed)
-	Lighting += SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor);
+	if (bDynamicSkyLight)
+	{
+		Lighting += SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal, DiffuseColor);
+	}
 
 	// Static lighting (already pre-exposed)
-	Lighting += GetStaticLighting(GBuffer, V, AbsoluteWorldPosition);
+	if (bHasStaticLighting)
+	{
+		Lighting += GetStaticLighting(GBuffer, V, AbsoluteWorldPosition);
+	}
 #endif // PERMUTATION_LUMEN
 
 	// Transform NaNs to black, transform negative colors to black.

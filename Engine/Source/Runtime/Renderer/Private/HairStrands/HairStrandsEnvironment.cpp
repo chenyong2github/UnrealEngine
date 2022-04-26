@@ -240,6 +240,7 @@ class FHairEnvironmentLightingPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsDebugData::FWriteParameters, DebugData)
 
+		SHADER_PARAMETER(uint32, bDynamicSkyLight)
 		SHADER_PARAMETER(uint32, bHasStaticLighting)
 		SHADER_PARAMETER(uint32, MultipleScatterSampleCount)
 		SHADER_PARAMETER(float,  HairDualScatteringRoughnessOverride)
@@ -368,6 +369,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 
 	ParametersPS->SceneColorTexture = SceneColorTexture;
 	ParametersPS->HairEnergyLUTTexture = GetHairLUT(GraphBuilder, View, HairLUTType_MeanEnergy);
+	ParametersPS->bDynamicSkyLight = bDynamicSkyLight ? 1 : 0;
 	ParametersPS->bHasStaticLighting = bHasStaticLighting ? 1 : 0;
 	ParametersPS->SkyDiffuseLighting = GetSkyDiffuseLightingParameters(Scene->SkyLight, 1.0f /*DynamicBentNormalAO*/);
 	ParametersPS->HairDistanceThreshold = FMath::Max(GHairStrandsSkyLightingDistanceThreshold, 1.f);
