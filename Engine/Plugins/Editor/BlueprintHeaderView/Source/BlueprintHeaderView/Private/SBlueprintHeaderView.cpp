@@ -7,6 +7,7 @@
 //#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/SRichTextBlock.h"
+#include "Widgets/Input/SButton.h"
 #include "PropertyEditorModule.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
@@ -24,10 +25,14 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "BlueprintHeaderViewSettings.h"
 #include "Internationalization/Regex.h"
+#include "Subsystems/AssetEditorSubsystem.h"
+#include "Editor/EditorEngine.h"
 
 #define LOCTEXT_NAMESPACE "SBlueprintHeaderView"
 
 DEFINE_LOG_CATEGORY(LogBlueprintHeaderView)
+
+extern UNREALED_API UEditorEngine* GEditor;
 
 // HeaderViewSyntaxDecorators /////////////////////////////////////////////////
 
