@@ -11,6 +11,7 @@ void FAnimPreviewAttacheInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 
 	FAnimationInitializeContext InitContext(this);
 	CopyPoseFromMesh.bUseAttachedParent = true;
+	CopyPoseFromMesh.bCopyCurves = true;
 	CopyPoseFromMesh.Initialize_AnyThread(InitContext);
 }
 
