@@ -7,6 +7,7 @@
 #include "DetailWidgetRow.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "FWorldPartitionRuntimeSpatialHashDetails"
 
@@ -36,8 +37,12 @@ void FWorldPartitionRuntimeSpatialHashDetails::CustomizeDetails(IDetailLayoutBui
 		.ValueContent()
 		[
 			SNew(SCheckBox)
-			.IsChecked(MakeAttributeLambda([this]() { return WorldPartitionRuntimeSpatialHash->bPreviewGrids ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }))
-			.OnCheckStateChanged_Lambda([this](ECheckBoxState InState) { WorldPartitionRuntimeSpatialHash->bPreviewGrids = (InState == ECheckBoxState::Checked); })
+			.IsChecked(MakeAttributeLambda([this]() { return WorldPartitionRuntimeSpatialHash->GetPreviewGrids() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }))
+			.OnCheckStateChanged_Lambda([this](ECheckBoxState InState)
+			{
+				FScopedTransaction Transaction(LOCTEXT("SetRuntimeSpatialHashPreviewGrids", "Change the Runtime Spatial Hash Preview Grids"));
+				WorldPartitionRuntimeSpatialHash->SetPreviewGrids(InState == ECheckBoxState::Checked);
+			})
 		];
 }
 

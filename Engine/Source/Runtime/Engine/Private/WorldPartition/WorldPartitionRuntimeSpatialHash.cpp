@@ -835,6 +835,17 @@ FName UWorldPartitionRuntimeSpatialHash::GetCellName(UWorldPartition* WorldParti
 	return FName(*FString::Printf(TEXT("%s_%s_%s_DL%X"), *PackageNameNoPIEPrefix, *InGridName.ToString(), *GetCellCoordString(InCellGlobalCoord), InDataLayerID.GetHash()));
 }
 
+bool UWorldPartitionRuntimeSpatialHash::GetPreviewGrids() const
+{
+	return bPreviewGrids;
+}
+
+void UWorldPartitionRuntimeSpatialHash::SetPreviewGrids(bool bInPreviewGrids)
+{
+	Modify(false);
+	bPreviewGrids = bInPreviewGrids;
+}
+
 FName UWorldPartitionRuntimeSpatialHash::GetCellName(FName InGridName, const FIntVector& InCellGlobalCoord, const FDataLayersID& InDataLayerID) const
 {
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();

@@ -237,6 +237,9 @@ public:
 
 	FName GetCellName(FName InGridName, const FIntVector& InCellGlobalCoord, const FDataLayersID& InDataLayerID) const;
 	static FName GetCellName(UWorldPartition* WorldPartition, FName InGridName, const FIntVector& InCellGlobalCoord, const FDataLayersID& InDataLayerID);
+
+	bool GetPreviewGrids() const;
+	void SetPreviewGrids(bool bInPreviewGrids);
 #endif
 
 	// streaming interface
@@ -262,11 +265,12 @@ private:
 	UPROPERTY(EditAnywhere, Config, Category = RuntimeSettings)
 	TArray<FSpatialHashRuntimeGrid> Grids;
 
+	/** Whether to preview runtime grids. */
+	UPROPERTY(Transient)
+	bool bPreviewGrids;
+
 	UPROPERTY(Transient)
 	mutable FWorldPartitionRuntimeSpatialHashGridPreviewer GridPreviewer;
-
-	/** Whether to preview runtime grids. */
-	bool bPreviewGrids;
 
 	TMap<FString, UWorldPartitionRuntimeCell*> PackagesToGenerateForCook;
 #endif
@@ -294,5 +298,4 @@ private:
 	TArray<const FSpatialHashStreamingGrid*> GetFilteredStreamingGrids() const;
 
 	friend class UWorldPartitionSubsystem;
-	friend class FWorldPartitionRuntimeSpatialHashDetails;
 };
