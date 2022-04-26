@@ -2544,11 +2544,11 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 						FMessageLog("LoadErrors").NewPage( FText::Format( LOCTEXT("LoadMapLogPage", "Loading map: {MapFileName}"), Arguments ) );
 					}
 
-					// Only worlds that are uninitialized or reside within newly created packages (so not yet saved) may be considered valid for re-use.
+					// Only worlds that are uninitialized may be considered valid for re-use.
 					// All other worlds need to be reloaded from disk, as a world is only initialized correctly as part of the level loading process.
 					auto IsWorldValidForReuse = [](UWorld* WorldToConsider)
 					{
-						return !WorldToConsider->bIsWorldInitialized || WorldToConsider->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated);
+						return !WorldToConsider->bIsWorldInitialized;
 					};
 
 					// If we are loading the same world again (reloading) then we must not specify that we want to keep this world in memory.
@@ -2738,37 +2738,10 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				FParse::Value(Str, TEXT("FEATURELEVEL="), FeatureLevelIndex);
 				FeatureLevelIndex = FMath::Clamp(FeatureLevelIndex, 0, (int32)ERHIFeatureLevel::Num);
 
-				if (World->bIsWorldInitialized)
-				{
-					// If we are using a previously initialized world, make sure it has a physics scene and FXSystem.
-					// Inactive worlds are already initialized but lack these two objects for memory reasons.
-					World->ClearWorldComponents();
-
-					// If the world was inactive subsystems would not have been initialized (happens when loading a world trough the asset browser).
-					// When we transition to the editor world initialize them.
-					World->InitializeSubsystems();
-
-					if (World->FeatureLevel != FeatureLevelIndex)
-					{
-						World->ChangeFeatureLevel((ERHIFeatureLevel::Type)FeatureLevelIndex);
-					}
-
-					if (World->GetPhysicsScene() == nullptr)
-					{
-						World->CreatePhysicsScene();
-					}
-
-					if (World->FXSystem == nullptr)
-					{
-						World->CreateFXSystem();
-					}
-				}
-				else
-				{
-					World->FeatureLevel = (ERHIFeatureLevel::Type)FeatureLevelIndex;
-					World->InitWorld( GetEditorWorldInitializationValues() );
-				}
-
+				check(!World->bIsWorldInitialized);
+				World->FeatureLevel = (ERHIFeatureLevel::Type)FeatureLevelIndex;
+				World->InitWorld( GetEditorWorldInitializationValues() );
+				
 				SlowTask.EnterProgressFrame(20, FText::Format( LOCTEXT( "LoadingMapStatus_Initializing", "Loading map: {0}... (Initializing world)" ), FText::FromString(MapFileName) ));
 				{
 					FBSPOps::bspValidateBrush(Context.World()->GetDefaultBrush()->Brush, 0, 1);

@@ -8,7 +8,7 @@
 #include "Engine/World.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-class FWorldPartitionCookPackageSplitter : public ICookPackageSplitter
+class FWorldPartitionCookPackageSplitter : public FGCObject, public ICookPackageSplitter
 {
 public:
 	//~ Begin of ICookPackageSplitter
@@ -17,6 +17,8 @@ public:
 	FWorldPartitionCookPackageSplitter();
 	virtual ~FWorldPartitionCookPackageSplitter();
 
+	virtual void Teardown(ETeardown Status) override;
+	virtual bool UseInternalReferenceToAvoidGarbageCollect() override { return true; }
 	virtual TArray<ICookPackageSplitter::FGeneratedPackage> GetGenerateList(const UPackage* OwnerPackage, const UObject* OwnerObject) override;
 	virtual bool TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject,
 		const ICookPackageSplitter::FGeneratedPackageForPopulate& GeneratedPackage, bool bWasOwnerReloaded) override;
@@ -25,13 +27,18 @@ public:
 	//~ End of ICookPackageSplitter
 
 private:
+	/** FGCObject interface */
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
+
 	const UWorld* ValidateDataObject(const UObject* SplitData);
 	UWorld* ValidateDataObject(UObject* SplitData);
-	void PreGarbageCollect();
-	void TeardownWorldPartition();
+	
+	TObjectPtr<UWorld> ReferencedWorld;
 
-	TWeakObjectPtr<UWorld> ReferencedWorld;
-	bool bWorldPartitionNeedsTeardown = false;
+	bool bInitializedWorldPartition = false;
+	bool bForceInitializedWorld = false;
+	bool bInitializedPhysicsSceneForSave = false;
 };
 
 #endif

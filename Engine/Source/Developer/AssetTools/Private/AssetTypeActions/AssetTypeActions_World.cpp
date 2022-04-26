@@ -35,13 +35,15 @@ void FAssetTypeActions_World::OpenAssetEditor( const TArray<UObject*>& InObjects
 	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
 		UWorld* World = Cast<UWorld>(*ObjIt);
-		if (World != nullptr && ensureMsgf(World->GetTypedOuter<UPackage>(), TEXT("World(%s) is not in a package and cannot be opened"), *World->GetFullName()))
+		if (World != nullptr && 
+			ensureMsgf(World->GetTypedOuter<UPackage>(), TEXT("World(%s) is not in a package and cannot be opened"), *World->GetFullName()) && 
+			ensureMsgf(!World->GetPackage()->IsDirty(), TEXT("World(%s) is unsaved and cannot be opened")))
 		{
 			const FString FileToOpen = FPackageName::LongPackageNameToFilename(World->GetOutermost()->GetName(), FPackageName::GetMapPackageExtension());
 			const bool bLoadAsTemplate = false;
 			const bool bShowProgress = true;
 			FEditorFileUtils::LoadMap(FileToOpen, bLoadAsTemplate, bShowProgress);
-			
+
 			// We can only edit one world at a time... so just break after the first valid world to load
 			break;
 		}
@@ -73,9 +75,17 @@ TArray<FAssetData> FAssetTypeActions_World::GetValidAssetsForPreviewOrEdit(TArra
 		constexpr bool bPromptUserToSave = true;
 		constexpr bool bSaveMapPackages = true;
 		constexpr bool bSaveContentPackages = true;
-		if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages))
+		constexpr bool bFastSave = false;
+		constexpr bool bNotifyNoPackagesSaved = false;
+		constexpr bool bCanBeDeclined = false;
+		if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined))
 		{
-			AssetsToOpen.Add(AssetData);
+			// Validate that Asset was saved or isn't loaded meaning it can be loaded
+			const bool bLoad = false;
+			if (UWorld* World = Cast<UWorld>(AssetData.FastGetAsset(bLoad)); !World || !World->GetPackage()->IsDirty())
+			{
+				AssetsToOpen.Add(AssetData);
+			}
 		}
 	}
 

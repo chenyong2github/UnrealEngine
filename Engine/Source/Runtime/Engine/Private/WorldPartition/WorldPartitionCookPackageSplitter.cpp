@@ -11,6 +11,7 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
+#include "Editor.h"
 
 // Register FWorldPartitionCookPackageSplitter for UWorld class
 REGISTER_COOKPACKAGE_SPLITTER(FWorldPartitionCookPackageSplitter, UWorld);
@@ -23,23 +24,16 @@ bool FWorldPartitionCookPackageSplitter::ShouldSplit(UObject* SplitData)
 
 FWorldPartitionCookPackageSplitter::FWorldPartitionCookPackageSplitter()
 {
-	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FWorldPartitionCookPackageSplitter::PreGarbageCollect);
 }
 
 FWorldPartitionCookPackageSplitter::~FWorldPartitionCookPackageSplitter()
 {
-	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
-	TeardownWorldPartition();
+	check(!ReferencedWorld);
 }
 
-void FWorldPartitionCookPackageSplitter::PreGarbageCollect()
+void FWorldPartitionCookPackageSplitter::Teardown(ETeardown Status)
 {
-	TeardownWorldPartition();
-}
-
-void FWorldPartitionCookPackageSplitter::TeardownWorldPartition()
-{
-	if (bWorldPartitionNeedsTeardown)
+ 	if (bInitializedWorldPartition)
 	{
 		if (UWorld* LocalWorld = ReferencedWorld.Get())
 		{
@@ -49,8 +43,27 @@ void FWorldPartitionCookPackageSplitter::TeardownWorldPartition()
 				WorldPartition->Uninitialize();
 			}
 		}
-		bWorldPartitionNeedsTeardown = false;
+		bInitializedWorldPartition = false;
 	}
+
+	if (bInitializedPhysicsSceneForSave)
+	{
+		GEditor->CleanupPhysicsSceneThatWasInitializedForSave(ReferencedWorld.Get(), bForceInitializedWorld);
+		bInitializedPhysicsSceneForSave = false;
+		bForceInitializedWorld = false;
+	}
+
+	ReferencedWorld = nullptr;
+}
+
+void FWorldPartitionCookPackageSplitter::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(ReferencedWorld);
+}
+
+FString FWorldPartitionCookPackageSplitter::GetReferencerName() const
+{
+	return TEXT("FWorldPartitionCookPackageSplitter");
 }
 
 UWorld* FWorldPartitionCookPackageSplitter::ValidateDataObject(UObject* SplitData)
@@ -78,11 +91,15 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 	// that is necessary for populate 
 	ReferencedWorld = PartitionedWorld;
 
+	check(!bInitializedPhysicsSceneForSave && !bForceInitializedWorld);
+	bInitializedPhysicsSceneForSave = GEditor->InitializePhysicsSceneForSaveIfNecessary(PartitionedWorld, bForceInitializedWorld);
+
 	// Manually initialize WorldPartition
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
 	// We expect the WorldPartition has not yet been initialized
 	ensure(!WorldPartition->IsInitialized());
 	WorldPartition->Initialize(PartitionedWorld, FTransform::Identity);
+	bInitializedWorldPartition = true;
 
 	TArray<FString> WorldPartitionGeneratedPackages;
 	WorldPartition->GenerateStreaming(&WorldPartitionGeneratedPackages);
@@ -103,15 +120,7 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 bool FWorldPartitionCookPackageSplitter::TryPopulatePackage(const UPackage* OwnerPackage, const UObject* OwnerObject,
 	const FGeneratedPackageForPopulate& GeneratedPackage, bool bWasOwnerReloaded)
 {
-	if (bWasOwnerReloaded)
-	{
-		GetGenerateList(OwnerPackage, OwnerObject);
-		// When GetGenerateList is called by CookOnTheFlyServer, it is followed up with a call to 
-		// CleanupWorld when the Generator package is done saving, which calls WorldPartition->Uninitialize
-		// But when we call it here to initialize our data for the populate, we need to take responsibility
-		// for calling WorldPartition->Uninitialize before the next GarbageCollection
-		bWorldPartitionNeedsTeardown = true;
-	}
+	check(!bWasOwnerReloaded);
 
 	// TODO: Make PopulateGeneratedPackageForCook const so we can honor the constness of the OwnerObject in this API function
 	const UWorld* ConstPartitionedWorld = ValidateDataObject(OwnerObject);

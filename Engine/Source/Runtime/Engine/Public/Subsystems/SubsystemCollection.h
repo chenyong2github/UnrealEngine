@@ -20,6 +20,9 @@ public:
 	/* Clears the collection, while deinitializing the systems */
 	void Deinitialize();
 
+	/** Returns true if collection was already initialized */
+	bool IsInitialized() const { return Outer != nullptr; }
+
 	/** 
 	 * Only call from Initialize() of Systems to ensure initialization order
 	 * Note: Dependencies only work within a collection
