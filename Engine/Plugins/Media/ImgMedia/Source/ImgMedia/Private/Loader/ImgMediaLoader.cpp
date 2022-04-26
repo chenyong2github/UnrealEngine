@@ -754,8 +754,8 @@ void FImgMediaLoader::LoadSequence(const FString& SequencePath, const FFrameRate
 	// Get mips.
 	FindMips(SequencePath);
 
-	// Get tile info.
-	GetTileInformation();
+	// Default to a 1x1 tile
+	TilingDescription.TileNum = FIntPoint(1, 1);
 
 	FScopeLock Lock(&CriticalSection);
 
@@ -969,12 +969,6 @@ void FImgMediaLoader::FindFiles(const FString& SequencePath, TArray<FString>& Ou
 		}
 
 		FString FullPath = FPaths::Combine(SequencePath, File);
-		if (bIsTiled)
-		{
-			// If we have tiles, then use the first tile as our reference.
-			FString TiledFileName = File + TEXT("_x0_y0.exr");
-			FullPath = FPaths::Combine(FullPath, TiledFileName);
-		}
 		OutputPaths.Add(FullPath);
 	}
 
@@ -1052,49 +1046,6 @@ void FImgMediaLoader::FindMips(const FString& SequencePath)
 
 			// OK add this level to the list.
 			ImagePaths.Emplace(MipFiles);
-		}
-	}
-}
-
-void FImgMediaLoader::GetTileInformation()
-{
-	TilingDescription.TileNum.X = 1;
-	TilingDescription.TileNum.Y = 1;
-
-	// Do we have tiles?
-	if (bIsTiled)
-	{
-		FString Path = FPaths::GetPath(ImagePaths[0][0]);
-		TArray<FString> FoundFiles;
-		IFileManager::Get().FindFiles(FoundFiles, *Path, TEXT("*"));
-
-		for (const FString& FilePath : FoundFiles)
-		{
-			// Remove the file extension.
-			Path = FPaths::ChangeExtension(FilePath, TEXT(""));
-
-			// Filename should be ????_x0_y0.
-			// Find the last y.
-			int32 YIndex = 0;
-			if (Path.FindLastChar(TEXT('y'), YIndex))
-			{
-				// Extract out the number.
-				int32 YLength = Path.Len() - (YIndex + 1);
-				FString NumberString = Path.Right(YLength);
-				// We count from 0, so add 1 to get the number of tiles.
-				TilingDescription.TileNum.Y = FMath::Max(TilingDescription.TileNum.Y, FCString::Atoi(*NumberString) + 1);
-
-				// Find the last x.
-				int32 XIndex = 0;
-				if (Path.FindLastChar(TEXT('x'), XIndex))
-				{
-					// Extract out the number.
-					XIndex++;
-					int32 XLength = Path.Len() - XIndex - YLength - 2;
-					NumberString = Path.Mid(XIndex, XLength);
-					TilingDescription.TileNum.X = FMath::Max(TilingDescription.TileNum.X, FCString::Atoi(*NumberString) + 1);
-				}
-			}
 		}
 	}
 }
@@ -1302,7 +1253,7 @@ void FImgMediaLoader::AddEmptyFrame(int32 FrameNumber)
 	Frame->Stride = Frame ->Info.Dim.X * PixelSize;
 	for (int32 Level = 0; Level < GetNumMipLevels(); ++Level)
 	{
-		Frame->MipTilesPresent.Add(Level).SetAllVisible();
+		Frame->MipTilesPresent.Add(Level).Include(0u, 0u);
 	}
 	AddFrameToCache(FrameNumber, Frame);
 }
@@ -1378,8 +1329,10 @@ void FImgMediaLoader::GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMedia
 		{
 			FImgMediaTileSelection& Selection = OutMipsAndTiles.FindOrAdd(MipLevel);
 
-			int32 NumTilesX = FMath::Max(1, GetNumTilesX() >> MipLevel);
-			int32 NumTilesY = FMath::Max(1, GetNumTilesY() >> MipLevel);
+			const int MipLevelDiv = 1 << MipLevel;
+
+			int32 NumTilesX = FMath::Max(1, FMath::CeilToInt(float(GetNumTilesX()) / MipLevelDiv));
+			int32 NumTilesY = FMath::Max(1, FMath::CeilToInt(float(GetNumTilesY()) / MipLevelDiv));
 			Selection.SetVisibleRegion(0u, 0u, IntCastChecked<uint16>(NumTilesX), IntCastChecked<uint16>(NumTilesY));
 		}
 	}

@@ -37,8 +37,10 @@ bool FImgMediaMipMapObjectInfo::CalculateVisibleTiles(const TArray<FImgMediaMipM
 	{
 		FImgMediaTileSelection& Selection = VisibleTiles.FindOrAdd(MipLevel);
 
-		int32 NumTilesX = FMath::Max(1, InSequenceInfo.NumTiles.X >> MipLevel);
-		int32 NumTilesY = FMath::Max(1, InSequenceInfo.NumTiles.Y >> MipLevel);
+		const int MipLevelDiv = 1 << MipLevel;
+
+		int32 NumTilesX = FMath::Max(1, FMath::CeilToInt(float(InSequenceInfo.NumTiles.X) / MipLevelDiv));
+		int32 NumTilesY = FMath::Max(1, FMath::CeilToInt(float(InSequenceInfo.NumTiles.Y) / MipLevelDiv));
 		Selection.SetVisibleRegion(0u, 0u, IntCastChecked<uint16>(NumTilesX), IntCastChecked<uint16>(NumTilesY));
 	}
 	return true;
@@ -135,9 +137,11 @@ namespace {
 				GetViewFrustumBounds(ViewFrustum, CameraInfo.ViewProjectionMatrix, false, false);
 
 				int32 MaxLevel = InSequenceInfo.NumMipLevels - 1;
+				int MipLevelDiv = 1 << MaxLevel;
+
 				FIntPoint CurrentNumTiles;
-				CurrentNumTiles.X = FMath::Max(1, InSequenceInfo.NumTiles.X >> MaxLevel);
-				CurrentNumTiles.Y = FMath::Max(1, InSequenceInfo.NumTiles.Y >> MaxLevel);
+				CurrentNumTiles.X = FMath::Max(1, FMath::CeilToInt(float(InSequenceInfo.NumTiles.X) / MipLevelDiv));
+				CurrentNumTiles.Y = FMath::Max(1, FMath::CeilToInt(float(InSequenceInfo.NumTiles.Y) / MipLevelDiv));
 
 				// Starting with tiles at the highest mip level
 				TQueue<FIntVector> Tiles;
@@ -156,9 +160,10 @@ namespace {
 					Tiles.Dequeue(Tile);
 
 					int32 CurrentMipLevel = Tile.Z;
+					MipLevelDiv = 1 << CurrentMipLevel;
 					// Calculate the number of tiles at this mip level
-					CurrentNumTiles.X = FMath::Max(1, InSequenceInfo.NumTiles.X >> CurrentMipLevel);
-					CurrentNumTiles.Y = FMath::Max(1, InSequenceInfo.NumTiles.Y >> CurrentMipLevel);
+					CurrentNumTiles.X = FMath::Max(1, FMath::CeilToInt(float(InSequenceInfo.NumTiles.X) / MipLevelDiv));
+					CurrentNumTiles.Y = FMath::Max(1, FMath::CeilToInt(float(InSequenceInfo.NumTiles.Y) / MipLevelDiv));
 
 					// Calculate the tile location in world-space
 					float StepX = float(Tile.X + 0.5f) / CurrentNumTiles.X;

@@ -373,11 +373,6 @@ protected:
 	void FindMips(const FString& SequencePath);
 
 	/**
-	 * Gets information for tiling from the sequence.
-	 */
-	void GetTileInformation();
-
-	/**
 	 * Get the frame number corresponding to the specified play head time.
 	 *
 	 * @param Time The play head time.

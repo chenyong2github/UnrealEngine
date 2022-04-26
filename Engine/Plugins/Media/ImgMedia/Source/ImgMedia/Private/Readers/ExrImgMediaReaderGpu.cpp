@@ -204,8 +204,8 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 						FIntRect TileRegion = FIntRect(
 							(int32)CurrentTileSelection.TopLeftX,
 							(int32)CurrentTileSelection.TopLeftY,
-							FMath::Min((int32)CurrentTileSelection.BottomRightX, FMath::CeilToInt(float(OutFrame->Info.NumTiles.X) / MipLevelDiv)),
-							FMath::Min((int32)CurrentTileSelection.BottomRightY, FMath::CeilToInt(float(OutFrame->Info.NumTiles.Y) / MipLevelDiv)));
+							(int32)CurrentTileSelection.BottomRightX,
+							(int32)CurrentTileSelection.BottomRightY);
 
 						ReadResult = ReadTilesCustom(MipDataPtr, ImagePath, FrameId, TileRegion, ConverterParams, CurrentMipLevel);
 					}

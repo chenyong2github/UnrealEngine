@@ -65,6 +65,12 @@ TSharedPtr<IImageWrapper> LoadImage(const FString& ImagePath, IImageWrapperModul
 	OutInfo.FrameRate = Settings->DefaultFrameRate;
 	OutInfo.Srgb = true;
 	OutInfo.UncompressedSize = (SIZE_T)OutInfo.Dim.X * OutInfo.Dim.Y * 4;
+	OutInfo.NumChannels = 4;
+	OutInfo.bHasTiles = false;
+	OutInfo.TileDimensions = OutInfo.Dim;
+	OutInfo.NumTiles = FIntPoint(1, 1);
+	OutInfo.TileBorder = 0;
+	OutInfo.NumMipLevels = 1;
 
 	return ImageWrapper;
 }
@@ -109,6 +115,7 @@ bool FGenericImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMedi
 	for (const TPair<int32, FImgMediaTileSelection>& TilesPerMip : InMipTiles)
 	{
 		const int32 CurrentMipLevel = TilesPerMip.Key;
+		const FImgMediaTileSelection& CurrentSelection = TilesPerMip.Value;
 
 		// Do we want to read in this mip?
 		bool IsThisLevelPresent = OutFrame->MipTilesPresent.Contains(CurrentMipLevel);
@@ -154,7 +161,7 @@ bool FGenericImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMedi
 
 			// Copy data to our buffer
 			FMemory::Memcpy(Buffer, RawData.GetData(), RawNum);
-			OutFrame->MipTilesPresent.Add(CurrentMipLevel).SetAllVisible();
+			OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentSelection);
 		}
 
 		// Next level.
