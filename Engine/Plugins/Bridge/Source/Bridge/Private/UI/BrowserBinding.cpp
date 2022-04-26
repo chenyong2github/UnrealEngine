@@ -231,44 +231,27 @@ void UBrowserBinding::ShowDialog(FString Type, FString Url)
 	FSlateApplication::Get().AddWindow(DialogMainWindow.ToSharedRef());
 }
 
-void UBrowserBinding::ShowLoginDialog(bool Production) 
+void UBrowserBinding::ShowLoginDialog(FString LoginUrl, FString ResponseCodeUrl) 
 {
 	// FString ProdUrl = TEXT("https://www.quixel.com/login?return_to=https%3A%2F%2Fquixel.com%2Fmegascans%2Fhome");
 	// FString StagingUrl = TEXT("https://staging2.megascans.se/login?return_to=https%3A%2F%2Fstaging2.megascans.se%2Fmegascans%2Fhome");
-	FString ProdUrl = TEXT("https://www.epicgames.com/id/login?client_id=b9101103b8814baa9bb4e79e5eb107d0&response_type=code");
-	FString StagingUrl = TEXT("https://www.epicgames.com/id/login?client_id=3919f71c66d24a83836f659fd22d49f1&response_type=code");
 	
-	FString Url = ProdUrl;
-	if (!Production)
-	{
-		Url = StagingUrl;
-	}
-
 	TSharedRef<SWebBrowser> MyWebBrowserRef = SAssignNew(FBridgeUIManager::BrowserBinding->DialogMainBrowser, SWebBrowser)
-					.InitialURL(Url)
+					.InitialURL(LoginUrl)
 					.ShowControls(false)
 					.OnBeforePopup_Lambda([](FString NextUrl, FString Target)
 					{
 						FBridgeUIManager::BrowserBinding->DialogMainBrowser->LoadURL(NextUrl);
 						return true;
 					})
-					.OnUrlChanged_Lambda([Production](const FText& Url) 
+					.OnUrlChanged_Lambda([ResponseCodeUrl](const FText& Url) 
 								{
 									FString RedirectedUrl = Url.ToString();
-									FString ProdCodeUrl = TEXT("https://quixel.com/?code=");
-									FString StagingCodeUrl = TEXT("https://staging2.megascans.se/?code=");
-
-									FString CodeUrl = ProdCodeUrl;
-									if (!Production)
-									{
-										CodeUrl = StagingCodeUrl;
-									}
-
-									if (RedirectedUrl.StartsWith(CodeUrl))
+									if (RedirectedUrl.StartsWith(ResponseCodeUrl))
 									{
 										FBridgeUIManager::BrowserBinding->DialogMainWindow->RequestDestroyWindow();
 
-										FString LoginCode = RedirectedUrl.Replace(*CodeUrl, TEXT(""));
+										FString LoginCode = RedirectedUrl.Replace(*ResponseCodeUrl, TEXT(""));
 										
 										FBridgeUIManager::BrowserBinding->DialogSuccessDelegate.ExecuteIfBound("Login", LoginCode);
 										

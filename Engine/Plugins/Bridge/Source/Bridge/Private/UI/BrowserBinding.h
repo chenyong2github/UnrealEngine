@@ -77,7 +77,7 @@ public:
 	void DragStarted(TArray<FString> ImageUrl, TArray<FString> IDs);
 
 	UFUNCTION()
-	void ShowLoginDialog(bool Production);
+	void ShowLoginDialog(FString LoginUrl, FString ResponseCodeUrl);
 
 	UFUNCTION()
 	void OpenExternalUrl(FString Url);
