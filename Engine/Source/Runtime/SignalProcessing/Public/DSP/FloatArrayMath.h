@@ -113,7 +113,7 @@ namespace Audio
 	SIGNALPROCESSING_API void ArrayMinMaxNormalize(TArrayView<const float> InView, TArray<float>& OutArray);
 
 	// Scale an array to fit within [-1.f, 1.f]
-	SIGNALPROCESSING_API float ArrayMaxAbsValue(const TArrayView<float> InView);
+	SIGNALPROCESSING_API float ArrayMaxAbsValue(const TArrayView<const float> InView);
 
 	/** Multiply the second buffer in place by the first buffer. */
 	SIGNALPROCESSING_API void ArrayMultiplyInPlace(TArrayView<const float> InFloatBuffer, TArrayView<float> BufferToMultiply);

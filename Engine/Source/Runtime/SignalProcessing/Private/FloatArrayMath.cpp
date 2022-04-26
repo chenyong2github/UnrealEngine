@@ -709,7 +709,7 @@ namespace Audio
 		}
 	}
 	
-	float ArrayMaxAbsValue(const TArrayView<float> InView)
+	float ArrayMaxAbsValue(const TArrayView<const float> InView)
 	{
 		const int32 Num = InView.Num();
 		const float* Data = InView.GetData();
