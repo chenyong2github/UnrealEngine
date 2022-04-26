@@ -25,8 +25,8 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<SDockTab>, ConstructUnderMajorTab)
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, ConstructUnderWindow)
 		SLATE_EVENT(SEditableSessionHistory::FMakeSessionHistory, MakeSessionHistory)
-		SLATE_EVENT(SEditableSessionHistory::FCanDeleteActivity, CanDeleteActivity)
-		SLATE_EVENT(SEditableSessionHistory::FRequestDeleteActivity, DeleteActivity)
+		SLATE_EVENT(SEditableSessionHistory::FCanDeleteActivities, CanDeleteActivity)
+		SLATE_EVENT(SEditableSessionHistory::FRequestDeleteActivities, DeleteActivity)
 		SLATE_NAMED_SLOT(FArguments, StatusBar)
 	SLATE_END_ARGS()
 
@@ -42,7 +42,7 @@ private:
 	TSharedRef<SWidget> CreateTabs(const FArguments& InArgs);
 	TSharedRef<SDockTab> SpawnActivityHistory(const FSpawnTabArgs& Args,
 		SEditableSessionHistory::FMakeSessionHistory FMakeSessionHistory,
-		SEditableSessionHistory::FCanDeleteActivity CanDeleteActivity,
-		SEditableSessionHistory::FRequestDeleteActivity DeleteActivity
+		SEditableSessionHistory::FCanDeleteActivities CanDeleteActivity,
+		SEditableSessionHistory::FRequestDeleteActivities DeleteActivity
 		);
 };

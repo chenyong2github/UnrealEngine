@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Session/History/SEditableSessionHistory.h"
 #include "Widgets/SessionTabs/ConcertSessionTabBase.h"
-#include "Types/SlateAttribute.h"
 
 struct FConcertSessionActivity;
 class FArchivedSessionHistoryController;
@@ -40,6 +40,6 @@ private:
 	/** Displays session */
 	TSharedPtr<SConcertArchivedSessionInspector> Inspector;
 
-	void OnRequestDeleteActivity(const TSharedRef<FConcertSessionActivity>& DeleteActivity) const;
-	bool CanDeleteActivity(const TSharedRef<FConcertSessionActivity>& DeleteActivity) const;
+	void OnRequestDeleteActivity(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const;
+	FCanDeleteActivitiesResult CanDeleteActivity(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const;
 };

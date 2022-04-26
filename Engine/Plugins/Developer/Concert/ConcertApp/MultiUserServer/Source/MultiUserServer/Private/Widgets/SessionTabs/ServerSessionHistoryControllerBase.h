@@ -12,7 +12,7 @@ class IConcertSyncServer;
 class IConcertServerSession;
 
 /**
- * Abstract base class providing most functionality.
+ * Abstract base class providing most functionality for managing SSessionHistory on the server.
  * Subclasses control which session database is used: archived or live.
  */
 class FServerSessionHistoryControllerBase : public FAbstractSessionHistoryController

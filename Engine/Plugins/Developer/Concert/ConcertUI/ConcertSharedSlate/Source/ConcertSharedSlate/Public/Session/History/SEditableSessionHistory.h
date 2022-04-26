@@ -10,35 +10,51 @@
 class SSessionHistory;
 struct FConcertSessionActivity;
 
+struct FCanDeleteActivitiesResult
+{
+	TOptional<FText> DeletionReason;
+
+	static FCanDeleteActivitiesResult Yes() { return FCanDeleteActivitiesResult(); }
+	static FCanDeleteActivitiesResult No(FText Reason) { return FCanDeleteActivitiesResult(MoveTemp(Reason)); }
+
+	bool CanDelete() const { return !DeletionReason.IsSet(); }
+
+	explicit FCanDeleteActivitiesResult(TOptional<FText> DeletionReason = {})
+		: DeletionReason(DeletionReason)
+	{}
+};
+
 /** Allows activities in the session history to be deleted. */
 class CONCERTSHAREDSLATE_API SEditableSessionHistory : public SCompoundWidget
 {
 public:
 
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SSessionHistory>, FMakeSessionHistory, SSessionHistory::FArguments)
-	DECLARE_DELEGATE_RetVal_OneParam(bool, FCanDeleteActivity, const TSharedRef<FConcertSessionActivity>&)
-	DECLARE_DELEGATE_OneParam(FRequestDeleteActivity, const TSharedRef<FConcertSessionActivity>&)
+	DECLARE_DELEGATE_RetVal_OneParam(FCanDeleteActivitiesResult, FCanDeleteActivities, const TSet<TSharedRef<FConcertSessionActivity>>& /*Activities*/)
+	DECLARE_DELEGATE_OneParam(FRequestDeleteActivities, const TSet<TSharedRef<FConcertSessionActivity>>&)
 
 	SLATE_BEGIN_ARGS(SEditableSessionHistory)
 	{}
 		SLATE_EVENT(FMakeSessionHistory, MakeSessionHistory)
-		SLATE_EVENT(FCanDeleteActivity, CanDeleteActivity)
-		SLATE_EVENT(FRequestDeleteActivity, DeleteActivity)
+		SLATE_EVENT(FCanDeleteActivities, CanDeleteActivity)
+		SLATE_EVENT(FRequestDeleteActivities, DeleteActivity)
 		SLATE_NAMED_SLOT(FArguments, StatusBar)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
-
+	
+	//~ Begin SWidget Interface
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	//~ End SWidget Interface
+	
 private:
 
 	TSharedPtr<SSessionHistory> SessionHistory;
 
-	FCanDeleteActivity CanDeleteActivityFunc;
-	FRequestDeleteActivity DeleteActivityFunc;
+	FCanDeleteActivities CanDeleteActivityFunc;
+	FRequestDeleteActivities DeleteActivityFunc;
 
-	/** Creates a delete button that is overlayed over the summary column*/
-	TSharedPtr<SWidget> MakeSummaryColumnDeleteButton(TWeakPtr<SMultiColumnTableRow<TSharedPtr<FConcertSessionActivity>>> OwningRow, TWeakPtr<FConcertSessionActivity> RowActivity, const FName& ColumnId) const;
-	FReply OnClickDeleteActivityButton(TWeakPtr<FConcertSessionActivity> RowActivity) const;
-	FText GetDeleteActivityToolTip(TWeakPtr<FConcertSessionActivity> RowActivity) const;
-	bool CanDeleteActivity(TWeakPtr<FConcertSessionActivity> RowActivity) const;
+	FReply OnClickDeleteActivityButton() const;
+	FText GetDeleteActivityToolTip() const;
+	bool IsDeleteButtonEnabled() const;
 };

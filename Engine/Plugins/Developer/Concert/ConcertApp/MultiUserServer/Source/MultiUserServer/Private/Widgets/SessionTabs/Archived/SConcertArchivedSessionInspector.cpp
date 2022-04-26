@@ -74,8 +74,8 @@ TSharedRef<SWidget> SConcertArchivedSessionInspector::CreateTabs(const FArgument
 TSharedRef<SDockTab> SConcertArchivedSessionInspector::SpawnActivityHistory(
 	const FSpawnTabArgs& Args,
 	SEditableSessionHistory::FMakeSessionHistory MakeSessionHistory,
-	SEditableSessionHistory::FCanDeleteActivity CanDeleteActivity,
-	SEditableSessionHistory::FRequestDeleteActivity DeleteActivity)
+	SEditableSessionHistory::FCanDeleteActivities CanDeleteActivity,
+	SEditableSessionHistory::FRequestDeleteActivities DeleteActivity)
 {
 	SessionHistory = SNew(SEditableSessionHistory)
 		.MakeSessionHistory(MoveTemp(MakeSessionHistory))

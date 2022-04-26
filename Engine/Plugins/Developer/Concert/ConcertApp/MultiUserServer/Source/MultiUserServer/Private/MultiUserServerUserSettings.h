@@ -26,6 +26,10 @@ public:
 	void SetSessionBrowserColumnVisibility(FColumnVisibilitySnapshot NewValue) { SessionBrowserColumnVisibility = MoveTemp(NewValue); OnSessionBrowserColumnVisibilityChangedEvent.Broadcast(SessionBrowserColumnVisibility); }
 	FOnColumnVisibilitySnapshotChanged& OnSessionBrowserColumnVisibilityChanged() { return OnSessionBrowserColumnVisibilityChangedEvent; }
 
+	const FColumnVisibilitySnapshot& GetDeleteActivityDialogColumnVisibility() const { return DeleteActivityDialogColumnVisibility; }
+	void SetDeleteActivityDialogColumnVisibility(FColumnVisibilitySnapshot NewValue) { DeleteActivityDialogColumnVisibility = MoveTemp(NewValue); OnDeleteActivityDialogColumnVisibilityEvent.Broadcast(DeleteActivityDialogColumnVisibility); }
+	FOnColumnVisibilitySnapshotChanged& OnDeleteActivityDialogColumnVisibility() { return OnDeleteActivityDialogColumnVisibilityEvent; }
+	
 	const FColumnVisibilitySnapshot& GetArchivedActivityBrowserColumnVisibility() const { return ArchivedActivityBrowserColumnVisibility; }
 	void SetArchivedActivityBrowserColumnVisibility(FColumnVisibilitySnapshot NewValue) { ArchivedActivityBrowserColumnVisibility = MoveTemp(NewValue); OnArchivedActivityBrowserColumnVisibilityEvent.Broadcast(ArchivedActivityBrowserColumnVisibility); }
 	FOnColumnVisibilitySnapshotChanged& OnArchivedActivityBrowserColumnVisibility() { return OnArchivedActivityBrowserColumnVisibilityEvent; }
@@ -43,6 +47,10 @@ private:
 	UPROPERTY(Config)
 	FColumnVisibilitySnapshot SessionBrowserColumnVisibility;
 	FOnColumnVisibilitySnapshotChanged OnSessionBrowserColumnVisibilityChangedEvent;
+
+	UPROPERTY(Config)
+	FColumnVisibilitySnapshot DeleteActivityDialogColumnVisibility;
+	FOnColumnVisibilitySnapshotChanged OnDeleteActivityDialogColumnVisibilityEvent;
 
 	UPROPERTY(Config)
 	FColumnVisibilitySnapshot ArchivedActivityBrowserColumnVisibility;

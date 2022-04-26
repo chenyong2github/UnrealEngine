@@ -15,6 +15,10 @@ UMultiUserServerUserSettings::UMultiUserServerUserSettings()
 	{
 		SaveConfig();
 	});
+	OnDeleteActivityDialogColumnVisibility().AddLambda([this](const FColumnVisibilitySnapshot&)
+	{
+		SaveConfig();
+	});
 	OnArchivedActivityBrowserColumnVisibility().AddLambda([this](const FColumnVisibilitySnapshot&)
 	{
 		SaveConfig();
@@ -36,7 +40,7 @@ UMultiUserServerUserSettings::UMultiUserServerUserSettings()
 
 UMultiUserServerUserSettings* UMultiUserServerUserSettings::GetUserSettings()
 {
-	// If we're shutting down GetMutableDefault will return garbage - this function may be called by destructor when this module is unloaded
+	// If we're shutting down GetMutableDefault will return garbage - this function may be called by destructors when this module is unloaded
 	return UE::MultiUserServer::bIsShutdown
 		? nullptr
 		: GetMutableDefault<UMultiUserServerUserSettings>();

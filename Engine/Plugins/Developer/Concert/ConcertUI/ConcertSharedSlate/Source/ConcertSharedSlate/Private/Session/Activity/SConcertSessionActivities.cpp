@@ -246,7 +246,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 					SAssignNew(ActivityView, SListView<TSharedPtr<FConcertSessionActivity>>)
 					.ListItemsSource(&Activities)
 					.OnGenerateRow(this, &SConcertSessionActivities::OnGenerateActivityRowWidget)
-					.SelectionMode(ESelectionMode::Single)
+					.SelectionMode(InArgs._SelectionMode.Get(ESelectionMode::Single))
 					.AllowOverscroll(EAllowOverscroll::No)
 					.OnListViewScrolled(this, &SConcertSessionActivities::OnListViewScrolled)
 					.OnSelectionChanged(this, &SConcertSessionActivities::OnListViewSelectionChanged)
@@ -766,6 +766,11 @@ TSharedPtr<FConcertSessionActivity> SConcertSessionActivities::GetSelectedActivi
 {
 	TArray<TSharedPtr<FConcertSessionActivity>> SelectedItems = ActivityView->GetSelectedItems();
 	return SelectedItems.Num() ? SelectedItems[0] : nullptr;
+}
+
+TArray<TSharedPtr<FConcertSessionActivity>> SConcertSessionActivities::GetSelectedActivities() const
+{
+	return ActivityView->GetSelectedItems();
 }
 
 TSharedPtr<FConcertSessionActivity> SConcertSessionActivities::GetMostRecentActivity() const

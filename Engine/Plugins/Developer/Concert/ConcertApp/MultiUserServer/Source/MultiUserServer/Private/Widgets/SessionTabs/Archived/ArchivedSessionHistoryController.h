@@ -5,14 +5,12 @@
 #include "CoreMinimal.h"
 #include "Widgets/SessionTabs/ServerSessionHistoryControllerBase.h"
 
+/** Manages SSessionHistory by using IConcertSyncServer::GetArchivedSessionDatabase for retrieving the session database. */
 class FArchivedSessionHistoryController : public FServerSessionHistoryControllerBase
 {
-public:
+protected: // Protected to encourage the use the below functions (CreateForInspector, etc.) instead of MakeShared
 	
 	FArchivedSessionHistoryController(FGuid SessionId, TSharedRef<IConcertSyncServer> SyncServer, SSessionHistory::FArguments Arguments);
-	virtual ~FArchivedSessionHistoryController() override;
-	
-protected:
 
 	//~ Begin FServerSessionHistoryControllerBase Interface
 	virtual TOptional<FConcertSyncSessionDatabaseNonNullPtr> GetSessionDatabase(const FGuid& InSessionId) const override;
@@ -21,6 +19,13 @@ protected:
 private:
 
 	const TSharedRef<IConcertSyncServer> SyncServer;
-
-	void OnActivityListColumnVisibilitySettingsUpdated(const FColumnVisibilitySnapshot& NewValue);
 };
+
+namespace UE::MultiUserServer
+{
+	/** Creates a controller that is supposed to use UMultiUserServerUserSettings::GetArchivedActivityBrowserColumnVisibility  */
+	TSharedPtr<FArchivedSessionHistoryController> CreateForInspector(FGuid SessionId, TSharedRef<IConcertSyncServer> SyncServer, SSessionHistory::FArguments Arguments);
+
+	/** Creates a controller that is supposed to use  UMultiUserServerUserSettings::GetDeleteActivityDialogColumnVisibility*/
+	TSharedPtr<FArchivedSessionHistoryController> CreateForDeletionDialog(FGuid SessionId, TSharedRef<IConcertSyncServer> SyncServer, SSessionHistory::FArguments Arguments);
+}

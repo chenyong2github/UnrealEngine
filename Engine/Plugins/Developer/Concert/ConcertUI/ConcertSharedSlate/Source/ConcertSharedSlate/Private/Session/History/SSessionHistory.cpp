@@ -5,6 +5,8 @@
 #include "ConcertMessageData.h"
 #include "IConcertSession.h"
 
+#include "Algo/Transform.h"
+
 #include "Session/Activity/PredefinedActivityColumns.h"
 #include "Session/Activity/SConcertSessionActivities.h"
 
@@ -46,10 +48,14 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 {
 	using namespace UE::ConcertSharedSlate;
 	
-	PackageNameFilter = InArgs._PackageFilter;
+	AllowActivityFunc = FAllowActivity::CreateLambda([this, PackageNameFilter = InArgs._PackageFilter, FilterFunc = InArgs._AllowActivity](const FConcertSyncActivity& Activity, const TStructOnScope<FConcertSyncActivitySummary>& Summary)
+	{
+		return ConcertSessionHistoryUI::PackageNamePassesFilter(PackageNameFilter, Summary)
+			&& (!FilterFunc.IsBound() || FilterFunc.Execute(Activity, Summary));
+	});
 
 	ActivityMap.Reserve(MaximumNumberOfActivities);
-	ActivityListViewOptions = MakeShared<FConcertSessionActivitiesOptions>();
+	ActivityListViewOptions = InArgs._ViewOptions.Get() ? InArgs._ViewOptions.Get() : MakeShared<FConcertSessionActivitiesOptions>();
 
 	SAssignNew(ActivityListView, SConcertSessionActivities)
 		.OnGetPackageEvent(InArgs._GetPackageEvent)
@@ -58,19 +64,16 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 		.OnMapActivityToClient(this, &SSessionHistory::GetClientInfo)
 		.HighlightText(this, &SSessionHistory::HighlightSearchedText)
 		.TimeFormat(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTimeFormat)
-		.Columns({
-			ActivityColumn::AvatarColor(),
-			ActivityColumn::ClientName(),
-			ActivityColumn::Operation()
-		})
+		.Columns(InArgs._Columns)
 		.ConnectionActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetConnectionActivitiesVisibility)
 		.LockActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetLockActivitiesVisibility)
 		.PackageActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetPackageActivitiesVisibility)
 		.TransactionActivitiesVisibility(ActivityListViewOptions.Get(), &FConcertSessionActivitiesOptions::GetTransactionActivitiesVisibility)
-		.DetailsAreaVisibility(EVisibility::Visible)
+		.DetailsAreaVisibility(InArgs._DetailsAreaVisibility)
 		.IsAutoScrollEnabled(true)
 		.ColumnVisibilitySnapshot(InArgs._ColumnVisibilitySnapshot)
-		.SaveColumnVisibilitySnapshot(InArgs._SaveColumnVisibilitySnapshot);
+		.SaveColumnVisibilitySnapshot(InArgs._SaveColumnVisibilitySnapshot)
+		.SelectionMode(InArgs._SelectionMode);
 
 	ChildSlot
 	[
@@ -79,11 +82,23 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 		.AutoHeight()
 		.Padding(1, 1)
 		[
-			SAssignNew(SearchBox, SSearchBox)
-			.HintText(LOCTEXT("SearchHint", "Search..."))
-			.OnTextChanged(this, &SSessionHistory::OnSearchTextChanged)
-			.OnTextCommitted(this, &SSessionHistory::OnSearchTextCommitted)
-			.DelayChangeNotificationsWhileTyping(true)
+			SNew(SHorizontalBox)
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				InArgs._SearchButtonArea.Widget
+			]
+
+			+SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			[
+				SAssignNew(SearchBox, SSearchBox)
+				.HintText(LOCTEXT("SearchHint", "Search..."))
+				.OnTextChanged(this, &SSessionHistory::OnSearchTextChanged)
+				.OnTextCommitted(this, &SSessionHistory::OnSearchTextCommitted)
+				.DelayChangeNotificationsWhileTyping(true)
+			]
 		]
 
 		+SVerticalBox::Slot()
@@ -122,7 +137,7 @@ void SSessionHistory::ReloadActivities(TMap<FGuid, FConcertClientInfo> InEndpoin
 
 	for (FConcertSessionActivity& FetchedActivity : InFetchedActivities)
 	{
-		if (ConcertSessionHistoryUI::PackageNamePassesFilter(PackageNameFilter, FetchedActivity.ActivitySummary))
+		if (AllowActivityFunc.Execute(FetchedActivity.Activity, FetchedActivity.ActivitySummary))
 		{
 			TSharedRef<FConcertSessionActivity> NewActivity = MakeShared<FConcertSessionActivity>(MoveTemp(FetchedActivity));
 			ActivityMap.Add(NewActivity->Activity.ActivityId, NewActivity);
@@ -136,7 +151,7 @@ void SSessionHistory::HandleActivityAddedOrUpdated(const FConcertClientInfo& InC
 	TStructOnScope<FConcertSyncActivitySummary> ActivitySummary;
 	ActivitySummary.InitializeFromChecked(InActivitySummary);
 
-	if (ConcertSessionHistoryUI::PackageNamePassesFilter(PackageNameFilter, ActivitySummary))
+	if (AllowActivityFunc.Execute(InActivity, ActivitySummary))
 	{
 		EndpointClientInfoMap.Add(InActivity.EndpointId, InClientInfo);
 
@@ -161,6 +176,16 @@ void SSessionHistory::HandleActivityAddedOrUpdated(const FConcertClientInfo& InC
 void SSessionHistory::OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot)
 {
 	ActivityListView->OnColumnVisibilitySettingsChanged(ColumnSnapshot);
+}
+
+TSet<TSharedRef<FConcertSessionActivity>> SSessionHistory::GetSelectedActivities() const
+{
+	TSet<TSharedRef<FConcertSessionActivity>> Activities;
+	Algo::Transform(ActivityListView->GetSelectedActivities(), Activities, [&](TSharedPtr<FConcertSessionActivity> Activity)
+	{
+		return Activity.ToSharedRef();
+	});
+	return Activities;
 }
 
 void SSessionHistory::OnSearchTextChanged(const FText& InSearchText)

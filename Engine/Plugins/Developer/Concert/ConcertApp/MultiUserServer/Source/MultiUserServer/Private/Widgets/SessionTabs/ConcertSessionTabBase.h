@@ -9,7 +9,7 @@ class SDockTab;
 class SWindow;
 
 /** Shared functionality for a tab that manages a session */
-class FConcertSessionTabBase
+class FConcertSessionTabBase : public TSharedFromThis<FConcertSessionTabBase>
 {
 public:
 

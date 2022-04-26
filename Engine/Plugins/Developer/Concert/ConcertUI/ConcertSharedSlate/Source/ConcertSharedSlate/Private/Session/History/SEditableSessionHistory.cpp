@@ -4,6 +4,9 @@
 
 #include "EditorStyleSet.h"
 #include "SNegativeActionButton.h"
+
+#include "Algo/Transform.h"
+
 #include "Session/History/SSessionHistory.h"
 #include "Widgets/Layout/SBox.h"
 
@@ -16,9 +19,17 @@ void SEditableSessionHistory::Construct(const FArguments& InArgs)
 	DeleteActivityFunc = InArgs._DeleteActivity;
 	
 	SessionHistory = InArgs._MakeSessionHistory.Execute(
-			SSessionHistory::FArguments()
-			.OnMakeColumnOverlayWidget(this, &SEditableSessionHistory::MakeSummaryColumnDeleteButton)
-			);
+		SSessionHistory::FArguments()
+		.SelectionMode(ESelectionMode::Multi)
+		.SearchButtonArea()
+		[
+			SNew(SNegativeActionButton)
+			.OnClicked(this, &SEditableSessionHistory::OnClickDeleteActivityButton)
+			.ToolTipText(this, &SEditableSessionHistory::GetDeleteActivityToolTip)
+			.IsEnabled(this, &SEditableSessionHistory::IsDeleteButtonEnabled)
+			.Icon(FEditorStyle::GetBrush("Icons.Delete"))
+		]
+		);
 	
 	ChildSlot
 	[
@@ -26,56 +37,64 @@ void SEditableSessionHistory::Construct(const FArguments& InArgs)
 	];
 }
 
-TSharedPtr<SWidget> SEditableSessionHistory::MakeSummaryColumnDeleteButton(
-	TWeakPtr<SMultiColumnTableRow<TSharedPtr<FConcertSessionActivity>>> OwningRow,
-	TWeakPtr<FConcertSessionActivity> RowActivity,
-	const FName& ColumnId) const
+FReply SEditableSessionHistory::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
-	if (!SessionHistory->IsLastColumn(ColumnId))
+	if (InKeyEvent.GetKey() == EKeys::Delete)
 	{
-		return nullptr;
+		const TSet<TSharedRef<FConcertSessionActivity>> SelectedActivities = SessionHistory->GetSelectedActivities();
+		if (CanDeleteActivityFunc.Execute(SelectedActivities).CanDelete())
+		{
+			DeleteActivityFunc.Execute(SelectedActivities);
+		}
+		return FReply::Handled();
 	}
-
-	return SNew(SBox)
-		.Padding(FMargin(1, 1))
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SNegativeActionButton)
-			.OnClicked(this, &SEditableSessionHistory::OnClickDeleteActivityButton, RowActivity)
-			.Visibility_Lambda([OwningRow](){ return OwningRow.IsValid() && OwningRow.Pin()->IsHovered() ? EVisibility::Visible : EVisibility::Collapsed; })
-			.ToolTipText(TAttribute<FText>::CreateLambda([this, RowActivity](){ return GetDeleteActivityToolTip(RowActivity);}))
-			.IsEnabled(TAttribute<bool>::CreateLambda([this, RowActivity](){ return CanDeleteActivity(RowActivity);}))
-			.Icon(FEditorStyle::GetBrush("Icons.Delete"))
-		];
+	
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
 }
 
-FReply SEditableSessionHistory::OnClickDeleteActivityButton(TWeakPtr<FConcertSessionActivity> RowActivity) const
+FReply SEditableSessionHistory::OnClickDeleteActivityButton() const
 {
-	if (DeleteActivityFunc.IsBound() && CanDeleteActivity(RowActivity))
+	if (DeleteActivityFunc.IsBound() && CanDeleteActivityFunc.Execute(SessionHistory->GetSelectedActivities()).CanDelete())
 	{
-		DeleteActivityFunc.Execute(RowActivity.Pin().ToSharedRef());
+		DeleteActivityFunc.Execute(SessionHistory->GetSelectedActivities());
 	}
 	return FReply::Handled();
 }
 
-FText SEditableSessionHistory::GetDeleteActivityToolTip(TWeakPtr<FConcertSessionActivity> RowActivity) const
+FText SEditableSessionHistory::GetDeleteActivityToolTip() const
 {
-	return CanDeleteActivity(RowActivity) ?
-		LOCTEXT("DeleteActivityDescription", "Delete activity from history")
-		:
-		LOCTEXT("CannotDeleteActivityDescription", "Activity cannot be deleted from history");
+	TSet<TSharedRef<FConcertSessionActivity>> SelectedActivities = SessionHistory->GetSelectedActivities();
+	if (SelectedActivities.Num() == 0)
+	{
+		return LOCTEXT("SelectActivityToolTip", "Select some activities to delete from below (multi-select using CTRL + Click).");
+	}
+	
+	const FCanDeleteActivitiesResult CanDeleteActivities = CanDeleteActivityFunc.Execute(SelectedActivities);
+	if (CanDeleteActivities.CanDelete())
+	{
+		SelectedActivities.Sort([](const TSharedRef<FConcertSessionActivity>& First, const TSharedRef<FConcertSessionActivity>& Second) { return First->Activity.ActivityId <= Second->Activity.ActivityId; });
+		
+		TStringBuilder<256> ActivityBuilder;
+		bool bNeedsComma = false;
+		for (const TSharedRef<FConcertSessionActivity>& Activity : SelectedActivities)
+		{
+			if (bNeedsComma)
+			{
+				ActivityBuilder << ", ";
+			}
+			ActivityBuilder << Activity->Activity.ActivityId;
+
+			bNeedsComma = true;
+		}
+		return FText::Format(LOCTEXT("DeleteSelectedActivitiesToolTip", "Delete selected activities from history (IDs: {0})"), FText::FromString(ActivityBuilder.ToString()));
+	}
+	return FText::Format(LOCTEXT("CannotDeleteSelectedActivitiesToolTip", "Activity cannot be deleted: {0}"), CanDeleteActivities.DeletionReason.GetValue());
 }
 
-bool SEditableSessionHistory::CanDeleteActivity(TWeakPtr<FConcertSessionActivity> RowActivity) const
+bool SEditableSessionHistory::IsDeleteButtonEnabled() const
 {
-	if (const TSharedPtr<FConcertSessionActivity> Pinned = RowActivity.Pin())
-	{
-		return CanDeleteActivityFunc.Execute(Pinned.ToSharedRef());
-	}
-
-	checkNoEntry();
-	return false;
+	const TSet<TSharedRef<FConcertSessionActivity>> SelectedActivities = SessionHistory->GetSelectedActivities();
+	return SelectedActivities.Num() > 0 && CanDeleteActivityFunc.Execute(SelectedActivities).CanDelete();
 }
 
 #undef LOCTEXT_NAMESPACE

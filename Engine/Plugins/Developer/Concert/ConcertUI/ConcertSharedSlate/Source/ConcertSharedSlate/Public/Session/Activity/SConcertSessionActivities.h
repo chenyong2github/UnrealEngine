@@ -139,6 +139,9 @@ public:
 		/** Called whenever the column visibility changes and should be saved */
 		SLATE_EVENT(UE::ConcertSharedSlate::FSaveColumnVisibilitySnapshot, SaveColumnVisibilitySnapshot)
 	
+
+		/** How the activities may be selected */
+		SLATE_ARGUMENT(TOptional<ESelectionMode::Type>, SelectionMode)
 	SLATE_END_ARGS();
 	
 	/**
@@ -152,6 +155,8 @@ public:
 
 	/** Returns the activity selected or null if none is selected. */
 	TSharedPtr<FConcertSessionActivity> GetSelectedActivity() const;
+	/** Returns all selected activities */
+	TArray<TSharedPtr<FConcertSessionActivity>> GetSelectedActivities() const;
 
 	/** Returns the total number of activities currently stored (no filter applied). */
 	int32 GetTotalActivityNum() const { return AllActivities.Num(); }

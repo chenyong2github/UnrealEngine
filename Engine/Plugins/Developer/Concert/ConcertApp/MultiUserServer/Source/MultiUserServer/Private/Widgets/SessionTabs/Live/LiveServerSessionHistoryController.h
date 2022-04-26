@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 #include "Widgets/SessionTabs/ServerSessionHistoryControllerBase.h"
 
-struct FConcertSyncActivity;
 class FConcertSyncSessionDatabase;
 class IConcertSyncServer;
 class IConcertServerSession;
 
+struct FConcertSyncActivity;
+
+/** Manages SSessionHistory by using IConcertSyncServer::GetLiveSessionDatabase for retrieving the session database. */
 class FLiveServerSessionHistoryController : public FServerSessionHistoryControllerBase
 {
 public:

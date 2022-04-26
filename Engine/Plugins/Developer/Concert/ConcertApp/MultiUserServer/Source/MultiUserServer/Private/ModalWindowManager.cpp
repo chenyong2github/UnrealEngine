@@ -44,9 +44,13 @@ void UE::MultiUserServer::FModalWindowManager::PushWindow(const TSharedRef<SWind
 		check(!WindowStack.Contains(Window));
 		WindowStack.Push(Window);
 	
-		Window->GetOnWindowClosedEvent().AddLambda([this](const TSharedRef<SWindow>&)
+		Window->GetOnWindowClosedEvent().AddLambda([this](const TSharedRef<SWindow>& Window)
 		{
-			PopWindow();
+			// Might request window destruction twice
+			if (WindowStack.Contains(Window))
+			{
+				PopWindow();
+			}
 		});
 	}
 }
