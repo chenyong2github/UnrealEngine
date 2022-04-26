@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshResources.h"
+#include "TransformTypes.h"
 
 
 /**
@@ -18,6 +19,7 @@ protected:
 	const FStaticMeshLODResources* Mesh;
 
 	FVector3d BuildScale = FVector3d::One();
+	FVector3d InvBuildScale = FVector3d::One();
 	bool bScaleNormals = false;
 
 	TArray<const FStaticMeshSection*> ValidSections;
@@ -52,6 +54,7 @@ public:
 	void SetBuildScale(const FVector3d& BuildScaleIn, bool bScaleNormalsIn)
 	{
 		BuildScale = BuildScaleIn;
+		InvBuildScale = UE::Geometry::FTransformSRT3d::GetSafeScaleReciprocal(BuildScaleIn);
 		bScaleNormals = bScaleNormalsIn;
 	}
 
@@ -149,7 +152,7 @@ public:
 	{
 		const FVector4f& Normal = Mesh->VertexBuffers.StaticMeshVertexBuffer.VertexTangentZ(IDValue);
 		return (!bScaleNormals) ? FVector3f(Normal.X, Normal.Y, Normal.Z) :
-			UE::Geometry::Normalized(FVector3f(Normal.X / BuildScale.X, Normal.Y / BuildScale.Y, Normal.Z / BuildScale.Z));
+			UE::Geometry::Normalized(FVector3f(Normal.X * InvBuildScale.X, Normal.Y * InvBuildScale.Y, Normal.Z * InvBuildScale.Z));
 	}
 
 	/** Get Normals for a given Triangle */
@@ -163,9 +166,51 @@ public:
 		N2 = GetNormal(VtxIndices.C);
 	}
 
+
+	inline FVector3f GetTangentX(int32 IDValue) const
+	{
+		const FVector4f& TangentX = Mesh->VertexBuffers.StaticMeshVertexBuffer.VertexTangentX(IDValue);
+		return (!bScaleNormals) ? FVector3f(TangentX.X, TangentX.Y, TangentX.Z) :
+			UE::Geometry::Normalized(FVector3f(TangentX.X * BuildScale.X, TangentX.Y * BuildScale.Y, TangentX.Z * BuildScale.Z));
+	}
+
+	/** Get Tangent X for a given Triangle */
+	template<typename VectorType>
+	inline void GetTriTangentsX(int32 TriId, VectorType& T0, VectorType& T1, VectorType& T2)
+	{
+		FIndex3i VtxIndices = GetTriangle(TriId);
+		T0 = GetTangentX(VtxIndices.A);
+		T1 = GetTangentX(VtxIndices.B);
+		T2 = GetTangentX(VtxIndices.C);
+	}
+
+
+	inline FVector3f GetTangentY(int32 IDValue) const
+	{
+		const FVector4f& TangentY = Mesh->VertexBuffers.StaticMeshVertexBuffer.VertexTangentY(IDValue);
+		return (!bScaleNormals) ? FVector3f(TangentY.X, TangentY.Y, TangentY.Z) :
+			UE::Geometry::Normalized(FVector3f(TangentY.X * BuildScale.X, TangentY.Y * BuildScale.Y, TangentY.Z * BuildScale.Z));
+	}
+
+	/** Get Tangent Y for a given Triangle */
+	template<typename VectorType>
+	inline void GetTriTangentsY(int32 TriId, VectorType& T0, VectorType& T1, VectorType& T2)
+	{
+		FIndex3i VtxIndices = GetTriangle(TriId);
+		T0 = GetTangentY(VtxIndices.A);
+		T1 = GetTangentY(VtxIndices.B);
+		T2 = GetTangentY(VtxIndices.C);
+	}
+
+
 	inline bool HasUVs(const int32 UVLayer = 0) const
 	{
 		return Mesh && Mesh->VertexBuffers.StaticMeshVertexBuffer.GetAllowCPUAccess() && Mesh->VertexBuffers.StaticMeshVertexBuffer.GetTexCoordData() && (int32)Mesh->VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() > UVLayer && UVLayer >= 0;
+	}
+	inline int32 NumUVLayers() const
+	{
+		return (Mesh && Mesh->VertexBuffers.StaticMeshVertexBuffer.GetAllowCPUAccess() && Mesh->VertexBuffers.StaticMeshVertexBuffer.GetTexCoordData()) ?
+			(int32)Mesh->VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() : 0;
 	}
 	inline bool IsUV(const int32 UVId) const
 	{
@@ -196,4 +241,37 @@ public:
 		UV1 = GetUV(VtxIndices.B, UVLayer);
 		UV2 = GetUV(VtxIndices.C, UVLayer);
 	}
+
+
+	inline bool HasColors() const
+	{
+		return Mesh && Mesh->VertexBuffers.ColorVertexBuffer.GetAllowCPUAccess();
+	}
+	inline bool IsColor(int32 ColorIndex) const
+	{
+		return ColorIndex >= 0 && ColorIndex < ColorCount();
+	}
+	inline int32 MaxColorID() const
+	{
+		return ColorCount();
+	}
+	inline int32 ColorCount() const
+	{
+		return HasColors() ? VertexCount() : 0;
+	}
+
+	inline FColor GetColor(int32 IDValue) const
+	{
+		return Mesh->VertexBuffers.ColorVertexBuffer.VertexColor(IDValue);
+	}
+
+	/** Get Colors for a given Triangle */
+	inline void GetTriColors(int32 TriId, FColor& C0, FColor& C1, FColor& C2)
+	{
+		FIndex3i VtxIndices = GetTriangle(TriId);
+		C0 = GetColor(VtxIndices.A);
+		C1 = GetColor(VtxIndices.B);
+		C2 = GetColor(VtxIndices.C);
+	}
+
 };
