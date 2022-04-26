@@ -4,6 +4,7 @@
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "AnimationUtils.h"
+#include "Animation/MirrorDataTable.h"
 
 namespace UE { namespace Anim {
 
@@ -48,6 +49,27 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	SCOPE_CYCLE_COUNTER(STAT_TickAssetPlayerInstances);
+
+	auto AccumulateRootMotion = [&InProxy](FAnimTickRecord& TickRecord, FAnimAssetTickContext& TickContext)
+	{
+		if (TickRecord.MirrorDataTable)
+		{
+			FTransform InTransform = TickContext.RootMotionMovementParams.GetRootMotionTransform();
+			FVector T = InTransform.GetTranslation();
+			T = FAnimationRuntime::MirrorVector(T, TickRecord.MirrorDataTable->MirrorAxis);
+
+			FQuat Q = InTransform.GetRotation();
+			Q = FAnimationRuntime::MirrorQuat(Q, TickRecord.MirrorDataTable->MirrorAxis);
+
+			FVector S = InTransform.GetScale3D();
+			FTransform MirroredTransform = FTransform(Q, T, S);
+			InProxy.ExtractedRootMotion.AccumulateWithBlend(MirroredTransform, TickRecord.GetRootMotionWeight());
+		}
+		else
+		{
+			InProxy.ExtractedRootMotion.AccumulateWithBlend(TickContext.RootMotionMovementParams, TickRecord.GetRootMotionWeight());
+		}
+	};
 
 	const ERootMotionMode::Type RootMotionMode = InProxy.GetRootMotionMode();
 
@@ -105,7 +127,7 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 
 				if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
 				{
-					InProxy.ExtractedRootMotion.AccumulateWithBlend(TickContext.RootMotionMovementParams, GroupLeader.GetRootMotionWeight());
+					AccumulateRootMotion(GroupLeader, TickContext);
 				}
 
 				// if we're not using marker based sync, we don't care, get out
@@ -198,7 +220,7 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 					}
 					if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
 					{
-						InProxy.ExtractedRootMotion.AccumulateWithBlend(TickContext.RootMotionMovementParams, AssetPlayer.GetRootMotionWeight());
+						AccumulateRootMotion(AssetPlayer, TickContext);
 					}
 				}
 			}
@@ -228,7 +250,7 @@ void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDe
 		}
 		if (RootMotionMode == ERootMotionMode::RootMotionFromEverything && TickContext.RootMotionMovementParams.bHasRootMotion)
 		{
-			InProxy.ExtractedRootMotion.AccumulateWithBlend(TickContext.RootMotionMovementParams, AssetPlayerToTick.GetRootMotionWeight());
+			AccumulateRootMotion(AssetPlayerToTick, TickContext);
 		}
 
 #if ANIM_TRACE_ENABLED
