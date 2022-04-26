@@ -41,8 +41,6 @@ void UBlueprintHeaderViewSettings::PostEditChangeProperty(FPropertyChangedEvent&
 
 	FName PropertyChangedName = PropertyChangedEvent.GetPropertyName();
 
-	SyntaxColors = FHeaderViewSyntaxColors();
-
 	if (PropertyChangedName == GET_MEMBER_NAME_CHECKED(UBlueprintHeaderViewSettings, FontSize))
 	{
 		FBlueprintHeaderViewModule::HeaderViewTextStyle.SetFontSize(FontSize);
