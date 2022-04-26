@@ -12,6 +12,7 @@
 
 #include "DatasmithAssetUserData.h"
 #include "Components/SceneComponent.h"
+#include "Engine/World.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
