@@ -134,7 +134,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 						ViewRotation = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
 						const EStreamingSourceTargetState TargetState = Player->PlayerController->StreamingSourceShouldActivate() ? EStreamingSourceTargetState::Activated : EStreamingSourceTargetState::Loaded;
 						const bool bBlockOnSlowLoading = Player->PlayerController->StreamingSourceShouldBlockOnSlowStreaming();
-						StreamingSources.Add(FWorldPartitionStreamingSource(Player->PlayerController->GetFName(), ViewLocation, ViewRotation, TargetState, bBlockOnSlowLoading, EStreamingSourcePriority::Default));
+						const EStreamingSourcePriority StreamingSourcePriority = Player->PlayerController->GetStreamingSourcePriority();
+						StreamingSources.Add(FWorldPartitionStreamingSource(Player->PlayerController->GetFName(), ViewLocation, ViewRotation, TargetState, bBlockOnSlowLoading, StreamingSourcePriority));
 					}
 				}
 			}

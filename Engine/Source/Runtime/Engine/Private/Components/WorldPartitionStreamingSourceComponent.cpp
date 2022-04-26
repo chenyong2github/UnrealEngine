@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/WorldPartitionStreamingSourceComponent.h"
+#include "Math/Color.h"
+#include "Math/RandomStream.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -16,8 +18,8 @@ UWorldPartitionStreamingSourceComponent::UWorldPartitionStreamingSourceComponent
 	, DefaultVisualizerLoadingRange(10000.f)
 #endif
 	, TargetGrid(NAME_None)
-	, DebugColor(ForceInit)
-	, Priority(EStreamingSourcePriority::Low)
+	, DebugColor(FColor::MakeRedToGreenColorFromScalar(FRandomStream(GetFName()).GetFraction()))
+	, Priority(EStreamingSourcePriority::Normal)
 	, bStreamingSourceEnabled(true)
 	, TargetState(EStreamingSourceTargetState::Activated)
 {

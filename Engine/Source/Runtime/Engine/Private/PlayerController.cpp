@@ -66,6 +66,7 @@
 #include "GameFramework/GameSession.h"
 #include "GameMapsSettings.h"
 #include "Particles/EmitterCameraLensEffectBase.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 
 DEFINE_LOG_CATEGORY(LogPlayerController);
 
@@ -134,6 +135,7 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 	bEnableStreamingSource = true;
 	bStreamingSourceShouldActivate = true;
 	bStreamingSourceShouldBlockOnSlowStreaming = true;
+	StreamingSourcePriority = EStreamingSourcePriority::Default;
 
 	bAutoManageActiveCameraTarget = true;
 	bRenderPrimitiveComponents = true;

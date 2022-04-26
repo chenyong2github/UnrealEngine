@@ -524,6 +524,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition, meta=(EditCondition="bEnableStreamingSource"))
 	uint32 bStreamingSourceShouldBlockOnSlowStreaming:1;
 
+	/** PlayerController streaming source priority. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition, meta=(EditCondition="bEnableStreamingSource"))
+	EStreamingSourcePriority StreamingSourcePriority;
+
 	/** Scale applied to force feedback values */
 	UPROPERTY(config)
 	float ForceFeedbackScale;
@@ -739,6 +743,14 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = WorldPartition)
 	virtual bool StreamingSourceShouldBlockOnSlowStreaming() const { return bEnableStreamingSource && bStreamingSourceShouldBlockOnSlowStreaming; }
+
+	/**
+	* Gets the streaming source priority.
+	* Default implementation returns StreamingSourcePriority but can be overriden in child classes.
+	* @return the streaming source priority.
+	*/
+	UFUNCTION(BlueprintCallable, Category = WorldPartition)
+	virtual EStreamingSourcePriority GetStreamingSourcePriority() const { return StreamingSourcePriority; }
 
 protected:
 	/** Pawn has been possessed, so changing state to NAME_Playing. Start it walking and begin playing with it. */
