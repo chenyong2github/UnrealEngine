@@ -2860,20 +2860,17 @@ FORCEINLINE VectorRegister4Float VectorMod(const VectorRegister4Float& X, const 
 #if UE_PLATFORM_MATH_USE_SVML
 	VectorRegister4Float Result = _mm_fmod_ps(X, Y);
 #else
-	// Promote to doubles for better intermediate precision.
-	VectorRegister4Double DoubleX = MakeVectorRegisterDouble(X);
-	VectorRegister4Double DoubleY = MakeVectorRegisterDouble(Y);
-	// R = X - (Y * (Trunc(X / Y))
-	VectorRegister4Double Temp = VectorTruncate(VectorDivide(DoubleX, DoubleY));
-	VectorRegister4Double DoubleResult = VectorNegateMultiplyAdd(DoubleY, Temp, DoubleX);
-	// Convert back to floats. This is safe (in terms of not exceeding [-FLT_MAX,FLT_MAX]) because the answer is less than or equal to Abs(X) by definition.
-	VectorRegister4Float Result = MakeVectorRegisterFloatFromDouble(DoubleResult);
+	AlignedFloat4 XFloats(X), YFloats(Y);
+	XFloats[0] = fmodf(XFloats[0], YFloats[0]);
+	XFloats[1] = fmodf(XFloats[1], YFloats[1]);
+	XFloats[2] = fmodf(XFloats[2], YFloats[2]);
+	XFloats[3] = fmodf(XFloats[3], YFloats[3]);
+	VectorRegister4Float Result = XFloats.ToVectorRegister();
 #endif
 
 	// Return 0 where divisor Y was too small	
 	Result = VectorSelect(InvalidDivisorMask, GlobalVectorConstants::FloatZero, Result);
 	return Result;
-
 }
 
 FORCEINLINE VectorRegister4Double VectorMod(const VectorRegister4Double& X, const VectorRegister4Double& Y)
@@ -2886,9 +2883,12 @@ FORCEINLINE VectorRegister4Double VectorMod(const VectorRegister4Double& X, cons
 #elif UE_PLATFORM_MATH_USE_SVML
 	VectorRegister4Double DoubleResult = VectorRegister4Double(_mm_fmod_pd(X.XY, Y.XY), _mm_fmod_pd(X.ZW, Y.ZW));
 #else
-	// R = X - (Y * (Trunc(X / Y))
-	VectorRegister4Double Temp = VectorTruncate(VectorDivide(X, Y));
-	VectorRegister4Double DoubleResult = VectorNegateMultiplyAdd(Y, Temp, X);
+	AlignedDouble4 XDoubles(X), YDoubles(Y);
+	XDoubles[0] = fmod(XDoubles[0], YDoubles[0]);
+	XDoubles[1] = fmod(XDoubles[1], YDoubles[1]);
+	XDoubles[2] = fmod(XDoubles[2], YDoubles[2]);
+	XDoubles[3] = fmod(XDoubles[3], YDoubles[3]);
+	VectorRegister4Double DoubleResult = XDoubles.ToVectorRegister();
 #endif
 
 	// Return 0 where divisor Y was too small

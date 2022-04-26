@@ -877,7 +877,6 @@ MATHTEST_INLINE VectorRegister4Double TestReferenceMod(const VectorRegister4Doub
 		(double)fmod(AF[3], MF[3]));
 }
 
-
 // SinCos
 template<typename FloatType, typename VectorRegisterType>
 MATHTEST_INLINE void TestReferenceSinCos(VectorRegisterType& S, VectorRegisterType& C, const VectorRegisterType& VAngles)
@@ -1930,13 +1929,11 @@ bool RunDoubleVectorTest()
 	V3 = VectorMod(V0, V1);
 	LogTest<double>(TEXT("VectorMod negative"), TestVectorsEqual(V2, V3));
 
-	/* Disable due to being broken for non-windows platforms UE-150201
 	V0 = MakeVectorRegister(89.9, 180.0, -256.0, -270.1);
 	V1 = MakeVectorRegister(360.0, 0.1, 360.0, 180.0);
 	V2 = TestReferenceMod(V0, V1);
 	V3 = VectorMod(V0, V1);
 	LogTest<double>(TEXT("VectorMod common"), TestVectorsEqual(V2, V3));
-	*/
 
 	// VectorSign
 	V0 = MakeVectorRegister(2.0, -2.0, 0.0, -3.0);
