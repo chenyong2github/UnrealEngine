@@ -262,7 +262,6 @@ FVirtualizationManager::FVirtualizationManager()
 	, bEnableCacheAfterPull(true)
 	, MinPayloadLength(0)
 	, BackendGraphName(TEXT("ContentVirtualizationBackendGraph_None"))
-	, bValidateAfterPushOperation(false)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualizationManager::FVirtualizationManager);
 
@@ -297,7 +296,6 @@ bool FVirtualizationManager::Initialize(const FInitParams& InitParams)
 	ProjectName = InitParams.ProjectName;
 
 	ApplySettingsFromConfigFiles(InitParams.ConfigFile);
-	ApplyDebugSettingsFromConfigFiles(InitParams.ConfigFile);
 	
 	ApplySettingsFromCmdline();
 	ApplyDebugSettingsFromFromCmdline();
@@ -433,9 +431,8 @@ bool FVirtualizationManager::PushData(TArrayView<FPushRequest> Requests, EStorag
 			ErrorCount++;
 		}
 		
-		// Debugging operation where we immediately try to pull the payload after each push (when possible) and assert 
-		// that the pulled payload is the same as the original
-		if (bValidateAfterPushOperation && bResult == true && Backend->IsOperationSupported(IVirtualizationBackend::EOperations::Pull))
+		// Debug operation to validate that the payload we just pushed can be retrieved from storage
+		if (DebugValues.bValidateAfterPush && bResult == true && Backend->IsOperationSupported(IVirtualizationBackend::EOperations::Pull))
 		{
 			for (FPushRequest& Request : ValidatedRequests)
 			{
@@ -751,29 +748,18 @@ void FVirtualizationManager::ApplySettingsFromCmdline()
 	}
 }
 
-void FVirtualizationManager::ApplyDebugSettingsFromConfigFiles(const FConfigFile& ConfigFile)
-{
-	UE_LOG(LogVirtualization, Display, TEXT("Loading virtualization manager debugging settings from config files..."));
-
-	// Note that the debug settings are optional and could be left out of the config files entirely
-	bool bValidateAfterPushOperationFromIni = false;
-	if (ConfigFile.GetBool(TEXT("Core.ContentVirtualizationDebugOptions"), TEXT("ValidateAfterPushOperation"), bValidateAfterPushOperationFromIni))
-	{
-		bValidateAfterPushOperation = bValidateAfterPushOperationFromIni;
-		UE_LOG(LogVirtualization, Display, TEXT("\tValidateAfterPushOperation : %s"), bValidateAfterPushOperation ? TEXT("true") : TEXT("false"));
-	}
-
-	// Some debug options will cause intentional breaks or slow downs for testing purposes, if these are enabled then we should give warning/errors 
-	// so it is clear in the log that future failures are being caused by the given dev option.
-	UE_CLOG(bValidateAfterPushOperation, LogVirtualization, Error, TEXT("ValidateAfterPushOperation is enabled, each push will be followed by a pull to validate it!"));
-}
-
 void FVirtualizationManager::ApplyDebugSettingsFromFromCmdline()
 {
 	if (FParse::Param(FCommandLine::Get(), TEXT("VA-SingleThreaded")))
 	{
 		DebugValues.bSingleThreaded = true;
 		UE_LOG(LogVirtualization, Warning, TEXT("Cmdline has set the virtualization system to run single threaded"));
+	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("VA-ValidatePushes")))
+	{
+		DebugValues.bValidateAfterPush = true;
+		UE_LOG(LogVirtualization, Warning, TEXT("Cmdline has set the virtualization system to pull each payload after pushing to either local or persistent storage"));
 	}
 
 	FString MissOptions;
@@ -821,6 +807,12 @@ void FVirtualizationManager::RegisterConsoleCommands()
 		TEXT("VA.SingleThreaded"),
 		DebugValues.bSingleThreaded,
 		TEXT("When set the asset virtualization system will only access backends in a single threaded manner")
+	));
+
+	DebugValues.ConsoleObjects.Add(IConsoleManager::Get().RegisterConsoleVariableRef(
+		TEXT("VA.ValidatePushes"),
+		DebugValues.bValidateAfterPush,
+		TEXT("When set the asset virtualization system will pull each payload after pushing to either local or persistent storage")
 	));
 }
 
@@ -1171,9 +1163,8 @@ void FVirtualizationManager::CachePayload(const FIoHash& Id, const FCompressedBu
 					*LexToString(Id),
 					*BackendToCache->GetDebugName());
 
-		// Debugging operation where we immediately try to pull the payload after each push (when possible) and assert 
-		// that the pulled payload is the same as the original
-		if (bValidateAfterPushOperation && bResult && BackendToCache->IsOperationSupported(IVirtualizationBackend::EOperations::Pull))
+		// Debug operation to validate that the payload we just cached can be retrieved from storage
+		if (DebugValues.bValidateAfterPush && bResult && BackendToCache->IsOperationSupported(IVirtualizationBackend::EOperations::Pull))
 		{
 			FCompressedBuffer PulledPayload = PullDataFromBackend(*BackendToCache, Id);
 			checkf(	Payload.GetRawHash() == PulledPayload.GetRawHash(), 

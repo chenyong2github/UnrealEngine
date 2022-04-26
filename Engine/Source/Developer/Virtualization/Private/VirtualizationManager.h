@@ -136,7 +136,6 @@ private:
 	void ApplySettingsFromConfigFiles(const FConfigFile& ConfigFile);
 	void ApplySettingsFromCmdline();
 	
-	void ApplyDebugSettingsFromConfigFiles(const FConfigFile& ConfigFile);
 	void ApplyDebugSettingsFromFromCmdline();
 
 	void RegisterConsoleCommands();
@@ -212,13 +211,6 @@ private:
 	/** Should payloads in engine plugin content packages before filtered out and never virtualized */
 	bool bFilterEnginePluginContent;
 	
-	/**
-	 * Debugging option: When enabled we will immediately 'pull' each payload after it has been 'pushed' and compare it to the original payload source to make 
-	 * sure that it can be pulled correctly.
-	 * This is intended to aid debugging and not for production use.
-	 */
-	bool bValidateAfterPushOperation;
-
 	/** The name of the current project */
 	FString ProjectName;
 
@@ -252,6 +244,12 @@ private:
 
 		/** When enabled all public operations will be performed as single threaded */
 		bool bSingleThreaded = false;
+
+		/** 
+		 * When enabled we will immediately 'pull' each payload after it has been pushed to either local or persistent
+		 * storage and compare it to the original payload source to make sure that it was uploaded correctly 
+		 */
+		bool bValidateAfterPush = false;
 
 		/** Array of backend names that should have their pull operation disabled */
 		TArray<FString> MissBackends;
