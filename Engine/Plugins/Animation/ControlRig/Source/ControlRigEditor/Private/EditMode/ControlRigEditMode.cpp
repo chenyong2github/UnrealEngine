@@ -161,6 +161,7 @@ FControlRigEditMode::~FControlRigEditMode()
 
 	DestroyShapesActors(nullptr);
 	OnControlRigAddedOrRemovedDelegate.Clear();
+	OnControlRigSelectedDelegate.Clear();
 
 	TArray<TWeakObjectPtr<UControlRig>> PreviousRuntimeRigs = RuntimeControlRigs;
 	for (int32 PreviousRuntimeRigIndex = 0; PreviousRuntimeRigIndex < PreviousRuntimeRigs.Num(); PreviousRuntimeRigIndex++)
@@ -437,6 +438,7 @@ void FControlRigEditMode::Exit()
 
 	DestroyShapesActors(nullptr);
 	OnControlRigAddedOrRemovedDelegate.Clear();
+	OnControlRigSelectedDelegate.Clear();
 
 	TArray<TWeakObjectPtr<UControlRig>> PreviousRuntimeRigs = RuntimeControlRigs;
 	for (int32 PreviousRuntimeRigIndex = 0; PreviousRuntimeRigIndex < PreviousRuntimeRigs.Num(); PreviousRuntimeRigIndex++)
@@ -1163,13 +1165,10 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 					}
 					else if(Click.IsControlDown()) //if ctrl we toggle selection
 					{
-						for (TWeakObjectPtr<UControlRig>& RuntimeRigPtr : RuntimeControlRigs)
+						if (UControlRig* ControlRig = ShapeActor->ControlRig.Get())
 						{
-							if (UControlRig* ControlRig = RuntimeRigPtr.Get())
-							{
-								bool bIsSelected = ControlRig->IsControlSelected(ControlName);
-								SetRigElementSelection(ShapeActor->ControlRig.Get(), ERigElementType::Control, ControlName, !bIsSelected);
-							}
+							bool bIsSelected = ControlRig->IsControlSelected(ControlName);
+							SetRigElementSelection(ControlRig, ERigElementType::Control, ControlName, !bIsSelected);
 						}
 					}
 					else
@@ -1349,8 +1348,10 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 	FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() &&  !GIsTransacting);
 	
 	// clear selected controls
-	ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));
-
+	if (Click.IsShiftDown() ==false && Click.IsControlDown() == false)
+	{
+		ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));
+	}
 	/*
 	if(!InViewportClient->IsLevelEditorClient() && !InViewportClient->IsSimulateInEditorViewport())
 	{
@@ -1502,8 +1503,10 @@ bool IntersectsBox( AActor& InActor, const FBox& InBox, FLevelEditorViewportClie
 
 bool FControlRigEditMode::BoxSelect(FBox& InBox, bool InSelect)
 {
+
+	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 	FLevelEditorViewportClient* LevelViewportClient = GCurrentLevelEditingViewportClient;
-	if (LevelViewportClient->IsInGameView() == true)
+	if (LevelViewportClient->IsInGameView() == true || Settings->bHideControlShapes)
 	{
 		return  FEdMode::BoxSelect(InBox, InSelect);
 	}
@@ -1560,7 +1563,8 @@ bool FControlRigEditMode::BoxSelect(FBox& InBox, bool InSelect)
 
 bool FControlRigEditMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect)
 {
-	if (InViewportClient->IsInGameView() == true)
+	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
+	if (InViewportClient->IsInGameView() == true || Settings->bHideControlShapes)
 	{
 		return FEdMode::FrustumSelect(InFrustum, InViewportClient, InSelect);
 	}
@@ -2520,6 +2524,8 @@ void FControlRigEditMode::ToggleManipulators()
 		{
 			if (ControlRig)
 			{
+				FScopedTransaction ScopedTransaction(LOCTEXT("ToggleControlsVisibility", "Toggle Controls Visibility"),!GIsTransacting);
+				ControlRig->Modify();
 				ControlRig->ToggleControlsVisible();
 			}
 		}
@@ -2842,7 +2848,7 @@ void FControlRigEditMode::RequestToRecreateControlShapeActors(UControlRig* Contr
 		if (RecreateControlShapesRequired != ERecreateControlRigShape::RecreateAll)
 		{
 			RecreateControlShapesRequired = ERecreateControlRigShape::RecreateSpecified;
-			if (!ControlRigsToRecreate.Find(ControlRig))
+			if (ControlRigsToRecreate.Find(ControlRig) == INDEX_NONE)
 			{
 				ControlRigsToRecreate.Add(ControlRig);
 			}
@@ -3062,7 +3068,7 @@ bool FControlRigEditMode::AreRigElementSelectedAndMovable(UControlRig* ControlRi
 {
 	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 
-	if (!Settings || Settings->bHideControlShapes || !ControlRig || ControlRig->GetControlsVisible() == false || !AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control), ControlRig))
+	if (!Settings || Settings->bHideControlShapes || !ControlRig || !AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control), ControlRig))
 	{
 		return false;
 	}
@@ -3081,18 +3087,14 @@ bool FControlRigEditMode::AreRigElementSelectedAndMovable(UControlRig* ControlRi
 
 void FControlRigEditMode::ReplaceControlRig(UControlRig* OldControlRig, UControlRig* NewControlRig)
 {
-	for (int32 Index = 0; Index < RuntimeControlRigs.Num(); ++Index)
+	if (OldControlRig != nullptr)
 	{
-		TWeakObjectPtr<UControlRig>& RuntimeRigPtr = RuntimeControlRigs[Index];
-		if (UControlRig* RuntimeControlRig = RuntimeRigPtr.Get())
-		{
-			if (RuntimeControlRig == OldControlRig)
-			{
-				RuntimeControlRigs[Index] = NewControlRig;
-				break;
-			}
-		}
+		RemoveControlRig(OldControlRig);
 	}
+	AddControlRigInternal(NewControlRig);
+	SetObjects_Internal();
+	RequestToRecreateControlShapeActors(NewControlRig);
+
 }
 void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
@@ -3152,7 +3154,20 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
             	case ERigElementType::Reference:
 				{
 					const bool bSelected = InNotif == ERigHierarchyNotification::ElementSelected;
-					
+					// users may select gizmo and control rig units, so we have to let them go through both of them if they do
+						// first go through gizmo actor
+					UControlRig* ControlRig = InHierarchy->GetTypedOuter<UControlRig>();
+					if (ControlRig == nullptr)
+					{
+						if (RuntimeControlRigs.Num() > 0)
+						{
+							ControlRig = RuntimeControlRigs[0].Get();
+						}
+					}
+					if (ControlRig)
+					{
+						OnControlRigSelectedDelegate.Broadcast(ControlRig, Key, bSelected);
+					}
 					// if it's control
 					if (Key.Type == ERigElementType::Control)
 					{
@@ -3161,16 +3176,7 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 						{
 							ControlProxy->Modify();
 						}
-						// users may select gizmo and control rig units, so we have to let them go through both of them if they do
-						// first go through gizmo actor
-						UControlRig* ControlRig= InHierarchy->GetTypedOuter<UControlRig>();
-						if (ControlRig == nullptr)
-						{
-							if (RuntimeControlRigs.Num() > 0)
-							{
-								ControlRig = RuntimeControlRigs[0].Get();
-							}
-						}
+						
 						AControlRigShapeActor* ShapeActor = GetControlShapeFromControlName(ControlRig,Key.Name);
 						if (ShapeActor)
 						{
@@ -3191,6 +3197,7 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 								ControlProxy->SelectProxy(ControlRig,Key.Name, false);
 							}
 						}
+
 					}
 					bSelectionChanged = true;
 		

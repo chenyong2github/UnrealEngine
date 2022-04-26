@@ -13,21 +13,9 @@
 #include "EditorModeManager.h"
 #include "ISequencer.h"
 
-void FControlRigBaseDockableView::SetEditMode(FControlRigEditMode& InEditMode)
-{
-
-	CurrentControlRig = nullptr;
-	ModeTools = InEditMode.GetModeManager();
-	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
-	{
-		EditMode->OnControlRigAddedOrRemoved().AddRaw(this, &FControlRigBaseDockableView::HandleControlAdded);
-		HandleControlAdded(GetControlRig(), true);
-	}
-}
 
 FControlRigBaseDockableView::FControlRigBaseDockableView()
 {
-	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FControlRigBaseDockableView::OnObjectsReplaced);
 }
 
 FControlRigBaseDockableView::~FControlRigBaseDockableView()
@@ -35,100 +23,54 @@ FControlRigBaseDockableView::~FControlRigBaseDockableView()
 	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
 	{
 		EditMode->OnControlRigAddedOrRemoved().RemoveAll(this);
-		TArrayView<TWeakObjectPtr<UControlRig>> Controls = EditMode->GetControlRigs();
-		for (TWeakObjectPtr<UControlRig>& ControlRigPtr : Controls)
-		{
-			if (UControlRig* ControlRig = ControlRigPtr.Get())
-			{
-				ControlRig->ControlSelected().RemoveAll(this);
-			}
-		}
+		EditMode->OnControlRigSelected().RemoveAll(this);
 	}
-	else
-	{
-		if (CurrentControlRig.IsValid())
-		{
-			(CurrentControlRig.Get())->ControlSelected().RemoveAll(this);
-		}
-	}
-	CurrentControlRig = nullptr;
-
-	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
-
 }
 
-UControlRig* FControlRigBaseDockableView::GetControlRig() 
+TArray<UControlRig*> FControlRigBaseDockableView::GetControlRigs()  const
 {
-	UControlRig* NewControlRig = nullptr;
+	TArray<UControlRig*> ControlRigs;
 	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
 	{
-		//just get first one, should only be one for control rig editor
-		TArrayView<TWeakObjectPtr<UControlRig>> Controls = EditMode->GetControlRigs();
-		for (TWeakObjectPtr<UControlRig>& ControlRigPtr : Controls)
-		{
-			if (UControlRig* ControlRig = ControlRigPtr.Get())
-			{
-				NewControlRig = ControlRig;
-				break;
-			}
-		}
+		ControlRigs = EditMode->GetControlRigsArray(false);
 	}
-	bool bNewControlRig = NewControlRig != CurrentControlRig;
-	if (bNewControlRig)
+	return ControlRigs;
+}
+
+void FControlRigBaseDockableView::SetEditMode(FControlRigEditMode& InEditMode)
+{
+
+	ModeTools = InEditMode.GetModeManager();
+	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
 	{
-		if (CurrentControlRig.IsValid())
-		{
-			(CurrentControlRig.Get())->ControlSelected().RemoveAll(this);
-
-		}
-		CurrentControlRig = NewControlRig;
-		NewControlRigSet(NewControlRig);
+		EditMode->OnControlRigAddedOrRemoved().AddRaw(this, &FControlRigBaseDockableView::HandleControlAdded);
+		EditMode->OnControlRigSelected().AddRaw(this, &FControlRigBaseDockableView::HandlElementSelected);
 	}
-	return NewControlRig;
-}
-
-
-void FControlRigBaseDockableView::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
-{
-	if(CurrentControlRig.IsValid())
-	{ 
-		UObject* OldObject = CurrentControlRig.Get();
-		UObject* NewObject = OldToNewInstanceMap.FindRef(OldObject);
-		if (NewObject)
-		{
-			if (UControlRig* ControlRig = Cast<UControlRig>(NewObject))
-			{
-				NewControlRigSet(ControlRig);
-			}
-		}
-	}
-}
-
-void FControlRigBaseDockableView::NewControlRigSet(UControlRig* ControlRig)
-{
-	CurrentControlRig = ControlRig;
 }
 
 void FControlRigBaseDockableView::HandleControlAdded(UControlRig* ControlRig, bool bIsAdded)
 {
-	if (ControlRig)
-	{
-		if (bIsAdded)
-		{
-			(ControlRig)->ControlSelected().RemoveAll(this);
-			(ControlRig)->ControlSelected().AddRaw(this, &FControlRigBaseDockableView::HandleControlSelected);
-			CurrentControlRig = ControlRig;
-		}
-		else
-		{
-			(ControlRig)->ControlSelected().RemoveAll(this);
-		}
-	}
 }
 
-void FControlRigBaseDockableView::HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected)
+void FControlRigBaseDockableView::HandleControlSelected(UControlRig* ControlRig, FRigControlElement* InControl, bool bSelected)
 {
+}
 
+void FControlRigBaseDockableView::HandlElementSelected(UControlRig* ControlRig, const FRigElementKey& Key, bool bSelected)
+{
+	if (ControlRig)
+	{
+		if (Key.Type == ERigElementType::Control)
+		{
+			if (FRigBaseElement* BaseElement = ControlRig->GetHierarchy()->Find(Key))
+			{
+				if (FRigControlElement* ControlElement = Cast<FRigControlElement>(BaseElement))
+				{
+					HandleControlSelected(ControlRig, ControlElement, bSelected);
+				}
+			}
+		}
+	}
 }
 
 ISequencer* FControlRigBaseDockableView::GetSequencer() const

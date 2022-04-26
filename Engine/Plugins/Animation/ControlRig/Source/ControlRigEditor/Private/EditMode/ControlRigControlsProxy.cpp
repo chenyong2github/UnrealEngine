@@ -186,8 +186,22 @@ void UControlRigTransformControlProxy::SetKey(const IPropertyHandle& KeyedProper
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
+		FRigControlModifiedContext Context;
+		Context.SetKey = EControlRigSetKey::Always;
+		if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FEulerTransform, Location))
+		{
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::Translation;
+		}
+		else if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FEulerTransform, Rotation))
+		{
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::Rotation;
+		}
+		else if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FEulerTransform, Scale))
+		{
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::Scale;
+		}
 		FTransform RealTransform = Transform; //Transform is FEulerTransform
-		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, EControlRigSetKey::Always,false);
+		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, Context, false);
 	}
 }
 
@@ -239,7 +253,17 @@ void UControlRigTransformNoScaleControlProxy::SetKey(const IPropertyHandle& Keye
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
-		ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ControlName, Transform, true, EControlRigSetKey::Always,false);
+		FRigControlModifiedContext Context;
+		Context.SetKey = EControlRigSetKey::Always;
+		if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FTransformNoScale, Location))
+		{
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::Translation;
+		}
+		else if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FTransformNoScale, Rotation))
+		{
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::Rotation;
+		}
+		ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ControlName, Transform, true, Context, false);
 	}
 }
 
@@ -294,7 +318,21 @@ void UControlRigEulerTransformControlProxy::SetKey(const IPropertyHandle& KeyedP
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
-		ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Transform, true, EControlRigSetKey::Always,false);
+		FRigControlModifiedContext Context;
+		Context.SetKey = EControlRigSetKey::Always;
+		if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FEulerTransform, Location))
+		{
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::Translation;
+		}
+		else if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FEulerTransform, Rotation))
+		{
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::Rotation;
+		}
+		else if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FEulerTransform, Scale))
+		{
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::Scale;
+		}
+		ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Transform, true, Context,false);
 	}
 }
 
@@ -466,7 +504,7 @@ void UControlRigVectorControlProxy::PostEditChangeProperty(struct FPropertyChang
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get());
-			ControlRig->SetControlValue<FVector>(ControlName, Vector, true, EControlRigSetKey::DoNotCare,false);
+			ControlRig->SetControlValue<FVector3f>(ControlName, Vector, true, EControlRigSetKey::DoNotCare,false);
 			ControlRig->Evaluate_AnyThread();
 
 		}
@@ -481,8 +519,8 @@ void UControlRigVectorControlProxy::ValueChanged()
 		Modify();
 		const FName PropertyName("Vector");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
-		const FVector Val = (FVector)ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
-		Binding.CallFunction<FVector>(*this, Val);
+		const FVector3f Val = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FVector3f>();
+		Binding.CallFunction<FVector3f>(*this, Val);
 	}
 }
 
@@ -504,7 +542,54 @@ void UControlRigVectorControlProxy::SetKey(const IPropertyHandle& KeyedPropertyH
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
-		ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Vector, true, EControlRigSetKey::Always,false);
+		FRigControlModifiedContext Context;
+		Context.SetKey = EControlRigSetKey::Always;
+		if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FVector3f, X))
+		{
+			switch (ControlElement->Settings.ControlType)
+			{
+			case ERigControlType::Position:
+				Context.KeyMask = (uint32)EControlRigContextChannelToKey::TranslationX;
+				break;
+			case ERigControlType::Rotator:	
+				Context.KeyMask = (uint32)EControlRigContextChannelToKey::RotationX;
+				break;
+			case ERigControlType::Scale:
+				Context.KeyMask = (uint32)EControlRigContextChannelToKey::ScaleX;
+				break;
+			}
+		}
+		else if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FVector3f, Y))
+		{
+			switch (ControlElement->Settings.ControlType)
+			{
+			case ERigControlType::Position:
+				Context.KeyMask = (uint32)EControlRigContextChannelToKey::TranslationY;
+				break;
+			case ERigControlType::Rotator:
+				Context.KeyMask = (uint32)EControlRigContextChannelToKey::RotationY;
+				break;
+			case ERigControlType::Scale:
+				Context.KeyMask = (uint32)EControlRigContextChannelToKey::ScaleY;
+				break;
+			}
+		}
+		else if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FVector3f, Z))
+		{
+			switch (ControlElement->Settings.ControlType)
+			{
+			case ERigControlType::Position:
+				Context.KeyMask = (uint32)EControlRigContextChannelToKey::TranslationZ;
+				break;
+			case ERigControlType::Rotator:
+				Context.KeyMask = (uint32)EControlRigContextChannelToKey::RotationZ;
+				break;
+			case ERigControlType::Scale:
+				Context.KeyMask = (uint32)EControlRigContextChannelToKey::ScaleZ;
+				break;
+			}
+		}
+		ControlRig->SetControlValue<FVector3f>(ControlName, (FVector3f)Vector, true, Context,false);
 	}
 }
 
@@ -558,7 +643,17 @@ void UControlRigVector2DControlProxy::SetKey(const IPropertyHandle& KeyedPropert
 	FRigControlElement* ControlElement = GetControlElement();
 	if (ControlElement)
 	{
-		ControlRig->SetControlValue<FVector3f>(ControlName, FVector3f(Vector2D.X, Vector2D.Y, 0.f), true, EControlRigSetKey::Always,false);
+		FRigControlModifiedContext Context;
+		Context.SetKey = EControlRigSetKey::Always;
+		if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FVector2D, X))
+		{
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::TranslationX;
+		}
+		else if (KeyedPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FVector2D, Y))
+		{
+			Context.KeyMask = (uint32)EControlRigContextChannelToKey::TranslationY;
+		}
+		ControlRig->SetControlValue<FVector3f>(ControlName, FVector3f(Vector2D.X, Vector2D.Y, 0.f), true, Context,false);
 	}
 }
 

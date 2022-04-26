@@ -236,7 +236,7 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 							if (UControlRig* ControlRig = ControlRigPtr.Get())
 							{
 								if (ControlRig->GetObjectBinding() && ControlRig->GetObjectBinding()->GetBoundObject() == nullptr)
-					{
+								{
 									bRequestEvaluate = true;
 									break;
 								}
@@ -299,7 +299,6 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 								if (ControlRigEditMode)
 								{
 									ControlRigEditMode->ReplaceControlRig(OldControlRig, *NewControlRig);
-									ControlRigEditMode->AddControlRigObject(*NewControlRig, GetSequencer());
 									
 									UControlRig* PtrNewControlRig = *NewControlRig;
 
@@ -1926,11 +1925,11 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 			for (TPair<UControlRig*, TArray<FRigElementKey>>& SelectedControl : AllSelectedControls)
 			{
 				ControlRig = SelectedControl.Key;
-			if (ControlRig)
-			{
-				ControlRig->ClearControlSelection();
+				if (ControlRig)
+				{
+					ControlRig->ClearControlSelection();
+				}
 			}
-		}
 		}
 		for (UMovieSceneTrack* Track : InTracks)
 		{
@@ -2053,11 +2052,11 @@ void FControlRigParameterTrackEditor::SelectRigsAndControls(UControlRig* Control
 		for (TPair<UControlRig*, TArray<FRigElementKey>>& Selection : SelectedControls)
 		{
 			ControlRig = Selection.Key;
-		if (ControlRig)
-		{
-			ControlRig->ClearControlSelection();
+			if (ControlRig)
+			{
+				ControlRig->ClearControlSelection();
+			}
 		}
-	}
 	}
 	for (TPair<UControlRig*, TSet<FName>> Pair : RigsAndControls)
 	{
@@ -2523,10 +2522,13 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 			}
 			case ERigControlType::Vector2D:
 			{
+				//use translation x,y for key masks for vector2d
+				bool bKeyX = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationX);;
+				bool bKeyY = bSetKey && EnumHasAnyFlags(ChannelsToKey, EControlRigContextChannelToKey::TranslationY);;
 				FVector3f Val = ControlValue.Get<FVector3f>();
 				pChannelIndex->GeneratedKeyIndex = OutGeneratedKeys.Num();
-				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.X, bSetKey));
-				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Y, bSetKey));
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.X, bKeyX));
+				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, Val.Y, bKeyY));
 				break;
 			}
 			case ERigControlType::Position:

@@ -12,25 +12,24 @@ class UControlRig;
 class ISequencer;
 class FControlRigEditMode;
 struct FRigControlElement;
+struct FRigElementKey;
 
 class FControlRigBaseDockableView 
 {
 public:
 	FControlRigBaseDockableView();
 	virtual ~FControlRigBaseDockableView();
+	TArray<UControlRig*> GetControlRigs() const;
 
-	void SetEditMode(FControlRigEditMode& InEditMode);
+	virtual void SetEditMode(FControlRigEditMode& InEditMode);
 
 protected:
 	virtual void HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected);
 	virtual void HandleControlAdded(UControlRig* ControlRig, bool bIsAdded);
-	virtual void NewControlRigSet(UControlRig* ControlRig);
 
-	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+	void HandlElementSelected(UControlRig* Subject, const FRigElementKey& Key, bool bSelected);
 
-	UControlRig* GetControlRig();
 	ISequencer* GetSequencer() const;
-	TWeakObjectPtr<UControlRig> CurrentControlRig;
 
 	FEditorModeTools* ModeTools = nullptr;
 

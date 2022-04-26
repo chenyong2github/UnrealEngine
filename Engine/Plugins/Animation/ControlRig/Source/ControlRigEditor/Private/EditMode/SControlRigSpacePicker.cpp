@@ -105,23 +105,35 @@ SControlRigSpacePicker::~SControlRigSpacePicker()
 	//base class handles control rig related cleanup
 }
 
-
-void SControlRigSpacePicker::HandleControlAdded(UControlRig* ControlRig, bool bIsAdded)
+UControlRig* SControlRigSpacePicker::GetControlRig()
 {
-	FControlRigBaseDockableView::HandleControlAdded(ControlRig, bIsAdded);
-}
-
-void SControlRigSpacePicker::NewControlRigSet(UControlRig* ControlRig)
-{
-	FControlRigBaseDockableView::NewControlRigSet(ControlRig);
+	TArray<UControlRig*> ControlRigs = GetControlRigs();
+	for(UControlRig* ControlRig: ControlRigs)
+	{
+		if (ControlRig)
+		{
+			TArray<FRigElementKey> SelectedControls = ControlRig->GetHierarchy()->GetSelectedKeys(ERigElementType::Control);
+			if(SelectedControls.Num() >0)
+			{
+				return ControlRig;
+			}
+		}
+	}
+	return nullptr;
 }
 
 void SControlRigSpacePicker::HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
 {
+	FControlRigBaseDockableView::HandleControlSelected(Subject, ControlElement, bSelected);
 	if (UControlRig* ControlRig = GetControlRig())
 	{
 		// get the selected controls
 		TArray<FRigElementKey> SelectedControls = ControlRig->GetHierarchy()->GetSelectedKeys(ERigElementType::Control);
+		SpacePickerWidget->SetControls(ControlRig->GetHierarchy(), SelectedControls);
+	}
+	else //set nothing
+	{
+		TArray<FRigElementKey> SelectedControls;
 		SpacePickerWidget->SetControls(ControlRig->GetHierarchy(), SelectedControls);
 	}
 }

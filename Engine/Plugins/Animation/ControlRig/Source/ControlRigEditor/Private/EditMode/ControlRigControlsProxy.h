@@ -250,7 +250,7 @@ class UControlRigVectorControlProxy : public UControlRigControlsProxy
 public:
 
 	UPROPERTY(EditAnywhere, Interp, Category = "Control")
-	FVector Vector;
+	FVector3f Vector;
 };
 
 UCLASS()

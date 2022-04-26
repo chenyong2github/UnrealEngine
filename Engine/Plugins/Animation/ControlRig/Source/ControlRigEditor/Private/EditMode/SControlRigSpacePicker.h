@@ -30,11 +30,6 @@ class SControlRigSpacePicker : public SCompoundWidget, public FControlRigBaseDoc
 
 private:
 	virtual void HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected) override;
-	virtual void HandleControlAdded(UControlRig* ControlRig, bool bIsAdded) override;
-	virtual void NewControlRigSet(UControlRig* ControlRig) override;
-
-	const URigHierarchy* GetHierarchy() const;
-	void HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
 
 	/** Space picker widget*/
 	TSharedPtr<SRigSpacePickerWidget> SpacePickerWidget;
@@ -45,6 +40,9 @@ private:
 	void HandleSpaceListChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const TArray<FRigElementKey>& InSpaceList);
 	FReply HandleAddSpaceClicked();
 	FReply OnBakeControlsToNewSpaceButtonClicked();
+
+	//for now picker works off of one ControlRig, this function gets the first control rig with a selection
+	UControlRig* GetControlRig();
 
 };
 

@@ -404,13 +404,6 @@ SControlRigDetails::~SControlRigDetails()
 	//base class handles control rig related cleanup
 }
 
-
-void SControlRigDetails::HandleControlAdded(UControlRig* ControlRig, bool bIsAdded)
-{
-	FControlRigBaseDockableView::HandleControlAdded(ControlRig, bIsAdded);
-	UpdateProxies();
-}
-
 void SControlRigDetails::HandleControlSelected(UControlRig* Subject, FRigControlElement* InControl, bool bSelected)
 {
 	FControlRigBaseDockableView::HandleControlSelected(Subject, InControl, bSelected);
@@ -435,100 +428,99 @@ void SControlRigDetails::UpdateProxies()
 		TArray<TWeakObjectPtr<>> IndividualBools;
 		TArray<TWeakObjectPtr<>> IndividualIntegers;
 		TArray<TWeakObjectPtr<>> IndividualEnums;
-
-		if (UControlRig* ControlRig = GetControlRig())
+		TArray<UControlRig*> ControlRigs = GetControlRigs();
+	
+		if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
 		{
-			if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
+			if (UControlRigDetailPanelControlProxies* ControlProxy = EditMode->GetDetailProxies())
 			{
-				if (UControlRigDetailPanelControlProxies* ControlProxy = EditMode->GetDetailProxies())
+				const TArray<UControlRigControlsProxy*>& Proxies = ControlProxy->GetSelectedProxies();
+				for (UControlRigControlsProxy* Proxy : Proxies)
 				{
-					const TArray<UControlRigControlsProxy*>& Proxies = ControlProxy->GetSelectedProxies();
-					for (UControlRigControlsProxy* Proxy : Proxies)
+					if (Proxy->GetClass() == UControlRigTransformControlProxy::StaticClass())
 					{
-						if (Proxy->GetClass() == UControlRigTransformControlProxy::StaticClass())
+						Transforms.Add(Proxy);
+					}
+					else if (Proxy->GetClass() == UControlRigTransformNoScaleControlProxy::StaticClass())
+					{
+						TransformNoScales.Add(Proxy);
+					}
+					else if (Proxy->GetClass() == UControlRigEulerTransformControlProxy::StaticClass())
+					{
+						Eulers.Add(Proxy);
+					}
+					else if (Proxy->GetClass() == UControlRigFloatControlProxy::StaticClass())
+					{
+						if (Proxy->bIsIndividual)
 						{
-							Transforms.Add(Proxy);
+							IndividualFloats.Add(Proxy);
 						}
-						else if (Proxy->GetClass() == UControlRigTransformNoScaleControlProxy::StaticClass())
+						else
 						{
-							TransformNoScales.Add(Proxy);
-						}
-						else if (Proxy->GetClass() == UControlRigEulerTransformControlProxy::StaticClass())
-						{
-							Eulers.Add(Proxy);
-						}
-						else if (Proxy->GetClass() == UControlRigFloatControlProxy::StaticClass())
-						{
-							if (Proxy->bIsIndividual)
-							{
-								IndividualFloats.Add(Proxy);
-							}
-							else
-							{
-								Floats.Add(Proxy);
-							}
-						}
-						else if (Proxy->GetClass() == UControlRigVectorControlProxy::StaticClass())
-						{
-							Vectors.Add(Proxy);
-						}
-						else if (Proxy->GetClass() == UControlRigVector2DControlProxy::StaticClass())
-						{
-							Vector2Ds.Add(Proxy);
-						}
-						else if (Proxy->GetClass() == UControlRigBoolControlProxy::StaticClass())
-						{
-							if (Proxy->bIsIndividual)
-							{
-								IndividualBools.Add(Proxy);
-							}
-							else
-							{
-								Bools.Add(Proxy);
-							}
-						}
-						else if (Proxy->GetClass() == UControlRigEnumControlProxy::StaticClass())
-						{
-							if (Proxy->bIsIndividual)
-							{
-								IndividualEnums.Add(Proxy);
-							}
-							else
-							{
-								Enums.Add(Proxy);
-							}
-						}
-						else if (Proxy->GetClass() == UControlRigIntegerControlProxy::StaticClass())
-						{
-							if (Proxy->bIsIndividual)
-							{
-								IndividualIntegers.Add(Proxy);
-							}
-							else
-							{
-								Integers.Add(Proxy);
-							}
+							Floats.Add(Proxy);
 						}
 					}
-				}
-				for (TWeakObjectPtr<>& Object : Transforms)
-				{
-					UControlRigControlsProxy* Proxy = Cast<UControlRigControlsProxy>(Object.Get());
-					if (Proxy)
+					else if (Proxy->GetClass() == UControlRigVectorControlProxy::StaticClass())
 					{
-						Proxy->SetIsMultiple(Transforms.Num() > 1);
+						Vectors.Add(Proxy);
 					}
-				}
-				for (TWeakObjectPtr<>& Object : Floats)
-				{
-					UControlRigControlsProxy* Proxy = Cast<UControlRigControlsProxy>(Object.Get());
-					if (Proxy)
+					else if (Proxy->GetClass() == UControlRigVector2DControlProxy::StaticClass())
 					{
-						Proxy->SetIsMultiple(Transforms.Num() > 1);
+						Vector2Ds.Add(Proxy);
+					}
+					else if (Proxy->GetClass() == UControlRigBoolControlProxy::StaticClass())
+					{
+						if (Proxy->bIsIndividual)
+						{
+							IndividualBools.Add(Proxy);
+						}
+						else
+						{
+							Bools.Add(Proxy);
+						}
+					}
+					else if (Proxy->GetClass() == UControlRigEnumControlProxy::StaticClass())
+					{
+						if (Proxy->bIsIndividual)
+						{
+							IndividualEnums.Add(Proxy);
+						}
+						else
+						{
+							Enums.Add(Proxy);
+						}
+					}
+					else if (Proxy->GetClass() == UControlRigIntegerControlProxy::StaticClass())
+					{
+						if (Proxy->bIsIndividual)
+						{
+							IndividualIntegers.Add(Proxy);
+						}
+						else
+						{
+							Integers.Add(Proxy);
+						}
 					}
 				}
 			}
+			for (TWeakObjectPtr<>& Object : Transforms)
+			{
+				UControlRigControlsProxy* Proxy = Cast<UControlRigControlsProxy>(Object.Get());
+				if (Proxy)
+				{
+					Proxy->SetIsMultiple(Transforms.Num() > 1);
+				}
+			}
+			for (TWeakObjectPtr<>& Object : Floats)
+			{
+				UControlRigControlsProxy* Proxy = Cast<UControlRigControlsProxy>(Object.Get());
+				if (Proxy)
+				{
+					Proxy->SetIsMultiple(Transforms.Num() > 1);
+				}
+			}
 		}
+
 		SetTransformDetailsObjects(Transforms);
 		SetTransformNoScaleDetailsObjects(TransformNoScales);
 		SetEulerTransformDetailsObjects(Eulers);
