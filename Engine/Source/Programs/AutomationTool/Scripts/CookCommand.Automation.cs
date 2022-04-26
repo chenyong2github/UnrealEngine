@@ -44,6 +44,10 @@ namespace AutomationScripts
 			{
 				CommandletParams += " -unversioned";
 			}
+			if (Params.OptionalContent)
+			{
+				CommandletParams += " -editoroptional";
+			}
 			if (Params.FastCook)
 			{
 				CommandletParams += " -FastCook";
