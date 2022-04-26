@@ -32,10 +32,6 @@
 			"Name": "ImgMedia",
 			"TargetAllowList": [ "Editor" ],
 			"Enabled": true
-		},
-		{
-			"Name": "MediaPlate",
-			"Enabled": true
 		}
 	]
 }

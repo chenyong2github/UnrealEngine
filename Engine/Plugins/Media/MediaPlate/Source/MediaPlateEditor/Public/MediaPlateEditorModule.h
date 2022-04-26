@@ -49,6 +49,8 @@ private:
 	TSharedPtr<ISlateStyle> Style;
 	/** The collection of registered asset type actions. */
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
+	/** Handle for our track editor. */
+	FDelegateHandle TrackEditorBindingHandle;
 
 	/**
 	 * Registers all of our asset tools.

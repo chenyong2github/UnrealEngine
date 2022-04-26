@@ -4,6 +4,7 @@
 
 #include "AssetTools/MediaPlateActions.h"
 #include "Editor.h"
+#include "ISequencerModule.h"
 #include "LevelEditorViewport.h"
 #include "MediaPlateComponent.h"
 #include "MediaPlateCustomization.h"
@@ -12,6 +13,7 @@
 #include "MediaSoundComponent.h"
 #include "Models/MediaPlateEditorCommands.h"
 #include "PropertyEditorModule.h"
+#include "Sequencer/MediaPlateTrackEditor.h"
 
 DEFINE_LOG_CATEGORY(LogMediaPlateEditor);
 
@@ -29,10 +31,19 @@ void FMediaPlateEditorModule::StartupModule()
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout(MediaPlateName,
 		FOnGetDetailCustomizationInstance::CreateStatic(&FMediaPlateCustomization::MakeInstance));
+
+	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
+	TrackEditorBindingHandle = SequencerModule.RegisterPropertyTrackEditor<FMediaPlateTrackEditor>();
 }
 
 void FMediaPlateEditorModule::ShutdownModule()
 {
+	ISequencerModule* SequencerModulePtr = FModuleManager::Get().GetModulePtr<ISequencerModule>("Sequencer");
+	if (SequencerModulePtr)
+	{
+		SequencerModulePtr->UnRegisterTrackEditor(TrackEditorBindingHandle);
+	}
+
 	UnregisterAssetTools();
 
 	// Unregister customizations.
