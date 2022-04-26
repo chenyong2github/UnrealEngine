@@ -296,9 +296,16 @@ void FNiagaraScriptGraphViewModel::CopySelectedNodes()
 	for(FNiagaraVariable& Var : Variables)
 	{
 		UNiagaraScriptVariable* ScriptVariable = GetGraph()->GetScriptVariable(Var);
-		ensureAlwaysMsgf(ScriptVariable != nullptr, TEXT("Script variable should already exist when we copy nodes referencing them!"));
-		UNiagaraScriptVariable* CopiedVariable = Cast<UNiagaraScriptVariable>(StaticDuplicateObject(ScriptVariable, ClipboardContent));
-		ClipboardContent->ScriptVariables.AddUnique({*CopiedVariable});
+
+		if(ScriptVariable)
+		{
+			UNiagaraScriptVariable* CopiedVariable = Cast<UNiagaraScriptVariable>(StaticDuplicateObject(ScriptVariable, ClipboardContent));
+			ClipboardContent->ScriptVariables.AddUnique({*CopiedVariable});
+		}
+		else
+		{
+			UE_LOG(LogNiagaraEditor, Log, TEXT("Variable %s was encountered as parameter during a copy nodes operation, but the corresponding script variable could not be found."), *(Var.GetName().ToString()));
+		}
 	}
 	
 	FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
