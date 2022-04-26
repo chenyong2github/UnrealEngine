@@ -75,9 +75,8 @@ private:
 	void OnStructValuePostChange();
 	void OnStructHandlePostChange();
 
-	/** Sync the current state of the editable struct instance to/from the source instance(s) */
+	/** Sync the current state of the editable struct instance from the source instance(s) */
 	void SyncEditableInstanceFromSource(bool* OutStructMismatch = nullptr);
-	void SyncEditableInstanceToSource(bool* OutStructMismatch = nullptr);
 
 	/** Handle to the struct property being edited */
 	TSharedPtr<IPropertyHandle> StructProperty;
