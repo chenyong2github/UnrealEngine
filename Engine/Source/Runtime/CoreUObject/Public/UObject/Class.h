@@ -31,6 +31,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/FieldPath.h"
 #include "UObject/PropertyTag.h"
+#include "UObject/TopLevelAssetPath.h"
 
 struct FBlake3Hash;
 struct FCustomPropertyListNode;
@@ -2662,6 +2663,16 @@ public:
 	virtual void SetSuperStruct(UStruct* NewSuperStruct) override;
 	virtual bool IsStructTrashed() const override;
 	// End of UStruct interface.
+
+	/**
+	 * Returns class path name as a package + class FName pair
+	 */
+	FORCEINLINE FTopLevelAssetPath GetClassPathName() const
+	{
+		// Some day this check may actually be relevant
+		checkf(GetOuter() == GetOutermost(), TEXT("Only top level classes are supported by FTopLevelAssetPath. This class is nested: %s"), *GetPathName());
+		return FTopLevelAssetPath(GetOuter()->GetFName(), GetFName());
+	}
 
 #if WITH_EDITOR
 	/** Provides access to C++ type info. */

@@ -18,6 +18,7 @@
 #include "Templates/Function.h"
 #include "Templates/IsArrayOrRefOfType.h"
 #include "Serialization/ArchiveUObject.h"
+#include "UObject/TopLevelAssetPath.h"
 
 struct FCustomPropertyListNode;
 struct FObjectInstancingGraph;
@@ -281,6 +282,17 @@ COREUOBJECT_API UObject* StaticFindObjectFastSafe(UClass* Class, UObject* InOute
  * @return	Returns a pointer to the found object or nullptr if none could be found
  */
 COREUOBJECT_API UObject* StaticFindObject( UClass* Class, UObject* InOuter, const TCHAR* Name, bool ExactClass=false );
+
+/**
+ * Tries to find an object in memory. This version uses FTopLevelAssetPath to find the object.
+ *
+ * @param	Class			The to be found object's class
+ * @param	ObjectPath		FName pair representing the outer package object and the inner top level object (asset)
+ * @param	ExactClass		Whether to require an exact match with the passed in class
+ *
+ * @return	Returns a pointer to the found object or nullptr if none could be found
+ */
+UObject* StaticFindObject(UClass* Class, FTopLevelAssetPath ObjectPath, bool ExactClass /*= false*/);
 
 /** Version of StaticFindObject() that will assert if the object is not found */
 COREUOBJECT_API UObject* StaticFindObjectChecked( UClass* Class, UObject* InOuter, const TCHAR* Name, bool ExactClass=false );
@@ -1604,6 +1616,16 @@ template< class T >
 inline T* FindObject( UObject* Outer, const TCHAR* Name, bool ExactClass=false )
 {
 	return (T*)StaticFindObject( T::StaticClass(), Outer, Name, ExactClass );
+}
+
+/**
+ * Find an optional object.
+ * @see StaticFindObject()
+ */
+template< class T >
+inline T* FindObject(FTopLevelAssetPath InPath, bool ExactClass = false)
+{
+	return (T*)StaticFindObject(T::StaticClass(), InPath, ExactClass);
 }
 
 /**

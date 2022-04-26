@@ -406,6 +406,23 @@ UObject* StaticFindObject( UClass* ObjectClass, UObject* InObjectPackage, const 
 }
 
 //
+// Find an optional object.
+//
+UObject* StaticFindObject(UClass* Class, FTopLevelAssetPath ObjectPath, bool ExactClass /*= false*/)
+{
+	UObject* Result = nullptr;
+	if (!ObjectPath.IsNull())
+	{
+		UObject* Package = StaticFindObjectFast(UPackage::StaticClass(), nullptr, ObjectPath.GetPackageName());
+		if (Package)
+		{
+			Result = StaticFindObjectFast(Class, Package, ObjectPath.GetAssetName(), ExactClass);
+		}
+	}
+	return Result;
+}
+
+//
 // Find an object; can't fail.
 //
 UObject* StaticFindObjectChecked( UClass* ObjectClass, UObject* ObjectParent, const TCHAR* InName, bool ExactClass )
