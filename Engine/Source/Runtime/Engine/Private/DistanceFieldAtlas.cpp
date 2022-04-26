@@ -862,10 +862,9 @@ void FLandscapeTextureAtlas::InitializeIfNeeded()
 		const uint32 SizeY = AddrSpaceAllocator.DimInTexels;
 		const ETextureCreateFlags Flags = TexCreate_ShaderResource | TexCreate_UAV;
 		const EPixelFormat Format = bHeight ? PF_R8G8 : PF_G8;
-		FRHIResourceCreateInfo CreateInfo(bHeight ? TEXT("HeightFieldAtlas") : TEXT("VisibilityAtlas"));
+		const TCHAR* Name = bHeight ? TEXT("HeightFieldAtlas") : TEXT("VisibilityAtlas");
 
-		AtlasTextureRHI = RHICreateTexture2D(SizeX, SizeY, Format, 1, 1, Flags, CreateInfo);
-		AtlasUAVRHI = RHICreateUnorderedAccessView(AtlasTextureRHI, 0);
+		AtlasTextureRHI = AllocatePooledTexture(FRDGTextureDesc::Create2D(FIntPoint(SizeX, SizeY), Format, FClearValueBinding::None, Flags), Name);
 
 		MaxDownSampleLevel = LocalDownSampleLevel;
 		++Generation;
@@ -983,7 +982,7 @@ class FUploadHeightFieldToAtlasCS : public FUploadLandscapeTextureToAtlasCS
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters,)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FUploadLandscapeTextureToAtlasCS::FSharedParameters, SharedParams)
-		SHADER_PARAMETER_UAV(RWTexture2D<float2>, RWHeightFieldAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, RWHeightFieldAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -999,7 +998,7 @@ class FUploadVisibilityToAtlasCS : public FUploadLandscapeTextureToAtlasCS
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FUploadLandscapeTextureToAtlasCS::FSharedParameters, SharedParams)
 		SHADER_PARAMETER(FVector4f, VisibilityChannelMask)
-		SHADER_PARAMETER_UAV(RWTexture2D<float>, RWVisibilityAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWVisibilityAtlas)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -1151,11 +1150,7 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFe
 
 	if (PendingUploads.Num())
 	{
-		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionAtlasUAV"), [this](FRHICommandList& RHICmdList)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			RHICmdList.BeginUAVOverlap(AtlasUAVRHI);
-		});
+		FRDGTextureUAV* AtlasTextureUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalTexture(AtlasTextureRHI), ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 		if (SubAllocType == SAT_Height)
 		{
@@ -1163,15 +1158,9 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFe
 			for (int32 Idx = 0; Idx < PendingUploads.Num(); ++Idx)
 			{
 				typename FUploadHeightFieldToAtlasCS::FParameters* Parameters = GraphBuilder.AllocParameters<typename FUploadHeightFieldToAtlasCS::FParameters>();
-				const FIntPoint UpdateRegion = PendingUploads[Idx].SetShaderParameters(Parameters, *this);
-				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("UploadHeightFieldToAtlas"),
-					Parameters,
-					ERDGPassFlags::Compute,
-					[Parameters, ComputeShader, UpdateRegion](FRHICommandList& CmdList)
-				{
-					FComputeShaderUtils::Dispatch(CmdList, ComputeShader, *Parameters, FIntVector(UpdateRegion.X, UpdateRegion.Y, 1));
-				});
+				const FIntPoint UpdateRegion = PendingUploads[Idx].SetShaderParameters(Parameters, *this, AtlasTextureUAV);
+
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("UploadHeightFieldToAtlas"), ComputeShader, Parameters, FIntVector(UpdateRegion.X, UpdateRegion.Y, 1));
 			}
 		}
 		else
@@ -1180,23 +1169,11 @@ void FLandscapeTextureAtlas::UpdateAllocations(FRDGBuilder& GraphBuilder, ERHIFe
 			for (int32 Idx = 0; Idx < PendingUploads.Num(); ++Idx)
 			{
 				typename FUploadVisibilityToAtlasCS::FParameters* Parameters = GraphBuilder.AllocParameters<typename FUploadVisibilityToAtlasCS::FParameters>();
-				const FIntPoint UpdateRegion = PendingUploads[Idx].SetShaderParameters(Parameters, *this);
-				GraphBuilder.AddPass(
-					RDG_EVENT_NAME("UploadVisibilityToAtlas"),
-					Parameters,
-					ERDGPassFlags::Compute,
-					[Parameters, ComputeShader, UpdateRegion](FRHICommandList& CmdList)
-				{
-					FComputeShaderUtils::Dispatch(CmdList, ComputeShader, *Parameters, FIntVector(UpdateRegion.X, UpdateRegion.Y, 1));
-				});
+				const FIntPoint UpdateRegion = PendingUploads[Idx].SetShaderParameters(Parameters, *this, AtlasTextureUAV);
+
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("UploadVisibilityToAtlas"), ComputeShader, Parameters, FIntVector(UpdateRegion.X, UpdateRegion.Y, 1));
 			}
 		}
-
-		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionAtlasUAV"), [this](FRHICommandList& RHICmdList)
-		{
-			RHICmdList.EndUAVOverlap(AtlasUAVRHI);
-			RHICmdList.Transition(FRHITransitionInfo(AtlasUAVRHI, ERHIAccess::UAVCompute, ERHIAccess::SRVGraphics));
-		});
 	}
 }
 
@@ -1403,12 +1380,12 @@ FLandscapeTextureAtlas::FPendingUpload::FPendingUpload(UTexture2D* Texture, uint
 	, Handle(InHandle)
 {}
 
-FIntPoint FLandscapeTextureAtlas::FPendingUpload::SetShaderParameters(void* ParamsPtr, const FLandscapeTextureAtlas& Atlas) const
+FIntPoint FLandscapeTextureAtlas::FPendingUpload::SetShaderParameters(void* ParamsPtr, const FLandscapeTextureAtlas& Atlas, FRDGTextureUAV* AtlasUAV) const
 {
 	if (Atlas.SubAllocType == SAT_Height)
 	{
 		typename FUploadHeightFieldToAtlasCS::FParameters* Params = (typename FUploadHeightFieldToAtlasCS::FParameters*)ParamsPtr;
-		Params->RWHeightFieldAtlas = Atlas.AtlasUAVRHI;
+		Params->RWHeightFieldAtlas = AtlasUAV;
 		return SetCommonShaderParameters(&Params->SharedParams, Atlas);
 	}
 	else
@@ -1417,7 +1394,7 @@ FIntPoint FLandscapeTextureAtlas::FPendingUpload::SetShaderParameters(void* Para
 		FVector4f ChannelMask(ForceInitToZero);
 		ChannelMask[VisibilityChannel] = 1.f;
 		Params->VisibilityChannelMask = ChannelMask;
-		Params->RWVisibilityAtlas = Atlas.AtlasUAVRHI;
+		Params->RWVisibilityAtlas = AtlasUAV;
 		return SetCommonShaderParameters(&Params->SharedParams, Atlas);
 	}
 }

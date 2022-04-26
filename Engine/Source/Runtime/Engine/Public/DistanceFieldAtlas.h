@@ -19,6 +19,7 @@
 #include "Templates/UniquePtr.h"
 #include "DerivedMeshDataTaskUtils.h"
 #include "Async/AsyncWork.h"
+#include "RenderGraphUtils.h"
 
 #if WITH_EDITOR
 #include "MeshUtilities.h"
@@ -76,9 +77,11 @@ public:
 
 	FVector4f GetAllocationScaleBias(uint32 Handle) const;
 
-	FRHITexture2D* GetAtlasTexture() const
+	bool HasAtlasTexture() const { return AtlasTextureRHI.IsValid(); }
+
+	FRDGTexture* GetAtlasTexture(FRDGBuilder& GraphBuilder) const
 	{
-		return AtlasTextureRHI;
+		return TryRegisterExternalTexture(GraphBuilder, AtlasTextureRHI);
 	}
 
 	uint32 GetSizeX() const
@@ -172,7 +175,7 @@ private:
 
 		FPendingUpload(UTexture2D* Texture, uint32 SizeX, uint32 SizeY, uint32 MipBias, uint32 InHandle, uint32 Channel);
 
-		FIntPoint SetShaderParameters(void* ParamsPtr, const FLandscapeTextureAtlas& Atlas) const;
+		FIntPoint SetShaderParameters(void* ParamsPtr, const FLandscapeTextureAtlas& Atlas, FRDGTextureUAV* AtlasUAV) const;
 
 	private:
 		FIntPoint SetCommonShaderParameters(void* ParamsPtr, const FLandscapeTextureAtlas& Atlas) const;
@@ -185,8 +188,7 @@ private:
 	TSet<FAllocation> CurrentAllocations;
 	TArray<UTexture2D*> PendingStreamingTextures;
 
-	FTexture2DRHIRef AtlasTextureRHI;
-	FUnorderedAccessViewRHIRef AtlasUAVRHI;
+	TRefCountPtr<IPooledRenderTarget> AtlasTextureRHI;
 
 	uint32 MaxDownSampleLevel;
 	uint32 Generation;

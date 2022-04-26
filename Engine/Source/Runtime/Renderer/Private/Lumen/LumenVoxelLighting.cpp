@@ -495,9 +495,6 @@ class FVoxelTraceCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, ClipmapIndex)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FOffsetDataStructure : SHADER_PERMUTATION_INT("OFFSET_DATA_STRUCT", 3);
-	using FPermutationDomain = TShaderPermutationDomain<FOffsetDataStructure>;
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
@@ -702,8 +699,8 @@ void VoxelizeVisBuffer(
 	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting, ERDGUnorderedAccessViewFlags::SkipBarrier);
 
 	FLumenMeshSDFTracingParameters MeshSDFTracingParameters;
-	MeshSDFTracingParameters.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
-	MeshSDFTracingParameters.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
+	MeshSDFTracingParameters.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
+	MeshSDFTracingParameters.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
 
 	// Vis buffer shading
 	for (int32 ClipmapIndex : ClipmapsToUpdate)
@@ -903,7 +900,7 @@ void UpdateVoxelVisBuffer(
 	FRDGBuilder& GraphBuilder, 
 	FScene* Scene, 
 	const FViewInfo& View,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenCardTracingInputs& TracingInputs,
 	FLumenViewCardTracingInputs& ViewTracingInputs,
 	FRDGBufferRef VoxelVisBuffer,
@@ -1142,7 +1139,7 @@ void UpdateVoxelVisBuffer(
 					FCullToVoxelClipmapCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullToVoxelClipmapCS::FParameters>();
 					PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(ObjectIndexBuffer, PF_R32_UINT);
 					PassParameters->RWTraceSetupIndirectArgBuffer = GraphBuilder.CreateUAV(TraceSetupIndirectArgBuffer, PF_R32_UINT);
-					PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+					PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
 					PassParameters->VoxelClipmapWorldCenter = (FVector3f)Clipmap.Center;
 					PassParameters->VoxelClipmapWorldExtent = (FVector3f)Clipmap.Extent;
 					PassParameters->MeshRadiusThreshold = Clipmap.MeshSDFRadiusThreshold;
@@ -1168,7 +1165,7 @@ void UpdateVoxelVisBuffer(
 					PassParameters->UpdateTileMaskTexture = UpdateTileMaskTexture;
 					PassParameters->ObjectIndexBuffer = GraphBuilder.CreateSRV(ObjectIndexBuffer, PF_R32_UINT);
 					PassParameters->TraceSetupIndirectArgBuffer = TraceSetupIndirectArgBuffer;
-					PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+					PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
 					//PassParameters->View = View.ViewUniformBuffer;
 					//PassParameters->LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
 					PassParameters->UpdateGridResolution = UpdateGridResolution;
@@ -1196,8 +1193,8 @@ void UpdateVoxelVisBuffer(
 					GetLumenCardTracingParameters(View, TracingInputs, ViewTracingInputs, PassParameters->TracingParameters, true);
 					PassParameters->TraceIndirectArgBuffer = TraceIndirectArgBuffer;
 					PassParameters->VoxelTraceData = GraphBuilder.CreateSRV(VoxelTraceData, PF_R32_UINT);
-					PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
-					PassParameters->DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
+					PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
+					PassParameters->DistanceFieldAtlas = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
 					PassParameters->ClipmapIndex = ClipmapIndex;
 					PassParameters->ClipmapGridResolution = ClipmapResolution;
 					PassParameters->GridMin = FVector3f(Clipmap.Center - Clipmap.Extent);
@@ -1206,11 +1203,7 @@ void UpdateVoxelVisBuffer(
 					PassParameters->VoxelCoordToUVScale = (FVector3f)Clipmap.VoxelCoordToUVScale;
 					PassParameters->VoxelCoordToUVBias = (FVector3f)Clipmap.VoxelCoordToUVBias;
 
-					FVoxelTraceCS::FPermutationDomain PermutationVector;
-					extern int32 GDistanceFieldOffsetDataStructure;
-					PermutationVector.Set<FVoxelTraceCS::FOffsetDataStructure>(GDistanceFieldOffsetDataStructure);
-
-					auto ComputeShader = View.ShaderMap->GetShader<FVoxelTraceCS>(PermutationVector);
+					auto ComputeShader = View.ShaderMap->GetShader<FVoxelTraceCS>();
 
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
@@ -1248,9 +1241,6 @@ void UpdateVoxelVisBuffer(
 
 				FRDGBufferRef HeightfieldObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), MaxNumHeightfieldObjects), TEXT("Lumen.HeightfieldObjectIndices"));
 
-				FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
-				SetupLumenCardSceneParameters(GraphBuilder, Scene, FrameTemporaries, *LumenCardSceneParameters);
-
 				AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(HeightfieldObjectIndexBuffer, PF_R32_UINT), 0);
 
 				// Cull to clipmap
@@ -1258,9 +1248,9 @@ void UpdateVoxelVisBuffer(
 					FCullToVoxelClipmapCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullToVoxelClipmapCS::FParameters>();
 					PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(HeightfieldObjectIndexBuffer, PF_R32_UINT);
 					PassParameters->RWTraceSetupIndirectArgBuffer = GraphBuilder.CreateUAV(TraceSetupIndirectArgBuffer, PF_R32_UINT);
-					//PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+					//PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
 					PassParameters->View = View.ViewUniformBuffer;
-					PassParameters->LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
+					PassParameters->LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 					PassParameters->VoxelClipmapWorldCenter = (FVector3f)Clipmap.Center;
 					PassParameters->VoxelClipmapWorldExtent = (FVector3f)Clipmap.Extent;
 					PassParameters->MeshRadiusThreshold = Clipmap.MeshSDFRadiusThreshold;
@@ -1286,9 +1276,9 @@ void UpdateVoxelVisBuffer(
 					PassParameters->UpdateTileMaskTexture = UpdateTileMaskTexture;
 					PassParameters->ObjectIndexBuffer = GraphBuilder.CreateSRV(HeightfieldObjectIndexBuffer, PF_R32_UINT);
 					PassParameters->TraceSetupIndirectArgBuffer = TraceSetupIndirectArgBuffer;
-					//PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+					//PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
 					PassParameters->View = View.ViewUniformBuffer;
-					PassParameters->LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
+					PassParameters->LumenCardScene = TracingInputs.LumenCardSceneUniformBuffer;
 					PassParameters->UpdateGridResolution = UpdateGridResolution;
 					PassParameters->ClipmapToUpdateGridScale = FVector3f(1.0f) / (2.0f * (FVector3f)UpdateTileWorldExtent);
 					PassParameters->ClipmapToUpdateGridBias = FVector3f(-(Clipmap.Center - Clipmap.Extent) / (2.0f * UpdateTileWorldExtent) + 0.5f);
@@ -1342,7 +1332,7 @@ void UpdateVoxelVisBuffer(
 void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenCardTracingInputs& TracingInputs,
 	FLumenViewCardTracingInputs& ViewTracingInputs)
 {

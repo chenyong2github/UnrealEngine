@@ -374,7 +374,7 @@ void FillGridParameters(
 	FLumenMeshSDFGridParameters& OutGridParameters)
 {
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
-	OutGridParameters.TracingParameters.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+	OutGridParameters.TracingParameters.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
 
 	if (Context)
 	{
@@ -386,7 +386,7 @@ void FillGridParameters(
 			OutGridParameters.GridCulledMeshSDFObjectStartOffsetArray = GraphBuilder.CreateSRV(Context->GridCulledMeshSDFObjectStartOffsetArray, PF_R32_UINT);
 			OutGridParameters.GridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateSRV(Context->GridCulledMeshSDFObjectIndicesArray, PF_R32_UINT);
 
-			OutGridParameters.TracingParameters.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
+			OutGridParameters.TracingParameters.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
 		}
 
 		bool bCullHeightfieldObjects = Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData);
@@ -508,7 +508,7 @@ void CullHeightfieldObjectsForView(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	FRDGBufferRef& NumHeightfieldCulledObjects,
@@ -527,13 +527,10 @@ void CullHeightfieldObjectsForView(
 	HeightfieldObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxNumHeightfields), TEXT("Lumen.CulledHeightfieldObjectIndices"));
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(NumHeightfieldCulledObjects, PF_R32_UINT), 0);
 
-	FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
-	SetupLumenCardSceneParameters(GraphBuilder, Scene, FrameTemporaries, *LumenCardSceneParameters);
-
 	FCullHeightfieldObjectsForViewCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullHeightfieldObjectsForViewCS::FParameters>();
 	{
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
+		PassParameters->LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
 		PassParameters->CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
 		PassParameters->MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
 		PassParameters->MaxNumObjects = NumHeightfields;
@@ -580,7 +577,7 @@ void CullMeshSDFObjectsForView(
 		PassParameters->RWNumCulledObjects = GraphBuilder.CreateUAV(Context.NumMeshSDFCulledObjects, PF_R32_UINT);
 		PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(Context.MeshSDFObjectIndexBuffer, PF_R32_UINT);
 		PassParameters->RWObjectIndirectArguments = GraphBuilder.CreateUAV(Context.ObjectIndirectArguments, PF_R32_UINT);
-		PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+		PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
 
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->NumConvexHullPlanes = View.ViewFrustum.Planes.Num();
@@ -698,7 +695,7 @@ void CullMeshSDFObjectsToProbes(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FViewInfo& View,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	const LumenProbeHierarchy::FHierarchyParameters& ProbeHierarchyParameters,
@@ -756,7 +753,7 @@ void CullMeshSDFObjectsToProbes(
 
 			FMeshSDFObjectCullForProbes* PassParameters = GraphBuilder.AllocParameters<FMeshSDFObjectCullForProbes>();
 
-			PassParameters->VS.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+			PassParameters->VS.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
 			PassParameters->VS.ObjectIndexBuffer = GraphBuilder.CreateSRV(Context.MeshSDFObjectIndexBuffer, PF_R32_UINT);
 			PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
 
@@ -769,11 +766,11 @@ void CullMeshSDFObjectsToProbes(
 			PassParameters->PS.RWNumGridCulledMeshSDFObjects = NumGridCulledMeshSDFObjectsUAV;
 			PassParameters->PS.RWNumCulledObjectsToCompact = NumCulledObjectsToCompactUAV;
 			PassParameters->PS.RWCulledObjectsToCompactArray = CulledObjectsToCompactArrayUAV;
-			PassParameters->PS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+			PassParameters->PS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data->GetSRV();
 			PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
 			PassParameters->PS.MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
 			PassParameters->PS.CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
-			PassParameters->PS.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
+			PassParameters->PS.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
 			PassParameters->PS.HierarchyParameters = ProbeHierarchyParameters;
 			PassParameters->PS.ProbeHierarchyLevelIndex = ProbeHierarchyLevelIndex;
 			PassParameters->PS.EmitTileStorageExtent = EmitProbeParameters.EmitTileStorageExtent;
@@ -794,7 +791,7 @@ void CullMeshSDFObjectsToProbes(
 				RDG_EVENT_NAME("ScatterSDFObjectsToProbes (level=%d)", ProbeHierarchyLevelIndex),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[ProbeTileCount, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandListImmediate& RHICmdList)
+				[ProbeTileCount, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdList)
 				{
 					FGraphicsPipelineStateInitializer GraphicsPSOInit;
 					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -843,7 +840,7 @@ void CullMeshSDFObjectsToProbes(
 void CullObjectsToGrid(
 	const FViewInfo& View,
 	const FScene* Scene,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	int32 GridPixelsPerCellXY,
@@ -859,16 +856,13 @@ void CullObjectsToGrid(
 	// Scatter mesh SDF objects into a temporary array of {ObjectIndex, GridCellIndex}
 	FMeshSDFObjectCull* PassParameters = GraphBuilder.AllocParameters<FMeshSDFObjectCull>();
 	{
-		FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
-		SetupLumenCardSceneParameters(GraphBuilder, Scene, FrameTemporaries, *LumenCardSceneParameters);
-
 		if (DistanceFieldSceneData.NumObjectsInBuffer > 0)
 		{
-			PassParameters->VS.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+			PassParameters->VS.DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
 		}
 		if (Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData))
 		{
-			PassParameters->VS.LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
+			PassParameters->VS.LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
 		}
 		PassParameters->VS.ObjectIndexBuffer = GraphBuilder.CreateSRV(ObjectIndexBuffer, PF_R32_UINT);
 		PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
@@ -885,12 +879,12 @@ void CullObjectsToGrid(
 		PassParameters->PS.RWCulledObjectsToCompactArray = GraphBuilder.CreateUAV(Context.CulledObjectsToCompactArray, PF_R32_UINT);
 		if (DistanceFieldSceneData.NumObjectsInBuffer > 0)
 		{
-			PassParameters->PS.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
-			PassParameters->PS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+			PassParameters->PS.DistanceFieldAtlas = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
+			PassParameters->PS.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data->GetSRV();
 		}
 		if (Lumen::UseHeightfieldTracing(*View.Family, *Scene->LumenSceneData))
 		{
-			PassParameters->PS.LumenCardScene = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
+			PassParameters->PS.LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
 		}
 		PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
 		PassParameters->PS.MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
@@ -973,7 +967,7 @@ void CullObjectsToGrid(
 void CullMeshObjectsToViewGrid(
 	const FViewInfo& View,
 	const FScene* Scene,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	float MaxMeshSDFInfluenceRadius,
 	float CardTraceEndDistanceFromCamera,
 	int32 GridPixelsPerCellXY,

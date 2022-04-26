@@ -249,7 +249,7 @@ DECLARE_GPU_STAT(LumenIrradianceFieldGather);
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenIrradianceFieldGather(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FViewInfo& View,
 	LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters)
 {

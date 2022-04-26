@@ -364,6 +364,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FUpsampleCapsuleShadowParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 void SetupCapsuleShadowingParameters(
+	FRDGBuilder& GraphBuilder,
 	FCapsuleShadowingCS::FParameters& Parameters,
 	ECapsuleShadowingType ShadowingType,
 	FRDGTextureUAVRef OutputUAV,
@@ -463,8 +464,8 @@ void SetupCapsuleShadowingParameters(
 	const float CosFadeStartAngleValue = FMath::Cos(GCapsuleShadowFadeAngleFromVertical);
 	Parameters.CosFadeStartAngle = FVector2f(CosFadeStartAngleValue, 1.0f / (1.0f - CosFadeStartAngleValue));
 
-	Parameters.DFObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
-	Parameters.DFAtlasParameters = DistanceField::SetupAtlasParameters(Scene->DistanceFieldSceneData);
+	Parameters.DFObjectBufferParameters = DistanceField::SetupObjectBufferParameters(GraphBuilder, Scene->DistanceFieldSceneData);
+	Parameters.DFAtlasParameters = DistanceField::SetupAtlasParameters(GraphBuilder, Scene->DistanceFieldSceneData);
 }
 
 bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
@@ -573,6 +574,7 @@ bool FDeferredShadingSceneRenderer::RenderCapsuleDirectShadows(
 				auto* PassParameters = GraphBuilder.AllocParameters<FCapsuleShadowingCS::FParameters>();
 
 				SetupCapsuleShadowingParameters(
+					GraphBuilder,
 					*PassParameters,
 					ShadowingType,
 					GraphBuilder.CreateUAV(RayTracedShadowsRT),
@@ -1042,6 +1044,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(FRDGBuilder& Gr
 				auto* PassParameters = GraphBuilder.AllocParameters<FCapsuleShadowingCS::FParameters>();
 
 				SetupCapsuleShadowingParameters(
+					GraphBuilder,
 					*PassParameters,
 					ECapsuleShadowingType::IndirectTiledCulling,
 					GraphBuilder.CreateUAV(RayTracedShadowsRT),
@@ -1265,6 +1268,7 @@ void FDeferredShadingSceneRenderer::RenderCapsuleShadowsForMovableSkylight(
 							auto* PassParameters = GraphBuilder.AllocParameters<FCapsuleShadowingCS::FParameters>();
 
 							SetupCapsuleShadowingParameters(
+								GraphBuilder,
 								*PassParameters,
 								ECapsuleShadowingType::MovableSkylightTiledCulling,
 								GraphBuilder.CreateUAV(NewBentNormal),

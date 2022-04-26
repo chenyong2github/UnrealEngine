@@ -773,7 +773,7 @@ DECLARE_GPU_STAT(LumenProbeDenoiser);
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenProbeHierarchy(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const HybridIndirectLighting::FCommonParameters& CommonParameters,
 	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
 	const FViewInfo& View,

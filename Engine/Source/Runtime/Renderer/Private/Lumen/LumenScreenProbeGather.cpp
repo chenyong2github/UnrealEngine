@@ -1467,7 +1467,7 @@ DECLARE_GPU_STAT(LumenScreenProbeGather);
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FRDGTextureRef LightingChannelsTexture,
 	FViewInfo& View,
 	FPreviousViewInfo* PreviousViewInfos,
@@ -1516,7 +1516,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenFinalGather(
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FRDGTextureRef LightingChannelsTexture,
 	FViewInfo& View,
 	FPreviousViewInfo* PreviousViewInfos,

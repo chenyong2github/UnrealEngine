@@ -773,8 +773,8 @@ void RayTraceShadows(
 	check(DistanceFieldShadowingType != DFS_PointLightTiledCulling || PrimitiveType != DFPT_HeightField);
 
 	FHeightFieldAtlasParameters HeightFieldAtlasParameters;
-	HeightFieldAtlasParameters.HeightFieldTexture = GHeightFieldTextureAtlas.GetAtlasTexture();
-	HeightFieldAtlasParameters.HFVisibilityTexture = GHFVisibilityTextureAtlas.GetAtlasTexture();
+	HeightFieldAtlasParameters.HeightFieldTexture = GHeightFieldTextureAtlas.GetAtlasTexture(GraphBuilder);
+	HeightFieldAtlasParameters.HFVisibilityTexture = GHFVisibilityTextureAtlas.GetAtlasTexture(GraphBuilder);
 
 	{
 		FDistanceFieldShadowingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDistanceFieldShadowingCS::FParameters>();
@@ -802,7 +802,7 @@ void RayTraceShadows(
 		PassParameters->ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->CulledObjectBufferParameters = CulledObjectBufferParameters;
 		PassParameters->LightTileIntersectionParameters = LightTileIntersectionParameters;
-		PassParameters->DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
+		PassParameters->DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
 		PassParameters->HeightFieldAtlasParameters = HeightFieldAtlasParameters;
 		PassParameters->TranslatedWorldToShadow = FMatrix44f(FTranslationMatrix(ProjectedShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * FMatrix(ProjectedShadowInfo->TranslatedWorldToClipInnerMatrix));
 		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
@@ -878,7 +878,7 @@ FRDGTextureRef FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 		{
 			check(!Scene->DistanceFieldSceneData.HasPendingOperations());
 
-			FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
+			FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(GraphBuilder, Scene->DistanceFieldSceneData);
 
 			if (SDFShadowViewGPUData.SDFCulledObjectBufferParameters == nullptr)
 			{
@@ -940,7 +940,7 @@ FRDGTextureRef FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 
 	if (bDirectionalLight
 		&& View.Family->EngineShowFlags.RayTracedDistanceFieldShadows
-		&& GHeightFieldTextureAtlas.GetAtlasTexture()
+		&& GHeightFieldTextureAtlas.HasAtlasTexture()
 		&& Scene->DistanceFieldSceneData.NumHeightFieldObjectsInBuffer > 0
 		&& bHFShadowSupported)
 	{
@@ -949,7 +949,7 @@ FRDGTextureRef FProjectedShadowInfo::RenderRayTracedDistanceFieldProjection(
 
 		check(!Scene->DistanceFieldSceneData.HasPendingHeightFieldOperations());
 
-		FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
+		FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(GraphBuilder, Scene->DistanceFieldSceneData);
 
 		if (SDFShadowViewGPUData.HeightFieldCulledObjectBufferParameters == nullptr)
 		{

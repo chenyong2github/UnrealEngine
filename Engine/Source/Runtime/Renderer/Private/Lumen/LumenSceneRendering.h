@@ -65,7 +65,7 @@ public:
 
 	void UpdateViewMatrices(const FViewInfo& MainView);
 
-	void PatchView(FRHICommandList& RHICmdList, const FScene* Scene, FViewInfo* View) const;
+	void PatchView(const FScene* Scene, FViewInfo* View) const;
 };
 
 struct FResampledCardCaptureAtlas
@@ -89,8 +89,8 @@ namespace Lumen
 	}
 };
 
-extern void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenSceneFrameTemporaries& FrameTemporaries, FLumenCardScene& OutParameters);
-extern void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRDGBuilder& GraphBuilder);
+extern void UpdateLumenCardSceneUniformBuffer(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenSceneFrameTemporaries& FrameTemporaries);
+extern void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneFrameTemporaries& FrameTemporaries, FLumenSceneData& LumenSceneData);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionCompositeParameters, )
 	SHADER_PARAMETER(float, MaxRoughnessToTrace)

@@ -1978,7 +1978,7 @@ void UpdateGlobalDistanceFieldVolume(
 							FCullObjectsToClipmapCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullObjectsToClipmapCS::FParameters>();
 							PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(ObjectIndexBuffer, PF_R32_UINT);
 							PassParameters->RWObjectIndexNumBuffer = GraphBuilder.CreateUAV(ObjectIndexNumBuffer, PF_R32_UINT);
-							PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
+							PassParameters->DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
 							PassParameters->ClipmapWorldCenter = (FVector3f)Clipmap.Bounds.GetCenter();
 							PassParameters->ClipmapWorldExtent = (FVector3f)Clipmap.Bounds.GetExtent();
 							PassParameters->AcceptOftenMovingObjectsOnly = AcceptOftenMovingObjectsOnlyValue;
@@ -2179,8 +2179,8 @@ void UpdateGlobalDistanceFieldVolume(
 						FRDGBufferRef CullGridObjectHeader = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 2 * CullGridSize), TEXT("CullGridObjectHeader"));
 						FRDGBufferRef CullGridObjectArray = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), CullGridSize * AverageCulledObjectsPerPage), TEXT("CullGridObjectArray"));
 
-						FDistanceFieldObjectBufferParameters DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(DistanceFieldSceneData);
-						FDistanceFieldAtlasParameters DistanceFieldAtlas = DistanceField::SetupAtlasParameters(DistanceFieldSceneData);
+						FDistanceFieldObjectBufferParameters DistanceFieldObjectBuffers = DistanceField::SetupObjectBufferParameters(GraphBuilder, DistanceFieldSceneData);
+						FDistanceFieldAtlasParameters DistanceFieldAtlas = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
 
 						// Cull objects into a cull grid
 						if (Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0)
@@ -2531,9 +2531,9 @@ void UpdateGlobalDistanceFieldVolume(
 			ExternalAccessQueue.Submit(GraphBuilder);
 		}
 
-		if (CVarGlobalDistanceFieldDebug.GetValueOnRenderThread() != 0 && View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer)
+		if (CVarGlobalDistanceFieldDebug.GetValueOnRenderThread() != 0 && GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer)
 		{
-			FRDGBufferRef PageFreeListAllocatorBuffer = GraphBuilder.RegisterExternalBuffer(View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer, TEXT("GlobalDistanceField.PageFreeListAllocator"));
+			FRDGBufferRef PageFreeListAllocatorBuffer = GraphBuilder.RegisterExternalBuffer(GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer);
 
 			FGlobalDistanceFieldDebugCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGlobalDistanceFieldDebugCS::FParameters>();
 			ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrintUniformBuffer);

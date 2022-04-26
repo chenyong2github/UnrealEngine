@@ -814,7 +814,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	FRDGBuilder& GraphBuilder, 
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& ScreenProbeRadianceCacheParameters,
 	ELumenReflectionPass ReflectionPass,

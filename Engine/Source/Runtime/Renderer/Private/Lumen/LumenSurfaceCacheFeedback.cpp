@@ -103,20 +103,26 @@ FLumenSurfaceCacheFeedback::~FLumenSurfaceCacheFeedback()
 	}
 }
 
-void FLumenSurfaceCacheFeedback::AllocateFeedbackResources(FRDGBuilder& GraphBuilder, FFeedbackResources& Resouces, const FViewFamilyInfo& ViewFamily) const
+void FLumenSurfaceCacheFeedback::AllocateFeedbackResources(FRDGBuilder& GraphBuilder, FFeedbackResources& Resources, const FViewFamilyInfo& ViewFamily) const
 {
-	Resouces.BufferSize = Lumen::GetFeedbackBufferSize(ViewFamily);
+	Resources.BufferSize = Lumen::GetFeedbackBufferSize(ViewFamily);
 
-	Resouces.BufferAllocator = GraphBuilder.CreateBuffer(
+	FRDGBuffer* BufferAllocator = GraphBuilder.CreateBuffer(
 		FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1),
 		TEXT("Lumen.FeedbackAllocator"));
 
-	Resouces.Buffer = GraphBuilder.CreateBuffer( 
-		FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * Lumen::FeedbackBufferElementStride, Resouces.BufferSize),
-		TEXT("Lumen.Feedback"));	
+	Resources.BufferAllocatorUAV = GraphBuilder.CreateUAV(BufferAllocator, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	Resources.BufferAllocatorSRV = GraphBuilder.CreateSRV(BufferAllocator, PF_R32_UINT);
 
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Resouces.BufferAllocator, PF_R32_UINT), 0);
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Resouces.Buffer, PF_R32G32_UINT), 0);
+	FRDGBuffer* Buffer = GraphBuilder.CreateBuffer( 
+		FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * Lumen::FeedbackBufferElementStride, Resources.BufferSize),
+		TEXT("Lumen.Feedback"));
+
+	Resources.BufferUAV = GraphBuilder.CreateUAV(Buffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	Resources.BufferSRV = GraphBuilder.CreateSRV(Buffer, PF_R32G32_UINT);
+
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(BufferAllocator, PF_R32_UINT), 0);
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Buffer, PF_R32G32_UINT), 0);
 }
 
 FRDGBufferUAVRef FLumenSurfaceCacheFeedback::GetDummyFeedbackAllocatorUAV(FRDGBuilder& GraphBuilder) const
@@ -284,8 +290,8 @@ void FLumenSurfaceCacheFeedback::SubmitFeedbackBuffer(
 
 		PassParameters->RWBuildHashTableIndirectArgs = GraphBuilder.CreateUAV(BuildHashTableIndirectArgBuffer, PF_R32_UINT);
 
-		PassParameters->FeedbackBufferAllocator = GraphBuilder.CreateSRV(FeedbackResources.BufferAllocator, PF_R32_UINT);
-		PassParameters->FeedbackBuffer = GraphBuilder.CreateSRV(FeedbackResources.Buffer, PF_R32G32_UINT);
+		PassParameters->FeedbackBufferAllocator = FeedbackResources.BufferAllocatorSRV;
+		PassParameters->FeedbackBuffer = FeedbackResources.BufferSRV;
 		PassParameters->FeedbackBufferSize = FeedbackResources.BufferSize;
 
 		auto ComputeShader = View.ShaderMap->GetShader<FBuildFeedbackHashTableIndirectArgsCS>();
@@ -312,8 +318,8 @@ void FLumenSurfaceCacheFeedback::SubmitFeedbackBuffer(
 		PassParameters->HashTableSize = HashTableSize;
 		PassParameters->HashTableIndexWrapMask = HashTableIndexWrapMask;
 
-		PassParameters->FeedbackBufferAllocator = GraphBuilder.CreateSRV(FeedbackResources.BufferAllocator, PF_R32_UINT);
-		PassParameters->FeedbackBuffer = GraphBuilder.CreateSRV(FeedbackResources.Buffer, PF_R32G32_UINT);
+		PassParameters->FeedbackBufferAllocator = FeedbackResources.BufferAllocatorSRV;
+		PassParameters->FeedbackBuffer = FeedbackResources.BufferSRV;
 		PassParameters->FeedbackBufferSize = FeedbackResources.BufferSize;
 
 		auto ComputeShader = View.ShaderMap->GetShader<FBuildFeedbackHashTableCS>();
@@ -341,8 +347,8 @@ void FLumenSurfaceCacheFeedback::SubmitFeedbackBuffer(
 		PassParameters->HashTableSize = HashTableSize;
 		PassParameters->HashTableIndexWrapMask = HashTableIndexWrapMask;
 
-		PassParameters->FeedbackBufferAllocator = GraphBuilder.CreateSRV(FeedbackResources.BufferAllocator, PF_R32_UINT);
-		PassParameters->FeedbackBuffer = GraphBuilder.CreateSRV(FeedbackResources.Buffer, PF_R32G32_UINT);
+		PassParameters->FeedbackBufferAllocator = FeedbackResources.BufferAllocatorSRV;
+		PassParameters->FeedbackBuffer = FeedbackResources.BufferSRV;
 		PassParameters->FeedbackBufferSize = FeedbackResources.BufferSize;
 
 		auto ComputeShader = View.ShaderMap->GetShader<FCompactFeedbackHashTableCS>();
@@ -525,15 +531,20 @@ void FDeferredShadingSceneRenderer::BeginGatheringLumenSurfaceCacheFeedback(FRDG
 
 		if (!Lumen::IsSurfaceCacheFrozen() && (bReflectionsUseFeedback || bVisualizeUsesFeedback))
 		{
-			ensure(FrameTemporaries.SurfaceCacheFeedbackResources.Buffer == nullptr);
+			ensure(FrameTemporaries.SurfaceCacheFeedbackResources.BufferUAV == nullptr);
 
 			LumenSceneData.SurfaceCacheFeedback.AllocateFeedbackResources(GraphBuilder, FrameTemporaries.SurfaceCacheFeedbackResources, *ActiveViewFamily);
 		}
 
 		if (LumenSceneData.CardPageLastUsedBuffer && LumenSceneData.CardPageHighResLastUsedBuffer)
 		{
-			FrameTemporaries.CardPageLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageLastUsedBuffer);
-			FrameTemporaries.CardPageHighResLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageHighResLastUsedBuffer);
+			FRDGBuffer* CardPageLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageLastUsedBuffer);
+			FrameTemporaries.CardPageLastUsedBufferSRV = GraphBuilder.CreateSRV(CardPageLastUsedBuffer);
+			FrameTemporaries.CardPageLastUsedBufferUAV = GraphBuilder.CreateUAV(CardPageLastUsedBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+
+			FRDGBuffer* CardPageHighResLastUsedBuffer = GraphBuilder.RegisterExternalBuffer(LumenSceneData.CardPageHighResLastUsedBuffer);
+			FrameTemporaries.CardPageHighResLastUsedBufferSRV = GraphBuilder.CreateSRV(CardPageHighResLastUsedBuffer);
+			FrameTemporaries.CardPageHighResLastUsedBufferUAV = GraphBuilder.CreateUAV(CardPageHighResLastUsedBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
 		}
 	}
 }
@@ -547,19 +558,17 @@ void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRD
 	{
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-		if (FrameTemporaries.SurfaceCacheFeedbackResources.Buffer)
+		if (FrameTemporaries.SurfaceCacheFeedbackResources.BufferUAV)
 		{
 			LumenSceneData.SurfaceCacheFeedback.SubmitFeedbackBuffer(Views[0], GraphBuilder, FrameTemporaries.SurfaceCacheFeedbackResources);
 
-			FrameTemporaries.SurfaceCacheFeedbackResources.BufferAllocator = nullptr;
-			FrameTemporaries.SurfaceCacheFeedbackResources.Buffer = nullptr;
-			FrameTemporaries.SurfaceCacheFeedbackResources.BufferSize = 0;
+			FrameTemporaries.SurfaceCacheFeedbackResources = {};
 		}
 
-		if (FrameTemporaries.CardPageLastUsedBuffer && FrameTemporaries.CardPageHighResLastUsedBuffer)
+		if (FrameTemporaries.CardPageLastUsedBufferUAV && FrameTemporaries.CardPageHighResLastUsedBufferUAV)
 		{
-			LumenSceneData.CardPageLastUsedBuffer = GraphBuilder.ConvertToExternalBuffer(FrameTemporaries.CardPageLastUsedBuffer);
-			LumenSceneData.CardPageHighResLastUsedBuffer = GraphBuilder.ConvertToExternalBuffer(FrameTemporaries.CardPageHighResLastUsedBuffer);
+			GraphBuilder.QueueBufferExtraction(FrameTemporaries.CardPageLastUsedBufferUAV->GetParent(), &LumenSceneData.CardPageLastUsedBuffer);
+			GraphBuilder.QueueBufferExtraction(FrameTemporaries.CardPageHighResLastUsedBufferUAV->GetParent(), &LumenSceneData.CardPageHighResLastUsedBuffer);
 		}
 	}
 
@@ -567,15 +576,14 @@ void FDeferredShadingSceneRenderer::FinishGatheringLumenSurfaceCacheFeedback(FRD
 	{
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-		LumenSceneData.DepthAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.DepthAtlas);
-		LumenSceneData.AlbedoAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.AlbedoAtlas);
-		LumenSceneData.OpacityAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.OpacityAtlas);
-		LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.NormalAtlas);
-		LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.EmissiveAtlas);
-
-		LumenSceneData.DirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.DirectLightingAtlas);
-		LumenSceneData.IndirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.IndirectLightingAtlas);
-		LumenSceneData.RadiosityNumFramesAccumulatedAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.RadiosityNumFramesAccumulatedAtlas);
-		LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(FrameTemporaries.FinalLightingAtlas);
+		GraphBuilder.QueueTextureExtraction(FrameTemporaries.DepthAtlas, &LumenSceneData.DepthAtlas);
+		GraphBuilder.QueueTextureExtraction(FrameTemporaries.AlbedoAtlas, &LumenSceneData.AlbedoAtlas);
+		GraphBuilder.QueueTextureExtraction(FrameTemporaries.OpacityAtlas, &LumenSceneData.OpacityAtlas);
+		GraphBuilder.QueueTextureExtraction(FrameTemporaries.NormalAtlas, &LumenSceneData.NormalAtlas);
+		GraphBuilder.QueueTextureExtraction(FrameTemporaries.EmissiveAtlas, &LumenSceneData.EmissiveAtlas);
+		GraphBuilder.QueueTextureExtraction(FrameTemporaries.DirectLightingAtlas, &LumenSceneData.DirectLightingAtlas);
+		GraphBuilder.QueueTextureExtraction(FrameTemporaries.IndirectLightingAtlas, &LumenSceneData.IndirectLightingAtlas);
+		GraphBuilder.QueueTextureExtraction(FrameTemporaries.RadiosityNumFramesAccumulatedAtlas, &LumenSceneData.RadiosityNumFramesAccumulatedAtlas);
+		GraphBuilder.QueueTextureExtraction(FrameTemporaries.FinalLightingAtlas, &LumenSceneData.FinalLightingAtlas);
 	}
 }

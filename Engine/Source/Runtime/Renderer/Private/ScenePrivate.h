@@ -2029,17 +2029,17 @@ public:
 	class FDistanceFieldObjectBuffers* ObjectBuffers;
 	class FHeightFieldObjectBuffers* HeightFieldObjectBuffers;
 
-	FScatterUploadBuffer UploadHeightFieldDataBuffer;
-	FScatterUploadBuffer UploadHeightFieldBoundsBuffer;
-	FScatterUploadBuffer UploadDistanceFieldDataBuffer;
-	FScatterUploadBuffer UploadDistanceFieldBoundsBuffer;
+	FRDGScatterUploadBuffer UploadHeightFieldDataBuffer;
+	FRDGScatterUploadBuffer UploadHeightFieldBoundsBuffer;
+	FRDGScatterUploadBuffer UploadDistanceFieldDataBuffer;
+	FRDGScatterUploadBuffer UploadDistanceFieldBoundsBuffer;
 	
 	TArray<int32> IndicesToUpdateInObjectBuffers;
 	TArray<int32> IndicesToUpdateInHeightFieldObjectBuffers;
 
 	TSet<FDistanceFieldAssetState, TFDistanceFieldAssetStateFuncs> AssetStateArray;
-	FRWBufferStructured AssetDataBuffer;
-	FScatterUploadBuffer AssetDataUploadBuffer;
+	TRefCountPtr<FRDGPooledBuffer> AssetDataBuffer;
+	FRDGScatterUploadBuffer AssetDataUploadBuffer;
 
 	TArray<FRHIGPUBufferReadback*> StreamingRequestReadbackBuffers;
 	uint32 MaxStreamingReadbackBuffers = 4;
@@ -2047,11 +2047,8 @@ public:
 	uint32 ReadbackBuffersNumPending = 0;
 
 	FGrowOnlySpanAllocator IndirectionTableAllocator;
-	FRWByteAddressBuffer IndirectionTable;
-	FScatterUploadBuffer IndirectionTableUploadBuffer;
-
-	FRWBuffer Indirection2Table;
-	FScatterUploadBuffer Indirection2TableUploadBuffer;
+	TRefCountPtr<FRDGPooledBuffer> IndirectionTable;
+	FRDGScatterUploadBuffer IndirectionTableUploadBuffer;
 
 	TRefCountPtr<IPooledRenderTarget> IndirectionAtlas;
 	FTextureLayout3d IndirectionAtlasLayout;
@@ -2101,13 +2098,13 @@ private:
 
 	void ResizeBrickAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap);
 
-	bool ResizeIndirectionAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap);
+	bool ResizeIndirectionAtlasIfNeeded(FRDGBuilder& GraphBuilder, FGlobalShaderMap* GlobalShaderMap, FRDGTexture*& OutTexture);
 
 	void DefragmentIndirectionAtlas(FIntVector MinSize, TArray<FDistanceFieldAssetMipRelocation>& Relocations);
 
-	void UploadAssetData(FRDGBuilder& GraphBuilder, const TArray<FDistanceFieldAssetMipId>& AssetDataUploads);
+	void UploadAssetData(FRDGBuilder& GraphBuilder, const TArray<FDistanceFieldAssetMipId>& AssetDataUploads, FRDGBuffer* AssetDataBufferRDG);
 	
-	void UploadAllAssetData(FRDGBuilder& GraphBuilder);
+	void UploadAllAssetData(FRDGBuilder& GraphBuilder, FRDGBuffer* AssetDataBufferRDG);
 
 	void AsyncUpdate(FDistanceFieldAsyncUpdateParameters UpdateParameters);
 

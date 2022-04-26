@@ -779,7 +779,7 @@ void FDeferredShadingSceneRenderer::SetupCommonDiffuseIndirectParameters(
 void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
 	FSceneTextures& SceneTextures,
-	FLumenSceneFrameTemporaries& LumenFrameTemporaries,
+	const FLumenSceneFrameTemporaries& LumenFrameTemporaries,
 	FRDGTextureRef LightingChannelsTexture,
 	bool bIsVisualizePass)
 {

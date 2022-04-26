@@ -30,8 +30,10 @@ public:
 	class FFeedbackResources
 	{
 	public:
-		FRDGBufferRef BufferAllocator = nullptr;
-		FRDGBufferRef Buffer = nullptr;
+		FRDGBufferUAV* BufferAllocatorUAV = nullptr;
+		FRDGBufferSRV* BufferAllocatorSRV = nullptr;
+		FRDGBufferUAV* BufferUAV = nullptr;
+		FRDGBufferSRV* BufferSRV = nullptr;
 		uint32 BufferSize = 0;
 	};
 

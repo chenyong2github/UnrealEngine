@@ -3,17 +3,13 @@
 #include "LumenTracingUtils.h"
 #include "LumenSceneRendering.h"
 
-FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback)
+FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FLumenSceneFrameTemporaries& FrameTemporaries, bool bSurfaceCacheFeedback)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
-	{
-		FLumenCardScene* LumenCardSceneParameters = GraphBuilder.AllocParameters<FLumenCardScene>();
-		SetupLumenCardSceneParameters(GraphBuilder, Scene, FrameTemporaries, *LumenCardSceneParameters);
-		LumenCardSceneUniformBuffer = GraphBuilder.CreateUniformBuffer(LumenCardSceneParameters);
-	}
+	LumenCardSceneUniformBuffer = FrameTemporaries.LumenCardSceneUniformBuffer;
 
 	check(FrameTemporaries.FinalLightingAtlas);
 
@@ -28,10 +24,10 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 	RadiosityNumFramesAccumulatedAtlas = FrameTemporaries.RadiosityNumFramesAccumulatedAtlas;
 	FinalLightingAtlas = FrameTemporaries.FinalLightingAtlas;
 
-	if (FrameTemporaries.CardPageLastUsedBuffer && FrameTemporaries.CardPageHighResLastUsedBuffer)
+	if (FrameTemporaries.CardPageLastUsedBufferUAV && FrameTemporaries.CardPageHighResLastUsedBufferUAV)
 	{
-		CardPageLastUsedBufferUAV = GraphBuilder.CreateUAV(FrameTemporaries.CardPageLastUsedBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
-		CardPageHighResLastUsedBufferUAV = GraphBuilder.CreateUAV(FrameTemporaries.CardPageHighResLastUsedBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		CardPageLastUsedBufferUAV = FrameTemporaries.CardPageLastUsedBufferUAV;
+		CardPageHighResLastUsedBufferUAV = FrameTemporaries.CardPageHighResLastUsedBufferUAV;
 	}
 	else
 	{
@@ -39,10 +35,10 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 		CardPageHighResLastUsedBufferUAV = GraphBuilder.CreateUAV(GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer), PF_R32_UINT);
 	}
 
-	if (FrameTemporaries.SurfaceCacheFeedbackResources.Buffer && bSurfaceCacheFeedback)
+	if (FrameTemporaries.SurfaceCacheFeedbackResources.BufferUAV && bSurfaceCacheFeedback)
 	{
-		SurfaceCacheFeedbackBufferAllocatorUAV = GraphBuilder.CreateUAV(FrameTemporaries.SurfaceCacheFeedbackResources.BufferAllocator, ERDGUnorderedAccessViewFlags::SkipBarrier);
-		SurfaceCacheFeedbackBufferUAV = GraphBuilder.CreateUAV(FrameTemporaries.SurfaceCacheFeedbackResources.Buffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		SurfaceCacheFeedbackBufferAllocatorUAV = FrameTemporaries.SurfaceCacheFeedbackResources.BufferAllocatorUAV;
+		SurfaceCacheFeedbackBufferUAV = FrameTemporaries.SurfaceCacheFeedbackResources.BufferUAV;
 		SurfaceCacheFeedbackBufferSize = FrameTemporaries.SurfaceCacheFeedbackResources.BufferSize;
 		SurfaceCacheFeedbackBufferTileJitter = LumenSceneData.SurfaceCacheFeedback.GetFeedbackBufferTileJitter();
 		SurfaceCacheFeedbackBufferTileWrapMask = Lumen::GetFeedbackBufferTileWrapMask();

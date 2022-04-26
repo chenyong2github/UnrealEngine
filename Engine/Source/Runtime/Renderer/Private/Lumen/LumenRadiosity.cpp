@@ -1003,7 +1003,7 @@ void LumenRadiosity::AddRadiosityPass(
 
 void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	FRDGBuilder& GraphBuilder, 
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FLumenCardTracingInputs& TracingInputs,
 	FRDGTextureRef RadiosityAtlas,
 	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,

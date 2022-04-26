@@ -1088,10 +1088,10 @@ void TraceDistanceFieldShadows(
 	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	check(Light.bHasShadows);
 
-	FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(Scene->DistanceFieldSceneData);
+	FDistanceFieldObjectBufferParameters ObjectBufferParameters = DistanceField::SetupObjectBufferParameters(GraphBuilder, Scene->DistanceFieldSceneData);
 
 	// Patch DF heightfields with Lumen heightfields
-	ObjectBufferParameters.SceneHeightfieldObjectBounds = LumenSceneData.HeightfieldBuffer.SRV;
+	ObjectBufferParameters.SceneHeightfieldObjectBounds = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(LumenSceneData.HeightfieldBuffer));
 	ObjectBufferParameters.SceneHeightfieldObjectData = nullptr;
 	ObjectBufferParameters.NumSceneHeightfieldObjects = LumenSceneData.Heightfields.Num();
 
@@ -1166,7 +1166,7 @@ void TraceDistanceFieldShadows(
 		PassParameters->ObjectBufferParameters = ObjectBufferParameters;
 		PassParameters->LightTileIntersectionParameters = LightTileIntersectionParameters;
 
-		FDistanceFieldAtlasParameters DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(Scene->DistanceFieldSceneData);
+		FDistanceFieldAtlasParameters DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(GraphBuilder, Scene->DistanceFieldSceneData);
 
 		PassParameters->DistanceFieldAtlasParameters = DistanceFieldAtlasParameters;
 		PassParameters->TranslatedWorldToShadow = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToMeshSDFShadowValue);

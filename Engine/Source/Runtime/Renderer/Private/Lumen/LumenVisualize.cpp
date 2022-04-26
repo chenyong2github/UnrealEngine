@@ -620,7 +620,7 @@ void SetupVisualizeParameters(
 	}
 }
 
-void FDeferredShadingSceneRenderer::RenderLumenMiscVisualizations(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, FLumenSceneFrameTemporaries& FrameTemporaries)
+void FDeferredShadingSceneRenderer::RenderLumenMiscVisualizations(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const FLumenSceneFrameTemporaries& FrameTemporaries)
 {
 	const FViewInfo& View = Views[0];
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
@@ -695,7 +695,7 @@ void VisualizeLumenScene(
 	const FScene* Scene,
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	FScreenPassTexture Output,
 	FRDGTextureRef ColorGradingTexture,
 	FRDGTextureRef EyeAdaptationTexture,

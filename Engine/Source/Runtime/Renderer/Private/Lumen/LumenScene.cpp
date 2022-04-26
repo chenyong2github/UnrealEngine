@@ -364,10 +364,10 @@ void FLumenSurfaceCacheAllocator::GetStats(FStats& Stats) const
 	Stats.Bins.Sort(FSortBySize());
 }
 
-void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
+void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries)
 {
-	SCOPED_DRAW_EVENT(GraphBuilder.RHICmdList, LumenUploadPageTable);
-	SCOPED_GPU_MASK(GraphBuilder.RHICmdList, FRHIGPUMask::All());
+	RDG_EVENT_SCOPE(GraphBuilder, "LumenUploadPageTable");
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 	if (GLumenSceneUploadEveryFrame != 0)
 	{
@@ -385,11 +385,12 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 	// PageTableBuffer
 	{
 		const int32 NumBytesPerElement = 2 * sizeof(uint32);
-		bool bResourceResized = ResizeResourceIfNeeded(GraphBuilder.RHICmdList, PageTableBuffer, NumElements * NumBytesPerElement, TEXT("Lumen.PageTable"));
+		FRDGBuffer* PageTableBufferRDG = ResizeByteAddressBufferIfNeeded(GraphBuilder, PageTableBuffer, NumElements * NumBytesPerElement, TEXT("Lumen.PageTable"));
+		FrameTemporaries.PageTableBufferSRV = GraphBuilder.CreateSRV(PageTableBufferRDG);
 
 		if (NumElementsToUpload > 0)
 		{
-			ByteBufferUploadBuffer.Init(NumElementsToUpload, NumBytesPerElement, false, TEXT("Lumen.ByteBufferUploadBuffer"));
+			PageTableUploadBuffer.Init(GraphBuilder, NumElementsToUpload, NumBytesPerElement, false, TEXT("Lumen.PageTableUpload"));
 
 			for (int32 PageIndex : PageTableIndicesToUpdateInBuffer)
 			{
@@ -409,17 +410,11 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 						PackedData[1] = Page.SamplePageIndex;
 					}
 
-					ByteBufferUploadBuffer.Add(PageIndex, PackedData);
+					PageTableUploadBuffer.Add(PageIndex, PackedData);
 				}
 			}
 
-			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(PageTableBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			ByteBufferUploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, PageTableBuffer, false);
-			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(PageTableBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-		}
-		else if (bResourceResized)
-		{
-			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(PageTableBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			PageTableUploadBuffer.ResourceUploadTo(GraphBuilder, PageTableBufferRDG);
 		}
 	}
 
@@ -427,13 +422,18 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 	{
 		const FVector2D InvPhysicalAtlasSize = FVector2D(1.0f) / GetPhysicalAtlasSize();
 
+		TRefCountPtr<FRDGPooledBuffer> CardPageBufferOld = CardPageBuffer;
+
 		const int32 NumBytesPerElement = FLumenCardPageGPUData::DataStrideInFloat4s * sizeof(FVector4f);
-		bool bResourceResized = ResizeResourceIfNeeded(GraphBuilder.RHICmdList, CardPageBuffer, NumElements * NumBytesPerElement, TEXT("Lumen.PageBuffer"));
+		FRDGBuffer* CardPageBufferRDG = ResizeStructuredBufferIfNeeded(GraphBuilder, CardPageBuffer, NumElements * NumBytesPerElement, TEXT("Lumen.PageBuffer"));
+		FrameTemporaries.CardPageBufferSRV = GraphBuilder.CreateSRV(CardPageBufferRDG);
+		FrameTemporaries.CardPageBufferUAV = GraphBuilder.CreateUAV(CardPageBufferRDG);
 
 		if (NumElementsToUpload > 0)
 		{
 			FLumenPageTableEntry NullPageTableEntry;
-			UploadBuffer.Init(NumElementsToUpload, FLumenCardPageGPUData::DataStrideInBytes, true, TEXT("Lumen.UploadBuffer"));
+
+			CardPageUploadBuffer.Init(GraphBuilder, NumElementsToUpload, FLumenCardPageGPUData::DataStrideInBytes, true, TEXT("Lumen.CardPageUploadBuffer"));
 
 			for (int32 PageIndex : PageTableIndicesToUpdateInBuffer)
 			{
@@ -442,7 +442,7 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 					uint32 ResLevelPageTableOffset = 0;
 					FIntPoint ResLevelSizeInTiles = FIntPoint(0, 0);
 
-					FVector4f* Data = (FVector4f*)UploadBuffer.Add_GetRef(PageIndex);
+					FVector4f* Data = (FVector4f*)CardPageUploadBuffer.Add_GetRef(PageIndex);
 
 					if (PageTable.IsAllocated(PageIndex) && PageTable[PageIndex].IsMapped())
 					{
@@ -467,17 +467,11 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 				}
 			}
 
-			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(CardPageBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			UploadBuffer.ResourceUploadTo(GraphBuilder.RHICmdList, CardPageBuffer, false);
-			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(CardPageBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-		}
-		else if (bResourceResized)
-		{
-			GraphBuilder.RHICmdList.Transition(FRHITransitionInfo(CardPageBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			CardPageUploadBuffer.ResourceUploadTo(GraphBuilder, CardPageBufferRDG);
 		}
 
 		// Resize also the CardPageLastUsedBuffers
-		if (bResourceResized)
+		if (CardPageBufferOld != CardPageBuffer)
 		{
 			FRDGBufferRef CardPageLastUsedBufferRDG = GraphBuilder.CreateBuffer(
 				FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumElements), TEXT("Lumen.CardPageLastUsedBuffer"));
@@ -1559,13 +1553,11 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	UE_LOG(LogRenderer, Log, TEXT("  MeshCards allocated memory: %.3fMb"), MeshCards.GetAllocatedSize() / (1024.0f * 1024.0f));
 
 	UE_LOG(LogRenderer, Log, TEXT("*** GPU Memory ***"));
-	UE_LOG(LogRenderer, Log, TEXT("  CardBuffer: %.3fMb"), CardBuffer.NumBytes / (1024.0f * 1024.0f));
-	UE_LOG(LogRenderer, Log, TEXT("  MeshCardsBuffer: %.3fMb"), MeshCardsBuffer.NumBytes / (1024.0f * 1024.0f));
-	UE_LOG(LogRenderer, Log, TEXT("  PageTable: %.3fMb"), PageTableBuffer.NumBytes / (1024.0f * 1024.0f));
-	UE_LOG(LogRenderer, Log, TEXT("  CardPages: %.3fMb"), CardPageBuffer.NumBytes / (1024.0f * 1024.0f));
-	UE_LOG(LogRenderer, Log, TEXT("  SceneInstanceIndexToMeshCardsIndexBuffer: %.3fMb"), SceneInstanceIndexToMeshCardsIndexBuffer.NumBytes / (1024.0f * 1024.0f));
-	UE_LOG(LogRenderer, Log, TEXT("  UploadBuffer: %.3fMb"), UploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
-	UE_LOG(LogRenderer, Log, TEXT("  ByteBufferUploadBuffer: %.3fMb"), ByteBufferUploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  CardBuffer: %.3fMb"), TryGetSize(CardBuffer) / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  MeshCardsBuffer: %.3fMb"), TryGetSize(MeshCardsBuffer) / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  PageTable: %.3fMb"), TryGetSize(PageTableBuffer) / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  CardPages: %.3fMb"), TryGetSize(CardPageBuffer) / (1024.0f * 1024.0f));
+	UE_LOG(LogRenderer, Log, TEXT("  SceneInstanceIndexToMeshCardsIndexBuffer: %.3fMb"), TryGetSize(SceneInstanceIndexToMeshCardsIndexBuffer) / (1024.0f * 1024.0f));
 
 	if (bDumpMeshDistanceFields)
 	{

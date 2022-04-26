@@ -47,12 +47,12 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER(float, DistantSceneMaxTraceDistance)
 	SHADER_PARAMETER(FVector3f, DistantSceneDirection)
 	SHADER_PARAMETER_SCALAR_ARRAY(uint32, DistantCardIndices, [MaxDistantCards])
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardPageData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, MeshCardsData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, HeightfieldData)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, PageTableBuffer)
-	SHADER_PARAMETER_SRV(ByteAddressBuffer, SceneInstanceIndexToMeshCardsIndexBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, CardData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, CardPageData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, MeshCardsData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, HeightfieldData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, PageTableBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, SceneInstanceIndexToMeshCardsIndexBuffer)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AlbedoAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NormalAtlas)
@@ -380,8 +380,21 @@ struct FLumenSceneFrameTemporaries
 	FRDGTextureRef RadiosityNumFramesAccumulatedAtlas = nullptr;
 	FRDGTextureRef FinalLightingAtlas = nullptr;
 
-	FRDGBufferRef CardPageLastUsedBuffer = nullptr;
-	FRDGBufferRef CardPageHighResLastUsedBuffer = nullptr;
+	FRDGBufferSRV* CardBufferSRV = nullptr;
+	FRDGBufferSRV* MeshCardsBufferSRV = nullptr;
+	FRDGBufferSRV* HeightfieldBufferSRV = nullptr;
+	FRDGBufferSRV* SceneInstanceIndexToMeshCardsIndexBufferSRV = nullptr;
+	FRDGBufferSRV* PageTableBufferSRV = nullptr;
+	FRDGBufferSRV* CardPageBufferSRV = nullptr;
+	FRDGBufferUAV* CardPageBufferUAV = nullptr;
+
+	FRDGBufferUAV* CardPageLastUsedBufferUAV = nullptr;
+	FRDGBufferSRV* CardPageLastUsedBufferSRV = nullptr;
+
+	FRDGBufferUAV* CardPageHighResLastUsedBufferUAV = nullptr;
+	FRDGBufferSRV* CardPageHighResLastUsedBufferSRV = nullptr;
+
+	TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer = nullptr;
 };
 
 // Tracks scene-wide lighting state whose changes we should propagate quickly by flushing various lighting caches
@@ -408,12 +421,10 @@ public:
 	// Clear all cached state like surface cache atlas. Including extra state like final lighting. Used only for debugging.
 	bool bDebugClearAllCachedState = false;
 
-	FScatterUploadBuffer UploadBuffer;
-	FScatterUploadBuffer ByteBufferUploadBuffer;
-
 	TSparseSpanArray<FLumenCard> Cards;
 	FUniqueIndexList CardIndicesToUpdateInBuffer;
-	FRWBufferStructured CardBuffer;
+	TRefCountPtr<FRDGPooledBuffer> CardBuffer;
+	FRDGScatterUploadBuffer CardUploadBuffer;
 
 	// Modified bounds for caching voxel lighting
 	TArray<FRenderBounds> PrimitiveModifiedBounds;
@@ -429,21 +440,25 @@ public:
 	// Mesh Cards
 	FUniqueIndexList MeshCardsIndicesToUpdateInBuffer;
 	TSparseSpanArray<FLumenMeshCards> MeshCards;
-	FRWBufferStructured MeshCardsBuffer;
+	TRefCountPtr<FRDGPooledBuffer> MeshCardsBuffer;
+	FRDGScatterUploadBuffer MeshCardsUploadBuffer;
 
 	// Heightfields
 	FUniqueIndexList HeightfieldIndicesToUpdateInBuffer;
 	TSparseSpanArray<FLumenHeightfield> Heightfields;
-	FRWBufferStructured HeightfieldBuffer;
+	TRefCountPtr<FRDGPooledBuffer> HeightfieldBuffer;
+	FRDGScatterUploadBuffer HeightfieldUploadBuffer;
 
 	// GPUScene instance index to MeshCards mapping
 	FUniqueIndexList PrimitivesToUpdateMeshCards;
-	FRWByteAddressBuffer SceneInstanceIndexToMeshCardsIndexBuffer;
+	TRefCountPtr<FRDGPooledBuffer> SceneInstanceIndexToMeshCardsIndexBuffer;
+	FRDGScatterUploadBuffer SceneInstanceIndexToMeshCardsIndexUploadBuffer;
 
 	TArray<int32, TInlineAllocator<8>> DistantCardIndices;
 
 	// Single card tile per FLumenPageTableEntry. Used for various atlas update operations
-	FRWBufferStructured CardPageBuffer;
+	TRefCountPtr<FRDGPooledBuffer> CardPageBuffer;
+	FRDGScatterUploadBuffer CardPageUploadBuffer;
 
 	// Last frame index when this page was sampled from. Used to controlling page update rate
 	TRefCountPtr<FRDGPooledBuffer> CardPageLastUsedBuffer;
@@ -507,7 +522,9 @@ public:
 	void DumpStats(const FDistanceFieldSceneData& DistanceFieldSceneData, bool bDumpMeshDistanceFields, bool bDumpPrimitiveGroups);
 	bool UpdateAtlasSize();
 	void RemoveAllMeshCards();
-	void UploadPageTable(FRDGBuilder& GraphBuilder);
+	void UploadPageTable(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
+
+	void FillFrameTemporaries(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 
 	void AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, int32 ResLevel, bool bLockPages);
@@ -548,11 +565,7 @@ public:
 		FRHIGPUMask GPUMask,
 		const TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests);
 
-	FShaderResourceViewRHIRef GetPageTableBufferSRV() const { return PageTableBuffer.SRV;  };
-
 	int32 GetMeshCardsIndex(const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 InstanceIndex) const;
-
-	void CopyBuffersForResample(FRDGBuilder& GraphBuilder, FShaderResourceViewRHIRef& LastCardBufferForResampleSRV, FShaderResourceViewRHIRef& LastPageTableBufferForResampleSRV);
 
 private:
 
@@ -571,10 +584,8 @@ private:
 
 	TSparseSpanArray<FLumenPageTableEntry> PageTable;
 	TArray<int32> PageTableIndicesToUpdateInBuffer;
-	FRWByteAddressBuffer PageTableBuffer;
-
-	FRWBufferStructured LastCardBufferForResample;
-	FRWByteAddressBuffer LastPageTableBufferForResample;
+	TRefCountPtr<FRDGPooledBuffer> PageTableBuffer;
+	FRDGScatterUploadBuffer PageTableUploadBuffer;
 
 	// List of high res allocated physical pages which can be deallocated on demand, ordered by last used frame
 	// FeedbackFrameIndex, PageTableIndex

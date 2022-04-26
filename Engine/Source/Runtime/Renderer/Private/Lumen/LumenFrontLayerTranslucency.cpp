@@ -358,7 +358,7 @@ void FDeferredShadingSceneRenderer::RenderLumenFrontLayerTranslucencyReflections
 	FRDGBuilder& GraphBuilder,
 	FViewInfo& View,
 	const FSceneTextures& SceneTextures,
-	FLumenSceneFrameTemporaries& LumenFrameTemporaries)
+	const FLumenSceneFrameTemporaries& LumenFrameTemporaries)
 {
 	if (Lumen::UseLumenFrontLayerTranslucencyReflections(View) && View.bTranslucentSurfaceLighting)
 	{

@@ -58,8 +58,8 @@ public:
 	static int32 ObjectDataStride;
 	static int32 ObjectBoundsStride;
 
-	FRWBufferStructured Bounds;
-	FRWBufferStructured Data;
+	TRefCountPtr<FRDGPooledBuffer> Bounds;
+	TRefCountPtr<FRDGPooledBuffer> Data;
 
 	TDistanceFieldObjectBuffers()
 	{
@@ -69,13 +69,13 @@ public:
 
 	void Release()
 	{
-		Bounds.Release();
-		Data.Release();
+		Bounds = nullptr;
+		Data = nullptr;
 	}
 
 	size_t GetSizeBytes() const
 	{
-		return Bounds.NumBytes + Data.NumBytes;
+		return TryGetSize(Bounds) + TryGetSize(Data);
 	}
 };
 
@@ -86,16 +86,16 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldObjectBufferParameters, )
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
 	SHADER_PARAMETER(uint32, NumSceneObjects)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneHeightfieldObjectBounds)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneHeightfieldObjectData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, SceneHeightfieldObjectBounds)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, SceneHeightfieldObjectData)
 	SHADER_PARAMETER(uint32, NumSceneHeightfieldObjects)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldAtlasParameters, )
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneDistanceFieldAssetData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<uint>, DistanceFieldIndirectionTable)
-	SHADER_PARAMETER_SRV(Buffer<float4>, DistanceFieldIndirection2Table)
-	SHADER_PARAMETER_TEXTURE(Texture3D<float4>, DistanceFieldIndirectionAtlas)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, SceneDistanceFieldAssetData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, DistanceFieldIndirectionTable)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, DistanceFieldIndirection2Table)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture3D<float4>, DistanceFieldIndirectionAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldBrickTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldSampler)
 	SHADER_PARAMETER(FVector3f, DistanceFieldBrickSize)
@@ -110,8 +110,8 @@ BEGIN_SHADER_PARAMETER_STRUCT(FDistanceFieldAtlasParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FHeightFieldAtlasParameters, )
-	SHADER_PARAMETER_TEXTURE(Texture2D, HeightFieldTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D, HFVisibilityTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HeightFieldTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HFVisibilityTexture)
 END_SHADER_PARAMETER_STRUCT()
 
 namespace DistanceField
@@ -125,8 +125,8 @@ namespace DistanceField
 		FBox LumenBounds;
 	};
 
-	FDistanceFieldObjectBufferParameters SetupObjectBufferParameters(const FDistanceFieldSceneData& DistanceFieldSceneData);
-	FDistanceFieldAtlasParameters SetupAtlasParameters(const FDistanceFieldSceneData& DistanceFieldSceneData);
+	FDistanceFieldObjectBufferParameters SetupObjectBufferParameters(FRDGBuilder& GraphBuilder, const FDistanceFieldSceneData& DistanceFieldSceneData);
+	FDistanceFieldAtlasParameters SetupAtlasParameters(FRDGBuilder& GraphBuilder, const FDistanceFieldSceneData& DistanceFieldSceneData);
 	void BuildUpdateTrackingBounds(const TArrayView<FViewInfo>& Views, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 };
 

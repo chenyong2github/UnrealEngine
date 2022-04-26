@@ -449,7 +449,7 @@ private:
 	void InitViewsAfterPrepass(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, struct FILCUpdatePrimTaskData& ILCTaskData, FInstanceCullingManager& InstanceCullingManager);
 	void BeginUpdateLumenSceneTasks(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
 	void UpdateLumenScene(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
-	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries);
+	void RenderLumenSceneLighting(FRDGBuilder& GraphBuilder, const FLumenSceneFrameTemporaries& FrameTemporaries);
 
 	void RenderDirectLightingForLumenScene(
 		FRDGBuilder& GraphBuilder,
@@ -458,7 +458,7 @@ private:
 	
 	void RenderRadiosityForLumenScene(
 		FRDGBuilder& GraphBuilder,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const class FLumenCardTracingInputs& TracingInputs,
 		FRDGTextureRef RadiosityAtlas,
 		FRDGTextureRef RadiosityNumFramesAccumulatedAtlas,
@@ -466,13 +466,13 @@ private:
 
 	void ClearLumenSurfaceCacheAtlas(
 		FRDGBuilder& GraphBuilder,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const FGlobalShaderMap* GlobalShaderMap);
 
 	void UpdateLumenSurfaceCacheAtlas(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
 		FRDGBufferSRVRef CardCaptureRectBufferSRV,
 		const struct FCardCaptureAtlas& CardCaptureAtlas,
@@ -481,7 +481,7 @@ private:
 	void ComputeLumenSceneVoxelLighting(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const FLumenCardTracingInputs& TracingInputs,
 		class FLumenViewCardTracingInputs& ViewTracingInputs);
 
@@ -523,7 +523,7 @@ private:
 	FSSDSignalTextures RenderLumenProbeHierarchy(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const HybridIndirectLighting::FCommonParameters& CommonParameters,
 		const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
 		const FViewInfo& View,
@@ -533,7 +533,7 @@ private:
 	void RenderDiffuseIndirectAndAmbientOcclusion(
 		FRDGBuilder& GraphBuilder,
 		FSceneTextures& SceneTextures,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		FRDGTextureRef LightingChannelsTexture,
 		bool bIsVisualizePass);
 
@@ -587,7 +587,7 @@ private:
 	FSSDSignalTextures RenderLumenFinalGather(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		FRDGTextureRef LightingChannelsTexture,
 		FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
@@ -599,7 +599,7 @@ private:
 	FSSDSignalTextures RenderLumenScreenProbeGather(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		FRDGTextureRef LightingChannelsTexture,
 		FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
@@ -614,14 +614,14 @@ private:
 	FSSDSignalTextures RenderLumenIrradianceFieldGather(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const FViewInfo& View,
 		LumenRadianceCache::FRadianceCacheInterpolationParameters& TranslucencyVolumeRadianceCacheParameters);
 
 	void RenderLumenProbe(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const LumenProbeHierarchy::FHierarchyParameters& HierarchyParameters,
 		const LumenProbeHierarchy::FIndirectLightingAtlasParameters& IndirectLightingAtlasParameters,
 		const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters);
@@ -629,7 +629,7 @@ private:
 	void RenderLumenProbeOcclusion(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const HybridIndirectLighting::FCommonParameters& CommonParameters,
 		const LumenProbeHierarchy::FIndirectLightingProbeOcclusionParameters& ProbeOcclusionParameters);
 
@@ -637,7 +637,7 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		const FSceneTextures& SceneTextures,
-		FLumenSceneFrameTemporaries& FrameTemporaries,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 		const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 		ELumenReflectionPass ReflectionPass,
@@ -649,9 +649,9 @@ private:
 		FRDGBuilder& GraphBuilder,
 		FViewInfo& View,
 		const FSceneTextures& SceneTextures,
-		FLumenSceneFrameTemporaries& LumenFrameTemporaries);
+		const FLumenSceneFrameTemporaries& LumenFrameTemporaries);
 
-	void RenderLumenMiscVisualizations(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, FLumenSceneFrameTemporaries& FrameTemporaries);
+	void RenderLumenMiscVisualizations(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const FLumenSceneFrameTemporaries& FrameTemporaries);
 	void RenderLumenRadianceCacheVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);
 	void LumenScenePDIVisualization();
 

@@ -273,26 +273,27 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 	static_assert(DataStrideInFloat4s == 7, "Data stride doesn't match");
 }
 
-void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, FScene* Scene)
+void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, const FSceneViewFamily& ViewFamily, FScene* Scene)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
-	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCardSceneBuffer);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateCardSceneBuffer);
-	SCOPED_DRAW_EVENT(RHICmdList, UpdateCardSceneBuffer);
-	SCOPED_GPU_MASK(GraphBuilder.RHICmdList, FRHIGPUMask::All());
+	RDG_EVENT_SCOPE(GraphBuilder, "UpdateCardSceneBuffer");
+	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
 	// CardBuffer
 	{
-		bool bResourceResized = false;
+		FRDGBuffer* CardBuffer = nullptr;
+
 		{
 			const int32 NumCardEntries = LumenSceneData.Cards.Num();
 			const uint32 CardSceneNumFloat4s = NumCardEntries * FLumenCardGPUData::DataStrideInFloat4s;
 			const uint32 CardSceneNumBytes = FMath::DivideAndRoundUp(CardSceneNumFloat4s, 16384u) * 16384 * sizeof(FVector4f);
-			bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4f), TEXT("Lumen.Cards"));
+			CardBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LumenSceneData.CardBuffer, FMath::RoundUpToPowerOfTwo(CardSceneNumFloat4s) * sizeof(FVector4f), TEXT("Lumen.Cards"));
+			FrameTemporaries.CardBufferSRV = GraphBuilder.CreateSRV(CardBuffer);
 		}
 
 		if (GLumenSceneUploadEveryFrame)
@@ -311,7 +312,7 @@ void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, const FSceneViewFam
 		{
 			FLumenCard NullCard;
 
-			LumenSceneData.UploadBuffer.Init(NumCardDataUploads, FLumenCardGPUData::DataStrideInBytes, true, TEXT("Lumen.UploadBuffer"));
+			LumenSceneData.CardUploadBuffer.Init(GraphBuilder, NumCardDataUploads, FLumenCardGPUData::DataStrideInBytes, true, TEXT("Lumen.CardUploadBuffer"));
 
 			for (int32 Index : LumenSceneData.CardIndicesToUpdateInBuffer)
 			{
@@ -319,28 +320,16 @@ void Lumen::UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, const FSceneViewFam
 				{
 					const FLumenCard& Card = LumenSceneData.Cards.IsAllocated(Index) ? LumenSceneData.Cards[Index] : NullCard;
 
-					FVector4f* Data = (FVector4f*)LumenSceneData.UploadBuffer.Add_GetRef(Index);
+					FVector4f* Data = (FVector4f*)LumenSceneData.CardUploadBuffer.Add_GetRef(Index);
 					FLumenCardGPUData::FillData(Card, Data);
 				}
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			LumenSceneData.UploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.CardBuffer, false);
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-		}
-		else if (bResourceResized)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.CardBuffer.UAV, ERHIAccess::UAVCompute | ERHIAccess::UAVGraphics, ERHIAccess::SRVMask));
+			LumenSceneData.CardUploadBuffer.ResourceUploadTo(GraphBuilder, CardBuffer);
 		}
 	}
 
-	UpdateLumenMeshCards(*Scene, Scene->DistanceFieldSceneData, LumenSceneData, GraphBuilder);
-
-	const uint32 MaxUploadBufferSize = 64 * 1024;
-	if (LumenSceneData.UploadBuffer.GetNumBytes() > MaxUploadBufferSize)
-	{
-		LumenSceneData.UploadBuffer.Release();
-	}
+	UpdateLumenMeshCards(GraphBuilder, *Scene, Scene->DistanceFieldSceneData, FrameTemporaries, LumenSceneData);
 }
 
 int32 FLumenSceneData::GetMeshCardsIndex(const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 InstanceIndex) const
@@ -357,12 +346,10 @@ int32 FLumenSceneData::GetMeshCardsIndex(const FPrimitiveSceneInfo* PrimitiveSce
 	return -1;
 }
 
-void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRDGBuilder& GraphBuilder)
+void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneFrameTemporaries& FrameTemporaries, FLumenSceneData& LumenSceneData)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenMeshCards);
-
-	FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
 
 	extern int32 GLumenSceneUploadEveryFrame;
 	if (GLumenSceneUploadEveryFrame)
@@ -387,7 +374,8 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 		const uint32 NumMeshCards = LumenSceneData.MeshCards.Num();
 		const uint32 MeshCardsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumMeshCards * FLumenMeshCardsGPUData::DataStrideInFloat4s);
 		const uint32 MeshCardsNumBytes = MeshCardsNumFloat4s * sizeof(FVector4f);
-		const bool bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.MeshCardsBuffer, MeshCardsNumBytes, TEXT("Lumen.MeshCards"));
+		FRDGBuffer* MeshCardsBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LumenSceneData.MeshCardsBuffer, MeshCardsNumBytes, TEXT("Lumen.MeshCards"));
+		FrameTemporaries.MeshCardsBufferSRV = GraphBuilder.CreateSRV(MeshCardsBuffer);
 
 		const int32 NumMeshCardsUploads = LumenSceneData.MeshCardsIndicesToUpdateInBuffer.Num();
 
@@ -396,7 +384,7 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 			FLumenMeshCards NullMeshCards;
 			NullMeshCards.Initialize(FMatrix::Identity, FBox(FVector(-1.0f), FVector(-1.0f)), -1, 0, 0, false, false, false);
 
-			LumenSceneData.UploadBuffer.Init(NumMeshCardsUploads, FLumenMeshCardsGPUData::DataStrideInBytes, true, TEXT("Lumen.UploadBuffer"));
+			LumenSceneData.MeshCardsUploadBuffer.Init(GraphBuilder, NumMeshCardsUploads, FLumenMeshCardsGPUData::DataStrideInBytes, true, TEXT("Lumen.MeshCardsUpload"));
 
 			for (int32 Index : LumenSceneData.MeshCardsIndicesToUpdateInBuffer)
 			{
@@ -404,18 +392,12 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 				{
 					const FLumenMeshCards& MeshCards = LumenSceneData.MeshCards.IsAllocated(Index) ? LumenSceneData.MeshCards[Index] : NullMeshCards;
 
-					FVector4f* Data = (FVector4f*) LumenSceneData.UploadBuffer.Add_GetRef(Index);
+					FVector4f* Data = (FVector4f*)LumenSceneData.MeshCardsUploadBuffer.Add_GetRef(Index);
 					FLumenMeshCardsGPUData::FillData(MeshCards, Data);
 				}
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.MeshCardsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			LumenSceneData.UploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.MeshCardsBuffer, false);
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.MeshCardsBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-		}
-		else if (bResourceResized)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.MeshCardsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			LumenSceneData.MeshCardsUploadBuffer.ResourceUploadTo(GraphBuilder, MeshCardsBuffer);
 		}
 	}
 
@@ -426,7 +408,8 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 		const uint32 NumHeightfields = LumenSceneData.Heightfields.Num();
 		const uint32 HeightfieldsNumFloat4s = FMath::RoundUpToPowerOfTwo(NumHeightfields * FLumenHeightfieldGPUData::DataStrideInFloat4s);
 		const uint32 HeightfieldsNumBytes = HeightfieldsNumFloat4s * sizeof(FVector4f);
-		const bool bResourceResized = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.HeightfieldBuffer, HeightfieldsNumBytes, TEXT("Lumen.HeigthfieldBuffer"));
+		FRDGBuffer* HeightfieldBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LumenSceneData.HeightfieldBuffer, HeightfieldsNumBytes, TEXT("Lumen.Heightfield"));
+		FrameTemporaries.HeightfieldBufferSRV = GraphBuilder.CreateSRV(HeightfieldBuffer);
 
 		const int32 NumHeightfieldsUploads = LumenSceneData.HeightfieldIndicesToUpdateInBuffer.Num();
 
@@ -434,7 +417,7 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 		{
 			FLumenHeightfield NullHeightfield;
 
-			LumenSceneData.UploadBuffer.Init(NumHeightfieldsUploads, FLumenHeightfieldGPUData::DataStrideInBytes, true, TEXT("Lumen.UploadBuffer"));
+			LumenSceneData.HeightfieldUploadBuffer.Init(GraphBuilder, NumHeightfieldsUploads, FLumenHeightfieldGPUData::DataStrideInBytes, true, TEXT("Lumen.HeightfieldUpload"));
 
 			for (int32 Index : LumenSceneData.HeightfieldIndicesToUpdateInBuffer)
 			{
@@ -442,18 +425,12 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 				{
 					const FLumenHeightfield& Heightfield = LumenSceneData.Heightfields.IsAllocated(Index) ? LumenSceneData.Heightfields[Index] : NullHeightfield;
 
-					FVector4f* Data = (FVector4f*)LumenSceneData.UploadBuffer.Add_GetRef(Index);
+					FVector4f* Data = (FVector4f*)LumenSceneData.HeightfieldUploadBuffer.Add_GetRef(Index);
 					FLumenHeightfieldGPUData::FillData(Heightfield, LumenSceneData.MeshCards, Data);
 				}
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			LumenSceneData.UploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.HeightfieldBuffer, false);
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-		}
-		else if (bResourceResized)
-		{
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.HeightfieldBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+			LumenSceneData.HeightfieldUploadBuffer.ResourceUploadTo(GraphBuilder, HeightfieldBuffer);
 		}
 	}
 
@@ -474,7 +451,8 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 		const int32 NumIndices = FMath::Max(FMath::RoundUpToPowerOfTwo(Scene.GPUScene.InstanceSceneDataAllocator.GetMaxSize()), 1024u);
 		const uint32 IndexSizeInBytes = GPixelFormats[PF_R32_UINT].BlockBytes;
 		const uint32 IndicesSizeInBytes = NumIndices * IndexSizeInBytes;
-		ResizeResourceIfNeeded(RHICmdList, LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer, IndicesSizeInBytes, TEXT("SceneInstanceIndexToMeshCardsIndexBuffer"));
+		FRDGBuffer* SceneInstanceIndexToMeshCardsIndexBuffer = ResizeByteAddressBufferIfNeeded(GraphBuilder, LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer, IndicesSizeInBytes, TEXT("SceneInstanceIndexToMeshCardsIndexBuffer"));
+		FrameTemporaries.SceneInstanceIndexToMeshCardsIndexBufferSRV = GraphBuilder.CreateSRV(SceneInstanceIndexToMeshCardsIndexBuffer);
 
 		uint32 NumIndexUploads = 0;
 
@@ -489,7 +467,7 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 
 		if (NumIndexUploads > 0)
 		{
-			LumenSceneData.ByteBufferUploadBuffer.Init(NumIndexUploads, IndexSizeInBytes, false, TEXT("LumenUploadBuffer"));
+			LumenSceneData.SceneInstanceIndexToMeshCardsIndexUploadBuffer.Init(GraphBuilder, NumIndexUploads, IndexSizeInBytes, false, TEXT("Lumen.SceneInstanceIndexToMeshCardsIndexUploadBuffer"));
 
 			for (int32 PrimitiveIndex : LumenSceneData.PrimitivesToUpdateMeshCards)
 			{
@@ -502,14 +480,12 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 					{
 						const int32 MeshCardsIndex = LumenSceneData.GetMeshCardsIndex(PrimitiveSceneInfo, InstanceIndex);
 
-						LumenSceneData.ByteBufferUploadBuffer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset() + InstanceIndex, &MeshCardsIndex);
+						LumenSceneData.SceneInstanceIndexToMeshCardsIndexUploadBuffer.Add(PrimitiveSceneInfo->GetInstanceSceneDataOffset() + InstanceIndex, &MeshCardsIndex);
 					}
 				}
 			}
 
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-			LumenSceneData.ByteBufferUploadBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer, false);
-			RHICmdList.Transition(FRHITransitionInfo(LumenSceneData.SceneInstanceIndexToMeshCardsIndexBuffer.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+			LumenSceneData.SceneInstanceIndexToMeshCardsIndexUploadBuffer.ResourceUploadTo(GraphBuilder, SceneInstanceIndexToMeshCardsIndexBuffer);
 		}
 	}
 

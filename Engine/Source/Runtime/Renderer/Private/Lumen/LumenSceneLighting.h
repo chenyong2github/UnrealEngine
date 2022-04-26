@@ -200,7 +200,7 @@ namespace Lumen
 		FRDGBuilder& GraphBuilder,
 		const FLumenSceneData& LumenSceneData,
 		const TArrayView<FViewInfo>& Views,
-		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
+		const FLumenSceneFrameTemporaries& FrameTemporaries,
 		FLumenCardUpdateContext& DirectLightingCardUpdateContext,
 		FLumenCardUpdateContext& IndirectLightingCardUpdateContext);
 

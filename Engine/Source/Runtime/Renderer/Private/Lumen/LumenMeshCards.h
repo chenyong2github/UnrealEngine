@@ -13,12 +13,13 @@
 
 class FLumenCard;
 class FPrimitiveSceneInfo;
+struct FLumenSceneFrameTemporaries;
 
 namespace Lumen
 {
 	constexpr uint32 NumAxisAlignedDirections = 6;
 
-	void UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, const FSceneViewFamily& ViewFamily, FScene* Scene);
+	void UpdateCardSceneBuffer(FRDGBuilder& GraphBuilder, FLumenSceneFrameTemporaries& FrameTemporaries, const FSceneViewFamily& ViewFamily, FScene* Scene);
 };
 
 

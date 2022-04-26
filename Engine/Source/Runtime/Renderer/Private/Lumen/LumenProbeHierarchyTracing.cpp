@@ -240,7 +240,7 @@ IMPLEMENT_GLOBAL_SHADER(FLumenTraceProbeOcclusionCS, "/Engine/Private/Lumen/Fina
 void FDeferredShadingSceneRenderer::RenderLumenProbe(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const LumenProbeHierarchy::FHierarchyParameters& HierarchyParameters,
 	const LumenProbeHierarchy::FIndirectLightingAtlasParameters& IndirectLightingAtlasParameters,
 	const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters)
@@ -373,7 +373,7 @@ void FDeferredShadingSceneRenderer::RenderLumenProbe(
 void FDeferredShadingSceneRenderer::RenderLumenProbeOcclusion(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const HybridIndirectLighting::FCommonParameters& CommonParameters,
 	const LumenProbeHierarchy::FIndirectLightingProbeOcclusionParameters& ProbeOcclusionParameters)
 {

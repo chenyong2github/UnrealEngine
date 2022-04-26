@@ -1207,7 +1207,7 @@ void DrawLumenMeshCapturePass(
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(LumenEmitGBuffer);
 
-				FirstCardPage.PatchView(RHICmdList, &Scene, SharedView);
+				FirstCardPage.PatchView(&Scene, SharedView);
 				Scene.UniformBuffers.LumenCardCaptureViewUniformBuffer.UpdateUniformBufferImmediate(*SharedView->CachedViewUniformShaderParameters);
 
 				FNaniteUniformParameters UniformParams;

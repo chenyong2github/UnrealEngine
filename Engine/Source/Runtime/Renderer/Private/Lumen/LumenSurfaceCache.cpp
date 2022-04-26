@@ -204,7 +204,7 @@ void FLumenSceneData::AllocateCardAtlases(FRDGBuilder& GraphBuilder, FLumenScene
 void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
 	FRDGBufferSRVRef CardCaptureRectBufferSRV,
 	const FCardCaptureAtlas& CardCaptureAtlas,
@@ -505,7 +505,7 @@ IMPLEMENT_GLOBAL_SHADER(FClearCompressedAtlasCS, "/Engine/Private/Lumen/SurfaceC
 // Surface cache can be compressed
 void FDeferredShadingSceneRenderer::ClearLumenSurfaceCacheAtlas(
 	FRDGBuilder& GraphBuilder,
-	FLumenSceneFrameTemporaries& FrameTemporaries,
+	const FLumenSceneFrameTemporaries& FrameTemporaries,
 	const FGlobalShaderMap* GlobalShaderMap)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "ClearLumenSurfaceCache");
