@@ -422,10 +422,6 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyDisplaceFromTextu
 				UV.Y *= VHeight;
 
 				double Offset = DisplaceField.BilinearSampleClamped(UV);
-				//if (AdjustmentCurve)
-				//{
-				//	Offset = AdjustmentCurve->Eval(Offset);
-				//}
 				Offset -= Options.Center;
 
 				FVector3f Normal = Normals->GetElement(NormalTri[j]);
@@ -444,6 +440,48 @@ UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyDisplaceFromTextu
 			}
 		}
 
+
+	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
+
+	return TargetMesh;
+}
+
+
+
+
+
+
+UDynamicMesh* UGeometryScriptLibrary_MeshDeformFunctions::ApplyDisplaceFromPerVertexVectors(
+	UDynamicMesh* TargetMesh,
+	const FGeometryScriptVectorList& VectorList, 
+	float Magnitude,
+	UGeometryScriptDebug* Debug)
+{
+	if (TargetMesh == nullptr)
+	{
+		UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyDisplaceFromPerVertexVectors_InvalidInput", "ApplyDisplaceFromTextureMap: TargetMesh is Null"));
+		return TargetMesh;
+	}
+
+	const TArray<FVector>& Vectors = *VectorList.List;
+
+	TargetMesh->EditMesh([&](FDynamicMesh3& EditMesh)
+	{
+		if (Vectors.Num() < EditMesh.MaxVertexID())
+		{
+			UE::Geometry::AppendError(Debug, EGeometryScriptErrorType::InvalidInputs, LOCTEXT("ApplyDisplaceFromPerVertexVectors_InvalidVectorLength", "ApplyDisplaceFromTextureMap: VectorList Length is less than TargetMesh MaxVertexID"));
+			return;
+		}
+
+		for (int32 vid : EditMesh.VertexIndicesItr())
+		{
+			FVector Position = EditMesh.GetVertex(vid);
+			FVector Vector = Magnitude * Vectors[vid];
+			if (Vector.Length() < HALF_WORLD_MAX)		// this is a bit arbitrary but should avoid disasters
+			{
+				EditMesh.SetVertex(vid, Position + Vector);
+			}
+		}
 
 	}, EDynamicMeshChangeType::GeneralEdit, EDynamicMeshAttributeChangeFlags::Unknown, false);
 

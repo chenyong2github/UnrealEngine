@@ -254,4 +254,12 @@ public:
 		UGeometryScriptDebug* Debug = nullptr);
 
 	
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|Deformations", meta=(ScriptMethod))
+	static UPARAM(DisplayName = "Target Mesh") UDynamicMesh* 
+	ApplyDisplaceFromPerVertexVectors(  
+		UDynamicMesh* TargetMesh,
+		const FGeometryScriptVectorList& VectorList, 
+		float Magnitude = 5.0,
+		UGeometryScriptDebug* Debug = nullptr);
+
 };
