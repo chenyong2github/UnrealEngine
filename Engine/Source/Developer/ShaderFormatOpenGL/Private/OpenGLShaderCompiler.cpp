@@ -82,15 +82,6 @@ static FORCEINLINE bool IsPCESPlatform(GLSLVersion Version)
 	return (Version == GLSL_150_ES3_1);
 }
 
-// This function should match OpenGLShaderPlatformSeparable
-bool FOpenGLFrontend::SupportsSeparateShaderObjects(GLSLVersion Version)
-{
-	// Only desktop shader platforms can use separable shaders for now,
-	// the generated code relies on macros supplied at runtime to determine whether
-	// shaders may be separable and/or linked.
-	return Version == GLSL_150_ES3_1;
-}
-
 /*------------------------------------------------------------------------------
 	Shader compiling.
 ------------------------------------------------------------------------------*/
@@ -1161,11 +1152,6 @@ uint32 FOpenGLFrontend::CalculateCrossCompilerFlags(GLSLVersion Version, const b
 		// Enabling HLSLCC_GroupFlattenedUniformBuffers, see FORT-159483.
 		CCFlags |= HLSLCC_GroupFlattenedUniformBuffers;
 		CCFlags |= HLSLCC_ExpandUBMemberArrays;
-	}
-
-	if (SupportsSeparateShaderObjects(Version))
-	{
-		CCFlags |= HLSLCC_SeparateShaderObjects;
 	}
 
 	if (CompilerFlags.Contains(CFLAG_UsesExternalTexture))
@@ -3320,7 +3306,6 @@ enum class EPlatformType
 struct FDeviceCapabilities
 {
 	EPlatformType TargetPlatform = EPlatformType::Android;
-	bool bSupportsSeparateShaderObjects;
 };
 
 void FOpenGLFrontend::FillDeviceCapsOfflineCompilation(struct FDeviceCapabilities& Capabilities, const GLSLVersion ShaderVersion) const
@@ -3334,7 +3319,6 @@ void FOpenGLFrontend::FillDeviceCapsOfflineCompilation(struct FDeviceCapabilitie
 	else
 	{
 		Capabilities.TargetPlatform = EPlatformType::Desktop;
-		Capabilities.bSupportsSeparateShaderObjects = true;
 	}
 }
 
@@ -3380,7 +3364,7 @@ inline bool OpenGLShaderPlatformSeparable(const GLSLVersion InShaderPlatform)
 	switch (InShaderPlatform)
 	{
 		case GLSL_150_ES3_1:
-			return true;
+			return false;
 
 		case GLSL_ES3_1_ANDROID:
 			return false;
@@ -3439,7 +3423,6 @@ TSharedPtr<ANSICHAR> FOpenGLFrontend::PrepareCodeForOfflineCompilation(const GLS
 	// OpenGL SM5 shader platforms require location declarations for the layout, but don't necessarily use SSOs
 	if (Capabilities.TargetPlatform == EPlatformType::Desktop)
 	{
-		StrOutSource.Append(TEXT("#extension GL_ARB_separate_shader_objects : enable\n"));
 		StrOutSource.Append(TEXT("#define INTERFACE_BLOCK(Pos, Interp, Modifiers, Semantic, PreType, PostType) layout(location=Pos) Interp Modifiers struct { PreType PostType; }\n"));
 	}
 	else

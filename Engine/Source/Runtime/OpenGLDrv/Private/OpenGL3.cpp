@@ -11,7 +11,6 @@
 
 #if OPENGL_GL3
 
-bool FOpenGL3::bSupportsSeparateShaderObjects = false;
 bool FOpenGL3::bAndroidGLESCompatibilityMode = false;
 
 GLsizei FOpenGL3::NextTextureName = OPENGL_NAME_CACHE_SIZE;
@@ -77,11 +76,6 @@ void FOpenGL3::ProcessExtensions( const FString& ExtensionsString )
 		glDeleteTextures(1, &VolumeTexture);
 		glDeleteFramebuffers(1, &FrameBuffer);
 	}
-	
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("OpenGL.UseSeparateShaderObjects"));
-	bool const bUseSeparateShaderObjects = (CVar ? (CVar->GetValueOnRenderThread() == 1) : false) && OpenGLShaderPlatformSeparable(GetShaderPlatform());
-	
-	bSupportsSeparateShaderObjects = bUseSeparateShaderObjects && (ExtensionsString.Contains(TEXT("GL_ARB_separate_shader_objects")) || (MajorVersion == 4 && MinorVersion >= 4));
 
 	bAndroidGLESCompatibilityMode = GetFeatureLevel() == ERHIFeatureLevel::ES3_1 && ExtensionsString.Contains(TEXT("GL_ARB_ES3_1_compatibility")) && FParse::Param(FCommandLine::Get(), TEXT("GLESCompat"));
 }

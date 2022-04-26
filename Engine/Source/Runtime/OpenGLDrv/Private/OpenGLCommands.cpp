@@ -97,12 +97,6 @@ namespace OpenGLConsoleVariables
 		ECVF_ReadOnly
 	);
 
-	static TAutoConsoleVariable<int32> CVarUseSeparateShaderObjects(
-		TEXT("OpenGL.UseSeparateShaderObjects"),
-		0,
-		TEXT("If set to 1, use OpenGL's separate shader objects to eliminate expensive program linking"),
-		ECVF_ReadOnly|ECVF_RenderThreadSafe);
-
 	int32 GOpenGLForceBilinear = 0;
 	static FAutoConsoleVariableRef CVarOpenGLForceBilinearSampling(
 		TEXT("r.OpenGL.ForceBilinear"),
@@ -2240,44 +2234,6 @@ void FOpenGLDynamicRHI::CommitComputeResourceTables(FOpenGLComputeShader* Comput
 	PendingState.DirtyUniformBuffers[SF_Compute] = 0;
 }
 
-#if DEBUG_GL_SHADERS
-static void VerifyProgramPipeline()
-{
-	if (FOpenGL::SupportsSeparateShaderObjects())
-	{
-		VERIFY_GL_SCOPE();
-		GLint ProgramPipeline = 0;
-		glGetIntegerv(GL_PROGRAM_PIPELINE_BINDING, &ProgramPipeline);
-		if(ProgramPipeline)
-		{
-			FOpenGL::ValidateProgramPipeline(ProgramPipeline);
-			GLint LinkStatus = GL_FALSE;
-			FOpenGL::GetProgramPipelineiv(ProgramPipeline, GL_VALIDATE_STATUS, &LinkStatus);
-			if(LinkStatus == GL_FALSE)
-			{
-				GLint LogLength = 0;
-				FOpenGL::GetProgramPipelineiv(ProgramPipeline, GL_INFO_LOG_LENGTH, &LogLength);
-				ANSICHAR DefaultLog[] = "No log";
-				ANSICHAR *CompileLog = DefaultLog;
-				if (LogLength > 1)
-				{
-					CompileLog = (ANSICHAR *)FMemory::Malloc(LogLength);
-					FOpenGL::GetProgramPipelineInfoLog(ProgramPipeline, LogLength, NULL, CompileLog);
-				}
-				
-				UE_LOG(LogRHI,Error,TEXT("Failed to validate pipeline %d. Compile log:\n%s"), ProgramPipeline,
-					   ANSI_TO_TCHAR(CompileLog));
-				
-				if (LogLength > 1)
-				{
-					FMemory::Free(CompileLog);
-				}
-			}
-		}
-	}
-}
-#endif
-
 void FOpenGLDynamicRHI::RHIDrawPrimitive(uint32 BaseVertexIndex,uint32 NumPrimitives,uint32 NumInstances)
 {
 	SCOPE_CYCLE_COUNTER_DETAILED(STAT_OpenGLDrawPrimitiveTime);
@@ -2304,10 +2260,6 @@ void FOpenGLDynamicRHI::RHIDrawPrimitive(uint32 BaseVertexIndex,uint32 NumPrimit
 	GLsizei NumElements = 0;
 	GLint PatchSize = 0;
 	FindPrimitiveType(PrimitiveType, NumPrimitives, DrawMode, NumElements, PatchSize);
-
-#if DEBUG_GL_SHADERS
-	VerifyProgramPipeline();
-#endif
 
 	GPUProfilingData.RegisterGPUWork(NumPrimitives * NumInstances, VertexCount * NumInstances);
 	if (NumInstances == 1)
@@ -2498,10 +2450,6 @@ void FOpenGLDynamicRHI::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, int3
 
 	GLenum IndexType = IndexBuffer->GetStride() == sizeof(uint32) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
 	StartIndex *= IndexBuffer->GetStride() == sizeof(uint32) ? sizeof(uint32) : sizeof(uint16);
-
-#if DEBUG_GL_SHADERS
-	VerifyProgramPipeline();
-#endif
 
 	GPUProfilingData.RegisterGPUWork(NumPrimitives * NumInstances, NumElements * NumInstances);
 	if (NumInstances > 1)

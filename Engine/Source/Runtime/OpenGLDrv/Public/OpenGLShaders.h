@@ -24,7 +24,6 @@ struct FOpenGLShaderDeviceCapabilities
 {
 	EOpenGLShaderTargetPlatform TargetPlatform;
 	EShaderPlatform MaxRHIShaderPlatform;
-	bool bSupportsSeparateShaderObjects;
 	bool bSupportsShaderFramebufferFetch;
 	bool bRequiresARMShaderFramebufferFetchDepthStencilUndef;
 	GLint MaxVaryingVectors;

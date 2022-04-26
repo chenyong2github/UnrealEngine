@@ -132,7 +132,6 @@ public:
 	static FORCEINLINE bool SupportsBindlessTexture()					{ return false; }
 	static FORCEINLINE bool HasHardwareHiddenSurfaceRemoval()			{ return false; }
 	static FORCEINLINE bool AmdWorkaround()								{ return false; }
-	static FORCEINLINE bool SupportsSeparateShaderObjects()				{ return false; }
 	static FORCEINLINE bool SupportsProgramBinary()						{ return false; }
 	static FORCEINLINE bool SupportsDepthClamp()						{ return true; }
 	

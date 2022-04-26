@@ -41,7 +41,6 @@ struct FOpenGL3 : public FOpenGLBase
 	static FORCEINLINE bool SupportsVolumeTextureRendering()		{ return bSupportsVolumeTextureRendering; }
 	static FORCEINLINE bool SupportsGenerateMipmap()				{ return true; }
 	static FORCEINLINE bool AmdWorkaround()							{ return bAmdWorkaround; }
-	static FORCEINLINE bool SupportsSeparateShaderObjects()			{ return bSupportsSeparateShaderObjects; }
 	static FORCEINLINE bool SupportsBufferStorage()					{ return true; }
 
 	// Optional
@@ -578,156 +577,24 @@ struct FOpenGL3 : public FOpenGLBase
 	}
 	static FORCEINLINE void ProgramParameter(GLuint Program, GLenum PName, GLint Value)
 	{
-		check(PName != GL_PROGRAM_SEPARABLE || FOpenGL3::SupportsSeparateShaderObjects());
+		check(PName != GL_PROGRAM_SEPARABLE);
 		glProgramParameteri(Program, PName, Value);
-	}
-	static FORCEINLINE void UseProgramStages(GLuint Pipeline, GLbitfield Stages, GLuint Program)
-	{
-		if(FOpenGL3::SupportsSeparateShaderObjects())
-		{
-			glUseProgramStages(Pipeline, Stages, Program);
-		}
-		else
-		{
-			glAttachShader(Pipeline, Program);
-		}
-	}
-	static FORCEINLINE void BindProgramPipeline(GLuint Pipeline)
-	{
-		if(FOpenGL3::SupportsSeparateShaderObjects())
-		{
-			glBindProgramPipeline(Pipeline);
-		}
-		else
-		{
-			glUseProgram(Pipeline);
-		}
-	}
-	static FORCEINLINE void DeleteShader(GLuint Program)
-	{
-		if(FOpenGL3::SupportsSeparateShaderObjects())
-		{
-			GLsizei NumShaders = 0;
-			glGetProgramiv(Program, GL_ATTACHED_SHADERS, (GLint*)&NumShaders);
-			if(NumShaders > 0)
-			{
-				GLuint* Shaders = (GLuint*)FMemory::Malloc(sizeof(GLuint) * NumShaders);
-				glGetAttachedShaders(Program, NumShaders, &NumShaders, Shaders);
-				for(int32 i = 0; i < NumShaders; i++)
-				{
-					glDetachShader(Program, Shaders[i]);
-					glDeleteShader(Shaders[i]);
-				}
-				FMemory::Free(Shaders);
-			}
-			
-			glDeleteProgram(Program);
-		}
-		else
-		{
-			glDeleteShader(Program);
-		}
-	}
-	static FORCEINLINE void DeleteProgramPipelines(GLsizei Number, const GLuint *Pipelines)
-	{
-		if(FOpenGL3::SupportsSeparateShaderObjects())
-		{
-			glDeleteProgramPipelines(Number, Pipelines);
-		}
-		else
-		{
-			for(GLsizei i = 0; i < Number; i++)
-			{
-				glDeleteProgram(Pipelines[i]);
-			}
-		}
-	}
-	static FORCEINLINE void GenProgramPipelines(GLsizei Number, GLuint *Pipelines)
-	{
-		if(FOpenGL3::SupportsSeparateShaderObjects())
-		{
-#if USE_OPENGL_NAME_CACHE
-			if ( Number < OPENGL_NAME_CACHE_SIZE - NextPipelineName)
-			{
-				FMemory::Memcpy( Pipelines, &PipelineNamesCache[NextPipelineName], sizeof(GLuint)*Number);
-				NextPipelineName += Number;
-			}
-			else
-			{
-				if ( Number >= OPENGL_NAME_CACHE_SIZE)
-				{
-					glGenProgramPipelines(Number, Pipelines);
-				}
-				else
-				{
-					GLsizei Leftover = OPENGL_NAME_CACHE_SIZE - NextPipelineName;
-
-					FMemory::Memcpy( Pipelines, &PipelineNamesCache[NextPipelineName], sizeof(GLuint)*Leftover);
-
-					glGenProgramPipelines( OPENGL_NAME_CACHE_SIZE, PipelineNamesCache);
-
-					Number -= Leftover;
-					Pipelines += Leftover;
-
-					FMemory::Memcpy( Pipelines, PipelineNamesCache, sizeof(GLuint)*Number);
-					NextPipelineName = Number;
-				}
-			}
-#else
-			glGenProgramPipelines(Number, Pipelines);
-#endif
-		}
-		else
-		{
-			for(GLsizei i = 0; i < Number; i++)
-			{
-				Pipelines[i] = FOpenGL3::CreateProgram();
-			}
-		}
 	}
 	static FORCEINLINE void ProgramUniform1i(GLuint Program, GLint Location, GLint V0)
 	{
-		if (FOpenGL3::SupportsSeparateShaderObjects())
-		{
-			glProgramUniform1i(Program, Location, V0);
-		}
-		else
-		{
-			glUniform1i(Location, V0);
-		}
+		glUniform1i(Location, V0);
 	}
 	static FORCEINLINE void ProgramUniform4iv(GLuint Program, GLint Location, GLsizei Count, const GLint *Value)
 	{
-		if (FOpenGL3::SupportsSeparateShaderObjects())
-		{
-			glProgramUniform4iv(Program, Location, Count, Value);
-		}
-		else
-		{
-			glUniform4iv(Location, Count, Value);
-		}
+		glUniform4iv(Location, Count, Value);
 	}
 	static FORCEINLINE void ProgramUniform4fv(GLuint Program, GLint Location, GLsizei Count, const GLfloat *Value)
 	{
-		if (FOpenGL3::SupportsSeparateShaderObjects())
-		{
-			glProgramUniform4fv(Program, Location, Count, Value);
-		}
-		else
-		{
-			glUniform4fv(Location, Count, Value);
-		}
+		glUniform4fv(Location, Count, Value);
 	}
 	static FORCEINLINE void ProgramUniform4uiv(GLuint Program, GLint Location, GLsizei Count, const GLuint *Value)
 	{
-		if (FOpenGL3::SupportsSeparateShaderObjects())
-		{
-			glProgramUniform4uiv(Program, Location, Count, Value);
-		}
-		else
-		{
-			glUniform4uiv(Location, Count, Value);
-		}
+		glUniform4uiv(Location, Count, Value);
 	}
 	static FORCEINLINE void GetProgramPipelineiv(GLuint Pipeline, GLenum Pname, GLint* Params)
 	{
@@ -783,6 +650,5 @@ protected:
 	static GLint TimestampQueryBits;
 	
 	static bool bDebugContext;
-	static bool bSupportsSeparateShaderObjects;
 	static bool bAndroidGLESCompatibilityMode;
 };
