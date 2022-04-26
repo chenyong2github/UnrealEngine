@@ -135,7 +135,7 @@ namespace UE::Tasks
 			void Launch(
 				const TCHAR* DebugName,
 				TaskBodyType&& TaskBody,
-				LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Normal
+				ETaskPriority Priority = ETaskPriority::Normal
 			)
 			{
 				check(!IsValid());
@@ -159,7 +159,7 @@ namespace UE::Tasks
 				const TCHAR* DebugName,
 				TaskBodyType&& TaskBody,
 				PrerequisitesCollectionType&& Prerequisites,
-				LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Normal
+				ETaskPriority Priority = ETaskPriority::Normal
 			)
 			{
 				check(!IsValid());
@@ -170,6 +170,11 @@ namespace UE::Tasks
 				// this must happen before launching, to support an ability to access the task itself from inside it
 				*Pimpl.GetInitReference() = Task;
 				Task->TryLaunch();
+			}
+
+			bool IsAwaitable() const
+			{
+				return IsValid() && Pimpl->IsAwaitable();
 			}
 
 		protected:
@@ -261,7 +266,7 @@ namespace UE::Tasks
 	TTask<TInvokeResult_T<TaskBodyType>> Launch(
 		const TCHAR* DebugName,
 		TaskBodyType&& TaskBody,
-		LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Normal
+		ETaskPriority Priority = ETaskPriority::Normal
 	)
 	{
 		using FResult = TInvokeResult_T<TaskBodyType>;
@@ -282,7 +287,7 @@ namespace UE::Tasks
 		const TCHAR* DebugName,
 		TaskBodyType&& TaskBody,
 		PrerequisitesCollectionType&& Prerequisites,
-		LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Normal
+		ETaskPriority Priority = ETaskPriority::Normal
 	)
 	{
 		using FResult = TInvokeResult_T<TaskBodyType>;

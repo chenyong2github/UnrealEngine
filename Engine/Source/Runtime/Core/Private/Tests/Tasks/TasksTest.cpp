@@ -322,6 +322,37 @@ namespace UE { namespace TasksTests
 			Task.Wait();
 		}
 
+		{	// test basic functionality of TTask::IsAwaitable()
+			FTask Task;
+			Task.Launch(UE_SOURCE_LOCATION,
+				[&Task] 
+				{
+					check(!Task.IsAwaitable()); // Task.Wait() would deadlock if called here inside its execution
+				}
+			);
+			check(Task.IsAwaitable());
+			Task.Wait();
+		}
+
+
+		{	// TTask::IsAwaitable() returns false when called from its inner task execution
+			FTask Outer;
+			Outer.Launch(UE_SOURCE_LOCATION,
+				[&Outer]
+				{
+					auto InnerTaskBody = [&Outer] { check(!Outer.IsAwaitable()); /* still inside `Outer` execution */ };
+
+					// using the private API for `EExtendedTaskPriority::Inline` to force inner task execution inside the outer task
+					using namespace UE::Tasks::Private;
+					using FInnerTask = TExecutableTask<decltype(InnerTaskBody)>;
+
+					FInnerTask InnerTask{ UE_SOURCE_LOCATION, MoveTemp(InnerTaskBody), ETaskPriority::Default, EExtendedTaskPriority::Inline };
+					verify(InnerTask.TryLaunch()); // blocking execution of InnerTask due to its "inline" priority
+				}
+			);
+			Outer.Wait();
+		}
+
 		//{	// Cancelled task is completed only after nested
 		//	FTaskEvent ParentBlocker{ UE_SOURCE_LOCATION };
 		//	FTaskEvent NestedBlocker{ UE_SOURCE_LOCATION };

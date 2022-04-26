@@ -118,6 +118,13 @@ namespace UE::Tasks
 			virtual bool TryExecuteTask() = 0;
 
 		public:
+			// returns true if it's valid to wait for the task completion.
+			// it's not valid to wait for a task e.g. from inside task's execution, as this would deadlock
+			bool IsAwaitable() const
+			{
+				return FPlatformTLS::GetCurrentThreadId() != ExecutingThreadId.load(std::memory_order_relaxed);
+			}
+
 			EExtendedTaskPriority GetExtendedPriority() const
 			{
 				return ExtendedPriority;
@@ -457,6 +464,7 @@ namespace UE::Tasks
 				ReleasePrerequisites();
 
 				FTaskBase* PrevTask = ExchangeCurrentTask(this);
+				ExecutingThreadId.store(FPlatformTLS::GetCurrentThreadId(), std::memory_order_relaxed);
 
 				if (GetPipe() != nullptr)
 				{
@@ -470,6 +478,8 @@ namespace UE::Tasks
 					FinishPipeExecution();
 				}
 
+				ExecutingThreadId.store(FThread::InvalidThreadId, std::memory_order_relaxed); // no need to sync with loads as they matter only if
+				// executed by the same thread
 				ExchangeCurrentTask(PrevTask);
 
 				// close the task if there are no pending nested tasks
@@ -657,6 +667,8 @@ namespace UE::Tasks
 			TLockFreePointerListUnordered<FTaskBase, 0> Prerequisites;
 
 			FPipe* Pipe{ nullptr };
+
+			std::atomic<uint32> ExecutingThreadId = FThread::InvalidThreadId;
 		};
 
 		// an extension of FTaskBase for tasks that return a result.
