@@ -14,9 +14,6 @@
 #include "Serialization/BulkDataRegistry.h"
 #include "Templates/Tuple.h"
 
-// MRPTODO
-PRAGMA_DISABLE_OPTIMIZATION;
-
 namespace UE::DerivedData
 {
 
