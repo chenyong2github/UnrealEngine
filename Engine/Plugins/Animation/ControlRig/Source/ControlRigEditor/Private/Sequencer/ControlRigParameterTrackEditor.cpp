@@ -3816,7 +3816,10 @@ void FControlRigParameterSection::BuildSectionContextMenu(FMenuBuilder& MenuBuil
 				LOCTEXT("SetFromSelectedControls", "Set From Selected Controls"),
 				LOCTEXT("SetFromSelectedControls_ToolTip", "Set active channels from the current control selection"),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateLambda([=] { ShowSelectedControlsChannels(); }))
+				FUIAction(
+					FExecuteAction::CreateLambda([=] { ShowSelectedControlsChannels(); }),
+					FCanExecuteAction::CreateLambda([=] { return ControlRig->CurrentControlSelection().Num() > 0; } )
+				)
 			);
 
 			MenuBuilder.AddMenuEntry(
