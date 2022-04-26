@@ -79,11 +79,11 @@ void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
 	{
 		SpacePartitionClass = LoadClass<USmartObjectSpacePartition>(this, *SpacePartitionClassName.ToString());
 		UE_CVLOG_UELOG(*SpacePartitionClass == nullptr, this, LogSmartObject, Error, TEXT("Unable to load class %s"), *SpacePartitionClassName.ToString());
-}
+	}
 
 	// Class not specified or invalid, use some default
 	if (SpacePartitionClass.Get() == nullptr)
-{
+	{
 		SpacePartitionClassName = FSoftClassPath(USmartObjectHashGrid::StaticClass());
 		SpacePartitionClass = USmartObjectHashGrid::StaticClass();
 		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Using default class %s"), *SpacePartitionClassName.ToString());
@@ -107,8 +107,6 @@ void USmartObjectSubsystem::OnWorldComponentsUpdated(UWorld& World)
 		ComputeBounds(World, *MainCollection);
 	}
 #endif // WITH_EDITOR
-
-	UE_CVLOG_UELOG(!IsValid(MainCollection), this, LogSmartObject, Error, TEXT("Collection is expected to be set once world components are updated."));
 }
 
 USmartObjectSubsystem* USmartObjectSubsystem::GetCurrent(const UWorld* World)
@@ -371,7 +369,18 @@ bool USmartObjectSubsystem::RegisterSmartObjectInternal(USmartObjectComponent& S
 	}
 	else
 	{
-		UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection since Main Collection is not set."), *GetNameSafe(SmartObjectComponent.GetOwner()));
+		if (bInitialCollectionAddedToSimulation)
+		{
+			// Report error regarding missing Collection only when SmartObjects are registered (i.e. Collection is required)
+			UE_VLOG_UELOG(this, LogSmartObject, Error,
+				TEXT("%s not added to collection since Main Collection doesn't exist in world '%s'. You need to open and save that world to create the missing collection."),
+				*GetNameSafe(SmartObjectComponent.GetOwner()),
+				*GetWorldRef().GetFullName());
+		}
+		else
+		{
+			UE_VLOG_UELOG(this, LogSmartObject, VeryVerbose, TEXT("%s not added to collection since Main Collection is not set yet."), *GetNameSafe(SmartObjectComponent.GetOwner()));	
+		}
 	}
 
 	check(RegisteredSOComponents.Find(&SmartObjectComponent) == INDEX_NONE);
@@ -1094,7 +1103,11 @@ void USmartObjectSubsystem::InitializeRuntime()
 		}
 		else
 		{
-			UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Missing collection during %s."), ANSI_TO_TCHAR(__FUNCTION__));
+			// Report error regarding missing Collection only when SmartObjects are present in the world (i.e. Collection is required)
+			UE_CVLOG_UELOG(RegisteredSOComponents.Num(), this, LogSmartObject, Error,
+				TEXT("Missing collection in world '%s' during %s. You need to open and save that world to create the missing collection."),
+				*GetWorldRef().GetFullName(),
+				ANSI_TO_TCHAR(__FUNCTION__));
 		}
 
 		return;
