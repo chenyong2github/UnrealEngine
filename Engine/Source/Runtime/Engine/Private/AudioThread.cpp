@@ -656,6 +656,7 @@ void FAudioThread::StopAudioThread()
 
 	check(ResumeEvent.IsValid());
 	ResumeEvent->Trigger(); // every FTaskEvent must be triggered before destruction to pass the check for completion
+	ResumeEvent.Reset();
 }
 
 FAudioCommandFence::~FAudioCommandFence()
