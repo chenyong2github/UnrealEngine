@@ -504,6 +504,10 @@ namespace Horde.Build.Controllers
 			{
 				newNominatedById = new UserId(request.NominatedById);
 			}
+			else if (request.OwnerId != null)
+			{
+				newNominatedById = User.GetUserId();
+			}
 
 			UserId? newDeclinedById = null;
 			if (request.Declined ?? false)
