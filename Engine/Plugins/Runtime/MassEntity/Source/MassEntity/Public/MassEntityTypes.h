@@ -420,11 +420,11 @@ namespace UE::Mass
 			Ordinal = Super::Ordinal + 1
 		};
 
-		template<typename TBaseStruct>
-		static void PopulateBitSet(TStructTypeBitSet<TBaseStruct>& OutBitSet)
+		template<typename TBitSetType>
+		static void PopulateBitSet(TBitSetType& OutBitSet)
 		{
 			Super::PopulateBitSet(OutBitSet);
-			OutBitSet += TStructTypeBitSet<TBaseStruct>::template GetTypeBitSet<FType>();
+			OutBitSet += TBitSetType::template GetTypeBitSet<FType>();
 		}
 	};
 		
@@ -438,10 +438,10 @@ namespace UE::Mass
 			Ordinal = 0
 		};
 
-		template<typename TBaseStruct>
-		static void PopulateBitSet(TStructTypeBitSet<TBaseStruct>& OutBitSet)
+		template<typename TBitSetType>
+		static void PopulateBitSet(TBitSetType& OutBitSet)
 		{
-			OutBitSet += TStructTypeBitSet<TBaseStruct>::template GetTypeBitSet<FType>();
+			OutBitSet += TBitSetType::template GetTypeBitSet<FType>();
 		}
 	};
 

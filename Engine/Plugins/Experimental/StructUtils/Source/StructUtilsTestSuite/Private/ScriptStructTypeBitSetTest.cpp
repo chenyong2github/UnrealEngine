@@ -16,11 +16,18 @@ DEFINE_TYPEBITSET(FTestStructBaseBitSet);
 
 namespace FStructTypeBitSetTests
 {
-struct FTestStructBitSet : public TStructTypeBitSet<FTestStructSimple>
+struct FTestStructBaseBitSetStructTracker
 {
+	static FStructTracker StructTracker;
+};
+FStructTracker FTestStructBaseBitSetStructTracker::StructTracker;
+
+struct FTestStructBitSet : public TStructTypeBitSet<FTestStructSimple, FTestStructBaseBitSetStructTracker>
+{
+	using Super = TStructTypeBitSet<FTestStructSimple, FTestStructBaseBitSetStructTracker>;
 	FTestStructBitSet() = default;
-	FTestStructBitSet(const TStructTypeBitSet<FTestStructSimple>& Other) 
-		: TStructTypeBitSet<FTestStructSimple>(Other)
+	FTestStructBitSet(const Super& Other)
+		: Super(Other)
 	{
 
 	}
