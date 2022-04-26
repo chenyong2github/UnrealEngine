@@ -45,12 +45,10 @@ struct FGenericPlatformMallocCrash final : public FMalloc
 	friend struct FPoolDesc;
 	friend struct FMallocCrashPool;
 
-private:
 	enum
 	{
 		LARGE_MEMORYPOOL_SIZE = 2 * 1024 * 1024,
 		REQUIRED_ALIGNMENT = 16,
-		PER_ALLOC_OVERHEAD = sizeof(FPtrInfo),
 
 		NUM_POOLS = 14,
 		MAX_NUM_ALLOCS_IN_POOL = 2048,
@@ -114,13 +112,19 @@ protected:
 	bool IsPtrInSmallPool(void* Ptr) const;
 
 	const FPoolDesc& GetPoolDesc( uint32 Index ) const;
-	uint32 GetSmallPoolTotalSize() const;
+	uint32 CalculateSmallPoolTotalSize() const;
+	uint32 CalculateBookkeepingPoolTotalSize() const;
 
 	void InitializeSmallPools();
-	FMallocCrashPool* FindPoolFromSize( uint32 AllocationSize ) const;
+
+	// Choose a pool to make a new allocation from of the given size - may use a larger pool than necessary if small pools are exhausted.
+	FMallocCrashPool* ChoosePoolForSize( uint32 AllocationSize ) const;
+	// Find the pool that an allocation was made from if any.
+	FMallocCrashPool* FindPoolForAlloc(void* Ptr) const;
+	uint8* AllocateFromBookkeeping(uint32 AllocationSize);
 	uint8* AllocateFromSmallPool( uint32 AllocationSize );
 
-	static uint32 GetAllocationSize(void *Original);
+	uint64 GetAllocationSize(void *Original);
 
 	/**
 	 * @return page size, if page size is not initialized, returns 64k.
@@ -132,22 +136,30 @@ protected:
 	FCriticalSection InternalLock;
 
 	/** The id of the thread that crashed. */
-	int32 CrashedThreadId;
+	int32 CrashedThreadId = 0;
 
 	/** Preallocated memory pool for large allocations. */
-	uint8* LargeMemoryPool;
+	uint8* LargeMemoryPool = nullptr;
 
 	/** Current position in the large memory pool. */
-	uint32 LargeMemoryPoolOffset;
+	uint32 LargeMemoryPoolOffset = 0;
 
 	/** Preallocated memory pool for small allocations. */
-	uint8* SmallMemoryPool;
+	uint8* SmallMemoryPool = nullptr;
 
 	/** Current position in the small memory pool. */
-	uint32 SmallMemoryPoolOffset;
+	uint32 SmallMemoryPoolOffset = 0;
+	uint32 SmallMemoryPoolSize = 0;
+
+	/** Preallocated memory pool for bookkeeping. */
+	uint8* BookkeepingPool = nullptr;
+
+	/** Current position in the bookkeeping pool. */
+	uint32 BookkeepingPoolOffset = 0;
+	uint32 BookkeepingPoolSize = 0;
 
 	/** Previously used malloc. */
-	FMalloc* PreviousMalloc;
+	FMalloc* PreviousMalloc = nullptr;
 };
 
 
