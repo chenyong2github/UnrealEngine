@@ -22,7 +22,6 @@ public:
 	SLATE_BEGIN_ARGS(SMVVMViewModelContextListWidget) {}
 		SLATE_NAMED_SLOT(FArguments, ButtonsPanel)
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, ParentWindow)
-		SLATE_ARGUMENT(UBlueprintGeneratedClass*, OwningWidget)
 		SLATE_ARGUMENT(UWidgetBlueprint*, WidgetBlueprint)
 		SLATE_ARGUMENT(TArrayView<const FMVVMBlueprintViewBinding>, Bindings)
 		SLATE_ARGUMENT(TArray<FMVVMBlueprintViewModelContext>, ExistingViewModelContexts)
@@ -31,7 +30,7 @@ public:
 
 	void Construct(const FArguments& InArgs);
 	void AddViewModelContext(TSubclassOf<UMVVMViewModelBase> ViewModelClass);
-	TArray<FMVVMBlueprintViewModelContext> GetViewModelContexts();
+	TArray<FMVVMBlueprintViewModelContext> GetViewModelContexts() const;
 
 private:
 	TSharedRef<ITableRow> HandleGenerateRowForListView(TSharedPtr<FMVVMBlueprintViewModelContext> Item, const TSharedRef<STableViewBase>& OwnerTable);
@@ -45,7 +44,6 @@ private:
 	TArray<TSharedPtr<FMVVMBlueprintViewModelContext>> ContextListSource;
 	TSharedPtr<SListView<TSharedPtr<FMVVMBlueprintViewModelContext>>> ContextListWidget;
 	TArray<FMVVMBlueprintViewModelContext> ExistingViewModelContexts;
-	UBlueprintGeneratedClass* OwningWidget = nullptr;
 	UWidgetBlueprint* WidgetBlueprint = nullptr;
 	FOnViewModelContextsUpdated OnViewModelContextsUpdated;
 	TArrayView<const FMVVMBlueprintViewBinding> Bindings;

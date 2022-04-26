@@ -211,16 +211,10 @@ void SMVVMViewBindingPanel::ShowManageViewModelsWindow()
 				.SupportsMaximize(false)
 				.ClientSize(FVector2D(800.0f, 600.0f));
 
-			TSharedRef<SMVVMViewModelContextListWidget> ContextListWidget = SNew(SMVVMViewModelContextListWidget)
-				.Bindings(BlueprintView->GetBindings())
-				.ExistingViewModelContexts(TArray<FMVVMBlueprintViewModelContext>(BlueprintView->GetViewModels()))
-				.WidgetBlueprint(WeakBlueprintEditor.Pin()->GetWidgetBlueprintObj())
-				.OwningWidget(Cast<UBlueprintGeneratedClass>(WeakBlueprintEditor.Pin()->GetBlueprintObj()->SkeletonGeneratedClass));
-
 			TSharedRef<SMVVMManageViewModelsWidget> ManageViewModelsWidget = SNew(SMVVMManageViewModelsWidget)
 				.ParentWindow(ManageViewModelsWindow)
 				.OnViewModelContextsPickedDelegate(ViewModelContextsPickedDelegate)
-				.ManageViewModelsWidget(ContextListWidget);
+				.WidgetBlueprint(WeakBlueprintEditor.Pin()->GetWidgetBlueprintObj());
 
 			ManageViewModelsWindow->SetContent(ManageViewModelsWidget);
 			GEditor->EditorAddModalWindow(ManageViewModelsWindow);
@@ -337,7 +331,7 @@ TSharedRef<SWidget> SMVVMViewBindingPanel::GenerateCreateViewWidget()
 			[
 				SNew(SButton)
 				.OnClicked(this, &SMVVMViewBindingPanel::HandleCreateViewClicked)
-				.Text(LOCTEXT("CreateViewButtonText", "Create View"))
+				.Text(LOCTEXT("AddViewModelButtonText", "Add View Model"))
 			]
 		];
 }
@@ -356,7 +350,7 @@ TSharedRef<SWidget> SMVVMViewBindingPanel::GenerateEditViewWidget()
 			),
 			NAME_None,
 			LOCTEXT("AddBinding", "Add Binding"),
-			LOCTEXT("AddBindingTooltip", "Add an empty Binding"),
+			LOCTEXT("AddBindingTooltip", "Add an empty binding."),
 			FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BindingView.AddBinding"),
 			EUserInterfaceActionType::Button
 		);
@@ -373,7 +367,7 @@ TSharedRef<SWidget> SMVVMViewBindingPanel::GenerateEditViewWidget()
 			),
 			NAME_None,
 			LOCTEXT("ManageViewModels", "Manage ViewModels"),
-			LOCTEXT("ManageViewModelsTooltip", "Manage ViewModels for this widget"),
+			LOCTEXT("ManageViewModelsTooltip", "Manage viewmodels for this widget."),
 			FSlateIcon(FMVVMEditorStyle::Get().GetStyleSetName(), "BindingView.ManageViewModels"),
 			EUserInterfaceActionType::Button
 		);
@@ -462,6 +456,8 @@ FReply SMVVMViewBindingPanel::HandleCreateViewClicked()
 		}
 
 		HandleBlueprintViewChangedDelegate();
+
+		ShowManageViewModelsWindow();
 	}
 
 	return FReply::Handled();

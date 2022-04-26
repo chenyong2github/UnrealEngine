@@ -8,6 +8,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "MVVMBlueprintViewModelContext.h"
+#include "MVVMEditorSubsystem.h"
 #include "MVVMViewModelBase.h"
 #include "SMVVMViewModelContextListWidget.h"
 #include "SMVVMViewModelBindingListWidget.h"
@@ -204,9 +205,14 @@ void SMVVMManageViewModelsWidget::Construct(const FArguments& InArgs)
 {
 	using UE::MVVM::Private::FMVVMViewModelTreeNode;
 
+	UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+	UMVVMBlueprintView* BlueprintView = EditorSubsystem->RequestView(InArgs._WidgetBlueprint);
+
 	WeakParentWindow = InArgs._ParentWindow;
 	OnViewModelContextsPicked = InArgs._OnViewModelContextsPickedDelegate;
-	ViewModelContextListWidget = InArgs._ManageViewModelsWidget;
+	ViewModelContextListWidget = SNew(SMVVMViewModelContextListWidget)
+		.ExistingViewModelContexts(TArray<FMVVMBlueprintViewModelContext>(BlueprintView->GetViewModels()))
+		.WidgetBlueprint(InArgs._WidgetBlueprint);
 
 	PopulateViewModelsTree();
 
@@ -220,6 +226,7 @@ void SMVVMManageViewModelsWidget::Construct(const FArguments& InArgs)
 				SNew(SPrimaryButton)
 				.Text(LOCTEXT("ViewModelFinishButtonText", "Finish"))
 				.OnClicked(this, &SMVVMManageViewModelsWidget::HandleClicked_Finish)
+				.IsEnabled(this, &SMVVMManageViewModelsWidget::IsFinishEnabled)
 			]
 			+ SUniformGridPanel::Slot(1, 0)
 			[
@@ -820,6 +827,11 @@ TSubclassOf<UMVVMViewModelBase> SMVVMManageViewModelsWidget::GetClassFromNode(TS
 	}
 
 	return nullptr;
+}
+
+bool SMVVMManageViewModelsWidget::IsFinishEnabled() const
+{
+	return ViewModelContextListWidget->GetViewModelContexts().Num() > 0;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -19,13 +19,16 @@ class STreeView;
 class STableViewBase;
 class UMVVMViewModelBase;
 class UUserWidget;
+class UWidgetBlueprint;
+
 namespace UE::MVVM
 {
-struct FMVVMFieldVariant;
-namespace Private
-{
-class FMVVMViewModelTreeNode;
-}
+	struct FMVVMFieldVariant;
+
+	namespace Private
+	{
+		class FMVVMViewModelTreeNode;
+	}
 }
 
 DECLARE_DELEGATE_OneParam(FOnViewModelContextsPicked, TArray<FMVVMBlueprintViewModelContext>);
@@ -38,7 +41,7 @@ public:
 		SLATE_ARGUMENT(bool, bUseDefaultButtons)
 		SLATE_ARGUMENT(TWeakPtr<SWindow>, ParentWindow)
 		SLATE_ARGUMENT(FOnViewModelContextsPicked, OnViewModelContextsPickedDelegate)
-		SLATE_ARGUMENT(TSharedPtr<SMVVMViewModelContextListWidget>, ManageViewModelsWidget)
+		SLATE_ARGUMENT(UWidgetBlueprint*, WidgetBlueprint)
 	SLATE_END_ARGS()
 
 	enum class EViewMode : uint8
@@ -80,6 +83,8 @@ private:
 	FReply HandleClicked_AddViewModel(TSharedPtr<FMVVMViewModelTreeNode> InNode);
 	FReply HandleClicked_Finish();
 	FReply HandleClicked_Cancel();
+
+	bool IsFinishEnabled() const;
 
 	TSubclassOf<UMVVMViewModelBase> GetClassFromNode(TSharedRef<FMVVMViewModelTreeNode> ClassNode);
 
