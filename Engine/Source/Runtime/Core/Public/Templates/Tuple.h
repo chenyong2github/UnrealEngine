@@ -409,7 +409,7 @@ namespace UE::Core::Private::Tuple
 
 		template <
 			typename TupleType,
-			typename TupleType::DummyPairIdentifier* = nullptr,
+			typename std::decay_t<TupleType>::DummyPairIdentifier* = nullptr,
 			typename TEnableIf<TIsConstructible<KeyType,   decltype(DeclVal<TupleType&&>().Get<0>())>::Value>::Type* = nullptr,
 			typename TEnableIf<TIsConstructible<ValueType, decltype(DeclVal<TupleType&&>().Get<1>())>::Value>::Type* = nullptr
 		>
