@@ -345,6 +345,20 @@ private:
 		ESlateShader ShaderType,
 		ESlateDrawEffect DrawEffects,
 		ESlateBatchDrawFlag DrawFlags,
+		const FSlateDrawElement& DrawElement)
+	{
+		return CreateRenderBatch(BatchData, Layer, ShaderParams, InResource, PrimitiveType, ShaderType, DrawEffects, DrawFlags, DrawElement);
+	}
+
+	FSlateRenderBatch& CreateRenderBatch(
+		FSlateBatchData* SlateBatchData,
+		int32 Layer,
+		const FShaderParams& ShaderParams,
+		const FSlateShaderResource* InResource,
+		ESlateDrawPrimitive PrimitiveType,
+		ESlateShader ShaderType,
+		ESlateDrawEffect DrawEffects,
+		ESlateBatchDrawFlag DrawFlags,
 		const FSlateDrawElement& DrawElement);
 
 	const FSlateClippingState* ResolveClippingState(const FSlateDrawElement& DrawElement) const;
@@ -379,6 +393,7 @@ private:
 private:
 	/** Uncached Batch data currently being filled in */
 	FSlateBatchData* BatchData;
+	FSlateBatchData* BatchDataHDR;
 
 	/** Cached batches currently being filled in */
 	FSlateCachedElementList* CurrentCachedElementList;

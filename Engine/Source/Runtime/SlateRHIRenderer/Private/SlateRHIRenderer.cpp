@@ -711,6 +711,85 @@ SHADER_VARIATION(0)  SHADER_VARIATION(1)
 int32 SlateWireFrame = 0;
 static FAutoConsoleVariableRef CVarSlateWireframe(TEXT("Slate.ShowWireFrame"), SlateWireFrame, TEXT(""), ECVF_Default);
 
+void RenderSlateBatch(FTexture2DRHIRef SlateRenderTarget, bool bClear, bool bIsHDR, FViewportInfo& ViewportInfo, const FMatrix& ViewMatrix, FSlateBatchData& BatchData, FRHICommandListImmediate& RHICmdList,
+				      const uint32 ViewportWidth, const uint32 ViewportHeight, const struct FSlateDrawWindowCommandParams& DrawCommandParams, TSharedPtr<FSlateRHIRenderingPolicy> RenderingPolicy, 
+					  FTexture2DRHIRef PostProcessBuffer)
+{
+	FRHIRenderPassInfo RPInfo(SlateRenderTarget, ERenderTargetActions::Load_Store);
+
+	if (bClear)
+	{
+		RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::Clear_Store;
+	}
+
+	if (ViewportInfo.bRequiresStencilTest)
+	{
+		check(IsValidRef(ViewportInfo.DepthStencil));
+
+		ERenderTargetActions StencilAction = IsMemorylessTexture(ViewportInfo.DepthStencil) ? ERenderTargetActions::DontLoad_DontStore : ERenderTargetActions::DontLoad_Store;
+		RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::DontLoad_DontStore, StencilAction);
+		RPInfo.DepthStencilRenderTarget.DepthStencilTarget = ViewportInfo.DepthStencil;
+		RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilWrite;
+	}
+
+#if WITH_SLATE_VISUALIZERS
+	if (CVarShowSlateBatching.GetValueOnRenderThread() != 0 || CVarShowSlateOverdraw.GetValueOnRenderThread() != 0)
+	{
+		RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::Clear_Store;
+		if (ViewportInfo.bRequiresStencilTest)
+		{
+			// Reset the backbuffer as our color render target and also set a depth stencil buffer
+			ERenderTargetActions StencilAction = IsMemorylessTexture(ViewportInfo.DepthStencil) ? ERenderTargetActions::Clear_DontStore : ERenderTargetActions::Clear_Store;
+			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_Store, StencilAction);
+			RPInfo.DepthStencilRenderTarget.DepthStencilTarget = ViewportInfo.DepthStencil;
+			RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
+		}
+	}
+#endif
+	{
+		bool bHasBatches = BatchData.GetRenderBatches().Num() > 0;
+		if (bHasBatches || bClear)
+		{
+			TransitionRenderPassTargets(RHICmdList, RPInfo);
+			RHICmdList.BeginRenderPass(RPInfo, TEXT("SlateBatches"));
+			SCOPE_CYCLE_COUNTER(STAT_SlateRTDrawBatches);
+
+			if (bHasBatches)
+			{
+				FSlateBackBuffer SlateBackBuffer(SlateRenderTarget, FIntPoint(ViewportWidth, ViewportHeight));
+
+				FSlateRenderingParams RenderParams(ViewMatrix * ViewportInfo.ProjectionMatrix, DrawCommandParams.Time);
+				RenderParams.bWireFrame = !!SlateWireFrame;
+				RenderParams.bIsHDR = bIsHDR;
+				RenderingPolicy->SetUseGammaCorrection(!bIsHDR);
+
+				FTexture2DRHIRef EmptyTarget;
+
+				RenderingPolicy->DrawElements
+				(
+					RHICmdList,
+					SlateBackBuffer,
+					SlateRenderTarget,
+					PostProcessBuffer,
+					ViewportInfo.bRequiresStencilTest ? ViewportInfo.DepthStencil : EmptyTarget,
+					BatchData.GetFirstRenderBatchIndex(),
+					BatchData.GetRenderBatches(),
+					RenderParams
+				);
+			}
+		}
+	}
+
+	// @todo Could really use a refactor.
+	// Kind of gross but we don't want to restart renderpasses for no reason.
+	// If the color deficiency shaders are active within DrawElements there will not be a renderpass here.
+	// In the general case there will be a RenderPass active at this point.
+	if (RHICmdList.IsInsideRenderPass())
+	{
+		RHICmdList.EndRenderPass();
+	}
+}
+
 /** Draws windows from a FSlateDrawBuffer on the render thread */
 void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmdList, FViewportInfo& ViewportInfo, FSlateWindowElementList& WindowElementList, const struct FSlateDrawWindowCommandParams& DrawCommandParams)
 {
@@ -887,83 +966,20 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			RHICmdList.BeginDrawingViewport(ViewportInfo.ViewportRHI, FTextureRHIRef());
 			RHICmdList.SetViewport(0, 0, 0, ViewportWidth, ViewportHeight, 0.0f);
 
-			{
-				FRHIRenderPassInfo RPInfo(BackBuffer, ERenderTargetActions::Load_Store);
-
-				if (bClear)
-				{
-					RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::Clear_Store;
-				}
-
-				if (ViewportInfo.bRequiresStencilTest)
-				{
-					check(IsValidRef(ViewportInfo.DepthStencil));
-
-					ERenderTargetActions StencilAction = IsMemorylessTexture(ViewportInfo.DepthStencil) ? ERenderTargetActions::DontLoad_DontStore : ERenderTargetActions::DontLoad_Store;
-					RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::DontLoad_DontStore, StencilAction);
-					RPInfo.DepthStencilRenderTarget.DepthStencilTarget = ViewportInfo.DepthStencil;
-					RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilWrite;
-				}
-
-	#if WITH_SLATE_VISUALIZERS
-				if (CVarShowSlateBatching.GetValueOnRenderThread() != 0 || CVarShowSlateOverdraw.GetValueOnRenderThread() != 0)
-				{
-					RPInfo.ColorRenderTargets[0].Action = ERenderTargetActions::Clear_Store;
-					if (ViewportInfo.bRequiresStencilTest)
-					{
-						// Reset the backbuffer as our color render target and also set a depth stencil buffer
-						ERenderTargetActions StencilAction = IsMemorylessTexture(ViewportInfo.DepthStencil) ? ERenderTargetActions::Clear_DontStore : ERenderTargetActions::Clear_Store;
-						RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_Store, StencilAction);
-						RPInfo.DepthStencilRenderTarget.DepthStencilTarget = ViewportInfo.DepthStencil;
-						RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
-					}
-				}
-	#endif
-				{
-					bool bHasBatches = BatchData.GetRenderBatches().Num() > 0;
-					if (bHasBatches || bClear)
-					{
-						TransitionRenderPassTargets(RHICmdList, RPInfo);
-						RHICmdList.BeginRenderPass(RPInfo, TEXT("SlateBatches"));
-						SCOPE_CYCLE_COUNTER(STAT_SlateRTDrawBatches);
-
-						if (bHasBatches)
-						{
-							FSlateBackBuffer BackBufferTarget(BackBuffer, FIntPoint(ViewportWidth, ViewportHeight));
-
-							FSlateRenderingParams RenderParams(ViewMatrix * ViewportInfo.ProjectionMatrix, DrawCommandParams.Time);
-							RenderParams.bWireFrame = !!SlateWireFrame;
-							RenderParams.bIsHDR = ViewportInfo.bHDREnabled;
-
-							FTexture2DRHIRef EmptyTarget;
-
-							RenderingPolicy->DrawElements
-							(
-								RHICmdList,
-								BackBufferTarget,
-								BackBuffer,
-								PostProcessBuffer,
-								ViewportInfo.bRequiresStencilTest ? ViewportInfo.DepthStencil : EmptyTarget,
-								BatchData.GetFirstRenderBatchIndex(),
-								BatchData.GetRenderBatches(),
-								RenderParams
-							);
-						}
-					}
-				}
-
-				// @todo Could really use a refactor.
-				// Kind of gross but we don't want to restart renderpasses for no reason.
-				// If the color deficiency shaders are active within DrawElements there will not be a renderpass here.
-				// In the general case there will be a RenderPass active at this point.
-				if (RHICmdList.IsInsideRenderPass())
-				{
-					RHICmdList.EndRenderPass();
-				}
-			}
+			bool bHdrTarget = IsHDREnabled() && !bCompositeUI;
+			RenderSlateBatch(BackBuffer, bClear, bHdrTarget, ViewportInfo, ViewMatrix, BatchData, RHICmdList, ViewportWidth, ViewportHeight, DrawCommandParams, RenderingPolicy, PostProcessBuffer);
 
 			if (bCompositeUI)
 			{
+				FSlateBatchData& BatchDataHDR = WindowElementList.GetBatchDataHDR();
+				bool bHasBatches = BatchDataHDR.GetRenderBatches().Num() > 0;
+				if (bHasBatches)
+				{
+					RenderingPolicy->BuildRenderingBuffers(RHICmdList, BatchDataHDR);
+					FTexture2DRHIRef UITargetHDRRTRHI(ViewportInfo.HDRSourceRT->GetRHI());
+					RenderSlateBatch(UITargetHDRRTRHI, /*bClear*/ false, /*bIsHDR*/ true, ViewportInfo, ViewMatrix, BatchDataHDR, RHICmdList, ViewportWidth, ViewportHeight, DrawCommandParams, RenderingPolicy, PostProcessBuffer);
+				}
+
 				SCOPED_DRAW_EVENT(RHICmdList, SlateUI_Composition);
 
 				static const FName RendererModuleName("Renderer");

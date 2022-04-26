@@ -256,7 +256,8 @@ void FSlateBatchData::MergeRenderBatches()
 
 FSlateElementBatcher::FSlateElementBatcher( TSharedRef<FSlateRenderingPolicy> InRenderingPolicy )
 	: BatchData( nullptr )
-	, CurrentCachedElementList( nullptr )
+	, BatchDataHDR(nullptr)
+	, CurrentCachedElementList(nullptr)
 	, PrecachedClippingStates(nullptr)
 	, RenderingPolicy( &InRenderingPolicy.Get() )
 	, NumPostProcessPasses(0)
@@ -287,7 +288,9 @@ void FSlateElementBatcher::AddElements(FSlateWindowElementList& WindowElementLis
 #endif
 
 	BatchData = &WindowElementList.GetBatchData();
+	BatchDataHDR = &WindowElementList.GetBatchDataHDR();
 	check(BatchData->GetRenderBatches().Num() == 0);
+	check(BatchDataHDR->GetRenderBatches().Num() == 0);
 
 
 	FVector2D ViewportSize = WindowElementList.GetPaintWindow()->GetViewportSize();
@@ -314,6 +317,7 @@ void FSlateElementBatcher::AddElements(FSlateWindowElementList& WindowElementLis
 
 	// Done with the element list
 	BatchData = nullptr;
+	BatchDataHDR = nullptr;
 	PrecachedClippingStates = nullptr;
 
 #if STATS
@@ -2174,8 +2178,13 @@ void FSlateElementBatcher::AddViewportElement( const FSlateDrawElement& DrawElem
 		// This is a slight hack, but the grayscale font shader is the same as the general shader except it reads alpha only textures and doesn't support tiling
 		ShaderType = ESlateShader::GrayscaleFont;
 	}
-
-	FSlateRenderBatch& RenderBatch = CreateRenderBatch( Layer, FShaderParams(), ViewportResource, ESlateDrawPrimitive::TriangleList, ShaderType, InDrawEffects, DrawFlags, DrawElement);
+	static const auto CVarHDROutputEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.EnableHDROutput"));
+	static const auto CVarCompositeMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.UI.CompositeMode"));
+	const bool bHDREnabled = CVarHDROutputEnabled && (CVarHDROutputEnabled->GetValueOnAnyThread() != 0);
+	const bool bCompositeModeEnabled = CVarCompositeMode && (CVarCompositeMode->GetValueOnAnyThread() != 0);
+	const bool bHDRBatch = bHDREnabled && bCompositeModeEnabled;
+	FSlateBatchData* UsedBatchData = bHDRBatch ? BatchDataHDR : BatchData;
+	FSlateRenderBatch& RenderBatch = CreateRenderBatch(UsedBatchData, Layer, FShaderParams(), ViewportResource, ESlateDrawPrimitive::TriangleList, ShaderType, InDrawEffects, DrawFlags, DrawElement);
 
 	// Tag this batch as requiring vsync if the viewport requires it.
 	if( ViewportResource != nullptr && !DrawElementPayload.bAllowViewportScaling )
@@ -2214,6 +2223,31 @@ void FSlateElementBatcher::AddViewportElement( const FSlateDrawElement& DrawElem
 	RenderBatch.AddIndex( IndexStart + 2 );
 	RenderBatch.AddIndex( IndexStart + 1 );
 	RenderBatch.AddIndex( IndexStart + 3 );
+
+	if (bHDRBatch)
+	{
+		// used to poke a hole in the slate tree: in case HDR is enabled, we need to compose the hdr scene with the SDR ui based on UI alpha
+		// The problem is that in editor mode, there's already a few quads already drawn below the viewport that we actually don't want. If we had an easy way to split
+		// in-game UI from tool UI, we could have prevented this with colorwritemask, but it doesn't seem to be the case. Instead, we force to draw
+		// an alpha=0 quad to allow the scene RT to be composited properly. AFAICT, game UI is rendered on top of it
+		DrawFlags = ESlateBatchDrawFlag::NoBlending;
+		const FColor TransparentBlackColor(0, 0, 0, 0);
+		FSlateRenderBatch& RenderBatch2 = CreateRenderBatch(Layer, FShaderParams(), nullptr, ESlateDrawPrimitive::TriangleList, ShaderType, InDrawEffects, DrawFlags, DrawElement);
+		RenderBatch2.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2f(TopLeft), FVector2f(0.0f, 0.0f), TransparentBlackColor));
+		RenderBatch2.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2f(TopRight), FVector2f(1.0f, 0.0f), TransparentBlackColor));
+		RenderBatch2.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2f(BotLeft), FVector2f(0.0f, 1.0f), TransparentBlackColor));
+		RenderBatch2.AddVertex(FSlateVertex::Make<Rounding>(RenderTransform, FVector2f(BotRight), FVector2f(1.0f, 1.0f), TransparentBlackColor));
+
+		// Add 6 indices to the vertex buffer.  (2 tri's per quad, 3 indices per tri)
+		RenderBatch2.AddIndex(IndexStart + 0);
+		RenderBatch2.AddIndex(IndexStart + 1);
+		RenderBatch2.AddIndex(IndexStart + 2);
+
+		RenderBatch2.AddIndex(IndexStart + 2);
+		RenderBatch2.AddIndex(IndexStart + 1);
+		RenderBatch2.AddIndex(IndexStart + 3);
+	}
+
 }
 
 template<ESlateVertexRounding Rounding>
@@ -2559,6 +2593,7 @@ void FSlateElementBatcher::AddPostProcessPass(const FSlateDrawElement& DrawEleme
 }
 
 FSlateRenderBatch& FSlateElementBatcher::CreateRenderBatch(
+	FSlateBatchData* SlateBatchData,
 	int32 Layer, 
 	const FShaderParams& ShaderParams,
 	const FSlateShaderResource* InResource,
@@ -2570,7 +2605,7 @@ FSlateRenderBatch& FSlateElementBatcher::CreateRenderBatch(
 {
 	FSlateRenderBatch& NewBatch = CurrentCachedElementList
 		? CurrentCachedElementList->AddRenderBatch(Layer, ShaderParams, InResource, PrimitiveType, ShaderType, DrawEffects, DrawFlags, DrawElement.GetSceneIndex())
-		: BatchData->AddRenderBatch(Layer, ShaderParams, InResource, PrimitiveType, ShaderType, DrawEffects, DrawFlags, DrawElement.GetSceneIndex());
+		: SlateBatchData->AddRenderBatch(Layer, ShaderParams, InResource, PrimitiveType, ShaderType, DrawEffects, DrawFlags, DrawElement.GetSceneIndex());
 
 	NewBatch.ClippingState = ResolveClippingState(DrawElement);
 

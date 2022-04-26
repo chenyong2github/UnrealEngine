@@ -341,7 +341,7 @@ float3x3 OuputInverseGamutMappingMatrix( uint OutputGamut )
 float3 ST2084ToScRGB(float3 Color, uint OutputDevice)
 {
 	// Nvidia HDR encoding - Remove PQ, convert to linear scRGB
-	const float3x3 AP1_2_sRGB = mul(XYZ_2_sRGB_MAT, AP1_2_XYZ_MAT);
+	const float3x3 AP1_2_sRGB = mul(XYZ_2_sRGB_MAT, mul(D60_2_D65_CAT, AP1_2_XYZ_MAT));
 	const float WhitePoint = 80.f;
 
 	// 1000.f nit display

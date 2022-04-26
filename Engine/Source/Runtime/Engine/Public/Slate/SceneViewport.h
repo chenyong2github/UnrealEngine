@@ -421,6 +421,8 @@ private:
 	bool bPlayInEditorIsSimulate;
 	/** Whether or not the cursor is hidden when the viewport captures the mouse */
 	bool bCursorHiddenDueToCapture;
+	/** Whether or not the viewport is in HDR */
+	bool bHDRViewport;
 	/** Position the cursor was at when we hid it due to capture, so we can put it back afterwards */
 	FIntPoint MousePosBeforeHiddenDueToCapture;
 	/** Dimensions of RenderTarget texture. */

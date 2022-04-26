@@ -8,6 +8,12 @@ half3 LinearTo709Branchless(half3 lin)
 	return min(lin * 4.5, pow(max(lin, 0.018), 0.45) * 1.099 - 0.099);
 }
 
+half3 Rec709ToLinear(half3 Color)
+{
+	Color = max(6.10352e-5, Color); // minimum positive non-denormal (fixes black problem on DX11 AMD and NV)
+	return Color > 0.081 ? pow((Color + 0.099) / 1.099, 1.0 / 0.45) : Color / 4.5;
+}
+
 half3 LinearToSrgbBranchless(half3 lin) 
 {
 	lin = max(6.10352e-5, lin); // minimum positive non-denormal (fixes black problem on DX11 AMD and NV)

@@ -9,6 +9,9 @@ CompositeUIPixelShader.usf: Filter pixel shader source.
 #define LUT_SCALING	1.05f
 #define LUT_SIZE	32.f
 
+// set this to 1 if you want to restore the legacy behaviour (ie apply ACES to the UI). A value of 0 keeps a consistent look of the UI between SDR and HDR mode
+#define USE_LUT_FOR_UI 0
+
 ///////////////////////////////////////////////////////////////////////////////////////
 uint OutputDevice;
 uint OutputGamut;
@@ -30,14 +33,23 @@ void GenerateLUTPS(
 	{		
 		// ACES 1000nit transform with PQ/2084 encoding, user specified gamut 
 		float3 ODTColor = ACESOutputTransforms1000(LinearColor);
-		ODTColor = mul(AP1_2_Output, ODTColor);
+		// do not apply scRGB here because LUT is not 16F in this format, and scRGB can output negative values
+		if (OutputDevice != TONEMAPPER_OUTPUT_ACES1000nitScRGB)
+		{
+			ODTColor = mul(AP1_2_Output, ODTColor);
+		}
 		OutColor.rgb = LinearToST2084(ODTColor);
 	}	
 	else if( OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitScRGB)
 	{		
 		// ACES 2000nit transform with PQ/2084 encoding, user specified gamut 
 		float3 ODTColor = ACESOutputTransforms2000(LinearColor);
-		ODTColor = mul(AP1_2_Output, ODTColor);
+		// do not apply scRGB here because LUT is not 16F in this format, and scRGB can output negative values
+		// 
+		if (OutputDevice != TONEMAPPER_OUTPUT_ACES2000nitScRGB)
+		{
+			ODTColor = mul(AP1_2_Output, ODTColor);
+		}
 		OutColor.rgb = LinearToST2084(ODTColor);
 	}
 	else
@@ -64,6 +76,22 @@ Texture3D ColorSpaceLUT;
 SamplerState ColorSpaceLUTSampler;
 
 float UILevel;
+
+// Invert the encoding applied by the ApplyGammaCorrection function.
+float3 LinearizeColor(float3 EncodedColor)
+{
+	#if MAC
+		// Note, MacOSX native output is raw gamma 2.2 not sRGB!
+		return pow(EncodedColor, 2.2);
+	#else
+		#if USE_709
+			// Didn't profile yet if the branching version would be faster (different linear segment).
+			return Rec709ToLinear(EncodedColor);
+		#else
+			return sRGBToLinear(EncodedColor);
+		#endif
+	#endif
+}
 
 float3 ColorLookupTable(float3 LinearColor)
 {
@@ -107,18 +135,36 @@ void Main(
 		discard;
 	}
 #endif
+
+	// In order to get consistent blending between HDR PQ & ScRGB, we convert UI color in both cases to rec2020, perform the blending in this color space, and
+	// move back to the output device space. Rec2020 is chosen over ScRGB because this is the way blending is currently being done in engine mode, and contains only positive values
+	const float3x3 sRGB_2_Rec2020 = mul(XYZ_2_Rec2020_MAT, sRGB_2_XYZ_MAT);
+	static const float PaperWhiteInNits = 80.0f; // used to convert between ScRGB and nits
+	static const float UIBrightnessInNits = 300.0f; // todo stop hardcoding this value and try to fetch SDR/HDR brightness balance instead (automatically or though calibration step)
+
 	float4 UIColor = Texture2DSample(UITexture, UISampler, Input.UV);
+	{
+		UIColor.xyz = LinearizeColor(UIColor.xyz);
+#if USE_LUT_FOR_UI
+		UIColor.xyz = ColorLookupTable(UIColor.xyz);
+		// PQ -> Linear
+#if !SCRGB_ENCODING
+		UIColor.xyz = ST2084ToLinear(UIColor.xyz);
+#else
+		UIColor.xyz = ST2084ToScRGB(UIColor.xyz, OutputDevice);
+		UIColor.xyz = mul(sRGB_2_Rec2020, UIColor.xyz) * UIBrightnessInNits;
+#endif
+
+#else // #if USE_LUT_FOR_UI
+		UIColor.xyz = mul(sRGB_2_Rec2020, UIColor.xyz) * UIBrightnessInNits;
+#endif // #if USE_LUT_FOR_UI
+	}
+
 	float3 SceneColor = Texture2DSample(SceneTexture, SceneSampler, Input.UV).xyz;
-
-	// sRGB -> RRT -> ODT
-	UIColor.xyz = ColorLookupTable(UIColor.xyz);
-
-	// PQ -> Linear
 #if !SCRGB_ENCODING
 	SceneColor = ST2084ToLinear(SceneColor);
-	UIColor.xyz = ST2084ToLinear(UIColor.xyz);
 #else
-	UIColor.xyz = ST2084ToScRGB(UIColor.xyz, OutputDevice);
+	SceneColor.xyz = mul(sRGB_2_Rec2020, SceneColor.xyz) * PaperWhiteInNits;
 #endif
 
 	BRANCH
@@ -129,7 +175,9 @@ void Main(
 
 		// Tonemap HDR under transparent UI with a simple Rienhard to the max luminance of the UI
 		// This prevents HDR bleed through destroying UI legibility
-		float Luminance = dot(SceneColor, half3(0.299f, 0.587f, 0.114f)) / UILevel;
+		// Rec2020 coefficients to compute luminance
+		float KR = 0.2627, KG = 0.678, KB = 0.0593;
+		float Luminance = dot(SceneColor, half3(KR, KG, KB)) / UILevel;
 		float OutL = 1.f / (Luminance + 1.f);
 
 		// Ease out remapping to avoid hard transitions where UI is near zero opacity
@@ -143,5 +191,8 @@ void Main(
 #if !SCRGB_ENCODING
 	// Linear -> PQ
 	OutColor.xyz = LinearToST2084(OutColor.xyz);
+#else
+	const float3x3 Rec2020_2_sRGB = mul(XYZ_2_sRGB_MAT, Rec2020_2_XYZ_MAT);
+	OutColor.xyz = mul(Rec2020_2_sRGB, OutColor.xyz / PaperWhiteInNits);
 #endif
 }

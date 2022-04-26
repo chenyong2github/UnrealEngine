@@ -967,6 +967,7 @@ void FSlateWindowElementList::ResetElementList()
 	DeferredPaintList.Reset();
 
 	BatchData.ResetData();
+	BatchDataHDR.ResetData();
 
 	ClippingManager.ResetClippingState();
 

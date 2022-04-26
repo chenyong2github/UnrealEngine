@@ -49,6 +49,7 @@ FSceneViewport::FSceneViewport( FViewportClient* InViewportClient, TSharedPtr<SV
 	, bForceViewportSize(false)
 	, bPlayInEditorIsSimulate( false )
 	, bCursorHiddenDueToCapture( false )
+	, bHDRViewport(false)
 	, MousePosBeforeHiddenDueToCapture( -1, -1 )
 	, RTTSize( 0, 0 )
 	, NumBufferedFrames(1)
@@ -360,8 +361,10 @@ void FSceneViewport::OnDrawViewport( const FGeometry& AllottedGeometry, const FS
 	if (!bForceViewportSize)
 	{
 		FIntPoint DrawSize = FIntPoint( FMath::RoundToInt( AllottedGeometry.GetDrawSize().X ), FMath::RoundToInt( AllottedGeometry.GetDrawSize().Y ) );
-		if( GetSizeXY() != DrawSize )
+		bool bIsHDREnabled = IsHDREnabled();
+		if( GetSizeXY() != DrawSize || bIsHDREnabled != bHDRViewport)
 		{
+			bHDRViewport = bIsHDREnabled;
 			TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow( ViewportWidget.Pin().ToSharedRef() );
 			if ( Window.IsValid() )
 			{
@@ -2004,14 +2007,10 @@ void FSceneViewport::InitDynamicRHI()
 		EPixelFormat SceneTargetFormat = EDefaultBackBufferPixelFormat::Convert2PixelFormat(EDefaultBackBufferPixelFormat::FromInt(CVarDefaultBackBufferPixelFormat->GetValueOnRenderThread()));
 		SceneTargetFormat = RHIPreferredPixelFormatHint(SceneTargetFormat);
 	
-#if WITH_EDITOR
-		// HDR Editor needs to be in float format if running with HDR
-		static auto CVarHDREnable = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.HDRSupport"));
-		if(CVarHDREnable && (CVarHDREnable->GetInt() != 0))
+		if (bHDRViewport)
 		{
-			SceneTargetFormat = PF_FloatRGBA;
+			SceneTargetFormat = GRHIHDRDisplayOutputFormat;
 		}
-#endif
 
 		FTextureRHIRef BufferedRTRHI;
 		FTextureRHIRef BufferedSRVRHI;

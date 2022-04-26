@@ -626,6 +626,7 @@ public:
 
 
 	FSlateBatchData& GetBatchData() { return BatchData; }
+	FSlateBatchData& GetBatchDataHDR() { return BatchDataHDR; }
 
 	SLATECORE_API void SetRenderTargetWindow(SWindow* InRenderTargetWindow);
 
@@ -656,6 +657,9 @@ private:
 
 	/** Batched data used for rendering */
 	FSlateBatchData BatchData;
+
+	/** Batched data used for rendering */
+	FSlateBatchData BatchDataHDR;
 
 	/**  */
 	FSlateClippingManager ClippingManager;
