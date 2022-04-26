@@ -9,6 +9,7 @@
 
 void FMicrosoftPlatformCrashContext::CaptureAllThreadContexts()
 {
+#if PLATFORM_SUPPORTS_ALL_THREAD_BACKTRACES
 	TArray<typename FThreadManager::FThreadStackBackTrace> StackTraces;
 	FThreadManager::Get().GetAllThreadStackBackTraces(StackTraces);
 
@@ -16,6 +17,7 @@ void FMicrosoftPlatformCrashContext::CaptureAllThreadContexts()
 	{
 		AddPortableThreadCallStack(Thread.ThreadId, *Thread.ThreadName, Thread.ProgramCounters.GetData(), Thread.ProgramCounters.Num());
 	}
+#endif
 }
 
 void FMicrosoftPlatformCrashContext::AddPortableThreadCallStack(uint32 ThreadId, const TCHAR* ThreadName, const uint64* StackFrames, int32 NumStackFrames)
