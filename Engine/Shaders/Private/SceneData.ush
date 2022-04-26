@@ -4,6 +4,7 @@
 
 #include "LargeWorldCoordinates.ush"
 #include "OctahedralCommon.ush"
+#include "/Engine/Shared/NaniteDefinitions.h"
 
 #ifndef USE_GLOBAL_GPU_SCENE_DATA
 	#define USE_GLOBAL_GPU_SCENE_DATA 0
@@ -144,6 +145,7 @@ struct FPrimitiveSceneData
 	float3		WireframeColor; // TODO: Should refactor out all editor data into a separate buffer
 	float3		LevelColor; // TODO: Should refactor out all editor data into a separate buffer
 	uint		NaniteImposterIndex;
+	uint		NaniteFilterFlags;
 	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
 
@@ -183,6 +185,8 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 	PrimitiveData.InstancePayloadDataStride		= Primitive.InstancePayloadDataStride;
 	PrimitiveData.WireframeColor				= Primitive.WireframeColor;
 	PrimitiveData.LevelColor					= Primitive.LevelColor;
+	PrimitiveData.NaniteImposterIndex			= Primitive.NaniteImposterIndexAndFilterFlags & NANITE_IMPOSTER_INDEX_MASK;
+	PrimitiveData.NaniteFilterFlags				= Primitive.NaniteImposterIndexAndFilterFlags >> NANITE_IMPOSTER_INDEX_NUM_BITS;
 	PrimitiveData.PersistentPrimitiveIndex		= Primitive.PersistentPrimitiveIndex;
 	UNROLL
 	for (int DataIndex = 0; DataIndex < NUM_CUSTOM_PRIMITIVE_DATA; ++DataIndex)
@@ -292,9 +296,17 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.InstanceLocalBoundsExtent		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).xyz;
 	PrimitiveData.InstancePayloadDataStride		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).w);
 	PrimitiveData.WireframeColor				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).xyz;
-	PrimitiveData.NaniteImposterIndex			= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).w);
 	PrimitiveData.LevelColor					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).xyz;
 	PrimitiveData.PersistentPrimitiveIndex		= asint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).w);
+
+	uint NaniteImposterIndexAndFilterFlags		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).w);
+	PrimitiveData.NaniteFilterFlags				= NaniteImposterIndexAndFilterFlags >> NANITE_IMPOSTER_INDEX_NUM_BITS;
+	PrimitiveData.NaniteImposterIndex			= NaniteImposterIndexAndFilterFlags & NANITE_IMPOSTER_INDEX_MASK;
+	
+	if (PrimitiveData.NaniteImposterIndex == NANITE_IMPOSTER_INDEX_MASK)
+	{
+		PrimitiveData.NaniteImposterIndex = INVALID_NANITE_IMPOSTER_INDEX;
+	}
 
 	// TODO: Move to associated array (and editor data) to shrink primitive data and better pack cachelines
 	UNROLL

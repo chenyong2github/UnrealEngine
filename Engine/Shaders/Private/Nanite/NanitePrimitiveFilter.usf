@@ -8,6 +8,7 @@
 #include "NaniteDataDecode.ush"
 
 uint NumPrimitives;
+uint HiddenFilterFlags;
 
 #if HAS_HIDDEN_PRIMITIVES_LIST
 uint NumHiddenPrimitives;
@@ -54,15 +55,16 @@ void PrimitiveFilter
 	// GPU Scene version of IsPrimitiveHidden() from SceneVisibility.cpp
 	if (PrimitiveId < NumPrimitives)
 	{
-		bool bHidden = false;
-
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(PrimitiveId);
 		const uint PrimitiveComponentId = PrimitiveData.PrimitiveComponentId;
+
+		// Allow arbitrary flag matching on the primitive (used for the ViewFamily's EngineShowFlags)
+		bool bHidden = ((PrimitiveData.NaniteFilterFlags & ~HiddenFilterFlags) != PrimitiveData.NaniteFilterFlags);
 
 	#if HAS_HIDDEN_PRIMITIVES_LIST
 		// If any primitives are explicitly hidden, remove them now.
 		BRANCH
-		if (NumHiddenPrimitives > 0)
+		if (!bHidden && NumHiddenPrimitives > 0)
 		{
 			bHidden = BinarySearchLoop(HiddenPrimitivesList, NumHiddenPrimitives, PrimitiveComponentId);
 		}

@@ -142,6 +142,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	uint32 NaniteResourceID = INDEX_NONE;
 	uint32 NaniteHierarchyOffset = INDEX_NONE;
 	uint32 NaniteImposterIndex = INDEX_NONE;
+	uint32 NaniteFilterFlags = 0u;
 
 	bool bHasNaniteImposterData = false;
 	bool bEvaluateWorldPositionOffset = !OptimizedWPO;
@@ -149,6 +150,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	if (Proxy->IsNaniteMesh())
 	{
 		Proxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, NaniteImposterIndex);
+		NaniteFilterFlags = uint32(static_cast<const Nanite::FSceneProxyBase*>(Proxy)->GetFilterFlags());
 		if (OptimizedWPO)
 		{
 			bEvaluateWorldPositionOffset = static_cast<const Nanite::FSceneProxyBase*>(Proxy)->EvaluateWorldPositionOffset();
@@ -193,6 +195,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.NaniteResourceID(NaniteResourceID)
 		.NaniteHierarchyOffset(NaniteHierarchyOffset)
 		.NaniteImposterIndex(NaniteImposterIndex)
+		.NaniteFilterFlags(NaniteFilterFlags)
 		.PrimitiveComponentId(Proxy->GetPrimitiveComponentId().PrimIDValue)
 		.EditorColors(Proxy->GetWireframeColor(), Proxy->GetLevelColor());
 
@@ -277,7 +280,7 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[29].X = PrimitiveUniformShaderParameters.WireframeColor.X;
 	Data[29].Y = PrimitiveUniformShaderParameters.WireframeColor.Y;
 	Data[29].Z = PrimitiveUniformShaderParameters.WireframeColor.Z;
-	Data[29].W = *(const float*)&PrimitiveUniformShaderParameters.NaniteImposterIndex;
+	Data[29].W = *(const float*)&PrimitiveUniformShaderParameters.NaniteImposterIndexAndFilterFlags;
 
 	Data[30].X = PrimitiveUniformShaderParameters.LevelColor.X;
 	Data[30].Y = PrimitiveUniformShaderParameters.LevelColor.Y;

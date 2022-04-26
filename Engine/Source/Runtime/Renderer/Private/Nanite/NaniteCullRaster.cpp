@@ -2,6 +2,7 @@
 
 #include "NaniteCullRaster.h"
 #include "NaniteVisualizationData.h"
+#include "NaniteSceneProxy.h"
 #include "RHI.h"
 #include "SceneUtils.h"
 #include "ScenePrivate.h"
@@ -268,19 +269,6 @@ class FPrimitiveFilter_CS : public FNaniteGlobalShader
 
 	using FPermutationDomain = TShaderPermutationDomain<FHiddenPrimitivesListDim, FShowOnlyPrimitivesListDim>;
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		FPermutationDomain PermutationVector(Parameters.PermutationId);
-
-		if (!PermutationVector.Get<FHiddenPrimitivesListDim>() && !PermutationVector.Get<FShowOnlyPrimitivesListDim>())
-		{
-			// Don't compile a permutation with both buffers disabled
-			return false;
-		}
-
-		return FNaniteGlobalShader::ShouldCompilePermutation(Parameters);
-	}
-
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FNaniteGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -291,6 +279,7 @@ class FPrimitiveFilter_CS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, NumPrimitives)
+		SHADER_PARAMETER(uint32, HiddenFilterFlags)
 		SHADER_PARAMETER(uint32, NumHiddenPrimitives)
 		SHADER_PARAMETER(uint32, NumShowOnlyPrimitives)
 
@@ -1374,12 +1363,26 @@ void AddPass_PrimitiveFilter(
 	const uint32 PrimitiveCount = uint32(Scene.Primitives.Num());
 	const uint32 HiddenPrimitiveCount = SceneView.HiddenPrimitives.Num();
 	const uint32 ShowOnlyPrimitiveCount = SceneView.ShowOnlyPrimitives.IsSet() ? SceneView.ShowOnlyPrimitives->Num() : 0u;
+	
+	EFilterFlags HiddenFilterFlags = EFilterFlags::None;
+	if (!SceneView.Family->EngineShowFlags.InstancedStaticMeshes)
+	{
+		HiddenFilterFlags |= EFilterFlags::InstancedStaticMesh;
+	}
+	if (!SceneView.Family->EngineShowFlags.InstancedFoliage)
+	{
+		HiddenFilterFlags |= EFilterFlags::Foliage;
+	}
+	if (!SceneView.Family->EngineShowFlags.InstancedGrass)
+	{
+		HiddenFilterFlags |= EFilterFlags::Grass;
+	}
 
 	CullingContext.PrimitiveFilterBuffer = nullptr;
 	CullingContext.HiddenPrimitivesBuffer = nullptr;
 	CullingContext.ShowOnlyPrimitivesBuffer = nullptr;
 
-	if (CVarNaniteFilterPrimitives.GetValueOnRenderThread() != 0 && (HiddenPrimitiveCount + ShowOnlyPrimitiveCount) > 0)
+	if (CVarNaniteFilterPrimitives.GetValueOnRenderThread() != 0 && ((HiddenPrimitiveCount + ShowOnlyPrimitiveCount) > 0 || HiddenFilterFlags != EFilterFlags::None))
 	{
 		check(PrimitiveCount > 0);
 		const uint32 DWordCount = FMath::DivideAndRoundUp(PrimitiveCount, 32u); // 32 primitive bits per uint32
@@ -1450,6 +1453,7 @@ void AddPass_PrimitiveFilter(
 		FPrimitiveFilter_CS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPrimitiveFilter_CS::FParameters>();
 
 		PassParameters->NumPrimitives = PrimitiveCount;
+		PassParameters->HiddenFilterFlags = uint32(HiddenFilterFlags);
 		PassParameters->NumHiddenPrimitives = FMath::RoundUpToPowerOfTwo(HiddenPrimitiveCount);
 		PassParameters->NumShowOnlyPrimitives = FMath::RoundUpToPowerOfTwo(ShowOnlyPrimitiveCount);
 		PassParameters->GPUSceneParameters = GPUSceneParameters;

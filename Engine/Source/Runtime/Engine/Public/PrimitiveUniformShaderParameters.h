@@ -13,6 +13,7 @@
 #include "LightmapUniformShaderParameters.h"
 #include "UnifiedBuffer.h"
 #include "Containers/StaticArray.h"
+#include "NaniteDefinitions.h"
 
 /** 
  * The uniform shader parameters associated with a primitive. 
@@ -51,7 +52,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FVector3f,		InstanceLocalBoundsExtent)
 	SHADER_PARAMETER(uint32,		InstancePayloadDataStride)
 	SHADER_PARAMETER(FVector3f,		WireframeColor)											// Only needed for editor/development
-	SHADER_PARAMETER(uint32,		NaniteImposterIndex)
+	SHADER_PARAMETER(uint32,		NaniteImposterIndexAndFilterFlags)
 	SHADER_PARAMETER(FVector3f,		LevelColor)												// Only needed for editor/development
 	SHADER_PARAMETER(int32,			PersistentPrimitiveIndex)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
@@ -115,6 +116,7 @@ public:
 		bVisibleInSceneCaptureOnly					= false;
 		bHiddenInSceneCapture						= false;
 		bForceHidden								= false;
+		bHasNaniteImposter							= false;
 
 		// Default colors
 		Parameters.WireframeColor					= FVector3f(1.0f, 1.0f, 1.0f);
@@ -128,9 +130,9 @@ public:
 		Parameters.PrimitiveComponentId				= ~uint32(0u);
 
 		// Nanite
-		Parameters.NaniteResourceID					= INDEX_NONE;
-		Parameters.NaniteHierarchyOffset			= INDEX_NONE;
-		Parameters.NaniteImposterIndex				= INDEX_NONE;
+		Parameters.NaniteResourceID						= INDEX_NONE;
+		Parameters.NaniteHierarchyOffset				= INDEX_NONE;
+		Parameters.NaniteImposterIndexAndFilterFlags	= NANITE_IMPOSTER_INDEX_MASK;
 
 		// Instance data
 		Parameters.InstanceSceneDataOffset			= INDEX_NONE;
@@ -178,7 +180,6 @@ public:
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			PrimitiveComponentId);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteResourceID);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteHierarchyOffset);
-	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			NaniteImposterIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			LightmapUVIndex);
 	PRIMITIVE_UNIFORM_BUILDER_METHOD(uint32,			LightmapDataIndex);
 
@@ -283,6 +284,24 @@ public:
 		return *this;
 	}
 
+	inline FPrimitiveUniformShaderParametersBuilder& NaniteImposterIndex(uint32 ImposterIndex)
+	{
+		bHasNaniteImposter = ImposterIndex != INDEX_NONE;
+
+		check(!bHasNaniteImposter || ImposterIndex < NANITE_IMPOSTER_INDEX_MASK);
+		Parameters.NaniteImposterIndexAndFilterFlags = (Parameters.NaniteImposterIndexAndFilterFlags & NANITE_FILTER_FLAGS_MASK) | (ImposterIndex & NANITE_IMPOSTER_INDEX_MASK);
+
+		return *this;
+	}
+
+	inline FPrimitiveUniformShaderParametersBuilder& NaniteFilterFlags(uint32 FilterFlags)
+	{
+		check(FilterFlags < (1u << NANITE_FILTER_FLAGS_NUM_BITS));
+		Parameters.NaniteImposterIndexAndFilterFlags = (FilterFlags << NANITE_IMPOSTER_INDEX_NUM_BITS) | (Parameters.NaniteImposterIndexAndFilterFlags & NANITE_IMPOSTER_INDEX_MASK);
+
+		return *this;
+	}
+
 	inline const FPrimitiveUniformShaderParameters& Build()
 	{
 		const FLargeWorldRenderPosition AbsoluteWorldPosition(AbsoluteLocalToWorld.GetOrigin());
@@ -361,7 +380,7 @@ public:
 		Parameters.Flags |= ((LightingChannels & 0x1) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_0 : 0u;
 		Parameters.Flags |= ((LightingChannels & 0x2) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1 : 0u;
 		Parameters.Flags |= ((LightingChannels & 0x4) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2 : 0u;
-		Parameters.Flags |= (Parameters.NaniteImposterIndex != INDEX_NONE) ? PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER : 0u;
+		Parameters.Flags |= bHasNaniteImposter ? PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER : 0u;
 		Parameters.Flags |= bHasInstanceLocalBounds ? PRIMITIVE_SCENE_DATA_FLAG_HAS_INSTANCE_LOCAL_BOUNDS : 0u;
 		Parameters.Flags |= bCastShadow ? PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 		Parameters.Flags |= bCastContactShadow ? PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW : 0u;
@@ -412,6 +431,7 @@ private:
 	uint32 bVisibleInSceneCaptureOnly : 1;
 	uint32 bHiddenInSceneCapture : 1;
 	uint32 bForceHidden : 1;
+	uint32 bHasNaniteImposter : 1;
 };
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(

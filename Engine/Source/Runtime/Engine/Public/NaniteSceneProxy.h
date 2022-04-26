@@ -74,6 +74,16 @@ ENGINE_API bool IsSupportedBlendMode(EBlendMode Mode);
 ENGINE_API bool IsSupportedMaterialDomain(EMaterialDomain Domain);
 ENGINE_API bool IsWorldPositionOffsetSupported();
 
+enum class EFilterFlags : uint8
+{
+	None				= 0u,
+	InstancedStaticMesh = (1u << 0u),
+	Foliage				= (1u << 1u),
+	Grass				= (1u << 2u),
+};
+
+ENUM_CLASS_FLAGS(EFilterFlags)
+
 class FSceneProxyBase : public FPrimitiveSceneProxy
 {
 public:
@@ -151,6 +161,11 @@ public:
 		return MaterialMaxIndex;
 	}
 
+	inline EFilterFlags GetFilterFlags() const
+	{
+		return FilterFlags;
+	}
+
 #if WITH_EDITOR
 	inline const TConstArrayView<const FHitProxyId> GetHitProxyIds() const
 	{
@@ -194,6 +209,7 @@ protected:
 	EHitProxyMode HitProxyMode = EHitProxyMode::MaterialSection;
 #endif
 	int32 MaterialMaxIndex = INDEX_NONE;
+	EFilterFlags FilterFlags = EFilterFlags::None;
 	uint8 bHasProgrammableRaster : 1;
 	uint8 bEvaluateWorldPositionOffset : 1;
 };

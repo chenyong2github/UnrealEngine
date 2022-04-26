@@ -778,11 +778,25 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 		bHasRayTracingInstances = false;
 	}
 #endif
+
+	FilterFlags = EFilterFlags::InstancedStaticMesh;
 }
 
 FSceneProxy::FSceneProxy(UHierarchicalInstancedStaticMeshComponent* Component)
 : FSceneProxy(static_cast<UInstancedStaticMeshComponent*>(Component))
 {
+	switch (Component->GetViewRelevanceType())
+	{
+	case EHISMViewRelevanceType::Grass:
+		FilterFlags = EFilterFlags::Grass;
+		break;
+	case EHISMViewRelevanceType::Foliage:
+		FilterFlags = EFilterFlags::Foliage;
+		break;
+	default:
+		FilterFlags = EFilterFlags::InstancedStaticMesh;
+		break;
+	}
 }
 
 FSceneProxy::~FSceneProxy()
