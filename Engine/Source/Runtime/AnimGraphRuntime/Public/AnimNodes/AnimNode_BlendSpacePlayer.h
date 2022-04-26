@@ -72,6 +72,9 @@ public:
 	// Get whether we should reset the current play time when the blend space changes
 	virtual bool ShouldResetPlayTimeWhenBlendSpaceChanges() const PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::ShouldResetPlayTimeWhenBlendSpaceChanges, return true;);
 
+	// Set whether we should reset the current play time when the blend space changes
+	virtual bool SetResetPlayTimeWhenBlendSpaceChanges(bool bReset) PURE_VIRTUAL(FAnimNode_BlendSpacePlayerBase::SetResetPlayTimeWhenBlendSpaceChanges, return false;);
+
 	// An evaluator will be setting the play rate to zero and setting the time explicitly. ShouldTeleportToTime indicates whether we should jump to that time, or move to it playing out root motion and events etc.
 	virtual bool ShouldTeleportToTime() const { return false; }
 
@@ -188,6 +191,7 @@ public:
 	virtual float GetPlayRate() const override;
 	virtual bool GetLoop() const override;
 	virtual bool ShouldResetPlayTimeWhenBlendSpaceChanges() const override;
+	virtual bool SetResetPlayTimeWhenBlendSpaceChanges(bool bReset) override;
 	virtual bool SetBlendSpace(UBlendSpace* InBlendSpace) override;
 	virtual bool SetPosition(FVector InPosition) override;
 	virtual bool SetPlayRate(float InPlayRate) override;
@@ -267,6 +271,7 @@ public:
 	virtual float GetPlayRate() const override { return PlayRate; }
 	virtual bool GetLoop() const override { return bLoop; }
 	virtual bool ShouldResetPlayTimeWhenBlendSpaceChanges() const override { return bResetPlayTimeWhenBlendSpaceChanges; }
+	virtual bool SetResetPlayTimeWhenBlendSpaceChanges(bool bReset) override { bResetPlayTimeWhenBlendSpaceChanges = bReset; return true; }
 	virtual bool SetBlendSpace(UBlendSpace* InBlendSpace) override { BlendSpace = InBlendSpace; return true; }
 	virtual bool SetPosition(FVector InPosition) override { X = InPosition[0]; Y = InPosition[1]; return true; }
 	virtual bool SetPlayRate(float InPlayRate) override { PlayRate = InPlayRate; return true; }

@@ -281,6 +281,20 @@ bool FAnimNode_BlendSpacePlayer::SetIgnoreForRelevancyTest(bool bInIgnoreForRele
 	return false;
 }
 
+bool FAnimNode_BlendSpacePlayer::SetResetPlayTimeWhenBlendSpaceChanges(bool bInReset)
+{
+#if WITH_EDITORONLY_DATA
+	bResetPlayTimeWhenBlendSpaceChanges = bInReset;
+#endif
+
+	if (bool* bResetPlayTimeWhenBlendSpaceChangesPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(bool, bResetPlayTimeWhenBlendSpaceChanges))
+	{
+		*bResetPlayTimeWhenBlendSpaceChangesPtr = bInReset;
+		return true;
+	}
+
+	return false;
+}
 
 bool FAnimNode_BlendSpacePlayer::SetBlendSpace(UBlendSpace* InBlendSpace)
 {

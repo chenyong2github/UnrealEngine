@@ -33,6 +33,8 @@ void FAnimNode_MotionMatching::Initialize_AnyThread(const FAnimationInitializeCo
 		MirrorNode.SetMirrorDataTable(Database->Schema->MirrorDataTable.Get());
 	}
 
+	BlendSpacePlayerNode.SetResetPlayTimeWhenBlendSpaceChanges(false /*!bReset*/);
+
 	Source.SetLinkNode(&MirrorNode);
 	Source.Initialize(Context);
 }
