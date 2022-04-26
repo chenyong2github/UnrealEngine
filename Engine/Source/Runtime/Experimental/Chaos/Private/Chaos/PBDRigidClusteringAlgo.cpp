@@ -213,7 +213,7 @@ namespace Chaos
 	void 
 		UpdateKinematicProperties(
 			Chaos::FPBDRigidParticleHandle* InParent,
-			FRigidClustering::FClusterMap& MChildren,
+			const FRigidClustering::FClusterMap& MChildren,
 			FRigidClustering::FRigidEvolution& MEvolution)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateKinematicProperties);

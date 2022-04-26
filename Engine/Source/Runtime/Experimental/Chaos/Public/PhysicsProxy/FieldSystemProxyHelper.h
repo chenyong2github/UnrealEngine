@@ -243,27 +243,35 @@ namespace Chaos
 	/**
 	 * Update all the clustered particles object state to static/kinematic if one of its children state has been changed to static/kinematic
 	 * @param    Rigidsolver Rigid solver owning the particle handle
-	 * @param    bHasStateChanged Boolean to check before updating the handle state
+	 * @param    UpdatedParticles List of particles that had their state updated
 	 */
-	static void UpdateSolverParticlesState(Chaos::FPBDRigidsSolver* RigidSolver, const bool bHasStateChanged)
+	static void UpdateSolverParticlesState(Chaos::FPBDRigidsSolver* RigidSolver, const TFieldArrayView<FFieldContextIndex>& UpdatedParticleIndices, const TArray<Chaos::FGeometryParticleHandle*>& Particles)
 	{
-		if (bHasStateChanged)
+		if (UpdatedParticleIndices.Num() > 0)
 		{
+			// chaos(todo) : do we really need this ? 
 			RigidSolver->GetParticles().UpdateGeometryCollectionViews(true);
 
-			Chaos::FPBDRigidsSOAs& SolverParticles = RigidSolver->GetParticles();
-			auto& Clustering = RigidSolver->GetEvolution()->GetRigidClustering();
-
-			FPBDRigidClusteredParticles& ClusteredParticles = SolverParticles.GetClusteredParticles();
-
-			for (uint32 ParticleIndex = 0, NumParticles = ClusteredParticles.Size(); ParticleIndex < NumParticles; ++ParticleIndex)
+			TSet<FPBDRigidClusteredParticleHandle*> TopParentClusters;
+			for (const FFieldContextIndex& ParticleIndex: UpdatedParticleIndices)
 			{
-				FPBDRigidClusteredParticleHandle* ClusteredHandle = ClusteredParticles.Handle(ParticleIndex);
-				if (ClusteredHandle && ClusteredHandle->ClusterIds().NumChildren && !ClusteredHandle->Disabled())
+				if (FPBDRigidClusteredParticleHandle* ClusteredHandle = Particles[ParticleIndex.Sample]->CastToClustered())
 				{
-					Chaos::FPBDRigidParticleHandle* RigidHandle = ClusteredHandle->CastToRigidParticle();
-					check(RigidHandle);
-					UpdateKinematicProperties(RigidHandle, Clustering.GetChildrenMap(), *RigidSolver->GetEvolution());
+					FPBDRigidClusteredParticleHandle* TopParent = ClusteredHandle;
+					while (FPBDRigidClusteredParticleHandle* DirectParent = TopParent->Parent())
+					{
+						TopParent = DirectParent;
+					}
+					TopParentClusters.Add(TopParent);
+				}
+			}
+
+			const FRigidClustering& Clustering = RigidSolver->GetEvolution()->GetRigidClustering();
+			for (FPBDRigidClusteredParticleHandle* TopParentClusteredHandle: TopParentClusters)
+			{
+				if (TopParentClusteredHandle && TopParentClusteredHandle->ClusterIds().NumChildren && !TopParentClusteredHandle->Disabled())
+				{
+					UpdateKinematicProperties(TopParentClusteredHandle, Clustering.GetChildrenMap(), *RigidSolver->GetEvolution());
 				}
 			}
 		}
@@ -378,11 +386,14 @@ namespace Chaos
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicState);
 			{
-				bool bHasStateChanged = false;
 				InitDynamicStateResults(ParticleHandles, FieldContext, FinalResults);
 
 				static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-				for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
+
+				bool bHasStateChanged = false;
+				
+				const TFieldArrayView<FFieldContextIndex>& EvaluatedSamples = FieldContext.GetEvaluatedSamples();
+				for (const FFieldContextIndex& Index : EvaluatedSamples)
 				{
 					Chaos::FPBDRigidParticleHandle* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 					if (RigidHandle)
@@ -395,7 +406,10 @@ namespace Chaos
 							false, Chaos::FVec3(0), false, Chaos::FVec3(0));
 					}
 				}
-				UpdateSolverParticlesState(RigidSolver, bHasStateChanged);
+				if (bHasStateChanged)
+				{
+					UpdateSolverParticlesState(RigidSolver, EvaluatedSamples, ParticleHandles);
+				}
 			}
 		}
 		else if (FieldCommand.PhysicsType == EFieldPhysicsType::Field_ActivateDisabled)

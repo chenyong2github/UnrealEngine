@@ -13,7 +13,7 @@ namespace Chaos
 
 	void CHAOS_API UpdateKinematicProperties(
 		FPBDRigidParticleHandle* Parent,
-		FRigidClustering::FClusterMap&,
+		const FRigidClustering::FClusterMap&,
 		FRigidClustering::FRigidEvolution&);
 
 	void CHAOS_API UpdateGeometry(

@@ -2933,11 +2933,14 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 						{
 							SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_DynamicState);
 							{
-								bool bHasStateChanged = false;
 								InitDynamicStateResults(ParticleHandles, FieldContext, FinalResults);
 
 								static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-								for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
+
+								bool bHasStateChanged = false;
+								
+								const TFieldArrayView<FFieldContextIndex>& EvaluatedSamples = FieldContext.GetEvaluatedSamples();
+								for (const FFieldContextIndex& Index : EvaluatedSamples)
 								{
 									Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 									if (RigidHandle)
@@ -2965,9 +2968,9 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRi
 										Collection.DynamicState[TransformIndex] = ResultState;
 									}
 								}
-								if (bUpdateViews)
+								if (bUpdateViews && bHasStateChanged)
 								{
-									UpdateSolverParticlesState(RigidSolver, bHasStateChanged);
+									UpdateSolverParticlesState(RigidSolver, EvaluatedSamples, ParticleHandles);
 								}
 							}
 						}
