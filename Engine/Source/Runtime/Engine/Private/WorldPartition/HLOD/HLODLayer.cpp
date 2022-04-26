@@ -126,6 +126,8 @@ UHLODLayer* UHLODLayer::DuplicateHLODLayersSetup(UHLODLayer* HLODLayer, const FS
 	{
 		const FString PackageName = DestinationPath + TEXT("_") + CurrentHLODLayer->GetName();
 		UPackage* Package = CreatePackage(*PackageName);
+		// In case Package already exists setting this flag will allow overwriting it
+		Package->MarkAsFullyLoaded();
 
 		FString NewHLODLayerName = Prefix + TEXT("_") + CurrentHLODLayer->GetName();
 		UHLODLayer* NewHLODLayer = CastChecked<UHLODLayer>(StaticDuplicateObject(CurrentHLODLayer, Package, *NewHLODLayerName));
