@@ -314,7 +314,7 @@ TFuture<UE::BulkDataRegistry::FMetaData> FBulkDataRegistryEditorDomain::GetMeta(
 		if (!Existing || !Existing->bPayloadAvailable)
 		{
 			TPromise<UE::BulkDataRegistry::FMetaData> Promise;
-			Promise.SetValue(UE::BulkDataRegistry::FMetaData{ false, FIoHash(), 0 });
+			Promise.SetValue(UE::BulkDataRegistry::FMetaData{ FIoHash(), 0 });
 			return Promise.GetFuture();
 		}
 
@@ -322,7 +322,7 @@ TFuture<UE::BulkDataRegistry::FMetaData> FBulkDataRegistryEditorDomain::GetMeta(
 		if (!BulkData.HasPlaceholderPayloadId())
 		{
 			TPromise<UE::BulkDataRegistry::FMetaData> Promise;
-			Promise.SetValue(UE::BulkDataRegistry::FMetaData{ true, BulkData.GetPayloadId(), static_cast<uint64>(BulkData.GetPayloadSize()) });
+			Promise.SetValue(UE::BulkDataRegistry::FMetaData{ BulkData.GetPayloadId(), static_cast<uint64>(BulkData.GetPayloadSize()) });
 			return Promise.GetFuture();
 		}
 
@@ -344,7 +344,7 @@ TFuture<UE::BulkDataRegistry::FMetaData> FBulkDataRegistryEditorDomain::GetMeta(
 		TFuture<UE::BulkDataRegistry::FMetaData> Future = Promise.GetFuture();
 		UpdatingPayload.Requesters.Add([Promise = MoveTemp(Promise)](bool bValid, const FCompressedBuffer& Buffer) mutable
 			{
-				Promise.SetValue(UE::BulkDataRegistry::FMetaData{ bValid, Buffer.GetRawHash(), Buffer.GetRawSize() });
+				Promise.SetValue(UE::BulkDataRegistry::FMetaData{ Buffer.GetRawHash(), Buffer.GetRawSize() });
 			});
 		return Future;
 	}
@@ -366,7 +366,7 @@ TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(cons
 			if (!Existing || !Existing->bPayloadAvailable)
 			{
 				TPromise<UE::BulkDataRegistry::FData> Result;
-				Result.SetValue(UE::BulkDataRegistry::FData{ false, FCompressedBuffer() });
+				Result.SetValue(UE::BulkDataRegistry::FData{ FCompressedBuffer() });
 				return Result.GetFuture();
 			}
 
@@ -410,7 +410,7 @@ TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(cons
 			TFuture<UE::BulkDataRegistry::FData> Future = Promise.GetFuture();
 			UpdatingPayload.Requesters.Add([Promise=MoveTemp(Promise)](bool bValid, const FCompressedBuffer& Buffer) mutable
 				{
-					Promise.SetValue(UE::BulkDataRegistry::FData{ bValid, Buffer });
+					Promise.SetValue(UE::BulkDataRegistry::FData{ Buffer });
 				});
 			return Future;
 		}
@@ -421,7 +421,7 @@ TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(cons
 	// does not read from the BulkData after returning from GetCompressedPayload, so a read-after-free is not possible.
 	return CopyBulk->GetCompressedPayload().Next([](FCompressedBuffer Payload)
 		{
-			return UE::BulkDataRegistry::FData{ true, Payload };
+			return UE::BulkDataRegistry::FData{ Payload };
 		});
 }
 

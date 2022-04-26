@@ -14,6 +14,9 @@
 #include "Serialization/BulkDataRegistry.h"
 #include "Templates/Tuple.h"
 
+// MRPTODO
+PRAGMA_DISABLE_OPTIMIZATION;
+
 namespace UE::DerivedData
 {
 
@@ -47,7 +50,7 @@ private:
 	 * Move BulkData's fields from the BulkDataRegistry's format into the BuildInputResolver format.
 	 * Implementation varies depending on whether the template type is for MetaData or Data.
 	*/
-	void AssignBulkPayload(CallbackPayloadType& OutPayload, BulkPayloadType& InPayload);
+	void AssignBulkPayload(CallbackPayloadType& OutPayload, bool& bOutPayloadIsValid, BulkPayloadType& InPayload);
 	/**
 	 * Log that a BulkData has failed to resolve.
 	 * The text of the message varies depending on whether the template type is for MetaData or Data.
@@ -272,11 +275,9 @@ void TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::S
 		PayloadData.Future = InPair.template Get<TFuture<BulkPayloadType>>().Next(
 			[pThis = TRefCountPtr<ThisType>(this), &Payload](BulkPayloadType&& Result)
 			{
-				if (Result.bValid)
-				{
-					pThis->AssignBulkPayload(Payload, Result);
-				}
-				else
+				bool bValid;
+				pThis->AssignBulkPayload(Payload, bValid, Result);
+				if (!bValid)
 				{
 					pThis->LogBulkDataError(Payload.Key);
 					pThis->bAllSucceeded.store(false, std::memory_order_relaxed);
@@ -332,16 +333,18 @@ void TResolveInputRequest<BulkPayloadType, CallbackPayloadType, CallbackType>::C
 }
 
 template<>
-void FResolveInputMetaRequest::AssignBulkPayload(FBuildInputMetaByKey& OutPayload, UE::BulkDataRegistry::FMetaData& InPayload)
+void FResolveInputMetaRequest::AssignBulkPayload(FBuildInputMetaByKey& OutPayload, bool& bOutPayloadIsValid, UE::BulkDataRegistry::FMetaData& InPayload)
 {
 	OutPayload.RawHash = InPayload.RawHash;
 	OutPayload.RawSize = InPayload.RawSize;
+	bOutPayloadIsValid = !OutPayload.RawHash.IsZero();
 }
 
 template<>
-void FResolveInputDataRequest::AssignBulkPayload(FBuildInputDataByKey& OutPayload, UE::BulkDataRegistry::FData& InPayload)
+void FResolveInputDataRequest::AssignBulkPayload(FBuildInputDataByKey& OutPayload, bool& bOutPayloadIsValid, UE::BulkDataRegistry::FData& InPayload)
 {
 	OutPayload.Data = MoveTemp(InPayload.Buffer);
+	bOutPayloadIsValid = !OutPayload.Data.IsNull();
 }
 
 template<>

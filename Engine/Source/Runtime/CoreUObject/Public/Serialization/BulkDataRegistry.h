@@ -47,20 +47,22 @@ namespace UE::BulkDataRegistry
 	/** Results of GetMeta call. */
 	struct FMetaData
 	{
-		/** True if data was found, else false. */
-		bool bValid;
-		/** IoHash of the uncompressed bytes of the data that will be returned from GetData. */
+		/**
+		 * IoHash of the uncompressed bytes of the data that will be returned from GetData.
+		 * FIoHash::Zero if and only if data was not found.
+		 */
 		FIoHash RawHash;
-		/** Size of the uncompressed bytes of the data that will be returned from GetData. */
+		/**
+		 * Size of the uncompressed bytes of the data that will be returned from GetData.
+		 * 0 if data was not found, but can be 0 for valid data as well.
+		 */
 		uint64 RawSize;
 	};
 
 	/** Results of GetData call. */
 	struct FData
 	{
-		/** True if data was found, else false. */
-		bool bValid;
-		/** The discovered data. Empty if data was not found. */
+		/** The discovered data. Null buffer and only if data was not found. */
 		FCompressedBuffer Buffer;
 	};
 }

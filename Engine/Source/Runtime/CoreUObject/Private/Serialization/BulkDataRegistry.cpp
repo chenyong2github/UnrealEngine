@@ -56,13 +56,13 @@ public:
 	virtual TFuture<UE::BulkDataRegistry::FMetaData> GetMeta(const FGuid& BulkDataId) override
 	{
 		TPromise<UE::BulkDataRegistry::FMetaData> Promise;
-		Promise.SetValue(UE::BulkDataRegistry::FMetaData{ false, FIoHash(), 0 });
+		Promise.SetValue(UE::BulkDataRegistry::FMetaData{ FIoHash(), 0 });
 		return Promise.GetFuture();
 	}
 	virtual TFuture<UE::BulkDataRegistry::FData> GetData(const FGuid& BulkDataId) override
 	{
 		TPromise<UE::BulkDataRegistry::FData> Promise;
-		Promise.SetValue(UE::BulkDataRegistry::FData{ false, FCompressedBuffer() });
+		Promise.SetValue(UE::BulkDataRegistry::FData{ FCompressedBuffer() });
 		return Promise.GetFuture();
 	}
 	virtual bool TryGetBulkData(const FGuid & BulkDataId, UE::Serialization::FEditorBulkData* OutBulk = nullptr,
