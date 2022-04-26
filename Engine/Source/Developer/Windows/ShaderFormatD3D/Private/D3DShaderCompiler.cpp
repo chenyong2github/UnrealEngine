@@ -590,7 +590,13 @@ static void PatchSpirvForPrecompilation(FSpirv& Spirv)
 // @todo-lh: use ANSI string class whenever UE core gets one
 static void PatchHlslForPrecompilation(TArray<ANSICHAR>& HlslSource)
 {
-	FString HlslSourceString = ANSI_TO_TCHAR(HlslSource.GetData());
+	FString HlslSourceString;
+
+	// Disable some warnings that might be introduced by cross-compiled HLSL, we only want to see those warnings from the original source and not from intermediate high-level source
+	HlslSourceString += TEXT("#pragma warning(disable : 3571) // pow() intrinsic suggested to be used with abs()\n");
+
+	// Append original cross-compiled source code
+	HlslSourceString += ANSI_TO_TCHAR(HlslSource.GetData());
 
 	// Patch SPIRV-Cross renaming to retain original member names in RootShaderParameters cbuffer
 	const int32 RootShaderParameterSourceLocation = HlslSourceString.Find("cbuffer RootShaderParameters");
