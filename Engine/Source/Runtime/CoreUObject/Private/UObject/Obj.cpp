@@ -4855,6 +4855,12 @@ void UObject::GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & Ou
 
 }
 
+/** Called when this object begins replicating to initialize the state of custom property conditions */
+void UObject::GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const
+{
+
+}
+
 /** Called right before receiving a bunch */
 void UObject::PreNetReceive()
 {

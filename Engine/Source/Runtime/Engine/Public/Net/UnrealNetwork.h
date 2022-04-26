@@ -16,6 +16,7 @@
 #include "EngineLogs.h"
 #include "UObject/UnrealType.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Net/Core/PropertyConditions/PropertyConditions.h"
 
 class AActor;
 
@@ -260,7 +261,6 @@ static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 	DOREPLIFETIME_WITH_PARAMS(c,v,LocalDoRepParams); \
 }
 
-
 #define DOREPLIFETIME_ACTIVE_OVERRIDE_FAST(c,v,active) \
 { \
 	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
@@ -285,23 +285,25 @@ static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 	} \
 }
 
-UE_DEPRECATED(4.24, "Please use the RESET_REPLIFETIME_CONDITION macro")
-ENGINE_API void DeprecatedChangeCondition(FProperty* ReplicatedProperty, TArray< FLifetimeProperty >& OutLifetimeProps, ELifetimeCondition InCondition);
-
-
-//~ This is already using a deprecated method, don't bother updating it.
-#define DOREPLIFETIME_CHANGE_CONDITION(c,v,cond) \
+#define DOREPCUSTOMCONDITION_ACTIVE_FAST(c,v,active) \
 { \
-	FProperty* sp##v = GetReplicatedProperty(StaticClass(), c::StaticClass(),GET_MEMBER_NAME_CHECKED(c,v));			\
-	DeprecatedChangeCondition(sp##v, OutLifetimeProps, cond);														\
+	static const bool bIsValid_##c_##v = ValidateReplicatedClassInheritance(StaticClass(), c::StaticClass(), TEXT(#v)); \
+	OutActiveState.SetActiveState((uint16)c::ENetFields_Private::v, active); \
 }
 
-UE_DEPRECATED(4.24, "Use RegisterReplicatedLifetimeProperty that takes FDoRepLifetimeParams.")
-ENGINE_API void RegisterReplicatedLifetimeProperty(
-	const FProperty* ReplicatedProperty,
-	TArray<FLifetimeProperty>& OutLifetimeProps,
-	ELifetimeCondition InCondition,
-	ELifetimeRepNotifyCondition InRepNotifyCondition = REPNOTIFY_OnChanged);
+#define SET_REPCUSTOMCONDITION_ACTIVE_FAST(c,v,active) \
+{ \
+	FNetPropertyConditionManager::Get().SetPropertyActive(this, (uint16)c::ENetFields_Private::v, active); \
+}
+
+#define SET_REPCUSTOMCONDITION_ACTIVE_FAST_STATIC_ARRAY(c,v,active) \
+{ \
+	for (int32 i = 0; i < (int32)c::EArrayDims_Private::v; ++i) \
+	{ \
+		FNetPropertyConditionManager::Get().SetPropertyActive(this, (uint16)c::ENetFields_Private::v##_STATIC_ARRAY + i, active); \
+	} \
+}
+
 
 ENGINE_API void RegisterReplicatedLifetimeProperty(
 	const FProperty* ReplicatedProperty,

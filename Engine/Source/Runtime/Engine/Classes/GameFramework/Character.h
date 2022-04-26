@@ -220,7 +220,9 @@ public:
 	/** Default UObject constructor. */
 	ACharacter(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
-	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	virtual void GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const override;
 
 private:
 	/** The main skeletal mesh associated with this Character (optional sub-object). */

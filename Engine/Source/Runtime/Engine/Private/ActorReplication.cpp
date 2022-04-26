@@ -468,6 +468,14 @@ void AActor::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifeti
 	DOREPLIFETIME_WITH_PARAMS_FAST(AActor, ReplicatedMovement, ReplicatedMovementParams);
 }
 
+void AActor::GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const
+{
+	Super::GetReplicatedCustomConditionState(OutActiveState);
+
+	DOREPCUSTOMCONDITION_ACTIVE_FAST(AActor, AttachmentReplication, IsReplicatingMovement());
+	DOREPCUSTOMCONDITION_ACTIVE_FAST(AActor, ReplicatedMovement, RootComponent && !RootComponent->GetIsReplicated());
+}
+
 bool AActor::ReplicateSubobjects(UActorChannel *Channel, FOutBunch *Bunch, FReplicationFlags *RepFlags)
 {
 	check(Channel);

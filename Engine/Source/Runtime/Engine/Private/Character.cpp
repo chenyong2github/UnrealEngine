@@ -1454,13 +1454,13 @@ void ACharacter::PreReplication( IRepChangedPropertyTracker & ChangedPropertyTra
 		RepRootMotion.Acceleration = CharacterMovement->GetCurrentAcceleration();
 		RepRootMotion.LinearVelocity = CharacterMovement->Velocity;
 
-		DOREPLIFETIME_ACTIVE_OVERRIDE( ACharacter, RepRootMotion, true );
+		DOREPLIFETIME_ACTIVE_OVERRIDE_FAST( ACharacter, RepRootMotion, true );
 	}
 	else
 	{
 		RepRootMotion.Clear();
 
-		DOREPLIFETIME_ACTIVE_OVERRIDE( ACharacter, RepRootMotion, false );
+		DOREPLIFETIME_ACTIVE_OVERRIDE_FAST( ACharacter, RepRootMotion, false );
 	}
 
 	bProxyIsJumpForceApplied = (JumpForceTimeRemaining > 0.0f);
@@ -1489,6 +1489,13 @@ void ACharacter::PreReplication( IRepChangedPropertyTracker & ChangedPropertyTra
 	{
 		ReplicatedServerLastTransformUpdateTimeStamp = 0.f;
 	}
+}
+
+void ACharacter::GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const
+{
+	Super::GetReplicatedCustomConditionState(OutActiveState);
+
+	DOREPCUSTOMCONDITION_ACTIVE_FAST(ACharacter, RepRootMotion, CharacterMovement->CurrentRootMotion.HasActiveRootMotionSources() || IsPlayingNetworkedRootMotionMontage());
 }
 
 void ACharacter::PreReplicationForReplay(IRepChangedPropertyTracker& ChangedPropertyTracker)

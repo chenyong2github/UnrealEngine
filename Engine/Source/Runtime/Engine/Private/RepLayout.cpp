@@ -993,49 +993,6 @@ struct FNetPrivatePushIdHelper
 };
 #endif // (WITH_PUSH_MODEL)
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording) :
-	bIsClientReplayRecording(InbIsClientReplayRecording),
-	ExternalDataNumBits(0)
-{}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive)
-{
-	FBitReference Active = ActiveParents[RepIndex];
-
-	const bool bOldActive = Active;
-	Active = (bIsActive || bIsClientReplayRecording);
-
-#if WITH_PUSH_MODEL
-	if (!bOldActive && Active)
-	{
-		FNetPrivatePushIdHelper::MarkPropertyDirty(OwningObject, RepIndex);
-	}
-#endif	
-}
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void FRepChangedPropertyTracker::SetExternalData(const uint8* Src, const int32 NumBits)
-{
-	ExternalDataNumBits = NumBits;
-	const int32 NumBytes = (NumBits + 7) >> 3;
-	ExternalData.Reset(NumBytes);
-	ExternalData.AddUninitialized(NumBytes);
-	FMemory::Memcpy(ExternalData.GetData(), Src, NumBytes);
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-void FRepChangedPropertyTracker::CountBytes(FArchive& Ar) const
-{
-	// Include our size here, because the caller won't know.
-	Ar.CountBytes(sizeof(FRepChangedPropertyTracker), sizeof(FRepChangedPropertyTracker));
-	ActiveParents.CountBytes(Ar);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ExternalData.CountBytes(Ar);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 void FRepStateStaticBuffer::CountBytes(FArchive& Ar) const
 {
 	GRANULAR_NETWORK_MEMORY_TRACKING_INIT(Ar, "FRepStateStaticBuffer::CountBytes");
@@ -1331,6 +1288,7 @@ struct FComparePropertiesSharedParams
 	const bool bValidateProperties = false;
 	const bool bIsNetworkProfilerActive = false;
 	const bool bChangedNetOwner = false;
+	const bool bForceCustomPropsActive = false;
 #if (WITH_PUSH_VALIDATION_SUPPORT || USE_NETWORK_PROFILER)
 	TBitArray<> PropertiesCompared;
 	TBitArray<> PropertiesChanged;
@@ -1403,7 +1361,7 @@ static bool CompareParentProperty(
 	// If the property is inactive, we can skip comparing it because we know it won't be sent.
 	// Further, this will keep the last active state of the property in the shadow buffer,
 	// meaning the next time the property becomes active it will be sent to all connections.
-	const bool bIsActive = !SharedParams.RepChangedPropertyTracker || SharedParams.RepChangedPropertyTracker->IsParentActive(ParentIndex);
+	const bool bIsActive = SharedParams.bForceCustomPropsActive || !SharedParams.RepChangedPropertyTracker || SharedParams.RepChangedPropertyTracker->IsParentActive(ParentIndex);
 	const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
 
 	if (bShouldSkip)
@@ -1721,10 +1679,11 @@ ERepLayoutResult FRepLayout::CompareProperties(
 		(RepState ? RepState->RepChangedPropertyTracker.Get() : nullptr),
 		NetSerializeLayouts,
 		/*PushModelState=*/UE_RepLayout_Private::GetPerNetDriverState(RepChangelistState),
-		/*PushModelProperties=*/ LocalPushModelProperties,	
+		/*PushModelProperties=*/ LocalPushModelProperties,
 		/*bValidateProperties=*/GbPushModelValidateProperties,
 		/*bIsNetworkProfilerActive=*/UE_RepLayout_Private::IsNetworkProfilerComparisonTrackingEnabled(),
-		/*bChangedNetOwner=*/ RepState && RepState->RepFlags.bNetOwner != RepFlags.bNetOwner
+		/*bChangedNetOwner=*/ RepState && RepState->RepFlags.bNetOwner != RepFlags.bNetOwner,
+		/*bForceCustomPropsActive*/ !!RepFlags.bClientReplay
 	};
 
 	FComparePropertiesStackParams StackParams{
@@ -7054,10 +7013,12 @@ void FRepLayout::RebuildConditionalProperties(
 	RepState->RepFlags = RepFlags;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void FRepLayout::InitChangedTracker(FRepChangedPropertyTracker* ChangedTracker) const
 {
-	ChangedTracker->InitActiveParents(Parents.Num());
+	checkf(ChangedTracker->GetParentCount() == Parents.Num(), TEXT("InitChangedTracker: Mismatched replicated parent properties for: %s"), *GetNameSafe(Owner));
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FRepStateStaticBuffer FRepLayout::CreateShadowBuffer(const FConstRepObjectDataBuffer Source) const
 {

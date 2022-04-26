@@ -182,7 +182,10 @@ private:
 
 public:
 	/** Returns the properties used for network replication, this needs to be overridden by all actor classes with native replicated properties */
-	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	/** Called when this actor begins replicating to initialize the state of custom property conditions */
+	virtual void GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const override;
 
 	/**
 	 * Primary Actor tick function, which calls TickActor().

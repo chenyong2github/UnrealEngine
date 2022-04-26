@@ -41,6 +41,7 @@
 #include "Engine/DemoNetDriver.h"
 #include "Engine/Player.h"
 #include "AssetRegistryModule.h"
+#include "Net/Core/PropertyConditions/PropertyConditions.h"
 
 #include "Components/BoxComponent.h"
 #include "GameFramework/MovementComponent.h"
@@ -941,6 +942,8 @@ bool UWorld::DestroyActor( AActor* ThisActor, bool bNetForce, bool bShouldModify
 			ActorLevel->CreateReplicatedDestructionInfo(ThisActor);
 		}
 	}
+
+	FNetPropertyConditionManager::Get().NotifyObjectDestroyed(ThisActor);
 
 	// Notify net drivers that this guy has been destroyed.
 	if (FWorldContext* Context = GEngine->GetWorldContextFromWorld(this))

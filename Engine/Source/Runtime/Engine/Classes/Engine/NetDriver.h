@@ -701,7 +701,9 @@ private:
 public:
 
 	/** Destructor */
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ENGINE_API virtual ~UNetDriver() {};
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	/** Used to specify the class to use for connections */
 	UPROPERTY(Config)
@@ -1065,7 +1067,7 @@ public:
 	 */
 	TMap<FName, FName>	RenamedStartupActors;
 
-	class FRepChangedPropertyTrackerWrapper
+	class UE_DEPRECATED(5.1, "No longer used.") FRepChangedPropertyTrackerWrapper
 	{
 	public:
 		FRepChangedPropertyTrackerWrapper(UObject* Obj, const TSharedPtr<FRepChangedPropertyTracker>& InRepChangedPropertyTracker) : RepChangedPropertyTracker(InRepChangedPropertyTracker), WeakObjectPtr(Obj) {}
@@ -1088,8 +1090,13 @@ public:
 	private:
 		TWeakObjectPtr<UObject> WeakObjectPtr;
 	};
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Maps FRepChangedPropertyTracker to active objects that are replicating properties */
+	UE_DEPRECATED(5.1, "Property trackers have been moved to the NetCore module")
 	TMap<UObject*, FRepChangedPropertyTrackerWrapper>	RepChangedPropertyTrackerMap;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** Used to invalidate properties marked "unchanged" in FRepChangedPropertyTracker's */
 	uint32																		ReplicationFrame;
 
@@ -1443,6 +1450,7 @@ public:
 	bool HandleDumpSubObjectsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleDumpRepLayoutFlagsCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandlePushModelMemCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandlePropertyConditionsMemCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 #endif
 
 	void HandlePacketLossBurstCommand( int32 DurationInMilliseconds );
@@ -1477,6 +1485,8 @@ public:
 
 	/** Called when a spawned actor is destroyed. */
 	ENGINE_API virtual void NotifyActorDestroyed( AActor* Actor, bool IsSeamlessTravel=false );
+
+	void NotifySubObjectDestroyed(UObject* SubObject);
 
 	/** Called when an actor is renamed. */
 	ENGINE_API virtual void NotifyActorRenamed(AActor* Actor, FName PreviousName);
@@ -1554,6 +1564,9 @@ public:
 	 * If not found, creates one.
 	*/
 	TSharedPtr<FRepChangedPropertyTracker> FindOrCreateRepChangedPropertyTracker(UObject *Obj);
+
+	/** Finds a FRepChangedPropertyTracker associated with an object. */
+	TSharedPtr<FRepChangedPropertyTracker> FindRepChangedPropertyTracker(UObject* Obj);
 
 	/** Returns true if the client should destroy immediately any actor that becomes torn-off */
 	ENGINE_API virtual bool ShouldClientDestroyTearOffActors() const { return false; }

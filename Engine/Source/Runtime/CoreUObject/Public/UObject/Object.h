@@ -16,6 +16,7 @@
 
 struct FAssetData;
 class FConfigCacheIni;
+class FCustomPropertyConditionState;
 class FEditPropertyChain;
 class FObjectPostSaveContext;
 class FObjectPostSaveRootContext;
@@ -906,6 +907,9 @@ public:
 
 	/** Returns properties that are replicated for the lifetime of the actor channel */
 	virtual void GetLifetimeReplicatedProps( TArray< class FLifetimeProperty > & OutLifetimeProps ) const;
+
+	/** Called when this object begins replicating to initialize the state of custom property conditions */
+	virtual void GetReplicatedCustomConditionState(FCustomPropertyConditionState& OutActiveState) const;
 
 	/** IsNameStableForNetworking means an object can be referred to its path name (relative to outer) over the network */
 	virtual bool IsNameStableForNetworking() const;

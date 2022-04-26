@@ -2267,7 +2267,7 @@ void UActorChannel::DestroyActorAndComponents()
 
 			if (Connection != nullptr && Connection->Driver != nullptr)
 			{
-				Connection->Driver->RepChangedPropertyTrackerMap.Remove(SubObject);
+				Connection->Driver->NotifySubObjectDestroyed(SubObject);
 			}
 
 			Actor->OnSubobjectDestroyFromReplication(SubObject); //-V595
@@ -3369,6 +3369,7 @@ int64 UActorChannel::ReplicateActor()
 	RepFlags.bNetSimulated	= (Actor->GetRemoteRole() == ROLE_SimulatedProxy);
 	RepFlags.bRepPhysics	= Actor->GetReplicatedMovement().bRepPhysics;
 	RepFlags.bReplay		= bReplay;
+	RepFlags.bClientReplay	= ActorWorld->IsRecordingClientReplay();
 	RepFlags.bForceInitialDirty = Connection->IsForceInitialDirty();
 
 	UE_LOG(LogNetTraffic, Log, TEXT("Replicate %s, bNetInitial: %d, bNetOwner: %d"), *Actor->GetName(), RepFlags.bNetInitial, RepFlags.bNetOwner);
@@ -4216,7 +4217,7 @@ UObject* UActorChannel::ReadContentBlockHeader(FInBunch& Bunch, bool& bObjectDel
 
 			if (Connection != nullptr && Connection->Driver != nullptr)
 			{
-				Connection->Driver->RepChangedPropertyTrackerMap.Remove(SubObj);
+				Connection->Driver->NotifySubObjectDestroyed(SubObj);
 			}
 
 			Actor->OnSubobjectDestroyFromReplication(SubObj);

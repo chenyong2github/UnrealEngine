@@ -218,22 +218,3 @@ void DisableAllReplicatedPropertiesOfClass(const UClass* ThisClass, const UClass
 		}
 	}
 }
-
-
-void DeprecatedChangeCondition(const  FProperty* ReplicatedProperty, TArray<FLifetimeProperty>& OutLifetimeProps, ELifetimeCondition InCondition)
-{
-	bool bFound = false;
-	for (int32 i = 0; i < OutLifetimeProps.Num(); i++)
-	{
-		if (OutLifetimeProps[i].RepIndex == ReplicatedProperty->RepIndex)
-		{
-			for ( int32 j = 0; j < ReplicatedProperty->ArrayDim; j++ )
-			{
-				OutLifetimeProps[i + j].Condition = InCondition;
-			}
-			bFound = true;
-			break;
-		}
-	}
-	check( bFound );
-}

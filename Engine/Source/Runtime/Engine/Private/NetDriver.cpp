@@ -58,6 +58,7 @@
 #include "NetworkingDistanceConstants.h"
 #include "Engine/ChildConnection.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "Net/Core/PropertyConditions/PropertyConditions.h"
 #include "Misc/ScopeExit.h"
 #include "Net/DataChannel.h"
 #include "GameFramework/PlayerState.h"
@@ -2636,7 +2637,6 @@ void UNetDriver::SetAnalyticsProvider(TSharedPtr<IAnalyticsProvider> InProvider)
 	}
 }
 
-
 void UNetDriver::FRepChangedPropertyTrackerWrapper::CountBytes(FArchive& Ar) const
 {
 	if (FRepChangedPropertyTracker const * const LocalTracker = RepChangedPropertyTracker.Get())
@@ -2710,6 +2710,7 @@ void UNetDriver::Serialize( FArchive& Ar )
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RenamedStartupActors", RenamedStartupActors.CountBytes(Ar));
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RepChangedPropertyTrackerMap",
 			RepChangedPropertyTrackerMap.CountBytes(Ar);
 
@@ -2718,6 +2719,7 @@ void UNetDriver::Serialize( FArchive& Ar )
 				RepChangedPropertyTrackerPair.Value.CountBytes(Ar);
 			}
 		);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RepLayoutMap",
 			RepLayoutMap.CountBytes(Ar);
@@ -3220,6 +3222,11 @@ bool UNetDriver::HandlePushModelMemCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	return true;
 }
 
+bool UNetDriver::HandlePropertyConditionsMemCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	FNetPropertyConditionManager::Get().LogMemory(Ar);
+	return true;
+}
 #endif // !UE_BUILD_SHIPPING
 
 void UNetDriver::HandlePacketLossBurstCommand( int32 DurationInMilliseconds )
@@ -3350,6 +3357,11 @@ bool UNetDriver::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		HandlePushModelMemCommand(Cmd, Ar);
 		return true;
 	}
+	else if (FParse::Command(&Cmd, TEXT("PROPERTYCONDITIONMEM")))
+	{
+		HandlePropertyConditionsMemCommand(Cmd, Ar);
+		return true;
+	}
 	else
 #endif // !UE_BUILD_SHIPPING
 	{
@@ -3407,9 +3419,6 @@ FActorDestructionInfo* UNetDriver::CreateDestructionInfo( UNetDriver* NetDriver,
 
 void UNetDriver::NotifyActorDestroyed( AActor* ThisActor, bool IsSeamlessTravel )
 {
-	// Remove the actor from the property tracker map
-	RepChangedPropertyTrackerMap.Remove(ThisActor);
-
 	const bool bIsServer = IsServer();
 	
 	if (bIsServer)
@@ -3469,6 +3478,10 @@ void UNetDriver::NotifyActorDestroyed( AActor* ThisActor, bool IsSeamlessTravel 
 	RemoveNetworkActor( ThisActor );
 }
 
+void UNetDriver::NotifySubObjectDestroyed(UObject* SubObject)
+{
+	FNetPropertyConditionManager::Get().NotifyObjectDestroyed(SubObject);
+}
 
 void UNetDriver::RemoveNetworkActor(AActor* Actor)
 {
@@ -3769,6 +3782,7 @@ void UNetDriver::PostGarbageCollect()
 		}
 	}
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	for (auto It = RepChangedPropertyTrackerMap.CreateIterator(); It; ++It)
 	{
 		if (!It.Value().IsObjectValid())
@@ -3776,6 +3790,7 @@ void UNetDriver::PostGarbageCollect()
 			It.RemoveCurrent();
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -6045,29 +6060,12 @@ TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindOrCreateRepChangedPropert
 {
 	check(IsServer() || MaySendProperties());
 
-	FRepChangedPropertyTrackerWrapper * GlobalPropertyTrackerPtr = RepChangedPropertyTrackerMap.Find( Obj );
+	return FNetPropertyConditionManager::Get().FindOrCreatePropertyTracker(Obj);
+}
 
-	// Obj can be a new object with a pointer that matches an old, no longer valid, object
-	if ( GlobalPropertyTrackerPtr != nullptr && !GlobalPropertyTrackerPtr->IsObjectValid() )
-	{
-		RepChangedPropertyTrackerMap.Remove(Obj);
-		GlobalPropertyTrackerPtr = nullptr;
-	}
-
-	if ( !GlobalPropertyTrackerPtr ) 
-	{
-		const UWorld* const LocalWorld = GetWorld();
-		const bool bIsReplay = LocalWorld != nullptr && static_cast<void*>(LocalWorld->GetDemoNetDriver()) == static_cast<void*>(this);
-		const bool bIsClientReplayRecording = LocalWorld != nullptr ? LocalWorld->IsRecordingClientReplay() : false;
-
-		FRepChangedPropertyTracker * Tracker = new FRepChangedPropertyTracker(bIsReplay, bIsClientReplayRecording);
-
-		GetObjectClassRepLayout( Obj->GetClass() )->InitChangedTracker( Tracker );
-
-		GlobalPropertyTrackerPtr = &RepChangedPropertyTrackerMap.Add( Obj, FRepChangedPropertyTrackerWrapper( Obj, TSharedPtr<FRepChangedPropertyTracker>( Tracker ) ) );
-	}
-
-	return GlobalPropertyTrackerPtr->RepChangedPropertyTracker;
+TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindRepChangedPropertyTracker(UObject* Obj)
+{
+	return FNetPropertyConditionManager::Get().FindPropertyTracker(Obj);
 }
 
 TSharedPtr<FRepLayout> UNetDriver::GetObjectClassRepLayout( UClass * Class )

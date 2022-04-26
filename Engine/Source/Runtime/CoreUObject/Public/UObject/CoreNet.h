@@ -506,10 +506,7 @@ public:
 	IRepChangedPropertyTracker() { }
 	virtual ~IRepChangedPropertyTracker() { }
 
-	virtual void SetCustomIsActiveOverride(
-		UObject* OwningObject,
-		const uint16 RepIndex,
-		const bool bIsActive) = 0;
+	virtual void SetCustomIsActiveOverride(UObject* OwningObject, const uint16 RepIndex, const bool bIsActive) = 0;
 
 	UE_DEPRECATED(5.0, "Please use UReplaySubsystem::SetExternalDataForObject instead.")
 	virtual void SetExternalData(const uint8* Src, const int32 NumBits) = 0;
@@ -521,6 +518,38 @@ public:
 	virtual void CountBytes(FArchive& Ar) const {};
 };
 
+class FCustomPropertyConditionState
+{
+public:
+	FCustomPropertyConditionState() = delete;
+	FCustomPropertyConditionState(int32 NumProperties)
+	{
+		CurrentState.Init(true, NumProperties);
+	}
+
+	void SetActiveState(const uint16 RepIndex, const bool bIsActive)
+	{
+		CurrentState[RepIndex] = bIsActive;
+	}
+
+	bool GetActiveState(const uint16 RepIndex) const
+	{
+		return CurrentState[RepIndex];
+	}
+
+	int32 GetNumProperties() const
+	{
+		return CurrentState.Num();
+	}
+
+	void CountBytes(FArchive& Ar) const
+	{
+		CurrentState.CountBytes(Ar);
+	}
+
+private:
+	TBitArray<> CurrentState;
+};
 
 /**
  * FNetDeltaSerializeInfo

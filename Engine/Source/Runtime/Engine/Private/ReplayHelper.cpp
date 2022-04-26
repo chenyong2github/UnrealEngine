@@ -1420,7 +1420,8 @@ void FReplayHelper::SaveExternalData(UNetConnection* Connection, FArchive& Ar)
 			else
 			{
 				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				FRepChangedPropertyTracker* PropertyTracker = Connection->Driver->RepChangedPropertyTrackerMap.FindChecked(Object).Get();
+				TSharedPtr<FRepChangedPropertyTracker> PropertyTracker = Connection->Driver->FindRepChangedPropertyTracker(Object);
+				check(PropertyTracker.IsValid());
 
 				uint32 ExternalDataNumBits = PropertyTracker->ExternalDataNumBits;
 				if (ExternalDataNumBits > 0)
@@ -1603,13 +1604,11 @@ bool FReplayHelper::UpdateExternalDataForObject(UNetConnection* Connection, UObj
 {
 	check(Connection && Connection->Driver);
 
-	UNetDriver::FRepChangedPropertyTrackerWrapper* PropertyTrackerWrapper = Connection->Driver->RepChangedPropertyTrackerMap.Find(OwningObject);
-	if (PropertyTrackerWrapper == nullptr)
+	TSharedPtr<FRepChangedPropertyTracker> PropertyTracker = Connection->Driver->FindRepChangedPropertyTracker(OwningObject);
+	if (!PropertyTracker.IsValid())
 	{
 		return false;
 	}
-
-	FRepChangedPropertyTracker* PropertyTracker = PropertyTrackerWrapper->Get();
 
 	if (PropertyTracker->ExternalData.Num() == 0)
 	{

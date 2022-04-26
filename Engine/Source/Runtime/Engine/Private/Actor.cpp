@@ -1431,10 +1431,10 @@ void AActor::PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker)
 
 	GatherCurrentMovement();
 
-	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, ReplicatedMovement, IsReplicatingMovement());
+	DOREPLIFETIME_ACTIVE_OVERRIDE_FAST(AActor, ReplicatedMovement, IsReplicatingMovement());
 
 	// Don't need to replicate AttachmentReplication if the root component replicates, because it already handles it.
-	DOREPLIFETIME_ACTIVE_OVERRIDE(AActor, AttachmentReplication, RootComponent && !RootComponent->GetIsReplicated());
+	DOREPLIFETIME_ACTIVE_OVERRIDE_FAST(AActor, AttachmentReplication, RootComponent && !RootComponent->GetIsReplicated());
 
 
 #if WITH_PUSH_MODEL

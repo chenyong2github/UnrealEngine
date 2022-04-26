@@ -5002,8 +5002,6 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 			// This is a stripped down version of UNetDriver::NotifyActorDestroy and UActorChannel::Close
 			// combined, and should be kept up to date with those methods.
 
-			// Remove the actor from the property tracker map
-			RepChangedPropertyTrackerMap.Remove(Actor);
 
 			if (UNetConnection* Connection = ClientConnections[0])
 			{

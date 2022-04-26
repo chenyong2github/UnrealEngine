@@ -134,7 +134,6 @@ void UReplayNetConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketT
 			if (!Actor->IsPendingKillPending())
 			{
 				//@todo: unique this in tick?
-				// RepChangedPropertyTrackerMap.Find is expensive
 				ReplayHelper.UpdateExternalDataForObject(this, Actor);
 			}
 

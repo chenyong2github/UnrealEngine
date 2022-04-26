@@ -3088,7 +3088,8 @@ struct FReplicationFlags
 			uint32 bSerializePropertyNames : 1;
 			/** True if a subclass of UActorChannel needs custom subobject replication */
 			uint32 bUseCustomSubobjectReplication : 1;
-
+			/** True if this actor is replicating on a replay connection on a game client. */
+			uint32 bClientReplay : 1;
 		};
 
 		uint32	Value;
