@@ -149,6 +149,7 @@ namespace EpicGames.BuildGraph
 		MacroBody,
 		Extend,
 		Expand,
+		Annotate,
 		Trace,
 		Warning,
 		Error,
@@ -332,6 +333,7 @@ namespace EpicGames.BuildGraph
 			newSchema.Items.Add(CreateMacroBodyType(taskNameToType));
 			newSchema.Items.Add(CreateExtendType());
 			newSchema.Items.Add(CreateExpandType());
+			newSchema.Items.Add(CreateAnnotateType());
 			newSchema.Items.Add(CreateDiagnosticType(ScriptSchemaStandardType.Trace));
 			newSchema.Items.Add(CreateDiagnosticType(ScriptSchemaStandardType.Warning));
 			newSchema.Items.Add(CreateDiagnosticType(ScriptSchemaStandardType.Error));
@@ -477,6 +479,7 @@ namespace EpicGames.BuildGraph
 			graphChoice.Items.Add(CreateSchemaElement("Badge", ScriptSchemaStandardType.Badge));
 			graphChoice.Items.Add(CreateSchemaElement("Label", ScriptSchemaStandardType.Label));
 			graphChoice.Items.Add(CreateSchemaElement("Notify", ScriptSchemaStandardType.Notify));
+			graphChoice.Items.Add(CreateSchemaElement("Annotate", ScriptSchemaStandardType.Annotate));
 			graphChoice.Items.Add(CreateSchemaElement("Trace", ScriptSchemaStandardType.Trace));
 			graphChoice.Items.Add(CreateSchemaElement("Warning", ScriptSchemaStandardType.Warning));
 			graphChoice.Items.Add(CreateSchemaElement("Error", ScriptSchemaStandardType.Error));
@@ -527,6 +530,7 @@ namespace EpicGames.BuildGraph
 			agentChoice.Items.Add(CreateSchemaElement("Node", ScriptSchemaStandardType.Node));
 			agentChoice.Items.Add(CreateSchemaElement("Trace", ScriptSchemaStandardType.Trace));
 			agentChoice.Items.Add(CreateSchemaElement("Label", ScriptSchemaStandardType.Label));
+			agentChoice.Items.Add(CreateSchemaElement("Annotate", ScriptSchemaStandardType.Annotate));
 			agentChoice.Items.Add(CreateSchemaElement("Warning", ScriptSchemaStandardType.Warning));
 			agentChoice.Items.Add(CreateSchemaElement("Error", ScriptSchemaStandardType.Error));
 			agentChoice.Items.Add(CreateSchemaElement("Expand", ScriptSchemaStandardType.Expand));
@@ -689,6 +693,22 @@ namespace EpicGames.BuildGraph
 			aggregateType.Attributes.Add(CreateSchemaAttribute("Warnings", ScriptSchemaStandardType.Boolean, XmlSchemaUse.Optional));
 			aggregateType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 			aggregateType.Attributes.Add(CreateSchemaAttribute("Absolute", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
+			return aggregateType;
+		}
+
+		/// <summary>
+		/// Creates the schema type representing an annotation
+		/// </summary>
+		/// <returns>Type definition for a notifier</returns>
+		static XmlSchemaType CreateAnnotateType()
+		{
+			XmlSchemaComplexType aggregateType = new XmlSchemaComplexType();
+			aggregateType.Name = GetTypeName(ScriptSchemaStandardType.Annotate);
+			aggregateType.Attributes.Add(CreateSchemaAttribute("Targets", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
+			aggregateType.Attributes.Add(CreateSchemaAttribute("Except", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
+			aggregateType.Attributes.Add(CreateSchemaAttribute("Nodes", ScriptSchemaStandardType.NameOrTagList, XmlSchemaUse.Optional));
+			aggregateType.Attributes.Add(CreateSchemaAttribute("Values", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
+			aggregateType.Attributes.Add(CreateSchemaAttribute("If", ScriptSchemaStandardType.BalancedString, XmlSchemaUse.Optional));
 			return aggregateType;
 		}
 

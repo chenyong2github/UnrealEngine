@@ -105,6 +105,11 @@ namespace EpicGames.BuildGraph
 		public bool NotifyOnWarnings { get; set; } = true;
 
 		/// <summary>
+		/// Custom annotations for this node
+		/// </summary>
+		public Dictionary<string, string> Annotations { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="inName">The name of this node</param>

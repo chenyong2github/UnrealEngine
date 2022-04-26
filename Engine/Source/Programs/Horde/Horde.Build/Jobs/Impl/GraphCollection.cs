@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Models;
 using Horde.Build.Server;
+using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -48,8 +49,12 @@ namespace Horde.Build.Collections.Impl
 			[BsonIgnoreIfNull]
 			public Dictionary<string, string>? Properties { get; set; }
 
+			[BsonIgnoreIfNull]
+			public CaseInsensitiveDictionary<string>? Annotations { get; set; }
+
 			IReadOnlyDictionary<string, string>? INode.Credentials => Credentials;
 			IReadOnlyDictionary<string, string>? INode.Properties => Properties;
+			IReadOnlyDictionary<string, string>? INode.Annotations => Annotations;
 
 			[BsonConstructor]
 			private Node()
@@ -59,7 +64,7 @@ namespace Horde.Build.Collections.Impl
 				OrderDependencies = null!;
 			}
 
-			public Node(string name, NodeRef[] inputDependencies, NodeRef[] orderDependencies, Priority priority, bool allowRetry, bool runEarly, bool warnings, Dictionary<string, string>? credentials, Dictionary<string, string>? properties)
+			public Node(string name, NodeRef[] inputDependencies, NodeRef[] orderDependencies, Priority priority, bool allowRetry, bool runEarly, bool warnings, Dictionary<string, string>? credentials, Dictionary<string, string>? properties, CaseInsensitiveDictionary<string>? annotations)
 			{
 				Name = name;
 				InputDependencies = inputDependencies;
@@ -70,6 +75,7 @@ namespace Horde.Build.Collections.Impl
 				Warnings = warnings;
 				Credentials = credentials;
 				Properties = properties;
+				Annotations = annotations;
 			}
 		}
 
@@ -224,7 +230,7 @@ namespace Horde.Build.Collections.Impl
 							NodeRef[] inputDependencies = (newNodeRequest.InputDependencies == null) ? Array.Empty<NodeRef>() : newNodeRequest.InputDependencies.Select(x => nodeNameToRef[x]).ToArray();
 							NodeRef[] orderDependencies = (newNodeRequest.OrderDependencies == null) ? Array.Empty<NodeRef>() : newNodeRequest.OrderDependencies.Select(x => nodeNameToRef[x]).ToArray();
 							orderDependencies = orderDependencies.Union(inputDependencies).ToArray();
-							nodes.Add(new Node(newNodeRequest.Name, inputDependencies, orderDependencies, priority, bAllowRetry, bRunEarly, bWarnings, newNodeRequest.Credentials, newNodeRequest.Properties));
+							nodes.Add(new Node(newNodeRequest.Name, inputDependencies, orderDependencies, priority, bAllowRetry, bRunEarly, bWarnings, newNodeRequest.Credentials, newNodeRequest.Properties, newNodeRequest.Annotations));
 
 							nodeNameToRef.Add(newNodeRequest.Name, new NodeRef(newGroups.Count, nodeIdx));
 						}
@@ -384,7 +390,7 @@ namespace Horde.Build.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<IGraph> AddAsync(ITemplate template)
 		{
-			Node node = new Node(IJob.SetupNodeName, Array.Empty<NodeRef>(), Array.Empty<NodeRef>(), Priority.High, true, false, true, null, null);
+			Node node = new Node(IJob.SetupNodeName, Array.Empty<NodeRef>(), Array.Empty<NodeRef>(), Priority.High, true, false, true, null, null, null);
 			NodeGroup group = new NodeGroup(template.InitialAgentType ?? "Win64", new List<Node> { node });
 
 			GraphDocument graph = new GraphDocument(new List<NodeGroup> { group }, new List<Aggregate>(), new List<Label>());

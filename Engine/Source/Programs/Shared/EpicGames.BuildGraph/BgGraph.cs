@@ -527,6 +527,13 @@ namespace EpicGames.BuildGraph
 						}
 						jsonWriter.WriteArrayEnd();
 
+						jsonWriter.WriteObjectStart("Annotations");
+						foreach ((string key, string value) in node.Annotations)
+						{
+							jsonWriter.WriteValue(key, value);
+						}
+						jsonWriter.WriteObjectEnd();
+
 						jsonWriter.WriteObjectEnd();
 					}
 					jsonWriter.WriteArrayEnd();

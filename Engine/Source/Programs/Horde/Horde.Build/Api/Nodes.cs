@@ -64,6 +64,11 @@ namespace Horde.Build.Api
 		public IReadOnlyDictionary<string, string>? Properties { get; set; }
 
 		/// <summary>
+		/// Annotations for this node
+		/// </summary>
+		public IReadOnlyDictionary<string, string>? Annotations { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="node">The node to construct from</param>
@@ -79,6 +84,7 @@ namespace Horde.Build.Api
 			Warnings = node.Warnings;
 			Credentials = node.Credentials;
 			Properties = node.Properties;
+			Annotations = node.Annotations;
 		}
 	}
 

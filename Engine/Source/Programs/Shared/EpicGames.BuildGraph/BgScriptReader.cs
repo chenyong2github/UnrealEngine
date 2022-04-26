@@ -473,6 +473,9 @@ namespace EpicGames.BuildGraph
 					case "Expand":
 						await ReadExpandAsync(childElement, ReadGraphBodyAsync);
 						break;
+					case "Annotate":
+						await ReadAnnotationAsync(childElement);
+						break;
 					default:
 						LogError(childElement, "Invalid element '{0}'", childElement.Name);
 						break;
@@ -787,6 +790,9 @@ namespace EpicGames.BuildGraph
 					case "Expand":
 						await ReadExpandAsync(childElement, ReadAgentBodyAsync);
 						break;
+					case "Annotate":
+						await ReadAnnotationAsync(childElement);
+						break;
 					default:
 						LogError(childElement, "Unexpected element type '{0}'", childElement.Name);
 						break;
@@ -1011,6 +1017,12 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
 		protected abstract Task ReadNotifierAsync(BgScriptElement element);
+
+		/// <summary>
+		/// Reads a graph annotation
+		/// </summary>
+		/// <param name="element">Xml element to read the definition from</param>
+		protected abstract Task ReadAnnotationAsync(BgScriptElement element);
 
 		/// <summary>
 		/// Reads a warning from the given element, evaluates the condition on it, and writes it to the log if the condition passes.
@@ -1991,6 +2003,82 @@ namespace EpicGames.BuildGraph
 						{
 							LogError(element, "Report '{0}' has not been defined", reportName);
 						}
+					}
+				}
+			}
+		}
+
+		/// <inheritdoc/>
+		protected override async Task ReadAnnotationAsync(BgScriptElement element)
+		{
+			if (await EvaluateConditionAsync(element))
+			{
+				string[] targetNames = ReadListAttribute(element, "Targets");
+				string[] exceptNames = ReadListAttribute(element, "Except");
+				string[] individualNodeNames = ReadListAttribute(element, "Nodes");
+				string[] pairs = ReadListAttribute(element, "Values");
+
+				// Find the list of targets which are included, and recurse through all their dependencies
+				HashSet<BgNode> nodes = new HashSet<BgNode>();
+				if (targetNames != null)
+				{
+					HashSet<BgNode> targetNodes = ResolveReferences(element, targetNames);
+					foreach (BgNode node in targetNodes)
+					{
+						nodes.Add(node);
+						nodes.UnionWith(node.InputDependencies);
+					}
+				}
+
+				// Add all the individually referenced nodes
+				if (individualNodeNames != null)
+				{
+					HashSet<BgNode> individualNodes = ResolveReferences(element, individualNodeNames);
+					nodes.UnionWith(individualNodes);
+				}
+
+				// Exclude all the exceptions
+				if (exceptNames != null)
+				{
+					HashSet<BgNode> exceptNodes = ResolveReferences(element, exceptNames);
+					nodes.ExceptWith(exceptNodes);
+				}
+
+				// Find the annotations to apply
+				Dictionary<string, string> pairMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+				foreach (string pair in pairs)
+				{
+					if (!String.IsNullOrWhiteSpace(pair))
+					{
+						int idx = pair.IndexOf('=');
+						if (idx < 0)
+						{
+							LogError(element, "Invalid annotation '{0}'", pair);
+							continue;
+						}
+
+						string key = pair.Substring(0, idx).Trim();
+						if (!Regex.IsMatch(key, @"[a-zA-Z0-9_\.]+"))
+						{
+							LogError(element, "Invalid annotation key '{0}'", pair);
+							continue;
+						}
+						if (pairMap.ContainsKey(key))
+						{
+							LogError(element, "Annotation key '{0}' was specified twice", key);
+							continue;
+						}
+
+						pairMap.Add(key, pair.Substring(idx + 1).Trim());
+					}
+				}
+
+				// Update all the referenced nodes with the settings
+				foreach (BgNode node in nodes)
+				{
+					foreach ((string key, string value) in pairMap)
+					{
+						node.Annotations[key] = value;
 					}
 				}
 			}

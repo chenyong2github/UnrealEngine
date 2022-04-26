@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using EpicGames.Core;
+using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson.Serialization.Attributes;
 
@@ -60,6 +61,11 @@ namespace Horde.Build.Models
 		/// Properties for this node
 		/// </summary>
 		public IReadOnlyDictionary<string, string>? Properties { get; }
+
+		/// <summary>
+		/// Annotations for this node
+		/// </summary>
+		public IReadOnlyDictionary<string, string>? Annotations { get; }
 	}
 
 	/// <summary>
@@ -414,6 +420,11 @@ namespace Horde.Build.Models
 		public Dictionary<string, string>? Properties { get; set; }
 
 		/// <summary>
+		/// Additional user annotations for this node
+		/// </summary>
+		public CaseInsensitiveDictionary<string>? Annotations { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="name">Name of the node</param>
@@ -425,7 +436,8 @@ namespace Horde.Build.Models
 		/// <param name="warnings">Whether to include warnings in the diagnostic output (defaults to true)</param>
 		/// <param name="credentials">Credentials required for this node to run</param>
 		/// <param name="properties">Properties for the node</param>
-		public NewNode(string name, List<string>? inputDependencies = null, List<string>? orderDependencies = null, Priority? priority = null, bool? allowRetry = null, bool? runEarly = null, bool? warnings = null, Dictionary<string, string>? credentials = null, Dictionary<string, string>? properties = null)
+		/// <param name="annotations">User annotations for this node</param>
+		public NewNode(string name, List<string>? inputDependencies = null, List<string>? orderDependencies = null, Priority? priority = null, bool? allowRetry = null, bool? runEarly = null, bool? warnings = null, Dictionary<string, string>? credentials = null, Dictionary<string, string>? properties = null, CaseInsensitiveDictionary<string>? annotations = null)
 		{
 			Name = name;
 			InputDependencies = inputDependencies;
@@ -436,6 +448,7 @@ namespace Horde.Build.Models
 			Warnings = warnings;
 			Credentials = credentials;
 			Properties = properties;
+			Annotations = annotations;
 		}
 	}
 

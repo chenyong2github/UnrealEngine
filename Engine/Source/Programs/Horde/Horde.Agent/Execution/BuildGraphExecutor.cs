@@ -34,6 +34,7 @@ namespace Horde.Agent.Execution
 			public bool? Warnings { get; set; }
 			public List<string> InputDependencies { get; set; } = new List<string>();
 			public List<string> OrderDependencies { get; set; } = new List<string>();
+			public Dictionary<string, string> Annotations { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 		}
 
 		protected class ExportedGroup
@@ -437,6 +438,7 @@ namespace Horde.Agent.Execution
 					createNode.RunEarly = exportedNode.RunEarly;
 					createNode.Warnings = exportedNode.Warnings;
 					createNode.Priority = Priority.Normal;
+					createNode.Annotations.Add(exportedNode.Annotations);
 					createGroup.Nodes.Add(createNode);
 				}
 				updateGraph.Groups.Add(createGroup);
