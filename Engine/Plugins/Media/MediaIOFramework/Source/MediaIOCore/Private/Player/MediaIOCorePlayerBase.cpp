@@ -20,8 +20,6 @@
 #include "TimedDataInputCollection.h"
 #include "TimeSynchronizableMediaSource.h"
 
-#include <cstdint>
-
 #define LOCTEXT_NAMESPACE "MediaIOCorePlayerBase"
 
 /* MediaIOCorePlayerDetail
@@ -563,7 +561,7 @@ void FMediaIOCorePlayerBase::RegisterSampleBuffer(const TSharedPtr<FMediaIOCoreT
 					TextureStride *= 4;
 				}
 
-				UE_LOG(LogMediaIOCore, Verbose, TEXT("Registering buffer %u"), reinterpret_cast<std::uintptr_t>(InSample->GetMutableBuffer()));
+				UE_LOG(LogMediaIOCore, Verbose, TEXT("Registering buffer %u"), reinterpret_cast<uintptr_t>(InSample->GetMutableBuffer()));
 				UE::GPUTextureTransfer::FRegisterDMABufferArgs Args;
 				Args.Buffer = InSample->GetMutableBuffer();
 				Args.Width = TextureWidth;
@@ -575,7 +573,7 @@ void FMediaIOCorePlayerBase::RegisterSampleBuffer(const TSharedPtr<FMediaIOCoreT
 	}
 	else
 	{
-		UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("Buffer already registered: %u"), reinterpret_cast<std::uintptr_t>(InSample->GetMutableBuffer()));
+		UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("Buffer already registered: %u"), reinterpret_cast<uintptr_t>(InSample->GetMutableBuffer()));
 	}
 }
 
@@ -647,7 +645,7 @@ void FMediaIOCorePlayerBase::CreateAndRegisterTextures(const IMediaOptions* Opti
 				FRHITextureCreateDesc CreateDesc = FRHITextureCreateDesc::Create2D(*TextureName, FIntPoint(TextureWidth, TextureHeight), InputFormat, FClearValueBinding::White, CreateFlags);
 				RHICreateTargetableShaderResource(CreateDesc, TexCreate_RenderTargetable, RHITexture, DummyTexture2DRHI);
 
-				UE_LOG(LogMediaIOCore, Verbose, TEXT("Registering texture %u"), reinterpret_cast<std::uintptr_t>(RHITexture->GetNativeResource()));
+				UE_LOG(LogMediaIOCore, Verbose, TEXT("Registering texture %u"), reinterpret_cast<uintptr_t>(RHITexture->GetNativeResource()));
 
 				UE::GPUTextureTransfer::FRegisterDMATextureArgs Args;
 				Args.RHITexture = RHITexture.GetReference();
@@ -681,7 +679,7 @@ void FMediaIOCorePlayerBase::UnregisterTextures()
 			{
 				for (const TRefCountPtr<FRHITexture>& RHITexture : TexturesToUnregister)
 				{
-					UE_LOG(LogMediaIOCore, Verbose, TEXT("Unregistering texture %u"), reinterpret_cast<std::uintptr_t>(RHITexture->GetNativeResource()));
+					UE_LOG(LogMediaIOCore, Verbose, TEXT("Unregistering texture %u"), reinterpret_cast<uintptr_t>(RHITexture->GetNativeResource()));
 					TextureTransfer->UnregisterTexture(RHITexture.GetReference());
 				}
 			}
@@ -714,7 +712,7 @@ void FMediaIOCorePlayerBase::PreGPUTransfer(const TSharedPtr<FMediaIOCoreTexture
 	}
 	else
 	{
-		UE_LOG(LogMediaIOCore, Display, TEXT("Unregistered texture %u encountered while doing a gpu texture transfer."), Texture ? reinterpret_cast<std::uintptr_t>(Texture->GetNativeResource()) : 0);
+		UE_LOG(LogMediaIOCore, Display, TEXT("Unregistered texture %u encountered while doing a gpu texture transfer."), Texture ? reinterpret_cast<uintptr_t>(Texture->GetNativeResource()) : 0);
 	}
 }
 
@@ -729,7 +727,7 @@ void FMediaIOCorePlayerBase::ExecuteGPUTransfer(const TSharedPtr<FMediaIOCoreTex
 				MediaPlayerPtr != nullptr && MediaPlayerPtr->GPUTextureTransfer != nullptr)
 			{
 				void* Buffer = InSample->GetMutableBuffer();
-				UE_LOG(LogMediaIOCore, Verbose, TEXT("Starting Transfer with buffer %u"), reinterpret_cast<std::uintptr_t>(Buffer));
+				UE_LOG(LogMediaIOCore, Verbose, TEXT("Starting Transfer with buffer %u"), reinterpret_cast<uintptr_t>(Buffer));
 				MediaPlayerPtr->GPUTextureTransfer->TransferTexture(Buffer, InSample->GetTexture(), UE::GPUTextureTransfer::ETransferDirection::CPU_TO_GPU);
 				MediaPlayerPtr->GPUTextureTransfer->BeginSync((InSample)->GetMutableBuffer(), UE::GPUTextureTransfer::ETransferDirection::CPU_TO_GPU);
 				MediaPlayerPtr->AddVideoSample(InSample.ToSharedRef());

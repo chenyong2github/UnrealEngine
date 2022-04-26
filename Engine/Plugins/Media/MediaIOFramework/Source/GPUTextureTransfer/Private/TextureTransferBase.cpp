@@ -160,13 +160,13 @@ namespace UE::GPUTextureTransfer::Private
 
 		if (!BufferInfo)
 		{
-			UE_LOG(LogGPUTextureTransfer, Error, TEXT("Error while performing a GPU transfer texture, CPU Buffer %u was not registered."), reinterpret_cast<std::uintptr_t>(InBuffer));
+			UE_LOG(LogGPUTextureTransfer, Error, TEXT("Error while performing a GPU transfer texture, CPU Buffer %u was not registered."), reinterpret_cast<uintptr_t>(InBuffer));
 			return false;
 		}
 
 		if (!TextureInfo)
 		{
-			UE_LOG(LogGPUTextureTransfer, Error, TEXT("Error while performing a GPU transfer texture, texture %u was not registered."), reinterpret_cast<std::uintptr_t>(InRHITexture));
+			UE_LOG(LogGPUTextureTransfer, Error, TEXT("Error while performing a GPU transfer texture, texture %u was not registered."), reinterpret_cast<uintptr_t>(InRHITexture));
 			return false;
 		}
 
