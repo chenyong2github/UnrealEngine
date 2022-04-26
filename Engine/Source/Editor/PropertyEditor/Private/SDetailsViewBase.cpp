@@ -39,8 +39,8 @@ SDetailsViewBase::SDetailsViewBase() :
 	, NumVisibleTopLevelObjectNodes(0)
 	, bPendingCleanupTimerSet(false)
 {
-	UDetailsConfig* DetailsConfig = GetMutableDefault<UDetailsConfig>();
-	DetailsConfig->LoadEditorConfig();
+	UDetailsConfig::Initialize();
+	UDetailsConfig::Get()->LoadEditorConfig();
 
 	const FDetailsViewConfig* ViewConfig = GetConstViewConfig();
 	if (ViewConfig != nullptr)
@@ -645,8 +645,7 @@ const FDetailsViewConfig* SDetailsViewBase::GetConstViewConfig() const
 		return nullptr;
 	}
 
-	const UDetailsConfig* DetailsConfig = GetDefault<UDetailsConfig>();
-	return DetailsConfig->Views.Find(DetailsViewArgs.ViewIdentifier);
+	return UDetailsConfig::Get()->Views.Find(DetailsViewArgs.ViewIdentifier);
 }
 
 FDetailsViewConfig* SDetailsViewBase::GetMutableViewConfig()
@@ -656,13 +655,12 @@ FDetailsViewConfig* SDetailsViewBase::GetMutableViewConfig()
 		return nullptr;
 	}
 
-	UDetailsConfig* DetailsConfig = GetMutableDefault<UDetailsConfig>();
-	return &DetailsConfig->Views.FindOrAdd(DetailsViewArgs.ViewIdentifier);
+	return &UDetailsConfig::Get()->Views.FindOrAdd(DetailsViewArgs.ViewIdentifier);
 }
 
 void SDetailsViewBase::SaveViewConfig()
 {
-	GetMutableDefault<UDetailsConfig>()->SaveEditorConfig();
+	UDetailsConfig::Get()->SaveEditorConfig();
 }
 
 void SDetailsViewBase::OnShowOnlyModifiedClicked()

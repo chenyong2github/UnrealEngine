@@ -85,8 +85,8 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	SortByColumn = FSceneOutlinerBuiltInColumnTypes::Label();
 	SortMode = EColumnSortMode::Ascending;
 
-	UOutlinerConfig* OutlinerConfig = GetMutableDefault<UOutlinerConfig>();
-	OutlinerConfig->LoadEditorConfig();
+	UOutlinerConfig::Initialize();
+	UOutlinerConfig::Get()->LoadEditorConfig();
 
 	const FSceneOutlinerConfig* SceneOutlinerConfig = GetConstConfig();
 
@@ -2316,8 +2316,7 @@ struct FSceneOutlinerConfig* SSceneOutliner::GetMutableConfig()
 		return nullptr;
 	}
 
-	UOutlinerConfig* OutlinerConfig = GetMutableDefault<UOutlinerConfig>();
-	return &OutlinerConfig->Outliners.FindOrAdd(OutlinerIdentifier);
+	return &UOutlinerConfig::Get()->Outliners.FindOrAdd(OutlinerIdentifier);
 }
 
 
@@ -2328,13 +2327,12 @@ const FSceneOutlinerConfig* SSceneOutliner::GetConstConfig() const
 		return nullptr;
 	}
 
-	const UOutlinerConfig* OutlinerConfig = GetDefault<UOutlinerConfig>();
-	return OutlinerConfig->Outliners.Find(OutlinerIdentifier);
+	return UOutlinerConfig::Get()->Outliners.Find(OutlinerIdentifier);
 }
 
 void SSceneOutliner::SaveConfig()
 {
-	GetMutableDefault<UOutlinerConfig>()->SaveEditorConfig();
+	UOutlinerConfig::Get()->SaveEditorConfig();
 }
 
 #undef LOCTEXT_NAMESPACE

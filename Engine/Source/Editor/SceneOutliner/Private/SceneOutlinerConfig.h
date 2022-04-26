@@ -32,6 +32,13 @@ class UOutlinerConfig : public UEditorConfigBase
 	
 public:
 
+	static void Initialize();
+	static UOutlinerConfig* Get() { return Instance; }
+
 	UPROPERTY(meta=(EditorConfig))
 	TMap<FName, FSceneOutlinerConfig> Outliners;
+
+private:
+
+	static TObjectPtr<UOutlinerConfig> Instance;
 };

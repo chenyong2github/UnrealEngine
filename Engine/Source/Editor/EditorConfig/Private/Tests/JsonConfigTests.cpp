@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #if WITH_DEV_AUTOMATION_TESTS 
 
 #include "EditorConfigTestHelpers.h"
@@ -1207,90 +1206,5 @@ R"_JSON({
 
 	return true;
 }
-
-
-/*IMPLEMENT_SIMPLE_AUTOMATION_TEST(FJsonConfigTests_SetStringInObjectInArray, "JsonConfig.Set.Object.InArray", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FJsonConfigTests_SetObjectInArray::RunTest(const FString& Parameters)
-{
-	const FString ParentContents =
-R"_JSON({
-	"Array": 
-	[
-		{
-			"String": "Foo",
-			"Object":
-			{
-				"Bool": false,
-				"Number": 1
-			}
-		}
-	]
-})_JSON";
-
-	TSharedRef<FJsonConfig> ParentConfig = MakeShared<FJsonConfig>();
-	if (!ParentConfig->LoadFromString(ParentContents))
-	{
-		return false;
-	}
-
-	FJsonConfig ChildConfig;
-	ChildConfig.SetParent(ParentConfig);
-
-	TSharedPtr<FJsonObject> Object;
-	if (!ChildConfig.TryGetJsonObject(TEXT("Array[0]"), Object))
-	{
-		return false;
-	}
-
-	TSharedPtr<FJsonValue> StringValue, ObjectValue;
-
-	StringValue = Object->Values["String"];
-	TestEqual(TEXT("Before Set"), StringValue->AsString(), TEXT("Foo"));
-
-	ObjectValue = Object->Values["Object"];
-
-	bool OutBool;
-	if (!ObjectValue->AsObject()->TryGetBoolField(TEXT("Bool"), OutBool))
-	{
-		return false;
-	}
-
-	TestEqual(TEXT("Before Set"), OutBool, false);
-
-	int32 OutNumber;
-	if (!ObjectValue->AsObject()->TryGetNumberField(TEXT("Number"), OutNumber))
-	{
-		return false;
-	}
-
-	TestEqual(TEXT("Before Set"), OutNumber, 1);
-
-	//ChildConfig.SetString(TEXT("Array[0].String"), TEXT("Bar"));
-
-	if (!ChildConfig.TryGetJsonObject(TEXT("Array[0]"), Object))
-	{
-		return false;
-	}
-
-	StringValue = Object->Values["String"];
-	TestEqual(TEXT("After String Set"), StringValue->AsString(), TEXT("Bar"));
-
-	const FString ExpectedOverrideString1 = 
-R"_JSON({
-	"Array":
-	[
-		{
-			
-		}
-	]
-})_JSON";
-
-	FString OverrideString;
-	ChildConfig.SaveToString(OverrideString);
-	TestTrue(TEXT("Serialized 1"), FEditorConfigTestHelpers::AreJsonStringsEquivalent(OverrideString, ExpectedOverrideString1));
-
-	return true;
-}*/
 
 #endif

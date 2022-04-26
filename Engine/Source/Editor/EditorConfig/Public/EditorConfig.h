@@ -5,7 +5,9 @@
 #include "JsonConfig.h"
 #include "Concepts/EqualityComparable.h"
 #include "Dom/JsonObject.h"
+#include "Templates/IsPointer.h"
 #include "Templates/Models.h"
+#include "Templates/UnrealTemplate.h"
 
 class EDITORCONFIG_API FEditorConfig
 {
@@ -38,6 +40,8 @@ public:
 	bool TryGetRootStruct(T& OutValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly) const;
 	template <typename T>
 	bool TryGetRootUObject(T& OutValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly) const;
+	template <typename T>
+	bool TryGetRootUObject(T* OutValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly) const;
 
 	bool TryGetRootStruct(const UStruct* Class, void* OutValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly) const;
 	bool TryGetRootUObject(const UClass* Class, UObject* OutValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly) const;
@@ -66,15 +70,16 @@ private:
 
 	friend class UEditorConfigSubsystem; // for access to LoadFromFile and SaveToFile
 
-	static void ReadUObject(TSharedPtr<FJsonObject> JsonObject, const UClass* Class, UObject* Instance, EPropertyFilter Filter);
-	static void ReadStruct(TSharedPtr<FJsonObject> JsonObject, const UStruct* Struct, void* Instance, UObject* Owner, EPropertyFilter Filter);
-	static void ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty* Property, void* DataPtr, UObject* Owner);
+	static void ReadUObject(const TSharedPtr<FJsonObject>& JsonObject, const UClass* Class, UObject* Instance, EPropertyFilter Filter);
+	static void ReadStruct(const TSharedPtr<FJsonObject>& JsonObject, const UStruct* Struct, void* Instance, UObject* Owner, EPropertyFilter Filter);
+	static void ReadValue(const TSharedPtr<FJsonValue>& JsonValue, const FProperty* Property, void* DataPtr, UObject* Owner);
 	
-	static TSharedPtr<FJsonObject> WriteStruct(const UStruct* Struct, const void* Instance, EPropertyFilter Filter);
+	static TSharedPtr<FJsonObject> WriteStruct(const UStruct* Struct, const void* Instance, const void* Defaults, EPropertyFilter Filter);
 	static TSharedPtr<FJsonObject> WriteUObject(const UClass* Class, const UObject* Instance, EPropertyFilter Filter);
-	static TSharedPtr<FJsonValue> WriteValue(const FProperty* Property, const void* DataPtr);
-
-	static bool IsDefault(const FProperty* Property, TSharedPtr<FJsonValue> JsonValue, const void* NativeValue);
+	static TSharedPtr<FJsonValue> WriteArray(const FArrayProperty* ArrayProperty, const void* DataPtr);
+	static TSharedPtr<FJsonValue> WriteSet(const FSetProperty* Property, const void* DataPtr);
+	static TSharedPtr<FJsonValue> WriteMap(const FMapProperty* Property, const void* DataPtr);
+	static TSharedPtr<FJsonValue> WriteValue(const FProperty* Property, const void* DataPtr, const void* Defaults);
 
 	bool SaveToFile(FStringView FilePath) const;
 
@@ -157,6 +162,15 @@ bool FEditorConfig::TryGetRootUObject(T& OutValue, EPropertyFilter Filter) const
 }
 
 template <typename T>
+bool FEditorConfig::TryGetRootUObject(T* OutValue, EPropertyFilter Filter) const
+{
+	static_assert(TIsDerivedFrom<T, UObject>::Value, "Type is not derived from UObject.");
+	checkf(OutValue != nullptr, TEXT("Output value was null."));
+
+	return TryGetRootUObject(T::StaticClass(), OutValue, Filter);
+}
+
+template <typename T>
 void FEditorConfig::SetStruct(FStringView Key, const T& InValue, EPropertyFilter Filter)
 {
 	if (!IsValid())
@@ -164,7 +178,7 @@ void FEditorConfig::SetStruct(FStringView Key, const T& InValue, EPropertyFilter
 		return;
 	}
 
-	TSharedPtr<FJsonObject> JsonObject = WriteStruct(T::StaticStruct(), &InValue, Filter);
+	TSharedPtr<FJsonObject> JsonObject = WriteStruct(T::StaticStruct(), &InValue, nullptr, Filter);
 	JsonConfig->SetJsonObject(UE::FJsonPath(Key), JsonObject);
 
 	SetDirty();
@@ -195,7 +209,17 @@ void FEditorConfig::SetRootStruct(const T& InValue, EPropertyFilter Filter)
 template <typename T>
 void FEditorConfig::SetRootUObject(const T& InValue, EPropertyFilter Filter)
 {
-	static_assert(TIsDerivedFrom<T, UObject>::Value, "Type is not derived from UObject.");
+	if constexpr (TIsPointer<T>::Value)
+	{
+		static_assert(TIsDerivedFrom<typename TRemovePointer<T>::Type, UObject>::Value, "Type is not derived from UObject.");
+		checkf(InValue != nullptr, TEXT("Object value was null."));
 
-	SetRootUObject(T::StaticClass(), &InValue, Filter);
+		SetRootUObject(TRemovePointer<T>::Type::StaticClass(), InValue, Filter);
+	}
+	else
+	{
+		static_assert(TIsDerivedFrom<typename TRemovePointer<T>::Type, UObject>::Value, "Type is not derived from UObject.");
+
+		SetRootUObject(T::StaticClass(), &InValue, Filter);
+	}
 }

@@ -74,4 +74,11 @@ public:
 
 	UPROPERTY(meta=(EditorConfig))
 	TMap<FName, FDetailsViewConfig> Views;
+
+	static void Initialize();
+	static UDetailsConfig* Get();
+
+private:
+
+	static TObjectPtr<UDetailsConfig> Instance;
 };

@@ -127,13 +127,13 @@ void FEditorConfig::SetRootStruct(const UStruct* Struct, const void* Instance, E
 		return;
 	}
 	
-	TSharedPtr<FJsonObject> JsonObject = WriteStruct(Struct, Instance, Filter);
+	TSharedPtr<FJsonObject> JsonObject = WriteStruct(Struct, Instance, nullptr, Filter);
 	JsonConfig->SetRootObject(JsonObject);
 		
 	SetDirty();
 }
 
-void FEditorConfig::ReadStruct(TSharedPtr<FJsonObject> JsonObject, const UStruct* Struct, void* Instance, UObject* Owner, EPropertyFilter Filter)
+void FEditorConfig::ReadStruct(const TSharedPtr<FJsonObject>& JsonObject, const UStruct* Struct, void* Instance, UObject* Owner, EPropertyFilter Filter)
 {
 	FString TypeName;
 	JsonObject->TryGetStringField(TEXT("$type"), TypeName);
@@ -162,7 +162,7 @@ void FEditorConfig::ReadStruct(TSharedPtr<FJsonObject> JsonObject, const UStruct
 	}
 }
 
-void FEditorConfig::ReadUObject(TSharedPtr<FJsonObject> JsonObject, const UClass* Class, UObject* Instance, EPropertyFilter Filter)
+void FEditorConfig::ReadUObject(const TSharedPtr<FJsonObject>& JsonObject, const UClass* Class, UObject* Instance, EPropertyFilter Filter)
 {
 	FString TypeName;
 	JsonObject->TryGetStringField(TEXT("$type"), TypeName);
@@ -182,7 +182,7 @@ void FEditorConfig::ReadUObject(TSharedPtr<FJsonObject> JsonObject, const UClass
 		}
 
 		void* DataPtr = Property->ContainerPtrToValuePtr<void>(Instance);
-
+		
 		TSharedPtr<FJsonValue> Value = JsonObject->TryGetField(Property->GetName());
 		if (Value.IsValid())
 		{
@@ -191,12 +191,13 @@ void FEditorConfig::ReadUObject(TSharedPtr<FJsonObject> JsonObject, const UClass
 	}
 }
 
-void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty* Property, void* DataPtr, UObject* Owner)
+void FEditorConfig::ReadValue(const TSharedPtr<FJsonValue>& JsonValue, const FProperty* Property, void* DataPtr, UObject* Owner)
 {
 	if (const FStrProperty* StrProperty = CastField<FStrProperty>(Property))
 	{
 		FString* Value = (FString*) DataPtr;
 		JsonValue->TryGetString(*Value);
+		return;
 	}
 	else if (const FNameProperty* NameProperty = CastField<FNameProperty>(Property))
 	{
@@ -204,6 +205,7 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 		JsonValue->TryGetString(TempValue);
 
 		*(FName*) DataPtr = *TempValue;
+		return;
 	}
 	else if (const FTextProperty* TextProperty = CastField<FTextProperty>(Property))
 	{
@@ -211,6 +213,7 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 		JsonValue->TryGetString(TempValue);
 
 		*(FText*) DataPtr = FText::FromString(TempValue);
+		return;
 	}
 	else if (const FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
 	{
@@ -219,56 +222,67 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 		{
 			BoolProperty->SetPropertyValue(DataPtr, Value);
 		}
+		return;
 	}
 	else if (const FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property))
 	{
 		float* Value = (float*) DataPtr;
 		JsonValue->TryGetNumber(*Value);
+		return;
 	}
 	else if (const FDoubleProperty* DoubleProperty = CastField<FDoubleProperty>(Property))
 	{
 		double* Value = (double*) DataPtr;
 		JsonValue->TryGetNumber(*Value);
-	} 
+		return;
+	}
 	else if (const FInt8Property* Int8Property = CastField<FInt8Property>(Property))
 	{
 		int8* Value = (int8*) DataPtr;
 		JsonValue->TryGetNumber(*Value);
+		return;
 	}
 	else if (const FInt16Property* Int16Property = CastField<FInt16Property>(Property))
 	{
 		int16* Value = (int16*) DataPtr;
 		JsonValue->TryGetNumber(*Value);
+		return;
 	}
 	else if (const FIntProperty* Int32Property = CastField<FIntProperty>(Property))
 	{
 		int32* Value = (int32*) DataPtr;
 		JsonValue->TryGetNumber(*Value);
+		return;
 	}
 	else if (const FInt64Property* Int64Property = CastField<FInt64Property>(Property))
 	{
 		int64* Value = (int64*) DataPtr;
 		JsonValue->TryGetNumber(*Value);
+		return;
 	}
 	else if (const FByteProperty* ByteProperty = CastField<FByteProperty>(Property))
 	{
 		uint8* Value = (uint8*) DataPtr;
 		JsonValue->TryGetNumber(*Value);
+		return;
 	}
 	else if (const FUInt16Property* Uint16Property = CastField<FUInt16Property>(Property))
 	{
 		uint16* Value = (uint16*) DataPtr;
 		JsonValue->TryGetNumber(*Value);
+		return;
 	}
 	else if (const FUInt32Property* Uint32Property = CastField<FUInt32Property>(Property))
 	{
 		uint32* Value = (uint32*) DataPtr;
 		JsonValue->TryGetNumber(*Value);
+		return;
 	}
 	else if (const FUInt64Property* Uint64Property = CastField<FUInt64Property>(Property))
 	{
 		uint64* Value = (uint64*) DataPtr;
 		JsonValue->TryGetNumber(*Value);
+		return;
 	}
 	else if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
@@ -287,6 +301,7 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 				}
 			}
 		}
+		return;
 	}
 	else if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 	{
@@ -295,6 +310,7 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 		{
 			Property->ImportText_Direct(*PathString, DataPtr, Owner, 0);
 		}
+		return;
 	}
 	else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 	{
@@ -303,6 +319,7 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 		{
 			ReadStruct(*ObjectJsonValue, StructProperty->Struct, DataPtr, Owner, EPropertyFilter::All);
 		}
+		return;
 	}
 	else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 	{
@@ -320,6 +337,7 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 				ReadValue(Value, InnerProperty, ArrayHelper.GetRawPtr(Idx), Owner);
 			}
 		}
+		return;
 	}
 	else if (const FSetProperty* SetProperty = CastField<FSetProperty>(Property))
 	{
@@ -339,13 +357,14 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 				InnerProperty->InitializeValue(TempBuffer.GetData());
 
 				TSharedPtr<FJsonValue> Value = (*SetJsonValue)[Idx];
-				ReadValue(Value, InnerProperty, TempBuffer.GetData(), Owner); 
+				ReadValue(Value, InnerProperty, TempBuffer.GetData(), Owner);
 
 				SetHelper.AddElement(TempBuffer.GetData());
 
 				InnerProperty->DestroyValue(TempBuffer.GetData());
 			}
 		}
+		return;
 	}
 	else if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
 	{
@@ -374,14 +393,14 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 				KeyProperty->ImportText_Direct(*JsonPair.Key, TempKey.GetData(), Owner, 0);
 
 				ValueProperty->InitializeValue(TempValue.GetData());
-				ReadValue(JsonPair.Value, ValueProperty, TempValue.GetData(), Owner); 
+				ReadValue(JsonPair.Value, ValueProperty, TempValue.GetData(), Owner);
 
 				MapHelper.AddPair(TempKey.GetData(), TempValue.GetData());
 
 				KeyProperty->DestroyValue(TempKey.GetData());
 				ValueProperty->DestroyValue(TempValue.GetData());
 			}
-		
+
 			return;
 		}
 
@@ -390,7 +409,7 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 		if (JsonValue->TryGetArray(JsonArrayPtr))
 		{
 			MapHelper.EmptyValues(JsonArrayPtr->Num());
-			
+
 			// temporary buffers to read elements into
 			TArray<uint8> TempKey;
 			TempKey.AddUninitialized(KeyProperty->ElementSize);
@@ -409,10 +428,10 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 					if (JsonKeyField.IsValid() && JsonValueField.IsValid())
 					{
 						KeyProperty->InitializeValue(TempKey.GetData());
-						ReadValue(JsonKeyField, KeyProperty, TempKey.GetData(), Owner); 
+						ReadValue(JsonKeyField, KeyProperty, TempKey.GetData(), Owner);
 
 						ValueProperty->InitializeValue(TempValue.GetData());
-						ReadValue(JsonValueField, ValueProperty, TempValue.GetData(), Owner); 
+						ReadValue(JsonValueField, ValueProperty, TempValue.GetData(), Owner);
 
 						MapHelper.AddPair(TempKey.GetData(), TempValue.GetData());
 
@@ -425,11 +444,142 @@ void FEditorConfig::ReadValue(TSharedPtr<FJsonValue> JsonValue, const FProperty*
 			return;
 		}
 	}
+
+	ensureAlwaysMsgf(false, TEXT("Property type is unsupported: %s, type: %s"), *Property->GetPathName(), *Property->GetClass()->GetName());
 }
 
-TSharedPtr<FJsonValue> FEditorConfig::WriteValue(const FProperty* Property, const void* DataPtr)
+TSharedPtr<FJsonValue> FEditorConfig::WriteArray(const FArrayProperty* ArrayProperty, const void* DataPtr)
+{
+	FProperty* InnerProperty = ArrayProperty->Inner;
+	FScriptArrayHelper ArrayHelper(ArrayProperty, DataPtr);
+
+	TArray<TSharedPtr<FJsonValue>> JsonValuesArray;
+	JsonValuesArray.Reserve(ArrayHelper.Num());
+
+	for (int32 Idx = 0; Idx < ArrayHelper.Num(); ++Idx)
+	{
+		if (ArrayHelper.IsValidIndex(Idx))
+		{
+			TSharedPtr<FJsonValue> ElementValue = WriteValue(InnerProperty, ArrayHelper.GetRawPtr(Idx), nullptr);
+			check(ElementValue.IsValid());
+			JsonValuesArray.Add(ElementValue);
+		}
+	}
+
+	return MakeShared<FJsonValueArray>(JsonValuesArray);
+}
+
+TSharedPtr<FJsonValue> FEditorConfig::WriteSet(const FSetProperty* SetProperty, const void* DataPtr)
+{
+	FProperty* InnerProperty = SetProperty->ElementProp;
+	FScriptSetHelper SetHelper(SetProperty, DataPtr);
+
+	TArray<TSharedPtr<FJsonValue>> JsonValuesArray;
+	JsonValuesArray.Reserve(SetHelper.Num());
+
+	for (int32 Idx = 0; Idx < SetHelper.Num(); ++Idx)
+	{
+		if (SetHelper.IsValidIndex(Idx))
+		{
+			TSharedPtr<FJsonValue> ElementValue = WriteValue(InnerProperty, SetHelper.GetElementPtr(Idx), nullptr);
+			check(ElementValue.IsValid());
+			JsonValuesArray.Add(ElementValue);
+		}
+	}
+
+	return MakeShared<FJsonValueArray>(JsonValuesArray);
+}
+
+TSharedPtr<FJsonValue> FEditorConfig::WriteMap(const FMapProperty* MapProperty, const void* DataPtr)
 {
 	TSharedPtr<FJsonValue> ResultValue;
+
+	FProperty* KeyProperty = MapProperty->KeyProp;
+	FProperty* ValueProperty = MapProperty->ValueProp;
+
+	FScriptMapHelper MapHelper(MapProperty, DataPtr);
+
+	if (MapHelper.Num() == 0)
+	{
+		ResultValue = MakeShared<FJsonValueObject>(MakeShared<FJsonObject>());
+	}
+	else
+	{
+		TArray<TSharedPtr<FJsonValue>> JsonKeysArray;
+		JsonKeysArray.Reserve(MapHelper.Num());
+
+		TArray<TSharedPtr<FJsonValue>> JsonValuesArray;
+		JsonValuesArray.Reserve(MapHelper.Num());
+
+		for (int32 Idx = 0; Idx < MapHelper.Num(); ++Idx)
+		{
+			if (MapHelper.IsValidIndex(Idx))
+			{
+				TSharedPtr<FJsonValue> JsonKey = WriteValue(KeyProperty, MapHelper.GetKeyPtr(Idx), nullptr);
+				check(JsonKey.IsValid());
+				JsonKeysArray.Add(JsonKey);
+
+				TSharedPtr<FJsonValue> JsonValue = WriteValue(ValueProperty, MapHelper.GetValuePtr(Idx), nullptr);
+				check(JsonValue.IsValid());
+				JsonValuesArray.Add(JsonValue);
+			}
+		}
+
+		// maps can either be stored as $key, $value pairs or, if the keys can be stringified, as a JSON object
+		// check Filter we should use based on the first element
+		EJson KeyType = JsonKeysArray[0]->Type;
+		if (KeyType == EJson::Object)
+		{
+			TArray<TSharedPtr<FJsonValue>> ResultArray;
+			ResultArray.Reserve(MapHelper.Num());
+
+			for (int32 Idx = 0; Idx < MapHelper.Num(); ++Idx)
+			{
+				if (MapHelper.IsValidIndex(Idx))
+				{
+					TSharedPtr<FJsonObject> ElementObject = MakeShared<FJsonObject>();
+					ElementObject->SetField(TEXT("$key"), JsonKeysArray[Idx]);
+					ElementObject->SetField(TEXT("$value"), JsonValuesArray[Idx]);
+
+					ResultArray.Add(MakeShared<FJsonValueObject>(ElementObject));
+				}
+			}
+
+			ResultValue = MakeShared<FJsonValueArray>(ResultArray);
+		}
+		else if (KeyType == EJson::Boolean ||
+			KeyType == EJson::Number ||
+			KeyType == EJson::String)
+		{
+			TSharedPtr<FJsonObject> ResultObject = MakeShared<FJsonObject>();
+
+			for (int32 Idx = 0; Idx < MapHelper.Num(); ++Idx)
+			{
+				if (MapHelper.IsValidIndex(Idx))
+				{
+					FString KeyString;
+					check(JsonKeysArray[Idx]->TryGetString(KeyString));
+
+					ResultObject->SetField(KeyString, JsonValuesArray[Idx]);
+				}
+			}
+
+			ResultValue = MakeShared<FJsonValueObject>(ResultObject);
+		}
+
+		ensureMsgf(ResultValue.IsValid(), TEXT("Map key type is invalid."));
+	}
+
+	return ResultValue;
+}
+
+TSharedPtr<FJsonValue> FEditorConfig::WriteValue(const FProperty* Property, const void* DataPtr, const void* DefaultPtr)
+{
+	TSharedPtr<FJsonValue> ResultValue;
+	if (DefaultPtr != nullptr && Property->Identical(DataPtr, DefaultPtr))
+	{
+		return ResultValue;
+	}
 
 	if (const FStrProperty* StrProperty = CastField<FStrProperty>(Property))
 	{
@@ -517,144 +667,45 @@ TSharedPtr<FJsonValue> FEditorConfig::WriteValue(const FProperty* Property, cons
 	}
 	else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 	{
-		ResultValue = MakeShared<FJsonValueObject>(WriteStruct(StructProperty->Struct, DataPtr, EPropertyFilter::All));
+		ResultValue = MakeShared<FJsonValueObject>(WriteStruct(StructProperty->Struct, DataPtr, DefaultPtr, EPropertyFilter::All));
 	}
 	else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 	{
-		FProperty* InnerProperty = ArrayProperty->Inner;
-		FScriptArrayHelper ArrayHelper(ArrayProperty, DataPtr);
-
-		TArray<TSharedPtr<FJsonValue>> JsonValuesArray;
-		JsonValuesArray.Reserve(ArrayHelper.Num());
-
-		for (int32 Idx = 0; Idx < ArrayHelper.Num(); ++Idx)
-		{
-			TSharedPtr<FJsonValue> ElementValue = WriteValue(InnerProperty, ArrayHelper.GetRawPtr(Idx));
-			JsonValuesArray.Add(ElementValue);
-		}
-
-		ResultValue = MakeShared<FJsonValueArray>(JsonValuesArray);
+		ResultValue = WriteArray(ArrayProperty, DataPtr);
 	}
 	else if (const FSetProperty* SetProperty = CastField<FSetProperty>(Property))
 	{
-		FProperty* InnerProperty = SetProperty->ElementProp;
-		FScriptSetHelper SetHelper(SetProperty, DataPtr);
-
-		TArray<TSharedPtr<FJsonValue>> JsonValuesArray;
-		JsonValuesArray.Reserve(SetHelper.Num());
-
-		for (int32 Idx = 0; Idx < SetHelper.Num(); ++Idx)
-		{
-			if (SetHelper.IsValidIndex(Idx))
-			{
-				TSharedPtr<FJsonValue> ElementValue = WriteValue(InnerProperty, SetHelper.GetElementPtr(Idx));
-				JsonValuesArray.Add(ElementValue);
-			}
-		}
-
-		ResultValue = MakeShared<FJsonValueArray>(JsonValuesArray);
+		ResultValue = WriteSet(SetProperty, DataPtr);
 	}
 	else if (const FMapProperty* MapProperty = CastField<FMapProperty>(Property))
 	{
-		FProperty* KeyProperty = MapProperty->KeyProp;
-		FProperty* ValueProperty = MapProperty->ValueProp;
-
-		FScriptMapHelper MapHelper(MapProperty, DataPtr);
-
-		if (MapHelper.Num() == 0)
-		{
-			ResultValue = MakeShared<FJsonValueObject>(MakeShared<FJsonObject>());
-		}
-		else
-		{
-			TArray<TSharedPtr<FJsonValue>> JsonKeysArray;
-			JsonKeysArray.Reserve(MapHelper.Num());
-
-			TArray<TSharedPtr<FJsonValue>> JsonValuesArray;
-			JsonValuesArray.Reserve(MapHelper.Num());
-
-			for (int32 Idx = 0; Idx < MapHelper.Num(); ++Idx)
-			{
-				if (MapHelper.IsValidIndex(Idx))
-				{
-					TSharedPtr<FJsonValue> JsonKey = WriteValue(KeyProperty, MapHelper.GetKeyPtr(Idx));
-					JsonKeysArray.Add(JsonKey);
-
-					TSharedPtr<FJsonValue> JsonValue = WriteValue(ValueProperty, MapHelper.GetValuePtr(Idx));
-					JsonValuesArray.Add(JsonValue);
-				}
-			}
-
-			// maps can either be stored as $key, $value pairs or, if the keys can be stringified, as a JSON object
-			// check Filter we should use based on the first element
-			EJson KeyType = JsonKeysArray[0]->Type;
-			if (KeyType == EJson::Object)
-			{
-				TArray<TSharedPtr<FJsonValue>> ResultArray;
-				ResultArray.Reserve(MapHelper.Num());
-
-				for (int32 Idx = 0; Idx < MapHelper.Num(); ++Idx)
-				{
-					TSharedPtr<FJsonObject> ElementObject = MakeShared<FJsonObject>();
-					ElementObject->SetField(TEXT("$key"), JsonKeysArray[Idx]);
-					ElementObject->SetField(TEXT("$value"), JsonValuesArray[Idx]);
-
-					ResultArray.Add(MakeShared<FJsonValueObject>(ElementObject));
-				}
-
-				ResultValue = MakeShared<FJsonValueArray>(ResultArray);
-			}
-			else if (KeyType == EJson::Boolean || 
-				KeyType == EJson::Number || 
-				KeyType == EJson::String)
-			{
-				TSharedPtr<FJsonObject> ResultObject = MakeShared<FJsonObject>();
-
-				for (int32 Idx = 0; Idx < MapHelper.Num(); ++Idx)
-				{
-					FString KeyString;
-					check(JsonKeysArray[Idx]->TryGetString(KeyString));
-
-					ResultObject->SetField(KeyString, JsonValuesArray[Idx]);
-				}
-				
-				ResultValue = MakeShared<FJsonValueObject>(ResultObject);
-			}
-
-			ensureMsgf(ResultValue.IsValid(), TEXT("Map key type is invalid."));
-		}
+		ResultValue = WriteMap(MapProperty, DataPtr);
 	}
 
-	ensureMsgf(ResultValue.IsValid(), TEXT("Property type is unsupported."));
+	ensureAlwaysMsgf(ResultValue.IsValid(), TEXT("Property type is unsupported: %s, type: %s"), *Property->GetPathName(), *Property->GetClass()->GetName());
 	return ResultValue;
 }
 
-bool FEditorConfig::IsDefault(const FProperty* Property, TSharedPtr<FJsonValue> JsonValue, const void* NativeValue)
-{
-	if (JsonValue->Type == EJson::Array)
-	{
-		return JsonValue->AsArray().Num() == 0;
-	}
-	else if (JsonValue->Type == EJson::Object)
-	{
-		return JsonValue->AsObject()->Values.Num() == 0;
-	}
-	else
-	{
-		// have the property initialize some temp storage, then check against that
-		uint8 Temp[256];
-		Property->InitializeValue(Temp);
-
-		return Property->Identical(NativeValue, Temp);
-	}
-
-	return false;
-}
-
-TSharedPtr<FJsonObject> FEditorConfig::WriteStruct(const UStruct* Struct, const void* Instance, EPropertyFilter Filter) 
+TSharedPtr<FJsonObject> FEditorConfig::WriteStruct(const UStruct* Struct, const void* Instance, const void* Defaults, EPropertyFilter Filter) 
 {
 	TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
 	JsonObject->SetStringField(TEXT("$type"), Struct->GetName());
+	
+	// Default initialize a struct here if we weren't passed one. 
+	// This is necessary because structs can contain default initializations, eg.:
+	// struct Foo { float Bar = 5.0f; }
+	// The Bar FProperty does not store this value itself, only the struct does.
+	TArray<uint8> TempDefaults;
+
+	if (Defaults == nullptr)
+	{
+		TempDefaults.AddZeroed(Struct->GetStructureSize());
+		Struct->InitializeStruct(TempDefaults.GetData());
+
+		Defaults = TempDefaults.GetData();
+	}
+
+	bool bAnyWritten = false;
 
 	for (TFieldIterator<FProperty> It(Struct); It; ++It)
 	{
@@ -665,14 +716,19 @@ TSharedPtr<FJsonObject> FEditorConfig::WriteStruct(const UStruct* Struct, const 
 			continue;
 		}
 
-		const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Instance); 
+		bAnyWritten = true;
 
-		TSharedPtr<FJsonValue> PropertyValue = WriteValue(Property, ValuePtr);
-		if (!IsDefault(Property, PropertyValue, ValuePtr))
+		const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Instance);
+		const void* PropertyDefaultPtr = Property->ContainerPtrToValuePtr<void>(Defaults);
+
+		TSharedPtr<FJsonValue> PropertyValue = WriteValue(Property, ValuePtr, PropertyDefaultPtr);
+		if (PropertyValue.IsValid())
 		{
 			JsonObject->SetField(Property->GetName(), PropertyValue);
 		}
 	}
+
+	ensureAlwaysMsgf(bAnyWritten, TEXT("Struct type has no properties to serialize: %s"), *Struct->GetName());
 
 	return JsonObject;
 }
@@ -685,6 +741,10 @@ TSharedPtr<FJsonObject> FEditorConfig::WriteUObject(const UClass* Class, const U
 	TSharedPtr<FJsonObject> JsonObject = MakeShared<FJsonObject>();
 	JsonObject->SetStringField(TEXT("$type"), Class->GetName());
 
+	const UObject* Defaults = Class->GetDefaultObject();
+
+	bool bAnyWritten = false;
+
 	for (TFieldIterator<FProperty> It(Class); It; ++It)
 	{
 		const FProperty* Property = *It;
@@ -694,14 +754,19 @@ TSharedPtr<FJsonObject> FEditorConfig::WriteUObject(const UClass* Class, const U
 			continue;
 		}
 
-		const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Instance); 
+		bAnyWritten = true;
 
-		TSharedPtr<FJsonValue> PropertyValue = WriteValue(Property, ValuePtr);
-		if (!IsDefault(Property, PropertyValue, ValuePtr))
+		const void* ValuePtr = Property->ContainerPtrToValuePtr<void>(Instance);
+		const void* PropertyDefaultPtr = Property->ContainerPtrToValuePtr<void>(Defaults);
+
+		TSharedPtr<FJsonValue> PropertyValue = WriteValue(Property, ValuePtr, PropertyDefaultPtr);
+		if (PropertyValue.IsValid())
 		{
 			JsonObject->SetField(Property->GetName(), PropertyValue);
 		}
 	}
+
+	ensureAlwaysMsgf(bAnyWritten, TEXT("UObject type has no properties to serialize: %s"), *Class->GetName());
 
 	return JsonObject;
 }
