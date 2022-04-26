@@ -12,6 +12,7 @@
 
 class AActor;
 class FSceneView;
+class FViewport;
 class IMediaPlayer;
 class UCameraComponent;
 class UImgMediaPlaybackComponent;
