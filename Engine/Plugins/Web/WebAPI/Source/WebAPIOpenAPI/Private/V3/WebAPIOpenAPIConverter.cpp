@@ -436,7 +436,13 @@ namespace UE::WebAPI::OpenAPI
 				break;
 			}
 		}
+
 		check(ParameterName);
+		
+		if(!ParameterName)
+		{
+			return nullptr;
+		}
 
 		const FString ParameterJsonName = InSrcParameter->Name.IsEmpty() ? *ParameterName : InSrcParameter->Name;
 

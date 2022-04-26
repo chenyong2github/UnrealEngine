@@ -123,7 +123,10 @@ TMap<FString, FString> TRequest<PayloadType>::GetAllHeaders() const
 		check(Key);
 		check(Value);
 
-		OutMap.Emplace(MoveTemp(*Key), MoveTemp(*Value));
+		if(Key && Value)
+		{
+			OutMap.Emplace(MoveTemp(*Key), MoveTemp(*Value));
+		}
 	}
 
 	return OutMap;
