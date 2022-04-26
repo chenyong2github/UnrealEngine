@@ -67,7 +67,8 @@
 using namespace PhysicsInterfaceTypes;
 
 // Global switch for whether to read/write to DDC for landscape cooked data
-bool GLandscapeCollisionSkipDDC = false;
+// It's a lot faster to compute than to request from DDC, so always skip.
+bool GLandscapeCollisionSkipDDC = true;
 
 #if ENABLE_COOK_STATS
 namespace LandscapeCollisionCookStats
@@ -906,6 +907,8 @@ TArray<PxHeightFieldSample> ConvertHeightfieldDataForPhysx(
 
 bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& Format, bool bUseDefMaterial, bool bCheckDDC, TArray<uint8>& OutCookedData, TArray<UPhysicalMaterial*>& InOutMaterials) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ULandscapeHeightfieldCollisionComponent::CookCollisionData);
+
 	if (GetOutermost()->bIsCookedForEditor)
 	{
 		return true;
