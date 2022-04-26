@@ -2476,6 +2476,7 @@ FViewFamilyInfo::FViewFamilyInfo(const FSceneViewFamily& InViewFamily)
 ,	bShadowDepthRenderCompleted(false)
 ,	FamilySize(0, 0)
 {
+	bIsViewFamilyInfo = true;
 }
 
 FViewFamilyInfo::~FViewFamilyInfo()

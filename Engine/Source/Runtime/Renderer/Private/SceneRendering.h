@@ -2638,7 +2638,8 @@ FRDGTextureRef CreateHalfResolutionDepthCheckerboardMinMax(FRDGBuilder& GraphBui
 
 inline const FSceneTexturesConfig& FViewInfo::GetSceneTexturesConfig() const
 {
-	return ((const FViewFamilyInfo*)Family)->SceneTexturesConfig;
+	// TODO:  We are refactoring away use of the FSceneTexturesConfig::Get() global singleton, but need this workaround for now to avoid crashes
+	return Family->bIsViewFamilyInfo ? ((const FViewFamilyInfo*)Family)->SceneTexturesConfig : FSceneTexturesConfig::Get();
 }
 
 inline const FSceneTextures& FViewInfo::GetSceneTextures() const

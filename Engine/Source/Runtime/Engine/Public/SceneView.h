@@ -1750,6 +1750,7 @@ public:
 	bool bIsFirstViewInMultipleViewFamily = true;
 
 	bool bIsSceneTexturesInitialized = false;
+	bool bIsViewFamilyInfo = false;
 
 	/** 
 	 * Which component of the scene rendering should be output to the final render target.
