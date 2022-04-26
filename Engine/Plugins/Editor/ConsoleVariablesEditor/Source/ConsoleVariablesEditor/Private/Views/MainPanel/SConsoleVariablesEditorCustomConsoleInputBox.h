@@ -91,6 +91,8 @@ public:
 	void MarkActiveSuggestion();
 
 	void ClearSuggestions();
+	
+	void CommitInput();
 
 private:
 
