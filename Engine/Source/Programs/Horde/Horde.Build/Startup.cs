@@ -28,6 +28,7 @@ using Horde.Build.Commits;
 using Horde.Build.Commits.Impl;
 using Horde.Build.Compute;
 using Horde.Build.Compute.Impl;
+using Horde.Build.Config;
 using Horde.Build.Fleet.Autoscale;
 using Horde.Build.Jobs;
 using Horde.Build.Logs;
@@ -313,6 +314,7 @@ namespace Horde.Build
 			services.AddSingleton<IDeviceCollection, DeviceCollection>();
 			services.AddSingleton<INoticeCollection, NoticeCollection>();
 
+			services.AddSingleton<ConfigCollection>();
 			services.AddSingleton<ToolCollection>();
 
 			// Auditing
@@ -344,7 +346,6 @@ namespace Horde.Build
 			services.AddSingleton<RequestTrackerService>();
 			services.AddSingleton<CredentialService>();
 			services.AddSingleton<MongoService>();
-			services.AddSingleton<ConfigService>();
 			services.AddSingleton<IDogStatsd>(ctx =>
 			{
 				string? datadogAgentHost = Environment.GetEnvironmentVariable("DD_AGENT_HOST");
@@ -572,7 +573,7 @@ namespace Horde.Build
 				services.AddHostedService(provider => provider.GetRequiredService<PerforceLoadBalancer>());
 				services.AddHostedService<PoolUpdateService>();
 				services.AddHostedService(provider => provider.GetRequiredService<SlackNotificationSink>());
-				services.AddHostedService<ConfigService>();
+				services.AddHostedService<ConfigUpdateService>();
 				services.AddHostedService<TelemetryService>();
 				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());
 			}

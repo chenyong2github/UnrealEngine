@@ -16,6 +16,7 @@ using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
 using Horde.Build.Notifications;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Tools;
 using Horde.Build.Utilities;
@@ -26,7 +27,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace Horde.Build.Server
+namespace Horde.Build.Config
 {
 	using PoolId = StringId<IPool>;
 	using ProjectId = StringId<IProject>;
@@ -35,7 +36,7 @@ namespace Horde.Build.Server
 	/// <summary>
 	/// Polls Perforce for stream config changes
 	/// </summary>
-	public sealed class ConfigService : IHostedService, IDisposable
+	public sealed class ConfigUpdateService : IHostedService, IDisposable
 	{
 		const string FileScheme = "file";
 		const string PerforceScheme = "p4-cluster";
@@ -44,7 +45,9 @@ namespace Horde.Build.Server
 		/// Config file version number
 		/// </summary>
 		const int Version = 10;
+
 		readonly MongoService _mongoService;
+		readonly ConfigCollection _configCollection;
 		readonly ToolCollection _toolCollection;
 		readonly ProjectService _projectService;
 		readonly StreamService _streamService;
@@ -59,9 +62,10 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigService(MongoService mongoService, IPerforceService perforceService, ToolCollection toolCollection, ProjectService projectService, StreamService streamService, INotificationService notificationService, PoolService poolService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigService> logger)
+		public ConfigUpdateService(MongoService mongoService, ConfigCollection configCollection, IPerforceService perforceService, ToolCollection toolCollection, ProjectService projectService, StreamService streamService, INotificationService notificationService, PoolService poolService, AgentService agentService, IClock clock, IOptionsMonitor<ServerSettings> settings, ILogger<ConfigUpdateService> logger)
 		{
 			_mongoService = mongoService;
+			_configCollection = configCollection;
 			_perforceService = perforceService;
 			_toolCollection = toolCollection;
 			_projectService = projectService;
@@ -76,7 +80,7 @@ namespace Horde.Build.Server
 			}
 			else
 			{
-				_ticker = clock.AddSharedTicker<ConfigService>(TimeSpan.FromMinutes(1.0), TickLeaderAsync, logger);
+				_ticker = clock.AddSharedTicker<ConfigUpdateService>(TimeSpan.FromMinutes(1.0), TickLeaderAsync, logger);
 			}
 			_logger = logger;
 
@@ -116,7 +120,7 @@ namespace Horde.Build.Server
 					_logger.LogInformation("Caching global config from {Revision}", revision);
 					try
 					{
-						_cachedGlobalConfig = await ReadDataAsync<GlobalConfig>(configPath);
+						_cachedGlobalConfig = await ReadDataAsync<GlobalConfig>(revision, configPath);
 						_cachedGlobalConfigRevision = revision;
 					}
 					catch (Exception ex)
@@ -195,7 +199,7 @@ namespace Horde.Build.Server
 					_logger.LogInformation("Caching configuration for project {ProjectId} ({Revision})", projectRef.Id, revision);
 					try
 					{
-						projectConfig = await ReadDataAsync<ProjectConfig>(projectPath);
+						projectConfig = await ReadDataAsync<ProjectConfig>(revision, projectPath);
 						if (update)
 						{
 							_logger.LogInformation("Updating configuration for project {ProjectId} ({Revision})", projectRef.Id, revision);
@@ -265,7 +269,7 @@ namespace Horde.Build.Server
 						_logger.LogInformation("Updating configuration for stream {StreamRef} ({Revision})", streamRef.Id, revision);
 						try
 						{
-							StreamConfig streamConfig = await ReadDataAsync<StreamConfig>(streamPath);
+							StreamConfig streamConfig = await ReadDataAsync<StreamConfig>(revision, streamPath);
 							stream = await _streamService.StreamCollection.CreateOrReplaceAsync(streamRef.Id, stream, streamPath.ToString(), revision, projectId, streamConfig);
 						}
 						catch (Exception ex)
@@ -369,14 +373,10 @@ namespace Horde.Build.Server
 			return revisions;
 		}
 
-		async Task<T> ReadDataAsync<T>(Uri configPath) where T : class
+		async Task<T> ReadDataAsync<T>(string revision, Uri configPath) where T : class
 		{
 			byte[] data = await ReadDataAsync(configPath);
-
-			JsonSerializerOptions options = new JsonSerializerOptions();
-			Startup.ConfigureJsonSerializer(options);
-
-			return JsonSerializer.Deserialize<T>(data, options)!;
+			return await _configCollection.AddConfigAsync<T>(revision, data);
 		}
 
 		Task<byte[]> ReadDataAsync(Uri configPath)
