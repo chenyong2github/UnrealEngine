@@ -463,8 +463,10 @@ void FConcertServer::RecoverSessions(const FConcertServerSessionRepository& InRe
 {
 	// Find any existing live sessions to automatically restore when recovering from an improper server shutdown
 	TArray<FConcertSessionInfo> LiveSessionInfos;
-	EventSink->GetSessionsFromPath(*this, InRepository.WorkingDir, LiveSessionInfos);
-
+	TArray<FDateTime> LiveSessionCreationTimes;
+	EventSink->GetSessionsFromPath(*this, InRepository.WorkingDir, LiveSessionInfos, &LiveSessionCreationTimes);
+	UpdateLastModified(LiveSessionInfos, LiveSessionCreationTimes);
+	
 	// Restore any existing live sessions
 	for (FConcertSessionInfo& LiveSessionInfo : LiveSessionInfos)
 	{
@@ -489,7 +491,8 @@ void FConcertServer::RecoverSessions(const FConcertServerSessionRepository& InRe
 		// In theory, archives are immutable, but the server will end up touching the files and change the 'modification time'. Ensure to look at 'creation time'.
 		EventSink->GetSessionsFromPath(*this, InRepository.SavedDir, ArchivedSessionInfos, &ArchivedSessionCreationTimes);
 		check(ArchivedSessionInfos.Num() == ArchivedSessionCreationTimes.Num());
-
+		UpdateLastModified(ArchivedSessionInfos, ArchivedSessionCreationTimes);
+		
 		// Trim the oldest archived sessions.
 		if (bCleanupExpiredSessions && Settings->NumSessionsToKeep > 0 && ArchivedSessionInfos.Num() > Settings->NumSessionsToKeep)
 		{
@@ -541,6 +544,14 @@ void FConcertServer::RecoverSessions(const FConcertServerSessionRepository& InRe
 	}
 }
 
+void FConcertServer::UpdateLastModified(TArray<FConcertSessionInfo>& SessionInfos, const TArray<FDateTime>& SessionCreationTimes)
+{
+	for (int32 i = 0; i < SessionInfos.Num(); ++i)
+	{
+		SessionInfos[i].LastModified = SessionCreationTimes[i];
+	}
+}
+
 void FConcertServer::ArchiveOfflineSessions(const FConcertServerSessionRepository& InRepository)
 {
 	// Find existing live session files to automatically archive them when recovering from an improper server shutdown.
@@ -554,6 +565,7 @@ void FConcertServer::ArchiveOfflineSessions(const FConcertServerSessionRepositor
 		FConcertSessionInfo ArchivedSessionInfo = LiveSessionInfo;
 		ArchivedSessionInfo.SessionId = FGuid::NewGuid();
 		ArchivedSessionInfo.SessionName = ConcertServerUtil::GetArchiveName(LiveSessionInfo.SessionName, LiveSessionInfo.Settings);
+		ArchivedSessionInfo.SetLastModifiedToNow();
 
 		if (EventSink->ArchiveSession(*this, InRepository.GetSessionWorkingDir(LiveSessionInfo.SessionId), InRepository.GetSessionSavedDir(ArchivedSessionInfo.SessionId), ArchivedSessionInfo, AutoArchiveSessionFilter))
 		{
@@ -1409,7 +1421,10 @@ TSharedPtr<IConcertServerSession> FConcertServer::CreateLiveSession(const FConce
 		InRepository.GetSessionWorkingDir(LiveSessionInfo.SessionId)
 		);
 
-	if (EventSink->OnLiveSessionCreated(*this, LiveSession.ToSharedRef())) // EventSync could complete the session initialization?
+	FInternalLiveSessionCreationParams CreationParams;
+	CreationParams.OnModifiedCallback.BindSP(LiveSession.Get(), &FConcertServerSession::SetLastModifiedToNow);
+	
+	if (EventSink->OnLiveSessionCreated(*this, LiveSession.ToSharedRef(), CreationParams)) // EventSync could complete the session initialization?
 	{
 		LiveSessions.Add(LiveSessionInfo.SessionId, LiveSession);
 		LiveSession->Startup();
@@ -1524,6 +1539,7 @@ TSharedPtr<IConcertServerSession> FConcertServer::RestoreArchivedSession(const F
 		LiveSessionInfo.SessionId = FGuid::NewGuid();
 		LiveSessionInfo.SessionName = MoveTemp(LiveSessionName);
 		LiveSessionInfo.VersionInfos = ArchivedSessionInfo->VersionInfos;
+		LiveSessionInfo.SetLastModifiedToNow();
 
 		// Ensure the new version is compatible with the old version, and append this new version if it is different to the last used version
 		// Note: Older archived sessions didn't used to have any version info stored for them, and the version info may be missing completely when using -CONCERTIGNORE

@@ -308,10 +308,10 @@ void FConcertSyncServer::GetSessionsFromPathImpl(const IConcertServer& InServer,
 	});
 }
 
-bool FConcertSyncServer::OnLiveSessionCreatedImpl(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InSession)
+bool FConcertSyncServer::OnLiveSessionCreatedImpl(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InSession, const FInternalLiveSessionCreationParams& AdditionalParams)
 {
 	ConcertSyncServerUtils::WriteSessionInfoToDirectory(InSession->GetSessionWorkingDirectory(), InSession->GetSessionInfo());
-	return CreateLiveSession(InSession);
+	return CreateLiveSession(InSession, AdditionalParams);
 }
 
 void FConcertSyncServer::OnLiveSessionDestroyedImpl(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InSession)
@@ -515,7 +515,7 @@ void FConcertSyncServer::DestroySequencerManager(const TSharedRef<FConcertSyncSe
 	LiveSessionSequencerManagers.Remove(InLiveSession->GetSession().GetId());
 }
 
-bool FConcertSyncServer::CreateLiveSession(const TSharedRef<IConcertServerSession>& InSession)
+bool FConcertSyncServer::CreateLiveSession(const TSharedRef<IConcertServerSession>& InSession, const FInternalLiveSessionCreationParams& AdditionalParams)
 {
 	DestroyLiveSession(InSession);
 
@@ -529,6 +529,12 @@ bool FConcertSyncServer::CreateLiveSession(const TSharedRef<IConcertServerSessio
 			CreateSequencerManager(LiveSession.ToSharedRef());
 		}
 
+		// We needn't call OnActivityProduced().Remove(...) because the subscription needs to stay for the lifetime of FConcertSyncServerLiveSession::SessionDatabase
+		check(AdditionalParams.OnModifiedCallback.IsBound());
+		LiveSession->GetSessionDatabase().OnActivityProduced().AddLambda([OnSessionModifiedCallback = AdditionalParams.OnModifiedCallback](const FConcertSyncActivity&)
+		{
+			OnSessionModifiedCallback.Execute();
+		});
 		return true;
 	}
 

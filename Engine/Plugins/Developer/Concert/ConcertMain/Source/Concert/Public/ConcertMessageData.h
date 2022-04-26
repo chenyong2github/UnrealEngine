@@ -218,6 +218,10 @@ struct FConcertSessionInfo
 	UPROPERTY(VisibleAnywhere, Category="Session Info")
 	FConcertSessionSettings Settings;
 
+	/** The last time the session directory was modified in local time. */
+	UPROPERTY(VisibleAnywhere, Category="Session Info")
+	FDateTime LastModified;
+
 	/** Version information for this session. This is set during creation, and updated each time the session is restored */
 	UPROPERTY()
 	TArray<FConcertSessionVersionInfo> VersionInfos;
@@ -225,6 +229,11 @@ struct FConcertSessionInfo
 	/** Current state of the session used to determine joinability by clients. */
 	UPROPERTY()
 	EConcertSessionState State = EConcertSessionState::Normal;
+
+	void SetLastModifiedToNow()
+	{
+		LastModified = FDateTime::Now();
+	}
 };
 
 /** Holds filter rules used when migrating session data */

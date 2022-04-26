@@ -24,9 +24,10 @@ public:
 		This()->GetSessionsFromPathImpl(InServer, InPath, OutSessionInfos, OutSessionCreationTimes);
 	}
 
-	virtual bool OnLiveSessionCreated(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InLiveSession) final
+	virtual bool OnLiveSessionCreated(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InLiveSession, const FInternalLiveSessionCreationParams& AdditionalParams) final
 	{
-		const bool bSuccess = This()->OnLiveSessionCreatedImpl(InServer, InLiveSession);
+		const bool bSuccess = This()->OnLiveSessionCreatedImpl(InServer, InLiveSession, AdditionalParams);
+		// AdditionalParams are internal use only - they should never be exposed publicly!
 		ConcertServerEvents::OnLiveSessionCreated().Broadcast(bSuccess, InServer, InLiveSession);
 		return bSuccess;
 	}

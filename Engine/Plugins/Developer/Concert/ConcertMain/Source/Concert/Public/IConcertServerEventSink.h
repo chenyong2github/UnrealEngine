@@ -11,6 +11,14 @@ class IConcertServerSession;
 struct FConcertSessionInfo;
 struct FConcertSessionFilter;
 
+struct FInternalLiveSessionCreationParams
+{
+	DECLARE_DELEGATE(FOnSessionModified)
+
+	/** Called when the session was modified */
+	FOnSessionModified OnModifiedCallback;
+};
+
 /** Interface for events that Concert server can emit */
 class IConcertServerEventSink
 {
@@ -25,7 +33,7 @@ public:
 	 * @note This function is called for both newly created sessions and after recovering a live session during server start-up.
 	 * @return true if the session creation could be completed without error, false otherwise (ex if the database fails to open).
 	 */
-	virtual bool OnLiveSessionCreated(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InLiveSession) = 0;
+	virtual bool OnLiveSessionCreated(const IConcertServer& InServer, TSharedRef<IConcertServerSession> InLiveSession, const FInternalLiveSessionCreationParams& AdditionalParams) = 0;
 	
 	/**
 	 * Called before the session is destroyed (and before Shutdown is called on it).

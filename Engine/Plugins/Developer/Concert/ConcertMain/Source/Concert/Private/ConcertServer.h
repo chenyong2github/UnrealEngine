@@ -113,6 +113,9 @@ private:
 
 	/** Recover the sessions found in the working directory into live session, build the list of archived sessions and rotate them, keeping only the N most recent. */
 	void RecoverSessions(const FConcertServerSessionRepository& InRepository, bool bCleanupExpiredSessions);
+	
+	/** Sets each FConcertSessionInfo::LastModified time to the corresponding index in SessionCreationTimes. */
+	void UpdateLastModified(TArray<FConcertSessionInfo>& SessionInfos, const TArray<FDateTime>& SessionCreationTimes);
 
 	/**
 	 * Migrate the live sessions from the working directory (before sessions being recovered into live one) to the archived directory.
