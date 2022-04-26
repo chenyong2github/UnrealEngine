@@ -42,5 +42,8 @@ public class ShaderFormatD3D : ModuleRules
         }
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
+
+		// DXC API headers
+		PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "ShaderConductor", "ShaderConductor", "External", "DirectXShaderCompiler", "include"));
 	}
 }
