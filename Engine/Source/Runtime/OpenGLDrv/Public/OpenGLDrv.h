@@ -1015,8 +1015,6 @@ private:
 	void CommitGraphicsResourceTablesInner();
 	void CommitComputeResourceTables(FOpenGLComputeShader* ComputeShader);
 	void CommitNonComputeShaderConstants();
-	void CommitNonComputeShaderConstantsSlowPath();
-	void CommitNonComputeShaderConstantsFastPath(FOpenGLLinkedProgram* LinkedProgram);
 	void CommitComputeShaderConstants(FOpenGLComputeShader* ComputeShader);
 	void SetPendingBlendStateForActiveRenderTargets( FOpenGLContextState& ContextState );
 	

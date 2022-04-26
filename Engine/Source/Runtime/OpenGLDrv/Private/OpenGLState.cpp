@@ -488,6 +488,7 @@ void FOpenGLRHIState::InitializeResources(int32 NumCombinedTextures, int32 NumCo
 	for (int32 Frequency = 0; Frequency < SF_NumStandardFrequencies; ++Frequency)
 	{
 		DirtyUniformBuffers[Frequency] = MAX_uint16;
+		bAnyDirtyRealUniformBuffers[Frequency] = true;
 	}
 	bAnyDirtyGraphicsUniformBuffers = true;
 }

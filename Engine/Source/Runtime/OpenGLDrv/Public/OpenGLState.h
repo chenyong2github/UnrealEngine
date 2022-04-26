@@ -466,6 +466,8 @@ struct FOpenGLRHIState final : public FOpenGLCommonState
 	/** Track the currently bound uniform buffers. */
 	FUniformBufferRHIRef BoundUniformBuffers[SF_NumStandardFrequencies][MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE];
 
+	/** Array to track if any real (not emulated) uniform buffers have been bound since the last draw call */
+	bool bAnyDirtyRealUniformBuffers[SF_NumStandardFrequencies];
 	/** Bit array to track which uniform buffers have changed since the last draw call. */
 	bool bAnyDirtyGraphicsUniformBuffers;
 	uint16 DirtyUniformBuffers[SF_NumStandardFrequencies];

@@ -1223,7 +1223,9 @@ void FOpenGLDynamicRHI::BindUniformBufferBase(FOpenGLContextState& ContextState,
 			Buffer = GLUB->Resource;
 
 			if (GLUB->bIsEmulatedUniformBuffer)
+			{
 				continue;
+			}
 
 			Size = GLUB->GetSize();
 #if SUBALLOCATED_CONSTANT_BUFFER
@@ -3638,44 +3640,58 @@ void FOpenGLDynamicRHI::BindPendingShaderState( FOpenGLContextState& ContextStat
 		ForceUniformBindingUpdate = FOpenGL::SupportsSeparateShaderObjects();
 	}
 
-	int32 NextUniformBufferIndex = OGL_FIRST_UNIFORM_BUFFER;
-
-	static_assert(SF_NumGraphicsFrequencies == 5 && SF_NumFrequencies == 10, "Unexpected SF_ ordering");
-	static_assert(SF_RayGen > SF_NumGraphicsFrequencies, "SF_NumGraphicsFrequencies be the number of frequencies supported in OpenGL");
-
-	int32 NumUniformBuffers[SF_NumGraphicsFrequencies];
-
-	PendingState.BoundShaderState->GetNumUniformBuffers(NumUniformBuffers);
-			
-	PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_VERTEX, NextUniformBufferIndex);
-
-	BindUniformBufferBase(
-		ContextState,
-		NumUniformBuffers[SF_Vertex],
-		PendingState.BoundUniformBuffers[SF_Vertex],
-		NextUniformBufferIndex,
-		ForceUniformBindingUpdate);
-	NextUniformBufferIndex += NumUniformBuffers[SF_Vertex];
-
-	PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_PIXEL, NextUniformBufferIndex);
-	BindUniformBufferBase(
-		ContextState,
-		NumUniformBuffers[SF_Pixel],
-		PendingState.BoundUniformBuffers[SF_Pixel],
-		NextUniformBufferIndex,
-		ForceUniformBindingUpdate);
-	NextUniformBufferIndex += NumUniformBuffers[SF_Pixel];
-
-	if (NumUniformBuffers[SF_Geometry] >= 0)
+	if (PendingState.bAnyDirtyRealUniformBuffers[SF_Vertex] || 
+		PendingState.bAnyDirtyRealUniformBuffers[SF_Pixel] || 
+		PendingState.bAnyDirtyRealUniformBuffers[SF_Geometry])
 	{
-		PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_GEOMETRY, NextUniformBufferIndex);
-		BindUniformBufferBase(
-			ContextState,
-			NumUniformBuffers[SF_Geometry],
-			PendingState.BoundUniformBuffers[SF_Geometry],
-			NextUniformBufferIndex,
-			ForceUniformBindingUpdate);
-		NextUniformBufferIndex += NumUniformBuffers[SF_Geometry];
+		int32 NextUniformBufferIndex = OGL_FIRST_UNIFORM_BUFFER;
+
+		static_assert(SF_NumGraphicsFrequencies == 5 && SF_NumFrequencies == 10, "Unexpected SF_ ordering");
+		static_assert(SF_RayGen > SF_NumGraphicsFrequencies, "SF_NumGraphicsFrequencies be the number of frequencies supported in OpenGL");
+
+		int32 NumUniformBuffers[SF_NumGraphicsFrequencies];
+
+		PendingState.BoundShaderState->GetNumUniformBuffers(NumUniformBuffers);
+
+		if (PendingState.bAnyDirtyRealUniformBuffers[SF_Vertex])
+		{
+			PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_VERTEX, NextUniformBufferIndex);
+			BindUniformBufferBase(
+				ContextState,
+				NumUniformBuffers[SF_Vertex],
+				PendingState.BoundUniformBuffers[SF_Vertex],
+				NextUniformBufferIndex,
+				ForceUniformBindingUpdate);
+		}
+		NextUniformBufferIndex += NumUniformBuffers[SF_Vertex];
+
+		if (PendingState.bAnyDirtyRealUniformBuffers[SF_Pixel])
+		{
+			PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_PIXEL, NextUniformBufferIndex);
+			BindUniformBufferBase(
+				ContextState,
+				NumUniformBuffers[SF_Pixel],
+				PendingState.BoundUniformBuffers[SF_Pixel],
+				NextUniformBufferIndex,
+				ForceUniformBindingUpdate);
+		}
+		NextUniformBufferIndex += NumUniformBuffers[SF_Pixel];
+
+		if (NumUniformBuffers[SF_Geometry] >= 0 && PendingState.bAnyDirtyRealUniformBuffers[SF_Geometry])
+		{
+			PendingState.BoundShaderState->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_GEOMETRY, NextUniformBufferIndex);
+			BindUniformBufferBase(
+				ContextState,
+				NumUniformBuffers[SF_Geometry],
+				PendingState.BoundUniformBuffers[SF_Geometry],
+				NextUniformBufferIndex,
+				ForceUniformBindingUpdate);
+			NextUniformBufferIndex += NumUniformBuffers[SF_Geometry];
+		}
+
+		PendingState.bAnyDirtyRealUniformBuffers[SF_Vertex] = false;
+		PendingState.bAnyDirtyRealUniformBuffers[SF_Pixel] = false;
+		PendingState.bAnyDirtyRealUniformBuffers[SF_Geometry] = false;
 	}
 
 	if (FOpenGL::SupportsBindlessTexture())
@@ -3841,13 +3857,18 @@ void FOpenGLDynamicRHI::BindPendingComputeShaderState(FOpenGLContextState& Conte
 		ForceUniformBindingUpdate = true;
 	}
 
-	ComputeShader->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_COMPUTE, OGL_FIRST_UNIFORM_BUFFER);
-	BindUniformBufferBase(
-		ContextState,
-		ComputeShader->Bindings.NumUniformBuffers,
-		PendingState.BoundUniformBuffers[SF_Compute],
-		OGL_FIRST_UNIFORM_BUFFER,
-		ForceUniformBindingUpdate);
+	if (PendingState.bAnyDirtyRealUniformBuffers[SF_Compute])
+	{
+		ComputeShader->LinkedProgram->VerifyUniformBlockBindings(CrossCompiler::SHADER_STAGE_COMPUTE, OGL_FIRST_UNIFORM_BUFFER);
+		BindUniformBufferBase(
+			ContextState,
+			ComputeShader->Bindings.NumUniformBuffers,
+			PendingState.BoundUniformBuffers[SF_Compute],
+			OGL_FIRST_UNIFORM_BUFFER,
+			ForceUniformBindingUpdate);
+
+		PendingState.bAnyDirtyRealUniformBuffers[SF_Compute] = 0;
+	}
 	SetupBindlessTextures( ContextState, ComputeShader->LinkedProgram->Samplers );
 }
 
@@ -4014,7 +4035,9 @@ void FOpenGLShaderParameterCache::CommitPackedUniformBuffers(FOpenGLLinkedProgra
 			check(UniformBuffer);
 
 			if (!UniformBuffer->bIsEmulatedUniformBuffer)
+			{
 				continue;
+			}
 
 			const uint32* RESTRICT SourceData = UniformBuffer->EmulatedBufferData->Data.GetData();
 			for (int32 InfoIndex = LastInfoIndex; InfoIndex < UniformBuffersCopyInfo.Num(); ++InfoIndex)
