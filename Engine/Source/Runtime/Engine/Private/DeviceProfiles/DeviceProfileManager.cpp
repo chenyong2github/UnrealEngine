@@ -722,7 +722,7 @@ UDeviceProfile* UDeviceProfileManager::FindProfile( const FString& ProfileName, 
 	for( int32 Idx = 0; Idx < Profiles.Num(); Idx++ )
 	{
 		UDeviceProfile* CurrentDevice = CastChecked<UDeviceProfile>( Profiles[Idx] );
-		if( CurrentDevice->GetName() == ProfileName )
+		if( CurrentDevice->GetFName() == *ProfileName )
 		{
 			FoundProfile = CurrentDevice;
 			break;
