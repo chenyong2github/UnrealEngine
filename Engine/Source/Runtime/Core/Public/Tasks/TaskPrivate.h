@@ -20,6 +20,10 @@
 #include <atomic>
 #include <type_traits>
 
+#if !defined(TASKGRAPH_NEW_FRONTEND)
+#define TASKGRAPH_NEW_FRONTEND 0
+#endif
+
 namespace UE::Tasks
 {
 	using LowLevelTasks::ETaskPriority;
@@ -41,6 +45,24 @@ namespace UE::Tasks
 			None,
 			Inline, // a task priority for "inline" task execution - a task is executed "inline" by the thread that unlocked it, w/o scheduling
 			TaskEvent, // a task priority used by task events, allows to shortcut task execution
+
+#if TASKGRAPH_NEW_FRONTEND
+			// for integration with named threads
+			GameThreadNormalPri,
+			GameThreadHiPri,
+			GameThreadNormalPriLocalQueue,
+			GameThreadHiPriLocalQueue,
+
+			RenderThreadNormalPri,
+			RenderThreadHiPri,
+			RenderThreadNormalPriLocalQueue,
+			RenderThreadHiPriLocalQueue,
+
+			RHIThreadNormalPri,
+			RHIThreadHiPri,
+			RHIThreadNormalPriLocalQueue,
+			RHIThreadHiPriLocalQueue
+#endif
 		};
 
 		// An abstract base class for task implementation. 
@@ -124,6 +146,13 @@ namespace UE::Tasks
 			{
 				return FPlatformTLS::GetCurrentThreadId() != ExecutingThreadId.load(std::memory_order_relaxed);
 			}
+
+#if TASKGRAPH_NEW_FRONTEND
+			bool IsNamedThreadTask() const
+			{
+				return ExtendedPriority >= EExtendedTaskPriority::GameThreadNormalPri;
+			}
+#endif
 
 			EExtendedTaskPriority GetExtendedPriority() const
 			{
@@ -606,10 +635,7 @@ namespace UE::Tasks
 				return true;
 			}
 
-			void Schedule()
-			{
-				LowLevelTasks::FScheduler::Get().TryLaunch(LowLevelTask, LowLevelTasks::EQueuePreference::GlobalQueuePreference, /*bWakeUpWorker=*/ true);
-			}
+			CORE_API void Schedule();
 
 			// is called when the task has no pending prerequisites. Returns the previous piped task if any
 			CORE_API FTaskBase* TryPushIntoPipe();

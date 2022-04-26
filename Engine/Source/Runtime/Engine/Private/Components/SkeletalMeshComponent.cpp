@@ -4016,7 +4016,12 @@ void USkeletalMeshComponent::CompleteParallelAnimationEvaluation(bool bDoPostAni
 
 bool USkeletalMeshComponent::HandleExistingParallelEvaluationTask(bool bBlockOnTask, bool bPerformPostAnimEvaluation)
 {
-	if (IsRunningParallelEvaluation()) // We are already processing eval on another thread
+	// We are already processing eval and we are not inside it
+	if (IsRunningParallelEvaluation()
+#if TASKGRAPH_NEW_FRONTEND 
+		&& ParallelAnimationEvaluationTask->IsAwaitable()
+#endif
+	)
 	{
 		if (bBlockOnTask)
 		{

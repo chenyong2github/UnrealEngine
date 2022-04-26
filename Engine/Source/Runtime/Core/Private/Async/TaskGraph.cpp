@@ -775,7 +775,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void EnqueueFromThisThread(int32 QueueIndex, FBaseGraphTask* Task) override
 	{
 		checkThreadGraph(Task && Queue(QueueIndex).StallRestartEvent); // make sure we are started up
-		uint32 PriIndex = ENamedThreads::GetTaskPriority(Task->ThreadToExecuteOn) ? 0 : 1;
+		uint32 PriIndex = ENamedThreads::GetTaskPriority(Task->GetThreadToExecuteOn()) ? 0 : 1;
 		int32 ThreadToStart = Queue(QueueIndex).StallQueue.Push(Task, PriIndex);
 		check(ThreadToStart < 0); // if I am stalled, then how can I be queueing a task?
 	}
@@ -809,7 +809,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TestRandomizedThreads();
 		checkThreadGraph(Task && Queue(QueueIndex).StallRestartEvent); // make sure we are started up
 
-		uint32 PriIndex = ENamedThreads::GetTaskPriority(Task->ThreadToExecuteOn) ? 0 : 1;
+		uint32 PriIndex = ENamedThreads::GetTaskPriority(Task->GetThreadToExecuteOn()) ? 0 : 1;
 		int32 ThreadToStart = Queue(QueueIndex).StallQueue.Push(Task, PriIndex);
 
 		if (ThreadToStart >= 0)
@@ -1420,10 +1420,10 @@ public:
 	{
 #if STATS
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (ENamedThreads::GetThreadIndex(Task->ThreadToExecuteOn) == ENamedThreads::StatsThread)
+		if (ENamedThreads::GetThreadIndex(Task->GetThreadToExecuteOn()) == ENamedThreads::StatsThread)
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
-			checkf(ENamedThreads::GetQueueIndex(Task->ThreadToExecuteOn) == ENamedThreads::MainQueue, TEXT("`StatsThread_Local` is not supported and unlikely to be used intentionally. Check that `Task->ThreadToExecuteOn` value is not rubbish: %d"), Task->ThreadToExecuteOn);
+			checkf(ENamedThreads::GetQueueIndex(Task->GetThreadToExecuteOn()) == ENamedThreads::MainQueue, TEXT("`StatsThread_Local` is not supported and unlikely to be used intentionally. Check that `Task->ThreadToExecuteOn` value is not rubbish: %d"), Task->GetThreadToExecuteOn());
 
 			extern CORE_API UE::Tasks::FPipe GStatsPipe;
 			GStatsPipe.Launch(UE_SOURCE_LOCATION,
@@ -1446,7 +1446,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	static void RedirectAudioTasksToPipe(FBaseGraphTask* Task)
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (ENamedThreads::GetThreadIndex(Task->ThreadToExecuteOn) == ENamedThreads::AudioThread)
+		if (ENamedThreads::GetThreadIndex(Task->GetThreadToExecuteOn()) == ENamedThreads::AudioThread)
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			extern CORE_API UE::Tasks::FPipe GAudioPipe;
@@ -1488,8 +1488,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			TASKGRAPH_SCOPE_CYCLE_COUNTER(3, STAT_TaskGraph_QueueTask_AnyThread);
 			if (FTaskGraphInterface::IsMultithread())
 			{
-				uint32 TaskPriority = ENamedThreads::GetTaskPriority(Task->ThreadToExecuteOn);
-				int32 Priority = ENamedThreads::GetThreadPriorityIndex(Task->ThreadToExecuteOn);
+				uint32 TaskPriority = ENamedThreads::GetTaskPriority(Task->GetThreadToExecuteOn());
+				int32 Priority = ENamedThreads::GetThreadPriorityIndex(Task->GetThreadToExecuteOn());
 				if (Priority == (ENamedThreads::BackgroundThreadPriority >> ENamedThreads::ThreadPriorityShift) && (!bCreatedBackgroundPriorityThreads || !ENamedThreads::bHasBackgroundThreads))
 				{
 					Priority = ENamedThreads::NormalThreadPriority >> ENamedThreads::ThreadPriorityShift; // we don't have background threads, promote to normal
@@ -2021,6 +2021,9 @@ private:
 
 		if (ENamedThreads::GetThreadIndex(InThreadToExecuteOn) == ENamedThreads::AnyThread)
 		{
+#if TASKGRAPH_NEW_FRONTEND
+			checkNoEntry();
+#else
 			uint32 ThreadPriority = GetThreadPriorityIndex(InThreadToExecuteOn);
 			check(ThreadPriority < uint32(ENamedThreads::NumThreadPriorities));
 			LowLevelTasks::ETaskPriority Conversion[int(ENamedThreads::NumThreadPriorities)] = { LowLevelTasks::ETaskPriority::Normal, LowLevelTasks::ETaskPriority::High, LowLevelTasks::ETaskPriority::BackgroundNormal };
@@ -2031,14 +2034,16 @@ private:
 				Priority = LowLevelTasks::ETaskPriority::BackgroundHigh;
 			}
 
-			Task->TaskHandle.Init(TEXT("TaskGraphTask"), Priority, [Task, InThreadToExecuteOn, Deleter(LowLevelTasks::TDeleter<FBaseGraphTask, &FBaseGraphTask::DeleteTask>(Task))]()
+			Task->GetTaskHandle().Init(TEXT("TaskGraphTask"), Priority, [Task, InThreadToExecuteOn, Deleter(LowLevelTasks::TDeleter<FBaseGraphTask, &FBaseGraphTask::DeleteTask>(Task))]()
 			{
 				Task->Execute(NewTasks, InThreadToExecuteOn, false);
 			});
 	
 			bWakeUpWorker |= LowLevelTasks::FSchedulerTls::IsBusyWaiting();
-			verifySlow(LowLevelTasks::TryLaunch(Task->TaskHandle, bWakeUpWorker ? LowLevelTasks::EQueuePreference::GlobalQueuePreference : LowLevelTasks::EQueuePreference::LocalQueuePreference, bWakeUpWorker));
+
+			verifySlow(LowLevelTasks::TryLaunch(Task->GetTaskHandle(), bWakeUpWorker ? LowLevelTasks::EQueuePreference::GlobalQueuePreference : LowLevelTasks::EQueuePreference::LocalQueuePreference, bWakeUpWorker));
 			return;
+#endif
 		}
 
 		ENamedThreads::Type CurrentThreadIfKnown;
@@ -2134,6 +2139,26 @@ private:
 	{
 		TaskTrace::FWaitingScope WaitingScope(GetTraceIds(Tasks));
 		TRACE_CPUPROFILER_EVENT_SCOPE(WaitUntilTasksComplete);
+
+#if TASKGRAPH_NEW_FRONTEND
+		bool HasNamedThreadTasks = false;
+		for (const FGraphEventRef& Task : Tasks)
+		{
+			if (!Task->IsNamedThreadTask())
+			{
+				Task->Wait();
+			}
+			else
+			{
+				HasNamedThreadTasks = true;
+			}
+		}
+
+		if (!HasNamedThreadTasks)
+		{
+			return;
+		}
+#endif
 	
 		ENamedThreads::Type CurrentThread = CurrentThreadIfKnown;
 		if (ENamedThreads::GetThreadIndex(CurrentThreadIfKnown) == ENamedThreads::AnyThread)
@@ -2428,6 +2453,11 @@ bool FTaskGraphInterface::IsMultithread()
 	return FPlatformProcess::SupportsMultithreading() || (FForkProcessHelper::IsForkedMultithreadInstance() && GAllowTaskGraphForkMultithreading);
 }
 
+
+// Statics and some implementations from FBaseGraphTask and FGraphEvent
+
+#if !TASKGRAPH_NEW_FRONTEND
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 void FBaseGraphTask::LogPossiblyInvalidSubsequentsTask(const TCHAR* TaskName)
 {
@@ -2525,6 +2555,8 @@ FGraphEvent::~FGraphEvent()
 #endif
 	CheckDontCompleteUntilIsEmpty(); // We should not have any wait untils outstanding
 }
+
+#endif
 
 DECLARE_CYCLE_STAT(TEXT("FBroadcastTask"), STAT_FBroadcastTask, STATGROUP_TaskGraphTasks);
 

@@ -194,7 +194,11 @@ FRenderAssetStreamingManager::~FRenderAssetStreamingManager()
 
 TArray<FStreamingRenderAsset>& FRenderAssetStreamingManager::GetStreamingRenderAssetsAsyncSafe()
 {
-	if (StreamingRenderAssetsSyncEvent.IsValid())
+	if (StreamingRenderAssetsSyncEvent.IsValid()
+#if TASKGRAPH_NEW_FRONTEND
+		&& StreamingRenderAssetsSyncEvent->IsAwaitable()
+#endif
+	)
 	{
 		StreamingRenderAssetsSyncEvent->Wait(ENamedThreads::GameThread);
 	}
