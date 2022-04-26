@@ -422,6 +422,19 @@ UObject* StaticFindObject(UClass* Class, FTopLevelAssetPath ObjectPath, bool Exa
 	return Result;
 }
 
+UObject* StaticFindObjectSafe(UClass* Class, FTopLevelAssetPath ObjectPath, bool ExactClass /*= false*/)
+{
+	if (!UE::IsSavingPackage(nullptr) && !IsGarbageCollectingAndLockingUObjectHashTables())
+	{
+		FGCScopeGuard GCGuard;
+		return StaticFindObject(Class, ObjectPath, ExactClass);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 //
 // Find an object; can't fail.
 //

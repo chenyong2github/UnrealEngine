@@ -292,13 +292,25 @@ COREUOBJECT_API UObject* StaticFindObject( UClass* Class, UObject* InOuter, cons
  *
  * @return	Returns a pointer to the found object or nullptr if none could be found
  */
-UObject* StaticFindObject(UClass* Class, FTopLevelAssetPath ObjectPath, bool ExactClass /*= false*/);
+COREUOBJECT_API UObject* StaticFindObject(UClass* Class, FTopLevelAssetPath ObjectPath, bool ExactClass /*= false*/);
 
 /** Version of StaticFindObject() that will assert if the object is not found */
 COREUOBJECT_API UObject* StaticFindObjectChecked( UClass* Class, UObject* InOuter, const TCHAR* Name, bool ExactClass=false );
 
 /** Internal version of StaticFindObject that will not assert on GIsSavingPackage or IsGarbageCollectingAndLockingUObjectHashTables() */
 COREUOBJECT_API UObject* StaticFindObjectSafe( UClass* Class, UObject* InOuter, const TCHAR* Name, bool ExactClass=false );
+
+/**
+ * Tries to find an object in memory. This version uses FTopLevelAssetPath to find the object.
+ * Version of StaticFindObject that will not assert on GIsSavingPackage or IsGarbageCollectingAndLockingUObjectHashTables()
+ *
+ * @param	Class			The to be found object's class
+ * @param	ObjectPath		FName pair representing the outer package object and the inner top level object (asset)
+ * @param	ExactClass		Whether to require an exact match with the passed in class
+ *
+ * @return	Returns a pointer to the found object or nullptr if none could be found
+ */
+COREUOBJECT_API UObject* StaticFindObjectSafe(UClass* Class, FTopLevelAssetPath ObjectPath, bool ExactClass /*= false*/);
 
 /**
  * Fast version of StaticFindAllObjects that relies on the passed in FName being the object name without any group/package qualifiers.
@@ -1646,6 +1658,16 @@ template< class T >
 inline T* FindObjectSafe( UObject* Outer, const TCHAR* Name, bool ExactClass=false )
 {
 	return (T*)StaticFindObjectSafe( T::StaticClass(), Outer, Name, ExactClass );
+}
+
+/**
+ * Find an optional object.
+ * @see StaticFindObject()
+ */
+template< class T >
+inline T* FindObjectSafe(FTopLevelAssetPath InPath, bool ExactClass = false)
+{
+	return (T*)StaticFindObjectSafe(T::StaticClass(), InPath, ExactClass);
 }
 
 /**
