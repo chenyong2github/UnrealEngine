@@ -30,9 +30,12 @@ protected:
 	void InitializeSequencePlayer();
 
 	/** Compute PlaybackSettings from day cycle properties */
-	FMovieSceneSequencePlaybackSettings GetPlaybackSettings() const;
+	FMovieSceneSequencePlaybackSettings GetPlaybackSettings(const ULevelSequence* Sequence) const;
 
 protected:
+	UPROPERTY()
+	TObjectPtr<ULevelSequence> MasterSequence;
+
 #if WITH_EDITORONLY_DATA
 	/** Sets the time of day to preview in the editor. Does not affect the start time at runtime */
 	UPROPERTY(EditAnywhere, Category = TimeOfDay)
