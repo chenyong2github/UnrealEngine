@@ -2,11 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
 
 class UMediaPlayer;
+class UObject;
 
 /** Log category for this module. */
 DECLARE_LOG_CATEGORY_EXTERN(LogMediaPlate, Log, All);
@@ -15,16 +15,15 @@ class MEDIAPLATE_API FMediaPlateModule : public IModuleInterface
 {
 public:
 	/**
-	 * Call this to get the UClass for AMediaPlate.
-	 */
-	virtual UClass* GetAMediaPlateClass();
-
-	/**
 	 * Call this to get the media player from a media plate object.
 	 */
-	virtual UMediaPlayer* GetMediaPlayer(UObject* Object);
+	UMediaPlayer* GetMediaPlayer(UObject* Object);
 
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+
+private:
+	/** ID for our delegate. */
+	int32 GetPlayerFromObjectID = INDEX_NONE;
 };

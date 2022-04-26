@@ -3,8 +3,8 @@
 #include "MediaAssetsPrivate.h"
 
 #include "CoreMinimal.h"
+#include "IMediaAssetsModule.h"
 #include "Misc/CoreMisc.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
@@ -20,7 +20,7 @@ DEFINE_LOG_CATEGORY(LogMediaAssets);
  */
 class FMediaAssetsModule
 	: public FSelfRegisteringExec
-	, public IModuleInterface
+	, public IMediaAssetsModule
 {
 public:
 
@@ -56,7 +56,39 @@ public:
 	}
 
 public:
+	//~ IMediaAssetsModule interface
+	virtual int32 RegisterGetPlayerFromObject(const FOnGetPlayerFromObject& Delegate) override
+	{
+		int32 Index = GetPlayerFromObjectDelegates.Num();
+		GetPlayerFromObjectDelegates.Add(Delegate);
+		return Index;
+	}
 
+	virtual void UnregisterGetPlayerFromObject(int32 DelegateID) override
+	{
+		GetPlayerFromObjectDelegates[DelegateID].Unbind();
+	}
+
+	virtual UMediaPlayer* GetPlayerFromObject(UObject* Object) override
+	{
+		UMediaPlayer* Player = nullptr;
+
+		// Go through all our delegates.
+		for (FOnGetPlayerFromObject& Delegate : GetPlayerFromObjectDelegates)
+		{
+			if (Delegate.IsBound())
+			{
+				Player = Delegate.Execute(Object);
+				if (Player != nullptr)
+				{
+					break;
+				}
+			}
+		}
+
+		return Player;
+	}
+	
 	//~ IModuleInterface interface
 
 	virtual void StartupModule() override { }
@@ -66,6 +98,11 @@ public:
 	{
 		return false;
 	}
+
+private:
+	/** All the functions that can get a player from an object. */
+	TArray<FOnGetPlayerFromObject> GetPlayerFromObjectDelegates;
+
 };
 
 

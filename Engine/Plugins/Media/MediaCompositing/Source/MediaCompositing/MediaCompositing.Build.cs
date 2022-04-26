@@ -32,15 +32,6 @@ namespace UnrealBuildTool.Rules
 					"MediaCompositing/Private",
 					"MediaCompositing/Private/MovieScene",
 				});
-
-			DynamicallyLoadedModuleNames.AddRange(
-				new string[] {
-					"MediaPlate",
-				});
-			PrivateIncludePathModuleNames.AddRange(
-				new string[] {
-					"MediaPlate",
-				});
 		}
 	}
 }

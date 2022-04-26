@@ -2,8 +2,8 @@
 
 #include "MovieSceneMediaTemplate.h"
 
+#include "IMediaAssetsModule.h"
 #include "Math/UnrealMathUtility.h"
-#include "MediaPlateModule.h"
 #include "MediaPlayer.h"
 #include "MediaPlayerFacade.h"
 #include "MediaSoundComponent.h"
@@ -287,15 +287,15 @@ void FMovieSceneMediaSectionTemplate::Initialize(const FMovieSceneEvaluationOper
 			if (Operand.ObjectBindingID.IsValid())
 			{
 				// Yes. Get the media player from the object.
-				FMediaPlateModule* MediaPlateModule = FModuleManager::LoadModulePtr<FMediaPlateModule>("MediaPlate");
-				if (MediaPlateModule != nullptr)
+				IMediaAssetsModule* MediaAssetsModule = FModuleManager::LoadModulePtr<IMediaAssetsModule>("MediaAssets");
+				if (MediaAssetsModule != nullptr)
 				{
 					for (TWeakObjectPtr<> WeakObject : Player.FindBoundObjects(Operand))
 					{
 						UObject* BoundObject = WeakObject.Get();
 						if (BoundObject != nullptr)
 						{
-							MediaPlayer = MediaPlateModule->GetMediaPlayer(BoundObject);
+							MediaPlayer = MediaAssetsModule->GetPlayerFromObject(BoundObject);
 							break;
 						}
 					}
