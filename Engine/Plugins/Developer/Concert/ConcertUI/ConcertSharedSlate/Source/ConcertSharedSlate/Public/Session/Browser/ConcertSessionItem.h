@@ -44,6 +44,8 @@ public:
 	FString ProjectName;
 	FString ProjectVersion;
 	EConcertServerFlags ServerFlags = EConcertServerFlags::None;
+	
+	FDateTime LastModified;
 
 	FOnBeginEditConcertSessionNameRequest OnBeginEditSessionNameRequest; // Emitted when user press 'F2' or select 'Rename' from context menu.
 };

@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "ActivityColumn.h"
+#include "ConcertFrontendUtils.h"
+
 #include "Async/Future.h"
 #include "ConcertHeaderRowUtils.h"
 #include "ConcertSyncSessionTypes.h"
@@ -39,14 +41,7 @@ ENUM_CLASS_FLAGS(EConcertActivityFilterFlags);
 class CONCERTSHAREDSLATE_API SConcertSessionActivities : public SCompoundWidget
 {
 public:
-
-	/** Defines how the time should be displayed in the date/time column. */
-	enum class ETimeFormat
-	{
-		Relative, // Display relative time (23 seconds ago)
-		Absolute  // Display absolute time (April 7, 2019 - 10:33:52)
-	};
-
+	
 	/** Used to pull activities from a session. Used to fetch and display the activities of an archived session. */
 	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FFetchActivitiesFunc,
 		TArray<TSharedPtr<FConcertSessionActivity>>& /*InOutActivities*/,
@@ -348,7 +343,7 @@ public:
 	TSharedRef<SWidget> MakeMenuWidget(TOptional<FExtendContextMenu> ExtendMenu = {});
 
 	/** Returns the time format option. */
-	SConcertSessionActivities::ETimeFormat GetTimeFormat() const { return bDisplayRelativeTime ? SConcertSessionActivities::ETimeFormat::Relative : SConcertSessionActivities::ETimeFormat::Absolute; }
+	ETimeFormat GetTimeFormat() const { return bDisplayRelativeTime ? ETimeFormat::Relative : ETimeFormat::Absolute; }
 
 	/** Returns whether the connection activities are listed in SConcertSessionActivities. */
 	EVisibility GetConnectionActivitiesVisibility() const { return bDisplayConnectionActivities ? EVisibility::Visible : EVisibility::Hidden; }

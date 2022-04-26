@@ -3,7 +3,9 @@
 #include "ConcertHeaderRowUtils.h"
 
 #include "Algo/AllOf.h"
+#include "Algo/AnyOf.h"
 #include "Algo/Find.h"
+#include "Algo/ForEach.h"
 
 #include "Dom/JsonObject.h"
 
@@ -121,6 +123,49 @@ namespace UE::ConcertSharedSlate
 			}
 
 			HeaderRow->SetShowGeneratedColumn(*ColumnId, bIsVisible);
+		}
+	}
+
+	FColumnVisibilityTransaction::FColumnVisibilityTransaction(TWeakPtr<SHeaderRow> HeaderRow)
+		: HeaderRow(HeaderRow)
+	{}
+
+	FColumnVisibilityTransaction& FColumnVisibilityTransaction::SetHeaderRow(TWeakPtr<SHeaderRow> InHeaderRow)
+	{
+		HeaderRow = InHeaderRow;
+		return *this;
+	}
+
+	FColumnVisibilityTransaction& FColumnVisibilityTransaction::SaveVisibilityAndSet(FName ColumnId, bool bShouldBeVisible)
+	{
+		if (const TSharedPtr<SHeaderRow> Pinned = HeaderRow.Pin())
+		{
+			SavedColumnVisibilities.Add(ColumnId, Pinned->IsColumnVisible(ColumnId));
+			OverridenColumnVisibilities.Add(ColumnId, bShouldBeVisible);
+			Pinned->SetShowGeneratedColumn(ColumnId, bShouldBeVisible);
+		}
+		return *this;
+	}
+
+	void FColumnVisibilityTransaction::ResetToSavedVisibilities(bool bOnlyResetIfNotOverriden)
+	{
+		const TSharedPtr<SHeaderRow> Pinned = HeaderRow.Pin();
+		if (!Pinned)
+		{
+			return;
+		}
+		
+		const bool bSkipUpdate = bOnlyResetIfNotOverriden
+			&& Algo::AnyOf(OverridenColumnVisibilities, [this, &Pinned](const TPair<FName, bool>& SavedColumnEntry)
+		{
+			return Pinned->IsColumnVisible(SavedColumnEntry.Key) != SavedColumnEntry.Value;
+		});
+		if (!bSkipUpdate)
+		{
+			Algo::ForEach(SavedColumnVisibilities, [this, &Pinned](const TPair<FName, bool>& SavedColumnEntry)
+			{
+				Pinned->SetShowGeneratedColumn(SavedColumnEntry.Key, SavedColumnEntry.Value);
+			});
 		}
 	}
 }

@@ -7,6 +7,9 @@
 
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
+
+#include "Algo/ForEach.h"
+
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -33,9 +36,23 @@ void SNewSessionRow::Construct(const FArguments& InArgs, TSharedPtr<FConcertSess
 
 	// Construct base class
 	SMultiColumnTableRow<TSharedPtr<FConcertSessionItem>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+	
+	// This rows are needed to correctly display the row
+	TemporaryColumnShower
+		.SetHeaderRow(InOwnerTableView->GetHeaderRow())
+		.SaveVisibilityAndSet(ConcertBrowserUtils::IconColName, true)
+		.SaveVisibilityAndSet(ConcertBrowserUtils::SessionColName, true)
+		.SaveVisibilityAndSet(ConcertBrowserUtils::ServerColName, true)
+		.SaveVisibilityAndSet(ConcertBrowserUtils::VersionColName, true)
+		.SaveVisibilityAndSet(ConcertBrowserUtils::ProjectColName, true);
 
 	// Fill the server combo.
 	UpdateServerList();
+}
+
+SNewSessionRow::~SNewSessionRow()
+{
+	TemporaryColumnShower.ResetToSavedVisibilities();
 }
 
 void SNewSessionRow::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -129,9 +146,8 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 				]
 			];
 	}
-	else
+	else if (ColumnName == ConcertBrowserUtils::ProjectColName)
 	{
-		check(ColumnName == ConcertBrowserUtils::ProjectColName);
 		FText ProjectName = FText::AsCultureInvariant(FApp::GetProjectName());
 		return SNew(SBox)
 			.VAlign(VAlign_Center)
@@ -143,6 +159,11 @@ TSharedRef<SWidget> SNewSessionRow::GenerateWidgetForColumn(const FName& ColumnN
 				.OnTextCommitted(this, &SNewSessionRow::OnProjectNameCommitted)
 				.OnKeyDownHandler(this, &SNewSessionRow::OnKeyDownHandler)
 			];
+	}
+	else
+	{
+		check(ColumnName == ConcertBrowserUtils::LastModifiedColName);
+		return SNullWidget::NullWidget;
 	}
 }
 

@@ -146,7 +146,10 @@ static FConcertSessionItem GenerateSessionItem(const SessionType& Session)
 		Session.ServerInfo.ServerName,
 		Session.SessionInfo.Settings.ProjectName,
 		Version.ToString(),
-		Session.ServerInfo.ServerFlags,{}};
+		Session.ServerInfo.ServerFlags,
+		Session.SessionInfo.LastModified,
+		{}
+	};
 }
 
 }
@@ -405,6 +408,14 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView(const FArgument
 			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::VersionColName)
 			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
 			.OnGetMenuContent_Lambda([this](){ return MakeHideColumnContextMenu(SessionHeaderRow.ToSharedRef(), ConcertBrowserUtils::VersionColName); })
+
+			+SHeaderRow::Column(ConcertBrowserUtils::LastModifiedColName)
+			.DefaultLabel(LOCTEXT("LastModified", "Last Modified"))
+			.DefaultTooltip(LOCTEXT("LastModifiedTooltip", "The local time the session's directory was last modified"))
+			.SortPriority(this, &SConcertSessionBrowser::GetColumnSortPriority, ConcertBrowserUtils::LastModifiedColName)
+			.SortMode(this, &SConcertSessionBrowser::GetColumnSortMode, ConcertBrowserUtils::LastModifiedColName)
+			.OnSort(this, &SConcertSessionBrowser::OnColumnSortModeChanged)
+			.OnGetMenuContent_Lambda([this](){ return MakeHideColumnContextMenu(SessionHeaderRow.ToSharedRef(), ConcertBrowserUtils::LastModifiedColName); })
 			);
 
 	RestoreColumnVisibilityState(SessionHeaderRow.ToSharedRef(), InArgs._ColumnVisibilitySnapshot);
@@ -485,9 +496,27 @@ void SConcertSessionBrowser::SortSessionList()
 		{
 			return SortMode == EColumnSortMode::Ascending ? Lhs->SessionName < Rhs->SessionName : Lhs->SessionName > Rhs->SessionName;
 		}
-		else
+		else if (ColName == ConcertBrowserUtils::ServerColName)
 		{
 			return SortMode == EColumnSortMode::Ascending ? Lhs->ServerName < Rhs->ServerName : Lhs->ServerName > Rhs->ServerName;
+		}
+		else if (ColName == ConcertBrowserUtils::ProjectColName)
+		{
+			return SortMode == EColumnSortMode::Ascending ? Lhs->ProjectName < Rhs->ProjectName : Lhs->ProjectName > Rhs->ProjectName;
+		}
+		else if (ColName == ConcertBrowserUtils::VersionColName)
+		{
+			return SortMode == EColumnSortMode::Ascending ? Lhs->ProjectVersion < Rhs->ProjectVersion : Lhs->ProjectVersion > Rhs->ProjectVersion;
+		}
+		else if (ColName == ConcertBrowserUtils::LastModifiedColName)
+		{
+			return SortMode == EColumnSortMode::Ascending ? Lhs->LastModified < Rhs->LastModified : Lhs->LastModified > Rhs->LastModified;
+		}
+		else
+		{
+			// Did you add a new column?
+			checkNoEntry();
+			return false;
 		}
 	};
 
@@ -694,6 +723,25 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 		FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 
 		MenuBuilder.AddMenuEntry(
+			LOCTEXT("DisplayLastModifiedInRelativeTime", "Display Relative Time"),
+			TAttribute<FText>::CreateLambda([this]()
+			{
+				const bool bIsVisible = SessionHeaderRow->IsColumnVisible(ConcertBrowserUtils::LastModifiedColName);
+				return bIsVisible
+					? LOCTEXT("DisplayLastModifiedInRelativeTime.Tooltip.Visible", "Display the Last Modified column in relative time?")
+					: LOCTEXT("DisplayLastModifiedInRelativeTime.Tooltip.Hidden", "Disabled because the Last Modified column is hidden.");
+			}),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SConcertSessionBrowser::OnFilterMenuChecked, ConcertBrowserUtils::LastModifiedCheckBoxMenuName),
+				FCanExecuteAction::CreateLambda([this] { return SessionHeaderRow->IsColumnVisible(ConcertBrowserUtils::LastModifiedColName); }),
+				FIsActionChecked::CreateLambda([this] { return PersistentSettings->LastModifiedTimeFormat == ETimeFormat::Relative; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+		MenuBuilder.AddSeparator();
+		
+		MenuBuilder.AddMenuEntry(
 			LOCTEXT("ActiveSessions_Label", "Active Sessions"),
 			LOCTEXT("ActiveSessions_Tooltip", "Displays Active Sessions"),
 			FSlateIcon(),
@@ -815,7 +863,21 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionViewOptionsBar()
 
 void SConcertSessionBrowser::OnFilterMenuChecked(const FName MenuName)
 {
-	if (MenuName == ConcertBrowserUtils::ActiveSessionsCheckBoxMenuName)
+	if (MenuName == ConcertBrowserUtils::LastModifiedCheckBoxMenuName)
+	{
+		switch (PersistentSettings->LastModifiedTimeFormat)
+		{
+		case ETimeFormat::Relative:
+			PersistentSettings->LastModifiedTimeFormat = ETimeFormat::Absolute;
+			break;
+		case ETimeFormat::Absolute: 
+			PersistentSettings->LastModifiedTimeFormat = ETimeFormat::Relative;
+			break;
+		default:
+			checkNoEntry();
+		}
+	}
+	else if (MenuName == ConcertBrowserUtils::ActiveSessionsCheckBoxMenuName)
 	{
 		PersistentSettings->bShowActiveSessions = !PersistentSettings->bShowActiveSessions;
 	}

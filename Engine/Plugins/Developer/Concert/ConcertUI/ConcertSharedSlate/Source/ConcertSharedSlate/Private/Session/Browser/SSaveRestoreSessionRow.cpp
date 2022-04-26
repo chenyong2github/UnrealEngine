@@ -6,6 +6,9 @@
 #include "Session/Browser/ConcertSessionItem.h"
 
 #include "EditorStyleSet.h"
+
+#include "Algo/ForEach.h"
+
 #include "Framework/Application/SlateApplication.h"
 #include "Internationalization/Regex.h"
 #include "Styling/AppStyle.h"
@@ -30,6 +33,19 @@ void SSaveRestoreSessionRow::Construct(const FArguments& InArgs, TSharedPtr<FCon
 
 	// Construct base class
 	SMultiColumnTableRow<TSharedPtr<FConcertSessionItem>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+
+	// This rows are needed to correctly display the row
+	TemporaryColumnShower
+		.SetHeaderRow(InOwnerTableView->GetHeaderRow())
+		.SaveVisibilityAndSet(ConcertBrowserUtils::IconColName, true)
+		.SaveVisibilityAndSet(ConcertBrowserUtils::SessionColName, true)
+		.SaveVisibilityAndSet(ConcertBrowserUtils::ServerColName, true)
+		.SaveVisibilityAndSet(ConcertBrowserUtils::ProjectColName, true);
+}
+
+SSaveRestoreSessionRow::~SSaveRestoreSessionRow()
+{
+	TemporaryColumnShower.ResetToSavedVisibilities();
 }
 
 TBitArray<> SSaveRestoreSessionRow::GetWiresNeededByDepth() const
@@ -115,40 +131,43 @@ TSharedRef<SWidget> SSaveRestoreSessionRow::GenerateWidgetForColumn(const FName&
 				.Text(FText::FromString(ItemPin->ServerName))
 				.HighlightText(HighlightText)
 			]
-		]
-
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(2.0f)
-		.HAlign(HAlign_Left)
-		[
-			SNew(SUniformGridPanel)
-			.SlotPadding(FMargin(1.0f, 0.0f))
-
-			// 'Accept' button
-			+SUniformGridPanel::Slot(0, 0)
-			[
-				ConcertBrowserUtils::MakePositiveActionButton(
-					FEditorStyle::GetBrush("Icons.Check"),
-					ItemPin->Type == FConcertSessionItem::EType::RestoreSession ? LOCTEXT("RestoreCheckIconTooltip", "Restore the session") : LOCTEXT("ArchiveCheckIconTooltip", "Archive the session"),
-					TAttribute<bool>::Create([this]() { return !EditableSessionName->GetText().IsEmpty(); }), // Enabled?
-					FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnAccept))
-			]
-
-			// 'Cancel' button
-			+SUniformGridPanel::Slot(1, 0)
-			[
-				ConcertBrowserUtils::MakeNegativeActionButton(
-					FEditorStyle::GetBrush("Icons.X"),
-					LOCTEXT("CancelTooltip", "Cancel"),
-					true, // Enabled?
-					FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnDecline))
-			]
 		];
+	}
+	else if (ColumnName == ConcertBrowserUtils::ProjectColName)
+	{
+		return SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2.0f)
+			.HAlign(HAlign_Left)
+			[
+				SNew(SUniformGridPanel)
+				.SlotPadding(FMargin(1.0f, 0.0f))
+
+				// 'Accept' button
+				+SUniformGridPanel::Slot(0, 0)
+				[
+					ConcertBrowserUtils::MakePositiveActionButton(
+						FEditorStyle::GetBrush("Icons.Check"),
+						ItemPin->Type == FConcertSessionItem::EType::RestoreSession ? LOCTEXT("RestoreCheckIconTooltip", "Restore the session") : LOCTEXT("ArchiveCheckIconTooltip", "Archive the session"),
+						TAttribute<bool>::Create([this]() { return !EditableSessionName->GetText().IsEmpty(); }), // Enabled?
+						FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnAccept))
+				]
+
+				// 'Cancel' button
+				+SUniformGridPanel::Slot(1, 0)
+				[
+					ConcertBrowserUtils::MakeNegativeActionButton(
+						FEditorStyle::GetBrush("Icons.X"),
+						LOCTEXT("CancelTooltip", "Cancel"),
+						true, // Enabled?
+						FOnClicked::CreateRaw(this, &SSaveRestoreSessionRow::OnDecline))
+				]
+			];
 	}
 	else
 	{
-		check(ColumnName == ConcertBrowserUtils::ProjectColName || ColumnName == ConcertBrowserUtils::VersionColName);
+		check(ColumnName == ConcertBrowserUtils::VersionColName || ColumnName == ConcertBrowserUtils::LastModifiedColName);
 		return SNullWidget::NullWidget;
 	}
 }

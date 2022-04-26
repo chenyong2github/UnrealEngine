@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConcertHeaderRowUtils.h"
 #include "ConcertMessageData.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STableRow.h"
@@ -10,6 +11,7 @@
 
 class FConcertSessionItem;
 class SEditableTextBox;
+class SHeaderRow;
 class SWidget;
 
 /**
@@ -29,20 +31,18 @@ public:
 		, _OnAcceptFunc()
 		, _OnDeclineFunc()
 		, _HighlightText()
-	{
-	}
+	{}
+		SLATE_ARGUMENT(FGetServersFunc, GetServerFunc)
+		SLATE_ARGUMENT(FAcceptFunc, OnAcceptFunc)
+		SLATE_ARGUMENT(FDeclineFunc, OnDeclineFunc)
 
-	SLATE_ARGUMENT(FGetServersFunc, GetServerFunc)
-	SLATE_ARGUMENT(FAcceptFunc, OnAcceptFunc)
-	SLATE_ARGUMENT(FDeclineFunc, OnDeclineFunc)
-
-	SLATE_ATTRIBUTE(FText, HighlightText)
-	SLATE_ATTRIBUTE(FString, DefaultServerURL)
-
+		SLATE_ATTRIBUTE(FText, HighlightText)
+		SLATE_ATTRIBUTE(FString, DefaultServerURL)
 	SLATE_END_ARGS()
-
+	
 	void Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionItem> InItem, const TSharedRef<STableViewBase>& InOwnerTableView);
-
+	virtual ~SNewSessionRow() override;
+	
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
@@ -65,6 +65,9 @@ private:
 
 	void UpdateServerList();
 
+	/** Helper for temporarily showing all columns required for this column */
+	UE::ConcertSharedSlate::FColumnVisibilityTransaction TemporaryColumnShower;
+	
 	/** Holds the new item to fill with session name and server. */
 	TWeakPtr<FConcertSessionItem> Item;
 	/** Servers displayed in the server combo box. */

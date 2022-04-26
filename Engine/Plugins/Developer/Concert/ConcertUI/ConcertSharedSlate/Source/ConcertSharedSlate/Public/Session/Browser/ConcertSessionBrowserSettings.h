@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "ConcertFrontendUtils.h"
+
 #include "UObject/Object.h"
 #include "ConcertSessionBrowserSettings.generated.h"
 
@@ -14,6 +16,9 @@ class CONCERTSHAREDSLATE_API UConcertSessionBrowserSettings : public UObject
 public:
 	UConcertSessionBrowserSettings() {}
 
+	UPROPERTY(config, EditAnywhere, Category="Multi-User Session Browser")
+	ETimeFormat LastModifiedTimeFormat = ETimeFormat::Absolute;
+	
 	UPROPERTY(config, EditAnywhere, Category="Multi-User Session Browser")
 	bool bShowActiveSessions = true;
 

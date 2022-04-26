@@ -39,5 +39,21 @@ namespace UE::ConcertSharedSlate
 	CONCERTSHAREDSLATE_API FColumnVisibilitySnapshot SnapshotColumnVisibilityState(const TSharedRef<SHeaderRow>& HeaderRow);
 	/** Restores the column visibilities from an exported state */
 	CONCERTSHAREDSLATE_API void RestoreColumnVisibilityState(const TSharedRef<SHeaderRow>& HeaderRow, const FColumnVisibilitySnapshot& Snapshot);
+
+	/** Helper for temporarily setting column visibilities to a certain setting. */
+	class FColumnVisibilityTransaction
+	{
+		TMap<FName, bool> SavedColumnVisibilities;
+		TMap<FName, bool> OverridenColumnVisibilities;
+		TWeakPtr<SHeaderRow> HeaderRow;
+	public:
+		
+		FColumnVisibilityTransaction(TWeakPtr<SHeaderRow> HeaderRow = nullptr);
+		FColumnVisibilityTransaction& SetHeaderRow(TWeakPtr<SHeaderRow> InHeaderRow);
+
+		FColumnVisibilityTransaction& SaveVisibilityAndSet(FName ColumnId, bool bShouldBeVisible);
+		/** @param bOnlyResetIfNotOverriden Only reset to the old visibilities if none has changed from the saved state (i.e. user changed it during the operation) */
+		void ResetToSavedVisibilities(bool bOnlyResetIfNotOverriden = true);
+	};
 };
 

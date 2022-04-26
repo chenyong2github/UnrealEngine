@@ -19,9 +19,9 @@
 
 namespace UE::ConcertSharedSlate::Private
 {
-	static FText GetActivityDateTime(const FConcertSessionActivity& Activity, SConcertSessionActivities::ETimeFormat TimeFormat)
+	static FText GetActivityDateTime(const FConcertSessionActivity& Activity, ETimeFormat TimeFormat)
 	{
-		return TimeFormat == SConcertSessionActivities::ETimeFormat::Relative ? ConcertFrontendUtils::FormatRelativeTime(Activity.Activity.EventTime) : FText::AsDateTime(Activity.Activity.EventTime);
+		return TimeFormat == ETimeFormat::Relative ? ConcertFrontendUtils::FormatRelativeTime(Activity.Activity.EventTime) : FText::AsDateTime(Activity.Activity.EventTime);
 	}
 }
 

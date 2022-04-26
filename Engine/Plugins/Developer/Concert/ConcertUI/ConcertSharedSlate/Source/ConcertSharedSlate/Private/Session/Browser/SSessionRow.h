@@ -53,6 +53,7 @@ private:
 	TSharedRef<SWidget> GenerateServerDefaultColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor);
 	TSharedRef<SWidget> GenerateProjectColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor);
 	TSharedRef<SWidget> GenerateVersionColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor);
+	TSharedRef<SWidget> GenerateLastModifiedColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor);
 
 	void OnBeginEditingSessionName() { SessionNameText->EnterEditingMode(); }
 	bool OnValidatingSessionName(const FText& NewSessionName, FText& OutError);

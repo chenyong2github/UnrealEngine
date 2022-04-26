@@ -2,11 +2,16 @@
 
 #include "SSessionRow.h"
 
+#include "ConcertFrontendUtils.h"
+
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionItem.h"
 
 #include "EditorFontGlyphs.h"
 #include "Framework/Application/SlateApplication.h"
+
+#include "Session/Browser/ConcertSessionBrowserSettings.h"
+
 #include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Layout/SBox.h"
@@ -141,7 +146,6 @@ TSharedRef<SWidget> SSessionRow::GenerateServerDefaultColumn(const FSlateFontInf
 
 TSharedRef<SWidget> SSessionRow::GenerateProjectColumn(const FSlateFontInfo &FontInfo, const FSlateColor &FontColor)
 {
-	//TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
 	return SNew(SBox)
 		.VAlign(VAlign_Center)
 		[
@@ -151,7 +155,7 @@ TSharedRef<SWidget> SSessionRow::GenerateProjectColumn(const FSlateFontInfo &Fon
 			.IsReadOnly(true)
 			.Font(FontInfo)
 			.ColorAndOpacity(FontColor)
-			];
+		];
 }
 
 TSharedRef<SWidget> SSessionRow::GenerateVersionColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor)
@@ -165,7 +169,19 @@ TSharedRef<SWidget> SSessionRow::GenerateVersionColumn(const FSlateFontInfo& Fon
 			.IsReadOnly(true)
 			.Font(FontInfo)
 			.ColorAndOpacity(FontColor)
-			];
+		];
+}
+
+TSharedRef<SWidget> SSessionRow::GenerateLastModifiedColumn(const FSlateFontInfo& FontInfo, const FSlateColor& FontColor)
+{
+	return SNew(SBox)
+		.VAlign(VAlign_Center)
+		[
+			SNew(STextBlock)
+			.Text_Lambda([this](){ return ConcertFrontendUtils::FormatTime(Item.Pin()->LastModified, GetMutableDefault<UConcertSessionBrowserSettings>()->LastModifiedTimeFormat); })
+			.Font(FontInfo)
+			.ColorAndOpacity(FontColor)
+		];
 }
 
 
@@ -222,9 +238,13 @@ TSharedRef<SWidget> SSessionRow::GenerateWidgetForColumn(const FName& ColumnName
 		return GenerateProjectColumn(FontInfo, FontColor);
 	}
 
-	check(ColumnName == ConcertBrowserUtils::VersionColName);
-
-	return GenerateVersionColumn(FontInfo, FontColor);
+	if (ColumnName == ConcertBrowserUtils::VersionColName)
+	{
+		return GenerateVersionColumn(FontInfo, FontColor);
+	}
+	
+	check(ColumnName == ConcertBrowserUtils::LastModifiedColName);
+	return GenerateLastModifiedColumn(FontInfo, FontColor);
 }
 
 FReply SSessionRow::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)

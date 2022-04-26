@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ConcertHeaderRowUtils.h"
+
 #include "Misc/Attribute.h"
 #include "Session/Browser/ConcertSessionItem.h"
 #include "Widgets/Views/SListView.h"
@@ -28,14 +30,14 @@ public:
 		, _OnDeclineFunc()
 		, _HighlightText()
 	{}
-
-	SLATE_ARGUMENT(FAcceptFunc, OnAcceptFunc)
-	SLATE_ARGUMENT(FDeclineFunc, OnDeclineFunc)
-	SLATE_ATTRIBUTE(FText, HighlightText)
-
+		SLATE_ARGUMENT(FAcceptFunc, OnAcceptFunc)
+		SLATE_ARGUMENT(FDeclineFunc, OnDeclineFunc)
+		SLATE_ATTRIBUTE(FText, HighlightText)
 	SLATE_END_ARGS()
 	
 	void Construct(const FArguments& InArgs, TSharedPtr<FConcertSessionItem> Node, const TSharedRef<STableViewBase>& InOwnerTableView);
+	virtual ~SSaveRestoreSessionRow() override;
+	
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
@@ -55,6 +57,9 @@ public:
 	FText GetDefaultName(const FConcertSessionItem& Item) const; 
 
 private:
+	
+	/** Helper for temporarily showing all columns required for this column */
+	UE::ConcertSharedSlate::FColumnVisibilityTransaction TemporaryColumnShower;
 	
 	TWeakPtr<FConcertSessionItem> Item;
 	TSharedPtr<SEditableTextBox> EditableSessionName;

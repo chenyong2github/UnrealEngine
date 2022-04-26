@@ -7,8 +7,17 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SExpandableArea.h"
+#include "ConcertFrontendUtils.generated.h"
 
 #define LOCTEXT_NAMESPACE "ConcertFrontendUtils"
+
+/** Defines how the time should be displayed in the date/time column. */
+UENUM()
+enum class ETimeFormat
+{
+	Relative, // Display relative time (23 seconds ago)
+	Absolute  // Display absolute time (April 7, 2019 - 10:33:52)
+};
 
 namespace ConcertFrontendUtils
 {
@@ -127,6 +136,13 @@ namespace ConcertFrontendUtils
 			return FText::Format(LOCTEXT("Secs", "{0} {0}|plural(one=Second,other=Seconds) Ago"), Seconds);
 		}
 		return LOCTEXT("Now", "Now");
+	}
+
+	static FText FormatTime(const FDateTime& Time, ETimeFormat TimeFormat)
+	{
+		return TimeFormat == ETimeFormat::Relative
+			? FormatRelativeTime(Time)
+			: FText::AsDateTime(Time);
 	}
 };
 
