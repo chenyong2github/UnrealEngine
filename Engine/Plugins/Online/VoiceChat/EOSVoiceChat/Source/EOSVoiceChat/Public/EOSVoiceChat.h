@@ -148,11 +148,9 @@ public:
 	virtual FString InsecureGetJoinToken(const FString& ChannelName, EVoiceChatChannelType ChannelType, TOptional<FVoiceChatChannel3dProperties> Channel3dProperties = TOptional<FVoiceChatChannel3dProperties>()) override;
 	// ~End IVoiceChatUser Interface
 
+	IEOSPlatformHandlePtr GetPlatformHandle() const { return InitSession.EosPlatformHandle; }
 	EOS_HRTC GetRtcInterface() const { return InitSession.EosRtcInterface; }
 	EOS_HLobby GetLobbyInterface() const { return InitSession.EosLobbyInterface; }
-
-	const TArray<FVoiceChatDeviceInfo>& GetCachedInputDeviceInfos() const { return InitSession.CachedInputDeviceInfos; }
-	const TArray<FVoiceChatDeviceInfo>& GetCachedOutputDeviceInfos() const { return InitSession.CachedOutputDeviceInfos; }
 
 protected:
 	virtual void PostInitialize() {};
