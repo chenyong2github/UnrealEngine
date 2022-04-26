@@ -24,6 +24,7 @@
 #if WITH_EDITOR
 
 #include "Algo/Accumulate.h"
+#include "Algo/AnyOf.h"
 #include "DerivedDataBuild.h"
 #include "DerivedDataBuildAction.h"
 #include "DerivedDataBuildInputResolver.h"
@@ -826,12 +827,17 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		}
 		else
 		{
-			if (const int32 StreamingMipCount = FMath::Max(0, DerivedData->Mips.Num() - DerivedData->GetNumNonStreamingMips()))
+			if (Algo::AnyOf(DerivedData->Mips, [](const FTexture2DMipMap& Mip) { return !Mip.BulkData.IsBulkDataLoaded(); }))
 			{
+				int32 MipIndex = 0;
 				const FSharedString Name(TexturePathName);
-				for (int32 MipIndex = 0; MipIndex < StreamingMipCount; ++MipIndex)
+				for (FTexture2DMipMap& Mip : DerivedData->Mips)
 				{
-					DerivedData->Mips[MipIndex].DerivedData = FDerivedData(Name, ConvertLegacyCacheKey(DerivedData->GetDerivedDataMipKeyString(MipIndex, DerivedData->Mips[MipIndex])));
+					if (!Mip.BulkData.IsBulkDataLoaded())
+					{
+						Mip.DerivedData = FDerivedData(Name, ConvertLegacyCacheKey(DerivedData->GetDerivedDataMipKeyString(MipIndex, Mip)));
+					}
+					++MipIndex;
 				}
 			}
 		}
