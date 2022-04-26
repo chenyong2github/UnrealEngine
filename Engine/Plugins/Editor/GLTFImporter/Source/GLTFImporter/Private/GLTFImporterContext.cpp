@@ -42,16 +42,9 @@ bool FGLTFImporterContext::OpenFile(const FString& FilePath)
 	check(Asset.ValidationCheck() == GLTF::FAsset::Valid);
 
 	// check extensions supported
-	static const TArray<GLTF::EExtension> SupportedExtensions = {GLTF::EExtension::KHR_MaterialsPbrSpecularGlossiness,
-	                                                             GLTF::EExtension::KHR_MaterialsUnlit,
-																 GLTF::EExtension::KHR_MaterialsClearCoat,
-																 GLTF::EExtension::KHR_MaterialsTransmission,
-																 GLTF::EExtension::KHR_MaterialsSheen,
-																 GLTF::EExtension::KHR_MaterialsVariants};
-
 	for (GLTF::EExtension Extension : Asset.ExtensionsUsed)
 	{
-		if (SupportedExtensions.Find(Extension) == INDEX_NONE)
+		if (!GLTF::FAsset::SupportedExtensions.Contains(Extension))
 		{
 			LogMessages.Emplace(GLTF::EMessageSeverity::Warning, FString::Printf(TEXT("Extension is not supported: %s"), GLTF::ToString(Extension)));
 		}

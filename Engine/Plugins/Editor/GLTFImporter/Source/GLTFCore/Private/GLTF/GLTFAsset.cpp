@@ -30,6 +30,16 @@ namespace GLTF
 		return Extras.FindByPredicate([&Name](const FMetadata::FExtraData& Data) { return Data.Name == Name; });
 	}
 
+	const TSet<GLTF::EExtension> FAsset::SupportedExtensions = { GLTF::EExtension::KHR_MaterialsPbrSpecularGlossiness,
+																 GLTF::EExtension::KHR_MaterialsUnlit,
+																 GLTF::EExtension::KHR_LightsPunctual,
+																 GLTF::EExtension::KHR_MaterialsClearCoat,
+																 GLTF::EExtension::KHR_MaterialsTransmission,
+																 GLTF::EExtension::KHR_MaterialsSheen,
+																 GLTF::EExtension::KHR_MaterialsVariants,
+																 GLTF::EExtension::KHR_MaterialsSpecular,
+																 GLTF::EExtension::KHR_MaterialsIOR };
+
 	void FAsset::Clear(uint32 BinBufferKBytes, uint32 ExtraBinBufferKBytes)
 	{
 		Buffers.Empty();
@@ -227,6 +237,10 @@ namespace GLTF
 				return TEXT("KHR_MaterialsSheen");
 			case GLTF::EExtension::KHR_MaterialsTransmission:
 				return TEXT("KHR_MaterialsTransmission");
+			case GLTF::EExtension::KHR_MaterialsSpecular:
+				return TEXT("KHR_MaterialsSpecular");
+			case GLTF::EExtension::KHR_MaterialsIOR:
+				return TEXT("KHR_MaterialsIOR");
 			case GLTF::EExtension::KHR_TextureTransform:
 				return TEXT("KHR_Texture_Transform");
 			case GLTF::EExtension::KHR_DracoMeshCompression:
