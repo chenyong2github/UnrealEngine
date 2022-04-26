@@ -15,6 +15,7 @@ float2 OutputInvResolution;
 float2 OriginalViewRectMin;
 float2 OriginalViewSize;
 float2 OriginalBufferInvSize;
+float4x4 TranslatedWorldToClip;
 
 SamplerState DepthSampler;
 
@@ -46,7 +47,7 @@ void ShaderDrawDebugVS(
 		// world offset
 		VertexPositionTWS.xyz += TranslatedWorldOffsetConversion;
 
-		Position = mul(VertexPositionTWS, PrimaryView.TranslatedWorldToClip);
+		Position = mul(VertexPositionTWS, TranslatedWorldToClip);
 	}
 	ColorAlpha = VertexColor;
 }

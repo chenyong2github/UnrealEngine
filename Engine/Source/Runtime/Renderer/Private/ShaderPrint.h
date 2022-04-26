@@ -10,11 +10,9 @@
 
 #pragma once
 
-#include "RenderGraph.h"
-#include "Templates/RefCounting.h"
-#include "ScreenPass.h"
-#include "ShaderPrintParameters.h"
+#include "CoreMinimal.h"
 
+class FRDGBuilder;
 class FViewInfo;
 struct FScreenPassTexture;
 

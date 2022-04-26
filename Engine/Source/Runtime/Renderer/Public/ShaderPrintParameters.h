@@ -4,33 +4,34 @@
 // This means that the buffer needs to be bound for the shader you wish to debug.
 // It would be ideal if that was automatic (maybe by having a fixed bind point for the buffer and binding it for the entire view).
 // But for now you need to manually add binding information to your FShader class.
-// To do this either:
-// (i) Use SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters) in your FShader::FParameters declaration and call SetParameters().
-
-// Also it seems that we can only bind a RWBuffer to compute shaders right now. Fixing this would allow us to use this system from all shader stages.
+// To do this use SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters) in your FShader::FParameters declaration.
+// Then call a variant of SetParameters().
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RenderGraphDefinitions.h"
 #include "ShaderParameterMacros.h"
 #include "ShaderParameters.h"
 
-class FViewInfo;
+class FSceneView;
 struct FShaderPrintData;
+class FRDGBuilder;
+class FViewInfo;
 
 namespace ShaderPrint
 {
 	// ShaderPrint uniform buffer layout
 	BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FShaderPrintCommonParameters, RENDERER_API)
-		SHADER_PARAMETER(FVector2f, FontSize)
-		SHADER_PARAMETER(FVector2f, FontSpacing)
 		SHADER_PARAMETER(FIntPoint, Resolution)
 		SHADER_PARAMETER(FIntPoint, CursorCoord)
+		SHADER_PARAMETER(FVector3f, TranslatedWorldOffset)
+		SHADER_PARAMETER(FVector2f, FontSize)
+		SHADER_PARAMETER(FVector2f, FontSpacing)
 		SHADER_PARAMETER(uint32, MaxValueCount)
 		SHADER_PARAMETER(uint32, MaxSymbolCount)
 		SHADER_PARAMETER(uint32, MaxStateCount)
 		SHADER_PARAMETER(uint32, MaxLineCount)
-		SHADER_PARAMETER(FVector3f, TranslatedWorldOffset)
 	END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 	// ShaderPrint parameter struct declaration
@@ -47,16 +48,18 @@ namespace ShaderPrint
 	// Have we enabled the ShaderPrint system?
 	RENDERER_API bool IsEnabled();
 
-	// Call this to know if a view can render this debug information
-	RENDERER_API bool IsEnabled(const FViewInfo& View);
+	// Call this to know if a view can render this debug information.
+	// This should be checked before using a permutation that requires the shader draw parameters.
+	RENDERER_API bool IsEnabled(const FSceneView& View);
 
-	// Returns true if the default view exists and has shader debug rendering enabled (this needs to be checked before using a permutation that requires the shader draw parameters)
+	// Returns true if the default view exists and has shader debug rendering enabled.
+	// This should be checked before using a permutation that requires the shader draw parameters.
 	RENDERER_API bool IsDefaultViewEnabled();
 
-	// Enable/disable shader print
+	// Enable/disable shader print.
 	RENDERER_API void SetEnabled(bool bInEnabled);
 
-	// Set characters font size
+	// Set characters font size.
 	RENDERER_API void SetFontSize(int32 InFontSize);
 
 	/**
@@ -68,29 +71,57 @@ namespace ShaderPrint
 	RENDERER_API void RequestSpaceForCharacters(uint32 MaxElementCount);
 	RENDERER_API void RequestSpaceForLines(uint32 MaxElementCount);
 
-	// Fill the FShaderParameters
-	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, FShaderParameters& OutParameters);
-	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo & View, FShaderParameters& OutParameters);
+	/** Structure containing setup for shader print capturing. */
+	struct RENDERER_API FShaderPrintSetup
+	{
+		/** Construct with view and system defaults. */
+		FShaderPrintSetup(FSceneView const& InView);
+		/** Construct with view rectangle and system defaults. */
+		FShaderPrintSetup(FIntRect InViewRect);
+
+		/** Expected viewport rectangle. */
+		FIntRect ViewRect;
+		/** Cursor pixel position within viewport. Can be used for isolating a pixel to debug. */
+		FIntPoint CursorCoord;
+		/** PreView translation used for storing line positions in translated world space. */
+		FVector PreViewTranslation;
+		/** DPI scale to take into account when drawing font. */
+		float DPIScale;
+		/** Font size in pixels. */
+		FIntPoint FontSize;
+		/** Font spacing in pixels (not including font size). */
+		FIntPoint FontSpacing;
+		/** Initial size of character buffer. Will also be increased by RequestSpaceForCharacters(). */
+		uint32 MaxValueCount;
+		/** Initial size of widget buffer. */
+		uint32 MaxStateCount;
+		/** Initial size of line buffer. Will also be increased by RequestSpaceForLines(). */
+		uint32 MaxLineCount;
+	};
+
+	/** Create the shader print render data. This allocates and clears the render buffers. */
+	RENDERER_API FShaderPrintData CreateShaderPrintData(FRDGBuilder& GraphBuilder, FShaderPrintSetup const& InSetup);
+
+	/** Fill the FShaderParameters with an explicit FShaderPrintData managed by the calling code. */
 	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderPrintData& Data, FShaderParameters& OutParameters);
+	/** Fill the FShaderParameters with the opaque FShaderPrintData from the current default view. */
+	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, FShaderParameters& OutParameters);
+	
+	/** Fill the FShaderParameters with opaque FShaderPrintData already bound to the specified view. FViewInfo implies this is private for renderer. */
+	void SetParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FShaderParameters& OutParameters);
 }
 
-struct FShaderPrintData
+/** 
+ * Structure containing shader print render data.
+ * This is automatically created, setup and rendered for each view.
+ * Also it is possible for client code to create and own this. 
+ * If this is client managed then the client also needs to send to the shader print renderer.
+ */
+struct RENDERER_API FShaderPrintData
 {
-	FVector2f FontSpacing;
-	FVector2f FontSize;
-	FIntRect OutputRect;
-	FIntPoint CursorCoord = FIntPoint(-1, -1);
-	uint32 MaxValueCount = 0;
-	uint32 MaxSymbolCount = 0;
-	uint32 MaxStateCount = 0;
-	uint32 MaxLineCount = 0u;
-	FVector TranslatedWorldOffset = FVector::ZeroVector;
-
-	bool IsEnabled() const { return MaxValueCount > 0 || MaxSymbolCount > 0 || MaxLineCount > 0; }
-	bool IsValid() const { return ShaderPrintValueBuffer != nullptr; }
+	TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters> UniformBuffer;
 
 	FRDGBufferRef ShaderPrintValueBuffer = nullptr;
 	FRDGBufferRef ShaderPrintStateBuffer = nullptr;
 	FRDGBufferRef ShaderPrintLineBuffer = nullptr;
-	TUniformBufferRef<ShaderPrint::FShaderPrintCommonParameters> UniformBuffer;
 };
