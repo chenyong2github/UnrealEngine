@@ -15,6 +15,7 @@ struct FMassArchetypeData;
 struct FMassExecutionContext;
 struct FMassFragment;
 struct FMassArchetypeHandle;
+struct FMassExecutionContext;
 
 enum class EMassFragmentAccess : uint8
 {
