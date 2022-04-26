@@ -647,7 +647,8 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevel(TSubclassOf<ULevelSt
 	{
 		if (ensureAsRuntimeWarning(LevelStreamingClass.Get() != nullptr))
 		{
-			return CreateNewStreamingLevelForWorld(*GEditor->GetEditorWorldContext().World(), LevelStreamingClass, Filename, bMoveSelectedActorsIntoNewLevel);
+			bool bUseSaveAs = PackagePath.IsEmpty();
+			return CreateNewStreamingLevelForWorld(*GEditor->GetEditorWorldContext().World(), LevelStreamingClass, Filename, bMoveSelectedActorsIntoNewLevel, nullptr, bUseSaveAs);
 		}
 	}
 
