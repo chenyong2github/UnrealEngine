@@ -444,6 +444,7 @@ namespace UnrealBuildTool
 		/// <returns>Zero on success, non-zero on error</returns>
 		private static int Main(string[] ArgumentsArray)
 		{
+			FileReference? RunFile = null;
 			SingleInstanceMutex? Mutex = null;
 			JsonTracer? Tracer = null;
 			
@@ -554,6 +555,24 @@ namespace UnrealBuildTool
 					Log.AddFileWriter("LogTraceListener", Options.LogFileName);
 				}
 
+				// Create a UbtRun file
+				try
+				{
+					DirectoryReference RunsDir = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "UbtRuns");
+					Directory.CreateDirectory(RunsDir.FullName);
+					string ModuleFileName = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+					if (!string.IsNullOrEmpty(ModuleFileName))
+					{
+						ModuleFileName = Path.GetFullPath(ModuleFileName);
+					}
+					FileReference RunFileTemp = FileReference.Combine(RunsDir, $"{Process.GetCurrentProcess().Id}_{ContentHash.MD5(Encoding.UTF8.GetBytes(ModuleFileName.ToUpperInvariant()))}");
+					File.WriteAllLines(RunFileTemp.FullName, new string [] { ModuleFileName });
+					RunFile = RunFileTemp;
+				}
+				catch
+				{
+				}
+
 				// Acquire a lock for this branch
 				if((ModeOptions & ToolModeOptions.SingleInstance) != 0 && !Options.bNoMutex)
 				{
@@ -644,6 +663,18 @@ namespace UnrealBuildTool
 				if (Mutex != null)
 				{
 					Mutex.Dispose();
+				}
+
+				// Delete the ubt run file
+				if (RunFile != null)
+				{
+					try
+					{
+						File.Delete(RunFile.FullName);
+					}
+					catch
+					{
+					}
 				}
 			}
 		}

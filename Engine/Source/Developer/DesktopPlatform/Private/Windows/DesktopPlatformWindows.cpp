@@ -479,30 +479,55 @@ bool FDesktopPlatformWindows::RunUnrealBuildTool(const FText& Description, const
 
 bool FDesktopPlatformWindows::IsUnrealBuildToolRunning()
 {
-	FString UBTPath = GetUnrealBuildToolExecutableFilename(FPaths::RootDir());
-	FPaths::MakePlatformFilename(UBTPath);
-
-	HANDLE SnapShot = ::CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	if (SnapShot != INVALID_HANDLE_VALUE)
+	//TODO 5.1, make this a common routine instead of duplicated
+	FString RunsDir = FPaths::Combine(FPaths::EngineIntermediateDir(), TEXT("UbtRuns"));
+	if (!FPaths::DirectoryExists(RunsDir))
 	{
-		PROCESSENTRY32 Entry;
-		Entry.dwSize = sizeof(PROCESSENTRY32);
-
-		if (::Process32First(SnapShot, &Entry))
-		{
-			do
-			{
-				const FString EntryFullPath = FPlatformProcess::GetApplicationName(Entry.th32ProcessID);
-				if (EntryFullPath == UBTPath)
-				{
-					::CloseHandle(SnapShot);
-					return true;
-				}
-			} while (::Process32Next(SnapShot, &Entry));
-		}
+		return false;
 	}
-	::CloseHandle(SnapShot);
-	return false;
+
+	bool bIsRunning = false;
+	IFileManager::Get().IterateDirectory(*RunsDir, [&bIsRunning](const TCHAR* Pathname, bool bIsDirectory)
+		{
+			if (!bIsDirectory)
+			{
+				bool bDeleteFile = true;
+
+				FString Filename = FPaths::GetBaseFilename(FString(Pathname));
+				const TCHAR* Delim = FCString::Strchr(*Filename, '_');
+				if (Delim != nullptr)
+				{
+					FString Pid(*Filename, Delim - *Filename);
+					int ProcessId = 0;
+					LexFromString(ProcessId, *Pid);
+					const FString EntryFullPath = FPlatformProcess::GetApplicationName(ProcessId);
+					if (!EntryFullPath.IsEmpty())
+					{
+						FString EntryFullPathUpper = EntryFullPath.ToUpper();
+						const FTCHARToUTF8 Utf8String(*EntryFullPathUpper);
+						FMD5Hash Hash;
+						LexFromString(Hash, Delim + 1);
+
+						FMD5 Md5Gen;
+						Md5Gen.Update(reinterpret_cast<const uint8*>(Utf8String.Get()), Utf8String.Length());
+						FMD5Hash TestHash;
+						TestHash.Set(Md5Gen);
+						if (Hash == TestHash)
+						{
+							bDeleteFile = false;
+							bIsRunning = true;
+						}
+					}
+					if (bDeleteFile)
+					{
+						IFileManager::Get().Delete(Pathname);
+					}
+				}
+			}
+			return true;
+		});
+
+	return bIsRunning;
 }
 
 FFeedbackContext* FDesktopPlatformWindows::GetNativeFeedbackContext()
