@@ -78,7 +78,7 @@ void FLightSceneInfo::AddToScene()
 	const FLightSceneInfoCompact& LightSceneInfoCompact = Scene->Lights[Id];
 
 	bool bIsValidLightTypeMobile = false;
-	if (Scene->GetShadingPath() == EShadingPath::Mobile && Proxy->IsMovable())
+	if (Scene->GetShadingPath() == EShadingPath::Mobile && ShouldRenderLightViewIndependent())
 	{
 		const uint8 LightType = Proxy->GetLightType();
 		bIsValidLightTypeMobile = LightType == LightType_Rect || LightType == LightType_Point || LightType == LightType_Spot;
