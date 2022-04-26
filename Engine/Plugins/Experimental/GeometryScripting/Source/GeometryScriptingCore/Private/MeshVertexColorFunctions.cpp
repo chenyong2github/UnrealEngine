@@ -182,7 +182,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::GetMeshPerVertexC
 							ColorCounts[TriV.A]++;
 							Colors[TriV.B] += ToLinearColor(B);
 							ColorCounts[TriV.B]++;
-							Colors[TriV.C] += ToLinearColor(B);
+							Colors[TriV.C] += ToLinearColor(C);
 							ColorCounts[TriV.C]++;
 						}
 					}
@@ -206,7 +206,7 @@ UDynamicMesh* UGeometryScriptLibrary_MeshVertexColorFunctions::GetMeshPerVertexC
 							ColorOverlay->GetTriElements(tid, A, B, C);
 							Colors[TriV.A] = ToLinearColor(A);
 							Colors[TriV.B] = ToLinearColor(B);
-							Colors[TriV.C] = ToLinearColor(B);
+							Colors[TriV.C] = ToLinearColor(C);
 						}
 					}
 				}

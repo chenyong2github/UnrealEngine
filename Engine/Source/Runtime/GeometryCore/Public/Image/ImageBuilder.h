@@ -218,6 +218,24 @@ public:
 	}
 
 	/**
+	* Sample the image value at floating-point UV coords with Nearest sampling.
+	* The UV coords are assumed to be in range [0,1]x[0,1], and that this maps to the [0,Width]x[0,Height] image pixel rectangle.
+	*/
+	template<typename ScalarType>
+	PixelType NearestSampleUV(const FVector2d& UVCoords, const PixelType& InvalidValue) const
+	{
+		int X = (int)(UVCoords.X * (double)Dimensions.GetWidth());
+		int Y = (int)(UVCoords.Y * (double)Dimensions.GetHeight());
+		if (X < 0 || X >= Dimensions.GetWidth() ||
+			Y < 0 || Y >= Dimensions.GetHeight())
+		{
+			return InvalidValue;
+		}
+		return GetPixel(X, Y);
+	}
+
+
+	/**
 	 * @return true if all pixels have the same value
 	 */
 	bool IsConstantValue() const
