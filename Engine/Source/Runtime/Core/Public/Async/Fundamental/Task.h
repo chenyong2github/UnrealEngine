@@ -357,7 +357,7 @@ namespace LowLevelTasks
 			return !EnumHasAnyFlags(State, ~ETaskState::CanceledFlag); 
 		}
 
-#if PLATFORM_DESKTOP
+#if PLATFORM_DESKTOP || !IS_MONOLITHIC
 		/*
 		* get the currently active task if any
 		*/

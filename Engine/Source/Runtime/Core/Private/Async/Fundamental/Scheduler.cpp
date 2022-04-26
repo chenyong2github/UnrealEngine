@@ -285,7 +285,7 @@ namespace LowLevelTasks
 		}
 	}
 
-#if PLATFORM_DESKTOP
+#if PLATFORM_DESKTOP || !IS_MONOLITHIC
 	const FTask* FTask::GetActiveTask()
 	{
 		return ActiveTask;
