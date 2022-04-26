@@ -211,7 +211,7 @@ void SConsoleVariablesEditorMainPanel::CreateConcertButtonIfNeeded()
 			.OnCheckStateChanged_Raw(this, &SConsoleVariablesEditorMainPanel::ToggleMultiUserDetails)
 			[
 				SNew(SImage)
-				.Image(FConsoleVariablesEditorStyle::Get().GetBrush("Concert.MultiUser"))
+				.Image(FConsoleVariablesEditorStyle::Get().GetBrush("Icons.MultiUser"))
 				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		];

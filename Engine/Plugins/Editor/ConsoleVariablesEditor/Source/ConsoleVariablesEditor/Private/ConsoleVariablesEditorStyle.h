@@ -27,8 +27,8 @@ public:
 	}
 
 private:
-	
-	static FString InContent(const FString& RelativePath, const ANSICHAR* Extension);
+
+	static FString GetExternalPluginContent(const FString& PluginName, const FString& RelativePath, const ANSICHAR* Extension);
 	
 	static TSharedRef<FSlateStyleSet> Create();
 

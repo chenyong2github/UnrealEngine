@@ -22,6 +22,7 @@ public class ConsoleVariablesEditor : ModuleRules
 			new string[]
 			{
 				"Concert",
+				"ConcertSharedSlate",
 				"ConcertSyncClient",
 				"ConcertSyncCore",
 				"ConcertTransport",
