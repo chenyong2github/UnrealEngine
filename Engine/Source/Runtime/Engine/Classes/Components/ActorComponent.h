@@ -297,10 +297,10 @@ private:
 	/** Tracks whether the component has been added to the world's pre end of frame sync list */
 	uint8 bMarkedForPreEndOfFrameSync : 1;
 
-public:
-
 	/** Whether to use use the async physics tick with this component. */
 	uint8 bAsyncPhysicsTickEnabled : 1;
+
+public:
 
 	/** Describes how a component instance will be created */
 	UPROPERTY()
@@ -1085,6 +1085,9 @@ protected:
 	 *		already been registered. Setting bForceUpdate to true overrides that check */
 	void HandleCanEverAffectNavigationChange(bool bForceUpdate = false);
 
+	/** Sets bAsyncPhysicsTickEnabled which determines whether to use use the async physics tick with this component. */
+	void SetAsyncPhysicsTickEnabled(bool bEnabled);
+
 private:
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** This is the old name of the tick function. We just want to avoid mistakes with an attempt to override this */
@@ -1092,6 +1095,8 @@ private:
 #endif
 
 	void ClearNeedEndOfFrameUpdate_Internal();
+
+	void RegisterAsyncPhysicsTickEnabled(bool bRegister);
 
 	friend struct FMarkComponentEndOfFrameUpdateState;
 	friend struct FSetUCSSerializationIndex;

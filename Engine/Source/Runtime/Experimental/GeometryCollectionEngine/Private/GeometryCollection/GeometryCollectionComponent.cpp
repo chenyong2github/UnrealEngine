@@ -271,8 +271,6 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	bTickInEditor = true;
 	bAutoActivate = true;
 
-	bAsyncPhysicsTickEnabled = true;
-
 	static uint32 GlobalNavMeshInvalidationCounter = 0;
 	//space these out over several frames (3 is arbitrary)
 	GlobalNavMeshInvalidationCounter += 3;
@@ -2241,6 +2239,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 	Scene->AddObject(this, PhysicsProxy);
 
 	RegisterForEvents();
+	SetAsyncPhysicsTickEnabled(GetIsReplicated());
 #endif
 }
 

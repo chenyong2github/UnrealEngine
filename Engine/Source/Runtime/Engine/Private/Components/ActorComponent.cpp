@@ -1208,22 +1208,40 @@ void UActorComponent::RegisterAllComponentTickFunctions(bool bRegister)
 			GTestRegisterComponentTickFunctions = NULL;
 		}
 
-#if WITH_CHAOS
-		if(bAsyncPhysicsTickEnabled)
+		if (bAsyncPhysicsTickEnabled)
 		{
-			if(FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(WorldPrivate->GetPhysicsScene()))
-			{
-				if(bRegister)
-				{
-					Scene->RegisterAsyncPhysicsTickComponent(this);
-				}
-				else
-				{
-					Scene->UnregisterAsyncPhysicsTickComponent(this);
-				}
-			}
+			RegisterAsyncPhysicsTickEnabled(bRegister);
 		}
 	}
+}
+
+void UActorComponent::RegisterAsyncPhysicsTickEnabled(bool bRegister)
+{
+#if WITH_CHAOS
+	if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(WorldPrivate->GetPhysicsScene()))
+	{
+		if (bRegister)
+		{
+			Scene->RegisterAsyncPhysicsTickComponent(this);
+		}
+		else
+		{
+			Scene->UnregisterAsyncPhysicsTickComponent(this);
+		}
+	}
+#endif
+}
+
+void UActorComponent::SetAsyncPhysicsTickEnabled(bool bEnable)
+{
+#if WITH_CHAOS
+	// Components don't have async physics functions until they are registered with the world
+	if(bRegistered)
+	{
+		RegisterAsyncPhysicsTickEnabled(bEnable);
+	}
+	
+	bAsyncPhysicsTickEnabled = bEnable;
 #endif
 }
 

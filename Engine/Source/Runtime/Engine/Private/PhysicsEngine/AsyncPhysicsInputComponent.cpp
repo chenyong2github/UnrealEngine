@@ -25,6 +25,9 @@ namespace InputCmdCVars
 	static int32 ForceFault = 0;
 	static FAutoConsoleVariableRef CVarForceFault(TEXT("p.net.ForceFault"), ForceFault, TEXT("Forces server side input fault"));
 
+	static int32 ForceInputDrop = 0;
+	static FAutoConsoleVariableRef CVarForceInputDrop(TEXT("p.net.ForceInputDrop"), ForceInputDrop, TEXT("Forces client to drop inputs. Useful for simulating desync"));
+
 	static int32 MaxBufferedCmds = 16;
 	static FAutoConsoleVariableRef CVarMaxBufferedCmds(TEXT("p.net.MaxBufferedCmds"), MaxBufferedCmds, TEXT("MaxNumber of buffered server side commands"));
 
@@ -292,10 +295,10 @@ struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 
 UAsyncPhysicsInputComponent::UAsyncPhysicsInputComponent()
 {
-	bAsyncPhysicsTickEnabled = true;
 	bWantsInitializeComponent = true;
 	bAutoActivate = true;
 	SetIsReplicatedByDefault(true);
+	SetAsyncPhysicsTickEnabled(true);
 }
 
 void UAsyncPhysicsInputComponent::AsyncPhysicsTickComponent(float DeltaTime, float SimTime)
@@ -330,7 +333,7 @@ void UAsyncPhysicsInputComponent::AsyncPhysicsTickComponent(float DeltaTime, flo
 		bool bFreeInput = Input->ServerFrame < ServerFrame;	//for most cases once we're passed this frame we can free
 		if (APlayerController* PC = GetPlayerController())
 		{
-			if (PC->IsLocalController())
+			if (PC->IsLocalController() && !InputCmdCVars::ForceInputDrop)
 			{
 				FAsyncPhysicsInputWrapper Wrapper;
 				Wrapper.Input = Input;
