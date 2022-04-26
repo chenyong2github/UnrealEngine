@@ -462,6 +462,10 @@ namespace UnrealBuildTool
 				PCHArguments.Append(" -include \"");
 				PCHArguments.Append(NormalizeCommandLinePath(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
 				PCHArguments.Append("\"");
+				if (GetClangVersion().Major >= 11)
+				{
+					PCHArguments.Append(" -fpch-validate-input-files-content");
+				}
 			}
 
 			// Add include paths to the argument list.
@@ -510,6 +514,10 @@ namespace UnrealBuildTool
 				{
 					// Compile the file as a C++ PCH.
 					FileArguments += GetCompileArguments_PCH(CompileEnvironment);
+					if (GetClangVersion().Major >= 11)
+					{
+						FileArguments += " -fpch-validate-input-files-content";
+					}
 					FileArguments += GetRTTIFlag(CompileEnvironment);
 				}
 				else if (Extension == ".C")

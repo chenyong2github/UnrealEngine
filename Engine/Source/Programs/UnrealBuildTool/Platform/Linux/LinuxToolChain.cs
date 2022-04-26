@@ -926,6 +926,10 @@ namespace UnrealBuildTool
 		{
 			string Result = "";
 			Result += " -x c++-header";
+			if (CompilerVersionGreaterOrEqual(11, 0, 0))
+			{
+				Result += " -fpch-validate-input-files-content";
+			}
 			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
 			return Result;
 		}
@@ -1279,6 +1283,10 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
+				if (CompilerVersionGreaterOrEqual(11, 0, 0))
+				{
+					PCHArguments += " -fpch-validate-input-files-content";
+				}
 				PCHArguments += string.Format(" -include \"{0}\"", NormalizeCommandLinePath(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
 			}
 
