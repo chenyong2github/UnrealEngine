@@ -95,6 +95,9 @@ struct STRUCTUTILS_API FPropertyBagPropertyDesc
  * The value is stored as a struct, the type of the value is never serialized, instead the composition of the properties
  * is saved with the instance, and the type is recreated on load. The types with same composition of properties share same type (based on hashing).
  *
+ * UPROPERTY() meta tags:
+ *		- FixedLayout: Property types cannot be altered, but values can be. This is useful if e.g. if the bag layout is set byt code.
+ *
  * NOTE: Adding or removing properties to the instance is quite expensive as it will create new UPropertyBag, reallocate memory, and copy all values over. 
  *
  * Example usage, this allows the bag to be configured in the UI:
@@ -141,6 +144,12 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	FInstancedPropertyBag& operator=(const FInstancedPropertyBag& InOther) = default;
 	FInstancedPropertyBag& operator=(FInstancedPropertyBag&& InOther) = default;
 
+	/** @return true if the instance contains data. */
+	bool IsValid() const
+	{
+		return Value.IsValid();
+	}
+	
 	/** Resets the instance to empty. */
 	void Reset()
 	{
@@ -187,6 +196,13 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	 * @param NewBagStruct Pointer to the new type.
 	 */
 	void MigrateToNewBagStruct(const UPropertyBag* NewBagStruct);
+
+	/**
+	 * Changes the type of this bag to the specified other bag, copies base values from the other bag, and migrates existing values over.
+	 * The properties are matched between the bags based on the property ID.
+	 * @param NewBagInstance Reference to the new type.
+	 */
+	void MigrateToNewBagInstance(const FInstancedPropertyBag& NewBagInstance);
 
 	/** @return pointer to the property bag struct. */ 
 	const UPropertyBag* GetPropertyBagStruct() const;

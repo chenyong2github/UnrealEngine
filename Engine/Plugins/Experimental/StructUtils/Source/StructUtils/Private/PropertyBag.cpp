@@ -744,6 +744,15 @@ void FInstancedPropertyBag::MigrateToNewBagStruct(const UPropertyBag* NewBagStru
 	Value = MoveTemp(NewValue);
 }
 
+void FInstancedPropertyBag::MigrateToNewBagInstance(const FInstancedPropertyBag& NewBagInstance)
+{
+	FInstancedStruct NewValue(NewBagInstance.Value);
+
+	UE::StructUtils::Private::CopyMatchingValuesByID(Value, NewValue);
+	
+	Value = MoveTemp(NewValue);
+}
+
 const UPropertyBag* FInstancedPropertyBag::GetPropertyBagStruct() const
 {
 	return Value.IsValid() ? Cast<const UPropertyBag>(Value.GetScriptStruct()) : nullptr;
@@ -1120,7 +1129,7 @@ const UPropertyBag* UPropertyBag::GetOrCreateFromDescs(const TConstArrayView<FPr
 		{
 			if (Desc.ValueTypeObject == nullptr || Desc.ValueTypeObject->GetClass()->IsChildOf(UScriptStruct::StaticClass()) == false)
 			{
-				ensureMsgf(false, TEXT("Struct property must have valid struct type object."));
+				ensureAlwaysMsgf(false, TEXT("Struct property must have valid struct type object."));
 				bAllValid = false;
 			}
 		}
@@ -1128,7 +1137,7 @@ const UPropertyBag* UPropertyBag::GetOrCreateFromDescs(const TConstArrayView<FPr
 		{
 			if (Desc.ValueTypeObject == nullptr || Desc.ValueTypeObject->GetClass()->IsChildOf(UEnum::StaticClass()) == false)
 			{
-				ensureMsgf(false, TEXT("Enum property must have valid enum type object."));
+				ensureAlwaysMsgf(false, TEXT("Enum property must have valid enum type object."));
 				bAllValid = false;
 			}
 		}
@@ -1136,7 +1145,7 @@ const UPropertyBag* UPropertyBag::GetOrCreateFromDescs(const TConstArrayView<FPr
 		{
 			if (Desc.ValueTypeObject == nullptr)
 			{
-				ensureMsgf(false, TEXT("Object property must have valid object type object."));
+				ensureAlwaysMsgf(false, TEXT("Object property must have valid object type object."));
 				bAllValid = false;
 			}
 		}
@@ -1144,7 +1153,7 @@ const UPropertyBag* UPropertyBag::GetOrCreateFromDescs(const TConstArrayView<FPr
 		{
 			if (Desc.ValueTypeObject == nullptr || Desc.ValueTypeObject->GetClass()->IsChildOf(UClass::StaticClass()) == false)
 			{
-				ensureMsgf(false, TEXT("Class property must have valid class type object."));
+				ensureAlwaysMsgf(false, TEXT("Class property must have valid class type object."));
 				bAllValid = false;
 			}
 		}
