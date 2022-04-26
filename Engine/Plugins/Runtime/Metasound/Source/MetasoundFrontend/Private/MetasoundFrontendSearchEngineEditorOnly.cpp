@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_EDITORONLY_DATA
 
 #include "MetasoundFrontendSearchEngineEditorOnly.h"
 
@@ -12,6 +11,8 @@
 #include "MetasoundFrontendRegistryTransaction.h"
 #include "MetasoundFrontendSearchEngineCore.h"
 #include "MetasoundTrace.h"
+
+#if WITH_EDITORONLY_DATA
 
 namespace Metasound
 {

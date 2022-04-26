@@ -2,13 +2,13 @@
 
 #pragma once
 
-#if WITH_EDITORONLY_DATA
-
 #include "Containers/Array.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundFrontendSearchEngineCore.h"
+
+#if WITH_EDITORONLY_DATA
 
 namespace Metasound
 {
