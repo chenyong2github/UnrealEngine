@@ -13,24 +13,27 @@ class FConcertSessionTabBase
 {
 public:
 
-    FConcertSessionTabBase(TSharedRef<IConcertSyncServer> SyncServer);
-	virtual ~FConcertSessionTabBase() = default;
+    FConcertSessionTabBase(FGuid InspectedSessionID, TSharedRef<IConcertSyncServer> SyncServer);
+	virtual ~FConcertSessionTabBase();
 	
 	/** Opens or draws attention to the given tab */
 	void OpenSessionTab();
 	
 protected:
 
-	virtual FGuid GetSessionID() const = 0;
 	virtual void CreateDockContent(const TSharedRef<SDockTab>& DockTab) = 0;
 	virtual void OnOpenTab() = 0;
 	
+	FGuid GetSessionID() const { return InspectedSessionID; }
 	/** Generates a tab ID for FTabManager::InsertNewDocumentTab */
 	FString GetTabId() const { return GetSessionID().ToString(); }
 	const TSharedRef<IConcertSyncServer>& GetSyncServer() const { return SyncServer; }
 	
 private:
 
+	/** The ID of the session this tab is managing */
+	FGuid InspectedSessionID;
+	
 	/** Used to look up session name */
 	const TSharedRef<IConcertSyncServer> SyncServer;
 	

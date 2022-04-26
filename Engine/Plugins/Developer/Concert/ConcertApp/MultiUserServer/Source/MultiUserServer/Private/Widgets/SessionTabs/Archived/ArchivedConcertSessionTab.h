@@ -20,7 +20,6 @@ public:
 protected:
 
 	//~ Begin FAbstractConcertSessionTab Interface
-	virtual FGuid GetSessionID() const override;
 	virtual void CreateDockContent(const TSharedRef<SDockTab>& InDockTab) override;
 	virtual void OnOpenTab() override {}
 	//~ End FAbstractConcertSessionTab Interface

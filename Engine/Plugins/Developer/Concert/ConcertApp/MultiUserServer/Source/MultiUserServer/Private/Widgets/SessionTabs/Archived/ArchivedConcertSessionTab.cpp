@@ -9,16 +9,11 @@
 #include "Widgets/StatusBar/SConcertStatusBar.h"
 
 FArchivedConcertSessionTab::FArchivedConcertSessionTab(FGuid InspectedSessionID, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow)
-	: FConcertSessionTabBase(SyncServer)
+	: FConcertSessionTabBase(InspectedSessionID, SyncServer)
 	, InspectedSessionID(MoveTemp(InspectedSessionID))
 	, SyncServer(MoveTemp(SyncServer))
 	, ConstructUnderWindow(MoveTemp(ConstructUnderWindow))
 {}
-
-FGuid FArchivedConcertSessionTab::GetSessionID() const
-{
-	return InspectedSessionID;
-}
 
 void FArchivedConcertSessionTab::CreateDockContent(const TSharedRef<SDockTab>& InDockTab)
 {

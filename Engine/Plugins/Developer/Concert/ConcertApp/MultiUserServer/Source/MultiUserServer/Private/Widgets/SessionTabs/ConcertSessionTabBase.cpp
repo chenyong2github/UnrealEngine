@@ -25,9 +25,20 @@ namespace UE::ConcertServerUI::Private
 	}
 }
 
-FConcertSessionTabBase::FConcertSessionTabBase(TSharedRef<IConcertSyncServer> SyncServer)
-	: SyncServer(MoveTemp(SyncServer))
+FConcertSessionTabBase::FConcertSessionTabBase(FGuid InspectedSessionID, TSharedRef<IConcertSyncServer> SyncServer)
+	: InspectedSessionID(MoveTemp(InspectedSessionID))
+	, SyncServer(MoveTemp(SyncServer))
 {}
+
+FConcertSessionTabBase::~FConcertSessionTabBase()
+{
+	const TSharedRef<FGlobalTabmanager>& TabManager = FGlobalTabmanager::Get();
+	const FTabId TabId { *GetTabId() };
+	if (const TSharedPtr<SDockTab> TabStack = TabManager->FindExistingLiveTab(TabId))
+	{
+		TabStack->RequestCloseTab();
+	}
+}
 
 void FConcertSessionTabBase::OpenSessionTab()
 {
@@ -42,7 +53,7 @@ void FConcertSessionTabBase::OpenSessionTab()
 	else
 	{
 		const FTabManager::FLastMajorOrNomadTab Search(ConcertServerTabs::GetSessionBrowserTabId());
-		FGlobalTabmanager::Get()->InsertNewDocumentTab(*GetTabId(), Search, DockTab.ToSharedRef());
+		TabManager->InsertNewDocumentTab(*GetTabId(), Search, DockTab.ToSharedRef());
 
 		OnOpenTab();
 	}

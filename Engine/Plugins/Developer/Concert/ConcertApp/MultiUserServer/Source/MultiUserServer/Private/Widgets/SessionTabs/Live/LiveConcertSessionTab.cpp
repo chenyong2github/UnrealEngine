@@ -11,17 +11,12 @@
 #include "Widgets/Docking/SDockTab.h"
 
 FLiveConcertSessionTab::FLiveConcertSessionTab(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow)
-	: FConcertSessionTabBase(SyncServer)
+	: FConcertSessionTabBase(InspectedSession->GetSessionInfo().SessionId, SyncServer)
 	, InspectedSession(MoveTemp(InspectedSession))
 	, ConstructUnderWindow(MoveTemp(ConstructUnderWindow))
 	, SessionHistoryController(MakeShared<FLiveServerSessionHistoryController>(InspectedSession, SyncServer))
 	, PackageViewerController(MakeShared<FConcertSessionPackageViewerController>(InspectedSession, SyncServer))
 {}
-
-FGuid FLiveConcertSessionTab::GetSessionID() const
-{
-	return InspectedSession->GetSessionInfo().SessionId;
-}
 
 void FLiveConcertSessionTab::CreateDockContent(const TSharedRef<SDockTab>& InDockTab)
 {

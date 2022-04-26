@@ -2,6 +2,8 @@
 
 #include "ConcertServerWindowController.h"
 
+#include "ConcertServerEvents.h"
+
 #include "Browser/ConcertServerSessionBrowserController.h"
 #include "ConcertServerTabs.h"
 #include "IConcertServer.h"
@@ -27,6 +29,11 @@ FConcertServerWindowController::FConcertServerWindowController(const FConcertSer
 {
 	ServerInstance = Params.Server;
 	SessionBrowserController = MakeShared<FConcertServerSessionBrowserController>();
+}
+
+FConcertServerWindowController::~FConcertServerWindowController()
+{
+	UnregisterFromSessionDestructionEvents();
 }
 
 TSharedRef<SWindow> FConcertServerWindowController::CreateWindow()
@@ -79,6 +86,7 @@ TSharedRef<SWindow> FConcertServerWindowController::CreateWindow()
 	constexpr bool bForceWindowToFront = true;
 	RootWindow->BringToFront(bForceWindowToFront);
 
+	RegisterForSessionDestructionEvents();
 	return RootWindowRef;
 }
 
@@ -90,9 +98,15 @@ void FConcertServerWindowController::OpenSessionTab(const FGuid& SessionId)
 	}
 }
 
+void FConcertServerWindowController::DestroySessionTab(const FGuid& SessionId)
+{
+	// Destructor will handle the rest, e.g. removing the tab from the window
+	RegisteredSessions.Remove(SessionId);
+}
+
 TSharedPtr<FConcertSessionTabBase> FConcertServerWindowController::GetOrRegisterSessionTab(const FGuid& SessionId)
 {
-	if (TSharedRef<FConcertSessionTabBase>* FoundId = RegisteredSessions.Find(SessionId))
+	if (const TSharedRef<FConcertSessionTabBase>* FoundId = RegisteredSessions.Find(SessionId))
 	{
 		return *FoundId;
 	}
@@ -119,6 +133,28 @@ void FConcertServerWindowController::InitComponents()
 {
 	const FConcertComponentInitParams Params { ServerInstance.ToSharedRef(), SharedThis(this) };
 	SessionBrowserController->Init(Params);
+}
+
+void FConcertServerWindowController::RegisterForSessionDestructionEvents()
+{
+	ConcertServerEvents::OnLiveSessionDestroyed().AddSP(this, &FConcertServerWindowController::OnLiveSessionDestroyed);
+	ConcertServerEvents::OnArchivedSessionDestroyed().AddSP(this, &FConcertServerWindowController::OnArchivedSessionDestroyed);
+}
+
+void FConcertServerWindowController::UnregisterFromSessionDestructionEvents() const
+{
+	ConcertServerEvents::OnLiveSessionDestroyed().RemoveAll(this);
+	ConcertServerEvents::OnArchivedSessionDestroyed().RemoveAll(this);
+}
+
+void FConcertServerWindowController::OnLiveSessionDestroyed(const IConcertServer&, TSharedRef<IConcertServerSession> InLiveSession)
+{
+	DestroySessionTab(InLiveSession->GetId());
+}
+
+void FConcertServerWindowController::OnArchivedSessionDestroyed(const IConcertServer&, const FGuid& InArchivedSessionId)
+{
+	DestroySessionTab(InArchivedSessionId);
 }
 
 void FConcertServerWindowController::OnWindowClosed(const TSharedRef<SWindow>& Window)

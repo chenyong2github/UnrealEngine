@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Framework/Docking/TabManager.h"
 
+class IConcertServer;
 class FConcertSessionTabBase;
 class FLiveConcertSessionTab;
 class IConcertServerSession;
@@ -33,10 +34,14 @@ class FConcertServerWindowController : public TSharedFromThis<FConcertServerWind
 public:
 	
 	FConcertServerWindowController(const FConcertServerWindowInitParams& Params);
+	~FConcertServerWindowController();
 	TSharedRef<SWindow> CreateWindow();
 
 	/** Opens or draws attention to the tab for the given live or archived session ID */
 	void OpenSessionTab(const FGuid& SessionId);
+
+	/** Destroys the tab associated with this live or archived session ID. */
+	void DestroySessionTab(const FGuid& SessionId);
 	
 private:
 
@@ -59,6 +64,11 @@ private:
 	/** Gets the manager for a session tab if the session ID is valid */
 	TSharedPtr<FConcertSessionTabBase> GetOrRegisterSessionTab(const FGuid& SessionId);
 
+	void RegisterForSessionDestructionEvents();
+	void UnregisterFromSessionDestructionEvents() const;
+	void OnLiveSessionDestroyed(const IConcertServer&, TSharedRef<IConcertServerSession> InLiveSession);
+	void OnArchivedSessionDestroyed(const IConcertServer&, const FGuid& InArchivedSessionId);
+	
 	void OnWindowClosed(const TSharedRef<SWindow>& Window);
 	void SaveLayout() const;
 };
