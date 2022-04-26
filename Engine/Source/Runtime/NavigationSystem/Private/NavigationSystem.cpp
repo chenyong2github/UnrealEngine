@@ -34,6 +34,7 @@
 #include "EditorModeManager.h"
 #include "EditorModes.h"
 #include "Editor/LevelEditor/Public/LevelEditor.h"
+#include "Misc/MessageDialog.h"
 #endif
 
 #include "NavAreas/NavArea_Null.h"
@@ -449,6 +450,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 				return (NavSys && (NavSys->GetObjectsNavOctreeId(Comp) || NavSys->HasPendingObjectNavOctreeId(&Comp)));
 			});
 			UNavigationSystemBase::GetDefaultSupportedAgentDelegate().BindStatic(&UNavigationSystemV1::GetDefaultSupportedAgent);
+			UNavigationSystemBase::GetBiggestSupportedAgentDelegate().BindStatic(&UNavigationSystemV1::GetBiggestSupportedAgent);
 			UNavigationSystemBase::UpdateActorAndComponentDataDelegate().BindStatic(&UNavigationSystemV1::UpdateActorAndComponentsInNavOctree);
 			UNavigationSystemBase::OnComponentBoundsChangedDelegate().BindLambda([](UActorComponent& Comp, const FBox& NewBounds, const FBox& DirtyArea) {
 				UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(Comp.GetWorld());
@@ -831,6 +833,21 @@ void UNavigationSystemV1::PostEditChangeProperty(FPropertyChangedEvent& Property
 				if (NavData)
 				{
 					NavData->RestrictBuildingToActiveTiles(bGenerateNavigationOnlyAroundNavigationInvokers);
+				}
+			}
+		}
+		else if (PropName == GET_MEMBER_NAME_CHECKED(FNavDataConfig, AgentRadius))
+		{
+			const bool bIsCDO = HasAnyFlags(RF_ClassDefaultObject);
+			if (!bIsCDO)
+			{
+				const UWorld* World = GetWorld();
+				if (World && World->IsPartitionedWorld())
+				{
+					FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("NeedToRunPartitionResaveActorsBuilder",
+						"In a world partitioned map, changing this property changes the partitioning of actors.\n"
+						"For the change to take effect on partitioning, actors needs to be resaved.\n"
+						"Run the WorldPartitionResaveActorsBuilder to update the whole map."));	
 				}
 			}
 		}
@@ -4816,6 +4833,39 @@ const FNavDataConfig& UNavigationSystemV1::GetDefaultSupportedAgent()
 	return NavSysCDO->SupportedAgents.Num() > 0
 		? NavSysCDO->GetDefaultSupportedAgentConfig()
 		: DefaultAgent;
+}
+
+const FNavDataConfig& UNavigationSystemV1::GetBiggestSupportedAgent(const UWorld* World) 
+{
+	const UNavigationSystemV1* NavSys = nullptr;
+	if (World != nullptr)
+	{
+		NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);		
+	}
+
+	if (NavSys == nullptr)
+	{
+		// If no world is available, use the CDO.
+		NavSys = GetDefault<UNavigationSystemV1>();
+	}
+	check(NavSys);
+
+	if (NavSys->GetSupportedAgents().IsEmpty())
+	{
+		static const FNavDataConfig DefaultAgent;
+		return DefaultAgent;
+	}
+
+	const FNavDataConfig* BiggestAgent = nullptr;
+	for (const FNavDataConfig& Config : NavSys->GetSupportedAgents())
+	{
+		if (BiggestAgent == nullptr || Config.AgentRadius > BiggestAgent->AgentRadius)
+		{
+			BiggestAgent = &Config; 
+		}
+	}
+
+	return *BiggestAgent;
 }
 
 const FNavDataConfig& UNavigationSystemV1::GetDefaultSupportedAgentConfig() const 

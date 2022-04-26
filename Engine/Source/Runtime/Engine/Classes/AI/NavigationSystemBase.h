@@ -146,6 +146,7 @@ namespace FNavigationSystem
 	ENGINE_API bool HasComponentData(UActorComponent& Comp);
 	
 	ENGINE_API const FNavDataConfig& GetDefaultSupportedAgent();
+	ENGINE_API const FNavDataConfig& GetBiggestSupportedAgent(const UWorld* World);
 
 	ENGINE_API TSubclassOf<UNavAreaBase> GetDefaultWalkableArea();
 	ENGINE_API TSubclassOf<UNavAreaBase> GetDefaultObstacleArea();
@@ -194,7 +195,8 @@ namespace FNavigationSystem
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FBoolControllerBasedSignature, const AController& /*Controller*/);
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FBoolActorComponentBasedSignature, UActorComponent& /*Comp*/);
 	DECLARE_DELEGATE_RetVal(TSubclassOf<UNavAreaBase>, FNavAreaBasedSignature);
-	DECLARE_DELEGATE_RetVal(const FNavDataConfig&, FNavDatConfigBasedSignature);
+	DECLARE_DELEGATE_RetVal(const FNavDataConfig&, FNavDataConfigBasedSignature);
+	DECLARE_DELEGATE_RetVal_OneParam(const FNavDataConfig&, FNavDataConfigAndWorldSignature, const UWorld* /*World*/);
 	DECLARE_DELEGATE_TwoParams(FWorldByteBasedSignature, UWorld& /*World*/, uint8 /*Flags*/);
 	DECLARE_DELEGATE_TwoParams(FActorBooleBasedSignature, AActor& /*Actor*/, bool /*bUpdateAttachedActors*/);
 	DECLARE_DELEGATE_ThreeParams(FComponentBoundsChangeSignature, UActorComponent& /*Comp*/, const FBox& /*NewBounds*/, const FBox& /*DirtyArea*/)
@@ -284,7 +286,8 @@ protected:
 	static FNavigationSystem::FActorComponentBasedSignature& OnComponentUnregisteredDelegate();
 	static FNavigationSystem::FActorBasedSignature& RemoveActorDataDelegate();
 	static FNavigationSystem::FBoolActorComponentBasedSignature& HasComponentDataDelegate();
-	static FNavigationSystem::FNavDatConfigBasedSignature& GetDefaultSupportedAgentDelegate();
+	static FNavigationSystem::FNavDataConfigBasedSignature& GetDefaultSupportedAgentDelegate();
+	static FNavigationSystem::FNavDataConfigAndWorldSignature& GetBiggestSupportedAgentDelegate();
 	static FNavigationSystem::FActorBooleBasedSignature& UpdateActorAndComponentDataDelegate();
 	static FNavigationSystem::FComponentBoundsChangeSignature& OnComponentBoundsChangedDelegate();
 	static FNavigationSystem::FNavDataForActorSignature& GetNavDataForActorDelegate();

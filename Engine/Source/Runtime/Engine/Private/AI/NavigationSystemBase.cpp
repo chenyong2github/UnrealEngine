@@ -111,6 +111,12 @@ namespace FNavigationSystem
 		return FallbackSupportedAgent; 
 	}
 
+	const FNavDataConfig& GetFallbackSupportedAgent(const UWorld* World) 
+	{ 
+		static FNavDataConfig FallbackSupportedAgent;
+		return FallbackSupportedAgent; 
+	}
+	
 	bool bWantsComponentChangeNotifies = true;
 	
 	class FDelegates
@@ -130,7 +136,8 @@ namespace FNavigationSystem
 		FControllerBasedSignature StopMovement;
 		FBoolControllerBasedSignature IsFollowingAPath;
 		FBoolActorComponentBasedSignature HasComponentData;
-		FNavDatConfigBasedSignature GetDefaultSupportedAgent;
+		FNavDataConfigBasedSignature GetDefaultSupportedAgent;
+		FNavDataConfigAndWorldSignature GetBiggestSupportedAgent;
 		FActorBooleBasedSignature UpdateActorAndComponentData;
 		FComponentBoundsChangeSignature OnComponentBoundsChanged;
 		FNavDataForActorSignature GetNavDataForActor;
@@ -165,6 +172,7 @@ namespace FNavigationSystem
 			IsFollowingAPath.BindLambda([](const AController&) { return false; });
 			HasComponentData.BindLambda([](UActorComponent&) { return false; });
 			GetDefaultSupportedAgent.BindStatic(&GetFallbackSupportedAgent);
+			GetBiggestSupportedAgent.BindStatic(&GetFallbackSupportedAgent);			
 			UpdateActorAndComponentData.BindLambda([](AActor&, bool) {});
 			OnComponentBoundsChanged.BindLambda([](UActorComponent&, const FBox&, const FBox&) {});
 			GetNavDataForActor.BindLambda([](const AActor&) { return nullptr; });
@@ -201,6 +209,7 @@ namespace FNavigationSystem
 	void RemoveActorData(AActor& Actor) { Delegates.RemoveActorData.Execute(Actor); }
 	bool HasComponentData(UActorComponent& Comp) { return Delegates.HasComponentData.Execute(Comp);	}
 	const FNavDataConfig& GetDefaultSupportedAgent() { return Delegates.GetDefaultSupportedAgent.Execute(); }
+	const FNavDataConfig& GetBiggestSupportedAgent(const UWorld* World) { return Delegates.GetBiggestSupportedAgent.Execute(World); }
 
 
 	TSubclassOf<UNavAreaBase> DefaultWalkableArea; 
@@ -393,7 +402,8 @@ FNavigationSystem::FActorComponentBasedSignature& UNavigationSystemBase::OnCompo
 FNavigationSystem::FActorComponentBasedSignature& UNavigationSystemBase::OnComponentUnregisteredDelegate() { return FNavigationSystem::Delegates.OnComponentUnregistered; }
 FNavigationSystem::FActorBasedSignature& UNavigationSystemBase::RemoveActorDataDelegate() { return FNavigationSystem::Delegates.RemoveActorData; }
 FNavigationSystem::FBoolActorComponentBasedSignature& UNavigationSystemBase::HasComponentDataDelegate() { return FNavigationSystem::Delegates.HasComponentData; }
-FNavigationSystem::FNavDatConfigBasedSignature& UNavigationSystemBase::GetDefaultSupportedAgentDelegate() { return FNavigationSystem::Delegates.GetDefaultSupportedAgent; }
+FNavigationSystem::FNavDataConfigBasedSignature& UNavigationSystemBase::GetDefaultSupportedAgentDelegate() { return FNavigationSystem::Delegates.GetDefaultSupportedAgent; }
+FNavigationSystem::FNavDataConfigAndWorldSignature& UNavigationSystemBase::GetBiggestSupportedAgentDelegate() { return FNavigationSystem::Delegates.GetBiggestSupportedAgent; }
 FNavigationSystem::FActorBooleBasedSignature& UNavigationSystemBase::UpdateActorAndComponentDataDelegate() { return FNavigationSystem::Delegates.UpdateActorAndComponentData; }
 FNavigationSystem::FComponentBoundsChangeSignature& UNavigationSystemBase::OnComponentBoundsChangedDelegate() { return FNavigationSystem::Delegates.OnComponentBoundsChanged; }
 FNavigationSystem::FNavDataForActorSignature& UNavigationSystemBase::GetNavDataForActorDelegate() { return FNavigationSystem::Delegates.GetNavDataForActor; }

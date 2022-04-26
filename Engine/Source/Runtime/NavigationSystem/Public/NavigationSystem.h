@@ -642,6 +642,7 @@ public:
 	const TSet<FNavigationBounds>& GetNavigationBounds() const;
 
 	static const FNavDataConfig& GetDefaultSupportedAgent();
+	static const FNavDataConfig& GetBiggestSupportedAgent(const UWorld* World);
 	const FNavDataConfig& GetDefaultSupportedAgentConfig() const;
 	FORCEINLINE const TArray<FNavDataConfig>& GetSupportedAgents() const { return SupportedAgents; }
 	void OverrideSupportedAgents(const TArray<FNavDataConfig>& NewSupportedAgents);

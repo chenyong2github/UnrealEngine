@@ -2397,7 +2397,15 @@ TStructOnScope<FActorComponentInstanceData> USceneComponent::GetComponentInstanc
 #if WITH_EDITOR
 FBox USceneComponent::GetStreamingBounds() const
 {
-	return Bounds.GetBox();
+	FBox Box = Bounds.GetBox();
+	
+	if (IsNavigationRelevant())
+	{
+		const FNavDataConfig& Config = FNavigationSystem::GetBiggestSupportedAgent(GetWorld());
+		Box = Box.ExpandBy(Config.AgentRadius);
+	}
+
+	return Box;
 }
 #endif
 
