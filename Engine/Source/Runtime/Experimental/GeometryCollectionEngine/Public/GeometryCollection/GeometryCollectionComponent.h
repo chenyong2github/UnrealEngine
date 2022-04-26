@@ -299,7 +299,6 @@ struct FGeometryCollectionClusterRep
 	{
 		return Other.ObjectState != ObjectState
 			|| Other.ClusterIdx != ClusterIdx
-			|| Other.ObjectState != ObjectState
 			|| Other.Position != Position
 			|| Other.LinearVelocity != LinearVelocity
 			|| Other.AngularVelocity != AngularVelocity
