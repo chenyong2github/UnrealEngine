@@ -79,6 +79,17 @@ FRHIUnorderedAccessView* FNiagaraEmptyUAVPool::GetEmptyUAVFromPool(FRHICommandLi
 				break;
 			}
 			
+			case ENiagaraEmptyUAVType::TextureCube:
+			{
+				const FRHITextureCreateDesc Desc =
+					FRHITextureCreateDesc::CreateCube(ResourceName, 1, Format)
+					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
+
+				NewUAV.Texture = RHICreateTexture(Desc);
+				NewUAV.UAV = RHICreateUnorderedAccessView(NewUAV.Texture, 0);
+				break;
+			}
+
 			default:
 			{
 				checkNoEntry();

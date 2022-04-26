@@ -28,6 +28,7 @@ enum class ENiagaraEmptyUAVType
 	Texture2D,
 	Texture2DArray,
 	Texture3D,
+	TextureCube,
 	Num
 };
 
