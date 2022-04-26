@@ -70,12 +70,12 @@ static bool PromoteByteToInt(FEdGraphPinType& InOutType)
 
 /**
 * If the specified type is a "int" type, then this will modify it to
-* a "float". Helps when trying to match function signatures.
+* a "double". Helps when trying to match function signatures.
 *
 * @param  InOutType	The type you want to attempt to promote.
 * @return True if the type was modified, false if not.
 */
-static bool PromoteIntToFloat(FEdGraphPinType& InOutType)
+static bool PromoteIntToDouble(FEdGraphPinType& InOutType)
 {
 	if (InOutType.PinCategory == UEdGraphSchema_K2::PC_Int)
 	{
@@ -717,7 +717,7 @@ public:
 	 * Attempts to lookup a function matching the supplied signature (where 
 	 * 'Operator' identifies the function's name and 'InputTypeList' defines
 	 * the desired parameters). If one can't be found, it attempts to find a
-	 * match by promoting the input types (like from int to float, etc.)
+	 * match by promoting the input types (like from int to double, etc.)
 	 * 
 	 * @param  Operator			The operator you want to find a function for.
 	 * @param  InputTypeList	A list of parameter types you want to feed the function.
@@ -734,7 +734,7 @@ public:
 
 		// if we didn't find a function that matches the supplied function 
 		// signature, then try to promote the parameters (like from int to 
-		// float), and see if we can lookup a function with those types
+		// double), and see if we can lookup a function with those types
 		for (int32 promoterIndex = 0; (promoterIndex < OrderedTypePromoters.Num()) && (MatchingFunc == NULL); ++promoterIndex)
 		{
 			const FTypePromoter& PromotionOperator = OrderedTypePromoters[promoterIndex];
@@ -833,9 +833,9 @@ public:
 		ByteToIntPromoter.BindStatic(&PromoteByteToInt);
 		OrderedTypePromoters.Add(ByteToIntPromoter);
 
-		FTypePromoter IntToFloatPromoter;
-		IntToFloatPromoter.BindStatic(&PromoteIntToFloat);
-		OrderedTypePromoters.Add(IntToFloatPromoter);
+		FTypePromoter IntToDoublePromoter;
+		IntToDoublePromoter.BindStatic(&PromoteIntToDouble);
+		OrderedTypePromoters.Add(IntToDoublePromoter);
 	}
 
 private:
@@ -1068,7 +1068,7 @@ private:
 
 	/**
 	 * When looking to match parameters, there are some implicit conversions we
-	 * can make to try and find a match (like converting from int to float). 
+	 * can make to try and find a match (like converting from int to double). 
 	 * This holds an ordered list of delegates that will try and promote the 
 	 * supplied types.
 	 */
@@ -1668,7 +1668,7 @@ private:
 		{
 			// Create an input pin (using the default guessed type)
 			FEdGraphPinType DefaultType;
-			// currently, generated expressions ALWAYS take a float (it is the most versatile type)
+			// currently, generated expressions ALWAYS take a double (it is the most versatile type)
 			DefaultType.PinCategory = UEdGraphSchema_K2::PC_Real;
 			DefaultType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
 			
@@ -1752,7 +1752,7 @@ private:
 			case CPT_Bool:
 				LiteralType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 				break;
-			case CPT_Float:
+			case CPT_Double:
 				LiteralType.PinCategory = UEdGraphSchema_K2::PC_Real;
 				LiteralType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
 				break;
@@ -2252,7 +2252,7 @@ private:
 	}
 
 	/**
-	 * Intended to handle type-casts (like from float to int, etc.).
+	 * Intended to handle type-casts (like from double to int, etc.).
 	 * 
 	 * @TODO   Implement!
 	 * @return Root node of an expression tree that was generated from where we 

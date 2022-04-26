@@ -31,7 +31,7 @@ public:
 	*
 	* @param  Other		The token to copy properties from.
 	*/
-	void Clone(FBasicToken const& Other);
+	void Clone(const FBasicToken& Other);
 
 	//--------------------------------------
 	// Queries
@@ -55,7 +55,7 @@ public:
 	
 	void SetConstInt(int32 InInt);
 	void SetConstBool(bool InBool);
-	void SetConstFloat(float InFloat);
+	void SetConstDouble(double InDouble);
 	void SetConstName(FName InName);
 	void SetConstString(TCHAR* InString, int32 MaxLength=MAX_STRING_CONST_SIZE);
 	void SetGuid(TCHAR* InString, int32 MaxLength=MAX_STRING_CONST_SIZE);
@@ -66,7 +66,7 @@ public:
 
 	/**
 	 * Retrieves an int value from this token (if it is a constant 
-	 * int/byte/float/etc. type).
+	 * int/byte/double/etc. type).
 	 * 
 	 * @param  ValOut	Will hold the integer value if this is successfully.
 	 * @return True if this represents a constant that can be converted to an integer, otherwise false (ValOut is invalid).
@@ -113,12 +113,12 @@ public:
 	/* TOKEN_Const values */
 	union
 	{
-		uint8 Byte;								// If CPT_Byte.
-		int32 Int;								// If CPT_Int.
-		bool  NativeBool;						// If CPT_Bool
-		float Float;							// If CPT_Float.
-		uint8 NameBytes[sizeof(FScriptName)];	// If CPT_Name.
-		TCHAR String[MAX_STRING_CONST_SIZE];	// If CPT_String
+		uint8  Byte;							// If CPT_Byte.
+		int32  Int;								// If CPT_Int.
+		bool   NativeBool;						// If CPT_Bool
+		double Double;							// If CPT_Double.
+		uint8  NameBytes[sizeof(FScriptName)];	// If CPT_Name.
+		TCHAR  String[MAX_STRING_CONST_SIZE];	// If CPT_String
 	};
 };
 
@@ -357,7 +357,7 @@ public:
 	 * Retrieves the parser's internal error state (so that users can interpret 
 	 * what might have gone wrong while tokenizing).
 	 */
-	FErrorState const& GetErrorState() const;
+	const FErrorState& GetErrorState() const;
 
 protected:
 	/**
