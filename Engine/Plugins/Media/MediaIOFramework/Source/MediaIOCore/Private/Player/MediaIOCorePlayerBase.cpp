@@ -20,6 +20,8 @@
 #include "TimedDataInputCollection.h"
 #include "TimeSynchronizableMediaSource.h"
 
+#include <cstdint>
+
 #define LOCTEXT_NAMESPACE "MediaIOCorePlayerBase"
 
 /* MediaIOCorePlayerDetail
