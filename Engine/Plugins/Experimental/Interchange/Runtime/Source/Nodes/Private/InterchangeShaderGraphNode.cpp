@@ -5,7 +5,7 @@
 const TCHAR* UInterchangeShaderPortsAPI::InputPrefix = TEXT("Inputs");
 const TCHAR* UInterchangeShaderPortsAPI::InputSeparator = TEXT(":");
 
-FString UInterchangeShaderPortsAPI::MakeInputConnectionKey(const FString& InputName)
+FName UInterchangeShaderPortsAPI::MakeInputConnectionKey(const FString& InputName)
 {
 	TStringBuilder<128> StringBuilder;
 	StringBuilder.Append(InputPrefix);
@@ -14,10 +14,10 @@ FString UInterchangeShaderPortsAPI::MakeInputConnectionKey(const FString& InputN
 	StringBuilder.Append(InputSeparator);
 	StringBuilder.Append(TEXT("Connect"));
 
-	return StringBuilder.ToString();
+	return FName(StringBuilder.ToString());
 }
 
-FString UInterchangeShaderPortsAPI::MakeInputValueKey(const FString& InputName)
+FName UInterchangeShaderPortsAPI::MakeInputValueKey(const FString& InputName)
 {
 	TStringBuilder<128> StringBuilder;
 	StringBuilder.Append(InputPrefix);
@@ -25,8 +25,8 @@ FString UInterchangeShaderPortsAPI::MakeInputValueKey(const FString& InputName)
 	StringBuilder.Append(InputName);
 	StringBuilder.Append(InputSeparator);
 	StringBuilder.Append(TEXT("Value"));
-
-	return StringBuilder.ToString();
+	
+	return FName(StringBuilder.ToString());
 }
 
 FString UInterchangeShaderPortsAPI::MakeInputName(const FString& InputKey)

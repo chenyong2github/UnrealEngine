@@ -92,7 +92,9 @@ void UInterchangeGltfTranslator::HandleGltfNode( UInterchangeBaseNodeContainer& 
 		}
 	}
 
-	InterchangeSceneNode->SetCustomLocalTransform(&NodeContainer, Transform );
+	constexpr bool bResetCache = false;
+
+	InterchangeSceneNode->SetCustomLocalTransform(&NodeContainer, Transform, bResetCache);
 
 	if ( !ParentNodeUid.IsEmpty() )
 	{

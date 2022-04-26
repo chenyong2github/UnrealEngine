@@ -104,6 +104,7 @@ namespace UE
 				, UInterchangeBaseNodeContainer& NodeContainer
 				, TMap<FString, TSharedPtr<FPayloadContextBase, ESPMode::ThreadSafe>>& PayloadContexts)
 			{
+				constexpr bool bResetCache = false;
 				FString NodeName = FFbxHelper::GetFbxObjectName(Node);
 				FString NodeUniqueID = FFbxHelper::GetFbxNodeHierarchyName(Node);
 
@@ -111,7 +112,7 @@ namespace UE
 				check(UnrealNode);
 				if (UnrealParentNode)
 				{
-					UnrealNode->SetParentUid(UnrealParentNode->GetUniqueID());
+					NodeContainer.SetNodeParentUid(UnrealNode->GetUniqueID(), UnrealParentNode->GetUniqueID());
 				}
 				
 				auto GetConvertedTransform = [Node](FbxAMatrix& NewFbxMatrix)
@@ -149,12 +150,12 @@ namespace UE
 						FbxAMatrix GlobalFbxParentMatrix = ParentNode->EvaluateGlobalTransform();
 						FbxAMatrix	LocalFbxMatrix = GlobalFbxParentMatrix.Inverse() * GlobalFbxMatrix;
 						FTransform LocalTransform = GetConvertedTransform(LocalFbxMatrix);
-						UnrealNode->SetCustomLocalTransform(&NodeContainer, LocalTransform);
+						UnrealNode->SetCustomLocalTransform(&NodeContainer, LocalTransform, bResetCache);
 					}
 					else
 					{
 						//No parent, set the same matrix has the global
-						UnrealNode->SetCustomLocalTransform(&NodeContainer, GlobalTransform);
+						UnrealNode->SetCustomLocalTransform(&NodeContainer, GlobalTransform, bResetCache);
 					}
 				}
 
@@ -210,12 +211,12 @@ namespace UE
 									FFbxMesh::GetGlobalJointBindPoseTransform(SDKScene, ParentNode, GlobalFbxParentMatrix);
 									FbxAMatrix	LocalFbxMatrix = GlobalFbxParentMatrix.Inverse() * GlobalBindPoseJointMatrix;
 									FTransform LocalBindPoseJointTransform = GetConvertedTransform(LocalFbxMatrix);
-									UnrealNode->SetCustomBindPoseLocalTransform(&NodeContainer, LocalBindPoseJointTransform);
+									UnrealNode->SetCustomBindPoseLocalTransform(&NodeContainer, LocalBindPoseJointTransform, bResetCache);
 								}
 								else
 								{
 									//No parent, set the same matrix has the global
-									UnrealNode->SetCustomBindPoseLocalTransform(&NodeContainer, GlobalBindPoseJointTransform);
+									UnrealNode->SetCustomBindPoseLocalTransform(&NodeContainer, GlobalBindPoseJointTransform, bResetCache);
 								}
 							}
 
@@ -229,12 +230,12 @@ namespace UE
 									FbxAMatrix GlobalFbxParentMatrix = ParentNode->EvaluateGlobalTransform(FBXSDK_TIME_ZERO);
 									FbxAMatrix	LocalFbxMatrix = GlobalFbxParentMatrix.Inverse() * GlobalFbxMatrix;
 									FTransform LocalTransform = GetConvertedTransform(LocalFbxMatrix);
-									UnrealNode->SetCustomTimeZeroLocalTransform(&NodeContainer, LocalTransform);
+									UnrealNode->SetCustomTimeZeroLocalTransform(&NodeContainer, LocalTransform, bResetCache);
 								}
 								else
 								{
 									//No parent, set the same matrix has the global
-									UnrealNode->SetCustomTimeZeroLocalTransform(&NodeContainer, GlobalTransform);
+									UnrealNode->SetCustomTimeZeroLocalTransform(&NodeContainer, GlobalTransform, bResetCache);
 								}
 							}
 							FFbxAnimation::AddJointAnimation(SDKScene, Node, NodeContainer, UnrealNode, PayloadContexts);

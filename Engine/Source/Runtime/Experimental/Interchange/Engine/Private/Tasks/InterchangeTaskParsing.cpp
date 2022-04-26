@@ -116,6 +116,9 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 			{
 				continue;
 			}
+			//Translation and pipelines are not executed, compute the children cache for translated and factory nodes
+			BaseNodeContainer->ComputeChildrenCache();
+
 			const bool bCanImportSceneNode = AsyncHelper->TaskData.ImportType == EImportType::ImportType_Scene;
 			BaseNodeContainer->IterateNodesOfType<UInterchangeFactoryBaseNode>([&](const FString& NodeUID, UInterchangeFactoryBaseNode* FactoryNode)
 			{

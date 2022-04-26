@@ -149,9 +149,10 @@ TArray<FInterchangeUserDefinedAttributeInfo> UInterchangeUserDefinedAttributesAP
 	int32 LeftChopIndex = UserDefinedAttributeValuePostKey.Len();
 	for (UE::Interchange::FAttributeKey& AttributeKey : AttributeKeys)
 	{
-		if (AttributeKey.Key.StartsWith(UserDefinedAttributeBaseKey) && AttributeKey.Key.EndsWith(UserDefinedAttributeValuePostKey))
+		const FString AttributeKeyString = AttributeKey.ToString();
+		if (AttributeKeyString.StartsWith(UserDefinedAttributeBaseKey) && AttributeKeyString.EndsWith(UserDefinedAttributeValuePostKey))
 		{
-			FString UserDefinedAttributeName = AttributeKey.Key.RightChop(RightChopIndex).LeftChop(LeftChopIndex);
+			FString UserDefinedAttributeName = AttributeKeyString.RightChop(RightChopIndex).LeftChop(LeftChopIndex);
 			FInterchangeUserDefinedAttributeInfo& UserDefinedAttributeInfo = UserDefinedAttributeInfos.AddDefaulted_GetRef();
 			UserDefinedAttributeInfo.Type = InterchangeNode->GetAttributeType(AttributeKey);
 			UserDefinedAttributeInfo.Name = UserDefinedAttributeName;
@@ -186,9 +187,10 @@ void UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(cons
 	int32 LeftChopIndex = UserDefinedAttributeValuePostKey.Len();
 	for (UE::Interchange::FAttributeKey& AttributeKey : AttributeKeys)
 	{
-		if (AttributeKey.Key.StartsWith(UserDefinedAttributeBaseKey) && AttributeKey.Key.EndsWith(UserDefinedAttributeValuePostKey))
+		const FString AttributeKeyString = AttributeKey.ToString();
+		if (AttributeKeyString.StartsWith(UserDefinedAttributeBaseKey) && AttributeKeyString.EndsWith(UserDefinedAttributeValuePostKey))
 		{
-			FString UserDefinedAttributeName = AttributeKey.Key.RightChop(RightChopIndex).LeftChop(LeftChopIndex);
+			FString UserDefinedAttributeName = AttributeKeyString.RightChop(RightChopIndex).LeftChop(LeftChopIndex);
 			//Get the optional payload key
 			const FString StorageBaseKey = UserDefinedAttributeBaseKey + UserDefinedAttributeName;
 

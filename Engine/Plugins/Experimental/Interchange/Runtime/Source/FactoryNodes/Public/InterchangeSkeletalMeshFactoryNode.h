@@ -12,18 +12,13 @@
 #include "InterchangeSkeletalMeshFactoryNode.generated.h"
 
 //Interchange namespace
-namespace UE
+namespace UE::Interchange
 {
-	namespace Interchange
+	struct INTERCHANGEFACTORYNODES_API FSkeletalMeshNodeStaticData : public FBaseNodeStaticData
 	{
-
-		struct INTERCHANGEFACTORYNODES_API FSkeletalMeshNodeStaticData : public FBaseNodeStaticData
-		{
-			static const FString& GetLodDependenciesBaseKey();
-		};
-
-	}//ns Interchange
-}//ns UE
+		static const FAttributeKey& GetLodDependenciesBaseKey();
+	};
+}//ns UE::Interchange
 
 UENUM(BlueprintType)
 enum class EInterchangeSkeletalMeshContentType : uint8

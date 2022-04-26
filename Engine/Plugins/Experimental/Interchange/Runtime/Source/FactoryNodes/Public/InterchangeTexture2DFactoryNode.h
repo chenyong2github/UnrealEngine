@@ -13,10 +13,10 @@ namespace UE::Interchange
 { 
 	struct FTexture2DFactoryNodeStaticData : public FBaseNodeStaticData
 	{
-		static const FString& GetBaseSourceBlocksKey()
+		static const FAttributeKey& GetBaseSourceBlocksKey()
 		{
-			static FString StringKey(TEXT("SourceBlocks"));
-			return StringKey;
+			static FAttributeKey AttributeKey(TEXT("SourceBlocks"));
+			return AttributeKey;
 		}
 	};
 }//ns UE::Interchange
@@ -106,7 +106,7 @@ public:
 	virtual void PostInitProperties()
 	{
 		Super::PostInitProperties();
-		SourceBlocks.Initialize(Attributes.ToSharedRef(), UE::Interchange::FTexture2DFactoryNodeStaticData::GetBaseSourceBlocksKey());
+		SourceBlocks.Initialize(Attributes.ToSharedRef(), UE::Interchange::FTexture2DFactoryNodeStaticData::GetBaseSourceBlocksKey().ToString());
 	}
 
 private:

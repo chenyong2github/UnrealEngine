@@ -18,8 +18,8 @@ namespace UE
 	{
 		struct INTERCHANGEFACTORYNODES_API FStaticMeshNodeStaticData : public FBaseNodeStaticData
 		{
-			static const FString& GetLodDependenciesBaseKey();
-			static const FString& GetSocketUidsBaseKey();
+			static const FAttributeKey& GetLodDependenciesBaseKey();
+			static const FAttributeKey& GetSocketUidsBaseKey();
 		};
 	} // namespace Interchange
 } // namespace UE

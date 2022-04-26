@@ -15,11 +15,11 @@ namespace UE
 	{
 		struct FStaticMeshNodeLodDataStaticData : public FBaseNodeStaticData
 		{
-			static const FString& GetMeshUidsBaseKey();
-			static const FString& GetBoxCollisionMeshUidsBaseKey();
-			static const FString& GetCapsuleCollisionMeshUidsBaseKey();
-			static const FString& GetSphereCollisionMeshUidsBaseKey();
-			static const FString& GetConvexCollisionMeshUidsBaseKey();
+			static const FAttributeKey& GetMeshUidsBaseKey();
+			static const FAttributeKey& GetBoxCollisionMeshUidsBaseKey();
+			static const FAttributeKey& GetCapsuleCollisionMeshUidsBaseKey();
+			static const FAttributeKey& GetSphereCollisionMeshUidsBaseKey();
+			static const FAttributeKey& GetConvexCollisionMeshUidsBaseKey();
 		};
 	} // namespace Interchange
 } // namespace UE

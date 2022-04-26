@@ -12,9 +12,9 @@ namespace UE::Interchange
 {
 	struct FTexture2DNodeStaticData : public FBaseNodeStaticData
 	{
-		static const FString& GetBaseSourceBlocksKey()
+		static const FAttributeKey& GetBaseSourceBlocksKey()
 		{
-			static FString StringKey(TEXT("SourceBlocks"));
+			static FAttributeKey StringKey(TEXT("SourceBlocks"));
 			return StringKey;
 		}
 	};
@@ -30,7 +30,7 @@ public:
 	virtual void PostInitProperties()
 	{
 		Super::PostInitProperties();
-		SourceBlocks.Initialize(Attributes.ToSharedRef(), UE::Interchange::FTexture2DNodeStaticData::GetBaseSourceBlocksKey());
+		SourceBlocks.Initialize(Attributes.ToSharedRef(), UE::Interchange::FTexture2DNodeStaticData::GetBaseSourceBlocksKey().ToString());
 	}
 
 	/**

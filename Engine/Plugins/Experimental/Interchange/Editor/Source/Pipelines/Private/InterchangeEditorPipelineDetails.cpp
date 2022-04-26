@@ -896,7 +896,7 @@ void FInterchangeBaseNodeDetailsCustomization::BuildVectorValueContent(IDetailCa
 	};
 
 	const bool bAdvancedProperty = false;
-	FDetailWidgetRow& VectorRow = AttributeCategory.AddCustomRow(FText::FromString(AttributeKey.Key), bAdvancedProperty);
+	FDetailWidgetRow& VectorRow = AttributeCategory.AddCustomRow(FText::FromString(AttributeKey.ToString()), bAdvancedProperty);
 	VectorRow.NameContent()
 	[
 		CreateNameWidget(AttributeKey)

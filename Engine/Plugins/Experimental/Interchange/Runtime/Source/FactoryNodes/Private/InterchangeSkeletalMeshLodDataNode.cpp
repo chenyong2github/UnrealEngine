@@ -3,21 +3,18 @@
 #include "InterchangeSkeletalMeshLodDataNode.h"
 
 //Interchange namespace
-namespace UE
+namespace UE::Interchange
 {
-	namespace Interchange
+	const FAttributeKey& FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey()
 	{
-		const FString& FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey()
-		{
-			static FString MeshUids_BaseKey = TEXT("__MeshUids__Key");
-			return MeshUids_BaseKey;
-		}
-	}//ns Interchange
-}//ns UE
+		static FAttributeKey MeshUids_BaseKey(TEXT("__MeshUids__Key"));
+		return MeshUids_BaseKey;
+	}
+}//ns UE::Interchange
 
 UInterchangeSkeletalMeshLodDataNode::UInterchangeSkeletalMeshLodDataNode()
 {
-	MeshUids.Initialize(Attributes, UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey());
+	MeshUids.Initialize(Attributes, UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey().ToString());
 }
 
 /**
@@ -31,20 +28,21 @@ FString UInterchangeSkeletalMeshLodDataNode::GetTypeName() const
 
 FString UInterchangeSkeletalMeshLodDataNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
-	FString KeyDisplayName = NodeAttributeKey.Key;
-	if (NodeAttributeKey.Key.Equals(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey()))
+	FString KeyDisplayName = NodeAttributeKey.ToString();
+	const FString NodeAttributeKeyString = KeyDisplayName;
+	if (NodeAttributeKey == UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey())
 	{
 		KeyDisplayName = TEXT("Mesh count");
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey().ToString()))
 	{
 		KeyDisplayName = TEXT("Mesh index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
 		}
 		return KeyDisplayName;
 	}
@@ -58,7 +56,7 @@ FString UInterchangeSkeletalMeshLodDataNode::GetKeyDisplayName(const UE::Interch
 
 FString UInterchangeSkeletalMeshLodDataNode::GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
-	if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey()))
+	if (NodeAttributeKey.ToString().StartsWith(UE::Interchange::FSkeletalMeshNodeLodDataStaticData::GetMeshUidsBaseKey().ToString()))
 	{
 		return FString(TEXT("Meshes"));
 	}

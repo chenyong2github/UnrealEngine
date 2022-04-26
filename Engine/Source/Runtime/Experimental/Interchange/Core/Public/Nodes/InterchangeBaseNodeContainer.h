@@ -123,6 +123,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
 	void LoadFromFile(const FString& Filename);
 
+	/* Fill the children uids cache to optimize the GetNodeChildrenUids call.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
+	void ComputeChildrenCache();
+
+	/* Reset the children uids cache. */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Container")
+	void ResetChildrenCache()
+	{
+		ChildrenCache.Reset();
+	}
+
 private:
 
 	UInterchangeBaseNode* GetNodeChildrenInternal(const FString& NodeUniqueID, int32 ChildIndex);
@@ -130,4 +141,6 @@ private:
 	/** Flat List of the nodes. Since the nodes are variable size, we store a pointer. */
 	UPROPERTY()
 	TMap<FString, TObjectPtr<UInterchangeBaseNode> > Nodes;
+
+	mutable TMap<FString, TArray<FString> > ChildrenCache;
 };

@@ -10,15 +10,15 @@ namespace UE
 {
 	namespace Interchange
 	{
-		const FString& FStaticMeshNodeStaticData::GetLodDependenciesBaseKey()
+		const FAttributeKey& FStaticMeshNodeStaticData::GetLodDependenciesBaseKey()
 		{
-			static FString LodDependencies_BaseKey = TEXT("Lod_Dependencies");
+			static FAttributeKey LodDependencies_BaseKey = FAttributeKey(TEXT("Lod_Dependencies"));
 			return LodDependencies_BaseKey;
 		}
 
-		const FString& FStaticMeshNodeStaticData::GetSocketUidsBaseKey()
+		const FAttributeKey& FStaticMeshNodeStaticData::GetSocketUidsBaseKey()
 		{
-			static FString SocketUids_BaseKey = TEXT("SocketUids");
+			static FAttributeKey SocketUids_BaseKey = FAttributeKey(TEXT("SocketUids"));
 			return SocketUids_BaseKey;
 		}
 	} // namespace Interchange
@@ -30,8 +30,8 @@ UInterchangeStaticMeshFactoryNode::UInterchangeStaticMeshFactoryNode()
 #if WITH_ENGINE
 	AssetClass = nullptr;
 #endif
-	LodDependencies.Initialize(Attributes, UE::Interchange::FStaticMeshNodeStaticData::GetLodDependenciesBaseKey());
-	SocketUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeStaticData::GetSocketUidsBaseKey());
+	LodDependencies.Initialize(Attributes, UE::Interchange::FStaticMeshNodeStaticData::GetLodDependenciesBaseKey().ToString());
+	SocketUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeStaticData::GetSocketUidsBaseKey().ToString());
 }
 
 void UInterchangeStaticMeshFactoryNode::InitializeStaticMeshNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
@@ -64,20 +64,21 @@ FString UInterchangeStaticMeshFactoryNode::GetTypeName() const
 
 FString UInterchangeStaticMeshFactoryNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
-	FString KeyDisplayName = NodeAttributeKey.Key;
-	if (NodeAttributeKey.Key.Equals(UE::Interchange::FStaticMeshNodeStaticData::GetLodDependenciesBaseKey()))
+	FString KeyDisplayName = NodeAttributeKey.ToString();
+	FString NodeAttributeKeyString = NodeAttributeKey.ToString();
+	if (NodeAttributeKey == UE::Interchange::FStaticMeshNodeStaticData::GetLodDependenciesBaseKey())
 	{
 		KeyDisplayName = TEXT("LOD Dependencies Count");
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FStaticMeshNodeStaticData::GetLodDependenciesBaseKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FStaticMeshNodeStaticData::GetLodDependenciesBaseKey().ToString()))
 	{
 		KeyDisplayName = TEXT("LOD Dependencies Index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
 		}
 		return KeyDisplayName;
 	}

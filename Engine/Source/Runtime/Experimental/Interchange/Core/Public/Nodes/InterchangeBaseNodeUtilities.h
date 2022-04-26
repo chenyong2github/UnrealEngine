@@ -273,7 +273,7 @@ private:
 	FAttributeKey KeyCount;
 	FAttributeKey GetKeyCount() const
 	{
-		ensure(!KeyCount.Key.IsEmpty()); return KeyCount;
+		ensure(!KeyCount.Key.IsNone()); return KeyCount;
 	}
 
 	FAttributeKey GetIndexKey(int32 Index) const

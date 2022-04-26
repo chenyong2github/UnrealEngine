@@ -36,10 +36,10 @@ namespace UE
 			return AttributeKey;
 		}
 
-		const FString& FBaseNodeStaticData::TargetAssetIDsKey()
+		const FAttributeKey& FBaseNodeStaticData::TargetAssetIDsKey()
 		{
-			static FString Key(TEXT("__TARGET_ASSET_IDS_"));
-			return Key;
+			static FAttributeKey AttributeKey(TEXT("__TARGET_ASSET_IDS_"));
+			return AttributeKey;
 		}
 
 		const FAttributeKey& FBaseNodeStaticData::ClassTypeAttributeKey()
@@ -72,7 +72,7 @@ namespace UE
 UInterchangeBaseNode::UInterchangeBaseNode()
 {
 	Attributes = MakeShared<UE::Interchange::FAttributeStorage, ESPMode::ThreadSafe>();
-	TargetNodes.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey());
+	TargetNodes.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey().ToString());
 	RegisterAttribute<bool>(UE::Interchange::FBaseNodeStaticData::IsEnabledKey(), true);
 	RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey(), static_cast<uint8>(EInterchangeNodeContainerType::None));
 	RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::ReimportStrategyFlagsKey(), static_cast<uint8>(EReimportStrategyFlags::ApplyNoProperties));
@@ -115,6 +115,7 @@ FName UInterchangeBaseNode::GetIconName() const
 FString UInterchangeBaseNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
 	FString KeyDisplayName = NodeAttributeKey.ToString();
+	FString NodeAttributeKeyString = NodeAttributeKey.ToString();
 	if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::ParentIDKey())
 	{
 		KeyDisplayName = TEXT("Parent Unique ID");
@@ -139,20 +140,6 @@ FString UInterchangeBaseNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 	{
 		KeyDisplayName = TEXT("Imported Asset Name");
 	}
-	else if (NodeAttributeKey.Key.Equals(UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey()))
-	{
-		KeyDisplayName = TEXT("Target Asset Count");
-	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey()))
-	{
-		KeyDisplayName = TEXT("Target Asset Index ");
-		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
-		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
-		}
-	}
 	else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey())
 	{
 		KeyDisplayName = TEXT("Node Container Type");
@@ -161,6 +148,21 @@ FString UInterchangeBaseNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 	{
 		KeyDisplayName = TEXT("Re-Import Strategy");
 	}
+	else if (NodeAttributeKey == UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey())
+	{
+		KeyDisplayName = TEXT("Target Asset Count");
+	}
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey().ToString()))
+	{
+		KeyDisplayName = TEXT("Target Asset Index ");
+		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
+		{
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
+		}
+	}
+	
 	return KeyDisplayName;
 }
 
@@ -190,58 +192,68 @@ void UInterchangeBaseNode::GetAttributeKeys(TArray<UE::Interchange::FAttributeKe
 	Attributes->GetAttributeKeys(AttributeKeys);
 }
 
-bool UInterchangeBaseNode::RemoveAttribute(const FString& NodeAttributeKey)
+bool UInterchangeBaseNode::RemoveAttribute(const FName& NodeAttributeKey)
 {
 	Attributes->UnregisterAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey));
 	return !HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey));
 }
 
-bool UInterchangeBaseNode::AddBooleanAttribute(const FString& NodeAttributeKey, const bool& Value)
+bool UInterchangeBaseNode::AddBooleanAttribute(const FName& NodeAttributeKey, const bool& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(bool);
 }
 
-bool UInterchangeBaseNode::GetBooleanAttribute(const FString& NodeAttributeKey, bool& OutValue) const
+bool UInterchangeBaseNode::GetBooleanAttribute(const FName& NodeAttributeKey, bool& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(bool);
 }
 
-bool UInterchangeBaseNode::AddInt32Attribute(const FString& NodeAttributeKey, const int32& Value)
+bool UInterchangeBaseNode::AddInt32Attribute(const FName& NodeAttributeKey, const int32& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(int32);
 }
 
-bool UInterchangeBaseNode::GetInt32Attribute(const FString& NodeAttributeKey, int32& OutValue) const
+bool UInterchangeBaseNode::GetInt32Attribute(const FName& NodeAttributeKey, int32& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(int32);
 }
 
-bool UInterchangeBaseNode::AddFloatAttribute(const FString& NodeAttributeKey, const float& Value)
+bool UInterchangeBaseNode::AddFloatAttribute(const FName& NodeAttributeKey, const float& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(float);
 }
 
-bool UInterchangeBaseNode::GetFloatAttribute(const FString& NodeAttributeKey, float& OutValue) const
+bool UInterchangeBaseNode::GetFloatAttribute(const FName& NodeAttributeKey, float& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(float);
 }
 
-bool UInterchangeBaseNode::AddStringAttribute(const FString& NodeAttributeKey, const FString& Value)
+bool UInterchangeBaseNode::AddStringAttribute(const FName& NodeAttributeKey, const FString& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FString);
 }
 
-bool UInterchangeBaseNode::GetStringAttribute(const FString& NodeAttributeKey, FString& OutValue) const
+bool UInterchangeBaseNode::GetStringAttribute(const FName& NodeAttributeKey, FString& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FString);
 }
 
-bool UInterchangeBaseNode::AddLinearColorAttribute(const FString& NodeAttributeKey, const FLinearColor& Value)
+bool UInterchangeBaseNode::AddGuidAttribute(const FName& NodeAttributeKey, const FGuid& Value)
+{
+	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FGuid);
+}
+
+bool UInterchangeBaseNode::GetGuidAttribute(const FName& NodeAttributeKey, FGuid& OutValue) const
+{
+	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FGuid);
+}
+
+bool UInterchangeBaseNode::AddLinearColorAttribute(const FName& NodeAttributeKey, const FLinearColor& Value)
 {
 	INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(FLinearColor);
 }
 
-bool UInterchangeBaseNode::GetLinearColorAttribute(const FString& NodeAttributeKey, FLinearColor& OutValue) const
+bool UInterchangeBaseNode::GetLinearColorAttribute(const FName& NodeAttributeKey, FLinearColor& OutValue) const
 {
 	INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(FLinearColor);
 }

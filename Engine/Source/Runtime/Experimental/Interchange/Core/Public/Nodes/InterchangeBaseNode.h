@@ -100,12 +100,12 @@ const UE::Interchange::FAttributeKey Macro_Custom##AttributeName##Key = UE::Inte
 #define IMPLEMENT_NODE_ATTRIBUTE_DELEGATE_BY_PROPERTYNAME(AttributeName, AttributeType, ObjectType, PropertyName)		\
 bool ApplyCustom##AttributeName##ToAsset(UObject* Asset) const														\
 {																													\
-	return ApplyAttributeToObject<AttributeType>(Macro_Custom##AttributeName##Key.ToString(), Asset, PropertyName);	\
+	return ApplyAttributeToObject<AttributeType>(Macro_Custom##AttributeName##Key.Key, Asset, PropertyName);	\
 }																													\
 																													\
 bool FillCustom##AttributeName##FromAsset(UObject* Asset)															\
 {																													\
-	return FillAttributeFromObject<AttributeType>(Macro_Custom##AttributeName##Key.ToString(), Asset, PropertyName);\
+	return FillAttributeFromObject<AttributeType>(Macro_Custom##AttributeName##Key.Key, Asset, PropertyName);\
 }
 
 #else //#if WITH_ENGINE
@@ -130,7 +130,8 @@ bool FillCustom##AttributeName##FromAsset(UObject* Asset)															\
 	{																																				\
 		if(bAddApplyDelegate)																														\
 		{																																			\
-			AddApplyAndFillDelegates<AttributeType>(Macro_Custom##AttributeName##Key.ToString(), AssetType::StaticClass(), *Macro_Custom##AttributeName##Key.ToString()); \
+			FName AttributeNameImpl = TEXT(""#AttributeName);																						\
+			AddApplyAndFillDelegates<AttributeType>(Macro_Custom##AttributeName##Key.Key, AssetType::StaticClass(), AttributeNameImpl);				\
 		}																																			\
 		return true;																																\
 	}																																				\
@@ -178,33 +179,30 @@ if(HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey)))														
 return false;
 
 //Interchange namespace
-namespace UE
+namespace UE::Interchange
 {
-	namespace Interchange
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FApplyAttributeToAsset, UObject*);
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FFillAttributeToAsset, UObject*);
+
+	/**
+		* Helper struct use to declare static const data we use in the UInterchangeBaseNode
+		* Node that derive from UInterchangeBaseNode can also add a struct that derive from this one to add there static data
+		* @note: The static data are mainly for holding Attribute keys. All attributes that are always available for a node should be in this class or a derived class.
+		*/
+	struct INTERCHANGECORE_API FBaseNodeStaticData
 	{
-		DECLARE_DELEGATE_RetVal_OneParam(bool, FApplyAttributeToAsset, UObject*);
-		DECLARE_DELEGATE_RetVal_OneParam(bool, FFillAttributeToAsset, UObject*);
+		static const FAttributeKey& UniqueIDKey();
+		static const FAttributeKey& DisplayLabelKey();
+		static const FAttributeKey& ParentIDKey();
+		static const FAttributeKey& IsEnabledKey();
+		static const FAttributeKey& TargetAssetIDsKey();
+		static const FAttributeKey& ClassTypeAttributeKey();
+		static const FAttributeKey& AssetNameKey();
+		static const FAttributeKey& NodeContainerTypeKey();
+		static const FAttributeKey& ReimportStrategyFlagsKey();
+	};
 
-		/**
-		 * Helper struct use to declare static const data we use in the UInterchangeBaseNode
-		 * Node that derive from UInterchangeBaseNode can also add a struct that derive from this one to add there static data
-		 * @note: The static data are mainly for holding Attribute keys. All attributes that are always available for a node should be in this class or a derived class.
-		 */
-		struct INTERCHANGECORE_API FBaseNodeStaticData
-		{
-			static const FAttributeKey& UniqueIDKey();
-			static const FAttributeKey& DisplayLabelKey();
-			static const FAttributeKey& ParentIDKey();
-			static const FAttributeKey& IsEnabledKey();
-			static const FString& TargetAssetIDsKey();
-			static const FAttributeKey& ClassTypeAttributeKey();
-			static const FAttributeKey& AssetNameKey();
-			static const FAttributeKey& NodeContainerTypeKey();
-			static const FAttributeKey& ReimportStrategyFlagsKey();
-		};
-
-	} //ns Interchange
-} //ns UE
+} //ns UE::Interchange
 
 UENUM(BlueprintType)
 enum class EInterchangeNodeContainerType : uint8
@@ -327,70 +325,82 @@ public:
 	 * Remove any attribute from this node. Return false if we cannot remove it. If the attribute do not exist it will return true.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool RemoveAttribute(const FString& NodeAttributeKey);
+	bool RemoveAttribute(const FName& NodeAttributeKey);
 
 	/**
 	 * Add a boolean attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddBooleanAttribute(const FString& NodeAttributeKey, const bool& Value);
+	bool AddBooleanAttribute(const FName& NodeAttributeKey, const bool& Value);
 	
 	/**
 	 * Get a boolean attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetBooleanAttribute(const FString& NodeAttributeKey, bool& OutValue) const;
+	bool GetBooleanAttribute(const FName& NodeAttributeKey, bool& OutValue) const;
 
 	/**
 	 * Add a int32 attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddInt32Attribute(const FString& NodeAttributeKey, const int32& Value);
+	bool AddInt32Attribute(const FName& NodeAttributeKey, const int32& Value);
 	
 	/**
 	 * Get a int32 attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetInt32Attribute(const FString& NodeAttributeKey, int32& OutValue) const;
+	bool GetInt32Attribute(const FName& NodeAttributeKey, int32& OutValue) const;
 
 	/**
 	 * Add a float attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddFloatAttribute(const FString& NodeAttributeKey, const float& Value);
+	bool AddFloatAttribute(const FName& NodeAttributeKey, const float& Value);
 	
 	/**
 	 * Get a float attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetFloatAttribute(const FString& NodeAttributeKey, float& OutValue) const;
+	bool GetFloatAttribute(const FName& NodeAttributeKey, float& OutValue) const;
 
 	/**
 	 * Add a string attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddStringAttribute(const FString& NodeAttributeKey, const FString& Value);
+	bool AddStringAttribute(const FName& NodeAttributeKey, const FString& Value);
 	
 	/**
 	 * Get a string attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetStringAttribute(const FString& NodeAttributeKey, FString& OutValue) const;
+	bool GetStringAttribute(const FName& NodeAttributeKey, FString& OutValue) const;
+
+	/**
+	 * Add a guid attribute to this node. Return false if the attribute do not exist or if we cannot add it
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool AddGuidAttribute(const FName& NodeAttributeKey, const FGuid& Value);
+
+	/**
+	 * Get a guid attribute from this node. Return false if the attribute do not exist
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
+	bool GetGuidAttribute(const FName& NodeAttributeKey, FGuid& OutValue) const;
 
 	/**
 	 * Add a FLinearColor attribute to this node. Return false if the attribute do not exist or if we cannot add it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddLinearColorAttribute(const FString& NodeAttributeKey, const FLinearColor& Value);
+	bool AddLinearColorAttribute(const FName& NodeAttributeKey, const FLinearColor& Value);
 	
 	/**
 	 * Get a FLinearColor attribute from this node. Return false if the attribute do not exist
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool GetLinearColorAttribute(const FString& NodeAttributeKey, FLinearColor& OutValue) const;
+	bool GetLinearColorAttribute(const FName& NodeAttributeKey, FLinearColor& OutValue) const;
 
 	template<typename AttributeType>
-	AttributeType GetAttributeChecked(const FString& NodeAttributeKey) const
+	AttributeType GetAttributeChecked(const FName& NodeAttributeKey) const
 	{
 		AttributeType Value = AttributeType();
 		check(HasAttribute(UE::Interchange::FAttributeKey(NodeAttributeKey)));
@@ -401,12 +411,12 @@ public:
 	}
 
 	template<typename AttributeType>
-	bool GetAttribute(const FString& NodeAttributeKey, AttributeType& OutValue) const
+	bool GetAttribute(const FName& NodeAttributeKey, AttributeType& OutValue) const
 	{
 		INTERCHANGE_BASE_NODE_GET_ATTRIBUTE(AttributeType);
 	}
 	template<typename AttributeType>
-	bool SetAttribute(const FString& NodeAttributeKey, const AttributeType& Value)
+	bool SetAttribute(const FName& NodeAttributeKey, const AttributeType& Value)
 	{
 		INTERCHANGE_BASE_NODE_ADD_ATTRIBUTE(AttributeType);
 	}
@@ -418,7 +428,7 @@ public:
 	 * @param PropertyName		The name of the property of the ObjectClass that we will read and write to.
 	 */
 	template<typename AttributeType>
-	inline void AddApplyAndFillDelegates(const FString& NodeAttributeKey, UClass* ObjectClass, const FName PropertyName);
+	inline void AddApplyAndFillDelegates(const FName& NodeAttributeKey, UClass* ObjectClass, const FName PropertyName);
 
 	/**
 	 * Writes an attribute value to a UObject.
@@ -428,7 +438,7 @@ public:
 	 * @result					True if we succeeded.
 	 */
 	template<typename AttributeType>
-	inline bool ApplyAttributeToObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const;
+	inline bool ApplyAttributeToObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const;
 
 	/**
 	 * Reads an attribute value from a UObject.
@@ -438,7 +448,7 @@ public:
 	 * @result					True if we succeeded.
 	 */
 	template<typename AttributeType>
-	inline bool FillAttributeFromObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName);
+	inline bool FillAttributeFromObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName);
 
 	/**
 	 * Return the unique id pass in the constructor.
@@ -481,6 +491,7 @@ public:
 	/**
 	 * Set the parent unique id.
 	 */
+	UE_DEPRECATED(5.1, "This function should not be use - Use UInterchangeBaseNodeContainer::SetNodeParentUid function to create a parent hierarchy. This will ensure the container cache is always in sync")
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
 	bool SetParentUid(const FString& ParentUid);
 
@@ -597,7 +608,7 @@ protected:
 };
 
 template<typename AttributeType>
-inline void UInterchangeBaseNode::AddApplyAndFillDelegates(const FString& NodeAttributeKey, UClass* ObjectClass, const FName PropertyName)
+inline void UInterchangeBaseNode::AddApplyAndFillDelegates(const FName& NodeAttributeKey, UClass* ObjectClass, const FName PropertyName)
 {
 	TArray<UE::Interchange::FApplyAttributeToAsset>& ApplyDelegates = ApplyCustomAttributeDelegates.FindOrAdd(ObjectClass);
 	ApplyDelegates.Add(
@@ -619,7 +630,7 @@ inline void UInterchangeBaseNode::AddApplyAndFillDelegates(const FString& NodeAt
 }
 
 template<typename AttributeType>
-inline bool UInterchangeBaseNode::ApplyAttributeToObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const
+inline bool UInterchangeBaseNode::ApplyAttributeToObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const
 {
 	if (!Object)
 	{
@@ -655,7 +666,7 @@ inline bool UInterchangeBaseNode::ApplyAttributeToObject(const FString& NodeAttr
  * If the target property is a FObjectPropertyBase, treat the string as an object path.
  */
 template<>
-inline bool UInterchangeBaseNode::ApplyAttributeToObject<FString>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const
+inline bool UInterchangeBaseNode::ApplyAttributeToObject<FString>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const
 {
 	if (!Object)
 	{
@@ -698,7 +709,7 @@ inline bool UInterchangeBaseNode::ApplyAttributeToObject<FString>(const FString&
  * If the target property is a FBoolProperty, treat the propertyg as a bitfield.
  */
 template<>
-inline bool UInterchangeBaseNode::ApplyAttributeToObject<bool>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName) const
+inline bool UInterchangeBaseNode::ApplyAttributeToObject<bool>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName) const
 {
 	if (!Object)
 	{
@@ -738,7 +749,7 @@ inline bool UInterchangeBaseNode::ApplyAttributeToObject<bool>(const FString& No
 }
 
 template<typename AttributeType>
-inline bool UInterchangeBaseNode::FillAttributeFromObject(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName)
+inline bool UInterchangeBaseNode::FillAttributeFromObject(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName)
 {
 	TVariant<UObject*, uint8*> Container;
 	Container.Set<UObject*>(Object);
@@ -774,7 +785,7 @@ inline bool UInterchangeBaseNode::FillAttributeFromObject(const FString& NodeAtt
  * If the target property is a FObjectPropertyBase, treat the string as an object path.
  */
 template<>
-inline bool UInterchangeBaseNode::FillAttributeFromObject<FString>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName)
+inline bool UInterchangeBaseNode::FillAttributeFromObject<FString>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName)
 {
 	TVariant<UObject*, uint8*> Container;
 	Container.Set<UObject*>(Object);
@@ -809,7 +820,7 @@ inline bool UInterchangeBaseNode::FillAttributeFromObject<FString>(const FString
  * If the target property is a FBoolProperty, treat the property as a bitfield.
  */
 template<>
-inline bool UInterchangeBaseNode::FillAttributeFromObject<bool>(const FString& NodeAttributeKey, UObject* Object, const FName PropertyName)
+inline bool UInterchangeBaseNode::FillAttributeFromObject<bool>(const FName& NodeAttributeKey, UObject* Object, const FName PropertyName)
 {
 	TVariant<UObject*, uint8*> Container;
 	Container.Set<UObject*>(Object);

@@ -7,24 +7,21 @@
 #endif
 
 //Interchange namespace
-namespace UE
+namespace UE::Interchange
 {
-	namespace Interchange
+	const FAttributeKey& FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey()
 	{
-		const FString& FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey()
-		{
-			static FString LodDependencies_BaseKey = TEXT("Lod_Dependencies");
-			return LodDependencies_BaseKey;
-		}
-	}//ns Interchange
-}//ns UE
+		static FAttributeKey LodDependencies_BaseKey(TEXT("Lod_Dependencies"));
+		return LodDependencies_BaseKey;
+	}
+}//ns UE::Interchange
 
 UInterchangeSkeletalMeshFactoryNode::UInterchangeSkeletalMeshFactoryNode()
 {
 #if WITH_ENGINE
 	AssetClass = nullptr;
 #endif
-	LodDependencies.Initialize(Attributes, UE::Interchange::FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey());
+	LodDependencies.Initialize(Attributes, UE::Interchange::FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey().ToString());
 }
 
 void UInterchangeSkeletalMeshFactoryNode::InitializeSkeletalMeshNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
@@ -58,20 +55,21 @@ FString UInterchangeSkeletalMeshFactoryNode::GetTypeName() const
 
 FString UInterchangeSkeletalMeshFactoryNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
-	FString KeyDisplayName = NodeAttributeKey.Key;
-	if (NodeAttributeKey.Key.Equals(UE::Interchange::FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey()))
+	FString KeyDisplayName = NodeAttributeKey.ToString();
+	const FString NodeAttributeKeyString = KeyDisplayName;
+	if (NodeAttributeKey == UE::Interchange::FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey())
 	{
 		KeyDisplayName = TEXT("LOD Dependencies Count");
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey().ToString()))
 	{
 		KeyDisplayName = TEXT("LOD Dependencies Index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
 		}
 		return KeyDisplayName;
 	}

@@ -15,7 +15,7 @@ namespace UE
 
 		struct INTERCHANGEFACTORYNODES_API FSkeletalMeshNodeLodDataStaticData : public FBaseNodeStaticData
 		{
-			static const FString& GetMeshUidsBaseKey();
+			static const FAttributeKey& GetMeshUidsBaseKey();
 		};
 
 	}//ns Interchange

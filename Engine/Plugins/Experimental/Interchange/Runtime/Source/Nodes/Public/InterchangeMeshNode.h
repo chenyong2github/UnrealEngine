@@ -19,10 +19,10 @@ namespace UE
 			static const FAttributeKey& IsSkinnedMeshKey();
 			static const FAttributeKey& IsBlendShapeKey();
 			static const FAttributeKey& BlendShapeNameKey();
-			static const FString& GetSkeletonDependenciesKey();
-			static const FString& GetMaterialDependenciesKey();
-			static const FString& GetShapeDependenciesKey();
-			static const FString& GetSceneInstancesUidsKey();
+			static const FAttributeKey& GetSkeletonDependenciesKey();
+			static const FAttributeKey& GetMaterialDependenciesKey();
+			static const FAttributeKey& GetShapeDependenciesKey();
+			static const FAttributeKey& GetSceneInstancesUidsKey();
 		};
 
 	}//ns Interchange

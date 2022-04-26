@@ -47,4 +47,6 @@ void UE::Interchange::FTaskTranslator::DoTask(ENamedThreads::Type CurrentThread,
 	//Translate the source data
 	UInterchangeBaseNodeContainer& BaseNodeContainer = *(AsyncHelper->BaseNodeContainers[SourceIndex].Get());
 	Translator->Translate(BaseNodeContainer);
+	//Make sure the base node container cache is computed for all translated node
+	BaseNodeContainer.ComputeChildrenCache();
 }

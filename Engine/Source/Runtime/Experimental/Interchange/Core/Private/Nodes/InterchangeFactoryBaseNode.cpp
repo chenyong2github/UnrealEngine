@@ -31,22 +31,23 @@ UInterchangeFactoryBaseNode::UInterchangeFactoryBaseNode()
 FString UInterchangeFactoryBaseNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
 	FString KeyDisplayName = NodeAttributeKey.ToString();
+	const FString OriginalKeyName = KeyDisplayName;
 	if (NodeAttributeKey == Macro_CustomSubPathKey)
 	{
 		KeyDisplayName = TEXT("Import Sub-Path");
 	}
-	else if (NodeAttributeKey.Key.Equals(UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey()))
+	else if (OriginalKeyName.Equals(UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey()))
 	{
 		KeyDisplayName = TEXT("Factory Dependencies Count");
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey()))
+	else if (OriginalKeyName.StartsWith(UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey()))
 	{
 		KeyDisplayName = TEXT("Factory Dependencies Index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = OriginalKeyName.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < OriginalKeyName.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += OriginalKeyName.RightChop(IndexPosition);
 		}
 	}
 	else
@@ -60,7 +61,7 @@ FString UInterchangeFactoryBaseNode::GetKeyDisplayName(const UE::Interchange::FA
 
 FString UInterchangeFactoryBaseNode::GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
-	if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey()))
+	if (NodeAttributeKey.ToString().StartsWith(UE::Interchange::FFactoryBaseNodeStaticData::FactoryDependenciesBaseKey()))
 	{
 		return TEXT("FactoryDependencies");
 	}

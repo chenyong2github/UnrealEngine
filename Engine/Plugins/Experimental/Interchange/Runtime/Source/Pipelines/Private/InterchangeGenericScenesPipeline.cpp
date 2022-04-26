@@ -86,11 +86,11 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBas
 	}
 
 	ActorFactoryNode->InitializeNode(TEXT("Factory_") + SceneNode->GetUniqueID(), SceneNode->GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
-
+	const FString ActorFactoryNodeUid = FactoryNodeContainer->AddNode(ActorFactoryNode);
 	if (!SceneNode->GetParentUid().IsEmpty())
 	{
-		ActorFactoryNode->SetParentUid(TEXT("Factory_") + SceneNode->GetParentUid());
-		ActorFactoryNode->AddFactoryDependencyUid(ActorFactoryNode->GetParentUid());
+		FactoryNodeContainer->SetNodeParentUid(ActorFactoryNodeUid, TEXT("Factory_") + SceneNode->GetParentUid());
+		ActorFactoryNode->AddFactoryDependencyUid(ActorFactoryNodeUid);
 	}
 
 	ActorFactoryNode->AddTargetNodeUid(SceneNode->GetUniqueID());

@@ -32,27 +32,27 @@ namespace UE
 			return AttributeKey;
 		}
 
-		const FString& FMeshNodeStaticData::GetSkeletonDependenciesKey()
+		const FAttributeKey& FMeshNodeStaticData::GetSkeletonDependenciesKey()
 		{
-			static FString Dependencies_BaseKey = TEXT("__MeshSkeletonDependencies__");
+			static FAttributeKey Dependencies_BaseKey(TEXT("__MeshSkeletonDependencies__"));
 			return Dependencies_BaseKey;
 		}
 
-		const FString& FMeshNodeStaticData::GetMaterialDependenciesKey()
+		const FAttributeKey& FMeshNodeStaticData::GetMaterialDependenciesKey()
 		{
-			static FString Dependencies_BaseKey = TEXT("__MeshMaterialDependencies__");
+			static FAttributeKey Dependencies_BaseKey(TEXT("__MeshMaterialDependencies__"));
 			return Dependencies_BaseKey;
 		}
 
-		const FString& FMeshNodeStaticData::GetShapeDependenciesKey()
+		const FAttributeKey& FMeshNodeStaticData::GetShapeDependenciesKey()
 		{
-			static FString Dependencies_BaseKey = TEXT("__MeshShapeDependencies__");
+			static FAttributeKey Dependencies_BaseKey(TEXT("__MeshShapeDependencies__"));
 			return Dependencies_BaseKey;
 		}
 
-		const FString& FMeshNodeStaticData::GetSceneInstancesUidsKey()
+		const FAttributeKey& FMeshNodeStaticData::GetSceneInstancesUidsKey()
 		{
-			static FString SceneInstanceUids_BaseKey = TEXT("__MeshSceneInstancesUids__");
+			static FAttributeKey SceneInstanceUids_BaseKey(TEXT("__MeshSceneInstancesUids__"));
 			return SceneInstanceUids_BaseKey;
 		}
 
@@ -61,15 +61,16 @@ namespace UE
 
 UInterchangeMeshNode::UInterchangeMeshNode()
 {
-	SkeletonDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey());
-	MaterialDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey());
-	ShapeDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey());
-	SceneInstancesUids.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey());
+	SkeletonDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey().ToString());
+	MaterialDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey().ToString());
+	ShapeDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey().ToString());
+	SceneInstancesUids.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey().ToString());
 }
 
 FString UInterchangeMeshNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
 	FString KeyDisplayName = NodeAttributeKey.ToString();
+	const FString NodeAttributeKeyString = KeyDisplayName;
 	if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::PayloadSourceFileKey())
 	{
 		return KeyDisplayName = TEXT("Payload Source Key");
@@ -86,63 +87,63 @@ FString UInterchangeMeshNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 	{
 		return KeyDisplayName = TEXT("Blend Shape Name");
 	}
-	else if (NodeAttributeKey.Key.Equals(UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey()))
+	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey())
 	{
 		return KeyDisplayName = TEXT("Skeleton Dependencies count");
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey().ToString()))
 	{
 		KeyDisplayName = TEXT("Skeleton Dependencies Index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
 		}
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.Equals(UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey()))
+	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey())
 	{
 		return KeyDisplayName = TEXT("Material Dependencies count");
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey().ToString()))
 	{
 		KeyDisplayName = TEXT("Material Dependencies Index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
 		}
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.Equals(UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey()))
+	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey())
 	{
 		return KeyDisplayName = TEXT("Shape Dependencies count");
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey().ToString()))
 	{
 		KeyDisplayName = TEXT("Shape Dependencies Index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
 		}
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.Equals(UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey()))
+	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey())
 	{
 		return KeyDisplayName = TEXT("Scene mesh instances count");
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey().ToString()))
 	{
 		KeyDisplayName = TEXT("Scene mesh instances Index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
 		}
 		return KeyDisplayName;
 	}
@@ -151,19 +152,20 @@ FString UInterchangeMeshNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 
 FString UInterchangeMeshNode::GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
-	if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey()))
+	const FString NodeAttributeKeyString = NodeAttributeKey.ToString();;
+	if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey().ToString()))
 	{
 		return FString(TEXT("SkeletonDependencies"));
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey().ToString()))
 	{
 		return FString(TEXT("MaterialDependencies"));
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey().ToString()))
 	{
 		return FString(TEXT("ShapeDependencies"));
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey().ToString()))
 	{
 		return FString(TEXT("SceneInstances"));
 	}

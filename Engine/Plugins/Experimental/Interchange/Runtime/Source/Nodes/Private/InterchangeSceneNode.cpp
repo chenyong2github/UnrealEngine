@@ -9,33 +9,33 @@ namespace UE
 	namespace Interchange
 	{
 
-		const FString& FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey()
+		const FAttributeKey& FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey()
 		{
-			static FString SceneNodeSpecializeType_BaseKey = TEXT("SceneNodeSpecializeType");
+			static FAttributeKey SceneNodeSpecializeType_BaseKey(TEXT("SceneNodeSpecializeType"));
 			return SceneNodeSpecializeType_BaseKey;
 		}
 
-		const FString& FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()
+		const FAttributeKey& FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()
 		{
-			static FString MaterialDependencyUids_BaseKey = TEXT("__MaterialDependencyUidsBaseKey__");
+			static FAttributeKey MaterialDependencyUids_BaseKey(TEXT("__MaterialDependencyUidsBaseKey__"));
 			return MaterialDependencyUids_BaseKey;
 		}
 		
 		const FString& FSceneNodeStaticData::GetTransformSpecializeTypeString()
 		{
-			static FString TransformSpecializeTypeString = TEXT("Transform");
+			static FString TransformSpecializeTypeString(TEXT("Transform"));
 			return TransformSpecializeTypeString;
 		}
 
 		const FString& FSceneNodeStaticData::GetJointSpecializeTypeString()
 		{
-			static FString JointSpecializeTypeString = TEXT("Joint");
+			static FString JointSpecializeTypeString(TEXT("Joint"));
 			return JointSpecializeTypeString;
 		}
 
 		const FString& FSceneNodeStaticData::GetLodGroupSpecializeTypeString()
 		{
-			static FString JointSpecializeTypeString = TEXT("LodGroup");
+			static FString JointSpecializeTypeString(TEXT("LodGroup"));
 			return JointSpecializeTypeString;
 		}
 	}//ns Interchange
@@ -43,8 +43,8 @@ namespace UE
 
 UInterchangeSceneNode::UInterchangeSceneNode()
 {
-	NodeSpecializeTypes.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey());
-	MaterialDependencyUids.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey());
+	NodeSpecializeTypes.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey().ToString());
+	MaterialDependencyUids.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey().ToString());
 }
 
 /**
@@ -58,40 +58,41 @@ FString UInterchangeSceneNode::GetTypeName() const
 
 FString UInterchangeSceneNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
-	FString KeyDisplayName = NodeAttributeKey.Key;
-	if (NodeAttributeKey.Key.Equals(UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey()))
+	FString KeyDisplayName = NodeAttributeKey.ToString();
+	const FString NodeAttributeKeyString = KeyDisplayName;
+	if (NodeAttributeKey == UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey())
 	{
 		KeyDisplayName = TEXT("Specialized type count");
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey().ToString()))
 	{
 		KeyDisplayName = TEXT("Specialized type index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
 		}
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.Equals(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()))
+	else if (NodeAttributeKey == UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey())
 	{
 		KeyDisplayName = TEXT("Material dependencies count");
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey().ToString()))
 	{
 		KeyDisplayName = TEXT("Material dependency index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
 		}
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.Equals(Macro_CustomTransformCurvePayloadKeyKey.Key))
+	else if (NodeAttributeKey == Macro_CustomTransformCurvePayloadKeyKey)
 	{
 		return FString(TEXT("Transform Curve Payload Key"));
 	}
@@ -100,15 +101,9 @@ FString UInterchangeSceneNode::GetKeyDisplayName(const UE::Interchange::FAttribu
 
 FString UInterchangeSceneNode::GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
-	if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey()))
-	{
-		return FString(TEXT("SpecializeType"));
-	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey()))
-	{
-		return FString(TEXT("MaterialDependencies"));
-	}
-	else if (NodeAttributeKey == Macro_CustomLocalTransformKey
+	const FString NodeAttributeKeyString = NodeAttributeKey.ToString();
+
+	if (NodeAttributeKey == Macro_CustomLocalTransformKey
 		|| NodeAttributeKey == Macro_CustomAssetInstanceUidKey)
 	{
 		return FString(TEXT("Scene"));
@@ -119,6 +114,15 @@ FString UInterchangeSceneNode::GetAttributeCategory(const UE::Interchange::FAttr
 	{
 		return FString(TEXT("Joint"));
 	}
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey().ToString()))
+	{
+		return FString(TEXT("SpecializeType"));
+	}
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey().ToString()))
+	{
+		return FString(TEXT("MaterialDependencies"));
+	}
+	
 	return Super::GetAttributeCategory(NodeAttributeKey);
 }
 
@@ -203,9 +207,12 @@ bool UInterchangeSceneNode::GetCustomLocalTransform(FTransform& AttributeValue) 
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(LocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::SetCustomLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue)
+bool UInterchangeSceneNode::SetCustomLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue, bool bResetCache /*= true*/)
 {
-	ResetGlobalTransformCachesOfNodeAndAllChildren(BaseNodeContainer, this);
+	if(bResetCache)
+	{
+		ResetGlobalTransformCachesOfNodeAndAllChildren(BaseNodeContainer, this);
+	}
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(LocalTransform, FTransform);
 }
 
@@ -219,9 +226,12 @@ bool UInterchangeSceneNode::GetCustomBindPoseLocalTransform(FTransform& Attribut
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(BindPoseLocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::SetCustomBindPoseLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue)
+bool UInterchangeSceneNode::SetCustomBindPoseLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue, bool bResetCache /*= true*/)
 {
-	ResetGlobalTransformCachesOfNodeAndAllChildren(BaseNodeContainer, this);
+	if (bResetCache)
+	{
+		ResetGlobalTransformCachesOfNodeAndAllChildren(BaseNodeContainer, this);
+	}
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(BindPoseLocalTransform, FTransform);
 }
 
@@ -235,9 +245,12 @@ bool UInterchangeSceneNode::GetCustomTimeZeroLocalTransform(FTransform& Attribut
 	IMPLEMENT_NODE_ATTRIBUTE_GETTER(TimeZeroLocalTransform, FTransform);
 }
 
-bool UInterchangeSceneNode::SetCustomTimeZeroLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue)
+bool UInterchangeSceneNode::SetCustomTimeZeroLocalTransform(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FTransform& AttributeValue, bool bResetCache /*= true*/)
 {
-	ResetGlobalTransformCachesOfNodeAndAllChildren(BaseNodeContainer, this);
+	if (bResetCache)
+	{
+		ResetGlobalTransformCachesOfNodeAndAllChildren(BaseNodeContainer, this);
+	}
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(TimeZeroLocalTransform, FTransform);
 }
 

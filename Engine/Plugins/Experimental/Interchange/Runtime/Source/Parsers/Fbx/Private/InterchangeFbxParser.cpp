@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "FbxAPI.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/ScopeLock.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "InterchangeTextureNode.h"
 #include "UObject/StrongObjectPtr.h"
@@ -64,12 +66,15 @@ namespace UE
 		{
 			check(FbxParserPrivate.IsValid());
 			ResultsContainer->Empty();
+			FString PayloadFilepathCopy;
+			{
+				FScopeLock Lock(&ResultPayloadsCriticalSection);
+				FString& PayloadFilepath = ResultPayloads.FindOrAdd(PayloadKey);
+				PayloadFilepath = ResultFolder + TEXT("/") + PayloadKey + TEXT(".payload");
 
-			FString& PayloadFilepath = ResultPayloads.FindOrAdd(PayloadKey);
-			PayloadFilepath = ResultFolder + TEXT("/") + PayloadKey + TEXT(".payload");
-
-			//Copy the map filename key because we are multithreaded and the TMap can be reallocated
-			FString PayloadFilepathCopy = PayloadFilepath;
+				//Copy the map filename key because we are multithreaded and the TMap can be reallocated
+				PayloadFilepathCopy = PayloadFilepath;
+			}
 			if (!FbxParserPrivate->FetchPayloadData(PayloadKey, PayloadFilepathCopy))
 			{
 				UInterchangeResultError_Generic* Error = AddMessage<UInterchangeResultError_Generic>();

@@ -464,7 +464,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToStaticMesh(UInterchangeStaticM
 		{
 			// Add the data for the LOD (all the mesh node fbx path, so we can find them when we will create the payload data)
 			LodDataNode = CreateStaticMeshLodDataNode(StaticMeshLodDataName, StaticMeshLodDataUniqueID);
-			LodDataNode->SetParentUid(StaticMeshFactoryUid);
+			BaseNodeContainer->SetNodeParentUid(StaticMeshLodDataUniqueID, StaticMeshFactoryUid);
 			StaticMeshFactoryNode->AddLodDataUniqueId(StaticMeshLodDataUniqueID);
 		}
 		constexpr bool bAddSourceNodeName = true;

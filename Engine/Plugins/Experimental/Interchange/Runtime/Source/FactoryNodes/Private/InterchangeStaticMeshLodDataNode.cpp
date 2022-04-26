@@ -6,33 +6,33 @@ namespace UE
 {
 	namespace Interchange
 	{
-		const FString& FStaticMeshNodeLodDataStaticData::GetMeshUidsBaseKey()
+		const FAttributeKey& FStaticMeshNodeLodDataStaticData::GetMeshUidsBaseKey()
 		{
-			static FString MeshUids_BaseKey = TEXT("__MeshUids__Key");
+			static FAttributeKey MeshUids_BaseKey(TEXT("__MeshUids__Key"));
 			return MeshUids_BaseKey;
 		}
 
-		const FString& FStaticMeshNodeLodDataStaticData::GetBoxCollisionMeshUidsBaseKey()
+		const FAttributeKey& FStaticMeshNodeLodDataStaticData::GetBoxCollisionMeshUidsBaseKey()
 		{
-			static FString CollisionMeshUids_BaseKey = TEXT("__BoxCollisionMeshUids__Key");
+			static FAttributeKey CollisionMeshUids_BaseKey(TEXT("__BoxCollisionMeshUids__Key"));
 			return CollisionMeshUids_BaseKey;
 		}
 
-		const FString& FStaticMeshNodeLodDataStaticData::GetCapsuleCollisionMeshUidsBaseKey()
+		const FAttributeKey& FStaticMeshNodeLodDataStaticData::GetCapsuleCollisionMeshUidsBaseKey()
 		{
-			static FString CollisionMeshUids_BaseKey = TEXT("__CapsuleCollisionMeshUids__Key");
+			static FAttributeKey CollisionMeshUids_BaseKey(TEXT("__CapsuleCollisionMeshUids__Key"));
 			return CollisionMeshUids_BaseKey;
 		}
 
-		const FString& FStaticMeshNodeLodDataStaticData::GetSphereCollisionMeshUidsBaseKey()
+		const FAttributeKey& FStaticMeshNodeLodDataStaticData::GetSphereCollisionMeshUidsBaseKey()
 		{
-			static FString CollisionMeshUids_BaseKey = TEXT("__SphereCollisionMeshUids__Key");
+			static FAttributeKey CollisionMeshUids_BaseKey(TEXT("__SphereCollisionMeshUids__Key"));
 			return CollisionMeshUids_BaseKey;
 		}
 
-		const FString& FStaticMeshNodeLodDataStaticData::GetConvexCollisionMeshUidsBaseKey()
+		const FAttributeKey& FStaticMeshNodeLodDataStaticData::GetConvexCollisionMeshUidsBaseKey()
 		{
-			static FString CollisionMeshUids_BaseKey = TEXT("__ConvexCollisionMeshUids__Key");
+			static FAttributeKey CollisionMeshUids_BaseKey(TEXT("__ConvexCollisionMeshUids__Key"));
 			return CollisionMeshUids_BaseKey;
 		}
 
@@ -42,11 +42,11 @@ namespace UE
 
 UInterchangeStaticMeshLodDataNode::UInterchangeStaticMeshLodDataNode()
 {
-	MeshUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeLodDataStaticData::GetMeshUidsBaseKey());
-	BoxCollisionMeshUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeLodDataStaticData::GetBoxCollisionMeshUidsBaseKey());
-	CapsuleCollisionMeshUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeLodDataStaticData::GetCapsuleCollisionMeshUidsBaseKey());
-	SphereCollisionMeshUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeLodDataStaticData::GetSphereCollisionMeshUidsBaseKey());
-	ConvexCollisionMeshUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeLodDataStaticData::GetConvexCollisionMeshUidsBaseKey());
+	MeshUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeLodDataStaticData::GetMeshUidsBaseKey().ToString());
+	BoxCollisionMeshUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeLodDataStaticData::GetBoxCollisionMeshUidsBaseKey().ToString());
+	CapsuleCollisionMeshUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeLodDataStaticData::GetCapsuleCollisionMeshUidsBaseKey().ToString());
+	SphereCollisionMeshUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeLodDataStaticData::GetSphereCollisionMeshUidsBaseKey().ToString());
+	ConvexCollisionMeshUids.Initialize(Attributes, UE::Interchange::FStaticMeshNodeLodDataStaticData::GetConvexCollisionMeshUidsBaseKey().ToString());
 }
 
 /**
@@ -60,20 +60,21 @@ FString UInterchangeStaticMeshLodDataNode::GetTypeName() const
 
 FString UInterchangeStaticMeshLodDataNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
-	FString KeyDisplayName = NodeAttributeKey.Key;
-	if (NodeAttributeKey.Key.Equals(UE::Interchange::FStaticMeshNodeLodDataStaticData::GetMeshUidsBaseKey()))
+	FString KeyDisplayName = NodeAttributeKey.ToString();
+	const FString NodeAttributeKeyString = KeyDisplayName;
+	if (NodeAttributeKey == UE::Interchange::FStaticMeshNodeLodDataStaticData::GetMeshUidsBaseKey())
 	{
 		KeyDisplayName = TEXT("Mesh count");
 		return KeyDisplayName;
 	}
-	else if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FStaticMeshNodeLodDataStaticData::GetMeshUidsBaseKey()))
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FStaticMeshNodeLodDataStaticData::GetMeshUidsBaseKey().ToString()))
 	{
 		KeyDisplayName = TEXT("Mesh index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKey.Key.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKey.Key.Len())
+		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
+		if (IndexPosition < NodeAttributeKeyString.Len())
 		{
-			KeyDisplayName += NodeAttributeKey.Key.RightChop(IndexPosition);
+			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
 		}
 		return KeyDisplayName;
 	}
@@ -83,7 +84,7 @@ FString UInterchangeStaticMeshLodDataNode::GetKeyDisplayName(const UE::Interchan
 
 FString UInterchangeStaticMeshLodDataNode::GetAttributeCategory(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
 {
-	if (NodeAttributeKey.Key.StartsWith(UE::Interchange::FStaticMeshNodeLodDataStaticData::GetMeshUidsBaseKey()))
+	if (NodeAttributeKey.ToString().StartsWith(UE::Interchange::FStaticMeshNodeLodDataStaticData::GetMeshUidsBaseKey().ToString()))
 	{
 		return FString(TEXT("Meshes"));
 	}

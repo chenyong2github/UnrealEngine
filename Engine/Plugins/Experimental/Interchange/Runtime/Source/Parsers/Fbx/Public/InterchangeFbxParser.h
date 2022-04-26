@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/ScopeLock.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "InterchangeResultsContainer.h"
 #include "UObject/StrongObjectPtr.h"
@@ -38,6 +40,7 @@ namespace UE
 			FString GetResultFilepath() const { return ResultFilepath; }
 			FString GetResultPayloadFilepath(const FString& PayloadKey) const
 			{
+				FScopeLock Lock(&ResultPayloadsCriticalSection);
 				if (const FString* PayloadPtr = ResultPayloads.Find(PayloadKey))
 				{
 					return *PayloadPtr;
@@ -61,6 +64,7 @@ namespace UE
 			TObjectPtr<UInterchangeResultsContainer> ResultsContainer = nullptr;
 			FString SourceFilename;
 			FString ResultFilepath;
+			mutable FCriticalSection ResultPayloadsCriticalSection;
 			TMap<FString, FString> ResultPayloads;
 			TUniquePtr<UE::Interchange::Private::FFbxParser> FbxParserPrivate;
 		};

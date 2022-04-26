@@ -138,7 +138,15 @@ bool UInterchangeBaseNodeContainer::SetNodeParentUid(const FString& NodeUniqueID
 		return false;
 	}
 	UInterchangeBaseNode* Node = Nodes.FindChecked(NodeUniqueID);
+	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Node->SetParentUid(NewParentNodeUid);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	//Update the children cache
+	TArray<FString>& Children = ChildrenCache.FindOrAdd(NewParentNodeUid);
+	Children.Add(NodeUniqueID);
+
 	return true;
 }
 
@@ -150,15 +158,21 @@ int32 UInterchangeBaseNodeContainer::GetNodeChildrenCount(const FString& NodeUni
 
 TArray<FString> UInterchangeBaseNodeContainer::GetNodeChildrenUids(const FString& NodeUniqueID) const
 {
-	TArray<FString> OutChildrenUids;
+	if(TArray<FString>* CacheChildrenPtr = ChildrenCache.Find(NodeUniqueID))
+	{
+		return *CacheChildrenPtr;
+	}
+
+	//Update the cache
+	TArray<FString>& CacheChildren = ChildrenCache.Add(NodeUniqueID);
 	for (const auto& NodeKeyValue : Nodes)
 	{
 		if (NodeKeyValue.Value->GetParentUid() == NodeUniqueID)
 		{
-			OutChildrenUids.Add(NodeKeyValue.Key);
+			CacheChildren.Add(NodeKeyValue.Key);
 		}
 	}
-	return OutChildrenUids;
+	return CacheChildren;
 }
 
 UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildren(const FString& NodeUniqueID, int32 ChildIndex)
@@ -224,6 +238,7 @@ void UInterchangeBaseNodeContainer::SerializeNodeContainerData(FArchive& Ar)
 			BaseNode->Serialize(Ar);
 			AddNode(BaseNode);
 		}
+		ComputeChildrenCache();
 	}
 }
 
@@ -253,6 +268,24 @@ void UInterchangeBaseNodeContainer::LoadFromFile(const FString& Filename)
 	//Buffer keep the ownership of the data, the large memory reader is use to serialize the TMap
 	FLargeMemoryReader Ar(FileData, FileDataSize);
 	SerializeNodeContainerData(Ar);
+}
+
+void UInterchangeBaseNodeContainer::ComputeChildrenCache()
+{
+	ResetChildrenCache();
+	for (const auto& NodeKeyValue : Nodes)
+	{
+		//Force all node to have a cache, even if there is no parent
+		ChildrenCache.FindOrAdd(NodeKeyValue.Key);
+
+		//Update the parent cache
+		const FString ParentUid = NodeKeyValue.Value->GetParentUid();
+		if (!ParentUid.IsEmpty())
+		{
+			TArray<FString>& Children = ChildrenCache.FindOrAdd(ParentUid);
+			Children.Add(NodeKeyValue.Key);
+		}
+	}
 }
 
 UInterchangeBaseNode* UInterchangeBaseNodeContainer::GetNodeChildrenInternal(const FString& NodeUniqueID, int32 ChildIndex)
