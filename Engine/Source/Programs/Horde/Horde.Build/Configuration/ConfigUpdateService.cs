@@ -44,7 +44,7 @@ namespace Horde.Build.Config
 		/// <summary>
 		/// Config file version number
 		/// </summary>
-		const int Version = 11;
+		const int Version = 12;
 
 		readonly MongoService _mongoService;
 		readonly ConfigCollection _configCollection;

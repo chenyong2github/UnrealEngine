@@ -23,7 +23,7 @@ namespace Horde.Build.Config
 			public string Id { get; set; } = String.Empty;
 
 			[BsonElement("dat")]
-			public ReadOnlyMemory<byte> Data { get; set; } = Array.Empty<byte>();
+			public byte[] Data { get; set; } = Array.Empty<byte>();
 		}
 
 		private readonly IMongoCollection<ConfigDoc> _configs;
