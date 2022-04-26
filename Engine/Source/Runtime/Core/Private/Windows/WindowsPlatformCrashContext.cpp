@@ -23,21 +23,23 @@
 #include "Misc/OutputDeviceFile.h"
 #include "Serialization/Archive.h"
 #include "Windows/WindowsPlatformStackWalk.h"
-#include "Windows/WindowsHWrapper.h"
-#include "Windows/AllowWindowsPlatformTypes.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "HAL/ThreadManager.h"
 #include "BuildSettings.h"
 #include "CoreGlobals.h"
+#include <atomic>
+
+#include "Windows/WindowsHWrapper.h"
+#include "Windows/AllowWindowsPlatformTypes.h"
 #include <strsafe.h>
 #include <dbghelp.h>
 #include <Shlwapi.h>
 #include <psapi.h>
 #include <tlhelp32.h>
 #include <shellapi.h>
-#include <atomic>
+// Windows platform types intentionall not hidden til later
 
 #ifndef UE_LOG_CRASH_CALLSTACK
 	#define UE_LOG_CRASH_CALLSTACK 1
@@ -168,85 +170,6 @@ void FGenericCrashContext::CleanupPlatformSpecificFiles()
 	IFileManager::Get().Delete(*GPUMiniDumpPath);
 }
 
-
-void FWindowsPlatformCrashContext::GetProcModuleHandles(const FProcHandle& ProcessHandle, FModuleHandleArray& OutHandles)
-{
-	// Get all the module handles for the current process. Each module handle is its base address.
-	for (;;)
-	{
-		DWORD BufferSize = OutHandles.Num() * sizeof(HMODULE);
-		DWORD RequiredBufferSize = 0;
-		if (!EnumProcessModulesEx(ProcessHandle.IsValid() ? ProcessHandle.Get() : GetCurrentProcess(), (HMODULE*)OutHandles.GetData(), BufferSize, &RequiredBufferSize, LIST_MODULES_ALL))
-		{
-			// We do not want partial set of modules in case this fails.
-			OutHandles.Empty();
-			return;
-		}
-		if (RequiredBufferSize <= BufferSize)
-		{
-			break;
-		}
-		OutHandles.SetNum(RequiredBufferSize / sizeof(HMODULE));
-	}
-	// Sort the handles by address. This allows us to do a binary search for the module containing an address.
-	Algo::Sort(OutHandles);
-}
-
-void FWindowsPlatformCrashContext::ConvertProgramCountersToStackFrames(
-	const FProcHandle& ProcessHandle,
-	const FModuleHandleArray& SortedModuleHandles,
-	const uint64* ProgramCounters,
-	int32 NumPCs,
-	TArray<FCrashStackFrame>& OutStackFrames)
-{
-	// Prepare the callstack buffer
-	OutStackFrames.Reset(NumPCs);
-
-	// Create the crash context
-	for (int32 Idx = 0; Idx < NumPCs; ++Idx)
-	{
-		int32 ModuleIdx = Algo::UpperBound(SortedModuleHandles, (void*)ProgramCounters[Idx]) - 1;
-		if (ModuleIdx < 0 || ModuleIdx >= SortedModuleHandles.Num())
-		{
-			OutStackFrames.Add(FCrashStackFrame(TEXT("Unknown"), 0, ProgramCounters[Idx]));
-		}
-		else
-		{
-			TCHAR ModuleName[MAX_PATH];
-			if (GetModuleFileNameExW(ProcessHandle.IsValid() ? ProcessHandle.Get() : GetCurrentProcess(), (HMODULE)SortedModuleHandles[ModuleIdx], ModuleName, MAX_PATH) != 0)
-			{
-				TCHAR* ModuleNameEnd = FCString::Strrchr(ModuleName, '\\');
-				if (ModuleNameEnd != nullptr)
-				{
-					FMemory::Memmove(ModuleName, ModuleNameEnd + 1, (FCString::Strlen(ModuleNameEnd + 1) + 1) * sizeof(TCHAR));
-				}
-
-				TCHAR* ModuleNameExt = FCString::Strrchr(ModuleName, '.');
-				if (ModuleNameExt != nullptr)
-				{
-					*ModuleNameExt = TCHAR('\0');
-				}
-			}
-			else
-			{
-				const DWORD Err = GetLastError();
-				FCString::Strcpy(ModuleName, TEXT("Unknown"));
-			}
-
-			uint64 BaseAddress = (uint64)SortedModuleHandles[ModuleIdx];
-			uint64 Offset = ProgramCounters[Idx] - BaseAddress;
-			OutStackFrames.Add(FCrashStackFrame(ModuleName, BaseAddress, Offset));
-		}
-	}
-}
-
-void FWindowsPlatformCrashContext::SetPortableCallStack(const uint64* StackTrace, int32 StackTraceDepth)
-{
-	FModuleHandleArray ProcessModuleHandles;
-	GetProcModuleHandles(ProcessHandle, ProcessModuleHandles);
-	ConvertProgramCountersToStackFrames(ProcessHandle, ProcessModuleHandles, StackTrace, StackTraceDepth, CallStack);
-}
-
 void FWindowsPlatformCrashContext::AddPlatformSpecificProperties() const
 {
 	AddCrashProperty(TEXT("PlatformIsRunningWindows"), 1);
@@ -308,18 +231,6 @@ void FWindowsPlatformCrashContext::AddThreadContextString(
 	OutStr += LINE_TERMINATOR;
 }
 
-void FWindowsPlatformCrashContext::AddPortableThreadCallStack(uint32 ThreadId, const TCHAR* ThreadName, const uint64* StackFrames, int32 NumStackFrames)
-{
-	FModuleHandleArray ProcModuleHandles;
-	GetProcModuleHandles(ProcessHandle, ProcModuleHandles);
-
-	FThreadStackFrames Thread;
-	Thread.ThreadId = ThreadId;
-	Thread.ThreadName = FString(ThreadName);
-	ConvertProgramCountersToStackFrames(ProcessHandle, ProcModuleHandles, StackFrames, NumStackFrames, Thread.StackFrames);
-	ThreadCallStacks.Push(Thread);
-}
-
 void FWindowsPlatformCrashContext::CopyPlatformSpecificFiles(const TCHAR* OutputDirectory, void* Context)
 {
 	FGenericCrashContext::CopyPlatformSpecificFiles(OutputDirectory, Context);
@@ -349,17 +260,6 @@ void FWindowsPlatformCrashContext::CopyPlatformSpecificFiles(const TCHAR* Output
 		const FString GPUMiniDumpDstAbsolute = FPaths::Combine(OutputDirectory, *GPUMiniDumpFilename);
 		static_cast<void>(IFileManager::Get().Copy(*GPUMiniDumpDstAbsolute, *GPUMiniDumpPath));	// best effort, so don't care about result: couldn't copy -> tough, no video
 	}
-}
-
-void FWindowsPlatformCrashContext::CaptureAllThreadContexts()
-{
-	TArray<typename FThreadManager::FThreadStackBackTrace> StackTraces;
-	FThreadManager::Get().GetAllThreadStackBackTraces(StackTraces);
-
-	for (const FThreadManager::FThreadStackBackTrace& Thread : StackTraces)
-	{
-		AddPortableThreadCallStack(Thread.ThreadId, *Thread.ThreadName, Thread.ProgramCounters.GetData(), Thread.ProgramCounters.Num());
-	}	
 }
 
 
@@ -1901,4 +1801,6 @@ namespace {
 
 
 
-
+#ifdef WINDOWS_PLATFORM_TYPES_GUARD
+	static_assert(false, "Missing HideWindowsPlatformTypes.h in " __FILE__ );
+#endif

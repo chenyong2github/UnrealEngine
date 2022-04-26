@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "GenericPlatform/GenericPlatformStackWalk.h"
+#include "Microsoft/MicrosoftPlatformStackWalk.h"
 
 /**
  * Windows implementation of the stack walking.
  **/
 struct CORE_API FWindowsPlatformStackWalk
-	: public FGenericPlatformStackWalk
+	: public FMicrosoftPlatformStackWalk
 {
 	static bool InitStackWalking();
 	static bool InitStackWalkingForProcess(const FProcHandle& Process);
