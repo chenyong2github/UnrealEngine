@@ -104,6 +104,13 @@ static FAutoConsoleVariableRef CVarNaniteStreamingMaxPageInstallsPerFrame(
 	ECVF_ReadOnly
 );
 
+static int32 GNaniteStreamingAsyncCompute = 1;
+static FAutoConsoleVariableRef CVarNaniteStreamingAsyncCompute(
+	TEXT("r.Nanite.Streaming.AsyncCompute"),
+	GNaniteStreamingAsyncCompute,
+	TEXT("Schedule GPU work in async compute queue.")
+);
+
 static int32 GNaniteStreamingExplicitRequests = 1;
 static FAutoConsoleVariableRef CVarNaniteStreamingExplicitRequests(
 	TEXT("r.Nanite.Streaming.Debug.ExplicitRequests"),
@@ -465,6 +472,7 @@ public:
 
 		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FTranscodePageToGPU_CS>();
 
+		const bool bAsyncCompute = GSupportsEfficientAsyncCompute && (GNaniteStreamingAsyncCompute != 0);
 		const uint32 NumPasses = NumInstalledPagesPerPass.Num();
 		uint32 StartPageIndex = 0;
 		for (uint32 PassIndex = 0; PassIndex < NumPasses; PassIndex++)
@@ -482,6 +490,7 @@ public:
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("TranscodePageToGPU (PageOffset: %u, PageCount: %u)", StartPageIndex, NumPagesInPass),
+				bAsyncCompute ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute,
 				ComputeShader,
 				PassParameters,
 				FIntVector(NANITE_MAX_TRANSCODE_GROUPS_PER_PAGE, NumPagesInPass, 1));
