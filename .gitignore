@@ -181,6 +181,9 @@
 
 # Add exceptions for GitDependencies
 !/Engine/Binaries/DotNET/GitDependencies/
+!/Engine/Binaries/DotNET/GitDependencies.exe
+!/Engine/Binaries/DotNET/GitDependencies.dll
+!/Engine/Binaries/DotNET/GitDependencies.runtimeconfig.json
 
 # Ignore NET binaries
 /Engine/Binaries/ThirdParty/DotNet/
