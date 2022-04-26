@@ -638,88 +638,115 @@ namespace AnimationEditorUtils
 		}
 	}
 
+	bool CanCreateAssetOfType(const UClass* InClass)
+	{
+		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		return AssetTools.IsAssetClassSupported(InClass);
+	}
+
 	void FillCreateAssetMenu(FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UObject>>& SkeletonsOrSkeletalMeshes, FAnimAssetCreated AssetCreated, bool bInContentBrowser)
 	{
 		MenuBuilder.BeginSection("CreateAnimAssets", LOCTEXT("CreateAnimAssetsMenuHeading", "Anim Assets"));
 		{
-			// only allow for content browser until we support multi assets so we can open new persona with this BP
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("Skeleton_NewAnimBlueprint", "Anim Blueprint"),
-				LOCTEXT("Skeleton_NewAnimBlueprintTooltip", "Creates an Anim Blueprint using the selected skeleton."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimBlueprint"),
-				FUIAction(
-					FExecuteAction::CreateStatic(&CreateNewAnimBlueprint, SkeletonsOrSkeletalMeshes, AssetCreated, bInContentBrowser),
-					FCanExecuteAction()
-					)
-				);
+			if(CanCreateAssetOfType(UAnimBlueprint::StaticClass()))
+			{
+				// only allow for content browser until we support multi assets so we can open new persona with this BP
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("Skeleton_NewAnimBlueprint", "Anim Blueprint"),
+					LOCTEXT("Skeleton_NewAnimBlueprintTooltip", "Creates an Anim Blueprint using the selected skeleton."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimBlueprint"),
+					FUIAction(
+						FExecuteAction::CreateStatic(&CreateNewAnimBlueprint, SkeletonsOrSkeletalMeshes, AssetCreated, bInContentBrowser),
+						FCanExecuteAction()
+						)
+					);
+			}
 
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("Skeleton_NewAnimComposite", "Anim Composite"),
-				LOCTEXT("Skeleton_NewAnimCompositeTooltip", "Creates an AnimComposite using the selected skeleton."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimComposite"),
-				FUIAction(
-					FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAnimCompositeFactory, UAnimComposite>, SkeletonsOrSkeletalMeshes, FString("_Composite"), AssetCreated, bInContentBrowser),
-					FCanExecuteAction()
-					)
-				);
+			if(CanCreateAssetOfType(UAnimComposite::StaticClass()))
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("Skeleton_NewAnimComposite", "Anim Composite"),
+					LOCTEXT("Skeleton_NewAnimCompositeTooltip", "Creates an AnimComposite using the selected skeleton."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimComposite"),
+					FUIAction(
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAnimCompositeFactory, UAnimComposite>, SkeletonsOrSkeletalMeshes, FString("_Composite"), AssetCreated, bInContentBrowser),
+						FCanExecuteAction()
+						)
+					);
+			}
 
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("Skeleton_NewAnimMontage", "Anim Montage"),
-				LOCTEXT("Skeleton_NewAnimMontageTooltip", "Creates an AnimMontage using the selected skeleton."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimMontage"),
-				FUIAction(
-					FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAnimMontageFactory, UAnimMontage>, SkeletonsOrSkeletalMeshes, FString("_Montage"), AssetCreated, bInContentBrowser),
-					FCanExecuteAction()
-					)
-				);
+			if(CanCreateAssetOfType(UAnimMontage::StaticClass()))
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("Skeleton_NewAnimMontage", "Anim Montage"),
+					LOCTEXT("Skeleton_NewAnimMontageTooltip", "Creates an AnimMontage using the selected skeleton."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.AnimMontage"),
+					FUIAction(
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAnimMontageFactory, UAnimMontage>, SkeletonsOrSkeletalMeshes, FString("_Montage"), AssetCreated, bInContentBrowser),
+						FCanExecuteAction()
+						)
+					);
+			}
 		}
 		MenuBuilder.EndSection();
 
 		MenuBuilder.BeginSection("CreateBlendSpace", LOCTEXT("CreateBlendSpaceMenuHeading", "Blend Spaces"));
 		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("SkeletalMesh_New2DBlendspace", "Blend Space"),
-				LOCTEXT("SkeletalMesh_New2DBlendspaceTooltip", "Creates a Blend Space using the selected skeleton."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.BlendSpace"),
-				FUIAction(
-					FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UBlendSpaceFactoryNew, UBlendSpace>, SkeletonsOrSkeletalMeshes, FString("_BlendSpace"), AssetCreated, bInContentBrowser),
-					FCanExecuteAction()
-					)
-				);
+			if (CanCreateAssetOfType(UBlendSpace::StaticClass()))
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("SkeletalMesh_New2DBlendspace", "Blend Space"),
+					LOCTEXT("SkeletalMesh_New2DBlendspaceTooltip", "Creates a Blend Space using the selected skeleton."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.BlendSpace"),
+					FUIAction(
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UBlendSpaceFactoryNew, UBlendSpace>, SkeletonsOrSkeletalMeshes, FString("_BlendSpace"), AssetCreated, bInContentBrowser),
+						FCanExecuteAction()
+						)
+					);
+			}
 
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("SkeletalMesh_New1DBlendspace", "Blend Space 1D"),
-				LOCTEXT("SkeletalMesh_New1DBlendspaceTooltip", "Creates a 1D Blend Space using the selected skeleton."),
-				FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.BlendSpace1D"),
-				FUIAction(
-					FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UBlendSpaceFactory1D, UBlendSpace1D>, SkeletonsOrSkeletalMeshes, FString("_BlendSpace1D"), AssetCreated, bInContentBrowser),
-					FCanExecuteAction()
-					)
-				);
+			if (CanCreateAssetOfType(UBlendSpace1D::StaticClass()))
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("SkeletalMesh_New1DBlendspace", "Blend Space 1D"),
+					LOCTEXT("SkeletalMesh_New1DBlendspaceTooltip", "Creates a 1D Blend Space using the selected skeleton."),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.BlendSpace1D"),
+					FUIAction(
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UBlendSpaceFactory1D, UBlendSpace1D>, SkeletonsOrSkeletalMeshes, FString("_BlendSpace1D"), AssetCreated, bInContentBrowser),
+						FCanExecuteAction()
+						)
+					);
+			}
 		}
 		MenuBuilder.EndSection();
 
 		MenuBuilder.BeginSection("CreateAimOffset", LOCTEXT("CreateAimOffsetMenuHeading", "Aim Offsets"));
 		{
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("SkeletalMesh_New2DAimOffset", "Aim Offset"),
-				LOCTEXT("SkeletalMesh_New2DAimOffsetTooltip", "Creates a Aim Offset blendspace using the selected skeleton."),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAimOffsetBlendSpaceFactoryNew, UAimOffsetBlendSpace>, SkeletonsOrSkeletalMeshes, FString("_AimOffset2D"), AssetCreated, bInContentBrowser),
-					FCanExecuteAction()
-					)
-				);
+			if (CanCreateAssetOfType(UAimOffsetBlendSpace::StaticClass()))
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("SkeletalMesh_New2DAimOffset", "Aim Offset"),
+					LOCTEXT("SkeletalMesh_New2DAimOffsetTooltip", "Creates a Aim Offset blendspace using the selected skeleton."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAimOffsetBlendSpaceFactoryNew, UAimOffsetBlendSpace>, SkeletonsOrSkeletalMeshes, FString("_AimOffset2D"), AssetCreated, bInContentBrowser),
+						FCanExecuteAction()
+						)
+					);
+			}
 
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("SkeletalMesh_New1DAimOffset", "Aim Offset 1D"),
-				LOCTEXT("SkeletalMesh_New1DAimOffsetTooltip", "Creates a 1D Aim Offset blendspace using the selected skeleton."),
-				FSlateIcon(),
-				FUIAction(
-					FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAimOffsetBlendSpaceFactory1D, UAimOffsetBlendSpace1D>, SkeletonsOrSkeletalMeshes, FString("_AimOffset1D"), AssetCreated, bInContentBrowser),
-					FCanExecuteAction()
-					)
-				);
+			if (CanCreateAssetOfType(UAimOffsetBlendSpace1D::StaticClass()))
+			{
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("SkeletalMesh_New1DAimOffset", "Aim Offset 1D"),
+					LOCTEXT("SkeletalMesh_New1DAimOffsetTooltip", "Creates a 1D Aim Offset blendspace using the selected skeleton."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateStatic(&ExecuteNewAnimAsset<UAimOffsetBlendSpaceFactory1D, UAimOffsetBlendSpace1D>, SkeletonsOrSkeletalMeshes, FString("_AimOffset1D"), AssetCreated, bInContentBrowser),
+						FCanExecuteAction()
+						)
+					);
+			}
 		}
 		MenuBuilder.EndSection();
 	}

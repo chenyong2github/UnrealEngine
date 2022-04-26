@@ -40,8 +40,7 @@ public:
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
 	
 	/** Animation Toolbar Extender*/
-	TSharedRef<FExtender> GetAnimationEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<IAnimationEditor> InAnimationEditor);
-	void HandleAddControlRigExtenderToToolbar(FToolBarBuilder& ParentToolbarBuilder, TWeakPtr<IAnimationEditor> InAnimationEditor);
+	void AddControlRigExtenderToToolMenu(FName InToolMenuName);
 	TSharedRef< SWidget > GenerateAnimationMenu(TWeakPtr<IAnimationEditor> InAnimationEditor);
 	void ToggleIsDrivenByLevelSequence(UAnimSequence* AnimSequence)const;
 	bool IsDrivenByLevelSequence(UAnimSequence* AnimSequence)const;
@@ -87,9 +86,6 @@ private:
 	FDelegateHandle RefreshAllNodesDelegateHandle;
 	FDelegateHandle ReconstructAllNodesDelegateHandle;
 	FDelegateHandle BlueprintVariableCustomizationHandle;
-
-	/** Animation Editor Handle*/
-	FDelegateHandle AnimationEditorExtenderHandle;
 
 	/** Param to hold Filter Result to pass to Filter*/
 	bool bFilterAssetBySkeleton;

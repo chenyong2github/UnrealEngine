@@ -118,6 +118,7 @@ private:
 
 	void OnImportAsset();
 
+	static TSharedPtr<FSkeletonEditor> GetSkeletonEditor(const FToolMenuContext& InMenuContext);
 public:
 	/** Multicast delegate fired on global undo/redo */
 	FSimpleMulticastDelegate OnPostUndo;

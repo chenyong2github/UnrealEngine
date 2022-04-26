@@ -1118,28 +1118,36 @@ void FPersonaModule::AddCommonToolbarExtensions(FToolBarBuilder& InToolbarBuilde
 
 TSharedRef< SWidget > FPersonaModule::GenerateCreateAssetMenu(TWeakPtr<IPersonaToolkit> InWeakPersonaToolkit) const
 {
+	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
 
 	// Create Animation menu
 	MenuBuilder.BeginSection("CreateAnimation", LOCTEXT("CreateAnimationMenuHeading", "Animation"));
 	{
-		// create menu
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("CreateAnimationSubmenu", "Create Animation"),
-			LOCTEXT("CreateAnimationSubmenu_ToolTip", "Create Animation for this skeleton"),
-			FNewMenuDelegate::CreateRaw(this, &FPersonaModule::FillCreateAnimationMenu, InWeakPersonaToolkit),
-			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
-			);
+		if(AssetTools.IsAssetClassSupported(UAnimSequence::StaticClass()))
+		{
+			// create menu
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("CreateAnimationSubmenu", "Create Animation"),
+				LOCTEXT("CreateAnimationSubmenu_ToolTip", "Create Animation for this skeleton"),
+				FNewMenuDelegate::CreateRaw(this, &FPersonaModule::FillCreateAnimationMenu, InWeakPersonaToolkit),
+				false,
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
+				);
+		}
 
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("CreatePoseAssetSubmenu", "Create PoseAsset"),
-			LOCTEXT("CreatePoseAsssetSubmenu_ToolTip", "Create PoseAsset for this skeleton"),
-			FNewMenuDelegate::CreateRaw(this, &FPersonaModule::FillCreatePoseAssetMenu, InWeakPersonaToolkit),
-			false,
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PoseAsset")
-		);
+		if (AssetTools.IsAssetClassSupported(UPoseAsset::StaticClass()))
+		{
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("CreatePoseAssetSubmenu", "Create PoseAsset"),
+				LOCTEXT("CreatePoseAsssetSubmenu_ToolTip", "Create PoseAsset for this skeleton"),
+				FNewMenuDelegate::CreateRaw(this, &FPersonaModule::FillCreatePoseAssetMenu, InWeakPersonaToolkit),
+				false,
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.PoseAsset")
+			);
+		}
 	}
 	MenuBuilder.EndSection();
 

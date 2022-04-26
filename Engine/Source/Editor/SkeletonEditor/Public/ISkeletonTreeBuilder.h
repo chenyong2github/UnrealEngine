@@ -102,7 +102,7 @@ struct FSkeletonTreeFilterArgs
 DECLARE_DELEGATE_RetVal_TwoParams(ESkeletonTreeFilterResult, FOnFilterSkeletonTreeItem, const FSkeletonTreeFilterArgs& /*InArgs*/, const TSharedPtr<class ISkeletonTreeItem>& /*InItem*/);
 
 /** Interface to implement to provide custom build logic to skeleton trees */
-class ISkeletonTreeBuilder
+class ISkeletonTreeBuilder : public TSharedFromThis<ISkeletonTreeBuilder>
 {
 public:
 

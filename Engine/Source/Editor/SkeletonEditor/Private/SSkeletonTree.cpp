@@ -66,6 +66,8 @@
 #include "IPinnedCommandList.h"
 #include "PersonaModule.h"
 #include "SPositiveActionButton.h"
+#include "ToolMenus.h"
+#include "ToolMenuMisc.h"
 
 #define LOCTEXT_NAMESPACE "SSkeletonTree"
 
@@ -210,6 +212,10 @@ void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditab
 	FSkeletonTreeCommands::Register();
 	BindCommands();
 
+	CreateBlendProfileMenu(nullptr);
+	CreateNewMenu();
+	CreateFilterMenu();
+
 	this->ChildSlot
 	[
 		SNew( SOverlay )
@@ -234,7 +240,7 @@ void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditab
 				.Padding(FMargin(6.f, 0.0))
 				[
 					SNew(SPositiveActionButton)
-					.OnGetMenuContent( this, &SSkeletonTree::CreateNewMenu )
+					.OnGetMenuContent( this, &SSkeletonTree::CreateNewMenuWidget )
 					.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 				]
 
@@ -258,7 +264,7 @@ void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditab
 					.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
 					.ForegroundColor(FSlateColor::UseStyle())
 					.ContentPadding(2.0f)
-					.OnGetMenuContent( this, &SSkeletonTree::CreateFilterMenu )
+					.OnGetMenuContent( this, &SSkeletonTree::CreateFilterMenuWidget )
 					.ToolTipText( this, &SSkeletonTree::GetFilterMenuTooltip )
 					.AddMetaData<FTagMetaData>(TEXT("SkelTree.Bones"))
 					.HasDownArrow(true)
@@ -343,31 +349,36 @@ void SSkeletonTree::BindCommands()
 		MenuActions.ShowAllBones,
 		FExecuteAction::CreateSP( this, &SSkeletonTree::SetBoneFilter, EBoneFilter::All ),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsBoneFilter, EBoneFilter::All ));
+		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsBoneFilter, EBoneFilter::All ),
+		FIsActionButtonVisible::CreateSP( Builder.Get(), &ISkeletonTreeBuilder::IsShowingBones ));
 
 	CommandList.MapAction(
 		MenuActions.ShowMeshBones,
 		FExecuteAction::CreateSP( this, &SSkeletonTree::SetBoneFilter, EBoneFilter::Mesh ),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsBoneFilter, EBoneFilter::Mesh ));
+		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsBoneFilter, EBoneFilter::Mesh ),
+		FIsActionButtonVisible::CreateSP(Builder.Get(), &ISkeletonTreeBuilder::IsShowingBones));
 
 	CommandList.MapAction(
 		MenuActions.ShowLODBones,
 		FExecuteAction::CreateSP(this, &SSkeletonTree::SetBoneFilter, EBoneFilter::LOD),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &SSkeletonTree::IsBoneFilter, EBoneFilter::LOD));
+		FIsActionChecked::CreateSP(this, &SSkeletonTree::IsBoneFilter, EBoneFilter::LOD),
+		FIsActionButtonVisible::CreateSP(Builder.Get(), &ISkeletonTreeBuilder::IsShowingBones));
 	
 	CommandList.MapAction(
 		MenuActions.ShowWeightedBones,
 		FExecuteAction::CreateSP( this, &SSkeletonTree::SetBoneFilter, EBoneFilter::Weighted ),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsBoneFilter, EBoneFilter::Weighted ));
+		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsBoneFilter, EBoneFilter::Weighted ),
+		FIsActionButtonVisible::CreateSP(Builder.Get(), &ISkeletonTreeBuilder::IsShowingBones));
 
 	CommandList.MapAction(
 		MenuActions.HideBones,
 		FExecuteAction::CreateSP( this, &SSkeletonTree::SetBoneFilter, EBoneFilter::None ),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsBoneFilter, EBoneFilter::None ));
+		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsBoneFilter, EBoneFilter::None ),
+		FIsActionButtonVisible::CreateSP(Builder.Get(), &ISkeletonTreeBuilder::IsShowingBones));
 
 	CommandList.EndGroup();
 
@@ -378,31 +389,36 @@ void SSkeletonTree::BindCommands()
 		MenuActions.ShowActiveSockets,
 		FExecuteAction::CreateSP( this, &SSkeletonTree::SetSocketFilter, ESocketFilter::Active ),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsSocketFilter, ESocketFilter::Active ));
+		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsSocketFilter, ESocketFilter::Active ),
+		FIsActionButtonVisible::CreateSP(Builder.Get(), &ISkeletonTreeBuilder::IsShowingSockets ));
 
 	CommandList.MapAction(
 		MenuActions.ShowMeshSockets,
 		FExecuteAction::CreateSP( this, &SSkeletonTree::SetSocketFilter, ESocketFilter::Mesh ),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsSocketFilter, ESocketFilter::Mesh ));
+		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsSocketFilter, ESocketFilter::Mesh ),
+		FIsActionButtonVisible::CreateSP(Builder.Get(), &ISkeletonTreeBuilder::IsShowingSockets ));
 
 	CommandList.MapAction(
 		MenuActions.ShowSkeletonSockets,
 		FExecuteAction::CreateSP( this, &SSkeletonTree::SetSocketFilter, ESocketFilter::Skeleton ),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsSocketFilter, ESocketFilter::Skeleton ));
+		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsSocketFilter, ESocketFilter::Skeleton ),
+		FIsActionButtonVisible::CreateSP(Builder.Get(), &ISkeletonTreeBuilder::IsShowingSockets ));
 
 	CommandList.MapAction(
 		MenuActions.ShowAllSockets,
 		FExecuteAction::CreateSP( this, &SSkeletonTree::SetSocketFilter, ESocketFilter::All ),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsSocketFilter, ESocketFilter::All ));
+		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsSocketFilter, ESocketFilter::All ),
+		FIsActionButtonVisible::CreateSP(Builder.Get(), &ISkeletonTreeBuilder::IsShowingSockets ));
 
 	CommandList.MapAction(
 		MenuActions.HideSockets,
 		FExecuteAction::CreateSP( this, &SSkeletonTree::SetSocketFilter, ESocketFilter::None ),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsSocketFilter, ESocketFilter::None ));
+		FIsActionChecked::CreateSP( this, &SSkeletonTree::IsSocketFilter, ESocketFilter::None ),
+		FIsActionButtonVisible::CreateSP(Builder.Get(), &ISkeletonTreeBuilder::IsShowingSockets ));
 
 	CommandList.EndGroup();
 
@@ -410,13 +426,15 @@ void SSkeletonTree::BindCommands()
 		MenuActions.ShowRetargeting,
 		FExecuteAction::CreateSP(this, &SSkeletonTree::OnChangeShowingAdvancedOptions),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &SSkeletonTree::IsShowingAdvancedOptions));
+		FIsActionChecked::CreateSP(this, &SSkeletonTree::IsShowingAdvancedOptions),
+		FIsActionButtonVisible::CreateLambda([this]() { return Builder->IsShowingBones() && bAllowSkeletonOperations; }));
 
 	CommandList.MapAction(
 		MenuActions.ShowDebugVisualization,
 		FExecuteAction::CreateSP(this, &SSkeletonTree::OnChangeShowingDebugVisualizationOptions),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &SSkeletonTree::IsShowingDebugVisualizationOptions));
+		FIsActionChecked::CreateSP(this, &SSkeletonTree::IsShowingDebugVisualizationOptions),
+		FIsActionButtonVisible::CreateLambda([this](){ return bShowDebugVisualizationOptions; }));
 
 	// Socket manipulation commands
 	CommandList.MapAction(
@@ -743,7 +761,7 @@ TSharedPtr< SWidget > SSkeletonTree::CreateContextMenu()
 			{
 				MenuBuilder.AddSubMenu(LOCTEXT("AddVirtualBone", "Add Virtual Bone"),
 					LOCTEXT("AddVirtualBone_ToolTip", "Adds a virtual bone to the skeleton."),
-					FNewMenuDelegate::CreateSP(this, &SSkeletonTree::FillVirtualBoneSubmenu, SelectedItems));
+					FNewMenuDelegate::CreateSP(this, &SSkeletonTree::FillVirtualBoneSubmenu));
 			}
 
 			MenuBuilder.EndSection();
@@ -944,13 +962,15 @@ bool GetSourceNameFromItem(TSharedPtr<ISkeletonTreeItem> SourceBone, FName& OutN
 	return false;
 }
 
-void SSkeletonTree::FillVirtualBoneSubmenu(FMenuBuilder& MenuBuilder, TArray<TSharedPtr<ISkeletonTreeItem>> SourceBones)
+void SSkeletonTree::FillVirtualBoneSubmenu(FMenuBuilder& MenuBuilder)
 {
+	TArray<TSharedPtr<ISkeletonTreeItem>> SelectedItems = SkeletonTreeView->GetSelectedItems();
+
 	const bool bShowVirtualBones = false;
 	TSharedRef<SBoneTreeMenu> MenuContent = SNew(SBoneTreeMenu)
 	.bShowVirtualBones(false)
 	.Title(LOCTEXT("TargetBonePickerTitle", "Pick Target Bone..."))
-	.OnBoneSelectionChanged(this, &SSkeletonTree::OnVirtualTargetBonePicked, SourceBones)
+	.OnBoneSelectionChanged(this, &SSkeletonTree::OnVirtualTargetBonePicked, SelectedItems)
 	.OnGetReferenceSkeleton(this, &SSkeletonTree::OnGetReferenceSkeleton);
 	MenuBuilder.AddWidget(MenuContent, FText::GetEmpty(), true);
 
@@ -1580,11 +1600,7 @@ void SSkeletonTree::HandlePackageReloaded(const EPackageReloadPhase InPackageRel
 
 TSharedRef<SWidget> SSkeletonTree::GetBlendProfileColumnMenuContent()
 {
-	const FSkeletonTreeCommands& Actions = FSkeletonTreeCommands::Get();
-
-	FMenuBuilder MenuBuilder( true /*CloseAfterSelection*/, UICommandList );
-	GetBlendProfileMenu(MenuBuilder);
-	return MenuBuilder.MakeWidget();
+	return UToolMenus::Get()->GenerateWidget("SkeletonTree.BlendProfilesMenu", FToolMenuContext(UICommandList, Extenders));
 }
 
 void SSkeletonTree::ExpandTreeOnSelection(TSharedPtr<ISkeletonTreeItem> RowToExpand, bool bForce)
@@ -1600,47 +1616,61 @@ void SSkeletonTree::ExpandTreeOnSelection(TSharedPtr<ISkeletonTreeItem> RowToExp
 	}
 }
 
-void SSkeletonTree::GetBlendProfileMenu(FMenuBuilder& MenuBuilder)
+void SSkeletonTree::CreateBlendProfileMenu(UToolMenu* InMenu)
 {
-	const FSkeletonTreeCommands& Actions = FSkeletonTreeCommands::Get();
+	FToolMenuOwnerScoped OwnerScoped(this);
 
-	MenuBuilder.BeginSection("BlendProfileActions", LOCTEXT("BlendProfiles", "Blend Profiles"));
-	{
-		for (UBlendProfile* Profile : GetEditableSkeletonInternal()->GetBlendProfiles())
+	UToolMenu* Menu = InMenu ? InMenu : UToolMenus::Get()->ExtendMenu("SkeletonTree.BlendProfilesMenu");
+
+	Menu->AddDynamicSection(NAME_None,
+		FNewSectionConstructChoice(FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
 		{
-			MenuBuilder.AddMenuEntry(
-				FText::FromName(Profile->GetFName()),
-				LOCTEXT("SelectBlendProfileTooltip", "Select this profile for editing."),
-				FSlateIcon(),	
-				FUIAction(
-					FExecuteAction::CreateSP(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::SetSelectedProfile, Profile, true),
-					FCanExecuteAction(),
-					FIsActionChecked::CreateSP(this, &SSkeletonTree::IsBlendProfileSelected, Profile->GetFName())
-				),
-				NAME_None,
-				EUserInterfaceActionType::RadioButton
-			);
-		}
+			const FSkeletonTreeCommands& Actions = FSkeletonTreeCommands::Get();
 
-		MenuBuilder.AddMenuEntry(
-		LOCTEXT("Clear", "Clear"),
-		LOCTEXT("Clear_ToolTip", "Clear the selected blend profile."),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateSP(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::OnClearSelection)));
+			FToolMenuSection& ProfilesSection = InMenu->AddSection(TEXT("BlendProfileActions"), LOCTEXT("BlendProfiles", "Blend Profiles"));
 
-		MenuBuilder.AddSeparator();
-		MenuBuilder.AddMenuEntry(Actions.CreateTimeBlendProfile);
-		MenuBuilder.AddMenuEntry(Actions.CreateWeightBlendProfile);
-		MenuBuilder.AddMenuEntry(Actions.CreateBlendMask);
-		if (BlendProfilePicker->GetSelectedBlendProfileName() != NAME_None)
-		{
-			MenuBuilder.AddSeparator();
-			MenuBuilder.AddMenuEntry(Actions.DeleteCurrentBlendProfile, NAME_None, FText::Format(LOCTEXT("DeleteBlendProfileLabel", "Remove {0}"), FText::FromName(BlendProfilePicker->GetSelectedBlendProfileName())));
-		}
+			for (UBlendProfile* Profile : GetEditableSkeletonInternal()->GetBlendProfiles())
+			{
+				ProfilesSection.AddMenuEntry(
+					Profile->GetFName(),
+					FText::FromName(Profile->GetFName()),
+					LOCTEXT("SelectBlendProfileTooltip", "Select this profile for editing."),
+					FSlateIcon(),
+					FToolUIActionChoice(
+						FUIAction(
+							FExecuteAction::CreateSP(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::SetSelectedProfile, Profile, true),
+							FCanExecuteAction(),
+							FIsActionChecked::CreateSP(this, &SSkeletonTree::IsBlendProfileSelected, Profile->GetFName())
+						)
+					),
+					EUserInterfaceActionType::RadioButton
+				);
+			}
 
+			if (BlendProfilePicker->GetSelectedBlendProfileName() != NAME_None)
+			{
+				FToolMenuSection& EditSection = InMenu->AddSection(TEXT("BlendProfileEdit"), LOCTEXT("EditBlendProfilesSection", "Edit"));
 
-	}
-	MenuBuilder.EndSection();
+				EditSection.AddMenuEntry(
+					"ClearBlendProfile",
+					LOCTEXT("Clear", "Clear Selected"),
+					LOCTEXT("Clear_ToolTip", "Clear the selected blend profile."),
+					FSlateIcon(),
+					FToolUIActionChoice(FUIAction(FExecuteAction::CreateSP(BlendProfilePicker.ToSharedRef(), &SBlendProfilePicker::OnClearSelection))));
+
+				EditSection.AddMenuEntry(
+					Actions.DeleteCurrentBlendProfile, 
+					FText::Format(LOCTEXT("DeleteBlendProfileLabel", "Delete {0}"),
+					FText::FromName(BlendProfilePicker->GetSelectedBlendProfileName())));
+			}
+
+			{
+				FToolMenuSection& NewSection = InMenu->AddSection(TEXT("BlendProfileNew"), LOCTEXT("BlendProfiles", "New"));
+				NewSection.AddMenuEntry(Actions.CreateTimeBlendProfile);
+				NewSection.AddMenuEntry(Actions.CreateWeightBlendProfile);
+				NewSection.AddMenuEntry(Actions.CreateBlendMask);
+			}
+		})));
 } 
 
 void SSkeletonTree::OnCreateBlendProfile(const EBlendProfileMode InMode)
@@ -1748,86 +1778,85 @@ void SSkeletonTree::NotifyUser( FNotificationInfo& NotificationInfo )
 	}
 }
 
-TSharedRef< SWidget > SSkeletonTree::CreateNewMenu()
+void SSkeletonTree::CreateNewMenu()
 {
+	FToolMenuOwnerScoped OwnerScoped(this);
+
 	const FSkeletonTreeCommands& Actions = FSkeletonTreeCommands::Get();
-	TArray<TSharedPtr<ISkeletonTreeItem>> SelectedItems = SkeletonTreeView->GetSelectedItems();
 
-	FMenuBuilder MenuBuilder( true /*CloseAfterSelection*/ , UICommandList, Extenders );
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("SkeletonTree.NewMenu");
 
-	MenuBuilder.BeginSection("CreateNew", LOCTEXT("SkeletonCreateNew", "Create"));
 	{
-		MenuBuilder.AddMenuEntry(Actions.AddSocket);
+		FToolMenuSection& CreateSection = Menu->AddSection("CreateNew", LOCTEXT("SkeletonCreateNew", "Create"));
 
-		MenuBuilder.AddSubMenu(LOCTEXT("AddVirtualBone", "Add Virtual Bone"),
+		CreateSection.AddMenuEntry(Actions.AddSocket);
+		CreateSection.AddSubMenu(
+			"VirtualBones",
+			LOCTEXT("AddVirtualBone", "Add Virtual Bone"),
 			LOCTEXT("AddVirtualBone_ToolTip", "Adds a virtual bone to the skeleton."),
-			FNewMenuDelegate::CreateSP(this, &SSkeletonTree::FillVirtualBoneSubmenu, SelectedItems));
+			FNewToolMenuChoice(FNewMenuDelegate::CreateSP(this, &SSkeletonTree::FillVirtualBoneSubmenu)));
 	}
-	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("Blend");
 	{
-		MenuBuilder.AddMenuEntry(Actions.CreateTimeBlendProfile);
-		MenuBuilder.AddMenuEntry(Actions.CreateWeightBlendProfile);
-		MenuBuilder.AddMenuEntry(Actions.CreateBlendMask);
+		FToolMenuSection& BlendSection = Menu->AddSection("Blend", LOCTEXT("SkeletonBlend", "Blend"));
+		BlendSection.AddMenuEntry(Actions.CreateTimeBlendProfile);
+		BlendSection.AddMenuEntry(Actions.CreateWeightBlendProfile);
+		BlendSection.AddMenuEntry(Actions.CreateBlendMask);
 	}
-	MenuBuilder.EndSection();
-
-	return MenuBuilder.MakeWidget();
 }
 
-TSharedRef< SWidget > SSkeletonTree::CreateFilterMenu()
+TSharedRef< SWidget > SSkeletonTree::CreateNewMenuWidget()
 {
+	return UToolMenus::Get()->GenerateWidget("SkeletonTree.NewMenu", FToolMenuContext(UICommandList, Extenders)); 
+}
+
+void SSkeletonTree::CreateFilterMenu()
+{
+	FToolMenuOwnerScoped OwnerScoped(this);
+
 	const FSkeletonTreeCommands& Actions = FSkeletonTreeCommands::Get();
 
-	const bool CloseAfterSelection = true;
-	FMenuBuilder MenuBuilder( CloseAfterSelection, UICommandList, Extenders );
+	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("SkeletonTree.FilterMenu");
 
-	GetBlendProfileMenu(MenuBuilder);
-
-	MenuBuilder.BeginSection("FilterOptions", LOCTEXT("OptionsMenuHeading", "Options"));
 	{
-		if(Builder->IsShowingBones() && bAllowSkeletonOperations)
-		{
-			MenuBuilder.AddMenuEntry(Actions.ShowRetargeting);
-		}
-		MenuBuilder.AddMenuEntry(Actions.FilteringFlattensHierarchy);
-		MenuBuilder.AddMenuEntry(Actions.HideParentsWhenFiltering);
-		
-		if (bShowDebugVisualizationOptions)
-		{
-			MenuBuilder.AddMenuEntry(Actions.ShowDebugVisualization);
-		}
-	}
-	MenuBuilder.EndSection();
-
-	if(Builder->IsShowingBones())
-	{
-		MenuBuilder.BeginSection("FilterBones", LOCTEXT( "BonesMenuHeading", "Bones" ) );
-		{
-			MenuBuilder.AddMenuEntry( Actions.ShowAllBones );
-			MenuBuilder.AddMenuEntry( Actions.ShowMeshBones );
-			MenuBuilder.AddMenuEntry( Actions.ShowLODBones);
-			MenuBuilder.AddMenuEntry( Actions.ShowWeightedBones );
-			MenuBuilder.AddMenuEntry( Actions.HideBones );
-		}
-		MenuBuilder.EndSection();
+		FToolMenuSection& BlendProfilesSection = Menu->AddSection("BlendProfiles", LOCTEXT("BlendProfilesMenuHeading", "Blend Profiles"));
+		BlendProfilesSection.AddSubMenu(
+			"BlendProfiles", 
+			LOCTEXT("BlendProfilesSubMenu", "Blend Profiles"),
+			LOCTEXT("BlendProfilesSubMenuTooltip", "Edit Blend Profiles in this Skeleton"), 
+			FNewToolMenuChoice(FNewToolMenuDelegate::CreateSP(this, &SSkeletonTree::CreateBlendProfileMenu)));
 	}
 
-	if(Builder->IsShowingSockets())
 	{
-		MenuBuilder.BeginSection("FilterSockets", LOCTEXT("SocketsMenuHeading", "Sockets"));
-		{
-			MenuBuilder.AddMenuEntry(Actions.ShowActiveSockets);
-			MenuBuilder.AddMenuEntry(Actions.ShowMeshSockets);
-			MenuBuilder.AddMenuEntry(Actions.ShowSkeletonSockets);
-			MenuBuilder.AddMenuEntry(Actions.ShowAllSockets);
-			MenuBuilder.AddMenuEntry(Actions.HideSockets);
-		}
-		MenuBuilder.EndSection();
+		FToolMenuSection& OptionsSection = Menu->AddSection("FilterOptions", LOCTEXT("OptionsMenuHeading", "Options"));
+		OptionsSection.AddMenuEntry(Actions.ShowRetargeting);
+		OptionsSection.AddMenuEntry(Actions.FilteringFlattensHierarchy);
+		OptionsSection.AddMenuEntry(Actions.HideParentsWhenFiltering);
+		OptionsSection.AddMenuEntry(Actions.ShowDebugVisualization);
 	}
 
-	return MenuBuilder.MakeWidget();
+	{
+		FToolMenuSection& BonesSection = Menu->AddSection("FilterBones", LOCTEXT("BonesMenuHeading", "Bones"));
+		BonesSection.AddMenuEntry(Actions.ShowAllBones);
+		BonesSection.AddMenuEntry(Actions.ShowMeshBones);
+		BonesSection.AddMenuEntry(Actions.ShowLODBones);
+		BonesSection.AddMenuEntry(Actions.ShowWeightedBones);
+		BonesSection.AddMenuEntry(Actions.HideBones);
+	}
+
+	{
+		FToolMenuSection& BonesSection = Menu->AddSection("FilterSockets", LOCTEXT("SocketsMenuHeading", "Sockets"));
+		BonesSection.AddMenuEntry(Actions.ShowActiveSockets);
+		BonesSection.AddMenuEntry(Actions.ShowMeshSockets);
+		BonesSection.AddMenuEntry(Actions.ShowSkeletonSockets);
+		BonesSection.AddMenuEntry(Actions.ShowAllSockets);
+		BonesSection.AddMenuEntry(Actions.HideSockets);
+	}
+}
+
+TSharedRef< SWidget > SSkeletonTree::CreateFilterMenuWidget()
+{
+	return UToolMenus::Get()->GenerateWidget("SkeletonTree.FilterMenu", FToolMenuContext(UICommandList, Extenders));
 }
 
 void SSkeletonTree::SetBoneFilter( EBoneFilter InBoneFilter )

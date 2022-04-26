@@ -168,10 +168,16 @@ private:
 	TSharedPtr< SWidget > CreateContextMenu();
 
 	/** Called to display the add new menu */
-	TSharedRef< SWidget > CreateNewMenu();
+	TSharedRef< SWidget > CreateNewMenuWidget();
+
+	/** Called to create the add new menu */
+	void CreateNewMenu();
 
 	/** Called to display the filter menu */
-	TSharedRef< SWidget > CreateFilterMenu();
+	TSharedRef< SWidget > CreateFilterMenuWidget();
+
+	/** Called to create the filter menu */
+	void CreateFilterMenu();
 
 	/** Function to copy selected bone name to the clipboard */
 	void OnCopyBoneNames();
@@ -210,7 +216,7 @@ private:
 	void OnPromoteSocket();
 
 	/** Create sub menu to allow users to pick a target bone for the new space switching bone(s) */
-	void FillVirtualBoneSubmenu(FMenuBuilder& MenuBuilder, TArray<TSharedPtr<class ISkeletonTreeItem>> SourceBones);
+	void FillVirtualBoneSubmenu(FMenuBuilder& MenuBuilder);
 
 	/** Handler for user picking a target bone */
 	void OnVirtualTargetBonePicked(FName TargetBoneName, TArray<TSharedPtr<class ISkeletonTreeItem>> SourceBones);
@@ -333,7 +339,7 @@ private:
 	void OnDeleteCurrentBlendProfile();
 
 	/** Generate Blend Profile Menu */
-	void GetBlendProfileMenu(FMenuBuilder& MenuBuilder);
+	void CreateBlendProfileMenu(UToolMenu* InMenu = nullptr);
 
 	TSharedRef<SWidget> GetBlendProfileColumnMenuContent();
 

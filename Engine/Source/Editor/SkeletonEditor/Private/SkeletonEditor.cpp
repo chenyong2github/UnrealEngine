@@ -23,6 +23,9 @@
 #include "ISkeletonTreeItem.h"
 #include "Algo/Transform.h"
 #include "PersonaToolMenuContext.h"
+#include "ToolMenus.h"
+#include "ToolMenuMisc.h"
+#include "SkeletonToolMenuContext.h"
 
 const FName SkeletonEditorAppIdentifier = FName(TEXT("SkeletonEditorApp"));
 
@@ -143,10 +146,13 @@ void FSkeletonEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 {
 	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
 
-	UPersonaToolMenuContext* Context = NewObject<UPersonaToolMenuContext>();
-	Context->SetToolkit(GetPersonaToolkit());
+	UPersonaToolMenuContext* PersonaContext = NewObject<UPersonaToolMenuContext>();
+	PersonaContext->SetToolkit(GetPersonaToolkit());
+	MenuContext.AddObject(PersonaContext);
 
-	MenuContext.AddObject(Context);
+	USkeletonToolMenuContext* SkeletonContext = NewObject<USkeletonToolMenuContext>();
+	SkeletonContext->SkeletonEditor = SharedThis(this);
+	MenuContext.AddObject(SkeletonContext);
 }
 
 void FSkeletonEditor::BindCommands()
@@ -176,8 +182,49 @@ void FSkeletonEditor::BindCommands()
 		FExecuteAction::CreateRaw(&GetPersonaToolkit()->GetPreviewScene().Get(), &IPersonaPreviewScene::TogglePlayback));
 }
 
+TSharedPtr<FSkeletonEditor> FSkeletonEditor::GetSkeletonEditor(const FToolMenuContext& InMenuContext)
+{
+	if (USkeletonToolMenuContext* Context = InMenuContext.FindContext<USkeletonToolMenuContext>())
+	{
+		if (Context->SkeletonEditor.IsValid())
+		{
+			return StaticCastSharedPtr<FSkeletonEditor>(Context->SkeletonEditor.Pin());
+		}
+	}
+
+	return TSharedPtr<FSkeletonEditor>();
+}
+
 void FSkeletonEditor::ExtendToolbar()
 {
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+	// Add in Editor Specific functionality
+	FName ParentName;
+	static const FName MenuName = GetToolMenuToolbarName(ParentName);
+
+	UToolMenu* ToolMenu = UToolMenus::Get()->ExtendMenu(MenuName);
+	const FToolMenuInsert SectionInsertLocation("Asset", EToolMenuInsertType::After);
+
+	{
+		ToolMenu->AddDynamicSection("Persona", FNewToolBarDelegateLegacy::CreateLambda([](FToolBarBuilder& ToolbarBuilder, UToolMenu* InMenu)
+		{
+			TSharedPtr<FSkeletonEditor> SkeletonEditor = GetSkeletonEditor(InMenu->Context);
+			if (SkeletonEditor.IsValid() && SkeletonEditor->PersonaToolkit.IsValid())
+			{
+				FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
+				PersonaModule.AddCommonToolbarExtensions(ToolbarBuilder, SkeletonEditor->PersonaToolkit.ToSharedRef());
+			}
+		}), SectionInsertLocation);
+	}
+
+	{
+		FToolMenuSection& SkeletonSection = ToolMenu->AddSection("Skeleton", LOCTEXT("ToolbarSkeletonSectionLabel", "Skeleton"), SectionInsertLocation);
+		SkeletonSection.AddEntry(FToolMenuEntry::InitToolBarButton(FSkeletonEditorCommands::Get().AnimNotifyWindow));
+		SkeletonSection.AddEntry(FToolMenuEntry::InitToolBarButton(FSkeletonEditorCommands::Get().RetargetManager, LOCTEXT("Toolbar_RetargetManager", "Retarget Manager")));
+		SkeletonSection.AddEntry(FToolMenuEntry::InitToolBarButton(FSkeletonEditorCommands::Get().ImportMesh));
+	}
+
 	// If the ToolbarExtender is valid, remove it before rebuilding it
 	if (ToolbarExtender.IsValid())
 	{
@@ -209,16 +256,6 @@ void FSkeletonEditor::ExtendToolbar()
 		FToolBarExtensionDelegate::CreateLambda([this](FToolBarBuilder& ToolbarBuilder)
 		{
 			FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-			PersonaModule.AddCommonToolbarExtensions(ToolbarBuilder, PersonaToolkit.ToSharedRef());
-
-			ToolbarBuilder.BeginSection("Skeleton");
-			{
-				ToolbarBuilder.AddToolBarButton(FSkeletonEditorCommands::Get().AnimNotifyWindow);
-				ToolbarBuilder.AddToolBarButton(FSkeletonEditorCommands::Get().RetargetManager, NAME_None, LOCTEXT("Toolbar_RetargetSources", "Retarget Sources"));
-				ToolbarBuilder.AddToolBarButton(FSkeletonEditorCommands::Get().ImportMesh);
-			}
-			ToolbarBuilder.EndSection();
-
 			TSharedRef<class IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(Skeleton);
 			AddToolbarWidget(PersonaModule.CreateAssetFamilyShortcutWidget(SharedThis(this), AssetFamily));
 		}	

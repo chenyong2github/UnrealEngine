@@ -164,27 +164,7 @@ private:
 	friend class FStaticMeshUtilityBuilder;
 
 protected:
-	void AddAnimationBlueprintEditorToolbarExtender();
-
-	void RemoveAnimationBlueprintEditorToolbarExtender();
-
-	TSharedRef<FExtender> GetAnimationBlueprintEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<IAnimationBlueprintEditor> InAnimationBlueprintEditor);
-
-	void AddAnimationEditorToolbarExtender();
-
-	void RemoveAnimationEditorToolbarExtender();
-
-	TSharedRef<FExtender> GetAnimationEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<IAnimationEditor> InAnimationEditor);
-
-	TSharedRef<FExtender> GetSkeletalMeshEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<ISkeletalMeshEditor> InSkeletalMeshEditor);
-
-	void AddSkeletonEditorToolbarExtender();
-
-	void RemoveSkeletonEditorToolbarExtender();
-
-	TSharedRef<FExtender> GetSkeletonEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<ISkeletonEditor> InSkeletonEditor);
-
-	void HandleAddSkeletalMeshActionExtenderToToolbar(FToolBarBuilder& ParentToolbarBuilder, UMeshComponent* MeshComponent);
+	void AddMakeStaticMeshEntryToToolMenu(FName InToolbarName);
 
 	void AddLevelViewportMenuExtender();
 

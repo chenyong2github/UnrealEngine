@@ -54,6 +54,9 @@
 #include "IPersonaEditorModeManager.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "PersonaToolMenuContext.h"
+#include "ToolMenus.h"
+#include "ToolMenuMisc.h"
+#include "AnimationToolMenuContext.h"
 
 const FName AnimationEditorAppIdentifier = FName(TEXT("AnimationEditorApp"));
 
@@ -163,10 +166,13 @@ void FAnimationEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 {
 	FAssetEditorToolkit::InitToolMenuContext(MenuContext);
 
-	UPersonaToolMenuContext* Context = NewObject<UPersonaToolMenuContext>();
-	Context->SetToolkit(GetPersonaToolkit());
+	UAnimationToolMenuContext* AnimationToolMenuContext = NewObject<UAnimationToolMenuContext>();
+	AnimationToolMenuContext->AnimationEditor = SharedThis(this);
+	MenuContext.AddObject(AnimationToolMenuContext);
 
-	MenuContext.AddObject(Context);
+	UPersonaToolMenuContext* PersonaToolMenuContext = NewObject<UPersonaToolMenuContext>();
+	PersonaToolMenuContext->SetToolkit(GetPersonaToolkit());
+	MenuContext.AddObject(PersonaToolMenuContext);
 }
 
 void FAnimationEditor::Tick(float DeltaTime)
@@ -220,8 +226,64 @@ void FAnimationEditor::BindCommands()
 		FExecuteAction::CreateRaw(&GetPersonaToolkit()->GetPreviewScene().Get(), &IPersonaPreviewScene::TogglePlayback));
 }
 
+TSharedPtr<FAnimationEditor> FAnimationEditor::GetAnimationEditor(const FToolMenuContext& InMenuContext)
+{
+	if (UAnimationToolMenuContext* Context = InMenuContext.FindContext<UAnimationToolMenuContext>())
+	{
+		if (Context->AnimationEditor.IsValid())
+		{
+			return StaticCastSharedPtr<FAnimationEditor>(Context->AnimationEditor.Pin());
+		}
+	}
+
+	return TSharedPtr<FAnimationEditor>();
+}
+
 void FAnimationEditor::ExtendToolbar()
 {
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+	// Add in Editor Specific functionality
+	FName ParentName;
+	static const FName MenuName = GetToolMenuToolbarName(ParentName);
+
+	UToolMenu* ToolMenu = UToolMenus::Get()->ExtendMenu(MenuName);
+	const FToolMenuInsert SectionInsertLocation("Asset", EToolMenuInsertType::After);
+
+	{
+		ToolMenu->AddDynamicSection("Persona", FNewToolBarDelegateLegacy::CreateLambda([](FToolBarBuilder& ToolbarBuilder, UToolMenu* InMenu)
+		{
+			TSharedPtr<FAnimationEditor> AnimationEditor = GetAnimationEditor(InMenu->Context);
+			if (AnimationEditor.IsValid() && AnimationEditor->PersonaToolkit.IsValid())
+			{
+				FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
+				FPersonaModule::FCommonToolbarExtensionArgs Args;
+				Args.bPreviewAnimation = false;
+				Args.bReferencePose = false;
+				PersonaModule.AddCommonToolbarExtensions(ToolbarBuilder, AnimationEditor->PersonaToolkit.ToSharedRef(), Args);
+			}
+		}), SectionInsertLocation);
+	}
+
+	{
+		FToolMenuSection& AnimationSection = ToolMenu->AddSection("Animation", LOCTEXT("ToolbarAnimationSectionLabel", "Animation"), SectionInsertLocation);
+		AnimationSection.AddEntry(FToolMenuEntry::InitToolBarButton(FAnimationEditorCommands::Get().ReimportAnimation));
+		AnimationSection.AddEntry(FToolMenuEntry::InitToolBarButton(FAnimationEditorCommands::Get().ApplyCompression, LOCTEXT("Toolbar_ApplyCompression", "Apply Compression")));
+		AnimationSection.AddEntry(FToolMenuEntry::InitComboButton(
+			"ExportAsset",
+			FToolUIActionChoice(FUIAction()),
+			FNewToolMenuChoice(FOnGetContent::CreateSP(this, &FAnimationEditor::GenerateExportAssetMenu)),
+			LOCTEXT("ExportAsset_Label", "Export Asset"),
+			LOCTEXT("ExportAsset_ToolTip", "Export Assets for this skeleton."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.ExportToFBX")
+		));
+	}
+
+	{
+		FToolMenuSection& EditingSection = ToolMenu->AddSection("Editing", LOCTEXT("ToolbarEditingSectionLabel", "Editing"), SectionInsertLocation);
+		EditingSection.AddEntry(FToolMenuEntry::InitToolBarButton(FAnimationEditorCommands::Get().SetKey, LOCTEXT("Toolbar_SetKey", "Key")));
+	}
+
 	// If the ToolbarExtender is valid, remove it before rebuilding it
 	if (ToolbarExtender.IsValid())
 	{
@@ -254,34 +316,6 @@ void FAnimationEditor::ExtendToolbar()
 		FToolBarExtensionDelegate::CreateLambda([this](FToolBarBuilder& ToolbarBuilder)
 		{
 			FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
-			FPersonaModule::FCommonToolbarExtensionArgs Args;
-			Args.bPreviewAnimation = false;
-			Args.bReferencePose = false;
-			PersonaModule.AddCommonToolbarExtensions(ToolbarBuilder, PersonaToolkit.ToSharedRef(), Args);
-
-			ToolbarBuilder.BeginSection("Animation");
-			{
-				ToolbarBuilder.AddToolBarButton(FAnimationEditorCommands::Get().ReimportAnimation);
-				ToolbarBuilder.AddToolBarButton(FAnimationEditorCommands::Get().ApplyCompression, NAME_None, LOCTEXT("Toolbar_ApplyCompression", "Apply Compression"));
-
-				{
-					ToolbarBuilder.AddComboButton(
-						FUIAction(),
-						FOnGetContent::CreateSP(this, &FAnimationEditor::GenerateExportAssetMenu),
-						LOCTEXT("ExportAsset_Label", "Export Asset"),
-						LOCTEXT("ExportAsset_ToolTip", "Export Assets for this skeleton."),
-						FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.ExportToFBX")
-					);
-				}
-			}
-			ToolbarBuilder.EndSection();
-
-			ToolbarBuilder.BeginSection("Editing");
-			{
-				ToolbarBuilder.AddToolBarButton(FAnimationEditorCommands::Get().SetKey, NAME_None, LOCTEXT("Toolbar_SetKey", "Key"));
-			}
-			ToolbarBuilder.EndSection();
-
 			TSharedRef<class IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(AnimationAsset);
 			AddToolbarWidget(PersonaModule.CreateAssetFamilyShortcutWidget(SharedThis(this), AssetFamily));
 		}	
@@ -292,35 +326,26 @@ void FAnimationEditor::ExtendMenu()
 {
 	MenuExtender = MakeShareable(new FExtender);
 
-	struct Local
-	{
-		static void AddAssetMenu(FMenuBuilder& MenuBuilder, FAnimationEditor* InAnimationEditor)
-		{
-			MenuBuilder.BeginSection("AnimationEditor", LOCTEXT("AnimationEditorAssetMenu_Animation", "Animation"));
-			{
-				MenuBuilder.AddMenuEntry(FAnimationEditorCommands::Get().ApplyCompression);
+	FToolMenuOwnerScoped OwnerScoped(this);
 
-				MenuBuilder.AddSubMenu(
-					LOCTEXT("ExportToFBX", "Export to FBX"),
-					LOCTEXT("ExportToFBX_ToolTip", "Export current animation to FBX"),
-					FNewMenuDelegate::CreateSP(InAnimationEditor, &FAnimationEditor::FillExportAssetMenu),
-					false,
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "ClassIcon.")
-				);
+	// Add in Editor Specific functionality
+	UToolMenu* ToolMenu = UToolMenus::Get()->ExtendMenu("AssetEditor.AnimationEditor.MainMenu.Asset");
+	const FToolMenuInsert SectionInsertLocation("AssetEditorActions", EToolMenuInsertType::After);
 
-				MenuBuilder.AddMenuEntry(FAnimationEditorCommands::Get().AddLoopingInterpolation);
-				MenuBuilder.AddMenuEntry(FAnimationEditorCommands::Get().RemoveBoneTracks);
-			}
-			MenuBuilder.EndSection();
-		}
-	};
+	FToolMenuSection& AnimationSection = ToolMenu->AddSection("AnimationEditor", LOCTEXT("AnimationEditorAssetMenu_Animation", "Animation"), SectionInsertLocation);
+	AnimationSection.AddEntry(FToolMenuEntry::InitMenuEntry(FAnimationEditorCommands::Get().ApplyCompression));
+	
+	AnimationSection.AddEntry(FToolMenuEntry::InitSubMenu(
+		"ExportAsset",
+		LOCTEXT("ExportAsset_Label", "Export Asset"),
+		LOCTEXT("ExportAsset_ToolTip", "Export Assets for this skeleton."),
+		FNewToolMenuChoice(FNewMenuDelegate::CreateSP(this, &FAnimationEditor::FillExportAssetMenu)),
+		false,
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.ExportToFBX")
+	));
 
-	MenuExtender->AddMenuExtension(
-		"AssetEditorActions",
-		EExtensionHook::After,
-		GetToolkitCommands(),
-		FMenuExtensionDelegate::CreateStatic(&Local::AddAssetMenu, this)
-		);
+	AnimationSection.AddEntry(FToolMenuEntry::InitMenuEntry(FAnimationEditorCommands::Get().AddLoopingInterpolation));
+	AnimationSection.AddEntry(FToolMenuEntry::InitMenuEntry(FAnimationEditorCommands::Get().RemoveBoneTracks));
 
 	AddMenuExtender(MenuExtender);
 

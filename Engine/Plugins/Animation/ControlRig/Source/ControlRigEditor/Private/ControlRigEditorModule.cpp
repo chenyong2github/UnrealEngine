@@ -125,6 +125,7 @@
 #include "ControlRigSpaceChannelEditors.h"
 #include "UserDefinedStructure/UserDefinedStructEditorData.h"
 #include "UObject/FieldIterator.h"
+#include "AnimationToolMenuContext.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMUserWorkflowRegistry.h"
 #include "Units/ControlRigNodeWorkflow.h"
@@ -201,12 +202,7 @@ void FControlRigEditorModule::StartupModule()
 	SequencerModule.RegisterChannelInterface<FMovieSceneControlRigSpaceChannel>();
 	ControlRigParameterTrackCreateEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FControlRigParameterTrackEditor::CreateTrackEditor));
 
-	//Register Animation Toolbar Extender
-	IAnimationEditorModule& AnimationEditorModule = FModuleManager::Get().LoadModuleChecked<IAnimationEditorModule>("AnimationEditor");
-	auto& ToolbarExtenders = AnimationEditorModule.GetAllAnimationEditorToolbarExtenders();
-
-	ToolbarExtenders.Add(IAnimationEditorModule::FAnimationEditorToolbarExtender::CreateRaw(this, &FControlRigEditorModule::GetAnimationEditorToolbarExtender));
-	AnimationEditorExtenderHandle = ToolbarExtenders.Last().GetHandle();
+	AddControlRigExtenderToToolMenu("AssetEditor.AnimationEditor.ToolBar");
 
 	FEditorModeRegistry::Get().RegisterMode<FControlRigEditMode>(
 		FControlRigEditMode::ModeName,
@@ -323,13 +319,6 @@ void FControlRigEditorModule::ShutdownModule()
 		}
 	}
 
-	IAnimationEditorModule* AnimationEditorModule = FModuleManager::Get().GetModulePtr<IAnimationEditorModule>("AnimationEditor");
-	if (AnimationEditorModule)
-	{
-		typedef IAnimationEditorModule::FAnimationEditorToolbarExtender DelegateType;
-		AnimationEditorModule->GetAllAnimationEditorToolbarExtenders().RemoveAll([=](const DelegateType& In) { return In.GetHandle() == AnimationEditorExtenderHandle; });
-	}
-
 	if (UObjectInitialized())
 	{
 		for(const int32 WorkflowHandle : WorkflowHandles)
@@ -342,34 +331,6 @@ void FControlRigEditorModule::ShutdownModule()
 	}
 	WorkflowHandles.Reset();
 }
-
-TSharedRef<FExtender> FControlRigEditorModule::GetAnimationEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<IAnimationEditor> InAnimationEditor)
-{
-	TSharedRef<FExtender> Extender = MakeShareable(new FExtender);
-
-	USkeleton* Skeleton = InAnimationEditor->GetPersonaToolkit()->GetSkeleton();
-	USkeletalMesh* SkeletalMesh = InAnimationEditor->GetPersonaToolkit()->GetPreviewMesh();
-	if (!SkeletalMesh) //if no preview mesh just get normal mesh
-	{
-		SkeletalMesh = InAnimationEditor->GetPersonaToolkit()->GetMesh();
-	}
-	if (Skeleton && SkeletalMesh)
-	{
-		UAnimSequence* AnimSequence = Cast<UAnimSequence>(InAnimationEditor->GetPersonaToolkit()->GetAnimationAsset());
-		if (AnimSequence)
-		{
-			Extender->AddToolBarExtension(
-				"Asset",
-				EExtensionHook::After,
-				CommandList,
-				FToolBarExtensionDelegate::CreateRaw(this, &FControlRigEditorModule::HandleAddControlRigExtenderToToolbar, TWeakPtr<IAnimationEditor>(InAnimationEditor))
-			);
-		}
-	}
-
-	return Extender;
-}
-
 
 TSharedRef< SWidget > FControlRigEditorModule::GenerateAnimationMenu(TWeakPtr<IAnimationEditor> InAnimationEditor)
 {
@@ -891,14 +852,36 @@ void FControlRigEditorModule::OpenLevelSequence(UAnimSequence* AnimSequence)
 	}
 }
 
-void FControlRigEditorModule::HandleAddControlRigExtenderToToolbar(FToolBarBuilder& ParentToolbarBuilder, TWeakPtr<IAnimationEditor> InAnimationEditor)
+void FControlRigEditorModule::AddControlRigExtenderToToolMenu(FName InToolMenuName)
 {
-	ParentToolbarBuilder.AddComboButton(
-		FUIAction(),
-		FOnGetContent::CreateRaw(this, &FControlRigEditorModule::GenerateAnimationMenu, InAnimationEditor),
-		LOCTEXT("EditInSequencer", "Edit in Sequencer"),
-		LOCTEXT("EditInSequencer_Tooltip", "Edit this Anim Sequence In Sequencer."),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.EditInSequencer")
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+	UToolMenu* ToolMenu = UToolMenus::Get()->ExtendMenu(InToolMenuName);
+	ToolMenu->AddMenuEntry("Sequencer",
+		FToolMenuEntry::InitComboButton(
+			"EditInSequencer",
+			FToolUIActionChoice(),
+			FNewToolMenuChoice(
+				FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InNewToolMenu)
+				{
+					if (UAnimationToolMenuContext* MenuContext = InNewToolMenu->FindContext<UAnimationToolMenuContext>())
+					{
+						InNewToolMenu->AddMenuEntry(
+							"EditInSequencer", 
+							FToolMenuEntry::InitWidget(
+								"EditInSequencerMenu", 
+								GenerateAnimationMenu(MenuContext->AnimationEditor),
+								FText::GetEmpty(),
+								true, false, true
+							)
+						);
+					}
+				})
+			),
+			LOCTEXT("EditInSequencer", "Edit in Sequencer"),
+			LOCTEXT("EditInSequencer_Tooltip", "Edit this Anim Sequence In Sequencer."),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.EditInSequencer")
+		)
 	);
 }
 

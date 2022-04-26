@@ -120,6 +120,7 @@
 #include "MeshMergeModule.h"
 
 #include "Animation/SkinWeightProfile.h"
+#include "PersonaToolMenuContext.h"
 
 DEFINE_LOG_CATEGORY(LogMeshUtilities);
 /*------------------------------------------------------------------------------
@@ -5555,18 +5556,6 @@ void FMeshUtilities::StartupModule()
 			{
 				AddLevelViewportMenuExtender();
 			}
-			else if (InModuleName == "AnimationBlueprintEditor")
-			{
-				AddAnimationBlueprintEditorToolbarExtender();
-			}
-			else if (InModuleName == "AnimationEditor")
-			{
-				AddAnimationEditorToolbarExtender();
-			}
-			else if (InModuleName == "SkeletonEditor")
-			{
-				AddSkeletonEditorToolbarExtender();
-			}
 		}
 	});
 
@@ -5589,43 +5578,16 @@ void FMeshUtilities::ShutdownModule()
 	}
 
 	RemoveLevelViewportMenuExtender();
-	RemoveAnimationBlueprintEditorToolbarExtender();
-	RemoveAnimationEditorToolbarExtender();
-	RemoveSkeletonEditorToolbarExtender();
 	FModuleManager::Get().OnModulesChanged().Remove(ModuleLoadedDelegateHandle);
 	VersionString.Empty();
 }
 
 void FMeshUtilities::RegisterMenus()
 {
-	FToolMenuOwnerScoped OwnerScoped(this);
-
-	static auto AddMakeStaticMeshToolbarButton = [this](FToolMenuSection& InSection, const FToolMenuExecuteAction& InAction)
-	{
-		InSection.AddEntry(FToolMenuEntry::InitToolBarButton(
-			"MakeStaticMesh",
-			InAction,
-			LOCTEXT("MakeStaticMesh", "Make Static Mesh"),
-			LOCTEXT("MakeStaticMeshTooltip", "Make a new static mesh out of the preview's current pose."),
-			FSlateIcon("EditorStyle", "Persona.ConvertToStaticMesh")
-		));
-	};
-
-	{
-		UToolMenu* Toolbar = UToolMenus::Get()->ExtendMenu("AssetEditor.SkeletalMeshEditor.ToolBar");
-		FToolMenuSection& Section = Toolbar->FindOrAddSection("SkeletalMesh");
-		AddMakeStaticMeshToolbarButton(Section, FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& InMenuContext)
-		{
-			USkeletalMeshToolMenuContext* Context = InMenuContext.FindContext<USkeletalMeshToolMenuContext>();
-			if (Context && Context->SkeletalMeshEditor.IsValid())
-			{
-				if (UMeshComponent* MeshComponent = Context->SkeletalMeshEditor.Pin()->GetPersonaToolkit()->GetPreviewMeshComponent())
-				{
-					ConvertMeshesToStaticMesh(TArray<UMeshComponent*>({ MeshComponent }), MeshComponent->GetComponentToWorld());
-				}
-			}
-		}));
-	}
+	AddMakeStaticMeshEntryToToolMenu("AssetEditor.AnimationEditor.ToolBar");
+	AddMakeStaticMeshEntryToToolMenu("AssetEditor.AnimationBlueprintEditor.ToolBar");
+	AddMakeStaticMeshEntryToToolMenu("AssetEditor.SkeletalMeshEditor.ToolBar");
+	AddMakeStaticMeshEntryToToolMenu("AssetEditor.SkeletonEditor.ToolBar");
 }
 
 bool FMeshUtilities::GenerateUniqueUVsForSkeletalMesh(const FSkeletalMeshLODModel& LODModel, int32 TextureResolution, TArray<FVector2f>& OutTexCoords) const
@@ -6120,142 +6082,30 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 	}
 }
 
-void FMeshUtilities::AddAnimationBlueprintEditorToolbarExtender()
+void FMeshUtilities::AddMakeStaticMeshEntryToToolMenu(FName InToolMenuName)
 {
-	IAnimationBlueprintEditorModule& AnimationBlueprintEditorModule = FModuleManager::Get().LoadModuleChecked<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
-	auto& ToolbarExtenders = AnimationBlueprintEditorModule.GetAllAnimationBlueprintEditorToolbarExtenders();
+	FToolMenuOwnerScoped OwnerScoped(this);
 
-	ToolbarExtenders.Add(IAnimationBlueprintEditorModule::FAnimationBlueprintEditorToolbarExtender::CreateRaw(this, &FMeshUtilities::GetAnimationBlueprintEditorToolbarExtender));
-	AnimationBlueprintEditorExtenderHandle = ToolbarExtenders.Last().GetHandle();
-}
-
-void FMeshUtilities::RemoveAnimationBlueprintEditorToolbarExtender()
-{
-	IAnimationBlueprintEditorModule* AnimationBlueprintEditorModule = FModuleManager::Get().GetModulePtr<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
-	if (AnimationBlueprintEditorModule)
-	{
-		typedef IAnimationBlueprintEditorModule::FAnimationBlueprintEditorToolbarExtender DelegateType;
-		AnimationBlueprintEditorModule->GetAllAnimationBlueprintEditorToolbarExtenders().RemoveAll([=](const DelegateType& In) { return In.GetHandle() == AnimationBlueprintEditorExtenderHandle; });
-	}
-}
-
-TSharedRef<FExtender> FMeshUtilities::GetAnimationBlueprintEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<IAnimationBlueprintEditor> InAnimationBlueprintEditor)
-{
-	TSharedRef<FExtender> Extender = MakeShareable(new FExtender);
-
-	if(InAnimationBlueprintEditor->GetBlueprintObj() && InAnimationBlueprintEditor->GetBlueprintObj()->BlueprintType != BPTYPE_Interface)
-	{
-		UMeshComponent* MeshComponent = InAnimationBlueprintEditor->GetPersonaToolkit()->GetPreviewMeshComponent();
-
-		Extender->AddToolBarExtension(
-			"Asset",
-			EExtensionHook::After,
-			CommandList,
-			FToolBarExtensionDelegate::CreateRaw(this, &FMeshUtilities::HandleAddSkeletalMeshActionExtenderToToolbar, MeshComponent)
-		);
-	}
-
-	return Extender;
-}
-
-void FMeshUtilities::AddAnimationEditorToolbarExtender()
-{
-	IAnimationEditorModule& AnimationEditorModule = FModuleManager::Get().LoadModuleChecked<IAnimationEditorModule>("AnimationEditor");
-	auto& ToolbarExtenders = AnimationEditorModule.GetAllAnimationEditorToolbarExtenders();
-
-	ToolbarExtenders.Add(IAnimationEditorModule::FAnimationEditorToolbarExtender::CreateRaw(this, &FMeshUtilities::GetAnimationEditorToolbarExtender));
-	AnimationEditorExtenderHandle = ToolbarExtenders.Last().GetHandle();
-}
-
-void FMeshUtilities::RemoveAnimationEditorToolbarExtender()
-{
-	IAnimationEditorModule* AnimationEditorModule = FModuleManager::Get().GetModulePtr<IAnimationEditorModule>("AnimationEditor");
-	if (AnimationEditorModule)
-	{
-		typedef IAnimationEditorModule::FAnimationEditorToolbarExtender DelegateType;
-		AnimationEditorModule->GetAllAnimationEditorToolbarExtenders().RemoveAll([=](const DelegateType& In) { return In.GetHandle() == AnimationEditorExtenderHandle; });
-	}
-}
-
-TSharedRef<FExtender> FMeshUtilities::GetAnimationEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<IAnimationEditor> InAnimationEditor)
-{
-	TSharedRef<FExtender> Extender = MakeShareable(new FExtender);
-
-	UMeshComponent* MeshComponent = InAnimationEditor->GetPersonaToolkit()->GetPreviewMeshComponent();
-
-	Extender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		CommandList,
-		FToolBarExtensionDelegate::CreateRaw(this, &FMeshUtilities::HandleAddSkeletalMeshActionExtenderToToolbar, MeshComponent)
-	);
-
-	return Extender;
-}
-
-TSharedRef<FExtender> FMeshUtilities::GetSkeletalMeshEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<ISkeletalMeshEditor> InSkeletalMeshEditor)
-{
-	TSharedRef<FExtender> Extender = MakeShareable(new FExtender);
-
-	UMeshComponent* MeshComponent = InSkeletalMeshEditor->GetPersonaToolkit()->GetPreviewMeshComponent();
-
-	Extender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		CommandList,
-		FToolBarExtensionDelegate::CreateRaw(this, &FMeshUtilities::HandleAddSkeletalMeshActionExtenderToToolbar, MeshComponent)
-	);
-
-	return Extender;
-}
-
-void FMeshUtilities::AddSkeletonEditorToolbarExtender()
-{
-	ISkeletonEditorModule& SkeletonEditorModule = FModuleManager::Get().LoadModuleChecked<ISkeletonEditorModule>("SkeletonEditor");
-	auto& ToolbarExtenders = SkeletonEditorModule.GetAllSkeletonEditorToolbarExtenders();
-
-	ToolbarExtenders.Add(ISkeletonEditorModule::FSkeletonEditorToolbarExtender::CreateRaw(this, &FMeshUtilities::GetSkeletonEditorToolbarExtender));
-	SkeletonEditorExtenderHandle = ToolbarExtenders.Last().GetHandle();
-}
-
-void FMeshUtilities::RemoveSkeletonEditorToolbarExtender()
-{
-	ISkeletonEditorModule* SkeletonEditorModule = FModuleManager::Get().GetModulePtr<ISkeletonEditorModule>("SkeletonEditor");
-	if (SkeletonEditorModule)
-	{
-		typedef ISkeletonEditorModule::FSkeletonEditorToolbarExtender DelegateType;
-		SkeletonEditorModule->GetAllSkeletonEditorToolbarExtenders().RemoveAll([=](const DelegateType& In) { return In.GetHandle() == SkeletonEditorExtenderHandle; });
-	}
-}
-
-TSharedRef<FExtender> FMeshUtilities::GetSkeletonEditorToolbarExtender(const TSharedRef<FUICommandList> CommandList, TSharedRef<ISkeletonEditor> InSkeletonEditor)
-{
-	TSharedRef<FExtender> Extender = MakeShareable(new FExtender);
-
-	UMeshComponent* MeshComponent = InSkeletonEditor->GetPersonaToolkit()->GetPreviewMeshComponent();
-
-	Extender->AddToolBarExtension(
-		"Asset",
-		EExtensionHook::After,
-		CommandList,
-		FToolBarExtensionDelegate::CreateRaw(this, &FMeshUtilities::HandleAddSkeletalMeshActionExtenderToToolbar, MeshComponent)
-	);
-
-	return Extender;
-}
-
-
-void FMeshUtilities::HandleAddSkeletalMeshActionExtenderToToolbar(FToolBarBuilder& ParentToolbarBuilder, UMeshComponent* InMeshComponent)
-{
-	ParentToolbarBuilder.AddToolBarButton(
-		FUIAction(FExecuteAction::CreateLambda([this, InMeshComponent]()
-		{
-			ConvertMeshesToStaticMesh(TArray<UMeshComponent*>({ InMeshComponent }), InMeshComponent->GetComponentToWorld());
-		})),
-		NAME_None,
-		LOCTEXT("MakeStaticMesh", "Make Static Mesh"),
-		LOCTEXT("MakeStaticMeshTooltip", "Make a new static mesh out of the preview's current pose."),
-		FSlateIcon("EditorStyle", "Persona.ConvertToStaticMesh")
+	UToolMenu* ToolMenu = UToolMenus::Get()->ExtendMenu(InToolMenuName);
+	ToolMenu->AddMenuEntry("SkeletalMesh",
+		FToolMenuEntry::InitToolBarButton(
+			"MakeStaticMesh",
+			FToolUIActionChoice(
+				FToolUIAction(FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& InContext)
+				{
+					if(UPersonaToolMenuContext* MenuContext = InContext.FindContext<UPersonaToolMenuContext>())
+					{
+						if(UDebugSkelMeshComponent* MeshComponent = MenuContext->GetPreviewMeshComponent())
+						{
+							ConvertMeshesToStaticMesh(TArray<UMeshComponent*>({ MeshComponent }), MeshComponent->GetComponentToWorld());
+						}
+					}
+				}))
+			),
+			LOCTEXT("MakeStaticMesh", "Make Static Mesh"),
+			LOCTEXT("MakeStaticMeshTooltip", "Make a new static mesh out of the preview's current pose."),
+			FSlateIcon("EditorStyle", "Persona.ConvertToStaticMesh")
+		)
 	);
 }
 

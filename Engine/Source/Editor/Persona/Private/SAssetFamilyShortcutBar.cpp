@@ -26,6 +26,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Styling/ToolBarStyle.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
 
 #define LOCTEXT_NAMESPACE "SAssetFamilyShortcutBar"
 
@@ -520,7 +522,6 @@ void SAssetFamilyShortcutBar::Construct(const FArguments& InArgs, const TSharedR
 	TArray<UClass*> AssetTypes;
 	InAssetFamily->GetAssetTypes(AssetTypes);
 
-	int32 AssetTypeIndex = 0;
 	for (UClass* Class : AssetTypes)
 	{
 		FAssetData AssetData = InAssetFamily->FindAssetOfType(Class);
@@ -529,9 +530,12 @@ void SAssetFamilyShortcutBar::Construct(const FArguments& InArgs, const TSharedR
 		.Padding(0.0f, 4.0f, 16.0f, 4.0f)
 		[
 			SNew(SAssetShortcut, InHostingApp, InAssetFamily, AssetData, ThumbnailPool.ToSharedRef())
+			.Visibility_Lambda([Class]()
+			{
+				IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+				return AssetTools.IsAssetClassSupported(Class) ? EVisibility::Visible : EVisibility::Collapsed;
+			})
 		];
-
-		AssetTypeIndex++;
 	}
 
 	ChildSlot

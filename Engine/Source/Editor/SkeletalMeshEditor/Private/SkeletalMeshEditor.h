@@ -140,7 +140,6 @@ private:
 	void HandleMeshClick(HActor* HitProxy, const FViewportClick& Click);
 
 	// Clothing menu handlers (builds and handles clothing context menu options)
-	void FillMeshClickMenu(FMenuBuilder& MenuBuilder, HActor* HitProxy, const FViewportClick& Click);
 	void FillApplyClothingAssetMenu(FMenuBuilder& MenuBuilder, int32 InLodIndex, int32 InSectionIndex);
 	void FillCreateClothingMenu(FMenuBuilder& MenuBuilder, int32 InLodIndex, int32 InSectionIndex);
 	void FillCreateClothingLodMenu(FMenuBuilder& MenuBuilder, int32 InLodIndex, int32 InSectionIndex);
