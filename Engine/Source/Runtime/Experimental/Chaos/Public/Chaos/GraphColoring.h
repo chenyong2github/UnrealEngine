@@ -49,11 +49,23 @@ class FGraphColoring
 		int32 ThirdNode;
 	};
 
+	struct FGraphTetEdge : FGraph3dEdge
+	{
+		FGraphTetEdge()
+			: FourthNode(INDEX_NONE)
+		{
+		}
+
+		int32 FourthNode;
+	};
+
   public:
 	template<typename T>
 	CHAOS_API static TArray<TArray<int32>> ComputeGraphColoring(const TArray<TVector<int32, 2>>& Graph, const TDynamicParticles<T, 3>& InParticles);
 	template<typename T>
 	CHAOS_API static TArray<TArray<int32>> ComputeGraphColoring(const TArray<TVector<int32, 3>>& Graph, const TDynamicParticles<T, 3>& InParticles);
+	template<typename T>
+	CHAOS_API static TArray<TArray<int32>> ComputeGraphColoring(const TArray<TVector<int32, 4>>& Graph, const TDynamicParticles<T, 3>& InParticles);
 };
 
 }
