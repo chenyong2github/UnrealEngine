@@ -17,6 +17,7 @@
 #if WITH_EDITOR
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
+using namespace UE::DerivedData;
 #endif
 
 #define MAX_LEGACY_REQUESTS_PER_UPDATE		32u		// Legacy IO requests are slow and cause lots of bubbles, so we NEED to limit them.
@@ -149,6 +150,9 @@ DEFINE_LOG_CATEGORY(LogNaniteStreaming);
 
 namespace Nanite
 {
+#if WITH_EDITOR
+	const FValueId NaniteValueId = FValueId::FromName("NaniteStreamingData");
+#endif
 
 // Round up to smallest value greater than or equal to x of the form k*2^s where k < 2^NumSignificantBits.
 // This is the same as RoundUpToPowerOfTwo when NumSignificantBits=1.
@@ -599,7 +603,7 @@ void FStreamingManager::InitRHI()
 	Hierarchy.DataBuffer = AllocatePooledBuffer(FRDGBufferDesc::CreateByteAddressDesc(4), TEXT("Nanite.StreamingManager.HierarchyDataInitial"));
 
 #if WITH_EDITOR
-	RequestOwner = new UE::DerivedData::FRequestOwner(UE::DerivedData::EPriority::Normal);
+	RequestOwner = new FRequestOwner(EPriority::Normal);
 #endif
 }
 
@@ -1495,8 +1499,44 @@ uint32 FStreamingManager::DetermineReadyPages()
 			FPendingPage& PendingPage = PendingPages[ PendingPageIndex ];
 			
 #if WITH_EDITOR
-			if (!PendingPage.bReady)
+			if (PendingPage.State == FPendingPage::EState::Ready)
 			{
+				if (PendingPage.RetryCount > 0)
+				{
+					FResources** Resources = RuntimeResourceMap.Find(PendingPage.InstallKey.RuntimeResourceID);
+					if (Resources)
+					{
+						UE_LOG(LogNaniteStreaming, Error, TEXT("Nanite DDC retry succeeded for '%s' (Page %d) on %d attempt."), *(*Resources)->ResourceName, PendingPage.InstallKey.PageIndex, PendingPage.RetryCount);
+					}
+				}
+			}
+			else if (PendingPage.State == FPendingPage::EState::Pending)
+			{
+				break;
+			}
+			else if (PendingPage.State == FPendingPage::EState::Failed)
+			{
+				FResources** Resources = RuntimeResourceMap.Find(PendingPage.InstallKey.RuntimeResourceID);
+				if (Resources)
+				{
+					// Resource is still there. Retry the request.
+					PendingPage.State = FPendingPage::EState::Pending;
+					PendingPage.RetryCount++;
+					
+					if(PendingPage.RetryCount == 0)	// Only warn on first retry to prevent spam
+					{
+						UE_LOG(LogNaniteStreaming, Error, TEXT("Nanite DDC request failed for '%s' (Page %d). Retrying..."), *(*Resources)->ResourceName, PendingPage.InstallKey.PageIndex);
+					}
+
+					const FPageStreamingState& PageStreamingState = (*Resources)->PageStreamingStates[PendingPage.InstallKey.PageIndex];
+					FCacheGetChunkRequest Request = BuildDDCRequest(**Resources, PageStreamingState, PendingPageIndex);
+					RequestDDCData(MakeArrayView(&Request, 1));
+				}
+				else
+				{
+					// Resource is no longer there. Just mark as ready so it will be skipped in InstallReadyPages
+					PendingPage.State = FPendingPage::EState::Ready;
+				}
 				break;
 			}
 #else
@@ -1887,7 +1927,6 @@ void FStreamingManager::AsyncUpdate()
 	uint32 MaxSelectedPages = MaxPendingPages - NumPendingPages;
 	if( PrioritizedRequestsHeap.Num() > 0 )
 	{
-		using namespace UE::DerivedData;
 #if WITH_EDITOR
 		TArray<FCacheGetChunkRequest> DDCRequests;
 		DDCRequests.Reserve(MaxSelectedPages);
@@ -1942,10 +1981,6 @@ void FStreamingManager::AsyncUpdate()
 
 			FIoBatch Batch;
 			FPendingPage* LastPendingPage = nullptr;
-
-#if WITH_EDITOR
-			const FValueId NaniteValueId = FValueId::FromName("NaniteStreamingData");
-#endif
 				
 			// Register Pages
 			{
@@ -2009,24 +2044,11 @@ void FStreamingManager::AsyncUpdate()
 #if WITH_EDITOR
 					if((*Resources)->ResourceFlags & NANITE_RESOURCE_FLAG_STREAMING_DATA_IN_DDC)
 					{
-						FCacheKey Key;
-						Key.Bucket = FCacheBucket(TEXT("StaticMesh"));
-						Key.Hash = (*Resources)->DDCKeyHash;
-
-						check(!(*Resources)->DDCRawHash.IsZero());
-
-						FCacheGetChunkRequest Request;
-						Request.Id = NaniteValueId;
-						Request.Key = Key;
-						Request.RawOffset = PageStreamingState.BulkOffset;
-						Request.RawSize = PageStreamingState.BulkSize;
-						Request.RawHash = (*Resources)->DDCRawHash;
-						Request.UserData = NextPendingPageIndex;
-						DDCRequests.Add(Request);
+						DDCRequests.Add(BuildDDCRequest(**Resources, PageStreamingState, NextPendingPageIndex));
 					}
 					else
 					{
-						PendingPage.bReady = true;
+						PendingPage.State = FPendingPage::EState::Ready;
 					}
 #else
 					PendingPage.MemoryPtr = PendingPageStagingMemory.GetData() + NextPendingPageIndex * NANITE_MAX_PAGE_DISK_SIZE;
@@ -2077,21 +2099,7 @@ void FStreamingManager::AsyncUpdate()
 #if WITH_EDITOR
 			if (DDCRequests.Num() > 0)
 			{
-				FRequestBarrier Barrier(*RequestOwner);	// This is a critical section on the owner. It does not constrain ordering
-				GetCache().GetChunks(DDCRequests, *RequestOwner,
-					[this](FCacheGetChunkResponse&& Response)
-					{
-						if(Response.Status == EStatus::Ok)
-						{
-							const uint32 PendingPageIndex = (uint32)Response.UserData;
-							PendingPages[PendingPageIndex].SharedBuffer = MoveTemp(Response.RawData);
-							PendingPages[PendingPageIndex].bReady = true;
-						}
-						else
-						{
-							UE_LOG(LogNaniteStreaming, Error, TEXT("DDC request failed."));
-						}
-					});
+				RequestDDCData(DDCRequests);
 				DDCRequests.Empty();
 			}
 #else
@@ -2374,6 +2382,46 @@ void FStreamingManager::RecordGPURequests()
 				PageRequestRecordMap.Add(Request.Key, Request.Priority);
 		}
 	}
+}
+
+FCacheGetChunkRequest FStreamingManager::BuildDDCRequest(const FResources& Resources, const FPageStreamingState& PageStreamingState, const uint32 PendingPageIndex)
+{
+	FCacheKey Key;
+	Key.Bucket = FCacheBucket(TEXT("StaticMesh"));
+	Key.Hash = Resources.DDCKeyHash;
+	check(!Resources.DDCRawHash.IsZero());
+
+	FCacheGetChunkRequest Request;
+	Request.Id			= NaniteValueId;
+	Request.Key			= Key;
+	Request.RawOffset	= PageStreamingState.BulkOffset;
+	Request.RawSize		= PageStreamingState.BulkSize;
+	Request.RawHash		= Resources.DDCRawHash;
+	Request.UserData	= PendingPageIndex;
+	return Request;
+}
+
+void FStreamingManager::RequestDDCData(TConstArrayView<FCacheGetChunkRequest> DDCRequests)
+{
+	FRequestBarrier Barrier(*RequestOwner);	// This is a critical section on the owner. It does not constrain ordering
+	GetCache().GetChunks(DDCRequests, *RequestOwner,
+		[this](FCacheGetChunkResponse&& Response)
+		{
+			const uint32 PendingPageIndex = (uint32)Response.UserData;
+			FPendingPage& PendingPage = PendingPages[PendingPageIndex];
+
+			//const bool bRandomFalure = FMath::RandHelper(16) == 0;
+			const bool bRandomFalure = false;
+			if (Response.Status == EStatus::Ok && !bRandomFalure)
+			{
+				PendingPage.SharedBuffer = MoveTemp(Response.RawData);
+				PendingPage.State = FPendingPage::EState::Ready;
+			}
+			else
+			{
+				PendingPage.State = FPendingPage::EState::Failed;
+			}
+		});
 }
 
 #endif // WITH_EDITOR

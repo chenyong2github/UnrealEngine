@@ -265,6 +265,7 @@ struct FResources
 	uint32	PersistentHash			= NANITE_INVALID_PERSISTENT_HASH;
 
 #if WITH_EDITOR
+	FString							ResourceName;
 	FIoHash							DDCKeyHash;
 	FIoHash							DDCRawHash;
 

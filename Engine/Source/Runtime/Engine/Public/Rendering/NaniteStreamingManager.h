@@ -13,6 +13,7 @@ namespace UE
 	namespace DerivedData
 	{
 		class FRequestOwner; // Can't include DDC headers from here, so we have to forward declare
+		struct FCacheGetChunkRequest;
 	}
 }
 
@@ -89,7 +90,13 @@ struct FPendingPage
 {
 #if WITH_EDITOR
 	FSharedBuffer			SharedBuffer;
-	bool					bReady = false;
+	enum class EState
+	{
+		Pending,
+		Ready,
+		Failed,
+	} State = EState::Pending;
+	uint32					RetryCount = 0;
 #else
 	uint8*					MemoryPtr = nullptr;
 	FIoRequest				Request;
@@ -299,6 +306,8 @@ private:
 
 #if WITH_EDITOR
 	void RecordGPURequests();
+	UE::DerivedData::FCacheGetChunkRequest BuildDDCRequest(const FResources& Resources, const FPageStreamingState& PageStreamingState, const uint32 PendingPageIndex);
+	void RequestDDCData(TConstArrayView<UE::DerivedData::FCacheGetChunkRequest> DDCRequests);
 #endif
 };
 
