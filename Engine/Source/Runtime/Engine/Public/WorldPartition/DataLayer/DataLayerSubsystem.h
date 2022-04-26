@@ -49,6 +49,10 @@ public:
 	virtual void Deinitialize() override;
 	//~ End USubsystem Interface.
 
+protected:
+	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
+
+public:
 	//~ Begin Blueprint callable functions
 
 	/** Find a Data Layer by its asset. */

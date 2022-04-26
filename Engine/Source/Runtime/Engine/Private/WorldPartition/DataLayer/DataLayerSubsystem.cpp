@@ -80,6 +80,12 @@ void UDataLayerSubsystem::Deinitialize()
 #endif
 }
 
+bool UDataLayerSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
+{
+	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::Inactive;
+}
+
+
 const TSet<FName>& UDataLayerSubsystem::GetEffectiveActiveDataLayerNames() const
 {
 	static TSet<FName> EmptySet;
