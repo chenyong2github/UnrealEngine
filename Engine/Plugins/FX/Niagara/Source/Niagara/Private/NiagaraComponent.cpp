@@ -1359,7 +1359,13 @@ void UNiagaraComponent::PostSystemTick_GameThread()
 #if WITH_EDITOR
 	if (SystemInstanceController->HandleNeedsUIResync())
 	{
-		OnSynchronizedWithAssetParametersDelegate.Broadcast();
+		for (UNiagaraDataInterface* OverrideDataInterface : OverrideParameters.GetDataInterfaces())
+		{
+			if (OverrideDataInterface != nullptr)
+			{
+				OverrideDataInterface->RefreshErrors();
+			}
+		}
 	}
 #endif
 
