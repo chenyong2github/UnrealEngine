@@ -17,6 +17,7 @@
 #include "SystemTextures.h"
 #include "TextureLayout.h"
 #include "CommonRenderResources.h"
+#include "ScreenPass.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogRectLightTextureManager, Log, All);
 

@@ -140,3 +140,13 @@ void FMediaIOCoreTextureSampleBase::SetDestructionCallback(TFunction<void(TRefCo
 {
 	DestructionCallback = InDestructionCallback;
 }
+
+void FMediaIOCoreTextureSampleBase::ShutdownPoolable()
+{
+	if (DestructionCallback)
+	{
+		DestructionCallback(Texture);
+	}
+
+	FreeSample();
+}

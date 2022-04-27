@@ -1,12 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
 #include "InstancedStructDetails.h"
+#include "EdGraphSchema_K2.h"
 
 class IPropertyHandle;
 class IDetailPropertyRow;
+class SInlineEditableTextBlock;
 
 /**
  * Type customization for FInstancedPropertyBag.

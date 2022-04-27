@@ -17,7 +17,7 @@ class IMediaPlayer;
 class UCameraComponent;
 class UImgMediaPlaybackComponent;
 class UMediaTexture;
-
+class FViewport;
 
 /**
  * Helps manage FImgMediaMipMapInfo objects.

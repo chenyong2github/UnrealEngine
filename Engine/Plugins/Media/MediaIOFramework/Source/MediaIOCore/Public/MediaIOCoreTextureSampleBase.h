@@ -225,15 +225,7 @@ private:
 public:
 	//~ IMediaPoolable interface
 
-	virtual void ShutdownPoolable() override
-	{
-		if (DestructionCallback)
-		{
-			DestructionCallback(Texture);
-		}
-
-		FreeSample();
-	}
+	virtual void ShutdownPoolable() override;
 
 protected:
 	virtual void FreeSample()
