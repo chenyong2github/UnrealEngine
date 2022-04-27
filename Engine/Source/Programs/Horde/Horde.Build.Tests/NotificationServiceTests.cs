@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Api;
+using Horde.Build.Issues.Impl;
 using Horde.Build.Models;
 using Horde.Build.Notifications;
 using Horde.Build.Notifications.Impl;
@@ -37,6 +38,7 @@ namespace Horde.Build.Tests
 		public Task NotifyIssueUpdatedAsync(IIssue issue) { throw new NotImplementedException(); }
 		public Task NotifyConfigUpdateFailureAsync(string errorMessage, string fileName, int? change = null, IUser? author = null, string? description = null) { throw new NotImplementedException(); }
 		public Task NotifyDeviceServiceAsync(string message, IDevice? device = null, IDevicePool? pool = null, IStream? stream = null, IJob? job = null, IJobStep? step = null, INode? node = null, IUser? user = null) { throw new NotImplementedException(); }
+		public Task SendIssueReportAsync(IssueReport report) => throw new NotImplementedException();
 	}
 
 	[TestClass]

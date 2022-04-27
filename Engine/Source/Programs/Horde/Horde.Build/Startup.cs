@@ -227,6 +227,24 @@ namespace Horde.Build
 			}
 		}
 
+		class JsonTimeSpanConverter : JsonConverter<TimeSpan>
+		{
+			public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+			{
+				string? str = reader.GetString();
+				if (str == null)
+				{
+					throw new InvalidDataException("Unable to parse TimeSpan");
+				}
+				return TimeSpan.Parse(str, CultureInfo.CurrentCulture);
+			}
+
+			public override void Write(Utf8JsonWriter writer, TimeSpan timeSpan, JsonSerializerOptions options)
+			{
+				writer.WriteStringValue(timeSpan.ToString("c"));
+			}
+		}
+
 		public Startup(IConfiguration configuration)
 		{
 			Configuration = configuration;
@@ -678,6 +696,7 @@ namespace Horde.Build
 			options.Converters.Add(new JsonKnownTypesConverterFactory());
 			options.Converters.Add(new JsonStringIdConverterFactory());
 			options.Converters.Add(new JsonDateTimeConverter());
+			options.Converters.Add(new JsonTimeSpanConverter());
 		}
 
 		public class StorageBackendSettings<T> : IFileSystemStorageOptions, IAwsStorageOptions
