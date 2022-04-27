@@ -13,6 +13,8 @@ class UPoseSearchDatabase;
 struct FPoseSearchIndexAsset;
 class UAnimPreviewInstance;
 class UDebugSkelMeshComponent;
+class UAnimSequence;
+class UBlendSpace;
 
 enum class EPoseSearchFeaturesDrawMode : uint8
 {
@@ -76,6 +78,17 @@ public:
 
 	void OnSetAnimationPreviewMode(EAnimationPreviewMode PreviewMode);
 	bool IsAnimationPreviewMode(EAnimationPreviewMode PreviewMode) const;
+
+	void AddSequenceToDatabase(UAnimSequence* AnimSequence, int InitialGroupIdx = -1);
+	void AddBlendSpaceToDatabase(UBlendSpace* BlendSpace, int InitialGroupIdx = -1);
+	void AddGroupToDatabase();
+
+	void DeleteSequenceFromDatabase(int32 SequenceIdx);
+	void RemoveSequenceFromGroup(int32 SequenceIdx, int32 GroupIdx); 
+	void DeleteBlendSpaceFromDatabase(int32 BlendSpaceIdx);
+	void RemoveBlendSpaceFromGroup(int32 BlendSpaceIdx, int32 GroupIdx);
+	void DeleteGroup(int32 GroupIdx);
+
 
 private:
 	float PlayTime = 0.0f;

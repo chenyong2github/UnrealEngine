@@ -828,17 +828,31 @@ private:
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnDerivedDataRebuildMulticaster);
 	FOnDerivedDataRebuildMulticaster OnDerivedDataRebuild;
+
+	DECLARE_MULTICAST_DELEGATE(FOnAssetChangeMulticaster);
+	FOnDerivedDataRebuildMulticaster OnAssetChange;
+
+	DECLARE_MULTICAST_DELEGATE(FOnGroupChangeMulticaster);
+	FOnDerivedDataRebuildMulticaster OnGroupChange;
 #endif // WITH_EDITOR
 
 public:
 #if WITH_EDITOR
-	typedef FOnDerivedDataRebuildMulticaster::FDelegate FOnDerivedDataRebuild;
 
-	/** Registers a delegate to be called when derived data starts rebuilding */
+	typedef FOnDerivedDataRebuildMulticaster::FDelegate FOnDerivedDataRebuild;
 	void RegisterOnDerivedDataRebuild(const FOnDerivedDataRebuild& Delegate);
 	void UnregisterOnDerivedDataRebuild(void* Unregister);
-
 	void NotifyDerivedDataBuildStarted();
+
+	typedef FOnAssetChangeMulticaster::FDelegate FOnAssetChange;
+	void RegisterOnAssetChange(const FOnAssetChange& Delegate);
+	void UnregisterOnAssetChange(void* Unregister);
+	void NotifyAssetChange();
+
+	typedef FOnGroupChangeMulticaster::FDelegate FOnGroupChange;
+	void RegisterOnGroupChange(const FOnGroupChange& Delegate);
+	void UnregisterOnGroupChange(void* Unregister);
+	void NotifyGroupChange();
 
 	void BeginCacheDerivedData();
 #endif // WITH_EDITOR

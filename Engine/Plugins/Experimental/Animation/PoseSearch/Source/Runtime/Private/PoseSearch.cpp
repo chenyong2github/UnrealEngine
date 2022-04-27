@@ -1675,6 +1675,36 @@ void UPoseSearchDatabase::NotifyDerivedDataBuildStarted()
 	OnDerivedDataRebuild.Broadcast();
 }
 
+void UPoseSearchDatabase::RegisterOnAssetChange(const FOnAssetChange& Delegate)
+{
+	OnAssetChange.Add(Delegate);
+}
+
+void UPoseSearchDatabase::UnregisterOnAssetChange(void* Unregister)
+{
+	OnAssetChange.RemoveAll(Unregister);
+}
+
+void UPoseSearchDatabase::NotifyAssetChange()
+{
+	OnAssetChange.Broadcast();
+}
+
+void UPoseSearchDatabase::RegisterOnGroupChange(const FOnGroupChange& Delegate)
+{
+	OnGroupChange.Add(Delegate);
+}
+
+void UPoseSearchDatabase::UnregisterOnGroupChange(void* Unregister)
+{
+	OnGroupChange.RemoveAll(Unregister);
+}
+
+void UPoseSearchDatabase::NotifyGroupChange()
+{
+	OnGroupChange.Broadcast();
+}
+
 void UPoseSearchDatabase::BeginCacheDerivedData()
 {
 	bool bPerformCache = true;
@@ -1751,11 +1781,14 @@ void UPoseSearchDatabase::PostEditChangeProperty(struct FPropertyChangedEvent& P
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	bool bAssetChange = false;
+
 	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, SimpleSequences))
 	{
 		if (!SimpleSequences.IsEmpty())
 		{
 			CollectSimpleSequences();
+			bAssetChange = true;
 		}
 	}
 
@@ -1764,7 +1797,24 @@ void UPoseSearchDatabase::PostEditChangeProperty(struct FPropertyChangedEvent& P
 		if (!SimpleBlendSpaces.IsEmpty())
 		{
 			CollectSimpleBlendSpaces();
+			bAssetChange = true;
 		}
+	}
+
+	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, Sequences) ||
+		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, BlendSpaces))
+	{
+		bAssetChange = true;
+	}
+
+	if (bAssetChange)
+	{
+		NotifyAssetChange();
+	}
+
+	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, Groups))
+	{
+		NotifyGroupChange();
 	}
 
 	BeginCacheDerivedData();

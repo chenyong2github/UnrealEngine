@@ -48,7 +48,8 @@ public class PoseSearchEditor : ModuleRules
 				"EditorStyle",
 				"DetailCustomizations",
 				"AdvancedPreviewScene",
-				"EditorFramework"
+				"EditorFramework",
+				"ToolWidgets"
 			}
 		);
 	}

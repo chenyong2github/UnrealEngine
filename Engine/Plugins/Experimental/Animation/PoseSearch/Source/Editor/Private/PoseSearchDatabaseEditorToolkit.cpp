@@ -2,6 +2,7 @@
 
 #include "PoseSearchDatabaseEditorToolkit.h"
 #include "SPoseSearchDatabaseViewport.h"
+#include "SPoseSearchDatabaseAssetList.h"
 #include "PoseSearchDatabasePreviewScene.h"
 #include "PoseSearchDatabaseEditorCommands.h"
 #include "PoseSearchDatabaseViewModel.h"
@@ -25,11 +26,13 @@ struct FPoseSearchDatabaseEditorTabs
 	static const FName AssetDetailsID;
 	static const FName ViewportID;
 	static const FName PreviewSettingsID;
+	static const FName AssetTreeViewID;
 };
 
 const FName FPoseSearchDatabaseEditorTabs::AssetDetailsID(TEXT("PoseSearchDatabaseEditorAssetDetailsTabID"));
 const FName FPoseSearchDatabaseEditorTabs::ViewportID(TEXT("PoseSearchDatabaseEditorViewportTabID"));
 const FName FPoseSearchDatabaseEditorTabs::PreviewSettingsID(TEXT("PoseSearchDatabaseEditorPreviewSettingsTabID"));
+const FName FPoseSearchDatabaseEditorTabs::AssetTreeViewID(TEXT("PoseSearchDatabaseEditorAssetTreeViewTabID"));
 
 FPoseSearchDatabaseEditorToolkit::FPoseSearchDatabaseEditorToolkit()
 {
@@ -37,6 +40,12 @@ FPoseSearchDatabaseEditorToolkit::FPoseSearchDatabaseEditorToolkit()
 
 FPoseSearchDatabaseEditorToolkit::~FPoseSearchDatabaseEditorToolkit()
 {
+	UPoseSearchDatabase* DatabaseAsset = ViewModel->GetPoseSearchDatabase();
+	if (IsValid(DatabaseAsset))
+	{
+		DatabaseAsset->UnregisterOnAssetChange(AssetTreeWidget.Get());
+		DatabaseAsset->UnregisterOnGroupChange(AssetTreeWidget.Get());
+	}
 }
 
 const UPoseSearchDatabase* FPoseSearchDatabaseEditorToolkit::GetPoseSearchDatabase() const
@@ -92,6 +101,19 @@ void FPoseSearchDatabaseEditorToolkit::InitAssetEditor(
 		PreviewScene.ToSharedRef());
 	ViewportWidget = SNew(SPoseSearchDatabaseViewport, ViewportArgs);
 
+	AssetTreeWidget = SNew(UE::PoseSearch::SDatabaseAssetTree, ViewModel.ToSharedRef());
+	if (IsValid(DatabaseAsset))
+	{
+		DatabaseAsset->RegisterOnAssetChange(
+			UPoseSearchDatabase::FOnDerivedDataRebuild::CreateSP(
+				AssetTreeWidget.Get(),
+				&UE::PoseSearch::SDatabaseAssetTree::RefreshTreeView, false));
+		DatabaseAsset->RegisterOnGroupChange(
+			UPoseSearchDatabase::FOnDerivedDataRebuild::CreateSP(
+				AssetTreeWidget.Get(),
+				&UE::PoseSearch::SDatabaseAssetTree::RefreshTreeView, false));
+	}
+
 	// Create Asset Details widget
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -107,7 +129,7 @@ void FPoseSearchDatabaseEditorToolkit::InitAssetEditor(
 
 	// Define Editor Layout
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = 
-		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.02")
+		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.04")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -120,7 +142,14 @@ void FPoseSearchDatabaseEditorToolkit::InitAssetEditor(
 					->Split
 					(
 						FTabManager::NewStack()
-						->SetSizeCoefficient(0.65f)
+						->SetSizeCoefficient(0.25f)
+						->AddTab(FPoseSearchDatabaseEditorTabs::AssetTreeViewID, ETabState::OpenedTab)
+						->SetHideTabWell(true)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.4f)
 						->AddTab(FPoseSearchDatabaseEditorTabs::ViewportID, ETabState::OpenedTab)
 						->SetHideTabWell(true)
 					)
@@ -242,15 +271,23 @@ void FPoseSearchDatabaseEditorToolkit::RegisterTabSpawners(const TSharedRef<FTab
 		.SetDisplayName(LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+
+	InTabManager->RegisterTabSpawner(
+		FPoseSearchDatabaseEditorTabs::AssetTreeViewID,
+		FOnSpawnTab::CreateSP(this, &FPoseSearchDatabaseEditorToolkit::SpawnTab_AssetTreeView))
+		.SetDisplayName(LOCTEXT("TreeViewTab", "Tree View"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
 }
 
 void FPoseSearchDatabaseEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
-	// InTabManager->UnregisterTabSpawner(FPoseSearchDatabaseEditorTabs::ViewportID);
+	InTabManager->UnregisterTabSpawner(FPoseSearchDatabaseEditorTabs::ViewportID);
 	InTabManager->UnregisterTabSpawner(FPoseSearchDatabaseEditorTabs::AssetDetailsID);
-	// InTabManager->UnregisterTabSpawner(FPoseSearchDatabaseEditorTabs::PreviewSettingsID);
+	InTabManager->UnregisterTabSpawner(FPoseSearchDatabaseEditorTabs::PreviewSettingsID);
+	InTabManager->UnregisterTabSpawner(FPoseSearchDatabaseEditorTabs::AssetTreeViewID);
 }
 
 FName FPoseSearchDatabaseEditorToolkit::GetToolkitFName() const
@@ -309,8 +346,10 @@ TSharedRef<SDockTab> FPoseSearchDatabaseEditorToolkit::SpawnTab_PreviewSettings(
 {
 	check(Args.GetTabId() == FPoseSearchDatabaseEditorTabs::PreviewSettingsID);
 
-	FAdvancedPreviewSceneModule& AdvancedPreviewSceneModule = FModuleManager::LoadModuleChecked<FAdvancedPreviewSceneModule>("AdvancedPreviewScene");
-	TSharedRef<SWidget> InWidget= AdvancedPreviewSceneModule.CreateAdvancedPreviewSceneSettingsWidget(PreviewScene.ToSharedRef());
+	FAdvancedPreviewSceneModule& AdvancedPreviewSceneModule = 
+		FModuleManager::LoadModuleChecked<FAdvancedPreviewSceneModule>("AdvancedPreviewScene");
+	TSharedRef<SWidget> InWidget = 
+		AdvancedPreviewSceneModule.CreateAdvancedPreviewSceneSettingsWidget(PreviewScene.ToSharedRef());
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Label(LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings"))
@@ -319,6 +358,17 @@ TSharedRef<SDockTab> FPoseSearchDatabaseEditorToolkit::SpawnTab_PreviewSettings(
 		];
 
 	return SpawnedTab;
+}
+
+TSharedRef<SDockTab> FPoseSearchDatabaseEditorToolkit::SpawnTab_AssetTreeView(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == FPoseSearchDatabaseEditorTabs::AssetTreeViewID);
+
+	return SNew(SDockTab)
+		.Label(LOCTEXT("AssetTreeView_Title", "Asset Tree"))
+		[
+			AssetTreeWidget.ToSharedRef()
+		];
 }
 
 void FPoseSearchDatabaseEditorToolkit::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)

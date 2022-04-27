@@ -5,7 +5,7 @@
 #include "PreviewProfileController.h"
 #include "PoseSearchDatabaseEditorCommands.h"
 
-#define LOCTEXT_NAMESPACE "ContextualAnimViewportToolBar"
+#define LOCTEXT_NAMESPACE "PoseSearchDatabaseViewportToolBar"
 
 void SPoseSearchDatabaseViewportToolBar::Construct(
 	const FArguments& InArgs, 

@@ -13,6 +13,11 @@ class SPoseSearchDatabaseViewport;
 class FPoseSearchDatabasePreviewScene;
 class FPoseSearchDatabaseViewModel;
 
+namespace UE::PoseSearch
+{
+	class SDatabaseAssetTree;
+}
+
 class FPoseSearchDatabaseEditorToolkit : public FAssetEditorToolkit, public FNotifyHook
 {
 public:
@@ -46,6 +51,7 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PreviewSettings(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_AssetTreeView(const FSpawnTabArgs& Args);
 
 	void BindCommands();
 	void ExtendToolbar();
@@ -54,6 +60,8 @@ private:
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
 	TSharedPtr<SPoseSearchDatabaseViewport> ViewportWidget;
+
+	TSharedPtr<UE::PoseSearch::SDatabaseAssetTree> AssetTreeWidget;
 
 	TSharedPtr<IDetailsView> EditingAssetWidget;
 

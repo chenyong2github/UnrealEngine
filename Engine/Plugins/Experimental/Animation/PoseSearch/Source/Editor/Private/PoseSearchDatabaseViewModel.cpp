@@ -9,6 +9,7 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/MirrorDataTable.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/BlendSpace.h"
 #include "EngineUtils.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
@@ -22,6 +23,7 @@ FPoseSearchDatabaseViewModel::FPoseSearchDatabaseViewModel()
 
 FPoseSearchDatabaseViewModel::~FPoseSearchDatabaseViewModel()
 {
+	PoseSearchDatabase->UnregisterOnDerivedDataRebuild(this);
 }
 
 void FPoseSearchDatabaseViewModel::AddReferencedObjects(FReferenceCollector& Collector)
@@ -39,10 +41,9 @@ void FPoseSearchDatabaseViewModel::Initialize(
 	RemovePreviewActors();
 
 	PoseSearchDatabase->RegisterOnDerivedDataRebuild(
-		UPoseSearchDatabase::FOnDerivedDataRebuild::CreateLambda([this]()
-	{
-		ResetPreviewActors();
-	}));
+		UPoseSearchDatabase::FOnDerivedDataRebuild::CreateSP(
+			this, 
+			&FPoseSearchDatabaseViewModel::ResetPreviewActors));
 }
 
 void FPoseSearchDatabaseViewModel::ResetPreviewActors()
@@ -229,3 +230,83 @@ bool FPoseSearchDatabaseViewModel::IsAnimationPreviewMode(EAnimationPreviewMode 
 {
 	return AnimationPreviewMode == PreviewMode;
 }
+
+void FPoseSearchDatabaseViewModel::AddSequenceToDatabase(UAnimSequence* AnimSequence, int InitialGroupIdx)
+{
+	FPoseSearchDatabaseSequence& NewDbSequence = PoseSearchDatabase->Sequences.AddDefaulted_GetRef();
+	NewDbSequence.Sequence = AnimSequence;
+	
+	if (InitialGroupIdx >= 0)
+	{
+		const FPoseSearchDatabaseGroup& InitialGroup = PoseSearchDatabase->Groups[InitialGroupIdx];
+		NewDbSequence.GroupTags.AddTag(InitialGroup.Tag);
+	}
+}
+
+void FPoseSearchDatabaseViewModel::AddBlendSpaceToDatabase(UBlendSpace* BlendSpace, int InitialGroupIdx)
+{
+	FPoseSearchDatabaseBlendSpace& NewDbBlendSpace = PoseSearchDatabase->BlendSpaces.AddDefaulted_GetRef();
+	NewDbBlendSpace.BlendSpace = BlendSpace;
+
+	if (InitialGroupIdx >= 0)
+	{
+		const FPoseSearchDatabaseGroup& InitialGroup = PoseSearchDatabase->Groups[InitialGroupIdx];
+		NewDbBlendSpace.GroupTags.AddTag(InitialGroup.Tag);
+	}
+}
+
+void FPoseSearchDatabaseViewModel::AddGroupToDatabase()
+{
+	PoseSearchDatabase->Groups.AddDefaulted();
+}
+
+void FPoseSearchDatabaseViewModel::DeleteSequenceFromDatabase(int32 SequenceIdx)
+{
+	PoseSearchDatabase->Sequences.RemoveAt(SequenceIdx);
+}
+
+void FPoseSearchDatabaseViewModel::RemoveSequenceFromGroup(int32 SequenceIdx, int32 GroupIdx)
+{
+	FPoseSearchDatabaseSequence& DbSequence = PoseSearchDatabase->Sequences[SequenceIdx];
+	FPoseSearchDatabaseGroup& DbGroup = PoseSearchDatabase->Groups[GroupIdx];
+	if (DbGroup.Tag.IsValid())
+	{
+		DbSequence.GroupTags.RemoveTag(DbGroup.Tag);
+	}
+}
+
+void FPoseSearchDatabaseViewModel::DeleteBlendSpaceFromDatabase(int32 BlendSpaceIdx)
+{
+	PoseSearchDatabase->BlendSpaces.RemoveAt(BlendSpaceIdx);
+}
+
+void FPoseSearchDatabaseViewModel::RemoveBlendSpaceFromGroup(int32 BlendSpaceIdx, int32 GroupIdx)
+{
+	FPoseSearchDatabaseBlendSpace& DbBlendSpace = PoseSearchDatabase->BlendSpaces[BlendSpaceIdx];
+	FPoseSearchDatabaseGroup& DbGroup = PoseSearchDatabase->Groups[GroupIdx];
+	if (DbGroup.Tag.IsValid())
+	{
+		DbBlendSpace.GroupTags.RemoveTag(DbGroup.Tag);
+	}
+}
+
+void FPoseSearchDatabaseViewModel::DeleteGroup(int32 GroupIdx)
+{
+	FPoseSearchDatabaseGroup& DbGroup = PoseSearchDatabase->Groups[GroupIdx];
+	
+	if (DbGroup.Tag.IsValid())
+	{
+		for (FPoseSearchDatabaseSequence& Sequence : PoseSearchDatabase->Sequences)
+		{
+			Sequence.GroupTags.RemoveTag(DbGroup.Tag);
+		}
+
+		for (FPoseSearchDatabaseBlendSpace& BlendSpace : PoseSearchDatabase->BlendSpaces)
+		{
+			BlendSpace.GroupTags.RemoveTag(DbGroup.Tag);
+		}
+	}
+
+	PoseSearchDatabase->Groups.RemoveAt(GroupIdx);
+}
+
