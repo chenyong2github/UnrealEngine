@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
-using System.Collections.Generic;
 using System.IO;
 using UnrealBuildBase;
 
@@ -15,35 +14,94 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Keeps track if low level tests executable must build with the Editor.
 		/// </summary>
-		public static bool bTestsRequireEditor = false;
+		internal static bool bTestsRequireEditor = false;
 
 		/// <summary>
 		/// Keeps track if low level tests executable must build with the Engine.
 		/// </summary>
-		public static bool bTestsRequireEngine = false;
+		internal static bool bTestsRequireEngine = false;
 
 		/// <summary>
 		/// Keeps track if low level tests executable must build with the ApplicationCore.
 		/// </summary>
-		public static bool bTestsRequireApplicationCore = false;
+		internal static bool bTestsRequireApplicationCore = false;
 
 		/// <summary>
 		/// Keeps track if low level tests executable must build with the CoreUObject.
 		/// </summary>
-		public static bool bTestsRequireCoreUObject = false;
+		internal static bool bTestsRequireCoreUObject = false;
 
 		/// <summary>
 		/// Keep track of low level test runner module instance.
 		/// </summary>
-		public static ModuleRules? LowLevelTestsRunnerModule;
+		internal static ModuleRules? LowLevelTestsRunnerModule;
 
 		/// <summary>
-		/// Associated tested target of this test target.
+		/// Associated tested target of this test target, if defined.
 		/// </summary>
-		public TargetRules TestedTarget { get; private set; }
+		protected TargetRules? TestedTarget { get; private set; }
 
 		/// <summary>
-		/// TestTargetRules is setup as a program and is linked monolithically .
+		/// Test target override for bCompileAgainstApplicationCore.
+		/// It is set to true if there is any reference to ApplicationCore in the reference chain.
+		/// </summary>
+		public override bool bCompileAgainstApplicationCore
+		{
+			get { return bTestsRequireApplicationCore; }
+			set { bTestsRequireApplicationCore = value; }
+		}
+
+		/// <summary>
+		/// Test target override for bCompileAgainstCoreUObject.
+		/// It is set to true if there is any reference to CoreUObject in the reference chain.
+		/// </summary>
+		public override bool bCompileAgainstCoreUObject
+		{
+			get { return bTestsRequireCoreUObject; }
+			set { bTestsRequireCoreUObject = value; }
+		}
+
+		/// <summary>
+		/// Test target override for bCompileAgainstEngine.
+		/// It is set to true if there is any reference to Engine in the reference chain.
+		/// </summary>
+		public override bool bCompileAgainstEngine
+		{
+			get { return bTestsRequireEngine; }
+			set { bTestsRequireEngine = value; }
+		}
+
+		/// <summary>
+		/// Test target override for bCompileAgainstEditor.
+		/// It is set to true if there is any reference to UnrealEd in the reference chain.
+		/// </summary>
+		public override bool bCompileAgainstEditor
+		{
+			get { return bTestsRequireEditor; }
+			set { bTestsRequireEditor = value; }
+		}
+
+		/// <summary>
+		/// Constructor for TestTargetRules as own target.
+		/// </summary>
+		/// <param name="Target"></param>
+		public TestTargetRules(TargetInfo Target) : base(Target)
+		{
+			SetupCommonProperties(Target);
+
+			bExplicitTestsTargetOverride = this.GetType() != typeof(TestTargetRules);
+
+			ExeBinariesSubFolder = LaunchModuleName = Name + (bExplicitTestsTargetOverride ? string.Empty : "Tests");
+
+			if (bExplicitTestsTargetOverride)
+			{
+				SolutionDirectory = "Programs/LowLevelTests";
+			}
+		}
+
+		/// <summary>
+		/// Constructor for TestTargetRules based on existing target.
+		/// TestTargetRules is setup as a program and is linked monolithically.
 		/// It removes a lot of default compilation behavior in order to produce a minimal test environment.
 		/// </summary>
 		public TestTargetRules(TargetRules TestedTarget, TargetInfo Target) : base(Target)
@@ -53,19 +111,29 @@ namespace UnrealBuildTool
 				throw new BuildException("TestedTarget can't be of type TestTargetRules.");
 			}
 
-			bIsTestTargetOverride = true;
-
 			this.TestedTarget = TestedTarget;
-
-			DefaultBuildSettings = BuildSettingsVersion.V2;
 
 			ExeBinariesSubFolder = Name = TestedTarget.Name + "Tests";
 			TargetSourceFile = File = TestedTarget.File;
-			LaunchModuleName = TestedTarget.LaunchModuleName + "Tests";
+			if (TestedTarget.LaunchModuleName != null)
+			{
+				LaunchModuleName = TestedTarget.LaunchModuleName + "Tests";
+			}
 
 			ManifestFileNames = TestedTarget.ManifestFileNames;
 
 			WindowsPlatform = TestedTarget.WindowsPlatform;
+
+			SetupCommonProperties(Target);
+		}
+
+		private void SetupCommonProperties(TargetInfo Target)
+		{
+			bIsTestTargetOverride = true;
+
+			VSTestRunSettingsFile = FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "LowLevelTests", "vstest.runsettings");
+
+			DefaultBuildSettings = BuildSettingsVersion.V2;
 
 			Type = TargetType.Program;
 			LinkType = TargetLinkType.Monolithic;
@@ -116,17 +184,19 @@ namespace UnrealBuildTool
 			{
 				UndecoratedConfiguration = Target.Configuration;
 
-				string VersionScriptFile = Path.Combine(Directory.GetCurrentDirectory(), @"Developer\LowLevelTestsRunner\Private\Platform\Android\HideSymbols.ldscript");
-				AdditionalLinkerArguments = " -Wl,--version-script=" + VersionScriptFile;
-
 				GlobalDefinitions.Add("USE_ANDROID_INPUT=0");
 				GlobalDefinitions.Add("USE_ANDROID_OPENGL=0");
 				GlobalDefinitions.Add("USE_ANDROID_LAUNCH=0");
 				GlobalDefinitions.Add("USE_ANDROID_JNI=0");
 			}
-			else if (Target.Platform == UnrealTargetPlatform.IOS)
+			else if (Target.Platform == UnrealTargetPlatform.IOS) // TODO: this doesn't compile
 			{
 				GlobalDefinitions.Add("HAS_METAL=0");
+
+				bIsBuildingConsoleApplication = false;
+				// Required for IOS, but needs to fix compilation errors
+				bCompileAgainstApplicationCore = true;
+
 			}
 		}
 	}

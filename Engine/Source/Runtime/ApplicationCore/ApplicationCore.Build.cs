@@ -92,7 +92,7 @@ public class ApplicationCore : ModuleRules
 			);
 		}
 
-		if (!Target.bCompileAgainstApplicationCore)
+		if (!Target.IsTestTarget && !Target.bCompileAgainstApplicationCore)
 		{
 			throw new System.Exception("ApplicationCore cannot be used when Target.bCompileAgainstApplicationCore = false.");
 		}

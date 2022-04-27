@@ -1021,6 +1021,11 @@ namespace UnrealBuildTool
 
 				// Create all the dependency modules - pass through the reference stack so we can check for cycles
 				RecursivelyCreateModulesByName(Rules.PublicDependencyModuleNames, ref PublicDependencyModules, ref bDependsOnVerse, CreateModule, NextReferenceChain, ReferenceStack);
+				if (Rules.Target.IsTestTarget)
+				{
+					// Move the test runner dependency to last position to give it the opportunity to build its special dependencies such as CoreUObject, ApplicationCore etc.
+					MoveTestsRunnerDependencyToLastPosition();
+				}
 				RecursivelyCreateModulesByName(Rules.PrivateDependencyModuleNames, ref PrivateDependencyModules, ref bDependsOnVerse, CreateModule, NextReferenceChain, ReferenceStack);
 				// Dynamic loads aren't considered a reference chain so start with an empty stack
 				RecursivelyCreateModulesByName(Rules.DynamicallyLoadedModuleNames, ref DynamicallyLoadedModules, ref bDependsOnVerse, CreateModule, NextReferenceChain, new List<UEBuildModule>());
@@ -1028,6 +1033,15 @@ namespace UnrealBuildTool
 
 			// pop us off the current stack
 			ReferenceStack.RemoveAt(ReferenceStack.Count - 1);
+		}
+
+		private void MoveTestsRunnerDependencyToLastPosition()
+		{
+			if (Rules.PrivateDependencyModuleNames.Contains("LowLevelTestsRunner"))
+			{
+				Rules.PrivateDependencyModuleNames.Remove("LowLevelTestsRunner");
+				Rules.PrivateDependencyModuleNames.Add("LowLevelTestsRunner");
+			}
 		}
 
 		private static void LogDependencyNameList(string Title, List<string> DependencyNameList)

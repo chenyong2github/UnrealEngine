@@ -1,17 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.IO;
 using UnrealBuildTool;
 
 [SupportedPlatforms("Win64")]
-public class HeadlessChaos : LowLevelTests
+public class HeadlessChaos : TestModuleRules
 {
-	public override string TestName => "HeadlessChaos";
-	public override string TestShortName => "Headless Chaos";
-
-	public override bool UsesCatch2 => false;
-
-	public HeadlessChaos(ReadOnlyTargetRules Target) : base(Target)
+	public HeadlessChaos(ReadOnlyTargetRules Target) : base(Target, false)
 	{
 		PublicIncludePaths.Add("Runtime/Launch/Public");
 
@@ -55,5 +49,7 @@ public class HeadlessChaos : LowLevelTests
 		}
 
 		PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");
+
+		UpdateBuildGraphPropertiesFile(new Metadata("HeadlessChaos", "Headless Chaos"));
 	}
 }

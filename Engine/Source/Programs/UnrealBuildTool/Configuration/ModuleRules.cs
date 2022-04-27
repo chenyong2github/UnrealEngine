@@ -1406,61 +1406,60 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Prepares a module for building a low level tests executable.
-		/// If the target includes all tests or we're building a module as part of a test module chain, then we include the LowLevelTestsRunner dependency.
-		/// We also keep track of any Editor and Engine dependencies and add appropriate global definitions.
+		/// If we're building a module as part of a test module chain and there's a Tests folder with low level tests, then they require the LowLevelTestsRunner dependency.
+		/// We also keep track of any Editor, Engine and other conditionally compiled dependencies.
 		/// </summary>
 		internal void PrepareModuleForTests()
 		{
-			if (!IsTestModule && Target.IsTestTarget)
+			if (Name != "LowLevelTestsRunner" && System.IO.Directory.Exists(TestsDirectory))
 			{
-				if (Name != "LowLevelTestsRunner" && System.IO.Directory.Exists(TestsDirectory))
+				if (!PrivateIncludePathModuleNames.Contains("LowLevelTestsRunner"))
 				{
-					if (!PrivateIncludePathModuleNames.Contains("LowLevelTestsRunner"))
-					{
-						PrivateIncludePathModuleNames.Add("LowLevelTestsRunner");
-					}
+					PrivateIncludePathModuleNames.Add("LowLevelTestsRunner");
 				}
-				else if (Name == "LowLevelTestsRunner")
-				{
-					TestTargetRules.LowLevelTestsRunnerModule = this;
-				}
+			}
+			else if (Name == "LowLevelTestsRunner")
+			{
+				TestTargetRules.LowLevelTestsRunnerModule = this;
+			}
 
-				// If one of these modules is in the dependency graph, we must enable their appropriate global definitions
-				if (Name == "Editor")
-				{
-					TestTargetRules.bTestsRequireEditor = true;
-				}
-				if (Name == "Engine")
-				{
-					TestTargetRules.bTestsRequireEngine = true;
-				}
-				if (Name == "ApplicationCore")
-				{
-					TestTargetRules.bTestsRequireApplicationCore = true;
-				}
-				if (Name == "CoreUObject")
-				{
-					TestTargetRules.bTestsRequireCoreUObject = true;
-				}
+			// If one of these modules is in the dependency graph, we must enable their appropriate global definitions
+			if (Name == "UnrealEd")
+			{
+				// TODO: more support code required...
+				TestTargetRules.bTestsRequireEditor = false;
+			}
+			if (Name == "Engine")
+			{
+				// TODO: more support code required...
+				TestTargetRules.bTestsRequireEngine = false;
+			}
+			if (Name == "ApplicationCore")
+			{
+				TestTargetRules.bTestsRequireApplicationCore = true;
+			}
+			if (Name == "CoreUObject")
+			{
+				TestTargetRules.bTestsRequireCoreUObject = true;
+			}
 
-				if (TestTargetRules.LowLevelTestsRunnerModule != null)
+			if (TestTargetRules.LowLevelTestsRunnerModule != null)
+			{
+				if (TestTargetRules.bTestsRequireEditor && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("UnrealEd"))
 				{
-					if (TestTargetRules.bTestsRequireEditor && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Editor"))
-					{
-						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Editor");
-					}
-					if (TestTargetRules.bTestsRequireEngine && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Engine"))
-					{
-						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Engine");
-					}
-					if (TestTargetRules.bTestsRequireApplicationCore && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("ApplicationCore"))
-					{
-						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("ApplicationCore");
-					}
-					if (TestTargetRules.bTestsRequireCoreUObject && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("CoreUObject"))
-					{
-						TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("CoreUObject");
-					}
+					TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("UnrealEd");
+				}
+				if (TestTargetRules.bTestsRequireEngine && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("Engine"))
+				{
+					TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("Engine");
+				}
+				if (TestTargetRules.bTestsRequireApplicationCore && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("ApplicationCore"))
+				{
+					TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("ApplicationCore");
+				}
+				if (TestTargetRules.bTestsRequireCoreUObject && !TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Contains("CoreUObject"))
+				{
+					TestTargetRules.LowLevelTestsRunnerModule.PrivateDependencyModuleNames.Add("CoreUObject");
 				}
 			}
 		}

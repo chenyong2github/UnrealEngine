@@ -388,7 +388,7 @@ namespace UnrealBuildTool
 		/// <returns>Compiled module rule info</returns>
 		public ModuleRules CreateModuleRules(string ModuleName, ReadOnlyTargetRules Target, string ReferenceChain)
 		{
-			if (Target.IsTestTarget)
+			if (Target.IsTestTarget && !Target.ExplicitTestsTarget)
 			{
 				ModuleName = TargetDescriptor.GetTestedTargetName(ModuleName);
 			}
@@ -510,12 +510,17 @@ namespace UnrealBuildTool
 				}
 				Constructor.Invoke(RulesObject, new object[] { Target });
 
-				if (Target.IsTestTarget && Target.LaunchModuleName != null && ModuleName == TargetDescriptor.GetTestedTargetName(Target.LaunchModuleName))
+				if (Target.IsTestTarget && !RulesObject.IsTestModule)
 				{
-					RulesObject = new TestModuleRules(RulesObject);
+					if (!Target.ExplicitTestsTarget)
+					{
+						if (Target.LaunchModuleName != null && ModuleName == TargetDescriptor.GetTestedTargetName(Target.LaunchModuleName))
+						{
+							RulesObject = new TestModuleRules(RulesObject);
+						}
+					}
+					RulesObject.PrepareModuleForTests();
 				}
-
-				RulesObject.PrepareModuleForTests();
 
 				return RulesObject;
 			}

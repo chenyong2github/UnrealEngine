@@ -1484,6 +1484,15 @@ namespace UnrealBuildTool
 		/// <param name="Receipt">Receipt for the target being deployed</param>
 		public override void Deploy(TargetReceipt Receipt)
 		{
+			new UEDeployWindows().PrepTargetForDeployment(Receipt);
+		}
+	}
+
+	class UEDeployWindows : UEBuildDeploy
+	{
+		public override bool PrepTargetForDeployment(TargetReceipt Receipt)
+		{
+			return base.PrepTargetForDeployment(Receipt);
 		}
 	}
 

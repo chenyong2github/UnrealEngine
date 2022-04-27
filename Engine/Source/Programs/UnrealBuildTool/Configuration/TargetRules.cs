@@ -279,12 +279,41 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool IsTestTarget
 		{
-			get { return bIsTestTargetOverride ?? false; }
+			get { return bIsTestTargetOverride; }
 		}
 		/// <summary>
 		/// Override this boolean flag in inheriting classes for low level test targets.
 		/// </summary>
-		protected bool? bIsTestTargetOverride;
+		protected bool bIsTestTargetOverride;
+
+		/// <summary>
+		/// Whether this is a test target explicitly defined.
+		/// Explicitley defined test targets always inherit from TestTargetRules and define their own tests.
+		/// Implicit test targets are created from existing targets when building with -Mode=Test and they include tests from all dependencies.
+		/// </summary>
+		public bool ExplicitTestsTarget
+		{
+			get { return bExplicitTestsTargetOverride; }
+		}
+		/// <summary>
+		/// This flag is automatically set when classes inherit from TestTargetRules.
+		/// </summary>
+		protected bool bExplicitTestsTargetOverride;
+
+		/// <summary>
+		/// Controls the value of WITH_LOW_LEVEL_TESTS that dictates whether module-specific low level tests are compiled in or not.
+		/// </summary>
+		public bool WithLowLevelTests
+		{
+			get
+			{
+				return (IsTestTarget && !ExplicitTestsTarget) || bWithLowLevelTestsOverride;
+			}
+		}
+		/// <summary>
+		/// Override the value of WithLowLevelTests by setting this to true in inherited classes.
+		/// </summary>
+		protected bool bWithLowLevelTestsOverride;
 
 		/// <summary>
 		/// File containing the general type for this target (not including platform/group)
@@ -711,19 +740,35 @@ namespace UnrealBuildTool
 		/// Enabled for all builds that include the engine project.  Disabled only when building standalone apps that only link with Core.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileAgainstEngine = true;
+		public virtual bool bCompileAgainstEngine
+		{
+			get { return bCompileAgainstEnginePrivate; }
+			set { bCompileAgainstEnginePrivate = value; }
+		}
+		private bool bCompileAgainstEnginePrivate = true;
 
 		/// <summary>
 		/// Enabled for all builds that include the CoreUObject project.  Disabled only when building standalone apps that only link with Core.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileAgainstCoreUObject = true;
+		public virtual bool bCompileAgainstCoreUObject
+		{
+			get { return bCompileAgainstCoreUObjectPrivate; }
+			set { bCompileAgainstCoreUObjectPrivate = value; }
+		}
+		private bool bCompileAgainstCoreUObjectPrivate = true;
+
 
 		/// <summary>
 		/// Enabled for builds that need to initialize the ApplicationCore module. Command line utilities do not normally need this.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileAgainstApplicationCore = true;
+		public virtual bool bCompileAgainstApplicationCore
+		{
+			get { return bCompileAgainstApplicationCorePrivate; }
+			set { bCompileAgainstApplicationCorePrivate = value; }
+		}
+		private bool bCompileAgainstApplicationCorePrivate = true;
 
 		/// <summary>
 		/// Manually specified value for bCompileAgainstEditor.
@@ -735,7 +780,7 @@ namespace UnrealBuildTool
 		/// Mainly drives the value of WITH_EDITOR.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileAgainstEditor
+		public virtual bool bCompileAgainstEditor
 		{
 			set { bCompileAgainstEditorOverride = value; }
 			get { return bCompileAgainstEditorOverride ?? (Type == TargetType.Editor); }
@@ -1957,12 +2002,7 @@ namespace UnrealBuildTool
 		/// <returns>Array of platforms that the target supports</returns>
 		internal UnrealTargetPlatform[] GetSupportedPlatforms()
 		{
-			if (this is TestTargetRules TestTarget)
-			{
-				return TestTarget.TestedTarget.GetSupportedPlatforms();
-			}
-
-			// Otherwise take the SupportedPlatformsAttribute from the first type in the inheritance chain that supports it
+			// Take the SupportedPlatformsAttribute from the first type in the inheritance chain that supports it
 			for (Type? CurrentType = GetType(); CurrentType != null; CurrentType = CurrentType.BaseType)
 			{
 				object[] Attributes = CurrentType.GetCustomAttributes(typeof(SupportedPlatformsAttribute), false);
@@ -2610,6 +2650,7 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bForceCompilePerformanceAutomationTests; }
 		}
+
 		public bool bForceDisableAutomationTests
 		{
 			get { return Inner.bForceDisableAutomationTests; }
@@ -3172,6 +3213,16 @@ namespace UnrealBuildTool
 		public bool IsTestTarget
 		{
 			get { return Inner.IsTestTarget; }
+		}
+
+		public bool ExplicitTestsTarget
+		{
+			get { return Inner.ExplicitTestsTarget; }
+		}
+
+		public bool WithLowLevelTests
+		{
+			get { return Inner.WithLowLevelTests; }
 		}
 
 		/// <summary>

@@ -17,7 +17,7 @@ namespace UnrealBuildTool
 		public override bool PrepTargetForDeployment(TargetReceipt Receipt)
 		{
 			Log.TraceInformation("Deploying now!");
-			return true;
+			return base.PrepTargetForDeployment(Receipt);
 		}
 
 		public static bool GeneratePList(string ProjectDirectory, bool bIsUnrealGame, string GameName, string ProjectName, string InEngineDir, string ExeName)

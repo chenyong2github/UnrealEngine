@@ -295,6 +295,11 @@ namespace UnrealBuildTool
 		public TargetType TargetType;
 
 		/// <summary>
+		/// Whether it's a low level tests target
+		/// </summary>
+		public bool IsTestTarget;
+
+		/// <summary>
 		/// Version information for this target.
 		/// </summary>
 		public BuildVersion Version;
@@ -339,7 +344,8 @@ namespace UnrealBuildTool
 		/// <param name="InConfiguration">Configuration of the target being compiled</param>
 		/// <param name="InVersion">Version information for the target</param>
 		/// <param name="InArchitecture">Architecture information for the target</param>
-		public TargetReceipt(FileReference? InProjectFile, string InTargetName, TargetType InTargetType, UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, BuildVersion InVersion, string InArchitecture)
+		/// <param name="InIsTestTarget">Whether it's a target for low level tests</param>
+		public TargetReceipt(FileReference? InProjectFile, string InTargetName, TargetType InTargetType, UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, BuildVersion InVersion, string InArchitecture, bool InIsTestTarget)
 		{
 			ProjectFile = InProjectFile;
 			ProjectDir = DirectoryReference.FromFile(InProjectFile);
@@ -349,6 +355,7 @@ namespace UnrealBuildTool
 			TargetType = InTargetType;
 			Version = InVersion;
 			Architecture = InArchitecture;
+			IsTestTarget = InIsTestTarget;
 		}
 
 		/// <summary>
@@ -552,9 +559,11 @@ namespace UnrealBuildTool
 				Architecture = "";
 			}
 
+			bool IsTestTarget;
+			RawObject.TryGetBoolField("IsTestTarget", out IsTestTarget);
 
 			// Create the receipt
-			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architecture);
+			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architecture, IsTestTarget);
 
 			// Get the project directory
 			DirectoryReference? ProjectDir = Receipt.ProjectDir;
@@ -719,6 +728,7 @@ namespace UnrealBuildTool
 				Writer.WriteValue("Platform", Platform.ToString());
 				Writer.WriteValue("Configuration", Configuration.ToString());
 				Writer.WriteValue("TargetType", TargetType.ToString());
+				Writer.WriteValue("IsTestTarget", IsTestTarget);
 				Writer.WriteValue("Architecture", Architecture);
 
 				if(ProjectFile != null)

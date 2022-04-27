@@ -63,6 +63,11 @@ namespace UnrealBuildTool
 		public TargetType TargetType;
 
 		/// <summary>
+		/// Is test target?
+		/// </summary>
+		public bool IsTestTarget;
+
+		/// <summary>
 		/// Map of config file keys to values. Makefile will be invalidated if any of these change.
 		/// </summary>
 		public ConfigValueTracker ConfigValueTracker;
@@ -272,6 +277,7 @@ namespace UnrealBuildTool
 			ReceiptFile = Reader.ReadFileReference();
 			ProjectIntermediateDirectory = Reader.ReadDirectoryReferenceNotNull();
 			TargetType = (TargetType)Reader.ReadInt();
+			IsTestTarget = Reader.ReadBool();
 			ConfigValueTracker = new ConfigValueTracker(Reader);
 			bDeployAfterCompile = Reader.ReadBool();
 			bHasProjectScriptPlugin = Reader.ReadBool();
@@ -316,6 +322,7 @@ namespace UnrealBuildTool
 			Writer.WriteFileReference(ReceiptFile);
 			Writer.WriteDirectoryReference(ProjectIntermediateDirectory);
 			Writer.WriteInt((int)TargetType);
+			Writer.WriteBool(IsTestTarget);
 			ConfigValueTracker.Write(Writer);
 			Writer.WriteBool(bDeployAfterCompile);
 			Writer.WriteBool(bHasProjectScriptPlugin);

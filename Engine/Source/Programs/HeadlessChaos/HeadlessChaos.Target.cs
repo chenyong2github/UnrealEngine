@@ -1,19 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System.Collections.Generic;
 
 [SupportedPlatforms("Win64")]
-public class HeadlessChaosTarget : TargetRules
+public class HeadlessChaosTarget : TestTargetRules
 {
 	public HeadlessChaosTarget(TargetInfo Target) : base(Target)
 	{
-		Type = TargetType.Program;
-		LinkType = TargetLinkType.Monolithic;
-
 		ExeBinariesSubFolder = LaunchModuleName = "HeadlessChaos";
-
-		bBuildDeveloperTools = false;
 
 		// HeadlessChaos doesn't ever compile with the engine linked in
 		bCompileAgainstEngine = false;

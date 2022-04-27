@@ -31,21 +31,5 @@ public class LowLevelTestsRunner : ModuleRules
 				"Projects"
 			}
 		);
-
-		if (Target.bCompileAgainstApplicationCore)
-		{
-			if (!PrivateDependencyModuleNames.Contains("ApplicationCore"))
-			{
-				PrivateDependencyModuleNames.Add("ApplicationCore");
-			}
-		}
-
-		if (Target.bCompileAgainstCoreUObject)
-		{
-			if (!PrivateDependencyModuleNames.Contains("CoreUObject"))
-			{
-				PrivateDependencyModuleNames.Add("CoreUObject");
-			}
-		}
 	}
 }
