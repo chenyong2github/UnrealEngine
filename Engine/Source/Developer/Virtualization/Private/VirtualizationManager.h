@@ -134,8 +134,6 @@ private:
 private:
 
 	void ApplySettingsFromConfigFiles(const FConfigFile& ConfigFile);
-	void ApplySettingsFromCmdline();
-	
 	void ApplyDebugSettingsFromFromCmdline();
 
 	void RegisterConsoleCommands();

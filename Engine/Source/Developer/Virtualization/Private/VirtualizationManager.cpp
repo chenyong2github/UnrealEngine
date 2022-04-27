@@ -296,8 +296,6 @@ bool FVirtualizationManager::Initialize(const FInitParams& InitParams)
 	ProjectName = InitParams.ProjectName;
 
 	ApplySettingsFromConfigFiles(InitParams.ConfigFile);
-	
-	ApplySettingsFromCmdline();
 	ApplyDebugSettingsFromFromCmdline();
 
 	// Do this after all of the command line settings have been processed and any 
@@ -738,16 +736,6 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 	}	
 }
 
-void FVirtualizationManager::ApplySettingsFromCmdline()
-{
-	FString CmdlineGraphName;
-	if (FParse::Value(FCommandLine::Get(), TEXT("-BackendGraph="), CmdlineGraphName))
-	{
-		UE_LOG(LogVirtualization, Display, TEXT("Backend graph overriden from the cmdline: '%s'"), *CmdlineGraphName);
-		BackendGraphName = CmdlineGraphName;
-	}
-}
-
 void FVirtualizationManager::ApplyDebugSettingsFromFromCmdline()
 {
 	if (FParse::Param(FCommandLine::Get(), TEXT("VA-SingleThreaded")))
@@ -760,6 +748,13 @@ void FVirtualizationManager::ApplyDebugSettingsFromFromCmdline()
 	{
 		DebugValues.bValidateAfterPush = true;
 		UE_LOG(LogVirtualization, Warning, TEXT("Cmdline has set the virtualization system to pull each payload after pushing to either local or persistent storage"));
+	}
+
+	FString CmdlineGraphName;
+	if (FParse::Value(FCommandLine::Get(), TEXT("-VA-BackendGraph="), CmdlineGraphName))
+	{
+		UE_LOG(LogVirtualization, Display, TEXT("Backend graph overriden from the cmdline: '%s'"), *CmdlineGraphName);
+		BackendGraphName = CmdlineGraphName;
 	}
 
 	FString MissOptions;
