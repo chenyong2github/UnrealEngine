@@ -101,6 +101,10 @@ struct TCircle2
 		return Center.DistanceSquared(Point) < Radius*Radius;
 	}
 
+	bool IsInsideOrOn(const TVector2<RealType>& Point) const
+	{
+		return TVector2<RealType>::DistSquared(Center, Point) <= Radius*Radius;
+	}
 
 	RealType SignedDistance(const TVector2<RealType>& Point) const
 	{
