@@ -99,7 +99,7 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 		// TODO: Apple Silicon supports memoryless
 #if PLATFORM_IOS
 		// Memoryless targets can't have texture views (SRVs or UAVs)
-		if (SourceTexture->Texture.GetStorageMode() != mtlpp::StorageMode::Memoryless)
+		if ([SourceTexture->Texture.GetPtr() storageMode] != MTLStorageModeMemoryless)
 #endif
 		{
 			// Determine the appropriate metal format for the view.
@@ -448,7 +448,7 @@ void FAGXRHICommandContext::ClearUAVWithBlitEncoder(FRHIUnorderedAccessView* Uno
 	check(Type != EAGXRHIClearUAVType::VertexBuffer || EnumHasAnyFlags(SourceBuffer->GetUsage(), BUF_ByteAddressBuffer));
 
 	uint32 AlignedSize = Align(Size, BufferOffsetAlignment);
-	FAGXPooledBufferArgs Args(AlignedSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
+	FAGXPooledBufferArgs Args(AlignedSize, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions);
 	FAGXBuffer Temp = GetAGXDeviceContext().CreatePooledBuffer(Args);
 	uint32* ContentBytes = (uint32*)Temp.GetContents();
 	for (uint32 Element = 0; Element < (AlignedSize >> 2); ++Element)
@@ -597,7 +597,7 @@ void FAGXRHICommandContext::RHICopyToStagingBuffer(FRHIBuffer* SourceBufferRHI, 
 			{
 				AGXSafeReleaseMetalBuffer(ReadbackBuffer);
 			}
-			FAGXPooledBufferArgs ArgsCPU(NumBytes, BUF_Dynamic, mtlpp::StorageMode::Shared);
+			FAGXPooledBufferArgs ArgsCPU(NumBytes, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions);
 			ReadbackBuffer = GetAGXDeviceContext().CreatePooledBuffer(ArgsCPU);
 		}
 

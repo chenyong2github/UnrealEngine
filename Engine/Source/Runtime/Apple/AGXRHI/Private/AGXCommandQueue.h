@@ -60,7 +60,7 @@ typedef NS_OPTIONS(uint64, EAGXFeatures)
 	/** Supports private buffer sub-allocation */
 	EAGXFeaturesPrivateBufferSubAllocation = 1llu << 20llu,
 	/** Supports texture buffers */
-	EAGXFeaturesTextureBuffers = 1llu << 21llu,
+	EAGXFeaturesTextureBuffers_REMOVED = 1llu << 21llu,
 	/** Supports max. compute threads per threadgroup */
 	EAGXFeaturesMaxThreadsPerThreadgroup = 1llu << 22llu,
 	/** Supports parallel render encoders */
@@ -123,9 +123,6 @@ public:
 	
 #pragma mark - Public Command Queue Accessors -
 	
-	/** Converts a Metal v1.1+ resource option to something valid on the current version. */
-	static mtlpp::ResourceOptions GetCompatibleResourceOptions(mtlpp::ResourceOptions Options);
-	
 	/**
 	 * @param InFeature A specific Metal feature to check for.
 	 * @returns True if the requested feature is supported, else false.
@@ -157,6 +154,5 @@ private:
 	TLockFreePointerListLIFO<mtlpp::CommandBufferFence> CommandBufferFences;
 	uint64 ParallelCommandLists;
 	int32 RuntimeDebuggingLevel;
-	static NSUInteger PermittedOptions;
 	static uint64 Features;
 };

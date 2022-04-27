@@ -46,10 +46,7 @@ FAGXShaderPipeline* FAGXComputeShader::GetPipeline()
 		MTLComputePipelineDescriptor* Descriptor = [[MTLComputePipelineDescriptor alloc] init];
 		[Descriptor setLabel:[Func name]];
 		[Descriptor setComputeFunction:Func];
-		if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesTextureBuffers))
-		{
-			[Descriptor setMaxTotalThreadsPerThreadgroup:(NumThreadsX * NumThreadsY * NumThreadsZ)];
-		}
+		[Descriptor setMaxTotalThreadsPerThreadgroup:(NumThreadsX * NumThreadsY * NumThreadsZ)];
 
 		if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesPipelineBufferMutability))
 		{

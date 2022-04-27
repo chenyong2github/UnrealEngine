@@ -440,7 +440,7 @@ public:
 	EAGXBufferUsage AgxUsage;
 	
 	// Storage mode
-	mtlpp::StorageMode Mode;
+	MTLStorageMode StorageMode;
 	
 	// Resource type
 	ERHIResourceType Type;

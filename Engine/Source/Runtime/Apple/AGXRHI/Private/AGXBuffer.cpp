@@ -164,22 +164,21 @@ void FAGXBuffer::SetOwner(class FAGXRHIBuffer* Owner, bool bIsSwap)
 	}
 }
 
-FAGXSubBufferHeap::FAGXSubBufferHeap(NSUInteger Size, NSUInteger Alignment, mtlpp::ResourceOptions Options, FCriticalSection& InPoolMutex)
+FAGXSubBufferHeap::FAGXSubBufferHeap(NSUInteger Size, NSUInteger Alignment, MTLResourceOptions Options, FCriticalSection& InPoolMutex)
 : PoolMutex(InPoolMutex)
 , OutstandingAllocs(0)
 , MinAlign(Alignment)
 , UsedSize(0)
 {
-	Options = (mtlpp::ResourceOptions)FAGXCommandQueue::GetCompatibleResourceOptions(Options);
 	NSUInteger FullSize = Align(Size, Alignment);
 	METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), FullSize, Options)));
 	
-	mtlpp::StorageMode Storage = (mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
 #if PLATFORM_MAC
-	check(Storage != mtlpp::StorageMode::Managed /* Managed memory cannot be safely suballocated! When you overwrite existing data the GPU buffer is immediately disposed of! */);
+	 // Managed resources cannot be safely suballocated.  When you overwrite existing data the GPU buffer is immediately disposed of.
+	check(((Options & MTLResourceStorageModeMask) >> MTLResourceStorageModeShift) != MTLStorageModeManaged);
 #endif
 
-	ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(FullSize, Options));
+	ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(FullSize, mtlpp::ResourceOptions(Options)));
 	check(ParentBuffer.GetPtr());
 	check(ParentBuffer.GetLength() >= FullSize);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
@@ -297,16 +296,6 @@ ns::String FAGXSubBufferHeap::GetLabel() const
 	return ParentBuffer.GetLabel();
 }
 
-mtlpp::StorageMode FAGXSubBufferHeap::GetStorageMode() const
-{
-	return ParentBuffer.GetStorageMode();
-}
-
-mtlpp::CpuCacheMode FAGXSubBufferHeap::GetCpuCacheMode() const
-{
-	return ParentBuffer.GetCpuCacheMode();
-}
-
 NSUInteger FAGXSubBufferHeap::GetSize() const
 {
 	return ParentBuffer.GetLength();
@@ -404,26 +393,24 @@ FAGXBuffer FAGXSubBufferHeap::NewBuffer(NSUInteger length)
 	return Result;
 }
 
-mtlpp::PurgeableState FAGXSubBufferHeap::SetPurgeableState(mtlpp::PurgeableState state)
+MTLPurgeableState FAGXSubBufferHeap::SetPurgeableState(MTLPurgeableState State)
 {
-	return ParentBuffer.SetPurgeableState(state);
+	return [ParentBuffer.GetPtr() setPurgeableState:State];
 }
 
 #pragma mark --
 
-FAGXSubBufferLinear::FAGXSubBufferLinear(NSUInteger Size, NSUInteger Alignment, mtlpp::ResourceOptions Options, FCriticalSection& InPoolMutex)
+FAGXSubBufferLinear::FAGXSubBufferLinear(NSUInteger Size, NSUInteger Alignment, MTLResourceOptions Options, FCriticalSection& InPoolMutex)
 : PoolMutex(InPoolMutex)
 , MinAlign(Alignment)
 , WriteHead(0)
 , UsedSize(0)
 , FreedSize(0)
 {
-	Options = (mtlpp::ResourceOptions)FAGXCommandQueue::GetCompatibleResourceOptions(Options);
 	NSUInteger FullSize = Align(Size, Alignment);
 	METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), FullSize, Options)));
 	
-	mtlpp::StorageMode Storage = (mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
-	ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(FullSize, Options));
+	ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(FullSize, mtlpp::ResourceOptions(Options)));
 	check(ParentBuffer.GetPtr());
 	check(ParentBuffer.GetLength() >= FullSize);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
@@ -468,16 +455,6 @@ void FAGXSubBufferLinear::FreeRange(ns::Range const& Range)
 ns::String FAGXSubBufferLinear::GetLabel() const
 {
 	return ParentBuffer.GetLabel();
-}
-
-mtlpp::StorageMode FAGXSubBufferLinear::GetStorageMode() const
-{
-	return ParentBuffer.GetStorageMode();
-}
-
-mtlpp::CpuCacheMode FAGXSubBufferLinear::GetCpuCacheMode() const
-{
-	return ParentBuffer.GetCpuCacheMode();
 }
 
 NSUInteger FAGXSubBufferLinear::GetSize() const
@@ -531,29 +508,28 @@ FAGXBuffer FAGXSubBufferLinear::NewBuffer(NSUInteger length)
 	return Result;
 }
 
-mtlpp::PurgeableState FAGXSubBufferLinear::SetPurgeableState(mtlpp::PurgeableState state)
+MTLPurgeableState FAGXSubBufferLinear::SetPurgeableState(MTLPurgeableState State)
 {
-	return ParentBuffer.SetPurgeableState(state);
+	return [ParentBuffer.GetPtr() setPurgeableState:State];
 }
 
 #pragma mark --
 
-FAGXSubBufferMagazine::FAGXSubBufferMagazine(NSUInteger Size, NSUInteger ChunkSize, mtlpp::ResourceOptions Options)
+FAGXSubBufferMagazine::FAGXSubBufferMagazine(NSUInteger Size, NSUInteger ChunkSize, MTLResourceOptions Options)
 : MinAlign(ChunkSize)
 , BlockSize(ChunkSize)
 , OutstandingAllocs(0)
 , UsedSize(0)
 {
-	Options = (mtlpp::ResourceOptions)FAGXCommandQueue::GetCompatibleResourceOptions(Options);
-	mtlpp::StorageMode Storage = (mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
 	NSUInteger FullSize = Align(Size, MinAlign);
 	METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), FullSize, Options)));
 	
 #if PLATFORM_MAC
-	check(Storage != mtlpp::StorageMode::Managed /* Managed memory cannot be safely suballocated! When you overwrite existing data the GPU buffer is immediately disposed of! */);
+	 // Managed resources cannot be safely suballocated.  When you overwrite existing data the GPU buffer is immediately disposed of.
+	check(((Options & MTLResourceStorageModeMask) >> MTLResourceStorageModeShift) != MTLStorageModeManaged);
 #endif
 
-	ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(FullSize, Options));
+	ParentBuffer = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(FullSize, mtlpp::ResourceOptions(Options)));
 	check(ParentBuffer.GetPtr());
 	check(ParentBuffer.GetLength() >= FullSize);
 	METAL_FATAL_ASSERT(ParentBuffer, TEXT("Failed to create heap of size %u and resource options %u"), Size, (uint32)Options);
@@ -598,16 +574,6 @@ void FAGXSubBufferMagazine::FreeRange(ns::Range const& Range)
 ns::String FAGXSubBufferMagazine::GetLabel() const
 {
 	return ParentBuffer.GetLabel();
-}
-
-mtlpp::StorageMode FAGXSubBufferMagazine::GetStorageMode() const
-{
-	return ParentBuffer.GetStorageMode();
-}
-
-mtlpp::CpuCacheMode FAGXSubBufferMagazine::GetCpuCacheMode() const
-{
-	return ParentBuffer.GetCpuCacheMode();
 }
 
 NSUInteger FAGXSubBufferMagazine::GetSize() const
@@ -666,9 +632,9 @@ FAGXBuffer FAGXSubBufferMagazine::NewBuffer()
 	return Result;
 }
 
-mtlpp::PurgeableState FAGXSubBufferMagazine::SetPurgeableState(mtlpp::PurgeableState state)
+MTLPurgeableState FAGXSubBufferMagazine::SetPurgeableState(MTLPurgeableState State)
 {
-	return ParentBuffer.SetPurgeableState(state);
+	return [ParentBuffer.GetPtr() setPurgeableState:State];
 }
 
 FAGXRingBufferRef::FAGXRingBufferRef(FAGXBuffer Buf)
@@ -684,7 +650,7 @@ FAGXRingBufferRef::~FAGXRingBufferRef()
 	AGXSafeReleaseMetalBuffer(Buffer);
 }
 
-FAGXSubBufferRing::FAGXSubBufferRing(NSUInteger Size, NSUInteger Alignment, mtlpp::ResourceOptions InOptions)
+FAGXSubBufferRing::FAGXSubBufferRing(NSUInteger Size, NSUInteger Alignment, MTLResourceOptions InOptions)
 : LastFrameChange(0)
 , InitialSize(Align(Size, Alignment))
 , MinAlign(Alignment)
@@ -693,10 +659,10 @@ FAGXSubBufferRing::FAGXSubBufferRing(NSUInteger Size, NSUInteger Alignment, mtlp
 , WriteHead(0)
 , BufferSize(0)
 , Options(InOptions)
-, Storage((mtlpp::StorageMode)((Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift))
 {
-	Options = (mtlpp::ResourceOptions)FAGXCommandQueue::GetCompatibleResourceOptions(Options);
-	check(Storage != mtlpp::StorageMode::Private /* Private memory requires command-buffers and encoders to properly marshal! */);
+	// Private resources require command buffers and encoders to properly marshal.
+	check(0 == (Options & MTLResourceStorageModePrivate));
+
 	FMemory::Memzero(FrameSize);
 }
 
@@ -704,14 +670,6 @@ FAGXSubBufferRing::~FAGXSubBufferRing()
 {
 }
 
-mtlpp::StorageMode FAGXSubBufferRing::GetStorageMode() const
-{
-	return Buffer.IsValid() ? Buffer->Buffer.GetStorageMode() : Storage;
-}
-mtlpp::CpuCacheMode FAGXSubBufferRing::GetCpuCacheMode() const
-{
-	return Buffer.IsValid() ? Buffer->Buffer.GetCpuCacheMode() : ((mtlpp::CpuCacheMode)((Options & mtlpp::ResourceCpuCacheModeMask) >> mtlpp::ResourceCpuCacheModeShift));
-}
 NSUInteger FAGXSubBufferRing::GetSize() const
 {
 	return Buffer.IsValid() ? Buffer->Buffer.GetLength() : InitialSize;
@@ -750,7 +708,7 @@ FAGXBuffer FAGXSubBufferRing::NewBuffer(NSUInteger Size, uint32 Alignment)
 			return NewBuffer;
 		}
 #if PLATFORM_MAC
-		else if (Storage == mtlpp::StorageMode::Managed)
+		else if (0 != (Options & MTLResourceStorageModeManaged))
 		{
 			Submit();
 			Buffer = MakeShared<FAGXRingBufferRef, ESPMode::ThreadSafe>(GetAGXDeviceContext().GetResourceHeap().CreateBuffer(BufferSize, MinAlign, BUF_Dynamic, Options, true));
@@ -828,7 +786,7 @@ void FAGXSubBufferRing::Submit()
 	if (Buffer.IsValid() && WriteHead != SubmitHead)
 	{
 #if PLATFORM_MAC
-		if (Storage == mtlpp::StorageMode::Managed)
+		if (0 != (Options & MTLResourceStorageModeManaged))
 		{
 			check(SubmitHead < WriteHead);
 			ns::Range ModifiedRange(SubmitHead, Align(WriteHead - SubmitHead, MinAlign));
@@ -845,7 +803,7 @@ void FAGXSubBufferRing::Commit(mtlpp::CommandBuffer& CmdBuf)
 	if (Buffer.IsValid() && WriteHead != CommitHead)
 	{
 #if PLATFORM_MAC
-		check(Storage != mtlpp::StorageMode::Managed || CommitHead < WriteHead);
+		check((0 == (Options & MTLResourceStorageModeManaged)) || CommitHead < WriteHead);
 #endif
 		Submit();
 		
@@ -926,8 +884,11 @@ uint32 FAGXBufferPoolPolicyData::GetPoolBucketIndex(CreationArguments Args)
 	
 	check( Size <= BucketSizes[Lower] );
 	check( (Lower == 0 ) || ( Size > BucketSizes[Lower-1] ) );
-	
-	return (int32)Args.Storage * NumPoolBucketSizes + Lower;
+
+	NSUInteger Storage = (Args.Options & MTLResourceStorageModeMask) >> MTLResourceStorageModeShift;
+	check(Storage < NumResourceStorageModes);
+
+	return (int32)(Storage * NumPoolBucketSizes + Lower);
 }
 
 uint32 FAGXBufferPoolPolicyData::GetPoolBucketSize(uint32 Bucket)
@@ -940,13 +901,9 @@ uint32 FAGXBufferPoolPolicyData::GetPoolBucketSize(uint32 Bucket)
 FAGXBuffer FAGXBufferPoolPolicyData::CreateResource(CreationArguments Args)
 {
 	uint32 BufferSize = GetPoolBucketSize(GetPoolBucketIndex(Args));
-	
-	NSUInteger CpuCacheMode = (NSUInteger)Args.CpuCacheMode << mtlpp::ResourceCpuCacheModeShift;
-	NSUInteger StorageMode = (NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift;
-	mtlpp::ResourceOptions ResourceOptions = FAGXCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions(CpuCacheMode | StorageMode | mtlpp::ResourceOptions::HazardTrackingModeUntracked));
-	
-	METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), BufferSize, ResourceOptions)));
-	FAGXBuffer NewBuf(MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(BufferSize, ResourceOptions), true));
+
+	METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), BufferSize, Args.Options)));
+	FAGXBuffer NewBuf(MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(BufferSize, mtlpp::ResourceOptions(Args.Options)), true));
 
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 	AGXLLM::LogAllocBuffer(NewBuf);
@@ -958,7 +915,7 @@ FAGXBuffer FAGXBufferPoolPolicyData::CreateResource(CreationArguments Args)
 
 FAGXBufferPoolPolicyData::CreationArguments FAGXBufferPoolPolicyData::GetCreationArguments(FAGXBuffer const& Resource)
 {
-	return FAGXBufferPoolPolicyData::CreationArguments(Resource.GetLength(), BUF_None, Resource.GetStorageMode(), Resource.GetCpuCacheMode());
+	return FAGXBufferPoolPolicyData::CreationArguments(Resource.GetLength(), BUF_None, [Resource.GetPtr() resourceOptions]);
 }
 
 void FAGXBufferPoolPolicyData::FreeResource(FAGXBuffer& Resource)
@@ -1030,7 +987,7 @@ void FAGXTexturePool::ReleaseTexture(FAGXTexture& Texture)
 	Descriptor.mipmapLevelCount = Texture.GetMipmapLevelCount();
 	Descriptor.sampleCount = Texture.GetSampleCount();
 	Descriptor.arrayLength = Texture.GetArrayLength();
-	Descriptor.resourceOptions = ((NSUInteger)Texture.GetStorageMode() << mtlpp::ResourceStorageModeShift) | ((NSUInteger)Texture.GetCpuCacheMode() << mtlpp::ResourceCpuCacheModeShift);
+	Descriptor.resourceOptions = [Texture.GetPtr() resourceOptions];
 	Descriptor.usage = Texture.GetUsage();
 	Descriptor.freedFrame = GFrameNumberRenderThread;
 	
@@ -1164,7 +1121,7 @@ FAGXResourceHeap::TextureHeapSize FAGXResourceHeap::TextureSizeToIndex(uint32 Si
 	return (TextureHeapSize)Lower;
 }
 
-FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBufferUsageFlags Flags, mtlpp::ResourceOptions Options, bool bForceUnique)
+FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBufferUsageFlags Flags, MTLResourceOptions Options, bool bForceUnique)
 {
 	LLM_SCOPE_METAL(ELLMTagAGX::Buffers);
 	LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::Buffers);
@@ -1176,18 +1133,17 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 	
 	FAGXBuffer Buffer;
 	uint32 BlockSize = Align(Size, Alignment);
-	mtlpp::StorageMode StorageMode = (mtlpp::StorageMode)(((NSUInteger)Options & mtlpp::ResourceStorageModeMask) >> mtlpp::ResourceStorageModeShift);
-	mtlpp::CpuCacheMode CpuMode = (mtlpp::CpuCacheMode)(((NSUInteger)Options & mtlpp::ResourceCpuCacheModeMask) >> mtlpp::ResourceCpuCacheModeShift);
 	
 	// Write combined should be on a case by case basis
-	check(CpuMode == mtlpp::CpuCacheMode::DefaultCache);
+	check(((Options & MTLResourceCPUCacheModeMask) >> MTLResourceCPUCacheModeShift) == MTLCPUCacheModeDefaultCache);
 	
 	if (BlockSize <= 33554432)
 	{
+		MTLStorageMode StorageMode = (MTLStorageMode)((Options & MTLResourceStorageModeMask) >> MTLResourceStorageModeShift);
 		switch (StorageMode)
 		{
 	#if PLATFORM_MAC
-			case mtlpp::StorageMode::Managed:
+			case MTLStorageModeManaged:
 			{
 				// TextureBuffers must be 1024 aligned.
 				check(Alignment == 256 || Alignment == 1024);
@@ -1207,7 +1163,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 				 	}
 				 	if (!Found)
 				 	{
-				 		Found = new FAGXSubBufferLinear(HeapAllocSizes[NumHeapSizes - 1], BufferOffsetAlignment, mtlpp::ResourceOptions((NSUInteger)Options & (mtlpp::ResourceStorageModeMask|mtlpp::ResourceHazardTrackingModeMask)), Mutex);
+				 		Found = new FAGXSubBufferLinear(HeapAllocSizes[NumHeapSizes - 1], BufferOffsetAlignment, Options, Mutex);
 				 		ManagedSubHeaps.Add(Found);
 				 	}
 				 	check(Found);
@@ -1216,7 +1172,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 				 }
 				 else
 				 {
-					Buffer = ManagedBuffers.CreatePooledResource(FAGXPooledBufferArgs(BlockSize, Flags, StorageMode, CpuMode));
+					Buffer = ManagedBuffers.CreatePooledResource(FAGXPooledBufferArgs(BlockSize, Flags, Options));
 					if (GAGXResourcePurgeInPool)
 					{
 						Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
@@ -1228,10 +1184,10 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 				break;
 			}
 	#endif
-			case mtlpp::StorageMode::Private:
-			case mtlpp::StorageMode::Shared:
+			case MTLStorageModePrivate:
+			case MTLStorageModeShared:
 			{
-				AllocTypes Storage = StorageMode != mtlpp::StorageMode::Private ? AllocShared : AllocPrivate;
+				AllocTypes Storage = StorageMode != MTLStorageModePrivate ? AllocShared : AllocPrivate;
 				check(Alignment == 16 || Alignment == 64 || Alignment == 256 || Alignment == 1024);
 
 				static bool bSupportsPrivateBufferSubAllocation = FAGXCommandQueue::SupportsFeature(EAGXFeaturesPrivateBufferSubAllocation);
@@ -1254,7 +1210,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 					
 					if (!Found)
 					{
-						Found = new FAGXSubBufferMagazine(MagazineAllocSizes[i], MagazineSizes[i], mtlpp::ResourceOptions((NSUInteger)Options & (mtlpp::ResourceStorageModeMask|mtlpp::ResourceHazardTrackingModeMask)));
+						Found = new FAGXSubBufferMagazine(MagazineAllocSizes[i], MagazineSizes[i], Options);
 						SmallBuffers[Usage][Storage][i].Add(Found);
 					}
 					check(Found);
@@ -1282,7 +1238,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 					if (!Found)
 					{
 						uint32 MinAlign = PLATFORM_MAC ? 1024 : 64;
-						Found = new FAGXSubBufferHeap(HeapAllocSizes[i], MinAlign, mtlpp::ResourceOptions((NSUInteger)Options & (mtlpp::ResourceStorageModeMask|mtlpp::ResourceHazardTrackingModeMask)), Mutex);
+						Found = new FAGXSubBufferHeap(HeapAllocSizes[i], MinAlign, Options, Mutex);
 						BufferHeaps[Usage][Storage][i].Add(Found);
 					}
 					check(Found);
@@ -1293,7 +1249,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 				else
 				{
 					FScopeLock Lock(&Mutex);
-					Buffer = Buffers[Storage].CreatePooledResource(FAGXPooledBufferArgs(BlockSize, Flags, StorageMode, CpuMode));
+					Buffer = Buffers[Storage].CreatePooledResource(FAGXPooledBufferArgs(BlockSize, Flags, Options));
 					if (GAGXResourcePurgeInPool)
 					{
                    		Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
@@ -1314,7 +1270,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 	else
 	{
 		METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), BlockSize, Options)));
-		mtlpp::Buffer MtlppBuffer([GMtlDevice newBufferWithLength:BlockSize options:(MTLResourceOptions)Options], nullptr, ns::Ownership::Assign);
+		mtlpp::Buffer MtlppBuffer([GMtlDevice newBufferWithLength:BlockSize options:Options], nullptr, ns::Ownership::Assign);
 		Buffer = FAGXBuffer(MoveTemp(MtlppBuffer), false);
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 		AGXLLM::LogAllocBuffer(Buffer);
@@ -1322,7 +1278,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 		INC_MEMORY_STAT_BY(STAT_AGXDeviceBufferMemory, Buffer.GetLength());
 	}
 	
-	if (GAGXBufferZeroFill && Buffer.GetStorageMode() != mtlpp::StorageMode::Private)
+	if (GAGXBufferZeroFill && [Buffer.GetPtr() storageMode] != MTLStorageModePrivate)
 	{
 		FMemory::Memset(((uint8*)Buffer.GetContents()), 0, Buffer.GetLength());
 	}
@@ -1334,7 +1290,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 
 void FAGXResourceHeap::ReleaseBuffer(FAGXBuffer& Buffer)
 {
-	mtlpp::StorageMode StorageMode = Buffer.GetStorageMode();
+	MTLStorageMode StorageMode = [Buffer.GetPtr() storageMode];
 	if (Buffer.IsPooled())
 	{
 		FScopeLock Lock(&Mutex);
@@ -1351,14 +1307,14 @@ void FAGXResourceHeap::ReleaseBuffer(FAGXBuffer& Buffer)
 		switch (StorageMode)
 		{
 	#if PLATFORM_MAC
-			case mtlpp::StorageMode::Managed:
+			case MTLStorageModeManaged:
 			{
 				ManagedBuffers.ReleasePooledResource(Buffer);
 				break;
 			}
 	#endif
-			case mtlpp::StorageMode::Private:
-			case mtlpp::StorageMode::Shared:
+			case MTLStorageModePrivate:
+			case MTLStorageModeShared:
 			{
 				Buffers[(NSUInteger)StorageMode].ReleasePooledResource(Buffer);
 				break;

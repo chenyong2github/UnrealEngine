@@ -576,7 +576,7 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 #if PLATFORM_IOS
 				bUseResolvedTexture = (
 					Surface.MSAATexture && 
-					Surface.MSAATexture.GetStorageMode() == mtlpp::StorageMode::Memoryless && 
+					[Surface.MSAATexture.GetPtr() storageMode] == MTLStorageModeMemoryless && 
 					HighLevelLoadAction == ERenderTargetLoadAction::ELoad);
 #endif
 				
@@ -584,7 +584,7 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				if (Surface.MSAATexture && !bUseResolvedTexture)
 				{
 #if PLATFORM_IOS
-					if (Surface.MSAATexture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
+					if ([Surface.MSAATexture.GetPtr() storageMode] == MTLStorageModeMemoryless)
 					{
 						bMemoryless = true;
 						HighLevelLoadAction = ERenderTargetLoadAction::EClear;
@@ -600,7 +600,7 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				else
 				{
 #if PLATFORM_IOS
-					if (Surface.Texture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
+					if ([Surface.Texture.GetPtr() storageMode] == MTLStorageModeMemoryless)
 					{
 						bMemoryless = true;
 						HighLevelStoreAction = ERenderTargetStoreAction::ENoAction;
@@ -825,7 +825,7 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				const bool bSupportsMSAADepthResolve = GetAGXDeviceContext().SupportsFeature(EAGXFeaturesMSAADepthResolve);
 				bool bDepthTextureMemoryless = false;
 #if PLATFORM_IOS
-				bDepthTextureMemoryless = DepthTexture.GetStorageMode() == mtlpp::StorageMode::Memoryless;
+				bDepthTextureMemoryless = [DepthTexture.GetPtr() storageMode] == MTLStorageModeMemoryless;
 				if (bDepthTextureMemoryless)
 				{
 					[DepthAttachment setLoadAction:MTLLoadActionClear];
@@ -908,7 +908,7 @@ bool FAGXStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTargets
 				
 				bool bStencilMemoryless = false;
 #if PLATFORM_IOS
-				if (StencilTexture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
+				if ([StencilTexture.GetPtr() storageMode] == MTLStorageModeMemoryless)
 				{
 					bStencilMemoryless = true;
 					HighLevelStoreAction = ERenderTargetStoreAction::ENoAction;
@@ -1285,7 +1285,7 @@ bool FAGXStateCache::NeedsToSetRenderTarget(const FRHIRenderPassInfo& InRenderPa
 					
 #if PLATFORM_IOS
 					FAGXTexture& Tex = Surface.MSAATexture ? Surface.MSAATexture : Surface.Texture;
-					if (Tex.GetStorageMode() == mtlpp::StorageMode::Memoryless)
+					if ([Tex.GetPtr() storageMode] == MTLStorageModeMemoryless)
 					{
 						HighLevelStoreAction = ERenderTargetStoreAction::ENoAction;
 					}
@@ -1855,7 +1855,7 @@ void FAGXStateCache::SetRenderStoreActions(FAGXCommandEncoder& CommandEncoder, b
 void FAGXStateCache::FlushVisibilityResults(FAGXCommandEncoder& CommandEncoder)
 {
 #if PLATFORM_MAC
-	if(VisibilityResults && VisibilityResults->Buffer && VisibilityResults->Buffer.GetStorageMode() == mtlpp::StorageMode::Managed && VisibilityWritten && CommandEncoder.IsRenderCommandEncoderActive())
+	if (VisibilityResults && VisibilityResults->Buffer && [VisibilityResults->Buffer.GetPtr() storageMode] == MTLStorageModeManaged && VisibilityWritten && CommandEncoder.IsRenderCommandEncoderActive())
 	{
 		CommandEncoder.EndEncoding();
 		

@@ -429,11 +429,11 @@ void FAGXDeviceContext::BeginFrame()
 void FAGXDeviceContext::ScribbleBuffer(FAGXBuffer& Buffer)
 {
 	static uint8 Fill = 0;
-	if (Buffer.GetStorageMode() != mtlpp::StorageMode::Private)
+	if ([Buffer.GetPtr() storageMode] != MTLStorageModePrivate)
 	{
 		FMemory::Memset(Buffer.GetContents(), Fill++, Buffer.GetLength());
 #if PLATFORM_MAC
-		if (Buffer.GetStorageMode() == mtlpp::StorageMode::Managed)
+		if ([Buffer.GetPtr() storageMode] == MTLStorageModeManaged)
 		{
 			Buffer.DidModify(ns::Range(0, Buffer.GetLength()));
 		}
@@ -688,7 +688,7 @@ void FAGXDeviceContext::ReleaseTexture(FAGXTexture& Texture)
 	{
 		check(Texture);
 		FreeListMutex.Lock();
-        if (Texture.GetStorageMode() == mtlpp::StorageMode::Private)
+        if ([Texture.GetPtr() storageMode] == MTLStorageModePrivate)
         {
             Heap.ReleaseTexture(nullptr, Texture);
 			
@@ -722,8 +722,6 @@ FAGXTexture FAGXDeviceContext::CreateTexture(FAGXSurface* Surface, mtlpp::Textur
 
 FAGXBuffer FAGXDeviceContext::CreatePooledBuffer(FAGXPooledBufferArgs const& Args)
 {
-	NSUInteger CpuResourceOption = ((NSUInteger)Args.CpuCacheMode) << mtlpp::ResourceCpuCacheModeShift;
-	
 	uint32 RequestedBufferOffsetAlignment = BufferOffsetAlignment;
 	
 	if(EnumHasAnyFlags(Args.Flags, BUF_UnorderedAccess | BUF_ShaderResource))
@@ -733,7 +731,7 @@ FAGXBuffer FAGXDeviceContext::CreatePooledBuffer(FAGXPooledBufferArgs const& Arg
 		RequestedBufferOffsetAlignment = BufferBackedLinearTextureOffsetAlignment;
 	}
 	
-    FAGXBuffer Buffer = Heap.CreateBuffer(Args.Size, RequestedBufferOffsetAlignment, Args.Flags, FAGXCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(CpuResourceOption | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))));
+    FAGXBuffer Buffer = Heap.CreateBuffer(Args.Size, RequestedBufferOffsetAlignment, Args.Flags, Args.Options);
 	check(Buffer && Buffer.GetPtr());
 #if METAL_DEBUG_OPTIONS
 	if (GAGXResourcePurgeOnDelete)

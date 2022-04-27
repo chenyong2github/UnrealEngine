@@ -105,20 +105,14 @@ struct FAGXDebugShaderResourceMask
 	FAGXSamplerMask SamplerMask;
 };
 
-#define BUFFER_CACHE_MODE mtlpp::ResourceOptions::CpuCacheModeDefaultCache
-
 #if PLATFORM_MAC
-#define BUFFER_MANAGED_MEM mtlpp::ResourceOptions::StorageModeManaged
-#define BUFFER_STORAGE_MODE mtlpp::StorageMode::Managed
-#define BUFFER_RESOURCE_STORAGE_MANAGED mtlpp::ResourceOptions::StorageModeManaged
-#define BUFFER_DYNAMIC_REALLOC BUF_AnyDynamic
+#define BUFFER_STORAGE_MODE MTLStorageModeManaged
+#define BUFFER_RESOURCE_STORAGE_MANAGED MTLResourceStorageModeManaged
 // How many possible vertex streams are allowed
 const uint32 MaxMetalStreams = 31;
 #else
-#define BUFFER_MANAGED_MEM 0
-#define BUFFER_STORAGE_MODE mtlpp::StorageMode::Shared
-#define BUFFER_RESOURCE_STORAGE_MANAGED mtlpp::ResourceOptions::StorageModeShared
-#define BUFFER_DYNAMIC_REALLOC BUF_AnyDynamic
+#define BUFFER_STORAGE_MODE MTLStorageModeShared
+#define BUFFER_RESOURCE_STORAGE_MANAGED MTLResourceStorageModeShared
 // How many possible vertex streams are allowed
 const uint32 MaxMetalStreams = 30;
 #endif

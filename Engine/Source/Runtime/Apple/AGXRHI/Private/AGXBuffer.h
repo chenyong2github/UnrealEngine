@@ -11,20 +11,21 @@
 
 struct FAGXPooledBufferArgs
 {
-    FAGXPooledBufferArgs() : Size(0), Flags(BUF_None), Storage(mtlpp::StorageMode::Shared), CpuCacheMode(mtlpp::CpuCacheMode::DefaultCache) {}
+	static const MTLResourceOptions SharedStorageResourceOptions  = MTLResourceCPUCacheModeDefaultCache | MTLResourceStorageModeShared  | MTLResourceHazardTrackingModeDefault;
+	static const MTLResourceOptions PrivateStorageResourceOptions = MTLResourceCPUCacheModeDefaultCache | MTLResourceStorageModePrivate | MTLResourceHazardTrackingModeDefault;
+
+    FAGXPooledBufferArgs() : Size(0), Flags(BUF_None), Options(0) {}
 	
-    FAGXPooledBufferArgs(uint32 InSize, EBufferUsageFlags InFlags, mtlpp::StorageMode InStorage, mtlpp::CpuCacheMode InCpuCacheMode = mtlpp::CpuCacheMode::DefaultCache)
+    FAGXPooledBufferArgs(uint32 InSize, EBufferUsageFlags InFlags, MTLResourceOptions InOptions)
 	: Size(InSize)
     , Flags(InFlags)
-	, Storage(InStorage)
-	, CpuCacheMode(InCpuCacheMode)
+	, Options(InOptions)
 	{
 	}
 	
 	uint32 Size;
 	EBufferUsageFlags Flags;
-	mtlpp::StorageMode Storage;
-	mtlpp::CpuCacheMode CpuCacheMode;
+	MTLResourceOptions Options;
 };
 
 class FAGXSubBufferHeap
@@ -32,25 +33,24 @@ class FAGXSubBufferHeap
     friend class FAGXResourceHeap;
     
 public:
-	FAGXSubBufferHeap(NSUInteger Size, NSUInteger Alignment, mtlpp::ResourceOptions, FCriticalSection& PoolMutex);
+	FAGXSubBufferHeap(NSUInteger Size, NSUInteger Alignment, MTLResourceOptions Options, FCriticalSection& PoolMutex);
 	~FAGXSubBufferHeap();
-	
-	ns::String   GetLabel() const;
-    mtlpp::StorageMode  GetStorageMode() const;
-    mtlpp::CpuCacheMode GetCpuCacheMode() const;
-    NSUInteger     GetSize() const;
-    NSUInteger     GetUsedSize() const;
-	NSUInteger	 MaxAvailableSize() const;
-	int64     NumCurrentAllocations() const;
-    bool     CanAllocateSize(NSUInteger Size) const;
 
-    void SetLabel(const ns::String& label);
-	
-    FAGXBuffer NewBuffer(NSUInteger length);
-    mtlpp::PurgeableState SetPurgeableState(mtlpp::PurgeableState state);
-	void FreeRange(ns::Range const& Range);
+	ns::String			GetLabel() const;
+    MTLResourceOptions	GetResourceOptions() const;
+    NSUInteger			GetSize() const;
+    NSUInteger			GetUsedSize() const;
+	NSUInteger			MaxAvailableSize() const;
+	int64				NumCurrentAllocations() const;
+    bool				CanAllocateSize(NSUInteger Size) const;
 
-    void SetOwner(ns::Range const& Range, FAGXRHIBuffer* Owner, bool bIsSwap);
+    void				SetLabel(const ns::String& label);
+
+    FAGXBuffer			NewBuffer(NSUInteger length);
+    MTLPurgeableState	SetPurgeableState(MTLPurgeableState State);
+	void				FreeRange(ns::Range const& Range);
+
+    void				SetOwner(ns::Range const& Range, FAGXRHIBuffer* Owner, bool bIsSwap);
 
 private:
     struct Allocation
@@ -72,21 +72,20 @@ private:
 class FAGXSubBufferLinear
 {
 public:
-	FAGXSubBufferLinear(NSUInteger Size, NSUInteger Alignment, mtlpp::ResourceOptions, FCriticalSection& PoolMutex);
+	FAGXSubBufferLinear(NSUInteger Size, NSUInteger Alignment, MTLResourceOptions Options, FCriticalSection& PoolMutex);
 	~FAGXSubBufferLinear();
 	
-	ns::String   GetLabel() const;
-	mtlpp::StorageMode  GetStorageMode() const;
-	mtlpp::CpuCacheMode GetCpuCacheMode() const;
-	NSUInteger     GetSize() const;
-	NSUInteger     GetUsedSize() const;
-	bool	 CanAllocateSize(NSUInteger Size) const;
+	ns::String			GetLabel() const;
+	MTLResourceOptions	GetResourceOptions() const;
+	NSUInteger			GetSize() const;
+	NSUInteger			GetUsedSize() const;
+	bool				CanAllocateSize(NSUInteger Size) const;
 
-	void SetLabel(const ns::String& label);
+	void				SetLabel(const ns::String& label);
 	
-	FAGXBuffer NewBuffer(NSUInteger length);
-	mtlpp::PurgeableState SetPurgeableState(mtlpp::PurgeableState state);
-	void FreeRange(ns::Range const& Range);
+	FAGXBuffer			NewBuffer(NSUInteger length);
+	MTLPurgeableState	SetPurgeableState(MTLPurgeableState State);
+	void				FreeRange(ns::Range const& Range);
 	
 private:
 	FCriticalSection& PoolMutex;
@@ -100,23 +99,22 @@ private:
 class FAGXSubBufferMagazine
 {
 public:
-	FAGXSubBufferMagazine(NSUInteger Size, NSUInteger ChunkSize, mtlpp::ResourceOptions);
+	FAGXSubBufferMagazine(NSUInteger Size, NSUInteger ChunkSize, MTLResourceOptions Options);
 	~FAGXSubBufferMagazine();
 	
-	ns::String   GetLabel() const;
-    mtlpp::StorageMode  GetStorageMode() const;
-    mtlpp::CpuCacheMode GetCpuCacheMode() const;
-    NSUInteger     GetSize() const;
-    NSUInteger     GetUsedSize() const;
-	NSUInteger	 GetFreeSize() const;
-	int64     NumCurrentAllocations() const;
-    bool     CanAllocateSize(NSUInteger Size) const;
+	ns::String			GetLabel() const;
+    MTLResourceOptions	GetResourceOptions() const;
+    NSUInteger			GetSize() const;
+    NSUInteger			GetUsedSize() const;
+	NSUInteger			GetFreeSize() const;
+	int64				NumCurrentAllocations() const;
+    bool				CanAllocateSize(NSUInteger Size) const;
 
-    void SetLabel(const ns::String& label);
-	void FreeRange(ns::Range const& Range);
+    void				SetLabel(const ns::String& label);
+	void				FreeRange(ns::Range const& Range);
 
-    FAGXBuffer NewBuffer();
-    mtlpp::PurgeableState SetPurgeableState(mtlpp::PurgeableState state);
+    FAGXBuffer			NewBuffer();
+    MTLPurgeableState	SetPurgeableState(MTLPurgeableState State);
 
 private:
 	NSUInteger MinAlign;
@@ -143,23 +141,22 @@ class FAGXResourceHeap;
 class FAGXSubBufferRing
 {
 public:
-	FAGXSubBufferRing(NSUInteger Size, NSUInteger Alignment, mtlpp::ResourceOptions Options);
+	FAGXSubBufferRing(NSUInteger InSize, NSUInteger InAlignment, MTLResourceOptions InOptions);
 	~FAGXSubBufferRing();
 	
-	mtlpp::StorageMode  GetStorageMode() const;
-	mtlpp::CpuCacheMode GetCpuCacheMode() const;
-	NSUInteger     GetSize() const;
+	MTLResourceOptions	GetResourceOptions() const;
+	NSUInteger			GetSize() const;
 	
-	FAGXBuffer NewBuffer(NSUInteger Size, uint32 Alignment);
+	FAGXBuffer			NewBuffer(NSUInteger InSize, uint32 InAlignment);
 	
 	/** Tries to shrink the ring-buffer back toward its initial size, but not smaller. */
-	void Shrink();
+	void				Shrink();
 	
 	/** Submits all outstanding writes to the GPU, coalescing the updates into a single contiguous range. */
-	void Submit();
+	void				Submit();
 	
 	/** Commits a completion handler to the cmd-buffer to release the processed range */
-	void Commit(mtlpp::CommandBuffer& CmdBuffer);
+	void				Commit(mtlpp::CommandBuffer& CmdBuffer);
 	
 private:
 	NSUInteger FrameSize[10];
@@ -170,8 +167,7 @@ private:
 	NSUInteger SubmitHead;
 	NSUInteger WriteHead;
 	NSUInteger BufferSize;
-	mtlpp::ResourceOptions Options;
-	mtlpp::StorageMode Storage;
+	MTLResourceOptions Options;
 	TSharedPtr<FAGXRingBufferRef, ESPMode::ThreadSafe> Buffer;
 	TArray<ns::Range> AllocatedRanges;
 };
@@ -414,7 +410,7 @@ public:
 	
 	void Init(FAGXCommandQueue& Queue);
 	
-    FAGXBuffer CreateBuffer(uint32 Size, uint32 Alignment, EBufferUsageFlags Flags, mtlpp::ResourceOptions Options, bool bForceUnique = false);
+    FAGXBuffer CreateBuffer(uint32 InSize, uint32 InAlignment, EBufferUsageFlags InFlags, MTLResourceOptions InOptions, bool bForceUnique = false);
 	FAGXTexture CreateTexture(mtlpp::TextureDescriptor Desc, FAGXSurface* Surface);
 	
 	void ReleaseBuffer(FAGXBuffer& Buffer);

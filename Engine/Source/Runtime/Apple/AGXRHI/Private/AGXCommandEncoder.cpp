@@ -23,7 +23,7 @@ extern int32 GAGXBufferScribble;
 FAGXCommandEncoder::FAGXCommandEncoder(FAGXCommandList& CmdList, EAGXCommandEncoderType InType)
 : CommandList(CmdList)
 , bSupportsMetalFeaturesSetBytes(CmdList.GetCommandQueue().SupportsFeature(EAGXFeaturesSetBytes))
-, RingBuffer(EncoderRingBufferSize, BufferOffsetAlignment, FAGXCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::HazardTrackingModeUntracked | BUFFER_RESOURCE_STORAGE_MANAGED)))
+, RingBuffer(EncoderRingBufferSize, BufferOffsetAlignment, (MTLResourceCPUCacheModeDefaultCache | BUFFER_RESOURCE_STORAGE_MANAGED | MTLResourceHazardTrackingModeDefault))
 , RenderPassDesc(nil)
 , ParallelRenderCommandEncoder(nil)
 , RenderCommandEncoder(nil)

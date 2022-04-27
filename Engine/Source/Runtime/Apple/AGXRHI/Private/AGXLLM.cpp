@@ -155,7 +155,7 @@ void AGXLLM::LogAllocTexture(mtlpp::TextureDescriptor const& Desc, mtlpp::Textur
 	uint64 Size = static_cast<uint64>(SizeAlign.size);
 	
 #if PLATFORM_IOS
-	bool bMemoryless = (Texture.GetStorageMode() == mtlpp::StorageMode::Memoryless);
+	bool bMemoryless = ([Texture.GetPtr() storageMode] == MTLStorageModeMemoryless);
 	if (!bMemoryless)
 #endif
 	{

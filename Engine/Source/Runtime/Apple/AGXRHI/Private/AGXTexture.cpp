@@ -257,7 +257,7 @@ void FAGXSurface::PrepareTextureView()
 	mtlpp::TextureUsage Usage = (mtlpp::TextureUsage)Texture.GetUsage();
 	bool bMemoryLess = false;
 #if PLATFORM_IOS
-	bMemoryLess = (Texture.GetStorageMode() == mtlpp::StorageMode::Memoryless);
+	bMemoryLess = ([Texture storageMode] == MTLStorageModeMemoryless);
 #endif
 	if(!(Usage & mtlpp::TextureUsage::PixelFormatView) && !bMemoryLess)
 	{
@@ -305,12 +305,7 @@ FAGXTexture FAGXSurface::Reallocate(FAGXTexture InTexture, mtlpp::TextureUsage U
 	Desc.SetMipmapLevelCount(InTexture.GetMipmapLevelCount());
 	Desc.SetSampleCount(InTexture.GetSampleCount());
 	Desc.SetArrayLength(InTexture.GetArrayLength());
-	
-	static mtlpp::ResourceOptions GeneralResourceOption = (mtlpp::ResourceOptions)FAGXCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions::HazardTrackingModeUntracked);
-	
-	Desc.SetResourceOptions(mtlpp::ResourceOptions(((NSUInteger)InTexture.GetCpuCacheMode() << mtlpp::ResourceCpuCacheModeShift) | ((NSUInteger)Texture.GetStorageMode() << mtlpp::ResourceStorageModeShift) | GeneralResourceOption));
-	Desc.SetCpuCacheMode(InTexture.GetCpuCacheMode());
-	Desc.SetStorageMode(InTexture.GetStorageMode());
+	Desc.SetResourceOptions(mtlpp::ResourceOptions([InTexture.GetPtr() resourceOptions]));
 	Desc.SetUsage(mtlpp::TextureUsage(InTexture.GetUsage() | UsageModifier));
 	
 	FAGXTexture NewTex = GetAGXDeviceContext().CreateTexture(this, Desc);
@@ -422,62 +417,48 @@ FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
 	Desc.SetMipmapLevelCount(InDesc.NumMips);
 
 	{
-		Desc.SetUsage(ConvertFlagsToUsage(InDesc.Flags));
-
+		MTLResourceOptions ResourceStorageMode;
 		if (EnumHasAnyFlags(InDesc.Flags, TexCreate_CPUReadback) && !EnumHasAnyFlags(InDesc.Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_FastVRAM))
 		{
-			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::DefaultCache);
 #if PLATFORM_MAC
-			Desc.SetStorageMode(mtlpp::StorageMode::Managed);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeManaged));
+			ResourceStorageMode = MTLResourceStorageModeManaged;
 #else
-			Desc.SetStorageMode(mtlpp::StorageMode::Shared);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeShared));
+			ResourceStorageMode = MTLResourceStorageModeShared;
 #endif
 		}
 		else if (EnumHasAnyFlags(InDesc.Flags, TexCreate_NoTiling) && !EnumHasAnyFlags(InDesc.Flags, TexCreate_FastVRAM | TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_UAV))
 		{
-			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::DefaultCache);
 #if PLATFORM_MAC
-			Desc.SetStorageMode(mtlpp::StorageMode::Managed);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeManaged));
+			ResourceStorageMode = MTLResourceStorageModeManaged;
 #else
-			Desc.SetStorageMode(mtlpp::StorageMode::Shared);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeShared));
+			ResourceStorageMode = MTLResourceStorageModeShared;
 #endif
 		}
 		else if (EnumHasAnyFlags(InDesc.Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget))
 		{
 			check(!(InDesc.Flags & TexCreate_CPUReadback));
-			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::DefaultCache);
 #if PLATFORM_MAC
-			Desc.SetStorageMode(mtlpp::StorageMode::Private);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModePrivate));
+			ResourceStorageMode = MTLResourceStorageModePrivate;
 #else
 			if (GAGXForceIOSTexturesShared)
 			{
-				Desc.SetStorageMode(mtlpp::StorageMode::Shared);
-				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeShared));
+				ResourceStorageMode = MTLResourceStorageModeShared;
 			}
 			else
 			{
-				Desc.SetStorageMode(mtlpp::StorageMode::Private);
-				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModePrivate));
+				ResourceStorageMode = MTLResourceStorageModePrivate;
 			}
 #endif
 		}
 		else
 		{
 			check(!(InDesc.Flags & TexCreate_CPUReadback));
-			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::DefaultCache);
 #if PLATFORM_MAC
-			Desc.SetStorageMode(mtlpp::StorageMode::Private);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModePrivate));
+			ResourceStorageMode = MTLResourceStorageModePrivate;
 #else
 			if (GAGXForceIOSTexturesShared)
 			{
-				Desc.SetStorageMode(mtlpp::StorageMode::Shared);
-				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeShared));
+				ResourceStorageMode = MTLResourceStorageModeShared;
 			}
 			// No private storage for PVRTC as it messes up the blit-encoder usage.
 			// note: this is set to always be on and will be re-addressed in a future release
@@ -485,13 +466,11 @@ FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
 			{
 				if (IsPixelFormatPVRTCCompressed(InDesc.Format))
 				{
-					Desc.SetStorageMode(mtlpp::StorageMode::Shared);
-					Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeShared));
+					ResourceStorageMode = MTLResourceStorageModeShared;
 				}
 				else
 				{
-					Desc.SetStorageMode(mtlpp::StorageMode::Private);
-					Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModePrivate));
+					ResourceStorageMode = MTLResourceStorageModePrivate;
 				}
 			}
 #endif
@@ -503,13 +482,21 @@ FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
 			ensure(EnumHasAnyFlags(InDesc.Flags, (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)));
 			ensure(!EnumHasAnyFlags(InDesc.Flags, (TexCreate_CPUReadback | TexCreate_CPUWritable)));
 			ensure(!EnumHasAnyFlags(InDesc.Flags, TexCreate_UAV));
-			Desc.SetStorageMode(mtlpp::StorageMode::Memoryless);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeMemoryless));
+			ResourceStorageMode = MTLResourceStorageModeMemoryless;
+		}
+
+		if (!FParse::Param(FCommandLine::Get(), TEXT("nomsaa")) && InDesc.NumSamples > 1)
+		{
+			if (GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5)
+			{
+				ResourceStorageMode = MTLResourceStorageModeMemoryless;
+				bMemoryless = true;
+			}
 		}
 #endif
 
-		static mtlpp::ResourceOptions GeneralResourceOption = FAGXCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions::HazardTrackingModeUntracked);
-		Desc.SetResourceOptions((mtlpp::ResourceOptions)(Desc.GetResourceOptions() | GeneralResourceOption));
+		Desc.SetResourceOptions(mtlpp::ResourceOptions(MTLResourceCPUCacheModeDefaultCache | ResourceStorageMode | MTLResourceHazardTrackingModeDefault));
+		Desc.SetUsage(ConvertFlagsToUsage(InDesc.Flags));
 	}
 	
 	if (!FParse::Param(FCommandLine::Get(), TEXT("nomsaa")))
@@ -529,15 +516,6 @@ FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
 			{
 				Desc.SetSampleCount(InDesc.NumSamples);
 			}
-
-#if PLATFORM_IOS
-			if (GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5)
-			{
-				bMemoryless = true;
-				Desc.SetStorageMode(mtlpp::StorageMode::Memoryless);
-				Desc.SetResourceOptions(mtlpp::ResourceOptions::StorageModeMemoryless);
-			}
-#endif
 		}
 	}
 }
@@ -596,8 +574,7 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 				CFRetain(ImageSurfaceRef);
 
 				mtlpp::TextureDescriptor DescCopy([CreateDesc.Desc.GetPtr() copy], ns::Ownership::Assign);
-				DescCopy.SetStorageMode(mtlpp::StorageMode::Managed);
-				DescCopy.SetResourceOptions((mtlpp::ResourceOptions)((DescCopy.GetResourceOptions() & ~(mtlpp::ResourceStorageModeMask)) | mtlpp::ResourceOptions::StorageModeManaged));
+				[DescCopy.GetPtr() setResourceOptions:(([DescCopy.GetPtr() resourceOptions] & ~MTLResourceStorageModeMask) | MTLResourceStorageModeManaged)];
 
 				ns::IOSurface MtlppIOSurface((IOSurfaceRef)ImageSurfaceRef, ns::Ownership::AutoRelease);
 				Texture = MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewTextureWithDescriptor(DescCopy, MtlppIOSurface, 0));
@@ -626,7 +603,7 @@ FAGXSurface::FAGXSurface(FAGXTextureCreateDesc const& CreateDesc)
 			const NSUInteger BytesPerRow = Align(CreateDesc.Desc.GetWidth() * GPixelFormats[CreateDesc.Format].BlockBytes, MinimumByteAlignment);
 
 			// Backing buffer resource options must match the texture we are going to create from it
-			FAGXPooledBufferArgs Args(BytesPerRow * CreateDesc.Desc.GetHeight(), BUF_Dynamic, mtlpp::StorageMode::Private, CreateDesc.Desc.GetCpuCacheMode());
+			FAGXPooledBufferArgs Args(BytesPerRow * CreateDesc.Desc.GetHeight(), BUF_Dynamic, FAGXPooledBufferArgs::PrivateStorageResourceOptions);
 			FAGXBuffer Buffer = GetAGXDeviceContext().CreatePooledBuffer(Args);
 
 			Texture = Buffer.NewTexture(CreateDesc.Desc, 0, BytesPerRow);
@@ -967,7 +944,7 @@ void FAGXSurface::UpdateSurfaceAndDestroySourceBuffer(id <MTLBuffer> SourceBuffe
 	}
 #endif
 	
-	if(Texture.GetStorageMode() == mtlpp::StorageMode::Private)
+	if ([Texture.GetPtr() storageMode] == MTLStorageModePrivate)
 	{
 		SCOPED_AUTORELEASE_POOL;
 		
@@ -1091,7 +1068,7 @@ void* FAGXSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode Lo
 				);
 			}
 			
-			if (Texture.GetStorageMode() == mtlpp::StorageMode::Private)
+			if ([Texture.GetPtr() storageMode] == MTLStorageModePrivate)
 			{
 				// If we are running with command lists or the RHI thread is enabled we have to execute GFX commands in that context.
 				auto CopyTexToBuf =
@@ -1661,7 +1638,7 @@ static FAGXBuffer InternalCopyTexture2DUpdateRegion(FRHITexture2D* TextureRHI, c
 		&& (MTLPixelFormat)Texture->Texture.GetPixelFormat() == MTLPixelFormatRGBA8Unorm_sRGB)
 	{
 		const uint32 BufferSize = UpdateRegion.Height * UpdateRegion.Width * sizeof(uint32);
-		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions));
 		InternalExpandR8ToStandardRGBA((uint32*)Buffer.GetContents(), UpdateRegion, InOutSourcePitch, SourceData);
 	}
 
@@ -1669,7 +1646,7 @@ static FAGXBuffer InternalCopyTexture2DUpdateRegion(FRHITexture2D* TextureRHI, c
 #endif
 	{
 		const uint32 BufferSize = UpdateRegion.Height * InSourcePitch;
-		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions));
 
 		// Limit copy to line by line by update region pitch otherwise we can go off the end of source data on the last row
 		uint8* pDestRow = (uint8*)Buffer.GetContents();
@@ -1695,7 +1672,7 @@ static void InternalUpdateTexture2D(FAGXContext& Context, FRHITexture2D* Texture
 	
 	mtlpp::Region Region = mtlpp::Region(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.Width, UpdateRegion.Height);
 	
-	if(Tex.GetStorageMode() == mtlpp::StorageMode::Private)
+	if ([Tex.GetPtr() storageMode] == MTLStorageModePrivate)
 	{
 		SCOPED_AUTORELEASE_POOL;
 		
@@ -1769,7 +1746,7 @@ void FAGXDynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI, uint32 MipInd
 	{
 		FAGXSurface* Texture = ResourceCast(TextureRHI);
 		FAGXTexture Tex = Texture->Texture;
-		bool const bUseIntermediateMetalBuffer = Tex.GetStorageMode() == mtlpp::StorageMode::Private;
+		bool const bUseIntermediateMetalBuffer = ([Tex.GetPtr() storageMode] == MTLStorageModePrivate);
 		
 		if(bUseIntermediateMetalBuffer)
 		{
@@ -1828,7 +1805,7 @@ static void InternalUpdateTexture3D(FAGXContext& Context, FRHITexture3D* Texture
 	
 	mtlpp::Region Region = mtlpp::Region(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.DestZ, UpdateRegion.Width, UpdateRegion.Height, UpdateRegion.Depth);
 	
-	if(Tex.GetStorageMode() == mtlpp::StorageMode::Private)
+	if ([Tex.GetPtr() storageMode] == MTLStorageModePrivate)
 	{
 		const uint32 BytesPerImage = SourceRowPitch * UpdateRegion.Height;
 		mtlpp::BlitOption Options = mtlpp::BlitOption::None;
@@ -1873,7 +1850,7 @@ struct FAGXDynamicRHIUpdateTexture3DCommand final : public FRHICommand<FAGXDynam
 		FAGXTexture Tex = Texture->Texture;
 		const uint32 BufferSize = UpdateRegion.Height * UpdateRegion.Depth* SourceRowPitch;
 		
-		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+		Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions));
 		InternalCopyTexture3DUpdateRegionData(Texture, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData, (uint8*)Buffer.GetContents());
 	}
 	
@@ -1939,12 +1916,12 @@ void FAGXDynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI,uint32 MipInde
 #if PLATFORM_MAC
 		checkf(!(Texture->GetFormat() == PF_G8 && EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB) && (MTLPixelFormat)Tex.GetPixelFormat() == MTLPixelFormatRGBA8Unorm_sRGB), TEXT("AGXRHI does not support PF_G8_sRGB on 3D, array or cube textures as it requires manual, CPU-side expansion to RGBA8_sRGB which is expensive!"));
 #endif
-		if(Tex.GetStorageMode() == mtlpp::StorageMode::Private)
+		if ([Tex.GetPtr() storageMode] == MTLStorageModePrivate)
 		{
 			SCOPED_AUTORELEASE_POOL;
 
 			const uint32 BufferSize = UpdateRegion.Height * UpdateRegion.Depth * SourceRowPitch;
-			FAGXBuffer IntermediateBuffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+			FAGXBuffer IntermediateBuffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(BufferSize, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions));
 			InternalCopyTexture3DUpdateRegionData(TextureRHI, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData, (uint8*)IntermediateBuffer.GetContents());
 			InternalUpdateTexture3D(ImmediateContext.GetInternalContext(), TextureRHI, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, IntermediateBuffer);
 			GetAGXDeviceContext().ReleaseBuffer(IntermediateBuffer);
@@ -2106,7 +2083,7 @@ void FAGXRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITe
 						const uint32 BytesPerImage = AlignedStride *  SourceSize.height;
 						const uint32 DataSize = BytesPerImage * SourceSize.depth;
 						
-						FAGXBuffer Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(DataSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+						FAGXBuffer Buffer = GetAGXDeviceContext().CreatePooledBuffer(FAGXPooledBufferArgs(DataSize, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions));
 						
 						check(Buffer);
 						

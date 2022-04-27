@@ -126,7 +126,7 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBuffe
 , Size(InSize)
 , Usage(InUsage)
 , AgxUsage(InAgxUsage)
-, Mode(BUFFER_STORAGE_MODE)
+, StorageMode(BUFFER_STORAGE_MODE)
 , Type(InType)
 {
 	// No life-time usage information? Enforce Dynamic.
@@ -142,8 +142,8 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBuffe
 	
 	check(bIsStatic ^ bIsDynamic ^ bIsVolatile);
 
-	Mode = UsePrivateMemory() ? mtlpp::StorageMode::Private : BUFFER_STORAGE_MODE;
-	Mode = CanUsePrivateMemory() ? mtlpp::StorageMode::Private : Mode;
+	StorageMode = UsePrivateMemory() ? MTLStorageModePrivate : BUFFER_STORAGE_MODE;
+	StorageMode = CanUsePrivateMemory() ? MTLStorageModePrivate : StorageMode;
 	
 	if (InSize)
 	{
@@ -159,53 +159,6 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBuffe
 		else
 		{
 			uint32 AllocSize = Size;
-			
-			if (EnumHasAnyFlags(AgxUsage, EAGXBufferUsage::LinearTex) && !FAGXCommandQueue::SupportsFeature(EAGXFeaturesTextureBuffers))
-			{
-				if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess))
-				{
-					// Padding for write flushing when not using linear texture bindings for buffers
-					AllocSize = Align(AllocSize + 512, 1024);
-				}
-				
-				if (bWantsView)
-				{
-					uint32 NumElements = AllocSize;
-					uint32 SizeX = NumElements;
-					uint32 SizeY = 1;
-					uint32 Dimension = GMaxTextureDimensions;
-					while (SizeX > GMaxTextureDimensions)
-					{
-						while((NumElements % Dimension) != 0)
-						{
-							check(Dimension >= 1);
-							Dimension = (Dimension >> 1);
-						}
-						SizeX = Dimension;
-						SizeY = NumElements / Dimension;
-						if(SizeY > GMaxTextureDimensions)
-						{
-							Dimension <<= 1;
-							checkf(SizeX <= GMaxTextureDimensions, TEXT("Calculated width %u is greater than maximum permitted %d when converting buffer of size %u to a 2D texture."), Dimension, (int32)GMaxTextureDimensions, AllocSize);
-							if(Dimension <= GMaxTextureDimensions)
-							{
-								AllocSize = Align(Size, Dimension);
-								NumElements = AllocSize;
-								SizeX = NumElements;
-							}
-							else
-							{
-								// We don't know the Pixel Format and so the bytes per element for the potential linear texture
-								// Use max texture dimension as the align to be a worst case rather than crashing
-								AllocSize = Align(Size, GMaxTextureDimensions);
-								break;
-							}
-						}
-					}
-					
-					AllocSize = Align(AllocSize, 1024);
-				}
-			}
 			
 			// Static buffers will never be discarded. You can update them directly.
 			if(bIsStatic)
@@ -236,24 +189,22 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBuffe
 			{
 				FAGXBufferAndViews& Backing = BufferPool[i];
 
+				MTLResourceOptions Options = MTLResourceCPUCacheModeDefaultCache | (StorageMode << MTLResourceStorageModeShift) | MTLResourceHazardTrackingModeDefault;
 #if METAL_POOL_BUFFER_BACKING
-				FAGXPooledBufferArgs ArgsCPU(AllocSize, Usage, Mode);
+				FAGXPooledBufferArgs ArgsCPU(AllocSize, Usage, Options);
 				Backing.Buffer = GetAGXDeviceContext().CreatePooledBuffer(ArgsCPU);
 				Backing.Buffer.SetOwner(nullptr, false);
 #else
-				
-				NSUInteger Options = (((NSUInteger) Mode) << mtlpp::ResourceStorageModeShift);
-				
 				METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), AllocSize, Options)));
 				// Allocate one.
-				Backing.Buffer = FAGXBuffer(MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(AllocSize, (mtlpp::ResourceOptions) Options)), false);
+				Backing.Buffer = FAGXBuffer(MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(AllocSize, mtlpp::ResourceOptions(Options))), false);
 				
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 				AGXLLM::LogAllocBuffer(Backing.Buffer);
 #endif
 				INC_MEMORY_STAT_BY(STAT_AGXDeviceBufferMemory, Backing.Buffer.GetLength());
 				
-				if (GAGXBufferZeroFill && Mode != mtlpp::StorageMode::Private)
+				if (GAGXBufferZeroFill && StorageMode != MTLStorageModePrivate)
 				{
 					FMemory::Memset(((uint8*)Backing.Buffer.GetContents()), 0, Backing.Buffer.GetLength());
 				}
@@ -277,7 +228,7 @@ FAGXRHIBuffer::FAGXRHIBuffer(uint32 InSize, EBufferUsageFlags InUsage, EAGXBuffe
 			{
 				check(Backing.Buffer);
 				check(AllocSize <= Backing.Buffer.GetLength());
-				check(Backing.Buffer.GetStorageMode() == Mode);
+				check([Backing.Buffer.GetPtr() storageMode] == StorageMode);
 				check(Backing.Views.Num() == 0);
 			}
 		}
@@ -317,12 +268,12 @@ FAGXRHIBuffer::~FAGXRHIBuffer()
 void FAGXRHIBuffer::AllocTransferBuffer(bool bOnRHIThread, uint32 InSize, EResourceLockMode LockMode)
 {
 	check(!TransferBuffer);
-	FAGXPooledBufferArgs ArgsCPU(InSize, BUF_Dynamic, mtlpp::StorageMode::Shared);
+	FAGXPooledBufferArgs ArgsCPU(InSize, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions);
 	TransferBuffer = GetAGXDeviceContext().CreatePooledBuffer(ArgsCPU);
 	TransferBuffer.SetOwner(nullptr, false);
 	check(TransferBuffer && TransferBuffer.GetPtr());
 	METAL_INC_DWORD_STAT_BY(Type, MemAlloc, InSize, Usage);
-	METAL_FATAL_ASSERT(TransferBuffer, TEXT("Failed to create buffer of size %u and storage mode %u"), InSize, (uint32)mtlpp::StorageMode::Shared);
+	METAL_FATAL_ASSERT(TransferBuffer, TEXT("Failed to create buffer of size %u and storage mode %u"), InSize, (uint32)MTLStorageModeShared);
 }
 
 void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextureMapKey)
@@ -370,62 +321,10 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 
 		uint32 RowBytes = NumElements * BytesPerElement;
 
-		if (FAGXCommandQueue::SupportsFeature(EAGXFeaturesTextureBuffers))
 		{
-			NSUInteger Options = ((NSUInteger) Mode) << mtlpp::ResourceStorageModeShift;
+			MTLResourceOptions Options = MTLResourceCPUCacheModeDefaultCache | (StorageMode << MTLResourceStorageModeShift) | MTLResourceHazardTrackingModeDefault;
 			Desc = mtlpp::TextureDescriptor::TextureBufferDescriptor((mtlpp::PixelFormat)MTLFormat, NumElements, mtlpp::ResourceOptions(Options), mtlpp::TextureUsage(TexUsage));
 			Desc.SetAllowGPUOptimisedContents(false);
-		}
-		else
-		{
-			uint32 Width = NumElements;
-			uint32 Height = 1;
-
-			if (NumElements > GMaxTextureDimensions)
-			{
-				uint32 Dimension = GMaxTextureDimensions;
-				while ((NumElements % Dimension) != 0)
-				{
-					check(Dimension >= 1);
-					Dimension = (Dimension >> 1);
-				}
-
-				Width = Dimension;
-				Height = NumElements / Dimension;
-
-				// If we're just trying to fit as many elements as we can into
-				// the available buffer space, we can trim some padding at the
-				// end of the buffer in order to create widest possible linear
-				// texture that will fit.
-				if ((UINT_MAX == LinearTextureDesc.NumElements) && (Height > GMaxTextureDimensions))
-				{
-					Width = GMaxTextureDimensions;
-					Height = 1;
-
-					while ((Width * Height) < NumElements)
-					{
-						Height <<= 1;
-					}
-
-					while ((Width * Height) > NumElements)
-					{
-						Height -= 1;
-					}
-				}
-
-				checkf(Width <= GMaxTextureDimensions, TEXT("Calculated width %u is greater than maximum permitted %d when converting buffer of size %llu with element stride %u to a 2D texture with %u elements."), Width, (int32)GMaxTextureDimensions, Length, BytesPerElement, NumElements);
-				checkf(Height <= GMaxTextureDimensions, TEXT("Calculated height %u is greater than maximum permitted %d when converting buffer of size %llu with element stride %u to a 2D texture with %u elements."), Height, (int32)GMaxTextureDimensions, Length, BytesPerElement, NumElements);
-			}
-
-			RowBytes = Width * BytesPerElement;
-
-			check(RowBytes % MinimumByteAlignment == 0);
-			check((RowBytes * Height) + Offset <= Length);
-
-			Desc = mtlpp::TextureDescriptor::Texture2DDescriptor((mtlpp::PixelFormat)MTLFormat, Width, Height, NO);
-			Desc.SetStorageMode(Mode);
-			Desc.SetCpuCacheMode(CurrentBuffer.GetCpuCacheMode());
-			Desc.SetUsage((mtlpp::TextureUsage)TexUsage);
 		}
 
 		for(FAGXBufferAndViews& Backing : BufferPool)
@@ -560,7 +459,7 @@ void* FAGXRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode InLockMode, uin
 
 		// Use transfer buffer for writing into 'Static' buffers as they could be in use by GPU atm
 		// Initialization of 'Static' buffers still uses direct copy when possible
-		const bool bUseTransferBuffer = (Mode == mtlpp::StorageMode::Private || (Mode == mtlpp::StorageMode::Shared && bIsStatic));
+		const bool bUseTransferBuffer = (StorageMode == MTLStorageModePrivate || (StorageMode == MTLStorageModeShared && bIsStatic));
 		if(bUseTransferBuffer)
 		{
 			FAGXFrameAllocator::AllocationEntry TempBacking = GetAGXDeviceContext().GetTransferAllocator()->AcquireSpace(Len);
@@ -581,7 +480,7 @@ void* FAGXRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode InLockMode, uin
 		// assumes offset is 0 for reads.
 		check(Offset == 0);
 		
-		if(Mode == mtlpp::StorageMode::Private)
+		if (StorageMode == MTLStorageModePrivate)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_AGXBufferPageOffTime);
 			AllocTransferBuffer(true, Len, RLM_WriteOnly);
@@ -595,8 +494,8 @@ void* FAGXRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode InLockMode, uin
 			
 			ReturnPointer = TransferBuffer.GetContents();
 		}
-		#if PLATFORM_MAC
-		else if(Mode == mtlpp::StorageMode::Managed)
+#if PLATFORM_MAC
+		else if (StorageMode == MTLStorageModeManaged)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_AGXBufferPageOffTime);
 			
@@ -608,7 +507,7 @@ void* FAGXRHIBuffer::Lock(bool bIsOnRHIThread, EResourceLockMode InLockMode, uin
 			
 			ReturnPointer = GetCurrentBackingInternal().Buffer.GetContents();
 		}
-		#endif
+#endif
 		else
 		{
 			// Shared
@@ -639,7 +538,7 @@ void FAGXRHIBuffer::Unlock()
 {
 	check(MetalIsSafeToUseRHIThreadResources());
 
-	if(!Data)
+	if (!Data)
 	{
 		FAGXBufferAndViews& Backing = GetCurrentBackingInternal();
 		FAGXBuffer& CurrentBuffer = Backing.Buffer;
@@ -649,7 +548,7 @@ void FAGXRHIBuffer::Unlock()
 		const bool bWriteLock = CurrentLockMode == RLM_WriteOnly;
 		const bool bIsStatic = EnumHasAnyFlags(Usage, BUF_Static);
 		
-		if(bWriteLock)
+		if (bWriteLock)
 		{
 			check(!TransferBuffer);
 			check(LockOffset == 0);
@@ -657,15 +556,15 @@ void FAGXRHIBuffer::Unlock()
 			
 			// Use transfer buffer for writing into 'Static' buffers as they could be in use by GPU atm
 			// Initialization of 'Static' buffers still uses direct copy when possible
-			const bool bUseTransferBuffer = (Mode == mtlpp::StorageMode::Private || (Mode == mtlpp::StorageMode::Shared && bIsStatic));
-			if(bUseTransferBuffer)
+			const bool bUseTransferBuffer = (StorageMode == MTLStorageModePrivate || (StorageMode == MTLStorageModeShared && bIsStatic));
+			if (bUseTransferBuffer)
 			{
 				FAGXFrameAllocator::AllocationEntry Entry = GetAGXDeviceContext().FetchAndRemoveLock(this);
 				FAGXBuffer Transfer = Entry.Backing;
 				GetAGXDeviceContext().AsyncCopyFromBufferToBuffer(Transfer, Entry.Offset, CurrentBuffer, 0, LockSize);
 			}
 #if PLATFORM_MAC
-			else if(Mode == mtlpp::StorageMode::Managed)
+			else if (StorageMode == MTLStorageModeManaged)
 			{
 				if (GAGXBufferZeroFill)
 					MTLPP_VALIDATE(mtlpp::Buffer, CurrentBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, DidModify(ns::Range(0, CurrentBuffer.GetLength())));
@@ -676,15 +575,15 @@ void FAGXRHIBuffer::Unlock()
 			else
 			{
 				// shared buffers are always mapped so nothing happens
-				check(Mode == mtlpp::StorageMode::Shared);
+				check(StorageMode == MTLStorageModeShared);
 			}
 		}
 		else
 		{
 			check(CurrentLockMode == RLM_ReadOnly);
-			if(TransferBuffer)
+			if (TransferBuffer)
 			{
-				check(Mode == mtlpp::StorageMode::Private);
+				check(StorageMode == MTLStorageModePrivate);
 				AGXSafeReleaseMetalBuffer(TransferBuffer);
 				TransferBuffer = nil;
 			}
@@ -758,7 +657,7 @@ FBufferRHIRef FAGXDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usa
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();
 	}
-	else if (Buffer->Mode == mtlpp::StorageMode::Private)
+	else if (Buffer->StorageMode == MTLStorageModePrivate)
 	{
 		check (!Buffer->TransferBuffer);
 
@@ -772,7 +671,7 @@ FBufferRHIRef FAGXDynamicRHI::RHICreateBuffer(uint32 Size, EBufferUsageFlags Usa
 		}
 	}
 #if PLATFORM_MAC
-	else if (GAGXBufferZeroFill && Buffer->Mode == mtlpp::StorageMode::Managed)
+	else if (GAGXBufferZeroFill && Buffer->StorageMode == MTLStorageModeManaged)
 	{
 		for(FAGXRHIBuffer::FAGXBufferAndViews& Backing : Buffer->BufferPool)
 		{
@@ -821,7 +720,7 @@ void FAGXDynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* Dest
 		}
 		else if (TheDstBuffer)
 		{
-			FAGXPooledBufferArgs ArgsCPU(SrcBuffer->GetSize(), BUF_Dynamic, mtlpp::StorageMode::Shared);
+			FAGXPooledBufferArgs ArgsCPU(SrcBuffer->GetSize(), BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions);
 			FAGXBuffer TempBuffer = GetAGXDeviceContext().CreatePooledBuffer(ArgsCPU);
 			FMemory::Memcpy(TempBuffer.GetContents(), SrcBuffer->Data->Data, SrcBuffer->GetSize());
 			GetAGXDeviceContext().CopyFromBufferToBuffer(TempBuffer, 0, TheDstBuffer, 0, FMath::Min(SrcBuffer->GetSize(), DstBuffer->GetSize()));
@@ -868,7 +767,7 @@ void FAGXRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint
 		}
 		else
 		{
-			if (Mode == mtlpp::StorageMode::Private)
+			if (StorageMode == MTLStorageModePrivate)
 			{
 				if (RHICmdList.IsBottomOfPipe())
 				{
@@ -896,7 +795,7 @@ void FAGXRHIBuffer::Init_RenderThread(FRHICommandListImmediate& RHICmdList, uint
 				FAGXBuffer& TheBuffer = GetCurrentBufferInternal();
 				FMemory::Memcpy(TheBuffer.GetContents(), CreateInfo.ResourceArray->GetResourceData(), InSize);
 	#if PLATFORM_MAC
-				if(Mode == mtlpp::StorageMode::Managed)
+				if (StorageMode == MTLStorageModeManaged)
 				{
 					MTLPP_VALIDATE(mtlpp::Buffer, TheBuffer, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, DidModify(ns::Range(0, GAGXBufferZeroFill ? TheBuffer.GetLength() : InSize)));
 				}

@@ -12,12 +12,8 @@
 #include "Misc/ConfigCacheIni.h"
 #include "command_buffer.hpp"
 
-#pragma mark - Private C++ Statics -
-NSUInteger FAGXCommandQueue::PermittedOptions = 0;
 uint64 FAGXCommandQueue::Features = 0;
 extern mtlpp::VertexFormat GAGXFColorVertexFormat;
-
-#pragma mark - Public C++ Boilerplate -
 
 FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 : ParallelCommandLists(0)
@@ -54,7 +50,7 @@ FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 		Features |= EAGXFeaturesCountingQueries | EAGXFeaturesBaseVertexInstance | EAGXFeaturesIndirectBuffer | EAGXFeaturesMSAADepthResolve | EAGXFeaturesMSAAStoreAndResolve;
 	}
 
-	Features |= EAGXFeaturesPrivateBufferSubAllocation | EAGXFeaturesGPUCaptureManager | EAGXFeaturesBufferSubAllocation | EAGXFeaturesParallelRenderEncoders | EAGXFeaturesPipelineBufferMutability | EAGXFeaturesMaxThreadsPerThreadgroup | EAGXFeaturesTextureBuffers;
+	Features |= EAGXFeaturesPrivateBufferSubAllocation | EAGXFeaturesGPUCaptureManager | EAGXFeaturesBufferSubAllocation | EAGXFeaturesParallelRenderEncoders | EAGXFeaturesPipelineBufferMutability | EAGXFeaturesMaxThreadsPerThreadgroup;
 	GAGXFColorVertexFormat = mtlpp::VertexFormat::UChar4Normalized_BGRA;
 
 #else
@@ -83,7 +79,6 @@ FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 		| EAGXFeaturesPipelineBufferMutability;
 
 	Features |= EAGXFeaturesMaxThreadsPerThreadgroup;
-	Features |= EAGXFeaturesTextureBuffers;
 
 	if ([GMtlDevice supportsFeatureSet : MTLFeatureSet_iOS_GPUFamily4_v1])
 	{
@@ -119,8 +114,6 @@ FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 		{
 			Features |= EAGXFeaturesParallelRenderEncoders;
 		}
-
-		Features |= EAGXFeaturesTextureBuffers;
     }
     else if ([[GMtlDevice name] rangeOfString:@"Nvidia" options:NSCaseInsensitiveSearch].location != NSNotFound)
 	{
@@ -147,17 +140,6 @@ FAGXCommandQueue::FAGXCommandQueue(uint32 const MaxNumCommandBuffers /* = 0 */)
 	{
 		Features |= EAGXFeaturesGPUTrace;
 	}
-
-	PermittedOptions = 0;
-	PermittedOptions |= mtlpp::ResourceOptions::CpuCacheModeDefaultCache;
-	PermittedOptions |= mtlpp::ResourceOptions::CpuCacheModeWriteCombined;
-	PermittedOptions |= mtlpp::ResourceOptions::StorageModeShared;
-	PermittedOptions |= mtlpp::ResourceOptions::StorageModePrivate;
-#if PLATFORM_MAC
-	PermittedOptions |= mtlpp::ResourceOptions::StorageModeManaged;
-#else
-	PermittedOptions |= mtlpp::ResourceOptions::StorageModeMemoryless;
-#endif
 }
 
 FAGXCommandQueue::~FAGXCommandQueue(void)
@@ -169,8 +151,6 @@ FAGXCommandQueue::~FAGXCommandQueue(void)
 	}
 }
 	
-#pragma mark - Public Command Buffer Mutators -
-
 mtlpp::CommandBuffer FAGXCommandQueue::CreateCommandBuffer(void)
 {
 #if PLATFORM_MAC
@@ -246,22 +226,6 @@ void FAGXCommandQueue::GetCommittedCommandBufferFences(TArray<mtlpp::CommandBuff
 		delete Fence;
 	}
 }
-
-#pragma mark - Public Command Queue Accessors -
-
-mtlpp::ResourceOptions FAGXCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions Options)
-{
-	NSUInteger NewOptions = (Options & PermittedOptions);
-#if PLATFORM_IOS // Swizzle Managed to Shared for iOS - we can do this as they are equivalent, unlike Shared -> Managed on Mac.
-	if ((Options & (1 /*mtlpp::StorageMode::Managed*/ << mtlpp::ResourceStorageModeShift)))
-	{
-		NewOptions |= mtlpp::ResourceOptions::StorageModeShared;
-	}
-#endif
-	return (mtlpp::ResourceOptions)NewOptions;
-}
-
-#pragma mark - Public Debug Support -
 
 void FAGXCommandQueue::InsertDebugCaptureBoundary(void)
 {

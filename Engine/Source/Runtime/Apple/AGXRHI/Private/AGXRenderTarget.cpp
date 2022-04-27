@@ -283,12 +283,12 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 		SCOPE_CYCLE_COUNTER(STAT_AGXTexturePageOffTime);
 		
 		FAGXTexture TempTexture = nil;
-		if (Texture.GetStorageMode() == mtlpp::StorageMode::Private)
+		if ([Texture.GetPtr() storageMode] == MTLStorageModePrivate)
 		{
 #if PLATFORM_MAC
-			mtlpp::StorageMode StorageMode = mtlpp::StorageMode::Managed;
+			MTLResourceOptions ResourceStorageMode = MTLResourceStorageModeManaged;
 #else
-			mtlpp::StorageMode StorageMode = mtlpp::StorageMode::Shared;
+			MTLResourceOptions ResourceStorageMode = MTLResourceStorageModeShared;
 #endif
 			MTLPixelFormat MetalFormat = (MTLPixelFormat)GPixelFormats[Surface->GetDesc().Format].PlatformFormat;
 			mtlpp::TextureDescriptor Desc;
@@ -301,11 +301,8 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 			Desc.SetSampleCount(Texture.GetSampleCount());
 			Desc.SetArrayLength(Texture.GetArrayLength());
 			
-			mtlpp::ResourceOptions GeneralResourceOption = (mtlpp::ResourceOptions)FAGXCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions(((NSUInteger)Texture.GetCpuCacheMode() << mtlpp::ResourceCpuCacheModeShift) | ((NSUInteger)StorageMode << mtlpp::ResourceStorageModeShift) | mtlpp::ResourceOptions::HazardTrackingModeUntracked));
-			Desc.SetResourceOptions(GeneralResourceOption);
+			Desc.SetResourceOptions(mtlpp::ResourceOptions(([Texture.GetPtr() resourceOptions] & ~MTLResourceStorageModeMask) | ResourceStorageMode));
 			
-			Desc.SetCpuCacheMode(Texture.GetCpuCacheMode());
-			Desc.SetStorageMode(StorageMode);
 			Desc.SetUsage(Texture.GetUsage());
 			
 			TempTexture = GMtlppDevice.NewTexture(Desc);
@@ -316,7 +313,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 			Region = mtlpp::Region(0, 0, SizeX, SizeY);
 		}
 #if PLATFORM_MAC
-		if(Texture.GetStorageMode() == mtlpp::StorageMode::Managed)
+		if ([Texture.GetPtr() storageMode] == MTLStorageModeManaged)
 		{
 			// Synchronise the texture with the CPU
 			ImmediateContext.Context->SynchronizeTexture(Texture, 0, InFlags.GetMip());
@@ -348,7 +345,7 @@ void FAGXDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect, 
 		const uint32 Alignment = PLATFORM_MAC ? 1u : 64u; // Mac permits natural row alignment (tightly-packed) but iOS does not.
 		const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 		const uint32 BytesPerImage = AlignedStride * SizeY;
-		FAGXBuffer Buffer = ((FAGXDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FAGXPooledBufferArgs(BytesPerImage, BUF_Dynamic, mtlpp::StorageMode::Shared));
+		FAGXBuffer Buffer = ((FAGXDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FAGXPooledBufferArgs(BytesPerImage, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions));
 		{
 			// Synchronise the texture with the CPU
 			SCOPE_CYCLE_COUNTER(STAT_AGXTexturePageOffTime);
@@ -395,7 +392,7 @@ void FAGXDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence*
     OutData = Surface->Lock(0, 0, RLM_ReadOnly, Stride);
     
 #if PLATFORM_MAC
-	Surface->GPUReadback = (Surface->Texture.GetPtr() && Surface->Texture.GetStorageMode() == mtlpp::StorageMode::Managed) ? FAGXSurface::EAGXGPUReadbackFlags::ReadbackRequested : 0;
+	Surface->GPUReadback = (Surface->Texture.GetPtr() && [Surface->Texture.GetPtr() storageMode] == MTLStorageModeManaged) ? FAGXSurface::EAGXGPUReadbackFlags::ReadbackRequested : 0;
 #endif
 	}
 }
@@ -452,7 +449,7 @@ void FAGXDynamicRHI::RHIReadSurfaceFloatData(FRHITexture* TextureRHI, FIntRect R
 	const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 	const uint32 BytesPerImage = AlignedStride  * SizeY;
 	int32 FloatBGRADataSize = BytesPerImage;
-	FAGXBuffer Buffer = ((FAGXDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FAGXPooledBufferArgs(FloatBGRADataSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+	FAGXBuffer Buffer = ((FAGXDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FAGXPooledBufferArgs(FloatBGRADataSize, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions));
 	{
 		// Synchronise the texture with the CPU
 		SCOPE_CYCLE_COUNTER(STAT_AGXTexturePageOffTime);
@@ -518,7 +515,7 @@ void FAGXDynamicRHI::RHIRead3DSurfaceFloatData(FRHITexture* TextureRHI,FIntRect 
 	const uint32 AlignedStride = ((Stride - 1) & ~(Alignment - 1)) + Alignment;
 	const uint32 BytesPerImage = AlignedStride  * SizeY;
 	int32 FloatBGRADataSize = BytesPerImage * SizeZ;
-	FAGXBuffer Buffer = ((FAGXDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FAGXPooledBufferArgs(FloatBGRADataSize, BUF_Dynamic, mtlpp::StorageMode::Shared));
+	FAGXBuffer Buffer = ((FAGXDeviceContext*)ImmediateContext.Context)->CreatePooledBuffer(FAGXPooledBufferArgs(FloatBGRADataSize, BUF_Dynamic, FAGXPooledBufferArgs::SharedStorageResourceOptions));
 	{
 		// Synchronise the texture with the CPU
 		SCOPE_CYCLE_COUNTER(STAT_AGXTexturePageOffTime);

@@ -92,7 +92,7 @@ void FAGXQueryBufferPool::Allocate(FAGXQueryResult& NewQuery)
 
 FAGXQueryBuffer* FAGXQueryBufferPool::GetCurrentQueryBuffer()
 {
-	if (!IsValidRef(CurrentBuffer) || (CurrentBuffer->Buffer.GetStorageMode() != mtlpp::StorageMode::Shared && CurrentBuffer->WriteOffset > 0))
+	if (!IsValidRef(CurrentBuffer) || (([CurrentBuffer->Buffer.GetPtr() storageMode] != MTLStorageModeShared) && (CurrentBuffer->WriteOffset > 0)))
 	{
 		FAGXBuffer Buffer;
 		if (Buffers.Num())
@@ -104,8 +104,8 @@ FAGXQueryBuffer* FAGXQueryBufferPool::GetCurrentQueryBuffer()
 			LLM_SCOPE_METAL(ELLMTagAGX::Buffers);
 			LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::Buffers);
 
-			METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), EQueryBufferMaxSize, mtlpp::ResourceOptions::StorageModeShared)));
-			Buffer = GetAGXDeviceContext().GetResourceHeap().CreateBuffer(EQueryBufferMaxSize, 16, BUF_Dynamic, FAGXCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | mtlpp::ResourceOptions::StorageModeShared)), true);
+			METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), EQueryBufferMaxSize, MTLResourceStorageModeShared)));
+			Buffer = GetAGXDeviceContext().GetResourceHeap().CreateBuffer(EQueryBufferMaxSize, 16, BUF_Dynamic, (MTLResourceCPUCacheModeDefaultCache | MTLResourceStorageModeShared | MTLResourceHazardTrackingModeDefault), true);
 			FMemory::Memzero((((uint8*)Buffer.GetContents())), EQueryBufferMaxSize);
 
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
