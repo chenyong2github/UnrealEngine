@@ -64,6 +64,8 @@ struct FStructTracker
 		return StructTypesList.IsValidIndex(StructTypeIndex) ? StructTypesList[StructTypeIndex].Get() : nullptr;
 	}
 
+	int32 Num() const {	return StructTypeToIndexSet.Num(); }
+
 #if WITH_STRUCTUTILS_DEBUG
 	/**
 	* @return index identifying given tag or INDEX_NONE if it has never been used/seen before.
@@ -476,6 +478,11 @@ public:
 	FORCEINLINE bool IsBitSet(const int32 BitIndex) const
 	{
 		return StructTypesBitArray.Contains(BitIndex);
+	}
+
+	static int32 GetMaxNum() 
+	{		
+		return TStructTrackerWrapper::StructTracker.Num();
 	}
 
 	FORCEINLINE bool operator==(const TStructTypeBitSet& Other) const { return StructTypesBitArray == Other.StructTypesBitArray; }

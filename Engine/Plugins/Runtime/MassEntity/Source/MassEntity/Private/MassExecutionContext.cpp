@@ -17,6 +17,16 @@ void FMassExecutionContext::ClearExecutionData()
 	FragmentViews.Reset();
 	CurrentArchetypesTagBitSet.Reset();
 	ChunkSerialModificationNumber = -1;
+	ConstSubsystemsBitSet.Reset();
+	MutableSubsystemsBitSet.Reset();
+	bSubsystemRequirementsSet = false;
+}
+
+void FMassExecutionContext::SetSystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSystems, const FMassExternalSubystemBitSet& RequiredMutableSystems)
+{
+	ConstSubsystemsBitSet = RequiredConstSystems;
+	MutableSubsystemsBitSet = RequiredMutableSystems;
+	bSubsystemRequirementsSet = true;
 }
 
 void FMassExecutionContext::SetEntityCollection(const FMassArchetypeEntityCollection& InEntityCollection)

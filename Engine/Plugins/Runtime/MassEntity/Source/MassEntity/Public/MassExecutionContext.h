@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MassEntityTypes.h"
+#include "MassExternalSubsystemTraits.h"
 #include "MassEntityQuery.h"
 
 
@@ -32,6 +33,10 @@ private:
 
 	using FSharedFragmentView = TFragmentView<FStructView>;
 	TArray<FSharedFragmentView, TInlineAllocator<4>> SharedFragmentViews;
+
+	FMassExternalSubystemBitSet ConstSubsystemsBitSet;
+	FMassExternalSubystemBitSet MutableSubsystemsBitSet;
+	TArray<TObjectPtr<USubsystem>> Subsystems;
 	
 	// mz@todo make this shared ptr thread-safe and never auto-flush in MT environment. 
 	TSharedPtr<FMassCommandBuffer> DeferredCommandBuffer;
@@ -56,6 +61,11 @@ private:
 	 *  calling MassEntitySubsystem.FlushCommands() */
 	bool bFlushDeferredCommands = true;
 
+	/** A temporary variable letting us access subsystems via a FMassExecutionContext outside of MassEntityQuery's 
+	 * execution. Will go away once entity-independent calculations as well as query-bound calculations are being 
+	 * performed with a common tasks interface */
+	bool bSubsystemRequirementsSet = false;
+
 	TArrayView<FFragmentView> GetMutableRequirements() { return FragmentViews; }
 	TArrayView<FChunkFragmentView> GetMutableChunkRequirements() { return ChunkFragmentViews; }
 	TArrayView<FConstSharedFragmentView> GetMutableConstSharedRequirements() { return ConstSharedFragmentViews; }
@@ -65,10 +75,15 @@ private:
 	friend FMassEntityQuery;
 
 public:
-	FMassExecutionContext() = default;
 	explicit FMassExecutionContext(const float InDeltaTimeSeconds, const bool bInFlushDeferredCommands = true)
 		: DeltaTimeSeconds(InDeltaTimeSeconds)
 		, bFlushDeferredCommands(bInFlushDeferredCommands)
+	{
+		Subsystems.AddZeroed(FMassExternalSubystemBitSet::GetMaxNum());
+	}
+
+	FMassExecutionContext()
+		: FMassExecutionContext(/*InDeltaTimeSeconds=*/0.f)
 	{}
 
 #if WITH_MASSENTITY_DEBUG
@@ -228,6 +243,49 @@ public:
 		return View->FragmentView;
 	}
 
+	template<typename T>
+	T* GetMutableSubsystem(const UWorld* World)
+	{
+		// @todo consider getting this directly from entity subsystem - it should cache all the used system
+		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex<T>();
+		if (bSubsystemRequirementsSet == false || ensure(MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
+		{
+			return GetSystemInternal<T>(World, SystemIndex);
+		}
+
+		return nullptr;
+	}
+
+	template<typename T>
+	T& GetMutableSubsystemChecked(const UWorld* World)
+	{
+		T* InstancePtr = GetMutableSubsystem<T>(World);
+		check(InstancePtr);
+		return *InstancePtr;
+	}
+
+	template<typename T>
+	const T* GetSubsystem(const UWorld* World)
+	{
+		const uint32 SystemIndex = FMassExternalSubystemBitSet::GetTypeIndex<T>();
+		if (bSubsystemRequirementsSet == false || ensure(ConstSubsystemsBitSet.IsBitSet(SystemIndex) || MutableSubsystemsBitSet.IsBitSet(SystemIndex)))
+		{
+			return GetSystemInternal<T>(World, SystemIndex);
+		}
+		return nullptr;
+	}
+
+	template<typename T>
+	const T& GetSubsystemChecked(const UWorld* World)
+	{
+		const T* InstancePtr = GetSubsystem<T>(World);
+		check(InstancePtr);
+		return *InstancePtr;
+	}
+	
+
+	void SetSystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSystems, const FMassExternalSubystemBitSet& RequiredMutableSystems);
+
 	/** Sparse chunk related operation */
 	const FMassArchetypeEntityCollection& GetEntityCollection() const { return EntityCollection; }
 
@@ -273,5 +331,22 @@ protected:
 		{
 			View.FragmentView.Reset();
 		}
+	}
+
+	template<typename T>
+	T* GetSystemInternal(const UWorld* World, const uint32 SystemIndex)
+	{
+		if (UNLIKELY(Subsystems.IsValidIndex(SystemIndex) == false))
+		{
+			Subsystems.AddZeroed(Subsystems.Num() - SystemIndex + 1);
+		}
+
+		T* SystemInstance = (T*)Subsystems[SystemIndex].Get();
+		if (SystemInstance == nullptr)
+		{
+			SystemInstance = FMassExternalSubsystemTraits::GetInstance<typename TRemoveConst<T>::Type>(World);
+			Subsystems[SystemIndex] = SystemInstance;
+		}
+		return SystemInstance;
 	}
 };

@@ -15,7 +15,6 @@ struct FMassArchetypeData;
 struct FMassExecutionContext;
 struct FMassFragment;
 struct FMassArchetypeHandle;
-struct FMassExecutionContext;
 
 enum class EMassFragmentAccess : uint8
 {
@@ -309,6 +308,26 @@ public:
 		return *this;
 	}
 
+	template<typename T>
+	FMassEntityQuery& AddSystemRequirement(const EMassFragmentAccess AccessMode)
+	{
+		check(AccessMode != EMassFragmentAccess::None && AccessMode != EMassFragmentAccess::MAX);
+
+		switch (AccessMode)
+		{
+		case EMassFragmentAccess::ReadOnly:
+			RequiredConstSystems.Add<T>();
+			break;
+		case EMassFragmentAccess::ReadWrite:
+			RequiredMutableSystems.Add<T>();
+			break;
+		default:
+			check(false);
+		}
+		
+		return *this;
+	}
+
 	void Clear()
 	{
 		Requirements.Empty();
@@ -408,6 +427,9 @@ protected:
 	FMassSharedFragmentBitSet RequiredAllSharedFragments;
 	FMassSharedFragmentBitSet RequiredOptionalSharedFragments;
 	FMassSharedFragmentBitSet RequiredNoneSharedFragments;
+
+	FMassExternalSubystemBitSet RequiredConstSystems;
+	FMassExternalSubystemBitSet RequiredMutableSystems;
 
 private:
 	/** 

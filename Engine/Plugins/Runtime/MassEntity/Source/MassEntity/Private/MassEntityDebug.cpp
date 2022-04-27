@@ -137,7 +137,7 @@ FAutoConsoleCommandWithWorldArgsAndOutputDevice LogFragmentSizes(
 		{
 			for (const TWeakObjectPtr<const UScriptStruct>& WeakStruct : FMassFragmentBitSet::DebugGetAllStructTypes())
 			{
-				if (const UStruct* StructType = WeakStruct.Get())
+				if (const UScriptStruct* StructType = WeakStruct.Get())
 				{
 					Ar.Logf(ELogVerbosity::Log, TEXT("%s, size: %d"), *StructType->GetName(), StructType->GetStructureSize());
 				}
@@ -166,7 +166,7 @@ FAutoConsoleCommandWithOutputDevice LogFragments(
 {
 	auto PrintKnownTypes = [&OutputDevice](TConstArrayView<TWeakObjectPtr<const UScriptStruct>> AllStructs) {
 		int i = 0;
-		for (TWeakObjectPtr<const UStruct> Struct : AllStructs)
+		for (TWeakObjectPtr<const UScriptStruct> Struct : AllStructs)
 		{
 			if (Struct.IsValid())
 			{

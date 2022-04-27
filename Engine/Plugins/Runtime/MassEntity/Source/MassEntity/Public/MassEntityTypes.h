@@ -5,6 +5,7 @@
 #include "StructTypeBitSet.h"
 #include "MassProcessingTypes.h"
 #include "StructArrayView.h"
+#include "Subsystems/Subsystem.h"
 #include "MassEntityTypes.generated.h"
 
 
@@ -106,6 +107,7 @@ DECLARE_STRUCTTYPEBITSET_EXPORTED(MASSENTITY_API, FMassFragmentBitSet, FMassFrag
 DECLARE_STRUCTTYPEBITSET_EXPORTED(MASSENTITY_API, FMassTagBitSet, FMassTag);
 DECLARE_STRUCTTYPEBITSET_EXPORTED(MASSENTITY_API, FMassChunkFragmentBitSet, FMassChunkFragment);
 DECLARE_STRUCTTYPEBITSET_EXPORTED(MASSENTITY_API, FMassSharedFragmentBitSet, FMassSharedFragment);
+DECLARE_CLASSTYPEBITSET_EXPORTED(MASSENTITY_API, FMassExternalSubystemBitSet, USubsystem);
 
 /** The type summarily describing a composition of an entity or an archetype. It contains information on both the
  *  fragments as well as tags */
