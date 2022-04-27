@@ -243,31 +243,59 @@ void FRCWebInterfaceCustomizations::GeneratePanelExtensions(TArray<TSharedRef<SW
 		[
 			SNew(SButton)
 			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ToolTipText_Lambda([this]()
+				{
+					switch (WebApp->GetStatus())
+					{
+					case FRemoteControlWebInterfaceProcess::EStatus::Error: return LOCTEXT("AppErrorTooltip", "An error occurred when launching the web app.\r\nClick to change the Web App's settings.");
+					case FRemoteControlWebInterfaceProcess::EStatus::Running: return LOCTEXT("AppRunningTooltip", "Open the web app in a web browser.");
+					case FRemoteControlWebInterfaceProcess::EStatus::Stopped: return LOCTEXT("AppStoppedTooltip", "The web app is not currently running.\r\nClick to change the Web App's settings.");
+					default: return FText();
+					}
+				})
 			.OnClicked_Raw(this, &FRCWebInterfaceCustomizations::OpenWebApp)
 			[
-				SNew(STextBlock)
-				.ToolTipText_Lambda([this]()
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(0.f, 2.f, 4.f, 2.f)
+				[
+					SNew(STextBlock)
+					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
+					.Text_Lambda([this]()
+						{
+							switch (WebApp->GetStatus())
+							{
+							case FRemoteControlWebInterfaceProcess::EStatus::Error: return FEditorFontGlyphs::Exclamation_Triangle;
+							case FRemoteControlWebInterfaceProcess::EStatus::Running: return FEditorFontGlyphs::External_Link;
+							case FRemoteControlWebInterfaceProcess::EStatus::Stopped: return FEditorFontGlyphs::Exclamation_Triangle;
+							default: return FEditorFontGlyphs::Exclamation_Triangle;
+							}
+						})
+				]
+
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Center)
+				.FillWidth(1.f)
+				.Padding(4.f, 2.f, 0.f, 2.f)
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]()
 					{
 						switch (WebApp->GetStatus())
 						{
-						case FRemoteControlWebInterfaceProcess::EStatus::Error: return LOCTEXT("AppErrorTooltip", "An error occurred when launching the web app.\r\nClick to change the Web App's settings.");
-						case FRemoteControlWebInterfaceProcess::EStatus::Running: return LOCTEXT("AppRunningTooltip", "Open the web app in a web browser.");
-						case FRemoteControlWebInterfaceProcess::EStatus::Stopped: return LOCTEXT("AppStoppedTooltip", "The web app is not currently running.\r\nClick to change the Web App's settings.");
-						default: return FText();
+							case FRemoteControlWebInterfaceProcess::EStatus::Error: return LOCTEXT("ErrorText", "Error");
+							case FRemoteControlWebInterfaceProcess::EStatus::Running: return LOCTEXT("RunningText", "Web App");
+							case FRemoteControlWebInterfaceProcess::EStatus::Stopped: return LOCTEXT("StoppedText", "Stopped");
+							default: return LOCTEXT("UnknownErrorText", "Unknown Error");
 						}
 					})
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text_Lambda([this]()
-					{
-						switch (WebApp->GetStatus())
-						{
-						case FRemoteControlWebInterfaceProcess::EStatus::Error: return FEditorFontGlyphs::Exclamation_Triangle;
-						case FRemoteControlWebInterfaceProcess::EStatus::Running: return FEditorFontGlyphs::External_Link;
-						case FRemoteControlWebInterfaceProcess::EStatus::Stopped: return FEditorFontGlyphs::Exclamation_Triangle;
-						default: return FEditorFontGlyphs::Exclamation_Triangle;
-						}
-					})
+				]
 			]
 		]
 	);

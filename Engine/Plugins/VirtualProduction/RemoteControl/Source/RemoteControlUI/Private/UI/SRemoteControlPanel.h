@@ -30,6 +30,7 @@ struct SRCPanelTreeNode;
 class SRCPanelFunctionPicker;
 class SRemoteControlPanel;
 class SRCPanelExposedEntitiesList;
+class SSearchBox;
 class STextBlock;
 class URemoteControlPreset;
 
@@ -112,7 +113,15 @@ public:
 	/** Re-create the sections of the panel. */
 	void Refresh();
 
+	/** Adds or removes widgets from the default toolbar in this asset editor */
+	void AddToolbarWidget(TSharedRef<SWidget> Widget);
+	void RemoveAllToolbarWidgets();
+
 private:
+
+	//~ Remote Control Commands
+	void BindRemoteControlCommands();
+	void UnbindRemoteControlCommands();
 
 	/** Register editor events needed to handle reloading objects and blueprint libraries. */
 	void RegisterEvents();
@@ -205,8 +214,44 @@ private:
 
 	/** Handle triggers each time when any material has been recompiled */
 	void OnMaterialCompiled(class UMaterialInterface* MaterialInterface);
+	
+	/** Registers default tool bar */
+	static void RegisterDefaultToolBar();
+
+	/** Makes a default asset editing toolbar */
+	void GenerateToolbar();
+	
+	/** Registers Auxiliary tool bar */
+	static void RegisterAuxiliaryToolBar();
+
+	/** Makes a Auxiliary asset editing toolbar */
+	void GenerateAuxiliaryToolbar();
+
+	FText HandlePresetName() const;
+
+	/** Called to test if "Save" should be enabled for this asset */
+	bool CanSaveAsset() const;
+
+	/** Called when "Save" is clicked for this asset */
+	void SaveAsset_Execute() const;
+
+	/** Called to test if "Find in Content Browser" should be enabled for this asset */
+	bool CanFindInContentBrowser() const;
+
+	/** Called when "Find in Content Browser" is clicked for this asset */
+	void FindInContentBrowser_Execute() const;
+
+	static bool ShouldForceSmallIcons();
+
+	void OnToggleExposeFunctions() const;
+
+	void OnToggleProtocolMappings() const;
+
+	void OnToggleLogicEditor() const;
 
 private:
+	static const FName DefaultRemoteControlPanelToolBarName;
+	static const FName AuxiliaryRemoteControlPanelToolBarName;
 	/** Holds the preset asset. */
 	TStrongObjectPtr<URemoteControlPreset> Preset;
 	/** Whether the panel is in edit mode. */
@@ -245,4 +290,19 @@ private:
 	FTimerHandle NextTickTimerHandle;
 	/** The toolkit that hosts this panel. */
 	TWeakPtr<IToolkitHost> ToolkitHost;
+	/** Asset Editor Default Toolbar */
+	TSharedPtr<SWidget> Toolbar;
+	/** Asset Editor Auxiliary Toolbar */
+	TSharedPtr<SWidget> AuxiliaryToolbar;
+	/** The widget that will house the default Toolbar widget */
+	TSharedPtr<SBorder> ToolbarWidgetContent;
+	/** The widget that will house the Auxiliary Toolbar widget */
+	TSharedPtr<SBorder> AuxiliaryToolbarWidgetContent;
+	/** Additional widgets to be added to the toolbar */
+	TArray<TSharedRef<SWidget>> ToolbarWidgets;
+	/** The text box used to search for tags. */
+	TSharedPtr<SSearchBox> SearchBoxPtr;
+
+public:
+	static const float MinimumPanelWidth;
 };

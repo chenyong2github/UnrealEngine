@@ -25,4 +25,29 @@ public:
 	 * Holds the information about UI Command that toggles edit mode in RC Panel.
 	 */
 	TSharedPtr<FUICommandInfo> ToggleEditMode;
+
+	/**
+	 * Holds the information about UI Command that finds the actively edited preset in the Content Browser.
+	 */
+	TSharedPtr<FUICommandInfo> FindPresetInContentBrowser;
+
+	/**
+	 * Holds the information about UI Command that saves the actively edited preset.
+	 */
+	TSharedPtr<FUICommandInfo> SavePreset;
+
+	/**
+	 * Holds the information about UI Command that brings up a panel that facilitates exposing functions using RC API.
+	 */
+	TSharedPtr<FUICommandInfo> ToggleExposeFunctions;
+	
+	/**
+	 * Holds the information about UI Command that brings up a panel which holds the active protocol mappings.
+	 */
+	TSharedPtr<FUICommandInfo> ToggleProtocolMappings;
+	
+	/**
+	 * Holds the information about UI Command that brings up a panel which enables the RC Logical Behaviour.
+	 */
+	TSharedPtr<FUICommandInfo> ToggleLogicEditor;
 };

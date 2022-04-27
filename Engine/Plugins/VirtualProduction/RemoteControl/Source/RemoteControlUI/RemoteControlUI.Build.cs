@@ -34,6 +34,7 @@ public class RemoteControlUI : ModuleRules
 				"SceneOutliner",
 				"Slate",
 				"SlateCore",
+				"ToolMenus",
 				"ToolWidgets",
 				"UnrealEd"
 			}

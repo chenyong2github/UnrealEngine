@@ -83,7 +83,7 @@ void FRemoteControlPresetEditorToolkit::RegisterTabSpawners(const TSharedRef<FTa
 	InTabManager->RegisterTabSpawner(FRemoteControlUIModule::RemoteControlPanelTabName, FOnSpawnTab::CreateSP(this, &FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnPanelTab))
 		.SetDisplayName(LOCTEXT("RemoteControlPanelMainTab", "Remote Control Panel"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
-		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.GameSettings.Small"));
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
 	InTabManager->RegisterTabSpawner(FRemoteControlUIModule::EntityDetailsTabName, FOnSpawnTab::CreateSP(this, &FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnDetailsTab))
 		.SetDisplayName(LOCTEXT("RemoteControlPanelDetailsTab", "Entity Details"))
@@ -133,7 +133,9 @@ TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnPan
 {
 	check(Args.GetTabId() == FRemoteControlUIModule::RemoteControlPanelTabName);
 
+	/*
 	FText TabName;
+	
 	if (Preset)
 	{
 		TabName = FText::FromString(Preset->GetName());
@@ -142,9 +144,10 @@ TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnPan
 	{
 		TabName = LOCTEXT("ControlPanelLabel", "Control Panel");
 	}
+	*/
 
 	return SNew(SDockTab)
-		.Label(TabName)
+		.Label(LOCTEXT("RCPanelTabName", "Remote Control"))
 		.TabColorScale(GetTabColorScale())	
 		[
 			PanelTab.ToSharedRef()
@@ -184,6 +187,17 @@ void FRemoteControlPresetEditorToolkit::InvokePanelTab()
 	{
 		Tab->SetContent(PanelTab.ToSharedRef());
 		Tab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateStatic(&Local::OnRemoteControlPresetClosed, TWeakPtr<IAssetEditorInstance>(SharedThis(this))));
+	
+		// Force the parent window to have minimum width.
+		TSharedPtr<SWindow> Window = Tab->GetParentWindow();
+		if (Window.IsValid())
+		{
+			FWindowSizeLimits SizeLimits = Window->GetSizeLimits();
+
+			SizeLimits.SetMinWidth(SRemoteControlPanel::MinimumPanelWidth);
+
+			Window->SetSizeLimits(SizeLimits);
+		}
 	}
 }
 
