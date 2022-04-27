@@ -73,7 +73,7 @@ float3x4 DI_LOCAL(GetBoneMatrix)(uint BoneIndex)
 DI_IMPL_READ(ReadNumBones, uint, uint VertexIndex)
 {
 #if !ENABLE_DEFORMER_BONES
-	return 0;
+	return 1;
 #elif GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	uint BlendOffsetCount = DI_LOCAL(InputWeightLookupStream)[VertexIndex];
 	return BlendOffsetCount & 0xff;
@@ -115,7 +115,7 @@ DI_IMPL_READ(ReadBoneWeight, float, uint VertexIndex, uint BoneIndex)
 {
 #if !ENABLE_DEFORMER_BONES
 
-	return 0;
+	return 1;
 
 #elif GPUSKIN_UNLIMITED_BONE_INFLUENCE
 	
