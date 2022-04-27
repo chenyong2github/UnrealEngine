@@ -1179,7 +1179,8 @@ void USmartObjectSubsystem::CleanupRuntime()
 	// Process component list first so they can be notified before we destroy their associated runtime instance
 	for (USmartObjectComponent* Component : RegisteredSOComponents)
 	{
-		if (Component != nullptr)
+		// Make sure component was registered to simulation (e.g. Valid associated definition)
+		if (Component != nullptr && Component->GetRegisteredHandle().IsValid())
 		{
 			RemoveComponentFromSimulation(*Component);
 		}
