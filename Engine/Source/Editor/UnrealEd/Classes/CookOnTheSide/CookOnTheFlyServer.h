@@ -737,6 +737,9 @@ private:
 	void AddFileToCook( TArray<FName>& InOutFilesToCook, TMap<FName, UE::Cook::FInstigator>& InOutInstigators,
 		const FString &InFilename, const UE::Cook::FInstigator& Instigator) const;
 
+	/** Return the name to use for the project's global shader library */
+	FString GetProjectShaderLibraryName() const;
+
 	/**
 	* Invokes the necessary FShaderCodeLibrary functions to start cooking the shader code library.
 	*/
@@ -771,6 +774,8 @@ private:
 	* Invokes the necessary FShaderCodeLibrary functions to clean out all the temporary files.
 	*/
 	void CleanShaderCodeLibraries();
+
+	void RegisterShaderChunkDataGenerator();
 
 	/**
 	* Call back from the TickCookOnTheSide when a cook by the book finishes (when started form StartCookByTheBook)
@@ -810,6 +815,8 @@ private:
 	* @param TargetPlatform the platform we want to save out the dependency graph for
 	*/
 	void WriteMapDependencyGraph(const ITargetPlatform* TargetPlatform);
+
+	void RegisterLocalizationChunkDataGenerator();
 
 	//////////////////////////////////////////////////////////////////////////
 	// cook on the fly specific functions
@@ -1147,7 +1154,8 @@ private:
 	bool bPreexploreDependenciesEnabled = true;
 	/** Test mode for the debug of hybrid iterative dependencies. */
 	bool bHybridIterativeDebug = false;
-	bool bHasBlockedOnAssetRegistry = false;
+	bool bFirstCookInThisProcessInitialized = false;
+	bool bFirstCookInThisProcess = true;
 	bool bHasDeferredInitializeCookOnTheFly = false;
 	bool bImportBehaviorCallbackInstalled = false;
 

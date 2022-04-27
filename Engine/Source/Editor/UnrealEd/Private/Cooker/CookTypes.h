@@ -276,6 +276,8 @@ public:
 
 	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
 	TMap<FName, TArray<FName>>		SourceToLocalizedPackageVariants;
+	/** List of all the cultures (e.g. "en") that need to be cooked */
+	TArray<FString>					AllCulturesToCook;
 };
 
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);
