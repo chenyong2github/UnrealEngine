@@ -39,6 +39,11 @@ void UPCGMetadata::Initialize(const UPCGMetadata* InParent)
 
 void UPCGMetadata::InitializeAsCopy(const UPCGMetadata* InMetadataToCopy)
 {
+	if (!InMetadataToCopy)
+	{
+		return;
+	}
+
 	check(InMetadataToCopy);
 	if (Parent || Attributes.Num() != 0)
 	{
@@ -81,6 +86,68 @@ void UPCGMetadata::AddAttributes(const UPCGMetadata* InOther)
 	{
 		OtherParents.Add(InOther);
 	}
+}
+
+void UPCGMetadata::AddAttribute(const UPCGMetadata* InOther, FName AttributeName)
+{
+	if (!InOther || !InOther->HasAttribute(AttributeName) || HasAttribute(AttributeName))
+	{
+		return;
+	}
+
+	CopyAttribute(InOther->GetConstAttribute(AttributeName), AttributeName, /*bKeepParent=*/false, /*bCopyEntries=*/false, /*bCopyValues=*/false);
+	OtherParents.Add(InOther);
+}
+
+void UPCGMetadata::CopyAttributes(const UPCGMetadata* InOther)
+{
+	if (!InOther || InOther == Parent)
+	{
+		return;
+	}
+
+	if (GetItemCountForChild() != InOther->GetItemCountForChild())
+	{
+		UE_LOG(LogPCG, Error, TEXT("Mismatch in copy attributes since the entries do not match"));
+		return;
+	}
+
+	for (const TPair<FName, FPCGMetadataAttributeBase*> OtherAttribute : InOther->Attributes)
+	{
+		if (HasAttribute(OtherAttribute.Key))
+		{
+			continue;
+		}
+		else
+		{
+			CopyAttribute(OtherAttribute.Value, OtherAttribute.Key, /*bKeepParent=*/false, /*bCopyEntries=*/true, /*bCopyValues=*/true);
+		}
+	}
+}
+
+void UPCGMetadata::CopyAttribute(const UPCGMetadata* InOther, FName AttributeToCopy, FName NewAttributeName)
+{
+	if (!InOther)
+	{
+		return;
+	}
+	else if (HasAttribute(NewAttributeName) || !InOther->HasAttribute(AttributeToCopy))
+	{
+		return;
+	}
+	else if (InOther == Parent)
+	{
+		CopyExistingAttribute(AttributeToCopy, NewAttributeName);
+		return;
+	}
+
+	if (GetItemCountForChild() != InOther->GetItemCountForChild())
+	{
+		UE_LOG(LogPCG, Error, TEXT("Mismatch in copy attributes since the entries do not match"));
+		return;
+	}
+
+	CopyAttribute(InOther->GetConstAttribute(AttributeToCopy), NewAttributeName, /*bKeepParent=*/false, /*bCopyEntries=*/true, /*bCopyValues=*/true);
 }
 
 const UPCGMetadata* UPCGMetadata::GetRoot() const
@@ -264,7 +331,7 @@ void UPCGMetadata::CreateStringAttribute(FName AttributeName, const FString& Def
 	CreateAttribute<FString>(AttributeName, DefaultValue, bAllowsInterpolation, bOverrideParent);
 }
 
-void UPCGMetadata::CopyAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent)
+void UPCGMetadata::CopyExistingAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent)
 {
 	CopyAttribute(AttributeToCopy, NewAttributeName, bKeepParent, /*bCopyEntries=*/true, /*bCopyValues=*/true);
 }

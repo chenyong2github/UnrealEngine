@@ -338,7 +338,7 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 		}
 		else // Attribute to attribute
 		{
-			SampledData->Metadata->CopyAttribute(LocalSourceAttribute, DestinationAttribute);
+			SampledData->Metadata->CopyExistingAttribute(LocalSourceAttribute, DestinationAttribute);
 		}
 	}
 

@@ -40,9 +40,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void InitializeAsCopy(const UPCGMetadata* InMetadataToCopy);
 
-	/** Creates streams for another metadata if they are not currently present */
+	/** Creates missing attributes from another metadata if they are not currently present - note that this does not copy values */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void AddAttributes(const UPCGMetadata* InOther);
+
+	/** Creates missing attribute from another metadata if it is not currently present - note that this does not copy values */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void AddAttribute(const UPCGMetadata* InOther, FName AttributeName);
+
+	/** Copies attributes from another metadata, including entries & values. Warning: this is intended when dealing with the same data set */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata|Advanced")
+	void CopyAttributes(const UPCGMetadata* InOther);
+
+	/** Copies an attribute from another metadata, including entries & values. Warning: this is intended when dealing with the same data set */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata|Advanced")
+	void CopyAttribute(const UPCGMetadata* InOther, FName AttributeToCopy, FName NewAttributeName);
 
 	/** Returns this metadata's parent */
 	const UPCGMetadata* GetParent() const { return Parent.Get(); }
@@ -83,11 +95,12 @@ public:
 
 	/** Delete/Hide attribute */
 	// Due to stream inheriting, we might want to consider "hiding" parent stream and deleting local streams only
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void DeleteAttribute(FName AttributeName);
 
 	/** Copy attribute */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	void CopyAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent = true);
+	void CopyExistingAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent = true);
 
 	/** Rename attribute */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")

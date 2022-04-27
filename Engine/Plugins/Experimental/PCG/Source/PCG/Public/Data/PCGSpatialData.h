@@ -109,7 +109,7 @@ public:
 	UPCGMetadata* CreateEmptyMetadata();
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	void InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride = nullptr);
+	void InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride = nullptr, bool bInheritMetadata = true);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	AActor* TargetActor = nullptr;
