@@ -142,7 +142,7 @@ struct FSessionContext
 	int32 					NumberOfCoresIncludingHyperthreads;
 	int32 					SecondsSinceStart;
 	int32 					CrashDumpMode;
-	int32					CrashType;
+	int32					CrashTrigger;
 	int32					OOMAllocationAlignment;
 	uint64					OOMAllocationSize;
 	TCHAR 					GameName[CR_MAX_GENERIC_FIELD_CHARS];
@@ -394,7 +394,10 @@ public:
 	}
 
 	/** Escapes and appends specified text to XML string */
-	static void AppendEscapedXMLString( FString& OutBuffer, const TCHAR* Text );
+	static void AppendEscapedXMLString(FString& OutBuffer, FStringView Text );
+	static void AppendEscapedXMLString(FStringBuilderBase& OutBuffer, FStringView Text);
+
+	static void AppendPortableCallstack(FString& OutBuffer, TConstArrayView<FCrashStackFrame> StackFrames);
 
 	/** Unescapes a specified XML string, naive implementation. */
 	static FString UnescapeXMLString( const FString& Text );
@@ -495,6 +498,12 @@ public:
 	/** Gets the portable callstack to a specified stack and puts it into OutCallStack */
 	virtual void GetPortableCallStack(const uint64* StackFrames, int32 NumStackFrames, TArray<FCrashStackFrame>& OutCallStack) const;
 
+	/** Store info about loaded modules */
+	virtual void CaptureModules();
+
+	/** Gets info about loaded modules and stores it in the given array */
+	virtual void GetModules(TArray<FStackWalkModuleInfo>& OutModules) const;
+	
 	/** Adds a portable callstack for a thread */
 	virtual void AddPortableThreadCallStack(uint32 ThreadId, const TCHAR* ThreadName, const uint64* StackFrames, int32 NumStackFrames);
 
@@ -549,6 +558,7 @@ protected:
 	int NumMinidumpFramesToIgnore;
 	TArray<FCrashStackFrame> CallStack;
 	TArray<FThreadStackFrames> ThreadCallStacks;
+	TArray<FStackWalkModuleInfo> ModulesInfo;
 
 	/** Allow platform implementations to provide a callstack property. Primarily used when non-native code triggers a crash. */
 	virtual const TCHAR* GetCallstackProperty() const;
@@ -568,13 +578,13 @@ private:
 	static void SerializeUserSettings(FString& Buffer);
 
 	/** Writes a common property to the buffer. */
-	static void AddCrashPropertyInternal(FString& Buffer, const TCHAR* PropertyName, const TCHAR* PropertyValue);
+	static void AddCrashPropertyInternal(FString& Buffer, FStringView PropertyName, FStringView PropertyValue);
 
 	/** Writes a common property to the buffer. */
 	template <typename Type>
-	static void AddCrashPropertyInternal(FString& Buffer, const TCHAR* PropertyName, const Type& Value)
+	static void AddCrashPropertyInternal(FString& Buffer, FStringView PropertyName, const Type& Value)
 	{
-		AddCrashPropertyInternal(Buffer, PropertyName, *TTypeToString<Type>::ToString(Value));
+		AddCrashPropertyInternal(Buffer, PropertyName, FStringView(TTypeToString<Type>::ToString(Value)));
 	}
 
 	/** Serializes platform specific properties to the buffer. */
@@ -585,6 +595,9 @@ private:
 
 	/** Produces a hash based on the offsets of the portable callstack and adds it to the xml */
 	void AddPortableCallStackHash() const;
+
+	/** Add module/pdb information to the crash report xml */
+	void AddModules() const;
 
 	/** Writes header information to the buffer. */
 	static void AddHeader(FString& Buffer);
