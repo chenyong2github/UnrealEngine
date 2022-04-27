@@ -8,39 +8,42 @@
 #include "UnrealWidget.h"
 #include "PoseSearchDatabaseEdMode.h"
 
-FPoseSearchDatabaseViewportClient::FPoseSearchDatabaseViewportClient(
-	const TSharedRef<FPoseSearchDatabasePreviewScene>& InPreviewScene,
-	const TSharedRef<SPoseSearchDatabaseViewport>& InViewport, 
-	const TSharedRef<FPoseSearchDatabaseEditorToolkit>& InAssetEditorToolkit)
-	: FEditorViewportClient(nullptr, &InPreviewScene.Get(), StaticCastSharedRef<SEditorViewport>(InViewport))
-	, PreviewScenePtr(InPreviewScene)
-	, AssetEditorToolkitPtr(InAssetEditorToolkit)
+namespace UE::PoseSearch
 {
-	Widget->SetUsesEditorModeTools(ModeTools.Get());
-	StaticCastSharedPtr<FAssetEditorModeManager>(ModeTools)->SetPreviewScene(&InPreviewScene.Get());
-	ModeTools->SetDefaultMode(FPoseSearchDatabaseEdMode::EdModeId);
+	FDatabaseViewportClient::FDatabaseViewportClient(
+		const TSharedRef<FDatabasePreviewScene>& InPreviewScene,
+		const TSharedRef<SDatabaseViewport>& InViewport,
+		const TSharedRef<FDatabaseEditorToolkit>& InAssetEditorToolkit)
+		: FEditorViewportClient(nullptr, &InPreviewScene.Get(), StaticCastSharedRef<SEditorViewport>(InViewport))
+		, PreviewScenePtr(InPreviewScene)
+		, AssetEditorToolkitPtr(InAssetEditorToolkit)
+	{
+		Widget->SetUsesEditorModeTools(ModeTools.Get());
+		StaticCastSharedPtr<FAssetEditorModeManager>(ModeTools)->SetPreviewScene(&InPreviewScene.Get());
+		ModeTools->SetDefaultMode(FDatabaseEdMode::EdModeId);
 
-	SetRealtime(true);
+		SetRealtime(true);
 
-	SetWidgetCoordSystemSpace(COORD_Local);
-	ModeTools->SetWidgetMode(UE::Widget::WM_Translate);
-}
+		SetWidgetCoordSystemSpace(COORD_Local);
+		ModeTools->SetWidgetMode(UE::Widget::WM_Translate);
+	}
 
-void FPoseSearchDatabaseViewportClient::TrackingStarted(
-	const struct FInputEventState& InInputState, 
-	bool bIsDraggingWidget, 
-	bool bNudge)
-{
-	ModeTools->StartTracking(this, Viewport);
-}
+	void FDatabaseViewportClient::TrackingStarted(
+		const struct FInputEventState& InInputState,
+		bool bIsDraggingWidget,
+		bool bNudge)
+	{
+		ModeTools->StartTracking(this, Viewport);
+	}
 
-void FPoseSearchDatabaseViewportClient::TrackingStopped()
-{
-	ModeTools->EndTracking(this, Viewport);
-	Invalidate();
-}
+	void FDatabaseViewportClient::TrackingStopped()
+	{
+		ModeTools->EndTracking(this, Viewport);
+		Invalidate();
+	}
 
-void FPoseSearchDatabaseViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
-{
-	FEditorViewportClient::Draw(View, PDI);
+	void FDatabaseViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)
+	{
+		FEditorViewportClient::Draw(View, PDI);
+	}
 }

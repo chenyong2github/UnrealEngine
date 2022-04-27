@@ -26,7 +26,7 @@ DEFINE_LOG_CATEGORY(LogPoseSearchEditor);
 //////////////////////////////////////////////////////////////////////////
 // FEditorCommands
 
-namespace UE { namespace PoseSearch {
+namespace UE::PoseSearch {
 
 struct FEditorCommands
 {
@@ -99,7 +99,7 @@ private:
 void FEditorModule::StartupModule()
 {
 	// Register Asset Editor Commands
-	FPoseSearchDatabaseEditorCommands::Register();
+	FDatabaseEditorCommands::Register();
 
 	if (GIsEditor && !IsRunningCommandlet())
 	{
@@ -118,13 +118,13 @@ void FEditorModule::StartupModule()
 		));
 
 		// Register Ed Mode used by pose search database
-		FEditorModeRegistry::Get().RegisterMode<FPoseSearchDatabaseEdMode>(
-			FPoseSearchDatabaseEdMode::EdModeId,
+		FEditorModeRegistry::Get().RegisterMode<FDatabaseEdMode>(
+			FDatabaseEdMode::EdModeId,
 			LOCTEXT("PoseSearchDatabaseEdModeName", "PoseSearchDatabase"));
 
 		// Register UPoseSearchDatabase Type Actions 
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		PoseSearchDatabaseActions = MakeShared<FPoseSearchDatabaseTypeActions>();
+		PoseSearchDatabaseActions = MakeShared<FDatabaseTypeActions>();
 		AssetTools.RegisterAssetTypeActions(PoseSearchDatabaseActions.ToSharedRef());
 	}
 
@@ -151,12 +151,12 @@ void FEditorModule::ShutdownModule()
 	}
 
 	// Unregister Ed Mode
-	FEditorModeRegistry::Get().UnregisterMode(FPoseSearchDatabaseEdMode::EdModeId);
+	FEditorModeRegistry::Get().UnregisterMode(FDatabaseEdMode::EdModeId);
 	
 	UnregisterCustomizations();
 
 	// Unregister Asset Editor Commands
-	FPoseSearchDatabaseEditorCommands::Unregister();
+	FDatabaseEditorCommands::Unregister();
 	
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, TraceModule.Get());
 	FDebugger::Shutdown();
@@ -226,7 +226,7 @@ void FEditorModule::UnregisterCustomizations()
 }
 
 
-}} // namespace UE::PoseSearch
+} // namespace UE::PoseSearch
 
 IMPLEMENT_MODULE(UE::PoseSearch::FEditorModule, PoseSearchEditor);
 

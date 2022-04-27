@@ -6,33 +6,38 @@
 #include "Framework/Commands/Commands.h"
 #include "EditorStyleSet.h"
 
-class FPoseSearchDatabaseEditorCommands : public TCommands<FPoseSearchDatabaseEditorCommands>
+
+namespace UE::PoseSearch
 {
-public:
-	FPoseSearchDatabaseEditorCommands()
-		: TCommands<FPoseSearchDatabaseEditorCommands>(
-			TEXT("PoseSearchDatabaseEditor"), 
-			NSLOCTEXT("Contexts", "PoseSearchDatabase", "Pose Search Database"), 
-			NAME_None, 
-			FEditorStyle::GetStyleSetName())
+	class FDatabaseEditorCommands : public TCommands<FDatabaseEditorCommands>
 	{
-	}
+	public:
+		FDatabaseEditorCommands()
+			: TCommands<FDatabaseEditorCommands>(
+				TEXT("PoseSearchDatabaseEditor"),
+				NSLOCTEXT("Contexts", "PoseSearchDatabase", "Pose Search Database"),
+				NAME_None,
+				FEditorStyle::GetStyleSetName())
+		{
+		}
 
-	virtual void RegisterCommands() override;
+		virtual void RegisterCommands() override;
 
-public:
-	TSharedPtr<FUICommandInfo> StopPreviewScene;
+	public:
+		TSharedPtr<FUICommandInfo> StopPreviewScene;
 
-	TSharedPtr<FUICommandInfo> ResetPreviewScene;
+		TSharedPtr<FUICommandInfo> ResetPreviewScene;
 
-	TSharedPtr<FUICommandInfo> BuildSearchIndex;
+		TSharedPtr<FUICommandInfo> BuildSearchIndex;
 
-	TSharedPtr<FUICommandInfo> ShowPoseFeaturesNone;
+		TSharedPtr<FUICommandInfo> ShowPoseFeaturesNone;
 
-	TSharedPtr<FUICommandInfo> ShowPoseFeaturesAll;
+		TSharedPtr<FUICommandInfo> ShowPoseFeaturesAll;
 
-	TSharedPtr<FUICommandInfo> ShowAnimationOriginalOnly;
+		TSharedPtr<FUICommandInfo> ShowAnimationOriginalOnly;
 
-	TSharedPtr<FUICommandInfo> ShowAnimationOriginalAndMirrored;
+		TSharedPtr<FUICommandInfo> ShowAnimationOriginalAndMirrored;
 
-};
+	};
+}
+

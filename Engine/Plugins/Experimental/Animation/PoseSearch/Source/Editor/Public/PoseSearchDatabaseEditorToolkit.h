@@ -9,63 +9,64 @@
 class IDetailsView;
 class FToolBarBuilder;
 class UPoseSearchDatabase;
-class SPoseSearchDatabaseViewport;
-class FPoseSearchDatabasePreviewScene;
-class FPoseSearchDatabaseViewModel;
 
 namespace UE::PoseSearch
 {
+	class SDatabaseViewport;
+	class FDatabasePreviewScene;
+	class FDatabaseViewModel;
 	class SDatabaseAssetTree;
-}
 
-class FPoseSearchDatabaseEditorToolkit : public FAssetEditorToolkit, public FNotifyHook
-{
-public:
+	class FDatabaseEditorToolkit : public FAssetEditorToolkit, public FNotifyHook
+	{
+	public:
 
-	FPoseSearchDatabaseEditorToolkit();
-	virtual ~FPoseSearchDatabaseEditorToolkit();
+		FDatabaseEditorToolkit();
+		virtual ~FDatabaseEditorToolkit();
 
-	void InitAssetEditor(
-		const EToolkitMode::Type Mode, 
-		const TSharedPtr<IToolkitHost>& InitToolkitHost, 
-		UPoseSearchDatabase* DatabaseAsset);
+		void InitAssetEditor(
+			const EToolkitMode::Type Mode,
+			const TSharedPtr<IToolkitHost>& InitToolkitHost,
+			UPoseSearchDatabase* DatabaseAsset);
 
-	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
-	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
-	virtual FName GetToolkitFName() const override;
-	virtual FText GetBaseToolkitName() const override;
-	virtual FText GetToolkitName() const override;
-	virtual FLinearColor GetWorldCentricTabColorScale() const override;
-	virtual FString GetWorldCentricTabPrefix() const override;
+		virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
+		virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
+		virtual FName GetToolkitFName() const override;
+		virtual FText GetBaseToolkitName() const override;
+		virtual FText GetToolkitName() const override;
+		virtual FLinearColor GetWorldCentricTabColorScale() const override;
+		virtual FString GetWorldCentricTabPrefix() const override;
 
-	const UPoseSearchDatabase* GetPoseSearchDatabase() const;
-	FPoseSearchDatabaseViewModel* GetViewModel() const { return ViewModel.Get(); }
-	TSharedPtr<FPoseSearchDatabaseViewModel> GetViewModelSharedPtr() const { return ViewModel; }
+		const UPoseSearchDatabase* GetPoseSearchDatabase() const;
+		FDatabaseViewModel* GetViewModel() const { return ViewModel.Get(); }
+		TSharedPtr<FDatabaseViewModel> GetViewModelSharedPtr() const { return ViewModel; }
 
-	void StopPreviewScene();
-	void ResetPreviewScene();
-	void BuildSearchIndex();
+		void StopPreviewScene();
+		void ResetPreviewScene();
+		void BuildSearchIndex();
 
-private:
-	
-	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_PreviewSettings(const FSpawnTabArgs& Args);
+	private:
+
+		TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
+		TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
+		TSharedRef<SDockTab> SpawnTab_PreviewSettings(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_AssetTreeView(const FSpawnTabArgs& Args);
 
-	void BindCommands();
-	void ExtendToolbar();
-	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
+		void BindCommands();
+		void ExtendToolbar();
+		void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
-	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
+		void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
-	TSharedPtr<SPoseSearchDatabaseViewport> ViewportWidget;
+		TSharedPtr<SDatabaseViewport> ViewportWidget;
 
 	TSharedPtr<UE::PoseSearch::SDatabaseAssetTree> AssetTreeWidget;
 
-	TSharedPtr<IDetailsView> EditingAssetWidget;
+		TSharedPtr<IDetailsView> EditingAssetWidget;
 
-	TSharedPtr<FPoseSearchDatabasePreviewScene> PreviewScene;
+		TSharedPtr<FDatabasePreviewScene> PreviewScene;
 
-	TSharedPtr<FPoseSearchDatabaseViewModel> ViewModel;
-};
+		TSharedPtr<FDatabaseViewModel> ViewModel;
+	};
+}
+

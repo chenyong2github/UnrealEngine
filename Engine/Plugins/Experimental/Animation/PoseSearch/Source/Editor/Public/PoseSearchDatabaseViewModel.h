@@ -16,68 +16,70 @@ class UDebugSkelMeshComponent;
 class UAnimSequence;
 class UBlendSpace;
 
-enum class EPoseSearchFeaturesDrawMode : uint8
+namespace UE::PoseSearch
 {
-	None,
-	All
-};
-
-enum class EAnimationPreviewMode : uint8
-{
-	OriginalOnly,
-	OriginalAndMirrored
-};
-
-
-struct FPoseSearchDatabasePreviewActor
-{
-public:
-	TWeakObjectPtr<AActor> Actor = nullptr;
-	TWeakObjectPtr<UDebugSkelMeshComponent> Mesh = nullptr;
-	TWeakObjectPtr<UAnimPreviewInstance> AnimInstance = nullptr;
-	const FPoseSearchIndexAsset* IndexAsset = nullptr;
-	int32 CurrentPoseIndex = INDEX_NONE;
-
-	bool IsValid()
+	enum class EFeaturesDrawMode : uint8
 	{
-		const bool bIsValid = Actor.IsValid() && Mesh.IsValid() && AnimInstance.IsValid();
-		return  bIsValid;
-	}
-};
+		None,
+		All
+	};
 
-class FPoseSearchDatabaseViewModel : public TSharedFromThis<FPoseSearchDatabaseViewModel>, public FGCObject
-{
-public:
+	enum class EAnimationPreviewMode : uint8
+	{
+		OriginalOnly,
+		OriginalAndMirrored
+	};
 
-	FPoseSearchDatabaseViewModel();
-	virtual ~FPoseSearchDatabaseViewModel();
 
-	// ~ FGCObject interface
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override { return TEXT("FPoseSearchDatabaseViewModel"); }
+	struct FDatabasePreviewActor
+	{
+	public:
+		TWeakObjectPtr<AActor> Actor = nullptr;
+		TWeakObjectPtr<UDebugSkelMeshComponent> Mesh = nullptr;
+		TWeakObjectPtr<UAnimPreviewInstance> AnimInstance = nullptr;
+		const FPoseSearchIndexAsset* IndexAsset = nullptr;
+		int32 CurrentPoseIndex = INDEX_NONE;
 
-	void Initialize(
-		UPoseSearchDatabase* InPoseSearchDatabase, 
-		const TSharedRef<FPoseSearchDatabasePreviewScene>& InPreviewScene);
+		bool IsValid()
+		{
+			const bool bIsValid = Actor.IsValid() && Mesh.IsValid() && AnimInstance.IsValid();
+			return  bIsValid;
+		}
+	};
 
-	void RemovePreviewActors();
-	void ResetPreviewActors();
-	void RespawnPreviewActors();
-	void BuildSearchIndex();
+	class FDatabaseViewModel : public TSharedFromThis<FDatabaseViewModel>, public FGCObject
+	{
+	public:
 
-	UPoseSearchDatabase* GetPoseSearchDatabase() const { return PoseSearchDatabase; }
-	void OnPreviewActorClassChanged();
+		FDatabaseViewModel();
+		virtual ~FDatabaseViewModel();
 
-	void Tick(float DeltaSeconds);
+		// ~ FGCObject interface
+		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+		virtual FString GetReferencerName() const override { return TEXT("FPoseSearchDatabaseViewModel"); }
 
-	TArray<FPoseSearchDatabasePreviewActor>& GetPreviewActors() { return PreviewActors; }
-	const TArray<FPoseSearchDatabasePreviewActor>& GetPreviewActors() const { return PreviewActors; }
+		void Initialize(
+			UPoseSearchDatabase* InPoseSearchDatabase,
+			const TSharedRef<FDatabasePreviewScene>& InPreviewScene);
 
-	void OnSetPoseFeaturesDrawMode(EPoseSearchFeaturesDrawMode DrawMode);
-	bool IsPoseFeaturesDrawMode(EPoseSearchFeaturesDrawMode DrawMode) const;
+		void RemovePreviewActors();
+		void ResetPreviewActors();
+		void RespawnPreviewActors();
+		void BuildSearchIndex();
 
-	void OnSetAnimationPreviewMode(EAnimationPreviewMode PreviewMode);
-	bool IsAnimationPreviewMode(EAnimationPreviewMode PreviewMode) const;
+		UPoseSearchDatabase* GetPoseSearchDatabase() const { return PoseSearchDatabase; }
+		void OnPreviewActorClassChanged();
+
+		void Tick(float DeltaSeconds);
+
+		TArray<FDatabasePreviewActor>& GetPreviewActors() { return PreviewActors; }
+		const TArray<FDatabasePreviewActor>& GetPreviewActors() const { return PreviewActors; }
+
+		void OnSetPoseFeaturesDrawMode(EFeaturesDrawMode DrawMode);
+		bool IsPoseFeaturesDrawMode(EFeaturesDrawMode DrawMode) const;
+
+		void OnSetAnimationPreviewMode(EAnimationPreviewMode PreviewMode);
+		bool IsAnimationPreviewMode(EAnimationPreviewMode PreviewMode) const;
 
 	void AddSequenceToDatabase(UAnimSequence* AnimSequence, int InitialGroupIdx = -1);
 	void AddBlendSpaceToDatabase(UBlendSpace* BlendSpace, int InitialGroupIdx = -1);
@@ -90,31 +92,32 @@ public:
 	void DeleteGroup(int32 GroupIdx);
 
 
-private:
-	float PlayTime = 0.0f;
+	private:
+		float PlayTime = 0.0f;
 
-	/** Scene asset being viewed and edited by this view model. */
-	TObjectPtr<UPoseSearchDatabase> PoseSearchDatabase;
+		/** Scene asset being viewed and edited by this view model. */
+		TObjectPtr<UPoseSearchDatabase> PoseSearchDatabase;
 
-	/** Weak pointer to the PreviewScene */
-	TWeakPtr<FPoseSearchDatabasePreviewScene> PreviewScenePtr;
+		/** Weak pointer to the PreviewScene */
+		TWeakPtr<FDatabasePreviewScene> PreviewScenePtr;
 
-	/** Actors to be displayed in the preview viewport */
-	TArray<FPoseSearchDatabasePreviewActor> PreviewActors;
+		/** Actors to be displayed in the preview viewport */
+		TArray<FDatabasePreviewActor> PreviewActors;
 
-	/** What features to show in the viewport */
-	EPoseSearchFeaturesDrawMode PoseFeaturesDrawMode = EPoseSearchFeaturesDrawMode::None;
+		/** What features to show in the viewport */
+		EFeaturesDrawMode PoseFeaturesDrawMode = EFeaturesDrawMode::None;
 
-	/** What animations to show in the viewport */
-	EAnimationPreviewMode AnimationPreviewMode = EAnimationPreviewMode::OriginalOnly;
+		/** What animations to show in the viewport */
+		EAnimationPreviewMode AnimationPreviewMode = EAnimationPreviewMode::OriginalOnly;
 
-	UWorld* GetWorld() const;
+		UWorld* GetWorld() const;
 
-	UObject* GetPlaybackContext() const;
+		UObject* GetPlaybackContext() const;
 
-	FPoseSearchDatabasePreviewActor SpawnPreviewActor(const FPoseSearchIndexAsset& IndexAsset);
+		FDatabasePreviewActor SpawnPreviewActor(const FPoseSearchIndexAsset& IndexAsset);
 
-	void UpdatePreviewActors();
+		void UpdatePreviewActors();
 
-	FTransform MirrorRootMotion(FTransform RootMotion, const class UMirrorDataTable* MirrorDataTable);
-};
+		FTransform MirrorRootMotion(FTransform RootMotion, const class UMirrorDataTable* MirrorDataTable);
+	};
+}

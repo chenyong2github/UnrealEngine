@@ -7,10 +7,10 @@
 #include "Widgets/Views/STreeView.h"
 #include "EditorUndoClient.h"
 
-class FPoseSearchDatabaseViewModel;
 
 namespace UE::PoseSearch
 {
+	class FDatabaseViewModel;
 	class SDatabaseAssetTree;
 
 	class FDatabaseAssetTreeNode : public TSharedFromThis<FDatabaseAssetTreeNode>
@@ -20,7 +20,7 @@ namespace UE::PoseSearch
 		FDatabaseAssetTreeNode(
 			int32 InSourceAssetIdx,
 			ESearchIndexAssetType InSourceAssetType,
-			const TSharedRef<FPoseSearchDatabaseViewModel>& InEditorViewModel);
+			const TSharedRef<FDatabaseViewModel>& InEditorViewModel);
 
 		TSharedRef<ITableRow> MakeTreeRowWidget(
 			const TSharedRef<STableViewBase>& InOwnerTable,
@@ -35,7 +35,7 @@ namespace UE::PoseSearch
 
 	protected:
 
-		TWeakPtr<FPoseSearchDatabaseViewModel> EditorViewModel;
+		TWeakPtr<FDatabaseViewModel> EditorViewModel;
 
 	};
 
@@ -44,7 +44,7 @@ namespace UE::PoseSearch
 	public:
 		void Construct(
 			const FArguments& InArgs,
-			const TSharedRef<FPoseSearchDatabaseViewModel>& InEditorViewModel,
+			const TSharedRef<FDatabaseViewModel>& InEditorViewModel,
 			const TSharedRef<STableViewBase>& OwnerTable,
 			TSharedRef<FDatabaseAssetTreeNode> InAssetTreeNode,
 			TSharedRef<FUICommandList> InCommandList,
@@ -64,7 +64,7 @@ namespace UE::PoseSearch
 		void OnAddBlendSpace();
 
 		TWeakPtr<FDatabaseAssetTreeNode> WeakAssetTreeNode;
-		TWeakPtr<FPoseSearchDatabaseViewModel> EditorViewModel;
+		TWeakPtr<FDatabaseViewModel> EditorViewModel;
 		TWeakPtr<SDatabaseAssetTree> SkeletonView;
 	};
 
@@ -76,7 +76,7 @@ namespace UE::PoseSearch
 
 		virtual ~SDatabaseAssetTree();
 
-		void Construct(const FArguments& InArgs, TSharedRef<FPoseSearchDatabaseViewModel> InEditorViewModel);
+		void Construct(const FArguments& InArgs, TSharedRef<FDatabaseViewModel> InEditorViewModel);
 
 		// SWidget interface
 		virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
@@ -86,7 +86,7 @@ namespace UE::PoseSearch
 		void RefreshTreeView(bool IsInitialSetup = false);
 
 	protected:
-		TWeakPtr<FPoseSearchDatabaseViewModel> EditorViewModel;
+		TWeakPtr<FDatabaseViewModel> EditorViewModel;
 
 		/** command list we bind to */
 		TSharedPtr<FUICommandList> CommandList;

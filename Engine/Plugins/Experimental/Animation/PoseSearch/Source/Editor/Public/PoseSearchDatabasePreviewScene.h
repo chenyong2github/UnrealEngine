@@ -5,26 +5,30 @@
 #include "CoreMinimal.h"
 #include "AdvancedPreviewScene.h"
 
-class FPoseSearchDatabaseEditorToolkit;
-
-class FPoseSearchDatabasePreviewScene : public FAdvancedPreviewScene
+namespace UE::PoseSearch
 {
-public:
+	class FDatabaseEditorToolkit;
 
-	FPoseSearchDatabasePreviewScene(
-		ConstructionValues CVs, 
-		const TSharedRef<FPoseSearchDatabaseEditorToolkit>& EditorToolkit);
-	~FPoseSearchDatabasePreviewScene(){}
-
-	virtual void Tick(float InDeltaTime) override;
-
-	TSharedRef<FPoseSearchDatabaseEditorToolkit> GetEditorToolkit() const
+	class FDatabasePreviewScene : public FAdvancedPreviewScene
 	{
-		return EditorToolkitPtr.Pin().ToSharedRef(); 
-	}
+	public:
 
-private:
+		FDatabasePreviewScene(
+			ConstructionValues CVs,
+			const TSharedRef<FDatabaseEditorToolkit>& EditorToolkit);
+		~FDatabasePreviewScene() {}
 
-	/** The asset editor toolkit we are embedded in */
-	TWeakPtr<FPoseSearchDatabaseEditorToolkit> EditorToolkitPtr;
-};
+		virtual void Tick(float InDeltaTime) override;
+
+		TSharedRef<FDatabaseEditorToolkit> GetEditorToolkit() const
+		{
+			return EditorToolkitPtr.Pin().ToSharedRef();
+		}
+
+	private:
+
+		/** The asset editor toolkit we are embedded in */
+		TWeakPtr<FDatabaseEditorToolkit> EditorToolkitPtr;
+	};
+}
+

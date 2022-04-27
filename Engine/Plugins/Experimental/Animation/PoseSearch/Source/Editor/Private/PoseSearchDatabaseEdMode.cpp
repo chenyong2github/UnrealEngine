@@ -8,88 +8,100 @@
 
 #include "EngineUtils.h"
 
-const FEditorModeID FPoseSearchDatabaseEdMode::EdModeId = TEXT("PoseSearchDatabaseEdMode");
-
-FPoseSearchDatabaseEdMode::FPoseSearchDatabaseEdMode()
+namespace UE::PoseSearch
 {
-}
+	const FEditorModeID FDatabaseEdMode::EdModeId = TEXT("PoseSearchDatabaseEdMode");
 
-FPoseSearchDatabaseEdMode::~FPoseSearchDatabaseEdMode()
-{
-}
-
-void FPoseSearchDatabaseEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
-{
-	FEdMode::Tick(ViewportClient, DeltaTime);
-
-	FPoseSearchDatabaseViewportClient* PoseSearchDbViewportClient = 
-		static_cast<FPoseSearchDatabaseViewportClient*>(ViewportClient);
-	if (!ViewModel && PoseSearchDbViewportClient)
+	FDatabaseEdMode::FDatabaseEdMode()
 	{
-		ViewModel = PoseSearchDbViewportClient->GetAssetEditorToolkit()->GetViewModel();
 	}
 
-	if (ViewModel)
+	FDatabaseEdMode::~FDatabaseEdMode()
 	{
-		ViewModel->Tick(DeltaTime);
 	}
-}
 
-void FPoseSearchDatabaseEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
-{
-	FEdMode::Render(View, Viewport, PDI);
-}
+	void FDatabaseEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
+	{
+		FEdMode::Tick(ViewportClient, DeltaTime);
 
-bool FPoseSearchDatabaseEdMode::HandleClick(
-	FEditorViewportClient* InViewportClient, 
-	HHitProxy* HitProxy, 
-	const FViewportClick& Click)
-{
-	return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
-}
+		FDatabaseViewportClient* PoseSearchDbViewportClient =
+			static_cast<FDatabaseViewportClient*>(ViewportClient);
+		if (!ViewModel && PoseSearchDbViewportClient)
+		{
+			ViewModel = PoseSearchDbViewportClient->GetAssetEditorToolkit()->GetViewModel();
+		}
+
+		if (ViewModel)
+		{
+			ViewModel->Tick(DeltaTime);
+		}
+	}
+
+	void FDatabaseEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
+	{
+		FEdMode::Render(View, Viewport, PDI);
+	}
+
+	bool FDatabaseEdMode::HandleClick(
+		FEditorViewportClient* InViewportClient,
+		HHitProxy* HitProxy,
+		const FViewportClick& Click)
+	{
+		return FEdMode::HandleClick(InViewportClient, HitProxy, Click);
+	}
 
 
-bool FPoseSearchDatabaseEdMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
-{
-	return FEdMode::StartTracking(InViewportClient, InViewport);
-}
+	bool FDatabaseEdMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
+	{
+		return FEdMode::StartTracking(InViewportClient, InViewport);
+	}
 
-bool FPoseSearchDatabaseEdMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
-{
-	return FEdMode::EndTracking(InViewportClient, InViewport);
-}
+	bool FDatabaseEdMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
+	{
+		return FEdMode::EndTracking(InViewportClient, InViewport);
+	}
 
-bool FPoseSearchDatabaseEdMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
-{
-	return FEdMode::InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
-}
+	bool FDatabaseEdMode::InputDelta(
+		FEditorViewportClient* InViewportClient, 
+		FViewport* InViewport, 
+		FVector& InDrag, 
+		FRotator& InRot, 
+		FVector& InScale)
+	{
+		return FEdMode::InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
+	}
 
-bool FPoseSearchDatabaseEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
-{
-	return FEdMode::InputKey(ViewportClient, Viewport, Key, Event);
-}
+	bool FDatabaseEdMode::InputKey(
+		FEditorViewportClient* ViewportClient, 
+		FViewport* Viewport, 
+		FKey Key, 
+		EInputEvent Event)
+	{
+		return FEdMode::InputKey(ViewportClient, Viewport, Key, Event);
+	}
 
-bool FPoseSearchDatabaseEdMode::AllowWidgetMove()
-{
-	return FEdMode::ShouldDrawWidget();
-}
+	bool FDatabaseEdMode::AllowWidgetMove()
+	{
+		return FEdMode::ShouldDrawWidget();
+	}
 
-bool FPoseSearchDatabaseEdMode::ShouldDrawWidget() const
-{
-	return FEdMode::ShouldDrawWidget();
-}
+	bool FDatabaseEdMode::ShouldDrawWidget() const
+	{
+		return FEdMode::ShouldDrawWidget();
+	}
 
-bool FPoseSearchDatabaseEdMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
-{
-	return FEdMode::GetCustomDrawingCoordinateSystem(InMatrix, InData);
-}
+	bool FDatabaseEdMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
+	{
+		return FEdMode::GetCustomDrawingCoordinateSystem(InMatrix, InData);
+	}
 
-bool FPoseSearchDatabaseEdMode::GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData)
-{
-	return FEdMode::GetCustomDrawingCoordinateSystem(InMatrix, InData);
-}
+	bool FDatabaseEdMode::GetCustomInputCoordinateSystem(FMatrix& InMatrix, void* InData)
+	{
+		return FEdMode::GetCustomDrawingCoordinateSystem(InMatrix, InData);
+	}
 
-FVector FPoseSearchDatabaseEdMode::GetWidgetLocation() const
-{
-	return FEdMode::GetWidgetLocation();
+	FVector FDatabaseEdMode::GetWidgetLocation() const
+	{
+		return FEdMode::GetWidgetLocation();
+	}
 }

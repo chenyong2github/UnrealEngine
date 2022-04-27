@@ -7,32 +7,34 @@
 
 #define LOCTEXT_NAMESPACE "PoseSearchDatabaseViewportToolBar"
 
-void SPoseSearchDatabaseViewportToolBar::Construct(
-	const FArguments& InArgs, 
-	TSharedPtr<SPoseSearchDatabaseViewport> InViewport)
+namespace UE::PoseSearch
 {
-	SCommonEditorViewportToolbarBase::Construct(
-		SCommonEditorViewportToolbarBase::FArguments()
-		.AddRealtimeButton(false)
-		.PreviewProfileController(MakeShared<FPreviewProfileController>()), 
-		InViewport);
-}
-
-TSharedRef<SWidget> SPoseSearchDatabaseViewportToolBar::GenerateShowMenu() const
-{
-	GetInfoProvider().OnFloatingButtonClicked();
-
-	TSharedRef<SEditorViewport> ViewportRef = GetInfoProvider().GetViewportWidget();
-
-	const bool bInShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder ShowMenuBuilder(bInShouldCloseWindowAfterMenuSelection, ViewportRef->GetCommandList());
+	void SPoseSearchDatabaseViewportToolBar::Construct(
+		const FArguments& InArgs,
+		TSharedPtr<SDatabaseViewport> InViewport)
 	{
-		ShowMenuBuilder.AddSubMenu(
-			LOCTEXT("ShowMenu_PoseFeaturesDrawSubMenu", "Pose Features"),
-			LOCTEXT("ShowMenu_PoseFeaturesDrawSubMenuToolTip", "Pose Feature Drawing Options"),
-			FNewMenuDelegate::CreateLambda([](FMenuBuilder& SubMenuBuilder)
+		SCommonEditorViewportToolbarBase::Construct(
+			SCommonEditorViewportToolbarBase::FArguments()
+			.AddRealtimeButton(false)
+			.PreviewProfileController(MakeShared<FPreviewProfileController>()),
+			InViewport);
+	}
+
+	TSharedRef<SWidget> SPoseSearchDatabaseViewportToolBar::GenerateShowMenu() const
+	{
+		GetInfoProvider().OnFloatingButtonClicked();
+
+		TSharedRef<SEditorViewport> ViewportRef = GetInfoProvider().GetViewportWidget();
+
+		const bool bInShouldCloseWindowAfterMenuSelection = true;
+		FMenuBuilder ShowMenuBuilder(bInShouldCloseWindowAfterMenuSelection, ViewportRef->GetCommandList());
+		{
+			ShowMenuBuilder.AddSubMenu(
+				LOCTEXT("ShowMenu_PoseFeaturesDrawSubMenu", "Pose Features"),
+				LOCTEXT("ShowMenu_PoseFeaturesDrawSubMenuToolTip", "Pose Feature Drawing Options"),
+				FNewMenuDelegate::CreateLambda([](FMenuBuilder& SubMenuBuilder)
 			{
-				const FPoseSearchDatabaseEditorCommands& Commands = FPoseSearchDatabaseEditorCommands::Get();
+				const FDatabaseEditorCommands& Commands = FDatabaseEditorCommands::Get();
 
 				SubMenuBuilder.BeginSection("PoseFeatures", LOCTEXT("ShowMenu_PoseFeaturesLabel", "Pose Features"));
 				{
@@ -41,14 +43,14 @@ TSharedRef<SWidget> SPoseSearchDatabaseViewportToolBar::GenerateShowMenu() const
 				}
 				SubMenuBuilder.EndSection();
 			})
-		);
+			);
 
-		ShowMenuBuilder.AddSubMenu(
-			LOCTEXT("ShowMenu_AnimationsSubMenu", "Animations"),
-			LOCTEXT("ShowMenu_AnimationsSubMenuToolTip", "Animation Preview Options"),
-			FNewMenuDelegate::CreateLambda([](FMenuBuilder& SubMenuBuilder)
+			ShowMenuBuilder.AddSubMenu(
+				LOCTEXT("ShowMenu_AnimationsSubMenu", "Animations"),
+				LOCTEXT("ShowMenu_AnimationsSubMenuToolTip", "Animation Preview Options"),
+				FNewMenuDelegate::CreateLambda([](FMenuBuilder& SubMenuBuilder)
 			{
-				const FPoseSearchDatabaseEditorCommands& Commands = FPoseSearchDatabaseEditorCommands::Get();
+				const FDatabaseEditorCommands& Commands = FDatabaseEditorCommands::Get();
 
 				SubMenuBuilder.BeginSection("Animations", LOCTEXT("ShowMenu_AnimationsLabel", "Animations"));
 				{
@@ -57,11 +59,12 @@ TSharedRef<SWidget> SPoseSearchDatabaseViewportToolBar::GenerateShowMenu() const
 				}
 				SubMenuBuilder.EndSection();
 			})
-		);
+			);
 
+		}
+
+		return ShowMenuBuilder.MakeWidget();
 	}
-
-	return ShowMenuBuilder.MakeWidget();
 }
 
 #undef LOCTEXT_NAMESPACE

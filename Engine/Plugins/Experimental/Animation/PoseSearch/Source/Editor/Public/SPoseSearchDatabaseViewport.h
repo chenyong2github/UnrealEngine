@@ -6,58 +6,63 @@
 #include "SEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
 
-class FPoseSearchDatabasePreviewScene;
-class FPoseSearchDatabaseViewportClient;
-class FPoseSearchDatabaseEditorToolkit;
-class SPoseSearchDatabaseViewportToolBar;
 
-struct FPoseSearchDatabaseViewportRequiredArgs
+namespace UE::PoseSearch
 {
-	FPoseSearchDatabaseViewportRequiredArgs(
-		const TSharedRef<FPoseSearchDatabaseEditorToolkit>& InAssetEditorToolkit, 
-		const TSharedRef<FPoseSearchDatabasePreviewScene>& InPreviewScene)
-		: AssetEditorToolkit(InAssetEditorToolkit)
-		, PreviewScene(InPreviewScene)
-	{}
+	class FDatabasePreviewScene;
+	class FDatabaseViewportClient;
+	class FDatabaseEditorToolkit;
+	class SPoseSearchDatabaseViewportToolBar;
 
-	TSharedRef<FPoseSearchDatabaseEditorToolkit> AssetEditorToolkit;
+	struct FDatabaseViewportRequiredArgs
+	{
+		FDatabaseViewportRequiredArgs(
+			const TSharedRef<FDatabaseEditorToolkit>& InAssetEditorToolkit,
+			const TSharedRef<FDatabasePreviewScene>& InPreviewScene)
+			: AssetEditorToolkit(InAssetEditorToolkit)
+			, PreviewScene(InPreviewScene)
+		{
+		}
 
-	TSharedRef<FPoseSearchDatabasePreviewScene> PreviewScene;
-};
+		TSharedRef<FDatabaseEditorToolkit> AssetEditorToolkit;
 
-class SPoseSearchDatabaseViewport : public SEditorViewport, public ICommonEditorViewportToolbarInfoProvider
-{
-public:
-	
-	SLATE_BEGIN_ARGS(SPoseSearchDatabaseViewport) {}
-	SLATE_END_ARGS();
+		TSharedRef<FDatabasePreviewScene> PreviewScene;
+	};
 
-	void Construct(const FArguments& InArgs, const FPoseSearchDatabaseViewportRequiredArgs& InRequiredArgs);
-	virtual ~SPoseSearchDatabaseViewport(){}
+	class SDatabaseViewport : public SEditorViewport, public ICommonEditorViewportToolbarInfoProvider
+	{
+	public:
 
-	// ~ICommonEditorViewportToolbarInfoProvider interface
-	virtual TSharedRef<class SEditorViewport> GetViewportWidget() override;
-	virtual TSharedPtr<FExtender> GetExtenders() const override;
-	virtual void OnFloatingButtonClicked() override;
-	// ~End of ICommonEditorViewportToolbarInfoProvider interface
+		SLATE_BEGIN_ARGS(SDatabaseViewport) {}
+		SLATE_END_ARGS();
 
-protected:
+		void Construct(const FArguments& InArgs, const FDatabaseViewportRequiredArgs& InRequiredArgs);
+		virtual ~SDatabaseViewport() {}
 
-	// ~SEditorViewport interface
-	virtual void BindCommands() override;
-	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
-	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
-	// ~End of SEditorViewport interface
+		// ~ICommonEditorViewportToolbarInfoProvider interface
+		virtual TSharedRef<class SEditorViewport> GetViewportWidget() override;
+		virtual TSharedPtr<FExtender> GetExtenders() const override;
+		virtual void OnFloatingButtonClicked() override;
+		// ~End of ICommonEditorViewportToolbarInfoProvider interface
 
-	/** The viewport toolbar */
-	TSharedPtr<SPoseSearchDatabaseViewportToolBar> ViewportToolbar;
+	protected:
 
-	/** Viewport client */
-	TSharedPtr<FPoseSearchDatabaseViewportClient> ViewportClient;
+		// ~SEditorViewport interface
+		virtual void BindCommands() override;
+		virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
+		virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
+		// ~End of SEditorViewport interface
 
-	/** The preview scene that we are viewing */
-	TWeakPtr<FPoseSearchDatabasePreviewScene> PreviewScenePtr;
+		/** The viewport toolbar */
+		TSharedPtr<SPoseSearchDatabaseViewportToolBar> ViewportToolbar;
 
-	/** Asset editor toolkit we are embedded in */
-	TWeakPtr<FPoseSearchDatabaseEditorToolkit> AssetEditorToolkitPtr;
-};
+		/** Viewport client */
+		TSharedPtr<FDatabaseViewportClient> ViewportClient;
+
+		/** The preview scene that we are viewing */
+		TWeakPtr<FDatabasePreviewScene> PreviewScenePtr;
+
+		/** Asset editor toolkit we are embedded in */
+		TWeakPtr<FDatabaseEditorToolkit> AssetEditorToolkitPtr;
+	};
+}

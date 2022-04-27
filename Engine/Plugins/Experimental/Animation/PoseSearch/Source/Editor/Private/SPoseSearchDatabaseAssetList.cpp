@@ -23,7 +23,7 @@ namespace UE::PoseSearch
 	FDatabaseAssetTreeNode::FDatabaseAssetTreeNode(
 		int32 InSourceAssetIdx,
 		ESearchIndexAssetType InSourceAssetType,
-		const TSharedRef<FPoseSearchDatabaseViewModel>& InEditorViewModel) 
+		const TSharedRef<FDatabaseViewModel>& InEditorViewModel) 
 		: SourceAssetIdx(InSourceAssetIdx)
 		, SourceAssetType(InSourceAssetType)
 		, EditorViewModel(InEditorViewModel)
@@ -46,7 +46,7 @@ namespace UE::PoseSearch
 
 	void SDatabaseAssetListItem::Construct(
 		const FArguments& InArgs,
-		const TSharedRef<FPoseSearchDatabaseViewModel>& InEditorViewModel,
+		const TSharedRef<FDatabaseViewModel>& InEditorViewModel,
 		const TSharedRef<STableViewBase>& OwnerTable,
 		TSharedRef<FDatabaseAssetTreeNode> InAssetTreeNode,
 		TSharedRef<FUICommandList> InCommandList,
@@ -122,7 +122,7 @@ namespace UE::PoseSearch
 		FText Name = LOCTEXT("None", "None");
 
 		TSharedPtr<FDatabaseAssetTreeNode> Node = WeakAssetTreeNode.Pin();
-		TSharedPtr<FPoseSearchDatabaseViewModel> ViewModel = EditorViewModel.Pin();
+		TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
 		UPoseSearchDatabase* Database = ViewModel->GetPoseSearchDatabase();
 
 		if (Database)
@@ -292,7 +292,7 @@ namespace UE::PoseSearch
 
 	void SDatabaseAssetTree::Construct(
 		const FArguments& InArgs, 
-		TSharedRef<FPoseSearchDatabaseViewModel> InEditorViewModel)
+		TSharedRef<FDatabaseViewModel> InEditorViewModel)
 	{
 		EditorViewModel = InEditorViewModel;
 		CommandList = MakeShared<FUICommandList>();
@@ -384,13 +384,13 @@ namespace UE::PoseSearch
 
 	void SDatabaseAssetTree::RefreshTreeView(bool IsInitialSetup)
 	{
-		const TSharedPtr<FPoseSearchDatabaseViewModel> ViewModel = EditorViewModel.Pin();
+		const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
 		if (!ViewModel.IsValid())
 		{
 			return;
 		}
 
-		const TSharedRef<FPoseSearchDatabaseViewModel> ViewModelRef = ViewModel.ToSharedRef();
+		const TSharedRef<FDatabaseViewModel> ViewModelRef = ViewModel.ToSharedRef();
 
 		RootNodes.Reset();
 		AllNodes.Reset();
@@ -553,7 +553,7 @@ namespace UE::PoseSearch
 			return FReply::Unhandled();
 		}
 
-		TSharedPtr<FPoseSearchDatabaseViewModel> ViewModel = EditorViewModel.Pin();
+		TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
 		if (!ViewModel.IsValid())
 		{
 			return FReply::Unhandled();

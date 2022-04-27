@@ -5,19 +5,23 @@
 #include "CoreMinimal.h"
 #include "SCommonEditorViewportToolbarBase.h"
 
-class SPoseSearchDatabaseViewport;
 
-class SPoseSearchDatabaseViewportToolBar : public SCommonEditorViewportToolbarBase
+namespace UE::PoseSearch
 {
-public:
-	SLATE_BEGIN_ARGS(SPoseSearchDatabaseViewportToolBar)
-	{}
+	class SDatabaseViewport;
 
-	SLATE_END_ARGS()
+	class SPoseSearchDatabaseViewportToolBar : public SCommonEditorViewportToolbarBase
+	{
+	public:
+		SLATE_BEGIN_ARGS(SPoseSearchDatabaseViewportToolBar)
+		{}
 
-	void Construct(const FArguments& InArgs, TSharedPtr<SPoseSearchDatabaseViewport> InViewport);
+		SLATE_END_ARGS()
 
-	// ~SCommonEditorViewportToolbarBase interface
-	virtual TSharedRef<SWidget> GenerateShowMenu() const override;
-	// ~End of SCommonEditorViewportToolbarBase interface
-};
+		void Construct(const FArguments& InArgs, TSharedPtr<SDatabaseViewport> InViewport);
+
+		// ~SCommonEditorViewportToolbarBase interface
+		virtual TSharedRef<SWidget> GenerateShowMenu() const override;
+		// ~End of SCommonEditorViewportToolbarBase interface
+	};
+}
