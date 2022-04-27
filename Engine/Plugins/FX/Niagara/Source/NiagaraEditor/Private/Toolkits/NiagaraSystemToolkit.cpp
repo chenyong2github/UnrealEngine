@@ -773,7 +773,9 @@ bool FNiagaraSystemToolkit::IsDrawOptionEnabled(int32 Element) const
 
 void FNiagaraSystemToolkit::OpenDebugHUD()
 {
+#if WITH_NIAGARA_DEBUGGER
 	SNiagaraDebugger::InvokeDebugger(&SystemViewModel->GetSystem());
+#endif
 }
 
 void FNiagaraSystemToolkit::OpenDebugOutliner()

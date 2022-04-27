@@ -355,8 +355,11 @@ void FNiagaraEmitterHandleViewModel::SetIsRenamePending(bool bInIsRenamePending)
 
 void FNiagaraEmitterHandleViewModel::BeginDebugEmitter()
 {
+
+#if WITH_NIAGARA_DEBUGGER
 	if (EmitterHandle)
 		SNiagaraDebugger::InvokeDebugger(*EmitterHandle);
+#endif
 }
 
 FNiagaraEmitterHandleViewModel::FOnPropertyChanged& FNiagaraEmitterHandleViewModel::OnPropertyChanged()

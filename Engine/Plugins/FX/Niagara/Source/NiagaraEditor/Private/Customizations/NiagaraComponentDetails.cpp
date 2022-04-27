@@ -591,12 +591,14 @@ void FNiagaraComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	static bool bFirstTime = true;
 	if (bFirstTime)
 	{
-		const FText DisplayName = LOCTEXT("Particles", "Particles");
-		TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("NiagaraComponent", "Particles", DisplayName);
+		const FText DisplayName = LOCTEXT("EffectsSectionName", "Effects");
+		TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("NiagaraComponent", "Effects", DisplayName);
 		Section->AddCategory(TEXT("Niagara"));
 		Section->AddCategory(ParamCategoryName);
 		Section->AddCategory(ParamUtilitiesName); 
 		Section->AddCategory(TEXT("Activation"));
+		Section->AddCategory(ScriptCategoryName);
+		Section->AddCategory(TEXT("Randomness"));
 		bFirstTime = false;
 	}
 
@@ -759,8 +761,10 @@ FReply FNiagaraComponentDetails::OnDebugSelectedSystem()
 
 	if (NiagaraComponentToUse)
 	{
-		//FSpawnTabArgs Args;
+
+#if WITH_NIAGARA_DEBUGGER
 		SNiagaraDebugger::InvokeDebugger(NiagaraComponentToUse);
+#endif
 	}
 
 	return FReply::Handled();
