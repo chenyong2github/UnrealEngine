@@ -4656,6 +4656,14 @@ void UNavigationSystemV1::UnregisterNavigationInvoker(AActor* Invoker)
 }
 
 //----------------------------------------------------------------------//
+// DEPRECATED
+//----------------------------------------------------------------------//
+bool UNavigationSystemV1::K2_GetRandomPointInNavigableRadius(UObject* WorldContextObject, const FVector& Origin, FVector& RandomLocation, float Radius, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass)
+{
+	return K2_GetRandomLocationInNavigableRadius(WorldContextObject, Origin, RandomLocation, Radius, NavData, FilterClass);
+}
+
+//----------------------------------------------------------------------//
 // NEW STUFF!
 //----------------------------------------------------------------------//
 void UNavigationSystemV1::VerifyNavigationRenderingComponents(const bool bShow)
