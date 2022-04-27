@@ -295,7 +295,7 @@ namespace UnrealBuildBase
 		/// <returns>Instance of the serialized file item</returns>
 		public static FileItem? ReadFileItem(this BinaryArchiveReader Reader)
 		{
-			return Reader.ReadObjectReference<FileItem>(() => FileItem.GetItemByFileReference(Reader.ReadFileReference()));
+			return Reader.ReadObjectReference<FileItem>((BinaryArchiveReader Reader) => FileItem.GetItemByFileReference(Reader.ReadFileReference()));
 		}
 
 		/// <summary>
@@ -331,7 +331,8 @@ namespace UnrealBuildBase
 		/// <returns>Instance of the serialized file item</returns>
 		public static FileItem ReadCompactFileItem(this BinaryArchiveReader Reader)
 		{
-			return Reader.ReadObjectReference<FileItem>(() => ReadCompactFileItemData(Reader))!;
+			// Use lambda that doesn't require anything to be captured thus eliminating an allocation.
+			return Reader.ReadObjectReference<FileItem>((BinaryArchiveReader Reader) => ReadCompactFileItemData(Reader))!;
 		}
 
 		/// <summary>
@@ -341,7 +342,8 @@ namespace UnrealBuildBase
 		/// <param name="FileItem">File item to write</param>
 		public static void WriteCompactFileItem(this BinaryArchiveWriter Writer, FileItem FileItem)
 		{
-			Writer.WriteObjectReference<FileItem>(FileItem, () => { Writer.WriteDirectoryItem(FileItem.GetDirectoryItem()); Writer.WriteString(FileItem.Name); });
+			// Use lambda that doesn't require anything to be captured thus eliminating an allocation.
+			Writer.WriteObjectReference<FileItem>(FileItem, (BinaryArchiveWriter Writer, FileItem FileItem) => { Writer.WriteDirectoryItem(FileItem.GetDirectoryItem()); Writer.WriteString(FileItem.Name); });
 		}
 	}
 }

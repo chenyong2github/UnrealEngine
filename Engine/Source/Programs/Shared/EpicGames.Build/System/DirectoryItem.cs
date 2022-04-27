@@ -343,7 +343,8 @@ namespace UnrealBuildBase
 		/// <returns>Instance of the serialized directory item</returns>
 		public static DirectoryItem? ReadDirectoryItem(this BinaryArchiveReader Reader)
 		{
-			return Reader.ReadObjectReference<DirectoryItem>(() => DirectoryItem.GetItemByDirectoryReference(Reader.ReadDirectoryReferenceNotNull()));
+			// Use lambda that doesn't require anything to be captured thus eliminating an allocation.
+			return Reader.ReadObjectReference<DirectoryItem>((BinaryArchiveReader Reader) => DirectoryItem.GetItemByDirectoryReference(Reader.ReadDirectoryReferenceNotNull()));
 		}
 
 		/// <summary>
@@ -353,7 +354,8 @@ namespace UnrealBuildBase
 		/// <param name="DirectoryItem">Directory item to write</param>
 		public static void WriteDirectoryItem(this BinaryArchiveWriter Writer, DirectoryItem DirectoryItem)
 		{
-			Writer.WriteObjectReference<DirectoryItem>(DirectoryItem, () => Writer.WriteDirectoryReference(DirectoryItem.Location));
+			// Use lambda that doesn't require anything to be captured thus eliminating an allocation.
+			Writer.WriteObjectReference<DirectoryItem>(DirectoryItem, (BinaryArchiveWriter Writer, DirectoryItem DirectoryItem) => Writer.WriteDirectoryReference(DirectoryItem.Location));
 		}
 	}
 }

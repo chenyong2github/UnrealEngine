@@ -180,14 +180,17 @@ namespace EpicGames.Core
 		/// <returns>The value that was read</returns>
 		public string? ReadString()
 		{
-			byte[]? bytes = ReadByteArray();
-			if (bytes == null)
+			// ReadPrimitiveArray has been inlined here to avoid the transient byte array allocation
+			int length = ReadInt();
+			if (length < 0)
 			{
 				return null;
 			}
 			else
 			{
-				return Encoding.UTF8.GetString(bytes);
+				int offset = _bufferPos;
+				_bufferPos += length;
+				return Encoding.UTF8.GetString(_buffer!, offset, length);
 			}
 		}
 
@@ -540,7 +543,46 @@ namespace EpicGames.Core
 		/// <typeparam name="T">Type of the object to read.</typeparam>
 		/// <param name="readObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
 		/// <returns>Object instance</returns>
+		public object? ReadUntypedObjectReference(Func<BinaryArchiveReader, object?> readObject)
+		{
+			int index = ReadInt();
+			if (index < 0)
+			{
+				return null;
+			}
+			else
+			{
+				// Temporarily add the reader to the object list, so we can detect invalid recursive references. 
+				if (index == _objects.Count)
+				{
+					_objects.Add(null);
+					_objects[index] = readObject(this);
+				}
+				if (_objects[index] == null)
+				{
+					throw new InvalidOperationException("Attempt to serialize reference to object recursively.");
+				}
+				return _objects[index];
+			}
+		}
+
+		/// <summary>
+		/// Reads an object reference from the stream. Each object will only be serialized once using the supplied delegate; subsequent reads reference the original.
+		/// Since the reader only receives the object reference when the CreateObject delegate returns, it is not possible for the object to serialize a reference to itself.
+		/// </summary>
+		/// <typeparam name="T">Type of the object to read.</typeparam>
+		/// <param name="readObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
+		/// <returns>Object instance</returns>
 		public T? ReadObjectReference<T>(Func<T> readObject) where T : class => (T?)ReadUntypedObjectReference(readObject);
+
+		/// <summary>
+		/// Reads an object reference from the stream. Each object will only be serialized once using the supplied delegate; subsequent reads reference the original.
+		/// Since the reader only receives the object reference when the CreateObject delegate returns, it is not possible for the object to serialize a reference to itself.
+		/// </summary>
+		/// <typeparam name="T">Type of the object to read.</typeparam>
+		/// <param name="readObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
+		/// <returns>Object instance</returns>
+		public T? ReadObjectReference<T>(Func<BinaryArchiveReader, T> readObject) where T : class => (T?)ReadUntypedObjectReference(readObject);
 
 		/// <summary>
 		/// Helper method for validating that deserialized objects are not null

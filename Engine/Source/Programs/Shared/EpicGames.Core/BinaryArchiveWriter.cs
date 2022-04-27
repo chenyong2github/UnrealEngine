@@ -501,22 +501,9 @@ namespace EpicGames.Core
 		/// <param name="writeObject">Delegate used to write the object</param>
 		public void WriteObjectReference(object? obj, Action writeObject)
 		{
-			if (obj == null)
+			if (WriteObjectReferenceUniqueId(obj))
 			{
-				WriteInt(-1);
-			}
-			else
-			{
-				if (_objectToUniqueId.TryGetValue(obj, out int index))
-				{
-					WriteInt(index);
-				}
-				else
-				{
-					WriteInt(_objectToUniqueId.Count);
-					_objectToUniqueId.Add(obj, _objectToUniqueId.Count);
-					writeObject();
-				}
+				writeObject();
 			}
 		}
 
@@ -529,5 +516,47 @@ namespace EpicGames.Core
 		{
 			WriteObjectReference((object?)obj, writeObject);
 		}
+
+		/// <summary>
+		/// Writes an object to the output. If the specific instance has already been written, preserves the reference to that.
+		/// </summary>
+		/// <param name="obj">The object to serialize</param>
+		/// <param name="writeObject">Delegate used to write the object</param>
+		public void WriteObjectReference<T>(T obj, Action<BinaryArchiveWriter, T> writeObject) where T : class?
+		{
+			if (WriteObjectReferenceUniqueId(obj))
+			{
+				writeObject(this, obj);
+			}
+		}
+
+		/// <summary>
+		/// Writes a unique id for the given object.
+		/// </summary>
+		/// <param name="obj">The object to serialize</param>
+		/// <returns>False if the object has already been written.  True if this is the first time the object has been referenced.</returns>
+		private bool WriteObjectReferenceUniqueId(object? obj)
+		{
+			if (obj == null)
+			{
+				WriteInt(-1);
+				return false;
+			}
+			else
+			{
+				if (_objectToUniqueId.TryGetValue(obj, out int index))
+				{
+					WriteInt(index);
+					return false;
+				}
+				else
+				{
+					WriteInt(_objectToUniqueId.Count);
+					_objectToUniqueId.Add(obj, _objectToUniqueId.Count);
+					return true;
+				}
+			}
+		}
+
 	}
 }

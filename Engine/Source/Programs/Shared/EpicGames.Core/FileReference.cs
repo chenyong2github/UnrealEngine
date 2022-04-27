@@ -442,7 +442,27 @@ namespace EpicGames.Core
 		/// <returns>Contents of the file as a single string</returns>
 		public static string ReadAllText(FileReference location)
 		{
-			return File.ReadAllText(location.FullName);
+			using (FileStream fs = new FileStream(location.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan))
+			{
+				using (StreamReader sr = new StreamReader(fs, Encoding.UTF8, true))
+				{
+
+					// Try to read the whole file into a buffer created by hand.  This avoids a LOT of memory allocations which in turn reduces the
+					// GC stress on the system.  Removing the StreamReader would be nice in the future.
+					long RawFileLength = fs.Length;
+					char[] InitialBuffer = new char[RawFileLength];
+					int ReadLength = sr.Read(InitialBuffer, 0, (int)RawFileLength);
+					if (sr.EndOfStream)
+					{
+						return new String(InitialBuffer, 0, ReadLength);
+					}
+					else
+					{
+						string Remaining = sr.ReadToEnd();
+						return String.Concat(new ReadOnlySpan<char>(InitialBuffer, 0, ReadLength), Remaining);
+					}
+				}
+			}
 		}
 
 		/// <summary>
