@@ -597,9 +597,9 @@ namespace UnrealBuildTool
 		/// Gets the path to the receipt for UHT
 		/// </summary>
 		/// <returns>Path to the UHT receipt</returns>
-		public static FileReference GetHeaderToolReceiptFile(FileReference? ProjectFile, UnrealTargetConfiguration Configuration, bool bHasProjectScriptPlugin, FileReference[]? UhtPlugins)
+		public static FileReference GetHeaderToolReceiptFile(FileReference? ProjectFile, UnrealTargetConfiguration Configuration, bool bHasProjectScriptPlugin, FileReference[]? EnabledUhtPlugins)
 		{
-			if ((bHasProjectScriptPlugin || UhtPlugins != null) && ProjectFile != null)
+			if ((bHasProjectScriptPlugin || (EnabledUhtPlugins != null && EnabledUhtPlugins.Length > 0)) && ProjectFile != null)
 			{
 				return TargetReceipt.GetDefaultPath(ProjectFile.Directory, "UnrealHeaderTool", BuildHostPlatform.Current.Platform, Configuration, "");
 			}
@@ -934,7 +934,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				ExecuteInternalHeaderToolIfNecessary(BuildConfiguration, ProjectFile, Makefile, TargetName, Makefile.UhtPlugins, WorkingSet);
+				ExecuteInternalHeaderToolIfNecessary(BuildConfiguration, ProjectFile, Makefile, TargetName, WorkingSet);
 			}
 		}
 
@@ -992,9 +992,9 @@ namespace UnrealBuildTool
 			}
 
 			List<string> UhtPlugins = new List<string>();
-			if (Makefile.UhtPlugins != null)
+			if (Makefile.EnabledUhtPlugins != null)
 			{
-				foreach (FileReference UhtPlugin in Makefile.UhtPlugins)
+				foreach (FileReference UhtPlugin in Makefile.EnabledUhtPlugins)
 				{
 					UhtPlugins.Add(UhtPlugin.FullName);
 				}
@@ -1048,7 +1048,7 @@ namespace UnrealBuildTool
 				UnrealTargetConfiguration UHTConfig = BuildConfiguration.bForceDebugUnrealHeaderTool ? UnrealTargetConfiguration.Debug : UnrealTargetConfiguration.Development;
 
 				// Figure out the receipt path
-				FileReference HeaderToolReceipt = GetHeaderToolReceiptFile(ProjectFile, UHTConfig, Makefile.bHasProjectScriptPlugin, Makefile.UhtPlugins);
+				FileReference HeaderToolReceipt = GetHeaderToolReceiptFile(ProjectFile, UHTConfig, Makefile.bHasProjectScriptPlugin, Makefile.EnabledUhtPlugins);
 
 				// check if UHT is out of date
 				DateTime HeaderToolTimestampUtc = DateTime.MaxValue;
@@ -1246,7 +1246,7 @@ namespace UnrealBuildTool
 		/// Performs any early outs if headers need no changes, given the UObject modules, tool path, game name, and configuration
 		/// </summary>
 		private static void ExecuteInternalHeaderToolIfNecessary(BuildConfiguration BuildConfiguration, FileReference? ProjectFile, 
-			TargetMakefile Makefile, string TargetName, FileReference[]? UhtPlugins, ISourceFileWorkingSet WorkingSet)
+			TargetMakefile Makefile, string TargetName, ISourceFileWorkingSet WorkingSet)
 		{
 			if (ProgressWriter.bWriteMarkup)
 			{
@@ -1259,7 +1259,7 @@ namespace UnrealBuildTool
 				UnrealTargetConfiguration UHTConfig = BuildConfiguration.bForceDebugUnrealHeaderTool ? UnrealTargetConfiguration.Debug : UnrealTargetConfiguration.Development;
 
 				// Figure out the receipt path
-				FileReference HeaderToolReceipt = GetHeaderToolReceiptFile(ProjectFile, UHTConfig, Makefile.bHasProjectScriptPlugin, Makefile.UhtPlugins);
+				FileReference HeaderToolReceipt = GetHeaderToolReceiptFile(ProjectFile, UHTConfig, Makefile.bHasProjectScriptPlugin, Makefile.EnabledUhtPlugins);
 
 				// Get UHT assembly timestamp
 				DateTime CompositeTimestamp = new FileInfo(Assembly.GetExecutingAssembly().Location).LastWriteTimeUtc;
@@ -1268,9 +1268,9 @@ namespace UnrealBuildTool
 				{
 					CompositeTimestamp = Timestamp;
 				}
-				if (UhtPlugins != null)
+				if (Makefile.EnabledUhtPlugins != null)
 				{
-					foreach (FileReference Plugin in UhtPlugins)
+					foreach (FileReference Plugin in Makefile.EnabledUhtPlugins)
 					{
 						Timestamp = new FileInfo(Plugin.FullName).LastWriteTimeUtc;
 						if (CompositeTimestamp < Timestamp)

@@ -460,10 +460,13 @@ namespace UnrealBuildTool
 					AddExistingProjectFile(Project, bForceDevelopmentConfiguration: true);
 					AddedProjectFiles.Add(Project);
 
+					// Always create a props file for UBT plugins.  Makes packaging a plugin easier if
+					// it happens to be in the engine
+					bool bCreatePropsFile = RulesFileType == Rules.RulesFileType.UbtPlugin;
+
 					if (!ProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
 					{
-						FileReference PropsFile = new FileReference(ProjectFile.FullName + ".props");
-						CreateProjectPropsFile(PropsFile);
+						bCreatePropsFile = true;
 
 						if (ProjectFile.IsUnderDirectory(SamplesDirectory))
 						{
@@ -477,6 +480,12 @@ namespace UnrealBuildTool
 					else
 					{
 						Folder.ChildProjects.Add(Project);
+					}
+
+					if (bCreatePropsFile)
+					{
+						FileReference PropsFile = new FileReference(ProjectFile.FullName + ".props");
+						CreateProjectPropsFile(PropsFile);
 					}
 				}
 			}

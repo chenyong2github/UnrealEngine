@@ -110,6 +110,31 @@ namespace UnrealBuildBase
 		}
 
 		/// <summary>
+		/// Test to see if all the given projects are up-to-date
+		/// </summary>
+		/// <param name="FoundProjects">Collection of projects to test</param>
+		/// <param name="BaseDirectories">Base directories of the projects</param>
+		/// <returns>True if all of the projects are up to date</returns>
+		public static bool AreScriptModulesUpToDate(HashSet<FileReference> FoundProjects, List<DirectoryReference> BaseDirectories)
+		{
+			CsProjBuildHook Hook = new Hook();
+
+			// Load existing build records, validating them only if (re)compiling script projects is an option
+			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> ExistingBuildRecords = LoadExistingBuildRecords(BaseDirectories);
+
+			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> ValidBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(ExistingBuildRecords.Count);
+			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> InvalidBuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>(ExistingBuildRecords.Count);
+
+			foreach (FileReference Project in FoundProjects)
+			{
+				ValidateBuildRecordRecursively(ValidBuildRecords, InvalidBuildRecords, ExistingBuildRecords, Project, Hook);
+			}
+
+			// If all found records are valid, we can return their targets directly
+			return FoundProjects.All(x => ValidBuildRecords.ContainsKey(x));
+		}
+
+		/// <summary>
 		/// Locates script modules, builds them if necessary, returns set of .dll files
 		/// </summary>
 		/// <param name="RulesFileType"></param>

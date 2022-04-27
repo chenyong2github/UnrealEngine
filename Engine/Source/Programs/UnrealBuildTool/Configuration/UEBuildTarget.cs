@@ -1072,14 +1072,19 @@ namespace UnrealBuildTool
 		public FileReference? ForeignPlugin;
 
 		/// <summary>
-		/// Collection of all UBT plugin project files
+		/// Collection of all UBT plugins (project files)
 		/// </summary>
 		public List<FileReference>? UbtPlugins;
 
 		/// <summary>
-		/// Collection of all located UHT plugin assemblies
+		/// Collection of all enabled UBT plugins (project files)
 		/// </summary>
-		public List<FileReference>? UhtPlugins;
+		public List<FileReference>? EnabledUbtPlugins;
+
+		/// <summary>
+		/// Collection of all enabled UHT plugin assemblies
+		/// </summary>
+		public List<FileReference>? EnabledUhtPlugins;
 
 		/// <summary>
 		/// All application binaries; may include binaries not built by this target.
@@ -1776,7 +1781,8 @@ namespace UnrealBuildTool
 			// Create the makefile
 			string ExternalMetadata = UEBuildPlatform.GetBuildPlatform(Platform).GetExternalBuildMetadata(ProjectFile);
 			TargetMakefile Makefile = new TargetMakefile(ExternalMetadata, Binaries[0].OutputFilePaths[0], ReceiptFileName, ProjectIntermediateDirectory, TargetType, 
-				Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin, bHasRequiredProjectScriptPlugin, UbtPlugins?.ToArray(), UhtPlugins?.ToArray());
+				Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin, bHasRequiredProjectScriptPlugin, UbtPlugins?.ToArray(), EnabledUbtPlugins?.ToArray(), 
+				EnabledUhtPlugins?.ToArray());
 
 			// Get diagnostic info to be printed before each build
 			TargetToolChain.GetVersionInfo(Makefile.Diagnostics);
@@ -3591,16 +3597,29 @@ namespace UnrealBuildTool
 			}
 
 			// Collect the plugins
-			(FileReference ProjectFile, FileReference TargetAssembly)[]? BuiltPlugins;
-			if (!PluginsBase.EnumerateUbtPlugins(ProjectFile, out BuiltPlugins))
-			{
-				throw new BuildException("One or more UBT plugins failed to compile.");
-			}
+			UbtPlugins = PluginsBase.EnumerateUbtPlugins(ProjectFile);
 
-			// Save the collection
-			if (BuiltPlugins != null)
+			// If we found possible plugins
+			(FileReference ProjectFile, FileReference TargetAssembly)[]? BuiltPlugins = null;
+			if (UbtPlugins != null)
 			{
-				UbtPlugins = BuiltPlugins.Select(P => P.ProjectFile).ToList();
+
+				// Filter the UBT plugins based on the enabled plugins
+				EnabledUbtPlugins = new List<FileReference>();
+				EnabledUhtPlugins = new List<FileReference>();
+				foreach (UEBuildPlugin Plugin in BuildPlugins)
+				{
+					PluginInfo Info = Plugin.Info;
+					EnabledUbtPlugins.AddRange(UbtPlugins.Where(P => P.IsUnderDirectory(Info.Directory)));
+				}
+				EnabledUbtPlugins.SortBy(P => P.FullName);
+
+				// Build the plugins
+				bool bCompiled = PluginsBase.BuildUbtPlugins(ProjectFile, EnabledUbtPlugins, out BuiltPlugins);
+				if (!bCompiled)
+				{
+					throw new BuildException("Not all plugins compiled");
+				}
 			}
 
 			// For all the plugins 
@@ -3618,11 +3637,7 @@ namespace UnrealBuildTool
 						{
 							if (UhtTables.IsUhtPlugin(BuiltPlugin.TargetAssembly.FullName))
 							{
-								if (UhtPlugins == null)
-								{
-									UhtPlugins = new List<FileReference>();
-								}
-								UhtPlugins.Add(BuiltPlugin.TargetAssembly);
+								EnabledUhtPlugins!.Add(BuiltPlugin.TargetAssembly);
 								bUbtPluginFound = true;
 								break;
 							}
@@ -3638,6 +3653,11 @@ namespace UnrealBuildTool
 					{
 						bHasRequiredProjectScriptPlugin = true;
 					}
+				}
+
+				if (EnabledUhtPlugins != null)
+				{
+					EnabledUhtPlugins.SortBy(P => P.FullName);
 				}
 			}
 		}

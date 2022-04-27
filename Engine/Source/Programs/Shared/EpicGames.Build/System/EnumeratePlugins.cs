@@ -16,6 +16,12 @@ namespace UnrealBuildBase
 		static Dictionary<DirectoryReference, List<FileReference>> PluginFileCache = new Dictionary<DirectoryReference, List<FileReference>>();
 
 		/// <summary>
+		/// Cache of all UBT plugins that have been built.  When generating projects, there is a good chance that a UBT project
+		/// might need to be rebuilt.
+		/// </summary>
+		static Dictionary<FileReference, FileReference> UbtPluginFileCache = new Dictionary<FileReference, FileReference>();
+
+		/// <summary>
 		/// Invalidate cached plugin data so that we can pickup new things
 		/// Warning: Will make subsequent plugin lookups and directory scans slow until the caches are repopulated
 		/// </summary>
@@ -104,13 +110,9 @@ namespace UnrealBuildBase
 		/// Enumerates all the UBT plugin files available to the given project
 		/// </summary>
 		/// <param name="ProjectFile">Path to the project file</param>
-		/// <param name="Plugins">Collection of found plugins</param>
-		/// <returns>True if the plugins compiled</returns>
-		public static bool EnumerateUbtPlugins(FileReference? ProjectFile, out (FileReference ProjectFile, FileReference TargetAssembly)[]? Plugins)
+		/// <returns>The collection of UBT project files</returns>
+		public static List<FileReference> EnumerateUbtPlugins(FileReference? ProjectFile)
 		{
-			bool bBuildSuccess = true;
-			Plugins = null;
-
 			List<DirectoryReference> PluginDirectories = new List<DirectoryReference>();
 			PluginDirectories.AddRange(Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Source"));
 			PluginDirectories.AddRange(Unreal.GetExtensionDirs(Unreal.EngineDirectory, "Plugins"));
@@ -120,23 +122,36 @@ namespace UnrealBuildBase
 				PluginDirectories.AddRange(Unreal.GetExtensionDirs(ProjectFile.Directory, "Plugins"));
 				PluginDirectories.AddRange(Unreal.GetExtensionDirs(ProjectFile.Directory, "Mods"));
 			}
+			List<FileReference> Plugins = UnrealBuildBase.Rules.FindAllRulesFiles(PluginDirectories, UnrealBuildBase.Rules.RulesFileType.UbtPlugin);
+			Plugins.SortBy(P => P.FullName);
+			return Plugins;
+		}
 
-			// Scan for UBT plugin projects
-			HashSet<FileReference> ScannedPlugins = new HashSet<FileReference>(UnrealBuildBase.Rules.FindAllRulesFiles(
-				PluginDirectories, UnrealBuildBase.Rules.RulesFileType.UbtPlugin));
+		/// <summary>
+		/// Build the given collection of plugins
+		/// </summary>
+		/// <param name="ProjectFile">Path to the project file</param>
+		/// <param name="FoundPlugins">Collection of plugins to build</param>
+		/// <param name="Plugins">Collection of built plugins</param>
+		/// <returns>True if the plugins compiled</returns>
+		public static bool BuildUbtPlugins(FileReference? ProjectFile, IEnumerable<FileReference> FoundPlugins,
+			out (FileReference ProjectFile, FileReference TargetAssembly)[]? Plugins)
+		{
+			bool bBuildSuccess = true;
+			Plugins = null;
 
-			// Build the located plugins
-			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordFile)>? BuiltPlugins = null;
-			if (ScannedPlugins.Count > 0)
+			// Collect the list of plugins already build
+			List<FileReference> Built = FoundPlugins.Where(P => !UbtPluginFileCache.ContainsKey(P)).ToList();
+
+			// Collect the list of plugins not build
+			IEnumerable<FileReference> NotBuilt = FoundPlugins.Where(P => !UbtPluginFileCache.ContainsKey(P));
+
+			// If we have anything left to build, then build it
+			if (NotBuilt.Any())
 			{
-				List<DirectoryReference> BaseDirectories = new List<DirectoryReference>(2);
-				BaseDirectories.Add(Unreal.EngineDirectory);
-				if (ProjectFile != null)
-				{
-					BaseDirectories.Add(ProjectFile.Directory);
-				}
-
-				BuiltPlugins = CompileScriptModule.Build(UnrealBuildBase.Rules.RulesFileType.UbtPlugin, ScannedPlugins, BaseDirectories, false, false, true, out bBuildSuccess,
+				Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordFile)>? BuiltPlugins =
+					CompileScriptModule.Build(UnrealBuildBase.Rules.RulesFileType.UbtPlugin, new HashSet<FileReference>(NotBuilt),
+					GetBaseDirectories(ProjectFile), false, false, true, out bBuildSuccess,
 					Count =>
 					{
 						if (Log.OutputFile != null)
@@ -149,10 +164,28 @@ namespace UnrealBuildBase
 						}
 					}
 				);
-
-				Plugins = BuiltPlugins.Select(P => (P.Key, CompileScriptModule.GetTargetPath(P))).OrderBy(X => X.Key.FullName).ToArray();
+				
+				// Add any built plugins back into the cache
+				foreach (KeyValuePair<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordFile)> BuiltPlugin in BuiltPlugins)
+				{
+					Built.Add(BuiltPlugin.Key);
+					UbtPluginFileCache.Add(BuiltPlugin.Key, CompileScriptModule.GetTargetPath(BuiltPlugin));
+				}
 			}
+
+			Plugins = Built.Select(P => (P, UbtPluginFileCache[P])).OrderBy(X => X.P.FullName).ToArray();
 			return bBuildSuccess;
+		}
+
+		static List<DirectoryReference> GetBaseDirectories(FileReference? ProjectFile)
+		{
+			List<DirectoryReference> BaseDirectories = new List<DirectoryReference>(2);
+			BaseDirectories.Add(Unreal.EngineDirectory);
+			if (ProjectFile != null)
+			{
+				BaseDirectories.Add(ProjectFile.Directory);
+			}
+			return BaseDirectories;
 		}
 	}
 }
