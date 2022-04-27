@@ -1184,8 +1184,12 @@ class DeviceUnreal(Device):
         program_name = f"build_{program_name_suffix}"
 
         engine_path = CONFIG.ENGINE_DIR.get_value(self.name)
-        ubt_path = os.path.join(engine_path, 'Binaries', 'DotNET',
-                                'UnrealBuildTool', 'UnrealBuildTool')
+        if self.target_platform.lower().startswith('win'):
+            ubt_path = os.path.join(engine_path, 'Build', 'BatchFiles',
+                                    'Build.bat')
+        else:
+            ubt_path = os.path.join(engine_path, 'Build', 'BatchFiles',
+                                    'Linux', 'Build.sh')
 
         puuid, msg = message_protocol.create_start_process_message(
             prog_path=ubt_path,
