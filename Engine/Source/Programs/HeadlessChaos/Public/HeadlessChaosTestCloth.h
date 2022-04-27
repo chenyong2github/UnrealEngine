@@ -10,4 +10,6 @@ namespace ChaosTest {
 	/**/
 	void EdgeConstraints();
 
+	/* Test Remove & Insert at position as used in the ClothCollection. */
+	void ClothCollection();
 }

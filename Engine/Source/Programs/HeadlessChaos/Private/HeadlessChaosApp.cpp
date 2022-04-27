@@ -166,6 +166,11 @@ TEST(BroadphaseTests, Broadphase) {
 //	SUCCEED();
 //}
 
+TEST(ClothTests, ClothCollection) {
+	ChaosTest::ClothCollection();
+	SUCCEED();
+}
+
 TEST(RaycastTests, Raycast) {
 	ChaosTest::SphereRaycast();
 	ChaosTest::PlaneRaycast();
