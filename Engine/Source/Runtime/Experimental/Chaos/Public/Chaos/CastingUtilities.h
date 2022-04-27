@@ -17,7 +17,7 @@ namespace Chaos
 	{
 		// Call the lambda with concrete shape type. Unwraps shapes contained in Instanced (e.g., Instanced-Sphere will be called with Sphere. Note that this will effectively discard any instance properties like the margin)
 		template <typename Lambda>
-		FORCEINLINE_DEBUGGABLE auto CastHelper(const FImplicitObject& Geom, const Lambda& Func)
+		FORCEINLINE_DEBUGGABLE decltype(auto) CastHelper(const FImplicitObject& Geom, const Lambda& Func)
 		{
 			const EImplicitObjectType Type = Geom.GetType();
 			switch (Type)
@@ -83,7 +83,7 @@ namespace Chaos
 
 		// Call the lambda with concrete shape type. Unwraps shapes contained in Instanced (e.g., Instanced-Sphere will be called with Sphere. Note that this will effectively discard any instance properties like the margin)
 		template <typename Lambda>
-		FORCEINLINE_DEBUGGABLE auto CastHelper(const FImplicitObject& Geom, const FRigidTransform3& TM, const Lambda& Func)
+		FORCEINLINE_DEBUGGABLE decltype(auto) CastHelper(const FImplicitObject& Geom, const FRigidTransform3& TM, const Lambda& Func)
 		{
 			const EImplicitObjectType Type = Geom.GetType();
 			switch (Type)
@@ -125,7 +125,7 @@ namespace Chaos
 
 		// Call the lambda with concrete shape type. This version does NOT unwrap shapes contained in Instanced or Scaled.
 		template <typename Lambda>
-		FORCEINLINE_DEBUGGABLE auto CastHelperNoUnwrap(const FImplicitObject& Geom, const FRigidTransform3& TM, const Lambda& Func)
+		FORCEINLINE_DEBUGGABLE decltype(auto) CastHelperNoUnwrap(const FImplicitObject& Geom, const FRigidTransform3& TM, const Lambda& Func)
 		{
 			const EImplicitObjectType Type = Geom.GetType();
 			switch (Type)
@@ -154,7 +154,7 @@ namespace Chaos
 		}
 
 		template <typename Lambda>
-		FORCEINLINE_DEBUGGABLE auto CastHelperNoUnwrap(const FImplicitObject& Geom, const FRigidTransform3& TM0, const FRigidTransform3& TM1, const Lambda& Func)
+		FORCEINLINE_DEBUGGABLE decltype(auto) CastHelperNoUnwrap(const FImplicitObject& Geom, const FRigidTransform3& TM0, const FRigidTransform3& TM1, const Lambda& Func)
 		{
 			const EImplicitObjectType Type = Geom.GetType();
 			switch (Type)
@@ -240,7 +240,7 @@ namespace Chaos
 		 * which will be const T*, const TImplicitObjectInstanced<T>*, or const TImplicitObjectScaled<T>*
 		*/
 		template <typename T, typename Lambda>
-		FORCEINLINE_DEBUGGABLE auto CastWrapped(const FImplicitObject& A, const Lambda& Func)
+		FORCEINLINE_DEBUGGABLE decltype(auto) CastWrapped(const FImplicitObject& A, const Lambda& Func)
 		{
 			if (const TImplicitObjectScaled<T>* ScaledImplicit = A.template GetObject<TImplicitObjectScaled<T>>())
 			{

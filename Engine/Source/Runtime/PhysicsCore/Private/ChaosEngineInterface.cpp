@@ -23,8 +23,10 @@ FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhy
 #include "Chaos/PBDSuspensionConstraintData.h"
 #include "Chaos/Collision/CollisionConstraintFlags.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "Chaos/ImplicitObject.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "Chaos/CastingUtilities.h"
 
 bool bEnableChaosJointConstraints = true;
 FAutoConsoleVariableRef CVarEnableChaosJointConstraints(TEXT("p.ChaosSolverEnableJointConstraints"), bEnableChaosJointConstraints, TEXT("Enable Joint Constraints defined within the Physics Asset Editor"));
@@ -54,28 +56,40 @@ const Chaos::FImplicitObject& FPhysicsGeometryCollection_Chaos::GetGeometry() co
 	return Geom;
 }
 
+template<typename InnerType>
+const InnerType& GetInnerGeometryChecked(const Chaos::FImplicitObject& InGeometry)
+{
+	const Chaos::FImplicitObject& InnerObject = Chaos::Utilities::CastHelper(InGeometry,
+		[](const Chaos::FImplicitObject& CastGeom) -> const Chaos::FImplicitObject&
+		{
+			return CastGeom;
+		});
+
+	return InnerObject.GetObjectChecked<InnerType>();
+}
+
 const Chaos::TBox<Chaos::FReal,3>& FPhysicsGeometryCollection_Chaos::GetBoxGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::TBox<Chaos::FReal,3>>();
+	return GetInnerGeometryChecked<Chaos::TBox<Chaos::FReal, 3>>(Geom);
 }
 
 const Chaos::TSphere<Chaos::FReal,3>&  FPhysicsGeometryCollection_Chaos::GetSphereGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::TSphere<Chaos::FReal,3>>();
+	return GetInnerGeometryChecked<Chaos::TSphere<Chaos::FReal, 3>>(Geom);
 }
 const Chaos::FCapsule&  FPhysicsGeometryCollection_Chaos::GetCapsuleGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::FCapsule>();
+	return GetInnerGeometryChecked<Chaos::FCapsule>(Geom);
 }
 
 const Chaos::FConvex& FPhysicsGeometryCollection_Chaos::GetConvexGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::FConvex>();
+	return GetInnerGeometryChecked<Chaos::FConvex>(Geom);
 }
 
 const Chaos::FTriangleMeshImplicitObject& FPhysicsGeometryCollection_Chaos::GetTriMeshGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::FTriangleMeshImplicitObject>();
+	return GetInnerGeometryChecked<Chaos::FTriangleMeshImplicitObject>(Geom);
 }
 
 FPhysicsGeometryCollection_Chaos::FPhysicsGeometryCollection_Chaos(const FPhysicsShapeReference_Chaos& InShape)
