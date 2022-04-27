@@ -205,6 +205,15 @@ void FControlRigGraphSchemaAction_LocalVar::DeleteVariable()
 {
 	if (UControlRigGraph* Graph = Cast<UControlRigGraph>(GetVariableScope()))
 	{
+#if WITH_EDITOR
+
+		if (GEditor)
+		{
+			GEditor->CancelTransaction(0);
+		}
+	
+#endif
+		
 		Graph->GetController()->RemoveLocalVariable(GetVariableName(), true, true);
 	}
 }
@@ -268,6 +277,14 @@ UEdGraphNode* FControlRigGraphSchemaAction_PromoteToVariable::PerformAction(UEdG
 
 	if(bLocalVariable)
 	{
+#if WITH_EDITOR
+
+		if (GEditor)
+		{
+			GEditor->CancelTransaction(0);
+		}
+	
+#endif
 		const FRigVMGraphVariableDescription VariableDescription = Controller->AddLocalVariable(
 			*ModelPin->GetPinPath(),
 			ModelPin->GetCPPType(),

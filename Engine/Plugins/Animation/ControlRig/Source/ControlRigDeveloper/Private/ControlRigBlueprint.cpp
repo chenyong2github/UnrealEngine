@@ -3181,11 +3181,20 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 				{
 					if (InNotifType == ERigVMGraphNotifType::NodeAdded)
 					{
+						// If the controller for this graph already exist, make sure it is referencing the correct graph
+						if (TObjectPtr<URigVMController>* Controller = Controllers.Find(CollapseNode->GetContainedGraph()))
+						{
+							(*Controller).Get()->SetGraph(CollapseNode->GetContainedGraph());
+						}
+						
 						CreateEdGraphForCollapseNodeIfNeeded(CollapseNode);
 					}
 					else
 					{
 						bNotifForOthersPending = !RemoveEdGraphForCollapseNode(CollapseNode, true);
+
+						// Cannot remove from the Controllers array because we would lose the action stack on that graph
+						// Controllers.Remove(CollapseNode->GetContainedGraph();
 					}
 
 					ClearTransientControls();

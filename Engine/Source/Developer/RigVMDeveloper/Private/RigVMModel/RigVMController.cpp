@@ -5974,6 +5974,11 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 		DestroyObject(InjectionInfo);
 	}
 
+	if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InNode))
+	{
+		DestroyObject(CollapseNode->GetContainedGraph());
+	}
+
 	DestroyObject(InNode);
 
 	if (bSetupUndoRedo)
@@ -12348,6 +12353,12 @@ bool URigVMController::IsValidGraph() const
 		ReportError(TEXT("Controller does not have a graph associated - use SetGraph / set_graph."));
 		return false;
 	}
+
+	if (!IsValid(Graph))
+	{
+		return false;
+	}
+
 	return true;
 }
 
@@ -15539,6 +15550,7 @@ void URigVMController::DestroyObject(UObject* InObjectToDestroy)
 {
 	RenameObject(InObjectToDestroy, nullptr, GetTransientPackage());
 	InObjectToDestroy->RemoveFromRoot();
+	InObjectToDestroy->MarkAsGarbage();
 }
 
 void URigVMController::AddNodePin(URigVMNode* InNode, URigVMPin* InPin)

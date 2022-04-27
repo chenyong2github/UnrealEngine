@@ -377,8 +377,9 @@ protected:
 	UPROPERTY(AssetRegistrySearchable)
 	TArray<FRigVMReferenceNodeData> FunctionReferenceNodeData;
 
+	// Related URigVMGraph path and controller
 	UPROPERTY(BlueprintReadOnly, transient, Category = "VM")
-	TMap<TObjectPtr<URigVMGraph>, TObjectPtr<URigVMController>> Controllers;
+	TMap<FSoftObjectPath, TObjectPtr<URigVMController>> Controllers;
 
 #if WITH_EDITORONLY_DATA
 
