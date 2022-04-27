@@ -1939,6 +1939,7 @@ void FControlRigParameterTrackEditor::OnSelectionChanged(TArray<UMovieSceneTrack
 		if (ControlRigEditMode)
 		{
 			TMap<UControlRig*, TArray<FRigElementKey>> AllSelectedControls;
+			ControlRigEditMode->GetAllSelectedControls(AllSelectedControls);
 			for (TPair<UControlRig*, TArray<FRigElementKey>>& SelectedControl : AllSelectedControls)
 			{
 				ControlRig = SelectedControl.Key;
