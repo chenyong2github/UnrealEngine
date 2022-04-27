@@ -42,7 +42,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Set Transform Settings")
 	FName RootBone;
 	
-	UPROPERTY(Transient)
+	UPROPERTY()
 	TObjectPtr<UIKRig_SetTransformEffector> Effector;
 
 	/** UIKRigSolver interface */
