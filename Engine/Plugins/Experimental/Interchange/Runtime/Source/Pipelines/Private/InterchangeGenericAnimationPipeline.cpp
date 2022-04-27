@@ -45,7 +45,7 @@ void UInterchangeGenericAnimationPipeline::AdjustSettingsForReimportType(EInterc
 {
 	check(!CommonSkeletalMeshesAndAnimationsProperties.IsNull());
 	if (ImportType == EInterchangeReimportType::AssetCustomLODImport
-		|| ImportType == EInterchangeReimportType::AssetCustomLODImport
+		|| ImportType == EInterchangeReimportType::AssetCustomLODReimport
 		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningImport
 		|| ImportType == EInterchangeReimportType::AssetAlternateSkinningReimport)
 	{

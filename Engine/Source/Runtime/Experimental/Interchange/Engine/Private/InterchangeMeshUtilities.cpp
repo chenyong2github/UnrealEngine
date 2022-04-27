@@ -131,13 +131,14 @@ TFuture<bool> UInterchangeMeshUtilities::InternalImportCustomLodAsync(TSharedPtr
 				{
 
 					Promise->SetValue(FLODUtilities::SetCustomLOD(SkeletalMesh, SourceSkeletalMesh, LodIndex, SourceDataFilename));
+					SourceSkeletalMesh->ClearFlags(RF_Standalone);
+					SourceSkeletalMesh->ClearInternalFlags(EInternalObjectFlags::Async);
 				}
 				else
 				{
 					Promise->SetValue(false);
 				}
-				SourceSkeletalMesh->ClearFlags(RF_Standalone);
-				SourceSkeletalMesh->ClearInternalFlags(EInternalObjectFlags::Async);
+				
 			});
 	}
 	else if (StaticMesh)
@@ -148,13 +149,13 @@ TFuture<bool> UInterchangeMeshUtilities::InternalImportCustomLodAsync(TSharedPtr
 				if(SourceStaticMesh)
 				{
 					Promise->SetValue(StaticMesh->SetCustomLOD(SourceStaticMesh, LodIndex, SourceDataFilename));
+					SourceStaticMesh->ClearFlags(RF_Standalone);
+					SourceStaticMesh->ClearInternalFlags(EInternalObjectFlags::Async);
 				}
 				else
 				{
 					Promise->SetValue(false);
 				}
-				SourceStaticMesh->ClearFlags(RF_Standalone);
-				SourceStaticMesh->ClearInternalFlags(EInternalObjectFlags::Async);
 			});
 	}
 
