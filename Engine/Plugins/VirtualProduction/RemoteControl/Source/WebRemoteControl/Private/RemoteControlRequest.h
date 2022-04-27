@@ -715,3 +715,24 @@ struct FRCWebSocketPresetSetPropertyBody : public FRCRequest
 	int64 SequenceNumber = -1;
 };
 
+
+/**
+ * Holds a request made via websocket to call an exposed function on an object.
+ */
+USTRUCT()
+struct FRCWebSocketCallBody : public FRCCallRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketCallBody()
+		: FRCCallRequest()
+	{
+	}
+
+	/**
+	 * The sequence number of this change. The highest sequence number received from this client will be
+	 * sent back to the client in future PresetFieldsChanged events.
+	 */
+	UPROPERTY()
+	int64 SequenceNumber = -1;
+};

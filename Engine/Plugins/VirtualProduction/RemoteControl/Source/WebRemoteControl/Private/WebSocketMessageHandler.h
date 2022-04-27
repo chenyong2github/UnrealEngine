@@ -99,11 +99,11 @@ private:
 	/** Handles registration to callbacks for creation/destruction/rename of a given actor type */
 	void HandleWebSocketActorUnregister(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
-	/** Handles multiple messages batched into a single request */
-	void HandleWebSocketBatchRequest(const FRemoteControlWebSocketMessage& WebSocketMessage);
-
 	/** Handles property modification for a given preset */
 	void HandleWebSocketPresetModifyProperty(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
+	/** Handles calling a Blueprint function */
+	void HandleWebSocketFunctionCall(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
 	//Preset callbacks
 	void OnPresetExposedPropertiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedPropertyIds);
@@ -229,6 +229,11 @@ private:
 	 * Unregister a client from messages about the given actor class.
 	 */
 	void UnregisterClientForActorClass(const FGuid& ClientId, TSubclassOf<AActor> ActorClass);
+
+	/**
+	 * Update the sequence number for a client when a new one is received.
+	 */
+	void UpdateSequenceNumber(const FGuid& ClientId, int64 NewSequenceNumber);
 
 private:
 

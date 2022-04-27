@@ -55,3 +55,64 @@ bool URemoteControlFunctionLibrary::ExposeActor(URemoteControlPreset* Preset, AA
 	}
 	return false;
 }
+
+bool URemoteControlFunctionLibrary::ApplyColorWheelDelta(UObject* TargetObject, const FString& PropertyName, FColorWheelColor DeltaValue, FColorWheelColor ReferenceColor)
+{
+	if (!TargetObject)
+	{
+		return false;
+	}
+
+	FProperty* Property = TargetObject->GetClass()->FindPropertyByName(FName(*PropertyName));
+	if (const FStructProperty* ColorProperty = CastField<FStructProperty>(Property))
+	{
+		FLinearColor Color;
+		ColorProperty->GetValue_InContainer(TargetObject, &Color);
+
+		// Convert to HSV
+		Color = Color.LinearRGBToHSV();
+
+		FVector2D Position;
+
+		if (Color.B > UE_DOUBLE_KINDA_SMALL_NUMBER)
+		{
+			// Determine direction as a unit vector based on the calculated hue
+			const double HueRadians = FMath::DegreesToRadians(Color.R);
+			Position = FVector2D(FMath::Cos(HueRadians), FMath::Sin(HueRadians));
+			
+			// Multiply the unit vector by saturation to determine the current position in the color wheel
+			Position *= Color.G;
+		}
+		else
+		{
+			// Color's value is too low to determine the hue and saturation. Fall back to the reference color's position
+			Position = ReferenceColor.Position;
+		}
+
+		// Apply the delta to the position, then convert back to hue and saturation
+		Position += FVector2D(DeltaValue.Position.X, DeltaValue.Position.Y);
+		Color.R = FMath::Fmod(FMath::RadiansToDegrees(FMath::Atan2(Position.Y, Position.X)) + 360.0, 360.0);
+		Color.G = FMath::Clamp(Position.Length(), 0.0, 1.0);
+
+		// Apply the value and alpha changes directly
+		Color.B = FMath::Clamp(Color.B + DeltaValue.Value, 0.0, 1.0);
+		Color.A = FMath::Clamp(Color.A + DeltaValue.Alpha, 0.0, 1.0);
+
+		Color = Color.HSVToLinearRGB();
+
+#if WITH_EDITOR
+		TargetObject->PreEditChange(Property);
+#endif
+
+		ColorProperty->SetValue_InContainer(TargetObject, &Color);
+
+#if WITH_EDITOR
+		FPropertyChangedEvent ChangeEvent(Property, EPropertyChangeType::ValueSet);
+		TargetObject->PostEditChangeProperty(ChangeEvent);
+#endif
+
+		return true;
+	}
+
+	return false;
+}

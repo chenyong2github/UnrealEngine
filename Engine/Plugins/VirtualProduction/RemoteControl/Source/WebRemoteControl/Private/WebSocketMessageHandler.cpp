@@ -290,6 +290,12 @@ void FWebSocketMessageHandler::RegisterRoutes(FWebRemoteControlModule* WebRemote
 		TEXT("preset.property.modify"),
 		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketPresetModifyProperty)
 	));
+
+	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
+		TEXT("Call a function on an object"),
+		TEXT("object.call"),
+		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketFunctionCall)
+	));
 }
 
 void FWebSocketMessageHandler::UnregisterRoutes(FWebRemoteControlModule* WebRemoteControl)
@@ -569,14 +575,59 @@ void FWebSocketMessageHandler::HandleWebSocketPresetModifyProperty(const FRemote
 		return;
 	}
 
-	WebRemoteControlInternalUtils::ModifyPropertyUsingPayload(*RemoteControlProperty.Get(), Body, WebSocketMessage.RequestPayload, WebSocketMessage.ClientId, *this);
+	UpdateSequenceNumber(WebSocketMessage.ClientId, Body.SequenceNumber);
 
-	// Update the sequence number for this client
-	int64& SequenceNumber = ClientSequenceNumbers.FindOrAdd(WebSocketMessage.ClientId, DefaultSequenceNumber);
-	if (SequenceNumber < Body.SequenceNumber)
+	WebRemoteControlInternalUtils::ModifyPropertyUsingPayload(*RemoteControlProperty.Get(), Body, WebSocketMessage.RequestPayload, WebSocketMessage.ClientId, *this);
+}
+
+void FWebSocketMessageHandler::HandleWebSocketFunctionCall(const FRemoteControlWebSocketMessage& WebSocketMessage)
+{
+	FRCWebSocketCallBody Body;
+	if (!WebRemoteControlInternalUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Body))
 	{
-		SequenceNumber = Body.SequenceNumber;
+		return;
 	}
+
+	FRCCall Call;
+	if (IRemoteControlModule::Get().ResolveCall(Body.ObjectPath, Body.FunctionName, Call.CallRef, nullptr))
+	{
+		// Initialize the param struct with default parameters
+		Call.bGenerateTransaction = Body.GenerateTransaction;
+		Call.ParamStruct = FStructOnScope(Call.CallRef.Function.Get());
+
+		// If some parameters were provided, deserialize them
+		const FBlockDelimiters& ParametersDelimiters = Body.GetStructParameters().FindChecked(FRCCallRequest::ParametersLabel());
+		if (ParametersDelimiters.BlockStart > 0)
+		{
+			// Extract function parameters from the request payload
+			const int64 DelimitersSize = ParametersDelimiters.GetBlockSize();
+
+			TArray<uint8> ParamPayload;
+			ParamPayload.SetNumUninitialized(DelimitersSize);
+
+			const uint8* DataStart = &WebSocketMessage.RequestPayload[ParametersDelimiters.BlockStart];
+			FMemory::Memcpy(ParamPayload.GetData(), DataStart, DelimitersSize);
+
+			// Using the extracted data, set up a reader and attempt to deserialize
+			FMemoryReader Reader(ParamPayload);
+			FRCJsonStructDeserializerBackend Backend(Reader);
+
+			if (!FStructDeserializer::Deserialize((void*)Call.ParamStruct.GetStructMemory(), *const_cast<UStruct*>(Call.ParamStruct.GetStruct()), Backend, FStructDeserializerPolicies()))
+			{
+				// Failed to deserialize parameters
+				return;
+			}
+		}
+	}
+
+	if (!Call.IsValid())
+	{
+		return;
+	}
+
+	UpdateSequenceNumber(WebSocketMessage.ClientId, Body.SequenceNumber);
+
+	IRemoteControlModule::Get().InvokeCall(Call);
 }
 
 void FWebSocketMessageHandler::ProcessChangedProperties()
@@ -1571,5 +1622,15 @@ void FWebSocketMessageHandler::UnregisterClientForActorClass(const FGuid& Client
 		{
 			StopWatchingActor(Actor, ActorClass);
 		}
+	}
+}
+
+void FWebSocketMessageHandler::UpdateSequenceNumber(const FGuid& ClientId, int64 NewSequenceNumber)
+{
+	// Update the sequence number for this client
+	int64& StoredSequenceNumber = ClientSequenceNumbers.FindOrAdd(ClientId, DefaultSequenceNumber);
+	if (StoredSequenceNumber < NewSequenceNumber)
+	{
+		StoredSequenceNumber = NewSequenceNumber;
 	}
 }
