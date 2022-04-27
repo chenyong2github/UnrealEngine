@@ -16,6 +16,7 @@ public class TextureUtilitiesCommon : ModuleRules
 			new string[] {
 				"CoreUObject",
 				"Engine",
+				"ImageCore",
 				"Slate",
 				"SlateCore",
 			});

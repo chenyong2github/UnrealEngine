@@ -51,13 +51,14 @@ namespace UE
 			/**
 			 * Tests if the given height and width specify a supported texture resolution to import; Can optionally check if the height/width are powers of two
 			 *
-			 * @param Width - The width of an imported texture whose validity should be checked
-			 * @param Height - The height of an imported texture whose validity should be checked
-			 * @param bAllowNonPowerOfTwo - Whether or not non-power-of-two textures are allowed
+			 * @param Width The width of an imported texture whose validity should be checked
+			 * @param Height The height of an imported texture whose validity should be checked
+			 * @param bAllowNonPowerOfTwo Whether or not non-power-of-two textures are allowed
+			 * @param OutErrorMessage Optional output for an error message
 			 *
 			 * @return bool true if the given height/width represent a supported texture resolution, false if not
 			 */
-			static bool IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo);
+			static bool IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo, FText* OutErrorMessage = nullptr);
 		};
 	}//ns Interchange
 }//ns UE

@@ -29,6 +29,7 @@ namespace UnrealBuildTool.Rules
 					"CinematicCamera",
 					"GLTFCore",
 					"IESFile",
+					"ImageCore",
 					"ImageWrapper",
 					"InterchangeCommonParser",
 					"InterchangeDispatcher",

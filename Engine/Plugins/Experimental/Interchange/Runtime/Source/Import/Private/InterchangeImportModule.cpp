@@ -20,18 +20,13 @@
 #include "Scene/InterchangeCineCameraActorFactory.h"
 #include "Scene/InterchangeStaticMeshActorFactory.h"
 #include "Scene/InterchangeSkeletalMeshActorFactory.h"
-#include "Texture/InterchangeBMPTranslator.h"
+#include "Texture/InterchangeImageWrapperTranslator.h"
 #include "Texture/InterchangeDDSTranslator.h"
-#include "Texture/InterchangeEXRTranslator.h"
-#include "Texture/InterchangeHDRTranslator.h"
 #include "Texture/InterchangeIESTranslator.h"
 #include "Texture/InterchangeJPGTranslator.h"
 #include "Texture/InterchangePCXTranslator.h"
-#include "Texture/InterchangePNGTranslator.h"
 #include "Texture/InterchangePSDTranslator.h"
 #include "Texture/InterchangeTextureFactory.h"
-#include "Texture/InterchangeTGATranslator.h"
-#include "Texture/InterchangeTIFFTranslator.h"
 
 DEFINE_LOG_CATEGORY(LogInterchangeImport);
 
@@ -59,30 +54,18 @@ void FInterchangeImportModule::StartupModule()
 		InterchangeManager.RegisterTranslator(UInterchangeOBJTranslator::StaticClass());
 
 		//Textures
-		InterchangeManager.RegisterTranslator(UInterchangeBMPTranslator::StaticClass());
-		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeBMPTranslator::StaticClass());
+		InterchangeManager.RegisterTranslator(UInterchangeImageWrapperTranslator::StaticClass());
+		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeImageWrapperTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeDDSTranslator::StaticClass());
 		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeDDSTranslator::StaticClass());
-		InterchangeManager.RegisterTranslator(UInterchangeEXRTranslator::StaticClass());
-		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeEXRTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeJPGTranslator::StaticClass());
 		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeJPGTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangePCXTranslator::StaticClass());
 		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangePCXTranslator::StaticClass());
-		InterchangeManager.RegisterTranslator(UInterchangePNGTranslator::StaticClass());
-		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangePNGTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangePSDTranslator::StaticClass());
 		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangePSDTranslator::StaticClass());
-		InterchangeManager.RegisterTranslator(UInterchangeTGATranslator::StaticClass());
-		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeTGATranslator::StaticClass());
-		InterchangeManager.RegisterTranslator(UInterchangeHDRTranslator::StaticClass());
-		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeHDRTranslator::StaticClass());
 		InterchangeManager.RegisterTranslator(UInterchangeIESTranslator::StaticClass());
 		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeIESTranslator::StaticClass());
-#if WITH_LIBTIFF
-		InterchangeManager.RegisterTranslator(UInterchangeTIFFTranslator::StaticClass());
-		InterchangeManager.RegisterTextureOnlyTranslatorClass(UInterchangeTIFFTranslator::StaticClass());
-#endif // WITH_LIBTIFF
 
 		//Register the factories
 		InterchangeManager.RegisterFactory(UInterchangeTextureFactory::StaticClass());

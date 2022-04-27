@@ -8,7 +8,7 @@
 #include "Misc/MessageDialog.h"
 #include "RHI.h"
 
-bool UE::Interchange::FImportImageHelper::IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo)
+bool UE::Interchange::FImportImageHelper::IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo, FText* OutErrorMessage)
 {
 	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
 
@@ -19,34 +19,32 @@ bool UE::Interchange::FImportImageHelper::IsImportResolutionValid(int32 Width, i
 	// (Note, have to subtract 1 because 1x1 is a valid mip-size; this means a GMaxTextureMipCount of 4 means a max resolution of 8x8, not 2^4 = 16x16)
 	const int32 MaximumSupportedResolution = CVarVirtualTexturesEnabled->GetValueOnAnyThread() ? MaximumSupportedVirtualTextureResolution : (1 << (GMaxTextureMipCount - 1));
 
-	bool bValid = true;
-
 	// Check if the texture is above the supported resolution and prompt the user if they wish to continue if it is
 	if (Width > MaximumSupportedResolution || Height > MaximumSupportedResolution)
 	{
-		if (EAppReturnType::Yes != FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(
-			NSLOCTEXT("Interchange", "Warning_LargeTextureImport", "Attempting to import {0} x {1} texture, proceed?\nLargest supported texture size: {2} x {3}"),
-			FText::AsNumber(Width), FText::AsNumber(Height), FText::AsNumber(MaximumSupportedResolution), FText::AsNumber(MaximumSupportedResolution))))
+		if ((Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
 		{
-			bValid = false;
-		}
-
-		if (bValid && (Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
-		{
-			//Warn->Log(ELogVerbosity::Error, *NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLarge", "Texture is too large to import").ToString());
-			bValid = false;
+			if (OutErrorMessage)
+			{
+				*OutErrorMessage = NSLOCTEXT("Interchange", "Warning_TextureSizeTooLarge", "Texture is too large to import");
+			}
+			
+			return false;
 		}
 	}
 
-	const bool bIsPowerOfTwo = FMath::IsPowerOfTwo(Width) && FMath::IsPowerOfTwo(Height);
 	// Check if the texture dimensions are powers of two
-	if (!bAllowNonPowerOfTwo && !bIsPowerOfTwo)
+	if (!bAllowNonPowerOfTwo)
 	{
-		//Warn->Log(ELogVerbosity::Error, *NSLOCTEXT("UnrealEd", "Warning_TextureNotAPowerOfTwo", "Cannot import texture with non-power of two dimensions").ToString());
-		bValid = false;
+		const bool bIsPowerOfTwo = FMath::IsPowerOfTwo(Width) && FMath::IsPowerOfTwo(Height);
+		if (!bIsPowerOfTwo)
+		{
+			*OutErrorMessage = NSLOCTEXT("Interchange", "Warning_TextureNotAPowerOfTwo", "Cannot import texture with non-power of two dimensions");
+			return false;
+		}
 	}
 
-	return bValid;
+	return true;
 }
 
 void UE::Interchange::FImportImage::Init2DWithParams(int32 InSizeX, int32 InSizeY, ETextureSourceFormat InFormat, bool bInSRGB, bool bShouldAllocateRawData)

@@ -1,4 +1,5 @@
-// Copyright Epic Games, Inc. All Rights Reserved. 
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Texture/InterchangePCXTranslator.h"
 
 #include "Engine/Texture.h"
@@ -7,7 +8,6 @@
 #include "IImageWrapperModule.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeTextureNode.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
@@ -113,10 +113,6 @@ TOptional<UE::Interchange::FImportImage> UInterchangePCXTranslator::GetTexturePa
 	const uint8* Buffer = SourceDataBuffer.GetData();
 	const uint8* BufferEnd = Buffer + SourceDataBuffer.Num();
 
-	bool bAllowNonPowerOfTwo = false;
-	GConfig->GetBool(TEXT("TextureImporter"), TEXT("AllowNonPowerOfTwoTextures"), bAllowNonPowerOfTwo, GEditorIni);
-
-	// Validate it.
 	const int32 Length = BufferEnd - Buffer;
 
 	FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
@@ -132,13 +128,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangePCXTranslator::GetTexturePa
 		int32 NewU = PCX->XMax + 1 - PCX->XMin;
 		int32 NewV = PCX->YMax + 1 - PCX->YMin;
 
-		// Check the resolution of the imported texture to ensure validity
-		if (!UE::Interchange::FImportImageHelper::IsImportResolutionValid(NewU, NewV, bAllowNonPowerOfTwo))
-		{
-			UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PCX, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), NewU, NewV, bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
-			return TOptional<UE::Interchange::FImportImage>();
-		}
-		else if (PCX->NumPlanes == 1 && PCX->BitsPerPixel == 8)
+		if (PCX->NumPlanes == 1 && PCX->BitsPerPixel == 8)
 		{
 
 			// Set texture properties.

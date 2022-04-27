@@ -1,4 +1,5 @@
-// Copyright Epic Games, Inc. All Rights Reserved. 
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Texture/InterchangePSDTranslator.h"
 
 #include "Engine/Texture.h"
@@ -7,7 +8,6 @@
 #include "IImageWrapperModule.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeTextureNode.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
@@ -414,10 +414,6 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 	const uint8* Buffer = SourceDataBuffer.GetData();
 	const uint8* BufferEnd = Buffer + SourceDataBuffer.Num();
 
-	bool bAllowNonPowerOfTwo = false;
-	GConfig->GetBool(TEXT("TextureImporter"), TEXT("AllowNonPowerOfTwoTextures"), bAllowNonPowerOfTwo, GEditorIni);
-
-	// Validate it.
 	const int32 Length = BufferEnd - Buffer;
 
 	//
@@ -432,12 +428,6 @@ TOptional<UE::Interchange::FImportImage> UInterchangePSDTranslator::GetTexturePa
 	UE::Interchange::Private::GetPSDHeader(Buffer, PSDHeader);
 
 	if (!PSDHeader.IsValid())
-	{
-		return TOptional<UE::Interchange::FImportImage>();
-	}
-
-	// Check the resolution of the imported texture to ensure validity
-	if (!UE::Interchange::FImportImageHelper::IsImportResolutionValid(PSDHeader.Width, PSDHeader.Height, bAllowNonPowerOfTwo))
 	{
 		return TOptional<UE::Interchange::FImportImage>();
 	}

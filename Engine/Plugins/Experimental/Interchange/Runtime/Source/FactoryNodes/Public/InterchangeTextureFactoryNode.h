@@ -660,6 +660,23 @@ public:
 
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | Import Settings")
+	bool GetCustomAllowNonPowerOfTwo(bool& AttributeValue) const
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AllowNonPowerOfTwo, bool);
+	}
+
+	/*
+	 * Should the factory allow the import of texture that would have a resolution that is not a power of two
+	 * By default this is not allowed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | Import Settings")
+	bool SetCustomAllowNonPowerOfTwo(const bool& AttributeValue)
+	{
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AllowNonPowerOfTwo, bool)
+	}
+
+	/** Return false if the Attribute was not set previously.*/
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | Import Settings")
 	bool GetCustomPreferCompressedSourceData(bool& AttributeValue) const
 	{
 		IMPLEMENT_NODE_ATTRIBUTE_GETTER(PreferCompressedSourceData, bool);
@@ -680,58 +697,60 @@ private:
 	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey();
 	const UE::Interchange::FAttributeKey AssetNameKey = UE::Interchange::FBaseNodeStaticData::AssetNameKey();
 
-	//Translated texture node unique id
-	const UE::Interchange::FAttributeKey Macro_CustomTranslatedTextureNodeUidKey = UE::Interchange::FAttributeKey(TEXT("TranslatedTextureNodeUid"));
+	// Translated texture node unique id
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(TranslatedTextureNodeUid)
 	
-	//Texture Adjustments
-	const UE::Interchange::FAttributeKey Macro_CustomAdjustBrightnessKey = UE::Interchange::FAttributeKey(TEXT("AdjustBrightness"));
-	const UE::Interchange::FAttributeKey Macro_CustomAdjustBrightnessCurveKey = UE::Interchange::FAttributeKey(TEXT("AdjustBrightnessCurve"));
-	const UE::Interchange::FAttributeKey Macro_CustomAdjustVibranceKey = UE::Interchange::FAttributeKey(TEXT("AdjustVibrance"));
-	const UE::Interchange::FAttributeKey Macro_CustomAdjustSaturationKey = UE::Interchange::FAttributeKey(TEXT("AdjustSaturation"));
-	const UE::Interchange::FAttributeKey Macro_CustomAdjustRGBCurveKey = UE::Interchange::FAttributeKey(TEXT("AdjustRGBCurve"));
-	const UE::Interchange::FAttributeKey Macro_CustomAdjustHueKey = UE::Interchange::FAttributeKey(TEXT("AdjustHue"));
-	const UE::Interchange::FAttributeKey Macro_CustomAdjustMinAlphaKey = UE::Interchange::FAttributeKey(TEXT("AdjustMinAlpha"));
-	const UE::Interchange::FAttributeKey Macro_CustomAdjustMaxAlphaKey = UE::Interchange::FAttributeKey(TEXT("AdjustMaxAlpha"));
-	const UE::Interchange::FAttributeKey Macro_CustombChromaKeyTextureKey = UE::Interchange::FAttributeKey(TEXT("bChromaKeyTexture"));
-	const UE::Interchange::FAttributeKey Macro_CustomChromaKeyThresholdKey = UE::Interchange::FAttributeKey(TEXT("ChromaKeyThreshold"));
-	const UE::Interchange::FAttributeKey Macro_CustomChromaKeyColorKey = UE::Interchange::FAttributeKey(TEXT("ChromaKeyColor"));
+	// Texture Adjustments
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AdjustBrightness)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AdjustBrightnessCurve)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AdjustVibrance)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AdjustSaturation)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AdjustRGBCurve)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AdjustHue)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AdjustMinAlpha)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AdjustMaxAlpha)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(bChromaKeyTexture)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(ChromaKeyThreshold)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(ChromaKeyColor)
 
-	//Texture Compression
-	const UE::Interchange::FAttributeKey Macro_CustomCompressionNoAlphaKey = UE::Interchange::FAttributeKey(TEXT("CompressionNoAlpha"));
-	const UE::Interchange::FAttributeKey Macro_CustomDeferCompressionKey = UE::Interchange::FAttributeKey(TEXT("DeferCompression"));
-	const UE::Interchange::FAttributeKey Macro_CustomLossyCompressionAmountKey = UE::Interchange::FAttributeKey(TEXT("LossyCompressionAmount"));
-	const UE::Interchange::FAttributeKey Macro_CustomMaxTextureSizeKey = UE::Interchange::FAttributeKey(TEXT("MaxTextureSize"));
-	const UE::Interchange::FAttributeKey Macro_CustomCompressionQualityKey = UE::Interchange::FAttributeKey(TEXT("CompressionQuality"));
-	const UE::Interchange::FAttributeKey Macro_CustomCompressionSettingsKey = UE::Interchange::FAttributeKey(TEXT("CompressionSettings"));
+	// Texture Compression
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(CompressionNoAlpha)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(DeferCompression)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(LossyCompressionAmount)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(MaxTextureSize)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(CompressionQuality)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(CompressionSettings)
 
-	//Texture general
-	const UE::Interchange::FAttributeKey Macro_CustombDoScaleMipsForAlphaCoverageKey = UE::Interchange::FAttributeKey(TEXT("bDoScaleMipsForAlphaCoverage"));
-	const UE::Interchange::FAttributeKey Macro_CustomAlphaCoverageThresholdsKey = UE::Interchange::FAttributeKey(TEXT("AlphaCoverageThresholds"));
-	const UE::Interchange::FAttributeKey Macro_CustombFlipGreenChannelKey = UE::Interchange::FAttributeKey(TEXT("bFlipGreenChannel"));
-	const UE::Interchange::FAttributeKey Macro_CustombForcePVRTC4Key = UE::Interchange::FAttributeKey(TEXT("bForcePVRTC4"));
-	const UE::Interchange::FAttributeKey Macro_CustomPowerOfTwoModeKey = UE::Interchange::FAttributeKey(TEXT("PowerOfTwoMode"));
-	const UE::Interchange::FAttributeKey Macro_CustomPaddingColorKey = UE::Interchange::FAttributeKey(TEXT("PaddingColor"));
-	const UE::Interchange::FAttributeKey Macro_CustomFilterKey = UE::Interchange::FAttributeKey(TEXT("Filter"));
-	const UE::Interchange::FAttributeKey Macro_CustomMipLoadOptionsKey = UE::Interchange::FAttributeKey(TEXT("MipLoadOptions"));
-	const UE::Interchange::FAttributeKey Macro_CustomSRGBKey = UE::Interchange::FAttributeKey(TEXT("SRGB"));
-	const UE::Interchange::FAttributeKey Macro_CustombUseLegacyGammaKey = UE::Interchange::FAttributeKey(TEXT("bUseLegacyGamma"));
-	const UE::Interchange::FAttributeKey Macro_CustomVirtualTextureStreamingKey = UE::Interchange::FAttributeKey(TEXT("VirtualTextureStreaming"));
+	// Texture general
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(bDoScaleMipsForAlphaCoverage)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AlphaCoverageThresholds)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(bFlipGreenChannel)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(bForcePVRTC4)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(PowerOfTwoMode)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(PaddingColor)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(Filter)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(MipLoadOptions)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(SRGB)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(bUseLegacyGamma)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(VirtualTextureStreaming)
 
-	//Level of Detail
-	const UE::Interchange::FAttributeKey Macro_CustombPreserveBorderKey = UE::Interchange::FAttributeKey(TEXT("bPreserveBorder"));
-	const UE::Interchange::FAttributeKey Macro_CustomMipGenSettingsKey = UE::Interchange::FAttributeKey(TEXT("MipGenSettings"));
-	const UE::Interchange::FAttributeKey Macro_CustomLODBiasKey = UE::Interchange::FAttributeKey(TEXT("LODBias"));
-	const UE::Interchange::FAttributeKey Macro_CustomLODGroupKey = UE::Interchange::FAttributeKey(TEXT("LODGroup"));
+	// Level of Detail
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(bPreserveBorder)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(MipGenSettings)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(LODBias)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(LODGroup)
 	//TODO support per platform data in the FAttributeStorage, so we can set different value per platform at the pipeline stage, We set only the default value for now
-	const UE::Interchange::FAttributeKey Macro_CustomDownscaleKey = UE::Interchange::FAttributeKey(TEXT("Downscale"));
-	const UE::Interchange::FAttributeKey Macro_CustomDownscaleOptionsKey = UE::Interchange::FAttributeKey(TEXT("DownscaleOptions"));
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(Downscale)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(DownscaleOptions)
 
-	//Compositing
-	const UE::Interchange::FAttributeKey Macro_CustomCompositeTextureModeKey = UE::Interchange::FAttributeKey(TEXT("CompositeTextureMode"));
-	const UE::Interchange::FAttributeKey Macro_CustomCompositePowerKey = UE::Interchange::FAttributeKey(TEXT("CompositePower"));
+	// Compositing
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(CompositeTextureMode)
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(CompositePower)
 
 	// Texture Factory Settings
+	IMPLEMENT_NODE_ATTRIBUTE_KEY(AllowNonPowerOfTwo)
 	IMPLEMENT_NODE_ATTRIBUTE_KEY(PreferCompressedSourceData)
+
 
 	// no IMPLEMENT_NODE_ATTRIBUTE_APPLY_UOBJECT here ?
 

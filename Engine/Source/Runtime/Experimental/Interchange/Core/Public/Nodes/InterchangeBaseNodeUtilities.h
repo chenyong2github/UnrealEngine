@@ -405,6 +405,8 @@ public:
 		{
 			return Pair->Value.Get(OutValue) == EAttributeStorageResult::Operation_Success;
 		}
+
+		return false;
 	}
 
 

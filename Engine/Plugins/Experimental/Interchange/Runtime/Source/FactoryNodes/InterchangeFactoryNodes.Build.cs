@@ -9,18 +9,13 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"CinematicCamera",
 					"Core",
 					"CoreUObject",
+					"Engine",
 					"InterchangeCore",
 					"InterchangeNodes",
-				}
-			);
-
-			PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-					"CinematicCamera",
-					"Engine"
+					"TextureUtilitiesCommon",
 				}
 			);
 		}

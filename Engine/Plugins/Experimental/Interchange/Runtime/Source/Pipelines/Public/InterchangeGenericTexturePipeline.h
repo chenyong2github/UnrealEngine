@@ -32,15 +32,15 @@ public:
 	bool bDetectNormalMapTexture = true;
 
 	/** If enabled, the texture's green channel will be inverted for normal maps. */
-	UPROPERTY(EditAnywhere, Category = "Textures")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
 	bool bFlipNormalMapGreenChannel = false;
 
 	/** If enabled detect if a texture use a UDIM pattern and if so import it as UIDMs. */
-	UPROPERTY(EditAnywhere, Category = "Textures")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
 	bool bImportUDIMs = true;
 
 	/** Specify the files type that should be imported as long/lat cubemap */
-	UPROPERTY(EditAnywhere, Category = "Textures")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Textures")
 	TSet<FString> FileExtensionsToImportAsLongLatCubemap = {"hdr"};
 
 	/** 
@@ -54,6 +54,10 @@ public:
 	bool bPreferCompressedSourceData = false;
 
 #endif
+
+	/** Should the textures that have a non-power of two resolution be imported */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Textures")
+	bool bAllowNonPowerOfTwo = false;
 
 public:
 	virtual void AdjustSettingsForReimportType(EInterchangeReimportType ImportType, TObjectPtr<UObject> ReimportAsset) override;

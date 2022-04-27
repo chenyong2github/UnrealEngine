@@ -10,7 +10,6 @@
 #include "InterchangeImportLog.h"
 #include "InterchangeTextureNode.h"
 #include "Memory/SharedBuffer.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
@@ -50,10 +49,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 
 bool UInterchangeJPGTranslator::SupportCompressedTexturePayloadData() const
 {
-	// For now this option is opt in via the config files once there is no technical risk this will become the default path.
-	bool bRetainJpegFormat = false;
-	GConfig->GetBool(TEXT("TextureImporter"), TEXT("RetainJpegFormat"), bRetainJpegFormat, GEditorIni);
-	return bRetainJpegFormat;
+	return true;
 }
 
 TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetCompressedTexturePayloadData(const UInterchangeSourceData* PayloadSourceData, const FString& PayLoadKey) const
@@ -110,10 +106,6 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 	const uint8* Buffer = SourceDataBuffer.GetData();
 	const uint8* BufferEnd = Buffer + SourceDataBuffer.Num();
 
-	bool bAllowNonPowerOfTwo = false;
-	GConfig->GetBool(TEXT("TextureImporter"), TEXT("AllowNonPowerOfTwoTextures"), bAllowNonPowerOfTwo, GEditorIni);
-
-	// Validate it.
 	const int32 Length = BufferEnd - Buffer;
 
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
@@ -125,11 +117,6 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 	if (!JpegImageWrapper.IsValid() || !JpegImageWrapper->SetCompressed(Buffer, Length))
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to decode JPEG. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
-	}
-	if (!UE::Interchange::FImportImageHelper::IsImportResolutionValid(JpegImageWrapper->GetWidth(), JpegImageWrapper->GetHeight(), bAllowNonPowerOfTwo))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import JPEG, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), JpegImageWrapper->GetWidth(), JpegImageWrapper->GetHeight(), bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
@@ -166,7 +153,7 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 	UE::Interchange::FImportImage PayloadData;
 
 
-	const bool bShouldAllocateRawDataBuffer = !bShouldImportRaw;
+	const bool bShouldAllocateRawDataBuffer = false;
 
 	PayloadData.Init2DWithParams(
 		JpegImageWrapper->GetWidth(),
@@ -176,12 +163,17 @@ TOptional<UE::Interchange::FImportImage> UInterchangeJPGTranslator::GetTexturePa
 		bShouldAllocateRawDataBuffer
 	);
 
+	TArray64<uint8> RawData;
 	if (bShouldImportRaw)
 	{
 		PayloadData.RawData = MakeUniqueBufferFromArray(MoveTemp(SourceDataBuffer));
 		PayloadData.RawDataCompressionFormat = ETextureSourceCompressionFormat::TSCF_JPEG;
 	}
-	else if (!JpegImageWrapper->GetRaw(Format, BitDepth, PayloadData.GetArrayViewOfRawData()))
+	else if (JpegImageWrapper->GetRaw(Format, BitDepth, RawData))
+	{
+		PayloadData.RawData = MakeUniqueBufferFromArray(MoveTemp(RawData));
+	}
+	else
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to decode JPEG. [%s]"), *Filename);
 		return TOptional<UE::Interchange::FImportImage>();

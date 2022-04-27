@@ -235,6 +235,11 @@ UInterchangeTextureFactoryNode* UInterchangeGenericTexturePipeline::CreateTextur
 
 		TextureFactoryNode->AddTargetNodeUid(TextureNode->GetUniqueID());
 		TextureNode->AddTargetNodeUid(TextureFactoryNode->GetUniqueID());
+
+		if (bAllowNonPowerOfTwo)
+		{
+			TextureFactoryNode->SetCustomAllowNonPowerOfTwo(bAllowNonPowerOfTwo);
+		}
 	}
 
 #if WITH_EDITORONLY_DATA

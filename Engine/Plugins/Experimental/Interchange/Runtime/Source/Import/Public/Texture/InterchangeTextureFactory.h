@@ -17,6 +17,8 @@
 
 #include "InterchangeTextureFactory.generated.h"
 
+class UInterchangeTextureFactoryNode;
+
 namespace UE::Interchange::Private::InterchangeTextureFactory
 {
 	using FTexturePayloadVariant = TVariant<FEmptyVariantState
@@ -63,10 +65,15 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 
 private:
+	/**
+	 * Check for any invalid resolutions and remove those from the payload
+	 */
+	void CheckForInvalidResolutions(UE::Interchange::Private::InterchangeTextureFactory::FTexturePayloadVariant& InPayloadVariant, const UInterchangeSourceData* SourceData, const UInterchangeTextureFactoryNode* TextureFactoryNode);
+	
 	UE::Interchange::Private::InterchangeTextureFactory::FProcessedPayload ProcessedPayload;
 
 #if WITH_EDITORONLY_DATA
-	// When importing a UDIM the data for the source files will be stored here
+	//  The data for the source files will be stored here during the import
 	TArray<FAssetImportInfo::FSourceFile> SourceFiles;
 #endif // WITH_EDITORONLY_DATA
 };

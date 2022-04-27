@@ -54,7 +54,7 @@ namespace UE
 			return BlockY * 10 + BlockX + 1001;
 		}
 
-		TEXTUREUTILITIESCOMMON_API TMap<int32, FString> GetUDIMBlocksFromSourceFile(const FString& File, const FString& UdimRegexPattern, FString* OutFilenameWithoutUdimPatternAndExtension)
+		TMap<int32, FString> GetUDIMBlocksFromSourceFile(const FString& File, const FString& UdimRegexPattern, FString* OutFilenameWithoutUdimPatternAndExtension)
 		{
 			FString PreUDIMName;
 			FString PostUDIMName;

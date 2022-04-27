@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "InterchangeTextureFactoryNode.h"
 
+#include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
+#include "UDIMUtilities.h"
 
 #include "InterchangeTexture2DFactoryNode.generated.h"
 
@@ -93,6 +94,66 @@ public:
 	void SetSourceBlocks(TMap<int32, FString>&& InSourceBlocks)
 	{
 		SourceBlocks = InSourceBlocks;
+	}
+
+
+	/**
+	 * Get a source block from the texture
+	 *
+	 * @param X The X coordinate of the block
+	 * @param Y The Y coordinate of the block
+	 * @param OutSourceFile The source file for that block if found
+	 * @return True if the source file for the block was found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
+	bool GetSourceBlockByCoordinates(int32 X, int32 Y, FString& OutSourceFile) const
+	{
+		return GetSourceBlock(UE::TextureUtilitiesCommon::GetUDIMIndex(X, Y), OutSourceFile);
+	}
+
+	/**
+	 * Get a source block from the texture
+	 *
+	 * @param BlockIndex The UDIM Index of the block
+	 * @param OutSourceFile The source file for that block if found
+	 * @return True if the source file for the block was found
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
+	bool GetSourceBlock(int32 BlockIndex, FString& OutSourceFile) const
+	{
+		return SourceBlocks.GetValue(BlockIndex, OutSourceFile);
+	}
+
+
+	/**
+	 * Set a source block for the texture
+	 *
+	 * @param X The X coordinate of the block
+	 * @param Y The Y coordinate of the block
+	 * @param InSourceFile The source file for that block
+	 * 
+	 * The textures must be of the same format and use the same pixel format
+	 * The first block in the map is used to determine the accepted texture format and pixel format
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
+	void SetSourceBlockByCoordinates(int32 X, int32 Y,  const FString& InSourceFile)
+	{
+		SetSourceBlock(UE::TextureUtilitiesCommon::GetUDIMIndex(X, Y), InSourceFile);
+	}
+
+	/**
+	 * Set a source block for the texture
+	 *
+	 * @param BlockIndex The UDIM Index of the block
+	 * @param InSourceFile The source file for that block
+	 * 
+	 * The textures must be of the same format and use the same pixel format
+	 * The first block in the map is used to determine the accepted texture format and pixel format
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Texture | UDIMs")
+	void SetSourceBlock(int32 BlockIndex, const FString& InSourceFile)
+	{
+		SourceBlocks.SetKeyValue(BlockIndex, InSourceFile);
 	}
 
 	// UDIMs ends here

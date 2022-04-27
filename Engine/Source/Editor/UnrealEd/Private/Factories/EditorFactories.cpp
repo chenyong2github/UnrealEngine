@@ -272,6 +272,7 @@
 #include "ObjectTools.h"
 
 #include "SkinWeightsUtilities.h"
+#include "TextureImportUtils.h"
 #include "UDIMUtilities.h"
 
 DEFINE_LOG_CATEGORY(LogEditorFactories);
@@ -3019,32 +3020,6 @@ void* FImportImage::GetMipData(int32 InMipIndex)
 	return &RawData[Offset];
 }
 
-static void AutoDetectAndChangeGrayScale(FImage & Image)
-{
-	if ( Image.Format != ERawImageFormat::BGRA8 )
-	{
-		return;
-	}
-
-	// auto-detect gray BGRA8 and change to G8
-
-	const FColor * Colors = (const FColor *)Image.RawData.GetData();
-	int64 NumPixels = Image.GetNumPixels();
-
-	for(int64 i=0;i<NumPixels;i++)
-	{
-		if ( Colors[i].A != 255 ||
-			Colors[i].R != Colors[i].B ||
-			Colors[i].G != Colors[i].B )
-		{
-			return;
-		}
-	}
-
-	// yes, it's gray, do it :
-	Image.ChangeFormat(ERawImageFormat::G8,Image.GammaSpace);
-}
-
 bool UTextureFactory::ImportImage(const uint8* Buffer, int64 Length, FFeedbackContext* Warn, EImageImportFlags Flags, FImportImage& OutImage)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UTextureFactory::ImportImage)
@@ -3114,7 +3089,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, int64 Length, FFeedbackCo
 				return false;
 			}
 		
-			AutoDetectAndChangeGrayScale(LoadedImage);
+			UE::TextureUtilitiesCommon::AutoDetectAndChangeGrayScale(LoadedImage);
 
 			ETextureSourceFormat TextureFormat = FImageCoreUtils::ConvertToTextureSourceFormat(LoadedImage.Format);
 			bool bSRGB = LoadedImage.GammaSpace != EGammaSpace::Linear;

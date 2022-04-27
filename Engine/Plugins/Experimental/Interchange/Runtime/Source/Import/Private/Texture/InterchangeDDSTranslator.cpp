@@ -1,24 +1,23 @@
-// Copyright Epic Games, Inc. All Rights Reserved. 
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "Texture/InterchangeDDSTranslator.h"
 
 #include "DDSLoader.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
+#include "HAL/FileManager.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureNode.h"
-#include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
-#include "Texture/TextureTranslatorUtilities.h"
-
-#include "HAL/FileManager.h"
 #include "Serialization/Archive.h"
+#include "Texture/TextureTranslatorUtilities.h"
 
 namespace UE::Interchange::Private::InterchangeDDSTranslator
 { 
@@ -164,16 +163,6 @@ TOptional<UE::Interchange::FImportImage> UInterchangeDDSTranslator::GetTexturePa
 		return TOptional<UE::Interchange::FImportImage>();
 	}
 
-	bool bAllowNonPowerOfTwo = false;
-	GConfig->GetBool(TEXT("TextureImporter"), TEXT("AllowNonPowerOfTwoTextures"), bAllowNonPowerOfTwo, GEditorIni);
-
-	// DDS 2d texture
-	if (!UE::Interchange::FImportImageHelper::IsImportResolutionValid(DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PCX, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
-		return TOptional<UE::Interchange::FImportImage>();
-	}
-
 	ETextureSourceFormat SourceFormat = DDSLoadHelper.ComputeSourceFormat();
 
 	// Invalid DDS format
@@ -252,15 +241,6 @@ TOptional<UE::Interchange::FImportSlicedImage> UInterchangeDDSTranslator::GetSli
 	if (!DDSLoadHelper.IsValidCubemapTexture() && !DDSLoadHelper.IsValidArrayTexture() )
 	{
 		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import DDS, unsupported format. [%s]"), *Filename);
-		return TOptional<UE::Interchange::FImportSlicedImage>();
-	}
-
-	bool bAllowNonPowerOfTwo = false;
-	GConfig->GetBool(TEXT("TextureImporter"), TEXT("AllowNonPowerOfTwoTextures"), bAllowNonPowerOfTwo, GEditorIni);
-
-	if (!UE::Interchange::FImportImageHelper::IsImportResolutionValid(DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo))
-	{
-		UE_LOG(LogInterchangeImport, Error, TEXT("Failed to import PCX, invalid resolution. Resolution[%d, %d], AllowPowerOfTwo[%s], [%s]"), DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo ? TEXT("True") : TEXT("false"), *Filename);
 		return TOptional<UE::Interchange::FImportSlicedImage>();
 	}
 

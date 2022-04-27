@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #pragma once
 
 #include "CoreMinimal.h"
@@ -9,19 +10,23 @@
 #include "Texture/InterchangeTexturePayloadData.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
 
-#include "InterchangeTGATranslator.generated.h"
+#include "InterchangeImageWrapperTranslator.generated.h"
 
+/**
+ * A translator for most of the image wrapper supported formats
+ */
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGEIMPORT_API UInterchangeTGATranslator : public UInterchangeTranslatorBase, public IInterchangeTexturePayloadInterface
+class INTERCHANGEIMPORT_API UInterchangeImageWrapperTranslator : public UInterchangeTranslatorBase, public IInterchangeTexturePayloadInterface
 {
 	GENERATED_BODY()
 public:
-	
+
 	virtual TArray<FString> GetSupportedFormats() const override;
+
 	virtual bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const override { return AssetType == EInterchangeTranslatorAssetType::Textures; }
 
 	/**
-	 * Translates the associated source data into a node hold by the specified nodes container.
+	 * Translate the associated source data into a node hold by the specified nodes container.
 	 *
 	 * @param BaseNodeContainer - The unreal objects descriptions container where to put the translated source data.
 	 * @return true if the translator can translate the source data, false otherwise.
@@ -42,5 +47,3 @@ public:
 
 	/* IInterchangeTexturePayloadInterface End */
 };
-
-
