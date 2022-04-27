@@ -1095,7 +1095,7 @@ FORCEINLINE bool TQuat<T>::IsNormalized() const
 	QuatVectorRegister TestValue = VectorAbs(VectorSubtract(VectorOne(), VectorDot4(A, A)));
 	return !VectorAnyGreaterThan(TestValue, GlobalVectorConstants::ThreshQuatNormalized);
 #else
-	return (FMath::Abs(1.f - SizeSquared()) < THRESH_QUAT_NORMALIZED);
+	return (FMath::Abs(1.f - SizeSquared()) < UE_THRESH_QUAT_NORMALIZED);
 #endif // PLATFORM_ENABLE_VECTORINTRINSICS
 }
 
@@ -1144,7 +1144,7 @@ FORCEINLINE TVector<T> TQuat<T>::GetRotationAxis() const
 	return V;
 #else
 	const T SquareSum = X * X + Y * Y + Z * Z;
-	if (SquareSum < SMALL_NUMBER)
+	if (SquareSum < UE_SMALL_NUMBER)
 	{
 		return TVector<T>::XAxisVector;
 	}

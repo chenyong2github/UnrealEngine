@@ -944,6 +944,12 @@ public:
 		DiagnosticCheckNaN_Scale3D();
 	}
 	
+	// For low-level VectorRegister programming
+	const TPersistentVectorRegisterType<T>& GetTranslationRegister() const { return Translation; }
+	const TPersistentVectorRegisterType<T>& GetRotationRegister() const { return Rotation; }
+	void SetTranslationRegister(TransformVectorRegister InTranslation) { Translation = InTranslation; }
+	void SetRotationRegister(TransformVectorRegister InRotation) { Rotation = InRotation; }
+
 	/** @note : Added template type function for Accumulate
 	  * The template type isn't much useful yet, but it is with the plan to move forward
 	  * to unify blending features with just type of additive or full pose

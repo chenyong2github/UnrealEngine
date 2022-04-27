@@ -180,12 +180,6 @@ namespace Chaos
 			return BaseTransform::ToMatrixNoScale();
 		}
 
-		// For low-level VectorRegister programming
-		const TPersistentVectorRegisterType<FRealSingle>& GetTranslationRegister() const { return Translation; }
-		const TPersistentVectorRegisterType<FRealSingle>& GetRotationRegister() const { return Rotation; }
-		void SetTranslationRegister(TransformVectorRegister InTranslation) { Translation = InTranslation; }
-		void SetRotationRegister(TransformVectorRegister InRotation) { Rotation = InRotation; }
-
 		CHAOS_API PMatrix<FRealSingle, 4, 4> operator*(const PMatrix<FRealSingle, 4, 4>& Matrix) const;
 		
 		inline TRigidTransform<FRealSingle, 3> operator*(const TRigidTransform<FRealSingle, 3>& Other) const
@@ -247,7 +241,7 @@ namespace Chaos
 #else
 			Result.Rotation = B.Rotation * A.Rotation;
 			Result.Translation = B.Rotation * A.Translation + B.Translation;
-			Result.Scale3D = FVector::OneVector;
+			Result.Scale3D = FVector3f::OneVector;
 #endif
 
 			return Result;
@@ -289,12 +283,6 @@ namespace Chaos
 		{
 			return BaseTransform::ToMatrixNoScale();
 		}
-
-		// For low-level VectorRegister programming
-		const TPersistentVectorRegisterType<FRealDouble>& GetTranslationRegister() const { return Translation; }
-		const TPersistentVectorRegisterType<FRealDouble>& GetRotationRegister() const { return Rotation; }
-		void SetTranslationRegister(TransformVectorRegister InTranslation) { Translation = InTranslation; }
-		void SetRotationRegister(TransformVectorRegister InRotation) { Rotation = InRotation; }
 
 		CHAOS_API PMatrix<FRealDouble, 4, 4> operator*(const Chaos::PMatrix<FRealDouble, 4, 4>& Matrix) const;
 		
@@ -357,7 +345,7 @@ namespace Chaos
 #else
 			Result.Rotation = B.Rotation * A.Rotation;
 			Result.Translation = B.Rotation * A.Translation + B.Translation;
-			Result.Scale3D = FVector::OneVector;
+			Result.Scale3D = FVector3d::OneVector;
 #endif
 
 			return Result;

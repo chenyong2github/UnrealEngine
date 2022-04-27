@@ -1662,6 +1662,8 @@ bool RunDoubleVectorTest()
 	V2 = VectorCompareGT(V0, VectorNaN);
 	V3 = VectorZeroMaskDouble;
 	LogTest<double>(TEXT("VectorCompareGT (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareGT(VectorNaN, V0);
+	LogTest<double>(TEXT("VectorCompareGT (NaN)"), TestVectorsEqualBitwise(V2, V3));
 
 	// VectorCompareGE
 	V0 = MakeVectorRegisterDouble(1.0f, 3.0f, 2.0f, 8.0f);
@@ -1681,6 +1683,8 @@ bool RunDoubleVectorTest()
 	LogTest<double>(TEXT("VectorCompareLT"), TestVectorsEqualBitwise(V2, V3));
 	V2 = VectorCompareLT(V0, VectorNaN);
 	V3 = VectorZeroMaskDouble;
+	LogTest<double>(TEXT("VectorCompareLT (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareLT(VectorNaN, V0);
 	LogTest<double>(TEXT("VectorCompareLT (NaN)"), TestVectorsEqualBitwise(V2, V3));
 
 	// VectorCompareLE
@@ -1702,6 +1706,8 @@ bool RunDoubleVectorTest()
 	V2 = VectorCompareEQ(V0, VectorNaN);
 	V3 = VectorZeroMaskDouble;
 	LogTest<double>(TEXT("VectorCompareEQ (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareEQ(VectorNaN, V0);
+	LogTest<double>(TEXT("VectorCompareEQ (NaN)"), TestVectorsEqualBitwise(V2, V3));
 	// NaN:NaN comparisons are undefined according to the Intel instruction manual, and will vary in optimized versus debug builds.
 	/*
 	V2 = VectorCompareEQ(VectorNaN, VectorNaN);
@@ -1718,6 +1724,8 @@ bool RunDoubleVectorTest()
 	// VectorCompareNE should return true if either argument is NaN
 	V2 = VectorCompareNE(V0, VectorNaN);
 	V3 = GlobalVectorConstants::DoubleAllMask();
+	LogTest<double>(TEXT("VectorCompareNE (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareNE(VectorNaN, V0);
 	LogTest<double>(TEXT("VectorCompareNE (NaN)"), TestVectorsEqualBitwise(V2, V3));
 	// NaN:NaN comparisons are undefined according to the Intel instruction manual, and will vary in optimized versus debug builds.
 	/*
@@ -2528,6 +2536,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V2 = VectorCompareGT(V0, VectorNaN);
 	V3 = VectorZeroMaskFloat;
 	LogTest<float>(TEXT("VectorCompareGT (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareGT(VectorNaN, V0);
+	LogTest<float>(TEXT("VectorCompareGT (NaN)"), TestVectorsEqualBitwise(V2, V3));
 
 	// VectorCompareGE
 	V0 = MakeVectorRegister(1.0f, 3.0f, 2.0f, 8.0f);
@@ -2547,6 +2557,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	LogTest<float>(TEXT("VectorCompareLT"), TestVectorsEqualBitwise(V2, V3));
 	V2 = VectorCompareLT(V0, VectorNaN);
 	V3 = VectorZeroMaskFloat;
+	LogTest<float>(TEXT("VectorCompareLT (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareLT(VectorNaN, V0);
 	LogTest<float>(TEXT("VectorCompareLT (NaN)"), TestVectorsEqualBitwise(V2, V3));
 
 	// VectorCompareLE
@@ -2568,6 +2580,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V2 = VectorCompareEQ(V0, VectorNaN);
 	V3 = VectorZeroMaskFloat;
 	LogTest<float>(TEXT("VectorCompareEQ (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareEQ(VectorNaN, V0);
+	LogTest<float>(TEXT("VectorCompareEQ (NaN)"), TestVectorsEqualBitwise(V2, V3));
 	// NaN:NaN comparisons are undefined according to the Intel instruction manual, and will vary in optimized versus debug builds.
 	/*
 	V2 = VectorCompareEQ(VectorNaN, VectorNaN);
@@ -2583,6 +2597,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	LogTest<float>(TEXT("VectorCompareNE"), TestVectorsEqualBitwise(V2, V3));
 	V2 = VectorCompareNE(V0, VectorNaN);
 	V3 = GlobalVectorConstants::AllMask();
+	LogTest<float>(TEXT("VectorCompareNE (NaN)"), TestVectorsEqualBitwise(V2, V3));
+	V2 = VectorCompareNE(VectorNaN, V0);
 	LogTest<float>(TEXT("VectorCompareNE (NaN)"), TestVectorsEqualBitwise(V2, V3));
 	// NaN:NaN comparisons are undefined according to the Intel instruction manual, and will vary in optimized versus debug builds.
 	/*

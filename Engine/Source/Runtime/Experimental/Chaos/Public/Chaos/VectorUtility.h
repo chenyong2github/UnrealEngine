@@ -8,18 +8,7 @@
  * @param V	vector
  * @return		VectorRegister4Float( B.x, A.y, A.z, A.w)
  */
-#if !defined(_MSC_VER)|| PLATFORM_ENABLE_VECTORINTRINSICS_NEON
-FORCEINLINE VectorRegister4Float VectorCast4IntTo4Float(const VectorRegister4Int& V)
-{
-	return VectorRegister4Float(V);
-}
-#else
-FORCEINLINE VectorRegister4Float VectorCast4IntTo4Float(const VectorRegister4Int& V)
-{
-	return _mm_castsi128_ps(V);
-}
-
-#endif
+#define VectorCast4IntTo4Float(Vec)		VectorCastIntToFloat(Vec)
 
 /**
  * Cast VectorRegister4Float in VectorRegister4Int
@@ -27,81 +16,24 @@ FORCEINLINE VectorRegister4Float VectorCast4IntTo4Float(const VectorRegister4Int
  * @param V	vector
  * @return		VectorCast4FloatTo4Int( B.x, A.y, A.z, A.w)
  */
-#if !defined(_MSC_VER) || PLATFORM_ENABLE_VECTORINTRINSICS_NEON
-FORCEINLINE VectorRegister4Int VectorCast4FloatTo4Int(const VectorRegister4Float& V)
-{
-	return VectorRegister4Int(V);
-}
-#else
-FORCEINLINE VectorRegister4Int VectorCast4FloatTo4Int(const VectorRegister4Float& V)
-{
-	return _mm_castps_si128(V);
-}
-#endif
+#define VectorCast4FloatTo4Int(Vec)		VectorCastFloatToInt(Vec)
 
-
+/**
+ * Selects and interleaves the lower two SP FP values from A and B.
+ *
+ * @param A	1st vector
+ * @param B	2nd vector
+ * @return		VectorRegister4Float( A.x, B.x, A.y, B.y)
+ */
+FORCEINLINE VectorRegister4Float VectorUnpackLo(const VectorRegister4Float& A, const VectorRegister4Float& B)
+{
 #if PLATFORM_ENABLE_VECTORINTRINSICS_NEON
-
-/**
- * Selects and interleaves the lower two SP FP values from A and B.
- *
- * @param A	1st vector
- * @param B	2nd vector
- * @return		VectorRegister4Float( A.x, B.x, A.y, B.y)
- */
-FORCEINLINE VectorRegister4Float VectorUnpackLo(const VectorRegister4Float& A, const VectorRegister4Float& B)
-{
 	return vzip1q_f32(A, B);
-}
-
-/**
- * Moves the lower 2 SP FP values of b to the upper 2 SP FP values of the result. The lower 2 SP FP values of a are passed through to the result.
- *
- * @param A	1st vector
- * @param B	2nd vector
- * @return		VectorRegister4Float( A.x, A.y, B.x, B.y)
-  */
-FORCEINLINE VectorRegister4Float VectorMoveLh(const VectorRegister4Float& A, const VectorRegister4Float& B)
-{
-	return vzip1q_f64(A, B);
-}
-
-/**
- * Combines two vectors using bitwise NOT AND (treating each vector as a 128 bit field)
- *
- * @param Vec1	1st vector
- * @param Vec2	2nd vector
- * @return		VectorRegister4Float( for each bit i: !Vec1[i] & Vec2[i] )
- */
-FORCEINLINE VectorRegister4Float VectorBitwiseNotAnd(const VectorRegister4Float& A, const VectorRegister4Float& B)
-{
-	return (VectorRegister4Float)vandq_u32(vmvnq_u32((VectorRegister4Int)A), (VectorRegister4Int)B);
-}
-
-/**
- * Return square root.
- *
- * @param A	1st vector
-  * @return		VectorRegister4Float( sqrt(A.x), sqrt(A.y), sqrt(A.z), sqrt(A.w))
-  */
-//FORCEINLINE VectorRegister4Float VectorSqrt(const VectorRegister4Float& A)
-//{
-//	return vsqrtq_f32(A);
-//}
-
-
-#else // PLATFORM_ENABLE_VECTORINTRINSICS_NEON
-
-/**
- * Selects and interleaves the lower two SP FP values from A and B.
- *
- * @param A	1st vector
- * @param B	2nd vector
- * @return		VectorRegister4Float( A.x, B.x, A.y, B.y)
- */
-FORCEINLINE VectorRegister4Float VectorUnpackLo(const VectorRegister4Float& A, const VectorRegister4Float& B)
-{
+#elif PLATFORM_ENABLE_VECTORINTRINSICS
 	return _mm_unpacklo_ps(A, B);
+#else
+	return MakeVectorRegisterFloat(A.V[0], B.V[0], A.V[1], B.V[1]);
+#endif
 }
 
 /**
@@ -113,7 +45,11 @@ FORCEINLINE VectorRegister4Float VectorUnpackLo(const VectorRegister4Float& A, c
   */
 FORCEINLINE VectorRegister4Float VectorMoveLh(const VectorRegister4Float& A, const VectorRegister4Float& B)
 {
-	return _mm_movelh_ps(A, B);
+#if PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+	return vzip1q_f64(A, B);
+#else
+	return VectorCombineLow(A, B);
+#endif
 }
 
 
@@ -126,20 +62,15 @@ FORCEINLINE VectorRegister4Float VectorMoveLh(const VectorRegister4Float& A, con
  */
 FORCEINLINE VectorRegister4Float VectorBitwiseNotAnd(const VectorRegister4Float& A, const VectorRegister4Float& B)
 {
+#if PLATFORM_ENABLE_VECTORINTRINSICS_NEON
+	return (VectorRegister4Float)vandq_u32(vmvnq_u32((VectorRegister4Int)A), (VectorRegister4Int)B);
+#elif PLATFORM_ENABLE_VECTORINTRINSICS
 	return _mm_andnot_ps(A, B);
+#else
+	return MakeVectorRegisterFloat(
+		uint32(~((uint32*)(A.V))[0] & ((uint32*)(B.V))[0]),
+		uint32(~((uint32*)(A.V))[1] & ((uint32*)(B.V))[1]),
+		uint32(~((uint32*)(A.V))[2] & ((uint32*)(B.V))[2]),
+		uint32(~((uint32*)(A.V))[3] & ((uint32*)(B.V))[3]));
+#endif
 }
-
-/**
- * Return square root.
- *
- * @param A	1st vector
-  * @return		VectorRegister4Float( sqrt(A.x), sqrt(A.y), sqrt(A.z), sqrt(A.w))
-  */
-//FORCEINLINE VectorRegister4Float VectorSqrt(const VectorRegister4Float& A)
-//{
-//	return _mm_sqrt_ps(A);
-//}
-
-#endif // PLATFORM_ENABLE_VECTORINTRINSICS_NEON
-
-

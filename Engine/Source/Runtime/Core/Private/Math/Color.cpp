@@ -172,7 +172,7 @@ static uint8 stbir__linear_to_srgb_uchar_fast(float in)
     return (uint8) ((bias + scale*t) >> 16);
 }
 
-#if PLATFORM_CPU_X86_FAMILY
+#if PLATFORM_CPU_X86_FAMILY && PLATFORM_ENABLE_VECTORINTRINSICS
 
 static FColor ConvertLinearToSRGBSSE2(const FLinearColor& InColor)
 {
@@ -250,7 +250,7 @@ FColor FLinearColor::ToFColorSRGB() const
 	// convert to 0, as do negative values, and out-of-range
 	// positive values convert to 255.
 
-#if PLATFORM_CPU_X86_FAMILY
+#if PLATFORM_CPU_X86_FAMILY && PLATFORM_ENABLE_VECTORINTRINSICS
 	return ConvertLinearToSRGBSSE2(*this);
 #else
 	return FColor(

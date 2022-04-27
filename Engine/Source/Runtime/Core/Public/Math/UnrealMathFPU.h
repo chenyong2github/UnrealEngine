@@ -879,19 +879,19 @@ FORCEINLINE VectorRegister4Double VectorDot4(const VectorRegister4Double& Vec1, 
 FORCEINLINE VectorRegister4Float VectorCompareEQ(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
 	return MakeVectorRegisterFloat(
-		uint32(Vec1.V[0] == Vec2.V[0] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[1] == Vec2.V[1] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[2] == Vec2.V[2] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[3] == Vec2.V[3] ? 0xFFFFFFFF : 0));
+		uint32(Vec1.V[0] == Vec2.V[0] && !std::isunordered(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFF : 0),
+		uint32(Vec1.V[1] == Vec2.V[1] && !std::isunordered(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFF : 0),
+		uint32(Vec1.V[2] == Vec2.V[2] && !std::isunordered(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFF : 0),
+		uint32(Vec1.V[3] == Vec2.V[3] && !std::isunordered(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFF : 0));
 }
 
 FORCEINLINE VectorRegister4Double VectorCompareEQ(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	return MakeVectorRegisterDouble(
-		uint64(Vec1.V[0] == Vec2.V[0] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[1] == Vec2.V[1] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[2] == Vec2.V[2] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[3] == Vec2.V[3] ? 0xFFFFFFFFFFFFFFFF : 0));
+		uint64(Vec1.V[0] == Vec2.V[0] && !std::isunordered(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(Vec1.V[1] == Vec2.V[1] && !std::isunordered(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(Vec1.V[2] == Vec2.V[2] && !std::isunordered(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(Vec1.V[3] == Vec2.V[3] && !std::isunordered(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFFFFFFFFFF : 0));
 }
 
 /**
@@ -904,19 +904,19 @@ FORCEINLINE VectorRegister4Double VectorCompareEQ(const VectorRegister4Double& V
 FORCEINLINE VectorRegister4Float VectorCompareNE(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
 	return MakeVectorRegisterFloat(
-		uint32(Vec1.V[0] != Vec2.V[0] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[1] != Vec2.V[1] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[2] != Vec2.V[2] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[3] != Vec2.V[3] ? 0xFFFFFFFF : 0));
+		uint32(Vec1.V[0] != Vec2.V[0] || std::isunordered(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFF : 0),
+		uint32(Vec1.V[1] != Vec2.V[1] || std::isunordered(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFF : 0),
+		uint32(Vec1.V[2] != Vec2.V[2] || std::isunordered(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFF : 0),
+		uint32(Vec1.V[3] != Vec2.V[3] || std::isunordered(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFF : 0));
 }
 
 FORCEINLINE VectorRegister4Double VectorCompareNE(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	return MakeVectorRegisterDouble(
-		uint64(Vec1.V[0] != Vec2.V[0] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[1] != Vec2.V[1] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[2] != Vec2.V[2] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[3] != Vec2.V[3] ? 0xFFFFFFFFFFFFFFFF : 0));
+		uint64(Vec1.V[0] != Vec2.V[0] || std::isunordered(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(Vec1.V[1] != Vec2.V[1] || std::isunordered(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(Vec1.V[2] != Vec2.V[2] || std::isunordered(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(Vec1.V[3] != Vec2.V[3] || std::isunordered(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFFFFFFFFFF : 0));
 }
 
 /**
@@ -930,19 +930,19 @@ FORCEINLINE VectorRegister4Double VectorCompareNE(const VectorRegister4Double& V
 FORCEINLINE VectorRegister4Float VectorCompareGT(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
 	return MakeVectorRegisterFloat(
-		uint32(Vec1.V[0] > Vec2.V[0] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[1] > Vec2.V[1] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[2] > Vec2.V[2] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[3] > Vec2.V[3] ? 0xFFFFFFFF : 0));
+		uint32(std::isgreater(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFF : 0),
+		uint32(std::isgreater(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFF : 0),
+		uint32(std::isgreater(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFF : 0),
+		uint32(std::isgreater(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFF : 0));
 }
 
 FORCEINLINE VectorRegister4Double VectorCompareGT(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	return MakeVectorRegisterDouble(
-		uint64(Vec1.V[0] > Vec2.V[0] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[1] > Vec2.V[1] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[2] > Vec2.V[2] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[3] > Vec2.V[3] ? 0xFFFFFFFFFFFFFFFF : 0));
+		uint64(std::isgreater(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::isgreater(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::isgreater(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::isgreater(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFFFFFFFFFF : 0));
 }
 
 /**
@@ -956,19 +956,19 @@ FORCEINLINE VectorRegister4Double VectorCompareGT(const VectorRegister4Double& V
 FORCEINLINE VectorRegister4Float VectorCompareGE(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
 	return MakeVectorRegisterFloat(
-		uint32(Vec1.V[0] >= Vec2.V[0] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[1] >= Vec2.V[1] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[2] >= Vec2.V[2] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[3] >= Vec2.V[3] ? 0xFFFFFFFF : 0));
+		uint32(std::isgreaterequal(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFF : 0),
+		uint32(std::isgreaterequal(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFF : 0),
+		uint32(std::isgreaterequal(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFF : 0),
+		uint32(std::isgreaterequal(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFF : 0));
 }
 
 FORCEINLINE VectorRegister4Double VectorCompareGE(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	return MakeVectorRegisterDouble(
-		uint64(Vec1.V[0] >= Vec2.V[0] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[1] >= Vec2.V[1] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[2] >= Vec2.V[2] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[3] >= Vec2.V[3] ? 0xFFFFFFFFFFFFFFFF : 0));
+		uint64(std::isgreaterequal(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::isgreaterequal(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::isgreaterequal(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::isgreaterequal(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFFFFFFFFFF : 0));
 }
 
 /**
@@ -981,19 +981,19 @@ FORCEINLINE VectorRegister4Double VectorCompareGE(const VectorRegister4Double& V
 FORCEINLINE VectorRegister4Float VectorCompareLT(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
 	return MakeVectorRegisterFloat(
-		uint32(Vec1.V[0] < Vec2.V[0] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[1] < Vec2.V[1] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[2] < Vec2.V[2] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[3] < Vec2.V[3] ? 0xFFFFFFFF : 0));
+		uint32(std::isless(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFF : 0),
+		uint32(std::isless(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFF : 0),
+		uint32(std::isless(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFF : 0),
+		uint32(std::isless(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFF : 0));
 }
 
 FORCEINLINE VectorRegister4Double VectorCompareLT(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	return MakeVectorRegisterDouble(
-		uint64(Vec1.V[0] < Vec2.V[0] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[1] < Vec2.V[1] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[2] < Vec2.V[2] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[3] < Vec2.V[3] ? 0xFFFFFFFFFFFFFFFF : 0));
+		uint64(std::isless(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::isless(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::isless(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::isless(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFFFFFFFFFF : 0));
 }
 
 /**
@@ -1006,20 +1006,21 @@ FORCEINLINE VectorRegister4Double VectorCompareLT(const VectorRegister4Double& V
 FORCEINLINE VectorRegister4Float VectorCompareLE(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2)
 {
 	return MakeVectorRegisterFloat(
-		uint32(Vec1.V[0] <= Vec2.V[0] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[1] <= Vec2.V[1] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[2] <= Vec2.V[2] ? 0xFFFFFFFF : 0),
-		uint32(Vec1.V[3] <= Vec2.V[3] ? 0xFFFFFFFF : 0));
+		uint32(std::islessequal(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFF : 0),
+		uint32(std::islessequal(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFF : 0),
+		uint32(std::islessequal(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFF : 0),
+		uint32(std::islessequal(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFF : 0));
 }
 
 FORCEINLINE VectorRegister4Double VectorCompareLE(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
 {
 	return MakeVectorRegisterDouble(
-		uint64(Vec1.V[0] <= Vec2.V[0] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[1] <= Vec2.V[1] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[2] <= Vec2.V[2] ? 0xFFFFFFFFFFFFFFFF : 0),
-		uint64(Vec1.V[3] <= Vec2.V[3] ? 0xFFFFFFFFFFFFFFFF : 0));
+		uint64(std::islessequal(Vec1.V[0], Vec2.V[0]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::islessequal(Vec1.V[1], Vec2.V[1]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::islessequal(Vec1.V[2], Vec2.V[2]) ? 0xFFFFFFFFFFFFFFFF : 0),
+		uint64(std::islessequal(Vec1.V[3], Vec2.V[3]) ? 0xFFFFFFFFFFFFFFFF : 0));
 }
+
 
 /**
  * Returns an integer bit-mask (0x00 - 0x0f) based on the sign-bit for each component in a vector.
@@ -2686,10 +2687,6 @@ FORCEINLINE VectorRegister4Int VectorIntLoad1(const void* Ptr)
 		IntSplat,
 		IntSplat);
 }
-
-//
-// TODO: Engine doesn't currently compile with PLATFORM_ENABLE_VECTORINTRINSICS=0, but when it does these need to be fixed up.
-//
 
 #define VectorSetZero()								MakeVectorRegisterFloat(0.f, 0.f, 0.f, 0.f)
 #define VectorSet1(F)								VectorSetFloat1(F)

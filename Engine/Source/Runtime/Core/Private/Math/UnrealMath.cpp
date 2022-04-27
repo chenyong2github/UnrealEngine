@@ -479,7 +479,7 @@ FQuat4d FRotator3d::Quaternion() const
 	const VectorRegister4Double Result = VectorAdd(LeftTerm, RightTerm);
 	FQuat4d RotationQuat = FQuat4d::MakeFromVectorRegister(Result);
 #else
-	const double DEG_TO_RAD = DOUBLE_PI / (180.0);
+	const double DEG_TO_RAD = UE_DOUBLE_PI / (180.0);
 	const double RADS_DIVIDED_BY_2 = DEG_TO_RAD / 2.0;
 	double SP, SY, SR;
 	double CP, CY, CR;

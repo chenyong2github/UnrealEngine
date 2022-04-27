@@ -140,7 +140,7 @@ void TTransform<T>::SetToRelativeTransform(const TTransform<T>& ParentTransform)
  	TMatrix<T> BM = ParentTransform.ToMatrixWithScale();
 #endif
 
-	const TVector<T> SafeRecipScale3D = GetSafeScaleReciprocal(ParentTransform.Scale3D, SMALL_NUMBER);
+	const TVector<T> SafeRecipScale3D = GetSafeScaleReciprocal(ParentTransform.Scale3D, UE_SMALL_NUMBER);
 	const TQuat<T> InverseRot = ParentTransform.Rotation.Inverse();
 
 	Scale3D *= SafeRecipScale3D;	
@@ -160,7 +160,7 @@ void TTransform<T>::GetRelativeTransformUsingMatrixWithScale(TTransform<T>* OutT
 	TMatrix<T> AM = Base->ToMatrixWithScale();
 	TMatrix<T> BM = Relative->ToMatrixWithScale();
 	// get combined scale
-	TVector<T> SafeRecipScale3D = GetSafeScaleReciprocal(Relative->Scale3D, SMALL_NUMBER);
+	TVector<T> SafeRecipScale3D = GetSafeScaleReciprocal(Relative->Scale3D, UE_SMALL_NUMBER);
 	TVector<T> DesiredScale3D = Base->Scale3D*SafeRecipScale3D;
 	ConstructTransformFromMatrixWithDesiredScale(AM, BM.Inverse(), DesiredScale3D, *OutTransform);
 }
@@ -183,7 +183,7 @@ TTransform<T> TTransform<T>::GetRelativeTransform(const TTransform<T>& Other) co
 	}
 	else
 	{
-		TVector<T> SafeRecipScale3D = GetSafeScaleReciprocal(Other.Scale3D, SMALL_NUMBER);
+		TVector<T> SafeRecipScale3D = GetSafeScaleReciprocal(Other.Scale3D, UE_SMALL_NUMBER);
 		Result.Scale3D = Scale3D*SafeRecipScale3D;
 
 		if (Other.Rotation.IsNormalized() == false)

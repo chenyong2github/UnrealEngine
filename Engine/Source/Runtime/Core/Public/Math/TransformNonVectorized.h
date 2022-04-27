@@ -42,6 +42,7 @@ struct alignas(alignof(TQuat<T>)) TTransform
 	friend Z_Construct_UScriptStruct_FTransform_Statics;
 
 	using FReal = T;
+	using TransformVectorRegister = TVectorRegisterType<T>;
 
 protected:
 	/** Rotation of this transformation, as a quaternion. */
@@ -508,7 +509,7 @@ public:
 	FORCEINLINE static bool AnyHasNegativeScale(const TVector<T>& InScale3D, const TVector<T>& InOtherScale3D);
 	FORCEINLINE void ScaleTranslation(const TVector<T>& InScale3D);
 	FORCEINLINE void ScaleTranslation(const FReal& Scale);
-	FORCEINLINE void RemoveScaling(FReal Tolerance = SMALL_NUMBER);
+	FORCEINLINE void RemoveScaling(FReal Tolerance = UE_SMALL_NUMBER);
 	FORCEINLINE T GetMaximumAxisScale() const;
 	FORCEINLINE T GetMinimumAxisScale() const;
 
@@ -529,8 +530,8 @@ public:
 	*/
 	CORE_API void SetToRelativeTransform(const TTransform<T>& ParentTransform);
 
-	FORCEINLINE FVector4 TransformFVector4(const FVector4& V) const;
-	FORCEINLINE FVector4 TransformFVector4NoScale(const FVector4& V) const;
+	FORCEINLINE TVector4<T> TransformFVector4(const TVector4<T>& V) const;
+	FORCEINLINE TVector4<T> TransformFVector4NoScale(const TVector4<T>& V) const;
 	FORCEINLINE TVector<T> TransformPosition(const TVector<T>& V) const;
 	FORCEINLINE TVector<T> TransformPositionNoScale(const TVector<T>& V) const;
 
@@ -564,7 +565,7 @@ public:
 	FORCEINLINE TVector<T> GetScaledAxis(EAxis::Type InAxis) const;
 	FORCEINLINE TVector<T> GetUnitAxis(EAxis::Type InAxis) const;
 	FORCEINLINE void Mirror(EAxis::Type MirrorAxis, EAxis::Type FlipAxis);
-	FORCEINLINE static TVector<T> GetSafeScaleReciprocal(const TVector<T>& InScale, FReal Tolerance = SMALL_NUMBER);
+	FORCEINLINE static TVector<T> GetSafeScaleReciprocal(const TVector<T>& InScale, FReal Tolerance = UE_SMALL_NUMBER);
 
 	// temp function for easy conversion
 	FORCEINLINE TVector<T> GetLocation() const
@@ -878,6 +879,12 @@ public:
 		DiagnosticCheckNaN_Translate();
 		DiagnosticCheckNaN_Scale3D();
 	}
+
+	// For low-level VectorRegister programming
+	TransformVectorRegister GetTranslationRegister() const { return VectorLoadFloat3_W0(&Translation); }
+	TransformVectorRegister GetRotationRegister() const { return VectorLoad(&Rotation); }
+	void SetTranslationRegister(TransformVectorRegister InTranslation) { VectorStoreFloat3(InTranslation, &Translation); }
+	void SetRotationRegister(TransformVectorRegister InRotation) { VectorStore(InRotation, &Rotation); }
 
 	/** @note: Added template type function for Accumulate
 	* The template type isn't much useful yet, but it is with the plan to move forward
@@ -1357,9 +1364,9 @@ FORCEINLINE TTransform<T> TTransform<T>::GetScaled(TVector<T> InScale) const
 }
 
 
-/** Transform homogenous FVector4, ignoring the scaling part of this transform **/
+/** Transform homogenous TVector4<T>, ignoring the scaling part of this transform **/
 template<typename T>
-FORCEINLINE FVector4 TTransform<T>::TransformFVector4NoScale(const FVector4& V) const
+FORCEINLINE TVector4<T> TTransform<T>::TransformFVector4NoScale(const TVector4<T>& V) const
 {
 	DiagnosticCheckNaN_All();
 
@@ -1368,19 +1375,19 @@ FORCEINLINE FVector4 TTransform<T>::TransformFVector4NoScale(const FVector4& V) 
 
 	//Transform using QST is following
 	//QST(P) = Q*S*P*-Q + T where Q = quaternion, S = scale, T = translation
-	FVector4 Transform = FVector4(Rotation.RotateVector(TVector<T>(V)), 0.f);
+	TVector4<T> Transform = TVector4<T>(Rotation.RotateVector(TVector<T>(V)), 0.f);
 	if (V.W == 1.f)
 	{
-		Transform += FVector4(Translation, 1.f);
+		Transform += TVector4<T>(Translation, 1.f);
 	}
 
 	return Transform;
 }
 
 
-/** Transform FVector4 **/
+/** Transform TVector4<T> **/
 template<typename T>
-FORCEINLINE FVector4 TTransform<T>::TransformFVector4(const FVector4& V) const
+FORCEINLINE TVector4<T> TTransform<T>::TransformFVector4(const TVector4<T>& V) const
 {
 	DiagnosticCheckNaN_All();
 
@@ -1390,10 +1397,10 @@ FORCEINLINE FVector4 TTransform<T>::TransformFVector4(const FVector4& V) const
 	//Transform using QST is following
 	//QST(P) = Q*S*P*-Q + T where Q = quaternion, S = scale, T = translation
 
-	FVector4 Transform = FVector4(Rotation.RotateVector(Scale3D*TVector<T>(V)), 0.f);
+	TVector4<T> Transform = TVector4<T>(Rotation.RotateVector(Scale3D*TVector<T>(V)), 0.f);
 	if (V.W == 1.f)
 	{
-		Transform += FVector4(Translation, 1.f);
+		Transform += TVector4<T>(Translation, 1.f);
 	}
 
 	return Transform;
