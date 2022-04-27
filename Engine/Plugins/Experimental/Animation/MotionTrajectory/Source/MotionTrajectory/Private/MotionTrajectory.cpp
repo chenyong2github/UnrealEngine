@@ -250,7 +250,7 @@ FTrajectorySampleRange UMotionTrajectoryComponent::GetHistory() const
 		for (int32 Idx = 0;; ++Idx)
 		{
 			const float SampleTime = FirstUniformSampleTime + static_cast<float>(Idx) * SampleFrequency;
-			check(SampleTime <= 0.f);
+			check(SampleTime <= UE_SMALL_NUMBER);
 
 			if (!FMath::IsNearlyZero(SampleTime))
 			{
