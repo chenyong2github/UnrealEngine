@@ -17,7 +17,7 @@ namespace Metasound
 	{
 		namespace SearchEngineQuerySteps
 		{
-			FFrontendQueryKey FMapClassToFullClassNameAndMajorVersion::GetKey(const FMetasoundFrontendClassName& InClassName, int32 InMajorVersion)
+			FFrontendQueryKey CreateKeyFromFullClassNameAndMajorVersion(const FMetasoundFrontendClassName& InClassName, int32 InMajorVersion)
 			{
 				return FFrontendQueryKey(FString::Format(TEXT("{0}_v{1}"), {InClassName.ToString(), InMajorVersion}));
 			}
@@ -27,7 +27,7 @@ namespace Metasound
 				if (ensure(InEntry.Value.IsType<FMetasoundFrontendClass>()))
 				{
 					const FMetasoundFrontendClassMetadata& Metadata = InEntry.Value.Get<FMetasoundFrontendClass>().Metadata;
-					return FMapClassToFullClassNameAndMajorVersion::GetKey(Metadata.GetClassName(), Metadata.GetVersion().Major);
+					return CreateKeyFromFullClassNameAndMajorVersion(Metadata.GetClassName(), Metadata.GetVersion().Major);
 				}
 				return FFrontendQueryKey();
 			}
@@ -188,6 +188,23 @@ namespace Metasound
 				return false;
 			}
 
+			class FMapNodeRegistrationEventsToClassAndMajorVersion : public IFrontendQueryMapStep
+			{
+			public:
+				virtual FFrontendQueryKey Map(const FFrontendQueryEntry& InEntry) const override
+				{
+					if (InEntry.Value.IsType<FNodeRegistryTransaction>())
+					{
+						const FNodeClassInfo& Info = InEntry.Value.Get<FNodeRegistryTransaction>().GetNodeClassInfo();
+						return CreateKeyFromFullClassNameAndMajorVersion(Info.ClassName, Info.Version.Major);
+					}
+					else
+					{
+						return FFrontendQueryKey();
+					}
+				}
+			};
+
 			FFrontendQueryKey FMapInterfaceToInterfaceName::Map(const FFrontendQueryEntry& InEntry) const
 			{
 				FName Key;
@@ -260,6 +277,8 @@ namespace Metasound
 				}
 				return Result;
 			}
+
+
 		}
 
 
@@ -270,17 +289,34 @@ namespace Metasound
 			Query.AddStep<FNodeClassRegistrationEvents>()
 				.AddStep<FMapRegistrationEventsToNodeRegistryKeys>()
 				.AddStep<FReduceRegistrationEventsToCurrentStatus>()
-				.AddStep<FTransformRegistrationEventsToClasses>()
-				.AddStep<FRemoveDeprecatedClasses>()
-				.AddStep<FMapClassToFullClassNameAndMajorVersion>()
-				.AddStep<FReduceClassesToHighestVersion>();
+				.AddStep<FMapNodeRegistrationEventsToClassAndMajorVersion>();
 			return Query;
 		}
 
-		FMetasoundFrontendClass FFindClassWithHighestMinorVersionQueryPolicy::BuildResult(const FFrontendQueryPartition& InPartition)
+		FNodeRegistryKey FFindClassWithHighestMinorVersionQueryPolicy::BuildResult(const FFrontendQueryPartition& InPartition)
 		{
 			using namespace SearchEngineQuerySteps;
-			return BuildSingleClassFromPartition(InPartition);
+
+			FMetasoundFrontendVersionNumber HighestVersionNumber{-1, -1};
+			FNodeRegistryKey Key = NodeRegistryKey::GetInvalid();
+			for (const FFrontendQueryEntry& InEntry : InPartition)
+			{
+				if (InEntry.Value.IsType<FNodeRegistryTransaction>())
+				{
+					const FNodeRegistryTransaction& Transaction = InEntry.Value.Get<FNodeRegistryTransaction>();
+					if (FNodeRegistryTransaction::ETransactionType::NodeRegistration == Transaction.GetTransactionType())
+					{
+						const FNodeClassInfo& NodeClassInfo = Transaction.GetNodeClassInfo();
+						if (NodeClassInfo.Version > HighestVersionNumber)
+						{
+							HighestVersionNumber = NodeClassInfo.Version;
+							Key = Transaction.GetNodeRegistryKey();
+						}
+					}
+				}
+			}
+
+			return Key;
 		}
 
 		FFrontendQuery FFindAllDefaultInterfacesQueryPolicy::CreateQuery()
@@ -357,8 +393,16 @@ namespace Metasound
 			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(metasound::FSearchEngineCore::FindClassWithHighestMinorVersion);
 			using namespace SearchEngineQuerySteps;
 
-			const FFrontendQueryKey Key = FMapClassToFullClassNameAndMajorVersion::GetKey(InName, InMajorVersion);
-			return FindClassWithHighestMinorVersionQuery.UpdateAndFindResult(Key, OutClass);
+			const FFrontendQueryKey QueryKey = CreateKeyFromFullClassNameAndMajorVersion(InName, InMajorVersion);
+			FNodeRegistryKey NodeRegistryKey; 
+			if (FindClassWithHighestMinorVersionQuery.UpdateAndFindResult(QueryKey, NodeRegistryKey))
+			{
+				if (FMetasoundFrontendRegistryContainer* NodeRegistry = FMetasoundFrontendRegistryContainer::Get())
+				{
+					return NodeRegistry->FindFrontendClassFromRegistered(NodeRegistryKey, OutClass);
+				}
+			}
+			return false;
 		}
 
 		TArray<FMetasoundFrontendInterface> FSearchEngineCore::FindUClassDefaultInterfaces(FName InUClassName)

@@ -12,6 +12,14 @@ namespace Metasound
 {
 	namespace FrontendQueryPrivate
 	{
+		void CompactSelection(FFrontendQuerySelection& InSelection)
+		{
+			for (auto& Pair : InSelection)
+			{
+				Pair.Value.Compact();
+			}
+		}
+
 		// Wrapper for step defined by function
 		struct FStreamFunctionFrontendQueryStep: IFrontendQueryStreamStep
 		{
@@ -944,6 +952,8 @@ namespace Metasound
 
 	void FFrontendQuery::UpdateInternal(TSet<FFrontendQueryKey>& OutUpdatedKeys)
 	{
+		using namespace FrontendQueryPrivate;
+
 		FIncremental Incremental;
 
 		const int32 LastStepIndex = Steps.Num() - 1;
@@ -977,15 +987,19 @@ namespace Metasound
 			if (bIsLastStep)
 			{
 				StepInfo.Step->Merge(Incremental, *Result);
+				CompactSelection(*Result);
 				OutUpdatedKeys = Incremental.ActiveKeys.Union(Incremental.ActiveRemovalKeys);
 			}
 			else if (StepInfo.bMergeAndCacheOutput)
 			{
 				StepInfo.Step->Merge(Incremental, StepInfo.OutputCache);
+				
 				// If entries were removed during a merge, the subsequent step 
 				// needs to re-evaluate the entire partition. The entire partition 
 				// is added to the active set for each removed key.
 				AppendPartitions(Incremental.ActiveRemovalKeys, StepInfo.OutputCache, Incremental.ActiveKeys, Incremental.ActiveSelection);
+
+				CompactSelection(StepInfo.OutputCache);
 			}
 		}
 	}

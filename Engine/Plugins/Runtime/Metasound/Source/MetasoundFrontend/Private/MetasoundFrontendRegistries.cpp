@@ -146,7 +146,7 @@ namespace Metasound
 				FCriticalSection LazyInitCommandCritSection;
 
 				// Registry in which we keep all information about nodes implemented in C++.
-				TMap<FNodeRegistryKey, TUniquePtr<INodeRegistryEntry>> RegisteredNodes;
+				TMap<FNodeRegistryKey, TSharedRef<INodeRegistryEntry, ESPMode::ThreadSafe>> RegisteredNodes;
 
 				// Registry in which we keep lists of possible nodes to use to convert between two datatypes
 				TMap<FConverterNodeRegistryKey, FConverterNodeRegistryValue> ConverterNodeRegistry;
@@ -263,9 +263,11 @@ namespace Metasound
 
 				if (InEntry.IsValid())
 				{
+					TSharedRef<INodeRegistryEntry, ESPMode::ThreadSafe> Entry(InEntry.Release());
+
 					FNodeRegistryTransaction::FTimeType Timestamp = FPlatformTime::Cycles64();
 
-					Key = NodeRegistryKey::CreateKey(InEntry->GetClassInfo());
+					Key = NodeRegistryKey::CreateKey(Entry->GetClassInfo());
 
 					// check to see if an identical node was already registered, and log
 					ensureAlwaysMsgf(
@@ -277,10 +279,10 @@ namespace Metasound
 
 					// Store update to newly registered node in history so nodes
 					// can be queried by transaction ID
-					RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeRegistration, Key, InEntry->GetClassInfo(), Timestamp));
+					RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeRegistration, Key, Entry->GetClassInfo(), Timestamp));
 
 					// Store registry elements in map so nodes can be queried using registry key.
-					RegisteredNodes.Add(Key, MoveTemp(InEntry));
+					RegisteredNodes.Add(Key, Entry);
 				}
 
 				return Key;
@@ -399,7 +401,7 @@ namespace Metasound
 
 			void FRegistryContainerImpl::IterateRegistry(Metasound::FIterateMetasoundFrontendClassFunction InIterFunc, EMetasoundFrontendClassType InClassType) const
 			{
-				auto WrappedFunc = [&](const TPair<FNodeRegistryKey, TUniquePtr<INodeRegistryEntry>>& Pair)
+				auto WrappedFunc = [&](const TPair<FNodeRegistryKey, TSharedRef<INodeRegistryEntry, ESPMode::ThreadSafe>>& Pair)
 				{
 					InIterFunc(Pair.Value->GetFrontendClass());
 				};
@@ -412,7 +414,7 @@ namespace Metasound
 				else
 				{
 					// Only call function on classes of certain type.
-					auto IsMatchingClassType = [&](const TPair<FNodeRegistryKey, TUniquePtr<INodeRegistryEntry>>& Pair)
+					auto IsMatchingClassType = [&](const TPair<FNodeRegistryKey, TSharedRef<INodeRegistryEntry, ESPMode::ThreadSafe>>& Pair)
 					{
 						return Pair.Value->GetClassInfo().Type == InClassType;
 					};
@@ -423,12 +425,9 @@ namespace Metasound
 
 			const INodeRegistryEntry* FRegistryContainerImpl::FindNodeEntry(const FNodeRegistryKey& InKey) const
 			{
-				if (const TUniquePtr<INodeRegistryEntry>* Entry = RegisteredNodes.Find(InKey))
+				if (const TSharedRef<INodeRegistryEntry, ESPMode::ThreadSafe>* Entry = RegisteredNodes.Find(InKey))
 				{
-					if (Entry->IsValid())
-					{
-						return Entry->Get();
-					}
+					return &Entry->Get();
 				}
 
 				return nullptr;

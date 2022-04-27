@@ -19,11 +19,10 @@ namespace Metasound
 		namespace SearchEngineQuerySteps
 		{
 			/* A collection of reusable steps to be used with the Metasound frontend query system. */
-			 
+
 			class FMapClassToFullClassNameAndMajorVersion : public IFrontendQueryMapStep
 			{
 			public:
-				static FFrontendQueryKey GetKey(const FMetasoundFrontendClassName& InClassName, int32 InMajorVersion);
 				virtual FFrontendQueryKey Map(const FFrontendQueryEntry& InEntry) const override;
 			};
 
@@ -242,7 +241,7 @@ namespace Metasound
 		// Policy for finding highest versioned metasound class by name and major version.
 		struct FFindClassWithHighestMinorVersionQueryPolicy
 		{
-			using ResultType = FMetasoundFrontendClass;
+			using ResultType = FNodeRegistryKey;
 
 			static FFrontendQuery CreateQuery();
 			static ResultType BuildResult(const FFrontendQueryPartition& InPartition);
