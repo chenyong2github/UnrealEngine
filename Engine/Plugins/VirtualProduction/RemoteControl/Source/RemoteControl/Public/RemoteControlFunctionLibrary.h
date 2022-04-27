@@ -101,5 +101,5 @@ public:
 	 * @return Whether the operation was successful.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Color")
-	static bool ApplyColorWheelDelta(UObject* TargetObject, const FString& PropertyName, FColorWheelColor DeltaValue, FColorWheelColor ReferenceColor);
+	static bool ApplyColorWheelDelta(UObject* TargetObject, const FString& PropertyName, const FColorWheelColor& DeltaValue, const FColorWheelColor& ReferenceColor);
 };
