@@ -10,6 +10,8 @@ namespace Metasound
 	public:
 		virtual void StartupModule() override
 		{
+			FModuleManager::Get().LoadModuleChecked("MetasoundFrontend");
+			FModuleManager::Get().LoadModuleChecked("MetasoundStandardNodes");
 			FModuleManager::Get().LoadModuleChecked("MetasoundEngine");
 		}
 	};
