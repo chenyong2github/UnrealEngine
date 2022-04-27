@@ -7,7 +7,7 @@ cd "`dirname "$0"`"
 
 if [ ! -f Engine/Binaries/DotNET/GitDependencies.exe ]; then
 	echo "GitSetup ERROR: This script does not appear to be located \
-       in the root UE4 directory and must be run from there."
+       in the root UE directory and must be run from there."
 	exit 1
 fi 
 
