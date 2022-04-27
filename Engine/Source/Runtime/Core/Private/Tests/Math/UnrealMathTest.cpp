@@ -1943,6 +1943,31 @@ bool RunDoubleVectorTest()
 	V3 = VectorMod(V0, V1);
 	LogTest<double>(TEXT("VectorMod common"), TestVectorsEqual(V2, V3));
 
+	// VectorMod360
+	V0 = MakeVectorRegister(89.9, 180.0, -256.0, -270.1);
+	V1 = GlobalVectorConstants::Double360;
+	V2 = TestReferenceMod(V0, V1);
+	V3 = VectorMod360(V0);
+	LogTest<double>(TEXT("VectorMod360"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegister(0.0, 1079.9, -1720.1, 12345.12345);
+	V1 = GlobalVectorConstants::Double360;
+	V2 = TestReferenceMod(V0, V1);
+	V3 = VectorMod360(V0);
+	LogTest<double>(TEXT("VectorMod360"), TestVectorsEqual(V2, V3));
+
+#if UE_BUILD_DEBUG
+	V1 = GlobalVectorConstants::Double360;
+	double RotStep = 1.01;
+	for (double F = -720.0; F <= 720.0; F += RotStep)
+	{
+		V0 = MakeVectorRegister(F, F + 0.001, F + 0.025, F + 0.6125);
+		V2 = TestReferenceMod(V0, V1);
+		V3 = VectorMod360(V0);
+		LogTest<double>(TEXT("VectorMod360"), TestVectorsEqual(V2, V3));
+	}
+#endif // UE_BUILD_DEBUG
+
 	// VectorSign
 	V0 = MakeVectorRegister(2.0, -2.0, 0.0, -3.0);
 	V2 = MakeVectorRegister(1.0, -1.0, 1.0, -1.0);
@@ -2709,6 +2734,31 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V2 = TestReferenceMod(V0, V1);
 	V3 = VectorMod(V0, V1);
 	LogTest<float>(TEXT("VectorMod common"), TestVectorsEqual(V2, V3));
+
+	// VectorMod360
+	V0 = MakeVectorRegister(89.9f, 180.0f, -256.0f, -270.1f);
+	V1 = GlobalVectorConstants::Float360;
+	V2 = TestReferenceMod(V0, V1);
+	V3 = VectorMod360(V0);
+	LogTest<float>(TEXT("VectorMod360"), TestVectorsEqual(V2, V3));
+
+	V0 = MakeVectorRegister(0.0f, -1079.9f, -1720.1f, 12345.12345f);
+	V1 = GlobalVectorConstants::Float360;
+	V2 = TestReferenceMod(V0, V1);
+	V3 = VectorMod360(V0);
+	LogTest<float>(TEXT("VectorMod360"), TestVectorsEqual(V2, V3));
+
+#if UE_BUILD_DEBUG
+	V1 = GlobalVectorConstants::Float360;
+	float RotStep = 1.01f;
+	for (float F = -720.f; F <= 720.f; F += RotStep)
+	{
+		V0 = MakeVectorRegister(F, F + 0.001f, F + 0.025f, F + 0.6125f);
+		V2 = TestReferenceMod(V0, V1);
+		V3 = VectorMod360(V0);
+		LogTest<float>(TEXT("VectorMod360"), TestVectorsEqual(V2, V3));
+	}
+#endif // UE_BUILD_DEBUG
 
 	// VectorSign
 	V0 = MakeVectorRegister(2.0f, -2.0f, 0.0f, -3.0f);
@@ -3518,7 +3568,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 	if (!GPassing)
 	{
-		UE_LOG(LogUnrealMathTest, Fatal, TEXT("VectorIntrinsics Failed."));
+		UE_LOG(LogUnrealMathTest, Fatal, TEXT("VectorIntrinsics <float> Failed."));
 	}
 
 	if (!RunDoubleVectorTest())

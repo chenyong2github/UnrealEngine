@@ -381,7 +381,7 @@ FQuat4f FRotator3f::Quaternion() const
 
 #if PLATFORM_ENABLE_VECTORINTRINSICS
 	const VectorRegister4Float Angles = MakeVectorRegisterFloat(Pitch, Yaw, Roll, 0.0f);
-	const VectorRegister4Float AnglesNoWinding = VectorMod(Angles, GlobalVectorConstants::Float360);
+	const VectorRegister4Float AnglesNoWinding = VectorMod360(Angles);
 	const VectorRegister4Float HalfAngles = VectorMultiply(AnglesNoWinding, GlobalVectorConstants::DEG_TO_RAD_HALF);
 
 	VectorRegister4Float SinAngles, CosAngles;
@@ -450,7 +450,7 @@ FQuat4d FRotator3d::Quaternion() const
 
 #if PLATFORM_ENABLE_VECTORINTRINSICS
 	const VectorRegister4Double Angles = MakeVectorRegisterDouble(Pitch, Yaw, Roll, 0.0);
-	const VectorRegister4Double AnglesNoWinding = VectorMod(Angles, GlobalVectorConstants::Double360);
+	const VectorRegister4Double AnglesNoWinding = VectorMod360(Angles);
 	const VectorRegister4Double HalfAngles = VectorMultiply(AnglesNoWinding, GlobalVectorConstants::DOUBLE_DEG_TO_RAD_HALF);
 
 	VectorRegister4Double SinAngles, CosAngles;

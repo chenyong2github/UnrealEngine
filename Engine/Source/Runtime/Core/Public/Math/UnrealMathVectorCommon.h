@@ -594,11 +594,28 @@ FORCEINLINE VectorRegister4Double VectorNormalizeQuaternion(const VectorRegister
 	return VectorNormalizeSafe(UnnormalizedQuat, GlobalVectorConstants::Double0001);
 }
 
+// VectorMod360: Essentially VectorMod(X, 360) but using faster computation that is still accurate given the known input constraints.
+FORCEINLINE VectorRegister4Float VectorMod360(const VectorRegister4Float& X)
+{
+	// R = X - (Y * (Trunc(X / Y))
+	VectorRegister4Float Temp = VectorTruncate(VectorDivide(X, GlobalVectorConstants::Float360));
+	VectorRegister4Float FloatResult = VectorNegateMultiplyAdd(GlobalVectorConstants::Float360, Temp, X);
+	return FloatResult;
+}
+
+FORCEINLINE VectorRegister4Double VectorMod360(const VectorRegister4Double& X)
+{
+	// R = X - (Y * (Trunc(X / Y))
+	VectorRegister4Double Temp = VectorTruncate(VectorDivide(X, GlobalVectorConstants::Double360));
+	VectorRegister4Double DoubleResult = VectorNegateMultiplyAdd(GlobalVectorConstants::Double360, Temp, X);
+	return DoubleResult;
+}
+
 // Normalize Rotator
 FORCEINLINE VectorRegister4Float VectorNormalizeRotator(const VectorRegister4Float& UnnormalizedRotator)
 {
 	// shift in the range [-360,360]
-	VectorRegister4Float V0	= VectorMod( UnnormalizedRotator, GlobalVectorConstants::Float360);
+	VectorRegister4Float V0	= VectorMod360(UnnormalizedRotator);
 	VectorRegister4Float V1	= VectorAdd( V0, GlobalVectorConstants::Float360 );
 	VectorRegister4Float V2	= VectorSelect(VectorCompareGE(V0, VectorZeroFloat()), V0, V1);
 
@@ -612,7 +629,7 @@ FORCEINLINE VectorRegister4Float VectorNormalizeRotator(const VectorRegister4Flo
 FORCEINLINE VectorRegister4Double VectorNormalizeRotator(const VectorRegister4Double& UnnormalizedRotator)
 {
 	// shift in the range [-360,360]
-	VectorRegister4Double V0 = VectorMod(UnnormalizedRotator, GlobalVectorConstants::Double360);
+	VectorRegister4Double V0 = VectorMod360(UnnormalizedRotator);
 	VectorRegister4Double V1 = VectorAdd(V0, GlobalVectorConstants::Double360);
 	VectorRegister4Double V2 = VectorSelect(VectorCompareGE(V0, VectorZeroDouble()), V0, V1);
 
