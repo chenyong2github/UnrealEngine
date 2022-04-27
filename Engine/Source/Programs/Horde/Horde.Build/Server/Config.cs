@@ -15,7 +15,8 @@ namespace Horde.Build.Server
 {
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
-
+	using WorkflowId = StringId<WorkflowConfig>;
+	
 	/// <summary>
 	/// Global configuration
 	/// </summary>
@@ -262,6 +263,32 @@ namespace Horde.Build.Server
 		/// Filter for paths to be replicated to storage, as a Perforce wildcard relative to the root of the workspace.
 		/// </summary>
 		public string? ReplicationFilter { get; set; }
+
+		/// <summary>
+		/// Workflows for dealing with new issues
+		/// </summary>
+		public List<WorkflowConfig> Workflows { get; set; } = new List<WorkflowConfig>();
+	}
+
+	/// <summary>
+	/// Configuration for an issue workflow
+	/// </summary>
+	public class WorkflowConfig
+	{
+		/// <summary>
+		/// Identifier for this workflow
+		/// </summary>
+		public WorkflowId Id { get; set; } = WorkflowId.Empty;
+
+		/// <summary>
+		/// Times of day at which to send a report
+		/// </summary>
+		public List<TimeSpan> ReportTimes { get; set; } = new List<TimeSpan> { TimeSpan.Zero };
+
+		/// <summary>
+		/// Channel to post summary information for these templates.
+		/// </summary>
+		public string? ReportChannel { get; set; }
 	}
 
 	/// <summary>

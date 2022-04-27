@@ -30,6 +30,7 @@ using Horde.Build.Compute;
 using Horde.Build.Compute.Impl;
 using Horde.Build.Config;
 using Horde.Build.Fleet.Autoscale;
+using Horde.Build.Issues.Impl;
 using Horde.Build.Jobs;
 using Horde.Build.Logs;
 using Horde.Build.Logs.Builder;
@@ -562,6 +563,7 @@ namespace Horde.Build
 				services.AddHostedService(provider => provider.GetRequiredService<CommitService>());
 				services.AddHostedService(provider => provider.GetRequiredService<ConsistencyService>());
 				services.AddHostedService(provider => provider.GetRequiredService<IIssueService>());
+				services.AddHostedService<IssueReportService>();
 				services.AddHostedService(provider => (LogFileService)provider.GetRequiredService<ILogFileService>());
 				services.AddHostedService(provider => (NotificationService)provider.GetRequiredService<INotificationService>());
 				if (!settings.DisableSchedules)

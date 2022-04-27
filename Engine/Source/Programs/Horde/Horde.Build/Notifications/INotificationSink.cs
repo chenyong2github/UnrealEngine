@@ -4,7 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Api;
+using Horde.Build.Issues.Impl;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using HordeCommon;
 
 namespace Horde.Build.Notifications
@@ -68,12 +70,23 @@ namespace Horde.Build.Notifications
 		/// <returns>Async task</returns>
 		Task NotifyLabelCompleteAsync(IUser user, IJob job, IStream stream, ILabel label, int labelIdx, LabelOutcome outcome, List<(string, JobStepOutcome, Uri)> stepData);
 
+		#region Issues
+
 		/// <summary>
 		/// Send notifications that a new issue has been created or assigned
 		/// </summary>
 		/// <param name="issue"></param>
 		/// <returns></returns>
 		Task NotifyIssueUpdatedAsync(IIssue issue);
+
+		/// <summary>
+		/// Notify the status of issues in a stream
+		/// </summary>
+		/// <param name="report"></param>
+		/// <returns></returns>
+		Task SendIssueReportAsync(IssueReport report);
+
+		#endregion
 
 		/// <summary>
 		/// Notification that a stream has failed to update

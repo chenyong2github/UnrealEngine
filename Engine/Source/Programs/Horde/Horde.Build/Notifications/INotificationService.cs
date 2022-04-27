@@ -5,7 +5,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Api;
+using Horde.Build.Issues.Impl;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using MongoDB.Bson;
 
 namespace Horde.Build.Notifications
@@ -114,5 +116,11 @@ namespace Horde.Build.Notifications
 		/// <param name="node"></param>
 		/// <param name="user"></param>
 		void NotifyDeviceService(string message, IDevice? device = null, IDevicePool? pool = null, IStream? stream = null, IJob? job = null, IJobStep? step = null, INode? node = null, IUser? user = null);
-    }
+
+		/// <summary>
+		/// Post a notification for the open issues in a stream
+		/// </summary>
+		/// <param name="report">The report data to send</param>
+		void SendIssueReport(IssueReport report);
+	}
 }

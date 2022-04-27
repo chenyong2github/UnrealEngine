@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Api;
 using Horde.Build.Collections;
+using Horde.Build.Issues.Impl;
 using Horde.Build.Models;
 using Horde.Build.Server;
 using Horde.Build.Services;
@@ -300,7 +301,7 @@ namespace Horde.Build.Notifications.Impl
 			attachment.Color = outcomeColor;
 			attachment.FallbackText = $"Job(s) scheduled in an auto-scaled pool with no agents online. Job IDs {jobIds}";
 
-			attachment.Blocks.Add(new HeaderBlock($"Jobs scheduled in empty pool", false, true));
+			attachment.Blocks.Add(new HeaderBlock($"Jobs scheduled in empty pool", true));
 			attachment.Blocks.Add(new SectionBlock($"One or more jobs were scheduled in an auto-scaled pool but with no current agents online."));
 			attachment.Blocks.Add(new SectionBlock(sb.ToString()));
 			
@@ -911,6 +912,86 @@ namespace Horde.Build.Notifications.Impl
 			return $"<!date^{time.ToUnixTimeSeconds()}^{{time}}|{time}>";
 		}
 
+		/// <inheritdoc/>
+		public async Task SendIssueReportAsync(IssueReport report)
+		{
+			if (report.Workflow.ReportChannel != null)
+			{
+				List<BlockBase> blocks = new List<BlockBase>();
+				blocks.Add(new HeaderBlock($"{report.Stream.Name}: {report.Time:d}"));
+				await SendMessageAsync(report.Workflow.ReportChannel, blocks: blocks.ToArray());// B, message.ToString());/// "Hello world");//, blocks: blocks.ToArray());
+
+				StringBuilder body = new StringBuilder();
+				if (report.Issues.Count == 0)
+				{
+					body.Append(":tick: No issues open.");
+				}
+				else
+				{
+					TimeSpan averageAge = TimeSpan.FromHours(report.Issues.Select(x => (report.Time - x.CreatedAt).TotalHours).Average());
+					body.Append($"*{report.Issues.Count} issues* are currently open (average age {FormatReadableTimeSpan(averageAge)}):");
+				}
+				body.Append('\n');
+
+				foreach(IIssue issue in report.Issues.OrderByDescending(x => x.Id))
+				{
+					IIssueSpan? span = report.IssueSpans.FirstOrDefault(x => x.IssueId == issue.Id);
+
+					Uri issueUrl = _settings.DashboardUrl;
+					if(span != null)
+					{
+						IIssueStep lastFailure = span.LastFailure;
+						issueUrl = new Uri(issueUrl, $"job/{lastFailure.JobId}?step={lastFailure.StepId}&issue={issue.Id}");
+					}
+
+					string status = "*Unassigned*";
+					if(issue.OwnerId != null)
+					{
+						IUser? user = await _userCollection.GetCachedUserAsync(issue.OwnerId.Value);
+						if (user == null)
+						{
+							status = $"Assigned to user {issue.OwnerId.Value}";
+						}
+						else
+						{
+							status = $"Assigned to {user.Name}";
+						}
+						if(issue.AcknowledgedAt == null)
+						{
+							status = $"{status} (unacknowledged)";
+						}
+					}
+
+					body.Append($"\n\t\u2022 *Issue <{issueUrl}|{issue.Id}>*: {issue.Summary} [{FormatReadableTimeSpan(report.Time - issue.CreatedAt)}] - {status}");
+				}
+
+				if (report.NumSteps > 0)
+				{
+					double totalPct = (report.NumPassingSteps * 100.0) / report.NumSteps;
+					body.Append($"\n\n{report.NumPassingSteps:n0} of {report.NumSteps:n0} (*{totalPct:0.0}%*) build steps succeeded since last status update.");
+				}
+
+				await SendMessageAsync(report.Workflow.ReportChannel, text: body.ToString());
+			}
+		}
+
+		static string FormatReadableTimeSpan(TimeSpan timeSpan)
+		{
+			double totalDays = timeSpan.TotalDays;
+			if (totalDays > 1.0)
+			{
+				return $"{totalDays:n0}d";
+			}
+
+			double totalHours = timeSpan.TotalHours;
+			if(totalHours > 1.0)
+			{
+				return $"{totalHours:n0}h";
+			}
+
+			return $"{timeSpan.TotalMinutes:n0}m";
+		}
+
 		#endregion
 
 		#region Stream updates
@@ -951,7 +1032,7 @@ namespace Horde.Build.Notifications.Impl
 			attachment.Color = outcomeColor;
 			attachment.FallbackText = $"Update Failure: {fileName}";
 
-			attachment.Blocks.Add(new HeaderBlock($"Config Update Failure :rip:", false, true));
+			attachment.Blocks.Add(new HeaderBlock($"Config Update Failure :rip:", true));
 
 			attachment.Blocks.Add(new SectionBlock($"Horde was unable to update {fileName}"));
 			attachment.Blocks.Add(new SectionBlock($"```{errorMessage}```"));
@@ -1001,7 +1082,7 @@ namespace Horde.Build.Notifications.Impl
 			attachment.Color = outcomeColor;
 			attachment.FallbackText = $"{file.DepotPath} - Update Failure";
 
-			attachment.Blocks.Add(new HeaderBlock($"Stream Update Failure :rip:", false, true));
+			attachment.Blocks.Add(new HeaderBlock($"Stream Update Failure :rip:", true));
 
 			attachment.Blocks.Add(new SectionBlock($"<!here> Horde was unable to update {file.DepotPath}"));
 			attachment.Blocks.Add(new SectionBlock($"```{file.Error}```"));
@@ -1074,7 +1155,7 @@ namespace Horde.Build.Notifications.Impl
 				attachment.FallbackText += $" - Device: {device.Name} Pool: {pool.Name}";
 			}
 				
-			attachment.Blocks.Add(new HeaderBlock($"{message}", false, false));
+			attachment.Blocks.Add(new HeaderBlock($"{message}", false));
 
 			if (stream != null && job != null && step != null && node != null)
 			{
@@ -1094,7 +1175,7 @@ namespace Horde.Build.Notifications.Impl
 			return SendMessageAsync(recipient, attachments: new[] { attachment });
 
 		}
-		
+
 		#endregion
 
 		const int MaxJobStepEvents = 5;
@@ -1236,7 +1317,10 @@ namespace Horde.Build.Notifications.Impl
 
 			BlockKitMessage message = new BlockKitMessage();
 			message.Channel = recipient;
-			message.Text = AddEnvironmentAnnotation(text);
+			if (text != null)
+			{
+				message.Text = AddEnvironmentAnnotation(text);
+			}
 			if (blocks != null)
 			{
 				message.Blocks.AddRange(blocks);

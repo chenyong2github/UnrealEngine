@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Api;
 using Horde.Build.Collections;
+using Horde.Build.Issues.Impl;
 using Horde.Build.Models;
 using Horde.Build.Server;
 using Horde.Build.Services;
@@ -726,6 +727,12 @@ namespace Horde.Build.Notifications.Impl
 			}
 
 			_logger.LogDebug("Finished sending label notifications for label {DashboardName}/{UgsName} in job {JobId}", label.DashboardName, label.UgsName, job.Id);
+		}
+
+		/// <inheritdoc/>
+		public void SendIssueReport(IssueReport report)
+		{
+			EnqueueTasks(sink => sink.SendIssueReportAsync(report));
 		}
 	}
 }

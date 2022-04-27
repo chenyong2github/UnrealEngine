@@ -4,12 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 
 namespace Horde.Build.Api
 {
 	using TemplateRefId = StringId<TemplateRef>;
+	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
 	/// Query selecting the base changelist to use
@@ -216,6 +218,11 @@ namespace Horde.Build.Api
 		/// Triage channel for this template. Overrides the stream channel if set.
 		/// </summary>
 		public string? TriageChannel { get; set; }
+
+		/// <summary>
+		/// Issue handling workflow
+		/// </summary>
+		public WorkflowId? Workflow { get; set; }
 
 		/// <summary>
 		/// Schedule to execute this template
