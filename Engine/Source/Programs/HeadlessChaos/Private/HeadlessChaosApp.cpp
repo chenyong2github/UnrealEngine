@@ -197,7 +197,8 @@ TEST(SweepTests, Sweep) {
 	SUCCEED();
 }
 
-TEST(SweepTests, LargeSweep)
+// This test is disabled until we implement  local clipping feature
+TEST(SweepTests, DISABLED_LargeSweep)
 {
 	ChaosTest::GJKLargeDistanceCapsuleSweep();
 
