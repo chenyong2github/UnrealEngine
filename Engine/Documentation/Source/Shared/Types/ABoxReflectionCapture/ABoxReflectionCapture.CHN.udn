@@ -1,4 +1,4 @@
-INTSourceChangelist:3108692
+INTSourceChangelist:19906333
 Availability:NoPublish
 Title:ABoxReflectionCapture
 Crumbs:
@@ -6,5 +6,5 @@ Description:BoxReflectionCapture类的概述
 
 [EXCERPT:ABoxReflectionCapture]
 
-**Box Reflection Capture Actor** （盒体反射捕获Actor)是虚幻引擎4中的两个反射捕获Actor之一。由于在运行前进行运算，因而许多反射捕获可以被放置在世界的任意位置，而基本不会对性能表现造成影响。
+Box Reflection Capture Actor（盒体反射捕获Actor）会将周围区域的景象捕获为一张图片，然后用于反射。它适合用于长方形走廊和室内房间。你可以放置任意数量的这类Actor。它们对运行时性能影响不大。
 [/EXCERPT:ABoxReflectionCapture]
