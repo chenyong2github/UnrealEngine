@@ -2873,7 +2873,7 @@ void FControlRigEditMode::RecreateControlShapeActors(const TArray<FRigElementKey
 			}
 		}
 	}
-	else
+	else if(ControlRigsToRecreate.Num() > 0)
 	{
 		for (UControlRig* ControlRig : ControlRigsToRecreate)
 		{
@@ -3791,7 +3791,7 @@ void FControlRigEditMode::DestroyShapesActors(UControlRig* ControlRig)
 			}
 		}
 		ControlRigShapeActors.Reset();
-
+		ControlRigsToRecreate.Reset();
 		if (OnWorldCleanupHandle.IsValid())
 		{
 			FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanupHandle);
@@ -3799,6 +3799,7 @@ void FControlRigEditMode::DestroyShapesActors(UControlRig* ControlRig)
 	}
 	else
 	{
+		ControlRigsToRecreate.Remove(ControlRig);
 		const TArray<AControlRigShapeActor*>* ShapeActors = ControlRigShapeActors.Find(ControlRig);
 		if (ShapeActors)
 		{

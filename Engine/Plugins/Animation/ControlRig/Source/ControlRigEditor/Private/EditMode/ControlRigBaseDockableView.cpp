@@ -43,7 +43,9 @@ void FControlRigBaseDockableView::SetEditMode(FControlRigEditMode& InEditMode)
 	ModeTools = InEditMode.GetModeManager();
 	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(ModeTools->GetActiveMode(FControlRigEditMode::ModeName)))
 	{
+		EditMode->OnControlRigAddedOrRemoved().RemoveAll(this);
 		EditMode->OnControlRigAddedOrRemoved().AddRaw(this, &FControlRigBaseDockableView::HandleControlAdded);
+		EditMode->OnControlRigSelected().RemoveAll(this);
 		EditMode->OnControlRigSelected().AddRaw(this, &FControlRigBaseDockableView::HandlElementSelected);
 	}
 }
