@@ -1692,11 +1692,19 @@ public:
 	}
 
 	/**
-	 * retrieves the maximum refresh rate supported by the platform
+	 * retrieves the current maximum refresh rate supported by the platform
 	 */
 	static inline int32 GetMaxRefreshRate()
 	{
 		return 60;
+	}
+
+	/**
+	 * retrieves the maximum refresh rate supported by the platform
+	 */
+	static inline int32 GetMaxSupportedRefreshRate()
+	{
+		return GetMaxRefreshRate();
 	}
 
 	/**

@@ -11,6 +11,7 @@ RHIUtilities.cpp:
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
+#include "HAL/PlatformFramePacer.h"
 
 #define USE_FRAME_OFFSET_THREAD 1
 
@@ -120,6 +121,28 @@ TAutoConsoleVariable<int32> CVarRHISyncAllowVariable(
 	TEXT("rhi.SyncAllowVariable"),
 	1,
 	TEXT("When 1, allows the RHI to use variable refresh rate, if supported by the output hardware."),
+	ECVF_Default
+);
+
+int32 GEnableConsole120Fps = 0;
+int32 InternalEnableConsole120Fps = 0;
+static void OnEnableConsole120FpsCVarRHIChanged(IConsoleVariable* Variable)
+{
+	InternalEnableConsole120Fps &= (FPlatformMisc::GetMaxSupportedRefreshRate() >= 120);
+	if (InternalEnableConsole120Fps != GEnableConsole120Fps)
+	{
+		GEnableConsole120Fps = InternalEnableConsole120Fps;
+		// needs to update the FramePace since it updates the SyncInterval based on the RefreshRate.
+		FPlatformRHIFramePacer::SetFramePace(GEnableConsole120Fps ? 120 : 60);
+		UE_LOG(LogRHI, Log, TEXT("Console 120Fps = %d"), GEnableConsole120Fps);
+	}
+}
+
+static FAutoConsoleVariableRef CVarRHInableConsole120Fps(
+	TEXT("rhi.EnableConsole120Fps"),
+	InternalEnableConsole120Fps,
+	TEXT("Enable Console 120fps if Monitor supports it and Console is properly setup"),
+	FConsoleVariableDelegate::CreateStatic(&OnEnableConsole120FpsCVarRHIChanged),
 	ECVF_Default
 );
 
