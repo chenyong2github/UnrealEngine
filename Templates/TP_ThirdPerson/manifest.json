@@ -42,7 +42,7 @@
 	[
 		{
 			"Language": "en",
-			"Text": "Animation Sequence, Animation Blueprint, Skeleton, Skeletal Mesh"
+			"Text": "Animation Sequence, Animation Blueprint, Skeleton, Skeletal Mesh, Control Rig, IK Rig, Retargeter"
 		}
 	],	
 	"SearchTags":
