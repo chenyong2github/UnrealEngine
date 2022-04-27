@@ -657,20 +657,27 @@ public:
 	#define LOG_DEBUG_HEAVY(message) 
 #endif
 
-void LogDebug(const TCHAR* Msg);
-void LogDebug(const FString& Msg);
-void LogInfo(const TCHAR* Msg);
-void LogInfo(const FString& Msg);
 void LogDebugNode(const FString& Name, class INode* Node);
 void LogNodeEvent(const MCHAR* Name, INodeEventCallback::NodeKeyTab& nodes);
 void LogFlush();
+
+void LogError(const TCHAR* Msg);
 void LogWarning(const TCHAR* Msg);
+void LogCompletion(const TCHAR* Msg);
+void LogInfo(const TCHAR* Msg);
+void LogDebug(const TCHAR* Msg);
+
+void LogError(const FString& Msg);
 void LogWarning(const FString& Msg);
+void LogCompletion(const FString& Msg);
+void LogInfo(const FString& Msg);
+void LogDebug(const FString& Msg);
 
-void LogWarningDialog(const TCHAR* Msg);
+void LogErrorDialog(const FString& Msg);
 void LogWarningDialog(const FString& Msg);
-void LogInfoDialog(const TCHAR* Msg);
-
+void LogCompletionDialog(const FString& Msg);
+void LogInfoDialog(const FString& Msg);
+void LogDebugDialog(const FString& Msg);
 
 }
 

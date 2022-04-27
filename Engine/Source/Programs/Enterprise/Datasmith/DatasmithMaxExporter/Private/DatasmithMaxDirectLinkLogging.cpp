@@ -35,6 +35,7 @@ void LogDebug(const TCHAR* Msg)
 	mprintf(L"[%s]%s\n", *FDateTime::UtcNow().ToString(TEXT("%Y.%m.%d-%H.%M.%S:%s")), Msg);
 	UE_LOG(LogDatasmithMaxExporter, Error, TEXT("%s"), Msg);
 	LogFlush();
+	LogDebugDialog(Msg);
 #endif
 }
 
@@ -50,6 +51,44 @@ void LogWarning(const TCHAR* Msg)
 	LogWarningDialog(Msg);
 }
 
+void LogCompletion(const TCHAR* Msg)
+{
+	UE_LOG(LogDatasmithMaxExporter, Display, TEXT("%s"), Msg);
+	LogCompletionDialog(Msg);
+}
+
+void LogError(const TCHAR* Msg)
+{
+	UE_LOG(LogDatasmithMaxExporter, Display, TEXT("%s"), Msg);
+	LogErrorDialog(Msg);
+}
+
+void LogError(const FString& Msg)
+{
+	LogError(*Msg);
+}
+
+void LogWarning(const FString& Msg)
+{
+	LogWarning(*Msg);
+}
+
+void LogCompletion(const FString& Msg)
+{
+	LogCompletion(*Msg);
+}
+
+void LogInfo(const FString& Msg)
+{
+	LogInfo(*Msg);
+}
+
+void LogDebug(const FString& Msg)
+{
+	LogDebug(*Msg);
+}
+
+
 void LogFlush()
 {
 	Async(EAsyncExecution::TaskGraphMainThread,
@@ -58,22 +97,6 @@ void LogFlush()
 			GLog->FlushThreadedLogs();
 			GLog->Flush();
 		});
-}
-
-
-void LogDebug(const FString& Msg)
-{
-	LogDebug(*Msg);
-}
-
-void LogInfo(const FString& Msg)
-{
-	LogInfo(*Msg);
-}
-
-void LogWarning(const FString& Msg)
-{
-	LogWarning(*Msg);
 }
 
 FString GetNodeDesc(INode* Node)

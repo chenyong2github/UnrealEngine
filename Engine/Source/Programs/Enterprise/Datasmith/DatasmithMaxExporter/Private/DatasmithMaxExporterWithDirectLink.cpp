@@ -346,7 +346,7 @@ public:
 
 	void PrintStage(FStage& Stage, FString Indent=TEXT(""))
 	{
-		LogInfo(Indent + FString::Printf(TEXT("    %s - %s"), *Stage.Name, *(Stage.TimeFinish-Stage.TimeStart).ToString()));
+		LogCompletion(Indent + FString::Printf(TEXT("    %s - %s"), *Stage.Name, *(Stage.TimeFinish-Stage.TimeStart).ToString()));
 		if (!Stage.Result.IsEmpty())
 		{
 			LogInfo(Indent + TEXT("      #") + Stage.Result);
@@ -2747,7 +2747,7 @@ public:
 
 		if (Options.bStatSync)
 		{
-			LogInfo("Sync completed:");
+			LogCompletion("Sync completed:");
 			ProgressManager.PrintStatisticss();
 		}
 	}
@@ -2771,7 +2771,7 @@ public:
 
 		if (Options.bStatSync)
 		{
-			LogInfo("AutoSync completed:");
+			LogCompletion("AutoSync completed:");
 			ProgressManager.PrintStatisticss();
 		}
 	}

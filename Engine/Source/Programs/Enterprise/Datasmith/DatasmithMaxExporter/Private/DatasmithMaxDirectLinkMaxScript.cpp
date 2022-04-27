@@ -12,6 +12,8 @@
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 
+#include "UI/IDatasmith3dsMaxUI.h"
+
 
 MAX_INCLUDES_START
 	#include "impexp.h"
@@ -35,9 +37,34 @@ extern HINSTANCE HInstanceMax;
 namespace DatasmithMaxDirectLink
 {
 
-/************************************* MaxScript exports *********************************/
+class FDummyDatasmith3dsMaxUI: public Ui::IMessagesWindow
+{
+public:
+	virtual void OpenWindow() override
+	{
+	}
 
-void InitScripts();
+	virtual void AddError(const FString& Message)  override
+	{
+	}
+	virtual void AddWarning(const FString& Message)  override
+	{
+	}
+	virtual void AddInfo(const FString& Message)  override
+	{
+	}
+	virtual void AddCompletion(const FString& Message)  override
+	{
+	}
+	virtual void ClearMessages()  override
+	{
+	}
+};
+
+FDummyDatasmith3dsMaxUI DummyDatasmith3dsMaxUI;
+Ui::IMessagesWindow* MessagesDialog = &DummyDatasmith3dsMaxUI;
+
+/************************************* MaxScript exports *********************************/
 
 Value* OnLoad_cf(Value**, int);
 Primitive OnLoad_pf(_M("Datasmith_OnLoad"), OnLoad_cf);
@@ -52,10 +79,15 @@ Value* OnLoad_cf(Value **arg_list, int count)
 
 	const TCHAR* EnginePathUnreal = (const TCHAR*)pEnginePath->to_string();
 
-	InitScripts();
+	bool bResult = CreateExporter(bEnableUI, EnginePathUnreal);
 
+	if (bResult)
+	{
+		// Create Slate UI only when CreateExporter returns true(it needs to successfully init  engine loop there for Slate to work)
+		MessagesDialog = Ui::CreateMessagesWindow();
+	}
 
-	return bool_result(CreateExporter(bEnableUI, EnginePathUnreal));
+	return bool_result(bResult);
 }
 
 Value* OnUnload_cf(Value**, int);
@@ -307,7 +339,7 @@ Primitive Crash_pf(_M("Datasmith_Crash"), Crash_cf);
 
 Value* LogInfo_cf(Value** arg_list, int count)
 {
-	check_arg_count(CreateScene, 1, count);
+	check_arg_count(LogInfo, 1, count);
 	Value* Message = arg_list[0];
 
 	LogInfo(Message->to_string());
@@ -315,6 +347,39 @@ Value* LogInfo_cf(Value** arg_list, int count)
 	return bool_result(true);
 }
 Primitive LogInfo_pf(_M("Datasmith_LogInfo"), LogInfo_cf);
+
+Value* LogWarning_cf(Value** arg_list, int count)
+{
+	check_arg_count(LogWarning, 1, count);
+	Value* Message = arg_list[0];
+
+	LogWarning(Message->to_string());
+
+	return bool_result(true);
+}
+Primitive LogWarning_pf(_M("Datasmith_LogWarning"), LogWarning_cf);
+
+Value* LogError_cf(Value** arg_list, int count)
+{
+	check_arg_count(LogError, 1, count);
+	Value* Message = arg_list[0];
+
+	LogError(Message->to_string());
+
+	return bool_result(true);
+}
+Primitive LogError_pf(_M("Datasmith_LogError"), LogError_cf);
+
+Value* LogCompletion_cf(Value** arg_list, int count)
+{
+	check_arg_count(LogCompletion, 1, count);
+	Value* Message = arg_list[0];
+
+	LogCompletion(Message->to_string());
+
+	return bool_result(true);
+}
+Primitive LogCompletion_pf(_M("Datasmith_LogCompletion"), LogCompletion_cf);
 
 
 class FMessagesDialog
@@ -429,21 +494,29 @@ public:
 	TQueue<FString> Messages;
 };
 
-TUniquePtr<FMessagesDialog> MessagesDialog;
-
-void LogInfoDialog(const TCHAR* Msg)
+void LogErrorDialog(const FString& Msg)
 {
-	MessagesDialog->AddInfo(Msg);
+	MessagesDialog->AddError(Msg);
 }
 
 void LogWarningDialog(const FString& Msg)
 {
-	LogWarningDialog(*Msg);
+	MessagesDialog->AddWarning(Msg);
 }
 
-void LogWarningDialog(const TCHAR* Msg)
+void LogCompletionDialog(const FString& Msg)
 {
-	MessagesDialog->AddWarning(Msg);
+	MessagesDialog->AddCompletion(Msg);
+}
+
+void LogInfoDialog(const FString& Msg)
+{
+	MessagesDialog->AddInfo(Msg);
+}
+
+void LogDebugDialog(const FString& Msg)
+{
+	MessagesDialog->AddInfo(Msg);
 }
 
 // Setup ActionTable with Datasmith commands exposed as actions
@@ -568,7 +641,7 @@ public:
 			}
 			case ID_SHOWLOG_ACTION_ID:
 			{
-				MessagesDialog->Toggle();
+				MessagesDialog->OpenWindow();
 				return true;
 			}
 			}
@@ -614,14 +687,8 @@ private:
 
 TUniquePtr<FDatasmithActions> Actions;
 
-void InitScripts()
-{
-	MessagesDialog.Reset(new FMessagesDialog);
-}
-
 void ShutdownScripts()
 {
-	MessagesDialog.Reset();
 	Actions.Reset();
 }
 
@@ -635,20 +702,6 @@ Value* SetupActions_cf(Value** arg_list, int count)
 	return bool_result(true);
 }
 Primitive SetupActions_pf(_M("Datasmith_SetupActions"), SetupActions_cf);
-
-
-Value* AddWarning_cf(Value**, int);
-Primitive AddWarning_pf(_M("Datasmith_AddWarning"), AddWarning_cf);
-
-Value* AddWarning_cf(Value** arg_list, int count)
-{
-	check_arg_count(AddWarning, 1, count);
-
-	MessagesDialog->AddWarning(arg_list[0]->to_string());
-
-	return bool_result(true);
-}
-
 
 }
 

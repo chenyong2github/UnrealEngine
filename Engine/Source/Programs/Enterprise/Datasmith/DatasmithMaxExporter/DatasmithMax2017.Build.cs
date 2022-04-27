@@ -11,6 +11,10 @@ namespace UnrealBuildTool.Rules
 
 			bUseRTTI = true;
 
+			// To avoid clashes with Max SDK
+			// todo: separate Slate code from 3ds max to a module
+			bUseUnity = false; 
+
 
 			PublicDefinitions.Add("NEW_DIRECTLINK_PLUGIN=1");
 
@@ -22,6 +26,9 @@ namespace UnrealBuildTool.Rules
 
 					"UdpMessaging", // required for DirectLink networking
 					"UEOpenExr",
+
+					"Slate",
+					"SlateCore",
 				}
 			);
 
