@@ -62,9 +62,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath", meta = (ScriptMethod))
 	static int32 GetNearestVertexIndex(FGeometryScriptPolyPath PolyPath, FVector Point);
 
-	/** Flatten to 2D by dropping the given axis, and using the other two coordinates as the new X, Y coordinates.  Returns the modified path for convenience. */
+	/** Create a 2D, flattened copy of the path by dropping the given axis, and using the other two coordinates as the new X, Y coordinates. */
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath", meta = (ScriptMethod, DisplayName = "Flatten To 2D On Axis"))
-	static UPARAM(DisplayName = "Target Poly Path") FGeometryScriptPolyPath FlattenTo2DOnAxis(FGeometryScriptPolyPath TargetPolyPath, EGeometryScriptAxis DropAxis = EGeometryScriptAxis::Z);
+	static UPARAM(DisplayName = "Poly Path") FGeometryScriptPolyPath FlattenTo2DOnAxis(FGeometryScriptPolyPath PolyPath, EGeometryScriptAxis DropAxis = EGeometryScriptAxis::Z);
 
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
 	static void ConvertSplineToPolyPath(const USplineComponent* Spline, FGeometryScriptPolyPath& PolyPath, FGeometryScriptSplineSamplingOptions SamplingOptions);

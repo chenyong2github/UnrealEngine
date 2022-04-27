@@ -58,21 +58,25 @@ int32 UGeometryScriptLibrary_PolyPathFunctions::GetNearestVertexIndex(FGeometryS
 	return -1;
 }
 
-UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
 FGeometryScriptPolyPath UGeometryScriptLibrary_PolyPathFunctions::FlattenTo2DOnAxis(FGeometryScriptPolyPath PolyPath, EGeometryScriptAxis DropAxis)
 {
+	FGeometryScriptPolyPath ToReturn;
 	if (PolyPath.Path.IsValid())
 	{
+		ToReturn.Reset();
+		ToReturn.bClosedLoop = PolyPath.bClosedLoop;
+		ToReturn.Path = PolyPath.Path;
+
 		int32 Keep0 = int32(DropAxis == EGeometryScriptAxis::X);
 		int32 Keep1 = 1 + int32(DropAxis != EGeometryScriptAxis::Z);
-		for (FVector& V : *PolyPath.Path)
+		for (FVector& V : *ToReturn.Path)
 		{
 			V[0] = V[Keep0];
 			V[1] = V[Keep1];
 			V.Z = 0;
 		}
 	}
-	return PolyPath;
+	return ToReturn;
 }
 
 void UGeometryScriptLibrary_PolyPathFunctions::ConvertPolyPathToArray(FGeometryScriptPolyPath PolyPath, TArray<FVector>& PathVertices)
