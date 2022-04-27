@@ -638,6 +638,12 @@ namespace UnrealBuildTool
 				//Resul += " -fvisibility-inlines-hidden-static-local-var";
 			}
 
+			if (CompilerVersionGreaterOrEqual(12, 0, 0))
+			{
+				// The 'this' vs nullptr comparisons get optimized away for newer versions of Clang, which is undesirable until we refactor these checks.
+				Result += " -fno-delete-null-pointer-checks";
+			}
+
 			if (CompileEnvironment.DeprecationWarningLevel == WarningLevel.Error)
 			{
 				Result += " -Werror=deprecated-declarations";
