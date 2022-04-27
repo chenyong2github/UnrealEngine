@@ -125,7 +125,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = AssetType)
 	bool bHasBlueprintClasses;
 
-	/** True if this type is editor only */
+	/** True if this type is editor only. Disable this to consider content that is part of the engine or engine plugins. */
 	UPROPERTY(EditAnywhere, Category = AssetType)
 	bool bIsEditorOnly;
 
