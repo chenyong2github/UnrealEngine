@@ -127,65 +127,51 @@ bool FBinkMovieStreamer::Tick(float DeltaTime)
 		float lrx = destLowerRight.X;
 		float lry = destLowerRight.Y;
 
-		auto &RHICmdList = GRHICommandList.GetImmediateCommandList();
-
-		RHICmdList.Transition(FRHITransitionInfo(tex, ERHIAccess::Unknown, ERHIAccess::SRVMask));
-		RHICmdList.SubmitCommandsHint();
-		RHICmdList.EnqueueLambda([bnk=bnk, tex, binkw, binkh, ulx, uly, lrx, lry, is_hdr](FRHICommandListImmediate& RHICmdList) {
-			static const auto CVarHDROutputEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.EnableHDROutput"));
-			static const auto CVarDisplayOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
-			if (GRHISupportsHDROutput && CVarHDROutputEnabled->GetValueOnRenderThread() != 0)
+		static const auto CVarHDROutputEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.EnableHDROutput"));
+		static const auto CVarDisplayOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
+		if (GRHISupportsHDROutput && CVarHDROutputEnabled->GetValueOnRenderThread() != 0)
+		{
+			EDisplayOutputFormat outDev = static_cast<EDisplayOutputFormat>(CVarDisplayOutputDevice->GetValueOnRenderThread());
+			switch (outDev)
 			{
-				EDisplayOutputFormat outDev = static_cast<EDisplayOutputFormat>(CVarDisplayOutputDevice->GetValueOnRenderThread());
-				switch (outDev)
-				{
-				// LDR
-				case EDisplayOutputFormat::SDR_sRGB:
-				case EDisplayOutputFormat::SDR_Rec709:
-				case EDisplayOutputFormat::SDR_ExplicitGammaMapping:
-					BinkPluginSetHdrSettings(bnk, 1, 1.0f, 80);
-					break;
-				// 1k nits
-				case EDisplayOutputFormat::HDR_ACES_1000nit_ST2084:
-				case EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB:
-					BinkPluginSetHdrSettings(bnk, 1, 1.0f, 1000);
-					break;
-				// 2k nits
-				case EDisplayOutputFormat::HDR_ACES_2000nit_ST2084:
-				case EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB:
-					BinkPluginSetHdrSettings(bnk, 1, 1.0f, 2000);
-					break;
-				// no tonemap
-				default:
-					BinkPluginSetHdrSettings(bnk, 0, 1.0f, 1000);
-					break;
-				}
-			}
-			else
-			{
+			// LDR
+			case EDisplayOutputFormat::SDR_sRGB:
+			case EDisplayOutputFormat::SDR_Rec709:
+			case EDisplayOutputFormat::SDR_ExplicitGammaMapping:
 				BinkPluginSetHdrSettings(bnk, 1, 1.0f, 80);
+				break;
+			// 1k nits
+			case EDisplayOutputFormat::HDR_ACES_1000nit_ST2084:
+			case EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB:
+				BinkPluginSetHdrSettings(bnk, 1, 1.0f, 1000);
+				break;
+			// 2k nits
+			case EDisplayOutputFormat::HDR_ACES_2000nit_ST2084:
+			case EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB:
+				BinkPluginSetHdrSettings(bnk, 1, 1.0f, 2000);
+				break;
+			// no tonemap
+			default:
+				BinkPluginSetHdrSettings(bnk, 0, 1.0f, 1000);
+				break;
 			}
-			BinkPluginSetRenderTargetFormat(bnk, is_hdr ? 1 : 0);
+		}
+		else
+		{
+			BinkPluginSetHdrSettings(bnk, 1, 1.0f, 80);
+		}
+		BinkPluginSetRenderTargetFormat(bnk, is_hdr ? 1 : 0);
 
-			if (bink_gpu_api == BinkGL) 
-			{
-				uintptr_t gltex = *(int*)tex->GetNativeResource();
-				BinkPluginScheduleToTexture(bnk, ulx, uly, lrx, lry, 0, (void*)gltex, binkw, binkh);
-			} 
-			else
-			{
-				BinkPluginScheduleToTexture(bnk, ulx, uly, lrx, lry, 0, tex->GetNativeResource(), binkw, binkh);
-			}
+		BinkPluginScheduleToTexture(bnk, ulx, uly, lrx, lry, 0, tex.GetReference(), binkw, binkh);
 
-			BINKPLUGINFRAMEINFO FrameInfo = {};
-			FrameInfo.cmdBuf = RHICmdList.GetNativeCommandBuffer();
-			BinkPluginSetPerFrameInfo(&FrameInfo);
-			BinkPluginAllScheduled();
-			BinkPluginProcessBinks(0);
-			BinkPluginDraw(1, 0);
-		});
-		RHICmdList.PostExternalCommandsReset();
-		RHICmdList.SubmitCommandsHint();
+		auto& RHICmdList = GRHICommandList.GetImmediateCommandList();
+		
+		BINKPLUGINFRAMEINFO FrameInfo = {};
+		FrameInfo.cmdBuf = &RHICmdList;
+		BinkPluginSetPerFrameInfo(&FrameInfo);
+		BinkPluginAllScheduled();
+		BinkPluginProcessBinks(0);
+		BinkPluginDraw(1, 0);
 
 		MovieViewport->SetTexture(Texture);	
 	}

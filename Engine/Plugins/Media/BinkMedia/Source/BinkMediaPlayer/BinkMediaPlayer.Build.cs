@@ -28,6 +28,7 @@ public class BinkMediaPlayer : ModuleRules
         PublicDependencyModuleNames.Add("RHI");
         PublicDependencyModuleNames.Add("MoviePlayer");
         //PublicDependencyModuleNames.Add("MediaAssets");
+        PublicDependencyModuleNames.Add("Projects");
 
         PrivatePCHHeaderFile = "Private/BinkMediaPlayerPCH.h";
 
@@ -45,6 +46,8 @@ public class BinkMediaPlayer : ModuleRules
         }
 
 		PublicDefinitions.Add("BUILDING_FOR_UNREAL_ONLY=1");
+		PublicDefinitions.Add("__RADNOEXPORTS__=1");
+		PublicDefinitions.Add("__RADINSTATICLIB__=1");
 		RuntimeDependencies.Add("$(ProjectDir)/Content/Movies/..."); // For chunked streaming
 
 		string Lib = LibName;
@@ -75,7 +78,10 @@ public class BinkMediaPlayer : ModuleRules
 			else if (Target.Platform == UnrealTargetPlatform.Android)
 			{
 				PublicDependencyModuleNames.Add("Launch");
-				PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libBinkUnrealAndroidArm64.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "android", "armv7", "libBinkUnrealAndroid.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "android", "arm64", "libBinkUnrealAndroid.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "android", "x86", "libBinkUnrealAndroid.a"));
+				PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "android", "x64", "libBinkUnrealAndroid.a"));
 				string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
 				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "BinkMediaPlayer_APL.xml"));
 			}

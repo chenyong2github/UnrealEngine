@@ -32,18 +32,7 @@ struct FBinkMediaPlayerEditorTexture : public FTickableGameObject
 				return;
 			}
 
-			uint32 width = tex->GetSizeX();
-			uint32 height = tex->GetSizeY();
-			void* nativePtr = tex->GetNativeResource();
-			FRHIRenderPassInfo RPInfo(SlateTexture->GetRHIRef(), ERenderTargetActions::Load_Store);
-			TransitionRenderPassTargets(RHICmdList, RPInfo);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderBink"));
-			RHICmdList.SetViewport(0, 0, 0.0f, width, height, 1.0f);
-			RHICmdList.SubmitCommandsHint();
-			MediaPlayer->UpdateTexture(RHICmdList, static_cast<FTextureRHIRef>(tex), nativePtr, width, height, true, true, 80, 1, false, false);
-			RHICmdList.SubmitCommandsHint();
-			RHICmdList.Transition(FRHITransitionInfo(SlateTexture->GetRHIRef(), ERHIAccess::Unknown, ERHIAccess::UAVGraphics));
-			RHICmdList.EndRenderPass();
+			MediaPlayer->UpdateTexture(RHICmdList, tex, tex->GetNativeResource(), tex->GetSizeX(), tex->GetSizeY(), true, true, 80, 1, false, false);
 		});
 	}
 	

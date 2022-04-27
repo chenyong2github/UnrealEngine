@@ -4,11 +4,15 @@
 #include "BinkMediaPlayerPCH.h"
 #include "BinkFunctionLibrary.h"
 
+#include "Runtime/Core/Public/Misc/Paths.h"
+#include "Interfaces/IPluginManager.h"
+#include "Misc/CoreDelegates.h"
+
 DEFINE_LOG_CATEGORY(LogBink);
 
-#define LOCTEXT_NAMESPACE "BinkMediaPlayerModule"
-
 TSharedPtr<FBinkMovieStreamer, ESPMode::ThreadSafe> MovieStreamer;
+
+TArray< FTexture2DRHIRef > BinkActiveTextureRefs;
 
 #if BINKPLUGIN_UE4_EDITOR
 class UFactory;
@@ -126,6 +130,9 @@ extern void BinkFreeGpu(void* ptr, UINTa Amt);
 #ifdef BINK_NDA_CPU_ALLOC
 extern void* BinkAllocCpu(UINTa Amt, U32 Align);
 extern void BinkFreeCpu(void* ptr);
+#elif defined BINK_NO_CPU_ALLOC
+#define BinkAllocCpu 0
+#define BinkFreeCpu 0
 #else
 static void *BinkAllocCpu(UINTa Amt, U32 Align) { return FMemory::Malloc(Amt, Align); }
 static void BinkFreeCpu(void * ptr) { FMemory::Free(ptr); }
@@ -147,56 +154,26 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 {
 	virtual void StartupModule() override 
 	{
+		if (IsRunningCommandlet())
+		{
+			return;
+		}
+
 		// TODO: make this an INI setting and/or configurable in Project Settings
 		//BinkPluginTurnOnGPUAssist();
 
-		BINKPLUGININITINFO InitInfo = { 0 };
-		InitInfo.queue = GDynamicRHI->RHIGetNativeGraphicsQueue();
-		InitInfo.physical_device = GDynamicRHI->RHIGetNativePhysicalDevice();
+		static BINKPLUGININITINFO InitInfo = { 0 };
+		InitInfo.queue = 0;
+		InitInfo.physical_device = 0;
 		InitInfo.alloc = BinkAllocCpu;
 		InitInfo.free = BinkFreeCpu;
 		InitInfo.gpu_alloc = BinkAllocGpu;
 		InitInfo.gpu_free = BinkFreeGpu;
+		bink_gpu_api = BinkRHI;
 
-		if(IsVulkanPlatform(GMaxRHIShaderPlatform)) 
-		{
-			bink_gpu_api_hdr = IsHDREnabled();
-			bink_gpu_api = BinkVulkan;
-			InitInfo.sdr_and_hdr_render_target_formats[0] = 44; // VK_FORMAT_B8G8R8A8_UNORM;
-			InitInfo.sdr_and_hdr_render_target_formats[1] = 64; // VK_FORMAT_A2B10G10R10_UNORM_PACK32;
-		}
-		else if (FModuleManager::Get().IsModuleLoaded(TEXT("D3D12RHI")) || FModuleManager::Get().IsModuleLoaded(TEXT("XboxOneD3D12RHI")))
-		{
-			bink_gpu_api_hdr = true;
-			bink_gpu_api = BinkD3D12;
-			// NOTE/WARNING: This format should match the backbuffer if you are using overlay rendering! Otherwise you will get D3D Errors!
-			// Note: D3D12 Bink backend only supports a single format currently!
-			InitInfo.sdr_and_hdr_render_target_formats[0] = 24;// DXGI_FORMAT_R10G10B10A2_UNORM;
-			InitInfo.sdr_and_hdr_render_target_formats[1] = 24;// DXGI_FORMAT_R10G10B10A2_UNORM;
-			bink_force_pixel_format = PF_A2B10G10R10;
-		}
-		else if(IsMetalPlatform(GMaxRHIShaderPlatform)) 
-		{
-			bink_gpu_api = BinkMetal;
-            InitInfo.sdr_and_hdr_render_target_formats[0] = 80;// MTLPixelFormatBGRA8Unorm;
-            InitInfo.sdr_and_hdr_render_target_formats[1] = 90;// MTLPixelFormatRGB10A2Unorm;
-		} 
-		else if (IsOpenGLPlatform(GMaxRHIShaderPlatform))
-		{
-			bink_gpu_api = BinkGL;
-		}
-		else if (IsD3DPlatform(GMaxRHIShaderPlatform))
-		{
-			bink_gpu_api = BinkD3D11;
-		}
-		else
-		{
-			bink_gpu_api = BinkNDA;
-		}
+		bPluginInitialized = (bool)BinkPluginInit(0, &InitInfo, bink_gpu_api);
 
-		bPluginInitialized = (bool)BinkPluginInit(GDynamicRHI->RHIGetNativeDevice(), &InitInfo, bink_gpu_api);
-
-		if (!bPluginInitialized) 
+		if (!bPluginInitialized)
 		{
 			printf("Bink Error: %s\n", BinkPluginError());
 		}
@@ -206,18 +183,18 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 		GetMoviePlayer()->RegisterMovieStreamer(MovieStreamer);
 
 #if BINKPLUGIN_UE4_EDITOR
-		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
-		if (SettingsModule && !IsRunningGame()) 
+		static ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+		if (SettingsModule && !IsRunningGame())
 		{
 			SettingsModule->RegisterSettings("Project", "Project", "Bink Movies",
 				LOCTEXT("MovieSettingsName", "Bink Movies"),
 				LOCTEXT("MovieSettingsDescription", "Bink Movie player settings"),
 				GetMutableDefault<UBinkMoviePlayerSettings>()
-				);
+			);
 
 			//SettingsModule->RegisterViewer("Project", *this);
 
-			IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+			static IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
 			MainFrameModule.OnMainFrameCreationFinished().AddRaw(this, &FBinkMediaPlayerModule::Initialize);
 		}
 #endif
@@ -226,10 +203,13 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 
 	virtual void ShutdownModule() override 
 	{
-		BinkPluginShutdown();
-		if (overlayHook.IsValid() && GEngine && GEngine->GameViewport) 
+		if (bPluginInitialized)
 		{
-			GEngine->GameViewport->OnDrawn().Remove(overlayHook);
+			BinkPluginShutdown();
+			if (overlayHook.IsValid() && GEngine && GEngine->GameViewport)
+			{
+				GEngine->GameViewport->OnDrawn().Remove(overlayHook);
+			}
 		}
 	}
 
@@ -250,17 +230,15 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 	{
 		ENQUEUE_RENDER_COMMAND(BinkProcess)([](FRHICommandListImmediate& RHICmdList) 
 		{ 
-			RHICmdList.SubmitCommandsHint();
-			RHICmdList.EnqueueLambda([](FRHICommandListImmediate& RHICmdList) {
-				BINKPLUGINFRAMEINFO FrameInfo = {};
-				FrameInfo.cmdBuf = RHICmdList.GetNativeCommandBuffer();
-				BinkPluginSetPerFrameInfo(&FrameInfo);
-				BinkPluginProcessBinks(0);
-				BinkPluginAllScheduled();
+			BINKPLUGINFRAMEINFO FrameInfo = {};
+			BinkPluginSetPerFrameInfo(&FrameInfo);
+			BinkPluginProcessBinks(0);
+			BinkPluginAllScheduled();
+			if(BinkActiveTextureRefs.Num())
+			{
 				BinkPluginDraw(1, 0);
-			});
-			RHICmdList.PostExternalCommandsReset();
-			RHICmdList.SubmitCommandsHint();
+				BinkActiveTextureRefs.Empty(256);
+			}
 		});
 		UBinkFunctionLibrary::Bink_DrawOverlays();
 	}
@@ -289,8 +267,6 @@ struct FBinkMediaPlayerModule : IModuleInterface, FTickableGameObject
 #endif
 	bool bPluginInitialized = false;
 };
-
-#undef LOCTEXT_NAMESPACE
 
 IMPLEMENT_MODULE( FBinkMediaPlayerModule, BinkMediaPlayer )
 

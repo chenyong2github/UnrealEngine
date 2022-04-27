@@ -35,6 +35,7 @@
 
 enum BINKPLUGINAPI
 {
+#ifndef BUILDING_FOR_UNREAL_ONLY
   BinkGL = 0,
   BinkD3D9 = 1,
   BinkD3D11 = 2,
@@ -42,6 +43,9 @@ enum BINKPLUGINAPI
   BinkMetal = 4,
   BinkVulkan = 5,
   BinkNDA = 6,     // any nda gpu api
+#else
+  BinkRHI = 0,     // Unreal RHI api
+#endif
 };
 
 // some platforms need allocators for cpu/gpu memory

@@ -1510,11 +1510,11 @@ void FD3D11DynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI, uint32 MipI
 	};
 
 	check(UpdateRegion.Width % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.Height % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
+	check(UpdateRegion.Height % GPixelFormats[Texture->GetFormat()].BlockSizeY == 0);
 	check(UpdateRegion.DestX % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.DestY % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
+	check(UpdateRegion.DestY % GPixelFormats[Texture->GetFormat()].BlockSizeY == 0);
 	check(UpdateRegion.SrcX % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.SrcY % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
+	check(UpdateRegion.SrcY % GPixelFormats[Texture->GetFormat()].BlockSizeY == 0);
 
 	Direct3DDeviceIMContext->UpdateSubresource(Texture->GetResource(), MipIndex, &DestBox, SourceData, SourcePitch, 0);
 }

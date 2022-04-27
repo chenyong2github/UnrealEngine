@@ -284,7 +284,7 @@ bool UBinkMediaPlayer::Open(const FString& Url)
 	{
 		ENQUEUE_RENDER_COMMAND(BinkMediaPlayer_Open_CloseBink)([bnk=bnk](FRHICommandListImmediate& RHICmdList) 
 		{ 
-			RHICmdList.EnqueueLambda([bnk](FRHICommandListImmediate& RHICmdList) { BinkPluginClose(bnk); });
+			BinkPluginClose(bnk);
 		});
 		bnk = NULL;
 	}
@@ -359,7 +359,7 @@ void UBinkMediaPlayer::Close()
 	{
 		ENQUEUE_RENDER_COMMAND(BinkMediaPlayer_Close_CloseBink)([bnk=bnk](FRHICommandListImmediate& RHICmdList) 
 		{ 
-			RHICmdList.EnqueueLambda([bnk](FRHICommandListImmediate& RHICmdList) { BinkPluginClose(bnk); });
+			BinkPluginClose(bnk);
 		});
 		bnk = NULL;
 	}
@@ -483,58 +483,41 @@ void UBinkMediaPlayer::Tick(float DeltaTime)
 			lry = binkh / screenSize.Y + uly;
 		}
 
-#if !PLATFORM_ANDROID
-		if (bink_gpu_api == BinkGL) 
-		{
-			uly = 1 - uly;
-			lry = 1 - lry;
-		}
+#if PLATFORM_ANDROID
+		uly = 1 - uly;
+		lry = 1 - lry;
 #endif
 
 		ENQUEUE_RENDER_COMMAND(BinkScheduleOverlay)([bnk=bnk,ulx,uly,lrx,lry](FRHICommandListImmediate& RHICmdList) 
 		{ 
-			RHICmdList.EnqueueLambda([bnk,ulx,uly,lrx,lry](FRHICommandListImmediate& RHICmdList) { 
-				BinkPluginSetDrawFlags(bnk, 0);
-				BinkPluginScheduleOverlay(bnk, ulx, uly, lrx, lry, 0);
-			});
-        });
+			BinkPluginSetDrawFlags(bnk, 0);
+			BinkPluginScheduleOverlay(bnk, ulx, uly, lrx, lry, 0);
+		});
 	}
 }
 
-void UBinkMediaPlayer::UpdateTexture(FRHICommandListImmediate &RHICmdList, FTextureRHIRef ref, void *nativePtr, int width, int height, bool isEditor, bool tonemap, int output_nits, float alpha, bool srgb_decode, bool is_hdr) 
+void UBinkMediaPlayer::UpdateTexture(FRHICommandListImmediate &RHICmdList, FTexture2DRHIRef ref, void *nativePtr, int width, int height, bool isEditor, bool tonemap, int output_nits, float alpha, bool srgb_decode, bool is_hdr) 
 {
-    check(IsInRenderingThread());
+	check(IsInRenderingThread());
 
 	if (bnk && (BinkDrawStyle == 0 || isEditor)) 
 	{
-		RHICmdList.Transition(FRHITransitionInfo(ref, ERHIAccess::Unknown, ERHIAccess::RTV));
-		RHICmdList.EnqueueLambda([bnk=bnk, ref, nativePtr, width, height, ul=BinkDestinationUpperLeft, lr=BinkDestinationLowerRight, tonemap, output_nits, alpha, srgb_decode, is_hdr](FRHICommandListImmediate& RHICmdList) {
-			BinkPluginSetHdrSettings(bnk, tonemap, 1.0f, output_nits);
-			BinkPluginSetAlphaSettings(bnk, alpha);
-			BinkPluginSetDrawFlags(bnk, srgb_decode ? BinkDrawDecodeSRGB : 0);
-			BinkPluginSetRenderTargetFormat(bnk, is_hdr ? 1 : 0);
-			if (bink_gpu_api == BinkGL)
-			{
-				uintptr_t gltex = *(int*)nativePtr;
-				//UE_LOG(LogBinkMoviePlayer, Warning, TEXT("gltex = %i"), (int)gltex);
-				BinkPluginScheduleToTexture(bnk, ul.X, ul.Y, lr.X, lr.Y, 0, (void*)gltex, width, height);
-			}
-			else
-			{
-				BinkPluginScheduleToTexture(bnk, ul.X, ul.Y, lr.X, lr.Y, 0, nativePtr, width, height);
-			}
-		});
-		RHICmdList.Transition(FRHITransitionInfo(ref, ERHIAccess::RTV, ERHIAccess::SRVMask));
+		BinkPluginSetHdrSettings(bnk, tonemap, 1.0f, output_nits);
+		BinkPluginSetAlphaSettings(bnk, alpha);
+		BinkPluginSetDrawFlags(bnk, srgb_decode ? BinkDrawDecodeSRGB : 0);
+		BinkPluginSetRenderTargetFormat(bnk, is_hdr ? 1 : 0);
+		BinkPluginScheduleToTexture(bnk, BinkDestinationUpperLeft.X, BinkDestinationUpperLeft.Y, BinkDestinationLowerRight.X, BinkDestinationLowerRight.Y, 0, ref.GetReference(), width, height);
+		BinkActiveTextureRefs.Push(ref);
 	}
 }
 
 void UBinkMediaPlayer::Draw(UTexture *texture, bool tonemap, int out_nits, float alpha, bool srgb_decode, bool hdr) 
 {
-	if (!texture->GetResource()) 
+	if (!bnk || !texture->GetResource()) 
 	{
 		return;
 	}
-	FTextureRHIRef ref = texture->GetResource()->TextureRHI;
+	FTexture2DRHIRef ref = texture->GetResource()->TextureRHI->GetTexture2D();
 	if ((!IsPlaying() && !IsPaused()) || !ref) 
 	{
 		return;
@@ -551,7 +534,7 @@ void UBinkMediaPlayer::Draw(UTexture *texture, bool tonemap, int out_nits, float
 	struct parms_t 
 	{
 		UBinkMediaPlayer *player;
-		FTextureRHIRef ref;
+		FTexture2DRHIRef ref;
 		void *native;
 		int width, height;
 		bool tonemap;
@@ -563,5 +546,5 @@ void UBinkMediaPlayer::Draw(UTexture *texture, bool tonemap, int out_nits, float
 	ENQUEUE_RENDER_COMMAND(BinkMediaPlayer_Draw)([parms](FRHICommandListImmediate& RHICmdList) 
 	{ 
 		parms.player->UpdateTexture(RHICmdList, parms.ref, parms.native, parms.width, parms.height, false, parms.tonemap, parms.out_nits, parms.alpha, parms.srgb_decode, parms.hdr);
-    });
+	});
 }

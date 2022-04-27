@@ -25,7 +25,7 @@ UBinkMediaTexture::UBinkMediaTexture( const FObjectInitializer& ObjectInitialize
 	else 
 	{
 		PixelFormat = PF_B8G8R8A8;
-		DecodeSRGB = false;
+		DecodeSRGB = true;
 	}
 }
 
@@ -124,9 +124,10 @@ void UBinkMediaTexture::InitializeTrack()
 
 	if (MediaPlayer)
 	{
-		CachedDimensions = MediaPlayer->GetDimensions();
-		if (CachedDimensions.X != 0 || CachedDimensions.Y != 0)
+		FIntPoint NewDimensions = MediaPlayer->GetDimensions();
+		if (NewDimensions != CachedDimensions && NewDimensions != FIntPoint(ForceInit))
 		{
+			CachedDimensions = NewDimensions;
 			UpdateResource();
 		}
 	}

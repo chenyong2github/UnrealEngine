@@ -33,6 +33,7 @@ extern BINKMEDIAPLAYER_API unsigned bink_gpu_api;
 extern BINKMEDIAPLAYER_API unsigned bink_gpu_api_hdr;
 extern BINKMEDIAPLAYER_API EPixelFormat bink_force_pixel_format;
 extern BINKMEDIAPLAYER_API FString BinkUE4CookOnTheFlyPath(FString path, const TCHAR *filename);
+extern BINKMEDIAPLAYER_API TArray< FTexture2DRHIRef > BinkActiveTextureRefs;
 
 static int GetNumSpeakers() 
 {
@@ -51,3 +52,9 @@ static int GetNumSpeakers()
 }
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBink, Log, All);
+
+#ifndef LOCTEXT_NAMESPACE
+#define LOCTEXT_NAMESPACE "BinkMediaPlayerModule"
+#endif
+
+
