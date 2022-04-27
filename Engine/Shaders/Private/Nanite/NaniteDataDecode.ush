@@ -176,6 +176,9 @@ struct FInstanceDraw
 
 struct FNaniteFullscreenVSToPS
 {
+#if INSTANCED_STEREO
+	nointerpolation uint EyeIndex  : PACKED_EYE_INDEX;
+#endif
 	nointerpolation uint ViewIndex : PACKED_VIEW_INDEX;
 };
 
