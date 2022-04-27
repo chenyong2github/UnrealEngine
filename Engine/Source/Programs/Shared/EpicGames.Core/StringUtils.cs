@@ -229,15 +229,15 @@ namespace EpicGames.Core
 		/// <param name="arguments">List of strings to format</param>
 		/// <param name="conjunction">Conjunction to use between the last two items in the list (eg. "and" or "or")</param>
 		/// <returns>Formatted list of strings</returns>
-		public static string FormatList(string[] arguments, string conjunction = "and")
+		public static string FormatList(IReadOnlyList<string> arguments, string conjunction = "and")
 		{
 			StringBuilder result = new StringBuilder();
-			if (arguments.Length > 0)
+			if (arguments.Count > 0)
 			{
 				result.Append(arguments[0]);
-				for (int idx = 1; idx < arguments.Length; idx++)
+				for (int idx = 1; idx < arguments.Count; idx++)
 				{
-					if (idx == arguments.Length - 1)
+					if (idx == arguments.Count - 1)
 					{
 						result.AppendFormat(" {0} ", conjunction);
 					}

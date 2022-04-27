@@ -23,6 +23,12 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		public string? Ts { get; set; }
 
 		/// <summary>
+		/// Timestamp of the thread to post to
+		/// </summary>
+		[JsonPropertyName("thread_ts")]
+		public string? ThreadTs { get; set; }
+
+		/// <summary>
 		/// If no blocks are provided, this text will be displayed. This is also what is used on the pop up notification.
 		/// </summary>
 		[JsonPropertyName("text")]
