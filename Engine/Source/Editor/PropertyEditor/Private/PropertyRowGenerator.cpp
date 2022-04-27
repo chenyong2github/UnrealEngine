@@ -59,7 +59,13 @@ public:
 			Generator->ForceRefresh();
 		}
 	}
-	virtual void RequestRefresh() override {}
+	virtual void RequestRefresh() override 
+	{ 
+		if (Generator != nullptr)
+		{
+			Generator->RequestRefresh();
+		}
+	}
 
 	virtual TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const override
 	{
@@ -370,6 +376,13 @@ void FPropertyRowGenerator::Tick(float DeltaTime)
 		DeferredActions.Empty();
 	}
 
+	if (bRefreshPending)
+	{
+		bRefreshPending = false;
+		
+		ForceRefresh();
+	}
+
 	bool bFullRefresh = ValidatePropertyNodes(RootPropertyNodes);
 
 	for (FDetailLayoutData& LayoutData : DetailLayouts)
@@ -383,7 +396,6 @@ void FPropertyRowGenerator::Tick(float DeltaTime)
 			LayoutData.DetailLayout->Tick(DeltaTime);
 		}
 	}
-
 }
 
 TStatId FPropertyRowGenerator::GetStatId() const 
