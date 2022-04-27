@@ -66,6 +66,7 @@
 #include "ClearReplacementShaders.h"
 #include "Engine/RendererSettings.h"
 #include "Misc/LargeWorldRenderPosition.h"
+#include "UnrealEngine.h"
 
 #if WITH_EDITOR
 #include "Compression/OodleDataCompression.h"
