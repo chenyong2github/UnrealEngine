@@ -104,20 +104,20 @@ void GetProjectSettingsArguments(const UDisplayClusterLaunchEditorProjectSetting
 			{
 				continue;
 			}
-			ConcatenatedCommandLineArguments += FString::Printf(TEXT("-%s "), *CommandLineArgument);
+			ConcatenatedCommandLineArguments += FString::Printf(TEXT(" -%s "), *CommandLineArgument);
 		}
 		// Remove whitespace
 		ConcatenatedCommandLineArguments.TrimStartAndEndInline();
 	}
 
-	if (ProjectSettings->ConsoleCommands.Num() > 0)
+	if (ProjectSettings->AdditionalConsoleCommands.Num() > 0)
 	{
-		ConcatenatedConsoleCommands += FString::Join(ProjectSettings->ConsoleCommands, TEXT(","));
+		ConcatenatedConsoleCommands += FString::Join(ProjectSettings->AdditionalConsoleCommands, TEXT(","));
 	}
 
-	if (ProjectSettings->DPCvars.Num() > 0)
+	if (ProjectSettings->AdditionalConsoleVariables.Num() > 0)
 	{
-		ConcatenatedDPCvars += FString::Join(ProjectSettings->DPCvars, TEXT(","));
+		ConcatenatedDPCvars += FString::Join(ProjectSettings->AdditionalConsoleVariables, TEXT(","));
 	}
 
 	{
@@ -341,6 +341,27 @@ void FDisplayClusterLaunchEditorModule::LaunchDisplayClusterProcess()
 								NodePtr->WindowRect.W, NodePtr->WindowRect.H
 						);
 				}
+			}
+		}
+
+		// Unreal Insights support
+		if (ProjectSettings->bEnableUnrealInsights)
+		{
+			// Enable trace
+			ConcatenatedCommandLineArguments += " -trace";
+
+			if (ProjectSettings->bEnableStatNamedEvents)
+			{
+				ConcatenatedCommandLineArguments += " -statnamedevents";
+			}
+
+			// Override save directory if desired
+			if (ProjectSettings->bOverrideInsightsTraceFileSaveDirectory)
+			{
+				FString TraceFilePath =
+					ProjectSettings->ExplicitTraceFileSaveDirectory.Path / FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S"));
+				ConcatenatedCommandLineArguments +=
+					FString::Printf(TEXT(" -tracefile=%s "), *TraceFilePath);
 			}
 		}
 		
