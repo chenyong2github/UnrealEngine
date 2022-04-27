@@ -2505,8 +2505,33 @@ static void GetVideoDriverDetails(const FString& Key, FGPUDriverInfo& Out)
 	FWindowsPlatformMisc::QueryRegKey(HKEY_LOCAL_MACHINE, *Key, TEXT("DriverDate"), Out.DriverDate);
 }
 
+static BOOL CALLBACK MonitorEnumProc(HMONITOR Monitor, HDC MonitorDC, LPRECT Rect, LPARAM UserData)
+{
+	int* NumMonitors = (int*)UserData;
+	*NumMonitors += 1;
+
+	MONITORINFOEX MonitorInfoEx;
+	MonitorInfoEx.cbSize = sizeof(MonitorInfoEx);
+	GetMonitorInfo(Monitor, &MonitorInfoEx);
+
+	UE_LOG(LogWindows, Log, TEXT("    resolution: %dx%d, work area: (%d, %d) -> (%d, %d), device: '%s'%s"),
+		MonitorInfoEx.rcMonitor.right - MonitorInfoEx.rcMonitor.left, MonitorInfoEx.rcMonitor.bottom - MonitorInfoEx.rcMonitor.top,
+		MonitorInfoEx.rcWork.left, MonitorInfoEx.rcWork.top, MonitorInfoEx.rcWork.right, MonitorInfoEx.rcWork.bottom,
+		MonitorInfoEx.szDevice,
+		MonitorInfoEx.dwFlags & MONITORINFOF_PRIMARY ? TEXT(" [PRIMARY]") : TEXT("")
+	);
+
+	return TRUE;
+}
+
 FGPUDriverInfo FWindowsPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescription)
 {
+	// Also report monitor information here, for lack of a better place.
+	UE_LOG(LogWindows, Log, TEXT("Attached monitors:"));
+	int NumMonitors = 0;
+	EnumDisplayMonitors(nullptr, nullptr, MonitorEnumProc, (LPARAM)&NumMonitors);
+	UE_LOG(LogWindows, Log, TEXT("Found %d attached monitors."), NumMonitors);
+
 	// to distinguish failed GetGPUDriverInfo() from call to GetGPUDriverInfo()
 	FGPUDriverInfo Ret;
 
@@ -2539,11 +2564,12 @@ FGPUDriverInfo FWindowsPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescr
 				break;
 			}
 
-			UE_LOG(LogWindows, Log, TEXT("   %d. '%s' (P:%d D:%d)"),
+			UE_LOG(LogWindows, Log, TEXT("   %d. '%s' (P:%d D:%d), name: '%s'"),
 				i,
 				Device.DeviceString,
 				(Device.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0,
-				(Device.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) != 0
+				(Device.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) != 0,
+				Device.DeviceName
 				);
 
 			if(Method == 3)

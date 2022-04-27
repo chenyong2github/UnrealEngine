@@ -1522,6 +1522,17 @@ void FSceneViewport::ResizeViewport(uint32 NewSizeX, uint32 NewSizeY, EWindowMod
 			}
 		}
 
+		const TCHAR* WindowModeName;
+		switch (NewWindowMode)
+		{
+		case EWindowMode::Fullscreen: WindowModeName = TEXT("Fullscreen"); break;
+		case EWindowMode::WindowedFullscreen: WindowModeName = TEXT("WindowedFullscreen"); break;
+		case EWindowMode::Windowed: WindowModeName = TEXT("Windowed"); break;
+		default: WindowModeName = TEXT("INVALID"); break;
+		}
+
+		UE_LOG(LogViewport, Log, TEXT("Scene viewport resized to %dx%d, mode %s."), NewSizeX, NewSizeY, WindowModeName);
+
 		bIsResizing = true;
 
 		UpdateViewportRHI(false, NewSizeX, NewSizeY, NewWindowMode, PF_Unknown);
