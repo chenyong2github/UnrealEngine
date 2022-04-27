@@ -184,13 +184,6 @@ private:
  *	Web: http://www.dominik-reichl.de/
  */
 
-
-typedef union
-{
-	uint8  c[64];
-	uint32 l[16];
-} SHA1_WORKSPACE_BLOCK;
-
 /** This divider string is beween full file hashes and script hashes */
 #define HASHES_SHA_DIVIDER "+++"
 
@@ -285,7 +278,7 @@ public:
 	~FSHA1();
 
 	uint32 m_state[5];
-	uint32 m_count[2];
+	uint64 m_count;
 	uint32 __reserved1[1];
 	uint8  m_buffer[64];
 	uint8  m_digest[20];
@@ -373,11 +366,7 @@ public:
 
 private:
 	// Private SHA-1 transformation
-	void Transform(uint32 *state, const uint8 *buffer);
-
-	// Member variables
-	uint8 m_workspace[64];
-	SHA1_WORKSPACE_BLOCK *m_block; // SHA1 pointer to the byte array above
+	void Transform(const uint8* buffer, uint64 len);
 
 	/** Global map of filename to hash value, filled out in InitializeFileHashesFromBuffer */
 	static TMap<FString, uint8*> FullFileSHAHashMap;

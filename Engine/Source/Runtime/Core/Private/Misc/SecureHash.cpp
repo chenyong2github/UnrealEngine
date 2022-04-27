@@ -5,6 +5,42 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 
+#if defined(_M_AMD64) || defined(__x86_64__)
+
+#include <immintrin.h>
+#if PLATFORM_COMPILER_CLANG
+#include <shaintrin.h>
+#include <cpuid.h>
+#endif
+
+#define UE_PLATFORM_SHA_X86 1
+
+// if x86 SHA is enabled with compiler, use SHA instructions without fallback
+#if defined(__SHA__) || PLATFORM_ALWAYS_HAS_SHA
+#define UE_PLATFORM_SHA_FALLBACK 0
+#endif
+
+#elif defined(__aarch64__)
+
+// on ARMv8 enable SHA instructions unconditionally only when they are enabled with compiler
+#ifdef __ARM_FEATURE_CRYPTO
+#define UE_PLATFORM_SHA_ARMV8 1
+#define UE_PLATFORM_SHA_FALLBACK 0
+#endif
+
+#endif
+
+
+#ifndef UE_PLATFORM_SHA_FALLBACK
+#define UE_PLATFORM_SHA_FALLBACK 1
+#endif
+#ifndef UE_PLATFORM_SHA_X86
+#define UE_PLATFORM_SHA_X86 0
+#endif
+#ifndef UE_PLATFORM_SHA_ARMV8
+#define UE_PLATFORM_SHA_ARMV8 0
+#endif
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogSecureHash, Log, All);
 
@@ -34,12 +70,7 @@ enum {_S42=10};
 enum {_S43=15};
 enum {_S44=21};
 
-static uint8 PADDING[64] = {
-	0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0
-};
+static const uint8 PADDING[64] = { 0x80 };
 
 //
 // Basic MD5 transformations.
@@ -585,13 +616,12 @@ TMap<FString, uint8*> FSHA1::ScriptSHAHashMap;
 #endif
 
 #if PLATFORM_LITTLE_ENDIAN
-	#define SHABLK0(i) (m_block->l[i] = (ROL32(m_block->l[i],24) & 0xFF00FF00) | (ROL32(m_block->l[i],8) & 0x00FF00FF))
+#define SHABLK0(i) (block[i] = (ROL32(block[i],24) & 0xFF00FF00) | (ROL32(block[i],8) & 0x00FF00FF))
 #else
-	#define SHABLK0(i) (m_block->l[i])
+#define SHABLK0(i) (block[i])
 #endif
 
-#define SHABLK(i) (m_block->l[i&15] = ROL32(m_block->l[(i+13)&15] ^ m_block->l[(i+8)&15] \
-	^ m_block->l[(i+2)&15] ^ m_block->l[i&15],1))
+#define SHABLK(i) (block[i&15] = ROL32(block[(i+13)&15] ^ block[(i+8)&15] ^ block[(i+2)&15] ^ block[i&15],1))
 
 // SHA-1 rounds
 #define _R0(v,w,x,y,z,i) { z+=((w&(x^y))^y)+SHABLK0(i)+0x5A827999+ROL32(v,5); w=ROL32(w,30); }
@@ -599,6 +629,8 @@ TMap<FString, uint8*> FSHA1::ScriptSHAHashMap;
 #define _R2(v,w,x,y,z,i) { z+=(w^x^y)+SHABLK(i)+0x6ED9EBA1+ROL32(v,5); w=ROL32(w,30); }
 #define _R3(v,w,x,y,z,i) { z+=(((w|x)&y)|(w&x))+SHABLK(i)+0x8F1BBCDC+ROL32(v,5); w=ROL32(w,30); }
 #define _R4(v,w,x,y,z,i) { z+=(w^x^y)+SHABLK(i)+0xCA62C1D6+ROL32(v,5); w=ROL32(w,30); }
+
+#define SHA1_BLOCK_SIZE 64
 
 FArchive& operator<<( FArchive& Ar, FSHAHash& G )
 {
@@ -623,8 +655,6 @@ void Freeze::IntrinsicToString(const FSHAHash& Object, const FTypeLayoutDesc& Ty
 
 FSHA1::FSHA1()
 {
-	m_block = (SHA1_WORKSPACE_BLOCK *)m_workspace;
-
 	Reset();
 }
 
@@ -642,45 +672,495 @@ void FSHA1::Reset()
 	m_state[3] = 0x10325476;
 	m_state[4] = 0xC3D2E1F0;
 
-	m_count[0] = 0;
-	m_count[1] = 0;
+	// input byte count
+	m_count = 0;
 }
 
-void FSHA1::Transform(uint32 *state, const uint8 *buffer)
+#if UE_PLATFORM_SHA_X86
+
+static inline bool DetectShaInstructions()
 {
-	// Copy state[] to working vars
-	uint32 a = state[0], b = state[1], c = state[2], d = state[3], e = state[4];
+	int info1[4];
+	int info7[4];
+#if PLATFORM_COMPILER_CLANG
+	__cpuid(1, info1[0], info1[1], info1[2], info1[3]);
+	__cpuid_count(7, 0, info7[0], info7[1], info7[2], info7[3]);
+#else
+	__cpuid(info1, 1);
+	__cpuidex(info7, 7, 0);
+#endif
+	bool bHasSSSE3 = (info1[2] & 0x00000200) != 0;
+	bool bHasSHA = (info7[1] & 0x20000000) != 0;
+	return bHasSSSE3 && bHasSHA;
+}
 
-	FMemory::Memcpy(m_block, buffer, 64);
+static bool CanUseShaInstructions()
+{
+#if UE_PLATFORM_SHA_FALLBACK
+	// run cpuid only once
+	static bool bCanUse = DetectShaInstructions();
+	return bCanUse;
+#else
+	// no SHA fallback code means SHA instructions will be used unconditionally
+	return true;
+#endif
+}
 
-	// 4 rounds of 20 operations each. Loop unrolled.
-	_R0(a,b,c,d,e, 0); _R0(e,a,b,c,d, 1); _R0(d,e,a,b,c, 2); _R0(c,d,e,a,b, 3);
-	_R0(b,c,d,e,a, 4); _R0(a,b,c,d,e, 5); _R0(e,a,b,c,d, 6); _R0(d,e,a,b,c, 7);
-	_R0(c,d,e,a,b, 8); _R0(b,c,d,e,a, 9); _R0(a,b,c,d,e,10); _R0(e,a,b,c,d,11);
-	_R0(d,e,a,b,c,12); _R0(c,d,e,a,b,13); _R0(b,c,d,e,a,14); _R0(a,b,c,d,e,15);
-	_R1(e,a,b,c,d,16); _R1(d,e,a,b,c,17); _R1(c,d,e,a,b,18); _R1(b,c,d,e,a,19);
-	_R2(a,b,c,d,e,20); _R2(e,a,b,c,d,21); _R2(d,e,a,b,c,22); _R2(c,d,e,a,b,23);
-	_R2(b,c,d,e,a,24); _R2(a,b,c,d,e,25); _R2(e,a,b,c,d,26); _R2(d,e,a,b,c,27);
-	_R2(c,d,e,a,b,28); _R2(b,c,d,e,a,29); _R2(a,b,c,d,e,30); _R2(e,a,b,c,d,31);
-	_R2(d,e,a,b,c,32); _R2(c,d,e,a,b,33); _R2(b,c,d,e,a,34); _R2(a,b,c,d,e,35);
-	_R2(e,a,b,c,d,36); _R2(d,e,a,b,c,37); _R2(c,d,e,a,b,38); _R2(b,c,d,e,a,39);
-	_R3(a,b,c,d,e,40); _R3(e,a,b,c,d,41); _R3(d,e,a,b,c,42); _R3(c,d,e,a,b,43);
-	_R3(b,c,d,e,a,44); _R3(a,b,c,d,e,45); _R3(e,a,b,c,d,46); _R3(d,e,a,b,c,47);
-	_R3(c,d,e,a,b,48); _R3(b,c,d,e,a,49); _R3(a,b,c,d,e,50); _R3(e,a,b,c,d,51);
-	_R3(d,e,a,b,c,52); _R3(c,d,e,a,b,53); _R3(b,c,d,e,a,54); _R3(a,b,c,d,e,55);
-	_R3(e,a,b,c,d,56); _R3(d,e,a,b,c,57); _R3(c,d,e,a,b,58); _R3(b,c,d,e,a,59);
-	_R4(a,b,c,d,e,60); _R4(e,a,b,c,d,61); _R4(d,e,a,b,c,62); _R4(c,d,e,a,b,63);
-	_R4(b,c,d,e,a,64); _R4(a,b,c,d,e,65); _R4(e,a,b,c,d,66); _R4(d,e,a,b,c,67);
-	_R4(c,d,e,a,b,68); _R4(b,c,d,e,a,69); _R4(a,b,c,d,e,70); _R4(e,a,b,c,d,71);
-	_R4(d,e,a,b,c,72); _R4(c,d,e,a,b,73); _R4(b,c,d,e,a,74); _R4(a,b,c,d,e,75);
-	_R4(e,a,b,c,d,76); _R4(d,e,a,b,c,77); _R4(c,d,e,a,b,78); _R4(b,c,d,e,a,79);
+#if PLATFORM_COMPILER_CLANG
+#pragma clang attribute push (__attribute__((target("sha"))), apply_to=function)
+#endif
 
-	// Add the working vars back into state
-	state[0] += a;
-	state[1] += b;
-	state[2] += c;
-	state[3] += d;
-	state[4] += e;
+static void Sha1TransformX86(uint32* State, const void* Buffer, uint64 Size)
+{
+	// https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sha-extensions.html
+	// https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html#othertechs=SHA
+
+	// to reverse byte order
+	__m128i REVERSE_BYTES = _mm_setr_epi8(
+		0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
+		0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00);
+
+	// load current state
+	__m128i ABCD = _mm_loadu_si128((const __m128i*)State);
+	__m128i E0 = _mm_setr_epi32(0, 0, 0, State[4]);
+	ABCD = _mm_shuffle_epi32(ABCD, _MM_SHUFFLE(0, 1, 2, 3));
+
+	const __m128i* Data = (const __m128i*)Buffer;
+	while (Size >= SHA1_BLOCK_SIZE)
+	{
+		__m128i E1;
+
+		// remember current state
+		__m128i ABCD_SAVE = ABCD;
+		__m128i E_SAVE = E0;
+
+		// load message from buffer as 32-bit big-endian integers
+		__m128i M0 = _mm_loadu_si128(Data + 0);
+		__m128i M1 = _mm_loadu_si128(Data + 1);
+		__m128i M2 = _mm_loadu_si128(Data + 2);
+		__m128i M3 = _mm_loadu_si128(Data + 3);
+		M0 = _mm_shuffle_epi8(M0, REVERSE_BYTES);
+		M1 = _mm_shuffle_epi8(M1, REVERSE_BYTES);
+		M2 = _mm_shuffle_epi8(M2, REVERSE_BYTES);
+		M3 = _mm_shuffle_epi8(M3, REVERSE_BYTES);
+
+		// 0..3
+		E0 = _mm_add_epi32(E0, M0);
+		E1 = ABCD;
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 0);
+
+		// 4..7
+		E1 = _mm_sha1nexte_epu32(E1, M1);
+		E0 = ABCD;
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 0);
+		M0 = _mm_sha1msg1_epu32(M0, M1);
+
+		// 8..11
+		E0 = _mm_sha1nexte_epu32(E0, M2);
+		E1 = ABCD;
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 0);
+		M1 = _mm_sha1msg1_epu32(M1, M2);
+		M0 = _mm_xor_si128(M0, M2);
+
+		// 12..15
+		E1 = _mm_sha1nexte_epu32(E1, M3);
+		E0 = ABCD;
+		M0 = _mm_sha1msg2_epu32(M0, M3);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 0);
+		M2 = _mm_sha1msg1_epu32(M2, M3);
+		M1 = _mm_xor_si128(M1, M3);
+
+		// 16..19
+		E0 = _mm_sha1nexte_epu32(E0, M0);
+		E1 = ABCD;
+		M1 = _mm_sha1msg2_epu32(M1, M0);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 0);
+		M3 = _mm_sha1msg1_epu32(M3, M0);
+		M2 = _mm_xor_si128(M2, M0);
+
+		// 20..23
+		E1 = _mm_sha1nexte_epu32(E1, M1);
+		E0 = ABCD;
+		M2 = _mm_sha1msg2_epu32(M2, M1);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 1);
+		M0 = _mm_sha1msg1_epu32(M0, M1);
+		M3 = _mm_xor_si128(M3, M1);
+
+		// 24..27
+		E0 = _mm_sha1nexte_epu32(E0, M2);
+		E1 = ABCD;
+		M3 = _mm_sha1msg2_epu32(M3, M2);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 1);
+		M1 = _mm_sha1msg1_epu32(M1, M2);
+		M0 = _mm_xor_si128(M0, M2);
+
+		// 28..31
+		E1 = _mm_sha1nexte_epu32(E1, M3);
+		E0 = ABCD;
+		M0 = _mm_sha1msg2_epu32(M0, M3);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 1);
+		M2 = _mm_sha1msg1_epu32(M2, M3);
+		M1 = _mm_xor_si128(M1, M3);
+
+		// 32..35
+		E0 = _mm_sha1nexte_epu32(E0, M0);
+		E1 = ABCD;
+		M1 = _mm_sha1msg2_epu32(M1, M0);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 1);
+		M3 = _mm_sha1msg1_epu32(M3, M0);
+		M2 = _mm_xor_si128(M2, M0);
+
+		// 36..39
+		E1 = _mm_sha1nexte_epu32(E1, M1);
+		E0 = ABCD;
+		M2 = _mm_sha1msg2_epu32(M2, M1);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 1);
+		M0 = _mm_sha1msg1_epu32(M0, M1);
+		M3 = _mm_xor_si128(M3, M1);
+
+		// 40..43
+		E0 = _mm_sha1nexte_epu32(E0, M2);
+		E1 = ABCD;
+		M3 = _mm_sha1msg2_epu32(M3, M2);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 2);
+		M1 = _mm_sha1msg1_epu32(M1, M2);
+		M0 = _mm_xor_si128(M0, M2);
+
+		// 44..47
+		E1 = _mm_sha1nexte_epu32(E1, M3);
+		E0 = ABCD;
+		M0 = _mm_sha1msg2_epu32(M0, M3);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 2);
+		M2 = _mm_sha1msg1_epu32(M2, M3);
+		M1 = _mm_xor_si128(M1, M3);
+
+		// 48..51
+		E0 = _mm_sha1nexte_epu32(E0, M0);
+		E1 = ABCD;
+		M1 = _mm_sha1msg2_epu32(M1, M0);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 2);
+		M3 = _mm_sha1msg1_epu32(M3, M0);
+		M2 = _mm_xor_si128(M2, M0);
+
+		// 52..55
+		E1 = _mm_sha1nexte_epu32(E1, M1);
+		E0 = ABCD;
+		M2 = _mm_sha1msg2_epu32(M2, M1);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 2);
+		M0 = _mm_sha1msg1_epu32(M0, M1);
+		M3 = _mm_xor_si128(M3, M1);
+
+		// 56..59
+		E0 = _mm_sha1nexte_epu32(E0, M2);
+		E1 = ABCD;
+		M3 = _mm_sha1msg2_epu32(M3, M2);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 2);
+		M1 = _mm_sha1msg1_epu32(M1, M2);
+		M0 = _mm_xor_si128(M0, M2);
+
+		// 60..63
+		E1 = _mm_sha1nexte_epu32(E1, M3);
+		E0 = ABCD;
+		M0 = _mm_sha1msg2_epu32(M0, M3);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 3);
+		M2 = _mm_sha1msg1_epu32(M2, M3);
+		M1 = _mm_xor_si128(M1, M3);
+
+		// 64..67
+		E0 = _mm_sha1nexte_epu32(E0, M0);
+		E1 = ABCD;
+		M1 = _mm_sha1msg2_epu32(M1, M0);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 3);
+		M3 = _mm_sha1msg1_epu32(M3, M0);
+		M2 = _mm_xor_si128(M2, M0);
+
+		// 68..71
+		E1 = _mm_sha1nexte_epu32(E1, M1);
+		E0 = ABCD;
+		M2 = _mm_sha1msg2_epu32(M2, M1);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 3);
+		M3 = _mm_xor_si128(M3, M1);
+
+		// 72..75
+		E0 = _mm_sha1nexte_epu32(E0, M2);
+		E1 = ABCD;
+		M3 = _mm_sha1msg2_epu32(M3, M2);
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E0, 3);
+
+		// 76..79
+		E1 = _mm_sha1nexte_epu32(E1, M3);
+		E0 = ABCD;
+		ABCD = _mm_sha1rnds4_epu32(ABCD, E1, 3);
+
+		// add the working vars back into state
+		E0 = _mm_sha1nexte_epu32(E0, E_SAVE);
+		ABCD = _mm_add_epi32(ABCD, ABCD_SAVE);
+
+		Data += 4;
+		Size -= SHA1_BLOCK_SIZE;
+	}
+
+	// save state
+	ABCD = _mm_shuffle_epi32(ABCD, _MM_SHUFFLE(0, 1, 2, 3));
+	_mm_storeu_si128((__m128i*)State, ABCD);
+	State[4] = _mm_extract_epi32(E0, 3);
+}
+
+#if PLATFORM_COMPILER_CLANG
+#pragma clang attribute pop
+#endif
+
+#endif
+
+#if UE_PLATFORM_SHA_ARMV8
+
+static void Sha1TransformARMV8(uint32* State, const uint8_t* Buffer, uint64 Size)
+{
+	// https://developer.arm.com/architectures/instruction-sets/intrinsics/#f:@navigationhierarchiesinstructiongroup=[Cryptography,SHA1]
+
+	// load current state
+	uint32x4_t ABCD = vld1q_u32(State);
+	uint32 E0 = State[4];
+
+	while (Size >= SHA1_BLOCK_SIZE)
+	{
+		// remember current state
+		uint32x4_t ABCD_SAVE = ABCD;
+		uint32_t E0_SAVE = E0;
+
+		// load message from buffer as 32-bit big-endian integers
+		uint32x4_t M0 = vreinterpretq_u32_u8(vrev32q_u8(vld1q_u8(Buffer + 0 * 16)));
+		uint32x4_t M1 = vreinterpretq_u32_u8(vrev32q_u8(vld1q_u8(Buffer + 1 * 16)));
+		uint32x4_t M2 = vreinterpretq_u32_u8(vrev32q_u8(vld1q_u8(Buffer + 2 * 16)));
+		uint32x4_t M3 = vreinterpretq_u32_u8(vrev32q_u8(vld1q_u8(Buffer + 3 * 16)));
+
+		uint32x4_t T0 = vaddq_u32(M0, vdupq_n_u32(0x5A827999));
+		uint32x4_t T1 = vaddq_u32(M1, vdupq_n_u32(0x5A827999));
+		uint32 E1;
+
+		// 0..3
+		E1 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1cq_u32(ABCD, E0, T0);
+		T0 = vaddq_u32(M2, vdupq_n_u32(0x5A827999));
+		M0 = vsha1su0q_u32(M0, M1, M2);
+
+		// 4..7
+		E0 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1cq_u32(ABCD, E1, T1);
+		T1 = vaddq_u32(M3, vdupq_n_u32(0x5A827999));
+		M0 = vsha1su1q_u32(M0, M3);
+		M1 = vsha1su0q_u32(M1, M2, M3);
+
+		// 8..11
+		E1 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1cq_u32(ABCD, E0, T0);
+		T0 = vaddq_u32(M0, vdupq_n_u32(0x5A827999));
+		M1 = vsha1su1q_u32(M1, M0);
+		M2 = vsha1su0q_u32(M2, M3, M0);
+
+		// 12..15
+		E0 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1cq_u32(ABCD, E1, T1);
+		T1 = vaddq_u32(M1, vdupq_n_u32(0x6ED9EBA1));
+		M2 = vsha1su1q_u32(M2, M1);
+		M3 = vsha1su0q_u32(M3, M0, M1);
+
+		// 16..19
+		E1 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1cq_u32(ABCD, E0, T0);
+		T0 = vaddq_u32(M2, vdupq_n_u32(0x6ED9EBA1));
+		M3 = vsha1su1q_u32(M3, M2);
+		M0 = vsha1su0q_u32(M0, M1, M2);
+
+		// 20..23
+		E0 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1pq_u32(ABCD, E1, T1);
+		T1 = vaddq_u32(M3, vdupq_n_u32(0x6ED9EBA1));
+		M0 = vsha1su1q_u32(M0, M3);
+		M1 = vsha1su0q_u32(M1, M2, M3);
+
+		// 24..27
+		E1 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1pq_u32(ABCD, E0, T0);
+		T0 = vaddq_u32(M0, vdupq_n_u32(0x6ED9EBA1));
+		M1 = vsha1su1q_u32(M1, M0);
+		M2 = vsha1su0q_u32(M2, M3, M0);
+
+		// 28..31
+		E0 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1pq_u32(ABCD, E1, T1);
+		T1 = vaddq_u32(M1, vdupq_n_u32(0x6ED9EBA1));
+		M2 = vsha1su1q_u32(M2, M1);
+		M3 = vsha1su0q_u32(M3, M0, M1);
+
+		// 32..35
+		E1 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1pq_u32(ABCD, E0, T0);
+		T0 = vaddq_u32(M2, vdupq_n_u32(0x8F1BBCDC));
+		M3 = vsha1su1q_u32(M3, M2);
+		M0 = vsha1su0q_u32(M0, M1, M2);
+
+		// 36..39
+		E0 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1pq_u32(ABCD, E1, T1);
+		T1 = vaddq_u32(M3, vdupq_n_u32(0x8F1BBCDC));
+		M0 = vsha1su1q_u32(M0, M3);
+		M1 = vsha1su0q_u32(M1, M2, M3);
+
+		// 40..43
+		E1 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1mq_u32(ABCD, E0, T0);
+		T0 = vaddq_u32(M0, vdupq_n_u32(0x8F1BBCDC));
+		M1 = vsha1su1q_u32(M1, M0);
+		M2 = vsha1su0q_u32(M2, M3, M0);
+
+		// 44..47
+		E0 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1mq_u32(ABCD, E1, T1);
+		T1 = vaddq_u32(M1, vdupq_n_u32(0x8F1BBCDC));
+		M2 = vsha1su1q_u32(M2, M1);
+		M3 = vsha1su0q_u32(M3, M0, M1);
+
+		// 48..51
+		E1 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1mq_u32(ABCD, E0, T0);
+		T0 = vaddq_u32(M2, vdupq_n_u32(0x8F1BBCDC));
+		M3 = vsha1su1q_u32(M3, M2);
+		M0 = vsha1su0q_u32(M0, M1, M2);
+
+		// 52..55
+		E0 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1mq_u32(ABCD, E1, T1);
+		T1 = vaddq_u32(M3, vdupq_n_u32(0xCA62C1D6));
+		M0 = vsha1su1q_u32(M0, M3);
+		M1 = vsha1su0q_u32(M1, M2, M3);
+
+		// 56..59
+		E1 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1mq_u32(ABCD, E0, T0);
+		T0 = vaddq_u32(M0, vdupq_n_u32(0xCA62C1D6));
+		M1 = vsha1su1q_u32(M1, M0);
+		M2 = vsha1su0q_u32(M2, M3, M0);
+
+		// 60..63
+		E0 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1pq_u32(ABCD, E1, T1);
+		T1 = vaddq_u32(M1, vdupq_n_u32(0xCA62C1D6));
+		M2 = vsha1su1q_u32(M2, M1);
+		M3 = vsha1su0q_u32(M3, M0, M1);
+
+		// 64..67
+		E1 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1pq_u32(ABCD, E0, T0);
+		T0 = vaddq_u32(M2, vdupq_n_u32(0xCA62C1D6));
+		M3 = vsha1su1q_u32(M3, M2);
+		M0 = vsha1su0q_u32(M0, M1, M2);
+
+		// 68..71
+		E0 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1pq_u32(ABCD, E1, T1);
+		T1 = vaddq_u32(M3, vdupq_n_u32(0xCA62C1D6));
+		M0 = vsha1su1q_u32(M0, M3);
+
+		// 72..75
+		E1 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1pq_u32(ABCD, E0, T0);
+
+		// 76..79
+		E0 = vsha1h_u32(vgetq_lane_u32(ABCD, 0));
+		ABCD = vsha1pq_u32(ABCD, E1, T1);
+
+		// add the working vars back into state
+		E0 += E0_SAVE;
+		ABCD = vaddq_u32(ABCD_SAVE, ABCD);
+
+		Buffer += SHA1_BLOCK_SIZE;
+		Size -= SHA1_BLOCK_SIZE;
+	}
+
+	// save state
+	vst1q_u32(State, ABCD);
+	State[4] = E0;
+}
+
+#endif
+
+void FSHA1::Transform(const uint8* buffer, uint64 len)
+{
+#if UE_PLATFORM_SHA_X86
+	if (CanUseShaInstructions())
+	{
+		Sha1TransformX86(m_state, buffer, len);
+		return;
+	}
+#endif
+
+#if UE_PLATFORM_SHA_ARMV8
+	Sha1TransformARMV8(m_state, buffer, len);
+	return;
+#endif
+
+#if UE_PLATFORM_SHA_FALLBACK
+
+	// load current state
+	uint32 a = m_state[0];
+	uint32 b = m_state[1];
+	uint32 c = m_state[2];
+	uint32 d = m_state[3];
+	uint32 e = m_state[4];
+
+	while (len >= SHA1_BLOCK_SIZE)
+	{
+		uint32 block[16];
+		FMemory::Memcpy(block, buffer, SHA1_BLOCK_SIZE);
+
+		// remember current state
+		uint32 a0 = a;
+		uint32 b0 = b;
+		uint32 c0 = c;
+		uint32 d0 = d;
+		uint32 e0 = e;
+
+		// 4 rounds of 20 operations each. Loop unrolled.
+		_R0(a,b,c,d,e, 0); _R0(e,a,b,c,d, 1); _R0(d,e,a,b,c, 2); _R0(c,d,e,a,b, 3);
+		_R0(b,c,d,e,a, 4); _R0(a,b,c,d,e, 5); _R0(e,a,b,c,d, 6); _R0(d,e,a,b,c, 7);
+		_R0(c,d,e,a,b, 8); _R0(b,c,d,e,a, 9); _R0(a,b,c,d,e,10); _R0(e,a,b,c,d,11);
+		_R0(d,e,a,b,c,12); _R0(c,d,e,a,b,13); _R0(b,c,d,e,a,14); _R0(a,b,c,d,e,15);
+		_R1(e,a,b,c,d,16); _R1(d,e,a,b,c,17); _R1(c,d,e,a,b,18); _R1(b,c,d,e,a,19);
+		_R2(a,b,c,d,e,20); _R2(e,a,b,c,d,21); _R2(d,e,a,b,c,22); _R2(c,d,e,a,b,23);
+		_R2(b,c,d,e,a,24); _R2(a,b,c,d,e,25); _R2(e,a,b,c,d,26); _R2(d,e,a,b,c,27);
+		_R2(c,d,e,a,b,28); _R2(b,c,d,e,a,29); _R2(a,b,c,d,e,30); _R2(e,a,b,c,d,31);
+		_R2(d,e,a,b,c,32); _R2(c,d,e,a,b,33); _R2(b,c,d,e,a,34); _R2(a,b,c,d,e,35);
+		_R2(e,a,b,c,d,36); _R2(d,e,a,b,c,37); _R2(c,d,e,a,b,38); _R2(b,c,d,e,a,39);
+		_R3(a,b,c,d,e,40); _R3(e,a,b,c,d,41); _R3(d,e,a,b,c,42); _R3(c,d,e,a,b,43);
+		_R3(b,c,d,e,a,44); _R3(a,b,c,d,e,45); _R3(e,a,b,c,d,46); _R3(d,e,a,b,c,47);
+		_R3(c,d,e,a,b,48); _R3(b,c,d,e,a,49); _R3(a,b,c,d,e,50); _R3(e,a,b,c,d,51);
+		_R3(d,e,a,b,c,52); _R3(c,d,e,a,b,53); _R3(b,c,d,e,a,54); _R3(a,b,c,d,e,55);
+		_R3(e,a,b,c,d,56); _R3(d,e,a,b,c,57); _R3(c,d,e,a,b,58); _R3(b,c,d,e,a,59);
+		_R4(a,b,c,d,e,60); _R4(e,a,b,c,d,61); _R4(d,e,a,b,c,62); _R4(c,d,e,a,b,63);
+		_R4(b,c,d,e,a,64); _R4(a,b,c,d,e,65); _R4(e,a,b,c,d,66); _R4(d,e,a,b,c,67);
+		_R4(c,d,e,a,b,68); _R4(b,c,d,e,a,69); _R4(a,b,c,d,e,70); _R4(e,a,b,c,d,71);
+		_R4(d,e,a,b,c,72); _R4(c,d,e,a,b,73); _R4(b,c,d,e,a,74); _R4(a,b,c,d,e,75);
+		_R4(e,a,b,c,d,76); _R4(d,e,a,b,c,77); _R4(c,d,e,a,b,78); _R4(b,c,d,e,a,79);
+
+		// Add the working vars back into state
+		a += a0;
+		b += b0;
+		c += c0;
+		d += d0;
+		e += e0;
+
+		buffer += SHA1_BLOCK_SIZE;
+		len -= SHA1_BLOCK_SIZE;
+	}
+
+	// save state
+	m_state[0] = a;
+	m_state[1] = b;
+	m_state[2] = c;
+	m_state[3] = d;
+	m_state[4] = e;
+#endif
 }
 
 // do not remove #undefs, or you can get name collision with libc++'s <functional>
@@ -689,32 +1169,43 @@ void FSHA1::Transform(uint32 *state, const uint8 *buffer)
 #undef _R2
 #undef _R3
 #undef _R4
+#undef SHABLK
+#undef SHABLK0
+#undef ROL32
 
 // Use this function to hash in binary data
-void FSHA1::Update(const uint8 *data, uint64 len)
+void FSHA1::Update(const uint8* data, uint64 len)
 {
-	uint64 i, j;
-
-	j = (m_count[0] >> 3) & 63;
-
-	uint64 inputBitCount = len << 3;
-	uint64 newBitCount = (uint64(m_count[0]) | (uint64(m_count[1]) << 32)) + inputBitCount;
-	m_count[0] = uint32(newBitCount);
-	m_count[1] = uint32(newBitCount >> 32);
-
-	if((j + len) > 63)
+	if (len == 0)
 	{
-		i = 64 - j;
-		FMemory::Memcpy(&m_buffer[j], data, i);
-		Transform(m_state, m_buffer);
-
-		for( ; i + 63 < len; i += 64) Transform(m_state, &data[i]);
-
-		j = 0;
+		return;
 	}
-	else i = 0;
 
-	FMemory::Memcpy(&m_buffer[j], &data[i], len - i);
+	size_t left = m_count % SHA1_BLOCK_SIZE;
+	size_t fill = SHA1_BLOCK_SIZE - left;
+
+	m_count += len;
+
+	if (left && len >= fill)
+	{
+		// process internal buffer if it can be filled fully
+		FMemory::Memcpy(&m_buffer[left], data, fill);
+		Transform(m_buffer, SHA1_BLOCK_SIZE);
+		data += fill;
+		len -= fill;
+		left = 0;
+	}
+
+	if (len >= SHA1_BLOCK_SIZE)
+	{
+		// process whole blocks in one call as much as possible
+		Transform(data, len);
+		data += len & ~(SHA1_BLOCK_SIZE - 1);
+		len %= SHA1_BLOCK_SIZE;
+	}
+
+	// remember any leftover bytes into internal buffer
+	FMemory::Memcpy(&m_buffer[left], data, len);
 }
 
 // Use this function to hash in strings
@@ -725,26 +1216,24 @@ void FSHA1::UpdateWithString(const TCHAR *String, uint32 Length)
 
 void FSHA1::Final()
 {
-	uint32 i;
+	// processed input bit count, in big endian
 	uint8 finalcount[8];
-
-	for(i = 0; i < 8; i++)
+	for (int i = 0; i < 8; i++)
 	{
-		finalcount[i] = (uint8)((m_count[((i >= 4) ? 0 : 1)] >> ((3 - (i & 3)) * 8) ) & 255); // Endian independent
+		finalcount[i] = (uint8)((m_count << 3) >> ((7 - i) * 8));
 	}
 
-	Update((uint8*)"\200", 1);
+	// pad to 56 mod 64
+	size_t last = m_count % SHA1_BLOCK_SIZE;
+	size_t padn = (last < SHA1_BLOCK_SIZE - 8) ? (SHA1_BLOCK_SIZE - 8 - last) : (2 * SHA1_BLOCK_SIZE - 8 - last);
+	Update(PADDING, padn);
 
-	while ((m_count[0] & 504) != 448)
+	// last 8 bytes is size
+	Update(finalcount, sizeof(finalcount));
+
+	for (int i = 0; i < 20; i++)
 	{
-		Update((uint8*)"\0", 1);
-	}
-
-	Update(finalcount, 8); // Cause a SHA1Transform()
-
-	for(i = 0; i < 20; i++)
-	{
-		m_digest[i] = (uint8)((m_state[i >> 2] >> ((3 - (i & 3)) * 8) ) & 255);
+		m_digest[i] = (uint8)(m_state[i >> 2] >> ((3 - (i & 3)) * 8));
 	}
 }
 

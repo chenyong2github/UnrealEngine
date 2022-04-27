@@ -5,8 +5,16 @@
 #include "CoreTypes.h"
 #include "HAL/UnrealMemory.h"
 
-#define AES_BLOCK_SIZE 16
+// AES-256 implementation - using ECB mode for multiple blocks
 
+// The currently implemented approach has the shortcoming that it encrypts and decrypts each
+// 128-bit block separately. If the plaintext contains identical 128-byte blocks, the blocks
+// will be encrypted identically. This makes some of the plaintext structure visible in the
+// ciphertext, even to someone who does not have the key.
+
+// DO NOT USE this functionality for any new place where you might need encryption. Because
+// current code is meant for keeping backwards compatiblity with existing data. Better way
+// to use AES would be integrated with authentication, for example, in AES-GCM mode.
 
 struct CORE_API FAES
 {
@@ -64,7 +72,7 @@ struct CORE_API FAES
 	 *
 	 * @param Contents the buffer to encrypt
 	 * @param NumBytes the size of the buffer
-	 * @param Key a null terminated string that is a 32 byte multiple length
+	 * @param Key a null terminated string that is a 32 bytes long
 	 */
 	static void EncryptData(uint8* Contents, uint32 NumBytes, const ANSICHAR* Key);
 
@@ -73,7 +81,8 @@ struct CORE_API FAES
 	*
 	* @param Contents the buffer to encrypt
 	* @param NumBytes the size of the buffer
-	* @param Key a byte array that is a 32 byte multiple length
+	* @param Key a byte array that is a 32 byte length
+	* @param NumKeyBytes length of Key byte array, must be 32
 	*/
 	static void EncryptData(uint8* Contents, uint32 NumBytes, const uint8* KeyBytes, uint32 NumKeyBytes);
 
@@ -82,7 +91,7 @@ struct CORE_API FAES
 	*
 	* @param Contents the buffer to encrypt
 	* @param NumBytes the size of the buffer
-	* @param Key a null terminated string that is a 32 byte multiple length
+	* @param Key An FAESKey object containing the decryption key
 	*/
 	static void DecryptData(uint8* Contents, uint32 NumBytes, const FAESKey& Key);
 
@@ -91,7 +100,7 @@ struct CORE_API FAES
 	 *
 	 * @param Contents the buffer to encrypt
 	 * @param NumBytes the size of the buffer
-	 * @param Key a null terminated string that is a 32 byte multiple length
+	 * @param Key a null terminated string that is a 32 bytes long
 	 */
 	static void DecryptData(uint8* Contents, uint32 NumBytes, const ANSICHAR* Key);
 
@@ -100,7 +109,8 @@ struct CORE_API FAES
 	*
 	* @param Contents the buffer to encrypt
 	* @param NumBytes the size of the buffer
-	* @param Key a byte array that is a 32 byte multiple length
+	* @param Key a byte array that is a 32 byte length
+	* @param NumKeyBytes length of Key byte array, must be 32
 	*/
 	static void DecryptData(uint8* Contents, uint32 NumBytes, const uint8* KeyBytes, uint32 NumKeyBytes);
 };
