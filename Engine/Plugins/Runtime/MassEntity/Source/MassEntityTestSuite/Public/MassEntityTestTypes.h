@@ -6,6 +6,9 @@
 #include "MassEntityTypes.h"
 #include "MassEntitySubsystem.h"
 #include "AITestsCommon.h"
+#include "Subsystems/WorldSubsystem.h"
+#include "Misc/MTAccessDetector.h"
+#include "MassExternalSubsystemTraits.h"
 #include "MassEntityTestTypes.generated.h"
 
 
@@ -204,4 +207,28 @@ struct FEntityTestBase : FExecutionTestBase
 	FInstancedStruct InstanceInt;
 
 	virtual bool SetUp() override;
+};
+
+UCLASS()
+class UMassTestWorldSubsystem : public UWorldSubsystem
+{
+	GENERATED_BODY()
+public:
+	void Write(int32 InNumber);
+	int32 Read() const;
+
+private:
+	UE_MT_DECLARE_RW_ACCESS_DETECTOR(AccessDetector);
+	int Number = 0;
+};
+
+template<>
+struct TMassExternalSubsystemTraits<UMassTestWorldSubsystem>
+{
+	enum
+	{
+		GameThreadOnly = false,
+		ThreadSafeRead = true,
+		ThreadSafeWrite = false,
+	};
 };

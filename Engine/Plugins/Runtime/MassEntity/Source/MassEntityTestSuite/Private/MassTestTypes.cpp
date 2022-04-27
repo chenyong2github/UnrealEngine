@@ -82,3 +82,19 @@ UMassTestProcessor_FloatsInts::UMassTestProcessor_FloatsInts()
 		EntityQuery.AddRequirement<FTestFragment_Int>(EMassFragmentAccess::ReadWrite);
 	};
 }
+
+//----------------------------------------------------------------------//
+// UMassTestWorldSubsystem
+//----------------------------------------------------------------------//
+void UMassTestWorldSubsystem::Write(int32 InNumber)
+{
+	UE_MT_SCOPED_WRITE_ACCESS(AccessDetector);
+	Number = InNumber;
+}
+
+int32 UMassTestWorldSubsystem::Read() const
+{
+	UE_MT_SCOPED_READ_ACCESS(AccessDetector);
+	return Number;
+}
+
