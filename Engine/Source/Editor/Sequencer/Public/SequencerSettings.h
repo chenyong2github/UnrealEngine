@@ -29,7 +29,7 @@ UENUM()
 enum ESequencerZoomPosition
 {
 	/** Current Time. */
-	SZP_CurrentTime UMETA(DisplayName="Current Time"),
+	SZP_CurrentTime UMETA(DisplayName="Playhead"),
 
 	/** Mouse Position. */
 	SZP_MousePosition UMETA(DisplayName="Mouse Position"),
@@ -430,28 +430,28 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bSnapKeysAndSectionsToPlayRange;
 
-	/** Enable or disable snapping the current time to keys while scrubbing. */
-	UPROPERTY( config, EditAnywhere, Category=Snapping )
+	/** Enable or disable snapping the playhead to keys while scrubbing. */
+	UPROPERTY( config, EditAnywhere, Category=Snapping, meta = (DisplayName = "Snap Playhead to Keys"))
 	bool bSnapPlayTimeToKeys;
 
-	/** Enable or disable snapping the current time to section bounds while scrubbing. */
-	UPROPERTY( config, EditAnywhere, Category=Snapping )
+	/** Enable or disable snapping the playhead to section bounds while scrubbing. */
+	UPROPERTY( config, EditAnywhere, Category=Snapping, meta = (DisplayName = "Snap Playhead to Sectins"))
 	bool bSnapPlayTimeToSections;
 
-	/** Enable or disable snapping the current time to markers while scrubbing. */
-	UPROPERTY( config, EditAnywhere, Category=Snapping )
+	/** Enable or disable snapping the playhead to markers while scrubbing. */
+	UPROPERTY( config, EditAnywhere, Category=Snapping, meta = (DisplayName = "Snap Playhead to Markers"))
 	bool bSnapPlayTimeToMarkers;
 
-	/** Enable or disable snapping the current time to the time snapping interval while scrubbing. */
-	UPROPERTY( config, EditAnywhere, Category=Snapping )
+	/** Enable or disable snapping the playhead to the time snapping interval while scrubbing. */
+	UPROPERTY( config, EditAnywhere, Category=Snapping, meta = (DisplayName = "Snap Playhead to Interval"))
 	bool bSnapPlayTimeToInterval;
 
-	/** Enable or disable snapping the current time to the pressed key. */
-	UPROPERTY( config, EditAnywhere, Category=Snapping )
+	/** Enable or disable snapping the playhead to the pressed key. */
+	UPROPERTY( config, EditAnywhere, Category=Snapping, meta = (DisplayName = "Snap Playhead to Pressed Key"))
 	bool bSnapPlayTimeToPressedKey;
 
-	/** Enable or disable snapping the current time to the dragged key. */
-	UPROPERTY( config, EditAnywhere, Category=Snapping )
+	/** Enable or disable snapping the playhead to the dragged key. */
+	UPROPERTY( config, EditAnywhere, Category=Snapping, meta = (DisplayName = "Snap Playhead to Dragged Key"))
 	bool bSnapPlayTimeToDraggedKey;
 
 	/** The curve value interval to snap to. */
@@ -496,8 +496,8 @@ protected:
 	UPROPERTY( config )
 	TEnumAsByte<ESequencerLoopMode> LoopMode;
 
-	/** Enable or disable keeping the cursor in the current playback range while scrubbing. */
-	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	/** Enable or disable keeping the playhead in the current playback range while scrubbing. */
+	UPROPERTY(config, EditAnywhere, Category = Timeline, meta = (DisplayName = "Keep Playhead in Play Range While Scrubbing"))
 	bool bKeepCursorInPlayRangeWhileScrubbing;
 
 	/** Enable or disable keeping the playback range constrained to the section bounds. */
