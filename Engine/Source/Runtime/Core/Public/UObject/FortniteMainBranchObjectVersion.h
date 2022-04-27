@@ -205,6 +205,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Storing inertia tensor as vec3 instead of matrix.
 		ChaosInertiaConvertedToVec3,
 
+		// Migrated event definitions to the CDO/archetype data
+		MigratedEventDefinitionToDefaults,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
