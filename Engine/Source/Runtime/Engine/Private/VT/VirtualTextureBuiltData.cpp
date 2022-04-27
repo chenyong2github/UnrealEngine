@@ -378,7 +378,7 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 		// Streaming chunks are saved with a size of 0 because they are stored separately.
 		// IsBulkDataLoaded() returns true for this empty bulk data. Remove the empty
 		// bulk data to allow unloaded streaming chunks to be detected.
-		if (Ar.IsLoading() && Chunk.BulkData.GetBulkDataSize() == 0)
+		if (Chunk.BulkData.GetBulkDataSize() == 0)
 		{
 			Chunk.BulkData.RemoveBulkData();
 		}
