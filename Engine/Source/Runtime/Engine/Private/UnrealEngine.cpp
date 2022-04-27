@@ -15977,6 +15977,65 @@ public:
 	// ~End FArchive Interface
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UEngine::FCopyPropertiesForUnrelatedObjectsParams::FCopyPropertiesForUnrelatedObjectsParams()
+	: bAggressiveDefaultSubobjectReplacement(false)
+	, bDoDelta(true)
+	, bReplaceObjectClassReferences(true)
+	, bCopyDeprecatedProperties(false)
+	, bPreserveRootComponent(true)
+	, bPerformDuplication(false)
+	, bSkipCompilerGeneratedDefaults(false)
+	, bNotifyObjectReplacement(false)
+	, bClearReferences(true)
+	, bDontClearReferenceIfNewerClassExists(false)
+{}
+UEngine::FCopyPropertiesForUnrelatedObjectsParams::FCopyPropertiesForUnrelatedObjectsParams(const FCopyPropertiesForUnrelatedObjectsParams&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+
+TAutoConsoleVariable<bool> CVarAuditAggressiveReferenceReplacement(
+	TEXT("cpfuo.AuditAggressiveReferenceReplacment"),
+	1,
+	TEXT("Whether to audit and report on reference replacements that come from the aggressive replacement path.\n"),
+	ECVF_Cheat);
+
+TAutoConsoleVariable<bool> CVarUseAggressiveReferenceReplacement(
+	TEXT("cpfuo.UseAggressiveReferenceReplacment"),
+	0,
+	TEXT("Whether to aggressively replace references. This behavior is being deprecated but being left with the ability to toggle back on in case issues arise.\n"),
+	ECVF_Default);
+
+class FAggressiveReplacementAuditArchive : public FArchiveReplaceOrClearExternalReferences<UObject>
+{
+public:
+
+	typedef FArchiveReplaceOrClearExternalReferences<UObject> TSuper;
+
+	FAggressiveReplacementAuditArchive(UObject* InSearchObject, const TMap<UObject*, UObject*>& InReplacementMap, UPackage* InDestPackage, const TMap<UObject*, UObject*>& InAggressiveReplacements)
+		: TSuper(InSearchObject, InReplacementMap, InDestPackage, EArchiveReplaceObjectFlags::DelayStart)
+		, AggressiveReplacements(InAggressiveReplacements)
+	{
+		this->SerializeSearchObject();
+	}
+
+	FArchive& operator<<(UObject*& Obj)
+	{
+		UObject* PreResolveObj = Obj;
+		TSuper::operator<<(Obj);
+		if (UObject* const * AggressiveReplacementObj = AggressiveReplacements.Find(PreResolveObj))
+		{
+			ensureAlwaysMsgf(false, TEXT("UE-91735: Attempted aggressive reference replacement. '%s' would have been replaced by '%s' in '%s' for property '%s'"), *GetNameSafe(PreResolveObj), *GetNameSafe(*AggressiveReplacementObj), *GetNameSafe(GetSearchObject()), *GetNameSafe(GetSerializedProperty()));
+		}
+
+		return *this;
+	}
+
+private:
+
+	const TMap<UObject*, UObject*>& AggressiveReplacements;
+};
+
 void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, FCopyPropertiesForUnrelatedObjectsParams Params)
 {
 	// UObject::CollectDefaultSubobjects will not return all DSOs for the CDO (only returns inherited subobjects). It also
@@ -16064,6 +16123,16 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 	ReferenceReplacementMap.Add(OldObject->GetClass()->GetDefaultObject(), NewObject->GetClass()->GetDefaultObject());
 
 	TArray<UObject*> ComponentsOnNewObject;
+	TMap<UObject*, UObject*> AggressiveReplaceReferences;
+#if !UE_BUILD_SHIPPING
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	const bool bAuditAggressiveReplacement = Params.bAggressiveDefaultSubobjectReplacement && CVarAuditAggressiveReferenceReplacement.GetValueOnAnyThread();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#else
+	constexpr bool bAuditAggressiveReplacement = false;
+#endif
+	const bool bDoAggressiveReplacement = CVarUseAggressiveReferenceReplacement.GetValueOnAnyThread();
+
 	{
 		// Serialize in the modified properties from the old CDO to the new CDO
 		if (Writer.SavedPropertyData.Num() > 0)
@@ -16081,24 +16150,38 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 			{
 				FInstancedObjectRecord& Record = SavedInstances[*pOldInstanceIndex];
 				ReferenceReplacementMap.Add(Record.OldInstance, NewInstance);
-				if (Params.bAggressiveDefaultSubobjectReplacement)
+				if (bDoAggressiveReplacement || bAuditAggressiveReplacement)
 				{
 					UClass* Class = OldObject->GetClass()->GetSuperClass();
 					if (Class)
 					{
-						UObject *CDOInst = Class->GetDefaultSubobjectByName(NewInstance->GetFName());
+						UObject* CDOInst = Class->GetDefaultSubobjectByName(NewInstance->GetFName());
 						if (CDOInst)
 						{
-							ReferenceReplacementMap.Add(CDOInst, NewInstance);
-#if WITH_EDITOR
-							if (Class->ClassGeneratedBy && Cast<UBlueprint>(Class->ClassGeneratedBy)->SkeletonGeneratedClass)
+							if (bAuditAggressiveReplacement)
 							{
-								UObject *CDOInstS = Cast<UBlueprint>(Class->ClassGeneratedBy)->SkeletonGeneratedClass->GetDefaultSubobjectByName(NewInstance->GetFName());
+								AggressiveReplaceReferences.Add(CDOInst, NewInstance);
+							}
+							if (bDoAggressiveReplacement)
+							{
+								ReferenceReplacementMap.Add(CDOInst, NewInstance);
+							}
+#if WITH_EDITOR
+							UBlueprint* BPGeneratedBy = CastChecked<UBlueprint>(Class->ClassGeneratedBy, ECastCheckedType::NullAllowed);
+							if (BPGeneratedBy && BPGeneratedBy->SkeletonGeneratedClass)
+							{
+								UObject* CDOInstS = BPGeneratedBy->SkeletonGeneratedClass->GetDefaultSubobjectByName(NewInstance->GetFName());
 								if (CDOInstS)
 								{
-									ReferenceReplacementMap.Add(CDOInstS, NewInstance);
+									if (bAuditAggressiveReplacement)
+									{
+										AggressiveReplaceReferences.Add(CDOInstS, NewInstance);
+									}
+									if (bDoAggressiveReplacement)
+									{
+										ReferenceReplacementMap.Add(CDOInstS, NewInstance);
+									}
 								}
-
 							}
 #endif // WITH_EDITOR
 						}
@@ -16156,13 +16239,27 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 	{
 		UPackage* NewPackage = NewObject->GetOutermost();
 		// Replace references to old classes and instances on this object with the corresponding new ones
-		FArchiveReplaceOrClearExternalReferences<UObject> ReplaceInCDOAr(NewObject, ReferenceReplacementMap, NewPackage);
+		if (bAuditAggressiveReplacement)
+		{
+			FAggressiveReplacementAuditArchive ReplaceInCDOAr(NewObject, ReferenceReplacementMap, NewPackage, AggressiveReplaceReferences);
+		}
+		else
+		{
+			FArchiveReplaceOrClearExternalReferences<UObject> ReplaceInCDOAr(NewObject, ReferenceReplacementMap, NewPackage);
+		}
 
 		// Replace references inside each individual component. This is always required because if something is in ReferenceReplacementMap, the above replace code will skip fixing child properties
 		for (int32 ComponentIndex = 0; ComponentIndex < ComponentsOnNewObject.Num(); ++ComponentIndex)
 		{
 			UObject* NewComponent = ComponentsOnNewObject[ComponentIndex];
-			FArchiveReplaceOrClearExternalReferences<UObject> ReplaceInComponentAr(NewComponent, ReferenceReplacementMap, NewPackage);
+			if (bAuditAggressiveReplacement)
+			{
+				FAggressiveReplacementAuditArchive ReplaceInComponentAr(NewComponent, ReferenceReplacementMap, NewPackage, AggressiveReplaceReferences);
+			}
+			else
+			{
+				FArchiveReplaceOrClearExternalReferences<UObject> ReplaceInComponentAr(NewComponent, ReferenceReplacementMap, NewPackage);
+			}
 		}
 	}
 

@@ -2771,6 +2771,7 @@ public:
 	/** Makes a strong effort to copy everything possible from and old object to a new object of a different class, used for blueprint to update things after a recompile. */
 	struct FCopyPropertiesForUnrelatedObjectsParams
 	{
+		UE_DEPRECATED(5.1, "Aggressive Default Subobject Replacement is no longer being done. An ensure has been left in place to catch any cases that was making use of this feature.")
 		bool bAggressiveDefaultSubobjectReplacement;
 		bool bDoDelta;
 		bool bReplaceObjectClassReferences;
@@ -2784,20 +2785,10 @@ public:
 		bool bClearReferences;
 		bool bDontClearReferenceIfNewerClassExists;
 
-		FCopyPropertiesForUnrelatedObjectsParams()
-			: bAggressiveDefaultSubobjectReplacement(false)
-			, bDoDelta(true)
-			, bReplaceObjectClassReferences(true)
-			, bCopyDeprecatedProperties(false)
-			, bPreserveRootComponent(true)
-			, bPerformDuplication(false)
-			, bSkipCompilerGeneratedDefaults(false)
-			, bNotifyObjectReplacement(false)
-			, bClearReferences(true)
-			, bDontClearReferenceIfNewerClassExists(false)
-		{}
+		ENGINE_API FCopyPropertiesForUnrelatedObjectsParams();
+		ENGINE_API FCopyPropertiesForUnrelatedObjectsParams(const FCopyPropertiesForUnrelatedObjectsParams&);
 	};
-	static void CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, FCopyPropertiesForUnrelatedObjectsParams Params = FCopyPropertiesForUnrelatedObjectsParams());//bool bAggressiveDefaultSubobjectReplacement = false, bool bDoDelta = true);
+	static void CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* NewObject, FCopyPropertiesForUnrelatedObjectsParams Params = FCopyPropertiesForUnrelatedObjectsParams());
 	virtual void NotifyToolsOfObjectReplacement(const TMap<UObject*, UObject*>& OldToNewInstanceMap) { }
 
 	virtual bool UseSound() const;

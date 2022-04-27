@@ -329,7 +329,10 @@ void ADisplayClusterRootActor::UpdateConfigDataInstance(UDisplayClusterConfigura
 		else if (bForceRecreate)
 		{
 			UEngine::FCopyPropertiesForUnrelatedObjectsParams Params;
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			// Leaving this enabled for now for the purposes of the aggressive replacement auditing
 			Params.bAggressiveDefaultSubobjectReplacement = true;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			Params.bNotifyObjectReplacement = false;
 			Params.bDoDelta = false;
 			UEngine::CopyPropertiesForUnrelatedObjects(ConfigDataTemplate, CurrentConfigData, Params);
