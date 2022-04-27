@@ -3,6 +3,7 @@
 #include "Animation/AnimSyncScope.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimSync.h"
+#include "Animation/AnimNodeBase.h"
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::Anim::FAnimSyncGroupScope);
 

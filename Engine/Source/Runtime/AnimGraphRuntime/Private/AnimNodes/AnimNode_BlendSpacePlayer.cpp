@@ -7,6 +7,9 @@
 #include "AnimGraphRuntimeTrace.h"
 #include "Animation/AnimSync.h"
 #include "Animation/AnimSyncScope.h"
+#if WITH_EDITORONLY_DATA
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#endif
 
 /////////////////////////////////////////////////////
 // FAnimNode_BlendSpacePlayerBase

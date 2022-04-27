@@ -8,6 +8,7 @@
 #include "Animation/BlendProfile.h"
 #include "Algo/MaxElement.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 
 LLM_DEFINE_TAG(Animation_Inertialization);
 

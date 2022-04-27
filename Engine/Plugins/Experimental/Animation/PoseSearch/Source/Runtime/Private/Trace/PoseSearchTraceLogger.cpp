@@ -3,6 +3,7 @@
 #include "PoseSearchTraceLogger.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Trace/Trace.inl"
+#include "Animation/AnimNodeBase.h"
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
 

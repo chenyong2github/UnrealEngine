@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNode_AssetPlayerBase.h"
-#include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimSyncScope.h"
 
 void FAnimNode_AssetPlayerBase::Initialize_AnyThread(const FAnimationInitializeContext& Context)

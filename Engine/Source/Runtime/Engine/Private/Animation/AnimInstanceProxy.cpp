@@ -25,6 +25,7 @@
 #include "Animation/AnimSyncScope.h"
 #include "Animation/AnimNotifyStateMachineInspectionLibrary.h"
 #include "Animation/MirrorDataTable.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName)
 #include "Animation/AnimMTStats.h"
@@ -40,6 +41,65 @@ const FName NAME_AnimBlueprintLog(TEXT("AnimBlueprintLog"));
 const FName NAME_Evaluate(TEXT("Evaluate"));
 const FName NAME_Update(TEXT("Update"));
 const FName NAME_AnimGraph(TEXT("AnimGraph"));
+
+FAnimInstanceProxy::FAnimInstanceProxy()
+	: AnimInstanceObject(nullptr)
+	, AnimClassInterface(nullptr)
+	, Skeleton(nullptr)
+	, SkeletalMeshComponent(nullptr)
+	, MainInstanceProxy(nullptr)
+	, CurrentDeltaSeconds(0.0f)
+	, CurrentTimeDilation(1.0f)
+	, RootNode(nullptr)
+	, DefaultLinkedInstanceInputNode(nullptr)
+	, BufferWriteIndex(0)
+	, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
+	, FrameCounterForUpdate(0)
+	, FrameCounterForNodeUpdate(0)
+	, CacheBonesRecursionCounter(0)
+	, MainMontageEvaluationData(&MontageEvaluationData)
+	, bUpdatingRoot(false)
+	, bBoneCachesInvalidated(false)
+	, bShouldExtractRootMotion(false)
+	, bDeferRootNodeInitialization(false)
+#if WITH_EDITORONLY_DATA
+	, bIsBeingDebugged(false)
+#endif
+	, bInitializeSubsystems(false)
+{
+}
+
+FAnimInstanceProxy::FAnimInstanceProxy(UAnimInstance* Instance)
+	: AnimInstanceObject(Instance)
+	, AnimClassInterface(IAnimClassInterface::GetFromClass(Instance->GetClass()))
+	, Skeleton(nullptr)
+	, SkeletalMeshComponent(nullptr)
+	, MainInstanceProxy(nullptr)
+	, CurrentDeltaSeconds(0.0f)
+	, CurrentTimeDilation(1.0f)
+	, RootNode(nullptr)
+	, DefaultLinkedInstanceInputNode(nullptr)
+	, BufferWriteIndex(0)
+	, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
+	, FrameCounterForUpdate(0)
+	, FrameCounterForNodeUpdate(0)
+	, CacheBonesRecursionCounter(0)
+	, MainMontageEvaluationData(&MontageEvaluationData)
+	, bUpdatingRoot(false)
+	, bBoneCachesInvalidated(false)
+	, bShouldExtractRootMotion(false)
+	, bDeferRootNodeInitialization(false)
+#if WITH_EDITORONLY_DATA
+	, bIsBeingDebugged(false)
+#endif
+	, bInitializeSubsystems(false)
+{
+}
+
+FAnimInstanceProxy::FAnimInstanceProxy(const FAnimInstanceProxy&) = default;
+FAnimInstanceProxy& FAnimInstanceProxy::operator=(FAnimInstanceProxy&&) = default;
+FAnimInstanceProxy& FAnimInstanceProxy::operator=(const FAnimInstanceProxy&) = default;
+FAnimInstanceProxy::~FAnimInstanceProxy() = default;
 
 void FAnimInstanceProxy::UpdateAnimationNode(const FAnimationUpdateContext& InContext)
 {
@@ -2999,6 +3059,11 @@ TArray<FAnimNode_AssetPlayerBase*> FAnimInstanceProxy::GetMutableInstanceAssetPl
 }
 
 #if WITH_EDITOR
+void FAnimInstanceProxy::RecordNodeVisit(int32 TargetNodeIndex, int32 SourceNodeIndex, float BlendWeight)
+{
+	UpdatedNodesThisFrame.Emplace(SourceNodeIndex, TargetNodeIndex, BlendWeight);
+}
+
 void FAnimInstanceProxy::RecordNodeAttribute(const FAnimInstanceProxy& InSourceProxy, int32 InTargetNodeIndex, int32 InSourceNodeIndex, FName InAttribute)
 {
 	TArray<FAnimBlueprintDebugData::FAttributeRecord>& InputAttributeRecords = NodeInputAttributesThisFrame.FindOrAdd(InTargetNodeIndex);

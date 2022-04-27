@@ -6,6 +6,9 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimPoseSearchProvider.h"
+#if WITH_EDITORONLY_DATA
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "AnimNode_SequencePlayer"
 

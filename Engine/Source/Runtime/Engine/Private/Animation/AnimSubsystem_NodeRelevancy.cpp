@@ -2,6 +2,7 @@
 
 #include "Animation/AnimSubsystem_NodeRelevancy.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimNodeBase.h"
 
 float FAnimNodeRelevancyStatus::GetCurrentWeight() const
 {

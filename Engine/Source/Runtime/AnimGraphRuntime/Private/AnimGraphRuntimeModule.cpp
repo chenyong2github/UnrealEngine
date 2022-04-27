@@ -7,6 +7,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AttributeTypes.h"
 #include "Algo/Sort.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FAnimGraphRuntimeModule
