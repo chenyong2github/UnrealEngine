@@ -44,7 +44,7 @@ TValueOrError<TArray<FMVVMFieldVariant>, FString> GenerateFieldPathList(TSubclas
 		{
 			return MakeValue(StructProperty->Struct);
 		}
-		return MakeError(FString::Printf(TEXT("Field can only be object properties or struct properties. %s is a %s"), *Property->GetName(), *Property->GetClass()->GetName()));
+		return MakeError(FString::Printf(TEXT("Only object or struct properties can be used as source paths. '%s' is a '%s'."), *Property->GetName(), *Property->GetClass()->GetName()));
 	};
 
 	auto TransformWithAccessor = [](UStruct* CurrentContainer, FMVVMFieldVariant CurrentField, bool bForReading) -> TValueOrError<FMVVMFieldVariant, FString>
@@ -64,7 +64,7 @@ TValueOrError<TArray<FMVVMFieldVariant>, FString> GenerateFieldPathList(TSubclas
 					}
 					else
 					{
-						return MakeError(FString::Printf(TEXT("The BlueprintGetter %s could not be found on object %s."), *BlueprintGetter, *CurrentContainer->GetName()));
+						return MakeError(FString::Printf(TEXT("The BlueprintGetter '%s' could not be found on object '%s'."), *BlueprintGetter, *CurrentContainer->GetName()));
 					}
 				}
 			}
@@ -83,7 +83,7 @@ TValueOrError<TArray<FMVVMFieldVariant>, FString> GenerateFieldPathList(TSubclas
 					}
 					else
 					{
-						return MakeError(FString::Printf(TEXT("The BlueprintSetter %s could not be found on object %s."), *BlueprintSetter, *CurrentContainer->GetName()));
+						return MakeError(FString::Printf(TEXT("The BlueprintSetter '%s' could not be found on object %s."), *BlueprintSetter, *CurrentContainer->GetName()));
 					}
 				}
 			}
@@ -103,7 +103,7 @@ TValueOrError<TArray<FMVVMFieldVariant>, FString> GenerateFieldPathList(TSubclas
 		FMVVMFieldVariant Field = BindingHelper::FindFieldByName(CurrentContainer, FMVVMBindingName(FName(FoundIndex, InFieldPath.GetData())));
 		if (Field.IsEmpty())
 		{
-			return MakeError(FString::Printf(TEXT("The field %s could not be found on container %s."), *FName(FoundIndex, InFieldPath.GetData()).ToString(), CurrentContainer ? *CurrentContainer->GetName() : TEXT("<none>")));
+			return MakeError(FString::Printf(TEXT("The field '%s' does not exist in the struct '%s'."), *FName(FoundIndex, InFieldPath.GetData()).ToString(), CurrentContainer ? *CurrentContainer->GetName() : TEXT("<none>")));
 		}
 		else if (Field.IsProperty())
 		{
@@ -147,7 +147,7 @@ TValueOrError<TArray<FMVVMFieldVariant>, FString> GenerateFieldPathList(TSubclas
 		FMVVMFieldVariant Field = BindingHelper::FindFieldByName(CurrentContainer, FMVVMBindingName(InFieldPath.GetData()));
 		if (Field.IsEmpty())
 		{
-			return MakeError(FString::Printf(TEXT("The field %s could not be found on container %s."), InFieldPath.GetData(), CurrentContainer ? *CurrentContainer->GetName() : TEXT("<none>")));
+			return MakeError(FString::Printf(TEXT("The field '%s' does not exist in the struct '%s'."), InFieldPath.GetData(), CurrentContainer ? *CurrentContainer->GetName() : TEXT("<none>")));
 		}
 
 		if (Field.IsProperty())

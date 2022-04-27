@@ -245,12 +245,12 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 			{
 				if (!BindingHelper::IsValidForDestinationBinding(FieldVariant.GetProperty()))
 				{
-					return MakeError(FString::Printf(TEXT("Property %s is not writable at runtime."), *FieldVariant.GetProperty()->GetName()));
+					return MakeError(FString::Printf(TEXT("Property '%s' is not writable at runtime."), *FieldVariant.GetProperty()->GetName()));
 				}
 			}
 			else if (!BindingHelper::IsValidForSourceBinding(FieldVariant.GetProperty()))
 			{
-				return MakeError(FString::Printf(TEXT("Property %s is not readable at runtime."), *FieldVariant.GetProperty()->GetName()));
+				return MakeError(FString::Printf(TEXT("Property '%s' is not readable at runtime."), *FieldVariant.GetProperty()->GetName()));
 			}
 
 			FString ValidatedStr = ValidateContainer(FieldVariant.GetProperty(), true, !bIsLast);
@@ -267,12 +267,12 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 			{
 				if (!BindingHelper::IsValidForDestinationBinding(FieldVariant.GetFunction()))
 				{
-					return MakeError(FString::Printf(TEXT("Function %s is not writable at runtime."), *FieldVariant.GetFunction()->GetName()));
+					return MakeError(FString::Printf(TEXT("Function '%s' is not writable at runtime."), *FieldVariant.GetFunction()->GetName()));
 				}
 			}
 			else if (!BindingHelper::IsValidForSourceBinding(FieldVariant.GetFunction()))
 			{
-				return MakeError(FString::Printf(TEXT("Function %s is not readable at runtime."), *FieldVariant.GetFunction()->GetName()));
+				return MakeError(FString::Printf(TEXT("Function '%s' is not readable at runtime."), *FieldVariant.GetFunction()->GetName()));
 			}
 
 			if (bIsLast && !bInRead)
@@ -329,7 +329,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 	}
 	if (GeneratedField.GetValue().Num() == 0)
 	{
-		return MakeError(FString::Printf(TEXT("The field does not returned a '%s'."), *ExpectedType->GetName()));
+		return MakeError(FString::Printf(TEXT("The field does not return a '%s'."), *ExpectedType->GetName()));
 	}
 
 	const FObjectPropertyBase* ObjectPropertyBase = nullptr;
@@ -344,11 +344,11 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 
 	if (ObjectPropertyBase == nullptr)
 	{
-		return MakeError(FString::Printf(TEXT("The field does not returned a '%s'."), *ExpectedType->GetName()));
+		return MakeError(FString::Printf(TEXT("The field does not return a '%s'."), *ExpectedType->GetName()));
 	}
 	if (ObjectPropertyBase->PropertyClass == nullptr || !ExpectedType->IsChildOf(ObjectPropertyBase->PropertyClass))
 	{
-		return MakeError(FString::Printf(TEXT("The field does not returned a '%s'."), *ExpectedType->GetName()));
+		return MakeError(FString::Printf(TEXT("The field does not return a '%s'."), *ExpectedType->GetName()));
 	}
 
 	return AddFieldPath(MakeArrayView(GeneratedField.GetValue()), bInRead);
