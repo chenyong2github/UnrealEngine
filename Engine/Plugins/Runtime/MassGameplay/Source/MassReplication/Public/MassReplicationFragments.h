@@ -70,11 +70,7 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Initialize(UObject& Owner) override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
-
-	UPROPERTY()
-	UMassReplicationSubsystem* ReplicationSubsystem = nullptr;
 
 	FMassEntityQuery EntityQuery;
 };

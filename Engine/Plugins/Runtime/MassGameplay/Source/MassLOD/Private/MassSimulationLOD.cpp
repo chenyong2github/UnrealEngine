@@ -112,8 +112,9 @@ void UMassSimulationLODProcessor::Execute(UMassEntitySubsystem& EntitySubsystem,
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("PrepareExecution"));
-		check(LODSubsystem);
-		const TArray<FViewerInfo>& Viewers = LODSubsystem->GetViewers();
+		// @todo this access patter will be transformed into "computation tasks" in near future. Do not duplicate.
+		const UMassLODSubsystem& LODSubsystem = Context.GetSubsystemChecked<UMassLODSubsystem>(EntitySubsystem.GetWorld());
+		const TArray<FViewerInfo>& Viewers = LODSubsystem.GetViewers();
 
 		EntitySubsystem.ForEachSharedFragment<FMassSimulationLODSharedFragment>([&Viewers](FMassSimulationLODSharedFragment& LODSharedFragment)
 		{

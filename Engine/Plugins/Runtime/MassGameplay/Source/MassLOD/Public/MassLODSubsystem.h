@@ -26,9 +26,6 @@ public:
 protected:
 	UPROPERTY()
 	UWorld* World = nullptr;
-
-	UPROPERTY()
-	UMassLODSubsystem* LODSubsystem = nullptr;
 };
 
 /*

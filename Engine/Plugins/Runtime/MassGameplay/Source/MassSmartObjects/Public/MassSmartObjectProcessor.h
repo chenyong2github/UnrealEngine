@@ -6,9 +6,7 @@
 #include "MassProcessor.h"
 #include "MassSmartObjectProcessor.generated.h"
 
-class USmartObjectSubsystem;
 class UMassSignalSubsystem;
-class UZoneGraphSubsystem;
 class UZoneGraphAnnotationSubsystem;
 
 /** Processor that builds a list of candidates objects for each users. */
@@ -30,13 +28,7 @@ protected:
 	float SearchExtents = 5000.f;
 
 	UPROPERTY(Transient)
-	USmartObjectSubsystem* SmartObjectSubsystem;
-
-	UPROPERTY(Transient)
 	UMassSignalSubsystem* SignalSubsystem;
-
-	UPROPERTY(Transient)
-	UZoneGraphSubsystem* ZoneGraphSubsystem;
 
 	UPROPERTY(Transient)
 	UZoneGraphAnnotationSubsystem* AnnotationSubsystem;
@@ -62,9 +54,6 @@ protected:
 	virtual void ConfigureQueries() override;
 
 	UPROPERTY(Transient)
-	USmartObjectSubsystem* SmartObjectSubsystem;
-
-	UPROPERTY(Transient)
 	UMassSignalSubsystem* SignalSubsystem;
 
 	FMassEntityQuery EntityQuery;
@@ -80,11 +69,7 @@ class MASSSMARTOBJECTS_API UMassSmartObjectUserFragmentDeinitializer : public UM
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Initialize(UObject& Owner) override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
-
-	UPROPERTY(Transient)
-	USmartObjectSubsystem* SmartObjectSubsystem;
 
 	FMassEntityQuery EntityQuery;
 };

@@ -21,13 +21,9 @@ public:
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Initialize(UObject& Owner) override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 private:
-	UPROPERTY(Transient)
-	UMassReplicationSubsystem* ReplicationSubsystem;
-
 	FMassEntityQuery AddToGridEntityQuery;
 	FMassEntityQuery UpdateGridEntityQuery;
 	FMassEntityQuery RemoveFromGridEntityQuery;
@@ -43,11 +39,7 @@ class MASSREPLICATION_API UMassReplicationGridRemoverProcessor : public UMassObs
 
 protected:
 	virtual void ConfigureQueries() override;
-	virtual void Initialize(UObject& Owner) override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	FMassEntityQuery EntityQuery;
-
-	UPROPERTY(Transient)
-	UMassReplicationSubsystem* ReplicationSubsystem;
 };

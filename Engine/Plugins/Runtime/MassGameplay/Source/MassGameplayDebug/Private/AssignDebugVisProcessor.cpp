@@ -19,24 +19,30 @@ UAssignDebugVisProcessor::UAssignDebugVisProcessor()
 void UAssignDebugVisProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FSimDebugVisFragment>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddSystemRequirement<UMassDebuggerSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
 void UAssignDebugVisProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 #if WITH_EDITORONLY_DATA
-	UMassDebugVisualizationComponent* Visualizer = WeakVisualizer.Get();
-	if (!ensure(Visualizer))
-	{
-		return;
-	}
-
 	QUICK_SCOPE_CYCLE_COUNTER(AssignDebugVisProcessor_Execute);
 	
+	UWorld* World = EntitySubsystem.GetWorld();
+	// @todo this code bit is temporary, so is the Visualizer->DirtyVisuals at the end of the function. Will be wrapped in
+	// "executable task" once that's implemented. 
+	UMassDebugVisualizationComponent* Visualizer = nullptr;
+	UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>(World);
+	check(Debugger.GetVisualizationComponent());
+	Visualizer = Debugger.GetVisualizationComponent();
 	// note that this function will create the "visual components" only it they're missing or out of sync. 
-	Visualizer->ConditionallyConstructVisualComponent();
+	Debugger.GetVisualizationComponent()->ConditionallyConstructVisualComponent();
 
-	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, Visualizer](FMassExecutionContext& Context)
+	EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, World](FMassExecutionContext& Context)
 	{
+		UMassDebuggerSubsystem& Debugger = Context.GetMutableSubsystemChecked<UMassDebuggerSubsystem>(World);
+		UMassDebugVisualizationComponent* Visualizer = Debugger.GetVisualizationComponent();
+		check(Visualizer);
+
 		const TArrayView<FSimDebugVisFragment> DebugVisList = Context.GetMutableFragmentView<FSimDebugVisFragment>();
 		for (FSimDebugVisFragment& VisualComp : DebugVisList)
 		{
@@ -47,20 +53,10 @@ void UAssignDebugVisProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FM
 			}
 		}
 	});
-	Visualizer->DirtyVisuals();
-#endif // WITH_EDITORONLY_DATA
-}
 
-void UAssignDebugVisProcessor::Initialize(UObject& InOwner)
-{
-	Super::Initialize(InOwner);
-	
-#if WITH_EDITORONLY_DATA
-	UMassDebuggerSubsystem* Debugger = UWorld::GetSubsystem<UMassDebuggerSubsystem>(InOwner.GetWorld());
-	if (ensure(Debugger))
+	if (ensure(Visualizer))
 	{
-		WeakVisualizer = Debugger->GetVisualizationComponent();	
-		ensure(WeakVisualizer.Get());
+		Visualizer->DirtyVisuals();
 	}
 #endif // WITH_EDITORONLY_DATA
 }

@@ -95,17 +95,6 @@ UMassLookAtProcessor::UMassLookAtProcessor()
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Representation);
 }
 
-void UMassLookAtProcessor::Initialize(UObject& Owner)
-{
-	Super::Initialize(Owner);
-
-	NavigationSubsystem = UWorld::GetSubsystem<UMassNavigationSubsystem>(Owner.GetWorld());
-	checkf(NavigationSubsystem != nullptr, TEXT("UMassNavigationSubsystem is mandatory when using MassLookAtProcessor processor."));
-
-	ZoneGraphSubsystem = UWorld::GetSubsystem<UZoneGraphSubsystem>(Owner.GetWorld());
-	checkf(ZoneGraphSubsystem != nullptr, TEXT("UMassZoneGraphSubsystem is mandatory when using MassLookAtProcessor processor."));
-}
-
 void UMassLookAtProcessor::ConfigureQueries()
 {
 	EntityQuery_Conditional.AddRequirement<FMassLookAtFragment>(EMassFragmentAccess::ReadWrite);
@@ -119,6 +108,8 @@ void UMassLookAtProcessor::ConfigureQueries()
 	EntityQuery_Conditional.AddTagRequirement<FMassOffLODTag>(EMassFragmentPresence::None);
 	EntityQuery_Conditional.AddChunkRequirement<FMassVisualizationChunkFragment>(EMassFragmentAccess::ReadOnly);
 	EntityQuery_Conditional.SetChunkFilter(&FMassVisualizationChunkFragment::AreAnyEntitiesVisibleInChunk);
+	EntityQuery_Conditional.AddSystemRequirement<UMassNavigationSubsystem>(EMassFragmentAccess::ReadOnly);
+	EntityQuery_Conditional.AddSystemRequirement<UZoneGraphSubsystem>(EMassFragmentAccess::ReadOnly);
 }
 
 void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
@@ -127,8 +118,11 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 
 	const float CurrentTime = GetWorld()->GetTimeSeconds();
 
-	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitySubsystem, CurrentTime](FMassExecutionContext& Context)
+	EntityQuery_Conditional.ForEachEntityChunk(EntitySubsystem, Context, [this, &EntitySubsystem, CurrentTime, World = EntitySubsystem.GetWorld()](FMassExecutionContext& Context)
 		{
+			const UMassNavigationSubsystem& MassNavSystem = Context.GetSubsystemChecked<UMassNavigationSubsystem>(World);
+			const UZoneGraphSubsystem& ZoneGraphSubsystem = Context.GetSubsystemChecked<UZoneGraphSubsystem>(World);
+
 			const int32 NumEntities = Context.GetNumEntities();
 			const TArrayView<FMassLookAtFragment> LookAtList = Context.GetMutableFragmentView<FMassLookAtFragment>();
 			const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
@@ -158,7 +152,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 					const float TimeSinceUpdate = CurrentTime - LookAt.GazeStartTime;
 					if (TimeSinceUpdate >= LookAt.GazeDuration)
 					{
-						FindNewGazeTarget(EntitySubsystem, CurrentTime, TransformFragment.GetTransform(), LookAt);
+						FindNewGazeTarget(MassNavSystem, EntitySubsystem, CurrentTime, TransformFragment.GetTransform(), LookAt);
 					}
 				}
 
@@ -182,7 +176,7 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 							const FMassZoneGraphLaneLocationFragment& LaneLocation = ZoneGraphLocationList[i];
 							const FMassZoneGraphShortPathFragment& ShortPath = ShortPathList[i];
 							
-							BuildTrajectory(LaneLocation, ShortPath, Entity, bDisplayDebug, LookAtTrajectory);
+							BuildTrajectory(ZoneGraphSubsystem, LaneLocation, ShortPath, Entity, bDisplayDebug, LookAtTrajectory);
 							LookAt.LastSeenActionID = MoveTarget.GetCurrentActionID();
 						}
 						
@@ -237,8 +231,9 @@ void UMassLookAtProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassE
 		});
 }
 
-void UMassLookAtProcessor::FindNewGazeTarget(const UMassEntitySubsystem& EntitySubsystem, const float CurrentTime, const FTransform& Transform, FMassLookAtFragment& LookAt) const
+void UMassLookAtProcessor::FindNewGazeTarget(const UMassNavigationSubsystem& MassNavSystem, const UMassEntitySubsystem& EntitySubsystem, const float CurrentTime, const FTransform& Transform, FMassLookAtFragment& LookAt) const
 {
+	const FNavigationObstacleHashGrid2D& ObstacleGrid = MassNavSystem.GetObstacleGrid();
 	const FMassEntityHandle LastTrackedEntity = LookAt.GazeTrackedEntity;
 	
 	LookAt.GazeTrackedEntity.Reset();
@@ -246,7 +241,7 @@ void UMassLookAtProcessor::FindNewGazeTarget(const UMassEntitySubsystem& EntityS
 
 	// Search for potential targets in front
 	bool bTargetFound = false;
-	if (LookAt.bRandomGazeEntities && NavigationSubsystem != nullptr)
+	if (LookAt.bRandomGazeEntities)
 	{
 		const float CosAngleThreshold = FMath::Cos(FMath::DegreesToRadians(AngleThresholdInDegrees));
 		const FVector Extent(QueryExtent, QueryExtent, QueryExtent);
@@ -255,7 +250,7 @@ void UMassLookAtProcessor::FindNewGazeTarget(const UMassEntitySubsystem& EntityS
 
 		TArray<FNavigationObstacleHashGrid2D::ItemIDType> NearbyEntities;
 		NearbyEntities.Reserve(16);
-		NavigationSubsystem->GetObstacleGrid().Query(QueryBox, NearbyEntities);
+		ObstacleGrid.Query(QueryBox, NearbyEntities);
 
 		// We'll pick the first entity that passes, this ensure that it's random one.
 		Algo::RandomShuffle(NearbyEntities);
@@ -403,7 +398,7 @@ bool UMassLookAtProcessor::UpdateGazeTrackedEntity(const UMassEntitySubsystem& E
 	return bHasTarget;
 }
 
-void UMassLookAtProcessor::BuildTrajectory(const FMassZoneGraphLaneLocationFragment& LaneLocation, const FMassZoneGraphShortPathFragment& ShortPath,
+void UMassLookAtProcessor::BuildTrajectory(const UZoneGraphSubsystem& ZoneGraphSubsystem, const FMassZoneGraphLaneLocationFragment& LaneLocation, const FMassZoneGraphShortPathFragment& ShortPath,
 											const FMassEntityHandle Entity, const bool bDisplayDebug, FMassLookAtTrajectoryFragment& LookAtTrajectory)
 {
 	LookAtTrajectory.Reset();
@@ -427,7 +422,7 @@ void UMassLookAtProcessor::BuildTrajectory(const FMassZoneGraphLaneLocationFragm
 	// If the path will lead to next lane, add a point from next lane too.
 	if (ShortPath.NextLaneHandle.IsValid())
 	{
-		const FZoneGraphStorage* ZoneGraphStorage = ZoneGraphSubsystem->GetZoneGraphStorage(LaneLocation.LaneHandle.DataHandle);
+		const FZoneGraphStorage* ZoneGraphStorage = ZoneGraphSubsystem.GetZoneGraphStorage(LaneLocation.LaneHandle.DataHandle);
 		if (ZoneGraphStorage != nullptr)
 		{
 			if (ShortPath.NextExitLinkType == EZoneLaneLinkType::Outgoing)

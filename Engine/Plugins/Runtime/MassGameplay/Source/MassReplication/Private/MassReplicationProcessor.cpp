@@ -76,7 +76,6 @@ void UMassReplicationProcessor::PrepareExecution(UMassEntitySubsystem& EntitySub
 	//first synchronize clients and viewers
 	ReplicationSubsystem->SynchronizeClientsAndViewers();
 
-	check(LODSubsystem);
 	EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([this](FMassReplicationSharedFragment& RepSharedFragment)
 	{
 		if (!RepSharedFragment.bEntityQueryInitialized)
@@ -151,7 +150,6 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
 	check(World);
-	check(LODSubsystem);
 	check(ReplicationSubsystem);
 
 	{
@@ -159,8 +157,8 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 		PrepareExecution(EntitySubsystem);
 	}
 
-
-	const TArray<FViewerInfo>& AllViewersInfo = LODSubsystem->GetViewers();
+	UMassLODSubsystem& LODSubsystem = Context.GetMutableSubsystemChecked<UMassLODSubsystem>(EntitySubsystem.GetWorld());
+	const TArray<FViewerInfo>& AllViewersInfo = LODSubsystem.GetViewers();
 	const TArray<FMassClientHandle>& ClientHandles = ReplicationSubsystem->GetClientReplicationHandles();
 	for( const FMassClientHandle ClientHandle : ClientHandles )
 	{
@@ -328,7 +326,7 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(UMassReplicationProcessor_ProcessClientReplication);
-					FMassReplicationContext ReplicationContext(*World, *LODSubsystem, *ReplicationSubsystem);
+					FMassReplicationContext ReplicationContext(*World, LODSubsystem, *ReplicationSubsystem);
 					EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([&EntitySubsystem, &Context, &ReplicationContext, &ClientHandle](FMassReplicationSharedFragment& RepSharedFragment)
 					{
 						RepSharedFragment.CurrentClientHandle = ClientHandle;

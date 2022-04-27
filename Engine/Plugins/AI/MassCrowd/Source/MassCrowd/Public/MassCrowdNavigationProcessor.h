@@ -22,9 +22,6 @@ protected:
 	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
 	virtual void SignalEntities(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context, FMassSignalNameLookup& EntitySignals) override;
-
-	UPROPERTY(Transient)
-	UMassCrowdSubsystem* MassCrowdSubsystem;
 };
 
 /** Processors that cleans up the lane tracking on entity destruction. */
@@ -37,12 +34,8 @@ public:
 	UMassCrowdLaneTrackingDestructor();
 
 protected:
-	virtual void Initialize(UObject& Owner) override;
 	virtual void ConfigureQueries() override;
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
-
-	UPROPERTY(Transient)
-	UMassCrowdSubsystem* MassCrowdSubsystem;
 
 	FMassEntityQuery EntityQuery;
 };
