@@ -98,7 +98,7 @@ FPBDEvolution::FPBDEvolution(
 {
 	// Add group arrays
 	TArrayCollection::AddArray(&MGroupGravityAccelerations);
-	TArrayCollection::AddArray(&MGroupVelocityFields);
+	TArrayCollection::AddArray(&MGroupVelocityAndPressureFields);
 	TArrayCollection::AddArray(&MGroupForceRules);
 	TArrayCollection::AddArray(&MGroupCollisionThicknesses);
 	TArrayCollection::AddArray(&MGroupCoefficientOfFrictions);
@@ -218,13 +218,13 @@ void FPBDEvolution::PreIterationUpdate(
 	const uint32 ParticleGroupId = MParticleGroupIds[Offset];
 	const TFunction<void(FSolverParticles&, const FSolverReal, const int32)>& ForceRule = MGroupForceRules[ParticleGroupId];
 	const FSolverVec3& Gravity = MGroupGravityAccelerations[ParticleGroupId];
-	FVelocityField& VelocityField = MGroupVelocityFields[ParticleGroupId];
+	FVelocityAndPressureField& VelocityAndPressureField = MGroupVelocityAndPressureFields[ParticleGroupId];
 
 	if (bVelocityField)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ChaosPBDVelocityFieldUpdateForces);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosPBDVelocityFieldUpdateForces);
-		VelocityField.UpdateForces(MParticles, Dt);  // Update force per surface element
+		VelocityAndPressureField.UpdateForces(MParticles, Dt);  // Update force per surface element
 	}
 
 	FPerParticleDampVelocity DampVelocityRule(MGroupLocalDampings[ParticleGroupId]);
@@ -262,7 +262,7 @@ void FPBDEvolution::PreIterationUpdate(
 
 		const int32 RangeSize = Range - Offset;
 		PhysicsParallelFor(RangeSize,
-			[this, &Offset, &ForceRule, &Gravity, &VelocityField, &DampVelocityRule, DampingPowDt, DampingIntegrated, Dt](int32 i)
+			[this, &Offset, &ForceRule, &Gravity, &VelocityAndPressureField, &DampVelocityRule, DampingPowDt, DampingIntegrated, Dt](int32 i)
 			{
 				const int32 Index = Offset + i;
 				if (MParticles.InvM(Index) != (FSolverReal)0.)  // Process dynamic particles
@@ -279,7 +279,7 @@ void FPBDEvolution::PreIterationUpdate(
 					// Velocity Field
 					if (bVelocityField)
 					{
-						VelocityField.Apply(MParticles, Dt, Index);
+						VelocityAndPressureField.Apply(MParticles, Dt, Index);
 					}
 
 					// Euler Step Velocity
@@ -339,7 +339,7 @@ void FPBDEvolution::AdvanceOneTimeStep(const FSolverReal Dt, const bool bSmoothD
 			{
 				const uint32 ParticleGroupId = MParticleGroupIds[Offset];
 
-				if (MGroupVelocityFields[ParticleGroupId].IsActive())
+				if (MGroupVelocityAndPressureFields[ParticleGroupId].IsActive())
 				{
 					if (MGroupLocalDampings[ParticleGroupId] > (FSolverReal)0.)
 					{

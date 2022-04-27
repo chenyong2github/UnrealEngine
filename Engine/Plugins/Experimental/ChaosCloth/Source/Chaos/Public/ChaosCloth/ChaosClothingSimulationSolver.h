@@ -109,14 +109,28 @@ namespace Chaos
 		// Set per group wind velocity, used to override solver's wind velocity. Must be called during cloth update.
 		void SetWindVelocity(uint32 GroupId, const TVec3<FRealSingle>& InWindVelocity);
 
-		// Set the geometry affected by the wind.
-		void SetWindGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers);
+		// Set the geometry affected by the wind and pressure
+		void SetWindAndPressureGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers, const TConstArrayView<FRealSingle>& PressureMultipliers);
+		UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been renamed FVelocityAndPressureField to match its new behavior.")
+		void SetWindGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers)
+		{
+			SetWindAndPressureGeometry(GroupId, TriangleMesh, DragMultipliers, LiftMultipliers, TConstArrayView<FRealSingle>());
+		}
 
-		// Set the wind properties.
-		void SetWindProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity = 1.225e-6f);
+		// Set the wind and pressure properties.
+		void SetWindAndPressureProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity = 1.225e-6f, const TVec2<FRealSingle>& Pressure = TVec2<FRealSingle>::ZeroVector);
+		UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been renamed FVelocityAndPressureField to match its new behavior.")
+		void SetWindProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity = 1.225e-6f)
+		{
+			SetWindAndPressureProperties(GroupId, Drag, Lift, AirDensity);
+		}
 
-		// Return the wind velocity field associated with a given group id.
-		const Softs::FVelocityField& GetWindVelocityField(uint32 GroupId);
+		// Return the wind velocity and pressure field associated with a given group id.
+		const Softs::FVelocityAndPressureField& GetWindVelocityAndPressureField(uint32 GroupId);
+		UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been renamed FVelocityAndPressureField to match its new behavior.")
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		const Softs::FVelocityField& GetWindVelocityField(uint32 GroupId) { return GetWindVelocityAndPressureField(GroupId); }
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		// Add external forces to the particles
 		void AddExternalForces(uint32 GroupId, bool bUseLegacyWind);

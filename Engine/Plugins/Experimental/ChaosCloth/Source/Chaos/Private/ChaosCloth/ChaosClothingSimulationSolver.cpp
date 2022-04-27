@@ -685,25 +685,28 @@ void FClothingSimulationSolver::SetWindVelocity(const TVec3<FRealSingle>& InWind
 
 void FClothingSimulationSolver::SetWindVelocity(uint32 GroupId, const TVec3<FRealSingle>& InWindVelocity)
 {
-	Softs::FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
+	Softs::FVelocityAndPressureField& VelocityField = Evolution->GetVelocityAndPressureField(GroupId);
 	VelocityField.SetVelocity(Softs::FSolverVec3(InWindVelocity));
 }
 
-void FClothingSimulationSolver::SetWindGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers)
+void FClothingSimulationSolver::SetWindAndPressureGeometry(uint32 GroupId, const FTriangleMesh& TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers,
+	const TConstArrayView<FRealSingle>& PressureMultipliers)
 {
-	Softs::FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
-	VelocityField.SetGeometry(&TriangleMesh, DragMultipliers, LiftMultipliers);
+	Softs::FVelocityAndPressureField& VelocityField = Evolution->GetVelocityAndPressureField(GroupId);
+	VelocityField.SetGeometry(&TriangleMesh, DragMultipliers, LiftMultipliers, PressureMultipliers);
 }
 
-void FClothingSimulationSolver::SetWindProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity)
+void FClothingSimulationSolver::SetWindAndPressureProperties(uint32 GroupId, const TVec2<FRealSingle>& Drag, const TVec2<FRealSingle>& Lift, FRealSingle AirDensity, const TVec2<FRealSingle>& Pressure)
 {
-	Softs::FVelocityField& VelocityField = Evolution->GetVelocityField(GroupId);
-	VelocityField.SetProperties(Drag, Lift, AirDensity);
+	Softs::FVelocityAndPressureField& VelocityField = Evolution->GetVelocityAndPressureField(GroupId);
+
+	// UI Pressure is in kg/m s^2. Need to convert to kg/cm s^2 for solver.
+	VelocityField.SetProperties(Drag, Lift, AirDensity, Pressure / ClothingSimulationSolverConstant::WorldScale);
 }
 
-const Softs::FVelocityField& FClothingSimulationSolver::GetWindVelocityField(uint32 GroupId)
+const Softs::FVelocityAndPressureField& FClothingSimulationSolver::GetWindVelocityAndPressureField(uint32 GroupId)
 {
-	return Evolution->GetVelocityField(GroupId);
+	return Evolution->GetVelocityAndPressureField(GroupId);
 }
 
 void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegacyWind)
@@ -932,7 +935,7 @@ void FClothingSimulationSolver::Update(Softs::FSolverReal InDeltaTime)
 
 			// Pre-update overridable solver properties first
 			Evolution->SetGravity(Gravity, GroupId);
-			Evolution->GetVelocityField(GroupId).SetVelocity(WindVelocity);
+			Evolution->GetVelocityAndPressureField(GroupId).SetVelocity(WindVelocity);
 
 			Cloth->Update(this);
 		}, /*bForceSingleThreaded =*/ !bClothSolverParallelClothUpdate);

@@ -58,6 +58,7 @@ namespace Chaos
 			const TVec2<FRealSingle>& InDrag,
 			const TVec2<FRealSingle>& InLift,
 			bool bInUseLegacyWind,
+			const TVec2<FRealSingle>& InPressure,
 			FRealSingle InDampingCoefficient,
 			FRealSingle InLocalDampingCoefficient,
 			FRealSingle InCollisionThickness,
@@ -87,6 +88,7 @@ namespace Chaos
 		void SetBackstopProperties(bool bInEnableBackstop) { bEnableBackstop = bInEnableBackstop; }
 		void SetDampingProperties(FRealSingle InDampingCoefficient) { DampingCoefficient = InDampingCoefficient; }
 		void SetAerodynamicsProperties(const TVec2<FRealSingle>& InDrag, const TVec2<FRealSingle>& InLift, FRealSingle InAirDensity, const FVec3& InWindVelocity) { Drag = InDrag; Lift = InLift; InAirDensity = AirDensity; WindVelocity = InWindVelocity; }
+		void SetPressureProperties(const TVec2<FRealSingle>& InPressure) { Pressure = InPressure; }
 		void SetGravityProperties(FRealSingle InGravityScale, bool bInIsGravityOverridden, const FVec3& InGravityOverride) { GravityScale = InGravityScale; bIsGravityOverridden = bInIsGravityOverridden; GravityOverride = InGravityOverride; }
 		void SetAnimDriveProperties(const TVec2<FRealSingle>& InAnimDriveStiffness, const TVec2<FRealSingle>& InAnimDriveDamping) { AnimDriveStiffness = InAnimDriveStiffness; AnimDriveDamping = InAnimDriveDamping; }
 		void GetAnimDriveProperties(TVec2<FRealSingle>& OutAnimDriveStiffness, TVec2<FRealSingle>& OutAnimDriveDamping) { OutAnimDriveStiffness = AnimDriveStiffness; OutAnimDriveDamping = AnimDriveDamping; }
@@ -222,6 +224,7 @@ namespace Chaos
 		FVec3 WindVelocity;
 		FRealSingle AirDensity;
 		bool bUseLegacyWind;
+		TVec2<FRealSingle> Pressure;
 		FRealSingle DampingCoefficient;
 		FRealSingle LocalDampingCoefficient;
 		FRealSingle CollisionThickness;

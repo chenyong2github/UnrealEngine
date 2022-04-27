@@ -365,6 +365,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	const TVec2<FRealSingle>& InDrag,
 	const TVec2<FRealSingle>& InLift,
 	bool bInUseLegacyWind,
+	const TVec2<FRealSingle>& InPressure,
 	FRealSingle InDampingCoefficient,
 	FRealSingle InLocalDampingCoefficient,
 	FRealSingle InCollisionThickness,
@@ -410,6 +411,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, WindVelocity((FReal)0., (FReal)0., (FReal)0.)  // Set by clothing interactor
 	, AirDensity(1.225e-6f)  // Set by clothing interactor
 	, bUseLegacyWind(bInUseLegacyWind)
+	, Pressure(InPressure)
 	, DampingCoefficient(InDampingCoefficient)
 	, LocalDampingCoefficient(InLocalDampingCoefficient)
 	, CollisionThickness(InCollisionThickness)
@@ -746,8 +748,9 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 				// Update the wind velocity field for the new LOD mesh
 				const TConstArrayView<FRealSingle>& DragMultipliers = LODData[LODIndex].WeightMaps[(int32)EChaosWeightMapTarget::Drag];
 				const TConstArrayView<FRealSingle>& LiftMultipliers = LODData[LODIndex].WeightMaps[(int32)EChaosWeightMapTarget::Lift];
+				const TConstArrayView<FRealSingle>& PressureMultipliers = LODData[LODIndex].WeightMaps[(int32)EChaosWeightMapTarget::Pressure];
 
-				Solver->SetWindGeometry(GroupId, GetTriangleMesh(Solver), DragMultipliers, LiftMultipliers);
+				Solver->SetWindAndPressureGeometry(GroupId, GetTriangleMesh(Solver), DragMultipliers, LiftMultipliers, PressureMultipliers);
 		}
 		else
 		{
@@ -810,11 +813,11 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 
 		if (bUseLegacyWind && ClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
 		{
-			Solver->SetWindProperties(GroupId, TVec2<FRealSingle>(0.), TVec2<FRealSingle>(0.), (FRealSingle)0.);  // Disable the wind velocity field
+			Solver->SetWindAndPressureProperties(GroupId, TVec2<FRealSingle>(0.), TVec2<FRealSingle>(0.), (FRealSingle)0., Pressure);  // Disable the wind velocity field
 		}
 		else
 		{
-			Solver->SetWindProperties(GroupId, Drag, Lift, AirDensity);
+			Solver->SetWindAndPressureProperties(GroupId, Drag, Lift, AirDensity, Pressure);
 		}
 		Solver->SetWindVelocity(GroupId, WindVelocity + Solver->GetWindVelocity());
 

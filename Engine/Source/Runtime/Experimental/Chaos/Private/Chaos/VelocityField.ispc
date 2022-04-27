@@ -21,6 +21,7 @@ export void UpdateField(uniform FVector3f Forces[],
 								const uniform float QuarterRho,
 								const uniform float Cd,
 								const uniform float Cl,
+								const uniform float Cp,
 								const uniform int32 NumElements)
 {
 	varying FIntVector Element;
@@ -69,7 +70,7 @@ export void UpdateField(uniform FVector3f Forces[],
 		const FVector3f EvenForce = (Cd - Cl) * VDotN * RelVelocity + Cl * VSquare * N;
 		const FVector3f OddForce = (Cl - Cd) * VDotN * RelVelocity - Cl * VSquare * N;
 
-		const FVector3f Force = QuarterRho * DoubleArea * VectorSelect(VDotN >= 0, EvenForce, OddForce);
+		const FVector3f Force = QuarterRho * DoubleArea * VectorSelect(VDotN >= 0, EvenForce, OddForce) + DoubleArea * 0.5 * Cp * N;
 
 		VectorStore(&Forces[Offset], Force);
 
@@ -81,13 +82,15 @@ export void UpdateFieldWithWeightMaps(uniform FVector3f Forces[],
 								const uniform FIntVector Elements[],
 								const uniform FVector3f V[],
 								const uniform FVector3f X[],
-								const uniform FVector2f Multipliers[],
+								const uniform FVector3f Multipliers[],
 								const uniform FVector3f& Velocity,
 								const uniform float QuarterRho,
 								const uniform float DragBase,
 								const uniform float DragRange,
 								const uniform float LiftBase,
 								const uniform float LiftRange,
+								const uniform float PressureBase,
+								const uniform float PressureRange,
 								const uniform int32 NumElements)
 {
 	varying FIntVector Element;
@@ -109,7 +112,7 @@ export void UpdateFieldWithWeightMaps(uniform FVector3f Forces[],
 		const FVector3f X1 = VectorGather(&X[Element.V[1]]);
 		const FVector3f X2 = VectorGather(&X[Element.V[2]]);
 
-		const FVector2f Multiplier = VectorGather(&Multipliers[ElementIndex]);
+		const FVector3f Multiplier = VectorGather(&Multipliers[ElementIndex]);
 
 		// Calculate the normal and the area of the surface exposed to the flow
 		FVector3f N = VectorCross(X1 - X0, X2 - X0);
@@ -129,6 +132,7 @@ export void UpdateFieldWithWeightMaps(uniform FVector3f Forces[],
 
 		const float Cd = DragBase + DragRange * Multiplier.V[0];
 		const float Cl = LiftBase + LiftRange * Multiplier.V[1];
+		const float Cp = PressureBase + PressureRange * Multiplier.V[2];
 
 #if HW_GATHER_SUPPORTED == 1
 		if(ElementIndex + programCount < NumElements)
@@ -140,7 +144,7 @@ export void UpdateFieldWithWeightMaps(uniform FVector3f Forces[],
 		const FVector3f EvenForce = (Cd - Cl) * VDotN * RelVelocity + Cl * VSquare * N;
 		const FVector3f OddForce = (Cl - Cd) * VDotN * RelVelocity - Cl * VSquare * N;
 
-		const FVector3f Force = QuarterRho * DoubleArea * VectorSelect(VDotN >= 0, EvenForce, OddForce);
+		const FVector3f Force = QuarterRho * DoubleArea * VectorSelect(VDotN >= 0, EvenForce, OddForce) + DoubleArea * 0.5 * Cp * N;
 
 		VectorStore(&Forces[Offset], Force);
 

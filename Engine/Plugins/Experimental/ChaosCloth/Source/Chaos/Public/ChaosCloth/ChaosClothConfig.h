@@ -300,6 +300,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (EditCondition = "bUseGravityOverride"))
 	FVector Gravity = { 0.f, 0.f, -980.665f };
 
+	/** 
+	 * Pressure force strength applied in the normal direction(use negative value to push toward backface)
+	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Pressure" is added to the cloth, 
+	 * then both the Low and High values will be used in conjunction with the per particle Weight stored
+	 * in the Weight Map to interpolate the final value from them.
+	 * Otherwise only the Low value is meaningful and sufficient to set the pressure.	 
+	 */
+	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (UIMin = "-10", UIMax = "10", ClampMin = "-100", ClampMax = "100"))
+	FChaosClothWeightedValue Pressure = { 0.0f, 1.f };
+
 	/**
 	 * The strength of the constraint driving the cloth towards the animated goal mesh.
 	 * If an enabled Weight Map (Mask with values in the range [0;1]) targeting the "Anim Drive Stiffness" is added to the cloth, 

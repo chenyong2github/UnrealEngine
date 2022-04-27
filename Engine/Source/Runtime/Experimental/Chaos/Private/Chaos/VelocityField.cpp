@@ -7,7 +7,6 @@
 
 static_assert(sizeof(ispc::FVector3f) == sizeof(Chaos::Softs::FSolverVec3), "sizeof(ispc::FVector3f) != sizeof(Chaos::Softs::FSolverVec3)");
 static_assert(sizeof(ispc::FIntVector) == sizeof(Chaos::TVec3<int32>), "sizeof(ispc::FIntVector) != sizeof(Chaos::TVec3<int32>)");
-static_assert(sizeof(ispc::FVector2f) == sizeof(Chaos::Softs::FSolverVec2), "sizeof(ispc::FVector2f) != sizeof(Chaos::Softs::FSolverVec2)");
 #endif
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
@@ -17,7 +16,7 @@ FAutoConsoleVariableRef CVarChaosVelocityFieldISPCEnabled(TEXT("p.Chaos.Velocity
 
 namespace Chaos::Softs {
 
-void FVelocityField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers)
+void FVelocityAndPressureField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers, const TConstArrayView<FRealSingle>& PressureMultipliers)
 {
 	if (TriangleMesh)
 	{
@@ -30,18 +29,11 @@ void FVelocityField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConst
 
 		Forces.SetNumUninitialized(Elements.Num());
 
-		enum class EWeighMaps : uint8
-		{
-			None = 0,
-			DragMultipliers = 1 << 0,
-			LiftMultipliers = 1 << 1
-		};
+		const bool bHasDragMultipliers = DragMultipliers.Num() == NumParticles;
+		const bool bHasLiftMultipliers = LiftMultipliers.Num() == NumParticles;
+		const bool bHasPressureMultipliers = PressureMultipliers.Num() == NumParticles;
 
-		const EWeighMaps WeighMaps = (EWeighMaps)(
-			(uint8)(DragMultipliers.Num() == NumParticles ? EWeighMaps::DragMultipliers : EWeighMaps::None) |
-			(uint8)(LiftMultipliers.Num() == NumParticles ? EWeighMaps::LiftMultipliers : EWeighMaps::None));
-
-		if (WeighMaps == EWeighMaps::None)
+		if (!bHasDragMultipliers && !bHasLiftMultipliers && !bHasPressureMultipliers)
 		{
 			Multipliers.Reset();
 		}
@@ -58,20 +50,11 @@ void FVelocityField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConst
 				const int32 I1 = Element[1] - Offset;
 				const int32 I2 = Element[2] - Offset;
 
-				switch (WeighMaps)
-				{
-				case EWeighMaps::DragMultipliers:
-					Multipliers[ElementIndex] = FSolverVec2((FSolverReal)(DragMultipliers[I0] + DragMultipliers[I1] + DragMultipliers[I2]) * OneThird, (FSolverReal)0.); break;
-					break;
-				case EWeighMaps::LiftMultipliers:
-					Multipliers[ElementIndex] = FSolverVec2((FSolverReal)0., (FSolverReal)(LiftMultipliers[I0] + LiftMultipliers[I1] + LiftMultipliers[I2]) * OneThird); break;
-					break;
-				default:
-					Multipliers[ElementIndex] = FSolverVec2(
-						(FSolverReal)(DragMultipliers[I0] + DragMultipliers[I1] + DragMultipliers[I2]) * OneThird,
-						(FSolverReal)(LiftMultipliers[I0] + LiftMultipliers[I1] + LiftMultipliers[I2]) * OneThird);
-					break;
-				}
+				const FSolverReal DragMultiplier = bHasDragMultipliers ? (FSolverReal)(DragMultipliers[I0] + DragMultipliers[I1] + DragMultipliers[I2]) * OneThird : (FSolverReal)0.;
+				const FSolverReal LiftMultiplier = bHasLiftMultipliers ? (FSolverReal)(LiftMultipliers[I0] + LiftMultipliers[I1] + LiftMultipliers[I2]) * OneThird : (FSolverReal)0.;
+				const FSolverReal PressureMultiplier = bHasPressureMultipliers ? (FSolverReal)(PressureMultipliers[I0] + PressureMultipliers[I1] + PressureMultipliers[I2]) * OneThird : (FSolverReal)0.;
+
+				Multipliers[ElementIndex] = FSolverVec3(DragMultiplier, LiftMultiplier, PressureMultiplier);
 			}
 		}
 	}
@@ -83,13 +66,13 @@ void FVelocityField::SetGeometry(const FTriangleMesh* TriangleMesh, const TConst
 		NumParticles = 0;
 		Forces.Reset();
 		Multipliers.Reset();
-		SetProperties(FSolverVec2(0.), FSolverVec2(0.), (FSolverReal)0.);
+		SetProperties(FSolverVec2(0.), FSolverVec2(0.), (FSolverReal)0., FSolverVec2(0.));
 	}
 }
 
 
 
-void FVelocityField::UpdateForces(const FSolverParticles& InParticles, const FSolverReal /*Dt*/)
+void FVelocityAndPressureField::UpdateForces(const FSolverParticles& InParticles, const FSolverReal /*Dt*/)
 {
 	if (!Multipliers.Num())
 	{
@@ -105,6 +88,7 @@ void FVelocityField::UpdateForces(const FSolverParticles& InParticles, const FSo
 				QuarterRho,
 				DragBase,
 				LiftBase,
+				PressureBase,
 				Elements.Num());
 		}
 		else
@@ -112,7 +96,7 @@ void FVelocityField::UpdateForces(const FSolverParticles& InParticles, const FSo
 		{
 			for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
 			{
-				UpdateField(InParticles, ElementIndex, Velocity, DragBase, LiftBase);
+				UpdateField(InParticles, ElementIndex, Velocity, DragBase, LiftBase, PressureBase);
 			}
 		}
 	}
@@ -126,13 +110,15 @@ void FVelocityField::UpdateForces(const FSolverParticles& InParticles, const FSo
 				(const ispc::FIntVector*)Elements.GetData(),
 				(const ispc::FVector3f*)InParticles.GetV().GetData(),
 				(const ispc::FVector3f*)InParticles.XArray().GetData(),
-				(const ispc::FVector2f*)Multipliers.GetData(),
+				(const ispc::FVector3f*)Multipliers.GetData(),
 				(const ispc::FVector3f&)Velocity,
 				QuarterRho,
 				DragBase,
 				DragRange,
 				LiftBase,
 				LiftRange,
+				PressureBase,
+				PressureRange,
 				Elements.Num());
 		}
 		else
@@ -140,11 +126,12 @@ void FVelocityField::UpdateForces(const FSolverParticles& InParticles, const FSo
 		{
 			for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
 			{
-				const FSolverVec2& Multiplier = Multipliers[ElementIndex];
+				const FSolverVec3& Multiplier = Multipliers[ElementIndex];
 				const FSolverReal Cd = DragBase + DragRange * Multiplier[0];
 				const FSolverReal Cl = LiftBase + LiftRange * Multiplier[1];
+				const FSolverReal Cp = PressureBase + PressureRange * Multiplier[2];
 
-				UpdateField(InParticles, ElementIndex, Velocity, Cd, Cl);
+				UpdateField(InParticles, ElementIndex, Velocity, Cd, Cl, Cp);
 			}
 		}
 	}

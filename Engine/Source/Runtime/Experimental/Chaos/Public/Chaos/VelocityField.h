@@ -9,7 +9,7 @@ namespace Chaos::Softs
 {
 
 // Velocity field used solely for aerodynamics effects, use Chaos Fields for other types of fields.
-class CHAOS_API FVelocityField final
+class CHAOS_API FVelocityAndPressureField final
 {
 public:
 	static constexpr FSolverReal DefaultDragCoefficient = (FSolverReal)0.5;
@@ -17,14 +17,14 @@ public:
 	static constexpr FSolverReal DefaultFluidDensity = (FSolverReal)1.225e-6;
 
 	// Construct an uninitialized field. Mesh, properties, and velocity will have to be set for this field to be valid.
-	FVelocityField()
+	FVelocityAndPressureField()
 		: Offset(INDEX_NONE)
 		, NumParticles(0)
 	{
 		SetProperties(FSolverVec2(0.), FSolverVec2(0.), (FSolverReal)0.);
 	}
 
-	~FVelocityField() {}
+	~FVelocityAndPressureField() {}
 
 	void UpdateForces(const FSolverParticles& InParticles, const FSolverReal /*Dt*/);
 
@@ -39,7 +39,7 @@ public:
 		}
 	}
 
-	void SetProperties(const FSolverVec2& Drag, const FSolverVec2& Lift, const FSolverReal FluidDensity)
+	void SetProperties(const FSolverVec2& Drag, const FSolverVec2& Lift, const FSolverReal FluidDensity, const FSolverVec2& Pressure = FSolverVec2::ZeroVector)
 	{
 		constexpr FSolverReal OneQuarter = (FSolverReal)0.25;
 		QuarterRho = FluidDensity * OneQuarter;
@@ -50,14 +50,17 @@ public:
 		DragRange = FMath::Clamp(Drag[1], MinCoefficient, MaxCoefficient) - DragBase;
 		LiftBase = FMath::Clamp(Lift[0], MinCoefficient, MaxCoefficient);
 		LiftRange = FMath::Clamp(Lift[1], MinCoefficient, MaxCoefficient) - LiftBase;
+		PressureBase = Pressure[0];
+		PressureRange = Pressure[1] - PressureBase;
 	}
 
 	bool IsActive() const 
-	{
-		return (DragBase > (FSolverReal)0. || DragRange != (FSolverReal)0.) || (LiftBase > (FSolverReal)0. || LiftRange != (FSolverReal)0.);  // Note: range can be a negative value (although not when base is zero)
+	{ 
+		// Note: range can be a negative value (although not when Lift or Drag base is zero)
+		return (DragBase > (FSolverReal)0. || DragRange != (FSolverReal)0.) || (LiftBase > (FSolverReal)0. || LiftRange != (FSolverReal)0.) || PressureBase != (FSolverReal)0. || PressureRange != (FSolverReal)0.; 
 	}
 
-	void SetGeometry(const FTriangleMesh* TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers);
+	void SetGeometry(const FTriangleMesh* TriangleMesh, const TConstArrayView<FRealSingle>& DragMultipliers, const TConstArrayView<FRealSingle>& LiftMultipliers, const TConstArrayView<FRealSingle>& PressureMultipliers = TConstArrayView<FRealSingle>());
 
 	void SetVelocity(const FSolverVec3& InVelocity) { Velocity = InVelocity; }
 
@@ -65,7 +68,7 @@ public:
 	TConstArrayView<FSolverVec3> GetForces() const { return TConstArrayView<FSolverVec3>(Forces); }
 
 private:
-	void UpdateField(const FSolverParticles& InParticles, int32 ElementIndex, const FSolverVec3& InVelocity, const FSolverReal Cd, const FSolverReal Cl)
+	void UpdateField(const FSolverParticles& InParticles, int32 ElementIndex, const FSolverVec3& InVelocity, const FSolverReal Cd, const FSolverReal Cl, const FSolverReal Cp)
 	{
 		const TVec3<int32>& Element = Elements[ElementIndex];
 
@@ -88,23 +91,27 @@ private:
 
 		Forces[ElementIndex] = QuarterRho * DoubleArea * (VDotN >= (FSolverReal)0. ?  // The flow can hit either side of the triangle, so the normal might need to be reversed
 			(Cd - Cl) * VDotN * V + Cl * VSquare * N :
-			(Cl - Cd) * VDotN * V - Cl * VSquare * N);
+			(Cl - Cd) * VDotN * V - Cl * VSquare * N) + DoubleArea * (FSolverReal)0.5 * Cp * N;
 	}
 
 private:
 	TConstArrayView<TArray<int32>> PointToTriangleMap;
 	TConstArrayView<TVec3<int32>> Elements;
 	TArray<FSolverVec3> Forces;
-	TArray<FSolverVec2> Multipliers;
+	TArray<FSolverVec3> Multipliers;
 	FSolverVec3 Velocity;
 	FSolverReal DragBase;
 	FSolverReal DragRange;
 	FSolverReal LiftBase;
 	FSolverReal LiftRange;
+	FSolverReal PressureBase; 
+	FSolverReal PressureRange;
 	FSolverReal QuarterRho;
 	int32 Offset;
 	int32 NumParticles;
 };
+
+using FVelocityField UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been renamed FVelocityAndPressureField to match its new behavior.") = FVelocityAndPressureField;
 
 }  // End namespace Chaos::Softs
 

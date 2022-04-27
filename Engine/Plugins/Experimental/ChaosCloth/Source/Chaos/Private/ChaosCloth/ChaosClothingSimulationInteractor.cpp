@@ -106,6 +106,14 @@ void UChaosClothingInteractor::SetWind(FVector2D Drag, FVector2D Lift, float Air
 	}));
 }
 
+void UChaosClothingInteractor::SetPressure(FVector2D Pressure)
+{
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([Pressure](Chaos::FClothingSimulationCloth* Cloth)
+	{
+		Cloth->SetPressureProperties(Chaos::TVec2<Chaos::FRealSingle>(Pressure[0], Pressure[1]));
+	}));
+}
+
 void UChaosClothingInteractor::SetGravity(float GravityScale, bool bIsGravityOverridden, FVector GravityOverride)
 {
 	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([GravityScale, bIsGravityOverridden, GravityOverride](Chaos::FClothingSimulationCloth* Cloth)
