@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using EpicGames.Core;
 using EpicGames.Horde.Common;
 using EpicGames.Serialization;
@@ -15,6 +17,7 @@ namespace Horde.Build.Server
 {
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
+	using TemplateRefId = StringId<TemplateRef>;
 	using WorkflowId = StringId<WorkflowConfig>;
 	
 	/// <summary>
@@ -237,7 +240,7 @@ namespace Horde.Build.Server
 		/// <summary>
 		/// List of templates to create
 		/// </summary>
-		public List<CreateTemplateRefRequest> Templates { get; set; } = new List<CreateTemplateRefRequest>();
+		public List<TemplateRefConfig> Templates { get; set; } = new List<TemplateRefConfig>();
 
 		/// <summary>
 		/// Custom permissions for this object
@@ -268,6 +271,30 @@ namespace Horde.Build.Server
 		/// Workflows for dealing with new issues
 		/// </summary>
 		public List<WorkflowConfig> Workflows { get; set; } = new List<WorkflowConfig>();
+
+		/// <summary>
+		/// Tries to find a template with the given id
+		/// </summary>
+		/// <param name="templateRefId"></param>
+		/// <param name="templateConfig"></param>
+		/// <returns></returns>
+		public bool TryGetTemplate(TemplateRefId templateRefId, [NotNullWhen(true)] out TemplateRefConfig? templateConfig)
+		{
+			templateConfig = Templates.FirstOrDefault(x => x.Id == templateRefId);
+			return templateConfig != null;
+		}
+
+		/// <summary>
+		/// Tries to find a workflow with the given id
+		/// </summary>
+		/// <param name="workflowId"></param>
+		/// <param name="workflowConfig"></param>
+		/// <returns></returns>
+		public bool TryGetWorkflow(WorkflowId workflowId, [NotNullWhen(true)] out WorkflowConfig? workflowConfig)
+		{
+			workflowConfig = Workflows.FirstOrDefault(x => x.Id == workflowId);
+			return workflowConfig != null;
+		}
 	}
 
 	/// <summary>
@@ -279,6 +306,11 @@ namespace Horde.Build.Server
 		/// Identifier for this workflow
 		/// </summary>
 		public WorkflowId Id { get; set; } = WorkflowId.Empty;
+
+		/// <summary>
+		/// Whether to allow creating issues for these jobs
+		/// </summary>
+		public bool CreateIssues { get; set; } = true;
 
 		/// <summary>
 		/// Times of day at which to send a report

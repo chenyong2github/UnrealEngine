@@ -37,8 +37,8 @@ namespace Horde.Build.Tests
 			TemplateRefId templateRefId2 = new TemplateRefId("template2");
 
 			StreamConfig streamConfig = new StreamConfig();
-			streamConfig.Templates.Add(new CreateTemplateRefRequest { Id = templateRefId1.ToString(), Name = "Test Template", ChainedJobs = new List<CreateChainedJobTemplateRequest> { new CreateChainedJobTemplateRequest { TemplateId = templateRefId2.ToString(), Trigger = "Setup Build" } } });
-			streamConfig.Templates.Add(new CreateTemplateRefRequest { Id = templateRefId2.ToString(), Name = "Test Template" });
+			streamConfig.Templates.Add(new TemplateRefConfig { Id = templateRefId1, Name = "Test Template", ChainedJobs = new List<CreateChainedJobTemplateRequest> { new CreateChainedJobTemplateRequest { TemplateId = templateRefId2.ToString(), Trigger = "Setup Build" } } });
+			streamConfig.Templates.Add(new TemplateRefConfig { Id = templateRefId2, Name = "Test Template" });
 			streamConfig.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { templateRefId1.ToString(), templateRefId2.ToString() } });
 
 			StreamId streamId = new StreamId("ue5-main");

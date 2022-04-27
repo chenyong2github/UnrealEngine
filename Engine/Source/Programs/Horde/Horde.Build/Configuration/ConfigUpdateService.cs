@@ -376,7 +376,8 @@ namespace Horde.Build.Config
 		async Task<T> ReadDataAsync<T>(string revision, Uri configPath) where T : class
 		{
 			byte[] data = await ReadDataAsync(configPath);
-			return await _configCollection.AddConfigAsync<T>(revision, data);
+			await _configCollection.AddConfigDataAsync(revision, data);
+			return await _configCollection.GetConfigAsync<T>(revision);
 		}
 
 		Task<byte[]> ReadDataAsync(Uri configPath)

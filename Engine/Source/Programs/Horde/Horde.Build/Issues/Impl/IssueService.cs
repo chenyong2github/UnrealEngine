@@ -9,10 +9,13 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Horde.Build.Api;
 using Horde.Build.Collections;
+using Horde.Build.Config;
 using Horde.Build.IssueHandlers;
 using Horde.Build.IssueHandlers.Impl;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Hosting;
@@ -128,6 +131,8 @@ namespace Horde.Build.Services.Impl
 		/// Maximum number of changes to query from Perforce in one go
 		/// </summary>
 		const int MaxChanges = 250;
+
+		readonly ConfigCollection _configCollection;
 		readonly IJobStepRefCollection _jobStepRefs;
 		readonly IIssueCollection _issueCollection;
 		readonly StreamService _streams;
@@ -175,7 +180,7 @@ namespace Horde.Build.Services.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssueService(IIssueCollection issueCollection, IJobStepRefCollection jobStepRefs, StreamService streams, IUserCollection userCollection, IPerforceService perforce, ILogFileService logFileService, IClock clock, ILogger<IssueService> logger)
+		public IssueService(ConfigCollection configCollection, IIssueCollection issueCollection, IJobStepRefCollection jobStepRefs, StreamService streams, IUserCollection userCollection, IPerforceService perforce, ILogFileService logFileService, IClock clock, ILogger<IssueService> logger)
 		{
 			Type[] issueTypes = Assembly.GetExecutingAssembly().GetTypes().Where(x => !x.IsAbstract && typeof(IIssue).IsAssignableFrom(x)).ToArray();
 			foreach (Type issueType in issueTypes)
@@ -184,6 +189,7 @@ namespace Horde.Build.Services.Impl
 			}
 
 			// Get all the collections
+			_configCollection = configCollection;
 			_issueCollection = issueCollection;
 			_jobStepRefs = jobStepRefs;
 			_streams = streams;
@@ -534,6 +540,23 @@ namespace Horde.Build.Services.Impl
 			if (stream == null)
 			{
 				throw new Exception($"Invalid stream id '{job.StreamId}' on job '{job.Id}'");
+			}
+
+			// Check whether issue creation is enabled for this template type
+			StreamConfig config = await _configCollection.GetConfigAsync<StreamConfig>(stream.ConfigRevision);
+
+			TemplateRefConfig? templateRef;
+			if (!config.TryGetTemplate(job.TemplateId, out templateRef))
+			{
+				return;
+			}
+
+			if (templateRef.Workflow != null)
+			{
+				if(!config.TryGetWorkflow(templateRef.Workflow.Value, out WorkflowConfig? workflow) || !workflow.CreateIssues)
+				{
+					return;
+				}
 			}
 
 			// Find the batch for this event

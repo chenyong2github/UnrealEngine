@@ -58,7 +58,7 @@ namespace Horde.Build.Tests
 			StreamConfig config = new StreamConfig();
 			config.Name = "//UE5/Main";
 			config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId.ToString() } });
-			config.Templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId.ToString(), Name = "Test", Schedule = schedule });
+			config.Templates.Add(new TemplateRefConfig { Id = TemplateRefId, Name = "Test", Schedule = schedule });
 
 			return (await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamId, stream, "", "", ProjectId, config))!; 
 		}
@@ -484,12 +484,12 @@ namespace Horde.Build.Tests
 
 			// Create two templates, the second dependent on the first
 			TemplateRefId newTemplateRefId1 = new TemplateRefId("new-template-1");
-			CreateTemplateRefRequest newTemplate1 = new CreateTemplateRefRequest();
-			newTemplate1.Id = newTemplateRefId1.ToString();
+			TemplateRefConfig newTemplate1 = new TemplateRefConfig();
+			newTemplate1.Id = newTemplateRefId1;
 
 			TemplateRefId newTemplateRefId2 = new TemplateRefId("new-template-2");
-			CreateTemplateRefRequest newTemplate2 = new CreateTemplateRefRequest();
-			newTemplate2.Id = newTemplateRefId2.ToString();
+			TemplateRefConfig newTemplate2 = new TemplateRefConfig();
+			newTemplate2.Id = newTemplateRefId2;
 			newTemplate2.Name = "Test template 2";
 			newTemplate2.Schedule = new CreateScheduleRequest();
 			newTemplate2.Schedule.MaxChanges = 4;

@@ -187,12 +187,18 @@ namespace Horde.Build.Api
 	/// <summary>
 	/// Parameters to create a template within a stream
 	/// </summary>
-	public class CreateTemplateRefRequest : CreateTemplateRequest
+	public class TemplateRefConfig : TemplateConfig
 	{
+		TemplateRefId _id;
+
 		/// <summary>
 		/// Optional identifier for this ref. If not specified, an id will be generated from the name.
 		/// </summary>
-		public string? Id { get; set; }
+		public TemplateRefId Id
+		{
+			get => _id.IsEmpty ? TemplateRefId.Sanitize(Name) : _id;
+			set => _id = value;
+		}
 
 		/// <summary>
 		/// Whether to show badges in UGS for these jobs

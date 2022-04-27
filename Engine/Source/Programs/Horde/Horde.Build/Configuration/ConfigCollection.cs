@@ -83,12 +83,15 @@ namespace Horde.Build.Config
 		/// </summary>
 		/// <typeparam name="T"></typeparam>
 		/// <param name="revision"></param>
-		/// <param name="data"></param>
+		/// <param name="config"></param>
 		/// <returns></returns>
-		public async Task<T> AddConfigAsync<T>(string revision, ReadOnlyMemory<byte> data)
+		public async Task AddConfigAsync<T>(string revision, T config)
 		{
+			JsonSerializerOptions options = new JsonSerializerOptions();
+			Startup.ConfigureJsonSerializer(options);
+
+			byte[] data = JsonSerializer.SerializeToUtf8Bytes(config, options);
 			await AddConfigDataAsync(revision, data);
-			return await GetConfigAsync<T>(revision);
 		}
 
 		/// <summary>

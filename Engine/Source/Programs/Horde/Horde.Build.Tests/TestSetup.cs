@@ -13,6 +13,7 @@ using Horde.Build.Collections;
 using Horde.Build.Collections.Impl;
 using Horde.Build.Commits;
 using Horde.Build.Commits.Impl;
+using Horde.Build.Config;
 using Horde.Build.Controllers;
 using Horde.Build.Jobs;
 using Horde.Build.Logs;
@@ -54,6 +55,7 @@ namespace Horde.Build.Tests
 	{
 		public FakeClock Clock => ServiceProvider.GetRequiredService<FakeClock>();
 
+		public ConfigCollection ConfigCollection => ServiceProvider.GetRequiredService<ConfigCollection>();
 		public IGraphCollection GraphCollection => ServiceProvider.GetRequiredService<IGraphCollection>();
 		public INotificationTriggerCollection NotificationTriggerCollection => ServiceProvider.GetRequiredService<INotificationTriggerCollection>();
 		public IStreamCollection StreamCollection => ServiceProvider.GetRequiredService<IStreamCollection>();
@@ -174,6 +176,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<AutoscaleService>();
 			services.AddSingleton<AwsFleetManager, AwsFleetManager>();
 			services.AddSingleton<ConsistencyService>();
+			services.AddSingleton<ConfigCollection>();
 			services.AddSingleton<RequestTrackerService>();
 			services.AddSingleton<CredentialService>();
 			services.AddSingleton<JobTaskSource>();

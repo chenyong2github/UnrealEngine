@@ -62,9 +62,9 @@ namespace Horde.Build.Tests
 			TemplateRefId1 = new TemplateRefId("template1");
 			TemplateRefId2 = new TemplateRefId("template2");
 
-			List<CreateTemplateRefRequest> templates = new List<CreateTemplateRefRequest>();
-			templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId1.ToString(), Name = "Test Template" });
-			templates.Add(new CreateTemplateRefRequest { Id = TemplateRefId2.ToString(), Name = "Test Template" });
+			List<TemplateRefConfig> templates = new List<TemplateRefConfig>();
+			templates.Add(new TemplateRefConfig { Id = TemplateRefId1, Name = "Test Template" });
+			templates.Add(new TemplateRefConfig { Id = TemplateRefId2, Name = "Test Template" });
 
 			List<CreateStreamTabRequest> tabs = new List<CreateStreamTabRequest>();
 			tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId1.ToString(), TemplateRefId2.ToString() } });

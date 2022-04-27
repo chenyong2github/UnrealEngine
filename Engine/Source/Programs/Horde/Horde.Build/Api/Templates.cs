@@ -388,7 +388,7 @@ namespace Horde.Build.Api
 	/// <summary>
 	/// Parameters to create a new template
 	/// </summary>
-	public class CreateTemplateRequest
+	public class TemplateConfig
 	{
 		/// <summary>
 		/// Name for the new template

@@ -105,6 +105,18 @@ namespace Horde.Build.Tests
 		readonly UserId _bobId;
 		readonly DirectoryReference _workspaceDir;
 
+		async Task<IStream> CreateStreamAsync(ProjectId projectId, StreamId streamId, string streamName)
+		{
+			string revision = $"config:{streamId}";
+
+			StreamConfig streamConfig = new StreamConfig { Name = streamName };
+			streamConfig.Tabs.Add(new Api.CreateJobsTabRequest { Title = "General", Templates = new List<string> { "test-template" } });
+			streamConfig.Templates.Add(new Api.TemplateRefConfig { Id = new TemplateRefId("test-template") });
+			await ConfigCollection.AddConfigAsync(revision, streamConfig);
+
+			return Deref(await StreamCollection.TryCreateOrReplaceAsync(streamId, null, "", revision, projectId, streamConfig));
+		}
+
 		public IssueServiceTests()
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -118,9 +130,9 @@ namespace Horde.Build.Tests
 
 			IProject project = ProjectCollection.AddOrUpdateAsync(new ProjectId("ue4"), "", "", 0, new ProjectConfig { Name = "UE4" }).Result!;
 
-			IStream mainStream = StreamCollection.TryCreateOrReplaceAsync(_mainStreamId, null, "", "", project.Id, new StreamConfig { Name = MainStreamName }).Result!;
-			IStream releaseStream = StreamCollection.TryCreateOrReplaceAsync(_releaseStreamId, null, "", "", project.Id, new StreamConfig { Name = ReleaseStreamName }).Result!;
-			IStream devStream = StreamCollection.TryCreateOrReplaceAsync(_devStreamId, null, "", "", project.Id, new StreamConfig { Name = DevStreamName }).Result!;
+			IStream mainStream = CreateStreamAsync(project.Id, _mainStreamId, MainStreamName).Result;
+			IStream releaseStream = CreateStreamAsync(project.Id, _releaseStreamId, ReleaseStreamName).Result;
+			IStream devStream = CreateStreamAsync(project.Id, _devStreamId, DevStreamName).Result;
 
 			IUser bill = UserCollection.FindOrAddUserByLoginAsync("Bill").Result;
 			IUser anne = UserCollection.FindOrAddUserByLoginAsync("Anne").Result;

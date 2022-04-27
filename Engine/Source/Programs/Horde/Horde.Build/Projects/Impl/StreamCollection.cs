@@ -174,24 +174,16 @@ namespace Horde.Build.Collections.Impl
 		/// <param name="stream">The current stream state</param>
 		/// <param name="templateCollection">The template service</param>
 		/// <returns>List of new template references</returns>
-		async Task<Dictionary<TemplateRefId, TemplateRef>> CreateTemplateRefsAsync(List<CreateTemplateRefRequest> requests, IStream? stream, ITemplateCollection templateCollection)
+		async Task<Dictionary<TemplateRefId, TemplateRef>> CreateTemplateRefsAsync(List<TemplateRefConfig> requests, IStream? stream, ITemplateCollection templateCollection)
 		{
 			Dictionary<TemplateRefId, TemplateRef> newTemplateRefs = new Dictionary<TemplateRefId, TemplateRef>();
-			foreach (CreateTemplateRefRequest request in requests)
+			foreach (TemplateRefConfig request in requests)
 			{
 				// Create the template
 				ITemplate newTemplate = await templateCollection.AddAsync(request.Name, request.Priority, request.AllowPreflights, request.UpdateIssues, request.PromoteIssuesByDefault, request.InitialAgentType, request.SubmitNewChange, request.SubmitDescription, request.Arguments, request.Parameters.ConvertAll(x => x.ToModel()));
 
 				// Get an identifier for the new template ref
-				TemplateRefId newTemplateRefId;
-				if (request.Id != null)
-				{
-					newTemplateRefId = new TemplateRefId(request.Id);
-				}
-				else
-				{
-					newTemplateRefId = TemplateRefId.Sanitize(request.Name);
-				}
+				TemplateRefId newTemplateRefId = request.Id;
 
 				// Create the schedule object
 				Schedule? schedule = null;

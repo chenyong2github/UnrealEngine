@@ -132,11 +132,11 @@ namespace Horde.Build.Issues.Impl
 						jobs ??= await _jobCollection.FindAsync(streamId: stream.Id, minCreateTime: prevScheduledReportTime);
 
 						HashSet<TemplateRefId> wfTemplateRefIds = new HashSet<TemplateRefId>();
-						foreach (Api.CreateTemplateRefRequest templateRef in config.Templates)
+						foreach (Api.TemplateRefConfig templateRef in config.Templates)
 						{
-							if (templateRef.Id != null && templateRef.Workflow != null && templateRef.Workflow == workflow.Id)
+							if (templateRef.Workflow != null && templateRef.Workflow == workflow.Id)
 							{
-								wfTemplateRefIds.Add(new TemplateRefId(templateRef.Id));
+								wfTemplateRefIds.Add(templateRef.Id);
 							}
 						}
 
