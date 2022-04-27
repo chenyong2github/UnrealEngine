@@ -929,6 +929,7 @@ namespace UnrealBuildTool
 			if (CompilerVersionGreaterOrEqual(11, 0, 0))
 			{
 				Result += " -fpch-validate-input-files-content";
+				Result += " -fpch-instantiate-templates";
 			}
 			Result += GetCompilerStandardVersion_CPP(CompileEnvironment);
 			return Result;
@@ -1283,6 +1284,7 @@ namespace UnrealBuildTool
 
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
+				// Validate PCH inputs by content if mtime check fails
 				if (CompilerVersionGreaterOrEqual(11, 0, 0))
 				{
 					PCHArguments += " -fpch-validate-input-files-content";
