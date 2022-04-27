@@ -59,7 +59,7 @@ public:
 
 	static bool AllowThreadHeartBeat()
 	{
-		return false;
+		return true;
 	}
 
 	struct FCPUStatTime{
