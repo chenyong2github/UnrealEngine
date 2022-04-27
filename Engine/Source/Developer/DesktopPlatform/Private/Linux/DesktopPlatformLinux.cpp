@@ -6,6 +6,7 @@
 #include "Misc/Guid.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FeedbackContext.h"
+#include "Misc/SecureHash.h"
 #include "DesktopPlatformPrivate.h"
 #include "Modules/ModuleManager.h"
 #include "Linux/LinuxApplication.h"

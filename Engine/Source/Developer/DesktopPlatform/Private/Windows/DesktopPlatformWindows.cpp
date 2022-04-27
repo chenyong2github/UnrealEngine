@@ -7,6 +7,7 @@
 #include "Microsoft/COMPointer.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
+#include "Misc/SecureHash.h"
 #include "HAL/FileManager.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"

@@ -8,6 +8,7 @@
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Guid.h"
+#include "Misc/SecureHash.h"
 #include "HAL/FileManager.h"
 
 #define LOCTEXT_NAMESPACE "DesktopPlatform"
