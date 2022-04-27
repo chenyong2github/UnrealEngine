@@ -248,6 +248,24 @@ public:
 };
 
 
+USTRUCT(BlueprintType, meta = (DisplayName = "Scalar List"))
+struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptScalarList
+{
+	GENERATED_BODY()
+public:
+	TSharedPtr<TArray<double>> List;
+
+	void Reset()
+	{
+		if (List.IsValid() == false)
+		{
+			List = MakeShared<TArray<double>>();
+		}
+		List->Reset();
+	}
+};
+
+
 
 USTRUCT(BlueprintType, meta = (DisplayName = "Vector List"))
 struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptVectorList

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryScript/ListUtilityFunctions.h"
+#include "VectorTypes.h"
 
+using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UGeometryScriptLibrary_ListUtilityFunctions"
 
@@ -86,6 +88,69 @@ void UGeometryScriptLibrary_ListUtilityFunctions::ConvertArrayToTriangleList(con
 
 
 
+int UGeometryScriptLibrary_ListUtilityFunctions::GetScalarListLength(FGeometryScriptScalarList ScalarList)
+{
+	return (ScalarList.List.IsValid()) ? ScalarList.List->Num() : 0;
+}
+
+int UGeometryScriptLibrary_ListUtilityFunctions::GetScalarListLastIndex(FGeometryScriptScalarList ScalarList)
+{
+	return (ScalarList.List.IsValid()) ? FMath::Max(ScalarList.List->Num()-1,0) : 0;
+}
+
+double UGeometryScriptLibrary_ListUtilityFunctions::GetScalarListItem(FGeometryScriptScalarList ScalarList, int Index, bool& bIsValidIndex)
+{
+	bIsValidIndex = false;
+	if (ScalarList.List.IsValid() && Index >= 0 && Index < ScalarList.List->Num())
+	{
+		bIsValidIndex = true;
+		return (*ScalarList.List)[Index];
+	}
+	return 0.0;
+}
+
+void UGeometryScriptLibrary_ListUtilityFunctions::SetScalarListItem(FGeometryScriptScalarList& ScalarList, int Index, double NewValue, bool& bIsValidIndex)
+{
+	bIsValidIndex = false;
+	if (ScalarList.List.IsValid() && Index >= 0 && Index < ScalarList.List->Num())
+	{
+		bIsValidIndex = true;
+		(*ScalarList.List)[Index] = NewValue;
+	}
+}
+
+void UGeometryScriptLibrary_ListUtilityFunctions::ConvertScalarListToArray(FGeometryScriptScalarList ScalarList, TArray<double>& ScalarArray)
+{
+	ScalarArray.Reset();
+	if (ScalarList.List.IsValid())
+	{
+		ScalarArray.Append(*ScalarList.List);
+	}
+}
+
+void UGeometryScriptLibrary_ListUtilityFunctions::ConvertArrayToScalarList(const TArray<double>& ScalarArray, FGeometryScriptScalarList& ScalarList)
+{
+	ScalarList.Reset();
+	ScalarList.List->Append(ScalarArray);
+}
+
+void UGeometryScriptLibrary_ListUtilityFunctions::DuplicateScalarList(FGeometryScriptScalarList ScalarList, FGeometryScriptScalarList& DuplicateList)
+{
+	DuplicateList.Reset();
+	*DuplicateList.List = *ScalarList.List;
+}
+
+void UGeometryScriptLibrary_ListUtilityFunctions::ClearScalarList(FGeometryScriptScalarList& ScalarList, double ClearValue)
+{
+	int32 Num = ScalarList.List->Num();
+	ScalarList.Reset();
+	ScalarList.List->Init(ClearValue, Num);
+}
+
+
+
+
+
 int UGeometryScriptLibrary_ListUtilityFunctions::GetVectorListLength(FGeometryScriptVectorList VectorList)
 {
 	return (VectorList.List.IsValid()) ? VectorList.List->Num() : 0;
@@ -96,6 +161,7 @@ int UGeometryScriptLibrary_ListUtilityFunctions::GetVectorListLastIndex(FGeometr
 	return (VectorList.List.IsValid()) ? FMath::Max(VectorList.List->Num()-1,0) : 0;
 }
 
+
 FVector UGeometryScriptLibrary_ListUtilityFunctions::GetVectorListItem(FGeometryScriptVectorList VectorList, int Index, bool& bIsValidIndex)
 {
 	bIsValidIndex = false;
@@ -105,6 +171,16 @@ FVector UGeometryScriptLibrary_ListUtilityFunctions::GetVectorListItem(FGeometry
 		return (*VectorList.List)[Index];
 	}
 	return FVector::Zero();
+}
+
+void UGeometryScriptLibrary_ListUtilityFunctions::SetVectorListItem(FGeometryScriptVectorList& VectorList, int Index, FVector NewValue, bool& bIsValidIndex)
+{
+	bIsValidIndex = false;
+	if (VectorList.List.IsValid() && Index >= 0 && Index < VectorList.List->Num())
+	{
+		bIsValidIndex = true;
+		(*VectorList.List)[Index] = NewValue;
+	}
 }
 
 void UGeometryScriptLibrary_ListUtilityFunctions::ConvertVectorListToArray(FGeometryScriptVectorList VectorList, TArray<FVector>& VectorArray)
@@ -122,7 +198,18 @@ void UGeometryScriptLibrary_ListUtilityFunctions::ConvertArrayToVectorList(const
 	VectorList.List->Append(VectorArray);
 }
 
+void UGeometryScriptLibrary_ListUtilityFunctions::DuplicateVectorList(FGeometryScriptVectorList VectorList, FGeometryScriptVectorList& DuplicateList)
+{
+	DuplicateList.Reset();
+	*DuplicateList.List = *VectorList.List;
+}
 
+void UGeometryScriptLibrary_ListUtilityFunctions::ClearVectorList(FGeometryScriptVectorList& VectorList, FVector ClearValue)
+{
+	int32 Num = VectorList.List->Num();
+	VectorList.Reset();
+	VectorList.List->Init(ClearValue, Num);
+}
 
 
 
@@ -202,6 +289,64 @@ void UGeometryScriptLibrary_ListUtilityFunctions::ConvertArrayToColorList(const 
 	ColorList.List->Append(ColorArray);
 }
 
+void UGeometryScriptLibrary_ListUtilityFunctions::ExtractColorListChannel(FGeometryScriptColorList ColorList, FGeometryScriptScalarList& ScalarList, int32 ChannelIndex)
+{
+	if (ChannelIndex < 0 || ChannelIndex > 3)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("ExtractColorListChannel: ChannelIndex is not in valid range 0-3"));
+	}
+	ChannelIndex = FMath::Clamp(ChannelIndex, 0, 3);
+
+	ScalarList.Reset();
+	if (ColorList.List.IsValid())
+	{
+		TArray<FLinearColor>& Colors = *ColorList.List;
+		TArray<double>& Scalars = *ScalarList.List;
+		int32 N = Colors.Num();
+		Scalars.SetNumUninitialized(N);
+		for (int32 k = 0; k < N; ++k)
+		{
+			FVector4d Vector4 = (FVector4d)(Colors[k]);
+			Scalars[k] = Vector4[ChannelIndex];
+		}
+	}
+}
+
+
+void UGeometryScriptLibrary_ListUtilityFunctions::ExtractColorListChannels(
+	FGeometryScriptColorList ColorList, FGeometryScriptVectorList& VectorList, 
+	int32 XChannelIndex, int32 YChannelIndex, int32 ZChannelIndex)
+{
+	if (XChannelIndex < 0 || XChannelIndex > 3)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("ExtractColorListChannels: XChannelIndex is not in valid range 0-3"));
+	}
+	if (YChannelIndex < 0 || YChannelIndex > 3)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("ExtractColorListChannels: YChannelIndex is not in valid range 0-3"));
+	}
+	if (ZChannelIndex < 0 || ZChannelIndex > 3)
+	{
+		UE_LOG(LogGeometry, Warning, TEXT("ExtractColorListChannels: ZChannelIndex is not in valid range 0-3"));
+	}
+	XChannelIndex = FMath::Clamp(XChannelIndex, 0, 3);
+	YChannelIndex = FMath::Clamp(YChannelIndex, 0, 3);
+	ZChannelIndex = FMath::Clamp(ZChannelIndex, 0, 3);
+
+	VectorList.Reset();
+	if (ColorList.List.IsValid())
+	{
+		TArray<FLinearColor>& Colors = *ColorList.List;
+		TArray<FVector>& Vectors = *VectorList.List;
+		int32 N = Colors.Num();
+		Vectors.SetNumUninitialized(N);
+		for (int32 k = 0; k < N; ++k)
+		{
+			FVector4d Vector4 = (FVector4d)(Colors[k]);
+			Vectors[k] = FVector(Vector4[XChannelIndex], Vector4[YChannelIndex], Vector4[ZChannelIndex]);
+		}
+	}
+}
 
 
 
