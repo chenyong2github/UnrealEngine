@@ -1395,7 +1395,9 @@ void FNiagaraSystemToolkitParameterPanelViewModel::DebugParameters(const TArray<
 			if (EmitterHandles.Contains(Handle.GetId() ))
 				Handles.Add(Handle);
 		}
+#if WITH_NIAGARA_DEBUGGER
 		SNiagaraDebugger::InvokeDebugger(System, Handles, Attributes);
+#endif
 	}
 }
 
