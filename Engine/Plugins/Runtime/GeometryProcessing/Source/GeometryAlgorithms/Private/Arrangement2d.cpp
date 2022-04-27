@@ -88,7 +88,7 @@ bool FArrangement2d::AttemptTriangulate(TArray<FIntVector>& Triangles, TArray<in
 	// TODO: Currently this just constructs an FIndex3i array and then copies it to an FIntVector array; if we need to construct FIntVector versions faster, we could directly construct them here instead
 	// However this would require writing FIntVector versions of the GetTriangles functions in FDelaunay2; ideally we would instead mainly call the FIndex3i variant
 	TArray<FIndex3i> TrianglesInd3i;
-	bool bResult = AttemptTriangulate(TrianglesInd3i, SkippedEdges, BoundaryEdgeGroupID);
+	bool bResult = TriangulateInternal(TrianglesInd3i, true, BoundaryEdgeGroupID, false, -1, true, &SkippedEdges);
 	Triangles.SetNumUninitialized(TrianglesInd3i.Num());
 	for (int32 Idx = 0; Idx < TrianglesInd3i.Num(); Idx++)
 	{
@@ -97,7 +97,7 @@ bool FArrangement2d::AttemptTriangulate(TArray<FIntVector>& Triangles, TArray<in
 	return bResult;
 }
 
-bool FArrangement2d::AttemptTriangulate(TArray<FIndex3i> &Triangles, TArray<int32> &SkippedEdges, int32 BoundaryEdgeGroupID)
+bool FArrangement2d::TriangulateInternal(TArray<FIndex3i>& Triangles, bool bHasBoundaryGroupID, int32 BoundaryEdgeGroupID, bool bHasHoleGroupID, int32 HoleEdgeGroupID, bool bLegacyKeepTrianglesIfBoundaryNotFound, TArray<int32>* SkippedEdges)
 {
 	Triangles.Empty();
 
@@ -151,7 +151,7 @@ bool FArrangement2d::AttemptTriangulate(TArray<FIndex3i> &Triangles, TArray<int3
 	bool bInsertConstraintFailure = false;
 	bool bBoundaryTrackingFailure = false;
 
-	TArray<FIndex2i> AllEdges, BoundaryEdges;
+	TArray<FIndex2i> AllEdges, BoundaryEdges, HoleEdges;
 
 	for (int EdgeIdx : Graph.EdgeIndices())
 	{
@@ -162,9 +162,13 @@ bool FArrangement2d::AttemptTriangulate(TArray<FIndex3i> &Triangles, TArray<int3
 			Edge.B = InputIndices[Edge.B];
 		}
 		FIndex2i& AddedEdge = AllEdges.Emplace_GetRef(Edge.A, Edge.B);
-		if (Edge.Group == BoundaryEdgeGroupID)
+		if (bHasBoundaryGroupID && Edge.Group == BoundaryEdgeGroupID)
 		{
 			BoundaryEdges.Add(AddedEdge);
+		}
+		if (bHasHoleGroupID && Edge.Group == HoleEdgeGroupID)
+		{
+			HoleEdges.Add(AddedEdge);
 		}
 	}
 
@@ -182,18 +186,27 @@ bool FArrangement2d::AttemptTriangulate(TArray<FIndex3i> &Triangles, TArray<int3
 		if (!Delaunay.HasEdge(FIndex2i(Edge.A, Edge.B), false))
 		{
 			bInsertConstraintFailure = true;
-			SkippedEdges.Add(EdgeIdx);
+			if (SkippedEdges)
+			{
+				SkippedEdges->Add(EdgeIdx);
+			}
 			if (Edge.Group == BoundaryEdgeGroupID)
 			{
 				bBoundaryTrackingFailure = true;
 			}
 		}
 	}
-	
-	if (!bBoundaryTrackingFailure && BoundaryEdges.Num() > 0)
+
+	if (bHasBoundaryGroupID && (!bLegacyKeepTrianglesIfBoundaryNotFound || (!bBoundaryTrackingFailure && BoundaryEdges.Num() > 0)))
 	{
-		Triangles = Delaunay.GetFilledTriangles(BoundaryEdges, FDelaunay2::EFillMode::Solid);
-		ensure(Triangles.Num()); // technically it could be valid to not have any triangles after eating the outside-boundary ones, but it would be unusual and could also be a bug
+		if (bHasHoleGroupID)
+		{
+			Delaunay.GetFilledTriangles(Triangles, BoundaryEdges, HoleEdges);
+		}
+		else
+		{
+			Triangles = Delaunay.GetFilledTriangles(BoundaryEdges, FDelaunay2::EFillMode::Solid);
+		}
 	}
 	else
 	{
@@ -212,3 +225,22 @@ bool FArrangement2d::AttemptTriangulate(TArray<FIndex3i> &Triangles, TArray<int3
 	return !bInsertConstraintFailure;
 }
 
+bool FArrangement2d::AttemptTriangulate(TArray<FIndex3i>& Triangles, TArray<int32>& SkippedEdges, int32 BoundaryEdgeGroupID)
+{
+	return TriangulateInternal(Triangles, true, BoundaryEdgeGroupID, false, -1, true, &SkippedEdges);
+}
+
+bool FArrangement2d::TriangulateWithBoundaryAndHoles(TArray<FIndex3i>& Triangles, int32 BoundaryEdgeGroupID, int32 HoleEdgeGroupID)
+{
+	return TriangulateInternal(Triangles, true, BoundaryEdgeGroupID, true, HoleEdgeGroupID, false, nullptr);
+}
+
+bool FArrangement2d::TriangulateWithBoundary(TArray<FIndex3i>& Triangles, int32 BoundaryEdgeGroupID)
+{
+	return TriangulateInternal(Triangles, true, BoundaryEdgeGroupID, false, -1, false, nullptr);
+}
+
+bool FArrangement2d::Triangulate(TArray<FIndex3i>& Triangles)
+{
+	return TriangulateInternal(Triangles, false, -1, false, -1, false, nullptr);
+}

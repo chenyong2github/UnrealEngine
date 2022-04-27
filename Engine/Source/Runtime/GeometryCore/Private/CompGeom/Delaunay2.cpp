@@ -134,7 +134,7 @@ struct FDelaunay2Connectivity
 	}
 
 	// return the triangle indices rotated s.t. the smallest vertex is first (and the winding is unchanged)
-	inline FIndex3i AsUniqueTriangle(const FIndex2i& Edge, int32 Vertex)
+	inline FIndex3i AsUniqueTriangle(const FIndex2i& Edge, int32 Vertex) const
 	{
 		if (Edge.A < Edge.B)
 		{
@@ -160,7 +160,7 @@ struct FDelaunay2Connectivity
 		}
 	}
 
-	bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> Edges, FDelaunay2::EFillMode FillMode)
+	bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> Edges, FDelaunay2::EFillMode FillMode) const
 	{
 		bool bWellDefinedResult = true;
 
@@ -176,7 +176,7 @@ struct FDelaunay2Connectivity
 			int32 Sign = 1;
 			if (Unoriented.A > Unoriented.B)
 			{
-				Swap(Unoriented.A, Unoriented.B);
+				Unoriented.Swap();
 				if (FillMode != FDelaunay2::EFillMode::Solid)
 				{
 					Sign = -1;
@@ -254,7 +254,7 @@ struct FDelaunay2Connectivity
 			//  and depth-first traversal would be more sensitive to starting triangle in that case
 			PickIdx = (PickIdx + 1) % ToWalk.Num();
 			const FWalk Walk = ToWalk[PickIdx];
-			ToWalk.RemoveAtSwap(PickIdx);
+			ToWalk.RemoveAtSwap(PickIdx, 1, false);
 			int32 Vert = EdgeToVert[Walk.Edge];
 			FIndex3i UniqueTri = AsUniqueTriangle(Walk.Edge, Vert);
 			if (UniqueTri.A < 0) // it's a ghost
@@ -302,6 +302,132 @@ struct FDelaunay2Connectivity
 			}
 		}
 		return bWellDefinedResult;
+	}
+
+	bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> BoundaryEdges, TArrayView<const FIndex2i> HoleEdges) const
+	{
+		TSet<FIndex2i> BoundarySet, HoleSet;
+		auto AddToSet = [this](TArrayView<const FIndex2i> Edges, TSet<FIndex2i>& Set)
+		{
+			for (FIndex2i Edge : Edges)
+			{
+				if (bTrackDuplicateVertices)
+				{
+					FixDuplicatesOnEdge(Edge);
+				}
+				Edge.Sort();
+				Set.Add(Edge);
+			}
+		};
+		AddToSet(BoundaryEdges, BoundarySet);
+		AddToSet(HoleEdges, HoleSet);
+
+		TMap<FIndex3i, bool> InBoundary;
+		struct FWalk
+		{
+			FIndex2i Edge;
+		};
+		TArray<FWalk> ToWalkOuter;
+		TArray<FWalk> ToWalkInner;
+
+		auto WalkOuter = [&ToWalkOuter, &ToWalkInner, &HoleEdges, &BoundaryEdges](const FIndex2i& Edge)
+		{
+			FIndex2i Unoriented = Edge;
+			Unoriented.Sort();
+			if (HoleEdges.Contains(Unoriented))
+			{
+				return;
+			}
+			FIndex2i ReverseEdge(Edge.B, Edge.A);
+			if (BoundaryEdges.Contains(Unoriented))
+			{
+				ToWalkInner.Add({ ReverseEdge });
+			}
+			else
+			{
+				ToWalkOuter.Add({ ReverseEdge });
+			}
+		};
+
+		auto WalkInner = [&ToWalkInner, &HoleEdges](const FIndex2i& Edge)
+		{
+			FIndex2i Unoriented = Edge;
+			Unoriented.Sort();
+			if (HoleEdges.Contains(Unoriented))
+			{
+				return;
+			}
+			FIndex2i ReverseEdge(Edge.B, Edge.A);
+			ToWalkInner.Add({ ReverseEdge });
+		};
+
+		// First walk all the ghost triangles, through their non-ghost edge
+		int32 GhostTriCount = 0;
+		for (const TPair<FIndex2i, int32>& EdgeV : EdgeToVert)
+		{
+			if (EdgeV.Value == GhostIndex)
+			{
+				WalkOuter(EdgeV.Key);
+				GhostTriCount++;
+			}
+		}
+
+		// Next walk up to the outer boundary
+		while (!ToWalkOuter.IsEmpty())
+		{
+			const FWalk Walk = ToWalkOuter.Pop(false);
+			int32 Vert = EdgeToVert[Walk.Edge];
+			FIndex3i UniqueTri = AsUniqueTriangle(Walk.Edge, Vert);
+			if (UniqueTri.A < 0) // it's a ghost
+			{
+				continue;
+			}
+			bool* InBoundaryPtr = InBoundary.Find(UniqueTri);
+			if (InBoundaryPtr)
+			{
+				continue;
+			}
+			InBoundary.Add(UniqueTri, false);
+			WalkOuter(FIndex2i(Walk.Edge.B, Vert));
+			WalkOuter(FIndex2i(Vert, Walk.Edge.A));
+		}
+
+		// Finally walk up to the inner hole boundary
+		int32 SolidTriCount = 0;
+		while (!ToWalkInner.IsEmpty())
+		{
+			const FWalk Walk = ToWalkInner.Pop(false);
+			int32 Vert = EdgeToVert[Walk.Edge];
+			FIndex3i UniqueTri = AsUniqueTriangle(Walk.Edge, Vert);
+			if (UniqueTri.A < 0) // it's a ghost
+			{
+				continue;
+			}
+			bool* InBoundaryPtr = InBoundary.Find(UniqueTri);
+			if (InBoundaryPtr)
+			{
+				continue;
+			}
+			InBoundary.Add(UniqueTri, true);
+			WalkInner(FIndex2i(Walk.Edge.B, Vert));
+			WalkInner(FIndex2i(Vert, Walk.Edge.A));
+		}
+
+		TrianglesOut.Reset();
+		
+		TrianglesOut.Reserve(InBoundary.Num());
+		EnumerateTriangles([&InBoundary, &TrianglesOut](const FIndex2i& Edge, int32 Vertex) -> bool
+			{
+				FIndex3i Triangle(Vertex, Edge.A, Edge.B);
+				bool* InBoundaryPtr = InBoundary.Find(Triangle);
+				if (InBoundaryPtr && *InBoundaryPtr)
+				{
+					TrianglesOut.Add(Triangle);
+				}
+				return true;
+			}, true /*bSkipGhosts*/);
+		
+		return true;
 	}
 
 	static bool IsGhost(const FIndex2i& Edge, int32 Vertex)
@@ -378,19 +504,19 @@ struct FDelaunay2Connectivity
 		DuplicateVertices.Add(Duplicate, Orig);
 	}
 
-	bool HasDuplicateTracking()
+	bool HasDuplicateTracking() const
 	{
 		return bTrackDuplicateVertices;
 	}
 
-	void FixDuplicatesOnEdge(FIndex2i& Edge)
+	void FixDuplicatesOnEdge(FIndex2i& Edge) const
 	{
-		int32* OrigA = DuplicateVertices.Find(Edge.A);
+		const int32* OrigA = DuplicateVertices.Find(Edge.A);
 		if (OrigA)
 		{
 			Edge.A = *OrigA;
 		}
-		int32* OrigB = DuplicateVertices.Find(Edge.B);
+		const int32* OrigB = DuplicateVertices.Find(Edge.B);
 		if (OrigB)
 		{
 			Edge.B = *OrigB;
@@ -429,7 +555,7 @@ struct FDelaunay2Connectivity
 	// VisitFunctionType is expected to take (FIndex2i Edge, int32 Vertex) and return bool
 	// Returning false from VisitFn will end the enumeration early
 	template<typename VisitFunctionType>
-	void EnumerateOrientedEdges(VisitFunctionType VisitFn)
+	void EnumerateOrientedEdges(VisitFunctionType VisitFn) const
 	{
 		for (const TPair<FIndex2i, int32>& EdgeVert : EdgeToVert)
 		{
@@ -445,7 +571,7 @@ struct FDelaunay2Connectivity
 	// Returning false from VisitFn will end the enumeration early
 	// @param bSkipGhosts If true, skip ghost triangles (triangles connected to the ghost vertex)
 	template<typename VisitFunctionType>
-	void EnumerateTriangles(VisitFunctionType VisitFn, bool bSkipGhosts = false)
+	void EnumerateTriangles(VisitFunctionType VisitFn, bool bSkipGhosts = false) const
 	{
 		for (const TPair<FIndex2i, int32>& EdgeVert : EdgeToVert)
 		{
@@ -1171,13 +1297,22 @@ void FDelaunay2::GetTrianglesAndAdjacency(TArray<FIndex3i>& Triangles, TArray<FI
 	}
 }
 
-bool FDelaunay2::GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> Edges, EFillMode FillMode)
+bool FDelaunay2::GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> Edges, EFillMode FillMode) const
 {
 	if (!ensure(Connectivity.IsValid()))
 	{
 		return false;
 	}
 	return Connectivity->GetFilledTriangles(TrianglesOut, Edges, FillMode);
+}
+
+bool FDelaunay2::GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> BoundaryEdges, TArrayView<const FIndex2i> HoleEdges) const
+{
+	if (!ensure(Connectivity.IsValid()))
+	{
+		return false;
+	}
+	return Connectivity->GetFilledTriangles(TrianglesOut, BoundaryEdges, HoleEdges);
 }
 
 bool FDelaunay2::IsDelaunay(TArrayView<const FVector2f> Vertices, TArrayView<const FIndex2i> SkipEdges) const

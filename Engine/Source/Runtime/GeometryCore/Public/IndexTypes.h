@@ -106,9 +106,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	inline void Swap()
 	{
-		int tmp = A;
-		A = B;
-		B = tmp;
+		::Swap(A, B);
+	}
+
+	inline void Sort()
+	{
+		if (A > B)
+		{
+			Swap();
+		}
 	}
 
 	/**

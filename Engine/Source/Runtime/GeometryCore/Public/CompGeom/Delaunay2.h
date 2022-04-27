@@ -188,7 +188,18 @@ public:
 	 * @return							true if the result was well defined and consistent; false otherwise. Solid fill mode always has a well defined result; Winding-number-based fills do not if the edges have open spans.
 	 *									Note the triangulation will still be filled by best-effort even if the function returns false.
 	 */
-	bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding);
+	bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> Edges, EFillMode FillMode = EFillMode::PositiveWinding) const;
+
+	/**
+	 * Get (by reference) the triangles that are inside the given edges, removing the outside-boundary triangles and the inside-hole triangles
+	 * 
+	 * @param TrianglesOut					Will be filled with a subset of the triangulation that is 'inside' the given edges, as defined by the FillMode
+	 * @param BoundaryEdges					Constrained edges in the triangulation that define the boundary of the desired shape
+	 * @param HoleEdges						Constrained edges in the triangulation that define inner holes of the desired shape
+	 * @return								true if any result was successfully computed (including an empty result).
+	 *										Currently only returns false if Triangulate() has not been called yet.
+	 */
+	bool GetFilledTriangles(TArray<FIndex3i>& TrianglesOut, TArrayView<const FIndex2i> BoundaryEdges, TArrayView<const FIndex2i> HoleEdges) const;
 
 	// @return true if this is a constrained Delaunay triangulation
 	bool IsConstrained() const

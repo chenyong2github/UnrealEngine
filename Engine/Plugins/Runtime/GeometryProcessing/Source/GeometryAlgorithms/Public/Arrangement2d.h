@@ -54,6 +54,7 @@ struct FArrangement2d
 
 	/**
 	 * Attempts to triangulates the arrangement with a constrained Delaunay triangulation
+	 * NOTE: Will return all triangles if no edges found with the BoundaryEdgeGroupID
 	 * NOTE: May fail if arrangement has self-intersections
 	 * 
 	 * Triangles: Output triangles (as indices into Graph vertices)
@@ -61,10 +62,42 @@ struct FArrangement2d
 	 * BoundaryEdgeGroupID: ID of edges corresponding to a boundary; if we have a closed loop of these boundary edges on output triangulation, will discard triangles outside this
 	 * return: false if triangulation algo knows it failed (note Triangles may still have some triangulation of the input in this case; for example it may just be missing some required edges)
 	 */
+	UE_DEPRECATED(5.1, "Please use the Triangulate or TriangulateWithBoundary functions instead, which are explicit about whether a BoundaryEdgeGroupID should be present")
 	bool GEOMETRYALGORITHMS_API AttemptTriangulate(TArray<FIndex3i>& Triangles, TArray<int32>& SkippedEdges, int32 BoundaryEdgeGroupID);
 
 	// Variant of AttemptTriangulate using FIntVector instead of FIndex3i; Note this incurs an extra copy of the triangle array
+	UE_DEPRECATED(5.1, "Please use the Triangulate or TriangulateWithBoundary functions instead, which are explicit about whether a BoundaryEdgeGroupID should be present")
 	bool GEOMETRYALGORITHMS_API AttemptTriangulate(TArray<FIntVector>& Triangles, TArray<int32>& SkippedEdges, int32 BoundaryEdgeGroupID);
+
+	/**
+	 * Attempts to triangulate the arrangement with a constrained Delaunay triangulation
+	 * NOTE: May fail if arrangement has self-intersections
+	 * 
+	 * @param Triangles				Output triangles (as indices into Graph vertices)
+	 * @param BoundaryEdgeGroupID	ID of edges corresponding to a boundary: triangles outside these edges will be removed
+	 * @param HoleEdgeGroupID		ID of edges corresponding to internal holes: triangles inside these edges will be removed
+	 * @return						false if triangulation algo knows it failed; will still likely have some triangulation even in this case
+	 */
+	bool GEOMETRYALGORITHMS_API TriangulateWithBoundaryAndHoles(TArray<FIndex3i>& Triangles, int32 BoundaryEdgeGroupID, int32 HoleEdgeGroupID);
+
+	/**
+	 * Attempts to triangulate the arrangement with a constrained Delaunay triangulation
+	 * NOTE: May fail if arrangement has self-intersections
+	 *
+	 * @param Triangles				Output triangles (as indices into Graph vertices)
+	 * @param BoundaryEdgeGroupID	ID of edges corresponding to a boundary: triangles outside these edges will be removed
+	 * @return						false if triangulation algo knows it failed; will still likely have some triangulation even in this case
+	 */
+	bool GEOMETRYALGORITHMS_API TriangulateWithBoundary(TArray<FIndex3i>& Triangles, int32 BoundaryEdgeGroupID);
+
+	/**
+	 * Attempts to triangulate the arrangement with a constrained Delaunay triangulation
+	 * NOTE: May fail if arrangement has self-intersections
+	 *
+	 * @param Triangles				Output triangles (as indices into Graph vertices)
+	 * @return						false if triangulation algo knows it failed; will still likely have some triangulation even in this case
+	 */
+	bool GEOMETRYALGORITHMS_API Triangulate(TArray<FIndex3i>& Triangles);
 
 	/**
 	 * Check if current Graph has self-intersections; not optimized, only for debugging
@@ -538,6 +571,10 @@ protected:
 
 		return num_hits > 0;
 	}
+
+private:
+	// Full-featured implementation for all Triangulate function variants to call
+	bool GEOMETRYALGORITHMS_API TriangulateInternal(TArray<FIndex3i>& Triangles, bool bHasBoundaryEdgeGroupID, int32 BoundaryEdgeGroupID, bool bHasHoleGroupID, int32 HoleEdgeGroupID, bool bLegacyKeepTrianglesIfBoundaryNotFound, TArray<int32>* SkippedEdges);
 };
 
 
