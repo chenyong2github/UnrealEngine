@@ -324,6 +324,8 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 	, AnimFName(InSeq->GetFName())
 {
 #if WITH_EDITOR
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCompressibleAnimData::FCompressibleAnimData);
+
 	USkeleton* Skeleton = InSeq->GetSkeleton();
 	FAnimationUtils::BuildSkeletonMetaData(Skeleton, BoneData);
 

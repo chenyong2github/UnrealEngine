@@ -40,6 +40,8 @@ const TCHAR* FDerivedDataAnimationCompression::GetVersionString() const
 
 bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDerivedDataAnimationCompression::Build);
+
 	const double CompressionStartTime = FPlatformTime::Seconds();
 
 	check(DataToCompressPtr.IsValid());

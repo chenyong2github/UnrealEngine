@@ -1857,6 +1857,10 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 	// Make sure all our required dependencies are loaded
 	FAnimationUtils::EnsureAnimSequenceLoaded(*this);
 
+	// EnsureAnimSequenceLoaded can also start some compression, we'll need to wait here since the code
+	// below assumes everything is finished.
+	WaitOnExistingCompression(false);
+
 	EnsureValidRawDataGuid();
 
 	bUseRawDataOnly = true;
@@ -1879,46 +1883,36 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 
 		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(TEXT("AnimSeq"), AssetDDCKey, Params.CompressContext);
 
-		const FString FinalDDCKey = FDerivedDataCacheInterface::BuildCacheKey(AnimCompressor->GetPluginName(), AnimCompressor->GetVersionString(), *AnimCompressor->GetPluginSpecificCacheKeySuffix());
-
-		// For debugging DDC/Compression issues		
+		// For debugging DDC/Compression issues
 		const bool bSkipDDC = false;
 
-		if (!bSkipDDC && GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData, AnimCompressor->GetDebugContextString()))
-		{
-			COOK_STAT(Timer.AddHit(OutData.Num()));
-			bCompressedDataFromDDC = true;
-		}
-		else
-		{
-			// Data does not exist, need to build it.
-			FCompressibleAnimRef CompressibleData = MakeShared<FCompressibleAnimData, ESPMode::ThreadSafe>(this, bPerformStripping);
-			AnimCompressor->SetCompressibleData(CompressibleData);
+		// Data does not exist, need to build it.
+		FCompressibleAnimRef CompressibleData = MakeShared<FCompressibleAnimData, ESPMode::ThreadSafe>(this, bPerformStripping);
+		AnimCompressor->SetCompressibleData(CompressibleData);
 
-			if (bSkipDDC || (CompressCommandletVersion == INDEX_NONE))
+		if (bSkipDDC || (CompressCommandletVersion == INDEX_NONE))
+		{
+			AnimCompressor->Build(OutData);
+			COOK_STAT(Timer.AddMiss(OutData.Num()));
+		}
+		else if (AnimCompressor->CanBuild())
+		{
+			if (Params.bAsyncCompression)
 			{
-				AnimCompressor->Build(OutData);
-				COOK_STAT(Timer.AddMiss(OutData.Num()));
-			}
-			else if (AnimCompressor->CanBuild())
-			{
-				if (Params.bAsyncCompression)
-				{
-					FAsyncCompressedAnimationsManagement::Get().RequestAsyncCompression(*AnimCompressor, this, bPerformStripping, OutData);
-					COOK_STAT(Timer.TrackCyclesOnly());
-				}
-				else
-				{
-					bool bBuilt = false;
-					const bool bSuccess = GetDerivedDataCacheRef().GetSynchronous(AnimCompressor, OutData, &bBuilt);
-					COOK_STAT(Timer.AddHitOrMiss(!bSuccess || bBuilt ? FCookStats::CallStats::EHitOrMiss::Miss : FCookStats::CallStats::EHitOrMiss::Hit, OutData.Num()));
-				}
-				AnimCompressor = nullptr;
+				FAsyncCompressedAnimationsManagement::Get().RequestAsyncCompression(*AnimCompressor, this, bPerformStripping, OutData);
+				COOK_STAT(Timer.TrackCyclesOnly());
 			}
 			else
 			{
-				COOK_STAT(Timer.TrackCyclesOnly());
+				bool bBuilt = false;
+				const bool bSuccess = GetDerivedDataCacheRef().GetSynchronous(AnimCompressor, OutData, &bBuilt);
+				COOK_STAT(Timer.AddHitOrMiss(!bSuccess || bBuilt ? FCookStats::CallStats::EHitOrMiss::Miss : FCookStats::CallStats::EHitOrMiss::Hit, OutData.Num()));
 			}
+			AnimCompressor = nullptr;
+		}
+		else
+		{
+			COOK_STAT(Timer.TrackCyclesOnly());
 		}
 
 		if (AnimCompressor)
@@ -2297,6 +2291,8 @@ void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& Ne
 	{
 		return; // Nothing to do
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UAnimSequence::BakeOutAdditiveIntoRawData);
 
 	ValidateModel();
 
