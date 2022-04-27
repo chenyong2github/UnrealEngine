@@ -77,6 +77,9 @@ private:
 	TValueOrError<bool, FString> IsValidBindingForField(const UE::MVVM::FMVVMConstFieldVariant& Field, const UE::MVVM::FMVVMConstFieldVariant& CounterpartField) const;
 	TValueOrError<bool, FString> ValidateField(UE::MVVM::FMVVMConstFieldVariant Field) const;
 
+	EVisibility GetClearVisibility() const;
+	FReply OnClearBinding();
+
 private:
 	TArray<UE::MVVM::IFieldPathHelper*> PathHelpers;
 	TArray<UE::MVVM::IFieldPathHelper*> CounterpartHelpers;

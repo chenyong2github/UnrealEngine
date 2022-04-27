@@ -3,6 +3,7 @@
 #include "SMVVMSourceSelector.h"
 
 #include "Algo/Transform.h"
+#include "SSimpleButton.h"
 #include "Widgets/SMVVMFieldIcon.h"
 #include "Widgets/SMVVMSourceEntry.h"
 
@@ -43,20 +44,37 @@ void SMVVMSourceSelector::Construct(const FArguments& Args)
 
 	ChildSlot
 	[
-		SAssignNew(SourceComboBox, SComboBox<FBindingSource>)
-		.OptionsSource(&AvailableSources)
-		.OnGenerateWidget_Lambda([this](FBindingSource Source)
-		{
-			return SNew(SMVVMSourceEntry)
-				.TextStyle(TextStyle)
-				.Source(Source);
-		})
-		.OnSelectionChanged(this, &SMVVMSourceSelector::OnComboBoxSelectionChanged)
-		.InitiallySelectedItem(SelectedSource)
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Fill)
+		.VAlign(VAlign_Center)
 		[
-			SAssignNew(SelectedSourceWidget, SMVVMSourceEntry)
-			.TextStyle(TextStyle)
-			.Source(SelectedSource)
+			SAssignNew(SourceComboBox, SComboBox<FBindingSource>)
+			.OptionsSource(&AvailableSources)
+			.OnGenerateWidget_Lambda([this](FBindingSource Source)
+			{
+				return SNew(SMVVMSourceEntry)
+					.TextStyle(TextStyle)
+					.Source(Source);
+			})
+			.OnSelectionChanged(this, &SMVVMSourceSelector::OnComboBoxSelectionChanged)
+			.InitiallySelectedItem(SelectedSource)
+			[
+				SAssignNew(SelectedSourceWidget, SMVVMSourceEntry)
+				.TextStyle(TextStyle)
+				.Source(SelectedSource)
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SSimpleButton)
+			.Icon(FAppStyle::Get().GetBrush("Icons.X"))
+			.ToolTipText(LOCTEXT("ClearField", "Clear source selection."))
+			.Visibility(this, &SMVVMSourceSelector::GetClearVisibility)
+			.OnClicked(this, &SMVVMSourceSelector::OnClearSource)
 		]
 	];
 }
@@ -108,6 +126,30 @@ void SMVVMSourceSelector::Refresh()
 		SourceComboBox->RefreshOptions();
 		SourceComboBox->SetSelectedItem(SelectedSource);
 	}
+}
+
+EVisibility SMVVMSourceSelector::GetClearVisibility() const
+{
+	for (const IFieldPathHelper* Helper : PathHelpers.Get())
+	{
+		const FBindingSource ThisSelection = Helper->GetSelectedSource();
+		if (ThisSelection.IsValid())
+		{
+			return EVisibility::Visible;
+		}
+	}
+
+	return EVisibility::Collapsed;
+}
+
+FReply SMVVMSourceSelector::OnClearSource()
+{
+	if (SourceComboBox.IsValid())
+	{
+		SourceComboBox->ClearSelection();
+	}
+
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

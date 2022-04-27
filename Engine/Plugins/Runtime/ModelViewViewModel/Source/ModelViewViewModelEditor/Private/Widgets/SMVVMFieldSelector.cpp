@@ -87,45 +87,62 @@ void SMVVMFieldSelector::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SOverlay)
-		+ SOverlay::Slot()
-		.HAlign(HAlign_Center)
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Center)
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("NoSourceSelected", "No source selected"))
-			.TextStyle(FAppStyle::Get(), "HintText")
-			.Visibility_Lambda([this]()
-			{
-				return SelectedSource.IsSet() ? EVisibility::Collapsed : EVisibility::Visible;
-			})
-		]
-		+ SOverlay::Slot()
-		[
-			SAssignNew(FieldComboBox, SComboBox<FMVVMConstFieldVariant>)
-			.Visibility_Lambda([this]()
-			{
-				return SelectedSource.IsSet() ? EVisibility::Visible : EVisibility::Hidden;
-			})
-			.OptionsSource(&AvailableFields)
-			.InitiallySelectedItem(SelectedField)
-			.OnGenerateWidget(this, &SMVVMFieldSelector::OnGenerateFieldWidget)
-			.OnSelectionChanged(this, &SMVVMFieldSelector::OnComboBoxSelectionChanged)
+			SNew(SOverlay)
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
 			[
-				SAssignNew(SelectedEntry, SMVVMFieldEntry)
-				.TextStyle(TextStyle)
-				.Field(SelectedField)
-				.OnValidate(this, &SMVVMFieldSelector::ValidateField)
+				SNew(STextBlock)
+				.Text(LOCTEXT("NoSourceSelected", "No source selected"))
+				.TextStyle(FAppStyle::Get(), "HintText")
+				.Visibility_Lambda([this]()
+				{
+					return SelectedSource.IsSet() ? EVisibility::Collapsed : EVisibility::Visible;
+				})
 			]
+			+ SOverlay::Slot()
+			[
+				SAssignNew(FieldComboBox, SComboBox<FMVVMConstFieldVariant>)
+				.Visibility_Lambda([this]()
+				{
+					return SelectedSource.IsSet() ? EVisibility::Visible : EVisibility::Hidden;
+				})
+				.OptionsSource(&AvailableFields)
+				.InitiallySelectedItem(SelectedField)
+				.OnGenerateWidget(this, &SMVVMFieldSelector::OnGenerateFieldWidget)
+				.OnSelectionChanged(this, &SMVVMFieldSelector::OnComboBoxSelectionChanged)
+				[
+					SAssignNew(SelectedEntry, SMVVMFieldEntry)
+					.TextStyle(TextStyle)
+					.Field(SelectedField)
+					.OnValidate(this, &SMVVMFieldSelector::ValidateField)
+				]
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SSimpleButton)
+			.Icon(FAppStyle::Get().GetBrush("Icons.X"))
+			.ToolTipText(LOCTEXT("ClearField", "Clear field selection."))
+			.Visibility(this, &SMVVMFieldSelector::GetClearVisibility)
+			.OnClicked(this, &SMVVMFieldSelector::OnClearBinding)
 		]
 	];
 }
 
 void SMVVMFieldSelector::OnComboBoxSelectionChanged(FMVVMConstFieldVariant Selected, ESelectInfo::Type SelectionType)
 {
-	OnSelectionChangedDelegate.ExecuteIfBound(Selected);
-	
 	SelectedEntry->SetField(Selected);
+
+	OnSelectionChangedDelegate.ExecuteIfBound(Selected);
 }
 
 void SMVVMFieldSelector::Refresh()
@@ -171,8 +188,9 @@ void SMVVMFieldSelector::Refresh()
 		}
 	}
 
-	// put all incompatible properties at the end so they don't just disappear from the list without explanation
 	AvailableFields.Append(CompatibleFields.Array());
+
+	// put all incompatible properties at the end so they don't just disappear from the list without explanation
 	AvailableFields.Append(IncompatibleFields.Array());
 	
 	if (FieldComboBox.IsValid())
@@ -299,6 +317,30 @@ void SMVVMFieldEntry::SetField(const UE::MVVM::FMVVMConstFieldVariant& InField)
 	Field = InField;
 
 	Refresh();
+}
+
+EVisibility SMVVMFieldSelector::GetClearVisibility() const
+{
+	for (const IFieldPathHelper* Helper : PathHelpers)
+	{
+		const FMVVMConstFieldVariant ThisSelection = Helper->GetSelectedField();
+		if (!ThisSelection.IsEmpty())
+		{
+			return EVisibility::Visible;
+		}
+	}
+
+	return EVisibility::Collapsed;
+}
+
+FReply SMVVMFieldSelector::OnClearBinding()
+{
+	if (FieldComboBox.IsValid())
+	{
+		FieldComboBox->ClearSelection();
+	}
+
+	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

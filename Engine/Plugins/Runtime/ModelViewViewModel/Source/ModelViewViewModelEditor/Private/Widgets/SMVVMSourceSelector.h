@@ -31,6 +31,9 @@ public:
 private:
 	void OnComboBoxSelectionChanged(UE::MVVM::FBindingSource Selected, ESelectInfo::Type SelectionType);
 
+	EVisibility GetClearVisibility() const;
+	FReply OnClearSource();
+
 private:
 	TAttribute<TArray<UE::MVVM::IFieldPathHelper*>> PathHelpers;
 	FSelectionChanged OnSelectionChanged;
