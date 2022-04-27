@@ -518,6 +518,11 @@ namespace Horde.Build
 		public NamespaceId ToolNamespaceId { get; set; } = new NamespaceId("horde.p4");
 
 		/// <summary>
+		/// Whether to 
+		/// </summary>
+		public bool UseLocalPerforceEnv { get; set; }
+
+		/// <summary>
 		/// Lazily computed timezone value
 		/// </summary>
 		public TimeZoneInfo TimeZoneInfo
