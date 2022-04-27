@@ -60,6 +60,7 @@ namespace EpicGames.UHT.Types
 					this.PropertyFlags |= ResolveAndReturnNewFlags(this.ValueProperty, Phase);
 					this.MetaData.Add(this.ValueProperty.MetaData);
 					this.ValueProperty.MetaData.Clear();
+					this.ValueProperty.PropertyFlags = this.PropertyFlags & EPropertyFlags.PropagateToSetElement;
 					PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(this, this.MetaData, this.ValueProperty);
 					break;
 			}

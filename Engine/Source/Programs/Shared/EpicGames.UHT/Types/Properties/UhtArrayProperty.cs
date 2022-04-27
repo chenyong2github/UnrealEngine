@@ -66,6 +66,7 @@ namespace EpicGames.UHT.Types
 				case UhtResolvePhase.Final:
 					this.PropertyFlags |= ResolveAndReturnNewFlags(this.ValueProperty, Phase);
 					this.MetaData.Add(this.ValueProperty.MetaData);
+					this.ValueProperty.PropertyFlags = this.PropertyFlags & EPropertyFlags.PropagateToArrayInner;
 					this.ValueProperty.MetaData.Clear();
 					PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(this, this.MetaData, this.ValueProperty);
 					break;

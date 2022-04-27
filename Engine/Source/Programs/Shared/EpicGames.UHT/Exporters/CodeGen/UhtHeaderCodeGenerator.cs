@@ -523,7 +523,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					if (Child is UhtProperty Property)
 					{
-						if (!Property.bIsEditorOnlyProperty)
+						if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify) && !Property.bIsEditorOnlyProperty)
 						{
 							AppendAction(Builder, Class, Property.SourceName);
 						}
@@ -537,7 +537,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					if (Child is UhtFunction Function)
 					{
-						if (!Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
+						if (Function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify) && !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
 						{
 							AppendAction(Builder, Class, Function.CppImplName);
 						}
@@ -558,7 +558,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					{
 						if (Child is UhtProperty Property)
 						{
-							if (Property.bIsEditorOnlyProperty)
+							if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify) && Property.bIsEditorOnlyProperty)
 							{
 								AppendAction(Builder, Class, Property.SourceName);
 							}
@@ -572,7 +572,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					{
 						if (Child is UhtFunction Function)
 						{
-							if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
+							if (Function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify) && Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
 							{
 								AppendAction(Builder, Class, Function.CppImplName);
 							}

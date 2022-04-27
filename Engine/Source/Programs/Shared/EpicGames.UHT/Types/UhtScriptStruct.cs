@@ -631,6 +631,55 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		protected override void ResolveChildren(UhtResolvePhase Phase)
 		{
+
+			// Setup additional property as well as script struct def flags
+			// for structs / properties being used for the RigVM.
+			// The Input / Output / Constant metadata tokens can be used to mark
+			// up an input / output pin of a RigVMNode. To allow authoring of those
+			// nodes we'll mark up the property as accessible in Blueprint / Python
+			// as well as make the struct a blueprint type.
+			switch (Phase)
+			{
+				case UhtResolvePhase.Properties:
+					foreach (UhtType Child in this.Children)
+					{
+						if (Child is UhtProperty Property)
+						{
+							EPropertyFlags OriginalFlags = Property.PropertyFlags;
+							if (Property.MetaData.ContainsKey(UhtNames.Constant))
+							{
+								Property.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.EditConst | EPropertyFlags.BlueprintVisible;
+							}
+							if (Property.MetaData.ContainsKey(UhtNames.Input) || Property.MetaData.ContainsKey(UhtNames.Visible))
+							{
+								Property.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.BlueprintVisible;
+							}
+							if (Property.MetaData.ContainsKey(UhtNames.Output))
+							{
+								if (!Property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintVisible))
+								{
+									Property.PropertyFlags |= EPropertyFlags.BlueprintVisible | EPropertyFlags.BlueprintReadOnly;
+								}
+							}
+
+							if (OriginalFlags != Property.PropertyFlags &&
+								Property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintVisible | EPropertyFlags.BlueprintReadOnly))
+							{
+								if (!this.MetaData.GetBooleanHierarchical(UhtNames.BlueprintType))
+								{
+									this.MetaData.Add(UhtNames.BlueprintType, true);
+								}
+
+								if (!Property.MetaData.ContainsKey(UhtNames.Category))
+								{
+									Property.MetaData.Add(UhtNames.Category, UhtNames.Pins);
+								}
+							}
+						}
+					}
+					break;
+			}
+
 			base.ResolveChildren(Phase);
 
 			switch (Phase)

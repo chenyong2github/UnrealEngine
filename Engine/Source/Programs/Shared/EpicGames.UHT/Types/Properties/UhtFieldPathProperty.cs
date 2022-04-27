@@ -22,7 +22,7 @@ namespace EpicGames.UHT.Types
 		protected override string CppTypeText { get => "TFieldPath"; }
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "STRUCT"; }
+		protected override string PGetMacroText { get => "TFIELDPATH"; }
 
 		/// <inheritdoc/>
 		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }

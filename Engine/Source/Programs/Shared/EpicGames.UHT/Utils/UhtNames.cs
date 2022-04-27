@@ -23,6 +23,7 @@ namespace EpicGames.UHT.Utils
 		public const string Category = "Category";
 		public const string ClassGroupNames = "ClassGroupNames";
 		public const string Comment = "Comment";
+		public const string Constant = "Constant";
 		public const string CppFromBpEvent = "CppFromBpEvent";
 		public const string CustomThunk = "CustomThunk";
 		public const string DeprecatedFunction = "DeprecatedFunction";
@@ -38,6 +39,7 @@ namespace EpicGames.UHT.Utils
 		public const string HideFunctions = "HideFunctions";
 		public const string IgnoreCategoryKeywordsInSubclasses = "IgnoreCategoryKeywordsInSubclasses";
 		public const string IncludePath = "IncludePath";
+		public const string Input = "Input";
 		public const string Interface = "Interface";
 		public const string IsBlueprintBase = "IsBlueprintBase";
 		public const string IsConversionRoot = "IsConversionRoot";
@@ -47,6 +49,8 @@ namespace EpicGames.UHT.Utils
 		public const string NativeConstTemplateArg = "NativeConstTemplateArg";
 		public const string NoGetter = "NoGetter";
 		public const string ObjectInitializerConstructorDeclared = "ObjectInitializerConstructorDeclared";
+		public const string Output = "Output";
+		public const string Pins = "Pins";
 		public const string PrioritizeCategories = "PrioritizeCategories";
 		public const string ReturnValue = "ReturnValue";
 		public const string ShortToolTip = "ShortToolTip";
@@ -56,5 +60,6 @@ namespace EpicGames.UHT.Utils
 		public const string ToolTip = "ToolTip";
 		public const string UIMin = "UIMin";
 		public const string UIMax = "UIMax";
+		public const string Visible = "Visible";
 	}
 }
