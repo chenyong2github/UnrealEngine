@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"Version": 1,
 	"VersionName": "0.1",
-	"FriendlyName": "Compute Frameowrk (Experimental)",
+	"FriendlyName": "Compute Framework (Experimental)",
 	"Description": "Support for user authored GPU compute graphs",
 	"Category": "Rendering",
 	"CreatedBy": "Epic Games, Inc.",
