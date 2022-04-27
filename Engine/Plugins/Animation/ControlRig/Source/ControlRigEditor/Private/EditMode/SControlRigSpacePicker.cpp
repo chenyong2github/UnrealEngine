@@ -134,7 +134,7 @@ void SControlRigSpacePicker::HandleControlSelected(UControlRig* Subject, FRigCon
 	else //set nothing
 	{
 		TArray<FRigElementKey> SelectedControls;
-		SpacePickerWidget->SetControls(ControlRig->GetHierarchy(), SelectedControls);
+		SpacePickerWidget->SetControls(nullptr, SelectedControls);
 	}
 }
 
