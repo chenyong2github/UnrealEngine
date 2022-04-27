@@ -5,8 +5,8 @@
 
 namespace PCGDebugVisConstants
 {
-	const FSoftObjectPath DefaultPointMesh = FSoftObjectPath(TEXT("/Game/PCG/Content/DebugObjects/PCG_Cube.PCG_Cube"));
-	const FSoftObjectPath MaterialForDefaultPointMesh = FSoftObjectPath(TEXT("Material'/Game/PCG/Content/DebugObjects/PCG_DebugMaterial.PCG_DebugMaterial'"));
+	const FSoftObjectPath DefaultPointMesh = FSoftObjectPath(TEXT("/PCG/DebugObjects/PCG_Cube.PCG_Cube"));
+	const FSoftObjectPath MaterialForDefaultPointMesh = FSoftObjectPath(TEXT("Material'/PCG/DebugObjects/PCG_DebugMaterial.PCG_DebugMaterial'"));
 }
 
 FPCGDebugVisualizationSettings::FPCGDebugVisualizationSettings()
