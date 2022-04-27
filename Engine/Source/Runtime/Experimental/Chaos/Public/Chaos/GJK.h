@@ -1793,7 +1793,13 @@ namespace Chaos
 				break;	//if taking too long just stop. This should never happen
 			}
 
-			V = VectorNormalizeAccurate(V);
+			// Normalization
+			const VectorRegister4Float VRepLength = VectorReciprocalLen(V);
+			if (VectorMaskBits(VRepLength) == 0)
+			{
+				return false;
+			}
+			V = VectorMultiply(V, VRepLength);
 
 			SupportA = SupportAFunc(V);
 			SupportB = SupportBFunc(VectorNegate(V));
