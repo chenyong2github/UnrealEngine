@@ -224,7 +224,7 @@ public:
 	 */
 	void SetFinished(bool bInFinished)
 	{
-		bInFinished = bFinished;
+		bFinished = bInFinished;
 	}
 
 	/**
