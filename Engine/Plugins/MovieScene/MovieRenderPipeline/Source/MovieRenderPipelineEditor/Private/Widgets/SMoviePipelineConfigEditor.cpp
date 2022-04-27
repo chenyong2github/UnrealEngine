@@ -34,6 +34,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateIconFinder.h"
+#include "SPositiveActionButton.h"
 
 // EditorStyle includes
 #include "EditorStyleSet.h"
@@ -153,50 +154,10 @@ void SMoviePipelineConfigEditor::Construct(const FArguments& InArgs)
 
 TSharedRef<SWidget> SMoviePipelineConfigEditor::MakeAddSettingButton()
 {
-	return SNew(SComboButton)
-		.ContentPadding(MoviePipeline::ButtonPadding)
-		.ButtonStyle(FMovieRenderPipelineStyle::Get(), "FlatButton.Success")
+	return SNew(SPositiveActionButton)
 		.OnGetMenuContent(this, &SMoviePipelineConfigEditor::OnGenerateSettingsMenu)
-		.ForegroundColor(FSlateColor::UseForeground())
-		.HasDownArrow(false)
-		.ButtonContent()
-		[
-			SNew(SHorizontalBox)
-    
-			// Plus Icon
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FEditorFontGlyphs::Plus)
-			]
-    
-			// "Setting" Text
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(4, 0, 0, 0)
-			[
-				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Text(LOCTEXT("AddNewSetting_Text", "Setting"))
-			]
-    
-			// Non-Default Down Caret arrow.
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(4, 0, 0, 0)
-			[
-				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FEditorFontGlyphs::Caret_Down)
-			]
-		];
+		.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+		.Text(LOCTEXT("AddNewSetting_Text", "Setting"));
 }
 PRAGMA_ENABLE_OPTIMIZATION
 

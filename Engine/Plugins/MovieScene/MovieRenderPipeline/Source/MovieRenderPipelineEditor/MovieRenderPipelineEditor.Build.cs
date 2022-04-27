@@ -62,7 +62,8 @@ public class MovieRenderPipelineEditor : ModuleRules
 				"Json",
 				"JsonUtilities",
 				"ScreenShotComparisonTools",
-				"AutomationMessages"
+				"AutomationMessages",
+				"ToolWidgets"
 			}
         );
 

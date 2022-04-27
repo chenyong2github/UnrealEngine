@@ -28,6 +28,7 @@
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "SPrimaryButton.h"
 
 // ContentBrowser Includes
 #include "IContentBrowserSingleton.h"
@@ -216,19 +217,11 @@ void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Right)
 				.AutoWidth()
 				[
-					SNew(SButton)
-					.ContentPadding(MoviePipeline::ButtonPadding)
-					.ButtonStyle(FMovieRenderPipelineStyle::Get(), "FlatButton.Success")
+					SNew(SPrimaryButton)
+					.Text(LOCTEXT("RenderQueueLocal_Text", "Render (Local)"))
+					.ToolTipText(LOCTEXT("RenderQueueLocal_Tooltip", "Renders the current queue in the current process using Play in Editor."))
 					.IsEnabled(this, &SMoviePipelineQueuePanel::IsRenderLocalEnabled)
 					.OnClicked(this, &SMoviePipelineQueuePanel::OnRenderLocalRequested)
-					.Content()
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.Text(LOCTEXT("RenderQueueLocal_Text", "Render (Local)"))
-						.ToolTipText(LOCTEXT("RenderQueueLocal_Tooltip", "Renders the current queue in the current process using Play in Editor."))
-						.Margin(FMargin(4, 0, 4, 0))
-					]
 				]
 
 				// Render Remotely (Separate Process or Farm)
@@ -238,19 +231,11 @@ void SMoviePipelineQueuePanel::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Right)
 				.AutoWidth()
 				[
-					SNew(SButton)
-					.ContentPadding(MoviePipeline::ButtonPadding)
-					.ButtonStyle(FMovieRenderPipelineStyle::Get(), "FlatButton.Success")
+					SNew(SPrimaryButton)
+					.Text(LOCTEXT("RenderQueueRemote_Text", "Render (Remote)"))
+					.ToolTipText(LOCTEXT("RenderQueueRemote_Tooltip", "Renders the current queue in a separate process."))
 					.IsEnabled(this, &SMoviePipelineQueuePanel::IsRenderRemoteEnabled)
 					.OnClicked(this, &SMoviePipelineQueuePanel::OnRenderRemoteRequested)
-					.Content()
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.Text(LOCTEXT("RenderQueueRemote_Text", "Render (Remote)"))
-						.ToolTipText(LOCTEXT("RenderQueueRemote_Tooltip", "Renders the current queue in a separate process."))
-						.Margin(FMargin(4, 0, 4, 0))
-					]
 				]
 			]
 		]

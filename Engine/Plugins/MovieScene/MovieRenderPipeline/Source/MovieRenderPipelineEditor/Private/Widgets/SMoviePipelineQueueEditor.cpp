@@ -27,6 +27,7 @@
 #include "EditorStyleSet.h"
 #include "EditorFontGlyphs.h"
 #include "SDropTarget.h"
+#include "SPositiveActionButton.h"
 
 // Editor
 #include "Editor.h"
@@ -1086,50 +1087,10 @@ TSharedPtr<SWidget> SMoviePipelineQueueEditor::GetContextMenuContent()
 
 TSharedRef<SWidget> SMoviePipelineQueueEditor::MakeAddSequenceJobButton()
 {
-	return SNew(SComboButton)
-		.ContentPadding(MoviePipeline::ButtonPadding)
-		.ButtonStyle(FMovieRenderPipelineStyle::Get(), "FlatButton.Success")
+	return SNew(SPositiveActionButton)
 		.OnGetMenuContent(this, &SMoviePipelineQueueEditor::OnGenerateNewJobFromAssetMenu)
-		.ForegroundColor(FSlateColor::UseForeground())
-		.HasDownArrow(false)
-		.ButtonContent()
-		[
-			SNew(SHorizontalBox)
-
-			// Plus Icon
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FEditorFontGlyphs::Plus)
-			]
-
-			// "Render" Text
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(4, 0, 0, 0)
-			[
-				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Text(LOCTEXT("AddNewJob_Text", "Render"))
-			]
-
-			// Non-Default Down Caret arrow.
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(4, 0, 0, 0)
-			[
-				SNew(STextBlock)
-				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FEditorFontGlyphs::Caret_Down)
-			]
-		];
+		.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+		.Text(LOCTEXT("AddNewJob_Text", "Render"));
 }
 
 TSharedRef<SWidget> SMoviePipelineQueueEditor::RemoveSelectedJobButton()
