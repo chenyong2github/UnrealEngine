@@ -8,6 +8,8 @@
 #include "InstancedStruct.h"
 #include "MassEntitySettings.generated.h"
 
+#define MASS_DO_PARALLEL 0
+
 #define GET_MASS_CONFIG_VALUE(a) (GetMutableDefault<UMassEntitySettings>()->a)
 
 class UMassProcessingPhaseManager;

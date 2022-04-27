@@ -9,7 +9,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("MassProcessor Group Completed"), Mass_GroupCompletedTask, STATGROUP_TaskGraphTasks);
 
-#define PARALLELIZED_TRAFFIC_HACK 1
+#define PARALLELIZED_TRAFFIC_HACK !MASS_DO_PARALLEL
 
 #if PARALLELIZED_TRAFFIC_HACK
 namespace UE::MassTraffic
@@ -37,7 +37,7 @@ namespace UE::Mass::Debug
 
 namespace FMassTweakables
 {
-	bool bParallelGroups = false;
+	bool bParallelGroups = MASS_DO_PARALLEL;
 	float PostponedTaskWaitTimeWarningLevel = 0.002f;
 
 	FAutoConsoleVariableRef CVarsMassProcessor[] = {

@@ -17,7 +17,7 @@ DECLARE_CYCLE_STAT(TEXT("Mass Phase Done"), STAT_MassPhaseDone, STATGROUP_TaskGr
 
 namespace FMassTweakables
 {
-	bool bFullyParallel = false;
+	bool bFullyParallel = MASS_DO_PARALLEL;
 
 	FAutoConsoleVariableRef CVars[] = {
 		{TEXT("mass.FullyParallel"), bFullyParallel, TEXT("Enables mass processing distribution to all available thread (via the task graph)")},
