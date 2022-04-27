@@ -176,60 +176,6 @@ void FWindowsPlatformCrashContext::AddPlatformSpecificProperties() const
 	AddCrashProperty(TEXT("IsRunningOnBattery"), FPlatformMisc::IsRunningOnBattery());
 }
 
-bool FWindowsPlatformCrashContext::GetPlatformAllThreadContextsString(FString& OutStr) const
-{
-	for (const FThreadStackFrames& Thread : ThreadCallStacks)
-	{
-		AddThreadContextString(
-			CrashedThreadId, 
-			Thread.ThreadId, 
-			Thread.ThreadName, 
-			Thread.StackFrames,
-			OutStr
-		);
-	}
-	return !OutStr.IsEmpty();
-}
-
-void FWindowsPlatformCrashContext::AddThreadContextString(
-	uint32 CrashedThreadId,
-	uint32 ThreadId,
-	const FString& ThreadName,
-	const TArray<FCrashStackFrame>& StackFrames,
-	FString& OutStr)
-{
-	OutStr += TEXT("<Thread>");
-	{
-		OutStr += TEXT("<CallStack>");
-
-		int32 MaxModuleNameLen = 0;
-		for (const FCrashStackFrame& StFrame : StackFrames)
-		{
-			MaxModuleNameLen = FMath::Max(MaxModuleNameLen, StFrame.ModuleName.Len());
-		}
-
-		FString CallstackStr;
-		for (const FCrashStackFrame& StFrame : StackFrames)
-		{
-			CallstackStr += FString::Printf(TEXT("%-*s 0x%016llx + %-16llx"), MaxModuleNameLen + 1, *StFrame.ModuleName, StFrame.BaseAddress, StFrame.Offset);
-			CallstackStr += LINE_TERMINATOR;
-		}
-		AppendEscapedXMLString(OutStr, *CallstackStr);
-		OutStr += TEXT("</CallStack>");
-		OutStr += LINE_TERMINATOR;
-	}
-	OutStr += FString::Printf(TEXT("<IsCrashed>%s</IsCrashed>"), ThreadId == CrashedThreadId ? TEXT("true") : TEXT("false"));
-	OutStr += LINE_TERMINATOR;
-	// TODO: do we need thread register states?
-	OutStr += TEXT("<Registers></Registers>");
-	OutStr += LINE_TERMINATOR;
-	OutStr += FString::Printf(TEXT("<ThreadID>%d</ThreadID>"), ThreadId);
-	OutStr += LINE_TERMINATOR;
-	OutStr += FString::Printf(TEXT("<ThreadName>%s</ThreadName>"), *ThreadName);
-	OutStr += LINE_TERMINATOR;
-	OutStr += TEXT("</Thread>");
-	OutStr += LINE_TERMINATOR;
-}
 
 void FWindowsPlatformCrashContext::CopyPlatformSpecificFiles(const TCHAR* OutputDirectory, void* Context)
 {

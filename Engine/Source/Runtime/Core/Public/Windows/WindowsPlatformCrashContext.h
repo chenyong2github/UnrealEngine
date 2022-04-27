@@ -22,21 +22,6 @@ struct CORE_API FWindowsPlatformCrashContext : public FMicrosoftPlatformCrashCon
 	
 	virtual void AddPlatformSpecificProperties() const override;
 	virtual void CopyPlatformSpecificFiles(const TCHAR* OutputDirectory, void* Context) override;
-
-protected:
-	virtual bool GetPlatformAllThreadContextsString(FString& OutStr) const override;
-
-private:
-	// Helpers
-	typedef TArray<void*, TInlineAllocator<128>> FModuleHandleArray;
-	
-	static void AddThreadContextString(
-		uint32 CrashedThreadId,
-		uint32 ThreadId,
-		const FString& ThreadName,
-		const TArray<FCrashStackFrame>& StackFrames,
-		FString& OutStr);	
-
 };
 
 typedef FWindowsPlatformCrashContext FPlatformCrashContext;

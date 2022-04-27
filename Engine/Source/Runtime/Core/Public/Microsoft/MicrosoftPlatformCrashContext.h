@@ -29,4 +29,14 @@ protected:
 		const uint64* ProgramCounters,
 		int32 NumPCs,
 		TArray<FCrashStackFrame>& OutStackFrames);
+
+	virtual bool GetPlatformAllThreadContextsString(FString& OutStr) const override;
+
+	static void AddThreadContextString(
+		uint32 CrashedThreadId,
+		uint32 ThreadId,
+		const FString& ThreadName,
+		const TArray<FCrashStackFrame>& StackFrames,
+		FString& OutStr);
+
 };
