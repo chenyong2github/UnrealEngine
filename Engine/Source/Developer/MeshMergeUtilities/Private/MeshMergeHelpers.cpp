@@ -227,18 +227,15 @@ void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InI
 	InOutMeshDescription = CombinedMeshDescription;
 }
 
-void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, FMeshDescription& OutMeshDescription, bool bPropagateVertexColours)
+
+static void RetrieveMeshInternal(const UStaticMesh* StaticMesh, const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, FMeshDescription& OutMeshDescription, bool bPropagateVertexColours)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::RetrieveMesh)
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::RetrieveMeshInternal)
 
-	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-	const FStaticMeshSourceModel& StaticMeshModel = StaticMesh->GetSourceModel(LODIndex);
-
-	// Imported meshes will have a valid mesh description
-	const bool bImportedMesh = StaticMesh->IsMeshDescriptionValid(LODIndex);
+	check(StaticMesh);
 
 	// Export the mesh data using static mesh render data
-	ExportStaticMeshLOD(StaticMesh->GetRenderData()->LODResources[LODIndex], OutMeshDescription, StaticMesh->GetStaticMaterials());
+	FMeshMergeHelpers::ExportStaticMeshLOD(StaticMesh->GetRenderData()->LODResources[LODIndex], OutMeshDescription, StaticMesh->GetStaticMaterials());
 
 	// Make sure the mesh is not irreparably malformed.
 	if (OutMeshDescription.VertexInstances().Num() <= 0)
@@ -246,31 +243,45 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 		return;
 	}
 
-	// Transform mesh to world space
-	FTransform ComponentToWorldTransform = StaticMeshComponent->GetComponentTransform();
-
-	// Handle spline mesh deformation
-	const bool bIsSplineMeshComponent = StaticMeshComponent->IsA<USplineMeshComponent>();
-	if (bIsSplineMeshComponent)
+	// If we have a component, use it to retrieve transform & vertex colors (if requested)
+	if (StaticMeshComponent)
 	{
-		const USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(StaticMeshComponent);
-		// Deform mesh data according to the Spline Mesh Component's data
-		PropagateSplineDeformationToMesh(SplineMeshComponent, OutMeshDescription);
+		// Transform mesh to world space
+		FTransform ComponentToWorldTransform = StaticMeshComponent->GetComponentTransform();
+
+		// Handle spline mesh deformation
+		const bool bIsSplineMeshComponent = StaticMeshComponent->IsA<USplineMeshComponent>();
+		if (bIsSplineMeshComponent)
+		{
+			const USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(StaticMeshComponent);
+			// Deform mesh data according to the Spline Mesh Component's data
+			FMeshMergeHelpers::PropagateSplineDeformationToMesh(SplineMeshComponent, OutMeshDescription);
+		}
+
+		// If specified propagate painted vertex colors into our raw mesh
+		if (bPropagateVertexColours)
+		{
+			FMeshMergeHelpers::PropagatePaintedColorsToMesh(StaticMeshComponent, LODIndex, OutMeshDescription);
+		}
+
+		// Transform raw mesh vertex data by the Static Mesh Component's component to world transformation	
+		FStaticMeshOperations::ApplyTransform(OutMeshDescription, ComponentToWorldTransform);
 	}
 
-	// If specified propagate painted vertex colors into our raw mesh
-	if (bPropagateVertexColours)
-	{
-		PropagatePaintedColorsToMesh(StaticMeshComponent, LODIndex, OutMeshDescription);
+	FMeshBuildSettings BuildSettings;
+	
+	// If editor data is not available, we won't have access to source model
+	const bool bHasSourceModels = StaticMesh->IsSourceModelValid(0);
+	if (bHasSourceModels)
+	{ 
+		// Imported meshes will have a valid mesh description
+		const bool bImportedMesh = bHasSourceModels ? false : StaticMesh->IsMeshDescriptionValid(LODIndex);
+
+		// Use build settings from base mesh for LOD entries that were generated inside Editor.
+		BuildSettings = bImportedMesh ? StaticMesh->GetSourceModel(LODIndex).BuildSettings : StaticMesh->GetSourceModel(0).BuildSettings;
 	}
 
-	// Transform raw mesh vertex data by the Static Mesh Component's component to world transformation	
-	FStaticMeshOperations::ApplyTransform(OutMeshDescription, ComponentToWorldTransform);
-
-	// Use build settings from base mesh for LOD entries that were generated inside Editor.
-	const FMeshBuildSettings& BuildSettings = bImportedMesh ? StaticMeshModel.BuildSettings : StaticMesh->GetSourceModel(0).BuildSettings;
-
-	// Figure out if we should recompute normals and tangents. By default generated LODs should not recompute normals	
+	// Figure out if we should recompute normals and tangents. By default generated LODs should not recompute normals
 	EComputeNTBsFlags ComputeNTBsOptions = EComputeNTBsFlags::BlendOverlappingNormals;
 	if (BuildSettings.bRemoveDegenerates)
 	{
@@ -286,156 +297,14 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 	FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(OutMeshDescription, ComputeNTBsOptions);
 }
 
-void FMeshMergeHelpers::RetrieveMesh(const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, FMeshDescription& OutMeshDescription, bool bPropagateVertexColours)
+void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, FMeshDescription& OutMeshDescription, bool bPropagateVertexColours)
 {
-	FSkeletalMeshModel* Resource = SkeletalMeshComponent->SkeletalMesh->GetImportedModel();
-	if (Resource->LODModels.IsValidIndex(LODIndex))
-	{
-		FSkeletalMeshLODInfo& SrcLODInfo = *(SkeletalMeshComponent->SkeletalMesh->GetLODInfo(LODIndex));
-
-		// Get the CPU skinned verts for this LOD
-		TArray<FFinalSkinVertex> FinalVertices;
-
-		// GetCPUSkinnedVertices 
-		SkeletalMeshComponent->GetCPUSkinnedVertices(FinalVertices, LODIndex);
-
-		FSkeletalMeshLODModel& LODModel = Resource->LODModels[LODIndex];
-		
-		const int32 NumSections = LODModel.Sections.Num();
-		
-		// Empty the mesh description
-		OutMeshDescription.Empty();
-
-		FStaticMeshAttributes Attributes(OutMeshDescription);
-		TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
-		TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
-		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
-		TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
-		TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
-		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
-		TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
-		TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
-
-		int32 TotalTriangles = 0;
-		int32 TotalCorners = 0;
-		for (int32 SectionIndex = 0; SectionIndex < NumSections; SectionIndex++)
-		{
-			const FSkelMeshSection& SkelMeshSection = LODModel.Sections[SectionIndex];
-			TotalTriangles += SkelMeshSection.NumTriangles;
-		}
-		TotalCorners = TotalTriangles * 3;
-		OutMeshDescription.ReserveNewVertices(FinalVertices.Num());
-		OutMeshDescription.ReserveNewPolygons(TotalTriangles);
-		OutMeshDescription.ReserveNewVertexInstances(TotalCorners);
-		OutMeshDescription.ReserveNewEdges(TotalCorners);
-
-		// Copy skinned vertex positions
-		for (int32 VertIndex = 0; VertIndex < FinalVertices.Num(); ++VertIndex)
-		{
-			const FVertexID VertexID = OutMeshDescription.CreateVertex();
-			VertexPositions[VertexID] = FinalVertices[VertIndex].Position;
-		}
-
-		VertexInstanceUVs.SetNumChannels(MAX_TEXCOORDS);
-
-		
-		for (int32 SectionIndex = 0; SectionIndex < NumSections; SectionIndex++)
-		{
-			const FSkelMeshSection& SkelMeshSection = LODModel.Sections[SectionIndex];
-			const int32 NumWedges = SkelMeshSection.NumTriangles * 3;
-
-			//Create the polygon group ID
-			int32 MaterialIndex = SkelMeshSection.MaterialIndex;
-			// use the remapping of material indices if there is a valid value
-			if (SrcLODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && SrcLODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
-			{
-				MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, SkeletalMeshComponent->SkeletalMesh->GetMaterials().Num() - 1);
-			}
-
-			FName ImportedMaterialSlotName = SkeletalMeshComponent->SkeletalMesh->GetMaterials()[MaterialIndex].ImportedMaterialSlotName;
-			const FPolygonGroupID SectionPolygonGroupID(SectionIndex);
-			if (!OutMeshDescription.IsPolygonGroupValid(SectionPolygonGroupID))
-			{
-				OutMeshDescription.CreatePolygonGroupWithID(SectionPolygonGroupID);
-				PolygonGroupImportedMaterialSlotNames[SectionPolygonGroupID] = ImportedMaterialSlotName;
-			}
-			int32 WedgeIndex = 0;
-			for (uint32 SectionTriangleIndex = 0; SectionTriangleIndex < SkelMeshSection.NumTriangles; ++SectionTriangleIndex)
-			{
-				FVertexID VertexIndexes[3];
-				TArray<FVertexInstanceID> VertexInstanceIDs;
-				VertexInstanceIDs.SetNum(3);
-				for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex, ++WedgeIndex)
-				{
-					const int32 VertexIndexForWedge = LODModel.IndexBuffer[SkelMeshSection.BaseIndex + WedgeIndex];
-					VertexIndexes[CornerIndex] = FVertexID(VertexIndexForWedge);
-					FVertexInstanceID VertexInstanceID = OutMeshDescription.CreateVertexInstance(VertexIndexes[CornerIndex]);
-					VertexInstanceIDs[CornerIndex] = VertexInstanceID;
-					
-					const FSoftSkinVertex& SoftVertex = SkelMeshSection.SoftVertices[VertexIndexForWedge - SkelMeshSection.BaseVertexIndex];
-					const FFinalSkinVertex& SkinnedVertex = FinalVertices[VertexIndexForWedge];
-
-					//Set NTBs
-					const FVector TangentX = SkinnedVertex.TangentX.ToFVector();
-					const FVector TangentZ = SkinnedVertex.TangentZ.ToFVector();
-					//@todo: do we need to inverse the sign between skeletalmesh and staticmesh, the old code was doing so.
-					const float TangentYSign = SkinnedVertex.TangentZ.ToFVector4f().W;
-					
-					VertexInstanceTangents[VertexInstanceID] = (FVector3f)TangentX;
-					VertexInstanceBinormalSigns[VertexInstanceID] = TangentYSign;
-					VertexInstanceNormals[VertexInstanceID] = (FVector3f)TangentZ;
-
-					for (uint32 TexCoordIndex = 0; TexCoordIndex < MAX_TEXCOORDS; TexCoordIndex++)
-					{
-						//Add this vertex instance tex coord
-						VertexInstanceUVs.Set(VertexInstanceID, TexCoordIndex, SoftVertex.UVs[TexCoordIndex]);
-					}
-
-					//Add this vertex instance color
-					VertexInstanceColors[VertexInstanceID] = bPropagateVertexColours ? FVector4f(FLinearColor(SoftVertex.Color)) : FVector4f(1.0f, 1.0f, 1.0f);
-				}
-				//Create a polygon from this triangle
-				const FPolygonID NewPolygonID = OutMeshDescription.CreatePolygon(SectionPolygonGroupID, VertexInstanceIDs);
-			}
-		}
-	}
+	RetrieveMeshInternal(StaticMeshComponent->GetStaticMesh(), StaticMeshComponent, LODIndex, OutMeshDescription, bPropagateVertexColours);
 }
 
 void FMeshMergeHelpers::RetrieveMesh(const UStaticMesh* StaticMesh, int32 LODIndex, FMeshDescription& OutMeshDescription)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::RetrieveMesh)
-
-	const FStaticMeshSourceModel& StaticMeshModel = StaticMesh->GetSourceModel(LODIndex);
-
-	// Imported meshes will have a valid mesh description
-	const bool bImportedMesh = StaticMesh->IsMeshDescriptionValid(LODIndex);
-
-	// Export the mesh data using static mesh render data
-	ExportStaticMeshLOD(StaticMesh->GetRenderData()->LODResources[LODIndex], OutMeshDescription, StaticMesh->GetStaticMaterials());
-
-	// Make sure the mesh is not irreparably malformed.
-	if (OutMeshDescription.VertexInstances().Num() <= 0)
-	{
-		return;
-	}
-
-	// Use build settings from base mesh for LOD entries that were generated inside Editor.
-	const FMeshBuildSettings& BuildSettings = bImportedMesh ? StaticMeshModel.BuildSettings : StaticMesh->GetSourceModel(0).BuildSettings;
-
-	// Figure out if we should recompute normals and tangents. By default generated LODs should not recompute normals	
-	EComputeNTBsFlags ComputeNTBsOptions = EComputeNTBsFlags::BlendOverlappingNormals;
-	if (BuildSettings.bRemoveDegenerates)
-	{
-		// If removing degenerate triangles, ignore them when computing tangents.
-		ComputeNTBsOptions |= EComputeNTBsFlags::IgnoreDegenerateTriangles;
-	}
-	if (BuildSettings.bUseMikkTSpace)
-	{
-		ComputeNTBsOptions |= EComputeNTBsFlags::UseMikkTSpace;
-	}
-
-	FStaticMeshOperations::ComputeTriangleTangentsAndNormals(OutMeshDescription, 0.0f);
-	FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(OutMeshDescription, ComputeNTBsOptions);
+	RetrieveMeshInternal(StaticMesh, nullptr, LODIndex, OutMeshDescription, /*bPropagateVertexColours*/false);
 }
 
 void FMeshMergeHelpers::ExportStaticMeshLOD(const FStaticMeshLODResources& StaticMeshLOD, FMeshDescription& OutMeshDescription, const TArray<FStaticMaterial>& Materials)
@@ -550,6 +419,122 @@ void FMeshMergeHelpers::ExportStaticMeshLOD(const FStaticMeshLODResources& Stati
 		const FPolygonID NewPolygonID = OutMeshDescription.CreatePolygon(CurrentPolygonGroupID, VertexInstanceIDs);
 	}
 }
+
+void FMeshMergeHelpers::RetrieveMesh(const USkeletalMeshComponent* SkeletalMeshComponent, int32 LODIndex, FMeshDescription& OutMeshDescription, bool bPropagateVertexColours)
+{
+	FSkeletalMeshModel* Resource = SkeletalMeshComponent->SkeletalMesh->GetImportedModel();
+	if (Resource->LODModels.IsValidIndex(LODIndex))
+	{
+		FSkeletalMeshLODInfo& SrcLODInfo = *(SkeletalMeshComponent->SkeletalMesh->GetLODInfo(LODIndex));
+
+		// Get the CPU skinned verts for this LOD
+		TArray<FFinalSkinVertex> FinalVertices;
+
+		// GetCPUSkinnedVertices 
+		SkeletalMeshComponent->GetCPUSkinnedVertices(FinalVertices, LODIndex);
+
+		FSkeletalMeshLODModel& LODModel = Resource->LODModels[LODIndex];
+
+		const int32 NumSections = LODModel.Sections.Num();
+
+		// Empty the mesh description
+		OutMeshDescription.Empty();
+
+		FStaticMeshAttributes Attributes(OutMeshDescription);
+		TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
+		TEdgeAttributesRef<bool> EdgeHardnesses = Attributes.GetEdgeHardnesses();
+		TPolygonGroupAttributesRef<FName> PolygonGroupImportedMaterialSlotNames = Attributes.GetPolygonGroupMaterialSlotNames();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+		TVertexInstanceAttributesRef<FVector3f> VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
+		TVertexInstanceAttributesRef<FVector4f> VertexInstanceColors = Attributes.GetVertexInstanceColors();
+		TVertexInstanceAttributesRef<FVector2f> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+
+		int32 TotalTriangles = 0;
+		int32 TotalCorners = 0;
+		for (int32 SectionIndex = 0; SectionIndex < NumSections; SectionIndex++)
+		{
+			const FSkelMeshSection& SkelMeshSection = LODModel.Sections[SectionIndex];
+			TotalTriangles += SkelMeshSection.NumTriangles;
+		}
+		TotalCorners = TotalTriangles * 3;
+		OutMeshDescription.ReserveNewVertices(FinalVertices.Num());
+		OutMeshDescription.ReserveNewPolygons(TotalTriangles);
+		OutMeshDescription.ReserveNewVertexInstances(TotalCorners);
+		OutMeshDescription.ReserveNewEdges(TotalCorners);
+
+		// Copy skinned vertex positions
+		for (int32 VertIndex = 0; VertIndex < FinalVertices.Num(); ++VertIndex)
+		{
+			const FVertexID VertexID = OutMeshDescription.CreateVertex();
+			VertexPositions[VertexID] = FinalVertices[VertIndex].Position;
+		}
+
+		VertexInstanceUVs.SetNumChannels(MAX_TEXCOORDS);
+
+
+		for (int32 SectionIndex = 0; SectionIndex < NumSections; SectionIndex++)
+		{
+			const FSkelMeshSection& SkelMeshSection = LODModel.Sections[SectionIndex];
+			const int32 NumWedges = SkelMeshSection.NumTriangles * 3;
+
+			//Create the polygon group ID
+			int32 MaterialIndex = SkelMeshSection.MaterialIndex;
+			// use the remapping of material indices if there is a valid value
+			if (SrcLODInfo.LODMaterialMap.IsValidIndex(SectionIndex) && SrcLODInfo.LODMaterialMap[SectionIndex] != INDEX_NONE)
+			{
+				MaterialIndex = FMath::Clamp<int32>(SrcLODInfo.LODMaterialMap[SectionIndex], 0, SkeletalMeshComponent->SkeletalMesh->GetMaterials().Num() - 1);
+			}
+
+			FName ImportedMaterialSlotName = SkeletalMeshComponent->SkeletalMesh->GetMaterials()[MaterialIndex].ImportedMaterialSlotName;
+			const FPolygonGroupID SectionPolygonGroupID(SectionIndex);
+			if (!OutMeshDescription.IsPolygonGroupValid(SectionPolygonGroupID))
+			{
+				OutMeshDescription.CreatePolygonGroupWithID(SectionPolygonGroupID);
+				PolygonGroupImportedMaterialSlotNames[SectionPolygonGroupID] = ImportedMaterialSlotName;
+			}
+			int32 WedgeIndex = 0;
+			for (uint32 SectionTriangleIndex = 0; SectionTriangleIndex < SkelMeshSection.NumTriangles; ++SectionTriangleIndex)
+			{
+				FVertexID VertexIndexes[3];
+				TArray<FVertexInstanceID> VertexInstanceIDs;
+				VertexInstanceIDs.SetNum(3);
+				for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex, ++WedgeIndex)
+				{
+					const int32 VertexIndexForWedge = LODModel.IndexBuffer[SkelMeshSection.BaseIndex + WedgeIndex];
+					VertexIndexes[CornerIndex] = FVertexID(VertexIndexForWedge);
+					FVertexInstanceID VertexInstanceID = OutMeshDescription.CreateVertexInstance(VertexIndexes[CornerIndex]);
+					VertexInstanceIDs[CornerIndex] = VertexInstanceID;
+
+					const FSoftSkinVertex& SoftVertex = SkelMeshSection.SoftVertices[VertexIndexForWedge - SkelMeshSection.BaseVertexIndex];
+					const FFinalSkinVertex& SkinnedVertex = FinalVertices[VertexIndexForWedge];
+
+					//Set NTBs
+					const FVector TangentX = SkinnedVertex.TangentX.ToFVector();
+					const FVector TangentZ = SkinnedVertex.TangentZ.ToFVector();
+					//@todo: do we need to inverse the sign between skeletalmesh and staticmesh, the old code was doing so.
+					const float TangentYSign = SkinnedVertex.TangentZ.ToFVector4f().W;
+
+					VertexInstanceTangents[VertexInstanceID] = (FVector3f)TangentX;
+					VertexInstanceBinormalSigns[VertexInstanceID] = TangentYSign;
+					VertexInstanceNormals[VertexInstanceID] = (FVector3f)TangentZ;
+
+					for (uint32 TexCoordIndex = 0; TexCoordIndex < MAX_TEXCOORDS; TexCoordIndex++)
+					{
+						//Add this vertex instance tex coord
+						VertexInstanceUVs.Set(VertexInstanceID, TexCoordIndex, SoftVertex.UVs[TexCoordIndex]);
+					}
+
+					//Add this vertex instance color
+					VertexInstanceColors[VertexInstanceID] = bPropagateVertexColours ? FVector4f(FLinearColor(SoftVertex.Color)) : FVector4f(1.0f, 1.0f, 1.0f);
+				}
+				//Create a polygon from this triangle
+				const FPolygonID NewPolygonID = OutMeshDescription.CreatePolygon(SectionPolygonGroupID, VertexInstanceIDs);
+			}
+		}
+	}
+}
+
 
 bool FMeshMergeHelpers::CheckWrappingUVs(const TArray<FVector2D>& UVs)
 {	
@@ -1028,17 +1013,16 @@ void FMeshMergeHelpers::CalculateTextureCoordinateBoundsForMesh(const FMeshDescr
 
 bool FMeshMergeHelpers::PropagatePaintedColorsToMesh(const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex, FMeshDescription& InOutMeshDescription)
 {
-	UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
-
-	if (StaticMesh->IsSourceModelValid(LODIndex) &&
-		StaticMeshComponent->LODData.IsValidIndex(LODIndex) &&
+	if (StaticMeshComponent->LODData.IsValidIndex(LODIndex) &&
 		StaticMeshComponent->LODData[LODIndex].OverrideVertexColors != nullptr)
 	{
 		FColorVertexBuffer& ColorVertexBuffer = *StaticMeshComponent->LODData[LODIndex].OverrideVertexColors;
-		FStaticMeshLODResources& RenderModel = StaticMesh->GetRenderData()->LODResources[LODIndex];
+		const UStaticMesh& StaticMesh = *StaticMeshComponent->GetStaticMesh();
 
-		if (ColorVertexBuffer.GetNumVertices() == RenderModel.GetNumVertices())
+		if (ColorVertexBuffer.GetNumVertices() == StaticMesh.GetNumVertices(LODIndex))
 		{	
+			const FStaticMeshLODResources& RenderModel = StaticMesh.GetRenderData()->LODResources[LODIndex];
+
 			const int32 NumWedges = InOutMeshDescription.VertexInstances().Num();
 			const int32 NumRenderWedges = RenderModel.IndexBuffer.GetNumIndices();
 			const bool bUseRenderWedges = NumWedges == NumRenderWedges;
