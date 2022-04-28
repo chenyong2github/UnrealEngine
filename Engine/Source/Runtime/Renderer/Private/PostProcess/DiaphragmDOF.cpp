@@ -1064,14 +1064,10 @@ class FDiaphragmDOFGatherCS : public FDiaphragmDOFShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		// The gathering pass shader code gives a really hard time to the HLSL compiler. To improve
-		// iteration time on the shader, only pass down a /O1 instead of /O3.
-		if (Parameters.Platform == SP_PCD3D_SM5)
-		{
-			OutEnvironment.CompilerFlags.Add(CFLAG_StandardOptimization);
-		}
-
 		FDiaphragmDOFShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		// This shader takes a very long time to compile with FXC, so we pre-compile it with DXC first and then forward the optimized HLSL to FXC.
+		OutEnvironment.CompilerFlags.Add(CFLAG_PrecompileWithDXC);
 	}
 
 	
