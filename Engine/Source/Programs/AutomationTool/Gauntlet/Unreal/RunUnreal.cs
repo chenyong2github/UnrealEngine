@@ -254,6 +254,14 @@ namespace Gauntlet
 							}
 						}
 					}
+					else if (Type.IsEditor())
+					{
+						Role.Configuration = RequestedConfiguration;
+						if (Role.Configuration > UnrealTargetConfiguration.Development)
+						{
+							Role.Configuration = UnrealTargetConfiguration.Development;
+						}
+					}
 
 					Gauntlet.Log.Verbose("Mapped Role {0} to RoleContext {1}", Type, Role);
 
