@@ -246,8 +246,17 @@ struct FOodleTextureVTable
 
 		// TFO_DLL_PREFIX/SUFFIX is set by the build.cs with the right names for this platform
 		FString DynamicLibName = FString(TFO_DLL_PREFIX) + InVersionString + FString(TFO_DLL_SUFFIX);
-		
-		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture loading DLL: %s"), *DynamicLibName);
+
+		// I want to see this log by default in Cook+Editor , but not in TBW
+		#ifndef VerboseIfNotEditor
+		#if WITH_EDITOR
+		#define VerboseIfNotEditor	Display
+		#else
+		#define VerboseIfNotEditor	Verbose
+		#endif
+		#endif
+
+		UE_LOG(LogTextureFormatOodle,VerboseIfNotEditor,TEXT("Oodle Texture loading DLL: %s"), *DynamicLibName);
 
 		DynamicLib = FPlatformProcess::GetDllHandle(*DynamicLibName);
 		if ( DynamicLib == nullptr )
@@ -539,8 +548,8 @@ public:
 			GlobalLambdaMultiplier = 1.f;
 		}
 
-		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture TFO init; latest sdk version = %s"),
-			TEXT(OodleTextureVersion)
+		UE_LOG(LogTextureFormatOodle,VerboseIfNotEditor,
+			TEXT("Oodle Texture TFO init; latest sdk version = %s"),TEXT(OodleTextureVersion)
 			);
 		#ifdef DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD
 		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture DO_FORCE_UNIQUE_DDC_KEY_PER_BUILD"));

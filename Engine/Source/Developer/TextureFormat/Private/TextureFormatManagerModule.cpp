@@ -115,7 +115,17 @@ public:
 				ITextureFormat* Format = Module->GetTextureFormat();
 				if (Format != nullptr)
 				{
-					UE_LOG(LogTextureFormatManager, Display, TEXT("Loaded Base TextureFormat: %s"),*BaseModules[Index].ModuleName.ToString());
+				
+					// I want to see this log by default in Cook+Editor , but not in TBW
+					#ifndef VerboseIfNotEditor
+					#if WITH_EDITOR
+					#define VerboseIfNotEditor	Display
+					#else
+					#define VerboseIfNotEditor	Verbose
+					#endif
+					#endif
+
+					UE_LOG(LogTextureFormatManager, VerboseIfNotEditor,TEXT("Loaded Base TextureFormat: %s"),*BaseModules[Index].ModuleName.ToString());
 						
 					TextureFormats.Add(Format);
 					TextureFormatMetadata.Add(BaseModules[Index]);
@@ -134,7 +144,7 @@ public:
 				ITextureFormat* Format = Module->GetTextureFormat();
 				if (Format != nullptr)
 				{
-					UE_LOG(LogTextureFormatManager, Display, TEXT("Loaded Child TextureFormat: %s"),*ChildModules[Index].ModuleName.ToString());
+					UE_LOG(LogTextureFormatManager,VerboseIfNotEditor,TEXT("Loaded Child TextureFormat: %s"),*ChildModules[Index].ModuleName.ToString());
 
 					// do not add me to TextureFormats yet
 				}
