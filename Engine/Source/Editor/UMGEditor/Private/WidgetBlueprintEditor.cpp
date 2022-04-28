@@ -450,6 +450,11 @@ bool FWidgetBlueprintEditor::IsPreviewWidgetInitialized()
 	return GetPreview() != nullptr;
 }
 
+FName FWidgetBlueprintEditor::GetToolkitContextFName() const
+{
+	return GetToolkitFName();
+}
+
 FName FWidgetBlueprintEditor::GetToolkitFName() const
 {
 	return FName("WidgetBlueprintEditor");

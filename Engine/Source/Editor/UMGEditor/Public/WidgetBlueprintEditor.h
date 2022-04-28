@@ -78,6 +78,7 @@ public:
 	//~ End FGCObjectInterface interface
 
 	//~ Begin IToolkit interface
+	virtual FName GetToolkitContextFName() const override;
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
