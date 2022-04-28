@@ -51,6 +51,7 @@ void SControlRigTweenWidget::Construct(const FArguments& InArgs)
 			.HAlign(HAlign_Center)
 			[
 				SNew(SSpinBox<float>)
+				.PreventThrottling(true)
 				.Value(this, &SControlRigTweenWidget::OnGetPoseBlendValueFloat)
 				.ToolTipText(LOCTEXT("TweenTooltip", "Key at current frame between previous(-1.0) and next(1.0) poses. Use Ctrl drag for under and over shoot."))
 				.MinValue(-2.0f)
