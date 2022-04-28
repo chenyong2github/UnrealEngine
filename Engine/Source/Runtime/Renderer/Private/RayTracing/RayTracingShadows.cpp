@@ -185,12 +185,13 @@ float GetRaytracingMaxNormalBias()
 	return FMath::Max(0.01f, GRayTracingMaxNormalBias);
 }
 
-void FDeferredShadingSceneRenderer::PrepareRayTracingShadows(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+void FDeferredShadingSceneRenderer::PrepareRayTracingShadows(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	// Declare all RayGen shaders that require material closest hit shaders to be bound
 	// Ray tracing shadows shaders should be properly configured even if r.RayTracing.Shadows is 0 because lights can have raytracing shadows enabled independently of that CVar
+	// We have to check if ray tracing is enabled on any of the scene lights. The RayTracedLights array is populated using ShouldRenderRayTracingShadowsForLight() helper, 
+	// which handles various override conditions.
 
-	if (!ShouldRenderRayTracingShadows())
+	if (Scene.RayTracedLights.IsEmpty())
 	{
 		return;
 	}
