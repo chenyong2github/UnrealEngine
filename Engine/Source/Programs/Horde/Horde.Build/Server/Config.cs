@@ -318,6 +318,11 @@ namespace Horde.Build.Server
 		public List<TimeSpan> ReportTimes { get; set; } = new List<TimeSpan> { TimeSpan.Zero };
 
 		/// <summary>
+		/// Name of the tab to post summary data to
+		/// </summary>
+		public string? SummaryTab { get; set; }
+
+		/// <summary>
 		/// Channel to post summary information for these templates.
 		/// </summary>
 		public string? ReportChannel { get; set; }

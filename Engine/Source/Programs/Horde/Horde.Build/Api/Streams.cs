@@ -562,6 +562,11 @@ namespace Horde.Build.Api
 		public string? PauseComment { get; set; }
 
 		/// <summary>
+		/// Workflows for this stream
+		/// </summary>
+		public List<WorkflowConfig> Workflows { get; set; }
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="id">Unique id of the stream</param>
@@ -581,7 +586,8 @@ namespace Horde.Build.Api
 		/// <param name="acl">Permissions for this object</param>
 		/// <param name="pausedUntil">Stream paused for new builds until this date</param>
 		/// <param name="pauseComment">Reason for stream being paused</param>
-		public GetStreamResponse(string id, string projectId, string name, string configPath, string configRevision, int order, string? notificationChannel, string? notificationChannelFilter, string? triageChannel, DefaultPreflightRequest? defaultPreflight, List<GetStreamTabResponse> tabs, Dictionary<string, GetAgentTypeResponse> agentTypes, Dictionary<string, GetWorkspaceTypeResponse>? workspaceTypes, List<GetTemplateRefResponse> templates, GetAclResponse? acl, DateTime? pausedUntil, string? pauseComment)
+		/// <param name="workflows">Workflows for this stream</param>
+		public GetStreamResponse(string id, string projectId, string name, string configPath, string configRevision, int order, string? notificationChannel, string? notificationChannelFilter, string? triageChannel, DefaultPreflightRequest? defaultPreflight, List<GetStreamTabResponse> tabs, Dictionary<string, GetAgentTypeResponse> agentTypes, Dictionary<string, GetWorkspaceTypeResponse>? workspaceTypes, List<GetTemplateRefResponse> templates, GetAclResponse? acl, DateTime? pausedUntil, string? pauseComment, List<WorkflowConfig> workflows)
 		{
 			Id = id;
 			ProjectId = projectId;
@@ -601,6 +607,7 @@ namespace Horde.Build.Api
 			Acl = acl;
 			PausedUntil = pausedUntil;
 			PauseComment = pauseComment;
+			Workflows = workflows;
 		}
 	}
 }

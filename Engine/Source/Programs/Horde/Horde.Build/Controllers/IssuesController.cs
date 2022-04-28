@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
 using Horde.Build.Collections;
+using Horde.Build.Config;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Utilities;
 using HordeCommon;
@@ -30,6 +32,7 @@ namespace Horde.Build.Controllers
 	[Route("[controller]")]
 	public class IssuesController : HordeControllerBase
 	{
+		private readonly ConfigCollection _configCollection;
 		private readonly IIssueCollection _issueCollection;
 		private readonly IIssueService _issueService;
 		private readonly JobService _jobService;
@@ -40,8 +43,9 @@ namespace Horde.Build.Controllers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssuesController(IIssueCollection issueCollection, IIssueService issueService, JobService jobService, StreamService streamService, IUserCollection userCollection, ILogFileService logFileService)
+		public IssuesController(ConfigCollection configCollection, IIssueCollection issueCollection, IIssueService issueService, JobService jobService, StreamService streamService, IUserCollection userCollection, ILogFileService logFileService)
 		{
+			_configCollection = configCollection;
 			_issueCollection = issueCollection;
 			_issueService = issueService;
 			_jobService = jobService;
@@ -326,9 +330,13 @@ namespace Horde.Build.Controllers
 			{
 				if (await _streamService.AuthorizeAsync(spanGroup.Key, AclAction.ViewStream, User, cache))
 				{
-					HashSet<ObjectId> spanIds = new HashSet<ObjectId>(spanGroup.Select(x => x.Id));
-					List<IIssueStep> steps = issue.Steps.Where(x => spanIds.Contains(x.SpanId)).ToList();
-					responses.Add(PropertyFilter.Apply(new GetIssueStreamResponse(spanGroup.Key, spanGroup.ToList(), steps), filter));
+					IStream? stream = await _streamService.GetCachedStream(spanGroup.Key);
+					if (stream != null)
+					{
+						HashSet<ObjectId> spanIds = new HashSet<ObjectId>(spanGroup.Select(x => x.Id));
+						List<IIssueStep> steps = issue.Steps.Where(x => spanIds.Contains(x.SpanId)).ToList();
+						responses.Add(PropertyFilter.Apply(new GetIssueStreamResponse(stream, spanGroup.ToList(), steps), filter));
+					}
 				}
 			}
 			return responses;
@@ -358,6 +366,12 @@ namespace Horde.Build.Controllers
 				return Forbid();
 			}
 
+			IStream? stream = await _streamService.GetCachedStream(streamIdValue);
+			if (stream == null)
+			{
+				return NotFound();
+			}
+
 			List<IIssueSpan> spans = details.Spans.Where(x => x.StreamId == streamIdValue).ToList();
 			if(spans.Count == 0)
 			{
@@ -367,7 +381,7 @@ namespace Horde.Build.Controllers
 			HashSet<ObjectId> spanIds = new HashSet<ObjectId>(spans.Select(x => x.Id));
 			List<IIssueStep> steps = details.Steps.Where(x => spanIds.Contains(x.SpanId)).ToList();
 
-			return PropertyFilter.Apply(new GetIssueStreamResponse(streamIdValue, spans, steps), filter);
+			return PropertyFilter.Apply(new GetIssueStreamResponse(stream, spans, steps), filter);
 		}
 
 		/// <summary>

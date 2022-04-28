@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Api;
+using Horde.Build.Config;
 using Horde.Build.Models;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
@@ -46,6 +47,7 @@ namespace Horde.Build.Collections.Impl
 			public string? ClusterName { get; set; }
 			public string ConfigPath { get; set; } = String.Empty;
 			public string ConfigRevision { get; set; } = String.Empty;
+			public StreamConfig? Config { get; set; }
 
 			public int Order { get; set; } = DefaultOrder;
 			public string? NotificationChannel { get; set; }
@@ -70,6 +72,7 @@ namespace Horde.Build.Collections.Impl
 			public int UpdateIndex { get; set; }
 			public bool Deleted { get; set; }
 
+			StreamConfig IStream.Config => Config!;
 			string IStream.ClusterName => ClusterName ?? PerforceCluster.DefaultName;
 			IReadOnlyList<StreamTab> IStream.Tabs => Tabs;
 			IReadOnlyDictionary<string, AgentType> IStream.AgentTypes => AgentTypes;
@@ -102,32 +105,29 @@ namespace Horde.Build.Collections.Impl
 			public static readonly ProjectionDefinition<StreamDocument> Projection = Builders<StreamDocument>.Projection.Include(x => x.Acl).Include(x => x.ProjectId);
 		}
 
-		/// <summary>
-		/// The stream collection
-		/// </summary>
 		readonly IMongoCollection<StreamDocument> _streams;
-
-		/// <summary>
-		/// Clock
-		/// </summary>
+		readonly ConfigCollection _configCollection;
 		readonly IClock _clock;
-
-		/// <summary>
-		/// The template collection
-		/// </summary>
 		readonly ITemplateCollection _templateCollection;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="mongoService">The database service instance</param>
+		/// <param name="configCollection"></param>
 		/// <param name="clock"></param>
 		/// <param name="templateCollection"></param>
-		public StreamCollection(MongoService mongoService, IClock clock, ITemplateCollection templateCollection)
+		public StreamCollection(MongoService mongoService, ConfigCollection configCollection, IClock clock, ITemplateCollection templateCollection)
 		{
 			_streams = mongoService.GetCollection<StreamDocument>("Streams");
+			_configCollection = configCollection;
 			_clock = clock;
 			_templateCollection = templateCollection;
+		}
+
+		async Task PostLoadAsync(StreamDocument stream)
+		{
+			stream.Config = await _configCollection.GetConfigAsync<StreamConfig>(stream.ConfigRevision);
 		}
 
 		/// <inheritdoc/>
@@ -292,7 +292,12 @@ namespace Horde.Build.Collections.Impl
 		/// <inheritdoc/>
 		public async Task<IStream?> GetAsync(StreamId streamId)
 		{
-			return await _streams.Find<StreamDocument>(x => x.Id == streamId).FirstOrDefaultAsync();
+			StreamDocument? stream = await _streams.Find<StreamDocument>(x => x.Id == streamId).FirstOrDefaultAsync();
+			if (stream != null)
+			{
+				await PostLoadAsync(stream);
+			}
+			return stream;
 		}
 
 		/// <inheritdoc/>
@@ -305,6 +310,10 @@ namespace Horde.Build.Collections.Impl
 		public async Task<List<IStream>> FindAllAsync()
 		{
 			List<StreamDocument> results = await _streams.Find(Builders<StreamDocument>.Filter.Ne(x => x.Deleted, true)).ToListAsync();
+			foreach (StreamDocument result in results)
+			{
+				await PostLoadAsync(result);
+			}
 			return results.ConvertAll<IStream>(x => x);
 		}
 
@@ -312,7 +321,12 @@ namespace Horde.Build.Collections.Impl
 		public async Task<List<IStream>> FindForProjectsAsync(ProjectId[] projectIds)
 		{
 			FilterDefinition<StreamDocument> filter = Builders<StreamDocument>.Filter.In(x => x.ProjectId, projectIds) & Builders<StreamDocument>.Filter.Ne(x => x.Deleted, true);
+
 			List<StreamDocument> results = await _streams.Find(filter).ToListAsync();
+			foreach (StreamDocument result in results)
+			{
+				await PostLoadAsync(result);
+			}
 			return results.ConvertAll<IStream>(x => x);
 		}
 
@@ -375,7 +389,13 @@ namespace Horde.Build.Collections.Impl
 			update = update.Set(x => x.UpdateIndex, stream.UpdateIndex + 1);
 
 			FindOneAndUpdateOptions<StreamDocument> options = new FindOneAndUpdateOptions<StreamDocument> { ReturnDocument = ReturnDocument.After };
-			return await _streams.FindOneAndUpdateAsync(filter, update, options);
+
+			StreamDocument? result = await _streams.FindOneAndUpdateAsync(filter, update, options);
+			if(result != null)
+			{
+				await PostLoadAsync(result);
+			}
+			return result;
 		}
 
 		/// <inheritdoc/>

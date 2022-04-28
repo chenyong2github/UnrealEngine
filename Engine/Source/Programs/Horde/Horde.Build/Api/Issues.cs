@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using EpicGames.Core;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
@@ -12,6 +13,7 @@ namespace Horde.Build.Api
 {
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
 	/// Identifies a particular changelist and job
@@ -96,6 +98,11 @@ namespace Horde.Build.Api
 		public string Name { get; set; }
 
 		/// <summary>
+		/// Workflow that this span belongs to
+		/// </summary>
+		public WorkflowId? WorkflowId { get; set; }
+
+		/// <summary>
 		/// The previous build 
 		/// </summary>
 		public GetIssueStepResponse? LastSuccess { get; set; }
@@ -115,11 +122,13 @@ namespace Horde.Build.Api
 		/// </summary>
 		/// <param name="span">The node to construct from</param>
 		/// <param name="steps">Failing steps for this span</param>
-		public GetIssueSpanResponse(IIssueSpan span, List<IIssueStep> steps)
+		/// <param name="workflowId"></param>
+		public GetIssueSpanResponse(IIssueSpan span, List<IIssueStep> steps, WorkflowId? workflowId)
 		{
 			Id = span.Id.ToString();
 			Name = span.NodeName;
 			TemplateId = span.TemplateRefId.ToString();
+			WorkflowId = workflowId;
 			LastSuccess = (span.LastSuccess != null) ? new GetIssueStepResponse(span.LastSuccess) : null;
 			Steps = steps.ConvertAll(x => new GetIssueStepResponse(x));
 			NextSuccess = (span.NextSuccess != null) ? new GetIssueStepResponse(span.NextSuccess) : null;
@@ -149,17 +158,17 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Map of steps to (event signature id -> trace id)
 		/// </summary>
-		public List<GetIssueSpanResponse> Nodes { get; set; }
+		public List<GetIssueSpanResponse> Nodes { get; set; } = new List<GetIssueSpanResponse>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="streamId">The stream to construct from</param>
+		/// <param name="stream">The stream to construct from</param>
 		/// <param name="spans">List of spans for the given stream</param>
 		/// <param name="steps">List of steps for the given stream</param>
-		public GetIssueStreamResponse(StreamId streamId, List<IIssueSpan> spans, List<IIssueStep> steps)
+		public GetIssueStreamResponse(IStream stream, List<IIssueSpan> spans, List<IIssueStep> steps)
 		{
-			StreamId = streamId.ToString();
+			StreamId = stream.Id.ToString();
 
 			foreach (IIssueSpan span in spans)
 			{
@@ -171,9 +180,14 @@ namespace Horde.Build.Api
 				{
 					MaxChange = span.NextSuccess.Change;
 				}
-			}
 
-			Nodes = spans.ConvertAll(x => new GetIssueSpanResponse(x, steps.Where(y => y.SpanId == x.Id).ToList()));
+				WorkflowId? workflowId = null;
+				if (stream.Config.TryGetTemplate(span.TemplateRefId, out TemplateRefConfig? templateConfig))
+				{
+					workflowId = templateConfig.Workflow;
+				}
+				Nodes.Add(new GetIssueSpanResponse(span, steps.Where(y => y.SpanId == span.Id).ToList(), workflowId));
+			}
 		}
 	}
 
