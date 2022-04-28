@@ -18,7 +18,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		public UHTManifest? Manifest = null;
 
-		private UhtSourceFile SourceFile;
+		private readonly UhtSourceFile SourceFile;
 
 		#region IUHTMessageSite implementation
 

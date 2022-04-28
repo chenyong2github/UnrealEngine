@@ -123,18 +123,15 @@ namespace EpicGames.UHT.Parsers
 						this.ClassFlags |= SuperClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
 					}
 
-					if (this.Bases != null)
+					foreach (UhtStruct Base in this.Bases)
 					{
-						foreach (UhtStruct Base in this.Bases)
+						if (Base is UhtClass BaseClass)
 						{
-							if (Base is UhtClass BaseClass)
+							if (!BaseClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 							{
-								if (!BaseClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
-								{
-									this.LogError($"Class '{BaseClass.SourceName}' is not an interface; Can only inherit from non-UObjects or UInterface derived interfaces");
-								}
-								this.ClassFlags |= BaseClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
+								this.LogError($"Class '{BaseClass.SourceName}' is not an interface; Can only inherit from non-UObjects or UInterface derived interfaces");
 							}
+							this.ClassFlags |= BaseClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
 						}
 					}
 
@@ -233,7 +230,7 @@ namespace EpicGames.UHT.Parsers
 								OutShowCategories.AddUnique(Value);
 								break;
 							}
-							SubCategoryPath.Append("|");
+							SubCategoryPath.Append('|');
 						}
 					}
 				}

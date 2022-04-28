@@ -38,7 +38,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="PropertySettings">Property settings</param>
 		/// <param name="Function">Referenced function</param>
-		public UhtMulticastDelegateProperty(UhtPropertySettings PropertySettings, UhtFunction Function) : base(PropertySettings)
+		protected UhtMulticastDelegateProperty(UhtPropertySettings PropertySettings, UhtFunction Function) : base(PropertySettings)
 		{
 			this.Function = Function;
 			this.HeaderFile.AddReferencedHeader(Function);
@@ -100,7 +100,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendFunctionThunkParameterArg(StringBuilder Builder)
 		{
-			return Builder.Append(this.Function.SourceName).Append("(").AppendFunctionThunkParameterName(this).Append(")");
+			return Builder.Append(this.Function.SourceName).Append('(').AppendFunctionThunkParameterName(this).Append(')');
 		}
 
 		/// <inheritdoc/>

@@ -18,27 +18,27 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Any requests of the given size or smaller will be placed in bucket zero with the given size.
 		/// </summary>
-		private static int MinSize = 1024 * 16;
+		private const int MinSize = 1024 * 16;
 
 		/// <summary>
 		/// Adjustment to the bucket index to account for the minimum bucket size
 		/// </summary>
-		private static int BuckedAdjustment = BitOperations.Log2((uint)UhtBuffer.MinSize);
+		private static readonly int BuckedAdjustment = BitOperations.Log2((uint)UhtBuffer.MinSize);
 		
 		/// <summary>
 		/// Total number of supported buckets
 		/// </summary>
-		private static int BucketCount = 32 - UhtBuffer.BuckedAdjustment;
+		private static readonly int BucketCount = 32 - UhtBuffer.BuckedAdjustment;
 
 		/// <summary>
 		/// Bucket lookaside list
 		/// </summary>
-		private static UhtBuffer?[] LookAsideArray = new UhtBuffer?[UhtBuffer.BucketCount];
+		private static readonly UhtBuffer?[] LookAsideArray = new UhtBuffer?[UhtBuffer.BucketCount];
 
 		/// <summary>
 		/// The bucket index associated with the buffer
 		/// </summary>
-		private int Bucket;
+		private readonly int Bucket;
 
 		/// <summary>
 		/// Single list link to the next cached buffer

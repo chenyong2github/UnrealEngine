@@ -47,7 +47,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
-			InnerDefaultValue.Append(DefaultValueReader.GetConstLongExpression().ToString());
+			InnerDefaultValue.Append(DefaultValueReader.GetConstLongExpression());
 			return true;
 		}
 

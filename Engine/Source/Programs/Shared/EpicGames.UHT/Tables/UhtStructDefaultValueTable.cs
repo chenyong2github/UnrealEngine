@@ -85,7 +85,7 @@ namespace EpicGames.UHT.Tables
 	/// Structure default value sanitizer attribute
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-	public class UhtStructDefaultValueAttribute : Attribute
+	public sealed class UhtStructDefaultValueAttribute : Attribute
 	{
 
 		/// <summary>
@@ -116,7 +116,7 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtStructDefaultValueTable
 	{
-		private Dictionary<StringView, UhtStructDefaultValue> StructDefaultValues = new Dictionary<StringView, UhtStructDefaultValue>();
+		private readonly Dictionary<StringView, UhtStructDefaultValue> StructDefaultValues = new Dictionary<StringView, UhtStructDefaultValue>();
 		private UhtStructDefaultValue? DefaultInternal = null;
 
 		/// <summary>

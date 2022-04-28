@@ -433,7 +433,7 @@ namespace EpicGames.UHT.Parsers
 	/// </summary>
 	public class UhtPropertyParser : IUhtMessageExtraContext
 	{
-		private UhtPropertySpecifierContext SpecifierContext;
+		private readonly UhtPropertySpecifierContext SpecifierContext;
 		private UhtPropertyParseOptions Options;
 		private UhtParsePropertyDeclarationStyle DeclarationStyle;
 
@@ -442,13 +442,12 @@ namespace EpicGames.UHT.Parsers
 
 		// Scratch pad variables used by actions
 		private List<UhtToken> CurrentTypeTokens = new List<UhtToken>();
-		private UhtToken CurrentTerminatingToken = new UhtToken();
 		private int CurrentTemplateDepth = 0;
 
 		// Actions/Delegates
-		UhtTokensUntilDelegate GatherTypeTokensDelegate;
+		private readonly UhtTokensUntilDelegate GatherTypeTokensDelegate;
 
-		private static Dictionary<StringView, UhtLayoutMacroType> LayoutMacroTypes = new Dictionary<StringView, UhtLayoutMacroType>(new[]
+		private static readonly Dictionary<StringView, UhtLayoutMacroType> LayoutMacroTypes = new Dictionary<StringView, UhtLayoutMacroType>(new[]
 		{
 			UhtLayoutMacroType.Array.MacroNameAndValue(),
 			UhtLayoutMacroType.ArrayEditorOnly.MacroNameAndValue(),
@@ -495,7 +494,7 @@ namespace EpicGames.UHT.Parsers
 			// Reset the context and create the property
 			this.SpecifierContext.PropertySettings.Reset(this.SpecifierContext.Scope.ScopeType, 0, Category, DisallowPropertyFlags);
 			this.SpecifierContext.MetaData = this.SpecifierContext.PropertySettings.MetaData;
-			this.SpecifierContext.MetaNameIndex = UhtMetaData.INDEX_NONE;
+			this.SpecifierContext.MetaNameIndex = UhtMetaData.IndexNone;
 			this.SpecifierContext.bSeenEditSpecifier = false;
 			this.SpecifierContext.bSeenBlueprintWriteSpecifier = false;
 			this.SpecifierContext.bSeenBlueprintReadOnlySpecifier = false;
@@ -507,7 +506,6 @@ namespace EpicGames.UHT.Parsers
 			this.DeclarationStyle = DeclarationStyle;
 
 			this.CurrentTypeTokens = new List<UhtToken>();
-			this.CurrentTerminatingToken = new UhtToken();
 			this.CurrentTemplateDepth = 0;
 
 			using (var TokenContext = new UhtMessageContext(this.TokenReader, this))
@@ -545,7 +543,7 @@ namespace EpicGames.UHT.Parsers
 			IUhtTokenReader ReplayReader = UhtTokenReplayReader.GetThreadInstance(PropertySettings.Outer, Data, TypeTokens, UhtTokenType.EndOfType);
 
 			// Loop through the tokens until we find a known property type or the start of a template argument list
-			UhtPropertyType PropertyType = new UhtPropertyType();
+			UhtPropertyType PropertyType;
 			for (int Index = 0; Index < TypeTokens.Length; ++Index)
 			{
 				if (TypeTokens.Span[Index].IsSymbol())
@@ -576,7 +574,7 @@ namespace EpicGames.UHT.Parsers
 			return null;
 		}
 
-		private static ThreadLocal<UhtPropertySettings> TlsPropertySettings = new ThreadLocal<UhtPropertySettings>(() => { return new UhtPropertySettings(); });
+		private static readonly ThreadLocal<UhtPropertySettings> TlsPropertySettings = new ThreadLocal<UhtPropertySettings>(() => { return new UhtPropertySettings(); });
 
 		/// <summary>
 		/// Given a type with children, resolve any children that couldn't be resolved during the parsing phase.
@@ -968,7 +966,7 @@ namespace EpicGames.UHT.Parsers
 
 				while (true)
 				{
-					UhtProperty Property = Finalize(ref NameToken, TypeTokens, LayoutMacroType, Delegate);
+					UhtProperty _ = Finalize(ref NameToken, TypeTokens, LayoutMacroType, Delegate);
 
 					// If we have reached the end
 					if (!this.TokenReader.TryOptional(','))
@@ -1164,7 +1162,6 @@ namespace EpicGames.UHT.Parsers
 		{
 			if (this.CurrentTemplateDepth == 0 && Token.IsSymbol() && (Token.IsValue(',') || Token.IsValue('(') || Token.IsValue(')') || Token.IsValue(';') || Token.IsValue('[') || Token.IsValue(':') || Token.IsValue('=') || Token.IsValue('{')))
 			{
-				this.CurrentTerminatingToken = Token;
 				return false;
 			}
 
@@ -1200,12 +1197,11 @@ namespace EpicGames.UHT.Parsers
 		}
 		#endregion
 
-		private static UhtPropertyDelegate PropertyDelegate = PropertyParsed;
+		private static readonly UhtPropertyDelegate PropertyDelegate = PropertyParsed;
 
 		private static void PropertyParsed(UhtParsingScope TopScope, UhtProperty Property, ref UhtToken NameToken, UhtLayoutMacroType LayoutMacroType)
 		{
 			IUhtTokenReader TokenReader = TopScope.TokenReader;
-			UhtStruct Struct = (UhtStruct)TopScope.ScopeType;
 
 			// Skip any initialization
 			if (TokenReader.TryOptional('='))

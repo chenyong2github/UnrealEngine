@@ -44,8 +44,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>The value of the constant</returns>
 		public static IUhtTokenReader OptionalConstInt(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
 		{
-			int Value;
-			TokenReader.TryOptionalConstInt(out Value);
+			TokenReader.TryOptionalConstInt(out int _);
 			return TokenReader;
 		}
 
@@ -57,8 +56,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>The value of the constant</returns>
 		public static IUhtTokenReader RequireConstInt(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
 		{
-			int Value;
-			if (!TokenReader.TryOptionalConstInt(out Value))
+			if (!TokenReader.TryOptionalConstInt(out int _))
 			{
 				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant integer", ExceptionContext);
 			}
@@ -109,8 +107,7 @@ namespace EpicGames.UHT.Tokenizer
 		{
 			ref UhtToken Token = ref TokenReader.PeekToken();
 
-			long Value;
-			if (Token.GetConstLong(out Value))
+			if (Token.GetConstLong(out long _))
 			{
 				TokenReader.ConsumeToken();
 			}
@@ -125,8 +122,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>The value of the constant</returns>
 		public static IUhtTokenReader RequireConstLong(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
 		{
-			long Value;
-			if (!TokenReader.TryOptionalConstLong(out Value))
+			if (!TokenReader.TryOptionalConstLong(out long _))
 			{
 				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant long integer", ExceptionContext);
 			}

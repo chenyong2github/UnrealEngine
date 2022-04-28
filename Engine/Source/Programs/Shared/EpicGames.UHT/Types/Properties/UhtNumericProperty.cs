@@ -35,7 +35,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
 		{
-			Builder.Append("0");
+			Builder.Append('0');
 			return Builder;
 		}
 	}

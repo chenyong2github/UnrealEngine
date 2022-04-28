@@ -73,7 +73,7 @@ namespace EpicGames.UHT.Utils
 		/// Limiter for the number of files being saved to the reference directory.
 		/// The OS can get swamped on high core systems
 		/// </summary>
-		private Semaphore WriteRefSemaphore = new Semaphore(32, 32);
+		private static readonly Semaphore WriteRefSemaphore = new Semaphore(32, 32);
 
 		/// <summary>
 		/// Requesting exporter
@@ -178,7 +178,7 @@ namespace EpicGames.UHT.Utils
 				}
 				else
 				{
-					return Task.Factory.StartNew(() => { Action(this); });
+					return Task.Factory.StartNew(() => { Action(this); }, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
 				}
 			}
 			else
@@ -220,7 +220,6 @@ namespace EpicGames.UHT.Utils
 			return MakePath(Package.Module, Package.ShortName, Suffix);
 		}
 
-
 		/// <summary>
 		/// Make a path for an output based on the package output directory.
 		/// </summary>
@@ -235,7 +234,6 @@ namespace EpicGames.UHT.Utils
 			}
 			return MakePath(this.PluginModule, FileName, Extension);
 		}
-
 
 		/// <summary>
 		/// Add an external dependency to the given file path
@@ -273,7 +271,7 @@ namespace EpicGames.UHT.Utils
 				// Writing billions of files to the same directory causes issues.  Use ourselves to throttle reference writes
 				try
 				{
-					this.WriteRefSemaphore.WaitOne();
+					UhtExportFactory.WriteRefSemaphore.WaitOne();
 					{
 						string OutPath = Path.Combine(this.Session.ReferenceMode == UhtReferenceMode.Reference ? this.ReferenceDirectory : this.VerifyDirectory, FileName);
 						if (!this.Session.WriteSource(OutPath, Exported.Span))
@@ -284,7 +282,7 @@ namespace EpicGames.UHT.Utils
 				}
 				finally
 				{
-					this.WriteRefSemaphore.Release();
+					UhtExportFactory.WriteRefSemaphore.Release();
 				}
 
 				// If we are verifying, read the existing file and check the contents
@@ -307,9 +305,9 @@ namespace EpicGames.UHT.Utils
 						Message = $"********************************* {FileName} appears to be a new generated file.";
 					}
 
-					if (Message != String.Empty)
+					if (!string.IsNullOrEmpty(Message))
 					{
-						Log.Logger.LogInformation(Message);
+						Log.TraceInformation(Message);
 						lock (this.ReferenceErrorMessages)
 						{
 							this.ReferenceErrorMessages.Add(Message, true);
@@ -566,7 +564,7 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Collection of reserved names
 		/// </summary>
-		private static HashSet<string> ReservedNames = new HashSet<string> { "none" };
+		private static readonly HashSet<string> ReservedNames = new HashSet<string> { "none" };
 
 		#region Configurable settings
 
@@ -771,30 +769,29 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public UhtClass? INotifyFieldValueChanged = null;
 
-		private List<UhtPackage> PackagesInternal = new List<UhtPackage>();
-		private List<UhtHeaderFile> HeaderFilesInternal = new List<UhtHeaderFile>();
-		private List<UhtHeaderFile> SortedHeaderFilesInternal = new List<UhtHeaderFile>();
-		private Dictionary<string, UhtHeaderFile> HeaderFileDictionaryInternal = new Dictionary<string, UhtHeaderFile>(StringComparer.OrdinalIgnoreCase);
+		private readonly List<UhtPackage> PackagesInternal = new List<UhtPackage>();
+		private readonly List<UhtHeaderFile> HeaderFilesInternal = new List<UhtHeaderFile>();
+		private readonly List<UhtHeaderFile> SortedHeaderFilesInternal = new List<UhtHeaderFile>();
+		private readonly Dictionary<string, UhtHeaderFile> HeaderFileDictionaryInternal = new Dictionary<string, UhtHeaderFile>(StringComparer.OrdinalIgnoreCase);
 		private long ErrorCountInternal = 0;
 		private long WarningCountInternal = 0;
-		private List<UhtMessage> Messages = new List<UhtMessage>();
+		private readonly List<UhtMessage> Messages = new List<UhtMessage>();
 		private Task? MessageTask = null;
-		private Dictionary<string, UhtSourceFragment> SourceFragments = new Dictionary<string, UhtSourceFragment>();
 		private UhtClass? UObjectInternal = null;
 		private UhtClass? UClassInternal = null;
 		private UhtClass? UInterfaceInternal = null;
 		private UhtClass? IInterfaceInternal = null;
-		private TypeCounter TypeCounterInternal = new TypeCounter();
-		private TypeCounter PackageTypeCountInternal = new TypeCounter();
-		private TypeCounter HeaderFileTypeCountInternal = new TypeCounter();
-		private TypeCounter ObjectTypeCountInternal = new TypeCounter();
+		private readonly TypeCounter TypeCounterInternal = new TypeCounter();
+		private readonly TypeCounter PackageTypeCountInternal = new TypeCounter();
+		private readonly TypeCounter HeaderFileTypeCountInternal = new TypeCounter();
+		private readonly TypeCounter ObjectTypeCountInternal = new TypeCounter();
 		private UhtSymbolTable SourceNameSymbolTable = new UhtSymbolTable(0);
 		private UhtSymbolTable EngineNameSymbolTable = new UhtSymbolTable(0);
 		private bool bSymbolTablePopulated = false;
 		private Task? ReferenceDeleteTask = null;
-		private Dictionary<string, bool> ExporterStates = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
-		private Dictionary<string, EnumAndValue> FullEnumValueLookup = new Dictionary<string, EnumAndValue>();
-		private Dictionary<string, UhtEnum> ShortEnumValueLookup = new Dictionary<string, UhtEnum>();
+		private readonly Dictionary<string, bool> ExporterStates = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+		private readonly Dictionary<string, EnumAndValue> FullEnumValueLookup = new Dictionary<string, EnumAndValue>();
+		private readonly Dictionary<string, UhtEnum> ShortEnumValueLookup = new Dictionary<string, UhtEnum>();
 		private JsonDocument? ProjectJson = null;
 
 		/// <summary>
@@ -828,8 +825,6 @@ namespace EpicGames.UHT.Utils
 		public IUhtMessageSource? MessageSource => null;
 		/// <inheritdoc/>
 		public IUhtMessageLineNumber? MessageLineNumber => null;
-		/// <inheritdoc/>
-		public IUhtMessageExtraContext? MessageExtraContext => null;
 		#endregion
 
 		/// <summary>
@@ -1046,7 +1041,7 @@ namespace EpicGames.UHT.Utils
 					}
 					catch (Exception)
 					{ }
-				});
+				}, CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
 			}
 
 			StepReadManifestFile(ManifestFilePath);
@@ -1250,7 +1245,7 @@ namespace EpicGames.UHT.Utils
 				}
 			}
 
-			UhtType? Type = null;
+			UhtType? Type;
 			if (Identifiers.Next != null)
 			{
 				Type = FindTypeTwoNamesInternal(StartingType, Options, Identifiers.Token.Value.ToString(), Identifiers.Next.Token.Value.ToString());
@@ -1294,7 +1289,7 @@ namespace EpicGames.UHT.Utils
 				}
 			}
 
-			UhtType? Type = null;
+			UhtType? Type;
 			if (Identifiers.Length == 0)
 			{
 				Type = FindTypeTwoNamesInternal(StartingType, Options, Identifiers[0].Value.ToString(), Identifiers[1].Value.ToString());
@@ -1364,34 +1359,32 @@ namespace EpicGames.UHT.Utils
 		/// <returns>The located type of null if not found</returns>
 		public UhtType? FindTypeInternal(UhtType? StartingType, UhtFindOptions Options, string Name)
 		{
-			UhtType? Type = null;
 			if (Options.HasAnyFlags(UhtFindOptions.EngineName))
 			{
 				if (Options.HasAnyFlags(UhtFindOptions.CaseCompare))
 				{
-					Type = this.EngineNameSymbolTable.FindCasedType(StartingType, Options, Name);
+					return this.EngineNameSymbolTable.FindCasedType(StartingType, Options, Name);
 				}
 				else
 				{
-					Type = this.EngineNameSymbolTable.FindCaselessType(StartingType, Options, Name);
+					return this.EngineNameSymbolTable.FindCaselessType(StartingType, Options, Name);
 				}
 			}
 			else if (Options.HasAnyFlags(UhtFindOptions.SourceName))
 			{
 				if (Options.HasAnyFlags(UhtFindOptions.CaselessCompare))
 				{
-					Type = this.SourceNameSymbolTable.FindCaselessType(StartingType, Options, Name);
+					return this.SourceNameSymbolTable.FindCaselessType(StartingType, Options, Name);
 				}
 				else
 				{
-					Type = this.SourceNameSymbolTable.FindCasedType(StartingType, Options, Name);
+					return this.SourceNameSymbolTable.FindCasedType(StartingType, Options, Name);
 				}
 			}
 			else
 			{
 				throw new UhtIceException("Either EngineName or SourceName must be specified in the options");
 			}
-			return Type;
 		}
 
 		/// <summary>
@@ -1490,7 +1483,7 @@ namespace EpicGames.UHT.Utils
 				// start a task to flush the messages.
 				if (!this.bCacheMessages && this.Messages.Count == 1)
 				{
-					this.MessageTask = Task.Factory.StartNew(() => FlushMessages());
+					this.MessageTask = Task.Factory.StartNew(() => FlushMessages(), CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default);
 				}
 			}
 
@@ -1556,7 +1549,7 @@ namespace EpicGames.UHT.Utils
 		private void LogMessage(UhtMessage Message)
 		{
 			string FormattedMessage = FormatMessage(Message);
-			LogLevel LogLevel = LogLevel.Information;
+			LogLevel LogLevel;
 			switch (Message.MessageType)
 			{
 				default:
@@ -1578,7 +1571,7 @@ namespace EpicGames.UHT.Utils
 					break;
 			}
 
-			Log.Logger.Log(LogLevel, "{0}", FormattedMessage);
+			Log.Logger.Log(LogLevel, "{FormattedMessage}", FormattedMessage);
 		}
 
 		/// <summary>
@@ -1728,12 +1721,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Normalized path possibly converted to a full path.</returns>
 		private string GetNormalizedFullFilePath(string FilePath)
 		{
-			return NormalizePath(this.FileManager!.GetFullFilePath(FilePath));
-		}
-
-		private string NormalizePath(string FilePath)
-		{
-			return FilePath.Replace('\\', '/');
+			return this.FileManager!.GetFullFilePath(FilePath).Replace('\\', '/');
 		}
 
 		private UhtHeaderFileParser? ParseHeaderFile(UhtHeaderFile HeaderFile)
@@ -1842,7 +1830,7 @@ namespace EpicGames.UHT.Utils
 				if (HeaderFileDictionaryInternal.TryGetValue(FileName, out ExistingHeaderFile) && ExistingHeaderFile != null)
 				{
 					string NormalizedExistingFullFilePath = GetNormalizedFullFilePath(ExistingHeaderFile.FilePath);
-					if (string.Compare(NormalizedFullFilePath, NormalizedExistingFullFilePath, true) != 0)
+					if (!string.Equals(NormalizedFullFilePath, NormalizedExistingFullFilePath, StringComparison.OrdinalIgnoreCase))
 					{
 						IUhtMessageSite Site = (IUhtMessageSite?)this.ManifestFile ?? this;
 						Site.LogError($"Two headers with the same name is not allowed. '{HeaderFilePath}' conflicts with '{ExistingHeaderFile.FilePath}'");
@@ -1914,7 +1902,6 @@ namespace EpicGames.UHT.Utils
 						}
 					}
 				}
-
 			});
 		}
 
@@ -2099,9 +2086,9 @@ namespace EpicGames.UHT.Utils
 					UhtType? ExistingType = this.EngineNameSymbolTable.FindCaselessType(null, EngineExtendedType.MustBeUniqueFindOptions(), Type.EngineName);
 					if (ExistingType != null)
 					{
-						Type.HeaderFile.LogError(Type.LineNumber, string.Format("{0} '{1}' shares engine name '{2}' with {6} '{3}' in {4}(5)",
-							EngineExtendedType.CapitalizedText(), Type.SourceName, Type.EngineName, ExistingType.SourceName,
-							ExistingType.HeaderFile.FilePath, ExistingType.LineNumber, ExistingType.EngineType.LowercaseText()));
+						Type.HeaderFile.LogError(Type.LineNumber, 
+							$"{EngineExtendedType.CapitalizedText()} '{Type.SourceName}' shares engine name '{Type.EngineName}' with " +
+							$"{ExistingType.EngineType.LowercaseText()} '{ExistingType.SourceName}' in {ExistingType.HeaderFile.FilePath}({ExistingType.LineNumber})");
 					}
 				}
 
@@ -2154,7 +2141,6 @@ namespace EpicGames.UHT.Utils
 			switch (States[Visit.HeaderFileTypeIndex])
 			{
 				case TopologicalState.Unmarked:
-					UhtHeaderFile? Recursion = null;
 					States[Visit.HeaderFileTypeIndex] = TopologicalState.Temporary;
 					foreach (UhtHeaderFile Referenced in Visit.ReferencedHeadersNoLock)
 					{
@@ -2163,8 +2149,7 @@ namespace EpicGames.UHT.Utils
 							UhtHeaderFile? Out = TopologicalVisit(States, Referenced);
 							if (Out != null)
 							{
-								Recursion = Out;
-								break;
+								return Out;
 							}
 						}
 					}
@@ -2215,7 +2200,7 @@ namespace EpicGames.UHT.Utils
 		#endregion
 
 		#region Validation helpers
-		private HashSet<UhtScriptStruct> ScriptStructsValidForNet = new HashSet<UhtScriptStruct>();
+		private readonly HashSet<UhtScriptStruct> ScriptStructsValidForNet = new HashSet<UhtScriptStruct>();
 
 		/// <summary>
 		/// Validate that the given referenced script structure is valid for network operations.  If the structure
@@ -2311,7 +2296,7 @@ namespace EpicGames.UHT.Utils
 			{
 				foreach (JsonObject Plugin in Plugins)
 				{
-					if (!Plugin.TryGetStringField("Name", out string? TestPluginName) || string.Compare(PluginName, TestPluginName, StringComparison.OrdinalIgnoreCase) != 0)
+					if (!Plugin.TryGetStringField("Name", out string? TestPluginName) || !string.Equals(PluginName, TestPluginName, StringComparison.OrdinalIgnoreCase))
 					{
 						continue;
 					}
@@ -2364,7 +2349,7 @@ namespace EpicGames.UHT.Utils
 					{
 						foreach (UHTManifest.Module Module in this.Manifest!.Modules)
 						{
-							if (string.Compare(Module.Name, Exporter.ModuleName, StringComparison.OrdinalIgnoreCase) == 0)
+							if (string.Equals(Module.Name, Exporter.ModuleName, StringComparison.OrdinalIgnoreCase))
 							{
 								PluginModule = Module;
 								break;
@@ -2372,14 +2357,14 @@ namespace EpicGames.UHT.Utils
 						}
 						if (PluginModule == null)
 						{
-							Log.Logger.LogWarning($"Exporter \"{Exporter.Name}\" skipped because module \"{Exporter.ModuleName}\" was not found in manifest");
+							Log.TraceWarning($"Exporter \"{Exporter.Name}\" skipped because module \"{Exporter.ModuleName}\" was not found in manifest");
 							continue;
 						}
 					}
 
 					if (Run)
 					{
-						Log.Logger.LogTrace($"       Running exporter {Exporter.Name}");
+						Log.TraceLog($"       Running exporter {Exporter.Name}");
 						UhtExportFactory Factory = new UhtExportFactory(this, PluginModule, Exporter);
 						Factory.Run();
 						foreach (var Output in Factory.Outputs)
@@ -2396,7 +2381,7 @@ namespace EpicGames.UHT.Utils
 					}
 					else
 					{
-						Log.Logger.LogTrace($"       Exporter {Exporter.Name} skipped");
+						Log.TraceLog($"       Exporter {Exporter.Name} skipped");
 					}
 				}
 
@@ -2413,7 +2398,7 @@ namespace EpicGames.UHT.Utils
 				}
 			});
 
-			Log.Logger.LogInformation($"Total of {TotalWrittenFiles} written");
+			Log.TraceInformation($"Total of {TotalWrittenFiles} written");
 		}
 		#endregion
 	}

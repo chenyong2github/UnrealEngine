@@ -19,11 +19,11 @@ namespace EpicGames.UHT.Parsers
 	 */
 	struct UhtAdvancedDisplayParameterHandler
 	{
-		private UhtMetaData MetaData;
-		private string[]? ParameterNames;
-		private int NumberLeaveUnmarked;
+		private readonly UhtMetaData MetaData;
+		private readonly string[]? ParameterNames;
+		private readonly int NumberLeaveUnmarked;
+		private readonly bool bUseNumber;
 		private int AlreadyLeft;
-		private bool bUseNumber;
 
 		public UhtAdvancedDisplayParameterHandler(UhtMetaData MetaData)
 		{

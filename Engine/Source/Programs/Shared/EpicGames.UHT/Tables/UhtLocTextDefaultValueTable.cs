@@ -26,7 +26,7 @@ namespace EpicGames.UHT.Tables
 	/// Attribute defining the loctext sanitizer
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-	public class UhtLocTextDefaultValueAttribute : Attribute
+	public sealed class UhtLocTextDefaultValueAttribute : Attribute
 	{
 
 		/// <summary>
@@ -52,7 +52,7 @@ namespace EpicGames.UHT.Tables
 	public class UhtLocTextDefaultValueTable
 	{
 
-		private Dictionary<StringView, UhtLocTextDefaultValue> LocTextDefaultValues = new Dictionary<StringView, UhtLocTextDefaultValue>();
+		private readonly Dictionary<StringView, UhtLocTextDefaultValue> LocTextDefaultValues = new Dictionary<StringView, UhtLocTextDefaultValue>();
 
 		/// <summary>
 		/// Return the loc text default value associated with the given name

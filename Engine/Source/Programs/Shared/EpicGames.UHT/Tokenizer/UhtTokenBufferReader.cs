@@ -12,16 +12,16 @@ namespace EpicGames.UHT.Tokenizer
 	/// <summary>
 	/// Token reader for source buffers
 	/// </summary>
-	public class UhtTokenBufferReader : IUhtTokenReader, IUhtMessageLineNumber
+	public sealed class UhtTokenBufferReader : IUhtTokenReader, IUhtMessageLineNumber
 	{
-		private static StringView[] EmptyComments = new StringView[] { };
+		private static readonly StringView[] EmptyComments = Array.Empty<StringView>();
 
 		private readonly IUhtMessageSite MessageSiteInternal;
 		private List<StringView>? CommentsInternal = null;
-		private List<UhtToken> RecordedTokensInternal = new List<UhtToken>();
+		private readonly List<UhtToken> RecordedTokensInternal = new List<UhtToken>();
 		private IUhtTokenPreprocessor? TokenPreprocessorInternal = null;
 		private UhtToken CurrentToken = new UhtToken(); // PeekToken must have been invoked first
-		private ReadOnlyMemory<char> Data;
+		private readonly ReadOnlyMemory<char> Data;
 		private int PrevPos = 0;
 		private int PrevLine = 1;
 		private bool bHasToken = false;
@@ -86,7 +86,11 @@ namespace EpicGames.UHT.Tokenizer
 		public int InputLine
 		{
 			get => this.bHasToken ? this.PreCurrentTokenInputLine : this.InputLineInternal;
-			set { ClearToken(); this.InputLineInternal = value; }
+			set 
+			{ 
+				ClearToken(); 
+				this.InputLineInternal = value; 
+			}
 		}
 
 		/// <inheritdoc/>
@@ -451,7 +455,7 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
-		private bool IsFirstTokenInLine(ReadOnlySpan<char> Span, int StartPos)
+		private static bool IsFirstTokenInLine(ReadOnlySpan<char> Span, int StartPos)
 		{
 			for (int Pos = StartPos; --Pos > 0;)
 			{
@@ -477,7 +481,6 @@ namespace EpicGames.UHT.Tokenizer
 		private UhtToken GetTokenInternal(bool bEnablePreprocessor)
 		{
 			ReadOnlySpan<char> Span = this.Data.Span;
-			int SpanLength = Span.Length;
 			bool bGotInlineComment = false;
 		Restart:
 			this.PreCurrentTokenInputLine = this.InputLineInternal;
@@ -614,13 +617,12 @@ namespace EpicGames.UHT.Tokenizer
 			{
 
 				// We try to skip the character constant value. But if it is backslash, we have to skip another character
-				char NextChar = InternalGetChar(Span);
-				if (NextChar == '\\')
+				if (InternalGetChar(Span) == '\\')
 				{
-					NextChar = InternalGetChar(Span);
+					InternalGetChar(Span);
 				}
 
-				NextChar = InternalGetChar(Span);
+				char NextChar = InternalGetChar(Span);
 				if (NextChar != '\'')
 				{
 					throw new UhtException(this, "Unterminated character constant");
@@ -705,9 +707,7 @@ namespace EpicGames.UHT.Tokenizer
 					{
 						this.PreprocessorPendingCommentsCount = this.CommentsInternal != null ? this.CommentsInternal.Count - this.CommittedComments : 0;
 						UhtToken Temp = new UhtToken(TokenType, StartPos, StartLine, StartPos, this.InputLineInternal, new StringView(this.Data.Slice(StartPos, this.InputPosInternal - StartPos)));
-						bool bClearComments = false;
-						bool bIllegalContentsCheck = false;
-						bool bInclude = this.TokenPreprocessorInternal.ParsePreprocessorDirective(ref Temp, true, out bClearComments, out bIllegalContentsCheck);
+						bool bInclude = this.TokenPreprocessorInternal.ParsePreprocessorDirective(ref Temp, true, out bool bClearComments, out bool bIllegalContentsCheck);
 						if (!bInclude)
 						{
 							++this.CommentsDisableCount;
@@ -722,7 +722,7 @@ namespace EpicGames.UHT.Tokenizer
 								ReadOnlySpan<char> LocalValueSpan = LocalToken.Value.Span;
 								if (LocalToken.IsSymbol('#') && LocalValueSpan.Length == 1 && LocalValueSpan[0] == '#' && IsFirstTokenInLine(Span, LocalToken.InputStartPos))
 								{
-									if (this.TokenPreprocessorInternal.ParsePreprocessorDirective(ref Temp, false, out bool bScratch, out bool bScratchIllegalContentsCheck))
+									if (this.TokenPreprocessorInternal.ParsePreprocessorDirective(ref Temp, false, out bool _, out bool bScratchIllegalContentsCheck))
 									{
 										break;
 									}

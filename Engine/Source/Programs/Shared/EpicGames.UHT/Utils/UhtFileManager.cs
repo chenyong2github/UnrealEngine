@@ -171,7 +171,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="FilePath">Full file path</param>
 		/// <param name="Contents">Contents of the file</param>
 		/// <returns>True if the file was read, false if not</returns>
-		private bool ReadFile(string FilePath, out StringView Contents)
+		private static bool ReadFile(string FilePath, out StringView Contents)
 		{
 			// Exceptions are very expensive.  Don't bother trying to open the file if it doesn't exist
 			if (!File.Exists(FilePath))

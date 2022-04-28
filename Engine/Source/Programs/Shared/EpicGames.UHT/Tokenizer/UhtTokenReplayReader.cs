@@ -12,9 +12,9 @@ namespace EpicGames.UHT.Tokenizer
 	/// <summary>
 	/// Token reader to replay previously recorded token stream
 	/// </summary>
-	public class UhtTokenReplayReader : IUhtTokenReader, IUhtMessageLineNumber
+	public sealed class UhtTokenReplayReader : IUhtTokenReader, IUhtMessageLineNumber
 	{
-		static private ThreadLocal<UhtTokenReplayReader> Tls = new ThreadLocal<UhtTokenReplayReader>(() => new UhtTokenReplayReader());
+		private static readonly ThreadLocal<UhtTokenReplayReader> Tls = new ThreadLocal<UhtTokenReplayReader>(() => new UhtTokenReplayReader());
 
 		const int MaxSavedStates = 2;
 		private struct SavedState
@@ -29,7 +29,7 @@ namespace EpicGames.UHT.Tokenizer
 		private int CurrentTokenIndex = -1;
 		private bool bHasToken = false;
 		private UhtToken CurrentToken = new UhtToken();
-		private SavedState[] SavedStates = new SavedState[MaxSavedStates];
+		private readonly SavedState[] SavedStates = new SavedState[MaxSavedStates];
 		private int SavedStateCount = 0;
 		private UhtTokenType EndTokenType = UhtTokenType.EndOfFile;
 
@@ -43,8 +43,8 @@ namespace EpicGames.UHT.Tokenizer
 		public UhtTokenReplayReader(IUhtMessageSite MessageSite, ReadOnlyMemory<char> Data, ReadOnlyMemory<UhtToken> Tokens, UhtTokenType EndTokenType)
 		{
 			this.MessageSiteInternal = MessageSite;
-			this.Tokens = new UhtToken[0].AsMemory();
-			this.Data = new char[0].AsMemory();
+			this.Tokens = Array.Empty<UhtToken>().AsMemory();
+			this.Data = Array.Empty<char>().AsMemory();
 			this.EndTokenType = EndTokenType;
 			this.CurrentToken = new UhtToken(EndTokenType);
 		}
@@ -55,8 +55,8 @@ namespace EpicGames.UHT.Tokenizer
 		public UhtTokenReplayReader()
 		{
 			this.MessageSiteInternal = new UhtEmptyMessageSite();
-			this.Tokens = new UhtToken[0].AsMemory();
-			this.Data = new char[0].AsMemory();
+			this.Tokens = Array.Empty<UhtToken>().AsMemory();
+			this.Data = Array.Empty<char>().AsMemory();
 		}
 
 		/// <summary>

@@ -62,7 +62,7 @@ namespace EpicGames.UHT.Parsers
 				UhtParsingScope? CurrentScope = this;
 				while (CurrentScope != null)
 				{
-					if (CurrentScope.ScopeType is UhtClass Class)
+					if (CurrentScope.ScopeType is UhtClass)
 					{
 						return CurrentScope;
 					}
@@ -116,7 +116,20 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		public void Dispose()
 		{
-			this.HeaderParser.PopScope(this);
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// Virtual method for disposing the object
+		/// </summary>
+		/// <param name="disposing">If true, we are disposing</param>
+		protected virtual void Dispose(bool disposing)
+		{
+			if (disposing)
+			{
+				this.HeaderParser.PopScope(this);
+			}
 		}
 
 		/// <summary>
@@ -141,7 +154,7 @@ namespace EpicGames.UHT.Parsers
 		/// Format the current token reader comments and add it as meta data
 		/// </summary>
 		/// <param name="MetaNameIndex">Index for the meta data key.  This is used for enum values</param>
-		public void AddFormattedCommentsAsTooltipMetaData(int MetaNameIndex = UhtMetaData.INDEX_NONE)
+		public void AddFormattedCommentsAsTooltipMetaData(int MetaNameIndex = UhtMetaData.IndexNone)
 		{
 			AddFormattedCommentsAsTooltipMetaData(this.ScopeType, MetaNameIndex);
 		}
@@ -151,7 +164,7 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		/// <param name="Type">The type to add the meta data to</param>
 		/// <param name="MetaNameIndex">Index for the meta data key.  This is used for enum values</param>
-		public void AddFormattedCommentsAsTooltipMetaData(UhtType Type, int MetaNameIndex = UhtMetaData.INDEX_NONE)
+		public void AddFormattedCommentsAsTooltipMetaData(UhtType Type, int MetaNameIndex = UhtMetaData.IndexNone)
 		{
 
 			// Don't add a tooltip if one already exists.
@@ -393,7 +406,9 @@ namespace EpicGames.UHT.Parsers
 				// Skip any leading spaces
 				int Index = 0;
 				int EndPos = Line.Length;
-				for (; Index < EndPos && UhtFCString.IsWhitespace(Line[Index]); ++Index) { }
+				for (; Index < EndPos && UhtFCString.IsWhitespace(Line[Index]); ++Index) 
+				{
+				}
 				if (Index == EndPos)
 				{
 					return true;

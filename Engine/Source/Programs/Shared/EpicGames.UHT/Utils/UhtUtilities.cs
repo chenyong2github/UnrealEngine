@@ -111,7 +111,7 @@ namespace EpicGames.UHT.Utils
 	/// <summary>
 	/// Assorted utility functions
 	/// </summary>
-	public class UhtUtilities
+	public static class UhtUtilities
 	{
 
 		/// <summary>
@@ -146,9 +146,9 @@ namespace EpicGames.UHT.Utils
 				}
 				if (bQuote)
 				{
-					Builder.Append("'");
+					Builder.Append('\'');
 					Builder.Append(Local[Index]);
-					Builder.Append("'");
+					Builder.Append('\'');
 				}
 				else
 				{

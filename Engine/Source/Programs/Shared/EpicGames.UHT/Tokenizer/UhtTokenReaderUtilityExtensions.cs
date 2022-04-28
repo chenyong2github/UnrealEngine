@@ -13,23 +13,23 @@ namespace EpicGames.UHT.Tokenizer
 	/// </summary>
 	public static class UhtTokenReaderUtilityExtensions
 	{
-		private static HashSet<StringView> SkipDeclarationWarningStrings = new HashSet<StringView>
-			{
-				"GENERATED_BODY",
-				"GENERATED_IINTERFACE_BODY",
-				"GENERATED_UCLASS_BODY",
-				"GENERATED_UINTERFACE_BODY",
-				"GENERATED_USTRUCT_BODY",
-				// Leaving these disabled ATM since they can exist in the code without causing compile issues
-				//"RIGVM_METHOD",
-				//"UCLASS",
-				//"UDELEGATE",
-				//"UENUM",
-				//"UFUNCTION",
-				//"UINTERFACE",
-				//"UPROPERTY",
-				//"USTRUCT",
-			};
+		private static readonly HashSet<StringView> SkipDeclarationWarningStrings = new HashSet<StringView>
+		{
+			"GENERATED_BODY",
+			"GENERATED_IINTERFACE_BODY",
+			"GENERATED_UCLASS_BODY",
+			"GENERATED_UINTERFACE_BODY",
+			"GENERATED_USTRUCT_BODY",
+			// Leaving these disabled ATM since they can exist in the code without causing compile issues
+			//"RIGVM_METHOD",
+			//"UCLASS",
+			//"UDELEGATE",
+			//"UENUM",
+			//"UFUNCTION",
+			//"UINTERFACE",
+			//"UPROPERTY",
+			//"USTRUCT",
+		};
 
 		/// <summary>
 		/// When processing type, make sure that the next token is the expected token
@@ -123,8 +123,6 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns>true if there could be more header to process, false if the end was reached.</returns>
 		public static bool SkipDeclaration(this IUhtTokenReader TokenReader, ref UhtToken Token)
 		{
-			UhtToken StarToken = Token;
-
 			// Consume all tokens until the end of declaration/definition has been found.
 			int NestedScopes = 0;
 			bool bEndOfDeclarationFound = false;

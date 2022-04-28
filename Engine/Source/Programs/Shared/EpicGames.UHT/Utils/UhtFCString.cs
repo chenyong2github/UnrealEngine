@@ -16,7 +16,7 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Delimiter between the subobjects
 		/// </summary>
-		public static char SubObjectDelimiter = ':';
+		public static readonly char SubObjectDelimiter = ':';
 
 		/// <summary>
 		/// Test to see if the string is a boolean
@@ -62,15 +62,15 @@ namespace EpicGames.UHT.Utils
 			{
 				return false;
 			}
-			else if (string.Compare(Value, "true", true) == 0 ||
-				string.Compare(Value, "yes", true) == 0 ||
-				string.Compare(Value, "on", true) == 0)
+			else if (string.Equals(Value, "true", StringComparison.OrdinalIgnoreCase) ||
+				string.Equals(Value, "yes", StringComparison.OrdinalIgnoreCase) ||
+				string.Equals(Value, "on", StringComparison.OrdinalIgnoreCase))
 			{
 				return true;
 			}
-			else if (string.Compare(Value, "false", true) == 0 ||
-				string.Compare(Value, "no", true) == 0 ||
-				string.Compare(Value, "off", true) == 0)
+			else if (string.Equals(Value, "false", StringComparison.OrdinalIgnoreCase) ||
+				string.Equals(Value, "no", StringComparison.OrdinalIgnoreCase) ||
+				string.Equals(Value, "off", StringComparison.OrdinalIgnoreCase))
 			{
 				return false;
 			}
@@ -309,7 +309,7 @@ namespace EpicGames.UHT.Utils
 		/// Words that are considered articles when parsing comment strings
 		/// Some words are always forced lowercase
 		/// </summary>
-		private static string[] Articles = new string[]
+		private static readonly string[] Articles = new string[]
 		{
 			"In",
 			"As",

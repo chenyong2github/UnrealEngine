@@ -19,7 +19,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="PropertySettings">Property settings</param>
 		/// <param name="Value">Value property</param>
-		public UhtContainerBaseProperty(UhtPropertySettings PropertySettings, UhtProperty Value) : base(PropertySettings)
+		protected UhtContainerBaseProperty(UhtPropertySettings PropertySettings, UhtProperty Value) : base(PropertySettings)
 		{
 			this.ValueProperty = Value;
 			this.PropertyCaps = (this.PropertyCaps & ~(UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanHaveConfig)) | 

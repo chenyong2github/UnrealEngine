@@ -128,6 +128,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			uint B = 0x9e3779b9;
 			A += B;
 
+#pragma warning disable IDE2001 // Embedded statements must be on their own line
 			A -= B; A -= C; A ^= (C >> 13);
 			B -= C; B -= A; B ^= (A << 8);
 			C -= A; C -= B; C ^= (B >> 13);
@@ -137,6 +138,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			A -= B; A -= C; A ^= (C >> 3);
 			B -= C; B -= A; B ^= (A << 10);
 			C -= A; C -= B; C ^= (B >> 15);
+#pragma warning restore IDE2001 // Embedded statements must be on their own line
 
 			return C;
 		}

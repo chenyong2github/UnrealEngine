@@ -322,9 +322,9 @@ namespace EpicGames.UHT.Tokenizer
 	/// <summary>
 	/// Token list cache.  Token lists must be returned to the cache.
 	/// </summary>
-	public class UhtTokenListCache
+	public static class UhtTokenListCache
 	{
-		static private ThreadLocal<UhtTokenList?> Tls = new ThreadLocal<UhtTokenList?>(() => null);
+		private static readonly ThreadLocal<UhtTokenList?> Tls = new ThreadLocal<UhtTokenList?>(() => null);
 
 		/// <summary>
 		/// Borrow a token list

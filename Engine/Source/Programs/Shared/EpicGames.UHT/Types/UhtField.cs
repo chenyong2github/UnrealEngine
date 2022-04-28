@@ -16,7 +16,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="Outer">Outer object</param>
 		/// <param name="LineNumber">Line number of declaration</param>
-		public UhtField(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		protected UhtField(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 		}
 	}

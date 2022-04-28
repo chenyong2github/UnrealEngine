@@ -79,7 +79,7 @@ namespace EpicGames.UHT.Tables
 	/// Defines an exporter
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-	public class UhtExporterAttribute : Attribute
+	public sealed class UhtExporterAttribute : Attribute
 	{
 
 		/// <summary>
@@ -171,7 +171,7 @@ namespace EpicGames.UHT.Tables
 	public class UhtExporterTable : IEnumerable<UhtExporter>
 	{
 
-		private Dictionary<string, UhtExporter> ExporterValues = new Dictionary<string, UhtExporter>(StringComparer.OrdinalIgnoreCase);
+		private readonly Dictionary<string, UhtExporter> ExporterValues = new Dictionary<string, UhtExporter>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Return the exporter associated with the given name

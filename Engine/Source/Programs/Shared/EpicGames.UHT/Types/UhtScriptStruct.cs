@@ -13,7 +13,7 @@ namespace EpicGames.UHT.Types
 	/// Flags to represent information about a RigVM parameter
 	/// </summary>
 	[Flags]
-	public enum UhtRigVMParameterFlags : UInt32
+	public enum UhtRigVMParameterFlags : Int32
 	{
 		/// <summary>
 		/// No RigVM flags
@@ -404,8 +404,8 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtRigVMMethodInfo
 	{
-		private static string NoPrefixInternal = string.Empty;
-		private static string ReturnPrefixInternal = "return ";
+		private static readonly string NoPrefixInternal = string.Empty;
+		private const string ReturnPrefixInternal = "return ";
 
 		/// <summary>
 		/// Return type of the method
@@ -420,7 +420,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Method parameters
 		/// </summary>
-		public List<UhtRigVMParameter> Parameters { get; set; } = new List<UhtRigVMParameter>();
+		public List<UhtRigVMParameter> Parameters { get; } = new List<UhtRigVMParameter>();
 
 		/// <summary>
 		/// If the method has a return value, return "return".  Otherwise return nothing.
@@ -462,14 +462,14 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// List of the methods
 		/// </summary>
-		public List<UhtRigVMMethodInfo> Methods { get; set; } = new List<UhtRigVMMethodInfo>();
+		public List<UhtRigVMMethodInfo> Methods { get; } = new List<UhtRigVMMethodInfo>();
 	};
 
 	/// <summary>
 	/// Series of flags not part of the engine's script struct flags that affect code generation or verification
 	/// </summary>
 	[Flags]
-	public enum UhtScriptStructExportFlags : UInt32
+	public enum UhtScriptStructExportFlags : Int32
 	{
 
 		/// <summary>

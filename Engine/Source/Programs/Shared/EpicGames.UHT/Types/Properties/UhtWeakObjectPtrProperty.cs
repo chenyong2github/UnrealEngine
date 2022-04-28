@@ -50,11 +50,11 @@ namespace EpicGames.UHT.Types
 				default:
 					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak))
 					{
-						Builder.Append("TAutoWeakObjectPtr<").Append(this.Class.SourceName).Append(">");
+						Builder.Append("TAutoWeakObjectPtr<").Append(this.Class.SourceName).Append('>');
 					}
 					else
 					{
-						Builder.Append("TWeakObjectPtr<").Append(this.Class.SourceName).Append(">");
+						Builder.Append("TWeakObjectPtr<").Append(this.Class.SourceName).Append('>');
 					}
 					break;
 			}

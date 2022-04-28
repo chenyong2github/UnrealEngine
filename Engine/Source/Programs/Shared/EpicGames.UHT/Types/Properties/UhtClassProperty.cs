@@ -61,7 +61,7 @@ namespace EpicGames.UHT.Types
 			}
 			else
 			{
-				Builder.Append(this.Class.SourceName).Append("*");
+				Builder.Append(this.Class.SourceName).Append('*');
 			}
 			return Builder;
 		}

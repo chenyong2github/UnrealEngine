@@ -608,17 +608,17 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Return the hash code for a given object
 		/// </summary>
-		/// <param name="Object">Object in question</param>
+		/// <param name="Obj">Object in question</param>
 		/// <returns>Hash code</returns>
-		public uint GetTypeHash(UhtObject Object);
+		public uint GetTypeHash(UhtObject Obj);
 
 		/// <summary>
 		/// Return the singleton name for the given object
 		/// </summary>
-		/// <param name="Object">Object in question</param>
+		/// <param name="Obj">Object in question</param>
 		/// <param name="bRegistered">If true, the singleton that returns the registered object is returned.</param>
 		/// <returns>Singleton function name</returns>
-		public string GetSingletonName(UhtObject? Object, bool bRegistered);
+		public string GetSingletonName(UhtObject? Obj, bool bRegistered);
 	}
 
 	/// <summary>
@@ -826,7 +826,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Collection of recognized casts when parsing array dimensions
 		/// </summary>
-		private static string[] Casts = new string[]
+		private static readonly string[] Casts = new string[]
 		{
 			"(uint32)",
 			"(int32)",
@@ -996,7 +996,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="Outer">Outer type of the property</param>
 		/// <param name="LineNumber">Line number where property was declared</param>
-		public UhtProperty(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		protected UhtProperty(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 			this.PropertyFlags = EPropertyFlags.None;
 			this.PropertyCaps = UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey | UhtPropertyCaps.CanHaveConfig;
@@ -1006,7 +1006,7 @@ namespace EpicGames.UHT.Types
 		/// Construct a new property
 		/// </summary>
 		/// <param name="PropertySettings">Property settings from parsing</param>
-		public UhtProperty(UhtPropertySettings PropertySettings) : base(PropertySettings.Outer, PropertySettings.LineNumber, PropertySettings.MetaData)
+		protected UhtProperty(UhtPropertySettings PropertySettings) : base(PropertySettings.Outer, PropertySettings.LineNumber, PropertySettings.MetaData)
 		{
 			this.SourceName = PropertySettings.SourceName;
 			// Engine name defaults to source name.  If it doesn't match what is coming in, then set it.
@@ -1254,7 +1254,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="bRegistered">True if the registered singleton name is to be used</param>
 		/// <param name="bAppendNull">True if a "nullptr" is to be appended if the object is null</param>
 		/// <returns>Output builder</returns>
-		protected StringBuilder AppendMemberDefRef(StringBuilder Builder, IUhtPropertyMemberContext Context, UhtObject? Object, bool bRegistered, bool bAppendNull = false)
+		protected static StringBuilder AppendMemberDefRef(StringBuilder Builder, IUhtPropertyMemberContext Context, UhtObject? Object, bool bRegistered, bool bAppendNull = false)
 		{
 			if (Object != null)
 			{
@@ -1309,10 +1309,10 @@ namespace EpicGames.UHT.Types
 					Builder.Append("_REF");
 				}
 			}
-			Builder.Append("(");
+			Builder.Append('(');
 			if (this.ArrayDimensions != null)
 			{
-				Builder.AppendFunctionThunkParameterArrayType(this).Append(",");
+				Builder.AppendFunctionThunkParameterArrayType(this).Append(',');
 			}
 			else
 			{
@@ -1326,11 +1326,11 @@ namespace EpicGames.UHT.Types
 						break;
 
 					case UhtPGetArgumentType.TypeText:
-						Builder.AppendPropertyText(this, UhtPropertyTextType.FunctionThunkParameterArgType).Append(",");
+						Builder.AppendPropertyText(this, UhtPropertyTextType.FunctionThunkParameterArgType).Append(',');
 						break;
 				}
 			}
-			Builder.AppendFunctionThunkParameterName(this).Append(")");
+			Builder.AppendFunctionThunkParameterName(this).Append(')');
 			return Builder;
 		}
 
@@ -1428,7 +1428,7 @@ namespace EpicGames.UHT.Types
 					{
 						ReadOnlySpan<char> Dim = this.ArrayDimensions.AsSpan();
 
-						bool bAgain = false;
+						bool bAgain;
 						do
 						{
 							bAgain = false;
@@ -1470,7 +1470,6 @@ namespace EpicGames.UHT.Types
 									}
 								}
 							}
-
 						} while (bAgain && Dim.Length > 0);
 
 						//COMPATIBILITY-TODO - This method is more robust, but causes differences.  See UhtSession for future
@@ -1509,7 +1508,7 @@ namespace EpicGames.UHT.Types
 							}
 							if (Enum != null)
 							{
-								this.MetaData.Add(UhtNames.ArraySizeEnum, Enum.GetPathName());
+								this.MetaData.Add(UhtNames.ArraySizeEnum, Enum.PathName);
 							}
 						}
 					}
@@ -1704,16 +1703,16 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Verify function argument
 		/// </summary>
-		protected virtual void ValidateFunctionArgument(UhtFunction Function, UhtValidationOptions Options)
+		protected virtual void ValidateFunctionArgument(UhtFunction Func, UhtValidationOptions Options)
 		{
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+			if (Func.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
 				if (this.PropertyFlags.HasExactFlags(EPropertyFlags.ReferenceParm | EPropertyFlags.ConstParm, EPropertyFlags.ReferenceParm))
 				{
 					this.LogError($"Replicated parameters cannot be passed by non-const reference");
 				}
 
-				if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest))
+				if (Func.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest))
 				{
 					if (this.PropertyFlags.HasExactFlags(EPropertyFlags.OutParm | EPropertyFlags.RepSkip, EPropertyFlags.OutParm))
 					{
@@ -1737,7 +1736,7 @@ namespace EpicGames.UHT.Types
 			}
 
 			// The following checks are not performed on the value of a container
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.BlueprintCallable))
+			if (Func.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.BlueprintCallable))
 			{
 				// Check that the parameter name is valid and does not conflict with pre-defined types
 				if (InvalidParamNames.Contains(this.SourceName))
@@ -1911,7 +1910,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="OuterSuffix">Current suffix</param>
 		/// <param name="NewSuffix">Suffix to be added</param>
 		/// <returns>Combination of the two suffixes</returns>
-		protected string GetNameSuffix(string OuterSuffix, string NewSuffix)
+		protected static string GetNameSuffix(string OuterSuffix, string NewSuffix)
 		{
 			return string.IsNullOrEmpty(OuterSuffix) ? NewSuffix : $"{OuterSuffix}{NewSuffix}";
 		}
@@ -2154,7 +2153,7 @@ namespace EpicGames.UHT.Types
 			}
 			else
 			{
-				Builder.Append("1");
+				Builder.Append('1');
 			}
 			return Builder;
 		}

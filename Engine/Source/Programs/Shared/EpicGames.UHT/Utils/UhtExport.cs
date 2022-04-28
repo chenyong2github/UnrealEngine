@@ -2,7 +2,6 @@
 
 using EpicGames.Core;
 using EpicGames.UHT.Types;
-using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;

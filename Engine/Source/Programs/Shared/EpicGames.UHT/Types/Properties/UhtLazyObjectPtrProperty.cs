@@ -53,7 +53,7 @@ namespace EpicGames.UHT.Types
 					break;
 
 				default:
-					Builder.Append("TLazyObjectPtr<").Append(this.Class.SourceName).Append(">");
+					Builder.Append("TLazyObjectPtr<").Append(this.Class.SourceName).Append('>');
 					break;
 			}
 			return Builder;

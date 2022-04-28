@@ -107,8 +107,7 @@ namespace EpicGames.UHT.Parsers
 			IUhtTokenReader TokenReader = ParentScope.TokenReader;
 
 			// Get the optional API macro
-			UhtToken APIMacroToken;
-			TokenReader.TryOptionalAPIMacro(out APIMacroToken);
+			TokenReader.TryOptionalAPIMacro(out UhtToken _);
 
 			// Get the name of the interface
 			SourceName = TokenReader.GetIdentifier();

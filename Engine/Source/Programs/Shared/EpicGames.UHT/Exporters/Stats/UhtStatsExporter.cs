@@ -4,9 +4,7 @@ using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace EpicGames.UHT.Exporters.Stats
 {
@@ -33,8 +31,7 @@ namespace EpicGames.UHT.Exporters.Stats
 
 		private static void Collect(SortedDictionary<string, int> CountByType, UhtType Type)
 		{
-			int Count = 1;
-			if (CountByType.TryGetValue(Type.EngineClassName, out Count))
+			if (CountByType.TryGetValue(Type.EngineClassName, out int Count))
 			{
 				CountByType[Type.EngineClassName] = Count + 1;
 			}

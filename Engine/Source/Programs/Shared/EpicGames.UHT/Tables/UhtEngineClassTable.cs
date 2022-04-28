@@ -12,7 +12,7 @@ namespace EpicGames.UHT.Tables
 	/// This attribute is placed on classes that represent Unreal Engine classes.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
-	public class UhtEngineClassAttribute : Attribute
+	public sealed class UhtEngineClassAttribute : Attribute
 	{
 
 		/// <summary>
@@ -50,7 +50,7 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Internal mapping from engine class name to information
 		/// </summary>
-		private Dictionary<StringView, UhtEngineClass> EngineClasses = new Dictionary<StringView, UhtEngineClass>();
+		private readonly Dictionary<StringView, UhtEngineClass> EngineClasses = new Dictionary<StringView, UhtEngineClass>();
 
 		/// <summary>
 		/// Test to see if the given class name is a property

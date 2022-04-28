@@ -44,7 +44,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		}
 
 		#region Event parameter
-		protected StringBuilder AppendEventParameter(StringBuilder Builder, UhtFunction Function, string StrippedFunctionName, UhtPropertyTextType TextType, bool bOutputConstructor, int Tabs, string Endl)
+		protected static StringBuilder AppendEventParameter(StringBuilder Builder, UhtFunction Function, string StrippedFunctionName, UhtPropertyTextType TextType, bool bOutputConstructor, int Tabs, string Endl)
 		{
 			if (!WillExportEventParameters(Function))
 			{
@@ -54,7 +54,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			string EventParameterStructName = GetEventStructParametersName(Function.Outer, StrippedFunctionName);
 
 			Builder.AppendTabs(Tabs).Append("struct ").Append(EventParameterStructName).Append(Endl);
-			Builder.AppendTabs(Tabs).Append("{").Append(Endl);
+			Builder.AppendTabs(Tabs).Append('{').Append(Endl);
 
 			++Tabs;
 			foreach (UhtProperty Property in Function.Children)
@@ -85,7 +85,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 
 				Builder.AppendFullDecl(Property, TextType, false);
-				Builder.Append(";").Append(Endl);
+				Builder.Append(';').Append(Endl);
 			}
 
 			if (bOutputConstructor)
@@ -96,9 +96,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					Builder.Append(Endl);
 					Builder.AppendTabs(Tabs).Append("/** Constructor, initializes return property only **/").Append(Endl);
 					Builder.AppendTabs(Tabs).Append(EventParameterStructName).Append("()").Append(Endl);
-					Builder.AppendTabs(Tabs + 1).Append(": ").Append(ReturnProperty.SourceName).Append('(').AppendNullConstructorArg(ReturnProperty, true).Append(")").Append(Endl);
-					Builder.AppendTabs(Tabs).Append("{").Append(Endl);
-					Builder.AppendTabs(Tabs).Append("}").Append(Endl);
+					Builder.AppendTabs(Tabs + 1).Append(": ").Append(ReturnProperty.SourceName).Append('(').AppendNullConstructorArg(ReturnProperty, true).Append(')').Append(Endl);
+					Builder.AppendTabs(Tabs).Append('{').Append(Endl);
+					Builder.AppendTabs(Tabs).Append('}').Append(Endl);
 				}
 			}
 			--Tabs;
@@ -271,9 +271,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return Builder;
 		}
 
-		protected StringBuilder AppendEventFunctionPrologue(StringBuilder Builder, UhtFunction Function, string FunctionName, int Tabs, string Endl)
+		protected static StringBuilder AppendEventFunctionPrologue(StringBuilder Builder, UhtFunction Function, string FunctionName, int Tabs, string Endl)
 		{
-			Builder.AppendTabs(Tabs).Append("{").Append(Endl);
+			Builder.AppendTabs(Tabs).Append('{').Append(Endl);
 			if (Function.Children.Count == 0)
 			{
 				return Builder;
@@ -297,18 +297,18 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 				else
 				{
-					Builder.AppendTabs(Tabs).Append("Parms.").Append(Property.SourceName).Append("=").Append(Property.SourceName);
+					Builder.AppendTabs(Tabs).Append("Parms.").Append(Property.SourceName).Append('=').Append(Property.SourceName);
 					if (Property is UhtBoolProperty)
 					{
 						Builder.Append(" ? true : false");
 					}
-					Builder.Append(";").Append(Endl);
+					Builder.Append(';').Append(Endl);
 				}
 			}
 			return Builder;
 		}
 
-		protected StringBuilder AppendEventFunctionEpilogue(StringBuilder Builder, UhtFunction Function, int Tabs, string Endl)
+		protected static StringBuilder AppendEventFunctionEpilogue(StringBuilder Builder, UhtFunction Function, int Tabs, string Endl)
 		{
 			++Tabs;
 
@@ -336,7 +336,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							.Append(Property.SourceName)
 							.Append("=Parms.")
 							.Append(Property.SourceName)
-							.Append(";").Append(Endl);
+							.Append(';').Append(Endl);
 					}
 				}
 			}
@@ -352,7 +352,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						.AppendTabs(Tabs)
 						.Append("return !!Parms.")
 						.Append(ReturnProperty.SourceName)
-						.Append(";").Append(Endl);
+						.Append(';').Append(Endl);
 				}
 				else
 				{
@@ -360,16 +360,16 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						.AppendTabs(Tabs)
 						.Append("return Parms.")
 						.Append(ReturnProperty.SourceName)
-						.Append(";").Append(Endl);
+						.Append(';').Append(Endl);
 				}
 			}
 
 			--Tabs;
-			Builder.AppendTabs(Tabs).Append("}").Append(Endl);
+			Builder.AppendTabs(Tabs).Append('}').Append(Endl);
 			return Builder;
 		}
 
-		protected StringBuilder AppendParameters(StringBuilder Builder, UhtFunction Function, UhtPropertyTextType TextType, string? ExtraParameter, bool bSkipParameterName)
+		protected static StringBuilder AppendParameters(StringBuilder Builder, UhtFunction Function, UhtPropertyTextType TextType, string? ExtraParameter, bool bSkipParameterName)
 		{
 			bool bNeedsSeperator = false;
 
@@ -394,7 +394,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				Builder.AppendFullDecl(Parameter, TextType, bSkipParameterName);
 			}
 
-			Builder.Append(")");
+			Builder.Append(')');
 			return Builder;
 		}
 
@@ -473,14 +473,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		#endregion
 
 		#region Field notify support
-		protected bool NeedFieldNotifyCodeGen(UhtClass Class)
+		protected static bool NeedFieldNotifyCodeGen(UhtClass Class)
 		{
 			return 
 				!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasCustomFieldNotify) &&
 				Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasFieldNotify);
 		}
 
-		protected void GetFieldNotifyStats(UhtClass Class, out bool bHasProperties, out bool bHasFunctions, out bool bHasEditorFields, out bool bAllEditorFields)
+		protected static void GetFieldNotifyStats(UhtClass Class, out bool bHasProperties, out bool bHasFunctions, out bool bHasEditorFields, out bool bAllEditorFields)
 		{
 			// Scan the children to see what we have
 			bHasProperties = false;
@@ -513,7 +513,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			bAllEditorFields &= bHasEditorFields;
 		}
 
-		protected StringBuilder AppendFieldNotify(StringBuilder Builder, UhtClass Class,
+		protected static StringBuilder AppendFieldNotify(StringBuilder Builder, UhtClass Class,
 			bool bHasProperties, bool bHasFunctions, bool bHasEditorFields, bool bAllEditorFields,
 			bool bIncludeEditorOnlyFields, bool bAppendDefine, Action<StringBuilder, UhtClass, string> AppendAction)
 		{

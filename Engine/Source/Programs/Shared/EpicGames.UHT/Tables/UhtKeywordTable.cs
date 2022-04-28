@@ -15,7 +15,7 @@ namespace EpicGames.UHT.Tables
 	/// Invoke the given method when the keyword is parsed.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-	public class UhtKeywordAttribute : Attribute
+	public sealed class UhtKeywordAttribute : Attribute
 	{
 
 		/// <summary>
@@ -48,7 +48,7 @@ namespace EpicGames.UHT.Tables
 	/// Invoked as a last chance processor for a keyword
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-	public class UhtKeywordCatchAllAttribute : Attribute
+	public sealed class UhtKeywordCatchAllAttribute : Attribute
 	{
 
 		/// <summary>

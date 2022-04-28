@@ -42,7 +42,7 @@ namespace EpicGames.UHT.Types
 	/// Series of flags not part of the engine's class flags that affect code generation or verification
 	/// </summary>
 	[Flags]
-	public enum UhtHeaderFileExportFlags : UInt32
+	public enum UhtHeaderFileExportFlags : Int32
 	{
 		/// <summary>
 		/// No export flags
@@ -103,9 +103,9 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtHeaderFile : UhtType
 	{
-		private UhtSimpleMessageSite MessageSite;
-		private UhtSourceFile SourceFile;
-		private List<UhtHeaderFile> ReferencedHeaders = new List<UhtHeaderFile>();
+		private readonly UhtSimpleMessageSite MessageSite;
+		private readonly UhtSourceFile SourceFile;
+		private readonly List<UhtHeaderFile> ReferencedHeaders = new List<UhtHeaderFile>();
 
 		/// <summary>
 		/// Contents of the header
@@ -200,7 +200,7 @@ namespace EpicGames.UHT.Types
 		/// Collection of headers directly included by this header
 		/// </summary>
 		[JsonIgnore]
-		public List<UhtHeaderFile> IncludedHeaders { get; set; } = new List<UhtHeaderFile>();
+		public List<UhtHeaderFile> IncludedHeaders { get; } = new List<UhtHeaderFile>();
 
 		#region IUHTMessageSite implementation
 
@@ -227,7 +227,7 @@ namespace EpicGames.UHT.Types
 			this.FileNameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(this.SourceFile.FilePath);
 			this.GeneratedHeaderFileName = this.FileNameWithoutExtension + ".generated.h";
 			this.SourceName = System.IO.Path.GetFileName(this.SourceFile.FilePath);
-			this.bIsNoExportTypes = string.Compare(this.SourceFile.FileName, "NoExportTypes", true) == 0;
+			this.bIsNoExportTypes = string.Equals(this.SourceFile.FileName, "NoExportTypes", StringComparison.OrdinalIgnoreCase);
 		}
 
 		/// <summary>
@@ -324,12 +324,12 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override void GetPathName(StringBuilder Builder, UhtType? StopOuter = null)
+		public override void AppendPathName(StringBuilder Builder, UhtType? StopOuter = null)
 		{
 			// Headers do not contribute to path names
 			if (this != StopOuter && this.Outer != null)
 			{
-				this.Outer.GetPathName(Builder, StopOuter);
+				this.Outer.AppendPathName(Builder, StopOuter);
 			}
 		}
 

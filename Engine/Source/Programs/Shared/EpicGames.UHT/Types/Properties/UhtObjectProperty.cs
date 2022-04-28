@@ -67,7 +67,7 @@ namespace EpicGames.UHT.Types
 					{
 						Builder.Append("const ");
 					}
-					Builder.Append(this.Class.SourceName).Append("*");
+					Builder.Append(this.Class.SourceName).Append('*');
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
@@ -75,7 +75,7 @@ namespace EpicGames.UHT.Types
 					break;
 
 				default:
-					Builder.Append(this.Class.SourceName).Append("*");
+					Builder.Append(this.Class.SourceName).Append('*');
 					break;
 			}
 			return Builder;

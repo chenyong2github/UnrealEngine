@@ -44,7 +44,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="PropertySettings">Property settings</param>
 		/// <param name="Class">Referenced UCLASS</param>
 		/// <param name="MetaClass">Referenced UCLASS used by class properties</param>
-		public UhtObjectPropertyBase(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass? MetaClass) : base(PropertySettings)
+		protected UhtObjectPropertyBase(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass? MetaClass) : base(PropertySettings)
 		{
 			this.Class = Class;
 			this.MetaClass = MetaClass;

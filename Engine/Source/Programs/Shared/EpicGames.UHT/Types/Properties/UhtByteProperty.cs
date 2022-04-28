@@ -123,7 +123,7 @@ namespace EpicGames.UHT.Types
 			}
 
 			int Value = DefaultValueReader.GetConstIntExpression();
-			InnerDefaultValue.Append(Value.ToString());
+			InnerDefaultValue.Append(Value);
 			return Value >= byte.MinValue && Value <= byte.MaxValue;
 		}
 

@@ -14,7 +14,7 @@ namespace EpicGames.UHT.Types
 	/// Series of flags not part of the engine's function flags that affect code generation or verification
 	/// </summary>
 	[Flags]
-	public enum UhtFunctionExportFlags : UInt32
+	public enum UhtFunctionExportFlags : Int32
 	{
 
 		/// <summary>
@@ -201,7 +201,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Suffix added to delegate engine names 
 		/// </summary>
-		public static string GeneratedDelegateSignatureSuffix = "__DelegateSignature";
+		public static readonly string GeneratedDelegateSignatureSuffix = "__DelegateSignature";
 
 		/// <summary>
 		/// Engine function flags
@@ -836,7 +836,7 @@ namespace EpicGames.UHT.Types
 			}
 			else
 			{
-				Builder.Append("\"");
+				Builder.Append('\"');
 			}
 			this.LogError(Builder.ToString());
 		}
@@ -978,7 +978,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the parameter</param>
 		/// <param name="Text">Text of the parameter tooltip</param>
 		/// <param name="ParamMap">Parameter map to add the tooltip</param>
-		private void AddParameterToolTip(StringView Name, StringView Text, Dictionary<StringView, StringView> ParamMap)
+		private static void AddParameterToolTip(StringView Name, StringView Text, Dictionary<StringView, StringView> ParamMap)
 		{
 			ParamMap.Add(Name, new StringView(UhtFCString.TabsToSpaces(Text.Memory.Trim(), 4, false)));
 		}
@@ -988,7 +988,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="Text">Text of the parameter tooltip</param>
 		/// <param name="ParamMap">Parameter map to add the tooltip</param>
-		private void AddParameterToolTip(StringView Text, Dictionary<StringView, StringView> ParamMap)
+		private static void AddParameterToolTip(StringView Text, Dictionary<StringView, StringView> ParamMap)
 		{
 			ReadOnlyMemory<char> Trimmed = Text.Memory.Trim();
 			int NameEnd = Trimmed.Span.IndexOf(' ');
@@ -1003,7 +1003,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="Input">The function input comment</param>
 		/// <returns>Dictionary of parameter names and the documentation.  The return value will have a name of "ReturnValue"</returns>
-		private Dictionary<StringView, StringView> GetParameterToolTipsFromFunctionComment(StringView Input)
+		private static Dictionary<StringView, StringView> GetParameterToolTipsFromFunctionComment(StringView Input)
 		{
 			const string ParamTag = "@param";
 			const string ReturnTag = "@return";

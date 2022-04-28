@@ -118,7 +118,7 @@ namespace EpicGames.UHT.Types
 					}
 					else
 					{
-						Builder.Append("TEnumAsByte<").Append(Enum.CppType).Append(">");
+						Builder.Append("TEnumAsByte<").Append(Enum.CppType).Append('>');
 					}
 					break;
 
@@ -133,7 +133,7 @@ namespace EpicGames.UHT.Types
 					}
 					else
 					{
-						Builder.Append("TEnumAsByte<").Append(Enum.CppType).Append(">");
+						Builder.Append("TEnumAsByte<").Append(Enum.CppType).Append('>');
 					}
 					break;
 
@@ -148,7 +148,7 @@ namespace EpicGames.UHT.Types
 					}
 					else
 					{
-						Builder.Append("TEnumAsByte<").Append(Enum.CppType).Append(">");
+						Builder.Append("TEnumAsByte<").Append(Enum.CppType).Append('>');
 					}
 					break;
 			}
@@ -273,7 +273,7 @@ namespace EpicGames.UHT.Types
 		{
 			if (this.Enum.CppForm != UhtEnumCppForm.EnumClass)
 			{
-				Builder.Append("0");
+				Builder.Append('0');
 			}
 			else
 			{

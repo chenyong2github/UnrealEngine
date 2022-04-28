@@ -134,7 +134,7 @@ namespace EpicGames.UHT.Types
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					Builder.AppendFunctionThunkParameterArrayType(this.KeyProperty).Append(",").AppendFunctionThunkParameterArrayType(this.ValueProperty);
+					Builder.AppendFunctionThunkParameterArrayType(this.KeyProperty).Append(',').AppendFunctionThunkParameterArrayType(this.ValueProperty);
 					break;
 
 				default:
@@ -142,13 +142,13 @@ namespace EpicGames.UHT.Types
 					if (Builder[Builder.Length - 1] == '>')
 					{
 						// if our internal property type is a template class, add a space between the closing brackets b/c VS.NET cannot parse this correctly
-						Builder.Append(" ");
+						Builder.Append(' ');
 					}
 					Builder.Append(',').AppendPropertyText(this.ValueProperty, TextType, true);
 					if (Builder[Builder.Length - 1] == '>')
 					{
 						// if our internal property type is a template class, add a space between the closing brackets b/c VS.NET cannot parse this correctly
-						Builder.Append(" ");
+						Builder.Append(' ');
 					}
 					Builder.Append('>');
 					break;

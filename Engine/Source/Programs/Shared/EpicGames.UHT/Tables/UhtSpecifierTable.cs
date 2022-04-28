@@ -117,7 +117,7 @@ namespace EpicGames.UHT.Tables
 		/// <param name="MessageSite"></param>
 		/// <param name="MetaData"></param>
 		/// <param name="MetaNameIndex"></param>
-		public UhtSpecifierContext(UhtParsingScope Scope, IUhtMessageSite MessageSite, UhtMetaData MetaData, int MetaNameIndex = UhtMetaData.INDEX_NONE)
+		public UhtSpecifierContext(UhtParsingScope Scope, IUhtMessageSite MessageSite, UhtMetaData MetaData, int MetaNameIndex = UhtMetaData.IndexNone)
 		{
 			this.Scope = Scope;
 			this.MessageSite = MessageSite;
@@ -184,7 +184,7 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtSpecifierNone : UhtSpecifier
 	{
-		private UhtSpecifierNoneDelegate Delegate;
+		private readonly UhtSpecifierNoneDelegate Delegate;
 
 		/// <summary>
 		/// Construct the specifier
@@ -220,7 +220,7 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtSpecifierString : UhtSpecifier
 	{
-		private UhtSpecifierStringDelegate Delegate;
+		private readonly UhtSpecifierStringDelegate Delegate;
 
 		/// <summary>
 		/// Construct the specifier
@@ -260,7 +260,7 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtSpecifierOptionalString : UhtSpecifier
 	{
-		private UhtSpecifierOptionalStringDelegate Delegate;
+		private readonly UhtSpecifierOptionalStringDelegate Delegate;
 
 		/// <summary>
 		/// Construct the specifier
@@ -296,7 +296,7 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtSpecifierSingleString : UhtSpecifier
 	{
-		private UhtSpecifierSingleStringDelegate Delegate;
+		private readonly UhtSpecifierSingleStringDelegate Delegate;
 
 		/// <summary>
 		/// Construct the specifier
@@ -336,7 +336,7 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtSpecifierKeyValuePairList : UhtSpecifier
 	{
-		private UhtSpecifierKeyValuePairListDelegate Delegate;
+		private readonly UhtSpecifierKeyValuePairListDelegate Delegate;
 
 		/// <summary>
 		/// Construct the specifier
@@ -377,7 +377,7 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtSpecifierLegacy : UhtSpecifier
 	{
-		private UhtSpecifierLegacyDelegate Delegate;
+		private readonly UhtSpecifierLegacyDelegate Delegate;
 
 		/// <summary>
 		/// Construct the specifier
@@ -416,7 +416,7 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtSpecifierStringList : UhtSpecifier
 	{
-		private UhtSpecifierStringListDelegate Delegate;
+		private readonly UhtSpecifierStringListDelegate Delegate;
 
 		/// <summary>
 		/// Construct the specifier
@@ -452,7 +452,7 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtSpecifierNonEmptyStringList : UhtSpecifier
 	{
-		private UhtSpecifierNonEmptyStringListDelegate Delegate;
+		private readonly UhtSpecifierNonEmptyStringListDelegate Delegate;
 
 		/// <summary>
 		/// Construct the specifier
@@ -484,7 +484,7 @@ namespace EpicGames.UHT.Tables
 	/// Defines a specifier method
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-	public class UhtSpecifierAttribute : Attribute
+	public sealed class UhtSpecifierAttribute : Attribute
 	{
 		/// <summary>
 		/// Name of the specifier.   If not supplied, the method name must end in "Specifier" and the name will be the method name with "Specifier" stripped.

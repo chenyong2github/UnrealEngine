@@ -48,11 +48,11 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.GetterSetterArg:
 					if (bIsTemplateArgument)
 					{
-						Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append(">");
+						Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
 					}
 					else
 					{
-						Builder.Append(this.Class.SourceName).Append("*");
+						Builder.Append(this.Class.SourceName).Append('*');
 					}
 					break;
 
@@ -61,11 +61,11 @@ namespace EpicGames.UHT.Types
 					{
 						Builder.Append("const ");
 					}
-					Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append(">");
+					Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
 					break;
 
 				default:
-					Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append(">");
+					Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
 					break;
 			}
 			return Builder;

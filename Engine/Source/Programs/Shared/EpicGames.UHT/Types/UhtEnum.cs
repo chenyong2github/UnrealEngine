@@ -136,7 +136,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Collection of enumeration values
 		/// </summary>
-		public List<UhtEnumValue> EnumValues { get; set; }
+		public List<UhtEnumValue> EnumValues { get; }
 
 		/// <inheritdoc/>
 		[JsonIgnore]

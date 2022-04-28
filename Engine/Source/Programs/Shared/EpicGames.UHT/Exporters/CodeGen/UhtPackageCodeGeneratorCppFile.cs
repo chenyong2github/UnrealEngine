@@ -91,7 +91,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				if (this.Session.bIncludeDebugOutput)
 				{
 					Builder.Append("#if 0\r\n");
-					Builder.Append(Declarations.ToString());
+					Builder.Append(Declarations);
 					Builder.Append("#endif\r\n");
 				}
 
@@ -135,7 +135,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				Builder.Append("\t}\r\n");
 
 				// Do not change the Z_CompiledInDeferPackage_UPackage_ without changing LC_SymbolPatterns
-				Builder.Append("\tstatic FRegisterCompiledInInfo Z_CompiledInDeferPackage_UPackage_").Append(StrippedName).Append("(").Append(SingletonName)
+				Builder.Append("\tstatic FRegisterCompiledInInfo Z_CompiledInDeferPackage_UPackage_").Append(StrippedName).Append('(').Append(SingletonName)
 					.Append(", TEXT(\"").Append(this.Package.SourceName).Append("\"), Z_Registration_Info_UPackage_").Append(StrippedName).Append(", CONSTRUCT_RELOAD_VERSION_INFO(FPackageReloadVersionInfo, ")
 					.Append($"0x{BodiesHash:X8}, 0x{DeclarationsHash:X8}").Append("));\r\n");
 

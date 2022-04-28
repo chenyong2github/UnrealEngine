@@ -12,7 +12,7 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtSourceFile : IUhtMessageSite, IUhtMessageSource
 	{
-		private UhtSimpleMessageSite MessageSite;
+		private readonly UhtSimpleMessageSite MessageSite;
 		private UhtSourceFragment SourceFragment;
 
 		/// <summary>

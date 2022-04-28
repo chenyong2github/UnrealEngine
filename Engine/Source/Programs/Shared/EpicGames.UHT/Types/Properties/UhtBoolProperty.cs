@@ -189,7 +189,7 @@ namespace EpicGames.UHT.Types
 			{
 				Builder
 					.Append("sizeof(").Append(Context.OuterStructSourceName).Append("), ")
-					.Append("&").AppendNameDef(Context, Name, NameSuffix).Append("_SetBit, ");
+					.Append('&').AppendNameDef(Context, Name, NameSuffix).Append("_SetBit, ");
 			}
 			else
 			{

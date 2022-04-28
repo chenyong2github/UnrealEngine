@@ -127,7 +127,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				foreach (UhtRigVMMethodInfo MethodInfo in ScriptStruct.RigVMStructInfo.Methods)
 				{
 					Builder.Append("#define ").Append(ScriptStruct.SourceName).Append('_').Append(MethodInfo.Name).Append("() \\\r\n");
-					Builder.Append("\t").Append(MethodInfo.ReturnType).Append(' ').Append(ScriptStruct.SourceName).Append("::Static").Append(MethodInfo.Name).Append("( \\\r\n");
+					Builder.Append('\t').Append(MethodInfo.ReturnType).Append(' ').Append(ScriptStruct.SourceName).Append("::Static").Append(MethodInfo.Name).Append("( \\\r\n");
 					Builder.Append("\t\t").Append(RigVMExecuteContextPublicDeclaration);
 					Builder.AppendParameterDecls(ScriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t", true, false);
 					Builder.AppendParameterDecls(MethodInfo.Parameters, true, ", \\\r\n\t\t", false, false);
@@ -142,7 +142,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				using (UhtMacroCreator Macro = new UhtMacroCreator(Builder, this, ScriptStruct, GeneratedBodyMacroSuffix))
 				{
 					Builder.Append("\tfriend struct Z_Construct_UScriptStruct_").Append(ScriptStruct.SourceName).Append("_Statics; \\\r\n");
-					Builder.Append("\t");
+					Builder.Append('\t');
 					if (!ScriptStruct.ScriptStructFlags.HasAnyFlags(EStructFlags.RequiredAPI))
 					{
 						Builder.Append(this.PackageApi);
@@ -302,7 +302,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				AppendNativeFunctionHeader(Builder, Function, UhtPropertyTextType.EventFunctionArgOrRetVal, true, ExportFunctionName, ExtraParameter, UhtFunctionExportFlags.Inline, " \\\r\n");
 				AppendEventFunctionPrologue(Builder, Function, StrippedFunctionName, Tabs, " \\\r\n");
 				Builder
-					.Append("\t")
+					.Append('\t')
 					.Append(StrippedFunctionName)
 					.Append('.')
 					.Append(Function.FunctionFlags.HasAnyFlags(EFunctionFlags.MulticastDelegate) ? "ProcessMulticastDelegate" : "ProcessDelegate")
@@ -417,7 +417,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				if (CallbackFunctions.Count > 0)
 				{
-					Builder.Append("\t").AppendMacroName(this, Class, EventParamsMacroSuffix).Append(" \\\r\n");
+					Builder.Append('\t').AppendMacroName(this, Class, EventParamsMacroSuffix).Append(" \\\r\n");
 				}
 			}
 
@@ -481,7 +481,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return Builder;
 		}
 
-		private StringBuilder AppendFieldNotify(StringBuilder Builder, UhtClass Class, 
+		private static StringBuilder AppendFieldNotify(StringBuilder Builder, UhtClass Class, 
 			bool bHasProperties, bool bHasFunctions, bool bHasEditorFields, bool bAllEditorFields,
 			bool bIncludeEditorOnlyFields)
 		{
@@ -525,12 +525,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					foreach (string SparseDataType in SparseDataTypes)
 					{
-						Builder.Append("F").Append(SparseDataType).Append("* Get").Append(SparseDataType).Append("() \\\r\n");
+						Builder.Append('F').Append(SparseDataType).Append("* Get").Append(SparseDataType).Append("() \\\r\n");
 						Builder.Append("{ \\\r\n");
 						Builder.Append("\treturn (F").Append(SparseDataType).Append("*)(GetClass()->GetOrCreateSparseClassData()); \\\r\n");
 						Builder.Append("} \\\r\n");
 
-						Builder.Append("F").Append(SparseDataType).Append("* Get").Append(SparseDataType).Append("() const \\\r\n");
+						Builder.Append('F').Append(SparseDataType).Append("* Get").Append(SparseDataType).Append("() const \\\r\n");
 						Builder.Append("{ \\\r\n");
 						Builder.Append("\treturn (F").Append(SparseDataType).Append("*)(GetClass()->GetOrCreateSparseClassData()); \\\r\n");
 						Builder.Append("} \\\r\n");
@@ -680,11 +680,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return Builder;
 		}
 
-		private StringBuilder AppendNetValidateDeclaration(StringBuilder Builder, UhtFunction Function)
+		private static StringBuilder AppendNetValidateDeclaration(StringBuilder Builder, UhtFunction Function)
 		{
 			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetValidate))
 			{
-				Builder.Append("\t");
+				Builder.Append('\t');
 				if (!Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Static) && !Function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.Final))
 				{
 					Builder.Append("virtual");
@@ -696,7 +696,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return Builder;
 		}
 
-		private StringBuilder AppendRpcWrappers(StringBuilder Builder, UhtClass Class, List<UhtFunction> ReversedFunctions, bool bEditorOnly)
+		private static StringBuilder AppendRpcWrappers(StringBuilder Builder, UhtClass Class, List<UhtFunction> ReversedFunctions, bool bEditorOnly)
 		{
 			bool bFirst = true;
 			foreach (UhtFunction Function in ReversedFunctions)
@@ -799,7 +799,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				if (!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasCustomConstructor))
 				{
 					Builder.Append("\t/** Standard constructor, called after all reflected properties have been initialized */ \\\r\n");
-					Builder.Append("\t").Append(Api).Append(Class.SourceName).Append("(const FObjectInitializer& ObjectInitializer");
+					Builder.Append('\t').Append(Api).Append(Class.SourceName).Append("(const FObjectInitializer& ObjectInitializer");
 					if (!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasDefaultConstructor))
 					{
 						Builder.Append(" = FObjectInitializer::Get()");
@@ -846,7 +846,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <param name="Class">Class being exported</param>
 		/// <param name="Api">API text to be used</param>
 		/// <returns>Output builder</returns>
-		private StringBuilder AppendVTableHelperCtorAndCaller(StringBuilder Builder, UhtClass Class, string Api)
+		private static StringBuilder AppendVTableHelperCtorAndCaller(StringBuilder Builder, UhtClass Class, string Api)
 		{
 			if (!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasCustomVTableHelperConstructor))
 			{
@@ -863,12 +863,12 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <param name="Class">Class being exported</param>
 		/// <param name="Api">API text to be used</param>
 		/// <returns>Output builder</returns>
-		private StringBuilder AppendCopyConstructorDefinition(StringBuilder Builder, UhtClass Class, string Api)
+		private static StringBuilder AppendCopyConstructorDefinition(StringBuilder Builder, UhtClass Class, string Api)
 		{
 			Builder.Append("private: \\\r\n");
 			Builder.Append("\t/** Private move- and copy-constructors, should never be used */ \\\r\n");
-			Builder.Append("\t").Append(Api).Append(Class.SourceName).Append('(').Append(Class.SourceName).Append("&&); \\\r\n");
-			Builder.Append("\t").Append(Api).Append(Class.SourceName).Append("(const ").Append(Class.SourceName).Append("&); \\\r\n");
+			Builder.Append('\t').Append(Api).Append(Class.SourceName).Append('(').Append(Class.SourceName).Append("&&); \\\r\n");
+			Builder.Append('\t').Append(Api).Append(Class.SourceName).Append("(const ").Append(Class.SourceName).Append("&); \\\r\n");
 			Builder.Append("public: \\\r\n");
 			return Builder;
 		}
@@ -880,7 +880,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <param name="Class">Class being exported</param>
 		/// <param name="Api">API text to be used</param>
 		/// <returns>Output builder</returns>
-		private StringBuilder AppendConstructorDefinition(StringBuilder Builder, UhtClass Class, string Api)
+		private static StringBuilder AppendConstructorDefinition(StringBuilder Builder, UhtClass Class, string Api)
 		{
 			if (!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasConstructor))
 			{
@@ -900,13 +900,13 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				if (bSuperClassObjectInitializerConstructorDeclared)
 				{
-					Builder.Append("\t").Append(Api).Append(Class.SourceName).Append("(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()) : Super(ObjectInitializer) { }; \\\r\n");
+					Builder.Append('\t').Append(Api).Append(Class.SourceName).Append("(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get()) : Super(ObjectInitializer) { }; \\\r\n");
 					//ETSTODO - Modification of class
 					Class.ClassExportFlags |= UhtClassExportFlags.HasObjectInitializerConstructor;
 				}
 				else
 				{
-					Builder.Append("\t").Append(Api).Append(Class.SourceName).Append("() { }; \\\r\n");
+					Builder.Append('\t').Append(Api).Append(Class.SourceName).Append("() { }; \\\r\n");
 					//ETSTODO - Modification of class
 					Class.ClassExportFlags |= UhtClassExportFlags.HasDefaultConstructor;
 				}
@@ -927,7 +927,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <param name="Class">Class being exported</param>
 		/// <param name="Api">API text to be used</param>
 		/// <returns>Output builder</returns>
-		private StringBuilder AppendDefaultConstructorCallDefinition(StringBuilder Builder, UhtClass Class, string Api)
+		private static StringBuilder AppendDefaultConstructorCallDefinition(StringBuilder Builder, UhtClass Class, string Api)
 		{
 			if (Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasObjectInitializerConstructor))
 			{
@@ -939,7 +939,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					Builder.Append("\tDEFINE_DEFAULT_OBJECT_INITIALIZER_CONSTRUCTOR_CALL(").Append(Class.SourceName).Append(") \\\r\n");
 				}
-
 			}
 			else if (Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasDefaultConstructor))
 			{
@@ -978,17 +977,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 
 			// export implementation of _getUObject for classes that implement interfaces
-			if (Class.Bases != null)
+			foreach (UhtStruct BaseStruct in Class.Bases)
 			{
-				foreach (UhtStruct BaseStruct in Class.Bases)
+				if (BaseStruct is UhtClass BaseClass)
 				{
-					if (BaseStruct is UhtClass BaseClass)
+					if (BaseClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 					{
-						if (BaseClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
-						{
-							Builder.Append("\tvirtual UObject* _getUObject() const override { return const_cast<").Append(Class.SourceName).Append("*>(this); } \\\r\n");
-							break;
-						}
+						Builder.Append("\tvirtual UObject* _getUObject() const override { return const_cast<").Append(Class.SourceName).Append("*>(this); } \\\r\n");
+						break;
 					}
 				}
 			}
@@ -1049,7 +1045,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			// Add the serialization function declaration if we generated one
 			if (Class.SerializerArchiveType != UhtSerializerArchiveType.None && Class.SerializerArchiveType != UhtSerializerArchiveType.All)
 			{
-				Builder.Append("\t").AppendMacroName(this, Class, ArchiveSerializerMacroSuffix).Append(" \\\r\n");
+				Builder.Append('\t').AppendMacroName(this, Class, ArchiveSerializerMacroSuffix).Append(" \\\r\n");
 			}
 
 			if (SuperClass != null && Class.ClassWithin != SuperClass.ClassWithin)
@@ -1066,7 +1062,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <param name="Builder">Output builder</param>
 		/// <param name="Class">Class in question</param>
 		/// <returns>Output builder</returns>
-		private StringBuilder AppendClassFlags(StringBuilder Builder, UhtClass Class)
+		private static StringBuilder AppendClassFlags(StringBuilder Builder, UhtClass Class)
 		{
 			if (Class.ClassFlags.HasAnyFlags(EClassFlags.Transient))
 			{
@@ -1109,14 +1105,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <param name="Builder">Output builder</param>
 		/// <param name="MacroName">Name ofthe macro to deprecate</param>
 		/// <returns>Output builder</returns>
-		private StringBuilder AppendGeneratedMacroDeprecationWarning(StringBuilder Builder, string MacroName)
+		private static StringBuilder AppendGeneratedMacroDeprecationWarning(StringBuilder Builder, string MacroName)
 		{
 			// Deprecation warning is disabled right now. After people get familiar with the new macro it should be re-enabled.
 			//Builder.Append("EMIT_DEPRECATED_WARNING_MESSAGE(\"").Append(MacroName).Append("() macro is deprecated. Please use GENERATED_BODY() macro instead.\") \\\r\n");
 			return Builder;
 		}
 
-		private StringBuilder AppendAccessSpecifier(StringBuilder Builder, UhtClass Class)
+		private static StringBuilder AppendAccessSpecifier(StringBuilder Builder, UhtClass Class)
 		{
 			switch (Class.GeneratedBodyAccessSpecifier)
 			{
@@ -1139,7 +1135,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		private StringBuilder AppendInClassIInterface(StringBuilder Builder, UhtClass Class, List<UhtFunction> CallbackFunctions, string Api)
 		{
 			string InterfaceSourceName = "I" + Class.EngineName;
-			string SuperInterfaceSourceName = Class.SuperClass != null ? "I" + Class.SuperClass.EngineName : "";
 
 			Builder.Append("protected: \\\r\n");
 			Builder.Append("\tvirtual ~").Append(InterfaceSourceName).Append("() {} \\\r\n");
@@ -1166,7 +1161,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return Builder;
 		}
 
-		private StringBuilder AppendReplicatedMacroData(StringBuilder Builder, UhtClass Class, string Api)
+		private static StringBuilder AppendReplicatedMacroData(StringBuilder Builder, UhtClass Class, string Api)
 		{
 			if (!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasGetLifetimeReplicatedProps))
 			{
@@ -1190,7 +1185,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return Builder;
 		}
 
-		private StringBuilder AppendNetData(StringBuilder Builder, UhtClass Class, string Api)
+		private static StringBuilder AppendNetData(StringBuilder Builder, UhtClass Class, string Api)
 		{
 			bool bHasArray = false;
 			foreach (UhtProperty Property in Class.EnumerateReplicatedProperties(false))
@@ -1266,7 +1261,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 			Builder.Append("\t}; \\\r\n");
 
-			Builder.Append("\t").Append(Api).Append("virtual void ValidateGeneratedRepEnums(const TArray<struct FRepRecord>& ClassReps) const override; \\\r\n");
+			Builder.Append('\t').Append(Api).Append("virtual void ValidateGeneratedRepEnums(const TArray<struct FRepRecord>& ClassReps) const override; \\\r\n");
 
 			return Builder;
 		}
@@ -1369,8 +1364,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				}
 				Builder.Append(EnableDeprecationWarnings).Append(" \\\r\n");
 			}
-
-
 			return Builder;
 		}
 

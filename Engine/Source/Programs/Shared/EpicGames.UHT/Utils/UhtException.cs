@@ -95,7 +95,7 @@ namespace EpicGames.UHT.Utils
 		/// <param name="MessageSite">Message site that may contain extra context</param>
 		/// <param name="ExtraContext">Additional caller supplied context</param>
 		/// <returns></returns>
-		private string FormatExtraContext(IUhtMessageSite MessageSite, object? ExtraContext = null)
+		private static string FormatExtraContext(IUhtMessageSite MessageSite, object? ExtraContext = null)
 		{
 			StringBuilder Builder = new StringBuilder(" while parsing ");
 			int StartingLength = Builder.Length;

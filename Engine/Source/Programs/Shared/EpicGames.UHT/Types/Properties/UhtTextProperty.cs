@@ -79,7 +79,7 @@ namespace EpicGames.UHT.Types
 						DefaultValueReader.Require('(');
 						StringView Value = DefaultValueReader.GetWrappedConstString();
 						DefaultValueReader.Require(')');
-						InnerDefaultValue.Append("\"").Append(Value).Append("\"");
+						InnerDefaultValue.Append('\"').Append(Value).Append('\"');
 						this.LogWarning("FText::FromString should be replaced with INVTEXT for default parameter values");
 					}
 					else
@@ -312,7 +312,7 @@ namespace EpicGames.UHT.Types
 			DefaultValueReader.Require(')');
 
 			// With UHT, we end up outputting just the integer part of the specified value.  It is using default locale information in UHT
-			InnerDefaultValue.Append("LOCGEN_CURRENCY(").Append((int)BaseValue).Append(", ").Append(CurrencyCode).Append(", ").Append(CultureNameString).Append(")");
+			InnerDefaultValue.Append("LOCGEN_CURRENCY(").Append((int)BaseValue).Append(", ").Append(CurrencyCode).Append(", ").Append(CultureNameString).Append(')');
 			return true;
 		}
 
@@ -588,7 +588,7 @@ namespace EpicGames.UHT.Types
 				InnerDefaultValue.Append(", ");
 			}
 
-			StringView Culture = DefaultValueReader.GetConstQuotedString();
+			StringView _ = DefaultValueReader.GetConstQuotedString();
 			InnerDefaultValue.Append("\"\""); // UHT doesn't write out the culture
 
 			DefaultValueReader.Require(')');
@@ -610,7 +610,7 @@ namespace EpicGames.UHT.Types
 			DefaultValueReader.Require('(');
 			InnerDefaultValue.Append(MacroToken.Value).Append('(');
 
-			long UnixTimestampValue = 0;
+			long UnixTimestampValue;
 			UhtToken TimestampToken = DefaultValueReader.GetToken();
 			switch (TimestampToken.TokenType)
 			{
@@ -664,11 +664,11 @@ namespace EpicGames.UHT.Types
 			}
 
 			DefaultValueReader.Require(',');
-			StringView CultureName = DefaultValueReader.GetConstQuotedString();
+			StringView _ = DefaultValueReader.GetConstQuotedString();
 			InnerDefaultValue.Append(", ").Append("\"\""); // We don't write out the culture
 
 			DefaultValueReader.Require(')');
-			InnerDefaultValue.Append(")");
+			InnerDefaultValue.Append(')');
 			return true;
 		}
 

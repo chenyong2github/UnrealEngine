@@ -23,7 +23,7 @@ namespace EpicGames.UHT.Parsers
 			public object? Value;
 		}
 
-		private static List<KeyValuePair<StringView, StringView>> EmptyKVPValues = new List<KeyValuePair<StringView, StringView>>();
+		private static readonly List<KeyValuePair<StringView, StringView>> EmptyKVPValues = new List<KeyValuePair<StringView, StringView>>();
 
 		private UhtSpecifierContext SpecifierContext;
 		private IUhtTokenReader TokenReader;
@@ -376,7 +376,6 @@ namespace EpicGames.UHT.Parsers
 			}
 			return SVB.ToStringView();
 		}
-
 
 		/// <summary>
 		/// Parse the sequence of meta data

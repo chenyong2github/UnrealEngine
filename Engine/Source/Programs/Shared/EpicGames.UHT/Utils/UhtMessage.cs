@@ -330,7 +330,7 @@ namespace EpicGames.UHT.Utils
 		public int MessageFragmentLineNumber { get => -1; }
 		#endregion
 
-		private string FilePath;
+		private readonly string FilePath;
 
 		/// <summary>
 		/// Create a simple file site
@@ -484,10 +484,10 @@ namespace EpicGames.UHT.Utils
 	/// <summary>
 	/// Thread based message context.  Used to improve performance by avoiding allocations.
 	/// </summary>
-	public class UhtTlsMessageExtraContext : IUhtMessageExtraContext
+	public sealed class UhtTlsMessageExtraContext : IUhtMessageExtraContext
 	{
 		private Stack<object?>? ExtraContexts;
-		private static ThreadLocal<UhtTlsMessageExtraContext> Tls = new ThreadLocal<UhtTlsMessageExtraContext>(() => new UhtTlsMessageExtraContext());
+		private static readonly ThreadLocal<UhtTlsMessageExtraContext> Tls = new ThreadLocal<UhtTlsMessageExtraContext>(() => new UhtTlsMessageExtraContext());
 
 		#region IUHTMessageExtraContext implementation
 		IEnumerable<object?>? IUhtMessageExtraContext.MessageExtraContext => this.ExtraContexts;

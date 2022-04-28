@@ -150,7 +150,6 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
-
 		/// <summary>
 		/// Get the name of the type
 		/// </summary>
@@ -557,6 +556,11 @@ namespace EpicGames.UHT.Types
 	public enum UhtResolvePhase : Int32
 	{
 		/// <summary>
+		/// Initial resolve phase
+		/// </summary>
+		None,
+
+		/// <summary>
 		/// Check for any type that is invalid.  Invalid items will be removed from the children. 
 		/// Used to detect things that looked like native interfaces but no interface was found
 		/// </summary>
@@ -583,7 +587,7 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtDocumentationPolicy
 	{
-		private static UhtDocumentationPolicy StrictDocumentationPolicy = new UhtDocumentationPolicy
+		private static readonly UhtDocumentationPolicy StrictDocumentationPolicy = new UhtDocumentationPolicy
 		{
 			bPolicySet = true,
 			bClassOrStructCommentRequired = true,
@@ -593,7 +597,7 @@ namespace EpicGames.UHT.Types
 			bFloatRangesRequired = true,
 		};
 
-		private static UhtDocumentationPolicy NoDocumentationPolicy = new UhtDocumentationPolicy
+		private static readonly UhtDocumentationPolicy NoDocumentationPolicy = new UhtDocumentationPolicy
 		{
 			bPolicySet = false,
 			bClassOrStructCommentRequired = false,
@@ -661,7 +665,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Empty list of type used when children are requested but no children have been added.
 		/// </summary>
-		private static List<UhtType> EmptyTypeList = new List<UhtType>();
+		private static readonly List<UhtType> EmptyTypeList = new List<UhtType>();
 
 		/// <summary>
 		/// All UHT runs are associated with a given session.  The session holds all the global information for a run.
@@ -753,13 +757,29 @@ namespace EpicGames.UHT.Types
 		/// Return a combination of the engine type name followed by the path name of the type
 		/// </summary>
 		[JsonIgnore]
-		public virtual string FullName { get => GetFullName(); }
+		public virtual string FullName 
+		{ 
+			get
+			{
+				StringBuilder Builder = new StringBuilder();
+				AppendFullName(Builder);
+				return Builder.ToString();
+			}
+		}
 
 		/// <summary>
 		/// Return the path name of the type which includes all parent outer objects excluding the header file
 		/// </summary>
 		[JsonIgnore]
-		public string PathName { get => GetPathName(); }
+		public string PathName
+		{
+			get
+			{
+				StringBuilder Builder = new StringBuilder();
+				AppendPathName(Builder, null);
+				return Builder.ToString();
+			}
+		}
 
 		/// <summary>
 		/// Return the name of the documentation policy to be used
@@ -781,6 +801,7 @@ namespace EpicGames.UHT.Types
 		/// Children types of this type
 		/// </summary>
 		[JsonConverter(typeof(UhtNullableTypeListJsonConverter<UhtType>))]
+		//TODO - this should return a IReadOnlyList
 		public List<UhtType> Children { get => ChildrenInternal == null ? UhtType.EmptyTypeList : ChildrenInternal; }
 
 		/// <summary>
@@ -791,7 +812,7 @@ namespace EpicGames.UHT.Types
 
 		private string? EngineNameInternal = null;
 		private List<UhtType>? ChildrenInternal = null;
-		private int ResolveState = 0;
+		private int ResolveState = (int)UhtResolvePhase.None * 2;
 
 		#region IUHTMessageSite implementation
 		/// <inheritdoc/>
@@ -1120,37 +1141,25 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Return the path name of the type which includes the outers
 		/// </summary>
-		/// <param name="StopOuter">Type to stop at when generating the path</param>
-		/// <return>The path string</return>
-		public string GetPathName(UhtType? StopOuter = null)
-		{
-			StringBuilder Builder = new StringBuilder();
-			GetPathName(Builder, StopOuter);
-			return Builder.ToString();
-		}
-
-		/// <summary>
-		/// Return the path name of the type which includes the outers
-		/// </summary>
 		/// <param name="Builder">Destination builder</param>
 		/// <param name="StopOuter">Type to stop at when generating the path</param>
-		public virtual void GetPathName(StringBuilder Builder, UhtType? StopOuter = null)
+		public virtual void AppendPathName(StringBuilder Builder, UhtType? StopOuter = null)
 		{
-			GetPathNameInternal(Builder, StopOuter);
+			AppendPathNameInternal(Builder, StopOuter);
 			if (Builder.Length == 0)
 			{
 				Builder.Append("None");
 			}
 		}
 
-		private void GetPathNameInternal(StringBuilder Builder, UhtType? StopOuter = null)
+		private void AppendPathNameInternal(StringBuilder Builder, UhtType? StopOuter = null)
 		{
 			if (this != StopOuter)
 			{
 				UhtType? Outer = this.Outer;
 				if (Outer != null && Outer != StopOuter)
 				{
-					Outer.GetPathName(Builder, StopOuter);
+					Outer.AppendPathName(Builder, StopOuter);
 
 					// SubObjectDelimiter is used to indicate that this object's outer is not a UPackage
 					// In the C# version of UHT, we key off the header file
@@ -1176,23 +1185,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Get the full type name which is the engine class name followed by the path name
 		/// </summary>
-		/// <returns>Full name string</returns>
-		public string GetFullName()
-		{
-			StringBuilder Builder = new StringBuilder();
-			GetFullName(Builder);
-			return Builder.ToString();
-		}
-
-		/// <summary>
-		/// Get the full type name which is the engine class name followed by the path name
-		/// </summary>
 		/// <param name="Builder">Destination builder</param>
-		public virtual void GetFullName(StringBuilder Builder)
+		public virtual void AppendFullName(StringBuilder Builder)
 		{
 			Builder.Append(this.EngineClassName);
-			Builder.Append(" ");
-			GetPathName(Builder);
+			Builder.Append(' ');
+			AppendPathName(Builder);
 		}
 
 		/// <summary>
@@ -1275,7 +1273,7 @@ namespace EpicGames.UHT.Types
 				return Builder;
 			}
 
-			if (Outer is UhtClass Class)
+			if (Outer is UhtClass)
 			{
 				Builder.Append('_');
 				Builder.Append(Outer.SourceName);

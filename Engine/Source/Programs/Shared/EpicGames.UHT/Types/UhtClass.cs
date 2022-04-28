@@ -7,7 +7,6 @@ using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -17,7 +16,7 @@ namespace EpicGames.UHT.Types
 	/// Series of flags not part of the engine's class flags that affect code generation or verification
 	/// </summary>
 	[Flags]
-	public enum UhtClassExportFlags : UInt32
+	public enum UhtClassExportFlags : Int32
 	{
 
 		/// <summary>
@@ -629,7 +628,7 @@ namespace EpicGames.UHT.Types
 					{
 						if (this.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.SelfHasReplicatedProperties))
 						{
-							if (TryGetDeclaration("GetLifetimeReplicatedProps", out UhtFoundDeclaration FoundDeclaration))
+							if (TryGetDeclaration("GetLifetimeReplicatedProps", out UhtFoundDeclaration _))
 							{
 								this.ClassExportFlags |= UhtClassExportFlags.HasGetLifetimeReplicatedProps;
 							}
@@ -728,7 +727,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Declaration">The declaration being tested</param>
 		/// <param name="NameIndex">The index of the token with the expected getter/setter name</param>
 		/// <returns>True if the declaration matches</returns>
-		private bool TryMatchGetterSetter(UhtProperty Property, bool bSetter, UhtDeclaration Declaration, int NameIndex)
+		private static bool TryMatchGetterSetter(UhtProperty Property, bool bSetter, UhtDeclaration Declaration, int NameIndex)
 		{
 			UhtToken[] Tokens = Declaration.Tokens;
 			int TokenIndex = 0;
@@ -740,8 +739,8 @@ namespace EpicGames.UHT.Types
 				// Nothing to do in the body
 			}
 
-			int TypeIndex = 0;
-			int TypeCount = 0;
+			int TypeIndex;
+			int TypeCount;
 
 			// Verify the format of the function declaration and extract the type
 			if (bSetter)
@@ -810,7 +809,9 @@ namespace EpicGames.UHT.Types
 				{
 					return false;
 				}
+#pragma warning disable IDE0059 // Unnecessary assignment of a value
 				TokenIndex++;
+#pragma warning restore IDE0059 // Unnecessary assignment of a value
 			}
 
 			// Verify the type
@@ -822,11 +823,11 @@ namespace EpicGames.UHT.Types
 				{
 					if (Declaration.Function == null)
 					{
-						Builder.Append("*");
+						Builder.Append('*');
 					}
 					else
 					{
-						Builder.Append("[").Append(Property.ArrayDimensions).Append("]");
+						Builder.Append('[').Append(Property.ArrayDimensions).Append(']');
 					}
 				}
 				string ExpectedType = Builder.ToString();
@@ -921,14 +922,13 @@ namespace EpicGames.UHT.Types
 		/// <param name="Property">Property requesting the getter/setter</param>
 		/// <param name="bSetter">True if this is a setter</param>
 		/// <returns>Resulting dictionary</returns>
-		private Dictionary<string, List<GetterSetterToResolve>> AddGetterSetter(Dictionary<string, List<GetterSetterToResolve>>? GSToResolve, string Name, UhtProperty Property, bool bSetter)
+		private static Dictionary<string, List<GetterSetterToResolve>> AddGetterSetter(Dictionary<string, List<GetterSetterToResolve>>? GSToResolve, string Name, UhtProperty Property, bool bSetter)
 		{
 			if (GSToResolve == null)
 			{
 				GSToResolve = new Dictionary<string, List<GetterSetterToResolve>>();
 			}
-			List<GetterSetterToResolve>? GSList = null;
-			if (!GSToResolve.TryGetValue(Name, out GSList))
+			if (!GSToResolve.TryGetValue(Name, out List<GetterSetterToResolve>? GSList))
 			{
 				GSList = new List<GetterSetterToResolve>();
 				GSToResolve.Add(Name, GSList);
@@ -1020,87 +1020,83 @@ namespace EpicGames.UHT.Types
 						}
 
 						// Make sure that all interface functions are implemented property
-						if (this.Bases != null)
+						// Iterate over all the bases looking for any interfaces
+						foreach (UhtStruct BaseStruct in this.Bases)
 						{
 
-							// Iterate over all the bases looking for any interfaces
-							foreach (UhtStruct BaseStruct in this.Bases)
+							// Skip children that aren't interfaces or if a common ancestor
+							UhtClass? BaseClass = BaseStruct as UhtClass;
+							if (BaseClass == null || BaseClass.ClassType == UhtClassType.Class || IsChildOf(BaseClass) )
 							{
+								continue;
+							}
 
-								// Skip children that aren't interfaces or if a common ancestor
-								UhtClass? BaseClass = BaseStruct as UhtClass;
-								if (BaseClass == null || BaseClass.ClassType == UhtClassType.Class || IsChildOf(BaseClass) )
+							// Loop through the function to make sure they are implemented
+							List<UhtType> BaseChildren = BaseClass.AlternateObject != null ? BaseClass.AlternateObject.Children : BaseClass.Children;
+							foreach (UhtType BaseChild in BaseChildren)
+							{
+								UhtFunction? BaseFunction = BaseChild as UhtFunction;
+								if (BaseFunction == null)
 								{
-									continue;
+									continue; 
 								}
 
-								// Loop through the function to make sure they are implemented
-								List<UhtType> BaseChildren = BaseClass.AlternateObject != null ? BaseClass.AlternateObject.Children : BaseClass.Children;
-								foreach (UhtType BaseChild in BaseChildren)
+								// Delegate signature functions are simple stubs and aren't required to be implemented (they are not callable)
+								bool bImplemented = BaseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate);
+
+								// Try to find an existing function
+								foreach (UhtType Child in this.Children)
 								{
-									UhtFunction? BaseFunction = BaseChild as UhtFunction;
-									if (BaseFunction == null)
+									UhtFunction? Function = Child as UhtFunction;
+									if (Function == null || Function.SourceName != BaseFunction.SourceName)
 									{
-										continue; 
+										continue;
 									}
 
-									// Delegate signature functions are simple stubs and aren't required to be implemented (they are not callable)
-									bool bImplemented = BaseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate);
-
-									// Try to find an existing function
-									foreach (UhtType Child in this.Children)
+									if (BaseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.Event) && !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
 									{
-										UhtFunction? Function = Child as UhtFunction;
-										if (Function == null || Function.SourceName != BaseFunction.SourceName)
-										{
-											continue;
-										}
+										Function.LogError($"Implementation of function '{Function.SourceName}' must be declared as 'event' to match declaration in interface '{BaseClass.SourceName}'");
+									}
 
-										if (BaseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.Event) && !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
-										{
-											Function.LogError($"Implementation of function '{Function.SourceName}' must be declared as 'event' to match declaration in interface '{BaseClass.SourceName}'");
-										}
+									if (BaseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate) && !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate))
+									{
+										Function.LogError($"Implementation of function '{Function.SourceName}' must be declared as 'delegate' to match declaration in interface '{BaseClass.SourceName}'");
+									}
 
-										if (BaseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate) && !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate))
-										{
-											Function.LogError($"Implementation of function '{Function.SourceName}' must be declared as 'delegate' to match declaration in interface '{BaseClass.SourceName}'");
-										}
+									bImplemented = true;
 
-										bImplemented = true;
+									if (BaseFunction.Children.Count != Function.Children.Count)
+									{
+										Function.LogError($"Implementation of function '{Function.SourceName}' conflicts with interface '{BaseClass.SourceName}' - different number of parameters ({Function.Children.Count}/{BaseFunction.Children.Count})");
+										continue;
+									}
 
-										if (BaseFunction.Children.Count != Function.Children.Count)
+									for (int Index = 0; Index < Function.Children.Count; ++Index)
+									{
+										UhtProperty BaseProperty = (UhtProperty)BaseFunction.Children[Index];
+										UhtProperty Property = (UhtProperty)Function.Children[Index];
+										if (!BaseProperty.MatchesType(Property))
 										{
-											Function.LogError($"Implementation of function '{Function.SourceName}' conflicts with interface '{BaseClass.SourceName}' - different number of parameters ({Function.Children.Count}/{BaseFunction.Children.Count})");
-											continue;
-										}
-
-										for (int Index = 0; Index < Function.Children.Count; ++Index)
-										{
-											UhtProperty BaseProperty = (UhtProperty)BaseFunction.Children[Index];
-											UhtProperty Property = (UhtProperty)Function.Children[Index];
-											if (!BaseProperty.MatchesType(Property))
+											if (BaseProperty.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm))
 											{
-												if (BaseProperty.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm))
-												{
-													Function.LogError($"Implementation of function '{Function.SourceName}' conflicts only by return type with interface '{BaseClass.SourceName}'");
-												}
-												else
-												{
-													Function.LogError($"Implementation of function '{Function.SourceName}' conflicts type with interface '{BaseClass.SourceName}' - parameter {Index} '{Property.SourceName}'");
-												}
+												Function.LogError($"Implementation of function '{Function.SourceName}' conflicts only by return type with interface '{BaseClass.SourceName}'");
+											}
+											else
+											{
+												Function.LogError($"Implementation of function '{Function.SourceName}' conflicts type with interface '{BaseClass.SourceName}' - parameter {Index} '{Property.SourceName}'");
 											}
 										}
 									}
+								}
 
-									// Verify that if this has blueprint-callable functions that are not implementable events, we've implemented them as a UFunction in the target class
-									if (!bImplemented
-										&& BaseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintCallable)
-										&& !BaseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent)
-										&& !BaseClass.MetaData.ContainsKey(UhtNames.CannotImplementInterfaceInBlueprint)
-										&& (BaseClass.AlternateObject == null || !BaseClass.AlternateObject.MetaData.ContainsKey(UhtNames.CannotImplementInterfaceInBlueprint)))
-									{
-										this.LogError($"Missing UFunction implementation of function '{BaseFunction.SourceName}' from interface '{BaseClass.SourceName}'.  This function needs a UFUNCTION() declaration.");
-									}
+								// Verify that if this has blueprint-callable functions that are not implementable events, we've implemented them as a UFunction in the target class
+								if (!bImplemented
+									&& BaseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintCallable)
+									&& !BaseFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent)
+									&& !BaseClass.MetaData.ContainsKey(UhtNames.CannotImplementInterfaceInBlueprint)
+									&& (BaseClass.AlternateObject == null || !BaseClass.AlternateObject.MetaData.ContainsKey(UhtNames.CannotImplementInterfaceInBlueprint)))
+								{
+									this.LogError($"Missing UFunction implementation of function '{BaseFunction.SourceName}' from interface '{BaseClass.SourceName}'.  This function needs a UFUNCTION() declaration.");
 								}
 							}
 						}
@@ -1125,7 +1121,7 @@ namespace EpicGames.UHT.Types
 						bool bCannotImplementInBlueprints = (!bCanImplementInBlueprints && this.MetaData.ContainsKey(UhtNames.IsBlueprintBase))
 							|| this.MetaData.ContainsKey(UhtNames.CannotImplementInterfaceInBlueprint);
 
-						bool bCanImplementInterfaceInBlueprint = !this.MetaData.ContainsKey(UhtNames.CannotImplementInterfaceInBlueprint);
+						//bool bCanImplementInterfaceInBlueprint = !this.MetaData.ContainsKey(UhtNames.CannotImplementInterfaceInBlueprint);
 						foreach (UhtType Child in this.Children)
 						{
 							if (Child is UhtFunction Function)
@@ -1171,7 +1167,7 @@ namespace EpicGames.UHT.Types
 			return Options |= UhtValidationOptions.Shadowing | UhtValidationOptions.Deprecated;
 		}
 
-		void ValidateBlueprintPopertyGetter(UhtProperty Property, string FunctionName, UhtFunction? TargetFunction)
+		static void ValidateBlueprintPopertyGetter(UhtProperty Property, string FunctionName, UhtFunction? TargetFunction)
 		{
 			if (TargetFunction == null)
 			{
@@ -1201,7 +1197,7 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
-		void ValidateBlueprintPopertySetter(UhtProperty Property, string FunctionName, UhtFunction? TargetFunction)
+		static void ValidateBlueprintPopertySetter(UhtProperty Property, string FunctionName, UhtFunction? TargetFunction)
 		{
 			if (TargetFunction == null)
 			{
@@ -1235,7 +1231,7 @@ namespace EpicGames.UHT.Types
 			}
 		}
 
-		void ValidateRepNotifyCallback(UhtProperty Property, string FunctionName, UhtFunction? TargetFunction)
+		static void ValidateRepNotifyCallback(UhtProperty Property, string FunctionName, UhtFunction? TargetFunction)
 		{
 			if (TargetFunction == null)
 			{
@@ -1383,14 +1379,11 @@ namespace EpicGames.UHT.Types
 			}
 
 			// Add any other base classes
-			if (this.Bases != null)
+			foreach (UhtStruct Base in this.Bases)
 			{
-				foreach (UhtStruct Base in this.Bases)
+				if (Base is UhtClass BaseClass)
 				{
-					if (Base is UhtClass BaseClass)
-					{
-						Collector.AddCrossModuleReference(BaseClass, false);
-					}
+					Collector.AddCrossModuleReference(BaseClass, false);
 				}
 			}
 
@@ -1427,14 +1420,11 @@ namespace EpicGames.UHT.Types
 		{
 			for (UhtClass? SuperClass = this; SuperClass != null; SuperClass = SuperClass.SuperClass)
 			{
-				if (SuperClass.Bases != null)
+				foreach (UhtStruct Struct in SuperClass.Bases)
 				{
-					foreach (UhtStruct Struct in SuperClass.Bases)
+					if (Struct.IsChildOf(Interface))
 					{
-						if (Struct.IsChildOf(Interface))
-						{
-							return true;
-						}
+						return true;
 					}
 				}
 			}

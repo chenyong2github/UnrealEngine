@@ -210,22 +210,17 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Stack of current #if states
 		/// </summary>
-		private List<CompilerDirective> CompilerDirectives = new List<CompilerDirective>();
+		private readonly List<CompilerDirective> CompilerDirectives = new List<CompilerDirective>();
 
 		/// <summary>
 		/// Stack of current #if states saved as part of the preprocessor state
 		/// </summary>
-		private List<CompilerDirective> SavedCompilerDirectives = new List<CompilerDirective>();
+		private readonly List<CompilerDirective> SavedCompilerDirectives = new List<CompilerDirective>();
 
 		/// <summary>
 		/// Current top of the parsing scopes.  Classes, structures and functions all allocate scopes.
 		/// </summary>
 		private UhtParsingScope? TopScope = null;
-
-		/// <summary>
-		/// The total number of statements parsed
-		/// </summary>
-		private int StatementsParsed = 0;
 
 		/// <summary>
 		/// Parse the given header file
@@ -359,7 +354,6 @@ namespace EpicGames.UHT.Parsers
 		public bool ParsePreprocessorDirective(ref UhtToken Token, bool bIsBeingIncluded, out bool bClearComments, out bool bIllegalContentsCheck)
 		{
 			bClearComments = true;
-			bIllegalContentsCheck = true;
 			if (ParseDirectiveInternal(Token, bIsBeingIncluded))
 			{
 				bClearComments = ClearCommentsCompilerDirective();
@@ -430,7 +424,6 @@ namespace EpicGames.UHT.Parsers
 				{
 					ParseStatement(this.TopScope, ref Token, bLogUnhandledKeywords);
 					this.TokenReader.ClearComments();
-					++this.StatementsParsed;
 				}
 			}
 		}
@@ -483,7 +476,7 @@ namespace EpicGames.UHT.Parsers
 				{
 					using (UhtTokenRecorder Recorder = new UhtTokenRecorder(TopScope, ref Token))
 					{
-						ParseResult = TopScope.TokenReader.SkipDeclaration(ref Token) ? UhtParseResult.Handled : UhtParseResult.Invalid;
+						TopScope.TokenReader.SkipDeclaration(ref Token);
 						if (Recorder.Stop())
 						{
 							if (Class.Declarations != null)
@@ -504,7 +497,7 @@ namespace EpicGames.UHT.Parsers
 				}
 				else
 				{
-					ParseResult = TopScope.TokenReader.SkipDeclaration(ref Token) ? UhtParseResult.Handled : UhtParseResult.Invalid;
+					TopScope.TokenReader.SkipDeclaration(ref Token);
 				}
 			}
 			return true;
@@ -909,7 +902,7 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
-		private bool SupportsElif(UhtCompilerDirective CompilerDirective)
+		private static bool SupportsElif(UhtCompilerDirective CompilerDirective)
 		{
 			return
 				CompilerDirective == UhtCompilerDirective.WithEditor ||
@@ -917,7 +910,7 @@ namespace EpicGames.UHT.Parsers
 				CompilerDirective == UhtCompilerDirective.WithHotReload;
 		}
 
-		private string GetCompilerDirectiveText(UhtCompilerDirective CompilerDirective)
+		private static string GetCompilerDirectiveText(UhtCompilerDirective CompilerDirective)
 		{
 			switch (CompilerDirective)
 			{
@@ -932,7 +925,7 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
-		private void SkipVirtualAndAPI(IUhtTokenReader ReplayReader)
+		private static void SkipVirtualAndAPI(IUhtTokenReader ReplayReader)
 		{
 			while (true)
 			{
@@ -950,15 +943,15 @@ namespace EpicGames.UHT.Parsers
 			IUhtTokenReader ReplayReader = UhtTokenReplayReader.GetThreadInstance(this.HeaderFile, this.HeaderFile.Data.Memory, new ReadOnlyMemory<UhtToken>(Declaration.Tokens), UhtTokenType.EndOfDeclaration);
 
 			// Allow explicit constructors
-			bool bFoundExplicit = ReplayReader.TryOptional("explicit");
-
-			bool bSkippedAPIToken = false;
-			if (bSkippedAPIToken = ReplayReader.PeekToken().Value.Span.EndsWith("_API"))
 			{
-				ReplayReader.ConsumeToken();
-				if (!bFoundExplicit)
+				bool bFoundExplicit = ReplayReader.TryOptional("explicit");
+				if (ReplayReader.PeekToken().Value.Span.EndsWith("_API"))
 				{
-					bFoundExplicit = ReplayReader.TryOptional("explicit");
+					ReplayReader.ConsumeToken();
+					if (!bFoundExplicit)
+					{
+						ReplayReader.TryOptional("explicit");
+					}
 				}
 			}
 

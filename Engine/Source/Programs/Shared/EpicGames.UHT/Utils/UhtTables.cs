@@ -171,7 +171,7 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Lookup dictionary for the specifiers
 		/// </summary>
-		private Dictionary<StringView, TValue> Lookup;
+		private readonly Dictionary<StringView, TValue> Lookup;
 
 		/// <summary>
 		/// Construct a new table
@@ -411,7 +411,7 @@ namespace EpicGames.UHT.Utils
 	/// This attribute must be applied to any class that contains other UHT attributes.
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class)]
-	public class UnrealHeaderToolAttribute : Attribute
+	public sealed class UnrealHeaderToolAttribute : Attribute
 	{
 
 		/// <summary>
@@ -549,10 +549,7 @@ namespace EpicGames.UHT.Utils
 			Assembly? Assembly = FindAssemblyByName(Path.GetFileNameWithoutExtension(AssemblyFilePath));
 			if (Assembly == null)
 			{
-				if (Assembly == null)
-				{
-					Assembly = Assembly.LoadFile(AssemblyFilePath);
-				}
+				Assembly = Assembly.LoadFile(AssemblyFilePath);
 			}
 			return Assembly;
 		}
@@ -569,7 +566,7 @@ namespace EpicGames.UHT.Utils
 				foreach (Assembly Assembly in AppDomain.CurrentDomain.GetAssemblies())
 				{
 					AssemblyName AssemblyName = Assembly.GetName();
-					if (AssemblyName.Name != null && String.Compare(AssemblyName.Name, Name, true) == 0)
+					if (AssemblyName.Name != null && String.Equals(AssemblyName.Name, Name, StringComparison.OrdinalIgnoreCase))
 					{
 						return Assembly;
 					}
@@ -637,7 +634,7 @@ namespace EpicGames.UHT.Utils
 				{
 					throw new Exception($"Unable to find UnrealHeaderTool attribute InitMethod {ParserAttribute.InitMethod}");
 				}
-				InitInfo.Invoke(null, new Object[] { });
+				InitInfo.Invoke(null, Array.Empty<object>());
 			}
 
 			// Scan the methods for things we are interested in

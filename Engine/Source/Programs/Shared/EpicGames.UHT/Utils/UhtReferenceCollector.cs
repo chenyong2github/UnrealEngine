@@ -18,16 +18,16 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Add a cross module reference to a given object type.
 		/// </summary>
-		/// <param name="Object">Object type being referenced</param>
+		/// <param name="Obj">Object type being referenced</param>
 		/// <param name="bRegistered">If true, the method being invoked must return the registered object.  This only applies to classes.</param>
-		void AddCrossModuleReference(UhtObject? Object, bool bRegistered);
+		void AddCrossModuleReference(UhtObject? Obj, bool bRegistered);
 
 		/// <summary>
 		/// Add an object declaration
 		/// </summary>
-		/// <param name="Object">Object in question</param>
+		/// <param name="Obj">Object in question</param>
 		/// <param name="bRegistered">If true, the method being invoked must return the registered object.  This only applies to classes.</param>
-		void AddDeclaration(UhtObject Object, bool bRegistered);
+		void AddDeclaration(UhtObject Obj, bool bRegistered);
 
 		/// <summary>
 		/// Add a field as a singleton for exporting
@@ -64,12 +64,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Collection use to quickly detect if a reference is already in the collection
 		/// </summary>
-		private HashSet<int> Uniques = new HashSet<int>();
+		private readonly HashSet<int> Uniques = new HashSet<int>();
 
 		/// <summary>
 		/// List of all unique reference keys.  Use UngetKey to get the object index and the flag.
 		/// </summary>
-		public List<int> References = new List<int>();
+		public readonly List<int> References = new List<int>();
 
 		/// <summary>
 		/// Return an encoded key that represents the object and registered flag. 

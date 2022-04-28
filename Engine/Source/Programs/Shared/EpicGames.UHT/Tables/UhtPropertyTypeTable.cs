@@ -118,7 +118,7 @@ namespace EpicGames.UHT.Tables
 	/// Property type attribute
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-	public class UhtPropertyTypeAttribute : Attribute
+	public sealed class UhtPropertyTypeAttribute : Attribute
 	{
 
 		/// <summary>
@@ -154,8 +154,8 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtPropertyTypeTable
 	{
-		private Dictionary<StringView, UhtPropertyType> CaseSensitive = new Dictionary<StringView, UhtPropertyType>();
-		private Dictionary<StringView, UhtPropertyType> CaseInsensitive = new Dictionary<StringView, UhtPropertyType>(StringViewComparer.OrdinalIgnoreCase);
+		private readonly Dictionary<StringView, UhtPropertyType> CaseSensitive = new Dictionary<StringView, UhtPropertyType>();
+		private readonly Dictionary<StringView, UhtPropertyType> CaseInsensitive = new Dictionary<StringView, UhtPropertyType>(StringViewComparer.OrdinalIgnoreCase);
 		private UhtPropertyType? DefaultInternal = null;
 
 		/// <summary>

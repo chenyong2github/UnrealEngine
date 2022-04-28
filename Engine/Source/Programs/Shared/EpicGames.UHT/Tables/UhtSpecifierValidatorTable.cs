@@ -50,7 +50,7 @@ namespace EpicGames.UHT.Tables
 	/// Attribute used to create a specifier validator
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
-	public class UhtSpecifierValidatorAttribute : Attribute
+	public sealed class UhtSpecifierValidatorAttribute : Attribute
 	{
 
 		/// <summary>

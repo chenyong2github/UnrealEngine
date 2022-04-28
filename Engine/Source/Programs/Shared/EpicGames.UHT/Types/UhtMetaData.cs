@@ -45,7 +45,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="Name">Meta data name</param>
 		/// <param name="Index">Meta data index</param>
-		public UhtMetaDataKey(string Name, int Index = UhtMetaData.INDEX_NONE)
+		public UhtMetaDataKey(string Name, int Index = UhtMetaData.IndexNone)
 		{
 			this.Name = Name;
 			this.Index = Index;
@@ -57,7 +57,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>String representation</returns>
 		public override string ToString()
 		{
-			if (Index == UhtMetaData.INDEX_NONE)
+			if (Index == UhtMetaData.IndexNone)
 			{
 				return this.Name.ToString();
 			}
@@ -124,12 +124,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Helper comparer for meta data keys
 		/// </summary>
-		private static UhtMetaDataKeyComparer Comparer = new UhtMetaDataKeyComparer();
+		private static readonly UhtMetaDataKeyComparer Comparer = new UhtMetaDataKeyComparer();
 
 		/// <summary>
 		/// Empty collection of meta data
 		/// </summary>
-		public static UhtMetaData Empty = new UhtMetaData(null, null);
+		public static readonly UhtMetaData Empty = new UhtMetaData(null, null);
 
 		/// <summary>
 		/// The meta data of the outer object for the type that owns this meta data
@@ -165,7 +165,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Index for a meta data key associated with the owning object
 		/// </summary>
-		public const int INDEX_NONE = -1;
+		public const int IndexNone = -1;
 
 		/// <summary>
 		/// Construct new meta data
@@ -213,7 +213,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the meta data</param>
 		/// <param name="NameIndex">Enumeration value index or -1 for the type's meta data</param>
 		/// <returns>True if the key is found</returns>
-		public bool ContainsKey(string Name, int NameIndex = INDEX_NONE)
+		public bool ContainsKey(string Name, int NameIndex = IndexNone)
 		{
 			if (this.Dictionary == null)
 			{
@@ -228,7 +228,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the meta data</param>
 		/// <param name="NameIndex">Enumeration value index or -1 for the type's meta data</param>
 		/// <returns>True if the key is found</returns>
-		public bool ContainsKeyHierarchical(string Name, int NameIndex = INDEX_NONE)
+		public bool ContainsKeyHierarchical(string Name, int NameIndex = IndexNone)
 		{
 			for (UhtMetaData? Current = this; Current != null; Current = Current.Parent)
 			{
@@ -248,7 +248,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>True if the key is found</returns>
 		public bool TryGetValue(string Name, [NotNullWhen(true)] out string? Value)
 		{
-			return TryGetValue(Name, INDEX_NONE, out Value);
+			return TryGetValue(Name, IndexNone, out Value);
 		}
 
 		/// <summary>
@@ -259,7 +259,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>True if the key is found</returns>
 		public bool TryGetValueHierarchical(string Name, [NotNullWhen(true)] out string? Value)
 		{
-			return TryGetValueHierarchical(Name, INDEX_NONE, out Value);
+			return TryGetValueHierarchical(Name, IndexNone, out Value);
 		}
 
 		/// <summary>
@@ -305,7 +305,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the meta data key</param>
 		/// <param name="NameIndex">Index of the meta data key</param>
 		/// <returns>Meta data value or empty string if not found.</returns>
-		public string GetValueOrDefault(string Name, int NameIndex = INDEX_NONE)
+		public string GetValueOrDefault(string Name, int NameIndex = IndexNone)
 		{
 			string? Out;
 			if (TryGetValue(Name, NameIndex, out Out))
@@ -321,7 +321,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the meta data key</param>
 		/// <param name="NameIndex">Index of the meta data key</param>
 		/// <returns>Meta data value or empty string if not found.</returns>
-		public string GetValueOrDefaultHierarchical(string Name, int NameIndex = INDEX_NONE)
+		public string GetValueOrDefaultHierarchical(string Name, int NameIndex = IndexNone)
 		{
 			string? Out;
 			if (TryGetValueHierarchical(Name, NameIndex, out Out))
@@ -337,7 +337,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the meta data key</param>
 		/// <param name="NameIndex">Index of the meta data key</param>
 		/// <returns>Boolean value or false if not found</returns>
-		public bool GetBoolean(string Name, int NameIndex = INDEX_NONE)
+		public bool GetBoolean(string Name, int NameIndex = IndexNone)
 		{
 			return UhtFCString.ToBool(GetValueOrDefault(Name, NameIndex));
 		}
@@ -348,7 +348,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the meta data key</param>
 		/// <param name="NameIndex">Index of the meta data key</param>
 		/// <returns>Boolean value or false if not found</returns>
-		public bool GetBooleanHierarchical(string Name, int NameIndex = INDEX_NONE)
+		public bool GetBooleanHierarchical(string Name, int NameIndex = IndexNone)
 		{
 			return UhtFCString.ToBool(GetValueOrDefaultHierarchical(Name, NameIndex));
 		}
@@ -359,7 +359,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the meta data key</param>
 		/// <param name="NameIndex">Index of the meta data key</param>
 		/// <returns>Double value or zero if not found</returns>
-		public double GetDouble(string Name, int NameIndex = INDEX_NONE)
+		public double GetDouble(string Name, int NameIndex = IndexNone)
 		{
 			string Value = GetValueOrDefault(Name, NameIndex);
 			double Result;
@@ -376,7 +376,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the meta data key</param>
 		/// <param name="NameIndex">Index of the meta data key</param>
 		/// <returns>String array or null if not found</returns>
-		public string[]? GetStringArray(string Name, int NameIndex = INDEX_NONE)
+		public string[]? GetStringArray(string Name, int NameIndex = IndexNone)
 		{
 			string? Temp;
 			if (TryGetValue(Name, NameIndex, out Temp))
@@ -392,7 +392,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the meta data key</param>
 		/// <param name="NameIndex">Index of the meta data key</param>
 		/// <returns>String array or null if not found</returns>
-		public string[]? GetStringArrayHierarchical(string Name, int NameIndex = INDEX_NONE)
+		public string[]? GetStringArrayHierarchical(string Name, int NameIndex = IndexNone)
 		{
 			string? Temp;
 			if (TryGetValueHierarchical(Name, NameIndex, out Temp))
@@ -409,7 +409,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Value">Value of the meta data</param>
 		public void Add(string Name, string Value)
 		{
-			Add(Name, INDEX_NONE, Value);
+			Add(Name, IndexNone, Value);
 		}
 
 		/// <summary>
@@ -440,7 +440,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="Name">Name of the meta data key</param>
 		/// <param name="Value">Value of the meta data</param>
 		/// <param name="NameIndex">Index of the meta data key</param>
-		public void Add(string Name, bool Value, int NameIndex = INDEX_NONE)
+		public void Add(string Name, bool Value, int NameIndex = IndexNone)
 		{
 			Add(Name, NameIndex, Value ? "true" : "false");
 		}
@@ -491,7 +491,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="Name">Name of the meta data key</param>
 		/// <param name="NameIndex">Index of the meta data key</param>
-		public void Remove(string Name, int NameIndex = INDEX_NONE)
+		public void Remove(string Name, int NameIndex = IndexNone)
 		{
 			if (this.Dictionary != null)
 			{
@@ -518,7 +518,7 @@ namespace EpicGames.UHT.Types
 		/// <exception cref="UhtIceException">Thrown if an index is supplied (not -1) and no key conversion interface is set</exception>
 		public string GetKeyString(string Name, int NameIndex)
 		{
-			if (NameIndex == INDEX_NONE)
+			if (NameIndex == IndexNone)
 			{
 				return Name;
 			}

@@ -84,8 +84,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Base types
 		/// </summary>
-		[JsonConverter(typeof(UhtNullableTypeListJsonConverter<UhtStruct>))]
-		public List<UhtStruct>? Bases { get; set; } = null;
+		//[JsonConverter(typeof(UhtNullableTypeListJsonConverter<UhtStruct>))]
+		[JsonIgnore]
+		public IReadOnlyList<UhtStruct> Bases 
+		{ 
+			get => _basesInternal != null ? _basesInternal : _emptyBases;
+		}
 
 		/// <summary>
 		/// Super struct type
@@ -98,7 +102,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		/// <param name="Outer">Outer type</param>
 		/// <param name="LineNumber">Line number where definition begins</param>
-		public UhtStruct(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		protected UhtStruct(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
 		{
 		}
 
@@ -122,6 +126,9 @@ namespace EpicGames.UHT.Types
 			}
 			return false;
 		}
+		
+		private static readonly List<UhtStruct> _emptyBases = new List<UhtStruct>();
+		private List<UhtStruct>? _basesInternal = null;
 
 		#region Resolution support
 		/// <inheritdoc/>
@@ -132,12 +139,9 @@ namespace EpicGames.UHT.Types
 				this.Super.Resolve(ResolvePhase);
 			}
 
-			if (this.Bases != null)
+			foreach (UhtStruct Base in this.Bases)
 			{
-				foreach (UhtStruct Base in this.Bases)
-				{
-					Base.Resolve(ResolvePhase);
-				}
+				Base.Resolve(ResolvePhase);
 			}
 
 			base.ResolveSuper(ResolvePhase);
@@ -207,11 +211,11 @@ namespace EpicGames.UHT.Types
 					UhtStruct? Base = (UhtStruct?)this.FindType(FindOptions | UhtFindOptions.Class | UhtFindOptions.ScriptStruct | UhtFindOptions.SourceName | UhtFindOptions.NoSelf, BaseIdentifier);
 					if (Base != null)
 					{
-						if (this.Bases == null)
+						if (this._basesInternal == null)
 						{
-							this.Bases = new List<UhtStruct>();
+							this._basesInternal = new List<UhtStruct>();
 						}
-						this.Bases.Add(Base);
+						this._basesInternal.Add(Base);
 						this.HeaderFile.AddReferencedHeader(Base);
 						Base.Resolve(UhtResolvePhase.Bases);
 					}

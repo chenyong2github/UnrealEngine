@@ -31,7 +31,7 @@ namespace EpicGames.UHT.Utils
 		{
 			if (Tabs < 0 || Tabs > TabsString.Length)
 			{
-				throw new ArgumentOutOfRangeException();
+				throw new ArgumentOutOfRangeException($"Number of tabs specified must be between 0 and {TabsString.Length - 1} inclusive");
 			}
 			else if (Tabs > 0)
 			{
@@ -51,7 +51,7 @@ namespace EpicGames.UHT.Utils
 		{
 			if (Spaces < 0 || Spaces > SpacesString.Length)
 			{
-				throw new ArgumentOutOfRangeException();
+				throw new ArgumentOutOfRangeException($"Number of spaces specified must be between 0 and {SpacesString.Length - 1} inclusive");
 			}
 			else if (Spaces > 0)
 			{
@@ -315,7 +315,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Destination builder</returns>
 		public static StringBuilder AppendUTF8LiteralString(this StringBuilder Builder, StringView Text)
 		{
-			Builder.Append("\"");
+			Builder.Append('\"');
 
 			ReadOnlySpan<char> Span = Text.Span;
 			int Length = Span.Length;
@@ -420,7 +420,7 @@ namespace EpicGames.UHT.Utils
 				}
 			}
 
-			Builder.Append("\"");
+			Builder.Append('\"');
 			return Builder;
 		}
 
@@ -492,28 +492,28 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Cache of StringBuilders with large initial buffer sizes
 		/// </summary>
-		public static StringBuilderCache Big = new StringBuilderCache(256, 256 * 1024);
+		public static readonly StringBuilderCache Big = new StringBuilderCache(256, 256 * 1024);
 
 		/// <summary>
 		/// Cache of StringBuilders with small initial buffer sizes
 		/// </summary>
-		public static StringBuilderCache Small = new StringBuilderCache(256, 1 * 1024);
+		public static readonly StringBuilderCache Small = new StringBuilderCache(256, 1 * 1024);
 
 		/// <summary>
 		/// Capacity of the cache
 		/// </summary>
-		private int Capacity;
+		private readonly int Capacity;
 
 		/// <summary>
 		/// Initial buffer size for new StringBuilders.  Resetting StringBuilders might result
 		/// in the initial chunk size being smaller.
 		/// </summary>
-		private int InitialBufferSize;
+		private readonly int InitialBufferSize;
 
 		/// <summary>
 		/// Stack of cached StringBuilders
 		/// </summary>
-		private Stack<StringBuilder> Stack;
+		private readonly Stack<StringBuilder> Stack;
 
 		/// <summary>
 		/// Create a new StringBuilder cache
