@@ -114,7 +114,7 @@ void MainPS(
 		float3 FinalRadiance = 0.f;
 
 		// Set loop (Cosine/GGX/... distribuciton)
-		UNROLL
+		LOOP
 		for (uint Set = 0; Set < NumSets; Set++)
 		{
 			// Samples loop
