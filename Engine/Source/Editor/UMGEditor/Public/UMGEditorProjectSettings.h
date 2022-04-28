@@ -170,6 +170,14 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Designer)
 	TSubclassOf<UPanelWidget> DefaultRootWidget;
 
+	/** Set true to hide UMG-graph related elements when the graph editor is hidden  */
+	UPROPERTY(EditAnywhere, Category = Designer)
+	bool bGraphEditorHidden;
+
+	/** Set true to hide widget animation related elements in the UMG editor  */
+	UPROPERTY(EditAnywhere, Category = Designer)
+	bool bHideWidgetAnimationEditor;
+
 	/**
 	 * The default parent class for all newly constructed widget blueprints.
 	 * The WidgetParentClass must have an empty widget hierarchy.

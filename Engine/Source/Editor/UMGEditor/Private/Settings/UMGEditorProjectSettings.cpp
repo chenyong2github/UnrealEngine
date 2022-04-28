@@ -15,6 +15,8 @@ UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 	CurrentVersion = 1;
 	bShowWidgetsFromEngineContent = false;
 	bShowWidgetsFromDeveloperContent = true;
+	bGraphEditorHidden = false;
+	bHideWidgetAnimationEditor = false;
 
 	bUseWidgetTemplateSelector = false;
 	DefaultRootWidget = nullptr;

@@ -2,6 +2,7 @@
 
 #include "Animation/UMGDetailKeyframeHandler.h"
 #include "Animation/WidgetAnimation.h"
+#include "UMGEditorProjectSettings.h"
 
 #include "PropertyHandle.h"
 #include "MovieScene.h"
@@ -12,11 +13,13 @@ FUMGDetailKeyframeHandler::FUMGDetailKeyframeHandler(TSharedPtr<FWidgetBlueprint
 
 bool FUMGDetailKeyframeHandler::IsPropertyKeyable(const UClass* InObjectClass, const IPropertyHandle& InPropertyHandle) const
 {
-	return BlueprintEditor.Pin()->GetSequencer()->CanKeyProperty(FCanKeyPropertyParams(InObjectClass, InPropertyHandle));
+	return !GetDefault<UUMGEditorProjectSettings>()->bHideWidgetAnimationEditor 
+			&& BlueprintEditor.Pin()->GetSequencer()->CanKeyProperty(FCanKeyPropertyParams(InObjectClass, InPropertyHandle));
 }
 
 bool FUMGDetailKeyframeHandler::IsPropertyKeyingEnabled() const
 {
+
 	UMovieSceneSequence* Sequence = BlueprintEditor.Pin()->GetSequencer()->GetRootMovieSceneSequence();
 	return Sequence != nullptr && Sequence != UWidgetAnimation::GetNullAnimation();
 }

@@ -30,6 +30,7 @@
 #include "WidgetBlueprintEditorUtils.h"
 #include "ScopedTransaction.h"
 #include "Styling/SlateIconFinder.h"
+#include "UMGEditorProjectSettings.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -58,6 +59,17 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 
 	// Notify us of object selection changes so we can update the package re-mapping
 	PropertyView->SetOnObjectArrayChanged(FOnObjectArrayChanged::CreateSP(this, &SWidgetDetailsView::OnPropertyViewObjectArrayChanged));
+
+	TSharedRef<SWidget> IsVariableCheckbox =
+		SNew(SCheckBox)
+		.IsChecked(this, &SWidgetDetailsView::GetIsVariable)
+		.OnCheckStateChanged(this, &SWidgetDetailsView::HandleIsVariableChanged)
+		.Padding(FMargin(3, 1, 18, 1))
+		.Visibility(GetDefault<UUMGEditorProjectSettings>()->bGraphEditorHidden ? EVisibility::Hidden : EVisibility::Visible)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("IsVariable", "Is Variable"))
+		];
 
 	ChildSlot
 	[
@@ -145,20 +157,12 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
 					[
-						SNew(SCheckBox)
-						.IsChecked(this, &SWidgetDetailsView::GetIsVariable)
-						.OnCheckStateChanged(this, &SWidgetDetailsView::HandleIsVariableChanged)
-						.Padding(FMargin(3,1,3,1))
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("IsVariable", "Is Variable"))
-						]
+						GetDefault<UUMGEditorProjectSettings>()->bGraphEditorHidden ? SNullWidget::NullWidget : IsVariableCheckbox
 					]
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
 					.VAlign(VAlign_Center)
-					.Padding(15,0,0,0)
 					[
 						SAssignNew(ClassLinkArea, SBox)
 					]
