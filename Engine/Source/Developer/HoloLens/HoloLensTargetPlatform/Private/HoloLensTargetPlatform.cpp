@@ -91,6 +91,10 @@ FHoloLensTargetPlatform::FHoloLensTargetPlatform(bool bIsClientOnly)
 
 	DeviceDetectedRegistration = DeviceDetector->OnDeviceDetected().AddRaw(this, &FHoloLensTargetPlatform::OnDeviceDetected);
 
+#if WITH_EDITOR
+	// Don't automatically try to detect a device if running editor with -server.
+	if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
+#endif
 	{
 		DeviceDetector->StartDeviceDetection();
 	}
