@@ -162,7 +162,7 @@ void USoundNodeQualityLevel::Serialize(FArchive& Ar)
 				UE_CLOG(
 					BranchesPruned > 0,
 					LogAudio,
-					Display, 
+					Display,
 					TEXT("Pruning '%s' of '%d' quality branches, as it's cooked at '%s' quality."),
 					*GetFullNameSafe(this),
 					BranchesPruned,
