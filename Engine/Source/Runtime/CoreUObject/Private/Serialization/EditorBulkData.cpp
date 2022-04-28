@@ -1973,7 +1973,7 @@ FEditorBulkData::EFlags FEditorBulkData::BuildFlagsForSerialization(FArchive& Ar
 		// Currently we do not support storing local payloads to a trailer if it is being built for reference
 		// access (i.e. for the editor domain) and if this is detected we should force the legacy serialization
 		// path for this payload.
-		const bool bForceLegacyPath = bKeepFileDataByReference && bCanKeepFileDataByReference == false;
+		const bool bForceLegacyPath = bKeepFileDataByReference && bCanKeepFileDataByReference == false && !IsDataVirtualized(UpdatedFlags);
 
 		if (ShouldUseLegacySerialization(LinkerSave) == true || bForceLegacyPath == true)
 		{
