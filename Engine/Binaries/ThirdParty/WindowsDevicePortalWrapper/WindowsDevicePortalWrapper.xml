@@ -12,16 +12,16 @@
             .net 4.x implementation of App Deployment methods.
             </content>
             <content>
-            .net 4.x implementation of HTTP PostAsync
-            </content>
-            <content>
-            .net 4.x implementation of HTTP PutAsync
-            </content>
-            <content>
             .net 4.x implementation of HTTP DeleteAsync
             </content>
             <content>
             .net 4.x implementation of HTTP GetAsync
+            </content>
+            <content>
+            .net 4.x implementation of HTTP PostAsync
+            </content>
+            <content>
+            .net 4.x implementation of HTTP PutAsync
             </content>
             <content>
             Wrappers for app crash dump collection methods.
@@ -205,23 +205,6 @@
             </summary>
             <returns>The status</returns>
         </member>
-        <member name="M:Microsoft.Tools.WindowsDevicePortal.DevicePortal.PostAsync(System.Uri,System.IO.Stream,System.String)">
-            <summary>
-            Submits the http post request to the specified uri.
-            </summary>
-            <param name="uri">The uri to which the post request will be issued.</param>
-            <param name="requestStream">Optional stream containing data for the request body.</param>
-            <param name="requestStreamContentType">The type of that request body data.</param>
-            <returns>Task tracking the completion of the POST request</returns>
-        </member>
-        <member name="M:Microsoft.Tools.WindowsDevicePortal.DevicePortal.PutAsync(System.Uri,System.Net.Http.HttpContent)">
-            <summary>
-            Submits the http put request to the specified uri.
-            </summary>
-            <param name="uri">The uri to which the put request will be issued.</param>
-            <param name="body">The HTTP content comprising the body of the request.</param>
-            <returns>Task tracking the PUT completion.</returns>
-        </member>
         <member name="M:Microsoft.Tools.WindowsDevicePortal.DevicePortal.DeleteAsync(System.Uri)">
             <summary>
             Submits the http delete request to the specified uri.
@@ -235,6 +218,31 @@
             </summary>
             <param name="uri">The uri to which the get request will be issued.</param>
             <returns>Response data as a stream.</returns>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.DevicePortal.PostAsync(System.Uri,System.IO.Stream,System.String)">
+            <summary>
+            Submits the http post request to the specified uri.
+            </summary>
+            <param name="uri">The uri to which the post request will be issued.</param>
+            <param name="requestStream">Optional stream containing data for the request body.</param>
+            <param name="requestStreamContentType">The type of that request body data.</param>
+            <returns>Task tracking the completion of the POST request</returns>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.DevicePortal.PostAsync(System.Uri,System.Net.Http.HttpContent)">
+            <summary>
+            Submits the http post request to the specified uri.
+            </summary>
+            <param name="uri">The uri to which the post request will be issued.</param>
+            <param name="requestContent">Optional content containing data for the request body.</param>
+            <returns>Task tracking the completion of the POST request</returns>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.DevicePortal.PutAsync(System.Uri,System.Net.Http.HttpContent)">
+            <summary>
+            Submits the http put request to the specified uri.
+            </summary>
+            <param name="uri">The uri to which the put request will be issued.</param>
+            <param name="body">The HTTP content comprising the body of the request.</param>
+            <returns>Task tracking the PUT completion.</returns>
         </member>
         <member name="F:Microsoft.Tools.WindowsDevicePortal.DevicePortal.AvailableCrashDumpsApi">
             <summary>
@@ -1309,6 +1317,11 @@
         <member name="F:Microsoft.Tools.WindowsDevicePortal.DevicePortal.DevicePortalPlatforms.HoloLens">
             <summary>
             HoloLens platform
+            </summary>
+        </member>
+        <member name="F:Microsoft.Tools.WindowsDevicePortal.DevicePortal.DevicePortalPlatforms.HoloLens2">
+            <summary>
+            HoloLens 2 platform
             </summary>
         </member>
         <member name="F:Microsoft.Tools.WindowsDevicePortal.DevicePortal.DevicePortalPlatforms.XboxOne">
@@ -3318,11 +3331,24 @@
             <param name="file">The file to be copied.</param>
             <param name="stream">The stream to which the file will be copied.</param>
         </member>
-        <!-- Badly formed XML comment ignored for member "F:Microsoft.Tools.WindowsDevicePortal.DevicePortal.SysPerfInfoErrorPrefix" -->
+        <member name="F:Microsoft.Tools.WindowsDevicePortal.DevicePortal.SysPerfInfoErrorPrefix">
+            <summary>
+            The prefix for the <see cref="T:Microsoft.Tools.WindowsDevicePortal.DevicePortal.SystemPerformanceInformation" /> JSON formatting error.
+            </summary>
+        </member>
         <member name="F:Microsoft.Tools.WindowsDevicePortal.DevicePortal.SysPerfInfoErrorPostfix">
             <summary>
             The postfix for the <see cref="T:Microsoft.Tools.WindowsDevicePortal.DevicePortal.SystemPerformanceInformation" /> JSON formatting error.
             </summary>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.DevicePortal.ReadJsonStream``1(System.IO.Stream,System.Runtime.Serialization.Json.DataContractJsonSerializerSettings)">
+            <summary>
+            Reads dataStream as T.
+            </summary>
+            <typeparam name="T">Return type for the JSON message</typeparam>
+            <param name="dataStream">The stream that contains the JSON message to be checked.</param>
+            <param name="settings">Optional settings for JSON serialization.</param>
+            <returns>Read data</returns>
         </member>
         <member name="M:Microsoft.Tools.WindowsDevicePortal.DevicePortal.JsonFormatCheck``1(System.IO.Stream)">
             <summary>
@@ -3330,14 +3356,6 @@
             </summary>
             <typeparam name="T">Return type for the JSON message</typeparam>
             <param name="jsonStream">The stream that contains the JSON message to be checked.</param>
-        </member>
-        <member name="M:Microsoft.Tools.WindowsDevicePortal.DevicePortal.ReadJsonStream``1(System.IO.Stream,System.Runtime.Serialization.Json.DataContractJsonSerializerSettings)">
-            <summary>
-            Reads dataStream as T.
-            </summary>
-            <typeparam name="T">Return type for the JSON message</typeparam>
-            <param name="jsonStream">The stream that contains the JSON message to be checked.</param>
-            <param name="settings">Optional settings for JSON serialization.</param>
         </member>
         <member name="T:Microsoft.Tools.WindowsDevicePortal.DevicePortal.NullResponse">
             <summary>
@@ -4994,6 +5012,68 @@
             <param name="chain">The cert chain.</param>
             <param name="sslPolicyErrors">Policy Errors.</param>
             <returns>whether the cert should still pass validation.</returns>
+        </member>
+        <member name="T:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent">
+            <summary>
+            This class mimicks <see cref="!:HttpMultipartContent"/>, with two main differences
+            1. Simplifies posting files by taking file names instead of managing streams.
+            2. Does not quote the boundaries, due to a bug in the device portal
+            </summary>
+        </member>
+        <member name="F:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent.items">
+            <summary>
+            List of items to transfer
+            </summary>
+        </member>
+        <member name="F:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent.boundaryString">
+            <summary>
+            Boundary string
+            </summary>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent.#ctor">
+            <summary>
+            Initializes a new instance of the <see cref="T:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent" /> class.
+            </summary>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent.#ctor(System.String)">
+            <summary>
+            Initializes a new instance of the <see cref="T:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent" /> class.
+            </summary>
+            <param name="boundary">The boundary string for file content.</param>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent.Add(System.String)">
+            <summary>
+            Adds a file to the list of items to transfer
+            </summary>
+            <param name="filename">The name of the file to add</param>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent.AddRange(System.Collections.Generic.IEnumerable{System.String})">
+            <summary>
+            Adds a range of files to the list of items to transfer
+            </summary>
+            <param name="filenames">List of files to add</param>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent.SerializeToStreamAsync(System.IO.Stream,System.Net.TransportContext)">
+            <summary>
+            Serializes the stream.
+            </summary>
+            <param name="outStream">Serialized Stream</param>
+            <param name="context">The Transport Context</param>
+            <returns>Task tracking progress</returns>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent.TryComputeLength(System.Int64@)">
+            <summary>
+            Computes required length for the transfer.
+            </summary>
+            <param name="length">The computed length value</param>
+            <returns>Whether or not the length was successfully computed</returns>
+        </member>
+        <member name="M:Microsoft.Tools.WindowsDevicePortal.HttpMultipartFileContent.GetFileHeader(System.IO.FileInfo)">
+            <summary>
+            Gets the file header for the transfer
+            </summary>
+            <param name="info">Information about the file</param>
+            <returns>A byte array with the file header information</returns>
         </member>
         <member name="T:Microsoft.Tools.WindowsDevicePortal.WebSocket`1">
             <summary>
