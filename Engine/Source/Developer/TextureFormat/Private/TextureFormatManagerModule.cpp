@@ -6,6 +6,8 @@
 #include "Interfaces/ITextureFormatModule.h"
 #include "Modules/ModuleManager.h"
 #include "TextureFormatManager.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/ScopeLock.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatManager, Log, All);
 
@@ -33,9 +35,12 @@ public:
 		, bModuleChangeCallbackEnabled(false)
 		, TextureFormatsInitPhase(EInitPhase::JustConstructedNotInit)
 	{
+		// Calling a virtual function from a constructor, but with no expectation that a derived implementation of this
+		// method would be called.  This is solely to avoid duplicating code in this implementation, not for polymorphism.
+		FTextureFormatManagerModule::Invalidate();
+		
+		// add AFTER Invalidate :
 		FModuleManager::Get().OnModulesChanged().AddRaw(this, &FTextureFormatManagerModule::ModulesChangesCallback);
-
-		// not usable until first Invalidate is called
 	}
 
 	/** Destructor. */
@@ -46,9 +51,10 @@ public:
 		FModuleManager::Get().OnModulesChanged().RemoveAll(this);
 	}
 
-
 	virtual const TArray<const ITextureFormat*>& GetTextureFormats() override
 	{
+		FScopeLock Lock(&ModuleMutex);
+
 		// should not be called recursively while I am building the list :
 		check( TextureFormatsInitPhase!= EInitPhase::GetTextureFormatsInProgressDontTouch );
 
@@ -120,7 +126,7 @@ public:
 			TextureFormatsInitPhase = EInitPhase::GetTextureFormatsPartialOkayToRead;
 
 			// run through the Child formats and call GetTextureFormat() on them
-			// this will call back to me and do GetTextureFormats() which will get only the base formats
+			// this could call back to me and do GetTextureFormats() which will get only the base formats
 			for (int32 Index = 0; Index < ChildModules.Num(); Index++)
 			{
 				ITextureFormatModule* Module = ChildModules[Index].Module;
@@ -160,11 +166,10 @@ public:
 
 		return TextureFormats;
 	}
-
+	
 	virtual const ITextureFormat* FindTextureFormat(FName Name) override
 	{
-		check( (int)TextureFormatsInitPhase >= (int)EInitPhase::GetTextureFormatsPartialOkayToRead );
-
+		// just pass through to FindTextureFormatAndModule
 		FName ModuleNameUnused;
 		ITextureFormatModule* ModuleUnused;
 		return FindTextureFormatAndModule(Name, ModuleNameUnused, ModuleUnused);
@@ -172,12 +177,13 @@ public:
 	
 	virtual const class ITextureFormat* FindTextureFormatAndModule(FName Name, FName& OutModuleName, ITextureFormatModule*& OutModule) override
 	{
+		FScopeLock Lock(&ModuleMutex);
 		check( (int)TextureFormatsInitPhase >= (int)EInitPhase::GetTextureFormatsPartialOkayToRead );
 
 		// Called to ensure the arrays are populated
 		// dangerous and not necessary, removed :
-		check( ! bForceCacheUpdate );
 		//GetTextureFormats();
+		check( ! bForceCacheUpdate );
 
 		for (int32 Index = 0; Index < TextureFormats.Num(); Index++)
 		{
@@ -202,8 +208,8 @@ public:
 
 	virtual void Invalidate() override
 	{
-		// this is called right after the constructor
-		// we are not usable until the first Invalidate is called
+		FScopeLock Lock(&ModuleMutex);
+		// this is called from the constructor
 		TextureFormatsInitPhase = EInitPhase::Invalidated;
 		bForceCacheUpdate = true;
 		GetTextureFormats();
@@ -213,6 +219,7 @@ private:
 
 	void ModulesChangesCallback(FName InModuleName, EModuleChangeReason ReasonForChange)
 	{
+		FScopeLock Lock(&ModuleMutex);
 		if (bModuleChangeCallbackEnabled && (InModuleName != ModuleName) && InModuleName.ToString().Contains(TEXT("TextureFormat")))
 		{
 			// when a "TextureFormat" module is loaded, rebuild my list
@@ -241,8 +248,7 @@ private:
 	// Track tricky initialization progress
 	EInitPhase TextureFormatsInitPhase;
 
-	// @@!! Mutex and ScopeLock everything in case this is called from multiple threads ?
-
+	FCriticalSection ModuleMutex;
 };
 
 IMPLEMENT_MODULE(FTextureFormatManagerModule, TextureFormat);

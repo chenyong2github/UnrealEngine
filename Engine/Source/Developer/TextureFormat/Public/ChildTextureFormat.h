@@ -9,6 +9,7 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "TextureCompressorModule.h"
 #include "Algo/Unique.h"
+#include "TextureFormatManager.h"
 
 /**
  * Version of ITextureFormat that handles a child texture format that is used as a "post-process" after compressing textures, useful for
@@ -82,7 +83,7 @@ protected:
 	{
 		FName BaseFormatName = GetBaseFormatName(FormatName);
 
-		ITextureFormatManagerModule& TFM = FModuleManager::LoadModuleChecked<ITextureFormatManagerModule>("TextureFormat");
+		ITextureFormatManagerModule& TFM = GetTextureFormatManagerRef();
 		const ITextureFormat* FormatObject = TFM.FindTextureFormat(BaseFormatName);
 
 		checkf(FormatObject != nullptr, TEXT("Bad FormatName %s passed to FChildTextureFormat::GetBaseFormatObject()"));
