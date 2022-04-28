@@ -916,6 +916,7 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 	bool bFlush = false;
 	if (!bReadOnly && FParse::Bool(InParams, TEXT("Flush="), bFlush) && bFlush)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FileSystemDDC_Flush);
 		IFileManager::Get().DeleteDirectory(*(CachePath / TEXT("")), /*bRequireExists*/ false, /*bTree*/ true);
 	}
 
