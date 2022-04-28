@@ -157,6 +157,7 @@ namespace Horde.Build.Collections
 		/// <param name="stepId">Unique id of the step to update</param>
 		/// <param name="newState">New state of the jobstep</param>
 		/// <param name="newOutcome">New outcome of the jobstep</param>
+		/// <param name="newError">New error annotation for this jobstep</param>
 		/// <param name="newAbortRequested">New state of request abort</param>
 		/// <param name="newAbortByUserId">New name of user that requested the abort</param>
 		/// <param name="newLogId">New log id for the jobstep</param>
@@ -166,7 +167,7 @@ namespace Horde.Build.Collections
 		/// <param name="newReports">New report documents</param>
 		/// <param name="newProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		Task<IJob?> TryUpdateStepAsync(IJob job, IGraph graph, SubResourceId batchId, SubResourceId stepId, JobStepState newState = default, JobStepOutcome newOutcome = default, bool? newAbortRequested = null, UserId? newAbortByUserId = null, LogId? newLogId = null, ObjectId? newNotificationTriggerId = null, UserId? newRetryByUserId = null, Priority? newPriority = null, List<Report>? newReports = null, Dictionary<string, string?>? newProperties = null);
+		Task<IJob?> TryUpdateStepAsync(IJob job, IGraph graph, SubResourceId batchId, SubResourceId stepId, JobStepState newState = default, JobStepOutcome newOutcome = default, JobStepError? newError = null, bool? newAbortRequested = null, UserId? newAbortByUserId = null, LogId? newLogId = null, ObjectId? newNotificationTriggerId = null, UserId? newRetryByUserId = null, Priority? newPriority = null, List<Report>? newReports = null, Dictionary<string, string?>? newProperties = null);
 
 		/// <summary>
 		/// Attempts to update the node groups to be executed for a job. Fails if another write happens in the meantime.

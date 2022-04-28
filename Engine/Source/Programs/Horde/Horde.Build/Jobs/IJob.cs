@@ -86,6 +86,11 @@ namespace Horde.Build.Models
 		public JobStepOutcome Outcome { get; }
 
 		/// <summary>
+		/// Error from executing this step
+		/// </summary>
+		public JobStepError Error { get; }
+
+		/// <summary>
 		/// The log id for this step
 		/// </summary>
 		public LogId? LogId { get; }
@@ -142,6 +147,22 @@ namespace Horde.Build.Models
 	}
 
 	/// <summary>
+	/// Systemic error codes for a job failing
+	/// </summary>
+	public enum JobStepError
+	{
+		/// <summary>
+		/// No systemic error
+		/// </summary>
+		None,
+
+		/// <summary>
+		/// Step did not complete in the required amount of time
+		/// </summary>
+		TimedOut,
+	}
+
+	/// <summary>
 	/// Extension methods for job steps
 	/// </summary>
 	public static class JobStepExtensions
@@ -162,6 +183,25 @@ namespace Horde.Build.Models
 		public static bool IsPending(this IJobStep step)
 		{
 			return step.State != JobStepState.Aborted && step.State != JobStepState.Completed && step.State != JobStepState.Skipped;
+		}
+
+		/// <summary>
+		/// Determine if a step should be timed out
+		/// </summary>
+		/// <param name="step"></param>
+		/// <param name="utcNow"></param>
+		/// <returns></returns>
+		public static bool HasTimedOut(this IJobStep step, DateTime utcNow)
+		{
+			if (step.State == JobStepState.Running && step.StartTimeUtc != null)
+			{
+				TimeSpan elapsed = utcNow - step.StartTimeUtc.Value;
+				if (elapsed > TimeSpan.FromHours(24.0))
+				{
+					return true;
+				}
+			}
+			return false;
 		}
 	}
 

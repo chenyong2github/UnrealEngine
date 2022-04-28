@@ -1256,13 +1256,6 @@ namespace Horde.Agent.Services
 			{
 				try
 				{
-					if (timer.Elapsed > TimeSpan.FromHours(24.0))
-					{
-						_logger.LogDebug("Step was aborted after running for {NumHours} (JobId={JobId} BatchId={BatchId} StepId={StepId})", timer.Elapsed, jobId, batchId, stepId);
-						stepCancelSource.Cancel();
-						break;
-					}
-
 					GetStepResponse res = await epcClient.InvokeAsync(x => x.GetStepAsync(new GetStepRequest(jobId, batchId, stepId), null, null, cancellationToken), new RpcContext(), cancellationToken);
 					if (res.AbortRequested)
 					{

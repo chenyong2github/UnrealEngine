@@ -857,6 +857,7 @@ namespace Horde.Build.Services
 		/// <param name="stepId">Unique id of the step to update</param>
 		/// <param name="newState">New state of the jobstep</param>
 		/// <param name="newOutcome">New outcome of the jobstep</param>
+		/// <param name="newError">New error for the step</param>
 		/// <param name="newAbortRequested">New state of abort request</param>
 		/// <param name="newAbortByUserId">New user that requested the abort</param>
 		/// <param name="newLogId">New log id for the jobstep</param>
@@ -866,7 +867,7 @@ namespace Horde.Build.Services
 		/// <param name="newReports">New list of reports</param>
 		/// <param name="newProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		public async Task<IJob?> UpdateStepAsync(IJob job, SubResourceId batchId, SubResourceId stepId, JobStepState newState = JobStepState.Unspecified, JobStepOutcome newOutcome = JobStepOutcome.Unspecified, bool? newAbortRequested = null, UserId? newAbortByUserId = null, LogId? newLogId = null, ObjectId? newNotificationTriggerId = null, UserId? newRetryByUserId = null, Priority? newPriority = null, List<Report>? newReports = null, Dictionary<string, string?>? newProperties = null)
+		public async Task<IJob?> UpdateStepAsync(IJob job, SubResourceId batchId, SubResourceId stepId, JobStepState newState = JobStepState.Unspecified, JobStepOutcome newOutcome = JobStepOutcome.Unspecified, JobStepError? newError = null, bool? newAbortRequested = null, UserId? newAbortByUserId = null, LogId? newLogId = null, ObjectId? newNotificationTriggerId = null, UserId? newRetryByUserId = null, Priority? newPriority = null, List<Report>? newReports = null, Dictionary<string, string?>? newProperties = null)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.UpdateStepAsync").StartActive();
 			traceScope.Span.SetTag("Job", job.Id);
@@ -876,7 +877,7 @@ namespace Horde.Build.Services
 			using IDisposable scope = _logger.BeginScope("UpdateStepAsync({JobId})", job.Id);
 			for (; ;)
 			{
-				IJob? newJob = await TryUpdateStepAsync(job, batchId, stepId, newState, newOutcome, newAbortRequested, newAbortByUserId, newLogId, newNotificationTriggerId, newRetryByUserId, newPriority, newReports, newProperties);
+				IJob? newJob = await TryUpdateStepAsync(job, batchId, stepId, newState, newOutcome, newError, newAbortRequested, newAbortByUserId, newLogId, newNotificationTriggerId, newRetryByUserId, newPriority, newReports, newProperties);
 				if (newJob != null)
 				{
 					return newJob;
@@ -900,6 +901,7 @@ namespace Horde.Build.Services
 		/// <param name="stepId">Unique id of the step to update</param>
 		/// <param name="newState">New state of the jobstep</param>
 		/// <param name="newOutcome">New outcome of the jobstep</param>
+		/// <param name="newError">New error for the step</param>
 		/// <param name="newAbortRequested">New state for request abort</param>
 		/// <param name="newAbortByUserId">New name of user that requested the abort</param>
 		/// <param name="newLogId">New log id for the jobstep</param>
@@ -909,7 +911,7 @@ namespace Horde.Build.Services
 		/// <param name="newReports">New reports</param>
 		/// <param name="newProperties">Property changes. Any properties with a null value will be removed.</param>
 		/// <returns>True if the job was updated, false if it was deleted in the meantime</returns>
-		public async Task<IJob?> TryUpdateStepAsync(IJob job, SubResourceId batchId, SubResourceId stepId, JobStepState newState = JobStepState.Unspecified, JobStepOutcome newOutcome = JobStepOutcome.Unspecified, bool? newAbortRequested = null, UserId? newAbortByUserId = null, LogId? newLogId = null, ObjectId? newTriggerId = null, UserId? newRetryByUserId = null, Priority? newPriority = null, List<Report>? newReports = null, Dictionary<string, string?>? newProperties = null)
+		public async Task<IJob?> TryUpdateStepAsync(IJob job, SubResourceId batchId, SubResourceId stepId, JobStepState newState = JobStepState.Unspecified, JobStepOutcome newOutcome = JobStepOutcome.Unspecified, JobStepError? newError = null, bool? newAbortRequested = null, UserId? newAbortByUserId = null, LogId? newLogId = null, ObjectId? newTriggerId = null, UserId? newRetryByUserId = null, Priority? newPriority = null, List<Report>? newReports = null, Dictionary<string, string?>? newProperties = null)
 		{
 			using IScope traceScope = GlobalTracer.Instance.BuildSpan("JobService.TryUpdateStepAsync").StartActive();
 			traceScope.Span.SetTag("Job", job.Id);
@@ -941,7 +943,7 @@ namespace Horde.Build.Services
 			}
 
 			// Update the step
-			IJob? newJob = await _jobs.TryUpdateStepAsync(job, graph, batchId, stepId, newState, newOutcome, newAbortRequested, newAbortByUserId, newLogId, newTriggerId, newRetryByUserId, newPriority, newReports, newProperties);
+			IJob? newJob = await _jobs.TryUpdateStepAsync(job, graph, batchId, stepId, newState, newOutcome, newError, newAbortRequested, newAbortByUserId, newLogId, newTriggerId, newRetryByUserId, newPriority, newReports, newProperties);
 			if (newJob != null)
 			{
 				job = newJob;

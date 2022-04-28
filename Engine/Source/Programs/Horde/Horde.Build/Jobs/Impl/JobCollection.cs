@@ -56,6 +56,8 @@ namespace Horde.Build.Collections.Impl
 
 			public JobStepOutcome Outcome { get; set; } = JobStepOutcome.Success;
 
+			public JobStepError Error { get; set; } = JobStepError.None;
+
 			[BsonIgnoreIfNull]
 			public LogId? LogId { get; set; }
 
@@ -735,7 +737,7 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public Task<IJob?> TryUpdateStepAsync(IJob job, IGraph graph, SubResourceId batchId, SubResourceId stepId, JobStepState newState, JobStepOutcome newOutcome, bool? newAbortRequested, UserId? newAbortByUserId, LogId? newLogId, ObjectId? newNotificationTriggerId, UserId? newRetryByUserId, Priority? newPriority, List<Report>? newReports, Dictionary<string, string?>? newProperties)
+		public Task<IJob?> TryUpdateStepAsync(IJob job, IGraph graph, SubResourceId batchId, SubResourceId stepId, JobStepState newState, JobStepOutcome newOutcome, JobStepError? newError, bool? newAbortRequested, UserId? newAbortByUserId, LogId? newLogId, ObjectId? newNotificationTriggerId, UserId? newRetryByUserId, Priority? newPriority, List<Report>? newReports, Dictionary<string, string?>? newProperties)
 		{
 			JobDocument jobDocument = Clone((JobDocument)job);
 
@@ -811,6 +813,13 @@ namespace Horde.Build.Collections.Impl
 								updates.Add(updateBuilder.Set(x => x.Batches[batchIdx].Steps[stepIdx].Outcome, step.Outcome));
 
 								bRefreshDependentJobSteps = true;
+							}
+
+							// Update the job step error
+							if (newError != null)
+							{
+								step.Error = newError.Value;
+								updates.Add(updateBuilder.Set(x => x.Batches[batchIdx].Steps[stepIdx].Error, step.Error));
 							}
 
 							// Update the log id

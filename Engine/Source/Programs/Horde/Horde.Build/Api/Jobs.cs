@@ -517,6 +517,11 @@ namespace Horde.Build.Api
 		/// Current outcome of the jobstep
 		/// </summary>
 		public JobStepOutcome Outcome { get; set; }
+
+		/// <summary>
+		/// Error describing additional context for why a step failed to complete
+		/// </summary>
+		public JobStepError Error { get; set; }
 		
 		/// <summary>
 		/// If the step has been requested to abort
@@ -585,6 +590,7 @@ namespace Horde.Build.Api
 			NodeIdx = step.NodeIdx;
 			State = step.State;
 			Outcome = step.Outcome;
+			Error = step.Error;
 			AbortRequested = step.AbortRequested;
 			AbortByUser = abortedByUserInfo?.Login;
 			AbortedByUserInfo = abortedByUserInfo;

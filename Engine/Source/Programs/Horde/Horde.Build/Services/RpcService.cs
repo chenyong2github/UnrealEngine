@@ -60,12 +60,13 @@ namespace Horde.Build.Services
 		readonly ITestDataCollection _testData;
 		readonly IJobStepRefCollection _jobStepRefCollection;
 		readonly ConformTaskSource _conformTaskSource;
+		readonly IClock _clock;
 		readonly ILogger<RpcService> _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public RpcService(AclService aclService, AgentService agentService, StreamService streamService, JobService jobService, AgentSoftwareService agentSoftwareService, IArtifactCollection artifactCollection, ILogFileService logFileService, PoolService poolService, LifetimeService lifetimeService, IGraphCollection graphs, ITestDataCollection testData, IJobStepRefCollection jobStepRefCollection, ConformTaskSource conformTaskSource, ILogger<RpcService> logger)
+		public RpcService(AclService aclService, AgentService agentService, StreamService streamService, JobService jobService, AgentSoftwareService agentSoftwareService, IArtifactCollection artifactCollection, ILogFileService logFileService, PoolService poolService, LifetimeService lifetimeService, IGraphCollection graphs, ITestDataCollection testData, IJobStepRefCollection jobStepRefCollection, ConformTaskSource conformTaskSource, IClock clock, ILogger<RpcService> logger)
 		{
 			_aclService = aclService;
 			_agentService = agentService;
@@ -80,6 +81,7 @@ namespace Horde.Build.Services
 			_testData = testData;
 			_jobStepRefCollection = jobStepRefCollection;
 			_conformTaskSource = conformTaskSource;
+			_clock = clock;
 			_logger = logger;
 		}
 
@@ -586,7 +588,7 @@ namespace Horde.Build.Services
 			//				}
 
 			// Update the step state
-			IJob? newJob = await _jobService.TryUpdateStepAsync(job, batch.Id, step.Id, JobStepState.Running, JobStepOutcome.Unspecified, null, null, log.Value.Id, null, null, null, null);
+			IJob? newJob = await _jobService.TryUpdateStepAsync(job, batch.Id, step.Id, JobStepState.Running, JobStepOutcome.Unspecified, newLogId: log.Value.Id);
 			if (newJob != null)
 			{
 				BeginStepResponse response = new BeginStepResponse();
@@ -678,7 +680,19 @@ namespace Horde.Build.Services
 
 			IJobStepBatch batch = AuthorizeBatch(job, request.BatchId.ToSubResourceId(), context);
 
-			await _jobService.UpdateStepAsync(job, batch.Id, request.StepId.ToSubResourceId(), request.State, request.Outcome, null, null, null, null, null);
+			SubResourceId stepId = request.StepId.ToSubResourceId();
+			if (!batch.TryGetStep(stepId, out IJobStep? step))
+			{
+				throw new StructuredRpcException(StatusCode.NotFound, "Unable to find step {JobId}:{BatchId}:{StepId}", job.Id, batch.Id, stepId);
+			}
+
+			JobStepError? error = null;
+			if (step.Error == JobStepError.None && step.HasTimedOut(_clock.UtcNow))
+			{
+				error = JobStepError.TimedOut;
+			}
+
+			await _jobService.UpdateStepAsync(job, batch.Id, request.StepId.ToSubResourceId(), request.State, request.Outcome, error, null, null, null, null, null);
 			return new Empty();
 		}
 
@@ -699,7 +713,7 @@ namespace Horde.Build.Services
 				throw new StructuredRpcException(StatusCode.NotFound, "Unable to find step {JobId}:{BatchId}:{StepId}", job.Id, batch.Id, stepId);
 			}
 
-			return new GetStepResponse { Outcome = step.Outcome, State = step.State, AbortRequested = step.AbortRequested };
+			return new GetStepResponse { Outcome = step.Outcome, State = step.State, AbortRequested = step.AbortRequested || step.HasTimedOut(_clock.UtcNow) };
 		}
 
 		/// <summary>
