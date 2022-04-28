@@ -41,7 +41,13 @@ uint MaxTraversalIterations;
 LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenRadiosityHardwareRayTracing)
 {	
 #if DIM_INDIRECT_DISPATCH
-	uint GlobalThreadIndex = GetUnWrappedRayTracingDispatchThreadId(DispatchThreadIndex, THREADGROUP_SIZE);
+	uint GlobalThreadIndex = GetUnWrappedRayTracingDispatchThreadId(DispatchGroupId, THREADGROUP_SIZE);
+
+// When running with indirect inline RT, ThreadIndex is actually GroupIndex, so we need to account for that.
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+	GlobalThreadIndex = GlobalThreadIndex * INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X + DispatchGroupIndex;
+#endif
+
 	if (GlobalThreadIndex >= CardTileAllocator[ViewIndex] * NumTracesPerProbe * RadiosityTileSize * RadiosityTileSize)
 	{
 		return;

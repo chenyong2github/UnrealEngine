@@ -54,19 +54,19 @@ float3 CalcPrevTranslatedWorldPositionFromGPUSceneInstanceIndex(float3 Translate
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 
 #define LUMEN_HARDWARE_RAY_TRACING_ENTRY(name)\
-void name##_INTERNAL(uint3 DispatchThreadIndex);\
+void name##_INTERNAL(uint3 DispatchThreadIndex, uint3 DispatchGroupId, uint DispatchGroupIndex);\
 [numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]\
-void name##CS(uint3 DispatchThreadIndex : SV_DispatchThreadID) {\
-	name##_INTERNAL(DispatchThreadIndex);}\
-void name##_INTERNAL(uint3 DispatchThreadIndex)
+void name##CS(uint3 DispatchThreadIndex : SV_DispatchThreadID, uint3 DispatchGroupId : SV_GroupID, uint DispatchGroupIndex : SV_GroupIndex) {\
+	name##_INTERNAL(DispatchThreadIndex, DispatchGroupId, DispatchGroupIndex);}\
+void name##_INTERNAL(uint3 DispatchThreadIndex, uint3 DispatchGroupId, uint DispatchGroupIndex)
 
 #else // LUMEN_HARDWARE_RAYTRACING
 
 #define LUMEN_HARDWARE_RAY_TRACING_ENTRY(name)\
-void name##_INTERNAL(uint3 DispatchThreadIndex);\
+void name##_INTERNAL(uint3 DispatchThreadIndex, uint3 DispatchGroupId, uint DispatchGroupIndex);\
 RAY_TRACING_ENTRY_RAYGEN(name##RGS){\
-name##_INTERNAL(DispatchRaysIndex());}\
-void name##_INTERNAL(uint3 DispatchThreadIndex)
+name##_INTERNAL(DispatchRaysIndex(), DispatchRaysIndex(), 0);}\
+void name##_INTERNAL(uint3 DispatchThreadIndex, uint3 DispatchGroupId, uint DispatchGroupIndex)
 
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
