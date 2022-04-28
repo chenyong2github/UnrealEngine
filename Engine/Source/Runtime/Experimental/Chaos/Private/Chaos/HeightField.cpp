@@ -1912,12 +1912,6 @@ namespace Chaos
 	template <typename QueryGeomType>
 	bool FHeightField::OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD) const
 	{
-		if (OutMTD)
-		{
-			OutMTD->Normal = FVec3(0);
-			OutMTD->Penetration = TNumericLimits<FReal>::Lowest();
-		}
-
 		auto OverlapTriangleMTD = [&](const FVec3& A, const FVec3& B, const FVec3& C, FMTDInfo* InnerMTD) -> bool
 		{
 			const FVec3 AB = B - A;
@@ -1947,18 +1941,18 @@ namespace Chaos
 			return false;
 		};
 
-		auto OverlapTriangleNoMTD = [&](const FVec3& A, const FVec3& B, const FVec3& C) -> bool
+		auto OverlapTriangleNoMTD = [&](const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& C) -> bool
 		{
 			// points are assumed to be in the same space as the overlap geometry
-			const FVec3 AB = B - A;
-			const FVec3 AC = C - A;
+			const VectorRegister4Float AB = VectorSubtract(B, A);
+			const VectorRegister4Float AC = VectorSubtract(C, A);
 
 			//It's most likely that the query object is in front of the triangle since queries tend to be on the outside.
 			//However, maybe we should check if it's behind the triangle plane. Also, we should enforce this winding in some way
-			const FVec3 Offset = FVec3::CrossProduct(AB, AC);
+			const VectorRegister4Float Offset = VectorCross(AB, AC);
 
-			FTriangle TriangleConvex(A, B, C);
-			return GJKIntersectionSameSpace(TriangleConvex, QueryGeom, Thickness, Offset);
+			FTriangleRegister TriangleConvex(A, B, C);
+			return GJKIntersectionSameSpaceSimd(TriangleConvex, QueryGeom, Thickness, Offset);
 		};
 
 		bool bResult = false;
@@ -1971,13 +1965,16 @@ namespace Chaos
 		FlatQueryBounds.Max = FVec2(QueryBounds.Max()[0], QueryBounds.Max()[1]);
 
 		TArray<TVec2<int32>> Intersections;
-		FVec3 Points[4];
+		
 
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
 		bool bOverlaps = false;
 		if (OutMTD)
 		{
+			OutMTD->Normal = FVec3(0);
+			OutMTD->Penetration = TNumericLimits<FReal>::Lowest();
+			FVec3 Points[4];
 			for (const TVec2<int32>& Cell : Intersections)
 			{
 				const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
@@ -1990,19 +1987,31 @@ namespace Chaos
 		}
 		else
 		{
-			FAABB3 CellBounds;
+			VectorRegister4Float Points[4];
+			const UE::Math::TQuat<FReal>& RotationDouble = QueryTM.GetRotation();
+			VectorRegister4Float Rotation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RotationDouble.X, RotationDouble.Y, RotationDouble.Z, RotationDouble.W));
+			// Normalize rotation
+			Rotation = VectorNormalizeSafe(Rotation, GlobalVectorConstants::Float0001);
+			VectorRegister4Float InvRotation = VectorQuaternionInverse(Rotation);
+
+			const UE::Math::TVector<FReal>& TranslationDouble = QueryTM.GetTranslation();
+			const VectorRegister4Float Translation = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(TranslationDouble.X, TranslationDouble.Y, TranslationDouble.Z, 0.0));
+			
+			FAABBVectorized CellBounds;
+			const FAABBVectorized QueryBoundsSimd(QueryBounds);
 			for (const TVec2<int32>& Cell : Intersections)
 			{
 				const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
-				GeomData.GetPointsAndBoundsScaled(SingleIndex, Points, CellBounds);
-
-				if (CellBounds.Intersects(QueryBounds))
+				GeomData.GetPointsAndBoundsScaledSimd(SingleIndex, Points, CellBounds);
+				if (CellBounds.Intersects(QueryBoundsSimd))
 				{
 					// pre-transform the triangle in overlap geometry space
-					Points[0] = QueryTM.InverseTransformPositionNoScale(Points[0]);
-					Points[1] = QueryTM.InverseTransformPositionNoScale(Points[1]);
-					Points[2] = QueryTM.InverseTransformPositionNoScale(Points[2]);
-					Points[3] = QueryTM.InverseTransformPositionNoScale(Points[3]);
+					for (int32 Index = 0; Index < 4; ++Index)
+					{
+						VectorRegister4Float& P = Points[Index];
+						P = VectorSubtract(P, Translation);
+						P = VectorQuaternionRotateVector(InvRotation, P);
+					}
 
 					if (OverlapTriangleNoMTD(Points[0], Points[1], Points[3]))
 					{

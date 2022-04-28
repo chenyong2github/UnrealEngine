@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#if PLATFORM_ENABLE_VECTORINTRINSICS_NEON || PLATFORM_ENABLE_VECTORINTRINSICS
 #include "Math/VectorRegister.h"
 #include "Chaos/VectorUtility.h"
 
@@ -453,5 +452,3 @@ namespace Chaos
 		return ClosestPoint;
 	}
 }
-
-#endif
