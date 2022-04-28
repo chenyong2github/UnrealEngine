@@ -8,11 +8,11 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "OptimusDataDomain.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RenderGraphResources.h"
+#include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLegacyVertexDeltaModelDataInterfaceParameters,)

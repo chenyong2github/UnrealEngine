@@ -4,11 +4,11 @@
 
 #include "Components/SkinnedMeshComponent.h"
 #include "ComputeFramework/ShaderParameterMetadataAllocation.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "OptimusHelpers.h"
 #include "OptimusDeformerInstance.h"
 #include "OptimusVariableDescription.h"
+#include "ShaderParameterMetadataBuilder.h"
 
 void UOptimusGraphDataInterface::Init(TArray<FOptimusGraphVariableDescription> const& InVariables)
 {

@@ -13,9 +13,9 @@
 #include "ComputeFramework/ComputeKernelShared.h"
 #include "ComputeFramework/ComputeKernelSource.h"
 #include "ComputeFramework/ShaderParameterMetadataAllocation.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "GameFramework/Actor.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "ShaderParameterMetadataBuilder.h"
 
 UComputeGraph::UComputeGraph() = default;
 

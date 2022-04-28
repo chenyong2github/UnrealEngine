@@ -9,8 +9,8 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Package.h"
 #include "UObject/Class.h"
-#include "ComputeFramework/Public/ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "Math/TransformCalculus.h"
+#include "ShaderParameterMetadataBuilder.h"
 
 struct FShaderValueTypeHandle;
 

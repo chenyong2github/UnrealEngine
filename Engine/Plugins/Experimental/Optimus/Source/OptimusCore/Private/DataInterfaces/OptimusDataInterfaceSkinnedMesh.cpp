@@ -3,10 +3,10 @@
 #include "OptimusDataInterfaceSkinnedMesh.h"
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "OptimusDataDomain.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
 

@@ -3,10 +3,10 @@
 #include "OptimusDataInterfaceSkinnedMeshExec.h"
 
 #include "Components/SkinnedMeshComponent.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
 FString UOptimusSkinnedMeshExecDataInterface::GetDisplayName() const

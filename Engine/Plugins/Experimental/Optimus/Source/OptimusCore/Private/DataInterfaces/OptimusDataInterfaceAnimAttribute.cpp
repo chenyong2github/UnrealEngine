@@ -8,10 +8,10 @@
 #include "OptimusValueContainer.h"
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParameterMetadataAllocation.h"
 #include "Animation/BuiltInAttributeTypes.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "ShaderParameterMetadataBuilder.h"
 
 static const FString PinNameDelimiter = TEXT(" - ");
 static const FString HlslIdDelimiter = TEXT("_");

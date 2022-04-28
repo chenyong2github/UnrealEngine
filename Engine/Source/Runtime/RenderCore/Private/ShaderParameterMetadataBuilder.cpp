@@ -1,14 +1,39 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
+#include "ShaderParameterMetadataBuilder.h"
 
-void FShaderParametersMetadataBuilder::AddNestedStruct(
+void FShaderParametersMetadataBuilder::AddReferencedStruct(
 	const TCHAR* Name,
-	FShaderParametersMetadata* StructMetadata,
+	const FShaderParametersMetadata* StructMetadata,
+	EShaderPrecisionModifier::Type Precision
+)
+{
+	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+
+	new(Members) FShaderParametersMetadata::FMember(
+		Name,
+		StructMetadata->GetStructTypeName(),
+		__LINE__,
+		NextMemberOffset,
+		UBMT_REFERENCED_STRUCT,
+		Precision,
+		1,
+		1,
+		0,
+		StructMetadata
+	);
+
+	NextMemberOffset += Align(StructMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
+}
+
+uint32 FShaderParametersMetadataBuilder::AddNestedStruct(
+	const TCHAR* Name,
+	const FShaderParametersMetadata* StructMetadata,
 	EShaderPrecisionModifier::Type Precision /* = EShaderPrecisionModifier::Float */
 )
 {
 	NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+	const uint32 ThisMemberOffset = NextMemberOffset;
 
 	new(Members) FShaderParametersMetadata::FMember(
 		Name,
@@ -24,6 +49,7 @@ void FShaderParametersMetadataBuilder::AddNestedStruct(
 	);
 
 	NextMemberOffset += Align(StructMetadata->GetSize(), SHADER_PARAMETER_STRUCT_ALIGNMENT);
+	return ThisMemberOffset;
 }
 
 void FShaderParametersMetadataBuilder::AddBufferSRV(

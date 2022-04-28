@@ -6,9 +6,20 @@
 #include "ShaderParameterMacros.h"
 #include "ShaderParameterMetadata.h"
 
-class COMPUTEFRAMEWORK_API FShaderParametersMetadataBuilder
+class RENDERCORE_API FShaderParametersMetadataBuilder
 {
 public:
+	FShaderParametersMetadataBuilder() {}
+
+	explicit FShaderParametersMetadataBuilder(const FShaderParametersMetadata* RootParametersMetadata)
+	{
+		if (RootParametersMetadata)
+		{
+			Members = RootParametersMetadata->GetMembers();
+			NextMemberOffset = RootParametersMetadata->GetSize();
+		}
+	}
+
 	template<typename T>
 	void AddParam(
 		const TCHAR* Name,
@@ -36,7 +47,22 @@ public:
 	}
 
 	template<typename T>
-	void AddNestedStruct(
+	void AddReferencedStruct(
+		const TCHAR* Name,
+		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
+		)
+	{
+		AddReferencedStruct(Name, TShaderParameterStructTypeInfo<T>::GetStructMetadata(), Precision);
+	}
+
+	void AddReferencedStruct(
+		const TCHAR* Name,
+		const FShaderParametersMetadata* StructMetadata,
+		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
+		);
+
+	template<typename T>
+	uint32 AddNestedStruct(
 		const TCHAR* Name,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
 		)
@@ -44,6 +70,7 @@ public:
 		using TParamTypeInfo = TShaderParameterStructTypeInfo<T>;
 
 		NextMemberOffset = Align(NextMemberOffset, TParamTypeInfo::Alignment);
+		const uint32 ThisMemberOffset = NextMemberOffset;
 
 		new(Members) FShaderParametersMetadata::FMember(
 			Name,
@@ -59,11 +86,12 @@ public:
 		);
 
 		NextMemberOffset += sizeof(typename TParamTypeInfo::TAlignedType);
+		return ThisMemberOffset;
 	}
 
-	void AddNestedStruct(
+	uint32 AddNestedStruct(
 		const TCHAR* Name,
-		FShaderParametersMetadata* StructMetadata,
+		const FShaderParametersMetadata* StructMetadata,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
 		);
 

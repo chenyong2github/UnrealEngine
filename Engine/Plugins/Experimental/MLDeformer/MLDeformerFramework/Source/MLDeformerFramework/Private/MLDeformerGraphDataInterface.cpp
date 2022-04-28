@@ -4,7 +4,6 @@
 
 #include "Components/SkeletalMeshComponent.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "MLDeformerModel.h"
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerAsset.h"
@@ -14,6 +13,7 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RenderGraphResources.h"
+#include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 
 TArray<FOptimusCDIPinDefinition> UMLDeformerGraphDataInterface::GetPinDefinitions() const

@@ -4,12 +4,12 @@
 
 #include "Components/SceneComponent.h"
 #include "ComputeFramework/ComputeKernelPermutationSet.h"
-#include "ComputeFramework/ShaderParameterMetadataBuilder.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "CoreGlobals.h"
 #include "Engine/World.h"
 #include "SceneInterface.h"
 #include "ShaderCore.h"
+#include "ShaderParameterMetadataBuilder.h"
 
 FString UOptimusSceneDataInterface::GetDisplayName() const
 {
