@@ -215,12 +215,11 @@ namespace Metasound
 					[this, i](int32 StartFrame, int32 EndFrame)
 					{
 						CurrentIndex = i;
+						*OutputValue = *InputValues[CurrentIndex];
 						OutputTrigger->TriggerFrame(StartFrame);
 					}
-					);
-			}
-
-			*OutputValue = *InputValues[CurrentIndex];
+				);
+			}			
 		}
 
 	private:
