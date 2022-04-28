@@ -359,7 +359,7 @@ bool FUnrealVirtualizationToolApp::TrySubmitChangelist(const TArray<FString>& De
 		return true;
 	}
 
-	UE_LOG(LogVirtualizationTool, Error, TEXT("Attempting to submit the changelist '%s'"), *ChangelistNumber);
+	UE_LOG(LogVirtualizationTool, Display, TEXT("Attempting to submit the changelist '%s'"), *ChangelistNumber);
 
 	if (!SCCProvider.IsValid())
 	{
