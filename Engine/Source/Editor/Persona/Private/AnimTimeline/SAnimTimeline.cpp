@@ -218,9 +218,7 @@ void SAnimTimeline::Construct(const FArguments& InArgs, const TSharedRef<FAnimMo
 								+ SVerticalBox::Slot()
 								.FillHeight(1.f)
 								[
-									SNew(SScrollBox)
-									.ExternalScrollbar(ScrollBar)
-									+ SScrollBox::Slot()
+									SNew(SScrollBorder, Outliner.ToSharedRef())
 									[
 										SNew(SHorizontalBox)
 										
