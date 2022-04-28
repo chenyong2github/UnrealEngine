@@ -860,10 +860,15 @@ void AUsdStageActor::OnUsdObjectsChanged( const UsdUtils::FObjectChangesByPath& 
 			{
 				UE::FSdfPath ChildPath{ *ChangeIt.Key() };
 
-				NewEntries.Add( InfoCache->UnwindToNonCollapsedPath( ChildPath, ECollapsingType::Assets ).GetString(), true );
-				NewEntries.Add( InfoCache->UnwindToNonCollapsedPath( ChildPath, ECollapsingType::Components ).GetString(), true );
+				// Usually the cache should contain info about any prim on the stage, but if this is a
+				// notice about a prim being *created*, it may not have anything about this prim yet
+				if ( InfoCache->ContainsInfoAboutPrim( ChildPath ) )
+				{
+					NewEntries.Add( InfoCache->UnwindToNonCollapsedPath( ChildPath, ECollapsingType::Assets ).GetString(), true );
+					NewEntries.Add( InfoCache->UnwindToNonCollapsedPath( ChildPath, ECollapsingType::Components ).GetString(), true );
 
-				ChangeIt.RemoveCurrent();
+					ChangeIt.RemoveCurrent();
+				}
 			}
 		}
 

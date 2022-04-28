@@ -34,6 +34,14 @@ bool FUsdInfoCache::Serialize( FArchive& Ar )
 	return true;
 }
 
+bool FUsdInfoCache::ContainsInfoAboutPrim( const UE::FSdfPath& Path ) const
+{
+	return AssetPathsToCollapsedRoot.Contains( Path )
+		|| ComponentPathsToCollapsedRoot.Contains( Path )
+		|| ExpectedVertexCountPerSubtree.Contains( Path )
+		|| ExpectedMaterialSlotCountPerSubtree.Contains( Path );
+}
+
 bool FUsdInfoCache::IsPathCollapsed( const UE::FSdfPath& Path, ECollapsingType CollapsingType ) const
 {
 	FReadScopeLock ScopeLock( Lock );

@@ -28,6 +28,9 @@ struct USDSCHEMAS_API FUsdInfoCache
 {
 	bool Serialize( FArchive& Ar );
 
+	// Returns whether we contain any info about prim at 'Path' at all
+	bool ContainsInfoAboutPrim( const UE::FSdfPath& Path ) const;
+
 	bool IsPathCollapsed( const UE::FSdfPath& Path, ECollapsingType CollapsingType ) const;
 	bool DoesPathCollapseChildren( const UE::FSdfPath& Path, ECollapsingType CollapsingType ) const;
 
