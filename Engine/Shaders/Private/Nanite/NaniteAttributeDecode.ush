@@ -81,7 +81,7 @@ float3 UnpackNormal(uint Packed, uint Bits)
 	float3 N = float3(F.xy, 1.0 - abs(F.x) - abs(F.y));
 	float T = saturate(-N.z);
 	N.xy += select(N.xy >= 0.0, -T, T);
-	return N;
+	return normalize(N);
 }
 
 struct FBarycentrics
