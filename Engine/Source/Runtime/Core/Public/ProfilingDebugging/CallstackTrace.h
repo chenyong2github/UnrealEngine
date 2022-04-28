@@ -46,7 +46,7 @@ CORE_API uint32 CallstackTrace_GetCurrentId();
   */
 #define CALLSTACK_TRACE_LIMIT_CALLSTACKRESOLVE_SCOPE() 						FCallStackTraceLimitResolveScope PREPROCESSOR_JOIN(FCTLMScope,__LINE__)
 
-extern uint32 GCallStackTracingTlsSlotIndex;
+extern CORE_API uint32 GCallStackTracingTlsSlotIndex;
 
 /**
 * @return the fallback callstack address

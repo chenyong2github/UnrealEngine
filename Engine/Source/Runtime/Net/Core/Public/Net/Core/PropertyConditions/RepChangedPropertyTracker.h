@@ -13,7 +13,7 @@
  * TODO: This class (and arguably IRepChangedPropertyTracker) should be renamed to reflect
  *			what they actually do now.
  */
-class NETCORE_API FRepChangedPropertyTracker : public IRepChangedPropertyTracker
+class FRepChangedPropertyTracker : public IRepChangedPropertyTracker
 {
 public:
 	FRepChangedPropertyTracker() = delete;
