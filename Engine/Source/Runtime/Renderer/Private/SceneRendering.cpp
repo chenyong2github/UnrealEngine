@@ -112,6 +112,11 @@ bool IsDynamicInstancingEnabled(ERHIFeatureLevel::Type FeatureLevel)
 		&& UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
 }
 
+int32 GetMaxNumReflectionCaptures(EShaderPlatform ShaderPlatform)
+{
+	return IsMobilePlatform(ShaderPlatform) ? GMobileMaxNumReflectionCaptures : GMaxNumReflectionCaptures;
+}
+
 int32 GDumpInstancingStats = 0;
 FAutoConsoleVariableRef CVarDumpInstancingStats(
 	TEXT("r.MeshDrawCommands.LogDynamicInstancingStats"),

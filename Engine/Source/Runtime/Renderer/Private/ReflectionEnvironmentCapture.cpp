@@ -459,7 +459,7 @@ int32 FindOrAllocateCubemapIndex(FScene* Scene, const UReflectionCaptureComponen
 		Scene->ReflectionSceneData.AllocatedReflectionCaptureState.Add(Component, FCaptureComponentSceneState(CubemapIndex));
 		Scene->ReflectionSceneData.AllocatedReflectionCaptureStateHasChanged = true;
 
-		check(CubemapIndex < GMaxNumReflectionCaptures);
+		check(CubemapIndex < GetMaxNumReflectionCaptures(Scene->GetShaderPlatform()));
 	}
 
 	check(CubemapIndex >= 0);
@@ -749,7 +749,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 	{
 		if (SupportsTextureCubeArray(GetFeatureLevel()))
 		{
-			int32_t PlatformMaxNumReflectionCaptures = FMath::Min(FMath::FloorToInt(GMaxTextureArrayLayers / 6.0f), GMaxNumReflectionCaptures);
+			int32_t PlatformMaxNumReflectionCaptures = FMath::Min(FMath::FloorToInt(GMaxTextureArrayLayers / 6.0f), GetMaxNumReflectionCaptures(GetShaderPlatform()));
 
 			for (int32 CaptureIndex = 0; CaptureIndex < NewCaptures.Num(); CaptureIndex++)
 			{

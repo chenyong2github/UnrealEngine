@@ -56,11 +56,11 @@ float3 CompositeReflectionCapturesAndSkylightTWS(
 	#endif
 #endif
 
-		FLWCVector3 CaptureWorldPosition = MakeLWCVector3(ReflectionCapture.TilePosition[CaptureIndex].xyz, ReflectionCapture.PositionAndRadius[CaptureIndex].xyz);
+		FLWCVector3 CaptureWorldPosition = MakeLWCVector3(GetReflectionTilePosition(CaptureIndex).xyz, GetReflectionPositionAndRadius(CaptureIndex).xyz);
 		float3 CaptureTranslatedWorldPosition = LWCToFloat(LWCAdd(CaptureWorldPosition, PrimaryView.PreViewTranslation));
-		float CaptureRadius = ReflectionCapture.PositionAndRadius[CaptureIndex].w;
-			
-		float4 CaptureProperties = ReflectionCapture.CaptureProperties[CaptureIndex];
+		float CaptureRadius = GetReflectionPositionAndRadius(CaptureIndex).w;
+
+		float4 CaptureProperties = GetReflectionCaptureProperties(CaptureIndex);
 
 		float3 CaptureVector = TranslatedWorldPosition - CaptureTranslatedWorldPosition;
 		float CaptureVectorLength = sqrt(dot(CaptureVector, CaptureVector));		
@@ -70,7 +70,7 @@ float3 CompositeReflectionCapturesAndSkylightTWS(
 		if (CaptureVectorLength < CaptureRadius)
 		{
 			float3 ProjectedCaptureVector = RayDirection;
-			float4 CaptureOffsetAndAverageBrightness = ReflectionCapture.CaptureOffsetAndAverageBrightness[CaptureIndex];
+			float4 CaptureOffsetAndAverageBrightness = GetReflectionCaptureOffsetAndAverageBrightness(CaptureIndex);
 
 			// Fade out based on distance to capture
 			float DistanceAlpha = 0;
@@ -83,7 +83,8 @@ float3 CompositeReflectionCapturesAndSkylightTWS(
 					BRANCH if (CaptureProperties.b > 0)
 					#endif
 					{
-						ProjectedCaptureVector = GetLookupVectorForBoxCapture(RayDirection, TranslatedWorldPosition, float4(CaptureTranslatedWorldPosition, CaptureRadius), ReflectionCapture.BoxTransform[CaptureIndex], ReflectionCapture.BoxScales[CaptureIndex], CaptureOffsetAndAverageBrightness.xyz, DistanceAlpha);
+						ProjectedCaptureVector = GetLookupVectorForBoxCapture(RayDirection, TranslatedWorldPosition, float4(CaptureTranslatedWorldPosition, CaptureRadius),
+																			 GetReflectionBoxTransform(CaptureIndex), GetReflectionBoxScales(CaptureIndex), CaptureOffsetAndAverageBrightness.xyz, DistanceAlpha);
 					}
 				#endif
 
@@ -123,13 +124,13 @@ float3 CompositeReflectionCapturesAndSkylightTWS(
 
 	float3 ProjectedCaptureVector = RayDirection;
 
-	FLWCVector3 SingleCaptureWorldPosition = MakeLWCVector3(ReflectionCapture.TilePosition[SingleCaptureIndex].xyz, ReflectionCapture.PositionAndRadius[SingleCaptureIndex].xyz);
+	FLWCVector3 SingleCaptureWorldPosition = MakeLWCVector3(GetReflectionTilePosition(SingleCaptureIndex).xyz, GetReflectionPositionAndRadius(SingleCaptureIndex).xyz);
 	float3 SingleCaptureTranslatedWorldPosition = LWCToFloat(LWCAdd(SingleCaptureWorldPosition, PrimaryView.PreViewTranslation));
-	float SingleCaptureRadius = ReflectionCapture.PositionAndRadius[SingleCaptureIndex].w;
+	float SingleCaptureRadius = GetReflectionPositionAndRadius(SingleCaptureIndex).w;
 
-	float4 SingleCaptureOffsetAndAverageBrightness = ReflectionCapture.CaptureOffsetAndAverageBrightness[SingleCaptureIndex];
-	float SingleCaptureBrightness = ReflectionCapture.CaptureProperties[SingleCaptureIndex].x;
-	float SingleCaptureArrayIndex = ReflectionCapture.CaptureProperties[SingleCaptureIndex].y;
+	float4 SingleCaptureOffsetAndAverageBrightness = GetReflectionCaptureOffsetAndAverageBrightness(SingleCaptureIndex);
+	float SingleCaptureBrightness = GetReflectionCaptureProperties(SingleCaptureIndex).x;
+	float SingleCaptureArrayIndex = GetReflectionCaptureProperties(SingleCaptureIndex).y;
 
 	#define APPROXIMATE_CONTINUOUS_SINGLE_CAPTURE_PARALLAX 0
 	#if APPROXIMATE_CONTINUOUS_SINGLE_CAPTURE_PARALLAX

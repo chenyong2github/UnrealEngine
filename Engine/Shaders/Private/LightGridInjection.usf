@@ -5,6 +5,7 @@
 #include "Common.ush"
 #include "Definitions.usf"
 #include "LargeWorldCoordinates.ush"
+#include "ReflectionEnvironmentShared.ush"
 
 RWBuffer<uint> RWNumCulledLightsGrid;
 RWBuffer<uint> RWCulledLightDataGrid;
@@ -250,10 +251,10 @@ void LightGridInjectionCS(
 		LOOP
 		for (uint ReflectionCaptureIndex = 0; ReflectionCaptureIndex < NumReflectionCaptures; ReflectionCaptureIndex++)
 		{
-			FLWCVector3 CaptureWorldPosition = MakeLWCVector3(ReflectionCapture.TilePosition[ReflectionCaptureIndex].xyz, ReflectionCapture.PositionAndRadius[ReflectionCaptureIndex].xyz);
+			FLWCVector3 CaptureWorldPosition = MakeLWCVector3(GetReflectionTilePosition(ReflectionCaptureIndex).xyz, GetReflectionPositionAndRadius(ReflectionCaptureIndex).xyz);
 			float3 CaptureTranslatedWorldPosition = LWCToFloat(LWCAdd(CaptureWorldPosition, PrimaryView.PreViewTranslation));
 			float3 ViewSpaceCapturePosition = mul(float4(CaptureTranslatedWorldPosition, 1), View.TranslatedWorldToView).xyz;
-			float CaptureRadius = ReflectionCapture.PositionAndRadius[ReflectionCaptureIndex].w;
+			float CaptureRadius = GetReflectionPositionAndRadius(ReflectionCaptureIndex).w;
 
 			float BoxDistanceSq = ComputeSquaredDistanceFromBoxToPoint(ViewTileCenter, ViewTileExtent, ViewSpaceCapturePosition);
 
