@@ -12,8 +12,6 @@ All common code shared between the editor side debugger and debugger clients run
 #include "NiagaraCommon.h"
 #include "NiagaraDebuggerCommon.generated.h"
 
-#define WITH_NIAGARA_DEBUGGER (!UE_BUILD_SHIPPING)// || WITH_EDITOR)
-
 //////////////////////////////////////////////////////////////////////////
 // Niagara Outliner.
 
@@ -519,6 +517,10 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	/** When enabled we show information about emitter / particle counts. */
 	UPROPERTY(Config, EditAnywhere, Category = "Debug System", meta = (EditCondition = "SystemDebugVerbosity != ENiagaraDebugHudVerbosity::None"))
 	ENiagaraDebugHudVerbosity SystemEmitterVerbosity = ENiagaraDebugHudVerbosity::Basic;
+
+	/** When enabled allows data interfaces to include additional debugging information. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug System", meta = (EditCondition = "SystemDebugVerbosity != ENiagaraDebugHudVerbosity::None"))
+	ENiagaraDebugHudVerbosity DataInterfaceVerbosity = ENiagaraDebugHudVerbosity::None;
 
 	/** When enabled will show the system bounds for all filtered systems. */
 	UPROPERTY(Config, EditAnywhere, Category = "Debug System")

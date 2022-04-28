@@ -291,7 +291,7 @@ void FNiagaraWorldManager::Init(UWorld* InWorld)
 	//Possibly a later hook we can use.
 	//PrimePoolForAllSystems();
 
-#if !UE_BUILD_SHIPPING
+#if WITH_NIAGARA_DEBUGGER
 	NiagaraDebugHud.Reset(new FNiagaraDebugHud(World));
 #endif
 }
@@ -842,11 +842,13 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		TickFunc.EndTickGroup = GNiagaraAllowAsyncWorkToEndOfFrame ? TG_LastDemotable : (ETickingGroup)TickFunc.TickGroup;
 	}
 
+#if WITH_NIAGARA_DEBUGGER
 	// Tick debug HUD for the world
 	if (NiagaraDebugHud != nullptr)
 	{
 		NiagaraDebugHud->GatherSystemInfo();
 	}
+#endif
 
 	if ( DebugPlaybackMode == ENiagaraDebugPlaybackMode::Step )
 	{

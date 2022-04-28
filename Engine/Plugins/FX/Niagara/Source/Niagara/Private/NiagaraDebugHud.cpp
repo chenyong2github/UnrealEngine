@@ -17,6 +17,8 @@
 #include "Particles/FXBudget.h"
 #include "DrawDebugHelpers.h"
 
+#if WITH_NIAGARA_DEBUGGER
+
 namespace NiagaraDebugLocal
 {
 	FCriticalSection RTFramesGuard;
@@ -2638,7 +2640,21 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 								{
 									if (UserVariable.IsDataInterface())
 									{
-										StringBuilder.Appendf(TEXT("%s(%s %s)\n"), *UserVariable.GetName().ToString(), *GetNameSafe(UserVariable.GetType().GetClass()) , *GetNameSafe(ParameterStore->GetDataInterfaces()[UserVariable.Offset]));
+										UNiagaraDataInterface* DataInterface = ParameterStore->GetDataInterfaces()[UserVariable.Offset];
+										FString DataInterfaceString;
+										if ( DataInterface != nullptr && Settings.DataInterfaceVerbosity != ENiagaraDebugHudVerbosity::None )
+										{
+											DataInterface->DrawDebugHud(Canvas, SystemInstance, DataInterfaceString, Settings.DataInterfaceVerbosity == ENiagaraDebugHudVerbosity::Verbose);
+										}
+
+										if ( DataInterfaceString.IsEmpty() )
+										{
+											StringBuilder.Appendf(TEXT("%s(%s %s)\n"), *UserVariable.GetName().ToString(), *GetNameSafe(UserVariable.GetType().GetClass()) , *GetNameSafe(DataInterface));
+										}
+										else
+										{
+											StringBuilder.Appendf(TEXT("%s(%s)\n"), *UserVariable.GetName().ToString(), *DataInterfaceString);
+										}
 									}
 									else if (UserVariable.IsUObject())
 									{
@@ -3113,3 +3129,5 @@ void FNiagaraDebugHUDStatsListener::TickRT()
 #endif
 }
 #endif//WITH_PARTICLE_PERF_STATS
+
+#endif //WITH_NIAGARA_DEBUGGER

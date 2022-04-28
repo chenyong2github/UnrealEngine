@@ -827,6 +827,18 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 		return FNiagaraDataInterfaceArrayImplHelper::UpgradeFunctionCall(FunctionSignature);
 	}
 #endif
+#if WITH_NIAGARA_DEBUGGER
+	virtual void DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const override
+	{
+		FNDIArrayInstanceData_GameThread<TArrayType>* InstanceData = PerInstanceData_GameThread.FindRef(SystemInstance->GetId());
+		if (InstanceData == nullptr )
+		{
+			return;
+		}
+		FReadArrayRef ArrayData(Owner, InstanceData);
+		VariableDataString = FString::Printf(TEXT("ArrayType(%s) CpuLength(%d)"), *FNDIArrayImplHelper<TArrayType>::GetTypeDefinition().GetName(), ArrayData.GetArray().Num());
+	}
+#endif
 
 	virtual bool CopyToInternal(INDIArrayProxyBase* InDestination) const override
 	{

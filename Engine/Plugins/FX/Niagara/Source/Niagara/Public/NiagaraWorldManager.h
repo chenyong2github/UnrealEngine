@@ -202,7 +202,9 @@ public:
 	void SetDebugPlaybackRate(float Rate) { DebugPlaybackRate = FMath::Clamp(Rate, KINDA_SMALL_NUMBER, 10.0f); }
 	float GetDebugPlaybackRate() const { return DebugPlaybackRate; }
 
+#if WITH_NIAGARA_DEBUGGER
 	class FNiagaraDebugHud* GetNiagaraDebugHud() { return NiagaraDebugHud.Get(); }
+#endif
 
 	class FNiagaraDeferredMethodQueue& GetDeferredMethodQueue() { return DeferredMethods; }
 
@@ -317,7 +319,9 @@ private:
 	ENiagaraDebugPlaybackMode DebugPlaybackMode = ENiagaraDebugPlaybackMode::Play;
 	float DebugPlaybackRate = 1.0f;
 
+#if WITH_NIAGARA_DEBUGGER
 	TUniquePtr<class FNiagaraDebugHud> NiagaraDebugHud;
+#endif
 
 	TMap<UNiagaraSystem*, UNiagaraCullProxyComponent*> CullProxyMap;
 

@@ -12,6 +12,7 @@
 #include "NiagaraDataInterface.generated.h"
 
 class INiagaraCompiler;
+class UCanvas;
 class UCurveVector;
 class UCurveLinearColor;
 class UCurveFloat;
@@ -432,6 +433,16 @@ public:
 #endif
 
 	virtual void PostExecute() {}
+
+#if WITH_NIAGARA_DEBUGGER
+	/**
+	Override this function to provide additional context to the debug HUD.
+	Fill VariableDataString with the data to display on the variable information in the HUD, this information
+	should be kept light to avoid polluting the display.
+	You can also use the Canvas to draw additional information based on verbosity
+	*/
+	virtual void DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const {};
+#endif
 
 #if WITH_EDITOR	
 	/** Refreshes and returns the errors detected with the corresponding data, if any.*/

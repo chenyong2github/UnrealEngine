@@ -5,6 +5,7 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "Async/ParallelFor.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/Canvas.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Internationalization/Internationalization.h"
 #include "NDISkeletalMeshCommon.h"
@@ -2706,6 +2707,44 @@ bool UNiagaraDataInterfaceSkeletalMesh::PerInstanceTick(void* PerInstanceData, F
 	FNDISkeletalMesh_InstanceData* Inst = (FNDISkeletalMesh_InstanceData*)PerInstanceData;
 	return Inst->Tick(this, SystemInstance, InDeltaSeconds);
 }
+
+#if WITH_NIAGARA_DEBUGGER
+void UNiagaraDataInterfaceSkeletalMesh::DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const
+{
+	FNDISkeletalMesh_InstanceData* InstanceData_GT = SystemInstance->FindTypedDataInterfaceInstanceData<FNDISkeletalMesh_InstanceData>(this);
+	if (InstanceData_GT == nullptr)
+	{
+		return;
+	}
+
+	USceneComponent* SceneComponent = InstanceData_GT->SceneComponent.Get();
+	USkeletalMesh* SkeletalMesh = InstanceData_GT->SkeletalMesh.Get();
+	VariableDataString = FString::Printf(TEXT("Skeleton(%s) SkelComp(%s)"), *GetNameSafe(SkeletalMesh), *GetNameSafe(SceneComponent));
+
+	if ( bVerbose && SceneComponent && SkeletalMesh )
+	{
+		FSkeletalMeshAccessorHelper MeshAccessor;
+		MeshAccessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstanceData_GT);
+		if (MeshAccessor.AreBonesAccessible())
+		{
+			const TArray<FTransform3f>& BoneTransforms = MeshAccessor.SkinningData->CurrComponentTransforms();
+			const FMatrix& InstanceTransform = InstanceData_GT->Transform;
+
+			for (const FTransform3f& BoneTransform : BoneTransforms)
+			{
+				const FVector BoneLocation = InstanceTransform.TransformPosition(FVector(BoneTransform.GetLocation()));
+				const FVector ScreenPos = Canvas->Project(BoneLocation, false);
+				if (ScreenPos.Z <= 0.0f)
+				{
+					continue;
+				}
+
+				Canvas->Canvas->DrawNGon(FVector2D(ScreenPos), FColor::Red, 8, 4.0f);
+			}
+		}
+	}
+}
+#endif
 
 #if WITH_EDITOR
 void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,

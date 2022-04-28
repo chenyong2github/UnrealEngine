@@ -22,6 +22,9 @@ struct INDIArrayProxyBase : public FNiagaraDataInterfaceProxyRW
 	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const = 0;
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) const = 0;
 #endif
+#if WITH_NIAGARA_DEBUGGER
+	virtual void DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const = 0;
+#endif
 	virtual bool CopyToInternal(INDIArrayProxyBase* Destination) const = 0;
 	virtual bool Equals(const INDIArrayProxyBase* Other) const = 0;
 	virtual int32 PerInstanceDataSize() const = 0;
@@ -59,6 +62,10 @@ public:
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override { return GetProxyAs<INDIArrayProxyBase>()->UpgradeFunctionCall(FunctionSignature); }
 #endif
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
+
+#if WITH_NIAGARA_DEBUGGER
+	virtual void DrawDebugHud(UCanvas* Canvas, FNiagaraSystemInstance* SystemInstance, FString& VariableDataString, bool bVerbose) const { GetProxyAs<INDIArrayProxyBase>()->DrawDebugHud(Canvas, SystemInstance, VariableDataString, bVerbose); }
+#endif
 
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const;
 	virtual bool Equals(const UNiagaraDataInterface* Other) const;

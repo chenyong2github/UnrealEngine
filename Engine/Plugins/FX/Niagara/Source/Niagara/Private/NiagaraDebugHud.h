@@ -13,6 +13,8 @@ Class used help debugging Niagara simulations
 #include "NiagaraGPUProfilerInterface.h"
 #include "Particles/ParticlePerfStatsManager.h"
 
+#if WITH_NIAGARA_DEBUGGER
+
 #if WITH_PARTICLE_PERF_STATS
 
 class FNiagaraDebugHud;
@@ -354,3 +356,5 @@ public:
 	void AddBox2D(FVector2D Pos, FVector2D Extents, FLinearColor Color, float Thickness, float Lifetime);
 	//Additional debug geometry helpers END
 };
+
+#endif //WITH_NIAGARA_DEBUGGER
