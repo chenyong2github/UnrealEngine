@@ -1335,6 +1335,7 @@ void FViewport::HighResScreenshot()
 		Canvas.Flush_GameThread();
 
 		// Draw the debug canvas
+		DummyViewport->GetDebugCanvas()->SetAllowedModes(FCanvas::Allow_DeleteOnRender);
 		DummyViewport->GetDebugCanvas()->Flush_GameThread(true);
 
 		HighResScreenshotEndFrame(DummyViewport);
