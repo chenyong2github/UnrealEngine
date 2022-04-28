@@ -9,6 +9,7 @@
 class IPropertyHandle;
 class IDetailPropertyRow;
 class SInlineEditableTextBlock;
+class SWidget;
 
 /**
  * Type customization for FInstancedPropertyBag.
@@ -56,16 +57,6 @@ public:
 	virtual void OnChildRowAdded(IDetailPropertyRow& ChildRow) override;
 
 protected:
-	FEdGraphPinType OnGetPinInfo(TSharedPtr<IPropertyHandle> ChildPropertyHandle) const;
-	void PinInfoChanged(const FEdGraphPinType& PinType, TSharedPtr<IPropertyHandle> ChildPropertyHandle) const;
-	
-	void GetFilteredVariableTypeTree(TArray<TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>>& TypeTree, ETypeTreeFilter TypeTreeFilter) const;
-	FText GetPropertyName(TSharedPtr<IPropertyHandle> ChildPropertyHandle) const;
-	bool OnValidatePropertyName(const FText& InText, FText& OutErrorMessage, TSharedPtr<IPropertyHandle> ChildPropertyHandle) const;
-	void OnChangePropertyName(const FText& InNewText, ETextCommit::Type InCommitType, TSharedPtr<IPropertyHandle> ChildPropertyHandle) const;
-	void OnRemoveProperty(TSharedPtr<IPropertyHandle> ChildPropertyHandle) const;
-	void OnMoveProperty(TSharedPtr<IPropertyHandle> ChildPropertyHandle, int32 Delta) const;
-
 	TSharedRef<SWidget> OnPropertyNameContent(TSharedPtr<IPropertyHandle> ChildPropertyHandle, TSharedPtr<SInlineEditableTextBlock> InlineWidget) const;
 
 	TSharedPtr<IPropertyHandle> StructProperty;
