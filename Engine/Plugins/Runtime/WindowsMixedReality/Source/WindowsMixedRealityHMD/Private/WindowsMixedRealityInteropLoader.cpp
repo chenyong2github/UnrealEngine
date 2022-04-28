@@ -25,7 +25,9 @@ namespace WindowsMixedReality
 		FPlatformMisc::GetOSVersions(OSVersionLabel, OSSubVersionLabel);
 		// GetOSVersion returns the Win10 release version in the OSVersion rather than the OSSubVersion, so parse it out ourselves
 		OSSubVersionLabel = OSVersionLabel;
-		bool bHasSupportedWindowsVersion = OSSubVersionLabel.StartsWith("Windows 10") || OSSubVersionLabel.StartsWith("Windows Server 2019");
+		bool bHasSupportedWindowsVersion = OSSubVersionLabel.StartsWith("Windows 10") || 
+			OSSubVersionLabel.StartsWith("Windows Server 2019") ||
+			OSSubVersionLabel.StartsWith("Windows 11");
 		bool bHasSupportedWindowsBuild = false;
 
 		// If we can't find Win10 version, check for Windows Server equivalent
