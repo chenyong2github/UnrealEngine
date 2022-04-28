@@ -7,6 +7,7 @@ using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace EpicGames.UHT.Parsers
@@ -365,6 +366,7 @@ namespace EpicGames.UHT.Parsers
 
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult UCLASSKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return ParseUClass(TopScope, ref Token);
@@ -372,6 +374,7 @@ namespace EpicGames.UHT.Parsers
 
 		[UhtKeyword(Extends = UhtTableNames.Class)]
 		[UhtKeyword(Extends = UhtTableNames.Class, Keyword = "GENERATED_BODY")]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult GENERATED_UCLASS_BODYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			UhtClass Class = (UhtClass)TopScope.ScopeType;

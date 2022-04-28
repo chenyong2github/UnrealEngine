@@ -7,6 +7,7 @@ using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 
@@ -181,6 +182,7 @@ namespace EpicGames.UHT.Parsers
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[UhtKeyword(Extends = UhtTableNames.Class)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult UDELEGATEKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return ParseUDelegate(TopScope, Token, true);
@@ -189,12 +191,14 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.Class)]
 		[UhtKeyword(Extends = UhtTableNames.Interface)]
 		[UhtKeyword(Extends = UhtTableNames.NativeInterface)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult UFUNCTIONKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return ParseUFunction(TopScope, Token);
 		}
 
 		[UhtKeywordCatchAll(Extends = UhtTableNames.Global)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult ParseCatchAllKeyword(UhtParsingScope TopScope, ref UhtToken Token)
 		{
 			if (UhtFunctionParser.IsValidateDelegateDeclaration(Token))
@@ -712,7 +716,7 @@ namespace EpicGames.UHT.Parsers
 			// The source name won't have the suffix applied to delegate names, however, the engine name will
 			// We use the engine name because we need to detect the suffix for delegates
 			string FunctionName = Function.EngineName;
-			if (FunctionName.EndsWith(UhtFunction.GeneratedDelegateSignatureSuffix))
+			if (FunctionName.EndsWith(UhtFunction.GeneratedDelegateSignatureSuffix, StringComparison.Ordinal))
 			{
 				FunctionName = FunctionName.Substring(0, FunctionName.Length - UhtFunction.GeneratedDelegateSignatureSuffix.Length);
 			}

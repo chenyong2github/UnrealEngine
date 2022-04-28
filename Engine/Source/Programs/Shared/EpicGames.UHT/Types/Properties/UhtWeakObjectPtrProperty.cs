@@ -4,6 +4,7 @@ using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace EpicGames.UHT.Types
@@ -109,6 +110,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		[UhtPropertyType(Keyword = "TWeakObjectPtr")]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtProperty? WeakObjectProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtClass? PropertyClass = ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, true);
@@ -121,6 +123,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		[UhtPropertyType(Keyword = "TAutoWeakObjectPtr")]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtProperty? AutoWeakObjectProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtClass? PropertyClass = ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, true);

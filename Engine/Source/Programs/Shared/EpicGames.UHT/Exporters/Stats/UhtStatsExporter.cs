@@ -5,6 +5,7 @@ using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.UHT.Exporters.Stats
 {
@@ -12,6 +13,7 @@ namespace EpicGames.UHT.Exporters.Stats
 	internal class UhtStatsExporter
 	{
 		[UhtExporter(Name = "Stats", Description = "Type Stats", Options = UhtExporterOptions.None)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void StatsExporter(IUhtExportFactory Factory)
 		{
 			SortedDictionary<string, int> CountByType = new SortedDictionary<string, int>();

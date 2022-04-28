@@ -58,7 +58,7 @@ namespace EpicGames.UHT.Types
 				switch (this.Module.ModuleType)
 				{
 					case UHTModuleType.Program:
-						return this.Module.BaseDirectory.Replace('\\', '/').StartsWith(Unreal.EngineDirectory.FullName.Replace('\\', '/'));
+						return this.Module.BaseDirectory.Replace('\\', '/').StartsWith(Unreal.EngineDirectory.FullName.Replace('\\', '/'), StringComparison.Ordinal);
 					case UHTModuleType.EngineRuntime:
 					case UHTModuleType.EngineUncooked:
 					case UHTModuleType.EngineDeveloper:
@@ -81,7 +81,7 @@ namespace EpicGames.UHT.Types
 		/// True if the package is a plugin
 		/// </summary>
 		[JsonIgnore]
-		public bool bIsPlugin => this.Module.BaseDirectory.Replace('\\', '/').Contains("/Plugins/");
+		public bool bIsPlugin => this.Module.BaseDirectory.Replace('\\', '/').Contains("/Plugins/", StringComparison.Ordinal);
 
 		/// <summary>
 		/// Short name of the package (without the /Script/)

@@ -1,5 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
@@ -14,6 +15,7 @@ namespace EpicGames.UHT.Parsers
 	public static class UhtScriptStructSpecifiers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NoExportSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtScriptStruct ScriptStruct = (UhtScriptStruct)SpecifierContext.Scope.ScopeType;
@@ -22,6 +24,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void AtomicSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtScriptStruct ScriptStruct = (UhtScriptStruct)SpecifierContext.Scope.ScopeType;
@@ -29,6 +32,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ImmutableSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtScriptStruct ScriptStruct = (UhtScriptStruct)SpecifierContext.Scope.ScopeType;
@@ -36,6 +40,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void HasDefaultsSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
@@ -47,6 +52,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void HasNoOpConstructorSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
@@ -58,6 +64,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void IsAlwaysAccessibleSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
@@ -69,6 +76,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void IsCoreTypeSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)

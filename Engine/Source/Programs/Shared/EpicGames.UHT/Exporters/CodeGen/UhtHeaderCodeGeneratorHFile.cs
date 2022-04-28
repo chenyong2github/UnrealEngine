@@ -552,7 +552,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 								{
 									string PropertyName = SparseProperty.SourceName;
 									string CleanPropertyName = PropertyName;
-									if (SparseProperty is UhtBoolProperty && PropertyName.StartsWith("b"))
+									if (SparseProperty is UhtBoolProperty && PropertyName.StartsWith("b", StringComparison.Ordinal))
 									{
 										CleanPropertyName = PropertyName.Substring(1);
 									}
@@ -1370,7 +1370,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		#region Enum helper methods
 		private static bool IsFullEnumName(string InEnumName)
 		{
-			return InEnumName.Contains("::");
+			return InEnumName.Contains("::", StringComparison.Ordinal);
 		}
 
 		private static StringView GenerateEnumPrefix(UhtEnum Enum)

@@ -224,24 +224,6 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		/// <param name="Comments">Comments to search</param>
 		/// <returns>True is a character in question was found</returns>
-		private static bool HasValidCommentChar(ReadOnlySpan<StringView> Comments)
-		{
-			foreach (StringView Comment in Comments)
-			{
-				if (HasValidCommentChar(Comment.Span))
-				{
-					return true;
-				}
-			}
-			return false;
-		}
-
-		// We consider any alpha/digit or code point > 0xFF as a valid comment char
-		/// <summary>
-		/// Given a list of comments, check to see if any have alpha, numeric, or unicode code points with a value larger than 0xFF.
-		/// </summary>
-		/// <param name="Comments">Comments to search</param>
-		/// <returns>True is a character in question was found</returns>
 		private static bool HasValidCommentChar(ReadOnlySpan<char> Comments)
 		{
 			foreach (char C in Comments)
@@ -286,9 +268,9 @@ namespace EpicGames.UHT.Parsers
 				int CommentStart, CommentEnd;
 
 				// Block comments go first
-				while ((CommentStart = Result.IndexOf("/*~")) != -1)
+				while ((CommentStart = Result.IndexOf("/*~", StringComparison.Ordinal)) != -1)
 				{
-					CommentEnd = Result.IndexOf("*/", CommentStart);
+					CommentEnd = Result.IndexOf("*/", CommentStart, StringComparison.Ordinal);
 					if (CommentEnd != -1)
 					{
 						Result = Result.Remove(CommentStart, CommentEnd - CommentStart + 2);
@@ -301,9 +283,9 @@ namespace EpicGames.UHT.Parsers
 				}
 
 				// Leftover line comments go next
-				while ((CommentStart = Result.IndexOf("//~")) != -1)
+				while ((CommentStart = Result.IndexOf("//~", StringComparison.Ordinal)) != -1)
 				{
-					CommentEnd = Result.IndexOf("\n", CommentStart);
+					CommentEnd = Result.IndexOf("\n", CommentStart, StringComparison.Ordinal);
 					if (CommentEnd != -1)
 					{
 						Result = Result.Remove(CommentStart, CommentEnd - CommentStart + 1);
@@ -317,38 +299,38 @@ namespace EpicGames.UHT.Parsers
 			}
 
 			// Check for known commenting styles.
-			bool bJavaDocStyle = Result.Contains("/**");
-			bool bCStyle = Result.Contains("/*");
-			bool bCPPStyle = Result.StartsWith("//");
+			bool bJavaDocStyle = Result.Contains("/**", StringComparison.Ordinal);
+			bool bCStyle = Result.Contains("/*", StringComparison.Ordinal);
+			bool bCPPStyle = Result.StartsWith("//", StringComparison.Ordinal);
 
 			if (bJavaDocStyle || bCStyle)
 			{
 				// Remove beginning and end markers.
 				if (bJavaDocStyle)
 				{
-					Result = Result.Replace("/**", "");
+					Result = Result.Replace("/**", "", StringComparison.Ordinal);
 				}
 				if (bCStyle)
 				{
-					Result = Result.Replace("/*", "");
+					Result = Result.Replace("/*", "", StringComparison.Ordinal);
 				}
-				Result = Result.Replace("*/", "");
+				Result = Result.Replace("*/", "", StringComparison.Ordinal);
 			}
 
 			if (bCPPStyle)
 			{
 				// Remove c++-style comment markers.  Also handle javadoc-style comments 
-				Result = Result.Replace("///", "");
-				Result = Result.Replace("//", "");
+				Result = Result.Replace("///", "", StringComparison.Ordinal);
+				Result = Result.Replace("//", "", StringComparison.Ordinal);
 
 				// Parser strips cpptext and replaces it with "// (cpptext)" -- prevent
 				// this from being treated as a comment on variables declared below the
 				// cpptext section
-				Result = Result.Replace("(cpptext)", "");
+				Result = Result.Replace("(cpptext)", "", StringComparison.Ordinal);
 			}
 
 			// Get rid of carriage return or tab characters, which mess up tooltips.
-			Result = Result.Replace("\r", "");
+			Result = Result.Replace("\r", "", StringComparison.Ordinal);
 
 			//wx widgets has a hard coded tab size of 8
 			{

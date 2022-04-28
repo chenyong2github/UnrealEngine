@@ -6,6 +6,7 @@ using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -71,6 +72,7 @@ namespace EpicGames.UHT.Parsers
 
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult USTRUCTKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return ParseUScriptStruct(TopScope, Token);
@@ -78,6 +80,7 @@ namespace EpicGames.UHT.Parsers
 
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct)]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct, Keyword = "GENERATED_BODY")]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult GENERATED_USTRUCT_BODYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			UhtScriptStruct ScriptStruct = (UhtScriptStruct)TopScope.ScopeType;
@@ -101,6 +104,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult RIGVM_METHODKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			ParseRigVM(TopScope);

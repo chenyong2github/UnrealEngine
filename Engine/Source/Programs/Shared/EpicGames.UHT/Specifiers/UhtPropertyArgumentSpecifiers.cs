@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
@@ -16,6 +17,7 @@ namespace EpicGames.UHT.Parsers
 	{
 		#region Argument Property Specifiers
 		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ConstSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
@@ -23,6 +25,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void RefSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
@@ -30,6 +33,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NotReplicatedSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;

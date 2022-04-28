@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
@@ -11,12 +12,14 @@ namespace EpicGames.UHT.Parsers
 	class UhtInterfaceClassSpecifiers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DependsOnSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			throw new UhtException(SpecifierContext.MessageSite, $"The dependsOn specifier is deprecated. Please use #include \"ClassHeaderFilename.h\" instead.");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void MinimalAPISpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClass Class = (UhtClass)SpecifierContext.Scope.ScopeType;
@@ -24,6 +27,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ConversionRootSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClass Class = (UhtClass)SpecifierContext.Scope.ScopeType;

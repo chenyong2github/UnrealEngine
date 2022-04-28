@@ -468,7 +468,7 @@ namespace EpicGames.UHT.Utils
 		public static string TabsToSpaces(String Input, int TabSpacing, bool bEmulateCrBug)
 		{
 			// If we have any tab characters, then we need to convert them to spaces
-			int TabIndex = Input.IndexOf('\t');
+			int TabIndex = Input.IndexOf('\t', StringComparison.Ordinal);
 			if (TabIndex == -1)
 			{
 				return Input;

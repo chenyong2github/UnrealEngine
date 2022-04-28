@@ -458,7 +458,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			{
 				throw new UhtIceException("Attempt to export a function that isn't a delegate as a delegate");
 			}
-			if (!Function.MarshalAndCallName.StartsWith(DelegatePrefix))
+			if (!Function.MarshalAndCallName.StartsWith(DelegatePrefix, StringComparison.Ordinal))
 			{
 				throw new UhtIceException("Marshal and call name must begin with 'delegate'");
 			}

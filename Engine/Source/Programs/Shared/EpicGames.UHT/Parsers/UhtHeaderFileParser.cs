@@ -7,6 +7,7 @@ using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace EpicGames.UHT.Parsers
@@ -137,6 +138,7 @@ namespace EpicGames.UHT.Parsers
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.ClassBase, Keyword = "public")]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct, Keyword = "public")]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult PublicKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return SetAccessSpecifier(TopScope, UhtAccessSpecifier.Public);
@@ -144,6 +146,7 @@ namespace EpicGames.UHT.Parsers
 
 		[UhtKeyword(Extends = UhtTableNames.ClassBase, Keyword = "protected")]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct, Keyword = "protected")]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult ProtectedKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return SetAccessSpecifier(TopScope, UhtAccessSpecifier.Protected);
@@ -151,6 +154,7 @@ namespace EpicGames.UHT.Parsers
 
 		[UhtKeyword(Extends = UhtTableNames.ClassBase, Keyword = "private")]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct, Keyword = "private")]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult PrivateKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return SetAccessSpecifier(TopScope, UhtAccessSpecifier.Private);
@@ -692,7 +696,7 @@ namespace EpicGames.UHT.Parsers
 						}
 						if (IncludeNameString.Span.Contains(".generated.h", StringComparison.Ordinal))
 						{
-							string RefName = Path.GetFileName(IncludeNameString.ToString()).Replace(".generated.h", ".h");
+							string RefName = Path.GetFileName(IncludeNameString.ToString()).Replace(".generated.h", ".h", StringComparison.Ordinal);
 							this.HeaderFile.AddReferencedHeader(RefName, true);
 						}
 						else

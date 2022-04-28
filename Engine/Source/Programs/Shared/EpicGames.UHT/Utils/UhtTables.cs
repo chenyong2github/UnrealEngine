@@ -148,7 +148,7 @@ namespace EpicGames.UHT.Utils
 			string Name = InName ?? string.Empty;
 			if (string.IsNullOrEmpty(Name))
 			{
-				if (MethodInfo.Name.EndsWith(Suffix))
+				if (MethodInfo.Name.EndsWith(Suffix, StringComparison.Ordinal))
 				{
 					Name = MethodInfo.Name.Substring(0, MethodInfo.Name.Length - Suffix.Length);
 				}

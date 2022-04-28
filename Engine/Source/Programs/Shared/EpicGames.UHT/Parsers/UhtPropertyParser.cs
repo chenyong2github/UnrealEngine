@@ -8,6 +8,7 @@ using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Threading;
 
@@ -1063,8 +1064,8 @@ namespace EpicGames.UHT.Parsers
 
 			// Check to see if the variable is deprecated, and if so set the flag
 			{
-				int DeprecatedIndex = NewProperty.SourceName.IndexOf("_DEPRECATED");
-				int NativizedPropertyPostfixIndex = NewProperty.SourceName.IndexOf("__pf"); //@TODO: check OverrideNativeName in Meta Data, to be sure it's not a random occurrence of the "__pf" string.
+				int DeprecatedIndex = NewProperty.SourceName.IndexOf("_DEPRECATED", StringComparison.Ordinal);
+				int NativizedPropertyPostfixIndex = NewProperty.SourceName.IndexOf("__pf", StringComparison.Ordinal); //@TODO: check OverrideNativeName in Meta Data, to be sure it's not a random occurrence of the "__pf" string.
 				bool bIgnoreDeprecatedWord = (NativizedPropertyPostfixIndex != -1) && (NativizedPropertyPostfixIndex > DeprecatedIndex);
 				if ((DeprecatedIndex != -1) && !bIgnoreDeprecatedWord)
 				{
@@ -1188,6 +1189,7 @@ namespace EpicGames.UHT.Parsers
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Class)]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtParseResult UPROPERTYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			UhtPropertyParseOptions Options = UhtPropertyParseOptions.ParseLayoutMacro | UhtPropertyParseOptions.List | UhtPropertyParseOptions.AddModuleRelativePath;
@@ -1219,6 +1221,7 @@ namespace EpicGames.UHT.Parsers
 	static class UhtDefaultPropertyParser
 	{
 		[UhtPropertyType(Options = UhtPropertyTypeOptions.Default)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static UhtProperty? DefaultProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtSession Session = PropertySettings.Outer.Session;

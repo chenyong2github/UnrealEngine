@@ -110,7 +110,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Hash code</returns>
 		public int GetHashCode([DisallowNull] UhtMetaDataKey obj)
 		{
-			return obj.Name.GetHashCode() ^ obj.Name.GetHashCode(StringComparison.OrdinalIgnoreCase);
+			return obj.Index.GetHashCode() ^ obj.Name.GetHashCode(StringComparison.OrdinalIgnoreCase);
 		}
 	}
 

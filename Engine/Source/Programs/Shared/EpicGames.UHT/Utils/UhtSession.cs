@@ -1174,7 +1174,7 @@ namespace EpicGames.UHT.Utils
 				}
 			}
 
-			if (!Name.Contains("::") && this.ShortEnumValueLookup.TryGetValue(Name, out UhtEnum? Enum))
+			if (!Name.Contains("::", StringComparison.Ordinal) && this.ShortEnumValueLookup.TryGetValue(Name, out UhtEnum? Enum))
 			{
 				return Enum;
 			}
@@ -2063,7 +2063,7 @@ namespace EpicGames.UHT.Utils
 					this.FullEnumValueLookup.Add(Value.Name, new EnumAndValue { Enum = Enum, Value = Value.Value });
 					if (bAddShortNames)
 					{
-						if (Value.Name.StartsWith(CheckName))
+						if (Value.Name.StartsWith(CheckName, StringComparison.Ordinal))
 						{
 							this.ShortEnumValueLookup.TryAdd(Value.Name.Substring(CheckName.Length), Enum);
 						}

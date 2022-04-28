@@ -280,7 +280,7 @@ namespace EpicGames.UHT.Types
 		{
 			string String = TypeOriginal(bCastType);
 
-			int LesserPos = String.IndexOf('<');
+			int LesserPos = String.IndexOf('<', StringComparison.Ordinal);
 			if (LesserPos >= 0)
 			{
 				return String.Substring(0, LesserPos);
@@ -300,7 +300,7 @@ namespace EpicGames.UHT.Types
 		{
 			string String = TypeOriginal(bCastType);
 
-			int LesserPos = String.IndexOf('<');
+			int LesserPos = String.IndexOf('<', StringComparison.Ordinal);
 			if (LesserPos >= 0)
 			{
 				return String.Substring(LesserPos);
@@ -319,7 +319,7 @@ namespace EpicGames.UHT.Types
 		public string TypeConstRef(bool bCastType = false)
 		{
 			string String = TypeNoRef(bCastType);
-			if (String.StartsWith("T") || String.StartsWith("F"))
+			if (String.StartsWith("T", StringComparison.Ordinal) || String.StartsWith("F", StringComparison.Ordinal))
 			{
 				return $"const {String}&";
 			}
@@ -348,7 +348,7 @@ namespace EpicGames.UHT.Types
 		public string TypeNoRef(bool bCastType = false)
 		{
 			string String = TypeOriginal(bCastType);
-			if (String.EndsWith("&"))
+			if (String.EndsWith("&", StringComparison.Ordinal))
 			{
 				return String.Substring(0, String.Length - 1);
 			}

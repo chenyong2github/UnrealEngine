@@ -206,7 +206,7 @@ namespace EpicGames.UHT.Types
 			string EnumName = this.EnumValues[NameIndex].Name;
 			if (this.CppForm != UhtEnumCppForm.Regular)
 			{
-				int ScopeIndex = EnumName.IndexOf("::");
+				int ScopeIndex = EnumName.IndexOf("::", StringComparison.Ordinal);
 				if (ScopeIndex >= 0)
 				{
 					EnumName = EnumName.Substring(ScopeIndex + 2);
@@ -258,7 +258,7 @@ namespace EpicGames.UHT.Types
 		/// <returns>Reconstructed enum name</returns>
 		private string CleanEnumValueName(string Name)
 		{
-			int LastColons = Name.LastIndexOf("::");
+			int LastColons = Name.LastIndexOf("::", StringComparison.Ordinal);
 			return LastColons == -1 ? GetFullEnumName(Name) : GetFullEnumName(Name.Substring(LastColons + 2));		
 		}
 

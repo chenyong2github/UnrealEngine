@@ -1232,7 +1232,7 @@ namespace EpicGames.UHT.Types
 			}
 			else
 			{
-				return NativeToolTip.TrimEnd().Replace("@see", "See:");
+				return NativeToolTip.TrimEnd().Replace("@see", "See:", StringComparison.Ordinal);
 			}
 		}
 

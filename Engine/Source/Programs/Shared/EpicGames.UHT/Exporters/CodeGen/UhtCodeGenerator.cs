@@ -4,6 +4,7 @@ using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -277,7 +278,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			FilePath = FilePath.Replace('\\', '/');
 			if (bIsRelative)
 			{
-				while (FilePath.StartsWith("../"))
+				while (FilePath.StartsWith("../", StringComparison.Ordinal))
 				{
 					FilePath = FilePath.Substring(3);
 				}

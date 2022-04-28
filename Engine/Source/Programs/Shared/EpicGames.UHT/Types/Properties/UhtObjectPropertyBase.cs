@@ -4,6 +4,7 @@ using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
@@ -250,7 +251,9 @@ namespace EpicGames.UHT.Types
 			}
 
 			string Type = TokenReader.GetStringView(TypeStartPos, TokenReader.InputPos - TypeStartPos).ToString();
-			Type = Type.Replace("\n", " ").Replace("\r", "").Replace("\t", " ");
+			Type = Type.Replace("\n", " ", StringComparison.Ordinal);
+			Type = Type.Replace("\r", "", StringComparison.Ordinal);
+			Type = Type.Replace("\t", " ", StringComparison.Ordinal);
 
 			switch (Behavior)
 			{

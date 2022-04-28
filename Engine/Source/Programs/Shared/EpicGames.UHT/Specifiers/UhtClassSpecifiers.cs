@@ -5,6 +5,7 @@ using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -15,6 +16,7 @@ namespace EpicGames.UHT.Parsers
 	public static class UhtClassSpecifiers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NoExportSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -22,6 +24,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void IntrinsicSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -29,12 +32,14 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ComponentWrapperClassSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			SpecifierContext.MetaData.Add(UhtNames.IgnoreCategoryKeywordsInSubclasses, true);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.SingleString)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void WithinSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -42,6 +47,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void EditInlineNewSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -49,6 +55,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NotEditInlineNewSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -56,6 +63,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void PlaceableSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -63,6 +71,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NotPlaceableSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -70,6 +79,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DefaultToInstancedSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -77,6 +87,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void HideDropdownSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -84,6 +95,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void HiddenSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			// Prevents class from appearing in the editor class browser and edit inline menus.
@@ -92,12 +104,14 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DependsOnSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			SpecifierContext.MessageSite.LogError("The dependsOn specifier is deprecated. Please use #include \"ClassHeaderFilename.h\" instead.");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void MinimalAPISpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -105,6 +119,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ConstSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -112,6 +127,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void PerObjectConfigSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -119,6 +135,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ConfigDoNotCheckDefaultsSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -126,6 +143,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void AbstractSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -133,6 +151,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DeprecatedSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -140,6 +159,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void TransientSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -147,6 +167,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NonTransientSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -154,6 +175,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void OptionalSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			// Optional class
@@ -162,6 +184,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void CustomConstructorSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			// we will not export a constructor for this class, assuming it is in the CPP block
@@ -170,6 +193,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.SingleString)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ConfigSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
 		{
 			UhtClass Class = (UhtClass)SpecifierContext.Scope.ScopeType;
@@ -177,6 +201,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DefaultConfigSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			// Save object config only to Default INIs, never to local INIs.
@@ -185,6 +210,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void GlobalUserConfigSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			// Save object config only to global user overrides, never to local INIs
@@ -193,6 +219,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ProjectUserConfigSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			// Save object config only to project user overrides, never to INIs that are checked in
@@ -201,12 +228,14 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.SingleString)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void EditorConfigSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
 		{
 			SpecifierContext.MetaData.Add(UhtNames.EditorConfig, Value.ToString());
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ShowCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -214,6 +243,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void HideCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -221,6 +251,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ShowFunctionsSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -228,6 +259,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void HideFunctionsSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -235,6 +267,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.SingleString)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void SparseClassDataTypesSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -242,6 +275,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ClassGroupSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -252,6 +286,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void AutoExpandCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -260,6 +295,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void AutoCollapseCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -268,6 +304,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void PrioritizeCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -275,6 +312,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DontAutoCollapseCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -282,6 +320,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void CollapseCategoriesSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			// Class' properties should not be shown categorized in the editor.
@@ -290,6 +329,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void DontCollapseCategoriesSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			// Class' properties should be shown categorized in the editor.
@@ -298,6 +338,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void AdvancedClassDisplaySpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			// By default the class properties are shown in advanced sections in UI
@@ -306,6 +347,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void ConversionRootSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClass Class = (UhtClass)SpecifierContext.Scope.ScopeType;
@@ -313,6 +355,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void NeedsDeferredDependencyLoadingSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
@@ -320,6 +363,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void MatchedSerializersSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
@@ -331,6 +375,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void InterfaceSpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
@@ -342,6 +387,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.None)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		private static void CustomFieldNotifySpecifier(UhtSpecifierContext SpecifierContext)
 		{
 			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
