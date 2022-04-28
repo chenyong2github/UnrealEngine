@@ -518,6 +518,10 @@ namespace UnrealBuildTool
 					{
 						FileArguments += " -fpch-validate-input-files-content";
 					}
+					if (GetClangVersion().Major >= 13) // Note this is supported for >=11 on other clang platforms
+					{
+						FileArguments += " -fpch-instantiate-templates";
+					}
 					FileArguments += GetRTTIFlag(CompileEnvironment);
 				}
 				else if (Extension == ".C")

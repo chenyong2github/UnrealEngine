@@ -631,6 +631,10 @@ namespace UnrealBuildTool
 			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 			{
 				PCHArguments += string.Format(" -include \"{0}\"", CompileEnvironment.PrecompiledHeaderIncludeFilename!.FullName);
+				if (GetClangVersion().Major >= 11)
+				{
+					PCHArguments += " -fpch-validate-input-files-content";
+				}
 			}
 
 			foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
@@ -665,6 +669,14 @@ namespace UnrealBuildTool
 				{
 					// Compile the file as a C++ PCH.
 					FileArguments += GetCompileArguments_PCH(CompileEnvironment);
+					if (GetClangVersion().Major >= 11)
+					{
+						FileArguments += " -fpch-validate-input-files-content";
+					}
+					if (GetClangVersion().Major >= 13) // Note this is supported for >=11 on other clang platforms
+					{
+						FileArguments += " -fpch-instantiate-templates";
+					}
 					FileArguments += GetRTTIFlag(CompileEnvironment);
 					FileArguments += GetObjCExceptionsFlag(CompileEnvironment);
 				}
