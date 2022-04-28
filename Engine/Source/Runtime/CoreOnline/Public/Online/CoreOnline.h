@@ -308,7 +308,7 @@ class IOnlineIdRegistry
 public:
 	virtual FString ToLogString(const TOnlineIdHandle<IdType>& Handle) const = 0;
 	virtual TArray<uint8> ToReplicationData(const TOnlineIdHandle<IdType>& Handle) const = 0;
-	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArray<uint8>& Handle) = 0;
+	virtual TOnlineIdHandle<IdType> FromReplicationData(const TArray<uint8>& ReplicationData) = 0;
 };
 
 using IOnlineAccountIdRegistry = IOnlineIdRegistry<OnlineIdHandleTags::FAccount>;
