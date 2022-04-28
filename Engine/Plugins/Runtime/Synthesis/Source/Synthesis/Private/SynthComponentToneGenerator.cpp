@@ -6,6 +6,9 @@
 
 #define TEST_INT16_ATTENUATION 1
 
+// Disabling this experimental feature for this synth component 
+#define SYNTH_COMP_ENABLE_DIST_ATTENUATION 0
+
 FToneGenerator::FToneGenerator(int32 InSampleRate, int32 InNumChannels, int32 InFrequency, float InVolume, const Audio::FAudioBufferDistanceAttenuationSettings& InAttenuationSettings)
 	: NumChannels(InNumChannels)
 {
@@ -54,6 +57,7 @@ int32 FToneGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 		}
 	}
 
+#if SYNTH_COMP_ENABLE_DIST_ATTENUATION
 #if TEST_INT16_ATTENUATION
 
 	// Convert to int16
@@ -77,6 +81,8 @@ int32 FToneGenerator::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 
 	Audio::DistanceAttenuationProcessAudio(AudioBufferView, NumChannels, CurrentDistance, DistanceAttenuationSettings, CurrentAttenuation);
 #endif
+#endif
+
 	return NumSamples;
 }
 

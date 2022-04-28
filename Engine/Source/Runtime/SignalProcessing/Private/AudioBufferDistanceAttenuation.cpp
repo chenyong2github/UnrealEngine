@@ -14,10 +14,18 @@ namespace Audio
 
 		float CurveValue = 0.0f;
 
-		bool bSuccess = InSettings.AttenuationCurve.Eval(Alpha, CurveValue);
+		if (InSettings.AttenuationCurve.Num() > 0)
+		{
+			bool bSuccess = InSettings.AttenuationCurve.Eval(Alpha, CurveValue);
+			// This should succeed since we ensure we always have at least two points in the curve when it's set
+			check(bSuccess);
+		}
+		else
+		{
+			// We do a linear attenuation if there is no curve
+			CurveValue = 1.0f - Alpha;
+		}
 
-		// This should succeed since we ensure we always have at least two points in the curve when it's set
-		check(bSuccess);
 
 		// Note the curve is expected to map to the attenuation amount (i.e. at right-most value, it'll be 0.0, which corresponds to max dB attenuation)
 		// This then needs to be used to interpolate the dB range (0.0 is no attenuation, -60 for example, is a lot of attenuation)
