@@ -62,11 +62,16 @@ public:
 	const TArray<UPCGNode*>& GetNodes() const { return Nodes; }
 	void AddNode(UPCGNode* InNode);
 	void RemoveNode(UPCGNode* InNode);
-	void RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To, const FName& ToLabel);
-	void RemoveAllInboundEdges(UPCGNode* InNode);
-	void RemoveAllOutboundEdges(UPCGNode* InNode);
-	void RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel);
-	void RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel);
+	bool RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To, const FName& ToLabel);
+	bool RemoveAllInboundEdges(UPCGNode* InNode);
+	bool RemoveAllOutboundEdges(UPCGNode* InNode);
+	bool RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel);
+	bool RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel);
+
+#if WITH_EDITOR
+	void DisableNotificationsForEditor();
+	void EnableNotificationsForEditor();
+#endif
 
 #if WITH_EDITOR
 	FPCGTagToSettingsMap GetTrackedTagsToSettings() const;
@@ -96,6 +101,8 @@ private:
 	void OnSettingsChanged(UPCGNode* InNode, bool bSettingsChanged);
 	void OnStructuralSettingsChanged(UPCGNode* InNode);
 
-	bool bEnableGraphChangeNotifications = true;
+	int32 GraphChangeNotificationsDisableCounter = 0;
+	bool bDelayedChangeNotification = false;
+	bool bDelayedChangeNotificationStructural = false;
 #endif // WITH_EDITOR
 };

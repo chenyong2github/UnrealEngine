@@ -153,7 +153,9 @@ void UPCGEditorGraphNodeBase::PostPaste()
 
 void UPCGEditorGraphNodeBase::RebuildEdgesFromPins()
 {
-	check(PCGNode)
+	check(PCGNode);
+
+	PCGNode->GetGraph()->DisableNotificationsForEditor();
 	
 	for (UEdGraphPin* Pin : Pins)
 	{
@@ -174,6 +176,8 @@ void UPCGEditorGraphNodeBase::RebuildEdgesFromPins()
 			}
 		}
 	}
+
+	PCGNode->GetGraph()->EnableNotificationsForEditor();
 }
 
 void UPCGEditorGraphNodeBase::OnNodeChanged(UPCGNode* InNode, bool bSettingsChanged)
@@ -278,11 +282,28 @@ void UPCGEditorGraphNodeBase::ReconstructNode()
 		}
 		else
 		{
+			PCGNode->GetGraph()->DisableNotificationsForEditor();
+
 			for (UEdGraphPin* UnmatchedPin : UnmatchedPins)
 			{
 				UnmatchedPin->BreakAllPinLinks();
+
+				if (PCGNode)
+				{
+					if (InPinDirection == EEdGraphPinDirection::EGPD_Input)
+					{
+						PCGNode->GetGraph()->RemoveInboundEdges(PCGNode, (UnmatchedPin->PinName == "In" && PCGNode->HasDefaultInLabel()) ? NAME_None : UnmatchedPin->PinName);
+					}
+					else
+					{
+						PCGNode->GetGraph()->RemoveOutboundEdges(PCGNode, (UnmatchedPin->PinName == "Out" && PCGNode->HasDefaultOutLabel()) ? NAME_None : UnmatchedPin->PinName);
+					}
+				}
+
 				RemovePin(UnmatchedPin);
 			}
+
+			PCGNode->GetGraph()->EnableNotificationsForEditor();
 
 			for (const FName& UnmatchedName : UnmatchedNames)
 			{

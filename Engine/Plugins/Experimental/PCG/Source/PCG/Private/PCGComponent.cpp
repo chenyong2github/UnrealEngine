@@ -759,6 +759,11 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 
 void UPCGComponent::OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent)
 {
+	if(!InEvent.Property)
+	{
+		return;
+	}
+
 	bool bValueNotInteractive = (InEvent.ChangeType != EPropertyChangeType::Interactive);
 	// Special exception for actor tags, as we can't track otherwise an actor "losing" a tag
 	bool bActorTagChange = (InEvent.Property && InEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(AActor, Tags));
@@ -881,6 +886,7 @@ void UPCGComponent::DirtyGenerated(bool bInDirtyCachedInput)
 		CachedInputData = nullptr;
 		CachedActorData = nullptr;
 		CachedPCGData = nullptr;
+		CachedExclusionData.Reset();
 	}
 
 	// For partitioned graph, we must forward the call to the partition actor
@@ -962,6 +968,19 @@ UPCGData* UPCGComponent::GetActorPCGData()
 	return CachedActorData;
 }
 
+UPCGData* UPCGComponent::GetOriginalActorPCGData()
+{
+	if (APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(GetOwner()))
+	{
+		if (UPCGComponent* OriginalComponent = PartitionActor->GetOriginalComponent(this))
+		{
+			return OriginalComponent->GetActorPCGData();
+		}
+	}
+
+	return nullptr;
+}
+
 TArray<UPCGData*> UPCGComponent::GetPCGExclusionData()
 {
 	// TODO: replace with a boolean, unify.
@@ -1006,6 +1025,9 @@ void UPCGComponent::UpdatePCGExclusionData()
 
 			if (InputSpatialData && ActorSpatialData)
 			{
+				// Change the target actor to this - otherwise we could push changes on another actor
+				ActorSpatialData->TargetActor = GetOwner();
+
 				// Create intersection or projection depending on the dimension
 				// TODO: there's an ambiguity here when it's the same dimension.
 				// For volumes, we'd expect an intersection, for surfaces we'd expect a projection

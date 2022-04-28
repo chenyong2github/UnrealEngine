@@ -51,6 +51,7 @@ public:
 	UPCGData* GetPCGData();
 	UPCGData* GetInputPCGData();
 	UPCGData* GetActorPCGData();
+	UPCGData* GetOriginalActorPCGData();
 	TArray<UPCGData*> GetPCGExclusionData();
 
 	bool CanPartition() const;

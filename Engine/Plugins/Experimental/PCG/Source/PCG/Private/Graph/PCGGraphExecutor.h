@@ -134,6 +134,7 @@ class FPCGFetchInputElement : public FSimplePCGElement
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
+	virtual bool IsPassthrough() const override { return true; }
 };
 
 class FPCGGenericElement : public FSimplePCGElement

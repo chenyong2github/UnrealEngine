@@ -6,6 +6,7 @@
 #include "PCGSubgraph.h"
 #include "PCGGraphCompiler.h"
 #include "PCGComponent.h"
+#include "PCGInputOutputSettings.h"
 
 // World partition support for in-editor workflows needs these includes
 #if WITH_EDITOR
@@ -407,6 +408,36 @@ bool FPCGFetchInputElement::ExecuteInternal(FPCGContext* Context) const
 	{
 		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
 		TaggedData.Data = PCGData;
+		TaggedData.Pin = PCGInputOutputConstants::DefaultInLabel;
+	}
+
+	if (UPCGData* InputPCGData = Component->GetInputPCGData())
+	{
+		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+		TaggedData.Data = InputPCGData;
+		TaggedData.Pin = PCGInputOutputConstants::DefaultInputLabel;
+	}
+
+	if (UPCGData* ActorPCGData = Component->GetActorPCGData())
+	{
+		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+		TaggedData.Data = ActorPCGData;
+		TaggedData.Pin = PCGInputOutputConstants::DefaultActorLabel;
+	}
+
+	if (UPCGData* OriginalActorPCGData = Component->GetOriginalActorPCGData())
+	{
+		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+		TaggedData.Data = OriginalActorPCGData;
+		TaggedData.Pin = PCGInputOutputConstants::DefaultOriginalActorLabel;
+	}
+
+	TArray<UPCGData*> ExclusionsPCGData = Component->GetPCGExclusionData();
+	for (UPCGData* ExclusionPCGData : ExclusionsPCGData)
+	{
+		FPCGTaggedData& TaggedData = Context->OutputData.TaggedData.Emplace_GetRef();
+		TaggedData.Data = ExclusionPCGData;
+		TaggedData.Pin = PCGInputOutputConstants::DefaultExcludedActorsLabel;
 	}
 
 	return true;

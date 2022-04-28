@@ -15,8 +15,10 @@ UPCGGraph::UPCGGraph(const FObjectInitializer& ObjectInitializer)
 {
 	InputNode = ObjectInitializer.CreateDefaultSubobject<UPCGNode>(this, TEXT("DefaultInputNode"));
 	InputNode->SetDefaultSettings(ObjectInitializer.CreateDefaultSubobject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings")));
+	Cast<UPCGGraphInputOutputSettings>(InputNode->DefaultSettings)->SetInput(true);
 	OutputNode = ObjectInitializer.CreateDefaultSubobject<UPCGNode>(this, TEXT("DefaultOutputNode"));
 	OutputNode->SetDefaultSettings(ObjectInitializer.CreateDefaultSubobject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultOutputNodeSettings")));
+	Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings)->SetInput(false);
 #if WITH_EDITORONLY_DATA
 	OutputNode->PositionX = 200;
 #endif
@@ -44,9 +46,31 @@ void UPCGGraph::PostLoad()
 		InputNode->DefaultSettings = NewObject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings"));
 	}
 
+	Cast<UPCGGraphInputOutputSettings>(InputNode->DefaultSettings)->SetInput(true);
+
+	// Fixup edges on the input node
+	for (UPCGEdge* Edge : InputNode->OutboundEdges)
+	{
+		if (Edge->InboundLabel == NAME_None)
+		{
+			Edge->InboundLabel = TEXT("In");
+		}
+	}
+
 	if (!Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings))
 	{
 		OutputNode->DefaultSettings = NewObject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultOutputNodeSettings"));
+	}
+
+	Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings)->SetInput(false);
+
+	// Fixup edges on the output node
+	for (UPCGEdge* Edge : OutputNode->InboundEdges)
+	{
+		if (Edge->OutboundLabel == NAME_None)
+		{
+			Edge->OutboundLabel = TEXT("Out");
+		}
 	}
 #endif
 
@@ -90,7 +114,7 @@ void UPCGGraph::InitializeFromTemplate()
 	Modify();
 
 	// Disable notification until the end of this method, otherwise it will cause issues in proper refresh dispatch
-	bEnableGraphChangeNotifications = false;
+	DisableNotificationsForEditor();
 
 	auto ResetDefaultNode = [](UPCGNode* InNode) {
 		check(InNode);
@@ -116,9 +140,8 @@ void UPCGGraph::InitializeFromTemplate()
 		Cast<UPCGGraphSetupBP>(GraphTemplate->GetDefaultObject())->Setup(this);
 	}
 
-	// Reenable notifications and notify listeners
-	bEnableGraphChangeNotifications = true;
-	NotifyGraphChanged(/*bIsStructural=*/true);
+	// Reenable notifications and notify listeners as needed
+	EnableNotificationsForEditor();
 }
 #endif
 
@@ -312,12 +335,12 @@ void UPCGGraph::RemoveNode(UPCGNode* InNode)
 	OnNodeRemoved(InNode);
 }
 
-void UPCGGraph::RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To, const FName& ToLabel)
+bool UPCGGraph::RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To, const FName& ToLabel)
 {
 	if (!From || !To)
 	{
 		UE_LOG(LogPCG, Error, TEXT("Invalid from/to node in RemoveEdge"));
-		return;
+		return false;
 	}
 
 	bool bChanged = false;
@@ -338,9 +361,11 @@ void UPCGGraph::RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To,
 		NotifyGraphChanged(/*bIsStructural=*/true);
 	}
 #endif
+
+	return bChanged;
 }
 
-void UPCGGraph::RemoveAllInboundEdges(UPCGNode* InNode)
+bool UPCGGraph::RemoveAllInboundEdges(UPCGNode* InNode)
 {
 	check(InNode);
 	const bool bChanged = !InNode->InboundEdges.IsEmpty();
@@ -356,9 +381,11 @@ void UPCGGraph::RemoveAllInboundEdges(UPCGNode* InNode)
 		NotifyGraphChanged(/*bIsStructural=*/true);
 	}
 #endif
+
+	return bChanged;
 }
 
-void UPCGGraph::RemoveAllOutboundEdges(UPCGNode* InNode)
+bool UPCGGraph::RemoveAllOutboundEdges(UPCGNode* InNode)
 {
 	check(InNode);
 	const bool bChanged = !InNode->OutboundEdges.IsEmpty();
@@ -374,9 +401,11 @@ void UPCGGraph::RemoveAllOutboundEdges(UPCGNode* InNode)
 		NotifyGraphChanged(/*bIsStructural=*/true);
 	}
 #endif
+
+	return bChanged;
 }
 
-void UPCGGraph::RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel)
+bool UPCGGraph::RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel)
 {
 	check(InNode);
 	bool bChanged = false;
@@ -396,9 +425,11 @@ void UPCGGraph::RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel)
 		NotifyGraphChanged(/*bIsStructural=*/true);
 	}
 #endif
+
+	return bChanged;
 }
 
-void UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel)
+bool UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel)
 {
 	check(InNode);
 	bool bChanged = false;
@@ -418,7 +449,30 @@ void UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel
 		NotifyGraphChanged(/*bIsStructural=*/true);
 	}
 #endif
+
+	return bChanged;
 }
+
+#if WITH_EDITOR
+void UPCGGraph::DisableNotificationsForEditor()
+{
+	check(GraphChangeNotificationsDisableCounter >= 0);
+	++GraphChangeNotificationsDisableCounter;
+}
+
+void UPCGGraph::EnableNotificationsForEditor()
+{
+	check(GraphChangeNotificationsDisableCounter > 0);
+	--GraphChangeNotificationsDisableCounter;
+
+	if (GraphChangeNotificationsDisableCounter == 0 && bDelayedChangeNotification)
+	{
+		NotifyGraphChanged(bDelayedChangeNotificationStructural);
+		bDelayedChangeNotification = false;
+		bDelayedChangeNotificationStructural = false;
+	}
+}
+#endif
 
 #if WITH_EDITOR
 FPCGTagToSettingsMap UPCGGraph::GetTrackedTagsToSettings() const
@@ -437,8 +491,10 @@ FPCGTagToSettingsMap UPCGGraph::GetTrackedTagsToSettings() const
 
 void UPCGGraph::NotifyGraphChanged(bool bIsStructural)
 {
-	if (!bEnableGraphChangeNotifications)
+	if(GraphChangeNotificationsDisableCounter > 0)
 	{
+		bDelayedChangeNotification = true;
+		bDelayedChangeNotificationStructural |= bIsStructural;
 		return;
 	}
 

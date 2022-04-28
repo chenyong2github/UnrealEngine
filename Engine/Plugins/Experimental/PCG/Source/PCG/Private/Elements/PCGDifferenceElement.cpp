@@ -25,7 +25,7 @@ bool FPCGDifferenceElement::ExecuteInternal(FPCGContext* Context) const
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGDifferenceElement::Execute);
 
 	// Early-out for previous behavior (without labeled edges)
-	if (Context->Node && !Context->Node->IsInputPinConnected(PCGDifferenceConstants::SourceLabel))
+	if (Context->Node && !Context->Node->IsInputPinConnected(PCGDifferenceConstants::SourceLabel) && !Context->Node->IsInputPinConnected(PCGDifferenceConstants::DifferencesLabel))
 	{
 		LabellessProcessing(Context);
 		return true;
