@@ -2596,17 +2596,15 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 				UNiagaraScript* SpawnScript = Emitter->SpawnScriptProps.Script;
 				for (const FNiagaraScriptDataInterfaceInfo& UpdateDataInterfaceInfo : CompiledScript->GetCachedDefaultDataInterfaces())
 				{
-					if (UpdateDataInterfaceInfo.RegisteredParameterMapRead == NAME_None && UpdateDataInterfaceInfo.RegisteredParameterMapWrite == NAME_None)
+					// If the data interface isn't being written to a parameter map then it won't be bound properly so we
+					// assign the update scripts copy of the data interface to the spawn scripts copy by pointer so that they will share
+					// the data interface at runtime and will both be updated in the editor.
+					for (FNiagaraScriptDataInterfaceInfo& SpawnDataInterfaceInfo : SpawnScript->GetCachedDefaultDataInterfaces())
 					{
-						// If the data interface isn't being read or written to a parameter map then it won't be bound properly so we
-						// assign the update scripts copy of the data interface to the spawn scripts copy by pointer so that they will share
-						// the data interface at runtime and will both be updated in the editor.
-						for (FNiagaraScriptDataInterfaceInfo& SpawnDataInterfaceInfo : SpawnScript->GetCachedDefaultDataInterfaces())
+						if (SpawnDataInterfaceInfo.RegisteredParameterMapWrite == NAME_None && UpdateDataInterfaceInfo.RegisteredParameterMapWrite == NAME_None && UpdateDataInterfaceInfo.Name == SpawnDataInterfaceInfo.Name)
 						{
-							if (UpdateDataInterfaceInfo.Name == SpawnDataInterfaceInfo.Name)
-							{
-								SpawnDataInterfaceInfo.DataInterface = UpdateDataInterfaceInfo.DataInterface;
-							}
+							SpawnDataInterfaceInfo.DataInterface = UpdateDataInterfaceInfo.DataInterface;
+							break;
 						}
 					}
 				}
