@@ -78,6 +78,11 @@ TSharedRef<SWidget> UNiagaraNodeAssignment::CreateAddParameterMenu(const TShared
 
 bool UNiagaraNodeAssignment::RefreshFromExternalChanges()
 {
+	Modify(false);
+	if (FunctionScript != nullptr)
+	{
+		FunctionScript->Modify(false);
+	}
 	FunctionScript = nullptr;
 	GenerateScript();
 	ReallocatePins();
