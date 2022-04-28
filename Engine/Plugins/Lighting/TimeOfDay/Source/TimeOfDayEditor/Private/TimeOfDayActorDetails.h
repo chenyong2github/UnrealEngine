@@ -3,17 +3,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/WeakObjectPtr.h"
+#include "Input/Reply.h"
 #include "IDetailCustomization.h"
 
 class IDetailLayoutBuilder;
+class ATimeOfDayActor;
 
 class FTimeOfDayActorDetails : public IDetailCustomization
 {
 public:
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance();
+	
 private:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
+
+	bool CanOpenLevelSequenceForActor() const;
+	FReply OnOpenLevelSequenceForActor() const;
+	
 private:
+	/** The selected level sequence actor */
+	TWeakObjectPtr<ATimeOfDayActor> TimeOfDayActor;
 };
