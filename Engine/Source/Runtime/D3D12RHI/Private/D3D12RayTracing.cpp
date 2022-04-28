@@ -4180,6 +4180,16 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 
 	checkf(BuildDesc.ScratchAccelerationStructureData % 256 == 0, TEXT("TLAS build scratch buffer must have 256 byte alignment."));
 
+	if (GD3D12RayTracingGPUValidation)
+	{
+		TRHICommandList_RecursiveHazardous<FD3D12CommandContext> RHICmdList(&CommandContext, CommandContext.GetGPUMask());
+		uint32 InstanceBufferStride = uint32(sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+		uint32 TotalHitGroupSlots = Initializer.NumTotalSegments * Initializer.ShaderSlotsPerGeometrySegment;
+		FRayTracingValidateSceneBuildParamsCS::Dispatch(RHICmdList, 
+			TotalHitGroupSlots, BuildInputs.NumDescs,
+			InstanceBuffer, InstanceBufferOffset, InstanceBufferStride);
+	}
+
 	// UAV barrier is used here to ensure that all bottom level acceleration structures are built
 	CommandContext.CommandListHandle.AddUAVBarrier();
 	CommandContext.CommandListHandle.FlushResourceBarriers();

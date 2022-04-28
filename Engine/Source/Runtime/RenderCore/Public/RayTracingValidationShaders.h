@@ -54,4 +54,47 @@ public:
 
 };
 
+class RENDERCORE_API FRayTracingValidateSceneBuildParamsCS : public FBuiltInRayTracingShader
+{
+	DECLARE_GLOBAL_SHADER(FRayTracingValidateSceneBuildParamsCS);
+
+public:
+	FRayTracingValidateSceneBuildParamsCS() = default;
+	FRayTracingValidateSceneBuildParamsCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FBuiltInRayTracingShader(Initializer)
+	{
+		InstanceBufferParam.Bind(Initializer.ParameterMap, TEXT("InstanceBuffer"), SPF_Optional);
+		InstanceBufferOffsetInBytesParam.Bind(Initializer.ParameterMap, TEXT("InstanceBufferOffsetInBytes"), SPF_Optional);
+		InstanceBufferStrideInBytesParam.Bind(Initializer.ParameterMap, TEXT("InstanceBufferStrideInBytes"), SPF_Optional);
+		NumInstancesParam.Bind(Initializer.ParameterMap, TEXT("NumInstances"), SPF_Optional);
+		NumHitGroupsParam.Bind(Initializer.ParameterMap, TEXT("NumHitGroups"), SPF_Optional);
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return FBuiltInRayTracingShader::ShouldCompilePermutation(Parameters);
+	}
+
+	// Large thread group to handle large meshes with a single 1D dispatch
+	static const uint32 NumThreadsX = 1024;
+
+	static inline void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.CompilerFlags.Add(CFLAG_ForceDXC);
+		OutEnvironment.SetDefine(TEXT("NUM_THREADS_X"), NumThreadsX);
+		FBuiltInRayTracingShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	static void Dispatch(FRHICommandList& RHICmdList, 
+		uint32 NumHitGroups, uint32 NumInstances, 
+		FRHIBuffer* InstanceBuffer, uint32 InstanceBufferOffset, uint32 InstanceBufferStride);
+
+	LAYOUT_FIELD(FShaderResourceParameter, InstanceBufferParam);
+	LAYOUT_FIELD(FShaderParameter, InstanceBufferOffsetInBytesParam);
+	LAYOUT_FIELD(FShaderParameter, InstanceBufferStrideInBytesParam);
+	LAYOUT_FIELD(FShaderParameter, NumInstancesParam);
+	LAYOUT_FIELD(FShaderParameter, NumHitGroupsParam);
+};
+
+
 #endif // RHI_RAYTRACING

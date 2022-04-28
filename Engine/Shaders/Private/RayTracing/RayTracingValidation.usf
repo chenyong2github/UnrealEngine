@@ -94,10 +94,68 @@ void RayTracingValidateGeometryBuildParamsCS(uint3 DispatchThreadId : SV_Dispatc
 	CheckTriangle(Tri, PrimitiveIndex);
 }
 
+uint NumInstances;
+uint NumHitGroups;
+ByteAddressBuffer InstanceBuffer;
+uint InstanceBufferOffsetInBytes;
+uint InstanceBufferStrideInBytes;
+
+[numthreads(NUM_THREADS_X, 1, 1)]
+void RayTracingValidateSceneBuildParamsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint InstanceIndex = DispatchThreadId.x;
+	if (InstanceIndex >= NumInstances)
+	{
+		return;
+	}
+
+	uint InstanceAddress = InstanceBufferOffsetInBytes + InstanceBufferStrideInBytes * InstanceIndex;
+	FRayTracingInstanceDescriptor InstanceDesc = InstanceBuffer.Load<FRayTracingInstanceDescriptor>(InstanceAddress);
+
+	// Check that the instance matrix is finite (if instance culling is required, it should be done through null BLAS address)
+	{
+		for (uint i = 0; i < 3; ++i)
+		{
+			float4 Row = InstanceDesc.Transform[i];
+			for (uint j = 0; j < 4; ++j)
+			{
+				float Value = Row[j];
+				if (!IsFinite(Value))
+				{
+					UEReportAssertWithPayload(0x1C46B0FD, uint4(InstanceIndex, asuint(Value), 0, 0));
+				}
+			}
+		}
+	}
+
+	// Check that flag bits belong to D3D12_RAYTRACING_INSTANCE_FLAGS entries (only first 4 bits can be set)
+	{
+		uint Flags = InstanceDesc.GetFlags();
+		if ((Flags & 0xF0) != 0)
+		{
+			UEReportAssertWithPayload(0x07085473, uint4(InstanceIndex, Flags, 0, 0));
+		}
+	}
+
+	// Check that instance contribution to SBT index is sane (will not cause OOB access)
+	{
+		uint Contribution = InstanceDesc.GetInstanceContributionToHitGroupIndex();
+		if (Contribution > NumHitGroups)
+		{
+			UEReportAssertWithPayload(0xC5A7424A, uint4(InstanceIndex, Contribution, NumHitGroups, 0));
+		}
+	}
+}
+
 #else // PLATFORM_SUPPORTS_DIAGNOSTIC_BUFFER
 
 [numthreads(NUM_THREADS_X, 1, 1)]
 void RayTracingValidateGeometryBuildParamsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+}
+
+[numthreads(NUM_THREADS_X, 1, 1)]
+void RayTracingValidateSceneBuildParamsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 }
 

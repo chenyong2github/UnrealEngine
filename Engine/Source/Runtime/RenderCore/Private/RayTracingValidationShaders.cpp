@@ -6,6 +6,8 @@
 
 #if RHI_RAYTRACING
 
+// FRayTracingValidateGeometryBuildParamsCS
+
 IMPLEMENT_GLOBAL_SHADER(FRayTracingValidateGeometryBuildParamsCS, "/Engine/Private/RayTracing/RayTracingValidation.usf", "RayTracingValidateGeometryBuildParamsCS", SF_Compute);
 
 void FRayTracingValidateGeometryBuildParamsCS::Dispatch(FRHICommandList& RHICmdList, const FRayTracingGeometryBuildParams& Params)
@@ -23,7 +25,7 @@ void FRayTracingValidateGeometryBuildParamsCS::Dispatch(FRHICommandList& RHICmdL
 	}
 
 	TWideStringBuilder<256> EventName;
-	EventName.Append(TEXT("RTValidation"));
+	EventName.Append(TEXT("RTGeometryValidation"));
 	if (!Initializer.DebugName.IsNone())
 	{
 		FString DebugNameString = Initializer.DebugName.ToString();
@@ -70,6 +72,39 @@ void FRayTracingValidateGeometryBuildParamsCS::Dispatch(FRHICommandList& RHICmdL
 
 	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->VertexBufferParam, nullptr);
 	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->IndexBufferParam, nullptr);
+
+	RHICmdList.PopEvent();
+}
+
+// FRayTracingValidateSceneBuildParamsCS
+
+IMPLEMENT_GLOBAL_SHADER(FRayTracingValidateSceneBuildParamsCS, "/Engine/Private/RayTracing/RayTracingValidation.usf", "RayTracingValidateSceneBuildParamsCS", SF_Compute);
+
+void FRayTracingValidateSceneBuildParamsCS::Dispatch(FRHICommandList& RHICmdList, 
+	uint32 NumHitGroups, uint32 NumInstances, 
+	FRHIBuffer* InstanceBuffer, uint32 InstanceBufferOffset, uint32 InstanceBufferStride)
+{
+	TShaderMapRef<FRayTracingValidateSceneBuildParamsCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+	FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();
+	SetComputePipelineState(RHICmdList, ShaderRHI);
+
+	RHICmdList.PushEvent(TEXT("RTSceneValidation"), FColor::Black);
+
+	const FRawBufferShaderResourceViewInitializer InstanceBufferViewInitializer(InstanceBuffer);
+	FShaderResourceViewRHIRef InstanceBufferSRV = RHICreateShaderResourceView(InstanceBufferViewInitializer);
+
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumInstancesParam, NumInstances);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->NumHitGroupsParam, NumHitGroups);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->InstanceBufferOffsetInBytesParam, InstanceBufferOffset);
+	SetShaderValue(RHICmdList, ShaderRHI, ComputeShader->InstanceBufferStrideInBytesParam, InstanceBufferStride);
+	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->InstanceBufferParam, InstanceBufferSRV);
+
+	const uint32 MaxDispatchDimension = 65536; // D3D11_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION
+	const uint32 NumGroupsX = FMath::Min((NumInstances + NumThreadsX - 1) / NumThreadsX, MaxDispatchDimension);
+
+	RHICmdList.DispatchComputeShader(NumGroupsX, 1, 1);
+
+	SetSRVParameter(RHICmdList, ShaderRHI, ComputeShader->InstanceBufferParam, nullptr);
 
 	RHICmdList.PopEvent();
 }

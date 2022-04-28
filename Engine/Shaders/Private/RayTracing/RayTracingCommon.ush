@@ -151,6 +151,26 @@ struct FRayTracingInstanceDescriptor
 	uint InstanceIdAndMask;
 	uint InstanceContributionToHitGroupIndexAndFlags;
 	uint2 AccelerationStructure; //uint64
+
+	uint GetInstanceId()
+	{
+		return InstanceIdAndMask & 0x00FFFFFF;
+	}
+
+	uint GetMask()
+	{
+		return (InstanceIdAndMask >> 24) & 0xFF;
+	}
+
+	uint GetInstanceContributionToHitGroupIndex()
+	{
+		return InstanceContributionToHitGroupIndexAndFlags & 0x00FFFFFF;
+	}
+
+	uint GetFlags()
+	{
+		return (InstanceContributionToHitGroupIndexAndFlags >> 24) & 0xFF;
+	}
 };
 
 void SetRayTracingInstanceTransform(inout FRayTracingInstanceDescriptor Desc, float3x4 LocalToWorld)
