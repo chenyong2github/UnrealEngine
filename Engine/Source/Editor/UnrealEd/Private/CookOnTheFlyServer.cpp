@@ -8,6 +8,7 @@
 
 #include "Algo/AnyOf.h"
 #include "Algo/Find.h"
+#include "Algo/Unique.h"
 #include "AssetCompilingManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetRegistryState.h"
@@ -535,6 +536,8 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 #endif
 
 	CookOnTheFlyOptions = MoveTemp(InCookOnTheFlyOptions);
+	GenerateAssetRegistry();
+	CreateSandboxFile();
 	CookOnTheFlyServerInterface = MakeUnique<UCookOnTheFlyServer::FCookOnTheFlyServerInterface>(*this);
 	ExternalRequests->CookRequestEvent = FPlatformProcess::GetSynchEventFromPool();
 
@@ -548,8 +551,6 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 	PlatformManager->SetArePlatformsPrepopulated(true);
 
 	SetBeginCookConfigSettings();
-	CreateSandboxFile();
-	GenerateAssetRegistry();
 	for (FName NeverCookPackage : GetNeverCookPackageFileNames(TArrayView<const FString>()))
 	{
 		PackageTracker->NeverCookPackageList.Add(NeverCookPackage);
@@ -621,13 +622,14 @@ void UCookOnTheFlyServer::AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform*
 		return;
 	}
 
-	TArrayView<ITargetPlatform* const> NewTargetPlatforms(&TargetPlatform,1);
+	FBeginCookContext BeginContext = CreateAddPlatformContext(TargetPlatform);
 
-	RefreshPlatformAssetRegistries(NewTargetPlatforms);
-	FindOrCreateSaveContexts(NewTargetPlatforms);
-	BeginCookSandbox(NewTargetPlatforms);
-	InitializeTargetPlatforms(NewTargetPlatforms);
-	InitializeShadersForCookOnTheFly(NewTargetPlatforms);
+	RefreshPlatformAssetRegistries(BeginContext.TargetPlatforms);
+	FindOrCreateSaveContexts(BeginContext.TargetPlatforms);
+	SetBeginCookIterativeFlags(BeginContext);
+	BeginCookSandbox(BeginContext);
+	InitializeTargetPlatforms(BeginContext.TargetPlatforms);
+	InitializeShadersForCookOnTheFly(BeginContext.TargetPlatforms);
 
 	// When cooking on the fly the full registry is saved at the beginning
 	// in cook by the book asset registry is saved after the cook is finished
@@ -5500,6 +5502,67 @@ void UCookOnTheFlyServer::ProcessAccessedIniSettings(const FConfigFile* Config, 
 	}
 }
 
+static const TCHAR* TEXT_CookSettings(TEXT("CookSettings"));
+
+TMap<FName, FString> UCookOnTheFlyServer::CalculateCookSettingStrings() const
+{
+	TMap<FName, FString> CookSettingStrings;
+	const FName NAME_CookMode(TEXT("CookMode"));
+
+	CookSettingStrings.Add(FName(TEXT("Version")), TEXT("C7C76F79"));
+	if (CookByTheBookOptions)
+	{
+		CookSettingStrings.Add(NAME_CookMode, TEXT("CookByTheBook"));
+		CookSettingStrings.Add(FName(TEXT("DLCName")), CookByTheBookOptions->DlcName);
+	}
+	else
+	{
+		CookSettingStrings.Add(NAME_CookMode, TEXT("CookOnTheFly"));
+	}
+	return CookSettingStrings;
+}
+
+FString UCookOnTheFlyServer::GetCookSettingsFileName(const ITargetPlatform* TargetPlatform) const
+{
+	FString CookedSettingsIni = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("CookedSettings.txt");
+	return ConvertToFullSandboxPath(*CookedSettingsIni, true, TargetPlatform->PlatformName());
+}
+
+bool UCookOnTheFlyServer::ArePreviousCookSettingsCompatible(const TMap<FName, FString>& CurrentCookSettings, const ITargetPlatform* TargetPlatform) const
+{
+	FConfigFile ConfigFile;
+	ConfigFile.Read(GetCookSettingsFileName(TargetPlatform));
+
+	const FConfigSection* CookSettings = ConfigFile.Find(TEXT_CookSettings);
+	if (CookSettings == nullptr)
+	{
+		return false;
+	}
+
+	for (const TPair<FName, FString>& CurrentSetting : CurrentCookSettings)
+	{
+		const FConfigValue* PreviousSetting = CookSettings->Find(CurrentSetting.Key);
+		if (!PreviousSetting || PreviousSetting->GetValue() != CurrentSetting.Value)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void UCookOnTheFlyServer::SaveCookSettings(const TMap<FName, FString>& CurrentCookSettings, const ITargetPlatform* TargetPlatform)
+{
+	FConfigFile ConfigFile;
+	FConfigSection& SavedSettings = *ConfigFile.FindOrAddSection(TEXT_CookSettings);
+	for (const TPair<FName, FString>& CurrentSetting : CurrentCookSettings)
+	{
+		SavedSettings.Add(CurrentSetting.Key, CurrentSetting.Value);
+	}
+	ConfigFile.Dirty = true; // Writing to a section does not set the dirty flag, so set it manually to make Write work
+	ConfigFile.Write(GetCookSettingsFileName(TargetPlatform));
+}
+
 bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlatform) const
 {
 	TGuardValue<bool> A(GSuppressProcessConfigSettings, true);
@@ -7318,7 +7381,6 @@ void UCookOnTheFlyServer::CancelCookByTheBook()
 		CancelAllQueues();
 
 		CookByTheBookOptions->bRunning = false;
-		SandboxFile = nullptr;
 
 		PrintFinishStats();
 	} 
@@ -7343,12 +7405,15 @@ void UCookOnTheFlyServer::StopAndClearCookedData()
 
 void UCookOnTheFlyServer::ClearAllCookedData()
 {
+	checkf(!IsInSession(), TEXT("We do not handle removing SessionPlatforms, so ClearAllCookedData must not be called while in a cook session"));
+
 	// if we are going to clear the cooked packages it is conceivable that we will recook the packages which we just cooked 
 	// that means it's also conceivable that we will recook the same package which currently has an outstanding async write request
 	UPackage::WaitForAsyncFileWrites();
 
 	PackageTracker->UnsolicitedCookedPackages.Empty();
 	PackageDatas->ClearCookedPlatforms();
+	ClearPackageStoreContexts();
 }
 
 void UCookOnTheFlyServer::CancelAllQueues()
@@ -7417,6 +7482,11 @@ void UCookOnTheFlyServer::ClearPlatformCookedData(const ITargetPlatform* TargetP
 {
 	if (!TargetPlatform)
 	{
+		return;
+	}
+	if (!SandboxFile)
+	{
+		// We cannot get the PackageWriter without it, and we do not have anything to clear if it has not been created
 		return;
 	}
 	ResetCook({ TPair<const ITargetPlatform*,bool>{TargetPlatform, true /* bResetResults */}});
@@ -7491,19 +7561,31 @@ void UCookOnTheFlyServer::OnTargetPlatformChangedSupportedFormats(const ITargetP
 
 void UCookOnTheFlyServer::CreateSandboxFile()
 {
-	// initialize the sandbox file after determining if we are cooking dlc
-	// Local sandbox file wrapper. This will be used to handle path conversions,
-	// but will not be used to actually write/read files so we can safely
-	// use [Platform] token in the sandbox directory name and then replace it
-	// with the actual platform name.
-	check(SandboxFile == nullptr);
-	SandboxFile = FSandboxPlatformFile::Create(false);
-
-	// Output directory override.	
+	// Output directory override. This directory depends on whether we are cooking dlc, so we cannot
+	// create the sandbox until after StartCookByTheBook or StartCookOnTheFly
 	FString OutputDirectory = GetOutputDirectoryOverride();
+	check(!OutputDirectory.IsEmpty());
+	check((SandboxFile == nullptr) == SandboxFileOutputDirectory.IsEmpty());
 
-	// Use SandboxFile to do path conversion to properly handle sandbox paths (outside of standard paths in particular).
+	if (SandboxFile)
+	{
+		if (SandboxFileOutputDirectory == OutputDirectory)
+		{
+			return;
+		}
+		ClearAllCookedData(); // Does not delete files on disk, only deletes in-memory data
+		SandboxFile.Reset();
+	}
+
+	// Local sandbox file wrapper. This will be used to handle path conversions, but will not be used to actually
+	// write/read files so we can safely use [Platform] token in the sandbox directory name and then replace it
+	// with the actual platform name.
+	// Filename lookups in the cooker must Use this SandboxFile to do path conversion to properly handle sandbox paths
+	// (outside of standard paths in particular).
+	SandboxFile = FSandboxPlatformFile::Create(false);
 	SandboxFile->Initialize(&FPlatformFileManager::Get().GetPlatformFile(), *FString::Printf(TEXT("-sandbox=\"%s\""), *OutputDirectory));
+	SandboxFileOutputDirectory = OutputDirectory;
+
 }
 
 void UCookOnTheFlyServer::SetBeginCookConfigSettings()
@@ -7527,119 +7609,141 @@ void UCookOnTheFlyServer::SetBeginCookConfigSettings()
 
 }
 
-void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform*> TargetPlatforms)
+void UCookOnTheFlyServer::SetBeginCookIterativeFlags(FBeginCookContext& BeginContext)
+{
+	const bool bIsDiffOnly = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
+	const bool bIterative = !FParse::Param(FCommandLine::Get(), TEXT("fullcook")) && (bHybridIterativeEnabled || IsCookFlagSet(ECookInitializationFlags::Iterative));
+	const bool bIsSharedIterativeCook = IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild);
+
+	for (FBeginCookContextPlatform& PlatformContext : BeginContext.PlatformContexts)
+	{
+		const ITargetPlatform* TargetPlatform = PlatformContext.TargetPlatform;
+		UE::Cook::FPlatformData* PlatformData = PlatformContext.PlatformData;
+		ICookedPackageWriter& PackageWriter = FindOrCreatePackageWriter(TargetPlatform);
+		bool bIterateSharedBuild = false;
+		if (bIterative && bIsSharedIterativeCook && !PlatformData->bIsSandboxInitialized)
+		{
+			// see if the shared build is newer then the current cooked content in the local directory
+			FString SharedCookedAssetRegistry = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"),
+				*TargetPlatform->PlatformName(), TEXT("Metadata"), GetDevelopmentAssetRegistryFilename());
+
+			FDateTime PreviousLocalCookedBuild = PackageWriter.GetPreviousCookTime();
+			FDateTime PreviousSharedCookedBuild = IFileManager::Get().GetTimeStamp(*SharedCookedAssetRegistry);
+			if (PreviousSharedCookedBuild != FDateTime::MinValue() &&
+				PreviousSharedCookedBuild >= PreviousLocalCookedBuild)
+			{
+				// copy the ini settings from the shared cooked build. 
+				const FString SharedCookedIniFile = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"),
+					*TargetPlatform->PlatformName(), TEXT("Metadata"), TEXT("CookedIniVersion.txt"));
+				FString SandboxCookedIniFile = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("CookedIniVersion.txt");
+				SandboxCookedIniFile = ConvertToFullSandboxPath(*SandboxCookedIniFile, true, *TargetPlatform->PlatformName());
+				IFileManager::Get().Copy(*SandboxCookedIniFile, *SharedCookedIniFile);
+				bIterateSharedBuild = true;
+				UE_LOG(LogCook, Display, TEXT("Shared iterative build is newer then local cooked build, iteratively cooking from shared build."));
+			}
+			else
+			{
+				UE_LOG(LogCook, Display, TEXT("Local cook is newer then shared cooked build, iteratively cooking from local build."));
+			}
+		}
+		PlatformContext.CurrentCookSettings = CalculateCookSettingStrings();
+		const bool bIsIniSettingsOutOfDate = IniSettingsOutOfDate(TargetPlatform); // needs to be executed for side effects even if non-iterative
+		PlatformContext.bHasMemoryResults = PlatformData->bIsSandboxInitialized;
+
+		if (bIsDiffOnly)
+		{
+			UE_LOG(LogCook, Display, TEXT("Keeping cooked content for platform %s for DiffOnly"), *TargetPlatform->PlatformName());
+			// When looking for deterministic cooking differences in cooked packages, don't delete the packages on disk
+			PlatformContext.bFullBuild = false;
+			PlatformContext.bClearMemoryResults = true;
+			PlatformContext.bPopulateMemoryResultsFromDiskResults = false;
+			PlatformContext.bIterateSharedBuild = false;
+		}
+		else
+		{
+			bool bIterativeAllowed = true;
+			if (!bIterative && !PlatformData->bIsSandboxInitialized)
+			{
+				UE_LOG(LogCook, Display, TEXT("Clearing all cooked content for platform %s"), *TargetPlatform->PlatformName());
+				bIterativeAllowed = false;
+			}
+			else if (!ArePreviousCookSettingsCompatible(PlatformContext.CurrentCookSettings, TargetPlatform))
+			{
+				UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s because cook DLC settings have changed, clearing all cooked content"), *TargetPlatform->PlatformName());
+				bIterativeAllowed = false;
+			}
+			else if (bIsIniSettingsOutOfDate)
+			{
+				if (!IsCookFlagSet(ECookInitializationFlags::IgnoreIniSettingsOutOfDate))
+				{
+					UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s ini settings don't match from last cook, clearing all cooked content"), *TargetPlatform->PlatformName());
+					bIterativeAllowed = false;
+				}
+				else
+				{
+					UE_LOG(LogCook, Display, TEXT("Inisettings were out of date for platform %s but we are going with it anyway because IgnoreIniSettingsOutOfDate is set"), *TargetPlatform->PlatformName());
+					bIterativeAllowed = true;
+				}
+			}
+			else
+			{
+				UE_LOG(LogCook, Display, TEXT("Keeping cooked content for platform %s and cooking iteratively"), *TargetPlatform->PlatformName());
+				bIterativeAllowed = true;
+			}
+
+			if (bIterativeAllowed)
+			{
+				PlatformContext.bFullBuild = false;
+				PlatformContext.bClearMemoryResults = false;
+				PlatformContext.bPopulateMemoryResultsFromDiskResults = !PlatformContext.bHasMemoryResults;
+				PlatformContext.bIterateSharedBuild = bIterateSharedBuild;
+			}
+			else
+			{
+				PlatformContext.bFullBuild = true;
+				PlatformContext.bClearMemoryResults = true;
+				PlatformContext.bPopulateMemoryResultsFromDiskResults = false;
+				PlatformContext.bIterateSharedBuild = false;
+			}
+		}
+		PlatformData->bFullBuild = PlatformContext.bFullBuild;
+	}
+}
+
+void UCookOnTheFlyServer::BeginCookSandbox(FBeginCookContext& BeginContext)
 {
 #if OUTPUT_COOKTIMING
 	double CleanSandboxTime = 0.0;
 #endif
 	{
 		UE_SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(CleanSandbox, CleanSandboxTime);
-
-		if (SandboxFile == nullptr)
-		{
-			CreateSandboxFile();
-		}
-
-		const bool bIsDiffOnly = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
-		const bool bIterative = !FParse::Param(FCommandLine::Get(), TEXT("fullcook")) && (bHybridIterativeEnabled || IsCookFlagSet(ECookInitializationFlags::Iterative));
-		const bool bIsSharedIterativeCook = IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild);
-		TArray<TPair<const ITargetPlatform*,bool>, TInlineAllocator<ExpectedMaxNumPlatforms>> ResetPlatforms;
+		TArray<TPair<const ITargetPlatform*, bool>, TInlineAllocator<ExpectedMaxNumPlatforms>> ResetPlatforms;
 		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> PopulatePlatforms;
 		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> AlreadyCookedPlatforms;
-
-		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+		for (FBeginCookContextPlatform& PlatformContext : BeginContext.PlatformContexts)
 		{
-			UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
+			const ITargetPlatform* TargetPlatform = PlatformContext.TargetPlatform;
+			UE::Cook::FPlatformData* PlatformData = PlatformContext.PlatformData;
 			ICookedPackageWriter& PackageWriter = FindOrCreatePackageWriter(TargetPlatform);
-			bool bIterateSharedBuild = false;
-			if (bIterative && bIsSharedIterativeCook && !PlatformData->bIsSandboxInitialized)
-			{
-				// see if the shared build is newer then the current cooked content in the local directory
-				FString SharedCookedAssetRegistry = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"),
-					*TargetPlatform->PlatformName(), TEXT("Metadata"), GetDevelopmentAssetRegistryFilename());
-				
-				FDateTime PreviousLocalCookedBuild = PackageWriter.GetPreviousCookTime();
-				FDateTime PreviousSharedCookedBuild = IFileManager::Get().GetTimeStamp(*SharedCookedAssetRegistry);
-				if (PreviousSharedCookedBuild != FDateTime::MinValue() &&
-					PreviousSharedCookedBuild >= PreviousLocalCookedBuild)
-				{
-					// copy the ini settings from the shared cooked build. 
-					const FString SharedCookedIniFile = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"),
-						*TargetPlatform->PlatformName(), TEXT("Metadata"), TEXT("CookedIniVersion.txt"));
-					FString SandboxCookedIniFile = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("CookedIniVersion.txt");
-					SandboxCookedIniFile = ConvertToFullSandboxPath(*SandboxCookedIniFile, true);
-					SandboxCookedIniFile.ReplaceInline(TEXT("[Platform]"), *TargetPlatform->PlatformName());
-					IFileManager::Get().Copy(*SandboxCookedIniFile, *SharedCookedIniFile);
-					bIterateSharedBuild = true;
-					UE_LOG(LogCook, Display, TEXT("Shared iterative build is newer then local cooked build, iteratively cooking from shared build."));
-				}
-				else
-				{
-					UE_LOG(LogCook, Display, TEXT("Local cook is newer then shared cooked build, iteratively cooking from local build."));
-				}
-			}
-			const bool bIsIniSettingsOutOfDate = IniSettingsOutOfDate(TargetPlatform); // needs to be executed for side effects even if non-iterative
-
-			bool bShouldClearCookedContent = true;
-			if (bIsDiffOnly)
-			{
-				// When looking for deterministic cooking differences in cooked packages, don't delete the packages on disk
-				bShouldClearCookedContent = false;
-			}
-			else if (bIterative || PlatformData->bIsSandboxInitialized)
-			{
-				if (!bIsIniSettingsOutOfDate)
-				{
-					bShouldClearCookedContent = false;
-				}
-				else
-				{
-					if (!IsCookFlagSet(ECookInitializationFlags::IgnoreIniSettingsOutOfDate))
-					{
-						UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s ini settings don't match from last cook, clearing all cooked content"), *TargetPlatform->PlatformName());
-						bShouldClearCookedContent = true;
-					}
-					else
-					{
-						UE_LOG(LogCook, Display, TEXT("Inisettings were out of date for platform %s but we are going with it anyway because IgnoreIniSettingsOutOfDate is set"), *TargetPlatform->PlatformName());
-						bShouldClearCookedContent = false;
-					}
-				}
-			}
-			else
-			{
-				// In non-iterative cooks we will be replacing every cooked package and so should wipe the cooked directory
-				UE_LOG(LogCook, Display, TEXT("Clearing all cooked content for platform %s"), *TargetPlatform->PlatformName());
-				bShouldClearCookedContent = true;
-			}
-
 			ICookedPackageWriter::FCookInfo CookInfo;
 			CookInfo.CookMode = IsCookOnTheFlyMode() ? ICookedPackageWriter::FCookInfo::CookOnTheFlyMode : ICookedPackageWriter::FCookInfo::CookByTheBookMode;
-			CookInfo.bFullBuild = false;
-			CookInfo.bIterateSharedBuild = bIterateSharedBuild && !bShouldClearCookedContent;
-			bool bResetResults = false;
-			if (bShouldClearCookedContent)
+			CookInfo.bFullBuild = PlatformContext.bFullBuild;
+			CookInfo.bIterateSharedBuild = PlatformContext.bIterateSharedBuild;
+			PackageWriter.Initialize(CookInfo);
+
+			if (PlatformContext.bPopulateMemoryResultsFromDiskResults)
 			{
-				CookInfo.bFullBuild = true;
-				bResetResults = true;
+				PopulatePlatforms.Add(TargetPlatform);
 			}
-			else if (!PlatformData->bIsSandboxInitialized)
-			{
-				bResetResults = true;
-				// Reset but don't populate if we are looking for deterministic cooking differences; start from an empty list of cooked packages
-				if (!bIsDiffOnly)
-				{
-					PopulatePlatforms.Add(TargetPlatform);
-				}
-			}
-			else
+			else if (PlatformContext.bHasMemoryResults && !PlatformContext.bClearMemoryResults)
 			{
 				AlreadyCookedPlatforms.Add(TargetPlatform);
 			}
-			PackageWriter.Initialize(CookInfo);
-			PlatformData->bFullBuild = CookInfo.bFullBuild;
+			bool bResultResults = PlatformContext.bHasMemoryResults && PlatformContext.bClearMemoryResults;
+			ResetPlatforms.Emplace(TargetPlatform, bResultResults);
+			SaveCookSettings(PlatformContext.CurrentCookSettings, TargetPlatform);
+
 			PlatformData->bIsSandboxInitialized = true;
-			ResetPlatforms.Emplace(TargetPlatform, bResetResults);
 		}
 
 		ResetCook(ResetPlatforms);
@@ -7664,7 +7768,7 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 
 #if OUTPUT_COOKTIMING
 	FString PlatformNames;
-	for (const ITargetPlatform* Target : TargetPlatforms)
+	for (const ITargetPlatform* Target : BeginContext.TargetPlatforms)
 	{
 		PlatformNames += Target->PlatformName() + TEXT(" ");
 	}
@@ -7676,11 +7780,7 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const ITargetPlatform* TargetPlatform)
 {
 	using namespace UE::Cook;
-
-	if (SandboxFile == nullptr)
-	{
-		CreateSandboxFile();
-	}
+	checkf(SandboxFile, TEXT("SaveContexts cannot be created until after CreateSandboxFile has been called from StartCookByTheBook or StartCookOnTheFly"));
 
 	const FString RootPathSandbox = ConvertToFullSandboxPath(FPaths::RootDir(), true);
 	FString MetadataPathSandbox;
@@ -7816,12 +7916,6 @@ void UCookOnTheFlyServer::DiscoverPlatformSpecificNeverCookPackages(
 	}
 }
 
-void UCookOnTheFlyServer::TermSandbox()
-{
-	ClearAllCookedData();
-	SandboxFile = nullptr;
-}
-
 void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions& CookByTheBookStartupOptions )
 {
 	UE_SCOPED_COOKTIMER(StartCookByTheBook);
@@ -7856,37 +7950,28 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bDlcLoadMainAssetRegistry = !!(CookOptions & ECookByTheBookOptions::DlcLoadMainAssetRegistry);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
 
-	// if we are going to change the state of dlc, we need to clean out our package filename cache (the generated filename cache is dependent on this key). This has to happen later on, but we want to set the DLC State earlier.
-	const bool bDlcStateChanged = CookByTheBookOptions->DlcName != TEXT("") && CookByTheBookOptions->DlcName != DLCName;
 	CookByTheBookOptions->DlcName = DLCName;
 	if (CookByTheBookOptions->bSkipHardReferences && !CookByTheBookOptions->bSkipSoftReferences)
 	{
 		UE_LOG(LogCook, Warning, TEXT("Setting bSkipSoftReferences to true since bSkipHardReferences is true and skipping hard references requires skipping soft references."));
 		CookByTheBookOptions->bSkipSoftReferences = true;
 	}
-	SetBeginCookConfigSettings();
 	COOK_STAT(UE::SavePackageUtilities::ResetCookStats());
+	FBeginCookContext BeginContext = SetCookByTheBookOptions(CookByTheBookStartupOptions);
 
 	GenerateAssetRegistry();
 	BlockOnAssetRegistry();
+	CreateSandboxFile();
+	SetBeginCookConfigSettings();
 	PackageDatas->BeginCook();
 	if (!IsCookingInEditor())
 	{
 		FCoreUObjectDelegates::PackageCreatedForLoad.AddUObject(this, &UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded);
 	}
 
-	// SelectSessionPlatforms does not check for uniqueness and non-null, and we rely on those properties for performance, so ensure it here before calling SelectSessionPlatforms
-	TArray<ITargetPlatform*> TargetPlatforms;
-	TargetPlatforms.Reserve(CookByTheBookStartupOptions.TargetPlatforms.Num());
-	for (ITargetPlatform* TargetPlatform : CookByTheBookStartupOptions.TargetPlatforms)
-	{
-		if (TargetPlatform)
-		{
-			TargetPlatforms.AddUnique(TargetPlatform);
-		}
-	}
-	PlatformManager->SelectSessionPlatforms(TargetPlatforms);
-	bPackageFilterDirty = true;
+	SelectSessionPlatforms(BeginContext);
+	SetBeginCookIterativeFlags(BeginContext);
+	TArray<ITargetPlatform*> TargetPlatforms = BeginContext.TargetPlatforms;
 	check(PlatformManager->GetSessionPlatforms().Num() == TargetPlatforms.Num());
 
 	// We want to set bRunning = true as early as possible, but it implies that session platforms have been selected so this is the earliest point we can set it
@@ -7962,17 +8047,11 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		DiscoverPlatformSpecificNeverCookPackages(TargetPlatforms, UBTPlatformStrings);
 	}
 
-	if (bDlcStateChanged)
-	{
-		// If we changed the DLC State earlier on, we must clear out the package name cache
-		TermSandbox();
-	}
-	
 	FindOrCreateSaveContexts(TargetPlatforms);
 	// TODO: Fix the elements of StartCookByTheBook that rely on BeginCookSandbox being called early, and remove this call to BeginCookSandbox
 	if (!bHybridIterativeEnabled)
 	{
-		BeginCookSandbox(TargetPlatforms); // This will either delete the sandbox or iteratively clean it
+		BeginCookSandbox(BeginContext); // This will either delete the sandbox or iteratively clean it
 	}
 	InitializeTargetPlatforms(TargetPlatforms);
 
@@ -8248,7 +8327,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	if (bHybridIterativeEnabled)
 	{
-		BeginCookSandbox(TargetPlatforms);
+		BeginCookSandbox(BeginContext);
 	}
 
 	// don't resave the global shader map files in dlc
@@ -8282,6 +8361,51 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	}
 
 	InitializePollables();
+}
+
+FBeginCookContext UCookOnTheFlyServer::SetCookByTheBookOptions(const FCookByTheBookStartupOptions& StartupOptions)
+{
+	FBeginCookContext BeginContext;
+
+	BeginContext.TargetPlatforms = StartupOptions.TargetPlatforms;
+	Algo::Sort(BeginContext.TargetPlatforms);
+	BeginContext.TargetPlatforms.SetNum(Algo::Unique(BeginContext.TargetPlatforms));
+
+	BeginContext.PlatformContexts.SetNum(BeginContext.TargetPlatforms.Num());
+	for (int32 Index = 0; Index < BeginContext.TargetPlatforms.Num(); ++Index)
+	{
+		BeginContext.PlatformContexts[Index].TargetPlatform = BeginContext.TargetPlatforms[Index];
+		// PlatformContext.PlatformData is currently null and is set in SelectSessionPlatforms
+	}
+
+	return BeginContext;
+}
+
+FBeginCookContext UCookOnTheFlyServer::CreateAddPlatformContext(ITargetPlatform* TargetPlatform)
+{
+	FBeginCookContext BeginContext;
+
+	BeginContext.TargetPlatforms.Add(TargetPlatform);
+
+	FBeginCookContextPlatform& PlatformContext = BeginContext.PlatformContexts.Emplace_GetRef();
+	PlatformContext.TargetPlatform = TargetPlatform;
+	PlatformContext.PlatformData = &PlatformManager->CreatePlatformData(TargetPlatform);
+
+	return BeginContext;
+}
+
+void UCookOnTheFlyServer::SelectSessionPlatforms(FBeginCookContext& BeginContext)
+{
+	PlatformManager->SelectSessionPlatforms(BeginContext.TargetPlatforms);
+	if (PackageTracker->HasBeenConsumed())
+	{
+		bPackageFilterDirty = true;
+	}
+	FindOrCreateSaveContexts(BeginContext.TargetPlatforms);
+	for (FBeginCookContextPlatform& PlatformContext : BeginContext.PlatformContexts)
+	{
+		PlatformContext.PlatformData = PlatformManager->GetPlatformData(PlatformContext.TargetPlatform);
+	}
 }
 
 TArray<FName> UCookOnTheFlyServer::GetNeverCookPackageFileNames(TArrayView<const FString> ExtraNeverCookDirectories)

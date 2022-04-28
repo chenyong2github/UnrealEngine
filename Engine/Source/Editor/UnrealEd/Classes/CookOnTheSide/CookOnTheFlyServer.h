@@ -31,6 +31,7 @@ class IAssetRegistry;
 class ICookedPackageWriter;
 class IPlugin;
 class ITargetPlatform;
+struct FBeginCookContext;
 struct FPropertyChangedEvent;
 
 namespace UE::LinkerLoad { enum class EImportBehavior : uint8; }
@@ -237,6 +238,7 @@ private:
 
 	ECookInitializationFlags CookFlags = ECookInitializationFlags::None;
 	TUniquePtr<class FSandboxPlatformFile> SandboxFile;
+	FString SandboxFileOutputDirectory;
 	TUniquePtr<FAsyncIODelete> AsyncIODelete; // Helper for deleting the old cook directory asynchronously
 	bool bIsSavingPackage = false; // used to stop recursive mark package dirty functions
 	/** Set to true during CookOnTheFly if a plugin is calling RequestPackage and we should therefore not make assumptions about when platforms are done cooking */
@@ -713,6 +715,10 @@ private:
 
 	//////////////////////////////////////////////////////////////////////////
 	// cook by the book specific functions
+	/** Construct the on-stack data for StartCook functions, based on the arguments to StartCookByTheBook */
+	FBeginCookContext SetCookByTheBookOptions(const FCookByTheBookStartupOptions& StartupOptions);
+	/** Set the PlatformManager's session platforms and finish filling out the BeginContext for StartCookByTheBook */
+	void SelectSessionPlatforms(FBeginCookContext& BeginContext);
 	/**
 	* Collect all the files which need to be cooked for a cook by the book session
 	*/
@@ -821,6 +827,8 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// cook on the fly specific functions
 
+	/** Construct the on-stack data for StartCook functions, based on the arguments when adding a COTF platform */
+	FBeginCookContext CreateAddPlatformContext(ITargetPlatform* TargetPlatform);
 	void GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, const FString& PlatformName, TArray<FString>& UnsolicitedFiles, const FString& Filename, bool bIsCookable);
 
 	//////////////////////////////////////////////////////////////////////////
@@ -843,10 +851,10 @@ private:
 	bool LoadPackageForCooking(UE::Cook::FPackageData& PackageData, UPackage*& OutPackage, FString* LoadFromFileName = nullptr,
 		UE::Cook::FPackageData* ReportingPackageData = nullptr);
 
-	/**
-	* Initialize the sandbox for a new cook session with @param TargetPlatforms
-	*/
-	void BeginCookSandbox(TConstArrayView<const ITargetPlatform*> TargetPlatforms);
+	/** Read information about the previous cook from disk and set whether the current cook is iterative based on previous cook, config, and commandline. */
+	void SetBeginCookIterativeFlags(FBeginCookContext& BeginContext);
+	/** Initialize the sandbox for a new cook session */
+	void BeginCookSandbox(FBeginCookContext& BeginContext);
 
 	/** Set parameters that rely on config and CookByTheBook settings. */
 	void SetBeginCookConfigSettings();
@@ -877,11 +885,6 @@ private:
 	*/
 	void DiscoverPlatformSpecificNeverCookPackages(
 		const TArrayView<const ITargetPlatform* const>& TargetPlatforms, const TArray<FString>& UBTPlatformStrings);
-
-	/**
-	* Clean up the sandbox
-	*/
-	void TermSandbox();
 
 	/**
 	* GetDependentPackages
@@ -971,6 +974,14 @@ private:
 	*/
 	bool GetCookedIniVersionStrings( const ITargetPlatform* TargetPlatform, FIniSettingContainer& IniVersionStrings, TMap<FString, FString>& AdditionalStrings ) const;
 
+	/** Test the CurrentCookSettings against the previous cooksettings to decide if we have to wipe the previous cook even when running iteratively. */
+	bool ArePreviousCookSettingsCompatible(const TMap<FName, FString>& CurrentCookSettings, const ITargetPlatform* TargetPlatform) const;
+	/** Save the CurrentCookSettings into the output directory. */
+	void SaveCookSettings(const TMap<FName, FString>& CurrentCookSettings, const ITargetPlatform* TargetPlatform);
+	/** Populate a map suitable for saving as an ini with the current value of the Cook settings that need to be tested for compatibility. */
+	TMap<FName, FString> CalculateCookSettingStrings() const;
+	/** Get the path to the CookSettings metadata file for the given platform and current output directory. */
+	FString GetCookSettingsFileName(const ITargetPlatform* TargetPlatform) const;
 
 	/**
 	* Convert a path to a full sandbox path

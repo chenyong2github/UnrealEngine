@@ -64,6 +64,8 @@ class TFastPointerSet : public TSet<KeyType, TFastPointerSetKeyFuncs<KeyType>, S
 namespace UE::Cook
 {
 	struct FPackageData;
+	struct FPlatformData;
+
 	/** A function that is called when a requested package finishes cooking (when successful, failed, or skipped) */
 	typedef TUniqueFunction<void(FPackageData*)> FCompletionCallback;
 
@@ -279,6 +281,35 @@ public:
 	/** List of all the cultures (e.g. "en") that need to be cooked */
 	TArray<FString>					AllCulturesToCook;
 };
+
+/** Helper struct for FBeginCookContext; holds the context data for each platform being cooked */
+struct FBeginCookContextPlatform
+{
+	ITargetPlatform* TargetPlatform = nullptr;
+	UE::Cook::FPlatformData* PlatformData = nullptr;
+	TMap<FName, FString> CurrentCookSettings;
+
+	/** If true, we are deleting all old results from disk and rebuilding every package. If false, we are building iteratively. */
+	bool bFullBuild = false;
+	/** If true, a cook has already been run in the current process and we still have results from it. */
+	bool bHasMemoryResults = false;
+	/** If true, we should delete the in-memory results from an earlier cook in the same process, if we have any. */
+	bool bClearMemoryResults = false;
+	/** If true, we should load results that previous cooks left on disk into the current cook's results; this is one way to cook iteratively. */
+	bool bPopulateMemoryResultsFromDiskResults = false;
+	/** If true we are cooking iteratively, from results in a shared build (e.g. from buildfarm) rather than from our previous cook. */
+	bool bIterateSharedBuild = false;
+};
+
+/** Data held on the stack and shared with multiple subfunctions when running StartCookByTheBook or StartCookOnTheFly */
+struct FBeginCookContext
+{
+	/** List of the platforms we are building, with startup context data about each one */
+	TArray<FBeginCookContextPlatform> PlatformContexts;
+	/** The list of platforms by themselves, for passing to functions that need just a list of platforms */
+	TArray<ITargetPlatform*> TargetPlatforms;
+};
+
 
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);
 LLM_DECLARE_TAG(Cooker);

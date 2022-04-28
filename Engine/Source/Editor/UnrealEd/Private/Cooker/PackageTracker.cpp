@@ -89,7 +89,15 @@ namespace UE::Cook
 
 	TMap<UPackage*, FInstigator> FPackageTracker::GetNewPackages()
 	{
-		return MoveTemp(NewPackages);
+		TMap<UPackage*, FInstigator> Result = MoveTemp(NewPackages);
+		NewPackages.Reset();
+		bHasBeenConsumed = true;
+		return Result;
+	}
+
+	bool FPackageTracker::HasBeenConsumed() const
+	{
+		return bHasBeenConsumed;
 	}
 
 	void FPackageTracker::NotifyUObjectCreated(const class UObjectBase* Object, int32 Index)

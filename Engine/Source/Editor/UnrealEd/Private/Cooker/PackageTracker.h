@@ -174,8 +174,11 @@ namespace Cook
 		FPackageTracker(FPackageDatas& InPackageDatas);
 		~FPackageTracker();
 
-		/* Returns all packages that have been loaded since the last time GetNewPackages was called */
+		/** Returns all packages that have been loaded since the last time GetNewPackages was called */
 		TMap<UPackage*, FInstigator> GetNewPackages();
+
+		/** Report whether GetNewPackages has ever been called */
+		bool HasBeenConsumed() const;
 
 		virtual void NotifyUObjectCreated(const class UObjectBase* Object, int32 Index) override;
 		virtual void NotifyUObjectDeleted(const class UObjectBase* Object, int32 Index) override;
@@ -205,6 +208,8 @@ namespace Cook
 		FThreadSafeSet<FName> NeverCookPackageList;
 		FThreadSafeSet<FName> UncookedEditorOnlyPackages; // set of packages that have been rejected due to being referenced by editor-only properties
 		TFastPointerMap<const ITargetPlatform*, TSet<FName>> PlatformSpecificNeverCookPackages;
+
+		bool bHasBeenConsumed = false;
 	}; 
 }
 }
