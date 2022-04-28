@@ -49,7 +49,7 @@ enum class ECookInitializationFlags
 	IncludeServerMaps =							0x00000080, // should we include the server maps when cooking
 	UseSerializationForPackageDependencies =	0x00000100, // should we use the serialization code path for generating package dependencies (old method will be deprecated)
 	BuildDDCInBackground =						0x00000200, // build ddc content in background while the editor is running (only valid for modes which are in editor IsCookingInEditor())
-	GeneratedAssetRegistry =					0x00000400, // have we generated asset registry yet
+	// unused =									0x00000400,
 	OutputVerboseCookerWarnings =				0x00000800, // output additional cooker warnings about content issues
 	EnablePartialGC =							0x00001000, // mark up with an object flag objects which are in packages which we are about to use or in the middle of using, this means we can gc more often but only gc stuff which we have finished with
 	TestCook =									0x00002000, // test the cooker garbage collection process and cooking (cooker will never end just keep testing).
@@ -713,6 +713,9 @@ private:
 
 	bool IsUsingLegacyCookOnTheFlyScheduling() const;
 
+	/** Update accumulators of editor data and consume editor changes since the last cook when starting cooks in the editor. */
+	void BeginCookEditorSystems();
+
 	//////////////////////////////////////////////////////////////////////////
 	// cook by the book specific functions
 	/** Construct the on-stack data for StartCook functions, based on the arguments to StartCookByTheBook */
@@ -746,10 +749,10 @@ private:
 	/** Return the name to use for the project's global shader library */
 	FString GetProjectShaderLibraryName() const;
 
-	/**
-	* Invokes the necessary FShaderCodeLibrary functions to start cooking the shader code library.
-	*/
-	void InitShaderCodeLibrary(void);
+	/** Invokes the necessary FShaderCodeLibrary functions to start cooking the shader code library. */
+	void BeginCookStartShaderCodeLibrary(FBeginCookContext& BeginContext);
+	/** Finishes async operations from ShaderCodeLibraryBeginCookStart, saves initial data to disk, and opens the library for the rest of the cook */
+	void BeginCookFinishShaderCodeLibrary(FBeginCookContext& BeginContext);
     
 	/**
 	 * Opens Global shader library. Global shaderlib isn't split into chunks nor associated with the assets, so it a special case
@@ -1091,8 +1094,6 @@ private:
 	 */
 	void PopulateCookedPackages(const TConstArrayView<const ITargetPlatform*> TargetPlatforms);
 
-	/** Loads the platform-independent asset registry for use by the cooker */
-	void GenerateAssetRegistry();
 	/** Waits for the AssetRegistry to complete so that we know any missing assets are missing on disk */
 	void BlockOnAssetRegistry();
 	/** Setup necessary only once for CookOnTheFly, but that are not required until the first request. */

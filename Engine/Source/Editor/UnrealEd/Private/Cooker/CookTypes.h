@@ -304,6 +304,7 @@ struct FBeginCookContextPlatform
 /** Data held on the stack and shared with multiple subfunctions when running StartCookByTheBook or StartCookOnTheFly */
 struct FBeginCookContext
 {
+	const UCookOnTheFlyServer::FCookByTheBookStartupOptions* StartupOptions = nullptr;
 	/** List of the platforms we are building, with startup context data about each one */
 	TArray<FBeginCookContextPlatform> PlatformContexts;
 	/** The list of platforms by themselves, for passing to functions that need just a list of platforms */
