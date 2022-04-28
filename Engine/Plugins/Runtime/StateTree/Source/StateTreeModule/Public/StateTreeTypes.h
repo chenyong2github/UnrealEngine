@@ -3,6 +3,7 @@
 #pragma once
 
 #include "InstancedStruct.h"
+#include "PropertyBag.h"
 #include "StateTreeTypes.generated.h"
 
 STATETREEMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTree, Warning, All);
@@ -56,6 +57,15 @@ enum class EStateTreeConditionOperand : uint8
 	Copy UMETA(Hidden),	/// Copy result
 	And,				/// Combine results with AND.
 	Or,					/// Combine results with OR.
+};
+
+UENUM()
+enum class EStateTreeStateType : uint8
+{
+	State,		// A State containing tasks and evaluators.
+	Group,		// A State containing just sub states.
+	Linked,		// A State that is linked to another state in the tree (the execution continues on the linked state).
+	Subtree,	// A subtree that can be linked to.
 };
 
 namespace UE::StateTree
@@ -364,6 +374,11 @@ struct STATETREEMODULE_API FCompactStateTreeState
 	uint16 EvaluatorsBegin = 0;							// Index to first evaluator
 
 	UPROPERTY()
+	uint16 ParameterInstanceIndex = INDEX_NONE;			// Index to state instance data
+	UPROPERTY()
+	uint16 ParameterDataViewIndex = INDEX_NONE;			// Data view index of the input parameters
+
+	UPROPERTY()
 	uint8 EnterConditionsNum = 0;						// Number of enter conditions
 	UPROPERTY()
 	uint8 TransitionsNum = 0;							// Number of transitions
@@ -371,6 +386,20 @@ struct STATETREEMODULE_API FCompactStateTreeState
 	uint8 TasksNum = 0;									// Number of tasks
 	UPROPERTY()
 	uint8 EvaluatorsNum = 0;							// Number of evaluators
+	UPROPERTY()
+	EStateTreeStateType Type = EStateTreeStateType::State; 
+};
+
+USTRUCT()
+struct STATETREEMODULE_API FCompactStateTreeParameters
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FStateTreeHandle BindingsBatch = FStateTreeHandle::Invalid;
+
+	UPROPERTY()
+	FInstancedPropertyBag Parameters;
 };
 
 /** An offset into the StateTree runtime storage type to get a struct view to a specific Task, Evaluator, or Condition. */

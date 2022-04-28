@@ -30,15 +30,11 @@ private:
 	bool ResolveTransitionState(const UStateTreeState& SourceState, const FStateTreeStateLink& Link, FStateTreeHandle& OutTransitionHandle) const;
 	FStateTreeHandle GetStateHandle(const FGuid& StateID) const;
 	UStateTreeState* GetState(const FGuid& StateID);
-	static FString GetExecutionPathString(const TConstArrayView<const UStateTreeState*> Path);
-	static bool IsPathLinked(const TConstArrayView<const UStateTreeState*> Path);
 
-	bool CreateExecutionInfos();
-	bool CreateExecutionInfosRecursive(UStateTreeState& State, TArray<const UStateTreeState*>& Path);
 	bool CreateStates();
 	bool CreateStateRecursive(UStateTreeState& State, const FStateTreeHandle Parent);
 	
-	bool CreateStateTasks();
+	bool CreateStateTasksAndParameters();
 	bool CreateStateEvaluators();
 	bool CreateStateTransitions();
 	
@@ -49,24 +45,10 @@ private:
 	bool GetAndValidateBindings(UStateTreeState& State, const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
 	bool IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const;
 
-	struct FExecutionPath
-	{
-		FExecutionPath() = default;
-		explicit FExecutionPath(const TConstArrayView<const UStateTreeState*> InPath) : Path(InPath) {}
-		
-		TArray<const UStateTreeState*> Path;
-	};
-
-	struct FStateExecutionInfo
-	{
-		TArray<FExecutionPath> ExecutionPaths;
-	};
-
 	FStateTreeCompilerLog& Log;
 	UStateTree* StateTree = nullptr;
 	UStateTreeEditorData* TreeData = nullptr;
 	TMap<FGuid, int32> IDToState;
 	TArray<UStateTreeState*> SourceStates;
-	TMap<UStateTreeState*, FStateExecutionInfo> ExecutionInfos;
 	FStateTreePropertyBindingCompiler BindingsCompiler;
 };

@@ -29,10 +29,13 @@ void FStateTreeStateLinkDetails::CustomizeHeader(TSharedRef<class IPropertyHandl
 	IDProperty = StructProperty->GetChildHandle(TEXT("ID"));
 	TypeProperty = StructProperty->GetChildHandle(TEXT("Type"));
 
-	static const FName NAME_DirectStatesOnly = "DirectStatesOnly";
 	if (const FProperty* MetaDataProperty = StructProperty->GetMetaDataProperty())
 	{
-		bAllowMetaStates = !MetaDataProperty->HasMetaData(NAME_DirectStatesOnly);
+		static const FName NAME_DirectStatesOnly = "DirectStatesOnly";
+		static const FName NAME_SubtreesOnly = "SubtreesOnly";
+		
+		bDirectStatesOnly = MetaDataProperty->HasMetaData(NAME_DirectStatesOnly);
+		bSubtreesOnly = MetaDataProperty->HasMetaData(NAME_SubtreesOnly);
 	}
 	
 	CacheStates();
@@ -75,8 +78,17 @@ void FStateTreeStateLinkDetails::CacheStates(const UStateTreeState* State)
 		return;
 	}
 
-	CachedNames.Add(State->Name);
-	CachedIDs.Add(State->ID);
+	bool bShouldAdd = true;
+	if (bSubtreesOnly && State->Type != EStateTreeStateType::Subtree)
+	{
+		bShouldAdd = false;
+	}
+
+	if (bShouldAdd)
+	{
+		CachedNames.Add(State->Name);
+		CachedIDs.Add(State->ID);
+	}
 
 	for (UStateTreeState* ChildState : State->Children)
 	{
@@ -149,7 +161,7 @@ TSharedRef<SWidget> FStateTreeStateLinkDetails::OnGetStateContent() const
 {
 	FMenuBuilder MenuBuilder(true, NULL);
 
-	if (bAllowMetaStates)
+	if (!bDirectStatesOnly)
 	{
 		FUIAction NextItemAction(FExecuteAction::CreateSP(const_cast<FStateTreeStateLinkDetails*>(this), &FStateTreeStateLinkDetails::OnStateComboChange, ComboNextState));
 		MenuBuilder.AddMenuEntry(LOCTEXT("TransitionNextState", "Next State"), LOCTEXT("TransitionNextTooltip", "Goto next sibling State."), FSlateIcon(), NextItemAction);

@@ -9,6 +9,7 @@
 #include "Customizations/StateTreeStateLinkDetails.h"
 #include "Customizations/StateTreeStateDetails.h"
 #include "Customizations/StateTreeEditorNodeDetails.h"
+#include "Customizations/StateTreeStateParametersDetails.h"
 #include "Customizations/StateTreeAnyEnumDetails.h"
 #include "StateTreeEditor.h"
 #include "StateTree.h"
@@ -50,6 +51,7 @@ void FStateTreeEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout("StateTreeTransition", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStateTreeTransitionDetails::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout("StateTreeStateLink", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStateTreeStateLinkDetails::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout("StateTreeEditorNode", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStateTreeEditorNodeDetails::MakeInstance));
+	PropertyModule.RegisterCustomPropertyTypeLayout("StateTreeStateParameters", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStateTreeStateParametersDetails::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout("StateTreeAnyEnum", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStateTreeAnyEnumDetails::MakeInstance));
 	PropertyModule.RegisterCustomClassLayout("StateTreeState", FOnGetDetailCustomizationInstance::CreateStatic(&FStateTreeStateDetails::MakeInstance));
 
@@ -84,9 +86,8 @@ void FStateTreeEditorModule::ShutdownModule()
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("StateTreeTransition");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("StateTreeStateLink");
-		PropertyModule.UnregisterCustomPropertyTypeLayout("StateTreeEvaluatorItem");
-		PropertyModule.UnregisterCustomPropertyTypeLayout("StateTreeTaskItem");
-		PropertyModule.UnregisterCustomPropertyTypeLayout("StateTreeConditionItem");
+		PropertyModule.UnregisterCustomPropertyTypeLayout("StateTreeEditorNode");
+		PropertyModule.UnregisterCustomPropertyTypeLayout("StateTreeStateParameters");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("StateTreeAnyEnum");
 		PropertyModule.NotifyCustomizationModuleChanged();
 	}

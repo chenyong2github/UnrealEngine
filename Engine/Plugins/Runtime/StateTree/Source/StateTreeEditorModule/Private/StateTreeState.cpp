@@ -2,6 +2,7 @@
 
 #include "StateTreeState.h"
 #include "StateTree.h"
+#include "StateTreeEditorData.h"
 #include "StateTreeConditionBase.h"
 #include "StateTreeEvaluatorBase.h"
 #include "StateTreeTaskBase.h"
@@ -70,15 +71,57 @@ void UStateTreeState::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pr
 		if (Property->GetOwnerClass() == UStateTreeState::StaticClass()
 			&& Property->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Type))
 		{
+			// Remove any tasks and evaluators when they are not used.
 			if (Type == EStateTreeStateType::Group || Type == EStateTreeStateType::Linked)
 			{
-				// Remove any tasks and evaluators.
 				Tasks.Reset();
 				Evaluators.Reset();
 			}
+
+			// If transitioning from linked state, reset the linked state.
 			if (Type != EStateTreeStateType::Linked)
 			{
 				LinkedState = FStateTreeStateLink();
+			}
+
+			if (Type == EStateTreeStateType::Linked)
+			{
+				// Linked parameter layout is fixed, and copied from the linked target state.
+				Parameters.bFixedLayout = true;
+				UpdateParametersFromLinkedState();
+			}
+			else if (Type == EStateTreeStateType::Subtree)
+			{
+				// Subtree parameter layout can be edited
+				Parameters.bFixedLayout = false;
+			}
+			else
+			{
+				Parameters.Reset();
+			}
+		}
+
+		if (Property->GetOwnerClass() == UStateTreeState::StaticClass()
+			&& Property->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, LinkedState))
+		{
+			// When switching to new state, update the parameters.
+			if (Type == EStateTreeStateType::Linked)
+			{
+				UpdateParametersFromLinkedState();
+			}
+		}
+
+		if (Property->GetOwnerClass() == UStateTreeState::StaticClass()
+			&& Property->GetFName() == GET_MEMBER_NAME_CHECKED(UStateTreeState, Parameters))
+		{
+			if (Type == EStateTreeStateType::Subtree)
+			{
+				// Broadcast subtree parameter edits so that the linked states can adapt.
+				const UStateTree* StateTree = GetTypedOuter<UStateTree>();
+				if (ensure(StateTree))
+				{
+					UE::StateTree::Delegates::OnStateParametersChanged.Broadcast(*StateTree, ID);
+				}
 			}
 		}
 
@@ -137,6 +180,16 @@ void UStateTreeState::PostLoad()
 	}
 }
 
+void UStateTreeState::UpdateParametersFromLinkedState()
+{
+	if (const UStateTreeEditorData* TreeData = GetTypedOuter<UStateTreeEditorData>())
+	{
+		if (const UStateTreeState* LinkTargetState = TreeData->GetStateByID(LinkedState.ID))
+		{
+			Parameters.Parameters.MigrateToNewBagInstance(LinkTargetState->Parameters.Parameters);
+		}
+	}
+}
 
 #endif
 

@@ -29,7 +29,14 @@ namespace UE::StateTree::Delegates
 	 */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnParametersChanged, const UStateTree& /*StateTree*/);
 	extern STATETREEMODULE_API FOnParametersChanged OnParametersChanged;
-	
+
+	/**
+	 * Called when parameters of a StateTree State changed.
+	 * This should mainly used by the asset editor to maintain consistency in the UI for manipulations.
+	 */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStateParametersChanged, const UStateTree& /*StateTree*/, const FGuid /*StateID*/);
+	extern STATETREEMODULE_API FOnStateParametersChanged OnStateParametersChanged;
+
 	/** Called when compilation succeeds */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostCompile, const UStateTree& /*StateTree*/);
 	extern STATETREEMODULE_API FOnPostCompile OnPostCompile;

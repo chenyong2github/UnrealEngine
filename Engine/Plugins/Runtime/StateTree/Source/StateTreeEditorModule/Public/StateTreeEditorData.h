@@ -15,7 +15,16 @@ enum class EStateTreeNodeType : uint8
 	Evaluator,
 	Task,
 	TransitionCondition,
+	StateParameters,
 };
+
+UENUM()
+enum class EStateTreeVisitor : uint8
+{
+	Continue,
+	Break,
+};
+
 
 /**
  * Edit time data for StateTree asset. This data gets baked into runtime format before being used by the StateTreeInstance.
@@ -41,20 +50,29 @@ public:
 	/** Returns parent state of a struct, or nullptr if not found. */
 	const UStateTreeState* GetStateByStructID(const FGuid TargetStructID) const;
 
+	/** Returns state based on its ID, or nullptr if not found. */
+	const UStateTreeState* GetStateByID(const FGuid StateID) const;
+
 	/** Gets the IDs of all bindable structs in the StateTree. */
 	void GetAllStructIDs(TMap<FGuid, const UStruct*>& AllStructs) const;
+
+	/**
+	* Iterates over all structs that are related to binding
+	* @param InFunc function called at each node, should return true if visiting is continued or false to stop.
+	*/
+	void VisitHierarchy(TFunctionRef<EStateTreeVisitor(UStateTreeState& State, UStateTreeState* ParentState)> InFunc) const;
 
 	/**
 	 * Iterates over all structs that are related to binding
 	 * @param InFunc function called at each node, should return true if visiting is continued or false to stop.
 	 */
-	void VisitHierarchy(TFunctionRef<bool(const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
+	void VisitHierarchyNodes(TFunctionRef<EStateTreeVisitor(const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
 
 	/**
 	 * Iterates over all nodes in a given state.
 	 * @param InFunc function called at each node, should return true if visiting is continued or false to stop.
 	 */
-	bool VisitState(const UStateTreeState& State, TFunctionRef<bool(const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
+	EStateTreeVisitor VisitStateNodes(const UStateTreeState& State, TFunctionRef<EStateTreeVisitor(const UStateTreeState& State, const FGuid& ID, const FName& Name, const EStateTreeNodeType NodeType, const UScriptStruct* NodeStruct, const UStruct* InstanceStruct)> InFunc) const;
 
 	/**
 	 * Returns array of nodes along the execution path, up to the TargetStruct.

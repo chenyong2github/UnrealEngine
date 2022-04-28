@@ -45,8 +45,10 @@ bool FStateTreePropertyBindings::ResolvePaths()
 			const UStruct* TargetStruct = Batch.TargetStruct.Struct;
 			if (!SourceStruct || !TargetStruct)
 			{
+				Copy.Type = EStateTreePropertyCopyType::None;
 				bBindingsResolved = false;
-				break;
+				bResult = false;
+				continue;
 			}
 
 			// Resolve paths and validate the copy. Stops on first failure.
@@ -300,9 +302,11 @@ bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 
 uint8* FStateTreePropertyBindings::GetAddress(FStateTreeDataView InStructView, const FStateTreePropertyAccess& InAccess) const
 {
-	check(InStructView.IsValid());
-
 	uint8* Address = InStructView.GetMutableMemory();
+	if (Address == nullptr)
+	{
+		return nullptr;
+	}
 	
 	for (int32 i = InAccess.IndirectionsBegin; Address != nullptr && i < InAccess.IndirectionsEnd; i++)
 	{
@@ -469,17 +473,17 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, con
 	}
 }
 
-void FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> SourceStructViews, const int32 TargetBatchIndex, FStateTreeDataView TargetStructView) const
+bool FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> SourceStructViews, const int32 TargetBatchIndex, FStateTreeDataView TargetStructView) const
 {
 	// This is made ensure so that the programmers have the change to catch it (it's usually programming error not to call ResolvePaths(), and it wont spam log for others.
 	if (!ensureMsgf(bBindingsResolved, TEXT("Bindings must be resolved successfully before copying. See ResolvePaths()")))
 	{
-		return;
+		return false;
 	}
 
 	if (TargetBatchIndex == INDEX_NONE)
 	{
-		return;
+		return false;
 	}
 
 	check(CopyBatches.IsValidIndex(TargetBatchIndex));
@@ -488,6 +492,8 @@ void FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> Sour
 	check(TargetStructView.IsValid());
 	check(TargetStructView.GetStruct() == Batch.TargetStruct.Struct);
 
+	bool bResult = true;
+	
 	for (int32 i = Batch.BindingsBegin; i != Batch.BindingsEnd; i++)
 	{
 		const FStateTreePropCopy& Copy = PropertyCopies[i];
@@ -496,19 +502,28 @@ void FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> Sour
 		{
 			continue;
 		}
+		
+		const FStateTreeDataView SourceStructView = SourceStructViews[Copy.SourceStructIndex];
+		check(SourceStructView.GetStruct() == SourceStructs[Copy.SourceStructIndex].Struct || (SourceStructView.GetStruct() && SourceStructView.GetStruct()->IsChildOf(SourceStructs[Copy.SourceStructIndex].Struct)));
+			
 		const FStateTreePropertyAccess& SourceAccess = PropertyAccesses[Copy.SourceAccessIndex];
 		const FStateTreePropertyAccess& TargetAccess = PropertyAccesses[Copy.TargetAccessIndex];
-
-		const FStateTreeDataView SourceStructView = SourceStructViews[Copy.SourceStructIndex];
-		check(SourceStructView.GetStruct() == SourceStructs[Copy.SourceStructIndex].Struct || SourceStructView.GetStruct()->IsChildOf(SourceStructs[Copy.SourceStructIndex].Struct));
 		
 		const uint8* SourceAddress = GetAddress(SourceStructView, SourceAccess);
 		uint8* TargetAddress = GetAddress(TargetStructView, TargetAccess);
-		if (SourceAddress && TargetAddress)
+		
+		if (SourceAddress != nullptr && TargetAddress != nullptr)
 		{
 			PerformCopy(Copy, SourceAccess.LeafProperty, SourceAddress, TargetAccess.LeafProperty, TargetAddress);
 		}
+		else
+		{
+			bResult = false;
+			break;
+		}
 	}
+
+	return bResult;
 }
 
 void FStateTreePropertyBindings::DebugPrintInternalLayout(FString& OutString) const

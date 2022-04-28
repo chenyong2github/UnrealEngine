@@ -115,7 +115,7 @@ void SStateTreeViewRow::Construct(const FArguments& InArgs, const TSharedRef<STa
                         .Visibility(this, &SStateTreeViewRow::GetSelectorVisibility)
                         [
                             SNew(STextBlock)
-                            .Text(FEditorFontGlyphs::Level_Down)
+                            .Text(this, &SStateTreeViewRow::GetSelectorDesc)
                             .TextStyle(FStateTreeEditorStyle::Get(), "StateTree.Icon")
                         ]
                     ]
@@ -421,7 +421,7 @@ FSlateColor SStateTreeViewRow::GetTitleColor() const
 		{
 			return FLinearColor(FColor(236, 134, 39));
 		}
-		if (IsRoutine())
+		if (IsRootState() || State->Type == EStateTreeStateType::Subtree)
 		{
 			return FLinearColor(FColor(17, 117, 131));
 		}
@@ -452,9 +452,43 @@ EVisibility SStateTreeViewRow::GetSelectorVisibility() const
 {
 	if (const UStateTreeState* State = WeakState.Get())
 	{
-		return State->Children.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
+		if (State->Type == EStateTreeStateType::State || State->Type == EStateTreeStateType::Group)
+		{
+			return State->Children.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
+		}
+		else if (IsRootState() || State->Type == EStateTreeStateType::Subtree)
+		{
+			return EVisibility::Visible;
+		}
+		else if (State->Type == EStateTreeStateType::Linked)
+		{
+			return EVisibility::Visible;
+		}
 	}
+	
 	return EVisibility::Collapsed;
+}
+
+
+FText SStateTreeViewRow::GetSelectorDesc() const
+{
+	if (const UStateTreeState* State = WeakState.Get())
+	{
+		if (State->Type == EStateTreeStateType::State || State->Type == EStateTreeStateType::Group)
+		{
+			return FEditorFontGlyphs::Level_Down; // Selector
+		}
+		else if (IsRootState() || State->Type == EStateTreeStateType::Subtree)
+		{
+			return FEditorFontGlyphs::Cogs;
+		}
+		else if (State->Type == EStateTreeStateType::Linked)
+		{
+			return FEditorFontGlyphs::Link;
+		}
+	}
+
+	return FText::GetEmpty(); 
 }
 
 EVisibility SStateTreeViewRow::GetEvaluatorsVisibility() const
@@ -825,7 +859,7 @@ FText SStateTreeViewRow::GetConditionalTransitionsDesc() const
 	return FText::Join(FText::FromString(TEXT(", ")), DescItems);
 }
 
-bool SStateTreeViewRow::IsRoutine() const
+bool SStateTreeViewRow::IsRootState() const
 {
 	// Routines can be identified by not having parent state.
 	const UStateTreeState* State = WeakState.Get();

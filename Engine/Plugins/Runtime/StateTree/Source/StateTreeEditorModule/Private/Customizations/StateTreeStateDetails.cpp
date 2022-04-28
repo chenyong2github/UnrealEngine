@@ -47,6 +47,7 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	TSharedPtr<IPropertyHandle> TransitionsProperty = DetailBuilder.GetProperty(TEXT("Transitions"));
 	TSharedPtr<IPropertyHandle> TypeProperty = DetailBuilder.GetProperty(TEXT("Type"));
 	TSharedPtr<IPropertyHandle> LinkedStateProperty = DetailBuilder.GetProperty(TEXT("LinkedState"));
+	TSharedPtr<IPropertyHandle> ParametersProperty = DetailBuilder.GetProperty(TEXT("Parameters"));
 
 	uint8 StateTypeValue = 0;
 	TypeProperty->GetValue(StateTypeValue);
@@ -60,8 +61,13 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 		LinkedStateProperty->MarkHiddenByCustomization();
 	}
 	
+	if (!(StateType == EStateTreeStateType::Subtree || StateType == EStateTreeStateType::Linked))
+	{
+		ParametersProperty->MarkHiddenByCustomization();
+	}
+	
 	const FName EvalCategoryName(TEXT("Evaluators"));
-	if (StateType == EStateTreeStateType::State && Schema && Schema->AllowEvaluators())
+	if ((StateType == EStateTreeStateType::State || StateType == EStateTreeStateType::Subtree) && Schema && Schema->AllowEvaluators())
 	{
 		MakeArrayCategory(DetailBuilder, EvalCategoryName, LOCTEXT("StateDetailsEvaluators", "Evaluators"), 1, EvaluatorsProperty);
 	}
@@ -80,7 +86,7 @@ void FStateTreeStateDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 		DetailBuilder.EditCategory(EnterConditionsCategoryName).SetCategoryVisibility(false);
 	}
 
-	if (StateType == EStateTreeStateType::State)
+	if ((StateType == EStateTreeStateType::State || StateType == EStateTreeStateType::Subtree))
 	{
 		if (Schema && Schema->AllowMultipleTasks())
 		{

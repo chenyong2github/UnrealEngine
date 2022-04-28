@@ -75,7 +75,53 @@ bool UStateTree::Link()
 	ExternalDataDescs.Reset();
 	NumDataViews = 0;
 	ExternalDataBaseIndex = 0;
+	
+	// Update property bag structs before resolving binding.
+	TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
+	TArrayView<FStateTreePropCopyBatch> CopyBatches = PropertyBindings.GetCopyBatches();
+	for (const FCompactStateTreeState& State : States)
+	{
+		if (State.Type == EStateTreeStateType::Subtree)
+		{
+			if (State.ParameterInstanceIndex != INDEX_NONE
+				|| State.ParameterDataViewIndex != INDEX_NONE)
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
+				return false;
+			}
 
+			// Subtree is a bind source, update bag struct.
+			const FCompactStateTreeParameters& Params = Instances[State.ParameterInstanceIndex].GetMutable<FCompactStateTreeParameters>();
+			FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex];
+			Desc.Struct = Params.Parameters.GetPropertyBagStruct();
+		}
+		else if (State.Type == EStateTreeStateType::Linked && State.LinkedState.IsValid())
+		{
+			const FCompactStateTreeState& LinkedState = States[State.LinkedState.Index];
+
+			if (State.ParameterInstanceIndex != INDEX_NONE
+				|| LinkedState.ParameterInstanceIndex != INDEX_NONE)
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
+				return false;
+			}
+
+			const FCompactStateTreeParameters& Params = Instances[State.ParameterInstanceIndex].GetMutable<FCompactStateTreeParameters>();
+
+			// Check that the bag in linked state matches.
+			const FCompactStateTreeParameters& LinkedStateParams = Instances[LinkedState.ParameterInstanceIndex].GetMutable<FCompactStateTreeParameters>();
+
+			if (LinkedStateParams.Parameters.GetPropertyBagStruct() != Params.Parameters.GetPropertyBagStruct())
+			{
+				UE_LOG(LogStateTree, Error, TEXT("%s: The parameters on state '%s' does not match the linked state parameters in state '%s'. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString(), *LinkedState.Name.ToString());
+				return false;
+			}
+
+			FStateTreePropCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Index];
+			Batch.TargetStruct.Struct = Params.Parameters.GetPropertyBagStruct();
+		}
+	}
+	
 	// Resolves property paths used by bindings a store property pointers
 	if (!PropertyBindings.ResolvePaths())
 	{

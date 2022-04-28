@@ -49,8 +49,10 @@ private:
 	TSharedPtr<IPropertyHandle> IDProperty;
 	TSharedPtr<IPropertyHandle> TypeProperty;
 
-	// If set, allow to select meta states like Next or (tree) Succeeded.
-	bool bAllowMetaStates = true;
+	// If set, hide selecting meta states like Next or (tree) Succeeded.
+	bool bDirectStatesOnly = false;
+	// If set, allow to select only states marked as subtrees.
+	bool bSubtreesOnly = false;
 	
 	class IPropertyUtilities* PropUtils;
 	TSharedPtr<IPropertyHandle> StructProperty;

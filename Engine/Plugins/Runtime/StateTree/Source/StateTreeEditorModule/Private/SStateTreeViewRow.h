@@ -30,6 +30,7 @@ private:
 
 	EVisibility GetConditionVisibility() const;
 	EVisibility GetSelectorVisibility() const;
+	FText GetSelectorDesc() const;
 
 	EVisibility GetEvaluatorsVisibility() const;
 	FText GetEvaluatorsDesc() const;
@@ -61,7 +62,7 @@ private:
 
 	bool HasParentTransitionForEvent(const UStateTreeState& State, const EStateTreeTransitionEvent Event) const;
 
-	bool IsRoutine() const;
+	bool IsRootState() const;
 	bool IsSelected() const;
 
 	bool VerifyNodeTextChanged(const FText& NewLabel, FText& OutErrorMessage);

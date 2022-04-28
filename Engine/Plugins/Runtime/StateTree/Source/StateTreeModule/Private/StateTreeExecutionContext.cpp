@@ -120,6 +120,44 @@ void FStateTreeExecutionContext::Reset()
 	Owner = nullptr;
 }
 
+void FStateTreeExecutionContext::UpdateLinkedStateParameters(FStateTreeInstanceData& InstanceData, const FCompactStateTreeState& State)
+{
+	check(State.ParameterDataViewIndex != INDEX_NONE);
+	check(State.ParameterInstanceIndex != INDEX_NONE);
+	
+	const FStateTreeDataView StateParamsInstance = GetInstanceData(InstanceData, false, State.ParameterInstanceIndex);
+	const FCompactStateTreeParameters& StateParams = StateParamsInstance.GetMutable<FCompactStateTreeParameters>();
+
+	// Parameters property bag
+	const FStateTreeDataView ParametersView(StateParams.Parameters.GetMutableValue());
+	if (StateParams.BindingsBatch.IsValid())
+	{
+		StateTree->PropertyBindings.CopyTo(DataViews, StateParams.BindingsBatch.Index, ParametersView);
+	}
+
+	// Set the parameters as the input parameters for the linked state.
+	check(State.LinkedState.IsValid());
+	const FCompactStateTreeState& LinkedState = StateTree->States[State.LinkedState.Index];
+	DataViews[LinkedState.ParameterDataViewIndex] = ParametersView;
+}
+
+void FStateTreeExecutionContext::UpdateSubtreeStateParameters(FStateTreeInstanceData& InstanceData, const FCompactStateTreeState& State)
+{
+	check(State.ParameterDataViewIndex != INDEX_NONE);
+	check(State.ParameterInstanceIndex != INDEX_NONE);
+	
+	// Usually the subtree parameter view is set by the linked state. If it's not (i.e. transitioned into a parametrized subtree), we'll set the view default params.
+	if (DataViews[State.ParameterDataViewIndex].IsValid())
+	{
+		return;
+	}
+
+	// Set view to default parameters.
+	const FStateTreeDataView ParamInstanceView = GetInstanceData(InstanceData, false, State.ParameterInstanceIndex);
+	const FCompactStateTreeParameters& Params = ParamInstanceView.GetMutable<FCompactStateTreeParameters>();
+	DataViews[State.ParameterDataViewIndex] = FStateTreeDataView(Params.Parameters.GetMutableValue());
+}
+
 EStateTreeRunStatus FStateTreeExecutionContext::Start(FStateTreeInstanceData* ExternalInstanceData)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Start);
@@ -362,7 +400,16 @@ EStateTreeRunStatus FStateTreeExecutionContext::EnterState(FStateTreeInstanceDat
 				ANSI_TO_TCHAR(__FUNCTION__), *GetStateStatusString(Exec), *GetNameSafe(Owner), *GetNameSafe(StateTree));
 			break;
 		}
-		
+
+		if (State.Type == EStateTreeStateType::Linked)
+		{
+			UpdateLinkedStateParameters(InstanceData, State);
+		}
+		else if (State.Type == EStateTreeStateType::Subtree)
+		{
+			UpdateSubtreeStateParameters(InstanceData, State);
+		}
+
 		bOnTargetBranch = bOnTargetBranch || CurrentHandle == Transition.TargetState;
 		const bool bWasActive = PreviousHandle == CurrentHandle;
 		if (bWasActive && !bOnTargetBranch)
@@ -469,6 +516,15 @@ void FStateTreeExecutionContext::ExitState(FStateTreeInstanceData& InstanceData,
 		const FStateTreeHandle CurrentHandle = Transition.CurrentActiveStates[Index];
 		const FStateTreeHandle NextHandle = Transition.NextActiveStates.GetStateSafe(Index);
 		const FCompactStateTreeState& State = StateTree->States[CurrentHandle.Index];
+
+		if (State.Type == EStateTreeStateType::Linked)
+		{
+			UpdateLinkedStateParameters(InstanceData, State);
+		}
+		else if (State.Type == EStateTreeStateType::Subtree)
+		{
+			UpdateSubtreeStateParameters(InstanceData, State);
+		}
 
 		const bool bRemainsActive = NextHandle == CurrentHandle;
 		bOnTargetBranch = bOnTargetBranch || NextHandle == Transition.TargetState;
@@ -624,6 +680,15 @@ void FStateTreeExecutionContext::TickEvaluators(FStateTreeInstanceData& Instance
 
 		const FCompactStateTreeState& State = StateTree->States[StateHandle.Index];
 
+		if (State.Type == EStateTreeStateType::Linked)
+		{
+			UpdateLinkedStateParameters(InstanceData, State);
+		}
+		else if (State.Type == EStateTreeStateType::Subtree)
+		{
+			UpdateSubtreeStateParameters(InstanceData, State);
+		}
+		
 		STATETREE_CLOG(State.EvaluatorsNum > 0, Verbose, TEXT("%*sTicking Evaluators of state '%s' %s"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(ActiveStates, Index), *UEnum::GetValueAsString(EvalType));
 
 		// Tick evaluators
@@ -667,6 +732,15 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(FStateTreeInstanceData
 		const FCompactStateTreeState& State = StateTree->States[CurrentHandle.Index];
 
 		STATETREE_CLOG(State.TasksNum > 0, Verbose, TEXT("%*sTicking Tasks of state '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *DebugGetStatePath(Exec.ActiveStates, Index));
+
+		if (State.Type == EStateTreeStateType::Linked)
+		{
+			UpdateLinkedStateParameters(InstanceData, State);
+		}
+		else if (State.Type == EStateTreeStateType::Subtree)
+		{
+			UpdateSubtreeStateParameters(InstanceData, State);
+		}
 
 		// Tick Tasks
 		for (int32 TaskIndex = 0; TaskIndex < int32(State.TasksNum); TaskIndex++)
@@ -734,7 +808,12 @@ bool FStateTreeExecutionContext::TestAllConditions(FStateTreeInstanceData& Insta
 		// Copy bound properties.
 		if (Cond.BindingsBatch.IsValid())
 		{
-			StateTree->PropertyBindings.CopyTo(DataViews, Cond.BindingsBatch.Index, CondInstanceView);
+			if (!StateTree->PropertyBindings.CopyTo(DataViews, Cond.BindingsBatch.Index, CondInstanceView))
+			{
+				// If the source data cannot be accessed, the whole expression evaluates to false.
+				Values[0] = false;
+				break;
+			}
 		}
 
 		const bool bValue = Cond.TestCondition(*this);

@@ -384,6 +384,12 @@ protected:
 		return InstanceData.Get<FStateTreeExecutionState>(0);
 	}
 
+	/** Sets up parameter data view for a linked state and copies bound properties. */
+	void UpdateLinkedStateParameters(FStateTreeInstanceData& InstanceData, const FCompactStateTreeState& State);
+
+	/** Sets up parameter data view for subtree state. */
+	void UpdateSubtreeStateParameters(FStateTreeInstanceData& InstanceData, const FCompactStateTreeState& State);
+
 	/** @return StateTree node at specified index. */
 	template <typename T>
 	const T& GetNode(const int32 Index) const

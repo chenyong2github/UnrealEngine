@@ -72,8 +72,15 @@ EStateTreePropertyUsage ParsePropertyUsage(TSharedPtr<const IPropertyHandle> InP
 {
 	static const FName CategoryName(TEXT("Category"));
 	
-	const FString Category = InPropertyHandle->GetMetaData(CategoryName);
-
+	FString Category = InPropertyHandle->GetMetaData(CategoryName);
+	if (Category.IsEmpty())
+	{
+		if (const FString* InstanceMetaData = InPropertyHandle->GetInstanceMetaData(CategoryName))
+		{
+			Category = *InstanceMetaData;
+		}
+	}
+	
 	if (Category == TEXT("Input"))
 	{
 		return EStateTreePropertyUsage::Input;
@@ -92,7 +99,7 @@ EStateTreePropertyUsage ParsePropertyUsage(TSharedPtr<const IPropertyHandle> InP
 
 FText GetSectionNameFromDataSource(const EStateTreeBindableStructSource Source)
 {
-	switch(Source)
+	switch (Source)
 	{
 		case EStateTreeBindableStructSource::Task:
 			return LOCTEXT("Tasks", "Tasks");
@@ -105,6 +112,7 @@ FText GetSectionNameFromDataSource(const EStateTreeBindableStructSource Source)
 		case EStateTreeBindableStructSource::TreeParameter:
 			return LOCTEXT("Tree Parameter", "Tree Parameter");
 	}
+
 	return FText::GetEmpty();
 }
 
@@ -363,4 +371,3 @@ void FStateTreeBindingExtension::ExtendWidgetRow(FDetailWidgetRow& InWidgetRow, 
 }
 
 #undef LOCTEXT_NAMESPACE
-

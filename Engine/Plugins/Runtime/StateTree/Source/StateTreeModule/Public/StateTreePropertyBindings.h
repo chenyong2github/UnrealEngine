@@ -149,9 +149,10 @@ enum class EStateTreeBindableStructSource : uint8
 {
 	TreeData,
 	TreeParameter,
-	StateParameter, 
+	StateParameter,
 	Task,
 	Evaluator,
+	Condition,
 };
 
 /**
@@ -166,7 +167,10 @@ struct STATETREEMODULE_API FStateTreeBindableStructDesc
 	FStateTreeBindableStructDesc() = default;
 
 #if WITH_EDITORONLY_DATA
-	FStateTreeBindableStructDesc(const FName InName, const UStruct* InStruct, const FGuid InGuid) : Struct(InStruct), Name(InName), ID(InGuid) {}
+	FStateTreeBindableStructDesc(const FName InName, const UStruct* InStruct, const EStateTreeBindableStructSource InDataSource, const FGuid InGuid)
+		: Struct(InStruct), Name(InName), DataSource(InDataSource), ID(InGuid)
+	{
+	}
 
 	bool operator==(const FStateTreeBindableStructDesc& RHS) const
 	{
@@ -445,13 +449,19 @@ struct STATETREEMODULE_API FStateTreePropertyBindings
 	 */
 	int32 GetSourceStructNum() const { return SourceStructs.Num(); }
 
+	TArrayView<FStateTreeBindableStructDesc> GetSourceStructs() { return  SourceStructs; };
+
+	TArrayView<FStateTreePropCopyBatch> GetCopyBatches() { return CopyBatches; };
+
+	
 	/**
 	 * Copies a batch of properties from source structs to target struct.
 	 * @param SourceStructViews Views to structs where properties are copied from.
 	 * @param TargetBatchIndex Batch index to copy (see FStateTreePropertyBindingCompiler).
 	 * @param TargetStructView View to struct where properties are copied to.
+	 * @return true if all copies succeeded (a copy can fail e.g. if source or destination struct view is invalid).
 	 */
-	void CopyTo(TConstArrayView<FStateTreeDataView> SourceStructViews, const int32 TargetBatchIndex, FStateTreeDataView TargetStructView) const;
+	bool CopyTo(TConstArrayView<FStateTreeDataView> SourceStructViews, const int32 TargetBatchIndex, FStateTreeDataView TargetStructView) const;
 
 	void DebugPrintInternalLayout(FString& OutString) const;
 

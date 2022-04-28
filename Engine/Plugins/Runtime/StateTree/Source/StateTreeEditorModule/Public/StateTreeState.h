@@ -6,6 +6,7 @@
 #include "StateTreeNodeBase.h"
 #include "Misc/Guid.h"
 #include "InstancedStruct.h"
+#include "PropertyBag.h"
 #include "StateTreeState.generated.h"
 
 class UStateTreeState;
@@ -128,14 +129,31 @@ struct STATETREEEDITORMODULE_API FStateTreeTransition
 	TArray<FStateTreeEditorNode> Conditions;
 };
 
-UENUM()
-enum class EStateTreeStateType : uint8
+USTRUCT()
+struct STATETREEEDITORMODULE_API FStateTreeStateParameters
 {
-	State,	// A State containing tasks and evaluators.
-	Group,	// A State containing just sub states. 
-	Linked,	// A State that is linked to another state in the tree (the execution continues on the linked state).
-};
+	GENERATED_BODY()
 
+	FStateTreeStateParameters()
+	{
+		ID = FGuid::NewGuid();
+	}
+	
+	void Reset()
+	{
+		Parameters.Reset();
+		bFixedLayout = false;
+	}
+	
+	UPROPERTY(EditDefaultsOnly, Category = Parameters)
+	FInstancedPropertyBag Parameters;
+
+	UPROPERTY(EditDefaultsOnly, Category = Parameters)
+	bool bFixedLayout = false;
+
+	UPROPERTY(EditDefaultsOnly, Category = Parameters)
+	FGuid ID;
+};
 
 /**
  * Editor representation of a state in StateTree
@@ -151,10 +169,11 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;;
+	void UpdateParametersFromLinkedState();
 #endif
 
 	UStateTreeState* GetNextSiblingState() const;
-
+	
 	// StateTree Builder API
 	
 	/** Adds child state with specified name. */
@@ -240,8 +259,11 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "State")
 	EStateTreeStateType Type = EStateTreeStateType::State;
 
-	UPROPERTY(EditDefaultsOnly, Category = "State", Meta=(DirectStatesOnly))
+	UPROPERTY(EditDefaultsOnly, Category = "State", Meta=(DirectStatesOnly, SubtreesOnly))
 	FStateTreeStateLink LinkedState;
+
+	UPROPERTY(EditDefaultsOnly, Category = "State")
+	FStateTreeStateParameters Parameters;
 
 	UPROPERTY()
 	FGuid ID;

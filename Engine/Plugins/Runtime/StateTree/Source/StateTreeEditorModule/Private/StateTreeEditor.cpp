@@ -218,6 +218,7 @@ void FStateTreeEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedP
 	UE::StateTree::Delegates::OnIdentifierChanged.AddSP(this, &FStateTreeEditor::OnIdentifierChanged);
 	UE::StateTree::Delegates::OnSchemaChanged.AddSP(this, &FStateTreeEditor::OnSchemaChanged);
 	UE::StateTree::Delegates::OnParametersChanged.AddSP(this, &FStateTreeEditor::OnParametersChanged);
+	UE::StateTree::Delegates::OnStateParametersChanged.AddSP(this, &FStateTreeEditor::OnStateParametersChanged);
 }
 
 FName FStateTreeEditor::GetToolkitFName() const
@@ -428,6 +429,31 @@ void FStateTreeEditor::OnParametersChanged(const UStateTree& InStateTree)
 	}
 }
 
+void FStateTreeEditor::OnStateParametersChanged(const UStateTree& InStateTree, const FGuid ChangedStateID)
+{
+	if (StateTree == &InStateTree)
+	{
+		if (const UStateTreeEditorData* TreeData = Cast<UStateTreeEditorData>(StateTree->EditorData))
+		{
+			TreeData->VisitHierarchy([&ChangedStateID](UStateTreeState& State, UStateTreeState* /*ParentState*/)
+			{
+				if (State.Type == EStateTreeStateType::Linked && State.LinkedState.ID == ChangedStateID)
+				{
+					State.UpdateParametersFromLinkedState();
+				}
+				return EStateTreeVisitor::Continue;
+			});
+		}
+
+		// Accessible structs might be different after modifying parameters so forcing refresh
+		// so the FStateTreeBindingExtension can rebuild the list of bindable structs
+		if (SelectionDetailsView.IsValid())
+		{
+			SelectionDetailsView->ForceRefresh();
+		}
+	}
+}
+
 void FStateTreeEditor::OnAssetFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	// Make sure nodes get updates when properties are changed.
@@ -496,60 +522,28 @@ namespace UE::StateTree::Editor::Internal
 
 		// Create ID to state name map.
 		TMap<FGuid, FName> IDToName;
-		TArray<UStateTreeState*> Stack;
 
-		for (UStateTreeState* SubTree : TreeData->SubTrees)
+		TreeData->VisitHierarchy([&IDToName](const UStateTreeState& State, UStateTreeState* /*ParentState*/)
 		{
-			if (SubTree)
-			{
-				Stack.Reset();
-				Stack.Add(SubTree);
-				while (Stack.Num() > 0)
-				{
-					UStateTreeState* CurState = Stack.Pop();
-					IDToName.Add(CurState->ID, CurState->Name);
-					for (UStateTreeState* ChildState : CurState->Children)
-					{
-						if (ChildState)
-						{
-							Stack.Append(CurState->Children);
-						}
-					}
-				}
-			}
-		}
-
+			IDToName.Add(State.ID, State.Name);
+			return EStateTreeVisitor::Continue;
+		});
+		
 		// Fix changed names.
-		for (UStateTreeState* SubTree : TreeData->SubTrees)
+		TreeData->VisitHierarchy([&IDToName](UStateTreeState& State, UStateTreeState* /*ParentState*/)
 		{
-			if (SubTree)
+			if (State.Type == EStateTreeStateType::Linked)
 			{
-				Stack.Reset();
-				Stack.Add(SubTree);
-				while (Stack.Num() > 0)
-				{
-					UStateTreeState* CurState = Stack.Pop();
-
-					if (CurState->Type == EStateTreeStateType::Linked)
-					{
-						FixChangedStateLinkName(CurState->LinkedState, IDToName);
-					}
-					
-					for (FStateTreeTransition& Transition : CurState->Transitions)
-					{
-						FixChangedStateLinkName(Transition.State, IDToName);
-					}
-
-					for (UStateTreeState* ChildState : CurState->Children)
-					{
-						if (ChildState)
-						{
-							Stack.Append(CurState->Children);
-						}
-					}
-				}
+				FixChangedStateLinkName(State.LinkedState, IDToName);
 			}
-		}
+					
+			for (FStateTreeTransition& Transition : State.Transitions)
+			{
+				FixChangedStateLinkName(Transition.State, IDToName);
+			}
+
+			return EStateTreeVisitor::Continue;
+		});
 	}
 
 	void UpdateParents(UStateTree& StateTree)
@@ -560,29 +554,11 @@ namespace UE::StateTree::Editor::Internal
 			return;
 		}
 
-		TArray<UStateTreeState*> Stack;
-
-		for (UStateTreeState* SubTree : TreeData->SubTrees)
+		TreeData->VisitHierarchy([](UStateTreeState& State, UStateTreeState* ParentState)
 		{
-			if (SubTree)
-			{
-				SubTree->Parent = nullptr;
-				Stack.Reset();
-				Stack.Add(SubTree);
-				while (Stack.Num() > 0)
-				{
-					UStateTreeState* CurState = Stack.Pop();
-					for (UStateTreeState* ChildState : CurState->Children)
-					{
-						if (ChildState)
-						{
-							ChildState->Parent = CurState;
-							Stack.Append(CurState->Children);
-						}
-					}
-				}
-			}
-		}
+			State.Parent = ParentState;
+			return EStateTreeVisitor::Continue;
+		});
 	}
 
 	void ApplySchema(UStateTree& StateTree)
@@ -599,67 +575,48 @@ namespace UE::StateTree::Editor::Internal
 			return;
 		}
 
-		TArray<UStateTreeState*> Stack;
-
-		for (UStateTreeState* SubTree : TreeData->SubTrees)
+		TreeData->VisitHierarchy([&StateTree, Schema](UStateTreeState& State, UStateTreeState* /*ParentState*/)
 		{
-			if (SubTree)
+			// Clear enter conditions if not allowed.
+			if (Schema->AllowEnterConditions() == false && State.EnterConditions.Num() > 0)
 			{
-				Stack.Reset();
-				Stack.Add(SubTree);
-				while (Stack.Num() > 0)
+				UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Enter Conditions in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
+				State.EnterConditions.Reset();
+			}
+
+			// Clear evaluators if not allowed.
+			if (Schema->AllowEvaluators() == false && State.Evaluators.Num() > 0)
+			{
+				UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Evaluators in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
+				State.Evaluators.Reset();
+			}
+
+			// Keep single and many tasks based on what is allowed.
+			if (Schema->AllowMultipleTasks() == false)
+			{
+				if (State.Tasks.Num() > 0)
 				{
-					UStateTreeState* CurState = Stack.Pop();
-
-					// Clear enter conditions if not allowed.
-					if (Schema->AllowEnterConditions() == false && CurState->EnterConditions.Num() > 0)
-					{
-						UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Enter Conditions in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(CurState));
-						CurState->EnterConditions.Reset();
-					}
-
-					// Clear evaluators if not allowed.
-					if (Schema->AllowEvaluators() == false && CurState->Evaluators.Num() > 0)
-					{
-						UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Evaluators in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(CurState));
-						CurState->Evaluators.Reset();
-					}
-
-					// Keep single and many tasks based on what is allowed.
-					if (Schema->AllowMultipleTasks() == false)
-					{
-						if (CurState->Tasks.Num() > 0)
-						{
-							CurState->Tasks.Reset();
-							UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Tasks in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(CurState));
-						}
-						
-						// Task name is the same as state name.
-						if (FStateTreeTaskBase* Task = CurState->SingleTask.Node.GetMutablePtr<FStateTreeTaskBase>())
-						{
-							Task->Name = CurState->Name;
-						}
-					}
-					else
-					{
-						if (CurState->SingleTask.Node.IsValid())
-						{
-							CurState->SingleTask.Reset();
-							UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Single Task in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(CurState));
-						}
-					}
-					
-					for (UStateTreeState* ChildState : CurState->Children)
-					{
-						if (ChildState)
-						{
-							Stack.Append(CurState->Children);
-						}
-					}
+					State.Tasks.Reset();
+					UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Tasks in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
+				}
+				
+				// Task name is the same as state name.
+				if (FStateTreeTaskBase* Task = State.SingleTask.Node.GetMutablePtr<FStateTreeTaskBase>())
+				{
+					Task->Name = State.Name;
 				}
 			}
-		}
-
+			else
+			{
+				if (State.SingleTask.Node.IsValid())
+				{
+					State.SingleTask.Reset();
+					UE_LOG(LogStateTree, Warning, TEXT("%s: Resetting Single Task in state %s due to current schema restrictions."), *GetNameSafe(&StateTree), *GetNameSafe(&State));
+				}
+			}
+			
+			return EStateTreeVisitor::Continue;
+		});
 	}
 
 	void RemoveUnusedBindings(UStateTree& StateTree)
@@ -673,6 +630,24 @@ namespace UE::StateTree::Editor::Internal
 		TMap<FGuid, const UStruct*> AllStructIDs;
 		TreeData->GetAllStructIDs(AllStructIDs);
 		TreeData->GetPropertyEditorBindings()->RemoveUnusedBindings(AllStructIDs);
+	}
+
+	void UpdateLinkedStateParameters(UStateTree& StateTree)
+	{
+		UStateTreeEditorData* TreeData = Cast<UStateTreeEditorData>(StateTree.EditorData);
+		if (!TreeData)
+		{
+			return;
+		}
+
+		TreeData->VisitHierarchy([](UStateTreeState& State, UStateTreeState* /*ParentState*/)
+		{
+			if (State.Type == EStateTreeStateType::Linked)
+			{
+				State.UpdateParametersFromLinkedState();
+			}
+			return EStateTreeVisitor::Continue;
+		});
 	}
 
 }
@@ -703,15 +678,14 @@ void FStateTreeEditor::RegisterToolbar()
 	}
 
 	const FStateTreeEditorCommands& Commands = FStateTreeEditorCommands::Get();
-	FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
-	{
-		FToolMenuSection& Section = ToolBar->AddSection("Compile", TAttribute<FText>(), InsertAfterAssetSection);
-		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
-			Commands.Compile,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			TAttribute<FSlateIcon>(this, &FStateTreeEditor::GetCompileStatusImage)));
-	}
+	const FToolMenuInsert InsertAfterAssetSection("Asset", EToolMenuInsertType::After);
+
+	FToolMenuSection& Section = ToolBar->AddSection("Compile", TAttribute<FText>(), InsertAfterAssetSection);
+	Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+		Commands.Compile,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		TAttribute<FSlateIcon>(this, &FStateTreeEditor::GetCompileStatusImage)));
 }
 
 void FStateTreeEditor::Compile()
@@ -809,6 +783,7 @@ void FStateTreeEditor::UpdateAsset()
 	UE::StateTree::Editor::Internal::ApplySchema(*StateTree);
 	UE::StateTree::Editor::Internal::RemoveUnusedBindings(*StateTree);
 	UE::StateTree::Editor::Internal::ValidateLinkedStates(*StateTree);
+	UE::StateTree::Editor::Internal::UpdateLinkedStateParameters(*StateTree);
 
 	EditorDataHash = 0;
 	if (StateTree->EditorData != nullptr)
