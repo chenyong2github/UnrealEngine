@@ -1632,6 +1632,15 @@ public:
 	void Empty();
 
 protected:
+
+	void RemapRegisteredComponentMapBuildDataId(const UReflectionCaptureComponent* Component);
+	void RegisterComponentMapBuildDataId(const UReflectionCaptureComponent* Component);
+	void UnregisterComponentMapBuildDataId(const UReflectionCaptureComponent* Component);
+
+	// Different map build data id of a capture might share the same capture component while editing (e.g., when they move).
+	// need to replace it with the new one.
+	TMap<const UReflectionCaptureComponent*, FGuid> RegisteredComponentMapBuildDataIds;
+
 	TMap<FGuid, FReflectionCaptureCacheEntry> CaptureData;
 };
 
