@@ -25,7 +25,7 @@ namespace
 
 		const FPositionVertexBuffer& VertexBuffer = LodRenderData.StaticVertexBuffers.PositionVertexBuffer;
 		const uint32 VertexCount = LodRenderData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
-		
+
 		Buffer.SetNum(MaxAdjacencyCount * VertexCount, true);
 		FMemory::Memset(Buffer.GetData(), 0xFF, Buffer.Num() * sizeof(uint32));
 
@@ -146,9 +146,10 @@ void UOptimusConnectivityDataInterface::GetSupportedInputs(TArray<FShaderFunctio
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FConnectivityDataInterfaceParameters, )
-	SHADER_PARAMETER(uint32, NumVertices)
-	SHADER_PARAMETER(uint32, MaxConnectedVertexCount)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ConnectivityBuffer)
+SHADER_PARAMETER(uint32, NumVertices)
+SHADER_PARAMETER(uint32, InputStreamStart)
+SHADER_PARAMETER(uint32, MaxConnectedVertexCount)
+SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ConnectivityBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 void UOptimusConnectivityDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
@@ -179,16 +180,19 @@ UComputeDataProvider* UOptimusConnectivityDataInterface::CreateDataProvider(TArr
 	{
 		Provider->SkeletalMesh = Cast<USkeletalMeshComponent>(InSourceObjects[0]);
 
-		// Build adjacency and store with the provider.
-		// todo[CF]: We need to move this to the skeletal mesh and make part of cooked mesh data instead.
-		FSkeletalMeshRenderData const* SkeletalMeshRenderData = Provider->SkeletalMesh->GetSkeletalMeshRenderData();
-		if (SkeletalMeshRenderData != nullptr)
-		{ 
-			Provider->AdjacencyBufferPerLod.SetNum(SkeletalMeshRenderData->NumInlinedLODs);
-			for (int32 LodIndex = 0; LodIndex < SkeletalMeshRenderData->NumInlinedLODs; ++LodIndex)
+		if (Provider->SkeletalMesh != nullptr)
+		{
+			// Build adjacency and store with the provider.
+			// todo[CF]: We need to move this to the skeletal mesh and make part of cooked mesh data instead.
+			FSkeletalMeshRenderData const* SkeletalMeshRenderData = Provider->SkeletalMesh->GetSkeletalMeshRenderData();
+			if (SkeletalMeshRenderData != nullptr)
 			{
-				FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData->LODRenderData[LodIndex];
-				BuildAdjacencyBuffer(*LodRenderData, UOptimusConnectivityDataInterface::MaxConnectedVertexCount, Provider->AdjacencyBufferPerLod[LodIndex]);
+				Provider->AdjacencyBufferPerLod.SetNum(SkeletalMeshRenderData->NumInlinedLODs);
+				for (int32 LodIndex = 0; LodIndex < SkeletalMeshRenderData->NumInlinedLODs; ++LodIndex)
+				{
+					FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshRenderData->LODRenderData[LodIndex];
+					BuildAdjacencyBuffer(*LodRenderData, UOptimusConnectivityDataInterface::MaxConnectedVertexCount, Provider->AdjacencyBufferPerLod[LodIndex]);
+				}
 			}
 		}
 	}
@@ -251,6 +255,7 @@ void FOptimusConnectivityDataProviderProxy::GatherDispatchData(FDispatchSetup co
 
 		FConnectivityDataInterfaceParameters* Parameters = (FConnectivityDataInterfaceParameters*)(InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 		Parameters->NumVertices = RenderSection.NumVertices;
+		Parameters->InputStreamStart = RenderSection.BaseVertexIndex;
 		Parameters->MaxConnectedVertexCount = UOptimusConnectivityDataInterface::MaxConnectedVertexCount;
 		Parameters->ConnectivityBuffer = ConnectivityBufferSRV;
 	}

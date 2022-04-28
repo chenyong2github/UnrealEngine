@@ -3,6 +3,7 @@
 #include "/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush"
 
 uint DI_LOCAL(NumVertices);
+uint DI_LOCAL(InputStreamStart);
 uint DI_LOCAL(MaxConnectedVertexCount);
 Buffer<uint> DI_LOCAL(ConnectivityBuffer);
 
@@ -16,7 +17,10 @@ DI_IMPL_READ(ReadNumConnectedVertices, uint, uint VertexIndex)
 	return DI_LOCAL(MaxConnectedVertexCount);
 }
 
-DI_IMPL_READ(ReadConnectedVertex, uint, uint VertexIndex, uint ConnectedVertexIndex)
+DI_IMPL_READ(ReadConnectedVertex, uint, uint VertexIndex, uint ConnectedVertexSubIndex)
 {
-	return DI_LOCAL(ConnectivityBuffer)[VertexIndex * DI_LOCAL(MaxConnectedVertexCount) + ConnectedVertexIndex];
+	uint BaseIndex = (DI_LOCAL(InputStreamStart) + VertexIndex) * DI_LOCAL(MaxConnectedVertexCount);
+	uint ConnectedVertexIndex = DI_LOCAL(ConnectivityBuffer)[BaseIndex + ConnectedVertexSubIndex];
+	uint BaseOffset = ConnectedVertexIndex == 0xFFFFFFFF ? 0 : DI_LOCAL(InputStreamStart);
+	return ConnectedVertexIndex - BaseOffset;
 }

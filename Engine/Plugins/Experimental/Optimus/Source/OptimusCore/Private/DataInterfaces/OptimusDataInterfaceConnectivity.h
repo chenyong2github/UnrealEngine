@@ -6,8 +6,11 @@
 #include "ComputeFramework/ComputeDataProvider.h"
 #include "OptimusDataInterfaceConnectivity.generated.h"
 
+class FRDGBuffer;
+class FRDGBufferSRV;
 class FSkeletalMeshObject;
 class USkeletalMeshComponent;
+
 
 /** Compute Framework Data Interface for reading skeletal mesh. */
 UCLASS(Category = ComputeFramework)
