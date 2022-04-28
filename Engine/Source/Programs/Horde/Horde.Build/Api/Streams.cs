@@ -572,7 +572,6 @@ namespace Horde.Build.Api
 		/// <param name="id">Unique id of the stream</param>
 		/// <param name="projectId">Unique id of the project containing the stream</param>
 		/// <param name="name">Name of the stream</param>
-		/// <param name="configPath">Path to the config file for this stream</param>
 		/// <param name="configRevision">The config file path on the server</param>
 		/// <param name="order">Order to display this stream</param>
 		/// <param name="notificationChannel"></param>
@@ -587,12 +586,11 @@ namespace Horde.Build.Api
 		/// <param name="pausedUntil">Stream paused for new builds until this date</param>
 		/// <param name="pauseComment">Reason for stream being paused</param>
 		/// <param name="workflows">Workflows for this stream</param>
-		public GetStreamResponse(string id, string projectId, string name, string configPath, string configRevision, int order, string? notificationChannel, string? notificationChannelFilter, string? triageChannel, DefaultPreflightRequest? defaultPreflight, List<GetStreamTabResponse> tabs, Dictionary<string, GetAgentTypeResponse> agentTypes, Dictionary<string, GetWorkspaceTypeResponse>? workspaceTypes, List<GetTemplateRefResponse> templates, GetAclResponse? acl, DateTime? pausedUntil, string? pauseComment, List<WorkflowConfig> workflows)
+		public GetStreamResponse(string id, string projectId, string name, string configRevision, int order, string? notificationChannel, string? notificationChannelFilter, string? triageChannel, DefaultPreflightRequest? defaultPreflight, List<GetStreamTabResponse> tabs, Dictionary<string, GetAgentTypeResponse> agentTypes, Dictionary<string, GetWorkspaceTypeResponse>? workspaceTypes, List<GetTemplateRefResponse> templates, GetAclResponse? acl, DateTime? pausedUntil, string? pauseComment, List<WorkflowConfig> workflows)
 		{
 			Id = id;
 			ProjectId = projectId;
 			Name = name;
-			ConfigPath = configPath;
 			ConfigRevision = configRevision;
 			Order = order;
 			NotificationChannel = notificationChannel;

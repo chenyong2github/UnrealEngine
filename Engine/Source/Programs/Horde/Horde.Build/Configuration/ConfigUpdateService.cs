@@ -264,13 +264,13 @@ namespace Horde.Build.Config
 				if (streamRevisions.TryGetValue(streamPath, out string? revision))
 				{
 					IStream? stream = streams.FirstOrDefault(x => x.Id == streamRef.Id);
-					if (stream == null || stream.ConfigPath != streamPath.ToString() || stream.ConfigRevision != revision)
+					if (stream == null || stream.ConfigRevision != revision)
 					{
 						_logger.LogInformation("Updating configuration for stream {StreamRef} ({Revision})", streamRef.Id, revision);
 						try
 						{
 							StreamConfig streamConfig = await ReadDataAsync<StreamConfig>(revision, streamPath);
-							stream = await _streamService.StreamCollection.CreateOrReplaceAsync(streamRef.Id, stream, streamPath.ToString(), revision, projectId, streamConfig);
+							stream = await _streamService.StreamCollection.CreateOrReplaceAsync(streamRef.Id, stream, revision, projectId);
 						}
 						catch (Exception ex)
 						{

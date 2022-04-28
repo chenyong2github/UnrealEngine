@@ -114,7 +114,7 @@ namespace Horde.Build.Tests
 			streamConfig.Templates.Add(new Api.TemplateRefConfig { Id = new TemplateRefId("test-template") });
 			await ConfigCollection.AddConfigAsync(revision, streamConfig);
 
-			return Deref(await StreamCollection.TryCreateOrReplaceAsync(streamId, null, "", revision, projectId, streamConfig));
+			return Deref(await StreamCollection.TryCreateOrReplaceAsync(streamId, null, revision, projectId));
 		}
 
 		public IssueServiceTests()

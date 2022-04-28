@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using Horde.Build.Api;
 using Horde.Build.Collections;
+using Horde.Build.Config;
 using Horde.Build.Jobs;
 using Horde.Build.Models;
 using Horde.Build.Server;
@@ -36,10 +37,10 @@ namespace Horde.Build.Tests
 		public string Agent1Name { get; private set; } = null!;
 		public const string PoolName = "TestingPool";
 
-		public static async Task<Fixture> Create(IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollection artifactCollection, StreamService streamService, AgentService agentService)
+		public static async Task<Fixture> Create(ConfigCollection configCollection, IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollection artifactCollection, StreamService streamService, AgentService agentService)
 		{
 			Fixture fixture = new Fixture();
-			await fixture.Populate(graphCollection, templateCollection, jobService, artifactCollection, streamService, agentService);
+			await fixture.Populate(configCollection, graphCollection, templateCollection, jobService, artifactCollection, streamService, agentService);
 
 //			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 112233, "leet.coder", "Did stuff", new []{"file.cpp"});
 //			(PerforceService as PerforceServiceStub)?.AddChange("//UE5/Main", 1111, "swarm", "A shelved CL here", new []{"renderer.cpp"});
@@ -47,7 +48,7 @@ namespace Horde.Build.Tests
 			return fixture;
 		}
 
-		private async Task Populate(IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollection artifactCollection, StreamService streamService, AgentService agentService)
+		private async Task Populate(ConfigCollection configCollection, IGraphCollection graphCollection, ITemplateCollection templateCollection, JobService jobService, IArtifactCollection artifactCollection, StreamService streamService, AgentService agentService)
 		{
 			FixtureGraph fg = new FixtureGraph();
 			fg.Id = ContentHash.Empty;
@@ -74,14 +75,15 @@ namespace Horde.Build.Tests
 				{ "Win64", new() { Pool = PoolName} }
 			};
 
+			StreamConfig config = new StreamConfig { Name = "//UE5/Main", Tabs = tabs, Templates = templates, AgentTypes = agentTypes };
+			await configCollection.AddConfigAsync("rev1", config);
+
 			Stream = await streamService.StreamCollection.GetAsync(new StreamId("ue5-main"));
 			Stream = await streamService.StreamCollection.TryCreateOrReplaceAsync(
 				new StreamId("ue5-main"),
 				Stream,
-				"",
-				"",
-				new ProjectId("does-not-exist"),
-				new StreamConfig { Name = "//UE5/Main", Tabs = tabs, Templates = templates, AgentTypes = agentTypes}
+				"rev1",
+				new ProjectId("does-not-exist")
 			);
 			
 			Job1 = await jobService.CreateJobAsync(

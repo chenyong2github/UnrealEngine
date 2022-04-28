@@ -60,7 +60,7 @@ namespace Horde.Build.Tests
 			config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { TemplateRefId.ToString() } });
 			config.Templates.Add(new TemplateRefConfig { Id = TemplateRefId, Name = "Test", Schedule = schedule });
 
-			return (await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamId, stream, "", "", ProjectId, config))!; 
+			return (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!; 
 		}
 
 		public async Task<List<IJob>> FileTestHelperAsync(params string[] files)
@@ -424,7 +424,7 @@ namespace Horde.Build.Tests
 			config.Name = "//UE5/Main";
 			config.Tabs.Add(new CreateJobsTabRequest { Title = "foo", Templates = new List<string> { newTemplateRefId1.ToString(), newTemplateRefId2.ToString() } });
 
-			stream = (await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamId, stream, "", "", ProjectId, config))!;
+			stream = (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!;
 
 			// Create the TriggerNext step and mark it as complete
 			IGraph graphA = await GraphCollection.AddAsync(newTemplate1);
@@ -506,7 +506,7 @@ namespace Horde.Build.Tests
 			config.Templates.Add(newTemplate1);
 			config.Templates.Add(newTemplate2);
 
-			stream = (await StreamService.StreamCollection.TryCreateOrReplaceAsync(StreamId, stream, "", "", ProjectId, config))!;
+			stream = (await CreateOrReplaceStreamAsync(StreamId, stream, ProjectId, config))!;
 
 			ITemplate template1 = (await TemplateCollection.GetAsync(stream.Templates[newTemplateRefId1].Hash))!;
 			Assert.IsNotNull(template1);

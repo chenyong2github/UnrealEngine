@@ -110,13 +110,12 @@ namespace Horde.Build.Tests.Fleet
 			
 			string agentTypeName1 = "bogusAgentType1";
 			Dictionary<string, CreateAgentTypeRequest> agentTypes = new() { {agentTypeName1, new() { Pool = pool1.Name} }, };
-			IStream stream = (await StreamCollection.TryCreateOrReplaceAsync(
+
+			IStream stream = (await CreateOrReplaceStreamAsync(
 				new StreamId("ue5-main"),
 				null,
-				"",
-				"",
 				new ProjectId("does-not-exist"),
-				new StreamConfig { Name = "//UE5/Main", AgentTypes = agentTypes}
+				new StreamConfig { Name = "//UE5/Main", AgentTypes = agentTypes }
 			))!;
 
 			string nodeForAgentType1 = "bogusNodeOnAgentType1";

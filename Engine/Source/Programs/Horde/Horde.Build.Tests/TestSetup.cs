@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Claims;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Datadog.Trace;
 using EpicGames.Core;
@@ -46,6 +47,9 @@ using StatsdClient;
 
 namespace Horde.Build.Tests
 {
+	using StreamId = StringId<IStream>;
+	using ProjectId = StringId<IProject>;
+
 	/// <summary>
 	/// Handles set up of collections, services, fixtures etc during testing
 	///
@@ -212,9 +216,22 @@ namespace Horde.Build.Tests
 			services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());
 		}
 
+		public async Task<IStream?> CreateOrReplaceStreamAsync(StreamId streamId, IStream? stream, ProjectId projectId, StreamConfig config)
+		{
+			JsonSerializerOptions options = new JsonSerializerOptions();
+			Startup.ConfigureJsonSerializer(options);
+
+			byte[] data = JsonSerializer.SerializeToUtf8Bytes(config, options);
+			IoHash hash = IoHash.Compute(data);
+			string revision = hash.ToString();
+			await ConfigCollection.AddConfigDataAsync(revision, data);
+
+			return await StreamService.StreamCollection.TryCreateOrReplaceAsync(streamId, stream, hash.ToString(), projectId);
+		}
+
 		public Task<Fixture> CreateFixtureAsync()
 		{
-			return Fixture.Create(GraphCollection, TemplateCollection, JobService, ArtifactCollection, StreamService, AgentService);
+			return Fixture.Create(ConfigCollection, GraphCollection, TemplateCollection, JobService, ArtifactCollection, StreamService, AgentService);
 		}
 
 		private JobsController GetJobsController()

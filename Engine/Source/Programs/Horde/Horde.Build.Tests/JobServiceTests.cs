@@ -43,7 +43,7 @@ namespace Horde.Build.Tests
 
 			StreamId streamId = new StreamId("ue5-main");
 			IStream? stream = await StreamService.GetStreamAsync(streamId);
-			stream = await StreamService.StreamCollection.TryCreateOrReplaceAsync(new StreamId("ue5-main"), stream, String.Empty, String.Empty, projectId, streamConfig);
+			stream = await CreateOrReplaceStreamAsync(new StreamId("ue5-main"), stream, projectId, streamConfig);
 
 			IJob job = await JobService.CreateJobAsync(null, stream!, templateRefId1, template.Id, graph, "Hello", 1234, 1233, 999, null, null, null, null, null, null, stream!.Templates[templateRefId1].ChainedJobs, true, true, null, null, new List<string>());
 			Assert.AreEqual(1, job.ChainedJobs.Count);
@@ -155,7 +155,7 @@ namespace Horde.Build.Tests
 
 			StreamId streamId = new StreamId("ue5-main");
 			IStream? stream = await StreamCollection.GetAsync(streamId);
-			stream = await StreamCollection.TryCreateOrReplaceAsync(streamId, stream, "", "", project!.Id, new StreamConfig { Name = "//UE5/Main" });
+			stream = await CreateOrReplaceStreamAsync(streamId, stream, project!.Id, new StreamConfig { Name = "//UE5/Main" });
 
 			ITemplate template = await TemplateCollection.AddAsync("Test template");
 			IGraph graph = await GraphCollection.AddAsync(template);

@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Horde.Build.Collections;
 using Horde.Build.Collections.Impl;
+using Horde.Build.Config;
 using Horde.Build.Jobs;
 using Horde.Build.Server;
 using Horde.Build.Services;
@@ -79,6 +80,7 @@ public class ControllerIntegrationTest : IDisposable
 	private async Task<Fixture> CreateFixture()
 	{
 		IServiceProvider services = Factory.Services;
+		ConfigCollection configCollection = services.GetRequiredService<ConfigCollection>();
 		MongoService mongoService = services.GetRequiredService<MongoService>();
 		ITemplateCollection templateService = services.GetRequiredService<ITemplateCollection>();
 		JobService jobService = services.GetRequiredService<JobService>();
@@ -87,7 +89,7 @@ public class ControllerIntegrationTest : IDisposable
 		AgentService agentService = services.GetRequiredService<AgentService>();
 		GraphCollection graphCollection = new(mongoService);
 
-		return await Fixture.Create(graphCollection, templateService, jobService, artifactCollection, streamService,
+		return await Fixture.Create(configCollection, graphCollection, templateService, jobService, artifactCollection, streamService,
 			agentService);
 	}
 }

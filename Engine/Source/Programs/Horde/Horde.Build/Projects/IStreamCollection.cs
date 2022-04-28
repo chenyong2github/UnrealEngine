@@ -24,12 +24,10 @@ namespace Horde.Build.Collections
 		/// </summary>
 		/// <param name="id">Unique id for the new stream</param>
 		/// <param name="stream">The current stream value. If not-null, this will attempt to replace the existing instance.</param>
-		/// <param name="configPath">Path to the config file</param>
 		/// <param name="revision">The config file revision</param>
 		/// <param name="projectId">The project id</param>
-		/// <param name="config">The stream configuration</param>
 		/// <returns></returns>
-		Task<IStream?> TryCreateOrReplaceAsync(StreamId id, IStream? stream, string configPath, string revision, ProjectId projectId, StreamConfig config);
+		Task<IStream?> TryCreateOrReplaceAsync(StreamId id, IStream? stream, string revision, ProjectId projectId);
 
 		/// <summary>
 		/// Gets a stream by ID
@@ -94,16 +92,14 @@ namespace Horde.Build.Collections
 		/// <param name="streamCollection">The stream collection</param>
 		/// <param name="id">Unique id for the new stream</param>
 		/// <param name="stream">The current stream value. If not-null, this will attempt to replace the existing instance.</param>
-		/// <param name="configPath">Path to the config file</param>
 		/// <param name="revision">The config file revision</param>
 		/// <param name="projectId">The project id</param>
-		/// <param name="config">The stream configuration</param>
 		/// <returns></returns>
-		public static async Task<IStream> CreateOrReplaceAsync(this IStreamCollection streamCollection, StreamId id, IStream? stream, string configPath, string revision, ProjectId projectId, StreamConfig config)
+		public static async Task<IStream> CreateOrReplaceAsync(this IStreamCollection streamCollection, StreamId id, IStream? stream, string revision, ProjectId projectId)
 		{
 			for (; ; )
 			{
-				stream = await streamCollection.TryCreateOrReplaceAsync(id, stream, configPath, revision, projectId, config);
+				stream = await streamCollection.TryCreateOrReplaceAsync(id, stream, revision, projectId);
 				if (stream != null)
 				{
 					return stream;

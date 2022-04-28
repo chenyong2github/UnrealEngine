@@ -45,7 +45,6 @@ namespace Horde.Build.Collections.Impl
 			public string Name { get; set; }
 
 			public string? ClusterName { get; set; }
-			public string ConfigPath { get; set; } = String.Empty;
 			public string ConfigRevision { get; set; } = String.Empty;
 			public StreamConfig? Config { get; set; }
 
@@ -131,8 +130,10 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IStream?> TryCreateOrReplaceAsync(StreamId id, IStream? stream, string configPath, string revision, ProjectId projectId, StreamConfig config)
+		public async Task<IStream?> TryCreateOrReplaceAsync(StreamId id, IStream? stream, string revision, ProjectId projectId)
 		{
+			StreamConfig config = await _configCollection.GetConfigAsync<StreamConfig>(revision);
+
 			List<StreamTab> tabs = config.Tabs.ConvertAll(x => StreamTab.FromRequest(x));
 			Dictionary<TemplateRefId, TemplateRef> templateRefs = await CreateTemplateRefsAsync(config.Templates, stream, _templateCollection);
 
@@ -159,11 +160,11 @@ namespace Horde.Build.Collections.Impl
 			Acl? acl = Acl.Merge(new Acl(), config.Acl);
 			if (stream == null)
 			{
-				return await TryCreateAsync(id, projectId, configPath, revision, config, defaultPreflight, tabs, agentTypes, workspaceTypes, templateRefs, acl);
+				return await TryCreateAsync(id, projectId, revision, config, defaultPreflight, tabs, agentTypes, workspaceTypes, templateRefs, acl);
 			}
 			else
 			{
-				return await TryReplaceAsync(stream, projectId, configPath, revision, config, defaultPreflight, tabs, agentTypes, workspaceTypes, templateRefs, acl);
+				return await TryReplaceAsync(stream, projectId, revision, config, defaultPreflight, tabs, agentTypes, workspaceTypes, templateRefs, acl);
 			}
 		}
 
@@ -220,12 +221,12 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryCreateAsync(StreamId id, ProjectId projectId, string configPath, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<string, AgentType> agentTypes, Dictionary<string, WorkspaceType> workspaceTypes, Dictionary<TemplateRefId, TemplateRef> templateRefs, Acl? acl)
+		async Task<IStream?> TryCreateAsync(StreamId id, ProjectId projectId, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<string, AgentType> agentTypes, Dictionary<string, WorkspaceType> workspaceTypes, Dictionary<TemplateRefId, TemplateRef> templateRefs, Acl? acl)
 		{
 			StreamDocument newStream = new StreamDocument(id, config.Name, projectId);
 			newStream.ClusterName = config.ClusterName;
-			newStream.ConfigPath = configPath;
 			newStream.ConfigRevision = configRevision;
+			newStream.Config = config;
 			newStream.Order = config.Order ?? StreamDocument.DefaultOrder;
 			newStream.NotificationChannel = config.NotificationChannel;
 			newStream.NotificationChannelFilter = config.NotificationChannelFilter;
@@ -258,7 +259,7 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		async Task<IStream?> TryReplaceAsync(IStream streamInterface, ProjectId projectId, string configPath, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<string, AgentType>? agentTypes, Dictionary<string, WorkspaceType>? workspaceTypes, Dictionary<TemplateRefId, TemplateRef>? templateRefs, Acl? acl)
+		async Task<IStream?> TryReplaceAsync(IStream streamInterface, ProjectId projectId, string configRevision, StreamConfig config, DefaultPreflight? defaultPreflight, List<StreamTab> tabs, Dictionary<string, AgentType>? agentTypes, Dictionary<string, WorkspaceType>? workspaceTypes, Dictionary<TemplateRefId, TemplateRef>? templateRefs, Acl? acl)
 		{
 			int order = config.Order ?? StreamDocument.DefaultOrder;
 
@@ -270,7 +271,6 @@ namespace Horde.Build.Collections.Impl
 			updates.Add(updateBuilder.Set(x => x.Name, config.Name));
 			updates.Add(updateBuilder.Set(x => x.ProjectId, projectId));
 			updates.Add(updateBuilder.Set(x => x.ClusterName, config.ClusterName));
-			updates.Add(updateBuilder.Set(x => x.ConfigPath, configPath));
 			updates.Add(updateBuilder.Set(x => x.ConfigRevision, configRevision));
 			updates.Add(updateBuilder.Set(x => x.Order, order));
 			updates.Add(updateBuilder.Set(x => x.NotificationChannel, config.NotificationChannel));
