@@ -20,9 +20,14 @@ void UPCGNode::PostLoad()
 	{
 		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
 	}
-#endif
 
-	// Deprecation
+	ApplyDeprecation();
+#endif
+}
+
+#if WITH_EDITOR
+void UPCGNode::ApplyDeprecation()
+{
 	for (TObjectPtr<UPCGNode> OutboundNode : OutboundNodes_DEPRECATED)
 	{
 		if (!HasEdgeTo(OutboundNode))
@@ -32,6 +37,7 @@ void UPCGNode::PostLoad()
 	}
 	OutboundNodes_DEPRECATED.Reset();
 }
+#endif
 
 void UPCGNode::PostEditImport()
 {

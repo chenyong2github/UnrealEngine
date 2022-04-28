@@ -41,6 +41,8 @@ void UPCGGraph::PostLoad()
 
 #if WITH_EDITOR
 	// Deprecation
+	InputNode->ApplyDeprecation();
+
 	if (!Cast<UPCGGraphInputOutputSettings>(InputNode->DefaultSettings))
 	{
 		InputNode->DefaultSettings = NewObject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings"));
@@ -56,6 +58,8 @@ void UPCGGraph::PostLoad()
 			Edge->InboundLabel = TEXT("In");
 		}
 	}
+
+	OutputNode->ApplyDeprecation();
 
 	if (!Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings))
 	{

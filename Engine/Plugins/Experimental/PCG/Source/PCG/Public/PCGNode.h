@@ -33,6 +33,11 @@ public:
 	virtual void BeginDestroy() override;
 	/** ~End UObject interface */
 
+#if WITH_EDITOR
+	/** Used to be able to force deprecation when things need to be deprecated at the graph level */
+	void ApplyDeprecation();
+#endif
+
 	/** Returns the owning graph */
 	UFUNCTION(BlueprintCallable, Category = Node)
 	UPCGGraph* GetGraph() const;
