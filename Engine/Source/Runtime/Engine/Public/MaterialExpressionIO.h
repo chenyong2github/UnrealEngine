@@ -30,13 +30,11 @@ struct FValue;
 //@warning: FExpressionInput is mirrored in MaterialExpression.h and manually "subclassed" in Material.h (FMaterialInput)
 struct FExpressionInput
 {
-#if WITH_EDITORONLY_DATA
 	/** 
 	 * Material expression that this input is connected to, or NULL if not connected. 
 	 * If you want to be safe when checking against dangling Reroute nodes, please use GetTracedInput before accessing this property.
 	*/
 	class UMaterialExpression*	Expression;
-#endif
 
 	/** 
 	 * Index into Expression's outputs array that this input is connected to.
@@ -50,31 +48,25 @@ struct FExpressionInput
 	 */
 	FName						InputName;
 
-#if WITH_EDITORONLY_DATA
 	int32						Mask,
 								MaskR,
 								MaskG,
 								MaskB,
 								MaskA;
-#endif
-
-	/** Material expression name that this input is connected to, or None if not connected. Used only in cooked builds */
-	FName				ExpressionName;
 
 	FExpressionInput()
 		: OutputIndex(0)
-#if WITH_EDITORONLY_DATA
 		, Mask(0)
 		, MaskR(0)
 		, MaskG(0)
 		, MaskB(0)
 		, MaskA(0)
-#endif
 	{
-#if WITH_EDITORONLY_DATA
 		Expression = nullptr;
-#endif
 	}
+
+	/** ICPPStructOps interface */
+	ENGINE_API bool Serialize(FArchive& Ar);
 
 #if WITH_EDITOR
 	ENGINE_API int32 Compile(class FMaterialCompiler* Compiler);
@@ -87,7 +79,6 @@ struct FExpressionInput
 	ENGINE_API const UE::HLSLTree::FExpression* AcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
 	ENGINE_API const UE::HLSLTree::FExpression* AcquireHLSLExpressionOrConstant(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& ConstantValue) const;
 	ENGINE_API const UE::HLSLTree::FExpression* AcquireHLSLExpressionOrExternalInput(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::Material::EExternalInput Input) const;
-#endif // WITH_EDITOR
 
 	/**
 	 * Tests if the input has a material expression connected to it
@@ -96,20 +87,14 @@ struct FExpressionInput
 	 */
 	bool IsConnected() const 
 	{ 
-#if WITH_EDITORONLY_DATA
 		return (nullptr != Expression);
-#else
-		return ExpressionName != NAME_None;
-#endif // WITH_EDITORONLY_DATA
 	}
 
-#if WITH_EDITOR
+	/** Is the input connected to a constant value */
+	bool IsConstant() const { return false; }
+
 	/** Connects output of InExpression to this input */
 	ENGINE_API void Connect( int32 InOutputIndex, class UMaterialExpression* InExpression );
-#endif // WITH_EDITOR
-
-	/** ICPPStructOps interface */
-	ENGINE_API bool Serialize(FArchive& Ar);
 
 	/** If this input goes through reroute nodes or other paths that should not affect code, trace back on the input chain.*/
 	ENGINE_API FExpressionInput GetTracedInput() const;
@@ -117,14 +102,13 @@ struct FExpressionInput
 	/** Helper for setting component mask. */
 	ENGINE_API void SetMask(int32 UseMask, int32 R, int32 G, int32 B, int32 A)
 	{
-#if WITH_EDITORONLY_DATA
 		Mask = UseMask;
 		MaskR = R;
 		MaskG = G;
 		MaskB = B;
 		MaskA = A;
-#endif
 	}
+#endif // WITH_EDITOR
 };
 
 template<>
@@ -144,45 +128,37 @@ struct TStructOpsTypeTraits<FExpressionInput>
 struct FExpressionOutput
 {
 	FName	OutputName;
-#if WITH_EDITORONLY_DATA
 	int32	Mask,
 		MaskR,
 		MaskG,
 		MaskB,
 		MaskA;
-#endif
 
 	FExpressionOutput(int32 InMask = 0, int32 InMaskR = 0, int32 InMaskG = 0, int32 InMaskB = 0, int32 InMaskA = 0)
-#if WITH_EDITORONLY_DATA
 		: Mask(InMask)
 		, MaskR(InMaskR)
 		, MaskG(InMaskG)
 		, MaskB(InMaskB)
 		, MaskA(InMaskA)
-#endif
 	{}
 
 	FExpressionOutput(FName InOutputName, int32 InMask = 0, int32 InMaskR = 0, int32 InMaskG = 0, int32 InMaskB = 0, int32 InMaskA = 0)
 		: OutputName(InOutputName)
-#if WITH_EDITORONLY_DATA
 		, Mask(InMask)
 		, MaskR(InMaskR)
 		, MaskG(InMaskG)
 		, MaskB(InMaskB)
 		, MaskA(InMaskA)
-#endif
 	{}
 
 	/** Helper for setting component mask. */
 	ENGINE_API void SetMask(int32 UseMask, int32 R, int32 G, int32 B, int32 A)
 	{
-#if WITH_EDITORONLY_DATA
 		Mask = UseMask;
 		MaskR = R;
 		MaskG = G;
 		MaskB = B;
 		MaskA = A;
-#endif
 	}
 };
 
@@ -194,16 +170,16 @@ template<class InputType> struct FMaterialInput : FExpressionInput
 {
 	FMaterialInput()
 	{
-#if WITH_EDITORONLY_DATA
 		UseConstant = 0;
 		Constant = InputType(0);
-#endif
 	}
 
-#if WITH_EDITORONLY_DATA
+#if WITH_EDITOR
+	bool IsConstant() const { return UseConstant; }
+#endif
+
 	uint32	UseConstant : 1;
 	InputType	Constant;
-#endif
 };
 
 struct FColorMaterialInput : FMaterialInput<FColor>
@@ -331,13 +307,13 @@ struct FMaterialAttributesInput : FExpressionInput
 
 #if WITH_EDITOR
 	ENGINE_API int32 CompileWithDefault(class FMaterialCompiler* Compiler, const FGuid& AttributeID);
-#endif  // WITH_EDITOR
-	ENGINE_API bool IsConnected(EMaterialProperty Property) { return ((PropertyConnectedBitmask >> (uint32)Property) & 0x1) != 0; }
-	ENGINE_API bool IsConnected() const { return FExpressionInput::IsConnected(); }
-	ENGINE_API void SetConnectedProperty(EMaterialProperty Property, bool bIsConnected) 
+	inline bool IsConnected(EMaterialProperty Property) { return ((PropertyConnectedBitmask >> (uint32)Property) & 0x1) != 0; }
+	inline bool IsConnected() const { return FExpressionInput::IsConnected(); }
+	inline void SetConnectedProperty(EMaterialProperty Property, bool bIsConnected)
 	{
 		PropertyConnectedBitmask = bIsConnected ? PropertyConnectedBitmask | (1 << (uint32)Property) : PropertyConnectedBitmask & ~(1 << (uint32)Property);
 	}
+#endif  // WITH_EDITOR
 
 	/** ICPPStructOps interface */
 	ENGINE_API bool Serialize(FArchive& Ar);

@@ -249,39 +249,50 @@ void UpdateMaterialShaderCompilingStats(const FMaterial* Material)
 	}
 }
 
-FStaticParameterSet::FStaticParameterSet(const FStaticParameterSet& InValue)
-	: StaticSwitchParameters(InValue.StaticSwitchParameters)
-	, StaticComponentMaskParameters(InValue.StaticComponentMaskParameters)
-	, TerrainLayerWeightParameters(InValue.TerrainLayerWeightParameters)
-	, bHasMaterialLayers(InValue.bHasMaterialLayers)
-{
-	if (bHasMaterialLayers)
-	{
-		MaterialLayers = InValue.MaterialLayers;
-	}
-}
+FStaticParameterSet::FStaticParameterSet(const FStaticParameterSet& InValue) = default;
 
 FStaticParameterSet& FStaticParameterSet::operator=(const FStaticParameterSet& InValue)
 {
-	StaticSwitchParameters = InValue.StaticSwitchParameters;
-	StaticComponentMaskParameters = InValue.StaticComponentMaskParameters;
-	TerrainLayerWeightParameters = InValue.TerrainLayerWeightParameters;
+#if WITH_EDITORONLY_DATA
+	EditorOnly.StaticSwitchParameters = InValue.EditorOnly.StaticSwitchParameters;
+	EditorOnly.StaticComponentMaskParameters = InValue.EditorOnly.StaticComponentMaskParameters;
+	EditorOnly.TerrainLayerWeightParameters = InValue.EditorOnly.TerrainLayerWeightParameters;
+#endif // WITH_EDITORONLY_DATA
 	MaterialLayers = InValue.MaterialLayers;
 	bHasMaterialLayers = InValue.bHasMaterialLayers;
 	if (bHasMaterialLayers)
 	{
 		MaterialLayers = InValue.MaterialLayers;
+#if WITH_EDITORONLY_DATA
+		EditorOnly.MaterialLayers = InValue.EditorOnly.MaterialLayers;
+#endif
 	}
 	return *this;
 }
 
-void FStaticParameterSet::Empty()
+void FStaticParameterSet::PostSerialize(const FArchive& Ar)
 {
-	StaticSwitchParameters.Empty();
-	StaticComponentMaskParameters.Empty();
-	TerrainLayerWeightParameters.Empty();
-	MaterialLayers.Empty();
-	bHasMaterialLayers = false;
+#if WITH_EDITORONLY_DATA
+	if (StaticSwitchParameters_DEPRECATED.Num() > 0)
+	{
+		EditorOnly.StaticSwitchParameters = MoveTemp(StaticSwitchParameters_DEPRECATED);
+	}
+	if (StaticComponentMaskParameters_DEPRECATED.Num() > 0)
+	{
+		EditorOnly.StaticComponentMaskParameters = MoveTemp(StaticComponentMaskParameters_DEPRECATED);
+	}
+	if (TerrainLayerWeightParameters_DEPRECATED.Num() > 0)
+	{
+		EditorOnly.TerrainLayerWeightParameters = MoveTemp(TerrainLayerWeightParameters_DEPRECATED);
+	}
+
+	if (!MaterialLayers_DEPRECATED.IsEmpty())
+	{
+		MaterialLayers = MoveTemp(MaterialLayers_DEPRECATED.GetRuntime());
+		EditorOnly.MaterialLayers = MoveTemp(MaterialLayers_DEPRECATED.EditorOnly);
+	}
+	MaterialLayers_DEPRECATED.Empty();
+#endif // WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITOR
@@ -296,9 +307,9 @@ void FStaticParameterSet::SerializeLegacy(FArchive& Ar)
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
 
-	Ar << StaticSwitchParameters;
-	Ar << StaticComponentMaskParameters;
-	Ar << TerrainLayerWeightParameters;
+	Ar << EditorOnly.StaticSwitchParameters;
+	Ar << EditorOnly.StaticComponentMaskParameters;
+	Ar << EditorOnly.TerrainLayerWeightParameters;
 
 	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::MaterialLayersParameterSerializationRefactor)
 	{
@@ -309,7 +320,8 @@ void FStaticParameterSet::SerializeLegacy(FArchive& Ar)
 			if (MaterialLayersParameters_DEPRECATED.Num() > 0)
 			{
 				bHasMaterialLayers = true;
-				MaterialLayers = MoveTemp(MaterialLayersParameters_DEPRECATED[0].Value);
+				MaterialLayers = MoveTemp(MaterialLayersParameters_DEPRECATED[0].Value.GetRuntime());
+				EditorOnly.MaterialLayers = MoveTemp(MaterialLayersParameters_DEPRECATED[0].Value.EditorOnly);
 				MaterialLayersParameters_DEPRECATED.Empty();
 			}
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -320,9 +332,9 @@ void FStaticParameterSet::SerializeLegacy(FArchive& Ar)
 void FStaticParameterSet::UpdateLegacyTerrainLayerWeightData()
 {
 	int32 ParameterIndex = 0;
-	while (ParameterIndex < TerrainLayerWeightParameters.Num())
+	while (ParameterIndex < EditorOnly.TerrainLayerWeightParameters.Num())
 	{
-		FStaticTerrainLayerWeightParameter& TerrainParameter = TerrainLayerWeightParameters[ParameterIndex];
+		FStaticTerrainLayerWeightParameter& TerrainParameter = EditorOnly.TerrainLayerWeightParameters[ParameterIndex];
 		if (TerrainParameter.bOverride_DEPRECATED)
 		{
 			TerrainParameter.LayerName = TerrainParameter.ParameterInfo_DEPRECATED.Name;
@@ -331,7 +343,7 @@ void FStaticParameterSet::UpdateLegacyTerrainLayerWeightData()
 		else
 		{
 			// Remove any parameters that didn't have bOverride set
-			TerrainLayerWeightParameters.RemoveAt(ParameterIndex);
+			EditorOnly.TerrainLayerWeightParameters.RemoveAt(ParameterIndex);
 		}
 	}
 }
@@ -342,41 +354,73 @@ void FStaticParameterSet::UpdateLegacyMaterialLayersData()
 	if (MaterialLayersParameters_DEPRECATED.Num() > 0)
 	{
 		bHasMaterialLayers = true;
-		MaterialLayers = MoveTemp(MaterialLayersParameters_DEPRECATED[0].Value);
+		MaterialLayers = MoveTemp(MaterialLayersParameters_DEPRECATED[0].Value.GetRuntime());
+		EditorOnly.MaterialLayers = MoveTemp(MaterialLayersParameters_DEPRECATED[0].Value.EditorOnly);
 		MaterialLayersParameters_DEPRECATED.Empty();
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
+
+bool FStaticParameterSet::GetMaterialLayers(FMaterialLayersFunctions& OutMaterialLayers) const
+{
+	if (bHasMaterialLayers)
+	{
+		OutMaterialLayers.GetRuntime() = MaterialLayers;
+		OutMaterialLayers.EditorOnly = EditorOnly.MaterialLayers;
+		return true;
+	}
+	return false;
+}
+
+void FStaticParameterSet::Validate(const FStaticParameterSetRuntimeData& Runtime, const FStaticParameterSetEditorOnlyData& EditorOnly)
+{
+	FMaterialLayersFunctions::Validate(Runtime.MaterialLayers, EditorOnly.MaterialLayers);
+}
+
 #endif // WITH_EDITOR
 
 bool FStaticParameterSet::operator==(const FStaticParameterSet& ReferenceSet) const
 {
-	if (StaticSwitchParameters.Num() != ReferenceSet.StaticSwitchParameters.Num()
-		|| StaticComponentMaskParameters.Num() != ReferenceSet.StaticComponentMaskParameters.Num()
-		|| TerrainLayerWeightParameters.Num() != ReferenceSet.TerrainLayerWeightParameters.Num()
-		|| bHasMaterialLayers != ReferenceSet.bHasMaterialLayers)
+	if (bHasMaterialLayers != ReferenceSet.bHasMaterialLayers)
+	{
+		return false;
+	}
+#if WITH_EDITORONLY_DATA
+	if (EditorOnly.StaticSwitchParameters.Num() != ReferenceSet.EditorOnly.StaticSwitchParameters.Num()
+		|| EditorOnly.StaticComponentMaskParameters.Num() != ReferenceSet.EditorOnly.StaticComponentMaskParameters.Num()
+		|| EditorOnly.TerrainLayerWeightParameters.Num() != ReferenceSet.EditorOnly.TerrainLayerWeightParameters.Num())
 	{
 		return false;
 	}
 
-	if (StaticSwitchParameters != ReferenceSet.StaticSwitchParameters)
+	if (EditorOnly.StaticSwitchParameters != ReferenceSet.EditorOnly.StaticSwitchParameters)
 	{
 		return false;
 	}
 
-	if (StaticComponentMaskParameters != ReferenceSet.StaticComponentMaskParameters)
+	if (EditorOnly.StaticComponentMaskParameters != ReferenceSet.EditorOnly.StaticComponentMaskParameters)
 	{
 		return false;
 	}
 
-	if (TerrainLayerWeightParameters != ReferenceSet.TerrainLayerWeightParameters)
+	if (EditorOnly.TerrainLayerWeightParameters != ReferenceSet.EditorOnly.TerrainLayerWeightParameters)
 	{
 		return false;
 	}
+#endif // WITH_EDITORONLY_DATA
 
-	if (bHasMaterialLayers && MaterialLayers != ReferenceSet.MaterialLayers)
+	if (bHasMaterialLayers)
 	{
-		return false;
+		if (MaterialLayers != ReferenceSet.MaterialLayers)
+		{
+			return false;
+		}
+#if WITH_EDITORONLY_DATA
+		if (EditorOnly.MaterialLayers != ReferenceSet.EditorOnly.MaterialLayers)
+		{
+			return false;
+		}
+#endif // WITH_EDITORONLY_DATA
 	}
 
 	return true;
@@ -384,28 +428,37 @@ bool FStaticParameterSet::operator==(const FStaticParameterSet& ReferenceSet) co
 
 void FStaticParameterSet::SortForEquivalent()
 {
-	StaticSwitchParameters.Sort([](const FStaticSwitchParameter& A, const FStaticSwitchParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
-	StaticComponentMaskParameters.Sort([](const FStaticComponentMaskParameter& A, const FStaticComponentMaskParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
-	TerrainLayerWeightParameters.Sort([](const FStaticTerrainLayerWeightParameter& A, const FStaticTerrainLayerWeightParameter& B) { return B.LayerName.LexicalLess(A.LayerName); });
+#if WITH_EDITORONLY_DATA
+	EditorOnly.StaticSwitchParameters.Sort([](const FStaticSwitchParameter& A, const FStaticSwitchParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
+	EditorOnly.StaticComponentMaskParameters.Sort([](const FStaticComponentMaskParameter& A, const FStaticComponentMaskParameter& B) { return B.ExpressionGUID < A.ExpressionGUID; });
+	EditorOnly.TerrainLayerWeightParameters.Sort([](const FStaticTerrainLayerWeightParameter& A, const FStaticTerrainLayerWeightParameter& B) { return B.LayerName.LexicalLess(A.LayerName); });
+#endif // WITH_EDITORONLY_DATA
 }
 
 bool FStaticParameterSet::Equivalent(const FStaticParameterSet& ReferenceSet) const
 {
-	if (StaticSwitchParameters.Num() == ReferenceSet.StaticSwitchParameters.Num()
-		&& StaticComponentMaskParameters.Num() == ReferenceSet.StaticComponentMaskParameters.Num()
-		&& TerrainLayerWeightParameters.Num() == ReferenceSet.TerrainLayerWeightParameters.Num()
-		&& bHasMaterialLayers == ReferenceSet.bHasMaterialLayers)
+	if (bHasMaterialLayers != ReferenceSet.bHasMaterialLayers)
 	{
-		// this is not ideal, but it is easy to code up
-		FStaticParameterSet Temp1 = *this;
-		FStaticParameterSet Temp2 = ReferenceSet;
-		Temp1.SortForEquivalent();
-		Temp2.SortForEquivalent();
-		bool bResult = (Temp1 == Temp2);
-		ensure(!bResult || (*this) == ReferenceSet); // if this never fires, then we really didn't need to sort did we?
-		return bResult;
+		return false;
 	}
-	return false;
+
+#if WITH_EDITORONLY_DATA
+	if (EditorOnly.StaticSwitchParameters.Num() != ReferenceSet.EditorOnly.StaticSwitchParameters.Num()
+		|| EditorOnly.StaticComponentMaskParameters.Num() != ReferenceSet.EditorOnly.StaticComponentMaskParameters.Num()
+		|| EditorOnly.TerrainLayerWeightParameters.Num() != ReferenceSet.EditorOnly.TerrainLayerWeightParameters.Num())
+	{
+		return false;
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// this is not ideal, but it is easy to code up
+	FStaticParameterSet Temp1 = *this;
+	FStaticParameterSet Temp2 = ReferenceSet;
+	Temp1.SortForEquivalent();
+	Temp2.SortForEquivalent();
+	bool bResult = (Temp1 == Temp2);
+	ensure(!bResult || (*this) == ReferenceSet); // if this never fires, then we really didn't need to sort did we?
+	return bResult;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -425,21 +478,21 @@ void FStaticParameterSet::AddParametersOfType(EMaterialParameterType Type, const
 	switch (Type)
 	{
 	case EMaterialParameterType::StaticSwitch:
-		StaticSwitchParameters.Empty(Values.Num());
+		EditorOnly.StaticSwitchParameters.Empty(Values.Num());
 		for (const auto& It : Values)
 		{
 			const FMaterialParameterMetadata& Meta = It.Value;
 			check(Meta.Value.Type == Type);
-			StaticSwitchParameters.Emplace(It.Key, Meta.Value.AsStaticSwitch(), Meta.bOverride, Meta.ExpressionGuid);
+			EditorOnly.StaticSwitchParameters.Emplace(It.Key, Meta.Value.AsStaticSwitch(), Meta.bOverride, Meta.ExpressionGuid);
 		}
 		break;
 	case EMaterialParameterType::StaticComponentMask:
-		StaticComponentMaskParameters.Empty(Values.Num());
+		EditorOnly.StaticComponentMaskParameters.Empty(Values.Num());
 		for (const auto& It : Values)
 		{
 			const FMaterialParameterMetadata& Meta = It.Value;
 			check(Meta.Value.Type == Type);
-			StaticComponentMaskParameters.Emplace(It.Key,
+			EditorOnly.StaticComponentMaskParameters.Emplace(It.Key,
 				Meta.Value.Bool[0],
 				Meta.Value.Bool[1],
 				Meta.Value.Bool[2],
@@ -454,7 +507,7 @@ void FStaticParameterSet::AddParametersOfType(EMaterialParameterType Type, const
 
 void FStaticParameterSet::SetStaticSwitchParameterValue(const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool Value)
 {
-	for (FStaticSwitchParameter& Parameter : StaticSwitchParameters)
+	for (FStaticSwitchParameter& Parameter : EditorOnly.StaticSwitchParameters)
 	{
 		if (Parameter.ParameterInfo == ParameterInfo)
 		{
@@ -464,12 +517,12 @@ void FStaticParameterSet::SetStaticSwitchParameterValue(const FMaterialParameter
 		}
 	}
 
-	new(StaticSwitchParameters) FStaticSwitchParameter(ParameterInfo, Value, true, ExpressionGuid);
+	new(EditorOnly.StaticSwitchParameters) FStaticSwitchParameter(ParameterInfo, Value, true, ExpressionGuid);
 }
 
 void FStaticParameterSet::SetStaticComponentMaskParameterValue(const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool R, bool G, bool B, bool A)
 {
-	for (FStaticComponentMaskParameter& Parameter : StaticComponentMaskParameters)
+	for (FStaticComponentMaskParameter& Parameter : EditorOnly.StaticComponentMaskParameters)
 	{
 		if (Parameter.ParameterInfo == ParameterInfo)
 		{
@@ -482,9 +535,10 @@ void FStaticParameterSet::SetStaticComponentMaskParameterValue(const FMaterialPa
 		}
 	}
 
-	new(StaticComponentMaskParameters) FStaticComponentMaskParameter(ParameterInfo, R, G, B, A, true, ExpressionGuid);
+	new(EditorOnly.StaticComponentMaskParameters) FStaticComponentMaskParameter(ParameterInfo, R, G, B, A, true, ExpressionGuid);
 }
 #endif // WITH_EDITORONLY_DATA
+
 
 void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 {
@@ -895,12 +949,12 @@ void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& Sta
 		}
 	};
 
-	StaticSwitchParameters = StaticParameters.StaticSwitchParameters;
-	StaticComponentMaskParameters = StaticParameters.StaticComponentMaskParameters;
-	TerrainLayerWeightParameters = StaticParameters.TerrainLayerWeightParameters;
+	StaticSwitchParameters = StaticParameters.EditorOnly.StaticSwitchParameters;
+	StaticComponentMaskParameters = StaticParameters.EditorOnly.StaticComponentMaskParameters;
+	TerrainLayerWeightParameters = StaticParameters.EditorOnly.TerrainLayerWeightParameters;
 	if (StaticParameters.bHasMaterialLayers)
 	{
-		MaterialLayersId = StaticParameters.MaterialLayers.GetID();
+		MaterialLayersId = StaticParameters.MaterialLayers.GetID(StaticParameters.EditorOnly.MaterialLayers);
 	}
 
 	// Sort the arrays by parameter name, ensure the ID is not influenced by the order

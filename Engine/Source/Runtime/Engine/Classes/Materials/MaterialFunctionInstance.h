@@ -101,80 +101,11 @@ class UMaterialFunctionInstance : public UMaterialFunctionInterface
 	virtual bool HasFlippedCoordinates() const override;
 #endif
 
-	virtual UMaterialFunctionInterface* GetBaseFunction() override
-	{
-		UMaterialFunctionInterface* BasePtr = nullptr;
-		UMaterialFunctionInterface* BaseParent = Parent;
-
-		while (true)
-		{
-			BasePtr = BaseParent;
-			if (UMaterialFunctionInstance* BaseInstance = Cast<UMaterialFunctionInstance>(BasePtr))
-			{
-				BaseParent = BaseInstance->Parent;
-			}
-			else
-			{
-				break;
-			}
-		}
-
-		return BasePtr;
-	}
-
-	virtual const UMaterialFunctionInterface* GetBaseFunction() const override
-	{
-		UMaterialFunctionInterface* BasePtr = nullptr;
-		UMaterialFunctionInterface* BaseParent = Parent;
-
-		while (true)
-		{
-			BasePtr = BaseParent;
-			if (UMaterialFunctionInstance* BaseInstance = Cast<UMaterialFunctionInstance>(BasePtr))
-			{
-				BaseParent = BaseInstance->Parent;
-			}
-			else
-			{
-				break;
-			}
-		}
-
-		return BasePtr;
-	}
-
-#if WITH_EDITORONLY_DATA
-	virtual const TArray<TObjectPtr<UMaterialExpression>>* GetFunctionExpressions() const override
-	{
-		const UMaterialFunctionInterface* BaseFunction = GetBaseFunction();
-		return BaseFunction ? BaseFunction->GetFunctionExpressions() : nullptr;
-	}
-#endif // WITH_EDITORONLY_DATA
-
-	virtual const FString* GetDescription() const override
-	{
-		const UMaterialFunctionInterface* BaseFunction = GetBaseFunction();
-		return BaseFunction ? BaseFunction->GetDescription() : nullptr;
-	}
+	virtual UMaterialFunction* GetBaseFunction(FMFRecursionGuard RecursionGuard = FMFRecursionGuard()) override;
+	virtual const UMaterialFunction* GetBaseFunction(FMFRecursionGuard RecursionGuard = FMFRecursionGuard()) const override;
 
 #if WITH_EDITOR
-	virtual bool GetReentrantFlag() const override
-	{
-		const UMaterialFunctionInterface* BaseFunction = GetBaseFunction();
-		return BaseFunction ? BaseFunction->GetReentrantFlag() : false;
-	}
-
-	virtual void SetReentrantFlag(const bool bIsReentrant) override
-	{
-		if (UMaterialFunctionInterface* BaseFunction = GetBaseFunction())
-		{
-			BaseFunction->SetReentrantFlag(bIsReentrant);
-		}
-	}
-
-public:
 	virtual bool GetParameterOverrideValue(EMaterialParameterType Type, const FName& ParameterName, FMaterialParameterMetadata& OutValue, FMFRecursionGuard RecursionGuard = FMFRecursionGuard()) const override;
-	
 #endif // WITH_EDITOR
 	//~ End UMaterialFunctionInterface interface
 

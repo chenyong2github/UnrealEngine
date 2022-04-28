@@ -78,7 +78,16 @@ private:
 	static UMaterialExpressionFunctionOutput* FindOrAddOutputFromMatFunc(UMaterialFunction* Func);
 
 	static void GetSamplersRecursive(UMaterialExpression* Expression, TArray<UMaterialExpressionTextureSample*>& TextureSamplers);
-	static void GetSamplers(TArray<UMaterialExpression*>& Expressions, TArray<FExpressionInput*> ExpressionInputs, TArray<UMaterialExpressionTextureSample*>& TextureSamplers);
+
+	template<typename ExpressionsArrayType>
+	static void GetSamplers(const ExpressionsArrayType& Expressions, TArray<FExpressionInput*> ExpressionInputs, TArray<UMaterialExpressionTextureSample*>& TextureSamplers)
+	{
+		for (UMaterialExpression* Expression : Expressions)
+		{
+			GetSamplersRecursive(Expression, TextureSamplers);
+		}
+	}
+
 	static void GetTextureSamplersMaterial(UMaterialInterface* MaterialInterface, TArray<UMaterialExpressionTextureSample*>& TextureSamplers);
 	static void GetTextureSamplersFunc(UMaterialFunction* MaterialFunc, TArray<UMaterialExpressionTextureSample*>& TextureSamplers);
 	static void GetTextureSamplers(UObject* UnrealMatOrFunc, TArray<UMaterialExpressionTextureSample*>& TextureSamplers);

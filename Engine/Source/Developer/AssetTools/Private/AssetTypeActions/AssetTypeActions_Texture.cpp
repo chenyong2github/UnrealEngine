@@ -1046,7 +1046,7 @@ void FAssetTypeActions_Texture::ConvertVTTexture(TArray<TWeakObjectPtr<UTexture>
 					MaterialTask.EnterProgressFrame();
 
 					bool FuncModified = false;
-					const TArray<UMaterialExpression*> *Expressions = Func->GetFunctionExpressions();
+					const TArray<UMaterialExpression*> *Expressions = Func->GetExpressions();
 					for (UMaterialExpression *Expr : *Expressions)
 					{
 						UMaterialExpressionTextureBase *TexExpr = Cast<UMaterialExpressionTextureBase>(Expr);

@@ -440,7 +440,7 @@ namespace Generator
 				{
 					if (Connection.GetConnectionType() == EConnectionType::Expression)
 					{
-						CurrentMaterial->Expressions.Remove(Connection.GetExpressionUnused());
+						CurrentMaterial->GetExpressionCollection().RemoveExpression(Connection.GetExpressionUnused());
 						Connection.DestroyExpression();
 					}
 				}

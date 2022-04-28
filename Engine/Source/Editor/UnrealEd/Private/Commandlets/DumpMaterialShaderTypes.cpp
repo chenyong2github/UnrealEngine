@@ -374,9 +374,9 @@ int ProcessMaterialInstances(const ITargetPlatform* TargetPlatform, const EShade
 			if (MaterialInstance->bHasStaticPermutationResource)
 			{
 				const FStaticParameterSet& ParameterSet = MaterialInstance->GetStaticParameters();
-				for (int32 StaticSwitchIndex = 0; StaticSwitchIndex < ParameterSet.StaticSwitchParameters.Num(); ++StaticSwitchIndex)
+				for (int32 StaticSwitchIndex = 0; StaticSwitchIndex < ParameterSet.EditorOnly.StaticSwitchParameters.Num(); ++StaticSwitchIndex)
 				{
-					const FStaticSwitchParameter& StaticSwitchParameter = ParameterSet.StaticSwitchParameters[StaticSwitchIndex];
+					const FStaticSwitchParameter& StaticSwitchParameter = ParameterSet.EditorOnly.StaticSwitchParameters[StaticSwitchIndex];
 					StaticParameterString += FString::Printf(
 						TEXT(", StaticSwitch'%s'=%s"),
 						*StaticSwitchParameter.ParameterInfo.ToString(),

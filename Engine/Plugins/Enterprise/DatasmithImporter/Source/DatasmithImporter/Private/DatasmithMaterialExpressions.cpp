@@ -122,11 +122,11 @@ namespace
 	{
 		if (UMaterial* Material = Cast< UMaterial >(MaterialOrFunction))
 		{
-			return Material->Expressions.Num();
+			return Material->GetExpressions().Num();
 		}
 		else if (UMaterialFunction* MaterialFunction = Cast< UMaterialFunction >(MaterialOrFunction))
 		{
-			return MaterialFunction->FunctionExpressions.Num();
+			return MaterialFunction->GetExpressions().Num();
 		}
 
 		return 0;
@@ -237,11 +237,11 @@ namespace
 
 UMaterialExpressionMakeMaterialAttributes* FDatasmithMaterialExpressions::FindOrAddAttributesFromMatFunc(UMaterialFunction* Func)
 {
-	for (int32 i = 0; i < Func->FunctionExpressions.Num(); i++)
+	for (UMaterialExpression* Expression : Func->GetExpressions())
 	{
-		if (Func->FunctionExpressions[i]->IsA< UMaterialExpressionMakeMaterialAttributes >())
+		if (Expression->IsA< UMaterialExpressionMakeMaterialAttributes >())
 		{
-			return StaticCast< UMaterialExpressionMakeMaterialAttributes* >(Func->FunctionExpressions[i]);
+			return StaticCast< UMaterialExpressionMakeMaterialAttributes* >(Expression);
 		}
 	}
 
@@ -254,11 +254,11 @@ UMaterialExpressionMakeMaterialAttributes* FDatasmithMaterialExpressions::FindOr
 
 UMaterialExpressionFunctionOutput* FDatasmithMaterialExpressions::FindOrAddOutputFromMatFunc(UMaterialFunction* Func)
 {
-	for (int32 i = 0; i < Func->FunctionExpressions.Num(); i++)
+	for (UMaterialExpression* Expression : Func->GetExpressions())
 	{
-		if ( Func->FunctionExpressions[i]->IsA< UMaterialExpressionFunctionOutput >() )
+		if (Expression->IsA< UMaterialExpressionFunctionOutput >() )
 		{
-			return StaticCast< UMaterialExpressionFunctionOutput* >( Func->FunctionExpressions[i] );
+			return StaticCast< UMaterialExpressionFunctionOutput* >(Expression);
 		}
 	}
 
@@ -289,15 +289,6 @@ void FDatasmithMaterialExpressions::GetSamplersRecursive(UMaterialExpression* Ex
 	}
 }
 
-void FDatasmithMaterialExpressions::GetSamplers(TArray<UMaterialExpression*>& Expressions, TArray<FExpressionInput*> ExpressionInputs, TArray<UMaterialExpressionTextureSample*>& TextureSamplers)
-{
-	for (int32 ExpressionIndex = 0; ExpressionIndex < Expressions.Num(); ExpressionIndex++)
-	{
-		UMaterialExpression* Expression = Expressions[ExpressionIndex];
-		GetSamplersRecursive(Expression, TextureSamplers);
-	}
-}
-
 void FDatasmithMaterialExpressions::GetTextureSamplersMaterial(UMaterialInterface* MaterialInterface, TArray<UMaterialExpressionTextureSample*>& TextureSamplers)
 {
 	UMaterial* Material = MaterialInterface->GetMaterial();
@@ -312,12 +303,13 @@ void FDatasmithMaterialExpressions::GetTextureSamplersMaterial(UMaterialInterfac
 		ExpressionInputs.Add(FirstLevelExpression);
 	}
 
-	if (Material->MaterialAttributes.Expression)
+	UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
+	if (MaterialEditorOnly->MaterialAttributes.Expression)
 	{
-		ExpressionInputs.Add(&Material->MaterialAttributes);
+		ExpressionInputs.Add(&MaterialEditorOnly->MaterialAttributes);
 	}
 
-	GetSamplers(Material->Expressions, ExpressionInputs, TextureSamplers);
+	GetSamplers(Material->GetExpressions(), ExpressionInputs, TextureSamplers);
 }
 
 void FDatasmithMaterialExpressions::GetTextureSamplersFunc(UMaterialFunction* MaterialFunc, TArray<UMaterialExpressionTextureSample*>& TextureSamplers)
@@ -380,13 +372,13 @@ bool FDatasmithMaterialExpressions::MatOrFuncDelExpression(UObject* Object, UMat
 	if (Object->IsA< UMaterial >())
 	{
 		UMaterial* Mat = (UMaterial*)Object;
-		Mat->Expressions.Remove(ToBeConnected);
+		Mat->GetExpressionCollection().RemoveExpression(ToBeConnected);
 		return true;
 	}
 	else if (Object->IsA< UMaterialFunction >())
 	{
 		UMaterialFunction* Func = (UMaterialFunction*)Object;
-		Func->FunctionExpressions.Remove(ToBeConnected);
+		Func->GetExpressionCollection().RemoveExpression(ToBeConnected);
 		return true;
 	}
 	return false;
@@ -1845,11 +1837,12 @@ void FDatasmithMaterialExpressions::AddGlassNode(UMaterialExpression* RefleExpre
 	// usually fully white so specular gets invalidated
 	if (ActualMaterial)
 	{
-		ActualMaterial->BaseColor.Expression = Multiply06;
-		ActualMaterial->Specular.Expression = RefleExpression;
-		ActualMaterial->Metallic.Expression = RefleExpression;
-		ActualMaterial->Opacity.Expression = OneMinus(UnrealMaterial, Desaturated);
-		ActualMaterial->Refraction.Expression = RefractionIOR(IORRefra, UnrealMaterial);
+		UMaterialEditorOnlyData* ActualMaterialEditorOnly = ActualMaterial->GetEditorOnlyData();
+		ActualMaterialEditorOnly->BaseColor.Expression = Multiply06;
+		ActualMaterialEditorOnly->Specular.Expression = RefleExpression;
+		ActualMaterialEditorOnly->Metallic.Expression = RefleExpression;
+		ActualMaterialEditorOnly->Opacity.Expression = OneMinus(UnrealMaterial, Desaturated);
+		ActualMaterialEditorOnly->Refraction.Expression = RefractionIOR(IORRefra, UnrealMaterial);
 		ActualMaterial->BlendMode = EBlendMode::BLEND_Translucent;
 		ActualMaterial->TranslucencyLightingMode = ETranslucencyLightingMode::TLM_Surface;
 		ActualMaterial->TwoSided = true;
@@ -1934,10 +1927,12 @@ void FDatasmithMaterialExpressions::ModulateNormalAmount(UObject* UnrealMatOrFun
 		Attrib = FindOrAddAttributesFromMatFunc(Func);
 	}
 
+	UMaterialEditorOnlyData* UnrealMaterialEditorOnly = nullptr;
 	UMaterialExpression* ToBeConnected = nullptr;
 	if (UnrealMaterial)
 	{
-		ToBeConnected = UnrealMaterial->Normal.Expression;
+		UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
+		ToBeConnected = UnrealMaterialEditorOnly->Normal.Expression;
 	}
 
 	if (Attrib)
@@ -1958,9 +1953,9 @@ void FDatasmithMaterialExpressions::ModulateNormalAmount(UObject* UnrealMatOrFun
 	ExpFuncCall->MaterialFunction = Flatten;
 	ExpFuncCall->UpdateFromFunctionResource();
 
-	if (UnrealMaterial)
+	if (UnrealMaterialEditorOnly)
 	{
-		UnrealMaterial->Normal.Expression = ExpFuncCall;
+		UnrealMaterialEditorOnly->Normal.Expression = ExpFuncCall;
 	}
 
 	if (Attrib)
@@ -2441,7 +2436,8 @@ UMaterialExpressionMaterialFunctionCall* FDatasmithMaterialExpressions::BlendFun
 			WeightExpression->ConnectExpression(ExpFuncCall->GetInput(2), 0);
 		}
 
-		UnrealMaterial->MaterialAttributes.Expression = ExpFuncCall;
+		UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
+		UnrealMaterialEditorOnly->MaterialAttributes.Expression = ExpFuncCall;
 		return ExpFuncCall;
 	}
 	else
@@ -2507,15 +2503,17 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPack
 	else
 	{
 		UnrealMaterial = ExistingMaterial;
-		UnrealMaterial->BaseColor.Expression = nullptr;
-		UnrealMaterial->Metallic.Expression = nullptr;
-		UnrealMaterial->Specular.Expression = nullptr;
-		UnrealMaterial->Roughness.Expression = nullptr;
-		UnrealMaterial->Normal.Expression = nullptr;
-		UnrealMaterial->EmissiveColor.Expression = nullptr;
-		UnrealMaterial->Opacity.Expression = nullptr;
-		UnrealMaterial->OpacityMask.Expression = nullptr;
-		UnrealMaterial->Expressions.Empty();
+		UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
+
+		UnrealMaterialEditorOnly->BaseColor.Expression = nullptr;
+		UnrealMaterialEditorOnly->Metallic.Expression = nullptr;
+		UnrealMaterialEditorOnly->Specular.Expression = nullptr;
+		UnrealMaterialEditorOnly->Roughness.Expression = nullptr;
+		UnrealMaterialEditorOnly->Normal.Expression = nullptr;
+		UnrealMaterialEditorOnly->EmissiveColor.Expression = nullptr;
+		UnrealMaterialEditorOnly->Opacity.Expression = nullptr;
+		UnrealMaterialEditorOnly->OpacityMask.Expression = nullptr;
+		UnrealMaterial->GetExpressionCollection().Empty();
 	}
 	UnrealMaterial->bUseMaterialAttributes = true;
 
@@ -2576,15 +2574,16 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithMaterial(UPack
 	else
 	{
 		UnrealMaterial = ExistingMaterial;
-		UnrealMaterial->BaseColor.Expression = nullptr;
-		UnrealMaterial->Metallic.Expression = nullptr;
-		UnrealMaterial->Specular.Expression = nullptr;
-		UnrealMaterial->Roughness.Expression = nullptr;
-		UnrealMaterial->Normal.Expression = nullptr;
-		UnrealMaterial->EmissiveColor.Expression = nullptr;
-		UnrealMaterial->Opacity.Expression = nullptr;
-		UnrealMaterial->OpacityMask.Expression = nullptr;
-		UnrealMaterial->Expressions.Empty();
+		UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
+		UnrealMaterialEditorOnly->BaseColor.Expression = nullptr;
+		UnrealMaterialEditorOnly->Metallic.Expression = nullptr;
+		UnrealMaterialEditorOnly->Specular.Expression = nullptr;
+		UnrealMaterialEditorOnly->Roughness.Expression = nullptr;
+		UnrealMaterialEditorOnly->Normal.Expression = nullptr;
+		UnrealMaterialEditorOnly->EmissiveColor.Expression = nullptr;
+		UnrealMaterialEditorOnly->Opacity.Expression = nullptr;
+		UnrealMaterialEditorOnly->OpacityMask.Expression = nullptr;
+		UnrealMaterial->GetExpressionCollection().Empty();
 	}
 
 	CreateDatasmithMaterialHelper(Package, ShaderElement, AssetsContext, UnrealMaterial);
@@ -2628,7 +2627,7 @@ UMaterialFunction* FDatasmithMaterialExpressions::CreateDatasmithMaterialFunc(UP
 	Attrib->EmissiveColor.Expression = nullptr;
 	Attrib->Opacity.Expression = nullptr;
 	Attrib->OpacityMask.Expression = nullptr;
-	UnrealMaterialFunc->FunctionExpressions.Empty();
+	UnrealMaterialFunc->GetExpressionCollection().Empty();
 
 	CreateDatasmithMaterialHelper(Package, ShaderElement, AssetsContext, UnrealMaterialFunc);
 
@@ -2661,15 +2660,16 @@ UMaterialInterface* FDatasmithMaterialExpressions::CreateDatasmithEnvironmentMat
 	else
 	{
 		UnrealMaterial = ExistingMaterial;
-		UnrealMaterial->BaseColor.Expression = nullptr;
-		UnrealMaterial->Metallic.Expression = nullptr;
-		UnrealMaterial->Specular.Expression = nullptr;
-		UnrealMaterial->Roughness.Expression = nullptr;
-		UnrealMaterial->Normal.Expression = nullptr;
-		UnrealMaterial->EmissiveColor.Expression = nullptr;
-		UnrealMaterial->Opacity.Expression = nullptr;
-		UnrealMaterial->OpacityMask.Expression = nullptr;
-		UnrealMaterial->Expressions.Empty();
+		UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
+		UnrealMaterialEditorOnly->BaseColor.Expression = nullptr;
+		UnrealMaterialEditorOnly->Metallic.Expression = nullptr;
+		UnrealMaterialEditorOnly->Specular.Expression = nullptr;
+		UnrealMaterialEditorOnly->Roughness.Expression = nullptr;
+		UnrealMaterialEditorOnly->Normal.Expression = nullptr;
+		UnrealMaterialEditorOnly->EmissiveColor.Expression = nullptr;
+		UnrealMaterialEditorOnly->Opacity.Expression = nullptr;
+		UnrealMaterialEditorOnly->OpacityMask.Expression = nullptr;
+		UnrealMaterial->GetExpressionCollection().Empty();
 	}
 
 	Package->SetDirtyFlag(true);

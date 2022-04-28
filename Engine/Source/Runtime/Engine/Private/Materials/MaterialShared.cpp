@@ -361,21 +361,17 @@ void FExpressionInput::Connect( int32 InOutputIndex, class UMaterialExpression* 
 {
 	InExpression->ConnectExpression(this, InOutputIndex);
 }
-#endif // WITH_EDITOR
 
 FExpressionInput FExpressionInput::GetTracedInput() const
 {
-#if WITH_EDITORONLY_DATA
 	if (Expression != nullptr && Expression->IsA(UMaterialExpressionRerouteBase::StaticClass()))
 	{
 		UMaterialExpressionRerouteBase* Reroute = CastChecked<UMaterialExpressionRerouteBase>(Expression);
 		return Reroute->TraceInputsToRealInput();
 	}
-#endif
 	return *this;
 }
 
-#if WITH_EDITOR
 int32 FExpressionExecOutput::Compile(class FMaterialCompiler* Compiler) const
 {
 	if (Expression)
@@ -455,12 +451,8 @@ static bool SerializeExpressionInput(FArchive& Ar, FExpressionInput& Input)
 		return false;
 	}
 
-#if WITH_EDITORONLY_DATA
-	if (!Ar.IsFilterEditorOnly())
-	{
-		Ar << Input.Expression;
-	}
-#endif
+	Ar << Input.Expression;
+
 	Ar << Input.OutputIndex;
 	if (Ar.CustomVer(FFrameworkObjectVersion::GUID) >= FFrameworkObjectVersion::PinsStoreFName)
 	{
@@ -473,29 +465,11 @@ static bool SerializeExpressionInput(FArchive& Ar, FExpressionInput& Input)
 		Input.InputName = *InputNameStr;
 	}
 
-#if WITH_EDITORONLY_DATA
 	Ar << Input.Mask;
 	Ar << Input.MaskR;
 	Ar << Input.MaskG;
 	Ar << Input.MaskB;
 	Ar << Input.MaskA;
-#else
-	int32 Temp = 0;
-	Ar << Temp << Temp << Temp << Temp << Temp;
-#endif
-
-	// Some expressions may have been stripped when cooking and Expression can be null after loading
-	// so make sure we keep the information about the connected node in cooked packages
-	if ( Ar.IsFilterEditorOnly() )
-	{
-#if WITH_EDITORONLY_DATA
-		if (Ar.IsSaving())
-		{
-			Input.ExpressionName = Input.Expression ? Input.Expression->GetFName() : NAME_None;
-		}
-#endif // WITH_EDITORONLY_DATA
-		Ar << Input.ExpressionName;
-	}
 
 	return true;
 }
@@ -505,17 +479,10 @@ static bool SerializeMaterialInput(FArchive& Ar, FMaterialInput<InputType>& Inpu
 {
 	if (SerializeExpressionInput(Ar, Input))
 	{
-#if WITH_EDITORONLY_DATA
 		bool bUseConstantValue = Input.UseConstant;
 		Ar << bUseConstantValue;
 		Input.UseConstant = bUseConstantValue;
 		Ar << Input.Constant;
-#else
-		bool bTemp = false;
-		Ar << bTemp;
-		InputType TempType;
-		Ar << TempType;
-#endif
 		return true;
 	}
 	else
@@ -1386,7 +1353,7 @@ void FMaterial::DiscardShaderMap()
 }
 
 EMaterialDomain FMaterialResource::GetMaterialDomain() const { return Material->MaterialDomain; }
-bool FMaterialResource::IsTangentSpaceNormal() const { return Material->bTangentSpaceNormal || (!Material->Normal.IsConnected() && !Material->bUseMaterialAttributes); }
+bool FMaterialResource::IsTangentSpaceNormal() const { return Material->bTangentSpaceNormal || (!Material->IsPropertyConnected(MP_Normal) && !Material->bUseMaterialAttributes); }
 bool FMaterialResource::ShouldGenerateSphericalParticleNormals() const { return Material->bGenerateSphericalParticleNormals; }
 bool FMaterialResource::ShouldDisableDepthTest() const { return Material->bDisableDepthTest; }
 bool FMaterialResource::ShouldWriteOnlyAlpha() const { return Material->bWriteOnlyAlpha; }
@@ -1402,7 +1369,9 @@ bool FMaterialResource::IsVolumetricPrimitive() const { return Material->Materia
 bool FMaterialResource::IsSpecialEngineMaterial() const { return Material->bUsedAsSpecialEngineMaterial; }
 bool FMaterialResource::HasVertexPositionOffsetConnected() const { return Material->HasVertexPositionOffsetConnected(); }
 bool FMaterialResource::HasPixelDepthOffsetConnected() const { return Material->HasPixelDepthOffsetConnected(); }
-bool FMaterialResource::HasMaterialAttributesConnected() const { return (Material->bUseMaterialAttributes && Material->MaterialAttributes.IsConnected()); }
+#if WITH_EDITOR
+bool FMaterialResource::HasMaterialAttributesConnected() const { return (Material->bUseMaterialAttributes && Material->GetEditorOnlyData()->MaterialAttributes.IsConnected()); }
+#endif
 EMaterialShadingRate FMaterialResource::GetShadingRate() const { return Material->ShadingRate; }
 FString FMaterialResource::GetBaseMaterialPathName() const { return Material->GetPathName(); }
 FString FMaterialResource::GetDebugName() const
@@ -1595,9 +1564,7 @@ bool FMaterialResource::IsUsingPlanarForwardReflections() const
 
 bool FMaterialResource::IsNonmetal() const
 {
-	return !Material->bUseMaterialAttributes ?
-			(!Material->Metallic.IsConnected() && !Material->Specular.IsConnected()) :
-			!(Material->MaterialAttributes.IsConnected(MP_Specular) || Material->MaterialAttributes.IsConnected(MP_Metallic));
+	return (!Material->IsPropertyConnected(MP_Metallic) && !Material->IsPropertyConnected(MP_Specular));
 }
 
 bool FMaterialResource::UseLmDirectionality() const
@@ -1743,7 +1710,8 @@ bool FMaterialResource::HasSpecularConnected() const
 
 bool FMaterialResource::HasMetallicConnected() const
 {
-	return HasMaterialAttributesConnected() || Material->HasMetallicConnected();
+	// HasMaterialAttributesConnected() should be captured by HasMetallicConnected() now
+	return Material->HasMetallicConnected();
 }
 
 bool FMaterialResource::HasEmissiveColorConnected() const
@@ -1787,9 +1755,10 @@ bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
 			if (!CachedStrataMaterialInfo.IsValid())
 			{
 				check(Material->HasStrataFrontMaterialConnected());
-				if (Material->FrontMaterial.Expression->IsResultStrataMaterial(Material->FrontMaterial.OutputIndex))
+				const UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
+				if (MaterialEditorOnly->FrontMaterial.Expression->IsResultStrataMaterial(MaterialEditorOnly->FrontMaterial.OutputIndex))
 				{
-					Material->FrontMaterial.Expression->GatherStrataMaterialInfo(CachedStrataMaterialInfo, Material->FrontMaterial.OutputIndex);
+					MaterialEditorOnly->FrontMaterial.Expression->GatherStrataMaterialInfo(CachedStrataMaterialInfo, MaterialEditorOnly->FrontMaterial.OutputIndex);
 				}
 			}
 		}
@@ -1808,7 +1777,7 @@ bool FMaterialResource::HasMaterialPropertyConnected(EMaterialProperty In) const
 		case MP_Normal: 			return Material->HasNormalConnected();
 		case MP_Roughness: 			return Material->HasRoughnessConnected();
 		case MP_Specular: 			return Material->HasSpecularConnected();
-		case MP_Metallic: 			return HasMaterialAttributesConnected() || Material->HasMetallicConnected();
+		case MP_Metallic: 			return Material->HasMetallicConnected(); // HasMetallicConnected() should be properly capturing HasMaterialAttributesConnected() as well
 		case MP_Anisotropy: 		return Material->HasAnisotropyConnected();
 		case MP_AmbientOcclusion: 	return Material->HasAmbientOcclusionConnected();
 		}
@@ -4606,7 +4575,6 @@ void DoMaterialAttributeReorder(FExpressionInput* Input, const FPackageFileVersi
 			if (Input->OutputIndex == 11 || Input->OutputIndex == 12)
 			{
 				Input->Expression = nullptr;
-				Input->ExpressionName = NAME_None;
 			}
 			else if (Input->OutputIndex >= 13)
 			{

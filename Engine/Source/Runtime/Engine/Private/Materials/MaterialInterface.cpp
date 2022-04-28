@@ -165,7 +165,17 @@ void UMaterialInterface::Serialize(FArchive& Ar)
 		{
 			CachedExpressionData.Reset(new FMaterialCachedExpressionData());
 			bLoadedCachedExpressionData = true;
+#if WITH_EDITORONLY_DATA
+			EditorOnlyData->CachedExpressionData = CachedExpressionData->EditorOnlyData;
+#endif
 		}
+		else
+		{
+#if WITH_EDITOR
+			CachedExpressionData->Validate();
+#endif
+		}
+
 		check(CachedExpressionData);
 		UScriptStruct* Struct = FMaterialCachedExpressionData::StaticStruct();
 		Struct->SerializeTaggedProperties(Ar, (uint8*)CachedExpressionData.Get(), Struct, nullptr);
@@ -191,7 +201,7 @@ void UMaterialInterface::PostLoad()
 	{
 		TextureStreamingData.Empty();
 	}
-#endif
+#endif // WITH_EDITORONLY_DATA
 }
 
 const FMaterialCachedExpressionData& UMaterialInterface::GetCachedExpressionData(TMicRecursionGuard) const
@@ -599,6 +609,14 @@ void UMaterialInterface::AddReferencedObjects(UObject* InThis, FReferenceCollect
 	Super::AddReferencedObjects(This, Collector);
 }
 
+void UMaterialInterface::PostInitProperties()
+{
+#if WITH_EDITORONLY_DATA
+	EditorOnlyData = CreateEditorOnlyData();
+#endif
+	Super::PostInitProperties();
+}
+
 void UMaterialInterface::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
@@ -878,14 +896,14 @@ bool UMaterialInterface::GetStaticComponentMaskParameterDefaultValue(const FHash
 void UMaterialInterface::GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const
 {
 	OutParameters.Reset();
-	GetCachedExpressionData().Parameters.GetAllParametersOfType(Type, OutParameters);
+	GetCachedExpressionData().GetAllParametersOfType(Type, OutParameters);
 }
 
 void UMaterialInterface::GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
 	OutParameterInfo.Reset();
 	OutParameterIds.Reset();
-	GetCachedExpressionData().Parameters.GetAllParameterInfoOfType(Type, OutParameterInfo, OutParameterIds);
+	GetCachedExpressionData().GetAllParameterInfoOfType(Type, OutParameterInfo, OutParameterIds);
 }
 
 void UMaterialInterface::GetAllScalarParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
@@ -1344,3 +1362,55 @@ void UMaterialInterface::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUse
 	}
 }
 
+#if WITH_EDITORONLY_DATA
+const UClass* UMaterialInterface::GetEditorOnlyDataClass() const
+{
+	return UMaterialInterfaceEditorOnlyData::StaticClass();
+}
+
+#include "Materials/MaterialInstanceDynamic.h"
+
+UMaterialInterfaceEditorOnlyData* UMaterialInterface::CreateEditorOnlyData()
+{
+	const UClass* EditorOnlyClass = GetEditorOnlyDataClass();
+	check(EditorOnlyClass);
+	check(EditorOnlyClass->HasAllClassFlags(CLASS_Optional));
+
+	const FString EditorOnlyName = FString::Printf(TEXT("%sEditorOnlyData"), *GetName());
+	const EObjectFlags EditorOnlyFlags = GetMaskedFlags(RF_PropagateToSubObjects);
+	return NewObject<UMaterialInterfaceEditorOnlyData>(this, EditorOnlyClass, *EditorOnlyName, EditorOnlyFlags);
+}
+#endif // WITH_EDITORONLY_DATA
+
+UMaterialInterfaceEditorOnlyData::UMaterialInterfaceEditorOnlyData()
+{
+}
+
+UMaterialInterfaceEditorOnlyData::UMaterialInterfaceEditorOnlyData(FVTableHelper& Helper)
+{
+}
+
+UMaterialInterfaceEditorOnlyData::~UMaterialInterfaceEditorOnlyData()
+{
+}
+
+void UMaterialInterfaceEditorOnlyData::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	bool bSavedCachedExpressionData = false;
+	if ((Ar.IsCooking() || (FPlatformProperties::RequiresCookedData() && Ar.IsSaving() && (Ar.GetPortFlags() & PPF_Duplicate))) && (bool)CachedExpressionData)
+	{
+		bSavedCachedExpressionData = true;
+	}
+
+	Ar << bSavedCachedExpressionData;
+
+	if (bSavedCachedExpressionData)
+	{
+		check(CachedExpressionData);
+		UScriptStruct* Struct = FMaterialCachedExpressionEditorOnlyData::StaticStruct();
+		Struct->SerializeTaggedProperties(Ar, (uint8*)CachedExpressionData.Get(), Struct, nullptr);
+		bLoadedCachedExpressionData = true;
+	}
+}

@@ -484,12 +484,14 @@ UObject* UMaterialFactoryNew::FactoryCreateNew(UClass* Class,UObject* InParent,F
 			TextureSampler->AutoSetSampleType();
 		}
 
-		NewMaterial->Expressions.Add(TextureSampler);
+		NewMaterial->GetExpressionCollection().AddExpression(TextureSampler);
+
+		UMaterialEditorOnlyData* NewMaterialEditorOnly = NewMaterial->GetEditorOnlyData();
 
 		FExpressionOutput& Output = TextureSampler->GetOutputs()[0];
 		FExpressionInput& Input = (TextureSampler->SamplerType == SAMPLERTYPE_Normal)
-			? (FExpressionInput&)NewMaterial->Normal
-			: (FExpressionInput&)NewMaterial->BaseColor;
+			? (FExpressionInput&)NewMaterialEditorOnly->Normal
+			: (FExpressionInput&)NewMaterialEditorOnly->BaseColor;
 
 		Input.Expression = TextureSampler;
 		Input.Mask = Output.Mask;
@@ -2844,7 +2846,7 @@ public:
 		{
 			check( sizeof(ColorDataType) == 8 );
 			uint16 RGBA[4] = { 0xFFFF,0xFFFF,0xFFFF, 0 };
-			memcpy(&WhiteWithZeroAlpha,RGBA,sizeof(ColorDataType));
+			memcpy(&WhiteWithZeroAlpha,RGBA,8);
 		}
 
 		// Left -> Right
@@ -4446,9 +4448,11 @@ UObject* UTextureFactory::FactoryCreateBinary
 		// Notify the asset registry
 		FAssetRegistryModule::AssetCreated(Material);
 
+		UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
+
 		// Create a texture reference for the texture we just imported and hook it up to the diffuse channel
 		UMaterialExpression* Expression = NewObject<UMaterialExpression>(Material, UMaterialExpressionTextureSample::StaticClass());
-		Material->Expressions.Add( Expression );
+		Material->GetExpressionCollection().AddExpression( Expression );
 		TArray<FExpressionOutput> Outputs;
 
 		// If the user hasn't turned on any of the link checkboxes, default "bRGBToBaseColor" to being on.
@@ -4460,86 +4464,86 @@ UObject* UTextureFactory::FactoryCreateBinary
 		// Set up the links the user asked for
 		if( bRGBToBaseColor )
 		{
-			Material->BaseColor.Expression = Expression;
-			((UMaterialExpressionTextureSample*)Material->BaseColor.Expression)->Texture = Texture;
+			MaterialEditorOnly->BaseColor.Expression = Expression;
+			((UMaterialExpressionTextureSample*)MaterialEditorOnly->BaseColor.Expression)->Texture = Texture;
 
-			Outputs = Material->BaseColor.Expression->GetOutputs();
+			Outputs = MaterialEditorOnly->BaseColor.Expression->GetOutputs();
 			FExpressionOutput* Output = Outputs.GetData();
-			Material->BaseColor.Mask = Output->Mask;
-			Material->BaseColor.MaskR = Output->MaskR;
-			Material->BaseColor.MaskG = Output->MaskG;
-			Material->BaseColor.MaskB = Output->MaskB;
-			Material->BaseColor.MaskA = Output->MaskA;
+			MaterialEditorOnly->BaseColor.Mask = Output->Mask;
+			MaterialEditorOnly->BaseColor.MaskR = Output->MaskR;
+			MaterialEditorOnly->BaseColor.MaskG = Output->MaskG;
+			MaterialEditorOnly->BaseColor.MaskB = Output->MaskB;
+			MaterialEditorOnly->BaseColor.MaskA = Output->MaskA;
 		}
 
 		if( bRGBToEmissive )
 		{
-			Material->EmissiveColor.Expression = Expression;
-			((UMaterialExpressionTextureSample*)Material->EmissiveColor.Expression)->Texture = Texture;
+			MaterialEditorOnly->EmissiveColor.Expression = Expression;
+			((UMaterialExpressionTextureSample*)MaterialEditorOnly->EmissiveColor.Expression)->Texture = Texture;
 
-			Outputs = Material->EmissiveColor.Expression->GetOutputs();
+			Outputs = MaterialEditorOnly->EmissiveColor.Expression->GetOutputs();
 			FExpressionOutput* Output = Outputs.GetData();
-			Material->EmissiveColor.Mask = Output->Mask;
-			Material->EmissiveColor.MaskR = Output->MaskR;
-			Material->EmissiveColor.MaskG = Output->MaskG;
-			Material->EmissiveColor.MaskB = Output->MaskB;
-			Material->EmissiveColor.MaskA = Output->MaskA;
+			MaterialEditorOnly->EmissiveColor.Mask = Output->Mask;
+			MaterialEditorOnly->EmissiveColor.MaskR = Output->MaskR;
+			MaterialEditorOnly->EmissiveColor.MaskG = Output->MaskG;
+			MaterialEditorOnly->EmissiveColor.MaskB = Output->MaskB;
+			MaterialEditorOnly->EmissiveColor.MaskA = Output->MaskA;
 		}
 
 		if( bAlphaToRoughness )
 		{
-			Material->Roughness.Expression = Expression;
-			((UMaterialExpressionTextureSample*)Material->Roughness.Expression)->Texture = Texture;
+			MaterialEditorOnly->Roughness.Expression = Expression;
+			((UMaterialExpressionTextureSample*)MaterialEditorOnly->Roughness.Expression)->Texture = Texture;
 
-			Outputs = Material->Roughness.Expression->GetOutputs();
+			Outputs = MaterialEditorOnly->Roughness.Expression->GetOutputs();
 			FExpressionOutput* Output = Outputs.GetData();
-			Material->Roughness.Mask = Output->Mask;
-			Material->Roughness.MaskR = 0;
-			Material->Roughness.MaskG = 0;
-			Material->Roughness.MaskB = 0;
-			Material->Roughness.MaskA = 1;
+			MaterialEditorOnly->Roughness.Mask = Output->Mask;
+			MaterialEditorOnly->Roughness.MaskR = 0;
+			MaterialEditorOnly->Roughness.MaskG = 0;
+			MaterialEditorOnly->Roughness.MaskB = 0;
+			MaterialEditorOnly->Roughness.MaskA = 1;
 		}
 
 		if( bAlphaToEmissive )
 		{
-			Material->EmissiveColor.Expression = Expression;
-			((UMaterialExpressionTextureSample*)Material->EmissiveColor.Expression)->Texture = Texture;
+			MaterialEditorOnly->EmissiveColor.Expression = Expression;
+			((UMaterialExpressionTextureSample*)MaterialEditorOnly->EmissiveColor.Expression)->Texture = Texture;
 
-			Outputs = Material->EmissiveColor.Expression->GetOutputs();
+			Outputs = MaterialEditorOnly->EmissiveColor.Expression->GetOutputs();
 			FExpressionOutput* Output = Outputs.GetData();
-			Material->EmissiveColor.Mask = Output->Mask;
-			Material->EmissiveColor.MaskR = 0;
-			Material->EmissiveColor.MaskG = 0;
-			Material->EmissiveColor.MaskB = 0;
-			Material->EmissiveColor.MaskA = 1;
+			MaterialEditorOnly->EmissiveColor.Mask = Output->Mask;
+			MaterialEditorOnly->EmissiveColor.MaskR = 0;
+			MaterialEditorOnly->EmissiveColor.MaskG = 0;
+			MaterialEditorOnly->EmissiveColor.MaskB = 0;
+			MaterialEditorOnly->EmissiveColor.MaskA = 1;
 		}
 
 		if( bAlphaToOpacity )
 		{
-			Material->Opacity.Expression = Expression;
-			((UMaterialExpressionTextureSample*)Material->Opacity.Expression)->Texture = Texture;
+			MaterialEditorOnly->Opacity.Expression = Expression;
+			((UMaterialExpressionTextureSample*)MaterialEditorOnly->Opacity.Expression)->Texture = Texture;
 
-			Outputs = Material->Opacity.Expression->GetOutputs();
+			Outputs = MaterialEditorOnly->Opacity.Expression->GetOutputs();
 			FExpressionOutput* Output = Outputs.GetData();
-			Material->Opacity.Mask = Output->Mask;
-			Material->Opacity.MaskR = 0;
-			Material->Opacity.MaskG = 0;
-			Material->Opacity.MaskB = 0;
-			Material->Opacity.MaskA = 1;
+			MaterialEditorOnly->Opacity.Mask = Output->Mask;
+			MaterialEditorOnly->Opacity.MaskR = 0;
+			MaterialEditorOnly->Opacity.MaskG = 0;
+			MaterialEditorOnly->Opacity.MaskB = 0;
+			MaterialEditorOnly->Opacity.MaskA = 1;
 		}
 
 		if( bAlphaToOpacityMask )
 		{
-			Material->OpacityMask.Expression = Expression;
-			((UMaterialExpressionTextureSample*)Material->OpacityMask.Expression)->Texture = Texture;
+			MaterialEditorOnly->OpacityMask.Expression = Expression;
+			((UMaterialExpressionTextureSample*)MaterialEditorOnly->OpacityMask.Expression)->Texture = Texture;
 
-			Outputs = Material->OpacityMask.Expression->GetOutputs();
+			Outputs = MaterialEditorOnly->OpacityMask.Expression->GetOutputs();
 			FExpressionOutput* Output = Outputs.GetData();
-			Material->OpacityMask.Mask = Output->Mask;
-			Material->OpacityMask.MaskR = 0;
-			Material->OpacityMask.MaskG = 0;
-			Material->OpacityMask.MaskB = 0;
-			Material->OpacityMask.MaskA = 1;
+			MaterialEditorOnly->OpacityMask.Mask = Output->Mask;
+			MaterialEditorOnly->OpacityMask.MaskR = 0;
+			MaterialEditorOnly->OpacityMask.MaskG = 0;
+			MaterialEditorOnly->OpacityMask.MaskB = 0;
+			MaterialEditorOnly->OpacityMask.MaskA = 1;
 		}
 
 		Material->TwoSided	= bTwoSided;

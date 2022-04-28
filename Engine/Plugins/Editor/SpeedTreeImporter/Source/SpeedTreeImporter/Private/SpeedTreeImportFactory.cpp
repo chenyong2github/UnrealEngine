@@ -567,9 +567,8 @@ void LayoutMaterial(UMaterialInterface* MaterialInterface, bool bOffsetOddColumn
 	{
 		bContinue = false;
 
-		for (int32 ExpressionIndex = 0; ExpressionIndex < Material->Expressions.Num(); ++ExpressionIndex)
+		for (UMaterialExpression* Expression : Material->GetExpressions())
 		{
-			UMaterialExpression* Expression = Material->Expressions[ExpressionIndex];
 			Expression->MaterialExpressionEditorX = FMath::Min(Expression->MaterialExpressionEditorX, -Width);
 
 			TArray<FExpressionInput*> Inputs = Expression->GetInputs();
@@ -594,10 +593,8 @@ void LayoutMaterial(UMaterialInterface* MaterialInterface, bool bOffsetOddColumn
 	while (bContinue)
 	{
 		TArray<UMaterialExpression*> ColumnExpressions;
-		for (int32 ExpressionIndex = 0; ExpressionIndex < Material->Expressions.Num(); ++ExpressionIndex)
+		for (UMaterialExpression* Expression : Material->GetExpressions())
 		{
-			UMaterialExpression* Expression = Material->Expressions[ExpressionIndex];
-
 			if (Expression->MaterialExpressionEditorX == -Width * Column)
 			{
 				Expression->MaterialExpressionEditorY = 0;
@@ -616,9 +613,8 @@ void LayoutMaterial(UMaterialInterface* MaterialInterface, bool bOffsetOddColumn
 				}
 				
 				// all the outputs to other expressions
-				for (int32 OtherExpressionIndex = 0; OtherExpressionIndex < Material->Expressions.Num(); ++OtherExpressionIndex)
+				for (UMaterialExpression* OtherExpression : Material->GetExpressions())
 				{
-					UMaterialExpression* OtherExpression = Material->Expressions[OtherExpressionIndex];
 					TArray<FExpressionInput*> Inputs = OtherExpression->GetInputs();
 					for (int32 InputIndex = 0; InputIndex < Inputs.Num(); ++InputIndex)
 					{
@@ -725,6 +721,8 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 	// Keep track of the processed materials
 	ImportContext.ImportedMaterials.Add(MaterialFullName, UnrealMaterialInterface);
 
+	UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
+
 	if (!RenderState->m_bDiffuseAlphaMaskIsOpaque && !RenderState->m_bBranchesPresent && !RenderState->m_bRigidMeshesPresent)
 	{
 		UnrealMaterial->BlendMode = BLEND_Masked;
@@ -737,7 +735,7 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 	{
 		UMaterialExpressionTextureCoordinate* SeamTexcoordExpression = NewObject<UMaterialExpressionTextureCoordinate>(UnrealMaterial);
 		SeamTexcoordExpression->CoordinateIndex = 4;
-		UnrealMaterial->Expressions.Add(SeamTexcoordExpression);
+		UnrealMaterial->GetExpressionCollection().AddExpression(SeamTexcoordExpression);
 
 		UMaterialExpressionComponentMask* ComponentMaskExpression = NewObject<UMaterialExpressionComponentMask>(UnrealMaterial);
 		ComponentMaskExpression->R = 0;
@@ -745,16 +743,16 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 		ComponentMaskExpression->B = 0;
 		ComponentMaskExpression->A = 0;
 		ComponentMaskExpression->Input.Expression = SeamTexcoordExpression;
-		UnrealMaterial->Expressions.Add(ComponentMaskExpression);
+		UnrealMaterial->GetExpressionCollection().AddExpression(ComponentMaskExpression);
 
 		UMaterialExpressionPower* PowerExpression = NewObject<UMaterialExpressionPower>(UnrealMaterial);
 		PowerExpression->Base.Expression = ComponentMaskExpression;
 		PowerExpression->ConstExponent = RenderState->m_fBranchSeamWeight;
-		UnrealMaterial->Expressions.Add(PowerExpression);
+		UnrealMaterial->GetExpressionCollection().AddExpression(PowerExpression);
 
 		BranchSeamAmount = NewObject<UMaterialExpressionClamp>(UnrealMaterial);
 		BranchSeamAmount->Input.Expression = PowerExpression;
-		UnrealMaterial->Expressions.Add(BranchSeamAmount);
+		UnrealMaterial->GetExpressionCollection().AddExpression(BranchSeamAmount);
 	}
 
 	// textures and properties
@@ -765,37 +763,37 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 		UMaterialExpressionTextureSample* TextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);
 		TextureExpression->Texture = DiffuseTexture;
 		TextureExpression->SamplerType = SAMPLERTYPE_Color;
-		UnrealMaterial->Expressions.Add(TextureExpression);
+		UnrealMaterial->GetExpressionCollection().AddExpression(TextureExpression);
 
 		// hook to the material diffuse/mask
-		UnrealMaterial->BaseColor.Expression = TextureExpression;
-		UnrealMaterial->OpacityMask.Expression = TextureExpression;
-		UnrealMaterial->OpacityMask.Mask = UnrealMaterial->OpacityMask.Expression->GetOutputs()[0].Mask;
-		UnrealMaterial->OpacityMask.MaskR = 0;
-		UnrealMaterial->OpacityMask.MaskG = 0;
-		UnrealMaterial->OpacityMask.MaskB = 0;
-		UnrealMaterial->OpacityMask.MaskA = 1;
+		UnrealMaterialEditorOnly->BaseColor.Expression = TextureExpression;
+		UnrealMaterialEditorOnly->OpacityMask.Expression = TextureExpression;
+		UnrealMaterialEditorOnly->OpacityMask.Mask = UnrealMaterialEditorOnly->OpacityMask.Expression->GetOutputs()[0].Mask;
+		UnrealMaterialEditorOnly->OpacityMask.MaskR = 0;
+		UnrealMaterialEditorOnly->OpacityMask.MaskG = 0;
+		UnrealMaterialEditorOnly->OpacityMask.MaskB = 0;
+		UnrealMaterialEditorOnly->OpacityMask.MaskA = 1;
 
 		if (BranchSeamAmount != NULL)
 		{
 			// perform branch seam smoothing
 			UMaterialExpressionTextureCoordinate* SeamTexcoordExpression = NewObject<UMaterialExpressionTextureCoordinate>(UnrealMaterial);
 			SeamTexcoordExpression->CoordinateIndex = 6;
-			UnrealMaterial->Expressions.Add(SeamTexcoordExpression);
+			UnrealMaterial->GetExpressionCollection().AddExpression(SeamTexcoordExpression);
 
 			UMaterialExpressionTextureSample* SeamTextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);
 			SeamTextureExpression->Texture = DiffuseTexture;
 			SeamTextureExpression->SamplerType = SAMPLERTYPE_Color;
 			SeamTextureExpression->Coordinates.Expression = SeamTexcoordExpression;
-			UnrealMaterial->Expressions.Add(SeamTextureExpression);
+			UnrealMaterial->GetExpressionCollection().AddExpression(SeamTextureExpression);
 
 			UMaterialExpressionLinearInterpolate* InterpolateExpression = NewObject<UMaterialExpressionLinearInterpolate>(UnrealMaterial);
 			InterpolateExpression->A.Expression = SeamTextureExpression;
 			InterpolateExpression->B.Expression = TextureExpression;
 			InterpolateExpression->Alpha.Expression = BranchSeamAmount;
-			UnrealMaterial->Expressions.Add(InterpolateExpression);
+			UnrealMaterial->GetExpressionCollection().AddExpression(InterpolateExpression);
 
-			UnrealMaterial->BaseColor.Expression = InterpolateExpression;
+			UnrealMaterialEditorOnly->BaseColor.Expression = InterpolateExpression;
 		}
 
 		if (RenderState->m_bBranchesPresent && SpeedTreeImportData->IncludeDetailMapCheck)
@@ -806,18 +804,18 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 				// add/find UVSet
 				UMaterialExpressionTextureCoordinate* DetailTexcoordExpression = NewObject<UMaterialExpressionTextureCoordinate>(UnrealMaterial);
 				DetailTexcoordExpression->CoordinateIndex = 5;
-				UnrealMaterial->Expressions.Add(DetailTexcoordExpression);
+				UnrealMaterial->GetExpressionCollection().AddExpression(DetailTexcoordExpression);
 				
 				// make texture sampler
 				UMaterialExpressionTextureSample* DetailTextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);
 				DetailTextureExpression->Texture = DetailTexture;
 				DetailTextureExpression->SamplerType = SAMPLERTYPE_Color;
 				DetailTextureExpression->Coordinates.Expression = DetailTexcoordExpression;
-				UnrealMaterial->Expressions.Add(DetailTextureExpression);
+				UnrealMaterial->GetExpressionCollection().AddExpression(DetailTextureExpression);
 
 				// interpolate the detail
 				UMaterialExpressionLinearInterpolate* InterpolateExpression = NewObject<UMaterialExpressionLinearInterpolate>(UnrealMaterial);
-				InterpolateExpression->A.Expression = UnrealMaterial->BaseColor.Expression;
+				InterpolateExpression->A.Expression = UnrealMaterialEditorOnly->BaseColor.Expression;
 				InterpolateExpression->B.Expression = DetailTextureExpression;
 				InterpolateExpression->Alpha.Expression = DetailTextureExpression;
 				InterpolateExpression->Alpha.Mask = DetailTextureExpression->GetOutputs()[0].Mask;
@@ -825,10 +823,10 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 				InterpolateExpression->Alpha.MaskG = 0;
 				InterpolateExpression->Alpha.MaskB = 0;
 				InterpolateExpression->Alpha.MaskA = 1;
-				UnrealMaterial->Expressions.Add(InterpolateExpression);
+				UnrealMaterial->GetExpressionCollection().AddExpression(InterpolateExpression);
 
 				// hook final to diffuse
-				UnrealMaterial->BaseColor.Expression = InterpolateExpression;
+				UnrealMaterialEditorOnly->BaseColor.Expression = InterpolateExpression;
 			}
 		}
 	}
@@ -844,8 +842,8 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 			TextureExpression->Texture = SpecularTexture;
 			TextureExpression->SamplerType = SAMPLERTYPE_Color;
 			
-			UnrealMaterial->Expressions.Add(TextureExpression);
-			UnrealMaterial->Specular.Expression = TextureExpression;
+			UnrealMaterial->GetExpressionCollection().AddExpression(TextureExpression);
+			UnrealMaterialEditorOnly->Specular.Expression = TextureExpression;
 			bMadeSpecular = true;
 		}
 	}
@@ -854,8 +852,8 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 	{
 		UMaterialExpressionConstant* ZeroExpression = NewObject<UMaterialExpressionConstant>(UnrealMaterial);
 		ZeroExpression->R = 0.0f;
-		UnrealMaterial->Expressions.Add(ZeroExpression);
-		UnrealMaterial->Specular.Expression = ZeroExpression;
+		UnrealMaterial->GetExpressionCollection().AddExpression(ZeroExpression);
+		UnrealMaterialEditorOnly->Specular.Expression = ZeroExpression;
 	}
 
 	if (SpeedTreeImportData->IncludeNormalMapCheck)
@@ -868,29 +866,29 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 			TextureExpression->Texture = NormalTexture;
 			TextureExpression->SamplerType = SAMPLERTYPE_Normal;
 			
-			UnrealMaterial->Expressions.Add(TextureExpression);
-			UnrealMaterial->Normal.Expression = TextureExpression;
+			UnrealMaterial->GetExpressionCollection().AddExpression(TextureExpression);
+			UnrealMaterialEditorOnly->Normal.Expression = TextureExpression;
 
 			if (BranchSeamAmount != NULL)
 			{
 				// perform branch seam smoothing
 				UMaterialExpressionTextureCoordinate* SeamTexcoordExpression = NewObject<UMaterialExpressionTextureCoordinate>(UnrealMaterial);
 				SeamTexcoordExpression->CoordinateIndex = 6;
-				UnrealMaterial->Expressions.Add(SeamTexcoordExpression);
+				UnrealMaterial->GetExpressionCollection().AddExpression(SeamTexcoordExpression);
 
 				UMaterialExpressionTextureSample* SeamTextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);
 				SeamTextureExpression->Texture = NormalTexture;
 				SeamTextureExpression->SamplerType = SAMPLERTYPE_Normal;
 				SeamTextureExpression->Coordinates.Expression = SeamTexcoordExpression;
-				UnrealMaterial->Expressions.Add(SeamTextureExpression);
+				UnrealMaterial->GetExpressionCollection().AddExpression(SeamTextureExpression);
 
 				UMaterialExpressionLinearInterpolate* InterpolateExpression = NewObject<UMaterialExpressionLinearInterpolate>(UnrealMaterial);
 				InterpolateExpression->A.Expression = SeamTextureExpression;
 				InterpolateExpression->B.Expression = TextureExpression;
 				InterpolateExpression->Alpha.Expression = BranchSeamAmount;
-				UnrealMaterial->Expressions.Add(InterpolateExpression);
+				UnrealMaterial->GetExpressionCollection().AddExpression(InterpolateExpression);
 
-				UnrealMaterial->Normal.Expression = InterpolateExpression;
+				UnrealMaterialEditorOnly->Normal.Expression = InterpolateExpression;
 			}
 		}
 	}
@@ -916,69 +914,69 @@ UMaterialInterface* CreateSpeedTreeMaterial7(UObject* Parent, FString MaterialFu
 		else
 			SpeedTreeExpression->GeometryType = STG_FacingLeaf;
 
-		UnrealMaterial->Expressions.Add(SpeedTreeExpression);
-		UnrealMaterial->WorldPositionOffset.Expression = SpeedTreeExpression;
+		UnrealMaterial->GetExpressionCollection().AddExpression(SpeedTreeExpression);
+		UnrealMaterialEditorOnly->WorldPositionOffset.Expression = SpeedTreeExpression;
 	}
 
 	if (SpeedTreeImportData->IncludeSpeedTreeAO &&
 		!(RenderState->m_bVertBillboard || RenderState->m_bHorzBillboard))
 	{
 		UMaterialExpressionVertexColor* VertexColor = NewObject<UMaterialExpressionVertexColor>(UnrealMaterial);
-		UnrealMaterial->Expressions.Add(VertexColor);
-		UnrealMaterial->AmbientOcclusion.Expression = VertexColor;
-		UnrealMaterial->AmbientOcclusion.Mask = VertexColor->GetOutputs()[0].Mask;
-		UnrealMaterial->AmbientOcclusion.MaskR = 1;
-		UnrealMaterial->AmbientOcclusion.MaskG = 0;
-		UnrealMaterial->AmbientOcclusion.MaskB = 0;
-		UnrealMaterial->AmbientOcclusion.MaskA = 0;
+		UnrealMaterial->GetExpressionCollection().AddExpression(VertexColor);
+		UnrealMaterialEditorOnly->AmbientOcclusion.Expression = VertexColor;
+		UnrealMaterialEditorOnly->AmbientOcclusion.Mask = VertexColor->GetOutputs()[0].Mask;
+		UnrealMaterialEditorOnly->AmbientOcclusion.MaskR = 1;
+		UnrealMaterialEditorOnly->AmbientOcclusion.MaskG = 0;
+		UnrealMaterialEditorOnly->AmbientOcclusion.MaskB = 0;
+		UnrealMaterialEditorOnly->AmbientOcclusion.MaskA = 0;
 	}
 
 	// Unreal flips normals for two-sided materials. SpeedTrees don't need that
 	if (UnrealMaterial->TwoSided)
 	{
 		UMaterialExpressionTwoSidedSign* TwoSidedSign = NewObject<UMaterialExpressionTwoSidedSign>(UnrealMaterial);
-		UnrealMaterial->Expressions.Add(TwoSidedSign);
+		UnrealMaterial->GetExpressionCollection().AddExpression(TwoSidedSign);
 
 		auto Multiply = NewObject<UMaterialExpressionMultiply>(UnrealMaterial);
-		UnrealMaterial->Expressions.Add(Multiply);
+		UnrealMaterial->GetExpressionCollection().AddExpression(Multiply);
 		Multiply->A.Expression = TwoSidedSign;
 
-		if (UnrealMaterial->Normal.Expression == NULL)
+		if (UnrealMaterialEditorOnly->Normal.Expression == NULL)
 		{
 			auto VertexNormalExpression = NewObject<UMaterialExpressionConstant3Vector>(UnrealMaterial);
-			UnrealMaterial->Expressions.Add(VertexNormalExpression);
+			UnrealMaterial->GetExpressionCollection().AddExpression(VertexNormalExpression);
 			VertexNormalExpression->Constant = FLinearColor(0.0f, 0.0f, 1.0f);
 
 			Multiply->B.Expression = VertexNormalExpression;
 		}
 		else
 		{
-			Multiply->B.Expression = UnrealMaterial->Normal.Expression;
+			Multiply->B.Expression = UnrealMaterialEditorOnly->Normal.Expression;
 		}
 
-		UnrealMaterial->Normal.Expression = Multiply;
+		UnrealMaterialEditorOnly->Normal.Expression = Multiply;
 	}
 
-	if (SpeedTreeImportData->IncludeColorAdjustment && UnrealMaterial->BaseColor.Expression != NULL &&
+	if (SpeedTreeImportData->IncludeColorAdjustment && UnrealMaterialEditorOnly->BaseColor.Expression != NULL &&
 		(RenderState->m_bLeavesPresent || RenderState->m_bFacingLeavesPresent || RenderState->m_bVertBillboard || RenderState->m_bHorzBillboard))
 	{
 		UMaterialFunction* ColorVariationFunction = LoadObject<UMaterialFunction>(NULL, TEXT("/Engine/Functions/Engine_MaterialFunctions01/SpeedTree/SpeedTreeColorVariation.SpeedTreeColorVariation"), NULL, LOAD_None, NULL);
 		if (ColorVariationFunction)
 		{
 			UMaterialExpressionMaterialFunctionCall* ColorVariation = NewObject<UMaterialExpressionMaterialFunctionCall>(UnrealMaterial);
-			UnrealMaterial->Expressions.Add(ColorVariation);
+			UnrealMaterial->GetExpressionCollection().AddExpression(ColorVariation);
 
 			ColorVariation->MaterialFunction = ColorVariationFunction;
 			ColorVariation->UpdateFromFunctionResource( );
 
-			ColorVariation->GetInput(0)->Expression = UnrealMaterial->BaseColor.Expression;
-			ColorVariation->GetInput(0)->Mask = UnrealMaterial->BaseColor.Expression->GetOutputs()[0].Mask;
+			ColorVariation->GetInput(0)->Expression = UnrealMaterialEditorOnly->BaseColor.Expression;
+			ColorVariation->GetInput(0)->Mask = UnrealMaterialEditorOnly->BaseColor.Expression->GetOutputs()[0].Mask;
 			ColorVariation->GetInput(0)->MaskR = 1;
 			ColorVariation->GetInput(0)->MaskG = 1;
 			ColorVariation->GetInput(0)->MaskB = 1;
 			ColorVariation->GetInput(0)->MaskA = 0;
 
-			UnrealMaterial->BaseColor.Expression = ColorVariation;
+			UnrealMaterialEditorOnly->BaseColor.Expression = ColorVariation;
 		}
 	}
 	
@@ -1052,6 +1050,8 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 	// Keep track of the processed materials
 	ImportContext.ImportedMaterials.Add(MaterialFullName, UnrealMaterialInterface);
 
+	UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
+
 	// basic setup
 	UnrealMaterial->TwoSided = SpeedTreeMaterial.TwoSided();
 	UnrealMaterial->BlendMode = BLEND_Masked;
@@ -1066,13 +1066,13 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 	if (GeomType != STG_Billboard)
 	{
 		VertexColor = NewObject<UMaterialExpressionVertexColor>(UnrealMaterial);
-		UnrealMaterial->Expressions.Add(VertexColor);
-		UnrealMaterial->AmbientOcclusion.Expression = VertexColor;
-		UnrealMaterial->AmbientOcclusion.Mask = VertexColor->GetOutputs()[0].Mask;
-		UnrealMaterial->AmbientOcclusion.MaskR = 1;
-		UnrealMaterial->AmbientOcclusion.MaskG = 0;
-		UnrealMaterial->AmbientOcclusion.MaskB = 0;
-		UnrealMaterial->AmbientOcclusion.MaskA = 0;
+		UnrealMaterial->GetExpressionCollection().AddExpression(VertexColor);
+		UnrealMaterialEditorOnly->AmbientOcclusion.Expression = VertexColor;
+		UnrealMaterialEditorOnly->AmbientOcclusion.Mask = VertexColor->GetOutputs()[0].Mask;
+		UnrealMaterialEditorOnly->AmbientOcclusion.MaskR = 1;
+		UnrealMaterialEditorOnly->AmbientOcclusion.MaskG = 0;
+		UnrealMaterialEditorOnly->AmbientOcclusion.MaskB = 0;
+		UnrealMaterialEditorOnly->AmbientOcclusion.MaskA = 0;
 	}
 
 	// diffuse and opacity mask
@@ -1083,17 +1083,17 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 			UMaterialExpressionConstant3Vector* ColorExpression = NewObject<UMaterialExpressionConstant3Vector>(UnrealMaterial);
 			GameEngine8::Vec4 Color = SpeedTreeMaterial.Maps()[0].Color();
 			ColorExpression->Constant = FLinearColor(FColor(Color.x * 255, Color.y * 255, Color.z * 255));
-			UnrealMaterial->Expressions.Add(ColorExpression);
-			UnrealMaterial->BaseColor.Expression = ColorExpression;
+			UnrealMaterial->GetExpressionCollection().AddExpression(ColorExpression);
+			UnrealMaterialEditorOnly->BaseColor.Expression = ColorExpression;
 
 			if (VertexColor != NULL)
 			{
-				UnrealMaterial->OpacityMask.Expression = VertexColor;
-				UnrealMaterial->OpacityMask.Mask = VertexColor->GetOutputs()[0].Mask;
-				UnrealMaterial->OpacityMask.MaskR = 0;
-				UnrealMaterial->OpacityMask.MaskG = 0;
-				UnrealMaterial->OpacityMask.MaskB = 0;
-				UnrealMaterial->OpacityMask.MaskA = 1;
+				UnrealMaterialEditorOnly->OpacityMask.Expression = VertexColor;
+				UnrealMaterialEditorOnly->OpacityMask.Mask = VertexColor->GetOutputs()[0].Mask;
+				UnrealMaterialEditorOnly->OpacityMask.MaskR = 0;
+				UnrealMaterialEditorOnly->OpacityMask.MaskG = 0;
+				UnrealMaterialEditorOnly->OpacityMask.MaskB = 0;
+				UnrealMaterialEditorOnly->OpacityMask.MaskA = 1;
 			}
 		}
 		else
@@ -1113,8 +1113,8 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 				UMaterialExpressionTextureSample* TextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);
 				TextureExpression->Texture = DiffuseTexture;
 				TextureExpression->SamplerType = SAMPLERTYPE_Color;
-				UnrealMaterial->Expressions.Add(TextureExpression);
-				UnrealMaterial->BaseColor.Expression = TextureExpression;
+				UnrealMaterial->GetExpressionCollection().AddExpression(TextureExpression);
+				UnrealMaterialEditorOnly->BaseColor.Expression = TextureExpression;
 
 				if (VertexColor == NULL)
 				{
@@ -1122,7 +1122,7 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 					if (BillboardCrossfadeFunction)
 					{
 						UMaterialExpressionMaterialFunctionCall* BillboardCrossfade = NewObject<UMaterialExpressionMaterialFunctionCall>(UnrealMaterial);
-						UnrealMaterial->Expressions.Add(BillboardCrossfade);
+						UnrealMaterial->GetExpressionCollection().AddExpression(BillboardCrossfade);
 						BillboardCrossfade->MaterialFunction = BillboardCrossfadeFunction;
 						BillboardCrossfade->UpdateFromFunctionResource();
 
@@ -1132,19 +1132,19 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 						BillboardCrossfade->GetInput(0)->MaskG = 0;
 						BillboardCrossfade->GetInput(0)->MaskB = 0;
 						BillboardCrossfade->GetInput(0)->MaskA = 1;
-						UnrealMaterial->OpacityMask.Expression = BillboardCrossfade;
-						UnrealMaterial->OpacityMask.OutputIndex = 0.;
+						UnrealMaterialEditorOnly->OpacityMask.Expression = BillboardCrossfade;
+						UnrealMaterialEditorOnly->OpacityMask.OutputIndex = 0.;
 
 						UnrealMaterial->NumCustomizedUVs = 3;
-						UnrealMaterial->CustomizedUVs[2].Expression = BillboardCrossfade;
-						UnrealMaterial->CustomizedUVs[2].OutputIndex = 1;
+						UnrealMaterialEditorOnly->CustomizedUVs[2].Expression = BillboardCrossfade;
+						UnrealMaterialEditorOnly->CustomizedUVs[2].OutputIndex = 1;
 					}
 				}
 				else
 				{
 					// make mask with blend value and opacity
 					auto Multiply = NewObject<UMaterialExpressionMultiply>(UnrealMaterial);
-					UnrealMaterial->Expressions.Add(Multiply);
+					UnrealMaterial->GetExpressionCollection().AddExpression(Multiply);
 					Multiply->B.Expression = VertexColor;
 					Multiply->B.Mask = VertexColor->GetOutputs()[0].Mask;
 					Multiply->B.MaskR = 0;
@@ -1157,7 +1157,7 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 					Multiply->A.MaskG = 0;
 					Multiply->A.MaskB = 0;
 					Multiply->A.MaskA = 1;
-					UnrealMaterial->OpacityMask.Expression = Multiply;
+					UnrealMaterialEditorOnly->OpacityMask.Expression = Multiply;
 				}
 			}
 		}
@@ -1170,8 +1170,8 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 		{
 			UMaterialExpressionConstant* RoughExpression = NewObject<UMaterialExpressionConstant>(UnrealMaterial);
 			RoughExpression->R = SpeedTreeMaterial.Maps()[1].Color().w;
-			UnrealMaterial->Expressions.Add(RoughExpression);
-			UnrealMaterial->Roughness.Expression = RoughExpression;
+			UnrealMaterial->GetExpressionCollection().AddExpression(RoughExpression);
+			UnrealMaterialEditorOnly->Roughness.Expression = RoughExpression;
 		}
 		else
 		{
@@ -1191,10 +1191,10 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 				UMaterialExpressionTextureSample* TextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);
 				TextureExpression->Texture = NormalTexture;
 				TextureExpression->SamplerType = SAMPLERTYPE_LinearColor;
-				UnrealMaterial->Expressions.Add(TextureExpression);
+				UnrealMaterial->GetExpressionCollection().AddExpression(TextureExpression);
 
 				UMaterialExpressionConstantBiasScale* BiasScale = NewObject<UMaterialExpressionConstantBiasScale>(UnrealMaterial);
-				UnrealMaterial->Expressions.Add(BiasScale);
+				UnrealMaterial->GetExpressionCollection().AddExpression(BiasScale);
 				BiasScale->Bias = -0.5f;
 				BiasScale->Scale = 2.0f;
 				BiasScale->Input.Expression = TextureExpression;
@@ -1205,7 +1205,7 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 					if (BillboardNormalFunction)
 					{
 						UMaterialExpressionMaterialFunctionCall* BillboardNormals = NewObject<UMaterialExpressionMaterialFunctionCall>(UnrealMaterial);
-						UnrealMaterial->Expressions.Add(BillboardNormals);
+						UnrealMaterial->GetExpressionCollection().AddExpression(BillboardNormals);
 						BillboardNormals->MaterialFunction = BillboardNormalFunction;
 						BillboardNormals->UpdateFromFunctionResource();
 
@@ -1216,23 +1216,23 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 						BillboardNormals->GetInput(0)->MaskB = 1;
 						BillboardNormals->GetInput(0)->MaskA = 0;
 
-						UnrealMaterial->Normal.Expression = BillboardNormals;
+						UnrealMaterialEditorOnly->Normal.Expression = BillboardNormals;
 						UnrealMaterial->bTangentSpaceNormal = false;
 					}
 				}
 
-				if (UnrealMaterial->Normal.Expression == NULL)
+				if (UnrealMaterialEditorOnly->Normal.Expression == NULL)
 				{
-					UnrealMaterial->Normal.Expression = BiasScale;
+					UnrealMaterialEditorOnly->Normal.Expression = BiasScale;
 				}
 
 				// roughness
-				UnrealMaterial->Roughness.Expression = TextureExpression;
-				UnrealMaterial->Roughness.Mask = TextureExpression->GetOutputs()[0].Mask;
-				UnrealMaterial->Roughness.MaskR = 0;
-				UnrealMaterial->Roughness.MaskG = 0;
-				UnrealMaterial->Roughness.MaskB = 0;
-				UnrealMaterial->Roughness.MaskA = 1;
+				UnrealMaterialEditorOnly->Roughness.Expression = TextureExpression;
+				UnrealMaterialEditorOnly->Roughness.Mask = TextureExpression->GetOutputs()[0].Mask;
+				UnrealMaterialEditorOnly->Roughness.MaskR = 0;
+				UnrealMaterialEditorOnly->Roughness.MaskG = 0;
+				UnrealMaterialEditorOnly->Roughness.MaskB = 0;
+				UnrealMaterialEditorOnly->Roughness.MaskA = 1;
 			}
 		}
 	}
@@ -1245,8 +1245,8 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 			UMaterialExpressionConstant3Vector* ColorExpression = NewObject<UMaterialExpressionConstant3Vector>(UnrealMaterial);
 			GameEngine8::Vec4 Color = SpeedTreeMaterial.Maps()[2].Color();
 			ColorExpression->Constant = FLinearColor(FColor(Color.x * 255, Color.y * 255, Color.z * 255));
-			UnrealMaterial->Expressions.Add(ColorExpression);
-			UnrealMaterial->SubsurfaceColor.Expression = ColorExpression;
+			UnrealMaterial->GetExpressionCollection().AddExpression(ColorExpression);
+			UnrealMaterialEditorOnly->SubsurfaceColor.Expression = ColorExpression;
 		}
 		else
 		{
@@ -1257,8 +1257,8 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 				UMaterialExpressionTextureSample* TextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);
 				TextureExpression->Texture = SubsurfaceTexture;
 				TextureExpression->SamplerType = SAMPLERTYPE_Color;
-				UnrealMaterial->Expressions.Add(TextureExpression);
-				UnrealMaterial->SubsurfaceColor.Expression = TextureExpression;
+				UnrealMaterial->GetExpressionCollection().AddExpression(TextureExpression);
+				UnrealMaterialEditorOnly->SubsurfaceColor.Expression = TextureExpression;
 
 				UnrealMaterial->SetShadingModel(MSM_TwoSidedFoliage);
 			}
@@ -1273,8 +1273,8 @@ UMaterialInterface* CreateSpeedTreeMaterial8(UObject* Parent, FString MaterialFu
 		SpeedTreeExpression->WindType = WindType;
 		SpeedTreeExpression->BillboardThreshold = 1.0f; // billboards use crossfade technique now in v8
 		SpeedTreeExpression->GeometryType = GeomType;
-		UnrealMaterial->Expressions.Add(SpeedTreeExpression);
-		UnrealMaterial->WorldPositionOffset.Expression = SpeedTreeExpression;
+		UnrealMaterial->GetExpressionCollection().AddExpression(SpeedTreeExpression);
+		UnrealMaterialEditorOnly->WorldPositionOffset.Expression = SpeedTreeExpression;
 	}
 
 	LayoutMaterial(UnrealMaterial, true);
@@ -1386,7 +1386,7 @@ UMaterialInterface* CreateSpeedTreeMaterial9(UObject* Parent, FString MaterialFu
 	// material static setup
 	FStaticParameterSet StaticParameters;
 	UnrealMaterialInstance->GetStaticParameterValues(StaticParameters);
-	for (FStaticSwitchParameter& SwitchParameter : StaticParameters.StaticSwitchParameters)
+	for (FStaticSwitchParameter& SwitchParameter : StaticParameters.EditorOnly.StaticSwitchParameters)
 	{
 		if (SwitchParameter.ParameterInfo.Name == FName(TEXT("SharedEnable")))
 		{

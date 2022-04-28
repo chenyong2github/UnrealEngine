@@ -257,6 +257,8 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 
 	FMemory::Memzero(MaterialAttributesReturned);
 
+	InStaticParameters.GetMaterialLayers(CachedMaterialLayers);
+
 	SharedPixelProperties[MP_Normal] = true;
 	SharedPixelProperties[MP_Tangent] = true;
 	SharedPixelProperties[MP_EmissiveColor] = true;
@@ -357,7 +359,8 @@ void FHLSLMaterialTranslator::AssignShaderFrequencyScope(EShaderFrequency InShad
 	CurrentScopeID = (uint64)InShaderFrequency;
 }
 
-void FHLSLMaterialTranslator::GatherCustomVertexInterpolators(TArray<UMaterialExpression*> Expressions)
+template<typename ExpressionsArrayType>
+void FHLSLMaterialTranslator::GatherCustomVertexInterpolators(const ExpressionsArrayType& Expressions)
 {
 	for (UMaterialExpression* Expression : Expressions)
 	{
@@ -396,10 +399,7 @@ void FHLSLMaterialTranslator::GatherCustomVertexInterpolators(TArray<UMaterialEx
 				FunctionCall->LinkFunctionIntoCaller(this);
 				PushFunction(&LocalState);
 
-				if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = FunctionCall->MaterialFunction->GetFunctionExpressions())
-				{
-					GatherCustomVertexInterpolators(*FunctionExpressions);
-				}
+				GatherCustomVertexInterpolators(FunctionCall->MaterialFunction->GetExpressions());
 
 				FMaterialFunctionCompileState* CompileState = PopFunction();
 				check(CompileState->ExpressionStack.Num() == 0);
@@ -423,11 +423,8 @@ void FHLSLMaterialTranslator::GatherCustomVertexInterpolators(TArray<UMaterialEx
 						FMaterialFunctionCompileState LocalState(Layer);
 						Layer->LinkFunctionIntoCaller(this);
 						PushFunction(&LocalState);
-
-						if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Layer->MaterialFunction->GetFunctionExpressions())
-						{
-							GatherCustomVertexInterpolators(*FunctionExpressions);
-						}
+						
+						GatherCustomVertexInterpolators(Layer->MaterialFunction->GetExpressions());
 
 						FMaterialFunctionCompileState* CompileState = PopFunction();
 						check(CompileState->ExpressionStack.Num() == 0);
@@ -443,10 +440,7 @@ void FHLSLMaterialTranslator::GatherCustomVertexInterpolators(TArray<UMaterialEx
 						Blend->LinkFunctionIntoCaller(this);
 						PushFunction(&LocalState);
 
-						if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Blend->MaterialFunction->GetFunctionExpressions())
-						{
-							GatherCustomVertexInterpolators(*FunctionExpressions);
-						}
+						GatherCustomVertexInterpolators(Blend->MaterialFunction->GetExpressions());
 
 						FMaterialFunctionCompileState* CompileState = PopFunction();
 						check(CompileState->ExpressionStack.Num() == 0);
@@ -509,7 +503,8 @@ void FHLSLMaterialTranslator::CompileCustomOutputs(TArray<UMaterialExpressionCus
 	}
 }
 
-EMaterialExpressionVisitResult FHLSLMaterialTranslator::VisitExpressionsRecursive(TArray<UMaterialExpression*> Expressions, IMaterialExpressionVisitor& InVisitor)
+template<typename ExpressionsArrayType>
+EMaterialExpressionVisitResult FHLSLMaterialTranslator::VisitExpressionsRecursive(const ExpressionsArrayType& Expressions, IMaterialExpressionVisitor& InVisitor)
 {
 	EMaterialExpressionVisitResult VisitResult = MVR_CONTINUE;
 	for (UMaterialExpression* Expression : Expressions)
@@ -528,10 +523,7 @@ EMaterialExpressionVisitResult FHLSLMaterialTranslator::VisitExpressionsRecursiv
 				FunctionCall->LinkFunctionIntoCaller(this);
 				PushFunction(&LocalState);
 
-				if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = FunctionCall->MaterialFunction->GetFunctionExpressions())
-				{
-					VisitResult = VisitExpressionsRecursive(*FunctionExpressions, InVisitor);
-				}
+				VisitResult = VisitExpressionsRecursive(FunctionCall->MaterialFunction->GetExpressions(), InVisitor);
 
 				FMaterialFunctionCompileState* CompileState = PopFunction();
 				check(CompileState->ExpressionStack.Num() == 0);
@@ -561,10 +553,7 @@ EMaterialExpressionVisitResult FHLSLMaterialTranslator::VisitExpressionsRecursiv
 						Layer->LinkFunctionIntoCaller(this);
 						PushFunction(&LocalState);
 
-						if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Layer->MaterialFunction->GetFunctionExpressions())
-						{
-							VisitResult = VisitExpressionsRecursive(*FunctionExpressions, InVisitor);
-						}
+						VisitResult = VisitExpressionsRecursive(Layer->MaterialFunction->GetExpressions(), InVisitor);
 
 						FMaterialFunctionCompileState* CompileState = PopFunction();
 						check(CompileState->ExpressionStack.Num() == 0);
@@ -585,10 +574,7 @@ EMaterialExpressionVisitResult FHLSLMaterialTranslator::VisitExpressionsRecursiv
 						Blend->LinkFunctionIntoCaller(this);
 						PushFunction(&LocalState);
 
-						if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Blend->MaterialFunction->GetFunctionExpressions())
-						{
-							VisitResult = VisitExpressionsRecursive(*FunctionExpressions, InVisitor);
-						}
+						VisitResult = VisitExpressionsRecursive(Blend->MaterialFunction->GetExpressions(), InVisitor);
 
 						FMaterialFunctionCompileState* CompileState = PopFunction();
 						check(CompileState->ExpressionStack.Num() == 0);
@@ -701,7 +687,7 @@ bool FHLSLMaterialTranslator::Translate()
 		bCompileForComputeShader = Material->IsLightFunction();
 
 		const bool bStrataEnabled = Engine_IsStrataEnabled();
-		FStrataMaterialInput* FrontMaterialInput = Material->GetMaterialInterface() ? &Material->GetMaterialInterface()->GetMaterial()->FrontMaterial : nullptr;
+		FStrataMaterialInput* FrontMaterialInput = Material->GetMaterialInterface() ? &Material->GetMaterialInterface()->GetMaterial()->GetEditorOnlyData()->FrontMaterial : nullptr;
 		UMaterialExpression* FrontMaterialExpr = FrontMaterialInput ? FrontMaterialInput->GetTracedInput().Expression : nullptr;
 		if (bStrataEnabled && FrontMaterialExpr)
 		{
@@ -6865,7 +6851,7 @@ int32 FHLSLMaterialTranslator::StaticBoolParameter(FName ParameterName,bool bDef
 	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
 	ParameterInfo.Name = ParameterName;
 
-	for (const FStaticSwitchParameter& Parameter : StaticParameters.StaticSwitchParameters)
+	for (const FStaticSwitchParameter& Parameter : StaticParameters.EditorOnly.StaticSwitchParameters)
 	{
 		if (Parameter.ParameterInfo == ParameterInfo)
 		{
@@ -6888,7 +6874,7 @@ int32 FHLSLMaterialTranslator::StaticComponentMask(int32 Vector,FName ParameterN
 	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
 	ParameterInfo.Name = ParameterName;
 
-	for (const FStaticComponentMaskParameter& Parameter : StaticParameters.StaticComponentMaskParameters)
+	for (const FStaticComponentMaskParameter& Parameter : StaticParameters.EditorOnly.StaticComponentMaskParameters)
 	{
 		if (Parameter.ParameterInfo == ParameterInfo)
 		{
@@ -6905,7 +6891,7 @@ int32 FHLSLMaterialTranslator::StaticComponentMask(int32 Vector,FName ParameterN
 
 const FMaterialLayersFunctions* FHLSLMaterialTranslator::GetMaterialLayers()
 {
-	return StaticParameters.bHasMaterialLayers ? &StaticParameters.MaterialLayers : nullptr;
+	return StaticParameters.bHasMaterialLayers ? &CachedMaterialLayers : nullptr;
 }
 
 bool FHLSLMaterialTranslator::GetStaticBoolValue(int32 BoolIndex, bool& bSucceeded)
@@ -6945,9 +6931,9 @@ int32 FHLSLMaterialTranslator::StaticTerrainLayerWeight(FName LayerName,int32 De
 	bool bAtLeastOneWeightBasedBlend = false;
 
 	int32 NumActiveTerrainLayerWeightParameters = 0;
-	for(int32 ParameterIndex = 0;ParameterIndex < StaticParameters.TerrainLayerWeightParameters.Num(); ++ParameterIndex)
+	for(int32 ParameterIndex = 0;ParameterIndex < StaticParameters.EditorOnly.TerrainLayerWeightParameters.Num(); ++ParameterIndex)
 	{
-		const FStaticTerrainLayerWeightParameter& Parameter = StaticParameters.TerrainLayerWeightParameters[ParameterIndex];
+		const FStaticTerrainLayerWeightParameter& Parameter = StaticParameters.EditorOnly.TerrainLayerWeightParameters[ParameterIndex];
 		if (Parameter.WeightmapIndex != INDEX_NONE)
 		{
 			NumActiveTerrainLayerWeightParameters++;

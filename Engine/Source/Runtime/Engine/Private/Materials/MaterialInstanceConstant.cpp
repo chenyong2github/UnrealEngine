@@ -106,7 +106,7 @@ void UMaterialInstanceConstant::CopyMaterialUniformParametersEditorOnly(UMateria
 			FStaticParameterSet MyParamSet;
 			GetStaticParameterValues(MyParamSet);
 
-			MyParamSet.StaticSwitchParameters = SourceParamSet.StaticSwitchParameters;
+			MyParamSet.EditorOnly.StaticSwitchParameters = SourceParamSet.EditorOnly.StaticSwitchParameters;
 
 			UpdateStaticPermutation(MyParamSet);
 
@@ -165,10 +165,10 @@ void FMaterialInstanceCachedData::InitializeForConstant(const FMaterialLayersFun
 	for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 	{
 		int32 ParentLayerIndex = INDEX_NONE;
-		if (ParentLayers && Layers->LayerLinkStates[LayerIndex] == EMaterialLayerLinkState::LinkedToParent)
+		if (ParentLayers && Layers->EditorOnly.LayerLinkStates[LayerIndex] == EMaterialLayerLinkState::LinkedToParent)
 		{
-			const FGuid& LayerGuid = Layers->LayerGuids[LayerIndex];
-			ParentLayerIndex = ParentLayers->LayerGuids.Find(LayerGuid);
+			const FGuid& LayerGuid = Layers->EditorOnly.LayerGuids[LayerIndex];
+			ParentLayerIndex = ParentLayers->EditorOnly.LayerGuids.Find(LayerGuid);
 		}
 		ParentLayerIndexRemap.Add(ParentLayerIndex);
 	}
@@ -211,18 +211,20 @@ void UMaterialInstanceConstant::UpdateCachedData()
 		if (LocalStaticParameters.bHasMaterialLayers)
 		{
 			UMaterial* BaseMaterial = GetMaterial();
+
+			FMaterialLayersFunctions MaterialLayers;
+			LocalStaticParameters.GetMaterialLayers(MaterialLayers);
 			if (bUsingNewHLSLGenerator)
 			{
 				LocalCachedTree.Reset(new FMaterialCachedHLSLTree());
-				LocalCachedTree->GenerateTree(BaseMaterial, &LocalStaticParameters.MaterialLayers, nullptr);
+				LocalCachedTree->GenerateTree(BaseMaterial, &MaterialLayers, nullptr);
 			}
 			else
 			{
 				FMaterialCachedExpressionContext Context;
-				Context.LayerOverrides = &LocalStaticParameters.MaterialLayers;
+				Context.LayerOverrides = &MaterialLayers;
 				LocalCachedExpressionData.Reset(new FMaterialCachedExpressionData());
-				LocalCachedExpressionData->Reset();
-				LocalCachedExpressionData->UpdateForExpressions(Context, BaseMaterial->Expressions, GlobalParameter, INDEX_NONE);
+				LocalCachedExpressionData->UpdateForExpressions(Context, BaseMaterial->GetExpressions(), GlobalParameter, INDEX_NONE);
 			}
 		}
 
@@ -232,11 +234,14 @@ void UMaterialInstanceConstant::UpdateCachedData()
 		{
 			check(!LocalCachedExpressionData);
 			LocalCachedExpressionData.Reset(new FMaterialCachedExpressionData());
-			LocalCachedExpressionData->Reset();
 			LocalCachedExpressionData->UpdateForCachedHLSLTree(GetCachedHLSLTree(), &LocalStaticParameters);
 		}
 
 		CachedExpressionData = MoveTemp(LocalCachedExpressionData);
+		if (CachedExpressionData)
+		{
+			EditorOnlyData->CachedExpressionData = CachedExpressionData->EditorOnlyData;
+		}
 
 		FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
 	}

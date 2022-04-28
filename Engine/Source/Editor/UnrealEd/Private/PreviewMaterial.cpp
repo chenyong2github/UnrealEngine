@@ -828,7 +828,7 @@ void UMaterialEditorInstanceConstant::ApplySourceFunctionChanges()
 		SourceFunction->RuntimeVirtualTextureParameterValues = SourceInstance->RuntimeVirtualTextureParameterValues;
 		SourceFunction->FontParameterValues = SourceInstance->FontParameterValues;
 
-		const FStaticParameterSet& StaticParameters = SourceInstance->GetStaticParameters();
+		const FStaticParameterSetEditorOnlyData& StaticParameters = SourceInstance->GetEditorOnlyStaticParameters();
 		SourceFunction->StaticSwitchParameterValues = StaticParameters.StaticSwitchParameters;
 		SourceFunction->StaticComponentMaskParameterValues = StaticParameters.StaticComponentMaskParameters;
 

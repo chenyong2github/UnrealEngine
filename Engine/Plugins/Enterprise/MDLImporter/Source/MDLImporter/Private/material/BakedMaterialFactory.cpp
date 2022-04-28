@@ -55,10 +55,12 @@ namespace Mat
 
 	void FBakedMaterialFactory::Create(const Mdl::FMaterial& MdlMaterial, const Mat::FParameterMap& Parameters, UMaterial& Material) const
 	{
+		UMaterialEditorOnlyData& MaterialEditorOnly = *Material.GetEditorOnlyData();
+
 		// get under clear coat output
 		UMaterialExpressionClearCoatNormalCustomOutput* UnderClearCoat = nullptr;
 		{
-			TObjectPtr<UMaterialExpression>* Found = Material.Expressions.FindByPredicate(
+			const TObjectPtr<UMaterialExpression>* Found = Material.GetExpressions().FindByPredicate(
 			    [](const UMaterialExpression* Expr) { return Expr->IsA<UMaterialExpressionClearCoatNormalCustomOutput>(); });
 			if (Found)
 				UnderClearCoat = Cast<UMaterialExpressionClearCoatNormalCustomOutput>(*Found);
@@ -86,26 +88,26 @@ namespace Mat
 		Mat::FMapConnecter MapConnecter(Parameters, FunctionLoader, Tiling, Material);
 
 		// color
-		MapConnecter.ConnectParameterMap(Material.BaseColor, TEXT("Color"), EMaterialParameter::BaseColor);
+		MapConnecter.ConnectParameterMap(MaterialEditorOnly.BaseColor, TEXT("Color"), EMaterialParameter::BaseColor);
 
 		// brdf
-		MapConnecter.ConnectParameterMap(Material.Metallic, TEXT("BRDF"), EMaterialParameter::Metallic, false);
-		MapConnecter.ConnectParameterMap(Material.Specular, TEXT("BRDF"), EMaterialParameter::Specular, false);
-		MapConnecter.ConnectParameterMap(Material.Roughness, TEXT("BRDF"), EMaterialParameter::Roughness, false);
+		MapConnecter.ConnectParameterMap(MaterialEditorOnly.Metallic, TEXT("BRDF"), EMaterialParameter::Metallic, false);
+		MapConnecter.ConnectParameterMap(MaterialEditorOnly.Specular, TEXT("BRDF"), EMaterialParameter::Specular, false);
+		MapConnecter.ConnectParameterMap(MaterialEditorOnly.Roughness, TEXT("BRDF"), EMaterialParameter::Roughness, false);
 
 		// clear coat
 		if (UnderClearCoat)
 		{
 			check(Material.GetShadingModels().HasShadingModel(EMaterialShadingModel::MSM_ClearCoat));
-			MapConnecter.ConnectParameterMap(Material.ClearCoat, TEXT("Clear Coat"), EMaterialParameter::ClearCoatWeight, false);
-			MapConnecter.ConnectParameterMap(Material.ClearCoatRoughness, TEXT("Clear Coat"), EMaterialParameter::ClearCoatRoughness, false);
+			MapConnecter.ConnectParameterMap(MaterialEditorOnly.ClearCoat, TEXT("Clear Coat"), EMaterialParameter::ClearCoatWeight, false);
+			MapConnecter.ConnectParameterMap(MaterialEditorOnly.ClearCoatRoughness, TEXT("Clear Coat"), EMaterialParameter::ClearCoatRoughness, false);
 
-			MapConnecter.ConnectNormalMap(Material.Normal, TEXT("Clear Coat"), EMaterialParameter::ClearCoatNormalMap);
+			MapConnecter.ConnectNormalMap(MaterialEditorOnly.Normal, TEXT("Clear Coat"), EMaterialParameter::ClearCoatNormalMap);
 			MapConnecter.ConnectNormalMap(UnderClearCoat->Input, TEXT("Normal"), EMaterialParameter::NormalMap);
 		}
 		else
 		{
-			MapConnecter.ConnectNormalMap(Material.Normal, TEXT("Normal"), EMaterialParameter::NormalMap);
+			MapConnecter.ConnectNormalMap(MaterialEditorOnly.Normal, TEXT("Normal"), EMaterialParameter::NormalMap);
 
 			MapConnecter.DeleteExpressionMap(EMaterialParameter::ClearCoatWeight);
 			MapConnecter.DeleteExpressionMap(EMaterialParameter::ClearCoatRoughness);
@@ -115,7 +117,7 @@ namespace Mat
 
 		// subsurface
 		if (Material.GetShadingModels().HasShadingModel(EMaterialShadingModel::MSM_Subsurface))
-			MapConnecter.ConnectParameterMap(Material.SubsurfaceColor, TEXT("Color"), EMaterialParameter::SubSurfaceColor);
+			MapConnecter.ConnectParameterMap(MaterialEditorOnly.SubsurfaceColor, TEXT("Color"), EMaterialParameter::SubSurfaceColor);
 		else
 			MapConnecter.DeleteExpressionMap(EMaterialParameter::SubSurfaceColor);
 
@@ -123,14 +125,14 @@ namespace Mat
 		if (Parameters.Contains(EMaterialParameter::EmissionColorMap))
 		{
 			UMaterialExpression* StrengthParameter = ExpressionMakeFLoat3(Parameters[EMaterialParameter::EmissionStrength], FunctionLoader, Material);
-			MapConnecter.ConnectParameterMap(Material.EmissiveColor, TEXT("Emission"), EMaterialParameter::EmissionColor, true, StrengthParameter);
+			MapConnecter.ConnectParameterMap(MaterialEditorOnly.EmissiveColor, TEXT("Emission"), EMaterialParameter::EmissionColor, true, StrengthParameter);
 		}
 		else if (Parameters.Contains(EMaterialParameter::EmissionColor))
 		{
 			UMaterialExpression* ColorParameter    = Parameters[EMaterialParameter::EmissionColor];
 			UMaterialExpression* StrengthParameter = Parameters[EMaterialParameter::EmissionStrength];
 
-			Generator::Connect(Material.EmissiveColor, Generator::NewMaterialExpressionMultiply(&Material, {ColorParameter, StrengthParameter}));
+			Generator::Connect(MaterialEditorOnly.EmissiveColor, Generator::NewMaterialExpressionMultiply(&Material, {ColorParameter, StrengthParameter}));
 			Generator::SetMaterialExpressionGroup(TEXT("Emission"), ColorParameter);
 			Generator::SetMaterialExpressionGroup(TEXT("Emission"), StrengthParameter);
 		}
@@ -149,7 +151,7 @@ namespace Mat
 	{
 		FString               Name;
 
-		TObjectPtr<UMaterialExpression>* Found = Material.Expressions.FindByPredicate(
+		const TObjectPtr<UMaterialExpression>* Found = Material.GetExpressions().FindByPredicate(
 			[&Name](UMaterialExpression* Expression)  //
 		{
 			if (UMaterialExpressionScalarParameter* ScalarParameter = Cast<UMaterialExpressionScalarParameter>(Expression))
@@ -166,7 +168,7 @@ namespace Mat
 			return Name.Find(TEXT("Tiling Factor")) != INDEX_NONE;
 		});
 
-		TObjectPtr<UMaterialExpression>* FoundU = Material.Expressions.FindByPredicate(
+		const TObjectPtr<UMaterialExpression>* FoundU = Material.GetExpressions().FindByPredicate(
 		    [&Name](UMaterialExpression* Expression)  //
 		    {
 			    if (UMaterialExpressionScalarParameter* ScalarParameter = Cast<UMaterialExpressionScalarParameter>(Expression))
@@ -183,7 +185,7 @@ namespace Mat
 			    return Name.Find(TEXT("U Tiling")) != INDEX_NONE;
 		    });
 
-		TObjectPtr<UMaterialExpression>* FoundV = Material.Expressions.FindByPredicate(
+		const TObjectPtr<UMaterialExpression>* FoundV = Material.GetExpressions().FindByPredicate(
 			[&Name](UMaterialExpression* Expression)  //
 		{
 			if (UMaterialExpressionScalarParameter* ScalarParameter = Cast<UMaterialExpressionScalarParameter>(Expression))

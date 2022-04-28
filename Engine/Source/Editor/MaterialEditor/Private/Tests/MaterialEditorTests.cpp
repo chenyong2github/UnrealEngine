@@ -64,7 +64,7 @@ namespace MaterialEditorPromotionTestUtils
 			UE_LOG(LogEditorMaterialEditorPromotionTests, Display, TEXT("Assigned the normal map texture to the new node"));
 			UMaterial* EditorMaterial = Cast<UMaterial>(CurrentMaterialEditor->GetMaterialInterface());
 			UMaterialGraph* MaterialGraph = EditorMaterial->MaterialGraph;
-			EditorMaterial->Normal.Connect(0, NewTextureSampleExpression);
+			EditorMaterial->GetEditorOnlyData()->Normal.Connect(0, NewTextureSampleExpression);
 			UE_LOG(LogEditorMaterialEditorPromotionTests, Display, TEXT("Connected the new node to the normal pin"));
 			MaterialGraph->LinkGraphNodesFromMaterial();
 

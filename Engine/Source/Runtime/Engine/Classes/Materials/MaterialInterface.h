@@ -10,6 +10,7 @@
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/SharedPointer.h"
 #include "Engine/EngineTypes.h"
 #include "UObject/SoftObjectPath.h"
 #include "UObject/ScriptMacros.h"
@@ -39,6 +40,8 @@ class UMaterialInstance;
 struct FMaterialParameterInfo;
 struct FMaterialResourceLocOnDisk;
 class FMaterialCachedData;
+struct FMaterialCachedExpressionData;
+struct FMaterialCachedExpressionEditorOnlyData;
 #if WITH_EDITOR
 class FMaterialCachedHLSLTree;
 #endif
@@ -192,11 +195,44 @@ struct FMaterialInheritanceChain
 	inline const FMaterialCachedExpressionData& GetCachedExpressionData() const { checkSlow(CachedExpressionData); return *CachedExpressionData; }
 };
 
+UCLASS(Optional)
+class UMaterialInterfaceEditorOnlyData : public UObject
+{
+	GENERATED_BODY()
+public:
+	UMaterialInterfaceEditorOnlyData();
+	UMaterialInterfaceEditorOnlyData(FVTableHelper& Helper);
+	ENGINE_API virtual ~UMaterialInterfaceEditorOnlyData();
+
+	//~ Begin UObject Interface.
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject Interface.
+
+	TSharedPtr<FMaterialCachedExpressionEditorOnlyData> CachedExpressionData;
+
+	/** Set if CachedExpressionData was loaded from disk, should typically be true when running with cooked data, and false in the editor */
+	bool bLoadedCachedExpressionData = false;
+};
+
 UCLASS(abstract, BlueprintType, MinimalAPI, HideCategories = (Thumbnail))
 class UMaterialInterface : public UObject, public IBlendableInterface, public IInterface_AssetUserData
 {
 	GENERATED_UCLASS_BODY()
 
+#if WITH_EDITORONLY_DATA
+protected:
+	UPROPERTY()
+	TObjectPtr<UMaterialInterfaceEditorOnlyData> EditorOnlyData;
+
+	ENGINE_API virtual const UClass* GetEditorOnlyDataClass() const;
+	ENGINE_API UMaterialInterfaceEditorOnlyData* CreateEditorOnlyData();
+
+public:
+	UMaterialInterfaceEditorOnlyData* GetEditorOnlyData() { return EditorOnlyData; }
+	const UMaterialInterfaceEditorOnlyData* GetEditorOnlyData() const { return EditorOnlyData; }
+#endif // WITH_EDITORONLY_DATA
+
+public:
 	/** SubsurfaceProfile, for Screen Space Subsurface Scattering */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
 	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
@@ -288,6 +324,7 @@ public:
 	ENGINE_API virtual void BeginDestroy() override;
 	ENGINE_API virtual void FinishDestroy() override;
 	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
+	ENGINE_API virtual void PostInitProperties() override;
 	ENGINE_API virtual void Serialize(FArchive& Ar) override;
 	ENGINE_API virtual void PostLoad() override;
 	ENGINE_API virtual void PostDuplicate(bool bDuplicateForPIE) override;

@@ -770,8 +770,8 @@ namespace Generator
 		}
 	}
 
-	template <typename ExpressionType>
-	int32 CountExpressions(const TArray<class UMaterialExpression*>& Expressions)
+	template <typename ExpressionType, typename ExpressionArrayType>
+	int32 CountExpressions(const ExpressionArrayType& Expressions)
 	{
 		int32 Count = 0;
 		for (UMaterialExpression* Expression : Expressions)
@@ -1068,7 +1068,7 @@ namespace Generator
 		Expression->Id                               = FGuid::NewGuid();
 		Expression->InputName                        = *Name;
 		Expression->InputType                        = Type;
-		Expression->SortPriority = CountExpressions<UMaterialExpressionFunctionInput>(Cast<UMaterialFunction>(Parent)->FunctionExpressions);
+		Expression->SortPriority = CountExpressions<UMaterialExpressionFunctionInput>(Cast<UMaterialFunction>(Parent)->GetExpressions());
 		Expression->bCollapsed   = true;
 		return Expression;
 	}
@@ -1091,7 +1091,7 @@ namespace Generator
 		Expression->Id                                = FGuid::NewGuid();
 		Expression->OutputName                        = *Name;
 		CheckedConnect(Parent, Output, Expression->A);
-		Expression->SortPriority = CountExpressions<UMaterialExpressionFunctionOutput>(Cast<UMaterialFunction>(Parent)->FunctionExpressions);
+		Expression->SortPriority = CountExpressions<UMaterialExpressionFunctionOutput>(Cast<UMaterialFunction>(Parent)->GetExpressions());
 		Expression->bCollapsed   = true;
 		return Expression;
 	}

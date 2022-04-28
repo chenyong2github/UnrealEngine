@@ -176,6 +176,8 @@ UDEditorParameterValue* UDEditorParameterValue::Create(UObject* Owner,
 	check(Parameter);
 	Parameter->ParameterInfo = ParameterInfo;
 	Parameter->ExpressionId = Meta.ExpressionGuid;
+	Parameter->Description = Meta.Description;
+	Parameter->AssetPath = Meta.AssetPath;
 	Parameter->SortPriority = Meta.SortPriority;
 	Parameter->bOverride = Meta.bOverride;
 	return Parameter;
