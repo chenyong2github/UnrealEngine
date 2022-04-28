@@ -42,6 +42,7 @@ UStateTreeState::UStateTreeState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ID(FGuid::NewGuid())
 {
+	Parameters.ID = FGuid::NewGuid();
 }
 
 #if WITH_EDITOR

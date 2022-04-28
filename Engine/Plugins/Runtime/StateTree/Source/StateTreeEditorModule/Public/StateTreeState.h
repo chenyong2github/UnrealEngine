@@ -134,11 +134,6 @@ struct STATETREEEDITORMODULE_API FStateTreeStateParameters
 {
 	GENERATED_BODY()
 
-	FStateTreeStateParameters()
-	{
-		ID = FGuid::NewGuid();
-	}
-	
 	void Reset()
 	{
 		Parameters.Reset();
