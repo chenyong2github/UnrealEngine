@@ -59,6 +59,10 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPreClientTravel, const FString& /*Pend
 typedef FOnPreClientTravel::FDelegate FOnPreClientTravelDelegate;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPawnControllerChanged, APawn*, Pawn, AController*, Controller);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnUserInputDeviceConnectionChange, EInputDeviceConnectionState, NewConnectionState, FPlatformUserId, PlatformUserId, FInputDeviceId, InputDeviceId);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnUserInputDevicePairingChange, FInputDeviceId, InputDeviceId, FPlatformUserId, NewUserPlatformId, FPlatformUserId, OldUserPlatformId);
+
+
 #if WITH_EDITOR
 
 // The result of a UGameInstance PIE operation
@@ -137,6 +141,8 @@ struct FGameInstancePIEParameters
 };
 
 #endif
+
+enum class EInputDeviceConnectionState : uint8;
 
 DECLARE_EVENT_OneParam(UGameInstance, FOnLocalPlayerEvent, ULocalPlayer*);
 
@@ -224,6 +230,38 @@ public:
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "Shutdown"))
 	void ReceiveShutdown();
 
+	/**
+	 * Callback for handling an Input Device's connection state change.
+	 *
+	 * @param NewConnectionState	The new connection state of this device
+	 * @param FPlatformUserId		The User ID whose input device has changed
+	 * @param FInputDeviceId		The Input Device ID that has changed connection
+	 * @see IPlatformInputDeviceMapper
+	 */
+	virtual void HandleOnInputDeviceConnectionChange(EInputDeviceConnectionState NewConnectionState, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId);
+
+	/** 
+	 * Callback for when an input device connection state has changed (a new gamepad was connected or disconnected)
+	 */
+	UPROPERTY(BlueprintAssignable, DisplayName=OnInputDeviceConnectionChange)
+	FOnUserInputDeviceConnectionChange OnInputDeviceConnectionChange;
+	
+	/**
+	 * Callback for handling an Input Device pairing change.
+	 * 
+	 * @param FInputDeviceId	Input device ID
+	 * @param FPlatformUserId	The NewUserPlatformId
+	 * @param FPlatformUserId	The OldUserPlatformId
+	 * @see IPlatformInputDeviceMapper
+	 */
+	virtual void HandleOnInputDevicePairingChange(FInputDeviceId InputDeviceId, FPlatformUserId NewUserPlatformId, FPlatformUserId OldUserPlatformId);
+
+	/**
+	 * Callback when an input device has changed pairings (the owning platform user has changed for that device)
+	 */
+	UPROPERTY(BlueprintAssignable, DisplayName=OnUserInputDevicePairingChange)
+	FOnUserInputDevicePairingChange OnUserInputDevicePairingChange;
+	
 	/** Opportunity for blueprints to handle network errors. */
 	UFUNCTION(BlueprintImplementableEvent, meta=(DisplayName = "NetworkError"))
 	void HandleNetworkError(ENetworkFailure::Type FailureType, bool bIsServer);

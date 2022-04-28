@@ -30,6 +30,7 @@
 #include "Misc/PackageName.h"
 #include "Net/ReplayPlaylistTracker.h"
 #include "ReplaySubsystem.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -97,6 +98,10 @@ void UGameInstance::Init()
 
 		FNetDelegates::OnReceivedNetworkEncryptionToken.BindUObject(this, &ThisClass::ReceivedNetworkEncryptionToken);
 		FNetDelegates::OnReceivedNetworkEncryptionAck.BindUObject(this, &ThisClass::ReceivedNetworkEncryptionAck);
+
+		IPlatformInputDeviceMapper& PlatformInputMapper = IPlatformInputDeviceMapper::Get();
+		PlatformInputMapper.GetOnInputDeviceConnectionChange().AddUObject(this, &UGameInstance::HandleOnInputDeviceConnectionChange);
+		PlatformInputMapper.GetOnInputDevicePairingChange().AddUObject(this, &UGameInstance::HandleOnInputDevicePairingChange);
 	}
 
 	SubsystemCollection.Initialize(this);
@@ -142,8 +147,22 @@ void UGameInstance::Shutdown()
 	FNetDelegates::OnReceivedNetworkEncryptionToken.Unbind();
 	FNetDelegates::OnReceivedNetworkEncryptionAck.Unbind();
 
+	IPlatformInputDeviceMapper& PlatformInputMapper = IPlatformInputDeviceMapper::Get();
+	PlatformInputMapper.GetOnInputDeviceConnectionChange().RemoveAll(this);
+	PlatformInputMapper.GetOnInputDevicePairingChange().RemoveAll(this);
+
 	// Clear the world context pointer to prevent further access.
 	WorldContext = nullptr;
+}
+
+void UGameInstance::HandleOnInputDeviceConnectionChange(EInputDeviceConnectionState NewConnectionState, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId)
+{
+	OnInputDeviceConnectionChange.Broadcast(NewConnectionState, PlatformUserId, InputDeviceId);
+}
+
+void UGameInstance::HandleOnInputDevicePairingChange(FInputDeviceId InputDeviceId, FPlatformUserId NewUserPlatformId, FPlatformUserId OldUserPlatformId)
+{
+	OnUserInputDevicePairingChange.Broadcast(InputDeviceId, NewUserPlatformId, OldUserPlatformId);
 }
 
 void UGameInstance::InitializeStandalone(const FName InPackageName, UPackage* InWorldPackage)

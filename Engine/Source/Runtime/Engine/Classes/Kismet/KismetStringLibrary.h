@@ -68,6 +68,14 @@ class ENGINE_API UKismetStringLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To String (Object)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_ObjectToString(class UObject* InObj);
 
+	/** Converts a InputDeviceId value to a string */
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "To String (InputDeviceId)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
+	static FString Conv_InputDeviceIdToString(FInputDeviceId InDeviceId);
+
+	/** Converts a PlatformUserId value to a string */
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "To String (PlatformUserId)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
+	static FString Conv_PlatformUserIdToString(FPlatformUserId InPlatformUserId);
+
 	/** Converts a linear color value to a string, in the form '(R=,G=,B=,A=)' */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To String (LinearColor)", CompactNodeTitle = "->", BlueprintAutocast), Category="Utilities|String")
 	static FString Conv_ColorToString(FLinearColor InColor);

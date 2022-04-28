@@ -1676,6 +1676,13 @@ public:
 	class ULocalPlayer* GetLocalPlayer() const;
 
 	/**
+	 * Returns the platform user that is assigned to this Player Controller's Local Player.
+	 * If there is no local player, then this will return PLATFORMUSERID_NONE
+	 */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Game|Player")
+	FPlatformUserId GetPlatformUserId() const;
+
+	/**
 	 * Called client-side to smoothly interpolate received TargetViewRotation (result is in BlendedTargetViewRotation)
 	 * @param TargetPawn   is the pawn which is the current ViewTarget
 	 * @param DeltaSeconds is the time interval since the last smoothing update

@@ -2005,6 +2005,77 @@ struct FAutomationExecutionEntry
 	FDateTime Timestamp;
 };
 
+
+/**
+ * Represents a single input device such as a gamepad, keyboard, or mouse.
+ *
+ * Has a globally unique identifier.
+ * 
+ * Opaque struct for the FInputDeviceId struct defined in CoreMiscDefines.h
+ */
+USTRUCT(noexport, BlueprintType)
+struct FInputDeviceId
+{
+	GENERATED_BODY()
+private:
+	
+	UPROPERTY(VisibleAnywhere, Category = "PlatformInputDevice")
+	int32 InternalId = -1;
+};
+
+/**
+ * Handle that defines a local user on this platform.
+ * This used to be just a typedef int32 that was used interchangeably as ControllerId and LocalUserIndex.
+ * Moving forward these will be allocated by the platform application layer.
+ *
+ * Opaque struct for the FPlatformUserId struct defined in CoreMiscDefines.h
+ */
+USTRUCT(noexport, BlueprintType)
+struct FPlatformUserId
+{
+	GENERATED_BODY()
+private:
+	
+	UPROPERTY(VisibleAnywhere, Category = "PlatformInputDevice")
+	int32 InternalId = -1;
+};
+
+/**
+ * Represents the connection status of a given FInputDeviceId
+ */
+UENUM(BlueprintType)
+enum class EInputDeviceConnectionState : uint8
+{
+	/** This is not a valid input device */
+	Invalid,
+
+	/** It is not known if this device is connected or not */
+	Unknown,
+
+	/** Device is definitely connected */
+	Disconnected,
+
+	/** Definitely connected and powered on */
+	Connected
+};
+
+/**
+ * Data about an input device's current state
+ */
+USTRUCT(noexport, BlueprintType)
+struct FPlatformInputDeviceState
+{
+	GENERATED_BODY()
+
+	/** The platform user that this input device belongs to */
+	UPROPERTY(VisibleAnywhere, Category = "PlatformInputDevice")
+	FPlatformUserId OwningPlatformUser = PLATFORMUSERID_NONE;
+
+	/** The connection state of this input device */
+	UPROPERTY(VisibleAnywhere, Category = "PlatformInputDevice")
+	EInputDeviceConnectionState ConnectionState = EInputDeviceConnectionState::Invalid;
+};
+
 /** Enum used by DataValidation plugin to see if an asset has been validated for correctness (mirrored in UObjectGlobals.h)*/
 UENUM(BlueprintType)
 enum class EDataValidationResult : uint8

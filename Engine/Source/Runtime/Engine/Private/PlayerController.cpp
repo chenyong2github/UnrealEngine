@@ -4694,6 +4694,15 @@ ULocalPlayer* APlayerController::GetLocalPlayer() const
 	return Cast<ULocalPlayer>(Player);
 }
 
+FPlatformUserId APlayerController::GetPlatformUserId() const
+{
+	if (const ULocalPlayer* LocalPlayer = GetLocalPlayer())
+	{
+		return LocalPlayer->GetPlatformUserId();
+	}
+	return PLATFORMUSERID_NONE;
+}
+
 bool APlayerController::IsInViewportClient(UGameViewportClient* ViewportClient) const
 {
 	const ULocalPlayer* LocalPlayer = GetLocalPlayer();

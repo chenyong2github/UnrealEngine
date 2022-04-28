@@ -118,7 +118,17 @@ FString UKismetStringLibrary::Conv_TransformToString(const FTransform& InTrans)
 
 FString UKismetStringLibrary::Conv_ObjectToString(class UObject* InObj)
 {
-	return (InObj != NULL) ? InObj->GetName() : FString(TEXT("None"));
+	return (InObj != nullptr) ? InObj->GetName() : FString(TEXT("None"));
+}
+
+FString UKismetStringLibrary::Conv_InputDeviceIdToString(FInputDeviceId InDeviceId)
+{
+	return FString::Printf(TEXT("%d"), InDeviceId.GetId());
+}
+
+FString UKismetStringLibrary::Conv_PlatformUserIdToString(FPlatformUserId InPlatformUserId)
+{
+	return FString::Printf(TEXT("%d"), InPlatformUserId.GetInternalId());
 }
 
 FString UKismetStringLibrary::Conv_ColorToString(FLinearColor C)
