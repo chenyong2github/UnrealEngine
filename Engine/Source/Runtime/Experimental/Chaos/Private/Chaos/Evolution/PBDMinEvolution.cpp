@@ -63,74 +63,6 @@ namespace Chaos
 	//
 	//
 
-	struct FPBDRigidArrays
-	{
-		FPBDRigidArrays()
-			: NumParticles(0)
-		{
-		}
-
-		FPBDRigidArrays(TPBDRigidParticles<FReal, 3>& Dynamics)
-		{
-			NumParticles = Dynamics.Size();
-			ObjectState = Dynamics.AllObjectState().GetData();
-			X = Dynamics.AllX().GetData();
-			P = Dynamics.AllP().GetData();
-			R = Dynamics.AllR().GetData();
-			Q = Dynamics.AllQ().GetData();
-			V = Dynamics.AllV().GetData();
-			PreV = Dynamics.AllPreV().GetData();
-			W = Dynamics.AllW().GetData();
-			PreW = Dynamics.AllPreW().GetData();
-			CenterOfMass = Dynamics.AllCenterOfMass().GetData();
-			RotationOfMass = Dynamics.AllRotationOfMass().GetData();
-			InvM = Dynamics.AllInvM().GetData();
-			InvI = Dynamics.AllInvI().GetData();
-			Acceleration = Dynamics.AllAcceleration().GetData();
-			AngularAcceleration = Dynamics.AllAngularAcceleration().GetData();
-			LinearImpulseVelocity = Dynamics.AllLinearImpulseVelocity().GetData();
-			AngularImpulseVelocity = Dynamics.AllAngularImpulseVelocity().GetData();
-			Disabled = Dynamics.AllDisabled().GetData();
-			GravityEnabled = Dynamics.AllGravityEnabled().GetData();
-			LinearEtherDrag = Dynamics.AllLinearEtherDrag().GetData();
-			AngularEtherDrag = Dynamics.AllAngularEtherDrag().GetData();
-			HasBounds = Dynamics.AllHasBounds().GetData();
-			LocalBounds = Dynamics.AllLocalBounds().GetData();
-			WorldBounds = Dynamics.AllWorldSpaceInflatedBounds().GetData();
-		}
-
-		int32 NumParticles;
-		EObjectStateType* ObjectState;
-		FVec3* X;
-		FVec3* P;
-		FRotation3* R;
-		FRotation3* Q;
-		FVec3* V;
-		FVec3* PreV;
-		FVec3* W;
-		FVec3* PreW;
-		FVec3* CenterOfMass;
-		FRotation3* RotationOfMass;
-		FReal* InvM;
-		TVec3<FRealSingle>* InvI;
-		FVec3* Acceleration;
-		FVec3* AngularAcceleration;
-		FVec3* LinearImpulseVelocity;
-		FVec3* AngularImpulseVelocity;
-		bool* Disabled;
-		bool* GravityEnabled;
-		FReal* LinearEtherDrag;
-		FReal* AngularEtherDrag;
-		bool* HasBounds;
-		FAABB3* LocalBounds;
-		FAABB3* WorldBounds;
-	};
-
-
-	//
-	//
-	//
-
 	FPBDMinEvolution::FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension)
 		: Particles(InParticles)
 		, CollisionDetector(InCollisionDetector)
@@ -303,7 +235,6 @@ namespace Chaos
 		}
 	}
 
-	// @todo(ccaulfield): dedupe (PBDRigidsEvolutionGBF)
 	void FPBDMinEvolution::Integrate(FReal Dt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MinEvolution_Integrate);
