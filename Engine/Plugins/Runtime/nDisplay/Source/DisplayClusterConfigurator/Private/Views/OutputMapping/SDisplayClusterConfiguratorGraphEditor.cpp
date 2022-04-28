@@ -57,6 +57,8 @@ void SDisplayClusterConfiguratorGraphEditor::FindAndSelectObjects(const TArray<U
 	check(ConfiguratorGraph != nullptr);
 
 	bSelectionSetDirectly = true;
+	// Clear the current selection or stale data might persist after a compile.
+	ClearSelectionSet();
 	ConfiguratorGraph->ForEachGraphNode([this, &ObjectsToSelect](UDisplayClusterConfiguratorBaseNode* Node)
 	{
 		if (ObjectsToSelect.Contains(Node->GetObject()))
