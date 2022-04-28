@@ -140,9 +140,41 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *DestinationAttribute.ToString());
 				}
 			}
+			else if (PointProperty == EPCGPointProperties::BoundsMin)
+			{
+				auto ExtentsGetter = [](const FPCGPoint& InPoint) { return InPoint.BoundsMin; };
+
+				if (!SampledData->Metadata->HasAttribute(DestinationAttribute))
+				{
+					SampledData->Metadata->CreateVectorAttribute(DestinationAttribute, FVector::Zero(), /*bAllowsInterpolation=*/true, /*bOverrideParent=*/true);
+				}
+
+				FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetMutableAttribute(DestinationAttribute);
+				if (!PCGMetadataOperations::SetValue<FVector, FVector>(SampledPoints, AttributeBase, SampledData->Metadata, ExtentsGetter) &&
+					!PCGMetadataOperations::SetValue<FVector, FTransform>(SampledPoints, AttributeBase, SampledData->Metadata, ExtentsGetter))
+				{
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *DestinationAttribute.ToString());
+				}
+			}
+			else if (PointProperty == EPCGPointProperties::BoundsMax)
+			{
+				auto ExtentsGetter = [](const FPCGPoint& InPoint) { return InPoint.BoundsMax; };
+
+				if (!SampledData->Metadata->HasAttribute(DestinationAttribute))
+				{
+					SampledData->Metadata->CreateVectorAttribute(DestinationAttribute, FVector::Zero(), /*bAllowsInterpolation=*/true, /*bOverrideParent=*/true);
+				}
+
+				FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetMutableAttribute(DestinationAttribute);
+				if (!PCGMetadataOperations::SetValue<FVector, FVector>(SampledPoints, AttributeBase, SampledData->Metadata, ExtentsGetter) &&
+					!PCGMetadataOperations::SetValue<FVector, FTransform>(SampledPoints, AttributeBase, SampledData->Metadata, ExtentsGetter))
+				{
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *DestinationAttribute.ToString());
+				}
+			}
 			else if (PointProperty == EPCGPointProperties::Extents)
 			{
-				auto ExtentsGetter = [](const FPCGPoint& InPoint) { return InPoint.Extents; };
+				auto ExtentsGetter = [](const FPCGPoint& InPoint) { return InPoint.GetExtents(); };
 
 				if (!SampledData->Metadata->HasAttribute(DestinationAttribute))
 				{
@@ -260,9 +292,31 @@ bool FPCGMetadataOperationElement::ExecuteInternal(FPCGContext* Context) const
 					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
 				}
 			}
+			else if (PointProperty == EPCGPointProperties::BoundsMin)
+			{
+				auto ExtentsSetter = [](FPCGPoint& InPoint, const FVector& InValue) { InPoint.BoundsMin = InValue; };
+
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
+				if (!PCGMetadataOperations::SetValue<float, FVector>(AttributeBase, SampledPoints, ExtentsSetter) &&
+					!PCGMetadataOperations::SetValue<FVector, FVector>(AttributeBase, SampledPoints, ExtentsSetter))
+				{
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
+				}
+			}
+			else if (PointProperty == EPCGPointProperties::BoundsMax)
+			{
+				auto ExtentsSetter = [](FPCGPoint& InPoint, const FVector& InValue) { InPoint.BoundsMax = InValue; };
+
+				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
+				if (!PCGMetadataOperations::SetValue<float, FVector>(AttributeBase, SampledPoints, ExtentsSetter) &&
+					!PCGMetadataOperations::SetValue<FVector, FVector>(AttributeBase, SampledPoints, ExtentsSetter))
+				{
+					PCGE_LOG(Error, "Attribute %s already exists but its type is not compatible", *LocalSourceAttribute.ToString());
+				}
+			}
 			else if (PointProperty == EPCGPointProperties::Extents)
 			{
-				auto ExtentsSetter = [](FPCGPoint& InPoint, const FVector& InValue) { InPoint.Extents = InValue; };
+				auto ExtentsSetter = [](FPCGPoint& InPoint, const FVector& InValue) { InPoint.SetExtents(InValue); };
 
 				const FPCGMetadataAttributeBase* AttributeBase = SampledData->Metadata->GetConstAttribute(LocalSourceAttribute);
 				if(!PCGMetadataOperations::SetValue<float, FVector>(AttributeBase, SampledPoints, ExtentsSetter) &&

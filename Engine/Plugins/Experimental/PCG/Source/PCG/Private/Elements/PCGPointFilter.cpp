@@ -29,12 +29,28 @@ namespace PCGPointFilterHelpers
 				*(static_cast<float*>(OutData)) = InPoint.Density;
 			};
 		}
+		else if (TargetPointProperty == EPCGPointProperties::BoundsMin)
+		{
+			OutType = EPCGPointFilterConstantType::Vector;
+			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
+			{
+				*(static_cast<FVector*>(OutData)) = InPoint.BoundsMin;
+			};
+		}
+		else if (TargetPointProperty == EPCGPointProperties::BoundsMax)
+		{
+			OutType = EPCGPointFilterConstantType::Vector;
+			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
+			{
+				*(static_cast<FVector*>(OutData)) = InPoint.BoundsMax;
+			};
+		}
 		else if (TargetPointProperty == EPCGPointProperties::Extents)
 		{
 			OutType = EPCGPointFilterConstantType::Vector;
 			return [](const FPCGPoint& InPoint, const UPCGMetadata*, void* OutData)
 			{
-				*(static_cast<FVector*>(OutData)) = InPoint.Extents;
+				*(static_cast<FVector*>(OutData)) = InPoint.GetExtents();
 			};
 		}
 		else if (TargetPointProperty == EPCGPointProperties::Color)

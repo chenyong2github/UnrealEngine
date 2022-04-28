@@ -11,10 +11,10 @@ FPCGPoint::FPCGPoint(const FTransform& InTransform, float InDensity, int32 InSee
 
 FBoxSphereBounds FPCGPoint::GetBounds() const
 {
-	return FBoxSphereBounds(FBox::BuildAABB(FVector::Zero(), Extents).TransformBy(Transform));
+	return FBoxSphereBounds(FBox(BoundsMin, BoundsMax).TransformBy(Transform));
 }
 
 FBoxSphereBounds FPCGPoint::GetDensityBounds() const
 {
-	return FBoxSphereBounds(FBox::BuildAABB(FVector::Zero(), (2 - Steepness) * Extents).TransformBy(Transform));
+	return FBoxSphereBounds(FBox((2 - Steepness) * BoundsMin, (2 - Steepness) * BoundsMax).TransformBy(Transform));
 }

@@ -62,3 +62,13 @@ UPCGComponent* UPCGBlueprintHelpers::GetOriginalComponent(FPCGContext& Context)
 		return Context.SourceComponent;
 	}
 }
+
+void UPCGBlueprintHelpers::SetExtents(FPCGPoint& InPoint, const FVector& InExtents)
+{
+	InPoint.SetExtents(InExtents);
+}
+
+FVector UPCGBlueprintHelpers::GetExtents(const FPCGPoint& InPoint)
+{
+	return InPoint.GetExtents();
+}

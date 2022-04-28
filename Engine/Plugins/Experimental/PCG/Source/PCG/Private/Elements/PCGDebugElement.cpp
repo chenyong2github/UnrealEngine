@@ -136,9 +136,10 @@ namespace PCGDebugElement
 			{
 				const FPCGPoint& Point = Points[PointIndex];
 				InstanceCustomData.Add(Point.Density);
-				InstanceCustomData.Add(Point.Extents[0]);
-				InstanceCustomData.Add(Point.Extents[1]);
-				InstanceCustomData.Add(Point.Extents[2]);
+				const FVector Extents = Point.GetExtents();
+				InstanceCustomData.Add(Extents[0]);
+				InstanceCustomData.Add(Extents[1]);
+				InstanceCustomData.Add(Extents[2]);
 				InstanceCustomData.Add(Point.Color[0]);
 				InstanceCustomData.Add(Point.Color[1]);
 				InstanceCustomData.Add(Point.Color[2]);

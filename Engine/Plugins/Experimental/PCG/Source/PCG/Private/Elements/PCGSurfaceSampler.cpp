@@ -195,7 +195,7 @@ bool FPCGSurfaceSamplerElement::ExecuteInternal(FPCGContext* Context) const
 				if (SpatialInput->GetPointAtPosition(TentativeLocation, OutPoint, SampledData->Metadata) || LoopData.bKeepZeroDensityPoints)
 				{
 					// Apply final parameters on the point
-					OutPoint.Extents = LoopData.PointExtents;
+					OutPoint.SetExtents(LoopData.PointExtents);
 					OutPoint.Density *= (LoopData.bApplyDensityToPoints ? ((Ratio - Chance) / Ratio) : 1.0f);
 					OutPoint.Steepness = LoopData.PointSteepness;
 					OutPoint.Seed = RandomSource.GetCurrentSeed();

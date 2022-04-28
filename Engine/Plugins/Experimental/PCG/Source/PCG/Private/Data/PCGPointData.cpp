@@ -13,7 +13,8 @@ namespace PCGPointHelpers
 	bool GetDistanceRatios(const FPCGPoint& InPoint, const FVector& InPosition, FVector& OutRatios)
 	{
 		FVector LocalPosition = InPoint.Transform.InverseTransformPosition(InPosition);
-		LocalPosition /= InPoint.Extents;
+		LocalPosition -= (InPoint.BoundsMax + InPoint.BoundsMin) / 2;
+		LocalPosition /= InPoint.GetExtents();
 
 		// ]-2+s, 2-s] is the valid range of values
 		const FVector::FReal LowerBound = InPoint.Steepness - 2;
@@ -233,7 +234,8 @@ FPCGPoint UPCGPointData::TransformPoint(const FPCGPoint& InPoint) const
 	FRotator WeightedRotator(0);
 	FVector WeightedScale = FVector::Zero();
 	float WeightedDensity = 0;
-	FVector WeightedExtents = FVector::Zero();
+	FVector WeightedBoundsMin = FVector::Zero();
+	FVector WeightedBoundsMax = FVector::Zero();
 	FVector WeightedColor = FVector::Zero();
 	float WeightedSteepness = 0;
 
@@ -245,7 +247,8 @@ FPCGPoint UPCGPointData::TransformPoint(const FPCGPoint& InPoint) const
 		WeightedRotator += (SourcePoint.Transform.Rotator() * Weight); // TODO: This is wonky
 		WeightedScale += (SourcePoint.Transform.GetScale3D() * Weight);
 		WeightedDensity += PCGPointHelpers::ManhattanDensity(SourcePoint, PointPosition);
-		WeightedExtents += SourcePoint.Extents * Weight;
+		WeightedBoundsMin += SourcePoint.BoundsMin * Weight;
+		WeightedBoundsMax += SourcePoint.BoundsMax * Weight;
 		WeightedColor += SourcePoint.Color * Weight;
 		WeightedSteepness += SourcePoint.Steepness * Weight;
 	}
@@ -257,7 +260,8 @@ FPCGPoint UPCGPointData::TransformPoint(const FPCGPoint& InPoint) const
 	Point.Transform.NormalizeRotation();
 	Point.Transform.SetScale3D(Point.Transform.GetScale3D() * WeightedScale);	
 	Point.Density *= WeightedDensity;
-	Point.Extents *= WeightedExtents; // this assumes that the extents were 1 to begin with
+	Point.BoundsMin = WeightedBoundsMin;
+	Point.BoundsMax = WeightedBoundsMax;
 	Point.Color *= WeightedColor;
 	Point.Steepness *= WeightedSteepness;
 
@@ -300,7 +304,8 @@ bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 	FQuat WeightedQuat = FQuat::Identity;
 	FVector WeightedScale = FVector::ZeroVector;
 	float WeightedDensity = 0;
-	FVector WeightedExtents = FVector::ZeroVector;
+	FVector WeightedBoundsMin = FVector::ZeroVector;
+	FVector WeightedBoundsMax = FVector::ZeroVector;
 	FVector WeightedColor = FVector::ZeroVector;
 	float WeightedSteepness = 0;
 
@@ -312,7 +317,8 @@ bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 		WeightedQuat = PCGPointHelpers::AddQuatWithWeight(WeightedQuat, SourcePoint.Transform.GetRotation(), Weight);
 		WeightedScale += SourcePoint.Transform.GetScale3D() * Weight;
 		WeightedDensity += PCGPointHelpers::ManhattanDensity(SourcePoint, InPosition);
-		WeightedExtents += SourcePoint.Extents * Weight;
+		WeightedBoundsMin += SourcePoint.BoundsMin * Weight;
+		WeightedBoundsMax += SourcePoint.BoundsMax * Weight;
 		WeightedColor += SourcePoint.Color * Weight;
 		WeightedSteepness += SourcePoint.Steepness * Weight;
 	}
@@ -324,7 +330,8 @@ bool UPCGPointData::GetPointAtPosition(const FVector& InPosition, FPCGPoint& Out
 	OutPoint.Transform.SetScale3D(WeightedScale);
 	OutPoint.Transform.SetLocation(InPosition);
 	OutPoint.Density = WeightedDensity;
-	OutPoint.Extents = WeightedExtents;
+	OutPoint.BoundsMin = WeightedBoundsMin;
+	OutPoint.BoundsMax = WeightedBoundsMax;
 	OutPoint.Color = WeightedColor;
 	OutPoint.Steepness = WeightedSteepness;
 

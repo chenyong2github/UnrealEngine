@@ -10,6 +10,8 @@ UENUM()
 enum class EPCGPointProperties : uint8
 {
 	Density,
+	BoundsMin,
+	BoundsMax,
 	Extents,
 	Color,
 	Position,
@@ -37,7 +39,10 @@ public:
 	float Density = 1.0f;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
-	FVector Extents = FVector::One();
+	FVector BoundsMin = -FVector::One();
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
+	FVector BoundsMax = FVector::One();
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	FVector4 Color = FVector4::One();
@@ -50,4 +55,7 @@ public:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Properties|Metadata")
 	int64 MetadataEntry = -1;
+
+	FVector GetExtents() const { return (BoundsMax - BoundsMin) / 2.0; }
+	void SetExtents(const FVector& InExtents) { BoundsMin = -InExtents; BoundsMax = InExtents; }
 };

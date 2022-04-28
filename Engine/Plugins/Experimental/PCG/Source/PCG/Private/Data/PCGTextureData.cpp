@@ -159,7 +159,7 @@ const UPCGPointData* UPCGBaseTextureData::CreatePointData(FPCGContext* Context) 
 
 			const FVector TransformScale = Transform.GetScale3D();
 			// Note: divided by 4 here because the scale is doubled before, and the extents represent half a pixel
-			OutPoint.Extents = FVector(TransformScale.X * XScale / 4.0, TransformScale.Y * YScale / 4.0, 1.0);
+			OutPoint.SetExtents(FVector(TransformScale.X * XScale / 4.0, TransformScale.Y * YScale / 4.0, 1.0));
 			OutPoint.Color = ColorData[X + Y * Width];
 
 			return true;
