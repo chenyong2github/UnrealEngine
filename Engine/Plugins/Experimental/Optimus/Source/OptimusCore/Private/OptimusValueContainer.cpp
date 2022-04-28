@@ -1,4 +1,6 @@
-﻿#include "OptimusValueContainer.h"
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "OptimusValueContainer.h"
 
 FName UOptimusValueContainerGeneratorClass::ValuePropertyName = TEXT("Value");
 
