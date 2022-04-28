@@ -450,6 +450,11 @@ namespace DatasmithSolidworks
 
 		public void ExportLevelVariantSets(List<FConfigurationData> InConfigs)
 		{
+			if (InConfigs == null)
+			{
+				return;
+			}
+
 			// Request existing VariantSet, or create a new one
 			FDatasmithFacadeLevelVariantSets LevelVariantSets = null;
 

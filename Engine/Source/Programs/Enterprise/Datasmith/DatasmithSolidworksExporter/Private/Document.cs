@@ -113,7 +113,11 @@ namespace DatasmithSolidworks
 			List<FConfigurationData> Configs = FConfigurationExporter.ExportConfigurations(this);
 
 			Exporter.ExportMaterials(ExportedMaterialsMap);
-			Exporter.ExportLevelVariantSets(Configs);
+
+			if (Configs != null)
+			{
+				Exporter.ExportLevelVariantSets(Configs);
+			}
 		}
 
 		private void CheckForMaterialUpdatesProc()
