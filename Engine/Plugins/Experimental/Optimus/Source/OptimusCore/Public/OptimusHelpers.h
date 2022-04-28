@@ -9,6 +9,10 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Package.h"
 #include "UObject/Class.h"
+#include "ComputeFramework/Public/ComputeFramework/ShaderParameterMetadataBuilder.h"
+#include "Math/TransformCalculus.h"
+
+struct FShaderValueTypeHandle;
 
 namespace Optimus
 {
@@ -65,4 +69,18 @@ namespace Optimus
 		}
 	};
 
+	FName GetSanitizedNameForHlsl(FName InName);
+
+	template<typename T>
+	void ParametrizedAddParm(FShaderParametersMetadataBuilder& InOutBuilder, const TCHAR* InName)
+	{
+		InOutBuilder.AddParam<T>(InName);
+	}
+
+	void AddParamForType(FShaderParametersMetadataBuilder& InOutBuilder, TCHAR const* InName, FShaderValueTypeHandle const& InValueType);
+
+	FORCEINLINE_DEBUGGABLE FMatrix44f ConvertFTransformToFMatrix44f(const FTransform& InTransform)
+	{
+		return TransformConverter<FMatrix44f>::Convert<FMatrix44d>(InTransform.ToMatrixWithScale());	
+	};
 }

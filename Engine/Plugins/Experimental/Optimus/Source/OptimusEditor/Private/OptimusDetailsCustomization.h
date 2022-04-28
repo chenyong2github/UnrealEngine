@@ -220,3 +220,26 @@ private:
 	TSharedPtr<FOptimusParameterBindingArrayBuilder> ArrayBuilder;
 	TSharedRef<FOptimusParameterBindingCustomization::FColumnSizeData> ColumnSizeData;	
 };
+
+class FOptimusValueContainerCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShared<FOptimusValueContainerCustomization>();
+	}
+
+	FOptimusValueContainerCustomization();
+	// IPropertyTypeCustomization overrides
+	virtual void CustomizeHeader(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		FDetailWidgetRow& InHeaderRow,
+		IPropertyTypeCustomizationUtils& InCustomizationUtils) override;
+
+	virtual void CustomizeChildren(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		IDetailChildrenBuilder& InChildBuilder,
+		IPropertyTypeCustomizationUtils& InCustomizationUtils) override;
+private:
+	TSharedPtr<IPropertyHandle> InnerPropertyHandle;
+};

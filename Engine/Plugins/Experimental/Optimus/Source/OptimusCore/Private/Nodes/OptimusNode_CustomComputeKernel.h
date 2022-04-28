@@ -64,6 +64,8 @@ public:
 	virtual UOptimusNodePin* TryAddPinFromPin(UOptimusNodePin* InSourcePin, FName InNewPinName) override;
 	
 	virtual bool RemoveAddedPin(UOptimusNodePin* InAddedPinToRemove) override;
+
+	virtual FName GetSanitizedNewPinName(FName InPinName) override;
 	
 	// FIXME: Use drop-down with a preset list + allow custom entry.
 	UPROPERTY(EditAnywhere, Category=Settings)

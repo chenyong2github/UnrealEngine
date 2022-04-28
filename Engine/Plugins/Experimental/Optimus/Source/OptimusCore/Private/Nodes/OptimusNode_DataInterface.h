@@ -33,7 +33,7 @@ public:
 
 	int32 GetDataFunctionIndexFromPin(const UOptimusNodePin* InPin) const override;
 
-	void SetDataInterfaceClass(TSubclassOf<UOptimusComputeDataInterface> InDataInterfaceClass);
+	virtual void SetDataInterfaceClass(TSubclassOf<UOptimusComputeDataInterface> InDataInterfaceClass);
 	
 protected:
 	void ConstructNode() override;
@@ -45,7 +45,8 @@ private:
 		const TMap<FString, const FShaderFunctionDefinition *>& InReadFunctionMap,
 		const TMap<FString, const FShaderFunctionDefinition *>& InWriteFunctionMap
 		);
-	
+
+protected:
 	// The class of the data interface that this node represents. We call the CDO
 	// to interrogate display names and pin definitions. This may change in the future once
 	// data interfaces get tied closer to the objects they proxy.

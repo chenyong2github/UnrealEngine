@@ -7,6 +7,7 @@
 #include "SOptimusDataTypeSelector.h"
 
 #include "OptimusDataTypeRegistry.h"
+#include "OptimusValueContainer.h"
 #include "OptimusShaderText.h"
 #include "OptimusBindingTypes.h"
 #include "IOptimusParameterBindingProvider.h"
@@ -52,6 +53,10 @@ void FOptimusDataTypeRefCustomization::CustomizeHeader(
 	if (InPropertyHandle->HasMetaData(FName(TEXT("UseInVariable"))))
 	{
 		UsageMask |= EOptimusDataTypeUsageFlags::Variable;
+	}
+	if (InPropertyHandle->HasMetaData(FName(TEXT("UseInAnimAttribute"))))
+	{
+		UsageMask |= EOptimusDataTypeUsageFlags::AnimAttributes;
 	}
 
 	TypeNameProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDataTypeRef, TypeName));
@@ -753,6 +758,49 @@ void FOptimusParameterBindingArrayCustomization::CustomizeChildren(TSharedRef<IP
                                                                    IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& InCustomizationUtils)
 {
 	InChildBuilder.AddCustomBuilder(ArrayBuilder.ToSharedRef());
+}
+
+FOptimusValueContainerCustomization::FOptimusValueContainerCustomization()
+{
+}
+
+void FOptimusValueContainerCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle,
+	FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& InCustomizationUtils)
+{
+	uint32 NumChildren = 0;
+	InPropertyHandle->GetNumChildren(NumChildren);
+	
+	// During reordering, we may have zero children temporarily
+	if (NumChildren > 0)
+	{
+		InnerPropertyHandle = InPropertyHandle->GetChildHandle(UOptimusValueContainerGeneratorClass::ValuePropertyName, true);
+
+		if (ensure(InnerPropertyHandle.IsValid()))
+		{
+			InHeaderRow.NameContent()
+			[
+				InPropertyHandle->CreatePropertyNameWidget()
+			]
+			.ValueContent()
+			[
+				InnerPropertyHandle->CreatePropertyValueWidget()
+			];
+		}
+	}
+}
+
+void FOptimusValueContainerCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle,
+	IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& InCustomizationUtils)
+{
+	if (InnerPropertyHandle)
+	{
+		uint32 NumChildren = 0;
+		InnerPropertyHandle->GetNumChildren(NumChildren)	;
+		for (uint32 Index = 0; Index < NumChildren; Index++)
+		{
+			InChildBuilder.AddProperty(InnerPropertyHandle->GetChildHandle(Index).ToSharedRef());
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

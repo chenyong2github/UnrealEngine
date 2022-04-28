@@ -28,4 +28,5 @@ public:
 	
 	virtual bool RemoveAddedPin(UOptimusNodePin* InAddedPinToRemove) = 0;
 
+	virtual FName GetSanitizedNewPinName(FName InPinName)= 0;;
 };

@@ -223,6 +223,15 @@ bool UOptimusNode_CustomComputeKernel::RemoveAddedPin(UOptimusNodePin* InAddedPi
 	return false;
 }
 
+FName UOptimusNode_CustomComputeKernel::GetSanitizedNewPinName(FName InPinName)
+{
+	FName NewName = Optimus::GetSanitizedNameForHlsl(InPinName);
+
+	NewName = Optimus::GetUniqueNameForScope(this, NewName);
+
+	return NewName;
+}
+
 #if WITH_EDITOR
 void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 	FPropertyChangedEvent& PropertyChangedEvent

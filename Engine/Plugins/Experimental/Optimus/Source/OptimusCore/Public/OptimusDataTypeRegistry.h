@@ -59,6 +59,27 @@ public:
 	    EOptimusDataTypeUsageFlags InUsageFlags
 		);
 
+	// Register a complex type that has corresponding types on both the UE and HLSL side
+	// that requires a custom conversion function
+	OPTIMUSCORE_API bool RegisterType(
+		UScriptStruct *InStructType,
+		FShaderValueTypeHandle InShaderValueType,
+		PropertyValueConvertFuncT InPropertyValueConvertFunc,	
+		TOptional<FLinearColor> InPinColor,
+		bool bInShowElements,
+		EOptimusDataTypeUsageFlags InUsageFlags
+		);
+	
+	OPTIMUSCORE_API bool RegisterType(
+		UScriptStruct *InStructType,
+		const FText& InDisplayName,
+		FShaderValueTypeHandle InShaderValueType,
+		PropertyValueConvertFuncT InPropertyValueConvertFunc,
+		TOptional<FLinearColor> InPinColor,
+		bool bInShowElements,
+		EOptimusDataTypeUsageFlags InUsageFlags
+		);	
+
 	// Register a complex type that has only has correspondence on the UE side.
 	OPTIMUSCORE_API bool RegisterType(
 	    UClass* InClassType,

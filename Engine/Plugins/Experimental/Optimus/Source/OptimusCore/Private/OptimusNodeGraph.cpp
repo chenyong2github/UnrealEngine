@@ -18,6 +18,8 @@
 #include "Containers/Queue.h"
 #include "Nodes/OptimusNode_ConstantValue.h"
 #include "Nodes/OptimusNode_DataInterface.h"
+#include "Nodes/OptimusNode_AnimAttributeDataInterface.h"
+
 #include "Nodes/OptimusNode_ComputeKernelFunction.h"
 #include "Templates/Function.h"
 #include "UObject/Package.h"
@@ -30,6 +32,8 @@
 #include "Nodes/OptimusNode_FunctionReference.h"
 #include "Nodes/OptimusNode_GraphTerminal.h"
 #include "Nodes/OptimusNode_SubGraphReference.h"
+
+#include "DataInterfaces/OptimusDataInterfaceAnimAttribute.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusNodeGraph"
@@ -182,6 +186,15 @@ UOptimusNode* UOptimusNodeGraph::AddDataInterfaceNode(
 	const FVector2D& InPosition
 	)
 {
+	if (InDataInterfaceClass == UOptimusAnimAttributeDataInterface::StaticClass())
+	{
+		return AddNodeInternal(UOptimusNode_AnimAttributeDataInterface::StaticClass(), InPosition,
+			[InDataInterfaceClass](UOptimusNode *InNode)
+			{
+				Cast<UOptimusNode_AnimAttributeDataInterface>(InNode)->SetDataInterfaceClass(InDataInterfaceClass);		
+			});
+	}
+
 	return AddNodeInternal(UOptimusNode_DataInterface::StaticClass(), InPosition,
 		[InDataInterfaceClass](UOptimusNode *InNode)
 		{
@@ -591,8 +604,8 @@ bool UOptimusNodeGraph::AddPinAndLink(UOptimusNode* InTargetNode, UOptimusNodePi
 	FOptimusCompoundAction *Action = new FOptimusCompoundAction(TEXT("Add Pin"));
 
 	// Create a name for the new pin up front, shared between two sub actions
-	const FName PinName = Optimus::GetUniqueNameForScope(InTargetNode, InSourcePin->GetFName());
-	
+	FName PinName = AdderPinProvider->GetSanitizedNewPinName(InSourcePin->GetFName());
+
 	Action->AddSubAction<FOptimusNodeAction_ConnectAdderPin>(AdderPinProvider, InSourcePin, PinName);
 
 

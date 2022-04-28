@@ -36,8 +36,7 @@ int32 UOptimusNode_DataInterface::GetDataFunctionIndexFromPin(const UOptimusNode
 
 	// FIXME: This information should be baked into the pin definition so we don't have to
 	// look it up repeatedly.
-	const UOptimusComputeDataInterface *DataInterfaceCDO = Cast<UOptimusComputeDataInterface>(DataInterfaceClass->GetDefaultObject());
-	const TArray<FOptimusCDIPinDefinition> PinDefinitions = DataInterfaceCDO->GetPinDefinitions();
+	const TArray<FOptimusCDIPinDefinition> PinDefinitions = DataInterfaceData->GetPinDefinitions();
 
 	int32 PinIndex = INDEX_NONE;
 	for (int32 Index = 0 ; Index < PinDefinitions.Num(); ++Index)
@@ -58,11 +57,11 @@ int32 UOptimusNode_DataInterface::GetDataFunctionIndexFromPin(const UOptimusNode
 	TArray<FShaderFunctionDefinition> FunctionDefinitions;
 	if (InPin->GetDirection() == EOptimusNodePinDirection::Input)
 	{
-		DataInterfaceCDO->GetSupportedOutputs(FunctionDefinitions);
+		DataInterfaceData->GetSupportedOutputs(FunctionDefinitions);
 	}
 	else
 	{
-		DataInterfaceCDO->GetSupportedInputs(FunctionDefinitions);
+		DataInterfaceData->GetSupportedInputs(FunctionDefinitions);
 	}
 	
 	return FunctionDefinitions.IndexOfByPredicate(
@@ -86,12 +85,10 @@ void UOptimusNode_DataInterface::ConstructNode()
 {
 	if (ensure(!DataInterfaceClass.IsNull()))
 	{
-		UOptimusComputeDataInterface *DataInterfaceCDO = Cast<UOptimusComputeDataInterface>(DataInterfaceClass->GetDefaultObject());
-
-		if (ensure(DataInterfaceCDO))
+		if (ensure(DataInterfaceData))
 		{
-			SetDisplayName(FText::FromString(DataInterfaceCDO->GetDisplayName()));
-			CreatePinsFromDataInterface(DataInterfaceCDO);
+			SetDisplayName(FText::FromString(DataInterfaceData->GetDisplayName()));
+			CreatePinsFromDataInterface(DataInterfaceData);
 		}
 	}
 }

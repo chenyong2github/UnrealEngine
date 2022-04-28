@@ -15,6 +15,7 @@
 #include "OptimusEditorStyle.h"
 
 #include "OptimusDataType.h"
+#include "OptimusValueContainer.h"
 #include "OptimusResourceDescription.h"
 #include "OptimusShaderText.h"
 #include "OptimusBindingTypes.h"
@@ -110,6 +111,7 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 	RegisterPropertyCustomization(FOptimusShaderText::StaticStruct()->GetFName(), &FOptimusShaderTextCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusParameterBinding::StaticStruct()->GetFName(), &FOptimusParameterBindingCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusParameterBindingArray::StaticStruct()->GetFName(), &FOptimusParameterBindingArrayCustomization::MakeInstance);
+	RegisterPropertyCustomization(UOptimusValueContainer::StaticClass()->GetFName(), &FOptimusValueContainerCustomization::MakeInstance);
 }
 
 void FOptimusEditorModule::UnregisterPropertyCustomizations()
