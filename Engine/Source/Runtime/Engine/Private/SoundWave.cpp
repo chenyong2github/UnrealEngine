@@ -1082,6 +1082,7 @@ ESoundAssetCompressionType USoundWave::GetSoundAssetCompressionType() const
 
 		if (!bDefaultCompressionTypeCached)
 		{
+			UAudioSettings* Settings = GetMutableDefault<UAudioSettings>();
 			DefaultAudioCompressionType = Audio::ToSoundAssetCompressionType(Settings->DefaultAudioCompressionType);
 			bDefaultCompressionTypeCached = true;
 		}
