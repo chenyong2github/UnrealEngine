@@ -11,9 +11,9 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimTrace.h"
 #include "Animation/ActiveStateMachineScope.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
 
 #if WITH_EDITORONLY_DATA
-#include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Animation/AnimBlueprint.h"
 #endif
 
