@@ -167,7 +167,7 @@ void UGameplayTasksComponent::OnTaskEnded(UGameplayTask& Task)
 void UGameplayTasksComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty >& OutLifetimeProps) const
 {
 	// Intentionally not calling super: We do not want to replicate bActive which controls ticking. We sometimes need to tick on client predictively.
-	DISABLE_ALL_CLASS_REPLICATED_PROPERTIES(Super, EFieldIteratorFlags::IncludeSuper);
+	DISABLE_ALL_CLASS_REPLICATED_PROPERTIES_FAST(Super, EFieldIteratorFlags::IncludeSuper);
 
 	const FDoRepLifetimeParams Params{ COND_SkipOwner, REPNOTIFY_Always, true };
 	DOREPLIFETIME_WITH_PARAMS_FAST(UGameplayTasksComponent, SimulatedTasks, Params);

@@ -186,7 +186,7 @@ void ResetReplicatedLifetimeProperty(const NetworkingPrivate::FRepPropertyDescri
 void DisableAllReplicatedPropertiesOfClass(const NetworkingPrivate::FRepClassDescriptor& ClassDescriptor, EFieldIteratorFlags::SuperClassFlags SuperClassBehavior, TArray<FLifetimeProperty>& OutLifetimeProps)
 {
 	const int32 StartIndex = (EFieldIteratorFlags::IncludeSuper == SuperClassBehavior) ? 0 : ClassDescriptor.StartRepIndex;
-	for (int32 RepIndex = StartIndex; RepIndex < ClassDescriptor.EndRepIndex; ++RepIndex)
+	for (int32 RepIndex = StartIndex; RepIndex <= ClassDescriptor.EndRepIndex; ++RepIndex)
 	{
 		FLifetimeProperty* RegisteredPropertyPtr = OutLifetimeProps.FindByPredicate([&RepIndex](const FLifetimeProperty& Var) { return Var.RepIndex == RepIndex; });
 
