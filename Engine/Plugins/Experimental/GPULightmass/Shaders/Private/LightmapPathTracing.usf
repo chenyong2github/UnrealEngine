@@ -154,7 +154,7 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 	}
 }
 
-FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
+FPathTracingPayload TraceTransparentRay(RayDesc Ray, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
 {
 	const uint RayFlags = IsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 	const uint MissShaderIndex = 0;
@@ -173,7 +173,7 @@ FPathTracingPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCa
 		// also avoid noise from hot spots (they can be properly
 		// importance sampled if a capturing skylight is added)
 		const bool bIgnoreSky = !IsCameraRay;
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(RayCone, LaunchIndex, bIgnoreSky);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(LaunchIndex, bIgnoreSky);
 		// Trace the ray
 		TraceRay(
 			TLAS,
@@ -346,9 +346,6 @@ void PathTracingKernel(
 	float LightPickingCdf[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
 	
 	Ray.Direction = normalize(Ray.Direction);
-
-	FRayCone RayCone = (FRayCone)0;
-	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 	
 	// path state variables (these cary information between bounces)
 	float3 PathThroughput = 1.0;
@@ -368,7 +365,6 @@ void PathTracingKernel(
 		if (bIsCameraRay)
 		{
 			// GPULightmass fakes a 'camera' ray that hits the lightmap texel perpendicularly
-			Payload.RayCone = (FRayCone)0;
 			Payload.TranslatedWorldPos = TranslatedWorldPosition;
 			Payload.WorldNormal = ShadingNormal;
 			Payload.Radiance = float3(0, 0, 0);
@@ -389,7 +385,7 @@ void PathTracingKernel(
 		}
 		else
 		{
-			Payload = TraceTransparentRay(Ray, RayCone, false , bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
+			Payload = TraceTransparentRay(Ray, false , bIsLastBounce, bIncludeEmissive, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
 		}
 		
 		if (Payload.IsMiss())
@@ -740,9 +736,6 @@ void PathTracingKernel(
 		// from this point on, we don't need to include lights in the trace call
 		// because NEE handled it for us
 		NumVisibleLights = 0;
-		
-		// update ray cone for the next bounce
-		RayCone = Payload.RayCone;
 	}
 	
 #if USE_IRRADIANCE_CACHING

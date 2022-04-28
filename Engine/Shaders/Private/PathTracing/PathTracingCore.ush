@@ -68,11 +68,10 @@ struct FPathState
 	float3 Albedo;                  //  6 bytes // half precision
 	float3 Normal;                  //  6 bytes // half precision
 	RayDesc Ray;                    // 12+12 = 24 bytes (TMin/TMax do not need to be stored)
-	FRayCone RayCone;               //  4 bytes // half precision
 	float3 PathThroughput;          // 12 bytes
 	float PathRoughness;            //  2 bytes // half precision
 	float3 SigmaT; // Extinction    //  6 bytes // half precision 
-									// 88 bytes total (see FPathTracingPackedPathState)
+									// 84 bytes total (see FPathTracingPackedPathState)
 
 	void WritePixel(uint2 TextureIndex)
 	{
@@ -132,7 +131,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		// also avoid noise from hot spots (they can be properly
 		// importance sampled if a capturing skylight is added)
 		const bool bIgnoreSky = !bIsCameraRay;
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(PathState.RayCone, PathState.PixelIndex, bIgnoreSky);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(PathState.PixelIndex, bIgnoreSky);
 		// Trace the ray
 		TraceRay(
 			TLAS,
@@ -149,7 +148,6 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			// we didn't hit any real geometry, but we did hit the volume's blocker geometry
 			// create a virtual hit with it here
 			PackedPayload = VolumeGetBlockerHit(VolumeIsectList.BlockerID, PathState.Ray.Origin, PathState.Ray.Direction, VolumeIsectList.BlockerHitT);
-			PackedPayload.SetRayCone(PropagateRayCone(PathState.RayCone, 0.0, VolumeIsectList.BlockerHitT));
 		}
 
 		// Loop over lights to capture their contribution
@@ -167,7 +165,6 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 				//       but is not consistent with how reflections behave and the sorting order will be arbitrary
 				FPathTracingPayload LightHitPayload = (FPathTracingPayload)0; // clear all fields
 				LightHitPayload.HitT = LightHit.HitT;
-				LightHitPayload.RayCone = PropagateRayCone(PathState.RayCone, 0.0, LightHit.HitT);
 				LightHitPayload.Radiance = LightHit.Radiance;
 				LightHitPayload.ShadingModelID = SHADINGMODELID_UNLIT;
 				// alpha composite assumes premult, which allows emissive hits that are fully transparent
@@ -273,7 +270,6 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 							{
 								// stash this hit for next time
 								Payload = CreateMediumHitPayload(Interval.VolumeTMin, TranslatedWorldPos, Result);
-								Payload.RayCone = PropagateRayCone(PathState.RayCone, 0.0, Interval.VolumeTMin);
 								PayloadThroughput = Contrib / SelectionWeight;
 							}
 						}
@@ -447,7 +443,7 @@ struct FProbeResult
 FProbeResult TraceProbeRay(RayDesc Ray, uint2 PixelCoord)
 {
 	// Trace a short ray to see if we escaped the surface
-	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload((FRayCone)0, PixelCoord, true);
+	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(PixelCoord, true);
 	// TODO: use smaller payload + flag to skip shading work? (only want smooth+geo normals)
 	//       however supporting blockers would require some shading ...
 	const uint RayFlags = 0;
@@ -728,8 +724,6 @@ FPathState CreatePathState(int2 PixelIndex)
 		// move ray origin back to the near plane for consistency
 		Output.Ray.Origin = Origin + Output.Ray.Direction * (View.NearPlane * rcp(dot(ViewZ, Output.Ray.Direction)));
 	}
-
-	Output.RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
 	// path state variables (these cary information between bounces)
 	Output.PathThroughput = 1.0;
@@ -1182,9 +1176,6 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		}
 
 	}
-
-	// update ray cone for the next bounce
-	PathState.RayCone = Payload.RayCone;
 
 	// this path should continue bouncing
 	return true;

@@ -46,16 +46,12 @@ float3 PayloadDecodeUnitVector(uint Encoded)
 struct FPackedPathTracingPayload : FMinimalPayload
 {
 	// float FMinimalPayload::HitT                       // 4  bytes
-	uint PackedRayCone;                                  // 4  bytes (fp16 width, fp16 spread)
 	uint PackedPixelCoord;                               // 4  bytes
-	uint PackedData[13];								 // 52 bytes (encoded data, depends on shading model and ray type)
+	uint PackedData[14];								 // 56 bytes (encoded data, depends on shading model and ray type)
 														 // 64 bytes total
 
 	void SetPixelCoord(uint2 PixelCoord) { PackedPixelCoord = (PixelCoord.x & 0xFFFF) | (PixelCoord.y << 16); }
 	uint2 GetPixelCoord() { return uint2(PackedPixelCoord & 0xFFFF, PackedPixelCoord >> 16); }
-
-	FRayCone GetRayCone() { return UnpackRayCone(PackedRayCone); }
-	void SetRayCone(FRayCone RayCone) { PackedRayCone = PackRayCone(RayCone); }
 
 	uint GetFlags() { return (PackedData[7] >> 23) & 0x3F; }
 	void SetFlag(uint Flag) { PackedData[7] |= Flag << 23; }
@@ -119,7 +115,6 @@ struct FPackedPathTracingPayload : FMinimalPayload
 // This payload structure is the expanded version of the above which is more convenient to work with
 struct FPathTracingPayload : FMinimalPayload
 {
-	FRayCone RayCone;
 	float3 Radiance;
 	float3 WorldGeoNormal;           // normal of the actual triangle (faceted)
 	float3 WorldNormal;              // normal output of the material (includes normal/bump)
@@ -190,10 +185,9 @@ struct FPathTracingPayload : FMinimalPayload
 	}
 };
 
-FPackedPathTracingPayload InitPathTracingPayload(FRayCone RayCone, uint2 PixelCoord, bool bIgnoreSkyMaterials)
+FPackedPathTracingPayload InitPathTracingPayload(uint2 PixelCoord, bool bIgnoreSkyMaterials)
 {
 	FPackedPathTracingPayload Output = (FPackedPathTracingPayload)0;
-	Output.PackedRayCone = PackRayCone(RayCone);
 	Output.SetPixelCoord(PixelCoord);
 	if (bIgnoreSkyMaterials)
 	{
@@ -220,7 +214,6 @@ FPackedPathTracingPayload PackPathTracingPayload(FPathTracingPayload Input)
 {
 	FPackedPathTracingPayload Output = (FPackedPathTracingPayload)0;
 	Output.HitT = Input.HitT;
-	Output.PackedRayCone = PackRayCone(Input.RayCone);
 
 	Output.PackedData[0] = f32tof16(Input.Radiance.x);
 	Output.PackedData[0] |= f32tof16(Input.Radiance.y) << 16;
@@ -273,7 +266,6 @@ FPathTracingPayload UnpackPathTracingPayload(FPackedPathTracingPayload Input, Ra
 	FPathTracingPayload Output = (FPathTracingPayload)0;
 
 	Output.HitT = Input.HitT;
-	Output.RayCone = Input.GetRayCone();
 	Output.Radiance.x = f16tof32(Input.PackedData[0]);
 	Output.Radiance.y = f16tof32(Input.PackedData[0] >> 16);
 	Output.Radiance.z = f16tof32(Input.PackedData[1]);

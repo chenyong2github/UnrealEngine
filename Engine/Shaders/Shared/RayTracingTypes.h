@@ -45,13 +45,12 @@ struct FPathTracingPackedPathState {
 	uint16    Normal[3];
 	FVector3f RayOrigin;
 	FVector3f RayDirection;
-	uint32    RayCone;
 	FVector3f PathThroughput;
 	uint16    PathRoughness;
 	uint16    SigmaT[3];
 };
 
-static_assert(sizeof(FPathTracingPackedPathState) == 88, "Packed Path State size should be minimized");
+static_assert(sizeof(FPathTracingPackedPathState) == 84, "Packed Path State size should be minimized");
 
 #else
 
@@ -87,7 +86,6 @@ struct FPathTracingPackedPathState {
 	uint3     PackedAlbedoNormal;
 	float3    RayOrigin;
 	float3    RayDirection;
-	uint      PackedRayCone;
 	float3    PathThroughput;
 	uint2     PackedRoughnessSigma;
 };

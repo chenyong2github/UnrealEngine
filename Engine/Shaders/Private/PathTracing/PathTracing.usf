@@ -59,8 +59,6 @@ FPathState LoadPathStateData(uint Index)
 	Output.Ray.Direction = Data.RayDirection;
 	Output.Ray.TMin = 0;
 	Output.Ray.TMax = POSITIVE_INFINITY;
-	Output.RayCone.Width = f16tof32(Data.PackedRayCone);
-	Output.RayCone.SpreadAngle = f16tof32(Data.PackedRayCone >> 16);
 	Output.PathThroughput = Data.PathThroughput;
 	Output.PathRoughness = f16tof32(Data.PackedRoughnessSigma.x);
 	Output.SigmaT.x = f16tof32(Data.PackedRoughnessSigma.x >> 16);
@@ -83,7 +81,6 @@ void StorePathStateData(FPathState PathState, uint Index)
 	Data.PackedAlbedoNormal.z = f32tof16(PathState.Normal.y) | (f32tof16(PathState.Normal.z) << 16);
 	Data.RayOrigin = PathState.Ray.Origin;
 	Data.RayDirection = PathState.Ray.Direction;
-	Data.PackedRayCone = f32tof16(PathState.RayCone.Width) | (f32tof16(PathState.RayCone.SpreadAngle) << 16);
 	Data.PathThroughput = PathState.PathThroughput;
 	Data.PackedRoughnessSigma.x = f32tof16(PathState.PathRoughness) | (f32tof16(PathState.SigmaT.x) << 16);
 	Data.PackedRoughnessSigma.y = f32tof16(PathState.SigmaT.y) | (f32tof16(PathState.SigmaT.z) << 16);
