@@ -259,7 +259,11 @@ namespace DatasmithRevitExporter
 			InstanceNode InInstanceNode // family instance output node
 		)
 		{
+#if REVIT_API_2023
+			Element CurrentFamilySymbol = GetElement(InInstanceNode.GetSymbolGeometryId().SymbolId);
+#else
 			Element CurrentFamilySymbol = GetElement(InInstanceNode.GetSymbolId());
+#endif
 
 			if (CurrentFamilySymbol != null)
 			{
@@ -290,7 +294,11 @@ namespace DatasmithRevitExporter
 			InstanceNode InInstanceNode // family instance output node
 		)
 		{
+#if REVIT_API_2023
+			Element CurrentFamilySymbol = GetElement(InInstanceNode.GetSymbolGeometryId().SymbolId);
+#else
 			Element CurrentFamilySymbol = GetElement(InInstanceNode.GetSymbolId());
+#endif
 
 			if (CurrentFamilySymbol != null)
 			{
@@ -314,7 +322,11 @@ namespace DatasmithRevitExporter
 			LinkNode InLinkNode // linked Revit document output node
 		)
 		{
+#if REVIT_API_2023
+			ElementType CurrentInstanceType = GetElement(InLinkNode.SymbolId) as ElementType;
+#else
 			ElementType CurrentInstanceType = GetElement(InLinkNode.GetSymbolId()) as ElementType;
+#endif
 
 			if (CurrentInstanceType != null)
 			{
@@ -348,7 +360,13 @@ namespace DatasmithRevitExporter
 				PopDocument();
 			}
 
-			if (GetElement(InLinkNode.GetSymbolId()) as ElementType != null)
+#if REVIT_API_2023
+			ElementType CurrentInstanceType = GetElement(InLinkNode.SymbolId) as ElementType;
+#else
+			ElementType CurrentInstanceType = GetElement(InLinkNode.GetSymbolId()) as ElementType;
+#endif
+
+			if (CurrentInstanceType != null)
 			{
 				// Forget the current instance being exported.
 				PopInstance("Link End");

@@ -433,6 +433,8 @@ namespace DatasmithRevitExporter
 				CmdGUID = "66E62F4C-9F5A-4A3F-94C4-E6DCE838C413";
 #elif REVIT_API_2022
 				CmdGUID = "3478AAF5-75A6-4E6F-BBF8-FFD791CA1801";
+#elif REVIT_API_2023
+				CmdGUID = "CB3186CC-1714-497A-9A54-A5D4B726524A";
 #else
 				#error This version of Revit is not supported yet.
 #endif

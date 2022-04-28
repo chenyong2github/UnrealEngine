@@ -1893,7 +1893,7 @@ namespace DatasmithRevitExporter
 
 					if (distanceProperty != null && distanceProperty.Value != 0.0)
 					{
-#if REVIT_API_2021 || REVIT_API_2022
+#if REVIT_API_2021 || REVIT_API_2022 || REVIT_API_2023
 						return (float) UnitUtils.Convert(distanceProperty.Value, distanceProperty.GetUnitTypeId(), UnitTypeId.Feet);
 #else
 						return (float) UnitUtils.Convert(distanceProperty.Value, distanceProperty.DisplayUnitType, DisplayUnitType.DUT_DECIMAL_FEET);
