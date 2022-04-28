@@ -375,14 +375,6 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 
 		Chunk.BulkData.Serialize(Ar, Owner, SerialzeChunkId, false);
 
-		// Streaming chunks are saved with a size of 0 because they are stored separately.
-		// IsBulkDataLoaded() returns true for this empty bulk data. Remove the empty
-		// bulk data to allow unloaded streaming chunks to be detected.
-		if (Chunk.BulkData.GetBulkDataSize() == 0)
-		{
-			Chunk.BulkData.RemoveBulkData();
-		}
-
 #if WITH_EDITORONLY_DATA
 		if (!bCooked)
 		{
@@ -391,6 +383,14 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 			{
 				Chunk.ShortenKey(Chunk.DerivedDataKey, Chunk.ShortDerivedDataKey);
 			}
+		}
+
+		// Streaming chunks are saved with a size of 0 because they are stored separately.
+		// IsBulkDataLoaded() returns true for this empty bulk data. Remove the empty
+		// bulk data to allow unloaded streaming chunks to be detected.
+		if (Chunk.BulkData.GetBulkDataSize() == 0 && !Chunk.DerivedDataKey.IsEmpty())
+		{
+			Chunk.BulkData.RemoveBulkData();
 		}
 #endif // WITH_EDITORONLY_DATA
 

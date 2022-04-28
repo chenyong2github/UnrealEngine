@@ -881,7 +881,10 @@ void FTextureCacheDerivedDataWorker::DoWork()
 				const FSharedString Name(TexturePathName);
 				for (FTexture2DMipMap& Mip : DerivedData->Mips)
 				{
-					if (!Mip.BulkData.IsBulkDataLoaded())
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+					const bool bPagedToDerivedData = Mip.bPagedToDerivedData;
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+					if (bPagedToDerivedData)
 					{
 						Mip.DerivedData = FDerivedData(Name, ConvertLegacyCacheKey(DerivedData->GetDerivedDataMipKeyString(MipIndex, Mip)));
 					}
@@ -1580,6 +1583,9 @@ private:
 
 				FSharedString MipName(WriteToString<256>(Output.GetName(), TEXT(" [MIP "), MipIndex, TEXT("]")));
 				NewMip->DerivedData = FDerivedData(MoveTemp(MipName), Params.CacheKey, MipId);
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+				NewMip->bPagedToDerivedData = true;
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 			}
 
 			DerivedData.Mips.Add(NewMip.Release());

@@ -148,14 +148,6 @@ void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 	BulkData.Serialize(Ar, Owner, MipIdx, false);
 #endif
 
-	// Streaming mips are saved with a size of 0 because they are stored separately.
-	// IsBulkDataLoaded() returns true for this empty bulk data. Remove the empty
-	// bulk data to allow unloaded streaming mips to be detected.
-	if (BulkData.GetBulkDataSize() == 0)
-	{
-		BulkData.RemoveBulkData();
-	}
-
 	Ar << SizeX;
 	Ar << SizeY;
 	Ar << SizeZ;
@@ -163,9 +155,21 @@ void FTexture2DMipMap::Serialize(FArchive& Ar, UObject* Owner, int32 MipIdx)
 #if WITH_EDITORONLY_DATA
 	if (!Ar.IsFilterEditorOnly())
 	{
-		bool bLocalPagedToDerivedData = DerivedData.HasData();
 		Ar << FileRegionType;
-		Ar << bLocalPagedToDerivedData;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+		Ar << bPagedToDerivedData;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	}
+
+	// Streaming mips are saved with a size of 0 because they are stored separately.
+	// IsBulkDataLoaded() returns true for this empty bulk data. Remove the empty
+	// bulk data to allow unloaded streaming mips to be detected.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	const bool bLocalPagedToDerivedData = bPagedToDerivedData;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	if (BulkData.GetBulkDataSize() == 0 && bLocalPagedToDerivedData)
+	{
+		BulkData.RemoveBulkData();
 	}
 #endif // #if WITH_EDITORONLY_DATA
 }
@@ -189,6 +193,9 @@ int64 FTexture2DMipMap::StoreInDerivedDataCache(const FStringView InKey, const F
 	GetCache().PutValue({{Name, Key, MoveTemp(Value), Policy}}, AsyncOwner);
 	AsyncOwner.KeepAlive();
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	bPagedToDerivedData = true;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 	DerivedData = FDerivedData(Name, Key);
 	BulkData.RemoveBulkData();
 	return BulkDataSizeInBytes;
