@@ -377,6 +377,8 @@ struct FAGXRHICommandCreateLinearTexture : public FRHICommand<FAGXRHICommandCrea
 
 void FAGXRHIBuffer::CreateLinearTexture(EPixelFormat InFormat, FRHIResource* InParent, const FAGXLinearTextureDescriptor* InLinearTextureDescriptor)
 {
+	SCOPED_AUTORELEASE_POOL;
+
 	if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess|BUF_ShaderResource) && GAGXBufferFormats[InFormat].LinearTextureFormat != MTLPixelFormatInvalid)
 	{
 		if (IsRunningRHIInSeparateThread() && !IsInRHIThread() && !FRHICommandListExecutor::GetImmediateCommandList().Bypass())
