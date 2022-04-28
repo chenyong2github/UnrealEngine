@@ -38,6 +38,7 @@
 		"WindowsNoEditor",
 		"Switch",
 		"XboxOne",
-		"XSX"
+		"XSX",
+		"HoloLens"
 	]
 }
