@@ -1957,3 +1957,25 @@ void FD3D12Adapter::DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool 
 }
 
 #endif // TRACK_RESOURCE_ALLOCATIONS
+
+void FD3D12Adapter::SetResidencyPriority(ID3D12Pageable* Pageable, D3D12_RESIDENCY_PRIORITY HeapPriority, uint32 GPUIndex)
+{
+#if D3D12_RHI_RAYTRACING // ID3D12Device5 is currently tied to DXR support
+	// GUID for our custom private data that holds the current priority
+	static const GUID DataGuid = GUID{ 0xB365961D, 0xA209, 0x4475, { 0x84, 0x9B, 0xDA, 0xFF, 0x90, 0x91, 0x2E, 0xB1 } };
+
+	const uint32 DataSize = uint32(sizeof(HeapPriority));
+	uint32 ExistingDataSize = DataSize;
+	D3D12_RESIDENCY_PRIORITY ExistingPriority = (D3D12_RESIDENCY_PRIORITY)0;
+
+	HRESULT Result = Pageable->GetPrivateData(DataGuid, &ExistingDataSize, &ExistingPriority);
+
+	if (!SUCCEEDED(Result) || ExistingDataSize != DataSize || ExistingPriority != HeapPriority)
+	{
+		FD3D12Device* NodeDevice = GetDevice(GPUIndex);
+		NodeDevice->GetDevice5()->SetResidencyPriority(1, &Pageable, &HeapPriority);
+		Pageable->SetPrivateData(DataGuid, DataSize, &HeapPriority);
+	}
+#endif // D3D12_RHI_RAYTRACING
+}
+

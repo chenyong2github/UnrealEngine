@@ -446,6 +446,8 @@ public:
 	void SubmitGapRecorderTimestamps();
 #endif
 
+	void SetResidencyPriority(ID3D12Pageable* Pageable, D3D12_RESIDENCY_PRIORITY HeapPriority, uint32 GPUIndex);
+
 protected:
 
 	virtual void CreateRootDevice(bool bWithDebug);
