@@ -19,6 +19,7 @@ public class MediaPlateEditor : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
+				"DesktopWidgets",
 				"EditorStyle",
 				"Engine",
 				"InputCore",

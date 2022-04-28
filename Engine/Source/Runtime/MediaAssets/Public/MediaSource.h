@@ -13,7 +13,7 @@
 #include "MediaSource.generated.h"
 
 /** Delegate for creating a media source from a string. */
-DECLARE_DELEGATE_RetVal_OneParam(UMediaSource*, FMediaSourceSpawnDelegate, const FString&);
+DECLARE_DELEGATE_RetVal_TwoParams(UMediaSource*, FMediaSourceSpawnDelegate, const FString&, UObject*);
 
 /**
  * Abstract base class for media sources.
@@ -71,9 +71,10 @@ public:
 	 * Call this to try and create a media source appropriate for the media.
 	 *
 	 * @param MediaPath		Can be a file location or a Url.
+	 * @param Outer			Outer to use for this object.
 	 * @return				Media source or nullptr if none are appropriate.
 	 */
-	static UMediaSource* SpawnMediaSourceForString(const FString& MediaPath);
+	static UMediaSource* SpawnMediaSourceForString(const FString& MediaPath, UObject* Outer);
 
 public:
 

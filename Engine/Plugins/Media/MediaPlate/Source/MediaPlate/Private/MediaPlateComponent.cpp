@@ -86,23 +86,7 @@ void UMediaPlateComponent::Play()
 	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 	if (MediaPlayer != nullptr)
 	{
-		if (bUseMediaSource == false)
-		{
-			// Try and play the media path.
-			if (MediaPath.FilePath.IsEmpty() == false)
-			{
-				MediaPathMediaSource = UMediaSource::SpawnMediaSourceForString(MediaPath.FilePath);
-				if (MediaPathMediaSource != nullptr)
-				{
-					bIsPlaying = PlayMediaSource(MediaPathMediaSource);
-				}
-			}
-		}
-		else
-		{
-			// Try the media source.
-			bIsPlaying = PlayMediaSource(MediaSource);
-		}
+		bIsPlaying = PlayMediaSource(MediaSource);
 	}
 
 	// Did anything play?

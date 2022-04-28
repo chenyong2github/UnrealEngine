@@ -37,6 +37,23 @@ private:
 
 	/** List of the media plates we are editing. */
 	TArray<TWeakObjectPtr<UMediaPlateComponent>> MediaPlatesList;
+	/** Stores the current value of the MediaPath property. */
+	FString MediaPath;
+
+	/**
+	 * Updates MediaPath from the current MediaSource.
+	 */
+	void UpdateMediaPath();
+
+	/**
+	 * Called to get the media path for the file picker.
+	 */
+	FString HandleMediaPath() const;
+	
+	/**
+	 * Called when we select a media path.
+	 */
+	void HandleMediaPathPicked(const FString& PickedPath);
 
 	/**
 	 * Called when the open media plate button is pressed.
@@ -44,9 +61,14 @@ private:
 	FReply OnOpenMediaPlate();
 
 	/**
-	 * Called when bUseMediaSource changes.
+	 * Call this to stop all playback.
 	 */
-	void OnUseMediaSourceChanged(IDetailLayoutBuilder* DetailBuilder);
+	void StopMediaPlates();
+
+	/**
+	 * Called when MediaSource changes.
+	 */
+	void OnMediaSourceChanged(IDetailLayoutBuilder* DetailBuilder);
 
 	/**
 	 * Get the rate to use when we press the forward button.

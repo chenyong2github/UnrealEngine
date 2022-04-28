@@ -79,16 +79,8 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
 	TObjectPtr<UMediaSoundComponent> SoundComponent;
 
-	/** Selects whether to use the media source or the media path. */
-	UPROPERTY(EditAnywhere, Category = MediaPlate)
-	bool bUseMediaSource;
-
-	/** URL (or file) to play. */
-	UPROPERTY(EditAnywhere, Category = MediaPlate, meta = (EditCondition = "!bUseMediaSource"))
-	FFilePath MediaPath;
-
 	/** What media to play. */
-	UPROPERTY(EditAnywhere, Category = MediaPlate, meta = (EditCondition = "bUseMediaSource"))
+	UPROPERTY(EditAnywhere, Category = "MediaPlate")
 	TObjectPtr<UMediaSource> MediaSource;
 
 	/** Enable smart caching for image sequences. */
@@ -118,10 +110,6 @@ private:
 
 	/** Info representing this object. */
 	TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> MediaTextureTrackerObject;
-
-	/** If we are using MediaPath, then this is the media source for it. */
-	UPROPERTY(Transient)
-	TObjectPtr<UMediaSource> MediaPathMediaSource;
 
 	/**
 	 * Plays a media source.

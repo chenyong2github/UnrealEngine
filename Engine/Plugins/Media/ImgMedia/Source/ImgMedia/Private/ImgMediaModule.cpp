@@ -180,12 +180,12 @@ private:
 	 * Creates a media source for MediaPath.
 	 *
 	 * @param	MediaPath		File path to the media.
+	 * @param	Outer			Outer to use for this object.
 	 */
-	static UMediaSource* SpawnMediaSourceForString(const FString& MediaPath)
+	static UMediaSource* SpawnMediaSourceForString(const FString& MediaPath, UObject* Outer)
 	{
 		TObjectPtr<UImgMediaSource> MediaSource = 
-			NewObject<UImgMediaSource>(GetTransientPackage(), NAME_None,
-				RF_Transactional | RF_Transient);
+			NewObject<UImgMediaSource>(Outer, NAME_None, RF_Transactional);
 		MediaSource->SetSequencePath(MediaPath);
 
 		return MediaSource;

@@ -24,7 +24,7 @@ void UMediaSource::UnregisterSpawnFromFileExtension(const FString& Extension)
 	Delegates.Remove(Extension);
 }
 
-UMediaSource* UMediaSource::SpawnMediaSourceForString(const FString& MediaPath)
+UMediaSource* UMediaSource::SpawnMediaSourceForString(const FString& MediaPath, UObject* Outer)
 {
 	TObjectPtr<UMediaSource> MediaSource = nullptr;
 
@@ -32,7 +32,7 @@ UMediaSource* UMediaSource::SpawnMediaSourceForString(const FString& MediaPath)
 	bool bIsUrl = MediaPath.Contains(TEXT("://"));
 	if (bIsUrl)
 	{
-		TObjectPtr<UStreamMediaSource> StreamMediaSource = NewObject<UStreamMediaSource>(GetTransientPackage(), NAME_None, RF_Transactional | RF_Transient);
+		TObjectPtr<UStreamMediaSource> StreamMediaSource = NewObject<UStreamMediaSource>(Outer, NAME_None, RF_Transactional);
 		StreamMediaSource->StreamUrl = MediaPath;
 		MediaSource = StreamMediaSource;
 	}
@@ -45,12 +45,12 @@ UMediaSource* UMediaSource::SpawnMediaSourceForString(const FString& MediaPath)
 		FMediaSourceSpawnDelegate* Delegate = Delegates.Find(FileExtension);
 		if ((Delegate != nullptr) && (Delegate->IsBound()))
 		{
-			MediaSource = Delegate->Execute(MediaPath);
+			MediaSource = Delegate->Execute(MediaPath, Outer);
 		}
 		else
 		{
 			// Try a file media source.
-			TObjectPtr<UFileMediaSource> FileMediaSource = NewObject<UFileMediaSource>(GetTransientPackage(), NAME_None, RF_Transactional | RF_Transient);
+			TObjectPtr<UFileMediaSource> FileMediaSource = NewObject<UFileMediaSource>(Outer, NAME_None, RF_Transactional);
 			FileMediaSource->SetFilePath(MediaPath);
 			MediaSource = FileMediaSource;
 		}
