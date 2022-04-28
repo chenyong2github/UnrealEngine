@@ -48,6 +48,25 @@ enum class EMonoChannelUpmixMethod : int8
 	FullVolume
 };
 
+
+// The sound asset compression type to use for assets using the compression type "project defined".
+UENUM()
+enum class EDefaultAudioCompressionType : uint8
+{
+	// Perceptual-based codec which supports all features across all platforms.
+	BinkAudio,
+
+	// Will encode the asset using ADPCM, a time-domain codec that has fixed-sized quality and about ~4x compression ratio, but is relatively cheap to decode.
+	ADPCM,
+
+	// Uncompressed audio. Large memory usage (streamed chunks contain less audio per chunk) but extremely cheap to decode and supports all features. 
+	PCM,
+
+	// Encodes the asset to a platform specific format and will be different depending on the platform. It does not currently support seeking.
+	PlatformSpecific,
+};
+
+
 USTRUCT()
 struct ENGINE_API FAudioQualitySettings
 {
@@ -146,6 +165,10 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	/** Sample rate used for voice over IP. VOIP audio is resampled to the application's sample rate on the receiver side. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (DisplayName = "VOIP Sample Rate"))
 	EVoiceSampleRate VoiPSampleRate;
+
+	/** Default audio compression type to use for audio assets. */
+	UPROPERTY(config, EditAnywhere, Category = "Audio")
+	EDefaultAudioCompressionType DefaultAudioCompressionType;
 
 	/** The amount of audio to send to reverb submixes if no reverb send is setup for the source through attenuation settings. Only used in audio mixer. */
 	UPROPERTY(config)

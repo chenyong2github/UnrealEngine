@@ -44,6 +44,7 @@ namespace Audio {
 
 	// Indicates a platform-specific format
 	static FName NAME_PLATFORM_SPECIFIC(TEXT("PLATFORM_SPECIFIC"));
+	static FName NAME_PROJECT_DEFINED(TEXT("PROJECT_DEFINED"));
 
 	// Supported on all platforms:
 	static FName NAME_BINKA(TEXT("BINKA"));

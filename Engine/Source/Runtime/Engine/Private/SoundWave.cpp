@@ -681,7 +681,7 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	bProcedural = false;
 	bRequiresStopFade = false;
 
-	SoundAssetCompressionType = ESoundAssetCompressionType::BinkAudio;
+	SoundAssetCompressionType = ESoundAssetCompressionType::ProjectDefined;	
 
 #if WITH_EDITOR
 	bWasStreamCachingEnabledOnLastCook = FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching();
@@ -1068,7 +1068,30 @@ void USoundWave::Serialize( FArchive& Ar )
 
 ESoundAssetCompressionType USoundWave::GetSoundAssetCompressionType() const
 {
-	return SoundAssetCompressionType;
+	// If we are told to use the proejct-defined asset compression type, then we need to look it up
+	if (SoundAssetCompressionType == ESoundAssetCompressionType::ProjectDefined)
+	{
+#if WITH_EDITOR
+		// In the editor, always retrieve the settings
+		UAudioSettings* Settings = GetMutableDefault<UAudioSettings>();
+		return Audio::ToSoundAssetCompressionType(Settings->DefaultAudioCompressionType);
+#else
+		// Only query the project settings once when retrieving the asset compression type when not running with the editor
+		static bool bDefaultCompressionTypeCached = false;
+		static ESoundAssetCompressionType DefaultAudioCompressionType = ESoundAssetCompressionType::PlatformSpecific;
+
+		if (!bDefaultCompressionTypeCached)
+		{
+			DefaultAudioCompressionType = Audio::ToSoundAssetCompressionType(Settings->DefaultAudioCompressionType);
+			bDefaultCompressionTypeCached = true;
+		}
+		return DefaultAudioCompressionType;
+#endif
+	}
+	else
+	{
+		return SoundAssetCompressionType;
+	}
 }
 
 void USoundWave::SetSoundAssetCompressionType(ESoundAssetCompressionType InSoundAssetCompressionType)

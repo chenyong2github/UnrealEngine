@@ -35,6 +35,8 @@ UAudioSettings::UAudioSettings(const FObjectInitializer& ObjectInitializer)
 
 	GlobalMinPitchScale = 0.4F;
 	GlobalMaxPitchScale = 2.0F;
+
+	DefaultAudioCompressionType = EDefaultAudioCompressionType::BinkAudio;
 }
 
 void UAudioSettings::AddDefaultSettings()

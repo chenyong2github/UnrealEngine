@@ -316,6 +316,9 @@ enum class ESoundAssetCompressionType : uint8
 
 	// Encodes the asset to a platform specific format and will be different depending on the platform. It does not currently support seeking.
 	PlatformSpecific,
+
+	// The project defines the codec used for this asset.
+	ProjectDefined,
 };
 
 
@@ -325,14 +328,28 @@ namespace Audio
 	{
 		switch (InDecoderType)
 		{
-		case ESoundAssetCompressionType::PlatformSpecific:		return NAME_PLATFORM_SPECIFIC;
-
 		case ESoundAssetCompressionType::BinkAudio:				return NAME_BINKA;
 		case ESoundAssetCompressionType::ADPCM:					return NAME_ADPCM;
 		case ESoundAssetCompressionType::PCM:					return NAME_PCM;
+		case ESoundAssetCompressionType::PlatformSpecific:		return NAME_PLATFORM_SPECIFIC;
+		case ESoundAssetCompressionType::ProjectDefined:		return NAME_PROJECT_DEFINED;
 		default:
 			ensure(false);
 			return TEXT("UNKNOWN");
+		}
+	}
+
+	static ESoundAssetCompressionType ToSoundAssetCompressionType(EDefaultAudioCompressionType InDefaultCompressionType)
+	{
+		switch (InDefaultCompressionType)
+		{
+			case EDefaultAudioCompressionType::BinkAudio:			return ESoundAssetCompressionType::BinkAudio;
+			case EDefaultAudioCompressionType::ADPCM:				return ESoundAssetCompressionType::ADPCM;
+			case EDefaultAudioCompressionType::PCM:					return ESoundAssetCompressionType::PCM;
+			case EDefaultAudioCompressionType::PlatformSpecific:	return ESoundAssetCompressionType::PlatformSpecific;
+			default:
+				ensure(false);
+				return ESoundAssetCompressionType::PlatformSpecific;
 		}
 	}
 }
