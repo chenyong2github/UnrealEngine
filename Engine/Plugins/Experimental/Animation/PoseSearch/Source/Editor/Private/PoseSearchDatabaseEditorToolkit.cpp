@@ -6,6 +6,7 @@
 #include "PoseSearchDatabasePreviewScene.h"
 #include "PoseSearchDatabaseEditorCommands.h"
 #include "PoseSearchDatabaseViewModel.h"
+#include "PoseSearchDatabaseEditorReflection.h"
 #include "PoseSearchEditor.h"
 #include "PoseSearch/PoseSearch.h"
 #include "GameFramework/WorldSettings.h"
@@ -29,12 +30,14 @@ namespace UE::PoseSearch
 		static const FName ViewportID;
 		static const FName PreviewSettingsID;
 		static const FName AssetTreeViewID;
+		static const FName SelectionDetailsID;
 	};
 
 	const FName FDatabaseEditorTabs::AssetDetailsID(TEXT("PoseSearchDatabaseEditorAssetDetailsTabID"));
 	const FName FDatabaseEditorTabs::ViewportID(TEXT("PoseSearchDatabaseEditorViewportTabID"));
 	const FName FDatabaseEditorTabs::PreviewSettingsID(TEXT("PoseSearchDatabaseEditorPreviewSettingsTabID"));
 	const FName FDatabaseEditorTabs::AssetTreeViewID(TEXT("PoseSearchDatabaseEditorAssetTreeViewTabID"));
+	const FName FDatabaseEditorTabs::SelectionDetailsID(TEXT("PoseSearchDatabaseEditorSelectionDetailsID"));
 
 	FDatabaseEditorToolkit::FDatabaseEditorToolkit()
 	{
@@ -51,6 +54,11 @@ namespace UE::PoseSearch
 	}
 
 	const UPoseSearchDatabase* FDatabaseEditorToolkit::GetPoseSearchDatabase() const
+	{
+		return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
+	}
+
+	UPoseSearchDatabase* FDatabaseEditorToolkit::GetPoseSearchDatabase()
 	{
 		return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
 	}
@@ -103,17 +111,21 @@ namespace UE::PoseSearch
 			PreviewScene.ToSharedRef());
 		ViewportWidget = SNew(SDatabaseViewport, ViewportArgs);
 
-		AssetTreeWidget = SNew(UE::PoseSearch::SDatabaseAssetTree, ViewModel.ToSharedRef());
+		AssetTreeWidget = SNew(SDatabaseAssetTree, ViewModel.ToSharedRef());
+		AssetTreeWidget->RegisterOnSelectionChanged(
+			SDatabaseAssetTree::FOnSelectionChanged::CreateSP(
+				this,
+				&FDatabaseEditorToolkit::OnAssetTreeSelectionChanged));
 		if (IsValid(DatabaseAsset))
 		{
 			DatabaseAsset->RegisterOnAssetChange(
 				UPoseSearchDatabase::FOnDerivedDataRebuild::CreateSP(
 					AssetTreeWidget.Get(),
-					&UE::PoseSearch::SDatabaseAssetTree::RefreshTreeView, false));
+					&SDatabaseAssetTree::RefreshTreeView, false, false));
 			DatabaseAsset->RegisterOnGroupChange(
 				UPoseSearchDatabase::FOnDerivedDataRebuild::CreateSP(
 					AssetTreeWidget.Get(),
-					&UE::PoseSearch::SDatabaseAssetTree::RefreshTreeView, false));
+					&SDatabaseAssetTree::RefreshTreeView, false, false));
 		}
 
 		// Create Asset Details widget
@@ -129,9 +141,12 @@ namespace UE::PoseSearch
 			this,
 			&FDatabaseEditorToolkit::OnFinishedChangingProperties);
 
+		SelectionWidget = PropertyModule.CreateDetailView(Args);
+		SelectionWidget->SetObject(nullptr);
+
 		// Define Editor Layout
 		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout =
-		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.04")
+		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.05")
 			->AddArea
 			(
 				FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -162,6 +177,7 @@ namespace UE::PoseSearch
 							(
 								FTabManager::NewStack()
 								->SetSizeCoefficient(0.3f)
+								->AddTab(FDatabaseEditorTabs::SelectionDetailsID, ETabState::OpenedTab)
 								->AddTab(FDatabaseEditorTabs::AssetDetailsID, ETabState::OpenedTab)
 								->AddTab(FDatabaseEditorTabs::PreviewSettingsID, ETabState::OpenedTab)
 							)
@@ -280,6 +296,13 @@ namespace UE::PoseSearch
 			.SetDisplayName(LOCTEXT("TreeViewTab", "Tree View"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
+
+		InTabManager->RegisterTabSpawner(
+			FDatabaseEditorTabs::SelectionDetailsID,
+			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_SelectionDetails))
+			.SetDisplayName(LOCTEXT("SelectionDetailsTab", "Selection Details"))
+			.SetGroup(WorkspaceMenuCategoryRef)
+			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.EventGraph_16x"));
 	}
 
 	void FDatabaseEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -290,6 +313,7 @@ namespace UE::PoseSearch
 		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::AssetDetailsID);
 		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::PreviewSettingsID);
 		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::AssetTreeViewID);
+		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::SelectionDetailsID);
 	}
 
 	FName FDatabaseEditorToolkit::GetToolkitFName() const
@@ -373,6 +397,17 @@ namespace UE::PoseSearch
 			];
 	}
 
+	TSharedRef<SDockTab> FDatabaseEditorToolkit::SpawnTab_SelectionDetails(const FSpawnTabArgs& Args)
+	{
+		check(Args.GetTabId() == FDatabaseEditorTabs::SelectionDetailsID);
+
+		return SNew(SDockTab)
+			.Label(LOCTEXT("AssetDetails_Title", "Asset Details"))
+			[
+				SelectionWidget.ToSharedRef()
+			];
+	}
+
 	void FDatabaseEditorToolkit::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 	{
 		const FName PropertyName = 
@@ -385,9 +420,79 @@ namespace UE::PoseSearch
 		UE_LOG(
 			LogPoseSearchEditor,
 			Log,
-			TEXT("FPoseSearchDatabaseEditorToolkit::OnFinishedChangingProperties MemberPropertyName: %s PropertyName: %s"),
+			TEXT("FDatabaseEditorToolkit::OnFinishedChangingProperties MemberPropertyName: %s PropertyName: %s"),
 			*MemberPropertyName.ToString(),
 			*PropertyName.ToString());
+	}
+
+	void FDatabaseEditorToolkit::OnAssetTreeSelectionChanged(
+		const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& SelectedItems,
+		ESelectInfo::Type SelectionType)
+	{
+		for (TWeakObjectPtr<UObject>& SingleSelection : SelectionReflection)
+		{
+			SingleSelection->RemoveFromRoot();
+		}
+		SelectionReflection.Reset();
+
+		if (SelectedItems.Num() > 0)
+		{
+			ESearchIndexAssetType AssetType = SelectedItems[0]->SourceAssetType;
+			bool bConsistentAssetType = true;
+			for (int32 SelectionIdx = 1; SelectionIdx < SelectedItems.Num(); ++SelectionIdx)
+			{
+				if (SelectedItems[SelectionIdx]->SourceAssetType != AssetType)
+				{
+					bConsistentAssetType = false;
+					break;
+				}
+			}
+			
+			if (bConsistentAssetType)
+			{
+				if (AssetType == ESearchIndexAssetType::Sequence)
+				{
+					for (TSharedPtr<FDatabaseAssetTreeNode>& SelectedItem : SelectedItems)
+					{
+						UPoseSearchDatabaseSequenceReflection* NewSelectionReflection =
+							NewObject<UPoseSearchDatabaseSequenceReflection>();
+						NewSelectionReflection->AddToRoot();
+						NewSelectionReflection->Sequence = 
+							GetPoseSearchDatabase()->Sequences[SelectedItem->SourceAssetIdx];
+						NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
+						SelectionReflection.Add(NewSelectionReflection);
+					}
+				}
+				else if (AssetType == ESearchIndexAssetType::BlendSpace)
+				{
+					for (TSharedPtr<FDatabaseAssetTreeNode>& SelectedItem : SelectedItems)
+					{
+						UPoseSearchDatabaseBlendSpaceReflection* NewSelectionReflection =
+							NewObject<UPoseSearchDatabaseBlendSpaceReflection>();
+						NewSelectionReflection->AddToRoot();
+						NewSelectionReflection->BlendSpace =
+							GetPoseSearchDatabase()->BlendSpaces[SelectedItem->SourceAssetIdx];
+						NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
+						SelectionReflection.Add(NewSelectionReflection);
+					}
+				}
+				else
+				{
+					for (TSharedPtr<FDatabaseAssetTreeNode>& SelectedItem : SelectedItems)
+					{
+						UPoseSearchDatabaseGroupReflection* NewSelectionReflection =
+							NewObject<UPoseSearchDatabaseGroupReflection>();
+						NewSelectionReflection->AddToRoot();
+						NewSelectionReflection->Group =
+							GetPoseSearchDatabase()->Groups[SelectedItem->SourceAssetIdx];
+						NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
+						SelectionReflection.Add(NewSelectionReflection);
+					}
+				}
+			}
+		}
+
+		SelectionWidget->SetObjects(SelectionReflection, true);
 	}
 }
 

@@ -5,17 +5,17 @@
 #include "CoreMinimal.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Misc/NotifyHook.h"
+#include "SPoseSearchDatabaseAssetList.h"
 
 class IDetailsView;
 class FToolBarBuilder;
-class UPoseSearchDatabase;
+class UPoseSearchDatabaseSelectionReflection;
 
 namespace UE::PoseSearch
 {
 	class SDatabaseViewport;
 	class FDatabasePreviewScene;
 	class FDatabaseViewModel;
-	class SDatabaseAssetTree;
 
 	class FDatabaseEditorToolkit : public FAssetEditorToolkit, public FNotifyHook
 	{
@@ -38,6 +38,7 @@ namespace UE::PoseSearch
 		virtual FString GetWorldCentricTabPrefix() const override;
 
 		const UPoseSearchDatabase* GetPoseSearchDatabase() const;
+		UPoseSearchDatabase* GetPoseSearchDatabase();
 		FDatabaseViewModel* GetViewModel() const { return ViewModel.Get(); }
 		TSharedPtr<FDatabaseViewModel> GetViewModelSharedPtr() const { return ViewModel; }
 
@@ -50,23 +51,31 @@ namespace UE::PoseSearch
 		TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 		TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
 		TSharedRef<SDockTab> SpawnTab_PreviewSettings(const FSpawnTabArgs& Args);
-	TSharedRef<SDockTab> SpawnTab_AssetTreeView(const FSpawnTabArgs& Args);
+		TSharedRef<SDockTab> SpawnTab_AssetTreeView(const FSpawnTabArgs& Args);
+		TSharedRef<SDockTab> SpawnTab_SelectionDetails(const FSpawnTabArgs& Args);
 
 		void BindCommands();
 		void ExtendToolbar();
 		void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
 		void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
+		void OnAssetTreeSelectionChanged(
+			const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& SelectedItems,
+			ESelectInfo::Type SelectionType);
 
 		TSharedPtr<SDatabaseViewport> ViewportWidget;
 
-	TSharedPtr<UE::PoseSearch::SDatabaseAssetTree> AssetTreeWidget;
+		TSharedPtr<SDatabaseAssetTree> AssetTreeWidget;
 
 		TSharedPtr<IDetailsView> EditingAssetWidget;
+
+		TSharedPtr<IDetailsView> SelectionWidget;
 
 		TSharedPtr<FDatabasePreviewScene> PreviewScene;
 
 		TSharedPtr<FDatabaseViewModel> ViewModel;
+
+		TArray<TWeakObjectPtr<UObject>> SelectionReflection;
 	};
 }
 

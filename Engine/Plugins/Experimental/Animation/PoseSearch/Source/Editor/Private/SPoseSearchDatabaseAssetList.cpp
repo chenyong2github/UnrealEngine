@@ -330,13 +330,17 @@ namespace UE::PoseSearch
 					.OnGetChildren(this, &SDatabaseAssetTree::HandleGetChildrenForTree)
 					.OnContextMenuOpening(this, &SDatabaseAssetTree::CreateContextMenu)
 					.HighlightParentNodesForSelection(false)
+					.OnSelectionChanged_Lambda([this](TSharedPtr<FDatabaseAssetTreeNode> Item, ESelectInfo::Type Type)
+						{
+							TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedItems = TreeView->GetSelectedItems();
+							OnSelectionChanged.Broadcast(SelectedItems, Type);
+						})
 					.ItemHeight(24)
 				]
 			]
 		];
 
-		const bool IsInitialSetup = true;
-		RefreshTreeView(IsInitialSetup);
+		RefreshTreeView(true);
 	}
 
 	FReply SDatabaseAssetTree::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
@@ -382,7 +386,7 @@ namespace UE::PoseSearch
 		return OnAcceptDrop(DragDropEvent, EItemDropZone::OntoItem, nullptr);
 	}
 
-	void SDatabaseAssetTree::RefreshTreeView(bool IsInitialSetup)
+	void SDatabaseAssetTree::RefreshTreeView(bool bIsInitialSetup, bool bRecoverSelection)
 	{
 		const TSharedPtr<FDatabaseViewModel> ViewModel = EditorViewModel.Pin();
 		if (!ViewModel.IsValid())
@@ -401,6 +405,9 @@ namespace UE::PoseSearch
 			TreeView->RequestTreeRefresh();
 			return;
 		}
+
+		// store selection so we can recover it afterwards (if possible)
+		TArray<TSharedPtr<FDatabaseAssetTreeNode>> PreviouslySelectedNodes = TreeView->GetSelectedItems();
 
 		// create all group nodes
 		for (int32 GroupIdx = 0; GroupIdx < Database->Groups.Num(); ++GroupIdx)
@@ -492,6 +499,11 @@ namespace UE::PoseSearch
 		for (TSharedPtr<FDatabaseAssetTreeNode>& RootNode : RootNodes)
 		{
 			TreeView->SetItemExpansion(RootNode, true);
+		}
+
+		if (bRecoverSelection)
+		{
+			RecoverSelection(PreviouslySelectedNodes);
 		}
 	}
 
@@ -775,6 +787,39 @@ namespace UE::PoseSearch
 		EditorViewModel.Pin()->DeleteGroup(GroupIdx);
 
 		RefreshTreeView(false);
+	}
+
+	void SDatabaseAssetTree::RegisterOnSelectionChanged(const FOnSelectionChanged& Delegate)
+	{
+		OnSelectionChanged.Add(Delegate);
+	}
+
+	void SDatabaseAssetTree::UnregisterOnSelectionChanged(void* Unregister)
+	{
+		OnSelectionChanged.RemoveAll(Unregister);
+	}
+
+	void SDatabaseAssetTree::RecoverSelection(const TArray<TSharedPtr<FDatabaseAssetTreeNode>>& PreviouslySelectedNodes)
+	{
+		TArray<TSharedPtr<FDatabaseAssetTreeNode>> NewSelectedNodes;
+
+		for (const TSharedPtr<FDatabaseAssetTreeNode>& Node : AllNodes)
+		{
+			bool bFoundNode = PreviouslySelectedNodes.ContainsByPredicate(
+				[Node](const TSharedPtr<FDatabaseAssetTreeNode>& PrevSelectedNode)
+			{
+				return
+					PrevSelectedNode->SourceAssetType == Node->SourceAssetType &&
+					PrevSelectedNode->SourceAssetIdx == Node->SourceAssetIdx;
+			});
+
+			if (bFoundNode)
+			{
+				NewSelectedNodes.Add(Node);
+			}
+		}
+
+		TreeView->SetItemSelection(NewSelectedNodes, true, ESelectInfo::Direct);
 	}
 }
 

@@ -32,11 +32,7 @@ namespace UE::PoseSearch
 		ESearchIndexAssetType SourceAssetType;
 		TSharedPtr<FDatabaseAssetTreeNode> Parent;
 		TArray<TSharedPtr<FDatabaseAssetTreeNode>> Children;
-
-	protected:
-
 		TWeakPtr<FDatabaseViewModel> EditorViewModel;
-
 	};
 
 	class SDatabaseAssetListItem : public STableRow<TSharedPtr<FDatabaseAssetTreeNode>>
@@ -83,7 +79,7 @@ namespace UE::PoseSearch
 		virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 		// End SWidget interface
 	
-		void RefreshTreeView(bool IsInitialSetup = false);
+		void RefreshTreeView(bool bIsInitialSetup = false, bool bRecoverSelection = false);
 
 	protected:
 		TWeakPtr<FDatabaseViewModel> EditorViewModel;
@@ -127,6 +123,22 @@ namespace UE::PoseSearch
 		void OnDeleteGroup(TSharedPtr<FDatabaseAssetTreeNode> Node);
 
 		friend SDatabaseAssetListItem;
+
+	protected:
+		// Called when an item is selected/deselected
+		DECLARE_MULTICAST_DELEGATE_TwoParams(
+			FOnSelectionChangedMulticaster, 
+			const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& /* InSelectedItems */,
+			ESelectInfo::Type /* SelectInfo */);
+
+		FOnSelectionChangedMulticaster OnSelectionChanged;
+
+	public:
+		typedef FOnSelectionChangedMulticaster::FDelegate FOnSelectionChanged;
+		void RegisterOnSelectionChanged(const FOnSelectionChanged& Delegate);
+		void UnregisterOnSelectionChanged(void* Unregister);
+
+		void RecoverSelection(const TArray<TSharedPtr<FDatabaseAssetTreeNode>>& PreviouslySelectedNodes);
 	};
 }
 
