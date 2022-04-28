@@ -58,7 +58,7 @@ void FCurveEditorDragOperation_Tangent::OnDrag(FVector2D InitialPosition, FVecto
 	TArray<FKeyAttributes> NewKeyAttributesScratch;
 	TArray<FKeyPosition> KeyPositions;
 
-	for (const FKeyData& KeyData : KeysByCurve)
+	for (FKeyData& KeyData : KeysByCurve)
 	{
 		const SCurveEditorView* View = CurveEditor->FindFirstInteractiveView(KeyData.CurveID);
 		if (!View)
@@ -175,7 +175,8 @@ void FCurveEditorDragOperation_Tangent::OnDrag(FVector2D InitialPosition, FVecto
 				
 			NewKeyAttributesScratch.Add(NewAttributes);
 		}
-		Curve->SetKeyAttributes(KeyData.Handles, NewKeyAttributesScratch);
+		Curve->SetKeyAttributes(KeyData.Handles, NewKeyAttributesScratch, EPropertyChangeType::Interactive);
+		KeyData.LastDraggedAttributes = NewKeyAttributesScratch;
 	}
 }
 
@@ -187,7 +188,7 @@ void FCurveEditorDragOperation_Tangent::OnCancelDrag()
 	{
 		if (FCurveModel* Curve = CurveEditor->FindCurve(KeyData.CurveID))
 		{
-			Curve->SetKeyAttributes(KeyData.Handles, KeyData.Attributes);
+			Curve->SetKeyAttributes(KeyData.Handles, KeyData.Attributes, EPropertyChangeType::ValueSet);
 		}
 	}
 
@@ -197,6 +198,15 @@ void FCurveEditorDragOperation_Tangent::OnCancelDrag()
 void FCurveEditorDragOperation_Tangent::OnEndDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent)
 {
 	ICurveEditorKeyDragOperation::OnEndDrag(InitialPosition, CurrentPosition, MouseEvent);
+
+	for (const FKeyData& KeyData : KeysByCurve)
+	{
+		if (FCurveModel* Curve = CurveEditor->FindCurve(KeyData.CurveID))
+		{
+			Curve->SetKeyAttributes(KeyData.Handles, KeyData.LastDraggedAttributes, EPropertyChangeType::ValueSet);
+		}
+	}
+	
 	CurveEditor->SuppressBoundTransformUpdates(false);
 }
 

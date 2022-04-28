@@ -63,8 +63,47 @@ const FRichCurve& FRichCurveEditorModelNamed::GetReadOnlyRichCurve() const
 	return const_cast<FRichCurveEditorModelNamed*>(this)->GetRichCurve();
 }
 
-void FRichCurveEditorModelNamed::CurveHasChanged()
+void FRichCurveEditorModelNamed::SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions, EPropertyChangeType::Type ChangeType)
 {
+	const bool bInteractiveChange = ChangeType == EPropertyChangeType::Interactive;
+
+	// Open bracket in case this is an interactive change
+	if (bInteractiveChange && !InteractiveBracket.IsValid())
+	{
+		IAnimationDataController& Controller = AnimSequence->GetController();
+		InteractiveBracket = MakeUnique<IAnimationDataController::FScopedBracket>(Controller, LOCTEXT("SetKeyPositions", "Set Key Positions"));
+	}
+	
+	FRichCurveEditorModel::SetKeyPositions(InKeys, InKeyPositions, ChangeType);
+
+	// Close bracket, if open, in case this is was a non-interactive change
+	if (!bInteractiveChange && InteractiveBracket.IsValid())
+	{
+		InteractiveBracket.Reset();
+	}
+}
+
+void FRichCurveEditorModelNamed::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType)
+{
+	const bool bInteractiveChange = ChangeType == EPropertyChangeType::Interactive;
+
+	// Open bracket in case this is an interactive change
+	if (bInteractiveChange && !InteractiveBracket.IsValid())
+	{
+		IAnimationDataController& Controller = AnimSequence->GetController();
+		InteractiveBracket = MakeUnique<IAnimationDataController::FScopedBracket>(Controller, LOCTEXT("SetKeyAttributes", "Set Key Attributes"));
+	}
+		
+	FRichCurveEditorModel::SetKeyAttributes(InKeys, InAttributes, ChangeType);
+	// Close bracket, if open, in case this is was a non-interactive change
+	if (!bInteractiveChange && InteractiveBracket.IsValid())
+	{
+		InteractiveBracket.Reset();
+	}
+}
+
+void FRichCurveEditorModelNamed::CurveHasChanged()
+{	
 	IAnimationDataController& Controller = AnimSequence->GetController();
 
 	switch (Type)

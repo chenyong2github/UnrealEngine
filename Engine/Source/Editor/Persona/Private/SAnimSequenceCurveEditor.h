@@ -31,6 +31,9 @@ public:
 	virtual FRichCurve& GetRichCurve() override;
 	virtual const FRichCurve& GetReadOnlyRichCurve() const override;
 
+	virtual void SetKeyPositions(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyPosition> InKeyPositions, EPropertyChangeType::Type ChangeType) override;
+	virtual void SetKeyAttributes(TArrayView<const FKeyHandle> InKeys, TArrayView<const FKeyAttributes> InAttributes, EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified) override;
+
 	void CurveHasChanged();
 	void OnModelHasChanged(const EAnimDataModelNotifyType& NotifyType, UAnimDataModel* Model, const FAnimDataModelNotifPayload& Payload);
 	void UpdateCachedCurve();
@@ -45,6 +48,8 @@ public:
 	UE::Anim::FAnimDataModelNotifyCollector NotifyCollector;
 	FRichCurve CachedCurve;
 	bool bCurveRemoved;
+
+	TUniquePtr<IAnimationDataController::FScopedBracket> InteractiveBracket;
 };
 
 class SAnimSequenceCurveEditor : public IAnimSequenceCurveEditor, public FEditorUndoClient

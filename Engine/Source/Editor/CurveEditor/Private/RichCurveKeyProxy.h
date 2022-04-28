@@ -55,21 +55,10 @@ private:
 					Owner->Modify();
 
 					FRichCurveKey& ActualKey = RichCurve.GetKey(KeyHandle);
-
-					const float PreviousTime = ActualKey.Time;
-					const float NewTime      = Value.Time;
-
-					// Copy the key properties
-					ActualKey = Value;
-					ActualKey.Time = PreviousTime;
-					if (PreviousTime != NewTime)
-					{
-						RichCurve.SetKeyTime(KeyHandle, NewTime);
-			
-					}
-
+					const FKeyPosition KeyPosition(Value.Time, Value.Value);
+					Model->SetKeyPositions({KeyHandle}, {KeyPosition}, PropertyChangedEvent.ChangeType);
+				
 					Owner->PostEditChangeProperty(PropertyChangedEvent);
-
 					Model->OnCurveModified().Broadcast();
 				}
 			}
