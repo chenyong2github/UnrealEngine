@@ -20,7 +20,7 @@ cd ../../../..
 RESULT=0
 
 while : ; do
-        dotnet ./Engine/Binaries/DotNET/GitDependencies.dll $ARGS
+        ./Engine/Binaries/DotNET/GitDependencies/linux-x64/GitDependencies $ARGS
         RESULT=$?
 
         echo "Result: $RESULT"
