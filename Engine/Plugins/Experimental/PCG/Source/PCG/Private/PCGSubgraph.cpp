@@ -108,6 +108,30 @@ bool UPCGBaseSubgraphSettings::HasOutLabel(const FName& Label) const
 	}
 }
 
+bool UPCGBaseSubgraphSettings::HasDefaultInLabel() const
+{
+	if (UPCGGraph* Subgraph = GetSubgraph())
+	{
+		return Subgraph->GetInputNode()->HasDefaultInLabel();
+	}
+	else
+	{
+		return Super::HasDefaultInLabel();
+	}
+}
+
+bool UPCGBaseSubgraphSettings::HasDefaultOutLabel() const
+{
+	if (UPCGGraph* Subgraph = GetSubgraph())
+	{
+		return Subgraph->GetOutputNode()->HasDefaultOutLabel();
+	}
+	else
+	{
+		return Super::HasDefaultOutLabel();
+	}
+}
+
 TArray<FName> UPCGBaseSubgraphSettings::InLabels() const
 {
 	if (UPCGGraph* Subgraph = GetSubgraph())

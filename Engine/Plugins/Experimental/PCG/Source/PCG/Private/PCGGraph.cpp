@@ -76,6 +76,29 @@ void UPCGGraph::PostLoad()
 			Edge->OutboundLabel = TEXT("Out");
 		}
 	}
+
+	// Fixup edges on subgraph nodes
+	for (UPCGNode* Node : Nodes)
+	{
+		if(Cast<UPCGBaseSubgraphSettings>(Node->DefaultSettings))
+		{
+			for (UPCGEdge* Edge : Node->InboundEdges)
+			{
+				if (Edge->OutboundLabel == NAME_None)
+				{
+					Edge->OutboundLabel = TEXT("In");
+				}
+			}
+
+			for (UPCGEdge* Edge : Node->OutboundEdges)
+			{
+				if (Edge->InboundLabel == NAME_None)
+				{
+					Edge->InboundLabel = TEXT("Out");
+				}
+			}
+		}
+	}
 #endif
 
 #if WITH_EDITOR

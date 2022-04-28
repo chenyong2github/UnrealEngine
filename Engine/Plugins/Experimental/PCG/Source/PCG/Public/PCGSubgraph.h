@@ -36,6 +36,8 @@ protected:
 
 	virtual bool HasInLabel(const FName& Label) const override;
 	virtual bool HasOutLabel(const FName& Label) const override;
+	virtual bool HasDefaultInLabel() const override;
+	virtual bool HasDefaultOutLabel() const override;
 	virtual TArray<FName> InLabels() const override;
 	virtual TArray<FName> OutLabels() const override;
 	//~End UPCGSettings interface
