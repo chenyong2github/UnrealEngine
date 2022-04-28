@@ -261,13 +261,13 @@ public:
 #endif // WITH_GAMEPLAY_DEBUGGER
 
 #if WITH_STATETREE_DEBUG
-	FString GetActiveStateName(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
 	int32 GetStateChangeCount(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
-
-	TArray<FName> GetActiveStateNames(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
 
 	void DebugPrintInternalLayout(const FStateTreeInstanceData* ExternalInstanceData = nullptr);
 #endif
+
+	FString GetActiveStateName(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
+	TArray<FName> GetActiveStateNames(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
 
 protected:
 

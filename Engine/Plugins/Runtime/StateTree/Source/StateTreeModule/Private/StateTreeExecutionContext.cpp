@@ -1244,6 +1244,16 @@ void FStateTreeExecutionContext::DebugPrintInternalLayout(const FStateTreeInstan
 	UE_LOG(LogStateTree, Log, TEXT("%s"), *DebugString);
 }
 
+int32 FStateTreeExecutionContext::GetStateChangeCount(const FStateTreeInstanceData* ExternalInstanceData) const
+{
+	const FStateTreeInstanceData& InstanceData = SelectInstanceData(ExternalInstanceData);
+	checkSlow(InstanceData.GetLayout() == StateTree->GetInstanceDataDefaultValue().GetLayout());
+	const FStateTreeExecutionState& Exec = GetExecState(InstanceData);
+	return Exec.StateChangeCount;
+}
+
+#endif // WITH_STATETREE_DEBUG
+
 FString FStateTreeExecutionContext::GetActiveStateName(const FStateTreeInstanceData* ExternalInstanceData) const
 {
 	if (!StateTree)
@@ -1297,14 +1307,6 @@ FString FStateTreeExecutionContext::GetActiveStateName(const FStateTreeInstanceD
 	return FullStateName;
 }
 
-int32 FStateTreeExecutionContext::GetStateChangeCount(const FStateTreeInstanceData* ExternalInstanceData) const
-{
-	const FStateTreeInstanceData& InstanceData = SelectInstanceData(ExternalInstanceData);
-	checkSlow(InstanceData.GetLayout() == StateTree->GetInstanceDataDefaultValue().GetLayout());
-	const FStateTreeExecutionState& Exec = GetExecState(InstanceData);
-	return Exec.StateChangeCount;
-}
-
 TArray<FName> FStateTreeExecutionContext::GetActiveStateNames(const FStateTreeInstanceData* ExternalInstanceData) const
 {
 	TArray<FName> Result;
@@ -1331,8 +1333,6 @@ TArray<FName> FStateTreeExecutionContext::GetActiveStateNames(const FStateTreeIn
 
 	return Result;
 }
-
-#endif // WITH_STATETREE_DEBUG
 
 #undef STATETREE_LOG
 #undef STATETREE_CLOG
