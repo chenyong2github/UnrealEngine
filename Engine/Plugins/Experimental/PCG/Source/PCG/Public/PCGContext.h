@@ -12,6 +12,22 @@
 class UPCGComponent;
 struct FPCGGraphCache;
 
+namespace PCGContextHelpers
+{
+	template<typename SettingsType>
+	const SettingsType* GetInputSettings(const UPCGNode* Node, const FPCGDataCollection& InputData)
+	{
+		if (Node && Node->DefaultSettings)
+		{
+			return Cast<SettingsType>(InputData.GetSettings(Node->DefaultSettings));
+		}
+		else
+		{
+			return InputData.GetSettings<SettingsType>();
+		}
+	}
+}
+
 USTRUCT(BlueprintType)
 struct PCG_API FPCGContext
 {
@@ -39,14 +55,7 @@ struct PCG_API FPCGContext
 	template<typename SettingsType>
 	const SettingsType* GetInputSettings() const
 	{
-		if (Node && Node->DefaultSettings)
-		{
-			return Cast<SettingsType>(InputData.GetSettings(Node->DefaultSettings));
-		}
-		else
-		{
-			return InputData.GetSettings<SettingsType>();
-		}
+		return PCGContextHelpers::GetInputSettings<SettingsType>(Node, InputData);
 	}
 
 	FString GetTaskName() const;

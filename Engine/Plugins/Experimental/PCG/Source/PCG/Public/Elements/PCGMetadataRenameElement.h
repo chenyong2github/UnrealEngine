@@ -33,6 +33,9 @@ public:
 
 class FPCGMetadataRenameElement : public FSimplePCGElement
 {
+public:
+	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const override { return true; }
+
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };

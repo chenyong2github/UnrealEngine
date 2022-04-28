@@ -14,11 +14,12 @@ struct FPCGGraphCacheEntry
 	FPCGGraphCacheEntry() = default;
 	FPCGGraphCacheEntry(const FPCGDataCollection& InInput, const UPCGSettings* InSettings, const FPCGDataCollection& InOutput, TWeakObjectPtr<UObject> InOwner, TSet<UObject*>& OutRootedData);
 
-	bool Matches(const FPCGDataCollection& InInput, const UPCGSettings* InSettings) const;
+	bool Matches(const FPCGDataCollection& InInput, int32 InSettingsCrc32) const;
 
 	FPCGDataCollection Input;
 	TObjectPtr<UPCGSettings> Settings;
 	FPCGDataCollection Output;
+	int32 SettingsCrc32;
 };
 
 // TODO: investigate if we need a more evolved data structure here

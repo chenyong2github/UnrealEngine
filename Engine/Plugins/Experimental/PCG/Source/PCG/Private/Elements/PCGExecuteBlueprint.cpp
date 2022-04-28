@@ -483,6 +483,7 @@ void UPCGBlueprintElement::LoopNTimes(FPCGContext& InContext, int64 NumIteration
 
 FPCGContext* FPCGExecuteBlueprintElement::Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGExecuteBlueprintElement::Initialize);
 	FPCGBlueprintExecutionContext* Context = new FPCGBlueprintExecutionContext();
 	Context->InputData = InputData;
 	Context->SourceComponent = SourceComponent;
@@ -506,6 +507,18 @@ bool FPCGExecuteBlueprintElement::IsCacheable(const UPCGSettings* InSettings) co
 	if (const UPCGBlueprintSettings* BPSettings = Cast<const UPCGBlueprintSettings>(InSettings))
 	{
 		return !BPSettings->bCreatesArtifacts;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool FPCGExecuteBlueprintElement::CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const
+{
+	if (const UPCGBlueprintSettings* BPSettings = Cast<const UPCGBlueprintSettings>(InSettings))
+	{
+		return !BPSettings->bCanBeMultithreaded;
 	}
 	else
 	{

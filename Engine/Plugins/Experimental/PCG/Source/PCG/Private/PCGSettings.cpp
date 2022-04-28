@@ -37,6 +37,12 @@ bool UPCGSettings::operator==(const UPCGSettings& Other) const
 	}
 }
 
+uint32 UPCGSettings::GetCrc32() const
+{
+	FPCGSettingsObjectCrc32 Ar;
+	return Ar.Crc32(const_cast<UPCGSettings*>(this));
+}
+
 bool UPCGSettings::HasInLabel(const FName& Label) const
 {
 	return (Label == NAME_None && HasDefaultInLabel()) || InLabels().Contains(Label);

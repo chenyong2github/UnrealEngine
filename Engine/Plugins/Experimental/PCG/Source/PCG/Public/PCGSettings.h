@@ -62,6 +62,7 @@ public:
 	virtual bool HasDefaultOutLabel() const { return true; }
 	
 	bool operator==(const UPCGSettings& Other) const;
+	uint32 GetCrc32() const;
 
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const { return NAME_None; }
@@ -129,8 +130,10 @@ protected:
 
 class PCG_API FPCGTrivialElement : public FSimplePCGElement
 {
+public:
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return true; }
+
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 	virtual bool IsPassthrough() const override { return true; }
 };

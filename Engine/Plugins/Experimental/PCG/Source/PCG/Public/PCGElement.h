@@ -36,12 +36,19 @@ public:
 	virtual ~IPCGElement() = default;
 	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node) = 0;
 
+	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const { return false; }
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const { return true; }
+
 	bool Execute(FPCGContext* Context) const;
+
+	/** Note: the following methods must be called from the main thread */
+#if WITH_EDITOR
+	void DebugDisplay(FPCGContext* Context) const;
+#endif
 
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const = 0;
 	virtual bool IsCancellable() const { return true; }
-	virtual bool IsCacheable(const UPCGSettings* InSettings) const { return true; }
 	virtual bool IsPassthrough() const { return false; }
 #if WITH_EDITOR
 	virtual bool ShouldLog() const { return true; }

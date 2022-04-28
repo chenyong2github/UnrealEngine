@@ -161,6 +161,9 @@ protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bCreatesArtifacts = false;
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bCanBeMultithreaded = true;
+
 protected:
 #if WITH_EDITOR
 	void OnBlueprintChanged(UBlueprint* InBlueprint);
@@ -181,8 +184,11 @@ struct FPCGBlueprintExecutionContext : public FPCGContext
 
 class FPCGExecuteBlueprintElement : public IPCGElement
 {
+public:
+	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const override;
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override;
+
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node) override;
-	virtual bool IsCacheable(const UPCGSettings* InSettings) const override;
+	virtual FPCGContext* Initialize(const FPCGDataCollection& InputData, UPCGComponent* SourceComponent, const UPCGNode* Node) override;	
 };

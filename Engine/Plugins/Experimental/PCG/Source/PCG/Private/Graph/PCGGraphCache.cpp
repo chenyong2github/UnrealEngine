@@ -12,6 +12,7 @@ FPCGGraphCacheEntry::FPCGGraphCacheEntry(const FPCGDataCollection& InInput, cons
 	, Output(InOutput)
 {
 	Settings = InSettings ? Cast<UPCGSettings>(StaticDuplicateObject(InSettings, InOwner.Get())) : nullptr;
+	SettingsCrc32 = InSettings ? InSettings->GetCrc32() : 0;
 
 	Input.RootUnrootedData(OutRootedObjects);
 	Output.RootUnrootedData(OutRootedObjects);
@@ -23,10 +24,9 @@ FPCGGraphCacheEntry::FPCGGraphCacheEntry(const FPCGDataCollection& InInput, cons
 	}
 }
 
-bool FPCGGraphCacheEntry::Matches(const FPCGDataCollection& InInput, const UPCGSettings* InSettings) const
+bool FPCGGraphCacheEntry::Matches(const FPCGDataCollection& InInput, int32 InSettingsCrc32) const
 {
-	const bool bHasSameSettings = ((InSettings == nullptr && Settings == nullptr) || (InSettings && Settings && *InSettings == *Settings));
-	return bHasSameSettings && (Input == InInput);
+	return (SettingsCrc32 == InSettingsCrc32) && (Input == InInput);
 }
 
 FPCGGraphCache::FPCGGraphCache(TWeakObjectPtr<UObject> InOwner)
@@ -46,13 +46,16 @@ bool FPCGGraphCache::GetFromCache(const IPCGElement* InElement, const FPCGDataCo
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphCache::GetFromCache);
 	FReadScopeLock ScopedReadLock(CacheLock);
 
 	if (const FPCGGraphCacheEntries* Entries = CacheData.Find(InElement))
 	{
+		int32 InSettingsCrc32 = (InSettings ? InSettings->GetCrc32() : 0);
+
 		for (const FPCGGraphCacheEntry& Entry : *Entries)
 		{
-			if (Entry.Matches(InInput, InSettings))
+			if (Entry.Matches(InInput, InSettingsCrc32))
 			{
 				OutOutput = Entry.Output;
 				return true;
@@ -72,6 +75,7 @@ void FPCGGraphCache::StoreInCache(const IPCGElement* InElement, const FPCGDataCo
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGGraphCache::StoreInCache);
 	FWriteScopeLock ScopedWriteLock(CacheLock);
 
 	FPCGGraphCacheEntries* Entries = CacheData.Find(InElement);

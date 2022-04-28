@@ -52,6 +52,9 @@ struct FPCGGraphActiveTask
 	FPCGElementPtr Element;
 	TUniquePtr<FPCGContext> Context;
 	FPCGTaskId NodeId = InvalidTaskId;
+#if WITH_EDITOR
+	bool bIsBypassed = false;
+#endif
 };
 
 class FPCGGraphExecutor
@@ -122,6 +125,9 @@ private:
 	/** Monotonically increasing id. Should be reset once all tasks are executed, should be protected by the ScheduleLock */
 	FPCGTaskId NextTaskId = 0;
 
+	/** Runtime information */
+	int32 CurrentlyUsedThreads = 0;
+
 #if WITH_EDITOR
 	FCriticalSection ActorsListLock;
 	TSet<AActor*> ActorsToSave;
@@ -131,9 +137,11 @@ private:
 
 class FPCGFetchInputElement : public FSimplePCGElement
 {
+public:
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
+
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
-	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
 	virtual bool IsPassthrough() const override { return true; }
 };
 
@@ -141,13 +149,15 @@ class FPCGGenericElement : public FSimplePCGElement
 {
 public:
 	FPCGGenericElement(TFunction<bool()> InOperation);
+	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
+	virtual bool CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const override { return true; }
 
 protected:
 	// Important note: generic elements must always be run on the main thread
 	// as most of these will impact the editor in some way (loading, unloading, saving)
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 	virtual bool IsCancellable() const { return false; }
-	virtual bool IsCacheable(const UPCGSettings* InSettings) const override { return false; }
+
 #if WITH_EDITOR
 	virtual bool ShouldLog() const { return false; }
 #endif

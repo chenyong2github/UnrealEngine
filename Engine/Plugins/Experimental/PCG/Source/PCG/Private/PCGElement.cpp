@@ -10,6 +10,7 @@
 
 bool IPCGElement::Execute(FPCGContext* Context) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(IPCGElement::Execute);
 	// Early out to stop execution
 	if (Context->InputData.bCancelExecution)
 	{
@@ -66,40 +67,27 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 		}
 #endif
 
-		if (IsCacheable(Settings) && Context->Cache && Context->Cache->GetFromCache(this, Context->InputData, Settings, Context->OutputData))
-		{
-			PCGE_LOG(Verbose, "Used cached results");
-			bDone = true;
-		}
-		else
-		{
 #if WITH_EDITOR
-			const double StartTime = FPlatformTime::Seconds();
+		const double StartTime = FPlatformTime::Seconds();
 #endif
 
-			bDone = ExecuteInternal(Context);
+		bDone = ExecuteInternal(Context);
 
 #if WITH_EDITOR
-			const double EndTime = FPlatformTime::Seconds();
-			Context->ElapsedTime += (EndTime - StartTime);
-			Context->ExecutionCount++;
+		const double EndTime = FPlatformTime::Seconds();
+		Context->ElapsedTime += (EndTime - StartTime);
+		Context->ExecutionCount++;
 #endif
 
-			if (bDone)
-			{
-				CleanupAndValidateOutputLabels(Context);
-
-				if (IsCacheable(Settings) && Context->Cache)
-				{
-					Context->Cache->StoreInCache(this, Context->InputData, Settings, Context->OutputData);
-				}
+		if (bDone)
+		{
+			CleanupAndValidateOutputLabels(Context);
 
 #if WITH_EDITOR
-				PCGE_LOG(Log, "Executed in (%f)s and (%d) call(s)", Context->ElapsedTime, Context->ExecutionCount);
+			PCGE_LOG(Log, "Executed in (%f)s and (%d) call(s)", Context->ElapsedTime, Context->ExecutionCount);
 #else
-				PCGE_LOG(Log, "Executed");
+			PCGE_LOG(Log, "Executed");
 #endif
-			}
 		}
 
 		/** TODO - Placeholder feature */
@@ -131,32 +119,38 @@ bool IPCGElement::Execute(FPCGContext* Context) const
 				Context->InputData = ElementInputs;
 				Context->OutputData = ElementOutputs;
 			}
-
-			if (Settings->ExecutionMode == EPCGSettingsExecutionMode::Debug || Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
-			{
-				FPCGDataCollection ElementInputs = Context->InputData;
-				FPCGDataCollection ElementOutputs = Context->OutputData;
-
-				Context->InputData = ElementOutputs;
-				Context->OutputData = FPCGDataCollection();
-
-				PCGDebugElement::ExecuteDebugDisplay(Context);
-
-				Context->InputData = ElementInputs;
-				Context->OutputData = ElementOutputs;
-
-				// Null out the output if this node is executed in isolation
-				if (Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
-				{
-					Context->OutputData.bCancelExecution = true;
-				}
-			}
 		}
 #endif
 
 		return bDone;
 	}
 }
+
+#if WITH_EDITOR
+void IPCGElement::DebugDisplay(FPCGContext* Context) const
+{
+	const UPCGSettings* Settings = Context->GetInputSettings<UPCGSettings>();
+	if (Settings && (Settings->ExecutionMode == EPCGSettingsExecutionMode::Debug || Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated))
+	{
+		FPCGDataCollection ElementInputs = Context->InputData;
+		FPCGDataCollection ElementOutputs = Context->OutputData;
+
+		Context->InputData = ElementOutputs;
+		Context->OutputData = FPCGDataCollection();
+
+		PCGDebugElement::ExecuteDebugDisplay(Context);
+
+		Context->InputData = ElementInputs;
+		Context->OutputData = ElementOutputs;
+
+		// Null out the output if this node is executed in isolation
+		if (Settings->ExecutionMode == EPCGSettingsExecutionMode::Isolated)
+		{
+			Context->OutputData.bCancelExecution = true;
+		}
+	}
+}
+#endif // WITH_EDITOR
 
 void IPCGElement::CleanupAndValidateOutputLabels(FPCGContext* Context) const
 {
