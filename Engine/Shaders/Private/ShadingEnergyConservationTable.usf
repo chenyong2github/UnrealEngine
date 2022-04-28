@@ -14,6 +14,8 @@
 // "Energy" here refers to the directional albedo. Energy loss is simply 1-Energy since we assume the raw BxDF should reflect all
 // incoming light.
 
+// Number of samples used for integrating directional albedo 
+uint NumSamples;
 // x: directional albedo for rough diffuse
 RWTexture2D<float>  Output1Texture2D;
 // x: directional albedo of pure GGX lobe
@@ -40,7 +42,8 @@ void BuildEnergyTableCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 	RandomSequence RandSequence;
 	float2 Result = 0;
-	const int NumSamples = 1 << 14; // use plenty of samples -- this is computed on startup once and at fairly low resolution
+	// use plenty of samples -- this is computed on startup once and at fairly low resolution
+	LOOP
 	for (int Sample = 0; Sample < NumSamples; Sample++)
 	{
 		// draw a random sample
