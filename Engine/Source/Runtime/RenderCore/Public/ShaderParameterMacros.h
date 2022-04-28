@@ -988,6 +988,21 @@ struct TShaderParameterTypeInfo<FIntVector>
 };
 
 template<>
+struct TShaderParameterTypeInfo<FUintVector3>
+{
+	static constexpr EUniformBufferBaseType BaseType = UBMT_UINT32;
+	static constexpr int32 NumRows = 1;
+	static constexpr int32 NumColumns = 3;
+	static constexpr int32 NumElements = 0;
+	static constexpr int32 Alignment = 16;
+	static constexpr bool bIsStoredInConstantBuffer = true;
+
+	using TAlignedType = TAlignedTypedef<FUintVector3, Alignment>::Type;
+
+	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
+};
+
+template<>
 struct TShaderParameterTypeInfo<FIntVector4>
 {
 	static constexpr EUniformBufferBaseType BaseType = UBMT_INT32;
@@ -1028,6 +1043,21 @@ struct TShaderParameterTypeInfo<FIntRect>
 	static constexpr bool bIsStoredInConstantBuffer = true;
 
 	using TAlignedType = TAlignedTypedef<FIntRect, Alignment>::Type;
+
+	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
+};
+
+template<>
+struct TShaderParameterTypeInfo<FQuat4f>
+{
+	static constexpr EUniformBufferBaseType BaseType = UBMT_FLOAT32;
+	static constexpr int32 NumRows = 1;
+	static constexpr int32 NumColumns = 4;
+	static constexpr int32 NumElements = 0;
+	static constexpr int32 Alignment = 16;
+	static constexpr bool bIsStoredInConstantBuffer = true;
+
+	using TAlignedType = TAlignedTypedef<FQuat4f, Alignment>::Type;
 
 	static const FShaderParametersMetadata* GetStructMetadata() { return nullptr; }
 };
