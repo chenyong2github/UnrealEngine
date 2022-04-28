@@ -216,11 +216,7 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTil
 				if (OutFrame->Info.FormatName == TEXT("EXR CUSTOM"))
 				{
 #if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
-					FIntRect TileRegion = FIntRect(
-						(int32)CurrentTileSelection.TopLeftX,
-						(int32)CurrentTileSelection.TopLeftY,
-						(int32)CurrentTileSelection.BottomRightX,
-						(int32)CurrentTileSelection.BottomRightY);
+					FIntRect TileRegion = CurrentTileSelection.GetVisibleRegion();
 					FIntPoint NumTiles = OutFrame->Info.NumTiles / MipLevelDiv;
 					int32 PixelSize = sizeof(uint16) * OutFrame->Info.NumChannels;
 					TSharedPtr<FSampleConverterParameters> ConverterParams = MakeShared<FSampleConverterParameters>();

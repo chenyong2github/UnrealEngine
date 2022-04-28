@@ -180,9 +180,10 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 
 			if (ReadThisMip)
 			{
+				FIntRect TileRegion = CurrentTileSelection.GetVisibleRegion();
 				FIntRect& Viewport = ConverterParams->Viewports.Add(CurrentMipLevel);
-				Viewport.Min = FIntPoint(ConverterParams->TileDimWithBorders.X * CurrentTileSelection.TopLeftX, ConverterParams->TileDimWithBorders.Y * CurrentTileSelection.TopLeftY);
-				Viewport.Max = FIntPoint(ConverterParams->TileDimWithBorders.X * CurrentTileSelection.BottomRightX, ConverterParams->TileDimWithBorders.Y * CurrentTileSelection.BottomRightY);
+				Viewport.Min = FIntPoint(ConverterParams->TileDimWithBorders.X * TileRegion.Min.X, ConverterParams->TileDimWithBorders.Y * TileRegion.Min.Y);
+				Viewport.Max = FIntPoint(ConverterParams->TileDimWithBorders.X * TileRegion.Max.X, ConverterParams->TileDimWithBorders.Y * TileRegion.Max.Y);
 				Viewport.Clip(FIntRect(FIntPoint::ZeroValue, CurrentMipDim));
 
 				const SIZE_T BufferSize = GetBufferSize(CurrentMipDim, ConverterParams->FrameInfo.NumChannels, bHasTiles, OutFrame->Info.NumTiles / MipLevelDiv, ConverterParams->bCustomExr);
@@ -201,12 +202,6 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 					// read frame data
 					if (bHasTiles || ConverterParams->bCustomExr)
 					{
-						FIntRect TileRegion = FIntRect(
-							(int32)CurrentTileSelection.TopLeftX,
-							(int32)CurrentTileSelection.TopLeftY,
-							(int32)CurrentTileSelection.BottomRightX,
-							(int32)CurrentTileSelection.BottomRightY);
-
 						ReadResult = ReadTilesCustom(MipDataPtr, ImagePath, FrameId, TileRegion, ConverterParams, CurrentMipLevel);
 					}
 					else

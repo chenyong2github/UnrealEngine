@@ -19,6 +19,147 @@
 
 DECLARE_CYCLE_STAT(TEXT("ImgMedia MipMap Update Cache"), STAT_ImgMedia_MipMapUpdateCache, STATGROUP_Media);
 
+FImgMediaTileSelection::FImgMediaTileSelection(int32 NumTilesX, int32 NumTilesY, bool bDefaultVisibility)
+	: Tiles(bDefaultVisibility, NumTilesX * NumTilesY)
+	, Dimensions(NumTilesX, NumTilesY)
+	, CachedVisibleRegion()
+	, bCachedVisibleRegionDirty(true)
+{
+}
+
+FImgMediaTileSelection FImgMediaTileSelection::CreateForTargetMipLevel(int32 BaseNumTilesX, int32 BaseNumTilesY, int32 TargetMipLevel, bool bDefaultVisibility)
+{
+	ensure(TargetMipLevel >= 0);
+
+	const int MipLevelDiv = 1 << TargetMipLevel;
+	int32 NumTilesX = FMath::Max(1, FMath::CeilToInt(float(BaseNumTilesX) / MipLevelDiv));
+	int32 NumTilesY = FMath::Max(1, FMath::CeilToInt(float(BaseNumTilesY) / MipLevelDiv));
+
+	return FImgMediaTileSelection(NumTilesX, NumTilesY, bDefaultVisibility);
+}
+
+bool FImgMediaTileSelection::IsAnyVisible() const
+{
+	return Tiles.Contains(true);
+};
+
+bool FImgMediaTileSelection::IsVisible(int32 TileCoordX, int32 TileCoordY) const
+{
+	return Tiles[ToIndex(TileCoordX, TileCoordY, Dimensions)];
+}
+
+bool FImgMediaTileSelection::Contains(const FImgMediaTileSelection& Other) const
+{
+	//Modified version of TBitArray's CompareSetBits() method.
+
+	TBitArray<>::FConstWordIterator ThisIterator(Tiles);
+	TBitArray<>::FConstWordIterator OtherIterator(Other.Tiles);
+
+	ThisIterator.FillMissingBits(0u);
+	OtherIterator.FillMissingBits(0u);
+
+	while (ThisIterator || OtherIterator)
+	{
+		const uint32 A = ThisIterator ? ThisIterator.GetWord() : 0u;
+		const uint32 B = OtherIterator ? OtherIterator.GetWord() : 0u;
+		if (A != B)
+		{
+			// Check if A contains all of the ones in B.
+			if ((A & B) != B)
+			{
+				return false;
+			}
+		}
+
+		++ThisIterator;
+		++OtherIterator;
+	}
+
+	return true;
+}
+
+void FImgMediaTileSelection::SetVisible(int32 TileCoordX, int32 TileCoordY)
+{
+	Tiles[ToIndex(TileCoordX, TileCoordY, Dimensions)] = true;
+	bCachedVisibleRegionDirty = true;
+}
+
+TArray<FIntPoint> FImgMediaTileSelection::GetVisibleCoordinates() const
+{
+	TArray<FIntPoint> OutCoordinates;
+
+	for (int32 CoordY = 0; CoordY < Dimensions.Y; ++CoordY)
+	{
+		for (int32 CoordX = 0; CoordX < Dimensions.X; ++CoordX)
+		{
+			if (Tiles[ToIndex(CoordX, CoordY, Dimensions)])
+			{
+				OutCoordinates.Emplace(CoordX, CoordY);
+			}
+		}
+	}
+
+	return OutCoordinates;
+}
+
+FIntRect FImgMediaTileSelection::GetVisibleRegion() const
+{
+	// We offload the region calculation to the loader workers, instead of constantly updating it during SetVisible().
+	// Not thread safe, but only accessed sequentially in individual worker thread copies.
+
+	if (bCachedVisibleRegionDirty)
+	{
+		FIntPoint Min = TNumericLimits<int32>::Max();
+		FIntPoint Max = TNumericLimits<int32>::Min();
+
+		for (int32 CoordY = 0; CoordY < Dimensions.Y; ++CoordY)
+		{
+			for (int32 CoordX = 0; CoordX < Dimensions.X; ++CoordX)
+			{
+				if (Tiles[ToIndex(CoordX, CoordY, Dimensions)])
+				{
+					Min.X = FMath::Min(Min.X, CoordX);
+					Min.Y = FMath::Min(Min.Y, CoordY);
+					Max.X = FMath::Max(Max.X, CoordX);
+					Max.Y = FMath::Max(Max.Y, CoordY);
+				}
+			}
+		}
+
+		if (Max.X >= Min.X && Max.Y >= Min.Y)
+		{
+			CachedVisibleRegion = FIntRect(Min, Max + 1);
+		}
+		else
+		{
+			CachedVisibleRegion = FIntRect();
+		}
+
+		bCachedVisibleRegionDirty = false;
+	}
+
+	return CachedVisibleRegion;
+}
+
+int32 FImgMediaTileSelection::NumVisibleTiles() const
+{
+	int32 NumVisibleTiles = 0;
+
+	for (int32 CoordY = 0; CoordY < Dimensions.Y; ++CoordY)
+	{
+		for (int32 CoordX = 0; CoordX < Dimensions.X; ++CoordX)
+		{
+			if (Tiles[ToIndex(CoordX, CoordY, Dimensions)])
+			{
+				++NumVisibleTiles;
+			}
+		}
+	}
+
+	return NumVisibleTiles;
+}
+
+
 FImgMediaMipMapObjectInfo::FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, float InLODBias)
 	: MeshComponent(InMeshComponent)
 	, LODBias(InLODBias)
@@ -33,15 +174,10 @@ UMeshComponent* FImgMediaMipMapObjectInfo::GetMeshComponent() const
 
 bool FImgMediaMipMapObjectInfo::CalculateVisibleTiles(const TArray<FImgMediaMipMapCameraInfo>& InCameraInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const
 {
+	// We simply add fully visible regions for all mip levels
 	for (int32 MipLevel = 0; MipLevel < InSequenceInfo.NumMipLevels; ++MipLevel)
 	{
-		FImgMediaTileSelection& Selection = VisibleTiles.FindOrAdd(MipLevel);
-
-		const int MipLevelDiv = 1 << MipLevel;
-
-		int32 NumTilesX = FMath::Max(1, FMath::CeilToInt(float(InSequenceInfo.NumTiles.X) / MipLevelDiv));
-		int32 NumTilesY = FMath::Max(1, FMath::CeilToInt(float(InSequenceInfo.NumTiles.Y) / MipLevelDiv));
-		Selection.SetVisibleRegion(0u, 0u, IntCastChecked<uint16>(NumTilesX), IntCastChecked<uint16>(NumTilesY));
+		VisibleTiles.Add(MipLevel, FImgMediaTileSelection::CreateForTargetMipLevel(InSequenceInfo.NumTiles.X, InSequenceInfo.NumTiles.Y, MipLevel, true));
 	}
 	return true;
 }
@@ -243,7 +379,12 @@ namespace {
 						// If the highest (calculated) mip level equals or exceeds our current mip level, we register the tile as visible.
 						if (MipLevelRange[1] >= CurrentMipLevel)
 						{
-							VisibleTiles.FindOrAdd(CurrentMipLevel).Include(Tile.X, Tile.Y);
+							if (!VisibleTiles.Contains(CurrentMipLevel))
+							{
+								VisibleTiles.Emplace(CurrentMipLevel, FImgMediaTileSelection(CurrentNumTiles.X, CurrentNumTiles.Y));
+							}
+
+							VisibleTiles[CurrentMipLevel].SetVisible(Tile.X, Tile.Y);
 						}
 #if false
 #if WITH_EDITOR
@@ -294,25 +435,6 @@ namespace {
 		mutable TArray<float> CornerMipLevelsCached;
 	};
 
-	// Reduce the selected tiles region for higher mip levels, always ensuring that all tiles at the base level are included.
-	FImgMediaTileSelection DownscaleTileSelection(const FImgMediaTileSelection& InTopLevelSelection, int32 InMipLevel)
-	{
-		if (InMipLevel <= 0)
-		{
-			return InTopLevelSelection;
-		}
-
-		const int32 MipLevelDiv = 1 << InMipLevel;
-
-		FImgMediaTileSelection OutSelection;
-		OutSelection.TopLeftX = (uint16)(InTopLevelSelection.TopLeftX / MipLevelDiv);
-		OutSelection.TopLeftY = (uint16)(InTopLevelSelection.TopLeftY / MipLevelDiv);
-		OutSelection.BottomRightX = (uint16)FMath::CeilToInt(float(InTopLevelSelection.BottomRightX) / MipLevelDiv);
-		OutSelection.BottomRightY = (uint16)FMath::CeilToInt(float(InTopLevelSelection.BottomRightY) / MipLevelDiv);
-
-		return OutSelection;
-	}
-
 	class FSphereObjectInfo : public FImgMediaMipMapObjectInfo
 	{
 	public:
@@ -335,13 +457,13 @@ namespace {
 				GetViewFrustumBounds(ViewFrustum, CameraInfo.ViewProjectionMatrix, false, false);
 				
 				// Include all tiles containted in the visible UV region
-				uint16 NumX = IntCastChecked<uint16>(InSequenceInfo.NumTiles.X);
-				uint16 NumY = IntCastChecked<uint16>(InSequenceInfo.NumTiles.Y);
-				for (uint16 TileY = 0; TileY < NumY; ++TileY)
+				int32 NumX = InSequenceInfo.NumTiles.X;
+				int32 NumY = InSequenceInfo.NumTiles.Y;
+				for (int32 TileY = 0; TileY < NumY; ++TileY)
 				{
-					for (uint16 TileX = 0; TileX < NumX; ++TileX)
+					for (int32 TileX = 0; TileX < NumX; ++TileX)
 					{
-						FVector2D TileCornerUV = FVector2D((float)TileX / InSequenceInfo.NumTiles.X, (float)TileY / InSequenceInfo.NumTiles.Y);
+						FVector2D TileCornerUV = FVector2D((float)TileX / NumX, (float)TileY / NumY);
 						
 						// Convert from latlong UV to spherical coordinates
 						FVector2D TileCornerSpherical = FVector2D(UE_PI * TileCornerUV.Y, UE_TWO_PI * TileCornerUV.X);
@@ -355,23 +477,42 @@ namespace {
 						// For each tile corner, we include all adjacent tiles
 						if (ViewFrustum.IntersectPoint(TileCorner))
 						{
-							VisibleTiles.FindOrAdd(0).Include(TileX, TileY);
+							if (!VisibleTiles.Contains(0))
+							{
+								VisibleTiles.Emplace(0, FImgMediaTileSelection(NumX, NumY));
+							}
 
-							int AdjacentX = TileX > 0 ? TileX - 1 : NumX - 1;
-							int AdjacentY = TileY > 0 ? TileY - 1 : NumY - 1;
-							VisibleTiles[0].Include(AdjacentX, TileY);
-							VisibleTiles[0].Include(TileX, AdjacentY);
-							VisibleTiles[0].Include(AdjacentX, AdjacentY);
+							int32 AdjacentX = TileX > 0 ? TileX - 1 : NumX - 1;
+							int32 AdjacentY = TileY > 0 ? TileY - 1 : NumY - 1;
+							VisibleTiles[0].SetVisible(TileX, TileY);
+							VisibleTiles[0].SetVisible(AdjacentX, TileY);
+							VisibleTiles[0].SetVisible(TileX, AdjacentY);
+							VisibleTiles[0].SetVisible(AdjacentX, AdjacentY);
 						}
 					}
 				}
 
 				if (VisibleTiles.Contains(0))
 				{
+					FIntPoint BaseDim = VisibleTiles[0].GetDimensions();
+					TArray<FIntPoint> BaseVisibleCoordinates = VisibleTiles[0].GetVisibleCoordinates();
+
+					// Include tiles visible at the base level in higher mip levels.
 					for (int32 Level = 1; Level < InSequenceInfo.NumMipLevels; ++Level)
 					{
-						FImgMediaTileSelection& Selection = VisibleTiles.FindOrAdd(Level);
-						Selection = DownscaleTileSelection(VisibleTiles[0], Level);
+						const int32 MipLevelDiv = 1 << Level;
+
+						if (!VisibleTiles.Contains(Level))
+						{
+							NumX = FMath::CeilToInt((float)BaseDim.X / MipLevelDiv);
+							NumY = FMath::CeilToInt((float)BaseDim.Y / MipLevelDiv);
+							VisibleTiles.Emplace(Level, FImgMediaTileSelection(NumX, NumY));
+						}
+
+						for (const FIntPoint& Coord : BaseVisibleCoordinates)
+						{
+							VisibleTiles[Level].SetVisible(Coord.X / MipLevelDiv, Coord.Y / MipLevelDiv);
+						}
 					}
 				}
 			}
@@ -546,7 +687,7 @@ void FImgMediaMipMapInfo::Tick(float DeltaTime)
 				MipLevelRange[1] = FMath::Max(MipLevelRange[1], MipTiles.Key);
 
 				const FImgMediaTileSelection& TileSelection = MipTiles.Value;
-				NumVisibleTiles += (TileSelection.BottomRightX - TileSelection.TopLeftX) * (TileSelection.BottomRightY - TileSelection.TopLeftY);
+				NumVisibleTiles += TileSelection.NumVisibleTiles();
 			}
 
 			if (MipLevelRange[0] <= MipLevelRange[1])

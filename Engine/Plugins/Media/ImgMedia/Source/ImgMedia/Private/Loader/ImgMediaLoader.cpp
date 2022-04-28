@@ -1253,7 +1253,7 @@ void FImgMediaLoader::AddEmptyFrame(int32 FrameNumber)
 	Frame->Stride = Frame ->Info.Dim.X * PixelSize;
 	for (int32 Level = 0; Level < GetNumMipLevels(); ++Level)
 	{
-		Frame->MipTilesPresent.Add(Level).Include(0u, 0u);
+		Frame->MipTilesPresent.Emplace(Level, FImgMediaTileSelection(1, 1, true));
 	}
 	AddFrameToCache(FrameNumber, Frame);
 }
@@ -1309,13 +1309,13 @@ void FImgMediaLoader::GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMedia
 
 		for (const auto& Pair : VisibleTiles)
 		{
-			FImgMediaTileSelection& OutSelection = OutMipsAndTiles.Add(Pair.Key);
-			OutSelection.SetAllNotVisible();
+			FImgMediaTileSelection Selection = FImgMediaTileSelection::CreateForTargetMipLevel(GetNumTilesX(), GetNumTilesY(), Pair.Key);
 
 			for (const FMediaTileCoordinate& Coordinate : Pair.Value)
 			{
-				OutSelection.Include(Coordinate.X, Coordinate.Y);
+				Selection.SetVisible(Coordinate.X, Coordinate.Y);
 			}
+			OutMipsAndTiles.Emplace(Pair.Key, MoveTemp(Selection));
 		}
 	}
 	else if(MipMapInfo.IsValid() && MipMapInfo->HasObjects())
@@ -1327,13 +1327,7 @@ void FImgMediaLoader::GetDesiredMipTiles(int32 FrameIndex, TMap<int32, FImgMedia
 		//Fallback case where we activate all mips and tiles.
 		for (int32 MipLevel = 0; MipLevel < GetNumMipLevels(); ++MipLevel)
 		{
-			FImgMediaTileSelection& Selection = OutMipsAndTiles.FindOrAdd(MipLevel);
-
-			const int MipLevelDiv = 1 << MipLevel;
-
-			int32 NumTilesX = FMath::Max(1, FMath::CeilToInt(float(GetNumTilesX()) / MipLevelDiv));
-			int32 NumTilesY = FMath::Max(1, FMath::CeilToInt(float(GetNumTilesY()) / MipLevelDiv));
-			Selection.SetVisibleRegion(0u, 0u, IntCastChecked<uint16>(NumTilesX), IntCastChecked<uint16>(NumTilesY));
+			OutMipsAndTiles.Emplace(MipLevel, FImgMediaTileSelection::CreateForTargetMipLevel(GetNumTilesX(), GetNumTilesY(), MipLevel, true));
 		}
 	}
 }

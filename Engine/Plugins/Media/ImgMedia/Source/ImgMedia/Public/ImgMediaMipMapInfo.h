@@ -7,6 +7,7 @@
 #include "Tickable.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "Containers/BitArray.h"
 
 class AActor;
 class UMeshComponent;
@@ -58,111 +59,118 @@ struct FImgMediaMipMapCameraInfo
  */
 struct FImgMediaTileSelection
 {
-	/** X position of the most top left visibile tile. */
-	uint16 TopLeftX;
-	/** Y position of the most top left visible tile. */
-	uint16 TopLeftY;
 	/**
-	 * X position of the most bottom right visible tile + 1.
-	 * If this is equal to TopLeftX, then this implies that the tile is not visible.
+	 * Create and initialize a new tile selection.
+	 *
+	 * @param NumTilesX Horizontal tile count.
+	 * @param NumTilesY Vertical tile count.
+	 * @param bDefaultVisibility Optional visibility for the entire region.
 	 */
-	uint16 BottomRightX;
-	/** Y position of the most bottom right visible tile + 1. */
-	uint16 BottomRightY;
-
-	FImgMediaTileSelection()
-	{
-		SetAllNotVisible();
-	}
+	FImgMediaTileSelection(int32 NumTilesX, int32 NumTilesY, bool bDefaultVisibility = false);
 
 	/**
-	 * Marks all tiles as visible.
+	 * Create and initialize a new tile selection, adjusting tile counts for the specified higher mip level.
+	 *
+	 * @param BaseNumTilesX Horizontal tile count at mip level 0.
+	 * @param NumTilesY Vertical tile count at mip level 0.
+	 * @param TargetMipLevel Higher target mip level for the selection (usually 1 and above).
+	 * @param bDefaultVisibility Optional visibility for the entire region.
 	 */
-	void SetAllVisible()
-	{
-		TopLeftX = 0;
-		TopLeftY = 0;
-		BottomRightX = 0xffff;
-		BottomRightY = 0xffff;
-	}
+	static FImgMediaTileSelection CreateForTargetMipLevel(int32 BaseNumTilesX, int32 BaseNumTilesY, int32 TargetMipLevel, bool bDefaultVisibility = false);
+
+	FImgMediaTileSelection() = default;
+	~FImgMediaTileSelection() noexcept = default;
+
+	FImgMediaTileSelection(const FImgMediaTileSelection&) = default;
+	FImgMediaTileSelection& operator=(const FImgMediaTileSelection&) = default;
+
+	FImgMediaTileSelection(FImgMediaTileSelection&&) = default;
+	FImgMediaTileSelection& operator=(FImgMediaTileSelection&&) = default;
 
 	/**
-	 * Marks all tiles as not visible.
-	 */
-	void SetAllNotVisible()
-	{
-		TopLeftX = 0xffff;
-		TopLeftY = 0xffff;
-		BottomRightX = 0;
-		BottomRightY = 0;
-	}
-
-	/**
-	 * Marks visible tile region.
-	 * 
-	 * @param InTopLeftX Top-left coordinate horizontal component.
-	 * @param InTopLeftY Top-left coordinate vertical component.
-	 * @param InBottomRightX Bottom-right coordinate horizontal component.
-	 * @param InBottomRightY Bottom-rightcoordinate vertical component.
-	 */
-	void SetVisibleRegion(uint16 InTopLeftX, uint16 InTopLeftY, uint16 InBottomRightX, uint16 InBottomRightY)
-	{
-		TopLeftX = InTopLeftX;
-		TopLeftY = InTopLeftY;
-		BottomRightX = InBottomRightX;
-		BottomRightY = InBottomRightY;
-	}
-
-	/**
-	* See if this selection is visible.
+	* See if any tile is visible.
 	*
 	* @return True if so.
 	*/
-	bool IsVisible() const { return (TopLeftX < BottomRightX); };
-
+	bool IsAnyVisible() const;
 
 	/**
-	 * Include a given tile coordinate to the current section region.
+	 * Check if a specific tile is visible.
 	 *
 	 * @param TileCoordX Horizontal tile coordinate.
 	 * @param TileCoordY Vertical tile coordinate.
+	 * @return True if the coordinate is visible, false otherwise.
 	 */
-	void Include(uint16 TileCoordX, uint16 TileCoordY)
-	{
-		TopLeftX = FMath::Min(TopLeftX, TileCoordX);
-		TopLeftY = FMath::Min(TopLeftY, TileCoordY);
-		BottomRightX = FMath::Max(BottomRightX, uint16(TileCoordX + 1u));
-		BottomRightY = FMath::Max(BottomRightY, uint16(TileCoordY + 1u));
-	}
+	bool IsVisible(int32 TileCoordX, int32 TileCoordY) const;
 
 	/**
-	 * Check if the current selection contains a tile.
-	 *
-	 * @param TileCoordX Horizontal tile coordinate.
-	 * @param TileCoordY Vertical tile coordinate.
-	 * @return True if the coordinate is contained withing bounds, false otherwise.
-	 */
-	bool Contains(uint16 TileCoordX, uint16 TileCoordY) const
-	{
-		return TopLeftX <= TileCoordX &&
-			TopLeftY <= TileCoordY &&
-			BottomRightX > TileCoordX &&
-			BottomRightY > TileCoordY;
-	}
-
-	/**
-	 * Check if the current selection contains another selection within its bounds.
+	 * Check if the currently visible tiles are also visible in another selection.
 	 *
 	 * @param Other Selection to compare.
-	 * @return True if the other selection is contained withing bounds, false otherwise.
+	 * @return True if the other selection is visible, false otherwise.
 	 */
-	bool Contains(const FImgMediaTileSelection& Other) const
+	bool Contains(const FImgMediaTileSelection& Other) const;
+
+	/**
+	 * Mark a tile as visible.
+	 *
+	 * @param TileCoordX Horizontal tile coordinate.
+	 * @param TileCoordY Vertical tile coordinate.
+	 */
+	void SetVisible(int32 TileCoordX, int32 TileCoordY);
+
+	/**
+	 * Returns the list of visible tile coordinates, in row and column order.
+	 *
+	 * @return Visible tile coordinates array.
+	 */
+	TArray<FIntPoint> GetVisibleCoordinates() const;
+
+	/**
+	 * Return the rectangular region bounding the visible tiles.
+	 *
+	 * @return Visible tile coordinates array.
+	 */
+	FIntRect GetVisibleRegion() const;
+
+	/**
+	 * Returns the number of visible tiles.
+	 *
+	 * @return Visible tile count.
+	 */
+	int32 NumVisibleTiles() const;
+
+	/**
+	 * Returns the overall dimensions in number of tiles.
+	 *
+	 * @return FIntPoint where X is the horizontal tile count and Y the vertical tile count.
+	 */
+	FIntPoint GetDimensions() const { return Dimensions; }
+
+private:
+	/** Convert from tile coordinates to linear index. */
+	FORCEINLINE static int32 ToIndex(int32 CoordX, int32 CoordY, const FIntPoint& Dim)
 	{
-		return TopLeftX <= Other.TopLeftX &&
-			TopLeftY <= Other.TopLeftY &&
-			BottomRightX >= Other.BottomRightX &&
-			BottomRightY >= Other.BottomRightY;
+		return CoordY * Dim.X + CoordX;
 	}
+
+	/** Convert from linear index to tile coordinates. */
+	FORCEINLINE static FIntPoint FromIndex(int32 Index, const FIntPoint& Dim)
+	{
+		return FIntPoint(Index % Dim.X, Index / Dim.X);
+	}
+	
+	/** Bit array of tiles over the entire region's dimensions, true when visible. */
+	TBitArray<> Tiles;
+	
+	/** Number of tiles in each axis. */
+	FIntPoint Dimensions;
+
+	/** Cached visible tile region. */
+	mutable FIntRect CachedVisibleRegion;
+	
+	/** Flag indicating if the cached visible tile region needs to be recalculated. */
+	mutable bool bCachedVisibleRegionDirty;
 };
 
 /**
