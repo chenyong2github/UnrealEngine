@@ -192,6 +192,10 @@ namespace Chaos
 		else
 		{
 			RigidHandle->SetObjectStateLowLevel(FieldState);
+			if (FieldState == Chaos::EObjectStateType::Dynamic)
+			{
+				RigidSolver->GetEvolution()->SetParticleKinematicTarget(RigidHandle, FKinematicTarget());
+			}
 		}
 	}
 
