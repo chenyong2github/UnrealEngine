@@ -2142,10 +2142,7 @@ bool FOpenXRHMD::OnStartGameFrame(FWorldContext& WorldContext)
 
 				// But only if this CVar is set to true.
 				bExitApp = bExitApp && (CVarOpenXRExitAppOnRuntimeDrivenSessionExit.GetValueOnAnyThread() != 0);
-#if WITH_EDITOR
-				// But always if in the editor, because that doesn't actually exit.  See RequestExitApp().
-				bExitApp = bExitApp || GIsEditor;
-#endif
+	
 				if (bExitApp)
 				{
 					RequestExitApp();
