@@ -12,6 +12,8 @@ DEFINE_LOG_CATEGORY(LogVirtualizationTool);
 
 bool UnrealVirtualizationToolMain(int32 ArgC, TCHAR* ArgV[])
 {
+	using namespace UE::Virtualization;
+
 	GEngineLoop.PreInit(ArgC, ArgV);
 	check(GConfig && GConfig->IsReadyForUse());
 

@@ -19,6 +19,9 @@
 #include "UnrealVirtualizationTool.h"
 #include "Virtualization/VirtualizationSystem.h"
 
+namespace UE::Virtualization
+{
+
 namespace
 {
 
@@ -151,8 +154,6 @@ void LexFromString(EMode& OutValue, const FStringView& InString)
 	}
 }
 
-} // namespace
-
 /** 
  * This class can be used to prevent log messages from other systems being logged with the Display verbosity.
  * In practical terms this means as long as the class is alive, only LogVirtualizationTool messages will
@@ -185,6 +186,8 @@ public:
 private: 
 	FFeedbackContext* OriginalLog;
 };
+
+} // namespace
 
 FUnrealVirtualizationToolApp::FUnrealVirtualizationToolApp()
 {
@@ -931,3 +934,5 @@ bool FProject::TryLoadConfig(FConfigFile& OutConfig) const
 
 	return true;
 }
+
+} // namespace UE::Virtualization

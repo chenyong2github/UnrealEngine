@@ -9,6 +9,9 @@
 
 class ISourceControlProvider;
 
+namespace UE::Virtualization
+{
+
 struct FPlugin
 {
 	FString PluginFilePath;
@@ -53,11 +56,11 @@ enum class EMode :uint32
 enum class EProcessOptions : uint32
 {
 	/** No options */
-	None		= 0,
+	None = 0,
 	/** Virtualize the packages in the provided changelist */
-	Virtualize	= 1 << 0,
+	Virtualize = 1 << 0,
 	/** Submit the changelist */
-	Submit		= 1 << 1
+	Submit = 1 << 1
 };
 ENUM_CLASS_FLAGS(EProcessOptions);
 
@@ -117,7 +120,7 @@ private:
 
 	/** Data structure holding the files in the changelist sorted by project and then by plugin*/
 	TArray<FProject> Projects;
-	
+
 	/** Name of the client spec (workspace) passed in on the command line*/
 	FString ClientSpecName;
 
@@ -133,3 +136,5 @@ private:
 	/** The path to the list of packages to virtualized, used with EMode::PackageList */
 	FString PackageListPath;
 };
+
+} //namespace UE::Virtualization
