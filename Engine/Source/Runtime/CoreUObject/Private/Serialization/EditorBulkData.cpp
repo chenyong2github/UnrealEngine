@@ -203,6 +203,19 @@ static FPackagePath GetPackagePathFromOwner(UObject* Owner, EPackageSegment& Out
 	}
 }
 
+/** Utility for finding a valid debug name to print from the owning UObject */
+FString GetDebugNameFromOwner(UObject* Owner)
+{
+	if (Owner != nullptr)
+	{
+		return Owner->GetFullName();
+	}
+	else
+	{
+		return FString(TEXT("Unknown"));
+	}
+}
+
 /** Utility for hashing a payload, will return a default FIoHash if the payload is invalid or of zero length */
 static FIoHash HashPayload(const FSharedBuffer& InPayload)
 {
@@ -960,11 +973,22 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 				// Cache the offset from the trailer (if we move the loading of the payload to the trailer 
 				// at a later point then we can skip this)
 				OffsetInFile = Trailer->FindPayloadOffsetInFile(PayloadContentId);
+
+				// Attempt to catch data that saved with the virtualization flag when it's package has a trailers.
+				// It is unlikely this will ever trigger in the wild but keeping the code path for now to be safe.
+				// TODO: Consider removing in 5.2+
+				if (IsDataVirtualized() && Trailer->FindPayloadStatus(PayloadContentId) != EPayloadStatus::StoredVirtualized)
+				{
+					UE_LOG(LogSerialization, Warning, TEXT("Payload in '%s' is was saved with an invalid flag and required fixing. Please re-save the package!"), *GetDebugNameFromOwner(Owner));
+					EnumRemoveFlags(Flags, EFlags::IsVirtualized);
+				}
 			}
 			else
 			{
-				// TODO: This check is for older virtualized formats that might be seen in older test projects.
-				UE_CLOG(IsDataVirtualized(), LogSerialization, Error, TEXT("Payload in '%s' is virtualized in an older format and should be re-saved!"), *Owner->GetName());
+				// This check is for older virtualized formats that might be seen in older test projects.
+				// But we only care if the archive has a linker! (loading from a package)
+				// TODO: Consider removing in 5.2+
+				UE_CLOG(IsDataVirtualized() && Ar.GetLinker() != nullptr, LogSerialization, Warning, TEXT("Payload in '%s' is virtualized in an older format and should be re-saved!"), *GetDebugNameFromOwner(Owner));
 				if (!IsDataVirtualized())
 				{
 					Ar << OffsetInFile;
@@ -1590,10 +1614,25 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 					return;
 				}
 
-				this->PackagePath = InPackagePath;
-				check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
 				this->OffsetInFile = PayloadOffset;
 				this->Flags = (this->Flags & EFlags::TransientFlags) | (UpdatedFlags & ~EFlags::TransientFlags);
+	
+				if (PayloadOffset != INDEX_NONE)
+				{
+					// A valid payload means that it was saved locally to disk. We can set the path at this point but will only
+					// be able to load from it if the package is reattached to the file on disk, which is not a currently
+					// supported feature.
+					this->PackagePath = InPackagePath;
+					check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
+				}
+				else
+				{
+					// If the payload offset we are given is INDEX_NONE it means that the payload was discarded as there was an identical
+					// virtualized entry and the virtualized version takes priority. Since we know that the payload is in the 
+					// virtualization system at this point we can set the virtualization flag allowing us to unload any existing payload
+					// in memory to help reduce bloat.
+					EnumAddFlags(this->Flags, EFlags::IsVirtualized);
+				}
 
 				if (CanUnloadData())
 				{
@@ -1982,6 +2021,10 @@ FEditorBulkData::EFlags FEditorBulkData::BuildFlagsForSerialization(FArchive& Ar
 		else
 		{
 			EnumAddFlags(UpdatedFlags, EFlags::StoredInPackageTrailer);
+
+			// If the payload is virtualized or not will be controlled by the package trailer so we shouldn't
+			//serialize this out to the exports
+			EnumRemoveFlags(UpdatedFlags, EFlags::IsVirtualized);
 		}
 
 		return UpdatedFlags;

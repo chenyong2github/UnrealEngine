@@ -3,6 +3,7 @@
 #include "UObject/PackageTrailer.h"
 
 #include "Algo/Count.h"
+#include "Algo/RemoveIf.h"
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/PackagePath.h"
@@ -222,7 +223,8 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 	// parse and manipulate the trailer without needing to worry that we might change how
 	// our containers serialize. 
 	
-	// First we build a trailer structure
+	RemoveDuplicateEntries();
+
 	FPackageTrailer Trailer;
 	
 	Trailer.Header.Tag = FPackageTrailer::FHeader::HeaderTag;
@@ -233,7 +235,7 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 	Trailer.Header.HeaderLength = FPackageTrailer::FHeader::StaticHeaderSizeOnDisk + DynamicHeaderSizeOnDisk;
 	
 	Trailer.Header.PayloadsDataLength = 0;
-	Trailer.Header.PayloadLookupTable.Reserve(LocalEntries.Num() + VirtualizedEntries.Num());
+	Trailer.Header.PayloadLookupTable.Reserve(LocalEntries.Num() + ReferencedEntries.Num() + VirtualizedEntries.Num());
 
 	for (const TPair<FIoHash, LocalEntry>& It : LocalEntries)
 	{
@@ -343,6 +345,27 @@ int32 FPackageTrailerBuilder::GetNumReferencedPayloads() const
 int32 FPackageTrailerBuilder::GetNumVirtualizedPayloads() const
 {
 	return VirtualizedEntries.Num();
+}
+
+void FPackageTrailerBuilder::RemoveDuplicateEntries()
+{
+	for (auto Iter = LocalEntries.CreateIterator(); Iter; ++Iter)
+	{
+		if (VirtualizedEntries.Contains(Iter.Key()))
+		{	
+			UE_LOG(LogSerialization, Verbose, TEXT("Replacing localized payload '%s' with the virtualized version when building the package trailer for '%s'"), *LexToString(Iter.Key()) , *PackageName.ToString());
+			Iter.RemoveCurrent();
+		}
+	}
+
+	for (auto Iter = ReferencedEntries.CreateIterator(); Iter; ++Iter)
+	{
+		if (VirtualizedEntries.Contains(Iter.Key()))
+		{
+			UE_LOG(LogSerialization, Verbose, TEXT("Replacing localized payload '%s' with the virtualized version when building the package trailer for '%s'"), *LexToString(Iter.Key()), *PackageName.ToString());
+			Iter.RemoveCurrent();
+		}
+	}
 }
 
 bool FPackageTrailer::IsEnabled()

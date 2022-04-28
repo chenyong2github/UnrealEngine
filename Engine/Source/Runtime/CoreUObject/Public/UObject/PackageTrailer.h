@@ -279,6 +279,8 @@ private:
 		int64 RawSize = INDEX_NONE;
 	};
 
+	void RemoveDuplicateEntries();
+
 	// Members used when building the trailer
 
 	/** Name of the package the trailer is being built for, used to give meaningful error messages */
