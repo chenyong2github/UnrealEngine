@@ -3,15 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/TransformCalculus.h"
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Package.h"
 #include "UObject/Class.h"
-#include "Math/TransformCalculus.h"
-#include "ShaderParameterMetadataBuilder.h"
 
+class FShaderParametersMetadataBuilder;
 struct FShaderValueTypeHandle;
 
 namespace Optimus
@@ -70,12 +70,6 @@ namespace Optimus
 	};
 
 	FName GetSanitizedNameForHlsl(FName InName);
-
-	template<typename T>
-	void ParametrizedAddParm(FShaderParametersMetadataBuilder& InOutBuilder, const TCHAR* InName)
-	{
-		InOutBuilder.AddParam<T>(InName);
-	}
 
 	void AddParamForType(FShaderParametersMetadataBuilder& InOutBuilder, TCHAR const* InName, FShaderValueTypeHandle const& InValueType);
 

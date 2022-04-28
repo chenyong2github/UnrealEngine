@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OptimusHelpers.h"
-#include "ComputeFramework/Public/ComputeFramework/ShaderParamTypeDefinition.h"
+
+#include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "ShaderParameterMetadataBuilder.h"
 
 FName Optimus::GetUniqueNameForScope(UObject* InScopeObj, FName InName)
 {
@@ -35,6 +37,12 @@ FName Optimus::GetSanitizedNameForHlsl(FName InName)
 	}
 
 	return *Name;
+}
+
+template<typename T>
+void ParametrizedAddParm(FShaderParametersMetadataBuilder& InOutBuilder, const TCHAR* InName)
+{
+	InOutBuilder.AddParam<T>(InName);
 }
 
 void Optimus::AddParamForType(FShaderParametersMetadataBuilder& InOutBuilder, TCHAR const* InName, FShaderValueTypeHandle const& InValueType)
