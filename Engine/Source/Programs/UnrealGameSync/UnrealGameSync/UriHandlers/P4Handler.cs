@@ -29,6 +29,13 @@ namespace UnrealGameSync
 			Program.SpawnP4VC(CommandLine);
 
 			return new UriResult() { Success = true };
-		}		
+		}
+
+		[UriHandler(true)]
+		public static UriResult Change(int number)
+		{
+			Program.SpawnP4VC($"change {number}");
+			return new UriResult() { Success = true };
+		}
 	}
 }
