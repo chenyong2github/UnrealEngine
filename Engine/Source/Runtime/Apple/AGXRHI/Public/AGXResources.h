@@ -506,6 +506,7 @@ protected:
 		, ERHITextureSRVOverrideSRGBType InSRGBOverride
 		, uint32 InFirstArraySlice
 		, uint32 InNumArraySlices
+		, bool bInUAV
 	);
 
 public:
@@ -565,6 +566,7 @@ public:
 			, CreateInfo.SRGBOverride
 			, CreateInfo.FirstArraySlice
 			, CreateInfo.NumArraySlices
+			, false // bInUAV
 		)
 	{}
 
@@ -598,6 +600,7 @@ public:
 			, ERHITextureSRVOverrideSRGBType::SRGBO_ForceDisable
 			, FirstArraySlice
 			, NumArraySlices
+			, true // bInUAV
 		)
 	{}
 

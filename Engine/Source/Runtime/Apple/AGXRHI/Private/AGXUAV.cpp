@@ -78,6 +78,7 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 	, ERHITextureSRVOverrideSRGBType InSRGBOverride
 	, uint32 InFirstArraySlice
 	, uint32 InNumArraySlices
+	, bool bInUAV
 	)
 	: SourceTexture    (ResourceCast(InTexture))
 	, bTexture         (true)
@@ -154,7 +155,8 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 			bool bUseSourceTex =
 				   MipLevel == 0
 				&& NumMips == SourceTexture->Texture.GetMipmapLevelCount()
-				&& MetalFormat == (MTLPixelFormat)SourceTexture->Texture.GetPixelFormat();
+				&& MetalFormat == (MTLPixelFormat)SourceTexture->Texture.GetPixelFormat()
+				&& !(bInUAV && SourceTexture->GetDesc().IsTextureCube());		// @todo: Remove this once Cube UAV supported for all Metal Devices
 
 			if (bUseSourceTex)
 			{
@@ -169,10 +171,13 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 					SourceTexture->PrepareTextureView();
 
 				ns::Range Slices(0, SourceTexture->Texture.GetArrayLength() * (SourceTexture->GetDesc().IsTextureCube() ? 6 : 1));
+				
+				// @todo: Remove this type swizzle once Cube UAV supported for all Metal Devices - SRV seem to want to stay as cube but UAV are expected to be 2DArray
+				mtlpp::TextureType TextureType = bInUAV && SourceTexture->GetDesc().IsTextureCube() ? mtlpp::TextureType::Texture2DArray : SourceTexture->Texture.GetTextureType();
 
 				TextureView = SourceTexture->Texture.NewTextureView(
 					(mtlpp::PixelFormat)MetalFormat,
-					SourceTexture->Texture.GetTextureType(),
+					TextureType,
 					ns::Range(MipLevel, NumMips),
 					Slices);
 			}
