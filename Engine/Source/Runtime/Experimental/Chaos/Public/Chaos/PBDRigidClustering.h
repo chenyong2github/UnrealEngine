@@ -278,7 +278,7 @@ public:
 	void ComputeStrainFromCollision(const FPBDCollisionConstraints& CollisionRule);
 	void ResetCollisionImpulseArray();
 	void DisableCluster(FPBDRigidClusteredParticleHandle* ClusteredParticle);
-	void DisableParticleWithBreakEvent(Chaos::FPBDRigidParticleHandle* Particle);
+	void DisableParticleWithBreakEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle);
 
 	/*
 	* Connectivity
@@ -303,6 +303,18 @@ public:
 	void RemoveNodeConnections(FPBDRigidParticleHandle* Child);
 	void RemoveNodeConnections(FPBDRigidClusteredParticleHandle* Child);
 
+	void RemoveChildFromParent(FPBDRigidParticleHandle* Child, const FPBDRigidClusteredParticleHandle* ClusteredParent);
+	void SendBreakingEvent(FPBDRigidClusteredParticleHandle* ClusteredParticle);
+
+	TSet<FPBDRigidParticleHandle*> ReleaseClusterParticlesImpl(
+		FPBDRigidClusteredParticleHandle* ClusteredParticle, 
+		const TMap<FGeometryParticleHandle*, FReal>* ExternalStrainMap,
+		bool bForceRelease,
+		bool bCreateNewClusters);
+	
+	using FParticleIsland = TArray<FPBDRigidParticleHandle*>;
+	TArray<FParticleIsland> FindIslandsInChildren(const FPBDRigidClusteredParticleHandle* ClusteredParticle);
+	TArray<FPBDRigidParticleHandle*> CreateClustersFromNewIslands(TArray<FParticleIsland>& Islands, FPBDRigidClusteredParticleHandle* ClusteredParent);
 private:
 
 	FRigidEvolution& MEvolution;
