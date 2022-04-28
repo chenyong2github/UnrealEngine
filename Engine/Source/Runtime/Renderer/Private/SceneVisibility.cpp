@@ -5008,9 +5008,8 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 
 	TUniformBufferRef<FMobileReflectionCaptureShaderData> MobileReflectionCaptureUniformBuffer;
 	TUniformBufferRef<FReflectionCaptureShaderData> ReflectionCaptureUniformBuffer;
-	bool bIsMobileClusteredReflections = IsMobilePlatform(ShaderPlatform) && MobileEnableClusteredReflections(ShaderPlatform);
 
-	if (bIsMobileClusteredReflections)
+	if (IsMobilePlatform(ShaderPlatform))
 	{
 		CreateReflectionCaptureUniformBuffer(SortedCaptures, MobileReflectionCaptureUniformBuffer);
 	}
@@ -5023,7 +5022,7 @@ void FSceneRenderer::SetupSceneReflectionCaptureBuffer(FRHICommandListImmediate&
 	{
 		FViewInfo& View = Views[ViewIndex];
 
-		if (bIsMobileClusteredReflections)
+		if (IsMobilePlatform(ShaderPlatform))
 		{
 			View.MobileReflectionCaptureUniformBuffer = MobileReflectionCaptureUniformBuffer;
 		}
