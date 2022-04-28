@@ -1,10 +1,10 @@
-INTSourceChangelist:3108692
-Availability:NoPublish
+INTSourceChangelist:19906333
 Title:ABoxReflectionCapture
 Crumbs:
-Description: BoxReflectionCapture クラスの概要
+Description:BoxReflectionCapture クラスの概要
 
 [EXCERPT:ABoxReflectionCapture]
 
-Box Reflection Capture アクタ は、アンリアル エンジン 4 で利用可能な 2 つの Reflection Capture アクタのうちの 1 つです。このアクタはランタイム以前に計算されるため、パフォーマンスにほとんど影響を与えずにワールド内に配置することが可能です。
+Box Reflection Capture アクタは、反射で使用するために周囲の領域の画像をキャプチャします。長方形の廊下や室内での使用に最適です。このアクタは、いくつ配置しても実行時のパフォーマンスにほとんど影響を与えることはありません。
 [/EXCERPT:ABoxReflectionCapture]
+
