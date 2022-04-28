@@ -611,7 +611,7 @@ void FChainDecoderFK::DecodePose(
 				break;
 			case ERetargetTranslationMode::GloballyScaled:
 				{
-					OutPosition = SourceCurrentTransform.GetTranslation() * RootRetargeter.GlobalScale; // todo expose global scale modifier
+					OutPosition = SourceCurrentTransform.GetTranslation() * RootRetargeter.GetGlobalScaleVector();
 				}
 				break;
 			case ERetargetTranslationMode::Absolute:
@@ -825,76 +825,79 @@ void FChainRetargeterIK::DecodePose(
     const TArray<FTransform>& OutGlobalPose,
     FDecodedIKChain& OutResults)
 {
-	FVector EndPosition;
-	if (Settings.DriveIKGoal)
-	{
-		// set position to length-scaled direction from source limb
-		const FVector Start = OutGlobalPose[Target.BoneIndexA].GetTranslation();
-		EndPosition = Start + (Source.CurrentEndDirectionNormalized * Target.InitialLength);
-
-		// blend to source location
-		if (Settings.BlendToSource > KINDA_SMALL_NUMBER)
-		{
-			const FVector Weight = Settings.BlendToSource * Settings.BlendToSourceWeights;
-			EndPosition.X = FMath::Lerp(EndPosition.X, Source.CurrentEndPosition.X, Weight.X);
-			EndPosition.Y = FMath::Lerp(EndPosition.Y, Source.CurrentEndPosition.Y, Weight.Y);
-			EndPosition.Z = FMath::Lerp(EndPosition.Z, Source.CurrentEndPosition.Z, Weight.Z);
-		}
-
-		// apply static offset
-		EndPosition += Settings.StaticOffset;
-
-		// apply extension
-		if (!FMath::IsNearlyEqual(Settings.Extension, 1.0f))
-		{
-			EndPosition = Start + (EndPosition - Start) * Settings.Extension;	
-		}
-
-		// match velocity
-		if (Settings.MatchSourceVelocity > KINDA_SMALL_NUMBER)
-		{
-			const FVector SourceVelocity = Source.CurrentEndPosition - Source.PreviousEndPosition;
-			const float SourceSpeed = SourceVelocity.Size();
-
-			const FVector TargetVelocity = EndPosition - Target.PrevEndPosition;
-			const float TargetSpeed = TargetVelocity.Size();
-
-			// if target is moving slowly enough, start matching velocity
-			if (TargetSpeed < Settings.TeleportVelocityThreshold)
-			{
-				// match target speed to source
-				const float BlendedSpeed = FMath::Lerp(TargetSpeed, SourceSpeed, Settings.MatchSourceVelocity);
-				EndPosition = Target.PrevEndPosition + TargetVelocity * BlendedSpeed;
-
-				// what would happen if we blended into and out of this state?
-				// TimeSinceTargetStartedMatchingVelocity
-				// WasMatchingVelocity
-			}
-		}
-		
-		// optionally factor in ground height
-		//const bool IsGrounded = false;
-		//if (IsGrounded) // todo expose this
-		//{
-		//	OutResults.EndEffectorPosition.Z = (EncodedChain.HeightFromGroundNormalized * Length) + EndPositionOrig.Z;
-		//}
-	}
-	else
-	{
-		// set goal location to the input coming from the previous retarget phase (FK if enabled)
-		EndPosition = OutGlobalPose[Target.BoneIndexC].GetTranslation();
-	}
-
-	// apply effector position
-	OutResults.EndEffectorPosition = EndPosition;
-	Target.PrevEndPosition = EndPosition;
+	// record the end bone rotation on the input pose
+	const FQuat InputEndRotation = OutGlobalPose[Target.BoneIndexC].GetRotation();
+	// we have to "undo" the end bone delta, otherwise we will get double-transformations because the FK pass has already rotated the foot
+	const FQuat InputToInitialDeltaRotation = InputEndRotation * Target.InitialEndRotation.Inverse();
+	const FQuat Rotation = InputToInitialDeltaRotation * Target.InitialEndRotation;
 	
-	// calculate end effector rotation
-	const FQuat RotationDelta = Source.CurrentEndRotation * Source.InitialEndRotation.Inverse();
-	OutResults.EndEffectorRotation = RotationDelta * Target.InitialEndRotation;
+	if (!Settings.DriveIKGoal)
+	{
+		// set goal transform to the input coming from the previous retarget phase (FK if enabled)
+		OutResults.EndEffectorPosition = OutGlobalPose[Target.BoneIndexC].GetTranslation();
+		OutResults.EndEffectorRotation = Rotation;
+		return;
+	}
+	
+	// apply static rotation offset in the local space of the foot
+	const FQuat GoalRotation = Rotation * Settings.StaticRotationOffset.Quaternion();
 
-	// TBD calc pole vector position
-	OutResults.PoleVectorPosition = FVector::OneVector;
+	//
+	// calculate position of IK goal ...
+	//
+	
+	// set position to length-scaled direction from source limb
+	const FVector Start = OutGlobalPose[Target.BoneIndexA].GetTranslation();
+	FVector GoalPosition = Start + (Source.CurrentEndDirectionNormalized * Target.InitialLength);
+
+	// blend to source location
+	if (Settings.BlendToSource > KINDA_SMALL_NUMBER)
+	{
+		const FVector Weight = Settings.BlendToSource * Settings.BlendToSourceWeights;
+		GoalPosition.X = FMath::Lerp(GoalPosition.X, Source.CurrentEndPosition.X, Weight.X);
+		GoalPosition.Y = FMath::Lerp(GoalPosition.Y, Source.CurrentEndPosition.Y, Weight.Y);
+		GoalPosition.Z = FMath::Lerp(GoalPosition.Z, Source.CurrentEndPosition.Z, Weight.Z);
+	}
+
+	// apply global static offset
+	GoalPosition += Settings.StaticOffset;
+
+	// apply local static offset
+	GoalPosition += GoalRotation.RotateVector(Settings.StaticLocalOffset);
+
+	// apply extension
+	if (!FMath::IsNearlyEqual(Settings.Extension, 1.0f))
+	{
+		GoalPosition = Start + (GoalPosition - Start) * Settings.Extension;	
+	}
+
+	// match velocity
+	if (Settings.MatchSourceVelocity > KINDA_SMALL_NUMBER)
+	{
+		const FVector SourceVelocity = Source.CurrentEndPosition - Source.PreviousEndPosition;
+		const float SourceSpeed = SourceVelocity.Size();
+
+		const FVector TargetVelocity = GoalPosition - Target.PrevEndPosition;
+		const float TargetSpeed = TargetVelocity.Size();
+
+		// if target is moving slowly enough, start matching velocity
+		if (TargetSpeed < Settings.TeleportVelocityThreshold)
+		{
+			// match target speed to source
+			const float BlendedSpeed = FMath::Lerp(TargetSpeed, SourceSpeed, Settings.MatchSourceVelocity);
+			GoalPosition = Target.PrevEndPosition + TargetVelocity * BlendedSpeed;
+
+			// what would happen if we blended into and out of this state?
+			// TimeSinceTargetStartedMatchingVelocity
+			// WasMatchingVelocity
+		}
+	}
+	
+	// output transform
+	OutResults.EndEffectorPosition = GoalPosition;
+	OutResults.EndEffectorRotation = GoalRotation;
+	OutResults.PoleVectorPosition = FVector::OneVector; // TODO calc pole vector position
+	Target.PrevEndPosition = GoalPosition;
 }
 
 bool FRetargetChainPair::Initialize(
@@ -1120,6 +1123,7 @@ bool FRootRetargeter::InitializeTarget(
 	const FTransform TargetInitialTransform = TargetSkeleton.RetargetGlobalPose[Target.BoneIndex];
 	Target.InitialHeight = TargetInitialTransform.GetTranslation().Z;
 	Target.InitialRotation = TargetInitialTransform.GetRotation();
+	Target.InitialPosition = TargetInitialTransform.GetTranslation();
 
 	return true;
 }
@@ -1133,23 +1137,30 @@ void FRootRetargeter::Reset()
 void FRootRetargeter::EncodePose(const TArray<FTransform>& SourceGlobalPose)
 {
 	const FTransform& SourceTransform = SourceGlobalPose[Source.BoneIndex];
-	Source.CurrentPositionNormalized = SourceTransform.GetTranslation() * Source.InitialHeightInverse;
+	Source.CurrentPosition = SourceTransform.GetTranslation();
+	Source.CurrentPositionNormalized = Source.CurrentPosition * Source.InitialHeightInverse;
 	Source.CurrentRotation = SourceTransform.GetRotation();	
 }
 
-void FRootRetargeter::DecodePose(
-	TArray<FTransform>& OutTargetGlobalPose,
-	const float StrideScale) const
+void FRootRetargeter::DecodePose(TArray<FTransform>& OutTargetGlobalPose) const
 {
 	// scale normalized position by root height
-	FVector Position = Source.CurrentPositionNormalized * Target.InitialHeight;
-	// scale horizontal displacement by stride scale
-	Position *= FVector(StrideScale, StrideScale, 1.0f);
+	FVector RetargetedPosition = Source.CurrentPositionNormalized * Target.InitialHeight;// * GlobalScaleVertical;
+	RetargetedPosition.Z *= GlobalScaleVertical;
+	// globally scale offset of root
+	const FVector RootOffset = (RetargetedPosition - Target.InitialPosition) * FVector(GlobalScaleHorizontal, GlobalScaleHorizontal, 1.0f);
+	RetargetedPosition = Target.InitialPosition + RootOffset;
+	// blend the retarget root position towards the source retarget root position
+	FVector Position = FMath::Lerp(RetargetedPosition, Source.CurrentPosition, BlendToSource);
+	// apply a static offset
+	Position += StaticOffset;
 
 	// calc offset between initial source/target root rotations
 	const FQuat RotationDelta = Source.CurrentRotation * Source.InitialRotation.Inverse();
-	// add offset to the current source rotation
-	const FQuat Rotation = RotationDelta * Target.InitialRotation;
+	// add retarget pose delta to the current source rotation
+	FQuat Rotation = RotationDelta * Target.InitialRotation;
+	// add static rotation offset
+	Rotation = StaticRotationOffset.Quaternion() * Rotation;
 
 	// apply to target
 	FTransform& TargetRootTransform = OutTargetGlobalPose[Target.BoneIndex];
@@ -1446,8 +1457,7 @@ void UIKRetargetProcessor::RunRootRetarget(
     TArray<FTransform>& OutGlobalTransforms)
 {
 	RootRetargeter.EncodePose(InGlobalTransforms);
-	const float StrideScale = 1.0f;
-	RootRetargeter.DecodePose(OutGlobalTransforms, StrideScale);
+	RootRetargeter.DecodePose(OutGlobalTransforms);
 }
 
 void UIKRetargetProcessor::RunFKRetarget(
@@ -1500,7 +1510,7 @@ void UIKRetargetProcessor::RunIKRetarget(
 			OutIKGoal.EndEffectorPosition,
 			OutIKGoal.EndEffectorRotation,
 			1.0f,
-			0.0f,
+			1.0f,
 			EIKRigGoalSpace::Component,
 			EIKRigGoalSpace::Component);
 		IKRigProcessor->SetIKGoal(Goal);
@@ -1583,6 +1593,14 @@ void UIKRetargetProcessor::CopyAllSettingsFromAsset()
 			}
 		}
 	}
+
+	// copy root settings
+	const URetargetRootSettings& RootSettings = *RetargeterAsset->RootSettings;
+	RootRetargeter.GlobalScaleHorizontal = RootSettings.GlobalScaleHorizontal;
+	RootRetargeter.GlobalScaleVertical = RootSettings.GlobalScaleVertical;
+	RootRetargeter.BlendToSource = RootSettings.BlendToSource;
+	RootRetargeter.StaticOffset = RootSettings.StaticOffset;
+	RootRetargeter.StaticRotationOffset = RootSettings.StaticRotationOffset;
 }
 #endif
 

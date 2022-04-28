@@ -112,20 +112,19 @@ struct IKRIG_API FResolvedBoneChain
 struct FRootSource
 {
 	int32 BoneIndex;
-
 	FQuat InitialRotation;
-
 	float InitialHeightInverse;
-
+	FVector InitialPosition;
+	FVector CurrentPosition;
 	FVector CurrentPositionNormalized;
-	
 	FQuat CurrentRotation;
 };
 
 struct FRootTarget
 {
 	int32 BoneIndex;
-	
+
+	FVector InitialPosition;
 	FQuat InitialRotation;
 	
 	float InitialHeight;
@@ -137,7 +136,15 @@ struct FRootRetargeter
 	
 	FRootTarget Target;
 
-	float GlobalScale = 1.0f;
+	float GlobalScaleHorizontal = 1.0f;
+
+	float GlobalScaleVertical = 1.0f;
+
+	FVector BlendToSource = FVector::ZeroVector;
+
+	FVector StaticOffset = FVector::ZeroVector;
+
+	FRotator StaticRotationOffset = FRotator::ZeroRotator;
 
 	void Reset();
 	
@@ -153,7 +160,12 @@ struct FRootRetargeter
 
 	void EncodePose(const TArray<FTransform> &SourceGlobalPose);
 	
-	void DecodePose( TArray<FTransform> &OutTargetGlobalPose, const float StrideScale) const;
+	void DecodePose( TArray<FTransform> &OutTargetGlobalPose) const;
+
+	FVector GetGlobalScaleVector() const
+	{
+		return FVector(GlobalScaleHorizontal, GlobalScaleHorizontal, GlobalScaleVertical);
+	}
 };
 
 struct FRetargetChainSettings
@@ -168,6 +180,8 @@ struct FRetargetChainSettings
 
 	bool DriveIKGoal = true;
 	FVector StaticOffset;
+	FVector StaticLocalOffset;
+	FRotator StaticRotationOffset;
 	float Extension = 1.0f;
 	float BlendToSource = 0.0f;
 	FVector BlendToSourceWeights = FVector::OneVector;
@@ -189,6 +203,8 @@ public:
 		DriveIKGoal = AssetChainSettings->DriveIKGoal;
 		Extension = AssetChainSettings->Extension;
 		StaticOffset = AssetChainSettings->StaticOffset;
+		StaticLocalOffset = AssetChainSettings->StaticLocalOffset;
+		StaticRotationOffset = AssetChainSettings->StaticRotationOffset;
 		BlendToSource = AssetChainSettings->BlendToSource;
 		BlendToSourceWeights = AssetChainSettings->BlendToSourceWeights;
 		MatchSourceVelocity = AssetChainSettings->MatchSourceVelocity;

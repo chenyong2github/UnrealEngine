@@ -127,7 +127,7 @@ void SIKRetargetChainMapList::Construct(
 {
 	EditorController = InEditorController;
 	EditorController.Pin()->ChainsView = SharedThis(this);
-
+	
 	ChildSlot
     [
 	    SNew(SVerticalBox)
@@ -135,13 +135,27 @@ void SIKRetargetChainMapList::Construct(
 		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(5, 0)
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SPositiveActionButton)
+				.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
+				.Text(LOCTEXT("EditRootButtonLabel", "Root Settings"))
+				.ToolTipText(LOCTEXT("EditRootButtonToolTip", "Edit the root retarget settings."))
+				.OnClicked(this, &SIKRetargetChainMapList::OnEditSettingsButtonClicked)
+			]
+
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("TargetRootLabel", "Target Root: "))
+				.Text(LOCTEXT("TargetRootLabel", "Target: "))
 				.TextStyle(FEditorStyle::Get(), "NormalText")
 			]
 
@@ -162,7 +176,7 @@ void SIKRetargetChainMapList::Construct(
 			.VAlign(VAlign_Center)
 			[
 				SNew(STextBlock)
-				.Text(LOCTEXT("SourceRootLabel", "Source Root: "))
+				.Text(LOCTEXT("SourceRootLabel", "Source: "))
 				.TextStyle(FEditorStyle::Get(), "NormalText")
 			]
 
@@ -359,5 +373,25 @@ FReply SIKRetargetChainMapList::OnAutoMapButtonClicked() const
 	RetargeterController->AutoMapChains();
 	return FReply::Handled();
 }
+
+FReply SIKRetargetChainMapList::OnEditSettingsButtonClicked() const
+{
+	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
+	if (!Controller.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	UIKRetargeterController* RetargeterController = GetRetargetController();
+	if (!RetargeterController)
+	{
+		return FReply::Unhandled();
+	}
+	
+	Controller->DetailsView->SetObject(RetargeterController->GetAsset()->RootSettings);
+	return FReply::Handled();
+}
+
+
 
 #undef LOCTEXT_NAMESPACE

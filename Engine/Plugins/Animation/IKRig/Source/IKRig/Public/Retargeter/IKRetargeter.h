@@ -114,6 +114,14 @@ class IKRIG_API URetargetChainSettings: public UObject
 	/** Default 0, 0, 0. Apply static global-space offset to IK goal position. */
 	UPROPERTY(EditAnywhere, Category = "IK Adjustments")
 	FVector StaticOffset;
+
+	/** Default 0, 0, 0. Apply static local-space offset to IK goal position. */
+	UPROPERTY(EditAnywhere, Category = "IK Adjustments")
+	FVector StaticLocalOffset;
+
+	/** Default 0, 0, 0. Apply static local-space offset to IK goal rotation. */
+	UPROPERTY(EditAnywhere, Category = "IK Adjustments")
+	FRotator StaticRotationOffset;
 	
 	/** Range 0 to 5. Default 1. Brings IK goal closer (-) or further (+) from origin of chain.
 	*  At 0 the effector is placed at the origin of the chain.
@@ -134,29 +142,42 @@ class IKRIG_API URetargetChainSettings: public UObject
 	*  Values between 0 and 1 will blend the applied velocity between the retargeted amount and the source bone amount.*/
 	UPROPERTY(EditAnywhere, Category = "Experimental (May Change)", meta = (ClampMin = "0.0", ClampMax = "100.0", UIMin = "0.0", UIMax = "100.0"))
 	float VelocityThreshold = 5.0f;
+};
 
-	/** Range 0 to 1. Default is 1.0. Blend IK effector at the end of this chain towards the original position
-	*  on the source skeleton (0.0) or the position on the retargeted target skeleton (1.0). */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	//float IkToSourceOrTarget = 1.0f;
+UCLASS()
+class IKRIG_API URetargetRootSettings: public UObject
+{
+	GENERATED_BODY()
 
-	/** Range 0 to 1. Default 0. Allow the chain to stretch by translating to reach the IK goal locations.
-	*  At 0 the chain will not stretch at all. At 1 the chain will be allowed to stretch double it's full length to reach IK. */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Stretch, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
-	//float StretchTolerance = 0.0f;
-
-	/** When true, the source IK position is calculated relative to a source bone and applied relative to a target bone. */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode)
-	//bool bIkRelativeToSourceBone = false;
+	public:
 	
-	/** A bone in the SOURCE skeleton that the IK location is relative to. */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (EditCondition="bIkRelativeToSourceBone"))
-	//FName IkRelativeSourceBone;
+	URetargetRootSettings() = default;
+
+	/** Whether to modify the location of the retarget root bone. Default is true. */
+	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings")
+	bool RetargetRootTranslation = true;
+
+	/** Default 1. Scales the motion of the root position in the horizontal plane (X,Y). */
+	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings", meta = (UIMin = "0.0", UIMax = "3.0"))
+	float GlobalScaleHorizontal = 1.0f;
+
+	/** Default 1. Scales the motion of the root position in the vertical direction (Z). */
+	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings", meta = (UIMin = "0.0", UIMax = "3.0"))
+	float GlobalScaleVertical = 1.0f;
 	
-	/** A bone in the TARGET skeleton that the IK location is relative to.
-	 * This is usually the same bone as the source skeleton, but may have a different name in the target skeleton. */
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = IkMode, meta = (EditCondition="bIkRelativeToSourceBone"))
-	//FName IkRelativeTargetBone;
+	/** Range 0 to 1. Default 0. Blends the retarget root's translation to the exact source location (per axis).
+	*  At 0 the root is placed at the retargeted location.
+	*  At 1 the root is placed at the location of the source's retarget root bone. */
+	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings")
+	FVector BlendToSource = FVector::ZeroVector;
+
+	/** Applies a static component-space translation offset to the retarget root.*/
+	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings")
+	FVector StaticOffset = FVector::ZeroVector;
+
+	/** Applies a static component-space rotation offset to the retarget root.*/
+	UPROPERTY(EditAnywhere, Category = "Root Retarget Settings")
+	FRotator StaticRotationOffset = FRotator::ZeroRotator;
 };
 
 USTRUCT()
@@ -195,7 +216,10 @@ UCLASS(Blueprintable)
 class IKRIG_API UIKRetargeter : public UObject
 {
 	GENERATED_BODY()
+	
 public:
+	
+	UIKRetargeter(const FObjectInitializer& ObjectInitializer);
 
 	/** Get read-only access to the source IK Rig asset */
 	const UIKRigDefinition* GetSourceIKRig() const { return SourceIKRigAsset.LoadSynchronous(); };
@@ -275,6 +299,9 @@ public:
 
 	/** log warnings and errors */
 	FIKRigLogger Log;
+
+	/** the retarget root settings */
+	TObjectPtr<URetargetRootSettings> RootSettings;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

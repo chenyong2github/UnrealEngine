@@ -102,6 +102,8 @@ private:
 	bool IsChainMapEnabled() const;
 	/** when a chain is clicked on in the table view */
 	void OnItemClicked(TSharedPtr<FRetargetChainMapElement> InItem);
+	/** when edit root settings button clicked */
+	FReply OnEditSettingsButtonClicked() const;
 
 	/** update selection / details view */
 	void OnSelectionChanged();

@@ -9,6 +9,13 @@ const FName UIKRetargeter::GetSourcePreviewMeshPropertyName() { return GET_MEMBE
 const FName UIKRetargeter::GetTargetPreviewMeshPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetPreviewMesh); };
 #endif
 
+UIKRetargeter::UIKRetargeter(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	RootSettings = CreateDefaultSubobject<URetargetRootSettings>(TEXT("RootSettings"));
+	RootSettings->SetFlags(RF_Transactional);
+}
+
 void UIKRetargeter::PostLoad()
 {
 	Super::PostLoad();
