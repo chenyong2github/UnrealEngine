@@ -22,7 +22,6 @@ namespace Horde.Build.Collections.Impl
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using UserId = ObjectId<IUser>;
-	using WorkflowId = StringId<WorkflowConfig>;
 
 	class IssueCollection : IIssueCollection
 	{
@@ -982,9 +981,12 @@ namespace Horde.Build.Collections.Impl
 				newPromoted = newSpans.Any(x => ((IIssueSpan)x).PromoteByDefault);
 			}
 
+			// Figure out if we can auto-assign an owner
+			bool canAutoAssign = newPromoted || newSpans.Any(x => x.LastFailure.Annotations?.AutoAssign ?? false);
+
 			// Find the default owner
 			UserId? newDefaultOwnerId = null;
-			if (newPromoted && newSuspectImpls.Count > 0)
+			if (canAutoAssign && newSuspectImpls.Count > 0)
 			{
 				UserId possibleOwnerId = newSuspectImpls[0].AuthorId;
 				if (newSuspectImpls.All(x => x.AuthorId == possibleOwnerId) && newSuspectImpls.Any(x => x.DeclinedAt == null))

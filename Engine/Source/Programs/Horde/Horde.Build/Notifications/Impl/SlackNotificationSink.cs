@@ -597,8 +597,10 @@ namespace Horde.Build.Notifications.Impl
 		{
 			IIssueDetails details = await _issueService.GetIssueDetailsAsync(issue);
 
+			bool notifySuspects = issue.Promoted || details.Spans.Any(x => x.LastFailure.Annotations.NotifySubmitters ?? false);
+
 			HashSet<UserId> userIds = new HashSet<UserId>();
-			if (issue.Promoted)
+			if (notifySuspects)
 			{
 				userIds.UnionWith(details.Suspects.Select(x => x.AuthorId));
 			}

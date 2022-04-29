@@ -25,6 +25,16 @@ namespace Horde.Build.Models
 		/// Whether to create issues for this node
 		/// </summary>
 		bool? CreateIssues { get; }
+
+		/// <summary>
+		/// Whether to automatically assign issues that could only be caused by one user, or have a well defined correlation with a modified file.
+		/// </summary>
+		bool? AutoAssign { get; }
+
+		/// <summary>
+		/// Whether to notify all submitters between a build suceeding and failing, allowing them to step forward and take ownership of an issue.
+		/// </summary>
+		bool? NotifySubmitters { get; }
 	}
 
 	/// <summary>
@@ -42,6 +52,12 @@ namespace Horde.Build.Models
 
 		/// <inheritdoc cref="IReadOnlyNodeAnnotations.CreateIssues"/>
 		public const string CreateIssuesKeyName = "CreateIssues";
+
+		/// <inheritdoc cref="IReadOnlyNodeAnnotations.AutoAssign"/>
+		public const string AutoAssignKeyName = "AutoAssign";
+
+		/// <inheritdoc cref="IReadOnlyNodeAnnotations.NotifySubmitters"/>
+		public const string NotifySubmittersKeyName = "NotifySubmitters";
 
 		/// <summary>
 		/// Constructor
@@ -79,6 +95,20 @@ namespace Horde.Build.Models
 		{
 			get => GetBoolValue(CreateIssuesKeyName);
 			set => SetBoolValue(CreateIssuesKeyName, value);
+		}
+
+		/// <inheritdoc/>
+		public bool? AutoAssign
+		{
+			get => GetBoolValue(AutoAssignKeyName);
+			set => SetBoolValue(AutoAssignKeyName, value);
+		}
+
+		/// <inheritdoc/>
+		public bool? NotifySubmitters
+		{
+			get => GetBoolValue(NotifySubmittersKeyName);
+			set => SetBoolValue(NotifySubmittersKeyName, value);
 		}
 
 		private bool? GetBoolValue(string key)
