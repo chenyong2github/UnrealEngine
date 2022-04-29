@@ -32,6 +32,11 @@ namespace Horde.Build.Models
 		bool? AutoAssign { get; }
 
 		/// <summary>
+		/// Automatically assign any issues to the given user
+		/// </summary>
+		string? AutoAssignToUser { get; }
+
+		/// <summary>
 		/// Whether to notify all submitters between a build suceeding and failing, allowing them to step forward and take ownership of an issue.
 		/// </summary>
 		bool? NotifySubmitters { get; }
@@ -55,6 +60,9 @@ namespace Horde.Build.Models
 
 		/// <inheritdoc cref="IReadOnlyNodeAnnotations.AutoAssign"/>
 		public const string AutoAssignKeyName = "AutoAssign";
+
+		/// <inheritdoc cref="IReadOnlyNodeAnnotations.AutoAssignToUser"/>
+		public const string AutoAssignToUserKeyName = "AutoAssignToUser";
 
 		/// <inheritdoc cref="IReadOnlyNodeAnnotations.NotifySubmitters"/>
 		public const string NotifySubmittersKeyName = "NotifySubmitters";
@@ -87,7 +95,7 @@ namespace Horde.Build.Models
 				}
 				return new WorkflowId(workflowName);
 			}
-			set => SetValue(WorkflowKeyName, value?.ToString());
+			set => SetStringValue(WorkflowKeyName, value?.ToString());
 		}
 
 		/// <inheritdoc/>
@@ -105,6 +113,13 @@ namespace Horde.Build.Models
 		}
 
 		/// <inheritdoc/>
+		public string? AutoAssignToUser
+		{
+			get => GetStringValue(AutoAssignToUserKeyName);
+			set => SetStringValue(AutoAssignToUserKeyName, value);
+		}
+
+		/// <inheritdoc/>
 		public bool? NotifySubmitters
 		{
 			get => GetBoolValue(NotifySubmittersKeyName);
@@ -113,7 +128,7 @@ namespace Horde.Build.Models
 
 		private bool? GetBoolValue(string key)
 		{
-			string? value = GetValue(key);
+			string? value = GetStringValue(key);
 			if (value != null)
 			{
 				if (value.Equals("0", StringComparison.Ordinal) || value.Equals("false", StringComparison.OrdinalIgnoreCase))
@@ -136,17 +151,17 @@ namespace Horde.Build.Models
 			}
 			else
 			{
-				SetValue(key, value.Value ? "1" : "0");
+				SetStringValue(key, value.Value ? "1" : "0");
 			}
 		}
 
-		private string? GetValue(string key)
+		private string? GetStringValue(string key)
 		{
 			TryGetValue(key, out string? value);
 			return value;
 		}
 
-		private void SetValue(string key, string? value)
+		private void SetStringValue(string key, string? value)
 		{
 			if (value == null)
 			{

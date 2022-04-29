@@ -392,6 +392,7 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		readonly RedisService _redisService;
+		readonly IUserCollection _userCollection;
 		readonly ISingletonDocument<IssueLedger> _ledgerSingleton;
 		readonly IMongoCollection<Issue> _issues;
 		readonly IMongoCollection<IssueSpan> _issueSpans;
@@ -400,9 +401,10 @@ namespace Horde.Build.Collections.Impl
 		readonly IAuditLog<int> _auditLog;
 		readonly ILogger _logger;
 
-		public IssueCollection(MongoService mongoService, RedisService redisService, IAuditLogFactory<int> auditLogFactory, ILogger<IssueCollection> logger)
+		public IssueCollection(MongoService mongoService, RedisService redisService, IUserCollection userCollection, IAuditLogFactory<int> auditLogFactory, ILogger<IssueCollection> logger)
 		{
 			_redisService = redisService;
+			_userCollection = userCollection;
 			_logger = logger;
 
 			_ledgerSingleton = new SingletonDocument<IssueLedger>(mongoService);
@@ -981,17 +983,28 @@ namespace Horde.Build.Collections.Impl
 				newPromoted = newSpans.Any(x => ((IIssueSpan)x).PromoteByDefault);
 			}
 
-			// Figure out if we can auto-assign an owner
-			bool canAutoAssign = newPromoted || newSpans.Any(x => x.LastFailure.Annotations?.AutoAssign ?? false);
-
 			// Find the default owner
 			UserId? newDefaultOwnerId = null;
-			if (canAutoAssign && newSuspectImpls.Count > 0)
+			string? autoAssignToUser = newSpans.Select(x => x.LastFailure.Annotations?.AutoAssignToUser).Where(x => x != null).FirstOrDefault();
+			if (autoAssignToUser != null)
 			{
-				UserId possibleOwnerId = newSuspectImpls[0].AuthorId;
-				if (newSuspectImpls.All(x => x.AuthorId == possibleOwnerId) && newSuspectImpls.Any(x => x.DeclinedAt == null))
+				IUser? user = await _userCollection.FindUserByLoginAsync(autoAssignToUser);
+				if(user != null)
 				{
-					newDefaultOwnerId = possibleOwnerId;
+					newDefaultOwnerId = user.Id;
+				}
+			}
+			else
+			{
+				// Figure out if we can auto-assign an owner
+				bool canAutoAssign = newPromoted || newSpans.Any(x => x.LastFailure.Annotations?.AutoAssign ?? false);
+				if (canAutoAssign && newSuspectImpls.Count > 0)
+				{
+					UserId possibleOwnerId = newSuspectImpls[0].AuthorId;
+					if (newSuspectImpls.All(x => x.AuthorId == possibleOwnerId) && newSuspectImpls.Any(x => x.DeclinedAt == null))
+					{
+						newDefaultOwnerId = possibleOwnerId;
+					}
 				}
 			}
 
