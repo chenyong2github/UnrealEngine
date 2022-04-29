@@ -124,6 +124,7 @@ class CHAOS_API FPBDEvolution : public TArrayCollection
 	const FVelocityField& GetVelocityField(const uint32 GroupId = 0) const { return GetVelocityAndPressureField(GroupId); }
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+
 	int32 GetIterations() const { return MNumIterations; }
 	void SetIterations(const int32 Iterations) { MNumIterations = Iterations; }
 
