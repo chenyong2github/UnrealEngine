@@ -2021,10 +2021,6 @@ FEditorBulkData::EFlags FEditorBulkData::BuildFlagsForSerialization(FArchive& Ar
 		else
 		{
 			EnumAddFlags(UpdatedFlags, EFlags::StoredInPackageTrailer);
-
-			// If the payload is virtualized or not will be controlled by the package trailer so we shouldn't
-			//serialize this out to the exports
-			EnumRemoveFlags(UpdatedFlags, EFlags::IsVirtualized);
 		}
 
 		return UpdatedFlags;
