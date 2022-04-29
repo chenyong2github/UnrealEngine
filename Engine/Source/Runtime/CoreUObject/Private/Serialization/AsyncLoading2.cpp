@@ -5200,6 +5200,7 @@ FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher, IAsync
 	, UncookedPackageLoader(InUncookedPackageLoader)
 {
 #if !WITH_IOSTORE_IN_EDITOR
+	IsEventDrivenLoaderEnabled(); // make sure the one time init inside runs
 	GEventDrivenLoaderEnabled = true;
 #endif
 
