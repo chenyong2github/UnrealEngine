@@ -85,6 +85,12 @@ public:
 	FOnPCGBlueprintChanged OnBlueprintChangedDelegate;
 #endif
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bCreatesArtifacts = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bCanBeMultithreaded = false;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Input & Output")
 	TSet<FName> InputPinLabels;
 
@@ -158,11 +164,11 @@ protected:
 	TArray<FName> TrackedActorTags;
 #endif
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bCreatesArtifacts = false;
+	UPROPERTY()
+	bool bCreatesArtifacts_DEPRECATED = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bCanBeMultithreaded = true;
+	UPROPERTY()
+	bool bCanBeMultithreaded_DEPRECATED = false;
 
 protected:
 #if WITH_EDITOR

@@ -170,6 +170,15 @@ void UPCGBlueprintSettings::PostLoad()
 	{
 		SetupBlueprintElementEvent();
 	}
+
+	if (BlueprintElementInstance)
+	{
+		BlueprintElementInstance->bCreatesArtifacts |= bCreatesArtifacts_DEPRECATED;
+		BlueprintElementInstance->bCanBeMultithreaded |= bCanBeMultithreaded_DEPRECATED;
+	}
+
+	bCreatesArtifacts_DEPRECATED = false;
+	bCanBeMultithreaded_DEPRECATED = false;
 }
 
 void UPCGBlueprintSettings::BeginDestroy()
@@ -492,7 +501,7 @@ FPCGContext* FPCGExecuteBlueprintElement::Initialize(const FPCGDataCollection& I
 	const UPCGBlueprintSettings* Settings = Context->GetInputSettings<UPCGBlueprintSettings>();
 	if (Settings && Settings->BlueprintElementInstance)
 	{
-		Context->BlueprintElementInstance = CastChecked<UPCGBlueprintElement>(StaticDuplicateObject(Settings->BlueprintElementInstance, Settings->BlueprintElementInstance, FName()));
+		Context->BlueprintElementInstance = CastChecked<UPCGBlueprintElement>(StaticDuplicateObject(Settings->BlueprintElementInstance, GetTransientPackage(), FName()));
 	}
 	else
 	{
@@ -504,9 +513,10 @@ FPCGContext* FPCGExecuteBlueprintElement::Initialize(const FPCGDataCollection& I
 
 bool FPCGExecuteBlueprintElement::IsCacheable(const UPCGSettings* InSettings) const
 {
-	if (const UPCGBlueprintSettings* BPSettings = Cast<const UPCGBlueprintSettings>(InSettings))
+	const UPCGBlueprintSettings* BPSettings = Cast<const UPCGBlueprintSettings>(InSettings);
+	if (BPSettings && BPSettings->BlueprintElementInstance)
 	{
-		return !BPSettings->bCreatesArtifacts;
+		return BPSettings->BlueprintElementInstance->bCreatesArtifacts;
 	}
 	else
 	{
@@ -516,9 +526,10 @@ bool FPCGExecuteBlueprintElement::IsCacheable(const UPCGSettings* InSettings) co
 
 bool FPCGExecuteBlueprintElement::CanExecuteOnlyOnMainThread(const UPCGSettings* InSettings) const
 {
-	if (const UPCGBlueprintSettings* BPSettings = Cast<const UPCGBlueprintSettings>(InSettings))
+	const UPCGBlueprintSettings* BPSettings = Cast<const UPCGBlueprintSettings>(InSettings);
+	if (BPSettings && BPSettings->BlueprintElementInstance)
 	{
-		return !BPSettings->bCanBeMultithreaded;
+		return !BPSettings->BlueprintElementInstance->bCanBeMultithreaded;
 	}
 	else
 	{
