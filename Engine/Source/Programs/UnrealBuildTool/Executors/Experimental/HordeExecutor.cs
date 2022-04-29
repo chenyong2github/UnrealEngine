@@ -278,7 +278,8 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="MaxLocalActions">How many local actions to execute in parallel</param>
-		public HordeExecutor(int MaxLocalActions) : base(MaxLocalActions)
+		/// <param name="bCompactOutput"></param>
+		public HordeExecutor(int MaxLocalActions, bool bCompactOutput) : base(MaxLocalActions, bCompactOutput)
 		{
 			XmlConfig.ApplyTo(this);
 		}

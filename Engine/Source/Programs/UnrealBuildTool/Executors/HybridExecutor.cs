@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -30,10 +31,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public HybridExecutor(List<TargetDescriptor> TargetDescriptors, int InMaxLocalActions, ActionExecutor? InLocalExecutor = null, ActionExecutor? InRemoteExecutor = null)
+		public HybridExecutor(List<TargetDescriptor> TargetDescriptors, int InMaxLocalActions, bool bCompactOutput, ActionExecutor? InLocalExecutor = null, ActionExecutor? InRemoteExecutor = null)
 		{
 			MaxLocalActions = InMaxLocalActions;
-			LocalExecutor = InLocalExecutor ?? new ParallelExecutor(MaxLocalActions);
+			LocalExecutor = InLocalExecutor ?? new ParallelExecutor(MaxLocalActions, bCompactOutput);
 			RemoteExecutor = InRemoteExecutor ?? (XGE.IsAvailable() ? (ActionExecutor)new XGE() : new SNDBS(TargetDescriptors));
 
 			XmlConfig.ApplyTo(this);

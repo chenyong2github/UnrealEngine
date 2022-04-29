@@ -175,5 +175,19 @@ namespace UnrealBuildTool
 		/// </summary>
 		[CommandLine("-IgnoreInvalidFiles")]
 		public bool bIgnoreInvalidFiles;
+
+		/// <summary>
+		/// Instruct the executor to write compact output e.g. only errors, if supported by the executor.
+		/// This field is used to hold the value when specified from the command line or XML
+		/// </summary>
+		[XmlConfigFile(Name = "bCompactOutput")]
+		[CommandLine("-CompactOutput")]
+		private bool bCompactOutputCommandLine = false;
+
+		/// <summary>
+		/// Instruct the executor to write compact output e.g. only errors, if supported by the executor,
+		/// and only if output is not being redirected e.g. during a build from within Visual Studio
+		/// </summary>
+		public bool bCompactOutput => bCompactOutputCommandLine && !Console.IsOutputRedirected;
 	}
 }

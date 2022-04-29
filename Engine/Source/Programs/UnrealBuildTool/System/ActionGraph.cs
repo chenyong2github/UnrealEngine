@@ -336,7 +336,7 @@ namespace UnrealBuildTool
 			{
 				if (BuildConfiguration.bAllowHybridExecutor && HybridExecutor.IsAvailable())
 				{
-					return new HybridExecutor(TargetDescriptors, BuildConfiguration.MaxParallelActions);
+					return new HybridExecutor(TargetDescriptors, BuildConfiguration.MaxParallelActions, BuildConfiguration.bCompactOutput);
 				}
 				else if (BuildConfiguration.bAllowXGE && XGE.IsAvailable() && ActionCount >= XGE.MinActions)
 				{
@@ -344,7 +344,7 @@ namespace UnrealBuildTool
 				}
 				else if (BuildConfiguration.bAllowFASTBuild && FASTBuild.IsAvailable())
 				{
-					return new FASTBuild(BuildConfiguration.MaxParallelActions);
+					return new FASTBuild(BuildConfiguration.MaxParallelActions, BuildConfiguration.bCompactOutput);
 				}
 				else if (BuildConfiguration.bAllowSNDBS && SNDBS.IsAvailable())
 				{
@@ -352,11 +352,11 @@ namespace UnrealBuildTool
 				}
 				else if (BuildConfiguration.bAllowHordeCompute && HordeExecutor.IsAvailable())
 				{
-					return new HordeExecutor(BuildConfiguration.MaxParallelActions);
+					return new HordeExecutor(BuildConfiguration.MaxParallelActions, BuildConfiguration.bCompactOutput);
 				}
 			}
 
-			return new ParallelExecutor(BuildConfiguration.MaxParallelActions);
+			return new ParallelExecutor(BuildConfiguration.MaxParallelActions, BuildConfiguration.bCompactOutput);
 		}
 
 		/// <summary>

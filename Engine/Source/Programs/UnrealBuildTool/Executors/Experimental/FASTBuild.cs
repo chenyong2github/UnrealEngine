@@ -156,11 +156,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FASTBuild(int MaxLocalActions)
+		public FASTBuild(int MaxLocalActions, bool bCompactOutput)
 		{
 			XmlConfig.ApplyTo(this);
 
-			this.LocalExecutor = new ParallelExecutor(MaxLocalActions);
+			this.LocalExecutor = new ParallelExecutor(MaxLocalActions, bCompactOutput);
 		}
 
 		public override string Name

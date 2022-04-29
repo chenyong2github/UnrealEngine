@@ -70,6 +70,11 @@ namespace UnrealBuildTool
 		private static bool bPrintActionTargetNames = false;
 
 		/// <summary>
+		/// Collapse non-error output lines
+		/// </summary>
+		private bool bCompactOutput = false;
+
+		/// <summary>
 		/// How many processes that will be executed in parallel
 		/// </summary>
 		public int NumParallelProcesses { get; private set; }
@@ -91,7 +96,8 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="MaxLocalActions">How many actions to execute in parallel</param>
-		public ParallelExecutor(int MaxLocalActions)
+		/// <param name="bCompactOutput">Should output be written in a compact fashion</param>
+		public ParallelExecutor(int MaxLocalActions, bool bCompactOutput)
 		{
 			XmlConfig.ApplyTo(this);
 
@@ -105,6 +111,8 @@ namespace UnrealBuildTool
 				// Figure out how many processors to use
 				NumParallelProcesses = GetDefaultNumParallelProcesses();
 			}
+
+			this.bCompactOutput = bCompactOutput;
 		}
 
 		/// <summary>
@@ -290,7 +298,9 @@ namespace UnrealBuildTool
 			return new ExecuteResults(LogLines, ExitCode, ExecutionTime, ProcessorTime);
 		}
 
-		protected static void LogCompletedAction(LinkedAction Action, Task<ExecuteResults> ExecuteTask, CancellationTokenSource CancellationTokenSource, ProgressWriter ProgressWriter, int TotalActions, ref int NumCompletedActions)
+		private static int s_previousLineLength = -1;
+
+		protected void LogCompletedAction(LinkedAction Action, Task<ExecuteResults> ExecuteTask, CancellationTokenSource CancellationTokenSource, ProgressWriter ProgressWriter, int TotalActions, ref int NumCompletedActions)
 		{
 			List<string> LogLines = new List<string>();
 			int ExitCode = int.MaxValue;
@@ -361,10 +371,37 @@ namespace UnrealBuildTool
 					}
 				}
 
-				Log.TraceInformation($"[{CompletedActions}/{TotalActions}]{TargetDetails}{CompilationTimes} {Description}");
+				string message = ($"[{CompletedActions}/{TotalActions}]{TargetDetails}{CompilationTimes} {Description}");
+				
+				if (bCompactOutput)
+				{
+					if (s_previousLineLength > 0)
+					{
+						// move the cursor to the far left position, one line back
+						Console.CursorLeft = 0;
+						Console.CursorTop -= 1;
+						// clear the line
+						Console.Write("".PadRight(s_previousLineLength));
+						// move the cursor back to the left, so output is written to the desired location
+						Console.CursorLeft = 0;
+					}
+				}
+
+				s_previousLineLength = message.Length;
+
+				Log.TraceInformation(message);
 				foreach (string Line in LogLines.Skip(Action.bShouldOutputStatusDescription ? 0 : 1))
 				{
+					// suppress library creation messages when writing compact output
+					if (bCompactOutput && Line.StartsWith("   Creating library ") && Line.EndsWith(".exp"))
+					{
+						continue;
+					}
+
 					Log.TraceInformation(Line);
+
+					// Prevent overwriting of logged lines
+					s_previousLineLength = -1;
 				}
 
 				if (ExitCode != 0)
@@ -377,6 +414,9 @@ namespace UnrealBuildTool
 						Log.TraceInformation($"{TargetDetails} {Description}: {Action.CommandPath} {Action.CommandArguments}");
 					}
 					// END TEMPORARY
+
+					// prevent overrwriting of error text
+					s_previousLineLength = -1;
 
 					// Cancel all other pending tasks
 					if (bStopCompilationAfterErrors)
