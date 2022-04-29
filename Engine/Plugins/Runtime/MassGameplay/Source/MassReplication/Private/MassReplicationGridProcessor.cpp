@@ -26,7 +26,7 @@ void UMassReplicationGridProcessor::ConfigureQueries()
 	AddToGridEntityQuery.AddRequirement<FTransformFragment>(EMassFragmentAccess::ReadOnly);
 	AddToGridEntityQuery.AddRequirement<FAgentRadiusFragment>(EMassFragmentAccess::ReadOnly);
 	AddToGridEntityQuery.AddRequirement<FMassReplicationGridCellLocationFragment>(EMassFragmentAccess::ReadWrite);
-	AddToGridEntityQuery.AddSystemRequirement<UMassReplicationSubsystem>(EMassFragmentAccess::ReadWrite);
+	AddToGridEntityQuery.AddSubsystemRequirement<UMassReplicationSubsystem>(EMassFragmentAccess::ReadWrite);
 
 	UpdateGridEntityQuery = AddToGridEntityQuery;
 	RemoveFromGridEntityQuery = AddToGridEntityQuery;
@@ -131,7 +131,7 @@ UMassReplicationGridRemoverProcessor::UMassReplicationGridRemoverProcessor()
 void UMassReplicationGridRemoverProcessor::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassReplicationGridCellLocationFragment>(EMassFragmentAccess::ReadWrite);
-	EntityQuery.AddSystemRequirement<UMassReplicationSubsystem>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddSubsystemRequirement<UMassReplicationSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassReplicationGridRemoverProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)

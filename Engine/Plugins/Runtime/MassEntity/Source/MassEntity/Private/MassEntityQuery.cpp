@@ -138,7 +138,7 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 	int32 NumEntitiesToProcess = 0;
 #endif
 
-	ExecutionContext.SetSystemRequirements(RequiredConstSystems, RequiredMutableSystems);
+	ExecutionContext.SetSubsystemRequirements(RequiredConstSubsystems, RequiredMutableSubsystems);
 
 	// if there's a chunk collection set by the external code - use that
 	if (ExecutionContext.GetEntityCollection().IsSet())

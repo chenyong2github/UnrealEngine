@@ -22,10 +22,10 @@ void FMassExecutionContext::ClearExecutionData()
 	bSubsystemRequirementsSet = false;
 }
 
-void FMassExecutionContext::SetSystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSystems, const FMassExternalSubystemBitSet& RequiredMutableSystems)
+void FMassExecutionContext::SetSubsystemRequirements(const FMassExternalSubystemBitSet& RequiredConstSubsystems, const FMassExternalSubystemBitSet& RequiredMutableSubsystems)
 {
-	ConstSubsystemsBitSet = RequiredConstSystems;
-	MutableSubsystemsBitSet = RequiredMutableSystems;
+	ConstSubsystemsBitSet = RequiredConstSubsystems;
+	MutableSubsystemsBitSet = RequiredMutableSubsystems;
 	bSubsystemRequirementsSet = true;
 }
 

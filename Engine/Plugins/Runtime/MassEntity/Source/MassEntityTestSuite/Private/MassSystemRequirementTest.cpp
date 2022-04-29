@@ -40,7 +40,7 @@ struct FMutableRequirement : FSystemRequirementTestBase
 
 		FMassEntityQuery EntityQuery;
 		EntityQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadOnly);
-		EntityQuery.AddSystemRequirement<UMassTestWorldSubsystem>(EMassFragmentAccess::ReadWrite);
+		EntityQuery.AddSubsystemRequirement<UMassTestWorldSubsystem>(EMassFragmentAccess::ReadWrite);
 
 		check(EntitySubsystem->GetWorld());
 		UMassTestWorldSubsystem* TestSystemActual = EntitySubsystem->GetWorld()->GetSubsystem<UMassTestWorldSubsystem>();
@@ -71,7 +71,7 @@ struct FConstRequirement : FSystemRequirementTestBase
 
 		FMassEntityQuery EntityQuery;
 		EntityQuery.AddRequirement<FTestFragment_Float>(EMassFragmentAccess::ReadOnly);
-		EntityQuery.AddSystemRequirement<UMassTestWorldSubsystem>(EMassFragmentAccess::ReadOnly);
+		EntityQuery.AddSubsystemRequirement<UMassTestWorldSubsystem>(EMassFragmentAccess::ReadOnly);
 
 		check(EntitySubsystem->GetWorld());
 		UMassTestWorldSubsystem* TestMutableSystem = nullptr;

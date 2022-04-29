@@ -18,7 +18,7 @@ UMassNetworkIDFragmentInitializer::UMassNetworkIDFragmentInitializer()
 void UMassNetworkIDFragmentInitializer::ConfigureQueries()
 {
 	EntityQuery.AddRequirement<FMassNetworkIDFragment>(EMassFragmentAccess::ReadWrite);
-	EntityQuery.AddSystemRequirement<UMassReplicationSubsystem>(EMassFragmentAccess::ReadWrite);
+	EntityQuery.AddSubsystemRequirement<UMassReplicationSubsystem>(EMassFragmentAccess::ReadWrite);
 }
 
 void UMassNetworkIDFragmentInitializer::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)

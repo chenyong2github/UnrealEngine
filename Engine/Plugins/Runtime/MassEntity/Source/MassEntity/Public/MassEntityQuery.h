@@ -309,17 +309,17 @@ public:
 	}
 
 	template<typename T>
-	FMassEntityQuery& AddSystemRequirement(const EMassFragmentAccess AccessMode)
+	FMassEntityQuery& AddSubsystemRequirement(const EMassFragmentAccess AccessMode)
 	{
 		check(AccessMode != EMassFragmentAccess::None && AccessMode != EMassFragmentAccess::MAX);
 
 		switch (AccessMode)
 		{
 		case EMassFragmentAccess::ReadOnly:
-			RequiredConstSystems.Add<T>();
+			RequiredConstSubsystems.Add<T>();
 			break;
 		case EMassFragmentAccess::ReadWrite:
-			RequiredMutableSystems.Add<T>();
+			RequiredMutableSubsystems.Add<T>();
 			break;
 		default:
 			check(false);
@@ -428,8 +428,8 @@ protected:
 	FMassSharedFragmentBitSet RequiredOptionalSharedFragments;
 	FMassSharedFragmentBitSet RequiredNoneSharedFragments;
 
-	FMassExternalSubystemBitSet RequiredConstSystems;
-	FMassExternalSubystemBitSet RequiredMutableSystems;
+	FMassExternalSubystemBitSet RequiredConstSubsystems;
+	FMassExternalSubystemBitSet RequiredMutableSubsystems;
 
 private:
 	/** 
