@@ -489,6 +489,17 @@ FORCEINLINE uint32 VectorAllLesserThan(VectorRegister4Double Vec1, VectorRegiste
 	return !VectorAnyGreaterThan(Vec1, Vec2);
 }
 
+/** Clamps X to be between VecMin and VecMax, inclusive. */
+FORCEINLINE VectorRegister4Float VectorClamp(const VectorRegister4Float& X, const VectorRegister4Float& VecMin, const VectorRegister4Float& VecMax)
+{
+	return VectorMin(VectorMax(X, VecMin), VecMax);
+}
+
+FORCEINLINE VectorRegister4Double VectorClamp(const VectorRegister4Double& X, const VectorRegister4Double& VecMin, const VectorRegister4Double& VecMax)
+{
+	return VectorMin(VectorMax(X, VecMin), VecMax);
+}
+
 /*----------------------------------------------------------------------------
 	VectorRegister specialization of templates.
 ----------------------------------------------------------------------------*/

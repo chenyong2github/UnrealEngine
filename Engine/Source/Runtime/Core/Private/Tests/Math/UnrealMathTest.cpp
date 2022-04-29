@@ -1796,6 +1796,13 @@ bool RunDoubleVectorTest()
 	V0 = MakeVectorRegisterDouble(4.0f, 4.0f, 6.0f, 8.0f);
 	LogTest<double>(TEXT("VectorMax"), TestVectorsEqual(V0, V1));
 
+	V0 = MakeVectorRegisterDouble(-2.0f, 3.0f, -4.0f, 5.0f);
+	V1 = MakeVectorRegisterDouble( 4.0f, 4.0f,  6.0f, 8.0f);
+	V2 = MakeVectorRegisterDouble(-8.0f, 5.0f, -1.0f, 1.0f);
+	V2 = VectorClamp(V2, V0, V1);
+	V3 = MakeVectorRegisterDouble(-2.0f, 4.0f, -1.0f, 5.0f);
+	LogTest<double>(TEXT("VectorClamp"), TestVectorsEqual(V2, V3));
+
 	V0 = MakeVectorRegisterDouble(1.0, 3.0, 5.0, 7.0);
 	V1 = MakeVectorRegisterDouble(2.0, 4.0, 6.0, 8.0);
 	V1 = VectorCombineHigh(V0, V1);
@@ -2479,6 +2486,13 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V1 = VectorMax( V0, V1 );
 	V0 = MakeVectorRegister( 4.0f, 4.0f, 6.0f, 8.0f );
 	LogTest<float>( TEXT("VectorMax"), TestVectorsEqual( V0, V1 ) );
+
+	V0 = MakeVectorRegister(-2.0f, 3.0f, -4.0f, 5.0f);
+	V1 = MakeVectorRegister( 4.0f, 4.0f,  6.0f, 8.0f);
+	V2 = MakeVectorRegister(-8.0f, 5.0f, -1.0f, 1.0f);
+	V2 = VectorClamp(V2, V0, V1);
+	V3 = MakeVectorRegister(-2.0f, 4.0f, -1.0f, 5.0f);
+	LogTest<float>(TEXT("VectorClamp"), TestVectorsEqual(V2, V3));
 
 	V0 = MakeVectorRegister(1.0f, 3.0f, 5.0f, 7.0f);
 	V1 = MakeVectorRegister(2.0f, 4.0f, 6.0f, 8.0f);

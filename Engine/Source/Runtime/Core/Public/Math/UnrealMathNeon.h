@@ -2195,12 +2195,6 @@ FORCEINLINE VectorRegister4Double VectorMax(VectorRegister4Double Vec1, VectorRe
 	return Result;
 }
 
-FORCEINLINE VectorRegister4Float VectorClamp(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2, const VectorRegister4Float& Vec3) 
-{
-	return VectorMin(VectorMax(Vec1, Vec2), Vec3);
-}
-
-
 /**
  * Merges the XYZ components of one vector with the W component of another vector and returns the result.
  *

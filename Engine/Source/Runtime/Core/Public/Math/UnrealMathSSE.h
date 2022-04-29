@@ -2349,11 +2349,6 @@ FORCEINLINE VectorRegister4Double VectorMax(const VectorRegister4Double& Vec1, c
 	return Result;
 }
 
-FORCEINLINE VectorRegister4Float VectorClamp(const VectorRegister4Float& Vec1, const VectorRegister4Float& Vec2, const VectorRegister4Float& Vec3) 
-{
-	return _mm_min_ps(_mm_max_ps(Vec1, Vec2), Vec3);
-}
-
 /**
 * Creates a vector by combining two high components from each vector
 *
