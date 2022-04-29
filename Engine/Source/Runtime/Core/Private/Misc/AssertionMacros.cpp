@@ -517,7 +517,7 @@ void FORCENOINLINE FDebug::CheckVerifyFailedImpl(
 	{
 		// Flushing the logs here increases the likelihood that recent messages will be written to the log file, stdout and the debugger console.
 		// Without this, some of the recent messages may not be reported when debugger stops due to an assertion failure.
-		GLog->FlushThreadedLogs();
+		GLog->Flush();
 	}
 
 	if (!FPlatformMisc::IsDebuggerPresent())
