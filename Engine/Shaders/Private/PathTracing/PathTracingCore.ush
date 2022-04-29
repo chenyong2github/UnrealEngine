@@ -323,6 +323,11 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			HitPayload.Radiance *= HitPayload.Opacity;
 		}
 
+		if (HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT && bIsCameraRay)
+		{
+			PathState.BackgroundVisibility += Luminance(PathState.PathThroughput * HitPayload.Opacity);
+		}
+
 		// add in surface emission (except for modulate blend mode which uses Radiance as the transparency multiplier)
 		if (bIncludeEmission && HitPayload.BlendingMode != RAY_TRACING_BLEND_MODE_MODULATE)
 		{

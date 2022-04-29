@@ -90,9 +90,8 @@ float3 GetMaterialTransparency(FPathTracingPayload Payload, float3 RayDirection)
 		case RAY_TRACING_BLEND_MODE_MODULATE:
 			return Payload.Radiance;
 		case RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE:
-			return 1 - Payload.Opacity;
 		case RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT:
-			return 1;
+			return 1 - Payload.Opacity;
 		default: 
 			return 0;
 	}
@@ -123,7 +122,7 @@ float3 EstimateMaterialAlbedo(FPathTracingPayload Payload)
 			break;
 		case RAY_TRACING_BLEND_MODE_MODULATE:
 		case RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT:
-			// In these modes, the light does not interact with the material at all, only passes through
+			// In these modes, the light does not interact with the material at all
 			return 0;
 		default:
 			break;
@@ -209,7 +208,7 @@ void AccumulateAlbedoNormal(inout FPathTracingPayload Payload, float3 PathThroug
 			break;
 		case RAY_TRACING_BLEND_MODE_MODULATE:
 		case RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT:
-			// In these modes, the light does not interact with the material at all, only passes through
+			// In these modes, the light does not interact with the material at all
 			return;
 		default:
 			break;

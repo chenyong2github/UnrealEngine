@@ -903,7 +903,21 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS_IS, TEXT
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS              , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS_AHS          , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
 
-
+static bool NeedsAnyHitShader(const FMaterial& RESTRICT MaterialResource)
+{
+	if (MaterialResource.IsMasked())
+	{
+		return true;
+	}
+	switch (MaterialResource.GetBlendMode())
+	{
+		case BLEND_Opaque:
+		case BLEND_AlphaHoldout:
+			return false;
+		default:
+			return true;
+	}
+}
 
 bool FRayTracingMeshProcessor::ProcessPathTracing(
 	const FMeshBatch& RESTRICT MeshBatch,
@@ -921,7 +935,7 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 	{
 		case ERayTracingMeshCommandsMode::PATH_TRACING:
 		{
-			if (MaterialResource.IsMasked() || MaterialResource.GetBlendMode() != BLEND_Opaque)
+			if (NeedsAnyHitShader(MaterialResource))
 			{
 				if (bUseProceduralPrimitive)
 					ShaderTypes.AddShaderType<FPathTracingMaterialCHS_AHS_IS>();
@@ -939,7 +953,7 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 		}
 		case ERayTracingMeshCommandsMode::LIGHTMAP_TRACING:
 		{
-			if (MaterialResource.IsMasked() || MaterialResource.GetBlendMode() != BLEND_Opaque)
+			if (NeedsAnyHitShader(MaterialResource))
 			{
 				ShaderTypes.AddShaderType<FGPULightmassCHS_AHS>();
 			}

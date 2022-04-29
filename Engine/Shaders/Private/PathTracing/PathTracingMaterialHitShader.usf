@@ -335,11 +335,11 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 {
 #if USE_MATERIAL_ANY_HIT_SHADER
 
-#if MATERIALBLENDING_SOLID
+#if MATERIALBLENDING_SOLID || MATERIALBLENDING_ALPHAHOLDOUT
 	// Continue traversal by simply returning from this shader
 	// Usually this path is inactive because opaque materials don't have AHS bound
 	return;
-#elif MATERIALBLENDING_ALPHAHOLDOUT || MATERIALBLENDING_ADDITIVE
+#elif MATERIALBLENDING_ADDITIVE
 	if (PackedPayload.IsVisibilityRay())
 	{
 		// path tracer wants to treat these cases as fully transparent
