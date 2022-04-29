@@ -333,6 +333,26 @@ void MobileBasePass::SetOpaqueRenderState(FMeshPassProcessorRenderState& DrawRen
 				0x00, 0xff >::GetRHI());
 
 		DrawRenderState.SetStencilRef(StencilValue); 
+
+		// If DepthStencilState isn't the default, then use it as the pass render state.
+		EDepthStencilState DepthStencilState = PrimitiveSceneProxy->GetDepthStencilState();
+		uint32 DepthStencilValue = PrimitiveSceneProxy->GetDepthStencilValue();
+		if (DepthStencilState != EDepthStencilState::DSS_DepthTest_StencilAlways)
+		{
+			static FRHIDepthStencilState* _DepthStencilStates[EDepthStencilState::DDS_Count] =
+			{
+				TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
+				TStaticDepthStencilState<true, CF_Always,           true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
+				TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Equal, SO_Keep, SO_Keep, SO_Invert>::GetRHI(),
+				TStaticDepthStencilState<true, CF_Always,           true, CF_Equal, SO_Keep, SO_Keep, SO_Invert>::GetRHI(),
+				TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_NotEqual, SO_Keep, SO_Keep, SO_Invert>::GetRHI(),
+			};
+			checkSlow(EDepthStencilState::DDS_Count == UE_ARRAY_COUNT(_DepthStencilStates));
+
+			DrawRenderState.SetDepthStencilState(_DepthStencilStates[(int32)DepthStencilState]);
+		}
+
+		DrawRenderState.SetStencilRef(DepthStencilValue);
 	}
 	else
 	{

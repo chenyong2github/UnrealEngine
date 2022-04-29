@@ -738,7 +738,8 @@ void FMobileSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHICmdList)
 
 	// Draw a depth pass to avoid overdraw in the other passes.
 	// Mobile only does MaskedOnly DepthPass for the moment
-	if (Scene->EarlyZPassMode == DDM_MaskedOnly)
+	// Modified: Whether to render PrePass is determined by whether there is MeshDrawCommand in the DepthPass.
+	//if (Scene->EarlyZPassMode == DDM_MaskedOnly)
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -852,6 +853,18 @@ void FDepthPassMeshProcessor::Process(
 		);
 
 	FMeshPassProcessorRenderState DrawRenderState(PassDrawRenderState);
+
+	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
+	{
+		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
+			true, CF_DepthNearOrEqual,
+			true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+			// don't use masking as it has significant performance hit on Mali GPUs (T860MP2)
+			0x00, 0xff >::GetRHI());
+
+		DrawRenderState.SetStencilRef(PrimitiveSceneProxy ? PrimitiveSceneProxy->GetDepthStencilValue() : 0);
+	}
 
 	if (!bDitheredLODFadingOutMaskPass)
 	{

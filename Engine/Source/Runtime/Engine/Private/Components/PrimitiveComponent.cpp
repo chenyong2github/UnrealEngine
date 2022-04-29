@@ -342,15 +342,21 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bVisibleInRealTimeSkyCaptures = true;
 	bVisibleInRayTracing = true;
 	bRenderInMainPass = true;
-	bRenderInDepthPass = true;
+	bRenderInDepthPass = false;
 	VisibilityId = INDEX_NONE;
 #if WITH_EDITORONLY_DATA
 	CanBeCharacterBase_DEPRECATED = ECB_Yes;
 #endif
 	CanCharacterStepUpOn = ECB_Yes;
 	ComponentId.PrimIDValue = NextComponentId.Increment();
+
 	CustomDepthStencilValue = 0;
 	CustomDepthStencilWriteMask = ERendererStencilMask::ERSM_Default;
+	CustomDepthStencilState = ERendererDepthStencilState::ERDSS_Default;
+
+	DepthStencilValue = 0;
+	DepthStencilWriteMask = ERendererStencilMask::ERSM_Default;
+	DepthStencilState = ERendererDepthStencilState::ERDSS_Default;
 
 	LDMaxDrawDistance = 0.f;
 	CachedMaxDrawDistance = 0.f;
@@ -3725,10 +3731,10 @@ void UPrimitiveComponent::SetRenderCustomDepth(bool bValue)
 	}
 }
 
-void UPrimitiveComponent::SetCustomDepthStencilValue(int32 Value)
+void UPrimitiveComponent::SetCustomDepthStencilValue(int32 InValue)
 {
 	// Clamping to currently usable stencil range (as specified in property UI and tooltips)
-	int32 ClampedValue = FMath::Clamp(Value, 0, 255);
+	int32 ClampedValue = FMath::Clamp(InValue, 0, 255);
 
 	if (CustomDepthStencilValue != ClampedValue)
 	{
@@ -3740,20 +3746,53 @@ void UPrimitiveComponent::SetCustomDepthStencilValue(int32 Value)
 	}
 }
 
-void UPrimitiveComponent::SetCustomDepthStencilWriteMask(ERendererStencilMask WriteMask)
+void UPrimitiveComponent::SetCustomDepthStencilWriteMask(ERendererStencilMask InWriteMask)
 {
-	if (CustomDepthStencilWriteMask != WriteMask)
+	if (CustomDepthStencilWriteMask != InWriteMask)
 	{
-		CustomDepthStencilWriteMask = WriteMask;
+		CustomDepthStencilWriteMask = InWriteMask;
 		MarkRenderStateDirty();
 	}
 }
 
-void UPrimitiveComponent::SetCustomDepthStencilState(ERendererDepthStencilState DepthStencilState)
+void UPrimitiveComponent::SetCustomDepthStencilState(ERendererDepthStencilState InDepthStencilState)
 {
-	if (CustomDepthStencilState != DepthStencilState)
+	if (CustomDepthStencilState != InDepthStencilState)
 	{
-		CustomDepthStencilState = DepthStencilState;
+		CustomDepthStencilState = InDepthStencilState;
+		MarkRenderStateDirty();
+	}
+}
+
+void UPrimitiveComponent::SetDepthStencilValue(int32 InValue)
+{
+	// Clamping to currently usable stencil range (as specified in property UI and tooltips)
+	int32 ClampedValue = FMath::Clamp(InValue, 0, 255);
+
+	if (DepthStencilValue != ClampedValue)
+	{
+		DepthStencilValue = ClampedValue;
+		if (SceneProxy)
+		{
+			SceneProxy->SetDepthStencilValue_GameThread(DepthStencilValue);
+		}
+	}
+}
+
+void UPrimitiveComponent::SetDepthStencilWriteMask(ERendererStencilMask InWriteMask)
+{
+	if (DepthStencilWriteMask != InWriteMask)
+	{
+		DepthStencilWriteMask = InWriteMask;
+		MarkRenderStateDirty();
+	}
+}
+
+void UPrimitiveComponent::SetDepthStencilState(ERendererDepthStencilState InDepthStencilState)
+{
+	if (DepthStencilState != InDepthStencilState)
+	{
+		DepthStencilState = InDepthStencilState;
 		MarkRenderStateDirty();
 	}
 }

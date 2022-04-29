@@ -148,6 +148,7 @@ enum class ERendererDepthStencilState : uint8
 	ERDDS_DepthAlways_StencilAlways UMETA(DisplayName = "Depth Always, Stencil Always"),
 	ERDDS_DepthTest_StencilEqual_Invert UMETA(DisplayName = "Depth Test, Stencil Equal, Ref Invert"),
 	ERDDS_DepthAlways_StencilEqual_Invert UMETA(DisplayName = "Depth Always, Stencil Equal, Ref Invert"),
+	ERDDS_DepthTest_StencilNotEqual_Invert UMETA(DisplayName = "Depth Test, Stencil Not Equal, Ref Invert"),
 };
 
 
@@ -166,6 +167,8 @@ struct FRendererDepthStencilStateEvaluation
 			return EDepthStencilState::DDS_DepthTest_StencilEqual_Invert;
 		case ERendererDepthStencilState::ERDDS_DepthAlways_StencilEqual_Invert:
 			return EDepthStencilState::DDS_DepthAlways_StencilEqual_Invert;
+		case ERendererDepthStencilState::ERDDS_DepthTest_StencilNotEqual_Invert:
+			return EDepthStencilState::DDS_DepthTest_StencilNotEqual_Invert;
 		default:
 			return EDepthStencilState::DSS_DepthTest_StencilAlways;
 		}
@@ -385,6 +388,18 @@ public:
 	/** Treat this primitive as part of the background for occlusion purposes. This can be used as an optimization to reduce the cost of rendering skyboxes, large ground planes that are part of the vista, etc. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering)
 	uint8 bTreatAsBackgroundForOcclusion:1;
+
+	/** Mask used for stencil buffer writes. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = "Rendering")
+	ERendererStencilMask DepthStencilWriteMask;
+
+	/** DepthStencil state for CustomDepth stencil buffer writes. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = "Rendering")
+	ERendererDepthStencilState DepthStencilState;
+
+	/** Optionally write this 0-255 value to the stencil buffer in base pass. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering, meta = (UIMin = "0", UIMax = "255"))
+	int32 DepthStencilValue;
 
 	/** 
 	 * Whether to render the primitive in the depth only pass.  
@@ -1641,15 +1656,15 @@ public:
 
 	/** Sets the CustomDepth stencil value (0 - 255) and marks the render state dirty. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering", meta=(UIMin = "0", UIMax = "255"))
-	void SetCustomDepthStencilValue(int32 Value);
+	void SetCustomDepthStencilValue(int32 InValue);
 
 	/** Sets the CustomDepth stencil write mask and marks the render state dirty. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetCustomDepthStencilWriteMask(ERendererStencilMask WriteMaskBit);
+	void SetCustomDepthStencilWriteMask(ERendererStencilMask InWriteMaskBit);
 
 	/** Sets the CustomDepth stencil State and marks the render state dirty. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
-	void SetCustomDepthStencilState(ERendererDepthStencilState DepthStencilState);
+	void SetCustomDepthStencilState(ERendererDepthStencilState InDepthStencilState);
 
 	/** Sets bRenderInMainPass property and marks the render state dirty. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
@@ -1667,6 +1682,18 @@ public:
 	
 	/** A fence to track when the primitive is detached from the scene in the rendering thread. */
 	FRenderCommandFence DetachFence;
+
+	/** Sets the CustomDepth stencil value (0 - 255) and marks the render state dirty. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (UIMin = "0", UIMax = "255"))
+	void SetDepthStencilValue(int32 InValue);
+
+	/** Sets the CustomDepth stencil write mask and marks the render state dirty. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetDepthStencilWriteMask(ERendererStencilMask InWriteMaskBit);
+
+	/** Sets the CustomDepth stencil State and marks the render state dirty. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetDepthStencilState(ERendererDepthStencilState InDepthStencilState);
 
 private:
 	/** LOD parent primitive to draw instead of this one (multiple UPrim's will point to the same LODParent ) */

@@ -765,6 +765,7 @@ enum EDepthStencilState
 	DSS_DepthAlways_StencilAlways,
 	DDS_DepthTest_StencilEqual_Invert,
 	DDS_DepthAlways_StencilEqual_Invert,
+	DDS_DepthTest_StencilNotEqual_Invert,
 
 	DDS_Count
 };

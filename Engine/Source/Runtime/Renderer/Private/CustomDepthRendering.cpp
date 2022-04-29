@@ -81,7 +81,7 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 			};
 			checkSlow(EStencilMask::SM_Count == UE_ARRAY_COUNT(StencilStates));
 
-			PassDrawRenderState.SetDepthStencilState(StencilStates[(int32)PrimitiveSceneProxy->GetStencilWriteMask()]);
+			PassDrawRenderState.SetDepthStencilState(StencilStates[(int32)PrimitiveSceneProxy->GetCustomDepthStencilWriteMask()]);
 			PassDrawRenderState.SetStencilRef(CustomDepthStencilValue);
 
 			if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
@@ -99,7 +99,8 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 					TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
 					TStaticDepthStencilState<true, CF_Always,           true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI(),
 					TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_Equal, SO_Keep, SO_Keep, SO_Invert>::GetRHI(),
-					TStaticDepthStencilState<true, CF_Always,           true, CF_Equal, SO_Keep, SO_Keep, SO_Invert>::GetRHI()
+					TStaticDepthStencilState<true, CF_Always,           true, CF_Equal, SO_Keep, SO_Keep, SO_Invert>::GetRHI(),
+					TStaticDepthStencilState<true, CF_DepthNearOrEqual, true, CF_NotEqual, SO_Keep, SO_Keep, SO_Invert>::GetRHI(),
 				};
 				checkSlow(EDepthStencilState::DDS_Count == UE_ARRAY_COUNT(_DepthStencilStates));
 
@@ -118,6 +119,7 @@ void FCustomDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT Mesh
 						break;
 					case DDS_DepthTest_StencilEqual_Invert:
 					case DDS_DepthAlways_StencilEqual_Invert:
+					case DDS_DepthTest_StencilNotEqual_Invert:
 						MobileColorValue = 1 - CustomDepthStencilValue / 255.0f;
 						break;
 					default:

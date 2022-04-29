@@ -148,6 +148,9 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	CustomDepthStencilValue(InComponent->CustomDepthStencilValue)
 ,	CustomDepthStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(InComponent->CustomDepthStencilWriteMask))
 ,	CustomDepthStencilState(FRendererDepthStencilStateEvaluation::ToDepthStencilState(InComponent->CustomDepthStencilState))
+,	DepthStencilValue(InComponent->DepthStencilValue)
+,	DepthStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(InComponent->DepthStencilWriteMask))
+,	DepthStencilState(FRendererDepthStencilStateEvaluation::ToDepthStencilState(InComponent->DepthStencilState))
 ,	LightingChannelMask(GetLightingChannelMaskForStruct(InComponent->LightingChannels))
 ,	IndirectLightingCacheQuality(InComponent->IndirectLightingCacheQuality)
 ,	VirtualTextureLodBias(InComponent->VirtualTextureLodBias)
@@ -176,6 +179,9 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 #endif
 {
 	check(Scene);
+
+	// Render depth pass by default on SM5 platforms
+	bRenderInDepthPass = (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5) ? true : bRenderInDepthPass;
 
 #if STATS
 	{
@@ -554,6 +560,33 @@ void FPrimitiveSceneProxy::SetCustomDepthStencilValue_RenderThread(const int32 I
 {
 	check(IsInRenderingThread());
 	CustomDepthStencilValue = InCustomDepthStencilValue;
+}
+
+/**
+* Set the depth stencil value
+*
+* @param the new value
+*/
+void FPrimitiveSceneProxy::SetDepthStencilValue_GameThread(const int32 InDepthStencilValue)
+{
+	check(IsInGameThread());
+
+	ENQUEUE_RENDER_COMMAND(FSetCustomDepthStencilValue)(
+		[this, InDepthStencilValue](FRHICommandList& RHICmdList)
+	{
+		this->SetDepthStencilValue_RenderThread(InDepthStencilValue);
+	});
+}
+
+/**
+* Set the depth stencil value (RENDER THREAD)
+*
+* @param the new value
+*/
+void FPrimitiveSceneProxy::SetDepthStencilValue_RenderThread(const int32 InDepthStencilValue)
+{
+	check(IsInRenderingThread());
+	DepthStencilValue = InDepthStencilValue;
 }
 
 void FPrimitiveSceneProxy::SetDistanceFieldSelfShadowBias_RenderThread(float NewBias)

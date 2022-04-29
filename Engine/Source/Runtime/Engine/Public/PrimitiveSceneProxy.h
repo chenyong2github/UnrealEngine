@@ -445,6 +445,20 @@ public:
 	*/
 	void SetCustomDepthStencilValue_RenderThread(const int32 InCustomDepthStencilValue);
 
+	/**
+	* Set the depth stencil value
+	*
+	* @param the new value
+	*/
+	void SetDepthStencilValue_GameThread(const int32 InDepthStencilValue );
+
+	/**
+	* Set the depth stencil value (RENDER THREAD)
+	*
+	* @param the new value
+	*/
+	void SetDepthStencilValue_RenderThread(const int32 InDepthStencilValue);
+
 	void SetDistanceFieldSelfShadowBias_RenderThread(float NewBias);
 
 	// Accessors.
@@ -495,8 +509,11 @@ public:
 	inline bool WantsSelectionOutline() const { return bWantsSelectionOutline; }
 	inline bool ShouldRenderCustomDepth() const { return bRenderCustomDepth; }
 	inline uint8 GetCustomDepthStencilValue() const { return CustomDepthStencilValue; }
-	inline EStencilMask GetStencilWriteMask() const { return CustomDepthStencilWriteMask; }
+	inline EStencilMask GetCustomDepthStencilWriteMask() const { return CustomDepthStencilWriteMask; }
 	inline EDepthStencilState GetCustomDepthStencilState() const { return CustomDepthStencilState; }
+	inline uint8 GetDepthStencilValue() const { return DepthStencilValue; }
+	inline EStencilMask GetDepthStencilWriteMask() const { return DepthStencilWriteMask; }
+	inline EDepthStencilState GetDepthStencilState() const { return DepthStencilState; }
 	inline uint8 GetLightingChannelMask() const { return LightingChannelMask; }
 	inline uint8 GetLightingChannelStencilValue() const 
 	{ 
@@ -507,7 +524,7 @@ public:
 	inline bool IsVisibleInRealTimeSkyCaptures() const { return bVisibleInRealTimeSkyCaptures; }
 	inline bool IsVisibleInRayTracing() const { return bVisibleInRayTracing; }
 	inline bool ShouldRenderInMainPass() const { return bRenderInMainPass; }
-	inline bool ShouldRenderInDepthPass() const { return bRenderInMainPass || bRenderInDepthPass; }
+	inline bool ShouldRenderInDepthPass() const { return bRenderInDepthPass; }
 	inline bool IsCollisionEnabled() const { return bCollisionEnabled; }
 	inline bool IsHovered() const { return bHovered; }
 	inline bool IsOwnedBy(const AActor* Actor) const { return Owners.Find(Actor) != INDEX_NONE; }
@@ -958,6 +975,15 @@ private:
 
 	/** When writing custom depth stencil, use this state */
 	TEnumAsByte<EDepthStencilState> CustomDepthStencilState;
+
+	/** Optionally write this stencil value during base pass */
+	uint8 DepthStencilValue;
+
+	/** When writing depth stencil, use this write mask */
+	TEnumAsByte<EStencilMask> DepthStencilWriteMask;
+
+	/** When writing depth stencil, use this state */
+	TEnumAsByte<EDepthStencilState> DepthStencilState;
 
 	uint8 LightingChannelMask;
 
