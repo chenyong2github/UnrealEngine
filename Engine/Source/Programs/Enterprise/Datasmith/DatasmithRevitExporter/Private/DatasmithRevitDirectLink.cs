@@ -377,6 +377,9 @@ namespace DatasmithRevitExporter
 				}
 			}
 
+			DirectLink.bHasChanges = DirectLink.bHasChanges || InArgs.GetDeletedElementIds().Any();
+			DirectLink.bHasChanges = DirectLink.bHasChanges || InArgs.GetAddedElementIds().Any();
+
 			if (DirectLink.bHasChanges && bAutoSync)
 			{
 				DirectLink.RunAutoSync();
