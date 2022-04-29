@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "RHI.h"
+
 class IDisplayClusterViewport;
 class IDisplayClusterViewportProxy;
-class FRHICommandListImmediate;
 
 
 /**
