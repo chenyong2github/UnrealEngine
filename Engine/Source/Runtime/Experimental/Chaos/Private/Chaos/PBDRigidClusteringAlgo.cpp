@@ -263,6 +263,10 @@ namespace Chaos
 				}
 
 				MEvolution.SetParticleObjectState(ClusteredCurrentNode, ObjectState);
+				if (ObjectState == Chaos::EObjectStateType::Dynamic)
+				{
+					MEvolution.SetParticleKinematicTarget(ClusteredCurrentNode, FKinematicTarget());
+				}
 			}
 		}
 	}
