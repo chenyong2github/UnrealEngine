@@ -603,7 +603,7 @@ namespace Horde.Build.Services.Impl
 			}
 
 			// If the workflow disables issue creation, bail out now
-			if (annotations.CreateIssues ?? true)
+			if (!(annotations.CreateIssues ?? true))
 			{
 				_logger.LogInformation("Issue creation for step {JobId}:{BatchId}:{StepId} disabled", job.Id, batchId, stepId);
 				return;
