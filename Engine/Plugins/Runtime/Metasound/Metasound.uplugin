@@ -23,32 +23,32 @@
 		{
 			"Name": "MetasoundGenerator",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		},
 		{
 			"Name": "MetasoundFrontend",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		},
 		{
 			"Name": "MetasoundStandardNodes",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		},
 		{
 			"Name": "MetasoundEngine",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		},
 		{
 			"Name": "MetasoundEngineTest",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "PreDefault"
 		},
 		{
 			"Name": "MetasoundEditor",
 			"Type": "UncookedOnly",
-			"LoadingPhase": "PostDefault"
+			"LoadingPhase": "PreDefault"
 		}
 	],
 	"Plugins": [
