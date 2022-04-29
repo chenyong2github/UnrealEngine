@@ -137,8 +137,9 @@ void FGameFeaturePluginState::UpdateStateMachineDeferred(float Delay /*= 0.0f*/)
 
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda([this](float dts) mutable
 	{
-		StateProperties.OnRequestUpdateStateMachine.ExecuteIfBound();
+		// @note Release FGameFeaturePluginState::TickHandle first in case the termination callback triggers a GC and destroys the state machine
 		TickHandle.Reset();
+		StateProperties.OnRequestUpdateStateMachine.ExecuteIfBound();
 		return false;
 	}), Delay);
 }
