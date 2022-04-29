@@ -43,6 +43,10 @@ public:
 	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (ClampMin = "0.0"))
 	int32 TileBorder = 0;
 
+	/** Number of threads to use when processing. If 0 then this number is set automatically. */
+	UPROPERTY(EditAnywhere, Transient, Category = Processing, meta = (ClampMin = "0.0"))
+	int32 NumThreads = 0;
+
 	/** Number of tiles in the X direction. If 0, then there are no tiles. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Tiles)
 	int32 NumTilesX = 0;
