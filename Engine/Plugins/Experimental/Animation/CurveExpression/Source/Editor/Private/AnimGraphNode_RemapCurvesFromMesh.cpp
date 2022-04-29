@@ -2,6 +2,8 @@
 
 #include "AnimGraphNode_RemapCurvesFromMesh.h"
 
+#include "Animation/AnimAttributes.h"
+
 #define LOCTEXT_NAMESPACE "AnimGraphNode_RemapCurvesFromMesh"
 
 
