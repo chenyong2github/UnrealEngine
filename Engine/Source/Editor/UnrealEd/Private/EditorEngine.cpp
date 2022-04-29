@@ -1238,21 +1238,31 @@ void UEditorEngine::BroadcastObjectReimported(UObject* InObject)
 	GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetReimport(InObject);
 }
 
-void UEditorEngine::BeginDestroy()
+void UEditorEngine::PreExit()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		// UWorld::FinishDestroy clears GWorld if this == GWorld, so we need to do any cleanup on GWorld
-		// before any calls to FinishDestroy are made, in case UEditorEngine and UWorld are GC'd in the same
-		// pass, which happens on editor shutdown. Doing it here in BeginDestroy is early enough.
-		UWorld* World = GWorld;
-		if (World != NULL)
+		// Cleanup GWorld before final GC Purge
+		if (UWorld* World = GWorld)
 		{
 			World->ClearWorldComponents();
 			World->CleanupWorld();
 		}
+		
+		// Cleanup worlds that were initialized through UEditorEngine::InitializeNewlyCreatedInactiveWorld before final GC Purge
+		for (TObjectIterator<UWorld> It; It; ++It)
+		{
+			if (UWorld* World = *It; World && World->WorldType == EWorldType::Inactive && World->IsInitializedAndNeedsCleanup())
+			{
+				// GWorld shouldn't be an Inactive World
+				check(World != GWorld);
+				World->ClearWorldComponents();
+				World->CleanupWorld();
+			}
+		}
 	}
-	Super::BeginDestroy();
+
+	Super::PreExit();
 }
 
 void UEditorEngine::FinishDestroy()
