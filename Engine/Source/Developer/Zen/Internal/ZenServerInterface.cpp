@@ -606,6 +606,26 @@ DetermineCmdLineWithoutTransientComponents(const FServiceAutoLaunchSettings& InS
 		Parms.Append(InSettings.ExtraArgs);
 	}
 
+	FString LogCommandLineOverrideValue;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ZenLogPath="), LogCommandLineOverrideValue))
+	{
+		if (!LogCommandLineOverrideValue.IsEmpty())
+		{
+			Parms.Appendf(TEXT(" --abslog \"%s\""),
+				*FPaths::ConvertRelativePathToFull(LogCommandLineOverrideValue));
+		}
+	}
+
+	FString CfgCommandLineOverrideValue;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ZenCfgPath="), CfgCommandLineOverrideValue))
+	{
+		if (!CfgCommandLineOverrideValue.IsEmpty())
+		{
+			Parms.Appendf(TEXT(" --config \"%s\""),
+				*FPaths::ConvertRelativePathToFull(CfgCommandLineOverrideValue));
+		}
+	}
+
 	return Parms;
 }
 
@@ -854,26 +874,6 @@ FZenServiceInstance::AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FS
 	{
 		FString ParmsWithoutTransients = DetermineCmdLineWithoutTransientComponents(InSettings, DesiredPort);
 		FString Parms = ParmsWithoutTransients;
-
-		FString LogCommandLineOverrideValue;
-		if (FParse::Value(FCommandLine::Get(), TEXT("ZenLogPath="), LogCommandLineOverrideValue))
-		{
-			if (!LogCommandLineOverrideValue.IsEmpty())
-			{
-				Parms.Appendf(TEXT(" --abslog \"%s\""),
-					*FPaths::ConvertRelativePathToFull(LogCommandLineOverrideValue));
-			}
-		}
-
-		FString CfgCommandLineOverrideValue;
-		if (FParse::Value(FCommandLine::Get(), TEXT("ZenCfgPath="), CfgCommandLineOverrideValue))
-		{
-			if (!CfgCommandLineOverrideValue.IsEmpty())
-			{
-				Parms.Appendf(TEXT(" --config \"%s\""),
-					*FPaths::ConvertRelativePathToFull(CfgCommandLineOverrideValue));
-			}
-		}
 
 		if (InSettings.bLimitProcessLifetime)
 		{
