@@ -343,7 +343,7 @@ public:
 
 			if (Material->IsA<UMaterial>())
 			{
-				Material->GetExpressionCollection().AddExpression(Expression);
+				Material->Expressions.Add(Expression);
 				Expression->Material = Material;
 			}
 			// MaterialFunction->FunctionExpressions.Add(NewExpression);
@@ -856,8 +856,6 @@ public:
 			auto BaseColor = Box(nullptr);
 			auto Specular = Box(nullptr);
 
-			UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
-
 			if (ExpressionFresnel)
 			{
 				auto F0 = R(ExpressionFresnel);
@@ -880,7 +878,7 @@ public:
 						BaseColor = ExpressionSpecularColor;
 					}
 				}
-				Connect(MaterialEditorOnly->Metallic, F0); // just to make sure that F0=1 switches Metallic
+				Connect(Material->Metallic, F0); // just to make sure that F0=1 switches Metallic
 
 				auto ScaleFresnelToAccountForUESpecularScaling = Mul(Fresnel(F0), 1 / 0.08f); // UE scales Specular by 0.08 to compute F0
 				Specular = ExpressionSpecularColor ? Mul(ScaleFresnelToAccountForUESpecularScaling, ExpressionSpecularColor) : ScaleFresnelToAccountForUESpecularScaling;
@@ -895,8 +893,8 @@ public:
 				}
 			}
 
-			Connect(MaterialEditorOnly->Metallic, Constant(1.0f));
-			Connect(MaterialEditorOnly->Roughness, Constant(RoughnessFitted));
+			Connect(Material->Metallic, Constant(1.0f));
+			Connect(Material->Roughness, Constant(RoughnessFitted));
 
 			if (bHasBRDFColorsTexture || bHasBTFFlakes)
 			{
@@ -1005,18 +1003,18 @@ public:
 						Lerp(lh, hh, ThetaFWeight),
 						ThetaIWeight);
 
-					Connect(MaterialEditorOnly->EmissiveColor, FlakeResult);
+					Connect(Material->EmissiveColor, FlakeResult);
 				}
 			}
 
 			if (BaseColor)
 			{
-				Connect(MaterialEditorOnly->BaseColor, BaseColor);
+				Connect(Material->BaseColor, BaseColor);
 			}
 
 			if (Specular)
 			{
-				Connect(MaterialEditorOnly->Specular, Specular);
+				Connect(Material->Specular, Specular);
 			}
 
 			bool bHasClearcoat = ExpressionClearcoatIOR || ExpressionClearcoatNormal || ExpressionClearcoatColor || (CC_IOR != 1.0f);
@@ -1031,7 +1029,7 @@ public:
 				// Clearcoat normal goes to regular Normal input
 				if (ExpressionClearcoatNormal)
 				{
-					Connect(MaterialEditorOnly->Normal, ExpressionClearcoatNormal);
+					Connect(Material->Normal, ExpressionClearcoatNormal);
 				}
 
 				if (ExpressionNormal)
@@ -1040,13 +1038,13 @@ public:
 					Connect(BottomNormal->Input, ExpressionNormal);
 				}
 
-				Connect(MaterialEditorOnly->ClearCoatRoughness, Constant(0.0f));
+				Connect(Material->ClearCoatRoughness, Constant(0.0f));
 			}
 			else
 			{
 				if (ExpressionNormal)
 				{
-					Connect(MaterialEditorOnly->Normal, ExpressionNormal);
+					Connect(Material->Normal, ExpressionNormal);
 				}
 			}
 		}
@@ -1271,7 +1269,7 @@ public:
 			}
 
 			// UE squares UI roughness, so take root
-			Connect(Material->GetEditorOnlyData()->Roughness, Sqrt(SpecularRoughness));
+			Connect(Material->Roughness, Sqrt(SpecularRoughness));
 		}
 
 		void SetIsAnisotropic(bool InIsAnisotropic) override
@@ -1360,8 +1358,6 @@ private:
 			auto BaseColor = Box(nullptr);
 			auto Specular = Box(nullptr);
 
-			UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
-
 			if (ExpressionFresnel)
 			{
 				auto F0 = R(ExpressionFresnel);
@@ -1384,7 +1380,7 @@ private:
 						BaseColor = ExpressionSpecularColor;
 					}
 				}
-				Connect(MaterialEditorOnly->Metallic, F0); // just to make sure that F0=1 switches Metallic
+				Connect(Material->Metallic, F0); // just to make sure that F0=1 switches Metallic
 
 				auto ScaleFresnelToAccountForUESpecularScaling = Mul(Fresnel(F0), 1 / 0.08f); // UE scales Specular by 0.08 to compute F0
 				Specular = ExpressionSpecularColor ? Mul(ScaleFresnelToAccountForUESpecularScaling, ExpressionSpecularColor) : ScaleFresnelToAccountForUESpecularScaling;
@@ -1401,12 +1397,12 @@ private:
 
 			if (BaseColor)
 			{
-				Connect(MaterialEditorOnly->BaseColor, BaseColor);
+				Connect(Material->BaseColor, BaseColor);
 			}
 
 			if (Specular)
 			{
-				Connect(MaterialEditorOnly->Specular, Specular);
+				Connect(Material->Specular, Specular);
 			}
 
 			bool bHasClearcoat = ExpressionClearcoatIOR || ExpressionClearcoatNormal || ExpressionClearcoatColor;
@@ -1418,7 +1414,7 @@ private:
 				// Clearcoat normal goes to regular Normal input
 				if (ExpressionClearcoatNormal)
 				{
-					Connect(MaterialEditorOnly->Normal, ExpressionClearcoatNormal);
+					Connect(Material->Normal, ExpressionClearcoatNormal);
 				}
 
 				if (ExpressionNormal)
@@ -1431,7 +1427,7 @@ private:
 			{
 				if (ExpressionNormal)
 				{
-					Connect(MaterialEditorOnly->Normal, ExpressionNormal);
+					Connect(Material->Normal, ExpressionNormal);
 				}
 			}
 
@@ -1452,7 +1448,7 @@ private:
 
 					Connect(DitherTemporalAA->FunctionInputs[0].Input, ExpressionAlpha);
 
-					Connect(MaterialEditorOnly->OpacityMask, DitherTemporalAA);
+					Connect(Material->OpacityMask, DitherTemporalAA);
 				}
 			}
 		}
@@ -1506,7 +1502,7 @@ private:
 			}
 
 			// UE squares UI roughness, so take root
-			Connect(Material->GetEditorOnlyData()->Roughness, Sqrt(SpecularRoughness));
+			Connect(Material->Roughness, Sqrt(SpecularRoughness));
 		}
 
 		void SetIsAnisotropic(bool InIsAnisotropic)
@@ -2510,21 +2506,20 @@ private:
 			return false;
 
 		UMaterial* Material = Cast<UMaterial>(OutMaterial);
-		UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
 		{
-			MaterialEditorOnly->BaseColor.Expression = nullptr;
-			MaterialEditorOnly->EmissiveColor.Expression = nullptr;
-			MaterialEditorOnly->SubsurfaceColor.Expression = nullptr;
-			MaterialEditorOnly->Roughness.Expression = nullptr;
-			MaterialEditorOnly->Metallic.Expression = nullptr;
-			MaterialEditorOnly->Specular.Expression = nullptr;
-			MaterialEditorOnly->Opacity.Expression = nullptr;
-			MaterialEditorOnly->Refraction.Expression = nullptr;
-			MaterialEditorOnly->OpacityMask.Expression = nullptr;
-			MaterialEditorOnly->ClearCoat.Expression = nullptr;
-			MaterialEditorOnly->ClearCoatRoughness.Expression = nullptr;
-			MaterialEditorOnly->Normal.Expression = nullptr;
-			Material->GetExpressionCollection().Empty();
+			Material->BaseColor.Expression = nullptr;
+			Material->EmissiveColor.Expression = nullptr;
+			Material->SubsurfaceColor.Expression = nullptr;
+			Material->Roughness.Expression = nullptr;
+			Material->Metallic.Expression = nullptr;
+			Material->Specular.Expression = nullptr;
+			Material->Opacity.Expression = nullptr;
+			Material->Refraction.Expression = nullptr;
+			Material->OpacityMask.Expression = nullptr;
+			Material->ClearCoat.Expression = nullptr;
+			Material->ClearCoatRoughness.Expression = nullptr;
+			Material->Normal.Expression = nullptr;
+			Material->Expressions.Empty();
 		}
 
 		for (auto& CreatedMaterialPtr : CreatedMaterials)

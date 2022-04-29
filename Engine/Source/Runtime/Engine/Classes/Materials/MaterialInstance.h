@@ -454,26 +454,10 @@ private:
 };
 #endif // WITH_EDITORONLY_DATA
 
-UCLASS(MinimalAPI, Optional)
-class UMaterialInstanceEditorOnlyData : public UMaterialInterfaceEditorOnlyData
-{
-	GENERATED_BODY()
-public:
-	UPROPERTY()
-	FStaticParameterSetEditorOnlyData StaticParameters;
-};
-
 UCLASS(abstract, BlueprintType,MinimalAPI)
 class UMaterialInstance : public UMaterialInterface
 {
 	GENERATED_UCLASS_BODY()
-
-#if WITH_EDITORONLY_DATA
-	ENGINE_API virtual const UClass* GetEditorOnlyDataClass() const override { return UMaterialInstanceEditorOnlyData::StaticClass(); }
-
-	UMaterialInstanceEditorOnlyData* GetEditorOnlyData() { return CastChecked<UMaterialInstanceEditorOnlyData>(Super::GetEditorOnlyData()); }
-	const UMaterialInstanceEditorOnlyData* GetEditorOnlyData() const { return CastChecked<UMaterialInstanceEditorOnlyData>(Super::GetEditorOnlyData()); }
-#endif // WITH_EDITORONLY_DATA
 
 	/** Physical material to use for this graphics material. Used for sounds, effects etc.*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialInstance)
@@ -513,8 +497,6 @@ class UMaterialInstance : public UMaterialInterface
 	// An array of custom parameter set updaters.
 	UE_DEPRECATED(5.0, "Custom static parameter delegates no longer supported.")
 	ENGINE_API static TArray<FCustomParameterSetUpdaterDelegate> CustomParameterSetUpdaters;
-
-	ENGINE_API const FStaticParameterSetEditorOnlyData& GetEditorOnlyStaticParameters() const;
 #endif // WITH_EDITORONLY_DATA
 
 	/**
@@ -522,8 +504,7 @@ class UMaterialInstance : public UMaterialInterface
 	 *
 	 * @returns Static parameter set.
 	 */
-	ENGINE_API bool HasStaticParameters() const;
-	ENGINE_API FStaticParameterSet GetStaticParameters() const;
+	ENGINE_API const FStaticParameterSet& GetStaticParameters() const;
 
 	const FMaterialInstanceCachedData& GetCachedInstanceData() const { return CachedData ? *CachedData : FMaterialInstanceCachedData::EmptyData; }
 
@@ -629,20 +610,19 @@ public:
 
 private:
 
-	/** Static parameter values that are overridden in this instance. */
-	UPROPERTY()
-	FStaticParameterSetRuntimeData StaticParametersRuntime;
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TArray<FGuid> ReferencedTextureGuids;
+#endif // WITH_EDITORONLY_DATA
 
+	/** Static parameter values that are overridden in this instance. */
 	UPROPERTY()
-	FStaticParameterSet StaticParameters_DEPRECATED;
+	FStaticParameterSet StaticParameters;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	bool bSavedCachedData_DEPRECATED;
-#endif // WITH_EDITORONLY_DATA
+#endif
 
 protected:
 	TUniquePtr<FMaterialInstanceCachedData> CachedData;
@@ -984,7 +964,7 @@ namespace MaterialInstance_Private
 {
 	/** Workaround - Similar to base call but evaluates all expressions found, not just the first */
 	template<typename ExpressionType>
-	void FindClosestExpressionByGUIDRecursive(const FName& InName, const FGuid& InGUID, TConstArrayView<TObjectPtr<UMaterialExpression>> InMaterialExpression, ExpressionType*& OutExpression)
+	void FindClosestExpressionByGUIDRecursive(const FName& InName, const FGuid& InGUID, const TArray<TObjectPtr<UMaterialExpression>>& InMaterialExpression, ExpressionType*& OutExpression)
 	{
 		for (int32 ExpressionIndex = 0; ExpressionIndex < InMaterialExpression.Num(); ExpressionIndex++)
 		{
@@ -1014,7 +994,10 @@ namespace MaterialInstance_Private
 			}
 			else if (MaterialFunctionCall && MaterialFunctionCall->MaterialFunction)
 			{
-				FindClosestExpressionByGUIDRecursive<ExpressionType>(InName, InGUID, MaterialFunctionCall->MaterialFunction->GetExpressions(), OutExpression);
+				if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = MaterialFunctionCall->MaterialFunction->GetFunctionExpressions())
+				{
+					FindClosestExpressionByGUIDRecursive<ExpressionType>(InName, InGUID, *FunctionExpressions, OutExpression);
+				}
 			}
 			else if (MaterialLayers)
 			{
@@ -1025,7 +1008,10 @@ namespace MaterialInstance_Private
 				{
 					if (Layer)
 					{
-						FindClosestExpressionByGUIDRecursive<ExpressionType>(InName, InGUID, Layer->GetExpressions(), OutExpression);
+						if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Layer->GetFunctionExpressions())
+						{
+							FindClosestExpressionByGUIDRecursive<ExpressionType>(InName, InGUID, *FunctionExpressions, OutExpression);
+						}
 					}
 				}
 
@@ -1033,7 +1019,10 @@ namespace MaterialInstance_Private
 				{
 					if (Blend)
 					{
-						FindClosestExpressionByGUIDRecursive<ExpressionType>(InName, InGUID, Blend->GetExpressions(), OutExpression);
+						if (const TArray<TObjectPtr<UMaterialExpression>>* FunctionExpressions = Blend->GetFunctionExpressions())
+						{
+							FindClosestExpressionByGUIDRecursive<ExpressionType>(InName, InGUID, *FunctionExpressions, OutExpression);
+						}
 					}
 				}
 			}
@@ -1043,7 +1032,7 @@ namespace MaterialInstance_Private
 	template <typename ParameterType, typename ExpressionType>
 	bool UpdateParameter_FullTraversal(ParameterType& Parameter, UMaterial* ParentMaterial)
 	{
-		for (UMaterialExpression* Expression : ParentMaterial->GetExpressions())
+		for (UMaterialExpression* Expression : ParentMaterial->Expressions)
 		{
 			if (Expression->IsA<ExpressionType>())
 			{
@@ -1102,7 +1091,7 @@ namespace MaterialInstance_Private
 			if (Parameter.ExpressionGUID.IsValid())
 			{
 				ExpressionType* Expression = nullptr;
-				FindClosestExpressionByGUIDRecursive<ExpressionType>(Parameter.ParameterInfo.Name, Parameter.ExpressionGUID, ParentMaterial->GetExpressions(), Expression);
+				FindClosestExpressionByGUIDRecursive<ExpressionType>(Parameter.ParameterInfo.Name, Parameter.ExpressionGUID, ParentMaterial->Expressions, Expression);
 
 				// Check to see if the parameter name was changed.
 				if (Expression)

@@ -301,10 +301,10 @@ UMaterialInstanceConstant* FMaterialUtilities::CreateFlattenMaterialInstance(UPa
 		SwitchParameter.ParameterInfo.Name = TEXT("UseCustomUV");
 		SwitchParameter.Value = true;
 		SwitchParameter.bOverride = true;
-		NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+		NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 
 		SwitchParameter.ParameterInfo.Name = *(TEXT("UseUV") + FString::FromInt(FlattenMaterial.UVChannel));
-		NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+		NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 	}
 
 	auto CreateTextureFromDefault = [&](const FName TextureName, const FString& AssetLongName, FIntPoint Size, const TArray<FColor>& Samples)
@@ -343,7 +343,7 @@ UMaterialInstanceConstant* FMaterialUtilities::CreateFlattenMaterialInstance(UPa
 			SwitchParameter.ParameterInfo.Name = UseTexture;
 			SwitchParameter.Value = true;
 			SwitchParameter.bOverride = true;
-			NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+			NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 
 			OutMaterial->SetTextureParameterValueEditorOnly(TextureName, Texture);
 			
@@ -469,17 +469,17 @@ UMaterialInstanceConstant* FMaterialUtilities::CreateFlattenMaterialInstance(UPa
 		SwitchParameter.ParameterInfo.Name = TEXT("PackMetallic");
 		SwitchParameter.Value = bPackMetallic;
 		SwitchParameter.bOverride = true;
-		NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+		NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 
 		SwitchParameter.ParameterInfo.Name = TEXT("PackSpecular");
 		SwitchParameter.Value = bPackSpecular;
 		SwitchParameter.bOverride = true;
-		NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+		NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 
 		SwitchParameter.ParameterInfo.Name = TEXT("PackRoughness");
 		SwitchParameter.Value = bPackRoughness;
 		SwitchParameter.bOverride = true;
-		NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+		NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 
 		// Set up switch and texture values
 		OutMaterial->SetTextureParameterValueEditorOnly(PackedTextureName, PackedTexture);

@@ -328,7 +328,7 @@ void UInterchangeMaterialFactory::PreImportPreCompletedCallback(const FImportPre
 		//Update the samplers type in case the textures were changed during their PreImportPreCompletedCallback
 		if (UMaterial* ImportedMaterial = Cast<UMaterial>(ImportedMaterialInterface))
 		{
-			for (UMaterialExpression* Expression : ImportedMaterial->GetExpressions())
+			for (UMaterialExpression* Expression : ImportedMaterial->Expressions)
 			{
 				if (UMaterialExpressionTextureBase* TextureSample = Cast<UMaterialExpressionTextureBase>(Expression))
 				{
@@ -758,7 +758,7 @@ UMaterialExpression* UInterchangeMaterialFactory::CreateExpression(UMaterial* Ma
 	// Set the parameter name if the material expression has one (some material expressions don't inherit from UMaterialExpressionParameter, ie: UMaterialExpressionTextureSampleParameter
 	if (FNameProperty* Property = FindFProperty<FNameProperty>(MaterialExpression->GetClass(), GET_MEMBER_NAME_CHECKED(UMaterialExpressionParameter, ParameterName)))
 	{
-		*(Property->ContainerPtrToValuePtr<FName>(MaterialExpression)) = FName(*(ExpressionNode.GetDisplayLabel() + LexToString(Material->GetExpressions().Num())));
+		*(Property->ContainerPtrToValuePtr<FName>(MaterialExpression)) = FName(*(ExpressionNode.GetDisplayLabel() + LexToString(Material->Expressions.Num())));
 	}
 
 	ExpressionNode.ApplyAllCustomAttributeToObject(MaterialExpression);

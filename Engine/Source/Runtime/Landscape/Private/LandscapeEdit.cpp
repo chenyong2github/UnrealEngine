@@ -201,7 +201,7 @@ ULandscapeMaterialInstanceConstant* ALandscapeProxy::GetLayerThumbnailMIC(UMater
 	MaterialInstance->GetStaticParameterValues(StaticParameters);
 
 	// Customize that material instance to only enable our terrain layer's weightmap : 
-	StaticParameters.EditorOnly.TerrainLayerWeightParameters.Add(FStaticTerrainLayerWeightParameter(LayerName, /*InWeightmapIndex = */0, /*bInWeightBasedBlend = */false));
+	StaticParameters.TerrainLayerWeightParameters.Add(FStaticTerrainLayerWeightParameter(LayerName, /*InWeightmapIndex = */0, /*bInWeightBasedBlend = */false));
 
 	// Don't recreate the render state of everything, only update the materials context
 	{
@@ -226,7 +226,7 @@ bool ULandscapeComponent::ValidateCombinationMaterial(UMaterialInstanceConstant*
 		return false;
 	}
 
-	const TArray<FStaticTerrainLayerWeightParameter>& TerrainLayerWeightParameters = InCombinationMaterial->GetEditorOnlyStaticParameters().TerrainLayerWeightParameters;
+	const TArray<FStaticTerrainLayerWeightParameter>& TerrainLayerWeightParameters = InCombinationMaterial->GetStaticParameters().TerrainLayerWeightParameters;
 	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapAllocations = GetWeightmapLayerAllocations();
 
 	if (TerrainLayerWeightParameters.Num() != ComponentWeightmapAllocations.Num())
@@ -361,7 +361,7 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterial
 				{
 					FName LayerName = Allocation.GetLayerName();
 					check(LayerName != NAME_None);
-					StaticParameters.EditorOnly.TerrainLayerWeightParameters.Add(FStaticTerrainLayerWeightParameter(LayerName, Allocation.WeightmapTextureIndex, !Allocation.LayerInfo->bNoWeightBlend));
+					StaticParameters.TerrainLayerWeightParameters.Add(FStaticTerrainLayerWeightParameter(LayerName, Allocation.WeightmapTextureIndex, !Allocation.LayerInfo->bNoWeightBlend));
 				}
 			}
 
@@ -2494,13 +2494,9 @@ const TArray<FName>& ALandscapeProxy::GetLayersFromMaterial(UMaterialInterface* 
 {
 	if (MaterialInterface)
 	{
-		const FMaterialCachedExpressionData& CachedExpressionData = MaterialInterface->GetCachedExpressionData();
-		if (CachedExpressionData.EditorOnlyData)
-		{
-			return CachedExpressionData.EditorOnlyData->LandscapeLayerNames;
-		}
+		return MaterialInterface->GetCachedExpressionData().LandscapeLayerNames;
 	}
-	return FMaterialCachedExpressionEditorOnlyData::EmptyData.LandscapeLayerNames;
+	return FMaterialCachedExpressionData::EmptyData.LandscapeLayerNames;
 }
 
 const TArray<FName>& ALandscapeProxy::GetLayersFromMaterial() const

@@ -414,11 +414,11 @@ namespace Generator
 
 		if (Parent->IsA<UMaterial>())
 		{
-			Cast<UMaterial>(Parent)->GetExpressionCollection().AddExpression(Expression);
+			Cast<UMaterial>(Parent)->Expressions.Push(Expression);
 		}
 		else if (Parent->IsA<UMaterialFunction>())
 		{
-			Cast<UMaterialFunction>(Parent)->GetExpressionCollection().AddExpression(Expression);
+			Cast<UMaterialFunction>(Parent)->FunctionExpressions.Push(Expression);
 		}
 
 		return Expression;

@@ -390,7 +390,7 @@ int32 UMaterialEditingLibrary::GetNumMaterialExpressions(const UMaterial* Materi
 	int32 Result = 0;
 	if (Material)
 	{
-		Result = Material->GetExpressions().Num();
+		Result = Material->Expressions.Num();
 	}
 	return Result;
 }
@@ -399,7 +399,8 @@ void UMaterialEditingLibrary::DeleteAllMaterialExpressions(UMaterial* Material)
 {
 	if (Material)
 	{
-		for (UMaterialExpression* Expression : Material->GetExpressions())
+		TArray<UMaterialExpression*> AllExpressions = Material->Expressions;
+		for (UMaterialExpression* Expression : AllExpressions)
 		{
 			DeleteMaterialExpression(Material, Expression);
 		}
@@ -407,7 +408,7 @@ void UMaterialEditingLibrary::DeleteAllMaterialExpressions(UMaterial* Material)
 }
 
 /** Util to iterate over list of expressions, and break any links to specified expression */
-static void BreakLinksToExpression(TConstArrayView<TObjectPtr<UMaterialExpression>> Expressions, UMaterialExpression* Expression)
+static void BreakLinksToExpression(TArray<UMaterialExpression*>& Expressions, UMaterialExpression* Expression)
 {
 	// Need to find any other expressions which are connected to this one, and break link
 	for (UMaterialExpression* TestExp : Expressions)
@@ -432,7 +433,7 @@ void UMaterialEditingLibrary::DeleteMaterialExpression(UMaterial* Material, UMat
 	if (Material && Expression && Expression->GetOuter() == Material)
 	{
 		// Break any links to this expression
-		BreakLinksToExpression(Material->GetExpressions(), Expression);
+		BreakLinksToExpression(Material->Expressions, Expression);
 
 		// Check material parameter inputs, to make sure expression is not connected to it
 		for (int32 InputIndex = 0; InputIndex < MP_MAX; InputIndex++)
@@ -446,7 +447,7 @@ void UMaterialEditingLibrary::DeleteMaterialExpression(UMaterial* Material, UMat
 
 		Material->RemoveExpressionParameter(Expression);
 
-		Material->GetExpressionCollection().RemoveExpression(Expression);
+		Material->Expressions.Remove(Expression);
 
 		Expression->MarkAsGarbage();
 
@@ -475,13 +476,13 @@ UMaterialExpression* UMaterialEditingLibrary::DuplicateMaterialExpression(UMater
 
 		if (Material)
 		{
-			Material->GetExpressionCollection().AddExpression(NewExpression);
+			Material->Expressions.Add(NewExpression);
 			NewExpression->Material = Material;
 		}
 
 		if (MaterialFunction && !Material)
 		{
-			MaterialFunction->GetExpressionCollection().AddExpression(NewExpression);
+			MaterialFunction->FunctionExpressions.Add(NewExpression);
 		}
 
 		// Create a GUID for the node
@@ -519,13 +520,13 @@ UMaterialExpression* UMaterialEditingLibrary::CreateMaterialExpressionEx(UMateri
 
 		if (Material)
 		{
-			Material->GetExpressionCollection().AddExpression(NewExpression);
+			Material->Expressions.Add(NewExpression);
 			NewExpression->Material = Material;
 		}
 
 		if (MaterialFunction && !Material)
 		{
-			MaterialFunction->GetExpressionCollection().AddExpression(NewExpression);
+			MaterialFunction->FunctionExpressions.Add(NewExpression);
 		}
 
 		NewExpression->MaterialExpressionEditorX = NodePosX;
@@ -828,7 +829,7 @@ int32 UMaterialEditingLibrary::GetNumMaterialExpressionsInFunction(const UMateri
 	int32 Result = 0;
 	if (MaterialFunction)
 	{
-		Result = MaterialFunction->GetExpressions().Num();
+		Result = MaterialFunction->FunctionExpressions.Num();
 	}
 	return Result;
 }
@@ -837,7 +838,8 @@ void UMaterialEditingLibrary::DeleteAllMaterialExpressionsInFunction(UMaterialFu
 {
 	if (MaterialFunction)
 	{
-		for (UMaterialExpression* Expression : MaterialFunction->GetExpressions())
+		TArray<UMaterialExpression*> AllExpressions = MaterialFunction->FunctionExpressions;
+		for (UMaterialExpression* Expression : AllExpressions)
 		{
 			DeleteMaterialExpressionInFunction(MaterialFunction, Expression);
 		}
@@ -850,9 +852,9 @@ void UMaterialEditingLibrary::DeleteMaterialExpressionInFunction(UMaterialFuncti
 	if (MaterialFunction && Expression && Expression->GetOuter() == MaterialFunction)
 	{
 		// Break any links to this expression
-		BreakLinksToExpression(MaterialFunction->GetExpressions(), Expression);
+		BreakLinksToExpression(MaterialFunction->FunctionExpressions, Expression);
 
-		MaterialFunction->GetExpressionCollection().RemoveExpression(Expression);
+		MaterialFunction->FunctionExpressions.Remove(Expression);
 
 		Expression->MarkAsGarbage();
 
@@ -901,7 +903,8 @@ void UMaterialEditingLibrary::UpdateMaterialFunction(UMaterialFunctionInterface*
 		}
 
 		// update the world's viewports	
-		UMaterialFunction* BaseFunction = MaterialFunction->GetBaseFunction();
+		UMaterialFunctionInstance* FunctionAsInstance = Cast<UMaterialFunctionInstance>(MaterialFunction);
+		UMaterialFunction* BaseFunction = Cast<UMaterialFunction>(FunctionAsInstance ? FunctionAsInstance->GetBaseFunction() : MaterialFunction);
 
 		UMaterialEditingLibrary::RebuildMaterialInstanceEditors(BaseFunction);
 		FEditorDelegates::RefreshEditor.Broadcast();

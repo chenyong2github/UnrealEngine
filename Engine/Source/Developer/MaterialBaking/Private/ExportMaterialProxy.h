@@ -569,7 +569,7 @@ private:
 
 	UMaterialExpressionCustomOutput* GetCustomOutputExpressionToCompile() const
 	{
-		for (UMaterialExpression* Expression : Material->GetExpressions())
+		for (UMaterialExpression* Expression : Material->Expressions)
 		{
 			UMaterialExpressionCustomOutput* CustomOutputExpression = Cast<UMaterialExpressionCustomOutput>(Expression);
 			if (CustomOutputExpression && CustomOutputExpression->GetDisplayName() == CustomOutputToCompile)

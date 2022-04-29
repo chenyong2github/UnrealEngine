@@ -326,12 +326,12 @@ public:
 class FExpressionMaterialLayers : public FExpressionForward
 {
 public:
-	FExpressionMaterialLayers(const FExpression* InExpression, const FMaterialLayersFunctions& InMaterialLayers)
+	FExpressionMaterialLayers(const FExpression* InExpression, const FMaterialLayersFunctions* InMaterialLayers)
 		: FExpressionForward(InExpression)
 		, MaterialLayers(InMaterialLayers)
 	{}
 
-	FMaterialLayersFunctions MaterialLayers;
+	const FMaterialLayersFunctions* MaterialLayers;
 
 	virtual bool PrepareValue(FEmitContext& Context, FEmitScope& Scope, const FRequestedType& RequestedType, FPrepareValueResult& OutResult) const override;
 };

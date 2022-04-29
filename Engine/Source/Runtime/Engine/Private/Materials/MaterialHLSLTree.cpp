@@ -454,7 +454,7 @@ bool FExpressionParameter::PrepareValue(FEmitContext& Context, FEmitScope& Scope
 	{
 		if (!ParameterInfo.Name.IsNone())
 		{
-			EmitData.CachedExpressionData->AddParameter(ParameterInfo, ParameterMeta);
+			EmitData.CachedExpressionData->Parameters.AddParameter(ParameterInfo, ParameterMeta);
 		}
 
 		UObject* ReferencedTexture = ParameterMeta.Value.AsTextureObject();
@@ -507,7 +507,7 @@ void FExpressionParameter::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 			switch (ParameterType)
 			{
 			case EMaterialParameterType::StaticSwitch:
-				for (const FStaticSwitchParameter& Parameter : EmitMaterialData.StaticParameters->EditorOnly.StaticSwitchParameters)
+				for (const FStaticSwitchParameter& Parameter : EmitMaterialData.StaticParameters->StaticSwitchParameters)
 				{
 					if (Parameter.ParameterInfo == ParameterInfo)
 					{
@@ -517,7 +517,7 @@ void FExpressionParameter::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 				}
 				break;
 			case EMaterialParameterType::StaticComponentMask:
-				for (const FStaticComponentMaskParameter& Parameter : EmitMaterialData.StaticParameters->EditorOnly.StaticComponentMaskParameters)
+				for (const FStaticComponentMaskParameter& Parameter : EmitMaterialData.StaticParameters->StaticComponentMaskParameters)
 				{
 					if (Parameter.ParameterInfo == ParameterInfo)
 					{
@@ -1119,9 +1119,7 @@ bool FExpressionMaterialLayers::PrepareValue(FEmitContext& Context, FEmitScope& 
 			{
 				// TODO(?) - Layers for MIs are currently duplicated here and in FStaticParameterSet
 				EmitMaterialData.CachedExpressionData->bHasMaterialLayers = true;
-				EmitMaterialData.CachedExpressionData->MaterialLayers = MaterialLayers.GetRuntime();
-				EmitMaterialData.CachedExpressionData->EditorOnlyData->MaterialLayers = MaterialLayers.EditorOnly;
-				FMaterialLayersFunctions::Validate(EmitMaterialData.CachedExpressionData->MaterialLayers, EmitMaterialData.CachedExpressionData->EditorOnlyData->MaterialLayers);
+				EmitMaterialData.CachedExpressionData->MaterialLayers = *MaterialLayers;
 			}
 		}
 	}

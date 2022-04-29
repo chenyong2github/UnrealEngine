@@ -19,9 +19,7 @@ protected:
 	 * @param	Expressions		The expressions to search in
 	 * @return	null if not found
 	 */
-	template<typename ExpressionsArrayType>
-	UMaterialExpressionNamedRerouteDeclaration* FindDeclarationInArray(const FGuid& VariableGuid, const ExpressionsArrayType& Expressions) const;
-
+	 UMaterialExpressionNamedRerouteDeclaration* FindDeclarationInArray(const FGuid& VariableGuid, const TArray<UMaterialExpression*>& Expressions) const;
 	/**
 	 * Find a variable declaration in the entire graph
 	 * @param	VariableGuid	The GUID of the variable to find
@@ -43,9 +41,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionNamedRerouteDeclaration)
 	FName Name;
 
+#if WITH_EDITORONLY_DATA
 	/** The color of the graph node. The same color will apply to all linked usages of this Declaration node */
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionNamedRerouteDeclaration)
 	FLinearColor NodeColor;
+#endif
 
 	// The variable GUID, to support copy across graphs
 	UPROPERTY()
@@ -128,17 +128,3 @@ private:
 	// Check that the declaration isn't deleted
 	bool IsDeclarationValid() const;
 };
-
-template<typename ExpressionsArrayType>
-inline UMaterialExpressionNamedRerouteDeclaration* UMaterialExpressionNamedRerouteBase::FindDeclarationInArray(const FGuid& VariableGuid, const ExpressionsArrayType& Expressions) const
-{
-	for (UMaterialExpression* Expression : Expressions)
-	{
-		auto* Declaration = Cast<UMaterialExpressionNamedRerouteDeclaration>(Expression);
-		if (Declaration && this != Declaration && Declaration->VariableGuid == VariableGuid)
-		{
-			return Declaration;
-		}
-	}
-	return nullptr;
-}

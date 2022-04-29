@@ -66,7 +66,7 @@ namespace Mat
 		// get under clear coat output
 		UMaterialExpressionClearCoatNormalCustomOutput* UnderClearCoat;
 		{
-			auto Found = Material.GetExpressions().FindByPredicate(
+			auto Found = Material.Expressions.FindByPredicate(
 			    [](const UMaterialExpression* Expr) { return Expr->IsA<UMaterialExpressionClearCoatNormalCustomOutput>(); });
 			check(Found);
 			UnderClearCoat = Cast<UMaterialExpressionClearCoatNormalCustomOutput>(*Found);
@@ -81,11 +81,9 @@ namespace Mat
 		// change some parameter names
 		SetTextureParameterName(TEXT("Color Table"), Parameters[EMaterialParameter::BaseColorMap]);
 
-		UMaterialEditorOnlyData& MaterialEditorOnly = *Material.GetEditorOnlyData();
-
 		// clear coat
-		ConnectParameter(MaterialEditorOnly.ClearCoat, TEXT("Clear Coat"), Parameters[EMaterialParameter::ClearCoatWeight]);
-		ConnectParameter(MaterialEditorOnly.ClearCoatRoughness, TEXT("Clear Coat"), Parameters[EMaterialParameter::ClearCoatRoughness]);
+		ConnectParameter(Material.ClearCoat, TEXT("Clear Coat"), Parameters[EMaterialParameter::ClearCoatWeight]);
+		ConnectParameter(Material.ClearCoatRoughness, TEXT("Clear Coat"), Parameters[EMaterialParameter::ClearCoatRoughness]);
 		// light direction
 		Expression = Generator::NewMaterialExpressionVectorParameter(&Material, TEXT("Light Direction"), FLinearColor(0.5f, 0.25f, 1.f));
 		Generator::SetMaterialExpressionGroup(TEXT("Other"), Expression);
@@ -107,7 +105,7 @@ namespace Mat
 			Inputs.Emplace(Generator::FMaterialExpressionConnection(FlakesColor.Get<0>(), FlakesColor.Get<1>()));
 		else
 			Inputs.Emplace(Generator::NewMaterialExpressionConstant(&Material, 0.f));
-		Generator::Connect(MaterialEditorOnly.BaseColor, Generator::NewMaterialExpressionFunctionCall(&Material, MapCall, Inputs));
+		Generator::Connect(Material.BaseColor, Generator::NewMaterialExpressionFunctionCall(&Material, MapCall, Inputs));
 
 		MapCall = &FunctionLoader.Get(Generator::ECommonFunction::NormalMap);
 
@@ -118,7 +116,7 @@ namespace Mat
 			AddFunctionInput(Inputs, TEXT("Clear Coat"), Parameters[EMaterialParameter::ClearCoatNormalMap]);
 			Inputs.Emplace(Tiling);
 			AddFunctionInput(Inputs, TEXT("Clear Coat"), Parameters[EMaterialParameter::ClearCoatNormalStrength]);
-			Generator::Connect(MaterialEditorOnly.Normal, Generator::NewMaterialExpressionFunctionCall(&Material, MapCall, Inputs));
+			Generator::Connect(Material.Normal, Generator::NewMaterialExpressionFunctionCall(&Material, MapCall, Inputs));
 		}
 
 		// under-clearcoat normal
@@ -132,9 +130,9 @@ namespace Mat
 		if (!FlakesColor.Get<0>())
 		{
 			// brdf
-			ConnectParameter(MaterialEditorOnly.Metallic, TEXT("BRDF"), Parameters[EMaterialParameter::Metallic]);
-			ConnectParameter(MaterialEditorOnly.Specular, TEXT("BRDF"), Parameters[EMaterialParameter::Specular]);
-			ConnectParameter(MaterialEditorOnly.Roughness, TEXT("BRDF"), Parameters[EMaterialParameter::Roughness]);
+			ConnectParameter(Material.Metallic, TEXT("BRDF"), Parameters[EMaterialParameter::Metallic]);
+			ConnectParameter(Material.Specular, TEXT("BRDF"), Parameters[EMaterialParameter::Specular]);
+			ConnectParameter(Material.Roughness, TEXT("BRDF"), Parameters[EMaterialParameter::Roughness]);
 		}
 	}
 
@@ -166,23 +164,21 @@ namespace Mat
 
 		Generator::SetMaterialExpressionGroup(TEXT("Flakes"), Parameters[EMaterialParameter::CarFlakesMap]);
 
-		UMaterialEditorOnlyData& MaterialEditorOnly = *Material.GetEditorOnlyData();
-
 		// brdf
 		Inputs.Empty();
 		Inputs.Emplace(FunctionCall, 1);
 		Inputs.Emplace(Parameters[EMaterialParameter::Metallic]);
-		Generator::Connect(MaterialEditorOnly.Metallic,
+		Generator::Connect(Material.Metallic,
 		                   Generator::NewMaterialExpressionSaturate(&Material, Generator::NewMaterialExpressionAdd(&Material, Inputs)));
 		Inputs.Empty();
 		Inputs.Emplace(FunctionCall, 3);
 		Inputs.Emplace(Parameters[EMaterialParameter::Roughness]);
-		Generator::Connect(MaterialEditorOnly.Roughness,
+		Generator::Connect(Material.Roughness,
 		                   Generator::NewMaterialExpressionSaturate(&Material, Generator::NewMaterialExpressionAdd(&Material, Inputs)));
 		Inputs.Empty();
 		Inputs.Emplace(FunctionCall, 2);
 		Inputs.Emplace(Parameters[EMaterialParameter::Specular]);
-		Generator::Connect(MaterialEditorOnly.Specular,
+		Generator::Connect(Material.Specular,
 		                   Generator::NewMaterialExpressionSaturate(&Material, Generator::NewMaterialExpressionAdd(&Material, Inputs)));
 
 		Generator::SetMaterialExpressionGroup(TEXT("BRDF"), Parameters[EMaterialParameter::Metallic]);

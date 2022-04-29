@@ -28,7 +28,6 @@
 #include "Materials/MaterialExpressionMaterialAttributeLayers.h"
 #include "Materials/MaterialExpressionRerouteBase.h"
 #include "Materials/MaterialExpressionExecBegin.h"
-#include "Materials/MaterialExpressionExecEnd.h"
 
 #include "Toolkits/ToolkitManager.h"
 #include "MaterialEditor.h"
@@ -259,7 +258,7 @@ void FMaterialEditorUtilities::GetVisibleMaterialParameters(const UMaterial* Mat
 
 	if (Material->IsUsingControlFlow())
 	{
-		GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Material->GetExpressionExecBegin(), INDEX_NONE), MaterialInstance, VisibleExpressions, FunctionStack);
+		GetVisibleMaterialParametersFromExpression(FMaterialExpressionKey(Material->ExpressionExecBegin, INDEX_NONE), MaterialInstance, VisibleExpressions, FunctionStack);
 	}
 	else
 	{
@@ -371,7 +370,8 @@ void FMaterialEditorUtilities::InitExpressions(UMaterial* Material)
 {
 	FString ParmName;
 
-	Material->GetExpressionCollection().Empty();
+	Material->EditorComments.Empty();
+	Material->Expressions.Empty();
 
 	TArray<UObject*> ChildObjects;
 	GetObjectsWithOuter(Material, ChildObjects, /*bIncludeNestedObjects=*/false);
@@ -384,19 +384,11 @@ void FMaterialEditorUtilities::InitExpressions(UMaterial* Material)
 			// Comment expressions are stored in a separate list.
 			if ( MaterialExpression->IsA( UMaterialExpressionComment::StaticClass() ) )
 			{
-				Material->GetExpressionCollection().AddComment( static_cast<UMaterialExpressionComment*>(MaterialExpression) );
+				Material->EditorComments.Add( static_cast<UMaterialExpressionComment*>(MaterialExpression) );
 			}
 			else
 			{
-				Material->GetExpressionCollection().AddExpression( MaterialExpression );
-				if (MaterialExpression->IsA(UMaterialExpressionExecBegin::StaticClass()))
-				{
-					Material->GetExpressionCollection().ExpressionExecBegin = static_cast<UMaterialExpressionExecBegin*>(MaterialExpression);
-				}
-				else if (MaterialExpression->IsA(UMaterialExpressionExecEnd::StaticClass()))
-				{
-					Material->GetExpressionCollection().ExpressionExecEnd = static_cast<UMaterialExpressionExecEnd*>(MaterialExpression);
-				}
+				Material->Expressions.Add( MaterialExpression );
 			}
 		}
 	}
@@ -405,15 +397,18 @@ void FMaterialEditorUtilities::InitExpressions(UMaterial* Material)
 
 	// Propagate RF_Transactional to all referenced material expressions.
 	Material->SetFlags( RF_Transactional );
-	for(UMaterialExpression* MaterialExpression : Material->GetExpressions())
+	for( int32 MaterialExpressionIndex = 0 ; MaterialExpressionIndex < Material->Expressions.Num() ; ++MaterialExpressionIndex )
 	{
+		UMaterialExpression* MaterialExpression = Material->Expressions[ MaterialExpressionIndex ];
+
 		if(MaterialExpression)
 		{
 			MaterialExpression->SetFlags( RF_Transactional );
 		}
 	}
-	for(UMaterialExpressionComment* Comment : Material->GetEditorComments())
+	for( int32 MaterialExpressionIndex = 0 ; MaterialExpressionIndex < Material->EditorComments.Num() ; ++MaterialExpressionIndex )
 	{
+		UMaterialExpressionComment* Comment = Material->EditorComments[ MaterialExpressionIndex ];
 		Comment->SetFlags( RF_Transactional );
 	}
 }

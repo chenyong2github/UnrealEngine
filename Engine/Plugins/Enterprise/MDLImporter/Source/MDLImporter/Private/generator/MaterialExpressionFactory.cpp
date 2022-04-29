@@ -766,7 +766,7 @@ namespace Generator
 				check(FunctionName == TEXT("operator[](<0>[],int)"));
 
 				const int32 Index = (int32)Cast<UMaterialExpressionConstant>(Inputs[1].GetExpressionUnused())->R;
-				CurrentMaterial->GetExpressionCollection().RemoveExpression(Inputs[1].GetExpressionUnused());
+				CurrentMaterial->Expressions.Remove(Inputs[1].GetExpressionUnused());
 
 				return {NewMaterialExpressionComponentMask(CurrentMaterial, Inputs[0], 1 << Index)};
 			}
@@ -1205,12 +1205,12 @@ namespace Generator
 			if (UMaterialExpressionConstant* Index = Cast<UMaterialExpressionConstant>(InputExpression))
 			{
 				CoordinateIndex = Index->R;
-				CurrentMaterial->GetExpressionCollection().RemoveExpression(Index);
+				CurrentMaterial->Expressions.Remove(Index);
 			}
 			else if (UMaterialExpressionScalarParameter* ScalarExpression = Cast<UMaterialExpressionScalarParameter>(InputExpression))
 			{
 				CoordinateIndex = ScalarExpression->DefaultValue;
-				CurrentMaterial->GetExpressionCollection().RemoveExpression(ScalarExpression);
+				CurrentMaterial->Expressions.Remove(ScalarExpression);
 			}
 			else
 			{

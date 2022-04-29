@@ -29,7 +29,6 @@ void SMediaImage::Construct(const FArguments& InArgs, UTexture* InTexture)
 
 		if (Material != nullptr)
 		{
-			UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
 			TextureSampler = NewObject<UMaterialExpressionTextureSample>(Material);
 			{
 				TextureSampler->Texture = InTexture;
@@ -37,7 +36,7 @@ void SMediaImage::Construct(const FArguments& InArgs, UTexture* InTexture)
 			}
 
 			FExpressionOutput& Output = TextureSampler->GetOutputs()[0];
-			FExpressionInput& Input = MaterialEditorOnly->EmissiveColor;
+			FExpressionInput& Input = Material->EmissiveColor;
 			{
 				Input.Expression = TextureSampler;
 				Input.Mask = Output.Mask;
@@ -47,7 +46,7 @@ void SMediaImage::Construct(const FArguments& InArgs, UTexture* InTexture)
 				Input.MaskA = Output.MaskA;
 			}
 
-			FExpressionInput& Opacity = MaterialEditorOnly->Opacity;
+			FExpressionInput& Opacity = Material->Opacity;
 			{
 				Opacity.Expression = TextureSampler;
 				Opacity.Mask = Output.Mask;
@@ -59,7 +58,7 @@ void SMediaImage::Construct(const FArguments& InArgs, UTexture* InTexture)
 
 			Material->BlendMode = BLEND_AlphaComposite;
 
-			Material->GetExpressionCollection().AddExpression(TextureSampler);
+			Material->Expressions.Add(TextureSampler);
 			Material->MaterialDomain = EMaterialDomain::MD_UI;
 			Material->PostEditChange();
 		}

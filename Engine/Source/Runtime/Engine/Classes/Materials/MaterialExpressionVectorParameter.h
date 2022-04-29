@@ -23,8 +23,10 @@ class UMaterialExpressionVectorParameter : public UMaterialExpressionParameter
 	UPROPERTY(EditAnywhere, Category=CustomPrimitiveData, meta=(ClampMin="0"))
 	uint8 PrimitiveDataIndex = 0;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = ParameterCustomization)
 	FParameterChannelNames ChannelNames;
+#endif
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR

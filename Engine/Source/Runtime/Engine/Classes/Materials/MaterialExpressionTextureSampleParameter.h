@@ -28,12 +28,14 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionTextureSampleParameter)
 	FName Group;
 
+#if WITH_EDITORONLY_DATA
 	/** Controls where the this parameter is displayed in a material instance parameter list.  The lower the number the higher up in the parameter list. */
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSampleParameter)
 	int32 SortPriority = 32;
 
 	UPROPERTY(EditAnywhere, Category = ParameterCustomization)
 	FParameterChannelNames ChannelNames;
+#endif
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
@@ -56,7 +58,6 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 		OutMeta.ExpressionGuid = ExpressionGUID;
 		OutMeta.Group = Group;
 		OutMeta.SortPriority = SortPriority;
-		OutMeta.AssetPath = GetAssetPathName();
 		OutMeta.ChannelNames = ChannelNames;
 		return true;
 	}

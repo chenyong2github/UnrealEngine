@@ -252,7 +252,6 @@ protected:
 	/** Compilation output which will be stored in the DDC. */
 	FMaterialCompilationOutput& MaterialCompilationOutput;
 	FStaticParameterSet StaticParameters;
-	FMaterialLayersFunctions CachedMaterialLayers;
 	EShaderPlatform Platform;
 	/** Quality level being compiled for. */
 	EMaterialQualityLevel::Type QualityLevel;
@@ -459,14 +458,11 @@ public:
 	void AssignTempScope(TArray<FShaderCodeChunk>& InScope);
 	void AssignShaderFrequencyScope(EShaderFrequency InShaderFrequency);
 
-	template<typename ExpressionsArrayType>
-	void GatherCustomVertexInterpolators(const ExpressionsArrayType& Expressions);
+	void GatherCustomVertexInterpolators(TArray<UMaterialExpression*> Expressions);
 
 	void CompileCustomOutputs(TArray<UMaterialExpressionCustomOutput*>& CustomOutputExpressions, TSet<UClass*>& SeenCustomOutputExpressionsClasses, bool bIsBeforeAttributes);
 
-	template<typename ExpressionsArrayType>
-	EMaterialExpressionVisitResult VisitExpressionsRecursive(const ExpressionsArrayType& Expressions, IMaterialExpressionVisitor& InVisitor);
-
+	EMaterialExpressionVisitResult VisitExpressionsRecursive(TArray<UMaterialExpression*> Expressions, IMaterialExpressionVisitor& InVisitor);
 	EMaterialExpressionVisitResult VisitExpressionsForProperty(EMaterialProperty InProperty, IMaterialExpressionVisitor& InVisitor);
 
 	void ValidateVtPropertyLimits();

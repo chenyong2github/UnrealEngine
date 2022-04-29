@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Templates/SharedPointer.h"
 #include "MaterialTypes.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Misc/Guid.h"
@@ -74,11 +73,10 @@ struct FMaterialCachedParameterEditorInfo
 
 	FMaterialCachedParameterEditorInfo() = default;
 	FMaterialCachedParameterEditorInfo(const FGuid& InGuid) : ExpressionGuid(InGuid) {}
-	FMaterialCachedParameterEditorInfo(const FGuid& InGuid, const FString& InDescription, const FName& InGroup, int32 InSortPriority, int32 InAssetIndex)
+	FMaterialCachedParameterEditorInfo(const FGuid& InGuid, const FString& InDescription, const FName& InGroup, int32 InSortPriority)
 		: Description(InDescription)
 		, Group(InGroup)
 		, SortPriority(InSortPriority)
-		, AssetIndex(InAssetIndex)
 		, ExpressionGuid(InGuid)
 	{}
 
@@ -92,9 +90,6 @@ struct FMaterialCachedParameterEditorInfo
 	int32 SortPriority = 0;
 
 	UPROPERTY()
-	int32 AssetIndex = INDEX_NONE;
-
-	UPROPERTY()
 	FGuid ExpressionGuid;
 };
 
@@ -105,91 +100,34 @@ struct FMaterialCachedParameterEntry
 
 	ENGINE_API static const FMaterialCachedParameterEntry EmptyData;
 
+	void Reset();
+
 	// This is used to map FMaterialParameterInfos to indices, which are then used to index various TArrays containing values for each type of parameter
 	// (ExpressionGuids and Overrides, along with ScalarValues, VectorValues, etc)
 	UPROPERTY()
 	TSet<FMaterialParameterInfo> ParameterInfoSet;
-};
 
-USTRUCT()
-struct FMaterialCachedParameterEditorEntry
-{
-	GENERATED_USTRUCT_BODY()
-
+#if WITH_EDITORONLY_DATA
+	// Editor-only information for each parameter
 	UPROPERTY()
 	TArray<FMaterialCachedParameterEditorInfo> EditorInfo;
-};
+#endif // WITH_EDITORONLY_DATA
 
-struct FMaterialCachedExpressionContext
-{
-	const UMaterialFunctionInterface* CurrentFunction = nullptr;
-	const FMaterialLayersFunctions* LayerOverrides = nullptr;
-	bool bUpdateFunctionExpressions = true;
 };
 
 USTRUCT()
-struct FMaterialCachedExpressionEditorOnlyData
+struct FMaterialCachedParameters
 {
 	GENERATED_USTRUCT_BODY()
 
-	ENGINE_API static const FMaterialCachedExpressionEditorOnlyData EmptyData;
-
-	UPROPERTY()
-	FMaterialCachedParameterEntry EditorOnlyEntries[NumMaterialEditorOnlyParameterTypes];
-
-	UPROPERTY()
-	FMaterialCachedParameterEditorEntry EditorEntries[NumMaterialParameterTypes];
-
-	UPROPERTY()
-	TArray<bool> StaticSwitchValues;
-
-	UPROPERTY()
-	TArray<FStaticComponentMaskValue> StaticComponentMaskValues;
-
-	UPROPERTY()
-	TArray<FVector2D> ScalarMinMaxValues;
-
-	UPROPERTY()
-	TArray<TSoftObjectPtr<UCurveLinearColor>> ScalarCurveValues;
-
-	UPROPERTY()
-	TArray<TSoftObjectPtr<UCurveLinearColorAtlas>> ScalarCurveAtlasValues;
-
-	UPROPERTY()
-	TArray<FParameterChannelNames> VectorChannelNameValues;
-
-	UPROPERTY()
-	TArray<bool> VectorUsedAsChannelMaskValues;
-
-	UPROPERTY()
-	TArray<FParameterChannelNames> TextureChannelNameValues;
-
-	UPROPERTY()
-	FMaterialLayersFunctionsEditorOnlyData MaterialLayers;
-
-	UPROPERTY()
-	TArray<FString> AssetPaths;
-
-	UPROPERTY()
-	TArray<FName> LandscapeLayerNames;
-};
-
-USTRUCT()
-struct FMaterialCachedExpressionData
-{
-	GENERATED_USTRUCT_BODY()
-	
-	ENGINE_API static const FMaterialCachedExpressionData EmptyData;
-
-	ENGINE_API FMaterialCachedExpressionData();
+#if WITH_EDITORONLY_DATA
+	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return Type >= EMaterialParameterType::NumRuntime ? EditorOnlyEntries[static_cast<int32>(Type) - NumMaterialRuntimeParameterTypes] : RuntimeEntries[static_cast<int32>(Type)]; }
+	inline FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) { return Type >= EMaterialParameterType::NumRuntime ? EditorOnlyEntries[static_cast<int32>(Type) - NumMaterialRuntimeParameterTypes] : RuntimeEntries[static_cast<int32>(Type)]; }
+#else
+	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return Type >= EMaterialParameterType::NumRuntime ? FMaterialCachedParameterEntry::EmptyData : RuntimeEntries[static_cast<int32>(Type)]; }
+#endif
 
 #if WITH_EDITOR
-	void UpdateForExpressions(const FMaterialCachedExpressionContext& Context, TConstArrayView<TObjectPtr<UMaterialExpression>> Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex);
-	void UpdateForFunction(const FMaterialCachedExpressionContext& Context, UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex);
-	void UpdateForLayerFunctions(const FMaterialCachedExpressionContext& Context, const FMaterialLayersFunctions& LayerFunctions);
-	ENGINE_API void UpdateForCachedHLSLTree(const FMaterialCachedHLSLTree& CachedTree, const FStaticParameterSet* StaticParameters);
-	void Validate();
-
 	void AddParameter(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& ParameterMeta, UObject*& OutReferencedTexture);
 	inline void AddParameter(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& ParameterMeta)
 	{
@@ -198,67 +136,18 @@ struct FMaterialCachedExpressionData
 	}
 #endif // WITH_EDITOR
 
-#if WITH_EDITORONLY_DATA
-	inline FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type)
-	{
-		const int32 TypeIndex = (int32)Type;
-		if (TypeIndex < NumMaterialRuntimeParameterTypes)
-		{
-			return RuntimeEntries[TypeIndex];
-		}
-		check(EditorOnlyData);
-		return EditorOnlyData->EditorOnlyEntries[TypeIndex - NumMaterialRuntimeParameterTypes];
-	}
-	inline FMaterialCachedParameterEditorEntry& GetParameterEditorTypeEntry(EMaterialParameterType Type)
-	{
-		check(EditorOnlyData);
-		return EditorOnlyData->EditorEntries[(int32)Type];
-	}
-
-	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const
-	{
-		return const_cast<FMaterialCachedExpressionData*>(this)->GetParameterTypeEntry(Type);
-	}
-	inline const FMaterialCachedParameterEditorEntry& GetParameterEditorTypeEntry(EMaterialParameterType Type) const
-	{
-		check(EditorOnlyData);
-		return EditorOnlyData->EditorEntries[(int32)Type];
-	}
-#else
-	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return Type >= EMaterialParameterType::NumRuntime ? FMaterialCachedParameterEntry::EmptyData : RuntimeEntries[static_cast<int32>(Type)]; }
-#endif
-
 	inline int32 GetNumParameters(EMaterialParameterType Type) const { return GetParameterTypeEntry(Type).ParameterInfoSet.Num(); }
 	int32 FindParameterIndex(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& HashedParameterInfo) const;
 	bool GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult) const;
 	void GetParameterValueByIndex(EMaterialParameterType Type, int32 ParameterIndex, FMaterialParameterMetadata& OutResult) const;
+#if WITH_EDITORONLY_DATA
 	const FGuid& GetExpressionGuid(EMaterialParameterType Type, int32 Index) const;
+#endif
 	void GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const;
 	void GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
 	void GetAllGlobalParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const;
 	void GetAllGlobalParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
-
-	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
-
-	/** Returns an array of the guids of functions used, with the call hierarchy flattened. */
-	void AppendReferencedFunctionIdsTo(TArray<FGuid>& OutIds) const;
-
-	/** Returns an array of the guids of parameter collections used. */
-	void AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& OutIds) const;
-
-	bool IsPropertyConnected(EMaterialProperty Property) const
-	{
-		return ((PropertyConnectedBitmask >> (uint32)Property) & 0x1) != 0;
-	}
-
-	void SetPropertyConnected(EMaterialProperty Property)
-	{
-		PropertyConnectedBitmask |= (1 << (uint32)Property);
-	}
-
-#if WITH_EDITORONLY_DATA
-	TSharedPtr<FMaterialCachedExpressionEditorOnlyData> EditorOnlyData;
-#endif // WITH_EDITORONLY_DATA
+	void Reset();
 
 	UPROPERTY()
 	FMaterialCachedParameterEntry RuntimeEntries[NumMaterialRuntimeParameterTypes];
@@ -290,6 +179,89 @@ struct FMaterialCachedExpressionData
 	UPROPERTY()
 	TArray<TSoftObjectPtr<URuntimeVirtualTexture>> RuntimeVirtualTextureValues;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FMaterialCachedParameterEntry EditorOnlyEntries[NumMaterialEditorOnlyParameterTypes];
+
+	UPROPERTY()
+	TArray<bool> StaticSwitchValues;
+
+	UPROPERTY()
+	TArray<FStaticComponentMaskValue> StaticComponentMaskValues;
+
+	UPROPERTY()
+	TArray<FVector2D> ScalarMinMaxValues;
+
+	UPROPERTY()
+	TArray<TSoftObjectPtr<UCurveLinearColor>> ScalarCurveValues;
+
+	UPROPERTY()
+	TArray<TSoftObjectPtr<UCurveLinearColorAtlas>> ScalarCurveAtlasValues;
+
+	UPROPERTY()
+	TArray<FParameterChannelNames> VectorChannelNameValues;
+
+	UPROPERTY()
+	TArray<bool> VectorUsedAsChannelMaskValues;
+
+	UPROPERTY()
+	TArray<FParameterChannelNames> TextureChannelNameValues;
+#endif // WITH_EDITORONLY_DATA
+};
+
+struct FMaterialCachedExpressionContext
+{
+	const UMaterialFunctionInterface* CurrentFunction = nullptr;
+	const FMaterialLayersFunctions* LayerOverrides = nullptr;
+	bool bUpdateFunctionExpressions = true;
+};
+
+USTRUCT()
+struct FMaterialCachedExpressionData
+{
+	GENERATED_USTRUCT_BODY()
+	
+	ENGINE_API static const FMaterialCachedExpressionData EmptyData;
+
+	FMaterialCachedExpressionData()
+		: bHasMaterialLayers(false)
+		, bHasRuntimeVirtualTextureOutput(false)
+		, bHasSceneColor(false)
+		, bHasPerInstanceCustomData(false)
+		, bHasPerInstanceRandom(false)
+		, bHasVertexInterpolator(false)
+	{}
+
+#if WITH_EDITOR
+	void UpdateForExpressions(const FMaterialCachedExpressionContext& Context, const TArray<TObjectPtr<UMaterialExpression>>& Expressions, EMaterialParameterAssociation Association, int32 ParameterIndex);
+	void UpdateForFunction(const FMaterialCachedExpressionContext& Context, UMaterialFunctionInterface* Function, EMaterialParameterAssociation Association, int32 ParameterIndex);
+	void UpdateForLayerFunctions(const FMaterialCachedExpressionContext& Context, const FMaterialLayersFunctions& LayerFunctions);
+	ENGINE_API void UpdateForCachedHLSLTree(const FMaterialCachedHLSLTree& CachedTree, const FStaticParameterSet* StaticParameters);
+#endif // WITH_EDITOR
+
+	void Reset();
+
+	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
+
+	/** Returns an array of the guids of functions used, with the call hierarchy flattened. */
+	void AppendReferencedFunctionIdsTo(TArray<FGuid>& OutIds) const;
+
+	/** Returns an array of the guids of parameter collections used. */
+	void AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& OutIds) const;
+
+	bool IsMaterialAttributePropertyConnected(EMaterialProperty Property) const
+	{
+		return ((MaterialAttributesPropertyConnectedBitmask >> (uint32)Property) & 0x1) != 0;
+	}
+
+	void SetMaterialAttributePropertyConnected(EMaterialProperty Property, bool bIsConnected)
+	{
+		MaterialAttributesPropertyConnectedBitmask = bIsConnected ? MaterialAttributesPropertyConnectedBitmask | (1 << (uint32)Property) : MaterialAttributesPropertyConnectedBitmask & ~(1 << (uint32)Property);
+	}
+
+	UPROPERTY()
+	FMaterialCachedParameters Parameters;
+
 	/** Array of all texture referenced by this material */
 	UPROPERTY()
 	TArray<TObjectPtr<UObject>> ReferencedTextures;
@@ -303,10 +275,10 @@ struct FMaterialCachedExpressionData
 	TArray<FMaterialParameterCollectionInfo> ParameterCollectionInfos;
 
 	UPROPERTY()
-	TArray<TObjectPtr<ULandscapeGrassType>> GrassTypes;
+	FMaterialLayersFunctions MaterialLayers;
 
 	UPROPERTY()
-	FMaterialLayersFunctionsRuntimeData MaterialLayers;
+	TArray<TObjectPtr<ULandscapeGrassType>> GrassTypes;
 
 	UPROPERTY()
 	TArray<FName> DynamicParameterNames;
@@ -334,6 +306,11 @@ struct FMaterialCachedExpressionData
 
 	/** Each bit corresponds to EMaterialProperty connection status. */
 	UPROPERTY()
-	uint32 PropertyConnectedBitmask = 0;
+	uint32 MaterialAttributesPropertyConnectedBitmask = 0;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TArray<FName> LandscapeLayerNames;
+#endif // WITH_EDITORONLY_DATA
 };
 

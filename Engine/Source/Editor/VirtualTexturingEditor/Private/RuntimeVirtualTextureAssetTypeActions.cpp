@@ -114,7 +114,7 @@ namespace
 				Task.EnterProgressFrame();
 
 				bool bMaterialModified = false;
-				for (UMaterialExpression* Expression : Material->GetExpressions())
+				for (UMaterialExpression* Expression : Material->Expressions)
 				{
 					UMaterialExpressionRuntimeVirtualTextureSample* RVTSampleExpression = Cast<UMaterialExpressionRuntimeVirtualTextureSample>(Expression);
 					if (RVTSampleExpression)
@@ -153,7 +153,8 @@ namespace
 				Task.EnterProgressFrame();
 
 				bool bFunctionModified = false;
-				for (const TObjectPtr<UMaterialExpression>& Expression : Function->GetExpressions())
+				const TArray<TObjectPtr<UMaterialExpression>> *Expressions = Function->GetFunctionExpressions();
+				for (const TObjectPtr<UMaterialExpression>& Expression : *Expressions)
 				{
 					UMaterialExpressionRuntimeVirtualTextureSample* RVTSampleExpression = Cast<UMaterialExpressionRuntimeVirtualTextureSample>(Expression);
 					if (RVTSampleExpression)

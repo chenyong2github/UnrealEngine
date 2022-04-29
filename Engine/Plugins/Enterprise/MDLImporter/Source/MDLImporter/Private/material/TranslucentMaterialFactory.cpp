@@ -38,27 +38,25 @@ namespace Mat
 		UMaterialFunction*   MapCall    = nullptr;
 		UMaterialExpression* Expression = nullptr;
 
-		UMaterialEditorOnlyData& MaterialEditorOnly = *Material.GetEditorOnlyData();
-
 		// normal
-		UMaterialExpression* NormalExpression = MapConnecter.ConnectNormalMap(MaterialEditorOnly.Normal, TEXT("Normal"), EMaterialParameter::NormalMap);
+		UMaterialExpression* NormalExpression = MapConnecter.ConnectNormalMap(Material.Normal, TEXT("Normal"), EMaterialParameter::NormalMap);
 
 		// brdf
-		MapConnecter.ConnectParameterMap(MaterialEditorOnly.Metallic, TEXT("BRDF"), EMaterialParameter::Metallic, false);
-		MapConnecter.ConnectParameterMap(MaterialEditorOnly.Specular, TEXT("BRDF"), EMaterialParameter::Specular, false);
-		MapConnecter.ConnectParameterMap(MaterialEditorOnly.Roughness, TEXT("BRDF"), EMaterialParameter::Roughness, false);
+		MapConnecter.ConnectParameterMap(Material.Metallic, TEXT("BRDF"), EMaterialParameter::Metallic, false);
+		MapConnecter.ConnectParameterMap(Material.Specular, TEXT("BRDF"), EMaterialParameter::Specular, false);
+		MapConnecter.ConnectParameterMap(Material.Roughness, TEXT("BRDF"), EMaterialParameter::Roughness, false);
 
 		if (Material.BlendMode == BLEND_Masked && Parameters.Contains(EMaterialParameter::OpacityMap))
 		{
 			// masked
 
 			// color
-			MapConnecter.ConnectParameterMap(MaterialEditorOnly.BaseColor, TEXT("Color"), EMaterialParameter::BaseColor);
+			MapConnecter.ConnectParameterMap(Material.BaseColor, TEXT("Color"), EMaterialParameter::BaseColor);
 
 			UMaterialExpression* Opacity = MapConnecter.CreateMapCall(TEXT("Opacity"), EMaterialParameter::OpacityMap, false, nullptr);
 
 			MapCall = &FunctionLoader.Get(Generator::ECommonFunction::DitherTemporalAA);
-			Generator::Connect(MaterialEditorOnly.OpacityMask, Generator::NewMaterialExpressionFunctionCall(&Material, MapCall, {{Opacity, 0}, {nullptr, 0}}));
+			Generator::Connect(Material.OpacityMask, Generator::NewMaterialExpressionFunctionCall(&Material, MapCall, {{Opacity, 0}, {nullptr, 0}}));
 			MapConnecter.DeleteExpression(EMaterialParameter::AbsorptionColor);
 			MapConnecter.DeleteExpression(EMaterialParameter::IOR);
 		}
@@ -69,7 +67,7 @@ namespace Mat
 			// color
 			Expression = MapConnecter.CreateParameterMap(TEXT("Color"), EMaterialParameter::BaseColor);
 			Expression = Generator::NewMaterialExpressionMultiply(&Material, {Expression, Parameters[EMaterialParameter::Opacity]});
-			Generator::Connect(MaterialEditorOnly.BaseColor, Expression);
+			Generator::Connect(Material.BaseColor, Expression);
 
 			// path length expression
 			Expression = Generator::NewMaterialExpressionVectorParameter(&Material, TEXT("Local Bounds Adjustment"), FLinearColor(0.f, 0.f, 1.f));
@@ -91,11 +89,11 @@ namespace Mat
 			                                                  {Parameters[EMaterialParameter::IOR], 0},              //
 			                                                  {PathLengthExpression, 0},                             //
 			                                                  {NormalExpression, 0}});
-			Generator::Connect(MaterialEditorOnly.EmissiveColor, VolumeAbsorptionExpression);
+			Generator::Connect(Material.EmissiveColor, VolumeAbsorptionExpression);
 
 			// opacity
 			MapCall = &FunctionLoader.Get(Generator::ECommonFunction::TranslucentOpacity);
-			Generator::Connect(MaterialEditorOnly.Opacity, Generator::NewMaterialExpressionFunctionCall(&Material, MapCall, {}));
+			Generator::Connect(Material.Opacity, Generator::NewMaterialExpressionFunctionCall(&Material, MapCall, {}));
 		}
 	}
 }  // namespace Mat

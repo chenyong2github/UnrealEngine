@@ -30,12 +30,6 @@ class UNREALED_API UDEditorParameterValue : public UObject
 	UPROPERTY()
 	FGuid ExpressionId;
 
-	UPROPERTY()
-	FString Description;
-
-	UPROPERTY()
-	FString AssetPath;
-
 #if WITH_EDITORONLY_DATA
 	/** Controls where this parameter is displayed in a material instance parameter list.  The lower the number the higher up in the parameter list. */
 	UPROPERTY()
@@ -47,8 +41,6 @@ class UNREALED_API UDEditorParameterValue : public UObject
 
 	virtual bool GetValue(FMaterialParameterMetadata& OutResult) const
 	{
-		OutResult.Description = Description;
-		OutResult.AssetPath = AssetPath;
 		OutResult.ExpressionGuid = ExpressionId;
 		OutResult.SortPriority = SortPriority;
 		OutResult.bOverride = bOverride;

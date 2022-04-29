@@ -83,6 +83,7 @@ class UMaterialExpressionMaterialFunctionCall : public UMaterialExpression
 	UPROPERTY(EditAnywhere, Category=MaterialExpressionMaterialFunctionCall, meta=(DisallowedClasses="MaterialFunctionInstance"))
 	TObjectPtr<class UMaterialFunctionInterface> MaterialFunction;
 
+#if WITH_EDITORONLY_DATA
 	/** Array of all the function inputs that this function exposes. */
 	UPROPERTY()
 	TArray<struct FFunctionExpressionInput> FunctionInputs;
@@ -90,6 +91,7 @@ class UMaterialExpressionMaterialFunctionCall : public UMaterialExpression
 	/** Array of all the function outputs that this function exposes. */
 	UPROPERTY()
 	TArray<struct FFunctionExpressionOutput> FunctionOutputs;
+#endif // WITH_EDITOR
 
 	/** Used by material parameters to split references to separate instances. */
 	UPROPERTY(Transient)
@@ -168,7 +170,7 @@ private:
 	void FixupReferencingExpressions(
 		const TArray<FFunctionExpressionOutput>& NewOutputs,
 		const TArray<FFunctionExpressionOutput>& OriginalOutputs,
-		TConstArrayView<TObjectPtr<UMaterialExpression>> Expressions, 
+		TArray<UMaterialExpression*>& Expressions, 
 		TArray<FExpressionInput*>& MaterialInputs,
 		bool bMatchByName);
 

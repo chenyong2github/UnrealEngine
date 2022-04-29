@@ -566,26 +566,25 @@ public:
 	{
 		bool bConnected = false;
 
-		UMaterialEditorOnlyData* MaterialEditorOnly = InMaterial->GetEditorOnlyData();
 		switch (MaterialInput)
 		{
 		case MP_EmissiveColor:
-			bConnected = MaterialEditorOnly->EmissiveColor.Expression != nullptr;
+			bConnected = InMaterial->EmissiveColor.Expression != NULL;
 			break;
 		case MP_DiffuseColor:
-			bConnected = MaterialEditorOnly->BaseColor.Expression != nullptr;
+			bConnected = InMaterial->BaseColor.Expression != NULL;
 			break;
 		case MP_SpecularColor:
-			bConnected = MaterialEditorOnly->Specular.Expression != nullptr;
+			bConnected = InMaterial->Specular.Expression != NULL;
 			break;
 		case MP_Normal:
-			bConnected = MaterialEditorOnly->Normal.Expression != nullptr;
+			bConnected = InMaterial->Normal.Expression != NULL;
 			break;
 		case MP_Opacity:
-			bConnected = MaterialEditorOnly->Opacity.Expression != nullptr;
+			bConnected = InMaterial->Opacity.Expression != NULL;
 			break;
 		case MP_OpacityMask:
-			bConnected = MaterialEditorOnly->OpacityMask.Expression != nullptr;
+			bConnected = InMaterial->OpacityMask.Expression != NULL;
 			break;
 		default:
 			break;
@@ -593,7 +592,7 @@ public:
 
 		// Note: only checking to see whether the entire material attributes connection exists.  
 		// This means materials using the material attributes input will export more attributes than is necessary.
-		bConnected = InMaterial->bUseMaterialAttributes ? MaterialEditorOnly->MaterialAttributes.Expression != NULL : bConnected;
+		bConnected = InMaterial->bUseMaterialAttributes ? InMaterial->MaterialAttributes.Expression != NULL : bConnected;
 		return bConnected;
 	}
 

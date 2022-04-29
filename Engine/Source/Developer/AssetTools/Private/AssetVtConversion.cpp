@@ -351,18 +351,24 @@ void FVTConversionWorker::FindAllTexturesAndMaterials_Iteration(TArray<UMaterial
 	for (UMaterialFunctionInterface *If : FunctionsUsedByAffectedTextures)
 	{
 		// It's a material?
-		UMaterialFunction* Function = If->GetBaseFunction();
-		if (Function)
-		{
-			FunctionInferfaces.AddUnique(Function);
-			FunctionHeap.AddUnique(Function);
-			InAffectedFunctions.AddUnique(Function);
+		UMaterialFunction *Function = Cast<UMaterialFunction>(If);
 
-			AuditTrail.Add(Function, FAuditTrail(
-				If,
-				FString::Printf(TEXT("this is the parent of"))
-			));
+		// It's a material instance? we're only interested in it's root for now
+		UMaterialFunctionInstance *FunctionInstance = Cast<UMaterialFunctionInstance>(If);
+		if (FunctionInstance != nullptr)
+		{
+			Function = Cast<UMaterialFunction>(FunctionInstance->GetBaseFunction());
 		}
+
+		check(Function); // It's something else entirely??
+		FunctionInferfaces.AddUnique(Function);
+		FunctionHeap.AddUnique(Function);
+		InAffectedFunctions.AddUnique(Function);
+
+		AuditTrail.Add(Function, FAuditTrail(
+			If,
+			FString::Printf(TEXT("this is the parent of"))
+		));
 	}
 
 
@@ -376,7 +382,7 @@ void FVTConversionWorker::FindAllTexturesAndMaterials_Iteration(TArray<UMaterial
 			MaterialParametersPair.Key->GetDependentFunctions(DependentFunctions);
 			for (auto Function : DependentFunctions)
 			{
-				for (UMaterialExpression* FunctionExpression : Function->GetExpressions())
+				for (UMaterialExpression* FunctionExpression : *Function->GetFunctionExpressions())
 				{
 					if (const UMaterialExpressionTextureSampleParameter* TexParameter = Cast<const UMaterialExpressionTextureSampleParameter>(FunctionExpression))
 					{
@@ -606,7 +612,7 @@ void FVTConversionWorker::DoConvert()
 			MaterialTask.EnterProgressFrame();
 
 			bool MatModified = false;
-			for (UMaterialExpression *Expr : Mat->GetExpressions())
+			for (UMaterialExpression *Expr : Mat->Expressions)
 			{
 				UMaterialExpressionTextureBase *TexExpr = Cast<UMaterialExpressionTextureBase>(Expr);
 				if (TexExpr)
@@ -671,7 +677,8 @@ void FVTConversionWorker::DoConvert()
 			MaterialTask.EnterProgressFrame();
 
 			bool FuncModified = false;
-			for (const TObjectPtr<UMaterialExpression>& Expr : Func->GetExpressions())
+			const TArray<TObjectPtr<UMaterialExpression>> *Expressions = Func->GetFunctionExpressions();
+			for (const TObjectPtr<UMaterialExpression>& Expr : *Expressions)
 			{
 				UMaterialExpressionTextureBase *TexExpr = Cast<UMaterialExpressionTextureBase>(Expr);
 				if (TexExpr)

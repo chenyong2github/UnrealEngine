@@ -1839,6 +1839,7 @@ public:
 	virtual FString GetAssetName() const { return GetFriendlyName(); }
 	virtual bool HasVertexPositionOffsetConnected() const { return false; }
 	virtual bool HasPixelDepthOffsetConnected() const { return false; }
+	virtual bool HasMaterialAttributesConnected() const { return false; }
 	virtual uint32 GetMaterialDecalResponse() const { return 0; }
 	virtual bool HasBaseColorConnected() const { return false; }
 	virtual bool HasNormalConnected() const { return false; }
@@ -1869,11 +1870,6 @@ public:
 	 */
 	virtual bool IsPersistent() const = 0;
 	virtual UMaterialInterface* GetMaterialInterface() const { return NULL; }
-
-#if WITH_EDITOR
-	UE_DEPRECATED(5.1, "Should instead check individual properties")
-	virtual bool HasMaterialAttributesConnected() const { return false; }
-#endif
 
 	ENGINE_API const FMaterialCachedExpressionData& GetCachedExpressionData() const;
 
@@ -2875,9 +2871,7 @@ protected:
 
 	ENGINE_API virtual bool HasVertexPositionOffsetConnected() const override;
 	ENGINE_API virtual bool HasPixelDepthOffsetConnected() const override;
-#if WITH_EDITOR
 	ENGINE_API virtual bool HasMaterialAttributesConnected() const override;
-#endif
 	/** Useful for debugging. */
 	ENGINE_API virtual FString GetBaseMaterialPathName() const override;
 	ENGINE_API virtual FString GetDebugName() const override;

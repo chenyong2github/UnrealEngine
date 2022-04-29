@@ -78,7 +78,7 @@ bool FMaterialHLSLGenerator::InternalGenerate()
 	bool bResult = false;
 	if (TargetMaterial->IsUsingControlFlow())
 	{
-		UMaterialExpression* BaseExpression = TargetMaterial->GetExpressionExecBegin();
+		UMaterialExpression* BaseExpression = TargetMaterial->ExpressionExecBegin;
 		if (!BaseExpression)
 		{
 			bResult = Error(TEXT("Missing ExpressionExecBegin"));
@@ -671,9 +671,9 @@ const UE::HLSLTree::FExpression* FMaterialHLSLGenerator::GenerateFunctionCall(UE
 
 		if (HLSLFunction)
 		{
-			UMaterialFunction* BaseMaterialFunction = MaterialFunction->GetBaseFunction();
+			UMaterialFunction* BaseMaterialFunction = Cast<UMaterialFunction>(MaterialFunction->GetBaseFunction());
 			FunctionCallStack.Add(FunctionCall);
-			GenerateStatements(HLSLFunction->GetRootScope(), BaseMaterialFunction->GetExpressionExecBegin());
+			GenerateStatements(HLSLFunction->GetRootScope(), BaseMaterialFunction->ExpressionExecBegin);
 			verify(FunctionCallStack.Pop() == FunctionCall);
 			check(FunctionCall->bGeneratedResult);
 		}

@@ -78,22 +78,20 @@ namespace MDLImporterImpl
 
 	void ClearMaterial(UMaterial* Material)
 	{
-		UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
+		Material->BaseColor.Expression          = nullptr;
+		Material->EmissiveColor.Expression      = nullptr;
+		Material->SubsurfaceColor.Expression    = nullptr;
+		Material->Roughness.Expression          = nullptr;
+		Material->Metallic.Expression           = nullptr;
+		Material->Specular.Expression           = nullptr;
+		Material->Opacity.Expression            = nullptr;
+		Material->Refraction.Expression         = nullptr;
+		Material->OpacityMask.Expression        = nullptr;
+		Material->ClearCoat.Expression          = nullptr;
+		Material->ClearCoatRoughness.Expression = nullptr;
+		Material->Normal.Expression             = nullptr;
 
-		MaterialEditorOnly->BaseColor.Expression          = nullptr;
-		MaterialEditorOnly->EmissiveColor.Expression      = nullptr;
-		MaterialEditorOnly->SubsurfaceColor.Expression    = nullptr;
-		MaterialEditorOnly->Roughness.Expression          = nullptr;
-		MaterialEditorOnly->Metallic.Expression           = nullptr;
-		MaterialEditorOnly->Specular.Expression           = nullptr;
-		MaterialEditorOnly->Opacity.Expression            = nullptr;
-		MaterialEditorOnly->Refraction.Expression         = nullptr;
-		MaterialEditorOnly->OpacityMask.Expression        = nullptr;
-		MaterialEditorOnly->ClearCoat.Expression          = nullptr;
-		MaterialEditorOnly->ClearCoatRoughness.Expression = nullptr;
-		MaterialEditorOnly->Normal.Expression             = nullptr;
-
-		Material->GetExpressionCollection().Empty();
+		Material->Expressions.Empty();
 	}
 }
 

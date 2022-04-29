@@ -375,14 +375,12 @@ static bool TryAndCreateMaterialInput( UMaterial* UnrealMaterial, EMaterialKind:
 	}
 
 	const bool bSetupAsNormalMap = UnrealTexture->IsNormalMap();
-
-	UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
 	
 	UnrealMaterial->BlendMode = bTextureHasAlpha ? EBlendMode::BLEND_Masked : EBlendMode::BLEND_Opaque;
 
 	// Create a new texture sample expression, this is our texture input node into the material output.
 	UMaterialExpressionTextureSample* UnrealTextureExpression = NewObject<UMaterialExpressionTextureSample>(UnrealMaterial);
-	UnrealMaterial->GetExpressionCollection().AddExpression( UnrealTextureExpression );
+	UnrealMaterial->Expressions.Add( UnrealTextureExpression );
 	MaterialInput.Expression = UnrealTextureExpression;
 	UnrealTextureExpression->Texture = UnrealTexture;
 	UnrealTextureExpression->AutoSetSampleType();
@@ -400,13 +398,13 @@ static bool TryAndCreateMaterialInput( UMaterial* UnrealMaterial, EMaterialKind:
 		UMaterialExpressionTransformPosition* TransformPositionExpression = NewObject<UMaterialExpressionTransformPosition>(UnrealMaterial);
 		UMaterialExpressionWorldPosition* WorldPosExpression = NewObject<UMaterialExpressionWorldPosition>(UnrealMaterial);
 
-		UnrealMaterial->GetExpressionCollection().AddExpression( DivideExpression );
-		UnrealMaterial->GetExpressionCollection().AddExpression( BoundsRelativePosExpression );
-		UnrealMaterial->GetExpressionCollection().AddExpression( BoundsSizeExpression );
-		UnrealMaterial->GetExpressionCollection().AddExpression( LocalBoundsMinExpression );
-		UnrealMaterial->GetExpressionCollection().AddExpression( LocalBoundsMaxExpression );
-		UnrealMaterial->GetExpressionCollection().AddExpression( TransformPositionExpression );
-		UnrealMaterial->GetExpressionCollection().AddExpression( WorldPosExpression );
+		UnrealMaterial->Expressions.Add( DivideExpression );
+		UnrealMaterial->Expressions.Add( BoundsRelativePosExpression );
+		UnrealMaterial->Expressions.Add( BoundsSizeExpression );
+		UnrealMaterial->Expressions.Add( LocalBoundsMinExpression );
+		UnrealMaterial->Expressions.Add( LocalBoundsMaxExpression );
+		UnrealMaterial->Expressions.Add( TransformPositionExpression );
+		UnrealMaterial->Expressions.Add( WorldPosExpression );
 
 		int32 EditorPosX = UnrealTextureExpression->MaterialExpressionEditorX;
 		int32 EditorPosY = UnrealTextureExpression->MaterialExpressionEditorY;
@@ -469,29 +467,29 @@ static bool TryAndCreateMaterialInput( UMaterial* UnrealMaterial, EMaterialKind:
 	{
 		if ( TextureKind == EMaterialKind::Base )
 		{
-			UnrealMaterialEditorOnly->BaseColor.Expression = UnrealTextureExpression;
+			UnrealMaterial->BaseColor.Expression = UnrealTextureExpression;
 			if ( bTextureHasAlpha && UnrealTextureExpression->Outputs.IsValidIndex(4) )
 			{
-				UnrealMaterialEditorOnly->Opacity.Connect(4, UnrealTextureExpression);
-				UnrealMaterialEditorOnly->OpacityMask.Connect(4, UnrealTextureExpression);
+				UnrealMaterial->Opacity.Connect(4, UnrealTextureExpression);
+				UnrealMaterial->OpacityMask.Connect(4, UnrealTextureExpression);
 			}
 		}
 		else if ( TextureKind == EMaterialKind::Specular )
 		{
-			UnrealMaterialEditorOnly->Specular.Expression = UnrealTextureExpression;
+			UnrealMaterial->Specular.Expression = UnrealTextureExpression;
 		}
 		else if ( TextureKind == EMaterialKind::Emissive )
 		{
-			UnrealMaterialEditorOnly->EmissiveColor.Expression = UnrealTextureExpression;
+			UnrealMaterial->EmissiveColor.Expression = UnrealTextureExpression;
 		}
 		else
 		{
-			UnrealMaterialEditorOnly->BaseColor.Expression = UnrealTextureExpression;
+			UnrealMaterial->BaseColor.Expression = UnrealTextureExpression;
 		}
 	}
 	else
 	{
-		UnrealMaterialEditorOnly->Normal.Expression = UnrealTextureExpression;
+		UnrealMaterial->Normal.Expression = UnrealTextureExpression;
 	}
 
 
@@ -534,15 +532,13 @@ UObject* FLevelEditorViewportClient::GetOrCreateMaterialFromTexture( UTexture* U
 		return nullptr;
 	}
 
-	UMaterialEditorOnlyData* UnrealMaterialEditorOnly = UnrealMaterial->GetEditorOnlyData();
-
 	const int HSpace = -300;
 
 	// If we were able to figure out the material kind, we need to try and build a complex material
 	// involving multiple textures.  If not, just try and connect what we found to the base map.
 	if ( MaterialKind == EMaterialKind::Unknown )
 	{
-		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Base, UnrealTexture, UnrealMaterialEditorOnly->BaseColor, HSpace, 0 );
+		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Base, UnrealTexture, UnrealMaterial->BaseColor, HSpace, 0 );
 	}
 	else
 	{
@@ -583,10 +579,10 @@ UObject* FLevelEditorViewportClient::GetOrCreateMaterialFromTexture( UTexture* U
 
 		// Connect and layout any textures we find into their respective inputs in the material.
 		const int VSpace = 170;
-		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Base, BaseTexture, UnrealMaterialEditorOnly->BaseColor, HSpace, VSpace * -1 );
-		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Specular, SpecularTexture, UnrealMaterialEditorOnly->Specular, HSpace, VSpace * 0 );
-		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Emissive, EmissiveTexture, UnrealMaterialEditorOnly->EmissiveColor, HSpace, VSpace * 1 );
-		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Normal, NormalTexture, UnrealMaterialEditorOnly->Normal, HSpace, VSpace * 2 );
+		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Base, BaseTexture, UnrealMaterial->BaseColor, HSpace, VSpace * -1 );
+		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Specular, SpecularTexture, UnrealMaterial->Specular, HSpace, VSpace * 0 );
+		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Emissive, EmissiveTexture, UnrealMaterial->EmissiveColor, HSpace, VSpace * 1 );
+		TryAndCreateMaterialInput( UnrealMaterial, EMaterialKind::Normal, NormalTexture, UnrealMaterial->Normal, HSpace, VSpace * 2 );
 	}
 
 	UnrealMaterial->PreEditChange(nullptr);

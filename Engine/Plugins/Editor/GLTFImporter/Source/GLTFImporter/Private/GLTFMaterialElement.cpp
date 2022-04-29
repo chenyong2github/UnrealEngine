@@ -30,11 +30,11 @@ namespace GLTFImporterImpl
 
 		if (Parent->IsA<UMaterial>())
 		{
-			Cast<UMaterial>(Parent)->GetExpressionCollection().AddExpression(Expression);
+			Cast<UMaterial>(Parent)->Expressions.Push(Expression);
 		}
 		else if (Parent->IsA<UMaterialFunction>())
 		{
-			Cast<UMaterialFunction>(Parent)->GetExpressionCollection().AddExpression(Expression);
+			Cast<UMaterialFunction>(Parent)->FunctionExpressions.Push(Expression);
 		}
 
 		return Expression;
@@ -267,19 +267,17 @@ void FGLTFMaterialElement::Finalize()
 
 	TArray<TStrongObjectPtr<UMaterialExpression> > MaterialExpressions;
 	CreateExpressions(MaterialExpressions);
-
-	UMaterialEditorOnlyData* MaterialEditorOnly = Material->GetEditorOnlyData();
-	ConnectInput(BaseColor, MaterialExpressions, MaterialEditorOnly->BaseColor);
-	ConnectInput(Metallic, MaterialExpressions, MaterialEditorOnly->Metallic);
-	ConnectInput(Specular, MaterialExpressions, MaterialEditorOnly->Specular);
-	ConnectInput(Roughness, MaterialExpressions, MaterialEditorOnly->Roughness);
-	ConnectInput(EmissiveColor, MaterialExpressions, MaterialEditorOnly->EmissiveColor);
-	ConnectInput(Opacity, MaterialExpressions, MaterialEditorOnly->Opacity);
-	ConnectInput(Refraction, MaterialExpressions, MaterialEditorOnly->Refraction);
-	ConnectInput(Normal, MaterialExpressions, MaterialEditorOnly->Normal);
-	ConnectInput(AmbientOcclusion, MaterialExpressions, MaterialEditorOnly->AmbientOcclusion);
-	ConnectInput(ClearCoat, MaterialExpressions, MaterialEditorOnly->ClearCoat);
-	ConnectInput(ClearCoatRoughness, MaterialExpressions, MaterialEditorOnly->ClearCoatRoughness);
+	ConnectInput(BaseColor, MaterialExpressions, Material->BaseColor);
+	ConnectInput(Metallic, MaterialExpressions, Material->Metallic);
+	ConnectInput(Specular, MaterialExpressions, Material->Specular);
+	ConnectInput(Roughness, MaterialExpressions, Material->Roughness);
+	ConnectInput(EmissiveColor, MaterialExpressions, Material->EmissiveColor);
+	ConnectInput(Opacity, MaterialExpressions, Material->Opacity);
+	ConnectInput(Refraction, MaterialExpressions, Material->Refraction);
+	ConnectInput(Normal, MaterialExpressions, Material->Normal);
+	ConnectInput(AmbientOcclusion, MaterialExpressions, Material->AmbientOcclusion);
+	ConnectInput(ClearCoat, MaterialExpressions, Material->ClearCoat);
+	ConnectInput(ClearCoatRoughness, MaterialExpressions, Material->ClearCoatRoughness);
 
 	// Handle transmission materials (they add a special output node to the graph)
 	if (ThinTranslucentMaterialOutput)

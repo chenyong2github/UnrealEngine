@@ -197,7 +197,7 @@ bool FMaterialPropertyHelpers::FilterLayerAssets(const struct FAssetData& InAsse
 					RightPath = LayerFunction->Layers[Index]->GetFName().ToString();
 				}
 			}
-			bShouldFilter = LayerFunction->EditorOnly.RestrictToLayerRelatives[Index];
+			bShouldFilter = LayerFunction->RestrictToLayerRelatives[Index];
 			BaseClassName = UMaterialFunctionMaterialLayer::StaticClass()->GetFName();
 			InstanceClassName = UMaterialFunctionMaterialLayerInstance::StaticClass()->GetFName();
 		}
@@ -213,7 +213,7 @@ bool FMaterialPropertyHelpers::FilterLayerAssets(const struct FAssetData& InAsse
 					RightPath = LayerFunction->Blends[Index]->GetFName().ToString();
 				}
 			}
-			bShouldFilter = LayerFunction->EditorOnly.RestrictToBlendRelatives[Index];
+			bShouldFilter = LayerFunction->RestrictToBlendRelatives[Index];
 			BaseClassName = UMaterialFunctionMaterialLayerBlend::StaticClass()->GetFName();
 			InstanceClassName = UMaterialFunctionMaterialLayerBlendInstance::StaticClass()->GetFName();
 		}
@@ -428,8 +428,8 @@ FReply FMaterialPropertyHelpers::OnClickedSaveNewFunctionInstance(class UMateria
 					ChildInstance->FontParameterValues = EditedInstance->FontParameterValues;
 
 					const FStaticParameterSet& StaticParameters = EditedInstance->GetStaticParameters();
-					ChildInstance->StaticSwitchParameterValues = StaticParameters.EditorOnly.StaticSwitchParameters;
-					ChildInstance->StaticComponentMaskParameterValues = StaticParameters.EditorOnly.StaticComponentMaskParameters;
+					ChildInstance->StaticSwitchParameterValues = StaticParameters.StaticSwitchParameters;
+					ChildInstance->StaticComponentMaskParameterValues = StaticParameters.StaticComponentMaskParameters;
 				}
 			}
 		}
@@ -519,8 +519,8 @@ FReply FMaterialPropertyHelpers::OnClickedSaveNewLayerInstance(class UMaterialFu
 					ChildInstance->FontParameterValues = EditedInstance->FontParameterValues;
 
 					const FStaticParameterSet& StaticParameters = EditedInstance->GetStaticParameters();
-					ChildInstance->StaticSwitchParameterValues = StaticParameters.EditorOnly.StaticSwitchParameters;
-					ChildInstance->StaticComponentMaskParameterValues = StaticParameters.EditorOnly.StaticComponentMaskParameters;
+					ChildInstance->StaticSwitchParameterValues = StaticParameters.StaticSwitchParameters;
+					ChildInstance->StaticComponentMaskParameterValues = StaticParameters.StaticComponentMaskParameters;
 				}
 			}
 		}
@@ -553,22 +553,72 @@ void FMaterialPropertyHelpers::OnOverrideParameter(bool NewValue, class UDEditor
 
 FText FMaterialPropertyHelpers::GetParameterExpressionDescription(UDEditorParameterValue* Parameter, UObject* MaterialEditorInstance)
 {
-	return FText::FromString(Parameter->Description);
+	if (Parameter->ExpressionId.IsValid())
+	{
+		UMaterial* BaseMaterial = nullptr;
+
+		UMaterialEditorInstanceConstant* MaterialInstanceEditor = Cast<UMaterialEditorInstanceConstant>(MaterialEditorInstance);
+		if (MaterialInstanceEditor)
+		{
+			BaseMaterial = MaterialInstanceEditor->SourceInstance->GetMaterial();
+		}
+		UMaterialEditorPreviewParameters* MaterialEditor = Cast<UMaterialEditorPreviewParameters>(MaterialEditorInstance);
+		if (MaterialEditor)
+		{
+			BaseMaterial = MaterialEditor->OriginalMaterial;
+		}
+
+		// TODO: This needs to support functions added by SourceInstance layers
+		if (BaseMaterial)
+		{
+			UMaterialExpression* MaterialExpression = BaseMaterial->FindExpressionByGUID<UMaterialExpression>(Parameter->ExpressionId);
+
+			if (MaterialExpression)
+			{
+				return FText::FromString(MaterialExpression->Desc);
+			}
+		}
+	}
+
+	return FText::GetEmpty();
 }
 
 FText FMaterialPropertyHelpers::GetParameterTooltip(UDEditorParameterValue* Parameter, UObject* MaterialEditorInstance)
 {
-	const FText AssetPath = FText::FromString(Parameter->AssetPath);
-	FText TooltipText;
-	if (!Parameter->Description.IsEmpty())
+	UMaterial* BaseMaterial = nullptr;
+	UMaterialEditorInstanceConstant* MaterialInstanceEditor = Cast<UMaterialEditorInstanceConstant>(MaterialEditorInstance);
+	if (MaterialInstanceEditor)
 	{
-		TooltipText = FText::Format(LOCTEXT("ParameterInfoDescAndLocation", "{0} \nFound in: {1}"), FText::FromString(Parameter->Description), AssetPath);
+		BaseMaterial = MaterialInstanceEditor->SourceInstance->GetMaterial();
 	}
-	else
+	UMaterialEditorPreviewParameters* MaterialEditor = Cast<UMaterialEditorPreviewParameters>(MaterialEditorInstance);
+	if (MaterialEditor)
 	{
-		TooltipText = FText::Format(LOCTEXT("ParameterInfoLocationOnly", "Found in: {0}"), AssetPath);
+		BaseMaterial = MaterialEditor->OriginalMaterial;
 	}
-	return TooltipText;
+
+	// TODO: This needs to support functions added by SourceInstance layers
+	if (BaseMaterial)
+	{
+		UMaterialExpression* MaterialExpression = BaseMaterial->FindExpressionByGUID<UMaterialExpression>(Parameter->ExpressionId);
+
+		if (MaterialExpression)
+		{
+			const FText AssetPath = FText::FromString(MaterialExpression->GetAssetPathName());
+			FText TooltipText;
+			if (!MaterialExpression->Desc.IsEmpty())
+			{
+				TooltipText = FText::Format(LOCTEXT("ParameterInfoDescAndLocation", "{0} \nFound in: {1}"), FText::FromString(MaterialExpression->Desc), AssetPath);
+			}
+			else
+			{
+				TooltipText = FText::Format(LOCTEXT("ParameterInfoLocationOnly", "Found in: {0}"), AssetPath);
+			}
+			return TooltipText;
+		}
+	}
+
+	return FText::GetEmpty();
 }
 
 

@@ -18,11 +18,6 @@ struct FPropertyChangedEvent;
 struct FMaterialShadingModelField;
 struct FStrataOperator;
 
-class UMaterialExpression;
-class UMaterialExpressionComment;
-class UMaterialExpressionExecBegin;
-class UMaterialExpressionExecEnd;
-
 class FMaterialHLSLGenerator;
 enum class EMaterialNewScopeFlag : uint8;
 
@@ -41,9 +36,11 @@ class FExpression;
 USTRUCT(noexport)
 struct FExpressionInput
 {
+#if WITH_EDITORONLY_DATA
 	/** UMaterial expression that this input is connected to, or NULL if not connected. */
 	UPROPERTY()
 	TObjectPtr<class UMaterialExpression> Expression;
+#endif
 
 	/** Index into Expression's outputs array that this input is connected to. */
 	UPROPERTY()
@@ -56,6 +53,7 @@ struct FExpressionInput
 	UPROPERTY()
 	FName InputName;
 
+#if WITH_EDITORONLY_DATA
 
 	UPROPERTY()
 	int32 Mask;
@@ -71,6 +69,11 @@ struct FExpressionInput
 
 	UPROPERTY()
 	int32 MaskA;
+#endif
+
+	/** Material expression name that this input is connected to, or None if not connected. Used only in cooked builds */
+	UPROPERTY()
+	FName ExpressionName;
 };
 
 USTRUCT(noexport)
@@ -90,6 +93,7 @@ struct FExpressionOutput
 	UPROPERTY()
 	FName OutputName;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	int32 Mask;
 
@@ -104,6 +108,7 @@ struct FExpressionOutput
 
 	UPROPERTY()
 	int32 MaskA;
+#endif
 };
 #endif
 
@@ -146,34 +151,7 @@ enum class EMaterialExpressionSetParameterValueFlags : uint32
 };
 ENUM_CLASS_FLAGS(EMaterialExpressionSetParameterValueFlags);
 
-USTRUCT()
-struct ENGINE_API FMaterialExpressionCollection
-{
-	GENERATED_BODY()
-
-	void AddExpression(UMaterialExpression* InExpression);
-	void RemoveExpression(UMaterialExpression* InExpression);
-	void AddComment(UMaterialExpressionComment* InExpression);
-	void RemoveComment(UMaterialExpressionComment* InExpression);
-	void Empty();
-
-	/** Array of material expressions, excluding Comments.  Used by the material editor. */
-	UPROPERTY()
-	TArray<TObjectPtr<UMaterialExpression>> Expressions;
-
-	/** Array of comments associated with this material; viewed in the material editor. */
-	UPROPERTY()
-	TArray<TObjectPtr<UMaterialExpressionComment>> EditorComments;
-
-	/** The execution begin expression, if material is using an exec wire */
-	UPROPERTY()
-	TObjectPtr<UMaterialExpressionExecBegin> ExpressionExecBegin = nullptr;
-
-	UPROPERTY()
-	TObjectPtr<UMaterialExpressionExecEnd> ExpressionExecEnd = nullptr;
-};
-
-UCLASS(abstract, Optional, BlueprintType, hidecategories=Object)
+UCLASS(abstract, BlueprintType, hidecategories=Object)
 class ENGINE_API UMaterialExpression : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -184,6 +162,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	static void InitializeNumExecutionInputs(TArrayView<UMaterialExpression*> Expressions);
 #endif
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	int32 MaterialExpressionEditorX;
 
@@ -205,6 +184,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	UPROPERTY()
 	FGuid MaterialExpressionGuid;
 
+#endif // WITH_EDITORONLY_DATA
 	/** 
 	 * The material that this expression is currently being compiled in.  
 	 * This is not necessarily the object which owns this expression, for example a preview material compiling a material function's expressions.
@@ -219,6 +199,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	UPROPERTY()
 	TObjectPtr<class UMaterialFunction> Function;
 
+#if WITH_EDITORONLY_DATA
 	/** A description that level designers can add (shows in the material editor UI). */
 	UPROPERTY(EditAnywhere, Category=MaterialExpression, meta=(MultiLine=true, DisplayAfter = "SortPriority"))
 	FString Desc;
@@ -233,11 +214,13 @@ class ENGINE_API UMaterialExpression : public UObject
 	/** If true, we should update the preview next render. This is set when changing bRealtimePreview. */
 	UPROPERTY(transient)
 	uint32 bNeedToUpdatePreview:1;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Indicates that this is a 'parameter' type of expression and should always be loaded (ie not cooked away) because we might want the default parameter. */
 	UPROPERTY()
 	uint8 bIsParameterExpression : 1;
 
+#if WITH_EDITORONLY_DATA
 	/** If true, the comment bubble will be visible in the graph editor */
 	UPROPERTY()
 	uint32 bCommentBubbleVisible:1;
@@ -277,6 +260,7 @@ class ENGINE_API UMaterialExpression : public UObject
 	/** The expression's outputs, which are set in default properties by derived classes. */
 	UPROPERTY()
 	TArray<FExpressionOutput> Outputs;
+#endif // WITH_EDITORONLY_DATA
 
 	//~ Begin UObject Interface.
 	virtual void PostInitProperties() override;
@@ -290,6 +274,14 @@ class ENGINE_API UMaterialExpression : public UObject
 	virtual bool Modify( bool bAlwaysMarkDirty=true ) override;
 #endif // WITH_EDITOR
 	virtual void Serialize( FStructuredArchive::FRecord Record ) override;
+	virtual bool IsEditorOnly() const
+	{
+		return true;
+	}
+	virtual bool HasNonEditorOnlyReferences() const override
+	{
+		return true;
+	}
 	//~ End UObject Interface.
 
 	UObject* GetAssetOwner() const;

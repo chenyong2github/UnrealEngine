@@ -25,7 +25,7 @@ namespace Mat
 				return;
 
 			UMaterialExpression* Expression = Parameters[Parameter];
-			Material.GetExpressionCollection().RemoveExpression(Expression);
+			Material.Expressions.Remove(Expression);
 		}
 
 		void DeleteExpressionMap(EMaterialParameter Parameter)
