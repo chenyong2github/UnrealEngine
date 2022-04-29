@@ -1044,8 +1044,8 @@ void FRemoteBuildExecutionRequest::OnGetResultPackageComplete(const UE::Zen::FZe
 	State.Owner.End(this, [this, &BuildOutput]() mutable
 		{
 			CompletionCallback({ State.BuildAction.GetKey(), MoveTemp(BuildOutput), {}, EStatus::Ok });
+			CompletionEvent->Trigger();
 		});
-	CompletionEvent->Trigger();
 }
 
 } // namespace UE::DerivedData
