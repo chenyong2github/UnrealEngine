@@ -206,6 +206,7 @@ void UMoviePipelinePIEExecutor::OnPIEStartupFinished(bool)
 	
 	if (ExecutorSettings->InitialDelayFrameCount == 0)
 	{
+		OnIndividualJobStartedImpl(Queue->GetJobs()[CurrentPipelineIndex]);
 		ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
 		RemainingInitializationFrames = -1;
 	}
@@ -229,6 +230,7 @@ void UMoviePipelinePIEExecutor::OnTick()
 				ActiveMoviePipeline->SetInitializationTime(CustomInitializationTime.GetValue());
 			}
 
+			OnIndividualJobStartedImpl(Queue->GetJobs()[CurrentPipelineIndex]);
 			ActiveMoviePipeline->Initialize(Queue->GetJobs()[CurrentPipelineIndex]);
 		}
 
@@ -323,6 +325,12 @@ void UMoviePipelinePIEExecutor::DelayedFinishNotification()
 	
 	// Now that another frame has passed and we should be OK to start another PIE session, notify our owner.
 	OnIndividualPipelineFinished(nullptr);
+}
+void UMoviePipelinePIEExecutor::OnIndividualJobStartedImpl(UMoviePipelineExecutorJob* InJob)
+{
+	// Broadcast to both Native and Python/BP
+	OnIndividualJobStartedDelegateNative.Broadcast(InJob);
+	OnIndividualJobStartedDelegate.Broadcast(InJob);
 }
 
 void UMoviePipelinePIEExecutor::OnIndividualJobFinishedImpl(FMoviePipelineOutputData InOutputData)

@@ -9,8 +9,13 @@
 
 class UMoviePipeline;
 
+// These are deprecated, see OnIndividualShotWorkFinishedDelegate which contains both the job and the data actually rendered.
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMoviePipelineIndividualJobFinishedNative, UMoviePipelineExecutorJob* /*FinishedJob*/, bool /*bSuccess*/);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMoviePipelineIndividualJobFinished, UMoviePipelineExecutorJob*, FinishedJob, bool, bSuccess);
+
+// These are called right before UMoviePipeline::Initialize(). They only contain the job because no work has been done yet.
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMoviePipelineIndividualJobStartedNative, UMoviePipelineExecutorJob* /*JobToStart*/);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMoviePipelineIndividualJobStarted, UMoviePipelineExecutorJob*, StartedJob);
 
 /**
 * This is the implementation responsible for executing the rendering of
@@ -52,6 +57,12 @@ public:
 		return OnIndividualShotWorkFinishedDelegateNative;
 	}
 
+	/** Called right before the specified job is started. This is your last chance to modify the Job Properties before things are initialized from it. */
+	FOnMoviePipelineIndividualJobStartedNative& OnIndividualJobStarted()
+	{
+		return OnIndividualJobStartedDelegateNative;
+	}
+
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
 	void SetInitializationTime(const FDateTime& InInitializationTime) { CustomInitializationTime = InInitializationTime; }
 
@@ -64,7 +75,10 @@ protected:
 	* make modifications to the editor world.
 	*/
 	void OnIndividualJobFinishedImpl(FMoviePipelineOutputData InOutputData);
-
+	/**
+	* This is called after PIE starts up but before UMoviePIpeline::Initialize() is called.
+	*/
+	void OnIndividualJobStartedImpl(UMoviePipelineExecutorJob* InJob);
 private:
 	/** Called when PIE finishes booting up and it is safe for us to spawn an object into that world. */
 	void OnPIEStartupFinished(bool);
@@ -108,8 +122,15 @@ private:
 	UPROPERTY(BlueprintAssignable, Category = "Movie Render Pipeline")
 	FMoviePipelineWorkFinished OnIndividualShotWorkFinishedDelegate;
 
+	/**
+	* Called right before this job is used to initialize a UMoviePipeline.
+	*/
+	UPROPERTY(BlueprintAssignable, Category = "Movie Render Pipeline")
+	FOnMoviePipelineIndividualJobStarted OnIndividualJobStartedDelegate;
+
 	FMoviePipelineWorkFinishedNative OnIndividualJobWorkFinishedDelegateNative;
 	FMoviePipelineWorkFinishedNative OnIndividualShotWorkFinishedDelegateNative;
+	FOnMoviePipelineIndividualJobStartedNative OnIndividualJobStartedDelegateNative;
 
 	class FValidationMessageGatherer : public FOutputDevice
 	{
