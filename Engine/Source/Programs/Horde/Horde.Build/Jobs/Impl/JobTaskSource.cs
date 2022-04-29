@@ -451,7 +451,7 @@ namespace Horde.Build.Tasks.Impl
 										if (step != null)
 										{
 											JobId jobId = newJob.Id;
-											newJob = await _jobs.TryUpdateStepAsync(newJob, graph, batch.Id, step.Id, JobStepState.Skipped);
+											newJob = await _jobs.TryUpdateStepAsync(newJob, graph, batch.Id, step.Id, JobStepState.Skipped, newError: JobStepError.Paused);
 											if (newJob == null)
 											{
 												_logger.LogError("Job {JobId} failed to update step {StepName} pause state", jobId, state.Name);

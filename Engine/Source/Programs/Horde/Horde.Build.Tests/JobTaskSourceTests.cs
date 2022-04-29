@@ -154,6 +154,7 @@ namespace Horde.Build.Tests
 			Assert.AreEqual(batch.Steps.Count, 4);
 			Assert.AreEqual(batch.Steps[0].State, JobStepState.Ready);
 			Assert.AreEqual(batch.Steps[1].State, JobStepState.Skipped);
+			Assert.AreEqual(batch.Steps[1].Error, JobStepError.Paused);
 			Assert.AreEqual(batch.Steps[2].State, JobStepState.Skipped);
 			Assert.AreEqual(batch.Steps[3].State, JobStepState.Waiting);
 

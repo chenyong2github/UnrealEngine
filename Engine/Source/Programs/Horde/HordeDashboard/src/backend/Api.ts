@@ -72,6 +72,17 @@ export enum JobStepOutcome {
 	Unspecified = "Unspecified"
 }
 
+/// Systemic error codes for a job failing
+export enum JobStepError
+{
+	/// No systemic error
+	None,
+	/// Step did not complete in the required amount of time
+	TimedOut,
+	/// Step is in paused state so was skipped
+	Paused
+}
+
 // The state of a particular run
 export enum JobStepBatchState {
 
@@ -1047,6 +1058,9 @@ export type GetStepResponse = {
 
 	/**Current outcome of the jobstep */
 	outcome: JobStepOutcome;
+
+	/**Error describing additional context for why a step failed to complete*/
+	error: JobStepError;
 
 	/** If the step has been requested to abort	*/
 	abortRequested?: boolean;

@@ -160,6 +160,11 @@ namespace Horde.Build.Models
 		/// Step did not complete in the required amount of time
 		/// </summary>
 		TimedOut,
+
+		/// <summary>
+		/// Step is in is paused state so was skipped
+		/// </summary>
+		Paused
 	}
 
 	/// <summary>
