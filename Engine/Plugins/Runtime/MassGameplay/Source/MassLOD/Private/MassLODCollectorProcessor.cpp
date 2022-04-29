@@ -79,6 +79,7 @@ void UMassLODCollectorProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, 
 	const TArray<FViewerInfo>& Viewers = LODSubsystem.GetViewers();
 	Collector.PrepareExecution(Viewers);
 
+	UWorld* World = EntitySubsystem.GetWorld();
 	check(World);
 	if (World->IsNetMode(NM_DedicatedServer))
 	{

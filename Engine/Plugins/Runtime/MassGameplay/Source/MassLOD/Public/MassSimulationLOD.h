@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "MassLODSubsystem.h"
+#include "MassProcessor.h"
 #include "MassLODCollector.h"
 #include "MassLODCalculator.h"
 #include "MassLODTickRateController.h"
@@ -162,7 +162,7 @@ struct MASSLOD_API FMassSimulationVariableTickSharedFragment : public FMassShare
 };
 
 UCLASS(meta = (DisplayName = "Simulation LOD"))
-class MASSLOD_API UMassSimulationLODProcessor : public UMassLODProcessorBase
+class MASSLOD_API UMassSimulationLODProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 

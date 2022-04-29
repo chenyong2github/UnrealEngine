@@ -61,6 +61,7 @@ void UMassReplicationProcessor::Initialize(UObject& Owner)
 	Super::Initialize(Owner);
 
 #if UE_REPLICATION_COMPILE_SERVER_CODE
+	UWorld* World = Owner.GetWorld();
 	ReplicationSubsystem = UWorld::GetSubsystem<UMassReplicationSubsystem>(World);
 
 	check(ReplicationSubsystem);
@@ -149,6 +150,7 @@ void UMassReplicationProcessor::PrepareExecution(UMassEntitySubsystem& EntitySub
 void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
 #if UE_REPLICATION_COMPILE_SERVER_CODE
+	UWorld* World = EntitySubsystem.GetWorld();
 	check(World);
 	check(ReplicationSubsystem);
 
@@ -357,9 +359,9 @@ void UMassReplicationProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, F
 				// Optional debug display
 				if (UE::Mass::Replication::DebugClientReplicationLOD == ClientHandle.GetIndex())
 				{
-					EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([this, &EntitySubsystem, &Context](FMassReplicationSharedFragment& RepSharedFragment)
+					EntitySubsystem.ForEachSharedFragment<FMassReplicationSharedFragment>([World, &EntitySubsystem, &Context](FMassReplicationSharedFragment& RepSharedFragment)
 					{
-						RepSharedFragment.EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [this, &RepSharedFragment](FMassExecutionContext& Context)
+						RepSharedFragment.EntityQuery.ForEachEntityChunk(EntitySubsystem, Context, [World, &RepSharedFragment](FMassExecutionContext& Context)
 						{
 							const TConstArrayView<FTransformFragment> TransformList = Context.GetFragmentView<FTransformFragment>();
 							const TConstArrayView<FMassReplicationLODFragment> ViewerLODList = Context.GetFragmentView<FMassReplicationLODFragment>();

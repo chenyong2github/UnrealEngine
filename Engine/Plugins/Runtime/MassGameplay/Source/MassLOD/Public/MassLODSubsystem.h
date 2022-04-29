@@ -13,22 +13,6 @@
 class UMassLODSubsystem;
 
 /*
- * Base mass LOD processor to store common information for all LOD processors
- */
-UCLASS(abstract)
-class MASSLOD_API UMassLODProcessorBase : public UMassProcessor
-{
-	GENERATED_BODY()
-
-public:
-	virtual void Initialize(UObject& Owner) override;
-
-protected:
-	UPROPERTY()
-	UWorld* World = nullptr;
-};
-
-/*
  * Handle that lets you reference the concept of a viewer
  */
 USTRUCT()

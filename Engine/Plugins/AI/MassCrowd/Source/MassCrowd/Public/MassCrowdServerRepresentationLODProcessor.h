@@ -4,14 +4,14 @@
 
 #include "MassCrowdTypes.h"
 #include "MassCrowdFragments.h"
-#include "MassLODSubsystem.h"
+#include "MassProcessor.h"
 #include "MassLODCalculator.h"
 #include "MassLODTickRateController.h"
 
 #include "MassCrowdServerRepresentationLODProcessor.generated.h"
 
 UCLASS(meta=(DisplayName="Crowd Simulation LOD"))
-class MASSCROWD_API UMassCrowdServerRepresentationLODProcessor : public UMassLODProcessorBase
+class MASSCROWD_API UMassCrowdServerRepresentationLODProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 

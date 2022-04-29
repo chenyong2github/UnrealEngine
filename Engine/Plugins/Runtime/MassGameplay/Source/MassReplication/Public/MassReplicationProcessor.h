@@ -9,7 +9,7 @@
 #include "MassReplicationTypes.h"
 #include "MassReplicationFragments.h"
 #include "MassSpawnerTypes.h"
-#include "MassLODSubsystem.h"
+#include "MassProcessor.h"
 #include "MassReplicationSubsystem.h"
 #include "MassReplicationProcessor.generated.h"
 
@@ -22,7 +22,7 @@ class UWorld;
  *  query Mass entity fragments and set those values for replication when appropriate, using the MassClientBubbleHandler.
  */
 UCLASS()
-class MASSREPLICATION_API UMassReplicationProcessor : public UMassLODProcessorBase
+class MASSREPLICATION_API UMassReplicationProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 

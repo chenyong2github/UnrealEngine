@@ -4,12 +4,13 @@
 
 #include "MassCommonFragments.h"
 #include "MassRepresentationFragments.h"
+#include "MassProcessor.h"
 #include "MassLODCalculator.h"
 
 #include "MassVisualizationLODProcessor.generated.h"
 
 UCLASS()
-class MASSREPRESENTATION_API UMassVisualizationLODProcessor : public UMassLODProcessorBase
+class MASSREPRESENTATION_API UMassVisualizationLODProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
