@@ -4375,6 +4375,20 @@ FSavePackageResultStruct UEditorEngine::Save(UPackage* InOuter, UObject* InAsset
 		{
 			bInitializedPhysicsSceneForSave = InitializePhysicsSceneForSaveIfNecessary(World, bForceInitializedWorld);
 
+			// bForceInitialized=true marks that We Called InitWorld and need to call CleanupWorld
+			// but if we are saving during Load and the caller of LoadPackage requested that we keep it initialized, we should keep it initialized.
+			if (bForceInitializedWorld)
+			{
+				// TODO: If we ever add a way to set bInitialized=false on a UWorld, then in future saves after setting it back to false
+				// we will still parse the KeepInitializedDuringLoadTag here and not CleanupWorld. If we set bInitialized=false on
+				// a UWorld, we need to clear KeepInitializedDuringLoadTag from its InstancingContext.
+				FLinkerLoad* LinkerLoad = World->GetPackage()->GetLinker();
+				if (bForceInitializedWorld && LinkerLoad && LinkerLoad->GetInstancingContext().HasTag(UWorld::KeepInitializedDuringLoadTag))
+				{
+					bForceInitializedWorld = false;
+				}
+			}
+
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 			OnPreSaveWorld(ObjectSaveContext.SaveFlags, World);
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS;

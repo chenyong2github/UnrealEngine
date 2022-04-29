@@ -1908,6 +1908,10 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	BroadcastLevelsChanged();
 }
 
+#if WITH_EDITOR
+const FName UWorld::KeepInitializedDuringLoadTag(TEXT("KeepInitializedDuringLoadTag"));
+#endif
+
 void UWorld::ConditionallyCreateDefaultLevelCollections()
 {
 	LevelCollections.Reserve((int32)ELevelCollectionType::MAX);

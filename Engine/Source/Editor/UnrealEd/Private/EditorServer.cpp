@@ -2652,6 +2652,9 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				}
 
 				
+				FLinkerInstancingContext WorldPackageInstancingContext;
+				WorldPackageInstancingContext.AddTag(UWorld::KeepInitializedDuringLoadTag);
+
 				UPackage* WorldPackage;
 				// Load startup maps and templates into new outermost packages so that the Save function in the editor won't overwrite the original
 				if (bIsLoadingMapTemplate)
@@ -2668,7 +2671,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					//now load the map into the package created above
 					const FName WorldPackageFName = WorldPackage->GetFName();
 					UWorld::WorldTypePreLoadMap.FindOrAdd(WorldPackageFName) = EWorldType::Editor;
-					WorldPackage = LoadPackage( WorldPackage, *LongTempFname, LoadFlags );
+					WorldPackage = LoadPackage( WorldPackage, *LongTempFname, LoadFlags, nullptr /* InReaderOverride */, &WorldPackageInstancingContext);
 					WorldPackage->SetPackageFlags(PKG_NewlyCreated);
 					UWorld::WorldTypePreLoadMap.Remove(WorldPackageFName);
 				}
@@ -2691,7 +2694,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 						//Load the map normally into a new package
 						const FName WorldPackageFName = FName(*LongTempFname);
 						UWorld::WorldTypePreLoadMap.FindOrAdd(WorldPackageFName) = EWorldType::Editor;
-						WorldPackage = LoadPackage( NULL, *LongTempFname, LoadFlags);
+						WorldPackage = LoadPackage( NULL, *LongTempFname, LoadFlags, nullptr /* InReaderOverride */, &WorldPackageInstancingContext);
 						UWorld::WorldTypePreLoadMap.Remove(WorldPackageFName);
 					}
 				}
@@ -2737,10 +2740,20 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				int32 FeatureLevelIndex = (int32)GMaxRHIFeatureLevel;
 				FParse::Value(Str, TEXT("FEATURELEVEL="), FeatureLevelIndex);
 				FeatureLevelIndex = FMath::Clamp(FeatureLevelIndex, 0, (int32)ERHIFeatureLevel::Num);
+				ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)FeatureLevelIndex;
 
-				check(!World->bIsWorldInitialized);
-				World->FeatureLevel = (ERHIFeatureLevel::Type)FeatureLevelIndex;
-				World->InitWorld( GetEditorWorldInitializationValues() );
+				if (World->bIsWorldInitialized)
+				{
+					// We do not handle reinitializing. If the World was initialized during Load, we require that it is still fully initialized
+					// This should have been guaranteed by UWorld::KeepInitializedDuringLoadTag
+					check(World->IsInitializedAndNeedsCleanup());
+					World->ChangeFeatureLevel(FeatureLevel);
+				}
+				else
+				{
+					World->FeatureLevel = FeatureLevel;
+					World->InitWorld(GetEditorWorldInitializationValues());
+				}
 				
 				SlowTask.EnterProgressFrame(20, FText::Format( LOCTEXT( "LoadingMapStatus_Initializing", "Loading map: {0}... (Initializing world)" ), FText::FromString(MapFileName) ));
 				{

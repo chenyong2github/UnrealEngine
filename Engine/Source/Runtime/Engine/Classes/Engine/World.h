@@ -3083,6 +3083,18 @@ public:
 	 * Initializes the world, associates the persistent level and sets the proper zones.
 	 */
 	void InitWorld(const InitializationValues IVS = InitializationValues());
+#if WITH_EDITOR
+	/**
+	 * InitWorld usually has to be balanced with CleanupWorld. If the KeepInitializedDuringLoadTag LinkerInstancingContext tag is present,
+	 * operations that need to call InitWorld during the Load of the World's package should break that rule and not call CleanupWorld.
+	 */
+	static const FName KeepInitializedDuringLoadTag;
+	/**
+	 * Returns whether InitWorld has been called without yet calling CleanupWorld.
+	 * Note this is different from bIsWorldInitialized flag, which is set to true InitWorld and never set back to false.
+	 */
+	bool IsInitializedAndNeedsCleanup() const { return bInitializedAndNeedsCleanup; }
+#endif
 
 	/**
 	 * Initializes a newly created world.
