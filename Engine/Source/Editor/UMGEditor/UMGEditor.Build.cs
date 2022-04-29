@@ -39,6 +39,7 @@ public class UMGEditor : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"ClassViewer",
 				"Core",
 				"CoreUObject",
 				"ContentBrowser",
@@ -47,6 +48,7 @@ public class UMGEditor : ModuleRules
 				"InputCore",
 				"Engine",
 				"AssetTools",
+				"EditorConfig",
 				"EditorSubsystem",
 				"EditorFramework",
 				"InteractiveToolsFramework",

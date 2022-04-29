@@ -17,6 +17,7 @@ UUMGEditorProjectSettings::UUMGEditorProjectSettings()
 	bShowWidgetsFromDeveloperContent = true;
 	bGraphEditorHidden = false;
 	bHideWidgetAnimationEditor = false;
+	bUseEditorConfigPaletteFiltering = false;
 
 	bUseWidgetTemplateSelector = false;
 	DefaultRootWidget = nullptr;
@@ -72,6 +73,16 @@ TArray<UWidgetCompilerRule*> UUMGEditorProjectSettings::CompilerOption_Rules(con
 		return false;
 	});
 	return Rules;
+}
+
+FNamePermissionList& UUMGEditorProjectSettings::GetAllowedPaletteCategories()
+{
+	return AllowedPaletteCategories;
+}
+
+FPathPermissionList& UUMGEditorProjectSettings::GetAllowedPaletteWidgets()
+{
+	return AllowedPaletteWidgets;
 }
 
 void UUMGEditorProjectSettings::GetCompilerOptionsForWidget(const UWidgetBlueprint* WidgetBlueprint, TFunctionRef<bool(const FWidgetCompilerOptions&)> Operator) const
