@@ -85,7 +85,7 @@ namespace Chaos {
 		/**
 		  Fill the R with the entries of this rotation
 			*/
-		template <class T>
+		//template <class T>
 		inline void Fill(const PMatrix<T, 2, 2>& R) const {
 			PMatrix<T, 2, 2>& A = const_cast<PMatrix<T, 2, 2>&>(R);
 			A = PMatrix<T, 2, 2>((FReal)1., (FReal)0., (FReal)0., (FReal)1.);
@@ -102,7 +102,7 @@ namespace Chaos {
 			0  0  1
 			It only affects row i and row k of A.
 			*/
-		template <class T>
+		//template <class T>
 		inline void RowRotation(PMatrix<T, 2, 2>& A) const {
 			for (int j = 0; j < 2; j++) {
 				T tau1 = A.M[j*2+rowi];
@@ -112,7 +112,7 @@ namespace Chaos {
 			}
 		}
 
-		template <class T>
+		//template <class T>
 		inline void RowRotation(PMatrix<T, 3, 3>& A) const {
 			for (int j = 0; j < 3; j++) {
 				T tau1 = A.M[j][rowi];
@@ -129,7 +129,7 @@ namespace Chaos {
 			0  0  1
 			It only affects column i and column k of A.
 			*/
-		template <class T>
+		//template <class T>
 		inline void ColumnRotation(PMatrix<T, 2, 2>& A) const {
 			for (int j = 0; j < 2; j++) {
 				T tau1 = A.M[rowi*2+j];
@@ -139,7 +139,7 @@ namespace Chaos {
 			}
 		}
 
-		template <class T>
+		//template <class T>
 		inline void ColumnRotation(PMatrix<T, 3, 3>& A) const {
 			for (int j = 0; j < 3; j++) {
 				T tau1 = A.M[rowi][j];
@@ -233,8 +233,8 @@ namespace Chaos {
 	  */
 	template <class T>
 	inline void MakeUpperBidiag(PMatrix<T, 3, 3>& H, PMatrix<T, 3, 3>& U, PMatrix<T, 3, 3>& V) {
-		U = PMatrix<T, 3, 3>::Identity;
-		V = PMatrix<T, 3, 3>::Identity;
+		U = PMatrix<T, 3, 3>(1, 1, 1);
+		V = PMatrix<T, 3, 3>(1, 1, 1);
 
 		/**
 		  Reduce H to of form
@@ -261,8 +261,8 @@ namespace Chaos {
 	  */
 	template <class T>
 	inline void MakeLambdaShape(PMatrix<T, 3, 3>& H, PMatrix<T, 3, 3>& U, PMatrix<T, 3, 3>& V) {
-		U = PMatrix<T, 3, 3>::Identity;
-		V = PMatrix<T, 3, 3>::Identity;
+		U = PMatrix<T, 3, 3>(1, 1, 1);
+		V = PMatrix<T, 3, 3>(1, 1, 1);
 
 		/**
 		  Reduce H to of form
@@ -598,8 +598,8 @@ namespace Chaos {
 		T tol = 1024 * TMathUtilConstants<T>::Epsilon) {
 
 		PMatrix<T, 3, 3> B = A;
-		U = PMatrix<T, 3, 3>::Identity;
-		V = PMatrix<T, 3, 3>::Identity;
+		U = PMatrix<T, 3, 3>(1, 1, 1);
+		V = PMatrix<T, 3, 3>(1, 1, 1);
 
 		MakeUpperBidiag(B, U, V);
 
@@ -770,6 +770,98 @@ namespace Chaos {
 		SingularValueDecomposition(A, U, sigma, V);
 		R = V.GetTransposed() * U;
 		S_Sym = V.GetTransposed() * PMatrix<T, 3, 3>(sigma) * V;
+	}
+
+	// 3X3 version of dRdF
+	// indexing of diff: dRdF[9*(i*3+j)+(m*3+n)] = dR.GetAt(m, n) /dF.GetAt (i, j):
+	template <class T>
+	void dRdFCorotated(const PMatrix<T, 3, 3>& F, TVector<T, 81>& dRdF) {
+		PMatrix<T, 3, 3> R, S, Dinv;
+		PolarDecomposition(F, R, S);
+		PMatrix<T, 3, 3> D = (S.M[0][0] + S.M[1][1] + S.M[2][2]) * PMatrix<T, 3, 3>(1, 1, 1) - S;
+		Dinv = D.Inverse();
+
+		dRdF[0 * 9 + 0] = (-R.GetAt(0, 1) * Dinv.GetAt(2, 1) * R.GetAt(0, 2) + R.GetAt(0, 1) * Dinv.GetAt(2, 2) * R.GetAt(0, 1) + R.GetAt(0, 2) * Dinv.GetAt(1, 1) * R.GetAt(0, 2) - R.GetAt(0, 2) * Dinv.GetAt(1, 2) * R.GetAt(0, 1));
+		dRdF[1 * 9 + 0] = (R.GetAt(0, 1) * Dinv.GetAt(2, 0) * R.GetAt(0, 2) - R.GetAt(0, 1) * Dinv.GetAt(2, 2) * R.GetAt(0, 0) - R.GetAt(0, 2) * Dinv.GetAt(1, 0) * R.GetAt(0, 2) + R.GetAt(0, 2) * Dinv.GetAt(1, 2) * R.GetAt(0, 0));
+		dRdF[2 * 9 + 0] = (-R.GetAt(0, 1) * Dinv.GetAt(2, 0) * R.GetAt(0, 1) + R.GetAt(0, 1) * Dinv.GetAt(2, 1) * R.GetAt(0, 0) + R.GetAt(0, 2) * Dinv.GetAt(1, 0) * R.GetAt(0, 1) - R.GetAt(0, 2) * Dinv.GetAt(1, 1) * R.GetAt(0, 0));
+		dRdF[3 * 9 + 0] = (-R.GetAt(0, 1) * Dinv.GetAt(2, 1) * R.GetAt(1, 2) + R.GetAt(0, 1) * Dinv.GetAt(2, 2) * R.GetAt(1, 1) + R.GetAt(0, 2) * Dinv.GetAt(1, 1) * R.GetAt(1, 2) - R.GetAt(0, 2) * Dinv.GetAt(1, 2) * R.GetAt(1, 1));
+		dRdF[4 * 9 + 0] = (R.GetAt(0, 1) * Dinv.GetAt(2, 0) * R.GetAt(1, 2) - R.GetAt(0, 1) * Dinv.GetAt(2, 2) * R.GetAt(1, 0) - R.GetAt(0, 2) * Dinv.GetAt(1, 0) * R.GetAt(1, 2) + R.GetAt(0, 2) * Dinv.GetAt(1, 2) * R.GetAt(1, 0));
+		dRdF[5 * 9 + 0] = (-R.GetAt(0, 1) * Dinv.GetAt(2, 0) * R.GetAt(1, 1) + R.GetAt(0, 1) *Dinv.GetAt(2, 1) * R.GetAt(1, 0) + R.GetAt(0, 2) * Dinv.GetAt(1, 0) * R.GetAt(1, 1) - R.GetAt(0, 2) * Dinv.GetAt(1, 1) * R.GetAt(1, 0));
+		dRdF[6 * 9 + 0] = (-R.GetAt(0, 1) * Dinv.GetAt(2, 1) * R.GetAt(2, 2) + R.GetAt(0, 1) * Dinv.GetAt(2, 2) * R.GetAt(2, 1) + R.GetAt(0, 2) * Dinv.GetAt(1, 1) * R.GetAt(2, 2) - R.GetAt(0, 2) * Dinv.GetAt(1, 2) * R.GetAt(2, 1));
+		dRdF[7 * 9 + 0] = (R.GetAt(0, 1) * Dinv.GetAt(2, 0) * R.GetAt(2, 2) - R.GetAt(0, 1) * Dinv.GetAt(2, 2) * R.GetAt(2, 0) - R.GetAt(0, 2) * Dinv.GetAt(1, 0) * R.GetAt(2, 2) + R.GetAt(0, 2) * Dinv.GetAt(1, 2) * R.GetAt(2, 0));
+		dRdF[8 * 9 + 0] = (-R.GetAt(0, 1) * Dinv.GetAt(2, 0) * R.GetAt(2, 1) + R.GetAt(0, 1) * Dinv.GetAt(2, 1) * R.GetAt(2, 0) + R.GetAt(0, 2) * Dinv.GetAt(1, 0) * R.GetAt(2, 1) - R.GetAt(0, 2) * Dinv.GetAt(1, 1) * R.GetAt(2, 0));
+		dRdF[0 * 9 + 1] = (R.GetAt(0, 0) * Dinv.GetAt(2, 1) * R.GetAt(0, 2) - R.GetAt(0, 0) * Dinv.GetAt(2, 2) * R.GetAt(0, 1) - R.GetAt(0, 2) * Dinv.GetAt(0, 1) * R.GetAt(0, 2) + R.GetAt(0, 2) * Dinv.GetAt(0, 2) * R.GetAt(0, 1));
+		dRdF[1 * 9 + 1] = (-R.GetAt(0, 0) * Dinv.GetAt(2, 0) * R.GetAt(0, 2) + R.GetAt(0, 0) * Dinv.GetAt(2, 2) * R.GetAt(0, 0) + R.GetAt(0, 2) * Dinv.GetAt(0, 0) * R.GetAt(0, 2) - R.GetAt(0, 2) * Dinv.GetAt(0, 2) * R.GetAt(0, 0));
+		dRdF[2 * 9 + 1] = (R.GetAt(0, 0) * Dinv.GetAt(2, 0) * R.GetAt(0, 1) - R.GetAt(0, 0) * Dinv.GetAt(2, 1) * R.GetAt(0, 0) - R.GetAt(0, 2) * Dinv.GetAt(0, 0) * R.GetAt(0, 1) + R.GetAt(0, 2) * Dinv.GetAt(0, 1) * R.GetAt(0, 0));
+		dRdF[3 * 9 + 1] = (R.GetAt(0, 0) * Dinv.GetAt(2, 1) * R.GetAt(1, 2) - R.GetAt(0, 0) * Dinv.GetAt(2, 2) * R.GetAt(1, 1) - R.GetAt(0, 2) * Dinv.GetAt(0, 1) * R.GetAt(1, 2) + R.GetAt(0, 2) * Dinv.GetAt(0, 2) * R.GetAt(1, 1));
+		dRdF[4 * 9 + 1] = (-R.GetAt(0, 0) * Dinv.GetAt(2, 0) * R.GetAt(1, 2) + R.GetAt(0, 0) * Dinv.GetAt(2, 2) * R.GetAt(1, 0) + R.GetAt(0, 2) * Dinv.GetAt(0, 0) * R.GetAt(1, 2) - R.GetAt(0, 2) * Dinv.GetAt(0, 2) * R.GetAt(1, 0));
+		dRdF[5 * 9 + 1] = (R.GetAt(0, 0) * Dinv.GetAt(2, 0) * R.GetAt(1, 1) - R.GetAt(0, 0) * Dinv.GetAt(2, 1) * R.GetAt(1, 0) - R.GetAt(0, 2) * Dinv.GetAt(0, 0) * R.GetAt(1, 1) + R.GetAt(0, 2) * Dinv.GetAt(0, 1) * R.GetAt(1, 0));
+		dRdF[6 * 9 + 1] = (R.GetAt(0, 0) * Dinv.GetAt(2, 1) * R.GetAt(2, 2) - R.GetAt(0, 0) * Dinv.GetAt(2, 2) * R.GetAt(2, 1) - R.GetAt(0, 2) * Dinv.GetAt(0, 1) * R.GetAt(2, 2) + R.GetAt(0, 2) * Dinv.GetAt(0, 2) * R.GetAt(2, 1));
+		dRdF[7 * 9 + 1] = (-R.GetAt(0, 0) * Dinv.GetAt(2, 0) * R.GetAt(2, 2) + R.GetAt(0, 0) * Dinv.GetAt(2, 2) * R.GetAt(2, 0) + R.GetAt(0, 2) * Dinv.GetAt(0, 0) * R.GetAt(2, 2) - R.GetAt(0, 2) * Dinv.GetAt(0, 2) * R.GetAt(2, 0));
+		dRdF[8 * 9 + 1] = (R.GetAt(0, 0) * Dinv.GetAt(2, 0) * R.GetAt(2, 1) - R.GetAt(0, 0) * Dinv.GetAt(2, 1) * R.GetAt(2, 0) - R.GetAt(0, 2) * Dinv.GetAt(0, 0) * R.GetAt(2, 1) + R.GetAt(0, 2) * Dinv.GetAt(0, 1) * R.GetAt(2, 0));
+		dRdF[0 * 9 + 2] = (-R.GetAt(0, 0) * Dinv.GetAt(1, 1) * R.GetAt(0, 2) + R.GetAt(0, 0) * Dinv.GetAt(1, 2) * R.GetAt(0, 1) + R.GetAt(0, 1) * Dinv.GetAt(0, 1) * R.GetAt(0, 2) - R.GetAt(0, 1) * Dinv.GetAt(0, 2) * R.GetAt(0, 1));
+		dRdF[1 * 9 + 2] = (R.GetAt(0, 0) * Dinv.GetAt(1, 0) * R.GetAt(0, 2) - R.GetAt(0, 0) * Dinv.GetAt(1, 2) * R.GetAt(0, 0) - R.GetAt(0, 1) * Dinv.GetAt(0, 0) * R.GetAt(0, 2) + R.GetAt(0, 1) * Dinv.GetAt(0, 2) * R.GetAt(0, 0));
+		dRdF[2 * 9 + 2] = (-R.GetAt(0, 0) * Dinv.GetAt(1, 0) * R.GetAt(0, 1) + R.GetAt(0, 0) * Dinv.GetAt(1, 1) * R.GetAt(0, 0) + R.GetAt(0, 1) * Dinv.GetAt(0, 0) * R.GetAt(0, 1) - R.GetAt(0, 1) * Dinv.GetAt(0, 1) * R.GetAt(0, 0));
+		dRdF[3 * 9 + 2] = (-R.GetAt(0, 0) * Dinv.GetAt(1, 1) * R.GetAt(1, 2) + R.GetAt(0, 0) * Dinv.GetAt(1, 2) * R.GetAt(1, 1) + R.GetAt(0, 1) * Dinv.GetAt(0, 1) * R.GetAt(1, 2) - R.GetAt(0, 1) * Dinv.GetAt(0, 2) * R.GetAt(1, 1));
+		dRdF[4 * 9 + 2] = (R.GetAt(0, 0) * Dinv.GetAt(1, 0) * R.GetAt(1, 2) - R.GetAt(0, 0) * Dinv.GetAt(1, 2) * R.GetAt(1, 0) - R.GetAt(0, 1) * Dinv.GetAt(0, 0) * R.GetAt(1, 2) + R.GetAt(0, 1) * Dinv.GetAt(0, 2) * R.GetAt(1, 0));
+		dRdF[5 * 9 + 2] = (-R.GetAt(0, 0) * Dinv.GetAt(1, 0) * R.GetAt(1, 1) + R.GetAt(0, 0) * Dinv.GetAt(1, 1) * R.GetAt(1, 0) + R.GetAt(0, 1) * Dinv.GetAt(0, 0) * R.GetAt(1, 1) - R.GetAt(0, 1) * Dinv.GetAt(0, 1) * R.GetAt(1, 0));
+		dRdF[6 * 9 + 2] = (-R.GetAt(0, 0) * Dinv.GetAt(1, 1) * R.GetAt(2, 2) + R.GetAt(0, 0) * Dinv.GetAt(1, 2) * R.GetAt(2, 1) + R.GetAt(0, 1) * Dinv.GetAt(0, 1) * R.GetAt(2, 2) - R.GetAt(0, 1) * Dinv.GetAt(0, 2) * R.GetAt(2, 1));
+		dRdF[7 * 9 + 2] = (R.GetAt(0, 0) * Dinv.GetAt(1, 0) * R.GetAt(2, 2) - R.GetAt(0, 0) * Dinv.GetAt(1, 2) * R.GetAt(2, 0) - R.GetAt(0, 1) * Dinv.GetAt(0, 0) * R.GetAt(2, 2) + R.GetAt(0, 1) * Dinv.GetAt(0, 2) * R.GetAt(2, 0));
+		dRdF[8 * 9 + 2] = (-R.GetAt(0, 0) * Dinv.GetAt(1, 0) * R.GetAt(2, 1) + R.GetAt(0, 0) * Dinv.GetAt(1, 1) * R.GetAt(2, 0) + R.GetAt(0, 1) * Dinv.GetAt(0, 0) * R.GetAt(2, 1) - R.GetAt(0, 1) * Dinv.GetAt(0, 1) * R.GetAt(2, 0));
+		dRdF[0 * 9 + 3] = (-R.GetAt(1, 1) * Dinv.GetAt(2, 1) * R.GetAt(0, 2) + R.GetAt(1, 1) * Dinv.GetAt(2, 2) * R.GetAt(0, 1) + R.GetAt(1, 2) * Dinv.GetAt(1, 1) * R.GetAt(0, 2) - R.GetAt(1, 2) * Dinv.GetAt(1, 2) * R.GetAt(0, 1));
+		dRdF[1 * 9 + 3] = (R.GetAt(1, 1) * Dinv.GetAt(2, 0) * R.GetAt(0, 2) - R.GetAt(1, 1) * Dinv.GetAt(2, 2) * R.GetAt(0, 0) - R.GetAt(1, 2) * Dinv.GetAt(1, 0) * R.GetAt(0, 2) + R.GetAt(1, 2) * Dinv.GetAt(1, 2) * R.GetAt(0, 0));
+		dRdF[2 * 9 + 3] = (-R.GetAt(1, 1) * Dinv.GetAt(2, 0) * R.GetAt(0, 1) + R.GetAt(1, 1) * Dinv.GetAt(2, 1) * R.GetAt(0, 0) + R.GetAt(1, 2) * Dinv.GetAt(1, 0) * R.GetAt(0, 1) - R.GetAt(1, 2) * Dinv.GetAt(1, 1) * R.GetAt(0, 0));
+		dRdF[3 * 9 + 3] = (-R.GetAt(1, 1) * Dinv.GetAt(2, 1) * R.GetAt(1, 2) + R.GetAt(1, 1) * Dinv.GetAt(2, 2) * R.GetAt(1, 1) + R.GetAt(1, 2) * Dinv.GetAt(1, 1) * R.GetAt(1, 2) - R.GetAt(1, 2) * Dinv.GetAt(1, 2) * R.GetAt(1, 1));
+		dRdF[4 * 9 + 3] = (R.GetAt(1, 1) * Dinv.GetAt(2, 0) * R.GetAt(1, 2) - R.GetAt(1, 1) * Dinv.GetAt(2, 2) * R.GetAt(1, 0) - R.GetAt(1, 2) * Dinv.GetAt(1, 0) * R.GetAt(1, 2) + R.GetAt(1, 2) * Dinv.GetAt(1, 2) * R.GetAt(1, 0));
+		dRdF[5 * 9 + 3] = (-R.GetAt(1, 1) * Dinv.GetAt(2, 0) * R.GetAt(1, 1) + R.GetAt(1, 1) * Dinv.GetAt(2, 1) * R.GetAt(1, 0) + R.GetAt(1, 2) * Dinv.GetAt(1, 0) * R.GetAt(1, 1) - R.GetAt(1, 2) * Dinv.GetAt(1, 1) * R.GetAt(1, 0));
+		dRdF[6 * 9 + 3] = (-R.GetAt(1, 1) * Dinv.GetAt(2, 1) * R.GetAt(2, 2) + R.GetAt(1, 1) * Dinv.GetAt(2, 2) * R.GetAt(2, 1) + R.GetAt(1, 2) * Dinv.GetAt(1, 1) * R.GetAt(2, 2) - R.GetAt(1, 2) * Dinv.GetAt(1, 2) * R.GetAt(2, 1));
+		dRdF[7 * 9 + 3] = (R.GetAt(1, 1) * Dinv.GetAt(2, 0) * R.GetAt(2, 2) - R.GetAt(1, 1) * Dinv.GetAt(2, 2) * R.GetAt(2, 0) - R.GetAt(1, 2) * Dinv.GetAt(1, 0) * R.GetAt(2, 2) + R.GetAt(1, 2) * Dinv.GetAt(1, 2) * R.GetAt(2, 0));
+		dRdF[8 * 9 + 3] = (-R.GetAt(1, 1) * Dinv.GetAt(2, 0) * R.GetAt(2, 1) + R.GetAt(1, 1) * Dinv.GetAt(2, 1) * R.GetAt(2, 0) + R.GetAt(1, 2) * Dinv.GetAt(1, 0) * R.GetAt(2, 1) - R.GetAt(1, 2) * Dinv.GetAt(1, 1) * R.GetAt(2, 0));
+		dRdF[0 * 9 + 4] = (R.GetAt(1, 0) * Dinv.GetAt(2, 1) * R.GetAt(0, 2) - R.GetAt(1, 0) * Dinv.GetAt(2, 2) * R.GetAt(0, 1) - R.GetAt(1, 2) * Dinv.GetAt(0, 1) * R.GetAt(0, 2) + R.GetAt(1, 2) * Dinv.GetAt(0, 2) * R.GetAt(0, 1));
+		dRdF[1 * 9 + 4] = (-R.GetAt(1, 0) * Dinv.GetAt(2, 0) * R.GetAt(0, 2) + R.GetAt(1, 0) * Dinv.GetAt(2, 2) * R.GetAt(0, 0) + R.GetAt(1, 2) * Dinv.GetAt(0, 0) * R.GetAt(0, 2) - R.GetAt(1, 2) * Dinv.GetAt(0, 2) * R.GetAt(0, 0));
+		dRdF[2 * 9 + 4] = (R.GetAt(1, 0) * Dinv.GetAt(2, 0) * R.GetAt(0, 1) - R.GetAt(1, 0) * Dinv.GetAt(2, 1) * R.GetAt(0, 0) - R.GetAt(1, 2) * Dinv.GetAt(0, 0) * R.GetAt(0, 1) + R.GetAt(1, 2) * Dinv.GetAt(0, 1) * R.GetAt(0, 0));
+		dRdF[3 * 9 + 4] = (R.GetAt(1, 0) * Dinv.GetAt(2, 1) * R.GetAt(1, 2) - R.GetAt(1, 0) * Dinv.GetAt(2, 2) * R.GetAt(1, 1) - R.GetAt(1, 2) * Dinv.GetAt(0, 1) * R.GetAt(1, 2) + R.GetAt(1, 2) * Dinv.GetAt(0, 2) * R.GetAt(1, 1));
+		dRdF[4 * 9 + 4] = (-R.GetAt(1, 0) * Dinv.GetAt(2, 0) * R.GetAt(1, 2) + R.GetAt(1, 0) * Dinv.GetAt(2, 2) * R.GetAt(1, 0) + R.GetAt(1, 2) * Dinv.GetAt(0, 0) * R.GetAt(1, 2) - R.GetAt(1, 2) * Dinv.GetAt(0, 2) * R.GetAt(1, 0));
+		dRdF[5 * 9 + 4] = (R.GetAt(1, 0) * Dinv.GetAt(2, 0) * R.GetAt(1, 1) - R.GetAt(1, 0) * Dinv.GetAt(2, 1) * R.GetAt(1, 0) - R.GetAt(1, 2) * Dinv.GetAt(0, 0) * R.GetAt(1, 1) + R.GetAt(1, 2) * Dinv.GetAt(0, 1) * R.GetAt(1, 0));
+		dRdF[6 * 9 + 4] = (R.GetAt(1, 0) * Dinv.GetAt(2, 1) * R.GetAt(2, 2) - R.GetAt(1, 0) * Dinv.GetAt(2, 2) * R.GetAt(2, 1) - R.GetAt(1, 2) * Dinv.GetAt(0, 1) * R.GetAt(2, 2) + R.GetAt(1, 2) * Dinv.GetAt(0, 2) * R.GetAt(2, 1));
+		dRdF[7 * 9 + 4] = (-R.GetAt(1, 0) * Dinv.GetAt(2, 0) * R.GetAt(2, 2) + R.GetAt(1, 0) * Dinv.GetAt(2, 2) * R.GetAt(2, 0) + R.GetAt(1, 2) * Dinv.GetAt(0, 0) * R.GetAt(2, 2) - R.GetAt(1, 2) * Dinv.GetAt(0, 2) * R.GetAt(2, 0));
+		dRdF[8 * 9 + 4] = (R.GetAt(1, 0) * Dinv.GetAt(2, 0) * R.GetAt(2, 1) - R.GetAt(1, 0) * Dinv.GetAt(2, 1) * R.GetAt(2, 0) - R.GetAt(1, 2) * Dinv.GetAt(0, 0) * R.GetAt(2, 1) + R.GetAt(1, 2) * Dinv.GetAt(0, 1) * R.GetAt(2, 0));
+		dRdF[0 * 9 + 5] = (-R.GetAt(1, 0) * Dinv.GetAt(1, 1) * R.GetAt(0, 2) + R.GetAt(1, 0) * Dinv.GetAt(1, 2) * R.GetAt(0, 1) + R.GetAt(1, 1) * Dinv.GetAt(0, 1) * R.GetAt(0, 2) - R.GetAt(1, 1) * Dinv.GetAt(0, 2) * R.GetAt(0, 1));
+		dRdF[1 * 9 + 5] = (R.GetAt(1, 0) * Dinv.GetAt(1, 0) * R.GetAt(0, 2) - R.GetAt(1, 0) * Dinv.GetAt(1, 2) * R.GetAt(0, 0) - R.GetAt(1, 1) * Dinv.GetAt(0, 0) * R.GetAt(0, 2) + R.GetAt(1, 1) * Dinv.GetAt(0, 2) * R.GetAt(0, 0));
+		dRdF[2 * 9 + 5] = (-R.GetAt(1, 0) * Dinv.GetAt(1, 0) * R.GetAt(0, 1) + R.GetAt(1, 0) * Dinv.GetAt(1, 1) * R.GetAt(0, 0) + R.GetAt(1, 1) * Dinv.GetAt(0, 0) * R.GetAt(0, 1) - R.GetAt(1, 1) * Dinv.GetAt(0, 1) * R.GetAt(0, 0));
+		dRdF[3 * 9 + 5] = (-R.GetAt(1, 0) * Dinv.GetAt(1, 1) * R.GetAt(1, 2) + R.GetAt(1, 0) * Dinv.GetAt(1, 2) * R.GetAt(1, 1) + R.GetAt(1, 1) * Dinv.GetAt(0, 1) * R.GetAt(1, 2) - R.GetAt(1, 1) * Dinv.GetAt(0, 2) * R.GetAt(1, 1));
+		dRdF[4 * 9 + 5] = (R.GetAt(1, 0) * Dinv.GetAt(1, 0) * R.GetAt(1, 2) - R.GetAt(1, 0) * Dinv.GetAt(1, 2) * R.GetAt(1, 0) - R.GetAt(1, 1) * Dinv.GetAt(0, 0) * R.GetAt(1, 2) + R.GetAt(1, 1) * Dinv.GetAt(0, 2) * R.GetAt(1, 0));
+		dRdF[5 * 9 + 5] = (-R.GetAt(1, 0) * Dinv.GetAt(1, 0) * R.GetAt(1, 1) + R.GetAt(1, 0) * Dinv.GetAt(1, 1) * R.GetAt(1, 0) + R.GetAt(1, 1) * Dinv.GetAt(0, 0) * R.GetAt(1, 1) - R.GetAt(1, 1) * Dinv.GetAt(0, 1) * R.GetAt(1, 0));
+		dRdF[6 * 9 + 5] = (-R.GetAt(1, 0) * Dinv.GetAt(1, 1) * R.GetAt(2, 2) + R.GetAt(1, 0) * Dinv.GetAt(1, 2) * R.GetAt(2, 1) + R.GetAt(1, 1) * Dinv.GetAt(0, 1) * R.GetAt(2, 2) - R.GetAt(1, 1) * Dinv.GetAt(0, 2) * R.GetAt(2, 1));
+		dRdF[7 * 9 + 5] = (R.GetAt(1, 0) * Dinv.GetAt(1, 0) * R.GetAt(2, 2) - R.GetAt(1, 0) * Dinv.GetAt(1, 2) * R.GetAt(2, 0) - R.GetAt(1, 1) * Dinv.GetAt(0, 0) * R.GetAt(2, 2) + R.GetAt(1, 1) * Dinv.GetAt(0, 2) * R.GetAt(2, 0));
+		dRdF[8 * 9 + 5] = (-R.GetAt(1, 0) * Dinv.GetAt(1, 0) * R.GetAt(2, 1) + R.GetAt(1, 0) * Dinv.GetAt(1, 1) * R.GetAt(2, 0) + R.GetAt(1, 1) * Dinv.GetAt(0, 0) * R.GetAt(2, 1) - R.GetAt(1, 1) * Dinv.GetAt(0, 1) * R.GetAt(2, 0));
+		dRdF[0 * 9 + 6] = (-R.GetAt(2, 1) * Dinv.GetAt(2, 1) * R.GetAt(0, 2) + R.GetAt(2, 1) * Dinv.GetAt(2, 2) * R.GetAt(0, 1) + R.GetAt(2, 2) * Dinv.GetAt(1, 1) * R.GetAt(0, 2) - R.GetAt(2, 2) * Dinv.GetAt(1, 2) * R.GetAt(0, 1));
+		dRdF[1 * 9 + 6] = (R.GetAt(2, 1) * Dinv.GetAt(2, 0) * R.GetAt(0, 2) - R.GetAt(2, 1) * Dinv.GetAt(2, 2) * R.GetAt(0, 0) - R.GetAt(2, 2) * Dinv.GetAt(1, 0) * R.GetAt(0, 2) + R.GetAt(2, 2) * Dinv.GetAt(1, 2) * R.GetAt(0, 0));
+		dRdF[2 * 9 + 6] = (-R.GetAt(2, 1) * Dinv.GetAt(2, 0) * R.GetAt(0, 1) + R.GetAt(2, 1) * Dinv.GetAt(2, 1) * R.GetAt(0, 0) + R.GetAt(2, 2) * Dinv.GetAt(1, 0) * R.GetAt(0, 1) - R.GetAt(2, 2) * Dinv.GetAt(1, 1) * R.GetAt(0, 0));
+		dRdF[3 * 9 + 6] = (-R.GetAt(2, 1) * Dinv.GetAt(2, 1) * R.GetAt(1, 2) + R.GetAt(2, 1) * Dinv.GetAt(2, 2) * R.GetAt(1, 1) + R.GetAt(2, 2) * Dinv.GetAt(1, 1) * R.GetAt(1, 2) - R.GetAt(2, 2) * Dinv.GetAt(1, 2) * R.GetAt(1, 1));
+		dRdF[4 * 9 + 6] = (R.GetAt(2, 1) * Dinv.GetAt(2, 0) * R.GetAt(1, 2) - R.GetAt(2, 1) * Dinv.GetAt(2, 2) * R.GetAt(1, 0) - R.GetAt(2, 2) * Dinv.GetAt(1, 0) * R.GetAt(1, 2) + R.GetAt(2, 2) * Dinv.GetAt(1, 2) * R.GetAt(1, 0));
+		dRdF[5 * 9 + 6] = (-R.GetAt(2, 1) * Dinv.GetAt(2, 0) * R.GetAt(1, 1) + R.GetAt(2, 1) * Dinv.GetAt(2, 1) * R.GetAt(1, 0) + R.GetAt(2, 2) * Dinv.GetAt(1, 0) * R.GetAt(1, 1) - R.GetAt(2, 2) * Dinv.GetAt(1, 1) * R.GetAt(1, 0));
+		dRdF[6 * 9 + 6] = (-R.GetAt(2, 1) * Dinv.GetAt(2, 1) * R.GetAt(2, 2) + R.GetAt(2, 1) * Dinv.GetAt(2, 2) * R.GetAt(2, 1) + R.GetAt(2, 2) * Dinv.GetAt(1, 1) * R.GetAt(2, 2) - R.GetAt(2, 2) * Dinv.GetAt(1, 2) * R.GetAt(2, 1));
+		dRdF[7 * 9 + 6] = (R.GetAt(2, 1) * Dinv.GetAt(2, 0) * R.GetAt(2, 2) - R.GetAt(2, 1) * Dinv.GetAt(2, 2) * R.GetAt(2, 0) - R.GetAt(2, 2) * Dinv.GetAt(1, 0) * R.GetAt(2, 2) + R.GetAt(2, 2) * Dinv.GetAt(1, 2) * R.GetAt(2, 0));
+		dRdF[8 * 9 + 6] = (-R.GetAt(2, 1) * Dinv.GetAt(2, 0) * R.GetAt(2, 1) + R.GetAt(2, 1) * Dinv.GetAt(2, 1) * R.GetAt(2, 0) + R.GetAt(2, 2) * Dinv.GetAt(1, 0) * R.GetAt(2, 1) - R.GetAt(2, 2) * Dinv.GetAt(1, 1) * R.GetAt(2, 0));
+		dRdF[0 * 9 + 7] = (R.GetAt(2, 0) * Dinv.GetAt(2, 1) * R.GetAt(0, 2) - R.GetAt(2, 0) * Dinv.GetAt(2, 2) * R.GetAt(0, 1) - R.GetAt(2, 2) * Dinv.GetAt(0, 1) * R.GetAt(0, 2) + R.GetAt(2, 2) * Dinv.GetAt(0, 2) * R.GetAt(0, 1));
+		dRdF[1 * 9 + 7] = (-R.GetAt(2, 0) * Dinv.GetAt(2, 0) * R.GetAt(0, 2) + R.GetAt(2, 0) * Dinv.GetAt(2, 2) * R.GetAt(0, 0) + R.GetAt(2, 2) * Dinv.GetAt(0, 0) * R.GetAt(0, 2) - R.GetAt(2, 2) * Dinv.GetAt(0, 2) * R.GetAt(0, 0));
+		dRdF[2 * 9 + 7] = (R.GetAt(2, 0) * Dinv.GetAt(2, 0) * R.GetAt(0, 1) - R.GetAt(2, 0) * Dinv.GetAt(2, 1) * R.GetAt(0, 0) - R.GetAt(2, 2) * Dinv.GetAt(0, 0) * R.GetAt(0, 1) + R.GetAt(2, 2) * Dinv.GetAt(0, 1) * R.GetAt(0, 0));
+		dRdF[3 * 9 + 7] = (R.GetAt(2, 0) * Dinv.GetAt(2, 1) * R.GetAt(1, 2) - R.GetAt(2, 0) * Dinv.GetAt(2, 2) * R.GetAt(1, 1) - R.GetAt(2, 2) * Dinv.GetAt(0, 1) * R.GetAt(1, 2) + R.GetAt(2, 2) * Dinv.GetAt(0, 2) * R.GetAt(1, 1));
+		dRdF[4 * 9 + 7] = (-R.GetAt(2, 0) * Dinv.GetAt(2, 0) * R.GetAt(1, 2) + R.GetAt(2, 0) * Dinv.GetAt(2, 2) * R.GetAt(1, 0) + R.GetAt(2, 2) * Dinv.GetAt(0, 0) * R.GetAt(1, 2) - R.GetAt(2, 2) * Dinv.GetAt(0, 2) * R.GetAt(1, 0));
+		dRdF[5 * 9 + 7] = (R.GetAt(2, 0) * Dinv.GetAt(2, 0) * R.GetAt(1, 1) - R.GetAt(2, 0) * Dinv.GetAt(2, 1) * R.GetAt(1, 0) - R.GetAt(2, 2) * Dinv.GetAt(0, 0) * R.GetAt(1, 1) + R.GetAt(2, 2) * Dinv.GetAt(0, 1) * R.GetAt(1, 0));
+		dRdF[6 * 9 + 7] = (R.GetAt(2, 0) * Dinv.GetAt(2, 1) * R.GetAt(2, 2) - R.GetAt(2, 0) * Dinv.GetAt(2, 2) * R.GetAt(2, 1) - R.GetAt(2, 2) * Dinv.GetAt(0, 1) * R.GetAt(2, 2) + R.GetAt(2, 2) * Dinv.GetAt(0, 2) * R.GetAt(2, 1));
+		dRdF[7 * 9 + 7] = (-R.GetAt(2, 0) * Dinv.GetAt(2, 0) * R.GetAt(2, 2) + R.GetAt(2, 0) * Dinv.GetAt(2, 2) * R.GetAt(2, 0) + R.GetAt(2, 2) * Dinv.GetAt(0, 0) * R.GetAt(2, 2) - R.GetAt(2, 2) * Dinv.GetAt(0, 2) * R.GetAt(2, 0));
+		dRdF[8 * 9 + 7] = (R.GetAt(2, 0) * Dinv.GetAt(2, 0) * R.GetAt(2, 1) - R.GetAt(2, 0) * Dinv.GetAt(2, 1) * R.GetAt(2, 0) - R.GetAt(2, 2) * Dinv.GetAt(0, 0) * R.GetAt(2, 1) + R.GetAt(2, 2) * Dinv.GetAt(0, 1) * R.GetAt(2, 0));
+		dRdF[0 * 9 + 8] = (-R.GetAt(2, 0) * Dinv.GetAt(1, 1) * R.GetAt(0, 2) + R.GetAt(2, 0) * Dinv.GetAt(1, 2) * R.GetAt(0, 1) + R.GetAt(2, 1) * Dinv.GetAt(0, 1) * R.GetAt(0, 2) - R.GetAt(2, 1) * Dinv.GetAt(0, 2) * R.GetAt(0, 1));
+		dRdF[1 * 9 + 8] = (R.GetAt(2, 0) * Dinv.GetAt(1, 0) * R.GetAt(0, 2) - R.GetAt(2, 0) * Dinv.GetAt(1, 2) * R.GetAt(0, 0) - R.GetAt(2, 1) * Dinv.GetAt(0, 0) * R.GetAt(0, 2) + R.GetAt(2, 1) * Dinv.GetAt(0, 2) * R.GetAt(0, 0));
+		dRdF[2 * 9 + 8] = (-R.GetAt(2, 0) * Dinv.GetAt(1, 0) * R.GetAt(0, 1) + R.GetAt(2, 0) * Dinv.GetAt(1, 1) * R.GetAt(0, 0) + R.GetAt(2, 1) * Dinv.GetAt(0, 0) * R.GetAt(0, 1) - R.GetAt(2, 1) * Dinv.GetAt(0, 1) * R.GetAt(0, 0));
+		dRdF[3 * 9 + 8] = (-R.GetAt(2, 0) * Dinv.GetAt(1, 1) * R.GetAt(1, 2) + R.GetAt(2, 0) * Dinv.GetAt(1, 2) * R.GetAt(1, 1) + R.GetAt(2, 1) * Dinv.GetAt(0, 1) * R.GetAt(1, 2) - R.GetAt(2, 1) * Dinv.GetAt(0, 2) * R.GetAt(1, 1));
+		dRdF[4 * 9 + 8] = (R.GetAt(2, 0) * Dinv.GetAt(1, 0) * R.GetAt(1, 2) - R.GetAt(2, 0) * Dinv.GetAt(1, 2) * R.GetAt(1, 0) - R.GetAt(2, 1) * Dinv.GetAt(0, 0) * R.GetAt(1, 2) + R.GetAt(2, 1) * Dinv.GetAt(0, 2) * R.GetAt(1, 0));
+		dRdF[5 * 9 + 8] = (-R.GetAt(2, 0) * Dinv.GetAt(1, 0) * R.GetAt(1, 1) + R.GetAt(2, 0) * Dinv.GetAt(1, 1) * R.GetAt(1, 0) + R.GetAt(2, 1) * Dinv.GetAt(0, 0) * R.GetAt(1, 1) - R.GetAt(2, 1) * Dinv.GetAt(0, 1) * R.GetAt(1, 0));
+		dRdF[6 * 9 + 8] = (-R.GetAt(2, 0) * Dinv.GetAt(1, 1) * R.GetAt(2, 2) + R.GetAt(2, 0) * Dinv.GetAt(1, 2) * R.GetAt(2, 1) + R.GetAt(2, 1) * Dinv.GetAt(0, 1) * R.GetAt(2, 2) - R.GetAt(2, 1) * Dinv.GetAt(0, 2) * R.GetAt(2, 1));
+		dRdF[7 * 9 + 8] = (R.GetAt(2, 0) * Dinv.GetAt(1, 0) * R.GetAt(2, 2) - R.GetAt(2, 0) * Dinv.GetAt(1, 2) * R.GetAt(2, 0) - R.GetAt(2, 1) * Dinv.GetAt(0, 0) * R.GetAt(2, 2) + R.GetAt(2, 1) * Dinv.GetAt(0, 2) * R.GetAt(2, 0));
+		dRdF[8 * 9 + 8] = (-R.GetAt(2, 0) * Dinv.GetAt(1, 0) * R.GetAt(2, 1) + R.GetAt(2, 0) * Dinv.GetAt(1, 1) * R.GetAt(2, 0) + R.GetAt(2, 1) * Dinv.GetAt(0, 0) * R.GetAt(2, 1) - R.GetAt(2, 1) * Dinv.GetAt(0, 1) * R.GetAt(2, 0));
 	}
 
 }  // namespace Chaos
