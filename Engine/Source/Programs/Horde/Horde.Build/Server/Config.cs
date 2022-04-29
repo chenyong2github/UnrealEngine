@@ -346,6 +346,11 @@ namespace Horde.Build.Server
 		/// Maximum number of people to mention on a triage thread
 		/// </summary>
 		public int MaxMentions { get; set; } = 5;
+
+		/// <summary>
+		/// Additional node annotations implicit in this workflow
+		/// </summary>
+		public NodeAnnotations Annotations { get; set; } = new NodeAnnotations();
 	}
 
 	/// <summary>

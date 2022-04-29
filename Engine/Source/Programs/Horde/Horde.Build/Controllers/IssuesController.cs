@@ -138,12 +138,7 @@ namespace Horde.Build.Controllers
 							// Convert each issue to a response
 							foreach (IIssueSpan span in spansForIssue)
 							{
-								WorkflowId? workflowId = null;
-								if(stream.Config.TryGetTemplate(span.TemplateRefId, out TemplateRefConfig? templateRefConfig))
-								{
-									workflowId = templateRefConfig.Workflow;
-								}
-								spanResponses.Add(new FindIssueSpanResponse(span, workflowId));
+								spanResponses.Add(new FindIssueSpanResponse(span, span.LastFailure.Annotations.WorkflowId));
 							}
 						}
 					

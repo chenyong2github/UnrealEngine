@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 using Horde.Build.Collections;
 using Horde.Build.Config;
 using Horde.Build.Models;
@@ -18,23 +19,30 @@ using Microsoft.Extensions.Logging;
 namespace Horde.Build.Issues.Impl
 {
 	using TemplateRefId = StringId<TemplateRef>;
+	using WorkflowId = StringId<WorkflowConfig>;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+	public class WorkflowStats
+	{
+		public int NumSteps { get; set; }
+		public int NumPassingSteps { get; set; }
+	}
+
 	public class IssueReport
 	{
 		public DateTimeOffset Time { get; }
 		public IStream Stream { get; }
 		public WorkflowConfig Workflow { get; }
-		public int NumSteps { get; set; }
-		public int NumPassingSteps { get; set; }
+		public WorkflowStats WorkflowStats { get; }
 		public List<IIssue> Issues { get; } = new List<IIssue>();
 		public List<IIssueSpan> IssueSpans { get; } = new List<IIssueSpan>();
 
-		public IssueReport(DateTimeOffset time, IStream stream, WorkflowConfig workflow)
+		public IssueReport(DateTimeOffset time, IStream stream, WorkflowConfig workflow, WorkflowStats workflowStats)
 		{
 			Time = time;
 			Stream = stream;
 			Workflow = workflow;
+			WorkflowStats = workflowStats;
 		}
 	}
 #pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
@@ -53,6 +61,7 @@ namespace Horde.Build.Issues.Impl
 		readonly SingletonDocument<IssueReportState> _state;
 		readonly IStreamCollection _streamCollection;
 		readonly IIssueCollection _issueCollection;
+		readonly IGraphCollection _graphCollection;
 		readonly IJobCollection _jobCollection;
 		readonly ConfigCollection _configCollection;
 		readonly INotificationService _notificationService;
@@ -63,11 +72,12 @@ namespace Horde.Build.Issues.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public IssueReportService(MongoService mongoService, IStreamCollection streamCollection, IIssueCollection issueCollection, IJobCollection jobCollection, ConfigCollection configCollection, INotificationService notificationService, IClock clock, ILogger<IssueReportService> logger)
+		public IssueReportService(MongoService mongoService, IStreamCollection streamCollection, IIssueCollection issueCollection, IGraphCollection graphCollection, IJobCollection jobCollection, ConfigCollection configCollection, INotificationService notificationService, IClock clock, ILogger<IssueReportService> logger)
 		{
 			_state = new SingletonDocument<IssueReportState>(mongoService);
 			_streamCollection = streamCollection;
 			_issueCollection = issueCollection;
+			_graphCollection = graphCollection;
 			_jobCollection = jobCollection;
 			_configCollection = configCollection;
 			_notificationService = notificationService;
@@ -103,7 +113,6 @@ namespace Horde.Build.Issues.Impl
 				{
 					List<IIssue>? issues = null;
 					List<IIssueSpan>? spans = null;
-					List<IJob>? jobs = null;
 
 					foreach (WorkflowConfig workflow in config.Workflows)
 					{
@@ -129,37 +138,17 @@ namespace Horde.Build.Issues.Impl
 
 						issues ??= await _issueCollection.FindIssuesAsync(streamId: stream.Id);
 						spans ??= await _issueCollection.FindSpansAsync(issueIds: issues.Select(x => x.Id).ToArray());
-						jobs ??= await _jobCollection.FindAsync(streamId: stream.Id, minCreateTime: prevScheduledReportTime);
 
-						HashSet<TemplateRefId> wfTemplateRefIds = new HashSet<TemplateRefId>();
-						foreach (Api.TemplateRefConfig templateRef in config.Templates)
+						Dictionary<WorkflowId, WorkflowStats> workflowIdToStats = await GetWorkflowStatsAsync(stream, prevScheduledReportTime);
+						if (!workflowIdToStats.TryGetValue(workflow.Id, out WorkflowStats? workflowStats))
 						{
-							if (templateRef.Workflow != null && templateRef.Workflow == workflow.Id)
-							{
-								wfTemplateRefIds.Add(templateRef.Id);
-							}
+							workflowStats = new WorkflowStats();
 						}
 
-						IssueReport report = new IssueReport(currentTime, stream, workflow);
-
-						foreach (IJob job in jobs)
-						{
-							if (wfTemplateRefIds.Contains(job.TemplateId))
-							{
-								foreach (IJobStep step in job.Batches.SelectMany(x => x.Steps).Where(x => x.State == JobStepState.Completed))
-								{
-									report.NumSteps++;
-									if (step.Outcome == JobStepOutcome.Success)
-									{
-										report.NumPassingSteps++;
-									}
-								}
-							}
-						}
-
+						IssueReport report = new IssueReport(currentTime, stream, workflow, workflowStats);
 						foreach (IIssueSpan span in spans)
 						{
-							if (span.LastSuccess != null && wfTemplateRefIds.Contains(span.TemplateRefId))
+							if (span.LastSuccess != null && span.LastFailure.Annotations.WorkflowId == workflow.Id)
 							{
 								report.IssueSpans.Add(span);
 							}
@@ -186,6 +175,57 @@ namespace Horde.Build.Issues.Impl
 				}
 				state = await _state.UpdateAsync(RemoveInvalidKeys);
 			}
+		}
+
+		private async Task<Dictionary<WorkflowId, WorkflowStats>> GetWorkflowStatsAsync(IStream stream, DateTime minTime)
+		{
+			List<IJob> jobs = await _jobCollection.FindAsync(streamId: stream.Id, minCreateTime: minTime);
+
+			Dictionary<WorkflowId, WorkflowStats> workflowIdToStats = new Dictionary<WorkflowId, WorkflowStats>();
+			foreach (IGrouping<TemplateRefId, IJob> templateGroup in jobs.GroupBy(x => x.TemplateId))
+			{
+				WorkflowId? templateWorkflowId = null;
+				if (stream.Config.TryGetTemplate(templateGroup.Key, out Api.TemplateRefConfig? templateRefConfig))
+				{
+					templateWorkflowId = templateRefConfig.Annotations.WorkflowId;
+				}
+
+				foreach (IGrouping<ContentHash, IJob> graphGroup in templateGroup.GroupBy(x => x.GraphHash))
+				{
+					IGraph graph = await _graphCollection.GetAsync(graphGroup.Key);
+					foreach (IJob job in graphGroup)
+					{
+						foreach (IJobStepBatch batch in job.Batches)
+						{
+							foreach (IJobStep step in batch.Steps)
+							{
+								if (step.State == JobStepState.Completed)
+								{
+									INode node = graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx];
+									WorkflowId? workflowId = node.Annotations.WorkflowId ?? templateWorkflowId;
+									if (workflowId != null)
+									{
+										WorkflowStats? stats;
+										if (!workflowIdToStats.TryGetValue(workflowId.Value, out stats))
+										{
+											stats = new WorkflowStats();
+											workflowIdToStats.Add(workflowId.Value, stats);
+										}
+
+										stats.NumSteps++;
+										if (step.Outcome == JobStepOutcome.Success)
+										{
+											stats.NumPassingSteps++;
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			return workflowIdToStats;
 		}
 
 		static DateTime GetLastScheduledReportTime(WorkflowConfig workflow, DateTime currentTime)

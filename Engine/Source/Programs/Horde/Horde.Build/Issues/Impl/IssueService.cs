@@ -32,6 +32,7 @@ namespace Horde.Build.Services.Impl
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using UserId = ObjectId<IUser>;
+	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
 	/// Detailed issue information
@@ -542,23 +543,6 @@ namespace Horde.Build.Services.Impl
 				throw new Exception($"Invalid stream id '{job.StreamId}' on job '{job.Id}'");
 			}
 
-			// Check whether issue creation is enabled for this template type
-			StreamConfig config = await _configCollection.GetConfigAsync<StreamConfig>(stream.ConfigRevision);
-
-			TemplateRefConfig? templateRef;
-			if (!config.TryGetTemplate(job.TemplateId, out templateRef))
-			{
-				return;
-			}
-
-			if (templateRef.Workflow != null)
-			{
-				if(!config.TryGetWorkflow(templateRef.Workflow.Value, out WorkflowConfig? workflow) || !workflow.CreateIssues)
-				{
-					return;
-				}
-			}
-
 			// Find the batch for this event
 			IJobStepBatch? batch;
 			if (!job.TryGetBatch(batchId, out batch))
@@ -591,8 +575,39 @@ namespace Horde.Build.Services.Impl
 
 			scope.Span.SetTag("LogId", step.LogId.ToString());
 
+			// Get all the annotations for this template
+			TemplateRefConfig? templateRef;
+			if (!stream.Config.TryGetTemplate(job.TemplateId, out templateRef))
+			{
+				return;
+			}
+
+			NodeAnnotations annotations = new NodeAnnotations();
+			annotations.Merge(templateRef.Annotations);
+
 			// Get the node associated with this step
 			INode node = graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx];
+			annotations.Merge(graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx].Annotations);
+
+			// Get the workflow for this step
+			WorkflowConfig? workflow = null;
+			WorkflowId? workflowId = annotations.WorkflowId;
+			if (workflowId != null)
+			{
+				if (!stream.Config.TryGetWorkflow(workflowId.Value, out workflow))
+				{
+					_logger.LogWarning("Unable to find workflow {WorkflowId} for {JobId}:{BatchId}:{StepId}", workflowId, job.Id, batchId, stepId);
+					return;
+				}
+				annotations.Merge(workflow.Annotations);
+			}
+
+			// If the workflow disables issue creation, bail out now
+			if (workflow != null && !workflow.CreateIssues)
+			{
+				_logger.LogInformation("Issue creation for step {JobId}:{BatchId}:{StepId} disabled by workflow {WorkflowId}", job.Id, batchId, stepId, workflowId);
+				return;
+			}
 
 			// Gets the events for this step grouped by fingerprint
 			HashSet<NewEventGroup> eventGroups = await GetEventGroupsForStepAsync(job, batch, step, node);
@@ -610,16 +625,16 @@ namespace Horde.Build.Services.Impl
 					// Add the events to existing issues, and create new issues for everything else
 					if (eventGroups.Count > 0)
 					{
-						if (!await AddEventsToExistingSpans(job, batch, step, eventGroups, openSpans, checkedSpanIds, job.PromoteIssuesByDefault))
+						if (!await AddEventsToExistingSpans(job, batch, step, eventGroups, openSpans, checkedSpanIds, annotations, job.PromoteIssuesByDefault))
 						{
 							continue;
 						}
 						if (!SuppressNewIssues)
 						{
-							if (!await AddEventsToNewSpans(stream, job, batch, step, node, openSpans, eventGroups, job.PromoteIssuesByDefault))
-							{
-								continue;
-							}
+						    if (!await AddEventsToNewSpans(stream, job, batch, step, node, openSpans, eventGroups, annotations, job.PromoteIssuesByDefault))
+						    {
+							    continue;
+						    }
 						}
 					}
 
@@ -738,9 +753,10 @@ namespace Horde.Build.Services.Impl
 		/// <param name="newEventGroups">Set of events to try to add</param>
 		/// <param name="openSpans">List of open spans</param>
 		/// <param name="checkedSpanIds">Set of span ids that have been checked</param>
+		/// <param name="annotations">Annotations for this step</param>
 		/// <param name="promoteByDefault"></param>
 		/// <returns>True if the adding completed</returns>
-		async Task<bool> AddEventsToExistingSpans(IJob job, IJobStepBatch batch, IJobStep step, HashSet<NewEventGroup> newEventGroups, List<IIssueSpan> openSpans, HashSet<ObjectId> checkedSpanIds, bool promoteByDefault)
+		async Task<bool> AddEventsToExistingSpans(IJob job, IJobStepBatch batch, IJobStep step, HashSet<NewEventGroup> newEventGroups, List<IIssueSpan> openSpans, HashSet<ObjectId> checkedSpanIds, IReadOnlyNodeAnnotations? annotations, bool promoteByDefault)
 		{
 			for(int spanIdx = 0; spanIdx < openSpans.Count; spanIdx++)
 			{
@@ -752,7 +768,7 @@ namespace Horde.Build.Services.Impl
 					if (matchEventGroups.Count > 0)
 					{
 						// Add the new step data
-						NewIssueStepData newFailure = new NewIssueStepData(job, batch, step, GetIssueSeverity(matchEventGroups.SelectMany(x => x.Events)), promoteByDefault);
+						NewIssueStepData newFailure = new NewIssueStepData(job, batch, step, GetIssueSeverity(matchEventGroups.SelectMany(x => x.Events)), annotations, promoteByDefault);
 						await _issueCollection.AddStepAsync(openSpan.Id, newFailure);
 
 						// Update the span if this changes the current range
@@ -820,9 +836,10 @@ namespace Horde.Build.Services.Impl
 		/// <param name="node">Node run in the step</param>
 		/// <param name="openSpans">List of open spans. New issues will be added to this list.</param>
 		/// <param name="newEventGroups">Set of remaining events</param>
+		/// <param name="annotations"></param>
 		/// <param name="promoteByDefault"></param>
 		/// <returns>True if all events were added</returns>
-		async Task<bool> AddEventsToNewSpans(IStream stream, IJob job, IJobStepBatch batch, IJobStep step, INode node, List<IIssueSpan> openSpans, HashSet<NewEventGroup> newEventGroups, bool promoteByDefault)
+		async Task<bool> AddEventsToNewSpans(IStream stream, IJob job, IJobStepBatch batch, IJobStep step, INode node, List<IIssueSpan> openSpans, HashSet<NewEventGroup> newEventGroups, IReadOnlyNodeAnnotations? annotations, bool promoteByDefault)
 		{
 			while (newEventGroups.Count > 0)
 			{
@@ -844,7 +861,7 @@ namespace Horde.Build.Services.Impl
 				}
 
 				// Get the step data
-				NewIssueStepData stepData = new NewIssueStepData(job, batch, step, GetIssueSeverity(eventGroup.Events), promoteByDefault);
+				NewIssueStepData stepData = new NewIssueStepData(job, batch, step, GetIssueSeverity(eventGroup.Events), annotations, promoteByDefault);
 
 				// Get the span data
 				NewIssueSpanData spanData = new NewIssueSpanData(stream.Id, stream.Name, job.TemplateId, node.Name, eventGroup.Fingerprint, stepData);
@@ -1224,7 +1241,7 @@ namespace Horde.Build.Services.Impl
 			{
 				if (job.Change < span.FirstFailure.Change && (span.LastSuccess == null || job.Change > span.LastSuccess.Change))
 				{
-					NewIssueStepData newLastSuccess = new NewIssueStepData(job.Change, IssueSeverity.Unspecified, job.Name, job.Id, batch.Id, step.Id, step.StartTimeUtc ?? default, step.LogId, false);
+					NewIssueStepData newLastSuccess = new NewIssueStepData(job.Change, IssueSeverity.Unspecified, job.Name, job.Id, batch.Id, step.Id, step.StartTimeUtc ?? default, step.LogId, null, false);
 					List<NewIssueSpanSuspectData> newSuspects = await FindSuspectsForSpanAsync(stream, span.Fingerprint, job.Change + 1, span.FirstFailure.Change);
 
 					if (await _issueCollection.TryUpdateSpanAsync(span, newLastSuccess: newLastSuccess, newSuspects: newSuspects) == null)
@@ -1237,7 +1254,7 @@ namespace Horde.Build.Services.Impl
 				}
 				else if (job.Change > span.LastFailure.Change && (span.NextSuccess == null || job.Change < span.NextSuccess.Change))
 				{
-					NewIssueStepData newNextSucccess = new NewIssueStepData(job.Change, IssueSeverity.Unspecified, job.Name, job.Id, batch.Id, step.Id, step.StartTimeUtc ?? default, step.LogId, false);
+					NewIssueStepData newNextSucccess = new NewIssueStepData(job.Change, IssueSeverity.Unspecified, job.Name, job.Id, batch.Id, step.Id, step.StartTimeUtc ?? default, step.LogId, null, false);
 
 					if (await _issueCollection.TryUpdateSpanAsync(span, newNextSuccess: newNextSucccess) == null)
 					{

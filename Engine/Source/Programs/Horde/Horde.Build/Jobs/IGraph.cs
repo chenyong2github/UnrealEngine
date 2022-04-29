@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using EpicGames.Core;
-using Horde.Build.Utilities;
 using HordeCommon;
 using MongoDB.Bson.Serialization.Attributes;
 
@@ -65,7 +64,7 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Annotations for this node
 		/// </summary>
-		public IReadOnlyDictionary<string, string>? Annotations { get; }
+		public IReadOnlyNodeAnnotations Annotations { get; }
 	}
 
 	/// <summary>
@@ -422,7 +421,7 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Additional user annotations for this node
 		/// </summary>
-		public CaseInsensitiveDictionary<string>? Annotations { get; set; }
+		public NodeAnnotations? Annotations { get; set; }
 
 		/// <summary>
 		/// Constructor
@@ -437,7 +436,7 @@ namespace Horde.Build.Models
 		/// <param name="credentials">Credentials required for this node to run</param>
 		/// <param name="properties">Properties for the node</param>
 		/// <param name="annotations">User annotations for this node</param>
-		public NewNode(string name, List<string>? inputDependencies = null, List<string>? orderDependencies = null, Priority? priority = null, bool? allowRetry = null, bool? runEarly = null, bool? warnings = null, Dictionary<string, string>? credentials = null, Dictionary<string, string>? properties = null, CaseInsensitiveDictionary<string>? annotations = null)
+		public NewNode(string name, List<string>? inputDependencies = null, List<string>? orderDependencies = null, Priority? priority = null, bool? allowRetry = null, bool? runEarly = null, bool? warnings = null, Dictionary<string, string>? credentials = null, Dictionary<string, string>? properties = null, IReadOnlyNodeAnnotations? annotations = null)
 		{
 			Name = name;
 			InputDependencies = inputDependencies;
@@ -448,7 +447,10 @@ namespace Horde.Build.Models
 			Warnings = warnings;
 			Credentials = credentials;
 			Properties = properties;
-			Annotations = annotations;
+			if (annotations != null)
+			{
+				Annotations = new NodeAnnotations(annotations);
+			}
 		}
 	}
 

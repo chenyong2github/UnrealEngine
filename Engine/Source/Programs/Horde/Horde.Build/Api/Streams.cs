@@ -226,9 +226,18 @@ namespace Horde.Build.Api
 		public string? TriageChannel { get; set; }
 
 		/// <summary>
-		/// Issue handling workflow
+		/// Workflow to user for this stream
 		/// </summary>
-		public WorkflowId? Workflow { get; set; }
+		public WorkflowId? WorkflowId
+		{
+			get => Annotations.WorkflowId;
+			set => Annotations.WorkflowId = value;
+		}
+
+		/// <summary>
+		/// Default annotations to apply to nodes in this template
+		/// </summary>
+		public NodeAnnotations Annotations { get; set; } = new NodeAnnotations();
 
 		/// <summary>
 		/// Schedule to execute this template

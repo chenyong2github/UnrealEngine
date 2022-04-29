@@ -52,11 +52,11 @@ namespace Horde.Build.Collections.Impl
 
 			[BsonIgnoreIfNull]
 			[BsonDictionaryOptions(DictionaryRepresentation.ArrayOfDocuments)]
-			public CaseInsensitiveDictionary<string>? Annotations { get; set; }
+			public NodeAnnotations? Annotations { get; set; }
 
 			IReadOnlyDictionary<string, string>? INode.Credentials => Credentials;
 			IReadOnlyDictionary<string, string>? INode.Properties => Properties;
-			IReadOnlyDictionary<string, string>? INode.Annotations => Annotations;
+			IReadOnlyNodeAnnotations INode.Annotations => Annotations ?? NodeAnnotations.Empty;
 
 			[BsonConstructor]
 			private Node()
@@ -66,7 +66,7 @@ namespace Horde.Build.Collections.Impl
 				OrderDependencies = null!;
 			}
 
-			public Node(string name, NodeRef[] inputDependencies, NodeRef[] orderDependencies, Priority priority, bool allowRetry, bool runEarly, bool warnings, Dictionary<string, string>? credentials, Dictionary<string, string>? properties, CaseInsensitiveDictionary<string>? annotations)
+			public Node(string name, NodeRef[] inputDependencies, NodeRef[] orderDependencies, Priority priority, bool allowRetry, bool runEarly, bool warnings, Dictionary<string, string>? credentials, Dictionary<string, string>? properties, IReadOnlyNodeAnnotations? annotations)
 			{
 				Name = name;
 				InputDependencies = inputDependencies;
@@ -77,7 +77,10 @@ namespace Horde.Build.Collections.Impl
 				Warnings = warnings;
 				Credentials = credentials;
 				Properties = properties;
-				Annotations = annotations;
+				if (annotations != null && annotations.Count > 0)
+				{
+					Annotations = new NodeAnnotations(annotations);
+				}
 			}
 		}
 

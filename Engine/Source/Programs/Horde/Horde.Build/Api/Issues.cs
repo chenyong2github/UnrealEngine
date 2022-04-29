@@ -122,13 +122,12 @@ namespace Horde.Build.Api
 		/// </summary>
 		/// <param name="span">The node to construct from</param>
 		/// <param name="steps">Failing steps for this span</param>
-		/// <param name="workflowId"></param>
-		public GetIssueSpanResponse(IIssueSpan span, List<IIssueStep> steps, WorkflowId? workflowId)
+		public GetIssueSpanResponse(IIssueSpan span, List<IIssueStep> steps)
 		{
 			Id = span.Id.ToString();
 			Name = span.NodeName;
 			TemplateId = span.TemplateRefId.ToString();
-			WorkflowId = workflowId;
+			WorkflowId = span.LastFailure.Annotations.WorkflowId;
 			LastSuccess = (span.LastSuccess != null) ? new GetIssueStepResponse(span.LastSuccess) : null;
 			Steps = steps.ConvertAll(x => new GetIssueStepResponse(x));
 			NextSuccess = (span.NextSuccess != null) ? new GetIssueStepResponse(span.NextSuccess) : null;
@@ -180,13 +179,7 @@ namespace Horde.Build.Api
 				{
 					MaxChange = span.NextSuccess.Change;
 				}
-
-				WorkflowId? workflowId = null;
-				if (stream.Config.TryGetTemplate(span.TemplateRefId, out TemplateRefConfig? templateConfig))
-				{
-					workflowId = templateConfig.Workflow;
-				}
-				Nodes.Add(new GetIssueSpanResponse(span, steps.Where(y => y.SpanId == span.Id).ToList(), workflowId));
+				Nodes.Add(new GetIssueSpanResponse(span, steps.Where(y => y.SpanId == span.Id).ToList()));
 			}
 		}
 	}

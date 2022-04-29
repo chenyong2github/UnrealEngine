@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Models;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -16,6 +17,7 @@ namespace Horde.Build.Collections
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using UserId = ObjectId<IUser>;
+	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
 	/// Fingerprint for an issue
@@ -233,6 +235,9 @@ namespace Horde.Build.Collections
 		/// <inheritdoc cref="IIssueStep.LogId"/>
 		public LogId? LogId { get; set; }
 
+		/// <inheritdoc cref="IIssueStep.Annotations"/>
+		public NodeAnnotations? Annotations { get; set; }
+
 		/// <inheritdoc cref="IIssueStep.PromoteByDefault"/>
 		public bool PromoteByDefault { get; set; }
 
@@ -247,8 +252,9 @@ namespace Horde.Build.Collections
 		/// <param name="stepId">The step id</param>
 		/// <param name="stepTime">Time that the step started</param>
 		/// <param name="logId">Unique id of the log file for this step</param>
+		/// <param name="annotations">Annotations for this step</param>
 		/// <param name="promoted">Whether this step is promoted</param>
-		public NewIssueStepData(int change, IssueSeverity severity, string jobName, JobId jobId, SubResourceId batchId, SubResourceId stepId, DateTime stepTime, LogId? logId, bool promoted)
+		public NewIssueStepData(int change, IssueSeverity severity, string jobName, JobId jobId, SubResourceId batchId, SubResourceId stepId, DateTime stepTime, LogId? logId, IReadOnlyNodeAnnotations? annotations, bool promoted)
 		{
 			Change = change;
 			Severity = severity;
@@ -258,6 +264,10 @@ namespace Horde.Build.Collections
 			StepId = stepId;
 			StepTime = stepTime;
 			LogId = logId;
+			if (annotations != null)
+			{
+				Annotations = new NodeAnnotations(annotations);
+			}
 			PromoteByDefault = promoted;
 		}
 
@@ -268,9 +278,10 @@ namespace Horde.Build.Collections
 		/// <param name="batch">Batch of the job for the step</param>
 		/// <param name="step">The step being built</param>
 		/// <param name="severity">Severity of the issue in this step</param>
+		/// <param name="annotations">Annotations for this step</param>
 		/// <param name="promoted">Whether this step is promoted</param>
-		public NewIssueStepData(IJob job, IJobStepBatch batch, IJobStep step, IssueSeverity severity, bool promoted)
-			: this(job.Change, severity, job.Name, job.Id, batch.Id, step.Id, step.StartTimeUtc ?? default, step.LogId, promoted)
+		public NewIssueStepData(IJob job, IJobStepBatch batch, IJobStep step, IssueSeverity severity, IReadOnlyNodeAnnotations? annotations, bool promoted)
+			: this(job.Change, severity, job.Name, job.Id, batch.Id, step.Id, step.StartTimeUtc ?? default, step.LogId, annotations, promoted)
 		{
 		}
 
@@ -279,7 +290,7 @@ namespace Horde.Build.Collections
 		/// </summary>
 		/// <param name="jobStepRef">The jobstep reference</param>
 		public NewIssueStepData(IJobStepRef jobStepRef)
-			: this(jobStepRef.Change, IssueSeverity.Unspecified, jobStepRef.JobName, jobStepRef.Id.JobId, jobStepRef.Id.BatchId, jobStepRef.Id.StepId, jobStepRef.StartTimeUtc, jobStepRef.LogId, false)
+			: this(jobStepRef.Change, IssueSeverity.Unspecified, jobStepRef.JobName, jobStepRef.Id.JobId, jobStepRef.Id.BatchId, jobStepRef.Id.StepId, jobStepRef.StartTimeUtc, jobStepRef.LogId, null, false)
 		{
 		}
 	}

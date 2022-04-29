@@ -39,6 +39,7 @@ namespace Horde.Build.Notifications.Impl
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
 	using UserId = ObjectId<IUser>;
+	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
 	/// Maintains a connection to Slack, in order to receive socket-mode notifications of user interactions
@@ -624,16 +625,14 @@ namespace Horde.Build.Notifications.Impl
 			if (details.Spans.Count > 0)
 			{
 				IIssueSpan span = details.Spans[0];
-				IStream? stream = await _streamService.GetStreamAsync(span.StreamId);
-				if(stream != null)
+
+				WorkflowId? workflowId = span.LastFailure.Annotations.WorkflowId;
+				if (workflowId != null)
 				{
-					StreamConfig config = await _configCollection.GetConfigAsync<StreamConfig>(stream.ConfigRevision);
-					if (config.TryGetTemplate(span.TemplateRefId, out TemplateRefConfig? templateRef))
+					IStream? stream = await _streamService.GetStreamAsync(span.StreamId);
+					if(stream != null && stream.Config.TryGetWorkflow(workflowId.Value, out WorkflowConfig? workflow))
 					{
-						if (templateRef.Workflow != null && config.TryGetWorkflow(templateRef.Workflow.Value, out WorkflowConfig? workflow))
-						{
-							await SendTriageMessageAsync(issue, span, workflow);
-						}
+						await SendTriageMessageAsync(issue, span, workflow);
 					}
 				}
 			}
@@ -1135,10 +1134,10 @@ namespace Horde.Build.Notifications.Impl
 					body.Append($"*: {issue.Summary} [{FormatReadableTimeSpan(report.Time - issue.CreatedAt)}] - {status}");
 				}
 
-				if (report.NumSteps > 0)
+				if (report.WorkflowStats.NumSteps > 0)
 				{
-					double totalPct = (report.NumPassingSteps * 100.0) / report.NumSteps;
-					body.Append($"\n\n{report.NumPassingSteps:n0} of {report.NumSteps:n0} (*{totalPct:0.0}%*) build steps succeeded since last status update.");
+					double totalPct = (report.WorkflowStats.NumPassingSteps * 100.0) / report.WorkflowStats.NumSteps;
+					body.Append($"\n\n{report.WorkflowStats.NumPassingSteps:n0} of {report.WorkflowStats.NumSteps:n0} (*{totalPct:0.0}%*) build steps succeeded since last status update.");
 				}
 
 				await SendMessageAsync(report.Workflow.ReportChannel, text: body.ToString(), withEnvironment: false);
