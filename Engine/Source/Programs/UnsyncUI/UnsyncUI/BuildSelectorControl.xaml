@@ -108,13 +108,18 @@
 				<ListView Grid.Row="1" Foreground="Transparent" Background="Transparent" BorderBrush="Transparent" ItemsSource="{Binding Platforms}" Name="SelectedPlatforms">
 					<ListView.ItemTemplate>
 						<DataTemplate>
-							<CheckBox Margin="4,0,4,0" Content="{Binding Platform}" IsChecked="{Binding Path=IsSelected, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListViewItem}}}"/>
+							<Grid>
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition SharedSizeGroup="WrapPanelGroup" />
+								</Grid.ColumnDefinitions>
+								<CheckBox Margin="4,0,4,0" Content="{Binding Description}" IsChecked="{Binding Path=IsSelected, RelativeSource={RelativeSource FindAncestor, AncestorType={x:Type ListViewItem}}}"/>
+							</Grid>
 						</DataTemplate>
 					</ListView.ItemTemplate>
 					<ListView.ItemsPanel>
 						<ItemsPanelTemplate>
-							<WrapPanel Orientation="Horizontal" 
-									   Width="{Binding RelativeSource={RelativeSource FindAncestor,AncestorType={x:Type ScrollViewer}},Path=ActualWidth}"/>
+							<WrapPanel Orientation="Horizontal" Grid.IsSharedSizeScope="True"
+									   Width="{Binding RelativeSource={RelativeSource FindAncestor,AncestorType={x:Type ScrollViewer}},Path=ActualWidth}" />
 						</ItemsPanelTemplate>
 					</ListView.ItemsPanel>
 					<ListView.ItemContainerStyle>

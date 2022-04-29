@@ -38,6 +38,7 @@ namespace UnsyncUI
 			public string CL;
 			public string Suffix;
 			public string Platform;
+			public string Flavor;
 
 			public bool IsStreamClFound => Stream != null && CL != null;
 		}
@@ -49,6 +50,7 @@ namespace UnsyncUI
 			public string Suffix { get; }
 			public string CL { get; }
 			public string Platform { get; }
+			public string Flavor { get; }
 			public List<Directory> SubDirectories { get; }
 
 			public Directory(XElement node)
@@ -58,6 +60,7 @@ namespace UnsyncUI
 				Suffix = node.Attribute("suffix")?.Value;
 				CL = node.Attribute("cl")?.Value;
 				Platform = node.Attribute("platform")?.Value;
+				Flavor = node.Attribute("flavor")?.Value;
 				SubDirectories = node.Elements("dir").Select(d => new Directory(d)).ToList();
 			}
 
@@ -84,6 +87,10 @@ namespace UnsyncUI
 				if (Platform != null)
 				{
 					template.Platform = RegexReplace(Platform);
+				}
+				if (Flavor != null)
+				{
+					template.Flavor = RegexReplace(Flavor);
 				}
 
 				return true;

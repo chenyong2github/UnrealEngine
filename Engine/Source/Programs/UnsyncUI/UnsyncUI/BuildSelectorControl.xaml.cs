@@ -81,20 +81,13 @@ namespace UnsyncUI
 		}
 	}
 
-	public struct Build
-	{
-		public string Stream;
-		public string Platform;
-		public string CL;
-		public string Suffix;
-		public string FullPath;
-	}
-
 	public sealed class BuildPlatformModel
 	{
 
 		public BuildModel Build { get; }
 		public string Platform { get; }
+		public string Flavor { get; }
+		public string Description { get; }
 		public string FullPath { get; }
 
 		public string Name => Build == null
@@ -103,11 +96,14 @@ namespace UnsyncUI
 
 		public string SafeName => Name.Replace('/', '+').Replace(" ", "");
 
-		public BuildPlatformModel(BuildModel build, string platform, string fullPath)
+		public BuildPlatformModel(BuildModel build, string platform, string fullPath, string flavor)
 		{
 			Build = build;
 			Platform = platform;
 			FullPath = fullPath;
+			Flavor = flavor;
+
+			Description = Flavor == null ? Platform : $"{Platform} {Flavor}";
 		}
 	}
 
@@ -154,7 +150,7 @@ namespace UnsyncUI
 				if (System.IO.Path.GetFileName(childDir) == ".unsync")
 				{
 					// This folder is a valid build
-					Platforms.Add(new BuildPlatformModel(this, template.Platform, path));
+					Platforms.Add(new BuildPlatformModel(this, template.Platform, path, template.Flavor));
 				}
 				else
 				{

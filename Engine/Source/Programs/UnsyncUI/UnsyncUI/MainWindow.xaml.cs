@@ -103,7 +103,7 @@ namespace UnsyncUI
 			{
 				onBuildsSelected(new[]
 				{
-					(DstPath, default(string[]), new BuildPlatformModel(null, null, SrcPath))
+					(DstPath, default(string[]), new BuildPlatformModel(null, null, SrcPath, null))
 				});
 			});
 
