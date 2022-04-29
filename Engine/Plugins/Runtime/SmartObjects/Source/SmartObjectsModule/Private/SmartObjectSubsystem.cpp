@@ -433,7 +433,9 @@ bool USmartObjectSubsystem::UnregisterSmartObjectInternal(USmartObjectComponent&
 #endif // WITH_EDITOR
 
 		// At runtime, only entries created outside the initial collection are removed from simulation and collection
-		if (World.IsGameWorld() && bInitialCollectionAddedToSimulation)
+		if (World.IsGameWorld()
+			&& bInitialCollectionAddedToSimulation
+			&& SmartObjectComponent.GetRegisteredHandle().IsValid()) // Make sure component was registered to simulation (e.g. Valid associated definition)
 		{
 			bRemoveFromCollection = RuntimeCreatedEntries.Remove(SmartObjectComponent.GetRegisteredHandle()) != 0
 				|| UnregistrationMode == ESmartObjectUnregistrationMode::DestroyRuntimeInstance;
