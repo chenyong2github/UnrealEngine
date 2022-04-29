@@ -91,7 +91,7 @@ private:
 
 		Forces[ElementIndex] = QuarterRho * DoubleArea * (VDotN >= (FSolverReal)0. ?  // The flow can hit either side of the triangle, so the normal might need to be reversed
 			(Cd - Cl) * VDotN * V + Cl * VSquare * N :
-			(Cl - Cd) * VDotN * V - Cl * VSquare * N) + DoubleArea * (FSolverReal)0.5 * Cp * N;
+			(Cl - Cd) * VDotN * V - Cl * VSquare * N) - DoubleArea * (FSolverReal)0.5 * Cp * N; // N points in the opposite direction of the actual mesh normals
 	}
 
 private:
