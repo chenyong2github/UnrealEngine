@@ -67,10 +67,11 @@ bool FStaticMeshLODResourcesToDynamicMesh::Convert(
 		const FStaticMeshSection& Section = StaticMeshResources->Sections[SectionIdx];
 		for (uint32 TriIdx = 0; TriIdx < Section.NumTriangles; ++TriIdx)
 		{
-			OutputMesh.SetTriangleGroup((int32)(Section.FirstIndex + TriIdx), SectionIdx);
+			int32 TriangleID = (int32)(Section.FirstIndex/3 + TriIdx);
+			OutputMesh.SetTriangleGroup(TriangleID, SectionIdx);
 			if (MaterialIDs != nullptr)
 			{
-				MaterialIDs->SetValue((int32)(Section.FirstIndex + TriIdx), Section.MaterialIndex);
+				MaterialIDs->SetValue(TriangleID, Section.MaterialIndex);
 			}
 		}
 	}
@@ -78,8 +79,6 @@ bool FStaticMeshLODResourcesToDynamicMesh::Convert(
 	// copy overlay normals
 	if (Adapter.HasNormals() && Options.bWantNormals)
 	{
-
-
 		FDynamicMeshNormalOverlay* Normals = OutputMesh.Attributes()->PrimaryNormals();
 		if (Normals != nullptr)
 		{
