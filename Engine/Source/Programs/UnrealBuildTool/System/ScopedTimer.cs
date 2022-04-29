@@ -17,6 +17,7 @@ namespace UnrealBuildTool
 		DateTime StartTime;
 		string TimerName;
 		LogEventType Verbosity;
+		bool bIncreaseIndent;
 		static int Indent = 0;
 		static object IndentLock = new object();
 
@@ -25,15 +26,20 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Name">Name of the block being measured</param>
 		/// <param name="InVerbosity">Verbosity for output messages</param>
-		public ScopedTimer(string Name, LogEventType InVerbosity = LogEventType.Verbose)
+		/// <param name="bIncreaseIndent">Whether gobal indent should be increased or not; set to false when running a scope in parallel. Message will still be printed indented relative to parent scope.</param>
+		public ScopedTimer(string Name, LogEventType InVerbosity = LogEventType.Verbose, bool bIncreaseIndent = true)
 		{
 			TimerName = Name;
-			lock (IndentLock)
+			if (bIncreaseIndent)
 			{
-				Indent++;
+				lock (IndentLock)
+				{
+					Indent++;
+				}
 			}
 			Verbosity = InVerbosity;
 			StartTime = DateTime.UtcNow;
+			this.bIncreaseIndent = bIncreaseIndent;
 		}
 
 		/// <summary>
@@ -42,10 +48,13 @@ namespace UnrealBuildTool
 		public void Dispose()
 		{
 			double TotalSeconds = (DateTime.UtcNow - StartTime).TotalSeconds;
-			int LogIndent = 0;
-			lock (IndentLock)
+			int LogIndent = Indent;
+			if (bIncreaseIndent)
 			{
-				LogIndent = --Indent;
+				lock (IndentLock)
+				{
+					LogIndent = --Indent;
+				}
 			}
 			StringBuilder IndentText = new StringBuilder(LogIndent * 2);
 			IndentText.Append(' ', LogIndent * 2);
