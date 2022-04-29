@@ -238,7 +238,7 @@ public:
 	 * @param FInputDeviceId		The Input Device ID that has changed connection
 	 * @see IPlatformInputDeviceMapper
 	 */
-	virtual void HandleOnInputDeviceConnectionChange(EInputDeviceConnectionState NewConnectionState, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId);
+	virtual void HandleInputDeviceConnectionChange(EInputDeviceConnectionState NewConnectionState, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId);
 
 	/** 
 	 * Callback for when an input device connection state has changed (a new gamepad was connected or disconnected)
@@ -254,7 +254,7 @@ public:
 	 * @param FPlatformUserId	The OldUserPlatformId
 	 * @see IPlatformInputDeviceMapper
 	 */
-	virtual void HandleOnInputDevicePairingChange(FInputDeviceId InputDeviceId, FPlatformUserId NewUserPlatformId, FPlatformUserId OldUserPlatformId);
+	virtual void HandleInputDevicePairingChange(FInputDeviceId InputDeviceId, FPlatformUserId NewUserPlatformId, FPlatformUserId OldUserPlatformId);
 
 	/**
 	 * Callback when an input device has changed pairings (the owning platform user has changed for that device)
