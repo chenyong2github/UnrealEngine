@@ -16,7 +16,7 @@ using Polly.Extensions.Http;
 namespace Horde.Build.Services
 {
 	/// <summary>
-	/// Jira service functinality
+	/// Jira service functionality
 	/// </summary>
 	public sealed class JiraService : IJiraService, IDisposable
 	{
