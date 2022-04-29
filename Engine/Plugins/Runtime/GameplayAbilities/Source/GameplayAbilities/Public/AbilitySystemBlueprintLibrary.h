@@ -78,6 +78,10 @@ class GAMEPLAYABILITIES_API UAbilitySystemBlueprintLibrary : public UBlueprintFu
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Not Equal (Gameplay Attribute)", CompactNodeTitle = "!=", Keywords = "!= not equal"), Category="Ability|Attribute")
 	static bool NotEqual_GameplayAttributeGameplayAttribute(FGameplayAttribute AttributeA, FGameplayAttribute AttributeB);
 
+	/** Returns FString representation of a gameplay attribute's set class and name, in the form of AttrSetName.AttrName (or just AttrName if not part of a set).  */
+	UFUNCTION(BlueprintPure, Category="Ability|Attribute")
+	static FString GetDebugStringFromGameplayAttribute(const FGameplayAttribute& Attribute);
+
 	// -------------------------------------------------------------------------------
 	//		TargetData
 	// -------------------------------------------------------------------------------

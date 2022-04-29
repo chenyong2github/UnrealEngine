@@ -139,6 +139,16 @@ bool UAbilitySystemBlueprintLibrary::NotEqual_GameplayAttributeGameplayAttribute
 	return (AttributeA != AttributeB);
 }
 
+FString UAbilitySystemBlueprintLibrary::GetDebugStringFromGameplayAttribute(const FGameplayAttribute& Attribute)
+{
+	if (const UClass* AttributeSetClass = Attribute.GetAttributeSetClass())
+	{
+		return FString::Format(TEXT("{0}.{1}"), { AttributeSetClass->GetName(), Attribute.GetName() });
+	}
+
+	return Attribute.GetName();
+}
+
 FGameplayAbilityTargetDataHandle UAbilitySystemBlueprintLibrary::AppendTargetDataHandle(FGameplayAbilityTargetDataHandle TargetHandle, const FGameplayAbilityTargetDataHandle& HandleToAdd)
 {
 	TargetHandle.Append(HandleToAdd);
