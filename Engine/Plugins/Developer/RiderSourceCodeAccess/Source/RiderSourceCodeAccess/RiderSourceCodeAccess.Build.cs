@@ -15,7 +15,8 @@ namespace UnrealBuildTool.Rules
                     "DesktopPlatform",
 					"Projects",
 					"Json",
-					"Projects"
+					"Projects",
+					"Slate"
 				}
 			);
 
