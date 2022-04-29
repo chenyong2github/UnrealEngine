@@ -27,7 +27,7 @@ struct FOptimusAnimAttributeDescription
 	FOptimusDataTypeRef DataType;
 
 	UPROPERTY(EditAnywhere, Category = "Data Interface", meta=(EditInLine))
-	TObjectPtr<UOptimusValueContainer> DefaultValue;
+	TObjectPtr<UOptimusValueContainer> DefaultValue = nullptr;
 	
 	UPROPERTY()
 	FString HlslId;
