@@ -1,5 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
+
+#ifdef _WINDOWS
 #include <windows.h>
+#else
+#include <unistd.h>
+#define Sleep(x) usleep((x)*1000)
+#endif
 
 int main(int argc, char *argv[]) {
     printf("Horde Remote Execution Test Binary\n");
