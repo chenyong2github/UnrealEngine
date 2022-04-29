@@ -3,6 +3,7 @@
 #include "Serialization/LargeMemoryData.h"
 #include "Logging/LogMacros.h"
 #include "CoreGlobals.h"
+#include "HAL/IConsoleManager.h"
 
 
 int32 GPooledLargeMemoryData_MaxPoolLength = 2;
