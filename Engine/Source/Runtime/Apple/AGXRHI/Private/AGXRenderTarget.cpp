@@ -128,7 +128,7 @@ void FAGXRHICommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI
 		{
 			const FPixelFormatInfo& SourceFormatInfo = GPixelFormats[SourceDesc.Format];
 			const FPixelFormatInfo& DestFormatInfo = GPixelFormats[DestinationDesc.Format];
-			bool bUsingPixelFormatView = (Source->Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView) != 0;
+			bool bUsingPixelFormatView = ([Source->Texture.GetPtr() usage] & MTLTextureUsagePixelFormatView) != 0;
 			
 			// Attempt to Resolve with a texture view - source Texture doesn't have to be created with MTLTextureUsagePixelFormatView for these cases e.g:
 			// If we are resolving to/from sRGB linear color space within the same format OR using same bit length color format

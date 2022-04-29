@@ -223,7 +223,7 @@ public:
 	FAGXTexture GetDrawableTexture();
 	ns::AutoReleased<FAGXTexture> GetCurrentTexture();
 
-	FAGXTexture Reallocate(FAGXTexture Texture, mtlpp::TextureUsage UsageModifier);
+	FAGXTexture Reallocate(FAGXTexture Texture, MTLTextureUsage UsageModifier);
 	void MakeAliasable(void);
 
 	uint8 const FormatKey;

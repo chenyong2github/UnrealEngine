@@ -294,14 +294,14 @@ void FAGXRHIBuffer::AllocLinearTextures(const LinearTextureMapKey& InLinearTextu
 		MTLPixelFormat MTLFormat = (MTLPixelFormat)GAGXBufferFormats[InFormat].LinearTextureFormat;
 		
 		mtlpp::TextureDescriptor Desc;
-		NSUInteger TexUsage = mtlpp::TextureUsage::Unknown;
+		MTLTextureUsage TexUsage = MTLTextureUsageUnknown;
 		if (EnumHasAnyFlags(Usage, BUF_ShaderResource))
 		{
-			TexUsage |= mtlpp::TextureUsage::ShaderRead;
+			TexUsage |= MTLTextureUsageShaderRead;
 		}
 		if (EnumHasAnyFlags(Usage, BUF_UnorderedAccess))
 		{
-			TexUsage |= mtlpp::TextureUsage::ShaderWrite;
+			TexUsage |= MTLTextureUsageShaderWrite;
 		}
 		
 		uint32 BytesPerElement = (0 == LinearTextureDesc.BytesPerElement) ? GPixelFormats[InFormat].BlockBytes : LinearTextureDesc.BytesPerElement;

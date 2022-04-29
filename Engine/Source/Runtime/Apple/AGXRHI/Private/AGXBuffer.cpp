@@ -947,9 +947,9 @@ FAGXTexture FAGXTexturePool::CreateTexture(mtlpp::TextureDescriptor Desc)
 	Descriptor.arrayLength = Desc.GetArrayLength();
 	Descriptor.resourceOptions = Desc.GetResourceOptions();
 	Descriptor.usage = Desc.GetUsage();
-	if (Descriptor.usage == mtlpp::TextureUsage::Unknown)
+	if (Descriptor.usage == MTLTextureUsageUnknown)
 	{
-		Descriptor.usage = (mtlpp::TextureUsage)(mtlpp::TextureUsage::ShaderRead | mtlpp::TextureUsage::ShaderWrite | mtlpp::TextureUsage::RenderTarget | mtlpp::TextureUsage::PixelFormatView);
+		Descriptor.usage = (MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite | MTLTextureUsageRenderTarget | MTLTextureUsagePixelFormatView);
 	}
 	Descriptor.freedFrame = 0;
 
@@ -962,7 +962,7 @@ FAGXTexture FAGXTexturePool::CreateTexture(mtlpp::TextureDescriptor Desc)
 		Pool.Remove(Descriptor);
 		if (GAGXResourcePurgeInPool)
 		{
-            Texture.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+            [Texture.GetPtr() setPurgeableState:MTLPurgeableStateNonVolatile];
         }
 	}
 	else
@@ -991,9 +991,9 @@ void FAGXTexturePool::ReleaseTexture(FAGXTexture& Texture)
 	Descriptor.usage = Texture.GetUsage();
 	Descriptor.freedFrame = GFrameNumberRenderThread;
 	
-    if (GAGXResourcePurgeInPool && Texture.SetPurgeableState(mtlpp::PurgeableState::KeepCurrent) == mtlpp::PurgeableState::NonVolatile)
+    if (GAGXResourcePurgeInPool && [Texture.GetPtr() setPurgeableState:MTLPurgeableStateKeepCurrent] == MTLPurgeableStateNonVolatile)
     {
-        Texture.SetPurgeableState(mtlpp::PurgeableState::Volatile);
+        [Texture.GetPtr() setPurgeableState:MTLPurgeableStateVolatile];
     }
 	
 	FScopeLock Lock(&PoolMutex);
@@ -1019,7 +1019,7 @@ void FAGXTexturePool::Drain(bool const bForce)
             {
 				if (GAGXResourcePurgeInPool && (GFrameNumberRenderThread - It->Key.freedFrame) >= PurgeAfterNumFrames)
 				{
-					It->Value.SetPurgeableState(mtlpp::PurgeableState::Empty);
+					[It->Value.GetPtr() setPurgeableState:MTLPurgeableStateEmpty];
 				}
             }
         }
@@ -1175,7 +1175,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 					Buffer = ManagedBuffers.CreatePooledResource(FAGXPooledBufferArgs(BlockSize, Flags, Options));
 					if (GAGXResourcePurgeInPool)
 					{
-						Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+						[Buffer.GetPtr() setPurgeableState:MTLPurgeableStateNonVolatile];
 					}
 					DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, Buffer.GetLength());
 					DEC_MEMORY_STAT_BY(STAT_AGXPooledBufferUnusedMemory, Buffer.GetLength());
@@ -1252,7 +1252,7 @@ FAGXBuffer FAGXResourceHeap::CreateBuffer(uint32 Size, uint32 Alignment, EBuffer
 					Buffer = Buffers[Storage].CreatePooledResource(FAGXPooledBufferArgs(BlockSize, Flags, Options));
 					if (GAGXResourcePurgeInPool)
 					{
-                   		Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+                   		[Buffer.GetPtr() setPurgeableState:MTLPurgeableStateNonVolatile];
 					}
 					DEC_MEMORY_STAT_BY(STAT_AGXBufferUnusedMemory, Buffer.GetLength());
 					DEC_MEMORY_STAT_BY(STAT_AGXPooledBufferUnusedMemory, Buffer.GetLength());
@@ -1301,7 +1301,7 @@ void FAGXResourceHeap::ReleaseBuffer(FAGXBuffer& Buffer)
 		
 		if (GAGXResourcePurgeInPool)
 		{
-       		Buffer.SetPurgeableState(mtlpp::PurgeableState::Volatile);
+       		[Buffer.GetPtr() setPurgeableState:MTLPurgeableStateVolatile];
 		}
         
 		switch (StorageMode)
@@ -1338,7 +1338,7 @@ FAGXTexture FAGXResourceHeap::CreateTexture(mtlpp::TextureDescriptor Desc, FAGXS
 	LLM_SCOPE_METAL(ELLMTagAGX::Textures);
 	LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::Textures);
 	
-	if (Desc.GetUsage() & mtlpp::TextureUsage::RenderTarget)
+	if ([Desc.GetPtr() usage] & MTLTextureUsageRenderTarget)
 	{
 		LLM_PLATFORM_SCOPE_METAL(ELLMTagAGX::RenderTargets);
 		return TargetPool.CreateTexture(Desc);
@@ -1353,7 +1353,7 @@ void FAGXResourceHeap::ReleaseTexture(FAGXSurface* Surface, FAGXTexture& Texture
 {
 	if (Texture && !Texture.GetBuffer() && !Texture.GetParentTexture())
 	{
-        if (Texture.GetUsage() & mtlpp::TextureUsage::RenderTarget)
+        if ([Texture.GetPtr() usage] & MTLTextureUsageRenderTarget)
         {
            	TargetPool.ReleaseTexture(Texture);
         }

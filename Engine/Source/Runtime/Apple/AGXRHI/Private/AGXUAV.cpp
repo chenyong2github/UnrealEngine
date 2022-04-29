@@ -167,17 +167,17 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 			{
 				// Recreate the texture to enable MTLTextureUsagePixelFormatView which must be off unless we definitely use this feature or we are throwing ~4% performance vs. Windows on the floor.
 				// @todo recreating resources like this will likely prevent us from making view creation multi-threaded.
-				if (!(SourceTexture->Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
+				if (!([SourceTexture->Texture.GetPtr() usage] & MTLTextureUsagePixelFormatView))
 					SourceTexture->PrepareTextureView();
 
 				ns::Range Slices(0, SourceTexture->Texture.GetArrayLength() * (SourceTexture->GetDesc().IsTextureCube() ? 6 : 1));
 				
 				// @todo: Remove this type swizzle once Cube UAV supported for all Metal Devices - SRV seem to want to stay as cube but UAV are expected to be 2DArray
-				mtlpp::TextureType TextureType = bInUAV && SourceTexture->GetDesc().IsTextureCube() ? mtlpp::TextureType::Texture2DArray : SourceTexture->Texture.GetTextureType();
+				MTLTextureType TextureType = bInUAV && SourceTexture->GetDesc().IsTextureCube() ? MTLTextureType2DArray : [SourceTexture->Texture.GetPtr() textureType];
 
 				TextureView = SourceTexture->Texture.NewTextureView(
-					(mtlpp::PixelFormat)MetalFormat,
-					TextureType,
+					mtlpp::PixelFormat(MetalFormat),
+					mtlpp::TextureType(TextureType),
 					ns::Range(MipLevel, NumMips),
 					Slices);
 			}
@@ -236,7 +236,7 @@ FUnorderedAccessViewRHIRef FAGXDynamicRHI::RHICreateUnorderedAccessView_RenderTh
 	// safe.
 	//
 
-	if (!(Surface->Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
+	if (!([Surface->Texture.GetPtr() usage] & MTLTextureUsagePixelFormatView))
 	{
 		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
 		return this->RHICreateUnorderedAccessView(Texture, MipLevel, FirstArraySlice, NumArraySlices);
@@ -352,7 +352,7 @@ FShaderResourceViewRHIRef FAGXDynamicRHI::RHICreateShaderResourceView_RenderThre
 	// safe.
 	//
 	
-	if (!(Surface->Texture.GetUsage() & mtlpp::TextureUsage::PixelFormatView))
+	if (!([Surface->Texture.GetPtr() usage] & MTLTextureUsagePixelFormatView))
 	{
 		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
 		return this->RHICreateShaderResourceView(Texture2DRHI, CreateInfo);

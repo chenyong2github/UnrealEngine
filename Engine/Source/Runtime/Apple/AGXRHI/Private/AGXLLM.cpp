@@ -168,7 +168,7 @@ void AGXLLM::LogAllocTexture(mtlpp::TextureDescriptor const& Desc, mtlpp::Textur
 	{
 		LLM_SCOPED_PAUSE_TRACKING(ELLMAllocType::System);
 		
-		if (Desc.GetUsage() & mtlpp::TextureUsage::RenderTarget)
+		if ([Desc.GetPtr() usage] & MTLTextureUsageRenderTarget)
 		{
 			objc_setAssociatedObject(Texture.GetPtr(), (void*)&AGXLLM::LogAllocTexture,
 			[[[FAGXDeallocHandler alloc] initWithBlock:^{

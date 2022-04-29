@@ -467,7 +467,7 @@ void FAGXDeviceContext::ClearFreeList()
 				}
 				if (GAGXResourcePurgeOnDelete && !Buffer.GetParentBuffer())
 				{
-					Buffer.SetPurgeableState(mtlpp::PurgeableState::Empty);
+					[Buffer.GetPtr() setPurgeableState:MTLPurgeableStateEmpty];
 				}
 #endif
 				Heap.ReleaseBuffer(Buffer);
@@ -479,7 +479,7 @@ void FAGXDeviceContext::ClearFreeList()
 #if METAL_DEBUG_OPTIONS
 					if (GAGXResourcePurgeOnDelete)
 					{
-						Texture.SetPurgeableState(mtlpp::PurgeableState::Empty);
+						[Texture.GetPtr() setPurgeableState:MTLPurgeableStateEmpty];
 					}
 #endif
 					Heap.ReleaseTexture(nullptr, Texture);
@@ -713,7 +713,7 @@ FAGXTexture FAGXDeviceContext::CreateTexture(FAGXSurface* Surface, mtlpp::Textur
 #if METAL_DEBUG_OPTIONS
 	if (GAGXResourcePurgeOnDelete)
 	{
-		Tex.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+		[Tex.GetPtr() setPurgeableState:MTLPurgeableStateNonVolatile];
 	}
 #endif
 	
@@ -736,7 +736,7 @@ FAGXBuffer FAGXDeviceContext::CreatePooledBuffer(FAGXPooledBufferArgs const& Arg
 #if METAL_DEBUG_OPTIONS
 	if (GAGXResourcePurgeOnDelete)
 	{
-		Buffer.SetPurgeableState(mtlpp::PurgeableState::NonVolatile);
+		[Buffer.GetPtr() setPurgeableState:MTLPurgeableStateNonVolatile];
 	}
 #endif
 	

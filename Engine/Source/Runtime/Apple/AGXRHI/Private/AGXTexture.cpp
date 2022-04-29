@@ -38,38 +38,39 @@ static bool IsRenderTarget(ETextureCreateFlags Flags)
 	return EnumHasAnyFlags(Flags, TexCreate_RenderTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable | TexCreate_DepthStencilResolveTarget);
 }
 
-static mtlpp::TextureUsage ConvertFlagsToUsage(ETextureCreateFlags Flags)
+static MTLTextureUsage ConvertFlagsToUsage(ETextureCreateFlags Flags)
 {
-	NSUInteger Usage = mtlpp::TextureUsage::Unknown;
-    if (EnumHasAnyFlags(Flags, TexCreate_ShaderResource|TexCreate_ResolveTargetable|TexCreate_DepthStencilTargetable))
+	MTLTextureUsage Usage = MTLTextureUsageUnknown;
+    if (EnumHasAnyFlags(Flags, TexCreate_ShaderResource | TexCreate_ResolveTargetable | TexCreate_DepthStencilTargetable))
 	{
-		Usage |= mtlpp::TextureUsage::ShaderRead;
-		Usage |= mtlpp::TextureUsage::PixelFormatView;
+		Usage |= MTLTextureUsageShaderRead;
+		Usage |= MTLTextureUsagePixelFormatView;
 	}
 	
 	if (EnumHasAnyFlags(Flags, TexCreate_UAV))
 	{
-		Usage |= mtlpp::TextureUsage::ShaderRead;
-		Usage |= mtlpp::TextureUsage::ShaderWrite;
-		Usage |= mtlpp::TextureUsage::PixelFormatView;
+		Usage |= MTLTextureUsageShaderRead;
+		Usage |= MTLTextureUsageShaderWrite;
+		Usage |= MTLTextureUsagePixelFormatView;
 	}
 	
 	// offline textures are normal shader read textures
 	if (EnumHasAnyFlags(Flags, TexCreate_OfflineProcessed))
 	{
-		Usage |= mtlpp::TextureUsage::ShaderRead;
+		Usage |= MTLTextureUsageShaderRead;
 	}
 
 	//if the high level is doing manual resolves then the textures specifically markes as resolve targets
 	//are likely to be used in a manual shader resolve by the high level and must be bindable as rendertargets.
 	const bool bSeparateResolveTargets = FAGXCommandQueue::SupportsSeparateMSAAAndResolveTarget();
 	const bool bResolveTarget = EnumHasAnyFlags(Flags, TexCreate_ResolveTargetable);
-	if (EnumHasAnyFlags(Flags, TexCreate_RenderTargetable|TexCreate_DepthStencilTargetable|TexCreate_DepthStencilResolveTarget) || (bResolveTarget && bSeparateResolveTargets))
+	if (EnumHasAnyFlags(Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_DepthStencilResolveTarget) || (bResolveTarget && bSeparateResolveTargets))
 	{
-		Usage |= mtlpp::TextureUsage::RenderTarget;
-		Usage |= mtlpp::TextureUsage::ShaderRead;
+		Usage |= MTLTextureUsageRenderTarget;
+		Usage |= MTLTextureUsageShaderRead;
 	}
-	return (mtlpp::TextureUsage)Usage;
+
+	return Usage;
 }
 
 static bool IsPixelFormatCompressed(EPixelFormat Format)
@@ -254,12 +255,12 @@ MTLPixelFormat AGXToSRGBFormat(MTLPixelFormat MTLFormat)
 void FAGXSurface::PrepareTextureView()
 {
 	// Recreate the texture to enable MTLTextureUsagePixelFormatView which must be off unless we definitely use this feature or we are throwing ~4% performance vs. Windows on the floor.
-	mtlpp::TextureUsage Usage = (mtlpp::TextureUsage)Texture.GetUsage();
+	MTLTextureUsage Usage = [Texture.GetPtr() usage];
 	bool bMemoryLess = false;
 #if PLATFORM_IOS
-	bMemoryLess = ([Texture storageMode] == MTLStorageModeMemoryless);
+	bMemoryLess = ([Texture.GetPtr() storageMode] == MTLStorageModeMemoryless);
 #endif
-	if(!(Usage & mtlpp::TextureUsage::PixelFormatView) && !bMemoryLess)
+	if (!(Usage & MTLTextureUsagePixelFormatView) && !bMemoryLess)
 	{
 		check(ImageSurfaceRef == nullptr);
 		
@@ -269,18 +270,18 @@ void FAGXSurface::PrepareTextureView()
 		if (MSAATexture && !bMSAATextureIsTexture)
 		{
 			FAGXTexture OldMSAATexture = MSAATexture;
-			MSAATexture = Reallocate(MSAATexture, mtlpp::TextureUsage::PixelFormatView);
+			MSAATexture = Reallocate(MSAATexture, MTLTextureUsagePixelFormatView);
 			AGXSafeReleaseMetalTexture(this, OldMSAATexture, ImageSurfaceRef != nullptr);
 		}
 		if (MSAAResolveTexture && !bMSAAResolveTextureIsTexture)
 		{
 			FAGXTexture OldMSAAResolveTexture = MSAAResolveTexture;
-			MSAAResolveTexture = Reallocate(MSAAResolveTexture, mtlpp::TextureUsage::PixelFormatView);
+			MSAAResolveTexture = Reallocate(MSAAResolveTexture, MTLTextureUsagePixelFormatView);
 			AGXSafeReleaseMetalTexture(this, OldMSAAResolveTexture, ImageSurfaceRef != nullptr);
 		}
 		
 		FAGXTexture OldTexture = Texture;
-		Texture = Reallocate(Texture, mtlpp::TextureUsage::PixelFormatView);
+		Texture = Reallocate(Texture, MTLTextureUsagePixelFormatView);
 		AGXSafeReleaseMetalTexture(this, OldTexture, ImageSurfaceRef != nullptr);
 		
 		if (bMSAATextureIsTexture)
@@ -294,7 +295,7 @@ void FAGXSurface::PrepareTextureView()
 	}
 }
 
-FAGXTexture FAGXSurface::Reallocate(FAGXTexture InTexture, mtlpp::TextureUsage UsageModifier)
+FAGXTexture FAGXSurface::Reallocate(FAGXTexture InTexture, MTLTextureUsage UsageModifier)
 {
 	mtlpp::TextureDescriptor Desc;
 	Desc.SetTextureType(InTexture.GetTextureType());
@@ -306,7 +307,7 @@ FAGXTexture FAGXSurface::Reallocate(FAGXTexture InTexture, mtlpp::TextureUsage U
 	Desc.SetSampleCount(InTexture.GetSampleCount());
 	Desc.SetArrayLength(InTexture.GetArrayLength());
 	Desc.SetResourceOptions(mtlpp::ResourceOptions([InTexture.GetPtr() resourceOptions]));
-	Desc.SetUsage(mtlpp::TextureUsage(InTexture.GetUsage() | UsageModifier));
+	Desc.SetUsage(mtlpp::TextureUsage([InTexture.GetPtr() usage] | UsageModifier));
 	
 	FAGXTexture NewTex = GetAGXDeviceContext().CreateTexture(this, Desc);
 	check(NewTex);
@@ -496,7 +497,7 @@ FAGXTextureDesc::FAGXTextureDesc(FRHITextureDesc const& InDesc)
 #endif
 
 		Desc.SetResourceOptions(mtlpp::ResourceOptions(MTLResourceCPUCacheModeDefaultCache | ResourceStorageMode | MTLResourceHazardTrackingModeDefault));
-		Desc.SetUsage(ConvertFlagsToUsage(InDesc.Flags));
+		Desc.SetUsage(mtlpp::TextureUsage(ConvertFlagsToUsage(InDesc.Flags)));
 	}
 	
 	if (!FParse::Param(FCommandLine::Get(), TEXT("nomsaa")))
@@ -2025,8 +2026,8 @@ void FAGXRHICommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITe
 
 			if (TextureFormatExactMatch)
 			{
-				mtlpp::TextureUsage Usage = MetalSrcTexture->Texture.GetUsage();
-				if (Usage & mtlpp::TextureUsage::PixelFormatView)
+				MTLTextureUsage Usage = [MetalSrcTexture->Texture.GetPtr() usage];
+				if (Usage & MTLTextureUsagePixelFormatView)
 				{
 					ns::Range Slices(0, MetalSrcTexture->Texture.GetArrayLength() * (MetalSrcTexture->GetDesc().IsTextureCube() ? 6 : 1));
 					if (MetalSrcTexture->Texture.GetPixelFormat() != MetalDestTexture->Texture.GetPixelFormat())
