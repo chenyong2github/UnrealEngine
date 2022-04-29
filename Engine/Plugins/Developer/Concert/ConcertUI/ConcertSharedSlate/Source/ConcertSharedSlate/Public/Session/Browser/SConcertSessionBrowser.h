@@ -27,7 +27,8 @@ DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FExtendSessionTable, const
 DECLARE_DELEGATE_OneParam(FExtenderDelegate, FExtender&);
 DECLARE_DELEGATE_TwoParams(FExtendSessionContextMenu, const TSharedPtr<FConcertSessionItem>&, FExtender&)
 DECLARE_DELEGATE_OneParam(FSessionDelegate, const TSharedPtr<FConcertSessionItem>& /*Session*/);
-DECLARE_DELEGATE_RetVal_OneParam(bool, FCanRemoveSession, const TSharedPtr<FConcertSessionItem>& /* SessionItem */);
+DECLARE_DELEGATE_OneParam(FSessionListDelegate, const TArray<TSharedPtr<FConcertSessionItem>>& /*Sessions*/);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FCanRemoveSessions, const TArray<TSharedPtr<FConcertSessionItem>>& /* SessionItem */);
 
 /**
  * Enables the user to browse/search/filter/sort active and archived sessions, create new session,
@@ -76,12 +77,10 @@ public:
 	/** Called when an archived session is double-clicked. If unset, the default behaviour is to rename the session. */
 	SLATE_EVENT(FSessionDelegate, OnArchivedSessionDoubleClicked)
 	/** Called after a user has requested to delete a session */
-	SLATE_EVENT(FSessionDelegate, OnRequestedDeleteSession)
+	SLATE_EVENT(FSessionListDelegate, PostRequestedDeleteSession)
 
 	/** Ask the user to confirm archiving - most obvious implementation is showing a dialog box */
-	SLATE_EVENT(FCanRemoveSession, CanDeleteArchivedSession)
-	/** Ask the user to confirm deleting - most obvious implementation is showing a dialog box */
-	SLATE_EVENT(FCanRemoveSession, CanDeleteActiveSession)
+	SLATE_EVENT(FCanRemoveSessions, AskUserToDeleteSessions)
 
 	/** Optional snapshot to restore column visibilities with */
 	SLATE_ARGUMENT(FColumnVisibilitySnapshot, ColumnVisibilitySnapshot)
@@ -104,7 +103,7 @@ public:
 	//~ End SWidget Interface
 	
 	void RefreshSessionList();
-	TArray<TSharedPtr<FConcertSessionItem>> GetSessions() const { return Sessions; }
+	bool HasAnySessions() const { return Sessions.Num() > 0; }
 	TArray<TSharedPtr<FConcertSessionItem>> GetSelectedItems() const { return SessionsView->GetSelectedItems(); }
 
 	bool IsNewButtonEnabled() const { return IsNewButtonEnabledInternal(); }
@@ -116,7 +115,7 @@ public:
 	/** Adds row for creating new session. Exposed for other widgets, e.g. discovery overlay to create a new session. */
 	void InsertNewSessionEditableRow() { InsertNewSessionEditableRowInternal(); }
 	/** Creates row under the given (archived) session with which session can be restored. */
-	void InsertRestoreSessionAsEditableRow(const TSharedPtr<FConcertSessionItem>& ArchivedItem) { InsertRestoreSessionAsEditableRowInternal(ArchivedItem); };
+	void InsertRestoreSessionAsEditableRow(const TSharedPtr<FConcertSessionItem>& ArchivedItem) { InsertRestoreSessionAsEditableRowInternal(ArchivedItem); }
 	
 private:
 	
@@ -180,7 +179,7 @@ private:
 	void RequestArchiveSession(const TSharedPtr<FConcertSessionItem>& ActiveItem, const FString& ArchiveName);
 	void RequestRestoreSession(const TSharedPtr<FConcertSessionItem>& RestoreItem, const FString& SessionName);
 	void RequestRenameSession(const TSharedPtr<FConcertSessionItem>& RenamedItem, const FString& NewName);
-	void RequestDeleteSession(const TSharedPtr<FConcertSessionItem>& DeletedItem);
+	void RequestDeleteSessions(const TArray<TSharedPtr<FConcertSessionItem>>& ItemsToDelete);
 
 	TSharedPtr<IConcertSessionBrowserController> GetController() const;
 
@@ -204,9 +203,8 @@ private:
 	/** If unset, the default behaviour is to rename the session. */
 	FSessionDelegate OnArchivedSessionDoubleClicked;
 	/** Called after a live or archived session was requested to be deleted (it may or may not have been deleted).*/
-	FSessionDelegate OnRequestedDeleteSession;
-	FCanRemoveSession CanDeleteArchivedSession;
-	FCanRemoveSession CanDeleteActiveSession;
+	FSessionListDelegate PostRequestedDeleteSession;
+	FCanRemoveSessions AskUserToDeleteSessions;
 
 	// The items displayed in the session list view. It might be filtered and sorted compared to the full list hold by the controller.
 	TArray<TSharedPtr<FConcertSessionItem>> Sessions;

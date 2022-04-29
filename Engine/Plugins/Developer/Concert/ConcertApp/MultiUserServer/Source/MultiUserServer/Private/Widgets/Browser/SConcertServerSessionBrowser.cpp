@@ -5,17 +5,16 @@
 #include "ModalWindowManager.h"
 #include "MultiUserServerModule.h"
 #include "MultiUserServerUserSettings.h"
-#include "Session/Browser/SConcertSessionBrowser.h"
-#include "Widgets/Browser/ConcertServerSessionBrowserController.h"
-#include "Widgets/StatusBar/SConcertStatusBar.h"
 
 #include "Dialog/SMessageDialog.h"
-#include "Framework/Docking/TabManager.h"
+#include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionItem.h"
+#include "Session/Browser/SConcertSessionBrowser.h"
+#include "Widgets/Browser/ConcertServerSessionBrowserController.h"
 #include "Widgets/ConcertServerTabs.h"
-#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/StatusBar/SConcertStatusBar.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 
@@ -55,10 +54,9 @@ TSharedRef<SWidget> SConcertServerSessionBrowser::MakeSessionTableView(const FAr
 	return SAssignNew(SessionBrowser, SConcertSessionBrowser, Controller.Pin().ToSharedRef(), SearchText)
 		.OnLiveSessionDoubleClicked(InArgs._DoubleClickLiveSession)
 		.OnArchivedSessionDoubleClicked(InArgs._DoubleClickArchivedSession)
-		.OnRequestedDeleteSession(this, &SConcertServerSessionBrowser::RequestDeleteSession)
+		.PostRequestedDeleteSession(this, &SConcertServerSessionBrowser::RequestDeleteSession)
 		// Pretend a modal dialog said no - RequestDeleteSession will show non-modal dialog
-		.CanDeleteArchivedSession_Lambda([](TSharedPtr<FConcertSessionItem>) { return false; })
-		.CanDeleteActiveSession_Lambda([](TSharedPtr<FConcertSessionItem>) { return false; })
+		.AskUserToDeleteSessions_Lambda([](auto) { return false; })
 		.ColumnVisibilitySnapshot(UMultiUserServerUserSettings::GetUserSettings()->GetSessionBrowserColumnVisibility())
 		.SaveColumnVisibilitySnapshot_Lambda([](const FColumnVisibilitySnapshot& Snapshot)
 		{
@@ -66,33 +64,46 @@ TSharedRef<SWidget> SConcertServerSessionBrowser::MakeSessionTableView(const FAr
 		});
 }
 
-void SConcertServerSessionBrowser::RequestDeleteSession(const TSharedPtr<FConcertSessionItem>& SessionItem) 
+void SConcertServerSessionBrowser::RequestDeleteSession(const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems) 
 {
-	switch (SessionItem->Type)
+	const FText Message = [this, &SessionItems]()
 	{
-	case FConcertSessionItem::EType::ActiveSession:
-		DeleteActiveSessionWithFakeModalQuestion(SessionItem); break;
-	case FConcertSessionItem::EType::ArchivedSession:
-		DeleteArchivedSessionWithFakeModalQuestion(SessionItem); break;
-	default:
-		break;
-	}
+		if (SessionItems.Num() > 1)
+		{
+			return FText::Format(
+			LOCTEXT("DeletedMultipleDescription", "Deleting a session will force all connected clients to disconnect and all associated data to be removed.\n\nDelete {0} sessions?"),
+				SessionItems.Num()
+			);
+		}
+			
+		switch (SessionItems[0]->Type)
+		{
+		case FConcertSessionItem::EType::ActiveSession:
+			return FText::Format(
+				LOCTEXT("DeletedActiveDescription", "There {0}|plural(one=is,other=are) {0} connected {0}|plural(one=client,other=clients) in the current session.\nDeleting a session will force all connected clients to disconnect.\n\nDelete {1}?"),
+				Controller.Pin()->GetNumConnectedClients(SessionItems[0]->SessionId),
+				FText::FromString(SessionItems[0]->SessionName)
+			);
+		case FConcertSessionItem::EType::ArchivedSession:
+			return FText::Format(
+				LOCTEXT("DeleteArchivedDescription", "Deleting a session will cause all associated data to be removed.\n\nDelete {0}?"),
+				FText::FromString(SessionItems[0]->SessionName)
+				);
+		default:
+			checkNoEntry();
+			return FText::GetEmpty();
+		}
+	}();
+	DeleteSessionsWithFakeModalQuestion(Message, SessionItems);
 }
 
-void SConcertServerSessionBrowser::DeleteArchivedSessionWithFakeModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem)
+void SConcertServerSessionBrowser::DeleteSessionsWithFakeModalQuestion(const FText& Message, const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems)
 {
-	const FText Message = FText::Format(
-	LOCTEXT("DeleteArchivedDescription", "Deleting a session will cause all associated data to be removed.\n\nDelete {0}?"),
-		FText::FromString(SessionItem->SessionName)
-		);
-
-	auto DeleteArchived = [WeakController = TWeakPtr<FConcertServerSessionBrowserController>(Controller), WeakSessionItem = TWeakPtr<FConcertSessionItem>(SessionItem)]()
+	auto DeleteArchived = [WeakController = TWeakPtr<FConcertServerSessionBrowserController>(Controller), SessionItems]()
 	{
-		const TSharedPtr<FConcertServerSessionBrowserController> PinnedController = WeakController.Pin();
-		const TSharedPtr<FConcertSessionItem> PinnedSessionItem = WeakSessionItem.Pin();
-		if (PinnedController && PinnedSessionItem)
+		if (const TSharedPtr<FConcertServerSessionBrowserController> PinnedController = WeakController.Pin())
 		{
-			PinnedController->DeleteArchivedSession(PinnedSessionItem->ServerAdminEndpointId, PinnedSessionItem->SessionId);
+			ConcertBrowserUtils::RequestItemDeletion(*PinnedController.Get(), SessionItems);
 		}
 	};
 	const TSharedRef<SMessageDialog> Dialog = SNew(SMessageDialog)
@@ -106,42 +117,6 @@ void SConcertServerSessionBrowser::DeleteArchivedSessionWithFakeModalQuestion(co
 			SMessageDialog::FButton(LOCTEXT("CancelButton", "Cancel"))
 				.SetPrimary(true)
 				.SetFocus()
-		});
-
-	UE::MultiUserServer::FConcertServerUIModule::Get()
-		.GetModalWindowManager()
-		->ShowFakeModalWindow(Dialog);
-}
-
-void SConcertServerSessionBrowser::DeleteActiveSessionWithFakeModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem)
-{
-	const int32 NumUsers = Controller.Pin()->GetNumConnectedClients(SessionItem->SessionId);
-	const FText Message = FText::Format(
-		LOCTEXT("DeletedActiveDescription", "There {0}|plural(one=is,other=are) {0} connected {0}|plural(one=client,other=clients) in the current session.\nDeleting a session will force all connected clients to disconnect.\n\nDelete {1}?"),
-		NumUsers,
-		FText::FromString(SessionItem->SessionName)
-		);
-
-	auto DeleteActive = [WeakController = TWeakPtr<FConcertServerSessionBrowserController>(Controller), WeakSessionItem = TWeakPtr<FConcertSessionItem>(SessionItem)]()
-	{
-		const TSharedPtr<FConcertServerSessionBrowserController> PinnedController = WeakController.Pin();
-		const TSharedPtr<FConcertSessionItem> PinnedSessionItem = WeakSessionItem.Pin();
-		if (PinnedController && PinnedSessionItem)
-		{
-			PinnedController->DeleteActiveSession(PinnedSessionItem->ServerAdminEndpointId, PinnedSessionItem->SessionId);
-		}
-	};
-	const TSharedRef<SMessageDialog> Dialog = SNew(SMessageDialog)
-		.Title(LOCTEXT("DisconnectUsersTitle", "Force Users to Disconnect?"))
-		.IconBrush("Icons.WarningWithColor.Large")
-		.Message(Message)
-		.UseScrollBox(false)
-		.Buttons({
-			SMessageDialog::FButton(LOCTEXT("DeleteActiveButton", "Delete"))
-				.SetPrimary(true)
-				.SetOnClicked(FSimpleDelegate::CreateLambda(DeleteActive))
-				.SetFocus(),
-			SMessageDialog::FButton(LOCTEXT("CancelButton", "Cancel"))
 		});
 
 	UE::MultiUserServer::FConcertServerUIModule::Get()

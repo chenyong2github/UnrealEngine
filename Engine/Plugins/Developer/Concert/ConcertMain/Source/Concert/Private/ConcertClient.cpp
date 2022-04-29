@@ -7,6 +7,8 @@
 #include "ConcertLogger.h"
 #include "ConcertLogGlobal.h"
 
+#include "Algo/Transform.h"
+
 #include "Containers/Ticker.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
@@ -997,6 +999,52 @@ TFuture<EConcertResponseCode> FConcertClient::DeleteSession(const FGuid& ServerA
 				Notification.SetComplete(FText::Format(LOCTEXT("FailedToDeleteSessionFmt", "Failed to Delete Session '{0}'"), FText::FromString(RequestResponse.SessionName)), RequestResponse.Reason, false);
 			}
 			return RequestResponse.ResponseCode;
+		});
+}
+
+TFuture<FConcertAdmin_BatchDeleteSessionResponse> FConcertClient::BatchDeleteSessions(const FGuid& ServerAdminEndpointId, const FConcertBatchDeleteSessionsArgs& BatchDeletionArgs)
+{
+	FConcertAdmin_BatchDeleteSessionRequest DeleteSessionRequest;
+	DeleteSessionRequest.SessionIds = BatchDeletionArgs.SessionIds;
+	DeleteSessionRequest.Flags = BatchDeletionArgs.Flags;
+
+	// Fill the information for the client identification
+	DeleteSessionRequest.UserName = ClientInfo.UserName;
+	DeleteSessionRequest.DeviceName = ClientInfo.DeviceName;
+
+	FAsyncTaskNotificationConfig NotificationConfig;
+	NotificationConfig.bIsHeadless = Settings->bIsHeadless;
+	NotificationConfig.bKeepOpenOnFailure = true;
+	NotificationConfig.TitleText = LOCTEXT("DeletingSessions", "Deleting Sessions...");
+	NotificationConfig.LogCategory = ConcertUtil::GetLogConcertPtr();
+
+	FAsyncTaskNotification Notification(NotificationConfig);
+
+	return ClientAdminEndpoint->SendRequest<FConcertAdmin_BatchDeleteSessionRequest, FConcertAdmin_BatchDeleteSessionResponse>(DeleteSessionRequest, ServerAdminEndpointId)
+		.Next([this, NumRequested = DeleteSessionRequest.SessionIds.Num(), Notification = MoveTemp(Notification)](const FConcertAdmin_BatchDeleteSessionResponse& RequestResponse) mutable
+		{
+			if (RequestResponse.ResponseCode == EConcertResponseCode::Success)
+			{
+				const bool bDeletedAll = RequestResponse.DeletedItems.Num() == NumRequested;
+				const FText Message = bDeletedAll
+					? FText::Format(LOCTEXT("DeletedSessionsFmt.All", "Deleted {0} Sessions"), RequestResponse.DeletedItems.Num())
+					: FText::Format(LOCTEXT("DeletedSessionsFmt.Some", "Deleted {0} of {1} Sessions"), RequestResponse.DeletedItems.Num(), NumRequested);
+				const FText ProgressText = bDeletedAll
+					? FText::GetEmpty()
+					: [&RequestResponse]()
+					{
+						TArray<FString> SessionNames;
+						Algo::Transform(RequestResponse.NotOwnedByClient, SessionNames, [](const FDeletedSessionInfo& Skipped){ return Skipped.SessionName; });
+						return FText::FromString(FString::Join(SessionNames, TEXT(", ")));
+					}();
+				Notification.SetComplete(Message, ProgressText, true);
+			}
+			else
+			{
+				Notification.SetComplete(LOCTEXT("FailedToDeleteSessionsFmt", "Failed to Delete Sessions"), RequestResponse.Reason, false);
+			}
+
+			return RequestResponse;
 		});
 }
 

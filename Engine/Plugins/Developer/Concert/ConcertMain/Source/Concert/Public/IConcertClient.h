@@ -143,6 +143,12 @@ struct FConcertArchiveSessionArgs
 	FConcertSessionFilter SessionFilter;
 };
 
+struct FConcertBatchDeleteSessionsArgs
+{
+	TSet<FGuid> SessionIds;
+	EBatchSessionDeletionFlags Flags;
+};
+
 /** Interface for Concert client */
 class IConcertClient
 {
@@ -337,6 +343,15 @@ public:
 	 */
 	virtual TFuture<EConcertResponseCode> DeleteSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) = 0;
 
+	/**
+	 * Deletes several live or archives sessions from the server. The client will locally filter SessionIds and request deletion of only those sessions which the client is an owner of.
+	 * The server will still internally validate the client has permission and possibly refuse if there's a mismatch.
+	 * @param ServerAdminEndpointId	The Id of the Concert Server query endpoint
+	 * @param BatchDeletionArgs		The arguments that will be used for batch deleting the session(s)
+	 * @return A future that will contain the server's response AND which sessions were filtered out by the client before sending.
+	 */
+	virtual TFuture<FConcertAdmin_BatchDeleteSessionResponse> BatchDeleteSessions(const FGuid& ServerAdminEndpointId, const FConcertBatchDeleteSessionsArgs& BatchDeletionArgs) = 0;
+	
 	/** 
 	 * Disconnect from the current session.
 	 */

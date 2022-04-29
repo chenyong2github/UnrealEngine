@@ -21,6 +21,8 @@
 #include "Backends/JsonStructDeserializerBackend.h"
 #include "HAL/FileManager.h"
 
+#include "Templates/NonNullPointer.h"
+
 #define LOCTEXT_NAMESPACE "ConcertServer"
 
 namespace ConcertServerUtil
@@ -171,6 +173,7 @@ void FConcertServer::Startup()
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_ArchiveSessionRequest, FConcertAdmin_ArchiveSessionResponse>(this, &FConcertServer::HandleArchiveSessionRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_RenameSessionRequest, FConcertAdmin_RenameSessionResponse>(this, &FConcertServer::HandleRenameSessionRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_DeleteSessionRequest, FConcertAdmin_DeleteSessionResponse>(this, &FConcertServer::HandleDeleteSessionRequest);
+		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_BatchDeleteSessionRequest, FConcertAdmin_BatchDeleteSessionResponse>(this, &FConcertServer::HandleBatchDeleteSessionRequest);
 
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_GetAllSessionsRequest, FConcertAdmin_GetAllSessionsResponse>(this, &FConcertServer::HandleGetAllSessionsRequest);
 		ServerAdminEndpoint->RegisterRequestHandler<FConcertAdmin_GetLiveSessionsRequest, FConcertAdmin_GetSessionsResponse>(this, &FConcertServer::HandleGetLiveSessionsRequest);
@@ -1236,6 +1239,92 @@ FConcertAdmin_RenameSessionResponse FConcertServer::RenameSessionInternal(const 
 	return ResponseData;
 }
 
+TFuture<FConcertAdmin_BatchDeleteSessionResponse> FConcertServer::HandleBatchDeleteSessionRequest(const FConcertMessageContext& Context)
+{
+	FConcertAdmin_BatchDeleteSessionResponse ResponseData;
+	ResponseData.ResponseCode = EConcertResponseCode::Failed;
+	
+	const FConcertAdmin_BatchDeleteSessionRequest& Request = *Context.GetMessage<FConcertAdmin_BatchDeleteSessionRequest>();
+	TMap<FGuid, FString> SessionNames;
+	if (ValidateBatchDeletionRequest(Request, ResponseData, SessionNames))
+	{
+		ResponseData.ResponseCode = EConcertResponseCode::Success;
+		FConcertAdmin_DeleteSessionRequest DeleteSingleSessionRequest;
+		for (const FGuid& SessionToDelete : Request.SessionIds)
+		{
+			const bool bSkip = ResponseData.NotOwnedByClient.ContainsByPredicate([&SessionToDelete](const FDeletedSessionInfo& Info ){ return Info.SessionId == SessionToDelete; });
+			if (bSkip)
+			{
+				continue;
+			}
+			
+			DeleteSingleSessionRequest.SessionId = SessionToDelete;
+			const FConcertAdmin_DeleteSessionResponse DeleteResponse = DeleteSessionInternal(DeleteSingleSessionRequest, false);
+			if (DeleteResponse.ResponseCode == EConcertResponseCode::Success)
+			{
+				ResponseData.DeletedItems.Add({ SessionToDelete, SessionNames[SessionToDelete] });
+			}
+			else
+			{
+				// We may already have deleted some files ... maybe we should restore them in the future...
+				ResponseData.ResponseCode = EConcertResponseCode::Failed;
+				break;
+			}
+		}
+	}
+
+	return FConcertAdmin_BatchDeleteSessionResponse::AsFuture(MoveTemp(ResponseData));
+}
+
+bool FConcertServer::ValidateBatchDeletionRequest(const FConcertAdmin_BatchDeleteSessionRequest& Request, FConcertAdmin_BatchDeleteSessionResponse& OutResponse, TMap<FGuid, FString>& PreparedSessionInfo) const
+{
+	TArray<FDeletedSessionInfo> NotOwnedByClient;
+	for (const FGuid& SessionToDelete : Request.SessionIds)
+	{
+		if (TSharedPtr<IConcertServerSession> ServerSession = GetLiveSession(SessionToDelete))
+		{
+			const bool bHasPermission = IsRequestFromSessionOwner(ServerSession, Request.UserName, Request.DeviceName);
+			if (!bHasPermission && (Request.Flags & EBatchSessionDeletionFlags::SkipForbiddenSessions) != EBatchSessionDeletionFlags::Strict)
+			{
+				NotOwnedByClient.Add({ SessionToDelete, ServerSession->GetName() });
+			}
+			else if (!bHasPermission)
+			{
+				OutResponse.Reason = LOCTEXT("Error_BatchDelete_InvalidPerms_NotOwner", "Not the session owner.");
+				UE_LOG(LogConcert, Display, TEXT("User %s failed to delete live session '%s' (Id: %s, Owner: %s, Reason: %s)"), *Request.UserName, *ServerSession->GetName(), *SessionToDelete.ToString(), *ServerSession->GetSessionInfo().OwnerUserName, *OutResponse.Reason.ToString());
+				return false;
+			}
+
+			PreparedSessionInfo.Add(SessionToDelete, ServerSession->GetName());
+		}
+		else if (const FConcertSessionInfo* ArchivedSessionInfo = ArchivedSessions.Find(SessionToDelete))
+		{
+			const bool bHasPermission = IsRequestFromSessionOwner(*ArchivedSessionInfo, Request.UserName, Request.DeviceName);
+			if (!bHasPermission && (Request.Flags & EBatchSessionDeletionFlags::SkipForbiddenSessions) != EBatchSessionDeletionFlags::Strict)
+			{
+				NotOwnedByClient.Add({ SessionToDelete, ServerSession->GetName() });
+			}
+			else if (!bHasPermission)
+			{
+				OutResponse.Reason = LOCTEXT("Error_BatchDelete_InvalidPerms_NotOwner", "Not the session owner.");
+				UE_LOG(LogConcert, Display, TEXT("User %s failed to delete live session '%s' (Id: %s, Owner: %s, Reason: %s)"), *Request.UserName, *ArchivedSessionInfo->SessionName, *SessionToDelete.ToString(), *ServerSession->GetSessionInfo().OwnerUserName, *OutResponse.Reason.ToString());
+				return false;
+			}
+			
+			PreparedSessionInfo.Add(SessionToDelete, ArchivedSessionInfo->SessionName);
+		}
+		else
+		{
+			OutResponse.Reason = FText::Format(LOCTEXT("Error_BatchDelete_SessionDoesNotExist", "Session ID {0} does not exist."), FText::FromString(SessionToDelete.ToString()));
+			UE_LOG(LogConcert, Display, TEXT("User %s failed to delete session (Id: %s, Reason: %s)"), *Request.UserName, *SessionToDelete.ToString(), *OutResponse.Reason.ToString());
+			return false;
+		}
+	}
+
+	OutResponse.NotOwnedByClient = MoveTemp(NotOwnedByClient);
+	return true;
+}
+
 TFuture<FConcertAdmin_DeleteSessionResponse> FConcertServer::HandleDeleteSessionRequest(const FConcertMessageContext & Context)
 {
 	return FConcertAdmin_DeleteSessionResponse::AsFuture(DeleteSessionInternal(*Context.GetMessage<FConcertAdmin_DeleteSessionRequest>(), /*bCheckPermission*/true));
@@ -1391,14 +1480,19 @@ bool FConcertServer::CanJoinSession(const TSharedPtr<IConcertServerSession>& Ser
 	return true;
 }
 
-bool FConcertServer::IsRequestFromSessionOwner(const TSharedPtr<IConcertServerSession>& SessionToDelete, const FString& FromUserName, const FString& FromDeviceName)
+bool FConcertServer::IsRequestFromSessionOwner(const TSharedPtr<IConcertServerSession>& SessionToDelete, const FString& FromUserName, const FString& FromDeviceName) const
 {
 	if (SessionToDelete)
 	{
 		const FConcertSessionInfo& SessionInfo = SessionToDelete->GetSessionInfo();
-		return SessionInfo.OwnerUserName == FromUserName && SessionInfo.OwnerDeviceName == FromDeviceName;
+		return IsRequestFromSessionOwner(SessionInfo, FromUserName, FromDeviceName);
 	}
 	return false;
+}
+
+bool FConcertServer::IsRequestFromSessionOwner(const FConcertSessionInfo& SessionInfo, const FString& FromUserName, const FString& FromDeviceName) const
+{
+	return SessionInfo.OwnerUserName == FromUserName && SessionInfo.OwnerDeviceName == FromDeviceName;
 }
 
 TSharedPtr<IConcertServerSession> FConcertServer::CreateLiveSession(const FConcertSessionInfo& SessionInfo, const FConcertServerSessionRepository& InRepository)

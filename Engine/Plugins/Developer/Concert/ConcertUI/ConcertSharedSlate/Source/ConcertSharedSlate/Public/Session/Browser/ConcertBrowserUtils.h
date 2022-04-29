@@ -5,15 +5,17 @@
 #include "CoreMinimal.h"
 
 #include "ConcertMessageData.h"
+#include "IConcertSessionBrowserController.h"
+#include "Session/Browser/ConcertSessionItem.h"
 
 #include "EditorFontGlyphs.h"
-#include "SNegativeActionButton.h"
-#include "SPositiveActionButton.h"
-#include "Styling/AppStyle.h"
 #include "Internationalization/Regex.h"
 #include "Layout/Visibility.h"
 #include "Misc/Attribute.h"
 #include "Misc/AsyncTaskNotification.h"
+#include "SNegativeActionButton.h"
+#include "SPositiveActionButton.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateColor.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -100,5 +102,22 @@ namespace ConcertBrowserUtils
 				.ToolTipText(GetServerVersionIgnoredTooltip())
 				.Visibility((InServerFlags & EConcertServerFlags::IgnoreSessionRequirement) != EConcertServerFlags::None ? EVisibility::Visible : EVisibility::Collapsed)
 			];
+	}
+
+	/** Helper function to split an array of FConcertSessionItems into multiple requests and execute*/
+	inline void RequestItemDeletion(IConcertSessionBrowserController& Controller, const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems)
+	{
+		using FServerAdminEndpointId = FGuid;
+		using FSessionId = FGuid;
+			
+		TMap<FServerAdminEndpointId, TArray<FSessionId>> Requests;
+		for (const TSharedPtr<FConcertSessionItem>& Item : SessionItems)
+		{
+			Requests.FindOrAdd(Item->ServerAdminEndpointId).Add(Item->SessionId);
+		}
+		for (auto RequestIt = Requests.CreateConstIterator(); RequestIt; ++RequestIt)
+		{
+			Controller.DeleteSessions(RequestIt->Key, RequestIt->Value);
+		}
 	}
 }

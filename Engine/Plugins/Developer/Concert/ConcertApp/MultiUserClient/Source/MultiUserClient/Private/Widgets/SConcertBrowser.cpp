@@ -14,6 +14,7 @@
 #include "MultiUserClientUtils.h"
 #include "SActiveSession.h"
 #include "SConcertSessionRecovery.h"
+
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionItem.h"
 #include "Session/Browser/IConcertSessionBrowserController.h"
@@ -142,8 +143,7 @@ public:
 	virtual void RenameArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& NewName) override;
 	virtual bool CanRenameActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override;
 	virtual bool CanRenameArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override;
-	virtual void DeleteActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) override;
-	virtual void DeleteArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) override;
+	virtual void DeleteSessions(const FGuid& ServerAdminEndpointId, const TArray<FGuid>& SessionIds) override;
 	virtual bool CanDeleteActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override;
 	virtual bool CanDeleteArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const override;
 	//~ End IConcertSessionBrowserController Interface
@@ -230,7 +230,6 @@ private:
 	TArray<FPendingSessionDiscovery> ExpectedSessionsToDiscover;
 	TSet<FString> IgnoredServers; // List of ignored servers (Useful for testing/debugging)
 };
-
 
 FConcertClientSessionBrowserController::FConcertClientSessionBrowserController(IConcertClientPtr InConcertClient)
 {
@@ -482,18 +481,21 @@ bool FConcertClientSessionBrowserController::CanRenameArchivedSession(const FGui
 	return CanDeleteArchivedSession(ServerAdminEndpointId, SessionId); // Rename requires the same permission than delete.
 }
 
-void FConcertClientSessionBrowserController::DeleteActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId)
+void FConcertClientSessionBrowserController::DeleteSessions(const FGuid& ServerAdminEndpointId, const TArray<FGuid>& SessionIds)
 {
-	// On success, an session is deleted and TickServersAndSessionsDiscovery() will eventually notice it.
-	// On failure: An async notification banner will be displayer to the user.
-	ConcertClient->DeleteSession(ServerAdminEndpointId, SessionId);
-}
-
-void FConcertClientSessionBrowserController::DeleteArchivedSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId)
-{
-	// On success, an archive is deleted and TickServersAndSessionsDiscovery() will eventually notice it.
-	// On failure: An async notification banner will be displayer to the user.
-	ConcertClient->DeleteSession(ServerAdminEndpointId, SessionId);
+	// The difference between the two functions is how error notifications are displayed...
+	if (SessionIds.Num() == 1)
+	{
+		// ... shows a specific notification
+		ConcertClient->DeleteSession(ServerAdminEndpointId, SessionIds[0]);
+	}
+	else
+	{
+		TSet<FGuid> SessionIdSet;
+		Algo::Transform(SessionIds, SessionIdSet, [](const FGuid& SessionId) { return SessionId; });
+		// ... shows compressed notification(s)
+		ConcertClient->BatchDeleteSessions(ServerAdminEndpointId, { SessionIdSet, EBatchSessionDeletionFlags::SkipForbiddenSessions });
+	}
 }
 
 bool FConcertClientSessionBrowserController::CanDeleteActiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const
@@ -1038,7 +1040,7 @@ private:
 	// Manipulates the sessions view (the array and the UI).
 	void OnSessionSelectionChanged(const TSharedPtr<FConcertSessionItem>& SessionItem);
 	void OnSessionDoubleClicked(const TSharedPtr<FConcertSessionItem>& SessionItem);
-	bool ConfirmDeleteSessionWithDialog(const TSharedPtr<FConcertSessionItem>& SessionItem);
+	bool ConfirmDeleteSessionWithDialog(const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems) const;
 
 	// Update server/session/clients lists.
 	EActiveTimerReturnType TickDiscovery(double InCurrentTime, float InDeltaTime);
@@ -1112,7 +1114,7 @@ void SConcertClientSessionBrowser::Construct(const FArguments& InArgs, IConcertC
 	// Displayed when discovering session or if no session is available.
 	SessionDiscoveryPanel = SNew(SConcertDiscovery)
 		.Text_Lambda(GetNoSessionText)
-		.Visibility_Lambda([this]() { return Controller->GetServers().Num() > 0 && SessionBrowser->GetSessions().Num() == 0 && !Controller->IsCreatingSession() ? EVisibility::Visible : EVisibility::Hidden; })
+		.Visibility_Lambda([this]() { return Controller->GetServers().Num() > 0 && !SessionBrowser->HasAnySessions() && !Controller->IsCreatingSession() ? EVisibility::Visible : EVisibility::Hidden; })
 		.ThrobberVisibility_Lambda([this]() { return !Controller->HasReceivedInitialSessionList() ? EVisibility::Visible : EVisibility::Collapsed; })
 		.ButtonVisibility_Lambda([this]() { return Controller->HasReceivedInitialSessionList() && Controller->GetActiveSessions().Num() == 0 && Controller->GetArchivedSessions().Num() == 0 ? EVisibility::Visible : EVisibility::Collapsed; })
 		.ButtonStyle(FAppStyle::Get(), "FlatButton.Default")
@@ -1173,11 +1175,10 @@ TSharedRef<SWidget> SConcertClientSessionBrowser::MakeBrowserContent(TSharedPtr<
 					[
 						MakeUserAndSettings()
 					]
-					.OnSessionClicked_Raw(this, &SConcertClientSessionBrowser::OnSessionSelectionChanged)
-					.OnLiveSessionDoubleClicked_Raw(this, &SConcertClientSessionBrowser::OnSessionDoubleClicked)
-					.OnRequestedDeleteSession_Lambda([this](auto) { UpdateDiscovery(); /* Don't wait up to 1s, kick discovery right now */ })
-					.CanDeleteArchivedSession(this, &SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog)
-					.CanDeleteActiveSession(this, &SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog)
+					.OnSessionClicked(this, &SConcertClientSessionBrowser::OnSessionSelectionChanged)
+					.OnLiveSessionDoubleClicked(this, &SConcertClientSessionBrowser::OnSessionDoubleClicked)
+					.PostRequestedDeleteSession_Lambda([this](auto) { UpdateDiscovery(); /* Don't wait up to 1s, kick discovery right now */ })
+					.AskUserToDeleteSessions(this, &SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog)
 			]
 
 			// Session details.
@@ -1710,11 +1711,27 @@ void SConcertClientSessionBrowser::OnSessionDoubleClicked(const TSharedPtr<FConc
 	}
 }
 
-bool SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog(const TSharedPtr<FConcertSessionItem>& SessionItem)
+bool SConcertClientSessionBrowser::ConfirmDeleteSessionWithDialog(const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems) const
 {
-	const FText SessionNameInText = FText::FromString(SessionItem->SessionName);
-	const FText SeverNameInText = FText::FromString(SessionItem->ServerName);
-	const FText ConfirmationMessage = FText::Format(LOCTEXT("DeleteSessionConfirmationMessage", "Do you really want to delete the session \"{0}\" from the server \"{1}\"?"), SessionNameInText, SeverNameInText);
+	TSet<FString> SessionNames;
+	TSet<FString> UniqueServers;
+	
+	Algo::Transform(SessionItems, SessionNames, [](const TSharedPtr<FConcertSessionItem>& Item)
+	{
+		return Item->SessionName;
+	});
+	Algo::Transform(SessionItems, UniqueServers, [](const TSharedPtr<FConcertSessionItem>& Item)
+	{
+		return Item->ServerName;
+	});
+	
+	const FText ConfirmationMessage = FText::Format(
+		LOCTEXT("DeleteSessionConfirmationMessage", "Do you really want to delete {0} {0}|plural(one=session,other=sessions) from {1} {1}|plural(one=server,other=servers)?\n\nThe {0}|plural(one=session,other=sessions) {2} will be deleted from the {1}|plural(one=server,other=servers) {3}."),
+		SessionItems.Num(),
+		UniqueServers.Num(),
+		FText::FromString(FString::Join(SessionNames, TEXT(", "))),
+		FText::FromString(FString::Join(UniqueServers, TEXT(", ")))
+		);
 	const FText ConfirmationTitle = LOCTEXT("DeleteSessionConfirmationTitle", "Delete Session Confirmation");
 	return FMessageDialog::Open(EAppMsgType::YesNo, ConfirmationMessage, &ConfirmationTitle) == EAppReturnType::Yes;
 }

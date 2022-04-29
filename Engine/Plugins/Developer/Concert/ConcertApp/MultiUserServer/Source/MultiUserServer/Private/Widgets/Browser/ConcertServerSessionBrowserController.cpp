@@ -111,22 +111,37 @@ void FConcertServerSessionBrowserController::CreateSession(const FGuid& ServerAd
 	VersionInfo.Initialize();
 	SessionInfo.VersionInfos.Emplace(VersionInfo);
 
+	FAsyncTaskNotification Notification(
+		MakeAsyncNotification(FText::Format(LOCTEXT("CreateSessionFmt.InProgress", "Created Session '{0}'"), FText::FromString(SessionName)))
+		);
 	FText FailureReason = FText::GetEmpty();
 	const bool bSuccess = ServerInstance->GetConcertServer()->CreateSession(SessionInfo, FailureReason) != nullptr;
 
-	NotifyUserOfFinishedSessionAction(bSuccess,
-		bSuccess ? FText::Format(LOCTEXT("CreatedSessionFmt", "Created Session '{0}'"), FText::FromString(SessionName)) : FText::Format(LOCTEXT("FailedToCreateSessionFmt", "Failed to create Session '{0}'"), FText::FromString(SessionName)),
+	CloseAsyncNotification(
+		Notification,
+		bSuccess,
+		bSuccess
+			? FText::Format(LOCTEXT("CreateSessionFmt.Success", "Created Session '{0}'"), FText::FromString(SessionName))
+			: FText::Format(LOCTEXT("CreateSessionFmt.Failure", "Failed to create Session '{0}'"), FText::FromString(SessionName)),
 		FailureReason
 		);
 }
 
 void FConcertServerSessionBrowserController::ArchiveSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, const FString& ArchiveName, const FConcertSessionFilter& SessionFilter)
 {
+	FAsyncTaskNotification Notification(
+		MakeAsyncNotification(FText::Format(LOCTEXT("ArchivedSessionFmt.InProgress", "Archiving new Session '{0}'"), FText::FromString(ArchiveName)))
+		);
+	
 	FText FailureReason = FText::GetEmpty();
 	const bool bSuccess = ServerInstance->GetConcertServer()->ArchiveSession(SessionId, ArchiveName, SessionFilter, FailureReason).IsValid();
 	
-	NotifyUserOfFinishedSessionAction(bSuccess,
-		bSuccess ? FText::Format(LOCTEXT("ArchivedSessionFmt", "Archived Session '{0}'"),  FText::FromString(ArchiveName)) : FText::Format(LOCTEXT("FailedToArchivedSessionFmt", "Failed to archive Session '{0}'"), FText::FromString(ArchiveName)),
+	CloseAsyncNotification(
+		Notification,
+		bSuccess,
+		bSuccess
+			? FText::Format(LOCTEXT("ArchiveSessionFmt.Success", "Archived Session '{0}'"), FText::FromString(ArchiveName))
+			: FText::Format(LOCTEXT("ArchiveSessionFmt.Failure", "Failed to archive Session '{0}'"), FText::FromString(ArchiveName)),
 		FailureReason
 		);
 }
@@ -135,13 +150,94 @@ void FConcertServerSessionBrowserController::RestoreSession(const FGuid& ServerA
 {
 	if (TOptional<FConcertSessionInfo> SessionInfo = GetArchivedSessionInfo(ServerAdminEndpointId, SessionId))
 	{
+		FAsyncTaskNotification Notification(
+			MakeAsyncNotification(FText::Format(LOCTEXT("RestoreSessionFmt.InProgress", "Restoring Session '{0}'"), FText::FromString(RestoredName)))
+			);
+		
 		FText FailureReason = FText::GetEmpty();
 		SessionInfo->SessionName = RestoredName;
 		const bool bSuccess = ServerInstance->GetConcertServer()->RestoreSession(SessionId, *SessionInfo, SessionFilter, FailureReason).IsValid();
-		NotifyUserOfFinishedSessionAction(bSuccess,
-			bSuccess ? FText::Format(LOCTEXT("RestoreSessionFmt", "Restored Session '{0}'"),  FText::FromString(RestoredName)) : FText::Format(LOCTEXT("FailedToRestoreSessionFmt", "Failed to restore Session '{0}'"), FText::FromString(RestoredName)),
+		
+		CloseAsyncNotification(
+			Notification,
+			bSuccess,
+			bSuccess
+				? FText::Format(LOCTEXT("RestoreSessionFmt.Success", "Restored Session '{0}'"),  FText::FromString(RestoredName))
+				: FText::Format(LOCTEXT("RestoreSessionFmt.Failure", "Failed to restore Session '{0}'"), FText::FromString(RestoredName)),
 			FailureReason
+		);
+	}
+}
+
+void FConcertServerSessionBrowserController::DeleteSessions(const FGuid& ServerAdminEndpointId, const TArray<FGuid>& SessionIds)
+{
+	// We want a special message to be displayed when only deleting single items
+	if (SessionIds.Num() == 1)
+	{
+		const FString SessionName = GetSessionName(ServerAdminEndpointId, SessionIds[0]).Get(SessionIds[0].ToString());
+		FAsyncTaskNotification Notification(
+			MakeAsyncNotification(FText::Format(LOCTEXT("DeleteSessionFmt.InProgress", "Deleting session '{0}'"), FText::FromString(SessionName)))
 			);
+		
+		FText FailureReason;
+		const bool bSuccess = DeleteSession(ServerAdminEndpointId, SessionIds[0], FailureReason);
+		
+		CloseAsyncNotification(
+			Notification,
+			bSuccess,
+			bSuccess
+				? FText::Format(LOCTEXT("DeleteSessionFmt.Success", "Deleted Session '{0}'"), FText::FromString(SessionName))
+				: FText::Format(LOCTEXT("DeleteSessionFmt.Failure", "Failed to archive Session '{0}'"), FText::FromString(SessionIds[0].ToString())),
+			FailureReason
+		);
+		return;
+	}
+
+	FAsyncTaskNotification Notification(
+		MakeAsyncNotification(FText::Format(LOCTEXT("DeleteSessionsFmt.InProgress", "Deleting {0} sessions"), SessionIds.Num()))
+		);
+	
+	using FSessionName = FString;
+	using FReasonText = FText;
+	
+	TArray<TPair<FSessionName, FReasonText>> Failures;
+	int32 NumberSuccessful = 0;
+	for (const FGuid& SessionId : SessionIds)
+	{
+		FText FailureReason;
+		if (DeleteSession(ServerAdminEndpointId, SessionId, FailureReason))
+		{
+			++NumberSuccessful;
+		}
+		else 
+		{
+			const TOptional<FString> SessionName = GetSessionName(ServerAdminEndpointId, SessionId);
+			Failures.Add({ SessionName.Get(SessionId.ToString()), FailureReason });
+		}
+	}
+	
+	if (Failures.Num() == 0)
+	{
+		CloseAsyncNotification(
+			Notification,
+			true,
+			FText::Format(LOCTEXT("DeleteSessionsFmt.Success", "Deleted {0} Sessions"), NumberSuccessful)
+		);
+	}
+	else
+	{
+		// Instead of a notification for each failure, show one big one so the user does not have to manually close each (cuz that's annoying...)
+		TStringBuilder<512> SubText;
+		for (const TPair<FSessionName, FReasonText>& Failure : Failures)
+		{
+			SubText << Failure.Key << TEXT(": ") << Failure.Value.ToString() << TEXT("\n");
+		}
+		CloseAsyncNotification(
+			Notification,
+			false,
+			FText::Format(LOCTEXT("DeletedSessionsFmt.Failure", "Deleted {0} of {1} Sessions."), NumberSuccessful, SessionIds.Num()),
+			FText::FromString(SubText.ToString())
+		);
 	}
 }
 
@@ -193,36 +289,54 @@ void FConcertServerSessionBrowserController::RenameArchivedSessionInternal(const
 
 void FConcertServerSessionBrowserController::RenameSessionInternal(const FGuid& SessionId, const FString& NewName, const FConcertSessionInfo& SessionInfo)
 {
+	FAsyncTaskNotification Notification(
+		MakeAsyncNotification(FText::Format(LOCTEXT("RenameSessionFmt.InProgress", "Renaming Session {0} "), FText::FromString(SessionInfo.SessionName)))
+		);
+	
 	FText FailureReason = FText::GetEmpty();
 	const bool bSuccess = ServerInstance->GetConcertServer()->RenameSession(SessionId, NewName, FailureReason);
-	NotifyUserOfFinishedSessionAction(bSuccess,
-			bSuccess ? FText::Format(LOCTEXT("RenameSessionFmt", "Rename Session '{0}' as '{1}'"), FText::FromString(SessionInfo.SessionName), FText::FromString(NewName))
-				: FText::Format(LOCTEXT("FailedToArchivedSessionFmt", "Failed to rename Session '{0}' as '{1}'"), FText::FromString(SessionInfo.SessionName), FText::FromString(NewName)),
+
+	CloseAsyncNotification(
+			Notification,
+			bSuccess,
+			bSuccess
+				? FText::Format(LOCTEXT("RenameSessionFmt.Success", "Rename Session '{0}' as '{1}'"), FText::FromString(SessionInfo.SessionName), FText::FromString(NewName))
+				: FText::Format(LOCTEXT("RenameSessionFmt.Failure", "Failed to rename Session '{0}' as '{1}'"), FText::FromString(SessionInfo.SessionName), FText::FromString(NewName)),
 			FailureReason
-			);
+		);
 }
 
-void FConcertServerSessionBrowserController::DeleteSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId)
+bool FConcertServerSessionBrowserController::DeleteSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId, FText& FailureReason)
+{
+	const TOptional<FConcertSessionInfo> ArchivedInfo = GetArchivedSessionInfo(ServerAdminEndpointId, SessionId);
+	const TOptional<FConcertSessionInfo> LiveInfo = GetActiveSessionInfo(ServerAdminEndpointId, SessionId);
+	if (const TOptional<FString> SessionName = GetSessionName(ServerAdminEndpointId, SessionId))
+	{
+		return ServerInstance->GetConcertServer()->DestroySession(SessionId, FailureReason);
+	}
+	return false;
+}
+
+TOptional<FString> FConcertServerSessionBrowserController::GetSessionName(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) const
 {
 	const TOptional<FConcertSessionInfo> ArchivedInfo = GetArchivedSessionInfo(ServerAdminEndpointId, SessionId);
 	const TOptional<FConcertSessionInfo> LiveInfo = GetActiveSessionInfo(ServerAdminEndpointId, SessionId);
 	const TOptional<FString> SessionName = ArchivedInfo ? ArchivedInfo->SessionName : LiveInfo ? LiveInfo->SessionName : TOptional<FString>{};
-	if (SessionName)
-	{
-		FText FailureReason;
-		const bool bSuccess = ServerInstance->GetConcertServer()->DestroySession(SessionId, FailureReason);
-		NotifyUserOfFinishedSessionAction(bSuccess,
-			bSuccess ? FText::Format(LOCTEXT("ArchivedSessionFmt", "Deleted Session '{0}'"), FText::FromString(*SessionName)) : FText::Format(LOCTEXT("FailedToArchivedSessionFmt", "Failed to archive Session '{0}'"), FText::FromString(LiveInfo->SessionName)),
-			FailureReason
-			);
-	}
+	return SessionName;
 }
 
-void FConcertServerSessionBrowserController::NotifyUserOfFinishedSessionAction(const bool bSuccess, const FText& Title, const FText& Details)
+FAsyncTaskNotificationConfig FConcertServerSessionBrowserController::MakeAsyncNotification(const FText& Title, const FText& Details)
 {
-	FNotificationInfo NotificationInfo(Title);
-	NotificationInfo.SubText = Details;
-	FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+	FAsyncTaskNotificationConfig NotificationConfig;
+	NotificationConfig.bIsHeadless = false;
+	NotificationConfig.bKeepOpenOnFailure = true;
+	NotificationConfig.TitleText = Title;
+	return NotificationConfig;
+}
+
+void FConcertServerSessionBrowserController::CloseAsyncNotification(FAsyncTaskNotification& Notification, bool bSuccess, const FText& Title, const FText& Details)
+{
+	Notification.SetComplete(Title, Details, bSuccess);
 
 	if (bSuccess)
 	{

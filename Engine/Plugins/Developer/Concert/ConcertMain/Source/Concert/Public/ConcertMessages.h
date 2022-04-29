@@ -405,7 +405,7 @@ struct FConcertAdmin_RenameSessionResponse : public FConcertResponseData
 };
 
 
-/** Delete a live session. */
+/** Delete an archived or live session. */
 USTRUCT()
 struct FConcertAdmin_DeleteSessionRequest : public FConcertRequestData
 {
@@ -435,6 +435,72 @@ struct FConcertAdmin_DeleteSessionResponse : public FConcertResponseData
 	/** The name of the session that was was requested to be deleted. */
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
 	FString SessionName;
+};
+
+UENUM()
+enum class EBatchSessionDeletionFlags
+{
+	/** Any error in the request will make the entire operation fail. */
+	Strict,
+
+	/**
+	 * If the request contains sessions that is not owned by the requesting client, skip them.
+	 * Skipped sessions are added to FConcertAdmin_BatchDeleteSessionResponse::NotOwnedByClient.
+	 * This avoids clients having to request ownership info before ensuring an atomic and consistent operation.
+	 */
+	SkipForbiddenSessions = 0x01
+};
+ENUM_CLASS_FLAGS(EBatchSessionDeletionFlags)
+
+/** Deletes several archived and/or live sessions. */
+USTRUCT()
+struct FConcertAdmin_BatchDeleteSessionRequest : public FConcertRequestData
+{
+	GENERATED_BODY()
+
+	/** The ID of the session to delete. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	TSet<FGuid> SessionIds;
+
+	/** How the operation input is supposed to be interpreted */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	EBatchSessionDeletionFlags Flags;
+
+	//For now only the user name and device name of the client is used to id him as the owner of a session
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	FString UserName;
+
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	FString DeviceName;
+};
+
+USTRUCT()
+struct FDeletedSessionInfo
+{
+	GENERATED_BODY()
+	
+	/** The ID of the session that was requested to be deleted. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	FGuid SessionId;
+
+	/** The name of the session that was was requested to be deleted. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	FString SessionName;
+};
+
+/** Answer by server */
+USTRUCT()
+struct FConcertAdmin_BatchDeleteSessionResponse : public FConcertResponseData
+{
+	GENERATED_BODY()
+
+	/** The IDs of the session that were requested to be deleted. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	TArray<FDeletedSessionInfo> DeletedItems;
+
+	/** Contains the sessions that were skipped if FConcertAdmin_BatchDeleteSessionRequest::Flags has the SkipForbiddenSessions flag set. */
+	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
+	TArray<FDeletedSessionInfo> NotOwnedByClient;
 };
 
 USTRUCT()

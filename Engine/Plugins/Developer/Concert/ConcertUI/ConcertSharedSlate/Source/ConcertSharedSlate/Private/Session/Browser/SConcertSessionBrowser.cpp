@@ -7,6 +7,7 @@
 #include "ConcertHeaderRowUtils.h"
 
 #include "Algo/Find.h"
+#include "Algo/Transform.h"
 
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionBrowserSettings.h"
@@ -56,9 +57,8 @@ void SConcertSessionBrowser::Construct(const FArguments& InArgs, TSharedRef<ICon
 	{
 		OnArchivedSessionDoubleClicked = FSessionDelegate::CreateSP(this, &SConcertSessionBrowser::InsertRestoreSessionAsEditableRowInternal);
 	}
-	OnRequestedDeleteSession = InArgs._OnRequestedDeleteSession;
-	CanDeleteArchivedSession = InArgs._CanDeleteArchivedSession;
-	CanDeleteActiveSession = InArgs._CanDeleteActiveSession;
+	PostRequestedDeleteSession = InArgs._PostRequestedDeleteSession;
+	AskUserToDeleteSessions = InArgs._AskUserToDeleteSessions;
 
 	// Setup search filter.
 	SearchedText = InSearchText; // Reload a previous search text (in any). Useful to remember searched text between join/leave sessions, but not persistent if the tab is closed.
@@ -356,10 +356,9 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeSessionTableView(const FArgument
 	SecondarySortMode = EColumnSortMode::Ascending;
 
 	SessionsView = SNew(SListView<TSharedPtr<FConcertSessionItem>>)
-		.SelectionMode(ESelectionMode::Single)
 		.ListItemsSource(&Sessions)
 		.OnGenerateRow(this, &SConcertSessionBrowser::OnGenerateSessionRowWidget)
-		.SelectionMode(ESelectionMode::Single)
+		.SelectionMode(ESelectionMode::Multi)
 		.OnSelectionChanged(this, &SConcertSessionBrowser::OnSessionSelectionChanged)
 		.OnContextMenuOpening(this, &SConcertSessionBrowser::MakeContextualMenu)
 		.HeaderRow(
@@ -1054,12 +1053,7 @@ FReply SConcertSessionBrowser::OnArchiveButtonClicked()
 
 FReply SConcertSessionBrowser::OnDeleteButtonClicked()
 {
-	TArray<TSharedPtr<FConcertSessionItem>> SelectedItems = SessionsView->GetSelectedItems();
-	for (const TSharedPtr<FConcertSessionItem>& Item : SelectedItems)
-	{
-		RequestDeleteSession(Item);
-	}
-
+	RequestDeleteSessions(SessionsView->GetSelectedItems());
 	return FReply::Handled();
 }
 
@@ -1093,10 +1087,7 @@ FReply SConcertSessionBrowser::OnKeyDown(const FGeometry& MyGeometry, const FKey
 
 	if (InKeyEvent.GetKey() == EKeys::Delete && !EditableSessionRow.IsValid()) // Delete selected row(s) unless the selected row is an 'editable' one.
 	{
-		for (TSharedPtr<FConcertSessionItem>& Item : SessionsView->GetSelectedItems())
-		{
-			RequestDeleteSession(Item);
-		}
+		RequestDeleteSessions(SessionsView->GetSelectedItems());
 		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Escape && EditableSessionRow.IsValid()) // Cancel 'new session', 'archive session' or 'restore session' action.
@@ -1151,24 +1142,13 @@ void SConcertSessionBrowser::RequestRenameSession(const TSharedPtr<FConcertSessi
 	RenamedItem->SessionName = NewName;
 }
 
-void SConcertSessionBrowser::RequestDeleteSession(const TSharedPtr<FConcertSessionItem>& DeletedItem)
+void SConcertSessionBrowser::RequestDeleteSessions(const TArray<TSharedPtr<FConcertSessionItem>>& ItemsToDelete)
 {
-	if (DeletedItem->Type == FConcertSessionItem::EType::ActiveSession)
+	if (!AskUserToDeleteSessions.IsBound() || AskUserToDeleteSessions.Execute(ItemsToDelete))
 	{
-		if (!CanDeleteActiveSession.IsBound() || CanDeleteActiveSession.Execute(DeletedItem))
-		{
-			GetController()->DeleteActiveSession(DeletedItem->ServerAdminEndpointId, DeletedItem->SessionId);
-		}
+		ConcertBrowserUtils::RequestItemDeletion(*GetController().Get(), ItemsToDelete);
 	}
-	else if (DeletedItem->Type == FConcertSessionItem::EType::ArchivedSession)
-	{
-		if (!CanDeleteArchivedSession.IsBound() || CanDeleteArchivedSession.Execute(DeletedItem))
-		{
-			GetController()->DeleteArchivedSession(DeletedItem->ServerAdminEndpointId, DeletedItem->SessionId);
-		}
-	}
-	
-	OnRequestedDeleteSession.ExecuteIfBound(DeletedItem);
+	PostRequestedDeleteSession.ExecuteIfBound(ItemsToDelete);
 }
 
 #undef LOCTEXT_NAMESPACE

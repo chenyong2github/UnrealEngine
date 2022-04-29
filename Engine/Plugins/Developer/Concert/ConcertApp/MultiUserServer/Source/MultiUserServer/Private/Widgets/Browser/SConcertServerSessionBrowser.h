@@ -47,7 +47,6 @@ private:
 	
 	TSharedRef<SWidget> MakeSessionTableView(const FArguments& InArgs);
 
-	void RequestDeleteSession(const TSharedPtr<FConcertSessionItem>& SessionItem);
-	void DeleteArchivedSessionWithFakeModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem);
-	void DeleteActiveSessionWithFakeModalQuestion(const TSharedPtr<FConcertSessionItem>& SessionItem);
+	void RequestDeleteSession(const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems);
+	void DeleteSessionsWithFakeModalQuestion(const FText& Message, const TArray<TSharedPtr<FConcertSessionItem>>& SessionItems);
 };
