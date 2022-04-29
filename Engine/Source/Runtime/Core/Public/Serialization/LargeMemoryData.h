@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/LockFreeList.h"
 
 /**
 * Data storage for the large memory reader and writer.
