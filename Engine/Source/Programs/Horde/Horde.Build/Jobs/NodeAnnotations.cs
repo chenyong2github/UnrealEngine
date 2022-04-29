@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
@@ -7,6 +8,24 @@ using Horde.Build.Utilities;
 namespace Horde.Build.Models
 {
 	using WorkflowId = StringId<WorkflowConfig>;
+
+	/// <summary>
+	/// Interface which wraps a generic key/value dictionary to provide specific node annotations
+	/// </summary>
+#pragma warning disable CA1710 // Identifiers should have correct suffix
+	public interface IReadOnlyNodeAnnotations : IReadOnlyDictionary<string, string>
+#pragma warning restore CA1710 // Identifiers should have correct suffix
+	{
+		/// <summary>
+		/// Workflow to use for triaging issues from this node
+		/// </summary>
+		WorkflowId? WorkflowId { get; }
+
+		/// <summary>
+		/// Whether to create issues for this node
+		/// </summary>
+		bool? CreateIssues { get; }
+	}
 
 	/// <summary>
 	/// Set of annotations for a node
@@ -18,10 +37,11 @@ namespace Horde.Build.Models
 		/// </summary>
 		public static IReadOnlyNodeAnnotations Empty { get; } = new NodeAnnotations();
 
-		/// <summary>
-		/// The issue workflow to use, as defined in the stream configuration file
-		/// </summary>
+		/// <inheritdoc cref="IReadOnlyNodeAnnotations.WorkflowId"/>
 		public const string WorkflowKeyName = "Workflow";
+
+		/// <inheritdoc cref="IReadOnlyNodeAnnotations.CreateIssues"/>
+		public const string CreateIssuesKeyName = "CreateIssues";
 
 		/// <summary>
 		/// Constructor
@@ -51,10 +71,52 @@ namespace Horde.Build.Models
 				}
 				return new WorkflowId(workflowName);
 			}
-			set => SetOrUnset(WorkflowKeyName, value?.ToString());
+			set => SetValue(WorkflowKeyName, value?.ToString());
 		}
 
-		private void SetOrUnset(string key, string? value)
+		/// <inheritdoc/>
+		public bool? CreateIssues
+		{
+			get => GetBoolValue(CreateIssuesKeyName);
+			set => SetBoolValue(CreateIssuesKeyName, value);
+		}
+
+		private bool? GetBoolValue(string key)
+		{
+			string? value = GetValue(key);
+			if (value != null)
+			{
+				if (value.Equals("0", StringComparison.Ordinal) || value.Equals("false", StringComparison.OrdinalIgnoreCase))
+				{
+					return false;
+				}
+				if (value.Equals("1", StringComparison.Ordinal) || value.Equals("true", StringComparison.OrdinalIgnoreCase))
+				{
+					return true;
+				}
+			}
+			return null;
+		}
+
+		private void SetBoolValue(string key, bool? value)
+		{
+			if (value == null)
+			{
+				Remove(key);
+			}
+			else
+			{
+				SetValue(key, value.Value ? "1" : "0");
+			}
+		}
+
+		private string? GetValue(string key)
+		{
+			TryGetValue(key, out string? value);
+			return value;
+		}
+
+		private void SetValue(string key, string? value)
 		{
 			if (value == null)
 			{
@@ -77,18 +139,5 @@ namespace Horde.Build.Models
 				this[key] = value;
 			}
 		}
-	}
-
-	/// <summary>
-	/// Interface which wraps a generic key/value dictionary to provide specific node annotations
-	/// </summary>
-#pragma warning disable CA1710 // Identifiers should have correct suffix
-	public interface IReadOnlyNodeAnnotations : IReadOnlyDictionary<string, string>
-#pragma warning restore CA1710 // Identifiers should have correct suffix
-	{
-		/// <summary>
-		/// Workflow to use for triaging issues from this node
-		/// </summary>
-		WorkflowId? WorkflowId { get; }
 	}
 }

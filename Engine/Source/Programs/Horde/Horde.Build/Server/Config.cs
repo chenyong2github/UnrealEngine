@@ -308,11 +308,6 @@ namespace Horde.Build.Server
 		public WorkflowId Id { get; set; } = WorkflowId.Empty;
 
 		/// <summary>
-		/// Whether to allow creating issues for these jobs
-		/// </summary>
-		public bool CreateIssues { get; set; } = true;
-
-		/// <summary>
 		/// Times of day at which to send a report
 		/// </summary>
 		public List<TimeSpan> ReportTimes { get; set; } = new List<TimeSpan> { TimeSpan.Zero };
