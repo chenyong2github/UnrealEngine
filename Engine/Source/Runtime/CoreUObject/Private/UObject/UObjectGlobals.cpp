@@ -2634,7 +2634,7 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 		DupRootObject = StaticConstructObject_Internal(Params);
 	}
 
-	FLargeMemoryData ObjectData;
+	FPooledLargeMemoryData ObjectData;
 
 	FUObjectAnnotationSparse<FDuplicatedObject,false>  DuplicatedObjectAnnotation;
 
@@ -2656,7 +2656,7 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 	// Read from the source object(s)
 	FDuplicateDataWriter Writer(
 		DuplicatedObjectAnnotation,				// Ref: Object annotation which stores the duplicated object for each source object
-		ObjectData,								// Out: Serialized object data
+		ObjectData.Get(),						// Out: Serialized object data
 		Parameters.SourceObject,				// Source object to copy
 		DupRootObject,							// Destination object to copy into
 		Parameters.FlagMask,					// Flags to be copied for duplicated objects
@@ -2687,7 +2687,7 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 	};
 
 	TRefCountPtr<FUObjectSerializeContext> LoadContext(FUObjectThreadContext::Get().GetSerializeContext());
-	FDuplicateDataReader Reader(DuplicatedObjectAnnotation, ObjectData, Parameters.PortFlags, Parameters.DestOuter);
+	FDuplicateDataReader Reader(DuplicatedObjectAnnotation, ObjectData.Get(), Parameters.PortFlags, Parameters.DestOuter);
 	Reader.SetSerializeContext(LoadContext);
 	for(int32 ObjectIndex = 0;ObjectIndex < SerializedObjects.Num();ObjectIndex++)
 	{

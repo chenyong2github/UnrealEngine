@@ -4,6 +4,17 @@
 #include "Logging/LogMacros.h"
 #include "CoreGlobals.h"
 
+
+int32 GPooledLargeMemoryData_MaxPoolLength = 2;
+static FAutoConsoleVariableRef CPooledLargeMemoryData_MaxPoolLength(
+	TEXT("s.LargeMemoryDataMaxPoolLength"),
+	GPooledLargeMemoryData_MaxPoolLength,
+	TEXT("Limit LargeMemoryData pool size to the given number of elements."),
+	ECVF_Default
+
+);
+static constexpr int64 GPooledLargeMemoryData_MaxElementSize = 128 * 1024;
+
 /*----------------------------------------------------------------------------
 	FLargeMemoryData
 ----------------------------------------------------------------------------*/
@@ -103,3 +114,47 @@ void FLargeMemoryData::GrowBuffer()
 		Data = (uint8*)FMemory::Malloc(MaxBytes);
 	}
 }
+
+/*----------------------------------------------------------------------------
+	FPooledLargeMemoryData
+----------------------------------------------------------------------------*/
+
+TLockFreePointerListUnordered<FLargeMemoryData, 0> FPooledLargeMemoryData::FreeList;
+std::atomic<int32> FPooledLargeMemoryData::FreeListLength;
+
+FPooledLargeMemoryData::FPooledLargeMemoryData()
+{
+	Data = FreeList.Pop();
+	if (Data != nullptr)
+	{
+		--FreeListLength;
+	}
+	else
+	{
+		Data = new FLargeMemoryData();
+	}
+}
+
+FPooledLargeMemoryData::~FPooledLargeMemoryData()
+{
+	if (Data->GetSize() > GPooledLargeMemoryData_MaxElementSize)
+	{
+		delete Data;
+	}
+	else
+	{
+		if (FreeListLength.fetch_add(1) >= GPooledLargeMemoryData_MaxPoolLength)
+		{
+			// There's a chance of a race condition here if removal and addition are done at the same time.
+			// The outcome of that would be unnecessary destruction of Data that could be pooled,
+			// which is considered OK for the sake of simplicity.
+			--FreeListLength;
+			delete Data;
+		}
+		else
+		{
+			FreeList.Push(Data);
+		}
+	}
+}
+
