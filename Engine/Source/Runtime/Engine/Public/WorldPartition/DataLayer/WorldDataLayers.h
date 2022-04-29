@@ -73,7 +73,6 @@ public:
 	TArray<UDataLayerInstance*> GetActorEditorContextDataLayers() const;
 
 	//~ Begin Helper Functions
-	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<FName>& InDataLayerInstanceNames) const;
 	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<TObjectPtr<const UDataLayerAsset>>& InDataLayersAssets) const;
 	TArray<FName> GetDataLayerInstanceNames(const TArray<TObjectPtr<const UDataLayerAsset>>& InDataLayersAssets) const;
 	//~ End Helper Functions
@@ -93,6 +92,8 @@ public:
 	const UDataLayerInstance* GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const;
 	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func);
 	void ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func) const;
+
+	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<FName>& InDataLayerInstanceNames) const;
 
 	// DataLayer Runtime State
 	void SetDataLayerRuntimeState(const UDataLayerInstance* InDataLayerInstance, EDataLayerRuntimeState InState, bool bIsRecursive = false);

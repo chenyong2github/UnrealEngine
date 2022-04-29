@@ -61,6 +61,10 @@
 
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/WorldPartitionRuntimeCell.h"
+#include "WorldPartition/DataLayer/DataLayerInstance.h"
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 
 DEFINE_LOG_CATEGORY(LogActor);
 
@@ -5900,5 +5904,75 @@ FArchive& operator<<(FArchive& Ar, AActor::FActorTransactionAnnotationData& Acto
 
 	return Ar;
 }
+
+//---------------------------------------------------------------------------
+// DataLayers (begin)
+
+TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances() const
+{
+	if (const IWorldPartitionCell* RuntinmeCell = GetLevel()->GetWorldPartitionRuntimeCell())
+	{
+		return RuntinmeCell->GetDataLayerInstances();
+	}
+
+#if WITH_EDITOR
+	TArray<const UDataLayerInstance*> DataLayerInstances;
+	AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
+	DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayerAssets);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayers);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	return DataLayerInstances;
+#else
+	return TArray<const UDataLayerInstance*>();
+#endif
+}
+
+bool AActor::ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const
+{
+	if (const IWorldPartitionCell* RuntinmeCell = GetLevel()->GetWorldPartitionRuntimeCell())
+	{
+		return RuntinmeCell->ContainsDataLayer(DataLayerInstance);
+	}
+
+#if WITH_EDITOR
+	return DataLayerInstance->ContainsActor(this);
+#else
+	return false;
+#endif
+}
+
+bool AActor::ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const
+{
+	if (const IWorldPartitionCell* RuntinmeCell = GetLevel()->GetWorldPartitionRuntimeCell())
+	{
+		return RuntinmeCell->ContainsDataLayer(DataLayerAsset);
+	}
+
+#if WITH_EDITOR
+	return DataLayerAsset && DataLayerAssets.Contains(DataLayerAsset);
+#else
+	return false;
+#endif
+}
+
+bool AActor::HasDataLayers() const
+{
+	if (const IWorldPartitionCell* RuntinmeCell = GetLevel()->GetWorldPartitionRuntimeCell())
+	{
+		return RuntinmeCell->HasDataLayers();
+	}
+
+#if WITH_EDITOR
+	return DataLayerAssets.Num() > 0 || DataLayers.Num() > 0;
+#else
+	return false;
+#endif
+}
+
+// DataLayers (end)
+//---------------------------------------------------------------------------
 
 #undef LOCTEXT_NAMESPACE

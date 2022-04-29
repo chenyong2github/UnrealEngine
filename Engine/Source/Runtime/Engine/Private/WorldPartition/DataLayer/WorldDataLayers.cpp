@@ -501,22 +501,6 @@ TArray<FName> AWorldDataLayers::GetDataLayerInstanceNames(const TArray<TObjectPt
 	return OutDataLayerNames;
 }
 
-TArray<const UDataLayerInstance*> AWorldDataLayers::GetDataLayerInstances(const TArray<FName>& InDataLayerInstanceNames) const
-{
-	TArray<const UDataLayerInstance*> OutDataLayers;
-	OutDataLayers.Reserve(InDataLayerInstanceNames.Num());
-
-	for (const FName& DataLayerInstanceName : InDataLayerInstanceNames)
-	{
-		if (const UDataLayerInstance* DataLayerObject = GetDataLayerInstance(DataLayerInstanceName))
-		{
-			OutDataLayers.AddUnique(DataLayerObject);
-		}
-	}
-
-	return OutDataLayers;
-}
-
 TArray<const UDataLayerInstance*> AWorldDataLayers::GetDataLayerInstances(const TArray<TObjectPtr<const UDataLayerAsset>>& InDataLayersAssets) const
 {
 	TArray<const UDataLayerInstance*> OutDataLayers;
@@ -749,6 +733,22 @@ void AWorldDataLayers::ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> 
 			break;
 		}
 	}
+}
+
+TArray<const UDataLayerInstance*> AWorldDataLayers::GetDataLayerInstances(const TArray<FName>& InDataLayerInstanceNames) const
+{
+	TArray<const UDataLayerInstance*> OutDataLayers;
+	OutDataLayers.Reserve(InDataLayerInstanceNames.Num());
+
+	for (const FName& DataLayerInstanceName : InDataLayerInstanceNames)
+	{
+		if (const UDataLayerInstance* DataLayerObject = GetDataLayerInstance(DataLayerInstanceName))
+		{
+			OutDataLayers.AddUnique(DataLayerObject);
+		}
+	}
+
+	return OutDataLayers;
 }
 
 void AWorldDataLayers::PostLoad()

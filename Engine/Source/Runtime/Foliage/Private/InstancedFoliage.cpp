@@ -4308,7 +4308,7 @@ void AInstancedFoliageActor::PostLoad()
 	// We can't check the ActorPartitionSubsystem here because World is not initialized yet. So we fallback on the bIsPartitioned
 	// to know if multiple InstanceFoliageActors is valid or not.
 	// For levels that are World Partition runtime cells. Having multiple IFAs is valid so skip validation.
-	if (OwningLevel && !OwningLevel->bIsPartitioned && !OwningLevel->bIsWorldPartitionRuntimeCell)
+	if (OwningLevel && !OwningLevel->bIsPartitioned && !OwningLevel->IsWorldPartitionRuntimeCell())
 	{
 		if (!OwningLevel->InstancedFoliageActor.IsValid())
 		{

@@ -38,6 +38,8 @@ class FLevelPartitionOperationScope;
 class FRegisterComponentContext;
 class SNotificationItem;
 class UActorFolder;
+class IWorldPartitionCell;
+class UWorldPartitionRuntimeCell;
 
 UINTERFACE()
 class ULevelPartitionInterface : public UInterface
@@ -674,9 +676,6 @@ public:
 	/** Whether the level is partitioned or not. */
     UPROPERTY()
 	uint8										bIsPartitioned : 1;
-	/** Whether the level is a world partition runtime cell. */
-	UPROPERTY()
-	uint8										bIsWorldPartitionRuntimeCell : 1;
 
 	enum class EIncrementalComponentState : uint8
 	{
@@ -794,6 +793,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<AWorldDataLayers> WorldDataLayers;
+
+	UPROPERTY()
+	TSoftObjectPtr<UWorldPartitionRuntimeCell> WorldPartitionRuntimeCell;
 
 	/** Cached level collection that this level is contained in, for faster access than looping through the collections in the world. */
 	FLevelCollection* CachedLevelCollection;
@@ -1077,6 +1079,20 @@ public:
 	ENGINE_API AWorldDataLayers* GetWorldDataLayers() const;
 
 	ENGINE_API void SetWorldDataLayers(AWorldDataLayers* NewWorldDataLayers);
+
+	/**
+	 * Returns the RuntimeCell associated with this Level if it is a level representing a cell of a WorldPartition World.
+	 *
+	 * @return		The cell associated with the level.
+	 */
+	ENGINE_API const IWorldPartitionCell* GetWorldPartitionRuntimeCell() const;
+
+	/**
+	 * Returns if the level is a cell from a WorldPartition World.
+	 *
+	 * @return		The cell associated with the level.
+	 */
+	ENGINE_API bool IsWorldPartitionRuntimeCell() const { return !WorldPartitionRuntimeCell.GetUniqueID().IsNull(); }
 
 	/**
 	 * Returns the UWorldPartition for this level.

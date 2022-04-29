@@ -1365,21 +1365,6 @@ bool AActor::RemoveAllDataLayers()
 	return false;
 }
 
-bool AActor::ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const
-{
-	return DataLayerInstance->ContainsActor(this);
-}
-
-bool AActor::ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const
-{
-	return DataLayerAsset && DataLayerAssets.Contains(DataLayerAsset);
-}
-
-bool AActor::HasDataLayers() const
-{
-	return DataLayerAssets.Num() > 0 || DataLayers.Num() > 0;
-}
-
 bool AActor::HasValidDataLayers() const
 {
 	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
@@ -1417,27 +1402,6 @@ TArray<FName> AActor::GetDataLayerInstanceNames() const
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return DataLayerInstanceNames;
-}
-
-TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances() const
-{
-	return GetWorld() ? GetDataLayerInstances(GetWorld()->GetWorldDataLayers()) : TArray<const UDataLayerInstance*>();
-}
-
-TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances(const AWorldDataLayers* WorldDataLayers) const
-{
-	TArray<const UDataLayerInstance*> DataLayerInstances;
-	if (WorldDataLayers != nullptr)
-	{
-		DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayerAssets);
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayers);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-
-	return DataLayerInstances;
 }
 
 void AActor::FixupDataLayers(bool bRevertChangesOnLockedDataLayer /*= false*/)

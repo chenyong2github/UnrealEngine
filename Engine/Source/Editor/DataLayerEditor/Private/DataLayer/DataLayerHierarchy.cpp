@@ -306,7 +306,7 @@ void FDataLayerHierarchy::OnLevelActorsRemoved(const TArray<AActor*>& InActors)
 				if (Actor != nullptr && Actor->HasDataLayers())
 				{
 					// It is possible here that Actor doesn't have world anymore
-					const TArray<const UDataLayerInstance*> DataLayerInstances = Actor->GetDataLayerInstances(WorldDataLayers);
+					const TArray<const UDataLayerInstance*> DataLayerInstances = Actor->GetDataLayerInstances();
 					EventData.ItemIDs.Reserve(DataLayerInstances.Num());
 					for (const UDataLayerInstance* DataLayerInstance : DataLayerInstances)
 					{

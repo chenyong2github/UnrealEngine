@@ -125,9 +125,10 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 	check(RuntimeLevel == nullptr);
 	const UWorld* World = GetWorld();
 	check(World && (World->IsGameWorld() || GetShouldBeVisibleInEditor()));
+	check(StreamingCell != nullptr);
 
 	// Create streaming cell Level package
-	RuntimeLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(World, GetWorldAsset().ToString());
+	RuntimeLevel = FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(StreamingCell.Get(), World, GetWorldAsset().ToString());
 	check(RuntimeLevel);
 
 	UPackage* RuntimeLevelPackage = RuntimeLevel->GetPackage();

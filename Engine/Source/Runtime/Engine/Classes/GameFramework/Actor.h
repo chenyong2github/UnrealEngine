@@ -1174,22 +1174,18 @@ public:
 		return Cast<T>(GetInstigatorController());
 	}
 
-#if WITH_EDITOR
 	//~=============================================================================
 	// DataLayers functions.
+#if WITH_EDITOR
 	bool AddDataLayer(const UDataLayerAsset* DataLayerAsset);
 	bool AddDataLayer(const UDataLayerInstance* DataLayerInstance);
 	bool RemoveDataLayer(const UDataLayerAsset* DataLayerAsset);
 	bool RemoveDataLayer(const UDataLayerInstance* DataLayerInstance);
 	bool RemoveAllDataLayers();
-	bool ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const;
-	bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const;
 	virtual bool SupportsDataLayer() const { return true; }
-	bool HasDataLayers() const;
+	
 	bool HasValidDataLayers() const;
 	TArray<FName> GetDataLayerInstanceNames() const;
-	TArray<const UDataLayerInstance*> GetDataLayerInstances() const;
-	TArray<const UDataLayerInstance*> GetDataLayerInstances(const AWorldDataLayers* WorldDataLayers) const;
 	bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
 	bool IsValidForDataLayer() const;
 	void FixupDataLayers(bool bRevertChangesOnLockedDataLayer = false);
@@ -1224,6 +1220,12 @@ public:
 
 	//~ End Deprecated
 #endif
+
+	TArray<const UDataLayerInstance*> GetDataLayerInstances() const;
+
+	bool ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const;
+	bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const;
+	bool HasDataLayers() const;
 
 	//~=============================================================================
 	// General functions.

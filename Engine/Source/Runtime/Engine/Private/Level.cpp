@@ -92,6 +92,7 @@ Level.cpp: Level-related functions
 #include "ObjectTrace.h"
 #include "ProfilingDebugging/TagTrace.h"
 #include "UObject/MetaData.h"
+#include "WorldPartition/WorldPartitionRuntimeCell.h"
 
 #define LOCTEXT_NAMESPACE "ULevel"
 DEFINE_LOG_CATEGORY(LogLevel);
@@ -2655,6 +2656,10 @@ void ULevel::SetWorldDataLayers(AWorldDataLayers* NewWorldDataLayers)
 	WorldDataLayers = NewWorldDataLayers;
 }
 
+const IWorldPartitionCell* ULevel::GetWorldPartitionRuntimeCell() const
+{
+	return WorldPartitionRuntimeCell.Get();
+}
 
 UWorldPartition* ULevel::GetWorldPartition() const
 {

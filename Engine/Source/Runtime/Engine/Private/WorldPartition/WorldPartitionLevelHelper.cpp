@@ -191,7 +191,7 @@ FString FWorldPartitionLevelHelper::AddActorContainerIDToActorPath(const FActorC
 /**
  * Creates an empty Level used in World Partition
  */
-ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld* InWorld, const FString& InWorldAssetName, UPackage* InPackage)
+ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorldPartitionRuntimeCell* Cell, const UWorld* InWorld, const FString& InWorldAssetName, UPackage* InPackage)
 {
 	// Create or use given package
 	UPackage* CellPackage = nullptr;
@@ -233,8 +233,7 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 	check(NewLevel->Model);
 	check(!NewLevel->bIsVisible);
 
-	// Mark the level as a runtime cell
-	NewLevel->bIsWorldPartitionRuntimeCell = true;
+	NewLevel->WorldPartitionRuntimeCell = Cell;
 	
 	// Mark the level package as fully loaded
 	CellPackage->MarkAsFullyLoaded();

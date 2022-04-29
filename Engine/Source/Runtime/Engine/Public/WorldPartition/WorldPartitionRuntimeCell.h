@@ -7,9 +7,13 @@
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionActorCluster.h"
+#include "WorldPartition/WorldPartitionRuntimeCellInterface.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
 #include "Algo/AnyOf.h"
 #include "WorldPartitionRuntimeCell.generated.h"
+
+class UDataLayerAsset;
+class UDataLayerInstance;
 
 enum class EWorldPartitionRuntimeCellVisualizeMode
 {
@@ -106,7 +110,7 @@ static_assert(EWorldPartitionRuntimeCellState::Unloaded < EWorldPartitionRuntime
  * Represents a PIE/Game streaming cell which points to external actor/data chunk packages
  */
 UCLASS(Abstract, Within = WorldPartition)
-class UWorldPartitionRuntimeCell : public UObject
+class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 {
 	GENERATED_UCLASS_BODY()
 
@@ -145,12 +149,17 @@ class UWorldPartitionRuntimeCell : public UObject
 
 	static void DirtyStreamingSourceCacheEpoch() { ++UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch; }
 
-	bool HasDataLayers() const { return !DataLayers.IsEmpty(); }
-	const TArray<FName>& GetDataLayers() const { return DataLayers; }
-	bool HasAnyDataLayer(const TSet<FName>& InDataLayers) const
+	// IRuntimeCell Interface begin
+	virtual TArray<const UDataLayerInstance*> GetDataLayerInstances() const override;
+	virtual bool ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const override;
+	virtual bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const override;
+	virtual bool HasDataLayers() const override { return !DataLayers.IsEmpty(); }
+	virtual const TArray<FName>& GetDataLayers() const override  { return DataLayers; }
+	virtual bool HasAnyDataLayer(const TSet<FName>& InDataLayers) const override
 	{
 		return Algo::AnyOf(DataLayers, [&InDataLayers](const FName& DataLayer) { return InDataLayers.Contains(DataLayer); });
 	}
+	// IRuntimeCell Interface end
 
 	bool GetBlockOnSlowLoading() const { return bBlockOnSlowLoading; }
 #if WITH_EDITOR

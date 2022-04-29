@@ -115,3 +115,31 @@ FLinearColor UWorldPartitionRuntimeCell::GetDebugStreamingPriorityColor() const
 #endif
 	return FLinearColor::Transparent;
 }
+
+TArray<const UDataLayerInstance*> UWorldPartitionRuntimeCell::GetDataLayerInstances() const
+{
+	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	{
+		return WorldDataLayers->GetDataLayerInstances(GetDataLayers());
+	}
+
+	return TArray<const UDataLayerInstance*>();
+}
+
+bool UWorldPartitionRuntimeCell::ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const
+{
+	if (const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	{
+		if (const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstance(DataLayerAsset))
+		{
+			return ContainsDataLayer(DataLayerInstance);
+		}
+	}
+
+	return false;
+}
+
+bool UWorldPartitionRuntimeCell::ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const
+{
+	return GetDataLayers().Contains(DataLayerInstance->GetDataLayerFName());
+}
