@@ -6,6 +6,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Views/STableRow.h"
+#include "PropertyInfoViewStyle.h"
 
 #include "LevelEditor.h"
 #include "ToolMenus.h"
@@ -164,12 +165,76 @@ UOutlinerSettings::UOutlinerSettings(const FObjectInitializer& ObjInit)
 	, ColorByLevel(false)
 {}
 
+TSharedRef<SWidget> SGeometryCollectionOutlinerRow::GenerateWidgetForColumn(const FName& ColumnName)
+{
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::Bone)
+	{
+		const TSharedPtr<SWidget> NameWidget = Item->MakeNameColumnWidget();
+		return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				[
+					SNew(SExpanderArrow, SharedThis(this))
+					.ShouldDrawWires(true)
+				]
+			+ SHorizontalBox::Slot()
+				[
+					NameWidget.ToSharedRef()
+				];
+	}
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::RelativeSize)
+	{
+		return Item->MakeRelativeSizeColumnWidget();
+	}
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::DamageThreshold)
+	{
+		return Item->MakeDamageThresholdColumnWidget();
+	}
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::InitialState)
+	{
+		return Item->MakeInitialStateColumnWidget();
+	}
+	return SNew(SHorizontalBox)
+	+ SHorizontalBox::Slot()
+		[
+			SNew(STextBlock)
+		];;
+}
 
 void SGeometryCollectionOutliner::Construct(const FArguments& InArgs)
 {
 	BoneSelectionChangedDelegate = InArgs._OnBoneSelectionChanged;
 	bPerformingSelection = false;
 
+	HeaderRowWidget =
+		SNew( SHeaderRow )
+			.Visibility( EVisibility::Visible );
+	HeaderRowWidget->AddColumn(
+		SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::Bone)
+		.DefaultLabel(LOCTEXT("GCOutliner_Column_Bone", "Bone"))
+		.FillWidth(2.0f)
+	);
+	HeaderRowWidget->AddColumn(
+		SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::RelativeSize)
+		.DefaultLabel(LOCTEXT("GCOutliner_Column_RelativeSize", "Relative Size"))
+		.HAlignHeader(EHorizontalAlignment::HAlign_Right)
+		.FillWidth(1.0f)
+	);
+	// HeaderRowWidget->AddColumn(
+	// 	SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::DamageThreshold)
+	// 	.DefaultLabel(LOCTEXT("GCOutliner_Column_DamageThreshold", "Damage Threshold"))
+	// 	.HAlignHeader(EHorizontalAlignment::HAlign_Right)
+	// 	.FillWidth(1.0f)
+	// 	.Visibility(EVisibility::Collapsed)
+	// );
+	HeaderRowWidget->AddColumn(
+		SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::InitialState)
+		.DefaultLabel(LOCTEXT("GCOutliner_Column_InitialState", "Initial State"))
+		.FillWidth(1.0f)
+	);
+	
 	ChildSlot
 	[
 		SAssignNew(TreeView, STreeView<FGeometryCollectionTreeItemPtr>)
@@ -183,6 +248,7 @@ void SGeometryCollectionOutliner::Construct(const FArguments& InArgs)
 		.OnGeneratePinnedRow(this, &SGeometryCollectionOutliner::OnGeneratePinnedRowWidget, true)
 		.HighlightParentNodesForSelection(true)
 		.OnSetExpansionRecursive(this, &SGeometryCollectionOutliner::ExpandRecursive)
+		.HeaderRow(HeaderRowWidget)
 	];
 }
 
@@ -468,6 +534,25 @@ void FGeometryCollectionTreeItemComponent::GetChildrenForBone(FGeometryCollectio
 	}
 }
 
+bool FGeometryCollectionTreeItemComponent::HasChildrenForBone(const FGeometryCollectionTreeItemBone& BoneItem) const
+{
+	if (!Component.IsValid())
+	{
+		return false;
+	}
+	if(const UGeometryCollection* RestCollection = Component->GetRestCollection())
+	{
+		if (const FGeometryCollection* Collection = RestCollection->GetGeometryCollection().Get())
+		{
+			if (const int32* BoneIndex = GuidIndexMap.Find(BoneItem.GetGuid()))
+			{
+				return Collection->Children[(*BoneIndex)].Num() > 0;
+			}
+		}
+	}
+	return false;
+}
+
 FText FGeometryCollectionTreeItemComponent::GetDisplayNameForBone(const FGuid& Guid) const
 {
 	if (!Component.IsValid())
@@ -597,131 +682,163 @@ bool FGeometryCollectionTreeItemComponent::FilterBoneIndex(int32 BoneIndex) cons
 	return true;	
 }
 
-TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, bool bNoExtraColumn)
+void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 {
+	const int32 ItemBoneIndex = GetBoneIndex();
+
+	constexpr FLinearColor InvalidColor(0.1f, 0.1f, 0.1f);
+	
+	ItemColor = InvalidColor;
+	RelativeSize = 0;
+	DamageThreshold = 0;
+	InitialState = INDEX_NONE;
+	
+	// Name / ItemText
 	UOutlinerSettings* OutlinerSettings = GetMutableDefault<UOutlinerSettings>();
-	FText ItemText = ParentComponentItem->GetDisplayNameForBone(Guid);
+	ItemText = ParentComponentItem->GetDisplayNameForBone(Guid);
 	if (OutlinerSettings->ItemText == EOutlinerItemNameEnum::BoneIndex)
 	{
-		ItemText = FText::FromString(FString::FromInt(GetBoneIndex()));
+		ItemText = FText::FromString(FString::FromInt(ItemBoneIndex));
 	}
 
 	// Set color according to simulation type
-
-	FSlateColor TextColor(FLinearColor::Red); // default color indicates something wrong
-	int32 InitialDynamicState = INDEX_NONE;
-
 	const UGeometryCollection* RestCollection = ParentComponentItem->GetComponent()->GetRestCollection();
 	if (RestCollection && IsValidChecked(RestCollection))
 	{
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = RestCollection->GetGeometryCollection();
 		const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;
-		if (ensure(GetBoneIndex() >= 0 && GetBoneIndex() < SimulationType.Num()))
+		const TManagedArray<float>* RelativeSizes = GeometryCollectionPtr->FindAttribute<float>("Size", FTransformCollection::TransformGroup);
+		
+		if (ensure(ItemBoneIndex >= 0 && ItemBoneIndex < SimulationType.Num()))
 		{
 			const bool bHasLevelAttribute = GeometryCollectionPtr->HasAttribute("Level", FGeometryCollection::TransformGroup);
 			if (bHasLevelAttribute && OutlinerSettings->ColorByLevel)
 			{
 				TManagedArray<int32>& Level = GeometryCollectionPtr->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
-				TextColor = FSlateColor(FGeometryCollectionTreeItem::GetColorPerDepth((uint32)Level[GetBoneIndex()]));
+				ItemColor = FSlateColor(FGeometryCollectionTreeItem::GetColorPerDepth((uint32)Level[ItemBoneIndex]));
 			}
 			else
 			{
-			switch (SimulationType[GetBoneIndex()])
+				switch (SimulationType[ItemBoneIndex])
+				{
+				case FGeometryCollection::ESimulationTypes::FST_None:
+					ItemColor = FLinearColor::Green;
+					break;
+
+				case FGeometryCollection::ESimulationTypes::FST_Rigid:
+					if (GeometryCollectionPtr->IsVisible(ItemBoneIndex))
+					{
+						ItemColor = FSlateColor::UseForeground();
+					}
+					else
+					{
+						ItemColor = InvalidColor;
+					}
+					break;
+
+				case FGeometryCollection::ESimulationTypes::FST_Clustered:
+					ItemColor = FSlateColor(FColor::Cyan);
+					break;
+
+				default:
+					ensureMsgf(false, TEXT("Invalid Geometry Collection simulation type encountered."));
+					break;
+				}
+			}
+
+			InitialState = GeometryCollectionPtr->InitialDynamicState[ItemBoneIndex];
+			if (RelativeSizes)
 			{
-			case FGeometryCollection::ESimulationTypes::FST_None:
-				TextColor = FLinearColor::Green;
-				break;
-
-			case FGeometryCollection::ESimulationTypes::FST_Rigid:
-				if (GeometryCollectionPtr->IsVisible(GetBoneIndex()))
-				{
-					TextColor = FSlateColor::UseForeground();
-				}
-				else
-				{
-					TextColor = FLinearColor{ 0.1f, 0.1f, 0.1f, 1.f };
-				}
-				break;
-
-			case FGeometryCollection::ESimulationTypes::FST_Clustered:
-				TextColor = FSlateColor(FColor::Cyan);
-				break;
-
-			default:
-				ensureMsgf(false, TEXT("Invalid Geometry Collection simulation type encountered."));
-				break;
+				RelativeSize = (*RelativeSizes)[ItemBoneIndex];
 			}
-			}
-
-			InitialDynamicState = GeometryCollectionPtr->InitialDynamicState[GetBoneIndex()];
-		}
-		else
-		{
-			// UI contains invalid bone indices; likely not correctly updated after an undo or redo?
-			TextColor = FLinearColor(0.1f, 0.1f, 0.1f);
-			InitialDynamicState = INDEX_NONE;
 		}
 	}
-	else
+}
+
+TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, bool bIsPinned)
+{
+	UpdateItemFromCollection();
+	if (bIsPinned)
 	{
-		// Deleted rest collection
-		TextColor = FLinearColor(0.1f, 0.1f, 0.1f);
-		InitialDynamicState = INDEX_NONE;
-	}
-	
-	if (bNoExtraColumn)
-	{
-		// short version 
 		return SNew(STableRow<FGeometryCollectionTreeItemPtr>, InOwnerTable)
-		.Content()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-				.Padding(2.0f, 4.0f)
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.Text(ItemText)
-					.ColorAndOpacity(TextColor)
-				]
-		]
-		.OnDragDetected(this, &FGeometryCollectionTreeItem::OnDragDetected)
-		.OnDrop(this, &FGeometryCollectionTreeItem::OnDrop)
-		.OnDragEnter(this, &FGeometryCollectionTreeItem::OnDragEnter)
-		.OnDragLeave(this, &FGeometryCollectionTreeItem::OnDragLeave);
-	}
-	// full item 
-	return SNew(STableRow<FGeometryCollectionTreeItemPtr>, InOwnerTable)
-		.Content()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-				.Padding(2.0f, 4.0f)
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.Text(ItemText)
-					.ColorAndOpacity(TextColor)
-				]
-			+ SHorizontalBox::Slot()
-					.Padding(2.0f, 2.0f)
-					.FillWidth(1.0f)
-					.HAlign(HAlign_Right)
+			.Content()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+					.Padding(2.0f, 4.0f)
+					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Text(GettextFromInitialDynamicState(InitialDynamicState))
-						.ColorAndOpacity(TextColor)
+						.Text(ItemText)
+						.ColorAndOpacity(ItemColor)
 					]
-		]
-		.OnDragDetected(this, &FGeometryCollectionTreeItem::OnDragDetected)
-		.OnDrop(this, &FGeometryCollectionTreeItem::OnDrop)
-		.OnDragEnter(this, &FGeometryCollectionTreeItem::OnDragEnter)
-		.OnDragLeave(this, &FGeometryCollectionTreeItem::OnDragLeave);
+			];
+	}
+	return SNew(SGeometryCollectionOutlinerRow, InOwnerTable, SharedThis(this));
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeNameColumnWidget() const
+{
+	return SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text(ItemText)
+					.ColorAndOpacity(ItemColor)
+				];
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeRelativeSizeColumnWidget() const
+{
+	static const FNumberFormattingOptions FormatOptions = FNumberFormattingOptions()
+				.SetMinimumFractionalDigits(2)
+				.SetMaximumFractionalDigits(2);
+	
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+			.Padding(12.f, 0.f)
+			.HAlign(HAlign_Right)
+			[
+				SNew(STextBlock)
+				.Text(FText::AsNumber(RelativeSize, &FormatOptions))
+				.ColorAndOpacity(ItemColor)
+			];
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeDamageThresholdColumnWidget() const
+{
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+			.Padding(12.f, 0.f)
+			.HAlign(HAlign_Right)
+			[
+				SNew(STextBlock)
+				.Text(FText::AsNumber(DamageThreshold))
+				.ColorAndOpacity(ItemColor)
+			];
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeInitialStateColumnWidget() const
+{
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+			.Padding(12.f, 0.f)
+			[
+				SNew(STextBlock)
+				.Text(GettextFromInitialDynamicState(InitialState))
+				.ColorAndOpacity(ItemColor)
+			];
 }
 
 void FGeometryCollectionTreeItemBone::GetChildren(FGeometryCollectionTreeItemList& OutChildren)
 {
 	ParentComponentItem->GetChildrenForBone(*this, OutChildren);
+}
+
+bool FGeometryCollectionTreeItemBone::HasChildren() const 
+{
+	return ParentComponentItem->HasChildrenForBone(*this);
 }
 
 
