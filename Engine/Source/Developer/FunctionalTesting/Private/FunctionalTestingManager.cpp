@@ -63,6 +63,7 @@ UFunctionalTestingManager::UFunctionalTestingManager( const FObjectInitializer& 
 	, bIsRunning(false)
 	, bFinished(false)
 	, bLooped(false)
+	, bInitialDelayApplied(false)
     , bIsTearingDown(false)
 	, CurrentIteration(INDEX_NONE)
 {
@@ -159,13 +160,13 @@ void UFunctionalTestingManager::TriggerFirstValidTest()
 {
 	UWorld* World = GetWorld();
 	check(World);
-	bIsRunning = true;
+	bIsRunning = World->GetNavigationSystem() != nullptr;
 
 	const bool bIsWorldInitialized =
 		World->AreActorsInitialized() &&
-			(!World->GetWorldSettings()->IsNavigationSystemEnabled() || !UNavigationSystemV1::IsNavigationBeingBuilt(World));
+		!UNavigationSystemV1::IsNavigationBeingBuilt(World);
 
-	if (bIsWorldInitialized)
+	if (bInitialDelayApplied == true && bIsWorldInitialized)
 	{
 		bIsRunning = RunFirstValidTest();
 		if (bIsRunning == false)
@@ -175,6 +176,7 @@ void UFunctionalTestingManager::TriggerFirstValidTest()
 	}
 	else
 	{
+		bInitialDelayApplied = true;
 		static const float WaitingTime = 0.25f;
 		World->GetTimerManager().SetTimer(TriggerFirstValidTestTimerHandle, this, &UFunctionalTestingManager::TriggerFirstValidTest, WaitingTime);
 	}
