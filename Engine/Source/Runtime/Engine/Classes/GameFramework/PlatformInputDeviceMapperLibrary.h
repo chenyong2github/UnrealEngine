@@ -110,4 +110,28 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "PlatformInputDevice")
 	static bool IsValidPlatformId(FPlatformUserId UserId);
+
+	/** Static invalid platform user */
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "None", ScriptConstantHost = "PlatformUserId"), Category = "PlatformInputDevice")
+	static FPlatformUserId PlatformUserId_None();
+
+	/** Static invalid input device */
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "None", ScriptConstantHost = "InputDeviceId"), Category = "PlatformInputDevice")
+	static FInputDeviceId InputDeviceId_None();
+
+	/** Returns true if PlatformUserId A is equal to PlatformUserId B (A == B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Equal (PlatformUserId)", CompactNodeTitle = "==", ScriptMethod = "Equals", ScriptOperator = "==", Keywords = "== equal"), Category = "PlatformInputDevice")
+	static bool EqualEqual_PlatformUserId(FPlatformUserId A, FPlatformUserId B);
+
+	/** Returns true if PlatformUserId A is not equal to PlatformUserId B (A != B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Not Equal (PlatformUserId)", CompactNodeTitle = "!=", ScriptMethod = "NotEqual", ScriptOperator = "!=", Keywords = "!= not equal"), Category = "PlatformInputDevice")
+	static bool NotEqual_PlatformUserId(FPlatformUserId A, FPlatformUserId B);
+	
+	/** Returns true if InputDeviceId A is equal to InputDeviceId B (A == B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Equal (InputDeviceId)", CompactNodeTitle = "==", ScriptMethod = "Equals", ScriptOperator = "==", Keywords = "== equal"), Category = "PlatformInputDevice")
+	static bool EqualEqual_InputDeviceId(FInputDeviceId A, FInputDeviceId B);
+	
+	/** Returns true if InputDeviceId A is not equal to InputDeviceId B (A != B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Not Equal (InputDeviceId)", CompactNodeTitle = "!=", ScriptMethod = "NotEqual", ScriptOperator = "!=", Keywords = "!= not equal"), Category = "PlatformInputDevice")
+	static bool NotEqual_InputDeviceId(FInputDeviceId A, FInputDeviceId B);
 };

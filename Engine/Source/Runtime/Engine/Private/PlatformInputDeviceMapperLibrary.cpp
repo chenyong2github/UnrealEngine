@@ -67,3 +67,33 @@ bool UPlatformInputDeviceMapperLibrary::IsValidPlatformId(FPlatformUserId UserId
 {
 	return UserId.IsValid();
 }
+
+FPlatformUserId UPlatformInputDeviceMapperLibrary::PlatformUserId_None()
+{
+	return PLATFORMUSERID_NONE;
+}
+
+FInputDeviceId UPlatformInputDeviceMapperLibrary::InputDeviceId_None()
+{
+	return INPUTDEVICEID_NONE;
+}
+
+bool UPlatformInputDeviceMapperLibrary::EqualEqual_PlatformUserId(FPlatformUserId A, FPlatformUserId B)
+{
+	return A == B;
+}
+
+bool UPlatformInputDeviceMapperLibrary::NotEqual_PlatformUserId(FPlatformUserId A, FPlatformUserId B)
+{
+	return A != B;
+}
+
+bool UPlatformInputDeviceMapperLibrary::EqualEqual_InputDeviceId(FInputDeviceId A, FInputDeviceId B)
+{
+	return A == B;
+}
+
+bool UPlatformInputDeviceMapperLibrary::NotEqual_InputDeviceId(FInputDeviceId A, FInputDeviceId B)
+{
+	return A != B;
+}
