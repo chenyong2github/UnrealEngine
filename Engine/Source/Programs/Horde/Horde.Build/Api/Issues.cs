@@ -601,6 +601,11 @@ namespace Horde.Build.Api
 		public string Name { get; set; }
 
 		/// <summary>
+		/// Workflow for this span
+		/// </summary>
+		public WorkflowId? WorkflowId { get; set; }
+
+		/// <summary>
 		/// The previous build 
 		/// </summary>
 		public GetIssueStepResponse? LastSuccess { get; set; }
@@ -614,11 +619,13 @@ namespace Horde.Build.Api
 		/// Constructor
 		/// </summary>
 		/// <param name="span"></param>
-		public FindIssueSpanResponse(IIssueSpan span)
+		/// <param name="workflowId"></param>
+		public FindIssueSpanResponse(IIssueSpan span, WorkflowId? workflowId)
 		{
 			Id = span.Id.ToString();
 			TemplateId = span.TemplateRefId.ToString();
 			Name = span.NodeName;
+			WorkflowId = workflowId;
 			if (span.LastSuccess != null)
 			{
 				LastSuccess = new GetIssueStepResponse(span.LastSuccess);
