@@ -82,16 +82,13 @@ TArray<uint8> UOptimusValueContainer::GetShaderValue() const
 	FOptimusDataTypeRef DataType = GetValueType();
 	if (ensure(ValueProperty) && ensure(DataType.IsValid()))
 	{
-		if (ensure(ValueProperty) && ensure(DataType.IsValid()))
-		{
-			TArrayView<const uint8> ValueData(ValueProperty->ContainerPtrToValuePtr<uint8>(this), ValueProperty->GetSize());
-			TArray<uint8> ValueResult;
-			ValueResult.SetNumUninitialized(DataType->ShaderValueSize);
+		TArrayView<const uint8> ValueData(ValueProperty->ContainerPtrToValuePtr<uint8>(this), ValueProperty->GetSize());
+		TArray<uint8> ValueResult;
+		ValueResult.SetNumUninitialized(DataType->ShaderValueSize);
 
-			if (DataType->ConvertPropertyValueToShader(ValueData, ValueResult))
-			{
-				return ValueResult;
-			}
+		if (DataType->ConvertPropertyValueToShader(ValueData, ValueResult))
+		{
+			return ValueResult;
 		}
 	}
 	
