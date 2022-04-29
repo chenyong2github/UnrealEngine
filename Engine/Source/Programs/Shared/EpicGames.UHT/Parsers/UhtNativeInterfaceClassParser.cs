@@ -68,13 +68,14 @@ namespace EpicGames.UHT.Parsers
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global, Keyword = "class", DisableUsageError = true)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult ClassKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			using (var SaveState = new UhtTokenSaveState(TopScope.TokenReader))
 			{
 				UhtToken SourceName = new UhtToken();
 				UhtToken SuperName = new UhtToken();
-				if (TryParseIInterface(TopScope, ref Token, out SourceName, out SuperName))
+				if (TryParseIInterface(TopScope, out SourceName, out SuperName))
 				{
 					SaveState.AbandonState();
 					ParseIInterface(TopScope, ref Token, SourceName, SuperName);
@@ -87,6 +88,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.NativeInterface)]
 		[UhtKeyword(Extends = UhtTableNames.NativeInterface, Keyword = "GENERATED_BODY")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult GENERATED_IINTERFACE_BODYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			UhtClass Class = (UhtClass)TopScope.ScopeType;
@@ -105,7 +107,7 @@ namespace EpicGames.UHT.Parsers
 		}
 		#endregion
 
-		private static bool TryParseIInterface(UhtParsingScope ParentScope, ref UhtToken Token, out UhtToken SourceName, out UhtToken SuperName)
+		private static bool TryParseIInterface(UhtParsingScope ParentScope, out UhtToken SourceName, out UhtToken SuperName)
 		{
 			IUhtTokenReader TokenReader = ParentScope.TokenReader;
 
@@ -176,7 +178,7 @@ namespace EpicGames.UHT.Parsers
 			{
 				const string ScopeName = "native interface";
 
-				using (var TokenContext = new UhtMessageContext(TopScope.TokenReader, ScopeName))
+				using (var TokenContext = new UhtMessageContext(ScopeName))
 				{
 					TopScope.HeaderParser.ParseStatements('{', '}', false);
 					TokenReader.Require(';');

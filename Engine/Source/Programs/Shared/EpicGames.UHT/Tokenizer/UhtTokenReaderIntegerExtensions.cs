@@ -40,9 +40,8 @@ namespace EpicGames.UHT.Tokenizer
 		/// Get the next token as an integer.  If the next token is not an integer, an exception is thrown
 		/// </summary>
 		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the constant</returns>
-		public static IUhtTokenReader OptionalConstInt(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static IUhtTokenReader OptionalConstInt(this IUhtTokenReader TokenReader)
 		{
 			TokenReader.TryOptionalConstInt(out int _);
 			return TokenReader;
@@ -101,9 +100,8 @@ namespace EpicGames.UHT.Tokenizer
 		/// Get the next token as an integer.  If the next token is not an integer, an exception is thrown
 		/// </summary>
 		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the constant</returns>
-		public static IUhtTokenReader OptionalConstLong(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static IUhtTokenReader OptionalConstLong(this IUhtTokenReader TokenReader)
 		{
 			ref UhtToken Token = ref TokenReader.PeekToken();
 

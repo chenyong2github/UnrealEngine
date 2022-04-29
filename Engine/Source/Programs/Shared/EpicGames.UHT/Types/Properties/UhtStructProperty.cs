@@ -209,6 +209,7 @@ namespace EpicGames.UHT.Types
 		#region Structure default value sanitizers
 		[UhtStructDefaultValue(Name = "FVector")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static bool VectorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			string Format = "{0:F6},{1:F6},{2:F6}";
@@ -250,6 +251,7 @@ namespace EpicGames.UHT.Types
 
 		[UhtStructDefaultValue(Name = "FRotator")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static bool RotatorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			DefaultValueReader.Require("FRotator");
@@ -283,6 +285,7 @@ namespace EpicGames.UHT.Types
 
 		[UhtStructDefaultValue(Name = "FVector2D")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static bool Vector2DStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			string Format = "(X={0:F3},Y={1:F3})";
@@ -317,6 +320,7 @@ namespace EpicGames.UHT.Types
 
 		[UhtStructDefaultValue(Name = "FLinearColor")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static bool LinearColorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			string Format = "(R={0:F6},G={1:F6},B={2:F6},A={3:F6})";
@@ -364,6 +368,7 @@ namespace EpicGames.UHT.Types
 
 		[UhtStructDefaultValue(Name = "FColor")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static bool ColorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			string Format = "(R={0},G={1},B={2},A={3})";
@@ -411,6 +416,7 @@ namespace EpicGames.UHT.Types
 
 		[UhtStructDefaultValue(Options = UhtStructDefaultValueOptions.Default)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static bool DefaultStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
 		{
 			DefaultValueReader

@@ -73,6 +73,7 @@ namespace EpicGames.UHT.Parsers
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult USTRUCTKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return ParseUScriptStruct(TopScope, Token);
@@ -81,6 +82,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct)]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct, Keyword = "GENERATED_BODY")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult GENERATED_USTRUCT_BODYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			UhtScriptStruct ScriptStruct = (UhtScriptStruct)TopScope.ScopeType;
@@ -105,6 +107,7 @@ namespace EpicGames.UHT.Parsers
 
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult RIGVM_METHODKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			ParseRigVM(TopScope);
@@ -119,7 +122,7 @@ namespace EpicGames.UHT.Parsers
 			{
 				const string ScopeName = "struct";
 
-				using (var TokenContext = new UhtMessageContext(TopScope.TokenReader, ScopeName))
+				using (var TokenContext = new UhtMessageContext(ScopeName))
 				{
 					// Parse the specifiers
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, ScriptStruct.MetaData);
@@ -198,7 +201,7 @@ namespace EpicGames.UHT.Parsers
 		{
 			UhtScriptStruct ScriptStruct = (UhtScriptStruct)TopScope.ScopeType;
 
-			using (var TokenContext = new UhtMessageContext(TopScope.TokenReader, "RIGVM_METHOD"))
+			using (var TokenContext = new UhtMessageContext("RIGVM_METHOD"))
 			{
 
 				// Create the RigVM information if it doesn't already exist

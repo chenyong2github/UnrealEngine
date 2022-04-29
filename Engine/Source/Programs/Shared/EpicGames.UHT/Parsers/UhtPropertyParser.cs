@@ -509,7 +509,7 @@ namespace EpicGames.UHT.Parsers
 			this.CurrentTypeTokens = new List<UhtToken>();
 			this.CurrentTemplateDepth = 0;
 
-			using (var TokenContext = new UhtMessageContext(this.TokenReader, this))
+			using (var TokenContext = new UhtMessageContext(this))
 			{
 				ParseInternal(Delegate);
 			}
@@ -1106,7 +1106,7 @@ namespace EpicGames.UHT.Parsers
 			if (NewProperty.PropertyCategory == UhtPropertyCategory.Member)
 			{
 				UhtSpecifierParser Specifiers = this.TopScope.HeaderParser.GetSpecifierParser(this.SpecifierContext, NewProperty.SourceName, this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
-				Specifiers.ParseFieldMetaData(NewProperty.SourceName);
+				Specifiers.ParseFieldMetaData();
 				this.TopScope.AddFormattedCommentsAsTooltipMetaData(NewProperty);
 			}
 
@@ -1190,6 +1190,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.Class)]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult UPROPERTYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			UhtPropertyParseOptions Options = UhtPropertyParseOptions.ParseLayoutMacro | UhtPropertyParseOptions.List | UhtPropertyParseOptions.AddModuleRelativePath;
@@ -1222,6 +1223,7 @@ namespace EpicGames.UHT.Parsers
 	{
 		[UhtPropertyType(Options = UhtPropertyTypeOptions.Default)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtProperty? DefaultProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtSession Session = PropertySettings.Outer.Session;

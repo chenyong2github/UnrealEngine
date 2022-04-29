@@ -150,7 +150,7 @@ namespace EpicGames.UHT.Parsers
 					MergeCategories();
 
 					SetAndValidateWithinClass(ResolvePhase);
-					SetAndValidateConfigName(ResolvePhase);
+					SetAndValidateConfigName();
 
 					// Copy all of the lists back to the meta data
 					this.MetaData.AddIfNotEmpty(UhtNames.ClassGroupNames, this.ClassGroupNames);
@@ -286,7 +286,7 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
-		private void SetAndValidateConfigName(UhtResolvePhase ResolvePhase)
+		private void SetAndValidateConfigName()
 		{
 			// Since this flag is computed in this method, we have to re-propagate the flag from the super
 			// just in case they were defined in this source file.
@@ -367,6 +367,7 @@ namespace EpicGames.UHT.Parsers
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult UCLASSKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return ParseUClass(TopScope, ref Token);
@@ -375,6 +376,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.Class)]
 		[UhtKeyword(Extends = UhtTableNames.Class, Keyword = "GENERATED_BODY")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult GENERATED_UCLASS_BODYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			UhtClass Class = (UhtClass)TopScope.ScopeType;
@@ -405,7 +407,7 @@ namespace EpicGames.UHT.Parsers
 			{
 				const string ScopeName = "class";
 
-				using (var TokenContext = new UhtMessageContext(TopScope.TokenReader, ScopeName))
+				using (var TokenContext = new UhtMessageContext(ScopeName))
 				{
 					// Parse the specifiers
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Class.MetaData);

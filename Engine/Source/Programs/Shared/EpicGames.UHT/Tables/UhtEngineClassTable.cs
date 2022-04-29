@@ -69,9 +69,8 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Add an entry to the table
 		/// </summary>
-		/// <param name="Type">Type associated with the given attribute</param>
 		/// <param name="EngineClassAttribute">The located attribute</param>
-		public void OnEngineClassAttribute(Type Type, UhtEngineClassAttribute EngineClassAttribute)
+		public void OnEngineClassAttribute(UhtEngineClassAttribute EngineClassAttribute)
 		{
 			if (string.IsNullOrEmpty(EngineClassAttribute.Name))
 			{

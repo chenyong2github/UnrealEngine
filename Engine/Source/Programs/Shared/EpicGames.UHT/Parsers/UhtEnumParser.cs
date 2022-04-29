@@ -27,6 +27,7 @@ namespace EpicGames.UHT.Parsers
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult UENUMKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return ParseUEnum(TopScope, Token);
@@ -40,7 +41,7 @@ namespace EpicGames.UHT.Parsers
 			{
 				const string ScopeName = "UENUM";
 
-				using (var TokenContext = new UhtMessageContext(TopScope.TokenReader, ScopeName))
+				using (var TokenContext = new UhtMessageContext(ScopeName))
 				{
 
 					// Parse the specifiers
@@ -67,7 +68,7 @@ namespace EpicGames.UHT.Parsers
 
 					Enum.SourceName = EnumToken.Value.ToString();
 
-					Specifiers.ParseFieldMetaData(ScopeName);
+					Specifiers.ParseFieldMetaData();
 					Specifiers.ParseDeferred();
 
 					if (Enum.Outer != null)
@@ -216,7 +217,7 @@ namespace EpicGames.UHT.Parsers
 
 						// check for metadata on this enum value
 						SpecifierContext.MetaNameIndex = EnumIndex;
-						Specifiers.ParseFieldMetaData("Enum value");
+						Specifiers.ParseFieldMetaData();
 					});
 
 					// Trailing brace and semicolon for the enum

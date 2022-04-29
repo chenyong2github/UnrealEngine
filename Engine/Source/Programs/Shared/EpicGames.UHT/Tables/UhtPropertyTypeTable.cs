@@ -189,11 +189,10 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Handle a property type attribute
 		/// </summary>
-		/// <param name="Type">Containing type</param>
 		/// <param name="MethodInfo">Method info</param>
 		/// <param name="PropertyTypeAttribute">Attribute</param>
 		/// <exception cref="UhtIceException">Thrown if the property type isn't properly defined.</exception>
-		public void OnPropertyTypeAttribute(Type Type, MethodInfo MethodInfo, UhtPropertyTypeAttribute PropertyTypeAttribute)
+		public void OnPropertyTypeAttribute(MethodInfo MethodInfo, UhtPropertyTypeAttribute PropertyTypeAttribute)
 		{
 			if (string.IsNullOrEmpty(PropertyTypeAttribute.Keyword) && !PropertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.Default))
 			{

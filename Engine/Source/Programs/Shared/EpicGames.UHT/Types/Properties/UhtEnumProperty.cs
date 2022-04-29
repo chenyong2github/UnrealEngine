@@ -334,11 +334,12 @@ namespace EpicGames.UHT.Types
 		#region Keyword
 		[UhtPropertyType(Keyword = "TEnumAsByte")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtProperty? EnumProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
 		{
 			UhtType Outer = PropertySettings.Outer;
 			UhtEnum? Enum = null;
-			using (var TokenContext = new UhtMessageContext(TokenReader, "TEnumAsByte"))
+			using (var TokenContext = new UhtMessageContext("TEnumAsByte"))
 			{
 				TokenReader
 					.Require("TEnumAsByte")

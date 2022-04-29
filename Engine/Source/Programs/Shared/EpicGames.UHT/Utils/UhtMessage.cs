@@ -540,9 +540,8 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Construct a new entry
 		/// </summary>
-		/// <param name="MessageSite">Destination message site</param>
 		/// <param name="ExtraContext">Extra context to be added</param>
-		public UhtMessageContext(IUhtMessageSite MessageSite, object? ExtraContext)
+		public UhtMessageContext(object? ExtraContext)
 		{
 			this.Stack = UhtTlsMessageExtraContext.GetTls();
 			if (this.Stack != null)

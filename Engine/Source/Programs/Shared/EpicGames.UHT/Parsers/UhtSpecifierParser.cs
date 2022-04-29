@@ -97,7 +97,7 @@ namespace EpicGames.UHT.Parsers
 			this.bIsParsingFieldMetaData = false;
 			this.SpecifierContext.MetaData.LineNumber = TokenReader.InputLine;
 
-			using (var TokenContext = new UhtMessageContext(this.TokenReader, this))
+			using (var TokenContext = new UhtMessageContext(this))
 			{
 				this.TokenReader.RequireList('(', ')', ',', false, this.ParseAction);
 			}
@@ -107,14 +107,13 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Parse field meta data
 		/// </summary>
-		/// <param name="Context">User facing context for error messages</param>
 		/// <returns>Specifier parser</returns>
-		public UhtSpecifierParser ParseFieldMetaData(StringView Context)
+		public UhtSpecifierParser ParseFieldMetaData()
 		{
 			this.TokenReader = this.SpecifierContext.Scope.TokenReader;
 			this.bIsParsingFieldMetaData = true;
 
-			using (var TokenContext = new UhtMessageContext(this.TokenReader, this))
+			using (var TokenContext = new UhtMessageContext(this))
 			{
 				if (TokenReader.TryOptional("UMETA"))
 				{
@@ -130,7 +129,7 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		/// <summary>
-		/// Parse any deffered specifiers
+		/// Parse any deferred specifiers
 		/// </summary>
 		public void ParseDeferred()
 		{

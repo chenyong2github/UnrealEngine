@@ -139,6 +139,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.ClassBase, Keyword = "public")]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct, Keyword = "public")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult PublicKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return SetAccessSpecifier(TopScope, UhtAccessSpecifier.Public);
@@ -147,6 +148,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.ClassBase, Keyword = "protected")]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct, Keyword = "protected")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult ProtectedKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return SetAccessSpecifier(TopScope, UhtAccessSpecifier.Protected);
@@ -155,6 +157,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.ClassBase, Keyword = "private")]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct, Keyword = "private")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult PrivateKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return SetAccessSpecifier(TopScope, UhtAccessSpecifier.Private);
@@ -358,7 +361,7 @@ namespace EpicGames.UHT.Parsers
 		public bool ParsePreprocessorDirective(ref UhtToken Token, bool bIsBeingIncluded, out bool bClearComments, out bool bIllegalContentsCheck)
 		{
 			bClearComments = true;
-			if (ParseDirectiveInternal(Token, bIsBeingIncluded))
+			if (ParseDirectiveInternal(bIsBeingIncluded))
 			{
 				bClearComments = ClearCommentsCompilerDirective();
 			}
@@ -613,10 +616,9 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Parse a preprocessor directive.
 		/// </summary>
-		/// <param name="Token">Token that started the parse</param>
 		/// <param name="bIsBeingIncluded">If true, then this directive is in an active block</param>
 		/// <returns>True if we should check to see if tokenizer should clear comments</returns>
-		private bool ParseDirectiveInternal(UhtToken Token, bool bIsBeingIncluded)
+		private bool ParseDirectiveInternal(bool bIsBeingIncluded)
 		{
 			bool bCheckClearComments = false;
 

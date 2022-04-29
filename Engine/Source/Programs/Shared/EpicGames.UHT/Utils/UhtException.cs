@@ -84,18 +84,17 @@ namespace EpicGames.UHT.Utils
 		public UhtTokenException(IUhtMessageSite MessageSite, UhtToken Got, object? Expected, object? ExtraContext = null)
 		{
 			string Message = Expected != null 
-				? $"Found {UhtMessage.FormatContext(Got)} when expecting {UhtMessage.FormatContext(Expected)}{FormatExtraContext(MessageSite, ExtraContext)}"
-				: $"Found {UhtMessage.FormatContext(Got)}{FormatExtraContext(MessageSite, ExtraContext)}";
+				? $"Found {UhtMessage.FormatContext(Got)} when expecting {UhtMessage.FormatContext(Expected)}{FormatExtraContext(ExtraContext)}"
+				: $"Found {UhtMessage.FormatContext(Got)}{FormatExtraContext(ExtraContext)}";
 			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, MessageSite.MessageSource, null, Got.InputLine, Message);
 		}
 
 		/// <summary>
 		/// Format any extra context supplied by the caller or the message site
 		/// </summary>
-		/// <param name="MessageSite">Message site that may contain extra context</param>
 		/// <param name="ExtraContext">Additional caller supplied context</param>
 		/// <returns></returns>
-		private static string FormatExtraContext(IUhtMessageSite MessageSite, object? ExtraContext = null)
+		private static string FormatExtraContext(object? ExtraContext = null)
 		{
 			StringBuilder Builder = new StringBuilder(" while parsing ");
 			int StartingLength = Builder.Length;

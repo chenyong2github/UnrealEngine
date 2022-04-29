@@ -43,8 +43,8 @@ namespace EpicGames.UHT.Tokenizer
 		public UhtTokenReplayReader(IUhtMessageSite MessageSite, ReadOnlyMemory<char> Data, ReadOnlyMemory<UhtToken> Tokens, UhtTokenType EndTokenType)
 		{
 			this.MessageSiteInternal = MessageSite;
-			this.Tokens = Array.Empty<UhtToken>().AsMemory();
-			this.Data = Array.Empty<char>().AsMemory();
+			this.Tokens = Tokens;
+			this.Data = Data;
 			this.EndTokenType = EndTokenType;
 			this.CurrentToken = new UhtToken(EndTokenType);
 		}

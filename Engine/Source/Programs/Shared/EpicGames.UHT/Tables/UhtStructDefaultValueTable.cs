@@ -148,11 +148,10 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Handle a structure default value sanitizer attribute
 		/// </summary>
-		/// <param name="Type">Containing type</param>
 		/// <param name="MethodInfo">Method information</param>
 		/// <param name="StructDefaultValueAttribute">Found attribute</param>
 		/// <exception cref="UhtIceException">Thrown if the attribute isn't property defined</exception>
-		public void OnStructDefaultValueAttribute(Type Type, MethodInfo MethodInfo, UhtStructDefaultValueAttribute StructDefaultValueAttribute)
+		public void OnStructDefaultValueAttribute(MethodInfo MethodInfo, UhtStructDefaultValueAttribute StructDefaultValueAttribute)
 		{
 			if (string.IsNullOrEmpty(StructDefaultValueAttribute.Name) && !StructDefaultValueAttribute.Options.HasAnyFlags(UhtStructDefaultValueOptions.Default))
 			{

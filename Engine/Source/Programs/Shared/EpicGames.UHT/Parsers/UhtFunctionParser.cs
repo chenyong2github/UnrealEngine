@@ -183,6 +183,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[UhtKeyword(Extends = UhtTableNames.Class)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult UDELEGATEKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return ParseUDelegate(TopScope, Token, true);
@@ -192,6 +193,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.Interface)]
 		[UhtKeyword(Extends = UhtTableNames.NativeInterface)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult UFUNCTIONKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			return ParseUFunction(TopScope, Token);
@@ -199,6 +201,7 @@ namespace EpicGames.UHT.Parsers
 
 		[UhtKeywordCatchAll(Extends = UhtTableNames.Global)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
 		private static UhtParseResult ParseCatchAllKeyword(UhtParsingScope TopScope, ref UhtToken Token)
 		{
 			if (UhtFunctionParser.IsValidateDelegateDeclaration(Token))
@@ -217,7 +220,7 @@ namespace EpicGames.UHT.Parsers
 			{
 				const string ScopeName = "delegate declaration";
 
-				using (var TokenContext = new UhtMessageContext(TopScope.TokenReader, ScopeName))
+				using (var TokenContext = new UhtMessageContext(ScopeName))
 				{
 					TopScope.AddModuleRelativePathToMetaData();
 
@@ -368,7 +371,7 @@ namespace EpicGames.UHT.Parsers
 					Function.MacroLineNumber = TopScope.TokenReader.InputLine;
 
 					// Try parsing metadata for the function
-					Specifiers.ParseFieldMetaData(Function.SourceName);
+					Specifiers.ParseFieldMetaData();
 
 					TopScope.AddFormattedCommentsAsTooltipMetaData();
 
@@ -389,7 +392,7 @@ namespace EpicGames.UHT.Parsers
 				UhtClass OuterClass = (UhtClass)OuterClassScope.ScopeType;
 				string ScopeName = "function";
 
-				using (var TokenContext = new UhtMessageContext(TopScope.TokenReader, ScopeName))
+				using (var TokenContext = new UhtMessageContext(ScopeName))
 				{
 					TopScope.AddModuleRelativePathToMetaData();
 
@@ -563,7 +566,7 @@ namespace EpicGames.UHT.Parsers
 						}
 
 						// Try parsing metadata for the function
-						SpecifierParser.ParseFieldMetaData(Function.EngineName);
+						SpecifierParser.ParseFieldMetaData();
 
 						// COMPATIBILITY-TODO - Try to pull any comment following the declaration
 						TopScope.TokenReader.PeekToken();

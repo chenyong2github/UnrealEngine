@@ -68,11 +68,10 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Handle a loctext default value attribute
 		/// </summary>
-		/// <param name="Type">Containing type</param>
 		/// <param name="MethodInfo">Method info</param>
 		/// <param name="LocTextDefaultValueAttribute">Defining attribute</param>
 		/// <exception cref="UhtIceException">Thrown if the attribute isn't properly defined</exception>
-		public void OnLocTextDefaultValueAttribute(Type Type, MethodInfo MethodInfo, UhtLocTextDefaultValueAttribute LocTextDefaultValueAttribute)
+		public void OnLocTextDefaultValueAttribute(MethodInfo MethodInfo, UhtLocTextDefaultValueAttribute LocTextDefaultValueAttribute)
 		{
 			if (string.IsNullOrEmpty(LocTextDefaultValueAttribute.Name))
 			{

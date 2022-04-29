@@ -1654,14 +1654,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					Builder.Append("\tDEFINE_FUNCTION(").AppendClassSourceNameOrInterfaceName(Class).Append("::").Append(Function.UnMarshalAndCallName).Append(")\r\n");
 					Builder.Append("\t{\r\n");
-					AppendFunctionThunk(Builder, Class, Function);
+					AppendFunctionThunk(Builder, Function);
 					Builder.Append("\t}\r\n");
 				}
 			}
 			return Builder;
 		}
 
-		private static StringBuilder AppendFunctionThunk(StringBuilder Builder, UhtClass Class, UhtFunction Function)
+		private static StringBuilder AppendFunctionThunk(StringBuilder Builder, UhtFunction Function)
 		{
 			// Export the GET macro for the parameters
 			foreach (UhtProperty Parameter in Function.ParameterProperties.Span)

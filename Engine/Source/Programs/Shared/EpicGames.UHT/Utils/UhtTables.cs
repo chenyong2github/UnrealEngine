@@ -608,7 +608,7 @@ namespace EpicGames.UHT.Utils
 					}
 					else if (ClassAttribute is UhtEngineClassAttribute EngineClassAttribute)
 					{
-						this.EngineClassTable.OnEngineClassAttribute(Type, EngineClassAttribute);
+						this.EngineClassTable.OnEngineClassAttribute(EngineClassAttribute);
 					}
 				}
 			}
@@ -662,11 +662,11 @@ namespace EpicGames.UHT.Utils
 					}
 					else if (MethodAttribute is UhtPropertyTypeAttribute PropertyTypeAttribute)
 					{
-						this.PropertyTypeTable.OnPropertyTypeAttribute(Type, MethodInfo, PropertyTypeAttribute);
+						this.PropertyTypeTable.OnPropertyTypeAttribute(MethodInfo, PropertyTypeAttribute);
 					}
 					else if (MethodAttribute is UhtStructDefaultValueAttribute StructDefaultValueAttribute)
 					{
-						this.StructDefaultValueTable.OnStructDefaultValueAttribute(Type, MethodInfo, StructDefaultValueAttribute);
+						this.StructDefaultValueTable.OnStructDefaultValueAttribute(MethodInfo, StructDefaultValueAttribute);
 					}
 					else if (MethodAttribute is UhtExporterAttribute ExporterAttribute)
 					{
@@ -674,7 +674,7 @@ namespace EpicGames.UHT.Utils
 					}
 					else if (MethodAttribute is UhtLocTextDefaultValueAttribute LocTextDefaultValueAttribute)
 					{
-						this.LocTextDefaultValueTable.OnLocTextDefaultValueAttribute(Type, MethodInfo, LocTextDefaultValueAttribute);
+						this.LocTextDefaultValueTable.OnLocTextDefaultValueAttribute(MethodInfo, LocTextDefaultValueAttribute);
 					}
 				}
 			}
