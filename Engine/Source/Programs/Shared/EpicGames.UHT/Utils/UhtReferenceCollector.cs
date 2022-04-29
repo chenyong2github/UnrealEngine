@@ -64,12 +64,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Collection use to quickly detect if a reference is already in the collection
 		/// </summary>
-		private readonly HashSet<int> Uniques = new HashSet<int>();
+		private HashSet<int> Uniques { get; } = new HashSet<int>();
 
 		/// <summary>
 		/// List of all unique reference keys.  Use UngetKey to get the object index and the flag.
 		/// </summary>
-		public readonly List<int> References = new List<int>();
+		public List<int> References { get; } = new List<int>();
 
 		/// <summary>
 		/// Return an encoded key that represents the object and registered flag. 
@@ -165,32 +165,32 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Collection of unique cross module references
 		/// </summary>
-		public UhtUniqueReferenceCollection CrossModule = new UhtUniqueReferenceCollection();
+		public UhtUniqueReferenceCollection CrossModule { get; set; } = new UhtUniqueReferenceCollection();
 
 		/// <summary>
 		/// Collection of unique declarations
 		/// </summary>
-		public UhtUniqueReferenceCollection Declaration = new UhtUniqueReferenceCollection();
+		public UhtUniqueReferenceCollection Declaration { get; set; } = new UhtUniqueReferenceCollection();
 
 		/// <summary>
 		/// Collection of singletons
 		/// </summary>
-		public List<UhtField> Singletons = new List<UhtField>();
+		public List<UhtField> Singletons { get; } = new List<UhtField>();
 
 		/// <summary>
 		/// Collection of types to export
 		/// </summary>
-		public List<UhtField> ExportTypes = new List<UhtField>();
+		public List<UhtField> ExportTypes { get; } = new List<UhtField>();
 
 		/// <summary>
 		/// Collection of forward declarations
 		/// </summary>
-		public HashSet<string> ForwardDeclarations = new HashSet<string>();
+		public HashSet<string> ForwardDeclarations { get; } = new HashSet<string>();
 
 		/// <summary>
 		/// Collection of referenced headers
 		/// </summary>
-		public HashSet<UhtHeaderFile> ReferencedHeaders = new HashSet<UhtHeaderFile>();
+		public HashSet<UhtHeaderFile> ReferencedHeaders { get; } = new HashSet<UhtHeaderFile>();
 
 		/// <summary>
 		/// Add a cross module reference

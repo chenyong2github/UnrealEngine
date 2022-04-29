@@ -21,57 +21,57 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Engine class flags removed
 		/// </summary>
-		public EClassFlags RemovedClassFlags = EClassFlags.None;
+		public EClassFlags RemovedClassFlags { get; set; } = EClassFlags.None;
 
 		/// <summary>
 		/// Class within identifier
 		/// </summary>
-		public string ClassWithinIdentifier = String.Empty;
+		public string ClassWithinIdentifier { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Collection of show categories
 		/// </summary>
-		public List<string> ShowCategories = new List<string>();
+		public List<string> ShowCategories { get; } = new List<string>();
 
 		/// <summary>
 		/// Collection of hide categories
 		/// </summary>
-		public List<string> HideCategories = new List<string>();
+		public List<string> HideCategories { get; } = new List<string>();
 
 		/// <summary>
 		/// Collection of auto expand categories
 		/// </summary>
-		public List<string> AutoExpandCategories = new List<string>();
+		public List<string> AutoExpandCategories { get; } = new List<string>();
 
 		/// <summary>
 		/// Collection of auto collapse categories
 		/// </summary>
-		public List<string> AutoCollapseCategories = new List<string>();
+		public List<string> AutoCollapseCategories { get; } = new List<string>();
 
 		/// <summary>
 		/// Collection of prioritize categories
 		/// </summary>
-		public List<string> PrioritizeCategories = new List<string>();
+		public List<string> PrioritizeCategories { get; } = new List<string>();
 
 		/// <summary>
 		/// Collection of show functions
 		/// </summary>
-		public List<string> ShowFunctions = new List<string>();
+		public List<string> ShowFunctions { get; } = new List<string>();
 
 		/// <summary>
 		/// Collection of hide functions
 		/// </summary>
-		public List<string> HideFunctions = new List<string>();
+		public List<string> HideFunctions { get; } = new List<string>();
 
 		/// <summary>
 		/// Sparse class data types
 		/// </summary>
-		public List<string> SparseClassDataTypes = new List<string>();
+		public List<string> SparseClassDataTypes { get; } = new List<string>();
 
 		/// <summary>
 		/// Class group names
 		/// </summary>
-		public List<string> ClassGroupNames = new List<string>();
+		public List<string> ClassGroupNames { get; } = new List<string>();
 
 		/// <summary>
 		/// Add the given class flags
@@ -238,7 +238,8 @@ namespace EpicGames.UHT.Parsers
 			}
 
 			// Replace the show categories
-			this.ShowCategories = OutShowCategories;
+			this.ShowCategories.Clear();
+			this.ShowCategories.AddRange(OutShowCategories);
 		}
 
 		private void SetAndValidateWithinClass(UhtResolvePhase ResolvePhase)
@@ -411,7 +412,7 @@ namespace EpicGames.UHT.Parsers
 				{
 					// Parse the specifiers
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Class.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Class));
+					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetCachedSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Class));
 					Specifiers.ParseSpecifiers();
 					Class.PrologLineNumber = TopScope.TokenReader.InputLine;
 					Class.ClassFlags |= EClassFlags.Native;
@@ -445,7 +446,11 @@ namespace EpicGames.UHT.Parsers
 					TopScope.TokenReader.Optional("final");
 
 					// Parse the inheritance
-					UhtParserHelpers.ParseInheritance(TopScope.TokenReader, TopScope.Session.Config!, out Class.SuperIdentifier, out Class.BaseIdentifiers);
+					UhtToken SuperIdentifier;
+					List<UhtToken[]>? BaseIdentifiers;
+					UhtParserHelpers.ParseInheritance(TopScope.TokenReader, TopScope.Session.Config!, out SuperIdentifier, out BaseIdentifiers);
+					Class.SuperIdentifier = SuperIdentifier;
+					Class.BaseIdentifiers = BaseIdentifiers;
 
 					if (APIMacroToken)
 					{

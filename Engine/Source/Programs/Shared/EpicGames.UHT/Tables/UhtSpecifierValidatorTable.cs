@@ -27,12 +27,12 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Name of the validator
 		/// </summary>
-		public string Name;
+		public string Name { get; set; }
 
 		/// <summary>
 		/// Delegate for the validator
 		/// </summary>
-		public UhtSpecifierValidatorDelegate Delegate;
+		public UhtSpecifierValidatorDelegate Delegate { get; set; }
 
 		/// <summary>
 		/// Construct a new instance
@@ -56,12 +56,12 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Name of the validator. If not supplied &quot;SpecifierValidator&quot; will be removed from the end of the method name
 		/// </summary>
-		public string? Name;
+		public string? Name { get; set; }
 
 		/// <summary>
 		/// Name of the table/scope for the validator
 		/// </summary>
-		public string? Extends;
+		public string? Extends { get; set; }
 	}
 
 	/// <summary>

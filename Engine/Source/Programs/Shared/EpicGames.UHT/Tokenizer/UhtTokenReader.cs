@@ -255,12 +255,12 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// The token
 		/// </summary>
-		public UhtToken Token;
+		public UhtToken Token { get; set; }
 
 		/// <summary>
 		/// The next token in the list
 		/// </summary>
-		public UhtTokenList? Next;
+		public UhtTokenList? Next { get; set; }
 
 		/// <summary>
 		/// Join the tokens in the list

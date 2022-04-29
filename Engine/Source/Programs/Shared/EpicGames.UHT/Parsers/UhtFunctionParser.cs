@@ -109,7 +109,7 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// True if the function specifier has a getter/setter specified
 		/// </summary>
-		public bool bSawPropertyAccessor = false;
+		public bool bSawPropertyAccessor { get; set; } = false;
 
 		/// <inheritdoc/>
 		protected override bool ResolveSelf(UhtResolvePhase ResolvePhase)
@@ -225,7 +225,7 @@ namespace EpicGames.UHT.Parsers
 					TopScope.AddModuleRelativePathToMetaData();
 
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Function.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Function));
+					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetCachedSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Function));
 
 					// If this is a UDELEGATE, parse the specifiers
 					StringView DelegateMacro = new StringView();
@@ -289,7 +289,7 @@ namespace EpicGames.UHT.Parsers
 					UhtProperty? ReturnValueProperty = null;
 					if (bHasReturnValue)
 					{
-						TopScope.HeaderParser.GetPropertyParser(TopScope).Parse(EPropertyFlags.None,
+						TopScope.HeaderParser.GetCachedPropertyParser(TopScope).Parse(EPropertyFlags.None,
 							Function.GetPropertyParseOptions(true), UhtParsePropertyDeclarationStyle.None, UhtPropertyCategory.Return,
 							(UhtParsingScope TopScope, UhtProperty Property, ref UhtToken NameToken, UhtLayoutMacroType LayoutMacroType) =>
 							{
@@ -397,7 +397,7 @@ namespace EpicGames.UHT.Parsers
 					TopScope.AddModuleRelativePathToMetaData();
 
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Function.MetaData);
-					UhtSpecifierParser SpecifierParser = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Function));
+					UhtSpecifierParser SpecifierParser = TopScope.HeaderParser.GetCachedSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Function));
 					SpecifierParser.ParseSpecifiers();
 
 					if (!OuterClass.ClassFlags.HasAnyFlags(EClassFlags.Native))
@@ -515,7 +515,7 @@ namespace EpicGames.UHT.Parsers
 						// Get return type.  C++ style functions always have a return value type, even if it's void
 						UhtToken FuncNameToken = new UhtToken();
 						UhtProperty? ReturnValueProperty = null;
-						TopScope.HeaderParser.GetPropertyParser(TopScope).Parse(EPropertyFlags.None,
+						TopScope.HeaderParser.GetCachedPropertyParser(TopScope).Parse(EPropertyFlags.None,
 							Function.GetPropertyParseOptions(true), UhtParsePropertyDeclarationStyle.None, UhtPropertyCategory.Return,
 							(UhtParsingScope TopScope, UhtProperty Property, ref UhtToken NameToken, UhtLayoutMacroType LayoutMacroType) =>
 							{
@@ -646,7 +646,7 @@ namespace EpicGames.UHT.Parsers
 
 			TopScope.TokenReader.RequireList(')', ',', false, () =>
 			{
-				TopScope.HeaderParser.GetPropertyParser(TopScope).Parse(DisallowFlags, Options, UhtParsePropertyDeclarationStyle.None, PropertyCategory,
+				TopScope.HeaderParser.GetCachedPropertyParser(TopScope).Parse(DisallowFlags, Options, UhtParsePropertyDeclarationStyle.None, PropertyCategory,
 					(UhtParsingScope TopScope, UhtProperty Property, ref UhtToken NameToken, UhtLayoutMacroType LayoutMacroType) =>
 					{
 						Property.PropertyFlags |= EPropertyFlags.Parm;

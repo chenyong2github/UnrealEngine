@@ -610,32 +610,32 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// If true, this is a valid documentation policy that should be respected
 		/// </summary>
-		public bool bPolicySet;
+		public bool bPolicySet { get; set; }
 
 		/// <summary>
 		/// A tool tip must be defined
 		/// </summary>
-		public bool bClassOrStructCommentRequired;
+		public bool bClassOrStructCommentRequired { get; set; }
 
 		/// <summary>
 		/// Functions must have a tool tip
 		/// </summary>
-		public bool bFunctionToolTipsRequired;
+		public bool bFunctionToolTipsRequired { get; set; }
 
 		/// <summary>
 		/// Property members must have a tool tip
 		/// </summary>
-		public bool bMemberToolTipsRequired;
+		public bool bMemberToolTipsRequired { get; set; }
 
 		/// <summary>
 		/// Function parameters must have a tool tip
 		/// </summary>
-		public bool bParameterToolTipsRequired;
+		public bool bParameterToolTipsRequired { get; set; }
 
 		/// <summary>
 		/// Float properties must have a range specified
 		/// </summary>
-		public bool bFloatRangesRequired;
+		public bool bFloatRangesRequired { get; set; }
 
 		/// <summary>
 		/// Return the documentation policy given the name
@@ -670,17 +670,20 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// All UHT runs are associated with a given session.  The session holds all the global information for a run.
 		/// </summary>
-		public UhtSession Session;
+		[JsonIgnore]
+		public UhtSession Session { get; set; }
 
 		/// <summary>
 		/// Every type in a session is assigned a unique, non-zero id.
 		/// </summary>
-		public readonly int TypeIndex;
+		[JsonIgnore]
+		public int TypeIndex { get; }
 
 		/// <summary>
 		/// The outer object containing this type.  For example, the header file would be the outer for a class defined in the global scope.
 		/// </summary>
-		public UhtType? Outer = null;
+		[JsonIgnore]
+		public UhtType? Outer { get; set; } = null;
 
 		/// <summary>
 		/// The owning package of the type
@@ -740,7 +743,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// If true, then this type is visible to the symbol table.
 		/// </summary>
-		public bool bVisibleType = true;
+		public bool bVisibleType { get; set; } = true;
 
 		/// <summary>
 		/// Return true if the type has been deprecated
@@ -795,7 +798,8 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Meta data associated with the type
 		/// </summary>
-		public UhtMetaData MetaData;
+		[JsonIgnore] //ETSTODO - disable for now
+		public UhtMetaData MetaData { get; set; }
 
 		/// <summary>
 		/// Children types of this type

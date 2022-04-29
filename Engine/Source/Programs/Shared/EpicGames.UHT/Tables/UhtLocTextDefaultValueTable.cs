@@ -32,7 +32,7 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Name of the sanitizer (i.e. LOCTEXT, NSLOCTEXT, ...)
 		/// </summary>
-		public string? Name;
+		public string? Name { get; set; }
 	}
 
 	/// <summary>
@@ -43,7 +43,7 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Delegate to invoke
 		/// </summary>
-		public UhtLocTextDefaultValueDelegate Delegate;
+		public UhtLocTextDefaultValueDelegate Delegate { get; set; }
 	}
 
 	/// <summary>

@@ -16,7 +16,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Loaded manifest from the json manifest file
 		/// </summary>
-		public UHTManifest? Manifest = null;
+		public UHTManifest? Manifest { get; set; } = null;
 
 		private readonly UhtSourceFile SourceFile;
 

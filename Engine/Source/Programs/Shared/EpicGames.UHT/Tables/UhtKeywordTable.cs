@@ -21,27 +21,27 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Keyword table/scope being extended
 		/// </summary>
-		public string? Extends;
+		public string? Extends { get; set; }
 
 		/// <summary>
 		/// Name of the keyword
 		/// </summary>
-		public string? Keyword = null;
+		public string? Keyword { get; set; } = null;
 
 		/// <summary>
 		/// Text to be displayed to the user when referencing this keyword
 		/// </summary>
-		public string? AllowText = null;
+		public string? AllowText { get; set; } = null;
 
 		/// <summary>
 		/// If true, this applies to all scopes
 		/// </summary>
-		public bool AllScopes = false;
+		public bool AllScopes { get; set; } = false;
 
 		/// <summary>
 		/// If true, do not include in usage errors
 		/// </summary>
-		public bool DisableUsageError = false;
+		public bool DisableUsageError { get; set; } = false;
 	}
 
 	/// <summary>
@@ -54,7 +54,7 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Table/scope to be extended
 		/// </summary>
-		public string? Extends;
+		public string? Extends { get; set; }
 	}
 
 	/// <summary>
@@ -83,27 +83,27 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Name of the keyword
 		/// </summary>
-		public readonly string Name;
+		public string Name { get; }
 
 		/// <summary>
 		/// Delegate to invoke
 		/// </summary>
-		public readonly UhtKeywordDelegate Delegate;
+		public UhtKeywordDelegate Delegate { get; }
 
 		/// <summary>
 		/// Text to be displayed to the user when referencing this keyword
 		/// </summary>
-		public readonly string? AllowText;
+		public string? AllowText { get; }
 
 		/// <summary>
 		/// If true, this applies to all scopes
 		/// </summary>
-		public readonly bool bAllScopes;
+		public bool bAllScopes { get; }
 
 		/// <summary>
 		/// If true, do not include in usage errors
 		/// </summary>
-		public readonly bool bDisableUsageError;
+		public bool bDisableUsageError { get; }
 
 		/// <summary>
 		/// Construct a new keyword
@@ -139,7 +139,7 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// List of catch-alls associated with this table
 		/// </summary>
-		public List<UhtKeywordCatchAllDelegate> CatchAlls = new List<UhtKeywordCatchAllDelegate>();
+		public List<UhtKeywordCatchAllDelegate> CatchAlls { get; } = new List<UhtKeywordCatchAllDelegate>();
 
 		/// <summary>
 		/// Construct a new keyword table

@@ -227,17 +227,18 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Compiler directives when declaration was parsed
 		/// </summary>
-		public UhtCompilerDirective CompilerDirectives;
+		public UhtCompilerDirective CompilerDirectives { get; set; }
 
 		/// <summary>
 		/// Collection of tokens parsed in the declaration
 		/// </summary>
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:Do not declare visible instance fields", Justification = "<Pending>")]
 		public UhtToken[] Tokens;
 
 		/// <summary>
 		/// If this declaration is part of a UFUNCTION, this will be set
 		/// </summary>
-		public UhtFunction? Function;
+		public UhtFunction? Function { get; set; }
 	}
 
 	/// <summary>
@@ -249,22 +250,23 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Compiler directives when declaration was parsed
 		/// </summary>
-		public UhtCompilerDirective CompilerDirectives;
+		public UhtCompilerDirective CompilerDirectives { get; set; }
 
 		/// <summary>
 		/// Collection of tokens parsed in the declaration
 		/// </summary>
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:Do not declare visible instance fields", Justification = "<Pending>")]
 		public UhtToken[] Tokens;
 
 		/// <summary>
 		/// Token index for the matching name
 		/// </summary>
-		public int NameTokenIndex;
+		public int NameTokenIndex { get; set; }
 
 		/// <summary>
 		/// True if "virtual" was found prior to the matching name
 		/// </summary>
-		public bool bIsVirtual;
+		public bool bIsVirtual { get; set; }
 	}
 
 	/// <summary>
@@ -312,7 +314,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Type of the class
 		/// </summary>
-		public UhtClassType ClassType = UhtClassType.Class;
+		public UhtClassType ClassType { get; set; } = UhtClassType.Class;
 
 		/// <summary>
 		/// Type of archivers present
@@ -334,7 +336,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// If this, this class is a UINTERFACE and NativeInterface is the associated native interface
 		/// </summary>
-		public UhtClass? NativeInterface = null;
+		public UhtClass? NativeInterface { get; set; } = null;
 
 		/// <summary>
 		/// Line number o the generated body statement
@@ -350,7 +352,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// True if GENERATED_BODY was used.  If false, GENERATED_UCLASS_BODY was used.
 		/// </summary>
-		public bool bHasGeneratedBody = false;
+		public bool bHasGeneratedBody { get; set; } = false;
 
 		/// <inheritdoc/>
 		[JsonIgnore]

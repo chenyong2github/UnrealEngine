@@ -7,6 +7,7 @@ using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -20,12 +21,15 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Super identifier
 		/// </summary>
-		public UhtToken SuperIdentifier;
+		[JsonIgnore]
+		public UhtToken SuperIdentifier { get; set; }
 
 		/// <summary>
 		/// Base identifiers
 		/// </summary>
-		public List<UhtToken[]>? BaseIdentifiers = null;
+		[JsonIgnore]
+		[SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "<Pending>")]
+		public List<UhtToken[]>? BaseIdentifiers { get; set; } = null;
 
 		/// <summary>
 		/// Construct a new instance
@@ -44,7 +48,7 @@ namespace EpicGames.UHT.Parsers
 			switch (ResolvePhase)
 			{
 				case UhtResolvePhase.Bases:
-					BindAndResolveSuper(ref this.SuperIdentifier, UhtFindOptions.ScriptStruct);
+					BindAndResolveSuper(this.SuperIdentifier, UhtFindOptions.ScriptStruct);
 
 					// if we have a base struct, propagate inherited struct flags now
 					UhtScriptStruct? SuperScriptStruct = this.SuperScriptStruct;
@@ -126,7 +130,7 @@ namespace EpicGames.UHT.Parsers
 				{
 					// Parse the specifiers
 					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, ScriptStruct.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.ScriptStruct));
+					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetCachedSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.ScriptStruct));
 					Specifiers.ParseSpecifiers();
 
 					// Consume the struct specifier
@@ -159,7 +163,11 @@ namespace EpicGames.UHT.Parsers
 					}
 
 					// Parse the inheritance
-					UhtParserHelpers.ParseInheritance(TopScope.TokenReader, TopScope.Session.Config!, out ScriptStruct.SuperIdentifier, out ScriptStruct.BaseIdentifiers);
+					UhtToken SuperIdentifier;
+					List<UhtToken[]>? BaseIdentifiers;
+					UhtParserHelpers.ParseInheritance(TopScope.TokenReader, TopScope.Session.Config!, out SuperIdentifier, out BaseIdentifiers);
+					ScriptStruct.SuperIdentifier = SuperIdentifier;
+					ScriptStruct.BaseIdentifiers = BaseIdentifiers;
 
 					// Add the comments here for compatibility with old UHT
 					//COMPATIBILITY-TODO - Move this back to where the AddModuleRelativePathToMetaData is called.

@@ -4,6 +4,7 @@ using EpicGames.Core;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Types;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -17,12 +18,15 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// The super class identifier
 		/// </summary>
-		public UhtToken SuperIdentifier;
+		[JsonIgnore]
+		public UhtToken SuperIdentifier { get; set; }
 
 		/// <summary>
 		/// List of base identifiers
 		/// </summary>
-		public List<UhtToken[]>? BaseIdentifiers = null;
+		[JsonIgnore]
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "")]
+		public List<UhtToken[]>? BaseIdentifiers { get; set; } = null;
 
 		/// <summary>
 		/// Construct a new base class parser
@@ -40,7 +44,7 @@ namespace EpicGames.UHT.Parsers
 			switch (ResolvePhase)
 			{
 				case UhtResolvePhase.Bases:
-					BindAndResolveSuper(ref this.SuperIdentifier, UhtFindOptions.Class);
+					BindAndResolveSuper(this.SuperIdentifier, UhtFindOptions.Class);
 					BindAndResolveBases(this.BaseIdentifiers, UhtFindOptions.Class);
 
 					// Force the MatchedSerializers on for anything being exported

@@ -122,37 +122,37 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// File name without the extension
 		/// </summary>
-		public readonly string FileNameWithoutExtension;
+		public string FileNameWithoutExtension { get; }
 
 		/// <summary>
 		/// Required name for the generated.h file name.  Used to validate parsed code
 		/// </summary>
-		public readonly string GeneratedHeaderFileName;
+		public string GeneratedHeaderFileName { get; }
 
 		/// <summary>
 		/// True if this header is NoExportTypes.h
 		/// </summary>
-		public readonly bool bIsNoExportTypes;
+		public bool bIsNoExportTypes { get; }
 
 		/// <summary>
 		/// The file path of the header relative to the module location
 		/// </summary>
-		public string ModuleRelativeFilePath = string.Empty;
+		public string ModuleRelativeFilePath { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Include file path added as meta data to the types
 		/// </summary>
-		public string IncludeFilePath = string.Empty;
+		public string IncludeFilePath { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Location where the header file was found
 		/// </summary>
-		public UhtHeaderFileType HeaderFileType = UhtHeaderFileType.Private;
+		public UhtHeaderFileType HeaderFileType { get; set; } = UhtHeaderFileType.Private;
 
 		/// <summary>
 		/// Unique index of the header file
 		/// </summary>
-		public readonly int HeaderFileTypeIndex;
+		public int HeaderFileTypeIndex { get; }
 
 		/// <summary>
 		/// UHT flags for the header
@@ -169,7 +169,8 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Resource collector for the header file
 		/// </summary>
-		public UhtReferenceCollector References = new UhtReferenceCollector();
+		[JsonIgnore]
+		public UhtReferenceCollector References { get; } = new UhtReferenceCollector();
 
 		/// <inheritdoc/>
 		[JsonIgnore]

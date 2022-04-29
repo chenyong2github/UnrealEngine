@@ -19,7 +19,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Describes the integer as either being sized on unsized
 		/// </summary>
-		public readonly UhtPropertyIntType IntType;
+		public UhtPropertyIntType IntType { get; }
 
 		/// <summary>
 		/// Construct new property

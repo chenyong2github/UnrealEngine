@@ -95,17 +95,17 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Any prefix removed from the source name to create the engine name
 		/// </summary>
-		public StringView Prefix;
+		public StringView Prefix { get; set; }
 
 		/// <summary>
 		/// The name to be used by the Unreal Engine.
 		/// </summary>
-		public StringView EngineName;
+		public StringView EngineName { get; set; }
 
 		/// <summary>
 		/// The name contained the "DEPRECATED" text which has been removed from the engine name
 		/// </summary>
-		public bool bIsDeprecated;
+		public bool bIsDeprecated { get; set; }
 	}
 
 	/// <summary>

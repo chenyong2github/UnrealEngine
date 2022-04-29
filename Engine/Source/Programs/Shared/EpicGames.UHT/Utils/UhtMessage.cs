@@ -146,27 +146,27 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// The type of message
 		/// </summary>
-		public UhtMessageType MessageType;
+		public UhtMessageType MessageType { get; set; }
 
 		/// <summary>
 		/// Optional message source for the message.  Either the MessageSource or FilePath must be set.
 		/// </summary>
-		public IUhtMessageSource? MessageSource;
+		public IUhtMessageSource? MessageSource { get; set; }
 
 		/// <summary>
 		/// Optional file path for the message.  Either the MessageSource or FilePath must be set.
 		/// </summary>
-		public string? FilePath;
+		public string? FilePath { get; set; }
 
 		/// <summary>
 		/// Line number where error occurred.
 		/// </summary>
-		public int LineNumber;
+		public int LineNumber { get; set; }
 
 		/// <summary>
 		/// Text of the message
 		/// </summary>
-		public string Message;
+		public string Message { get; set; }
 
 		/// <summary>
 		/// Make a new message with the given settings

@@ -20,7 +20,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Unique index of the package
 		/// </summary>
-		public readonly int PackageTypeIndex;
+		public int PackageTypeIndex { get; }
 
 		/// <summary>
 		/// Engine package flags
@@ -86,7 +86,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Short name of the package (without the /Script/)
 		/// </summary>
-		public string ShortName;
+		public string ShortName { get; set; }
 
 		/// <summary>
 		/// Construct a new instance of a package

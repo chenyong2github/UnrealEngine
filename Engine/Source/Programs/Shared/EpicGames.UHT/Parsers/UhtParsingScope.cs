@@ -20,32 +20,32 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Header file parser
 		/// </summary>
-		public readonly UhtHeaderFileParser HeaderParser;
+		public UhtHeaderFileParser HeaderParser { get; }
 
 		/// <summary>
 		/// Token reader
 		/// </summary>
-		public readonly IUhtTokenReader TokenReader;
+		public IUhtTokenReader TokenReader { get; }
 
 		/// <summary>
 		/// Parent scope
 		/// </summary>
-		public readonly UhtParsingScope? ParentScope;
+		public UhtParsingScope? ParentScope { get; }
 
 		/// <summary>
 		/// Type being parsed
 		/// </summary>
-		public readonly UhtType ScopeType;
+		public UhtType ScopeType { get; }
 
 		/// <summary>
 		/// Keyword table for the scope
 		/// </summary>
-		public readonly UhtKeywordTable ScopeKeywordTable;
+		public UhtKeywordTable ScopeKeywordTable { get; }
 
 		/// <summary>
 		/// Current access specifier
 		/// </summary>
-		public UhtAccessSpecifier AccessSpecifier = UhtAccessSpecifier.Public;
+		public UhtAccessSpecifier AccessSpecifier { get; set; } = UhtAccessSpecifier.Public;
 
 		/// <summary>
 		/// Current session

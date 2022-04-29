@@ -91,12 +91,12 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Name of the structure.  Not required for default processor.  
 		/// </summary>
-		public string? Name;
+		public string? Name { get; set; }
 
 		/// <summary>
 		/// Options
 		/// </summary>
-		public UhtStructDefaultValueOptions Options = UhtStructDefaultValueOptions.None;
+		public UhtStructDefaultValueOptions Options { get; set; } = UhtStructDefaultValueOptions.None;
 	}
 
 	/// <summary>
@@ -108,7 +108,7 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// The delegate to invoke
 		/// </summary>
-		public UhtStructDefaultValueDelegate Delegate;
+		public UhtStructDefaultValueDelegate Delegate { get; set; }
 	}
 
 	/// <summary>

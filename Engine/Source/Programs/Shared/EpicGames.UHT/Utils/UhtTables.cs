@@ -96,12 +96,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// This table inherits entries for the given table
 		/// </summary>
-		public UhtLookupTableBase? ParentTable = null;
+		public UhtLookupTableBase? ParentTable { get; set; } = null;
 
 		/// <summary>
 		/// Name of the table
 		/// </summary>
-		public string TableName = string.Empty;
+		public string TableName { get; set; } = string.Empty;
 
 		/// <summary>
 		/// User facing name of the table
@@ -115,17 +115,17 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Check to see if the table is internal
 		/// </summary>
-		public bool Internal = false;
+		public bool Internal { get; set; } = false;
 
 		/// <summary>
 		/// If true, this table has been implemented and not just created on demand by another table
 		/// </summary>
-		public bool Implemented = false;
+		public bool Implemented { get; set; } = false;
 
 		/// <summary>
 		/// Internal version of the user name.  If it hasn't been set, then the table name will be used
 		/// </summary>
-		private string UserNameInternal = string.Empty;
+		private string UserNameInternal { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Merge the lookup table.  Duplicates will be ignored.
@@ -226,12 +226,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Collection of named tables
 		/// </summary>
-		public Dictionary<string, TTable> Tables = new Dictionary<string, TTable>();
+		public Dictionary<string, TTable> Tables { get; } = new Dictionary<string, TTable>();
 
 		/// <summary>
 		/// The name of the group of tables
 		/// </summary>
-		public string Name;
+		public string Name { get; set; }
 
 		/// <summary>
 		/// Create a new group of tables
@@ -418,7 +418,7 @@ namespace EpicGames.UHT.Utils
 		/// If specified, this method will be invoked once during the scan for attributes.
 		/// It can be used to perform some one time initialization.
 		/// </summary>
-		public string InitMethod = string.Empty;
+		public string InitMethod { get; set; } = string.Empty;
 	}
 
 	/// <summary>
@@ -452,42 +452,42 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Collection of specifier tables
 		/// </summary>
-		public readonly UhtSpecifierTables SpecifierTables = new UhtSpecifierTables();
+		public UhtSpecifierTables SpecifierTables { get; } = new UhtSpecifierTables();
 
 		/// <summary>
 		/// Collection of specifier validator tables
 		/// </summary>
-		public readonly UhtSpecifierValidatorTables SpecifierValidatorTables = new UhtSpecifierValidatorTables();
+		public UhtSpecifierValidatorTables SpecifierValidatorTables { get; } = new UhtSpecifierValidatorTables();
 
 		/// <summary>
 		/// Collection of keyword tables
 		/// </summary>
-		public readonly UhtKeywordTables KeywordTables = new UhtKeywordTables();
+		public UhtKeywordTables KeywordTables { get; } = new UhtKeywordTables();
 
 		/// <summary>
 		/// Collection of property types
 		/// </summary>
-		public readonly UhtPropertyTypeTable PropertyTypeTable = new UhtPropertyTypeTable();
+		public UhtPropertyTypeTable PropertyTypeTable { get; } = new UhtPropertyTypeTable();
 
 		/// <summary>
 		/// Collection of structure default values
 		/// </summary>
-		public readonly UhtStructDefaultValueTable StructDefaultValueTable = new UhtStructDefaultValueTable();
+		public UhtStructDefaultValueTable StructDefaultValueTable { get; } = new UhtStructDefaultValueTable();
 
 		/// <summary>
 		/// Collection of engine class types
 		/// </summary>
-		public readonly UhtEngineClassTable EngineClassTable = new UhtEngineClassTable();
+		public UhtEngineClassTable EngineClassTable { get; } = new UhtEngineClassTable();
 
 		/// <summary>
 		/// Collection of exporters
 		/// </summary>
-		public readonly UhtExporterTable ExporterTable = new UhtExporterTable();
+		public UhtExporterTable ExporterTable { get; } = new UhtExporterTable();
 
 		/// <summary>
 		/// Collection loc text default values
 		/// </summary>
-		public readonly UhtLocTextDefaultValueTable LocTextDefaultValueTable = new UhtLocTextDefaultValueTable();
+		public UhtLocTextDefaultValueTable LocTextDefaultValueTable { get; } = new UhtLocTextDefaultValueTable();
 
 		/// <summary>
 		/// Construct a new table collection

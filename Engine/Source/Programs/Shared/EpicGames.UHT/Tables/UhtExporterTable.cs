@@ -85,37 +85,37 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Name of the exporter
 		/// </summary>
-		public string Name = string.Empty;
+		public string Name { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Description of the export.  Used to display help
 		/// </summary>
-		public string Description = string.Empty;
+		public string Description { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Exporters in plugins need to specify a module name
 		/// </summary>
-		public string ModuleName = string.Empty;
+		public string ModuleName { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Exporter options
 		/// </summary>
-		public UhtExporterOptions Options = UhtExporterOptions.None;
+		public UhtExporterOptions Options { get; set; } = UhtExporterOptions.None;
 
 		/// <summary>
 		/// Collection of filters used to delete old cpp files
 		/// </summary>
-		public string[]? CppFilters = null;
+		public string[]? CppFilters { get; set; }
 
 		/// <summary>
 		/// Collection of filters used to delete old h files
 		/// </summary>
-		public string[]? HeaderFilters = null;
+		public string[]? HeaderFilters { get; set; }
 
 		/// <summary>
 		/// Collection of filters for other file types
 		/// </summary>
-		public string[]? OtherFilters = null;
+		public string[]? OtherFilters { get; set; }
 	}
 
 	/// <summary>
@@ -127,42 +127,59 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Name of the exporter
 		/// </summary>
-		public string Name;
+		public string Name { get; }
 
 		/// <summary>
 		/// Description of the export.  Used to display help
 		/// </summary>
-		public string Description;
+		public string Description { get; }
 
 		/// <summary>
 		/// Exporters in plugins need to specify a module name
 		/// </summary>
-		public string ModuleName;
+		public string ModuleName { get; }
 
 		/// <summary>
 		/// Exporter options
 		/// </summary>
-		public UhtExporterOptions Options;
+		public UhtExporterOptions Options { get; }
 
 		/// <summary>
 		/// Delegate to invoke to start export
 		/// </summary>
-		public UhtExporterDelegate Delegate;
+		public UhtExporterDelegate Delegate { get; }
 
 		/// <summary>
 		/// Collection of filters used to delete old cpp files
 		/// </summary>
-		public string[]? CppFilters;
+		public IReadOnlyList<string> CppFilters { get; }
 
 		/// <summary>
 		/// Collection of filters used to delete old h files
 		/// </summary>
-		public string[]? HeaderFilters;
+		public IReadOnlyList<string> HeaderFilters { get; }
 
 		/// <summary>
 		/// Collection of filters for other file types
 		/// </summary>
-		public string[]? OtherFilters;
+		public IReadOnlyList<string> OtherFilters { get; }
+
+		/// <summary>
+		/// Construct an exporter table instance
+		/// </summary>
+		/// <param name="Attribute">Source attribute</param>
+		/// <param name="Delegate">Delegate to invoke</param>
+		public UhtExporter(UhtExporterAttribute Attribute, UhtExporterDelegate Delegate)
+		{
+			this.Name = Attribute.Name;
+			this.Description = Attribute.Description;
+			this.ModuleName = Attribute.ModuleName;
+			this.Options = Attribute.Options;
+			this.Delegate = Delegate;
+			this.CppFilters = Attribute.CppFilters != null ? new List<string>(Attribute.CppFilters) : new List<string>();
+			this.HeaderFilters = Attribute.HeaderFilters != null ? new List<string>(Attribute.HeaderFilters) : new List<string>();
+			this.OtherFilters = Attribute.OtherFilters != null ? new List<string>(Attribute.OtherFilters) : new List<string>();
+		}
 	}
 
 	/// <summary>
@@ -206,18 +223,7 @@ namespace EpicGames.UHT.Tables
 				}
 			}
 
-			UhtExporter ExporterValue = new UhtExporter
-			{
-				Name = ExporterAttribute.Name,
-				Description = ExporterAttribute.Description,
-				ModuleName = ExporterAttribute.ModuleName,
-				Delegate = (UhtExporterDelegate)Delegate.CreateDelegate(typeof(UhtExporterDelegate), MethodInfo),
-				Options = ExporterAttribute.Options,
-				CppFilters = ExporterAttribute.CppFilters,
-				HeaderFilters = ExporterAttribute.HeaderFilters,
-				OtherFilters = ExporterAttribute.OtherFilters,
-			};
-
+			UhtExporter ExporterValue = new UhtExporter(ExporterAttribute, (UhtExporterDelegate)Delegate.CreateDelegate(typeof(UhtExporterDelegate), MethodInfo));
 			this.ExporterValues.Add(ExporterAttribute.Name, ExporterValue);
 		}
 

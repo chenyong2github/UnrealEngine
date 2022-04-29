@@ -14,7 +14,7 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// The generated message
 		/// </summary>
-		public UhtMessage UhtMessage;
+		public UhtMessage UhtMessage { get; set; }
 
 		/// <summary>
 		/// Internal do nothing constructor

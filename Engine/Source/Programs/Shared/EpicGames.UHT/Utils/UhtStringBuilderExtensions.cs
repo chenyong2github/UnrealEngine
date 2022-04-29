@@ -572,12 +572,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Owning cache
 		/// </summary>
-		private readonly StringBuilderCache Cache;
+		private StringBuilderCache Cache { get; }
 
 		/// <summary>
 		/// Borrowed string builder
 		/// </summary>
-		public readonly StringBuilder StringBuilder;
+		public StringBuilder StringBuilder { get; }
 
 		/// <summary>
 		/// Borrow a string builder from the given cache

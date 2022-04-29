@@ -21,7 +21,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Generated code version of the type.  Set via specifiers
 		/// </summary>
-		public EGeneratedCodeVersion GeneratedCodeVersion = EGeneratedCodeVersion.None;
+		public EGeneratedCodeVersion GeneratedCodeVersion { get; set; } = EGeneratedCodeVersion.None;
 
 		/// <summary>
 		/// Return a collection of children that are properties
@@ -79,7 +79,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Super type
 		/// </summary>
-		public UhtStruct? Super = null;
+		public UhtStruct? Super { get; set; } = null;
 
 		/// <summary>
 		/// Base types
@@ -180,7 +180,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="SuperIdentifier">Token that represent the super</param>
 		/// <param name="FindOptions">Find options to restrict types</param>
 		/// <exception cref="UhtException">Thrown if super can not be found</exception>
-		public void BindAndResolveSuper(ref UhtToken SuperIdentifier, UhtFindOptions FindOptions)
+		public void BindAndResolveSuper(UhtToken SuperIdentifier, UhtFindOptions FindOptions)
 		{
 			if (SuperIdentifier)
 			{

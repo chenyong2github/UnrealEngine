@@ -38,23 +38,24 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// The bucket index associated with the buffer
 		/// </summary>
-		private readonly int Bucket;
+		private int Bucket { get; }
 
 		/// <summary>
 		/// Single list link to the next cached buffer
 		/// </summary>
-		private UhtBuffer? NextBuffer = null;
+		private UhtBuffer? NextBuffer { get; set; } = null;
 
 		/// <summary>
 		/// The backing character block.  The size of the array will normally be larger than the 
 		/// requested size.
 		/// </summary>
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:Do not declare visible instance fields", Justification = "")]
 		public char[] Block;
 
 		/// <summary>
 		/// Memory region sized to the requested size
 		/// </summary>
-		public Memory<char> Memory;
+		public Memory<char> Memory { get; set; }
 
 		/// <summary>
 		/// Construct a new buffer
@@ -178,7 +179,7 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// The borrowed buffer
 		/// </summary>
-		public UhtBuffer Buffer;
+		public UhtBuffer Buffer { get; set; }
 
 		/// <summary>
 		/// Borrow a buffer with the given size

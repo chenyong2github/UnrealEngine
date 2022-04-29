@@ -124,12 +124,12 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// The expected keyword.  Must be set unless this is the default processor
 		/// </summary>
-		public string? Keyword = null;
+		public string? Keyword { get; set; } = null;
 
 		/// <summary>
 		/// Options
 		/// </summary>
-		public UhtPropertyTypeOptions Options = UhtPropertyTypeOptions.None;
+		public UhtPropertyTypeOptions Options { get; set; } = UhtPropertyTypeOptions.None;
 	}
 
 	/// <summary>
@@ -141,12 +141,12 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Delegate to invoke
 		/// </summary>
-		public UhtResolvePropertyDelegate Delegate;
+		public UhtResolvePropertyDelegate Delegate { get; set; }
 
 		/// <summary>
 		/// Options
 		/// </summary>
-		public UhtPropertyTypeOptions Options;
+		public UhtPropertyTypeOptions Options { get; set; }
 	}
 
 	/// <summary>

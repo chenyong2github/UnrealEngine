@@ -5,6 +5,7 @@ using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
@@ -33,12 +34,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// The name of the meta data
 		/// </summary>
-		public string Name;
+		public string Name { get; set; }
 
 		/// <summary>
 		/// The index of the meta data name (i.e. enum value index) or -1 for the owning object meta data
 		/// </summary>
-		public int Index;
+		public int Index { get; set; }
 
 		/// <summary>
 		/// Construct a new meta data key
@@ -134,33 +135,38 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// The meta data of the outer object for the type that owns this meta data
 		/// </summary>
-		public UhtMetaData? Parent = null;
+		[JsonIgnore]
+		public UhtMetaData? Parent { get; set; } = null;
 
 		/// <summary>
 		/// Message site associated with the meta data.  That in combination with the line number is used to generate errors
 		/// </summary>
-		public IUhtMessageSite? MessageSite = null;
+		[JsonIgnore]
+		public IUhtMessageSite? MessageSite { get; set; } = null;
 
 		/// <summary>
 		/// Configuration object used to redirect meta data
 		/// </summary>
-		public IUhtConfig? Config = null;
-		
+		[JsonIgnore]
+		public IUhtConfig? Config { get; set; } = null;
+
 		/// <summary>
 		/// Source code line number where the meta data is declared
 		/// </summary>
-		public int LineNumber { get; internal set; } = 1;
+		[JsonIgnore]
+		public int LineNumber { get; set; } = 1;
 
 		/// <summary>
 		/// Contains the meta data entries.  Due to the small size of these dictionaries, a SortedList performs
 		/// better than a Dictionary.
 		/// </summary>
-		public SortedList<UhtMetaDataKey, string>? Dictionary = null;
+		[SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "")]
+		public SortedList<UhtMetaDataKey, string>? Dictionary { get; set; } = null;
 
 		/// <summary>
 		/// Enumerations implement this interface so that the index part of the key can be converted to a string
 		/// </summary>
-		internal IUhtMetaDataKeyConversion? KeyConversion = null;
+		internal IUhtMetaDataKeyConversion? KeyConversion { get; set; } = null;
 
 		/// <summary>
 		/// Index for a meta data key associated with the owning object

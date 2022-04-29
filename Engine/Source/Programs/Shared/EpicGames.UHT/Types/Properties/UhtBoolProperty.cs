@@ -106,7 +106,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Type of the boolean
 		/// </summary>
-		public readonly UhtBoolType BoolType;
+		public UhtBoolType BoolType { get; }
 
 		/// <summary>
 		/// Construct a new boolean property

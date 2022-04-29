@@ -218,7 +218,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// The type of function
 		/// </summary>
-		public UhtFunctionType FunctionType = UhtFunctionType.Function;
+		public UhtFunctionType FunctionType { get; set; } = UhtFunctionType.Function;
 
 		/// <summary>
 		/// The line number for the macro.
@@ -291,37 +291,37 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Identifier for an RPC call to a platform service
 		/// </summary>
-		public UInt16 RPCId = 0;
+		public UInt16 RPCId { get; set; } = 0;
 
 		/// <summary>
 		/// Identifier for an RPC call expecting a response
 		/// </summary>
-		public UInt16 RPCResponseId = 0;
+		public UInt16 RPCResponseId { get; set; } = 0;
 
 		/// <summary>
 		/// Name of the actual implementation
 		/// </summary>
-		public string CppImplName = string.Empty;
+		public string CppImplName { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Name of the actual validation implementation
 		/// </summary>
-		public string CppValidationImplName = string.Empty;
+		public string CppValidationImplName { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Name of the wrapper function that marshals the arguments and does the indirect call
 		/// </summary>
-		public string MarshalAndCallName = string.Empty;
+		public string MarshalAndCallName { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Name for callback-style names
 		/// </summary>
-		public string UnMarshalAndCallName = string.Empty;
+		public string UnMarshalAndCallName { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Endpoint name
 		/// </summary>
-		public string EndpointName = string.Empty;
+		public string EndpointName { get; set; } = string.Empty;
 
 		/// <summary>
 		/// True if the function has a return value.

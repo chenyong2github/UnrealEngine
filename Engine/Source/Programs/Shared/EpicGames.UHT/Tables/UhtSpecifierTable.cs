@@ -93,22 +93,22 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Current parsing scope (i.e. global, class, ...)
 		/// </summary>
-		public UhtParsingScope Scope;
+		public UhtParsingScope Scope { get; set; }
 
 		/// <summary>
 		/// Message site for messages
 		/// </summary>
-		public IUhtMessageSite MessageSite;
+		public IUhtMessageSite MessageSite { get; set; }
 
 		/// <summary>
 		/// Meta data currently being parsed.
 		/// </summary>
-		public UhtMetaData MetaData;
+		public UhtMetaData MetaData { get; set; }
 
 		/// <summary>
 		/// Make data key index utilized by enumeration values
 		/// </summary>
-		public int MetaNameIndex;
+		public int MetaNameIndex { get; set; }
 
 		/// <summary>
 		/// Construct a new specifier context
@@ -152,17 +152,17 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Name of the specifier
 		/// </summary>
-		public string Name = String.Empty;
+		public string Name { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Expected value type
 		/// </summary>
-		public UhtSpecifierValueType ValueType;
+		public UhtSpecifierValueType ValueType { get; set; }
 
 		/// <summary>
 		/// When is the specifier executed
 		/// </summary>
-		public UhtSpecifierWhen When = UhtSpecifierWhen.Deferred;
+		public UhtSpecifierWhen When { get; set; } = UhtSpecifierWhen.Deferred;
 
 		/// <summary>
 		/// Dispatch an instance of the specifier
@@ -489,22 +489,22 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Name of the specifier.   If not supplied, the method name must end in "Specifier" and the name will be the method name with "Specifier" stripped.
 		/// </summary>
-		public string? Name;
+		public string? Name { get; set; }
 
 		/// <summary>
 		/// Name of the table/scope this specifier applies
 		/// </summary>
-		public string? Extends;
+		public string? Extends { get; set; }
 
 		/// <summary>
 		/// Value type of the specifier
 		/// </summary>
-		public UhtSpecifierValueType ValueType = UhtSpecifierValueType.NotSet;
+		public UhtSpecifierValueType ValueType { get; set; } = UhtSpecifierValueType.NotSet;
 
 		/// <summary>
 		/// When the specifier is dispatched
 		/// </summary>
-		public UhtSpecifierWhen When = UhtSpecifierWhen.Deferred;
+		public UhtSpecifierWhen When { get; set; } = UhtSpecifierWhen.Deferred;
 	}
 
 	/// <summary>

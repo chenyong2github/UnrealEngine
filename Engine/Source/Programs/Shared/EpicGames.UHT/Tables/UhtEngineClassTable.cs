@@ -18,12 +18,12 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// The name of the engine class excluding any prefix
 		/// </summary>
-		public string? Name = null;
+		public string? Name { get; set; } = null;
 
 		/// <summary>
 		/// If true, this class is a property
 		/// </summary>
-		public bool IsProperty = false;
+		public bool IsProperty { get; set; } = false;
 	}
 
 	/// <summary>
@@ -34,12 +34,12 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// The name of the engine class excluding any prefix
 		/// </summary>
-		public string Name;
+		public string Name { get; set; }
 
 		/// <summary>
 		/// If true, this class is a property
 		/// </summary>
-		public bool bIsProperty;
+		public bool bIsProperty { get; set; }
 	}
 
 	/// <summary>

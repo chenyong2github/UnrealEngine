@@ -29,22 +29,22 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// When not null, this source comes from another source file
 		/// </summary>
-		public UhtSourceFile? SourceFile;
+		public UhtSourceFile? SourceFile { get; set; }
 
 		/// <summary>
 		/// The file path of the source
 		/// </summary>
-		public string FilePath;
+		public string FilePath { get; set; }
 
 		/// <summary>
 		/// The line number of the fragment in the containing source file.
 		/// </summary>
-		public int LineNumber;
+		public int LineNumber { get; set; }
 
 		/// <summary>
 		/// Data of the source file
 		/// </summary>
-		public StringView Data;
+		public StringView Data { get; set; }
 	}
 
 	/// <summary>
@@ -482,16 +482,13 @@ namespace EpicGames.UHT.Utils
 		/// <param name="FileName">File name to test</param>
 		/// <param name="Filters">List of wildcard filters</param>
 		/// <returns>True if there is a match</returns>
-		private static bool IsFilterMatch(string FileName, string[]? Filters)
+		private static bool IsFilterMatch(string FileName, IEnumerable<string> Filters)
 		{
-			if (Filters != null)
+			foreach (string Filter in Filters)
 			{
-				foreach (string Filter in Filters)
+				if (FileSystemName.MatchesSimpleExpression(Filter, FileName, true))
 				{
-					if (FileSystemName.MatchesSimpleExpression(Filter, FileName, true))
-					{
-						return true;
-					}
+					return true;
 				}
 			}
 			return false;
@@ -571,98 +568,98 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Interface used to read/write files
 		/// </summary>
-		public IUhtFileManager? FileManager;
+		public IUhtFileManager? FileManager { get; set; }
 
 		/// <summary>
 		/// Location of the engine code
 		/// </summary>
-		public string? EngineDirectory;
+		public string? EngineDirectory { get; set; }
 
 		/// <summary>
 		/// If set, the name of the project file.
 		/// </summary>
-		public string? ProjectFile;
+		public string? ProjectFile { get; set; }
 
 		/// <summary>
 		/// Optional location of the project
 		/// </summary>
-		public string? ProjectDirectory;
+		public string? ProjectDirectory { get; set; }
 
 		/// <summary>
 		/// Root directory for the engine.  This is usually just EngineDirectory without the Engine directory.
 		/// </summary>
-		public string? RootDirectory;
+		public string? RootDirectory { get; set; }
 
 		/// <summary>
 		/// Directory to store the reference output
 		/// </summary>
-		public string ReferenceDirectory = string.Empty;
+		public string ReferenceDirectory { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Directory to store the verification output
 		/// </summary>
-		public string VerifyDirectory = string.Empty;
+		public string VerifyDirectory { get; set; } = string.Empty;
 
 		/// <summary>
 		/// Mode for generating and/or testing reference output
 		/// </summary>
-		public UhtReferenceMode ReferenceMode = UhtReferenceMode.None;
+		public UhtReferenceMode ReferenceMode { get; set; } = UhtReferenceMode.None;
 
 		/// <summary>
 		/// If true, warnings are considered to be errors
 		/// </summary>
-		public bool bWarningsAsErrors = false;
+		public bool bWarningsAsErrors { get; set; } = false;
 
 		/// <summary>
 		/// If true, include relative file paths in the log file
 		/// </summary>
-		public bool bRelativePathInLog = false;
+		public bool bRelativePathInLog { get; set; } = false;
 
 		/// <summary>
 		/// If true, use concurrent tasks to run UHT
 		/// </summary>
-		public bool bGoWide = true;
+		public bool bGoWide { get; set; } = true;
 
 		/// <summary>
 		/// If any output file mismatches existing outputs, an error will be generated
 		/// </summary>
-		public bool bFailIfGeneratedCodeChanges = false;
+		public bool bFailIfGeneratedCodeChanges { get; set; } = false;
 
 		/// <summary>
 		/// If true, no output files will be saved
 		/// </summary>
-		public bool bNoOutput = false;
+		public bool bNoOutput { get; set; } = false;
 
 		/// <summary>
 		/// If true, cull the output for any extra files
 		/// </summary>
-		public bool bCullOutput = true;
+		public bool bCullOutput { get; set; } = true;
 
 		/// <summary>
 		/// If true, include extra output in code generation
 		/// </summary>
-		public bool bIncludeDebugOutput = false;
+		public bool bIncludeDebugOutput { get; set; } = false;
 
 		/// <summary>
 		/// If true, disable all exporters which would normally be run by default
 		/// </summary>
-		public bool bNoDefaultExporters = false;
+		public bool bNoDefaultExporters { get; set; } = false;
 
 		/// <summary>
 		/// If true, cache any error messages until the end of processing.  This is used by the testing
 		/// harness to generate more stable console output.
 		/// </summary>
-		public bool bCacheMessages = false;
+		public bool bCacheMessages { get; set; } = false;
 
 		/// <summary>
 		/// Collection of UHT tables
 		/// </summary>
-		public UhtTables? Tables;
+		public UhtTables? Tables { get; set; }
 
 		/// <summary>
 		/// Configuration for the session
 		/// </summary>
-		public IUhtConfig? Config;
+		public IUhtConfig? Config { get; set; }
 		#endregion
 
 		/// <summary>
@@ -761,13 +758,13 @@ namespace EpicGames.UHT.Utils
 		/// After headers are parsed, returns the AActor class.  Unlike such properties as "UObject", there
 		/// is no requirement for AActor to be defined.  May be null.
 		/// </summary>
-		public UhtClass? AActor = null;
+		public UhtClass? AActor { get; set; } = null;
 
 		/// <summary>
 		/// After headers are parsed, return the INotifyFieldValueChanged interface.  There is no requirement 
 		/// that this interface be defined.
 		/// </summary>
-		public UhtClass? INotifyFieldValueChanged = null;
+		public UhtClass? INotifyFieldValueChanged { get; set; } = null;
 
 		private readonly List<UhtPackage> PackagesInternal = new List<UhtPackage>();
 		private readonly List<UhtHeaderFile> HeaderFilesInternal = new List<UhtHeaderFile>();

@@ -630,92 +630,93 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Source name of the property
 		/// </summary>
-		public string SourceName = String.Empty;
+		public string SourceName { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Engine name of the property
 		/// </summary>
-		public string EngineName = String.Empty;
+		public string EngineName { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Property's meta data
 		/// </summary>
-		public UhtMetaData MetaData = UhtMetaData.Empty;
+		public UhtMetaData MetaData { get; set; } = UhtMetaData.Empty;
 
 		/// <summary>
 		/// Property outer object
 		/// </summary>
-		public UhtType Outer;
+		public UhtType Outer { get; set; }
 
 		/// <summary>
 		/// Line number of the property declaration
 		/// </summary>
-		public int LineNumber;
+		public int LineNumber { get; set; }
 
 		/// <summary>
 		/// Property category
 		/// </summary>
-		public UhtPropertyCategory PropertyCategory;
+		public UhtPropertyCategory PropertyCategory { get; set; }
 
 		/// <summary>
 		/// Engine property flags
 		/// </summary>
-		public EPropertyFlags PropertyFlags;
+		public EPropertyFlags PropertyFlags { get; set; }
 
 		/// <summary>
 		/// Property flags not allowed by the context of the property parsing
 		/// </summary>
-		public EPropertyFlags DisallowPropertyFlags;
+		public EPropertyFlags DisallowPropertyFlags { get; set; }
 
 		/// <summary>
 		/// UHT specified property flags
 		/// </summary>
-		public UhtPropertyExportFlags PropertyExportFlags;
+		public UhtPropertyExportFlags PropertyExportFlags { get; set; }
 
 		/// <summary>
 		/// Allocator used for containers
 		/// </summary>
-		public UhtPropertyAllocator Allocator;
+		public UhtPropertyAllocator Allocator { get; set; }
 
 		/// <summary>
 		/// Options for property parsing
 		/// </summary>
-		public UhtPropertyOptions Options;
+		public UhtPropertyOptions Options { get; set; }
 
 		/// <summary>
 		/// Property pointer type
 		/// </summary>
-		public UhtPointerType PointerType;
+		public UhtPointerType PointerType { get; set; }
 
 		/// <summary>
 		/// Replication notify name
 		/// </summary>
-		public string? RepNotifyName;
+		public string? RepNotifyName { get; set; }
 
 		/// <summary>
 		/// If set, the array size of the property
 		/// </summary>
-		public string? ArrayDimensions;
+		public string? ArrayDimensions { get; set; }
 
 		/// <summary>
 		/// Getter method
 		/// </summary>
-		public string? Setter;
+		public string? Setter { get; set; }
 
 		/// <summary>
 		/// Setter method
 		/// </summary>
-		public string? Getter;
+		public string? Getter { get; set; }
 
 		/// <summary>
 		/// Default value of the property
 		/// </summary>
-		public List<UhtToken>? DefaultValueTokens;
+		[SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "")]
+		public List<UhtToken>? DefaultValueTokens { get; set; }
 
 		/// <summary>
 		/// If true, the property is a bit field
 		/// </summary>
-		public bool bIsBitfield;
+		public bool bIsBitfield { get; set; }
 
 		/// <summary>
 		/// Construct a new, uninitialized version of the property settings
@@ -882,7 +883,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Property category
 		/// </summary>
-		public UhtPropertyCategory PropertyCategory = UhtPropertyCategory.Member;
+		public UhtPropertyCategory PropertyCategory { get; set; } = UhtPropertyCategory.Member;
 
 		/// <summary>
 		/// Engine property flags
@@ -900,57 +901,59 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Engine flags that are disallowed on this property
 		/// </summary>
-		public EPropertyFlags DisallowPropertyFlags = EPropertyFlags.None;
+		public EPropertyFlags DisallowPropertyFlags { get; set; } = EPropertyFlags.None;
 
 		/// <summary>
 		/// UHT specified property flags
 		/// </summary>
-		public UhtPropertyExportFlags PropertyExportFlags = UhtPropertyExportFlags.Public;
+		public UhtPropertyExportFlags PropertyExportFlags { get; set; } = UhtPropertyExportFlags.Public;
 
 		/// <summary>
 		/// Reference type of the property
 		/// </summary>
-		public UhtPropertyRefQualifier RefQualifier = UhtPropertyRefQualifier.None;
+		public UhtPropertyRefQualifier RefQualifier { get; set; } = UhtPropertyRefQualifier.None;
 
 		/// <summary>
 		/// Pointer type of the property
 		/// </summary>
-		public UhtPointerType PointerType = UhtPointerType.None;
+		public UhtPointerType PointerType { get; set; } = UhtPointerType.None;
 
 		/// <summary>
 		/// Allocator to be used with containers
 		/// </summary>
-		public UhtPropertyAllocator Allocator = UhtPropertyAllocator.Default;
+		public UhtPropertyAllocator Allocator { get; set; } = UhtPropertyAllocator.Default;
 
 		/// <summary>
 		/// Replication notify name
 		/// </summary>
-		public string? RepNotifyName = null;
+		public string? RepNotifyName { get; set; } = null;
 
 		/// <summary>
 		/// Fixed array size
 		/// </summary>
-		public string? ArrayDimensions = null;
+		public string? ArrayDimensions { get; set; } = null;
 
 		/// <summary>
 		/// Property setter
 		/// </summary>
-		public string? Setter = null;
+		public string? Setter { get; set; } = null;
 
 		/// <summary>
 		/// Property getter
 		/// </summary>
-		public string? Getter = null;
+		public string? Getter { get; set; } = null;
 
 		/// <summary>
 		/// Default value of property
 		/// </summary>
-		public List<UhtToken>? DefaultValueTokens = null;
+		[JsonIgnore]
+		[SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "<Pending>")]
+		public List<UhtToken>? DefaultValueTokens { get; set; } = null;
 
 		/// <summary>
 		/// If true, this property is a bit field
 		/// </summary>
-		public bool bIsBitfield = false;
+		public bool bIsBitfield { get; set; } = false;
 
 		///<inheritdoc/>
 		[JsonIgnore]

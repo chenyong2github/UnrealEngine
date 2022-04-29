@@ -109,7 +109,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Property associated with the RigVM parameter
 		/// </summary>
-		public readonly UhtProperty? Property;
+		public UhtProperty? Property { get; }
 
 		/// <summary>
 		/// Name of the property
@@ -124,17 +124,17 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Cast name
 		/// </summary>
-		public readonly string? CastName = null;
+		public string? CastName { get; }
 
 		/// <summary>
 		/// Cast type
 		/// </summary>
-		public readonly string? CastType = null;
+		public string? CastType { get; }
 
 		/// <summary>
 		/// Flags associated with the parameter
 		/// </summary>
-		public UhtRigVMParameterFlags ParameterFlags = UhtRigVMParameterFlags.None;
+		public UhtRigVMParameterFlags ParameterFlags { get; set; } = UhtRigVMParameterFlags.None;
 
 		/// <summary>
 		/// True if the parameter is marked as "Constant"
@@ -442,12 +442,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// True if the GetUpgradeInfoMethod was found. 
 		/// </summary>
-		public bool bHasGetUpgradeInfoMethod = false;
+		public bool bHasGetUpgradeInfoMethod { get; set; } = false;
 		
 		/// <summary>
 		/// True if the GetNextAggregateNameMethod was found. 
 		/// </summary>
-		public bool bHasGetNextAggregateNameMethod = false;
+		public bool bHasGetNextAggregateNameMethod { get; set; } = false;
 
 		/// <summary>
 		/// Engine name of the owning script struct
@@ -457,7 +457,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// List of the members
 		/// </summary>
-		public List<UhtRigVMParameter> Members = new List<UhtRigVMParameter>();
+		public List<UhtRigVMParameter> Members { get; } = new List<UhtRigVMParameter>();
 
 		/// <summary>
 		/// List of the methods

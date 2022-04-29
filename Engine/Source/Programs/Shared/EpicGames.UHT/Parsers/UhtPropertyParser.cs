@@ -316,27 +316,27 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// The property settings being parsed
 		/// </summary>
-		public UhtPropertySettings PropertySettings;
+		public UhtPropertySettings PropertySettings { get; set; }
 
 		/// <summary>
 		/// If true, editor specifier seen
 		/// </summary>
-		public bool bSeenEditSpecifier = false;
+		public bool bSeenEditSpecifier { get; set; } = false;
 
 		/// <summary>
 		/// If true, blueprint write specifier seen
 		/// </summary>
-		public bool bSeenBlueprintWriteSpecifier = false;
+		public bool bSeenBlueprintWriteSpecifier { get; set; } = false;
 
 		/// <summary>
 		/// If true, blueprint readonly specifier seen
 		/// </summary>
-		public bool bSeenBlueprintReadOnlySpecifier = false;
+		public bool bSeenBlueprintReadOnlySpecifier { get; set; } = false;
 
 		/// <summary>
 		/// If true, blueprint getter specifier seen
 		/// </summary>
-		public bool bSeenBlueprintGetterSpecifier = false;
+		public bool bSeenBlueprintGetterSpecifier { get; set; } = false;
 
 		/// <summary>
 		/// Construct a new property specifier context
@@ -368,12 +368,12 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Collection of type tokens 
 		/// </summary>
-		public ReadOnlyMemory<UhtToken> TypeTokens;
+		public ReadOnlyMemory<UhtToken> TypeTokens { get; set; }
 
 		/// <summary>
 		/// Property settings being parsed
 		/// </summary>
-		public UhtPropertySettings PropertySettings;
+		public UhtPropertySettings PropertySettings { get; set; }
 
 		/// <summary>
 		/// Construct a new property to be resolved
@@ -767,7 +767,7 @@ namespace EpicGames.UHT.Parsers
 
 			bool bIsParamList = this.SpecifierContext.PropertySettings.PropertyCategory != UhtPropertyCategory.Member && this.TokenReader.TryOptional("UPARAM");
 
-			UhtSpecifierParser Specifiers = this.TopScope.HeaderParser.GetSpecifierParser(this.SpecifierContext, "Variable", 
+			UhtSpecifierParser Specifiers = this.TopScope.HeaderParser.GetCachedSpecifierParser(this.SpecifierContext, "Variable", 
 				bIsParamList ? this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyArgument) : this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
 			if (DeclarationStyle == UhtParsePropertyDeclarationStyle.UPROPERTY || bIsParamList)
 			{
@@ -1105,7 +1105,7 @@ namespace EpicGames.UHT.Parsers
 			// Try gathering metadata for member fields
 			if (NewProperty.PropertyCategory == UhtPropertyCategory.Member)
 			{
-				UhtSpecifierParser Specifiers = this.TopScope.HeaderParser.GetSpecifierParser(this.SpecifierContext, NewProperty.SourceName, this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
+				UhtSpecifierParser Specifiers = this.TopScope.HeaderParser.GetCachedSpecifierParser(this.SpecifierContext, NewProperty.SourceName, this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
 				Specifiers.ParseFieldMetaData();
 				this.TopScope.AddFormattedCommentsAsTooltipMetaData(NewProperty);
 			}
@@ -1194,7 +1194,7 @@ namespace EpicGames.UHT.Parsers
 		private static UhtParseResult UPROPERTYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
 		{
 			UhtPropertyParseOptions Options = UhtPropertyParseOptions.ParseLayoutMacro | UhtPropertyParseOptions.List | UhtPropertyParseOptions.AddModuleRelativePath;
-			TopScope.HeaderParser.GetPropertyParser(TopScope).Parse(EPropertyFlags.ParmFlags, Options, UhtParsePropertyDeclarationStyle.UPROPERTY, UhtPropertyCategory.Member, PropertyDelegate);
+			TopScope.HeaderParser.GetCachedPropertyParser(TopScope).Parse(EPropertyFlags.ParmFlags, Options, UhtParsePropertyDeclarationStyle.UPROPERTY, UhtPropertyCategory.Member, PropertyDelegate);
 			TopScope.TokenReader.Require(';');
 			return UhtParseResult.Handled;
 		}

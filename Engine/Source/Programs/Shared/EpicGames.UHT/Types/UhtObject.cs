@@ -16,18 +16,18 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Internal object flags.
 		/// </summary>
-		public EInternalObjectFlags InternalObjectFlags = EInternalObjectFlags.None;
+		public EInternalObjectFlags InternalObjectFlags { get; set; } = EInternalObjectFlags.None;
 
 		/// <summary>
 		/// Unique index of the object
 		/// </summary>
-		public readonly int ObjectTypeIndex;
+		public int ObjectTypeIndex { get; }
 
 		/// <summary>
 		/// The alternate object is used by the interface system where the native interface will
 		/// update this setting to point to the UInterface derived companion object.
 		/// </summary>
-		public UhtObject? AlternateObject = null;
+		public UhtObject? AlternateObject { get; set; } = null;
 
 		/// <inheritdoc/>
 		public override string EngineClassName { get => "Object"; }

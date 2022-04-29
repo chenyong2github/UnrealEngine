@@ -18,17 +18,17 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// The session associated with the source
 		/// </summary>
-		public readonly UhtSession Session;
+		public UhtSession Session { get; }
 
 		/// <summary>
 		/// The full file path
 		/// </summary>
-		public readonly string FilePath;
+		public string FilePath { get; }
 
 		/// <summary>
 		/// The file name
 		/// </summary>
-		public readonly string FileName;
+		public string FileName { get; }
 
 		/// <summary>
 		/// The contents of the source file
