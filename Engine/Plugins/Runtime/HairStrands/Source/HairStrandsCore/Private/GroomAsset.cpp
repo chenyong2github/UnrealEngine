@@ -1755,7 +1755,7 @@ void UGroomAsset::SetHairWidth(float Width)
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_DERIVED_DATA_VERSION TEXT("5251F4CEC0B84A6B8175D0E33755556A")
+#define GROOM_DERIVED_DATA_VERSION TEXT("02B028B2ADF345B1B68BA35C872A849C")
 
 #if WITH_EDITORONLY_DATA
 
@@ -1846,7 +1846,7 @@ namespace GroomDerivedDataCacheUtils
 		for (int32 Index = 0; Index < SourceDescriptions.Num(); ++Index)
 		{
 			FHairGroupsCardsSourceDescription& Desc = SourceDescriptions[Index];
-			if (Desc.GroupIndex != GroupIndex && Desc.LODIndex < 0)
+			if (Desc.GroupIndex != GroupIndex || Desc.LODIndex < 0)
 			{
 				continue;
 			}
@@ -1898,7 +1898,7 @@ namespace GroomDerivedDataCacheUtils
 		for (int32 Index = 0; Index < SourceDescriptions.Num(); ++Index)
 		{
 			FHairGroupsMeshesSourceDescription& Desc = SourceDescriptions[Index];
-			if (Desc.GroupIndex != GroupIndex && Desc.LODIndex < 0)
+			if (Desc.GroupIndex != GroupIndex || Desc.LODIndex < 0)
 			{
 				continue;
 			}

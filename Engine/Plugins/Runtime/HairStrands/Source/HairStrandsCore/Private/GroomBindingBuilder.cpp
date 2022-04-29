@@ -2028,8 +2028,10 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 				{
 					FHairStrandsDatas LODGuidesData;
 					const bool bIsValid = GroomAsset->GetHairCardsGuidesDatas(GroupIndex, CardsLODIt, LODGuidesData);
-					check(bIsValid);
-					InitHairStrandsRootData(OutData.CardsRootData[CardsLODIt], &LODGuidesData, MeshLODCount, NumInterpolationPoints);
+					if (bIsValid)
+					{
+						InitHairStrandsRootData(OutData.CardsRootData[CardsLODIt], &LODGuidesData, MeshLODCount, NumInterpolationPoints);
+					}
 				}
 			}
 			++GroupIndex;
@@ -2106,18 +2108,19 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 				{
 					FHairStrandsDatas LODGuidesData;
 					const bool bIsValid = GroomAsset->GetHairCardsGuidesDatas(GroupIt, CardsLODIt, LODGuidesData);
-					check(bIsValid);
-				
-					bSucceed = GroomBinding_RootProjection::Project(
-						LODGuidesData,
-						TargetMeshData.Get(),
-						TransferredPositions,
-						OutHairGroupDatas[GroupIt].CardsRootData[CardsLODIt]);
-
-					if (!bSucceed) 
+					if (bIsValid)
 					{
-						UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built. Some cards guide roots are not close enough to the target mesh to be projected onto it."));
-						return false; 
+						bSucceed = GroomBinding_RootProjection::Project(
+							LODGuidesData,
+							TargetMeshData.Get(),
+							TransferredPositions,
+							OutHairGroupDatas[GroupIt].CardsRootData[CardsLODIt]);
+
+						if (!bSucceed) 
+						{
+							UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built. Some cards guide roots are not close enough to the target mesh to be projected onto it."));
+							return false; 
+						}
 					}
 				}
 
