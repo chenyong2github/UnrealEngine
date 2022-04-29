@@ -139,6 +139,8 @@ namespace Chaos
 
 		for (typename FConstraints::FConstraintContainerHandle * ConstraintHandle : Constraints.GetConstraintHandles())
 		{
+			// NOTE: For now, we include probe constraints as well so that
+			// they can trigger collision events
 			if (ConstraintHandle->IsEnabled())
 			{
 				bool DisabledParticle0 = (ConstraintHandle->GetConstrainedParticles()[0] && ConstraintHandle->GetConstrainedParticles()[0]->CastToRigidParticle()) ? ConstraintHandle->GetConstrainedParticles()[0]->CastToRigidParticle()->Disabled() : false;
@@ -193,7 +195,7 @@ namespace Chaos
 
 								// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
 								// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
-								if (Constraint->IsEnabled())
+								if (Constraint->IsEnabled() && !Constraint->IsProbe())
 								{
 									// @todo(chaos): we should provide Particle Levels in the island rule as well (see TPBDConstraintColorRule)
 									Constraint->PreGatherInput(Dt, *IslandGroup);
@@ -209,7 +211,7 @@ namespace Chaos
 
 								// Note we are building the SolverBodies as we go, in the order that we visit them. Each constraint
 								// references two bodies, so we won't strictly be accessing only in cache order, but it's about as good as it can be.
-								if (Constraint->IsEnabled())
+								if (Constraint->IsEnabled() && !Constraint->IsProbe())
 								{
 									// @todo(chaos): we should provide Particle Levels in the island rule as well (see TPBDConstraintColorRule)
 									Constraint->GatherInput(Dt, INDEX_NONE, INDEX_NONE, *IslandGroup);
@@ -338,7 +340,7 @@ namespace Chaos
 										for (int32 ConstraintIndex = OffsetBegin; ConstraintIndex < OffsetEnd; ++ConstraintIndex)
 										{
 											FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
-											if (Constraint->IsEnabled())
+											if (Constraint->IsEnabled() && !Constraint->IsProbe())
 											{
 												Constraint->PreGatherInput(Dt, *IslandGroup);
 											}
@@ -351,7 +353,7 @@ namespace Chaos
 											{
 												int32 ConstraintIndex = Index + OffsetBegin;
 												FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
-												if (Constraint->IsEnabled())
+												if (Constraint->IsEnabled() && !Constraint->IsProbe())
 												{
 													// Levels that should be assigned to the bodies for shock propagation
 													// @todo(chaos): optimize the lookup
@@ -368,7 +370,7 @@ namespace Chaos
 										for (int32 ConstraintIndex = OffsetBegin; ConstraintIndex < OffsetEnd; ++ConstraintIndex)
 										{
 											FConstraintContainerHandle* Constraint = SortedConstraints[ConstraintIndex];
-											if (Constraint->IsEnabled())
+											if (Constraint->IsEnabled() && !Constraint->IsProbe())
 											{
 												// Update the current constraint set of this color
 												ColorConstrainSet.Value = ++ConstraintSetEnd;

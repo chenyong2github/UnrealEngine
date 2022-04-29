@@ -989,7 +989,7 @@ namespace Chaos
 
 	ECollisionConstraintDirection FPBDCollisionConstraint::GetConstraintDirection(const FReal Dt) const
 	{
-		if (GetDisabled())
+		if (GetDisabled() || GetIsProbe())
 		{
 			return NoRestingDependency;
 		}

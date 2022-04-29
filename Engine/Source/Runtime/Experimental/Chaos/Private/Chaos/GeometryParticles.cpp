@@ -9,6 +9,8 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Framework/PhysicsSolverBase.h"
 
+#pragma optimize("", off)
+
 namespace Chaos
 {
 	void UpdateShapesArrayFromGeometry(FShapesArray& ShapesArray, TSerializablePtr<FImplicitObject> Geometry, const FRigidTransform3& ActorTM, IPhysicsProxyBase* Proxy)
@@ -249,7 +251,7 @@ namespace Chaos
 		return FRigidTransformRealSingle3::Identity;
 	}
 
-	FRigidTransform3 FPerShapeData::GetLeafWorldTransform(FGeometryParticleHandle* Particle) const
+	FRigidTransform3 FPerShapeData::GetLeafWorldTransform(const FGeometryParticleHandle* Particle) const
 	{
 		if (bHasCachedLeafInfo)
 		{

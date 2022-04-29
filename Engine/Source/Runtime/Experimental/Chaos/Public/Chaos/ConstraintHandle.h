@@ -129,6 +129,8 @@ namespace Chaos
 
 		virtual bool IsEnabled() const = 0;
 
+		virtual bool IsProbe() const { return false; }
+
 		virtual bool IsSleeping() const { return false; }
 		virtual void SetIsSleeping(const bool bInIsSleeping) {}
 		

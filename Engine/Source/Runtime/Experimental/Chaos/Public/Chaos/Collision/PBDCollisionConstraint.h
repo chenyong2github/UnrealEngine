@@ -355,6 +355,9 @@ namespace Chaos
 		void SetDisabled(bool bInDisabled) { Flags.bDisabled = bInDisabled; }
 		bool GetDisabled() const { return Flags.bDisabled; }
 
+		void SetIsProbe(bool bInProbe) { Flags.bProbe = bInProbe; }
+		bool GetIsProbe() const { return Flags.bProbe; }
+
 		virtual void SetIsSleeping(const bool bInIsSleeping) override;
 
 		// Get the world-space normal of the closest manifold point
@@ -736,6 +739,7 @@ namespace Chaos
 			struct
 			{
 				uint32 bDisabled : 1;
+				uint32 bProbe : 1;
 				uint32 bUseManifold : 1;
 				uint32 bUseIncrementalManifold : 1;
 				uint32 bWasManifoldRestored : 1;

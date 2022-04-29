@@ -16,6 +16,11 @@ namespace Chaos
 		Modifier->EnableConstraint(*Constraint);
 	}
 
+	void FContactPairModifier::ConvertToProbe()
+	{
+		Modifier->ConvertToProbeConstraint(*Constraint);
+	}
+
 	int32 FContactPairModifier::GetNumContacts() const
 	{
 		return Constraint->GetManifoldPoints().Num();
@@ -474,6 +479,11 @@ namespace Chaos
 	void FCollisionContactModifier::EnableConstraint(FPBDCollisionConstraint& Constraint)
 	{
 		Constraint.SetDisabled(false);
+	}
+
+	void FCollisionContactModifier::ConvertToProbeConstraint(FPBDCollisionConstraint& Constraint)
+	{
+		Constraint.SetIsProbe(true);
 	}
 
 	void FCollisionContactModifier::MarkConstraintForManifoldUpdate(FPBDCollisionConstraint& Constraint)

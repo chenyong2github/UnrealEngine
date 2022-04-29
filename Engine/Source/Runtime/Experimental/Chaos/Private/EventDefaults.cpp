@@ -15,6 +15,8 @@
 #include "ChaosSolversModule.h"
 #include "Chaos/CollisionFilterData.h"
 
+#pragma optimize("", off)
+
 namespace Chaos
 {
 	DECLARE_CYCLE_STAT(TEXT("EventDefaults::RegisterCollisionEvent_Filter"), STAT_Events_RegisterCollisionEvent_Filter, STATGROUP_Chaos);
@@ -134,6 +136,7 @@ namespace Chaos
 
 							if (ensure(!Constraint.AccumulatedImpulse.ContainsNaN() && FMath::IsFinite(Constraint.GetPhi())))
 							{
+	
 								const FPerShapeData* Shape0 = Constraint.GetShape0();
 								const FPerShapeData* Shape1 = Constraint.GetShape1();
 
@@ -141,7 +144,7 @@ namespace Chaos
 								const bool bFilter0Notify = Shape0 ? Shape0->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
 								const bool bFilter1Notify = Shape1 ? Shape1->GetSimData().HasFlag(EFilterFlags::ContactNotify) : true;
 
-								if (!bFilter0Notify && !bFilter1Notify)
+								if(!bFilter0Notify && !bFilter1Notify)
 								{
 									// No need to notify - engine didn't request notifications for either shape.
 									continue;
@@ -157,7 +160,12 @@ namespace Chaos
 								const FKinematicGeometryParticleHandle* Primary = Body0 ? Body0 : Body1;
 								const FKinematicGeometryParticleHandle* Secondary = Body0 ? Body1 : Body0;
 
-								if (!Constraint.AccumulatedImpulse.IsZero() && Primary)
+								//
+								const bool bIsProbe = Constraint.IsProbe();
+								const bool bUseManifold = Constraint.GetUseManifold();
+								const int32 NumManifoldPoints = Constraint.GetManifoldPoints().Num();
+
+								if (((Constraint.IsProbe() && NumManifoldPoints > 0) || !Constraint.AccumulatedImpulse.IsZero()) && Primary)
 								{
 									if (ensure(!Constraint.CalculateWorldContactLocation().ContainsNaN() &&
 										!Constraint.CalculateWorldContactNormal().ContainsNaN()) &&

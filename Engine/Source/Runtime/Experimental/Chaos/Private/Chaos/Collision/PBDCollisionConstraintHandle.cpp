@@ -42,6 +42,11 @@ namespace Chaos
 		return !GetContact().GetDisabled();
 	}
 
+	bool FPBDCollisionConstraintHandle::IsProbe() const
+	{
+		return GetContact().GetIsProbe();
+	}
+
 	FVec3 FPBDCollisionConstraintHandle::GetAccumulatedImpulse() const
 	{
 		return GetContact().AccumulatedImpulse;

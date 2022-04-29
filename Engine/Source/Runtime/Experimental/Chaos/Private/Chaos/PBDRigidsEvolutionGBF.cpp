@@ -88,6 +88,9 @@ namespace Chaos
 		bool TransferCollisionsDebugTestAgainstMaxClamp = false;
 		FAutoConsoleVariableRef CVarTransferCollisionsDebugTestAgainstMaxClamp(TEXT("p.Chaos.Solver.Joint.TransferCollisionsDebugTestAgainstMaxClamp"), TransferCollisionsDebugTestAgainstMaxClamp, TEXT("Force all joint collision constraint settings to max clamp value to validate stability [def:false]"));
 
+		bool DoFinalProbeNarrowPhase = true;
+		FAutoConsoleVariableRef CVarDoFinalProbeNarrowPhase(TEXT("p.Chaos.Solver.DoFinalProbeNarrowPhase"), DoFinalProbeNarrowPhase, TEXT(""));
+
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::AdvanceOneTimeStep"), STAT_Evolution_AdvanceOneTimeStep, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::UnclusterUnions"), STAT_Evolution_UnclusterUnions, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Integrate"), STAT_Evolution_Integrate, STATGROUP_Chaos);
@@ -577,6 +580,12 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	}
 
 	ParticleUpdatePosition(Particles.GetDirtyParticlesView(), Dt);
+
+	if (CVars::DoFinalProbeNarrowPhase)
+	{
+		// Run contact updates on probe constraints
+		GetCollisionConstraints().DetectProbeCollisions(Dt);
+	}
 
 #if !UE_BUILD_SHIPPING
 	if(SerializeEvolution)

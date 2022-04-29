@@ -37,6 +37,13 @@ namespace Chaos
 		void Enable();
 
 		/**
+		* Convert the constraint between this pair of bodies into a probe. Collision callbacks will still occur if the
+		* bodies collide (a contact occurring in contact modification does not mean a contact actually has occurred
+		* yet, but that it may)
+		*/
+		void ConvertToProbe();
+
+		/**
 		* @return Number of contact points in constraint pair. ContactPointIdx must be below number of contacts.
 		*/
 		int32 GetNumContacts() const;
@@ -328,6 +335,10 @@ namespace Chaos
 		TArrayView<FPBDCollisionConstraint* const>& GetConstraints();
 		void DisableConstraint(FPBDCollisionConstraint& Constraint);
 		void EnableConstraint(FPBDCollisionConstraint& Constraint);
+
+		// Turn this constraint into a probe. It will still generate hit events,
+		// but will not produce impulses
+		void ConvertToProbeConstraint(FPBDCollisionConstraint& Constraint);
 
 		void MarkConstraintForManifoldUpdate(FPBDCollisionConstraint& Constraint);
 

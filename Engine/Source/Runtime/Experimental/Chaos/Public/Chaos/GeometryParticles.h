@@ -87,7 +87,7 @@ namespace Chaos
 		// The world-space transform of the leaf geometry.
 		// If we have non-identity leaf relative transform, is cached from the last call to UpdateWorldSpaceState.
 		// If not cahced, is constructed from arguments.
-		FRigidTransform3 GetLeafWorldTransform(FGeometryParticleHandle* Particle) const;
+		FRigidTransform3 GetLeafWorldTransform(const FGeometryParticleHandle* Particle) const;
 		void UpdateLeafWorldTransform(FGeometryParticleHandle* Particle);
 
 		// Are we caching leaf transform info?

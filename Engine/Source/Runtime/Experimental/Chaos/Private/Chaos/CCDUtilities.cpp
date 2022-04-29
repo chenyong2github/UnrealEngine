@@ -122,11 +122,17 @@ namespace Chaos
 		CCDConstraints.Reserve(SweptConstraints.Num());
 		bool bNeedCCDSolve = false;
 		for (FPBDCollisionConstraint* Constraint : SweptConstraints)
-		{   
+		{
 			// A contact can be disabled by a user callback or contact pruning so we need to ignore these.
 			// NOTE: It important that we explicitly check for disabled here, rather than for 0 manifold points since we
 			// may want to use the contact later if resweeping is enabled. 
 			if (!Constraint->IsEnabled())
+			{
+				continue;
+			}
+
+			// For now, probe constraints do not work with CCD
+			if (Constraint->IsProbe())
 			{
 				continue;
 			}

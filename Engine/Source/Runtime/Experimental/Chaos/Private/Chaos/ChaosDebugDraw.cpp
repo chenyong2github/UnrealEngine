@@ -1038,7 +1038,37 @@ namespace Chaos
 			DrawParticleCCDCollisionImpulseImpl(SpaceTransform, CCDConstraint.Particle[1], CCDConstraint, ManifoldPointIndex, Impulse, Duration, Settings);
 		}
 
-		void DrawCollidingShapesImpl(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraints& Collisions, FRealSingle ColorScale, const FChaosDebugDrawSettings& Settings)
+		void DrawCollidingShapesImpl(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraint& Collision, FRealSingle ColorScale, const FRealSingle Duration, const FChaosDebugDrawSettings& Settings)
+		{
+			if (!Collision.GetDisabled() && (Collision.GetPhi() < TNumericLimits<FReal>::Max()))
+			{
+				const FImplicitObject* Implicit0 = Collision.GetImplicit0();
+				const FImplicitObject* Implicit1 = Collision.GetImplicit1();
+				if ((Implicit0 != nullptr) && (Implicit1 != nullptr))
+				{
+					FConstGenericParticleHandle Particle0 = Collision.GetParticle0();
+					FConstGenericParticleHandle Particle1 = Collision.GetParticle1();
+					const FPerShapeData* Shape0 = Collision.GetShape0();
+					const FPerShapeData* Shape1 = Collision.GetShape1();
+					const FRigidTransform3 WorldActorTransform0 = FParticleUtilities::GetActorWorldTransform(Particle0);
+					const FRigidTransform3 WorldActorTransform1 = FParticleUtilities::GetActorWorldTransform(Particle1);
+					const FRigidTransform3 ShapeWorldTransform0 = Collision.GetShapeRelativeTransform0() * WorldActorTransform0;
+					const FRigidTransform3 ShapeWorldTransform1 = Collision.GetShapeRelativeTransform1() * WorldActorTransform1;
+					DrawShapesImpl(
+						Particle0->Handle(), ShapeWorldTransform0,
+						Implicit0, FShapeOrShapesArray(Shape0),
+						0.0f, Particle0->IsDynamic() ? FColor::Yellow : FColor::Red,
+						Duration, Settings);
+					DrawShapesImpl(
+						Particle1->Handle(), ShapeWorldTransform1,
+						Implicit1, FShapeOrShapesArray(Shape1),
+						0.0f, Particle1->IsDynamic() ? FColor::Yellow : FColor::Red,
+						Duration, Settings);
+				}
+			}
+		}
+		
+		void DrawCollidingShapesImpl(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraints& Collisions, FRealSingle ColorScale, const FRealSingle Duration, const FChaosDebugDrawSettings& Settings)
 		{
 			TArray<const FImplicitObject*> Implicits;
 			TArray<const FPerShapeData*> Shapes;
@@ -1091,7 +1121,7 @@ namespace Chaos
 					Shapes[ShapeIndex],
 					0.0f, 
 					ShapeParticles[ShapeIndex]->IsDynamic() ? FColor::Yellow : FColor::Red, 
-					0.0f,
+					Duration,
 					Settings);
 			}
 		}
@@ -1685,11 +1715,19 @@ namespace Chaos
 			}
 		}
 
-		void DrawCollidingShapes(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraints& Collisions, FRealSingle ColorScale, const FChaosDebugDrawSettings* Settings)
+		void DrawCollidingShapes(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraints& Collisions, FRealSingle ColorScale, const FRealSingle Duration, const FChaosDebugDrawSettings* Settings)
 		{
 			if (FDebugDrawQueue::IsDebugDrawingEnabled())
 			{
-				DrawCollidingShapesImpl(SpaceTransform, Collisions, ColorScale, GetChaosDebugDrawSettings(Settings));
+				DrawCollidingShapesImpl(SpaceTransform, Collisions, ColorScale, Duration, GetChaosDebugDrawSettings(Settings));
+			}
+		}
+
+		void DrawCollidingShapes(const FRigidTransform3& SpaceTransform, const FPBDCollisionConstraint& Collision, FRealSingle ColorScale, const FRealSingle Duration, const FChaosDebugDrawSettings* Settings)
+		{
+			if (FDebugDrawQueue::IsDebugDrawingEnabled())
+			{
+				DrawCollidingShapesImpl(SpaceTransform, Collision, ColorScale, Duration, GetChaosDebugDrawSettings(Settings));
 			}
 		}
 

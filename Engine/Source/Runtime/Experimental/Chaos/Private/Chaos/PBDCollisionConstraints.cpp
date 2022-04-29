@@ -28,7 +28,7 @@
 #include "PBDCollisionConstraints.ispc.generated.h"
 #endif
 
-//PRAGMA_DISABLE_OPTIMIZATION
+PRAGMA_DISABLE_OPTIMIZATION
 
 namespace Chaos
 {
@@ -70,14 +70,25 @@ namespace Chaos
 
 	bool CollisionsAllowParticleTracking = true;
 	FAutoConsoleVariableRef CVarCollisionsAllowParticleTracking(TEXT("p.Chaos.Collision.AllowParticleTracking"), CollisionsAllowParticleTracking, TEXT("Allow particles to track their collisions constraints when their DoBufferCollisions flag is enable [def:true]"));
-
+	
 	bool bCollisionsEnableSubSurfaceCollisionPruning = false;
 	FAutoConsoleVariableRef CVarCollisionsEnableSubSurfaceCollisionPruning(TEXT("p.Chaos.Collision.EnableSubSurfaceCollisionPruning"), bCollisionsEnableSubSurfaceCollisionPruning, TEXT(""));
+
+	bool DebugDrawProbeDetection = false;
+	FAutoConsoleVariableRef CVarDebugDrawProbeDetection(TEXT("p.Chaos.Collision.DebugDrawProbeDetection"), DebugDrawProbeDetection, TEXT("Draw probe constraint detection."));
+	
+#if CHAOS_DEBUG_DRAW
+	namespace CVars
+	{
+		extern DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings;
+	}
+#endif
 	
 	DECLARE_CYCLE_STAT(TEXT("Collisions::Reset"), STAT_Collisions_Reset, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::UpdatePointConstraints"), STAT_Collisions_UpdatePointConstraints, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::BeginDetect"), STAT_Collisions_BeginDetect, STATGROUP_ChaosCollision);
 	DECLARE_CYCLE_STAT(TEXT("Collisions::EndDetect"), STAT_Collisions_EndDetect, STATGROUP_ChaosCollision);
+	DECLARE_CYCLE_STAT(TEXT("Collisions::DetectProbeCollisions"), STAT_Collisions_DetectProbeCollisions, STATGROUP_ChaosCollision);
 
 	//
 	// Collision Constraint Container
@@ -293,6 +304,37 @@ namespace Chaos
 		}
 	}
 
+	void FPBDCollisionConstraints::DetectProbeCollisions(FReal Dt)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Collisions_DetectProbeCollisions);
+
+		// Do a final narrow-phase update on probe constraints. This is done to avoid
+		// false positive probe hit results, which may occur if the constraint was created
+		// for a contact which no longer is occurring due to resolution of another constraint.
+		for (FPBDCollisionConstraint* Contact : GetConstraints())
+		{
+			if (Contact->IsProbe())
+			{
+				const FGeometryParticleHandle* Particle0 = Contact->GetParticle0();
+				const FGeometryParticleHandle* Particle1 = Contact->GetParticle1();
+				const FRigidTransform3& ShapeWorldTransform0 = Contact->GetShapeRelativeTransform0() * FParticleUtilities::GetActorWorldTransform(FConstGenericParticleHandle(Particle0));
+				const FRigidTransform3& ShapeWorldTransform1 = Contact->GetShapeRelativeTransform1() * FParticleUtilities::GetActorWorldTransform(FConstGenericParticleHandle(Particle1));
+				Contact->SetCullDistance(0.f);
+				Contact->SetShapeWorldTransforms(ShapeWorldTransform0, ShapeWorldTransform1);
+				Collisions::UpdateConstraint(*Contact, ShapeWorldTransform0, ShapeWorldTransform1, Dt);
+
+#if CHAOS_DEBUG_DRAW
+				if (DebugDrawProbeDetection)
+				{
+					DebugDraw::FChaosDebugDrawSettings Settings = CVars::ChaosSolverDebugDebugDrawSettings;
+					Settings.DrawDuration = 1.f;
+					DebugDraw::DrawCollidingShapes(FRigidTransform3(), *Contact, 1.f, 1.f, &Settings);
+				}
+#endif
+			}
+		}
+	}
+
 	void FPBDCollisionConstraints::ApplyCollisionModifier(const TArray<ISimCallbackObject*>& CollisionModifiers, FReal Dt)
 	{
 		if (GetConstraints().Num() > 0)
@@ -377,7 +419,7 @@ namespace Chaos
 		if (SolverType == EConstraintSolverType::QuasiPbd)
 		{
 			// We shouldn't be adding disabled constraints to the solver list. The check needs to be at caller site or we should return success/fail - see TPBDConstraintColorRule::GatherSolverInput
-			check(Constraint.IsEnabled());
+			check(Constraint.IsEnabled() && !Constraint.IsProbe());
 
 			FPBDCollisionSolverContainer& SolverContainer = GetConstraintSolverContainer(SolverData);
 			SolverContainer.AddConstraintSolver(Dt, Constraint, Particle0Level, Particle1Level, SolverData.GetBodyContainer(), SolverSettings);
@@ -408,7 +450,7 @@ namespace Chaos
 		{
 			for (FPBDCollisionConstraint* Constraint : GetConstraints())
 			{
-				if (Constraint->IsEnabled())
+				if (Constraint->IsEnabled() && !Constraint->IsProbe())
 				{
 					GatherInput(Dt, *Constraint, INDEX_NONE, INDEX_NONE, SolverData);
 				}
@@ -418,7 +460,7 @@ namespace Chaos
 		{
 			for (FPBDCollisionConstraint* Constraint : GetConstraints())
 			{
-				if (Constraint->IsEnabled())
+				if (Constraint->IsEnabled() && !Constraint->IsProbe())
 				{
 					LegacyGatherInput(Dt, *Constraint, INDEX_NONE, INDEX_NONE, SolverData);
 				}
@@ -607,7 +649,8 @@ namespace Chaos
 			for (int32 Index = BeginIndex; Index < EndIndex; ++Index)
 			{
 				FPBDCollisionConstraint* Constraint = SolverData.GetConstraintHandle<FPBDCollisionConstraint>(ContainerId,Index);
-				if (!Constraint->GetDisabled())
+
+				if ((!Constraint->GetDisabled()) && (!Constraint->GetIsProbe()))
 				{
 					Collisions::Apply(*Constraint, IterationParameters, ParticleParameters);
 					++NumActivePointConstraints;
