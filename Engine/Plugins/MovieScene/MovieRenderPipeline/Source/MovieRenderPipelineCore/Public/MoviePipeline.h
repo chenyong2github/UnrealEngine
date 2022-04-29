@@ -489,6 +489,14 @@ private:
 
 	TMap<TWeakObjectPtr<class UClothingSimulationInteractor>, FClothSimSettingsCache> ClothSimCache;
 
+	struct FRenderTimeStatistics
+	{
+		FDateTime StartTime;
+		FDateTime EndTime;
+	};
+
+	TMap<int32, FRenderTimeStatistics> RenderTimeFrameStatistics;
+
 public:
 	static FString DefaultDebugWidgetAsset;
 };

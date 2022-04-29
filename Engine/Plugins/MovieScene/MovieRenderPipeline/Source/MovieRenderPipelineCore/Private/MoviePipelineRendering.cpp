@@ -252,6 +252,9 @@ void UMoviePipeline::RenderFrame()
 		{
 			RenderPass->GatherOutputPasses(OutputFrame.ExpectedRenderPasses);
 		}
+
+		FRenderTimeStatistics& TimeStats = RenderTimeFrameStatistics.FindOrAdd(CachedOutputState.OutputFrameNumber);
+		TimeStats.StartTime = FDateTime::UtcNow();
 	}
 
 #if WITH_EDITOR && !UE_BUILD_SHIPPING
@@ -446,6 +449,9 @@ void UMoviePipeline::ProcessOutstandingFinishedFrames()
 	{
 		FMoviePipelineMergerOutputFrame OutputFrame;
 		OutputBuilder->FinishedFrames.Dequeue(OutputFrame);
+
+		FRenderTimeStatistics& TimeStats = RenderTimeFrameStatistics.FindOrAdd(OutputFrame.FrameOutputState.OutputFrameNumber);
+		TimeStats.EndTime = FDateTime::UtcNow();
 	
 		for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
 		{

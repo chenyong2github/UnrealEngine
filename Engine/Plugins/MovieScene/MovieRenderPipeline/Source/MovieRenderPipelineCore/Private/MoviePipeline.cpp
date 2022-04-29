@@ -1497,7 +1497,6 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 		Params.FileMetadata = InOutputState->FileMetadata;
 		Params.ShotOverride = ActiveShotList[InOutputState->ShotIndex];
 		Params.InitializationVersion = ActiveShotList[InOutputState->ShotIndex]->ShotInfo.VersionNumber;
-
 	}
 
 	UMoviePipelineOutputSetting* OutputSetting = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
@@ -1520,6 +1519,21 @@ void UMoviePipeline::ResolveFilenameFormatArguments(const FString& InFormatStrin
 	Params.AdditionalFrameNumberOffset = InFrameNumberOffset;
 
 	UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(InFormatString, Params, OutFinalPath, OutFinalFormatArgs);
+
+	// This needs to come after ResolveFilenameFormatArguments as that resets the OutFinalFormatArgs.
+	if (InOutputState)
+	{
+		const FRenderTimeStatistics* TimeStats = RenderTimeFrameStatistics.Find(InOutputState->OutputFrameNumber);
+		if (TimeStats)
+		{
+			FString StartTimeStr = TimeStats->StartTime.ToString();
+			FString EndTimeStr = TimeStats->EndTime.ToString();
+			FString DurationTimeStr = (TimeStats->EndTime - TimeStats->StartTime).ToString();
+			OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/frameRenderStartTimeUTC"), StartTimeStr);
+			OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/frameRenderEndTimeUTC"), EndTimeStr);
+			OutFinalFormatArgs.FileMetadata.Add(TEXT("unreal/frameRenderDuration"), DurationTimeStr);
+		}
+	}
 }
 
 void UMoviePipeline::SetProgressWidgetVisible(bool bVisible)
