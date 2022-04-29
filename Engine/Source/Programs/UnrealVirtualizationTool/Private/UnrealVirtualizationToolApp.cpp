@@ -228,11 +228,6 @@ EInitResult FUnrealVirtualizationToolApp::Initialize()
 		return EInitResult::Error;
 	}
 
-	if (!TryConnectToSourceControl())
-	{
-		return EInitResult::Error;
-	}
-
 	TArray<FString> Packages;
 	switch (Mode)
 	{
@@ -275,12 +270,6 @@ bool FUnrealVirtualizationToolApp::Run()
 	if (EnumHasAllFlags(ProcessOptions, EProcessOptions::Virtualize))
 	{
 		UE_LOG(LogVirtualizationTool, Display, TEXT("Running the virtualization process..."));
-
-		if (!SCCProvider.IsValid())
-		{
-			UE_LOG(LogVirtualizationTool, Error, TEXT("No valid source control connection found!"));
-			return false;
-		}
 
 		TArray<FText> DescriptionTags;
 
@@ -363,9 +352,11 @@ bool FUnrealVirtualizationToolApp::TrySubmitChangelist(const TArray<FString>& De
 
 	if (!SCCProvider.IsValid())
 	{
-		// This should not be possible, the check and error message is to guard against potential future problems only.
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Submit failed, cannot find a valid source control provider"));
-		return false;
+		if (!TryConnectToSourceControl())
+		{
+			UE_LOG(LogVirtualizationTool, Error, TEXT("Submit failed, cannot find a valid source control provider"));
+			return false;
+		}
 	}
 
 	if (!ChangelistToSubmit.IsValid())
@@ -586,6 +577,11 @@ EInitResult FUnrealVirtualizationToolApp::TryParsePackageListCmdLine(const TCHAR
 bool FUnrealVirtualizationToolApp::TryParseChangelist(TArray<FString>& OutPackages)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TryParseChangelist);
+
+	if (!TryConnectToSourceControl())
+	{
+		return false;
+	}
 
 	UE_LOG(LogVirtualizationTool, Display, TEXT("Attempting to parse changelist '%s' in workspace '%s'"), *ChangelistNumber, *ClientSpecName);
 
