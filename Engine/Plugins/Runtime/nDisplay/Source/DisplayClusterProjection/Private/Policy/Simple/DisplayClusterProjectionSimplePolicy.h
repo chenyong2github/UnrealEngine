@@ -7,43 +7,40 @@
 #include "Misc/DisplayClusterObjectRef.h"
 #include "Policy/DisplayClusterProjectionPolicyBase.h"
 
-class ADisplayClusterRootActor;
-class USceneComponent;
-class UDisplayClusterConfigurationViewport;
-class UDisplayClusterCameraComponent;
-class UDisplayClusterScreenComponent;
 
 /**
- * Implements math behind the native (simple) quad based projections
+ * Simple projection policy
  */
 class FDisplayClusterProjectionSimplePolicy
 	: public FDisplayClusterProjectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionSimplePolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
-	virtual ~FDisplayClusterProjectionSimplePolicy();
-
-	virtual const FString GetTypeId() const
-	{ return DisplayClusterProjectionStrings::projection::Simple; }
+	FDisplayClusterProjectionSimplePolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicy
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool HandleStartScene(class IDisplayClusterViewport* InViewport) override;
-	virtual void HandleEndScene(class IDisplayClusterViewport* InViewport) override;
+	virtual const FString& GetType() const override;
 
-	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
-	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
+	virtual bool HandleStartScene(IDisplayClusterViewport* InViewport) override;
+	virtual void HandleEndScene(IDisplayClusterViewport* InViewport) override;
 
-	virtual bool IsWarpBlendSupported() override
+	virtual bool CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) override;
+	virtual bool GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
+
+#if WITH_EDITOR
+	virtual bool HasPreviewMesh() override
 	{
-		return false;
+		return true;
 	}
 
+	virtual UMeshComponent* GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
+#endif
+
 protected:
-	bool InitializeMeshData(class IDisplayClusterViewport* InViewport);
-	void ReleaseMeshData(class IDisplayClusterViewport* InViewport);
+	bool InitializeMeshData(IDisplayClusterViewport* InViewport);
+	void ReleaseMeshData(IDisplayClusterViewport* InViewport);
 
 protected:
 	// Custom projection screen geometry (hw - half-width, hh - half-height of projection screen)
@@ -81,18 +78,4 @@ private:
 	};
 
 	TArray<FViewData> ViewData;
-
-
-#if WITH_EDITOR
-protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterProjectionPolicyPreview
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool HasPreviewMesh() override
-	{
-		return true;
-	}
-
-	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
-#endif
 };

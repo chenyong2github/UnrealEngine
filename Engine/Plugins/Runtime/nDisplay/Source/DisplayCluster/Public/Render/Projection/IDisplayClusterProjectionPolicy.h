@@ -4,21 +4,13 @@
 
 #include "CoreMinimal.h"
 
-#include "RHI.h"
-#include "RHIDefinitions.h"
-#include "RHIResources.h"
-#include "RHICommandList.h"
-
 class FRHICommandListImmediate;
+class IDisplayClusterViewport;
+class IDisplayClusterViewportProxy;
+class IDisplayClusterWarpBlend;
+class UMeshComponent;
 struct FDisplayClusterConfigurationProjection;
 
-#if WITH_EDITORONLY_DATA
-class UDisplayClusterConfigurationViewport;
-class FTextureRenderTargetResource;
-class IDetailCategoryBuilder;
-class IDetailLayoutBuilder;
-class UMeshComponent;
-#endif
 
 /**
  * nDisplay projection policy
@@ -30,14 +22,23 @@ public:
 
 public:
 	/**
-	* Return projection policy name
+	* Return projection policy instance ID
 	*/
 	virtual const FString& GetId() const = 0;
 
 	/**
 	* Return projection policy type
 	*/
-	virtual const FString GetTypeId() const = 0;
+	virtual const FString& GetType() const = 0;
+
+	/**
+	* Return projection policy type
+	*/
+	UE_DEPRECATED(5.1, "This function has beend deprecated. Please use 'GetType'.")
+	virtual const FString GetTypeId() const
+	{
+		return GetType();
+	}
 
 	/**
 	* Return projection policy configuration
@@ -48,7 +49,7 @@ public:
 	* Send projection policy game thread data to render thread proxy
 	* called once per frame from FDisplayClusterViewportManager::FinalizeNewFrame
 	*/
-	virtual void UpdateProxyData(class IDisplayClusterViewport* InViewport)
+	virtual void UpdateProxyData(IDisplayClusterViewport* InViewport)
 	{ }
 
 	/**
@@ -56,14 +57,18 @@ public:
 	*
 	* @param InViewport - a owner viewport
 	*/
-	virtual bool HandleStartScene(class IDisplayClusterViewport* InViewport) = 0;
+	virtual bool HandleStartScene(IDisplayClusterViewport* InViewport)
+	{
+		return true;
+	}
 
 	/**
 	* Called when current level is going to be closed (i.e. before loading a new map)
 	*
 	* @param InViewport - a owner viewport
 	*/
-	virtual void HandleEndScene(class IDisplayClusterViewport* InViewport) = 0;
+	virtual void HandleEndScene(IDisplayClusterViewport* InViewport)
+	{ }
 
 	// Handle request for additional render targetable resource inside viewport api for projection policy
 	virtual bool ShouldUseAdditionalTargetableResource() const
@@ -115,7 +120,7 @@ public:
 	*
 	* @return - True if success
 	*/
-	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) = 0;
+	virtual bool CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP) = 0;
 
 	/**
 	* @param ViewIdx      - Index of view that is being processed for this viewport
@@ -123,7 +128,7 @@ public:
 	*
 	* @return - True if success
 	*/
-	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) = 0;
+	virtual bool GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) = 0;
 
 	/**
 	* Returns if a policy provides warp&blend feature
@@ -142,7 +147,7 @@ public:
 	* @param InViewportProxy - viewport proxy
 	*
 	*/
-	virtual void BeginWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy)
+	virtual void BeginWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportProxy* InViewportProxy)
 	{ }
 
 	/**
@@ -152,7 +157,7 @@ public:
 	* @param InViewportProxy - viewport proxy
 	*
 	*/
-	virtual void ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy)
+	virtual void ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportProxy* InViewportProxy)
 	{ }
 
 	/**
@@ -164,7 +169,7 @@ public:
 	* @param ViewportRect - Region of the SrcTexture to perform warp&blend operations
 	*
 	*/
-	virtual void EndWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy)
+	virtual void EndWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportProxy* InViewportProxy)
 	{ }
 
 	/**
@@ -174,7 +179,7 @@ public:
 	* 
 	* @return - true if output interface valid
 	*/
-	virtual bool GetWarpBlendInterface(TSharedPtr<class IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlendInterface) const
+	virtual bool GetWarpBlendInterface(TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlendInterface) const
 	{
 		return false;
 	}
@@ -186,7 +191,7 @@ public:
 	*
 	* @return - true if output interface valid
 	*/
-	virtual bool GetWarpBlendInterface_RenderThread(TSharedPtr<class IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlendInterfaceProxy) const
+	virtual bool GetWarpBlendInterface_RenderThread(TSharedPtr<IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlendInterfaceProxy) const
 	{
 		return false;
 	}
@@ -208,7 +213,7 @@ public:
 	* @param InViewport - Projection specific parameters.
 	* @param bOutIsRootActorComponent - return true, if used custom root actor component. return false, if created unique temporary component
 	*/
-	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(class IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
+	virtual UMeshComponent* GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
 	{
 		return nullptr;
 	}

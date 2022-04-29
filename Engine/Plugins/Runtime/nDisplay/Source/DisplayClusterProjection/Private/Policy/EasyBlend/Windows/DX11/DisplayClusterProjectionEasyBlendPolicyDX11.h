@@ -7,6 +7,7 @@
 
 #include "DisplayClusterProjectionLog.h"
 
+
 /**
  * EasyBlend projection policy (DX11 implementation)
  */
@@ -14,7 +15,7 @@ class FDisplayClusterProjectionEasyBlendPolicyDX11
 	: public FDisplayClusterProjectionEasyBlendPolicyBase
 {
 public:
-	FDisplayClusterProjectionEasyBlendPolicyDX11(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+	FDisplayClusterProjectionEasyBlendPolicyDX11(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 		: FDisplayClusterProjectionEasyBlendPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 	{ }
 

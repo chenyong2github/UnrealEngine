@@ -31,13 +31,13 @@ public class DisplayCluster : ModuleRules
 			"JsonUtilities",
 			"Networking",
 			"OpenColorIO",
+			"ProceduralMeshComponent",
 			"Renderer",
 			"RenderCore",
 			"RHI",
 			"Slate",
 			"SlateCore",
 			"Sockets",
-			"ProceduralMeshComponent",
 		});
 
 		if (Target.bBuildEditor == true)

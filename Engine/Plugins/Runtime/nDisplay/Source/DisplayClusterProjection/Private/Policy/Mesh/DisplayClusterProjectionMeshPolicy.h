@@ -4,10 +4,9 @@
 
 #include "Policy/MPCDI/DisplayClusterProjectionMPCDIPolicy.h"
 
-class IDisplayClusterViewport;
 class UStaticMeshComponent;
 class UProceduralMeshComponent;
-class USceneComponent;
+
 
 /*
  * Mesh projection policy
@@ -17,19 +16,29 @@ class FDisplayClusterProjectionMeshPolicy
 	: public FDisplayClusterProjectionMPCDIPolicy
 {
 public:
-	FDisplayClusterProjectionMeshPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
-	virtual ~FDisplayClusterProjectionMeshPolicy() = default;
+	FDisplayClusterProjectionMeshPolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 
-	virtual const FString GetTypeId() const
-	{ return DisplayClusterProjectionStrings::projection::Mesh; }
-
+public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicy
 	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual const FString& GetType() const override;
 	virtual bool HandleStartScene(IDisplayClusterViewport* InViewport) override;
-	
+
+#if WITH_EDITOR
+	virtual bool HasPreviewMesh() override
+	{
+		return true;
+	}
+
+	virtual UMeshComponent* GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
+#endif
+
+public:	
 	virtual EWarpType GetWarpType() const override
-	{ return EWarpType::mesh; }
+	{
+		return EWarpType::mesh;
+	}
 
 	/** Parse the config data for a mesh id and try to retrieve it from the root actor. */
 	bool CreateWarpMeshInterface(IDisplayClusterViewport* InViewport);
@@ -53,17 +62,4 @@ private:
 	};
 
 	bool GetWarpMeshConfiguration(IDisplayClusterViewport* InViewport, FWarpMeshConfiguration& OutWarpCfg);
-
-#if WITH_EDITOR
-protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterProjectionPolicyPreview
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool HasPreviewMesh() override
-	{
-		return true;
-	}
-
-	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
-#endif
 };

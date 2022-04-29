@@ -15,22 +15,24 @@
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
 
-FDisplayClusterProjectionManualPolicy::FDisplayClusterProjectionManualPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+FDisplayClusterProjectionManualPolicy::FDisplayClusterProjectionManualPolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
 	ProjectionMatrix[0] = FMatrix(FPlane(1.0f, 0.0f, 0.0f, 0.0f), FPlane(0.0f, 1.0f, 0.0f, 0.0f), FPlane(0.0f, 0.0f, 0.0f, 1.0f), FPlane(0.0f, 0.0f, 1.0f, 0.0f));
 	ProjectionMatrix[1] = ProjectionMatrix[0];
 }
 
-FDisplayClusterProjectionManualPolicy::~FDisplayClusterProjectionManualPolicy()
-{
-}
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionManualPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
+const FString& FDisplayClusterProjectionManualPolicy::GetType() const
+{
+	static const FString Type(DisplayClusterProjectionStrings::projection::Manual);
+	return Type;
+}
+
+bool FDisplayClusterProjectionManualPolicy::HandleStartScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 	UE_LOG(LogDisplayClusterProjectionManual, Verbose, TEXT("Initializing internals for the viewport '%s'"), *InViewport->GetId());
@@ -124,12 +126,7 @@ bool FDisplayClusterProjectionManualPolicy::HandleStartScene(class IDisplayClust
 	return true;
 }
 
-void FDisplayClusterProjectionManualPolicy::HandleEndScene(class IDisplayClusterViewport* InViewport)
-{
-	
-}
-
-bool FDisplayClusterProjectionManualPolicy::CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& InViewOffset, const float InWorldToMeters, const float InNCP, const float InFCP)
+bool FDisplayClusterProjectionManualPolicy::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& InViewOffset, const float InWorldToMeters, const float InNCP, const float InFCP)
 {
 	check(IsInGameThread());
 	check(InContextNum < 2);
@@ -144,7 +141,7 @@ bool FDisplayClusterProjectionManualPolicy::CalculateView(class IDisplayClusterV
 	return true;
 }
 
-bool FDisplayClusterProjectionManualPolicy::GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
+bool FDisplayClusterProjectionManualPolicy::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
 {
 	check(IsInGameThread());
 	check(InContextNum < 2);
@@ -206,7 +203,7 @@ bool FDisplayClusterProjectionManualPolicy::ExtractAngles(const FString& InAngle
 	return true;
 }
 
-FDisplayClusterProjectionManualPolicy::EManualDataType FDisplayClusterProjectionManualPolicy::DataTypeFromString(class IDisplayClusterViewport* InViewport, const FString& DataTypeInString) const
+FDisplayClusterProjectionManualPolicy::EManualDataType FDisplayClusterProjectionManualPolicy::DataTypeFromString(IDisplayClusterViewport* InViewport, const FString& DataTypeInString) const
 {
 	if (DataTypeInString == DisplayClusterProjectionStrings::cfg::manual::FrustumType::Matrix)
 	{

@@ -8,6 +8,7 @@
 #include "Policy/DisplayClusterProjectionPolicyBase.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FViosoPolicyConfiguration
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +36,7 @@ FString FViosoPolicyConfiguration::ToString() const
 	}
 }
 
-bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParameters, class IDisplayClusterViewport* InViewport)
+bool FViosoPolicyConfiguration::Initialize(const TMap<FString, FString>& InParameters, IDisplayClusterViewport* InViewport)
 {
 	check(InViewport);
 

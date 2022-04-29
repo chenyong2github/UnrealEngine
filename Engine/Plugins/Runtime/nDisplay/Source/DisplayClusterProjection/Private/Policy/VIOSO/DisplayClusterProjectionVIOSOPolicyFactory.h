@@ -5,6 +5,7 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Policy/DisplayClusterProjectionPolicyBase.h"
 
+
 /**
  * Implements projection policy factory for the 'VIOSO' policy
  */
@@ -19,5 +20,5 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicyFactory
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> Create(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) override;
+	virtual TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> Create(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) override;
 };

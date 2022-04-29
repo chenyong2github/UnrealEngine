@@ -9,6 +9,7 @@
 
 class USceneComponent;
 
+
 /**
  * Base projection policy
  */
@@ -16,12 +17,12 @@ class FDisplayClusterProjectionPolicyBase
 	: public IDisplayClusterProjectionPolicy
 {
 public:
-	FDisplayClusterProjectionPolicyBase(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
-	virtual ~FDisplayClusterProjectionPolicyBase() = 0;
+	FDisplayClusterProjectionPolicyBase(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 
+public:
 	virtual const FString& GetId() const override
 	{
-		return ProjectionPolicyId;
+		return PolicyInstanceId;
 	}
 
 	const USceneComponent* const GetOriginComp() const
@@ -44,18 +45,17 @@ public:
 		return Parameters;
 	}
 
-	virtual bool IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const override;
+	virtual bool IsConfigurationChanged(const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const override;
 
-	static bool IsEditorOperationMode(class IDisplayClusterViewport* InViewport);
+	static bool IsEditorOperationMode(IDisplayClusterViewport* InViewport);
 	static bool IsEditorOperationMode_RenderThread(const IDisplayClusterViewportProxy* InViewportProxy);
 
 protected:
-	void InitializeOriginComponent(class IDisplayClusterViewport* InViewport, const FString& OriginCopmId);
+	void InitializeOriginComponent(IDisplayClusterViewport* InViewport, const FString& OriginCopmId);
 	void ReleaseOriginComponent();
 
 private:
-	// Added 'Policy' prefix to avoid "... hides class name ..." warnings in child classes
-	FString ProjectionPolicyId;
+	const FString PolicyInstanceId;
 
 	FString PolicyOriginCompId;
 	TMap<FString, FString> Parameters;

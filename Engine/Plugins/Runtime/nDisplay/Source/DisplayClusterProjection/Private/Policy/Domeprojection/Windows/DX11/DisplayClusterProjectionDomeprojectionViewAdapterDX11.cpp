@@ -38,7 +38,7 @@ FDisplayClusterProjectionDomeprojectionViewAdapterDX11::~FDisplayClusterProjecti
 	Views.Empty();
 }
 
-bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::Initialize(class IDisplayClusterViewport* InViewport, const FString& InFile)
+bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::Initialize(IDisplayClusterViewport* InViewport, const FString& InFile)
 {
 	bool bResult = true;
 
@@ -106,7 +106,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::CalculateView(IDisp
 	return true;
 }
 
-bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, const uint32 Channel, FMatrix& OutPrjMatrix)
+bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, const uint32 Channel, FMatrix& OutPrjMatrix)
 {
 	check(Views.Num() > (int32)InContextNum);
 
@@ -177,7 +177,7 @@ bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::ImplApplyWarpBlend_
 	return false;
 }
 
-bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy, const uint32 Channel)
+bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportProxy* InViewportProxy, const uint32 Channel)
 {
 	check(IsInRenderingThread());
 
@@ -229,7 +229,7 @@ void FDisplayClusterProjectionDomeprojectionViewAdapterDX11::FViewData::Release(
 	}
 }
 
-bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::FViewData::Initialize(class IDisplayClusterViewport* InViewport, const FString& InFile, FCriticalSection& DllAccessCS)
+bool FDisplayClusterProjectionDomeprojectionViewAdapterDX11::FViewData::Initialize(IDisplayClusterViewport* InViewport, const FString& InFile, FCriticalSection& DllAccessCS)
 {
 	// Initialize Domeprojection DLL API
 	FScopeLock lock(&DllAccessCS);

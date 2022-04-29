@@ -7,7 +7,6 @@
 #include "WarpBlend/IDisplayClusterWarpBlend.h"
 #include "WarpBlend/DisplayClusterWarpContext.h"
 
-class IDisplayClusterViewport;
 
 /**
  * MPCDI projection policy
@@ -24,11 +23,8 @@ public:
 	};
 
 public:
-	FDisplayClusterProjectionMPCDIPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
+	FDisplayClusterProjectionMPCDIPolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 	virtual ~FDisplayClusterProjectionMPCDIPolicy();
-
-	virtual const FString GetTypeId() const
-	{ return DisplayClusterProjectionStrings::projection::MPCDI; }
 
 public:
 	virtual EWarpType GetWarpType() const
@@ -46,6 +42,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicy
 	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual const FString& GetType() const override;
+
 	virtual bool HandleStartScene(IDisplayClusterViewport* InViewport) override;
 	virtual void HandleEndScene(IDisplayClusterViewport* InViewport) override;
 
@@ -53,7 +51,7 @@ public:
 	virtual bool GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
 
 	virtual bool IsWarpBlendSupported() override;
-	virtual void ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy) override;
+	virtual void ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportProxy* InViewportProxy) override;
 
 	virtual bool GetWarpBlendInterface(TSharedPtr<class IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlendInterface) const override;
 	virtual bool GetWarpBlendInterface_RenderThread(TSharedPtr<class IDisplayClusterWarpBlend, ESPMode::ThreadSafe>& OutWarpBlendInterfaceProxy) const override;
@@ -64,6 +62,16 @@ public:
 		return true;
 	}
 
+#if WITH_EDITOR
+	virtual bool HasPreviewMesh() override
+	{
+		return true;
+	}
+
+	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
+#endif
+
+public:
 	virtual void UpdateProxyData(IDisplayClusterViewport* InViewport) override;
 
 protected:
@@ -83,15 +91,6 @@ private:
 
 #if WITH_EDITOR
 protected:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IDisplayClusterProjectionPolicyPreview
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool HasPreviewMesh() override
-	{
-		return true;
-	}
-	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
-
 	void ReleasePreviewMeshComponent();
 
 private:

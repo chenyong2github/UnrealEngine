@@ -17,7 +17,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "ProceduralMeshComponent.h"
 
-FDisplayClusterProjectionMeshPolicy::FDisplayClusterProjectionMeshPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+
+FDisplayClusterProjectionMeshPolicy::FDisplayClusterProjectionMeshPolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: FDisplayClusterProjectionMPCDIPolicy(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
 }
@@ -82,6 +83,12 @@ bool FDisplayClusterProjectionMeshPolicy::CreateWarpMeshInterface(IDisplayCluste
 	}
 
 	return true;
+}
+
+const FString& FDisplayClusterProjectionMeshPolicy::GetType() const
+{
+	static const FString Type(DisplayClusterProjectionStrings::projection::Mesh);
+	return Type;
 }
 
 bool FDisplayClusterProjectionMeshPolicy::HandleStartScene(IDisplayClusterViewport* InViewport)
@@ -224,9 +231,6 @@ bool FDisplayClusterProjectionMeshPolicy::GetWarpMeshConfiguration(IDisplayClust
 }
 
 #if WITH_EDITOR
-//////////////////////////////////////////////////////////////////////////////////////////////
-// IDisplayClusterProjectionPolicyPreview
-//////////////////////////////////////////////////////////////////////////////////////////////
 UMeshComponent* FDisplayClusterProjectionMeshPolicy::GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
 {
 	bOutIsRootActorComponent = true;

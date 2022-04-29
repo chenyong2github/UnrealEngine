@@ -19,12 +19,8 @@
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 
 
-FDisplayClusterProjectionSimplePolicy::FDisplayClusterProjectionSimplePolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+FDisplayClusterProjectionSimplePolicy::FDisplayClusterProjectionSimplePolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
-{
-}
-
-FDisplayClusterProjectionSimplePolicy::~FDisplayClusterProjectionSimplePolicy()
 {
 }
 
@@ -32,6 +28,12 @@ FDisplayClusterProjectionSimplePolicy::~FDisplayClusterProjectionSimplePolicy()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
+const FString& FDisplayClusterProjectionSimplePolicy::GetType() const
+{
+	static const FString Type(DisplayClusterProjectionStrings::projection::Simple);
+	return Type;
+}
+
 bool FDisplayClusterProjectionSimplePolicy::HandleStartScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
@@ -213,9 +215,6 @@ void FDisplayClusterProjectionSimplePolicy::ReleaseMeshData(IDisplayClusterViewp
 }
 
 #if WITH_EDITOR
-//////////////////////////////////////////////////////////////////////////////////////////////
-// IDisplayClusterProjectionPolicyPreview
-//////////////////////////////////////////////////////////////////////////////////////////////
 UMeshComponent* FDisplayClusterProjectionSimplePolicy::GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent)
 {
 	bOutIsRootActorComponent = true;

@@ -6,17 +6,13 @@
 
 
 /**
- * Implements math behind the native (manual) quad based projections
+ * Manual projection policy
  */
 class FDisplayClusterProjectionManualPolicy
 	: public FDisplayClusterProjectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionManualPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
-	virtual ~FDisplayClusterProjectionManualPolicy();
-
-	virtual const FString GetTypeId() const
-	{ return DisplayClusterProjectionStrings::projection::Manual; }
+	FDisplayClusterProjectionManualPolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
 
 public:
 	enum class EManualDataType
@@ -26,20 +22,18 @@ public:
 	};
 
 	EManualDataType GetDataType() const
-	{ return DataType; }
+	{
+		return DataType;
+	}
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IDisplayClusterProjectionPolicy
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool HandleStartScene(class IDisplayClusterViewport* InViewport) override;
-	virtual void HandleEndScene(class IDisplayClusterViewport* InViewport) override;
-
-	virtual bool CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& InViewOffset, const float InWorldToMeters, const float InNCP, const float InFCP) override;
-	virtual bool GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
-
-	virtual bool IsWarpBlendSupported() override
-	{ return false; }
+	virtual const FString& GetType() const override;
+	virtual bool HandleStartScene(IDisplayClusterViewport* InViewport) override;
+	virtual bool CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& InViewOffset, const float InWorldToMeters, const float InNCP, const float InFCP) override;
+	virtual bool GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix) override;
 
 protected:
 	struct FFrustumAngles
@@ -51,8 +45,10 @@ protected:
 	};
 
 	virtual bool ExtractAngles(const FString& InAngles, FFrustumAngles& OutAngles);
+
 private:
-	EManualDataType DataTypeFromString(class IDisplayClusterViewport* InViewport, const FString& DataTypeInString) const;
+	EManualDataType DataTypeFromString(IDisplayClusterViewport* InViewport, const FString& DataTypeInString) const;
+
 private:
 	// Current data type (matrix, frustum angle, ...)
 	EManualDataType DataType = EManualDataType::Matrix;

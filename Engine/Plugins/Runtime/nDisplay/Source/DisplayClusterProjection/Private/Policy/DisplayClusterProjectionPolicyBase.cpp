@@ -12,18 +12,16 @@
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterProjectionPolicyBase
 //////////////////////////////////////////////////////////////////////////////////////////////
-FDisplayClusterProjectionPolicyBase::FDisplayClusterProjectionPolicyBase(const FString& InProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
-	: ProjectionPolicyId(InProjectionPolicyId)
+FDisplayClusterProjectionPolicyBase::FDisplayClusterProjectionPolicyBase(const FString& InProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+	: PolicyInstanceId(InProjectionPolicyId)
 {
 	Parameters.Append(InConfigurationProjectionPolicy->Parameters);
 }
 
-FDisplayClusterProjectionPolicyBase::~FDisplayClusterProjectionPolicyBase()
-{
-}
 
 bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode_RenderThread(const IDisplayClusterViewportProxy* InViewportProxy)
 {
@@ -37,7 +35,7 @@ bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode_RenderThread(con
 	return true;
 }
 
-bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(class IDisplayClusterViewport* InViewport)
+bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -70,7 +68,7 @@ bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(class IDisplayCl
 	return false;
 }
 
-bool FDisplayClusterProjectionPolicyBase::IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const
+bool FDisplayClusterProjectionPolicyBase::IsConfigurationChanged(const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const
 {
 	if (InConfigurationProjectionPolicy->Parameters.Num() != Parameters.Num()) {
 

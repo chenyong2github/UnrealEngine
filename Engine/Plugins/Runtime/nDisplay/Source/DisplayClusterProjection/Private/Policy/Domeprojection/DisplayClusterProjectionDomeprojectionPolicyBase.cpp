@@ -14,15 +14,23 @@
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 
-FDisplayClusterProjectionDomeprojectionPolicyBase::FDisplayClusterProjectionDomeprojectionPolicyBase(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+
+FDisplayClusterProjectionDomeprojectionPolicyBase::FDisplayClusterProjectionDomeprojectionPolicyBase(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
 }
 
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class IDisplayClusterViewport* InViewport)
+const FString& FDisplayClusterProjectionDomeprojectionPolicyBase::GetType() const
+{
+	static const FString& Type(DisplayClusterProjectionStrings::projection::Domeprojection);
+	return Type;
+}
+
+bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -79,7 +87,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::HandleStartScene(class I
 	return true;
 }
 
-void FDisplayClusterProjectionDomeprojectionPolicyBase::HandleEndScene(class IDisplayClusterViewport* InViewport)
+void FDisplayClusterProjectionDomeprojectionPolicyBase::HandleEndScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -87,7 +95,7 @@ void FDisplayClusterProjectionDomeprojectionPolicyBase::HandleEndScene(class IDi
 }
 
 
-bool FDisplayClusterProjectionDomeprojectionPolicyBase::CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
+bool FDisplayClusterProjectionDomeprojectionPolicyBase::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
 	check(IsInGameThread());
 
@@ -127,7 +135,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::CalculateView(class IDis
 	return true;
 }
 
-bool FDisplayClusterProjectionDomeprojectionPolicyBase::GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
+bool FDisplayClusterProjectionDomeprojectionPolicyBase::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
 {
 	check(IsInGameThread());
 
@@ -145,7 +153,7 @@ bool FDisplayClusterProjectionDomeprojectionPolicyBase::IsWarpBlendSupported()
 	return true;
 }
 
-void FDisplayClusterProjectionDomeprojectionPolicyBase::ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const class IDisplayClusterViewportProxy* InViewportProxy)
+void FDisplayClusterProjectionDomeprojectionPolicyBase::ApplyWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportProxy* InViewportProxy)
 {
 	check(IsInRenderingThread());
 
@@ -158,7 +166,7 @@ void FDisplayClusterProjectionDomeprojectionPolicyBase::ApplyWarpBlend_RenderThr
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterProjectionDomeprojectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(class IDisplayClusterViewport* InViewport, FString& OutFile, FString& OutOrigin, uint32& OutChannel)
+bool FDisplayClusterProjectionDomeprojectionPolicyBase::ReadConfigData(IDisplayClusterViewport* InViewport, FString& OutFile, FString& OutOrigin, uint32& OutChannel)
 {
 	check(InViewport);
 

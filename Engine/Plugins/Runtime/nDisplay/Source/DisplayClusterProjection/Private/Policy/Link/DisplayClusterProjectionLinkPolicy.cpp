@@ -12,12 +12,8 @@
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 
 
-FDisplayClusterProjectionLinkPolicy::FDisplayClusterProjectionLinkPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+FDisplayClusterProjectionLinkPolicy::FDisplayClusterProjectionLinkPolicy(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
-{
-}
-
-FDisplayClusterProjectionLinkPolicy::~FDisplayClusterProjectionLinkPolicy()
 {
 }
 
@@ -25,6 +21,11 @@ FDisplayClusterProjectionLinkPolicy::~FDisplayClusterProjectionLinkPolicy()
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
+const FString& FDisplayClusterProjectionLinkPolicy::GetType() const
+{
+	static const FString Type(DisplayClusterProjectionStrings::projection::Link);
+	return Type;
+}
 
 bool FDisplayClusterProjectionLinkPolicy::CalculateView(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float NCP, const float FCP)
 {
@@ -55,7 +56,7 @@ bool FDisplayClusterProjectionLinkPolicy::CalculateView(IDisplayClusterViewport*
 	return false;
 }
 
-bool FDisplayClusterProjectionLinkPolicy::GetProjectionMatrix(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
+bool FDisplayClusterProjectionLinkPolicy::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
 {
 	check(IsInGameThread());
 	check(InViewport);

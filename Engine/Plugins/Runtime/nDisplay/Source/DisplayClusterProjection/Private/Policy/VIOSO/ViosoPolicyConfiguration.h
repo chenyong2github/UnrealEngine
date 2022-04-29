@@ -4,6 +4,9 @@
 
 #include "CoreMinimal.h"
 
+class IDisplayClusterViewport;
+
+
 struct FViosoPolicyConfiguration
 {
 	FString OriginCompId;
@@ -20,7 +23,7 @@ struct FViosoPolicyConfiguration
 	//@todo add more vioso options, if required
 	float Gamma = 1.f;
 
-	bool Initialize(const TMap<FString, FString>& InParameters, class IDisplayClusterViewport* InViewport);
+	bool Initialize(const TMap<FString, FString>& InParameters, IDisplayClusterViewport* InViewport);
 
 	FString ToString() const;
 };

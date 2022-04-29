@@ -26,10 +26,10 @@ public class DisplayClusterProjection : ModuleRules
 			new string[] {
 				"Composure",
 				"DisplayCluster",
+				"ProceduralMeshComponent",
 				"Projects",
 				"RenderCore",
 				"RHI",
-				"ProceduralMeshComponent",
 			});
 
 		if (Target.bBuildEditor == true)

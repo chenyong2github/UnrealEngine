@@ -34,7 +34,7 @@ void FDisplayClusterViewportConfigurationProjectionPolicy::Update()
 		if (ViewportIt && (ViewportIt->GetRenderSettingsICVFX().RuntimeFlags & ViewportRuntime_InternalResource) == 0)
 		{
 			// Support advanced logic for 'camera' projection policy
-			if (ViewportIt->ProjectionPolicy.IsValid() && ViewportIt->ProjectionPolicy->GetTypeId().Compare(DisplayClusterProjectionStrings::projection::Camera) == 0)
+			if (ViewportIt->ProjectionPolicy.IsValid() && ViewportIt->ProjectionPolicy->GetType().Compare(DisplayClusterProjectionStrings::projection::Camera) == 0)
 			{
 				UpdateCameraPolicy(*ViewportIt);
 			}

@@ -7,6 +7,7 @@
 
 #include "DisplayClusterProjectionLog.h"
 
+
 /**
  * Domeprojection projection policy (DX11 implementation)
  */
@@ -14,7 +15,7 @@ class FDisplayClusterProjectionDomeprojectionPolicyDX11
 	: public FDisplayClusterProjectionDomeprojectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionDomeprojectionPolicyDX11(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+	FDisplayClusterProjectionDomeprojectionPolicyDX11(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 		: FDisplayClusterProjectionDomeprojectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 	{ }
 

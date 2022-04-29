@@ -15,7 +15,8 @@
 #include "Render/Viewport/IDisplayClusterViewport.h"
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
 
-FDisplayClusterProjectionEasyBlendPolicyBase::FDisplayClusterProjectionEasyBlendPolicyBase(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+
+FDisplayClusterProjectionEasyBlendPolicyBase::FDisplayClusterProjectionEasyBlendPolicyBase(const FString& ProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
 }
@@ -24,7 +25,13 @@ FDisplayClusterProjectionEasyBlendPolicyBase::FDisplayClusterProjectionEasyBlend
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterProjectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDisplayClusterViewport* InViewport)
+const FString& FDisplayClusterProjectionEasyBlendPolicyBase::GetType() const
+{
+	static const FString Type(DisplayClusterProjectionStrings::projection::EasyBlend);
+	return Type;
+}
+
+bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -95,7 +102,7 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 	return true;
 }
 
-void FDisplayClusterProjectionEasyBlendPolicyBase::HandleEndScene(class IDisplayClusterViewport* InViewport)
+void FDisplayClusterProjectionEasyBlendPolicyBase::HandleEndScene(IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -173,7 +180,7 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::GetProjectionMatrix(IDisplayC
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterProjectionEasyBlendPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionEasyBlendPolicyBase::ReadConfigData(class IDisplayClusterViewport* InViewport, FString& OutFile, FString& OutOrigin, float& OutGeometryScale)
+bool FDisplayClusterProjectionEasyBlendPolicyBase::ReadConfigData(IDisplayClusterViewport* InViewport, FString& OutFile, FString& OutOrigin, float& OutGeometryScale)
 {
 	check(InViewport);
 

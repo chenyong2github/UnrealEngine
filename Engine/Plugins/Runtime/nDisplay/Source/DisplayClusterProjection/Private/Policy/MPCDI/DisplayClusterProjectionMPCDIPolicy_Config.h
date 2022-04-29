@@ -37,7 +37,7 @@ struct FConfigParser
 
 	bool     bEnablePreview = false;
 
-	inline bool ImplLoadConfig(class IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
+	inline bool ImplLoadConfig(IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
 	{
 		FString MPCDITypeKey;
 		if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::MPCDITypeKey, MPCDITypeKey))
@@ -69,7 +69,7 @@ struct FConfigParser
 	}
 
 private:
-	inline bool ImplLoadMPCDIConfig(class IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
+	inline bool ImplLoadMPCDIConfig(IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
 	{
 		// Filename
 		FString LocalMPCDIFileName;
@@ -119,7 +119,7 @@ private:
 		return true;
 	}
 
-	inline bool ImplLoadPFMConfig(class IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
+	inline bool ImplLoadPFMConfig(IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
 	{
 		// PFM file
 		FString LocalPFMFile;
@@ -199,7 +199,7 @@ private:
 		return true;
 	}
 
-	inline bool ImplLoadBase(class IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
+	inline bool ImplLoadBase(IDisplayClusterViewport* InViewport, const TMap<FString, FString>& InConfigParameters)
 	{
 		// Origin node (optional)
 		if (DisplayClusterHelpers::map::template ExtractValue(InConfigParameters, DisplayClusterProjectionStrings::cfg::mpcdi::Origin, OriginType))
