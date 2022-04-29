@@ -73,6 +73,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, ClusterGroupIndex(0)
 	, MaxClusterLevel(100)
 	, DamageThreshold({ 500000.f, 50000.f, 5000.f })
+	, PerClusterOnlyDamageThreshold(false)
 	, ClusterConnectionType(EClusterConnectionTypeEnum::Chaos_MinimalSpanningSubsetDelaunayTriangulation)
 	, bUseFullPrecisionUVs(false)
 	, bStripOnCook(false)
@@ -810,6 +811,12 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 			}
 		}
 #endif
+	}
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::GeometryCollectionPerChildDamageThreshold)
+	{
+		// prior this version, damage threshold were computed per cluster and propagated to children
+		PerClusterOnlyDamageThreshold = true; 
 	}
 
 #if WITH_EDITORONLY_DATA

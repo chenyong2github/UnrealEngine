@@ -316,6 +316,9 @@ public:
 	/** End UObject Interface */
 
 	void Serialize(FArchive& Ar);
+#if WITH_EDITORONLY_DATA
+	void PostSerialize(const FArchive& Ar);
+#endif
 
 #if WITH_EDITOR
 	void EnsureDataIsCooked(bool bInitResources = true);
@@ -426,6 +429,12 @@ public:
 	/** Damage threshold for clusters at different levels. */
 	UPROPERTY(EditAnywhere, Category = "Clustering")
 	TArray<float> DamageThreshold;
+
+	/** compatibility check, when true, only cluster compute damage from parameters and propagate to direct children
+	 *  when false, each child will compute it's damage threshold allowing for more precise and intuitive destruction behavior
+	 */
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	bool PerClusterOnlyDamageThreshold;
 
 	/** */
 	UPROPERTY(EditAnywhere, Category = "Clustering")

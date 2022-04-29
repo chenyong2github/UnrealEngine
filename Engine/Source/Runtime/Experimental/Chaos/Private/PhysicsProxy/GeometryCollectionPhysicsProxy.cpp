@@ -792,7 +792,13 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 				if (Parameters.EnableClustering)
 				{
 					Handle->SetClusterGroupIndex(Parameters.ClusterGroupIndex);
-					Handle->SetStrain(StrainDefault);
+
+					float DamageThreshold = StrainDefault; 
+					if (!Parameters.bUsePerClusterOnlyDamageThreshold)
+					{
+						DamageThreshold = ComputeDamageThreshold(DynamicCollection, TransformGroupIndex);
+					}
+					Handle->SetStrain(DamageThreshold);
 				}
 
 				// #BGTODO - non-updating parameters - remove lin/ang drag arrays and always query material if this stays a material parameter
@@ -1066,8 +1072,9 @@ float FGeometryCollectionPhysicsProxy::ComputeDamageThreshold(const FGeometryDyn
 	}
 	else
 	{
+		const int32 LevelOffset =  Parameters.bUsePerClusterOnlyDamageThreshold? 0: -1;
 		const int32 NumThresholds = Parameters.DamageThreshold.Num();
-		const int32 Level = FMath::Clamp(CalculateHierarchyLevel(DynamicCollection, TransformIndex), 0, INT_MAX);
+		const int32 Level = FMath::Clamp(CalculateHierarchyLevel(DynamicCollection, TransformIndex) + LevelOffset, 0, INT_MAX);
 		const float DefaultDamage = NumThresholds > 0 ? Parameters.DamageThreshold[NumThresholds - 1] : 0.f;
 		DamageThreshold = Level < NumThresholds ? Parameters.DamageThreshold[Level] : DefaultDamage;
 
@@ -1204,9 +1211,12 @@ FGeometryCollectionPhysicsProxy::BuildClusters_Internal(
 	{
 		// set the damage threshold on children as they are the one where the strain is tested when breaking 
 		Chaos::FPBDRigidParticleHandle* Child = ChildHandles[Idx];
-		if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChild = Child->CastToClustered())
+		if (Parameters.bUsePerClusterOnlyDamageThreshold)
 		{
-			ClusteredChild->SetStrains(DamageThreshold);
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChild = Child->CastToClustered())
+			{
+				ClusteredChild->SetStrains(DamageThreshold);
+			}
 		}
 
 		const int32 ChildTransformGroupIndex = ChildTransformGroupIndices[Idx];

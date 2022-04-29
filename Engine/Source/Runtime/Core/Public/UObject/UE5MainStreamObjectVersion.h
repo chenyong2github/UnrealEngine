@@ -215,6 +215,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Fix material feature level nodes to account for new SM6 input pin.
 		MaterialFeatureLevelNodeFixForSM6,
 
+		// Fix material feature level nodes to account for new SM6 input pin.
+		GeometryCollectionPerChildDamageThreshold,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
