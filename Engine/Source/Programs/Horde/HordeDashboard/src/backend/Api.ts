@@ -1777,6 +1777,18 @@ export type DefaultPreflightRequest = {
 	changeTemplateId?: string;
 }
 
+	
+/**  Configuration for an issue workflow */	
+export type WorkflowConfig = {
+
+	/** Identifier for this workflow */
+	id: string;
+	
+	/** Name of the tab to post summary data to */
+	summaryTab?: string;
+
+}
+
 /**Response describing a stream */
 export type GetStreamResponse = {
 
@@ -1815,6 +1827,9 @@ export type GetStreamResponse = {
 
 	/**Properties for this stream */
 	properties: { [key: string]: string };
+
+	/** Workflows for this stream */
+	workflows: WorkflowConfig[];
 
 	/** Custom permissions for this object */
 	acl?: GetAclResponse;
@@ -2569,6 +2584,9 @@ export type GetIssueSpanResponse = {
 
 	/**The previous build  */
 	lastSuccess?: GetIssueStepResponse;
+
+	/// Workflow that this span belongs to
+	workflowId?: string;
 
 	/**The failing builds for a particular event */
 	steps: GetIssueStepResponse[];
@@ -3748,6 +3766,9 @@ export type FindIssueSpanResponse = {
 
 	/// Name of the step
 	name: string;
+
+	/// Workflow for this span
+	workflowId?: string;
 
 	/// The previous build 
 	lastSuccess?: GetIssueStepResponse;
