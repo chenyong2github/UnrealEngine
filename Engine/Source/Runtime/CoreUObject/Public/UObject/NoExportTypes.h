@@ -2068,11 +2068,11 @@ struct FPlatformInputDeviceState
 	GENERATED_BODY()
 
 	/** The platform user that this input device belongs to */
-	UPROPERTY(VisibleAnywhere, Category = "PlatformInputDevice")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "PlatformInputDevice")
 	FPlatformUserId OwningPlatformUser = PLATFORMUSERID_NONE;
 
 	/** The connection state of this input device */
-	UPROPERTY(VisibleAnywhere, Category = "PlatformInputDevice")
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "PlatformInputDevice")
 	EInputDeviceConnectionState ConnectionState = EInputDeviceConnectionState::Invalid;
 };
 
