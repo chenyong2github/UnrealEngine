@@ -22,6 +22,7 @@ namespace Horde.Build.Collections.Impl
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Collection of stream documents
@@ -194,13 +195,19 @@ namespace Horde.Build.Collections.Impl
 				}
 
 				// Add it to the list
-				TemplateRef newTemplateRef = new TemplateRef(newTemplate, request.ShowUgsBadges, request.ShowUgsAlerts, request.NotificationChannel, request.NotificationChannelFilter, request.TriageChannel, schedule, request.ChainedJobs?.ConvertAll(x => new ChainedJobTemplate(x)), Acl.Merge(null, request.Acl));
+				TemplateRef newTemplateRef = new TemplateRef(newTemplate, request.ShowUgsBadges, request.ShowUgsAlerts, request.NotificationChannel, request.NotificationChannelFilter, request.TriageChannel, schedule, request.ChainedJobs?.ConvertAll(x => new ChainedJobTemplate(x)), null, Acl.Merge(null, request.Acl));
 				if (stream != null && stream.Templates.TryGetValue(newTemplateRefId, out TemplateRef? oldTemplateRef))
 				{
 					if (oldTemplateRef.Schedule != null && newTemplateRef.Schedule != null)
 					{
 						newTemplateRef.Schedule.CopyState(oldTemplateRef.Schedule);
 					}
+
+					if (oldTemplateRef.StepStates != null)
+					{
+						newTemplateRef.StepStates = new List<TemplateStepState>(oldTemplateRef.StepStates);
+					}
+
 				}
 				newTemplateRefs.Add(newTemplateRefId, newTemplateRef);
 			}
@@ -218,6 +225,101 @@ namespace Horde.Build.Collections.Impl
 				}
 			}
 			return newTemplateRefs;
+		}
+
+		/// <inheritdoc/>
+		public async Task<IStream?> TryUpdateTemplateRefAsync(IStream streamInterface, TemplateRefId templateRefId, List<UpdateStepStateRequest>? stepStates = null)
+		{
+			StreamDocument stream = (StreamDocument)streamInterface;
+
+			TemplateRef? oldTemplateRef;
+			TemplateRef? newTemplateRef = null;
+
+			if (!stream.Templates.TryGetValue(templateRefId, out oldTemplateRef))
+			{
+				return null;
+			}
+
+			ITemplate? template = await _templateCollection.GetAsync(oldTemplateRef.Hash);
+			if (template == null)
+			{
+				return null;
+			}
+
+			UpdateDefinitionBuilder<StreamDocument> updateBuilder = Builders<StreamDocument>.Update;
+			List<UpdateDefinition<StreamDocument>> updates = new List<UpdateDefinition<StreamDocument>>();
+
+			Dictionary<TemplateRefId, TemplateRef> newTemplates = new Dictionary<TemplateRefId, TemplateRef>(stream.Templates);
+
+			// clear
+			if (stepStates != null && stepStates.Count == 0)
+			{
+				bool hasUpdates = false;
+				foreach (KeyValuePair<TemplateRefId, TemplateRef> entry in newTemplates)
+				{
+					if (entry.Value?.StepStates != null)
+					{
+						hasUpdates = true;
+						entry.Value.StepStates = null;
+					}
+				}
+
+				if (hasUpdates)
+				{
+					updates.Add(updateBuilder.Set(x => x.Templates, newTemplates));
+				}
+				
+			}
+			else if (stepStates != null)
+			{
+				newTemplateRef = new TemplateRef(template, oldTemplateRef.ShowUgsAlerts, oldTemplateRef.ShowUgsAlerts, oldTemplateRef.NotificationChannel, oldTemplateRef.NotificationChannelFilter, oldTemplateRef.TriageChannel, oldTemplateRef.Schedule, oldTemplateRef.ChainedJobs, null, oldTemplateRef.Acl);
+
+				// get currently valid step states
+				List<TemplateStepState> newStepStates = oldTemplateRef.StepStates?.Where(x => x.QuarantinedByUserId != null || x.PausedByUserId != null).ToList() ?? new List<TemplateStepState>();
+
+				// generate update list
+				foreach (UpdateStepStateRequest updateState in stepStates)
+				{
+					TemplateStepState? newState = newStepStates.Where(x => x.Name == updateState.Name).FirstOrDefault();
+
+					UserId? PausedByUserId = updateState.PausedByUserId != null ? new UserId(updateState.PausedByUserId) : null;
+					UserId? QuarantinedByUserId = updateState.QuarantinedByUserId != null ? new UserId(updateState.QuarantinedByUserId) : null;
+
+					if (newState == null)
+					{
+						// if this is a new state without anything set, ignore it
+						if (PausedByUserId == null && QuarantinedByUserId == null)
+						{
+							continue;
+						}
+
+						newStepStates.Add(new TemplateStepState(updateState.Name, PausedByUserId, QuarantinedByUserId));
+					}
+					else
+					{
+						newState.PausedByUserId = PausedByUserId;
+						newState.QuarantinedByUserId = QuarantinedByUserId;
+					}
+				}
+
+				newTemplateRef.StepStates = newStepStates.Where(x => x.QuarantinedByUserId != null || x.PausedByUserId != null).ToList();
+				if (newTemplateRef.StepStates.Count == 0)
+				{
+					newTemplateRef.StepStates = null;
+				}
+
+				newTemplates[templateRefId] = newTemplateRef;
+				updates.Add(updateBuilder.Set(x => x.Templates, newTemplates));
+
+			}
+
+			if (updates.Count == 0)
+			{
+				return streamInterface;
+			}
+
+			return await TryUpdateStreamAsync(stream, updateBuilder.Combine(updates));
+
 		}
 
 		/// <inheritdoc/>

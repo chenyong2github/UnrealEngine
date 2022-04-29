@@ -572,6 +572,23 @@ namespace Horde.Build.Services.Impl
 			{
 				throw new ArgumentException($"Invalid step id {stepId}");
 			}
+
+			TemplateRef? template;
+			bool SuppressNewIssues = false;
+			if (stream.Templates.TryGetValue(job.TemplateId, out template))
+			{
+				if (template.StepStates != null)
+				{
+					string StepName = graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx].Name;
+					TemplateStepState? state = template.StepStates.FirstOrDefault(x => x.Name.Equals(StepName, StringComparison.Ordinal));
+					if (state?.QuarantinedByUserId != null)
+					{
+						_logger.LogInformation("Issue creation disabled for {JobId}:{BatchId}:{StepId}, Quaratined by user: {UserId}", job.Id, batchId, stepId, state.QuarantinedByUserId);
+						SuppressNewIssues = true;
+					}
+				}
+			}
+
 			scope.Span.SetTag("LogId", step.LogId.ToString());
 
 			// Get the node associated with this step
@@ -597,9 +614,12 @@ namespace Horde.Build.Services.Impl
 						{
 							continue;
 						}
-						if (!await AddEventsToNewSpans(stream, job, batch, step, node, openSpans, eventGroups, job.PromoteIssuesByDefault))
+						if (!SuppressNewIssues)
 						{
-							continue;
+							if (!await AddEventsToNewSpans(stream, job, batch, step, node, openSpans, eventGroups, job.PromoteIssuesByDefault))
+							{
+								continue;
+							}
 						}
 					}
 

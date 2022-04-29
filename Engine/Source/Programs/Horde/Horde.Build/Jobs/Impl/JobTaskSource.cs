@@ -436,15 +436,49 @@ namespace Horde.Build.Tasks.Impl
 					}
 					else
 					{
-						(AgentWorkspace workspace, bool useAutoSdk) = workspaceResult.Value;
-						QueueItem newQueueItem = new QueueItem(stream, newJob, batchIdx, agentType.Pool, workspace, useAutoSdk);
-						newQueue.Add(newQueueItem);
-						newBatchIdToQueueItem[(newJob.Id, batch.Id)] = newQueueItem;
-						
-						IPool? newJobPool = pools.Find(p => p.Id == agentType.Pool);
-						if (newJobPool != null)
+						TemplateRef? templateRef;
+						if (stream.Templates.TryGetValue(newJob.TemplateId, out templateRef))
+						{							
+							if (templateRef.StepStates != null)
+							{
+								for (int i = 0; i < templateRef.StepStates.Count; i++)
+								{
+									TemplateStepState state = templateRef.StepStates[i];
+									if (state.PausedByUserId != null)
+									{
+										IJobStep? step = batch.Steps.FirstOrDefault(x => graph.Groups[batch.GroupIdx].Nodes[x.NodeIdx].Name.Equals(state.Name, StringComparison.Ordinal));
+
+										if (step != null)
+										{
+											JobId jobId = newJob.Id;
+											newJob = await _jobs.TryUpdateStepAsync(newJob, graph, batch.Id, step.Id, JobStepState.Skipped);
+											if (newJob == null)
+											{
+												_logger.LogError("Job {JobId} failed to update step {StepName} pause state", jobId, state.Name);
+												break;
+											}
+											else
+											{
+												_logger.LogInformation("Job {JobId} step {StepName} has been skipped due to being paused", jobId, state.Name);
+											}
+										}
+									}
+								}
+							}
+						}
+
+						if (newJob != null)
 						{
-							OnJobScheduled?.Invoke(newJobPool, IsPoolOnline(agentType.Pool), newJob, graph, batch.Id);
+							(AgentWorkspace workspace, bool useAutoSdk) = workspaceResult.Value;
+							QueueItem newQueueItem = new QueueItem(stream, newJob, batchIdx, agentType.Pool, workspace, useAutoSdk);
+							newQueue.Add(newQueueItem);
+							newBatchIdToQueueItem[(newJob.Id, batch.Id)] = newQueueItem;
+
+							IPool? newJobPool = pools.Find(p => p.Id == agentType.Pool);
+							if (newJobPool != null)
+							{
+								OnJobScheduled?.Invoke(newJobPool, IsPoolOnline(agentType.Pool), newJob, graph, batch.Id);
+							}
 						}
 					}
 				}

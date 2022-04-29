@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -6,6 +6,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
+using Horde.Build.Api;
 using Horde.Build.Collections;
 using Horde.Build.Models;
 using Horde.Build.Utilities;
@@ -149,6 +150,18 @@ namespace Horde.Build.Services
 				newStream = await _streams.GetAsync(stream.Id);
 			}
 			return null;
+		}
+
+		/// <summary>
+		/// Attempts to update a stream template ref
+		/// </summary>
+		/// <param name="streamInterface"></param>
+		/// <param name="templateRefId"></param>
+		/// <param name="stepStates"></param>
+		/// <returns></returns>
+		public Task<IStream?> TryUpdateTemplateRefAsync(IStream streamInterface, TemplateRefId templateRefId, List<UpdateStepStateRequest>? stepStates = null)
+		{
+			return _streams.TryUpdateTemplateRefAsync(streamInterface, templateRefId, stepStates );
 		}
 
 		/// <summary>

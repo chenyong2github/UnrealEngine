@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -19,6 +19,7 @@ namespace Horde.Build.Models
 	using ProjectId = StringId<IProject>;
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
+	using UserId = ObjectId<IUser>;
 
 	/// <summary>
 	/// Exception thrown when stream validation fails
@@ -285,6 +286,46 @@ namespace Horde.Build.Models
 	}
 
 	/// <summary>
+	/// A
+	/// </summary>
+	public class TemplateStepState
+	{
+		/// <summary>
+		/// Name of the step
+		/// </summary>
+		public string Name { get; set; } = String.Empty ;
+
+		/// <summary>
+		/// User who paused the step
+		/// </summary>
+		public UserId? PausedByUserId { get; set; }
+
+		/// <summary>
+		/// User who quarantined the step
+		/// </summary>
+		public UserId? QuarantinedByUserId { get; set; }
+
+		/// <summary>
+		/// Default constructor for serialization
+		/// </summary>
+		private TemplateStepState()
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public TemplateStepState( string name, UserId? pausedByUserId = null, UserId? quarantinedByUserId = null)
+		{
+			Name = name;
+			PausedByUserId = pausedByUserId;
+			QuarantinedByUserId = quarantinedByUserId;
+		}
+
+	}
+
+
+	/// <summary>
 	/// Reference to a template
 	/// </summary>
 	public class TemplateRef
@@ -337,6 +378,12 @@ namespace Horde.Build.Models
 		public List<ChainedJobTemplate>? ChainedJobs { get; set; }
 
 		/// <summary>
+		/// List of template step states
+		/// </summary>
+		[BsonIgnoreIfNull]
+		public List<TemplateStepState>? StepStates { get;set; }
+
+		/// <summary>
 		/// Custom permissions for this template
 		/// </summary>
 		public Acl? Acl { get; set; }
@@ -361,8 +408,9 @@ namespace Horde.Build.Models
 		/// <param name="triageChannel"></param>
 		/// <param name="schedule">Schedule for this template</param>
 		/// <param name="triggers">List of downstream templates to trigger</param>
+		/// <param name="stepStates">List of template step states</param>
 		/// <param name="acl">ACL for this template</param>
-		public TemplateRef(ITemplate template, bool showUgsBadges = false, bool showUgsAlerts = false, string? notificationChannel = null, string? notificationChannelFilter = null, string? triageChannel = null, Schedule? schedule = null, List<ChainedJobTemplate>? triggers = null, Acl? acl = null)
+		public TemplateRef(ITemplate template, bool showUgsBadges = false, bool showUgsAlerts = false, string? notificationChannel = null, string? notificationChannelFilter = null, string? triageChannel = null, Schedule? schedule = null, List<ChainedJobTemplate>? triggers = null, List<TemplateStepState>? stepStates = null, Acl? acl = null)
 		{
 			Name = template.Name;
 			Hash = template.Id;
@@ -373,6 +421,7 @@ namespace Horde.Build.Models
 			TriageChannel = triageChannel;
 			Schedule = schedule;
 			ChainedJobs = triggers;
+			StepStates = stepStates;
 			Acl = acl;
 		}
 	}

@@ -15,6 +15,7 @@ using Horde.Build.Server;
 using Horde.Build.Services;
 using Horde.Build.Tests.Stubs.Services;
 using Horde.Build.Utilities;
+using Horde.Build.Api;
 using HordeCommon;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -1464,7 +1465,72 @@ namespace Horde.Build.Tests
 			}
 		}
 
-				private async Task ParseAsync(LogId logId, string[] lines)
+		[TestMethod]
+		public async Task QuarantinedIssueTest()
+		{
+			IStream stream = Deref(await StreamCollection.GetAsync(_mainStreamId));
+			TemplateRefId templateRefId = new TemplateRefId("test-template");
+
+			// #1
+			// Scenario: Warning in first step, step is quarantined
+			// Expected: No issue generated
+			{
+				stream = Deref(await StreamService.TryUpdateTemplateRefAsync(stream, templateRefId, new List<UpdateStepStateRequest>() { new UpdateStepStateRequest() { Name = "Update Version Files", QuarantinedByUserId = UserId.GenerateNewId().ToString() } }));
+
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(0, issues.Count);				
+			}
+
+			// #2
+			// Scenario: Warning in first step, step is not quarantined
+			// Expected: issue is generated
+			{
+				stream = Deref(await StreamService.TryUpdateTemplateRefAsync(stream, templateRefId, new List<UpdateStepStateRequest>()));
+
+				// step states should be cleared now
+				Assert.AreEqual(null, stream.Templates[templateRefId].StepStates);
+
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+
+				Assert.AreEqual("Warnings in Update Version Files", issues[0].Summary);
+
+				List<IIssueSpan> spans = await IssueCollection.FindSpansAsync();
+				Assert.AreEqual(1, spans.Count);
+				Assert.AreEqual(job.Id, spans[0].LastFailure?.JobId);
+			}
+
+			// #3
+			// Scenario: Warning in first step, step is quarantined, issue exists
+			// Expected: issue is updated with new failure
+			{
+				stream = Deref(await StreamService.TryUpdateTemplateRefAsync(stream, templateRefId, new List<UpdateStepStateRequest>() { new UpdateStepStateRequest() { Name = "Update Version Files", QuarantinedByUserId = UserId.GenerateNewId().ToString() } }));
+
+
+				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
+				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
+
+				List<IIssue> issues = await IssueService.FindIssuesAsync();
+				Assert.AreEqual(1, issues.Count);
+
+				List<IIssueSpan> spans = await IssueCollection.FindSpansAsync();
+				Assert.AreEqual(1, spans.Count);
+				Assert.AreEqual(job.Id, spans[0].LastFailure?.JobId);
+			}
+
+		}
+
+
+		private async Task ParseAsync(LogId logId, string[] lines)
 		{
 			LogParserContext context = new LogParserContext();
 			context.WorkspaceDir = DirectoryReference.GetCurrentDirectory();

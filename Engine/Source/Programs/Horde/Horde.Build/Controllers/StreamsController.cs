@@ -31,16 +31,17 @@ namespace Horde.Build.Controllers
 		private readonly ITemplateCollection _templateCollection;
 		private readonly IJobStepRefCollection _jobStepRefCollection;
 		private readonly IPerforceService _perforceService;
-
+		private readonly AclService _aclService;
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StreamsController(StreamService streamService, ITemplateCollection templateCollection, IJobStepRefCollection jobStepRefCollection, IPerforceService perforceService)
+		public StreamsController(AclService aclService, StreamService streamService, ITemplateCollection templateCollection, IJobStepRefCollection jobStepRefCollection, IPerforceService perforceService)
 		{
 			_streamService = streamService;
 			_templateCollection = templateCollection;
 			_jobStepRefCollection = jobStepRefCollection;
 			_perforceService = perforceService;
+			_aclService = aclService;
 		}
 
 		/// <summary>
@@ -256,7 +257,7 @@ namespace Horde.Build.Controllers
 		}
 
 		/// <summary>
-		/// Gets all the templates for a stream
+		/// Gets a template for a stream
 		/// </summary>
 		/// <param name="streamId">Unique id of the stream to query</param>
 		/// <param name="templateId">Unique id of the template to query</param>
@@ -291,5 +292,36 @@ namespace Horde.Build.Controllers
 
 			return new GetTemplateResponse(template).ApplyFilter(filter);
 		}
+
+		/// <summary>
+		/// Update a stream template ref
+		/// </summary>
+		[HttpPut]
+		[Authorize]
+		[Route("/api/v1/streams/{streamId}/templates/{templateRefId}")]
+		public async Task<ActionResult> UpdateStreamTemplateRefAsync(StreamId streamId, TemplateRefId templateRefId, [FromBody] UpdateTemplateRefRequest update)
+		{
+			if (!await _aclService.AuthorizeAsync(AclAction.AdminWrite, User))
+			{
+				return Forbid(AclAction.AdminWrite);
+			}
+
+			IStream? stream = await _streamService.GetStreamAsync(streamId);
+			if (stream == null)
+			{
+				return NotFound(streamId);
+			}
+
+			if (!stream.Templates.ContainsKey(templateRefId))
+			{
+				return NotFound(streamId, templateRefId);
+			}
+
+			await _streamService.TryUpdateTemplateRefAsync(stream, templateRefId, update.StepStates);
+
+			return Ok();
+
+		}
+
 	}
 }

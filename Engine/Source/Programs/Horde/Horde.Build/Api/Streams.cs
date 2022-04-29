@@ -247,6 +247,43 @@ namespace Horde.Build.Api
 	}
 
 	/// <summary>
+	/// Step state update request
+	/// </summary>
+	public class UpdateStepStateRequest
+	{
+		/// <summary>
+		/// Name of the step
+		/// </summary>
+		[Required]
+		public string Name { get; set; } = String.Empty;
+
+		/// <summary>
+		/// User who paused the step
+		/// </summary>
+		public string? PausedByUserId { get; set; }
+
+		/// <summary>
+		/// User who quarantined the step
+		/// </summary>
+		public string? QuarantinedByUserId { get; set; }
+	}
+
+
+	/// <summary>
+	/// Updates an existing stream template ref
+	/// </summary>
+	public class UpdateTemplateRefRequest
+	{
+		
+		/// <summary>
+		/// Step states to update
+		/// </summary>
+		public List<UpdateStepStateRequest>? StepStates { get; set; }
+
+	}
+
+
+	/// <summary>
 	/// Mapping from a BuildGraph agent type to a set of machines on the farm
 	/// </summary>
 	public class GetAgentTypeResponse
