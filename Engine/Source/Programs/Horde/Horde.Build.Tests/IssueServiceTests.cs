@@ -169,8 +169,9 @@ namespace Horde.Build.Tests
 
 		public static INode MockNode(string name)
 		{
-			Mock<INode> node = new Mock<INode>();
+			Mock<INode> node = new Mock<INode>(MockBehavior.Strict);
 			node.SetupGet(x => x.Name).Returns(name);
+			node.SetupGet(x => x.Annotations).Returns(NodeAnnotations.Empty);
 			return node.Object;
 		}
 

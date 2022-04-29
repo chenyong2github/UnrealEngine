@@ -22,6 +22,7 @@ namespace Horde.Build.Collections.Impl
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using UserId = ObjectId<IUser>;
+	using WorkflowId = StringId<WorkflowConfig>;
 
 	class IssueCollection : IIssueCollection
 	{
@@ -357,11 +358,15 @@ namespace Horde.Build.Collections.Impl
 
 			public LogId? LogId { get; set; }
 
+			[BsonIgnoreIfNull]
+			public NodeAnnotations? Annotations { get; set; }
+
 			public bool? PromoteByDefault { get; set; }
 
 			[BsonElement("NotifySuspects"), BsonIgnoreIfDefault(false)]
 			public bool NotifySuspectsDeprecated { get; set; }
 
+			IReadOnlyNodeAnnotations IIssueStep.Annotations => Annotations ?? NodeAnnotations.Empty;
 			bool IIssueStep.PromoteByDefault => PromoteByDefault ?? NotifySuspectsDeprecated;
 
 			[BsonConstructor]
@@ -382,6 +387,7 @@ namespace Horde.Build.Collections.Impl
 				StepId = stepData.StepId;
 				StepTime = stepData.StepTime;
 				LogId = stepData.LogId;
+				Annotations = stepData.Annotations;
 				PromoteByDefault = stepData.PromoteByDefault;
 			}
 		}

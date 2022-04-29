@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using Horde.Build.Server;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
 
@@ -8,6 +9,7 @@ namespace Horde.Build.Models
 {
 	using JobId = ObjectId<IJob>;
 	using LogId = ObjectId<ILogFile>;
+	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
 	/// Identifies a particular changelist and job that contributes to a span
@@ -53,6 +55,11 @@ namespace Horde.Build.Models
 		/// Time that the step started
 		/// </summary>
 		public DateTime StepTime { get; }
+
+		/// <summary>
+		/// Annotations for this step
+		/// </summary>
+		public IReadOnlyNodeAnnotations Annotations { get; }
 
 		/// <summary>
 		/// Whether to promote spans including this step by default
