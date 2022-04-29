@@ -178,6 +178,7 @@ void SetVertexParameterAttributeData(inout FMaterialVertexParameters VertexParam
 	VertexParameters.WorldPosition		= mul(float4(PointLocalNoWPO, 1), LocalToTranslatedWorld).xyz;
 	VertexParameters.TangentToWorld		= mul(GetTangentBasis(RawAttributeData.TangentZ), LocalToWorld);
 	VertexParameters.VertexColor		= RawAttributeData.Color;
+	VertexParameters.PreSkinnedPosition = PointLocalNoWPO;
 	VertexParameters.PreSkinnedNormal	= RawAttributeData.TangentZ;
 
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
