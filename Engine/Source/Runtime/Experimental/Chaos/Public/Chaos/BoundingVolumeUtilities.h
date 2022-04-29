@@ -31,7 +31,7 @@ inline FVec3 ComputeBoundsThickness(FVec3 Vel, FReal Dt, FReal MinBoundsThicknes
 inline FVec3 ComputeBoundsThickness(const TPBDRigidParticles<FReal, 3>& InParticles, FReal Dt, int32 BodyIndex, FReal MinBoundsThickness, FReal BoundsVelocityInflation)
 {
 	const bool bIsBounded = InParticles.HasBounds(BodyIndex);
-	const bool bIsCCD = InParticles.CCDEnabled(BodyIndex);
+	const bool bIsCCD = InParticles.ControlFlags(BodyIndex).GetCCDEnabled();
 
 	if (!bIsCCD && (BoundsVelocityInflation == FReal(0)))
 	{

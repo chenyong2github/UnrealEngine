@@ -218,6 +218,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Fix material feature level nodes to account for new SM6 input pin.
 		GeometryCollectionPerChildDamageThreshold,
 
+		// Move some Chaos flags into a bitfield
+		AddRigidParticleControlFlags,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -352,6 +352,7 @@ FBodyInstance::FBodyInstance()
 	, bOverrideWalkableSlopeOnInstance(false)
 	, bInterpolateWhenSubStepping(true)
 	, bPendingCollisionProfileSetup(false)
+	, bInertiaConditioning(true)
 	, Scale3D(1.0f)
 	, CollisionProfileName(UCollisionProfile::CustomCollisionProfileName)
 	, PositionSolverIterationCount(8)
@@ -1220,7 +1221,8 @@ void FInitBodiesHelperBase::CreateActor_AssumesLocked(FBodyInstance* Instance, c
 		FPhysicsInterface::SetIsKinematic_AssumesLocked(Instance->ActorHandle, !Instance->ShouldInstanceSimulatingPhysics());
 #if WITH_CHAOS
 		FPhysicsInterface::SetMaxLinearVelocity_AssumesLocked(Instance->ActorHandle, TNumericLimits<float>::Max());
-		FPhysicsInterface::SetSmoothEdgeCollisionsEnabled(Instance->ActorHandle, Instance->bSmoothEdgeCollisions);
+		FPhysicsInterface::SetSmoothEdgeCollisionsEnabled_AssumesLocked(Instance->ActorHandle, Instance->bSmoothEdgeCollisions);
+		FPhysicsInterface::SetInertiaConditioningEnabled_AssumesLocked(Instance->ActorHandle, Instance->bInertiaConditioning);
 #endif
 
 		// Set sleep even notification
@@ -2895,6 +2897,22 @@ FVector FBodyInstance::GetBodyInertiaTensor() const
 	return OutTensor;
 }
 
+void FBodyInstance::SetInertiaConditioningEnabled(bool bInEnabled)
+{
+	if (bInEnabled != bInertiaConditioning)
+	{
+		bInertiaConditioning = bInEnabled;
+		FPhysicsCommand::ExecuteWrite(ActorHandle,
+			[bInEnabled](const FPhysicsActorHandle& Actor)
+			{
+				if (FPhysicsInterface::IsRigidBody(Actor))
+				{
+					FPhysicsInterface::SetInertiaConditioningEnabled_AssumesLocked(Actor, bInEnabled);
+				}
+			});
+	}
+}
+
 FBox FBodyInstance::GetBodyBounds() const
 {
 	FBox OutBox(EForceInit::ForceInitToZero);
@@ -3759,7 +3777,7 @@ void FBodyInstance::SetSmoothEdgeCollisionsEnabled(bool bNewSmoothEdgeCollisions
 			{
 				if (FPhysicsInterface::IsRigidBody(Actor))
 				{
-					FPhysicsInterface::SetSmoothEdgeCollisionsEnabled(Actor, bNewSmoothEdgeCollisions);
+					FPhysicsInterface::SetSmoothEdgeCollisionsEnabled_AssumesLocked(Actor, bNewSmoothEdgeCollisions);
 				}
 			});
 #endif

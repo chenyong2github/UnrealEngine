@@ -1023,6 +1023,7 @@ namespace Chaos
 
 		Particle->SetObjectStateLowLevel(ObjectState);
 
+		// Put the particle into the correct array. This will change the location of the particle data
 		if (auto ClusteredParticle = Particle->CastToClustered())
 		{
 			Particles.SetClusteredParticleSOA(ClusteredParticle);
@@ -1032,6 +1033,7 @@ namespace Chaos
 			Particles.SetDynamicParticleSOA(Particle);
 		}
 
+		// @todo(chaos): this doesn't seem to handle Sleeping -> Kinematic, or Kinematic -> Sleeping
 		if (InitialState != ObjectState && !Particle->Disabled())
 		{
 			if (InitialState == EObjectStateType::Sleeping)
@@ -1046,6 +1048,17 @@ namespace Chaos
 			{
 				// even though we went to sleep, we should still report info back to GT
 				Particles.MarkTransientDirtyParticle(Particle);
+			}
+		}
+
+		// If we switched to/from dynamic the inertia conditioning may need to be refreshed
+		if (Particle->InertiaConditioningEnabled())
+		{
+			const bool bWasDynamic = (InitialState == EObjectStateType::Dynamic) || (InitialState == EObjectStateType::Sleeping);
+			const bool bIsDynamic = (ObjectState == EObjectStateType::Dynamic) || (ObjectState == EObjectStateType::Sleeping);
+			if (bWasDynamic != bIsDynamic)
+			{
+				Particle->SetInertiaConditioningDirty();
 			}
 		}
 	}

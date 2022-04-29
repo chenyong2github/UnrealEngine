@@ -390,6 +390,8 @@ namespace Chaos
 		void GatherSolverInput(FReal Dt, int32 GroupIndex);
 		void ScatterSolverOutput(FReal Dt, int32 GroupIndex);
 
+		void UpdateInertiaConditioning();
+		void UpdateParticleInertiaConditioning(FPBDRigidParticleHandle* Rigid, const FReal MaxDistance, const FReal MaxRotationRatio);
 
 		FEvolutionResimCache* GetCurrentStepResimCache()
 		{

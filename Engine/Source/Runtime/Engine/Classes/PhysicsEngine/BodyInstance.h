@@ -418,6 +418,24 @@ protected:
 	/** Whether we are pending a collision profile setup */
 	uint8 bPendingCollisionProfileSetup : 1;
 
+	/** 
+	 * @brief Enable automatic inertia conditioning to stabilize constraints.
+	 * 
+	 * Inertia conitioning increases inertia when an object is long and thin and also when it has joints that are outside the
+	 * collision shapes of the body. Increasing the inertia reduces the amount of rotation applied at joints which helps stabilize
+	 * joint chains, especially when bodies are small. In principle you can get the same behaviour by setting the InertiaTensorScale
+	 * appropriately, but this takes some of the guesswork out of it.
+	 * 
+	 * @note This only changes the inertia used in the low-level solver. That inertia is not visible to the BodyInstance
+	 * which will still report the inertia calculated from the mass, shapes, and InertiaTensorScale.
+	 * 
+	 * @note When enabled, the effective inertia depends on the joints attached to the body so the inertia will change when
+	 * joints are added or removed (automatically - no user action required).
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Physics)
+	uint8 bInertiaConditioning : 1;
+
+
 public:
 	/** Current scale of physics - used to know when and how physics must be rescaled to match current transform of OwnerComponent. */
 	FVector Scale3D;
@@ -743,6 +761,12 @@ public:
 	FBox GetBodyBounds() const;
 	/** Return the body's inertia tensor. This is returned in local mass space */
 	FVector GetBodyInertiaTensor() const;
+
+	/** Whether inertia conditioning is enabled. @see bInertiaConditioning */
+	bool IsInertiaConditioningEnabled() { return bInertiaConditioning; }
+
+	/** Enable or disable inertia conditionin.  @see bInertiaConditioning */
+	void SetInertiaConditioningEnabled(bool bEnabled);
 
 
 	/** Set this body to be fixed (kinematic) or not. */

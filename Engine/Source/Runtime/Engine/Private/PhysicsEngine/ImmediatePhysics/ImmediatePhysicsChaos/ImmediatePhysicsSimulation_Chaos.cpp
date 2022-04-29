@@ -16,6 +16,7 @@
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Evolution/PBDMinEvolution.h"
 #include "Chaos/Joint/ChaosJointLog.h"
+#include "Chaos/MassConditioning.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDConstraintRule.h"
@@ -144,6 +145,17 @@ FAutoConsoleVariableRef CVarChaosImmPhysJointAngularDriveDamping(TEXT("p.Chaos.I
 FAutoConsoleVariableRef CVarChaosImmPhysJointMinParentMassRatio(TEXT("p.Chaos.ImmPhys.Joint.MinParentMassRatio"), ChaosImmediate_Joint_MinParentMassRatio, TEXT("6Dof joint MinParentMassRatio (if > 0)"));
 FAutoConsoleVariableRef CVarChaosImmPhysJointMaxInertiaRatio(TEXT("p.Chaos.ImmPhys.Joint.MaxInertiaRatio"), ChaosImmediate_Joint_MaxInertiaRatio, TEXT("6Dof joint MaxInertiaRatio (if > 0)"));
 
+bool bChaosImmediate_InertiaConditioningEnabled = true;
+FAutoConsoleVariableRef  CVarChaosImmPhysParticleInertiaConditioningEnabled(TEXT("p.Chaos.ImmPhys.InertiaConditioning.Enabled"), bChaosImmediate_InertiaConditioningEnabled, TEXT("Enable/Disable constraint stabilization through inertia conditioning"));
+
+Chaos::FRealSingle ChaosImmediate_InertiaConditioningDistance = 10;
+FAutoConsoleVariableRef  CVarChaosImmPhysParticleInertiaConditioningDistance(TEXT("p.Chaos.ImmPhys.InertiaConditioning.Distance"), ChaosImmediate_InertiaConditioningDistance, TEXT(""));
+
+Chaos::FRealSingle ChaosImmediate_InertiaConditioningRotationRatio = 2;
+FAutoConsoleVariableRef  CVarChaosImmPhysParticleInertiaConditioningRotationRatio(TEXT("p.Chaos.ImmPhys.InertiaConditioning.RotationRatio"), ChaosImmediate_InertiaConditioningRotationRatio, TEXT(""));
+
+Chaos::FRealSingle ChaosImmediate_MaxInvInertiaComponentRatio = 0;
+FAutoConsoleVariableRef  CVarChaosImmPhysInertiaConditioningMaxInvInertiaComponentRatio(TEXT("p.Chaos.ImmPhys.InertiaConditioning.MaxInvInertiaComponentRatio"), ChaosImmediate_MaxInvInertiaComponentRatio, TEXT(""));
 
 //
 // Select the solver technique to use until we settle on the final one...
@@ -238,6 +250,7 @@ FAutoConsoleVariableRef CVarChaosImmPhysVelScale(TEXT("p.Chaos.ImmPhys.DebugDraw
 FAutoConsoleVariableRef CVarChaosImmPhysAngVelScale(TEXT("p.Chaos.ImmPhys.DebugDraw.AngVelScale"), ChaosImmPhysDebugDebugDrawSettings.AngVelScale, TEXT("If >0 show angular velocity when drawing particle transforms."));
 FAutoConsoleVariableRef CVarChaosImmPhysImpulseScale(TEXT("p.Chaos.ImmPhys.DebugDraw.ImpulseScale"), ChaosImmPhysDebugDebugDrawSettings.ImpulseScale, TEXT("If >0 show impulses when drawing collisions."));
 FAutoConsoleVariableRef CVarChaosImmPhysPushOutScale(TEXT("p.Chaos.ImmPhys.DebugDraw.PushOutScale"), ChaosImmPhysDebugDebugDrawSettings.PushOutScale, TEXT("If >0 show pushouts when drawing collisions."));
+FAutoConsoleVariableRef CVarChaosImmPhysInertiaScale(TEXT("p.Chaos.ImmPhys.DebugDraw.InertiaScale"), ChaosImmPhysDebugDebugDrawSettings.InertiaScale, TEXT("If >0 show inertia when drawing particles."));
 FAutoConsoleVariableRef CVarChaosImmPhysScale(TEXT("p.Chaos.ImmPhys.DebugDraw.Scale"), ChaosImmPhysDebugDebugDrawSettings.DrawScale, TEXT("Scale applied to all Chaos Debug Draw line lengths etc."));
 #endif
 
@@ -956,6 +969,8 @@ namespace ImmediatePhysics_Chaos
 			Implementation->bActorsDirty = false;
 		}
 
+		UpdateInertiaConditioning(InGravity);
+
 		UE_LOG(LogChaosJoint, Verbose, TEXT("Simulate Dt = %f Steps %d x %f (Rewind %f)"), DeltaTime, NumSteps, StepTime, RewindTime);
 		Implementation->Evolution.SetGravity(InGravity);
 		Implementation->Evolution.SetSimulationSpace(Implementation->SimulationSpace);
@@ -967,6 +982,64 @@ namespace ImmediatePhysics_Chaos
 			DebugDraw();
 		}
 #endif
+	}
+
+	void FSimulation::UpdateInertiaConditioning(const FVector& Gravity)
+	{
+		using namespace Chaos;
+
+		if (bChaosImmediate_InertiaConditioningEnabled)
+		{
+			// The maximum contribution to error correction from rotation
+			const FRealSingle MaxRotationRatio = ChaosImmediate_InertiaConditioningRotationRatio;
+
+			// The error distance that the constraint correction must be stable for
+			// @todo(chaos): should probably be tied to constraint teleport threshold?
+			const FRealSingle MaxDistance = ChaosImmediate_InertiaConditioningDistance;
+
+			// A limit on the relative sizes of the inertia components (inverse)
+			const FRealSingle MaxInvInertiaComponentRatio = ChaosImmediate_MaxInvInertiaComponentRatio;
+
+			for (FActorHandle* Actor : Implementation->ActorHandles)
+			{
+				FGenericParticleHandle Particle = Actor->GetParticle();
+				if (Particle->InertiaConditioningDirty())
+				{
+					const bool bWantInertiaConditioning = Particle->IsDynamic() && Particle->InertiaConditioningEnabled();
+					if (bWantInertiaConditioning)
+					{
+						// Calculate the extents of all the constraints on the body (in CoM space)
+						// @chaos(todo): We need a way to iterate over joints attached to a specific actor
+						const FVec3 CollisionExtents = FReal(0.5) * Particle->LocalBounds().InverseTransformedAABB(Actor->GetLocalCoMTransform()).Extents();
+						FVec3 ConstraintExtents = FVec3(0);
+						for (const FJointHandle* Joint : Implementation->JointHandles)
+						{
+							const Chaos::TVec2<const FActorHandle*>& JointActors = Joint->GetActorHandles();
+							FVec3 JointArm = FVec3(0);
+							if (JointActors[0] == Actor)
+							{
+								JointArm = Actor->GetLocalCoMTransform().InverseTransformPositionNoScale(Joint->GetConstraint()->GetSettings().ConnectorTransforms[0].GetTranslation());
+							}
+							else if (JointActors[1] == Actor)
+							{
+								JointArm = Actor->GetLocalCoMTransform().InverseTransformPositionNoScale(Joint->GetConstraint()->GetSettings().ConnectorTransforms[1].GetTranslation());
+							}
+							ConstraintExtents = FVec3::Max(ConstraintExtents, JointArm.GetAbs());
+						}
+
+						const FVec3f CoMExtents = FVec3f::Max(FVec3f(CollisionExtents), FVec3f(ConstraintExtents));
+						const FVec3f ActorInertiaConditioning = CalculateInertiaConditioning(FRealSingle(Actor->GetInverseMass()), FVec3f(Actor->GetInverseInertia()), CoMExtents, MaxDistance, MaxRotationRatio, MaxInvInertiaComponentRatio);
+				
+						Particle->SetInvIConditioning(ActorInertiaConditioning);
+					}
+					else
+					{
+						Particle->SetInvIConditioning(FVec3f(1));
+					}
+					Particle->ClearInertiaConditioningDirty();
+				}
+			}
+		}
 	}
 
 	void FSimulation::DebugDrawStaticParticles()

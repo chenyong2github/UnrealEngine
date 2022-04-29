@@ -823,8 +823,19 @@ namespace Chaos
 			{
 				if (const TPBDRigidParticleHandle<FReal, 3>* Rigid = InParticle->CastToRigidParticle())
 				{
-					const FVec3 EquivalentBoxSize = Utilities::BoxSizeFromInertia(Rigid->I(), Rigid->M());
-					FDebugDrawQueue::GetInstance().DrawDebugBox(PCOM, 0.5f * Settings.InertiaScale * EquivalentBoxSize, QCOM, FColor::Magenta, false, 0.0f, 0, Settings.LineThickness);
+					if (Rigid->InvM() != 0)
+					{
+						// Show the raw inertia in black
+						if (!FVec3::IsNearlyEqual(Rigid->InvIConditioning(), TVec3<FRealSingle>(1), UE_SMALL_NUMBER))
+						{
+							const FVec3 EquivalentBoxSize = Utilities::BoxSizeFromInertia(Rigid->I(), Rigid->M());
+							FDebugDrawQueue::GetInstance().DrawDebugBox(PCOM, 0.5f * Settings.InertiaScale * EquivalentBoxSize, QCOM, FColor::Black, false, 0.0f, 0, Settings.LineThickness);
+						}
+
+						// Show the inertia used by the solver in magenta
+						const FVec3 EquivalentConditionedBoxSize = Utilities::BoxSizeFromInertia(Rigid->ConditionedI(), Rigid->M());
+						FDebugDrawQueue::GetInstance().DrawDebugBox(PCOM, 0.5f * Settings.InertiaScale * EquivalentConditionedBoxSize, QCOM, FColor::Magenta, false, 0.0f, 0, Settings.LineThickness);
+					}
 				}
 			}
 		}

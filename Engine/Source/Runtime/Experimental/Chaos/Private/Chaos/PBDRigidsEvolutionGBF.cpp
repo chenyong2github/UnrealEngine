@@ -5,6 +5,7 @@
 #include "Chaos/Framework/Parallel.h"
 #include "Chaos/ImplicitObjectTransformed.h"
 #include "Chaos/ImplicitObjectUnion.h"
+#include "Chaos/MassConditioning.h"
 #include "Chaos/PBDCollisionConstraints.h"
 #include "Chaos/PBDCollisionSpringConstraints.h"
 #include "Chaos/PerParticleEtherDrag.h"
@@ -91,6 +92,22 @@ namespace Chaos
 		bool DoFinalProbeNarrowPhase = true;
 		FAutoConsoleVariableRef CVarDoFinalProbeNarrowPhase(TEXT("p.Chaos.Solver.DoFinalProbeNarrowPhase"), DoFinalProbeNarrowPhase, TEXT(""));
 
+		// Enable inertia conditioning for joint and collisions stabilization for small and thin objects
+		bool bChaosSolverInertiaConditioningEnabled = true;
+		FAutoConsoleVariableRef  CVarChaosSolverInertiaConditioningEnabled(TEXT("p.Chaos.Solver.InertiaConditioning.Enabled"), bChaosSolverInertiaConditioningEnabled, TEXT("Enable/Disable constraint stabilization through inertia conditioning"));
+
+		// The largest joint error we expect to resolve in a moderately stable way
+		FRealSingle ChaosSolverInertiaConditioningDistance = 20;
+		FAutoConsoleVariableRef  CVarChaosSolverInertiaConditioningDistance(TEXT("p.Chaos.Solver.InertiaConditioning.Distance"), ChaosSolverInertiaConditioningDistance, TEXT(""));
+
+		// The ratio of joint error correction that comes from particle rotation versus translation
+		FRealSingle ChaosSolverInertiaConditioningRotationRatio = 2;
+		FAutoConsoleVariableRef  CVarChaosSolverInertiaConditioningRotationRatio(TEXT("p.Chaos.Solver.InertiaConditioning.RotationRatio"), ChaosSolverInertiaConditioningRotationRatio, TEXT(""));
+
+		// If > 1, limits the inverse inertia components to be mo more than this multiple of the smallest component. Makes the objects more round. Set to 0 to disable.
+		FRealSingle ChaosSolverMaxInvInertiaComponentRatio = 0;
+		FAutoConsoleVariableRef  CVarChaosSolverInertiaConditioningMaxInvInertiaComponentRatio(TEXT("p.Chaos.Solver.InertiaConditioning.MaxInvInertiaComponentRatio"), ChaosSolverMaxInvInertiaComponentRatio, TEXT(""));
+
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::AdvanceOneTimeStep"), STAT_Evolution_AdvanceOneTimeStep, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::UnclusterUnions"), STAT_Evolution_UnclusterUnions, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Integrate"), STAT_Evolution_Integrate, STATGROUP_Chaos);
@@ -117,6 +134,7 @@ namespace Chaos
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ParallelSolve"), STAT_Evolution_ParallelSolve, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::SaveParticlePostSolve"), STAT_Evolution_SavePostSolve, STATGROUP_Chaos);
 		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::DeactivateSleep"), STAT_Evolution_DeactivateSleep, STATGROUP_Chaos);
+		DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::InertiaConditioning"), STAT_Evolution_InertiaConditioning, STATGROUP_Chaos);
 
 		int32 SerializeEvolution = 0;
 		FAutoConsoleVariableRef CVarSerializeEvolution(TEXT("p.SerializeEvolution"), SerializeEvolution, TEXT(""));
@@ -395,6 +413,11 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt, const FSubSt
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Evolution_CollisionModifierCallback);
 		CollisionConstraints.ApplyCollisionModifier(*CollisionModifiers, Dt);
+	}
+
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_InertiaConditioning);
+		UpdateInertiaConditioning();
 	}
 
 	if (bChaosUseCCD)
@@ -996,6 +1019,38 @@ void FPBDRigidsEvolutionGBF::DestroyParticleCollisionsInAllocator(FGeometryParti
 	{
 		CollisionConstraints.GetConstraintAllocator().RemoveParticle(Particle);
 		Particle->ParticleCollisions().Reset();
+	}
+}
+
+void FPBDRigidsEvolutionGBF::UpdateInertiaConditioning()
+{
+	// The maximum contribution to error correction from rotation
+	const FRealSingle MaxRotationRatio = ChaosSolverInertiaConditioningRotationRatio;
+
+	// The error distance that the constraint correction must be stable for
+	// @todo(chaos): should probably be tied to constraint teleport threshold?
+	const FRealSingle MaxDistance = ChaosSolverInertiaConditioningDistance;
+
+	// A limit on the relative sizes of the inertia components (inverse)
+	const FRealSingle MaxInvInertiaComponentRatio = ChaosSolverMaxInvInertiaComponentRatio;
+
+	// @todo(chaos): we should only visit particles that are dirty
+	for (auto& Rigid : Particles.GetNonDisabledDynamicView())
+	{
+		if (Rigid.InertiaConditioningDirty())
+		{
+			const bool bWantInertiaConditioning = Rigid.IsDynamic() && Rigid.InertiaConditioningEnabled() && bChaosSolverInertiaConditioningEnabled;
+			if (bWantInertiaConditioning)
+			{
+				const FVec3f InvInertiaScale = CalculateParticleInertiaConditioning(Rigid.Handle(), MaxDistance, MaxRotationRatio, MaxInvInertiaComponentRatio);
+				Rigid.SetInvIConditioning(InvInertiaScale);
+			}
+			else
+			{
+				Rigid.SetInvIConditioning(FVec3f(1));
+			}
+			Rigid.ClearInertiaConditioningDirty();
+		}
 	}
 }
 

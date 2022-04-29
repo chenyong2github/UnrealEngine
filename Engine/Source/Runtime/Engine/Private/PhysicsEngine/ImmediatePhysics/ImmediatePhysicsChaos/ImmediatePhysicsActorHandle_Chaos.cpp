@@ -296,6 +296,7 @@ namespace ImmediatePhysics_Chaos
 					Dynamic->SetRotationOfMass(CoMTransform.GetRotation());
 					Dynamic->SetI(TVec3<FRealSingle>( Inertia.X, Inertia.Y, Inertia.Z ));
 					Dynamic->SetInvI(TVec3<FRealSingle>(InertiaInv.X, InertiaInv.Y, InertiaInv.Z ));
+					Dynamic->SetInertiaConditioningEnabled(BodyInstance->IsInertiaConditioningEnabled());
 					if (BodyInstance != nullptr)
 					{
 						Dynamic->SetLinearEtherDrag(BodyInstance->LinearDamping);
@@ -636,6 +637,11 @@ namespace ImmediatePhysics_Chaos
 			}
 			Dynamic->SetI(TVec3<FRealSingle>(NewInertia.X, NewInertia.Y, NewInertia.Z ));
 			Dynamic->SetInvI(TVec3<FRealSingle>(NewInverseInertia.X, NewInverseInertia.Y, NewInverseInertia.Z ));
+			
+			if (Dynamic->InertiaConditioningEnabled())
+			{
+				Dynamic->SetInertiaConditioningDirty();
+			}
 		}
 	}
 

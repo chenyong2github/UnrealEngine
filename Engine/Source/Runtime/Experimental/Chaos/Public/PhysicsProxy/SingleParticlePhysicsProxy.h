@@ -396,15 +396,39 @@ public:
 		});
 	}
 
-	void SetOneWayInteraction(const bool InOneWayInteraction)
+	void SetOneWayInteraction(const bool bInOneWayInteraction)
 	{
-		Write([InOneWayInteraction](auto* Particle)
+		Write([bInOneWayInteraction](auto* Particle)
 		{
 			if (auto Rigid = Particle->CastToRigidParticle())
 			{
-				return Rigid->SetOneWayInteraction(InOneWayInteraction);
+				return Rigid->SetOneWayInteraction(bInOneWayInteraction);
 			}
 		});
+	}
+
+	bool InertiaConditioningEnabled() const
+	{
+		return Read([](auto* Particle)
+			{
+				if (auto Rigid = Particle->CastToRigidParticle())
+				{
+					return Rigid->InertiaConditioningEnabled();
+				}
+
+				return false;
+			});
+	}
+
+	void SetInertiaConditioningEnabled(const bool bInEnabled)
+	{
+		Write([bInEnabled](auto* Particle)
+			{
+				if (auto Rigid = Particle->CastToRigidParticle())
+				{
+					return Rigid->SetInertiaConditioningEnabled(bInEnabled);
+				}
+			});
 	}
 
 	void SetResimType(EResimType ResimType)

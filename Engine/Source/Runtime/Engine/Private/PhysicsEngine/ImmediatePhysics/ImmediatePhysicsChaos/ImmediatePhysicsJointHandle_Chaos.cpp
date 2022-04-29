@@ -185,6 +185,15 @@ namespace ImmediatePhysics_Chaos
 		ConstraintSettings.Sanitize();
 
 		ConstraintHandle = Constraints->AddConstraint({ Actor1->ParticleHandle, Actor2->ParticleHandle }, ConstraintSettings);
+
+		if (Actor1->ParticleHandle != nullptr)
+		{
+			FGenericParticleHandle(Actor1->ParticleHandle)->SetInertiaConditioningDirty();
+		}
+		if (Actor2->ParticleHandle != nullptr)
+		{
+			FGenericParticleHandle(Actor2->ParticleHandle)->SetInertiaConditioningDirty();
+		}
 	}
 
 	FJointHandle::~FJointHandle()

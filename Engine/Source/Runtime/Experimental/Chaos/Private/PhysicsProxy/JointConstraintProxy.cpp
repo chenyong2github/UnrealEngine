@@ -93,6 +93,10 @@ void FJointConstraintPhysicsProxy::InitializeOnPhysicsThread(FPBDRigidsSolver* I
 
 					Handle0->AddConstraintHandle(Constraint_PT);
 					Handle1->AddConstraintHandle(Constraint_PT);
+
+					// We added a joint to the particles, so we need to modify the inertia (See FPBDRigidsEvolutionGBF::UpdateInertiaConditioning)
+					FGenericParticleHandle(Handle0)->SetInertiaConditioningDirty();
+					FGenericParticleHandle(Handle1)->SetInertiaConditioningDirty();
 				}
 			}
 		}

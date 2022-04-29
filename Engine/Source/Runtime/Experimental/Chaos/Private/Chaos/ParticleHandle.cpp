@@ -253,16 +253,20 @@ namespace Chaos
 			}
 		}		
 
+		const bool bDirtyInertiaConditioning = (ObjectState() != DynamicMisc.ObjectState());
+		if (bDirtyInertiaConditioning)
+		{
+			SetInertiaConditioningDirty();
+		}
+
 		SetLinearEtherDrag(DynamicMisc.LinearEtherDrag());
 		SetAngularEtherDrag(DynamicMisc.AngularEtherDrag());
 		SetMaxLinearSpeedSq(DynamicMisc.MaxLinearSpeedSq());
 		SetMaxAngularSpeedSq(DynamicMisc.MaxAngularSpeedSq());
 		SetCollisionGroup(DynamicMisc.CollisionGroup());
-		SetGravityEnabled(DynamicMisc.GravityEnabled());
-		SetCCDEnabled(DynamicMisc.CCDEnabled());
 		SetDisabled(DynamicMisc.Disabled());
-		SetOneWayInteraction(DynamicMisc.OneWayInteraction());
 		SetCollisionConstraintFlags(DynamicMisc.CollisionConstraintFlags());
+		SetControlFlags(DynamicMisc.ControlFlags());
 
 		Evolution.SetParticleObjectState(this, DynamicMisc.ObjectState());
 		Evolution.SetParticleSleepType(this, DynamicMisc.SleepType());

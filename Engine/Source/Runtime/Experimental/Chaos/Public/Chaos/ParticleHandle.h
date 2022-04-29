@@ -850,6 +850,7 @@ protected:
 		SetConstraintGraphIndex(INDEX_NONE);
 		SetToBeRemovedOnFracture(false);
 		SetSleepType(ESleepType::MaterialSleep);
+		SetInvIConditioning(TVec3<FRealSingle>(1));
 	}
 public:
 
@@ -866,6 +867,9 @@ public:
 	}
 
 	operator TPBDRigidParticleHandleImp<T, d, false>& () { return reinterpret_cast<TPBDRigidParticleHandleImp<T, d, false>&>(*this); }
+
+	bool IsKinematic() const { return (ObjectState() == EObjectStateType::Kinematic) || (ObjectState() == EObjectStateType::Static); }
+	bool IsDynamic() const { return (ObjectState() == EObjectStateType::Dynamic) || (ObjectState() == EObjectStateType::Sleeping); }
 
 	const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles() const { return PBDRigidParticles->CollisionParticles(ParticleIdx); }
 	TUniquePtr<TBVHParticles<T, d>>& CollisionParticles() { return PBDRigidParticles->CollisionParticles(ParticleIdx); }
@@ -958,6 +962,8 @@ public:
 		SetInvI(Props.InvI());
 		SetM(Props.M());
 		SetInvM(Props.InvM());
+
+		SetInertiaConditioningDirty();
 	}
 
 	void SetDynamicMisc(const FParticleDynamicMisc& DynamicMisc, FPBDRigidsEvolutionBase& Evolution);
@@ -968,10 +974,12 @@ public:
 		SetWSmooth(W());
 	}
 
+	// Get the raw inertia. @see ConditionedInvI()
 	const TVec3<FRealSingle>& I() const { return PBDRigidParticles->I(ParticleIdx); }
 	TVec3<FRealSingle>& I() { return PBDRigidParticles->I(ParticleIdx); }
 	void SetI(const TVec3<FRealSingle>& InI) { PBDRigidParticles->I(ParticleIdx) = InI; }
 
+	// Get the raw inverse inertia. @see ConditionedInvI()
 	const TVec3<FRealSingle>& InvI() const { return PBDRigidParticles->InvI(ParticleIdx); }
 	TVec3<FRealSingle>& InvI() { return PBDRigidParticles->InvI(ParticleIdx); }
 	void SetInvI(const TVec3<FRealSingle>& InInvI) { PBDRigidParticles->InvI(ParticleIdx) = InInvI; }
@@ -990,6 +998,14 @@ public:
 	const TRotation<T,d>& RotationOfMass() const { return PBDRigidParticles->RotationOfMass(ParticleIdx); }
 	void SetRotationOfMass(const TRotation<T,d>& InRotationOfMass, bool bInvalidate = false) { PBDRigidParticles->RotationOfMass(ParticleIdx) = InRotationOfMass; }
 
+	// Get the inertia conditioning scales. This is a scale applied to the inverse inertia for use by the constraint solvers to improve stability
+	// and is calculated based on the attached joints and potential collision positions (approximated by object size)
+	const TVec3<FRealSingle>& InvIConditioning() const { return PBDRigidParticles->InvIConditioning(ParticleIdx); }
+	void SetInvIConditioning(const TVec3<FRealSingle>& InInvIConditioning) { PBDRigidParticles->InvIConditioning(ParticleIdx) = InInvIConditioning; }
+
+	// Get the conditioned inertia for use in constraint solvers
+	TVec3<FRealSingle> ConditionedInvI() const { return InvIConditioning() * InvI(); }
+	TVec3<FRealSingle> ConditionedI() const { return I() / InvIConditioning(); }
 
 	T LinearEtherDrag() const { return PBDRigidParticles->LinearEtherDrag(ParticleIdx); }
 	T& LinearEtherDrag() { return PBDRigidParticles->LinearEtherDrag(ParticleIdx); }
@@ -1032,21 +1048,77 @@ public:
 	const TPBDRigidParticleHandleImp<T, d, true>* Handle() const { return PBDRigidParticles->Handle(ParticleIdx); }
 	TPBDRigidParticleHandleImp<T, d, true>* Handle() { return PBDRigidParticles->Handle(ParticleIdx); }
 
-	bool GravityEnabled() const { return PBDRigidParticles->GravityEnabled(ParticleIdx); }
-
-	void SetGravityEnabled(bool bEnabled){ PBDRigidParticles->GravityEnabled(ParticleIdx) = bEnabled; }
-
-	bool CCDEnabled() const {
-		return PBDRigidParticles->CCDEnabled(ParticleIdx);
+	inline FRigidParticleControlFlags ControlFlags() const
+	{ 
+		return PBDRigidParticles->ControlFlags(ParticleIdx);
+	}
+	
+	// NOTE: ControlFlags should not be changed by the solver during the tick. These are externally controlled settings.
+	inline void SetControlFlags(const FRigidParticleControlFlags Flags)
+	{
+		PBDRigidParticles->ControlFlags(ParticleIdx) = Flags;
 	}
 
-	void SetCCDEnabled(bool bEnabled) {
-		PBDRigidParticles->CCDEnabled(ParticleIdx) = bEnabled;
+	inline bool GravityEnabled() const
+	{ 
+		return ControlFlags().GetGravityEnabled();
 	}
 
-	bool OneWayInteraction() const { return PBDRigidParticles->OneWayInteraction(ParticleIdx); }
+	inline void SetGravityEnabled(bool bEnabled)
+	{ 
+		PBDRigidParticles->ControlFlags(ParticleIdx).SetGravityEnabled(bEnabled);
+	}
 
-	void SetOneWayInteraction(bool bInOneWayInteraction) { PBDRigidParticles->OneWayInteraction(ParticleIdx) = bInOneWayInteraction; }
+	inline bool CCDEnabled() const
+	{
+		return ControlFlags().GetCCDEnabled();
+	}
+
+	inline void SetCCDEnabled(bool bEnabled)
+	{
+		PBDRigidParticles->ControlFlags(ParticleIdx).SetCCDEnabled(bEnabled);
+	}
+
+	inline bool OneWayInteraction() const
+	{ 
+		return ControlFlags().GetOneWayInteractionEnabled();
+	}
+
+	inline void SetOneWayInteraction(bool bEnabled)
+	{ 
+		PBDRigidParticles->ControlFlags(ParticleIdx).SetOneWayInteractionEnabled(bEnabled);
+	}
+
+	inline bool InertiaConditioningEnabled() const
+	{
+		return ControlFlags().GetInertiaConditioningEnabled();
+	}
+
+	inline void SetInertiaConditioningEnabled(bool bEnabled)
+	{
+		// NOTE: We still set this flag even for kinematics because they may change to dynamic later. However we
+		// won't actually calculate the inertia until it gets changed to dynamic (which will also set the dirty flag)
+		if (bEnabled != InertiaConditioningEnabled())
+		{
+			PBDRigidParticles->ControlFlags(ParticleIdx).SetInertiaConditioningEnabled(bEnabled);
+			SetInertiaConditioningDirty();
+		}
+	}
+
+	inline bool InertiaConditioningDirty()
+	{
+		return PBDRigidParticles->TransientFlags(ParticleIdx).GetInertiaConditioningDirty();
+	}
+
+	inline void SetInertiaConditioningDirty()
+	{
+		PBDRigidParticles->TransientFlags(ParticleIdx).SetInertiaConditioningDirty();
+	}
+
+	inline void ClearInertiaConditioningDirty()
+	{
+		PBDRigidParticles->TransientFlags(ParticleIdx).ClearInertiaConditioningDirty();
+	}
 
 	ESleepType SleepType() const { return PBDRigidParticles->SleepType(ParticleIdx);}
 
@@ -1555,9 +1627,12 @@ public:
 
 	const TVec3<FRealSingle> I() const
 	{ 
-		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
-			return MHandle->CastToRigidParticle()->I();
+			if (IsDynamic())
+			{
+				return RigidHandle->I();
+			}
 		}
 
 		return TVec3<FRealSingle>(0);
@@ -1565,9 +1640,12 @@ public:
 
 	const TVec3<FRealSingle> InvI() const
 	{ 
-		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
-			return MHandle->CastToRigidParticle()->InvI();
+			if (IsDynamic())
+			{
+				return MHandle->CastToRigidParticle()->InvI();
+			}
 		}
 
 		return TVec3<FRealSingle>(0);
@@ -1575,9 +1653,12 @@ public:
 
 	FReal M() const
 	{
-		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
-			return MHandle->CastToRigidParticle()->M();
+			if (IsDynamic())
+			{
+				return MHandle->CastToRigidParticle()->M();
+			}
 		}
 
 		return (FReal)0;
@@ -1585,9 +1666,12 @@ public:
 
 	FReal InvM() const
 	{
-		if (MHandle->CastToRigidParticle() && MHandle->ObjectState() == EObjectStateType::Dynamic)
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
 		{
-			return MHandle->CastToRigidParticle()->InvM();
+			if (IsDynamic())
+			{
+				return MHandle->CastToRigidParticle()->InvM();
+			}
 		}
 
 		return (FReal)0;
@@ -1611,6 +1695,78 @@ public:
 		}
 
 		return FRotation3::FromIdentity();
+	}
+
+	TVec3<FRealSingle> InvIConditioning() const
+	{ 
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			return RigidHandle->InvIConditioning();
+		}
+
+		return TVec3<FRealSingle>(1);
+	}
+
+	void SetInvIConditioning(const TVec3<FRealSingle>& InInvIConditioning)
+	{ 
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			RigidHandle->SetInvIConditioning(InInvIConditioning);
+		}
+	}
+
+	TVec3<FRealSingle> ConditionedInvI() const
+	{ 
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			return RigidHandle->ConditionedInvI();
+		}
+
+		return TVec3<FRealSingle>(0);
+	}
+
+	TVec3<FRealSingle> ConditionedI() const
+	{ 
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			return RigidHandle->ConditionedI();
+		}
+
+		return TVec3<FRealSingle>(0);
+	}
+
+	bool InertiaConditioningEnabled() const
+	{
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			return RigidHandle->InertiaConditioningEnabled();
+		}
+		return false;
+	}
+
+	bool InertiaConditioningDirty() const
+	{
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			return RigidHandle->InertiaConditioningDirty();
+		}
+		return false;
+	}
+
+	void SetInertiaConditioningDirty()
+	{
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			RigidHandle->SetInertiaConditioningDirty();
+		}
+	}
+
+	void ClearInertiaConditioningDirty()
+	{
+		if (auto RigidHandle = MHandle->CastToRigidParticle())
+		{
+			RigidHandle->ClearInertiaConditioningDirty();
+		}
 	}
 
 	FReal LinearEtherDrag() const
@@ -2417,15 +2573,15 @@ public:
 	}*/
 
 	bool GravityEnabled() const { return MMiscData.Read().GravityEnabled(); }
-	void SetGravityEnabled(const bool InGravityEnabled)
+	void SetGravityEnabled(const bool bInEnabled)
 	{
-		MMiscData.Modify(true,MDirtyFlags,Proxy,[InGravityEnabled](auto& Data){ Data.SetGravityEnabled (InGravityEnabled);});
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [bInEnabled](auto& Data) { Data.SetGravityEnabled(bInEnabled); });
 	}
 	
 	bool OneWayInteraction() const { return MMiscData.Read().OneWayInteraction(); }
-	void SetOneWayInteraction(const bool InOneWayInteraction)
+	void SetOneWayInteraction(const bool bInEnabled)
 	{
-		MMiscData.Modify(true, MDirtyFlags, Proxy, [InOneWayInteraction](auto& Data) { Data.SetOneWayInteraction(InOneWayInteraction); });
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [bInEnabled](auto& Data) { Data.SetOneWayInteraction(bInEnabled); });
 	}
 
 	// Enable a single flag
@@ -2447,10 +2603,15 @@ public:
 	}
 
 	bool CCDEnabled() const { return MMiscData.Read().CCDEnabled(); }
-
-	void SetCCDEnabled(bool bInCCDEnabled)
+	void SetCCDEnabled(bool bInEnabled)
 	{
-		MMiscData.Modify(true, MDirtyFlags, Proxy, [bInCCDEnabled](auto& Data) {Data.SetCCDEnabled(bInCCDEnabled); });
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [bInEnabled](auto& Data) { Data.SetCCDEnabled(bInEnabled); });
+	}
+
+	bool InertiaConditioningEnabled() const { return MMiscData.Read().InertiaConditioningEnabled(); }
+	void SetInertiaConditioningEnabled(bool bInEnabled)
+	{
+		MMiscData.Modify(true, MDirtyFlags, Proxy, [bInEnabled](auto& Data) { Data.SetInertiaConditioningEnabled(bInEnabled); });
 	}
 
 	bool Disabled() const { return MMiscData.Read().Disabled(); }

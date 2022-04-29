@@ -99,6 +99,7 @@ namespace ImmediatePhysics_Chaos
 
 	private:
 		void RemoveFromCollidingPairs(FActorHandle* ActorHandle);
+		void UpdateInertiaConditioning(const FVector& Gravity);
 		void PackCollidingPairs();
 		void UpdateActivePotentiallyCollidingPairs();
 		FReal UpdateStepTime(const FReal DeltaTime, const FReal MaxStepTime);
