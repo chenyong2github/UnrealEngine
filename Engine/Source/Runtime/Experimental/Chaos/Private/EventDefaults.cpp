@@ -15,8 +15,6 @@
 #include "ChaosSolversModule.h"
 #include "Chaos/CollisionFilterData.h"
 
-#pragma optimize("", off)
-
 namespace Chaos
 {
 	DECLARE_CYCLE_STAT(TEXT("EventDefaults::RegisterCollisionEvent_Filter"), STAT_Events_RegisterCollisionEvent_Filter, STATGROUP_Chaos);
