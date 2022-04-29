@@ -35,19 +35,25 @@ struct FNodeDependencyCache
 {
 	const TSet<FString>& GetAccumulatedDependencies(const UInterchangeBaseNodeContainer* NodeContainer, const FString& NodeID)
 	{
+		TSet<FString> NodeStack;
+		return GetAccumulatedDependencies(NodeContainer, NodeID, NodeStack);
+	}
+
+private:
+
+	const TSet<FString>& GetAccumulatedDependencies(const UInterchangeBaseNodeContainer* NodeContainer, const FString& NodeID, TSet<FString>& NodeStack)
+	{
 		if (const TSet<FString>* DependenciesPtr = CachedDependencies.Find(NodeID))
 		{
 			return *DependenciesPtr;
 		}
 
 		TSet<FString> Dependencies;
-		AccumulateDependencies(NodeContainer, NodeID, Dependencies);
+		AccumulateDependencies(NodeContainer, NodeID, Dependencies, NodeStack);
 		return CachedDependencies.Add(NodeID, MoveTemp(Dependencies));
 	}
 
-private:
-
-	void AccumulateDependencies(const UInterchangeBaseNodeContainer* NodeContainer, const FString& NodeID, TSet<FString>& OutDependenciesSet)
+	void AccumulateDependencies(const UInterchangeBaseNodeContainer* NodeContainer, const FString& NodeID, TSet<FString>& OutDependenciesSet, TSet<FString>& NodeStack)
 	{
 		const UInterchangeFactoryBaseNode* FactoryNode = NodeContainer->GetFactoryNode(NodeID);
 		if (!FactoryNode)
@@ -55,17 +61,24 @@ private:
 			return;
 		}
 
-		TArray<FString> FactoryDependencies;
-		FactoryNode->GetFactoryDependencies(FactoryDependencies);
-		for (const FString& DependencyID : FactoryDependencies)
+		bool bAlreadyInSet = false;
+		NodeStack.Add(NodeID, &bAlreadyInSet);
+		if (ensureMsgf(!bAlreadyInSet, TEXT("FNodeDependencyCache::AccumulateDependencies - Node \"%s\" is in a circular dependency, assets may not be imported properly."), *NodeID))
 		{
-			bool bAlreadyInSet = false;
-			OutDependenciesSet.Add(DependencyID, &bAlreadyInSet);
-			// Avoid infinite recursion.
-			if (!bAlreadyInSet)
+			TArray<FString> FactoryDependencies;
+			FactoryNode->GetFactoryDependencies(FactoryDependencies);
+			OutDependenciesSet.Reserve(OutDependenciesSet.Num() + FactoryDependencies.Num());
+			for (const FString& DependencyID : FactoryDependencies)
 			{
-				OutDependenciesSet.Append(GetAccumulatedDependencies(NodeContainer, DependencyID));
+				bAlreadyInSet = false;
+				OutDependenciesSet.Add(DependencyID, &bAlreadyInSet);
+				// Avoid infinite recursion.
+				if (!bAlreadyInSet)
+				{
+					OutDependenciesSet.Append(GetAccumulatedDependencies(NodeContainer, DependencyID, NodeStack));
+				}
 			}
+			NodeStack.Remove(NodeID);
 		}
 	}
 
