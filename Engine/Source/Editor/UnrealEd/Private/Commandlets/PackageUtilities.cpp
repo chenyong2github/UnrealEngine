@@ -1207,9 +1207,6 @@ void FPkgInfoReporter_Log::GeneratePackageReport( FLinkerLoad* InLinker /*=nullp
 				Out.Logf(ELogVerbosity::Display, TEXT("\t\t        Parent: '%s' (%d)"), *ParentName, Export.SuperIndex.ForDebugging());
 				Out.Logf(ELogVerbosity::Display, TEXT("\t\t      Template: '%s' (%d)"), *TemplateName, Export.TemplateIndex.ForDebugging());
 				Out.Logf(ELogVerbosity::Display, TEXT("\t\t         Outer: '%s' (%d)"), *OuterName, Export.OuterIndex.ForDebugging() );
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				Out.Logf(ELogVerbosity::Display, TEXT("\t\t      Pkg Guid: %s"), *Export.PackageGuid.ToString());
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				Out.Logf(ELogVerbosity::Display, TEXT("\t\t   ObjectFlags: 0x%08X"), (uint32)Export.ObjectFlags );
 				Out.Logf(ELogVerbosity::Display, TEXT("\t\t          Size: %d"), Export.SerialSize );
 				if ( !IsHideOffsets())

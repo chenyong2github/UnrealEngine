@@ -3079,12 +3079,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* InAsset, con
 						if (Package != nullptr)
 						{
 							Linker->ExportMap[i].PackageFlags = Package->GetPackageFlags();
-							if (!Package->HasAnyPackageFlags(PKG_ServerSideOnly))
-							{
-								PRAGMA_DISABLE_DEPRECATION_WARNINGS
-								Linker->ExportMap[i].PackageGuid = Package->GetGuid();
-								PRAGMA_ENABLE_DEPRECATION_WARNINGS
-							}
 						}
 					}
 				}

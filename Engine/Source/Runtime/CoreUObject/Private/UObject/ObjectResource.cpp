@@ -47,10 +47,6 @@ FObjectExport::FObjectExport()
 , bIsAsset(false)
 , bGeneratePublicHash(false)
 , bExportLoadFailed(false)
-// @todo: BP2CPP_remove
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-, DynamicType(EDynamicType::NotDynamicExport)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 , bWasFiltered(false)
 , PackageFlags(0)
 , FirstExportDependency(-1)
@@ -77,10 +73,6 @@ FObjectExport::FObjectExport( UObject* InObject, bool bInNotAlwaysLoadedForEdito
 , bIsAsset(false)
 , bGeneratePublicHash(false)
 , bExportLoadFailed(false)
-// @todo: BP2CPP_remove
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-, DynamicType(EDynamicType::NotDynamicExport)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 , bWasFiltered(false)
 , PackageFlags(0)
 , FirstExportDependency(-1)
@@ -150,28 +142,37 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 		Record << SA_VALUE(TEXT("SerialOffset"), E.SerialOffset);
 	}
 
-	Record << SA_VALUE(TEXT("bForcedExport"), E.bForcedExport);
-	Record << SA_VALUE(TEXT("bNotForClient"), E.bNotForClient);
-	Record << SA_VALUE(TEXT("bNotForServer"), E.bNotForServer);
+	#define SERIALIZE_BIT_TO_RECORD(bValue) { \
+		bool b = E.bValue; \
+		Record << SA_VALUE(TEXT(#bValue), b); \
+		E.bValue = b; \
+	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Record << SA_VALUE(TEXT("PackageGuid"), E.PackageGuid);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	SERIALIZE_BIT_TO_RECORD(bForcedExport);
+	SERIALIZE_BIT_TO_RECORD(bNotForClient);
+	SERIALIZE_BIT_TO_RECORD(bNotForServer);
+
+	if (BaseArchive.UEVer() < EUnrealEngineObjectUE5Version::REMOVE_PACKAGE_GUID)
+	{
+		FGuid DummyPackageGuid;
+		Record << SA_VALUE(TEXT("PackageGuid"), DummyPackageGuid);
+	}
+
 	Record << SA_VALUE(TEXT("PackageFlags"), E.PackageFlags);
 
 	if (BaseArchive.UEVer() >= VER_UE4_LOAD_FOR_EDITOR_GAME)
 	{
-		Record << SA_VALUE(TEXT("bNotAlwaysLoadedForEditorGame"), E.bNotAlwaysLoadedForEditorGame);
+		SERIALIZE_BIT_TO_RECORD(bNotAlwaysLoadedForEditorGame);
 	}
 
 	if (BaseArchive.UEVer() >= VER_UE4_COOKED_ASSETS_IN_EDITOR_SUPPORT)
 	{
-		Record << SA_VALUE(TEXT("bIsAsset"), E.bIsAsset);
+		SERIALIZE_BIT_TO_RECORD(bIsAsset);
 	}
 
 	if (BaseArchive.UEVer() >= EUnrealEngineObjectUE5Version::OPTIONAL_RESOURCES)
 	{
-		Record << SA_VALUE(TEXT("bGeneratePublicHash"), E.bGeneratePublicHash);
+		SERIALIZE_BIT_TO_RECORD(bGeneratePublicHash);
 	}
 
 	if (BaseArchive.UEVer() >= VER_UE4_PRELOAD_DEPENDENCIES_IN_COOKED_EXPORTS)
@@ -182,6 +183,8 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 		Record << SA_VALUE(TEXT("SerializationBeforeCreateDependencies"), E.SerializationBeforeCreateDependencies);
 		Record << SA_VALUE(TEXT("CreateBeforeCreateDependencies"), E.CreateBeforeCreateDependencies);
 	}	
+
+	#undef SERIALIZE_BIT_TO_RECORD
 }
 
 /*-----------------------------------------------------------------------------
@@ -236,17 +239,28 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectTextExport& E)
 		E.Export.ObjectFlags = EObjectFlags(Save & RF_Load);
 	}
 
-	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bForcedExport"), E.Export.bForcedExport, false);
-	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bNotForClient"), E.Export.bNotForClient, false);
-	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bNotForServer"), E.Export.bNotForServer, false);
+	#define SERIALIZE_BIT_TO_SLOT(bValue) { \
+		bool b = E.Export.bValue; \
+		Slot << SA_OPTIONAL_ATTRIBUTE(TEXT(#bValue), b, false); \
+		E.Export.bValue = b; \
+	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("PackageGuid"), E.Export.PackageGuid, FGuid());
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	SERIALIZE_BIT_TO_SLOT(bForcedExport);
+	SERIALIZE_BIT_TO_SLOT(bNotForClient);
+	SERIALIZE_BIT_TO_SLOT(bNotForServer);
+
+	if (BaseArchive.UEVer() < EUnrealEngineObjectUE5Version::REMOVE_PACKAGE_GUID)
+	{
+		FGuid DummyPackageGuid;
+		Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("PackageGuid"), DummyPackageGuid, FGuid());
+	}
+
 	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("PackageFlags"), E.Export.PackageFlags, 0);
 
-	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bNotAlwaysLoadedForEditorGame"), E.Export.bNotAlwaysLoadedForEditorGame, false);
-	Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("bIsAsset"), E.Export.bIsAsset, false);
+	SERIALIZE_BIT_TO_SLOT(bNotAlwaysLoadedForEditorGame);
+	SERIALIZE_BIT_TO_SLOT(bIsAsset);
+
+	#undef SERIALIZE_BIT_TO_SLOT
 }
 
 /*-----------------------------------------------------------------------------

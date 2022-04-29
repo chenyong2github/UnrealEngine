@@ -1129,9 +1129,6 @@ FString ConvertItemToText(const FObjectImport& Import, FLinkerLoad* Linker)
 bool CompareTableItem(FLinkerLoad* SourceLinker, FLinkerLoad* DestLinker, const FObjectExport& SourceExport, const FObjectExport& DestExport)
 {
 	if (SourceExport.ObjectName != DestExport.ObjectName ||
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		SourceExport.PackageGuid != DestExport.PackageGuid ||
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		SourceExport.PackageFlags != DestExport.PackageFlags ||
 		SourceExport.ObjectFlags != DestExport.ObjectFlags ||
 		SourceExport.SerialSize != DestExport.SerialSize ||
@@ -1223,15 +1220,12 @@ bool ComparePackageIndices(FLinkerLoad* SourceLinker, FLinkerLoad* DestLinker, c
 FString ConvertItemToText(const FObjectExport& Export, FLinkerLoad* Linker)
 {
 	FName ClassName = Export.ClassIndex.IsNull() ? FName(NAME_Class) : Linker->ImpExp(Export.ClassIndex).ObjectName;
-	return FString::Printf(TEXT("%s Super: %s, Template: %s, Flags: %d, Size: %lld, PackageGuid: %s, PackageFlags: %d, ForcedExport: %d, NotForClient: %d, NotForServer: %d, NotAlwaysLoadedForEditorGame: %d, IsAsset: %d"),
+	return FString::Printf(TEXT("%s Super: %s, Template: %s, Flags: %d, Size: %lld, PackageFlags: %d, ForcedExport: %d, NotForClient: %d, NotForServer: %d, NotAlwaysLoadedForEditorGame: %d, IsAsset: %d"),
 		*GetTableKey(Linker, Export),
 		*GetTableKeyForIndex(Linker, Export.SuperIndex),
 		*GetTableKeyForIndex(Linker, Export.TemplateIndex),
 		(int32)Export.ObjectFlags,
 		Export.SerialSize,
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		*Export.PackageGuid.ToString(),
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Export.PackageFlags,
 		Export.bForcedExport,
 		Export.bNotForClient,

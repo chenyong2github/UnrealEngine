@@ -1074,12 +1074,6 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 			if (UPackage* Package = Cast<UPackage>(Export.Object))
 			{
 				Export.PackageFlags = Package->GetPackageFlags();
-				if (!Package->HasAnyPackageFlags(PKG_ServerSideOnly))
-				{
-					PRAGMA_DISABLE_DEPRECATION_WARNINGS
-					Export.PackageGuid = Package->GetGuid();
-					PRAGMA_ENABLE_DEPRECATION_WARNINGS
-				}
 			}
 		}
 		//Sort(&Linker->ExportMap[0], Linker->ExportMap.Num(), FObjectResourceSortHelper());

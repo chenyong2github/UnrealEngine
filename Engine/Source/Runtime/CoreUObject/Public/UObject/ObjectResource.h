@@ -282,19 +282,19 @@ struct FObjectExport : public FObjectResource
 	 * Whether the export was forced into the export table via OBJECTMARK_ForceTagExp.
 	 * Serialized
 	 */
-	bool			bForcedExport;   
+	bool			bForcedExport:1;   
 
 	/**
 	 * Whether the export should be loaded on clients
 	 * Serialized
 	 */
-	bool			bNotForClient;   
+	bool			bNotForClient:1;   
 
 	/**
 	 * Whether the export should be loaded on servers
 	 * Serialized
 	 */
-	bool			bNotForServer;
+	bool			bNotForServer:1;
 
 	/**
 	 * Whether the export should be always loaded in editor game
@@ -302,51 +302,27 @@ struct FObjectExport : public FObjectResource
 	 * True doesn't means, that the object won't be loaded.
 	 * Serialized
 	 */
-	bool			bNotAlwaysLoadedForEditorGame;
+	bool			bNotAlwaysLoadedForEditorGame:1;
 
 	/**
 	 * True if this export is an asset object.
 	 */
-	bool			bIsAsset;
+	bool			bIsAsset:1;
 
 	/**
 	 * True if this export should have its iostore public hash generated even if not RF_Public.
 	 */
-	bool			bGeneratePublicHash;
+	bool			bGeneratePublicHash:1;
 
 	/**
 	 * Force this export to not load, it failed because the outer didn't exist.
 	 */
-	bool			bExportLoadFailed;
-
-	// @todo: BP2CPP_remove
-	/**
-	 * Export is a dynamic type.
-	 */
-	enum class UE_DEPRECATED(5.0, "This type is no longer in use and will be removed.") EDynamicType : uint8
-	{
-		NotDynamicExport,
-		DynamicType,
-		ClassDefaultObject,
-	};
-
-	// @todo: BP2CPP_remove
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UE_DEPRECATED(5.0, "FObjectExport::DynamicType is no longer in use and will be removed.")
-	EDynamicType	DynamicType;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	bool			bExportLoadFailed:1;
 
 	/**
 	 * Export was filtered out on load
 	 */
-	bool			bWasFiltered;
-
-	/** If this object is a top level package (which must have been forced into the export table via OBJECTMARK_ForceTagExp)
-	 * this is the GUID for the original package file
-	 * Serialized
-	 */
-	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and FObjectExport::PackageGuid will be removed.")
-	FGuid			PackageGuid;
+	bool			bWasFiltered:1;
 
 	/** If this object is a top level package (which must have been forced into the export table via OBJECTMARK_ForceTagExp)
 	 * this is the package flags for the original package file
