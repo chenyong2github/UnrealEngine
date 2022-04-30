@@ -331,7 +331,6 @@ void SequencerHelpers::PerformDefaultSelection(FSequencer& Sequencer, const FPoi
 		}
 		
 		Selection.ResumeBroadcast();
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
 		return;
 	}
 
