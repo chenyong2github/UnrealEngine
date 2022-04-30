@@ -8,6 +8,7 @@
 #include "ModelingToolsEditorMode.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "StatusBarSubsystem.h"
 
