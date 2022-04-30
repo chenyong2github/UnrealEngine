@@ -62,9 +62,11 @@ public:
 
 	void OnActiveViewportChanged(TSharedPtr<IAssetViewport>, TSharedPtr<IAssetViewport> );
 
-
-
 	virtual void InvokeUI() override;
+
+	// Read and write Autogen Subfolder quick setting in restrictive mode.
+	virtual FText GetRestrictiveModeAutogenSubfolderText() const;
+	virtual void OnRestrictiveModeAutogenSubfolderTextCommitted(const FText& InNewText, ETextCommit::Type InTextCommit) const;
 
 private:
 	const static TArray<FName> PaletteNames_Standard;
@@ -97,6 +99,7 @@ private:
 	TArray<TSharedPtr<FString>> AssetSaveModes;
 	TSharedPtr<STextComboBox> AssetLocationMode;
 	TSharedPtr<STextComboBox> AssetSaveMode;
+	TSharedPtr<SEditableTextBox> AutogenSubfolder;
 	void UpdateAssetLocationMode(TSharedPtr<FString> NewString);
 	void UpdateAssetSaveMode(TSharedPtr<FString> NewString);
 	void UpdateAssetPanelFromSettings();
