@@ -155,7 +155,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 	SERIALIZE_BIT_TO_RECORD(bNotForClient);
 	SERIALIZE_BIT_TO_RECORD(bNotForServer);
 
-	if (BaseArchive.UEVer() < EUnrealEngineObjectUE5Version::REMOVE_OBJECT_EXORT_PACKAGE_GUID)
+	if (BaseArchive.UEVer() < EUnrealEngineObjectUE5Version::REMOVE_OBJECT_EXPORT_PACKAGE_GUID)
 	{
 		FGuid DummyPackageGuid;
 		Record << SA_VALUE(TEXT("PackageGuid"), DummyPackageGuid);
@@ -257,7 +257,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectTextExport& E)
 	SERIALIZE_BIT_TO_SLOT(bNotForClient);
 	SERIALIZE_BIT_TO_SLOT(bNotForServer);
 
-	if (BaseArchive.UEVer() < EUnrealEngineObjectUE5Version::REMOVE_PACKAGE_GUID)
+	if (BaseArchive.UEVer() < EUnrealEngineObjectUE5Version::REMOVE_OBJECT_EXPORT_PACKAGE_GUID)
 	{
 		FGuid DummyPackageGuid;
 		Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("PackageGuid"), DummyPackageGuid, FGuid());

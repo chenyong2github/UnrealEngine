@@ -58,7 +58,7 @@ enum class EUnrealEngineObjectUE5Version : uint32
 	LARGE_WORLD_COORDINATES,       
 
 	// Remove package GUID from FObjectExport
-	REMOVE_OBJECT_EXORT_PACKAGE_GUID,
+	REMOVE_OBJECT_EXPORT_PACKAGE_GUID,
 
 	// Add IsInherited to the FObjectExport entry
 	TRACK_OBJECT_EXPORT_IS_INHERITED,
