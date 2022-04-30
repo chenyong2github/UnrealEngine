@@ -780,7 +780,7 @@ void WatchViewer::UpdateInstancedWatchDisplay()
 #if DO_BLUEPRINT_GUARD
 	{
 		Private_InstanceWatchSource.Reset();
-		const TArray<const FFrame*>& ScriptStack = FBlueprintContextTracker::Get().GetScriptStack();
+		TArrayView<const FFrame* const> ScriptStack = FBlueprintContextTracker::Get().GetCurrentScriptStack();
 
 		TSet<const UBlueprint*> SeenBlueprints;
 

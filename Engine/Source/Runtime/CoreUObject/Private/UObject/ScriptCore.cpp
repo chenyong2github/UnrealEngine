@@ -146,7 +146,7 @@ FBlueprintCoreDelegates::FOnToggleScriptProfiler FBlueprintCoreDelegates::OnTogg
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-void FBlueprintCoreDelegates::ThrowScriptException(const UObject* ActiveObject, const FFrame& StackFrame, const FBlueprintExceptionInfo& Info)
+void FBlueprintCoreDelegates::ThrowScriptException(const UObject* ActiveObject, FFrame& StackFrame, const FBlueprintExceptionInfo& Info)
 {
 	bool bShouldLogWarning = true;
 
@@ -184,6 +184,12 @@ void FBlueprintCoreDelegates::ThrowScriptException(const UObject* ActiveObject, 
 		}
 #endif
 		OnScriptException.Broadcast(ActiveObject, StackFrame, Info);
+	}
+
+	if (Info.GetType() == EBlueprintExceptionType::AbortExecution)
+	{
+		// abort errors halt further execution
+		StackFrame.bAbortingExecution = true;
 	}
 
 	if (Info.GetType() == EBlueprintExceptionType::FatalError)
@@ -295,7 +301,7 @@ void PrintScriptCallStackImpl()
 	const FBlueprintContextTracker* BlueprintExceptionTracker = FBlueprintContextTracker::TryGet();
 	if (BlueprintExceptionTracker)
 	{
-		const TArray<const FFrame*>& RawStack = BlueprintExceptionTracker->GetScriptStack();
+		TArrayView<const FFrame* const> RawStack = BlueprintExceptionTracker->GetCurrentScriptStack();
 		FString ScriptStack = FString::Printf(TEXT("\n\nScript Stack (%d frames):\n"), RawStack.Num());
 		for (int32 FrameIdx = RawStack.Num() - 1; FrameIdx >= 0; --FrameIdx)
 		{
@@ -931,6 +937,9 @@ void ProcessScriptFunction(UObject* Context, UFunction* Function, FFrame& Stack,
 			}
 		}
 	}
+
+	// propagate abort flag up the stack
+	Stack.bAbortingExecution |= NewStack.bAbortingExecution;
 }
 
 DEFINE_FUNCTION(UObject::execCallMathFunction)
@@ -1090,7 +1099,7 @@ void ProcessLocalScriptFunction(UObject* Context, FFrame& Stack, RESULT_DECL)
 	}
 #endif
 	// Execute the bytecode
-	while (*Stack.Code != EX_Return)
+	while (*Stack.Code != EX_Return && !Stack.bAbortingExecution)
 	{
 #if DO_BLUEPRINT_GUARD
 		if(BpET.Runaway > GMaximumScriptLoopIterations )
@@ -1120,16 +1129,25 @@ void ProcessLocalScriptFunction(UObject* Context, FFrame& Stack, RESULT_DECL)
 		Stack.Step(Stack.Object, Buffer);
 	}
 
-	// Step over the return statement and evaluate the result expression
-	Stack.Code++;
-
-	if (*Stack.Code != EX_Nothing)
+	if (!Stack.bAbortingExecution)
 	{
-		Stack.Step(Stack.Object, RESULT_PARAM);
+		// Step over the return statement and evaluate the result expression
+		Stack.Code++;
+
+		if (*Stack.Code != EX_Nothing)
+		{
+			Stack.Step(Stack.Object, RESULT_PARAM);
+		}
+		else
+		{
+			Stack.Code++;
+		}
 	}
 	else
 	{
-		Stack.Code++;
+		// If we have a return property, return a zeroed value in it
+		FProperty* ReturnProp = (Function)->GetReturnProperty();
+		ClearReturnValue(ReturnProp, RESULT_PARAM);
 	}
 
 #if DO_BLUEPRINT_GUARD

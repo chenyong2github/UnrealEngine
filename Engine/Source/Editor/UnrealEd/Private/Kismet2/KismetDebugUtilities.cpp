@@ -143,7 +143,7 @@ void FKismetDebugUtilities::RequestSingleStepIn()
 void FKismetDebugUtilities::RequestStepOver()
 {
 	FKismetDebugUtilitiesData& Data = FKismetDebugUtilitiesData::Get();
-	const TArray<const FFrame*>& ScriptStack = FBlueprintContextTracker::Get().GetScriptStack();
+	TArrayView<const FFrame* const> ScriptStack = FBlueprintContextTracker::Get().GetCurrentScriptStack();
 
 	if (ScriptStack.Num() > 0)
 	{
@@ -188,7 +188,7 @@ void FKismetDebugUtilities::RequestStepOver()
 void FKismetDebugUtilities::RequestStepOut()
 {
 	FKismetDebugUtilitiesData& Data = FKismetDebugUtilitiesData::Get();
-	const TArray<const FFrame*>& ScriptStack = FBlueprintContextTracker::Get().GetScriptStack();
+	TArrayView<const FFrame* const> ScriptStack = FBlueprintContextTracker::Get().GetCurrentScriptStack();
 
 	Data.bIsSingleStepping = false;
 	if (ScriptStack.Num() > 1)
@@ -540,7 +540,7 @@ UEdGraphNode* FKismetDebugUtilities::FindSourceNodeForCodeLocation(const UObject
 void FKismetDebugUtilities::CheckBreakConditions(UEdGraphNode* NodeStoppedAt, bool bHitBreakpoint, int32 BreakpointOffset, bool& InOutBreakExecution)
 {
 	FKismetDebugUtilitiesData& Data = FKismetDebugUtilitiesData::Get();
-	const TArray<const FFrame*>& ScriptStack = FBlueprintContextTracker::Get().GetScriptStack();
+	TArrayView<const FFrame* const> ScriptStack = FBlueprintContextTracker::Get().GetCurrentScriptStack();
 
 	if (NodeStoppedAt)
 	{
@@ -731,7 +731,7 @@ void FKismetDebugUtilities::AttemptToBreakExecution(UBlueprint* BlueprintObj, co
 	if (bShouldInStackDebug)
 	{
 		TGuardValue<int32> GuardDisablePIE(GPlayInEditorID, INDEX_NONE);
-		const TArray<const FFrame*>& ScriptStack = FBlueprintContextTracker::Get().GetScriptStack();
+		TArrayView<const FFrame* const> ScriptStack = FBlueprintContextTracker::Get().GetCurrentScriptStack();
 		Data.LastExceptionMessage = Info.GetDescription();
 		FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(NodeStoppedAt);
 		CallStackViewer::UpdateDisplayedCallstack(ScriptStack);

@@ -505,7 +505,7 @@ FReply SCallStackViewer::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent
 // Proxy array of the call stack. This allows us to manually refresh UI state when changes are made:
 TArray<TSharedRef<FCallStackRow>> Private_CallStackSource;
 
-void CallStackViewer::UpdateDisplayedCallstack(const TArray<const FFrame*>& ScriptStack)
+void CallStackViewer::UpdateDisplayedCallstack(TArrayView<const FFrame* const> ScriptStack)
 {
 	Private_CallStackSource.Empty();
 	if (ScriptStack.Num() > 0)

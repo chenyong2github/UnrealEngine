@@ -331,6 +331,7 @@ namespace EBlueprintExceptionType
 		InfiniteLoop,
 		NonFatalError,
 		FatalError,
+		AbortExecution,
 	};
 }
 
@@ -479,7 +480,7 @@ public:
 	static FOnScriptExecutionEnd OnScriptExecutionEnd;
 
 public:
-	static void ThrowScriptException(const UObject* ActiveObject, const struct FFrame& StackFrame, const FBlueprintExceptionInfo& Info);
+	static void ThrowScriptException(const UObject* ActiveObject, struct FFrame& StackFrame, const FBlueprintExceptionInfo& Info);
 	static void InstrumentScriptEvent(const FScriptInstrumentationSignal& Info);
 	static void SetScriptMaximumLoopIterations( const int32 MaximumLoopIterations );
 	static bool IsDebuggingEnabled();
@@ -528,11 +529,23 @@ struct COREUOBJECT_API FBlueprintContextTracker : TThreadSingleton<FBlueprintCon
 	{
 		return ScriptEntryTag;
 	}
-	
+
 	/** Returns current script stack frame */
-	FORCEINLINE const TArray<const FFrame*>& GetScriptStack() const
+	UE_DEPRECATED(5.1, "GetScriptStack() inefficiently copies the array to return and is now deprecated. Use GetCurrentScriptStack() which returns a TArrayView instead")
+	FORCEINLINE TArray<const FFrame*> GetScriptStack() const
 	{
-		return ScriptStack;
+		return TArray<const FFrame*>(GetCurrentScriptStack());
+	}
+
+	/** Returns current script stack frame */
+	FORCEINLINE TArrayView<const FFrame* const> GetCurrentScriptStack() const
+	{
+		return MakeArrayView<const FFrame* const>(ScriptStack.GetData(), ScriptStack.Num());
+	}
+
+	FORCEINLINE TArrayView<FFrame* const> GetCurrentScriptStackWritable() const
+	{
+		return MakeArrayView<FFrame* const>(ScriptStack.GetData(), ScriptStack.Num());
 	}
 
 	/** Delegate called from EnterScriptContext, could be called on any thread! This can be used to detect entries into script from native code */
@@ -554,7 +567,7 @@ private:
 	int32 ScriptEntryTag;
 
 	// Stack pointers from the VM to be unrolled when we assert
-	TArray<const FFrame*> ScriptStack;
+	TArray<FFrame*> ScriptStack;
 
 	// Map of reported access warnings in exception handler
 	TMap<FName, int32> DisplayedWarningsMap;

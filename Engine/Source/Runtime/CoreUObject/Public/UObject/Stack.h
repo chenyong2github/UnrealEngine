@@ -113,6 +113,9 @@ public:
 
 	bool bArrayContextFailed;
 
+	/** If this flag gets set (usually from throwing a EBlueprintExceptionType::AbortExecution exception), execution shall immediately stop and return */
+	bool bAbortingExecution;
+
 #if PER_FUNCTION_SCRIPT_STATS
 	/** Increment for each PreviousFrame on the stack (Max 255) */
 	uint8 DepthCounter;
@@ -233,6 +236,7 @@ inline FFrame::FFrame( UObject* InObject, UFunction* InNode, void* InLocals, FFr
 	, PropertyChainForCompiledIn(InPropertyChainForCompiledIn)
 	, CurrentNativeFunction(nullptr)
 	, bArrayContextFailed(false)
+	, bAbortingExecution(false)
 #if PER_FUNCTION_SCRIPT_STATS
 	, DepthCounter(0)
 #endif

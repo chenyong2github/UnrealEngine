@@ -304,7 +304,7 @@ namespace EvaluateLiveLinkFrame
 		SceneTime,
 	};
 
-	bool Generic_Evaluate(const ULiveLinkBlueprintLibrary* InSelf, const struct FFrame& InStack, FStructProperty* InBlueprintDataStructProp
+	bool Generic_Evaluate(const ULiveLinkBlueprintLibrary* InSelf, struct FFrame& InStack, FStructProperty* InBlueprintDataStructProp
 		, FLiveLinkSubjectRepresentation InSubjectRepresentation, EEvaluateType InEvaluationType, double InWorldTime, const FQualifiedFrameTime& InQualifiedFrameTime, void* OutBlueprintDataPtr)
 	{
 		bool bSuccess = false;
