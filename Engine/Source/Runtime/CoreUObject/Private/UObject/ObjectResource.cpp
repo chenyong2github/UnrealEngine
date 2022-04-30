@@ -45,6 +45,7 @@ FObjectExport::FObjectExport()
 , bNotForServer(false)
 , bNotAlwaysLoadedForEditorGame(true)
 , bIsAsset(false)
+, bIsInheritedInstance(false)
 , bGeneratePublicHash(false)
 , bExportLoadFailed(false)
 , bWasFiltered(false)
@@ -71,6 +72,7 @@ FObjectExport::FObjectExport( UObject* InObject, bool bInNotAlwaysLoadedForEdito
 , bNotForServer(false)
 , bNotAlwaysLoadedForEditorGame(bInNotAlwaysLoadedForEditorGame)
 , bIsAsset(false)
+, bIsInheritedInstance(false)
 , bGeneratePublicHash(false)
 , bExportLoadFailed(false)
 , bWasFiltered(false)
@@ -86,6 +88,7 @@ FObjectExport::FObjectExport( UObject* InObject, bool bInNotAlwaysLoadedForEdito
 		bNotForClient = !Object->NeedsLoadForClient();
 		bNotForServer = !Object->NeedsLoadForServer();
 		bIsAsset = Object->IsAsset();
+		bIsInheritedInstance = Object->GetArchetype()->IsDefaultSubobject();
 	}
 }
 
@@ -152,10 +155,15 @@ void operator<<(FStructuredArchive::FSlot Slot, FObjectExport& E)
 	SERIALIZE_BIT_TO_RECORD(bNotForClient);
 	SERIALIZE_BIT_TO_RECORD(bNotForServer);
 
-	if (BaseArchive.UEVer() < EUnrealEngineObjectUE5Version::REMOVE_PACKAGE_GUID)
+	if (BaseArchive.UEVer() < EUnrealEngineObjectUE5Version::REMOVE_OBJECT_EXORT_PACKAGE_GUID)
 	{
 		FGuid DummyPackageGuid;
 		Record << SA_VALUE(TEXT("PackageGuid"), DummyPackageGuid);
+	}
+
+	if (BaseArchive.UEVer() >= EUnrealEngineObjectUE5Version::TRACK_OBJECT_EXPORT_IS_INHERITED)
+	{
+		SERIALIZE_BIT_TO_RECORD(bIsInheritedInstance);
 	}
 
 	Record << SA_VALUE(TEXT("PackageFlags"), E.PackageFlags);

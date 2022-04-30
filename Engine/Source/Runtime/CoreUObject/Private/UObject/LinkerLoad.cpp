@@ -3530,7 +3530,7 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 
 UObject* FLinkerLoad::CreateExportAndPreload(int32 ExportIndex, bool bForcePreload /* = false */)
 {
-	UObject *Object = CreateExport(ExportIndex);
+	UObject* Object = CreateExport(ExportIndex);
 	if (Object && (bForcePreload || dynamic_cast<UClass*>(Object) || Object->IsTemplate() || dynamic_cast<UObjectRedirector*>(Object)))
 	{
 		Preload(Object);
@@ -4617,9 +4617,13 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 
 		// If loading the object's Outer caused the object to be loaded or if it was a forced export package created
 		// above, return it.
-		if( Export.Object != NULL )
+		if( Export.Object != nullptr )
 		{
 			return Export.Object;
+		}
+		else if (Export.bExportLoadFailed)
+		{
+			return nullptr;
 		}
 
 		// If we should have an outer but it doesn't exist because it was filtered out, we should silently be filtered out too
@@ -4798,6 +4802,17 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			if (Export.Object)
 			{
 				return Export.Object;
+			}
+		}
+
+		// If this export was an instance inherited from another class, 
+		// it should not be recreated unless the archetype also has it
+		if (Export.bIsInheritedInstance)
+		{
+			if (FindObjectWithOuter(Template, LoadClass, NewName) == nullptr)
+			{
+				Export.bExportLoadFailed = true;
+				return nullptr;
 			}
 		}
 

@@ -1137,6 +1137,8 @@ bool CompareTableItem(FLinkerLoad* SourceLinker, FLinkerLoad* DestLinker, const 
 		SourceExport.bNotForServer != DestExport.bNotForServer ||
 		SourceExport.bNotAlwaysLoadedForEditorGame != DestExport.bNotAlwaysLoadedForEditorGame ||
 		SourceExport.bIsAsset != DestExport.bIsAsset ||
+		SourceExport.bIsInheritedInstance != DestExport.bIsInheritedInstance ||
+		SourceExport.bGeneratePublicHash != DestExport.bGeneratePublicHash ||
 		!ComparePackageIndices(SourceLinker, DestLinker, SourceExport.TemplateIndex, DestExport.TemplateIndex) ||
 		!ComparePackageIndices(SourceLinker, DestLinker, SourceExport.OuterIndex, DestExport.OuterIndex) ||
 		!ComparePackageIndices(SourceLinker, DestLinker, SourceExport.ClassIndex, DestExport.ClassIndex) ||
@@ -1220,7 +1222,7 @@ bool ComparePackageIndices(FLinkerLoad* SourceLinker, FLinkerLoad* DestLinker, c
 FString ConvertItemToText(const FObjectExport& Export, FLinkerLoad* Linker)
 {
 	FName ClassName = Export.ClassIndex.IsNull() ? FName(NAME_Class) : Linker->ImpExp(Export.ClassIndex).ObjectName;
-	return FString::Printf(TEXT("%s Super: %s, Template: %s, Flags: %d, Size: %lld, PackageFlags: %d, ForcedExport: %d, NotForClient: %d, NotForServer: %d, NotAlwaysLoadedForEditorGame: %d, IsAsset: %d"),
+	return FString::Printf(TEXT("%s Super: %s, Template: %s, Flags: %d, Size: %lld, PackageFlags: %d, ForcedExport: %d, NotForClient: %d, NotForServer: %d, NotAlwaysLoadedForEditorGame: %d, IsAsset: %d, IsInheritedInstance: %d, GeneratePublicHash: %d"),
 		*GetTableKey(Linker, Export),
 		*GetTableKeyForIndex(Linker, Export.SuperIndex),
 		*GetTableKeyForIndex(Linker, Export.TemplateIndex),
@@ -1231,8 +1233,9 @@ FString ConvertItemToText(const FObjectExport& Export, FLinkerLoad* Linker)
 		Export.bNotForClient,
 		Export.bNotForServer,
 		Export.bNotAlwaysLoadedForEditorGame,
-		Export.bIsAsset
-	);
+		Export.bIsAsset,
+		Export.bIsInheritedInstance,
+		Export.bGeneratePublicHash);
 }
 
 static bool IsExportMapIdentical(FLinkerLoad* SourceLinker, FLinkerLoad* DestLinker)

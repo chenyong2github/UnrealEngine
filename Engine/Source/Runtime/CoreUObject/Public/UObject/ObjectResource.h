@@ -310,6 +310,12 @@ struct FObjectExport : public FObjectResource
 	bool			bIsAsset:1;
 
 	/**
+	 * If this export is an instanced object inherited from a template and should
+	 * only be created if the template has the object
+	 */
+	bool			bIsInheritedInstance:1;
+
+	/**
 	 * True if this export should have its iostore public hash generated even if not RF_Public.
 	 */
 	bool			bGeneratePublicHash:1;
