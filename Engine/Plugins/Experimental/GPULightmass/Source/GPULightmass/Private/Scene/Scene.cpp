@@ -224,7 +224,7 @@ void AddLightToLightmap(
 	// For both static and stationary lights
 	Lightmap.LightmapObject->LightGuids.Add(Light.GetComponentUObject()->LightGuid);
 
-	if (Light.bStationary)
+	if (Light.CastsStationaryShadow())
 	{
 		Lightmap.NumStationaryLightsPerShadowChannel[Light.ShadowMapChannel]++;
 		Lightmap.LightmapObject->bShadowChannelValid[Light.ShadowMapChannel] = true;
@@ -241,7 +241,7 @@ void RemoveLightFromLightmap(
 {
 	Lightmap.LightmapObject->LightGuids.Remove(Light.GetComponentUObject()->LightGuid);
 
-	if (Light.bStationary)
+	if (Light.CastsStationaryShadow())
 	{
 		Lightmap.NumStationaryLightsPerShadowChannel[Light.ShadowMapChannel]--;
 
@@ -366,31 +366,31 @@ struct LightTypeInfo<URectLightComponent>
 };
 
 template<typename LightComponentType>
-void FScene::AddLight(LightComponentType* PointLightComponent)
+void FScene::AddLight(LightComponentType* LightComponent)
 {
-	if (LightTypeInfo<LightComponentType>::GetLightComponentRegistration(LightScene).Contains(PointLightComponent))
+	if (LightTypeInfo<LightComponentType>::GetLightComponentRegistration(LightScene).Contains(LightComponent))
 	{
 		UE_LOG(LogGPULightmass, Log, TEXT("Warning: duplicated component registration"));
 		return;
 	}
 
-	const bool bCastStationaryShadows = PointLightComponent->CastShadows && PointLightComponent->CastStaticShadows && !PointLightComponent->HasStaticLighting();
+	const bool bCastStationaryShadows = LightComponent->CastShadows && LightComponent->CastStaticShadows && LightComponent->Mobility == EComponentMobility::Stationary;
 
 	if (bCastStationaryShadows)
 	{
-		if (PointLightComponent->PreviewShadowMapChannel == INDEX_NONE)
+		if (LightComponent->PreviewShadowMapChannel == INDEX_NONE)
 		{
 			UE_LOG(LogGPULightmass, Log, TEXT("Ignoring light with ShadowMapChannel == -1 (probably in the middle of SpawnActor)"));
 			return;
 		}
 	}
 
-	typename LightTypeInfo<LightComponentType>::BuildInfoType Light(PointLightComponent);
+	typename LightTypeInfo<LightComponentType>::BuildInfoType Light(LightComponent);
 
 	typename LightTypeInfo<LightComponentType>::LightRefType LightRef = LightTypeInfo<LightComponentType>::GetLightArray(LightScene).Emplace(MoveTemp(Light));
-	LightTypeInfo<LightComponentType>::GetLightComponentRegistration(LightScene).Add(PointLightComponent, LightRef);
+	LightTypeInfo<LightComponentType>::GetLightComponentRegistration(LightScene).Add(LightComponent, LightRef);
 
-	typename LightTypeInfo<LightComponentType>::RenderStateType LightRenderState(PointLightComponent);
+	typename LightTypeInfo<LightComponentType>::RenderStateType LightRenderState(LightComponent);
 
 	TArray<FPrimitiveSceneProxy*> SceneProxiesToUpdateOnRenderThread;
 	TArray<FGeometryRenderStateToken> RelevantGeometriesToUpdateOnRenderThread;
@@ -401,7 +401,7 @@ void FScene::AddLight(LightComponentType* PointLightComponent)
 
 		if (Light.AffectsBounds(Geometry.WorldBounds))
 		{
-			if (Light.bStationary)
+			if (Light.CastsStationaryShadow())
 			{
 				RelevantGeometriesToUpdateOnRenderThread.Add({ GeomIt.Index, GeomIt.Array.GetRenderStateArray() });
 			}
@@ -599,7 +599,8 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 	LightScene.SkyLight = MoveTemp(NewSkyLight);
 
 	FSkyLightRenderState NewSkyLightRenderState;
-	NewSkyLightRenderState.bStationary = !SkyLight->HasStaticLighting();
+	NewSkyLightRenderState.bStationary = SkyLight->CastShadows && SkyLight->CastStaticShadows && !SkyLight->HasStaticLighting();
+	NewSkyLightRenderState.bCastShadow = SkyLight->CastShadows && SkyLight->CastStaticShadows;
 	NewSkyLightRenderState.Color = SkyLight->GetLightColor() * SkyLight->Intensity;
 	NewSkyLightRenderState.TextureDimensions = FIntPoint(SkyLight->GetProcessedSkyTexture()->GetSizeX(), SkyLight->GetProcessedSkyTexture()->GetSizeY());
 	NewSkyLightRenderState.IrradianceEnvironmentMap = SkyLight->GetIrradianceEnvironmentMap();
@@ -658,7 +659,7 @@ TArray<int32> AddAllPossiblyRelevantLightsToGeometry(
 	{
 		if (Light.AffectsBounds(Instance->WorldBounds))
 		{
-			if (Light.bStationary)
+			if (Light.CastsStationaryShadow())
 			{
 				RelevantLightsToAddOnRenderThread.Add(&Light - LightArray.Elements.GetData());
 			}
@@ -1841,6 +1842,15 @@ void GatherBuildDataResourcesToKeep(const ULevel* InLevel, ULevel* LightingScena
 	}
 }
 
+void FLocalLightBuildInfo::AllocateMapBuildData(ULevel* StorageLevel)
+{
+	check(!CastsStationaryShadow() || GetComponentUObject()->PreviewShadowMapChannel != INDEX_NONE);
+
+	UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
+	FLightComponentMapBuildData& LightBuildData = Registry->FindOrAllocateLightBuildData(GetComponentUObject()->LightGuid, true);
+	LightBuildData.ShadowMapChannel = CastsStationaryShadow() ? GetComponentUObject()->PreviewShadowMapChannel : INDEX_NONE;
+}
+
 void FScene::ApplyFinishedLightmapsToWorld()
 {
 	UWorld* World = GPULightmass->World;
@@ -1898,46 +1908,22 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 		for (FDirectionalLightBuildInfo& DirectionalLight : LightScene.DirectionalLights.Elements)
 		{
-			UDirectionalLightComponent* Light = DirectionalLight.ComponentUObject;
-			check(!DirectionalLight.bStationary || Light->PreviewShadowMapChannel != INDEX_NONE);
-
-			ULevel* StorageLevel = LightingScenario ? LightingScenario : Light->GetOwner()->GetLevel();
-			UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
-			FLightComponentMapBuildData& LightBuildData = Registry->FindOrAllocateLightBuildData(Light->LightGuid, true);
-			LightBuildData.ShadowMapChannel = DirectionalLight.bStationary ? Light->PreviewShadowMapChannel : INDEX_NONE;
+			DirectionalLight.AllocateMapBuildData(LightingScenario ? LightingScenario : DirectionalLight.ComponentUObject->GetOwner()->GetLevel());
 		}
 
 		for (FPointLightBuildInfo& PointLight : LightScene.PointLights.Elements)
 		{
-			UPointLightComponent* Light = PointLight.ComponentUObject;
-			check(!PointLight.bStationary || Light->PreviewShadowMapChannel != INDEX_NONE);
-
-			ULevel* StorageLevel = LightingScenario ? LightingScenario : Light->GetOwner()->GetLevel();
-			UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
-			FLightComponentMapBuildData& LightBuildData = Registry->FindOrAllocateLightBuildData(Light->LightGuid, true);
-			LightBuildData.ShadowMapChannel = PointLight.bStationary ? Light->PreviewShadowMapChannel : INDEX_NONE;
+			PointLight.AllocateMapBuildData(LightingScenario ? LightingScenario : PointLight.ComponentUObject->GetOwner()->GetLevel());
 		}
 
 		for (FSpotLightBuildInfo& SpotLight : LightScene.SpotLights.Elements)
 		{
-			USpotLightComponent* Light = SpotLight.ComponentUObject;
-			check(!SpotLight.bStationary || Light->PreviewShadowMapChannel != INDEX_NONE);
-
-			ULevel* StorageLevel = LightingScenario ? LightingScenario : Light->GetOwner()->GetLevel();
-			UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
-			FLightComponentMapBuildData& LightBuildData = Registry->FindOrAllocateLightBuildData(Light->LightGuid, true);
-			LightBuildData.ShadowMapChannel = SpotLight.bStationary ? Light->PreviewShadowMapChannel : INDEX_NONE;
+			SpotLight.AllocateMapBuildData(LightingScenario ? LightingScenario : SpotLight.ComponentUObject->GetOwner()->GetLevel());
 		}
 
 		for (FRectLightBuildInfo& RectLight : LightScene.RectLights.Elements)
 		{
-			URectLightComponent* Light = RectLight.ComponentUObject;
-			check(!RectLight.bStationary || Light->PreviewShadowMapChannel != INDEX_NONE);
-
-			ULevel* StorageLevel = LightingScenario ? LightingScenario : Light->GetOwner()->GetLevel();
-			UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
-			FLightComponentMapBuildData& LightBuildData = Registry->FindOrAllocateLightBuildData(Light->LightGuid, true);
-			LightBuildData.ShadowMapChannel = RectLight.bStationary ? Light->PreviewShadowMapChannel : INDEX_NONE;
+			RectLight.AllocateMapBuildData(LightingScenario ? LightingScenario : RectLight.ComponentUObject->GetOwner()->GetLevel());
 		}
 
 		{
@@ -2222,7 +2208,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								FLocalLightRenderState& Light
 								)
 							{
-								check(Light.bStationary);
+								check(Light.bStationary && Light.bCastShadow);
 								check(Light.ShadowMapChannel != INDEX_NONE);
 								FQuantizedShadowSignedDistanceFieldData2D* ShadowMap = new FQuantizedShadowSignedDistanceFieldData2D(Lightmap.GetSize().X, Lightmap.GetSize().Y);
 
@@ -2246,7 +2232,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							// Directional lights are always relevant
 							for (FDirectionalLightBuildInfo& DirectionalLight : LightScene.DirectionalLights.Elements)
 							{
-								if (!DirectionalLight.bStationary)
+								if (!DirectionalLight.CastsStationaryShadow())
 								{
 									continue;
 								}
@@ -2447,7 +2433,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								// Directional lights are always relevant
 								for (FDirectionalLightBuildInfo& DirectionalLight : LightScene.DirectionalLights.Elements)
 								{
-									if (!DirectionalLight.bStationary)
+									if (!DirectionalLight.CastsStationaryShadow())
 									{
 										continue;
 									}
@@ -2476,7 +2462,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 								for (FPointLightRenderStateRef& PointLight : Lightmap.RelevantPointLights)
 								{
-									check(PointLight->bStationary);
+									check(PointLight->bStationary && PointLight->bCastShadow);
 									check(PointLight->ShadowMapChannel != INDEX_NONE);
 									TUniquePtr<FQuantizedShadowSignedDistanceFieldData2D> ShadowMap = MakeUnique<FQuantizedShadowSignedDistanceFieldData2D>(BaseLightMapWidth, BaseLightMapHeight);
 
@@ -2501,7 +2487,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 								for (FSpotLightRenderStateRef& SpotLight : Lightmap.RelevantSpotLights)
 								{
-									check(SpotLight->bStationary);
+									check(SpotLight->bStationary && SpotLight->bCastShadow);
 									check(SpotLight->ShadowMapChannel != INDEX_NONE);
 									TUniquePtr<FQuantizedShadowSignedDistanceFieldData2D> ShadowMap = MakeUnique<FQuantizedShadowSignedDistanceFieldData2D>(BaseLightMapWidth, BaseLightMapHeight);
 
@@ -2526,7 +2512,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 								for (FRectLightRenderStateRef& RectLight : Lightmap.RelevantRectLights)
 								{
-									check(RectLight->bStationary);
+									check(RectLight->bStationary && RectLight->bCastShadow);
 									check(RectLight->ShadowMapChannel != INDEX_NONE);
 									TUniquePtr<FQuantizedShadowSignedDistanceFieldData2D> ShadowMap = MakeUnique<FQuantizedShadowSignedDistanceFieldData2D>(BaseLightMapWidth, BaseLightMapHeight);
 
@@ -2785,7 +2771,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								FLocalLightRenderState& Light
 								)
 							{
-								check(Light.bStationary);
+								check(Light.bStationary && Light.bCastShadow);
 								check(Light.ShadowMapChannel != INDEX_NONE);
 								FQuantizedShadowSignedDistanceFieldData2D* ShadowMap = new FQuantizedShadowSignedDistanceFieldData2D(Lightmap.GetSize().X, Lightmap.GetSize().Y);
 
@@ -2809,7 +2795,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							// Directional lights are always relevant
 							for (FDirectionalLightBuildInfo& DirectionalLight : LightScene.DirectionalLights.Elements)
 							{
-								if (!DirectionalLight.bStationary)
+								if (!DirectionalLight.CastsStationaryShadow())
 								{
 									continue;
 								}

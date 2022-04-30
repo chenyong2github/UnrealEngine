@@ -65,24 +65,30 @@ struct FLightSceneRenderState;
 
 struct FLocalLightBuildInfo
 {
-	FLocalLightBuildInfo() = default;
+	FLocalLightBuildInfo(ULightComponent* LightComponent);
 	virtual ~FLocalLightBuildInfo() {}
 	FLocalLightBuildInfo(FLocalLightBuildInfo&& In) = default; // Default move constructor is killed by the custom destructor
 
 	bool bStationary = false;
+	bool bCastShadow = true;
 	int ShadowMapChannel = INDEX_NONE;
 
 	TUniquePtr<FLightComponentMapBuildData> LightComponentMapBuildData;
 
 	virtual bool AffectsBounds(const FBoxSphereBounds& InBounds) const = 0;
 	virtual ULightComponent* GetComponentUObject() const = 0;
+	bool CastsStationaryShadow() { return bStationary && bCastShadow; }
+
+	void AllocateMapBuildData(ULevel* StorageLevel);
 };
 
 struct FLocalLightRenderState
 {
+	FLocalLightRenderState(ULightComponent* LightComponent);
 	virtual ~FLocalLightRenderState() {}
 
 	bool bStationary = false;
+	bool bCastShadow = true;
 	int ShadowMapChannel = INDEX_NONE;
 
 	virtual FLightRenderParameters GetLightShaderParameters() const = 0;
@@ -281,6 +287,7 @@ using FRectLightRenderStateRef = TEntityArray<FRectLightRenderState>::EntityRefT
 struct FSkyLightRenderState
 {
 	bool bStationary = false;
+	bool bCastShadow = true;
 	FLinearColor Color;
 	FTextureRHIRef ProcessedTexture;
 	FSamplerStateRHIRef ProcessedTextureSampler;

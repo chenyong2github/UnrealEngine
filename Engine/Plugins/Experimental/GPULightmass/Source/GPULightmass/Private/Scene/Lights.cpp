@@ -38,38 +38,41 @@ FLocalLightRenderState& FLightRenderStateRef::Resolve()
 	return LightRenderStateArray.ResolveAsLocalLightRenderState(*this);
 }
 
-FDirectionalLightBuildInfo::FDirectionalLightBuildInfo(UDirectionalLightComponent* DirectionalLightComponent)
+FLocalLightBuildInfo::FLocalLightBuildInfo(ULightComponent* LightComponent)
 {
-	const bool bCastStationaryShadows = DirectionalLightComponent->CastShadows && DirectionalLightComponent->CastStaticShadows && !DirectionalLightComponent->HasStaticLighting();
-
-	ComponentUObject = DirectionalLightComponent;
-	bStationary = bCastStationaryShadows;
-	ShadowMapChannel = DirectionalLightComponent->PreviewShadowMapChannel;
+	bStationary = LightComponent->Mobility == EComponentMobility::Stationary;
+	bCastShadow = LightComponent->CastShadows && LightComponent->CastStaticShadows;
+	ShadowMapChannel = LightComponent->PreviewShadowMapChannel;
 	LightComponentMapBuildData = MakeUnique<FLightComponentMapBuildData>();
-	LightComponentMapBuildData->ShadowMapChannel = DirectionalLightComponent->PreviewShadowMapChannel;
+	LightComponentMapBuildData->ShadowMapChannel = ShadowMapChannel;
+}
+
+FLocalLightRenderState::FLocalLightRenderState(ULightComponent* LightComponent)
+{
+	bStationary = LightComponent->Mobility == EComponentMobility::Stationary;
+	bCastShadow = LightComponent->CastShadows && LightComponent->CastStaticShadows;
+	ShadowMapChannel = LightComponent->PreviewShadowMapChannel;
+}
+
+FDirectionalLightBuildInfo::FDirectionalLightBuildInfo(UDirectionalLightComponent* DirectionalLightComponent)
+	: FLocalLightBuildInfo(DirectionalLightComponent)
+{
+	ComponentUObject = DirectionalLightComponent;
 }
 
 FDirectionalLightRenderState::FDirectionalLightRenderState(UDirectionalLightComponent* DirectionalLightComponent)
+	: FLocalLightRenderState(DirectionalLightComponent)
 {
-	const bool bCastStationaryShadows = DirectionalLightComponent->CastShadows && DirectionalLightComponent->CastStaticShadows && !DirectionalLightComponent->HasStaticLighting();
-
-	bStationary = bCastStationaryShadows;
 	Color = DirectionalLightComponent->GetColoredLightBrightness();
 	Direction = DirectionalLightComponent->GetDirection();
 	LightSourceAngle = DirectionalLightComponent->LightSourceAngle;
 	LightSourceSoftAngle = DirectionalLightComponent->LightSourceSoftAngle;
-	ShadowMapChannel = DirectionalLightComponent->PreviewShadowMapChannel;
 }
 
 FPointLightBuildInfo::FPointLightBuildInfo(UPointLightComponent* PointLightComponent)
+	: FLocalLightBuildInfo(PointLightComponent)
 {
-	const bool bCastStationaryShadows = PointLightComponent->CastShadows && PointLightComponent->CastStaticShadows && !PointLightComponent->HasStaticLighting();
-
 	ComponentUObject = PointLightComponent;
-	bStationary = bCastStationaryShadows;
-	ShadowMapChannel = PointLightComponent->PreviewShadowMapChannel;
-	LightComponentMapBuildData = MakeUnique<FLightComponentMapBuildData>();
-	LightComponentMapBuildData->ShadowMapChannel = PointLightComponent->PreviewShadowMapChannel;
 	Position = PointLightComponent->GetLightPosition();
 	AttenuationRadius = PointLightComponent->AttenuationRadius;
 }
@@ -80,10 +83,8 @@ bool FPointLightBuildInfo::AffectsBounds(const FBoxSphereBounds& InBounds) const
 }
 
 FPointLightRenderState::FPointLightRenderState(UPointLightComponent* PointLightComponent)
+	: FLocalLightRenderState(PointLightComponent)
 {
-	const bool bCastStationaryShadows = PointLightComponent->CastShadows && PointLightComponent->CastStaticShadows && !PointLightComponent->HasStaticLighting();
-
-	bStationary = bCastStationaryShadows;
 	Color = PointLightComponent->GetColoredLightBrightness();
 	Position = PointLightComponent->GetLightPosition();
 	Direction = PointLightComponent->GetDirection();
@@ -102,14 +103,9 @@ FPointLightRenderState::FPointLightRenderState(UPointLightComponent* PointLightC
 }
 
 FSpotLightBuildInfo::FSpotLightBuildInfo(USpotLightComponent* SpotLightComponent)
+	: FLocalLightBuildInfo(SpotLightComponent)
 {
-	const bool bCastStationaryShadows = SpotLightComponent->CastShadows && SpotLightComponent->CastStaticShadows && !SpotLightComponent->HasStaticLighting();
-
 	ComponentUObject = SpotLightComponent;
-	bStationary = bCastStationaryShadows;
-	ShadowMapChannel = SpotLightComponent->PreviewShadowMapChannel;
-	LightComponentMapBuildData = MakeUnique<FLightComponentMapBuildData>();
-	LightComponentMapBuildData->ShadowMapChannel = SpotLightComponent->PreviewShadowMapChannel;
 	Position = SpotLightComponent->GetLightPosition();
 	Direction = SpotLightComponent->GetDirection();
 	AttenuationRadius = SpotLightComponent->AttenuationRadius;
@@ -147,10 +143,8 @@ bool FSpotLightBuildInfo::AffectsBounds(const FBoxSphereBounds& InBounds) const
 }
 
 FSpotLightRenderState::FSpotLightRenderState(USpotLightComponent* SpotLightComponent)
+	: FLocalLightRenderState(SpotLightComponent)
 {
-	const bool bCastStationaryShadows = SpotLightComponent->CastShadows && SpotLightComponent->CastStaticShadows && !SpotLightComponent->HasStaticLighting();
-
-	bStationary = bCastStationaryShadows;
 	Color = SpotLightComponent->GetColoredLightBrightness();
 	Position = SpotLightComponent->GetLightPosition();
 	Direction = SpotLightComponent->GetDirection();
@@ -177,14 +171,9 @@ FSpotLightRenderState::FSpotLightRenderState(USpotLightComponent* SpotLightCompo
 }
 
 FRectLightBuildInfo::FRectLightBuildInfo(URectLightComponent* RectLightComponent)
+	: FLocalLightBuildInfo(RectLightComponent)
 {
-	const bool bCastStationaryShadows = RectLightComponent->CastShadows && RectLightComponent->CastStaticShadows && !RectLightComponent->HasStaticLighting();
-
 	ComponentUObject = RectLightComponent;
-	bStationary = bCastStationaryShadows;
-	ShadowMapChannel = RectLightComponent->PreviewShadowMapChannel;
-	LightComponentMapBuildData = MakeUnique<FLightComponentMapBuildData>();
-	LightComponentMapBuildData->ShadowMapChannel = RectLightComponent->PreviewShadowMapChannel;
 	Position = RectLightComponent->GetLightPosition();
 	AttenuationRadius = RectLightComponent->AttenuationRadius;
 }
@@ -195,10 +184,8 @@ bool FRectLightBuildInfo::AffectsBounds(const FBoxSphereBounds& InBounds) const
 }
 
 FRectLightRenderState::FRectLightRenderState(URectLightComponent* RectLightComponent)
+	: FLocalLightRenderState(RectLightComponent)
 {
-	const bool bCastStationaryShadows = RectLightComponent->CastShadows && RectLightComponent->CastStaticShadows && !RectLightComponent->HasStaticLighting();
-
-	bStationary = bCastStationaryShadows;
 	Color = RectLightComponent->GetColoredLightBrightness();
 	Position = RectLightComponent->GetLightPosition();
 	Direction = RectLightComponent->GetDirection();
