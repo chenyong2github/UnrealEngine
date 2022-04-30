@@ -94,4 +94,7 @@ void SelectiveLightmapOutputCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 		OutputTileAtlas[LaunchIndex + BatchedTiles[TileIndex].OutputLayer2Position] = sqrt((float4)ShadowValue / max(uint4(1, 1, 1, 1), SampleCountValue)) * ValidityMask;
 	}
+	else if (DIM_OUTPUT_LAYER == 3)
+	{
+	}
 }
