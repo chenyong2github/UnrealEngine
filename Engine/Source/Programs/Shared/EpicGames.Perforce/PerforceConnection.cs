@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -76,7 +76,7 @@ namespace EpicGames.Perforce
 		/// <returns></returns>
 		public static async Task<IPerforceConnection> CreateAsync(IPerforceSettings settings, ILogger logger)
 		{
-			if (settings.PreferNativeClient)
+			if (settings.PreferNativeClient && NativePerforceConnection.IsSupported())
 			{
 				return await NativePerforceConnection.CreateAsync(settings, logger);
 			}
