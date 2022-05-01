@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -126,7 +126,7 @@ namespace Horde.Build.Tests
 				throw new NotImplementedException();
 			}
 
-			protected override ContextPropagationToken CreatePropagationTokenCore(ContextPropagationOptions options)
+			protected override ContextPropagationToken CreatePropagationTokenCore(ContextPropagationOptions? options)
 			{
 				throw new NotImplementedException();
 			}
@@ -139,7 +139,7 @@ namespace Horde.Build.Tests
 			protected override CancellationToken CancellationTokenCore { get; } = new CancellationToken();
 			protected override Metadata ResponseTrailersCore { get; } = null!;
 			protected override Status StatusCore { get; set; }
-			protected override WriteOptions WriteOptionsCore { get; set; } = null!;
+			protected override WriteOptions? WriteOptionsCore { get; set; } = null!;
 			protected override AuthContext AuthContextCore { get; } = null!;
 		}
 		
@@ -154,32 +154,32 @@ namespace Horde.Build.Tests
 				_serverCallContext = serverCallContext;
 			}
 
-			public override TResponse BlockingUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
+			public override TResponse BlockingUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string? host, CallOptions options, TRequest request)
 			{
 				throw new NotImplementedException("Blocking calls are not supported! Method " + method.FullName);
 			}
 
-			public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options, TRequest request)
+			public override AsyncUnaryCall<TResponse> AsyncUnaryCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string? host, CallOptions options, TRequest request)
 			{
 				MethodInfo methodInfo = GetMethod(method.Name);
 				Task<TResponse> res = (methodInfo.Invoke(_rpcService, new object[] {request, _serverCallContext}) as Task<TResponse>)!;
 				return new AsyncUnaryCall<TResponse>(res, null!, null!, null!, null!, null!);
 			}
 
-			public override AsyncServerStreamingCall<TResponse> AsyncServerStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options,
+			public override AsyncServerStreamingCall<TResponse> AsyncServerStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string? host, CallOptions options,
 				TRequest request)
 			{
 				Console.WriteLine($"RpcServiceInvoker.AsyncServerStreamingCall(method={method.FullName} request={request})");
 				throw new NotImplementedException();
 			}
 
-			public override AsyncClientStreamingCall<TRequest, TResponse> AsyncClientStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options)
+			public override AsyncClientStreamingCall<TRequest, TResponse> AsyncClientStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string? host, CallOptions options)
 			{
 				Console.WriteLine($"RpcServiceInvoker.AsyncClientStreamingCall(method={method.FullName})");
 				throw new NotImplementedException();
 			}
 
-			public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string host, CallOptions options)
+			public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(Method<TRequest, TResponse> method, string? host, CallOptions options)
 			{
 				Console.WriteLine($"RpcServiceInvoker.AsyncDuplexStreamingCall(method={method.FullName})");
 

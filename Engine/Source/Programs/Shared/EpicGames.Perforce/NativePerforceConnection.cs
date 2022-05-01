@@ -326,6 +326,10 @@ namespace EpicGames.Perforce
 			return connection;
 		}
 
+		/// <summary>
+		/// Check whether the native client is supported on the current platform
+		/// </summary>
+		/// <returns></returns>
 		public static bool IsSupported() => !(RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && RuntimeInformation.OSArchitecture == Architecture.Arm64);
 
 		void GetNextWriteBuffer(NativeWriteBuffer nativeWriteBuffer, int minSize)
