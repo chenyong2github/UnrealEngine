@@ -361,7 +361,7 @@ public:
 			}
 			else if (bHasDefaultDebugOptions)
 			{
-				if (!ParsedNode.Key->LegacyDebugOptions(DebugOptions))
+				if (!ParsedNode.Key->LegacyDebugOptions(DefaultDebugOptions))
 				{
 					UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Node is ignoring one or more -DDC-All-<Option> debug options."), *NodeName);
 				}
