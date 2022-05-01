@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -63,10 +63,11 @@ namespace Horde.Build.Services
 		readonly PerforceLoadBalancer _loadBalancer;
 		readonly LazyCachedValue<Task<Globals>> _cachedGlobals;
 		readonly ILogger _logger;
+		readonly bool _haveNativePerforceApi;
 
 		// Useful overrides for local debugging with read-only data
-		string? _perforceServerOverride;
-		string? _perforceUserOverride;
+		readonly string? _perforceServerOverride;
+		readonly string? _perforceUserOverride;
 
 		/// <summary>
 		/// Object used for controlling access to the access user tickets
@@ -103,9 +104,13 @@ namespace Horde.Build.Services
 			_logger = logger;
 
 			_logBridgeDelegate = new P4.P4CallBacks.LogMessageDelegate(LogBridgeMessage);
-			P4.P4Debugging.SetBridgeLogFunction(_logBridgeDelegate);
 
-			P4.LogFile.SetLoggingFunction(LogPerforce);
+			_haveNativePerforceApi = !(RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && RuntimeInformation.OSArchitecture == Architecture.Arm64);
+			if (_haveNativePerforceApi)
+			{
+				P4.P4Debugging.SetBridgeLogFunction(_logBridgeDelegate);
+				P4.LogFile.SetLoggingFunction(LogPerforce);
+			}
 
 			if(settings.Value.UseLocalPerforceEnv)
 			{

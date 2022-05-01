@@ -1,10 +1,11 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Security.Cryptography;
+using EpicGames.Perforce;
 using Horde.Build.Acls;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
@@ -372,7 +373,7 @@ namespace Horde.Build.Models
 		static List<PerforceCluster> GetDefaultClusters()
 		{
 			PerforceServer server = new PerforceServer();
-			server.ServerAndPort = Perforce.P4.P4Server.Get("P4PORT") ?? "perforce:1666";
+			server.ServerAndPort = PerforceSettings.Default.ServerAndPort;
 
 			PerforceCluster cluster = new PerforceCluster();
 			cluster.Name = "Default";
