@@ -14,6 +14,7 @@ int32 UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch = 0;
 UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 , bIsAlwaysLoaded(false)
+, MinMaxZ(-WORLDPARTITION_MAX, WORLDPARTITION_MAX)
 , Priority(0)
 , CachedMinSourcePriority((uint8)EStreamingSourcePriority::Lowest)
 , CachedSourceInfoEpoch(INT_MIN)
@@ -34,6 +35,11 @@ void UWorldPartitionRuntimeCell::SetDataLayers(const TArray<const UDataLayerInst
 	}
 	DataLayers.Sort([](const FName& A, const FName& B) { return A.ToString() < B.ToString(); });
 	UpdateDebugName();
+}
+
+void UWorldPartitionRuntimeCell::SetMinMaxZ(const FVector2D& InMinMaxZ)
+{
+	MinMaxZ = InMinMaxZ;
 }
 
 void UWorldPartitionRuntimeCell::SetDebugInfo(FIntVector InCoords, FName InGridName)

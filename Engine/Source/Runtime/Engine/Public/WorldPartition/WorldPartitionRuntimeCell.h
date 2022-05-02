@@ -161,6 +161,8 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 	}
 	// IRuntimeCell Interface end
 
+	const FVector2D& GetMinMaxZ() const { return MinMaxZ; }
+
 	bool GetBlockOnSlowLoading() const { return bBlockOnSlowLoading; }
 #if WITH_EDITOR
 	void SetBlockOnSlowLoading(bool bInBlockOnSlowLoading) { bBlockOnSlowLoading = bInBlockOnSlowLoading; }
@@ -169,6 +171,7 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 	bool GetClientOnlyVisible() const { return bClientOnlyVisible; }
 
 	void SetDataLayers(const TArray<const UDataLayerInstance*>& InDataLayerInstances);
+	void SetMinMaxZ(const FVector2D& InMinMaxZ);
 	void SetDebugInfo(FIntVector InCoords, FName InGridName);
 	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
@@ -201,6 +204,9 @@ protected:
 private:
 	UPROPERTY()
 	TArray<FName> DataLayers;
+
+	UPROPERTY()
+	FVector2D MinMaxZ;
 
 	// Debug Info
 	UPROPERTY()

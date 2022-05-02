@@ -106,7 +106,7 @@ struct FSpatialHashStreamingGrid
 
 	UPROPERTY()
 	bool bBlockOnSlowStreaming;
-		
+
 	UPROPERTY()
 	FLinearColor DebugColor;
 
@@ -135,8 +135,8 @@ struct FSpatialHashStreamingGrid
 
 	// Used by PIE/Game
 	int32 GetCellSize(int32 Level) const;
-	void GetCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const;
-	void GetCells(const TArray<FWorldPartitionStreamingSource>& Sources, const class UDataLayerSubsystem* DataLayerSubsystem, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutActivateCells, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutLoadCells) const;
+	void GetCells(const FWorldPartitionStreamingQuerySource& QuerySource, TSet<const UWorldPartitionRuntimeCell*>& OutCells, bool bEnableZCulling) const;
+	void GetCells(const TArray<FWorldPartitionStreamingSource>& Sources, const class UDataLayerSubsystem* DataLayerSubsystem, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutActivateCells, UWorldPartitionRuntimeHash::FStreamingSourceCells& OutLoadCells, bool bEnableZCulling) const;
 	void GetAlwaysLoadedCells(const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const;
 	void Draw2D(UCanvas* Canvas, UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources, const FBox& Region, const FBox2D& GridScreenBounds, TFunctionRef<FVector2D(const FVector2D&)> WorldToScreen) const;
 	void Draw3D(UWorld* World, const TArray<FWorldPartitionStreamingSource>& Sources, const FTransform& Transform) const;
@@ -187,7 +187,7 @@ struct FSpatialHashRuntimeGrid
 	/** Should streaming block in situations where cells aren't getting loaded fast enough. */
 	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bBlockOnSlowStreaming;
-		
+
 	UPROPERTY(EditAnywhere, Category=Settings)
 	int32 Priority;
 
@@ -274,6 +274,10 @@ private:
 
 	TMap<FString, UWorldPartitionRuntimeCell*> PackagesToGenerateForCook;
 #endif
+
+	/** Whether this hash enables Z culling. */
+	UPROPERTY(EditAnywhere, Config, Category = RuntimeSettings)
+	bool bEnableZCulling;
 
 	/** 
 	 * Represents the streaming grids (PIE or Game)
