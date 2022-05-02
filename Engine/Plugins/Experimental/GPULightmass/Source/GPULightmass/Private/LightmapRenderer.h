@@ -60,13 +60,14 @@ struct FLightmapReadbackGroup
 	TUniquePtr<FRHIGPUTextureReadback> StagingHQLayer0Readback;
 	TUniquePtr<FRHIGPUTextureReadback> StagingHQLayer1Readback;
 	TUniquePtr<FRHIGPUTextureReadback> StagingShadowMaskReadback;
+	TUniquePtr<FRHIGPUTextureReadback> StagingSkyOcclusionReadback;
 
 	struct FTextureData
 	{
 		// Duplicate some metadata so the async thread doesn't need to access FLightmapReadbackGroup
 		FIntPoint SizeInTiles;
-		int32 RowPitchInPixels[3];
-		TArray<FLinearColor> Texture[3];
+		int32 RowPitchInPixels[4];
+		TArray<FLinearColor> Texture[4];
 
 		volatile int32 bDenoisingFinished = 0;
 	};

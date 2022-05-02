@@ -323,6 +323,7 @@ void PathTracingKernel(
 	inout FThreeBandSHVectorRGBFloat DirectLightingSH,
 #endif
 	inout float LuminanceForFirstBounceRayGuiding,
+	inout float3 SkyLightBentNormal,
 	inout float4 PrimaryRandSample)
 {
 	uint2 LaunchIndex = uint2(0, 0);
@@ -568,6 +569,8 @@ void PathTracingKernel(
 				LightSample.Pdf *= LightPickPdf;
 				if (LightSample.Pdf > 0)
 				{
+					float3 Visibility = float3(1, 1, 1);
+					
 					if (CastsShadow(LightId))
 					{
 						// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
@@ -582,7 +585,8 @@ void PathTracingKernel(
 
 						float AvgRoughness = ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
 
-						LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, LaunchIndex, AvgRoughness);
+						Visibility = TraceTransparentVisibilityRay(LightRay, LaunchIndex, AvgRoughness);
+						LightSample.RadianceOverPdf *= Visibility;
 					}
 
 					// #dxr_todo: Is it cheaper to fire the ray first? Or eval the material first?
@@ -592,12 +596,12 @@ void PathTracingKernel(
 						FMaterialEval MaterialEval = EvalMaterial(Ray.Direction, LightSample.Direction, Payload, Bounce == 0);
 
 						// Record the contribution
-						float3 LightContrib = PathThroughput * LightSample.RadianceOverPdf * MaterialEval.Weight * MaterialEval.Pdf;
-						float3 MISWeightedDirection = LightSample.Direction;
+						float3 LightContrib = PathThroughput * LightSample.RadianceOverPdf * MaterialEval.Weight * MaterialEval.Pdf;						
+						float3 BentNormalVector = LightSample.Direction / LightSample.Pdf / PI * Visibility;
 						if (MISMode == 2)
 						{
 							LightContrib *= MISWeightRobust(LightSample.Pdf, MaterialEval.Pdf);
-							MISWeightedDirection *= MISWeightRobust(LightSample.Pdf, MaterialEval.Pdf);
+							BentNormalVector *= MISWeightRobust(LightSample.Pdf, MaterialEval.Pdf);
 						}
 
 						// Record the contribution
@@ -626,6 +630,11 @@ void PathTracingKernel(
 								DirectLightingSH.B.V1 = SHBasisFunction3Float(LightSample.Direction).V1 * LightContrib.b;
 								DirectLightingSH.B.V2 = SHBasisFunction3Float(LightSample.Direction).V2 * LightContrib.b;
 							#endif
+							}
+
+							if (IsStationary(LightId) && IsEnvironmentLight(LightId) && CastsShadow(LightId))
+							{
+								SkyLightBentNormal += BentNormalVector;
 							}
 						}
 					}
@@ -728,7 +737,7 @@ void PathTracingKernel(
 				}
 
 				float3 LightContrib = PathThroughput * LightResult.Radiance;
-				float3 MISWeightedDirection = MaterialSample.Direction;
+				float3 BentNormalVector = PathThroughput * MaterialSample.Direction / PI;
 				
 				if (bUseMIS)
 				{
@@ -742,7 +751,7 @@ void PathTracingKernel(
 					LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf * LightPickPdf);
 
 					// Separate direct lighting (bounce 0) for GPU Lightmass
-					MISWeightedDirection *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf * LightPickPdf);
+					BentNormalVector *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf * LightPickPdf);
 				}
 
 				if (any(LightContrib > 0))
@@ -755,7 +764,7 @@ void PathTracingKernel(
 						LightContrib *= Visibility;
 						
 						// Separate direct lighting (bounce 0) for GPU Lightmass
-						MISWeightedDirection *= Visibility;
+						BentNormalVector *= Visibility;
 					}
 
 					if (Bounce > 0)
@@ -782,6 +791,11 @@ void PathTracingKernel(
 							DirectLightingSH.B.V1 = SHBasisFunction3Float(MaterialSample.Direction).V1 * LightContrib.b;
 							DirectLightingSH.B.V2 = SHBasisFunction3Float(MaterialSample.Direction).V2 * LightContrib.b;
 						#endif
+						}
+
+						if (IsStationary(LightId) && IsEnvironmentLight(LightId) && CastsShadow(LightId))
+						{
+							SkyLightBentNormal += BentNormalVector;
 						}
 					}
 					
@@ -860,7 +874,7 @@ void LightmapPathTracingMainRG()
 	{
 		IrradianceAndSampleCount[TexelIndexInPool]= float4(0, 0, 0, 0);
 		SHDirectionality[TexelIndexInPool] = float4(0, 0, 0, 0);
-		SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].x = 0;
+		SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool] = float4(0, 0, 0, 0);
 	}
 	
 	if (NumTotalSamples <= 0 || (NumTotalSamples > 0 && BatchedTiles[TileIndex].RenderPassIndex < NumTotalSamples - 1))
@@ -888,6 +902,7 @@ void LightmapPathTracingMainRG()
 				FThreeBandSHVectorRGBFloat DirectLightingSH = (FThreeBandSHVectorRGBFloat)0;
 			#endif
 				float LuminanceForFirstBounceRayGuiding = 0;
+				float3 SkyLightBentNormal = 0;
 				
 				if (bIsValidSample)
 				{
@@ -903,6 +918,7 @@ void LightmapPathTracingMainRG()
 						DirectLightingIrradiance,
 						DirectLightingSH,
 						LuminanceForFirstBounceRayGuiding,
+						SkyLightBentNormal,
 						PrimaryRandSample
 					);
 				}
@@ -957,6 +973,8 @@ void LightmapPathTracingMainRG()
 						SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].x += DirectLightingSH.Correction;
 					}
 					#endif
+
+					SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].yzw += SkyLightBentNormal;
 				}
 			}
 		}
@@ -1211,6 +1229,7 @@ void VolumetricLightmapPathTracingMainRG()
 	FThreeBandSHVectorRGBFloat DirectLightingSH = (FThreeBandSHVectorRGBFloat)0;
 #endif
 	float LuminanceForFirstBounceRayGuiding = 0;
+	float3 SkyLightBentNormal = 0;
 	float4 PrimaryRandSample;
 
 	if (bIsValidSample)
@@ -1231,6 +1250,7 @@ void VolumetricLightmapPathTracingMainRG()
 			DirectLightingIrradiance,
 			DirectLightingSH,
 			LuminanceForFirstBounceRayGuiding,
+			SkyLightBentNormal,
 			PrimaryRandSample);
 	}
 	

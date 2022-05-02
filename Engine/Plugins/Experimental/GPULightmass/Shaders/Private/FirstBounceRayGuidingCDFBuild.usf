@@ -34,7 +34,7 @@ void FirstBounceRayGuidingCDFBuildCS(
 			for(int dy = -FilterKernelSize; dy <= FilterKernelSize; dy++)
 			{
 				int2 FinalPosition = ClusterPosition * DIRECTIONAL_BINS_ONE_DIM + clamp(ThreadId.xy + int2(dx, dy), int2(0, 0), int2(DIRECTIONAL_BINS_ONE_DIM - 1, DIRECTIONAL_BINS_ONE_DIM - 1));
-				Value += asfloat(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition]) * ((dx != 0 || dy != 0) ? 0.125 : 1);
+				Value += max(asfloat(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition]) * ((dx != 0 || dy != 0) ? 0.125 : 1), 0.00001f);
 			}
 		}
 

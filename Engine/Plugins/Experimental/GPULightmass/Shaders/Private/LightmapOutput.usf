@@ -96,5 +96,14 @@ void SelectiveLightmapOutputCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	}
 	else if (DIM_OUTPUT_LAYER == 3)
 	{
+		if (SampleCount > 0)
+		{
+			OutputTileAtlas[LaunchIndex + BatchedTiles[TileIndex].OutputLayer3Position].rgb = saturate(normalize(SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].yzw / SampleCount) * 0.5 + 0.5);
+			OutputTileAtlas[LaunchIndex + BatchedTiles[TileIndex].OutputLayer3Position].a = saturate(sqrt(length(SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].yzw / SampleCount)));
+		}
+		else
+		{
+			OutputTileAtlas[LaunchIndex + BatchedTiles[TileIndex].OutputLayer3Position] = float4(0, 0, 0, 0);
+		}
 	}
 }

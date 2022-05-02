@@ -125,6 +125,7 @@ void FLightmap::CreateGameThreadResources()
 		TextureUObject->SetLayerForType(ELightMapVirtualTextureType::LightmapLayer0, 0);
 		TextureUObject->SetLayerForType(ELightMapVirtualTextureType::LightmapLayer1, 1);
 		TextureUObject->SetLayerForType(ELightMapVirtualTextureType::ShadowMask, 2);
+		TextureUObject->SetLayerForType(ELightMapVirtualTextureType::SkyOcclusion, 3);
 	}
 
 	TextureUObjectGuard = MakeUnique<FGCObjectScopeGuard>(TextureUObject);

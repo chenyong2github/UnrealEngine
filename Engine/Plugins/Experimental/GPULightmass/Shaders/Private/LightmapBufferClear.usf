@@ -25,6 +25,7 @@ uint StagingPoolSizeX;
 RWTexture2D<float4> StagingHQLayer0;
 RWTexture2D<float4> StagingHQLayer1;
 RWTexture2D<float4> StagingShadowMask;
+RWTexture2D<float4> StagingSkyOcclusion;
 
 [numthreads(8, 8, 1)]
 void CopyConvergedLightmapTilesCS(uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -68,6 +69,20 @@ void CopyConvergedLightmapTilesCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		uint4 ValidityMask = saturate(SampleCountValue) * 2 - 1;
 
 		StagingShadowMask[TexelIndexInStagingPool] = sqrt((float4)ShadowValue / max(uint4(1, 1, 1, 1), SampleCountValue)) * ValidityMask;
+	}
+
+	{
+		uint SampleCount = asuint(IrradianceAndSampleCount[TexelIndexInPool].w);
+		
+		if (SampleCount > 0)
+		{
+			StagingSkyOcclusion[TexelIndexInStagingPool].rgb = saturate(normalize(SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].yzw / SampleCount) * 0.5 + 0.5);
+			StagingSkyOcclusion[TexelIndexInStagingPool].a = saturate(sqrt(length(SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].yzw / SampleCount)));
+		}
+		else
+		{
+			StagingSkyOcclusion[TexelIndexInStagingPool] = float4(0, 0, 0, 0);
+		}
 	}
 }
 

@@ -599,7 +599,7 @@ void FScene::AddLight(USkyLightComponent* SkyLight)
 	LightScene.SkyLight = MoveTemp(NewSkyLight);
 
 	FSkyLightRenderState NewSkyLightRenderState;
-	NewSkyLightRenderState.bStationary = SkyLight->CastShadows && SkyLight->CastStaticShadows && !SkyLight->HasStaticLighting();
+	NewSkyLightRenderState.bStationary = SkyLight->Mobility == EComponentMobility::Stationary;
 	NewSkyLightRenderState.bCastShadow = SkyLight->CastShadows && SkyLight->CastStaticShadows;
 	NewSkyLightRenderState.Color = SkyLight->GetLightColor() * SkyLight->Intensity;
 	NewSkyLightRenderState.TextureDimensions = FIntPoint(SkyLight->GetProcessedSkyTexture()->GetSizeX(), SkyLight->GetProcessedSkyTexture()->GetSizeY());

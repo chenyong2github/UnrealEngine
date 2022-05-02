@@ -26,14 +26,16 @@ FLightmapPreviewVirtualTexture::FLightmapPreviewVirtualTexture(FLightmapRenderSt
 		ProducerDesc.BlockWidthInTiles = SizeInTiles.X;
 		ProducerDesc.BlockHeightInTiles = SizeInTiles.Y;
 		ProducerDesc.DepthInTiles = 1;
-		ProducerDesc.NumTextureLayers = 3; // LightMapVirtualTexture->TypeToLayer.Num();
-		ProducerDesc.NumPhysicalGroups = 3;
+		ProducerDesc.NumTextureLayers = 4; // LightMapVirtualTexture->TypeToLayer.Num();
+		ProducerDesc.NumPhysicalGroups = 4;
 		ProducerDesc.LayerFormat[0] = EPixelFormat::PF_A32B32G32R32F;
 		ProducerDesc.LayerFormat[1] = EPixelFormat::PF_A32B32G32R32F;
 		ProducerDesc.LayerFormat[2] = EPixelFormat::PF_A32B32G32R32F;
+		ProducerDesc.LayerFormat[3] = EPixelFormat::PF_A32B32G32R32F;
 		ProducerDesc.PhysicalGroupIndex[0] = 0;
 		ProducerDesc.PhysicalGroupIndex[1] = 1;
 		ProducerDesc.PhysicalGroupIndex[2] = 2;
+		ProducerDesc.PhysicalGroupIndex[3] = 3;
 		ProducerDesc.MaxLevel = FMath::Min((int32)FMath::CeilLogTwo((uint32)FMath::Min(SizeInTiles.X, SizeInTiles.Y)), GPreviewLightmapMipmapMaxLevel);
 
 		ProducerHandle = GetRendererModule().RegisterVirtualTextureProducer(ProducerDesc, this);

@@ -7,6 +7,7 @@ struct FGPUTileDescription
 	int2 OutputLayer0Position;
 	int2 OutputLayer1Position;
 	int2 OutputLayer2Position;
+	int2 OutputLayer3Position;
 	int FrameIndex;
 	int RenderPassIndex;
 };
