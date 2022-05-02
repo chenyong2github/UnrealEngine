@@ -11,7 +11,7 @@
 #include "DatasmithSceneFactory.h"
 #include "Utility/DatasmithImporterUtils.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"

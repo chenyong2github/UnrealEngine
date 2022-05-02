@@ -8,10 +8,10 @@
 #include "USDStageImportOptions.h"
 
 #include "AssetImportTask.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetSelection.h"
 #include "Editor.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "JsonObjectConverter.h"
 #include "Misc/ScopedSlowTask.h"
 #include "ObjectTools.h"

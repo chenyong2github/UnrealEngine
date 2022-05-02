@@ -9,7 +9,7 @@
 #include "NiagaraSpriteRendererProperties.h"
 #include "NiagaraNodeOutput.h"
 #include "NiagaraEditorSettings.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraConstants.h"
 #include "NiagaraNodeAssignment.h"

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "PreviewScene.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "SpriteEditor/SpriteEditor.h"
 #include "SpriteEditor/SpriteEditorSelections.h"
 #include "SEditorViewport.h"

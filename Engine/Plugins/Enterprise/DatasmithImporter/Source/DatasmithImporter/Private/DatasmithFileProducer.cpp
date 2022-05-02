@@ -22,7 +22,7 @@
 
 #include "Async/ParallelFor.h"
 #include "Algo/Count.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "Containers/UnrealString.h"
 #include "DesktopPlatformModule.h"

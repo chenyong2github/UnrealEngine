@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "Engine/Blueprint.h"
 #include "Engine/DeveloperSettings.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ActorPaletteSettings.generated.h"
 
 // Information about a single recent/favorite map

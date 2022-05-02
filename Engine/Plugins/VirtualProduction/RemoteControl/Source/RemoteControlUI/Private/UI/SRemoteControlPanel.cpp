@@ -3,7 +3,7 @@
 #include "SRemoteControlPanel.h"
 
 #include "ActorEditorUtils.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
 #include "Commands/RemoteControlCommands.h"

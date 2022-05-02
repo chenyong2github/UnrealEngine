@@ -2,7 +2,7 @@
 
 #include "SFilterableActorPicker.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"

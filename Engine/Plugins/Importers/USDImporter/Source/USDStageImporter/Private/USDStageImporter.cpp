@@ -21,7 +21,7 @@
 
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Components/SkeletalMeshComponent.h"

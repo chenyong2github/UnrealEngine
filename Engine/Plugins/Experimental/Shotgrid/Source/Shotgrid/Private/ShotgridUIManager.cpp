@@ -10,7 +10,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ContentBrowserModule.h"
 #include "LevelEditor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

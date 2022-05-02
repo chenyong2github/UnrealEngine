@@ -30,7 +30,7 @@
 #include "BlueprintActionMenuItem.h"
 #include "EdGraphSchema_K2.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "LevelSequenceAnimSequenceLink.h"
 #include "AnimSequenceLevelSequenceLink.h"
 

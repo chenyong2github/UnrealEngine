@@ -15,7 +15,7 @@
 #include "WorkspaceMenuStructure.h"
 #include "Features/IModularFeatures.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EmptySourceFilter.h"
 #include "SourceFilterCollection.h"
 #include "TraceSourceFiltering.h"

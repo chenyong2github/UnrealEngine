@@ -324,7 +324,7 @@ void UNiagaraSignificanceHandlerAge::CalculateSignificance(TConstArrayView<UNiag
 
 #if NIAGARA_PERF_BASELINES
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 //Invalidate this to regenerate perf baseline info.
 //For example if there are some significant code optimizations.

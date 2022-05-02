@@ -31,7 +31,7 @@
 #include "Utility/DatasmithImporterImpl.h"
 
 #include "Algo/Count.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"

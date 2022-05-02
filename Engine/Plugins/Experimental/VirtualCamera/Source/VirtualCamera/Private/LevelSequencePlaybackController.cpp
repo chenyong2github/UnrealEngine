@@ -2,8 +2,8 @@
 
 #include "LevelSequencePlaybackController.h"
 
-#include "AssetRegistryModule.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "HAL/FileManager.h"
 #include "LevelSequence.h"
 #include "Modules/ModuleManager.h"

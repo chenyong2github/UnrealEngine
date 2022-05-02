@@ -7,7 +7,7 @@
 #include "ContentBrowserAssetDataPayload.h"
 #include "ContentBrowserDataSource.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/PathTree.h"
 #include "ContentBrowserItemData.h"
 #include "ContentBrowserAliasDataSource.generated.h"

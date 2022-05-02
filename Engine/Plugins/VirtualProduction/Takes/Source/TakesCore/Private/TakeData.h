@@ -11,7 +11,7 @@
 #include "MovieSceneSequence.h"
 #include "Sections/MovieSceneSubSection.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 class FTakesCoreTakeData : public IMovieSceneToolsTakeData
 {

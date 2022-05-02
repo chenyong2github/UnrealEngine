@@ -2,7 +2,7 @@
 
 #include "ConversationRegistry.h"
 #include "CommonConversationRuntimeLogging.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/AssetManager.h"
 #include "Stats/StatsMisc.h"
 #include "ConversationNode.h"

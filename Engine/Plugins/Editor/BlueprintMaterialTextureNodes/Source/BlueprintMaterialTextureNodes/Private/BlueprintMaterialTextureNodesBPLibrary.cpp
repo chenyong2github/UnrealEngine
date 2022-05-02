@@ -8,7 +8,7 @@
 #include "RHI.h"
 
 //includes for asset creation
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "IContentBrowserSingleton.h"

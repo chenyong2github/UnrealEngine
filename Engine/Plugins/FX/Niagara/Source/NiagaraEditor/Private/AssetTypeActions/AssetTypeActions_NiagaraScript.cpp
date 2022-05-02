@@ -4,7 +4,7 @@
 #include "NiagaraScript.h"
 #include "NiagaraScriptToolkit.h"
 #include "NiagaraEditorStyle.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "NiagaraEditorUtilities.h"
 #include "ToolMenus.h"
 

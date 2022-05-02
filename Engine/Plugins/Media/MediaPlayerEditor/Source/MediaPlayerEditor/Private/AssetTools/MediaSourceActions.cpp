@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTools/MediaSourceActions.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "MediaSource.h"
 
 

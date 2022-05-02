@@ -4,7 +4,7 @@
 #include "DatasmithImportFactory.h"
 #include "Utility/DatasmithImporterUtils.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "BusyCursor.h"
 #include "ContentBrowserModule.h"
 #include "DesktopPlatformModule.h"

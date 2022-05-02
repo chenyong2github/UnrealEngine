@@ -20,8 +20,8 @@
 #include "Editor.h"
 #include "UObject/StructOnScope.h"
 #include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
-#include "ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
 #include "EdGraph/EdGraphPin.h"
 #include "NiagaraConstants.h"
 

@@ -10,7 +10,7 @@
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "Factories/TextureFactory.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "FileHelpers.h"
 #include "Engine/Texture2D.h"

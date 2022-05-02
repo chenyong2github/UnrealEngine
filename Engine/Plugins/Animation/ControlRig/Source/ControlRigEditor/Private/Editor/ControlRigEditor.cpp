@@ -96,7 +96,7 @@
 #include "Kismet2/WatchedPin.h"
 #include "ToolMenus.h"
 #include "Editor/EditorStyle/Private/SlateEditorStyle.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 

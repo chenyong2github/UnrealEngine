@@ -11,7 +11,7 @@
 
 #include "AbcImportUtilities.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Materials/MaterialInterface.h"
 #include "Logging/TokenizedMessage.h"
 #include "AbcImportLogger.h"

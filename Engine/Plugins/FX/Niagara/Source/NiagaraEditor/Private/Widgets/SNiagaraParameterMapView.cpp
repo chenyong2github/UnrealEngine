@@ -2,7 +2,7 @@
 
 #include "Widgets/SNiagaraParameterMapView.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "DetailLayoutBuilder.h"
 #include "EdGraphSchema_Niagara.h"
 #include "IAssetTools.h"

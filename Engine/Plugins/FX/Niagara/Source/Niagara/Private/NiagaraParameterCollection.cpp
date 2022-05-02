@@ -8,7 +8,7 @@
 #if WITH_EDITORONLY_DATA
 	#include "IAssetTools.h"
 #endif
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 //////////////////////////////////////////////////////////////////////////
 

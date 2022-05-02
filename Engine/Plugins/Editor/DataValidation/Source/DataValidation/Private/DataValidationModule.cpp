@@ -10,7 +10,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "ToolMenus.h"
 #include "EditorStyleSet.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
 #include "DataValidationCommandlet.h"
 #include "LevelEditor.h"

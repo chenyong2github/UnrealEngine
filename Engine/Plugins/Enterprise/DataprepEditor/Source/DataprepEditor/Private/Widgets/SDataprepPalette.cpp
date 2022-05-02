@@ -16,7 +16,7 @@
 
 // Engine includes
 #include "AssetDiscoveryIndicator.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Brushes/SlateColorBrush.h"
 #include "EditorFontGlyphs.h"
 #include "EdGraph/EdGraphSchema.h"

@@ -4,7 +4,7 @@
 #include "LidarPointCloudActor.h"
 #include "LidarPointCloudComponent.h"
 #include "LidarPointCloud.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #define LOCTEXT_NAMESPACE "ActorFactory"
 

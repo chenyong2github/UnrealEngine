@@ -6,7 +6,7 @@
 #include "AbcFile.h"
 #include "AbcImporter.h"
 #include "AbcPolyMesh.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Containers/ArrayView.h"
 #include "Materials/Material.h"
 

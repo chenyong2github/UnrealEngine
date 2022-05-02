@@ -62,7 +62,7 @@
 #include "Interfaces/IMainFrameModule.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "UnrealEd/Private/GeomFitUtils.h"
 #include "SpeedTreeWind.h"

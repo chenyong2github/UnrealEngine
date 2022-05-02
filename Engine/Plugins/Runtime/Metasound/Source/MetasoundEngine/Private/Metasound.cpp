@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Metasound.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "CoreMinimal.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAssetBase.h"

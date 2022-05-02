@@ -11,7 +11,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "PaperStyle.h"
 #include "FlipbookEditor/FlipbookEditorCommands.h"

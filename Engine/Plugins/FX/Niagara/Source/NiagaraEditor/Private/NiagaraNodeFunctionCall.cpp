@@ -3,7 +3,7 @@
 #include "NiagaraNodeFunctionCall.h"
 
 #include "Editor.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraComponent.h"
 #include "NiagaraConstants.h"

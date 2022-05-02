@@ -10,7 +10,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"

@@ -15,7 +15,7 @@
 #include "Utility/DatasmithMeshHelper.h"
 
 #include "AnalyticsEventAttribute.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/Paths.h"
 

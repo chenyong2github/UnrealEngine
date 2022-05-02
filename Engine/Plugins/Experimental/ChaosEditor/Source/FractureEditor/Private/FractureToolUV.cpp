@@ -10,7 +10,7 @@
 
 #include "AssetUtils/Texture2DBuilder.h"
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorAssetLibrary.h"
 // for content-browser things
 #include "ContentBrowserModule.h"

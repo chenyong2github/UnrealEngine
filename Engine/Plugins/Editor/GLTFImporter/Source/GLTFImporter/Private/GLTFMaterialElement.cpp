@@ -2,7 +2,7 @@
 
 #include "GLTFMaterialElement.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "MaterialEditingLibrary.h"
 #include "MaterialEditorUtilities.h"
 #include "Materials/Material.h"

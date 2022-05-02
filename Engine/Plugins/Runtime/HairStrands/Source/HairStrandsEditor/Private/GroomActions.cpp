@@ -22,7 +22,7 @@
 #include "HairStrandsTranslator.h"
 #include "ToolMenuSection.h"
 #include "Misc/ScopedSlowTask.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "GroomBindingBuilder.h"
 #include "GroomTextureBuilder.h"
 #include "GroomBindingAsset.h"

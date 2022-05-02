@@ -5,7 +5,7 @@
 #include "LevelSequence.h"
 #include "VirtualCameraClipsMetaData.h"
 #include "Components/SceneCaptureComponent2D.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "VirtualCameraUserSettings.h"
 #include "GameFramework/PlayerController.h"
 #if WITH_EDITOR

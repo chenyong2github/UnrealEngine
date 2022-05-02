@@ -26,7 +26,7 @@
 #include "GameFramework/Character.h"
 
 #include "IAssetTools.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetToolsModule.h"
 #include "Factories/Factory.h"
 #include "UObject/UObjectIterator.h"

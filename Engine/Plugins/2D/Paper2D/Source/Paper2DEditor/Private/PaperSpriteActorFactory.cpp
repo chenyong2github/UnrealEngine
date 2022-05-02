@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperSpriteActorFactory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PaperSpriteActor.h"
 #include "PaperSprite.h"

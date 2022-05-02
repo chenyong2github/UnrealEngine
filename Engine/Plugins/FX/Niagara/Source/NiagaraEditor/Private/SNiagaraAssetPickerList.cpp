@@ -4,8 +4,8 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraEditorStyle.h"
 
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
 #include "AssetThumbnail.h"
 

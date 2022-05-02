@@ -11,7 +11,7 @@
 #include "NiagaraSystemFactoryNew.h"
 
 #include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 UNiagaraEmitter* FNiagaraEditorTestUtilities::CreateEmptyTestEmitter()
 {

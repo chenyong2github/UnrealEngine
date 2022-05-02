@@ -8,7 +8,7 @@
 #include "UObject/GCObject.h"
 #include "LevelSequence.h"
 #include "Factories/Factory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "Layout/Margin.h"
@@ -28,7 +28,7 @@
 #include "Misc/LevelSequenceEditorSettings.h"
 #include "Widgets/Layout/SScrollBox.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IDetailsView.h"
 #include "MovieSceneToolsProjectSettings.h"
 #include "PropertyEditorModule.h"

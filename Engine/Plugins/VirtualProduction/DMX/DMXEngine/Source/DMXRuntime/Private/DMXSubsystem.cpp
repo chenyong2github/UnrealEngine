@@ -18,7 +18,7 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EngineAnalytics.h"
 #include "EngineUtils.h"
 #include "Async/Async.h"
@@ -28,7 +28,7 @@
 #include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #endif // WITH_EDITOR
 
 DECLARE_LOG_CATEGORY_CLASS(DMXSubsystemLog, Log, All);

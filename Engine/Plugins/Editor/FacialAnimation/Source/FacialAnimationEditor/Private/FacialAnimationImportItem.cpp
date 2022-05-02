@@ -10,7 +10,7 @@
 #include "DesktopPlatformModule.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Utils.h"
 #include "Logging/MessageLog.h"
 

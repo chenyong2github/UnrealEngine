@@ -7,7 +7,7 @@
 #include "DatasmithStaticMeshImporter.h" // Call to BuildStaticMesh
 #include "DatasmithUtils.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/StaticMesh.h"
 #include "IStaticMeshEditor.h"
 #include "StaticMeshAttributes.h"

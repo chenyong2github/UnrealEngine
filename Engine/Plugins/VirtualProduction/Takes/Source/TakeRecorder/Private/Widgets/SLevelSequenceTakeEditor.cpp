@@ -22,8 +22,8 @@
 #include "ClassIconFinder.h"
 
 // AssetRegistry includes
-#include "AssetRegistryModule.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
 
 // ContentBrowser includes
 #include "IContentBrowserSingleton.h"

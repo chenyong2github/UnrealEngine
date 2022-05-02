@@ -25,7 +25,7 @@
 #include "EditorStyleSet.h"
 #include "Engine/Blueprint.h"
 #include "Factories/BlueprintFactory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/ObjectLibrary.h"
 #include "Widgets/Input/SComboButton.h"
 #include "GameplayTagContainer.h"
@@ -48,7 +48,7 @@
 #include "AssetToolsModule.h"
 #include "GameplayTagsEditorModule.h"
 #include "Editor/LevelEditor/Public/LevelEditor.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameplayTagsEditor/Private/SAddNewGameplayTagWidget.h"
 

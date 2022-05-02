@@ -6,7 +6,7 @@
 #include "CascadeToNiagaraConverterModule.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "NiagaraEditor/Public/ViewModels/Stack/NiagaraStackGraphUtilities.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Particles/ParticleEmitter.h"
 #include "Particles/SubUVAnimation.h"
 #include "Particles/Acceleration/ParticleModuleAccelerationDragScaleOverLife.h"

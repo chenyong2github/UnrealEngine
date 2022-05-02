@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Styling/ISlateStyle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"

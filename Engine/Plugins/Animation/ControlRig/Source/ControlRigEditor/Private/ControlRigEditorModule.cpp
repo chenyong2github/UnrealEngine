@@ -38,7 +38,7 @@
 #include "ControlRigEditModeSettings.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ContentBrowserModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor/ControlRigEditor.h"
 #include "ControlRigBlueprintActions.h"
 #include "ControlRigBlueprintGeneratedClass.h"

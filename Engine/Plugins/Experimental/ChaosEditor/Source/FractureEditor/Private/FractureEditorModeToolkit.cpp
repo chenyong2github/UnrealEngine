@@ -3,7 +3,7 @@
 #include "FractureEditorModeToolkit.h"
 #include "FractureEditorModeToolkit.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorModeManager.h"
 
 #include "Engine/Selection.h"

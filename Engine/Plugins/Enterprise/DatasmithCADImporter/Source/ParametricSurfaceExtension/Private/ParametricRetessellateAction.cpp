@@ -12,7 +12,7 @@
 #include "MeshDescriptionHelper.h"
 
 #include "Algo/AnyOf.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Async/ParallelFor.h"
 #include "Engine/StaticMesh.h"
 #include "HAL/PlatformFileManager.h"

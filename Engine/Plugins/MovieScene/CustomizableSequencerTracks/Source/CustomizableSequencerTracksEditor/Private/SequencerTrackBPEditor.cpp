@@ -7,8 +7,8 @@
 #include "SequencerUtilities.h"
 #include "CustomizableSequencerTracksStyle.h"
 
-#include "AssetRegistryModule.h"
-#include "AssetDataTagMap.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/AssetDataTagMap.h"
 #include "UObject/UObjectIterator.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Engine/Blueprint.h"

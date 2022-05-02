@@ -5,8 +5,8 @@
 #include "CoreMinimal.h"
 #include "MovieScene.h"
 #include "Modules/ModuleManager.h"
-#include "IAssetRegistry.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/UObjectGlobals.h"
 #include "TakesCoreLog.h"
 

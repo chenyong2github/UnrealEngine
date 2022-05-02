@@ -7,7 +7,7 @@
 #include "Tracks/MovieSceneSkeletalAnimationTrack.h"
 #include "Sections/MovieSceneSkeletalAnimationSection.h"
 #include "MovieScene.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "SequenceRecorderSettings.h"
 #include "SequenceRecorderUtils.h"
 #include "Components/SkeletalMeshComponent.h"

@@ -10,7 +10,7 @@
 #include "IIntroTutorials.h"
 #include "EditorTutorial.h"
 #include "EditorTutorialStyle.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #define LOCTEXT_NAMESPACE "IntroTutorials"
 

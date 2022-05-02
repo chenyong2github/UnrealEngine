@@ -24,7 +24,7 @@
 #include "Units/Hierarchy/RigUnit_SetBoneTransform.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Misc/CoreDelegates.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "RigVMPythonUtils.h"
 #include "RigVMTypeUtils.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"

@@ -2,8 +2,8 @@
 
 #include "AssetSearchManager.h"
 
-#include "IAssetRegistry.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetSearchDatabase.h"
 #include "Async/Async.h"
 #include "DerivedDataCacheInterface.h"

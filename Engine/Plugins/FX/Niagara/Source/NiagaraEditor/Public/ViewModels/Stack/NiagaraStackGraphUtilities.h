@@ -6,7 +6,7 @@
 #include "NiagaraCommon.h"
 #include "ViewModels/Stack/NiagaraParameterHandle.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "NiagaraStackEditorData.h"
 
 class UEdGraph;

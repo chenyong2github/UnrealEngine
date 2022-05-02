@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TileMapActorFactory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PaperTileMapActor.h"
 #include "PaperTileMap.h"
 #include "PaperImporterSettings.h"

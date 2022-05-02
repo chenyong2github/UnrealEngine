@@ -2,9 +2,9 @@
 
 #include "DataValidationCommandlet.h"
 #include "DataValidationModule.h"
-#include "IAssetRegistry.h"
-#include "AssetRegistryHelpers.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryHelpers.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
 #include "EditorValidatorSubsystem.h"
 

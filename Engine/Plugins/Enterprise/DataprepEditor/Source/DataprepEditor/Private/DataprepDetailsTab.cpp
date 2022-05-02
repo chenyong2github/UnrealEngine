@@ -10,7 +10,7 @@
 #include "DataprepEditorStyle.h"
 #include "Widgets/SAssetsPreviewWidget.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "DesktopPlatformModule.h"
 #include "Dialogs/DlgPickPath.h"
 #include "EditorDirectories.h"

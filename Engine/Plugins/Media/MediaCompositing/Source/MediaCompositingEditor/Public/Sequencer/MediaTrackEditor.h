@@ -3,7 +3,7 @@
 #pragma once
 
 #include "AnimatedPropertyKey.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "MovieSceneTrackEditor.h"
 #include "Templates/SharedPointer.h"
 

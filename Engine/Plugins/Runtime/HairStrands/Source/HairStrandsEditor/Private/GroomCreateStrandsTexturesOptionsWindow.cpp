@@ -11,7 +11,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "IContentBrowserSingleton.h"

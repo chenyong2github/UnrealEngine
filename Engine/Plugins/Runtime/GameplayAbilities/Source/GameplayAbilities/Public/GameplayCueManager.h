@@ -10,7 +10,7 @@
 #include "GameplayEffectTypes.h"
 #include "GameplayPrediction.h"
 #include "Engine/World.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/StreamableManager.h"
 #include "GameplayCue_Types.h"
 #include "GameplayCueTranslator.h"

@@ -7,7 +7,7 @@
 #include "Toolkits/IToolkitHost.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Text/STextBlock.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ConvexVolume.h"
 #include "LidarPointCloudShared.h"
 

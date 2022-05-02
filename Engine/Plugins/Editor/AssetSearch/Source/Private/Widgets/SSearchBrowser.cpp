@@ -28,7 +28,7 @@
 #include "SearchModel.h"
 #include "EditorStyleSet.h"
 #include "IAssetSearchModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Input/SHyperlink.h"

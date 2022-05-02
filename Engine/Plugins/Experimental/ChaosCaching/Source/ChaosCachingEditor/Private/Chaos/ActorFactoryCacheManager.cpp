@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chaos/ActorFactoryCacheManager.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Chaos/CacheCollection.h"
 #include "Chaos/CacheManagerActor.h"
 #include "Chaos/ChaosCache.h"

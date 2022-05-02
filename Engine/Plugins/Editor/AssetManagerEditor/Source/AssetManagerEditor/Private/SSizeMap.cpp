@@ -4,7 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "Engine/AssetManager.h"
 #include "Editor.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetThumbnail.h"
 #include "ClassIconFinder.h"
 #include "Math/UnitConversion.h"

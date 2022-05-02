@@ -13,7 +13,7 @@
 #include "Widgets/Input/SButton.h"
 #include "EditorStyleSet.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "ClassViewerModule.h"

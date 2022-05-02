@@ -10,7 +10,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Editor.h"
 #include "Misc/ScopedSlowTask.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PackageTools.h"
 
 #define LOCTEXT_NAMESPACE "LidarPointCloud"

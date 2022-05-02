@@ -9,7 +9,7 @@
 #include "MDLImporter.h"
 
 #include "PackageTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Misc/Paths.h"
 

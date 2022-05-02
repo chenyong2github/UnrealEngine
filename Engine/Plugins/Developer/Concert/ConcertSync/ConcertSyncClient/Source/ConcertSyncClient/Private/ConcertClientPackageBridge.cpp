@@ -19,7 +19,7 @@
 #include "Misc/FeedbackContext.h"
 #include "HAL/FileManager.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
 
 #if WITH_EDITOR

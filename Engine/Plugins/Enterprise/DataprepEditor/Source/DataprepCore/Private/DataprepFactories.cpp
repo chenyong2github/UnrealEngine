@@ -8,7 +8,7 @@
 #include "DataprepCoreLogCategory.h"
 #include "Shared/DataprepCorePrivateUtils.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetTypeCategories.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"

@@ -7,8 +7,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "AssetData.h"
-#include "ARFilter.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/ARFilter.h"
 #include "IContentBrowserSingleton.h"
 #include "SourcesData.h"
 

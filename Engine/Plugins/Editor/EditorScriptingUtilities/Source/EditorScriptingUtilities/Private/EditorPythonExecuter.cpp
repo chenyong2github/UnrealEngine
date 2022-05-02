@@ -2,10 +2,10 @@
 
 #include "EditorPythonExecuter.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
 #include "HAL/FileManager.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Modules/ModuleManager.h"
 #include "Stats/Stats.h"
 #include "TickableEditorObject.h"

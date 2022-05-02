@@ -15,7 +15,7 @@
 #include "PaperJSONHelpers.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PackageTools.h"
 #include "ObjectTools.h"
 #include "PaperSpriteSheet.h"

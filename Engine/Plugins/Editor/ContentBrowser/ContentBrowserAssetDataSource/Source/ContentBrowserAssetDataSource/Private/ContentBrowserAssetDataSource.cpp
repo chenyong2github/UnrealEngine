@@ -4,7 +4,7 @@
 #include "ContentBrowserAssetDataCore.h"
 #include "ContentBrowserDataLegacyBridge.h"
 #include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "CollectionManagerModule.h"
 #include "ICollectionManager.h"

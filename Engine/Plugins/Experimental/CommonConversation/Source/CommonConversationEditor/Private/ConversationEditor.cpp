@@ -43,7 +43,7 @@
 #include "ConversationCompiler.h"
 
 #include "ClassViewerFilter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Widgets/Docking/SDockTab.h"

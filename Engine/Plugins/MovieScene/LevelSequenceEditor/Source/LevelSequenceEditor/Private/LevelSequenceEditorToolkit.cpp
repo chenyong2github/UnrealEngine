@@ -6,7 +6,7 @@
 #include "UObject/UnrealType.h"
 #include "GameFramework/Actor.h"
 #include "EngineGlobals.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Components/PrimitiveComponent.h"
 #include "Editor.h"
 #include "Animation/AnimInstance.h"

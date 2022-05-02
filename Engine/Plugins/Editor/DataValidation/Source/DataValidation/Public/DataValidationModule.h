@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 

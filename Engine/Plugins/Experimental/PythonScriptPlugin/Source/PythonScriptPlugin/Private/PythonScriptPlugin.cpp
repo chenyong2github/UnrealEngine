@@ -16,7 +16,7 @@
 #include "PyWrapperTypeRegistry.h"
 #include "EngineAnalytics.h"
 #include "Interfaces/IAnalyticsProvider.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/PackageReload.h"
 #include "Misc/App.h"

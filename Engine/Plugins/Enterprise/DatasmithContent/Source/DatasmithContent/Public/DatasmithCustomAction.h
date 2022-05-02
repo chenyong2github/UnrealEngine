@@ -3,7 +3,7 @@
 #pragma once
 
 #include "UObject/StrongObjectPtr.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "DatasmithCustomAction.generated.h"
 
 

@@ -19,7 +19,7 @@
 #include "EditorTutorialStyle.h"
 #include "TutorialStateSettings.h"
 #include "Misc/EngineBuildSettings.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EngineAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"

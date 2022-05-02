@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "EdGraph/EdGraphNode.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EdGraph_ReferenceViewer.h"
 #include "EdGraphNode_Reference.generated.h"
 

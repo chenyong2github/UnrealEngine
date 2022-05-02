@@ -2,7 +2,7 @@
 
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Containers/StaticBitArray.h"
 #include "EdGraphSchema_Niagara.h"
 #include "Editor.h"

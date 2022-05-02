@@ -9,7 +9,7 @@
 #include "UObject/UObjectIterator.h"
 
 // AssetRegistry includes
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 // Slate includes
 #include "Widgets/SBoxPanel.h"

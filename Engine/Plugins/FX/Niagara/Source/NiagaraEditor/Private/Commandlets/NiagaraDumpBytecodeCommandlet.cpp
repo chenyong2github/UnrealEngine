@@ -2,9 +2,9 @@
 
 #include "Commandlets/NiagaraDumpBytecodeCommandlet.h"
 
-#include "ARFilter.h"
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "CollectionManagerModule.h"
 #include "CollectionManagerTypes.h"
 #include "HAL/FileManager.h"

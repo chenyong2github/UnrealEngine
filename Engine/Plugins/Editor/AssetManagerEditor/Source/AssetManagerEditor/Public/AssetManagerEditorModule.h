@@ -7,7 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "UObject/PrimaryAssetId.h"
 #include "Interfaces/ITargetPlatform.h"
-#include "AssetRegistryState.h"
+#include "AssetRegistry/AssetRegistryState.h"
 #include "Engine/AssetManagerTypes.h"
 #include "CollectionManagerTypes.h"
 

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "DatasmithAssetImportData.h"
 
 #include "DatasmithAdditionalData.generated.h"

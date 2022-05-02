@@ -2,7 +2,7 @@
 
 #include "EdGraphSchema_Niagara.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EdGraphNode_Comment.h"
 #include "GraphEditorSettings.h"
 #include "INiagaraEditorTypeUtilities.h"

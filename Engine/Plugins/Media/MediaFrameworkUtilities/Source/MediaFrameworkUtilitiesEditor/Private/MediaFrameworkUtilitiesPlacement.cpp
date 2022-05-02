@@ -14,11 +14,11 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
 
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "IPlacementModeModule.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "LevelEditor.h"
 
 #include "MediaBundle.h"

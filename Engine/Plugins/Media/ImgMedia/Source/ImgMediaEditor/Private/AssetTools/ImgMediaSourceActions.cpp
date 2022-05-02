@@ -2,7 +2,7 @@
 
 #include "AssetTools/ImgMediaSourceActions.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ImgMediaSource.h"
 
 

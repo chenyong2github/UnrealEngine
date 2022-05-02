@@ -25,7 +25,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/Blueprint.h"
 #include "GameFramework/Actor.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Animation/AnimBlueprint.h"
 #include "GameFramework/SaveGame.h"
 #include "EngineUtils.h"
@@ -33,8 +33,8 @@
 #include "FileHelpers.h"
 
 #include "ObjectTools.h"
-#include "ARFilter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 
 #include "Kismet2/KismetEditorUtilities.h"

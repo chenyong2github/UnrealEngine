@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "RemoteControlPresetActorFactory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/Level.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "GameFramework/Actor.h"

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraStackGraphUtilitiesAdapterLibrary.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEmitter.h"

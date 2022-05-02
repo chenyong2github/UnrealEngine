@@ -29,7 +29,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Materials/Material.h"
 #include "Factories/Factory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EdGraph/EdGraph.h"
 #include "Sound/SoundWave.h"
 #include "GameFramework/WorldSettings.h"
@@ -61,8 +61,8 @@
 #include "Tests/AutomationEditorPromotionCommon.h"
 
 //Assets
-#include "ARFilter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetSelection.h"
 #include "PackageHelperFunctions.h"
 

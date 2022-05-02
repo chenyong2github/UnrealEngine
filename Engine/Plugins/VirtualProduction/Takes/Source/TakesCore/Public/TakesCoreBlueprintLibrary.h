@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "TakesCoreBlueprintLibrary.generated.h"
 
 

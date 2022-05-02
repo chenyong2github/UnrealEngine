@@ -5,7 +5,7 @@
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"

@@ -10,10 +10,10 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Blueprint.h"
 #include "Editor.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "ObjectEditorUtils.h"
 #include "Logging/MessageLog.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 

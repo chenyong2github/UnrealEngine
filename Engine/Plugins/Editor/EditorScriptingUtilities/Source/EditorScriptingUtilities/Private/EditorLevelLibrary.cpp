@@ -5,7 +5,7 @@
 #include "EditorScriptingUtils.h"
 
 #include "ActorEditorUtils.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/MeshComponent.h"
 #include "ContentBrowserModule.h"
 #include "Editor.h"
@@ -32,7 +32,7 @@
 #include "LevelEditor.h"
 #include "IAssetViewport.h"
 #include "SLevelViewport.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ActorFactories/ActorFactory.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
 #include "Subsystems/EditorActorSubsystem.h"

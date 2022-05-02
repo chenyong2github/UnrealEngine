@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorScripting, Log, All);
 

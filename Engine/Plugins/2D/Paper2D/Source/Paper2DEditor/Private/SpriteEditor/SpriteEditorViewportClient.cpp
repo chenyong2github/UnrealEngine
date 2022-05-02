@@ -12,10 +12,10 @@
 
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "CanvasTypes.h"
 #include "PaperEditorShared/SocketEditing.h"
 

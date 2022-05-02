@@ -6,7 +6,7 @@
 #include "SGraphPin.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Templates/SubclassOf.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class UDMXLibrary;
 class UDMXEntity;

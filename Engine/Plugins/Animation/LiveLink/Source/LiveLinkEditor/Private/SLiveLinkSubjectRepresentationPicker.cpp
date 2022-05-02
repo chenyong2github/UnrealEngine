@@ -2,7 +2,7 @@
 
 #include "SLiveLinkSubjectRepresentationPicker.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EditorStyleSet.h"
 #include "Features/IModularFeatures.h"
 #include "ILiveLinkClient.h"

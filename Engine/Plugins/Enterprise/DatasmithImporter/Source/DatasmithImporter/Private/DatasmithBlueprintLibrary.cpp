@@ -17,7 +17,7 @@
 #include "Utility/DatasmithMeshHelper.h"
 
 #include "Async/ParallelFor.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "DatasmithAssetImportData.h"
 #include "DirectLinkExtensionModule.h"
 #include "DirectLinkExternalSource.h"

@@ -5,7 +5,7 @@
 #include "Toolkits/IToolkit.h"
 #include "Engine/AssetManager.h"
 #include "Interfaces/IPluginManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetReferencingDomains.h"
 
 #define LOCTEXT_NAMESPACE "AssetReferencingPolicy"

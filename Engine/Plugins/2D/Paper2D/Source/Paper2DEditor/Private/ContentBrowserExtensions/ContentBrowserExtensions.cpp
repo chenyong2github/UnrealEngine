@@ -9,7 +9,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
 #include "Engine/Texture2D.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "PaperSprite.h"

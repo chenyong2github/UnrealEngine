@@ -9,7 +9,7 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 // for content-browser things
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"

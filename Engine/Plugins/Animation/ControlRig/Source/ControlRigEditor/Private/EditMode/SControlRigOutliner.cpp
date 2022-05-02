@@ -7,7 +7,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EditorStyleSet.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "EditorStyleSet.h"

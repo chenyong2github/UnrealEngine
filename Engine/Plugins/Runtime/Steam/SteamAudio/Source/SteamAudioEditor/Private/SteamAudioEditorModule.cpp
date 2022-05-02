@@ -39,7 +39,7 @@
 #include "SteamAudioEdMode.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorModeManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"

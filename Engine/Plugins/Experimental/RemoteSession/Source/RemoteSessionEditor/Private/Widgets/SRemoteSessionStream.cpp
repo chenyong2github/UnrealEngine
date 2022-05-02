@@ -16,8 +16,8 @@
 #include "Widgets/SVirtualWindow.h"
 #include "Widgets/SBoxPanel.h"
 
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "EditorSupportDelegates.h"

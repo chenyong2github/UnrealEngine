@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stack/SNiagaraStackFunctionInputValue.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorFontGlyphs.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "IStructureDetailsView.h"

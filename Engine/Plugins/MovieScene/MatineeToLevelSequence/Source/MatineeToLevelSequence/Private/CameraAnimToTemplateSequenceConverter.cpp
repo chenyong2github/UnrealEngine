@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CameraAnimToTemplateSequenceConverter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "Camera/CameraActor.h"
 #include "Camera/CameraAnim.h"
@@ -13,7 +13,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "HAL/Platform.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "IAssetTools.h"
 #include "LevelEditorViewport.h"
 #include "Matinee/InterpData.h"

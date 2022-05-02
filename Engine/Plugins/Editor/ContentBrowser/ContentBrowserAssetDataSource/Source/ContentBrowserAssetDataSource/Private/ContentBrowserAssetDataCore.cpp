@@ -3,7 +3,7 @@
 #include "ContentBrowserAssetDataCore.h"
 #include "ContentBrowserDataSource.h"
 #include "IAssetTools.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetViewUtils.h"
 #include "AssetPropertyTagCache.h"
 #include "ObjectTools.h"

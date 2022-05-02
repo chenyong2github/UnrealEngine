@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetValidator_AssetReferenceRestrictions.h"
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "UnrealEdGlobals.h"
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"

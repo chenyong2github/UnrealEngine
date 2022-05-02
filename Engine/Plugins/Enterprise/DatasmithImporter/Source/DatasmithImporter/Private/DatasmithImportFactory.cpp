@@ -19,7 +19,7 @@
 #include "Utility/DatasmithImporterUtils.h"
 #include "Utility/DatasmithImportFactoryHelper.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ComponentReregisterContext.h"
 #include "Engine/StaticMesh.h"
 #include "EngineAnalytics.h"

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Misc/FrameRate.h"
 #include "Misc/Timecode.h"

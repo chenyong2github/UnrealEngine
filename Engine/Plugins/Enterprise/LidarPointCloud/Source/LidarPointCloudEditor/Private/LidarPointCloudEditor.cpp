@@ -18,7 +18,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "LidarPointCloudEditor"

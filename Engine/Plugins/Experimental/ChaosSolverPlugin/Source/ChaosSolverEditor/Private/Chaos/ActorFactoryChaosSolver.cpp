@@ -6,7 +6,7 @@
 #include "Chaos/ChaosSolverFactory.h"
 #include "Misc/FileHelper.h"
 #include "ActorFactories/ActorFactory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 

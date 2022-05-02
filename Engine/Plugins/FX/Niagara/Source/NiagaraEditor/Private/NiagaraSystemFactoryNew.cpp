@@ -7,7 +7,7 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraGraph.h"
 #include "NiagaraEditorSettings.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ContentBrowserModule.h"
 #include "ImageUtils.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"

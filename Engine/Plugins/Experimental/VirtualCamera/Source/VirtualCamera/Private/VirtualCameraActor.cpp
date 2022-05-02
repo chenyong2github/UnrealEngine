@@ -29,8 +29,8 @@
 #include "VCamComponent.h"
 
 #if WITH_EDITOR
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/UserWidget.h"
 #include "Editor.h"
 #include "EditorSupportDelegates.h"

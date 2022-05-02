@@ -15,7 +15,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
 #include "EditorUndoClient.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "IAssetTools.h"
 #include "ContentBrowserDelegates.h"
 #include "SControlRigControlViews.h"

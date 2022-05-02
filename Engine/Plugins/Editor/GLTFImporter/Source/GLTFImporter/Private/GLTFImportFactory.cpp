@@ -12,7 +12,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetImportTask.h"
 #include "Editor/UnrealEd/Public/Editor.h"
 #include "Engine/StaticMesh.h"

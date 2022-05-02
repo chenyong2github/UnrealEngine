@@ -7,7 +7,7 @@
 #include "MovieScene.h"
 #include "Modules/ModuleManager.h"
 #include "MovieSceneSequence.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/Selection.h"
 #include "ActorFactories/ActorFactory.h"
 #include "Editor.h"

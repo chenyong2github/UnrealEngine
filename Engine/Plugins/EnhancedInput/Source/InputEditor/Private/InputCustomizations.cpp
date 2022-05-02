@@ -12,7 +12,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "EnhancedInputDeveloperSettings.h"
 #include "InputEditorModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "UObject/UObjectIterator.h"
 

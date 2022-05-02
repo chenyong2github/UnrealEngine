@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ContentBrowserDataMenuContexts.h"
 #include "Input/Reply.h"
 

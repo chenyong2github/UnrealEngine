@@ -16,7 +16,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "PropertyCustomizationHelpers.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetSelection.h"
 #include "Editor.h"
 #include "Widgets/Layout/SScrollBox.h"

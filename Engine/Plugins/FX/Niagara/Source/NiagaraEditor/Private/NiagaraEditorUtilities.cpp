@@ -2,7 +2,7 @@
 
 #include "NiagaraEditorUtilities.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"
 #include "EdGraphSchema_Niagara.h"

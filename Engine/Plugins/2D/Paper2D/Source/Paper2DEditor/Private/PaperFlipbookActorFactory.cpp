@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PaperFlipbookActorFactory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PaperFlipbookActor.h"
 #include "PaperFlipbook.h"
 #include "PaperFlipbookComponent.h"

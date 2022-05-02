@@ -4,7 +4,7 @@
 
 #include "Widgets/SItemSelector.h"
 #include "NiagaraActions.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Widgets/SNiagaraFilterBox.h"
 
 typedef SItemSelector<FText, FAssetData> SNiagaraAssetItemSelector;

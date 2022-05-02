@@ -5,7 +5,7 @@
 #include "GLTFAsset.h"
 #include "GLTFMeshFactory.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
 #include "StaticMeshAttributes.h"
 #include "PackageTools.h"

@@ -14,7 +14,7 @@
 #include "Parameterization/DataprepParameterization.h"
 
 #include "Algo/Sort.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "BlueprintNodeBinder.h"
 #include "BlueprintNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"

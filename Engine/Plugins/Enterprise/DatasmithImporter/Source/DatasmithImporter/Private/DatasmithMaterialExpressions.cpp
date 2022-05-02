@@ -13,7 +13,7 @@
 
 #include "Utility/DatasmithImporterUtils.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ComponentReregisterContext.h"
 #include "MaterialEditingLibrary.h"
 #include "MaterialEditorUtilities.h"

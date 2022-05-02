@@ -3,7 +3,7 @@
 #pragma once
 
 #include "INiagaraEditorTypeUtilities.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class UNiagaraDataInterfaceCurveBase;
 

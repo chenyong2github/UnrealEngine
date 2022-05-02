@@ -4,7 +4,7 @@
 #include "Stats/StatsMisc.h"
 #include "EngineDefines.h"
 #include "Engine/Blueprint.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/ObjectLibrary.h"
 #include "AbilitySystemLog.h"
 #include "UObject/UObjectIterator.h"

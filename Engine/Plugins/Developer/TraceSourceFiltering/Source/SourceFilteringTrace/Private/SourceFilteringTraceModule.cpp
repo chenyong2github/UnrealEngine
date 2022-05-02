@@ -12,7 +12,7 @@
 #include "Blueprint/BlueprintSupport.h"
 #include "HAL/IConsoleManager.h"
 #include "PropertyPathHelpers.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/EngineTypes.h"
 
 #include "DataSourceFilter.h"

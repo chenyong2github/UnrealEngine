@@ -9,7 +9,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "GraphEditor.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "HistoryManager.h"
 #include "CollectionManagerTypes.h"
 #include "AssetManagerEditorModule.h"

@@ -6,7 +6,7 @@
 #include "LevelVariantSetsActor.h"
 
 #include "ActorFactories/ActorFactory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #define LOCTEXT_NAMESPACE "ALevelVariantSetsActorFactory"
 

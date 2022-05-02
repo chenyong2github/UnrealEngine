@@ -9,7 +9,7 @@
 
 #include "AssetToolsModule.h"
 #include "PropertyEditorModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "UObject/UObjectIterator.h"
 #include "Customizations/K2Node_CastPatchToTypeCustomization.h"

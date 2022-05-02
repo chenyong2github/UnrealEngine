@@ -23,9 +23,9 @@
 #include "Misc/FileHelper.h"
 
 // AssetRegistry includes
-#include "AssetRegistryModule.h"
-#include "IAssetRegistry.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetData.h"
 
 // ContentBrowser includes
 #include "IContentBrowserSingleton.h"

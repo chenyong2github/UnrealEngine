@@ -11,7 +11,7 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "EditorReimportHandler.h"
@@ -33,7 +33,7 @@
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimSequence.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ObjectTools.h"
 #include "StaticMeshResources.h"
 

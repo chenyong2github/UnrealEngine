@@ -4,7 +4,7 @@
 #include "ModelingToolsEditorModeSettings.h"
 
 #include "Engine/World.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "FileHelpers.h"
 #include "Misc/Paths.h"

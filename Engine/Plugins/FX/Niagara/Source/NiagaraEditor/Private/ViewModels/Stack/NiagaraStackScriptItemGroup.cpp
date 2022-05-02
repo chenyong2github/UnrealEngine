@@ -2,7 +2,7 @@
 
 #include "ViewModels/Stack/NiagaraStackScriptItemGroup.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraConstants.h"

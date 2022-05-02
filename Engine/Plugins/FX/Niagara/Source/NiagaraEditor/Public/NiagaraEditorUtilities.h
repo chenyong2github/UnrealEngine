@@ -6,7 +6,7 @@
 #include "NiagaraCommon.h"
 #include "UObject/StructOnScope.h"
 #include "Misc/Attribute.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "NiagaraActions.h"
 #include "NiagaraGraph.h"
 #include "NiagaraEditorSettings.h"

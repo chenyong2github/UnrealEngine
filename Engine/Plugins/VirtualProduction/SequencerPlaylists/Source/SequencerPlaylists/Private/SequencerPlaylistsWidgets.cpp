@@ -8,8 +8,8 @@
 #include "SequencerPlaylistsModule.h"
 #include "SequencerPlaylistsStyle.h"
 
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"
 #include "EditorFontGlyphs.h"

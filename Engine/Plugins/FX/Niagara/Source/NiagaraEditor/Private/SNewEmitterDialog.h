@@ -6,7 +6,7 @@
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWindow.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ContentBrowserDelegates.h"
 
 class SNiagaraAssetPickerList;

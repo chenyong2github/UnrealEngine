@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/EngineSubsystem.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetTagsSubsystem.generated.h"
 
 UENUM(DisplayName="Collection Share Type", meta=(ScriptName="CollectionShareType"))

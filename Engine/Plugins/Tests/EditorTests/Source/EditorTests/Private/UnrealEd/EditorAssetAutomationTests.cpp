@@ -28,7 +28,7 @@
 #include "Materials/Material.h"
 #include "Sound/SoundClass.h"
 #include "Factories/Factory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/Font.h"
 #include "Engine/DataAsset.h"
 #include "Animation/AnimBlueprint.h"
@@ -92,7 +92,7 @@
 #include "Tests/AutomationTestSettings.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "ContentBrowserModule.h"
 

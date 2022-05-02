@@ -8,7 +8,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Styling/SlateIconFinder.h"
 #include "AssetThumbnail.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetToolsModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Editor/MaterialEditor/Public/IMaterialEditor.h"

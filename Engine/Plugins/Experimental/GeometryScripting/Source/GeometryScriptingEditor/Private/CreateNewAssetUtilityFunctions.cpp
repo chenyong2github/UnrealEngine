@@ -19,7 +19,7 @@
 #include "BSPOps.h"		// in UnrealEd
 #include "Editor/EditorEngine.h"		// for FActorLabelUtilities
 #include "Editor.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/Paths.h"
 
 #include "MeshDescriptionToDynamicMesh.h"

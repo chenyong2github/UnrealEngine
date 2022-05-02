@@ -12,7 +12,7 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Factories.h"
 #include "PackageTools.h"
 #include "ScopedTransaction.h"

@@ -3,8 +3,8 @@
 #include "LiveLinkClientPanelToolbar.h"
 
 #include "Algo/StableSort.h"
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"

@@ -8,7 +8,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"

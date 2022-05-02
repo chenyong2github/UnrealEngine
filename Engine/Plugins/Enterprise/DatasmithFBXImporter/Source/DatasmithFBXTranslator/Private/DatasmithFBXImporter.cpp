@@ -14,7 +14,7 @@
 #include "ObjectTemplates/DatasmithStaticMeshTemplate.h"
 #include "Utility/DatasmithMeshHelper.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
 #include "Engine/StaticMesh.h"
 #include "FbxImporter.h"

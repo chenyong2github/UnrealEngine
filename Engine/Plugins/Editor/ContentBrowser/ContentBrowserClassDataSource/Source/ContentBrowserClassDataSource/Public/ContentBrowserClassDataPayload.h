@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ContentBrowserItemData.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class FAssetThumbnail;
 

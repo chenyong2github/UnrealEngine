@@ -26,7 +26,7 @@
 #include "GroomEditorMode.h"
 #include "GroomPluginSettings.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "FileHelpers.h"
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"

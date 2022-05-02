@@ -23,7 +23,7 @@
 #include "MovieSceneToolsProjectSettings.h"
 
 // AssetRegistry includes
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 // TimeManagement includes
 #include "FrameNumberNumericInterface.h"

@@ -5,7 +5,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Internationalization/Text.h"
 #include "Logging/LogMacros.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Blueprint/BlueprintSupport.h"
 
 #include "TraceSourceFilteringProjectSettings.h"

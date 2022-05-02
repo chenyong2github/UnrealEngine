@@ -4,7 +4,7 @@
 #include "Settings/DisplayClusterConfiguratorSettings.h"
 #include "DisplayClusterConfiguratorStyle.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SButton.h"

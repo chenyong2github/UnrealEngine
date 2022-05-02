@@ -12,7 +12,7 @@
 #include "ObjectTemplates/DatasmithMaterialInstanceTemplate.h"
 #include "Utility/DatasmithImporterUtils.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"

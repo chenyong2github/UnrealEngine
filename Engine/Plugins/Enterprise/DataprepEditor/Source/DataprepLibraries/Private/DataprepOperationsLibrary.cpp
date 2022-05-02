@@ -11,7 +11,7 @@
 #include "ActorEditorUtils.h"
 #include "AssetDeleteModel.h"
 #include "AssetDeleteModel.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Camera/CameraActor.h"
 #include "Editor.h"
 #include "Engine/Light.h"

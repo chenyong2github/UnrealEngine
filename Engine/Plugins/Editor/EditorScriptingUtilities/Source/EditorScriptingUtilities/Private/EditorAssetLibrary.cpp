@@ -4,7 +4,7 @@
 
 #include "EditorScriptingUtils.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "Algo/Count.h"
 #include "Editor.h"

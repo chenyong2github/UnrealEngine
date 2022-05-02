@@ -3,7 +3,7 @@
 #include "PoseSearchCustomization.h"
 #include "PoseSearch/PoseSearch.h"
 #include "Engine/GameViewportClient.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EditorClassUtils.h"
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"

@@ -7,7 +7,7 @@
 
 #include "AssetToolsModule.h"
 #include "PropertyEditorModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "UObject/UObjectIterator.h"
 

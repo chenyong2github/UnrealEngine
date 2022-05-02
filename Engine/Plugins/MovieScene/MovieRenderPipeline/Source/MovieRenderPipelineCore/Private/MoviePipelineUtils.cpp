@@ -2,10 +2,10 @@
 
 #include "MoviePipelineUtils.h"
 #include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "MoviePipelineSetting.h"
-#include "ARFilter.h"
-#include "AssetData.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetData.h"
 #include "UObject/UObjectIterator.h"
 #include "HAL/IConsoleManager.h"
 #include "MoviePipelineAntiAliasingSetting.h"

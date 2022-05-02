@@ -17,7 +17,7 @@
 #include "FileHelpers.h"
 #include "Misc/FileHelper.h"
 #include "Misc/PackageName.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
 
 

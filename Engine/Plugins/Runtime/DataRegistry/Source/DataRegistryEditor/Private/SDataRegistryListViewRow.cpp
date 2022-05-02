@@ -3,7 +3,7 @@
 #include "SDataRegistryListViewRow.h"
 #include "DataRegistryEditorToolkit.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/MessageDialog.h"

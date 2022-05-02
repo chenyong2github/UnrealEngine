@@ -2,7 +2,7 @@
 
 #include "CinePrestreamingRecorderSetting.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "CinePrestreamingData.h"
 #include "EngineModule.h"
 #include "FileHelpers.h"

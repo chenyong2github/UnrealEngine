@@ -2,7 +2,7 @@
 
 #include "EditorValidator_Localization.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "Misc/Paths.h"

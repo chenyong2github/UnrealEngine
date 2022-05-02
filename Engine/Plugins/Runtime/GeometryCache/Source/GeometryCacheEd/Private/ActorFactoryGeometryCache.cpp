@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorFactoryGeometryCache.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "GeometryCache.h"
 #include "GeometryCacheComponent.h"
 #include "GeometryCacheActor.h"

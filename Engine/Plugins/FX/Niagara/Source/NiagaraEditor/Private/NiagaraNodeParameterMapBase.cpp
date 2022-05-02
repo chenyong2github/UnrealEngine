@@ -22,7 +22,7 @@
 #include "Widgets/SNiagaraParameterName.h"
 
 #include "IAssetTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 

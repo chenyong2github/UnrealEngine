@@ -30,7 +30,7 @@
 #include "Widgets/PatchTool/SDMXPatchTool.h"
 
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "ISequencerModule.h"
 #include "LevelEditor.h"

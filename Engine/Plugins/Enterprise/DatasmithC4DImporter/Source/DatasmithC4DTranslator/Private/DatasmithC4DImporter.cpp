@@ -19,7 +19,7 @@
 #include "DatasmithSceneExporter.h"
 #endif //WITH_EDITOR
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Curves/RichCurve.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetManagerEditorModule.h"
 #include "EdGraph/EdGraph.h"
 #include "Misc/AssetRegistryInterface.h"

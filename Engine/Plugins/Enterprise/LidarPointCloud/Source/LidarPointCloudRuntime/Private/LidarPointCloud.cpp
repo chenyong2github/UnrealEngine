@@ -24,7 +24,7 @@
 #if WITH_EDITOR
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Misc/MessageDialog.h"

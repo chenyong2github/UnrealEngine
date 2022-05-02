@@ -2,7 +2,7 @@
 
 #include "SMaterialAnalyzer.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/AsyncWork.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/SlateIconFinder.h"

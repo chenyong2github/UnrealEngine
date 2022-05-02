@@ -9,7 +9,7 @@
 #include "Shared/DataprepCorePrivateUtils.h"
 #include "DataprepCoreUtils.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Editor.h"
 

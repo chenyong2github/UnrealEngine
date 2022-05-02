@@ -4,7 +4,7 @@
 
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class UNiagaraStackParameterStoreEntry;
 class SNiagaraParameterEditor;

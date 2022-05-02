@@ -2,8 +2,8 @@
 
 #include "ShotgridEngine.h"
 
-#include "AssetRegistryModule.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 
 #include "GameFramework/Actor.h"
 #include "IPythonScriptPlugin.h"

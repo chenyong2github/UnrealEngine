@@ -3,7 +3,7 @@
 #include "MoviePipelineEditorBlueprintLibrary.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "FileHelpers.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"

@@ -2,7 +2,7 @@
 
 #include "Widgets/SNiagaraParameterDefinitionsPanel.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EdGraphSchema_Niagara.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"

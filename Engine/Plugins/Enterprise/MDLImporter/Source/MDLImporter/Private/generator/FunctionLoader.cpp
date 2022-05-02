@@ -6,7 +6,7 @@
 #include "common/Logging.h"
 #include "common/Utility.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Factories/MaterialFunctionFactoryNew.h"
 #include "MaterialEditingLibrary.h"
 #include "MaterialEditorUtilities.h"

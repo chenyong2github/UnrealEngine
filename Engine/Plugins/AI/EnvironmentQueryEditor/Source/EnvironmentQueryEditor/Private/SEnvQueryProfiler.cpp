@@ -16,7 +16,7 @@
 #include "UnrealEdGlobals.h"
 #include "EditorStyleSet.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EnvironmentQuery/EnvQuery.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 

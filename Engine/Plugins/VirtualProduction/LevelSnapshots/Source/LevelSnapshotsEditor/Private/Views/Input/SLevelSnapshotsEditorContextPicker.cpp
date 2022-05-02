@@ -4,7 +4,7 @@
 
 #include "Data/LevelSnapshotsEditorData.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
 #include "EditorStyleSet.h"
 #include "Engine/World.h"

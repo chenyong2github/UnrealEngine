@@ -3,7 +3,7 @@
 #include "TakesCoreBlueprintLibrary.h"
 #include "TakeMetaData.h"
 #include "LevelSequence.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 namespace
 {

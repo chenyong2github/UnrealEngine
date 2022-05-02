@@ -7,7 +7,7 @@
 #include "DataprepEditingOperations.h"
 
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserModule.h"
 #include "Dialogs/DlgPickAssetPath.h"
 #include "IContentBrowserSingleton.h"

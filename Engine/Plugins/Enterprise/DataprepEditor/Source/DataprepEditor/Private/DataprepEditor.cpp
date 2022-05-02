@@ -30,7 +30,7 @@
 #include "ActorEditorUtils.h"
 #include "ActorTreeItem.h"
 #include "AssetDeleteModel.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "BlueprintNodeSpawner.h"
 #include "ComponentTreeItem.h"
 #include "DesktopPlatformModule.h"

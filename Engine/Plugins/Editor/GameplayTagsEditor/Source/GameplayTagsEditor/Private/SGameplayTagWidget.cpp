@@ -28,7 +28,7 @@
 #include "SAddNewGameplayTagSourceWidget.h"
 #include "SAddNewRestrictedGameplayTagWidget.h"
 #include "SRenameGameplayTagDialog.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

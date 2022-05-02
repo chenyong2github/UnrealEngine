@@ -18,7 +18,7 @@
 #include "Containers/UnrealString.h"
 #include "Factories/TextureFactory.h"
 #include "Engine/Texture.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "XmlNode.h"

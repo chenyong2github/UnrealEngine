@@ -7,7 +7,7 @@
 #include "Engine/Selection.h"
 #include "SCreateAssetFromObject.h"
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Layers/LayersSubsystem.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"

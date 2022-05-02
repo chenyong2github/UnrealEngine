@@ -4,11 +4,11 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
 #include "Engine/Texture2D.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "SpriteEditorOnlyTypes.h"
 #include "PaperImporterSettings.h"
 #include "PaperSprite.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PackageTools.h"
 
 #define LOCTEXT_NAMESPACE "Paper2D"

@@ -9,7 +9,7 @@
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SSearchBrowser.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetSearchManager.h"
 
 #define LOCTEXT_NAMESPACE "FAssetSearchModule"

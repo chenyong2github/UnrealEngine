@@ -3,7 +3,7 @@
 #include "JacketingProcess.h"
 
 #include "CoreMinimal.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Async/ParallelFor.h"
 #include "Editor.h"
 #include "Editor/TransBuffer.h"

@@ -2,8 +2,8 @@
 
 #include "SourceFilterCollection.h"
 #include "SourceFilterTrace.h"
-#include "AssetRegistryModule.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
 #include "Async/Async.h"
 #include "UObject/UObjectIterator.h"
 #include "EmptySourceFilter.h"

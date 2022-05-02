@@ -25,7 +25,7 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Misc/FileHelper.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorDirectories.h"
 #include "AssetToolsModule.h"
 #include "TraceWorldFiltering.h"

@@ -2,7 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionConversion.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AnimationRuntime.h"
 #include "Async/ParallelFor.h"
 #include "Components/SkeletalMeshComponent.h"

@@ -5,7 +5,7 @@
 #include "EditorScriptingUtils.h"
 
 #include "ActorEditorUtils.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Components/MeshComponent.h"
 #include "ContentBrowserModule.h"
 #include "Editor.h"

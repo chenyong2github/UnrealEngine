@@ -11,7 +11,7 @@
 #include "UObject/ObjectMacros.h"
 #include "EditorValidatorBase.h"
 #include "Engine/EngineTypes.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Logging/LogMacros.h"
 #include "DataValidationModule.h"
 

@@ -6,7 +6,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "PaperJSONHelpers.h"
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PackageTools.h"
 #include "PaperSpriterImportData.h"
 #include "PaperImporterSettings.h"

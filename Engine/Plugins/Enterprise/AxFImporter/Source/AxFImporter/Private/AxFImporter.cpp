@@ -11,7 +11,7 @@
 
 #include "PackageTools.h"
 #include "ObjectTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/Texture2D.h"
 #include "Misc/Paths.h"

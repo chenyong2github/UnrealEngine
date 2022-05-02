@@ -20,7 +20,7 @@
 #include "Misc/Paths.h"
 #include "EditorAssetLibrary.h"
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IAssetTools.h"
 #include "FileHelpers.h"
 #include "UObject/MetaData.h"

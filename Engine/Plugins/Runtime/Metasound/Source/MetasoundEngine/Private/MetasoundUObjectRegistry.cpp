@@ -2,7 +2,7 @@
 #include "MetasoundUObjectRegistry.h"
 
 #include "Algo/Copy.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/Async.h"
 #include "Async/TaskGraphInterfaces.h"

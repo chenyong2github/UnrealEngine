@@ -5,7 +5,7 @@
 #include "UObject/Class.h"
 #include "LevelSequence.h"
 #include "Factories/Factory.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetToolsModule.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"

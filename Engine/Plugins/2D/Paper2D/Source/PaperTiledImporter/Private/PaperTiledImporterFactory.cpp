@@ -13,7 +13,7 @@
 #include "PaperJSONHelpers.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PaperImporterSettings.h"
 #include "PackageTools.h"
 #include "IntMargin.h"

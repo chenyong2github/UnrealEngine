@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SComboBox.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetManagerEditorModule.h"
 #include "ITreeMap.h"
 #include "STreeMap.h"

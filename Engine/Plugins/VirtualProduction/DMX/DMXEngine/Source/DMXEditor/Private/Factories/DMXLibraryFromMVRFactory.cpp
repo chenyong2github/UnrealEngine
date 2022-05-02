@@ -13,7 +13,7 @@
 #include "MVR/DMXMVRGeneralSceneDescription.h"
 #include "MVR/DMXMVRUnzip.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "ObjectTools.h"
 #include "XmlFile.h"

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/TemplateSequenceTrackEditor.h"
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraAnim.h"
 #include "CameraAnimationSequence.h"

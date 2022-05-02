@@ -16,7 +16,7 @@
 #include "ObjectTemplates/DatasmithSceneComponentTemplate.h"
 #include "ObjectTemplates/DatasmithSkyLightComponentTemplate.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ComponentReregisterContext.h"
 #include "EngineUtils.h"
 #include "Internationalization/Internationalization.h"

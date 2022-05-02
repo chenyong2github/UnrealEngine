@@ -49,7 +49,7 @@
 #include "Backends/JsonStructDeserializerBackend.h"
 #include "Backends/JsonStructSerializerBackend.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/World.h"
 #include "Engine/Engine.h"
 

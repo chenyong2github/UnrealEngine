@@ -3,11 +3,11 @@
 #include "Recorder/TakeRecorder.h"
 
 #include "Algo/Accumulate.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "CoreGlobals.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "ISequencer.h"
 #include "LevelSequence.h"
 #include "Misc/CommandLine.h"

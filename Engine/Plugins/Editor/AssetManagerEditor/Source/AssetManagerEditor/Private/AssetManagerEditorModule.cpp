@@ -14,7 +14,7 @@
 #include "CollectionManagerModule.h"
 #include "GameDelegates.h"
 #include "ICollectionManager.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "Misc/FileHelper.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
 #include "Stats/StatsMisc.h"
@@ -37,7 +37,7 @@
 
 #include "LevelEditor.h"
 #include "GraphEditorModule.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/World.h"
 #include "Misc/App.h"
 #include "GenericPlatform/GenericPlatformFile.h"

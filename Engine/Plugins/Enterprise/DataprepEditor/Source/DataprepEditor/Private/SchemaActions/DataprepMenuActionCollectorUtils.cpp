@@ -2,7 +2,7 @@
 
 #include "SchemaActions/DataprepMenuActionCollectorUtils.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Blueprint.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/ObjectMacros.h"

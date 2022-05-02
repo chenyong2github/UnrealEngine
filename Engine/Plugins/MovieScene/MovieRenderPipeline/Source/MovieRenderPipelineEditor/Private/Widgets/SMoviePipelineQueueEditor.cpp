@@ -38,7 +38,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "DragAndDrop/AssetDragDropOp.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 // Misc
 #include "LevelSequence.h"

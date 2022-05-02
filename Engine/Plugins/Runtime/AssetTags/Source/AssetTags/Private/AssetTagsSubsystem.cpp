@@ -2,9 +2,9 @@
 
 #include "AssetTagsSubsystem.h"
 
-#include "IAssetRegistry.h"
-#include "AssetRegistryState.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryState.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Containers/StringView.h"
 
 #if WITH_EDITOR

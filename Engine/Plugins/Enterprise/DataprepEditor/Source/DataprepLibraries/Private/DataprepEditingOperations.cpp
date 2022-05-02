@@ -9,7 +9,7 @@
 
 #include "ActorEditorUtils.h"
 #include "ActorFactories/ActorFactory.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/ParallelFor.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"

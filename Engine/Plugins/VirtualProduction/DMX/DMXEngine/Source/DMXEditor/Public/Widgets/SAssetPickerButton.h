@@ -6,7 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateTypes.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class SButton;
 

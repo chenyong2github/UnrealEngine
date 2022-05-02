@@ -10,7 +10,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "EditorStyleSet.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "IPropertyUtilities.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "IO/DMXInputPort.h"

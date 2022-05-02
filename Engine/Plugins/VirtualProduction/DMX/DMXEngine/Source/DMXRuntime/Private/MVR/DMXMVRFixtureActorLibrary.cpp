@@ -6,7 +6,7 @@
 #include "MVR/DMXMVRFixtureActorInterface.h"
 #include "Library/DMXEntityFixturePatch.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PreviewScene.h"
 #include "Engine/SkeletalMesh.h"
 #include "Interfaces/IPluginManager.h"

@@ -6,7 +6,7 @@
 #include "Engine/Texture2D.h"
 #include "Factories/TextureFactory.h"
 #include "ObjectTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 namespace Generator
 {

@@ -2,7 +2,7 @@
 #include "MetasoundSource.h"
 
 #include "Algo/Transform.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AudioDeviceManager.h"
 #include "IAudioParameterInterfaceRegistry.h"
 #include "Internationalization/Text.h"

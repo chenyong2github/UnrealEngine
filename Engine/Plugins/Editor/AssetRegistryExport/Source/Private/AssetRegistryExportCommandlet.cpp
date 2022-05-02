@@ -2,7 +2,7 @@
 
 #include "AssetRegistryExportCommandlet.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryState.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"

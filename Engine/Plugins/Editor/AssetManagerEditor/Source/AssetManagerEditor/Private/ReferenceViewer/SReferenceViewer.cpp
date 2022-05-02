@@ -22,7 +22,7 @@
 #include "ReferenceViewer/EdGraph_ReferenceViewer.h"
 #include "ReferenceViewer/EdGraphNode_Reference.h"
 #include "ReferenceViewer/ReferenceViewerSchema.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
 #include "Editor.h"

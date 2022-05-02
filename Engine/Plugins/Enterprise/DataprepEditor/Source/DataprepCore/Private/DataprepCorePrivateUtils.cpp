@@ -8,7 +8,7 @@
 #include "IDataprepProgressReporter.h"
 
 #include "ActorEditorUtils.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Blueprint.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"

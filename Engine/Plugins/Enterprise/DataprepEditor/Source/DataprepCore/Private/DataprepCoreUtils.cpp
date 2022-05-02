@@ -20,7 +20,7 @@
 #include "SelectionSystem/DataprepFilter.h"
 #include "SelectionSystem/DataprepSelectionTransform.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"

@@ -9,7 +9,7 @@
 #include "mdl/MaterialCollection.h"
 #include "mdl/Utility.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Logging/LogMacros.h"
 #include "MaterialEditingLibrary.h"

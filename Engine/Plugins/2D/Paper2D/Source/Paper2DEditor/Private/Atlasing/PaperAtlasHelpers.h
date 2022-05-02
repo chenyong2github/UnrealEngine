@@ -8,8 +8,8 @@
 #include "PaperSprite.h"
 #include "PaperSpriteAtlas.h"
 #include "Modules/ModuleManager.h"
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 // Loads and returns a list of sprites referenced in the atlas group (i.e. sprites used in the previous build)
 static void LoadAllReferencedSprites(UPaperSpriteAtlas* AtlasGroup, TArray<UPaperSprite*>& AllSprites)

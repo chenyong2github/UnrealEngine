@@ -6,7 +6,7 @@
 #include "GLTFMaterialElement.h"
 #include "GLTFTexture.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/Texture2D.h"
 #include "Factories/TextureFactory.h"

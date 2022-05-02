@@ -6,7 +6,7 @@
 #include "Developer/MessageLog/Public/MessageLogModule.h"
 #include "Logging/MessageLog.h"
 #include "Misc/ScopedSlowTask.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor.h"
 
 #include "CoreGlobals.h"

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ContentBrowserDataSource.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "UObject/GCObject.h"
 #include "Misc/NamePermissionList.h"
 #include "ContentBrowserDataMenuContexts.h"
