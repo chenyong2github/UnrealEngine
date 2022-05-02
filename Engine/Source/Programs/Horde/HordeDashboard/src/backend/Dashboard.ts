@@ -456,6 +456,9 @@ export class Dashboard {
         return this.data.id !== "";
     }
 
+    get user(): GetUserResponse {
+        return this.data;
+    }
 
     private async postPreferences(reload?:boolean): Promise<boolean> {
 

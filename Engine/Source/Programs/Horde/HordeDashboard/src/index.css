@@ -80,4 +80,19 @@ div[data-automation-key="ViewLogColumn"] {
   padding: 0
 }
 
+@keyframes red-pulse {
+  0% {
+    background-color: #CC0000;
+    border: 1px solid #CC0000;
+  }
+  50% {
+    background-color: #FF0000;
+    border: 1px solid #FF0000;
+  }
+  100% {
+    background-color: #CC0000;
+    border: 1px solid #CC0000;
+  }
+
+}
 
