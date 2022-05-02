@@ -601,7 +601,7 @@ bool AFunctionalTest::AssertTrue(bool Condition, const FString& Message, const U
 {
 	if ( !Condition )
 	{
-		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Assertion failed: '%s' for context '%s'"), *Message, ContextObject ? *ContextObject->GetName() : TEXT("")));
+		LogStep(ELogVerbosity::Error, FString::Printf(TEXT("Assertion in Blueprint failed: '%s' for context '%s'"), *Message, ContextObject ? *ContextObject->GetName() : TEXT("")));
 		return false;
 	}
 	else
