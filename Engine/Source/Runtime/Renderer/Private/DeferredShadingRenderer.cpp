@@ -687,6 +687,11 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 				continue;
 			}
 
+			if (!View.bIsSceneCapture && SceneInfo->bIsVisibleInSceneCapturesOnly)
+			{
+				continue;
+			}
+
 			// Marked visible and used after point, check if streaming then mark as used in the TLAS (so it can be streamed in)
 			if (EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::Streaming))
 			{

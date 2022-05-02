@@ -390,6 +390,7 @@ public:
 #if RHI_RAYTRACING
 	bool bDrawInGame : 1;
 	bool bIsVisibleInSceneCaptures : 1;
+	bool bIsVisibleInSceneCapturesOnly : 1;
 	bool bIsRayTracingRelevant : 1;
 	bool bIsRayTracingStaticRelevant : 1;
 	bool bIsVisibleInRayTracing : 1;
