@@ -35,10 +35,13 @@ struct SActorFolderTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWi
 
 		TSharedPtr<SInlineEditableTextBlock> InlineTextBlock = SNew(SInlineEditableTextBlock)
 			.Text(this, &SActorFolderTreeLabel::GetDisplayText)
+			.ToolTipText(this, &SActorFolderTreeLabel::GetTooltipText)
 			.HighlightText(SceneOutliner.GetFilterHighlightText())
 			.ColorAndOpacity(this, &SActorFolderTreeLabel::GetForegroundColor)
 			.OnTextCommitted(this, &SActorFolderTreeLabel::OnLabelCommitted)
 			.OnVerifyTextChanged(this, &SActorFolderTreeLabel::OnVerifyItemLabelChanged)
+			.OnEnterEditingMode(this, &SActorFolderTreeLabel::OnEnterEditingMode)
+			.OnExitEditingMode(this, &SActorFolderTreeLabel::OnExitEditingMode)
 			.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FSceneOutlinerTreeItemPtr>::IsSelectedExclusively))
 			.IsReadOnly_Lambda([Item = FolderItem.AsShared(), this]()
 		{
@@ -53,21 +56,6 @@ struct SActorFolderTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWi
 		ChildSlot
 			[
 				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SBox)
-					.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
-					.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
-					[
-						SNew(SImage)
-						.Visibility_Lambda([this]() { return IsInActorEditorContext() ? EVisibility::Visible : EVisibility::Collapsed; })
-						.Image(FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.MarkedAsCurrent")))
-						.ColorAndOpacity(FSlateColor::UseForeground())
-					]
-				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
@@ -105,7 +93,27 @@ private:
 	FText GetDisplayText() const
 	{
 		auto Folder = TreeItemPtr.Pin();
-		return Folder.IsValid() ? FText::FromString(Folder->GetDisplayString()) : FText();
+		if (Folder.IsValid())
+		{
+			if (!bInEditingMode)
+			{
+				FText IsCurrentSuffixText = IsInActorEditorContext() ? FText(LOCTEXT("IsCurrentSuffix", " (Current)")) : FText::GetEmpty();
+				return FText::Format(LOCTEXT("LevelInstanceDisplay", "{0}{1}"), FText::FromString(Folder->GetDisplayString()), IsCurrentSuffixText);
+			}
+			return FText::FromString(Folder->GetDisplayString());
+		}
+		return FText();
+	}
+
+	FText GetTooltipText() const
+	{
+		if (const FSceneOutlinerTreeItemPtr TreeItem = TreeItemPtr.Pin())
+		{
+			FText Description = IsInActorEditorContext() ? LOCTEXT("ActorFolderIsCurrentDescription", "This Folder is set as Current Folder. New actors will be added to this Folder.") : FText::GetEmpty();
+			return FText::Format(LOCTEXT("DataLayerTooltipText", "{0}\n{1}"), FText::FromString(TreeItem->GetDisplayString()), Description);
+		}
+
+		return FText();
 	}
 
 	const FSlateBrush* GetIcon() const
@@ -131,6 +139,11 @@ private:
 		if (auto BaseColor = FSceneOutlinerCommonLabelData::GetForegroundColor(*TreeItemPtr.Pin()))
 		{
 			return BaseColor.GetValue();
+		}
+
+		if (IsInActorEditorContext())
+		{
+			return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
 		}
 
 		return FSlateColor::UseForeground();
@@ -223,6 +236,18 @@ private:
 			}
 		}
 	}
+
+	void OnEnterEditingMode()
+	{
+		bInEditingMode = true;
+	}
+
+	void OnExitEditingMode()
+	{
+		bInEditingMode = false;
+	}
+
+	bool bInEditingMode = false;
 };
 
 FActorFolderTreeItem::FActorFolderTreeItem(const FFolder& InFolder, const TWeakObjectPtr<UWorld>& InWorld)

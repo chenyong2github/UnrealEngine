@@ -578,7 +578,7 @@ bool FActorFolders::GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEdit
 	const FFolder Folder = GetActorEditorContextFolder(*InWorld);
 	if (!Folder.IsNone())
 	{
-		OutDiplayInfo.Title = TEXT("Current Actor Folder");
+		OutDiplayInfo.Title = TEXT("Actor Folder");
 		OutDiplayInfo.Brush = FEditorStyle::GetBrush(TEXT("SceneOutliner.FolderClosed"));
 		return true;
 	}

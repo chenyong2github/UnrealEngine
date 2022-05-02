@@ -209,7 +209,7 @@ bool UDataLayerEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld
 	AWorldDataLayers* WorldDataLayer = InWorld->GetWorldDataLayers();
 	if (WorldDataLayer && !WorldDataLayer->GetActorEditorContextDataLayers().IsEmpty())
 	{
-		OutDiplayInfo.Title = TEXT("Current Data Layers");
+		OutDiplayInfo.Title = TEXT("Data Layers");
 		OutDiplayInfo.Brush = FEditorStyle::GetBrush(TEXT("DataLayer.Editor"));
 		return true;
 	}
@@ -231,10 +231,12 @@ TSharedRef<SWidget> UDataLayerEditorSubsystem::GetActorEditorContextWidget(UWorl
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.Padding(0.0f, 1.0f, 1.0f, 1.0f)
+				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
 					.ColorAndOpacity(DataLayer->GetDebugColor())
-					.Image(FAppStyle::Get().GetBrush("Level.ColorIcon"))
+					.Image(FAppStyle::Get().GetBrush("DataLayer.ColorIcon"))
+					.DesiredSizeOverride(FVector2D(8,8))
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()

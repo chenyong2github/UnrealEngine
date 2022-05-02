@@ -34,8 +34,11 @@ private:
 	void OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo);
 	bool ShouldBeHighlighted() const;
 	bool IsInActorEditorContext() const;
+	void OnEnterEditingMode();
+	void OnExitEditingMode();
 
 	TWeakPtr<FDataLayerTreeItem> TreeItemPtr;
 	TWeakObjectPtr<UDataLayerInstance> DataLayerPtr;
 	TAttribute<FText> HighlightText;
+	bool bInEditingMode;
 };

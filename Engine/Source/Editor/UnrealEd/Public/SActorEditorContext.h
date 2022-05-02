@@ -19,5 +19,6 @@ private:
 	void OnEditorMapChange(uint32 MapChangeFlags = 0) { Rebuild(); }
 	void Rebuild();
 	
+	bool bIsContextExpanded;
 	UWorld* World;
 };

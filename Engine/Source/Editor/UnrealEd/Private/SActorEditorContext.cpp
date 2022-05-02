@@ -14,6 +14,7 @@
 void SActorEditorContext::Construct(const FArguments& InArgs)
 {
 	World = (InArgs._World);
+	bIsContextExpanded = true;
 	GEditor->GetEditorWorldContext().AddRef(World);
 	UActorEditorContextSubsystem::Get()->OnActorEditorContextSubsystemChanged().AddSP(this, &SActorEditorContext::Rebuild);
 	FEditorDelegates::MapChange.AddSP(this, &SActorEditorContext::OnEditorMapChange);
@@ -32,26 +33,93 @@ void SActorEditorContext::Rebuild()
 	TArray<IActorEditorContextClient*> Clients = UActorEditorContextSubsystem::Get()->GetDisplayableClients();
 	if (Clients.Num() > 0 && World)
 	{
+		TSharedPtr<SHorizontalBox> HBox;
 		TSharedPtr<SVerticalBox> VBox;
 		ChildSlot.Padding(2, 2, 2, 2)
 		[
 			SAssignNew(VBox, SVerticalBox)
 		];
 
+		VBox->AddSlot()
+			.AutoHeight()
+			.Padding(0, 2)
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(2.0f, 1.0f, 2.0f, 1.0f)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(TEXT("Current Context")))
+						.ShadowOffset(FVector2D(1, 1))
+						.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+						.ColorAndOpacity(FLinearColor::White)
+					]
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					[
+						SAssignNew(HBox, SHorizontalBox)
+						.Visibility_Lambda([this]()
+						{
+							return !bIsContextExpanded ? EVisibility::Visible : EVisibility::Collapsed;
+						})
+					]
+					+ SHorizontalBox::Slot()					
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Center)
+					.Padding(2.0f, 1.0f, 2.0f, 1.0f)
+					[
+						SNew(SButton)
+						.Cursor(EMouseCursor::Default)
+						.ButtonStyle(FAppStyle::Get(), "NoBorder")
+						.ContentPadding(0)
+						.OnClicked_Lambda([this]()
+						{
+							bIsContextExpanded = !bIsContextExpanded;
+							return FReply::Handled();
+						})
+						.Content()
+						[
+							SNew(SImage)
+							.Image_Lambda([this]() { return bIsContextExpanded ? FEditorStyle::GetBrush("ContentBrowser.SortDown") : FEditorStyle::GetBrush("ContentBrowser.SortUp"); })
+							.ColorAndOpacity(FSlateColor::UseForeground())
+						]
+					]
+				]
+			];
+
 		for (IActorEditorContextClient* Client : Clients)
 		{
 			FActorEditorContextClientDisplayInfo Info;
 			Client->GetActorEditorContextDisplayInfo(World, Info);
 
+			HBox->AddSlot()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.Padding(2.0f, 1.0f, 2.0f, 1.0f)
+				[
+					SNew(SImage)
+					.Image(Info.Brush ? Info.Brush : FStyleDefaults::GetNoBrush())
+					.DesiredSizeOverride(FVector2D(16, 16))
+				]
+			];
+
 			VBox->AddSlot()
-				.AutoHeight()
-				.Padding(0, 2)
+			.AutoHeight()
+			.Padding(0, 2)
 			[
 				SNew(SBorder)
 				.Visibility_Lambda([Client, this]()
 				{ 
 					FActorEditorContextClientDisplayInfo Info;
-					return Client->GetActorEditorContextDisplayInfo(World, Info) ? EVisibility::Visible : EVisibility::Collapsed; 
+					return bIsContextExpanded && Client->GetActorEditorContextDisplayInfo(World, Info) ? EVisibility::Visible : EVisibility::Collapsed;
 				})
 				.BorderImage(FCoreStyle::Get().GetBrush("Docking.Sidebar.Border"))
 				.Content()
@@ -63,14 +131,15 @@ void SActorEditorContext::Rebuild()
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
-						.Padding(4.0f, 1.0f, 2.0f, 1.0f)
+						.Padding(2.0f, 1.0f, 2.0f, 1.0f)
 						[
 							SNew(SImage)
 							.Image(Info.Brush ? Info.Brush : FStyleDefaults::GetNoBrush())
+							.DesiredSizeOverride(FVector2D(16, 16))
 						]
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
-						.Padding(4.0f, 1.0f, 2.0f, 1.0f)
+						.Padding(2.0f, 1.0f, 2.0f, 1.0f)
 						[
 							SNew(STextBlock)
 							.Text(FText::FromString(Info.Title))
@@ -79,15 +148,16 @@ void SActorEditorContext::Rebuild()
 							.ColorAndOpacity(FLinearColor::White)
 						]
 						+ SHorizontalBox::Slot()
-						.AutoWidth()
+						.HAlign(HAlign_Right)
+						.VAlign(VAlign_Center)
+						.FillWidth(1.f)
 						[
 							SNew(SButton)
-							.HAlign(HAlign_Right)
 							.Cursor(EMouseCursor::Default)
 							.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 							.ContentPadding(0)
 							.Visibility_Lambda([Client, this]() { return (Client && Client->CanResetContext(World)) ? EVisibility::Visible : EVisibility::Collapsed; })
-							.ToolTipText(FText::Format(LOCTEXT("ResetActorEditorContextTooltip", "Reset {0}"), FText::FromString(Info.Title)))
+							.ToolTipText(FText::Format(LOCTEXT("ResetActorEditorContextTooltip", "Reset Current {0}"), FText::FromString(Info.Title)))
 							.OnClicked_Lambda([Client, this]()
 							{
 								if (Client && Client->CanResetContext(World))
@@ -106,7 +176,8 @@ void SActorEditorContext::Rebuild()
 					]
 					+ SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(8, 2, 0, 2)
+					// Left padding details (2 + 2 + 16 + 2) : 2 + 2 = Info.Brush left/right padding, + 16 = Info.Brush width, + 2 = Info.Title left padding
+					.Padding(2 + 2 + 16 + 2, 2, 0, 2)
 					[
 						World ? Client->GetActorEditorContextWidget(World) : SNullWidget::NullWidget
 					]

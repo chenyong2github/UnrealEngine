@@ -122,12 +122,11 @@ private:
 			const AActor* Actor = ActorPtr.Get();
 			if (const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(Actor))
 			{
-				if (LevelInstance->IsDirty() && !bInEditingMode)
+				if (!bInEditingMode)
 				{
-					FFormatNamedArguments Args;
-					Args.Add(TEXT("ActorLabel"), FText::FromString(TreeItem->GetDisplayString()));
-					Args.Add(TEXT("EditTag"), LOCTEXT("EditingLevelInstanceLabel", "*"));
-					return FText::Format(LOCTEXT("LevelInstanceDisplay", "{ActorLabel}{EditTag}"), Args);
+					FText DirtySuffixText = LevelInstance->IsDirty() ? FText(LOCTEXT("IsDirtySuffix", "*")) : FText::GetEmpty();
+					FText IsCurrentSuffixText = LevelInstance->GetLoadedLevel() && LevelInstance->GetLoadedLevel()->IsCurrentLevel() ? FText(LOCTEXT("IsCurrentSuffix", " (Current)")) : FText::GetEmpty();
+					return FText::Format(LOCTEXT("LevelInstanceDisplay", "{0}{1}{2}"), FText::FromString(TreeItem->GetDisplayString()), DirtySuffixText, IsCurrentSuffixText);
 				}
 			}
 			return FText::FromString(TreeItem->GetDisplayString());

@@ -19,6 +19,7 @@ void SDataLayerTreeLabel::Construct(const FArguments& InArgs, FDataLayerTreeItem
 	TreeItemPtr = StaticCastSharedRef<FDataLayerTreeItem>(DataLayerItem.AsShared());
 	DataLayerPtr = DataLayerItem.GetDataLayer();
 	HighlightText = SceneOutliner.GetFilterHighlightText();
+	bInEditingMode = false;
 
 	TSharedPtr<SInlineEditableTextBlock> InlineTextBlock;
 
@@ -35,6 +36,8 @@ void SDataLayerTreeLabel::Construct(const FArguments& InArgs, FDataLayerTreeItem
 		.ColorAndOpacity(this, &SDataLayerTreeLabel::GetForegroundColor)
 		.OnTextCommitted(this, &SDataLayerTreeLabel::OnLabelCommitted)
 		.OnVerifyTextChanged(this, &SDataLayerTreeLabel::OnVerifyItemLabelChanged)
+		.OnEnterEditingMode(this, &SDataLayerTreeLabel::OnEnterEditingMode)
+		.OnExitEditingMode(this, &SDataLayerTreeLabel::OnExitEditingMode)
 		.IsSelected(FIsSelected::CreateSP(&InRow, &STableRow<FSceneOutlinerTreeItemPtr>::IsSelectedExclusively))
 		.IsReadOnly_Lambda([Item = DataLayerItem.AsShared(), this]()
 		{
@@ -61,21 +64,6 @@ void SDataLayerTreeLabel::Construct(const FArguments& InArgs, FDataLayerTreeItem
 	ChildSlot
 	[
 		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Center)
-		[
-			SNew(SBox)
-			.WidthOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
-			.HeightOverride(FSceneOutlinerDefaultTreeItemMetrics::IconSize())
-			[
-				SNew(SImage)
-				.Visibility_Lambda([this]() { return IsInActorEditorContext() ? EVisibility::Visible : EVisibility::Collapsed; })
-				.Image(FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.MarkedAsCurrent")))
-				.ColorAndOpacity(FLinearColor::White)
-			]
-		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
@@ -142,22 +130,30 @@ FText SDataLayerTreeLabel::GetDisplayText() const
 {
 	const UDataLayerInstance* DataLayer = DataLayerPtr.Get();
 	bool bIsDataLayerActive = false;
-	FText DataLayerRuntimeStateText = FText::GetEmpty();
-	if (DataLayer && DataLayer->IsRuntime() && DataLayer->GetWorld()->IsPlayInEditor())
+	FText SuffixText = FText::GetEmpty();
+	if (!bInEditingMode)
 	{
-		const UDataLayerSubsystem* DataLayerSubsystem = DataLayer->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-		DataLayerRuntimeStateText = FText::Format(LOCTEXT("DataLayerRuntimeState", " ({0})"), FTextStringHelper::CreateFromBuffer(GetDataLayerRuntimeStateName(DataLayerSubsystem->GetDataLayerEffectiveRuntimeState(DataLayer))));
+		if (DataLayer && DataLayer->IsRuntime() && DataLayer->GetWorld()->IsPlayInEditor())
+		{
+			const UDataLayerSubsystem* DataLayerSubsystem = DataLayer->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
+			SuffixText = FText::Format(LOCTEXT("DataLayerRuntimeState", " ({0})"), FTextStringHelper::CreateFromBuffer(GetDataLayerRuntimeStateName(DataLayerSubsystem->GetDataLayerEffectiveRuntimeState(DataLayer))));
+		}
+		else if (IsInActorEditorContext())
+		{
+			SuffixText = FText(LOCTEXT("IsCurrentSuffix", " (Current)"));
+		}
 	}
-	
+
 	static const FText DataLayerDeleted = LOCTEXT("DataLayerLabelForMissingDataLayer", "(Deleted Data Layer)");
-	return DataLayer ? FText::Format(LOCTEXT("DataLayerDisplayText", "{0}{1}"), FText::FromString(DataLayer->GetDataLayerShortName()), DataLayerRuntimeStateText) : DataLayerDeleted;
+	return DataLayer ? FText::Format(LOCTEXT("DataLayerDisplayText", "{0}{1}"), FText::FromString(DataLayer->GetDataLayerShortName()), SuffixText) : DataLayerDeleted;
 }
 
 FText SDataLayerTreeLabel::GetTooltipText() const
 {
 	if (const FSceneOutlinerTreeItemPtr TreeItem = TreeItemPtr.Pin())
 	{
-		return FText::FromString(TreeItem->GetDisplayString());
+		FText Description = IsInActorEditorContext() ? LOCTEXT("DataLayerIsCurrentDescription", "This Data Layer is part of Current Data Layers. New actors will attempt to be added to this Data Layer.") : FText::GetEmpty();
+		return FText::Format(LOCTEXT("DataLayerTooltipText", "{0}\n{1}"), FText::FromString(TreeItem->GetDisplayString()), Description);
 	}
 
 	return FText();
@@ -242,6 +238,10 @@ FSlateColor SDataLayerTreeLabel::GetForegroundColor() const
 	{
 		return FAppStyle::Get().GetSlateColor("Colors.AccentBlue");
 	}
+	else if (IsInActorEditorContext())
+	{
+		return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
+	}
 	return FSlateColor::UseForeground();
 }
 
@@ -289,6 +289,16 @@ void SDataLayerTreeLabel::OnLabelCommitted(const FText& InLabel, ETextCommit::Ty
 			WeakSceneOutliner.Pin()->SetKeyboardFocus();
 		}
 	}
+}
+
+void SDataLayerTreeLabel::OnEnterEditingMode()
+{
+	bInEditingMode = true;
+}
+
+void SDataLayerTreeLabel::OnExitEditingMode()
+{
+	bInEditingMode = false;
 }
 
 #undef LOCTEXT_NAMESPACE 

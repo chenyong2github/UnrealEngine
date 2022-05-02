@@ -688,6 +688,7 @@ public:
 				// Current Level
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
+				.Padding(0.0f, 0.0f, 2.0f, 0.0f)
 				.AutoHeight()
 				[
 					SNew(STextBlock)
@@ -828,7 +829,7 @@ bool ULevelEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld, FA
 	const bool bIsVisible = InWorld && (InWorld->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1) && (!InWorld->IsPartitionedWorld() || (InWorld->GetCurrentLevel() != InWorld->PersistentLevel));
 	if (bIsVisible)
 	{
-		OutDiplayInfo.Title = TEXT("Current Level");
+		OutDiplayInfo.Title = TEXT("Level");
 		OutDiplayInfo.Brush = FSlateIconFinder::FindIconBrushForClass(UWorld::StaticClass());
 		return true;
 	}
