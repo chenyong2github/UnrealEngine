@@ -517,7 +517,23 @@ TUniquePtr<FAssetRegistryState> FLooseCookedPackageWriter::LoadPreviousAssetRegi
 		{
 			FName PackageName = Pair.Key;
 			const FName UncookedFilename = PackageDatas.GetFileNameByPackageName(PackageName);
+
+			bool bNoLongerExistsInEditor = false;
 			if (UncookedFilename.IsNone())
+			{
+				// Script and generated packages do not exist uncooked
+				// Check that the package is not an exception before removing from cooked
+				bool bIsCookedOnly = FPackageName::IsScriptPackage(WriteToString<256>(PackageName));
+				if (!bIsCookedOnly)
+				{
+					for (const FAssetData* AssetData : PreviousState->GetAssetsByPackageName(PackageName))
+					{
+						bIsCookedOnly |= !!(AssetData->PackageFlags & PKG_CookGenerated);
+					}
+				}
+				bNoLongerExistsInEditor = !bIsCookedOnly;
+			}
+			if (bNoLongerExistsInEditor)
 			{
 				// Remove package from both disk and registry
 				// Keep its RemoveFromDisk entry

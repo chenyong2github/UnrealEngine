@@ -1302,6 +1302,7 @@ UPackage* FGeneratorPackage::CreateGeneratedUPackage(FGeneratorPackage::FGenerat
 	GeneratedPackage->SetGuid(OwnerPackage->GetGuid());
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	GeneratedPackage->SetPersistentGuid(OwnerPackage->GetPersistentGuid());
+	GeneratedPackage->SetPackageFlags(PKG_CookGenerated);
 	GeneratedStruct.bHasCreatedPackage = true;
 	return GeneratedPackage;
 }
