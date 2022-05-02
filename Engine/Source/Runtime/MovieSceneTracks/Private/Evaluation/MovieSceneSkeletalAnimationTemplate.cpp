@@ -507,8 +507,7 @@ namespace MovieScene
 				const bool bContainsTransform = ContainsTransform(Player, SkeletalMeshComponent);
 				TOptional<FTransform> CurrentTransform = bContainsTransform ? SkeletalMeshComponent->GetRelativeTransform() : TOptional<FTransform>();
 								
-				const bool bSwapRootBoneWithComponentRoot = AnimSection->Params.bSwapRootBoneWithComponentRoot;
-				FAnimSequencerData AnimSequencerData(InAnimSequence, GetTypeHash(AnimTypeID), RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, bSwapRootBoneWithComponentRoot, CurrentTransform, AnimSection->Params.MirrorDataTable.Get());
+				FAnimSequencerData AnimSequencerData(InAnimSequence, GetTypeHash(AnimTypeID), RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, AnimSection->Params.SwapRootBone, CurrentTransform, AnimSection->Params.MirrorDataTable.Get());
 				SequencerInst->UpdateAnimTrackWithRootMotion(AnimSequencerData);
 			}
 			else if (UAnimInstance* AnimInst = GetSourceAnimInstance(SkeletalMeshComponent))
@@ -575,8 +574,7 @@ namespace MovieScene
 				const bool bContainsTransform = ContainsTransform(Player, SkeletalMeshComponent);
 				TOptional<FTransform> CurrentTransform = bContainsTransform ? SkeletalMeshComponent->GetRelativeTransform() : TOptional<FTransform>();
 
-				const bool bSwapRootBoneWithComponentRoot = AnimSection->Params.bSwapRootBoneWithComponentRoot;
-				FAnimSequencerData AnimSequencerData(InAnimSequence, GetTypeHash(AnimTypeID), RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, bSwapRootBoneWithComponentRoot, CurrentTransform, AnimSection->Params.MirrorDataTable.Get());
+				FAnimSequencerData AnimSequencerData(InAnimSequence, GetTypeHash(AnimTypeID), RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies, AnimSection->Params.SwapRootBone, CurrentTransform, AnimSection->Params.MirrorDataTable.Get());
 				SequencerInst->UpdateAnimTrackWithRootMotion(AnimSequencerData);
 			}
 			else if (UAnimInstance* AnimInst = GetSourceAnimInstance(SkeletalMeshComponent))

@@ -10,6 +10,17 @@
 #include "AnimNodes/AnimNode_Mirror.h"
 #include "AnimSequencerInstanceProxy.generated.h"
 
+UENUM()
+enum class ESwapRootBone : uint8
+{
+	/* Swap the root bone to the component */
+	SwapRootBone_Component,
+	/* Swap root bone to the actor root component */
+	SwapRootBone_Actor,
+	/* Do not swap the root bone */
+	SwapRootBone_None
+};
+
 /** Base class for all 'players' that can attach to and be blended into a sequencer instance's output */
 struct FSequencerPlayerBase
 {
@@ -58,7 +69,7 @@ struct FRootMotionOverride
 
 struct ANIMGRAPHRUNTIME_API FAnimSequencerData
 {
-	FAnimSequencerData(UAnimSequenceBase* InAnimSequence, int32 InSequenceId, const TOptional<FRootMotionOverride>& InRootMotion, float InFromPosition, float InToPosition, float InWeight, bool bInFireNotifies, bool bInSwapRootBoneWithComponentRoot, TOptional<FTransform> InInitialTransform, UMirrorDataTable* InMirrorDataTable)
+	FAnimSequencerData(UAnimSequenceBase* InAnimSequence, int32 InSequenceId, const TOptional<FRootMotionOverride>& InRootMotion, float InFromPosition, float InToPosition, float InWeight, bool bInFireNotifies, ESwapRootBone InSwapRootBone, TOptional<FTransform> InInitialTransform, UMirrorDataTable* InMirrorDataTable)
 		: AnimSequence(InAnimSequence)
 		, SequenceId(InSequenceId)
 		, RootMotion(InRootMotion)
@@ -66,7 +77,7 @@ struct ANIMGRAPHRUNTIME_API FAnimSequencerData
 		, ToPosition(InToPosition)
 		, Weight(InWeight)
 		, bFireNotifies(bInFireNotifies)
-		, bSwapRootBoneWithComponentRoot(bInSwapRootBoneWithComponentRoot)
+		, SwapRootBone(InSwapRootBone)
 		, InitialTransform(InInitialTransform)
 		, MirrorDataTable(InMirrorDataTable)
 	{
@@ -79,7 +90,7 @@ struct ANIMGRAPHRUNTIME_API FAnimSequencerData
 	float ToPosition;
 	float Weight;
 	bool bFireNotifies;
-	bool bSwapRootBoneWithComponentRoot;
+	ESwapRootBone SwapRootBone;
 	TOptional<FTransform> InitialTransform;
 	UMirrorDataTable* MirrorDataTable;
 };
@@ -179,7 +190,7 @@ protected:
 	void EnsureAnimTrack(UAnimSequenceBase* InAnimSequence, uint32 SequenceId);
 	void ClearSequencePlayerAndMirrorMaps();
 
-	bool bSwapRootBoneWithComponentRoot = false;
+	ESwapRootBone SwapRootBone = ESwapRootBone::SwapRootBone_None;
 	TOptional<FTransform> InitialTransform;
 	TOptional<FTransform> RootBoneTransform;
 };

@@ -63,7 +63,7 @@ bool FAnimSequencerInstanceProxy::Evaluate(FPoseContext& Output)
 	
 	RootBoneTransform.Reset();
 
-	if (bSwapRootBoneWithComponentRoot)
+	if (SwapRootBone != ESwapRootBone::SwapRootBone_None)
 	{
 		for (const FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
 		{
@@ -81,7 +81,7 @@ bool FAnimSequencerInstanceProxy::Evaluate(FPoseContext& Output)
 
 void FAnimSequencerInstanceProxy::PostEvaluate(UAnimInstance* InAnimInstance)
 {
-	if (GetSkelMeshComponent() && bSwapRootBoneWithComponentRoot)
+	if (GetSkelMeshComponent() && SwapRootBone != ESwapRootBone::SwapRootBone_None)
 	{
 		if (RootBoneTransform.IsSet())
 		{
@@ -91,7 +91,19 @@ void FAnimSequencerInstanceProxy::PostEvaluate(UAnimInstance* InAnimInstance)
 			{
 				RelativeTransform = RootBoneTransform.GetValue() * InitialTransform.GetValue();
 			}
-			GetSkelMeshComponent()->SetRelativeLocationAndRotation(RelativeTransform.GetLocation(), RelativeTransform.GetRotation().Rotator());
+
+			if (SwapRootBone == ESwapRootBone::SwapRootBone_Component)
+			{
+				GetSkelMeshComponent()->SetRelativeLocationAndRotation(RelativeTransform.GetLocation(), RelativeTransform.GetRotation().Rotator());
+			}
+			else if (SwapRootBone == ESwapRootBone::SwapRootBone_Actor)
+			{
+				AActor* Actor = GetSkelMeshComponent()->GetOwner();
+				if (Actor && Actor->GetRootComponent())
+				{
+					Actor->GetRootComponent()->SetRelativeLocationAndRotation(RelativeTransform.GetLocation(), RelativeTransform.GetRotation().Rotator());
+				}
+			}
 		}
 	}
 }
@@ -246,7 +258,7 @@ void FAnimSequencerInstanceProxy::UpdateAnimTrackWithRootMotion(UAnimSequenceBas
 
 void FAnimSequencerInstanceProxy::UpdateAnimTrackWithRootMotion(const FAnimSequencerData& InAnimSequencerData)
 {
-	bSwapRootBoneWithComponentRoot = InAnimSequencerData.bSwapRootBoneWithComponentRoot;
+	SwapRootBone = InAnimSequencerData.SwapRootBone;
 	InitialTransform = InAnimSequencerData.InitialTransform;
 	UpdateAnimTrack(InAnimSequencerData.AnimSequence, InAnimSequencerData.SequenceId, InAnimSequencerData.RootMotion, InAnimSequencerData.FromPosition, InAnimSequencerData.ToPosition, InAnimSequencerData.Weight, InAnimSequencerData.bFireNotifies, InAnimSequencerData.MirrorDataTable);
 }

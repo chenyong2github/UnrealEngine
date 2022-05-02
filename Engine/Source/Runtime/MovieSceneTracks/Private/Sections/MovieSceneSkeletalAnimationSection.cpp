@@ -3,6 +3,7 @@
 #include "Sections/MovieSceneSkeletalAnimationSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Animation/AnimSequence.h"
+#include "Runtime/AnimGraphRuntime/Public/AnimSequencerInstanceProxy.h"
 #include "Evaluation/MovieSceneSkeletalAnimationTemplate.h"
 #include "Logging/MessageLog.h"
 #include "MovieScene.h"
@@ -34,7 +35,7 @@ FMovieSceneSkeletalAnimationParams::FMovieSceneSkeletalAnimationParams()
 	Weight.SetDefault(1.f);
 	bSkipAnimNotifiers = false;
 	bForceCustomMode = false;
-	bSwapRootBoneWithComponentRoot = false;
+	SwapRootBone = ESwapRootBone::SwapRootBone_None;
 }
 
 UMovieSceneSkeletalAnimationSection::UMovieSceneSkeletalAnimationSection( const FObjectInitializer& ObjectInitializer )

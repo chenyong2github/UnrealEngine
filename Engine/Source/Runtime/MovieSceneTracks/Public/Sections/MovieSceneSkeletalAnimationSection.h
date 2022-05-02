@@ -12,6 +12,7 @@
 struct FMovieSceneSkeletalAnimRootMotionTrackParams;
 struct FAnimationPoseData;
 class UMirrorDataTable;
+enum class ESwapRootBone : uint8;
 
 USTRUCT(BlueprintType)
 struct FMovieSceneSkeletalAnimationParams
@@ -69,9 +70,9 @@ struct FMovieSceneSkeletalAnimationParams
 	UPROPERTY(EditAnywhere, Category = "Animation")
 	bool bForceCustomMode;
 
-	/** If on the root bone transform will be swapped to the component transform*/
+	/** If on the root bone transform will be swapped to the specified root*/
 	UPROPERTY(EditAnywhere, Category = "Animation")
-	bool bSwapRootBoneWithComponentRoot;
+	ESwapRootBone SwapRootBone;
 
 	UPROPERTY()
 	float StartOffset_DEPRECATED;
