@@ -630,6 +630,22 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 							*GraphName,
 							*PinPath,
 							*Pin->GetDefaultValue()));
+
+
+				TArray<const URigVMPin*> SubPins = { Pin };
+				for (int32 i = 0; i < SubPins.Num(); ++i)
+				{
+					if (SubPins[i]->IsStruct() || SubPins[i]->IsArray())
+					{
+						SubPins.Append(SubPins[i]->GetSubPins());
+						const FString SubPinPath = GetSanitizedPinPath(SubPins[i]->GetPinPath());
+
+						Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_pin_expansion('%s', %s)"),
+							*GraphName,
+							*SubPinPath,
+							SubPins[i]->IsExpanded() ? TEXT("True") : TEXT("False")));
+					}
+				}
 			}
 
 			if (!Pin->GetBoundVariablePath().IsEmpty())
@@ -6464,11 +6480,11 @@ bool URigVMController::SetNodeColor(URigVMNode* InNode, const FLinearColor& InCo
 		const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
 		const FString NodePath = GetSanitizedPinPath(InNode->GetNodePath());
 
-		RigVMPythonUtils::Print(GetGraphOuterName(), 
-							FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_color_by_name('%s', %s)"),
-											*GraphName,
-											*NodePath,
-											*RigVMPythonUtils::LinearColorToPythonString(InColor)));
+		RigVMPythonUtils::Print(GetGraphOuterName(),
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_color_by_name('%s', %s)"),
+				*GraphName,
+				*NodePath,
+				*RigVMPythonUtils::LinearColorToPythonString(InColor)));
 	}
 
 	return true;

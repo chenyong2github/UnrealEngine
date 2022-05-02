@@ -1761,6 +1761,24 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 							*Graph->GetGraphName(),
 							Graph->GetEntryNode()->IsMutable() ? TEXT("True") : TEXT("False"),
 							*RigVMPythonUtils::NameToPep8(Graph->GetGraphName())));
+
+					URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
+
+					InternalCommands.Add(FString::Printf(TEXT("library_controller.set_node_category_by_name('%s', '%s')"),
+						*Graph->GetGraphName(),
+						*LibraryNode->GetNodeCategory()));
+
+					InternalCommands.Add(FString::Printf(TEXT("library_controller.set_node_keywords_by_name('%s', '%s')"),
+						*Graph->GetGraphName(),
+						*LibraryNode->GetNodeKeywords() ));
+
+					InternalCommands.Add(FString::Printf(TEXT("library_controller.set_node_description_by_name('%s', '%s')"),
+						*Graph->GetGraphName(),
+						*LibraryNode->GetNodeDescription()));
+
+					InternalCommands.Add(FString::Printf(TEXT("library_controller.set_node_color_by_name('%s', %s)"),
+						*Graph->GetGraphName(),
+						*RigVMPythonUtils::LinearColorToPythonString(LibraryNode->GetNodeColor()) ));
 					
 					URigVMFunctionEntryNode* EntryNode = Graph->GetEntryNode();
 					URigVMFunctionReturnNode* ReturnNode = Graph->GetReturnNode();
@@ -1809,7 +1827,7 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 									*Graph->GetGraphName(),
 									*Pin->GetName(), 
 									*Pin->GetCPPType(),
-									Pin->GetCPPTypeObject() ? *Pin->GetCPPTypeObject()->GetPathName() : TEXT("''"),
+									Pin->GetCPPTypeObject() ? *Pin->GetCPPTypeObject()->GetPathName() : TEXT(""),
 									*Pin->GetDefaultValue()));
 						}
 					}
