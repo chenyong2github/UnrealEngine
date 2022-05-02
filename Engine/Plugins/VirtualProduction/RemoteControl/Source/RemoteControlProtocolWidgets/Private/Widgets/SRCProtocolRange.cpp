@@ -23,15 +23,8 @@ void SRCProtocolRange::Construct(const FArguments& InArgs, const TSharedRef<STab
 	PrimaryColumnSizeData = InArgs._PrimaryColumnSizeData;
 	SecondaryColumnSizeData = InArgs._SecondaryColumnSizeData;
 
-	ViewModel->OnChanged().AddLambda([this]()
-	{
-		// May not have been created yet
-		if(InputPropertyView.IsValid())
-		{
-			InputPropertyView->Refresh();	
-		}
-	});
-
+	ViewModel->OnChanged().AddSP(this, &SRCProtocolRange::OnViewModelChanged);
+	
 	const TSharedPtr<SWidget> LeftWidget =
 	SNew(SHorizontalBox)
 	+ SHorizontalBox::Slot()
@@ -268,6 +261,15 @@ void SRCProtocolRange::OnOutputProxyChanged(const FPropertyChangedEvent& InEvent
 		ViewModel->SetOutputData(InPropertyHandle);
 	});
 	OutputPropertyView->Refresh();
+}
+
+void SRCProtocolRange::OnViewModelChanged() const
+{
+	// May not have been created yet
+	if(InputPropertyView.IsValid())
+	{
+		InputPropertyView->Refresh();	
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

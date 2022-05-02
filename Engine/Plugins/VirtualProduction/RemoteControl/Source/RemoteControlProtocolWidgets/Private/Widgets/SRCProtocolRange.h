@@ -55,7 +55,10 @@ private:
 
 	/** Applies proxy data to actual. */
 	void OnOutputProxyChanged(const FPropertyChangedEvent& InEvent);
-
+	
+	/** Called whenever the viewmodel changes. */
+	void OnViewModelChanged() const;
+	
 protected:
 	/** Represents an individual range binding for a protocol binding. */
 	TSharedPtr<FProtocolRangeViewModel> ViewModel;

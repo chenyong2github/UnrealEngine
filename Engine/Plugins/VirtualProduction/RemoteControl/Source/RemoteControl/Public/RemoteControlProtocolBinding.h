@@ -54,7 +54,7 @@ struct REMOTECONTROL_API FRemoteControlProtocolMapping
 
 public:
 	FRemoteControlProtocolMapping() = default;
-	FRemoteControlProtocolMapping(FProperty* InProperty, uint8 InRangeValueSize);
+	FRemoteControlProtocolMapping(FProperty* InProperty, uint8 InRangeValueSize, const FGuid& InMappingId = FGuid::NewGuid());
 
 	bool operator==(const FRemoteControlProtocolMapping& InProtocolMapping) const;
 	bool operator==(FGuid InProtocolMappingId) const;
@@ -535,7 +535,7 @@ struct REMOTECONTROL_API FRemoteControlProtocolBinding
 
 public:
 	FRemoteControlProtocolBinding() = default;
-	FRemoteControlProtocolBinding(const FName InProtocolName, const FGuid& InPropertyId, TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InRemoteControlProtocolEntityPtr);
+	FRemoteControlProtocolBinding(const FName InProtocolName, const FGuid& InPropertyId, TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InRemoteControlProtocolEntityPtr, const FGuid& InBindingId = FGuid::NewGuid());
 
 	bool operator==(const FRemoteControlProtocolBinding& InProtocolBinding) const;
 	bool operator==(FGuid InProtocolBindingId) const;

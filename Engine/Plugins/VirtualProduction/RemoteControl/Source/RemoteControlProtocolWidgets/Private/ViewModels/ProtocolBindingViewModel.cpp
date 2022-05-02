@@ -22,16 +22,27 @@ namespace Commands
 	{
 		FGuid EntityId;
 		FGuid BindingId;
-		FGuid RangeId;	
-		TArray<FGuid> RangeIds; // Specify if there are multiple to remove
+		FGuid RangeId;
+		TArray<FGuid> RangeIds; // Specify if there are multiple to add or remove
 	};
+
+	static FGuid AddRangeMappingInternal(URemoteControlPreset* InPreset, const FAddRemoveRangeArgs& InArgs);
+	static bool RemoveRangeMappingInternal(URemoteControlPreset* InPreset, const FAddRemoveRangeArgs& InArgs);
 	
 	static FGuid AddRangeMappingInternal(URemoteControlPreset* InPreset, const FAddRemoveRangeArgs& InArgs)
 	{
-		if(TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
+		TArray<FGuid> NewRangeIds;
+		NewRangeIds.Reserve(1);
+		
+		if(const TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
 		{
 			FRemoteControlProtocolBinding* ProtocolBinding = RCProperty->ProtocolBindings.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
-			check(ProtocolBinding);
+			
+			// If undone, this can be nullptr
+			if(!ProtocolBinding)
+			{
+				return FGuid();
+			}
 
 			const TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> EntityPtr = ProtocolBinding->GetRemoteControlProtocolEntityPtr();
 
@@ -41,30 +52,63 @@ namespace Commands
 				// @note: This only adds the same number of range mappings back, excluding their parameters
 				for (int32 Idx = 0; Idx < InArgs.RangeIds.Num(); ++Idx)
 				{
-					const FRemoteControlProtocolMapping RangesData(RCProperty->GetProperty(), (*EntityPtr)->GetRangePropertySize());
+					FGuid RangeId = InArgs.RangeIds[Idx];
+					RangeId = RangeId.IsValid() ? RangeId : FGuid::NewGuid();
+					
+					const FRemoteControlProtocolMapping RangesData(RCProperty->GetProperty(), (*EntityPtr)->GetRangePropertySize(), RangeId);
 					ProtocolBinding->AddMapping(RangesData);
+					NewRangeIds.Add(RangesData.GetId());
 				}
-
-				return FGuid::NewGuid(); // Multiple added, but only 1 id returned, so just return a valid one
 			}
 			else
 			{
-			const FRemoteControlProtocolMapping RangesData(RCProperty->GetProperty(), (*EntityPtr)->GetRangePropertySize());
+				const FRemoteControlProtocolMapping RangesData(RCProperty->GetProperty(), (*EntityPtr)->GetRangePropertySize(), InArgs.RangeId.IsValid() ? InArgs.RangeId : FGuid::NewGuid());
 				ProtocolBinding->AddMapping(RangesData);
 
-			return RangesData.GetId();
+				NewRangeIds.Add(RangesData.GetId());
+			}
+
+			using FCommandChange = TRemoteControlProtocolCommandChange<Commands::FAddRemoveRangeArgs>;
+			using FOnChange = FCommandChange::FOnUndoRedoDelegate;
+			if(GUndo)
+			{
+				// Set or re-set the RangeId' (will be same if it was already set), so undos below remove or add the correct ranges
+				FAddRemoveRangeArgs Args = InArgs;
+				Args.RangeId = NewRangeIds[0];
+				Args.RangeIds = NewRangeIds;
+				
+				// What to do on undo and redo
+				GUndo->StoreUndo(InPreset,
+					MakeUnique<FCommandChange>(
+						InPreset,
+						MoveTemp(Args),
+						FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs)
+						{
+							Commands::AddRangeMappingInternal(InPreset, InChangeArgs);
+						}),
+						FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs)
+						{
+							Commands::RemoveRangeMappingInternal(InPreset, InChangeArgs);
+						})
+					)
+				);
+			}
 		}
-		}
-		
-		return FGuid();
+
+		return NewRangeIds[0]; // If multiple added, only return first as caller only needs a valid guid
 	}
 
 	static bool RemoveRangeMappingInternal(URemoteControlPreset* InPreset, const FAddRemoveRangeArgs& InArgs)
 	{
-		if(TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
+		if(const TSharedPtr<FRemoteControlProperty> RCProperty = InPreset->GetExposedEntity<FRemoteControlProperty>(InArgs.EntityId).Pin())
 		{
 			FRemoteControlProtocolBinding* ProtocolBinding = RCProperty->ProtocolBindings.FindByHash(GetTypeHash(InArgs.BindingId), InArgs.BindingId);
-			check(ProtocolBinding);
+
+			// If undone, this can be nullptr
+			if(!ProtocolBinding)
+			{
+				return false;
+			}
 
 			int32 NumRemoved = 0;
 			if (InArgs.RangeId.IsValid())
@@ -75,6 +119,27 @@ namespace Commands
 			{
 				ProtocolBinding->ClearMappings();
 				NumRemoved = 1; // ClearMapping doesn't return a num, so set to 1 to indicate success
+			}
+
+			using FCommandChange = TRemoteControlProtocolCommandChange<Commands::FAddRemoveRangeArgs>;
+			using FOnChange = FCommandChange::FOnUndoRedoDelegate;
+			if(GUndo)
+			{
+				// What to do on undo and redo
+				GUndo->StoreUndo(InPreset,
+					MakeUnique<FCommandChange>(
+						InPreset,
+						CopyTemp(InArgs),
+						FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs)
+						{
+							Commands::RemoveRangeMappingInternal(InPreset, InChangeArgs);
+						}),
+						FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs)
+						{
+							Commands::AddRangeMappingInternal(InPreset, InChangeArgs);
+						})
+					)
+				);
 			}
 
 			return NumRemoved > 0;
@@ -120,7 +185,7 @@ FProtocolBindingViewModel::~FProtocolBindingViewModel()
 
 void FProtocolBindingViewModel::Initialize()
 {
-	FRemoteControlProtocolBinding* Binding = GetBinding();
+	const FRemoteControlProtocolBinding* Binding = GetBinding();
 	// May be stale as a result of an undo deleting it.
 	if(Binding)
 	{
@@ -145,21 +210,6 @@ FGuid FProtocolBindingViewModel::AddRangeMapping()
 	GetPreset()->MarkPackageDirty();
 
 	TSharedPtr<FProtocolRangeViewModel>& NewRangeViewModel = AddRangeMappingInternal();
-
-	using FCommandChange = TRemoteControlProtocolCommandChange<Commands::FAddRemoveRangeArgs>;
-	using FOnChange = FCommandChange::FOnUndoRedoDelegate;
-	if(GUndo)
-	{
-		// What to do on undo and redo
-		GUndo->StoreUndo(Preset.Get(),
-            MakeUnique<FCommandChange>(
-                Preset.Get(),
-                Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), NewRangeViewModel->GetId()},
-                FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs){ Commands::AddRangeMappingInternal(InPreset, InChangeArgs); }),
-                FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs){ Commands::RemoveRangeMappingInternal(InPreset, InChangeArgs); })
-            )
-        );
-	}
 
 	OnRangeMappingAddedDelegate.Broadcast(NewRangeViewModel.ToSharedRef());	
 
@@ -189,21 +239,6 @@ void FProtocolBindingViewModel::RemoveRangeMapping(const FGuid& InId)
 	check(GUndo != nullptr);
 	GetPreset()->MarkPackageDirty();
 
-	using FCommandChange = TRemoteControlProtocolCommandChange<Commands::FAddRemoveRangeArgs>;
-	using FOnChange = FCommandChange::FOnUndoRedoDelegate;
-	if(GUndo)
-	{
-		// What to do on undo and redo
-		GUndo->StoreUndo(Preset.Get(),
-            MakeUnique<FCommandChange>(
-                Preset.Get(),
-                Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), InId},
-                FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs){ Commands::RemoveRangeMappingInternal(InPreset, InChangeArgs); }),
-                FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs){ Commands::AddRangeMappingInternal(InPreset, InChangeArgs); })
-            )
-        );
-	}
-
 	if(Commands::RemoveRangeMappingInternal(Preset.Get(), Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), InId}))
 	{
 		const int32 NumItemsRemoved = Ranges.RemoveAll([&](const TSharedPtr<FProtocolRangeViewModel>& InRange)
@@ -212,7 +247,9 @@ void FProtocolBindingViewModel::RemoveRangeMapping(const FGuid& InId)
         });
 
 		if(NumItemsRemoved <= 0)
+		{
 			return;
+		}
 
 		OnRangeMappingRemovedDelegate.Broadcast(InId);
 	}
@@ -239,28 +276,15 @@ void FProtocolBindingViewModel::RemoveAllRangeMappings()
 		return InRange->GetId();
 	});
 
-	using FCommandChange = TRemoteControlProtocolCommandChange<Commands::FAddRemoveRangeArgs>;
-	using FOnChange = FCommandChange::FOnUndoRedoDelegate;
-	if (GUndo)
-	{
-		// What to do on undo and redo
-		GUndo->StoreUndo(Preset.Get(),
-						MakeUnique<FCommandChange>(
-							Preset.Get(),
-							Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), {}, AllRangeIds},
-							FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs) { Commands::RemoveRangeMappingInternal(InPreset, InChangeArgs); }),
-							FOnChange::CreateLambda([](URemoteControlPreset* InPreset, const Commands::FAddRemoveRangeArgs& InChangeArgs) { Commands::AddRangeMappingInternal(InPreset, InChangeArgs); })
-						)
-		);
-	}
-
 	if (Commands::RemoveRangeMappingInternal(Preset.Get(), Commands::FAddRemoveRangeArgs{ParentViewModel.Pin()->GetId(), GetId(), {}, AllRangeIds}))
 	{
 		const int32 NumItemsRemoved = Ranges.Num();
 		Ranges.Empty();
 
 		if (NumItemsRemoved <= 0)
+		{
 			return;
+		}
 
 		OnRangeMappingsRemovedDelegate.Broadcast();
 	}
@@ -270,8 +294,8 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 {
 	check(IsValid());
 
-	TSharedPtr<FProtocolRangeViewModel> MinItem = AddRangeMappingInternal();
-	TSharedPtr<FProtocolRangeViewModel> MaxItem = AddRangeMappingInternal();
+	const TSharedPtr<FProtocolRangeViewModel> MinItem = AddRangeMappingInternal();
+	const TSharedPtr<FProtocolRangeViewModel> MaxItem = AddRangeMappingInternal();
 
 	FName RangePropertyTypeName = GetBinding()->GetRemoteControlProtocolEntityPtr()->Get()->GetRangePropertyName();
 	FProperty* RangeProperty = GetProtocol()->GetRangeInputTemplateProperty();
@@ -350,6 +374,7 @@ void FProtocolBindingViewModel::AddDefaultRangeMappings()
 	{
 		MappingPropertyTypeName = StructProperty->Struct->GetFName();
 	}
+
 	// Mapping (output)
 	{
 		if(const FNumericProperty* NumericProperty = CastField<FNumericProperty>(MappingProperty))
@@ -512,7 +537,7 @@ FRemoteControlProtocolBinding* FProtocolBindingViewModel::GetBinding() const
 {
 	check(IsValid());
 
-	if (TSharedPtr<FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(PropertyId).Pin())
+	if (const TSharedPtr<FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(PropertyId).Pin())
 	{
 		return RCProperty->ProtocolBindings.FindByHash(GetTypeHash(BindingId), BindingId);
 	}
@@ -523,6 +548,12 @@ FRemoteControlProtocolBinding* FProtocolBindingViewModel::GetBinding() const
 
 TSharedPtr<IRemoteControlProtocol> FProtocolBindingViewModel::GetProtocol() const
 {
+	// If undo removes the binding, this will occur
+	if(!GetBinding())
+	{
+		return nullptr;		
+	}
+	
 	return IRemoteControlProtocolModule::Get().GetProtocolByName(GetBinding()->GetProtocolName());
 }
 
@@ -553,7 +584,7 @@ bool FProtocolBindingViewModel::IsValid(FText& OutMessage)
 	check(IsValid());
 
 	EValidity Result = EValidity::Ok;
-	FString* AdditionalMessage = nullptr;
+	const FString* AdditionalMessage = nullptr;
 
 	if (Ranges.Num() <= 1)
 	{
@@ -575,7 +606,7 @@ bool FProtocolBindingViewModel::IsValid(FText& OutMessage)
 	// Continue if ok
 	if (Result == EValidity::Ok)
 	{
-		FRemoteControlProtocolBinding* ProtocolBinding = GetBinding();
+		const FRemoteControlProtocolBinding* ProtocolBinding = GetBinding();
 		// Was probably deleted
 		if(ProtocolBinding == nullptr)
 		{
@@ -589,7 +620,7 @@ bool FProtocolBindingViewModel::IsValid(FText& OutMessage)
 		// Iterate over each exposed field
 		for (TWeakPtr<FRemoteControlField> ExposedFieldWeakPtr : GetPreset()->GetExposedEntities<FRemoteControlField>())
 		{
-			TSharedPtr<FRemoteControlField> ExposedField = ExposedFieldWeakPtr.Pin();
+			const TSharedPtr<FRemoteControlField> ExposedField = ExposedFieldWeakPtr.Pin();
 
 			// Skip self
 			if (ExposedField->GetId() == PropertyId)

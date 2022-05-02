@@ -423,8 +423,9 @@ namespace EntityInterpolation
 	}
 }
 
-FRemoteControlProtocolMapping::FRemoteControlProtocolMapping(FProperty* InProperty, uint8 InRangeValueSize)
-	: Id(FGuid::NewGuid())
+// Optionally supplying the MappingId is used by the undo system
+FRemoteControlProtocolMapping::FRemoteControlProtocolMapping(FProperty* InProperty, uint8 InRangeValueSize, const FGuid& InMappingId)
+	: Id(InMappingId)
 {
 	if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(InProperty))
 	{
@@ -798,8 +799,9 @@ TArray<FRemoteControlProtocolEntity::FRangeMappingData> FRemoteControlProtocolEn
 	return RangeMappingBuffers;
 }
 
-FRemoteControlProtocolBinding::FRemoteControlProtocolBinding(const FName InProtocolName, const FGuid& InPropertyId, TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InRemoteControlProtocolEntityPtr)
-	: Id(FGuid::NewGuid())
+// Optionally supplying the BindingId is used by the undo system
+FRemoteControlProtocolBinding::FRemoteControlProtocolBinding(const FName InProtocolName, const FGuid& InPropertyId, TSharedPtr<TStructOnScope<FRemoteControlProtocolEntity>> InRemoteControlProtocolEntityPtr, const FGuid& InBindingId)
+	: Id(InBindingId)
 	, ProtocolName(InProtocolName)
 	, PropertyId(InPropertyId)
 	, RemoteControlProtocolEntityPtr(InRemoteControlProtocolEntityPtr)

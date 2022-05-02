@@ -73,7 +73,7 @@ void FProtocolRangeViewModel::UpdateInputValueRange()
 	check(IsValid());
 
 	// Early out if not yet initialized or stale
-	if(!InputProxyPropertyContainer.IsValid())
+	if(!InputProxyPropertyContainer.IsValid() || !ParentViewModel.IsValid())
 	{
 		return;	
 	}
@@ -208,6 +208,8 @@ void FProtocolRangeViewModel::SetOutputData(const FRCFieldResolvedData& InResolv
 
 FProperty* FProtocolRangeViewModel::GetInputProperty() const
 {
+	check(ParentViewModel.IsValid());
+	
 	return ParentViewModel.Pin()->GetProtocol()->GetRangeInputTemplateProperty();
 }
 
@@ -313,6 +315,13 @@ void FProtocolRangeViewModel::PostUndo(bool bSuccess)
 void FProtocolRangeViewModel::OnParentChanged()
 {
 	check(IsValid());
+	
+	// Undo deleted the parent binding
+	if(!GetBinding())
+	{
+		return;
+	}
+	
 	UpdateInputValueRange();
 	OnChangedDelegate.Broadcast();
 }
