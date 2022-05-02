@@ -48,8 +48,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FStrataGlobalUniformParameters, RENDERER_AP
 	SHADER_PARAMETER(uint32, TileSizeLog2)
 	SHADER_PARAMETER(FIntPoint, TileCount)
 	SHADER_PARAMETER(FIntPoint, TileOffset)
-	SHADER_PARAMETER(FIntPoint, TileCount_Overflow)
-	SHADER_PARAMETER(FIntPoint, TileOffset_Overflow)
+	SHADER_PARAMETER(FIntPoint, OverflowTileCount)
+	SHADER_PARAMETER(FIntPoint, OverflowTileOffset)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray<uint>, MaterialTextureArray)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TopLayerTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, SSSTexture)
@@ -107,8 +107,8 @@ struct FStrataViewData
 {
 	FIntPoint TileCount  = FIntPoint(0, 0);
 	FIntPoint TileOffset = FIntPoint(0, 0);
-	FIntPoint TileCount_Overflow = FIntPoint(0, 0);
-	FIntPoint TileOffset_Overflow = FIntPoint(0, 0);
+	FIntPoint OverflowTileCount = FIntPoint(0, 0);
+	FIntPoint OverflowTileOffset = FIntPoint(0, 0);
 
 	FRDGBufferRef    ClassificationTileListBuffer[STRATA_TILE_TYPE_COUNT];
 	FRDGBufferSRVRef ClassificationTileListBufferSRV[STRATA_TILE_TYPE_COUNT];

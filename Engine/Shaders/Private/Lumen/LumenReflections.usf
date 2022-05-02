@@ -94,8 +94,8 @@ void ReflectionTileClassificationMarkCS(
 	GroupMemoryBarrierWithGroupSync();
 
 #if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
-	const bool bIsValid = IsTileNCoordValid((DispatchThreadId >> STRATA_TILE_SIZE_DIV_AS_SHIFT) + Strata.TileOffset_Overflow);
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.TileOffset_Overflow * STRATA_TILE_SIZE), true);
+	const bool bIsValid = IsTileNCoordValid((DispatchThreadId >> STRATA_TILE_SIZE_DIV_AS_SHIFT) + Strata.OverflowTileOffset);
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.OverflowTileOffset * STRATA_TILE_SIZE), true);
 	const uint2 FlattenTileCoord = Coord.SvPositionFlatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
 	const uint2 DownSampleDepthCoord = Coord.SvPositionFlatten; // STRATA_TODO: add support for ReflectionDownsampleFactor
 	const bool bIsDownSampleDepthCoordValid = bIsValid;
@@ -206,7 +206,7 @@ void ReflectionTileClassificationBuildListsCS(
 			#if STRATA_ENABLED
 			if (bOverflow)
 			{
-				TileCoordinate += Strata.TileOffset_Overflow;
+				TileCoordinate += Strata.OverflowTileOffset;
 				bIsValid = IsTileNCoordValid(TileCoordinate);
 			}
 			#endif
@@ -283,7 +283,7 @@ void ReflectionGenerateRaysCS(
 	bool bIsOverflow = false;
 
 #if STRATA_ENABLED
-	bIsOverflow = all((ReflectionTracingCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.TileOffset_Overflow));
+	bIsOverflow = all((ReflectionTracingCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.OverflowTileOffset));
 	if (bIsOverflow)
 	{
 		SvPositionForMaterialCoord = ReflectionTracingCoord * ReflectionDownsampleFactor + uint2(ScreenJitter + .5f);
@@ -432,7 +432,7 @@ void ReflectionResolveCS(
 	uint2 SvPositionForMaterialCoord = ScreenCoord + View.ViewRectMinAndSize.xy;
 
 #if STRATA_ENABLED
-	bIsOverflow = all((ScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.TileOffset_Overflow));
+	bIsOverflow = all((ScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.OverflowTileOffset));
 	if (bIsOverflow)
 	{
 		SvPositionForMaterialCoord = ScreenCoord;
@@ -882,7 +882,7 @@ void ReflectionTemporalReprojectionCS(
 
 	bool bIsOverflow = false;
 #if STRATA_ENABLED
-	bIsOverflow = all((ReflectionScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.TileOffset_Overflow));
+	bIsOverflow = all((ReflectionScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.OverflowTileOffset));
 	if (bIsOverflow)
 	{
 		SvPositionForMaterialCoord = ReflectionScreenCoord;
@@ -1059,7 +1059,7 @@ void ReflectionBilateralFilterCS(
 
 	bool bIsOverflow = false;
 #if STRATA_ENABLED
-	bIsOverflow = all((ScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.TileOffset_Overflow));
+	bIsOverflow = all((ScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.OverflowTileOffset));
 	if (bIsOverflow)
 	{
 		SvPositionForMaterialCoord = ScreenCoord;
@@ -1155,7 +1155,7 @@ void ReflectionPassthroughCopyCS(
 
 	bool bIsOverflow = false;
 #if STRATA_ENABLED
-	bIsOverflow = all((ReflectionScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.TileOffset_Overflow));
+	bIsOverflow = all((ReflectionScreenCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT) >= uint2(Strata.OverflowTileOffset));
 	if (bIsOverflow)
 	{
 		SvPositionForMaterialCoord = ReflectionScreenCoord;

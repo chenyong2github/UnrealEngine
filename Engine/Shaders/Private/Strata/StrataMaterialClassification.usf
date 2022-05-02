@@ -229,8 +229,8 @@ void ArgsMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 int2 TileCount_Primary;
 int2 TileOffset_Primary;
 
-int2 TileCount_Overflow;
-int2 TileOffset_Overflow;
+int2 OverflowTileCount;
+int2 OverflowTileOffset;
 
 Buffer<uint>   TileDrawIndirectDataBuffer;
 RWBuffer<uint> TileDispatchIndirectDataBuffer;
@@ -244,8 +244,8 @@ void ArgsMainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	if (all(DispatchThreadId == 0))
 	{
 		const uint TileCount = TileDrawIndirectDataBuffer[0].x;
-		const uint DispatchX = min(TileCount, TileCount_Overflow.x);
-		const uint DispatchY = DivideAndRoundUp(TileCount, TileCount_Overflow.x);
+		const uint DispatchX = min(TileCount, OverflowTileCount.x);
+		const uint DispatchY = DivideAndRoundUp(TileCount, OverflowTileCount.x);
 
 		TileDispatchIndirectDataBuffer[0] = DispatchX;
 		TileDispatchIndirectDataBuffer[1] = DispatchY;
@@ -303,8 +303,8 @@ uint TileSizeLog2;
 int2 TileCount_Primary;
 int2 TileOffset_Primary;
 
-int2 TileCount_Overflow;
-int2 TileOffset_Overflow;
+int2 OverflowTileCount;
+int2 OverflowTileOffset;
 
 Texture2D<uint> TopLayerTexture;
 Texture2DArray<uint> MaterialTextureArray;
@@ -321,7 +321,7 @@ groupshared uint s_TileBSDFCount[GROUP_THREAD_COUNT];
 
 uint2 LinearCoordToTileCoord(uint InLinear)
 {
-	return uint2(InLinear % TileCount_Overflow.x, InLinear / TileCount_Overflow.x) + TileOffset_Overflow;
+	return uint2(InLinear % OverflowTileCount.x, InLinear / OverflowTileCount.x) + OverflowTileOffset;
 }
 
 [numthreads(STRATA_TILE_SIZE, STRATA_TILE_SIZE, 1)]

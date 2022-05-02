@@ -25,9 +25,9 @@ uint2 GetTilePositionFlatten(FStrataBSDFTile InTile0, uint2 InTile0Coord, uint I
 	{
 		Out = InTile0.TileCoord;
 		Out.x = Out.x + (InBSDFIndex - 1);
-		if (Out.x >= uint(Strata.TileCount_Overflow.x))
+		if (Out.x >= uint(Strata.OverflowTileCount.x))
 		{
-			Out.x = Out.x % uint(Strata.TileCount_Overflow.x);
+			Out.x = Out.x % uint(Strata.OverflowTileCount.x);
 			Out.y++;
 		}
 	}
@@ -58,8 +58,8 @@ uint2 GetBSDFPositionFlatten(uint2 InSvPosition, uint InBSDFIndex)
 
 bool IsTileNCoordValid(uint2 InTileNCoord)
 {
-	InTileNCoord -= Strata.TileOffset_Overflow;
-	const uint LinearTileCoord = InTileNCoord.y * Strata.TileCount_Overflow.x + InTileNCoord.x;
+	InTileNCoord -= Strata.OverflowTileOffset;
+	const uint LinearTileCoord = InTileNCoord.y * Strata.OverflowTileCount.x + InTileNCoord.x;
 	return LinearTileCoord < Strata.BSDFTileCountBuffer[0];
 }
 #endif
@@ -84,7 +84,7 @@ FReflectionTracingCoord GetReflectionTracingCoord(uint2 InReflectionTracingCoord
 
 #if STRATA_ENABLED
 	const uint2 TileNCoord = InReflectionTracingCoord >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
-	if (TileNCoord.y >= uint(Strata.TileOffset_Overflow.y))
+	if (TileNCoord.y >= uint(Strata.OverflowTileOffset.y))
 	{
 		// Compute the source pixel corod
 		const FStrataBSDFTile TileN = UnpackBSDFTile(Strata.BSDFTileTexture[TileNCoord]);
@@ -116,7 +116,7 @@ FLumenMaterialCoord GetLumenMaterialCoord(in uint2 SvPosition, bool bIsOverflow)
 #if STRATA_ENABLED
 	if (bIsOverflow)
 	{
-		//SvPosition += Strata.TileOffset_Overflow * STRATA_TILE_SIZE;
+		//SvPosition += Strata.OverflowTileOffset * STRATA_TILE_SIZE;
 		const uint2 TileNCoord = SvPosition >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
 		const uint2 LocalCoord = SvPosition - TileNCoord * STRATA_TILE_SIZE;
 
@@ -142,7 +142,7 @@ FLumenMaterialCoord GetLumenMaterialCoord(in uint2 SvPositionInPrimarySpace, uin
 #if STRATA_ENABLED
 	if (InBSDFIndex > 0)
 	{
-		//SvPosition += Strata.TileOffset_Overflow * STRATA_TILE_SIZE;
+		//SvPosition += Strata.OverflowTileOffset * STRATA_TILE_SIZE;
 		const uint2 Tile0Coord = SvPositionInPrimarySpace >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
 		const uint2 LocalCoord = SvPositionInPrimarySpace - Tile0Coord * STRATA_TILE_SIZE;
 

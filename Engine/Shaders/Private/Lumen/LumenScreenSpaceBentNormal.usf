@@ -28,7 +28,7 @@ float4 HZBUvFactorAndInvFactor;
 void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 #if STRATA_ENABLED && PERMUTATION_OVERFLOW
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.TileOffset_Overflow * STRATA_TILE_SIZE), true);
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.OverflowTileOffset * STRATA_TILE_SIZE), true);
 #else
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);
 #endif

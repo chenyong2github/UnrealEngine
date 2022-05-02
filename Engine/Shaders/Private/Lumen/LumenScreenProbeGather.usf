@@ -628,8 +628,8 @@ void ScreenProbeTileClassificationMarkCS(
 	GroupMemoryBarrierWithGroupSync();
 
 #if PERMUTATION_OVERFLOW_TILE && STRATA_ENABLED
-	const bool bIsValid = all((DispatchThreadId >> STRATA_TILE_SIZE_DIV_AS_SHIFT) < uint2(Strata.TileCount_Overflow));
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.TileOffset_Overflow * STRATA_TILE_SIZE), true);
+	const bool bIsValid = all((DispatchThreadId >> STRATA_TILE_SIZE_DIV_AS_SHIFT) < uint2(Strata.OverflowTileCount));
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.OverflowTileOffset * STRATA_TILE_SIZE), true);
 	const uint2 FlattenTileCoord = Coord.SvPositionFlatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
 #else
 	const bool bIsValid = all(DispatchThreadId < View.ViewRectMinAndSize.zw);
@@ -735,11 +735,11 @@ void ScreenProbeTileClassificationBuildListsCS(
 			uint2 ThreadOffset = ZOrder2D(x, log2(8));
 			uint2 TileCoordinate = GroupId * 8 + ThreadOffset;
 
-			const uint2 EffectiveViewportTileDimensions = PERMUTATION_OVERFLOW_TILE ? uint2(Strata.TileCount_Overflow) : ViewportTileDimensions;
+			const uint2 EffectiveViewportTileDimensions = PERMUTATION_OVERFLOW_TILE ? uint2(Strata.OverflowTileCount) : ViewportTileDimensions;
 			const bool bIsValid = all(TileCoordinate < EffectiveViewportTileDimensions);
 
 			// Translate tile into its effective location (i.e., dispatch thread -> SvPosition)
-			TileCoordinate += PERMUTATION_OVERFLOW_TILE ? Strata.TileOffset_Overflow : int2(0, 0);
+			TileCoordinate += PERMUTATION_OVERFLOW_TILE ? Strata.OverflowTileOffset : int2(0, 0);
 
 			if (bIsValid)
 			{
@@ -1021,7 +1021,7 @@ void ScreenProbeIntegrateCS(
 #endif
 
 #if PERMUTATION_OVERFLOW_TILE
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId /* DispatchThreadId/TileCoord already contains +TileOffset_Overflow */, true);
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId /* DispatchThreadId/TileCoord already contains +OverflowTileOffset */, true);
 #else
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);	
 #endif
@@ -1577,7 +1577,7 @@ void ScreenProbeTemporalReprojectionCS(
 	uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 #if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
-	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.TileOffset_Overflow * STRATA_TILE_SIZE), true);
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.OverflowTileOffset * STRATA_TILE_SIZE), true);
 #else
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);
 #endif

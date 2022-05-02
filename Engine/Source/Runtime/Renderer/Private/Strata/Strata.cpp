@@ -211,13 +211,13 @@ static void InitialiseStrataViewData(FRDGBuilder& GraphBuilder, FViewInfo& View,
 			const FIntPoint BufferSize = SceneTexturesConfig.Extent;
 			const FIntPoint BufferSize_Extended = GetStrataTextureTileResolution(SceneTexturesConfig.Extent, EStrataTileSpace::StrataTileSpace_Primary | EStrataTileSpace::StrataTileSpace_Overflow);
 
-			const FIntPoint BaseTileOffset_Overflow = FIntPoint(0, FMath::DivideAndRoundUp(BufferSize.Y, STRATA_TILE_SIZE));
+			const FIntPoint BaseOverflowTileOffset = FIntPoint(0, FMath::DivideAndRoundUp(BufferSize.Y, STRATA_TILE_SIZE));
 
 			Out.TileCount	= GetStrataTextureTileResolution(ViewResolution, EStrataTileSpace::StrataTileSpace_Primary);
 			Out.TileOffset  = FIntPoint(FMath::DivideAndRoundUp(View.ViewRect.Min.X, STRATA_TILE_SIZE), FMath::DivideAndRoundUp(View.ViewRect.Min.Y, STRATA_TILE_SIZE));
 
-			Out.TileCount_Overflow	= GetStrataTextureTileResolution(ViewResolution, EStrataTileSpace::StrataTileSpace_Overflow);
-			Out.TileOffset_Overflow = GetStrataTextureTileResolution(Out.TileOffset * STRATA_TILE_SIZE, EStrataTileSpace::StrataTileSpace_Overflow) + BaseTileOffset_Overflow;
+			Out.OverflowTileCount = GetStrataTextureTileResolution(ViewResolution, EStrataTileSpace::StrataTileSpace_Overflow);
+			Out.OverflowTileOffset = GetStrataTextureTileResolution(Out.TileOffset * STRATA_TILE_SIZE, EStrataTileSpace::StrataTileSpace_Overflow) + BaseOverflowTileOffset;
 
 			Out.BSDFTileTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(BufferSize_Extended, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource), TEXT("Strata.BSDFTiles"));
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Out.BSDFTileTexture), 0u);
@@ -392,8 +392,8 @@ static void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrata
 		OutStrataUniformParameters.TileSizeLog2 = STRATA_TILE_SIZE_DIV_AS_SHIFT;
 		OutStrataUniformParameters.TileCount = StrataViewData->TileCount;
 		OutStrataUniformParameters.TileOffset = StrataViewData->TileOffset;
-		OutStrataUniformParameters.TileCount_Overflow = StrataViewData->TileCount_Overflow;
-		OutStrataUniformParameters.TileOffset_Overflow = StrataViewData->TileOffset_Overflow;
+		OutStrataUniformParameters.OverflowTileCount = StrataViewData->OverflowTileCount;
+		OutStrataUniformParameters.OverflowTileOffset = StrataViewData->OverflowTileOffset;
 		OutStrataUniformParameters.MaterialTextureArray = StrataSceneData->MaterialTextureArray;
 		OutStrataUniformParameters.TopLayerTexture = StrataSceneData->TopLayerTexture;
 		OutStrataUniformParameters.SSSTexture = StrataSceneData->SSSTexture;
@@ -415,8 +415,8 @@ static void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrata
 		OutStrataUniformParameters.TileSizeLog2 = 0;
 		OutStrataUniformParameters.TileCount = 0;
 		OutStrataUniformParameters.TileOffset = 0;
-		OutStrataUniformParameters.TileCount_Overflow = 0;
-		OutStrataUniformParameters.TileOffset_Overflow = 0;
+		OutStrataUniformParameters.OverflowTileCount = 0;
+		OutStrataUniformParameters.OverflowTileOffset = 0;
 		OutStrataUniformParameters.MaterialTextureArray = DefaultTextureArray;
 		OutStrataUniformParameters.TopLayerTexture = SystemTextures.DefaultNormal8Bit;
 		OutStrataUniformParameters.SSSTexture = SystemTextures.Black;
@@ -493,8 +493,8 @@ class FStrataBSDFTilePassCS : public FGlobalShader
 		SHADER_PARAMETER(int32, TileSizeLog2)
 		SHADER_PARAMETER(FIntPoint, TileCount_Primary)
 		SHADER_PARAMETER(FIntPoint, TileOffset_Primary)
-		SHADER_PARAMETER(FIntPoint, TileCount_Overflow)
-		SHADER_PARAMETER(FIntPoint, TileOffset_Overflow)
+		SHADER_PARAMETER(FIntPoint, OverflowTileCount)
+		SHADER_PARAMETER(FIntPoint, OverflowTileOffset)
 		SHADER_PARAMETER(FIntPoint, ViewResolution)
 		SHADER_PARAMETER(uint32, MaxBytesPerPixel)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TopLayerTexture)
@@ -621,8 +621,8 @@ class FStrataBSDFTilePrepareArgsPassCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, TileCount_Primary)
 		SHADER_PARAMETER(FIntPoint, TileOffset_Primary)
-		SHADER_PARAMETER(FIntPoint, TileCount_Overflow)
-		SHADER_PARAMETER(FIntPoint, TileOffset_Overflow)
+		SHADER_PARAMETER(FIntPoint, OverflowTileCount)
+		SHADER_PARAMETER(FIntPoint, OverflowTileOffset)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, TileDrawIndirectDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileDispatchIndirectDataBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, TileDispatchPerThreadIndirectDataBuffer)
@@ -1025,8 +1025,8 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			PassParameters->TileSizeLog2 = STRATA_TILE_SIZE_DIV_AS_SHIFT;
 			PassParameters->TileCount_Primary = StrataViewData->TileCount;
 			PassParameters->TileOffset_Primary = StrataViewData->TileOffset;
-			PassParameters->TileCount_Overflow = StrataViewData->TileCount_Overflow;
-			PassParameters->TileOffset_Overflow = StrataViewData->TileOffset_Overflow;
+			PassParameters->OverflowTileCount = StrataViewData->OverflowTileCount;
+			PassParameters->OverflowTileOffset = StrataViewData->OverflowTileOffset;
 			PassParameters->ViewResolution = View.ViewRect.Size();
 			PassParameters->MaxBytesPerPixel = StrataSceneData->MaxBytesPerPixel;
 			PassParameters->TopLayerTexture = StrataSceneData->TopLayerTexture;
@@ -1053,8 +1053,8 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 			FStrataBSDFTilePrepareArgsPassCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStrataBSDFTilePrepareArgsPassCS::FParameters>();
 			PassParameters->TileCount_Primary = StrataViewData->TileCount;
 			PassParameters->TileOffset_Primary = StrataViewData->TileOffset;
-			PassParameters->TileCount_Overflow = StrataViewData->TileCount_Overflow;
-			PassParameters->TileOffset_Overflow = StrataViewData->TileOffset_Overflow;
+			PassParameters->OverflowTileCount = StrataViewData->OverflowTileCount;
+			PassParameters->OverflowTileOffset = StrataViewData->OverflowTileOffset;
 			PassParameters->TileDrawIndirectDataBuffer = GraphBuilder.CreateSRV(StrataViewData->BSDFTileCountBuffer, PF_R32_UINT);
 			PassParameters->TileDispatchIndirectDataBuffer = GraphBuilder.CreateUAV(StrataViewData->BSDFTileDispatchIndirectBuffer, PF_R32_UINT);
 			PassParameters->TileDispatchPerThreadIndirectDataBuffer = GraphBuilder.CreateUAV(StrataViewData->BSDFTilePerThreadDispatchIndirectBuffer, PF_R32_UINT);
