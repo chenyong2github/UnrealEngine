@@ -331,7 +331,7 @@ private:
 	/**
 	 * Generate children for the single given layout and append them to OutChildren.
 	 */
-	void GenerateChildrenForSingleLayout(const FDetailLayout& Layout, FDetailNodeList& OutChildren);
+	void GenerateChildrenForSingleLayout(const FDetailLayout& Layout, const TArray<FDetailLayoutCustomization>& Customizations, FDetailNodeList& OutChildren);
 
 	/**
 	 * Generates nodes from a list of customization in a single layout
