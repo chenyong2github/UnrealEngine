@@ -60,7 +60,7 @@ namespace UE::ConcertSyncTests
 
 namespace UE::ConcertSyncTests::AnalysisTests
 {
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnalyseDeletionDependencies, "Concert.History.Analysis.AnalyseDeletionDependencies", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnalyseDeletionDependencies, "Concert.History.Analysis.AnalyseDeletionDependencies", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 	bool FAnalyseDeletionDependencies::RunTest(const FString& Parameters)
 	{
 		using namespace RenameEditAndDeleteMapsFlowTest;
@@ -121,7 +121,7 @@ namespace UE::ConcertSyncTests::AnalysisTests
 	 * The test: delete R.
 	 * We want L to be marked has a hard dependency.
 	 */
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPossibleDependencyOrderedBeforeHardDependency, "Concert.History.Analysis.PossibleDependencyOrderedBeforeHardDependency", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPossibleDependencyOrderedBeforeHardDependency, "Concert.History.Analysis.PossibleDependencyOrderedBeforeHardDependency", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
 	bool FPossibleDependencyOrderedBeforeHardDependency::RunTest(const FString& Parameters)
 	{
 		using namespace ConcertSyncCore;
