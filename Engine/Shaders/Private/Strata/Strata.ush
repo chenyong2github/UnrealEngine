@@ -70,6 +70,10 @@
 #define STRATA_USES_CONVERSION_FROM_LEGACY 0
 #endif
 
+#ifndef STRATA_USES_RESOURCE_MATERIALCONTAINER
+#define STRATA_USES_RESOURCE_MATERIALCONTAINER (!RAYCALLABLESHADER && !RAYHITGROUPSHADER && !RAYGENSHADER && !RAYMISSSHADER)
+#endif
+
 // When converting legacy materials to Strata, we need to override transmittance/coverage to be independent from the material and directly linked to opacity
 #define STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE (STRATA_USES_CONVERSION_FROM_LEGACY && MATERIALBLENDING_ALPHACOMPOSITE)
 
@@ -1242,6 +1246,18 @@ FStrataData GetStrataSingleLayerWaterBSDF(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Raytracing material buffer
+
+struct FStrataRaytracingPayload
+{
+	// Total size: 36 bytes. 
+	// If this changes, update FPackedMaterialClosestHitPayload in RayTracingCommon.ush 
+	// and ensure the payload size is smaller than the maximum size
+	uint PackedTopLayerData;
+	uint Data[9];
+};
+
+///////////////////////////////////////////////////////////////////////////////
 // Material buffer Addressing
 
 // Optimised for power of two because it relies on a division done using bit shift
@@ -1285,17 +1301,19 @@ struct FRWStrataMaterialContainerStruct
 //	RWTexture2DArray<uint> ExtraMaterialDataUAV; // If this is used, we cannot run shaders on debug...
 };
 
+#if STRATA_USES_RESOURCE_MATERIALCONTAINER
+
 #define FRWStrataMaterialContainer	FRWStrataMaterialContainerStruct
 FRWStrataMaterialContainer InitialiseRWStrataMaterialContainer(RWTexture2DArray<uint> ExtraMaterialDataUAV)
 {
-	FRWStrataMaterialContainer RWStrataMaterialContainer;
+	FRWStrataMaterialContainer Out;
 	UNROLL
 	for (int i = 0; i < STRATA_BASE_PASS_MRT_OUTPUT_COUNT; ++i)
 	{
-		RWStrataMaterialContainer.MaterialRenderTargets[i] = 0;
+		Out.MaterialRenderTargets[i] = 0;
 	}
-//	RWStrataMaterialContainer.ExtraMaterialDataUAV = ExtraMaterialDataUAV;
-	return RWStrataMaterialContainer;
+//	Out.ExtraMaterialDataUAV = ExtraMaterialDataUAV;
+	return Out;
 }
 
 void StrataStoreUint1(inout FRWStrataMaterialContainer StrataBuffer, RWTexture2DArray<uint> ExtraMaterialDataUAV, inout FStrataAddressing StrataAddressing, uint Data)
@@ -1320,6 +1338,32 @@ void StrataStoreUint1(inout FRWStrataMaterialContainer StrataBuffer, RWTexture2D
 
 #define STRATA_STORE_UINT1(x)	StrataStoreUint1(StrataBuffer, ExtraMaterialDataUAV, StrataAddressing, x)
 
+#else // STRATA_USES_RESOURCE_MATERIALCONTAINER
+
+#define FRWStrataMaterialContainer FStrataRaytracingPayload
+
+FRWStrataMaterialContainer InitialiseRWStrataMaterialContainer()
+{
+	FRWStrataMaterialContainer Out;
+	UNROLL
+	for (int i = 0; i < STRATA_BASE_PASS_MRT_OUTPUT_COUNT; ++i)
+	{
+		Out.Data[i] = 0;
+	}
+	Out.PackedTopLayerData = 0;
+	return Out;
+}
+
+void StrataStoreUint1(inout FRWStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, uint Data)
+{
+	StrataBuffer.Data[StrataAddressing.CurrentIndex] = Data;
+	StrataAddressing.CurrentIndex++;
+}
+
+#define STRATA_STORE_UINT1(x) StrataStoreUint1(StrataBuffer, StrataAddressing, x)
+
+#endif // STRATA_USES_RESOURCE_MATERIALCONTAINER
+
 void FinalizeWrites(inout FRWStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
 {
 	// NOP
@@ -1327,6 +1371,8 @@ void FinalizeWrites(inout FRWStrataMaterialContainer StrataBuffer, inout FStrata
 
 ///////////////////////////////////////////////////////////////////////////////
 // Material buffer read
+
+#if STRATA_USES_RESOURCE_MATERIALCONTAINER
 
 #define FStrataMaterialContainer Texture2DArray<uint>
 
@@ -1358,6 +1404,32 @@ uint StrataLoadTopLayerData(FStrataTopLayerDataContainer InTopLayerContainer, in
 {
 	return InTopLayerContainer.Load(uint3(StrataAddressing.PixelCoords, 0));
 }
+
+#else // STRATA_USES_RESOURCE_MATERIALCONTAINER
+
+#define FStrataMaterialContainer FStrataRaytracingPayload
+
+uint StrataLoadUint1(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing)
+{
+	uint Data = StrataBuffer.Data[StrataAddressing.CurrentIndex];
+	StrataAddressing.CurrentIndex++;
+	StrataAddressing.ReadBytes += 4;
+	return Data;
+}
+
+uint StrataLoadUint1AtIndexOffset(in FStrataMaterialContainer StrataBuffer, in FStrataAddressing StrataAddressing, uint IndexOffset)
+{
+	return StrataBuffer.Data[IndexOffset];
+}
+
+#define FStrataTopLayerDataContainer FStrataRaytracingPayload
+
+uint StrataLoadTopLayerData(FStrataTopLayerDataContainer Container, inout FStrataAddressing StrataAddressing)
+{
+	return Container.PackedTopLayerData;
+}
+
+#endif // STRATA_USES_RESOURCE_MATERIALCONTAINER
 
 ///////////////////////////////////////////////////////////////////////////////
 // Shared local bases
@@ -2897,7 +2969,9 @@ uint PackStrataHeader(uint BSDFCount, FStrataPixelHeader In);
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
 void PackStrataOut(
 	inout FRWStrataMaterialContainer StrataBuffer,
+#if STRATA_USES_RESOURCE_MATERIALCONTAINER
 	RWTexture2DArray<uint> ExtraMaterialDataUAV,
+#endif
 	float Dither,
 	FStrataIntegrationSettings Settings,
 	inout FStrataAddressing StrataAddressing,

@@ -40,7 +40,11 @@ FStrataDeferredLighting StrataDeferredLighting(
 	FStrataPixelHeader StrataPixelHeader)
 {
 	FStrataDeferredLighting StrataLighting = GetInitialisedStrataDeferredLighting();
+#if STRATA_USES_RESOURCE_MATERIALCONTAINER
 	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
+#else
+	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
+#endif
 
 	FRectTexture RectTexture = InitRectTexture(LightData);
 

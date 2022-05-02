@@ -34,6 +34,7 @@ FGBufferData GetGBufferDataFromSceneTexturesLoad(uint2 PixelCoord, bool bGetNorm
 FGBufferData GetGBufferDataFromPayload(in FMaterialClosestHitPayload Payload)
 {
 	FGBufferData GBufferData = (FGBufferData)0;
+#if !STRATA_ENABLED
 	GBufferData.Depth = 1.f; // Do not use depth
 	GBufferData.WorldNormal = Payload.WorldNormal;
 	GBufferData.BaseColor = Payload.BaseColor;
@@ -48,7 +49,7 @@ FGBufferData GetGBufferDataFromPayload(in FMaterialClosestHitPayload Payload)
 	GBufferData.DiffuseColor = Payload.DiffuseColor;
 	GBufferData.WorldTangent = Payload.WorldTangent;
 	GBufferData.Anisotropy = Payload.Anisotropy;
-
+#endif
 	return GBufferData;
 }
 

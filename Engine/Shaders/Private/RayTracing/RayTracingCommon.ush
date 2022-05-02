@@ -16,6 +16,12 @@
 #include "../OctahedralCommon.ush"
 #include "/Engine/Shared/RayTracingDefinitions.h"
 
+#if STRATA_ENABLED && MATERIAL_IS_STRATA
+#define STRATA_INLINE_SHADING 1
+#endif
+
+#include "../Strata/Strata.ush"
+
 #ifdef OVERRIDE_RAYTRACING_USH
 #include "/Platform/Private/RayTracing.ush"
 #endif // OVERRIDE_RAYTRACING_USH
@@ -434,6 +440,156 @@ uint TranslateRayTracingInstanceFlags(uint InFlags)
 
 #if !COMPUTESHADER
 
+#if STRATA_ENABLED
+
+struct FMaterialClosestHitPayload : FMinimalPayload
+{
+	// Unpacked  Packed
+	// offset    bytes
+	// float FMinimalPayload::HitT
+	FRayCone RayCone;
+	float3 Radiance;
+	float3 WorldNormal; // Top Layer Normal
+	float Opacity;
+	uint BlendingMode;
+	uint PrimitiveLightingChannelMask;
+	float3 IndirectIrradiance;
+	uint ShadingModelID;
+	float3 RayDirection;
+
+	// Quite some code assume FRayHitInfo has a WorldPos
+	// So keep it here and force to re-construct it in Unpack call using ray information.
+	// It is not packed in FRayHitInfoPacked
+	float3 TranslatedWorldPos;			
+	uint Flags;							
+	FStrataRaytracingPayload StrataData; 
+
+	void SetFrontFace()						{ Flags |= RAY_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE; }
+	bool IsFrontFace()						{ return (Flags & RAY_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE) != 0; }
+
+	void SetTwoSided()						{ Flags |= RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED; }
+	bool IsTwoSided()						{ return (Flags & RAY_TRACING_PAYLOAD_OUTPUT_FLAG_TWO_SIDED) != 0; }
+
+	FRayCone GetRayCone()					{ return RayCone; }
+	void SetRayCone(FRayCone In)			{ RayCone = In; }
+	float3 GetRayDirection()				{ return RayDirection; }
+};
+
+struct FPackedMaterialClosestHitPayload : FMinimalPayload
+{
+	// Flags layout
+	// 8bits                     | 8bits      | 3bits     | 3bits            | 2bits | 8bits
+	// RAY_TRACING_PAYLOAD_INPUT | MIP Bias   | BlendMode | LightChannelMask | Free  | Opacity
+	 
+	// float FMinimalPayload::HitT                       // 4  bytes
+	uint PackedRayCone;                                  // 4  bytes (fp16 width, fp16 spread) aliased with RayDirection for MS lighting payload
+	uint PackedPixelCoord;                               // 4  bytes (todo: store on 26 bits (13|13) with 8192 max res)
+	uint Flags;											 // 4  bytes (see layout above)
+	uint Radiance;										 // 4  bytes
+	uint SceneInstanceIndex;                             // 4  bytes - GPUSceneInstanceIndex
+														 //=24 bytes
+	FStrataRaytracingPayload StrataData;				 // 40 bytes
+														 //=64 bytes total
+
+	void SetPixelCoord(uint2 PixelCoord)	{ PackedPixelCoord = (PixelCoord.x & 0xFFFF) | (PixelCoord.y << 16); }
+	uint2 GetPixelCoord()					{ return uint2(PackedPixelCoord & 0xFFFF, PackedPixelCoord >> 16); }
+
+	void SetMinimalPayloadMode()			{ Flags |= RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD; }
+	bool IsMinimalPayloadMode()				{ return (Flags & RAY_TRACING_PAYLOAD_INPUT_FLAG_MINIMAL_PAYLOAD) != 0; }
+
+	void SetEnableSkyLightContribution()	{ Flags |= RAY_TRACING_PAYLOAD_INPUT_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION; }
+	bool IsEnableSkyLightContribution()		{ return (Flags & RAY_TRACING_PAYLOAD_INPUT_FLAG_ENABLE_SKY_LIGHT_CONTRIBUTION) != 0; }
+
+	void SetLumenPayload()					{ Flags |= RAY_TRACING_PAYLOAD_INPUT_FLAG_LUMEN_PAYLOAD; }
+	bool IsLumenPayload()					{ return (Flags & RAY_TRACING_PAYLOAD_INPUT_FLAG_LUMEN_PAYLOAD) != 0; }
+
+	void SetIgnoreTranslucentMaterials()	{ Flags |= RAY_TRACING_PAYLOAD_INPUT_FLAG_IGNORE_TRANSLUCENT; }
+	bool IsIgnoreTranslucentMaterials()		{ return (Flags & RAY_TRACING_PAYLOAD_INPUT_FLAG_IGNORE_TRANSLUCENT) != 0; }
+
+	FRayCone GetRayCone()					{ return UnpackRayCone(PackedRayCone); }
+	void SetRayCone(FRayCone NewRayCone)	{ PackedRayCone = PackRayCone(NewRayCone); }
+
+	float GetMipBias()						{ return UnpackR8(Flags>>8u); }
+	void SetMipBias(float NewMipBias)		{ Flags = PackR8(NewMipBias) << 8u; }
+
+	void SetRadiance(in float3 In)			{ Radiance = PackR11G11B10F(In); }
+	float3 GetRadiance()					{ return UnpackR11G11B10F(Radiance); }
+
+	void SetIndirectIrradiance(float3 In)	{ /* Used for transferring sky-lighting irradiance. Not supported with Strata */ }
+	float3 GetIndirectIrradiance()			{ return 0.f; }
+
+	float3 GetWorldNormal()					{ return StrataUnpackTopLayerData(StrataData.PackedTopLayerData).WorldNormal; }
+	float3 GetGeometryNormal()				{ return GetWorldNormal(); }
+	void   SetGeometryNormal(float3 In)		{ }
+
+	bool IsValid()							{ return StrataData.PackedTopLayerData != 0; }
+	uint  GetShadingModelID()				{ return IsValid() ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT; }
+	uint  GetFlags()						{ return (Flags & 0xFF); }
+	uint  GetBlendingMode()					{ return (Flags >> 16u) & 0x7; }
+	uint  GetPrimitiveLightingChannelMask() { return (Flags >> 19u) & 0x7; }
+	float GetOpacity()						{ return UnpackR8(Flags >> 24u); }
+
+	void SetFlags(uint In)							{ Flags |= ((In & 0xFF)); }
+	void SetBlendingMode(uint In)					{ Flags |= ((In & 0x7)<<16u); }
+	void SetPrimitiveLightingChannelMask(uint In)	{ Flags |= ((In & 0x7)<<19u); }
+	void SetOpacity(float In)						{ Flags |= PackR8(In) << 24u; }
+
+	void SetRayDirection(float3 In)			{ PackedRayCone = StrataPackNormal(In); }
+	float3 GetRayDirection()				{ return StrataUnpackNormal(PackedRayCone); }
+
+	// Member function for (IsLumenPayload() == 1)
+	void SetSceneInstanceIndex(uint In)		{ SceneInstanceIndex = In; }
+	int GetSceneInstanceIndex()				{ return SceneInstanceIndex; }
+
+	// (Placeholder) Accessors used by the legacy refleciton API
+#if STRATA_LEGACY_REFLECTION_API
+	float3 GetWorldTangent()				{ return float3(1,0,0); }
+	float3 GetBaseColor()					{ return 1.f; }
+	float4 GetCustomData()					{ return 0.f; }
+	float GetMetallic()						{ return 1.f; }
+	float GetSpecular()						{ return 0.5f; }
+	float GetRoughness()					{ return 0.5f; }
+	float GetIor()							{ return 1.f; }
+	float GetAnisotropy()					{ return 0.f; }
+	float3 GetDiffuseColor()				{ return 1.f; }
+	float3 GetSpecularColor()				{ return 1.f; }
+#endif
+};
+
+FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayload Input, in FRayCone RayCone)
+{
+	FPackedMaterialClosestHitPayload Output = (FPackedMaterialClosestHitPayload)0;
+	Output.HitT = Input.HitT;
+	Output.SetRayCone(RayCone);
+	Output.SetFlags(Input.Flags);
+	Output.SetBlendingMode(Input.BlendingMode);
+	Output.SetPrimitiveLightingChannelMask(Input.PrimitiveLightingChannelMask);	
+	Output.SetRadiance(Input.Radiance);
+	Output.StrataData = Input.StrataData;
+
+	return Output;
+}
+
+FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayload Input, RayDesc Ray)
+{
+	FMaterialClosestHitPayload Output = (FMaterialClosestHitPayload)0;
+	Output.HitT = Input.HitT;
+	Output.RayCone = Input.GetRayCone();
+	Output.BlendingMode = Input.GetBlendingMode();
+	Output.PrimitiveLightingChannelMask = Input.GetPrimitiveLightingChannelMask();
+	Output.Flags = Input.GetFlags();
+	Output.Radiance = Input.GetRadiance();
+	Output.WorldNormal = Input.GetWorldNormal();
+	Output.ShadingModelID = Input.GetShadingModelID();
+	Output.IndirectIrradiance = Input.GetIndirectIrradiance();
+	Output.StrataData = Input.StrataData;
+	Output.TranslatedWorldPos = Ray.Origin + Output.HitT * Ray.Direction;
+	Output.RayDirection = Input.GetRayDirection();
+	return Output;
+}
+
+#else // STRATA_ENABLED
+
 struct FMaterialClosestHitPayload : FMinimalPayload
 {
 										// Unpacked  Packed
@@ -476,6 +632,8 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
 
 	bool HasAnisotropy() { return abs(Anisotropy) >= 0.001f; }
+
+	float3 GetRayDirection() { return IndirectIrradiance; /* Alias IndirectIrradiance/RayDirection */  } 
 };
 
 struct FPackedMaterialClosestHitPayload : FMinimalPayload
@@ -547,6 +705,10 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 		Result.z = f16tof32(PackedIndirectIrradiance[1]);
 		return Result;
 	}
+	
+	// Alias IndirectIrradiance for storing ray direction
+	void SetRayDirection(float3 In) { SetIndirectIrradiance(In); }
+	float3 GetRayDirection()		{ return GetIndirectIrradiance(); }
 
 	float3 GetWorldNormal()
 	{
@@ -596,6 +758,7 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	uint GetFlags()          { return (IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 23) & 0x3F; }
 	uint GetPrimitiveLightingChannelMask() { return (IorAndShadingModelIDAndBlendingModeAndFlagsAndPrimitiveLightingChannelMask >> 29) & 0x7; }
 	float GetAnisotropy()    { return f16tof32(WorldTangentAndAnisotropy[1] >> 16); }
+	bool IsValid()			 { return GetShadingModelID() != SHADINGMODELID_UNLIT; }
 
 	float3 GetDiffuseColor() { return GetBaseColor() - GetBaseColor() * GetMetallic(); }
 	float3 GetSpecularColor() { return ComputeF0(GetSpecular(), GetBaseColor(), GetMetallic()); }
@@ -682,6 +845,8 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 
 	return Output;
 }
+
+#endif // STRATA_ENABLED
 
 #endif // !COMPUTESHADER
 

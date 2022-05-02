@@ -14,6 +14,10 @@
 	#define SIMPLIFIED_MATERIAL_SHADER 0
 #endif
 
+#if STRATA_ENABLED
+#define STRATA_INLINE_SHADING 1
+#endif
+
 #include "/Engine/Private/Common.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
@@ -237,6 +241,64 @@ void GetMaterialPayload(
 	FVertexFactoryInterpolantsVSToPS Interpolants,
 	bool bIsEnableSkyLightContribution,
 	inout FMaterialClosestHitPayload Payload)
+#if STRATA_ENABLED
+{
+	const float Dither = 0.5f;
+	float3 EmissiveLuminance = 0.0f;
+	bool bStrataSubsurfaceEnable = false;
+	FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
+
+	// Initialise a Strata header with normal in registers
+	FStrataPixelHeader StrataPixelHeader = InitialiseStrataPixelHeader();
+	StrataPixelHeader.StrataTree = MaterialParameters.StrataTree;
+	StrataPixelHeader.BSDFCount = MaterialParameters.StrataTree.BSDFCount;
+	StrataPixelHeader.SharedLocalBases = MaterialParameters.SharedLocalBases;
+	StrataPixelHeader.IrradianceAO = InitIrradianceAndOcclusion();
+	StrataPixelHeader.IrradianceAO.MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
+	SetCastContactShadow(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW);
+	SetDynamicIndirectShadowCasterRepresentation(StrataPixelHeader, GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAPSULE_REPRESENTATION);
+
+	FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
+	FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
+	FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
+	FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
+
+	// Generate the strata material data to write out
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0,0,0);
+	
+#if STRATA_USES_RESOURCE_MATERIALCONTAINER != 0
+#error This is not correct
+#endif
+
+	const float3 CamVector = MaterialParameters.CameraVector;	
+	Payload.StrataData = InitialiseRWStrataMaterialContainer();
+	PackStrataOut(
+		Payload.StrataData,
+		Dither,
+		Settings,
+		StrataAddressing,
+		StrataPixelHeader, StrataData, 
+		CamVector, 
+		bStrataSubsurfaceEnable, 
+		EmissiveLuminance,
+		SSSData, TopLayerData, OpaqueRoughRefractionData
+	);
+
+	Payload.StrataData.PackedTopLayerData = StrataPackTopLayerData(TopLayerData);
+	Payload.Radiance += EmissiveLuminance;
+	Payload.TranslatedWorldPos = LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, ResolvedView.PreViewTranslation));
+
+	// Opacity
+	Payload.Opacity = 1.0f;
+	#if MATERIALBLENDING_MASKED
+	// regular masked mode - binary decision
+	if (GetMaterialMask(PixelMaterialInputs) < 0)
+	{
+		Payload.Opacity = 0;
+	}
+	#endif // MATERIALBLENDING_MASKED
+}
+#else // STRATA_ENABLED
 {
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
@@ -411,6 +473,7 @@ void GetMaterialPayload(
 
 #endif // SIMPLIFIED_MATERIAL_SHADER
 }
+#endif // STRATA_ENABLED
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	FPackedMaterialClosestHitPayload, PackedPayload,

@@ -4,6 +4,9 @@
 #include "../MonteCarlo.ush"
 #include "../SceneTextureParameters.ush"
 
+// Ensure that DiffuseAlbedo is not overrident on SSS material (as we don't split lighting with the Lumen/RT integrator)
+#define STRATA_SSS_MATERIAL_OVERRIDE 0
+
 #include "LumenMaterial.ush"
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"

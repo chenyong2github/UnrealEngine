@@ -9,6 +9,8 @@
 #define PreIntegratedGF				ReflectionStruct.PreIntegratedGF
 #define PreIntegratedGFSampler		GlobalBilinearClampedSampler
 
+#include "../Strata/StrataEvaluation.ush"
+
 #include "../SceneData.ush"
 #include "../RayTracing/RayTracingCommon.ush"
 #include "../RayTracing/RayTracingDeferredMaterials.ush"
@@ -479,6 +481,40 @@ float3 CalculateDirectLighting(
 	return DirectLighting;
 }
 
+float3 GetDirectionalAlbedo(inout FPackedMaterialClosestHitPayload PackedPayload, in RayDesc Ray)
+#if STRATA_ENABLED
+{
+	float3 Out = 0;
+
+	const float3 V = -Ray.Direction;
+	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings();
+
+	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0, 0, 0);
+	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(PackedPayload.StrataData, StrataAddressing, PackedPayload.StrataData);
+
+	Strata_for(uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+	{
+		FStrataBSDF BSDF = UnpackStrataBSDF(PackedPayload.StrataData, StrataAddressing, StrataPixelHeader);
+
+		// Create the BSDF context
+		FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
+		const float3 BSDFThroughput = LuminanceWeight(StrataBSDFContext, BSDF);
+
+		// Evaluate environment lighting
+		FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(StrataBSDFContext, true /*bEnableSpecular*/, Settings);
+
+		Out += BSDFThroughput * StrataEnvLight.DiffuseWeight;
+		Out += BSDFThroughput * StrataEnvLight.SpecularWeight;
+	}
+
+	return Out;
+}
+#else
+{
+	return PackedPayload.GetDiffuseColor();
+}
+#endif // STRATA_ENABLED
+
 float3 CalculateRayTracedLighting(
 	in RayDesc Ray,
 	in FRayTracedLightingContext Context,
@@ -498,11 +534,12 @@ float3 CalculateRayTracedLighting(
 	{
 		Radiance += CalculateDirectLighting(Ray, Context, Payload, RayHitTranslatedWorldPosition, RayHitWorldNormal);
 	}
-
-	float3 DiffuseColor = Payload.GetDiffuseColor();
+	
+	float3 DiffuseColor = GetDirectionalAlbedo(Payload, Ray);
 
 	if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING)
 	{
+		// STRATA_TODO: this path is not supported yet, as PackedPayload does not have space for indirect irradiance
 		Radiance += DiffuseColor * Payload.GetIndirectIrradiance();
 	}
 	else

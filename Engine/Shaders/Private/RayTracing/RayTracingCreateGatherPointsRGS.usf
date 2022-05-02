@@ -357,20 +357,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 			Ray.Origin += Ray.Direction * Payload.HitT;
 
 			// Create faux GBuffer to use with EvaluateBxDF
-			FGBufferData GBufferData = (FGBufferData)0;
-			GBufferData.Depth = 1.f; // Do not use depth
-			GBufferData.WorldNormal = Payload.WorldNormal;
-			GBufferData.BaseColor = Payload.BaseColor;
-			GBufferData.CustomData = Payload.CustomData;
-			GBufferData.GBufferAO = Payload.GBufferAO;
-			GBufferData.IndirectIrradiance = (Payload.IndirectIrradiance.x + Payload.IndirectIrradiance.y + Payload.IndirectIrradiance.z) / 3.f;
-			GBufferData.SpecularColor = Payload.SpecularColor;
-			GBufferData.DiffuseColor = Payload.DiffuseColor;
-			GBufferData.Metallic = Payload.Metallic;
-			GBufferData.Specular = Payload.Specular;
-			GBufferData.Roughness = Payload.Roughness;
-			GBufferData.ShadingModelID = Payload.ShadingModelID;
-			GBufferData.CustomData = Payload.CustomData;
+			FGBufferData GBufferData = GetGBufferDataFromPayload(Payload);
 
 			TranslatedPosition = Ray.Origin;
 			Normal = Payload.WorldNormal;

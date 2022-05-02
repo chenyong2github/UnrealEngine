@@ -329,6 +329,12 @@ float3 ComputeIndirectLighting(
 	in FPackedMaterialClosestHitPayload Payload,
 	in bool bRayTraceSkyLightContribution,
 	in bool bDecoupleSampleGeneration)
+#if STRATA_ENABLED
+{
+	// STRATA_TODO
+	return 0;
+}
+#else
 {
 	float3 IndirectLighting = float3(0.0f, 0.0f, 0.0f);
 
@@ -376,6 +382,7 @@ float3 ComputeIndirectLighting(
 
 	return IndirectLighting;
 }
+#endif
 
 float3 ComputeDirectLighting(
 	in float3 TranslatedWorldPosition,
@@ -390,14 +397,11 @@ float3 ComputeDirectLighting(
 {
 	float3 DirectLighting = (float3)0;
 
-	// Preserve current custom data value from the material payload, as it will be overwritten during shadow ray tracing.
-	uint SavedPackedCustomData = Payload.PackedCustomData;
-
 	// Repurpose some fields in the material payload to pass parameters into lighting miss shader.
 	float3 OldRadiance = Payload.GetRadiance();
-	float3 OldIndirectIrradiance = Payload.GetIndirectIrradiance();
+	float3 OldIndirectIrradiance = Payload.GetIndirectIrradiance(); // Aliased with ViewDirection
 	Payload.SetRadiance(float3(0, 0, 0));
-	Payload.SetIndirectIrradiance(ViewDirection);
+	Payload.SetRayDirection(ViewDirection);
 
 	FCulledLightList CullData = FCulledLightList::Create(TranslatedWorldPosition);
 	const uint LightCount = CullData.NumLights();
@@ -495,7 +499,7 @@ float3 ComputeDirectLighting(
 
 	DirectLighting = Payload.GetRadiance();
 	Payload.SetRadiance(OldRadiance);
-	Payload.SetIndirectIrradiance(OldIndirectIrradiance);
+	Payload.SetIndirectIrradiance(OldIndirectIrradiance); // Set back indirect irradiance (previously aliased with view direction
 
 	return DirectLighting;
 }
@@ -528,7 +532,7 @@ void AccumulateResults(
 
 	float3 DirectLighting = 0;
 		
-	if (ShouldDoDirectLighting && Payload.GetShadingModelID() != SHADINGMODELID_UNLIT)
+	if (ShouldDoDirectLighting && Payload.IsValid())
 	{
 		// Save and restore original payload HitT, as it's modified during shadow ray tracing
 		float OldHitT = Payload.HitT;

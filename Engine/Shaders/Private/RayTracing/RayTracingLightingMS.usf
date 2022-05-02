@@ -9,10 +9,26 @@
 #define PreIntegratedGF				ReflectionStruct.PreIntegratedGF			
 #define PreIntegratedGFSampler		ReflectionStruct.PreIntegratedGFSampler	
 
+// Ensure that SSS material don't override their albedo to compute only the incident irradiance
+#define STRATA_SSS_MATERIAL_OVERRIDE 0
+#define MATERIAL_FULLY_ROUGH 0
+
 #include "../SceneTextureParameters.ush"
 #include "RayTracingCommon.ush"
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Include continuous
+
+#if STRATA_ENABLED
+#include "../Strata/Strata.ush"
+#include "../Strata/StrataEvaluation.ush"
+#endif
+
 #include "RayTracingDeferredShadingCommon.ush"
 #include "RayTracingLightingCommon.ush" 
+#if STRATA_ENABLED
+#include "../Strata/StrataDeferredLighting.ush"
+#endif
 
 RAY_TRACING_ENTRY_MISS(RayTracingLightingMS, FPackedMaterialClosestHitPayload, PackedPayload)
 {
@@ -23,10 +39,9 @@ RAY_TRACING_ENTRY_MISS(RayTracingLightingMS, FPackedMaterialClosestHitPayload, P
 	// Light index is packed into HitT as this component is only accessed by closest hit or miss shaders.
 	// Since closest hit execution is disabled using a ray flag, it is safe to pack custom data here.
 	uint LightIndex = asuint(Payload.HitT);
-	float3 CameraVector = -Payload.IndirectIrradiance; // IndirectIrradiance field is used to pass through the camera vector
+	float3 CameraVector = Payload.GetRayDirection();// IndirectIrradiance field is used to pass through the camera vector
+	float3 V = -CameraVector;
 	Payload.IndirectIrradiance = (float3)0;
-
-	FGBufferData GBufferData = GetGBufferDataFromPayload(Payload);
 
 	int LightProfileIndex = -1;
 	int RectLightTextureIndex = -1;
@@ -43,9 +58,51 @@ RAY_TRACING_ENTRY_MISS(RayTracingLightingMS, FPackedMaterialClosestHitPayload, P
 		LightProfileMultiplier = ComputeRayTracingLightProfileMultiplier(WorldPosition, LightData.TranslatedWorldPosition, LightData.Direction, LightProfileIndex);
 	}
 
+	const float Dither = 0.5f;
+	const uint2 SVPos = uint2(0, 0);
+
+	// LWC_TODO - lighting wants translated world space
+#if STRATA_ENABLED
+	float3 L = LightData.Direction;	// Already normalized
+	float3 ToLight = L;
+	
+	float LightMask = 1;
+	if (LightData.bRadialLight)
+	{
+		LightMask = GetLocalLightAttenuation(WorldPosition, LightData, ToLight, L);
+	}
+
+	float3 LightContribution = 0;
+	if (LightMask > 0)
+	{
+		FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0,0,0);
+		FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(PackedPayload.StrataData, StrataAddressing, PackedPayload.StrataData);
+		FShadowTerms ShadowTerms = { StrataGetAO(StrataPixelHeader), 1.0, 1.0, InitHairTransmittanceData() };
+
+		const float FakeSceneDepth = 1.f; // Do not use depth
+		const uint FakeShadingModelID = 0;
+		const float FakeContactShadowOpacity = 1.0f;
+		float4 FakePrecomputedShadowFactors = 1.f;
+		GetShadowTerms(FakeSceneDepth, FakePrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity, LightData, WorldPosition, L, LightAttenuation, Dither, ShadowTerms);
+
+		FStrataDeferredLighting Lighting = StrataDeferredLighting(
+			LightData,
+			V,
+			L,
+			ToLight,
+			LightMask,
+			ShadowTerms,
+			PackedPayload.StrataData,
+			StrataAddressing,
+			StrataPixelHeader);
+		LightContribution = Lighting.SceneColor.xyz;
+	}
+#else
 	// LWC_TODO - lighting wants translated world space
 	float SurfaceShadow = 1.0f;
-	float3 LightContribution = GetDynamicLighting(WorldPosition, -CameraVector, GBufferData, 1.0f, GBufferData.ShadingModelID, LightData, LightAttenuation, 0.5, uint2(0, 0), SurfaceShadow).xyz;
+	FGBufferData GBufferData = GetGBufferDataFromPayload(Payload);
+	float3 LightContribution = GetDynamicLighting(WorldPosition, V, GBufferData, 1.0f, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, SVPos, SurfaceShadow).xyz;
+#endif // STRATA_ENABLED
 
 	float3 AccumulatedRadiance = Payload.Radiance + LightContribution * LightProfileMultiplier;
 

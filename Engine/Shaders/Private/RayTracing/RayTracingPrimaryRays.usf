@@ -83,6 +83,8 @@ float3 GetSkyRadiance(float3 Direction, float Roughness)
 
 RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 {
+	// STRATA_TODO
+#if !STRATA_ENABLED
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin.xy;
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO(Denoiser): PixelCoord or DispatchThreadId
@@ -343,4 +345,5 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 	PathRadiance = ClampToHalfFloatRange(PathRadiance);
 	ColorOutput[DispatchThreadId] = float4(PathRadiance, FinalAlpha);
 	RayHitDistanceOutput[DispatchThreadId] = HitDistance;
+#endif // !STRATA_ENABLED
 }
