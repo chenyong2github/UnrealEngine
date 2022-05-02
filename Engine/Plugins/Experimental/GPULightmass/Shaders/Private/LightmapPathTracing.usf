@@ -316,8 +316,13 @@ void PathTracingKernel(
 	inout bool bIsValidSample,
 	inout float3 RadianceValue,
 	inout float3 RadianceDirection,
-	inout float3 DirectLightingRadianceValue,
-	inout float3 DirectLightingRadianceDirection,
+	inout float3 DirectLightingIrradiance,
+#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
+	inout FL2SHAndCorrection DirectLightingSH,
+#else
+	inout FThreeBandSHVectorRGBFloat DirectLightingSH,
+#endif
+	inout float LuminanceForFirstBounceRayGuiding,
 	inout float4 PrimaryRandSample)
 {
 	uint2 LaunchIndex = uint2(0, 0);
@@ -466,6 +471,7 @@ void PathTracingKernel(
 			{
 				// Successful query. Terminate path immediately.
 				Radiance += RecordIrradiance * PathThroughput;
+				LuminanceForFirstBounceRayGuiding += Luminance(RecordIrradiance * PathThroughput);
 				break;
 			}
 			else
@@ -598,14 +604,28 @@ void PathTracingKernel(
 						if (Bounce > 0)
 						{
 							AccumulateRadiance(Radiance, LightContrib);
+							LuminanceForFirstBounceRayGuiding += Luminance(LightContrib);
 						}
 						else
 						{
 							// GPU Lightmass records contribution of direct lighting separately, and only for static lights
 							if (!IsStationary(LightId))
 							{
-								DirectLightingRadianceValue += LightContrib;
-								DirectLightingRadianceDirection += MISWeightedDirection;
+							#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
+								float TangentZ = saturate(dot(LightSample.Direction, Payload.WorldNormal));
+								DirectLightingSH.AddIncomingRadiance(Luminance(LightContrib), LightSample.Direction, TangentZ);
+								DirectLightingIrradiance += LightContrib * TangentZ;
+							#else								
+								DirectLightingSH.R.V0 = SHBasisFunction3Float(LightSample.Direction).V0 * LightContrib.r;
+								DirectLightingSH.R.V1 = SHBasisFunction3Float(LightSample.Direction).V1 * LightContrib.r;
+								DirectLightingSH.R.V2 = SHBasisFunction3Float(LightSample.Direction).V2 * LightContrib.r;
+								DirectLightingSH.G.V0 = SHBasisFunction3Float(LightSample.Direction).V0 * LightContrib.g;
+								DirectLightingSH.G.V1 = SHBasisFunction3Float(LightSample.Direction).V1 * LightContrib.g;
+								DirectLightingSH.G.V2 = SHBasisFunction3Float(LightSample.Direction).V2 * LightContrib.g;
+								DirectLightingSH.B.V0 = SHBasisFunction3Float(LightSample.Direction).V0 * LightContrib.b;
+								DirectLightingSH.B.V1 = SHBasisFunction3Float(LightSample.Direction).V1 * LightContrib.b;
+								DirectLightingSH.B.V2 = SHBasisFunction3Float(LightSample.Direction).V2 * LightContrib.b;
+							#endif
 							}
 						}
 					}
@@ -707,12 +727,6 @@ void PathTracingKernel(
 					continue;
 				}
 
-				// GPU Lightmass records contribution of direct lighting separately, and only for static lights
-				if (Bounce == 0 && IsStationary(LightId))
-				{
-					continue;
-				}
-
 				float3 LightContrib = PathThroughput * LightResult.Radiance;
 				float3 MISWeightedDirection = MaterialSample.Direction;
 				
@@ -743,15 +757,35 @@ void PathTracingKernel(
 						// Separate direct lighting (bounce 0) for GPU Lightmass
 						MISWeightedDirection *= Visibility;
 					}
-					// the light made some contribution, and there was nothing along the shadow ray
-					AccumulateRadiance(Radiance, LightContrib);
 
-					// Separate direct lighting (bounce 0) for GPU Lightmass
-					if (Bounce == 0)
+					if (Bounce > 0)
 					{
-						DirectLightingRadianceValue += LightContrib;
-						DirectLightingRadianceDirection += MISWeightedDirection;
+						// the light made some contribution, and there was nothing along the shadow ray
+						AccumulateRadiance(Radiance, LightContrib);
 					}
+					else // Bounce == 0
+					{
+						if (!IsStationary(LightId))
+						{
+						#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
+							float TangentZ = saturate(dot(MaterialSample.Direction, Payload.WorldNormal));
+							DirectLightingSH.AddIncomingRadiance(Luminance(LightContrib), MaterialSample.Direction, TangentZ);
+							DirectLightingIrradiance += LightContrib * TangentZ;
+						#else								
+							DirectLightingSH.R.V0 = SHBasisFunction3Float(MaterialSample.Direction).V0 * LightContrib.r;
+							DirectLightingSH.R.V1 = SHBasisFunction3Float(MaterialSample.Direction).V1 * LightContrib.r;
+							DirectLightingSH.R.V2 = SHBasisFunction3Float(MaterialSample.Direction).V2 * LightContrib.r;
+							DirectLightingSH.G.V0 = SHBasisFunction3Float(MaterialSample.Direction).V0 * LightContrib.g;
+							DirectLightingSH.G.V1 = SHBasisFunction3Float(MaterialSample.Direction).V1 * LightContrib.g;
+							DirectLightingSH.G.V2 = SHBasisFunction3Float(MaterialSample.Direction).V2 * LightContrib.g;
+							DirectLightingSH.B.V0 = SHBasisFunction3Float(MaterialSample.Direction).V0 * LightContrib.b;
+							DirectLightingSH.B.V1 = SHBasisFunction3Float(MaterialSample.Direction).V1 * LightContrib.b;
+							DirectLightingSH.B.V2 = SHBasisFunction3Float(MaterialSample.Direction).V2 * LightContrib.b;
+						#endif
+						}
+					}
+					
+					LuminanceForFirstBounceRayGuiding += Luminance(LightContrib);
 				}
 			}
 			
@@ -847,8 +881,13 @@ void LightmapPathTracingMainRG()
 
 				float3 RadianceValue = 0;
 				float3 RadianceDirection = 0;				
-				float3 DirectLightingRadianceValue = 0;
-				float3 DirectLightingRadianceDirection = 0;
+				float3 DirectLightingIrradiance = 0;
+			#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
+				FL2SHAndCorrection DirectLightingSH = (FL2SHAndCorrection)0;
+			#else
+				FThreeBandSHVectorRGBFloat DirectLightingSH = (FThreeBandSHVectorRGBFloat)0;
+			#endif
+				float LuminanceForFirstBounceRayGuiding = 0;
 				
 				if (bIsValidSample)
 				{
@@ -861,8 +900,9 @@ void LightmapPathTracingMainRG()
 						bIsValidSample,
 						RadianceValue,
 						RadianceDirection,
-						DirectLightingRadianceValue,
-						DirectLightingRadianceDirection,
+						DirectLightingIrradiance,
+						DirectLightingSH,
+						LuminanceForFirstBounceRayGuiding,
 						PrimaryRandSample
 					);
 				}
@@ -885,14 +925,17 @@ void LightmapPathTracingMainRG()
 					
 					if (BatchedTiles[TileIndex].RenderPassIndex >= MinRenderPassIndex && BatchedTiles[TileIndex].RenderPassIndex < MaxRenderPassIndex)
 					{
+						float2 Point = PrimaryRandSample.yx;						
 						int2 ClusterPosition = clamp((int2)LaunchIndex - int2(2, 2), int2(0, 0), int2(63, 63)) / TEXEL_CLUSTER_SIZE;
-						float2 JitteredBin = PrimaryRandSample.xy * DIRECTIONAL_BINS_ONE_DIM;// - float2(0.5f, 0.5f) + PrimaryRandSample.zw;
+						float2 JitteredBin = Point * DIRECTIONAL_BINS_ONE_DIM;// - float2(0.5f, 0.5f) + PrimaryRandSample.xy;
 						int2 PositionInBin = clamp(JitteredBin, float2(0, 0), float2(DIRECTIONAL_BINS_ONE_DIM - 1, DIRECTIONAL_BINS_ONE_DIM - 1));
 						int2 FinalPosition = ClusterPosition * DIRECTIONAL_BINS_ONE_DIM + PositionInBin;
-					
-						float Illuminance = Luminance(RadianceValue) * saturate(dot(RadianceDirection, ShadingNormal));
-						// For positive floats we can cast them to uint and use atomic max directly
-						InterlockedMax(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition], asuint(max(Illuminance, 0)));
+
+						{
+							float Illuminance = LuminanceForFirstBounceRayGuiding * saturate(dot(RadianceDirection, ShadingNormal));
+							// For positive floats we can cast them to uint and use atomic max directly
+							InterlockedMax(RayGuidingLuminance[BatchedTiles[TileIndex].WorkingSetPosition / GPreviewLightmapPhysicalTileSize * CDF_TILE_SIZE + FinalPosition], asuint(max(Illuminance, 0)));
+						}
 					}
 				#endif
 					
@@ -906,17 +949,14 @@ void LightmapPathTracingMainRG()
 						SHDirectionality[TexelIndexInPool] += SH.L2SHCoefficients;					
 						SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].x += SH.Correction;
 					}
-					
+
+					#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
 					{
-						FL2SHAndCorrection SH = (FL2SHAndCorrection)0;
-						
-						float TangentZ = saturate(dot(DirectLightingRadianceDirection, ShadingNormal));
-						SH.AddIncomingRadiance(Luminance(DirectLightingRadianceValue), DirectLightingRadianceDirection, TangentZ);
-						
-						IrradianceAndSampleCount[TexelIndexInPool].rgb += float3(DirectLightingRadianceValue * TangentZ / PI);
-						SHDirectionality[TexelIndexInPool] += SH.L2SHCoefficients;					
-						SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].x += SH.Correction;
+						IrradianceAndSampleCount[TexelIndexInPool].rgb += DirectLightingIrradiance / PI;
+						SHDirectionality[TexelIndexInPool] += DirectLightingSH.L2SHCoefficients;					
+						SHCorrectionAndStationarySkyLightBentNormal[TexelIndexInPool].x += DirectLightingSH.Correction;
 					}
+					#endif
 				}
 			}
 		}
@@ -1164,8 +1204,13 @@ void VolumetricLightmapPathTracingMainRG()
 
 	float3 RadianceValue = 0;
 	float3 RadianceDirection = 0;				
-	float3 DirectLightingRadianceValue = 0;
-	float3 DirectLightingRadianceDirection = 0;
+	float3 DirectLightingIrradiance = 0;
+#ifdef LIGHTMAP_PATH_TRACING_MAIN_RG
+	FL2SHAndCorrection DirectLightingSH = (FL2SHAndCorrection)0;
+#else
+	FThreeBandSHVectorRGBFloat DirectLightingSH = (FThreeBandSHVectorRGBFloat)0;
+#endif
+	float LuminanceForFirstBounceRayGuiding = 0;
 	float4 PrimaryRandSample;
 
 	if (bIsValidSample)
@@ -1183,15 +1228,26 @@ void VolumetricLightmapPathTracingMainRG()
 			bIsValidSample,
 			RadianceValue,
 			RadianceDirection,
-			DirectLightingRadianceValue,
-			DirectLightingRadianceDirection,
+			DirectLightingIrradiance,
+			DirectLightingSH,
+			LuminanceForFirstBounceRayGuiding,
 			PrimaryRandSample);
 	}
 	
 	// Every even sample is upper hemisphere, odd sample is lower hemisphere
 	// SampleCount stored is twice as the actual full sphere sample count
 	RadianceValue *= 2;
-	DirectLightingRadianceValue *= 2;
+#ifndef LIGHTMAP_PATH_TRACING_MAIN_RG
+	DirectLightingSH.R.V0 *= 2;
+	DirectLightingSH.R.V1 *= 2;
+	DirectLightingSH.R.V2 *= 2;
+	DirectLightingSH.G.V0 *= 2;
+	DirectLightingSH.G.V1 *= 2;
+	DirectLightingSH.G.V2 *= 2;
+	DirectLightingSH.B.V0 *= 2;
+	DirectLightingSH.B.V1 *= 2;
+	DirectLightingSH.B.V2 *= 2;
+#endif
 
 	if (any(isnan(RadianceValue)) || any(RadianceValue < 0))
 	{
@@ -1244,32 +1300,23 @@ void VolumetricLightmapPathTracingMainRG()
 			SHCoefficients0B[VoxelPos] += float4(SH.B.V0.yzw, SH.B.V1.x);
 			SHCoefficients1B[VoxelPos] += float4(SH.B.V1.yzw, SH.B.V2);
 		}
-		
+
+		#ifndef LIGHTMAP_PATH_TRACING_MAIN_RG
 		{
-			FThreeBandSHVectorRGBFloat SH;
-			SH.R.V0 = SHBasisFunction3Float(DirectLightingRadianceDirection).V0 * DirectLightingRadianceValue.r;
-			SH.R.V1 = SHBasisFunction3Float(DirectLightingRadianceDirection).V1 * DirectLightingRadianceValue.r;
-			SH.R.V2 = SHBasisFunction3Float(DirectLightingRadianceDirection).V2 * DirectLightingRadianceValue.r;
-			SH.G.V0 = SHBasisFunction3Float(DirectLightingRadianceDirection).V0 * DirectLightingRadianceValue.g;
-			SH.G.V1 = SHBasisFunction3Float(DirectLightingRadianceDirection).V1 * DirectLightingRadianceValue.g;
-			SH.G.V2 = SHBasisFunction3Float(DirectLightingRadianceDirection).V2 * DirectLightingRadianceValue.g;
-			SH.B.V0 = SHBasisFunction3Float(DirectLightingRadianceDirection).V0 * DirectLightingRadianceValue.b;
-			SH.B.V1 = SHBasisFunction3Float(DirectLightingRadianceDirection).V1 * DirectLightingRadianceValue.b;
-			SH.B.V2 = SHBasisFunction3Float(DirectLightingRadianceDirection).V2 * DirectLightingRadianceValue.b;
+			AmbientVector[VoxelPos].x += DirectLightingSH.R.V0.x;
+			AmbientVector[VoxelPos].y += DirectLightingSH.G.V0.x;
+			AmbientVector[VoxelPos].z += DirectLightingSH.B.V0.x;
 			
-			AmbientVector[VoxelPos].x += SH.R.V0.x;
-			AmbientVector[VoxelPos].y += SH.G.V0.x;
-			AmbientVector[VoxelPos].z += SH.B.V0.x;
+			SHCoefficients0R[VoxelPos] += float4(DirectLightingSH.R.V0.yzw, DirectLightingSH.R.V1.x);
+			SHCoefficients1R[VoxelPos] += float4(DirectLightingSH.R.V1.yzw, DirectLightingSH.R.V2);
 			
-			SHCoefficients0R[VoxelPos] += float4(SH.R.V0.yzw, SH.R.V1.x);
-			SHCoefficients1R[VoxelPos] += float4(SH.R.V1.yzw, SH.R.V2);
+			SHCoefficients0G[VoxelPos] += float4(DirectLightingSH.G.V0.yzw, DirectLightingSH.G.V1.x);
+			SHCoefficients1G[VoxelPos] += float4(DirectLightingSH.G.V1.yzw, DirectLightingSH.G.V2);		
 			
-			SHCoefficients0G[VoxelPos] += float4(SH.G.V0.yzw, SH.G.V1.x);
-			SHCoefficients1G[VoxelPos] += float4(SH.G.V1.yzw, SH.G.V2);		
-			
-			SHCoefficients0B[VoxelPos] += float4(SH.B.V0.yzw, SH.B.V1.x);
-			SHCoefficients1B[VoxelPos] += float4(SH.B.V1.yzw, SH.B.V2);
+			SHCoefficients0B[VoxelPos] += float4(DirectLightingSH.B.V0.yzw, DirectLightingSH.B.V1.x);
+			SHCoefficients1B[VoxelPos] += float4(DirectLightingSH.B.V1.yzw, DirectLightingSH.B.V2);
 		}
+		#endif
 		
 		AmbientVector[VoxelPos].w = asfloat(SampleCount + 1);
 	}
