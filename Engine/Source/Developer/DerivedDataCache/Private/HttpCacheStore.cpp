@@ -4845,40 +4845,48 @@ void FHttpCacheStore::GetChunks(
 					bHasValue = bSucceeded;
 				}
 
-				if (IsValueDataReady(Value, Request.Policy))
+				if (bHasValue)
 				{
-					ValueReader.SetSource(Value.GetData());
-				}
-				else
-				{
-					auto IdGetter = [](const FValue& Value)
+					if (IsValueDataReady(Value, Request.Policy))
 					{
-						return FString(TEXT("Default"));
-					};
-
-					FRequestOwner BlockingOwner(EPriority::Blocking);
-					bool bSucceeded = false;
-					FCompressedBuffer NewBuffer;
-					FGetRecordOp::GetDataBatch(*this, BlockingOwner, Request.Name, Request.Key, ::MakeArrayView({ Value }), IdGetter, [&bSucceeded, &NewBuffer](FGetRecordOp::FGetCachedDataBatchResponse&& Response)
-						{
-							if (Response.Status == EStatus::Ok)
-							{
-								bSucceeded = true;
-								NewBuffer = MoveTemp(Response.DataBuffer);
-							}
-						});
-					BlockingOwner.Wait();
-
-					if (bSucceeded)
-					{
-						ValueBuffer = MoveTemp(NewBuffer);
-						ValueReader.SetSource(ValueBuffer);
+						ValueReader.SetSource(Value.GetData());
 					}
 					else
 					{
-						ValueBuffer.Reset();
-						ValueReader.ResetSource();
+						auto IdGetter = [](const FValue& Value)
+						{
+							return FString(TEXT("Default"));
+						};
+
+						FRequestOwner BlockingOwner(EPriority::Blocking);
+						bool bSucceeded = false;
+						FCompressedBuffer NewBuffer;
+						FGetRecordOp::GetDataBatch(*this, BlockingOwner, Request.Name, Request.Key, ::MakeArrayView({ Value }), IdGetter, [&bSucceeded, &NewBuffer](FGetRecordOp::FGetCachedDataBatchResponse&& Response)
+							{
+								if (Response.Status == EStatus::Ok)
+								{
+									bSucceeded = true;
+									NewBuffer = MoveTemp(Response.DataBuffer);
+								}
+							});
+						BlockingOwner.Wait();
+
+						if (bSucceeded)
+						{
+							ValueBuffer = MoveTemp(NewBuffer);
+							ValueReader.SetSource(ValueBuffer);
+						}
+						else
+						{
+							ValueBuffer.Reset();
+							ValueReader.ResetSource();
+						}
 					}
+				}
+				else
+				{
+					ValueBuffer.Reset();
+					ValueReader.ResetSource();
 				}
 			}
 		}
