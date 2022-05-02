@@ -43,9 +43,12 @@ namespace Metasound
 		FDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata)
 		:	VertexName(InVertexName)
 		,	DataTypeName(InDataTypeName)
+#if WITH_EDITORONLY_DATA
 		,	Metadata(InMetadata)
+#endif // WITH_EDITORONLY_DATA
 		{
 		}
+
 
 		virtual ~FDataVertex() = default;
 
@@ -55,8 +58,10 @@ namespace Metasound
 		/** Type name of data. */
 		FName DataTypeName;
 
+#if WITH_EDITORONLY_DATA
 		/** Metadata associated with vertex. */
 		FDataVertexMetadata Metadata;
+#endif // WITH_EDITORONLY_DATA
 
 		UE_DEPRECATED(5.1, "GetVertexName() is deprecated. Use VertexName")
 		const FVertexName& GetVertexName() const
@@ -70,11 +75,13 @@ namespace Metasound
 			return DataTypeName;
 		}
 
+#if WITH_EDITORONLY_DATA
 		UE_DEPRECATED(5.1, "GetMetadata() is deprecated. Use Metadata")
 		const FDataVertexMetadata& GetMetadata() const
 		{
 			return Metadata;
 		}
+#endif // WITH_EDITORONLY_DATA
 	};
 
 	/** FInputDataVertex */
@@ -274,7 +281,9 @@ namespace Metasound
 		 */
 		FEnvironmentVertex(const FVertexName& InVertexName, const FText& InDescription)
 		:	VertexName(InVertexName)
+#if WITH_EDITORONLY_DATA
 		,	Description(InDescription)
+#endif // WITH_EDITORONLY_DATA
 		{
 		}
 
@@ -283,8 +292,10 @@ namespace Metasound
 		/** Name of vertex. */
 		FVertexName VertexName;
 
+#if WITH_EDITORONLY_DATA
 		/** Description of the vertex. */
 		FText Description;
+#endif // WITH_EDITORONLY_DATA
 
 		/** Name of vertex. */
 		UE_DEPRECATED(5.1, "GetVertexName() is deprecated. Use VertexName")
@@ -293,12 +304,14 @@ namespace Metasound
 			return VertexName;
 		}
 
+#if WITH_EDITORONLY_DATA
 		/** Description of the vertex. */
 		UE_DEPRECATED(5.1, "GetDescription() is deprecated. Use Description")
 		const FText& GetDescription() const
 		{
 			return Description;
 		}
+#endif // WITH_EDITORONLY_DATA
 
 		friend bool METASOUNDGRAPHCORE_API operator==(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS);
 		friend bool METASOUNDGRAPHCORE_API operator!=(const FEnvironmentVertex& InLHS, const FEnvironmentVertex& InRHS);
@@ -382,6 +395,10 @@ namespace Metasound
 			template<typename... VertexTypes>
 			TVertexInterfaceGroup(VertexTypes&&... InVertexs)
 			{
+				// Reserve array to hold exact number of vertices to avoid
+				// over allocation.
+				Vertices.Reserve(sizeof...(VertexTypes));
+
 				CopyInputs(Forward<VertexTypes>(InVertexs)...);
 			}
 

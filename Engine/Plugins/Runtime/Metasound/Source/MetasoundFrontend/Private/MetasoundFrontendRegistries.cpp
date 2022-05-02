@@ -279,7 +279,7 @@ namespace Metasound
 
 					// Store update to newly registered node in history so nodes
 					// can be queried by transaction ID
-					RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeRegistration, Key, Entry->GetClassInfo(), Timestamp));
+					RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeRegistration, Entry->GetClassInfo(), Timestamp));
 
 					// Store registry elements in map so nodes can be queried using registry key.
 					RegisteredNodes.Add(Key, Entry);
@@ -298,7 +298,7 @@ namespace Metasound
 					{
 						FNodeRegistryTransaction::FTimeType Timestamp = FPlatformTime::Cycles64();
 
-						RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeUnregistration, InKey, Entry->GetClassInfo(), Timestamp));
+						RegistryTransactionHistory.Add(FNodeRegistryTransaction(FNodeRegistryTransaction::ETransactionType::NodeUnregistration, Entry->GetClassInfo(), Timestamp));
 
 						RegisteredNodes.Remove(InKey);
 						return true;
@@ -434,11 +434,16 @@ namespace Metasound
 			}
 		} // namespace MetasoundFrontendRegistriesPrivate
 
-		FNodeRegistryTransaction::FNodeRegistryTransaction(ETransactionType InType, const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo, FNodeRegistryTransaction::FTimeType InTimestamp)
+
+		FNodeRegistryTransaction::FNodeRegistryTransaction(ETransactionType InType, const FNodeClassInfo& InNodeClassInfo, FNodeRegistryTransaction::FTimeType InTimestamp)
 		: Type(InType)
-		, Key(InKey)
 		, NodeClassInfo(InNodeClassInfo)
 		, Timestamp(InTimestamp)
+		{
+		}
+
+		FNodeRegistryTransaction::FNodeRegistryTransaction(ETransactionType InType, const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo, FNodeRegistryTransaction::FTimeType InTimestamp)
+		: FNodeRegistryTransaction(InType, InNodeClassInfo, InTimestamp)
 		{
 		}
 
@@ -452,9 +457,9 @@ namespace Metasound
 			return NodeClassInfo;
 		}
 
-		const FNodeRegistryKey& FNodeRegistryTransaction::GetNodeRegistryKey() const
+		FNodeRegistryKey FNodeRegistryTransaction::GetNodeRegistryKey() const
 		{
-			return Key;
+			return NodeRegistryKey::CreateKey(NodeClassInfo);
 		}
 
 		FNodeRegistryTransaction::FTimeType FNodeRegistryTransaction::GetTimestamp() const
@@ -549,7 +554,7 @@ namespace Metasound
 			, Version(InClass.Metadata.GetVersion())
 		{
 			ensure(!AssetPath.IsNone());
-
+#if WITH_EDITORONLY_DATA
 			for (const FMetasoundFrontendClassInput& Input : InClass.Interface.Inputs)
 			{
 				InputTypes.Add(Input.TypeName);
@@ -559,6 +564,7 @@ namespace Metasound
 			{
 				OutputTypes.Add(Output.TypeName);
 			}
+#endif // WITH_EDITORONLY_DATA
 		}
 	} // namespace Frontend
 } // namespace Metasound
@@ -567,6 +573,7 @@ FMetasoundFrontendRegistryContainer* FMetasoundFrontendRegistryContainer::LazySi
 
 FMetasoundFrontendRegistryContainer* FMetasoundFrontendRegistryContainer::Get()
 {
+	METASOUND_LLM_SCOPE;
 	if (!LazySingleton)
 	{
 		LazySingleton = new Metasound::Frontend::MetasoundFrontendRegistryPrivate::FRegistryContainerImpl();

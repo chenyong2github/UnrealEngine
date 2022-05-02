@@ -206,9 +206,10 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 			ClassInput.TypeName = InputVertex.DataTypeName;
 			ClassInput.VertexID = FGuid::NewGuid();
 
-			const FDataVertexMetadata& VertexMetadata = InputVertex.Metadata;
 
 #if WITH_EDITOR
+			const FDataVertexMetadata& VertexMetadata = InputVertex.Metadata;
+
 			ClassInput.Metadata.SetSerializeText(false);
 			ClassInput.Metadata.SetDisplayName(VertexMetadata.DisplayName);
 			ClassInput.Metadata.SetDescription(VertexMetadata.Description);
@@ -259,9 +260,9 @@ FMetasoundFrontendClassInterface FMetasoundFrontendClassInterface::GenerateClass
 			ClassOutput.TypeName = OutputVertex.DataTypeName;
 			ClassOutput.VertexID = FGuid::NewGuid();
 
+#if WITH_EDITOR
 			const FDataVertexMetadata& VertexMetadata = OutputVertex.Metadata;
 
-#if WITH_EDITOR
 			ClassOutput.Metadata.SetSerializeText(false);
 			ClassOutput.Metadata.SetDisplayName(VertexMetadata.DisplayName);
 			ClassOutput.Metadata.SetDescription(VertexMetadata.Description);
@@ -460,9 +461,11 @@ bool FMetasoundFrontendClass::CacheGraphDependencyMetadataFromRegistry(FMetasoun
 }
 #endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
 FMetasoundFrontendClassStyle FMetasoundFrontendClassStyle::GenerateClassStyle(const Metasound::FNodeDisplayStyle& InNodeDisplayStyle)
 {
 	FMetasoundFrontendClassStyle Style;
+
 	Style.Display.bShowName = InNodeDisplayStyle.bShowName;
 	Style.Display.bShowInputNames = InNodeDisplayStyle.bShowInputNames;
 	Style.Display.bShowOutputNames = InNodeDisplayStyle.bShowOutputNames;
@@ -470,6 +473,7 @@ FMetasoundFrontendClassStyle FMetasoundFrontendClassStyle::GenerateClassStyle(co
 
 	return Style;
 }
+#endif // WITH_EDITORONLY_DATA
 
 FMetasoundFrontendClassMetadata FMetasoundFrontendClassMetadata::GenerateClassMetadata(const Metasound::FNodeClassMetadata& InNodeClassMetadata, EMetasoundFrontendClassType InType)
 {

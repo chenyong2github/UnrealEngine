@@ -71,11 +71,13 @@ namespace Metasound
 			// Version of the registered class
 			FMetasoundFrontendVersionNumber Version;
 
+#if WITH_EDITORONLY_DATA
 			// Types of class inputs
 			TSet<FName> InputTypes;
 
 			// Types of class outputs
 			TSet<FName> OutputTypes;
+#endif // WITH_EDITORONLY_DATA
 
 			FNodeClassInfo() = default;
 
@@ -212,17 +214,18 @@ namespace Metasound
 				Invalid
 			};
 
+			UE_DEPRECATED("5.1", "This constructor is deprecated. Use a different constructor for FNodeREegistryTransaction")
 			FNodeRegistryTransaction(ETransactionType InType, const FNodeRegistryKey& InKey, const FNodeClassInfo& InNodeClassInfo, FTimeType InTimestamp);
+			FNodeRegistryTransaction(ETransactionType InType, const FNodeClassInfo& InNodeClassInfo, FTimeType InTimestamp);
 
 			ETransactionType GetTransactionType() const;
 			const FNodeClassInfo& GetNodeClassInfo() const;
-			const FNodeRegistryKey& GetNodeRegistryKey() const;
+			FNodeRegistryKey GetNodeRegistryKey() const;
 			FTimeType GetTimestamp() const;
 
 		private:
 
 			ETransactionType Type;
-			FNodeRegistryKey Key;
 			FNodeClassInfo NodeClassInfo;
 			FTimeType Timestamp;
 		};

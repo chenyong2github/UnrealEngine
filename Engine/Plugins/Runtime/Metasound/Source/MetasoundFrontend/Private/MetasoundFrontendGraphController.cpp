@@ -279,7 +279,9 @@ namespace Metasound
 					FGuid VariableID = FGuid::NewGuid();
 
 					FMetasoundFrontendVariable Variable;
+#if WITH_EDITORONLY_DATA
 					Variable.DisplayName = Info.DataTypeDisplayText;
+#endif // WITH_EDITORONLY_DATA
 					Variable.TypeName = Info.DataTypeName;
 					Variable.Literal.SetFromLiteral(Registry.CreateDefaultLiteral(InDataType));
 					Variable.ID = VariableID;

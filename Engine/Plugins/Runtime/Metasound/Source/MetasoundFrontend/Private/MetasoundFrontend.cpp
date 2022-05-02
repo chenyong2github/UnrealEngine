@@ -31,7 +31,9 @@ namespace Metasound
 
 			ClassDescription.Metadata = FMetasoundFrontendClassMetadata::GenerateClassMetadata(InNodeMetadata, ClassType);
 			ClassDescription.Interface = FMetasoundFrontendClassInterface::GenerateClassInterface(InNodeMetadata.DefaultInterface);
+#if WITH_EDITORONLY_DATA
 			ClassDescription.Style = FMetasoundFrontendClassStyle::GenerateClassStyle(InNodeMetadata.DisplayStyle);
+#endif // WITH_EDITORONLY_DATA
 
 			return ClassDescription;
 		}

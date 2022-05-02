@@ -142,7 +142,7 @@ namespace Metasound
 
 			if (!ReceiveNode.IsValid())
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create receive node while injecting receive node for graph input [VertexKey:%s, VertexDescription:%s, DataTypeName:%s]"), *VertexKey.ToString(), *InputDestination.Vertex.Metadata.Description.ToString(), *DataType.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create receive node while injecting receive node for graph input [VertexName:%s, DataTypeName:%s]"), *VertexKey.ToString(), *DataType.ToString());
 				return false;
 			}
 
@@ -152,7 +152,7 @@ namespace Metasound
 
 			if (!AddressNode.IsValid())
 			{
-				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create address node while injecting receive node for graph input [VertexKey:%s, VertexDescription:%s, DataTypeName:%s]"), *VertexKey.ToString(), *InputDestination.Vertex.Metadata.Description.ToString(), *DataType.ToString());
+				UE_LOG(LogMetaSound, Warning, TEXT("Failed to create address node while injecting receive node for graph input [VertexName:%s, DataTypeName:%s]"), *VertexKey.ToString(), *DataType.ToString());
 				return false;
 			}
 
