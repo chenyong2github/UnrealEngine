@@ -35,6 +35,18 @@ enum class EConnectionOptions : uint8
 };
 ENUM_CLASS_FLAGS(EConnectionOptions);
 
+/** Optional flags that can be passed in when a command is run */
+enum class ERunCommandFlags : uint32
+{
+	/** No special options selected */
+	Default					= 0,
+	/** Prevents us writing the full perforce command (once evaluated) to the log file */
+	DisableCommandLogging		= 1 << 0,
+	/** The same as passing -q to a perforce command as part of the g-opts. Prevents info output from being printed to stdout */
+	Quiet					= 1 << 1
+};
+ENUM_CLASS_FLAGS(ERunCommandFlags);
+
 class FPerforceConnection
 {
 public:
@@ -81,24 +93,14 @@ public:
 	 */
 	bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, TArray<FText>&  OutErrorMessage, FOnIsCancelled InIsCancelled, bool& OutConnectionDropped)
 	{
-		const bool bStandardDebugOutput=true;
-		const bool bAllowRetry=true;
 		TOptional<FSharedBuffer> UnsetDataBuffer;
-
-		return RunCommand(InCommand, InParameters, OutRecordSet, UnsetDataBuffer, OutErrorMessage, InIsCancelled, OutConnectionDropped, bStandardDebugOutput, bAllowRetry);
-	}
-
-	bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, TOptional<FSharedBuffer>& OutData, TArray<FText>& OutErrorMessage, FOnIsCancelled InIsCancelled, bool& OutConnectionDropped)
-	{
-		const bool bStandardDebugOutput = true;
-		const bool bAllowRetry = true;
-		return RunCommand(InCommand, InParameters, OutRecordSet, OutData, OutErrorMessage, InIsCancelled, OutConnectionDropped, bStandardDebugOutput, bAllowRetry);
+		return RunCommand(InCommand, InParameters, OutRecordSet, UnsetDataBuffer, OutErrorMessage, InIsCancelled, OutConnectionDropped);
 	}
 
 	/**
 	 * Runs internal perforce command, catches exceptions, returns results
 	 */
-	bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, TOptional<FSharedBuffer>& OutData, TArray<FText>& OutErrorMessage, FOnIsCancelled InIsCancelled, bool& OutConnectionDropped, const bool bInStandardDebugOutput, const bool bInAllowRetry);
+	bool RunCommand(const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, TOptional<FSharedBuffer>& OutData, TArray<FText>& OutErrorMessage, FOnIsCancelled InIsCancelled, bool& OutConnectionDropped, ERunCommandFlags RunFlags = ERunCommandFlags::Default);
 
 	/**
 	 * Creates a changelist with the specified description

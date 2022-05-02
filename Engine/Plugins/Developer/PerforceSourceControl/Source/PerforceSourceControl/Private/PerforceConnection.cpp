@@ -21,9 +21,11 @@ namespace
 {
 	enum class EP4ClientUserFlags
 	{
-		None = 0,
-		UnicodeServer = 1 << 0,
-		CollectData = 1 << 1
+		None			= 0,
+		/** The server uses unicode */
+		UnicodeServer	= 1 << 0,
+		/** Binary data returned by commands should be collected in the DataBuffer member */
+		CollectData		= 1 << 1,
 	};
 
 	ENUM_CLASS_FLAGS(EP4ClientUserFlags);
@@ -801,12 +803,16 @@ void FPerforceConnection::Disconnect()
 	}
 }
 
-bool FPerforceConnection::RunCommand(const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, TOptional<FSharedBuffer>& OutData, TArray<FText>& OutErrorMessage, FOnIsCancelled InIsCancelled, bool& OutConnectionDropped, const bool bInStandardDebugOutput, const bool bInAllowRetry)
+bool FPerforceConnection::RunCommand(	const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, 
+										TOptional<FSharedBuffer>& OutData, TArray<FText>& OutErrorMessage, 
+										FOnIsCancelled InIsCancelled, bool& OutConnectionDropped, ERunCommandFlags RunFlags)
 {
 	if (!bEstablishedConnection)
 	{
 		return false;
 	}
+
+	const bool bLogCommandDetails = !EnumHasAllFlags(RunFlags, ERunCommandFlags::DisableCommandLogging);
 
 	FString FullCommand = InCommand;
 
@@ -827,14 +833,14 @@ bool FPerforceConnection::RunCommand(const FString& InCommand, const TArray<FStr
 			FMemory::Memcpy(ArgV[Index], TCHAR_TO_ANSI(*InParameters[Index]), InParameters[Index].Len() + 1);
 		}
 		
-		if (bInStandardDebugOutput)
+		if (bLogCommandDetails)
 		{
 			FullCommand += TEXT(" ");
 			FullCommand += InParameters[Index];
 		}
 	}
 
-	if (bInStandardDebugOutput)
+	if (bLogCommandDetails)
 	{
 		UE_LOG( LogSourceControl, Log, TEXT("Attempting 'p4 %s'"), *FullCommand );
 	}
@@ -848,11 +854,16 @@ bool FPerforceConnection::RunCommand(const FString& InCommand, const TArray<FStr
 
 	OutRecordSet.Reset();
 
-	EP4ClientUserFlags Flags = EP4ClientUserFlags::None;
-	Flags |= bIsUnicode ? EP4ClientUserFlags::UnicodeServer : EP4ClientUserFlags::None;
-	Flags |= OutData ? EP4ClientUserFlags::CollectData : EP4ClientUserFlags::None;
+	EP4ClientUserFlags ClientUserFlags = EP4ClientUserFlags::None;
+	ClientUserFlags |= bIsUnicode ? EP4ClientUserFlags::UnicodeServer : EP4ClientUserFlags::None;
+	ClientUserFlags |= OutData ? EP4ClientUserFlags::CollectData : EP4ClientUserFlags::None;
 	
-	FP4ClientUser User(OutRecordSet, Flags, OutErrorMessage);
+	FP4ClientUser User(OutRecordSet, ClientUserFlags, OutErrorMessage);
+	if (EnumHasAllFlags(RunFlags, ERunCommandFlags::Quiet))
+	{
+		User.SetQuiet();
+	}
+
 	P4Client.Run(FROM_TCHAR(*InCommand, bIsUnicode), &User);
 	if ( P4Client.Dropped() )
 	{
@@ -879,7 +890,7 @@ bool FPerforceConnection::RunCommand(const FString& InCommand, const TArray<FStr
 		SCCProvider.SetLastErrors(OutErrorMessage);
 	}
 
-	if (bInStandardDebugOutput)
+	if (bLogCommandDetails)
 	{
 		UE_LOG( LogSourceControl, VeryVerbose, TEXT("P4 execution time: %0.4f seconds. Command: %s"), FPlatformTime::Seconds() - SCCStartTime, *FullCommand );
 	}
@@ -916,14 +927,13 @@ int32 FPerforceConnection::EditPendingChangelist(const FText& NewDescription, in
 		TArray<FString> Params;
 		TOptional<FSharedBuffer> CommandData;
 		bool bConnectionDropped = false;
-		const bool bStandardDebugOutput = false;
-		const bool bAllowRetry = true;
+		const ERunCommandFlags RunFlags = ERunCommandFlags::DisableCommandLogging;
 
 		Params.Add(TEXT("-o"));
 		// TODO : make this work also for default changelist, but should really be a Create
 		Params.Add(FString::Printf(TEXT("%d"), ChangelistNumber));
 
-		if (!RunCommand(TEXT("change"), Params, PreviousRecords, CommandData, OutErrorMessages, InIsCancelled, bConnectionDropped, bStandardDebugOutput, bAllowRetry))
+		if (!RunCommand(TEXT("change"), Params, PreviousRecords, CommandData, OutErrorMessages, InIsCancelled, bConnectionDropped, RunFlags))
 		{
 			return 0;
 		}
@@ -1021,12 +1031,11 @@ void FPerforceConnection::EstablishConnection(const FPerforceConnectionInfo& InC
 		FP4RecordSet Records;
 		TOptional<FSharedBuffer> CommandData;
 		bool bConnectionDropped = false;
-		const bool bStandardDebugOutput = false;
-		const bool bAllowRetry = true;
+		const ERunCommandFlags RunFlags = ERunCommandFlags::DisableCommandLogging;
 
 		UE_LOG(LogSourceControl, Verbose, TEXT(" ... checking unicode status" ));
 
-		if (RunCommand(TEXT("info"), Params, Records, CommandData, ErrorMessages, FOnIsCancelled(), bConnectionDropped, bStandardDebugOutput, bAllowRetry))
+		if (RunCommand(TEXT("info"), Params, Records, CommandData, ErrorMessages, FOnIsCancelled(), bConnectionDropped, RunFlags))
 		{
 			// Get character encoding
 			bIsUnicode = Records[0].Find(TEXT("unicode")) != nullptr;
@@ -1059,7 +1068,7 @@ void FPerforceConnection::EstablishConnection(const FPerforceConnectionInfo& InC
 			// Gather the client root
 			UE_LOG(LogSourceControl, Verbose, TEXT(" ... getting info" ));
 			bConnectionDropped = false;
-			if (RunCommand(TEXT("info"), Params, Records, CommandData, ErrorMessages, FOnIsCancelled(), bConnectionDropped, bStandardDebugOutput, bAllowRetry))
+			if (RunCommand(TEXT("info"), Params, Records, CommandData, ErrorMessages, FOnIsCancelled(), bConnectionDropped, RunFlags))
 			{
 				UE_LOG(LogSourceControl, Verbose, TEXT(" ... getting clientroot" ));
 				ClientRoot = Records[0](TEXT("clientRoot"));

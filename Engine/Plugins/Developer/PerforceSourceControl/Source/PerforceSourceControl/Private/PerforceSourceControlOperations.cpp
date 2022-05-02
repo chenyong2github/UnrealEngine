@@ -2927,10 +2927,11 @@ bool FPerforceDownloadFileWorker::Execute(FPerforceSourceControlCommand& InComma
 				Parameters.Add(TargetFilePath);
 
 				TOptional<FSharedBuffer> FileData = FSharedBuffer();
+				const ERunCommandFlags Flags = Operation->ShouldLogToStdOutput() ? ERunCommandFlags::Default : ERunCommandFlags::DisableCommandLogging;
 
 				InCommand.bCommandSuccessful = Connection.RunCommand(	TEXT("print"), Parameters, Records, FileData, InCommand.ResultInfo.ErrorMessages, 
 																		FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
-																		InCommand.bConnectionDropped, Operation->ShouldLogToStdOutput(), true);
+																		InCommand.bConnectionDropped, Flags);
 				
 				if (InCommand.bCommandSuccessful)
 				{
@@ -2959,10 +2960,11 @@ bool FPerforceDownloadFileWorker::Execute(FPerforceSourceControlCommand& InComma
 				Parameters.Add(TargetFilePath);
 
 				TOptional<FSharedBuffer> NullBuffer;
+				const ERunCommandFlags Flags = Operation->ShouldLogToStdOutput() ? ERunCommandFlags::Default : ERunCommandFlags::DisableCommandLogging;
 
 				InCommand.bCommandSuccessful = Connection.RunCommand(	TEXT("print"), Parameters, Records, NullBuffer, InCommand.ResultInfo.ErrorMessages, 
 																		FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
-																		InCommand.bConnectionDropped, Operation->ShouldLogToStdOutput(), true);
+																		InCommand.bConnectionDropped, Flags);
 
 				if (InCommand.bCommandSuccessful)
 				{
