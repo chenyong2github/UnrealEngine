@@ -482,13 +482,29 @@ public:
 	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer, uint32 Stride, uint8 Format) override final
 	{
 		RHI->RHIUpdateShaderResourceView(SRV, Buffer, Stride, Format);
-		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+
+		if (Buffer)
+		{
+			SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+		}
+		else
+		{
+			SRV->ResetViewIdentity();
+		}
 	}
 
 	virtual void RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FRHIBuffer* Buffer) override final
 	{
 		RHI->RHIUpdateShaderResourceView(SRV, Buffer);
-		SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+
+		if (Buffer)
+		{
+			SRV->ViewIdentity = Buffer->GetWholeResourceIdentity();
+		}
+		else
+		{
+			SRV->ResetViewIdentity();
+		}
 	}
 
 	virtual FRHICalcTextureSizeResult RHICalcTexturePlatformSize(FRHITextureDesc const& Desc, uint32 FirstMipIndex) override final

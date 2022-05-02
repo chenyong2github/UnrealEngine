@@ -354,9 +354,12 @@ namespace RHIValidation
 			TransientState = FTransientState(InResourceState);
 			TrackedAccess = InResourceState;
 
-			for (auto& State : WholeResourceState.States)
+			for (ERHIPipeline Pipeline : GetRHIPipelines())
 			{
+				auto& State = WholeResourceState.States[Pipeline];
+
 				State.Current.Access = InResourceState;
+				State.Current.Pipelines = Pipeline;
 				State.Previous = State.Current;
 			}
 
@@ -534,6 +537,11 @@ namespace RHIValidation
 	struct FView
 	{
 		FView()
+		{
+			ResetViewIdentity();
+		}
+
+		void ResetViewIdentity()
 		{
 			ViewIdentity.Resource = nullptr;
 			ViewIdentity.SubresourceRange = FSubresourceRange(0, 0, 0, 0, 0, 0);
