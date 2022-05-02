@@ -807,7 +807,7 @@ void FLevelEditorActionCallbacks::BuildHLODs_Execute()
 
 void FLevelEditorActionCallbacks::BuildMinimap_Execute()
 {
-	// Build HLOD
+	// Build Minimap
 	FEditorBuildUtils::EditorBuild(GetWorld(), FBuildOptions::BuildMinimap);
 }
 

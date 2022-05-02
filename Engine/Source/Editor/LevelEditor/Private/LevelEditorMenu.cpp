@@ -637,9 +637,27 @@ void FLevelEditorMenu::RegisterBuildMenu()
 	}
 
 	{
-		FToolMenuSection& Section = Menu->AddSection("LevelEditorWorldPartition", LOCTEXT("WorldPartitionHeading", "World Partition"));
-		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildHLODs);
-		Section.AddMenuEntry(FLevelEditorCommands::Get().BuildMinimap);
+		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			if (GWorld != nullptr && GWorld->GetWorldPartition() != nullptr)
+			{
+				FToolMenuSection& Section = InMenu->AddSection("LevelEditorWorldPartition", LOCTEXT("WorldPartitionHeading", "World Partition"));
+				Section.AddMenuEntry(FLevelEditorCommands::Get().BuildHLODs);
+				Section.AddMenuEntry(FLevelEditorCommands::Get().BuildMinimap);
+			}
+		}));
+	}
+
+	{
+		// The day we only support World Partitioned worlds, we can remove this section.
+		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		{
+			if (GWorld != nullptr && GWorld->GetWorldPartition() == nullptr)
+			{
+				FToolMenuSection& Section = InMenu->AddSection("LevelEditorLOD", LOCTEXT("LODHeading", "Hierarchical LOD"));
+				Section.AddMenuEntry(FLevelEditorCommands::Get().BuildHLODs);
+			}
+		}));
 	}
 
 	{
