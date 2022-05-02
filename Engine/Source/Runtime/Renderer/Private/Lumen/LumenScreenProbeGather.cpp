@@ -819,15 +819,15 @@ class FScreenProbeTileClassificationMarkCS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FOverflow>() && !Strata::IsStrataEnabled())
+		if (PermutationVector.Get<FOverflowTile>() && !Strata::IsStrataEnabled())
 		{
 			return false;
 		}
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 
-	class FOverflow : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW");
-	using FPermutationDomain = TShaderPermutationDomain<FOverflow>;
+	class FOverflowTile : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW_TILE");
+	using FPermutationDomain = TShaderPermutationDomain<FOverflowTile>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -856,14 +856,14 @@ class FScreenProbeTileClassificationBuildListsCS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FOverflow>() && !Strata::IsStrataEnabled())
+		if (PermutationVector.Get<FOverflowTile>() && !Strata::IsStrataEnabled())
 		{
 			return false;
 		}
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
-	class FOverflow : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW");
-	using FPermutationDomain = TShaderPermutationDomain<FOverflow>;
+	class FOverflowTile : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW_TILE");
+	using FPermutationDomain = TShaderPermutationDomain<FOverflowTile>;
 
 	static int32 GetGroupSize()
 	{
@@ -908,7 +908,7 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FOverflow>() && !Strata::IsStrataEnabled())
+		if (PermutationVector.Get<FOverflowTile>() && !Strata::IsStrataEnabled())
 		{
 			return false;
 		}
@@ -919,8 +919,8 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 	class FTileClassificationMode : SHADER_PERMUTATION_INT("INTEGRATE_TILE_CLASSIFICATION_MODE", 4);
 	class FProbeIrradianceFormat : SHADER_PERMUTATION_ENUM_CLASS("PROBE_IRRADIANCE_FORMAT", EScreenProbeIrradianceFormat);
 	class FStochasticProbeInterpolation : SHADER_PERMUTATION_BOOL("STOCHASTIC_PROBE_INTERPOLATION");
-	class FOverflow : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW");
-	using FPermutationDomain = TShaderPermutationDomain<FTileClassificationMode, FScreenSpaceBentNormal, FProbeIrradianceFormat, FStochasticProbeInterpolation, FOverflow>;
+	class FOverflowTile : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW_TILE");
+	using FPermutationDomain = TShaderPermutationDomain<FTileClassificationMode, FScreenSpaceBentNormal, FProbeIrradianceFormat, FStochasticProbeInterpolation, FOverflowTile>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -971,8 +971,8 @@ class FScreenProbeTemporalReprojectionCS : public FGlobalShader
 
 	class FHistoryRejectBasedOnNormal : SHADER_PERMUTATION_BOOL("HISTORY_REJECT_BASED_ON_NORMAL");
 	class FFastUpdateModeNeighborhoodClamp : SHADER_PERMUTATION_BOOL("FAST_UPDATE_MODE_NEIGHBORHOOD_CLAMP");
-	class FOverflow : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW");
-	using FPermutationDomain = TShaderPermutationDomain<FFastUpdateModeNeighborhoodClamp, FHistoryRejectBasedOnNormal, FOverflow>;
+	class FOverflowTile : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW_TILE");
+	using FPermutationDomain = TShaderPermutationDomain<FFastUpdateModeNeighborhoodClamp, FHistoryRejectBasedOnNormal, FOverflowTile>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -985,7 +985,7 @@ class FScreenProbeTemporalReprojectionCS : public FGlobalShader
 		}
 #endif
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FOverflow>() && !Strata::IsStrataEnabled())
+		if (PermutationVector.Get<FOverflowTile>() && !Strata::IsStrataEnabled())
 		{
 			return false;
 		}
@@ -1110,7 +1110,7 @@ void InterpolateAndIntegrate(
 			PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 
 			FScreenProbeTileClassificationMarkCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FScreenProbeTileClassificationMarkCS::FOverflow>(bOverflow);
+			PermutationVector.Set<FScreenProbeTileClassificationMarkCS::FOverflowTile>(bOverflow);
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTileClassificationMarkCS>(PermutationVector);
 
 			if (bOverflow)
@@ -1154,7 +1154,7 @@ void InterpolateAndIntegrate(
 			PassParameters->ViewportTileDimensions = ViewportIntegrateTileDimensions;
 
 			FScreenProbeTileClassificationBuildListsCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FScreenProbeTileClassificationBuildListsCS::FOverflow>(bOverflow);
+			PermutationVector.Set<FScreenProbeTileClassificationBuildListsCS::FOverflowTile>(bOverflow);
 			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTileClassificationBuildListsCS>(PermutationVector);
 
 			if (bOverflow)
@@ -1214,7 +1214,7 @@ void InterpolateAndIntegrate(
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 			FScreenProbeIntegrateCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set< FScreenProbeIntegrateCS::FOverflow >(bOverflow);
+			PermutationVector.Set< FScreenProbeIntegrateCS::FOverflowTile >(bOverflow);
 			PermutationVector.Set< FScreenProbeIntegrateCS::FTileClassificationMode >(ClassificationMode);
 			PermutationVector.Set< FScreenProbeIntegrateCS::FScreenSpaceBentNormal >(bApplyScreenBentNormal);
 			PermutationVector.Set< FScreenProbeIntegrateCS::FProbeIrradianceFormat >(LumenScreenProbeGather::GetScreenProbeIrradianceFormat(View.Family->EngineShowFlags));
@@ -1340,7 +1340,7 @@ void UpdateHistoryScreenProbeGather(
 				auto ScreenProbeTemporalReprojection = [&](bool bOverflow)
 				{
 					FScreenProbeTemporalReprojectionCS::FPermutationDomain PermutationVector;
-					PermutationVector.Set< FScreenProbeTemporalReprojectionCS::FOverflow>(bOverflow);
+					PermutationVector.Set< FScreenProbeTemporalReprojectionCS::FOverflowTile>(bOverflow);
 					PermutationVector.Set< FScreenProbeTemporalReprojectionCS::FFastUpdateModeNeighborhoodClamp>(GLumenScreenProbeTemporalFastUpdateModeUseNeighborhoodClamp != 0);
 					PermutationVector.Set< FScreenProbeTemporalReprojectionCS::FHistoryRejectBasedOnNormal>(bRejectBasedOnNormal);
 					auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTemporalReprojectionCS>(PermutationVector);

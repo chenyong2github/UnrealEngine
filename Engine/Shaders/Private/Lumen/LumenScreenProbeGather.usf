@@ -602,12 +602,12 @@ uint GetDiffuseIntegrationMethod(FLumenMaterialData In)
 	return DiffuseIntegrationMethod;
 }
 
-#ifndef PERMUTATION_OVERFLOW
-#define PERMUTATION_OVERFLOW 0
+#ifndef PERMUTATION_OVERFLOW_TILE
+#define PERMUTATION_OVERFLOW_TILE 0
 #endif
 
 // Return the indirect args offset depending on the permutation type (i.e., primary/overflow)
-#define TILE_CLASSIFICATION_ARGS_OFFSET (PERMUTATION_OVERFLOW * TILE_CLASSIFICATION_NUM * 3)
+#define TILE_CLASSIFICATION_ARGS_OFFSET (PERMUTATION_OVERFLOW_TILE * TILE_CLASSIFICATION_NUM * 3)
 
 [numthreads(INTEGRATE_TILE_SIZE, INTEGRATE_TILE_SIZE, 1)] 
 void ScreenProbeTileClassificationMarkCS(
@@ -627,7 +627,7 @@ void ScreenProbeTileClassificationMarkCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-#if PERMUTATION_OVERFLOW && STRATA_ENABLED
+#if PERMUTATION_OVERFLOW_TILE && STRATA_ENABLED
 	const bool bIsValid = all((DispatchThreadId >> STRATA_TILE_SIZE_DIV_AS_SHIFT) < uint2(Strata.TileCount_Overflow));
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.TileOffset_Overflow * STRATA_TILE_SIZE), true);
 	const uint2 FlattenTileCoord = Coord.SvPositionFlatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT;
@@ -735,11 +735,11 @@ void ScreenProbeTileClassificationBuildListsCS(
 			uint2 ThreadOffset = ZOrder2D(x, log2(8));
 			uint2 TileCoordinate = GroupId * 8 + ThreadOffset;
 
-			const uint2 EffectiveViewportTileDimensions = PERMUTATION_OVERFLOW ? uint2(Strata.TileCount_Overflow) : ViewportTileDimensions;
+			const uint2 EffectiveViewportTileDimensions = PERMUTATION_OVERFLOW_TILE ? uint2(Strata.TileCount_Overflow) : ViewportTileDimensions;
 			const bool bIsValid = all(TileCoordinate < EffectiveViewportTileDimensions);
 
 			// Translate tile into its effective location (i.e., dispatch thread -> SvPosition)
-			TileCoordinate += PERMUTATION_OVERFLOW ? Strata.TileOffset_Overflow : int2(0, 0);
+			TileCoordinate += PERMUTATION_OVERFLOW_TILE ? Strata.TileOffset_Overflow : int2(0, 0);
 
 			if (bIsValid)
 			{
@@ -777,7 +777,7 @@ void ScreenProbeTileClassificationBuildListsCS(
 		{
 			const uint ViewportTileCount = ViewportTileDimensions.x * ViewportTileDimensions.y;
 			const uint ModeOffset		 = ViewportTileCount * ModeIndex;
-			const uint OverflowOffset    = ViewportTileCount * TILE_CLASSIFICATION_NUM * PERMUTATION_OVERFLOW;
+			const uint OverflowOffset    = ViewportTileCount * TILE_CLASSIFICATION_NUM * PERMUTATION_OVERFLOW_TILE;
 			RWIntegrateTileData[OverflowOffset + ModeOffset + SharedGlobalTileOffset[ModeIndex] + GroupThreadId] = SharedIntegrateTileData[ModeIndex * THREADGROUP_SIZE + GroupThreadId];
 		}
 	}
@@ -1014,13 +1014,13 @@ void ScreenProbeIntegrateCS(
 #if INTEGRATE_TILE_CLASSIFICATION_MODE < TILE_CLASSIFICATION_DISABLED
 	const uint ViewportTileCount = ViewportTileDimensions.x * ViewportTileDimensions.y;
 	const uint ModeOffset		 = ViewportTileCount * INTEGRATE_TILE_CLASSIFICATION_MODE;
-	const uint OverflowOffset    = ViewportTileCount * TILE_CLASSIFICATION_NUM * PERMUTATION_OVERFLOW;
+	const uint OverflowOffset    = ViewportTileCount * TILE_CLASSIFICATION_NUM * PERMUTATION_OVERFLOW_TILE;
 
 	uint2 TileCoord = UnpackTileData(IntegrateTileData[OverflowOffset + ModeOffset + GroupId]);
 	DispatchThreadId = TileCoord * INTEGRATE_TILE_SIZE + GroupThreadId;
 #endif
 
-#if PERMUTATION_OVERFLOW
+#if PERMUTATION_OVERFLOW_TILE
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId /* DispatchThreadId/TileCoord already contains +TileOffset_Overflow */, true);
 #else
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);	
@@ -1436,7 +1436,7 @@ float HistoryNormalCosThreshold;
 // Return the 'flatten' SvPosition/ScreenCoord of particular BSDF layer
 uint2 GetNeighborFlattenCoord(uint2 InScreenCoord, uint InBSDFIndex)
 {
-#if STRATA_ENABLED && PERMUTATION_OVERFLOW
+#if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
 	return GetBSDFPositionFlatten(InScreenCoord, InBSDFIndex, Strata.BSDFTileTexture);
 #else
 	return InScreenCoord;
@@ -1447,7 +1447,7 @@ uint2 GetNeighborFlattenCoord(uint2 InScreenCoord, uint InBSDFIndex)
 float2 GetPrevUV(const float2 InPrevScreenCoordUV, uint InBSDFIndex)
 {
 	float2 Out = InPrevScreenCoordUV;
-#if STRATA_ENABLED && PERMUTATION_OVERFLOW
+#if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
 	if (InBSDFIndex > 0)
 	{
 		const float2 fPrevScreenCoord = InPrevScreenCoordUV * EffectiveResolution.xy;
@@ -1576,7 +1576,7 @@ float WeightedAverage(float4 V, float4 Weights)
 void ScreenProbeTemporalReprojectionCS( 
 	uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-#if STRATA_ENABLED && PERMUTATION_OVERFLOW
+#if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.TileOffset_Overflow * STRATA_TILE_SIZE), true);
 #else
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);
@@ -1625,7 +1625,7 @@ void ScreenProbeTemporalReprojectionCS(
 	float2 HistoryGatherUV11 = HistoryGatherUV00 + TexelSize;
 
 	// If processing overflow tiles, we need to compute the actual previous UV through tile indirection
-#if STRATA_ENABLED && PERMUTATION_OVERFLOW
+#if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
 	HistoryGatherUV   = GetPrevUV(HistoryGatherUV,   Coord.TileBSDFIndex);
 	HistoryGatherUV00 = GetPrevUV(HistoryGatherUV00, Coord.TileBSDFIndex);
 	HistoryGatherUV10 = GetPrevUV(HistoryGatherUV10, Coord.TileBSDFIndex);

@@ -65,8 +65,8 @@ bool NeedRayTracedReflections(float InRoughness, const FLumenMaterialData In)
 // Must match cpp GReflectionResolveTileSize
 #define RESOLVE_TILE_SIZE 8
 
-#ifndef PERMUTATION_OVERFLOW
-#define PERMUTATION_OVERFLOW 0
+#ifndef PERMUTATION_OVERFLOW_TILE
+#define PERMUTATION_OVERFLOW_TILE 0
 #endif
 
 RWTexture2D<uint> RWResolveTileUsed;
@@ -79,7 +79,7 @@ void ReflectionTileClassificationMarkCS(
 	uint2 DispatchThreadId : SV_DispatchThreadID,
 	uint2 GroupThreadId : SV_GroupThreadID)
 {
-	if (DispatchThreadId.x < 3 && DispatchThreadId.y == 0 && PERMUTATION_OVERFLOW == 0)
+	if (DispatchThreadId.x < 3 && DispatchThreadId.y == 0 && PERMUTATION_OVERFLOW_TILE == 0)
 	{
 		// Clear indirect args for future pass
 		RWReflectionResolveTileIndirectArgs[DispatchThreadId.x] = (DispatchThreadId.x == 0) ? 0 : 1;
@@ -93,7 +93,7 @@ void ReflectionTileClassificationMarkCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-#if STRATA_ENABLED && PERMUTATION_OVERFLOW
+#if STRATA_ENABLED && PERMUTATION_OVERFLOW_TILE
 	const bool bIsValid = IsTileNCoordValid((DispatchThreadId >> STRATA_TILE_SIZE_DIV_AS_SHIFT) + Strata.TileOffset_Overflow);
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.TileOffset_Overflow * STRATA_TILE_SIZE), true);
 	const uint2 FlattenTileCoord = Coord.SvPositionFlatten >> STRATA_TILE_SIZE_DIV_AS_SHIFT;

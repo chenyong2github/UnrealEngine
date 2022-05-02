@@ -292,13 +292,13 @@ class FReflectionTileClassificationMarkCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FFrontLayerTranslucency : SHADER_PERMUTATION_BOOL("FRONT_LAYER_TRANSLUCENCY");
-	class FOverflow : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW");
-	using FPermutationDomain = TShaderPermutationDomain<FFrontLayerTranslucency, FOverflow>;
+	class FOverflowTile : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW_TILE");
+	using FPermutationDomain = TShaderPermutationDomain<FFrontLayerTranslucency, FOverflowTile>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FOverflow>() && !Strata::IsStrataEnabled())
+		if (PermutationVector.Get<FOverflowTile>() && !Strata::IsStrataEnabled())
 		{
 			return false;
 		}
@@ -622,7 +622,7 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 
 		FReflectionTileClassificationMarkCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FReflectionTileClassificationMarkCS::FOverflow >(bOverflow);
+		PermutationVector.Set< FReflectionTileClassificationMarkCS::FOverflowTile >(bOverflow);
 		PermutationVector.Set< FReflectionTileClassificationMarkCS::FFrontLayerTranslucency >(bFrontLayer);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTileClassificationMarkCS>(PermutationVector);
 
