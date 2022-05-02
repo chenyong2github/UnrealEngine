@@ -14,9 +14,11 @@ UPCGGraph::UPCGGraph(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	InputNode = ObjectInitializer.CreateDefaultSubobject<UPCGNode>(this, TEXT("DefaultInputNode"));
+	InputNode->SetFlags(RF_Transactional);
 	InputNode->SetDefaultSettings(ObjectInitializer.CreateDefaultSubobject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultInputNodeSettings")));
 	Cast<UPCGGraphInputOutputSettings>(InputNode->DefaultSettings)->SetInput(true);
 	OutputNode = ObjectInitializer.CreateDefaultSubobject<UPCGNode>(this, TEXT("DefaultOutputNode"));
+	OutputNode->SetFlags(RF_Transactional);
 	OutputNode->SetDefaultSettings(ObjectInitializer.CreateDefaultSubobject<UPCGGraphInputOutputSettings>(this, TEXT("DefaultOutputNodeSettings")));
 	Cast<UPCGGraphInputOutputSettings>(OutputNode->DefaultSettings)->SetInput(false);
 #if WITH_EDITORONLY_DATA
@@ -182,6 +184,7 @@ UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsCla
 	}
 
 	UPCGNode* Node = Settings->CreateNode();
+	Node->SetFlags(RF_Transactional);
 
 	if (Node)
 	{
@@ -220,6 +223,7 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
 	}
 
 	UPCGNode* Node = InSettings->CreateNode();
+	Node->SetFlags(RF_Transactional);
 
 	if (Node)
 	{
@@ -302,6 +306,8 @@ UPCGNode* UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, U
 	}
 
 	Modify();
+	From->Modify();
+	To->Modify();
 
 	// Create edge
 	UPCGEdge* Edge = NewObject<UPCGEdge>(this);
@@ -327,6 +333,10 @@ bool UPCGGraph::Contains(UPCGNode* Node) const
 
 void UPCGGraph::AddNode(UPCGNode* InNode)
 {
+	check(InNode);
+
+	Modify();
+
 	InNode->Rename(nullptr, this);
 
 #if WITH_EDITOR
@@ -345,6 +355,8 @@ void UPCGGraph::AddNode(UPCGNode* InNode)
 void UPCGGraph::RemoveNode(UPCGNode* InNode)
 {
 	check(InNode);
+
+	Modify();
 
 	for (int32 EdgeIndex = InNode->InboundEdges.Num() - 1; EdgeIndex >= 0; --EdgeIndex)
 	{
@@ -479,6 +491,34 @@ bool UPCGGraph::RemoveOutboundEdges(UPCGNode* InNode, const FName& OutboundLabel
 
 	return bChanged;
 }
+
+#if WITH_EDITOR
+void UPCGGraph::PreNodeUndo(UPCGNode* InPCGNode)
+{
+	if (InPCGNode)
+	{
+		InPCGNode->OnNodeSettingsChangedDelegate.RemoveAll(this);
+
+		if (UPCGSubgraphNode* SubgraphNode = Cast<UPCGSubgraphNode>(InPCGNode))
+		{
+			SubgraphNode->OnNodeStructuralSettingsChangedDelegate.RemoveAll(this);
+		}
+	}
+}
+
+void UPCGGraph::PostNodeUndo(UPCGNode* InPCGNode)
+{
+	if (InPCGNode)
+	{
+		InPCGNode->OnNodeSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnSettingsChanged);
+
+		if (UPCGSubgraphNode* SubgraphNode = Cast<UPCGSubgraphNode>(InPCGNode))
+		{
+			SubgraphNode->OnNodeStructuralSettingsChangedDelegate.AddUObject(this, &UPCGGraph::OnStructuralSettingsChanged);
+		}
+	}
+}
+#endif
 
 #if WITH_EDITOR
 void UPCGGraph::DisableNotificationsForEditor()

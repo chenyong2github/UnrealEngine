@@ -17,6 +17,10 @@
 UCLASS(BlueprintType, ClassGroup = (Procedural), hidecategories=(Object))
 class PCG_API UPCGGraph : public UObject
 {
+#if WITH_EDITOR
+	friend class FPCGEditor;
+#endif // WITH_EDITOR
+
 	GENERATED_BODY()
 
 public:
@@ -71,6 +75,8 @@ public:
 #if WITH_EDITOR
 	void DisableNotificationsForEditor();
 	void EnableNotificationsForEditor();
+	void PreNodeUndo(UPCGNode* InPCGNode);
+	void PostNodeUndo(UPCGNode* InPCGNode);
 #endif
 
 #if WITH_EDITOR

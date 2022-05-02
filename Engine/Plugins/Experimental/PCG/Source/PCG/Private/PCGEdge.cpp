@@ -5,6 +5,7 @@
 
 void UPCGEdge::BreakEdge()
 {
+	Modify();
 	if(InboundNode)
 	{
 		InboundNode->RemoveOutboundEdge(this);

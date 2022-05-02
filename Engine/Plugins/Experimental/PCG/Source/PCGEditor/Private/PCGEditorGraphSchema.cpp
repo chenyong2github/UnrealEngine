@@ -2,12 +2,14 @@
 
 #include "PCGEditorGraphSchema.h"
 
+#include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNodeBase.h"
 #include "PCGEditorGraphSchemaActions.h"
-#include "PCGSettings.h"
 #include "PCGGraph.h"
+#include "PCGSettings.h"
 
+#include "ScopedTransaction.h"
 #include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphSchema"
@@ -104,6 +106,8 @@ bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* I
 
 void UPCGEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotification) const
 {
+	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorBreakPinLinks", "Break Pin Links"), nullptr);
+
 	Super::BreakPinLinks(TargetPin, bSendsNodeNotification);
 
 	UEdGraphNode* GraphNode = TargetPin.GetOwningNode();
@@ -130,6 +134,8 @@ void UPCGEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNod
 
 void UPCGEditorGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const
 {
+	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorBreakSinglePinLink", "Break Single Pin Link"), nullptr);
+
 	Super::BreakSinglePinLink(SourcePin, TargetPin);
 
 	UEdGraphNode* SourceGraphNode = SourcePin->GetOwningNode();

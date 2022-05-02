@@ -24,9 +24,9 @@ void SPCGEditorGraphNode::MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFil
 
 	if (UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode())
 	{
+		PCGNode->Modify();
 		PCGNode->PositionX = PCGEditorGraphNode->NodePosX;
 		PCGNode->PositionY = PCGEditorGraphNode->NodePosY;
-		PCGNode->MarkPackageDirty();
 	}
 }
 

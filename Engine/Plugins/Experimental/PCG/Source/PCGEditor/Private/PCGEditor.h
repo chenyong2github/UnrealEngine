@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Toolkits/AssetEditorToolkit.h"
+#include "EditorUndoClient.h"
 
 class UPCGGraph;
 class UPCGEditorGraph;
@@ -10,7 +11,7 @@ class SGraphEditor;
 class IDetailsView;
 class FUICommandList;
 
-class FPCGEditor : public FAssetEditorToolkit
+class FPCGEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndoClient
 {
 public:
 	/** Edits the specified PCGGraph */
@@ -20,6 +21,12 @@ public:
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager) override;
 	// ~End IToolkit interface
+
+	// ~Begin FEditorUndoClient interface
+	virtual bool MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject *, FTransactionObjectEvent>>& TransactionObjectContexts) const override;
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
+	// ~End FEditorUndoClient interface
 
 	// ~Begin FAssetEditorToolkit interface
 	virtual FName GetToolkitFName() const override;

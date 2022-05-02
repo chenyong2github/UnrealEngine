@@ -2,6 +2,7 @@
 
 #include "PCGEditor.h"
 
+#include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNodeBase.h"
 #include "PCGEditorGraphSchema.h"
@@ -21,6 +22,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "SNodePanel.h"
+#include "ScopedTransaction.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 
@@ -149,6 +151,30 @@ void FPCGEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTa
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 }
 
+bool FPCGEditor::MatchesContext(const FTransactionContext& InContext, const TArray<TPair<UObject*, FTransactionObjectEvent>>& TransactionObjectContexts) const
+{
+	return InContext.Context == FPCGEditorCommon::ContextIdentifier;
+}
+
+void FPCGEditor::PostUndo(bool bSuccess)
+{
+	if (bSuccess)
+	{
+		if (PCGGraphBeingEdited)
+		{
+			PCGGraphBeingEdited->NotifyGraphChanged(true);
+		}
+
+		if (GraphEditorWidget.IsValid())
+		{
+			GraphEditorWidget->ClearSelectionSet();
+			GraphEditorWidget->NotifyGraphChanged();
+
+			FSlateApplication::Get().DismissAllMenus();
+		}
+	}
+}
+
 FName FPCGEditor::GetToolkitFName() const
 {
 	return FName(TEXT("PCGEditor"));
@@ -190,27 +216,32 @@ void FPCGEditor::DeleteSelectedNodes()
 		check(PCGEditorGraph && PCGGraph);
 
 		bool bChanged = false;
-
-		for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 		{
-			UPCGEditorGraphNodeBase* PCGEditorGraphNode = CastChecked<UPCGEditorGraphNodeBase>(Object);
+			const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorPaste", "PCG Editor: Delete"), nullptr);
+			PCGEditorGraph->Modify();
 
-			if (PCGEditorGraphNode->CanUserDeleteNode())
+			for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 			{
-				UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
-				check(PCGNode);
+				UPCGEditorGraphNodeBase* PCGEditorGraphNode = CastChecked<UPCGEditorGraphNodeBase>(Object);
 
-				PCGGraph->RemoveNode(PCGNode);
-				PCGEditorGraphNode->DestroyNode();
-				bChanged = true;
+				if (PCGEditorGraphNode->CanUserDeleteNode())
+				{
+					UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
+					check(PCGNode);
+
+					PCGGraph->RemoveNode(PCGNode);
+					PCGEditorGraphNode->DestroyNode();
+					bChanged = true;
+				}
 			}
+			PCGEditorGraph->Modify();
 		}
 
 		if (bChanged)
 		{
 			GraphEditorWidget->ClearSelectionSet();
 			GraphEditorWidget->NotifyGraphChanged();
-			PCGGraphBeingEdited->MarkPackageDirty();
+			PCGGraphBeingEdited->NotifyGraphChanged(true);
 		}
 	}
 }
@@ -303,6 +334,7 @@ void FPCGEditor::PasteNodesHere(const FVector2D& Location)
 		return;
 	}
 
+	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorPaste", "PCG Editor: Paste"), nullptr);
 	PCGEditorGraph->Modify();
 
 	// Clear the selection set (newly pasted stuff will be selected)
@@ -362,7 +394,6 @@ void FPCGEditor::PasteNodesHere(const FVector2D& Location)
 	}
 
 	GraphEditorWidget->NotifyGraphChanged();
-	PCGGraphBeingEdited->MarkPackageDirty();
 }
 
 bool FPCGEditor::CanPasteNodes() const
@@ -563,6 +594,8 @@ void FPCGEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type Co
 {
 	if (NodeBeingChanged)
 	{
+		const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorRenameNode", "PCG Editor: Rename Node"), nullptr);
+		NodeBeingChanged->Modify();
 		NodeBeingChanged->OnRenameNode(NewText.ToString());
 	}
 }

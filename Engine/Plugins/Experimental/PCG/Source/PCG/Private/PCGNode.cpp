@@ -21,6 +21,12 @@ void UPCGNode::PostLoad()
 		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
 	}
 
+	// Make sure legacy nodes support transactions.
+	if (HasAllFlags(RF_Transactional) == false)
+	{
+		SetFlags(RF_Transactional);
+	}
+
 	ApplyDeprecation();
 #endif
 }
@@ -39,16 +45,48 @@ void UPCGNode::ApplyDeprecation()
 }
 #endif
 
+#if WITH_EDITOR
 void UPCGNode::PostEditImport()
 {
 	Super::PostEditImport();
-#if WITH_EDITOR
 	if (DefaultSettings)
 	{
 		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
 	}
-#endif
 }
+
+void UPCGNode::PreEditUndo()
+{
+	if (DefaultSettings)
+	{
+		DefaultSettings->OnSettingsChangedDelegate.RemoveAll(this);
+	}
+
+	UObject* Outer = GetOuter();
+	if (UPCGGraph* PCGGraph = Cast<UPCGGraph>(Outer))
+	{
+		PCGGraph->PreNodeUndo(this);
+	}
+
+	Super::PreEditUndo();
+}
+
+void UPCGNode::PostEditUndo()
+{
+	Super::PostEditUndo();
+
+	if (DefaultSettings)
+	{
+		DefaultSettings->OnSettingsChangedDelegate.AddUObject(this, &UPCGNode::OnSettingsChanged);
+	}
+
+ 	UObject* Outer = GetOuter();
+	if (UPCGGraph* PCGGraph = Cast<UPCGGraph>(Outer))
+	{
+		PCGGraph->PostNodeUndo(this);
+	}
+}
+#endif
 
 void UPCGNode::BeginDestroy()
 {
@@ -209,11 +247,13 @@ bool UPCGNode::HasEdgeTo(UPCGNode* InNode) const
 
 void UPCGNode::RemoveInboundEdge(UPCGEdge* InEdge)
 {
+	Modify();
 	InboundEdges.Remove(InEdge);
 }
 
 void UPCGNode::RemoveOutboundEdge(UPCGEdge* InEdge)
 {
+	Modify();
 	OutboundEdges.Remove(InEdge);
 }
 

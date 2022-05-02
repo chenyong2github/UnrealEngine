@@ -29,11 +29,14 @@ public:
 	
 	/** ~Begin UObject interface */
 	virtual void PostLoad() override;
-	virtual void PostEditImport() override;
 	virtual void BeginDestroy() override;
-	/** ~End UObject interface */
 
 #if WITH_EDITOR
+	virtual void PostEditImport() override;
+	virtual void PreEditUndo() override;
+	virtual void PostEditUndo() override;
+	/** ~End UObject interface */
+
 	/** Used to be able to force deprecation when things need to be deprecated at the graph level */
 	void ApplyDeprecation();
 #endif

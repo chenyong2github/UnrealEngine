@@ -2,12 +2,16 @@
 
 #include "PCGEditorGraphSchemaActions.h"
 
-#include "PCGGraph.h"
+#include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNode.h"
+#include "PCGGraph.h"
 #include "PCGSettings.h"
 
 #include "EdGraph/EdGraph.h"
+#include "ScopedTransaction.h"
+
+#define LOCTEXT_NAMESPACE "PCGEditorGraphSchemaAction_NewNode"
 
 UEdGraphNode* FPCGEditorGraphSchemaAction_NewNode::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
 {
@@ -22,6 +26,9 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 	{
 		return nullptr;
 	}
+
+	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorNewNode", "PCG Editor: New Node"), nullptr);
+	EditorGraph->Modify();
 
 	UPCGSettings* DefaultNodeSettings = nullptr;
 	UPCGNode* NewPCGNode = PCGGraph->AddNodeOfType(SettingsClass, DefaultNodeSettings);
@@ -43,3 +50,5 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 
 	return NewNode;
 }
+
+#undef LOCTEXT_NAMESPACE
