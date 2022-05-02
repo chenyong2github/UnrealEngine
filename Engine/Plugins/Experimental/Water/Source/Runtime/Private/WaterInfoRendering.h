@@ -17,7 +17,7 @@ namespace UE::WaterInfo
 		AWaterZone* ZoneToRender = nullptr;
 		UTextureRenderTarget2D* TextureRenderTarget;
 		TArray<UWaterBodyComponent*> WaterBodies;
-		TArray<AActor*> GroundActors;
+		TArray<TWeakObjectPtr<AActor>> GroundActors;
 		float CaptureZ;
 	};
 	

@@ -482,14 +482,17 @@ static FSceneRenderer* CreateWaterInfoDepthRenderer(
 	{
 		DepthView->ShowOnlyPrimitives.Emplace();
 		DepthView->ShowOnlyPrimitives->Reserve(Context.GroundActors.Num());
-		for (AActor* GroundActor : Context.GroundActors)
+		for (TWeakObjectPtr<AActor> GroundActor : Context.GroundActors)
 		{
-			TInlineComponentArray<UPrimitiveComponent*> PrimComps(GroundActor);
-			for (UPrimitiveComponent* PrimComp : PrimComps)
+			if (GroundActor.IsValid())
 			{
-				if (PrimComp)
+				TInlineComponentArray<UPrimitiveComponent*> PrimComps(GroundActor.Get());
+				for (UPrimitiveComponent* PrimComp : PrimComps)
 				{
-					DepthView->ShowOnlyPrimitives->Add(PrimComp->ComponentId);
+					if (PrimComp)
+					{
+						DepthView->ShowOnlyPrimitives->Add(PrimComp->ComponentId);
+					}
 				}
 			}
 		}
