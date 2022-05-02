@@ -50,37 +50,6 @@ static FAutoConsoleVariableRef CVarHairRTGeomForceRebuild(TEXT("r.HairStrands.St
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace HairTransition
-{
-	BEGIN_SHADER_PARAMETER_STRUCT(FTransitionParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, Buffer)
-	END_SHADER_PARAMETER_STRUCT()
-
-	void TransitToSRV(FRDGBuilder& GraphBuilder, FRDGBufferSRVRef InBuffer, ERDGPassFlags Flags)
-	{
-		FTransitionParameters* Parameters = GraphBuilder.AllocParameters<FTransitionParameters>();
-		Parameters->Buffer = InBuffer;
-
-		ensure(Flags == ERDGPassFlags::Raster || Flags == ERDGPassFlags::Compute);
-		if (Flags == ERDGPassFlags::Raster)
-		{
-			Flags |= ERDGPassFlags::SkipRenderPass;
-		}
-		Flags |= ERDGPassFlags::NeverCull;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HairStrands::TransitionToSRVPass(%s)", Flags == ERDGPassFlags::Raster ? TEXT("Raster") : TEXT("Compute")),
-			Parameters,
-			Flags,
-			[Parameters](FRHICommandList& RHICmdList)
-			{
-				// Nothing to do, we just want GraphBuilder to force the buffer to be transited to SRV Graphics state.
-			});
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 enum class EHairCardsSimulationType
 {
 	None,
@@ -1031,6 +1000,12 @@ static void AddHairCardsDeformationPass(
 	}
 	
 	FRDGImportedBuffer CardsDeformedNormalBuffer = Register(GraphBuilder, LOD.DeformedResource->DeformedNormalBuffer, ERDGImportedBufferFlags::CreateViews);
+	
+	GraphBuilder.UseInternalAccessMode({
+		CardsDeformedPositionBuffer_Curr.Buffer,
+		CardsDeformedPositionBuffer_Prev.Buffer,
+		CardsDeformedNormalBuffer.Buffer
+	});
 
 	FHairCardsDeformationCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairCardsDeformationCS::FParameters>();
 	Parameters->LocalToWorld				= FMatrix44f(Instance->GetCurrentLocalToWorld().ToMatrixWithScale());		// LWC_TODO: Precision loss
@@ -1105,10 +1080,11 @@ static void AddHairCardsDeformationPass(
 		AddCopyBufferPass(GraphBuilder, CardsDeformedPositionBuffer_Prev.Buffer, CardsDeformedPositionBuffer_Curr.Buffer);
 	}
 
-	HairTransition::TransitToSRV(GraphBuilder, CardsDeformedPositionBuffer_Curr.SRV, ERDGPassFlags::Raster);
-	HairTransition::TransitToSRV(GraphBuilder, CardsDeformedPositionBuffer_Prev.SRV, ERDGPassFlags::Raster);
-	HairTransition::TransitToSRV(GraphBuilder, CardsDeformedNormalBuffer.SRV, ERDGPassFlags::Raster);
-	GraphBuilder.SetBufferAccessFinal(CardsDeformedNormalBuffer.Buffer, ERHIAccess::SRVGraphics);
+	GraphBuilder.UseExternalAccessMode({
+		CardsDeformedPositionBuffer_Curr.Buffer,
+		CardsDeformedPositionBuffer_Prev.Buffer,
+		CardsDeformedNormalBuffer.Buffer
+	}, ERHIAccess::SRVMask);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

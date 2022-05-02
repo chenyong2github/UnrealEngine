@@ -57,13 +57,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogGroomManager, Log, All);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace HairTransition
-{
-	void TransitToSRV(FRDGBuilder& GraphBuilder, FRDGBufferSRVRef InBuffer, ERDGPassFlags Flags);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 void FHairGroupInstance::FCards::FLOD::InitVertexFactory()
 {
 	VertexFactory->InitResources();
@@ -317,17 +310,17 @@ static void RunInternalHairStrandsInterpolation(
 						// Add manual transition for the GPU solver as Niagara does not track properly the RDG buffer, and so doesn't issue the correct transitions
 						if (MeshLODIndex >= 0)
 						{
-							HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].DeformedRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Compute);
-							HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].DeformedRootTrianglePosition1Buffer, ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Compute);
-							HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].DeformedRootTrianglePosition2Buffer, ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Compute);
+							GraphBuilder.UseExternalAccessMode(Register(GraphBuilder, Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].DeformedRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateSRV).Buffer, ERHIAccess::SRVMask);
+							GraphBuilder.UseExternalAccessMode(Register(GraphBuilder, Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].DeformedRootTrianglePosition1Buffer, ERDGImportedBufferFlags::CreateSRV).Buffer, ERHIAccess::SRVMask);
+							GraphBuilder.UseExternalAccessMode(Register(GraphBuilder, Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].DeformedRootTrianglePosition2Buffer, ERDGImportedBufferFlags::CreateSRV).Buffer, ERHIAccess::SRVMask);
 
 							if (bGlobalDeformationEnable)
 							{
-								HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].DeformedSamplePositionsBuffer, ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Compute);
-								HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].MeshSampleWeightsBuffer, ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Compute);
+								GraphBuilder.UseExternalAccessMode(Register(GraphBuilder, Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].DeformedSamplePositionsBuffer, ERDGImportedBufferFlags::CreateSRV).Buffer, ERHIAccess::SRVMask);
+								GraphBuilder.UseExternalAccessMode(Register(GraphBuilder, Instance->Guides.DeformedRootResource->LODs[MeshLODIndex].MeshSampleWeightsBuffer, ERDGImportedBufferFlags::CreateSRV).Buffer, ERHIAccess::SRVMask);
 							}
 						}
-						HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current), ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Compute);
+						GraphBuilder.UseExternalAccessMode(Register(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current), ERDGImportedBufferFlags::CreateSRV).Buffer, ERHIAccess::SRVMask);
 					}
 					else if (bSimulationEnable)
 					{
@@ -341,7 +334,7 @@ static void RunInternalHairStrandsInterpolation(
 							Instance->Guides.DeformedResource);
 
 						// Add manual transition for the GPU solver as Niagara does not track properly the RDG buffer, and so doesn't issue the correct transitions
-						HairTransition::TransitToSRV(GraphBuilder, Register(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current), ERDGImportedBufferFlags::CreateSRV).SRV, ERDGPassFlags::Compute);
+						GraphBuilder.UseExternalAccessMode(Register(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current), ERDGImportedBufferFlags::CreateSRV).Buffer, ERHIAccess::SRVMask);
 					}
 				}
 			}
