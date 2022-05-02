@@ -37,18 +37,27 @@ class FScreenSpaceBentNormalCS : public FGlobalShader
 		SHADER_PARAMETER(float, SlopeCompareToleranceScale)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, FurthestHZBTextureSampler)
+		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FNumPixelRays : SHADER_PERMUTATION_SPARSE_INT("NUM_PIXEL_RAYS", 4, 8, 16);
-	using FPermutationDomain = TShaderPermutationDomain<FNumPixelRays>;
+	class FOverflow : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW");
+	using FPermutationDomain = TShaderPermutationDomain<FNumPixelRays, FOverflow>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FOverflow>() && !Strata::IsStrataEnabled())
+		{
+			return false;
+		}
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 
 	static int32 GetGroupSize() 
 	{
+		// Sanity check
+		static_assert(8 == STRATA_TILE_SIZE);
 		return 8;
 	}
 
@@ -73,7 +82,10 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	FLumenScreenSpaceBentNormalParameters OutParameters;
 
 	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
-	FRDGTextureDesc ScreenBentNormalDesc(FRDGTextureDesc::Create2D(View.GetSceneTexturesConfig().Extent, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+
+	// When Strata is enabled, increase the resolution for multi-layer tile overflowing (tile containing multi-BSDF data)
+	FIntPoint BentNormalResolution = Strata::GetStrataTextureResolution(View.GetSceneTexturesConfig().Extent);
+	FRDGTextureDesc ScreenBentNormalDesc(FRDGTextureDesc::Create2D(BentNormalResolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FRDGTextureRef ScreenBentNormal = GraphBuilder.CreateTexture(ScreenBentNormalDesc, TEXT("Lumen.ScreenProbeGather.ScreenBentNormal"));
 
 	int32 NumPixelRays = 4;
@@ -87,6 +99,7 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 		NumPixelRays = 8;
 	}
 
+	auto ScreenSpaceBentNormal = [&](bool bOverflow)
 	{
 		FScreenSpaceBentNormalCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenSpaceBentNormalCS::FParameters>();
 		PassParameters->RWScreenBentNormal = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenBentNormal));
@@ -120,14 +133,35 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 
 		FScreenSpaceBentNormalCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FScreenSpaceBentNormalCS::FNumPixelRays >(NumPixelRays);
+		PermutationVector.Set< FScreenSpaceBentNormalCS::FOverflow>(bOverflow);
 		auto ComputeShader = View.ShaderMap->GetShader<FScreenSpaceBentNormalCS>(PermutationVector);
 
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("ScreenSpaceBentNormal Rays=%u", NumPixelRays),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenSpaceBentNormalCS::GetGroupSize()));
+		if (bOverflow)
+		{
+			PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Lumen::ScreenSpaceBentNormal(Rays=%u, Overflow)", NumPixelRays),
+				ComputeShader,
+				PassParameters,
+				View.StrataViewData.BSDFTileDispatchIndirectBuffer,
+				0);
+		}
+		else
+		{
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Lumen::ScreenSpaceBentNormal(Rays=%u)", NumPixelRays),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenSpaceBentNormalCS::GetGroupSize()));
+		}
+	};
+
+	ScreenSpaceBentNormal(false);
+	if (Strata::IsStrataEnabled())
+	{
+		ScreenSpaceBentNormal(true);
 	}
 
 	OutParameters.ScreenBentNormal = ScreenBentNormal;

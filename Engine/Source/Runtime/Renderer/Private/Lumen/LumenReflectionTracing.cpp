@@ -96,6 +96,7 @@ class FReflectionClearTracesCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -169,6 +170,7 @@ class FSetupCompactionIndirectArgsCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FSetupCompactionIndirectArgsCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCompactedTraceTexelAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWReflectionCompactionIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ReflectionTracingTileIndirectArgs)
@@ -193,6 +195,7 @@ class FReflectionCompactTracesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER(float, CompactionTracingEndDistanceFromCamera)
 		SHADER_PARAMETER(float, CompactionMaxTraceDistance)
 		SHADER_PARAMETER(float, RayTracingCullingRadius)
@@ -269,6 +272,7 @@ class FSetupReflectionCompactedTracesIndirectArgsCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWReflectionCompactRayTraceDispatchIndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CompactedTraceTexelAllocator)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -291,6 +295,7 @@ class FReflectionTraceMeshSDFsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
 	END_SHADER_PARAMETER_STRUCT()
 		
@@ -374,6 +379,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 		PassParameters->RWReflectionCompactionIndirectArgs = GraphBuilder.CreateUAV(ReflectionCompactionIndirectArgs, PF_R32_UINT);
 		PassParameters->ReflectionTracingTileIndirectArgs = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ReflectionTileParameters.TracingIndirectArgs, PF_R32_UINT));
 		PassParameters->CompactionThreadGroupSize = CompactionThreadGroupSize;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FSetupCompactionIndirectArgsCS>(0);
 
@@ -399,6 +405,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 		PassParameters->CompactionMaxTraceDistance = CompactionMaxTraceDistance;
 		PassParameters->RayTracingCullingRadius = GetRayTracingCullingRadius();
 		PassParameters->DitheredStartDistanceFactor = Lumen::GetFarFieldDitheredStartDistanceFactor();
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->IndirectArgs = ReflectionCompactionIndirectArgs;
 
 		FReflectionCompactTracesCS::FPermutationDomain PermutationVector;
@@ -427,6 +434,7 @@ FCompactedReflectionTraceParameters CompactTraces(
 		PassParameters->RWReflectionCompactTracingIndirectArgs = GraphBuilder.CreateUAV(CompactedTraceParameters.IndirectArgs, PF_R32_UINT);
 		PassParameters->RWReflectionCompactRayTraceDispatchIndirectArgs = GraphBuilder.CreateUAV(CompactedTraceParameters.RayTraceDispatchIndirectArgs, PF_R32_UINT);
 		PassParameters->CompactedTraceTexelAllocator = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CompactedTraceTexelAllocator, PF_R32_UINT));
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FSetupReflectionCompactedTracesIndirectArgsCS>(0);
 
@@ -580,6 +588,7 @@ void TraceReflections(
 		FReflectionClearTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionClearTracesCS::FParameters>();
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionClearTracesCS>(0);
 
@@ -719,6 +728,7 @@ void TraceReflections(
 					{
 						PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 					}
+					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 					FReflectionTraceMeshSDFsCS::FPermutationDomain PermutationVector;
 					PermutationVector.Set< FReflectionTraceMeshSDFsCS::FHairStrands >(bNeedTraceHairVoxel);

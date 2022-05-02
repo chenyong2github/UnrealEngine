@@ -288,13 +288,20 @@ class FReflectionTileClassificationMarkCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenNeedRayTracedReflectionsParameters, NeedRayTracedReflectionsParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
+		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FFrontLayerTranslucency : SHADER_PERMUTATION_BOOL("FRONT_LAYER_TRANSLUCENCY");
-	using FPermutationDomain = TShaderPermutationDomain<FFrontLayerTranslucency>;
+	class FOverflow : SHADER_PERMUTATION_BOOL("PERMUTATION_OVERFLOW");
+	using FPermutationDomain = TShaderPermutationDomain<FFrontLayerTranslucency, FOverflow>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FOverflow>() && !Strata::IsStrataEnabled())
+		{
+			return false;
+		}
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
 
@@ -317,9 +324,12 @@ class FReflectionTileClassificationBuildListsCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWReflectionTileData)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ResolveTileUsed)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER(FIntPoint, TileViewportDimensions)
 		SHADER_PARAMETER(FIntPoint, ResolveTileViewportDimensions)
+		SHADER_PARAMETER(uint32, bOverflow)
+		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -440,10 +450,11 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryNumFramesAccumulated)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolveVariance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolveVarianceHistory)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, BSDFTileHistory)
 		SHADER_PARAMETER(float,HistoryDistanceThreshold)
 		SHADER_PARAMETER(float,PrevInvPreExposure)
 		SHADER_PARAMETER(float,MaxFramesAccumulated)
-		SHADER_PARAMETER(FVector2f,InvDiffuseIndirectBufferSize)
+		SHADER_PARAMETER(FVector4f, EffectiveResolution)
 		SHADER_PARAMETER(FVector4f,HistoryScreenPositionScaleBias)
 		SHADER_PARAMETER(FVector4f,HistoryUVMinMax)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
@@ -513,6 +524,7 @@ class FReflectionPassthroughCopyCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflections)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FBilateralFilter : SHADER_PERMUTATION_BOOL("USE_BILATERAL_FILTER");
@@ -559,13 +571,16 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 {
 	FLumenReflectionTileParameters ReflectionTileParameters;
 
+	const bool bFrontLayer = FrontLayerReflectionGBuffer != nullptr;
+	const FIntPoint EffectiveTextureResolution = bFrontLayer ? SceneTextures.Config.Extent : Strata::GetStrataTextureResolution(SceneTextures.Config.Extent);
+
 	const FIntPoint ResolveTileViewportDimensions(
 		FMath::DivideAndRoundUp(View.ViewRect.Size().X, GReflectionResolveTileSize), 
 		FMath::DivideAndRoundUp(View.ViewRect.Size().Y, GReflectionResolveTileSize));
 
 	const FIntPoint ResolveTileBufferDimensions(
-		FMath::DivideAndRoundUp(SceneTextures.Config.Extent.X, GReflectionResolveTileSize), 
-		FMath::DivideAndRoundUp(SceneTextures.Config.Extent.Y, GReflectionResolveTileSize));
+		FMath::DivideAndRoundUp(EffectiveTextureResolution.X, GReflectionResolveTileSize),
+		FMath::DivideAndRoundUp(EffectiveTextureResolution.Y, GReflectionResolveTileSize));
 
 	const int32 TracingTileSize = GReflectionResolveTileSize * ReflectionTracingParameters.ReflectionDownsampleFactor;
 
@@ -574,8 +589,8 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 		FMath::DivideAndRoundUp(View.ViewRect.Size().Y, TracingTileSize));
 
 	const FIntPoint TracingTileBufferDimensions(
-		FMath::DivideAndRoundUp(SceneTextures.Config.Extent.X, TracingTileSize), 
-		FMath::DivideAndRoundUp(SceneTextures.Config.Extent.Y, TracingTileSize));
+		FMath::DivideAndRoundUp(EffectiveTextureResolution.X, TracingTileSize),
+		FMath::DivideAndRoundUp(EffectiveTextureResolution.Y, TracingTileSize));
 
 	const int32 NumResolveTiles = ResolveTileBufferDimensions.X * ResolveTileBufferDimensions.Y;
 	const int32 NumTracingTiles = TracingTileBufferDimensions.X * TracingTileBufferDimensions.Y;
@@ -587,6 +602,7 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 	FRDGTextureDesc ResolveTileUsedDesc = FRDGTextureDesc::Create2D(ResolveTileBufferDimensions, PF_R8_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef ResolveTileUsed = GraphBuilder.CreateTexture(ResolveTileUsedDesc, TEXT("Lumen.Reflections.ResolveTileUsed"));
 
+	auto ReflectionTileClassificationMark = [&](bool bOverflow)
 	{
 		FReflectionTileClassificationMarkCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTileClassificationMarkCS::FParameters>();
 		PassParameters->RWDownsampledDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.DownsampledDepth));
@@ -606,39 +622,81 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 
 		FReflectionTileClassificationMarkCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FReflectionTileClassificationMarkCS::FFrontLayerTranslucency >(FrontLayerReflectionGBuffer != nullptr);
+		PermutationVector.Set< FReflectionTileClassificationMarkCS::FOverflow >(bOverflow);
+		PermutationVector.Set< FReflectionTileClassificationMarkCS::FFrontLayerTranslucency >(bFrontLayer);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTileClassificationMarkCS>(PermutationVector);
 
 		checkf(ResolveTileViewportDimensions.X > 0 && ResolveTileViewportDimensions.Y > 0, TEXT("FReflectionTileClassificationMarkCS needs non-zero dispatch to clear next pass's indirect args"));
 
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("TileClassificationMark %dx%d", View.ViewRect.Size().X, View.ViewRect.Size().Y),
-			ComputeShader,
-			PassParameters,
-			FIntVector(ResolveTileViewportDimensions.X, ResolveTileViewportDimensions.Y, 1));
+		if (bOverflow)
+		{
+			PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("TileClassificationMark(Overflow)"),
+				ComputeShader,
+				PassParameters,
+				View.StrataViewData.BSDFTileDispatchIndirectBuffer, 0u);
+		}
+		else
+		{
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("TileClassificationMark(%dx%d)", View.ViewRect.Size().X, View.ViewRect.Size().Y),
+				ComputeShader,
+				PassParameters,
+				FIntVector(ResolveTileViewportDimensions.X, ResolveTileViewportDimensions.Y, 1));
+		}
+	};
+
+	ReflectionTileClassificationMark(false);
+	if (Strata::IsStrataEnabled() && !bFrontLayer)
+	{
+		ReflectionTileClassificationMark(true);
 	}
 
+	auto ReflectionTileClassificationBuildLists = [&](bool bOverflow)
 	{
 		FReflectionTileClassificationBuildListsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTileClassificationBuildListsCS::FParameters>();
 		PassParameters->RWReflectionTileIndirectArgs = GraphBuilder.CreateUAV(ReflectionResolveTileIndirectArgs, PF_R32_UINT);
 		PassParameters->RWReflectionTileData = GraphBuilder.CreateUAV(ReflectionResolveTileData, PF_R32_UINT);
 		PassParameters->ResolveTileUsed = ResolveTileUsed;
 		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 		PassParameters->TileViewportDimensions = ResolveTileViewportDimensions;
 		PassParameters->ResolveTileViewportDimensions = ResolveTileViewportDimensions;
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
+		PassParameters->bOverflow = bOverflow ? 1u : 0u;
 
 		FReflectionTileClassificationBuildListsCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FReflectionTileClassificationBuildListsCS::FSupportDownsample >(false);
 		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTileClassificationBuildListsCS>(PermutationVector);
 
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("TileClassificationBuildLists"),
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(ResolveTileViewportDimensions, FReflectionTileClassificationBuildListsCS::GetGroupSize()));
+		if (bOverflow)
+		{
+			PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTilePerThreadDispatchIndirectBuffer;
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("TileClassificationBuildLists(Overflow)"),
+				ComputeShader,
+				PassParameters,
+				View.StrataViewData.BSDFTilePerThreadDispatchIndirectBuffer, 0u);
+		}
+		else
+		{
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("TileClassificationBuildLists"),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(ResolveTileViewportDimensions, FReflectionTileClassificationBuildListsCS::GetGroupSize()));
+		}
+	};
+
+	ReflectionTileClassificationBuildLists(false);
+	if (Strata::IsStrataEnabled() && !bFrontLayer)
+	{
+		ReflectionTileClassificationBuildLists(true);
 	}
 
 	FRDGBufferRef ReflectionTracingTileData;
@@ -697,7 +755,9 @@ void UpdateHistoryReflections(
 	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 	FRDGTextureRef VelocityTexture = GetIfProduced(SceneTextures.Velocity, SystemTextures.Black);
 
-	FRDGTextureDesc NumHistoryFramesAccumulatedDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_G8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+	const FIntPoint EffectiveResolution = Strata::GetStrataTextureResolution(SceneTextures.Config.Extent);
+
+	FRDGTextureDesc NumHistoryFramesAccumulatedDesc = FRDGTextureDesc::Create2D(EffectiveResolution, PF_G8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef NewNumHistoryFramesAccumulated = GraphBuilder.CreateTexture(NumHistoryFramesAccumulatedDesc, TEXT("Lumen.Reflections.NumHistoryFramesAccumulated"));
 
 	if (GLumenReflectionTemporalFilter
@@ -707,8 +767,8 @@ void UpdateHistoryReflections(
 		&& !View.bCameraCut 
 		&& !View.bPrevTransformsReset
 		// If the scene render targets reallocate, toss the history so we don't read uninitialized data
-		&& View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT->GetDesc().Extent == SceneTextures.Config.Extent
-		&& (!bUseBilaterialFilter || View.ViewState->Lumen.ReflectionState.ResolveVarianceHistoryRT->GetDesc().Extent == SceneTextures.Config.Extent))
+		&& View.ViewState->Lumen.ReflectionState.SpecularIndirectHistoryRT->GetDesc().Extent == EffectiveResolution
+		&& (!bUseBilaterialFilter || View.ViewState->Lumen.ReflectionState.ResolveVarianceHistoryRT->GetDesc().Extent == EffectiveResolution))
 	{
 		FReflectionTemporalState& ReflectionTemporalState = View.ViewState->Lumen.ReflectionState;
 		TRefCountPtr<IPooledRenderTarget>* SpecularIndirectHistoryState = &ReflectionTemporalState.SpecularIndirectHistoryRT;
@@ -718,7 +778,7 @@ void UpdateHistoryReflections(
 		FVector4f* HistoryScreenPositionScaleBias = &ReflectionTemporalState.HistoryScreenPositionScaleBias;
 
 		FRDGTextureRef OldDepthHistory = View.ViewState->Lumen.DepthHistoryRT ? GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.DepthHistoryRT) : SceneTextures.Depth.Target;
-
+		FRDGTextureRef BSDFTileHistory = GraphBuilder.RegisterExternalTexture(ReflectionTemporalState.BSDFTileHistoryRT ? ReflectionTemporalState.BSDFTileHistoryRT : GSystemTextures.BlackDummy);
 		{
 			FRDGTextureRef OldSpecularIndirectHistory = GraphBuilder.RegisterExternalTexture(*SpecularIndirectHistoryState);
 			FRDGTextureRef ResolveVarianceHistory = GraphBuilder.RegisterExternalTexture(ResolveVarianceHistoryState->IsValid() ? *ResolveVarianceHistoryState : GSystemTextures.BlackDummy);
@@ -733,13 +793,16 @@ void UpdateHistoryReflections(
 			PassParameters->SpecularIndirectHistory = OldSpecularIndirectHistory;
 			PassParameters->HistoryNumFramesAccumulated = GraphBuilder.RegisterExternalTexture(*NumFramesAccumulatedState);
 			PassParameters->DepthHistory = OldDepthHistory;
+			PassParameters->BSDFTileHistory = BSDFTileHistory;
 			PassParameters->HistoryDistanceThreshold = GLumenReflectionHistoryDistanceThreshold;
 			PassParameters->PrevInvPreExposure = 1.0f / View.PrevViewInfo.SceneColorPreExposure;
-			const FVector2f InvBufferSize(1.0f / SceneTextures.Config.Extent.X, 1.0f / SceneTextures.Config.Extent.Y);
-			PassParameters->InvDiffuseIndirectBufferSize = InvBufferSize;
 			PassParameters->HistoryScreenPositionScaleBias = *HistoryScreenPositionScaleBias;
 
+			// Effective resolution containing the primarty & overflow space (if any)
+			PassParameters->EffectiveResolution = FVector4f(EffectiveResolution.X, EffectiveResolution.Y, 1.f / EffectiveResolution.X, 1.f / EffectiveResolution.Y);
+
 			// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
+			const FVector2f InvBufferSize(1.0f / SceneTextures.Config.Extent.X, 1.0f / SceneTextures.Config.Extent.Y);
 			PassParameters->HistoryUVMinMax = FVector4f(
 				(HistoryViewRect->Min.X + 0.5f) * InvBufferSize.X,
 				(HistoryViewRect->Min.Y + 0.5f) * InvBufferSize.Y,
@@ -777,6 +840,7 @@ void UpdateHistoryReflections(
 		PassParameters->ResolvedReflections = ResolvedReflections;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 		PassParameters->ResolveVariance = ResolveVariance;
+		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 		FReflectionPassthroughCopyCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FReflectionPassthroughCopyCS::FBilateralFilter >(bUseBilaterialFilter);
@@ -805,6 +869,11 @@ void UpdateHistoryReflections(
 		{
 			GraphBuilder.QueueTextureExtraction(AccumulatedResolveVariance, &ReflectionTemporalState.ResolveVarianceHistoryRT);
 		}
+
+		if (Strata::IsStrataEnabled())
+		{
+			GraphBuilder.QueueTextureExtraction(View.StrataViewData.BSDFTileTexture, &ReflectionTemporalState.BSDFTileHistoryRT);
+		}
 	}
 }
 
@@ -826,6 +895,8 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	OutCompositeParameters.InvRoughnessFadeLength = 1.0f / GLumenReflectionRoughnessFadeLength;
 
 	const bool bDenoise = ReflectionPass == ELumenReflectionPass::Opaque;
+	const bool bFrontLayer = ReflectionPass == ELumenReflectionPass::FrontLayerTranslucency;
+	const bool bSingleLayerWater = ReflectionPass == ELumenReflectionPass::SingleLayerWater;
 
 	check(ShouldRenderLumenReflections(View));
 	check(ReflectionPass != ELumenReflectionPass::FrontLayerTranslucency 
@@ -847,10 +918,21 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		VisualizeTracesData = SetupVisualizeReflectionTraces(GraphBuilder, ReflectionTracingParameters.VisualizeTracesParameters);
 	}
 
+
+	// Compute effective reflection downsampling factor. 
+	// STRATA_TODO: add support for downsampling factor with multi-layer. For now force it to 1.
 	const int32 UserDownsampleFactor = View.FinalPostProcessSettings.LumenReflectionQuality <= .25f ? 2 : 1;
-	ReflectionTracingParameters.ReflectionDownsampleFactor = bDenoise ? FMath::Clamp(GLumenReflectionDownsampleFactor * UserDownsampleFactor, 1, 4) : 1;
-	ReflectionTracingParameters.ReflectionTracingViewSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
-	ReflectionTracingParameters.ReflectionTracingBufferSize = FIntPoint::DivideAndRoundUp(SceneTextures.Config.Extent, (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
+	const float LumenReflectionDownsampleFactor = Strata::IsStrataEnabled() ? 1 : FMath::Clamp(GLumenReflectionDownsampleFactor * UserDownsampleFactor, 1, 4);
+	ReflectionTracingParameters.ReflectionDownsampleFactor = bDenoise ? LumenReflectionDownsampleFactor : 1;
+	const FIntPoint ViewSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
+	FIntPoint BufferSize = FIntPoint::DivideAndRoundUp(SceneTextures.Config.Extent, (int32)ReflectionTracingParameters.ReflectionDownsampleFactor);
+	if (!bFrontLayer && !bSingleLayerWater)
+	{
+		BufferSize = Strata::GetStrataTextureResolution(BufferSize);
+	}
+
+	ReflectionTracingParameters.ReflectionTracingViewSize = ViewSize;
+	ReflectionTracingParameters.ReflectionTracingBufferSize = BufferSize;
 	ReflectionTracingParameters.MaxRayIntensity = GLumenReflectionMaxRayIntensity;
 	ReflectionTracingParameters.ReflectionSmoothBias = GLumenReflectionSmoothBias;
 	ReflectionTracingParameters.ReflectionPass = (uint32)ReflectionPass;
@@ -964,10 +1046,12 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		GVisualizeReflectionTracesData = GraphBuilder.ConvertToExternalBuffer(VisualizeTracesData);
 	}
 
-	FRDGTextureDesc SpecularIndirectDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+	const FIntPoint EffectiveTextureResolution = (bFrontLayer || bSingleLayerWater) ? SceneTextures.Config.Extent : Strata::GetStrataTextureResolution(SceneTextures.Config.Extent);
+
+	FRDGTextureDesc SpecularIndirectDesc = FRDGTextureDesc::Create2D(EffectiveTextureResolution, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef ResolvedSpecularIndirect = GraphBuilder.CreateTexture(SpecularIndirectDesc, TEXT("Lumen.Reflections.ResolvedSpecularIndirect"));
 
-	FRDGTextureDesc ResolveVarianceDesc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
+	FRDGTextureDesc ResolveVarianceDesc = FRDGTextureDesc::Create2D(EffectiveTextureResolution, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef ResolveVariance = GraphBuilder.CreateTexture(ResolveVarianceDesc, TEXT("Lumen.Reflections.ResolveVariance"));
 
 	const int32 NumReconstructionSamples = FMath::Clamp(FMath::RoundToInt(View.FinalPostProcessSettings.LumenReflectionQuality * GLumenReflectionScreenSpaceReconstructionNumSamples), GLumenReflectionScreenSpaceReconstructionNumSamples, 64);

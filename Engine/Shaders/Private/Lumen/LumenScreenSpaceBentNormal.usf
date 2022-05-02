@@ -17,7 +17,6 @@
 #define THREADGROUP_SIZE 1
 #endif
 
-
 RWTexture2D<UNORM float4> RWScreenBentNormal;
 float SlopeCompareToleranceScale;
 
@@ -28,17 +27,22 @@ float4 HZBUvFactorAndInvFactor;
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint2 SvPosition = DispatchThreadId + View.ViewRectMinAndSize.xy;
-	float2 ScreenUV = (SvPosition + .5f) * View.BufferSizeAndInvSize.zw;
-	float SceneDepth = CalcSceneDepth(ScreenUV);
+#if STRATA_ENABLED && PERMUTATION_OVERFLOW
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + (Strata.TileOffset_Overflow * STRATA_TILE_SIZE), true);
+#else
+	const FLumenMaterialCoord Coord = GetLumenMaterialCoord(DispatchThreadId + View.ViewRectMinAndSize.xy, false);
+#endif
 
-	const FLumenMaterialData Material = ReadMaterialData(SvPosition);
+	const float2 ScreenUV = (Coord.SvPosition + .5f) * View.BufferSizeAndInvSize.zw;
+	const float SceneDepth = CalcSceneDepth(ScreenUV);
+
+	const FLumenMaterialData Material = ReadMaterialData(Coord);
 
 	if (IsValid(Material))
 	{
 		float3 TranslatedWorldPosition = GetTranslatedWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3x3 TangentBasis = GetTangentBasis(Material.WorldNormal);
-		uint2 Seed0 = Rand3DPCG16(int3(SvPosition, GENERAL_TEMPORAL_INDEX)).xy;
+		uint2 Seed0 = Rand3DPCG16(int3(Coord.SvPosition, GENERAL_TEMPORAL_INDEX)).xy;
 		float MaxScreenTraceFraction = ScreenProbeDownsampleFactor * 2 * View.ViewSizeAndInvSize.z;
 		float TraceDistance = SceneDepth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
 		float DepthThresholdScale = HasDistanceFieldRepresentation(ScreenUV) ? 1.0f : ScreenTraceNoFallbackThicknessScale;
@@ -62,7 +66,7 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 				uint NumSteps = 4;
 				float StartMipLevel = 0;
 
-				uint2 NoiseCoord = SvPosition * uint2(NumPixelSamples, 1) + uint2(PixelRayIndex, 0);
+				uint2 NoiseCoord = Coord.SvPosition * uint2(NumPixelSamples, 1) + uint2(PixelRayIndex, 0);
 				float StepOffset = InterleavedGradientNoise(NoiseCoord + 0.5f, 0.0f);
 
 				float RayRoughness = .2f;
@@ -116,6 +120,6 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		// Debug passthrough
 		//BentNormal = Material.WorldNormal;
 
-		RWScreenBentNormal[SvPosition] = float4(BentNormal * .5f + .5f, 0);
+		RWScreenBentNormal[Coord.SvPositionFlatten] = float4(BentNormal * .5f + .5f, 0);
 	}
 }
