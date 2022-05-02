@@ -15,7 +15,7 @@
 #include "Factories/MaterialFactoryNew.h"
 #include "UnrealEdGlobals.h"
 #include "Tests/AutomationCommon.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Texture.h"
 #include "LevelEditor.h"
 #include "ScopedTransaction.h"

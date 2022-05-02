@@ -10,7 +10,7 @@
 #include "Layout/Visibility.h"
 #include "Layout/ArrangedChildren.h"
 #include "Layout/WidgetPath.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Types/ReflectionMetadata.h"
 #include "Types/SlateAttributeMetaData.h"
 #include "FastUpdate/SlateInvalidationRoot.h"

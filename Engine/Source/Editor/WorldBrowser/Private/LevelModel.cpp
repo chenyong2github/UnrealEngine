@@ -17,7 +17,7 @@
 #include "Engine/LevelScriptBlueprint.h"
 
 #include "LevelCollectionModel.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "WorldBrowser"

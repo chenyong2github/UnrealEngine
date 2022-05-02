@@ -13,8 +13,8 @@
 #include "MaterialEditorModule.h"
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
-#include "ARFilter.h"
-#include "AssetData.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetData.h"
 #include "Misc/PackageName.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"

@@ -15,7 +15,7 @@
 #include "EdGraphSchema_K2.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Editor.h"
 #include "ToolMenus.h"

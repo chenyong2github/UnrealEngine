@@ -6,7 +6,7 @@
 
 #include "Commandlets/CookCommandlet.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "Cooker/CookProfiling.h"

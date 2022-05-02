@@ -50,7 +50,7 @@
 #include "Kismet2/KismetDebugUtilities.h"
 #include "FbxLibs.h"
 #include "Kismet2/CompilerResultsLog.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EngineAnalytics.h"
 #include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"

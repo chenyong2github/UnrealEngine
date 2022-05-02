@@ -7,8 +7,8 @@
 
 #include "Commandlets/AssetRegUtilCommandlet.h"
 
-#include "AssetRegistryModule.h"
-#include "AssetRegistryState.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryState.h"
 #include "Engine/Texture.h"
 #include "Logging/LogMacros.h"
 #include "Materials/Material.h"

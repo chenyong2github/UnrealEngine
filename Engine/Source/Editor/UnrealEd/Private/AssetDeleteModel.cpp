@@ -15,7 +15,7 @@
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlModule.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "EngineGlobals.h"
@@ -24,7 +24,7 @@
 #include "UnrealEdGlobals.h"
 
 #include "ObjectTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AutoReimport/AutoReimportUtilities.h"
 #include "AutoReimport/AutoReimportManager.h"
 #include "Kismet2/BlueprintEditorUtils.h"

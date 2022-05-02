@@ -5,7 +5,7 @@
 #include "Materials/Material.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "Engine/Texture.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 
 //Automation

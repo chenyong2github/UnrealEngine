@@ -9,7 +9,7 @@
 
 #include "Algo/Transform.h"
 #include "Animation/DebugSkelMeshComponent.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ClothingAsset.h"
 #include "ClothingSystemEditorInterfaceModule.h"
 #include "ComponentReregisterContext.h"

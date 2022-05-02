@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Animation/AnimationAsset.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "IDetailsView.h"

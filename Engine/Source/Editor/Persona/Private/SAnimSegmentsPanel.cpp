@@ -5,7 +5,7 @@
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimSequence.h"
 

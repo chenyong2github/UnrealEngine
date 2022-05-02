@@ -225,7 +225,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "GeneralProjectSettings.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "UObject/ObjectKey.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/TracingProfiler.h"
 #include "Engine/CoreSettings.h"

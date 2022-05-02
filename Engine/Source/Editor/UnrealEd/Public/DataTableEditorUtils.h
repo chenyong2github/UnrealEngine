@@ -6,7 +6,7 @@
 #include "Kismet2/ListenerManager.h"
 #include "Widgets/SWidget.h"
 #include "Framework/Commands/UIAction.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 struct FDataTableEditorColumnHeaderData
 {

@@ -4,9 +4,9 @@
 #include "LocalizationSourceControlUtil.h"
 #include "Misc/Paths.h"
 #include "Misc/PackageName.h"
-#include "AssetData.h"
-#include "IAssetRegistry.h"
-#include "ARFilter.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/ARFilter.h"
 #include "PackageHelperFunctions.h"
 #include "ObjectTools.h"
 

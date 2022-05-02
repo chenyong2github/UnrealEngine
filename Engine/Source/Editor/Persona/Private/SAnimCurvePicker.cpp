@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAnimCurvePicker.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IEditableSkeleton.h"
 #include "Animation/AnimationAsset.h"
 #include "Widgets/Views/SListView.h"

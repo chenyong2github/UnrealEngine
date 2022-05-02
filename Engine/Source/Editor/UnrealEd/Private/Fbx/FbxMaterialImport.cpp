@@ -21,11 +21,11 @@
 #include "FbxImporter.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "Misc/FbxErrors.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "Factories/MaterialImportHelpers.h"
 #include "MaterialEditingLibrary.h"
 

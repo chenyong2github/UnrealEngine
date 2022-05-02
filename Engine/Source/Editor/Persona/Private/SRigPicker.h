@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PropertyCustomizationHelpers.h"
 
 class URig;

@@ -8,7 +8,7 @@
 #include "Layout/Geometry.h"
 #include "Widgets/SNullWidget.h"
 #include "Layout/ArrangedWidget.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class FJsonValue;
 class FWidgetPath;

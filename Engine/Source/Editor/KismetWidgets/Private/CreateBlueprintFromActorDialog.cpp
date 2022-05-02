@@ -23,7 +23,7 @@
 #include "EdGraphSchema_K2.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"

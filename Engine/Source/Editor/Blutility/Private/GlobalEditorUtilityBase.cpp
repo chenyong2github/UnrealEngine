@@ -5,7 +5,7 @@
 #include "Misc/PackageName.h"
 #include "GameFramework/Actor.h"
 #include "Editor/EditorPerProjectUserSettings.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
 #include "ScopedTransaction.h"

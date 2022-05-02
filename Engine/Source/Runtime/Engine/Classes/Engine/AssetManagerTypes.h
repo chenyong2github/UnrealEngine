@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "UObject/PrimaryAssetId.h"
-#include "AssetData.h"
-#include "AssetBundleData.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetBundleData.h"
 #include "EngineTypes.h"
 #include "AssetManagerTypes.generated.h"
 

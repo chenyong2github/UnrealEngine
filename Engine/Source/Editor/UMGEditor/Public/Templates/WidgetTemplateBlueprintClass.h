@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 #include "Input/Reply.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Blueprint/UserWidget.h"
 #include "Widgets/IToolTip.h"
 #include "Templates/WidgetTemplateClass.h"

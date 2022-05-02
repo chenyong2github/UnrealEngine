@@ -4,7 +4,7 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
-#include "AssetRegistryState.h"
+#include "AssetRegistry/AssetRegistryState.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/WildcardString.h"

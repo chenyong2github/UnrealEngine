@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetContextMenu.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #include "ToolMenus.h"
 #include "ContentBrowserMenuContexts.h"

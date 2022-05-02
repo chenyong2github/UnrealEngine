@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "IAssetTools.h"
 #include "AdvancedCopyCustomization.generated.h"
 

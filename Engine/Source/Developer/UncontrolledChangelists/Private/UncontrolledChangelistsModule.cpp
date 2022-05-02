@@ -7,7 +7,7 @@
 #include "Algo/Find.h"
 #include "Algo/ForEach.h"
 #include "Algo/Transform.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Dom/JsonObject.h"
 #include "FileHelpers.h"
 #include "HAL/FileManager.h"

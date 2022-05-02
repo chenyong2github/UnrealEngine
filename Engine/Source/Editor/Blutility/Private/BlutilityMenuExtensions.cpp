@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlutilityMenuExtensions.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorUtilityBlueprint.h"
 #include "Misc/PackageName.h"
 
@@ -21,7 +21,7 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "ScopedTransaction.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PropertyPathHelpers.h"
 
 #include "UObject/NoExportTypes.h"

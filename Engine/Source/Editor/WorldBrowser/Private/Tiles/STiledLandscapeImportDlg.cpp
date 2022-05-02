@@ -2,7 +2,7 @@
 
 #include "Tiles/STiledLandscapeImportDlg.h"
 #include "Materials/MaterialInterface.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "HAL/FileManager.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SUniformGridPanel.h"

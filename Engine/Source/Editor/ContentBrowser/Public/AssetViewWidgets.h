@@ -12,7 +12,7 @@
 #include "Styling/SlateColor.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetThumbnail.h"
 #include "Fonts/SlateFontInfo.h"
 #include "ContentBrowserDelegates.h"

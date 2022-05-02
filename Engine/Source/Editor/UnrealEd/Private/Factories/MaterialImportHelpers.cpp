@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/MaterialImportHelpers.h"
-#include "AssetRegistryModule.h"
-#include "AssetData.h"
-#include "ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/ARFilter.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/Paths.h"
 

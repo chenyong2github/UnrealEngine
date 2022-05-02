@@ -31,7 +31,7 @@
 #include "Animation/Rig.h"
 #include "SDiscoveringAssetsDialog.h"
 #include "AssetTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PersonaModule.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"

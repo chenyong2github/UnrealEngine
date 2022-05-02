@@ -16,7 +16,7 @@
 #include "ContentBrowserModule.h"
 #include "Factories/SubUVAnimationFactory.h"
 #include "Particles/SubUVAnimation.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Editor.h"
 #include "Widgets/Text/STextBlock.h"

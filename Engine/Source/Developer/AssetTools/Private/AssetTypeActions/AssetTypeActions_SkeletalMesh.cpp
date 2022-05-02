@@ -20,7 +20,7 @@
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "PhysicsAssetUtils.h"
 #include "AssetTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "SSkeletonWidget.h"
 #include "Editor/PhysicsAssetEditor/Public/PhysicsAssetEditorModule.h"
 #include "PersonaModule.h"

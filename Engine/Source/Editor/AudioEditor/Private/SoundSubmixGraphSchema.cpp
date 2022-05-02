@@ -2,7 +2,7 @@
 
 #include "SoundSubmixGraph/SoundSubmixGraphSchema.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "GraphEditorActions.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphUtilities.h"

@@ -3,8 +3,8 @@
 #include "DragAndDrop/CollectionDragDropOp.h"
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
-#include "AssetRegistryModule.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "SAssetTagItem.h"
 
 TArray<FAssetData> FCollectionDragDropOp::GetAssets() const

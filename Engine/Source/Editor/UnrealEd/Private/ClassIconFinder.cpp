@@ -4,7 +4,7 @@
 #include "ClassIconFinder.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Brush.h"
 

@@ -450,7 +450,7 @@
 #include "ShaderParameterUtils.h"
 
 // From AssetRegistry:
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 // From PacketHandler:
 #include "PacketHandler.h"

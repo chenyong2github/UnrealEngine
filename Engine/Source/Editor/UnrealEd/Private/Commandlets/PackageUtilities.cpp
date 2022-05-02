@@ -37,7 +37,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Editor.h"
 #include "FileHelpers.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 
 #include "CollectionManagerTypes.h"
 #include "ICollectionManager.h"

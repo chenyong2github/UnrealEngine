@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StructViewerNode.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PropertyHandle.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Engine/UserDefinedStruct.h"

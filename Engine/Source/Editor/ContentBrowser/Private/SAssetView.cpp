@@ -48,7 +48,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/TextFilterUtils.h"
 #include "Misc/NamePermissionList.h"
-#include "AssetRegistryState.h"
+#include "AssetRegistry/AssetRegistryState.h"
 #include "Materials/Material.h"
 #include "ContentBrowserMenuContexts.h"
 #include "ContentBrowserUtils.h"

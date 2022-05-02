@@ -6,7 +6,7 @@
 #include "Input/DragAndDrop.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "CollectionManagerTypes.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetTagItemTypes.h"
 
 class UNREALED_API FCollectionDragDropOp : public FDecoratedDragDropOp

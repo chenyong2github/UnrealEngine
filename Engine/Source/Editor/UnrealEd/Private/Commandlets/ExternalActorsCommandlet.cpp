@@ -8,7 +8,7 @@
 #include "Engine/World.h"
 #include "UObject/SavePackage.h"
 #include "UObject/UObjectHash.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PackageHelperFunctions.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogExternalActorsCommandlet, All, All);

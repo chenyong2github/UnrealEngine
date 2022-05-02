@@ -73,7 +73,7 @@
 #include "ProfilingDebugging/StallDetector.h"
 #include "GameMapsSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ObjectTools.h"
 #include "Cooker/ExternalCookOnTheFlyServer.h"
 

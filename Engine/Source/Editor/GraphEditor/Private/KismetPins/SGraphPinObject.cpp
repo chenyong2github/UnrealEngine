@@ -13,7 +13,7 @@
 #include "ContentBrowserModule.h"
 #include "ScopedTransaction.h"
 #include "Engine/Selection.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EdGraphSchema_K2.h"
 
 #define LOCTEXT_NAMESPACE "SGraphPinObject"

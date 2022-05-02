@@ -18,7 +18,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "EditorStyleSet.h"
 #include "Misc/PackageName.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Internationalization/StringTable.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #include "Internationalization/StringTableCore.h"

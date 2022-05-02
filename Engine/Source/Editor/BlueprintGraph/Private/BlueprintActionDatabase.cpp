@@ -21,7 +21,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Engine/Engine.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node.h"
 #include "K2Node_Event.h"
@@ -51,7 +51,7 @@
 #include "BlueprintComponentNodeSpawner.h"
 #include "BlueprintBoundEventNodeSpawner.h"
 #include "BlueprintVariableNodeSpawner.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "Engine/LevelScriptBlueprint.h"
 

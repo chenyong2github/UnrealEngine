@@ -16,7 +16,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
 #include "EditorStyleSet.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "PreviewScene.h"
 #include "EditorViewportClient.h"

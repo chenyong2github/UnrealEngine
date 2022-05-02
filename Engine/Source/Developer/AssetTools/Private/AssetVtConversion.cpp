@@ -11,7 +11,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "AssetTools.h"
 #include "Interfaces/ITextureEditorModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ObjectTools.h"
 
 #include "Editor.h"

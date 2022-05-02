@@ -2,7 +2,7 @@
 
 #include "Commandlets/CompileAllBlueprintsCommandlet.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "EngineUtils.h"
 #include "ISourceControlModule.h"

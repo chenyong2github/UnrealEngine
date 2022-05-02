@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Input/Reply.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Widgets/SToolTip.h"

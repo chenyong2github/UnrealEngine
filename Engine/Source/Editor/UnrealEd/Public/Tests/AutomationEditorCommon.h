@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Tests/AutomationTestSettings.h"
 #include "PlayInEditorDataTypes.h"
 

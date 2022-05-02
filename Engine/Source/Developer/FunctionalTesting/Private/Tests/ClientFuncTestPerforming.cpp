@@ -4,7 +4,7 @@
 #include "Misc/AutomationTest.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/Engine.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "FunctionalTestingModule.h"
 #include "EngineGlobals.h"
 #include "Tests/AutomationCommon.h"

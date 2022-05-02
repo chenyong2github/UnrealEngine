@@ -27,7 +27,7 @@
 #include "BSPOps.h"
 #include "Builders/CubeBuilder.h"
 
-#include "AssetRegistryModule.h" 
+#include "AssetRegistry/AssetRegistryModule.h" 
 #include "Engine/LevelStreaming.h"
 
 #if WITH_EDITOR

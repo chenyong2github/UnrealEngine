@@ -9,7 +9,7 @@
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 #include "ScopedTransaction.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "K2Node_Variable.h"
 #include "K2Node_StructOperation.h"
 #include "EdGraphSchema_K2.h"

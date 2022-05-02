@@ -6,7 +6,7 @@
 #include "AssetViewUtils.h"
 #include "Widgets/SWidget.h"
 #include "Framework/SlateDelegates.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "CollectionManagerTypes.h"
 #include "Interfaces/IPluginManager.h"
 

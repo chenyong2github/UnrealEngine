@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "AssetBundleData.h"
+#include "AssetRegistry/AssetBundleData.h"
 #include "Templates/SubclassOf.h"
 #include "DataAsset.generated.h"
 

@@ -11,7 +11,7 @@
 #include "Materials/MaterialExpressionComment.h"
 
 #include "EditorWidgetsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "MaterialEditor.h"
 #include "MaterialEditorActions.h"
 #include "Widgets/Input/STextComboBox.h"

@@ -5,7 +5,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Animation/AnimSequenceBase.h"
 #include "EditorStyleSet.h"
 #include "Animation/EditorSkeletonNotifyObj.h"

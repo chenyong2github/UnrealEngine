@@ -33,7 +33,7 @@
 #include "Widgets/Input/SHyperlink.h"
 #include "TutorialMetaData.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"

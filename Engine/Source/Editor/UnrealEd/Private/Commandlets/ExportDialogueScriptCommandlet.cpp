@@ -4,13 +4,13 @@
 #include "UObject/UnrealType.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Sound/SoundWave.h"
 #include "Sound/DialogueWave.h"
 #include "Misc/FileHelper.h"
 #include "Misc/App.h"
 #include "UObject/PropertyPortFlags.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Sound/DialogueVoice.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogExportDialogueScriptCommandlet, Log, All);

@@ -5,7 +5,7 @@
 #if WITH_EDITOR
 
 #include "UObject/Package.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/ArchiveMD5.h"
 #include "Misc/PackageName.h"
 #include "Misc/PackagePath.h"

@@ -2,7 +2,7 @@
 
 #include "SDataTableListViewRow.h"
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "DataTableEditor.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

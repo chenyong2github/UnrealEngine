@@ -2,7 +2,7 @@
 
 #include "SoundSubmixEditor.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "AudioEditorModule.h"
 #include "EdGraph/EdGraph.h"

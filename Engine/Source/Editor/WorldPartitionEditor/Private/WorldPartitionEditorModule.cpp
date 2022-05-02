@@ -41,7 +41,7 @@
 #include "DirectoryWatcherModule.h"
 #include "ContentBrowserModule.h"
 #include "EditorDirectories.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PropertyEditorModule.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"

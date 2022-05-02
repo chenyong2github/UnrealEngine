@@ -35,7 +35,7 @@
 #include "Widgets/Input/SRotatorInputBox.h"
 #include "ScopedTransaction.h"
 #include "DesktopPlatformModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "TutorialMetaData.h"
 #include "Framework/Application/SlateApplication.h"

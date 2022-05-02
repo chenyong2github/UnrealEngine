@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshEditor.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopedSlowTask.h"

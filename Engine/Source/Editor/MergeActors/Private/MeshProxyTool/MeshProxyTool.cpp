@@ -19,7 +19,7 @@
 #include "MeshUtilities.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IMeshReductionInterfaces.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"

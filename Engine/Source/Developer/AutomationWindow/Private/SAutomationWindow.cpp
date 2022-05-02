@@ -32,7 +32,7 @@
 #if WITH_EDITOR
 	#include "Engine/World.h"
 	#include "FileHelpers.h"
-	#include "AssetRegistryModule.h"
+	#include "AssetRegistry/AssetRegistryModule.h"
 #endif
 
 #include "Widgets/Input/SSearchBox.h"

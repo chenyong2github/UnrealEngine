@@ -4,7 +4,7 @@
 #include "ClothingAsset.h"
 #include "Misc/FileHelper.h"
 #include "FileHelpers.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Features/IModularFeatures.h"

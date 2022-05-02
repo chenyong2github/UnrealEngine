@@ -18,7 +18,7 @@
 #include "IAssetFamily.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Images/SImage.h"

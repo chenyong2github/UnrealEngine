@@ -12,7 +12,7 @@
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
 #include "Toolkits/SimpleAssetEditor.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 
 struct FAssetData;
 struct FARFilter;

@@ -20,7 +20,7 @@
 #include "IDocumentation.h"
 #include "Animation/Rig.h"
 #include "AnimPreviewInstance.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AnimationRuntime.h"
 #include "Settings/SkeletalMeshEditorSettings.h"
 #include "Styling/CoreStyle.h"

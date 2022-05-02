@@ -7,8 +7,8 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "UnrealEngine.h"
 #include "EngineUtils.h"
-#include "ARFilter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/StreamableManager.h"
 
 UObjectLibrary::UObjectLibrary(const FObjectInitializer& ObjectInitializer)

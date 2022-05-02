@@ -86,7 +86,7 @@
 #include "ComponentTypeRegistry.h"
 #include "BlueprintNodeBinder.h"
 #include "BlueprintComponentNodeSpawner.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "K2Node_CastByteToEnum.h"
 #include "K2Node_ClassDynamicCast.h"

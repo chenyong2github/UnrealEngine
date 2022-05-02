@@ -8,7 +8,7 @@
 #include "Editor.h"
 #include "SPackagesDialog.h"
 #include "Widgets/Views/SListView.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 

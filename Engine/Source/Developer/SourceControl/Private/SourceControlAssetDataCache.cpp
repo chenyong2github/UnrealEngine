@@ -3,9 +3,9 @@
 #include "SourceControlAssetDataCache.h"
 
 #include "Async/Async.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "HAL/IConsoleManager.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlState.h"
 #include "SourceControlHelpers.h"

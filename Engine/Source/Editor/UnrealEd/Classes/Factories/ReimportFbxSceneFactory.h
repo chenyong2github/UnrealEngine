@@ -8,7 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EditorReimportHandler.h"
 #include "Factories/FbxSceneImportFactory.h"
 #include "Camera/CameraTypes.h"

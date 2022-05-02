@@ -5,7 +5,7 @@
 #include "Misc/Guid.h"
 #include "UObject/Class.h"
 #include "GameFramework/Actor.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Widgets/SWidget.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"

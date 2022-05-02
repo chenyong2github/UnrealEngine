@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_Struct.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "BlueprintEditorModule.h"
 #include "Kismet2/StructureEditorUtils.h"
 

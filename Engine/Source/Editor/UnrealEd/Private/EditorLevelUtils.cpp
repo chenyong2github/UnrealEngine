@@ -42,7 +42,7 @@ EditorLevelUtils.cpp: Editor-specific level management routines
 #include "ContentStreaming.h"
 #include "PackageTools.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/LevelStreamingVolume.h"
 #include "Components/ModelComponent.h"
 #include "Misc/RuntimeErrors.h"

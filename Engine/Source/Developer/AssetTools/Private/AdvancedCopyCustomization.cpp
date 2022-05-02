@@ -2,7 +2,7 @@
 
 #include "AdvancedCopyCustomization.h"
 #include "Containers/UnrealString.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Interfaces/IPluginManager.h"
 #include "Engine/World.h"
 #include "Engine/Level.h"

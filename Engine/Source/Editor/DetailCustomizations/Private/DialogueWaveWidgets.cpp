@@ -13,7 +13,7 @@
 #include "Sound/DialogueVoice.h"
 #include "DetailLayoutBuilder.h"
 #include "SAssetDropTarget.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Selection.h"
 
 #define LOCTEXT_NAMESPACE "DialogueWaveDetails"

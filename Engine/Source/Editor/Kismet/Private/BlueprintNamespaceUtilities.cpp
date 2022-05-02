@@ -2,7 +2,7 @@
 
 #include "BlueprintNamespaceUtilities.h"
 #include "Engine/Blueprint.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetData.h"
 #include "EdGraphSchema_K2.h"
 #include "Misc/AssertionMacros.h"

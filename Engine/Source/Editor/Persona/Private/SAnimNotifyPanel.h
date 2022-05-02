@@ -13,7 +13,7 @@
 #include "Framework/MarqueeRect.h"
 #include "SAnimTrackPanel.h"
 #include "SAnimEditorBase.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Framework/Commands/Commands.h"
 #include "SAnimTimingPanel.h"
 #include "EditorUndoClient.h"

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Commandlets/ExportPakDependencies.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Containers/Set.h"
 #include "Containers/Array.h"
 #include "Dom/JsonValue.h"

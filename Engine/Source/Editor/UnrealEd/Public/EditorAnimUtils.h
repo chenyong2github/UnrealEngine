@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/UnrealType.h"
 #include "Animation/AnimCurveTypes.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class UAnimationAsset;
 class UAnimBlueprint;

@@ -77,7 +77,7 @@
 #include "IPersonaToolkit.h"
 #include "Dialogs/DlgPickAssetPath.h"
 #include "SkeletalRenderPublic.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Engine/MeshSimplificationSettings.h"

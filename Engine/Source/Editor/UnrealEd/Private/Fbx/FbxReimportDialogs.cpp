@@ -19,7 +19,7 @@
 #include "HAL/FileManager.h"
 #include "Factories/FbxSceneImportFactory.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 //Windows dialog popup
 #include "Widgets/DeclarativeSyntaxSupport.h"

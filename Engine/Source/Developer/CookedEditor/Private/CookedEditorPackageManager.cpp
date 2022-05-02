@@ -3,9 +3,9 @@
 #include "CookedEditorPackageManager.h"
 #include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
-#include "AssetRegistryModule.h"
-#include "IAssetRegistry.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/AssetManager.h"
 #include "GameDelegates.h"
 

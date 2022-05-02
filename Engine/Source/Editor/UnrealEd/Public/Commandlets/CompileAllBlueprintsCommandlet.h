@@ -3,7 +3,7 @@
 #pragma once
 
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
 #include "Commandlets/Commandlet.h"
 #include "Editor/KismetCompiler/Public/KismetCompilerModule.h"

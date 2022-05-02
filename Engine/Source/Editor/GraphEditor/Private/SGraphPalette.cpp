@@ -12,7 +12,7 @@
 #include "EditorWidgetsModule.h"
 
 //#include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "IDocumentation.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"

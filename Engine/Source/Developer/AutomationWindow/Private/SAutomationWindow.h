@@ -18,7 +18,7 @@
 #include "Developer/AutomationWindow/Private/SAutomationTestTreeView.h"
 
 #if WITH_EDITOR
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #endif
 
 class FAutomationFilter;

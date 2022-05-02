@@ -21,7 +21,7 @@
 #include "Engine/StaticMesh.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/BlueprintGeneratedClass.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "UObject/SavePackage.h"
 
@@ -39,13 +39,13 @@
 #include "BlueprintEditorModes.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ComponentAssetBroker.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 
 #include "ScopedTransaction.h"
 #include "ObjectTools.h"
 
 // Automation
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Tests/AutomationTestSettings.h"
 #include "Tests/AutomationEditorCommon.h"
 #include "Tests/AutomationEditorPromotionCommon.h"

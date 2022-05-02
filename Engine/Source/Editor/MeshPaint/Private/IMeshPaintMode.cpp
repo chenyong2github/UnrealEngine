@@ -14,7 +14,7 @@
 #include "Toolkits/ToolkitManager.h"
 
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorSupportDelegates.h"
 
 #include "MeshPaintHelpers.h"
@@ -30,7 +30,7 @@
 
 #include "IMeshPainter.h"
 #include "MeshPaintSettings.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #define LOCTEXT_NAMESPACE "IMeshPaint_Mode"
 

@@ -40,7 +40,7 @@
 #include "Engine/NetDriver.h"
 #include "Engine/DemoNetDriver.h"
 #include "Engine/Player.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Net/Core/PropertyConditions/PropertyConditions.h"
 
 #include "Components/BoxComponent.h"

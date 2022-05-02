@@ -56,7 +56,7 @@
 
 #if WITH_EDITOR
 #include "FoliageHelper.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #endif
 
 #include "WorldPartition/WorldPartition.h"

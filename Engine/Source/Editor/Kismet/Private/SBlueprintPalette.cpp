@@ -32,7 +32,7 @@
 #include "Kismet2/Kismet2NameValidators.h"
 #include "ScopedTransaction.h"
 #include "EditorWidgetsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "SMyBlueprint.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"

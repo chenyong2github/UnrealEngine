@@ -6,7 +6,7 @@
 #include "Widgets/SWidget.h"
 #include "ISkeletonTreeItem.h"
 #include "SkeletonTreeItem.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class USceneComponent;
 

@@ -9,7 +9,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Animation/AnimSequence.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"

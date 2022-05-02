@@ -16,7 +16,7 @@
 #include "Dialogs/DlgPickAssetPath.h"
 #include "PackageTools.h"
 #include "MiniCurveEditor.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "SCurveEditor.h"
 #include "Engine/Selection.h"
 #include "Subsystems/AssetEditorSubsystem.h"

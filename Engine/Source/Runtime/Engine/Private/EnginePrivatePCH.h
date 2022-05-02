@@ -368,7 +368,7 @@
 #include "VertexFactory.h"
 
 // From AssetRegistry:
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 // From Engine:
 #include "EngineLogs.h"

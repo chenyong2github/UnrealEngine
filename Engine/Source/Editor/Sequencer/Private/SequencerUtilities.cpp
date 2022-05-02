@@ -26,7 +26,7 @@
 #include "DisplayNodes/SequencerObjectBindingNode.h"
 #include "ScopedTransaction.h"
 #include "UObject/Package.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "FileHelpers.h"
 #include "LevelSequence.h"
 #include "Framework/Notifications/NotificationManager.h"

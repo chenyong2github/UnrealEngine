@@ -93,7 +93,7 @@
 #include "MaterialExpressionClasses.h"
 #include "MaterialCompiler.h"
 #include "EditorSupportDelegates.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Tabs/MaterialEditorTabFactories.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"

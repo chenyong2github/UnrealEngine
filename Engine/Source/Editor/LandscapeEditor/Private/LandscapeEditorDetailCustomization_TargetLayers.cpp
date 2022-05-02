@@ -34,7 +34,7 @@
 #include "ObjectTools.h"
 #include "ScopedTransaction.h"
 #include "DesktopPlatformModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "LandscapeRender.h"
 #include "Materials/MaterialExpressionLandscapeVisibilityMask.h"

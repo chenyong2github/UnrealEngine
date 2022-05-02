@@ -12,7 +12,7 @@
 
 #include "AutoReimport/AutoReimportUtilities.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PackageTools.h"
 #include "ObjectTools.h"
 #include "IAssetTools.h"

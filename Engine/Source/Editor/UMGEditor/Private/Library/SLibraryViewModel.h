@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "WidgetBlueprintEditor.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #include "IContentBrowserSingleton.h"
 #include "Widgets/Views/STableViewBase.h"

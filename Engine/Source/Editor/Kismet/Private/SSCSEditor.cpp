@@ -2,7 +2,7 @@
 
 
 #include "SSCSEditor.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Components/PrimitiveComponent.h"

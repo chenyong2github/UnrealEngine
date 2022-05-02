@@ -5,7 +5,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Commandlets/Commandlet.h"
 #include "Misc/AssetRegistryInterface.h"
-#include "AssetRegistryState.h"
+#include "AssetRegistry/AssetRegistryState.h"
 #include "DiffAssetRegistriesCommandlet.generated.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDiffAssets, Log, All);

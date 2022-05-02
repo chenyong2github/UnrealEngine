@@ -449,10 +449,10 @@
 #include "IMessageContext.h"
 
 // From AssetRegistry:
-#include "AssetData.h"
-#include "IAssetRegistry.h"
-#include "AssetRegistryModule.h"
-#include "ARFilter.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
 
 // From Internationalization:
 #include "LocTextHelper.h"

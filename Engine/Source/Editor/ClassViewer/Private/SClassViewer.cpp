@@ -27,7 +27,7 @@
 #include "Engine/BlueprintCore.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Brush.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Animation/AnimBlueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
@@ -41,7 +41,7 @@
 #include "ContentBrowserDataDragDropOp.h"
 
 #include "IAssetTools.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 
@@ -51,7 +51,7 @@
 #include "PackageTools.h"
 #include "Logging/MessageLog.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 
 #include "ClassViewerNode.h"

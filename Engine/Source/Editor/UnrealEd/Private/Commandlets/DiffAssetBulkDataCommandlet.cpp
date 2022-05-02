@@ -4,7 +4,7 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
-#include "AssetRegistryState.h"
+#include "AssetRegistry/AssetRegistryState.h"
 #include "HAL/FileManager.h"
 #include "Serialization/LargeMemoryReader.h"
 

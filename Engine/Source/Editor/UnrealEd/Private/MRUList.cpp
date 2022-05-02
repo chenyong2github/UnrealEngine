@@ -5,7 +5,7 @@
 #include "Misc/PackageName.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Logging/MessageLog.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 FMRUList::FMRUList(const FString& InINISection, const int32 InitMaxItems)
 	:	MaxItems( InitMaxItems ),

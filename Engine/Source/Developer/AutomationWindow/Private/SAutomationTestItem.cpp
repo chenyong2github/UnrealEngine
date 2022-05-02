@@ -16,10 +16,10 @@
 #include "SAutomationWindow.h"
 
 #if WITH_EDITOR
-	#include "AssetData.h"
+	#include "AssetRegistry/AssetData.h"
 	#include "EngineGlobals.h"
 	#include "Editor.h"
-	#include "AssetRegistryModule.h"
+	#include "AssetRegistry/AssetRegistryModule.h"
 	#include "Dialogs/Dialogs.h"
 	#include "SKismetInspector.h"
 #endif

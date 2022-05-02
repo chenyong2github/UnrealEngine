@@ -61,7 +61,7 @@ ActorFactory.cpp:
 #include "Builders/CubeBuilder.h"
 #include "Builders/CylinderBuilder.h"
 #include "Builders/TetrahedronBuilder.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor/EditorEngine.h"
 #include "Animation/AnimBlueprint.h"
 #include "Particles/ParticleSystem.h"
@@ -104,7 +104,7 @@ ActorFactory.cpp:
 #include "InteractiveFoliageActor.h"
 #include "VT/RuntimeVirtualTextureVolume.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 
 

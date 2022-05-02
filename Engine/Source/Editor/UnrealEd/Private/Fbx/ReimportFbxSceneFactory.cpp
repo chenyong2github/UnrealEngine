@@ -36,7 +36,7 @@
 #include "FbxImporter.h"
 
 #include "Misc/FbxErrors.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PackageTools.h"
 
 #include "SFbxSceneOptionWindow.h"

@@ -6,7 +6,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "PropertyCustomizationHelpers.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class UFactory;
 

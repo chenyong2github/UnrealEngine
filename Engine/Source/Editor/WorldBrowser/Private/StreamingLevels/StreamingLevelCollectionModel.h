@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EditorUndoClient.h"
 #include "LevelCollectionModel.h"
 #include "IDetailsView.h"

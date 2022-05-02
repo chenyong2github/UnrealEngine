@@ -40,7 +40,7 @@
 #include "Editor/GroupActor.h"
 #include "EdGraph/EdGraph.h"
 #include "ProfilingDebugging/ScopedTimers.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "FoliageEditUtility.h"
 #include "FoliageHelper.h"
 #include "Engine/WorldComposition.h"

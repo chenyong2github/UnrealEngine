@@ -8,7 +8,7 @@
 #include "EditorReimportHandler.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "EdGraph/EdGraph.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimBlueprint.h"
 #include "Editor.h"

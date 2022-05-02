@@ -15,7 +15,7 @@
 #include "Materials/MaterialFunction.h"
 #include "UObject/UObjectIterator.h"
 #include "HAL/FileManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDumpMaterialExpressionsCommandlet, Log, All);
 

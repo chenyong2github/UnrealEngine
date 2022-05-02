@@ -3,7 +3,7 @@
 #include "FCPXML/FCPXMLFile.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "XmlParser.h"
 
 #define LOCTEXT_NAMESPACE "FCPXMLImporter"

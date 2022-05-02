@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_Class.h"
 #include "ToolMenus.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "HAL/FileManager.h"
 #include "EditorStyleSet.h"
 #include "SourceCodeNavigation.h"

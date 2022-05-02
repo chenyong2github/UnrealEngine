@@ -208,7 +208,7 @@
 #include "FbxImporter.h"
 #include "Misc/FbxErrors.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "ClassViewerModule.h"

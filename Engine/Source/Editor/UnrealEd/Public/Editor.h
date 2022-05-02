@@ -9,7 +9,7 @@
 #include "CoreMinimal.h"
 #include "Templates/ScopedCallback.h"
 #include "Engine/Level.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor/EditorEngine.h"
 #include "Engine/StaticMesh.h"
 

@@ -3,7 +3,7 @@
 #include "AssetTypeActions/AssetTypeActions_SoundWave.h"
 #include "Factories/DialogueWaveFactory.h"
 #include "Misc/PackageName.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Sound/SoundWave.h"
 #include "ToolMenus.h"
 #include "EditorStyleSet.h"

@@ -4,7 +4,7 @@
 #include "Engine/Font.h"
 #include "PropertyHandle.h"
 #include "IDetailChildrenBuilder.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PropertyCustomizationHelpers.h"
 #include "DetailLayoutBuilder.h"
 

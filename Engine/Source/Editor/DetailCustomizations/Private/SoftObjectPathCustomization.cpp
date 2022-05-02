@@ -3,7 +3,7 @@
 #include "SoftObjectPathCustomization.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Engine/GameViewportClient.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EditorClassUtils.h"
 #include "PropertyHandle.h"
 #include "PropertyCustomizationHelpers.h"

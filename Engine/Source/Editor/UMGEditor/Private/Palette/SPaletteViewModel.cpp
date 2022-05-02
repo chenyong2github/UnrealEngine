@@ -19,7 +19,7 @@
 #include "Templates/WidgetTemplateClass.h"
 #include "Templates/WidgetTemplateBlueprintClass.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "WidgetBlueprintEditorUtils.h"
 #include "Misc/NamePermissionList.h"
 

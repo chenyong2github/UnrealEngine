@@ -26,7 +26,7 @@
 #include "Editor/PropertyEditor/Public/PropertyCustomizationHelpers.h"
 
 #include "BlueprintEditor.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "Dialogs/DlgPickAssetPath.h"
@@ -35,7 +35,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Engine/Selection.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "STimelineEditor"

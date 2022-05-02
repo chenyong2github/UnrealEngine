@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "Misc/Attribute.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Rendering/RenderingCommon.h"
 #include "Widgets/SWidget.h"
 #include "TickableEditorObject.h"

@@ -27,7 +27,7 @@
 #include "EditorSupportDelegates.h"
 #include "Misc/RuntimeErrors.h"
 #include "SceneTypes.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "DebugViewModeHelpers.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ShaderCompiler.h"

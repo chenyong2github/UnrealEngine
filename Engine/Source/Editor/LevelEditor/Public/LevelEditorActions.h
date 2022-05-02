@@ -8,7 +8,7 @@
 #include "UnrealWidgetFwd.h"
 #include "SceneTypes.h"
 #include "Framework/Commands/Commands.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "Toolkits/IToolkit.h"
 #include "EditorStyleSet.h"

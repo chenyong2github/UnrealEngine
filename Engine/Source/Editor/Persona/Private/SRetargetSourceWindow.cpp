@@ -7,7 +7,7 @@
 #include "Textures/SlateIcon.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EditorStyleSet.h"
 #include "Layout/WidgetPath.h"
 #include "Framework/Application/MenuStack.h"

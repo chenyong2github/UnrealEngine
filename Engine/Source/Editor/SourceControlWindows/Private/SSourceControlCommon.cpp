@@ -4,7 +4,7 @@
 
 #include "Algo/Count.h"
 #include "Algo/Find.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "ActorFolder.h"
 #include "ActorFolderDesc.h"
 #include "AssetToolsModule.h"

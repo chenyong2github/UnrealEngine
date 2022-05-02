@@ -5,7 +5,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Animation/AnimSequence.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "IDetailsView.h"

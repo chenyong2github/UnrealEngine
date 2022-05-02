@@ -9,10 +9,10 @@
 #include "SourceControlOperations.h"
 #include "ISourceControlModule.h"
 #include "EngineGlobals.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
-#include "IAssetRegistry.h"
-#include "ARFilter.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/ARFilter.h"
 #include "PackageHelperFunctions.h"
 #include "ObjectTools.h"
 

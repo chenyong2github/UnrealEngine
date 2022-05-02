@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Attribute.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Layout/Visibility.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"

@@ -13,8 +13,8 @@
 #include "GameMapsSettings.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/World.h"
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 /*-----------------------------------------------------------------------------
 	FURL Statics.

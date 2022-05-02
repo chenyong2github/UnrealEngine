@@ -9,8 +9,8 @@
 #include "EngineUtils.h"
 #include "FunctionalTest.h"
 #include "EngineGlobals.h"
-#include "ARFilter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/CommandLine.h"
 #include "IAutomationControllerModule.h"
 

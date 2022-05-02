@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Input/DragAndDrop.h"
 #include "Layout/Visibility.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"

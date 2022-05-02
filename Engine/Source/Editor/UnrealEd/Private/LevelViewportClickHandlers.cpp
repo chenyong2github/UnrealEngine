@@ -15,7 +15,7 @@
 #include "Engine/PointLight.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/TargetPoint.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/Selection.h"
 #include "Editor.h"
 #include "EditorModeManager.h"

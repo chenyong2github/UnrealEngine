@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "CollectionManagerTypes.h"
 #include "Styling/SlateTypes.h"
 

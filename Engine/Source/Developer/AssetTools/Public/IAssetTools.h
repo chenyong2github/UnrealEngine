@@ -12,7 +12,7 @@
 #include "AssetTypeCategories.h"
 #include "IAssetTypeActions.h"
 #include "AutomatedAssetImportData.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "IAssetTools.generated.h"
 
 

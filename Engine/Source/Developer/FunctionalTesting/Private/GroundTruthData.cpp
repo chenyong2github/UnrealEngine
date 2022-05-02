@@ -6,7 +6,7 @@
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 #include "Misc/PackageName.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #if WITH_EDITOR
 #include "ISourceControlModule.h"

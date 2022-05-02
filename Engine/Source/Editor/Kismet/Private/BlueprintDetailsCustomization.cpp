@@ -90,7 +90,7 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "SupportedRangeTypes.h"	// StructsSupportingRangeVisibility
 #include "IPropertyAccessEditor.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Settings/BlueprintEditorProjectSettings.h"
 #include "Misc/ScopedSlowTask.h"
 

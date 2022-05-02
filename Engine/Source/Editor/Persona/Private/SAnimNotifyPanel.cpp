@@ -25,7 +25,7 @@
 #include "Animation/EditorNotifyObject.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "ScopedTransaction.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetSelection.h"
 #include "Widgets/Input/STextEntryPopup.h"
 #include "Widgets/Layout/SExpandableArea.h"

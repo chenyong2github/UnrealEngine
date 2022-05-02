@@ -7,7 +7,7 @@
 #include "Tracks/MovieSceneAudioTrack.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/MetaData.h"
 #include "Sound/SoundWave.h"
 

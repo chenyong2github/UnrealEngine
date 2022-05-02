@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "VREditorPlacement.generated.h"
 
 class UActorComponent;

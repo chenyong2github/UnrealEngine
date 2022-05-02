@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_Enum.h"
 #include "BlueprintEditorModule.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 

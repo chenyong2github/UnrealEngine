@@ -2,7 +2,7 @@
 
 #include "FoliageTypeObjectCustomization.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "FoliageType_InstancedStaticMesh.h"
 #include "FoliageType_Actor.h"
 #include "PropertyHandle.h"

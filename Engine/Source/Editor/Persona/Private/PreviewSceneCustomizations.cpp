@@ -2,7 +2,7 @@
 
 #include "PreviewSceneCustomizations.h"
 #include "Modules/ModuleManager.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "IDetailPropertyRow.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"

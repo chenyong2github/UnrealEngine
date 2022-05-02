@@ -7,10 +7,10 @@
 =============================================================================*/
 
 #include "Commandlets/GenerateAssetManifestCommandlet.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "Engine/World.h"
 #include "Misc/FileHelper.h"
 

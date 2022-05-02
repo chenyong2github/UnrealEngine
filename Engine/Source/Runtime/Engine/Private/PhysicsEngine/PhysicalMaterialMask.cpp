@@ -14,7 +14,7 @@
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "DesktopPlatformModule.h"

@@ -10,12 +10,12 @@
 #include "Misc/PackageName.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Blueprint.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "ObjectEditorUtils.h"
 #include "Logging/MessageLog.h"
-#include "ARFilter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "AIGraph"
 

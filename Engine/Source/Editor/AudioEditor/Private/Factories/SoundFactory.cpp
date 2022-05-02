@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/SoundFactory.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Audio.h"
 #include "Components/AudioComponent.h"
 #include "ContentBrowserModule.h"

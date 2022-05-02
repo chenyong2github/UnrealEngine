@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "UObject/ObjectKey.h"
 #include "Input/Reply.h"
 #if WITH_EDITOR

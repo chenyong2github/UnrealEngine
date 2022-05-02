@@ -13,7 +13,7 @@
 #include "Engine/LevelStreaming.h"
 #include "UObject/SavePackage.h"
 #include "UObject/UObjectHash.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PackageHelperFunctions.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"

@@ -20,7 +20,7 @@
 #include "Modules/ModuleManager.h"
 #include "DesktopPlatformModule.h"
 #include "ContentBrowserModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Engine/Font.h"
 #include "Engine/FontFace.h"

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PackageTools.h"
 #include "ISourceControlProvider.h"
 #include "UObject/TextProperty.h"

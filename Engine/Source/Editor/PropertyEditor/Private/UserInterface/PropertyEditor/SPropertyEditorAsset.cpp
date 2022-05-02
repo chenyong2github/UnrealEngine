@@ -20,7 +20,7 @@
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
 #include "SAssetDropTarget.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Selection.h"
 #include "ObjectPropertyNode.h"
 #include "PropertyHandleImpl.h"

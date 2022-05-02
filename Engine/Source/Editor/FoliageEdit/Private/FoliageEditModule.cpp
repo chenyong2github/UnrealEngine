@@ -10,7 +10,7 @@
 #include "EditorModeRegistry.h"
 #include "EditorModes.h"
 #include "UnrealEdGlobals.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 const FName FoliageEditAppIdentifier = FName(TEXT("FoliageEdApp"));
 

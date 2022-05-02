@@ -40,7 +40,7 @@
 #include "MaterialEditorUtilities.h"
 #include "GraphEditorActions.h"
 #include "GraphEditorSettings.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "MaterialEditorActions.h"
 #include "MaterialGraphNode_Knot.h"
 

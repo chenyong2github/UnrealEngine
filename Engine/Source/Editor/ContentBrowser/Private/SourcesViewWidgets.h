@@ -10,7 +10,7 @@
 #include "Input/Reply.h"
 #include "Styling/SlateColor.h"
 #include "Widgets/SCompoundWidget.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "CollectionViewTypes.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Editor/ContentBrowser/Private/SPathView.h"

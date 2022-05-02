@@ -55,7 +55,7 @@
 #include "Engine/Brush.h"
 #include "Engine/Engine.h"
 #include "Animation/AnimSequence.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor/EditorEngine.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Factories/Factory.h"
@@ -129,7 +129,7 @@
 #include "IPropertyTable.h"
 #include "IDetailsView.h"
 #include "IStructureDetailsView.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "SnappingUtils.h"
 
 #include "Elements/Framework/TypedElementHandle.h"

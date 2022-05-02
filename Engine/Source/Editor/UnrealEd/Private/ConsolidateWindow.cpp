@@ -24,7 +24,7 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "ISourceControlModule.h"
 #include "Engine/Texture.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "FileHelpers.h"
 #include "AssetSelection.h"
 #include "ObjectTools.h"

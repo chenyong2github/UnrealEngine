@@ -5,7 +5,7 @@
 #include "BlueprintNamespaceUtilities.h"
 #include "UObject/UObjectIterator.h"
 #include "HAL/IConsoleManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/UserDefinedEnum.h"

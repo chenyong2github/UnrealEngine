@@ -12,7 +12,7 @@
 
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
 

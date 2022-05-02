@@ -6,7 +6,7 @@
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimationAsset.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "IAssetFamily.h"
 
 class UAnimBlueprint;

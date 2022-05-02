@@ -16,7 +16,7 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "AnimationEditorUtils.h"
 #include "PhysicsAssetUtils.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PhysicsAssetGenerationSettings.h"
 
 #define LOCTEXT_NAMESPACE "PhysicsAssetFactory"

@@ -23,7 +23,7 @@
 #endif
 
 #if WITH_EDITOR
-	#include "AssetRegistryModule.h"
+	#include "AssetRegistry/AssetRegistryModule.h"
 #endif
 
 

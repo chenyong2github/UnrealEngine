@@ -64,7 +64,7 @@
 #include "Editor/KismetCompiler/Public/KismetCompilerModule.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "IAssetTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Layers/LayersSubsystem.h"
 #include "ScopedTransaction.h"
 #include "AssetToolsModule.h"

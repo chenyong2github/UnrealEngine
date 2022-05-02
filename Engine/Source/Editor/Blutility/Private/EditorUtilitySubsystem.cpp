@@ -9,9 +9,9 @@
 #include "IBlutilityModule.h"
 #include "EditorUtilityWidget.h"
 #include "ScopedTransaction.h"
-#include "ARFilter.h"
-#include "AssetRegistryModule.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "EditorUtilityTask.h"
 
 #define LOCTEXT_NAMESPACE "EditorUtilitySubsystem"

@@ -4,7 +4,7 @@
 #include "ToolMenus.h"
 #include "EditorStyleSet.h"
 #include "GenericPlatform/IInputInterface.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"

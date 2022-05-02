@@ -16,7 +16,7 @@
 #include "FileHelpers.h"
 #include "SDiscoveringAssetsDialog.h"
 #include "AssetRenameManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
 #include "ObjectTools.h"

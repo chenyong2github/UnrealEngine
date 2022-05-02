@@ -30,9 +30,9 @@
 #include "Framework/Docking/TabManager.h"
 #include "SListViewSelectorDropdownMenu.h"
 
-#include "ARFilter.h"
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "ContentBrowserDataDragDropOp.h"
 

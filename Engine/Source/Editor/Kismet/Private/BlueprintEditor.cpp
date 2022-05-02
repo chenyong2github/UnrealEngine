@@ -10,7 +10,7 @@
 #include "Engine/UserDefinedStruct.h"
 #include "Logging/TokenizedMessage.h"
 #include "Misc/PackageName.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor/EditorEngine.h"
 #include "Widgets/Layout/SBorder.h"
 #include "HAL/FileManager.h"
@@ -135,7 +135,7 @@
 #include "ObjectTools.h"
 // End of misc diagnostics
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "BlueprintEditorTabFactories.h"
 #include "ClassViewerFilter.h"
 #include "SPinTypeSelector.h"

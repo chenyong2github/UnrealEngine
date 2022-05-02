@@ -10,7 +10,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 #include "Widgets/Views/STreeView.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 #include "IWorldTreeItem.h"
 

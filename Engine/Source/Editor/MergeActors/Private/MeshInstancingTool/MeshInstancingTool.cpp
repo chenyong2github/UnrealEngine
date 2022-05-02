@@ -17,7 +17,7 @@
 #include "MeshInstancingTool/SMeshInstancingDialog.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ScopedTransaction.h"
 #include "MeshMergeModule.h"
 

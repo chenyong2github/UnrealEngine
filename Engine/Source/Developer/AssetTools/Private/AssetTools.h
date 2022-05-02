@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRenameManager.h"
 #include "Misc/NamePermissionList.h"
 #include "UObject/StrongObjectPtr.h"

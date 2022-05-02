@@ -10,7 +10,7 @@
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "HAL/PlatformProcess.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "Widgets/SWindow.h"

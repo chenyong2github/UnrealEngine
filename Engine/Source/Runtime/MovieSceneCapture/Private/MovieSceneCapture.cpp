@@ -21,7 +21,7 @@
 #include "Protocols/VideoCaptureProtocol.h"
 #include "Slate/SceneViewport.h"
 #include "Engine/Engine.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/UObjectIterator.h"
 #include "Protocols/AudioCaptureProtocol.h"
 #include "Misc/DateTime.h"

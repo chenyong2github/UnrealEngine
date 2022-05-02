@@ -31,7 +31,7 @@
 #include "UnrealEdMisc.h"
 #include "EditorSupportDelegates.h"
 #include "UObject/PurgingReferenceCollector.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "EditorUtilityCommon.h"
 #include "EditorUtilityToolMenu.h"
 

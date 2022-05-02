@@ -22,8 +22,8 @@
 #include "EditorModes.h"
 #include "FileHelpers.h"
 #include "UnrealEdGlobals.h"
-#include "ARFilter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Tests/AutomationCommon.h"
 #include "IAssetViewport.h"
 

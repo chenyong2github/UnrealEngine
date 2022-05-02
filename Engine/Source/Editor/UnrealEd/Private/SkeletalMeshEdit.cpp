@@ -10,7 +10,7 @@
 #include "Animation/AnimTypes.h"
 #include "Animation/Skeleton.h"
 #include "Animation/SmartName.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ComponentReregisterContext.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "CoreMinimal.h"

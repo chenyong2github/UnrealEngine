@@ -10,7 +10,7 @@
 
 //Automation
 #include "Tests/AutomationTestSettings.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Tests/AutomationEditorPromotionCommon.h"
 
 //Particle system

@@ -12,7 +12,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "EditableSkeleton.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "ISkeletonTree.h"
 #include "Widgets/Views/STableViewBase.h"

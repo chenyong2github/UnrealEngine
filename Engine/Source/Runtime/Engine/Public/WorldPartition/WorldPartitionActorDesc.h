@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"

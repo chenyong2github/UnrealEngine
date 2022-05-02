@@ -2,13 +2,13 @@
 
 #include "RuntimeVirtualTextureAssetTypeActions.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserModule.h"
 #include "EditorSupportDelegates.h"
 #include "FileHelpers.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "IContentBrowserSingleton.h"
 #include "MaterialEditingLibrary.h"
 #include "Materials/Material.h"

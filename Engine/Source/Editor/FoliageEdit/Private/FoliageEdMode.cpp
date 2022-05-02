@@ -34,9 +34,9 @@
 #include "FoliageEditActions.h"
 #include "FoliageHelper.h"
 #include "ISceneOutliner.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/ScopeExit.h"
 
 #include "ActorPartition/ActorPartitionSubsystem.h"

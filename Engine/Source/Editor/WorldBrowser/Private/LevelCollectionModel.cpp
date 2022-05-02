@@ -3,7 +3,7 @@
 #include "LevelCollectionModel.h"
 #include "Algo/AnyOf.h"
 #include "Misc/PackageName.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FeedbackContext.h"

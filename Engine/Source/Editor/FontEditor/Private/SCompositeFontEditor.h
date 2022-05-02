@@ -16,7 +16,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STileView.h"
 #include "Widgets/Input/SComboBox.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class IFontEditor;
 class STypefaceEditor;

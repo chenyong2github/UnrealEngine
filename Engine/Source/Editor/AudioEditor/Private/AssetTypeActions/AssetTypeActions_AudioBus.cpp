@@ -2,7 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_AudioBus.h"
 #include "Misc/PackageName.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "EditorStyleSet.h"
 #include "Factories/AudioBusFactory.h"
 #include "IContentBrowserSingleton.h"

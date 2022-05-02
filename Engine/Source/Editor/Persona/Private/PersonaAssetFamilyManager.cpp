@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PersonaAssetFamilyManager.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "IAssetFamily.h"
 #include "PersonaAssetFamily.h"
 

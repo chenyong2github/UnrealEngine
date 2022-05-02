@@ -2,8 +2,8 @@
 
 #include "Commandlets/DumpMaterialShaderTypes.h"
 #include "AnalyticsET.h"
-#include "AssetData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "GlobalShader.h"
 #include "HAL/FileManager.h"
 #include "IAnalyticsProviderET.h"

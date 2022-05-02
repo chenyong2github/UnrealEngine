@@ -11,7 +11,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "WorkflowOrientedApp/WorkflowTabFactory.h"
 #include "PersonaDelegates.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "IDocumentation.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"

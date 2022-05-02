@@ -8,7 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "SAssetSearchBox.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "ContentBrowserDataMenuContexts.h"

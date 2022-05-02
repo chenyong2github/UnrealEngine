@@ -3,7 +3,7 @@
 #include "AutoReimport/AssetSourceFilenameCache.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 FAssetSourceFilenameCache::FAssetSourceFilenameCache()
 {

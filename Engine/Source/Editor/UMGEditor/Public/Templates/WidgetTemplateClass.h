@@ -7,7 +7,7 @@
 #include "Components/Widget.h"
 #include "Widgets/IToolTip.h"
 #include "WidgetTemplate.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class UWidgetTree;
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/CameraShakeSourceShakeTrackEditor.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/CameraShakeSourceComponent.h"
 #include "CameraShakeTrackEditorBase.h"

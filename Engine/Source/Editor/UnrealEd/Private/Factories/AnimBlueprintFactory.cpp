@@ -27,7 +27,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "IContentBrowserSingleton.h"

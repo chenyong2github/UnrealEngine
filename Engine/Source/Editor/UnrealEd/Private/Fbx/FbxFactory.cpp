@@ -4,7 +4,7 @@
 
 #include "Animation/AnimSequence.h"
 #include "AssetImportTask.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserModule.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"

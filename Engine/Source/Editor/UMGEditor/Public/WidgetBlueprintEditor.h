@@ -8,7 +8,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Settings/WidgetDesignerSettings.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PreviewScene.h"
 #include "GraphEditor.h"
 #include "BlueprintEditor.h"

@@ -2,7 +2,7 @@
 
 #include "SClothPaintTab.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 #include "PropertyEditorModule.h"

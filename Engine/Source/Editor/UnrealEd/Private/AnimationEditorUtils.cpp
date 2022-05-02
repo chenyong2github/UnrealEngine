@@ -41,7 +41,7 @@
 #include "AnimationStateMachineGraph.h"
 #include "K2Node_Composite.h"
 #include "Kismet2/BlueprintEditorUtils.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Interfaces/IMainFrameModule.h"
 
 #define LOCTEXT_NAMESPACE "AnimationEditorUtils"

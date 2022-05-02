@@ -8,7 +8,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Input/Reply.h"
 #include "Widgets/SCompoundWidget.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetTagItemTypes.h"
 #include "CollectionManagerTypes.h"
 #include "Widgets/Views/STableViewBase.h"

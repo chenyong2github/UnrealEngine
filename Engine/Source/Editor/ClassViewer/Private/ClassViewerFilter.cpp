@@ -11,7 +11,7 @@
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "Editor.h"
 #include "ClassViewerModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "PropertyHandle.h"
 
 EFilterReturn::Type FClassViewerFilterFuncs::IfInChildOfClassesSet(TSet< const UClass* >& InSet, const UClass* InClass)

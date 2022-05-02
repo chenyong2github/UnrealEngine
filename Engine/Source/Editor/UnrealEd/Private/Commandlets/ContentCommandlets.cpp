@@ -39,7 +39,7 @@
 #include "Particles/ParticleEmitter.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/StaticMesh.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/Brush.h"
 #include "Editor.h"
 #include "EditorWorldUtils.h"
@@ -61,7 +61,7 @@
 
 DEFINE_LOG_CATEGORY(LogContentCommandlet);
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IDirectoryWatcher.h"
 #include "DirectoryWatcherModule.h"
 #include "Particles/Material/ParticleModuleMeshMaterial.h"

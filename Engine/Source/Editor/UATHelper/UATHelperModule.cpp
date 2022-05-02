@@ -19,7 +19,7 @@
 #include "Editor.h"
 #include "EditorAnalytics.h"
 #include "IUATHelperModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Editor/MainFrame/Public/Interfaces/IMainFrameModule.h"
 #include "Editor/EditorPerProjectUserSettings.h"

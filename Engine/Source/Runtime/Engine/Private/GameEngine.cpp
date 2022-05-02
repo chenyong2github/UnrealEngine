@@ -56,7 +56,7 @@
 #include "Engine/DemoNetDriver.h"
 
 #include "Tickable.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "DynamicResolutionProxy.h"
 #include "DynamicResolutionState.h"
 #include "MoviePlayerProxy.h"

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AssetDataTagMap.h"
+#include "AssetRegistry/AssetDataTagMap.h"
 #include "Async/Async.h"
 
 struct FAssetRegistrySerializationOptions;

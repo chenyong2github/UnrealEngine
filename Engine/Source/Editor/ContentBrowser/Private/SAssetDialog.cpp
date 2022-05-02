@@ -14,7 +14,7 @@
 #include "Widgets/Layout/SSplitter.h"
 #include "Styling/AppStyle.h"
 #include "EditorStyleSet.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ContentBrowserSingleton.h"
 #include "ContentBrowserUtils.h"
 

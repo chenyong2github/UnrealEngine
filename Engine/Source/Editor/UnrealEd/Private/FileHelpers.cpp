@@ -67,7 +67,7 @@
 #include "Engine/LevelStreaming.h"
 #include "GameFramework/WorldSettings.h"
 #include "AutoSaveUtils.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/NamePermissionList.h"
 #include "EngineAnalytics.h"
 #include "StudioAnalytics.h"

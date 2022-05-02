@@ -6,7 +6,7 @@
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBox.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "IContentBrowserSingleton.h"

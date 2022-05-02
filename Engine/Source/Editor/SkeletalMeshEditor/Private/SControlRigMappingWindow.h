@@ -8,7 +8,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Animation/NodeMappingContainer.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "SBoneMappingBase.h"
 
 //////////////////////////////////////////////////////////////////////////

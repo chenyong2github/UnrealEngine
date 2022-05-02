@@ -5,7 +5,7 @@
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"
 #include "Engine/AssetManager.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #if WITH_EDITOR
 #include "CollectionManagerTypes.h"

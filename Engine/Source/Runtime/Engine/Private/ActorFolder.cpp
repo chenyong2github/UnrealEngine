@@ -11,8 +11,8 @@
 #include "Engine/World.h"
 #include "EditorActorFolders.h"
 #include "ExternalPackageHelper.h"
-#include "AssetRegistryModule.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "ActorFolderDesc.h"
 
 UActorFolder* UActorFolder::Create(ULevel* InLevel, const FString& InFolderLabel, UActorFolder* InParent)

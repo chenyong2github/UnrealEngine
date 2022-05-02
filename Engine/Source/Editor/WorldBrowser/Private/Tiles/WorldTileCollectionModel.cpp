@@ -23,7 +23,7 @@
 
 #include "Engine/WorldComposition.h"
 #include "IDetailsView.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "MeshUtilities.h"
 
 #include "StaticMeshAttributes.h"

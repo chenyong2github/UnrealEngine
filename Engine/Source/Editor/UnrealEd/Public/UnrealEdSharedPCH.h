@@ -446,8 +446,8 @@
 #include "IMessageContext.h"
 
 // From AssetRegistry:
-#include "AssetData.h"
-#include "ARFilter.h"
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/ARFilter.h"
 
 // From Engine:
 #include "EngineLogs.h"

@@ -7,10 +7,10 @@
 #include "UObject/UObjectIterator.h"
 #include "UObject/Package.h"
 #include "Engine/Level.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
-#include "ARFilter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogReferncedAssetsBrowser, Log, All);
 

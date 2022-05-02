@@ -6,7 +6,7 @@
 #include "UObject/UnrealType.h"
 #include "Widgets/SWidget.h"
 #include "PropertyHandle.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "PropertyNode.h"
 
 class FNotifyHook;

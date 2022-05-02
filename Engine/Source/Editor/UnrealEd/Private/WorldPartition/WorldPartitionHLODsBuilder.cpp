@@ -18,7 +18,7 @@
 #include "ISourceControlProvider.h"
 #include "SourceControlOperations.h"
 
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "DerivedDataCacheInterface.h"
 
 #include "WorldPartition/DataLayer/DataLayerInstance.h"

@@ -6,7 +6,7 @@
 #include "EditorStyleSet.h"
 #include "Engine/Blueprint.h"
 #include "Editor.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "IDocumentationPage.h"
 #include "IDocumentation.h"

@@ -5,7 +5,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/Selection.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "ContentBrowserModule.h"

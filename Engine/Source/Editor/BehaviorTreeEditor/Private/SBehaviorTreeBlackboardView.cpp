@@ -30,8 +30,8 @@
 #include "ScopedTransaction.h"
 #include "BehaviorTreeEditorCommands.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "ARFilter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "SBehaviorTreeBlackboardView"
 

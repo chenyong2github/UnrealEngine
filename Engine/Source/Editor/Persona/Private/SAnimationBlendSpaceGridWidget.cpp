@@ -24,7 +24,7 @@
 #include "IStructureDetailsView.h"
 
 #include "Customization/BlendSampleDetails.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "Classes/EditorStyleSettings.h"
 

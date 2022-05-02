@@ -15,7 +15,7 @@
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
 #include "ObjectTools.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "SAssetView.h"
 #include "Modules/ModuleManager.h"
 #include "ContentBrowserModule.h"

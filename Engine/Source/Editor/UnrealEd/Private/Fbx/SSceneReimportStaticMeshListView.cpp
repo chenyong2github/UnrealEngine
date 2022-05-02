@@ -11,7 +11,7 @@
 #include "EditorStyleSet.h"
 #include "Factories/FbxSceneImportData.h"
 #include "Engine/StaticMesh.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Styling/SlateIconFinder.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"

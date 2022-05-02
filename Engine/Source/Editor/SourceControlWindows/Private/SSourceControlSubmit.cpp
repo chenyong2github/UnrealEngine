@@ -21,7 +21,7 @@
 #include "UObject/UObjectHash.h"
 #include "EditorStyleSet.h"
 #include "AssetToolsModule.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 
 #if SOURCE_CONTROL_WITH_SLATE

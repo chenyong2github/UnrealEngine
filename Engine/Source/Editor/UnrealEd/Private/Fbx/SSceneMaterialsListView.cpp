@@ -10,7 +10,7 @@
 #include "EditorStyleSet.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/Material.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Fbx/SSceneImportNodeTreeView.h"

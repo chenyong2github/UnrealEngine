@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetManagerTypes.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "StreamableManager.h"
-#include "AssetBundleData.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetBundleData.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
 #include "ContentEncryptionConfig.h"
 #include "AssetManager.generated.h"

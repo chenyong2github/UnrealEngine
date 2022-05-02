@@ -3,7 +3,7 @@
 #include "BlueprintAssetHandler.h"
 #include "Engine/World.h"
 #include "Engine/LevelScriptBlueprint.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 
 class FLevelBlueprintAssetHandler : public IBlueprintAssetHandler
 {

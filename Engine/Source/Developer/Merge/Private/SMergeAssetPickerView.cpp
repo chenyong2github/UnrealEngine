@@ -15,7 +15,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "EditorStyleSet.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Editor.h"
 #include "BlueprintMergeData.h"
 #include "IContentBrowserSingleton.h"

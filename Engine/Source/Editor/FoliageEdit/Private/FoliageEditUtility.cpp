@@ -11,7 +11,7 @@
 #include "InstancedFoliageActor.h"
 #include "ScopedTransaction.h"
 #include "Dialogs/DlgPickAssetPath.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "FoliageEdMode.h"
 #include "FileHelpers.h"
 #include "Editor.h"

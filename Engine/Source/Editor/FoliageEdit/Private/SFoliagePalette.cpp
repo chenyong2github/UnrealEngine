@@ -33,7 +33,7 @@
 #include "IDetailsView.h"
 #include "AssetSelection.h"
 #include "ScopedTransaction.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/StaticMesh.h"
 #include "Editor.h"
 

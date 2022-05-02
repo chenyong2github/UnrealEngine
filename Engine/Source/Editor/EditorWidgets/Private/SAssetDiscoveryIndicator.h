@@ -11,7 +11,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "AssetDiscoveryIndicator.h"
-#include "IAssetRegistry.h"
+#include "AssetRegistry/IAssetRegistry.h"
 
 /** An indicator for the progress of the asset registry background search */
 class SAssetDiscoveryIndicator : public SCompoundWidget

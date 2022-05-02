@@ -15,7 +15,7 @@
 #include "Animation/AnimMontage.h"
 #include "FileHelpers.h"
 #include "SSlotNameReferenceWindow.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"

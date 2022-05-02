@@ -24,8 +24,8 @@
 
 #include "Editor.h"
 
-#include "IAssetRegistry.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 
 #include "Serialization/StaticMemoryReader.h"
 #include "Widgets/Colors/SColorBlock.h"

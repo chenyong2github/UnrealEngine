@@ -2,8 +2,8 @@
 
 #include "PersonaAssetFamily.h"
 #include "Modules/ModuleManager.h"
-#include "ARFilter.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Animation/AnimBlueprint.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "AssetToolsModule.h"

@@ -8,7 +8,7 @@
 #include "Misc/ObjectThumbnail.h"
 #include "ObjectTools.h"
 #include "Serialization/Archive.h"
-#include "AssetRegistryModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Interfaces/IPluginManager.h"
 #include "ImageUtils.h"

@@ -10,13 +10,13 @@
 #include "Widgets/SWidget.h"
 #include "PreviewScene.h"
 #include "EditorViewportClient.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Widgets/SToolTip.h"
 #include "PersonaDelegates.h"
 #include "Editor/ContentBrowser/Public/ContentBrowserDelegates.h"
 #include "EditorAnimUtils.h"
 #include "IAnimationSequenceBrowser.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 
 class FSceneViewport;
 class FUICommandList;
