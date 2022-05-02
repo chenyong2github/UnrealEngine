@@ -1633,7 +1633,7 @@ public:
 
 protected:
 
-	void RemapRegisteredComponentMapBuildDataId(const UReflectionCaptureComponent* Component);
+	bool RemapRegisteredComponentMapBuildDataId(const UReflectionCaptureComponent* Component);
 	void RegisterComponentMapBuildDataId(const UReflectionCaptureComponent* Component);
 	void UnregisterComponentMapBuildDataId(const UReflectionCaptureComponent* Component);
 

@@ -285,12 +285,17 @@ FCaptureComponentSceneState* FReflectionCaptureCache::AddReference(const UReflec
 {
 	check(IsValid(Component))
 
-	RemapRegisteredComponentMapBuildDataId(Component);
+	bool Remap = RemapRegisteredComponentMapBuildDataId(Component);
 	FReflectionCaptureCacheEntry* Found = CaptureData.Find(Component->MapBuildDataId);
 	if (Found == nullptr)
 		return nullptr;
 
-	Found->RefCount += 1;
+	// Should not add reference count if this is caused by capture rebuilt
+	if (!Remap)
+	{
+		Found->RefCount += 1;
+	}
+
 	return &(Found->SceneState);
 }
 
@@ -338,7 +343,7 @@ void FReflectionCaptureCache::RegisterComponentMapBuildDataId(const UReflectionC
 	RegisteredComponentMapBuildDataIds.Add(Component, Component->MapBuildDataId);
 }
 
-void FReflectionCaptureCache::RemapRegisteredComponentMapBuildDataId(const UReflectionCaptureComponent* Component)
+bool FReflectionCaptureCache::RemapRegisteredComponentMapBuildDataId(const UReflectionCaptureComponent* Component)
 {
 	check(Component);
 
@@ -347,13 +352,30 @@ void FReflectionCaptureCache::RemapRegisteredComponentMapBuildDataId(const URefl
 	if (OldBuildId &&
 		*OldBuildId != Component->MapBuildDataId)
 	{
-		FReflectionCaptureCacheEntry Entry = *CaptureData.Find(*OldBuildId);
-		CaptureData.Remove(*OldBuildId);
+		FGuid OldBuildIdCopy = *OldBuildId;
+
+		// Remap all pointers that point to the old guid to the new one.
+		int32 ReferenceCount = 0;
+		for (TPair<const UReflectionCaptureComponent*, FGuid>& item : RegisteredComponentMapBuildDataIds)
+		{
+			if (item.Value == OldBuildIdCopy)
+			{
+				item.Value = Component->MapBuildDataId;
+				ReferenceCount++;
+			}
+		}
+
+		FReflectionCaptureCacheEntry Entry = *CaptureData.Find(OldBuildIdCopy);
+		Entry.RefCount = ReferenceCount;
+
+		CaptureData.Remove(OldBuildIdCopy);
 		CaptureData.Shrink();
 		CaptureData.Add(Component->MapBuildDataId, Entry);
 
-		RegisteredComponentMapBuildDataIds.Add(Component, Component->MapBuildDataId);
+		return true;
 	}
+
+	return false;
 }
 
 void FReflectionCaptureCache::UnregisterComponentMapBuildDataId(const UReflectionCaptureComponent* Component)

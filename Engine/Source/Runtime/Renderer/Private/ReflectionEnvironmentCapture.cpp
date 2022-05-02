@@ -1222,12 +1222,11 @@ void CaptureSceneIntoScratchCubemap(
 	}
 }
 
-void CopyToSceneArray(FRDGBuilder& GraphBuilder, FScene* Scene, FRDGTexture* FilteredCubeTexture, FReflectionCaptureProxy* ReflectionProxy)
+void CopyToSceneArray(FRDGBuilder& GraphBuilder, FScene* Scene, FRDGTexture* FilteredCubeTexture, FReflectionCaptureProxy* ReflectionProxy, int32 CaptureIndex)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "CopyToSceneArray");
 
 	const int32 NumMips = GetNumMips(Scene->ReflectionSceneData.CubemapArray.GetCubemapSize());
-	const int32 CaptureIndex = FindOrAllocateCubemapIndex(Scene, ReflectionProxy->Component);
 
 	FRDGTexture* DestCubeTexture = GraphBuilder.RegisterExternalTexture(Scene->ReflectionSceneData.CubemapArray.GetRenderTarget());
 
@@ -1352,7 +1351,7 @@ void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* Captu
 			ENQUEUE_RENDER_COMMAND(FilterCommand)(
 				[Scene = this, FeatureLevel = FeatureLevel, ReflectionCubemapTexture = ReflectionCubemapTexture.Get(), ReflectionCaptureSize, CaptureComponent, ReflectionProxy](FRHICommandListImmediate& RHICmdList)
 			{
-				FindOrAllocateCubemapIndex(Scene, CaptureComponent);
+				const int32 CubemapIndex = FindOrAllocateCubemapIndex(Scene, CaptureComponent);
 				FCaptureComponentSceneState& FoundState = Scene->ReflectionSceneData.AllocatedReflectionCaptureState.FindChecked(CaptureComponent);
 
 				FRDGBuilder GraphBuilder(RHICmdList);
@@ -1367,7 +1366,7 @@ void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* Captu
 
 				if (FeatureLevel == ERHIFeatureLevel::SM5)
 				{
-					CopyToSceneArray(GraphBuilder, Scene, FilteredSceneCubemapTexture, ReflectionProxy);
+					CopyToSceneArray(GraphBuilder, Scene, FilteredSceneCubemapTexture, ReflectionProxy, CubemapIndex);
 				}
 
 				GraphBuilder.Execute();
