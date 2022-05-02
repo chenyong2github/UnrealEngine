@@ -2387,7 +2387,7 @@ namespace ObjectTools
 						// The file was open for add and reverted, this leaves the file on disk so here we delete it
 						IFileManager::Get().Delete(*PackageFilename);
 					}
-					else if ((!bIsCheckedOut) && (!IFileManager::Get().IsReadOnly(*PackageFilename)))
+					else if (!bIsCheckedOut && SourceControlProvider.UsesLocalReadOnlyState() && !IFileManager::Get().IsReadOnly(*PackageFilename))
 					{
 						// The file was made writable and deleted, so we delete it on disk.
 						IFileManager::Get().Delete(*PackageFilename);
