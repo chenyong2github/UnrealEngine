@@ -3087,13 +3087,20 @@ bool FPerforceDeleteWorkspaceWorker::Execute(FPerforceSourceControlCommand& InCo
 		Parameters.Add(Operation->GetWorkspaceName());
 
 		FP4RecordSet Records;
+		TOptional<FSharedBuffer> NullBuffer;
+		// p4 client command does not return tagged results, which means info will get printed to
+		// stdout which we do not want, so we can use the Quiet flag which is the same as passing
+		// in -q as a global-opt in the command.
+		const ERunCommandFlags RunFlags = ERunCommandFlags::Quiet;
 
 		Connection.RunCommand(	TEXT("client"), 
 								Parameters, 
 								Records, 
+								NullBuffer,
 								InCommand.ResultInfo.ErrorMessages, 
 								FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
-								InCommand.bConnectionDropped);
+								InCommand.bConnectionDropped,
+								RunFlags);
 
 		// p4 client -d doesn't return any records, so the return value of RunCommand will always
 		// be false, so check the error messages instead.

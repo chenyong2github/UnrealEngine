@@ -974,6 +974,9 @@ bool FPerforceConnection::CreateWorkspace(FStringView WorkspaceSpec, FOnIsCancel
 	P4Client.SetBreak(&KeepAlive);
 
 	FP4CommandWithStdInputClientUser User(WorkspaceSpec, Records, Flags, OutErrorMessages, P4Client);
+	User.SetQuiet();	// p4 client does not return tagged output, so any output messages will be
+						// printed to stdout. Setting this will prevent that.
+
 	P4Client.Run("client", &User);
 
 	P4Client.SetBreak(nullptr);
