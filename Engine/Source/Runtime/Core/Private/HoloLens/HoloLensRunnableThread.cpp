@@ -13,7 +13,7 @@ uint32 FRunnableThreadHoloLens::GuardedRun()
 {
 	uint32 ExitCode = 1;
 
-	FPlatformProcess::SetThreadAffinityMask(ThreadAffintyMask);
+	FPlatformProcess::SetThreadAffinityMask(ThreadAffinityMask);
 
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	if (!FPlatformMisc::IsDebuggerPresent() || GAlwaysReportCrash)
@@ -75,4 +75,26 @@ uint32 FRunnableThreadHoloLens::Run()
 	}
 
 	return ExitCode;
+}
+
+int FRunnableThreadHoloLens::TranslateThreadPriority(EThreadPriority Priority)
+{
+	// If this triggers, 
+	static_assert(TPri_Num == 7, "Need to add a case for new TPri_xxx enum value");
+
+	switch (Priority)
+	{
+	case TPri_AboveNormal:			return THREAD_PRIORITY_ABOVE_NORMAL;
+	case TPri_Normal:				return THREAD_PRIORITY_NORMAL;
+	case TPri_BelowNormal:			return THREAD_PRIORITY_BELOW_NORMAL;
+	case TPri_Highest:				return THREAD_PRIORITY_HIGHEST;
+	case TPri_TimeCritical:			return THREAD_PRIORITY_HIGHEST;
+	case TPri_Lowest:				return THREAD_PRIORITY_LOWEST;
+
+		// There is no such things as slightly below normal on Windows.
+		// This can't be below normal since we don't want latency sensitive task to go to efficient cores on Alder Lake.
+	case TPri_SlightlyBelowNormal:	return THREAD_PRIORITY_NORMAL;
+
+	default: UE_LOG(LogHAL, Fatal, TEXT("Unknown Priority passed to TranslateThreadPriority()")); return THREAD_PRIORITY_NORMAL;
+	}
 }
