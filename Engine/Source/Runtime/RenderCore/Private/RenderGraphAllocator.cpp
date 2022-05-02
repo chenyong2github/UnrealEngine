@@ -11,17 +11,34 @@ FRDGAllocator& FRDGAllocator::Get()
 
 FRDGAllocator::~FRDGAllocator()
 {
+#if RDG_USE_MALLOC
+	check(Context.RawAllocs.IsEmpty() && ContextForTasks.RawAllocs.IsEmpty());
+#else
 	check(Context.MemStack.IsEmpty() && ContextForTasks.MemStack.IsEmpty());
+#endif
 }
 
 void FRDGAllocator::FContext::ReleaseAll()
 {
 	for (int32 Index = TrackedAllocs.Num() - 1; Index >= 0; --Index)
 	{
+#if RDG_USE_MALLOC
+		delete TrackedAllocs[Index];
+#else
 		TrackedAllocs[Index]->~FTrackedAlloc();
+#endif
 	}
 	TrackedAllocs.Reset();
+
+#if RDG_USE_MALLOC
+	for (void* RawAlloc : RawAllocs)
+	{
+		FMemory::Free(RawAlloc);
+	}
+	RawAllocs.Reset();
+#else
 	MemStack.Flush();
+#endif
 }
 
 void FRDGAllocator::ReleaseAll()

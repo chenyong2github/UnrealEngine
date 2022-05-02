@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Misc/MemStack.h"
 
+#define RDG_USE_MALLOC 0
+
 /** Private allocator used by RDG to track its internal memory. All memory is released after RDG builder execution. */
 class RENDERCORE_API FRDGAllocator final
 {
@@ -14,7 +16,13 @@ public:
 	/** Allocates raw memory. */
 	FORCEINLINE void* Alloc(uint64 SizeInBytes, uint32 AlignInBytes)
 	{
+#if RDG_USE_MALLOC
+		void* Memory = FMemory::Malloc(SizeInBytes, AlignInBytes);
+		GetContext().RawAllocs.Emplace(Memory);
+		return Memory;
+#else
 		return GetContext().MemStack.Alloc(SizeInBytes, AlignInBytes);
+#endif
 	}
 
 	/** Allocates an uninitialized type without destructor tracking. */
@@ -29,7 +37,11 @@ public:
 	FORCEINLINE T* Alloc(TArgs&&... Args)
 	{
 		FContext& LocalContext = GetContext();
+	#if RDG_USE_MALLOC
+		TTrackedAlloc<T>* TrackedAlloc = new TTrackedAlloc<T>(Forward<TArgs&&>(Args)...);
+	#else
 		TTrackedAlloc<T>* TrackedAlloc = new(LocalContext.MemStack) TTrackedAlloc<T>(Forward<TArgs&&>(Args)...);
+	#endif
 		check(TrackedAlloc);
 		LocalContext.TrackedAllocs.Add(TrackedAlloc);
 		return &TrackedAlloc->Alloc;
@@ -39,12 +51,20 @@ public:
 	template <typename T, typename... TArgs>
 	FORCEINLINE T* AllocNoDestruct(TArgs&&... Args)
 	{
+#if RDG_USE_MALLOC
+		return new (AllocUninitialized<T>(1)) T(Forward<TArgs&&>(Args)...);
+#else
 		return new (GetContext().MemStack) T(Forward<TArgs&&>(Args)...);
+#endif
 	}
 
 	FORCEINLINE int32 GetByteCount() const
 	{
+	#if RDG_USE_MALLOC
+		return 0;
+	#else
 		return Context.MemStack.GetByteCount() + ContextForTasks.MemStack.GetByteCount();
+	#endif
 	}
 
 private:
@@ -70,7 +90,11 @@ private:
 
 	struct FContext
 	{
+#if RDG_USE_MALLOC
+		TArray<void*> RawAllocs;
+#else
 		FMemStackBase MemStack;
+#endif
 		TArray<FTrackedAlloc*> TrackedAllocs;
 
 		void ReleaseAll();
