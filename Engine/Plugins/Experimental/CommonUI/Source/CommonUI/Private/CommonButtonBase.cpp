@@ -746,9 +746,12 @@ void UCommonButtonBase::SetSelectedInternal(bool bInSelected, bool bAllowSound /
 
 void UCommonButtonBase::RefreshDimensions()
 {
-	const UCommonButtonStyle* const StyleCDO = GetStyleCDO();
-	RootButton->SetMinDesiredWidth(FMath::Max(MinWidth, StyleCDO ? StyleCDO->MinWidth : 0));
-	RootButton->SetMinDesiredHeight(FMath::Max(MinHeight, StyleCDO ? StyleCDO->MinHeight : 0));
+	if (RootButton.IsValid())
+	{
+		const UCommonButtonStyle* const StyleCDO = GetStyleCDO();
+		RootButton->SetMinDesiredWidth(FMath::Max(MinWidth, StyleCDO ? StyleCDO->MinWidth : 0));
+		RootButton->SetMinDesiredHeight(FMath::Max(MinHeight, StyleCDO ? StyleCDO->MinHeight : 0));
+	}
 }
 
 void UCommonButtonBase::NativeOnMouseEnter(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
