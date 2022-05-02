@@ -402,7 +402,8 @@ static void ClearOutAnyActiveTools()
 void FControlRigEditMode::Exit()
 {
 	ClearOutAnyActiveTools();
-
+	OnControlRigAddedOrRemovedDelegate.Clear();
+	OnControlRigSelectedDelegate.Clear();
 	for (TWeakObjectPtr<UControlRig>& RuntimeRigPtr : RuntimeControlRigs)
 	{
 		if (UControlRig* ControlRig = RuntimeRigPtr.Get())
@@ -437,8 +438,7 @@ void FControlRigEditMode::Exit()
 	}
 
 	DestroyShapesActors(nullptr);
-	OnControlRigAddedOrRemovedDelegate.Clear();
-	OnControlRigSelectedDelegate.Clear();
+
 
 	TArray<TWeakObjectPtr<UControlRig>> PreviousRuntimeRigs = RuntimeControlRigs;
 	for (int32 PreviousRuntimeRigIndex = 0; PreviousRuntimeRigIndex < PreviousRuntimeRigs.Num(); PreviousRuntimeRigIndex++)
@@ -2875,11 +2875,13 @@ void FControlRigEditMode::RecreateControlShapeActors(const TArray<FRigElementKey
 	}
 	else if(ControlRigsToRecreate.Num() > 0)
 	{
-		for (UControlRig* ControlRig : ControlRigsToRecreate)
+		TArray < UControlRig*> ControlRigsCopy = ControlRigsToRecreate;
+		for (UControlRig* ControlRig : ControlRigsCopy)
 		{
 			DestroyShapesActors(ControlRig);
 			CreateShapeActors(ControlRig);
 		}
+		ControlRigsToRecreate.SetNum(0);
 	}
 }
 
@@ -3786,7 +3788,7 @@ void FControlRigEditMode::DestroyShapesActors(UControlRig* ControlRig)
 				UWorld* World = ShapeActor->GetWorld();
 				if (World)
 				{
-					World->DestroyActor(ShapeActor);
+					World->EditorDestroyActor(ShapeActor, true);
 				}
 			}
 		}
@@ -3808,7 +3810,7 @@ void FControlRigEditMode::DestroyShapesActors(UControlRig* ControlRig)
 				UWorld* World = ShapeActor->GetWorld();
 				if (World)
 				{
-					World->DestroyActor(ShapeActor);
+					World->EditorDestroyActor(ShapeActor,true);
 				}
 			}
 			ControlRigShapeActors.Remove(ControlRig);
