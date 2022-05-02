@@ -57,3 +57,14 @@ struct STATETREEMODULE_API FStateTreeTaskBase : public FStateTreeNodeBase
 	virtual void AppendDebugInfoString(FString& DebugString, const FStateTreeExecutionContext& Context) const;
 #endif
 };
+
+/**
+ * Base class (namespace) for all common Tasks that are generally applicable.
+ * This allows schemas to safely include all conditions child of this struct. 
+ */
+USTRUCT(meta = (Hidden))
+struct STATETREEMODULE_API FStateTreeTaskCommonBase : public FStateTreeTaskBase
+{
+	GENERATED_BODY()
+};
+

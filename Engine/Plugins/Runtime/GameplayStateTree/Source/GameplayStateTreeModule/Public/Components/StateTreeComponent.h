@@ -2,35 +2,20 @@
 
 #pragma once
 
-#include "Components/ActorComponent.h"
-#include "GameplayTagAssetInterface.h"
 #include "GameplayTagContainer.h"
 #include "StateTreeExecutionContext.h"
 #include "BrainComponent.h"
 #include "Tasks/AITask.h"
-#include "StateTreeBrainComponent.generated.h"
+#include "StateTreeComponent.generated.h"
 
 class UStateTree;
 
-
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "Brain Component"))
-class STATETREEMODULE_API UBrainComponentStateTreeSchema : public UStateTreeSchema
-{
-	GENERATED_BODY()
-
-public:
-	virtual bool IsStructAllowed(const UScriptStruct* InScriptStruct) const override;
-	virtual bool IsClassAllowed(const UClass* InScriptStruct) const override;
-	virtual bool IsExternalItemAllowed(const UStruct& InStruct) const override;
-};
-
-
 UCLASS(ClassGroup = AI, HideCategories = (Activation, Collision), meta = (BlueprintSpawnableComponent))
-class STATETREEMODULE_API UStateTreeBrainComponent : public UBrainComponent, public IGameplayTaskOwnerInterface
+class GAMEPLAYSTATETREEMODULE_API UStateTreeComponent : public UBrainComponent, public IGameplayTaskOwnerInterface
 {
 	GENERATED_BODY()
 public:
-	UStateTreeBrainComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+	UStateTreeComponent(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
 	// BEGIN UActorComponent overrides
 	virtual void InitializeComponent() override;
@@ -65,7 +50,7 @@ protected:
 
 	bool SetContextRequirements();
 	
-	UPROPERTY(EditDefaultsOnly, Category = AI, meta=(RequiredAssetDataTags="Schema=BrainComponentStateTreeSchema"))
+	UPROPERTY(EditDefaultsOnly, Category = AI, meta=(RequiredAssetDataTags="Schema=StateTreeComponentSchema"))
 	UStateTree* StateTree;
 
 	UPROPERTY(Transient)

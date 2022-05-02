@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Components/StateTreeBrainComponent.h"
+#include "Components/StateTreeComponent.h"
 #include "GameFramework/Actor.h"
 #include "GameplayTasksComponent.h"
 #include "VisualLogger/VisualLogger.h"
@@ -13,33 +13,10 @@
 #define STATETREE_LOG(Verbosity, Format, ...) UE_VLOG(GetOwner(), LogStateTree, Verbosity, Format, ##__VA_ARGS__)
 #define STATETREE_CLOG(Condition, Verbosity, Format, ...) UE_CVLOG((Condition), GetOwner(), LogStateTree, Verbosity, Format, ##__VA_ARGS__)
 
-
 //////////////////////////////////////////////////////////////////////////
-// UBrainComponentStateTreeSchema
+// UStateTreeComponent
 
-bool UBrainComponentStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) const
-{
-	return InScriptStruct->IsChildOf(FStateTreeConditionCommonBase::StaticStruct())
-			|| InScriptStruct->IsChildOf(FStateTreeEvaluatorCommonBase::StaticStruct());
-}
-
-bool UBrainComponentStateTreeSchema::IsClassAllowed(const UClass* InClass) const
-{
-	return IsChildOfBlueprintBase(InClass);
-}
-
-bool UBrainComponentStateTreeSchema::IsExternalItemAllowed(const UStruct& InStruct) const
-{
-	// Actors and components.
-	return InStruct.IsChildOf(AActor::StaticClass())
-			|| InStruct.IsChildOf(UActorComponent::StaticClass())
-			|| InStruct.IsChildOf(UWorldSubsystem::StaticClass());
-}
-
-//////////////////////////////////////////////////////////////////////////
-// UStateTreeBrainComponent
-
-UStateTreeBrainComponent::UStateTreeBrainComponent(const FObjectInitializer& ObjectInitializer)
+UStateTreeComponent::UStateTreeComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bWantsInitializeComponent = true;
@@ -47,7 +24,7 @@ UStateTreeBrainComponent::UStateTreeBrainComponent(const FObjectInitializer& Obj
 	bIsPaused = false;
 }
 
-void UStateTreeBrainComponent::InitializeComponent()
+void UStateTreeComponent::InitializeComponent()
 {
 	if (StateTree == nullptr)
 	{
@@ -61,11 +38,11 @@ void UStateTreeBrainComponent::InitializeComponent()
 	}
 }
 
-void UStateTreeBrainComponent::UninitializeComponent()
+void UStateTreeComponent::UninitializeComponent()
 {
 }
 
-bool UStateTreeBrainComponent::SetContextRequirements()
+bool UStateTreeComponent::SetContextRequirements()
 {
 	if (!StateTreeContext.IsValid())
 	{
@@ -113,7 +90,7 @@ bool UStateTreeBrainComponent::SetContextRequirements()
 	return StateTreeContext.AreExternalDataViewsValid();
 }
 
-void UStateTreeBrainComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+void UStateTreeComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -128,7 +105,7 @@ void UStateTreeBrainComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	}
 }
 
-void UStateTreeBrainComponent::StartLogic()
+void UStateTreeComponent::StartLogic()
 {
 	STATETREE_LOG(Log, TEXT("%s: Start Logic"), ANSI_TO_TCHAR(__FUNCTION__));
 
@@ -139,7 +116,7 @@ void UStateTreeBrainComponent::StartLogic()
 	}
 }
 
-void UStateTreeBrainComponent::RestartLogic()
+void UStateTreeComponent::RestartLogic()
 {
 	STATETREE_LOG(Log, TEXT("%s: Restart Logic"), ANSI_TO_TCHAR(__FUNCTION__));
 
@@ -150,7 +127,7 @@ void UStateTreeBrainComponent::RestartLogic()
 	}
 }
 
-void UStateTreeBrainComponent::StopLogic(const FString& Reason)
+void UStateTreeComponent::StopLogic(const FString& Reason)
 {
 	STATETREE_LOG(Log, TEXT("%s: Stopping, reason: \'%s\'"), ANSI_TO_TCHAR(__FUNCTION__), *Reason);
 
@@ -161,17 +138,17 @@ void UStateTreeBrainComponent::StopLogic(const FString& Reason)
 	}
 }
 
-void UStateTreeBrainComponent::Cleanup()
+void UStateTreeComponent::Cleanup()
 {
 }
 
-void UStateTreeBrainComponent::PauseLogic(const FString& Reason)
+void UStateTreeComponent::PauseLogic(const FString& Reason)
 {
 	STATETREE_LOG(Log, TEXT("%s: Execution updates: PAUSED (%s)"), ANSI_TO_TCHAR(__FUNCTION__), *Reason);
 	bIsPaused = true;
 }
 
-EAILogicResuming::Type UStateTreeBrainComponent::ResumeLogic(const FString& Reason)
+EAILogicResuming::Type UStateTreeComponent::ResumeLogic(const FString& Reason)
 {
 	STATETREE_LOG(Log, TEXT("%s: Execution updates: RESUMED (%s)"), ANSI_TO_TCHAR(__FUNCTION__), *Reason);
 
@@ -194,23 +171,23 @@ EAILogicResuming::Type UStateTreeBrainComponent::ResumeLogic(const FString& Reas
 	return SuperResumeResult;
 }
 
-bool UStateTreeBrainComponent::IsRunning() const
+bool UStateTreeComponent::IsRunning() const
 {
 	return bIsRunning;
 }
 
-bool UStateTreeBrainComponent::IsPaused() const
+bool UStateTreeComponent::IsPaused() const
 {
 	return bIsPaused;
 }
 
-UGameplayTasksComponent* UStateTreeBrainComponent::GetGameplayTasksComponent(const UGameplayTask& Task) const
+UGameplayTasksComponent* UStateTreeComponent::GetGameplayTasksComponent(const UGameplayTask& Task) const
 {
 	const UAITask* AITask = Cast<const UAITask>(&Task);
 	return (AITask && AITask->GetAIController()) ? AITask->GetAIController()->GetGameplayTasksComponent(Task) : Task.GetGameplayTasksComponent();
 }
 
-AActor* UStateTreeBrainComponent::GetGameplayTaskOwner(const UGameplayTask* Task) const
+AActor* UStateTreeComponent::GetGameplayTaskOwner(const UGameplayTask* Task) const
 {
 	if (Task == nullptr)
 	{
@@ -227,7 +204,7 @@ AActor* UStateTreeBrainComponent::GetGameplayTaskOwner(const UGameplayTask* Task
 	return TasksComponent ? TasksComponent->GetGameplayTaskOwner(Task) : nullptr;
 }
 
-AActor* UStateTreeBrainComponent::GetGameplayTaskAvatar(const UGameplayTask* Task) const
+AActor* UStateTreeComponent::GetGameplayTaskAvatar(const UGameplayTask* Task) const
 {
 	if (Task == nullptr)
 	{
@@ -244,12 +221,12 @@ AActor* UStateTreeBrainComponent::GetGameplayTaskAvatar(const UGameplayTask* Tas
 	return TasksComponent ? TasksComponent->GetGameplayTaskAvatar(Task) : nullptr;
 }
 
-uint8 UStateTreeBrainComponent::GetGameplayTaskDefaultPriority() const
+uint8 UStateTreeComponent::GetGameplayTaskDefaultPriority() const
 {
 	return static_cast<uint8>(EAITaskPriority::AutonomousAI);
 }
 
-void UStateTreeBrainComponent::OnGameplayTaskInitialized(UGameplayTask& Task)
+void UStateTreeComponent::OnGameplayTaskInitialized(UGameplayTask& Task)
 {
 	const UAITask* AITask = Cast<const UAITask>(&Task);
 	if (AITask && (AITask->GetAIController() == nullptr))
@@ -262,7 +239,7 @@ void UStateTreeBrainComponent::OnGameplayTaskInitialized(UGameplayTask& Task)
 }
 
 #if WITH_GAMEPLAY_DEBUGGER
-FString UStateTreeBrainComponent::GetDebugInfoString() const
+FString UStateTreeComponent::GetDebugInfoString() const
 {
 	return StateTreeContext.GetDebugInfoString();
 }
