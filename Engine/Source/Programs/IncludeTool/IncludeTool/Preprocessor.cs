@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using IncludeTool;
 using IncludeTool.Support;
+using EpicGames.Core;
 using System.Diagnostics;
 using System.IO;
 using System.Collections;

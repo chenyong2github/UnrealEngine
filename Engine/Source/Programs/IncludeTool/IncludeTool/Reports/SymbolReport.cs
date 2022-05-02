@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using IncludeTool.Support;
+using EpicGames.Core;
 using System.IO;
 
 namespace IncludeTool

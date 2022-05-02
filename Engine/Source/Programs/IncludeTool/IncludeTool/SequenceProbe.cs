@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Diagnostics;
 using IncludeTool.Support;
+using EpicGames.Core;
 
 namespace IncludeTool
 {

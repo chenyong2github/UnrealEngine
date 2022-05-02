@@ -2,6 +2,8 @@
 
 using IncludeTool.Reports;
 using IncludeTool.Support;
+using EpicGames.Core;
+using UnrealBuildBase;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -273,7 +275,7 @@ namespace IncludeTool
 
 			// Parse the command line options
 			CommandLineOptions Options = new CommandLineOptions();
-			if(!CommandLine.Parse(Args, Options))
+			if(!Support.CommandLine.Parse(Args, Options))
 			{
 				return 1;
 			}
@@ -307,7 +309,7 @@ namespace IncludeTool
 				}
 
 				// Read the exported target information
-				BuildTarget Target = BuildTarget.Read(TaskListFile.ChangeExtension(".json").FullName);
+				BuildTarget Target = BuildTarget.Read(TaskListFile.ChangeExtension(".json"));
 
 				/// Cache all the files
 				Log.WriteLine("Caching contents of {0}...", InputDir.FullName);
@@ -903,14 +905,13 @@ namespace IncludeTool
 				}
 			}
 
-			DirectoryReference WorkingDir = DirectoryReference.Combine(RootDir, "Engine");
-
-			FileReference UnrealBuildTool = FileReference.Combine(RootDir, "Engine", "Binaries", "DotNET", "UnrealBuildTool", "UnrealBuildTool.exe");
-			if (Utility.Run(UnrealBuildTool, String.Format("-Mode=JsonExport {0} {1} {2}{3} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -define:UE_INCLUDE_TOOL=1 -execcodegenactions -outputfile=\"{4}\"", Target, Configuration, Platform, Precompile? " -precompile" : "", TaskListFile.ChangeExtension(".json").FullName), WorkingDir, Log) != 0)
+			if (Utility.Run(Unreal.DotnetPath, String.Format("{0} -Mode=JsonExport {1} {2} {3}{4} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -define:UE_INCLUDE_TOOL=1 -execcodegenactions -outputfile=\"{5}\"", 
+				Unreal.UnrealBuildToolDllPath, Target, Configuration, Platform, Precompile? " -precompile" : "", TaskListFile.ChangeExtension(".json").FullName), Unreal.EngineDirectory, Log) != 0)
 			{
 				throw new Exception("UnrealBuildTool failed");
 			}
-			if (Utility.Run(UnrealBuildTool, String.Format("{0} {1} {2}{3} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -define:UE_INCLUDE_TOOL=1", Target, Configuration, Platform, Precompile? " -precompile" : ""), WorkingDir, Log) != 0)
+			if (Utility.Run(Unreal.DotnetPath, String.Format("{0} {1} {2} {3}{4} -disableunity -xgeexport -nobuilduht -nopch -nodebuginfo -define:UE_INCLUDE_TOOL=1", 
+				Unreal.UnrealBuildToolDllPath, Target, Configuration, Platform, Precompile? " -precompile" : ""), Unreal.EngineDirectory, Log) != 0)
 			{
 				throw new Exception("UnrealBuildTool failed");
 			}

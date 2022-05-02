@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -92,9 +93,9 @@ namespace IncludeTool
 		public List<BuildModule> Modules = new List<BuildModule>();
 		public Dictionary<string, BuildModule> NameToModule = new Dictionary<string, BuildModule>();
 
-		public static BuildTarget Read(string FileName)
+		public static BuildTarget Read(FileReference File)
 		{
-			JsonObject Object = JsonObject.Read(FileName);
+			JsonObject Object = JsonObject.Read(File);
 
 			BuildTarget Target = new BuildTarget();
 			Target.Name = Object.GetStringField("Name");

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using IncludeTool.Support;
+using EpicGames.Core;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -321,7 +322,7 @@ namespace IncludeTool
 	/// <summary>
 	/// Worker class to find files in the workspace
 	/// </summary>
-	class WorkspaceScanner : IThreadPoolWorker
+	class WorkspaceScanner
 	{
 		/// <summary>
 		/// The current directory being searched
@@ -363,7 +364,7 @@ namespace IncludeTool
 					}
 					else
 					{
-						Queue.Enqueue(new WorkspaceScanner(ChildDirectory));
+						Queue.Enqueue(() => new WorkspaceScanner(ChildDirectory).Run(Queue));
 					}
 				}
 				CurrentDirectory = NextDirectory;
@@ -374,7 +375,7 @@ namespace IncludeTool
 	/// <summary>
 	/// Worker class to find files in the workspace
 	/// </summary>
-	class WorkspaceReferenceScanner : IThreadPoolWorker
+	class WorkspaceReferenceScanner
 	{
 		/// <summary>
 		/// The current directory being searched
@@ -424,7 +425,7 @@ namespace IncludeTool
 			{
 				if (Rules.SearchDirectoryForSource(Directory.NormalizedPathFromBranchRoot))
 				{
-					Queue.Enqueue(new WorkspaceReferenceScanner(Directory, FoundFiles));
+					Queue.Enqueue(() => new WorkspaceReferenceScanner(Directory, FoundFiles).Run(Queue));
 				}
 			}
 		}
@@ -479,7 +480,7 @@ namespace IncludeTool
 		{
 			using (ThreadPoolWorkQueue WorkQueue = new ThreadPoolWorkQueue())
 			{
-				WorkQueue.Enqueue(new WorkspaceScanner(Directory));
+				WorkQueue.Enqueue(() => new WorkspaceScanner(Directory).Run(WorkQueue));
 			}
 		}
 
