@@ -2611,6 +2611,7 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 
 	/** Delegate used by SavePackage() to create the package backup */
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FAutoPackageBackupDelegate, const UPackage&);
+	UE_DEPRECATED(5.1, "Backups are no longer used in Unreal Package Saves")
 	static FAutoPackageBackupDelegate AutoPackageBackupDelegate;
 #endif // WITH_EDITOR
 

@@ -13,7 +13,7 @@
  * to be backed-up to a special auto save/backup directory. Backups are traditionally
  * made before a save occurs to a package, to help guard against corruption/data loss.
  */
-class FAutoPackageBackup
+class UE_DEPRECATED(5.1, "Backups are no longer used in Unreal Package Saves") FAutoPackageBackup
 {
 public:
 	

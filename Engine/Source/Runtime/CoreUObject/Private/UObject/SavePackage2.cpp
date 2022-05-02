@@ -1123,8 +1123,6 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 			{
 				FPackageIndex DependencyIndex = Linker->ObjectIndicesMap.FindRef(DependentObject);
 
-				//@todo FH: UnmarkExportTagFromDuplicates redirect??
-
 				// if we didn't find it (FindRef returns 0 on failure, which is good in this case), then we are in trouble, something went wrong somewhere
 				checkf(!DependencyIndex.IsNull(), TEXT("Failed to find dependency index for %s (%s)"), *DependentObject->GetFullName(), *Object->GetFullName());
 
@@ -2618,47 +2616,15 @@ ESavePackageResult UPackage::SaveConcurrent(TArrayView<FPackageSaveInfo> InPacka
 	SlowTask.EnterProgressFrame();
 	{
 		SCOPED_SAVETIMER(UPackage_SaveConcurrent);
-		// Use concurrent new save only if new save is enabled, otherwise use old save
-		if (SavePackageUtilities::IsNewSaveEnabled(SaveArgs.IsCooking()))
-		{
-			// @todo: Once GIsSavingPackage is reworked we should reinstore the saving flag here for the gc lock
-			// Passing in false here so that GIsSavingPackage is set to true on top of locking the GC
-			//FScopedSavingFlag IsSavingFlag(false);
+		// @todo: Once GIsSavingPackage is reworked we should reinstore the saving flag here for the gc lock
+		// Passing in false here so that GIsSavingPackage is set to true on top of locking the GC
+		//FScopedSavingFlag IsSavingFlag(false);
 
-			// Concurrent Part
-			ParallelFor(PackageSaveContexts.Num(), [&PackageSaveContexts](int32 PackageIdx)
-				{
-					InnerSave(PackageSaveContexts[PackageIdx]);
-				});
-		}
-		else
-		{
-			FSavePackageArgs ConcurrentSaveArgs = SaveArgs;
-			ConcurrentSaveArgs.SaveFlags |= SAVE_Concurrent;
-			ConcurrentSaveArgs.bSlowTask = false;
-			// save concurrently if the SAVE_Concurrent flag is present
-			if (SaveArgs.SaveFlags & SAVE_Concurrent)
+		// Concurrent Part
+		ParallelFor(PackageSaveContexts.Num(), [&PackageSaveContexts](int32 PackageIdx)
 			{
-				GIsSavingPackage = true;
-				ParallelFor(PackageSaveContexts.Num(), [&PackageSaveContexts, &ConcurrentSaveArgs](int32 PackageIdx)
-					{
-						FSaveContext& SaveContext = PackageSaveContexts[PackageIdx];
-						Save(SaveContext.GetPackage(), SaveContext.GetAsset(), SaveContext.GetFilename(),
-							ConcurrentSaveArgs);
-					});
-				GIsSavingPackage = false;
-			}
-			// otherwise save serial
-			else
-			{
-				// still pass in the SAVE_Concurrent flag on ConcurrentSaveArgs so that we don't redo things we have handled already
-				for (FSaveContext& SaveContext : PackageSaveContexts)
-				{
-					Save(SaveContext.GetPackage(), SaveContext.GetAsset(), SaveContext.GetFilename(),
-						ConcurrentSaveArgs);
-				}
-			}
-		}
+				InnerSave(PackageSaveContexts[PackageIdx]);
+			});
 	}
 
 	// Run Post Concurrent Save

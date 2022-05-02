@@ -351,9 +351,6 @@ namespace SavePackageUtilities
 	extern const FName NAME_Level;
 	extern const FName NAME_PrestreamPackage;
 
-	// return if the new save algorithm is enabled for cooked or uncooked
-	bool IsNewSaveEnabled(bool bForCooking = false);
-
 	void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
 
 	/**
@@ -398,9 +395,6 @@ namespace SavePackageUtilities
 	
 	void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record);
 	EObjectMark GetExcludedObjectMarksForTargetPlatform(const class ITargetPlatform* TargetPlatform);
-	bool HasUnsaveableOuter(UObject* InObj, UPackage* InSavingPackage);
-	void CheckObjectPriorToSave(FArchiveUObject& Ar, UObject* InObj, UPackage* InSavingPackage);
-	void ConditionallyExcludeObjectForTarget(UObject* Obj, EObjectMark ExcludedObjectMarks, const ITargetPlatform* TargetPlatform);
 	void FindMostLikelyCulprit(const TArray<UObject*>& BadObjects, UObject*& MostLikelyCulprit, FString& OutReferencer, FSaveContext* InOptionalSaveContext = nullptr);
 	
 	/** 

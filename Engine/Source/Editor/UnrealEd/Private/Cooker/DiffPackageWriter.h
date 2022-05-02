@@ -224,7 +224,6 @@ public:
 private:
 	enum class EDiffMode : uint8
 	{
-		LDM_Algo,
 		LDM_Consistent,
 	};
 
@@ -235,8 +234,6 @@ private:
 	FSavePackageResultStruct OtherResult;
 	FBeginPackageInfo BeginInfo;
 	TUniquePtr<ICookedPackageWriter> Inner;
-	IConsoleVariable* EnableNewSave = nullptr;
-	int32 CurrentEnableNewSaveValue = 0;
-	EDiffMode DiffMode = EDiffMode::LDM_Algo;
+	EDiffMode DiffMode = EDiffMode::LDM_Consistent;
 	bool bHasStartedSecondSave = false;
 };

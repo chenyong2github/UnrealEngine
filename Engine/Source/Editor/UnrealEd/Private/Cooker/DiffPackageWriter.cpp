@@ -295,18 +295,7 @@ FLinkerDiffPackageWriter::FLinkerDiffPackageWriter(TUniquePtr<ICookedPackageWrit
 {
 	FString DiffModeText;
 	FParse::Value(FCommandLine::Get(), TEXT("-LINKERDIFF="), DiffModeText);
-	DiffMode = EDiffMode::LDM_Algo;
-	if (DiffModeText == TEXT("1") || DiffModeText == TEXT("algo"))
-	{
-		DiffMode = EDiffMode::LDM_Algo;
-	}
-	else if (DiffModeText == TEXT("2") || DiffModeText == TEXT("consistent"))
-	{
-		DiffMode = EDiffMode::LDM_Consistent;
-	}
-
-	EnableNewSave = IConsoleManager::Get().FindConsoleVariable(TEXT("SavePackage.EnableNewSave"));
-	CurrentEnableNewSaveValue = EnableNewSave->GetInt();
+	DiffMode = EDiffMode::LDM_Consistent; // (DiffModeText == TEXT("2") || DiffModeText == TEXT("consistent"))
 }
 
 void FLinkerDiffPackageWriter::BeginPackage(const FBeginPackageInfo& Info)
@@ -350,10 +339,6 @@ bool FLinkerDiffPackageWriter::IsAnotherSaveNeeded(FSavePackageResultStruct& Pre
 	{
 		CompareResults(PreviousResult);
 
-		if (DiffMode == EDiffMode::LDM_Algo)
-		{
-			EnableNewSave->Set(CurrentEnableNewSaveValue);
-		}
 		OtherResult.LinkerSave.Reset();
 		PreviousResult.LinkerSave.Reset();
 
@@ -363,21 +348,10 @@ bool FLinkerDiffPackageWriter::IsAnotherSaveNeeded(FSavePackageResultStruct& Pre
 
 void FLinkerDiffPackageWriter::SetupOtherAlgorithm()
 {
-	// If mode is comparing the two save algorithms, switch the cvar to the other algo before saving again,
-	// Otherwise the linker diff mode is tracking if the save is consistent across multiple save
-	if (DiffMode == EDiffMode::LDM_Algo)
-	{
-		// see CVarEnablePackageNewSave definition in SavePackageUtilities.cpp for value meaning
-		EnableNewSave->Set(CurrentEnableNewSaveValue & 1 ? 0 : 1);
-	}
 }
 
 void FLinkerDiffPackageWriter::SetupCurrentAlgorithm()
 {
-	if (DiffMode == EDiffMode::LDM_Algo)
-	{
-		EnableNewSave->Set(CurrentEnableNewSaveValue);
-	}
 }
 
 void FLinkerDiffPackageWriter::CompareResults(FSavePackageResultStruct& CurrentResult)

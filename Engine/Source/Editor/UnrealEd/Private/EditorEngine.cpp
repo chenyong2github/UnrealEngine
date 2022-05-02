@@ -108,7 +108,6 @@
 #include "ScopedTransaction.h"
 
 #include "ILocalizationServiceModule.h"
-#include "PackageBackup.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 #include "Layers/LayersSubsystem.h"
@@ -703,7 +702,6 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 
 	// Setup delegate callbacks for SavePackage()
 	FCoreUObjectDelegates::IsPackageOKToSaveDelegate.BindUObject(this, &UEditorEngine::IsPackageOKToSave);
-	FCoreUObjectDelegates::AutoPackageBackupDelegate.BindStatic(&FAutoPackageBackup::BackupPackage);
 
 	// Update recents
 	UpdateRecentlyLoadedProjectFiles();
