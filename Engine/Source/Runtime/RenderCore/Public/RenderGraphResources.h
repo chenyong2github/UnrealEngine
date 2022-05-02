@@ -269,6 +269,8 @@ public:
 protected:
 	FRDGViewableResource(const TCHAR* InName, ERDGViewableResourceType InType, bool bSkipTracking);
 
+	static const ERHIAccess DefaultEpilogueAccess = ERHIAccess::SRVMask;
+
 	enum class ETransientExtractionHint : uint8
 	{
 		None,
@@ -291,22 +293,20 @@ protected:
 
 	struct FAccessModeState
 	{
-		using FQueueIndex = TRDGHandle<FAccessModeState, uint16>;
-
-		bool IsQueued() const { return QueueIndex.IsValid(); }
-		bool IsExternalAccess() const { return Mode == EAccessMode::External && !IsQueued(); }
+		bool IsExternalAccess() const { return Mode == EAccessMode::External && !bQueued; }
 
 		FAccessModeState()
 			: Pipelines(ERHIPipeline::None)
 			, Mode(EAccessMode::Internal)
 			, bLocked(0)
+			, bQueued(0)
 		{}
 
 		ERHIAccess			Access			= ERHIAccess::None;
 		ERHIPipeline		Pipelines		: 2;
 		EAccessMode			Mode			: 1;
 		uint8				bLocked			: 1;
-		FQueueIndex QueueIndex;
+		uint8				bQueued			: 1;
 
 	} AccessModeState;
 
@@ -350,7 +350,7 @@ protected:
 	FRDGPassHandle LastPass;
 
 	/** The state of the resource at the graph epilogue. */
-	ERHIAccess EpilogueAccess = ERHIAccess::SRVMask;
+	ERHIAccess EpilogueAccess = DefaultEpilogueAccess;
 
 private:
 	/** Number of references in passes and deferred queries. */
@@ -369,6 +369,8 @@ private:
 
 		// External access resources are not always added to the pass states (unless marked as such within the graph), so marked as not culled here.
 		bCulled = 0;
+
+		EpilogueAccess = InReadOnlyAccess;
 	}
 
 #if RDG_ENABLE_TRACE
@@ -1212,6 +1214,11 @@ public:
 	FORCEINLINE uint32 GetSize() const
 	{
 		return Desc.GetSize();
+	}
+
+	FORCEINLINE uint32 GetStride() const
+	{
+		return Desc.BytesPerElement;
 	}
 
 private:

@@ -143,6 +143,10 @@ public:
 		Dependencies.Reserve(TransitionBatchCount);
 	}
 
+	FRDGBarrierBatchEndId GetId() const;
+
+	bool IsPairedWith(const FRDGBarrierBatchBegin& BeginBatch) const;
+
 private:
 	TArray<FRDGBarrierBatchBegin*, TInlineAllocator<4, FRDGArrayAllocator>> Dependencies;
 	FRDGPass* Pass;

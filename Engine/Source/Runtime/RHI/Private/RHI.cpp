@@ -1506,8 +1506,8 @@ RHI_API uint64 GRHITransitionPrivateData_AlignInBytes = 0;
 // By default, read only states and UAV states are allowed to participate in state merging.
 ERHIAccess GRHIMergeableAccessMask = ERHIAccess::ReadOnlyMask | ERHIAccess::UAVMask;
 
-// By default, no multi-pipe states are allowed. Each platform must opt-in.
-ERHIAccess GRHIMultiPipelineMergeableAccessMask = ERHIAccess::Unknown;
+// By default, only exclusively read only accesses are allowed.
+ERHIAccess GRHIMultiPipelineMergeableAccessMask = ERHIAccess::ReadOnlyExclusiveMask;
 
 /** Called once per frame only from within an RHI. */
 void RHIPrivateBeginFrame()

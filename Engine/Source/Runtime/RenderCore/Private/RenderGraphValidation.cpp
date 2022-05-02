@@ -486,7 +486,8 @@ void FRDGUserValidation::ValidateUseExternalAccessMode(FRDGViewableResource* Res
 
 	const auto& AccessModeState = Resource->AccessModeState;
 	checkf(!AccessModeState.bLocked, TEXT("Resource is locked in external access mode by the SkipTracking resource flag: %s."), Resource->Name);
-	checkf(IsReadOnlyAccess(ReadOnlyAccess), TEXT("A read only access is required when use external access mode. (Resource: %s, Access: %s, Pipelines: %s)"), Resource->Name, *GetRHIAccessName(ReadOnlyAccess), *GetRHIPipelineName(Pipelines));
+	checkf(IsReadOnlyExclusiveAccess(ReadOnlyAccess), TEXT("A read only access is required when use external access mode. (Resource: %s, Access: %s, Pipelines: %s)"), Resource->Name, *GetRHIAccessName(ReadOnlyAccess), *GetRHIPipelineName(Pipelines));
+
 	checkf(
 		AccessModeState.Mode == FRDGViewableResource::EAccessMode::Internal ||
 		(AccessModeState.Access == ReadOnlyAccess && AccessModeState.Pipelines == Pipelines),
@@ -495,6 +496,13 @@ void FRDGUserValidation::ValidateUseExternalAccessMode(FRDGViewableResource* Res
 		TEXT("\tExisting Access: %s, Requested Access: %s\n")
 		TEXT("\tExisting Pipelines: %s, Requested Pipelines: %s\n"),
 		Resource->Name, *GetRHIAccessName(AccessModeState.Access), *GetRHIAccessName(ReadOnlyAccess), *GetRHIPipelineName(AccessModeState.Pipelines), *GetRHIPipelineName(Pipelines));
+
+	checkf(EnumHasAnyFlags(Pipelines, ERHIPipeline::Graphics) || !EnumHasAnyFlags(ReadOnlyAccess, AccessMaskRaster),
+		TEXT("Raster access flags were specified for external access but the graphics pipe was not specified.\n")
+		TEXT("Resource: %s\n")
+		TEXT("\tRequested Access: %s\n")
+		TEXT("\tRequested Pipelines: %s\n"),
+		Resource->Name, *GetRHIAccessName(ReadOnlyAccess), *GetRHIPipelineName(Pipelines));
 }
 
 void FRDGUserValidation::ValidateUseInternalAccessMode(FRDGViewableResource* Resource)
@@ -1187,7 +1195,7 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 		if (!bFoundFirst)
 		{
 			bFoundFirst = true;
-			UE_LOG(LogRDG, Display, TEXT("[%s(Index: %d, Pipeline: %s): %s] (Begin):"), Pass->GetName(), Pass->GetHandle().GetIndex(), *GetRHIPipelineName(Pass->GetPipeline()), Batch.DebugName);
+			UE_LOG(LogRDG, Display, TEXT("[%s(Index: %d, Pipeline: %s): Batch: (%p) %s] (Begin):"), Pass->GetName(), Pass->GetHandle().GetIndex(), *GetRHIPipelineName(Pass->GetPipeline()), &Batch, Batch.DebugName);
 		}
 	};
 
@@ -1277,9 +1285,11 @@ void FRDGBarrierValidation::ValidateBarrierBatchEnd(const FRDGPass* Pass, const 
 
 	bool bFoundFirst = false;
 
+	const FRDGBarrierBatchEndId Id = Batch.GetId();
+
 	for (const FRDGBarrierBatchBegin* Dependent : Batch.Dependencies)
 	{
-		if (Dependent->PipelinesToEnd == ERHIPipeline::None)
+		if (!Batch.IsPairedWith(*Dependent))
 		{
 			continue;
 		}
@@ -1303,7 +1313,7 @@ void FRDGBarrierValidation::ValidateBarrierBatchEnd(const FRDGPass* Pass, const 
 			if (!bFoundFirst)
 			{
 				bFoundFirst = true;
-				UE_LOG(LogRDG, Display, TEXT("[%s(Index: %d, Pipeline: %s) %s] (End):"), Pass->GetName(), Pass->GetHandle().GetIndex(), Dependent->DebugName, *GetRHIPipelineName(Pass->GetPipeline()));
+				UE_LOG(LogRDG, Display, TEXT("[%s(Index: %d, Pipeline: %s) Batch: (%p) %s] (End):"), Pass->GetName(), Pass->GetHandle().GetIndex(), *GetRHIPipelineName(Pass->GetPipeline()), Dependent, Dependent->DebugName);
 			}
 		};
 
@@ -1339,6 +1349,8 @@ void FRDGBarrierValidation::ValidateBarrierBatchEnd(const FRDGPass* Pass, const 
 				}
 			}
 		}
+
+		bFoundFirst = false;
 	}
 }
 

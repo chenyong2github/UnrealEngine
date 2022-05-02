@@ -600,7 +600,7 @@ void FRDGBuilder::UseExternalAccessMode(FRDGViewableResource* Resource, ERHIAcce
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateUseExternalAccessMode(Resource, ReadOnlyAccess, Pipelines));
 
-	if (!GRDGAsyncCompute || !GSupportsEfficientAsyncCompute)
+	if (!GRDGAsyncCompute || !GSupportsEfficientAsyncCompute || IsImmediateMode())
 	{
 		Pipelines = ERHIPipeline::Graphics;
 	}
@@ -617,14 +617,14 @@ void FRDGBuilder::UseExternalAccessMode(FRDGViewableResource* Resource, ERHIAcce
 	// We have to flush the queue when going from QueuedInternal -> External. A queued internal state
 	// implies that the resource was in an external access mode before, so it needs an 'end' pass to 
 	// contain any passes which might have used the resource in its external state.
-	if (AccessModeState.QueueIndex.IsValid())
+	if (AccessModeState.bQueued)
 	{
 		FlushAccessModeQueue();
 	}
 
-	check(AccessModeState.QueueIndex.IsNull());
-	AccessModeState.QueueIndex = FRDGViewableResource::FAccessModeState::FQueueIndex(AccessModeQueue.Num());
+	check(!AccessModeState.bQueued);
 	AccessModeQueue.Emplace(Resource);
+	AccessModeState.bQueued = 1;
 
 	Resource->SetExternalAccessMode(ReadOnlyAccess, Pipelines);
 }
@@ -635,25 +635,28 @@ void FRDGBuilder::UseInternalAccessMode(FRDGViewableResource* Resource)
 
 	auto& AccessModeState = Resource->AccessModeState;
 
-	// Just no-op if the resource is already in (or queued for) the 'Internal state.
+	// Just no-op if the resource is already in (or queued for) the Internal state.
 	if (AccessModeState.Mode == FRDGViewableResource::EAccessMode::Internal)
 	{
 		return;
 	}
 
 	// If the resource has a queued transition to the external access state, then we can safely back it out.
-	if (AccessModeState.QueueIndex.IsValid())
+	if (AccessModeState.bQueued)
 	{
-		AccessModeQueue[AccessModeState.QueueIndex.GetIndex()] = nullptr;
-		AccessModeState.QueueIndex = {};
+		int32 Index = AccessModeQueue.IndexOfByKey(Resource);
+		check(Index < AccessModeQueue.Num());
+		AccessModeQueue.RemoveAtSwap(Index, 1, false);
+		AccessModeState.bQueued = 0;
 	}
 	else
 	{
-		AccessModeState.QueueIndex = FRDGViewableResource::FAccessModeState::FQueueIndex(AccessModeQueue.Num());
 		AccessModeQueue.Emplace(Resource);
+		AccessModeState.bQueued = 1;
 	}
 
 	AccessModeState.Mode = FRDGViewableResource::EAccessMode::Internal;
+	Resource->EpilogueAccess = FRDGViewableResource::DefaultEpilogueAccess;
 }
 
 void FRDGBuilder::FlushAccessModeQueue()
@@ -671,18 +674,28 @@ void FRDGBuilder::FlushAccessModeQueue()
 		AllocParameters<FAccessModePassParameters>()
 	};
 
+	const ERHIAccess AccessMaskByPipeline[] =
+	{
+		ERHIAccess::ReadOnlyExclusiveMask,
+		ERHIAccess::ReadOnlyExclusiveComputeMask
+	};
+
 	ERHIPipeline ParameterPipelines = ERHIPipeline::None;
 
 	for (FRDGViewableResource* Resource : AccessModeQueue)
 	{
-		if (!Resource)
-		{
-			continue;
-		}
-
 		const auto& AccessModeState = Resource->AccessModeState;
 
 		ParameterPipelines |= AccessModeState.Pipelines;
+
+		if (AccessModeState.Mode == FRDGViewableResource::EAccessMode::External)
+		{
+			ExternalAccessResources.Emplace(Resource);
+		}
+		else
+		{
+			ExternalAccessResources.Remove(Resource);
+		}
 
 		for (uint32 PipelineIndex = 0; PipelineIndex < GetRHIPipelineCount(); ++PipelineIndex)
 		{
@@ -690,13 +703,16 @@ void FRDGBuilder::FlushAccessModeQueue()
 
 			if (EnumHasAnyFlags(AccessModeState.Pipelines, Pipeline))
 			{
+				const ERHIAccess Access = AccessModeState.Access & AccessMaskByPipeline[PipelineIndex];
+				check(Access != ERHIAccess::None);
+
 				switch (Resource->Type)
 				{
 				case ERDGViewableResourceType::Texture:
-					ParametersByPipeline[PipelineIndex]->Textures.Emplace(GetAsTexture(Resource), AccessModeState.Access);
+					ParametersByPipeline[PipelineIndex]->Textures.Emplace(GetAsTexture(Resource), Access);
 					break;
 				case ERDGViewableResourceType::Buffer:
-					ParametersByPipeline[PipelineIndex]->Buffers.Emplace(GetAsBuffer(Resource), AccessModeState.Access);
+					ParametersByPipeline[PipelineIndex]->Buffers.Emplace(GetAsBuffer(Resource), Access);
 					break;
 				}
 			}
@@ -726,9 +742,10 @@ void FRDGBuilder::FlushAccessModeQueue()
 			[](FRHIComputeCommandList&) {});
 	}
 
+	// This has to be done *after* adding the passes so they don't inherit the new access mode.
 	for (FRDGViewableResource* Resource : AccessModeQueue)
 	{
-		Resource->AccessModeState.QueueIndex = {};
+		Resource->AccessModeState.bQueued = false;
 	}
 
 	AccessModeQueue.Reset();
@@ -1457,7 +1474,15 @@ void FRDGBuilder::Execute()
 	SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::Execute", FColor::Magenta);
 
 	GRDGTransientResourceAllocator.ReleasePendingDeallocations();
-	FlushAccessModeQueue();
+
+	{
+		SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::FlushAccessModeQueue", FColor::Magenta);
+		for (FRDGViewableResource* Resource : ExternalAccessResources)
+		{
+			UseInternalAccessMode(Resource);
+		}
+		FlushAccessModeQueue();
+	}
 
 	// Create the epilogue pass at the end of the graph just prior to compilation.
 	{
@@ -2615,8 +2640,7 @@ void FRDGBuilder::AddEpilogueTransition(FRDGTextureRef Texture)
 		return;
 	}
 
-	// Only textures with internal access mode are transitioned to their epilogue state.
-	if (Texture->AccessModeState.Mode == FRDGViewableResource::EAccessMode::Internal)
+	if (!EnumHasAnyFlags(Texture->Flags, ERDGTextureFlags::SkipTracking))
 	{
 		const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
 
@@ -2641,16 +2665,7 @@ void FRDGBuilder::AddEpilogueTransition(FRDGTextureRef Texture)
 		InitAsWholeResource(ScratchTextureState, &SubresourceState);
 		AddTransition(EpiloguePassHandle, Texture, ScratchTextureState);
 		ScratchTextureState.Reset();
-	}
-	// External access mode textures are left in their last external state.
-	else
-	{
-		Texture->EpilogueAccess = Texture->GetState()[0].Access;
-	}
 
-	// Resources that were marked for external access on registration (via SkipTracking) could have an unknown epilogue state.
-	if (Texture->EpilogueAccess != ERHIAccess::Unknown)
-	{
 		EpilogueResourceAccesses.Emplace(Texture->GetRHI(), Texture->EpilogueAccess);
 	}
 
@@ -2673,8 +2688,7 @@ void FRDGBuilder::AddEpilogueTransition(FRDGBufferRef Buffer)
 		return;
 	}
 
-	// Only buffers with internal access mode are transitioned to their epilogue state.
-	if (Buffer->AccessModeState.Mode == FRDGViewableResource::EAccessMode::Internal)
+	if (!EnumHasAnyFlags(Buffer->Flags, ERDGBufferFlags::SkipTracking))
 	{
 		const FRDGPassHandle EpiloguePassHandle = GetEpiloguePassHandle();
 
@@ -2697,16 +2711,7 @@ void FRDGBuilder::AddEpilogueTransition(FRDGBufferRef Buffer)
 		SubresourceState.Access = Buffer->EpilogueAccess;
 
 		AddTransition(Buffer->LastPass, Buffer, SubresourceState);
-	}
-	// External access mode buffers are left in their last external state.
-	else
-	{
-		Buffer->EpilogueAccess = Buffer->GetState().Access;
-	}
 
-	// Resources that were marked for external access on registration (via SkipTracking) could have an unknown epilogue state.
-	if (Buffer->EpilogueAccess != ERHIAccess::Unknown)
-	{
 		EpilogueResourceAccesses.Emplace(Buffer->GetRHI(), Buffer->EpilogueAccess);
 	}
 

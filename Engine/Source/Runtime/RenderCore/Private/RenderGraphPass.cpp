@@ -174,6 +174,16 @@ void FRDGBarrierBatchBegin::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipel
 #endif
 }
 
+FRDGBarrierBatchEndId FRDGBarrierBatchEnd::GetId() const
+{
+	return FRDGBarrierBatchEndId(Pass->GetHandle(), BarrierLocation);
+}
+
+bool FRDGBarrierBatchEnd::IsPairedWith(const FRDGBarrierBatchBegin& BeginBatch) const
+{
+	return GetId() == BeginBatch.BarriersToEnd[Pass->GetPipeline()];
+}
+
 void FRDGBarrierBatchBegin::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipeline Pipeline)
 {
 	FRDGTransitionQueue TransitionsToBegin;
@@ -201,7 +211,7 @@ void FRDGBarrierBatchEnd::AddDependency(FRDGBarrierBatchBegin* BeginBatch)
 #endif
 
 	{
-		const FRDGBarrierBatchEndId Id(Pass->GetHandle(), BarrierLocation);
+		const FRDGBarrierBatchEndId Id = GetId();
 
 		FRDGBarrierBatchEndId& EarliestEndId = BeginBatch->BarriersToEnd[Pass->GetPipeline()];
 

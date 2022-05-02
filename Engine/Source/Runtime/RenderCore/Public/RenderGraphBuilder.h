@@ -253,11 +253,27 @@ public:
 	 */
 	void UseExternalAccessMode(FRDGViewableResource* Resource, ERHIAccess ReadOnlyAccess, ERHIPipeline Pipelines = ERHIPipeline::Graphics);
 
+	void UseExternalAccessMode(TArrayView<FRDGViewableResource* const> Resources, ERHIAccess ReadOnlyAccess, ERHIPipeline Pipelines = ERHIPipeline::Graphics)
+	{
+		for (FRDGViewableResource* Resource : Resources)
+		{
+			UseExternalAccessMode(Resource, ReadOnlyAccess, Pipelines);
+		}
+	}
+
 	/** Use this method to resume tracking of a resource after calling UseExternalAccessMode. It is safe to call this method
 	 *  even if external access mode was not enabled (it will simply no-op). It is not valid to access the underlying RHI
 	 *  resource in any pass added after calling this method.
 	 */
 	void UseInternalAccessMode(FRDGViewableResource* Resource);
+
+	inline void UseInternalAccessMode(TArrayView<FRDGViewableResource* const> Resources)
+	{
+		for (FRDGViewableResource* Resource : Resources)
+		{
+			UseInternalAccessMode(Resource);
+		}
+	}
 
 	/** Flag a resource that is produced by a pass but never used or extracted to not emit an 'unused' warning. */
 	void RemoveUnusedTextureWarning(FRDGTextureRef Texture);
@@ -639,6 +655,7 @@ private:
 
 	/** Contains resources queued for either access mode change passes. */
 	TArray<FRDGViewableResource*, FRDGArrayAllocator> AccessModeQueue;
+	TSet<FRDGViewableResource*, DefaultKeyFuncs<FRDGViewableResource*>, FRDGSetAllocator> ExternalAccessResources;
 
 	/** Texture state used for intermediate operations. Held here to avoid re-allocating. */
 	FRDGTextureSubresourceStateIndirect ScratchTextureState;
@@ -656,7 +673,6 @@ private:
 	bool bDispatchHint = false;
 	bool bFlushResourcesRHI = false;
 	bool bParallelExecuteEnabled = false;
-	bool bInAccessModeQueueFlush = false;
 
 #if RDG_ENABLE_DEBUG
 	FRDGUserValidation UserValidation;

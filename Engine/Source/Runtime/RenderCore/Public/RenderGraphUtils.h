@@ -1121,9 +1121,15 @@ public:
 
 	void Add(FRDGViewableResource* Resource, ERHIAccess Access = ERHIAccess::SRVMask, ERHIPipeline Pipelines = ERHIPipeline::Graphics)
 	{
-		if (Resource)
+		Validate(Resource, Access, Pipelines);
+		Resources.Emplace(Resource, Access, Pipelines);
+	}
+
+	void AddUnique(FRDGViewableResource* Resource, ERHIAccess Access = ERHIAccess::SRVMask, ERHIPipeline Pipelines = ERHIPipeline::Graphics)
+	{
+		Validate(Resource, Access, Pipelines);
+		if (!Contains(Resource))
 		{
-			checkf(IsValidAccess(Access) && Access != ERHIAccess::Unknown, TEXT("Attempted to finalize texture %s with an invalid access %s."), Resource->Name, *GetRHIAccessName(Access));
 			Resources.Emplace(Resource, Access, Pipelines);
 		}
 	}
@@ -1134,7 +1140,12 @@ public:
 		{
 			GraphBuilder.UseExternalAccessMode(Resource.Resource, Resource.Access, Resource.Pipelines);
 		}
-		Resources.Reset();
+		Resources.Empty();
+	}
+
+	bool Contains(FRDGViewableResource* Resource)
+	{
+		return Resources.ContainsByPredicate([&](const FResource& InResource) { return InResource.Resource == Resource; });
 	}
 
 	bool IsEmpty() const
@@ -1167,6 +1178,13 @@ public:
 	}
 
 private:
+	void Validate(FRDGViewableResource* Resource, ERHIAccess Access, ERHIPipeline Pipelines)
+	{
+		checkf(Resource, TEXT("Added a null resource to FRDGExternalAccessQueue"));
+		checkf(IsValidAccess(Access) && Access != ERHIAccess::Unknown, TEXT("Attempted to finalize texture %s with an invalid access %s."), Resource->Name, *GetRHIAccessName(Access));
+		check(Pipelines != ERHIPipeline::None);
+	}
+
 	struct FResource
 	{
 		FResource() = default;

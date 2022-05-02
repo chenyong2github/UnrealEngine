@@ -1068,6 +1068,9 @@ enum class ERHIAccess
 	// A mask of all bits representing read-only states which cannot be combined with other write states.
 	ReadOnlyExclusiveMask = CPURead | Present | IndirectArgs | VertexOrIndexBuffer | SRVGraphics | SRVCompute | CopySrc | ResolveSrc | BVHRead,
 
+	// A mask of all bits representing read-only states on the compute pipe which cannot be combined with other write states.
+	ReadOnlyExclusiveComputeMask = CPURead | IndirectArgs | SRVCompute | CopySrc | BVHRead,
+
 	// A mask of all bits representing read-only states which may be combined with other write states.
 	ReadOnlyMask = ReadOnlyExclusiveMask | DSVRead | ShadingRateSource,
 
@@ -1945,6 +1948,11 @@ struct FRHICopyTextureInfo
 	uint32 DestMipIndex = 0;
 	uint32 NumMips = 1;
 };
+
+inline constexpr bool IsReadOnlyExclusiveAccess(ERHIAccess Access)
+{
+	return EnumHasAnyFlags(Access, ERHIAccess::ReadOnlyExclusiveMask) && !EnumHasAnyFlags(Access, ~ERHIAccess::ReadOnlyExclusiveMask);
+}
 
 inline constexpr bool IsReadOnlyAccess(ERHIAccess Access)
 {
