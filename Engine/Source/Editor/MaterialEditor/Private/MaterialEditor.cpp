@@ -142,6 +142,7 @@
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 #include "Materials/MaterialExpressionNamedReroute.h"
 #include "Materials/MaterialExpressionReroute.h"
+#include "Materials/MaterialExpressionStrata.h"
 
 #include "MaterialStats.h"
 #include "MaterialEditorTabs.h"
@@ -2124,6 +2125,21 @@ void FMaterialEditor::AddGraphEditorPinActionsToContextMenu(FToolMenuSection& In
 			PromoteToParameterCommand->GetDescription(),
 			PromoteToParameterCommand->GetIcon(),
 			PromoteToParameterAction
+		);
+	}
+
+	{
+		FToolUIAction CreateSlabNodeAction;
+		CreateSlabNodeAction.ExecuteAction = FToolMenuExecuteAction::CreateSP(this, &FMaterialEditor::OnCreateSlabNode);
+		CreateSlabNodeAction.IsActionVisibleDelegate = FToolMenuIsActionButtonVisible::CreateSP(this, &FMaterialEditor::OnCanCreateSlabNode);
+
+		TSharedPtr<FUICommandInfo> CreateSlabNodeCommand = FMaterialEditorCommands::Get().CreateSlabNode;
+		InSection.AddMenuEntry(
+			CreateSlabNodeCommand->GetCommandName(),
+			CreateSlabNodeCommand->GetLabel(),
+			CreateSlabNodeCommand->GetDescription(),
+			CreateSlabNodeCommand->GetIcon(),
+			CreateSlabNodeAction
 		);
 	}
 }
@@ -4541,7 +4557,6 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(const UEdGraphPin* TargetP
 			case MP_PixelDepthOffset:
 			case MP_ShadingModel:
 			case MP_OpacityMask:
-			case MP_FrontMaterial:
 				return UMaterialExpressionScalarParameter::StaticClass();
 
 			case MP_WorldPositionOffset:
@@ -4552,6 +4567,10 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(const UEdGraphPin* TargetP
 			case MP_Normal:
 			case MP_Tangent:
 				return UMaterialExpressionVectorParameter::StaticClass();
+
+			case MP_FrontMaterial:
+				return nullptr;
+
 		}
 	}
 	else if (OtherPinNode)
@@ -4582,6 +4601,8 @@ UClass* FMaterialEditor::GetOnPromoteToParameterClass(const UEdGraphPin* TargetP
 					case MCT_TextureCube: 
 					case MCT_VolumeTexture: 
 					case MCT_Texture: return UMaterialExpressionTextureObjectParameter::StaticClass();
+
+					case MCT_Strata: return nullptr;
 				}
 
 				break;
@@ -4641,6 +4662,82 @@ bool FMaterialEditor::OnCanPromoteToParameter(const FToolMenuContext& InMenuCont
 	if (TargetPin && (TargetPin->Direction == EEdGraphPinDirection::EGPD_Input) && (TargetPin->LinkedTo.Num() == 0))
 	{
 		return GetOnPromoteToParameterClass(TargetPin) != nullptr;
+	}
+
+	return false;
+}
+
+void FMaterialEditor::OnCreateSlabNode(const FToolMenuContext& InMenuContext) const
+{
+	UGraphNodeContextMenuContext* NodeContext = InMenuContext.FindContext<UGraphNodeContextMenuContext>();
+	const UEdGraphPin* TargetPin = NodeContext->Pin;
+	UMaterialGraphNode_Base* PinNode = Cast<UMaterialGraphNode_Base>(TargetPin->GetOwningNode());
+
+	FMaterialGraphSchemaAction_NewNode Action;
+	Action.MaterialExpressionClass = UMaterialExpressionStrataSlabBSDF::StaticClass();
+
+	check(PinNode);
+	UEdGraph* GraphObj = PinNode->GetGraph();
+	check(GraphObj);
+
+	const FScopedTransaction Transaction(LOCTEXT("CreateSlabNode", "Create Slab Node"));
+	GraphObj->Modify();
+
+	// Set position of new node to be close to node we clicked on
+	FVector2D NewNodePos;
+	NewNodePos.X = PinNode->NodePosX - 200;
+	NewNodePos.Y = PinNode->NodePosY;
+
+	UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(Action.PerformAction(GraphObj, const_cast<UEdGraphPin*>(TargetPin), NewNodePos));
+
+	if (MaterialNode->MaterialExpression->HasAParameterName())
+	{
+		MaterialNode->MaterialExpression->SetParameterName(TargetPin->PinName);
+		MaterialNode->MaterialExpression->ValidateParameterName(false);
+	}
+
+	if (MaterialEditorInstance != nullptr)
+	{
+		MaterialCustomPrimitiveDataWidget->UpdateEditorInstance(MaterialEditorInstance);
+	}
+}
+
+bool FMaterialEditor::OnCanCreateSlabNode(const FToolMenuContext& InMenuContext) const
+{
+	UGraphNodeContextMenuContext* NodeContext = InMenuContext.FindContext<UGraphNodeContextMenuContext>();
+	const UEdGraphPin* TargetPin = NodeContext->Pin;
+	UMaterialGraphNode_Root* RootPinNode = Cast<UMaterialGraphNode_Root>(TargetPin->GetOwningNode());
+	UMaterialGraphNode* OtherPinNode = Cast<UMaterialGraphNode>(TargetPin->GetOwningNode());
+	if (RootPinNode != nullptr)
+	{
+		EMaterialProperty propertyId = (EMaterialProperty)FCString::Atoi(*TargetPin->PinType.PinSubCategory.ToString());
+		switch (propertyId)
+		{
+		case MP_FrontMaterial:
+			return true;
+		}
+	}
+	else if (OtherPinNode)
+	{
+		const TArray<FExpressionInput*> ExpressionInputs = OtherPinNode->MaterialExpression->GetInputs();
+		FName TargetPinName = OtherPinNode->GetShortenPinName(TargetPin->PinName);
+
+		for (int32 Index = 0; Index < ExpressionInputs.Num(); ++Index)
+		{
+			FExpressionInput* Input = ExpressionInputs[Index];
+			FName InputName = OtherPinNode->MaterialExpression->GetInputName(Index);
+			InputName = OtherPinNode->GetShortenPinName(InputName);
+
+			if (InputName == TargetPinName)
+			{
+				switch (OtherPinNode->MaterialExpression->GetInputType(Index))
+				{
+				case MCT_Strata: 
+					return true;
+				}
+				break;
+			}
+		}
 	}
 
 	return false;

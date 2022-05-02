@@ -771,6 +771,11 @@ private:
 	/** Will  return the UClass to create from the Pin Type */
 	UClass* GetOnPromoteToParameterClass(const UEdGraphPin* TargetPin) const;
 
+	/** Will create a slab node as input to the pin */
+	void OnCreateSlabNode(const FToolMenuContext& InMenuContext) const;
+	/** Used to know if we can create a slab node as input to the pin */
+	bool OnCanCreateSlabNode(const FToolMenuContext& InMenuContext) const;
+
 	/** Open documentation for the selected node class */
 	void OnGoToDocumentation();
 	/** Can we open documentation for the selected node */

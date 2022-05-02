@@ -183,6 +183,9 @@ public:
 	/** Create component mask node */
 	TSharedPtr< FUICommandInfo > PromoteToParameter;
 
+	/** Create component mask node */
+	TSharedPtr< FUICommandInfo > CreateSlabNode;
+
 	TSharedPtr< FUICommandInfo > QualityLevel_All;
 	TSharedPtr< FUICommandInfo > QualityLevel_Epic;
 	TSharedPtr< FUICommandInfo > QualityLevel_High;
