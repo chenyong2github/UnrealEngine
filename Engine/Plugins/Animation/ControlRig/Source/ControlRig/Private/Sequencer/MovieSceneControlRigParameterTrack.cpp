@@ -193,7 +193,7 @@ TArray<UMovieSceneSection*, TInlineAllocator<4>> UMovieSceneControlRigParameterT
 
 	for (UMovieSceneSection* Section : Sections)
 	{
-		if (Section->GetRange().Contains(Time))
+		if (MovieSceneHelpers::IsSectionKeyable(Section) && Section->GetRange().Contains(Time))
 		{
 			OverlappingSections.Add(Section);
 		}
@@ -229,10 +229,10 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::FindOrExtendSection(FFr
 {
 	Weight = 1.0f;
 	TArray<UMovieSceneSection*, TInlineAllocator<4>> OverlappingSections = FindAllSections(Time);
-	if (SectionToKey)
+	if (SectionToKey && MovieSceneHelpers::IsSectionKeyable(SectionToKey))
 	{
 		bool bCalculateWeight = false;
-		if (SectionToKey && !OverlappingSections.Contains(SectionToKey))
+		if (!OverlappingSections.Contains(SectionToKey))
 		{
 			if (SectionToKey->HasEndFrame() && SectionToKey->GetExclusiveEndFrame() <= Time)
 			{

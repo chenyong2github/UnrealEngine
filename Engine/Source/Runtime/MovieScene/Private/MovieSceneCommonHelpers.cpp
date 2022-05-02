@@ -17,6 +17,22 @@
 #include "MovieSceneTrack.h"
 #include "Engine/Engine.h"
 
+bool MovieSceneHelpers::IsSectionKeyable(UMovieSceneSection* Section)
+{
+	if (!Section)
+	{
+		return false;
+	}
+
+	UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
+	if (!Track)
+	{
+		return false;
+	}
+
+	return !Track->IsRowEvalDisabled(Section->GetRowIndex()) && !Track->IsEvalDisabled() && Section->IsActive();
+}
+
 UMovieSceneSection* MovieSceneHelpers::FindSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time )
 {
 	for( int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex )
@@ -24,7 +40,7 @@ UMovieSceneSection* MovieSceneHelpers::FindSectionAtTime( TArrayView<UMovieScene
 		UMovieSceneSection* Section = Sections[SectionIndex];
 
 		//@todo sequencer: There can be multiple sections overlapping in time. Returning instantly does not account for that.
-		if( Section->IsTimeWithinSection( Time ) && Section->IsActive() )
+		if( Section->IsTimeWithinSection( Time ) && IsSectionKeyable(Section) )
 		{
 			return Section;
 		}
@@ -38,13 +54,16 @@ UMovieSceneSection* MovieSceneHelpers::FindNearestSectionAtTime( TArrayView<UMov
 	TArray<UMovieSceneSection*> OverlappingSections, NonOverlappingSections;
 	for (UMovieSceneSection* Section : Sections)
 	{
-		if (Section->GetRange().Contains(Time))
+		if (IsSectionKeyable(Section))
 		{
-			OverlappingSections.Add(Section);
-		}
-		else
-		{
-			NonOverlappingSections.Add(Section);
+			if (Section->GetRange().Contains(Time))
+			{
+				OverlappingSections.Add(Section);
+			}
+			else
+			{
+				NonOverlappingSections.Add(Section);
+			}
 		}
 	}
 
