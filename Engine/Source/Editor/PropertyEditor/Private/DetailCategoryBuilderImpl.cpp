@@ -942,20 +942,37 @@ void FDetailCategoryImpl::GenerateNodesFromCustomizations(const TArray<FDetailLa
 	}
 }
 
+void FDetailCategoryImpl::GenerateChildrenForSingleLayout(const FDetailLayout& Layout, FDetailNodeList& OutChildren)
+{
+	FDetailNodeList GeneratedChildren;
+	GenerateNodesFromCustomizations(Layout.GetSimpleLayouts(), GeneratedChildren);
+
+	const FName InstanceName = Layout.GetInstanceName();
+	if (LayoutMap.ShouldShowGroup(InstanceName))
+	{
+		TSharedRef<FDetailCategoryGroupNode> GroupNode = MakeShareable(new FDetailCategoryGroupNode(InstanceName, AsShared()));
+		GroupNode->SetChildren(GeneratedChildren);
+		OutChildren.Add(GroupNode);
+	}
+	else
+	{
+		OutChildren.Append(GeneratedChildren);
+	}
+}
+
 void FDetailCategoryImpl::GenerateChildrenForLayouts()
 {
-	// note: this can't be a ranged-for, because the map may have items added to it by customizations during iteration
+	// note: these can't be ranged-for, because the map may have items added to it by customizations during iteration
 	for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
 	{
 		const FDetailLayout& Layout = LayoutMap[LayoutIndex];
-		GenerateNodesFromCustomizations(Layout.GetSimpleLayouts(), SimpleChildNodes);
+		GenerateChildrenForSingleLayout(Layout, SimpleChildNodes);
 	}
 
-	// note: this can't be a ranged-for, because the map may have items added to it by customizations during iteration
 	for (int32 LayoutIndex = 0; LayoutIndex < LayoutMap.Num(); ++LayoutIndex)
 	{
 		const FDetailLayout& Layout = LayoutMap[LayoutIndex];
-		GenerateNodesFromCustomizations(Layout.GetAdvancedLayouts(), AdvancedChildNodes);
+		GenerateChildrenForSingleLayout(Layout, AdvancedChildNodes);
 	}
 
 	// Generate nodes for advanced dropdowns

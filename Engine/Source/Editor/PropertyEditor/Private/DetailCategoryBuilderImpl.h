@@ -324,14 +324,14 @@ private:
 	virtual void OnItemExpansionChanged(bool bIsExpanded, bool bShouldSaveState) override;
 
 	/**
-	 * Adds a new filter widget to this category (for checking if anything is visible in the category when filtered)
-	 */
-	void AddFilterWidget(TSharedRef<SWidget> InWidget);
-
-	/**
-	 * Generates children for each layout
+	 * Generates children for all layouts.
 	 */
 	void GenerateChildrenForLayouts();
+
+	/**
+	 * Generate children for the single given layout and append them to OutChildren.
+	 */
+	void GenerateChildrenForSingleLayout(const FDetailLayout& Layout, FDetailNodeList& OutChildren);
 
 	/**
 	 * Generates nodes from a list of customization in a single layout
@@ -393,9 +393,9 @@ private:
 	/** Layouts that appear in this category category */
 	FDetailLayoutMap LayoutMap;
 	/** All Simple child nodes */
-	TArray< TSharedRef<FDetailTreeNode> > SimpleChildNodes;
+	FDetailNodeList SimpleChildNodes;
 	/** All Advanced child nodes */
-	TArray< TSharedRef<FDetailTreeNode> > AdvancedChildNodes;
+	FDetailNodeList AdvancedChildNodes;
 	/** Advanced dropdown node. */
 	TSharedPtr<FDetailTreeNode> AdvancedDropdownNode;
 	/** Delegate called when expansion of the category changes */
