@@ -1596,7 +1596,7 @@ FPackageDatas::FPackageDatas(UCookOnTheFlyServer& InCookOnTheFlyServer)
 {
 }
 
-void FPackageDatas::BeginCook()
+void FPackageDatas::SetBeginCookConfigSettings()
 {
 	FString FileOrPackageName;
 	ShowInstigatorPackageData = nullptr;
@@ -1620,6 +1620,9 @@ void FPackageDatas::BeginCook()
 			}
 		}
 	}
+
+	// Discoveries during the processing of the initial cluster are expected, so LogDiscoveredPackages must be off.
+	SetLogDiscoveredPackages(false);
 }
 
 FPackageDatas::~FPackageDatas()

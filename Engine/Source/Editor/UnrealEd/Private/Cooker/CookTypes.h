@@ -256,9 +256,6 @@ public:
 	/** Create a release from this manifest and store it in the releases directory for this cgame */
 	FString							CreateReleaseVersion;
 
-	/** Dependency graph of maps as root objects. */
-	TFastPointerMap<const ITargetPlatform*, TMap<FName, TSet<FName>>> MapDependencyGraphs;
-
 	/** If we are based on a release version of the game this is the set of packages which were cooked in that release. Map from platform name to list of uncooked package filenames */
 	TMap<FName, TArray<FName>>			BasedOnReleaseCookedPackages;
 

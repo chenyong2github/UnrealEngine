@@ -715,6 +715,7 @@ private:
 
 	/** Update accumulators of editor data and consume editor changes since the last cook when starting cooks in the editor. */
 	void BeginCookEditorSystems();
+	void BeginCookPackageWriters(FBeginCookContext& BeginContext);
 
 	//////////////////////////////////////////////////////////////////////////
 	// cook by the book specific functions
@@ -722,6 +723,15 @@ private:
 	FBeginCookContext SetCookByTheBookOptions(const FCookByTheBookStartupOptions& StartupOptions);
 	/** Set the PlatformManager's session platforms and finish filling out the BeginContext for StartCookByTheBook */
 	void SelectSessionPlatforms(FBeginCookContext& BeginContext);
+	/** CollectFilesToCook and add them as external requests. */
+	void GenerateInitialRequests(FBeginCookContext& BeginContext);
+	/** If cooking DLC, initialize cooked PackageDatas for all of the packages cooked by the base release. */
+	void RecordDLCPackagesFromBaseGame(FBeginCookContext& BeginContext);
+	void RegisterCookByTheBookDelegates();
+	void UnregisterCookByTheBookDelegates();
+	/** Start the collection of EDL diagnostics for the cook, if applicable. */
+	void BeginCookEDLCookInfo(FBeginCookContext& BeginContext);
+
 	/**
 	* Collect all the files which need to be cooked for a cook by the book session
 	*/
@@ -809,27 +819,21 @@ private:
 	bool GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, bool bVerifyPackagesExist,
 		 bool bSkipUncookedPackages, TArray<UE::Cook::FConstructPackageData>& OutPackageDatas) const;
 
-	/**
-	* BuildMapDependencyGraph
-	* builds a map of dependencies from maps
-	* 
-	* @param TargetPlatform the platform we want to build a map for
-	*/
-	void BuildMapDependencyGraph(const ITargetPlatform* TargetPlatform);
+	/** Build a map of the package dependencies used by each Map Package. */
+	TMap<FName, TSet<FName>> BuildMapDependencyGraph(const ITargetPlatform* TargetPlatform);
 
-	/**
-	* WriteMapDependencyGraph
-	* write a previously built map dependency graph out to the sandbox directory for a platform
-	*
-	* @param TargetPlatform the platform we want to save out the dependency graph for
-	*/
-	void WriteMapDependencyGraph(const ITargetPlatform* TargetPlatform);
+	/** Write a MapDependencyGraph to a metadata file in the sandbox for the given platform. */
+	void WriteMapDependencyGraph(const ITargetPlatform* TargetPlatform, TMap<FName, TSet<FName>>& MapDependencyGraph);
 
+	/** Find localization dependencies for all packages, used to add required localization files as soft references. */
+	void GenerateLocalizationReferences(TConstArrayView<FString> CookCultures);
 	void RegisterLocalizationChunkDataGenerator();
 
 	//////////////////////////////////////////////////////////////////////////
 	// cook on the fly specific functions
 
+	/** Construct the on-stack data for StartCook functions, based on the arguments to StartCookOnTheFly */
+	FBeginCookContext CreateBeginCookOnTheFlyContext();
 	/** Construct the on-stack data for StartCook functions, based on the arguments when adding a COTF platform */
 	FBeginCookContext CreateAddPlatformContext(ITargetPlatform* TargetPlatform);
 	void GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, const FString& PlatformName, TArray<FString>& UnsolicitedFiles, const FString& Filename, bool bIsCookable);
@@ -860,7 +864,9 @@ private:
 	void BeginCookSandbox(FBeginCookContext& BeginContext);
 
 	/** Set parameters that rely on config and CookByTheBook settings. */
-	void SetBeginCookConfigSettings();
+	void SetBeginCookConfigSettings(FBeginCookContext& BeginContext);
+	/** Initialize NeverCookPackageList from packaging settings and platform-specific sources. */
+	void SetNeverCookPackageConfigSettings(FBeginCookContext& BeginContext);
 
 	/**
 	* Finalize the package store
@@ -872,10 +878,8 @@ private:
 	*/
 	void ClearPackageStoreContexts();
 
-	/**
-	* Initialize platforms in @param NewTargetPlatforms
-	*/
-	void InitializeTargetPlatforms(const TArrayView<ITargetPlatform* const>& NewTargetPlatforms);
+	/** Give TargetPlatforms a chance to take action at the beginning of a cook. */
+	void BeginCookTargetPlatforms(const TArrayView<ITargetPlatform* const>& NewTargetPlatforms);
 
 	/**
 	* Initialize shaders for the specified platforms when running cook on the fly.

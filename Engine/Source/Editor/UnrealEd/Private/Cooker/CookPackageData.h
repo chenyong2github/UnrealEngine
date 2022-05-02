@@ -872,8 +872,8 @@ public:
 	/** Called when the initial AssetRegistry search is done and it can be used to determine package existence. */
 	static void OnAssetRegistryGenerated(IAssetRegistry& InAssetRegistry);
 
-	/** Called each time BeginCook is called, for deferred intialization steps. */
-	void BeginCook();
+	/** Called each time BeginCook is called, to initialize settings from config */
+	void SetBeginCookConfigSettings();
 
 	/** FGCObject interface function - return a debug name describing this FGCObject. */
 	virtual FString GetReferencerName() const override;
