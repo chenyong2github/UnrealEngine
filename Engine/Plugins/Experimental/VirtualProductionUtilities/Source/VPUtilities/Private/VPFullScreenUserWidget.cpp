@@ -735,7 +735,9 @@ bool UVPFullScreenUserWidget::Display(UWorld* InWorld)
 								if (DestTextureRT2D)
 								{
 									TextureInputObjectProperty->SetObjectPropertyValue(DestTextureRT2D, PostProcessDisplayType.WidgetRenderTarget);
+#if WITH_EDITOR
 									Layer->RerunConstructionScripts();
+#endif // WITH_EDITOR
 								}
 							}
 						}
