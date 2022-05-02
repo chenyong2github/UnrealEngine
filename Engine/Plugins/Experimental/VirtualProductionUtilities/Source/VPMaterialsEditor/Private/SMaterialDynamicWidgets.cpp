@@ -143,7 +143,7 @@ FReply SMaterialDynamicView::OnRevertButtonClicked() const
 	}
 
 	MaterialItemView->ReplaceMaterial(ParentMaterialInstance);
-
+	
 	return FReply::Handled();
 }
 
@@ -187,15 +187,21 @@ FReply SMaterialDynamicView::OnCreateDynamicMaterialButtonClicked() const
 	}
 	
 	UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialItemView->GetMaterialListItem().Material.Get());
+	UActorComponent* OwnerActorComponent = CurrentComponent.Get();
 
-	if (!CurrentComponent.IsValid())
+	if (!OwnerActorComponent)
 	{
 		return FReply::Handled();
 	}
 
 	if (MaterialInstance)
 	{
-		UMaterialInstanceDynamic* NewMaterialInstanceDynamic = UMaterialInstanceDynamic::Create(MaterialInstance, CurrentComponent.Get());
+		// Create Material
+		UMaterialInstanceDynamic* NewMaterialInstanceDynamic = UMaterialInstanceDynamic::Create(MaterialInstance, OwnerActorComponent);
+
+		// Set object Transactional in order Undo, Redo working correctly and have MU support
+		NewMaterialInstanceDynamic->SetFlags(RF_Transactional);
+		
 		NewMaterialInstanceDynamic->CopyParameterOverrides(MaterialInstance);
 		MaterialItemView->ReplaceMaterial(NewMaterialInstanceDynamic);
 	}
