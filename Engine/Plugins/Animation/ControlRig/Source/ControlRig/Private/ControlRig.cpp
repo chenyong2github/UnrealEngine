@@ -3085,19 +3085,21 @@ UControlRig::FTransientControlScope::FTransientControlScope(TObjectPtr<URigHiera
 
 UControlRig::FTransientControlScope::~FTransientControlScope()
 {
-	URigHierarchyController* Controller = Hierarchy->GetController();
-	for (const FTransientControlInfo& Info : SavedTransientControls)
+	if (URigHierarchyController* Controller = Hierarchy->GetController())
 	{
-		Controller->AddControl(
-            Info.Name,
-            Info.Parent,
-            Info.Settings,
-            Info.Value,
-            Info.OffsetTransform,
-            Info.ShapeTransform,
-            false,
-            false
-        );
+		for (const FTransientControlInfo& Info : SavedTransientControls)
+		{
+			Controller->AddControl(
+				Info.Name,
+				Info.Parent,
+				Info.Settings,
+				Info.Value,
+				Info.OffsetTransform,
+				Info.ShapeTransform,
+				false,
+				false
+			);
+		}
 	}
 }
 
