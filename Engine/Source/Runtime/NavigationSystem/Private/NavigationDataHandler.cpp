@@ -69,7 +69,7 @@ FSetElementId FNavigationDataHandler::RegisterNavOctreeElement(UObject& ElementO
 
 		if (bCanAdd)
 		{
-			FNavigationDirtyElement UpdateInfo(&ElementOwner, &ElementInterface, GetDirtyFlagHelper(UpdateFlags, 0));
+			FNavigationDirtyElement UpdateInfo(&ElementOwner, &ElementInterface, GetDirtyFlagHelper(UpdateFlags, 0), DirtyAreasController.bUseWorldPartitionedDynamicMode);
 
 			SetId = OctreeController.PendingOctreeUpdates.FindId(UpdateInfo);
 			if (SetId.IsValidId())
@@ -96,7 +96,7 @@ void FNavigationDataHandler::AddElementToNavOctree(const FNavigationDirtyElement
 	{
 		if (DirtyElement.bHasPrevData)
 		{
-			DirtyAreasController.AddArea(DirtyElement.PrevBounds, DirtyElement.PrevFlags, [&DirtyElement] { return DirtyElement.Owner.Get(); });
+			DirtyAreasController.AddArea(DirtyElement.PrevBounds, DirtyElement.PrevFlags, [&DirtyElement] { return DirtyElement.Owner.Get(); }, &DirtyElement);
 		}
 
 		return;
@@ -146,7 +146,7 @@ void FNavigationDataHandler::AddElementToNavOctree(const FNavigationDirtyElement
 	if (!GeneratedData.IsEmpty())
 	{
 		const int32 DirtyFlag = DirtyElement.FlagsOverride ? DirtyElement.FlagsOverride : GeneratedData.Data->GetDirtyFlag();
-		DirtyAreasController.AddArea(GeneratedData.Bounds.GetBox(), DirtyFlag, [&ElementOwner] { return ElementOwner; });
+		DirtyAreasController.AddArea(GeneratedData.Bounds.GetBox(), DirtyFlag, [&ElementOwner] { return ElementOwner; }, &DirtyElement);
 	}
 }
 

@@ -7,7 +7,8 @@
 #include "EngineStats.h"
 #include "Components/ShapeComponent.h"
 #include "AI/Navigation/NavAreaBase.h"
-
+#include "GameFramework/WorldSettings.h"
+#include "WorldPartition/DataLayer/DataLayerAsset.h"
 
 DEFINE_STAT(STAT_Navigation_MetaAreaTranslation);
 
@@ -20,6 +21,56 @@ namespace FNavigationSystem
 	// and only those values will be used
 	const float FallbackAgentRadius = 35.f;
 	const float FallbackAgentHeight = 144.f;
+
+	bool IsLevelVisibilityChanging(const UObject* Object)
+	{
+		const UActorComponent* ObjectAsComponent = Cast<UActorComponent>(Object);
+		if (ObjectAsComponent)
+		{
+			if (const ULevel* Level = ObjectAsComponent->GetComponentLevel())
+			{
+				return Level->HasVisibilityChangeRequestPending();
+			}
+		}
+		else if (const AActor* Actor = Cast<AActor>(Object))
+		{
+			if (const ULevel* Level = Actor->GetLevel())
+			{
+				return Level->HasVisibilityChangeRequestPending();
+			}
+		}
+
+		return false;
+	}
+	
+	bool IsInBaseNavmesh(const UObject* Object)
+	{
+		const UActorComponent* ObjectAsComponent = Cast<UActorComponent>(Object);
+		if (const AActor* Actor = ObjectAsComponent ? ObjectAsComponent->GetOwner() : Cast<AActor>(Object))
+		{
+			if (!Actor->HasDataLayers())
+			{
+				return true;
+			}
+		
+			if (const UWorld* World = Object->GetWorld())
+			{
+				if (const AWorldSettings* WorldSettings = World->GetWorldSettings())
+				{
+					const TArray<TObjectPtr<UDataLayerAsset>>& BaseNavmeshLayers = WorldSettings->BaseNavmeshDataLayers;
+					for (const TObjectPtr<UDataLayerAsset>& DataLayer : BaseNavmeshLayers)
+					{
+						if (Actor->ContainsDataLayer(DataLayer))
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	}	
 }
 
 //----------------------------------------------------------------------//

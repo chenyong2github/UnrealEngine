@@ -5,8 +5,6 @@
 #include "NavMesh/RecastNavMeshGenerator.h"
 #include "NavigationSystem.h"
 #include "Engine/World.h"
-#include "AbstractNavData.h"
-#include "NavigationOctree.h"
 #include "NavCollision.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Components/StaticMeshComponent.h"

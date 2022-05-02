@@ -571,13 +571,6 @@ public:
 	/** Size of the grid for navigation data chunk actors */
 	UPROPERTY(EditAnywhere, Category = Navigation)
 	uint32 NavigationDataChunkGridSize;
-
-	/**
-	 * A list of runtime data layers that should be included in the base navmesh.
-	 * Editor data layers and actors outside data layers will be included.
-	 */
-	UPROPERTY(EditAnywhere, Category = Navigation)
-	TArray<TObjectPtr<UDataLayerAsset>> BaseNavmeshDataLayers;
 	
 	/**
 	 * Loading cell size used when building navigation data iteratively.
@@ -591,6 +584,13 @@ public:
 	uint32 DefaultPlacementGridSize;
 #endif
 
+	/**
+	 * A list of runtime data layers that should be included in the base navmesh.
+	 * Editor data layers and actors outside data layers will be included.
+	 */
+	UPROPERTY(EditAnywhere, Category = Navigation)
+	TArray<TObjectPtr<UDataLayerAsset>> BaseNavmeshDataLayers;
+	
 	/** scale of 1uu to 1m in real world measurements, for HMD and other physically tracked devices (e.g. 1uu = 1cm would be 100.0) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=VR)
 	float WorldToMeters;

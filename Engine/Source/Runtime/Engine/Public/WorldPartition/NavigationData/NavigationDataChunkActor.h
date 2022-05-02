@@ -41,6 +41,8 @@ public:
 	virtual FBox GetStreamingBounds() const override;
 	//~ End AActor Interface.
 #endif // WITH_EDITOR
+
+	virtual FBox GetBounds() const { return DataChunkActorBounds; }
 	
 protected:
 	//~ Begin AActor Interface.

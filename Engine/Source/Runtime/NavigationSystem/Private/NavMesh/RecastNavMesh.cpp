@@ -2295,6 +2295,8 @@ void ARecastNavMesh::OnStreamingNavDataAdded(ANavigationDataChunkActor& InActor)
 
 	if (SupportsStreaming() && RecastNavMeshImpl)
 	{
+		UE_VLOG_BOX(this, LogNavigation, Log, InActor.GetBounds(), FColor::Blue, TEXT(""));
+		
 		URecastNavMeshDataChunk* NavDataChunk = GetNavigationDataChunk(InActor);
 		if (NavDataChunk)
 		{
@@ -2309,6 +2311,8 @@ void ARecastNavMesh::OnStreamingNavDataRemoved(ANavigationDataChunkActor& InActo
 
 	if (SupportsStreaming() && RecastNavMeshImpl)
 	{
+		UE_VLOG_BOX(this, LogNavigation, Log, InActor.GetBounds(), FColor::Red, TEXT(""));
+		
 		URecastNavMeshDataChunk* NavDataChunk = GetNavigationDataChunk(InActor);
 		if (NavDataChunk)
 		{
@@ -2782,7 +2786,7 @@ bool ARecastNavMesh::SupportsStreaming() const
 {
 	// Actually nothing prevents us to support streaming with dynamic generation
 	// Right now streaming in sub-level causes navmesh to build itself, so no point to stream tiles in
-	return (RuntimeGeneration != ERuntimeGenerationType::Dynamic);
+	return (RuntimeGeneration != ERuntimeGenerationType::Dynamic) || bIsWorldPartitioned;
 }
 
 FRecastNavMeshGenerator* ARecastNavMesh::CreateGeneratorInstance()

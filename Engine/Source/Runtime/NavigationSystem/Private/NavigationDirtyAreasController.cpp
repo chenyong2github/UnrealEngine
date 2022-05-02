@@ -2,6 +2,8 @@
 
 #include "NavigationDirtyAreasController.h"
 #include "NavigationData.h"
+#include "VisualLogger/VisualLogger.h"
+#include "AI/Navigation/NavigationDirtyElement.h"
 
 DEFINE_LOG_CATEGORY(LogNavigationDirtyArea);
 
@@ -10,6 +12,7 @@ DEFINE_LOG_CATEGORY(LogNavigationDirtyArea);
 //----------------------------------------------------------------------//
 FNavigationDirtyAreasController::FNavigationDirtyAreasController()
 	: bCanAccumulateDirtyAreas(true)
+	, bUseWorldPartitionedDynamicMode(false)
 #if !UE_BUILD_SHIPPING
 	, bDirtyAreasReportedWhileAccumulationLocked(false)
 	, bCanReportOversizedDirtyArea(false)
@@ -45,7 +48,7 @@ void FNavigationDirtyAreasController::Tick(const float DeltaSeconds, const TArra
 	}
 }
 
-void FNavigationDirtyAreasController::AddArea(const FBox& NewArea, const int32 Flags, const TFunction<UObject*()>& ObjectProviderFunc /*= nullptr*/)
+void FNavigationDirtyAreasController::AddArea(const FBox& NewArea, const int32 Flags, const TFunction<UObject*()>& ObjectProviderFunc /*= nullptr*/, const FNavigationDirtyElement* DirtyElement /*= nullptr*/)
 {
 #if !UE_BUILD_SHIPPING
 	// always keep track of reported areas even when filtered out by invalid area as long as flags are valid
@@ -65,8 +68,22 @@ void FNavigationDirtyAreasController::AddArea(const FBox& NewArea, const int32 F
 		return;
 	}
 
+	if (bUseWorldPartitionedDynamicMode)
+	{
+		// ObjectProviderFunc() is not always providing a valid object.
+		if (const bool bIsFromVisibilityChange = (DirtyElement && DirtyElement->bIsFromVisibilityChange) || FNavigationSystem::IsLevelVisibilityChanging(ObjectProviderFunc()))
+		{
+			// If the area is from the addition or removal of objects caused by level loading/unloading and it's already in the base navmesh ignore the dirtiness.
+			if (const bool bIsIncludedInBaseNavmesh = (DirtyElement && DirtyElement->bIsInBaseNavmesh) || FNavigationSystem::IsInBaseNavmesh(ObjectProviderFunc()))
+			{
+				UE_LOG(LogNavigationDirtyArea, VeryVerbose, TEXT("Ignoring dirtyness (visibility changed and in base navmesh). (object: %s)"), *GetFullNameSafe(ObjectProviderFunc ? ObjectProviderFunc() : nullptr));
+				return;
+			}
+		}		
+	}
+
 #if !UE_BUILD_SHIPPING
-	auto DumpExtraInfo = [ObjectProviderFunc, BoundsSize]() {
+	auto DumpExtraInfo = [ObjectProviderFunc, BoundsSize, NewArea]() {
 		const UObject* ObjectProvider = nullptr;
 		if (ObjectProviderFunc)
 		{
@@ -75,8 +92,13 @@ void FNavigationDirtyAreasController::AddArea(const FBox& NewArea, const int32 F
 
 		const UActorComponent* ObjectAsComponent = Cast<UActorComponent>(ObjectProvider);
 		const AActor* ComponentOwner = ObjectAsComponent ? ObjectAsComponent->GetOwner() : nullptr;
-		return FString::Printf(TEXT("Adding dirty area object = % | Potential component's owner = %s | Bounds size = %s)"), *GetFullNameSafe(ObjectProvider), *GetFullNameSafe(ComponentOwner), *BoundsSize.ToString());
+		if (ComponentOwner)
+		{
+			UE_VLOG_BOX(ComponentOwner, LogNavigationDirtyArea, Log, NewArea, FColor::Red, TEXT(""));
+		}
+		return FString::Printf(TEXT("Adding dirty area object: %s | Potential component's owner: %s | Bounds size: %s)"), *GetFullNameSafe(ObjectProvider), *GetFullNameSafe(ComponentOwner), *BoundsSize.ToString());
 	};
+
 	UE_LOG(LogNavigationDirtyArea, VeryVerbose, TEXT("%s"), *DumpExtraInfo());
 
 	if (ShouldReportOversizedDirtyArea() && BoundsSize.GetMax() > DirtyAreaWarningSizeThreshold)
@@ -113,6 +135,11 @@ void FNavigationDirtyAreasController::SetDirtyAreaWarningSizeThreshold(const flo
 #if !UE_BUILD_SHIPPING
 	DirtyAreaWarningSizeThreshold = Threshold;
 #endif // !UE_BUILD_SHIPPING
+}
+
+void FNavigationDirtyAreasController::SetUseWorldPartitionedDynamicMode(bool bIsWPDynamic)
+{
+	bUseWorldPartitionedDynamicMode = bIsWPDynamic;
 }
 
 void FNavigationDirtyAreasController::SetCanReportOversizedDirtyArea(bool bCanReport)

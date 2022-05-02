@@ -6,7 +6,7 @@
 
 class INavRelevantInterface;
 
-struct FNavigationDirtyElement
+struct ENGINE_API FNavigationDirtyElement
 {
 	/** object owning this element */
 	FWeakObjectPtr Owner;
@@ -29,20 +29,23 @@ struct FNavigationDirtyElement
 	/** request was invalidated while queued, use prev values to dirty area */
 	uint8 bInvalidRequest : 1;
 
+	/** requested during visibility change of the owning level (loading/unloading) */
+	uint8 bIsFromVisibilityChange : 1;
+
+	/** part of the base navmesh */
+	uint8 bIsInBaseNavmesh : 1;
+
 	FNavigationDirtyElement()
-		: NavInterface(0), FlagsOverride(0), PrevFlags(0), PrevBounds(ForceInit), bHasPrevData(false), bInvalidRequest(false)
+		: NavInterface(nullptr), FlagsOverride(0), PrevFlags(0), PrevBounds(ForceInit), bHasPrevData(false), bInvalidRequest(false), bIsFromVisibilityChange(false), bIsInBaseNavmesh(false)
 	{
 	}
 
 	FNavigationDirtyElement(UObject* InOwner)
-		: Owner(InOwner), NavInterface(0), FlagsOverride(0), PrevFlags(0), PrevBounds(ForceInit), bHasPrevData(false), bInvalidRequest(false)
+		: Owner(InOwner), NavInterface(nullptr), FlagsOverride(0), PrevFlags(0), PrevBounds(ForceInit), bHasPrevData(false), bInvalidRequest(false), bIsFromVisibilityChange(false), bIsInBaseNavmesh(false)
 	{
 	}
 
-	FNavigationDirtyElement(UObject* InOwner, INavRelevantInterface* InNavInterface, int32 InFlagsOverride = 0)
-		: Owner(InOwner), NavInterface(InNavInterface),	FlagsOverride(InFlagsOverride), PrevFlags(0), PrevBounds(ForceInit), bHasPrevData(false), bInvalidRequest(false)
-	{
-	}
+	FNavigationDirtyElement(UObject* InOwner, INavRelevantInterface* InNavInterface, int32 InFlagsOverride = 0, const bool bUseWorldPartitionedDynamicMode = false);
 
 	bool operator==(const FNavigationDirtyElement& Other) const 
 	{ 

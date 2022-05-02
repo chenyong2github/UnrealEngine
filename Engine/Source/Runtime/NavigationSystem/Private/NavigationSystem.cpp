@@ -1022,6 +1022,19 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 	// Report oversized dirty areas only in game mode
 	DefaultDirtyAreasController.SetCanReportOversizedDirtyArea(Mode == FNavigationSystemRunMode::GameMode);
 
+	for (const ANavigationData* NavData : NavDataSet)
+	{
+		if (NavData)
+		{
+			const ARecastNavMesh* RecastNavMesh = Cast<ARecastNavMesh>(NavData);
+			if (RecastNavMesh && RecastNavMesh->bIsWorldPartitioned && NavData->GetRuntimeGenerationMode() > ERuntimeGenerationType::Static)
+			{
+				DefaultDirtyAreasController.SetUseWorldPartitionedDynamicMode(true);
+				break;
+			}
+		}
+	}
+
 	bWorldInitDone = true;
 	OnNavigationInitDone.Broadcast();
 	UNavigationSystemBase::OnNavigationInitDoneStaticDelegate().Broadcast(*this);

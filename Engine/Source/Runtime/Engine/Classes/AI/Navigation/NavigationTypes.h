@@ -59,6 +59,12 @@ namespace FNavigationSystem
 	{
 		return FVector::PointsAreSame(A.Min, B.Min) && FVector::PointsAreSame(A.Max, B.Max);
 	}
+
+	/** Returns true if the visibility of the owning level is currently changing (loading/unloading). */
+	ENGINE_API bool IsLevelVisibilityChanging(const UObject* Object);
+	
+	/** Objects placed directly in the level and objects placed in the base navmesh data layers are in the base navmesh. */
+	ENGINE_API bool IsInBaseNavmesh(const UObject* Object);
 }
 
 UENUM()

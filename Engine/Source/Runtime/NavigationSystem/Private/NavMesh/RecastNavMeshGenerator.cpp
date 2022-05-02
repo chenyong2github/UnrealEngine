@@ -1779,7 +1779,7 @@ protected:
 			UE_LOG(LogNavigation, Log, TEXT("Recast: %s"), ANSI_TO_TCHAR( Msg ) );
 			break;
 		default:
-			UE_LOG(LogNavigation, Verbose, TEXT("Recast: %s"), ANSI_TO_TCHAR( Msg ) );
+			UE_LOG(LogNavigation, VeryVerbose, TEXT("Recast: %s"), ANSI_TO_TCHAR( Msg ) );
 			break;
 		}
 	}

@@ -22,6 +22,8 @@ struct NAVIGATIONSYSTEM_API FNavigationDirtyAreasController
 	TArray<FNavigationDirtyArea> DirtyAreas;
 
 	uint8 bCanAccumulateDirtyAreas : 1;
+	uint8 bUseWorldPartitionedDynamicMode : 1;
+
 #if !UE_BUILD_SHIPPING
 	uint8 bDirtyAreasReportedWhileAccumulationLocked : 1;
 private:
@@ -50,8 +52,9 @@ public:
 	 *	@param NewArea Bounding box of the affected area
 	 *	@param Flags Indicates the type of modification applied to the area
 	 *	@param ObjectProviderFunc Optional function to retrieve source object that can be use for error reporting and navmesh exclusion
+	 *	@param DirtyElement Optional dirty element
 	 */
-	void AddArea(const FBox& NewArea, const int32 Flags, const TFunction<UObject*()>& ObjectProviderFunc = nullptr);
+	void AddArea(const FBox& NewArea, const int32 Flags, const TFunction<UObject*()>& ObjectProviderFunc = nullptr, const FNavigationDirtyElement* DirtyElement = nullptr);
 	
 	bool IsDirty() const { return GetNumDirtyAreas() > 0; }
 	int32 GetNumDirtyAreas() const { return DirtyAreas.Num(); }
@@ -59,6 +62,7 @@ public:
 	void OnNavigationBuildLocked();
 	void OnNavigationBuildUnlocked();
 
+	void SetUseWorldPartitionedDynamicMode(bool bIsWPDynamic);
 	void SetCanReportOversizedDirtyArea(const bool bCanReport);
 	void SetDirtyAreaWarningSizeThreshold(const float Threshold);
 
