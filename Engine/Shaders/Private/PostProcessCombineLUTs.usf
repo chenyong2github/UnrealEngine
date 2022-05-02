@@ -372,8 +372,12 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 		// 1000 nit ODT
 		float3 ODTColor = ACESOutputTransforms1000( GradedColor );
 
-		// Convert from AP1 to specified output gamut
-		ODTColor = mul( AP1_2_Output, ODTColor );
+		// Convert from AP1 to specified output gamut except for ScRGB as it might contain negative values. 
+		// In this case, the AP1->output conversion happens through ST2084ToScRGB in the tonemap function
+		if( GetOutputDevice() != TONEMAPPER_OUTPUT_ACES1000nitScRGB )
+		{
+			ODTColor = mul(AP1_2_Output, ODTColor);
+		}
 
 		// Apply conversion to ST-2084 (Dolby PQ)
 		OutDeviceColor = LinearToST2084( ODTColor );
@@ -385,8 +389,12 @@ float4 CombineLUTsCommon(float2 InUV, uint InLayerIndex)
 		// 2000 nit ODT
 		float3 ODTColor = ACESOutputTransforms2000( GradedColor );
 
-		// Convert from AP1 to specified output gamut
-		ODTColor = mul( AP1_2_Output, ODTColor );
+		// Convert from AP1 to specified output gamut except for ScRGB as it might contain negative values. 
+		// In this case, the AP1->output conversion happens through ST2084ToScRGB in the tonemap function
+		if ( GetOutputDevice() != TONEMAPPER_OUTPUT_ACES2000nitScRGB)
+		{
+			ODTColor = mul(AP1_2_Output, ODTColor);
+		}
 
 		// Apply conversion to ST-2084 (Dolby PQ)
 		OutDeviceColor = LinearToST2084( ODTColor );
