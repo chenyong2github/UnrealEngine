@@ -406,6 +406,35 @@ struct CONTROLRIG_API FRigUnit_MathTransformFromSRT : public FRigUnit_MathTransf
 	FEulerTransform EulerTransform;
 };
 
+
+/**
+ * Decomposes a Transform Array to its components.
+ */
+USTRUCT(meta = (DisplayName = "Transform Array to SRT", Keywords = "EulerTransform,Scale,Rotation,Orientation,Translation,Location"))
+struct CONTROLRIG_API FRigUnit_MathTransformArrayToSRT : public FRigUnit_MathTransformBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathTransformArrayToSRT()
+	{
+	}
+
+	RIGVM_METHOD()
+		virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	TArray<FTransform> Transforms;
+
+	UPROPERTY(meta = (Output))
+	TArray<FVector> Translations;
+
+	UPROPERTY(meta = (Output))
+	TArray<FQuat> Rotations;
+
+	UPROPERTY(meta = (Output))
+	TArray<FVector> Scales;
+};
+
 /**
  * Clamps a position using a plane collision, cylindric collision or spherical collision.
  */

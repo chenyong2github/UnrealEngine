@@ -127,4 +127,23 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathTransformTransformVector)
 	return true;
 }
 
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_MathTransformArrayToSRT)
+{
+	Unit.Transforms.SetNumUninitialized(5);
+
+	for (int32 Index = 0; Index < Unit.Transforms.Num(); Index++)
+	{
+		Unit.Transforms[Index] = FTransform(FQuat(FVector(1.f, 0.f, 0.f), HALF_PI * float(Index)), FVector(float(Index), 0.f, 0.f));
+	}
+
+	InitAndExecute();
+
+	for (int32 Index = 0; Index < Unit.Transforms.Num(); Index++)
+	{
+		AddErrorIfFalse(FRigUnit_MathTransformTest_Utils::IsNearlyEqual(Unit.Translations[Index], FVector(float(Index), 0.f, 0.f)), TEXT("unexpected result"));
+		AddErrorIfFalse(FRigUnit_MathTransformTest_Utils::IsNearlyEqual(Unit.Rotations[Index], FQuat(FVector(1.f, 0.f, 0.f), HALF_PI * float(Index))), TEXT("unexpected result"));
+	}
+	return true;
+}
+
 #endif

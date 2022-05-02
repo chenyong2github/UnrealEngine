@@ -163,6 +163,28 @@ FRigUnit_MathTransformFromSRT_Execute()
 	EulerTransform.FromFTransform(Transform);
 }
 
+
+FRigUnit_MathTransformArrayToSRT_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	if (Transforms.Num() == 0)
+	{
+		return;
+	}
+
+	Translations.SetNumUninitialized(Transforms.Num());
+	Rotations.SetNumUninitialized(Transforms.Num());
+	Scales.SetNumUninitialized(Transforms.Num());
+
+	for (int32 Index = 0; Index < Transforms.Num(); Index++)
+	{
+		Translations[Index] = Transforms[Index].GetTranslation();
+		Rotations[Index] = Transforms[Index].GetRotation();
+		Scales[Index] = Transforms[Index].GetScale3D();
+	}
+
+}
+
 FRigUnit_MathTransformClampSpatially_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
