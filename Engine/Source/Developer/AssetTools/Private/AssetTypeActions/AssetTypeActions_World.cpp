@@ -2,6 +2,7 @@
 
 #include "AssetTypeActions/AssetTypeActions_World.h"
 #include "Misc/PackageName.h"
+#include "Misc/MessageDialog.h"
 #include "ThumbnailRendering/WorldThumbnailInfo.h"
 #include "FileHelpers.h"
 
