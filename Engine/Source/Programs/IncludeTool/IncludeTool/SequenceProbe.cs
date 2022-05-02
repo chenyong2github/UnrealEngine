@@ -236,7 +236,7 @@ namespace IncludeTool
 			}
 
 			// Check to see if an existing version of the task exists which we can continue
-			if(Type == SequenceProbeType.Optimize && TaskStateFile.Exists())
+			if(Type == SequenceProbeType.Optimize && FileReference.Exists(TaskStateFile))
 			{
 				// Try to read the old task
 				SequenceWorker OldWorker;
@@ -315,9 +315,9 @@ namespace IncludeTool
 			{
 				Worker.Serialize(TaskStateFile.FullName);
 
-				PermutationFile.Delete();
-				SummaryLogFile.Delete();
-				CompileLogFile.Delete();
+				FileReference.Delete(PermutationFile);
+				FileReference.Delete(SummaryLogFile);
+				FileReference.Delete(CompileLogFile);
 			}
 		}
 
@@ -573,7 +573,7 @@ namespace IncludeTool
 			// Read the new state
 			FileReference OutputFile = new FileReference(TaskStateFile.FullName + ".out");
 			SequenceWorker NewWorker = SequenceWorker.Deserialize(OutputFile.FullName);
-			OutputFile.Delete();
+			FileReference.Delete(OutputFile);
 
 			// Make sure the exit code reflects the failure state. XGE can sometimes fail transferring back.
 			if(ExitCode == 0 && !NewWorker.bResult)

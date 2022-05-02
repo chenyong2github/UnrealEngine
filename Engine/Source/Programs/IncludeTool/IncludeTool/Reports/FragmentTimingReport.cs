@@ -261,7 +261,7 @@ namespace IncludeTool.Reports
 
 			// Create an intermediate directory
 			DirectoryReference IntermediateDir = DirectoryReference.Combine(WorkingDir, "Timing");
-			IntermediateDir.CreateDirectory();
+			DirectoryReference.CreateDirectory(IntermediateDir);
 
 			// Map of unique fragment to timing data
 			Dictionary<SourceFragment, FragmentTimingData> FragmentToTimingData = new Dictionary<SourceFragment, FragmentTimingData>();
@@ -318,7 +318,7 @@ namespace IncludeTool.Reports
 			}
 
 			// Read any existing shard timing data in the output folder
-			foreach(FileReference IntermediateFile in IntermediateDir.EnumerateFileReferences("*.csv"))
+			foreach(FileReference IntermediateFile in DirectoryReference.EnumerateFiles(IntermediateDir, "*.csv"))
 			{
 				string[] Lines = File.ReadAllLines(IntermediateFile.FullName);
 				foreach(string Line in Lines.Skip(1))

@@ -2018,15 +2018,15 @@ namespace IncludeTool
 		/// <param name="Log">Writer for log output</param>
 		public static void WritePreprocessedFiles(DirectoryReference WorkingDir, DirectoryReference PreprocessedDir, IEnumerable<KeyValuePair<FileReference, CompileEnvironment>> FilePairs, LineBasedTextWriter Log)
 		{
-			PreprocessedDir.CreateDirectory();
+			DirectoryReference.CreateDirectory(PreprocessedDir);
 
 			// Create separate directories for the compiler and include tool
 			DirectoryReference CompilerDir = DirectoryReference.Combine(PreprocessedDir, "Compiler");
-			CompilerDir.CreateDirectory();
+			DirectoryReference.CreateDirectory(CompilerDir);
 			DirectoryReference CompilerNormalizedDir = DirectoryReference.Combine(PreprocessedDir, "CompilerNormalized");
-			CompilerNormalizedDir.CreateDirectory();
+			DirectoryReference.CreateDirectory(CompilerNormalizedDir);
 			DirectoryReference ToolDir = DirectoryReference.Combine(PreprocessedDir, "Tool");
-			ToolDir.CreateDirectory();
+			DirectoryReference.CreateDirectory(ToolDir);
 
 			// Write out the prelude file, which we can use to scrape the compiler settings
 			FileReference PreludeFile = FileReference.Combine(PreprocessedDir, "Prelude.cpp");

@@ -28,7 +28,7 @@ namespace IncludeTool.Support
 			foreach(string SearchPath in Environment.GetEnvironmentVariable("PATH").Split(Path.PathSeparator))
 			{
 				FileReference CandidateLocation = FileReference.Combine(new DirectoryReference(SearchPath), "p4.exe");
-				if(CandidateLocation.Exists())
+				if(FileReference.Exists(CandidateLocation))
 				{
 					Location = CandidateLocation;
 					return true;
