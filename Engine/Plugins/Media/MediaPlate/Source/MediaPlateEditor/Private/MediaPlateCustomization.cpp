@@ -60,8 +60,10 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	// Set media path.
 	UpdateMediaPath();
 	
+	IDetailCategoryBuilder& MediaPlaylistCategory = DetailBuilder.EditCategory("MediaPlate Playlist");
+
 	// Add media source.
-	MediaPlateCategory.AddCustomRow(LOCTEXT("MediaPlateMediaSource", "MediaPlate Media Source"))
+	MediaPlaylistCategory.AddCustomRow(LOCTEXT("MediaPlateMediaSource", "MediaPlate Media Source"))
 		.NameContent()
 		[
 			SNew(STextBlock)
@@ -79,7 +81,7 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 
 	// Add media path.
 	FString FileTypeFilter = TEXT("All files (*.*)|*.*");
-	MediaPlateCategory.AddCustomRow(LOCTEXT("MediaPlateMediaPath", "MediaPlate Media Path"))
+	MediaPlaylistCategory.AddCustomRow(LOCTEXT("MediaPlateMediaPath", "MediaPlate Media Path"))
 		.NameContent()
 		[
 			SNew(STextBlock)
