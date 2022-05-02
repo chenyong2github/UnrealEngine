@@ -868,6 +868,23 @@ namespace ChaosTest {
 				}
 			}
 		}
+		// Thin Box on the top
+		{
+			TBox<FReal, 3> Box(FVec3(-10.0, -10.0, -0.001), FVec3(10.0, 10.0, 0.001));
+			for (int32 Row = 0; Row < Rows; ++Row)
+			{
+				for (int32 Col = 0; Col < Columns; ++Col)
+				{
+					const FVec3 Translation(Col, Row, 9.5);
+					FRigidTransform3 QueryTM(Translation, TRotation<FReal, 3>(UE::Math::TQuat<FReal>(TVector<FReal, 3>(1.0, 0.0, 0.0), 0.0)));
+					FVec3 Dir(1, 0, 0);
+					bool Result = Heightfield.OverlapGeom(Box, QueryTM, 0.0, nullptr);
+					// Collision with the mountain
+					EXPECT_TRUE(Result);
+				}
+			}
+		}
+
 		// Inclined Box
 		{
 			TBox<FReal, 3> Box(FVec3(-1.0, -1.0, -0.0001), FVec3(1.0, 1.0, 10.0));
