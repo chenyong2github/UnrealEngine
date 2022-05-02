@@ -24,9 +24,9 @@
 #include "ShaderPrintParameters.h"
 #include "ShaderPrint.h"
 #include "VirtualShadowMaps/VirtualShadowMapArray.h"
-
 #include "SceneFilterRendering.h"
 #include "PostProcessing.h"
+#include "Strata/Strata.h"
 
 // This is used to switch on and off the clustered deferred shading implementation, that uses the light grid to perform shading.
 int32 GUseClusteredDeferredShading = 0;
@@ -148,7 +148,8 @@ static void InternalAddClusteredDeferredShadingPass(
 	EStrataTileType TileType,
 	FRDGTextureRef ShadowMaskBits,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
-	FRDGBufferSRVRef HairTransmittanceBuffer)
+	FRDGBufferSRVRef HairTransmittanceBuffer,
+	FStrataSceneData* StrataSceneData)
 {
 	check(SortedLightsSet.ClusteredSupportedEnd > 0);
 	const FIntPoint SceneTextureExtent = SceneTextures.Config.Extent;
@@ -170,6 +171,12 @@ static void InternalAddClusteredDeferredShadingPass(
 	if (bHairStrands)
 	{
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(View.HairStrandsViewData.VisibilityData.SampleLightingTexture, ERenderTargetLoadAction::ELoad);
+	}
+	if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+	{
+		check(StrataSceneData);
+		PassParameters->RenderTargets[1] = FRenderTargetBinding(StrataSceneData->SeparatedOpaqueRoughRefractionSceneColor, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets[2] = FRenderTargetBinding(StrataSceneData->SeparatedSubSurfaceSceneColor, ERenderTargetLoadAction::ELoad);
 	}
 
 	// VS - Strata tile parameters
@@ -201,7 +208,17 @@ static void InternalAddClusteredDeferredShadingPass(
 			InRHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 			// Additive blend to accumulate lighting contributions.
-			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+			if (Strata::IsStrataOpaqueMaterialRoughRefractionEnabled())
+			{
+				GraphicsPSOInit.BlendState = TStaticBlendState<
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One,
+					CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+			}
+			else
+			{
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+			}
 
 			GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
@@ -265,8 +282,12 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 		{
 			FViewInfo& View = Views[ViewIndex];
 
+			FStrataSceneData* StrataSceneData = nullptr;
+
 			if (Strata::IsStrataEnabled())
 			{
+				StrataSceneData = &Scene->StrataSceneData;
+
 				InternalAddClusteredDeferredShadingPass(
 					GraphBuilder,
 					View,
@@ -276,7 +297,8 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					EStrataTileType::ESimple,
 					ShadowMaskBits,
 					VirtualShadowMapArray,
-					nullptr);
+					nullptr, 
+					StrataSceneData);
 
 				InternalAddClusteredDeferredShadingPass(
 					GraphBuilder,
@@ -287,7 +309,8 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					EStrataTileType::ESingle,
 					ShadowMaskBits,
 					VirtualShadowMapArray,
-					nullptr);
+					nullptr,
+					StrataSceneData);
 
 				InternalAddClusteredDeferredShadingPass(
 					GraphBuilder,
@@ -298,7 +321,8 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					EStrataTileType::EComplex,
 					ShadowMaskBits,
 					VirtualShadowMapArray,
-					nullptr);
+					nullptr,
+					StrataSceneData);
 			}
 			else
 			{
@@ -311,7 +335,8 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					EStrataTileType::ECount,
 					ShadowMaskBits,
 					VirtualShadowMapArray,
-					nullptr);
+					nullptr,
+					StrataSceneData);
 			}
 
 			if (HairStrands::HasViewHairStrandsData(View))
@@ -326,7 +351,8 @@ void FDeferredShadingSceneRenderer::AddClusteredDeferredShadingPass(
 					EStrataTileType::ECount,
 					HairStrandsShadowMaskBits,
 					VirtualShadowMapArray,
-					GraphBuilder.CreateSRV(TransmittanceMask.TransmittanceMask, FHairStrandsTransmittanceMaskData::Format));
+					GraphBuilder.CreateSRV(TransmittanceMask.TransmittanceMask, FHairStrandsTransmittanceMaskData::Format),
+					StrataSceneData);
 			}
 		}
 	}

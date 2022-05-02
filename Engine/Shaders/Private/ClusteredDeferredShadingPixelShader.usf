@@ -168,6 +168,8 @@ float4 GetSimpleLightLighting(
 #if STRATA_ENABLED && USE_HAIR_LIGHTING == 0
 	FStrataAddressing StrataAddressing,
 	FStrataPixelHeader StrataPixelHeader,
+	inout float3 OutOpaqueRoughRefractionSceneColor,
+	inout float3 OutSubSurfaceSceneColor,
 #else
 	FScreenSpaceData ScreenSpaceData,
 #endif 
@@ -210,7 +212,7 @@ float4 GetSimpleLightLighting(
 		const float3 V = -CameraVector;
 		const float LightMask = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, ToLight, L);
 
-		CompositedLighting += StrataDeferredLighting(
+		FStrataDeferredLighting StrataLighting = StrataDeferredLighting(
 			LightData,
 			V,
 			L,
@@ -220,14 +222,29 @@ float4 GetSimpleLightLighting(
 			Strata.MaterialTextureArray,
 			StrataAddressing,
 			StrataPixelHeader).SceneColor;
+
+		CompositedLighting += StrataLighting.SceneColor;
+	#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+		OutOpaqueRoughRefractionSceneColor += StrataLighting.OpaqueRoughRefractionSceneColor;
+		OutSubSurfaceSceneColor += StrataLighting.SubSurfaceSceneColor;
+	#endif
+
 	#else
+
 		FSimpleDeferredLightData SimpleLightData = (FSimpleDeferredLightData)0;
 		SimpleLightData.TranslatedWorldPosition = LocalLight.LightPositionAndInvRadius.xyz;
 		SimpleLightData.InvRadius = LocalLight.LightPositionAndInvRadius.w;
 		SimpleLightData.Color = LocalLight.LightColorAndFalloffExponent.xyz;
 		SimpleLightData.FalloffExponent = LocalLight.LightColorAndFalloffExponent.w;
 		SimpleLightData.bInverseSquared = SimpleLightData.FalloffExponent == 0;
-		CompositedLighting += GetSimpleDynamicLighting(TranslatedWorldPosition, CameraVector, ScreenSpaceData.GBuffer.WorldNormal, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.DiffuseColor, ScreenSpaceData.GBuffer.SpecularColor, ScreenSpaceData.GBuffer.Roughness, SimpleLightData);
+		FStrataDeferredLighting StrataLighting = GetSimpleDynamicLighting(TranslatedWorldPosition, CameraVector, ScreenSpaceData.GBuffer.WorldNormal, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.DiffuseColor, ScreenSpaceData.GBuffer.SpecularColor, ScreenSpaceData.GBuffer.Roughness, SimpleLightData);
+
+		CompositedLighting += StrataLighting.SceneColor;
+	#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+		OutOpaqueRoughRefractionSceneColor += StrataLighting.OpaqueRoughRefractionSceneColor;
+		OutSubSurfaceSceneColor += StrataLighting.SubSurfaceSceneColor;
+	#endif
+
 	#endif
 	}
 	FirstNonSimpleLightIndex = LocalLightListIndex;
@@ -244,6 +261,8 @@ float4 GetLightGridLocalLighting(
 #if STRATA_ENABLED && USE_HAIR_LIGHTING == 0
 	FStrataAddressing StrataAddressing,
 	FStrataPixelHeader StrataPixelHeader,
+	inout float3 OutOpaqueRoughRefractionSceneColor,
+	inout float3 OutSubSurfaceSceneColor,
 #else 
 	FScreenSpaceData ScreenSpaceData, 
 #endif
@@ -360,7 +379,7 @@ float4 GetLightGridLocalLighting(
 		GetShadowTerms(SceneDepth, PrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity, LightData, TranslatedWorldPosition, L, LightAttenuation, Dither, ShadowTerms);
 
 		const float LightMask = 1;
-		DirectLighting += StrataDeferredLighting(
+		FStrataDeferredLighting StrataLighting = StrataDeferredLighting(
 			LightData,
 			V,
 			L,
@@ -369,7 +388,14 @@ float4 GetLightGridLocalLighting(
 			ShadowTerms,
 			Strata.MaterialTextureArray,
 			StrataAddressing,
-			StrataPixelHeader).SceneColor;
+			StrataPixelHeader);
+
+		DirectLighting += StrataLighting.SceneColor;
+	#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+		OutOpaqueRoughRefractionSceneColor += StrataLighting.OpaqueRoughRefractionSceneColor;
+		OutSubSurfaceSceneColor += StrataLighting.SubSurfaceSceneColor;
+	#endif
+
 	#elif 1
 		// NOTE: uses AO data like tiled deferred (as opposed to forward path)
 		// TODO: Passing in 0,0 as SVPos, what is meaning of this? Only used if 'REFERENCE_QUALITY' is on.
@@ -418,7 +444,12 @@ void ClusteredShadingPixelShader(
 	float2 ScreenUV : TEXCOORD0,
 	float3 ScreenVector : TEXCOORD1,
 	in float4 SvPosition : SV_Position,
-	out float4 OutColor : SV_Target0)
+	out float4 OutColor : SV_Target0
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	, out float3 OutOpaqueRoughRefractionSceneColor : SV_Target1
+	, out float3 OutSubSurfaceSceneColor : SV_Target2
+#endif
+	)
 {
 	uint2 PixelPos = SvPosition.xy;
 
@@ -439,6 +470,8 @@ void ClusteredShadingPixelShader(
 	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 	
 	float4 CompositedLighting = 0;
+	float3 OpaqueRoughRefractionSceneColor = 0;
+	float3 SubSurfaceSceneColor = 0;
 
 	BRANCH
 	if (StrataPixelHeader.BSDFCount > 0 || CulledLightGridData.NumLocalLights == 0)
@@ -449,14 +482,20 @@ void ClusteredShadingPixelShader(
 		uint FirstNonSimpleLightIndex = 0;
 
 		// Simple lights
-		CompositedLighting += GetSimpleLightLighting(StrataAddressing, StrataPixelHeader, CulledLightGridData, TranslatedWorldPosition, CameraVector, EyeIndex, FirstNonSimpleLightIndex);
+		CompositedLighting += GetSimpleLightLighting(StrataAddressing, StrataPixelHeader, OpaqueRoughRefractionSceneColor, SubSurfaceSceneColor,
+			CulledLightGridData, TranslatedWorldPosition, CameraVector, EyeIndex, FirstNonSimpleLightIndex);
 
 		// Regular lights
-		CompositedLighting += GetLightGridLocalLighting(StrataAddressing, StrataPixelHeader, CulledLightGridData, TranslatedWorldPosition, CameraVector, ScreenUV, EyeIndex, Dither, FirstNonSimpleLightIndex);
+		CompositedLighting += GetLightGridLocalLighting(StrataAddressing, StrataPixelHeader, OpaqueRoughRefractionSceneColor, SubSurfaceSceneColor,
+			CulledLightGridData, TranslatedWorldPosition, CameraVector, ScreenUV, EyeIndex, Dither, FirstNonSimpleLightIndex);
 	}
 	
 #if !VISUALIZE_LIGHT_CULLING
 	CompositedLighting *= View.PreExposure;
+#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED
+	OutOpaqueRoughRefractionSceneColor = OpaqueRoughRefractionSceneColor * View.PreExposure;
+	OutSubSurfaceSceneColor = SubSurfaceSceneColor * View.PreExposure;
+#endif
 #endif
 	OutColor = CompositedLighting;
 }
