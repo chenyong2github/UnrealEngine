@@ -2129,18 +2129,24 @@ void FMaterialEditor::AddGraphEditorPinActionsToContextMenu(FToolMenuSection& In
 	}
 
 	{
-		FToolUIAction CreateSlabNodeAction;
-		CreateSlabNodeAction.ExecuteAction = FToolMenuExecuteAction::CreateSP(this, &FMaterialEditor::OnCreateSlabNode);
-		CreateSlabNodeAction.IsActionVisibleDelegate = FToolMenuIsActionButtonVisible::CreateSP(this, &FMaterialEditor::OnCanCreateSlabNode);
+		auto AddStrataContextualMenu = [&](TSharedPtr<FUICommandInfo> CreateNodeCommand, EStrataNodeForPin StrataNodeForPin)
+		{
+			FToolUIAction CreateNodeAction;
+			CreateNodeAction.ExecuteAction = FToolMenuExecuteAction::CreateSP(this, &FMaterialEditor::OnCreateStrataNodeForPin, StrataNodeForPin);
+			CreateNodeAction.IsActionVisibleDelegate = FToolMenuIsActionButtonVisible::CreateSP(this, &FMaterialEditor::OnCanCreateStrataNodeForPin, StrataNodeForPin);
 
-		TSharedPtr<FUICommandInfo> CreateSlabNodeCommand = FMaterialEditorCommands::Get().CreateSlabNode;
-		InSection.AddMenuEntry(
-			CreateSlabNodeCommand->GetCommandName(),
-			CreateSlabNodeCommand->GetLabel(),
-			CreateSlabNodeCommand->GetDescription(),
-			CreateSlabNodeCommand->GetIcon(),
-			CreateSlabNodeAction
-		);
+			InSection.AddMenuEntry(
+				CreateNodeCommand->GetCommandName(),
+				CreateNodeCommand->GetLabel(),
+				CreateNodeCommand->GetDescription(),
+				CreateNodeCommand->GetIcon(),
+				CreateNodeAction
+			);
+		};
+		AddStrataContextualMenu(FMaterialEditorCommands::Get().CreateSlabNode, EStrataNodeForPin::Slab);
+		AddStrataContextualMenu(FMaterialEditorCommands::Get().CreateHorizontalMixNode, EStrataNodeForPin::HorizontalMix);
+		AddStrataContextualMenu(FMaterialEditorCommands::Get().CreateVerticalLayerNode, EStrataNodeForPin::VerticalLayer);
+		AddStrataContextualMenu(FMaterialEditorCommands::Get().CreateWeightNode, EStrataNodeForPin::Weight);
 	}
 }
 
@@ -4667,33 +4673,60 @@ bool FMaterialEditor::OnCanPromoteToParameter(const FToolMenuContext& InMenuCont
 	return false;
 }
 
-void FMaterialEditor::OnCreateSlabNode(const FToolMenuContext& InMenuContext) const
+void FMaterialEditor::OnCreateStrataNodeForPin(const FToolMenuContext& InMenuContext, EStrataNodeForPin NodeForPin) const
 {
 	UGraphNodeContextMenuContext* NodeContext = InMenuContext.FindContext<UGraphNodeContextMenuContext>();
 	const UEdGraphPin* TargetPin = NodeContext->Pin;
 	UMaterialGraphNode_Base* PinNode = Cast<UMaterialGraphNode_Base>(TargetPin->GetOwningNode());
+	const bool bTargetPinIsInput = TargetPin && (TargetPin->Direction == EEdGraphPinDirection::EGPD_Input);
 
 	FMaterialGraphSchemaAction_NewNode Action;
 	Action.MaterialExpressionClass = UMaterialExpressionStrataSlabBSDF::StaticClass();
+	if (NodeForPin == EStrataNodeForPin::HorizontalMix)
+	{
+		Action.MaterialExpressionClass = UMaterialExpressionStrataHorizontalMixing::StaticClass();
+	}
+	else if (NodeForPin == EStrataNodeForPin::VerticalLayer)
+	{
+		Action.MaterialExpressionClass = UMaterialExpressionStrataVerticalLayering::StaticClass();
+	}
+	else if (NodeForPin == EStrataNodeForPin::Weight)
+	{
+		Action.MaterialExpressionClass = UMaterialExpressionStrataWeight::StaticClass();
+	}
 
 	check(PinNode);
 	UEdGraph* GraphObj = PinNode->GetGraph();
 	check(GraphObj);
 
-	const FScopedTransaction Transaction(LOCTEXT("CreateSlabNode", "Create Slab Node"));
+	const FScopedTransaction Transaction(LOCTEXT("CreateStrataNode", "Create Strata Node"));
 	GraphObj->Modify();
 
 	// Set position of new node to be close to node we clicked on
 	FVector2D NewNodePos;
-	NewNodePos.X = PinNode->NodePosX - 200;
+	NewNodePos.X = PinNode->NodePosX + (bTargetPinIsInput ? -200 : 300);
 	NewNodePos.Y = PinNode->NodePosY;
 
-	UMaterialGraphNode* MaterialNode = Cast<UMaterialGraphNode>(Action.PerformAction(GraphObj, const_cast<UEdGraphPin*>(TargetPin), NewNodePos));
 
-	if (MaterialNode->MaterialExpression->HasAParameterName())
+	if (bTargetPinIsInput)
 	{
-		MaterialNode->MaterialExpression->SetParameterName(TargetPin->PinName);
-		MaterialNode->MaterialExpression->ValidateParameterName(false);
+		UMaterialGraphNode* NewNode = Cast<UMaterialGraphNode>(Action.PerformAction(GraphObj, const_cast<UEdGraphPin*>(TargetPin), NewNodePos));
+	}
+	else
+	{
+		// Link manually
+		UMaterialGraphNode* NewNode = Cast<UMaterialGraphNode>(Action.PerformAction(GraphObj, nullptr, NewNodePos));
+		const TArray<FExpressionInput*> NewNodeExpressionInputs = NewNode->MaterialExpression->GetInputs();
+
+		// From that direction, the node is never going to be a root node (a root node has no output we can connect from).
+		UMaterialGraphNode* TargetPinNode = Cast<UMaterialGraphNode>(TargetPin->GetOwningNode());
+
+		check(NewNodeExpressionInputs.Num() > 0 && TargetPin->SourceIndex < TargetPinNode->MaterialExpression->GetOutputs().Num());
+
+		FName TargetPinName = TargetPinNode->MaterialExpression->GetOutputs()[TargetPin->SourceIndex].OutputName;
+		UMaterialEditingLibrary::ConnectMaterialExpressions(TargetPinNode->MaterialExpression, TargetPinName.ToString(), NewNode->MaterialExpression, FString());
+
+		Material->MaterialGraph->RebuildGraph();
 	}
 
 	if (MaterialEditorInstance != nullptr)
@@ -4702,40 +4735,56 @@ void FMaterialEditor::OnCreateSlabNode(const FToolMenuContext& InMenuContext) co
 	}
 }
 
-bool FMaterialEditor::OnCanCreateSlabNode(const FToolMenuContext& InMenuContext) const
+bool FMaterialEditor::OnCanCreateStrataNodeForPin(const FToolMenuContext& InMenuContext, EStrataNodeForPin NodeForPin) const
 {
 	UGraphNodeContextMenuContext* NodeContext = InMenuContext.FindContext<UGraphNodeContextMenuContext>();
 	const UEdGraphPin* TargetPin = NodeContext->Pin;
 	UMaterialGraphNode_Root* RootPinNode = Cast<UMaterialGraphNode_Root>(TargetPin->GetOwningNode());
 	UMaterialGraphNode* OtherPinNode = Cast<UMaterialGraphNode>(TargetPin->GetOwningNode());
-	if (RootPinNode != nullptr)
+
+	if (TargetPin && (TargetPin->Direction == EEdGraphPinDirection::EGPD_Input) && (TargetPin->LinkedTo.Num() == 0))
 	{
-		EMaterialProperty propertyId = (EMaterialProperty)FCString::Atoi(*TargetPin->PinType.PinSubCategory.ToString());
-		switch (propertyId)
+		if (RootPinNode != nullptr)
 		{
-		case MP_FrontMaterial:
-			return true;
+			EMaterialProperty propertyId = (EMaterialProperty)FCString::Atoi(*TargetPin->PinType.PinSubCategory.ToString());
+			switch (propertyId)
+			{
+			case MP_FrontMaterial:
+				return true;
+			}
+		}
+		else if (OtherPinNode)
+		{
+			const TArray<FExpressionInput*> ExpressionInputs = OtherPinNode->MaterialExpression->GetInputs();
+			FName TargetPinName = OtherPinNode->GetShortenPinName(TargetPin->PinName);
+
+			for (int32 Index = 0; Index < ExpressionInputs.Num(); ++Index)
+			{
+				FExpressionInput* Input = ExpressionInputs[Index];
+				FName InputName = OtherPinNode->MaterialExpression->GetInputName(Index);
+				InputName = OtherPinNode->GetShortenPinName(InputName);
+
+				if (InputName == TargetPinName)
+				{
+					switch (OtherPinNode->MaterialExpression->GetInputType(Index))
+					{
+					case MCT_Strata:
+						return true;
+					}
+					break;
+				}
+			}
 		}
 	}
-	else if (OtherPinNode)
+	else if (TargetPin && (TargetPin->Direction == EEdGraphPinDirection::EGPD_Output) && (TargetPin->LinkedTo.Num() == 0) && NodeForPin != EStrataNodeForPin::Slab)
 	{
-		const TArray<FExpressionInput*> ExpressionInputs = OtherPinNode->MaterialExpression->GetInputs();
-		FName TargetPinName = OtherPinNode->GetShortenPinName(TargetPin->PinName);
-
-		for (int32 Index = 0; Index < ExpressionInputs.Num(); ++Index)
+		if (OtherPinNode)
 		{
-			FExpressionInput* Input = ExpressionInputs[Index];
-			FName InputName = OtherPinNode->MaterialExpression->GetInputName(Index);
-			InputName = OtherPinNode->GetShortenPinName(InputName);
-
-			if (InputName == TargetPinName)
+			const TArray<FExpressionOutput>& ExpressionOutputs = OtherPinNode->MaterialExpression->GetOutputs();
+			check(TargetPin->SourceIndex < ExpressionOutputs.Num());
+			if (OtherPinNode->MaterialExpression->GetOutputType(TargetPin->SourceIndex) == MCT_Strata)
 			{
-				switch (OtherPinNode->MaterialExpression->GetInputType(Index))
-				{
-				case MCT_Strata: 
-					return true;
-				}
-				break;
+				return true;
 			}
 		}
 	}

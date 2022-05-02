@@ -771,10 +771,17 @@ private:
 	/** Will  return the UClass to create from the Pin Type */
 	UClass* GetOnPromoteToParameterClass(const UEdGraphPin* TargetPin) const;
 
-	/** Will create a slab node as input to the pin */
-	void OnCreateSlabNode(const FToolMenuContext& InMenuContext) const;
-	/** Used to know if we can create a slab node as input to the pin */
-	bool OnCanCreateSlabNode(const FToolMenuContext& InMenuContext) const;
+	enum class EStrataNodeForPin : uint8
+	{
+		Slab,
+		HorizontalMix,
+		VerticalLayer,
+		Weight
+	};
+	/** Will create a Strata node as input to the pin */
+	void OnCreateStrataNodeForPin(const FToolMenuContext& InMenuContext, EStrataNodeForPin NodeForPin) const;
+	/** Used to know if we can create a Strata node as input to the pin */
+	bool OnCanCreateStrataNodeForPin(const FToolMenuContext& InMenuContext, EStrataNodeForPin NodeForPin) const;
 
 	/** Open documentation for the selected node class */
 	void OnGoToDocumentation();
