@@ -37,14 +37,11 @@ namespace UE::LevelEditor::Private
 	{
 		if (Actor && (!Viewport || !Actor->IsA(AVolume::StaticClass()) || !Viewport->IsVolumeVisibleInViewport(*Actor)))
 		{
-			if (Actor->GetActorLabel() == FString(TEXT("ChaosAsset_Floor3")))
+			if (FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor))
 			{
-				if (FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor))
+				if (TTypedElement<ITypedElementWorldInterface> WorldElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(ActorHandle))
 				{
-					if (TTypedElement<ITypedElementWorldInterface> WorldElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(ActorHandle))
-					{
-						return WorldElement.GetSelectionElementsInBox(InBox, SelectionArgs);
-					}
+					return WorldElement.GetSelectionElementsInBox(InBox, SelectionArgs);
 				}
 			}
 		}

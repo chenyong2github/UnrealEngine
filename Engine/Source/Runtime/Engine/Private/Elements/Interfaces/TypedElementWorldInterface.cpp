@@ -79,11 +79,14 @@ TArray<FTypedElementHandle> ITypedElementWorldInterface::GetSelectionElementsFro
 	// The default implementation simply iterate the child elements
 
 	TArray<FTypedElementHandle> SelectedSubElements;
-
+	bool bTryToSelectCurrent = true;
 	if (TTypedElement<ITypedElementHierarchyInterface> HierarchyElement = GetRegistry().GetElement<ITypedElementHierarchyInterface>(InElementHandle))
 	{
 		TArray<FTypedElementHandle> ChildElementHandles;
 		HierarchyElement.GetChildElements(ChildElementHandles);
+
+		bTryToSelectCurrent = ChildElementHandles.IsEmpty();
+
 		for (const FTypedElementHandle& ChildHandle : ChildElementHandles)
 		{
 			if (TTypedElement<ITypedElementWorldInterface> ChildWorldElement = GetRegistry().GetElement<ITypedElementWorldInterface>(ChildHandle))
@@ -105,10 +108,10 @@ TArray<FTypedElementHandle> ITypedElementWorldInterface::GetSelectionElementsFro
 				}
 			}
 		}
-
-		// If all the elements selected are the child elements, Select the parent instead if possible.
-		if (!ChildElementHandles.IsEmpty() && ChildElementHandles == SelectedSubElements)
+	
+		if (!bTryToSelectCurrent && ChildElementHandles == SelectedSubElements)
 		{
+			// If all the elements selected are the child elements, add the current also if possible.
 			if (SelectionArgs.SelectionSet)
 			{
 				SelectedSubElements.Add(SelectionArgs.SelectionSet->GetSelectionElement(InElementHandle, SelectionArgs.SelectionMethod));
@@ -119,18 +122,16 @@ TArray<FTypedElementHandle> ITypedElementWorldInterface::GetSelectionElementsFro
 			}
 		}
 	}
-	else
+	
+	if (bTryToSelectCurrent && SelectionFunction(InElementHandle, SelectionArgs))
 	{
-		if (SelectionFunction(InElementHandle, SelectionArgs))
+		if (SelectionArgs.SelectionSet)
 		{
-			if (SelectionArgs.SelectionSet)
-			{
-				SelectedSubElements.Add(SelectionArgs.SelectionSet->GetSelectionElement(InElementHandle, SelectionArgs.SelectionMethod));
-			}
-			else
-			{
-				SelectedSubElements.Add(InElementHandle);
-			}
+			SelectedSubElements.Add(SelectionArgs.SelectionSet->GetSelectionElement(InElementHandle, SelectionArgs.SelectionMethod));
+		}
+		else
+		{
+			SelectedSubElements.Add(InElementHandle);
 		}
 	}
 
