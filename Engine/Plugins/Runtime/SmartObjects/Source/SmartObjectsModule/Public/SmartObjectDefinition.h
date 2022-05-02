@@ -23,19 +23,6 @@ class SMARTOBJECTSMODULE_API USmartObjectBehaviorDefinition : public UObject
 };
 
 /**
- * SmartObject behavior definition for the GameplayBehavior framework
- */
-UCLASS()
-class SMARTOBJECTSMODULE_API USmartObjectGameplayBehaviorDefinition : public USmartObjectBehaviorDefinition
-{
-	GENERATED_BODY()
-
-public:
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
-	UGameplayBehaviorConfig* GameplayBehaviorConfig;
-};
-
-/**
  * Persistent and sharable definition of a smart object slot.
  */
 USTRUCT()

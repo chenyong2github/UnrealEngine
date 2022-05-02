@@ -1,22 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AI/BTTask_FindAndUseSmartObject.h"
-#include "AI/AITask_UseSmartObject.h"
+#include "AI/BTTask_FindAndUseGameplayBehaviorSmartObject.h"
+#include "AI/AITask_UseGameplayBehaviorSmartObject.h"
 #include "AIController.h"
 #include "GameplayTagAssetInterface.h"
+#include "GameplayBehaviorSmartObjectBehaviorDefinition.h"
 #include "SmartObjectSubsystem.h"
-#include "SmartObjectDefinition.h"
 #include "VisualLogger/VisualLogger.h"
 
 
-UBTTask_FindAndUseSmartObject::UBTTask_FindAndUseSmartObject(const FObjectInitializer& ObjectInitializer)
+UBTTask_FindAndUseGameplayBehaviorSmartObject::UBTTask_FindAndUseGameplayBehaviorSmartObject(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	//TagMatchingPolicy = ESmartObjectGameplayTagMatching::Any;
 	Radius = 500.f;
 }
 
-EBTNodeResult::Type UBTTask_FindAndUseSmartObject::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+EBTNodeResult::Type UBTTask_FindAndUseGameplayBehaviorSmartObject::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	EBTNodeResult::Type NodeResult = EBTNodeResult::Failed;
 
@@ -38,7 +38,7 @@ EBTNodeResult::Type UBTTask_FindAndUseSmartObject::ExecuteTask(UBehaviorTreeComp
 	// Create filter
 	FSmartObjectRequestFilter Filter;
 	Filter.ActivityRequirements = ActivityRequirements;
-	Filter.BehaviorDefinitionClass = USmartObjectGameplayBehaviorDefinition::StaticClass();
+	Filter.BehaviorDefinitionClass = UGameplayBehaviorSmartObjectBehaviorDefinition::StaticClass();
 	const IGameplayTagAssetInterface* TagsSource = Cast<const IGameplayTagAssetInterface>(&Avatar);
 	if (TagsSource != nullptr)
 	{
@@ -56,7 +56,7 @@ EBTNodeResult::Type UBTTask_FindAndUseSmartObject::ExecuteTask(UBehaviorTreeComp
 			FSmartObjectClaimHandle ClaimHandle = Subsystem->Claim(Result);
 			if (ClaimHandle.IsValid())
 			{
-				UAITask_UseSmartObject* UseSOTask = NewBTAITask<UAITask_UseSmartObject>(OwnerComp);
+				UAITask_UseGameplayBehaviorSmartObject* UseSOTask = NewBTAITask<UAITask_UseGameplayBehaviorSmartObject>(OwnerComp);
 				UseSOTask->SetClaimHandle(ClaimHandle);
 				UseSOTask->ReadyForActivation();
 
@@ -78,17 +78,17 @@ EBTNodeResult::Type UBTTask_FindAndUseSmartObject::ExecuteTask(UBehaviorTreeComp
 	return NodeResult;
 }
 
-EBTNodeResult::Type UBTTask_FindAndUseSmartObject::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+EBTNodeResult::Type UBTTask_FindAndUseGameplayBehaviorSmartObject::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	return EBTNodeResult::Aborted;
 }
 
-void UBTTask_FindAndUseSmartObject::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult)
+void UBTTask_FindAndUseGameplayBehaviorSmartObject::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult)
 {
 
 }
 
-FString UBTTask_FindAndUseSmartObject::GetStaticDescription() const
+FString UBTTask_FindAndUseGameplayBehaviorSmartObject::GetStaticDescription() const
 {
 	FString Result;
 	if (ActivityRequirements.IsEmpty() == false)

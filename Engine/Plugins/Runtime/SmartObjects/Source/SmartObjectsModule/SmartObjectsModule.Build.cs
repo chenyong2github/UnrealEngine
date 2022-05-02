@@ -18,8 +18,6 @@ namespace UnrealBuildTool.Rules
 				"DeveloperSettings",
 				"Engine",
 				"AIModule",
-				"GameplayBehaviorsModule",
-				"GameplayTasks",
 				"GameplayTags",
 				"GameplayAbilities",
 				"MassEntity",

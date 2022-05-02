@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "GameplayEffectTypes.h"
 #include "MassEntityTypes.h"
 #include "MassEntityView.h"
 #include "Delegates/DelegateCombinations.h"
