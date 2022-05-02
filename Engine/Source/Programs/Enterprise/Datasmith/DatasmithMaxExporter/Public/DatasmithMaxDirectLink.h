@@ -29,6 +29,7 @@ MAX_INCLUDES_END
 // Log all messages
 // #define LOG_DEBUG_HEAVY_ENABLE 1
 // #define LOG_DEBUG_ENABLE 1
+// #define CANCEL_DEBUG_ENABLE 1
 
 
 void AssignMeshMaterials(TSharedPtr<IDatasmithMeshElement>&MeshElement, Mtl * Material, const TSet<uint16>&SupportedChannels);
@@ -76,7 +77,6 @@ class IExporter
 	virtual void InitializeScene() = 0;
 
 	// Scene update
-	virtual void ParseScene() = 0;
 	virtual bool UpdateScene(bool bQuiet) = 0;
 
 	virtual void ResetSceneTracking() = 0;
@@ -133,9 +133,7 @@ struct FValidity
 
 	bool IsInvalidated() const
 	{
-		bool bResult = ValidityInterval.Empty() != 0; // Invalidated equals interval is empty
-		check(bIsInvalidated == bResult);
-		return bResult;
+		return bIsInvalidated;
 	}
 
 	void SetValid()
@@ -182,9 +180,10 @@ struct FValidity
 
 private:
 	Interval ValidityInterval;
-	// todo: this flag indicates, that 'invalidate' called specifically(no force rebuild
+	// todo: this flag indicates that ValidityInterval is determined to be recalculated
 	//  this is done in order to distinguish from Empty Interval that might happen somehow when updated
-	//  probably this is not needed - need to think about this and just rely on Empty for invalidated state 
+	//  Until ValidityInterval is recalculated bIsInvalidated stays - this supports cancelling Update
+	//  at any point. So on the next Update nodes with bIsInvalidated are updated(again, if their update wasn't finished)
 	bool bIsInvalidated; 
 };
 
@@ -197,44 +196,6 @@ class FNodeTracker: FNoncopyable
 {
 public:
 	explicit FNodeTracker(FNodeKey InNodeKey, INode* InNode) : NodeKey(InNodeKey), Node(InNode) {}
-
-	void Invalidate()
-	{
-		Validity.Invalidate();
-	}
-
-	void SetValid()
-	{
-		Validity.SetValid();
-	}
-
-	void ResetValidityInterval()
-	{
-		Validity.ResetValidityInterval();
-	}
-
-	bool IsValidForSyncPoint(const FSyncPoint& State) const
-	{
-		return Validity.IsValidForSyncPoint(State);
-	}
-
-	bool IsSubtreeValidForSyncPoint(const FSyncPoint& State) const
-	{
-		return SubtreeValidity.IsValidForSyncPoint(State);
-	}
-
-	// Forcefully invalidated
-	bool IsInvalidated() const
-	{
-		return Validity.IsInvalidated();
-	}
-
-	// todo: rename. Intersect validity with currently set one
-	//   e.g. validity interval of a geometry should be intersection of validity of transform, mesh, etc
-	void NarrowValidityToInterval(Interval ValidityInterval) 
-	{
-		return Validity.NarrowValidityToInterval(ValidityInterval);
-	}
 
 	void SetXRefIndex(FXRefScene InXRefScene)
 	{
@@ -314,6 +275,7 @@ public:
 	FString Name;
 
 	// Node validity
+	bool bParsed = false; // 
 	bool bDeleted = false;
 	FValidity Validity;
 	FValidity SubtreeValidity;
@@ -385,6 +347,7 @@ struct FSceneUpdateStats
 	int32 CheckTimeSliderSkippedAsSubtreeValid = 0;
 	int32 CheckTimeSliderInvalidated = 0;
 	int32 ConvertNodesConverted = 0;
+	int32 UpdateInstancesGeometryUpdated = 0;
 };
 
 #define SCENE_UPDATE_STAT_INC(Category, Name) {Stats.##Category##Name++;}

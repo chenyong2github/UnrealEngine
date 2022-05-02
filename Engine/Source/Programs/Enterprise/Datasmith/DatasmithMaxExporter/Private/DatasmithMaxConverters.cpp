@@ -29,7 +29,7 @@ void FHelperNodeConverter::ConvertToDatasmith(ISceneTracker& SceneTracker, FNode
 	SceneTracker.SetupActor(NodeTracker);
 
 	// todo: update validity from node
-	NodeTracker.NarrowValidityToInterval(FOREVER);
+	NodeTracker.Validity.NarrowValidityToInterval(FOREVER);
 }
 
 void FHelperNodeConverter::RemoveFromTracked(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker)
@@ -58,7 +58,7 @@ void FCameraNodeConverter::ConvertToDatasmith(ISceneTracker& SceneTracker, FNode
 	NodeTracker.GetConverted().DatasmithActorElement->SetRotation(Rotation);
 
 	// todo: update validity from node
-	NodeTracker.NarrowValidityToInterval(FOREVER);
+	NodeTracker.Validity.NarrowValidityToInterval(FOREVER);
 }
 
 void FCameraNodeConverter::RemoveFromTracked(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker)
@@ -130,7 +130,7 @@ void FLightNodeConverter::ConvertToDatasmith(ISceneTracker& SceneTracker, FNodeT
 		LightElement->SetRotation(Rotation);
 
 		// todo: update validity from node
-		NodeTracker.NarrowValidityToInterval(ValidityInterval);
+		NodeTracker.Validity.NarrowValidityToInterval(ValidityInterval);
 	}
 
 }
@@ -144,13 +144,10 @@ void FMeshNodeConverter::Parse(ISceneTracker& SceneTracker, FNodeTracker& NodeTr
 	ObjectState ObjState = NodeTracker.Node->EvalWorldState(SceneTracker.CurrentSyncPoint.Time);
 	Object* Obj = ObjState.obj;
 
-	if (Obj)
-	{
-		// AnimHandle is unique and never reused for new objects
-		InstanceHandle = Animatable::GetHandleByAnim(Obj); // Record instance handle into Converter to identify it later
+	// AnimHandle is unique and never reused for new objects
+	InstanceHandle = Animatable::GetHandleByAnim(Obj); // Record instance handle into Converter to identify it later
 
-		SceneTracker.AddGeometryNodeInstance(NodeTracker, *this, Obj);
-	}
+	SceneTracker.AddGeometryNodeInstance(NodeTracker, *this, Obj);
 }
 
 void FMeshNodeConverter::RemoveFromTracked(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker)
@@ -168,7 +165,7 @@ void FMeshNodeConverter::ConvertToDatasmith(ISceneTracker& SceneTracker, FNodeTr
 
 	// Mark node as updated as soon as it is - in order for next nodes to be able to use its DatasmithActor
 	// todo: update validity from node
-	NodeTracker.NarrowValidityToInterval(FOREVER);
+	NodeTracker.Validity.NarrowValidityToInterval(FOREVER);
 }
 
 void FHismNodeConverter::RemoveFromTracked(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker)
