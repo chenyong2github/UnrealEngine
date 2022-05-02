@@ -183,7 +183,6 @@ TSharedRef<SWidget> FMaterialItemView::CreateValueContent(IDetailLayoutBuilder& 
 			[
 				SNew(SObjectPropertyEntryBox)
 				.ObjectPath(this, &FMaterialItemView::OnGetObjectPath)
-				.PropertyHandle(GetMaterialHandle(InDetailBuilder, InActorComponent))
 				.AllowClear(false)
 				.AllowedClass(UMaterialInterface::StaticClass())
 				.OnObjectChanged(this, &FMaterialItemView::OnSetObject)
