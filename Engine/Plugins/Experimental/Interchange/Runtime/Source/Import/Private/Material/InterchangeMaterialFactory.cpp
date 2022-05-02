@@ -475,6 +475,28 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 		}
 	}
 
+	// Anisotropy
+	{
+		FString AnisotropyUid;
+		FString OutputName;
+
+		if (MaterialFactoryNode->GetAnisotropyConnection(AnisotropyUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* Anisotropy = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(AnisotropyUid));
+
+			if (Anisotropy)
+			{
+				if (UMaterialExpression* AnisotropyExpression = CreateExpressionsForNode(Material, Arguments, Anisotropy, Expressions))
+				{
+					if (FExpressionInput* AnisotropyInput = Material->GetExpressionInputForProperty(MP_Anisotropy))
+					{
+						AnisotropyExpression->ConnectExpression(AnisotropyInput, GetOutputIndex(*AnisotropyExpression, OutputName));
+					}
+				}
+			}
+		}
+	}
+
 	// Emissive
 	{
 		FString EmissiveColorUid;

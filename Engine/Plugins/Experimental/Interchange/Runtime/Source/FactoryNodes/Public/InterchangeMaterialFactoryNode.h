@@ -73,6 +73,15 @@ public:
 	bool ConnectOutputToRoughness(const FString& ExpressionNodeUid, const FString& OutputName);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool GetAnisotropyConnection(FString& ExpressionNodeUid, FString& OutputName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectToAnisotropy(const FString& ExpressionNodeUid);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectOutputToAnisotropy(const FString& ExpressionNodeUid, const FString& OutputName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
 	bool GetEmissiveColorConnection(FString& ExpressionNodeUid, FString& OutputName) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")

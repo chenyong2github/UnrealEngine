@@ -167,6 +167,7 @@ namespace Interchange
 				const FName Metallic = TEXT("Metallic"); // Type: float
 				const FName Specular = TEXT("Specular"); // Type: float
 				const FName Roughness = TEXT("Roughness"); // Type: float
+				const FName Anisotropy = TEXT("Anisotropy"); // Type: float
 			}
 		}
 
