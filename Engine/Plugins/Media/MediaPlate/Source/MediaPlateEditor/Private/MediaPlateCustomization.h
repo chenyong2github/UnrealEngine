@@ -41,6 +41,16 @@ private:
 	FString MediaPath;
 
 	/**
+	 * Gets the object path for the media source object.
+	 */
+	FString GetMediaSourcePath() const;
+
+	/**
+	 * Called when the media source widget changes.
+	 */
+	void OnMediaSourceChanged(const FAssetData& AssetData);
+
+	/**
 	 * Updates MediaPath from the current MediaSource.
 	 */
 	void UpdateMediaPath();
@@ -64,11 +74,6 @@ private:
 	 * Call this to stop all playback.
 	 */
 	void StopMediaPlates();
-
-	/**
-	 * Called when MediaSource changes.
-	 */
-	void OnMediaSourceChanged(IDetailLayoutBuilder* DetailBuilder);
 
 	/**
 	 * Get the rate to use when we press the forward button.

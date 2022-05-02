@@ -10,7 +10,9 @@
 #include "MediaPlateComponent.h"
 #include "MediaPlateEditorModule.h"
 #include "MediaPlayer.h"
+#include "MediaPlaylist.h"
 #include "MediaSource.h"
+#include "PropertyCustomizationHelpers.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SFilePathPicker.h"
@@ -57,16 +59,23 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 
 	// Set media path.
 	UpdateMediaPath();
-
-	// Get the MediaSource property.
-	TSharedRef<IPropertyHandle> Property = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UMediaPlateComponent, MediaSource));
-	if (Property->IsValidHandle())
-	{
-		// Get a callback when this changes so we can stop the player.
-		FSimpleDelegate OnMediaSourceChangedDelegate = FSimpleDelegate::CreateSP(this,
-			&FMediaPlateCustomization::OnMediaSourceChanged, &DetailBuilder);
-		Property->SetOnPropertyValueChanged(OnMediaSourceChangedDelegate);
-	}
+	
+	// Add media source.
+	MediaPlateCategory.AddCustomRow(LOCTEXT("MediaPlateMediaSource", "MediaPlate Media Source"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("MediaSource", "Media Source"))
+			.ToolTipText(LOCTEXT("MediaSource_ToolTip", "The Media Source to play."))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SObjectPropertyEntryBox)
+				.AllowedClass(UMediaSource::StaticClass())
+				.ObjectPath(this, &FMediaPlateCustomization::GetMediaSourcePath)
+				.OnObjectChanged(this, &FMediaPlateCustomization::OnMediaSourceChanged)
+		];
 
 	// Add media path.
 	FString FileTypeFilter = TEXT("All files (*.*)|*.*");
@@ -308,34 +317,94 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 							.Text(LOCTEXT("OpenMediaPlate", "Open Media Plate"))
 					]
 			];
-		}
 	}
+}
 
-
-void FMediaPlateCustomization::UpdateMediaPath()
+FString FMediaPlateCustomization::GetMediaSourcePath() const
 {
-	MediaPath.Empty();
+	FString Path;
 
+	// Get the first media plate.
 	if (MediaPlatesList.Num() > 0)
 	{
 		UMediaPlateComponent* MediaPlate = MediaPlatesList[0].Get();
 		if (MediaPlate != nullptr)
 		{
-			UMediaSource* MediaSource = MediaPlate->MediaSource;
-			if (MediaSource != nullptr)
+			UMediaPlaylist* Playlist = MediaPlate->MediaPlaylist;
+			if (Playlist != nullptr)
 			{
-				MediaPath = MediaSource->GetUrl();
-
-				// Remove certain types.
-				const FString FilePrefix(TEXT("file://"));
-				const FString ImgPrefix(TEXT("img://"));
-				if (MediaPath.StartsWith(FilePrefix))
+				// Get the first media source in the playlist.
+				UMediaSource* MediaSource = Playlist->Get(0);
+				if (MediaSource != nullptr)
 				{
-					MediaPath = MediaPath.RightChop(FilePrefix.Len());
+					Path = MediaSource->GetPathName();
 				}
-				else if (MediaPath.StartsWith(ImgPrefix))
+			}
+		}
+	}
+
+	return Path;
+}
+
+void FMediaPlateCustomization::OnMediaSourceChanged(const FAssetData& AssetData)
+{
+	// Update the playlist with the new media source.
+	UMediaSource* MediaSource = Cast<UMediaSource>(AssetData.GetAsset());
+	for (TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+		if (MediaPlate != nullptr)
+		{
+			UMediaPlaylist* Playlist = MediaPlate->MediaPlaylist;
+			if (Playlist != nullptr)
+			{
+				if (Playlist->Num() > 0)
 				{
-					MediaPath = MediaPath.RightChop(ImgPrefix.Len());
+					Playlist->Replace(0, MediaSource);
+				}
+				else
+				{
+					Playlist->Add(MediaSource);
+				}
+				Playlist->MarkPackageDirty();
+			}
+		}
+	}
+
+	StopMediaPlates();
+	UpdateMediaPath();
+}
+
+void FMediaPlateCustomization::UpdateMediaPath()
+{
+	MediaPath.Empty();
+
+	// Get the first media plate.
+	if (MediaPlatesList.Num() > 0)
+	{
+		UMediaPlateComponent* MediaPlate = MediaPlatesList[0].Get();
+		if (MediaPlate != nullptr)
+		{
+			UMediaPlaylist* Playlist = MediaPlate->MediaPlaylist;
+			if (Playlist != nullptr)
+			{
+				// Get the first media source in the playlist.
+				UMediaSource* MediaSource = Playlist->Get(0);
+				if (MediaSource != nullptr)
+				{
+					MediaPath = MediaSource->GetUrl();
+
+					// Remove certain types.
+					const FString FilePrefix(TEXT("file://"));
+					const FString ImgPrefix(TEXT("img://"));
+					if (MediaPath.StartsWith(FilePrefix))
+					{
+						MediaPath = MediaPath.RightChop(FilePrefix.Len());
+					}
+					else if (MediaPath.StartsWith(ImgPrefix))
+					{
+						MediaPath = MediaPath.RightChop(ImgPrefix.Len());
+					}
 				}
 			}
 		}
@@ -361,12 +430,23 @@ void FMediaPlateCustomization::HandleMediaPathPicked(const FString& PickedPath)
 			UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
 			if (MediaPlate != nullptr)
 			{
-				// Create media source for this path.
-				UMediaSource* MediaSource = UMediaSource::SpawnMediaSourceForString(PickedPath, MediaPlate);
-				if (MediaSource != nullptr)
+				UMediaPlaylist* Playlist = MediaPlate->MediaPlaylist;
+				if (Playlist != nullptr)
 				{
-					MediaPlate->MediaSource = MediaSource;
-					MediaPlate->MarkPackageDirty();
+					// Create media source for this path.
+					UMediaSource* MediaSource = UMediaSource::SpawnMediaSourceForString(PickedPath, MediaPlate);
+					if (MediaSource != nullptr)
+					{
+						if (Playlist->Num() > 0)
+						{
+							Playlist->Replace(0, MediaSource);
+						}
+						else
+						{
+							Playlist->Add(MediaSource);
+						}
+						Playlist->MarkPackageDirty();
+					}
 				}
 			}
 		}
@@ -408,12 +488,6 @@ void FMediaPlateCustomization::StopMediaPlates()
 			MediaPlate->Stop();
 		}
 	}
-}
-
-void FMediaPlateCustomization::OnMediaSourceChanged(IDetailLayoutBuilder* DetailBuilder)
-{
-	StopMediaPlates();
-	UpdateMediaPath();
 }
 
 float FMediaPlateCustomization::GetForwardRate(UMediaPlayer* MediaPlayer) const

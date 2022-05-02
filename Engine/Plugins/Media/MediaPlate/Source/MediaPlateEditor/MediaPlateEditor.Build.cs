@@ -29,6 +29,7 @@ public class MediaPlateEditor : ModuleRules
 				"MediaPlate",
 				"MediaPlayerEditor",
 				"MovieScene",
+				"PropertyEditor",
 				"Sequencer",
 				"Slate",
 				"SlateCore",

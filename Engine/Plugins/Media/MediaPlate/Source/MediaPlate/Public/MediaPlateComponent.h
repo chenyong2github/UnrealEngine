@@ -10,6 +10,7 @@
 
 class UMediaComponent;
 class UMediaPlayer;
+class UMediaPlaylist;
 class UMediaSoundComponent;
 class UMediaSource;
 class UMediaTexture;
@@ -79,9 +80,9 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MediaPlate)
 	TObjectPtr<UMediaSoundComponent> SoundComponent;
 
-	/** What media to play. */
+	/** What media playlist to play. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlate")
-	TObjectPtr<UMediaSource> MediaSource;
+	TObjectPtr<UMediaPlaylist> MediaPlaylist;
 
 	/** Enable smart caching for image sequences. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
@@ -107,6 +108,8 @@ public:
 private:
 	/** Name for our media component. */
 	static FLazyName MediaComponentName;
+	/** Name for our playlist. */
+	static FLazyName MediaPlaylistName;
 
 	/** Info representing this object. */
 	TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> MediaTextureTrackerObject;

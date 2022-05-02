@@ -5,8 +5,9 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "MediaComponent.h"
-#include "MediaPlayer.h"
 #include "MediaPlateModule.h"
+#include "MediaPlayer.h"
+#include "MediaPlaylist.h"
 #include "MediaSource.h"
 #include "MediaSoundComponent.h"
 #include "MediaTexture.h"
@@ -15,6 +16,7 @@
 #define LOCTEXT_NAMESPACE "MediaPlate"
 
 FLazyName UMediaPlateComponent::MediaComponentName(TEXT("MediaComponent0"));
+FLazyName UMediaPlateComponent::MediaPlaylistName(TEXT("MediaPlaylist0"));
 
 UMediaPlateComponent::UMediaPlateComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -30,6 +32,9 @@ UMediaPlateComponent::UMediaPlateComponent(const FObjectInitializer& ObjectIniti
 			MediaTexture->NewStyleOutput = true;
 		}
 	}
+
+	// Set up playlist.
+	MediaPlaylist = CreateDefaultSubobject<UMediaPlaylist>(MediaPlaylistName);
 }
 
 void UMediaPlateComponent::OnRegister()
@@ -86,6 +91,11 @@ void UMediaPlateComponent::Play()
 	TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
 	if (MediaPlayer != nullptr)
 	{
+		UMediaSource* MediaSource = nullptr;
+		if (MediaPlaylist != nullptr)
+		{
+			MediaSource = MediaPlaylist->Get(0);
+		}
 		bIsPlaying = PlayMediaSource(MediaSource);
 	}
 
