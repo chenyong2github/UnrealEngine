@@ -407,7 +407,7 @@ void DIRigidMeshCollision_GetClosestDistance(in FDIRigidMeshCollisionContext DIC
 }
 
 // Given a world space position (WorldPosition) compute the static mesh closest point (position,normal,velocity)
-void DIRigidMeshCollision_GetClosestPointMeshDistanceField(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float DeltaTime, in float TimeFraction, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestNormal, out float3 OutClosestVelocity)
+void DIRigidMeshCollision_GetClosestPointMeshDistanceField(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float DeltaTime, in float TimeFraction, in float MaxDistance, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestNormal, out float3 OutClosestVelocity, out bool NormalIsValid)
 {	
 	float3 CollisionPosition = float3(0,0,0);
 	float3 CollisionNormal = float3(0,0,0);
@@ -416,6 +416,8 @@ void DIRigidMeshCollision_GetClosestPointMeshDistanceField(in FDIRigidMeshCollis
 	OutClosestNormal = float3(0,0,0);
 	OutClosestPosition = float3(0,0,0);
 	OutClosestVelocity = float3(0,0,0);
+
+	NormalIsValid = false;
 
 	float OutClosestDistanceTmp;
 	const int ElementIndex = DIRigidMeshCollision_GetClosestElement(DIContext,WorldPosition,CollisionPosition,CollisionNormal,OutClosestDistanceTmp,TimeFraction);
@@ -427,7 +429,9 @@ void DIRigidMeshCollision_GetClosestPointMeshDistanceField(in FDIRigidMeshCollis
 		if (DFIndex >= 0 && DFIndex < NumSceneObjects)
 		{
 			// #todo(dmp): this does a dynamic branch based on intersecting the bbox.  Maybe we can factor that out due to the broadphase here?
-			OutClosestDistance = DistanceToNearestSurfaceForObject(DFIndex, WorldPosition, 1e-3);
+			// #todo(dmp): Check the distance from the physics asset for a speedup?
+			MaxDistance = max(.001, MaxDistance);
+			OutClosestDistance = DistanceToNearestSurfaceForObject(DFIndex, WorldPosition, MaxDistance);			 
 
 			FDFObjectData DFObjectData = LoadDFObjectData(DFIndex);
 			float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
@@ -441,17 +445,77 @@ void DIRigidMeshCollision_GetClosestPointMeshDistanceField(in FDIRigidMeshCollis
 			float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)WorldToVolume));
 			float WorldGradientLength = length(WorldGradient);
 			OutClosestNormal = WorldGradientLength > 0.0f ? WorldGradient / WorldGradientLength : 0;
-
-			const float3 PreviousPosition = mul(DIRigidMeshCollision_GetPreviousTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
-			const float3 CurrentPosition = mul(DIRigidMeshCollision_GetCurrentTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
+			
+			CollisionPosition = WorldPosition - OutClosestNormal * OutClosestDistance;			
+			const float3 LocalCollisionPosition = mul(DIRigidMeshCollision_GetInverseTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;			
+			
+			const float3 PreviousPosition = mul(DIRigidMeshCollision_GetPreviousTransform(DIContext,ElementIndex), float4(LocalCollisionPosition,1.0)).xyz;
+			const float3 CurrentPosition = mul(DIRigidMeshCollision_GetCurrentTransform(DIContext,ElementIndex), float4(LocalCollisionPosition,1.0)).xyz;
 			OutClosestVelocity = ( CurrentPosition - PreviousPosition ) / DeltaTime;
 			OutClosestPosition = PreviousPosition + TimeFraction * (CurrentPosition-PreviousPosition);
+
+			// output 			
+			NormalIsValid =  all(step(-DFObjectData.VolumePositionExtent, VolumePosition) * step(VolumePosition, DFObjectData.VolumePositionExtent));
+			OutClosestPosition = NormalIsValid ? OutClosestPosition : float3(0,0,0);
 		}
 	}
 }
 
+// Given a world space position (WorldPosition) compute the static mesh closest point (position,normal,velocity) by querying all overlapping mesh distance fields
+void DIRigidMeshCollision_GetClosestPointMeshDistanceFieldAccurate(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float DeltaTime, in float TimeFraction, in float MaxDistance, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestNormal, out float3 OutClosestVelocity, out bool NormalIsValid)
+{	
+	float3 CollisionPosition = float3(0,0,0);
+	float3 CollisionNormal = float3(0,0,0);
+	OutClosestDistance = MAX_DISTANCE;	
+
+	OutClosestNormal = float3(0,0,0);
+	OutClosestPosition = float3(0,0,0);
+	OutClosestVelocity = float3(0,0,0);
+	
+	NormalIsValid = false;
+
+	for (int ElementIndex = 0; ElementIndex < DIContext.ElementOffsets[3]; ++ElementIndex)
+	{
+		uint DFIndex = DIContext.DFIndexBuffer[ElementIndex];
+
+		// #todo(dmp): this does a dynamic branch based on intersecting the bbox.  Maybe we can factor that out due to the broadphase here?
+		// #todo(dmp): Check the distance from the physics asset for a speedup?
+		MaxDistance = max(.001, MaxDistance);
+		float OutClosestDistanceTmp = DistanceToNearestSurfaceForObject(DFIndex, WorldPosition, MaxDistance);			 
+
+		if (OutClosestDistanceTmp < OutClosestDistance)
+		{
+			OutClosestDistance = OutClosestDistanceTmp;
+			FDFObjectData DFObjectData = LoadDFObjectData(DFIndex);
+			float4x4 WorldToVolume = LWCHackToFloat(DFObjectData.WorldToVolume);
+			uint NumMips = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips;
+			FDFAssetData DFAssetData = LoadDFAssetData(DFObjectData.AssetIndex, NumMips - 1);
+			float3 VolumePosition = mul(float4(WorldPosition, 1), WorldToVolume).xyz;		
+			float3 VolumeGradient = CalculateMeshSDFGradient(VolumePosition, DFAssetData);
+			float VolumeGradientLength = length(VolumeGradient);
+			float3 VolumeNormal = VolumeGradientLength > 0.0f ? VolumeGradient / VolumeGradientLength : 0;
+			// Transform by transposed inverse to handle non-uniform scaling
+			float3 WorldGradient = mul(VolumeNormal, transpose((float3x3)WorldToVolume));
+			float WorldGradientLength = length(WorldGradient);
+			OutClosestNormal = WorldGradientLength > 0.0f ? WorldGradient / WorldGradientLength : 0;
+			
+			CollisionPosition = WorldPosition - OutClosestNormal * OutClosestDistance;			
+			const float3 LocalCollisionPosition = mul(DIRigidMeshCollision_GetInverseTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;			
+			
+			const float3 PreviousPosition = mul(DIRigidMeshCollision_GetPreviousTransform(DIContext,ElementIndex), float4(LocalCollisionPosition,1.0)).xyz;
+			const float3 CurrentPosition = mul(DIRigidMeshCollision_GetCurrentTransform(DIContext,ElementIndex), float4(LocalCollisionPosition,1.0)).xyz;
+			OutClosestVelocity = ( CurrentPosition - PreviousPosition ) / DeltaTime;
+			OutClosestPosition = PreviousPosition + TimeFraction * (CurrentPosition-PreviousPosition);
+
+			// output 			
+			NormalIsValid =  all(step(-DFObjectData.VolumePositionExtent, VolumePosition) * step(VolumePosition, DFObjectData.VolumePositionExtent));
+			OutClosestPosition = NormalIsValid ? OutClosestPosition : float3(0,0,0);
+		}
+	}	
+}
+
 // Given a world space position (WorldPosition) compute the static mesh closest point (position,normal,velocity)
-void DIRigidMeshCollision_GetClosestPointMeshDistanceFieldNoNormal(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float DeltaTime, in float TimeFraction, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestVelocity)
+void DIRigidMeshCollision_GetClosestPointMeshDistanceFieldNoNormal(in FDIRigidMeshCollisionContext DIContext, in float3 WorldPosition, in float DeltaTime, in float TimeFraction, in float MaxDistance, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestVelocity)
 {	
 	float3 CollisionPosition = float3(0,0,0);
 	float3 CollisionNormal = float3(0,0,0);
@@ -470,6 +534,7 @@ void DIRigidMeshCollision_GetClosestPointMeshDistanceFieldNoNormal(in FDIRigidMe
 		if (DFIndex >= 0 && DFIndex < NumSceneObjects)
 		{
 			// #todo(dmp): this does a dynamic branch based on intersecting the bbox.  Maybe we can factor that out due to the broadphase here?
+			MaxDistance = max(.001, MaxDistance);
 			OutClosestDistance = DistanceToNearestSurfaceForObject(DFIndex, WorldPosition, 1e-3);		
 
 			const float3 PreviousPosition = mul(DIRigidMeshCollision_GetPreviousTransform(DIContext,ElementIndex), float4(CollisionPosition,1.0)).xyz;
