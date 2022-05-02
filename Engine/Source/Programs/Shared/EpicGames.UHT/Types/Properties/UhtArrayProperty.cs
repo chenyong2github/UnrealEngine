@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Parsers;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -20,31 +20,31 @@ namespace EpicGames.UHT.Types
 	public class UhtArrayProperty : UhtContainerBaseProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "ArrayProperty"; }
+		public override string EngineClassName => "ArrayProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "TArray"; }
+		protected override string CppTypeText => "TArray";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "TARRAY"; }
+		protected override string PGetMacroText => "TARRAY";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Construct a new array property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="Value">Inner property value</param>
-		public UhtArrayProperty(UhtPropertySettings PropertySettings, UhtProperty Value) : base(PropertySettings, Value)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="value">Inner property value</param>
+		public UhtArrayProperty(UhtPropertySettings propertySettings, UhtProperty value) : base(propertySettings, value)
 		{
 			// If the creation of the value property set more flags, then copy those flags to ourselves
-			this.PropertyFlags |= Value.PropertyFlags & EPropertyFlags.UObjectWrapper;
+			this.PropertyFlags |= value.PropertyFlags & EPropertyFlags.UObjectWrapper;
 
-			if (Value.MetaData.ContainsKey(UhtNames.NativeConst))
+			if (value.MetaData.ContainsKey(UhtNames.NativeConst))
 			{
 				this.MetaData.Add(UhtNames.NativeConstTemplateArg, "");
-				Value.MetaData.Remove(UhtNames.NativeConst);
+				value.MetaData.Remove(UhtNames.NativeConst);
 			}
 
 			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.SupportsRigVM | UhtPropertyCaps.IsRigVMArray;
@@ -59,26 +59,26 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase Phase)
+		protected override bool ResolveSelf(UhtResolvePhase phase)
 		{
-			bool bResults = base.ResolveSelf(Phase);
-			switch (Phase)
+			bool results = base.ResolveSelf(phase);
+			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					this.PropertyFlags |= ResolveAndReturnNewFlags(this.ValueProperty, Phase);
+					this.PropertyFlags |= ResolveAndReturnNewFlags(this.ValueProperty, phase);
 					this.MetaData.Add(this.ValueProperty.MetaData);
 					this.ValueProperty.PropertyFlags = this.PropertyFlags & EPropertyFlags.PropagateToArrayInner;
 					this.ValueProperty.MetaData.Clear();
 					PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(this, this.MetaData, this.ValueProperty);
 					break;
 			}
-			return bResults;
+			return results;
 		}
 
 		/// <inheritdoc/>
-		public override void CollectReferencesInternal(IUhtReferenceCollector Collector, bool bTemplateProperty)
+		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			this.ValueProperty.CollectReferencesInternal(Collector, true);
+			this.ValueProperty.CollectReferencesInternal(collector, true);
 		}
 
 		/// <inheritdoc/>
@@ -90,92 +90,92 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override IEnumerable<UhtType> EnumerateReferencedTypes()
 		{
-			foreach (UhtType Type in this.ValueProperty.EnumerateReferencedTypes())
+			foreach (UhtType type in this.ValueProperty.EnumerateReferencedTypes())
 			{
-				yield return Type;
+				yield return type;
 			}
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				case UhtPropertyTextType.SparseShort:
-					Builder.Append("TArray");
+					builder.Append("TArray");
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					Builder.AppendFunctionThunkParameterArrayType(this.ValueProperty);
+					builder.AppendFunctionThunkParameterArrayType(this.ValueProperty);
 					break;
 
 				default:
-					Builder.Append("TArray<").AppendPropertyText(this.ValueProperty, TextType, true);
-					if (Builder[Builder.Length - 1] == '>')
+					builder.Append("TArray<").AppendPropertyText(this.ValueProperty, textType, true);
+					if (builder[^1] == '>')
 					{
 						// if our internal property type is a template class, add a space between the closing brackets b/c VS.NET cannot parse this correctly
-						Builder.Append(' ');
+						builder.Append(' ');
 					}
-					Builder.Append('>');
+					builder.Append('>');
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			Builder.AppendMemberDecl(this.ValueProperty, Context, Name, GetNameSuffix(NameSuffix, "_Inner"), Tabs);
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FArrayPropertyParams");
+			builder.AppendMemberDecl(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_Inner"), tabs);
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FArrayPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			Builder.AppendMemberDef(this.ValueProperty, Context, Name, GetNameSuffix(NameSuffix, "_Inner"), "0", Tabs);
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FArrayPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Array");
-			Builder.Append(this.Allocator == UhtPropertyAllocator.MemoryImage ? "EArrayPropertyFlags::UsesMemoryImageAllocator" : "EArrayPropertyFlags::None").Append(", ");
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			builder.AppendMemberDef(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_Inner"), "0", tabs);
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FArrayPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Array");
+			builder.Append(this.Allocator == UhtPropertyAllocator.MemoryImage ? "EArrayPropertyFlags::UsesMemoryImageAllocator" : "EArrayPropertyFlags::None").Append(", ");
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberPtr(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberPtr(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			Builder.AppendMemberPtr(this.ValueProperty, Context, Name, GetNameSuffix(NameSuffix, "_Inner"), Tabs);
-			base.AppendMemberPtr(Builder, Context, Name, NameSuffix, Tabs);
-			return Builder;
+			builder.AppendMemberPtr(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_Inner"), tabs);
+			base.AppendMemberPtr(builder, context, name, nameSuffix, tabs);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override void AppendObjectHashes(StringBuilder Builder, int StartingLength, IUhtPropertyMemberContext Context)
+		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			this.ValueProperty.AppendObjectHashes(Builder, StartingLength, Context);
+			this.ValueProperty.AppendObjectHashes(builder, startingLength, context);
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			Builder.AppendPropertyText(this, UhtPropertyTextType.Construction).Append("()");
-			return Builder;
+			builder.AppendPropertyText(this, UhtPropertyTextType.Construction).Append("()");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
 			return false;
 		}
 
 		/// <inheritdoc/>
-		protected override void ValidateFunctionArgument(UhtFunction Function, UhtValidationOptions Options)
+		protected override void ValidateFunctionArgument(UhtFunction function, UhtValidationOptions options)
 		{
-			base.ValidateFunctionArgument(Function, Options);
+			base.ValidateFunctionArgument(function, options);
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
-				if (!Function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest))
+				if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest))
 				{
-					if (this.RefQualifier != UhtPropertyRefQualifier.ConstRef && !this.bIsStaticArray)
+					if (this.RefQualifier != UhtPropertyRefQualifier.ConstRef && !this.IsStaticArray)
 					{
 						this.LogError("Replicated TArray parameters must be passed by const reference");
 					}
@@ -184,9 +184,9 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override void Validate(UhtStruct OuterStruct, UhtProperty OutermostProperty, UhtValidationOptions Options)
+		public override void Validate(UhtStruct outerStruct, UhtProperty outermostProperty, UhtValidationOptions options)
 		{
-			base.Validate(OuterStruct, OutermostProperty, Options);
+			base.Validate(outerStruct, outermostProperty, options);
 
 			if (this.Allocator != UhtPropertyAllocator.Default)
 			{
@@ -198,65 +198,65 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			if (Other is UhtArrayProperty OtherArray)
+			if (other is UhtArrayProperty otherArray)
 			{
-				return this.ValueProperty.IsSameType(OtherArray.ValueProperty);
+				return this.ValueProperty.IsSameType(otherArray.ValueProperty);
 			}
 			return false;
 		}
 
-#region Keyword
+		#region Keyword
 		[UhtPropertyType(Keyword = "TArray")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static UhtProperty? ArrayProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? ArrayProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			using (var TokenContext = new UhtMessageContext("TArray"))
+			using (UhtMessageContext tokenContext = new UhtMessageContext("TArray"))
 			{
-				if (!TokenReader.SkipExpectedType(MatchedToken.Value, PropertySettings.PropertyCategory == UhtPropertyCategory.Member))
+				if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
 				{
 					return null;
 				}
-				TokenReader.Require('<');
+				tokenReader.Require('<');
 
 				// Parse the value type
-				UhtProperty? Value = UhtPropertyParser.ParseTemplateParam(ResolvePhase, PropertySettings, PropertySettings.SourceName, TokenReader);
-				if (Value == null)
+				UhtProperty? value = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, propertySettings.SourceName, tokenReader);
+				if (value == null)
 				{
 					return null;
 				}
 
-				if (!Value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerValue))
+				if (!value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerValue))
 				{
-					TokenReader.LogError($"The type \'{Value.GetUserFacingDecl()}\' can not be used as a value in a TArray");
+					tokenReader.LogError($"The type \'{value.GetUserFacingDecl()}\' can not be used as a value in a TArray");
 				}
 
-				if (TokenReader.TryOptional(','))
+				if (tokenReader.TryOptional(','))
 				{
 					// If we found a comma, read the next thing, assume it's an allocator, and report that
-					UhtToken AllocatorToken = TokenReader.GetIdentifier();
-					if (AllocatorToken.IsIdentifier("FMemoryImageAllocator"))
+					UhtToken allocatorToken = tokenReader.GetIdentifier();
+					if (allocatorToken.IsIdentifier("FMemoryImageAllocator"))
 					{
-						PropertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
+						propertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
 					}
-					else if (AllocatorToken.IsIdentifier("TMemoryImageAllocator"))
+					else if (allocatorToken.IsIdentifier("TMemoryImageAllocator"))
 					{
-						TokenReader.RequireList('<', '>', "TMemoryImageAllocator template arguments");
-						PropertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
+						tokenReader.RequireList('<', '>', "TMemoryImageAllocator template arguments");
+						propertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
 					}
 					else
 					{
-						throw new UhtException(TokenReader, $"Found '{AllocatorToken.Value.ToString()}' - explicit allocators are not supported in TArray properties.");
+						throw new UhtException(tokenReader, $"Found '{allocatorToken.Value}' - explicit allocators are not supported in TArray properties.");
 					}
 				}
-				TokenReader.Require('>');
+				tokenReader.Require('>');
 
 				//@TODO: Prevent sparse delegate types from being used in a container
 
-				return new UhtArrayProperty(PropertySettings, Value);
+				return new UhtArrayProperty(propertySettings, value);
 			}
 		}
-#endregion
+		#endregion
 	}
 }

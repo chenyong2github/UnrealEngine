@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
+using EpicGames.Core;
 
 namespace EpicGames.UHT.Utils
 {
@@ -11,34 +11,34 @@ namespace EpicGames.UHT.Utils
 	/// </summary>
 	public struct UhtHash
 	{
-		private ulong HashInternal;
+		private ulong _hashInternal;
 
 		/// <summary>
 		/// Start the hash computation
 		/// </summary>
 		public void Begin()
 		{
-			this.HashInternal = 0;
+			this._hashInternal = 0;
 		}
 
 		/// <summary>
 		/// Add a span of text to the current hash value
 		/// </summary>
-		/// <param name="Text"></param>
-		public void Add(ReadOnlySpan<char> Text)
+		/// <param name="text"></param>
+		public void Add(ReadOnlySpan<char> text)
 		{
-			while (Text.Length != 0)
+			while (text.Length != 0)
 			{
-				int CrPos = Text.IndexOf('\r');
-				if (CrPos == -1)
+				int crPos = text.IndexOf('\r');
+				if (crPos == -1)
 				{
-					HashText(Text.Slice(0, Text.Length));
+					HashText(text.Slice(0, text.Length));
 					break;
 				}
 				else
 				{
-					HashText(Text.Slice(0, CrPos));
-					Text = Text.Slice(CrPos + 1);
+					HashText(text.Slice(0, crPos));
+					text = text.Slice(crPos + 1);
 				}
 			}
 		}
@@ -49,31 +49,31 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Final hash value</returns>
 		public uint End()
 		{
-			return (uint)(this.HashInternal + (this.HashInternal >> 32));
+			return (uint)(this._hashInternal + (this._hashInternal >> 32));
 		}
 
 		/// <summary>
 		/// Generate the hash value for a block of text
 		/// </summary>
-		/// <param name="Text">Text to hash</param>
+		/// <param name="text">Text to hash</param>
 		/// <returns>Hash value</returns>
-		public static uint GenenerateTextHash(ReadOnlySpan<char> Text)
+		public static uint GenenerateTextHash(ReadOnlySpan<char> text)
 		{
-			UhtHash Hash = new UhtHash();
-			Hash.Begin();
-			Hash.Add(Text);
-			return Hash.End();
+			UhtHash hash = new UhtHash();
+			hash.Begin();
+			hash.Add(text);
+			return hash.End();
 		}
 
-		private void HashText(ReadOnlySpan<char> Text)
+		private void HashText(ReadOnlySpan<char> text)
 		{
-			if (Text.Length > 0)
+			if (text.Length > 0)
 			{
 				unsafe
 				{
-					fixed (char* TextPtr = Text)
+					fixed (char* textPtr = text)
 					{
-						this.HashInternal = CityHash.CityHash64WithSeed((byte*)TextPtr, (uint)(Text.Length * sizeof(char)), this.HashInternal);
+						this._hashInternal = CityHash.CityHash64WithSeed((byte*)textPtr, (uint)(text.Length * sizeof(char)), this._hashInternal);
 					}
 				}
 			}

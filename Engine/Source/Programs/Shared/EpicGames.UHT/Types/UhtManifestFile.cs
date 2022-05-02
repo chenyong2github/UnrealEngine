@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Text.Json;
 using EpicGames.Core;
 using EpicGames.UHT.Utils;
-using System.Text.Json;
 
 namespace EpicGames.UHT.Types
 {
@@ -18,15 +18,15 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		public UHTManifest? Manifest { get; set; } = null;
 
-		private readonly UhtSourceFile SourceFile;
+		private readonly UhtSourceFile _sourceFile;
 
 		#region IUHTMessageSite implementation
 
 		/// <inheritdoc/>
-		public IUhtMessageSession MessageSession => this.SourceFile.MessageSession;
+		public IUhtMessageSession MessageSession => this._sourceFile.MessageSession;
 
 		/// <inheritdoc/>
-		public IUhtMessageSource? MessageSource => this.SourceFile.MessageSource;
+		public IUhtMessageSource? MessageSource => this._sourceFile.MessageSource;
 
 		/// <inheritdoc/>
 		public IUhtMessageLineNumber? MessageLineNumber => null;
@@ -35,20 +35,20 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct a new manifest file
 		/// </summary>
-		/// <param name="Session">Current session</param>
-		/// <param name="FilePath">Path of the file</param>
-		public UhtManifestFile(UhtSession Session, string FilePath)
+		/// <param name="session">Current session</param>
+		/// <param name="filePath">Path of the file</param>
+		public UhtManifestFile(UhtSession session, string filePath)
 		{
-			this.SourceFile = new UhtSourceFile(Session, FilePath);
+			this._sourceFile = new UhtSourceFile(session, filePath);
 		}
 
 		/// <summary>
 		/// Read the contents of the file
 		/// </summary>
-		public void Read() 
+		public void Read()
 		{
-			this.SourceFile.Read();
-			this.Manifest = JsonSerializer.Deserialize<UHTManifest>(this.SourceFile.Data.ToString());
+			this._sourceFile.Read();
+			this.Manifest = JsonSerializer.Deserialize<UHTManifest>(this._sourceFile.Data.ToString());
 		}
 	}
 }

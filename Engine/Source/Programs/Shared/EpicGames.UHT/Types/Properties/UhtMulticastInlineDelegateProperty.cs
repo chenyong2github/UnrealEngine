@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Tables;
 using System.Text;
+using EpicGames.UHT.Tables;
 
 namespace EpicGames.UHT.Types
 {
@@ -12,46 +12,46 @@ namespace EpicGames.UHT.Types
 	public class UhtMulticastInlineDelegateProperty : UhtMulticastDelegateProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "MulticastInlineDelegateProperty"; }
+		public override string EngineClassName => "MulticastInlineDelegateProperty";
 
 		/// <summary>
 		/// Construct new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="Function">Referenced function</param>
-		public UhtMulticastInlineDelegateProperty(UhtPropertySettings PropertySettings, UhtFunction Function) : base(PropertySettings, Function)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="function">Referenced function</param>
+		public UhtMulticastInlineDelegateProperty(UhtPropertySettings propertySettings, UhtFunction function) : base(propertySettings, function)
 		{
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					Builder.Append("FMulticastInlineDelegateProperty");
+					builder.Append("FMulticastInlineDelegateProperty");
 					break;
 
 				default:
-					base.AppendText(Builder, TextType, bIsTemplateArgument);
+					base.AppendText(builder, textType, isTemplateArgument);
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FMulticastDelegatePropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FMulticastDelegatePropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FMulticastDelegatePropertyParams", "UECodeGen_Private::EPropertyGenFlags::InlineMulticastDelegate");
-			AppendMemberDefRef(Builder, Context, this.Function, true);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FMulticastDelegatePropertyParams", "UECodeGen_Private::EPropertyGenFlags::InlineMulticastDelegate");
+			AppendMemberDefRef(builder, context, this.Function, true);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 	}
 }

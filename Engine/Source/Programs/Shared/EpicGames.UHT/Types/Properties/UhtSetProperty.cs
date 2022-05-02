@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Parsers;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -19,26 +19,26 @@ namespace EpicGames.UHT.Types
 	public class UhtSetProperty : UhtContainerBaseProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "SetProperty"; }
+		public override string EngineClassName => "SetProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "TSet"; }
+		protected override string CppTypeText => "TSet";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "TSET"; }
+		protected override string PGetMacroText => "TSET";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Construct a new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="Value">Property key</param>
-		public UhtSetProperty(UhtPropertySettings PropertySettings, UhtProperty Value) : base(PropertySettings, Value)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="value">Property key</param>
+		public UhtSetProperty(UhtPropertySettings propertySettings, UhtProperty value) : base(propertySettings, value)
 		{
 			// If the creation of the value property set more flags, then copy those flags to ourselves
-			this.PropertyFlags |= Value.PropertyFlags & EPropertyFlags.UObjectWrapper;
+			this.PropertyFlags |= value.PropertyFlags & EPropertyFlags.UObjectWrapper;
 
 			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
 			this.PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey);
@@ -52,26 +52,26 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase Phase)
+		protected override bool ResolveSelf(UhtResolvePhase phase)
 		{
-			bool bResults = base.ResolveSelf(Phase);
-			switch (Phase)
+			bool results = base.ResolveSelf(phase);
+			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					this.PropertyFlags |= ResolveAndReturnNewFlags(this.ValueProperty, Phase);
+					this.PropertyFlags |= ResolveAndReturnNewFlags(this.ValueProperty, phase);
 					this.MetaData.Add(this.ValueProperty.MetaData);
 					this.ValueProperty.MetaData.Clear();
 					this.ValueProperty.PropertyFlags = this.PropertyFlags & EPropertyFlags.PropagateToSetElement;
 					PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(this, this.MetaData, this.ValueProperty);
 					break;
 			}
-			return bResults;
+			return results;
 		}
 
 		/// <inheritdoc/>
-		public override void CollectReferencesInternal(IUhtReferenceCollector Collector, bool bTemplateProperty)
+		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			this.ValueProperty.CollectReferencesInternal(Collector, true);
+			this.ValueProperty.CollectReferencesInternal(collector, true);
 		}
 
 		/// <inheritdoc/>
@@ -83,123 +83,123 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override IEnumerable<UhtType> EnumerateReferencedTypes()
 		{
-			foreach (UhtType Type in this.ValueProperty.EnumerateReferencedTypes())
+			foreach (UhtType type in this.ValueProperty.EnumerateReferencedTypes())
 			{
-				yield return Type;
+				yield return type;
 			}
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				case UhtPropertyTextType.SparseShort:
-					Builder.Append("TSet");
+					builder.Append("TSet");
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					Builder.AppendFunctionThunkParameterArrayType(this.ValueProperty);
+					builder.AppendFunctionThunkParameterArrayType(this.ValueProperty);
 					break;
 
 				default:
-					Builder.Append("TSet<").AppendPropertyText(this.ValueProperty, TextType, true);
-					if (Builder[Builder.Length - 1] == '>')
+					builder.Append("TSet<").AppendPropertyText(this.ValueProperty, textType, true);
+					if (builder[^1] == '>')
 					{
 						// if our internal property type is a template class, add a space between the closing brackets b/c VS.NET cannot parse this correctly
-						Builder.Append(' ');
+						builder.Append(' ');
 					}
-					Builder.Append('>');
+					builder.Append('>');
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			Builder.AppendMemberDecl(this.ValueProperty, Context, Name, GetNameSuffix(NameSuffix, "_ElementProp"), Tabs);
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FSetPropertyParams");
+			builder.AppendMemberDecl(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ElementProp"), tabs);
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FSetPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			Builder.AppendMemberDef(this.ValueProperty, Context, Name, GetNameSuffix(NameSuffix, "_ElementProp"), "0", Tabs);
-			Builder.AppendMetaDataDef(this, Context, Name, NameSuffix, Tabs);
+			builder.AppendMemberDef(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ElementProp"), "0", tabs);
+			builder.AppendMetaDataDef(this, context, name, nameSuffix, tabs);
 
-			if (this.ValueProperty is UhtStructProperty StructProperty)
+			if (this.ValueProperty is UhtStructProperty structProperty)
 			{
-				Builder
-					.AppendTabs(Tabs)
+				builder
+					.AppendTabs(tabs)
 					.Append("static_assert(TModels<CGetTypeHashable, ")
-					.Append(StructProperty.ScriptStruct.SourceName)
+					.Append(structProperty.ScriptStruct.SourceName)
 					.Append(">::Value, \"The structure '")
-					.Append(StructProperty.ScriptStruct.SourceName)
+					.Append(structProperty.ScriptStruct.SourceName)
 					.Append("' is used in a TSet but does not have a GetValueTypeHash defined\");\r\n");
 			}
 
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FSetPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Set", false);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FSetPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Set", false);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberPtr(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberPtr(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			Builder.AppendMemberPtr(this.ValueProperty, Context, Name, GetNameSuffix(NameSuffix, "_ElementProp"), Tabs);
-			base.AppendMemberPtr(Builder, Context, Name, NameSuffix, Tabs);
-			return Builder;
+			builder.AppendMemberPtr(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ElementProp"), tabs);
+			base.AppendMemberPtr(builder, context, name, nameSuffix, tabs);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override void AppendObjectHashes(StringBuilder Builder, int StartingLength, IUhtPropertyMemberContext Context)
+		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			this.ValueProperty.AppendObjectHashes(Builder, StartingLength, Context);
+			this.ValueProperty.AppendObjectHashes(builder, startingLength, context);
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			Builder.AppendPropertyText(this, UhtPropertyTextType.Construction).Append("()");
-			return Builder;
+			builder.AppendPropertyText(this, UhtPropertyTextType.Construction).Append("()");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
 			return false;
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			if (Other is UhtSetProperty OtherSet)
+			if (other is UhtSetProperty otherSet)
 			{
-				return this.ValueProperty.IsSameType(OtherSet.ValueProperty);
+				return this.ValueProperty.IsSameType(otherSet.ValueProperty);
 			}
 			return false;
 		}
 
 		///<inheritdoc/>
-		public override bool ValidateStructPropertyOkForNet(UhtProperty ReferencingProperty)
+		public override bool ValidateStructPropertyOkForNet(UhtProperty referencingProperty)
 		{
 			if (!this.PropertyFlags.HasAnyFlags(EPropertyFlags.RepSkip))
 			{
-				ReferencingProperty.LogError($"Sets are not supported for Replication or RPCs.  Set '{this.SourceName}' in '{this.Outer?.SourceName}'.  Origin '{ReferencingProperty.SourceName}'");
+				referencingProperty.LogError($"Sets are not supported for Replication or RPCs.  Set '{this.SourceName}' in '{this.Outer?.SourceName}'.  Origin '{referencingProperty.SourceName}'");
 				return false;
 			}
 			return true;
 		}
 
 		/// <inheritdoc/>
-		protected override void ValidateFunctionArgument(UhtFunction Function, UhtValidationOptions Options)
+		protected override void ValidateFunctionArgument(UhtFunction function, UhtValidationOptions options)
 		{
-			base.ValidateFunctionArgument(Function, Options);
+			base.ValidateFunctionArgument(function, options);
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
-				if (!Function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest | EFunctionFlags.NetResponse))
+				if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest | EFunctionFlags.NetResponse))
 				{
 					this.LogError("Sets are not supported in an RPC.");
 				}
@@ -209,45 +209,45 @@ namespace EpicGames.UHT.Types
 		#region Keyword
 		[UhtPropertyType(Keyword = "TSet")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static UhtProperty? SetProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? SetProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			using (var TokenContext = new UhtMessageContext("TSet"))
+			using (UhtMessageContext tokenContext = new UhtMessageContext("TSet"))
 			{
-				if (!TokenReader.SkipExpectedType(MatchedToken.Value, PropertySettings.PropertyCategory == UhtPropertyCategory.Member))
+				if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
 				{
 					return null;
 				}
-				TokenReader.Require('<');
+				tokenReader.Require('<');
 
 				// Parse the value type
-				UhtProperty? Value = UhtPropertyParser.ParseTemplateParam(ResolvePhase, PropertySettings, "Value", TokenReader);
-				if (Value == null)
+				UhtProperty? value = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, "Value", tokenReader);
+				if (value == null)
 				{
 					return null;
 				}
 
-				if (!Value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerKey))
+				if (!value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerKey))
 				{
-					TokenReader.LogError($"The type \'{Value.GetUserFacingDecl()}\' can not be used as a key in a TSet");
+					tokenReader.LogError($"The type \'{value.GetUserFacingDecl()}\' can not be used as a key in a TSet");
 				}
 
-				if (PropertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
+				if (propertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
 				{
-					TokenReader.LogError("Replicated sets are not supported.");
+					tokenReader.LogError("Replicated sets are not supported.");
 				}
 
-				if (TokenReader.TryOptional(','))
+				if (tokenReader.TryOptional(','))
 				{
 					// If we found a comma, read the next thing, assume it's a keyfuncs, and report that
-					UhtToken KeyFuncToken = TokenReader.GetIdentifier();
-					throw new UhtException(TokenReader, $"Found '{KeyFuncToken.Value}' - explicit KeyFuncs are not supported in TSet properties.");
+					UhtToken keyFuncToken = tokenReader.GetIdentifier();
+					throw new UhtException(tokenReader, $"Found '{keyFuncToken.Value}' - explicit KeyFuncs are not supported in TSet properties.");
 				}
 
-				TokenReader.Require('>');
+				tokenReader.Require('>');
 
 				//@TODO: Prevent sparse delegate types from being used in a container
 
-				return new UhtSetProperty(PropertySettings, Value);
+				return new UhtSetProperty(propertySettings, value);
 			}
 		}
 		#endregion

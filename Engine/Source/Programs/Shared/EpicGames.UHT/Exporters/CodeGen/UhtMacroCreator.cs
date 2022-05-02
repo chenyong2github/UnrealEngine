@@ -1,55 +1,55 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Types;
 using System;
 using System.Text;
+using EpicGames.UHT.Types;
 
 namespace EpicGames.UHT.Exporters.CodeGen
 {
 	internal struct UhtMacroCreator : IDisposable
 	{
-		private readonly StringBuilder Builder;
-		private readonly int StartingLength;
+		private readonly StringBuilder _builder;
+		private readonly int _startingLength;
 
-		public UhtMacroCreator(StringBuilder Builder, UhtHeaderCodeGenerator Generator, int LineNumber, string MacroSuffix)
+		public UhtMacroCreator(StringBuilder builder, UhtHeaderCodeGenerator generator, int lineNumber, string macroSuffix)
 		{
-			Builder.Append("#define ").AppendMacroName(Generator, LineNumber, MacroSuffix).Append(" \\\r\n");
-			this.Builder = Builder;
-			this.StartingLength = Builder.Length;
+			builder.Append("#define ").AppendMacroName(generator, lineNumber, macroSuffix).Append(" \\\r\n");
+			this._builder = builder;
+			this._startingLength = builder.Length;
 		}
 
-		public UhtMacroCreator(StringBuilder Builder, UhtHeaderCodeGenerator Generator, UhtClass Class, string MacroSuffix)
+		public UhtMacroCreator(StringBuilder builder, UhtHeaderCodeGenerator generator, UhtClass classObj, string macroSuffix)
 		{
-			Builder.Append("#define ").AppendMacroName(Generator, Class, MacroSuffix).Append(" \\\r\n");
-			this.Builder = Builder;
-			this.StartingLength = Builder.Length;
+			builder.Append("#define ").AppendMacroName(generator, classObj, macroSuffix).Append(" \\\r\n");
+			this._builder = builder;
+			this._startingLength = builder.Length;
 		}
 
-		public UhtMacroCreator(StringBuilder Builder, UhtHeaderCodeGenerator Generator, UhtScriptStruct ScriptStruct, string MacroSuffix)
+		public UhtMacroCreator(StringBuilder builder, UhtHeaderCodeGenerator generator, UhtScriptStruct scriptStruct, string macroSuffix)
 		{
-			Builder.Append("#define ").AppendMacroName(Generator, ScriptStruct, MacroSuffix).Append(" \\\r\n");
-			this.Builder = Builder;
-			this.StartingLength = Builder.Length;
+			builder.Append("#define ").AppendMacroName(generator, scriptStruct, macroSuffix).Append(" \\\r\n");
+			this._builder = builder;
+			this._startingLength = builder.Length;
 		}
 
-		public UhtMacroCreator(StringBuilder Builder, UhtHeaderCodeGenerator Generator, UhtFunction Function, string MacroSuffix)
+		public UhtMacroCreator(StringBuilder builder, UhtHeaderCodeGenerator generator, UhtFunction function, string macroSuffix)
 		{
-			Builder.Append("#define ").AppendMacroName(Generator, Function, MacroSuffix).Append(" \\\r\n");
-			this.Builder = Builder;
-			this.StartingLength = Builder.Length;
+			builder.Append("#define ").AppendMacroName(generator, function, macroSuffix).Append(" \\\r\n");
+			this._builder = builder;
+			this._startingLength = builder.Length;
 		}
 
 		public void Dispose()
 		{
-			int FinalLength = Builder.Length;
-			Builder.Length = Builder.Length - 4;
-			if (FinalLength == StartingLength)
+			int finalLength = _builder.Length;
+			_builder.Length -= 4;
+			if (finalLength == _startingLength)
 			{
-				Builder.Append("\r\n");
+				_builder.Append("\r\n");
 			}
 			else
 			{
-				Builder.Append("\r\n\r\n\r\n");
+				_builder.Append("\r\n\r\n\r\n");
 			}
 		}
 	}

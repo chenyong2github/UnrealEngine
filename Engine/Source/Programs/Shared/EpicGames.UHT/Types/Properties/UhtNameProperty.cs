@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -18,83 +18,83 @@ namespace EpicGames.UHT.Types
 	public class UhtNameProperty : UhtProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "NameProperty"; }
+		public override string EngineClassName => "NameProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "FName"; }
+		protected override string CppTypeText => "FName";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "PROPERTY"; }
+		protected override string PGetMacroText => "PROPERTY";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.EngineClass; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.EngineClass;
 
 		/// <summary>
 		/// Construct a new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		public UhtNameProperty(UhtPropertySettings PropertySettings) : base(PropertySettings)
+		/// <param name="propertySettings">Property settings</param>
+		public UhtNameProperty(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
 			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
 				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			Builder.Append("NAME_None");
-			return Builder;
+			builder.Append("NAME_None");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FNamePropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FNamePropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FNamePropertyParams", "UECodeGen_Private::EPropertyGenFlags::Name");
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FNamePropertyParams", "UECodeGen_Private::EPropertyGenFlags::Name");
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			if (DefaultValueReader.TryOptional("NAME_None"))
+			if (defaultValueReader.TryOptional("NAME_None"))
 			{
-				InnerDefaultValue.Append("None");
+				innerDefaultValue.Append("None");
 			}
-			else if (DefaultValueReader.TryOptional("FName"))
+			else if (defaultValueReader.TryOptional("FName"))
 			{
-				DefaultValueReader.Require('(');
-				StringView Value = DefaultValueReader.GetWrappedConstString();
-				DefaultValueReader.Require(')');
-				InnerDefaultValue.Append(Value);
+				defaultValueReader.Require('(');
+				StringView value = defaultValueReader.GetWrappedConstString();
+				defaultValueReader.Require(')');
+				innerDefaultValue.Append(value);
 			}
 			else
 			{
-				StringView Value = DefaultValueReader.GetWrappedConstString();
-				InnerDefaultValue.Append(Value);
+				StringView value = defaultValueReader.GetWrappedConstString();
+				innerDefaultValue.Append(value);
 			}
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			return Other is UhtNameProperty;
+			return other is UhtNameProperty;
 		}
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "FName", Options = UhtPropertyTypeOptions.Simple | UhtPropertyTypeOptions.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? NameProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? NameProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			return new UhtNameProperty(PropertySettings);
+			return new UhtNameProperty(propertySettings);
 		}
 		#endregion
 	}

@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tables;
-using EpicGames.UHT.Tokenizer;
-using EpicGames.UHT.Utils;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
+using EpicGames.UHT.Tables;
+using EpicGames.UHT.Tokenizer;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Types
 {
@@ -19,16 +19,16 @@ namespace EpicGames.UHT.Types
 	public class UhtInterfaceProperty : UhtProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "InterfaceProperty"; }
+		public override string EngineClassName => "InterfaceProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "TScriptInterface"; }
+		protected override string CppTypeText => "TScriptInterface";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "TINTERFACE"; }
+		protected override string PGetMacroText => "TINTERFACE";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Referenced interface class
@@ -39,11 +39,11 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Create a new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="InterfaceClass">Referenced interface</param>
-		public UhtInterfaceProperty(UhtPropertySettings PropertySettings, UhtClass InterfaceClass) : base(PropertySettings)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="interfaceClass">Referenced interface</param>
+		public UhtInterfaceProperty(UhtPropertySettings propertySettings, UhtClass interfaceClass) : base(propertySettings)
 		{
-			this.InterfaceClass = InterfaceClass;
+			this.InterfaceClass = interfaceClass;
 			this.PropertyFlags |= EPropertyFlags.UObjectWrapper;
 			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.PassCppArgsByRef;
 			this.PropertyCaps &= ~(UhtPropertyCaps.CanHaveConfig | UhtPropertyCaps.CanBeContainerKey);
@@ -54,10 +54,10 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase Phase)
+		protected override bool ResolveSelf(UhtResolvePhase phase)
 		{
-			bool bResults = base.ResolveSelf(Phase);
-			switch (Phase)
+			bool results = base.ResolveSelf(phase);
+			switch (phase)
 			{
 				case UhtResolvePhase.Final:
 					if (this.InterfaceClass.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced))
@@ -66,30 +66,30 @@ namespace EpicGames.UHT.Types
 					}
 					break;
 			}
-			return bResults;
+			return results;
 		}
 
 		/// <inheritdoc/>
-		public override bool ScanForInstancedReferenced(bool bDeepScan)
+		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
 			return !this.DisallowPropertyFlags.HasAnyFlags(EPropertyFlags.InstancedReference) && this.InterfaceClass.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced);
 		}
 
 		/// <inheritdoc/>
-		public override void CollectReferencesInternal(IUhtReferenceCollector Collector, bool bTemplateProperty)
+		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			Collector.AddCrossModuleReference(this.InterfaceClass, false);
+			collector.AddCrossModuleReference(this.InterfaceClass, false);
 		}
 
 		/// <inheritdoc/>
 		public override string? GetForwardDeclarations()
 		{
-			UhtClass? ExportClass = this.InterfaceClass;
-			while (ExportClass != null && !ExportClass.ClassFlags.HasAnyFlags(EClassFlags.Native))
+			UhtClass? exportClass = this.InterfaceClass;
+			while (exportClass != null && !exportClass.ClassFlags.HasAnyFlags(EClassFlags.Native))
 			{
-				ExportClass = ExportClass.SuperClass;
+				exportClass = exportClass.SuperClass;
 			}
-			return ExportClass != null ? $"class {ExportClass.SourceName};" : null;
+			return exportClass != null ? $"class {exportClass.SourceName};" : null;
 		}
 
 		/// <inheritdoc/>
@@ -99,58 +99,58 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				case UhtPropertyTextType.SparseShort:
-					Builder.Append("TScriptInterface");
+					builder.Append("TScriptInterface");
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					Builder.Append(this.InterfaceClass.SourceName);
+					builder.Append(this.InterfaceClass.SourceName);
 					break;
 
 				default:
-					Builder.Append("TScriptInterface<").Append(this.InterfaceClass.SourceName).Append('>');
+					builder.Append("TScriptInterface<").Append(this.InterfaceClass.SourceName).Append('>');
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FInterfacePropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FInterfacePropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
 			// FScriptInterface<USomeInterface> is valid so in that case we need to pass in the interface class and not the alternate object (which in the end is the same object)
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FInterfacePropertyParams", "UECodeGen_Private::EPropertyGenFlags::Interface");
-			AppendMemberDefRef(Builder, Context, this.InterfaceClass.AlternateObject != null ? this.InterfaceClass.AlternateObject : this.InterfaceClass, false);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FInterfacePropertyParams", "UECodeGen_Private::EPropertyGenFlags::Interface");
+			AppendMemberDefRef(builder, context, this.InterfaceClass.AlternateObject ?? this.InterfaceClass, false);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			Builder.Append("NULL");
-			return Builder;
+			builder.Append("NULL");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
 			return false;
 		}
 
 		/// <inheritdoc/>
-		protected override void ValidateMember(UhtStruct Struct, UhtValidationOptions Options)
+		protected override void ValidateMember(UhtStruct structObj, UhtValidationOptions options)
 		{
-			base.ValidateMember(Struct, Options);
+			base.ValidateMember(structObj, options);
 
 			if (this.PointerType == UhtPointerType.Native)
 			{
@@ -159,19 +159,19 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			if (Other is UhtInterfaceProperty OtherObject)
+			if (other is UhtInterfaceProperty otherObject)
 			{
-				return this.InterfaceClass == OtherObject.InterfaceClass;
+				return this.InterfaceClass == otherObject.InterfaceClass;
 			}
 			return false;
 		}
 
 		/// <inheritdoc/>
-		public override bool MustBeConstArgument([NotNullWhen(true)] out UhtType? ErrorType)
+		public override bool MustBeConstArgument([NotNullWhen(true)] out UhtType? errorType)
 		{
-			ErrorType = this.InterfaceClass;
+			errorType = this.InterfaceClass;
 			return this.InterfaceClass.ClassFlags.HasAnyFlags(EClassFlags.Const);
 		}
 
@@ -179,27 +179,27 @@ namespace EpicGames.UHT.Types
 		[UhtPropertyType(Keyword = "FScriptInterface", Options = UhtPropertyTypeOptions.Simple)] // This can't be immediate due to the reference to UInterface
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? FScriptInterfaceProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? FScriptInterfaceProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			return new UhtInterfaceProperty(PropertySettings, PropertySettings.Outer.Session.IInterface);
+			return new UhtInterfaceProperty(propertySettings, propertySettings.Outer.Session.IInterface);
 		}
 
 		[UhtPropertyType(Keyword = "TScriptInterface")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? TScriptInterfaceProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? TScriptInterfaceProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			UhtClass? PropertyClass = UhtObjectPropertyBase.ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, false);
-			if (PropertyClass == null)
+			UhtClass? propertyClass = UhtObjectPropertyBase.ParseTemplateObject(propertySettings, tokenReader, matchedToken, false);
+			if (propertyClass == null)
 			{
 				return null;
 			}
 
-			if (PropertyClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
+			if (propertyClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 			{
-				return new UhtInterfaceProperty(PropertySettings, PropertyClass);
+				return new UhtInterfaceProperty(propertySettings, propertyClass);
 			}
-			return new UhtObjectProperty(PropertySettings, PropertyClass, null, EPropertyFlags.UObjectWrapper);
+			return new UhtObjectProperty(propertySettings, propertyClass, null, EPropertyFlags.UObjectWrapper);
 		}
 		#endregion
 	}

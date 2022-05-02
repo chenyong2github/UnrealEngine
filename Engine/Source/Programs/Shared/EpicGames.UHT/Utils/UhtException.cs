@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Tokenizer;
 using System;
 using System.Text;
+using EpicGames.UHT.Tokenizer;
 
 namespace EpicGames.UHT.Utils
 {
@@ -26,45 +26,45 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Exception with a simple message.  Context will be the current header file.
 		/// </summary>
-		/// <param name="Message">Text of the error</param>
-		public UhtException(string Message)
+		/// <param name="message">Text of the error</param>
+		public UhtException(string message)
 		{
-			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, null, null, 1, Message);
+			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, null, null, 1, message);
 		}
 
 		/// <summary>
 		/// Exception with a simple message.  Context from the given message site.
 		/// </summary>
-		/// <param name="MessageSite">Site generating the exception</param>
-		/// <param name="Message">Text of the error</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		public UhtException(IUhtMessageSite MessageSite, string Message, object? ExtraContext = null)
+		/// <param name="messageSite">Site generating the exception</param>
+		/// <param name="message">Text of the error</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public UhtException(IUhtMessageSite messageSite, string message, object? extraContext = null)
 		{
-			if (ExtraContext != null)
+			if (extraContext != null)
 			{
-				Message = $"{Message} while parsing {UhtMessage.FormatContext(ExtraContext)}";
+				message = $"{message} while parsing {UhtMessage.FormatContext(extraContext)}";
 			}
-			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, MessageSite.MessageSource, null, MessageSite.GetLineNumber(), Message);
+			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, messageSite.MessageSource, null, messageSite.GetLineNumber(), message);
 		}
 
 		/// <summary>
 		/// Make an exception to be thrown
 		/// </summary>
-		/// <param name="MessageSite">Message site to be associated with the exception</param>
-		/// <param name="LineNumber">Line number of the error</param>
-		/// <param name="Message">Text of the error</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		public UhtException(IUhtMessageSite MessageSite, int LineNumber, string Message, object? ExtraContext = null)
+		/// <param name="messageSite">Message site to be associated with the exception</param>
+		/// <param name="lineNumber">Line number of the error</param>
+		/// <param name="message">Text of the error</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public UhtException(IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext = null)
 		{
-			if (ExtraContext != null)
+			if (extraContext != null)
 			{
-				Message = $"{Message} while parsing {UhtMessage.FormatContext(ExtraContext)}";
+				message = $"{message} while parsing {UhtMessage.FormatContext(extraContext)}";
 			}
-			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, MessageSite.MessageSource, null, MessageSite.GetLineNumber(LineNumber), Message);
+			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, messageSite.MessageSource, null, messageSite.GetLineNumber(lineNumber), message);
 		}
 
 		/// <inheritdoc/>
-		public override string Message { get => this.UhtMessage.Message; }
+		public override string Message => this.UhtMessage.Message;
 	}
 
 	/// <summary>
@@ -76,35 +76,35 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Make a parsing error for when there is a mismatch between the expected token and what was parsed.
 		/// </summary>
-		/// <param name="MessageSite">Message site to be associated with the exception</param>
-		/// <param name="Got">The parsed token.  Support for EOF also provided.</param>
-		/// <param name="Expected">What was expected.</param>
-		/// <param name="ExtraContext">Extra context to be appended to the error message</param>
+		/// <param name="messageSite">Message site to be associated with the exception</param>
+		/// <param name="got">The parsed token.  Support for EOF also provided.</param>
+		/// <param name="expected">What was expected.</param>
+		/// <param name="extraContext">Extra context to be appended to the error message</param>
 		/// <returns>The exception object to throw</returns>
-		public UhtTokenException(IUhtMessageSite MessageSite, UhtToken Got, object? Expected, object? ExtraContext = null)
+		public UhtTokenException(IUhtMessageSite messageSite, UhtToken got, object? expected, object? extraContext = null)
 		{
-			string Message = Expected != null 
-				? $"Found {UhtMessage.FormatContext(Got)} when expecting {UhtMessage.FormatContext(Expected)}{FormatExtraContext(ExtraContext)}"
-				: $"Found {UhtMessage.FormatContext(Got)}{FormatExtraContext(ExtraContext)}";
-			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, MessageSite.MessageSource, null, Got.InputLine, Message);
+			string message = expected != null
+				? $"Found {UhtMessage.FormatContext(got)} when expecting {UhtMessage.FormatContext(expected)}{FormatExtraContext(extraContext)}"
+				: $"Found {UhtMessage.FormatContext(got)}{FormatExtraContext(extraContext)}";
+			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Error, messageSite.MessageSource, null, got.InputLine, message);
 		}
 
 		/// <summary>
 		/// Format any extra context supplied by the caller or the message site
 		/// </summary>
-		/// <param name="ExtraContext">Additional caller supplied context</param>
+		/// <param name="extraContext">Additional caller supplied context</param>
 		/// <returns></returns>
-		private static string FormatExtraContext(object? ExtraContext = null)
+		private static string FormatExtraContext(object? extraContext = null)
 		{
-			StringBuilder Builder = new StringBuilder(" while parsing ");
-			int StartingLength = Builder.Length;
-			if (ExtraContext != null)
+			StringBuilder builder = new StringBuilder(" while parsing ");
+			int startingLength = builder.Length;
+			if (extraContext != null)
 			{
-				Builder.Append(UhtMessage.FormatContext(ExtraContext));
+				builder.Append(UhtMessage.FormatContext(extraContext));
 			}
-			UhtMessage.Append(Builder, UhtTlsMessageExtraContext.GetMessageExtraContext(), StartingLength != Builder.Length);
+			UhtMessage.Append(builder, UhtTlsMessageExtraContext.GetMessageExtraContext(), startingLength != builder.Length);
 
-			return Builder.Length != StartingLength ? Builder.ToString() : string.Empty;
+			return builder.Length != startingLength ? builder.ToString() : String.Empty;
 		}
 	}
 
@@ -116,10 +116,10 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Exception with a simple message.  Context will be the current header file.
 		/// </summary>
-		/// <param name="Message">Text of the error</param>
-		public UhtIceException(string Message)
+		/// <param name="message">Text of the error</param>
+		public UhtIceException(string message)
 		{
-			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Ice, null, null, 1, Message);
+			this.UhtMessage = UhtMessage.MakeMessage(UhtMessageType.Ice, null, null, 1, message);
 		}
 	}
 }

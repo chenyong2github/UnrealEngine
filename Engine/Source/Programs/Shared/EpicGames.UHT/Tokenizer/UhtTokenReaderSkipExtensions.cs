@@ -13,62 +13,62 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Skip a token regardless of the type.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
+		/// <param name="tokenReader">Token reader</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader SkipOne(this IUhtTokenReader TokenReader)
+		public static IUhtTokenReader SkipOne(this IUhtTokenReader tokenReader)
 		{
-			TokenReader.PeekToken();
-			TokenReader.ConsumeToken();
-			return TokenReader;
+			tokenReader.PeekToken();
+			tokenReader.ConsumeToken();
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Skip an alignas expression
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
+		/// <param name="tokenReader">Token reader</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader SkipAlignasIfNecessary(this IUhtTokenReader TokenReader)
+		public static IUhtTokenReader SkipAlignasIfNecessary(this IUhtTokenReader tokenReader)
 		{
 			const string Identifier = "alignas";
-			if (TokenReader.TryOptional(Identifier))
+			if (tokenReader.TryOptional(Identifier))
 			{
-				TokenReader
+				tokenReader
 					.Require('(', Identifier)
 					.RequireConstInt(Identifier)
 					.Require(')', Identifier);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Skip deprecation macro
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
+		/// <param name="tokenReader">Token reader</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader SkipDeprecatedMacroIfNecessary(this IUhtTokenReader TokenReader)
+		public static IUhtTokenReader SkipDeprecatedMacroIfNecessary(this IUhtTokenReader tokenReader)
 		{
-			if (TokenReader.TryOptional(new string[] { "DEPRECATED", "UE_DEPRECATED" }) >= 0)
+			if (tokenReader.TryOptional(new string[] { "DEPRECATED", "UE_DEPRECATED" }) >= 0)
 			{
-				TokenReader
+				tokenReader
 					.Require('(', "deprecation macro")
 					.RequireConstFloat("version in deprecation macro")
 					.Require(',', "deprecation macro")
 					.RequireConstString("message in deprecation macro")
 					.Require(')', "deprecation macro");
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Skip alignas and/or deprecation macros
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
+		/// <param name="tokenReader">Token reader</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader SkipAlignasAndDeprecatedMacroIfNecessary(this IUhtTokenReader TokenReader)
+		public static IUhtTokenReader SkipAlignasAndDeprecatedMacroIfNecessary(this IUhtTokenReader tokenReader)
 		{
 			// alignas() can come before or after the deprecation macro.
 			// We can't have both, but the compiler will catch that anyway.
-			return TokenReader
+			return tokenReader
 				.SkipAlignasIfNecessary()
 				.SkipDeprecatedMacroIfNecessary()
 				.SkipAlignasIfNecessary();
@@ -77,64 +77,64 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Skip any block of tokens wrapped by the given token symbols
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Initiator">Initiating token (i.e. &quot;(&quot;)</param>
-		/// <param name="Terminator">Terminating token (i.e. &quot;)&quot;)</param>
-		/// <param name="InitialNesting">If true, start with an initial nesting count of one (assume we already parsed an initiator)</param>
-		/// <param name="ExceptionContext">Extra context for any errors</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initiator">Initiating token (i.e. &quot;(&quot;)</param>
+		/// <param name="terminator">Terminating token (i.e. &quot;)&quot;)</param>
+		/// <param name="initialNesting">If true, start with an initial nesting count of one (assume we already parsed an initiator)</param>
+		/// <param name="exceptionContext">Extra context for any errors</param>
 		/// <returns>Token reader</returns>
 		/// <exception cref="UhtTokenException">Throw if end of file is reached</exception>
-		public static IUhtTokenReader SkipBrackets(this IUhtTokenReader TokenReader, char Initiator, char Terminator, int InitialNesting, object? ExceptionContext = null)
+		public static IUhtTokenReader SkipBrackets(this IUhtTokenReader tokenReader, char initiator, char terminator, int initialNesting, object? exceptionContext = null)
 		{
-			int Nesting = InitialNesting;
-			if (Nesting == 0)
+			int nesting = initialNesting;
+			if (nesting == 0)
 			{
-				TokenReader.Require(Initiator, ExceptionContext);
-				++Nesting;
+				tokenReader.Require(initiator, exceptionContext);
+				++nesting;
 			}
 
 			do
 			{
-				UhtToken SkipToken = TokenReader.GetToken();
-				if (SkipToken.TokenType.IsEndType())
+				UhtToken skipToken = tokenReader.GetToken();
+				if (skipToken.TokenType.IsEndType())
 				{
-					throw new UhtTokenException(TokenReader, SkipToken, Terminator, ExceptionContext);
+					throw new UhtTokenException(tokenReader, skipToken, terminator, exceptionContext);
 				}
-				else if (SkipToken.IsSymbol(Initiator))
+				else if (skipToken.IsSymbol(initiator))
 				{
-					++Nesting;
+					++nesting;
 				}
-				else if (SkipToken.IsSymbol(Terminator))
+				else if (skipToken.IsSymbol(terminator))
 				{
-					--Nesting;
+					--nesting;
 				}
-			} while (Nesting != 0);
-			return TokenReader;
+			} while (nesting != 0);
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Skip tokens until the given terminator is found.  The terminator will not be consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Terminator">Terminator to skip until</param>
-		/// <param name="ExceptionContext">Extra context for any exceptions</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="terminator">Terminator to skip until</param>
+		/// <param name="exceptionContext">Extra context for any exceptions</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader SkipUntil(this IUhtTokenReader TokenReader, char Terminator, object? ExceptionContext = null)
+		public static IUhtTokenReader SkipUntil(this IUhtTokenReader tokenReader, char terminator, object? exceptionContext = null)
 		{
 			while (true)
 			{
-				ref UhtToken SkipToken = ref TokenReader.PeekToken();
-				if (SkipToken.TokenType.IsEndType())
+				ref UhtToken skipToken = ref tokenReader.PeekToken();
+				if (skipToken.TokenType.IsEndType())
 				{
-					throw new UhtTokenException(TokenReader, SkipToken, Terminator, ExceptionContext);
+					throw new UhtTokenException(tokenReader, skipToken, terminator, exceptionContext);
 				}
-				else if (SkipToken.IsSymbol(Terminator))
+				else if (skipToken.IsSymbol(terminator))
 				{
 					break;
 				}
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 	}
 }

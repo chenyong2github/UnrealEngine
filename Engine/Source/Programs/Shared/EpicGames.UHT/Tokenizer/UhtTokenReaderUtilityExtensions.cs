@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
+using EpicGames.Core;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Tokenizer
 {
@@ -13,7 +13,7 @@ namespace EpicGames.UHT.Tokenizer
 	/// </summary>
 	public static class UhtTokenReaderUtilityExtensions
 	{
-		private static readonly HashSet<StringView> SkipDeclarationWarningStrings = new HashSet<StringView>
+		private static readonly HashSet<StringView> s_skipDeclarationWarningStrings = new HashSet<StringView>
 		{
 			"GENERATED_BODY",
 			"GENERATED_IINTERFACE_BODY",
@@ -34,23 +34,23 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// When processing type, make sure that the next token is the expected token
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExpectedIdentifier">Expected identifier</param>
-		/// <param name="bIsMember">If true, log an error if the type begins with const</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="expectedIdentifier">Expected identifier</param>
+		/// <param name="isMember">If true, log an error if the type begins with const</param>
 		/// <returns>true if there could be more header to process, false if the end was reached.</returns>
-		public static bool SkipExpectedType(this IUhtTokenReader TokenReader, StringView ExpectedIdentifier, bool bIsMember)
+		public static bool SkipExpectedType(this IUhtTokenReader tokenReader, StringView expectedIdentifier, bool isMember)
 		{
-			if (TokenReader.TryOptional(ExpectedIdentifier))
+			if (tokenReader.TryOptional(expectedIdentifier))
 			{
 				return true;
 			}
-			if (bIsMember && TokenReader.TryOptional("const"))
+			if (isMember && tokenReader.TryOptional("const"))
 			{
-				TokenReader.LogError("Const properties are not supported.");
+				tokenReader.LogError("Const properties are not supported.");
 			}
 			else
 			{
-				TokenReader.LogError($"Inappropriate keyword '{TokenReader.PeekToken().Value}' on variable of type '{ExpectedIdentifier}'");
+				tokenReader.LogError($"Inappropriate keyword '{tokenReader.PeekToken().Value}' on variable of type '{expectedIdentifier}'");
 			}
 			return false;
 		}
@@ -58,232 +58,232 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Try to parse an optional _API macro
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="APIMacroToken">_API macro parsed</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="apiMacroToken">_API macro parsed</param>
 		/// <returns>True if an _API macro was parsed</returns>
-		public static bool TryOptionalAPIMacro(this IUhtTokenReader TokenReader, out UhtToken APIMacroToken)
+		public static bool TryOptionalAPIMacro(this IUhtTokenReader tokenReader, out UhtToken apiMacroToken)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier() && Token.Value.Span.EndsWith("_API"))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier() && token.Value.Span.EndsWith("_API"))
 			{
-				APIMacroToken = Token;
-				TokenReader.ConsumeToken();
+				apiMacroToken = token;
+				tokenReader.ConsumeToken();
 				return true;
 			}
-			APIMacroToken = new UhtToken();
+			apiMacroToken = new UhtToken();
 			return false;
 		}
 
 		/// <summary>
 		/// Parse an optional single inheritance
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="SuperClassDelegate">Invoked with the inherited type name</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="superClassDelegate">Invoked with the inherited type name</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader OptionalInheritance(this IUhtTokenReader TokenReader, UhtTokenDelegate SuperClassDelegate)
+		public static IUhtTokenReader OptionalInheritance(this IUhtTokenReader tokenReader, UhtTokenDelegate superClassDelegate)
 		{
-			TokenReader.Optional(':', () =>
+			tokenReader.Optional(':', () =>
 			{
-				TokenReader
+				tokenReader
 					.Require("public", "public access modifier")
-					.RequireIdentifier(SuperClassDelegate);
+					.RequireIdentifier(superClassDelegate);
 			});
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse an optional inheritance
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="SuperClassDelegate">Invoked with the inherited type name</param>
-		/// <param name="BaseClassDelegate">Invoked when other base classes are parsed</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="superClassDelegate">Invoked with the inherited type name</param>
+		/// <param name="baseClassDelegate">Invoked when other base classes are parsed</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader OptionalInheritance(this IUhtTokenReader TokenReader, UhtTokenDelegate SuperClassDelegate, UhtTokenListDelegate BaseClassDelegate)
+		public static IUhtTokenReader OptionalInheritance(this IUhtTokenReader tokenReader, UhtTokenDelegate superClassDelegate, UhtTokenListDelegate baseClassDelegate)
 		{
-			TokenReader.Optional(':', () =>
+			tokenReader.Optional(':', () =>
 			{
-				TokenReader
+				tokenReader
 					.Require("public", "public access modifier")
-					.RequireIdentifier(SuperClassDelegate)
+					.RequireIdentifier(superClassDelegate)
 					.While(',', () =>
 					{
-						TokenReader
+						tokenReader
 							.Require("public", "public interface access specifier")
-							.RequireCppIdentifier(UhtCppIdentifierOptions.AllowTemplates, BaseClassDelegate);
+							.RequireCppIdentifier(UhtCppIdentifierOptions.AllowTemplates, baseClassDelegate);
 					});
 			});
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Given a declaration/statement that starts with the given token, skip the declaration in the header.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Token">Token that started the process</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="token">Token that started the process</param>
 		/// <returns>true if there could be more header to process, false if the end was reached.</returns>
-		public static bool SkipDeclaration(this IUhtTokenReader TokenReader, ref UhtToken Token)
+		public static bool SkipDeclaration(this IUhtTokenReader tokenReader, ref UhtToken token)
 		{
 			// Consume all tokens until the end of declaration/definition has been found.
-			int NestedScopes = 0;
-			bool bEndOfDeclarationFound = false;
+			int nestedScopes = 0;
+			bool endOfDeclarationFound = false;
 
 			// Store the current value of PrevComment so it can be restored after we parsed everything.
-			using (UhtTokenDisableComments DisableComments = new UhtTokenDisableComments(TokenReader))
+			using (UhtTokenDisableComments disableComments = new UhtTokenDisableComments(tokenReader))
 			{
 
 				// Check if this is a class/struct declaration in which case it can be followed by member variable declaration.	
-				bool bPossiblyClassDeclaration = Token.IsIdentifier() && (Token.IsValue("class") || Token.IsValue("struct"));
+				bool possiblyClassDeclaration = token.IsIdentifier() && (token.IsValue("class") || token.IsValue("struct"));
 
 				// (known) macros can end without ; or } so use () to find the end of the declaration.
 				// However, we don't want to use it with DECLARE_FUNCTION, because we need it to be treated like a function.
-				bool bMacroDeclaration = IsProbablyAMacro(Token.Value) && !Token.IsIdentifier("DECLARE_FUNCTION");
+				bool macroDeclaration = IsProbablyAMacro(token.Value) && !token.IsIdentifier("DECLARE_FUNCTION");
 
-				bool bDefinitionFound = false;
-				char OpeningBracket = bMacroDeclaration ? '(' : '{';
-				char ClosingBracket = bMacroDeclaration ? ')' : '}';
+				bool definitionFound = false;
+				char openingBracket = macroDeclaration ? '(' : '{';
+				char closingBracket = macroDeclaration ? ')' : '}';
 
-				bool bRetestCurrentToken = false;
+				bool retestCurrentToken = false;
 				while (true)
 				{
-					if (!bRetestCurrentToken)
+					if (!retestCurrentToken)
 					{
-						Token = TokenReader.GetToken();
-						if (Token.TokenType.IsEndType())
+						token = tokenReader.GetToken();
+						if (token.TokenType.IsEndType())
 						{
 							break;
 						}
 					}
 					else
 					{
-						bRetestCurrentToken = false;
+						retestCurrentToken = false;
 					}
-					ReadOnlySpan<char> Span = Token.Value.Span;
+					ReadOnlySpan<char> span = token.Value.Span;
 
 					// If this is a macro, consume it
 					// If we find parentheses at top-level and we think it's a class declaration then it's more likely
 					// to be something like: class UThing* GetThing();
-					if (bPossiblyClassDeclaration && NestedScopes == 0 && Token.IsSymbol() && Span.Length == 1 && Span[0] == '(')
+					if (possiblyClassDeclaration && nestedScopes == 0 && token.IsSymbol() && span.Length == 1 && span[0] == '(')
 					{
-						bPossiblyClassDeclaration = false;
+						possiblyClassDeclaration = false;
 					}
 
-					if (Token.IsSymbol() && Span.Length == 1 && Span[0] == ';' && NestedScopes == 0)
+					if (token.IsSymbol() && span.Length == 1 && span[0] == ';' && nestedScopes == 0)
 					{
-						bEndOfDeclarationFound = true;
+						endOfDeclarationFound = true;
 						break;
 					}
 
-					if (Token.IsIdentifier())
+					if (token.IsIdentifier())
 					{
 						// Use a trivial pre-filter to avoid doing the search on things that aren't UE keywords we care about
-						if (Span[0] == 'G' || Span[0] == 'R' || Span[0] == 'U')
+						if (span[0] == 'G' || span[0] == 'R' || span[0] == 'U')
 						{
-							if (SkipDeclarationWarningStrings.Contains(Token.Value))
+							if (s_skipDeclarationWarningStrings.Contains(token.Value))
 							{
-								TokenReader.LogWarning($"The identifier \'{Token.Value}\' was detected in a block being skipped. Was this intentional?");
+								tokenReader.LogWarning($"The identifier \'{token.Value}\' was detected in a block being skipped. Was this intentional?");
 							}
 						}
 					}
 
-					if (!bMacroDeclaration && Token.IsIdentifier() && Span.Equals("PURE_VIRTUAL", StringComparison.Ordinal) && NestedScopes == 0)
+					if (!macroDeclaration && token.IsIdentifier() && span.Equals("PURE_VIRTUAL", StringComparison.Ordinal) && nestedScopes == 0)
 					{
-						OpeningBracket = '(';
-						ClosingBracket = ')';
+						openingBracket = '(';
+						closingBracket = ')';
 					}
 
-					if (Token.IsSymbol() && Span.Length == 1 && Span[0] == OpeningBracket)
+					if (token.IsSymbol() && span.Length == 1 && span[0] == openingBracket)
 					{
 						// This is a function definition or class declaration.
-						bDefinitionFound = true;
-						NestedScopes++;
+						definitionFound = true;
+						nestedScopes++;
 					}
-					else if (Token.IsSymbol() && Span.Length == 1 && Span[0] == ClosingBracket)
+					else if (token.IsSymbol() && span.Length == 1 && span[0] == closingBracket)
 					{
-						NestedScopes--;
-						if (NestedScopes == 0)
+						nestedScopes--;
+						if (nestedScopes == 0)
 						{
 							// Could be a class declaration in all capitals, and not a macro
-							bool bReallyEndDeclaration = true;
-							if (bMacroDeclaration)
+							bool reallyEndDeclaration = true;
+							if (macroDeclaration)
 							{
-								bReallyEndDeclaration = !TokenReader.TryPeekOptional('{');
+								reallyEndDeclaration = !tokenReader.TryPeekOptional('{');
 							}
 
-							if (bReallyEndDeclaration)
+							if (reallyEndDeclaration)
 							{
-								bEndOfDeclarationFound = true;
+								endOfDeclarationFound = true;
 								break;
 							}
 						}
 
-						if (NestedScopes < 0)
+						if (nestedScopes < 0)
 						{
-							throw new UhtException(TokenReader, Token.InputLine, $"Unexpected '{ClosingBracket}'. Did you miss a semi-colon?");
+							throw new UhtException(tokenReader, token.InputLine, $"Unexpected '{closingBracket}'. Did you miss a semi-colon?");
 						}
 					}
-					else if (bMacroDeclaration && NestedScopes == 0)
+					else if (macroDeclaration && nestedScopes == 0)
 					{
-						bMacroDeclaration = false;
-						OpeningBracket = '{';
-						ClosingBracket = '}';
-						bRetestCurrentToken = true;
+						macroDeclaration = false;
+						openingBracket = '{';
+						closingBracket = '}';
+						retestCurrentToken = true;
 					}
 				}
-				if (bEndOfDeclarationFound)
+				if (endOfDeclarationFound)
 				{
 					// Member variable declaration after class declaration (see bPossiblyClassDeclaration).
-					if (bPossiblyClassDeclaration && bDefinitionFound)
+					if (possiblyClassDeclaration && definitionFound)
 					{
 						// Should syntax errors be also handled when someone declares a variable after function definition?
 						// Consume the variable name.
-						if (TokenReader.bIsEOF)
+						if (tokenReader.IsEOF)
 						{
 							return true;
 						}
-						if (TokenReader.TryOptionalIdentifier())
+						if (tokenReader.TryOptionalIdentifier())
 						{
-							TokenReader.Require(';');
+							tokenReader.Require(';');
 						}
 					}
 
 					// C++ allows any number of ';' after member declaration/definition.
-					while (TokenReader.TryOptional(';'))
-					{ 
+					while (tokenReader.TryOptional(';'))
+					{
 					}
 				}
 			}
 
 			// Successfully consumed C++ declaration unless mismatched pair of brackets has been found.
-			return NestedScopes == 0 && bEndOfDeclarationFound;
+			return nestedScopes == 0 && endOfDeclarationFound;
 		}
 
-		private static bool IsProbablyAMacro(StringView Identifier)
+		private static bool IsProbablyAMacro(StringView identifier)
 		{
-			ReadOnlySpan<char> Span = Identifier.Span;
-			if (Span.Length == 0)
+			ReadOnlySpan<char> span = identifier.Span;
+			if (span.Length == 0)
 			{
 				return false;
 			}
 
 			// Macros must start with a capitalized alphanumeric character or underscore
-			char FirstChar = Span[0];
-			if (FirstChar != '_' && (FirstChar < 'A' || FirstChar > 'Z'))
+			char firstChar = span[0];
+			if (firstChar != '_' && (firstChar < 'A' || firstChar > 'Z'))
 			{
 				return false;
 			}
 
 			// Test for known delegate and event macros.
-			if (Span.StartsWith("DECLARE_MULTICAST_DELEGATE") ||
-				Span.StartsWith("DECLARE_DELEGATE") ||
-				Span.StartsWith("DECLARE_EVENT"))
+			if (span.StartsWith("DECLARE_MULTICAST_DELEGATE") ||
+				span.StartsWith("DECLARE_DELEGATE") ||
+				span.StartsWith("DECLARE_EVENT"))
 			{
 				return true;
 			}
 
 			// Failing that, we'll guess about it being a macro based on it being a fully-capitalized identifier.
-			foreach (char Ch in Span.Slice(1))
+			foreach (char ch in span.Slice(1))
 			{
-				if (Ch != '_' && (Ch < 'A' || Ch > 'Z') && (Ch < '0' || Ch > '9'))
+				if (ch != '_' && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9'))
 				{
 					return false;
 				}

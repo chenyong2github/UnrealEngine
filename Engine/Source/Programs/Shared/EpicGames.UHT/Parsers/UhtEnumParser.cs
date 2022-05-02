@@ -18,9 +18,9 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Construct a new enum parser
 		/// </summary>
-		/// <param name="Outer">Outer type</param>
-		/// <param name="LineNumber">Line number</param>
-		public UhtEnumParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		/// <param name="outer">Outer type</param>
+		/// <param name="lineNumber">Line number</param>
+		public UhtEnumParser(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
 		}
 
@@ -28,138 +28,138 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtParseResult UENUMKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
+		private static UhtParseResult UENUMKeyword(UhtParsingScope topScope, UhtParsingScope actionScope, ref UhtToken token)
 		{
-			return ParseUEnum(TopScope, Token);
+			return ParseUEnum(topScope, token);
 		}
 		#endregion
 
-		private static UhtParseResult ParseUEnum(UhtParsingScope ParentScope, UhtToken KeywordToken)
+		private static UhtParseResult ParseUEnum(UhtParsingScope parentScope, UhtToken keywordToken)
 		{
-			UhtEnumParser Enum = new UhtEnumParser(ParentScope.ScopeType, KeywordToken.InputLine);
-			using (var TopScope = new UhtParsingScope(ParentScope, Enum, ParentScope.Session.GetKeywordTable(UhtTableNames.Enum), UhtAccessSpecifier.Public))
+			UhtEnumParser enumObject = new UhtEnumParser(parentScope.ScopeType, keywordToken.InputLine);
+			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, enumObject, parentScope.Session.GetKeywordTable(UhtTableNames.Enum), UhtAccessSpecifier.Public))
 			{
 				const string ScopeName = "UENUM";
 
-				using (var TokenContext = new UhtMessageContext(ScopeName))
+				using (UhtMessageContext tokenContext = new UhtMessageContext(ScopeName))
 				{
 
 					// Parse the specifiers
-					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Enum.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetCachedSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Enum));
-					Specifiers.ParseSpecifiers();
+					UhtSpecifierContext specifierContext = new UhtSpecifierContext(topScope, topScope.TokenReader, enumObject.MetaData);
+					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Enum));
+					specifiers.ParseSpecifiers();
 
 					// Read the name and the CPP type
-					switch (TopScope.TokenReader.TryOptional(new string[] { "namespace", "enum" }))
+					switch (topScope.TokenReader.TryOptional(new string[] { "namespace", "enum" }))
 					{
 						case 0: // namespace
-							Enum.CppForm = UhtEnumCppForm.Namespaced;
-							TopScope.TokenReader.SkipDeprecatedMacroIfNecessary();
+							enumObject.CppForm = UhtEnumCppForm.Namespaced;
+							topScope.TokenReader.SkipDeprecatedMacroIfNecessary();
 							break;
 						case 1: // enum
-							Enum.CppForm = TopScope.TokenReader.TryOptional(new string[] { "class", "struct" }) >= 0 ? UhtEnumCppForm.EnumClass : UhtEnumCppForm.Regular;
-							TopScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
+							enumObject.CppForm = topScope.TokenReader.TryOptional(new string[] { "class", "struct" }) >= 0 ? UhtEnumCppForm.EnumClass : UhtEnumCppForm.Regular;
+							topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
 							break;
 						default:
-							throw new UhtTokenException(TopScope.TokenReader, TopScope.TokenReader.PeekToken(), null);
+							throw new UhtTokenException(topScope.TokenReader, topScope.TokenReader.PeekToken(), null);
 					}
 
-					UhtToken EnumToken = TopScope.TokenReader.GetIdentifier("enumeration name");
+					UhtToken enumToken = topScope.TokenReader.GetIdentifier("enumeration name");
 
-					Enum.SourceName = EnumToken.Value.ToString();
+					enumObject.SourceName = enumToken.Value.ToString();
 
-					Specifiers.ParseFieldMetaData();
-					Specifiers.ParseDeferred();
+					specifiers.ParseFieldMetaData();
+					specifiers.ParseDeferred();
 
-					if (Enum.Outer != null)
+					if (enumObject.Outer != null)
 					{
-						Enum.Outer.AddChild(Enum);
+						enumObject.Outer.AddChild(enumObject);
 					}
 
-					if ((TopScope.HeaderParser.GetCurrentCompositeCompilerDirective() & UhtCompilerDirective.WithEditorOnlyData) != 0)
+					if ((topScope.HeaderParser.GetCurrentCompositeCompilerDirective() & UhtCompilerDirective.WithEditorOnlyData) != 0)
 					{
-						Enum.bIsEditorOnly = true;
+						enumObject.IsEditorOnly = true;
 					}
 
 					// Read base for enum class
-					if (Enum.CppForm == UhtEnumCppForm.EnumClass)
+					if (enumObject.CppForm == UhtEnumCppForm.EnumClass)
 					{
-						if (TopScope.TokenReader.TryOptional(':'))
+						if (topScope.TokenReader.TryOptional(':'))
 						{
-							UhtToken EnumType = TopScope.TokenReader.GetIdentifier("enumeration base");
+							UhtToken enumType = topScope.TokenReader.GetIdentifier("enumeration base");
 
-							UhtEnumUnderlyingType UnderlyingType;
-							if (!System.Enum.TryParse<UhtEnumUnderlyingType>(EnumType.Value.ToString(), out UnderlyingType) || UnderlyingType == UhtEnumUnderlyingType.Unspecified)
+							UhtEnumUnderlyingType underlyingType;
+							if (!System.Enum.TryParse<UhtEnumUnderlyingType>(enumType.Value.ToString(), out underlyingType) || underlyingType == UhtEnumUnderlyingType.Unspecified)
 							{
-								TopScope.TokenReader.LogError(EnumType.InputLine, $"Unsupported enum class base type '{EnumType.Value}'");
+								topScope.TokenReader.LogError(enumType.InputLine, $"Unsupported enum class base type '{enumType.Value}'");
 							}
-							Enum.UnderlyingType = UnderlyingType;
+							enumObject.UnderlyingType = underlyingType;
 						}
 						else
 						{
-							Enum.UnderlyingType = UhtEnumUnderlyingType.Unspecified;
+							enumObject.UnderlyingType = UhtEnumUnderlyingType.Unspecified;
 						}
 					}
 					else
 					{
-						if ((Enum.EnumFlags & EEnumFlags.Flags) != 0)
+						if ((enumObject.EnumFlags & EEnumFlags.Flags) != 0)
 						{
-							TopScope.TokenReader.LogError("The 'Flags' specifier can only be used on enum classes");
+							topScope.TokenReader.LogError("The 'Flags' specifier can only be used on enum classes");
 						}
 					}
 
-					if (Enum.UnderlyingType != UhtEnumUnderlyingType.uint8 && Enum.MetaData.ContainsKey("BlueprintType"))
+					if (enumObject.UnderlyingType != UhtEnumUnderlyingType.uint8 && enumObject.MetaData.ContainsKey("BlueprintType"))
 					{
-						TopScope.TokenReader.LogError("Invalid BlueprintType enum base - currently only uint8 supported");
+						topScope.TokenReader.LogError("Invalid BlueprintType enum base - currently only uint8 supported");
 					}
 
 					//EnumDef.GetDefinitionRange().Start = &Input[InputPos];
 
 					// Get the opening brace
-					TopScope.TokenReader.Require('{');
+					topScope.TokenReader.Require('{');
 
-					switch (Enum.CppForm)
+					switch (enumObject.CppForm)
 					{
 						case UhtEnumCppForm.Namespaced:
 							// Now handle the inner true enum portion
-							TopScope.TokenReader.Require("enum");
-							TopScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
+							topScope.TokenReader.Require("enum");
+							topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
 
-							UhtToken InnerEnumToken = TopScope.TokenReader.GetIdentifier("enumeration type name");
+							UhtToken innerEnumToken = topScope.TokenReader.GetIdentifier("enumeration type name");
 
-							TopScope.TokenReader.Require('{');
-							Enum.CppType = $"{Enum.SourceName}::{InnerEnumToken.Value}";
+							topScope.TokenReader.Require('{');
+							enumObject.CppType = $"{enumObject.SourceName}::{innerEnumToken.Value}";
 							break;
 
 						case UhtEnumCppForm.EnumClass:
 						case UhtEnumCppForm.Regular:
-							Enum.CppType = Enum.SourceName;
+							enumObject.CppType = enumObject.SourceName;
 							break;
 					}
 
-					TokenContext.Reset($"UENUM {Enum.SourceName}");
+					tokenContext.Reset($"UENUM {enumObject.SourceName}");
 
-					TopScope.AddModuleRelativePathToMetaData();
-					TopScope.AddFormattedCommentsAsTooltipMetaData();
+					topScope.AddModuleRelativePathToMetaData();
+					topScope.AddFormattedCommentsAsTooltipMetaData();
 
 					// Parse all enum tags
-					bool bHasUnparsedValue = false;
-					long CurrentEnumValue = 0;
+					bool hasUnparsedValue = false;
+					long currentEnumValue = 0;
 
-					TopScope.TokenReader.RequireList('}', ',', true, () =>
+					topScope.TokenReader.RequireList('}', ',', true, () =>
 					{
-						UhtToken TagToken = TopScope.TokenReader.GetIdentifier();
+						UhtToken tagToken = topScope.TokenReader.GetIdentifier();
 
-						StringView FullEnumName;
-						switch (Enum.CppForm)
+						StringView fullEnumName;
+						switch (enumObject.CppForm)
 						{
 							case UhtEnumCppForm.Namespaced:
 							case UhtEnumCppForm.EnumClass:
-								FullEnumName = new StringView($"{Enum.SourceName}::{TagToken.Value}");
+								fullEnumName = new StringView($"{enumObject.SourceName}::{tagToken.Value}");
 								break;
 
 							case UhtEnumCppForm.Regular:
-								FullEnumName = TagToken.Value;
+								fullEnumName = tagToken.Value;
 								break;
 
 							default:
@@ -167,69 +167,69 @@ namespace EpicGames.UHT.Parsers
 						}
 
 						// Save the new tag with a default value.  This will be replaced later
-						int EnumIndex = Enum.AddEnumValue(TagToken.Value.ToString(), 0);
-						TopScope.AddFormattedCommentsAsTooltipMetaData(EnumIndex);
+						int enumIndex = enumObject.AddEnumValue(tagToken.Value.ToString(), 0);
+						topScope.AddFormattedCommentsAsTooltipMetaData(enumIndex);
 
 						// Skip any deprecation
-						TopScope.TokenReader.SkipDeprecatedMacroIfNecessary();
+						topScope.TokenReader.SkipDeprecatedMacroIfNecessary();
 
 						// Try to read an optional explicit enum value specification
-						if (TopScope.TokenReader.TryOptional('='))
+						if (topScope.TokenReader.TryOptional('='))
 						{
-							long ScatchValue;
-							bool bParsedValue = TopScope.TokenReader.TryOptionalConstLong(out ScatchValue);
-							if (bParsedValue)
+							long scatchValue;
+							bool parsedValue = topScope.TokenReader.TryOptionalConstLong(out scatchValue);
+							if (parsedValue)
 							{
-								CurrentEnumValue = ScatchValue;
+								currentEnumValue = scatchValue;
 							}
 							else
 							{
 								// We didn't parse a literal, so set an invalid value
-								CurrentEnumValue = -1;
-								bHasUnparsedValue = true;
+								currentEnumValue = -1;
+								hasUnparsedValue = true;
 							}
 
 							// Skip tokens until we encounter a comma, a closing brace or a UMETA declaration
 							// There are tokens after the initializer so it's not a standalone literal,
 							// so set it to an invalid value.
-							int SkippedCount = TopScope.TokenReader.ConsumeUntil(new string[] { ",", "}", "UMETA" });
-							if (SkippedCount == 0 && !bParsedValue)
+							int skippedCount = topScope.TokenReader.ConsumeUntil(new string[] { ",", "}", "UMETA" });
+							if (skippedCount == 0 && !parsedValue)
 							{
-								throw new UhtTokenException(TopScope.TokenReader, TopScope.TokenReader.PeekToken(), "enumerator initializer");
+								throw new UhtTokenException(topScope.TokenReader, topScope.TokenReader.PeekToken(), "enumerator initializer");
 							}
-							if (SkippedCount > 0)
+							if (skippedCount > 0)
 							{
-								CurrentEnumValue = -1;
-								bHasUnparsedValue = true;
+								currentEnumValue = -1;
+								hasUnparsedValue = true;
 							}
 						}
 
 						// Save the value and auto increment
-						UhtEnumValue Value = Enum.EnumValues[EnumIndex];
-						Value.Value = CurrentEnumValue;
-						Enum.EnumValues[EnumIndex] = Value;
-						if (CurrentEnumValue != -1)
+						UhtEnumValue value = enumObject.EnumValues[enumIndex];
+						value.Value = currentEnumValue;
+						enumObject.EnumValues[enumIndex] = value;
+						if (currentEnumValue != -1)
 						{
-							++CurrentEnumValue;
+							++currentEnumValue;
 						}
 
-						Enum.MetaData.Add(UhtNames.Name, EnumIndex, Enum.EnumValues[EnumIndex].Name.ToString());
+						enumObject.MetaData.Add(UhtNames.Name, enumIndex, enumObject.EnumValues[enumIndex].Name.ToString());
 
 						// check for metadata on this enum value
-						SpecifierContext.MetaNameIndex = EnumIndex;
-						Specifiers.ParseFieldMetaData();
+						specifierContext.MetaNameIndex = enumIndex;
+						specifiers.ParseFieldMetaData();
 					});
 
 					// Trailing brace and semicolon for the enum
-					TopScope.TokenReader.Require(';');
-					if (Enum.CppForm == UhtEnumCppForm.Namespaced)
+					topScope.TokenReader.Require(';');
+					if (enumObject.CppForm == UhtEnumCppForm.Namespaced)
 					{
-						TopScope.TokenReader.Require('}');
+						topScope.TokenReader.Require('}');
 					}
 
-					if (!bHasUnparsedValue && !Enum.IsValidEnumValue(0) && Enum.MetaData.ContainsKey(UhtNames.BlueprintType))
+					if (!hasUnparsedValue && !enumObject.IsValidEnumValue(0) && enumObject.MetaData.ContainsKey(UhtNames.BlueprintType))
 					{
-						Enum.LogWarning($"'{Enum.SourceName}' does not have a 0 entry! (This is a problem when the enum is initialized by default)");
+						enumObject.LogWarning($"'{enumObject.SourceName}' does not have a 0 entry! (This is a problem when the enum is initialized by default)");
 					}
 				}
 

@@ -30,13 +30,13 @@ namespace EpicGames.UHT.Types
 		public UhtObject? AlternateObject { get; set; } = null;
 
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "Object"; }
+		public override string EngineClassName => "Object";
 
 		/// <summary>
 		/// Construct a new instance of the object
 		/// </summary>
-		/// <param name="Session">Session of the object</param>
-		protected UhtObject(UhtSession Session) : base(Session)
+		/// <param name="session">Session of the object</param>
+		protected UhtObject(UhtSession session) : base(session)
 		{
 			ObjectTypeIndex = this.Session.GetNextObjectTypeIndex();
 		}
@@ -44,9 +44,9 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct a new instance of the object
 		/// </summary>
-		/// <param name="Outer">Outer object</param>
-		/// <param name="LineNumber">Line number where object is defined</param>
-		protected UhtObject(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		/// <param name="outer">Outer object</param>
+		/// <param name="lineNumber">Line number where object is defined</param>
+		protected UhtObject(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
 			ObjectTypeIndex = this.Session.GetNextObjectTypeIndex();
 		}

@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Types;
-using EpicGames.UHT.Utils;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using EpicGames.Core;
+using EpicGames.UHT.Types;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Exporters.CodeGen
 {
@@ -14,57 +14,57 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <summary>
 		/// Construct an instance of this generator object
 		/// </summary>
-		/// <param name="CodeGenerator">The base code generator</param>
-		/// <param name="Package">Package being generated</param>
-		public UhtPackageCodeGeneratorHFile(UhtCodeGenerator CodeGenerator, UhtPackage Package)
-			: base(CodeGenerator, Package)
+		/// <param name="codeGenerator">The base code generator</param>
+		/// <param name="package">Package being generated</param>
+		public UhtPackageCodeGeneratorHFile(UhtCodeGenerator codeGenerator, UhtPackage package)
+			: base(codeGenerator, package)
 		{
 		}
 
 		/// <summary>
 		/// For a given UE header file, generated the generated H file
 		/// </summary>
-		/// <param name="Factory">Requesting factory</param>
-		/// <param name="PackageSortedHeaders">Sorted list of headers by name of all headers in the package</param>
-		public void Generate(IUhtExportFactory Factory, List<UhtHeaderFile> PackageSortedHeaders)
+		/// <param name="factory">Requesting factory</param>
+		/// <param name="packageSortedHeaders">Sorted list of headers by name of all headers in the package</param>
+		public void Generate(IUhtExportFactory factory, List<UhtHeaderFile> packageSortedHeaders)
 		{
-			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Big))
+			using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Big))
 			{
-				StringBuilder Builder = Borrower.StringBuilder;
+				StringBuilder builder = borrower.StringBuilder;
 
-				Builder.Append(HeaderCopyright);
-				Builder.Append("#pragma once\r\n");
-				Builder.Append("\r\n");
-				Builder.Append("\r\n");
+				builder.Append(HeaderCopyright);
+				builder.Append("#pragma once\r\n");
+				builder.Append("\r\n");
+				builder.Append("\r\n");
 
-				List<UhtHeaderFile> HeaderFiles = new List<UhtHeaderFile>(this.Package.Children.Count * 2);
-				HeaderFiles.AddRange(PackageSortedHeaders);
+				List<UhtHeaderFile> headerFiles = new List<UhtHeaderFile>(this.Package.Children.Count * 2);
+				headerFiles.AddRange(packageSortedHeaders);
 
-				foreach (UhtHeaderFile HeaderFile in this.Package.Children)
+				foreach (UhtHeaderFile headerFile in this.Package.Children)
 				{
-					if (HeaderFile.HeaderFileType == UhtHeaderFileType.Classes)
+					if (headerFile.HeaderFileType == UhtHeaderFileType.Classes)
 					{
-						HeaderFiles.Add(HeaderFile);
+						headerFiles.Add(headerFile);
 					}
 				}
 
-				List<UhtHeaderFile> SortedHeaderFiles = new List<UhtHeaderFile>(HeaderFiles.Distinct());
-				SortedHeaderFiles.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.FilePath, y.FilePath));
+				List<UhtHeaderFile> sortedHeaderFiles = new List<UhtHeaderFile>(headerFiles.Distinct());
+				sortedHeaderFiles.Sort((x, y) => StringComparerUE.OrdinalIgnoreCase.Compare(x.FilePath, y.FilePath));
 
-				foreach (UhtHeaderFile HeaderFile in SortedHeaderFiles)
+				foreach (UhtHeaderFile headerFile in sortedHeaderFiles)
 				{
-					if (HeaderFile.HeaderFileType == UhtHeaderFileType.Classes)
+					if (headerFile.HeaderFileType == UhtHeaderFileType.Classes)
 					{
-						Builder.Append("#include \"").Append(this.HeaderInfos[HeaderFile.HeaderFileTypeIndex].IncludePath).Append("\"\r\n");
+						builder.Append("#include \"").Append(this.HeaderInfos[headerFile.HeaderFileTypeIndex]._includePath).Append("\"\r\n");
 					}
 				}
 
-				Builder.Append("\r\n");
+				builder.Append("\r\n");
 
 				if (this.SaveExportedHeaders)
 				{
-					string HeaderFilePath = Factory.MakePath(this.Package, "Classes.h");
-					Factory.CommitOutput(HeaderFilePath, Builder);
+					string headerFilePath = factory.MakePath(this.Package, "Classes.h");
+					factory.CommitOutput(headerFilePath, builder);
 				}
 			}
 		}

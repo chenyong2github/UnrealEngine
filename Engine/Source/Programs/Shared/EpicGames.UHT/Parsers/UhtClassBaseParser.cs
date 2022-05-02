@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Types;
-using System.Collections.Generic;
-using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -31,17 +31,17 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Construct a new base class parser
 		/// </summary>
-		/// <param name="Outer">Outer type</param>
-		/// <param name="LineNumber">Line number of class</param>
-		public UhtClassBaseParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		/// <param name="outer">Outer type</param>
+		/// <param name="lineNumber">Line number of class</param>
+		public UhtClassBaseParser(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
 		}
 
 		/// <inheritdoc/>
-		protected override void ResolveSuper(UhtResolvePhase ResolvePhase)
+		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
 		{
-			base.ResolveSuper(ResolvePhase);
-			switch (ResolvePhase)
+			base.ResolveSuper(resolvePhase);
+			switch (resolvePhase)
 			{
 				case UhtResolvePhase.Bases:
 					BindAndResolveSuper(this.SuperIdentifier, UhtFindOptions.Class);
@@ -57,17 +57,17 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase ResolvePhase)
+		protected override bool ResolveSelf(UhtResolvePhase resolvePhase)
 		{
-			bool bResult = base.ResolveSelf(ResolvePhase);
+			bool result = base.ResolveSelf(resolvePhase);
 
-			switch (ResolvePhase)
+			switch (resolvePhase)
 			{
 				case UhtResolvePhase.Properties:
 					UhtPropertyParser.ResolveChildren(this, UhtPropertyParseOptions.AddModuleRelativePath);
 					break;
 			}
-			return bResult;
+			return result;
 		}
 	}
 }

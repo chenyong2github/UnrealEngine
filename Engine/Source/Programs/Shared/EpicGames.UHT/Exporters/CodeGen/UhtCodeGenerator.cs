@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tables;
-using EpicGames.UHT.Types;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.UHT.Tables;
+using EpicGames.UHT.Types;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Exporters.CodeGen
 {
@@ -18,121 +18,121 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		[UhtExporter(Name = "CodeGen", Description = "Standard UnrealEngine code generation", Options = UhtExporterOptions.Default,
 			CppFilters = new string[] { "*.generated.cpp", "*.generated.*.cpp", "*.gen.cpp", "*.gen.*.cpp" },
 			HeaderFilters = new string[] { "*.generated.h" })]
-		public static void CodeGenerator(IUhtExportFactory Factory)
+		public static void CodeGenerator(IUhtExportFactory factory)
 		{
-			UhtCodeGenerator Generator = new UhtCodeGenerator(Factory);
-			Generator.Generate();
+			UhtCodeGenerator generator = new UhtCodeGenerator(factory);
+			generator.Generate();
 		}
 
 		public struct PackageInfo
 		{
-			public string StrippedName;
-			public string Api;
+			public string _strippedName;
+			public string _api;
 		}
-		public PackageInfo[] PackageInfos;
+		public PackageInfo[] _packageInfos;
 
 		public struct HeaderInfo
 		{
-			public Task? Task;
-			public string IncludePath;
-			public string FileId;
-			public uint BodyHash;
-			public bool bNeedsPushModelHeaders;
+			public Task? _task;
+			public string _includePath;
+			public string _fileId;
+			public uint _bodyHash;
+			public bool _needsPushModelHeaders;
 		}
-		public HeaderInfo[] HeaderInfos;
+		public HeaderInfo[] _headerInfos;
 
 		public struct ObjectInfo
 		{
-			public string RegisteredSingletonName;
-			public string UnregisteredSingletonName;
-			public string RegsiteredCrossReference;
-			public string UnregsiteredCrossReference;
-			public string RegsiteredExternalDecl;
-			public string UnregisteredExternalDecl;
-			public UhtClass? NativeInterface;
-			public uint Hash;
+			public string _registeredSingletonName;
+			public string _unregisteredSingletonName;
+			public string _regsiteredCrossReference;
+			public string _unregsiteredCrossReference;
+			public string _regsiteredExternalDecl;
+			public string _unregisteredExternalDecl;
+			public UhtClass? _nativeInterface;
+			public uint _hash;
 		}
-		public ObjectInfo[] ObjectInfos;
+		public ObjectInfo[] _objectInfos;
 
 		public readonly IUhtExportFactory Factory;
 		public UhtSession Session => Factory.Session;
 
-		private UhtCodeGenerator(IUhtExportFactory Factory)
+		private UhtCodeGenerator(IUhtExportFactory factory)
 		{
-			this.Factory = Factory;
-			this.HeaderInfos = new HeaderInfo[this.Factory.Session.HeaderFileTypeCount];
-			this.ObjectInfos = new ObjectInfo[this.Factory.Session.ObjectTypeCount];
-			this.PackageInfos = new PackageInfo[this.Factory.Session.PackageTypeCount];
+			this.Factory = factory;
+			this._headerInfos = new HeaderInfo[this.Factory.Session.HeaderFileTypeCount];
+			this._objectInfos = new ObjectInfo[this.Factory.Session.ObjectTypeCount];
+			this._packageInfos = new PackageInfo[this.Factory.Session.PackageTypeCount];
 		}
 
 		private void Generate()
 		{
-			List<Task?> Prereqs = new List<Task?>();
+			List<Task?> prereqs = new List<Task?>();
 
 			// Perform some startup initialization to compute things we need over and over again
-			if (this.Session.bGoWide)
+			if (this.Session.GoWide)
 			{
-				Parallel.ForEach(this.Factory.Session.Packages, Package =>
+				Parallel.ForEach(this.Factory.Session.Packages, package =>
 				{
-					InitPackageInfo(Package);
+					InitPackageInfo(package);
 				});
 			}
 			else
 			{
-				foreach (UhtPackage Package in this.Factory.Session.Packages)
+				foreach (UhtPackage package in this.Factory.Session.Packages)
 				{
-					InitPackageInfo(Package);
+					InitPackageInfo(package);
 				}
 			}
 
 			// Generate the files for the header files
-			foreach (UhtHeaderFile HeaderFile in this.Session.SortedHeaderFiles)
+			foreach (UhtHeaderFile headerFile in this.Session.SortedHeaderFiles)
 			{
-				if (HeaderFile.bShouldExport)
+				if (headerFile.ShouldExport)
 				{
-					UhtPackage Package = HeaderFile.Package;
-					UHTManifest.Module Module = Package.Module;
+					UhtPackage package = headerFile.Package;
+					UHTManifest.Module module = package.Module;
 
-					Prereqs.Clear();
-					foreach (UhtHeaderFile Referenced in HeaderFile.ReferencedHeadersNoLock)
+					prereqs.Clear();
+					foreach (UhtHeaderFile referenced in headerFile.ReferencedHeadersNoLock)
 					{
-						if (HeaderFile != Referenced)
+						if (headerFile != referenced)
 						{
-							Prereqs.Add(this.HeaderInfos[Referenced.HeaderFileTypeIndex].Task);
+							prereqs.Add(this._headerInfos[referenced.HeaderFileTypeIndex]._task);
 						}
 					}
 
-					this.HeaderInfos[HeaderFile.HeaderFileTypeIndex].Task = Factory.CreateTask(Prereqs,  
-						(IUhtExportFactory Factory) =>
+					this._headerInfos[headerFile.HeaderFileTypeIndex]._task = Factory.CreateTask(prereqs,
+						(IUhtExportFactory factory) =>
 						{
-							new UhtHeaderCodeGeneratorHFile(this, Package, HeaderFile).Generate(Factory);
-							new UhtHeaderCodeGeneratorCppFile(this, Package, HeaderFile).Generate(Factory);
+							new UhtHeaderCodeGeneratorHFile(this, package, headerFile).Generate(factory);
+							new UhtHeaderCodeGeneratorCppFile(this, package, headerFile).Generate(factory);
 						});
 				}
 			}
 
 			// Generate the files for the packages
-			List<Task?> GeneratedPackages = new List<Task?>(this.Session.PackageTypeCount);
-			foreach (UhtPackage Package in this.Session.Packages)
+			List<Task?> generatedPackages = new List<Task?>(this.Session.PackageTypeCount);
+			foreach (UhtPackage package in this.Session.Packages)
 			{
-				UHTManifest.Module Module = Package.Module;
+				UHTManifest.Module module = package.Module;
 
-				bool bWriteHeader = false;
-				Prereqs.Clear();
-				foreach (UhtHeaderFile HeaderFile in Package.Children)
+				bool writeHeader = false;
+				prereqs.Clear();
+				foreach (UhtHeaderFile headerFile in package.Children)
 				{
-					Prereqs.Add(this.HeaderInfos[HeaderFile.HeaderFileTypeIndex].Task);
-					if (!bWriteHeader)
+					prereqs.Add(this._headerInfos[headerFile.HeaderFileTypeIndex]._task);
+					if (!writeHeader)
 					{
-						foreach (UhtType Type in HeaderFile.Children)
+						foreach (UhtType type in headerFile.Children)
 						{
-							if (Type is UhtClass Class)
+							if (type is UhtClass classObj)
 							{
-								if (Class.ClassType != UhtClassType.NativeInterface && 
-									Class.ClassFlags.HasExactFlags(EClassFlags.Native | EClassFlags.Intrinsic, EClassFlags.Native) &&
-									!Class.ClassExportFlags.HasAllFlags(UhtClassExportFlags.NoExport))
+								if (classObj.ClassType != UhtClassType.NativeInterface &&
+									classObj.ClassFlags.HasExactFlags(EClassFlags.Native | EClassFlags.Intrinsic, EClassFlags.Native) &&
+									!classObj.ClassExportFlags.HasAllFlags(UhtClassExportFlags.NoExport))
 								{
-									bWriteHeader = true;
+									writeHeader = true;
 									break;
 								}
 							}
@@ -140,254 +140,251 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					}
 				}
 
-				GeneratedPackages.Add(Factory.CreateTask(Prereqs, 
-					(IUhtExportFactory Factory) =>
+				generatedPackages.Add(Factory.CreateTask(prereqs,
+					(IUhtExportFactory factory) =>
 					{
-						List<UhtHeaderFile> PackageSortedHeaders = GetSortedHeaderFiles(Package);
-						if (bWriteHeader)
+						List<UhtHeaderFile> packageSortedHeaders = GetSortedHeaderFiles(package);
+						if (writeHeader)
 						{
-							new UhtPackageCodeGeneratorHFile(this, Package).Generate(Factory, PackageSortedHeaders);
+							new UhtPackageCodeGeneratorHFile(this, package).Generate(factory, packageSortedHeaders);
 						}
-						new UhtPackageCodeGeneratorCppFile(this, Package).Generate(Factory, PackageSortedHeaders);
+						new UhtPackageCodeGeneratorCppFile(this, package).Generate(factory, packageSortedHeaders);
 					}));
 			}
 
 			// Wait for all the packages to complete
-			List<Task> PackageTasks = new List<Task>(this.Session.PackageTypeCount);
-			foreach (Task? Output in GeneratedPackages)
+			List<Task> packageTasks = new List<Task>(this.Session.PackageTypeCount);
+			foreach (Task? output in generatedPackages)
 			{
-				if (Output != null)
+				if (output != null)
 				{
-					PackageTasks.Add(Output);
+					packageTasks.Add(output);
 				}
 			}
-			Task.WaitAll(PackageTasks.ToArray());
+			Task.WaitAll(packageTasks.ToArray());
 		}
 
-#region Utility functions
+		#region Utility functions
 		/// <summary>
 		/// Return the singleton name for an object
 		/// </summary>
-		/// <param name="Object">The object in question.</param>
-		/// <param name="bRegistered">If true, return the registered singleton name.  Otherwise return the unregistered.</param>
+		/// <param name="obj">The object in question.</param>
+		/// <param name="registered">If true, return the registered singleton name.  Otherwise return the unregistered.</param>
 		/// <returns>Singleton name or "nullptr" if Object is null</returns>
-		public string GetSingletonName(UhtObject? Object, bool bRegistered)
+		public string GetSingletonName(UhtObject? obj, bool registered)
 		{
-			if (Object == null)
+			if (obj == null)
 			{
 				return "nullptr";
 			}
-			return bRegistered ? this.ObjectInfos[Object.ObjectTypeIndex].RegisteredSingletonName : this.ObjectInfos[Object.ObjectTypeIndex].UnregisteredSingletonName;
+			return registered ? this._objectInfos[obj.ObjectTypeIndex]._registeredSingletonName : this._objectInfos[obj.ObjectTypeIndex]._unregisteredSingletonName;
 		}
 
 		/// <summary>
 		/// Return the external declaration for an object
 		/// </summary>
-		/// <param name="Object">The object in question.</param>
-		/// <param name="bRegistered">If true, return the registered external declaration.  Otherwise return the unregistered.</param>
+		/// <param name="obj">The object in question.</param>
+		/// <param name="registered">If true, return the registered external declaration.  Otherwise return the unregistered.</param>
 		/// <returns>External declaration</returns>
-		public string GetExternalDecl(UhtObject Object, bool bRegistered)
+		public string GetExternalDecl(UhtObject obj, bool registered)
 		{
-			return GetExternalDecl(Object.ObjectTypeIndex, bRegistered);
+			return GetExternalDecl(obj.ObjectTypeIndex, registered);
 		}
 
 		/// <summary>
 		/// Return the external declaration for an object
 		/// </summary>
-		/// <param name="ObjectIndex">The object in question.</param>
-		/// <param name="bRegistered">If true, return the registered external declaration.  Otherwise return the unregistered.</param>
+		/// <param name="objectIndex">The object in question.</param>
+		/// <param name="registered">If true, return the registered external declaration.  Otherwise return the unregistered.</param>
 		/// <returns>External declaration</returns>
-		public string GetExternalDecl(int ObjectIndex, bool bRegistered)
+		public string GetExternalDecl(int objectIndex, bool registered)
 		{
-			return bRegistered ? this.ObjectInfos[ObjectIndex].RegsiteredExternalDecl : this.ObjectInfos[ObjectIndex].UnregisteredExternalDecl;
+			return registered ? this._objectInfos[objectIndex]._regsiteredExternalDecl : this._objectInfos[objectIndex]._unregisteredExternalDecl;
 		}
 
 		/// <summary>
 		/// Return the cross reference for an object
 		/// </summary>
-		/// <param name="Object">The object in question.</param>
-		/// <param name="bRegistered">If true, return the registered cross reference.  Otherwise return the unregistered.</param>
+		/// <param name="obj">The object in question.</param>
+		/// <param name="registered">If true, return the registered cross reference.  Otherwise return the unregistered.</param>
 		/// <returns>Cross reference</returns>
-		public string GetCrossReference(UhtObject Object, bool bRegistered)
+		public string GetCrossReference(UhtObject obj, bool registered)
 		{
-			return GetCrossReference(Object.ObjectTypeIndex, bRegistered);
+			return GetCrossReference(obj.ObjectTypeIndex, registered);
 		}
 
 		/// <summary>
 		/// Return the cross reference for an object
 		/// </summary>
-		/// <param name="ObjectIndex">The object in question.</param>
-		/// <param name="bRegistered">If true, return the registered cross reference.  Otherwise return the unregistered.</param>
+		/// <param name="objectIndex">The object in question.</param>
+		/// <param name="registered">If true, return the registered cross reference.  Otherwise return the unregistered.</param>
 		/// <returns>Cross reference</returns>
-		public string GetCrossReference(int ObjectIndex, bool bRegistered)
+		public string GetCrossReference(int objectIndex, bool registered)
 		{
-			return bRegistered ? this.ObjectInfos[ObjectIndex].RegsiteredCrossReference : this.ObjectInfos[ObjectIndex].UnregsiteredCrossReference;
+			return registered ? this._objectInfos[objectIndex]._regsiteredCrossReference : this._objectInfos[objectIndex]._unregsiteredCrossReference;
 		}
-#endregion
+		#endregion
 
-#region Information initialization
-		private void InitPackageInfo(UhtPackage Package)
+		#region Information initialization
+		private void InitPackageInfo(UhtPackage package)
 		{
-			StringBuilder Builder = new StringBuilder();
+			StringBuilder builder = new StringBuilder();
 
-			ref PackageInfo PackageInfo = ref this.PackageInfos[Package.PackageTypeIndex];
-			PackageInfo.StrippedName = Package.SourceName.Replace('/', '_');
-			PackageInfo.Api = $"{Package.ShortName.ToString().ToUpper()}_API ";
+			ref PackageInfo packageInfo = ref this._packageInfos[package.PackageTypeIndex];
+			packageInfo._strippedName = package.SourceName.Replace('/', '_');
+			packageInfo._api = $"{package.ShortName.ToString().ToUpper()}_API ";
 
 			// Construct the names used commonly during export
-			ref ObjectInfo ObjectInfo = ref this.ObjectInfos[Package.ObjectTypeIndex];
-			Builder.Append("Z_Construct_UPackage_");
-			Builder.Append(PackageInfo.StrippedName);
-			ObjectInfo.UnregisteredSingletonName = ObjectInfo.RegisteredSingletonName = Builder.ToString();
-			ObjectInfo.UnregisteredExternalDecl = ObjectInfo.RegsiteredExternalDecl = $"\t{PackageInfo.Api}_API UPackage* {ObjectInfo.RegisteredSingletonName}();\r\n"; //COMPATIBILITY-TODO remove the extra _API
-			ObjectInfo.UnregsiteredCrossReference = ObjectInfo.RegsiteredCrossReference = $"\tUPackage* {ObjectInfo.RegisteredSingletonName}();\r\n";
+			ref ObjectInfo objectInfo = ref this._objectInfos[package.ObjectTypeIndex];
+			builder.Append("Z_Construct_UPackage_");
+			builder.Append(packageInfo._strippedName);
+			objectInfo._unregisteredSingletonName = objectInfo._registeredSingletonName = builder.ToString();
+			objectInfo._unregisteredExternalDecl = objectInfo._regsiteredExternalDecl = $"\t{packageInfo._api}_API UPackage* {objectInfo._registeredSingletonName}();\r\n"; //COMPATIBILITY-TODO remove the extra _API
+			objectInfo._unregsiteredCrossReference = objectInfo._regsiteredCrossReference = $"\tUPackage* {objectInfo._registeredSingletonName}();\r\n";
 
-			foreach (UhtHeaderFile HeaderFile in Package.Children)
+			foreach (UhtHeaderFile headerFile in package.Children)
 			{
-				InitHeaderInfo(Builder, Package, ref PackageInfo, HeaderFile);
+				InitHeaderInfo(builder, package, ref packageInfo, headerFile);
 			}
 		}
 
-		private void InitHeaderInfo(StringBuilder Builder, UhtPackage Package, ref PackageInfo PackageInfo, UhtHeaderFile HeaderFile)
+		private void InitHeaderInfo(StringBuilder builder, UhtPackage package, ref PackageInfo packageInfo, UhtHeaderFile headerFile)
 		{
-			ref HeaderInfo HeaderInfo = ref this.HeaderInfos[HeaderFile.HeaderFileTypeIndex];
+			ref HeaderInfo headerInfo = ref this._headerInfos[headerFile.HeaderFileTypeIndex];
 
-			HeaderInfo.IncludePath = Path.GetRelativePath(Package.Module.IncludeBase, HeaderFile.FilePath).Replace('\\', '/');
+			headerInfo._includePath = Path.GetRelativePath(package.Module.IncludeBase, headerFile.FilePath).Replace('\\', '/');
 
 			// Convert the file path to a C identifier
-			string FilePath = HeaderFile.FilePath;
-			bool bIsRelative = !Path.IsPathRooted(FilePath);
-			if (!bIsRelative && Session.EngineDirectory != null)
+			string filePath = headerFile.FilePath;
+			bool isRelative = !Path.IsPathRooted(filePath);
+			if (!isRelative && Session.EngineDirectory != null)
 			{
-				string? Directory = Path.GetDirectoryName(Session.EngineDirectory);
-				if (!string.IsNullOrEmpty(Directory))
+				string? directory = Path.GetDirectoryName(Session.EngineDirectory);
+				if (!String.IsNullOrEmpty(directory))
 				{
-					FilePath = Path.GetRelativePath(Directory, FilePath);
-					bIsRelative = !Path.IsPathRooted(FilePath);
+					filePath = Path.GetRelativePath(directory, filePath);
+					isRelative = !Path.IsPathRooted(filePath);
 				}
 			}
-			if (!bIsRelative && Session.ProjectDirectory != null)
+			if (!isRelative && Session.ProjectDirectory != null)
 			{
-				string? Directory = Path.GetDirectoryName(Session.ProjectDirectory);
-				if (!string.IsNullOrEmpty(Directory))
+				string? directory = Path.GetDirectoryName(Session.ProjectDirectory);
+				if (!String.IsNullOrEmpty(directory))
 				{
-					FilePath = Path.GetRelativePath(Directory, FilePath);
-					bIsRelative = !Path.IsPathRooted(FilePath);
+					filePath = Path.GetRelativePath(directory, filePath);
+					isRelative = !Path.IsPathRooted(filePath);
 				}
 			}
-			FilePath = FilePath.Replace('\\', '/');
-			if (bIsRelative)
+			filePath = filePath.Replace('\\', '/');
+			if (isRelative)
 			{
-				while (FilePath.StartsWith("../", StringComparison.Ordinal))
+				while (filePath.StartsWith("../", StringComparison.Ordinal))
 				{
-					FilePath = FilePath.Substring(3);
+					filePath = filePath.Substring(3);
 				}
 			}
 
-			char[] OutFilePath = new char[FilePath.Length + 4];
-			OutFilePath[0] = 'F';
-			OutFilePath[1] = 'I';
-			OutFilePath[2] = 'D';
-			OutFilePath[3] = '_';
-			for (int Index = 0; Index < FilePath.Length; ++Index)
+			char[] outFilePath = new char[filePath.Length + 4];
+			outFilePath[0] = 'F';
+			outFilePath[1] = 'I';
+			outFilePath[2] = 'D';
+			outFilePath[3] = '_';
+			for (int index = 0; index < filePath.Length; ++index)
 			{
-				OutFilePath[Index+4] = UhtFCString.IsAlnum(FilePath[Index]) ? FilePath[Index] : '_';
+				outFilePath[index + 4] = UhtFCString.IsAlnum(filePath[index]) ? filePath[index] : '_';
 			}
-			HeaderInfo.FileId = new string(OutFilePath);
+			headerInfo._fileId = new string(outFilePath);
 
-			foreach (UhtObject Object in HeaderFile.Children)
+			foreach (UhtObject obj in headerFile.Children)
 			{
-				InitObjectInfo(Builder, Package, ref PackageInfo, ref HeaderInfo, Object);
-				if (Object is UhtClass Class)
-				{
-				}
+				InitObjectInfo(builder, package, ref packageInfo, ref headerInfo, obj);
 			}
 		}
 
-		private void InitObjectInfo(StringBuilder Builder, UhtPackage Package, ref PackageInfo PackageInfo, ref HeaderInfo HeaderInfo, UhtObject Object)
+		private void InitObjectInfo(StringBuilder builder, UhtPackage package, ref PackageInfo packageInfo, ref HeaderInfo headerInfo, UhtObject obj)
 		{
-			ref ObjectInfo ObjectInfo = ref this.ObjectInfos[Object.ObjectTypeIndex];
+			ref ObjectInfo objectInfo = ref this._objectInfos[obj.ObjectTypeIndex];
 
-			Builder.Clear();
+			builder.Clear();
 
 			// Construct the names used commonly during export
-			bool bIsNonIntrinsicClass = false;
-			Builder.Append("Z_Construct_U").Append(Object.EngineClassName).AppendOuterNames(Object);
+			bool isNonIntrinsicClass = false;
+			builder.Append("Z_Construct_U").Append(obj.EngineClassName).AppendOuterNames(obj);
 
-			string EngineClassName = Object.EngineClassName;
-			if (Object is UhtClass Class)
+			string engineClassName = obj.EngineClassName;
+			if (obj is UhtClass classObj)
 			{
-				if (!Class.ClassFlags.HasAnyFlags(EClassFlags.Intrinsic))
+				if (!classObj.ClassFlags.HasAnyFlags(EClassFlags.Intrinsic))
 				{
-					bIsNonIntrinsicClass = true;
+					isNonIntrinsicClass = true;
 				}
-				if (Class.ClassExportFlags.HasExactFlags(UhtClassExportFlags.HasReplciatedProperties, UhtClassExportFlags.SelfHasReplicatedProperties))
+				if (classObj.ClassExportFlags.HasExactFlags(UhtClassExportFlags.HasReplciatedProperties, UhtClassExportFlags.SelfHasReplicatedProperties))
 				{
-					HeaderInfo.bNeedsPushModelHeaders = true;
+					headerInfo._needsPushModelHeaders = true;
 				}
-				if (Class.ClassType == UhtClassType.NativeInterface)
+				if (classObj.ClassType == UhtClassType.NativeInterface)
 				{
-					if (Class.AlternateObject != null)
+					if (classObj.AlternateObject != null)
 					{
-						this.ObjectInfos[Class.AlternateObject.ObjectTypeIndex].NativeInterface = Class;
+						this._objectInfos[classObj.AlternateObject.ObjectTypeIndex]._nativeInterface = classObj;
 					}
 				}
 			}
-			else if (Object is UhtFunction)
+			else if (obj is UhtFunction)
 			{
 				// The method for EngineClassName returns type specific where in this case we need just the simple return type
-				EngineClassName = "Function";
+				engineClassName = "Function";
 			}
 
-			if (bIsNonIntrinsicClass)
+			if (isNonIntrinsicClass)
 			{
-				ObjectInfo.RegisteredSingletonName = Builder.ToString();
-				Builder.Append("_NoRegister");
-				ObjectInfo.UnregisteredSingletonName = Builder.ToString();
+				objectInfo._registeredSingletonName = builder.ToString();
+				builder.Append("_NoRegister");
+				objectInfo._unregisteredSingletonName = builder.ToString();
 
-				ObjectInfo.UnregisteredExternalDecl = $"\t{PackageInfo.Api}U{EngineClassName}* {ObjectInfo.UnregisteredSingletonName}();\r\n";
-				ObjectInfo.RegsiteredExternalDecl = $"\t{PackageInfo.Api}U{EngineClassName}* {ObjectInfo.RegisteredSingletonName}();\r\n";
+				objectInfo._unregisteredExternalDecl = $"\t{packageInfo._api}U{engineClassName}* {objectInfo._unregisteredSingletonName}();\r\n";
+				objectInfo._regsiteredExternalDecl = $"\t{packageInfo._api}U{engineClassName}* {objectInfo._registeredSingletonName}();\r\n";
 			}
 			else
 			{
-				ObjectInfo.UnregisteredSingletonName = ObjectInfo.RegisteredSingletonName = Builder.ToString();
-				ObjectInfo.UnregisteredExternalDecl = ObjectInfo.RegsiteredExternalDecl = $"\t{PackageInfo.Api}U{EngineClassName}* {ObjectInfo.RegisteredSingletonName}();\r\n";
+				objectInfo._unregisteredSingletonName = objectInfo._registeredSingletonName = builder.ToString();
+				objectInfo._unregisteredExternalDecl = objectInfo._regsiteredExternalDecl = $"\t{packageInfo._api}U{engineClassName}* {objectInfo._registeredSingletonName}();\r\n";
 			}
 
 			//COMPATIBILITY-TODO - The cross reference string should match the extern decl string always.  But currently, it is different for packages.
-			ObjectInfo.UnregsiteredCrossReference = ObjectInfo.UnregisteredExternalDecl;
-			ObjectInfo.RegsiteredCrossReference = ObjectInfo.RegsiteredExternalDecl;
+			objectInfo._unregsiteredCrossReference = objectInfo._unregisteredExternalDecl;
+			objectInfo._regsiteredCrossReference = objectInfo._regsiteredExternalDecl;
 
 			// Init the children
-			foreach (UhtType Child in Object.Children)
+			foreach (UhtType child in obj.Children)
 			{
-				if (Child is UhtObject ChildObject)
+				if (child is UhtObject childObject)
 				{
-					InitObjectInfo(Builder, Package, ref PackageInfo, ref HeaderInfo, ChildObject);
+					InitObjectInfo(builder, package, ref packageInfo, ref headerInfo, childObject);
 				}
 			}
 		}
-#endregion
+		#endregion
 
-#region Utility functions
+		#region Utility functions
 		/// <summary>
 		/// Return a package's sorted header file list of all header files that or referenced or have declarations.
 		/// </summary>
-		/// <param name="Package">The package in question</param>
+		/// <param name="package">The package in question</param>
 		/// <returns>Sorted list of the header files</returns>
-		private static List<UhtHeaderFile> GetSortedHeaderFiles(UhtPackage Package)
+		private static List<UhtHeaderFile> GetSortedHeaderFiles(UhtPackage package)
 		{
-			List<UhtHeaderFile> Out = new List<UhtHeaderFile>(Package.Children.Count);
-			foreach (UhtHeaderFile HeaderFile in Package.Children)
+			List<UhtHeaderFile> sortedHeaders = new List<UhtHeaderFile>(package.Children.Count);
+			foreach (UhtHeaderFile headerFile in package.Children)
 			{
-				if (HeaderFile.bShouldExport)
+				if (headerFile.ShouldExport)
 				{
-					Out.Add(HeaderFile);
+					sortedHeaders.Add(headerFile);
 				}
 			}
-			Out.Sort((Lhs, Rhs) => { return StringComparerUE.OrdinalIgnoreCase.Compare(Lhs.FilePath, Rhs.FilePath); });
-			return Out;
+			sortedHeaders.Sort((lhs, rhs) => { return StringComparerUE.OrdinalIgnoreCase.Compare(lhs.FilePath, rhs.FilePath); });
+			return sortedHeaders;
 		}
-#endregion
+		#endregion
 	}
 }

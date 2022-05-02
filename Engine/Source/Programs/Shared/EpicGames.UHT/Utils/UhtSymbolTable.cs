@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Types;
 using System;
 using System.Collections.Generic;
+using EpicGames.Core;
+using EpicGames.UHT.Types;
 
 namespace EpicGames.UHT.Utils
 {
@@ -24,13 +24,13 @@ namespace EpicGames.UHT.Utils
 			/// <summary>
 			/// The type index of the symbol
 			/// </summary>
-			public int SymbolIndex;
+			public int SymbolIndex { get; set; }
 
 			/// <summary>
 			/// When searching the caseless chain, the cased index is used to match the symbol based
 			/// on the case named.
 			/// </summary>
-			public int CasedIndex;
+			public int CasedIndex { get; set; }
 		}
 
 		/// <summary>
@@ -42,86 +42,86 @@ namespace EpicGames.UHT.Utils
 			/// <summary>
 			/// The type associated with the symbol
 			/// </summary>
-			public UhtType Type;
+			public UhtType Type { get; set; }
 
 			/// <summary>
 			/// Mask of different find options which will match this symbol
 			/// </summary>
-			public UhtFindOptions MatchOptions;
+			public UhtFindOptions MatchOptions { get; set; }
 
 			/// <summary>
 			/// The case lookup index for matching by case
 			/// </summary>
-			public int CasedIndex;
+			public int CasedIndex { get; set; }
 
 			/// <summary>
 			/// The next index in the symbol change based on cassless lookup
 			/// </summary>
-			public int NextIndex;
+			public int NextIndex { get; set; }
 
 			/// <summary>
 			/// The last index in the chain.  This index is only used when the symbol entry is also acting as the list
 			/// </summary>
-			public int LastIndex;
+			public int LastIndex { get; set; }
 		}
 
 		/// <summary>
 		/// Number of unique cased symbol names.  
 		/// </summary>
-		private int CasedCount = 0;
+		private int _casedCount = 0;
 
 		/// <summary>
 		/// Case name lookup table that returns the symbol index and the case index
 		/// </summary>
-		private readonly Dictionary<string, Lookup> CasedDictionary = new Dictionary<string, Lookup>(StringComparer.Ordinal);
+		private readonly Dictionary<string, Lookup> _casedDictionary = new Dictionary<string, Lookup>(StringComparer.Ordinal);
 
 		/// <summary>
 		/// Caseless name lookup table that returns the symbol index
 		/// </summary>
-		private readonly Dictionary<string, int> CaselessDictionary = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+		private readonly Dictionary<string, int> _caselessDictionary = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Collection of symbols in the table
 		/// </summary>
-		private readonly Symbol[] Symbols;
+		private readonly Symbol[] _symbols;
 
 		/// <summary>
 		/// Constructs a new symbol table.
 		/// </summary>
-		/// <param name="TypeCount">Number of types in the table.</param>
-		public UhtSymbolTable(int TypeCount)
+		/// <param name="typeCount">Number of types in the table.</param>
+		public UhtSymbolTable(int typeCount)
 		{
-			this.Symbols = new Symbol[TypeCount];
+			this._symbols = new Symbol[typeCount];
 		}
 
 		/// <summary>
 		/// Add a new type to the symbol table
 		/// </summary>
-		/// <param name="Type">The type being added</param>
-		/// <param name="Name">The name of the type which could be the source name or the engine name</param>
-		public void Add(UhtType Type, string Name)
+		/// <param name="type">The type being added</param>
+		/// <param name="name">The name of the type which could be the source name or the engine name</param>
+		public void Add(UhtType type, string name)
 		{
-			Lookup Existing;
-			if (this.CasedDictionary.TryGetValue(Name, out Existing))
+			Lookup existing;
+			if (this._casedDictionary.TryGetValue(name, out existing))
 			{
-				AddExisting(Type, Existing.CasedIndex, Existing.SymbolIndex);
+				AddExisting(type, existing.CasedIndex, existing.SymbolIndex);
 				return;
 			}
 
-			int CasedIndex = ++this.CasedCount;
+			int casedIndex = ++this._casedCount;
 
-			int SymbolIndex;
-			if (this.CaselessDictionary.TryGetValue(Name, out SymbolIndex))
+			int symbolIndex;
+			if (this._caselessDictionary.TryGetValue(name, out symbolIndex))
 			{
-				this.CasedDictionary.Add(Name, new Lookup { SymbolIndex = SymbolIndex, CasedIndex = CasedIndex });
-				AddExisting(Type, CasedIndex, SymbolIndex);
+				this._casedDictionary.Add(name, new Lookup { SymbolIndex = symbolIndex, CasedIndex = casedIndex });
+				AddExisting(type, casedIndex, symbolIndex);
 				return;
 			}
 
-			SymbolIndex = Type.TypeIndex;
-			this.Symbols[SymbolIndex] = new Symbol { Type = Type, MatchOptions = Type.EngineType.FindOptions(), CasedIndex = CasedIndex, NextIndex = 0, LastIndex = SymbolIndex };
-			this.CaselessDictionary.Add(Name, SymbolIndex);
-			this.CasedDictionary.Add(Name, new Lookup { SymbolIndex = SymbolIndex, CasedIndex = CasedIndex });
+			symbolIndex = type.TypeIndex;
+			this._symbols[symbolIndex] = new Symbol { Type = type, MatchOptions = type.EngineType.FindOptions(), CasedIndex = casedIndex, NextIndex = 0, LastIndex = symbolIndex };
+			this._caselessDictionary.Add(name, symbolIndex);
+			this._casedDictionary.Add(name, new Lookup { SymbolIndex = symbolIndex, CasedIndex = casedIndex });
 		}
 
 		/// <summary>
@@ -129,20 +129,20 @@ namespace EpicGames.UHT.Utils
 		/// parser property (which could not resolve the property prior to the symbol table being created)
 		/// with the fully resolved property.
 		/// </summary>
-		/// <param name="OldType">The old type being replaced.</param>
-		/// <param name="NewType">The new type.</param>
-		/// <param name="Name">The name of the type.</param>
+		/// <param name="oldType">The old type being replaced.</param>
+		/// <param name="newType">The new type.</param>
+		/// <param name="name">The name of the type.</param>
 		/// <exception cref="UhtIceException">Thrown if the symbol wasn't found.</exception>
-		public void Replace(UhtType OldType, UhtType NewType, string Name)
+		public void Replace(UhtType oldType, UhtType newType, string name)
 		{
-			int SymbolIndex;
-			if (this.CaselessDictionary.TryGetValue(Name, out SymbolIndex))
+			int symbolIndex;
+			if (this._caselessDictionary.TryGetValue(name, out symbolIndex))
 			{
-				for (; SymbolIndex != 0; SymbolIndex = this.Symbols[SymbolIndex].NextIndex)
+				for (; symbolIndex != 0; symbolIndex = this._symbols[symbolIndex].NextIndex)
 				{
-					if (this.Symbols[SymbolIndex].Type == OldType)
+					if (this._symbols[symbolIndex].Type == oldType)
 					{
-						this.Symbols[SymbolIndex].Type = NewType;
+						this._symbols[symbolIndex].Type = newType;
 						return;
 					}
 				}
@@ -153,16 +153,16 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Lookup the given name using cased string compare.
 		/// </summary>
-		/// <param name="StartingType">Starting type used to limit the scope of the search.</param>
-		/// <param name="Options">Options controlling what is search and what is returned.</param>
-		/// <param name="Name">Name to locate.</param>
+		/// <param name="startingType">Starting type used to limit the scope of the search.</param>
+		/// <param name="options">Options controlling what is search and what is returned.</param>
+		/// <param name="name">Name to locate.</param>
 		/// <returns>Found type or null if not found.</returns>
-		public UhtType? FindCasedType(UhtType? StartingType, UhtFindOptions Options, string Name)
+		public UhtType? FindCasedType(UhtType? startingType, UhtFindOptions options, string name)
 		{
-			Lookup Existing;
-			if (this.CasedDictionary.TryGetValue(Name, out Existing))
+			Lookup existing;
+			if (this._casedDictionary.TryGetValue(name, out existing))
 			{
-				return FindType(StartingType, Options, Existing);
+				return FindType(startingType, options, existing);
 			}
 			return null;
 		}
@@ -170,16 +170,16 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Lookup the given name using caseless string compare.
 		/// </summary>
-		/// <param name="StartingType">Starting type used to limit the scope of the search.</param>
-		/// <param name="Options">Options controlling what is search and what is returned.</param>
-		/// <param name="Name">Name to locate.</param>
+		/// <param name="startingType">Starting type used to limit the scope of the search.</param>
+		/// <param name="options">Options controlling what is search and what is returned.</param>
+		/// <param name="name">Name to locate.</param>
 		/// <returns>Found type or null if not found.</returns>
-		public UhtType? FindCaselessType(UhtType? StartingType, UhtFindOptions Options, string Name)
+		public UhtType? FindCaselessType(UhtType? startingType, UhtFindOptions options, string name)
 		{
-			int SymbolIndex;
-			if (this.CaselessDictionary.TryGetValue(Name, out SymbolIndex))
+			int symbolIndex;
+			if (this._caselessDictionary.TryGetValue(name, out symbolIndex))
 			{
-				return FindType(StartingType, Options, new Lookup { SymbolIndex = SymbolIndex, CasedIndex = 0 });
+				return FindType(startingType, options, new Lookup { SymbolIndex = symbolIndex, CasedIndex = 0 });
 			}
 			return null;
 		}
@@ -187,52 +187,52 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Lookup the given name.
 		/// </summary>
-		/// <param name="StartingType">Starting type used to limit the scope of the search.</param>
-		/// <param name="Options">Options controlling what is search and what is returned.</param>
-		/// <param name="Lookup">Starting lookup location.</param>
+		/// <param name="startingType">Starting type used to limit the scope of the search.</param>
+		/// <param name="options">Options controlling what is search and what is returned.</param>
+		/// <param name="lookup">Starting lookup location.</param>
 		/// <returns>Found type or null if not found.</returns>
-		private UhtType? FindType(UhtType? StartingType, UhtFindOptions Options, Lookup Lookup)
+		private UhtType? FindType(UhtType? startingType, UhtFindOptions options, Lookup lookup)
 		{
-			if (StartingType != null)
+			if (startingType != null)
 			{
-				UhtType? Found = FindTypeSuperChain(StartingType, Options, ref Lookup);
-				if (Found != null)
+				UhtType? found = FindTypeSuperChain(startingType, options, ref lookup);
+				if (found != null)
 				{
-					return Found;
+					return found;
 				}
 
-				Found = FindTypeOuterChain(StartingType, Options, ref Lookup);
-				if (Found != null)
+				found = FindTypeOuterChain(startingType, options, ref lookup);
+				if (found != null)
 				{
-					return Found;
+					return found;
 				}
 
-				if (!Options.HasAnyFlags(UhtFindOptions.NoIncludes))
+				if (!options.HasAnyFlags(UhtFindOptions.NoIncludes))
 				{
-					UhtHeaderFile HeaderFile = StartingType.HeaderFile;
-					foreach (UhtHeaderFile IncludedFile in HeaderFile.IncludedHeaders)
+					UhtHeaderFile headerFile = startingType.HeaderFile;
+					foreach (UhtHeaderFile includedFile in headerFile.IncludedHeaders)
 					{
-						Found = this.FindSymbolChain(IncludedFile, Options, ref Lookup);
-						if (Found != null)
+						found = this.FindSymbolChain(includedFile, options, ref lookup);
+						if (found != null)
 						{
 							break;
 						}
 					}
-					if (Found != null)
+					if (found != null)
 					{
-						return Found;
+						return found;
 					}
 				}
 			}
 
 			// Global search.  Match anything that has an owner of parent
-			if (!Options.HasAnyFlags(UhtFindOptions.NoGlobal))
+			if (!options.HasAnyFlags(UhtFindOptions.NoGlobal))
 			{
-				for (int Index = Lookup.SymbolIndex; Index != 0; Index = this.Symbols[Index].NextIndex)
+				for (int index = lookup.SymbolIndex; index != 0; index = this._symbols[index].NextIndex)
 				{
-					if (IsMatch(Options, Index, Lookup.CasedIndex) && this.Symbols[Index].Type.Outer is UhtHeaderFile)
+					if (IsMatch(options, index, lookup.CasedIndex) && this._symbols[index].Type.Outer is UhtHeaderFile)
 					{
-						return this.Symbols[Index].Type;
+						return this._symbols[index].Type;
 					}
 				}
 			}
@@ -244,44 +244,44 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Lookup the given name using the super class/struct chain.
 		/// </summary>
-		/// <param name="StartingType">Starting type used to limit the scope of the search.</param>
-		/// <param name="Options">Options controlling what is search and what is returned.</param>
-		/// <param name="Lookup">Starting lookup location.</param>
+		/// <param name="startingType">Starting type used to limit the scope of the search.</param>
+		/// <param name="options">Options controlling what is search and what is returned.</param>
+		/// <param name="lookup">Starting lookup location.</param>
 		/// <returns>Found type or null if not found.</returns>
-		private UhtType? FindTypeSuperChain(UhtType StartingType, UhtFindOptions Options, ref Lookup Lookup)
+		private UhtType? FindTypeSuperChain(UhtType startingType, UhtFindOptions options, ref Lookup lookup)
 		{
-			UhtType? CurrentType = StartingType;
+			UhtType? currentType = startingType;
 
 			// In a super chain search, we have to start at a UHTStruct that contributes to the symbol table
-			for (; CurrentType != null; CurrentType = CurrentType.Outer)
+			for (; currentType != null; currentType = currentType.Outer)
 			{
-				if (CurrentType is UhtStruct Struct && Struct.EngineType.AddChildrenToSymbolTable())
+				if (currentType is UhtStruct structObj && structObj.EngineType.AddChildrenToSymbolTable())
 				{
 					break;
 				}
 			}
 
 			// Not symbol that supports a super chain
-			if (CurrentType == null)
+			if (currentType == null)
 			{
 				return null;
 			}
 
 			// If requested, skip self
-			if (Options.HasAnyFlags(UhtFindOptions.NoSelf) && CurrentType == StartingType)
+			if (options.HasAnyFlags(UhtFindOptions.NoSelf) && currentType == startingType)
 			{
-				CurrentType = ((UhtStruct)CurrentType).Super;
+				currentType = ((UhtStruct)currentType).Super;
 			}
 
 			// Search the chain
-			for (; CurrentType != null; CurrentType = ((UhtStruct)CurrentType).Super)
+			for (; currentType != null; currentType = ((UhtStruct)currentType).Super)
 			{
-				UhtType? FoundType = FindSymbolChain(CurrentType, Options, ref Lookup);
-				if (FoundType != null)
+				UhtType? foundType = FindSymbolChain(currentType, options, ref lookup);
+				if (foundType != null)
 				{
-					return FoundType;
+					return foundType;
 				}
-				if (Options.HasAnyFlags(UhtFindOptions.NoParents))
+				if (options.HasAnyFlags(UhtFindOptions.NoParents))
 				{
 					return null;
 				}
@@ -292,33 +292,33 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Lookup the given name using the outer chain
 		/// </summary>
-		/// <param name="StartingType">Starting type used to limit the scope of the search.</param>
-		/// <param name="Options">Options controlling what is search and what is returned.</param>
-		/// <param name="Lookup">Starting lookup location.</param>
+		/// <param name="startingType">Starting type used to limit the scope of the search.</param>
+		/// <param name="options">Options controlling what is search and what is returned.</param>
+		/// <param name="lookup">Starting lookup location.</param>
 		/// <returns>Found type or null if not found.</returns>
-		private UhtType? FindTypeOuterChain(UhtType StartingType, UhtFindOptions Options, ref Lookup Lookup)
+		private UhtType? FindTypeOuterChain(UhtType startingType, UhtFindOptions options, ref Lookup lookup)
 		{
-			UhtType? CurrentType = StartingType;
+			UhtType? currentType = startingType;
 
 			// If requested, skip self
-			if (Options.HasAnyFlags(UhtFindOptions.NoSelf) && CurrentType == StartingType)
+			if (options.HasAnyFlags(UhtFindOptions.NoSelf) && currentType == startingType)
 			{
-				CurrentType = CurrentType.Outer;
+				currentType = currentType.Outer;
 			}
 
 			// Search the chain
-			for (; CurrentType != null; CurrentType = CurrentType.Outer)
+			for (; currentType != null; currentType = currentType.Outer)
 			{
-				if (CurrentType is UhtPackage)
+				if (currentType is UhtPackage)
 				{
 					return null;
 				}
-				UhtType? FoundType = FindSymbolChain(CurrentType, Options, ref Lookup);
-				if (FoundType != null)
+				UhtType? foundType = FindSymbolChain(currentType, options, ref lookup);
+				if (foundType != null)
 				{
-					return FoundType;
+					return foundType;
 				}
-				if (Options.HasAnyFlags(UhtFindOptions.NoOuter))
+				if (options.HasAnyFlags(UhtFindOptions.NoOuter))
 				{
 					return null;
 				}
@@ -329,17 +329,17 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Lookup the given name 
 		/// </summary>
-		/// <param name="Owner">Matching owner.</param>
-		/// <param name="Options">Options controlling what is search and what is returned.</param>
-		/// <param name="Lookup">Starting lookup location.</param>
+		/// <param name="owner">Matching owner.</param>
+		/// <param name="options">Options controlling what is search and what is returned.</param>
+		/// <param name="lookup">Starting lookup location.</param>
 		/// <returns>Found type or null if not found.</returns>
-		private UhtType? FindSymbolChain(UhtType Owner, UhtFindOptions Options, ref Lookup Lookup)
+		private UhtType? FindSymbolChain(UhtType owner, UhtFindOptions options, ref Lookup lookup)
 		{
-			for (int Index = Lookup.SymbolIndex; Index != 0; Index = this.Symbols[Index].NextIndex)
+			for (int index = lookup.SymbolIndex; index != 0; index = this._symbols[index].NextIndex)
 			{
-				if (IsMatch(Options, Index, Lookup.CasedIndex) && this.Symbols[Index].Type.Outer == Owner)
+				if (IsMatch(options, index, lookup.CasedIndex) && this._symbols[index].Type.Outer == owner)
 				{
-					return this.Symbols[Index].Type;
+					return this._symbols[index].Type;
 				}
 			}
 			return null;
@@ -348,29 +348,29 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Add a new type to the given symbol chain
 		/// </summary>
-		/// <param name="Type">Type being added</param>
-		/// <param name="CasedIndex">Cased index</param>
-		/// <param name="SymbolIndex">Symbol index</param>
-		private void AddExisting(UhtType Type, int CasedIndex, int SymbolIndex)
+		/// <param name="type">Type being added</param>
+		/// <param name="casedIndex">Cased index</param>
+		/// <param name="symbolIndex">Symbol index</param>
+		private void AddExisting(UhtType type, int casedIndex, int symbolIndex)
 		{
-			int TypeIndex = Type.TypeIndex;
-			this.Symbols[TypeIndex] = new Symbol { Type = Type, MatchOptions = Type.EngineType.FindOptions(), CasedIndex = CasedIndex, NextIndex = 0, LastIndex = 0 };
-			this.Symbols[this.Symbols[SymbolIndex].LastIndex].NextIndex = TypeIndex;
-			this.Symbols[SymbolIndex].LastIndex = TypeIndex;
+			int typeIndex = type.TypeIndex;
+			this._symbols[typeIndex] = new Symbol { Type = type, MatchOptions = type.EngineType.FindOptions(), CasedIndex = casedIndex, NextIndex = 0, LastIndex = 0 };
+			this._symbols[this._symbols[symbolIndex].LastIndex].NextIndex = typeIndex;
+			this._symbols[symbolIndex].LastIndex = typeIndex;
 		}
 
 		/// <summary>
 		/// Test to see if the given symbol matches the options
 		/// </summary>
-		/// <param name="Options">Options to match</param>
-		/// <param name="SymbolIndex">Symbol index</param>
-		/// <param name="CasedIndex">Case index</param>
+		/// <param name="options">Options to match</param>
+		/// <param name="symbolIndex">Symbol index</param>
+		/// <param name="casedIndex">Case index</param>
 		/// <returns>True if the symbol is a match</returns>
-		private bool IsMatch(UhtFindOptions Options, int SymbolIndex, int CasedIndex)
+		private bool IsMatch(UhtFindOptions options, int symbolIndex, int casedIndex)
 		{
-			return (CasedIndex == 0 || CasedIndex == this.Symbols[SymbolIndex].CasedIndex) && 
-				this.Symbols[SymbolIndex].Type.bVisibleType && 
-				(this.Symbols[SymbolIndex].MatchOptions & Options) != 0;
+			return (casedIndex == 0 || casedIndex == this._symbols[symbolIndex].CasedIndex) &&
+				this._symbols[symbolIndex].Type.VisibleType &&
+				(this._symbols[symbolIndex].MatchOptions & options) != 0;
 		}
 	}
 }

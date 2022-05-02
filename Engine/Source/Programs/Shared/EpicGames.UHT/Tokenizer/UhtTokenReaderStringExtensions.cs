@@ -14,111 +14,111 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token as a string.  If the next token is not a string, no token is consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Value">The string value of the token</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="value">The string value of the token</param>
 		/// <returns>True if the next token was an string, false if not.</returns>
-		public static bool TryOptionalConstString(this IUhtTokenReader TokenReader, out StringView Value)
+		public static bool TryOptionalConstString(this IUhtTokenReader tokenReader, out StringView value)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsConstString())
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsConstString())
 			{
-				Value = Token.GetTokenString();
-				TokenReader.ConsumeToken();
+				value = token.GetTokenString();
+				tokenReader.ConsumeToken();
 				return true;
 			}
-			Value = "";
+			value = "";
 			return false;
 		}
 
 		/// <summary>
 		/// Get the next token as a string.  If the next token is not a string, no token is consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
+		/// <param name="tokenReader">Token reader</param>
 		/// <returns>True if the next token was an string, false if not.</returns>
-		public static IUhtTokenReader OptionalConstString(this IUhtTokenReader TokenReader)
+		public static IUhtTokenReader OptionalConstString(this IUhtTokenReader tokenReader)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsConstString())
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsConstString())
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Verify that the next token is a string.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>True if the next token was a string, false if not.</returns>
-		public static IUhtTokenReader RequireConstString(this IUhtTokenReader TokenReader, object? ExceptionContext)
+		public static IUhtTokenReader RequireConstString(this IUhtTokenReader tokenReader, object? exceptionContext)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsConstString())
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsConstString())
 			{
-				TokenReader.ConsumeToken();
-				return TokenReader;
+				tokenReader.ConsumeToken();
+				return tokenReader;
 			}
-			throw new UhtTokenException(TokenReader, Token, "constant string", ExceptionContext);
+			throw new UhtTokenException(tokenReader, token, "constant string", exceptionContext);
 		}
 
 		/// <summary>
 		/// Get the next token as a string.  If the next token is not a string, an exception is thrown
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the string.</returns>
-		public static StringView GetConstString(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static StringView GetConstString(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsConstString())
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsConstString())
 			{
-				StringView Output = Token.GetTokenString();
-				TokenReader.ConsumeToken();
-				return Output;
+				StringView output = token.GetTokenString();
+				tokenReader.ConsumeToken();
+				return output;
 			}
-			throw new UhtTokenException(TokenReader, Token, "constant string", ExceptionContext);
+			throw new UhtTokenException(tokenReader, token, "constant string", exceptionContext);
 		}
 
 		/// <summary>
 		/// Get the next token as a quoted string.  If the next token is not a string, an exception is thrown.
 		/// Character constants are not considered strings by this routine.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the string.</returns>
-		public static StringView GetConstQuotedString(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static StringView GetConstQuotedString(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.TokenType == UhtTokenType.StringConst)
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.TokenType == UhtTokenType.StringConst)
 			{
-				StringView Output = Token.Value;
-				TokenReader.ConsumeToken();
-				return Output;
+				StringView output = token.Value;
+				tokenReader.ConsumeToken();
+				return output;
 			}
-			throw new UhtTokenException(TokenReader, Token, "constant quoted string", ExceptionContext);
+			throw new UhtTokenException(tokenReader, token, "constant quoted string", exceptionContext);
 		}
 
 		/// <summary>
 		/// Get a const string that can optionally be wrapped with a TEXT() macro
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the string</returns>
-		public static StringView GetWrappedConstString(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static StringView GetWrappedConstString(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier("TEXT"))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier("TEXT"))
 			{
-				TokenReader.ConsumeToken();
-				TokenReader.Require('(');
-				StringView Out = TokenReader.GetConstString(ExceptionContext);
-				TokenReader.Require(')');
-				return Out;
+				tokenReader.ConsumeToken();
+				tokenReader.Require('(');
+				StringView output = tokenReader.GetConstString(exceptionContext);
+				tokenReader.Require(')');
+				return output;
 			}
 			else
 			{
-				return TokenReader.GetConstString(ExceptionContext);
+				return tokenReader.GetConstString(exceptionContext);
 			}
 		}
 	}

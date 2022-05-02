@@ -30,12 +30,11 @@ namespace ScriptGeneratorUbtPlugin
 		{
 			DirectoryReference ConfigDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Programs/UnrealBuildTool");
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, ConfigDirectory, BuildHostPlatform.Current.Platform);
-			List<string>? SupportedScriptModules = null;
-			Ini.GetArray("Plugins", "ScriptSupportedModules", out SupportedScriptModules);
+			Ini.GetArray("Plugins", "ScriptSupportedModules", out List<string>? SupportedScriptModules);
 
 			// Loop through the packages making sure they should be exported.  Queue the export of the classes
-			List<UhtClass> Classes = new List<UhtClass>();
-			List<Task?> Tasks = new List<Task?>();
+			List<UhtClass> Classes = new();
+			List<Task?> Tasks = new();
 			foreach (UhtPackage Package in this.Session.Packages)
 			{
 				if (Package.Module.ModuleType != UHTModuleType.EngineRuntime && Package.Module.ModuleType != UHTModuleType.GameRuntime)
@@ -76,7 +75,7 @@ namespace ScriptGeneratorUbtPlugin
 				if (CanExportClass(Class))
 				{
 					Classes.Add(Class);
-					Tasks.Add(Factory.CreateTask((Factory) => { ExportClass(Package, Class); }));
+					Tasks.Add(Factory.CreateTask((Factory) => { ExportClass(Class); }));
 				}
 			}
 			foreach (UhtType Child in Type.Children)
@@ -120,7 +119,7 @@ namespace ScriptGeneratorUbtPlugin
 				{
 					return false;
 				}
-				if (Child is UhtProperty Property && Property.bIsStaticArray)
+				if (Child is UhtProperty Property && Property.IsStaticArray)
 				{
 					return false;
 				}
@@ -150,7 +149,7 @@ namespace ScriptGeneratorUbtPlugin
 			}
 
 			// Reject if any of the parameter types is unsupported yet
-			if (Property.bIsStaticArray ||
+			if (Property.IsStaticArray ||
 				Property is UhtArrayProperty ||
 				Property is UhtDelegateProperty ||
 				Property is UhtMulticastDelegateProperty ||
@@ -167,26 +166,21 @@ namespace ScriptGeneratorUbtPlugin
 		/// Export the given class
 		/// </summary>
 		/// <param name="Factory">Factory associated with the export</param>
-		/// <param name="Package">Owning package</param>
 		/// <param name="Class">Class to export</param>
-		private void ExportClass(UhtPackage Package, UhtClass Class)
+		private void ExportClass(UhtClass Class)
 		{
-			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Big))
-			{
-				ExportClass(Borrower.StringBuilder, Class);
-				string FileName = this.Factory.MakePath(Class.EngineName, ".script.h"); //ETSTODO - WRONG
-				this.Factory.CommitOutput(FileName, Borrower.StringBuilder);
-			}
+			using BorrowStringBuilder Borrower = new(StringBuilderCache.Big);
+			ExportClass(Borrower.StringBuilder, Class);
+			string FileName = this.Factory.MakePath(Class.EngineName, ".script.h");
+			this.Factory.CommitOutput(FileName, Borrower.StringBuilder);
 		}
 
 		private void Finish(List<UhtClass> Classes)
 		{
-			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Big))
-			{
-				Finish(Borrower.StringBuilder, Classes);
-				string FileName = this.Factory.MakePath("GeneratedScriptLibraries", ".inl"); //ETSTODO - WRONG
-				this.Factory.CommitOutput(FileName, Borrower.StringBuilder);
-			}
+			using BorrowStringBuilder Borrower = new(StringBuilderCache.Big);
+			Finish(Borrower.StringBuilder, Classes);
+			string FileName = this.Factory.MakePath("GeneratedScriptLibraries", ".inl");
+			this.Factory.CommitOutput(FileName, Borrower.StringBuilder);
 		}
 
 		abstract protected void ExportClass(StringBuilder Builder, UhtClass Class);

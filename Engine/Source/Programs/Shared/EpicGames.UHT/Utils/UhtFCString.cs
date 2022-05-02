@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
 using System.Text;
+using EpicGames.Core;
 
 namespace EpicGames.UHT.Utils
 {
@@ -21,213 +21,213 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Test to see if the string is a boolean
 		/// </summary>
-		/// <param name="Value">Boolean to test</param>
+		/// <param name="value">Boolean to test</param>
 		/// <returns>True if the value is true</returns>
-		public static bool ToBool(StringView Value)
+		public static bool ToBool(StringView value)
 		{
-			ReadOnlySpan<char> Span = Value.Span;
-			if (Span.Length == 0)
+			ReadOnlySpan<char> span = value.Span;
+			if (span.Length == 0)
 			{
 				return false;
 			}
 			else if (
-				Span.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-				Span.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
-				Span.Equals("on", StringComparison.OrdinalIgnoreCase))
+				span.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+				span.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+				span.Equals("on", StringComparison.OrdinalIgnoreCase))
 			{
 				return true;
 			}
 			else if (
-				Span.Equals("false", StringComparison.OrdinalIgnoreCase) ||
-				Span.Equals("no", StringComparison.OrdinalIgnoreCase) ||
-				Span.Equals("off", StringComparison.OrdinalIgnoreCase))
+				span.Equals("false", StringComparison.OrdinalIgnoreCase) ||
+				span.Equals("no", StringComparison.OrdinalIgnoreCase) ||
+				span.Equals("off", StringComparison.OrdinalIgnoreCase))
 			{
 				return false;
 			}
 			else
 			{
-				int IntValue;
-				return int.TryParse(Span, out IntValue) && IntValue != 0;
+				int intValue;
+				return Int32.TryParse(span, out intValue) && intValue != 0;
 			}
 		}
 
 		/// <summary>
 		/// Test to see if the string is a boolean
 		/// </summary>
-		/// <param name="Value">Boolean to test</param>
+		/// <param name="value">Boolean to test</param>
 		/// <returns>True if the value is true</returns>
-		public static bool ToBool(string? Value)
+		public static bool ToBool(string? value)
 		{
-			if (string.IsNullOrEmpty(Value))
+			if (String.IsNullOrEmpty(value))
 			{
 				return false;
 			}
-			else if (string.Equals(Value, "true", StringComparison.OrdinalIgnoreCase) ||
-				string.Equals(Value, "yes", StringComparison.OrdinalIgnoreCase) ||
-				string.Equals(Value, "on", StringComparison.OrdinalIgnoreCase))
+			else if (String.Equals(value, "true", StringComparison.OrdinalIgnoreCase) ||
+				String.Equals(value, "yes", StringComparison.OrdinalIgnoreCase) ||
+				String.Equals(value, "on", StringComparison.OrdinalIgnoreCase))
 			{
 				return true;
 			}
-			else if (string.Equals(Value, "false", StringComparison.OrdinalIgnoreCase) ||
-				string.Equals(Value, "no", StringComparison.OrdinalIgnoreCase) ||
-				string.Equals(Value, "off", StringComparison.OrdinalIgnoreCase))
+			else if (String.Equals(value, "false", StringComparison.OrdinalIgnoreCase) ||
+				String.Equals(value, "no", StringComparison.OrdinalIgnoreCase) ||
+				String.Equals(value, "off", StringComparison.OrdinalIgnoreCase))
 			{
 				return false;
 			}
 			else
 			{
-				int IntValue;
-				return int.TryParse(Value, out IntValue) && IntValue != 0;
+				int intValue;
+				return Int32.TryParse(value, out intValue) && intValue != 0;
 			}
 		}
 
 		/// <summary>
 		/// Test to see if the character is a digit
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsDigit(char C)
+		public static bool IsDigit(char c)
 		{
-			return C >= '0' && C <= '9';
+			return c >= '0' && c <= '9';
 		}
 
 		/// <summary>
 		/// Test to see if the character is an alphabet character
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsAlpha(char C)
+		public static bool IsAlpha(char c)
 		{
-			return (C >= 'A' && C <= 'Z') || (C >= 'a' && C <= 'z');
+			return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 		}
 
 		/// <summary>
 		/// Test to see if the character is a digit or alphabet character
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsAlnum(char C)
+		public static bool IsAlnum(char c)
 		{
-			return IsDigit(C) || IsAlpha(C);
+			return IsDigit(c) || IsAlpha(c);
 		}
 
 		/// <summary>
 		/// Test to see if the character is a hex digit (A-F)
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsHexAlphaDigit(char C)
+		public static bool IsHexAlphaDigit(char c)
 		{
-			return (C >= 'A' && C <= 'F') || (C >= 'a' && C <= 'f');
+			return (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
 		}
 
 		/// <summary>
 		/// Test to see if the character is a hex digit (0-9a-f)
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsHexDigit(char C)
+		public static bool IsHexDigit(char c)
 		{
-			return IsDigit(C) || IsHexAlphaDigit(C);
+			return IsDigit(c) || IsHexAlphaDigit(c);
 		}
 
 		/// <summary>
 		/// Test to see if the character is whitespace
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsWhitespace(char C)
+		public static bool IsWhitespace(char c)
 		{
-			return Char.IsWhiteSpace(C);
+			return Char.IsWhiteSpace(c);
 		}
 
 		/// <summary>
 		/// Test to see if the character is a sign
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsSign(char C)
+		public static bool IsSign(char c)
 		{
-			return C == '+' || C == '-';
+			return c == '+' || c == '-';
 		}
 
 		/// <summary>
 		/// Test to see if the character is a hex marker (xX)
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsHexMarker(char C)
+		public static bool IsHexMarker(char c)
 		{
-			return C == 'x' || C == 'X';
+			return c == 'x' || c == 'X';
 		}
 
 		/// <summary>
 		/// Test to see if the character is a float marker (fF)
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsFloatMarker(char C)
+		public static bool IsFloatMarker(char c)
 		{
-			return C == 'f' || C == 'F';
+			return c == 'f' || c == 'F';
 		}
 
 		/// <summary>
 		/// Test to see if the character is an exponent marker (eE)
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsExponentMarker(char C)
+		public static bool IsExponentMarker(char c)
 		{
-			return C == 'e' || C == 'E';
+			return c == 'e' || c == 'E';
 		}
 
 		/// <summary>
 		/// Test to see if the character is an unsigned marker (uU)
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsUnsignedMarker(char C)
+		public static bool IsUnsignedMarker(char c)
 		{
-			return C == 'u' || C == 'U';
+			return c == 'u' || c == 'U';
 		}
 
 		/// <summary>
 		/// Test to see if the character is a long marker (lL)
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsLongMarker(char C)
+		public static bool IsLongMarker(char c)
 		{
-			return C == 'l' || C == 'L';
+			return c == 'l' || c == 'L';
 		}
 
 		/// <summary>
 		/// Test to see if the span is a numeric value
 		/// </summary>
-		/// <param name="Span">Span to test</param>
+		/// <param name="span">Span to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsNumeric(ReadOnlySpan<char> Span)
+		public static bool IsNumeric(ReadOnlySpan<char> span)
 		{
-			int Index = 0;
-			char C = Span[Index];
-			if (C == '-' || C == '+')
+			int index = 0;
+			char c = span[index];
+			if (c == '-' || c == '+')
 			{
-				++Index;
+				++index;
 			}
 
-			bool bHasDot = false;
-			for (; Index < Span.Length; ++Index)
+			bool hasDot = false;
+			for (; index < span.Length; ++index)
 			{
-				C = Span[Index];
-				if (C == '.')
+				c = span[index];
+				if (c == '.')
 				{
-					if (bHasDot)
+					if (hasDot)
 					{
 						return false;
 					}
-					bHasDot = true;
+					hasDot = true;
 				}
-				else if (!IsDigit(C))
+				else if (!IsDigit(c))
 				{
 					return false;
 				}
@@ -238,78 +238,78 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Test to see if the character is a linebreak character
 		/// </summary>
-		/// <param name="C">Character to test</param>
+		/// <param name="c">Character to test</param>
 		/// <returns>True if it is</returns>
-		public static bool IsLinebreak(char C)
+		public static bool IsLinebreak(char c)
 		{
-			return (C >= 0x0a && C <= 0x0d) || C == 0x85 || C == 0x2028 || C == 0x2029;
+			return (c >= 0x0a && c <= 0x0d) || c == 0x85 || c == 0x2028 || c == 0x2029;
 		}
 
 		/// <summary>
 		/// Return an unescaped string
 		/// </summary>
-		/// <param name="Text">Text to unescape</param>
+		/// <param name="text">Text to unescape</param>
 		/// <returns>Resulting string</returns>
-		public static string UnescapeText(string Text)
+		public static string UnescapeText(string text)
 		{
-			StringBuilder Result = new StringBuilder();
-			for (int Idx = 0; Idx < Text.Length; Idx++)
+			StringBuilder result = new StringBuilder();
+			for (int idx = 0; idx < text.Length; idx++)
 			{
-				if (Text[Idx] == '\\' && Idx + 1 < Text.Length)
+				if (text[idx] == '\\' && idx + 1 < text.Length)
 				{
-					switch (Text[++Idx])
+					switch (text[++idx])
 					{
 						case 't':
-							Result.Append('\t');
+							result.Append('\t');
 							break;
 						case 'r':
-							Result.Append('\r');
+							result.Append('\r');
 							break;
 						case 'n':
-							Result.Append('\n');
+							result.Append('\n');
 							break;
 						case '\'':
-							Result.Append('\'');
+							result.Append('\'');
 							break;
 						case '\"':
-							Result.Append('\"');
+							result.Append('\"');
 							break;
 						case 'u':
-							bool bParsed = false;
-							if (Idx + 4 < Text.Length)
+							bool parsed = false;
+							if (idx + 4 < text.Length)
 							{
-								int Value;
-								if (int.TryParse(Text.Substring(Idx + 1, 4), System.Globalization.NumberStyles.HexNumber, null, out Value))
+								int value;
+								if (Int32.TryParse(text.Substring(idx + 1, 4), System.Globalization.NumberStyles.HexNumber, null, out value))
 								{
-									bParsed = true;
-									Result.Append((char)Value);
-									Idx += 4;
+									parsed = true;
+									result.Append((char)value);
+									idx += 4;
 								}
 							}
-							if (!bParsed)
+							if (!parsed)
 							{
-								Result.Append('\\');
-								Result.Append('u');
+								result.Append('\\');
+								result.Append('u');
 							}
 							break;
 						default:
-							Result.Append(Text[Idx]);
+							result.Append(text[idx]);
 							break;
 					}
 				}
 				else
 				{
-					Result.Append(Text[Idx]);
+					result.Append(text[idx]);
 				}
 			}
-			return Result.ToString();
+			return result.ToString();
 		}
 
 		/// <summary>
 		/// Words that are considered articles when parsing comment strings
 		/// Some words are always forced lowercase
 		/// </summary>
-		private static readonly string[] Articles = new string[]
+		private static readonly string[] s_articles = new string[]
 		{
 			"In",
 			"As",
@@ -331,36 +331,36 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Convert a name to a display string
 		/// </summary>
-		/// <param name="Name">Name to convert</param>
-		/// <param name="bIsBool">True if the name is from a boolean property</param>
+		/// <param name="name">Name to convert</param>
+		/// <param name="isBool">True if the name is from a boolean property</param>
 		/// <returns>Display string</returns>
-		public static string NameToDisplayString(StringView Name, bool bIsBool)
+		public static string NameToDisplayString(StringView name, bool isBool)
 		{
-			ReadOnlySpan<char> Chars = Name.Span;
+			ReadOnlySpan<char> chars = name.Span;
 
 			// This is used to indicate that we are in a run of uppercase letter and/or digits.  The code attempts to keep
 			// these characters together as breaking them up often looks silly (i.e. "Draw Scale 3 D" as opposed to "Draw Scale 3D"
-			bool bInARun = false;
-			bool bWasSpace = false;
-			bool bWasOpenParen = false;
-			bool bWasNumber = false;
-			bool bWasMinusSign = false;
+			bool inARun = false;
+			bool wasSpace = false;
+			bool wasOpenParen = false;
+			bool wasNumber = false;
+			bool wasMinusSign = false;
 
-			StringBuilder Builder = new StringBuilder();
-			for (int CharIndex = 0; CharIndex < Chars.Length; ++CharIndex)
+			StringBuilder builder = new StringBuilder();
+			for (int charIndex = 0; charIndex < chars.Length; ++charIndex)
 			{
-				char ch = Chars[CharIndex];
+				char ch = chars[charIndex];
 
-				bool bLowerCase = Char.IsLower(ch);
-				bool bUpperCase = Char.IsUpper(ch);
-				bool bIsDigit = Char.IsDigit(ch);
-				bool bIsUnderscore = ch == '_';
+				bool lowerCase = Char.IsLower(ch);
+				bool upperCase = Char.IsUpper(ch);
+				bool isDigit = Char.IsDigit(ch);
+				bool isUnderscore = ch == '_';
 
 				// Skip the first character if the property is a bool (they should all start with a lowercase 'b', which we don't want to keep)
-				if (CharIndex == 0 && bIsBool && ch == 'b')
+				if (charIndex == 0 && isBool && ch == 'b')
 				{
 					// Check if next character is uppercase as it may be a user created string that doesn't follow the rules of Unreal variables
-					if (Chars.Length > 1 && Char.IsUpper(Chars[1]))
+					if (chars.Length > 1 && Char.IsUpper(chars[1]))
 					{
 						continue;
 					}
@@ -368,56 +368,56 @@ namespace EpicGames.UHT.Utils
 
 				// If the current character is upper case or a digit, and the previous character wasn't, then we need to insert a space if there wasn't one previously
 				// We don't do this for numerical expressions, for example "-1.2" should not be formatted as "- 1. 2"
-				if ((bUpperCase || (bIsDigit && !bWasMinusSign)) && !bInARun && !bWasOpenParen && !bWasNumber)
+				if ((upperCase || (isDigit && !wasMinusSign)) && !inARun && !wasOpenParen && !wasNumber)
 				{
-					if (!bWasSpace && Builder.Length > 0)
+					if (!wasSpace && builder.Length > 0)
 					{
-						Builder.Append(' ');
-						bWasSpace = true;
+						builder.Append(' ');
+						wasSpace = true;
 					}
-					bInARun = true;
+					inARun = true;
 				}
 
 				// A lower case character will break a run of upper case letters and/or digits
-				if (bLowerCase)
+				if (lowerCase)
 				{
-					bInARun = false;
+					inARun = false;
 				}
 
 				// An underscore denotes a space, so replace it and continue the run
-				if (bIsUnderscore)
+				if (isUnderscore)
 				{
 					ch = ' ';
-					bInARun = true;
+					inARun = true;
 				}
 
 				// If this is the first character in the string, then it will always be upper-case
-				if (Builder.Length == 0)
+				if (builder.Length == 0)
 				{
 					ch = Char.ToUpper(ch);
 				}
-				else if (!bIsDigit && (bWasSpace || bWasOpenParen)) // If this is first character after a space, then make sure it is case-correct
+				else if (!isDigit && (wasSpace || wasOpenParen)) // If this is first character after a space, then make sure it is case-correct
 				{
 
 					// Search for a word that needs case repaired
-					bool bIsArticle = false;
-					foreach (string Article in Articles)
+					bool isArticle = false;
+					foreach (string article in s_articles)
 					{
 						// Make sure the character following the string we're testing is not lowercase (we don't want to match "in" with "instance")
-						int ArticleLength = Article.Length;
-						if (CharIndex + ArticleLength < Chars.Length && !Char.IsLower(Chars[CharIndex + ArticleLength]))
+						int articleLength = article.Length;
+						if (charIndex + articleLength < chars.Length && !Char.IsLower(chars[charIndex + articleLength]))
 						{
 							// Does this match the current article?
-							if (Chars.Slice(CharIndex, ArticleLength).Equals(Article.AsSpan(), StringComparison.OrdinalIgnoreCase))
+							if (chars.Slice(charIndex, articleLength).Equals(article.AsSpan(), StringComparison.OrdinalIgnoreCase))
 							{
-								bIsArticle = true;
+								isArticle = true;
 								break;
 							}
 						}
 					}
 
 					// Start of a keyword, force to lowercase
-					if (bIsArticle)
+					if (isArticle)
 					{
 						ch = Char.ToLower(ch);
 					}
@@ -427,106 +427,106 @@ namespace EpicGames.UHT.Utils
 					}
 				}
 
-				bWasSpace = ch == ' ';
-				bWasOpenParen = ch == '(';
+				wasSpace = ch == ' ';
+				wasOpenParen = ch == '(';
 
 				// What could be included as part of a numerical representation.
 				// For example -1.2
-				bWasMinusSign = ch == '-';
-				bool bPotentialNumericalChar = bWasMinusSign || ch == '.';
-				bWasNumber = bIsDigit || (bWasNumber && bPotentialNumericalChar);
-				Builder.Append(ch);
+				wasMinusSign = ch == '-';
+				bool potentialNumericalChar = wasMinusSign || ch == '.';
+				wasNumber = isDigit || (wasNumber && potentialNumericalChar);
+				builder.Append(ch);
 			}
-			return Builder.ToString();
+			return builder.ToString();
 		}
 
 		/// <summary>
 		/// Replace tabs to spaces in a string containing only a single line.
 		/// </summary>
-		/// <param name="Input">Input string</param>
-		/// <param name="TabSpacing">Number of spaces to exchange for tabs</param>
-		/// <param name="bEmulateCrBug">Due to a bug in UE ConvertTabsToSpacesInline, any \n is considered part of the line length.</param>
+		/// <param name="input">Input string</param>
+		/// <param name="tabSpacing">Number of spaces to exchange for tabs</param>
+		/// <param name="emulateCrBug">Due to a bug in UE ConvertTabsToSpacesInline, any \n is considered part of the line length.</param>
 		/// <returns>Resulting string or the original string if the string didn't contain any spaces.</returns>
-		public static ReadOnlyMemory<char> TabsToSpaces(ReadOnlyMemory<char> Input, int TabSpacing, bool bEmulateCrBug)
+		public static ReadOnlyMemory<char> TabsToSpaces(ReadOnlyMemory<char> input, int tabSpacing, bool emulateCrBug)
 		{
 			// If we have any tab characters, then we need to convert them to spaces
-			int TabIndex = Input.Span.IndexOf('\t');
-			if (TabIndex == -1)
+			int tabIndex = input.Span.IndexOf('\t');
+			if (tabIndex == -1)
 			{
-				return Input;
+				return input;
 			}
-			return TabsToSpacesInternal(Input.Span, TabSpacing, bEmulateCrBug, TabIndex).AsMemory();
+			return TabsToSpacesInternal(input.Span, tabSpacing, emulateCrBug, tabIndex).AsMemory();
 		}
 
 		/// <summary>
 		/// Replace tabs to spaces in a string containing zero or more lines.
 		/// </summary>
-		/// <param name="Input">Input string</param>
-		/// <param name="TabSpacing">Number of spaces to exchange for tabs</param>
-		/// <param name="bEmulateCrBug">Due to a bug in UE ConvertTabsToSpacesInline, any \n is considered part of the line length.</param>
+		/// <param name="input">Input string</param>
+		/// <param name="tabSpacing">Number of spaces to exchange for tabs</param>
+		/// <param name="emulateCrBug">Due to a bug in UE ConvertTabsToSpacesInline, any \n is considered part of the line length.</param>
 		/// <returns>Resulting string or the original string if the string didn't contain any spaces.</returns>
-		public static string TabsToSpaces(String Input, int TabSpacing, bool bEmulateCrBug)
+		public static string TabsToSpaces(string input, int tabSpacing, bool emulateCrBug)
 		{
 			// If we have any tab characters, then we need to convert them to spaces
-			int TabIndex = Input.IndexOf('\t', StringComparison.Ordinal);
-			if (TabIndex == -1)
+			int tabIndex = input.IndexOf('\t', StringComparison.Ordinal);
+			if (tabIndex == -1)
 			{
-				return Input;
+				return input;
 			}
-			return TabsToSpacesInternal(Input.AsSpan(), TabSpacing, bEmulateCrBug, TabIndex);
+			return TabsToSpacesInternal(input.AsSpan(), tabSpacing, emulateCrBug, tabIndex);
 		}
 
 		/// <summary>
 		/// Replace tabs to spaces in a string containing zero or more lines.
 		/// </summary>
-		/// <param name="Span">Input string to convert</param>
-		/// <param name="TabSpacing">Number of spaces to exchange for tabs</param>
-		/// <param name="bEmulateCrBug">Due to a bug in UE ConvertTabsToSpacesInline, any \n is considered part of the line length.</param>
-		/// <param name="TabIndex">Initial tab index</param>
+		/// <param name="span">Input string to convert</param>
+		/// <param name="tabSpacing">Number of spaces to exchange for tabs</param>
+		/// <param name="emulateCrBug">Due to a bug in UE ConvertTabsToSpacesInline, any \n is considered part of the line length.</param>
+		/// <param name="tabIndex">Initial tab index</param>
 		/// <returns>Resulting string or the original string if the string didn't contain any spaces.</returns>
-		private static string TabsToSpacesInternal(ReadOnlySpan<char> Span, int TabSpacing, bool bEmulateCrBug, int TabIndex)
+		private static string TabsToSpacesInternal(ReadOnlySpan<char> span, int tabSpacing, bool emulateCrBug, int tabIndex)
 		{
 			// Locate the last \n since all tabs have to be computed relative to this.
-			int CrPos = Span.Slice(0, TabIndex).LastIndexOf('\n') + 1;
+			int crPos = span.Slice(0, tabIndex).LastIndexOf('\n') + 1;
 
-			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Small))
+			using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Small))
 			{
-				StringBuilder Builder = Borrower.StringBuilder;
-				int Committed = 0;
+				StringBuilder builder = borrower.StringBuilder;
+				int committed = 0;
 				do
 				{
 					// Commit everything prior to the tab to the builder
-					Builder.Append(Span.Slice(0, TabIndex));
-					Span = Span.Slice(TabIndex + 1);
-					Committed += TabIndex;
+					builder.Append(span.Slice(0, tabIndex));
+					span = span.Slice(tabIndex + 1);
+					committed += tabIndex;
 
 					// Add the appropriate number of spaces
-					int AdjustedCrPos = CrPos;
-					if (bEmulateCrBug && AdjustedCrPos > 0)
+					int adjustedCrPos = crPos;
+					if (emulateCrBug && adjustedCrPos > 0)
 					{
-						--AdjustedCrPos;
+						--adjustedCrPos;
 					}
-					int SpacesToInsert = TabSpacing - (Committed - AdjustedCrPos) % TabSpacing;
-					Builder.AppendSpaces(SpacesToInsert);
-					Committed += SpacesToInsert;
+					int spacesToInsert = tabSpacing - (committed - adjustedCrPos) % tabSpacing;
+					builder.AppendSpaces(spacesToInsert);
+					committed += spacesToInsert;
 
 					// Search for the next \t or \n
-					for (TabIndex = 0; TabIndex < Span.Length; ++TabIndex)
+					for (tabIndex = 0; tabIndex < span.Length; ++tabIndex)
 					{
-						if (Span[TabIndex] == '\n')
+						if (span[tabIndex] == '\n')
 						{
-							CrPos = Committed + TabIndex + 1;
+							crPos = committed + tabIndex + 1;
 						}
-						else if (Span[TabIndex] == '\t')
+						else if (span[tabIndex] == '\t')
 						{
 							break;
 						}
 					}
-				} while (TabIndex < Span.Length);
+				} while (tabIndex < span.Length);
 
 				// Commit the remaining data
-				Builder.Append(Span);
-				return Builder.ToString();
+				builder.Append(span);
+				return builder.ToString();
 			}
 		}
 	}

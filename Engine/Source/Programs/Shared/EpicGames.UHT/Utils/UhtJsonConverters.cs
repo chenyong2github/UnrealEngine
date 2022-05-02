@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Types;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EpicGames.UHT.Types;
 
 namespace EpicGames.UHT.Utils
 {
@@ -18,12 +18,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Read the JSON value
 		/// </summary>
-		/// <param name="Reader">Source reader</param>
-		/// <param name="TypeToConvert">Type to convert</param>
-		/// <param name="Options">Serialization options</param>
+		/// <param name="reader">Source reader</param>
+		/// <param name="typeToConvert">Type to convert</param>
+		/// <param name="options">Serialization options</param>
 		/// <returns>Read value</returns>
 		/// <exception cref="NotImplementedException"></exception>
-		public override T Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
 			throw new NotImplementedException();
 		}
@@ -31,12 +31,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Write the JSON value
 		/// </summary>
-		/// <param name="Writer">Destination writer</param>
-		/// <param name="Type">Value being written</param>
-		/// <param name="Options">Serialization options</param>
-		public override void Write(Utf8JsonWriter Writer, T Type, JsonSerializerOptions Options)
+		/// <param name="writer">Destination writer</param>
+		/// <param name="type">Value being written</param>
+		/// <param name="options">Serialization options</param>
+		public override void Write(Utf8JsonWriter writer, T type, JsonSerializerOptions options)
 		{
-			Writer.WriteStringValue(Type.SourceName);
+			writer.WriteStringValue(type.SourceName);
 		}
 	}
 
@@ -49,12 +49,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Read the JSON value
 		/// </summary>
-		/// <param name="Reader">Source reader</param>
-		/// <param name="TypeToConvert">Type to convert</param>
-		/// <param name="Options">Serialization options</param>
+		/// <param name="reader">Source reader</param>
+		/// <param name="typeToConvert">Type to convert</param>
+		/// <param name="options">Serialization options</param>
 		/// <returns>Read value</returns>
 		/// <exception cref="NotImplementedException"></exception>
-		public override T Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
 			throw new NotImplementedException();
 		}
@@ -62,14 +62,14 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Write the JSON value
 		/// </summary>
-		/// <param name="Writer">Destination writer</param>
-		/// <param name="Type">Value being written</param>
-		/// <param name="Options">Serialization options</param>
-		public override void Write(Utf8JsonWriter Writer, T? Type, JsonSerializerOptions Options)
+		/// <param name="writer">Destination writer</param>
+		/// <param name="type">Value being written</param>
+		/// <param name="options">Serialization options</param>
+		public override void Write(Utf8JsonWriter writer, T? type, JsonSerializerOptions options)
 		{
-			if (Type != null)
+			if (type != null)
 			{
-				Writer.WriteStringValue(Type.SourceName);
+				writer.WriteStringValue(type.SourceName);
 			}
 		}
 	}
@@ -83,12 +83,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Read the JSON value
 		/// </summary>
-		/// <param name="Reader">Source reader</param>
-		/// <param name="TypeToConvert">Type to convert</param>
-		/// <param name="Options">Serialization options</param>
+		/// <param name="reader">Source reader</param>
+		/// <param name="typeToConvert">Type to convert</param>
+		/// <param name="options">Serialization options</param>
 		/// <returns>Read value</returns>
 		/// <exception cref="NotImplementedException"></exception>
-		public override List<T> Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		public override List<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
 			throw new NotImplementedException();
 		}
@@ -96,17 +96,17 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Write the JSON value
 		/// </summary>
-		/// <param name="Writer">Destination writer</param>
-		/// <param name="Collection">Value being written</param>
-		/// <param name="Options">Serialization options</param>
-		public override void Write(Utf8JsonWriter Writer, List<T> Collection, JsonSerializerOptions Options)
+		/// <param name="writer">Destination writer</param>
+		/// <param name="collection">Value being written</param>
+		/// <param name="options">Serialization options</param>
+		public override void Write(Utf8JsonWriter writer, List<T> collection, JsonSerializerOptions options)
 		{
-			Writer.WriteStartArray();
-			foreach (UhtType Type in Collection)
+			writer.WriteStartArray();
+			foreach (UhtType type in collection)
 			{
-				JsonSerializer.Serialize(Writer, Type, Type.GetType(), Options);
+				JsonSerializer.Serialize(writer, type, type.GetType(), options);
 			}
-			Writer.WriteEndArray();
+			writer.WriteEndArray();
 		}
 	}
 
@@ -119,12 +119,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Read the JSON value
 		/// </summary>
-		/// <param name="Reader">Source reader</param>
-		/// <param name="TypeToConvert">Type to convert</param>
-		/// <param name="Options">Serialization options</param>
+		/// <param name="reader">Source reader</param>
+		/// <param name="typeToConvert">Type to convert</param>
+		/// <param name="options">Serialization options</param>
 		/// <returns>Read value</returns>
 		/// <exception cref="NotImplementedException"></exception>
-		public override List<T> Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		public override List<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
 			throw new NotImplementedException();
 		}
@@ -132,20 +132,20 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Write the JSON value
 		/// </summary>
-		/// <param name="Writer">Destination writer</param>
-		/// <param name="Collection">Value being written</param>
-		/// <param name="Options">Serialization options</param>
-		public override void Write(Utf8JsonWriter Writer, List<T>? Collection, JsonSerializerOptions Options)
+		/// <param name="writer">Destination writer</param>
+		/// <param name="collection">Value being written</param>
+		/// <param name="options">Serialization options</param>
+		public override void Write(Utf8JsonWriter writer, List<T>? collection, JsonSerializerOptions options)
 		{
-			Writer.WriteStartArray();
-			if (Collection != null)
+			writer.WriteStartArray();
+			if (collection != null)
 			{
-				foreach (UhtType Type in Collection)
+				foreach (UhtType type in collection)
 				{
-					JsonSerializer.Serialize(Writer, Type, Type.GetType(), Options);
+					JsonSerializer.Serialize(writer, type, type.GetType(), options);
 				}
 			}
-			Writer.WriteEndArray();
+			writer.WriteEndArray();
 		}
 	}
 }

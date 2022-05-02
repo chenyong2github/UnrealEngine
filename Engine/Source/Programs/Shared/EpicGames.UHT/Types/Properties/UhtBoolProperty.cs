@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -50,7 +50,7 @@ namespace EpicGames.UHT.Types
 	public class UhtBoolProperty : UhtProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "BoolProperty"; }
+		public override string EngineClassName => "BoolProperty";
 
 		/// <inheritdoc/>
 		protected override string CppTypeText
@@ -101,7 +101,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// If true, the boolean is a native bool and not a UBOOL
 		/// </summary>
-		protected bool bIsNativeBool { get => this.BoolType == UhtBoolType.Native; }
+		protected bool IsNativeBool => this.BoolType == UhtBoolType.Native;
 
 		/// <summary>
 		/// Type of the boolean
@@ -111,23 +111,23 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct a new boolean property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="BoolType">Type of the boolean</param>
-		public UhtBoolProperty(UhtPropertySettings PropertySettings, UhtBoolType BoolType) : base(PropertySettings)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="boolType">Type of the boolean</param>
+		public UhtBoolProperty(UhtPropertySettings propertySettings, UhtBoolType boolType) : base(propertySettings)
 		{
-			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.IsParameterSupportedByBlueprint | 
+			this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.IsParameterSupportedByBlueprint |
 				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
-			if (BoolType == UhtBoolType.Native || BoolType == UhtBoolType.UInt8)
+			if (boolType == UhtBoolType.Native || boolType == UhtBoolType.UInt8)
 			{
 				this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn;
 			}
-			this.BoolType = BoolType;
+			this.BoolType = boolType;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument = false)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument = false)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				case UhtPropertyTextType.Generic:
 				case UhtPropertyTextType.Construction:
@@ -136,7 +136,7 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.RigVMType:
 				case UhtPropertyTextType.ExportMember:
 				case UhtPropertyTextType.GenericFunctionArgOrRetVal:
-					Builder.Append(this.CppTypeText);
+					builder.Append(this.CppTypeText);
 					break;
 
 				case UhtPropertyTextType.Sparse:
@@ -148,126 +148,126 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.EventParameterMember:
 				case UhtPropertyTextType.EventParameterFunctionMember:
 				case UhtPropertyTextType.GetterSetterArg:
-					Builder.Append("bool");
+					builder.Append("bool");
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			Builder.AppendMetaDataDecl(this, Context, Name, NameSuffix, Tabs);
-			if (!(this.Outer is UhtProperty))
+			builder.AppendMetaDataDecl(this, context, name, nameSuffix, tabs);
+			if (this.Outer is not UhtProperty)
 			{
-				Builder.AppendTabs(Tabs).Append("static void ").AppendNameDecl(Context, Name, NameSuffix).Append("_SetBit(void* Obj);\r\n");
+				builder.AppendTabs(tabs).Append("static void ").AppendNameDecl(context, name, nameSuffix).Append("_SetBit(void* Obj);\r\n");
 			}
-			Builder.AppendTabs(Tabs).Append("static const UECodeGen_Private::").Append("FBoolPropertyParams").Append(' ').AppendNameDecl(Context, Name, NameSuffix).Append(";\r\n");
-			return Builder;
+			builder.AppendTabs(tabs).Append("static const UECodeGen_Private::").Append("FBoolPropertyParams").Append(' ').AppendNameDecl(context, name, nameSuffix).Append(";\r\n");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			Builder.AppendMetaDataDef(this, Context, Name, NameSuffix, Tabs);
-			if (this.Outer == Context.OuterStruct)
+			builder.AppendMetaDataDef(this, context, name, nameSuffix, tabs);
+			if (this.Outer == context.OuterStruct)
 			{
-				Builder.AppendTabs(Tabs).Append("void ").AppendNameDef(Context, Name, NameSuffix).Append("_SetBit(void* Obj)\r\n");
-				Builder.AppendTabs(Tabs).Append("{\r\n");
-				Builder.AppendTabs(Tabs + 1).Append("((").Append(Context.OuterStructSourceName).Append("*)Obj)->").Append(this.SourceName).Append(" = 1;\r\n");
-				Builder.AppendTabs(Tabs).Append("}\r\n");
+				builder.AppendTabs(tabs).Append("void ").AppendNameDef(context, name, nameSuffix).Append("_SetBit(void* Obj)\r\n");
+				builder.AppendTabs(tabs).Append("{\r\n");
+				builder.AppendTabs(tabs + 1).Append("((").Append(context.OuterStructSourceName).Append("*)Obj)->").Append(this.SourceName).Append(" = 1;\r\n");
+				builder.AppendTabs(tabs).Append("}\r\n");
 			}
 
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FBoolPropertyParams",
-				bIsNativeBool ?
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FBoolPropertyParams",
+				IsNativeBool ?
 				"UECodeGen_Private::EPropertyGenFlags::Bool | UECodeGen_Private::EPropertyGenFlags::NativeBool" :
-				"UECodeGen_Private::EPropertyGenFlags::Bool ", 
+				"UECodeGen_Private::EPropertyGenFlags::Bool ",
 				false, false);
 
-			Builder.Append("sizeof(").Append(this.CppTypeText).Append("), ");
+			builder.Append("sizeof(").Append(this.CppTypeText).Append("), ");
 
-			if (this.Outer == Context.OuterStruct)
+			if (this.Outer == context.OuterStruct)
 			{
-				Builder
-					.Append("sizeof(").Append(Context.OuterStructSourceName).Append("), ")
-					.Append('&').AppendNameDef(Context, Name, NameSuffix).Append("_SetBit, ");
+				builder
+					.Append("sizeof(").Append(context.OuterStructSourceName).Append("), ")
+					.Append('&').AppendNameDef(context, name, nameSuffix).Append("_SetBit, ");
 			}
 			else
 			{
-				Builder.Append("0, nullptr, ");
+				builder.Append("0, nullptr, ");
 			}
 
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendFullDecl(StringBuilder Builder, UhtPropertyTextType TextType, bool bSkipParameterName = false)
+		public override StringBuilder AppendFullDecl(StringBuilder builder, UhtPropertyTextType textType, bool skipParameterName = false)
 		{
-			AppendText(Builder, TextType);
+			AppendText(builder, textType);
 
 			//@todo we currently can't have out bools.. so this isn't really necessary, but eventually out bools may be supported, so leave here for now
-			if (TextType.IsParameter() && this.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
+			if (textType.IsParameter() && this.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm))
 			{
-				Builder.Append('&');
+				builder.Append('&');
 			}
 
-			Builder.Append(' ');
+			builder.Append(' ');
 
-			if (!bSkipParameterName)
+			if (!skipParameterName)
 			{
-				Builder.Append(this.SourceName);
+				builder.Append(this.SourceName);
 			}
 
 			if (this.ArrayDimensions != null)
 			{
-				Builder.Append('[').Append(this.ArrayDimensions).Append(']');
+				builder.Append('[').Append(this.ArrayDimensions).Append(']');
 			}
-			else if (TextType == UhtPropertyTextType.ExportMember && !this.bIsNativeBool)
+			else if (textType == UhtPropertyTextType.ExportMember && !this.IsNativeBool)
 			{
-				Builder.Append(":1");
+				builder.Append(":1");
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			Builder.Append("false");
-			return Builder;
+			builder.Append("false");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			UhtToken Identifier = DefaultValueReader.GetIdentifier();
-			if (Identifier.IsValue("true") || Identifier.IsValue("false"))
+			UhtToken identifier = defaultValueReader.GetIdentifier();
+			if (identifier.IsValue("true") || identifier.IsValue("false"))
 			{
-				InnerDefaultValue.Append(Identifier.Value.ToString());
+				innerDefaultValue.Append(identifier.Value.ToString());
 				return true;
 			}
 			return false;
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
 			// We don't test BoolType.
-			return Other is UhtBoolProperty;
+			return other is UhtBoolProperty;
 		}
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "bool", Options = UhtPropertyTypeOptions.Simple | UhtPropertyTypeOptions.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? BoolProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? BoolProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			if (PropertySettings.bIsBitfield)
+			if (propertySettings.IsBitfield)
 			{
-				TokenReader.LogError("bool bitfields are not supported.");
+				tokenReader.LogError("bool bitfields are not supported.");
 				return null;
 			}
-			return new UhtBoolProperty(PropertySettings, UhtBoolType.Native);
+			return new UhtBoolProperty(propertySettings, UhtBoolType.Native);
 		}
 		#endregion
 	}

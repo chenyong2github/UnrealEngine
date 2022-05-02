@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -17,25 +17,25 @@ namespace EpicGames.UHT.Types
 	public class UhtClassProperty : UhtObjectProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "ClassProperty"; }
+		public override string EngineClassName => "ClassProperty";
 
 		/// <inheritdoc/>
-		protected override bool bPGetPassAsNoPtr { get => this.PropertyFlags.HasAnyFlags(EPropertyFlags.UObjectWrapper); }
+		protected override bool PGetPassAsNoPtr => this.PropertyFlags.HasAnyFlags(EPropertyFlags.UObjectWrapper);
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Construct a new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="Class">Referenced class</param>
-		/// <param name="MetaClass">Reference meta class</param>
-		/// <param name="ExtraFlags">Extra flags to apply to the property.</param>
-		public UhtClassProperty(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass MetaClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
-			: base(PropertySettings, Class, MetaClass)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="classObj">Referenced class</param>
+		/// <param name="metaClass">Reference meta class</param>
+		/// <param name="extraFlags">Extra flags to apply to the property.</param>
+		public UhtClassProperty(UhtPropertySettings propertySettings, UhtClass classObj, UhtClass metaClass, EPropertyFlags extraFlags = EPropertyFlags.None)
+			: base(propertySettings, classObj, metaClass)
 		{
-			this.PropertyFlags |= ExtraFlags;
+			this.PropertyFlags |= extraFlags;
 			this.PropertyCaps |= UhtPropertyCaps.CanHaveConfig;
 			this.PropertyCaps &= ~(UhtPropertyCaps.CanBeInstanced);
 		}
@@ -47,30 +47,30 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		private StringBuilder AppendSubClassText(StringBuilder Builder)
+		private StringBuilder AppendSubClassText(StringBuilder builder)
 		{
-			Builder.Append("TSubclassOf<").Append(this.MetaClass?.SourceName).Append("> "); //COMPATIBILITY-TODO - Extra space in old UHT
-			return Builder;
+			builder.Append("TSubclassOf<").Append(this.MetaClass?.SourceName).Append("> "); //COMPATIBILITY-TODO - Extra space in old UHT
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		private StringBuilder AppendText(StringBuilder Builder)
+		private StringBuilder AppendText(StringBuilder builder)
 		{
 			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.UObjectWrapper))
 			{
-				AppendSubClassText(Builder);
+				AppendSubClassText(builder);
 			}
 			else
 			{
-				Builder.Append(this.Class.SourceName).Append('*');
+				builder.Append(this.Class.SourceName).Append('*');
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				case UhtPropertyTextType.Generic:
 				case UhtPropertyTextType.Sparse:
@@ -85,21 +85,21 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.FunctionThunkParameterArrayType:
 				case UhtPropertyTextType.RigVMType:
 				case UhtPropertyTextType.GetterSetterArg:
-					AppendText(Builder);
+					AppendText(builder);
 					break;
 
 				case UhtPropertyTextType.FunctionThunkRetVal:
 					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
 					{
-						Builder.Append("const ");
+						builder.Append("const ");
 					}
 					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.UObjectWrapper))
 					{
-						AppendText(Builder);
+						AppendText(builder);
 					}
 					else
 					{
-						Builder.Append("UClass*");
+						builder.Append("UClass*");
 					}
 					break;
 
@@ -107,58 +107,58 @@ namespace EpicGames.UHT.Types
 				case UhtPropertyTextType.EventParameterFunctionMember:
 					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm) && !this.PropertyFlags.HasAnyFlags(EPropertyFlags.UObjectWrapper))
 					{
-						Builder.Append("UClass*");
+						builder.Append("UClass*");
 					}
 					else
 					{
-						AppendText(Builder);
+						AppendText(builder);
 					}
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
 					if (this.PropertyFlags.HasAllFlags(EPropertyFlags.OutParm | EPropertyFlags.UObjectWrapper))
 					{
-						AppendSubClassText(Builder);
+						AppendSubClassText(builder);
 					}
 					else
 					{
-						Builder.Append(this.Class.SourceName);
+						builder.Append(this.Class.SourceName);
 					}
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return base.AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FClassPropertyParams");
+			return base.AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FClassPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FClassPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Class");
-			AppendMemberDefRef(Builder, Context, this.Class, false);
-			AppendMemberDefRef(Builder, Context, this.MetaClass, false);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FClassPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Class");
+			AppendMemberDefRef(builder, context, this.Class, false);
+			AppendMemberDefRef(builder, context, this.MetaClass, false);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "TSubclassOf")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? SubclassOfProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? SubclassOfProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			UhtClass? MetaClass = UhtObjectPropertyBase.ParseTemplateClass(PropertySettings, TokenReader, MatchedToken);
-			if (MetaClass == null)
+			UhtClass? metaClass = UhtObjectPropertyBase.ParseTemplateClass(propertySettings, tokenReader, matchedToken);
+			if (metaClass == null)
 			{
 				return null;
 			}
 
 			// With TSubclassOf, MetaClass is used as a class limiter.  
-			return new UhtClassProperty(PropertySettings, MetaClass.Session.UClass, MetaClass, EPropertyFlags.UObjectWrapper);
+			return new UhtClassProperty(propertySettings, metaClass.Session.UClass, metaClass, EPropertyFlags.UObjectWrapper);
 		}
 		#endregion
 	}

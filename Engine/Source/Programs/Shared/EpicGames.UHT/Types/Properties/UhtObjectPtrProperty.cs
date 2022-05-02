@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -17,86 +17,86 @@ namespace EpicGames.UHT.Types
 	public class UhtObjectPtrProperty : UhtObjectProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "ObjectPtrProperty"; }
+		public override string EngineClassName => "ObjectPtrProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "ObjectPtr"; }
+		protected override string CppTypeText => "ObjectPtr";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "OBJECTPTR"; }
+		protected override string PGetMacroText => "OBJECTPTR";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Construct a new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="Class">Referenced class</param>
-		/// <param name="ExtraFlags">Extra property flags to apply</param>
-		public UhtObjectPtrProperty(UhtPropertySettings PropertySettings, UhtClass Class, EPropertyFlags ExtraFlags = EPropertyFlags.None)
-			: base(PropertySettings, Class)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="classObj">Referenced class</param>
+		/// <param name="extraFlags">Extra property flags to apply</param>
+		public UhtObjectPtrProperty(UhtPropertySettings propertySettings, UhtClass classObj, EPropertyFlags extraFlags = EPropertyFlags.None)
+			: base(propertySettings, classObj)
 		{
-			this.PropertyFlags |= ExtraFlags | EPropertyFlags.UObjectWrapper;
+			this.PropertyFlags |= extraFlags | EPropertyFlags.UObjectWrapper;
 			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				case UhtPropertyTextType.GetterSetterArg:
-					if (bIsTemplateArgument)
+					if (isTemplateArgument)
 					{
-						Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
+						builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
 					}
 					else
 					{
-						Builder.Append(this.Class.SourceName).Append('*');
+						builder.Append(this.Class.SourceName).Append('*');
 					}
 					break;
 
 				case UhtPropertyTextType.FunctionThunkRetVal:
 					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
 					{
-						Builder.Append("const ");
+						builder.Append("const ");
 					}
-					Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
+					builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
 					break;
 
 				default:
-					Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
+					builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
 					break;
 			}
-			return Builder;
-		}
-		
-		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
-		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FObjectPtrPropertyParams");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FObjectPtrPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Object | UECodeGen_Private::EPropertyGenFlags::ObjectPtr");
-			AppendMemberDefRef(Builder, Context, this.Class, false);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FObjectPtrPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override void Validate(UhtStruct OuterStruct, UhtProperty OutermostProperty, UhtValidationOptions Options)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			base.Validate(OuterStruct, OutermostProperty, Options);
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FObjectPtrPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Object | UECodeGen_Private::EPropertyGenFlags::ObjectPtr");
+			AppendMemberDefRef(builder, context, this.Class, false);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
+		}
+
+		/// <inheritdoc/>
+		public override void Validate(UhtStruct outerStruct, UhtProperty outermostProperty, UhtValidationOptions options)
+		{
+			base.Validate(outerStruct, outermostProperty, options);
 
 			// UFunctions with a smart pointer as input parameter wont compile anyway, because of missing P_GET_... macro.
 			// UFunctions with a smart pointer as return type will crash when called via blueprint, because they are not supported in VM.
 			if (this.PropertyCategory == UhtPropertyCategory.RegularParameter || this.PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
 			{
-				OuterStruct.LogError("UFunctions cannot take a TObjectPtr as a parameter.");
+				outerStruct.LogError("UFunctions cannot take a TObjectPtr as a parameter.");
 			}
 		}
 
@@ -104,28 +104,28 @@ namespace EpicGames.UHT.Types
 		[UhtPropertyType(Keyword = "TObjectPtr")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? ObjectPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? ObjectPtrProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			UhtSession Session = PropertySettings.Outer.Session;
-			int TypeStartPos = TokenReader.PeekToken().InputStartPos;
+			UhtSession session = propertySettings.Outer.Session;
+			int typeStartPos = tokenReader.PeekToken().InputStartPos;
 
-			UhtClass? PropertyClass = ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, true);
-			if (PropertyClass == null)
+			UhtClass? propertyClass = ParseTemplateObject(propertySettings, tokenReader, matchedToken, true);
+			if (propertyClass == null)
 			{
 				return null;
 			}
 
-			ConditionalLogPointerUsage(PropertySettings, Session.Config!.EngineObjectPtrMemberBehavior, 
-				Session.Config!.NonEngineObjectPtrMemberBehavior, "ObjectPtr", TokenReader, TypeStartPos, null);
+			ConditionalLogPointerUsage(propertySettings, session.Config!.EngineObjectPtrMemberBehavior,
+				session.Config!.NonEngineObjectPtrMemberBehavior, "ObjectPtr", tokenReader, typeStartPos, null);
 
-			if (PropertyClass.IsChildOf(PropertyClass.Session.UClass))
+			if (propertyClass.IsChildOf(propertyClass.Session.UClass))
 			{
 				// UObject specifies that there is no limiter
-				return new UhtClassPtrProperty(PropertySettings, PropertyClass, PropertyClass.Session.UObject);
+				return new UhtClassPtrProperty(propertySettings, propertyClass, propertyClass.Session.UObject);
 			}
 			else
 			{
-				return new UhtObjectPtrProperty(PropertySettings, PropertyClass);
+				return new UhtObjectPtrProperty(propertySettings, propertyClass);
 			}
 		}
 		#endregion

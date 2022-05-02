@@ -1,13 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tables;
-using EpicGames.UHT.Tokenizer;
-using EpicGames.UHT.Utils;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
+using EpicGames.UHT.Tables;
+using EpicGames.UHT.Tokenizer;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Types
 {
@@ -25,27 +26,27 @@ namespace EpicGames.UHT.Types
 		public UhtEnum? Enum { get; set; }
 
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "ByteProperty"; }
+		public override string EngineClassName => "ByteProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "uint8"; }
+		protected override string CppTypeText => "uint8";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => this.Enum == null || this.Enum.CppForm != UhtEnumCppForm.EnumClass ? "PROPERTY" : "ENUM"; }
+		protected override string PGetMacroText => this.Enum == null || this.Enum.CppForm != UhtEnumCppForm.EnumClass ? "PROPERTY" : "ENUM";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => this.Enum == null || this.Enum.CppForm != UhtEnumCppForm.EnumClass ? UhtPGetArgumentType.EngineClass : UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => this.Enum == null || this.Enum.CppForm != UhtEnumCppForm.EnumClass ? UhtPGetArgumentType.EngineClass : UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Construct a new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="IntType">Integer type</param>
-		/// <param name="Enum">Optional referenced enum</param>
-		public UhtByteProperty(UhtPropertySettings PropertySettings, UhtPropertyIntType IntType, UhtEnum? Enum = null) : base(PropertySettings, IntType)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="intType">Integer type</param>
+		/// <param name="enumObj">Optional referenced enum</param>
+		public UhtByteProperty(UhtPropertySettings propertySettings, UhtPropertyIntType intType, UhtEnum? enumObj = null) : base(propertySettings, intType)
 		{
-			this.Enum = Enum;
-			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | 
+			this.Enum = enumObj;
+			this.PropertyCaps |= UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
 				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 			if (this.Enum != null)
 			{
@@ -63,91 +64,91 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override void CollectReferencesInternal(IUhtReferenceCollector Collector, bool bTemplateProperty)
+		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			Collector.AddCrossModuleReference(this.Enum, true);
+			collector.AddCrossModuleReference(this.Enum, true);
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
 			if (this.Enum != null)
 			{
-				return UhtEnumProperty.AppendEnumText(Builder, this, this.Enum, TextType, bIsTemplateArgument);
+				return UhtEnumProperty.AppendEnumText(builder, this, this.Enum, textType, isTemplateArgument);
 			}
 			else
 			{
-				return base.AppendText(Builder, TextType, bIsTemplateArgument);
+				return base.AppendText(builder, textType, isTemplateArgument);
 			}
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FBytePropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FBytePropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FBytePropertyParams", "UECodeGen_Private::EPropertyGenFlags::Byte");
-			AppendMemberDefRef(Builder, Context, this.Enum, true, true);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FBytePropertyParams", "UECodeGen_Private::EPropertyGenFlags::Byte");
+			AppendMemberDefRef(builder, context, this.Enum, true, true);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override void AppendObjectHashes(StringBuilder Builder, int StartingLength, IUhtPropertyMemberContext Context)
+		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			Builder.AppendObjectHash(StartingLength, this, Context, this.Enum);
+			builder.AppendObjectHash(startingLength, this, context, this.Enum);
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendFunctionThunkParameterArg(StringBuilder Builder)
+		public override StringBuilder AppendFunctionThunkParameterArg(StringBuilder builder)
 		{
 			if (this.Enum != null)
 			{
-				return UhtEnumProperty.AppendEnumFunctionThunkParameterArg(Builder, this, this.Enum);
+				return UhtEnumProperty.AppendEnumFunctionThunkParameterArg(builder, this, this.Enum);
 			}
 			else
 			{
-				return base.AppendFunctionThunkParameterArg(Builder);
+				return base.AppendFunctionThunkParameterArg(builder);
 			}
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
 			if (this.Enum != null)
 			{
-				return UhtEnumProperty.SanitizeEnumDefaultValue(this, this.Enum, DefaultValueReader, InnerDefaultValue);
+				return UhtEnumProperty.SanitizeEnumDefaultValue(this, this.Enum, defaultValueReader, innerDefaultValue);
 			}
 
-			int Value = DefaultValueReader.GetConstIntExpression();
-			InnerDefaultValue.Append(Value);
-			return Value >= byte.MinValue && Value <= byte.MaxValue;
+			int value = defaultValueReader.GetConstIntExpression();
+			innerDefaultValue.Append(value);
+			return value >= Byte.MinValue && value <= Byte.MaxValue;
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			if (Other is UhtByteProperty OtherByte)
+			if (other is UhtByteProperty otherByte)
 			{
-				return this.Enum == OtherByte.Enum;
+				return this.Enum == otherByte.Enum;
 			}
-			else if (Other is UhtEnumProperty OtherEnum)
+			else if (other is UhtEnumProperty otherEnum)
 			{
-				return this.Enum == OtherEnum.Enum;
+				return this.Enum == otherEnum.Enum;
 			}
 			return false;
 		}
 
 		/// <inheritdoc/>
-		protected override void ValidateFunctionArgument(UhtFunction Function, UhtValidationOptions Options)
+		protected override void ValidateFunctionArgument(UhtFunction function, UhtValidationOptions options)
 		{
-			base.ValidateFunctionArgument(Function, Options);
+			base.ValidateFunctionArgument(function, options);
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.BlueprintCallable))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.BlueprintCallable))
 			{
 				if (this.Enum != null && this.Enum.UnderlyingType != UhtEnumUnderlyingType.uint8 && this.Enum.UnderlyingType != UhtEnumUnderlyingType.Unspecified)
 				{
@@ -160,15 +161,15 @@ namespace EpicGames.UHT.Types
 		[UhtPropertyType(Keyword = "uint8", Options = UhtPropertyTypeOptions.Simple | UhtPropertyTypeOptions.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? UInt8Property(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? UInt8Property(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			if (PropertySettings.bIsBitfield)
+			if (propertySettings.IsBitfield)
 			{
-				return new UhtBoolProperty(PropertySettings, UhtBoolType.UInt8);
+				return new UhtBoolProperty(propertySettings, UhtBoolType.UInt8);
 			}
 			else
 			{
-				return new UhtByteProperty(PropertySettings, UhtPropertyIntType.Sized);
+				return new UhtByteProperty(propertySettings, UhtPropertyIntType.Sized);
 			}
 		}
 		#endregion

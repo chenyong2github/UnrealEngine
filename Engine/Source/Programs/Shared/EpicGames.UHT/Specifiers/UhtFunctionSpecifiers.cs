@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -19,358 +19,338 @@ namespace EpicGames.UHT.Parsers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintAuthorityOnlySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintAuthorityOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			Function.FunctionFlags |= EFunctionFlags.BlueprintAuthorityOnly;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			function.FunctionFlags |= EFunctionFlags.BlueprintAuthorityOnly;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintCallableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintCallableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			Function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintCosmeticSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintCosmeticSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			Function.FunctionFlags |= EFunctionFlags.BlueprintCosmetic;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			function.FunctionFlags |= EFunctionFlags.BlueprintCosmetic;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintGetterSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintGetterSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunctionParser Function = (UhtFunctionParser)SpecifierContext.Scope.ScopeType;
+			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
 			{
-				SpecifierContext.MessageSite.LogError("Function cannot be a blueprint event and a blueprint getter.");
+				specifierContext.MessageSite.LogError("Function cannot be a blueprint event and a blueprint getter.");
 			}
 
-			Function.bSawPropertyAccessor = true;
-			Function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
-			Function.FunctionFlags |= EFunctionFlags.BlueprintPure;
-			Function.MetaData.Add(UhtNames.BlueprintGetter, "");
+			function.SawPropertyAccessor = true;
+			function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
+			function.FunctionFlags |= EFunctionFlags.BlueprintPure;
+			function.MetaData.Add(UhtNames.BlueprintGetter, "");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintImplementableEventSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintImplementableEventSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunctionParser Function = (UhtFunctionParser)SpecifierContext.Scope.ScopeType;
+			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
-				SpecifierContext.MessageSite.LogError("BlueprintImplementableEvent functions cannot be replicated!");
+				specifierContext.MessageSite.LogError("BlueprintImplementableEvent functions cannot be replicated!");
 			}
-			else if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent) && Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
+			else if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent) && function.FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
 			{
 				// already a BlueprintNativeEvent
-				SpecifierContext.MessageSite.LogError("A function cannot be both BlueprintNativeEvent and BlueprintImplementableEvent!");
+				specifierContext.MessageSite.LogError("A function cannot be both BlueprintNativeEvent and BlueprintImplementableEvent!");
 			}
-			else if (Function.bSawPropertyAccessor)
+			else if (function.SawPropertyAccessor)
 			{
-				SpecifierContext.MessageSite.LogError("A function cannot be both BlueprintImplementableEvent and a Blueprint Property accessor!");
+				specifierContext.MessageSite.LogError("A function cannot be both BlueprintImplementableEvent and a Blueprint Property accessor!");
 			}
-			else if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Private))
+			else if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Private))
 			{
-				SpecifierContext.MessageSite.LogError("A Private function cannot be a BlueprintImplementableEvent!");
+				specifierContext.MessageSite.LogError("A Private function cannot be a BlueprintImplementableEvent!");
 			}
 
-			Function.FunctionFlags |= EFunctionFlags.Event;
-			Function.FunctionFlags |= EFunctionFlags.BlueprintEvent;
-			Function.FunctionFlags &= ~EFunctionFlags.Native;
+			function.FunctionFlags |= EFunctionFlags.Event;
+			function.FunctionFlags |= EFunctionFlags.BlueprintEvent;
+			function.FunctionFlags &= ~EFunctionFlags.Native;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintNativeEventSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintNativeEventSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunctionParser Function = (UhtFunctionParser)SpecifierContext.Scope.ScopeType;
+			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
-				SpecifierContext.MessageSite.LogError("BlueprintNativeEvent functions cannot be replicated!");
+				specifierContext.MessageSite.LogError("BlueprintNativeEvent functions cannot be replicated!");
 			}
-			else if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent) && !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
+			else if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent) && !function.FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
 			{
 				// already a BlueprintImplementableEvent
-				SpecifierContext.MessageSite.LogError("A function cannot be both BlueprintNativeEvent and BlueprintImplementableEvent!");
+				specifierContext.MessageSite.LogError("A function cannot be both BlueprintNativeEvent and BlueprintImplementableEvent!");
 			}
-			else if (Function.bSawPropertyAccessor)
+			else if (function.SawPropertyAccessor)
 			{
-				SpecifierContext.MessageSite.LogError("A function cannot be both BlueprintNativeEvent and a Blueprint Property accessor!");
+				specifierContext.MessageSite.LogError("A function cannot be both BlueprintNativeEvent and a Blueprint Property accessor!");
 			}
-			else if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Private))
+			else if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Private))
 			{
-				SpecifierContext.MessageSite.LogError("A Private function cannot be a BlueprintNativeEvent!");
+				specifierContext.MessageSite.LogError("A Private function cannot be a BlueprintNativeEvent!");
 			}
 
-			Function.FunctionFlags |= EFunctionFlags.Event;
-			Function.FunctionFlags |= EFunctionFlags.BlueprintEvent;
+			function.FunctionFlags |= EFunctionFlags.Event;
+			function.FunctionFlags |= EFunctionFlags.BlueprintEvent;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintPureSpecifier(UhtSpecifierContext SpecifierContext, StringView? Value)
+		private static void BlueprintPureSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
 
 			// This function can be called, and is also pure.
-			Function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
+			function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
 
-			if (Value == null || UhtFCString.ToBool((StringView)Value))
+			if (value == null || UhtFCString.ToBool((StringView)value))
 			{
-				Function.FunctionFlags |= EFunctionFlags.BlueprintPure;
+				function.FunctionFlags |= EFunctionFlags.BlueprintPure;
 			}
 			else
 			{
-				Function.FunctionExportFlags |= UhtFunctionExportFlags.ForceBlueprintImpure;
+				function.FunctionExportFlags |= UhtFunctionExportFlags.ForceBlueprintImpure;
 			}
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintSetterSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintSetterSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunctionParser Function = (UhtFunctionParser)SpecifierContext.Scope.ScopeType;
+			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
 			{
-				SpecifierContext.MessageSite.LogError("Function cannot be a blueprint event and a blueprint setter.");
+				specifierContext.MessageSite.LogError("Function cannot be a blueprint event and a blueprint setter.");
 			}
 
-			Function.bSawPropertyAccessor = true;
-			Function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
-			Function.MetaData.Add(UhtNames.BlueprintSetter, "");
+			function.SawPropertyAccessor = true;
+			function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
+			function.MetaData.Add(UhtNames.BlueprintSetter, "");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void ClientSpecifier(UhtSpecifierContext SpecifierContext, StringView? Value)
+		private static void ClientSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
-				SpecifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as Client or Server");
+				specifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as Client or Server");
 			}
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Exec))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Exec))
 			{
-				SpecifierContext.MessageSite.LogError("Exec functions cannot be replicated!");
+				specifierContext.MessageSite.LogError("Exec functions cannot be replicated!");
 			}
 
-			Function.FunctionFlags |= EFunctionFlags.Net;
-			Function.FunctionFlags |= EFunctionFlags.NetClient;
+			function.FunctionFlags |= EFunctionFlags.Net;
+			function.FunctionFlags |= EFunctionFlags.NetClient;
 
-			if (Value != null)
+			if (value != null)
 			{
-				Function.CppImplName = ((StringView)Value).ToString();
-			}
-		}
-
-		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void CustomThunkSpecifier(UhtSpecifierContext SpecifierContext)
-		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			Function.FunctionExportFlags |= UhtFunctionExportFlags.CustomThunk;
-		}
-
-		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
-		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void ExecSpecifier(UhtSpecifierContext SpecifierContext)
-		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			Function.FunctionFlags |= EFunctionFlags.Exec;
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
-			{
-				SpecifierContext.MessageSite.LogError("Exec functions cannot be replicated!");
+				function.CppImplName = ((StringView)value).ToString();
 			}
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void NetMulticastSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void CustomThunkSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			function.FunctionExportFlags |= UhtFunctionExportFlags.CustomThunk;
+		}
+
+		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		private static void ExecSpecifier(UhtSpecifierContext specifierContext)
+		{
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			function.FunctionFlags |= EFunctionFlags.Exec;
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
-				SpecifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as Multicast");
+				specifierContext.MessageSite.LogError("Exec functions cannot be replicated!");
+			}
+		}
+
+		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
+		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
+		private static void NetMulticastSpecifier(UhtSpecifierContext specifierContext)
+		{
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
+			{
+				specifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as Multicast");
 			}
 
-			Function.FunctionFlags |= EFunctionFlags.Net;
-			Function.FunctionFlags |= EFunctionFlags.NetMulticast;
+			function.FunctionFlags |= EFunctionFlags.Net;
+			function.FunctionFlags |= EFunctionFlags.NetMulticast;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void ReliableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ReliableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			Function.FunctionFlags |= EFunctionFlags.NetReliable;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			function.FunctionFlags |= EFunctionFlags.NetReliable;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void SealedEventSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void SealedEventSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			Function.FunctionExportFlags |= UhtFunctionExportFlags.SealedEvent;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			function.FunctionExportFlags |= UhtFunctionExportFlags.SealedEvent;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void ServerSpecifier(UhtSpecifierContext SpecifierContext, StringView? Value)
+		private static void ServerSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
-				SpecifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as Client or Server");
+				specifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as Client or Server");
 			}
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Exec))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Exec))
 			{
-				SpecifierContext.MessageSite.LogError("Exec functions cannot be replicated!");
+				specifierContext.MessageSite.LogError("Exec functions cannot be replicated!");
 			}
 
-			Function.FunctionFlags |= EFunctionFlags.Net;
-			Function.FunctionFlags |= EFunctionFlags.NetServer;
+			function.FunctionFlags |= EFunctionFlags.Net;
+			function.FunctionFlags |= EFunctionFlags.NetServer;
 
-			if (Value != null)
+			if (value != null)
 			{
-				Function.CppImplName = ((StringView)Value).ToString();
+				function.CppImplName = ((StringView)value).ToString();
 			}
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalEqualsKeyValuePairList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void ServiceRequestSpecifier(UhtSpecifierContext SpecifierContext, List<KeyValuePair<StringView, StringView>> Value)
+		private static void ServiceRequestSpecifier(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> value)
 		{
-			UhtFunctionParser Function = (UhtFunctionParser)SpecifierContext.Scope.ScopeType;
+			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
-				SpecifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as a ServiceRequest");
+				specifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as a ServiceRequest");
 			}
 
-			Function.FunctionFlags |= EFunctionFlags.Net;
-			Function.FunctionFlags |= EFunctionFlags.NetReliable;
-			Function.FunctionFlags |= EFunctionFlags.NetRequest;
-			Function.FunctionExportFlags |= UhtFunctionExportFlags.CustomThunk;
+			function.FunctionFlags |= EFunctionFlags.Net;
+			function.FunctionFlags |= EFunctionFlags.NetReliable;
+			function.FunctionFlags |= EFunctionFlags.NetRequest;
+			function.FunctionExportFlags |= UhtFunctionExportFlags.CustomThunk;
 
-			ParseNetServiceIdentifiers(SpecifierContext, Value);
+			ParseNetServiceIdentifiers(specifierContext, value);
 
-			if (string.IsNullOrEmpty(Function.EndpointName))
+			if (String.IsNullOrEmpty(function.EndpointName))
 			{
-				SpecifierContext.MessageSite.LogError("ServiceRequest needs to specify an endpoint name");
+				specifierContext.MessageSite.LogError("ServiceRequest needs to specify an endpoint name");
 			}
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalEqualsKeyValuePairList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void ServiceResponseSpecifier(UhtSpecifierContext SpecifierContext, List<KeyValuePair<StringView, StringView>> Value)
+		private static void ServiceResponseSpecifier(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> value)
 		{
-			UhtFunctionParser Function = (UhtFunctionParser)SpecifierContext.Scope.ScopeType;
+			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
-				SpecifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as a ServiceResponse");
+				specifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as a ServiceResponse");
 			}
 
-			Function.FunctionFlags |= EFunctionFlags.Net;
-			Function.FunctionFlags |= EFunctionFlags.NetReliable;
-			Function.FunctionFlags |= EFunctionFlags.NetResponse;
+			function.FunctionFlags |= EFunctionFlags.Net;
+			function.FunctionFlags |= EFunctionFlags.NetReliable;
+			function.FunctionFlags |= EFunctionFlags.NetResponse;
 			//Function.FunctionExportFlags |= EFunctionExportFlags.CustomThunk;
 
-			ParseNetServiceIdentifiers(SpecifierContext, Value);
+			ParseNetServiceIdentifiers(specifierContext, value);
 
-			if (string.IsNullOrEmpty(Function.EndpointName))
+			if (String.IsNullOrEmpty(function.EndpointName))
 			{
-				SpecifierContext.MessageSite.LogError("ServiceResponse needs to specify an endpoint name");
+				specifierContext.MessageSite.LogError("ServiceResponse needs to specify an endpoint name");
 			}
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void UnreliableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void UnreliableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			Function.FunctionExportFlags |= UhtFunctionExportFlags.Unreliable;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			function.FunctionExportFlags |= UhtFunctionExportFlags.Unreliable;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.StringList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void WithValidationSpecifier(UhtSpecifierContext SpecifierContext, List<StringView>? Value)
+		private static void WithValidationSpecifier(UhtSpecifierContext specifierContext, List<StringView>? value)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			Function.FunctionFlags |= EFunctionFlags.NetValidate;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			function.FunctionFlags |= EFunctionFlags.NetValidate;
 
-			if (Value != null && Value.Count > 0)
+			if (value != null && value.Count > 0)
 			{
-				Function.CppValidationImplName = Value[0].ToString();
+				function.CppValidationImplName = value[0].ToString();
 			}
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.None)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void FieldNotifySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void FieldNotifySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction Function = (UhtFunction)SpecifierContext.Scope.ScopeType;
-			Function.FunctionExportFlags |= UhtFunctionExportFlags.FieldNotify;
+			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			function.FunctionExportFlags |= UhtFunctionExportFlags.FieldNotify;
 		}
 
 		[UhtSpecifierValidator(Extends = UhtTableNames.Function)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintProtectedSpecifierValidator(UhtType Type, UhtMetaData MetaData, UhtMetaDataKey Key, StringView Value)
+		private static void BlueprintProtectedSpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
-			UhtFunction Function = (UhtFunction)Type;
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Static))
+			UhtFunction function = (UhtFunction)type;
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Static))
 			{
 				// Given the owning class, locate the class that the owning derives from up to the point of UObject
-				if (Function.Outer is UhtClass OuterClass)
+				if (function.Outer is UhtClass outerClass)
 				{
-					UhtClass? ClassPriorToUObject = OuterClass;
-					for (; ClassPriorToUObject != null; ClassPriorToUObject = ClassPriorToUObject.SuperClass)
+					UhtClass? classPriorToUObject = outerClass;
+					for (; classPriorToUObject != null; classPriorToUObject = classPriorToUObject.SuperClass)
 					{
 						// If our super is UObject, then stop
-						if (ClassPriorToUObject.Super == Type.Session.UObject)
+						if (classPriorToUObject.Super == type.Session.UObject)
 						{
 							break;
 						}
 					}
 
-					if (ClassPriorToUObject != null && ClassPriorToUObject.SourceName == "UBlueprintFunctionLibrary")
+					if (classPriorToUObject != null && classPriorToUObject.SourceName == "UBlueprintFunctionLibrary")
 					{
-						Type.LogError(MetaData.LineNumber, $"'{Key.Name}' doesn't make sense on static method '{Type.SourceName}' in a blueprint function library");
+						type.LogError(metaData.LineNumber, $"'{key.Name}' doesn't make sense on static method '{type.SourceName}' in a blueprint function library");
 					}
 				}
 			}
@@ -379,15 +359,15 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifierValidator(Extends = UhtTableNames.Function)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void CommutativeAssociativeBinaryOperatorSpecifierValidator(UhtType Type, UhtMetaData MetaData, UhtMetaDataKey Key, StringView Value)
+		private static void CommutativeAssociativeBinaryOperatorSpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
-			UhtFunction Function = (UhtFunction)Type;
-			UhtProperty? ReturnProperty = Function.ReturnProperty;
-			ReadOnlyMemory<UhtType> ParameterProperties = Function.ParameterProperties;
+			UhtFunction function = (UhtFunction)type;
+			UhtProperty? returnProperty = function.ReturnProperty;
+			ReadOnlyMemory<UhtType> parameterProperties = function.ParameterProperties;
 
-			if (ReturnProperty == null || ParameterProperties.Length != 2 || !((UhtProperty)ParameterProperties.Span[0]).IsSameType((UhtProperty)ParameterProperties.Span[1]))
+			if (returnProperty == null || parameterProperties.Length != 2 || !((UhtProperty)parameterProperties.Span[0]).IsSameType((UhtProperty)parameterProperties.Span[1]))
 			{
-				Function.LogError("Commutative associative binary operators must have exactly 2 parameters of the same type and a return value.");
+				function.LogError("Commutative associative binary operators must have exactly 2 parameters of the same type and a return value.");
 			}
 		}
 
@@ -395,35 +375,35 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifierValidator(Name = "ExpandEnumAsExecs", Extends = UhtTableNames.Function)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void ExpandsSpecifierValidator(UhtType Type, UhtMetaData MetaData, UhtMetaDataKey Key, StringView Value)
+		private static void ExpandsSpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
 			// multiple entry parsing in the same format as eg SetParam.
-			UhtType? FirstInput = null;
-			foreach (string RawGroup in Value.ToString().Split(','))
+			UhtType? firstInput = null;
+			foreach (string rawGroup in value.ToString().Split(','))
 			{
-				foreach (string Entry in RawGroup.Split('|'))
+				foreach (string entry in rawGroup.Split('|'))
 				{
-					string Trimmed = Entry.Trim();
-					if (string.IsNullOrEmpty(Trimmed))
+					string trimmed = entry.Trim();
+					if (String.IsNullOrEmpty(trimmed))
 					{
 						continue;
 					}
 
-					UhtType? FoundField = Type.FindType(UhtFindOptions.SourceName | UhtFindOptions.SelfOnly | UhtFindOptions.Property, Trimmed, Type);
-					if (FoundField != null)
+					UhtType? foundField = type.FindType(UhtFindOptions.SourceName | UhtFindOptions.SelfOnly | UhtFindOptions.Property, trimmed, type);
+					if (foundField != null)
 					{
-						UhtProperty Property = (UhtProperty)FoundField;
-						if (!Property.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm) &&
-							(!Property.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm) ||
-							 Property.PropertyFlags.HasAnyFlags(EPropertyFlags.ReferenceParm)))
+						UhtProperty property = (UhtProperty)foundField;
+						if (!property.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm) &&
+							(!property.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm) ||
+							 property.PropertyFlags.HasAnyFlags(EPropertyFlags.ReferenceParm)))
 						{
-							if (FirstInput == null)
+							if (firstInput == null)
 							{
-								FirstInput = FoundField;
+								firstInput = foundField;
 							}
 							else
 							{
-								Type.LogError($"Function already specified an ExpandEnumAsExec input '{FirstInput.SourceName}', but '{Trimmed}' is also an input parameter. Only one is permitted.");
+								type.LogError($"Function already specified an ExpandEnumAsExec input '{firstInput.SourceName}', but '{trimmed}' is also an input parameter. Only one is permitted.");
 							}
 						}
 					}
@@ -431,37 +411,37 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
-		private static void ParseNetServiceIdentifiers(UhtSpecifierContext SpecifierContext, List<KeyValuePair<StringView, StringView>> Identifiers)
+		private static void ParseNetServiceIdentifiers(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> identifiers)
 		{
-			IUhtTokenReader TokenReader = SpecifierContext.Scope.TokenReader;
-			UhtFunctionParser Function = (UhtFunctionParser)SpecifierContext.Scope.ScopeType;
+			IUhtTokenReader tokenReader = specifierContext.Scope.TokenReader;
+			UhtFunctionParser function = (UhtFunctionParser)specifierContext.Scope.ScopeType;
 
-			foreach (var KVP in Identifiers)
+			foreach (KeyValuePair<StringView, StringView> kvp in identifiers)
 			{
-				if (KVP.Value.Span.Length > 0)
+				if (kvp.Value.Span.Length > 0)
 				{
-					if (KVP.Key.Span.StartsWith("Id", StringComparison.OrdinalIgnoreCase))
+					if (kvp.Key.Span.StartsWith("Id", StringComparison.OrdinalIgnoreCase))
 					{
-						int Id;
-						if (!int.TryParse(KVP.Value.Span, out Id) || Id <= 0 || Id > UInt16.MaxValue)
+						int id;
+						if (!Int32.TryParse(kvp.Value.Span, out id) || id <= 0 || id > UInt16.MaxValue)
 						{
-							TokenReader.LogError($"Invalid network identifier {KVP.Key} for function");
+							tokenReader.LogError($"Invalid network identifier {kvp.Key} for function");
 						}
 						else
 						{
-							Function.RPCId = (UInt16)Id;
+							function.RPCId = (ushort)id;
 						}
 					}
-					else if (KVP.Key.Span.StartsWith("ResponseId", StringComparison.OrdinalIgnoreCase) || KVP.Key.Span.StartsWith("Priority", StringComparison.OrdinalIgnoreCase))
+					else if (kvp.Key.Span.StartsWith("ResponseId", StringComparison.OrdinalIgnoreCase) || kvp.Key.Span.StartsWith("Priority", StringComparison.OrdinalIgnoreCase))
 					{
-						int Id;
-						if (!int.TryParse(KVP.Value.Span, out Id) || Id <= 0 || Id > UInt16.MaxValue)
+						int id;
+						if (!Int32.TryParse(kvp.Value.Span, out id) || id <= 0 || id > UInt16.MaxValue)
 						{
-							TokenReader.LogError($"Invalid network identifier {KVP.Key} for function");
+							tokenReader.LogError($"Invalid network identifier {kvp.Key} for function");
 						}
 						else
 						{
-							Function.RPCResponseId = (UInt16)Id;
+							function.RPCResponseId = (ushort)id;
 						}
 					}
 					else
@@ -473,13 +453,13 @@ namespace EpicGames.UHT.Parsers
 				// Assume it's an endpoint name
 				else
 				{
-					if (!string.IsNullOrEmpty(Function.EndpointName))
+					if (!String.IsNullOrEmpty(function.EndpointName))
 					{
-						TokenReader.LogError($"Function should not specify multiple endpoints - '{KVP.Key}' found but already using '{Function.EndpointName}'");
+						tokenReader.LogError($"Function should not specify multiple endpoints - '{kvp.Key}' found but already using '{function.EndpointName}'");
 					}
 					else
 					{
-						Function.EndpointName = KVP.Key.ToString();
+						function.EndpointName = kvp.Key.ToString();
 					}
 				}
 			}

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
+using EpicGames.Core;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Tables
 {
@@ -39,7 +39,7 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// If true, this class is a property
 		/// </summary>
-		public bool bIsProperty { get; set; }
+		public bool IsProperty { get; set; }
 	}
 
 	/// <summary>
@@ -50,18 +50,18 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Internal mapping from engine class name to information
 		/// </summary>
-		private readonly Dictionary<StringView, UhtEngineClass> EngineClasses = new Dictionary<StringView, UhtEngineClass>();
+		private readonly Dictionary<StringView, UhtEngineClass> _engineClasses = new Dictionary<StringView, UhtEngineClass>();
 
 		/// <summary>
 		/// Test to see if the given class name is a property
 		/// </summary>
-		/// <param name="Name">Name of the class without the prefix</param>
+		/// <param name="name">Name of the class without the prefix</param>
 		/// <returns>True if the class name is a property.  False if the class name isn't a property or isn't an engine class.</returns>
-		public bool IsValidPropertyTypeName(StringView Name)
+		public bool IsValidPropertyTypeName(StringView name)
 		{
-			if (this.EngineClasses.TryGetValue(Name, out UhtEngineClass EngineClass))
+			if (this._engineClasses.TryGetValue(name, out UhtEngineClass engineClass))
 			{
-				return EngineClass.bIsProperty;
+				return engineClass.IsProperty;
 			}
 			return false;
 		}
@@ -69,14 +69,14 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Add an entry to the table
 		/// </summary>
-		/// <param name="EngineClassAttribute">The located attribute</param>
-		public void OnEngineClassAttribute(UhtEngineClassAttribute EngineClassAttribute)
+		/// <param name="engineClassAttribute">The located attribute</param>
+		public void OnEngineClassAttribute(UhtEngineClassAttribute engineClassAttribute)
 		{
-			if (string.IsNullOrEmpty(EngineClassAttribute.Name))
+			if (String.IsNullOrEmpty(engineClassAttribute.Name))
 			{
 				throw new UhtIceException("EngineClassNames must have a name specified");
 			}
-			this.EngineClasses.Add(EngineClassAttribute.Name, new UhtEngineClass { Name = EngineClassAttribute.Name, bIsProperty = EngineClassAttribute.IsProperty });
+			this._engineClasses.Add(engineClassAttribute.Name, new UhtEngineClass { Name = engineClassAttribute.Name, IsProperty = engineClassAttribute.IsProperty });
 		}
 	}
 }

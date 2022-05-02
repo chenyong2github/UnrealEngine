@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Parsers;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -20,16 +20,16 @@ namespace EpicGames.UHT.Types
 	public class UhtMapProperty : UhtContainerBaseProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "MapProperty"; }
+		public override string EngineClassName => "MapProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "TMap"; }
+		protected override string CppTypeText => "TMap";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "TMAP"; }
+		protected override string PGetMacroText => "TMAP";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Key property
@@ -39,25 +39,25 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="Key">Key property</param>
-		/// <param name="Value">Value property</param>
-		public UhtMapProperty(UhtPropertySettings PropertySettings, UhtProperty Key, UhtProperty Value) : base(PropertySettings, Value)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="key">Key property</param>
+		/// <param name="value">Value property</param>
+		public UhtMapProperty(UhtPropertySettings propertySettings, UhtProperty key, UhtProperty value) : base(propertySettings, value)
 		{
 			// If the creation of the value property set more flags, then copy those flags to ourselves
-			this.PropertyFlags |= Value.PropertyFlags & EPropertyFlags.UObjectWrapper;
+			this.PropertyFlags |= value.PropertyFlags & EPropertyFlags.UObjectWrapper;
 
 			// Make sure the 'UObjectWrapper' flag is maintained so that both 'TMap<TSubclassOf<...>, ...>' and 'TMap<UClass*, TSubclassOf<...>>' works correctly
-			Key.PropertyFlags = (Value.PropertyFlags & ~EPropertyFlags.UObjectWrapper) | (Key.PropertyFlags & EPropertyFlags.UObjectWrapper);
-			Key.DisallowPropertyFlags = ~(EPropertyFlags.ContainsInstancedReference | EPropertyFlags.InstancedReference | EPropertyFlags.UObjectWrapper);
+			key.PropertyFlags = (value.PropertyFlags & ~EPropertyFlags.UObjectWrapper) | (key.PropertyFlags & EPropertyFlags.UObjectWrapper);
+			key.DisallowPropertyFlags = ~(EPropertyFlags.ContainsInstancedReference | EPropertyFlags.InstancedReference | EPropertyFlags.UObjectWrapper);
 
-			this.KeyProperty = Key;
+			this.KeyProperty = key;
 			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef;
 			this.PropertyCaps &= ~(UhtPropertyCaps.CanBeContainerValue | UhtPropertyCaps.CanBeContainerKey);
-			this.PropertyCaps = (this.PropertyCaps & ~(UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn));
+			this.PropertyCaps &= ~(UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn);
 			this.PropertyCaps |= (this.ValueProperty.PropertyCaps & (UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.CanExposeOnSpawn)) &
 				(this.KeyProperty.PropertyCaps & (UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint));
-			this.PropertyFlags = Value.PropertyFlags;
+			this.PropertyFlags = value.PropertyFlags;
 			this.ValueProperty.SourceName = this.SourceName;
 			this.ValueProperty.EngineName = this.EngineName;
 			this.ValueProperty.PropertyFlags &= EPropertyFlags.PropagateToMapValue;
@@ -76,18 +76,18 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase Phase)
+		protected override bool ResolveSelf(UhtResolvePhase phase)
 		{
-			bool bResults = base.ResolveSelf(Phase);
-			switch (Phase)
+			bool results = base.ResolveSelf(phase);
+			switch (phase)
 			{
 				case UhtResolvePhase.Final:
-					this.KeyProperty.Resolve(Phase);
+					this.KeyProperty.Resolve(phase);
 					this.KeyProperty.MetaData.Clear();
 
-					EPropertyFlags NewFlags = ResolveAndReturnNewFlags(this.ValueProperty, Phase);
-					this.PropertyFlags |= NewFlags;
-					this.KeyProperty.PropertyFlags |= NewFlags;
+					EPropertyFlags newFlags = ResolveAndReturnNewFlags(this.ValueProperty, phase);
+					this.PropertyFlags |= newFlags;
+					this.KeyProperty.PropertyFlags |= newFlags;
 					this.MetaData.Add(this.ValueProperty.MetaData);
 					this.ValueProperty.MetaData.Clear();
 					this.ValueProperty.PropertyFlags = this.PropertyFlags & EPropertyFlags.PropagateToMapValue;
@@ -96,14 +96,14 @@ namespace EpicGames.UHT.Types
 					PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(this, this.MetaData, this.ValueProperty);
 					break;
 			}
-			return bResults;
+			return results;
 		}
 
 		/// <inheritdoc/>
-		public override void CollectReferencesInternal(IUhtReferenceCollector Collector, bool bTemplateProperty)
+		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			this.ValueProperty.CollectReferencesInternal(Collector, true);
-			this.KeyProperty.CollectReferencesInternal(Collector, true);
+			this.ValueProperty.CollectReferencesInternal(collector, true);
+			this.KeyProperty.CollectReferencesInternal(collector, true);
 		}
 
 		/// <inheritdoc/>
@@ -115,103 +115,103 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override IEnumerable<UhtType> EnumerateReferencedTypes()
 		{
-			foreach (UhtType Type in this.ValueProperty.EnumerateReferencedTypes())
+			foreach (UhtType type in this.ValueProperty.EnumerateReferencedTypes())
 			{
-				yield return Type;
+				yield return type;
 			}
-			foreach (UhtType Type in this.KeyProperty.EnumerateReferencedTypes())
+			foreach (UhtType type in this.KeyProperty.EnumerateReferencedTypes())
 			{
-				yield return Type;
+				yield return type;
 			}
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				case UhtPropertyTextType.SparseShort:
-					Builder.Append("TMap");
+					builder.Append("TMap");
 					break;
 
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					Builder.AppendFunctionThunkParameterArrayType(this.KeyProperty).Append(',').AppendFunctionThunkParameterArrayType(this.ValueProperty);
+					builder.AppendFunctionThunkParameterArrayType(this.KeyProperty).Append(',').AppendFunctionThunkParameterArrayType(this.ValueProperty);
 					break;
 
 				default:
-					Builder.Append("TMap<").AppendPropertyText(this.KeyProperty, TextType, true);
-					if (Builder[Builder.Length - 1] == '>')
+					builder.Append("TMap<").AppendPropertyText(this.KeyProperty, textType, true);
+					if (builder[^1] == '>')
 					{
 						// if our internal property type is a template class, add a space between the closing brackets b/c VS.NET cannot parse this correctly
-						Builder.Append(' ');
+						builder.Append(' ');
 					}
-					Builder.Append(',').AppendPropertyText(this.ValueProperty, TextType, true);
-					if (Builder[Builder.Length - 1] == '>')
+					builder.Append(',').AppendPropertyText(this.ValueProperty, textType, true);
+					if (builder[^1] == '>')
 					{
 						// if our internal property type is a template class, add a space between the closing brackets b/c VS.NET cannot parse this correctly
-						Builder.Append(' ');
+						builder.Append(' ');
 					}
-					Builder.Append('>');
+					builder.Append('>');
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			Builder.AppendMemberDecl(this.ValueProperty, Context, Name, GetNameSuffix(NameSuffix, "_ValueProp"), Tabs);
-			Builder.AppendMemberDecl(this.KeyProperty, Context, Name, GetNameSuffix(NameSuffix, "_Key_KeyProp"), Tabs);
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FMapPropertyParams");
+			builder.AppendMemberDecl(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ValueProp"), tabs);
+			builder.AppendMemberDecl(this.KeyProperty, context, name, GetNameSuffix(nameSuffix, "_Key_KeyProp"), tabs);
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FMapPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			Builder.AppendMemberDef(this.ValueProperty, Context, Name, GetNameSuffix(NameSuffix, "_ValueProp"), "1", Tabs);
-			Builder.AppendMemberDef(this.KeyProperty, Context, Name, GetNameSuffix(NameSuffix, "_Key_KeyProp"), "0", Tabs);
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FMapPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Map");
-			Builder.Append(this.Allocator == UhtPropertyAllocator.MemoryImage ? "EMapPropertyFlags::UsesMemoryImageAllocator" : "EMapPropertyFlags::None").Append(", ");
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			builder.AppendMemberDef(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ValueProp"), "1", tabs);
+			builder.AppendMemberDef(this.KeyProperty, context, name, GetNameSuffix(nameSuffix, "_Key_KeyProp"), "0", tabs);
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FMapPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Map");
+			builder.Append(this.Allocator == UhtPropertyAllocator.MemoryImage ? "EMapPropertyFlags::UsesMemoryImageAllocator" : "EMapPropertyFlags::None").Append(", ");
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberPtr(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberPtr(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			Builder.AppendMemberPtr(this.ValueProperty, Context, Name, GetNameSuffix(NameSuffix, "_ValueProp"), Tabs);
-			Builder.AppendMemberPtr(this.KeyProperty, Context, Name, GetNameSuffix(NameSuffix, "_Key_KeyProp"), Tabs);
-			base.AppendMemberPtr(Builder, Context, Name, NameSuffix, Tabs);
-			return Builder;
+			builder.AppendMemberPtr(this.ValueProperty, context, name, GetNameSuffix(nameSuffix, "_ValueProp"), tabs);
+			builder.AppendMemberPtr(this.KeyProperty, context, name, GetNameSuffix(nameSuffix, "_Key_KeyProp"), tabs);
+			base.AppendMemberPtr(builder, context, name, nameSuffix, tabs);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override void AppendObjectHashes(StringBuilder Builder, int StartingLength, IUhtPropertyMemberContext Context)
+		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			this.KeyProperty.AppendObjectHashes(Builder, StartingLength, Context);
-			this.ValueProperty.AppendObjectHashes(Builder, StartingLength, Context);
+			this.KeyProperty.AppendObjectHashes(builder, startingLength, context);
+			this.ValueProperty.AppendObjectHashes(builder, startingLength, context);
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			Builder.AppendPropertyText(this, UhtPropertyTextType.Construction).Append("()");
-			return Builder;
+			builder.AppendPropertyText(this, UhtPropertyTextType.Construction).Append("()");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
 			return false;
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			if (Other is UhtMapProperty OtherMap)
+			if (other is UhtMapProperty otherMap)
 			{
-				return this.ValueProperty.IsSameType(OtherMap.ValueProperty) &&
-					this.KeyProperty.IsSameType(OtherMap.KeyProperty);
+				return this.ValueProperty.IsSameType(otherMap.ValueProperty) &&
+					this.KeyProperty.IsSameType(otherMap.KeyProperty);
 			}
 			return false;
 		}
@@ -224,31 +224,31 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override void Validate(UhtStruct OuterStruct, UhtProperty OutermostProperty, UhtValidationOptions Options)
+		public override void Validate(UhtStruct outerStruct, UhtProperty outermostProperty, UhtValidationOptions options)
 		{
-			base.Validate(OuterStruct, OutermostProperty, Options);
-			this.KeyProperty.Validate(OuterStruct, OutermostProperty, Options | UhtValidationOptions.IsKey);
+			base.Validate(outerStruct, outermostProperty, options);
+			this.KeyProperty.Validate(outerStruct, outermostProperty, options | UhtValidationOptions.IsKey);
 		}
 
 		///<inheritdoc/>
-		public override bool ValidateStructPropertyOkForNet(UhtProperty ReferencingProperty)
+		public override bool ValidateStructPropertyOkForNet(UhtProperty referencingProperty)
 		{
 			if (!this.PropertyFlags.HasAnyFlags(EPropertyFlags.RepSkip))
 			{
-				ReferencingProperty.LogError($"Maps are not supported for Replication or RPCs.  Map '{this.SourceName}' in '{this.Outer?.SourceName}'.  Origin '{ReferencingProperty.SourceName}'");
+				referencingProperty.LogError($"Maps are not supported for Replication or RPCs.  Map '{this.SourceName}' in '{this.Outer?.SourceName}'.  Origin '{referencingProperty.SourceName}'");
 				return false;
 			}
 			return true;
 		}
 
 		/// <inheritdoc/>
-		protected override void ValidateFunctionArgument(UhtFunction Function, UhtValidationOptions Options)
+		protected override void ValidateFunctionArgument(UhtFunction function, UhtValidationOptions options)
 		{
-			base.ValidateFunctionArgument(Function, Options);
+			base.ValidateFunctionArgument(function, options);
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
-				if (!Function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest | EFunctionFlags.NetResponse))
+				if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest | EFunctionFlags.NetResponse))
 				{
 					this.LogError("Maps are not supported in an RPC.");
 				}
@@ -258,64 +258,64 @@ namespace EpicGames.UHT.Types
 		#region Keyword
 		[UhtPropertyType(Keyword = "TMap")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static UhtProperty? MapProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? MapProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			using (var TokenContext = new UhtMessageContext("TMap"))
+			using (UhtMessageContext tokenContext = new UhtMessageContext("TMap"))
 			{
-				if (!TokenReader.SkipExpectedType(MatchedToken.Value, PropertySettings.PropertyCategory == UhtPropertyCategory.Member))
+				if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
 				{
 					return null;
 				}
-				TokenReader.Require('<');
+				tokenReader.Require('<');
 
 				// Parse the key type
-				UhtProperty? Key = UhtPropertyParser.ParseTemplateParam(ResolvePhase, PropertySettings, "Key", TokenReader);
-				if (Key == null)
+				UhtProperty? key = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, "Key", tokenReader);
+				if (key == null)
 				{
 					return null;
 				}
 
-				if (!Key.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerKey))
+				if (!key.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerKey))
 				{
-					TokenReader.LogError($"The type \'{Key.GetUserFacingDecl()}\' can not be used as a key in a TMap");
+					tokenReader.LogError($"The type \'{key.GetUserFacingDecl()}\' can not be used as a key in a TMap");
 				}
 
-				if (PropertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
+				if (propertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
 				{
-					TokenReader.LogError("Replicated maps are not supported.");
+					tokenReader.LogError("Replicated maps are not supported.");
 				}
 
-				TokenReader.Require(',');
+				tokenReader.Require(',');
 
 				// Parse the value type
-				UhtProperty? Value = UhtPropertyParser.ParseTemplateParam(ResolvePhase, PropertySettings, "Value", TokenReader);
-				if (Value == null)
+				UhtProperty? value = UhtPropertyParser.ParseTemplateParam(resolvePhase, propertySettings, "Value", tokenReader);
+				if (value == null)
 				{
 					return null;
 				}
 
-				if (!Value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerValue))
+				if (!value.PropertyCaps.HasAnyFlags(UhtPropertyCaps.CanBeContainerValue))
 				{
-					TokenReader.LogError($"The type \'{Value.GetUserFacingDecl()}\' can not be used as a value in a TMap");
+					tokenReader.LogError($"The type \'{value.GetUserFacingDecl()}\' can not be used as a value in a TMap");
 				}
 
-				if (TokenReader.TryOptional(','))
+				if (tokenReader.TryOptional(','))
 				{
-					UhtToken AllocatorToken = TokenReader.GetIdentifier();
-					if (AllocatorToken.IsIdentifier("FMemoryImageSetAllocator"))
+					UhtToken allocatorToken = tokenReader.GetIdentifier();
+					if (allocatorToken.IsIdentifier("FMemoryImageSetAllocator"))
 					{
-						PropertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
+						propertySettings.Allocator = UhtPropertyAllocator.MemoryImage;
 					}
 					else
 					{
-						TokenReader.LogError($"Found '{AllocatorToken.Value}' - explicit allocators are not supported in TMap properties.");
+						tokenReader.LogError($"Found '{allocatorToken.Value}' - explicit allocators are not supported in TMap properties.");
 					}
 				}
-				TokenReader.Require('>');
+				tokenReader.Require('>');
 
 				//@TODO: Prevent sparse delegate types from being used in a container
 
-				return new UhtMapProperty(PropertySettings, Key, Value);
+				return new UhtMapProperty(propertySettings, key, value);
 			}
 		}
 		#endregion

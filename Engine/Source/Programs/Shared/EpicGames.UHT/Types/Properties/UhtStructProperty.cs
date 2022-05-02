@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tables;
-using EpicGames.UHT.Tokenizer;
-using EpicGames.UHT.Utils;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
+using EpicGames.UHT.Tables;
+using EpicGames.UHT.Tokenizer;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Types
 {
@@ -19,16 +19,16 @@ namespace EpicGames.UHT.Types
 	public class UhtStructProperty : UhtProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "StructProperty"; }
+		public override string EngineClassName => "StructProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "invalid"; }
+		protected override string CppTypeText => "invalid";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "STRUCT"; }
+		protected override string PGetMacroText => "STRUCT";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// USTRUCT referenced by the property
@@ -39,14 +39,14 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="ScriptStruct">USTRUCT being referenced</param>
-		public UhtStructProperty(UhtPropertySettings PropertySettings, UhtScriptStruct ScriptStruct) : base(PropertySettings)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="scriptStruct">USTRUCT being referenced</param>
+		public UhtStructProperty(UhtPropertySettings propertySettings, UhtScriptStruct scriptStruct) : base(propertySettings)
 		{
-			this.ScriptStruct = ScriptStruct;
-			this.HeaderFile.AddReferencedHeader(ScriptStruct);
+			this.ScriptStruct = scriptStruct;
+			this.HeaderFile.AddReferencedHeader(scriptStruct);
 			this.PropertyCaps |= UhtPropertyCaps.SupportsRigVM;
-			if (this.ScriptStruct.bHasNoOpConstructor)
+			if (this.ScriptStruct.HasNoOpConstructor)
 			{
 				this.PropertyCaps |= UhtPropertyCaps.RequiresNullConstructorArg;
 			}
@@ -61,10 +61,10 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase Phase)
+		protected override bool ResolveSelf(UhtResolvePhase phase)
 		{
-			bool bResults = base.ResolveSelf(Phase);
-			switch (Phase)
+			bool results = base.ResolveSelf(phase);
+			switch (phase)
 			{
 				case UhtResolvePhase.Final:
 					if (ScanForInstancedReferenced(true))
@@ -73,25 +73,25 @@ namespace EpicGames.UHT.Types
 					}
 					break;
 			}
-			return bResults;
+			return results;
 		}
 
 		/// <inheritdoc/>
-		public override bool ScanForInstancedReferenced(bool bDeepScan)
+		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
-			return this.ScriptStruct.ScanForInstancedReferenced(bDeepScan);
+			return this.ScriptStruct.ScanForInstancedReferenced(deepScan);
 		}
 
 		/// <inheritdoc/>
-		public override void CollectReferencesInternal(IUhtReferenceCollector Collector, bool bTemplateProperty)
+		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			Collector.AddCrossModuleReference(this.ScriptStruct, true);
+			collector.AddCrossModuleReference(this.ScriptStruct, true);
 		}
 
 		/// <inheritdoc/>
 		public override string? GetForwardDeclarations()
 		{
-			return !this.ScriptStruct.bIsCoreType ? $"struct {this.ScriptStruct.SourceName};" : null;
+			return !this.ScriptStruct.IsCoreType ? $"struct {this.ScriptStruct.SourceName};" : null;
 		}
 
 		/// <inheritdoc/>
@@ -101,90 +101,90 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				default:
-					Builder.Append(this.ScriptStruct.SourceName);
+					builder.Append(this.ScriptStruct.SourceName);
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FStructPropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FStructPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FStructPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Struct");
-			AppendMemberDefRef(Builder, Context, this.ScriptStruct, true);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FStructPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Struct");
+			AppendMemberDefRef(builder, context, this.ScriptStruct, true);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override void AppendObjectHashes(StringBuilder Builder, int StartingLength, IUhtPropertyMemberContext Context)
+		public override void AppendObjectHashes(StringBuilder builder, int startingLength, IUhtPropertyMemberContext context)
 		{
-			Builder.AppendObjectHash(StartingLength, this, Context, this.ScriptStruct);
+			builder.AppendObjectHash(startingLength, this, context, this.ScriptStruct);
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			bool bHasNoOpConstructor = this.ScriptStruct.bHasNoOpConstructor;
-			if (bIsInitializer && bHasNoOpConstructor)
+			bool hasNoOpConstructor = this.ScriptStruct.HasNoOpConstructor;
+			if (isInitializer && hasNoOpConstructor)
 			{
-				Builder.Append("ForceInit");
+				builder.Append("ForceInit");
 			}
 			else
 			{
-				Builder.AppendPropertyText(this, UhtPropertyTextType.Construction);
-				if (bHasNoOpConstructor)
+				builder.AppendPropertyText(this, UhtPropertyTextType.Construction);
+				if (hasNoOpConstructor)
 				{
-					Builder.Append("(ForceInit)");
+					builder.Append("(ForceInit)");
 				}
 				else
 				{
-					Builder.Append("()");
+					builder.Append("()");
 				}
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			UhtStructDefaultValue StructDefaultValue;
-			if (!this.Session.TryGetStructDefaultValue(this.ScriptStruct.SourceName, out StructDefaultValue))
+			UhtStructDefaultValue structDefaultValue;
+			if (!this.Session.TryGetStructDefaultValue(this.ScriptStruct.SourceName, out structDefaultValue))
 			{
-				StructDefaultValue = this.Session.DefaultStructDefaultValue;
+				structDefaultValue = this.Session.DefaultStructDefaultValue;
 			}
-			return StructDefaultValue.Delegate(this, DefaultValueReader, InnerDefaultValue);
+			return structDefaultValue.Delegate(this, defaultValueReader, innerDefaultValue);
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			if (Other is UhtStructProperty OtherObject)
+			if (other is UhtStructProperty otherObject)
 			{
-				return this.ScriptStruct == OtherObject.ScriptStruct;
+				return this.ScriptStruct == otherObject.ScriptStruct;
 			}
 			return false;
 		}
 
 		/// <inheritdoc/>
-		protected override void ValidateFunctionArgument(UhtFunction Function, UhtValidationOptions Options)
+		protected override void ValidateFunctionArgument(UhtFunction function, UhtValidationOptions options)
 		{
-			base.ValidateFunctionArgument(Function, Options);
+			base.ValidateFunctionArgument(function, options);
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
-				if (!Function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest | EFunctionFlags.NetResponse))
+				if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest | EFunctionFlags.NetResponse))
 				{
 					this.Session.ValidateScriptStructOkForNet(this, this.ScriptStruct);
 				}
@@ -192,7 +192,7 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		protected override void ValidateMember(UhtStruct Struct, UhtValidationOptions Options)
+		protected override void ValidateMember(UhtStruct structObj, UhtValidationOptions options)
 		{
 			if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.Net))
 			{
@@ -201,50 +201,50 @@ namespace EpicGames.UHT.Types
 		}
 
 		///<inheritdoc/>
-		public override bool ValidateStructPropertyOkForNet(UhtProperty ReferencingProperty)
+		public override bool ValidateStructPropertyOkForNet(UhtProperty referencingProperty)
 		{
-			return ReferencingProperty.Session.ValidateScriptStructOkForNet(ReferencingProperty, this.ScriptStruct);
+			return referencingProperty.Session.ValidateScriptStructOkForNet(referencingProperty, this.ScriptStruct);
 		}
 
 		#region Structure default value sanitizers
 		[UhtStructDefaultValue(Name = "FVector")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static bool VectorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool VectorStructDefaultValue(UhtStructProperty property, IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			string Format = "{0:F6},{1:F6},{2:F6}";
+			const string Format = "{0:F6},{1:F6},{2:F6}";
 
-			DefaultValueReader.Require("FVector");
-			if (DefaultValueReader.TryOptional("::"))
+			defaultValueReader.Require("FVector");
+			if (defaultValueReader.TryOptional("::"))
 			{
-				switch (DefaultValueReader.GetIdentifier().Value.ToString())
+				switch (defaultValueReader.GetIdentifier().Value.ToString())
 				{
 					case "ZeroVector": return true;
-					case "UpVector": InnerDefaultValue.AppendFormat(Format, 0, 0, 1); return true;
-					case "ForwardVector": InnerDefaultValue.AppendFormat(Format, 1, 0, 0); return true;
-					case "RightVector": InnerDefaultValue.AppendFormat(Format, 0, 1, 0); return true;
+					case "UpVector": innerDefaultValue.AppendFormat(Format, 0, 0, 1); return true;
+					case "ForwardVector": innerDefaultValue.AppendFormat(Format, 1, 0, 0); return true;
+					case "RightVector": innerDefaultValue.AppendFormat(Format, 0, 1, 0); return true;
 					default: return false;
 				}
 			}
 			else
 			{
-				DefaultValueReader.Require("(");
-				if (DefaultValueReader.TryOptional("ForceInit"))
+				defaultValueReader.Require("(");
+				if (defaultValueReader.TryOptional("ForceInit"))
 				{
 				}
 				else
 				{
-					double X, Y, Z;
-					X = Y = Z = DefaultValueReader.GetConstDoubleExpression();
-					if (DefaultValueReader.TryOptional(','))
+					double x, y, z;
+					x = y = z = defaultValueReader.GetConstDoubleExpression();
+					if (defaultValueReader.TryOptional(','))
 					{
-						Y = DefaultValueReader.GetConstDoubleExpression();
-						DefaultValueReader.Require(',');
-						Z = DefaultValueReader.GetConstDoubleExpression();
+						y = defaultValueReader.GetConstDoubleExpression();
+						defaultValueReader.Require(',');
+						z = defaultValueReader.GetConstDoubleExpression();
 					}
-					InnerDefaultValue.AppendFormat(Format, X, Y, Z);
+					innerDefaultValue.AppendFormat(Format, x, y, z);
 				}
-				DefaultValueReader.Require(")");
+				defaultValueReader.Require(")");
 				return true;
 			}
 		}
@@ -252,12 +252,12 @@ namespace EpicGames.UHT.Types
 		[UhtStructDefaultValue(Name = "FRotator")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static bool RotatorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool RotatorStructDefaultValue(UhtStructProperty property, IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			DefaultValueReader.Require("FRotator");
-			if (DefaultValueReader.TryOptional("::"))
+			defaultValueReader.Require("FRotator");
+			if (defaultValueReader.TryOptional("::"))
 			{
-				switch (DefaultValueReader.GetIdentifier().Value.ToString())
+				switch (defaultValueReader.GetIdentifier().Value.ToString())
 				{
 					case "ZeroRotator": return true;
 					default: return false;
@@ -265,20 +265,20 @@ namespace EpicGames.UHT.Types
 			}
 			else
 			{
-				DefaultValueReader.Require("(");
-				if (DefaultValueReader.TryOptional("ForceInit"))
+				defaultValueReader.Require("(");
+				if (defaultValueReader.TryOptional("ForceInit"))
 				{
 				}
 				else
 				{
-					double X = DefaultValueReader.GetConstDoubleExpression();
-					DefaultValueReader.Require(',');
-					double Y = DefaultValueReader.GetConstDoubleExpression();
-					DefaultValueReader.Require(',');
-					double Z = DefaultValueReader.GetConstDoubleExpression();
-					InnerDefaultValue.AppendFormat("{0:F6},{1:F6},{2:F6}", X, Y, Z);
+					double x = defaultValueReader.GetConstDoubleExpression();
+					defaultValueReader.Require(',');
+					double y = defaultValueReader.GetConstDoubleExpression();
+					defaultValueReader.Require(',');
+					double z = defaultValueReader.GetConstDoubleExpression();
+					innerDefaultValue.AppendFormat("{0:F6},{1:F6},{2:F6}", x, y, z);
 				}
-				DefaultValueReader.Require(")");
+				defaultValueReader.Require(")");
 				return true;
 			}
 		}
@@ -286,34 +286,34 @@ namespace EpicGames.UHT.Types
 		[UhtStructDefaultValue(Name = "FVector2D")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static bool Vector2DStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool Vector2DStructDefaultValue(UhtStructProperty property, IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			string Format = "(X={0:F3},Y={1:F3})";
+			const string Format = "(X={0:F3},Y={1:F3})";
 
-			DefaultValueReader.Require("FVector2D");
-			if (DefaultValueReader.TryOptional("::"))
+			defaultValueReader.Require("FVector2D");
+			if (defaultValueReader.TryOptional("::"))
 			{
-				switch (DefaultValueReader.GetIdentifier().Value.ToString())
+				switch (defaultValueReader.GetIdentifier().Value.ToString())
 				{
 					case "ZeroVector": return true;
-					case "UnitVector": InnerDefaultValue.AppendFormat(Format, 1.0, 1.0); return true;
+					case "UnitVector": innerDefaultValue.AppendFormat(Format, 1.0, 1.0); return true;
 					default: return false;
 				}
 			}
 			else
 			{
-				DefaultValueReader.Require("(");
-				if (DefaultValueReader.TryOptional("ForceInit"))
+				defaultValueReader.Require("(");
+				if (defaultValueReader.TryOptional("ForceInit"))
 				{
 				}
 				else
 				{
-					double X = DefaultValueReader.GetConstDoubleExpression();
-					DefaultValueReader.Require(',');
-					double Y = DefaultValueReader.GetConstDoubleExpression();
-					InnerDefaultValue.AppendFormat(Format, X, Y);
+					double x = defaultValueReader.GetConstDoubleExpression();
+					defaultValueReader.Require(',');
+					double y = defaultValueReader.GetConstDoubleExpression();
+					innerDefaultValue.AppendFormat(Format, x, y);
 				}
-				DefaultValueReader.Require(")");
+				defaultValueReader.Require(")");
 				return true;
 			}
 		}
@@ -321,47 +321,47 @@ namespace EpicGames.UHT.Types
 		[UhtStructDefaultValue(Name = "FLinearColor")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static bool LinearColorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool LinearColorStructDefaultValue(UhtStructProperty property, IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			string Format = "(R={0:F6},G={1:F6},B={2:F6},A={3:F6})";
+			const string Format = "(R={0:F6},G={1:F6},B={2:F6},A={3:F6})";
 
-			DefaultValueReader.Require("FLinearColor");
-			if (DefaultValueReader.TryOptional("::"))
+			defaultValueReader.Require("FLinearColor");
+			if (defaultValueReader.TryOptional("::"))
 			{
-				switch (DefaultValueReader.GetIdentifier().Value.ToString())
+				switch (defaultValueReader.GetIdentifier().Value.ToString())
 				{
-					case "White": InnerDefaultValue.AppendFormat(Format, 1.0, 1.0, 1.0, 1.0); ; return true;
-					case "Gray": InnerDefaultValue.AppendFormat(Format, 0.5, 0.5, 0.5, 1.0); ; return true;
-					case "Black": InnerDefaultValue.AppendFormat(Format, 0.0, 0.0, 0.0, 1.0); ; return true;
-					case "Transparent": InnerDefaultValue.AppendFormat(Format, 0.0, 0.0, 0.0, 0.0); ; return true;
-					case "Red": InnerDefaultValue.AppendFormat(Format, 1.0, 0.0, 0.0, 1.0); ; return true;
-					case "Green": InnerDefaultValue.AppendFormat(Format, 0.0, 1.0, 0.0, 1.0); ; return true;
-					case "Blue": InnerDefaultValue.AppendFormat(Format, 0.0, 0.0, 1.0, 1.0); ; return true;
-					case "Yellow": InnerDefaultValue.AppendFormat(Format, 1.0, 1.0, 0.0, 1.0); ; return true;
+					case "White": innerDefaultValue.AppendFormat(Format, 1.0, 1.0, 1.0, 1.0); ; return true;
+					case "Gray": innerDefaultValue.AppendFormat(Format, 0.5, 0.5, 0.5, 1.0); ; return true;
+					case "Black": innerDefaultValue.AppendFormat(Format, 0.0, 0.0, 0.0, 1.0); ; return true;
+					case "Transparent": innerDefaultValue.AppendFormat(Format, 0.0, 0.0, 0.0, 0.0); ; return true;
+					case "Red": innerDefaultValue.AppendFormat(Format, 1.0, 0.0, 0.0, 1.0); ; return true;
+					case "Green": innerDefaultValue.AppendFormat(Format, 0.0, 1.0, 0.0, 1.0); ; return true;
+					case "Blue": innerDefaultValue.AppendFormat(Format, 0.0, 0.0, 1.0, 1.0); ; return true;
+					case "Yellow": innerDefaultValue.AppendFormat(Format, 1.0, 1.0, 0.0, 1.0); ; return true;
 					default: return false;
 				}
 			}
 			else
 			{
-				DefaultValueReader.Require("(");
-				if (DefaultValueReader.TryOptional("ForceInit"))
+				defaultValueReader.Require("(");
+				if (defaultValueReader.TryOptional("ForceInit"))
 				{
 				}
 				else
 				{
-					double R = DefaultValueReader.GetConstDoubleExpression();
-					DefaultValueReader.Require(',');
-					double G = DefaultValueReader.GetConstDoubleExpression();
-					DefaultValueReader.Require(',');
-					double B = DefaultValueReader.GetConstDoubleExpression();
-					double A = 1.0;
-					if (DefaultValueReader.TryOptional(','))
+					double r = defaultValueReader.GetConstDoubleExpression();
+					defaultValueReader.Require(',');
+					double g = defaultValueReader.GetConstDoubleExpression();
+					defaultValueReader.Require(',');
+					double b = defaultValueReader.GetConstDoubleExpression();
+					double a = 1.0;
+					if (defaultValueReader.TryOptional(','))
 					{
-						A = DefaultValueReader.GetConstDoubleExpression();
+						a = defaultValueReader.GetConstDoubleExpression();
 					}
-					InnerDefaultValue.AppendFormat(Format, R, G, B, A);
+					innerDefaultValue.AppendFormat(Format, r, g, b, a);
 				}
-				DefaultValueReader.Require(")");
+				defaultValueReader.Require(")");
 				return true;
 			}
 		}
@@ -369,61 +369,60 @@ namespace EpicGames.UHT.Types
 		[UhtStructDefaultValue(Name = "FColor")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static bool ColorStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool ColorStructDefaultValue(UhtStructProperty property, IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			string Format = "(R={0},G={1},B={2},A={3})";
+			const string Format = "(R={0},G={1},B={2},A={3})";
 
-			DefaultValueReader.Require("FColor");
-			if (DefaultValueReader.TryOptional("::"))
+			defaultValueReader.Require("FColor");
+			if (defaultValueReader.TryOptional("::"))
 			{
-				switch (DefaultValueReader.GetIdentifier().Value.ToString())
+				switch (defaultValueReader.GetIdentifier().Value.ToString())
 				{
-					case "White": InnerDefaultValue.AppendFormat(Format, 255, 255, 255, 255); ; return true;
-					case "Black": InnerDefaultValue.AppendFormat(Format, 0, 0, 0, 255); ; return true;
-					case "Red": InnerDefaultValue.AppendFormat(Format, 255, 0, 0, 255); ; return true;
-					case "Green": InnerDefaultValue.AppendFormat(Format, 0, 255, 0, 255); ; return true;
-					case "Blue": InnerDefaultValue.AppendFormat(Format, 0, 0, 255, 255); ; return true;
-					case "Yellow": InnerDefaultValue.AppendFormat(Format, 255, 255, 0, 255); ; return true;
-					case "Cyan": InnerDefaultValue.AppendFormat(Format, 0, 255, 255, 255); ; return true;
-					case "Magenta": InnerDefaultValue.AppendFormat(Format, 255, 0, 255, 255); ; return true;
+					case "White": innerDefaultValue.AppendFormat(Format, 255, 255, 255, 255); ; return true;
+					case "Black": innerDefaultValue.AppendFormat(Format, 0, 0, 0, 255); ; return true;
+					case "Red": innerDefaultValue.AppendFormat(Format, 255, 0, 0, 255); ; return true;
+					case "Green": innerDefaultValue.AppendFormat(Format, 0, 255, 0, 255); ; return true;
+					case "Blue": innerDefaultValue.AppendFormat(Format, 0, 0, 255, 255); ; return true;
+					case "Yellow": innerDefaultValue.AppendFormat(Format, 255, 255, 0, 255); ; return true;
+					case "Cyan": innerDefaultValue.AppendFormat(Format, 0, 255, 255, 255); ; return true;
+					case "Magenta": innerDefaultValue.AppendFormat(Format, 255, 0, 255, 255); ; return true;
 					default: return false;
 				}
 			}
 			else
 			{
-				DefaultValueReader.Require("(");
-				if (DefaultValueReader.TryOptional("ForceInit"))
+				defaultValueReader.Require("(");
+				if (defaultValueReader.TryOptional("ForceInit"))
 				{
 				}
 				else
 				{
-					int R = DefaultValueReader.GetConstIntExpression();
-					DefaultValueReader.Require(',');
-					int G = DefaultValueReader.GetConstIntExpression();
-					DefaultValueReader.Require(',');
-					int B = DefaultValueReader.GetConstIntExpression();
-					int A = 255;
-					if (DefaultValueReader.TryOptional(','))
+					int r = defaultValueReader.GetConstIntExpression();
+					defaultValueReader.Require(',');
+					int g = defaultValueReader.GetConstIntExpression();
+					defaultValueReader.Require(',');
+					int b = defaultValueReader.GetConstIntExpression();
+					int a = 255;
+					if (defaultValueReader.TryOptional(','))
 					{
-						A = DefaultValueReader.GetConstIntExpression();
+						a = defaultValueReader.GetConstIntExpression();
 					}
-					InnerDefaultValue.AppendFormat(Format, R, G, B, A);
+					innerDefaultValue.AppendFormat(Format, r, g, b, a);
 				}
-				DefaultValueReader.Require(")");
+				defaultValueReader.Require(")");
 				return true;
 			}
 		}
 
 		[UhtStructDefaultValue(Options = UhtStructDefaultValueOptions.Default)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static bool DefaultStructDefaultValue(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		private static bool DefaultStructDefaultValue(UhtStructProperty property, IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			DefaultValueReader
-				.Require(Property.ScriptStruct.SourceName)
+			defaultValueReader
+				.Require(property.ScriptStruct.SourceName)
 				.Require('(')
 				.Require(')');
-			InnerDefaultValue.Append("()");
+			innerDefaultValue.Append("()");
 			return true;
 		}
 		#endregion

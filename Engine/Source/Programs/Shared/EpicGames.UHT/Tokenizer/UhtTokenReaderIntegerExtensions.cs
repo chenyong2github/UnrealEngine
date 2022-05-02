@@ -9,9 +9,9 @@ namespace EpicGames.UHT.Tokenizer
 	/// <summary>
 	/// Notification of signed token being parsed
 	/// </summary>
-	/// <param name="Token">Token in question</param>
+	/// <param name="token">Token in question</param>
 	/// <returns>True if the token value is acceptable</returns>
-	public delegate bool UhtParseMergedSignToken(ref UhtToken Token);
+	public delegate bool UhtParseMergedSignToken(ref UhtToken token);
 
 	/// <summary>
 	/// Collection of helper methods to parse integers
@@ -21,156 +21,156 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token as an integer.  If the next token is not an integer, no token is consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Value">The integer value of the token</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="value">The integer value of the token</param>
 		/// <returns>True if the next token was an integer, false if not.</returns>
-		public static bool TryOptionalConstInt(this IUhtTokenReader TokenReader, out int Value)
+		public static bool TryOptionalConstInt(this IUhtTokenReader tokenReader, out int value)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.GetConstInt(out Value))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.GetConstInt(out value))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 				return true;
 			}
-			Value = 0;
+			value = 0;
 			return false;
 		}
 
 		/// <summary>
 		/// Get the next token as an integer.  If the next token is not an integer, an exception is thrown
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
+		/// <param name="tokenReader">Token reader</param>
 		/// <returns>The value of the constant</returns>
-		public static IUhtTokenReader OptionalConstInt(this IUhtTokenReader TokenReader)
+		public static IUhtTokenReader OptionalConstInt(this IUhtTokenReader tokenReader)
 		{
-			TokenReader.TryOptionalConstInt(out int _);
-			return TokenReader;
+			tokenReader.TryOptionalConstInt(out int _);
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Get the next token as an integer.  If the next token is not an integer, an exception is thrown
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the constant</returns>
-		public static IUhtTokenReader RequireConstInt(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static IUhtTokenReader RequireConstInt(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			if (!TokenReader.TryOptionalConstInt(out int _))
+			if (!tokenReader.TryOptionalConstInt(out int _))
 			{
-				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant integer", ExceptionContext);
+				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant integer", exceptionContext);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Get the next token as an integer.  If the next token is not an integer, an exception is thrown
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the constant</returns>
-		public static int GetConstInt(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static int GetConstInt(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			int Value;
-			if (!TokenReader.TryOptionalConstInt(out Value))
+			int value;
+			if (!tokenReader.TryOptionalConstInt(out value))
 			{
-				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant integer", ExceptionContext);
+				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant integer", exceptionContext);
 			}
-			return Value;
+			return value;
 		}
 
 		/// <summary>
 		/// Get the next token as an integer.  If the next token is not an integer, no token is consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Value">The integer value of the token</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="value">The integer value of the token</param>
 		/// <returns>True if the next token was an integer, false if not.</returns>
-		public static bool TryOptionalConstLong(this IUhtTokenReader TokenReader, out long Value)
+		public static bool TryOptionalConstLong(this IUhtTokenReader tokenReader, out long value)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.GetConstLong(out Value))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.GetConstLong(out value))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 				return true;
 			}
-			Value = 0;
+			value = 0;
 			return false;
 		}
 
 		/// <summary>
 		/// Get the next token as an integer.  If the next token is not an integer, an exception is thrown
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
+		/// <param name="tokenReader">Token reader</param>
 		/// <returns>The value of the constant</returns>
-		public static IUhtTokenReader OptionalConstLong(this IUhtTokenReader TokenReader)
+		public static IUhtTokenReader OptionalConstLong(this IUhtTokenReader tokenReader)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
+			ref UhtToken token = ref tokenReader.PeekToken();
 
-			if (Token.GetConstLong(out long _))
+			if (token.GetConstLong(out long _))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Get the next token as an integer.  If the next token is not an integer, an exception is thrown
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the constant</returns>
-		public static IUhtTokenReader RequireConstLong(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static IUhtTokenReader RequireConstLong(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			if (!TokenReader.TryOptionalConstLong(out long _))
+			if (!tokenReader.TryOptionalConstLong(out long _))
 			{
-				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant long integer", ExceptionContext);
+				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant long integer", exceptionContext);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Get the next token as an integer.  If the next token is not an integer, an exception is thrown
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The value of the constant</returns>
-		public static long GetConstLong(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static long GetConstLong(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			long Value;
-			if (!TokenReader.TryOptionalConstLong(out Value))
+			long value;
+			if (!tokenReader.TryOptionalConstLong(out value))
 			{
-				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant long integer", ExceptionContext);
+				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant long integer", exceptionContext);
 			}
-			return Value;
+			return value;
 		}
 
 		/// <summary>
 		/// Helper method to combine any leading sign with the next numeric token
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
-		/// <param name="Delegate">Delegate to invoke with the merged value</param>
+		/// <param name="tokenReader">Source tokens</param>
+		/// <param name="tokenDelegate">Delegate to invoke with the merged value</param>
 		/// <returns>True if the next token was an parsed, false if not.</returns>
-		public static bool TryOptionalLeadingSignConstNumeric(this IUhtTokenReader TokenReader, UhtParseMergedSignToken Delegate)
+		public static bool TryOptionalLeadingSignConstNumeric(this IUhtTokenReader tokenReader, UhtParseMergedSignToken tokenDelegate)
 		{
-			using (var SavedState = new UhtTokenSaveState(TokenReader))
+			using (UhtTokenSaveState savedState = new UhtTokenSaveState(tokenReader))
 			{
 				// Check for a leading sign token
-				char Sign = ' ';
-				UhtToken Token = TokenReader.PeekToken();
-				if (Token.IsSymbol() && Token.Value.Length == 1 && UhtFCString.IsSign(Token.Value.Span[0]))
+				char sign = ' ';
+				UhtToken token = tokenReader.PeekToken();
+				if (token.IsSymbol() && token.Value.Length == 1 && UhtFCString.IsSign(token.Value.Span[0]))
 				{
-					Sign = Token.Value.Span[0];
-					TokenReader.ConsumeToken();
-					Token = TokenReader.PeekToken();
-					if (UhtFCString.IsSign(Token.Value.Span[0]))
+					sign = token.Value.Span[0];
+					tokenReader.ConsumeToken();
+					token = tokenReader.PeekToken();
+					if (UhtFCString.IsSign(token.Value.Span[0]))
 					{
 						return false;
 					}
-					Token.Value = new StringView($"{Sign}{Token.Value}");
+					token.Value = new StringView($"{sign}{token.Value}");
 				}
-				if (Delegate(ref Token))
+				if (tokenDelegate(ref token))
 				{
-					TokenReader.ConsumeToken();
-					SavedState.AbandonState();
+					tokenReader.ConsumeToken();
+					savedState.AbandonState();
 					return true;
 				}
 				return false;
@@ -180,65 +180,65 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next integer.  It also handled [+/-] token followed by an integer.
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
-		/// <param name="Value">The integer value of the token</param>
+		/// <param name="tokenReader">Source tokens</param>
+		/// <param name="value">The integer value of the token</param>
 		/// <returns>True if the next token was an integer, false if not.</returns>
-		public static bool TryOptionalConstIntExpression(this IUhtTokenReader TokenReader, out int Value)
+		public static bool TryOptionalConstIntExpression(this IUhtTokenReader tokenReader, out int value)
 		{
-			int LocalValue = 0;
-			bool Results = TokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken Token) =>
+			int localValue = 0;
+			bool results = tokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken token) =>
 			{
-				return Token.IsConstInt() && Token.GetConstInt(out LocalValue);
+				return token.IsConstInt() && token.GetConstInt(out localValue);
 			});
-			Value = LocalValue;
-			return Results;
+			value = localValue;
+			return results;
 		}
 
 		/// <summary>
 		/// Get the next integer.  It also handled [+/-] token followed by an integer.
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
+		/// <param name="tokenReader">Source tokens</param>
 		/// <returns>The integer value</returns>
-		public static int GetConstIntExpression(this IUhtTokenReader TokenReader)
+		public static int GetConstIntExpression(this IUhtTokenReader tokenReader)
 		{
-			int LocalValue = 0;
-			bool Results = TokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken Token) =>
+			int localValue = 0;
+			bool results = tokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken token) =>
 			{
-				return Token.IsConstInt() && Token.GetConstInt(out LocalValue);
+				return token.IsConstInt() && token.GetConstInt(out localValue);
 			});
-			return LocalValue;
+			return localValue;
 		}
 
 		/// <summary>
 		/// Get the next integer.  It also handled [+/-] token followed by an integer.
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
-		/// <param name="Value">The integer value of the token</param>
+		/// <param name="tokenReader">Source tokens</param>
+		/// <param name="value">The integer value of the token</param>
 		/// <returns>True if the next token was an integer, false if not.</returns>
-		public static bool TryOptionalConstLongExpression(this IUhtTokenReader TokenReader, out long Value)
+		public static bool TryOptionalConstLongExpression(this IUhtTokenReader tokenReader, out long value)
 		{
-			long LocalValue = 0;
-			bool Results = TokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken Token) =>
+			long localValue = 0;
+			bool results = tokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken token) =>
 			{
-				return Token.IsConstInt() && Token.GetConstLong(out LocalValue);
+				return token.IsConstInt() && token.GetConstLong(out localValue);
 			});
-			Value = LocalValue;
-			return Results;
+			value = localValue;
+			return results;
 		}
 
 		/// <summary>
 		/// Get the next long.  It also handled [+/-] token followed by an long.
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
+		/// <param name="tokenReader">Source tokens</param>
 		/// <returns>The long value</returns>
-		public static int GetConstLongExpression(this IUhtTokenReader TokenReader)
+		public static int GetConstLongExpression(this IUhtTokenReader tokenReader)
 		{
-			int LocalValue = 0;
-			bool Results = TokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken Token) =>
+			int localValue = 0;
+			bool results = tokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken token) =>
 			{
-				return Token.IsConstInt() && Token.GetConstInt(out LocalValue);
+				return token.IsConstInt() && token.GetConstInt(out localValue);
 			});
-			return LocalValue;
+			return localValue;
 		}
 	}
 }

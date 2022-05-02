@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Reflection;
 using EpicGames.Core;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System;
-using System.Collections.Generic;
-using System.Reflection;
 
 namespace EpicGames.UHT.Tables
 {
-	
+
 	/// <summary>
 	/// Property type options
 	/// </summary>
@@ -55,35 +55,35 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Test to see if any of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if any of the flags are set</returns>
-		public static bool HasAnyFlags(this UhtPropertyTypeOptions InFlags, UhtPropertyTypeOptions TestFlags)
+		public static bool HasAnyFlags(this UhtPropertyTypeOptions inFlags, UhtPropertyTypeOptions testFlags)
 		{
-			return (InFlags & TestFlags) != 0;
+			return (inFlags & testFlags) != 0;
 		}
 
 		/// <summary>
 		/// Test to see if all of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if all the flags are set</returns>
-		public static bool HasAllFlags(this UhtPropertyTypeOptions InFlags, UhtPropertyTypeOptions TestFlags)
+		public static bool HasAllFlags(this UhtPropertyTypeOptions inFlags, UhtPropertyTypeOptions testFlags)
 		{
-			return (InFlags & TestFlags) == TestFlags;
+			return (inFlags & testFlags) == testFlags;
 		}
 
 		/// <summary>
 		/// Test to see if a specific set of flags have a specific value.
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
-		/// <param name="MatchFlags">Expected value of the tested flags</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
+		/// <param name="matchFlags">Expected value of the tested flags</param>
 		/// <returns>True if the given flags have a specific value.</returns>
-		public static bool HasExactFlags(this UhtPropertyTypeOptions InFlags, UhtPropertyTypeOptions TestFlags, UhtPropertyTypeOptions MatchFlags)
+		public static bool HasExactFlags(this UhtPropertyTypeOptions inFlags, UhtPropertyTypeOptions testFlags, UhtPropertyTypeOptions matchFlags)
 		{
-			return (InFlags & TestFlags) == MatchFlags;
+			return (inFlags & testFlags) == matchFlags;
 		}
 	}
 
@@ -107,12 +107,12 @@ namespace EpicGames.UHT.Tables
 	/// <summary>
 	/// Delegate invoked to resolve a tokenized type into a UHTProperty type
 	/// </summary>
-	/// <param name="ResolvePhase">Specifies if this is being resolved during the parsing phase or the resolution phase.  Type lookups can not happen during the parsing phase</param>
-	/// <param name="PropertySettings">The configuration of the property</param>
-	/// <param name="TokenReader">The token reader containing the type</param>
-	/// <param name="MatchedToken">The token that matched the delegate unless the delegate is the default resolver.</param>
+	/// <param name="resolvePhase">Specifies if this is being resolved during the parsing phase or the resolution phase.  Type lookups can not happen during the parsing phase</param>
+	/// <param name="propertySettings">The configuration of the property</param>
+	/// <param name="tokenReader">The token reader containing the type</param>
+	/// <param name="matchedToken">The token that matched the delegate unless the delegate is the default resolver.</param>
 	/// <returns></returns>
-	public delegate UhtProperty? UhtResolvePropertyDelegate(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken);
+	public delegate UhtProperty? UhtResolvePropertyDelegate(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken);
 
 	/// <summary>
 	/// Property type attribute
@@ -154,9 +154,9 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtPropertyTypeTable
 	{
-		private readonly Dictionary<StringView, UhtPropertyType> CaseSensitive = new Dictionary<StringView, UhtPropertyType>();
-		private readonly Dictionary<StringView, UhtPropertyType> CaseInsensitive = new Dictionary<StringView, UhtPropertyType>(StringViewComparer.OrdinalIgnoreCase);
-		private UhtPropertyType? DefaultInternal = null;
+		private readonly Dictionary<StringView, UhtPropertyType> _caseSensitive = new Dictionary<StringView, UhtPropertyType>();
+		private readonly Dictionary<StringView, UhtPropertyType> _caseInsensitive = new Dictionary<StringView, UhtPropertyType>(StringViewComparer.OrdinalIgnoreCase);
+		private UhtPropertyType? _defaultInternal = null;
 
 		/// <summary>
 		/// Return the default processor
@@ -165,63 +165,63 @@ namespace EpicGames.UHT.Tables
 		{
 			get
 			{
-				if (this.DefaultInternal == null)
+				if (this._defaultInternal == null)
 				{
 					throw new UhtIceException("No property type has been marked as default");
 				}
-				return (UhtPropertyType)this.DefaultInternal;
+				return (UhtPropertyType)this._defaultInternal;
 			}
 		}
 
 		/// <summary>
 		/// Return the property type associated with the given name
 		/// </summary>
-		/// <param name="Name"></param>
-		/// <param name="PropertyType">Property type if matched</param>
+		/// <param name="name"></param>
+		/// <param name="propertyType">Property type if matched</param>
 		/// <returns></returns>
-		public bool TryGet(StringView Name, out UhtPropertyType PropertyType)
+		public bool TryGet(StringView name, out UhtPropertyType propertyType)
 		{
 			return
-				this.CaseSensitive.TryGetValue(Name, out PropertyType) ||
-				this.CaseInsensitive.TryGetValue(Name, out PropertyType);
+				this._caseSensitive.TryGetValue(name, out propertyType) ||
+				this._caseInsensitive.TryGetValue(name, out propertyType);
 		}
 
 		/// <summary>
 		/// Handle a property type attribute
 		/// </summary>
-		/// <param name="MethodInfo">Method info</param>
-		/// <param name="PropertyTypeAttribute">Attribute</param>
+		/// <param name="methodInfo">Method info</param>
+		/// <param name="propertyTypeAttribute">Attribute</param>
 		/// <exception cref="UhtIceException">Thrown if the property type isn't properly defined.</exception>
-		public void OnPropertyTypeAttribute(MethodInfo MethodInfo, UhtPropertyTypeAttribute PropertyTypeAttribute)
+		public void OnPropertyTypeAttribute(MethodInfo methodInfo, UhtPropertyTypeAttribute propertyTypeAttribute)
 		{
-			if (string.IsNullOrEmpty(PropertyTypeAttribute.Keyword) && !PropertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.Default))
+			if (String.IsNullOrEmpty(propertyTypeAttribute.Keyword) && !propertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.Default))
 			{
 				throw new UhtIceException("A property type must have a keyword or be marked as default");
 			}
 
-			UhtPropertyType PropertyType = new UhtPropertyType
+			UhtPropertyType propertyType = new UhtPropertyType
 			{
-				Delegate = (UhtResolvePropertyDelegate)Delegate.CreateDelegate(typeof(UhtResolvePropertyDelegate), MethodInfo),
-				Options = PropertyTypeAttribute.Options,
+				Delegate = (UhtResolvePropertyDelegate)Delegate.CreateDelegate(typeof(UhtResolvePropertyDelegate), methodInfo),
+				Options = propertyTypeAttribute.Options,
 			};
 
-			if (PropertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.Default))
+			if (propertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.Default))
 			{
-				if (this.DefaultInternal != null)
+				if (this._defaultInternal != null)
 				{
 					throw new UhtIceException("Only one property type dispatcher can be marked as default");
 				}
-				this.DefaultInternal = PropertyType;
+				this._defaultInternal = propertyType;
 			}
-			else if (!string.IsNullOrEmpty(PropertyTypeAttribute.Keyword))
+			else if (!String.IsNullOrEmpty(propertyTypeAttribute.Keyword))
 			{
-				if (PropertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.CaseInsensitive))
+				if (propertyTypeAttribute.Options.HasAnyFlags(UhtPropertyTypeOptions.CaseInsensitive))
 				{
-					this.CaseInsensitive.Add(PropertyTypeAttribute.Keyword, PropertyType);
+					this._caseInsensitive.Add(propertyTypeAttribute.Keyword, propertyType);
 				}
 				else
 				{
-					this.CaseSensitive.Add(PropertyTypeAttribute.Keyword, PropertyType);
+					this._caseSensitive.Add(propertyTypeAttribute.Keyword, propertyType);
 				}
 			}
 		}

@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System;
-using System.Text;
 
 namespace EpicGames.UHT.Exporters.CodeGen
 {
-	internal class UhtHeaderCodeGenerator : UhtPackageCodeGenerator
+	class UhtHeaderCodeGenerator : UhtPackageCodeGenerator
 	{
 		#region Define block macro names
 		public const string EventParamsMacroSuffix = "EVENT_PARMS";
@@ -35,396 +35,396 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		#endregion
 
 		public readonly UhtHeaderFile HeaderFile;
-		public string FileId => this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex].FileId;
+		public string FileId => this.HeaderInfos[this.HeaderFile.HeaderFileTypeIndex]._fileId;
 
-		public UhtHeaderCodeGenerator(UhtCodeGenerator CodeGenerator, UhtPackage Package, UhtHeaderFile HeaderFile)
-			: base(CodeGenerator, Package)
+		public UhtHeaderCodeGenerator(UhtCodeGenerator codeGenerator, UhtPackage package, UhtHeaderFile headerFile)
+			: base(codeGenerator, package)
 		{
-			this.HeaderFile = HeaderFile;
+			this.HeaderFile = headerFile;
 		}
 
 		#region Event parameter
-		protected static StringBuilder AppendEventParameter(StringBuilder Builder, UhtFunction Function, string StrippedFunctionName, UhtPropertyTextType TextType, bool bOutputConstructor, int Tabs, string Endl)
+		protected static StringBuilder AppendEventParameter(StringBuilder builder, UhtFunction function, string strippedFunctionName, UhtPropertyTextType textType, bool outputConstructor, int tabs, string endl)
 		{
-			if (!WillExportEventParameters(Function))
+			if (!WillExportEventParameters(function))
 			{
-				return Builder;
+				return builder;
 			}
 
-			string EventParameterStructName = GetEventStructParametersName(Function.Outer, StrippedFunctionName);
+			string eventParameterStructName = GetEventStructParametersName(function.Outer, strippedFunctionName);
 
-			Builder.AppendTabs(Tabs).Append("struct ").Append(EventParameterStructName).Append(Endl);
-			Builder.AppendTabs(Tabs).Append('{').Append(Endl);
+			builder.AppendTabs(tabs).Append("struct ").Append(eventParameterStructName).Append(endl);
+			builder.AppendTabs(tabs).Append('{').Append(endl);
 
-			++Tabs;
-			foreach (UhtProperty Property in Function.Children)
+			++tabs;
+			foreach (UhtProperty property in function.Children)
 			{
-				bool bEmitConst = Property.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm) && Property is UhtObjectProperty;
+				bool emitConst = property.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm) && property is UhtObjectProperty;
 
 				//@TODO: UCREMOVAL: This is awful code duplication to avoid a double-const
 				{
 					//@TODO: bEmitConst will only be true if we have an object, so checking interface here doesn't do anything.
 					// export 'const' for parameters
-					bool bIsConstParam = Property is UhtInterfaceProperty && !Property.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm); //@TODO: This should be const once that flag exists
-					bool bIsOnConstClass = false;
-					if (Property is UhtObjectProperty ObjectProperty)
+					bool isConstParam = property is UhtInterfaceProperty && !property.PropertyFlags.HasAnyFlags(EPropertyFlags.OutParm); //@TODO: This should be const once that flag exists
+					bool isOnConstClass = false;
+					if (property is UhtObjectProperty objectProperty)
 					{
-						bIsOnConstClass = ObjectProperty.Class.ClassFlags.HasAnyFlags(EClassFlags.Const);
+						isOnConstClass = objectProperty.Class.ClassFlags.HasAnyFlags(EClassFlags.Const);
 					}
 
-					if (bIsConstParam || bIsOnConstClass)
+					if (isConstParam || isOnConstClass)
 					{
-						bEmitConst = false; // ExportCppDeclaration will do it for us
+						emitConst = false; // ExportCppDeclaration will do it for us
 					}
 				}
 
-				Builder.AppendTabs(Tabs);
-				if (bEmitConst)
+				builder.AppendTabs(tabs);
+				if (emitConst)
 				{
-					Builder.Append("const ");
+					builder.Append("const ");
 				}
 
-				Builder.AppendFullDecl(Property, TextType, false);
-				Builder.Append(';').Append(Endl);
+				builder.AppendFullDecl(property, textType, false);
+				builder.Append(';').Append(endl);
 			}
 
-			if (bOutputConstructor)
+			if (outputConstructor)
 			{
-				UhtProperty? ReturnProperty = Function.ReturnProperty;
-				if (ReturnProperty != null && ReturnProperty.PropertyCaps.HasAnyFlags(UhtPropertyCaps.RequiresNullConstructorArg))
+				UhtProperty? returnProperty = function.ReturnProperty;
+				if (returnProperty != null && returnProperty.PropertyCaps.HasAnyFlags(UhtPropertyCaps.RequiresNullConstructorArg))
 				{
-					Builder.Append(Endl);
-					Builder.AppendTabs(Tabs).Append("/** Constructor, initializes return property only **/").Append(Endl);
-					Builder.AppendTabs(Tabs).Append(EventParameterStructName).Append("()").Append(Endl);
-					Builder.AppendTabs(Tabs + 1).Append(": ").Append(ReturnProperty.SourceName).Append('(').AppendNullConstructorArg(ReturnProperty, true).Append(')').Append(Endl);
-					Builder.AppendTabs(Tabs).Append('{').Append(Endl);
-					Builder.AppendTabs(Tabs).Append('}').Append(Endl);
+					builder.Append(endl);
+					builder.AppendTabs(tabs).Append("/** Constructor, initializes return property only **/").Append(endl);
+					builder.AppendTabs(tabs).Append(eventParameterStructName).Append("()").Append(endl);
+					builder.AppendTabs(tabs + 1).Append(": ").Append(returnProperty.SourceName).Append('(').AppendNullConstructorArg(returnProperty, true).Append(')').Append(endl);
+					builder.AppendTabs(tabs).Append('{').Append(endl);
+					builder.AppendTabs(tabs).Append('}').Append(endl);
 				}
 			}
-			--Tabs;
+			--tabs;
 
-			Builder.AppendTabs(Tabs).Append("};").Append(Endl);
+			builder.AppendTabs(tabs).Append("};").Append(endl);
 
-			return Builder;
+			return builder;
 		}
 
-		protected static bool WillExportEventParameters(UhtFunction Function)
+		protected static bool WillExportEventParameters(UhtFunction function)
 		{
-			return Function.Children.Count > 0;
+			return function.Children.Count > 0;
 		}
 
-		protected static string GetEventStructParametersName(UhtType? Outer, string FunctionName)
+		protected static string GetEventStructParametersName(UhtType? outer, string functionName)
 		{
-			string OuterName = String.Empty;
-			if (Outer == null)
+			string outerName = String.Empty;
+			if (outer == null)
 			{
 				throw new UhtIceException("Outer type not set on delegate function");
 			}
-			else if (Outer is UhtClass Class)
+			else if (outer is UhtClass classObj)
 			{
-				OuterName = Class.EngineName;
+				outerName = classObj.EngineName;
 			}
-			else if (Outer is UhtHeaderFile)
+			else if (outer is UhtHeaderFile)
 			{
-				string PackageName = Outer.Package.EngineName;
-				OuterName = PackageName.Replace('/', '_');
+				string packageName = outer.Package.EngineName;
+				outerName = packageName.Replace('/', '_');
 			}
 
-			string Result = $"{OuterName}_event{FunctionName}_Parms";
-			if (UhtFCString.IsDigit(Result[0]))
+			string result = $"{outerName}_event{functionName}_Parms";
+			if (UhtFCString.IsDigit(result[0]))
 			{
-				Result = "_" + Result;
+				result = "_" + result;
 			}
-			return Result;
+			return result;
 		}
 		#endregion
 
 		#region Function helper methods
-		protected StringBuilder AppendNativeFunctionHeader(StringBuilder Builder, UhtFunction Function, UhtPropertyTextType TextType, bool bIsDeclaration,
-			string? AlternateFunctionName, string? ExtraParam, UhtFunctionExportFlags ExtraExportFlags, string Endl)
+		protected StringBuilder AppendNativeFunctionHeader(StringBuilder builder, UhtFunction function, UhtPropertyTextType textType, bool isDeclaration,
+			string? alternateFunctionName, string? extraParam, UhtFunctionExportFlags extraExportFlags, string endl)
 		{
-			UhtClass? OuterClass = Function.Outer as UhtClass;
-			UhtFunctionExportFlags ExportFlags = Function.FunctionExportFlags | ExtraExportFlags;
-			bool bIsDelegate = Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate);
-			bool bIsInterface = !bIsDelegate && (OuterClass != null && OuterClass.ClassFlags.HasAnyFlags(EClassFlags.Interface));
-			bool bIsK2Override = Function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent);
+			UhtClass? outerClass = function.Outer as UhtClass;
+			UhtFunctionExportFlags exportFlags = function.FunctionExportFlags | extraExportFlags;
+			bool isDelegate = function.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate);
+			bool isInterface = !isDelegate && (outerClass != null && outerClass.ClassFlags.HasAnyFlags(EClassFlags.Interface));
+			bool isK2Override = function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent);
 
-			if (!bIsDelegate)
+			if (!isDelegate)
 			{
-				Builder.Append('\t');
+				builder.Append('\t');
 			}
 
-			if (bIsDeclaration)
+			if (isDeclaration)
 			{
 				// If the function was marked as 'RequiredAPI', then add the *_API macro prefix.  Note that if the class itself
 				// was marked 'RequiredAPI', this is not needed as C++ will exports all methods automatically.
-				if (TextType != UhtPropertyTextType.EventFunctionArgOrRetVal &&
-					!(OuterClass != null && OuterClass.ClassFlags.HasAnyFlags(EClassFlags.RequiredAPI)) &&
-					ExportFlags.HasAnyFlags(UhtFunctionExportFlags.RequiredAPI))
+				if (textType != UhtPropertyTextType.EventFunctionArgOrRetVal &&
+					!(outerClass != null && outerClass.ClassFlags.HasAnyFlags(EClassFlags.RequiredAPI)) &&
+					exportFlags.HasAnyFlags(UhtFunctionExportFlags.RequiredAPI))
 				{
-					Builder.Append(this.PackageApi);
+					builder.Append(this.PackageApi);
 				}
 
-				if (TextType == UhtPropertyTextType.InterfaceFunctionArgOrRetVal)
+				if (textType == UhtPropertyTextType.InterfaceFunctionArgOrRetVal)
 				{
-					Builder.Append("static ");
+					builder.Append("static ");
 				}
-				else if (bIsK2Override)
+				else if (isK2Override)
 				{
-					Builder.Append("virtual ");
+					builder.Append("virtual ");
 				}
 				// if the owning class is an interface class
-				else if (bIsInterface)
+				else if (isInterface)
 				{
-					Builder.Append("virtual ");
+					builder.Append("virtual ");
 				}
 				// this is not an event, the function is not a static function and the function is not marked final
-				else if (TextType != UhtPropertyTextType.EventFunctionArgOrRetVal && !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Static) && !ExportFlags.HasAnyFlags(UhtFunctionExportFlags.Final))
+				else if (textType != UhtPropertyTextType.EventFunctionArgOrRetVal && !function.FunctionFlags.HasAnyFlags(EFunctionFlags.Static) && !exportFlags.HasAnyFlags(UhtFunctionExportFlags.Final))
 				{
-					Builder.Append("virtual ");
+					builder.Append("virtual ");
 				}
-				else if (ExportFlags.HasAnyFlags(UhtFunctionExportFlags.Inline))
+				else if (exportFlags.HasAnyFlags(UhtFunctionExportFlags.Inline))
 				{
-					Builder.Append("inline ");
+					builder.Append("inline ");
 				}
 			}
 
-			UhtProperty? ReturnProperty = Function.ReturnProperty;
-			if (ReturnProperty != null)
+			UhtProperty? returnProperty = function.ReturnProperty;
+			if (returnProperty != null)
 			{
-				if (ReturnProperty.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
+				if (returnProperty.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
 				{
-					Builder.Append("const ");
+					builder.Append("const ");
 				}
-				Builder.AppendPropertyText(ReturnProperty, TextType);
+				builder.AppendPropertyText(returnProperty, textType);
 			}
 			else
 			{
-				Builder.Append("void");
+				builder.Append("void");
 			}
 
-			Builder.Append(' ');
-			if (!bIsDeclaration && OuterClass != null)
+			builder.Append(' ');
+			if (!isDeclaration && outerClass != null)
 			{
-				Builder.AppendClassSourceNameOrInterfaceName(OuterClass).Append("::");
+				builder.AppendClassSourceNameOrInterfaceName(outerClass).Append("::");
 			}
 
-			if (AlternateFunctionName != null)
+			if (alternateFunctionName != null)
 			{
-				Builder.Append(AlternateFunctionName);
+				builder.Append(alternateFunctionName);
 			}
 			else
 			{
-				switch (TextType)
+				switch (textType)
 				{
 					case UhtPropertyTextType.InterfaceFunctionArgOrRetVal:
-						Builder.Append("Execute_").Append(Function.SourceName);
+						builder.Append("Execute_").Append(function.SourceName);
 						break;
 					case UhtPropertyTextType.EventFunctionArgOrRetVal:
-						Builder.Append(Function.MarshalAndCallName);
+						builder.Append(function.MarshalAndCallName);
 						break;
 					case UhtPropertyTextType.ClassFunctionArgOrRetVal:
-						Builder.Append(Function.CppImplName);
+						builder.Append(function.CppImplName);
 						break;
 					default:
 						throw new UhtIceException("Unexpected type text");
 				}
 			}
 
-			AppendParameters(Builder, Function, TextType, ExtraParam, false);
+			AppendParameters(builder, function, textType, extraParam, false);
 
-			if (TextType != UhtPropertyTextType.InterfaceFunctionArgOrRetVal)
+			if (textType != UhtPropertyTextType.InterfaceFunctionArgOrRetVal)
 			{
-				if (!bIsDelegate && Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Const))
+				if (!isDelegate && function.FunctionFlags.HasAnyFlags(EFunctionFlags.Const))
 				{
-					Builder.Append(" const");
+					builder.Append(" const");
 				}
 
-				if (bIsInterface && bIsDeclaration)
+				if (isInterface && isDeclaration)
 				{
 					// all methods in interface classes are pure virtuals
-					if (bIsK2Override)
+					if (isK2Override)
 					{
 						// For BlueprintNativeEvent methods we emit a stub implementation. This allows Blueprints that implement the interface class to be nativized.
-						Builder.Append(" {");
-						if (ReturnProperty != null)
+						builder.Append(" {");
+						if (returnProperty != null)
 						{
-							if (ReturnProperty is UhtByteProperty ByteProperty && ByteProperty.Enum != null)
+							if (returnProperty is UhtByteProperty byteProperty && byteProperty.Enum != null)
 							{
-								Builder.Append(" return TEnumAsByte<").Append(ByteProperty.Enum.CppType).Append(">(").AppendNullConstructorArg(ReturnProperty, false).Append("); ");
+								builder.Append(" return TEnumAsByte<").Append(byteProperty.Enum.CppType).Append(">(").AppendNullConstructorArg(returnProperty, false).Append("); ");
 							}
 							else
 							{
-								Builder.Append(" return ").AppendNullConstructorArg(ReturnProperty, false).Append("; ");
+								builder.Append(" return ").AppendNullConstructorArg(returnProperty, false).Append("; ");
 							}
 						}
-						Builder.Append('}');
+						builder.Append('}');
 					}
 					else
 					{
-						Builder.Append("=0");
+						builder.Append("=0");
 					}
 				}
 			}
-			Builder.Append(Endl);
+			builder.Append(endl);
 
-			return Builder;
+			return builder;
 		}
 
-		protected static StringBuilder AppendEventFunctionPrologue(StringBuilder Builder, UhtFunction Function, string FunctionName, int Tabs, string Endl)
+		protected static StringBuilder AppendEventFunctionPrologue(StringBuilder builder, UhtFunction function, string functionName, int tabs, string endl)
 		{
-			Builder.AppendTabs(Tabs).Append('{').Append(Endl);
-			if (Function.Children.Count == 0)
+			builder.AppendTabs(tabs).Append('{').Append(endl);
+			if (function.Children.Count == 0)
 			{
-				return Builder;
+				return builder;
 			}
 
-			++Tabs;
+			++tabs;
 
-			string EventParameterStructName = GetEventStructParametersName(Function.Outer, FunctionName);
+			string eventParameterStructName = GetEventStructParametersName(function.Outer, functionName);
 
-			Builder.AppendTabs(Tabs).Append(EventParameterStructName).Append(" Parms;").Append(Endl);
+			builder.AppendTabs(tabs).Append(eventParameterStructName).Append(" Parms;").Append(endl);
 
 			// Declare a parameter struct for this event/delegate and assign the struct members using the values passed into the event/delegate call.
-			foreach (UhtProperty Property in Function.ParameterProperties.Span)
+			foreach (UhtProperty property in function.ParameterProperties.Span)
 			{
-				if (Property.bIsStaticArray)
+				if (property.IsStaticArray)
 				{
-					Builder.AppendTabs(Tabs).Append("FMemory::Memcpy(Parm.")
-						.Append(Property.SourceName).Append(',')
-						.Append(Property.SourceName).Append(",sizeof(Parms.")
-						.Append(Property.SourceName).Append(");").Append(Endl);
+					builder.AppendTabs(tabs).Append("FMemory::Memcpy(Parm.")
+						.Append(property.SourceName).Append(',')
+						.Append(property.SourceName).Append(",sizeof(Parms.")
+						.Append(property.SourceName).Append(");").Append(endl);
 				}
 				else
 				{
-					Builder.AppendTabs(Tabs).Append("Parms.").Append(Property.SourceName).Append('=').Append(Property.SourceName);
-					if (Property is UhtBoolProperty)
+					builder.AppendTabs(tabs).Append("Parms.").Append(property.SourceName).Append('=').Append(property.SourceName);
+					if (property is UhtBoolProperty)
 					{
-						Builder.Append(" ? true : false");
+						builder.Append(" ? true : false");
 					}
-					Builder.Append(';').Append(Endl);
+					builder.Append(';').Append(endl);
 				}
 			}
-			return Builder;
+			return builder;
 		}
 
-		protected static StringBuilder AppendEventFunctionEpilogue(StringBuilder Builder, UhtFunction Function, int Tabs, string Endl)
+		protected static StringBuilder AppendEventFunctionEpilogue(StringBuilder builder, UhtFunction function, int tabs, string endl)
 		{
-			++Tabs;
+			++tabs;
 
 			// Out parm copying.
-			foreach (UhtProperty Property in Function.ParameterProperties.Span)
+			foreach (UhtProperty property in function.ParameterProperties.Span)
 			{
-				if (Property.PropertyFlags.HasExactFlags(EPropertyFlags.ConstParm | EPropertyFlags.OutParm, EPropertyFlags.OutParm))
+				if (property.PropertyFlags.HasExactFlags(EPropertyFlags.ConstParm | EPropertyFlags.OutParm, EPropertyFlags.OutParm))
 				{
-					if (Property.bIsStaticArray)
+					if (property.IsStaticArray)
 					{
-						Builder
-							.AppendTabs(Tabs)
+						builder
+							.AppendTabs(tabs)
 							.Append("FMemory::Memcpy(&")
-							.Append(Property.SourceName)
+							.Append(property.SourceName)
 							.Append(",&Parms.")
-							.Append(Property.SourceName)
+							.Append(property.SourceName)
 							.Append(",sizeof(")
-							.Append(Property.SourceName)
-							.Append("));").Append(Endl);
+							.Append(property.SourceName)
+							.Append("));").Append(endl);
 					}
 					else
 					{
-						Builder
-							.AppendTabs(Tabs)
-							.Append(Property.SourceName)
+						builder
+							.AppendTabs(tabs)
+							.Append(property.SourceName)
 							.Append("=Parms.")
-							.Append(Property.SourceName)
-							.Append(';').Append(Endl);
+							.Append(property.SourceName)
+							.Append(';').Append(endl);
 					}
 				}
 			}
 
 			// Return value.
-			UhtProperty? ReturnProperty = Function.ReturnProperty;
-			if (ReturnProperty != null)
+			UhtProperty? returnProperty = function.ReturnProperty;
+			if (returnProperty != null)
 			{
 				// Make sure uint32 -> bool is supported
-				if (ReturnProperty is UhtBoolProperty)
+				if (returnProperty is UhtBoolProperty)
 				{
-					Builder
-						.AppendTabs(Tabs)
+					builder
+						.AppendTabs(tabs)
 						.Append("return !!Parms.")
-						.Append(ReturnProperty.SourceName)
-						.Append(';').Append(Endl);
+						.Append(returnProperty.SourceName)
+						.Append(';').Append(endl);
 				}
 				else
 				{
-					Builder
-						.AppendTabs(Tabs)
+					builder
+						.AppendTabs(tabs)
 						.Append("return Parms.")
-						.Append(ReturnProperty.SourceName)
-						.Append(';').Append(Endl);
+						.Append(returnProperty.SourceName)
+						.Append(';').Append(endl);
 				}
 			}
 
-			--Tabs;
-			Builder.AppendTabs(Tabs).Append('}').Append(Endl);
-			return Builder;
+			--tabs;
+			builder.AppendTabs(tabs).Append('}').Append(endl);
+			return builder;
 		}
 
-		protected static StringBuilder AppendParameters(StringBuilder Builder, UhtFunction Function, UhtPropertyTextType TextType, string? ExtraParameter, bool bSkipParameterName)
+		protected static StringBuilder AppendParameters(StringBuilder builder, UhtFunction function, UhtPropertyTextType textType, string? extraParameter, bool skipParameterName)
 		{
-			bool bNeedsSeperator = false;
+			bool needsSeperator = false;
 
-			Builder.Append('(');
+			builder.Append('(');
 
-			if (ExtraParameter != null)
+			if (extraParameter != null)
 			{
-				Builder.Append(ExtraParameter);
-				bNeedsSeperator = true;
+				builder.Append(extraParameter);
+				needsSeperator = true;
 			}
 
-			foreach (UhtProperty Parameter in Function.ParameterProperties.Span)
+			foreach (UhtProperty parameter in function.ParameterProperties.Span)
 			{
-				if (bNeedsSeperator)
+				if (needsSeperator)
 				{
-					Builder.Append(", ");
+					builder.Append(", ");
 				}
 				else
 				{
-					bNeedsSeperator = true;
+					needsSeperator = true;
 				}
-				Builder.AppendFullDecl(Parameter, TextType, bSkipParameterName);
+				builder.AppendFullDecl(parameter, textType, skipParameterName);
 			}
 
-			Builder.Append(')');
-			return Builder;
+			builder.Append(')');
+			return builder;
 		}
 
-		protected static bool IsRpcFunction(UhtFunction Function)
+		protected static bool IsRpcFunction(UhtFunction function)
 		{
-			return Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Native) &&
-				!Function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.CustomThunk);
+			return function.FunctionFlags.HasAnyFlags(EFunctionFlags.Native) &&
+				!function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.CustomThunk);
 		}
 
-		protected static bool IsRpcFunction(UhtFunction Function, bool bEditorOnly)
+		protected static bool IsRpcFunction(UhtFunction function, bool editorOnly)
 		{
-			return IsRpcFunction(Function) && Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly) == bEditorOnly;
+			return IsRpcFunction(function) && function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly) == editorOnly;
 		}
 
 		/// <summary>
 		/// Determines whether the glue version of the specified native function should be exported.
 		/// </summary>
-		/// <param name="Function">The function to check</param>
+		/// <param name="function">The function to check</param>
 		/// <returns>True if the glue version of the function should be exported.</returns>
-		protected static bool ShouldExportFunction(UhtFunction Function)
+		protected static bool ShouldExportFunction(UhtFunction function)
 		{
 			// export any script stubs for native functions declared in interface classes
-			bool bIsBlueprintNativeEvent = Function.FunctionFlags.HasAllFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.Native);
-			if (!bIsBlueprintNativeEvent)
+			bool isBlueprintNativeEvent = function.FunctionFlags.HasAllFlags(EFunctionFlags.BlueprintEvent | EFunctionFlags.Native);
+			if (!isBlueprintNativeEvent)
 			{
-				if (Function.Outer != null)
+				if (function.Outer != null)
 				{
-					if (Function.Outer is UhtClass Class)
+					if (function.Outer is UhtClass classObj)
 					{
-						if (Class.ClassFlags.HasAnyFlags(EClassFlags.Interface))
+						if (classObj.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 						{
 							return true;
 						}
@@ -433,16 +433,16 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 
 			// always export if the function is static
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Static))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Static))
 			{
 				return true;
 			}
 
 			// don't export the function if this is not the original declaration and there is
 			// at least one parent version of the function that is declared native
-			for (UhtFunction? ParentFunction = Function.SuperFunction; ParentFunction != null; ParentFunction = ParentFunction.SuperFunction)
+			for (UhtFunction? parentFunction = function.SuperFunction; parentFunction != null; parentFunction = parentFunction.SuperFunction)
 			{
-				if (ParentFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
+				if (parentFunction.FunctionFlags.HasAnyFlags(EFunctionFlags.Native))
 				{
 					return false;
 				}
@@ -450,171 +450,171 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return true;
 		}
 
-		protected static string GetDelegateFunctionExportName(UhtFunction Function)
+		protected static string GetDelegateFunctionExportName(UhtFunction function)
 		{
 			const string DelegatePrefix = "delegate";
 
-			if (!Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate))
+			if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.Delegate))
 			{
 				throw new UhtIceException("Attempt to export a function that isn't a delegate as a delegate");
 			}
-			if (!Function.MarshalAndCallName.StartsWith(DelegatePrefix, StringComparison.Ordinal))
+			if (!function.MarshalAndCallName.StartsWith(DelegatePrefix, StringComparison.Ordinal))
 			{
 				throw new UhtIceException("Marshal and call name must begin with 'delegate'");
 			}
-			return $"F{Function.MarshalAndCallName.Substring(DelegatePrefix.Length)}_DelegateWrapper";
+			return $"F{function.MarshalAndCallName.Substring(DelegatePrefix.Length)}_DelegateWrapper";
 		}
 
-		protected static string GetDelegateFunctionExtraParameter(UhtFunction Function)
+		protected static string GetDelegateFunctionExtraParameter(UhtFunction function)
 		{
-			string ReturnType = Function.FunctionFlags.HasAnyFlags(EFunctionFlags.MulticastDelegate) ? "FMulticastScriptDelegate" : "FScriptDelegate";
-			return $"const {ReturnType}& {Function.SourceName.Substring(1)}";
+			string returnType = function.FunctionFlags.HasAnyFlags(EFunctionFlags.MulticastDelegate) ? "FMulticastScriptDelegate" : "FScriptDelegate";
+			return $"const {returnType}& {function.SourceName.Substring(1)}";
 		}
 		#endregion
 
 		#region Field notify support
-		protected static bool NeedFieldNotifyCodeGen(UhtClass Class)
+		protected static bool NeedFieldNotifyCodeGen(UhtClass classObj)
 		{
-			return 
-				!Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasCustomFieldNotify) &&
-				Class.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasFieldNotify);
+			return
+				!classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasCustomFieldNotify) &&
+				classObj.ClassExportFlags.HasAnyFlags(UhtClassExportFlags.HasFieldNotify);
 		}
 
-		protected static void GetFieldNotifyStats(UhtClass Class, out bool bHasProperties, out bool bHasFunctions, out bool bHasEditorFields, out bool bAllEditorFields)
+		protected static void GetFieldNotifyStats(UhtClass classObj, out bool hasProperties, out bool hasFunctions, out bool hasEditorFields, out bool allEditorFields)
 		{
 			// Scan the children to see what we have
-			bHasProperties = false;
-			bHasFunctions = false;
-			bHasEditorFields = false;
-			bAllEditorFields = true;
-			foreach (UhtType Type in Class.Children)
+			hasProperties = false;
+			hasFunctions = false;
+			hasEditorFields = false;
+			allEditorFields = true;
+			foreach (UhtType type in classObj.Children)
 			{
-				if (Type is UhtProperty Property)
+				if (type is UhtProperty property)
 				{
-					if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify))
+					if (property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify))
 					{
-						bHasProperties = true;
-						bHasEditorFields |= Property.bIsEditorOnlyProperty;
-						bAllEditorFields &= Property.bIsEditorOnlyProperty;
+						hasProperties = true;
+						hasEditorFields |= property.IsEditorOnlyProperty;
+						allEditorFields &= property.IsEditorOnlyProperty;
 					}
 				}
-				else if (Type is UhtFunction Function)
+				else if (type is UhtFunction function)
 				{
-					if (Function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify))
+					if (function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify))
 					{
-						bHasFunctions = true;
-						bHasEditorFields |= Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly);
-						bAllEditorFields &= Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly);
+						hasFunctions = true;
+						hasEditorFields |= function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly);
+						allEditorFields &= function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly);
 					}
 				}
 			}
 
 			// If we have no editor fields, then by definition, all fields can't be editor fields
-			bAllEditorFields &= bHasEditorFields;
+			allEditorFields &= hasEditorFields;
 		}
 
-		protected static StringBuilder AppendFieldNotify(StringBuilder Builder, UhtClass Class,
-			bool bHasProperties, bool bHasFunctions, bool bHasEditorFields, bool bAllEditorFields,
-			bool bIncludeEditorOnlyFields, bool bAppendDefine, Action<StringBuilder, UhtClass, string> AppendAction)
+		protected static StringBuilder AppendFieldNotify(StringBuilder builder, UhtClass classObj,
+			bool hasProperties, bool hasFunctions, bool hasEditorFields, bool allEditorFields,
+			bool includeEditorOnlyFields, bool appendDefine, Action<StringBuilder, UhtClass, string> appendAction)
 		{
-			if (bHasProperties && !bAllEditorFields)
+			if (hasProperties && !allEditorFields)
 			{
-				foreach (UhtType Child in Class.Children)
+				foreach (UhtType child in classObj.Children)
 				{
-					if (Child is UhtProperty Property)
+					if (child is UhtProperty property)
 					{
-						if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify) && !Property.bIsEditorOnlyProperty)
+						if (property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify) && !property.IsEditorOnlyProperty)
 						{
-							AppendAction(Builder, Class, Property.SourceName);
+							appendAction(builder, classObj, property.SourceName);
 						}
 					}
 				}
 			}
 
-			if (bHasFunctions && !bAllEditorFields)
+			if (hasFunctions && !allEditorFields)
 			{
-				foreach (UhtType Child in Class.Children)
+				foreach (UhtType child in classObj.Children)
 				{
-					if (Child is UhtFunction Function)
+					if (child is UhtFunction function)
 					{
-						if (Function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify) && !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
+						if (function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify) && !function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
 						{
-							AppendAction(Builder, Class, Function.CppImplName);
+							appendAction(builder, classObj, function.CppImplName);
 						}
 					}
 				}
 			}
 
-			if (bHasEditorFields && bIncludeEditorOnlyFields)
+			if (hasEditorFields && includeEditorOnlyFields)
 			{
-				if (!bAllEditorFields && bAppendDefine)
+				if (!allEditorFields && appendDefine)
 				{
-					Builder.Append("#if WITH_EDITORONLY_DATA\r\n");
+					builder.Append("#if WITH_EDITORONLY_DATA\r\n");
 				}
 
-				if (bHasProperties)
+				if (hasProperties)
 				{
-					foreach (UhtType Child in Class.Children)
+					foreach (UhtType child in classObj.Children)
 					{
-						if (Child is UhtProperty Property)
+						if (child is UhtProperty property)
 						{
-							if (Property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify) && Property.bIsEditorOnlyProperty)
+							if (property.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.FieldNotify) && property.IsEditorOnlyProperty)
 							{
-								AppendAction(Builder, Class, Property.SourceName);
+								appendAction(builder, classObj, property.SourceName);
 							}
 						}
 					}
 				}
 
-				if (bHasFunctions)
+				if (hasFunctions)
 				{
-					foreach (UhtType Child in Class.Children)
+					foreach (UhtType child in classObj.Children)
 					{
-						if (Child is UhtFunction Function)
+						if (child is UhtFunction function)
 						{
-							if (Function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify) && Function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
+							if (function.FunctionExportFlags.HasAnyFlags(UhtFunctionExportFlags.FieldNotify) && function.FunctionFlags.HasAnyFlags(EFunctionFlags.EditorOnly))
 							{
-								AppendAction(Builder, Class, Function.CppImplName);
+								appendAction(builder, classObj, function.CppImplName);
 							}
 						}
 					}
 				}
 
-				if (!bAllEditorFields && bAppendDefine)
+				if (!allEditorFields && appendDefine)
 				{
-					Builder.Append("#endif // WITH_EDITORONLY_DATA\r\n");
+					builder.Append("#endif // WITH_EDITORONLY_DATA\r\n");
 				}
 			}
-			return Builder;
+			return builder;
 		}
 		#endregion
 	}
 
 	internal static class UhtHaederCodeGeneratorStringBuilderExtensions
 	{
-		public static StringBuilder AppendMacroName(this StringBuilder Builder, string FileId, int LineNumber, string MacroSuffix)
+		public static StringBuilder AppendMacroName(this StringBuilder builder, string fileId, int lineNumber, string macroSuffix)
 		{
-			return Builder.Append(FileId).Append('_').Append(LineNumber).Append('_').Append(MacroSuffix);
+			return builder.Append(fileId).Append('_').Append(lineNumber).Append('_').Append(macroSuffix);
 		}
 
-		public static StringBuilder AppendMacroName(this StringBuilder Builder, UhtHeaderCodeGenerator Generator, int LineNumber, string MacroSuffix)
+		public static StringBuilder AppendMacroName(this StringBuilder builder, UhtHeaderCodeGenerator generator, int lineNumber, string macroSuffix)
 		{
-			return Builder.AppendMacroName(Generator.FileId, LineNumber, MacroSuffix);
+			return builder.AppendMacroName(generator.FileId, lineNumber, macroSuffix);
 		}
 
-		public static StringBuilder AppendMacroName(this StringBuilder Builder, UhtHeaderCodeGenerator Generator, UhtClass Class, string MacroSuffix)
+		public static StringBuilder AppendMacroName(this StringBuilder builder, UhtHeaderCodeGenerator generator, UhtClass classObj, string macroSuffix)
 		{
-			return Builder.AppendMacroName(Generator, Class.GeneratedBodyLineNumber, MacroSuffix);
+			return builder.AppendMacroName(generator, classObj.GeneratedBodyLineNumber, macroSuffix);
 		}
 
-		public static StringBuilder AppendMacroName(this StringBuilder Builder, UhtHeaderCodeGenerator Generator, UhtScriptStruct ScriptStruct, string MacroSuffix)
+		public static StringBuilder AppendMacroName(this StringBuilder builder, UhtHeaderCodeGenerator generator, UhtScriptStruct scriptStruct, string macroSuffix)
 		{
-			return Builder.AppendMacroName(Generator, ScriptStruct.MacroDeclaredLineNumber, MacroSuffix);
+			return builder.AppendMacroName(generator, scriptStruct.MacroDeclaredLineNumber, macroSuffix);
 		}
 
-		public static StringBuilder AppendMacroName(this StringBuilder Builder, UhtHeaderCodeGenerator Generator, UhtFunction Function, string MacroSuffix)
+		public static StringBuilder AppendMacroName(this StringBuilder builder, UhtHeaderCodeGenerator generator, UhtFunction function, string macroSuffix)
 		{
-			return Builder.AppendMacroName(Generator, Function.MacroLineNumber, MacroSuffix);
+			return builder.AppendMacroName(generator, function.MacroLineNumber, macroSuffix);
 		}
 	}
 }

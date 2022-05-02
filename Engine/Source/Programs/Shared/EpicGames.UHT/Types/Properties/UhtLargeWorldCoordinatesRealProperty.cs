@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -16,60 +16,60 @@ namespace EpicGames.UHT.Types
 	public class UhtLargeWorldCoordinatesRealProperty : UhtNumericProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "LargeWorldCoordinatesRealProperty"; }
+		public override string EngineClassName => "LargeWorldCoordinatesRealProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "double"; }
+		protected override string CppTypeText => "double";
 
 		/// <summary>
 		/// Construct new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		public UhtLargeWorldCoordinatesRealProperty(UhtPropertySettings PropertySettings) : base(PropertySettings, UhtPropertyIntType.None)
+		/// <param name="propertySettings">Property settings</param>
+		public UhtLargeWorldCoordinatesRealProperty(UhtPropertySettings propertySettings) : base(propertySettings, UhtPropertyIntType.None)
 		{
 			this.PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FLargeWorldCoordinatesRealPropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FLargeWorldCoordinatesRealPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, 
-				"FLargeWorldCoordinatesRealPropertyParams", 
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs,
+				"FLargeWorldCoordinatesRealPropertyParams",
 				"UECodeGen_Private::EPropertyGenFlags::LargeWorldCoordinatesReal");
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			InnerDefaultValue.AppendFormat("{0:F6}", DefaultValueReader.GetConstFloatExpression());
+			innerDefaultValue.AppendFormat("{0:F6}", defaultValueReader.GetConstFloatExpression());
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			return Other is UhtLargeWorldCoordinatesRealProperty;
+			return other is UhtLargeWorldCoordinatesRealProperty;
 		}
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "FLargeWorldCoordinatesReal", Options = UhtPropertyTypeOptions.Simple | UhtPropertyTypeOptions.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? LargeWorldCoordinatesRealProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? LargeWorldCoordinatesRealProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			if (!PropertySettings.Outer.HeaderFile.bIsNoExportTypes)
+			if (!propertySettings.Outer.HeaderFile.IsNoExportTypes)
 			{
-				TokenReader.LogError("FLargeWorldCoordinatesReal is intended for LWC support only and should not be used outside of NoExportTypes.h");
+				tokenReader.LogError("FLargeWorldCoordinatesReal is intended for LWC support only and should not be used outside of NoExportTypes.h");
 			}
-			return new UhtLargeWorldCoordinatesRealProperty(PropertySettings);
+			return new UhtLargeWorldCoordinatesRealProperty(propertySettings);
 		}
 		#endregion
 	}

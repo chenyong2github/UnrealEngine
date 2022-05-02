@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tables;
-using EpicGames.UHT.Tokenizer;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
+using EpicGames.UHT.Tables;
+using EpicGames.UHT.Tokenizer;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Types
 {
@@ -19,13 +19,13 @@ namespace EpicGames.UHT.Types
 	public abstract class UhtObjectPropertyBase : UhtProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "ObjectPropertyBase"; }
+		public override string EngineClassName => "ObjectPropertyBase";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "Object"; }
+		protected override string CppTypeText => "Object";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "OBJECT"; }
+		protected override string PGetMacroText => "OBJECT";
 
 		/// <summary>
 		/// Referenced UCLASS
@@ -42,20 +42,20 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct a property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="Class">Referenced UCLASS</param>
-		/// <param name="MetaClass">Referenced UCLASS used by class properties</param>
-		protected UhtObjectPropertyBase(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass? MetaClass) : base(PropertySettings)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="classObj">Referenced UCLASS</param>
+		/// <param name="metaClass">Referenced UCLASS used by class properties</param>
+		protected UhtObjectPropertyBase(UhtPropertySettings propertySettings, UhtClass classObj, UhtClass? metaClass) : base(propertySettings)
 		{
-			this.Class = Class;
-			this.MetaClass = MetaClass;
+			this.Class = classObj;
+			this.MetaClass = metaClass;
 
 			// This applies to EVERYTHING including raw pointer
 			// Imply const if it's a parameter that is a pointer to a const class
 			// NOTE: We shouldn't be automatically adding const param because in some cases with functions and blueprint native event, the 
 			// generated code won't match.  For now, just disabled the auto add in that case and check for the error in the validation code.
 			// Otherwise, the user is not warned and they will get compile errors.
-			if (PropertySettings.PropertyCategory != UhtPropertyCategory.Member && this.Class.ClassFlags.HasAnyFlags(EClassFlags.Const) && !PropertySettings.Options.HasAnyFlags(UhtPropertyOptions.NoAutoConst))
+			if (propertySettings.PropertyCategory != UhtPropertyCategory.Member && this.Class.ClassFlags.HasAnyFlags(EClassFlags.Const) && !propertySettings.Options.HasAnyFlags(UhtPropertyOptions.NoAutoConst))
 			{
 				this.PropertyFlags |= EPropertyFlags.ConstParm;
 			}
@@ -68,10 +68,10 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase Phase)
+		protected override bool ResolveSelf(UhtResolvePhase phase)
 		{
-			bool bResults = base.ResolveSelf(Phase);
-			switch (Phase)
+			bool results = base.ResolveSelf(phase);
+			switch (phase)
 			{
 				case UhtResolvePhase.Final:
 					if (this.Class.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced))
@@ -80,20 +80,20 @@ namespace EpicGames.UHT.Types
 					}
 					break;
 			}
-			return bResults;
+			return results;
 		}
 
 		/// <inheritdoc/>
-		public override bool ScanForInstancedReferenced(bool bDeepScan)
+		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
 			return !this.DisallowPropertyFlags.HasAnyFlags(EPropertyFlags.InstancedReference) && this.Class.HierarchyHasAnyClassFlags(EClassFlags.DefaultToInstanced);
 		}
 
 		/// <inheritdoc/>
-		public override void CollectReferencesInternal(IUhtReferenceCollector Collector, bool bTemplateProperty)
+		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			Collector.AddCrossModuleReference(this.Class, false);
-			Collector.AddCrossModuleReference(this.MetaClass, false);
+			collector.AddCrossModuleReference(this.Class, false);
+			collector.AddCrossModuleReference(this.MetaClass, false);
 		}
 
 		/// <inheritdoc/>
@@ -113,14 +113,14 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			int Value;
-			if (DefaultValueReader.TryOptional("NULL") ||
-				DefaultValueReader.TryOptional("nullptr") ||
-				(DefaultValueReader.TryOptionalConstInt(out Value) && Value == 0))
+			int value;
+			if (defaultValueReader.TryOptional("NULL") ||
+				defaultValueReader.TryOptional("nullptr") ||
+				(defaultValueReader.TryOptionalConstInt(out value) && value == 0))
 			{
-				InnerDefaultValue.Append("None");
+				innerDefaultValue.Append("None");
 				return true;
 			}
 			return false;
@@ -134,9 +134,9 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override bool MustBeConstArgument([NotNullWhen(true)] out UhtType? ErrorType)
+		public override bool MustBeConstArgument([NotNullWhen(true)] out UhtType? errorType)
 		{
-			ErrorType = this.Class;
+			errorType = this.Class;
 			return this.Class.ClassFlags.HasAnyFlags(EClassFlags.Const);
 		}
 
@@ -144,138 +144,137 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Parse a template type
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="MatchedToken">Token matched for type</param>
-		/// <param name="bReturnUInterface">If true, return the UInterface instead of the type listed</param>
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="matchedToken">Token matched for type</param>
+		/// <param name="returnUInterface">If true, return the UInterface instead of the type listed</param>
 		/// <returns>Referenced class</returns>
-		public static UhtClass? ParseTemplateObject(UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken, bool bReturnUInterface)
+		public static UhtClass? ParseTemplateObject(UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken, bool returnUInterface)
 		{
-			UhtSession Session = PropertySettings.Outer.Session;
-			if (TokenReader.TryOptional("const"))
+			UhtSession session = propertySettings.Outer.Session;
+			if (tokenReader.TryOptional("const"))
 			{
-				PropertySettings.MetaData.Add(UhtNames.NativeConst, "");
+				propertySettings.MetaData.Add(UhtNames.NativeConst, "");
 			}
-			if (!TokenReader.SkipExpectedType(MatchedToken.Value, PropertySettings.PropertyCategory == UhtPropertyCategory.Member))
+			if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
 			{
 				return null;
 			}
-			bool bIsNativeConstTemplateArg = false;
-			UhtToken Identifier = new UhtToken();
-			TokenReader
+			bool isNativeConstTemplateArg = false;
+			UhtToken identifier = new UhtToken();
+			tokenReader
 				.Require('<')
-				.Optional("const", () => { bIsNativeConstTemplateArg = true; })
+				.Optional("const", () => { isNativeConstTemplateArg = true; })
 				.Optional("class")
-				.RequireIdentifier((ref UhtToken Token) => { Identifier = Token; })
-				.Optional("const", () => { bIsNativeConstTemplateArg = true; })
+				.RequireIdentifier((ref UhtToken token) => { identifier = token; })
+				.Optional("const", () => { isNativeConstTemplateArg = true; })
 				.Require('>');
 
-			if (bIsNativeConstTemplateArg)
+			if (isNativeConstTemplateArg)
 			{
-				PropertySettings.MetaData.Add(UhtNames.NativeConstTemplateArg, "");
+				propertySettings.MetaData.Add(UhtNames.NativeConstTemplateArg, "");
 			}
-			Session.Config!.RedirectTypeIdentifier(ref Identifier);
-			UhtClass? Return = PropertySettings.Outer.FindType(UhtFindOptions.SourceName | UhtFindOptions.Class, ref Identifier, TokenReader) as UhtClass;
-			if (Return != null && Return.AlternateObject != null && bReturnUInterface)
+			session.Config!.RedirectTypeIdentifier(ref identifier);
+			UhtClass? returnClass = propertySettings.Outer.FindType(UhtFindOptions.SourceName | UhtFindOptions.Class, ref identifier, tokenReader) as UhtClass;
+			if (returnClass != null && returnClass.AlternateObject != null && returnUInterface)
 			{
-				Return = Return.AlternateObject as UhtClass;
+				returnClass = returnClass.AlternateObject as UhtClass;
 			}
-			return Return;
+			return returnClass;
 		}
 
 		/// <summary>
 		/// Parse a template type
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="MatchedToken">Token matched for type</param>
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="matchedToken">Token matched for type</param>
 		/// <returns>Referenced class</returns>
-		public static UhtClass? ParseTemplateClass(UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		public static UhtClass? ParseTemplateClass(UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			UhtSession Session = PropertySettings.Outer.Session;
-			UhtToken Identifier = new UhtToken();
+			UhtSession session = propertySettings.Outer.Session;
+			UhtToken identifier = new UhtToken();
 
-			if (TokenReader.TryOptional("const"))
+			if (tokenReader.TryOptional("const"))
 			{
-				PropertySettings.MetaData.Add(UhtNames.NativeConst, "");
+				propertySettings.MetaData.Add(UhtNames.NativeConst, "");
 			}
 
-			TokenReader.Optional("class");
+			tokenReader.Optional("class");
 
-			if (!TokenReader.SkipExpectedType(MatchedToken.Value, PropertySettings.PropertyCategory == UhtPropertyCategory.Member))
+			if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
 			{
 				return null;
 			}
 
-			TokenReader
+			tokenReader
 				.Require('<')
 				.Optional("class")
-				.RequireIdentifier((ref UhtToken Token) => { Identifier = Token; })
+				.RequireIdentifier((ref UhtToken token) => { identifier = token; })
 				.Require('>');
 
-			Session.Config!.RedirectTypeIdentifier(ref Identifier);
-			UhtClass? Return = PropertySettings.Outer.FindType(UhtFindOptions.SourceName | UhtFindOptions.Class, ref Identifier, TokenReader) as UhtClass;
-			if (Return != null && Return.AlternateObject != null)
+			session.Config!.RedirectTypeIdentifier(ref identifier);
+			UhtClass? returnClass = propertySettings.Outer.FindType(UhtFindOptions.SourceName | UhtFindOptions.Class, ref identifier, tokenReader) as UhtClass;
+			if (returnClass != null && returnClass.AlternateObject != null)
 			{
-				Return = Return.AlternateObject as UhtClass;
+				returnClass = returnClass.AlternateObject as UhtClass;
 			}
-			return Return;
+			return returnClass;
 		}
 
 		/// <summary>
 		/// Log point usage warning/error
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="EngineBehavior">Expected behavior for engine types</param>
-		/// <param name="NonEngineBehavior">Expected behavior for non-engine types</param>
-		/// <param name="PointerTypeDesc">Description of the pointer type</param>
-		/// <param name="TokenReader">Token reader for type being parsed</param>
-		/// <param name="TypeStartPos">Starting character position of the type</param>
-		/// <param name="AlternativeTypeDesc">Suggested alternate declaration</param>
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="engineBehavior">Expected behavior for engine types</param>
+		/// <param name="nonEngineBehavior">Expected behavior for non-engine types</param>
+		/// <param name="pointerTypeDesc">Description of the pointer type</param>
+		/// <param name="tokenReader">Token reader for type being parsed</param>
+		/// <param name="typeStartPos">Starting character position of the type</param>
+		/// <param name="alternativeTypeDesc">Suggested alternate declaration</param>
 		/// <exception cref="UhtIceException">Thrown if the behavior type is unexpected</exception>
-		public static void ConditionalLogPointerUsage(UhtPropertySettings PropertySettings, UhtPointerMemberBehavior EngineBehavior, UhtPointerMemberBehavior NonEngineBehavior,
-			string PointerTypeDesc, IUhtTokenReader TokenReader, int TypeStartPos, string? AlternativeTypeDesc)
+		public static void ConditionalLogPointerUsage(UhtPropertySettings propertySettings, UhtPointerMemberBehavior engineBehavior, UhtPointerMemberBehavior nonEngineBehavior,
+			string pointerTypeDesc, IUhtTokenReader tokenReader, int typeStartPos, string? alternativeTypeDesc)
 		{
-			if (PropertySettings.PropertyCategory != UhtPropertyCategory.Member)
+			if (propertySettings.PropertyCategory != UhtPropertyCategory.Member)
 			{
 				return;
 			}
 
-			UhtPackage Package = PropertySettings.Outer.Package;
-			bool bEngineBehavior = Package.bIsPartOfEngine && !Package.bIsPlugin;
-			UhtPointerMemberBehavior Behavior = bEngineBehavior ? EngineBehavior : NonEngineBehavior;
+			UhtPackage package = propertySettings.Outer.Package;
+			UhtPointerMemberBehavior behavior = package.IsPartOfEngine && !package.IsPlugin ? engineBehavior : nonEngineBehavior;
 
-			if (Behavior == UhtPointerMemberBehavior.AllowSilently)
+			if (behavior == UhtPointerMemberBehavior.AllowSilently)
 			{
 				return;
 			}
 
-			string Type = TokenReader.GetStringView(TypeStartPos, TokenReader.InputPos - TypeStartPos).ToString();
-			Type = Type.Replace("\n", " ", StringComparison.Ordinal);
-			Type = Type.Replace("\r", "", StringComparison.Ordinal);
-			Type = Type.Replace("\t", " ", StringComparison.Ordinal);
+			string type = tokenReader.GetStringView(typeStartPos, tokenReader.InputPos - typeStartPos).ToString();
+			type = type.Replace("\n", " ", StringComparison.Ordinal);
+			type = type.Replace("\r", "", StringComparison.Ordinal);
+			type = type.Replace("\t", " ", StringComparison.Ordinal);
 
-			switch (Behavior)
+			switch (behavior)
 			{
 				case UhtPointerMemberBehavior.Disallow:
-					if (!string.IsNullOrEmpty(AlternativeTypeDesc))
+					if (!String.IsNullOrEmpty(alternativeTypeDesc))
 					{
-						TokenReader.LogError($"{PointerTypeDesc} usage in member declaration detected [[[{Type}]]].  This is disallowed for the target/module, consider {AlternativeTypeDesc} as an alternative.");
+						tokenReader.LogError($"{pointerTypeDesc} usage in member declaration detected [[[{type}]]].  This is disallowed for the target/module, consider {alternativeTypeDesc} as an alternative.");
 					}
 					else
 					{
-						TokenReader.LogError($"{PointerTypeDesc} usage in member declaration detected [[[{Type}]]].");
+						tokenReader.LogError($"{pointerTypeDesc} usage in member declaration detected [[[{type}]]].");
 					}
 					break;
 
 				case UhtPointerMemberBehavior.AllowAndLog:
-					if (!string.IsNullOrEmpty(AlternativeTypeDesc))
+					if (!String.IsNullOrEmpty(alternativeTypeDesc))
 					{
-						TokenReader.LogTrace($"{PointerTypeDesc} usage in member declaration detected [[[{Type}]]].  Consider {AlternativeTypeDesc} as an alternative.");
+						tokenReader.LogTrace($"{pointerTypeDesc} usage in member declaration detected [[[{type}]]].  Consider {alternativeTypeDesc} as an alternative.");
 					}
 					else
 					{
-						TokenReader.LogTrace("{PointerTypeDesc} usage in member declaration detected [[[{Type}]]].");
+						tokenReader.LogTrace("{PointerTypeDesc} usage in member declaration detected [[[{Type}]]].");
 					}
 					break;
 

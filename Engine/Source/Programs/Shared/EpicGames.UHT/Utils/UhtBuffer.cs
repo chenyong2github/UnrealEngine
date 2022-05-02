@@ -23,17 +23,17 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Adjustment to the bucket index to account for the minimum bucket size
 		/// </summary>
-		private static readonly int BuckedAdjustment = BitOperations.Log2((uint)UhtBuffer.MinSize);
-		
+		private static readonly int s_buckedAdjustment = BitOperations.Log2((uint)UhtBuffer.MinSize);
+
 		/// <summary>
 		/// Total number of supported buckets
 		/// </summary>
-		private static readonly int BucketCount = 32 - UhtBuffer.BuckedAdjustment;
+		private static readonly int s_bucketCount = 32 - UhtBuffer.s_buckedAdjustment;
 
 		/// <summary>
 		/// Bucket lookaside list
 		/// </summary>
-		private static readonly UhtBuffer?[] LookAsideArray = new UhtBuffer?[UhtBuffer.BucketCount];
+		private static readonly UhtBuffer?[] s_lookAsideArray = new UhtBuffer?[UhtBuffer.s_bucketCount];
 
 		/// <summary>
 		/// The bucket index associated with the buffer
@@ -49,7 +49,8 @@ namespace EpicGames.UHT.Utils
 		/// The backing character block.  The size of the array will normally be larger than the 
 		/// requested size.
 		/// </summary>
-		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:Do not declare visible instance fields", Justification = "")]
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1051:Do not declare visible instance fields", Justification = "<Pending>")]
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "<Pending>")]
 		public char[] Block;
 
 		/// <summary>
@@ -60,113 +61,113 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Construct a new buffer
 		/// </summary>
-		/// <param name="Size">The initial size of the buffer</param>
-		/// <param name="Bucket">The bucket associated with the buffer</param>
-		/// <param name="BucketSize">The size all blocks in this bucket</param>
-		private UhtBuffer(int Size, int Bucket, int BucketSize)
+		/// <param name="size">The initial size of the buffer</param>
+		/// <param name="bucket">The bucket associated with the buffer</param>
+		/// <param name="bucketSize">The size all blocks in this bucket</param>
+		private UhtBuffer(int size, int bucket, int bucketSize)
 		{
-			this.Block = new char[BucketSize];
-			this.Bucket = Bucket;
-			Reset(Size);
+			this.Block = new char[bucketSize];
+			this.Bucket = bucket;
+			Reset(size);
 		}
 
 		/// <summary>
 		/// Reset the memory region to the given size
 		/// </summary>
-		/// <param name="Size"></param>
-		public void Reset(int Size)
+		/// <param name="size"></param>
+		public void Reset(int size)
 		{
-			this.Memory = new Memory<char>(this.Block, 0, Size);
+			this.Memory = new Memory<char>(this.Block, 0, size);
 		}
 
 		/// <summary>
 		/// Borrow a new buffer of the given size
 		/// </summary>
-		/// <param name="Size">Size of the buffer</param>
+		/// <param name="size">Size of the buffer</param>
 		/// <returns>Buffer that should be returned with a call to Return</returns>
-		public static UhtBuffer Borrow(int Size)
+		public static UhtBuffer Borrow(int size)
 		{
-			if (Size <= UhtBuffer.MinSize)
+			if (size <= UhtBuffer.MinSize)
 			{
-				return BorrowInternal(Size, 0, UhtBuffer.MinSize);
+				return BorrowInternal(size, 0, UhtBuffer.MinSize);
 			}
 			else
 			{
 
 				// Round up the size to the next larger power of two if it isn't a power of two
-				uint USize = (uint)Size;
-				--USize;
-				USize |= USize >> 1;
-				USize |= USize >> 2;
-				USize |= USize >> 4;
-				USize |= USize >> 8;
-				USize |= USize >> 16;
-				++USize;
-				int Bucket = BitOperations.Log2(USize) - UhtBuffer.BuckedAdjustment;
-				return BorrowInternal(Size, Bucket, (int)USize);
+				uint usize = (uint)size;
+				--usize;
+				usize |= usize >> 1;
+				usize |= usize >> 2;
+				usize |= usize >> 4;
+				usize |= usize >> 8;
+				usize |= usize >> 16;
+				++usize;
+				int bucket = BitOperations.Log2(usize) - UhtBuffer.s_buckedAdjustment;
+				return BorrowInternal(size, bucket, (int)usize);
 			}
 		}
 
 		/// <summary>
 		/// Return a buffer initialized with the string builder.
 		/// </summary>
-		/// <param name="Builder">Source builder content</param>
+		/// <param name="builder">Source builder content</param>
 		/// <returns>Buffer that should be returned with a call to Return</returns>
-		public static UhtBuffer Borrow(StringBuilder Builder)
+		public static UhtBuffer Borrow(StringBuilder builder)
 		{
-			int Length = Builder.Length;
-			UhtBuffer Buffer = Borrow(Length);
-			Builder.CopyTo(0, Buffer.Memory.Span, Length);
-			return Buffer;
+			int length = builder.Length;
+			UhtBuffer buffer = Borrow(length);
+			builder.CopyTo(0, buffer.Memory.Span, length);
+			return buffer;
 		}
 
 		/// <summary>
 		/// Return a buffer initialized with the string builder sub string.
 		/// </summary>
-		/// <param name="Builder">Source builder content</param>
-		/// <param name="StartIndex">Starting index in the builder</param>
-		/// <param name="Length">Length of the content</param>
+		/// <param name="builder">Source builder content</param>
+		/// <param name="startIndex">Starting index in the builder</param>
+		/// <param name="length">Length of the content</param>
 		/// <returns>Buffer that should be returned with a call to Return</returns>
-		public static UhtBuffer Borrow(StringBuilder Builder, int StartIndex, int Length)
+		public static UhtBuffer Borrow(StringBuilder builder, int startIndex, int length)
 		{
-			UhtBuffer Buffer = Borrow(Length);
-			Builder.CopyTo(StartIndex, Buffer.Memory.Span, Length);
-			return Buffer;
+			UhtBuffer buffer = Borrow(length);
+			builder.CopyTo(startIndex, buffer.Memory.Span, length);
+			return buffer;
 		}
 
 		/// <summary>
 		/// Return the buffer to the cache.  The buffer should no longer be accessed.
 		/// </summary>
-		/// <param name="Buffer">The buffer to be returned.</param>
-		public static void Return(UhtBuffer Buffer)
+		/// <param name="buffer">The buffer to be returned.</param>
+		public static void Return(UhtBuffer buffer)
 		{
-			lock (UhtBuffer.LookAsideArray)
+			lock (UhtBuffer.s_lookAsideArray)
 			{
-				Buffer.NextBuffer = UhtBuffer.LookAsideArray[Buffer.Bucket];
-				UhtBuffer.LookAsideArray[Buffer.Bucket] = Buffer;
+				buffer.NextBuffer = UhtBuffer.s_lookAsideArray[buffer.Bucket];
+				UhtBuffer.s_lookAsideArray[buffer.Bucket] = buffer;
 			}
 		}
 
 		/// <summary>
 		/// Internal helper to allocate a buffer
 		/// </summary>
-		/// <param name="Size">The initial size of the buffer</param>
-		/// <param name="Bucket">The bucket associated with the buffer</param>
-		/// <param name="BucketSize">The size all blocks in this bucket</param>
+		/// <param name="size">The initial size of the buffer</param>
+		/// <param name="bucket">The bucket associated with the buffer</param>
+		/// <param name="bucketSize">The size all blocks in this bucket</param>
 		/// <returns>The allocated buffer</returns>
-		private static UhtBuffer BorrowInternal(int Size, int Bucket, int BucketSize)
+		private static UhtBuffer BorrowInternal(int size, int bucket, int bucketSize)
 		{
-			lock (UhtBuffer.LookAsideArray)
+			lock (UhtBuffer.s_lookAsideArray)
 			{
-				if (UhtBuffer.LookAsideArray[Bucket] != null)
+				if (UhtBuffer.s_lookAsideArray[bucket] != null)
 				{
-					UhtBuffer Buffer = UhtBuffer.LookAsideArray[Bucket]!;
-					UhtBuffer.LookAsideArray[Bucket] = Buffer.NextBuffer;
-					Buffer.Reset(Size);
-					return Buffer;
+					UhtBuffer buffer = UhtBuffer.s_lookAsideArray[bucket]!;
+					UhtBuffer.s_lookAsideArray[bucket] = buffer.NextBuffer;
+					buffer.Reset(size);
+					return buffer;
 				}
 			}
-			return new UhtBuffer(Size, Bucket, BucketSize);
+			return new UhtBuffer(size, bucket, bucketSize);
 		}
 	}
 
@@ -184,30 +185,30 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Borrow a buffer with the given size
 		/// </summary>
-		/// <param name="Size">The size to borrow</param>
-		public UhtBorrowBuffer(int Size)
+		/// <param name="size">The size to borrow</param>
+		public UhtBorrowBuffer(int size)
 		{
-			this.Buffer = UhtBuffer.Borrow(Size);
+			this.Buffer = UhtBuffer.Borrow(size);
 		}
 
 		/// <summary>
 		/// Borrow a buffer populated with the builder contents
 		/// </summary>
-		/// <param name="Builder">Initial contents of the buffer</param>
-		public UhtBorrowBuffer(StringBuilder Builder)
+		/// <param name="builder">Initial contents of the buffer</param>
+		public UhtBorrowBuffer(StringBuilder builder)
 		{
-			this.Buffer = UhtBuffer.Borrow(Builder);
+			this.Buffer = UhtBuffer.Borrow(builder);
 		}
 
 		/// <summary>
 		/// Borrow a buffer populated with the builder contents
 		/// </summary>
-		/// <param name="Builder">Initial contents of the buffer</param>
-		/// <param name="StartIndex">Starting index into the builder</param>
-		/// <param name="Length">Length of the data in the builder</param>
-		public UhtBorrowBuffer(StringBuilder Builder, int StartIndex, int Length)
+		/// <param name="builder">Initial contents of the buffer</param>
+		/// <param name="startIndex">Starting index into the builder</param>
+		/// <param name="length">Length of the data in the builder</param>
+		public UhtBorrowBuffer(StringBuilder builder, int startIndex, int length)
 		{
-			this.Buffer = UhtBuffer.Borrow(Builder, StartIndex, Length);
+			this.Buffer = UhtBuffer.Borrow(builder, startIndex, length);
 		}
 
 		/// <summary>

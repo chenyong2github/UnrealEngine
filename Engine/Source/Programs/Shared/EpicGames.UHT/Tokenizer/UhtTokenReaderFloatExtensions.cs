@@ -13,171 +13,171 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token as a float.  If the next token is not a float, no token is consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Value">The float value of the token</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="value">The float value of the token</param>
 		/// <returns>True if the next token was an float, false if not.</returns>
-		public static bool TryOptionalConstFloat(this IUhtTokenReader TokenReader, out float Value)
+		public static bool TryOptionalConstFloat(this IUhtTokenReader tokenReader, out float value)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsConstFloat() && Token.GetConstFloat(out Value)) // NOTE: This is restricted to only float values
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsConstFloat() && token.GetConstFloat(out value)) // NOTE: This is restricted to only float values
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 				return true;
 			}
-			Value = 0;
+			value = 0;
 			return false;
 		}
 
 		/// <summary>
 		/// Get the next token as a float.  If the next token is not a float, no token is consumed.
 		/// </summary>
-		/// <param name="TokenReader"></param>
+		/// <param name="tokenReader"></param>
 		/// <returns>The token reader</returns>
-		public static IUhtTokenReader OptionalConstFloat(this IUhtTokenReader TokenReader)
+		public static IUhtTokenReader OptionalConstFloat(this IUhtTokenReader tokenReader)
 		{
-			TokenReader.TryOptionalConstFloat(out float _);
-			return TokenReader;
+			tokenReader.TryOptionalConstFloat(out float _);
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Get the next token as a float.  If the next token is not a float, no token is consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Delegate">Delegate to invoke with the float value</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="floatDelegate">Delegate to invoke with the float value</param>
 		/// <returns>The token reader</returns>
-		public static IUhtTokenReader OptionalConstFloat(this IUhtTokenReader TokenReader, UhtTokenConstFloatDelegate Delegate)
+		public static IUhtTokenReader OptionalConstFloat(this IUhtTokenReader tokenReader, UhtTokenConstFloatDelegate floatDelegate)
 		{
-			if (TokenReader.TryOptionalConstFloat(out float Value))
+			if (tokenReader.TryOptionalConstFloat(out float value))
 			{
-				Delegate(Value);
+				floatDelegate(value);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Get the next token as a float.  If the next token is not a float, an exception is thrown
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>True if the next token was an float, false if not.</returns>
-		public static IUhtTokenReader RequireConstFloat(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static IUhtTokenReader RequireConstFloat(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			if (!TokenReader.TryOptionalConstFloat(out float _))
+			if (!tokenReader.TryOptionalConstFloat(out float _))
 			{
-				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant float", ExceptionContext);
+				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant float", exceptionContext);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Get the next token as a float.  If the next token is not a float, an exception is thrown
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">If not null, an exception will be thrown with the given text as part of the message.</param>
 		/// <returns>The floating point value of the token</returns>
-		public static float GetConstFloat(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static float GetConstFloat(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			float Value;
-			if (!TokenReader.TryOptionalConstFloat(out Value))
+			float value;
+			if (!tokenReader.TryOptionalConstFloat(out value))
 			{
-				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant float", ExceptionContext);
+				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant float", exceptionContext);
 			}
-			return Value;
+			return value;
 		}
 
 		/// <summary>
 		/// Get the next float.  It also handles [+/-] token followed by an float.
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
-		/// <param name="Value">The float value of the token</param>
+		/// <param name="tokenReader">Source tokens</param>
+		/// <param name="value">The float value of the token</param>
 		/// <returns>True if the next token was an float, false if not.</returns>
-		public static bool TryOptionalLeadingSignConstFloat(this IUhtTokenReader TokenReader, out float Value)
+		public static bool TryOptionalLeadingSignConstFloat(this IUhtTokenReader tokenReader, out float value)
 		{
-			float LocalValue = 0;
-			bool Results = TokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken Token) =>
+			float localValue = 0;
+			bool results = tokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken token) =>
 			{
-				return (Token.IsConstInt() || Token.IsConstFloat()) && Token.GetConstFloat(out LocalValue);
+				return (token.IsConstInt() || token.IsConstFloat()) && token.GetConstFloat(out localValue);
 			});
-			Value = LocalValue;
-			return Results;
+			value = localValue;
+			return results;
 		}
 
 		/// <summary>
 		/// Get the next float.  It also handles [+/-] token followed by an float.
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
-		/// <param name="Value">The float value of the token</param>
+		/// <param name="tokenReader">Source tokens</param>
+		/// <param name="value">The float value of the token</param>
 		/// <returns>True if the next token was an float, false if not.</returns>
-		public static bool TryOptionalConstFloatExpression(this IUhtTokenReader TokenReader, out float Value)
+		public static bool TryOptionalConstFloatExpression(this IUhtTokenReader tokenReader, out float value)
 		{
-			float LocalValue = 0;
-			bool Results = TokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken Token) =>
+			float localValue = 0;
+			bool results = tokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken token) =>
 			{
-				return (Token.IsConstInt() || Token.IsConstFloat()) && Token.GetConstFloat(out LocalValue);
+				return (token.IsConstInt() || token.IsConstFloat()) && token.GetConstFloat(out localValue);
 			});
-			Value = LocalValue;
-			return Results;
+			value = localValue;
+			return results;
 		}
 
 		/// <summary>
 		/// Get the next float.  It also handles [+/-] token followed by an float.
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
+		/// <param name="tokenReader">Source tokens</param>
 		/// <returns>The double value</returns>
-		public static float GetConstFloatExpression(this IUhtTokenReader TokenReader)
+		public static float GetConstFloatExpression(this IUhtTokenReader tokenReader)
 		{
-			if (!TokenReader.TryOptionalConstFloatExpression(out float LocalValue))
+			if (!tokenReader.TryOptionalConstFloatExpression(out float localValue))
 			{
-				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant float", null);
+				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant float", null);
 			}
-			return LocalValue;
+			return localValue;
 		}
 
 		/// <summary>
 		/// Get the next double.  It also handles [+/-] token followed by an double.
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
-		/// <param name="Value">The double value of the token</param>
+		/// <param name="tokenReader">Source tokens</param>
+		/// <param name="value">The double value of the token</param>
 		/// <returns>True if the next token was an double, false if not.</returns>
-		public static bool TryOptionalConstDoubleExpression(this IUhtTokenReader TokenReader, out double Value)
+		public static bool TryOptionalConstDoubleExpression(this IUhtTokenReader tokenReader, out double value)
 		{
-			double LocalValue = 0;
-			bool Results = TokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken Token) =>
+			double localValue = 0;
+			bool results = tokenReader.TryOptionalLeadingSignConstNumeric((ref UhtToken token) =>
 			{
-				return (Token.IsConstInt() || Token.IsConstFloat()) && Token.GetConstDouble(out LocalValue);
+				return (token.IsConstInt() || token.IsConstFloat()) && token.GetConstDouble(out localValue);
 			});
-			Value = LocalValue;
-			return Results;
+			value = localValue;
+			return results;
 		}
 
 		/// <summary>
 		/// Get the next double.  It also handles [+/-] token followed by an double.
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
-		/// <param name="Delegate">Delegate to invoke if the double is parsed</param>
+		/// <param name="tokenReader">Source tokens</param>
+		/// <param name="doubleDelegate">Delegate to invoke if the double is parsed</param>
 		/// <returns>The supplied token reader</returns>
-		public static IUhtTokenReader RequireConstDoubleExpression(this IUhtTokenReader TokenReader, UhtTokenConstDoubleDelegate Delegate)
+		public static IUhtTokenReader RequireConstDoubleExpression(this IUhtTokenReader tokenReader, UhtTokenConstDoubleDelegate doubleDelegate)
 		{
-			if (!TokenReader.TryOptionalConstDoubleExpression(out double LocalValue))
+			if (!tokenReader.TryOptionalConstDoubleExpression(out double localValue))
 			{
-				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant double", null);
+				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant double", null);
 			}
-			Delegate(LocalValue);
-			return TokenReader;
+			doubleDelegate(localValue);
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Get the next double.  It also handles [+/-] token followed by an double.
 		/// </summary>
-		/// <param name="TokenReader">Source tokens</param>
+		/// <param name="tokenReader">Source tokens</param>
 		/// <returns>The double value</returns>
-		public static double GetConstDoubleExpression(this IUhtTokenReader TokenReader)
+		public static double GetConstDoubleExpression(this IUhtTokenReader tokenReader)
 		{
-			if (!TokenReader.TryOptionalConstDoubleExpression(out double LocalValue))
+			if (!tokenReader.TryOptionalConstDoubleExpression(out double localValue))
 			{
-				throw new UhtTokenException(TokenReader, TokenReader.PeekToken(), "constant double", null);
+				throw new UhtTokenException(tokenReader, tokenReader.PeekToken(), "constant double", null);
 			}
-			return LocalValue;
+			return localValue;
 		}
 	}
 }

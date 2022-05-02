@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Utils;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -15,69 +15,69 @@ namespace EpicGames.UHT.Types
 	public class UhtClassPtrProperty : UhtClassProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "ClassPtrProperty"; }
+		public override string EngineClassName => "ClassPtrProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "ObjectPtr"; }
+		protected override string CppTypeText => "ObjectPtr";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "OBJECTPTR"; }
+		protected override string PGetMacroText => "OBJECTPTR";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Construct a new property
 		/// </summary>
-		/// <param name="PropertySettings"></param>
-		/// <param name="Class">Referenced class</param>
-		/// <param name="MetaClass">Meta data class</param>
-		/// <param name="ExtraFlags">Extra property flags to apply to the property</param>
-		public UhtClassPtrProperty(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass MetaClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
-			: base(PropertySettings, Class, MetaClass)
+		/// <param name="propertySettings"></param>
+		/// <param name="classObj">Referenced class</param>
+		/// <param name="metaClass">Meta data class</param>
+		/// <param name="extraFlags">Extra property flags to apply to the property</param>
+		public UhtClassPtrProperty(UhtPropertySettings propertySettings, UhtClass classObj, UhtClass metaClass, EPropertyFlags extraFlags = EPropertyFlags.None)
+			: base(propertySettings, classObj, metaClass)
 		{
-			this.PropertyFlags |= ExtraFlags | EPropertyFlags.UObjectWrapper;
+			this.PropertyFlags |= extraFlags | EPropertyFlags.UObjectWrapper;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				default:
-					Builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
+					builder.Append("TObjectPtr<").Append(this.Class.SourceName).Append('>');
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FClassPtrPropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FClassPtrPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FClassPtrPropertyParams", 
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FClassPtrPropertyParams",
 				"UECodeGen_Private::EPropertyGenFlags::Class | UECodeGen_Private::EPropertyGenFlags::ObjectPtr");
-			AppendMemberDefRef(Builder, Context, this.Class, false);
-			AppendMemberDefRef(Builder, Context, this.MetaClass, false);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefRef(builder, context, this.Class, false);
+			AppendMemberDefRef(builder, context, this.MetaClass, false);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override void Validate(UhtStruct OuterStruct, UhtProperty OutermostProperty, UhtValidationOptions Options)
+		public override void Validate(UhtStruct outerStruct, UhtProperty outermostProperty, UhtValidationOptions options)
 		{
-			base.Validate(OuterStruct, OutermostProperty, Options);
+			base.Validate(outerStruct, outermostProperty, options);
 
 			// UFunctions with a smart pointer as input parameter wont compile anyway, because of missing P_GET_... macro.
 			// UFunctions with a smart pointer as return type will crash when called via blueprint, because they are not supported in VM.
 			if (this.PropertyCategory == UhtPropertyCategory.RegularParameter || this.PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
 			{
-				OuterStruct.LogError("UFunctions cannot take a TObjectPtr as a parameter.");
+				outerStruct.LogError("UFunctions cannot take a TObjectPtr as a parameter.");
 			}
 		}
 	}

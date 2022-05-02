@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Tables;
-using EpicGames.UHT.Tokenizer;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading;
+using EpicGames.UHT.Tables;
+using EpicGames.UHT.Tokenizer;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Types
 {
@@ -78,16 +78,16 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Get the name of the type where shared distinctions aren't made between different class and function types.
 		/// </summary>
-		/// <param name="EngineType">The engine type in question</param>
+		/// <param name="engineType">The engine type in question</param>
 		/// <returns>Lowercase name</returns>
 		/// <exception cref="UhtIceException">If the requested type isn't supported</exception>
-		public static string ShortLowercaseText(this UhtEngineType EngineType)
+		public static string ShortLowercaseText(this UhtEngineType engineType)
 		{
-			switch (EngineType)
+			switch (engineType)
 			{
 				case UhtEngineType.Header: return "header";
 				case UhtEngineType.Package: return "package";
-				case UhtEngineType.Class: 
+				case UhtEngineType.Class:
 				case UhtEngineType.Interface:
 				case UhtEngineType.NativeInterface: return "class";
 				case UhtEngineType.ScriptStruct: return "struct";
@@ -103,12 +103,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Get the name of the type where shared distinctions aren't made between different class and function types.
 		/// </summary>
-		/// <param name="EngineType">The engine type in question</param>
+		/// <param name="engineType">The engine type in question</param>
 		/// <returns>Capitalized name</returns>
 		/// <exception cref="UhtIceException">If the requested type isn't supported</exception>
-		public static string ShortCapitalizedText(this UhtEngineType EngineType)
+		public static string ShortCapitalizedText(this UhtEngineType engineType)
 		{
-			switch (EngineType)
+			switch (engineType)
 			{
 				case UhtEngineType.Header: return "Header";
 				case UhtEngineType.Package: return "Package";
@@ -128,12 +128,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Get the name of the type
 		/// </summary>
-		/// <param name="EngineType">The engine type in question</param>
+		/// <param name="engineType">The engine type in question</param>
 		/// <returns>Lowercase name</returns>
 		/// <exception cref="UhtIceException">If the requested type isn't supported</exception>
-		public static string LowercaseText(this UhtEngineType EngineType)
+		public static string LowercaseText(this UhtEngineType engineType)
 		{
-			switch (EngineType)
+			switch (engineType)
 			{
 				case UhtEngineType.Header: return "header";
 				case UhtEngineType.Package: return "package";
@@ -153,12 +153,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Get the name of the type
 		/// </summary>
-		/// <param name="EngineType">The engine type in question</param>
+		/// <param name="engineType">The engine type in question</param>
 		/// <returns>Capitalized name</returns>
 		/// <exception cref="UhtIceException">If the requested type isn't supported</exception>
-		public static string CapitalizedText(this UhtEngineType EngineType)
+		public static string CapitalizedText(this UhtEngineType engineType)
 		{
-			switch (EngineType)
+			switch (engineType)
 			{
 				case UhtEngineType.Header: return "Header";
 				case UhtEngineType.Package: return "Package";
@@ -178,11 +178,11 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Return true if the type must be unique in the symbol table
 		/// </summary>
-		/// <param name="EngineType">Type in question</param>
+		/// <param name="engineType">Type in question</param>
 		/// <returns>True if it must be unique</returns>
-		public static bool MustBeUnique(this UhtEngineType EngineType)
+		public static bool MustBeUnique(this UhtEngineType engineType)
 		{
-			switch (EngineType)
+			switch (engineType)
 			{
 				case UhtEngineType.Class:
 				case UhtEngineType.Interface:
@@ -199,11 +199,11 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Find options to be used when attempting to find a duplicate name
 		/// </summary>
-		/// <param name="EngineType">Type in question</param>
+		/// <param name="engineType">Type in question</param>
 		/// <returns>Find options to be used for search</returns>
-		public static UhtFindOptions MustBeUniqueFindOptions(this UhtEngineType EngineType)
+		public static UhtFindOptions MustBeUniqueFindOptions(this UhtEngineType engineType)
 		{
-			switch (EngineType)
+			switch (engineType)
 			{
 				case UhtEngineType.Class:
 				case UhtEngineType.Interface:
@@ -222,11 +222,11 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Return true if the type must not be a reserved name.
 		/// </summary>
-		/// <param name="EngineType">Type in question</param>
+		/// <param name="engineType">Type in question</param>
 		/// <returns>True if the type must not have a reserved name.</returns>
-		public static bool MustNotBeReserved(this UhtEngineType EngineType)
+		public static bool MustNotBeReserved(this UhtEngineType engineType)
 		{
-			switch (EngineType)
+			switch (engineType)
 			{
 				case UhtEngineType.Class:
 				case UhtEngineType.Interface:
@@ -243,21 +243,21 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Return true if the type should be added to the engine symbol table
 		/// </summary>
-		/// <param name="EngineType">Type in question</param>
+		/// <param name="engineType">Type in question</param>
 		/// <returns>True if the type should be added to the symbol table</returns>
-		public static bool HasEngineName(this UhtEngineType EngineType)
+		public static bool HasEngineName(this UhtEngineType engineType)
 		{
-			return EngineType != UhtEngineType.NativeInterface;
+			return engineType != UhtEngineType.NativeInterface;
 		}
 
 		/// <summary>
 		/// Return true if the children of the type should be added to the symbol table
 		/// </summary>
-		/// <param name="EngineType">Type in question</param>
+		/// <param name="engineType">Type in question</param>
 		/// <returns>True if children should be added</returns>
-		public static bool AddChildrenToSymbolTable(this UhtEngineType EngineType)
+		public static bool AddChildrenToSymbolTable(this UhtEngineType engineType)
 		{
-			switch (EngineType)
+			switch (engineType)
 			{
 				case UhtEngineType.Property:
 					return false;
@@ -270,12 +270,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Convert the engine type to find options
 		/// </summary>
-		/// <param name="EngineType">Engine type</param>
+		/// <param name="engineType">Engine type</param>
 		/// <returns>Find options</returns>
 		/// <exception cref="UhtIceException">Engine type is invalid</exception>
-		public static UhtFindOptions FindOptions(this UhtEngineType EngineType)
+		public static UhtFindOptions FindOptions(this UhtEngineType engineType)
 		{
-			switch (EngineType)
+			switch (engineType)
 			{
 				case UhtEngineType.Header: return 0;
 				case UhtEngineType.Package: return 0;
@@ -318,7 +318,7 @@ namespace EpicGames.UHT.Types
 		/// Search for UhtScriptStruct types
 		/// </summary>
 		ScriptStruct = 1 << 9,
-		
+
 		/// <summary>
 		/// Search for UhtClass types
 		/// </summary>
@@ -410,35 +410,35 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Test to see if any of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if any of the flags are set</returns>
-		public static bool HasAnyFlags(this UhtFindOptions InFlags, UhtFindOptions TestFlags)
+		public static bool HasAnyFlags(this UhtFindOptions inFlags, UhtFindOptions testFlags)
 		{
-			return (InFlags & TestFlags) != 0;
+			return (inFlags & testFlags) != 0;
 		}
 
 		/// <summary>
 		/// Test to see if all of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if all the flags are set</returns>
-		public static bool HasAllFlags(this UhtFindOptions InFlags, UhtFindOptions TestFlags)
+		public static bool HasAllFlags(this UhtFindOptions inFlags, UhtFindOptions testFlags)
 		{
-			return (InFlags & TestFlags) == TestFlags;
+			return (inFlags & testFlags) == testFlags;
 		}
 
 		/// <summary>
 		/// Test to see if a specific set of flags have a specific value.
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
-		/// <param name="MatchFlags">Expected value of the tested flags</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
+		/// <param name="matchFlags">Expected value of the tested flags</param>
 		/// <returns>True if the given flags have a specific value.</returns>
-		public static bool HasExactFlags(this UhtFindOptions InFlags, UhtFindOptions TestFlags, UhtFindOptions MatchFlags)
+		public static bool HasExactFlags(this UhtFindOptions inFlags, UhtFindOptions testFlags, UhtFindOptions matchFlags)
 		{
-			return (InFlags & TestFlags) == MatchFlags;
+			return (inFlags & testFlags) == matchFlags;
 		}
 	}
 
@@ -491,35 +491,35 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Test to see if any of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if any of the flags are set</returns>
-		public static bool HasAnyFlags(this UhtValidationOptions InFlags, UhtValidationOptions TestFlags)
+		public static bool HasAnyFlags(this UhtValidationOptions inFlags, UhtValidationOptions testFlags)
 		{
-			return (InFlags & TestFlags) != 0;
+			return (inFlags & testFlags) != 0;
 		}
 
 		/// <summary>
 		/// Test to see if all of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if all the flags are set</returns>
-		public static bool HasAllFlags(this UhtValidationOptions InFlags, UhtValidationOptions TestFlags)
+		public static bool HasAllFlags(this UhtValidationOptions inFlags, UhtValidationOptions testFlags)
 		{
-			return (InFlags & TestFlags) == TestFlags;
+			return (inFlags & testFlags) == testFlags;
 		}
 
 		/// <summary>
 		/// Test to see if a specific set of flags have a specific value.
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
-		/// <param name="MatchFlags">Expected value of the tested flags</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
+		/// <param name="matchFlags">Expected value of the tested flags</param>
 		/// <returns>True if the given flags have a specific value.</returns>
-		public static bool HasExactFlags(this UhtValidationOptions InFlags, UhtValidationOptions TestFlags, UhtValidationOptions MatchFlags)
+		public static bool HasExactFlags(this UhtValidationOptions inFlags, UhtValidationOptions testFlags, UhtValidationOptions matchFlags)
 		{
-			return (InFlags & TestFlags) == MatchFlags;
+			return (inFlags & testFlags) == matchFlags;
 		}
 	}
 
@@ -553,7 +553,7 @@ namespace EpicGames.UHT.Types
 	/// <summary>
 	/// Requested resolve phase
 	/// </summary>
-	public enum UhtResolvePhase : Int32
+	public enum UhtResolvePhase : int
 	{
 		/// <summary>
 		/// Initial resolve phase
@@ -587,72 +587,72 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtDocumentationPolicy
 	{
-		private static readonly UhtDocumentationPolicy StrictDocumentationPolicy = new UhtDocumentationPolicy
+		private static readonly UhtDocumentationPolicy s_strictDocumentationPolicy = new UhtDocumentationPolicy
 		{
-			bPolicySet = true,
-			bClassOrStructCommentRequired = true,
-			bFunctionToolTipsRequired = true,
-			bMemberToolTipsRequired = true,
-			bParameterToolTipsRequired = true,
-			bFloatRangesRequired = true,
+			PolicySet = true,
+			ClassOrStructCommentRequired = true,
+			FunctionToolTipsRequired = true,
+			MemberToolTipsRequired = true,
+			ParameterToolTipsRequired = true,
+			FloatRangesRequired = true,
 		};
 
-		private static readonly UhtDocumentationPolicy NoDocumentationPolicy = new UhtDocumentationPolicy
+		private static readonly UhtDocumentationPolicy s_noDocumentationPolicy = new UhtDocumentationPolicy
 		{
-			bPolicySet = false,
-			bClassOrStructCommentRequired = false,
-			bFunctionToolTipsRequired = false,
-			bMemberToolTipsRequired = false,
-			bParameterToolTipsRequired = false,
-			bFloatRangesRequired = false,
+			PolicySet = false,
+			ClassOrStructCommentRequired = false,
+			FunctionToolTipsRequired = false,
+			MemberToolTipsRequired = false,
+			ParameterToolTipsRequired = false,
+			FloatRangesRequired = false,
 		};
 
 		/// <summary>
 		/// If true, this is a valid documentation policy that should be respected
 		/// </summary>
-		public bool bPolicySet { get; set; }
+		public bool PolicySet { get; set; }
 
 		/// <summary>
 		/// A tool tip must be defined
 		/// </summary>
-		public bool bClassOrStructCommentRequired { get; set; }
+		public bool ClassOrStructCommentRequired { get; set; }
 
 		/// <summary>
 		/// Functions must have a tool tip
 		/// </summary>
-		public bool bFunctionToolTipsRequired { get; set; }
+		public bool FunctionToolTipsRequired { get; set; }
 
 		/// <summary>
 		/// Property members must have a tool tip
 		/// </summary>
-		public bool bMemberToolTipsRequired { get; set; }
+		public bool MemberToolTipsRequired { get; set; }
 
 		/// <summary>
 		/// Function parameters must have a tool tip
 		/// </summary>
-		public bool bParameterToolTipsRequired { get; set; }
+		public bool ParameterToolTipsRequired { get; set; }
 
 		/// <summary>
 		/// Float properties must have a range specified
 		/// </summary>
-		public bool bFloatRangesRequired { get; set; }
+		public bool FloatRangesRequired { get; set; }
 
 		/// <summary>
 		/// Return the documentation policy given the name
 		/// </summary>
-		/// <param name="DocumentationPolicyName">Name of the policy</param>
-		/// <param name="Policy">Policy settings</param>
+		/// <param name="documentationPolicyName">Name of the policy</param>
+		/// <param name="policy">Policy settings</param>
 		/// <returns>True if the name is valid, false if not</returns>
-		public static bool TryGet(string DocumentationPolicyName, out UhtDocumentationPolicy Policy)
+		public static bool TryGet(string documentationPolicyName, out UhtDocumentationPolicy policy)
 		{
-			if (DocumentationPolicyName == "Strict")
+			if (documentationPolicyName == "Strict")
 			{
-				Policy = StrictDocumentationPolicy;
+				policy = s_strictDocumentationPolicy;
 				return true;
 			}
 
-			Policy = NoDocumentationPolicy;
-			return DocumentationPolicyName.Length == 0;
+			policy = s_noDocumentationPolicy;
+			return documentationPolicyName.Length == 0;
 		}
 	};
 
@@ -665,7 +665,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Empty list of type used when children are requested but no children have been added.
 		/// </summary>
-		private static readonly List<UhtType> EmptyTypeList = new List<UhtType>();
+		private static readonly List<UhtType> s_emptyTypeList = new List<UhtType>();
 
 		/// <summary>
 		/// All UHT runs are associated with a given session.  The session holds all the global information for a run.
@@ -693,12 +693,12 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				UhtType Type = this;
-				while (Type.Outer != null)
+				UhtType type = this;
+				while (type.Outer != null)
 				{
-					Type = Type.Outer;
+					type = type.Outer;
 				}
-				return (UhtPackage)Type;
+				return (UhtPackage)type;
 			}
 		}
 
@@ -710,12 +710,12 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				UhtType Type = this;
-				while (Type.Outer != null && Type.Outer.Outer != null)
+				UhtType type = this;
+				while (type.Outer != null && type.Outer.Outer != null)
 				{
-					Type = Type.Outer;
+					type = type.Outer;
 				}
-				return (UhtHeaderFile)Type;
+				return (UhtHeaderFile)type;
 			}
 		}
 
@@ -727,7 +727,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// The name of the type as used by the engines type system.  If not set, will default to the source name
 		/// </summary>
-		public string EngineName { get => this.EngineNameInternal ?? this.SourceName; set => this.EngineNameInternal = value; }
+		public string EngineName { get => this._engineName ?? this.SourceName; set => this._engineName = value; }
 
 		/// <summary>
 		/// Simple enumeration that can be used to detect the different types of objects
@@ -743,13 +743,13 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// If true, then this type is visible to the symbol table.
 		/// </summary>
-		public bool bVisibleType { get; set; } = true;
+		public bool VisibleType { get; set; } = true;
 
 		/// <summary>
 		/// Return true if the type has been deprecated
 		/// </summary>
 		[JsonIgnore]
-		public virtual bool bDeprecated => false;
+		public virtual bool Deprecated => false;
 
 		/// <summary>
 		/// The line number of where the definition began
@@ -760,13 +760,13 @@ namespace EpicGames.UHT.Types
 		/// Return a combination of the engine type name followed by the path name of the type
 		/// </summary>
 		[JsonIgnore]
-		public virtual string FullName 
-		{ 
+		public virtual string FullName
+		{
 			get
 			{
-				StringBuilder Builder = new StringBuilder();
-				AppendFullName(Builder);
-				return Builder.ToString();
+				StringBuilder builder = new StringBuilder();
+				AppendFullName(builder);
+				return builder.ToString();
 			}
 		}
 
@@ -778,9 +778,9 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				StringBuilder Builder = new StringBuilder();
-				AppendPathName(Builder, null);
-				return Builder.ToString();
+				StringBuilder builder = new StringBuilder();
+				AppendPathName(builder, null);
+				return builder.ToString();
 			}
 		}
 
@@ -788,12 +788,12 @@ namespace EpicGames.UHT.Types
 		/// Return the name of the documentation policy to be used
 		/// </summary>
 		[JsonIgnore]
-		public string DocumentationPolicyName { get => this.MetaData.GetValueOrDefaultHierarchical(UhtNames.DocumentationPolicy); }
+		public string DocumentationPolicyName => this.MetaData.GetValueOrDefaultHierarchical(UhtNames.DocumentationPolicy);
 
 		/// <summary>
 		/// Return the specifier validation table to be used to validate the meta data on this type
 		/// </summary>
-		protected virtual UhtSpecifierValidatorTable? SpecifierValidatorTable { get => null; }
+		protected virtual UhtSpecifierValidatorTable? SpecifierValidatorTable => null;
 
 		/// <summary>
 		/// Meta data associated with the type
@@ -806,7 +806,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		[JsonConverter(typeof(UhtNullableTypeListJsonConverter<UhtType>))]
 		//TODO - this should return a IReadOnlyList
-		public List<UhtType> Children { get => ChildrenInternal == null ? UhtType.EmptyTypeList : ChildrenInternal; }
+		public List<UhtType> Children => _children ?? UhtType.s_emptyTypeList;
 
 		/// <summary>
 		/// Helper to string method
@@ -814,9 +814,9 @@ namespace EpicGames.UHT.Types
 		/// <returns></returns>
 		public override string ToString() { return this.SourceName; }
 
-		private string? EngineNameInternal = null;
-		private List<UhtType>? ChildrenInternal = null;
-		private int ResolveState = (int)UhtResolvePhase.None * 2;
+		private string? _engineName = null;
+		private List<UhtType>? _children = null;
+		private int _resolveState = (int)UhtResolvePhase.None * 2;
 
 		#region IUHTMessageSite implementation
 		/// <inheritdoc/>
@@ -840,31 +840,31 @@ namespace EpicGames.UHT.Types
 		/// Construct the base type information.  This constructor is used exclusively by UHTPackage which is at 
 		/// the root of all type hierarchies.
 		/// </summary>
-		/// <param name="Session"></param>
-		protected UhtType(UhtSession Session)
+		/// <param name="session"></param>
+		protected UhtType(UhtSession session)
 		{
-			this.Session = Session;
+			this.Session = session;
 			this.Outer = null;
-			this.SourceName = string.Empty;
+			this.SourceName = String.Empty;
 			this.LineNumber = 1;
-			this.TypeIndex = Session.GetNextTypeIndex();
+			this.TypeIndex = session.GetNextTypeIndex();
 			this.MetaData = new UhtMetaData(this, this.Session.Config);
 		}
 
 		/// <summary>
 		/// Construct instance of the type given a parent type.
 		/// </summary>
-		/// <param name="Outer">The outer type of the type being constructed.  For example, a class defined in a given header will have the header as the outer.</param>
-		/// <param name="LineNumber">The line number in the source file where the type was defined.</param>
-		/// <param name="MetaData">Optional meta data to be associated with the type.</param>
-		protected UhtType(UhtType Outer, int LineNumber, UhtMetaData? MetaData = null)
+		/// <param name="outer">The outer type of the type being constructed.  For example, a class defined in a given header will have the header as the outer.</param>
+		/// <param name="lineNumber">The line number in the source file where the type was defined.</param>
+		/// <param name="metaData">Optional meta data to be associated with the type.</param>
+		protected UhtType(UhtType outer, int lineNumber, UhtMetaData? metaData = null)
 		{
-			this.Session = Outer.Session;
-			this.Outer = Outer;
-			this.SourceName = string.Empty;
-			this.LineNumber = LineNumber;
+			this.Session = outer.Session;
+			this.Outer = outer;
+			this.SourceName = String.Empty;
+			this.LineNumber = lineNumber;
 			this.TypeIndex = this.Session.GetNextTypeIndex();
-			this.MetaData = MetaData ?? new UhtMetaData(this, this.Session.Config);
+			this.MetaData = metaData ?? new UhtMetaData(this, this.Session.Config);
 			this.MetaData.MessageSite = this; // Make sure the site is correct
 			this.MetaData.Config = this.Session.Config;
 		}
@@ -872,14 +872,14 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Add a type as a child
 		/// </summary>
-		/// <param name="Child">The child to be added.</param>
-		public virtual void AddChild(UhtType Child)
+		/// <param name="child">The child to be added.</param>
+		public virtual void AddChild(UhtType child)
 		{
-			if (this.ChildrenInternal == null)
+			if (this._children == null)
 			{
-				this.ChildrenInternal = new List<UhtType>();
+				this._children = new List<UhtType>();
 			}
-			this.ChildrenInternal.Add(Child);
+			this._children.Add(child);
 		}
 
 		/// <summary>
@@ -887,25 +887,25 @@ namespace EpicGames.UHT.Types
 		/// list associated with the type is cleared.
 		/// </summary>
 		/// <returns>The current list of children</returns>
-		public List<UhtType>? DetchChildren()
+		public List<UhtType>? DetachChildren()
 		{
-			List<UhtType>? Out = this.ChildrenInternal;
-			this.ChildrenInternal = null;
-			return Out;
+			List<UhtType>? children = this._children;
+			this._children = null;
+			return children;
 		}
 
 		/// <summary>
 		/// Merge the list children into the type.  The child's outer is set.
 		/// </summary>
-		/// <param name="Children">List of children to add.</param>
-		public void AddChildren(List<UhtType>? Children)
+		/// <param name="children">List of children to add.</param>
+		public void AddChildren(List<UhtType>? children)
 		{
-			if (Children != null)
+			if (children != null)
 			{
-				foreach (UhtType Child in Children)
+				foreach (UhtType child in children)
 				{
-					Child.Outer = this;
-					AddChild(Child);
+					child.Outer = this;
+					AddChild(child);
 				}
 			}
 		}
@@ -915,67 +915,66 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Resolve the type.  To customize behavior, override ResolveSuper, ResolveSelf, or ResolveChildren.
 		/// </summary>
-		/// <param name="Phase">Resolution phase</param>
+		/// <param name="phase">Resolution phase</param>
 		/// <returns>False if the type fails any invalid checks during InvalidPhase check.</returns>
-		public bool Resolve(UhtResolvePhase Phase)
+		public bool Resolve(UhtResolvePhase phase)
 		{
-			int InitState = (int)Phase << 1;
+			int initState = (int)phase << 1;
+			int currentState = Interlocked.Add(ref this._resolveState, 0);
 
-			int CurrentState = Interlocked.Add(ref this.ResolveState, 0);
-			
 			// If we are already passed the init phase for this state, then we are good
-			if (CurrentState > InitState)
+			if (currentState > initState)
 			{
 				return true;
 			}
 
 			// Attempt to make myself the resolve thread for this type.  If we aren't the ones
 			// to get the init state, then we have to wait until the thread that did completes
-			CurrentState = Interlocked.CompareExchange(ref this.ResolveState, InitState, CurrentState);
-			if (CurrentState > InitState)
+			currentState = Interlocked.CompareExchange(ref this._resolveState, initState, currentState);
+			if (currentState > initState)
 			{
 				return true;
 			}
-			else if (CurrentState == InitState)
+			else if (currentState == initState)
 			{
 				do
 				{
 					Thread.Yield();
-					CurrentState = Interlocked.Add(ref this.ResolveState, 0);
-				} while (CurrentState == InitState);
+					currentState = Interlocked.Add(ref this._resolveState, 0);
+				} while (currentState == initState);
 				return true;
 			}
 			else
 			{
-				bool bResult = true;
+				bool result = true;
 				try
 				{
-					ResolveSuper(Phase);
-					bResult = ResolveSelf(Phase);
-					ResolveChildren(Phase);
+					ResolveSuper(phase);
+					result = ResolveSelf(phase);
+					ResolveChildren(phase);
 				}
 				finally
 				{
-					Interlocked.Increment(ref this.ResolveState);
+					Interlocked.Increment(ref this._resolveState);
 				}
-				return bResult;
+				return result;
 			}
 		}
 
 		/// <summary>
 		/// Resolve any super types
 		/// </summary>
-		/// <param name="Phase">Resolution phase</param>
-		protected virtual void ResolveSuper(UhtResolvePhase Phase)
+		/// <param name="phase">Resolution phase</param>
+		protected virtual void ResolveSuper(UhtResolvePhase phase)
 		{
 		}
 
 		/// <summary>
 		/// Resolve self
 		/// </summary>
-		/// <param name="Phase">Resolution phase</param>
+		/// <param name="phase">Resolution phase</param>
 		/// <returns>False if the type fails any invalid checks during InvalidPhase check.</returns>
-		protected virtual bool ResolveSelf(UhtResolvePhase Phase)
+		protected virtual bool ResolveSelf(UhtResolvePhase phase)
 		{
 			return true;
 		}
@@ -983,32 +982,32 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Resolve children
 		/// </summary>
-		/// <param name="Phase">Resolution phase</param>
-		protected virtual void ResolveChildren(UhtResolvePhase Phase)
+		/// <param name="phase">Resolution phase</param>
+		protected virtual void ResolveChildren(UhtResolvePhase phase)
 		{
-			if (this.ChildrenInternal != null)
+			if (this._children != null)
 			{
-				if (Phase == UhtResolvePhase.InvalidCheck)
+				if (phase == UhtResolvePhase.InvalidCheck)
 				{
-					int OutIndex = 0;
-					for (int Index = 0; Index < this.ChildrenInternal.Count; ++Index)
+					int outIndex = 0;
+					for (int index = 0; index < this._children.Count; ++index)
 					{
-						UhtType Child = this.ChildrenInternal[Index];
-						if (Child.Resolve(Phase))
+						UhtType child = this._children[index];
+						if (child.Resolve(phase))
 						{
-							this.ChildrenInternal[OutIndex++] = Child;
+							this._children[outIndex++] = child;
 						}
 					}
-					if (OutIndex < this.ChildrenInternal.Count)
+					if (outIndex < this._children.Count)
 					{
-						this.ChildrenInternal.RemoveRange(OutIndex, this.ChildrenInternal.Count - OutIndex);
+						this._children.RemoveRange(outIndex, this._children.Count - outIndex);
 					}
 				}
 				else
 				{
-					foreach (UhtType Child in this.ChildrenInternal)
+					foreach (UhtType child in this._children)
 					{
-						Child.Resolve(Phase);
+						child.Resolve(phase);
 					}
 				}
 			}
@@ -1019,52 +1018,52 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Find the given type in the type hierarchy
 		/// </summary>
-		/// <param name="Options">Options controlling what is searched</param>
-		/// <param name="Name">Name of the type.</param>
-		/// <param name="MessageSite">If supplied, then a error message will be generated if the type can not be found</param>
-		/// <param name="LineNumber">Source code line number requesting the lookup.</param>
+		/// <param name="options">Options controlling what is searched</param>
+		/// <param name="name">Name of the type.</param>
+		/// <param name="messageSite">If supplied, then a error message will be generated if the type can not be found</param>
+		/// <param name="lineNumber">Source code line number requesting the lookup.</param>
 		/// <returns>The located type of null if not found</returns>
-		public UhtType? FindType(UhtFindOptions Options, string Name, IUhtMessageSite? MessageSite = null, int LineNumber = -1)
+		public UhtType? FindType(UhtFindOptions options, string name, IUhtMessageSite? messageSite = null, int lineNumber = -1)
 		{
-			return this.Session.FindType(this, Options, Name, MessageSite, LineNumber);
+			return this.Session.FindType(this, options, name, messageSite, lineNumber);
 		}
 
 		/// <summary>
 		/// Find the given type in the type hierarchy
 		/// </summary>
-		/// <param name="Options">Options controlling what is searched</param>
-		/// <param name="Name">Name of the type.</param>
-		/// <param name="MessageSite">If supplied, then a error message will be generated if the type can not be found</param>
+		/// <param name="options">Options controlling what is searched</param>
+		/// <param name="name">Name of the type.</param>
+		/// <param name="messageSite">If supplied, then a error message will be generated if the type can not be found</param>
 		/// <returns>The located type of null if not found</returns>
-		public UhtType? FindType(UhtFindOptions Options, ref UhtToken Name, IUhtMessageSite? MessageSite = null)
+		public UhtType? FindType(UhtFindOptions options, ref UhtToken name, IUhtMessageSite? messageSite = null)
 		{
-			return this.Session.FindType(this, Options, ref Name, MessageSite);
+			return this.Session.FindType(this, options, ref name, messageSite);
 		}
 
 		/// <summary>
 		/// Find the given type in the type hierarchy
 		/// </summary>
-		/// <param name="Options">Options controlling what is searched</param>
-		/// <param name="Identifiers">Enumeration of identifiers.</param>
-		/// <param name="MessageSite">If supplied, then a error message will be generated if the type can not be found</param>
-		/// <param name="LineNumber">Source code line number requesting the lookup.</param>
+		/// <param name="options">Options controlling what is searched</param>
+		/// <param name="identifiers">Enumeration of identifiers.</param>
+		/// <param name="messageSite">If supplied, then a error message will be generated if the type can not be found</param>
+		/// <param name="lineNumber">Source code line number requesting the lookup.</param>
 		/// <returns>The located type of null if not found</returns>
-		public UhtType? FindType(UhtFindOptions Options, UhtTokenList Identifiers, IUhtMessageSite? MessageSite = null, int LineNumber = -1)
+		public UhtType? FindType(UhtFindOptions options, UhtTokenList identifiers, IUhtMessageSite? messageSite = null, int lineNumber = -1)
 		{
-			return this.Session.FindType(this, Options, Identifiers, MessageSite, LineNumber);
+			return this.Session.FindType(this, options, identifiers, messageSite, lineNumber);
 		}
 
 		/// <summary>
 		/// Find the given type in the type hierarchy
 		/// </summary>
-		/// <param name="Options">Options controlling what is searched</param>
-		/// <param name="Identifiers">Enumeration of identifiers.</param>
-		/// <param name="MessageSite">If supplied, then a error message will be generated if the type can not be found</param>
-		/// <param name="LineNumber">Source code line number requesting the lookup.</param>
+		/// <param name="options">Options controlling what is searched</param>
+		/// <param name="identifiers">Enumeration of identifiers.</param>
+		/// <param name="messageSite">If supplied, then a error message will be generated if the type can not be found</param>
+		/// <param name="lineNumber">Source code line number requesting the lookup.</param>
 		/// <returns>The located type of null if not found</returns>
-		public UhtType? FindType(UhtFindOptions Options, UhtToken[] Identifiers, IUhtMessageSite? MessageSite = null, int LineNumber = -1)
+		public UhtType? FindType(UhtFindOptions options, UhtToken[] identifiers, IUhtMessageSite? messageSite = null, int lineNumber = -1)
 		{
-			return this.Session.FindType(this, Options, Identifiers, MessageSite, LineNumber);
+			return this.Session.FindType(this, options, identifiers, messageSite, lineNumber);
 		}
 		#endregion
 
@@ -1072,28 +1071,28 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Validate the type settings
 		/// </summary>
-		/// <param name="Options">Validation options</param>
+		/// <param name="options">Validation options</param>
 		/// <returns>Updated validation options.  This will be used to validate the children.</returns>
-		protected virtual UhtValidationOptions Validate(UhtValidationOptions Options)
+		protected virtual UhtValidationOptions Validate(UhtValidationOptions options)
 		{
 			ValidateMetaData();
 			ValidateDocumentationPolicy();
-			return Options;
+			return options;
 		}
 
 		private void ValidateMetaData()
 		{
-			UhtSpecifierValidatorTable? Table = this.SpecifierValidatorTable;
-			if (Table != null)
+			UhtSpecifierValidatorTable? table = this.SpecifierValidatorTable;
+			if (table != null)
 			{
 				if (this.MetaData.Dictionary != null && this.MetaData.Dictionary.Count > 0)
 				{
-					foreach (var KVP in this.MetaData.Dictionary)
+					foreach (KeyValuePair<UhtMetaDataKey, string> kvp in this.MetaData.Dictionary)
 					{
-						UhtSpecifierValidator? Specifier;
-						if (Table.TryGetValue(KVP.Key.Name, out Specifier))
+						UhtSpecifierValidator? specifier;
+						if (table.TryGetValue(kvp.Key.Name, out specifier))
 						{
-							Specifier.Delegate(this, MetaData, KVP.Key, KVP.Value);
+							specifier.Delegate(this, MetaData, kvp.Key, kvp.Value);
 						}
 					}
 				}
@@ -1102,11 +1101,11 @@ namespace EpicGames.UHT.Types
 
 		private void ValidateDocumentationPolicy()
 		{
-			if (UhtDocumentationPolicy.TryGet(this.DocumentationPolicyName, out UhtDocumentationPolicy Policy))
+			if (UhtDocumentationPolicy.TryGet(this.DocumentationPolicyName, out UhtDocumentationPolicy policy))
 			{
-				if (Policy.bPolicySet)
+				if (policy.PolicySet)
 				{
-					this.ValidateDocumentationPolicy(Policy);
+					this.ValidateDocumentationPolicy(policy);
 				}
 			}
 			else
@@ -1118,25 +1117,25 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Validate the documentation policy
 		/// </summary>
-		/// <param name="Policy">The expected documentation policy</param>
-		protected virtual void ValidateDocumentationPolicy(UhtDocumentationPolicy Policy)
+		/// <param name="policy">The expected documentation policy</param>
+		protected virtual void ValidateDocumentationPolicy(UhtDocumentationPolicy policy)
 		{
 		}
 
 		/// <summary>
 		/// Validate the given type.  Validates itself and the children
 		/// </summary>
-		/// <param name="Type">Type to validate</param>
-		/// <param name="Options">Validation options</param>
-		public static void ValidateType(UhtType Type, UhtValidationOptions Options)
+		/// <param name="type">Type to validate</param>
+		/// <param name="options">Validation options</param>
+		public static void ValidateType(UhtType type, UhtValidationOptions options)
 		{
 			// Invoke the new method
-			Options = Type.Validate(Options);
+			options = type.Validate(options);
 
 			// Invoke validate on the children
-			foreach (UhtType Child in Type.Children)
+			foreach (UhtType child in type.Children)
 			{
-				ValidateType(Child, Options);
+				ValidateType(child, options);
 			}
 		}
 		#endregion
@@ -1145,56 +1144,56 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Return the path name of the type which includes the outers
 		/// </summary>
-		/// <param name="Builder">Destination builder</param>
-		/// <param name="StopOuter">Type to stop at when generating the path</param>
-		public virtual void AppendPathName(StringBuilder Builder, UhtType? StopOuter = null)
+		/// <param name="builder">Destination builder</param>
+		/// <param name="stopOuter">Type to stop at when generating the path</param>
+		public virtual void AppendPathName(StringBuilder builder, UhtType? stopOuter = null)
 		{
-			AppendPathNameInternal(Builder, StopOuter);
-			if (Builder.Length == 0)
+			AppendPathNameInternal(builder, stopOuter);
+			if (builder.Length == 0)
 			{
-				Builder.Append("None");
+				builder.Append("None");
 			}
 		}
 
-		private void AppendPathNameInternal(StringBuilder Builder, UhtType? StopOuter = null)
+		private void AppendPathNameInternal(StringBuilder builder, UhtType? stopOuter = null)
 		{
-			if (this != StopOuter)
+			if (this != stopOuter)
 			{
-				UhtType? Outer = this.Outer;
-				if (Outer != null && Outer != StopOuter)
+				UhtType? outer = this.Outer;
+				if (outer != null && outer != stopOuter)
 				{
-					Outer.AppendPathName(Builder, StopOuter);
+					outer.AppendPathName(builder, stopOuter);
 
 					// SubObjectDelimiter is used to indicate that this object's outer is not a UPackage
 					// In the C# version of UHT, we key off the header file
-					if (!(Outer is UhtHeaderFile) && Outer.Outer is UhtHeaderFile)
+					if (outer is not UhtHeaderFile && outer.Outer is UhtHeaderFile)
 					{
-						Builder.Append(UhtFCString.SubObjectDelimiter);
+						builder.Append(UhtFCString.SubObjectDelimiter);
 					}
 
 					// SubObjectDelimiter is also used to bridge between the object:properties in the path
-					else if (!(Outer is UhtProperty) && this is UhtProperty)
+					else if (outer is not UhtProperty && this is UhtProperty)
 					{
-						Builder.Append(UhtFCString.SubObjectDelimiter);
+						builder.Append(UhtFCString.SubObjectDelimiter);
 					}
 					else
 					{
-						Builder.Append('.');
+						builder.Append('.');
 					}
 				}
-				Builder.Append(this.EngineName);
+				builder.Append(this.EngineName);
 			}
 		}
 
 		/// <summary>
 		/// Get the full type name which is the engine class name followed by the path name
 		/// </summary>
-		/// <param name="Builder">Destination builder</param>
-		public virtual void AppendFullName(StringBuilder Builder)
+		/// <param name="builder">Destination builder</param>
+		public virtual void AppendFullName(StringBuilder builder)
 		{
-			Builder.Append(this.EngineClassName);
-			Builder.Append(' ');
-			AppendPathName(Builder);
+			builder.Append(this.EngineClassName);
+			builder.Append(' ');
+			AppendPathName(builder);
 		}
 
 		/// <summary>
@@ -1203,10 +1202,10 @@ namespace EpicGames.UHT.Types
 		/// <returns>The display name for this object.</returns>
 		public string GetDisplayNameText()
 		{
-			string? NativeDisplayName;
-			if (this.MetaData.TryGetValue(UhtNames.DisplayName, out NativeDisplayName))
+			string? nativeDisplayName;
+			if (this.MetaData.TryGetValue(UhtNames.DisplayName, out nativeDisplayName))
 			{
-				return NativeDisplayName;
+				return nativeDisplayName;
 			}
 
 			return GetDisplayStringFromEngineName();
@@ -1215,28 +1214,28 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Finds the localized tooltip or native tooltip as a fallback.
 		/// </summary>
-		/// <param name="bShortToolTip">Look for a shorter version of the tooltip (falls back to the long tooltip if none was specified)</param>
+		/// <param name="shortToolTip">Look for a shorter version of the tooltip (falls back to the long tooltip if none was specified)</param>
 		/// <returns>The tooltip for this object.</returns>
-		public virtual string GetToolTipText(bool bShortToolTip = false)
+		public virtual string GetToolTipText(bool shortToolTip = false)
 		{
-			string NativeToolTip = string.Empty;
-			if (bShortToolTip)
+			string nativeToolTip = String.Empty;
+			if (shortToolTip)
 			{
-				NativeToolTip = this.MetaData.GetValueOrDefault(UhtNames.ShortToolTip);
+				nativeToolTip = this.MetaData.GetValueOrDefault(UhtNames.ShortToolTip);
 			}
 
-			if (NativeToolTip.Length == 0)
+			if (nativeToolTip.Length == 0)
 			{
-				NativeToolTip = this.MetaData.GetValueOrDefault(UhtNames.ToolTip);
+				nativeToolTip = this.MetaData.GetValueOrDefault(UhtNames.ToolTip);
 			}
 
-			if (NativeToolTip.Length == 0)
+			if (nativeToolTip.Length == 0)
 			{
 				return GetDisplayStringFromEngineName();
 			}
 			else
 			{
-				return NativeToolTip.TrimEnd().Replace("@see", "See:", StringComparison.Ordinal);
+				return nativeToolTip.TrimEnd().Replace("@see", "See:", StringComparison.Ordinal);
 			}
 		}
 
@@ -1253,8 +1252,8 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Collect all the references for the type
 		/// </summary>
-		/// <param name="Collector">Object collecting the references</param>
-		public virtual void CollectReferences(IUhtReferenceCollector Collector)
+		/// <param name="collector">Object collecting the references</param>
+		public virtual void CollectReferences(IUhtReferenceCollector collector)
 		{
 		}
 	}
@@ -1267,49 +1266,49 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Append all of the outer names associated with the type
 		/// </summary>
-		/// <param name="Builder">Output string builder</param>
-		/// <param name="Outer">Outer to be appended</param>
+		/// <param name="builder">Output string builder</param>
+		/// <param name="outer">Outer to be appended</param>
 		/// <returns>Output string builder</returns>
-		public static StringBuilder AppendOuterNames(this StringBuilder Builder, UhtType? Outer)
+		public static StringBuilder AppendOuterNames(this StringBuilder builder, UhtType? outer)
 		{
-			if (Outer == null)
+			if (outer == null)
 			{
-				return Builder;
+				return builder;
 			}
 
-			if (Outer is UhtClass)
+			if (outer is UhtClass)
 			{
-				Builder.Append('_');
-				Builder.Append(Outer.SourceName);
+				builder.Append('_');
+				builder.Append(outer.SourceName);
 			}
-			else if (Outer is UhtScriptStruct)
+			else if (outer is UhtScriptStruct)
 			{
 				// Structs can also have UPackage outer.
-				if (!(Outer.Outer is UhtHeaderFile))
+				if (outer.Outer is not UhtHeaderFile)
 				{
-					AppendOuterNames(Builder, Outer.Outer);
+					AppendOuterNames(builder, outer.Outer);
 				}
-				Builder.Append('_');
-				Builder.Append(Outer.SourceName);
+				builder.Append('_');
+				builder.Append(outer.SourceName);
 			}
-			else if (Outer is UhtPackage Package)
+			else if (outer is UhtPackage package)
 			{
-				Builder.Append('_');
-				Builder.Append(Package.ShortName);
+				builder.Append('_');
+				builder.Append(package.ShortName);
 			}
-			else if (Outer is UhtHeaderFile)
+			else if (outer is UhtHeaderFile)
 			{
 				// Pickup the package
-				AppendOuterNames(Builder, Outer.Outer);
+				AppendOuterNames(builder, outer.Outer);
 			}
 			else
 			{
-				AppendOuterNames(Builder, Outer.Outer);
-				Builder.Append('_');
-				Builder.Append(Outer.EngineName);
+				AppendOuterNames(builder, outer.Outer);
+				builder.Append('_');
+				builder.Append(outer.EngineName);
 			}
 
-			return Builder;
+			return builder;
 		}
 	}
 }

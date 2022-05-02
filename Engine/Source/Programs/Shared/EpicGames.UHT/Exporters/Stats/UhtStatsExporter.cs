@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.UHT.Exporters.Stats
 {
@@ -14,37 +14,37 @@ namespace EpicGames.UHT.Exporters.Stats
 	{
 		[UhtExporter(Name = "Stats", Description = "Type Stats", Options = UhtExporterOptions.None)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void StatsExporter(IUhtExportFactory Factory)
+		private static void StatsExporter(IUhtExportFactory factory)
 		{
-			SortedDictionary<string, int> CountByType = new SortedDictionary<string, int>();
-			foreach (UhtType Type in Factory.Session.Packages)
+			SortedDictionary<string, int> countByType = new SortedDictionary<string, int>();
+			foreach (UhtType type in factory.Session.Packages)
 			{
-				Collect(CountByType, Type);
+				Collect(countByType, type);
 			}
 
 			Log.TraceInformation("Counts by type:");
 
-			foreach (KeyValuePair<string, int> Kvp in CountByType)
+			foreach (KeyValuePair<string, int> kvp in countByType)
 			{
-				Log.TraceInformation($"{Kvp.Key} {Kvp.Value}");
+				Log.TraceInformation($"{kvp.Key} {kvp.Value}");
 			}
 			Log.TraceInformation("");
 		}
 
-		private static void Collect(SortedDictionary<string, int> CountByType, UhtType Type)
+		private static void Collect(SortedDictionary<string, int> countByType, UhtType type)
 		{
-			if (CountByType.TryGetValue(Type.EngineClassName, out int Count))
+			if (countByType.TryGetValue(type.EngineClassName, out int count))
 			{
-				CountByType[Type.EngineClassName] = Count + 1;
+				countByType[type.EngineClassName] = count + 1;
 			}
 			else
 			{
-				CountByType[Type.EngineClassName] = 1;
+				countByType[type.EngineClassName] = 1;
 			}
 
-			foreach (UhtType Child in Type.Children)
+			foreach (UhtType child in type.Children)
 			{
-				Collect(CountByType, Child);
+				Collect(countByType, child);
 			}
 		}
 	}

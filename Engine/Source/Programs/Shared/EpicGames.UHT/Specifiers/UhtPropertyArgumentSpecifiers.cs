@@ -18,33 +18,33 @@ namespace EpicGames.UHT.Parsers
 		#region Argument Property Specifiers
 		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ConstSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ConstSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.ConstParm;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.ConstParm;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void RefSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void RefSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.OutParm | EPropertyFlags.ReferenceParm;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.OutParm | EPropertyFlags.ReferenceParm;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyArgument, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NotReplicatedSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NotReplicatedSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.PropertySettings.PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.PropertySettings.PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
 			{
-				Context.PropertySettings.PropertyCategory = UhtPropertyCategory.RegularParameter;
-				Context.PropertySettings.PropertyFlags |= EPropertyFlags.RepSkip;
+				context.PropertySettings.PropertyCategory = UhtPropertyCategory.RegularParameter;
+				context.PropertySettings.PropertyFlags |= EPropertyFlags.RepSkip;
 			}
 			else
 			{
-				Context.MessageSite.LogError("Only parameters in service request functions can be marked NotReplicated");
+				context.MessageSite.LogError("Only parameters in service request functions can be marked NotReplicated");
 			}
 		}
 		#endregion

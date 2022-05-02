@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Tokenizer
 {
@@ -16,18 +16,18 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Parse an optional list
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Initiator">Initiating symbol</param>
-		/// <param name="Terminator">Terminating symbol</param>
-		/// <param name="Separator">Separator symbol</param>
-		/// <param name="bAllowTrailingSeparator">If true, allow trailing separators</param>
-		/// <param name="Action">Action to be invoked for each list element.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initiator">Initiating symbol</param>
+		/// <param name="terminator">Terminating symbol</param>
+		/// <param name="separator">Separator symbol</param>
+		/// <param name="allowTrailingSeparator">If true, allow trailing separators</param>
+		/// <param name="action">Action to be invoked for each list element.</param>
 		/// <returns>True if a list was read</returns>
-		public static bool TryOptionalList(this IUhtTokenReader TokenReader, char Initiator, char Terminator, char Separator, bool bAllowTrailingSeparator, Action Action)
+		public static bool TryOptionalList(this IUhtTokenReader tokenReader, char initiator, char terminator, char separator, bool allowTrailingSeparator, Action action)
 		{
-			if (TokenReader.TryOptional(Initiator))
+			if (tokenReader.TryOptional(initiator))
 			{
-				TokenReader.RequireList(Terminator, Separator, bAllowTrailingSeparator, Action);
+				tokenReader.RequireList(terminator, separator, allowTrailingSeparator, action);
 				return true;
 			}
 			return false;
@@ -36,65 +36,65 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Parse a required list
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Initiator">Initiating symbol</param>
-		/// <param name="Terminator">Terminating symbol</param>
-		/// <param name="Separator">Separator symbol</param>
-		/// <param name="bAllowTrailingSeparator">If true, allow trailing separators</param>
-		/// <param name="Action">Action to be invoked for each list element.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initiator">Initiating symbol</param>
+		/// <param name="terminator">Terminating symbol</param>
+		/// <param name="separator">Separator symbol</param>
+		/// <param name="allowTrailingSeparator">If true, allow trailing separators</param>
+		/// <param name="action">Action to be invoked for each list element.</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireList(this IUhtTokenReader TokenReader, char Initiator, char Terminator, char Separator, bool bAllowTrailingSeparator, Action Action)
+		public static IUhtTokenReader RequireList(this IUhtTokenReader tokenReader, char initiator, char terminator, char separator, bool allowTrailingSeparator, Action action)
 		{
-			return TokenReader.RequireList(Initiator, Terminator, Separator, bAllowTrailingSeparator, null, Action);
+			return tokenReader.RequireList(initiator, terminator, separator, allowTrailingSeparator, null, action);
 		}
 
 		/// <summary>
 		/// Parse a required list
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Initiator">Initiating symbol</param>
-		/// <param name="Terminator">Terminating symbol</param>
-		/// <param name="Separator">Separator symbol</param>
-		/// <param name="bAllowTrailingSeparator">If true, allow trailing separators</param>
-		/// <param name="ExceptionContext">Extra context for error messages</param>
-		/// <param name="Action">Action to be invoked for each list element.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initiator">Initiating symbol</param>
+		/// <param name="terminator">Terminating symbol</param>
+		/// <param name="separator">Separator symbol</param>
+		/// <param name="allowTrailingSeparator">If true, allow trailing separators</param>
+		/// <param name="exceptionContext">Extra context for error messages</param>
+		/// <param name="action">Action to be invoked for each list element.</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireList(this IUhtTokenReader TokenReader, char Initiator, char Terminator, char Separator, bool bAllowTrailingSeparator, object? ExceptionContext, Action Action)
+		public static IUhtTokenReader RequireList(this IUhtTokenReader tokenReader, char initiator, char terminator, char separator, bool allowTrailingSeparator, object? exceptionContext, Action action)
 		{
-			TokenReader.Require(Initiator);
-			return TokenReader.RequireList(Terminator, Separator, bAllowTrailingSeparator, ExceptionContext, Action);
+			tokenReader.Require(initiator);
+			return tokenReader.RequireList(terminator, separator, allowTrailingSeparator, exceptionContext, action);
 		}
 
 		/// <summary>
 		/// Parse a required list.  Initiating token must have already been parsed
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Terminator">Terminating symbol</param>
-		/// <param name="Separator">Separator symbol</param>
-		/// <param name="bAllowTrailingSeparator">If true, allow trailing separators</param>
-		/// <param name="Action">Action to be invoked for each list element.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="terminator">Terminating symbol</param>
+		/// <param name="separator">Separator symbol</param>
+		/// <param name="allowTrailingSeparator">If true, allow trailing separators</param>
+		/// <param name="action">Action to be invoked for each list element.</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireList(this IUhtTokenReader TokenReader, char Terminator, char Separator, bool bAllowTrailingSeparator, Action Action)
+		public static IUhtTokenReader RequireList(this IUhtTokenReader tokenReader, char terminator, char separator, bool allowTrailingSeparator, Action action)
 		{
-			return TokenReader.RequireList(Terminator, Separator, bAllowTrailingSeparator, null, Action);
+			return tokenReader.RequireList(terminator, separator, allowTrailingSeparator, null, action);
 		}
 
 		/// <summary>
 		/// Parse a required list.  Initiating token must have already been parsed
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Terminator">Terminating symbol</param>
-		/// <param name="Separator">Separator symbol</param>
-		/// <param name="bAllowTrailingSeparator">If true, allow trailing separators</param>
-		/// <param name="ExceptionContext">Extra context for error messages</param>
-		/// <param name="Action">Action to be invoked for each list element.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="terminator">Terminating symbol</param>
+		/// <param name="separator">Separator symbol</param>
+		/// <param name="allowTrailingSeparator">If true, allow trailing separators</param>
+		/// <param name="exceptionContext">Extra context for error messages</param>
+		/// <param name="action">Action to be invoked for each list element.</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireList(this IUhtTokenReader TokenReader, char Terminator, char Separator, bool bAllowTrailingSeparator, object? ExceptionContext, Action Action)
+		public static IUhtTokenReader RequireList(this IUhtTokenReader tokenReader, char terminator, char separator, bool allowTrailingSeparator, object? exceptionContext, Action action)
 		{
 			// Check for an empty list
-			if (TokenReader.TryOptional(Terminator))
+			if (tokenReader.TryOptional(terminator))
 			{
-				return TokenReader;
+				return tokenReader;
 			}
 
 			// Process the body
@@ -102,48 +102,48 @@ namespace EpicGames.UHT.Tokenizer
 			{
 
 				// Read the element via the lambda
-				Action();
+				action();
 
 				// Make sure we haven't reached the EOF
-				if (TokenReader.bIsEOF)
+				if (tokenReader.IsEOF)
 				{
-					throw new UhtTokenException(TokenReader, TokenReader.GetToken(), $"'{Separator}' or '{Terminator}'", ExceptionContext);
+					throw new UhtTokenException(tokenReader, tokenReader.GetToken(), $"'{separator}' or '{terminator}'", exceptionContext);
 				}
 
 				// If we have a separator, then it might be a trailing separator 
-				if (TokenReader.TryOptional(Separator))
+				if (tokenReader.TryOptional(separator))
 				{
-					if (bAllowTrailingSeparator && TokenReader.TryOptional(Terminator))
+					if (allowTrailingSeparator && tokenReader.TryOptional(terminator))
 					{
-						return TokenReader;
+						return tokenReader;
 					}
 					continue;
 				}
 
 				// Otherwise, we must have an terminator
-				if (!TokenReader.TryOptional(Terminator))
+				if (!tokenReader.TryOptional(terminator))
 				{
-					throw new UhtTokenException(TokenReader, TokenReader.GetToken(), $"'{Separator}' or '{Terminator}'", ExceptionContext);
+					throw new UhtTokenException(tokenReader, tokenReader.GetToken(), $"'{separator}' or '{terminator}'", exceptionContext);
 				}
-				return TokenReader;
+				return tokenReader;
 			}
 		}
 
 		/// <summary>
 		/// Parse an optional list
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Initiator">Initiating symbol</param>
-		/// <param name="Terminator">Terminating symbol</param>
-		/// <param name="Separator">Separator symbol</param>
-		/// <param name="bAllowTrailingSeparator">If true, allow trailing separators</param>
-		/// <param name="Delegate">Delegate to invoke with the parsed token list</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initiator">Initiating symbol</param>
+		/// <param name="terminator">Terminating symbol</param>
+		/// <param name="separator">Separator symbol</param>
+		/// <param name="allowTrailingSeparator">If true, allow trailing separators</param>
+		/// <param name="tokensDelegate">Delegate to invoke with the parsed token list</param>
 		/// <returns>True if a list was read</returns>
-		public static bool TryOptionalList(this IUhtTokenReader TokenReader, char Initiator, char Terminator, char Separator, bool bAllowTrailingSeparator, UhtTokensDelegate Delegate)
+		public static bool TryOptionalList(this IUhtTokenReader tokenReader, char initiator, char terminator, char separator, bool allowTrailingSeparator, UhtTokensDelegate tokensDelegate)
 		{
-			if (TokenReader.TryOptional(Initiator))
+			if (tokenReader.TryOptional(initiator))
 			{
-				TokenReader.RequireList(Terminator, Separator, bAllowTrailingSeparator, Delegate);
+				tokenReader.RequireList(terminator, separator, allowTrailingSeparator, tokensDelegate);
 				return true;
 			}
 			return false;
@@ -152,104 +152,104 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Parse a required list
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Initiator">Initiating symbol</param>
-		/// <param name="Terminator">Terminating symbol</param>
-		/// <param name="Separator">Separator symbol</param>
-		/// <param name="bAllowTrailingSeparator">If true, allow trailing separators</param>
-		/// <param name="Delegate">Delegate to invoke with the parsed token list</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initiator">Initiating symbol</param>
+		/// <param name="terminator">Terminating symbol</param>
+		/// <param name="separator">Separator symbol</param>
+		/// <param name="allowTrailingSeparator">If true, allow trailing separators</param>
+		/// <param name="tokensDelegate">Delegate to invoke with the parsed token list</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireList(this IUhtTokenReader TokenReader, char Initiator, char Terminator, char Separator, bool bAllowTrailingSeparator, UhtTokensDelegate Delegate)
+		public static IUhtTokenReader RequireList(this IUhtTokenReader tokenReader, char initiator, char terminator, char separator, bool allowTrailingSeparator, UhtTokensDelegate tokensDelegate)
 		{
-			return TokenReader.RequireList(Initiator, Terminator, Separator, bAllowTrailingSeparator, null, Delegate);
+			return tokenReader.RequireList(initiator, terminator, separator, allowTrailingSeparator, null, tokensDelegate);
 		}
 
 		/// <summary>
 		/// Parse a required list
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Initiator">Initiating symbol</param>
-		/// <param name="Terminator">Terminating symbol</param>
-		/// <param name="Separator">Separator symbol</param>
-		/// <param name="bAllowTrailingSeparator">If true, allow trailing separators</param>
-		/// <param name="ExceptionContext">Extra context for error messages</param>
-		/// <param name="Delegate">Delegate to invoke with the parsed token list</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initiator">Initiating symbol</param>
+		/// <param name="terminator">Terminating symbol</param>
+		/// <param name="separator">Separator symbol</param>
+		/// <param name="allowTrailingSeparator">If true, allow trailing separators</param>
+		/// <param name="exceptionContext">Extra context for error messages</param>
+		/// <param name="tokensDelegate">Delegate to invoke with the parsed token list</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireList(this IUhtTokenReader TokenReader, char Initiator, char Terminator, char Separator, bool bAllowTrailingSeparator, object? ExceptionContext, UhtTokensDelegate Delegate)
+		public static IUhtTokenReader RequireList(this IUhtTokenReader tokenReader, char initiator, char terminator, char separator, bool allowTrailingSeparator, object? exceptionContext, UhtTokensDelegate tokensDelegate)
 		{
-			TokenReader.Require(Initiator);
-			return TokenReader.RequireList(Terminator, Separator, bAllowTrailingSeparator, ExceptionContext, Delegate);
+			tokenReader.Require(initiator);
+			return tokenReader.RequireList(terminator, separator, allowTrailingSeparator, exceptionContext, tokensDelegate);
 		}
 
 		/// <summary>
 		/// Parse a required list.  Initiating token must have already been parsed
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Terminator">Terminating symbol</param>
-		/// <param name="Separator">Separator symbol</param>
-		/// <param name="bAllowTrailingSeparator">If true, allow trailing separators</param>
-		/// <param name="Delegate">Delegate to invoke with the parsed token list</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="terminator">Terminating symbol</param>
+		/// <param name="separator">Separator symbol</param>
+		/// <param name="allowTrailingSeparator">If true, allow trailing separators</param>
+		/// <param name="tokensDelegate">Delegate to invoke with the parsed token list</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireList(this IUhtTokenReader TokenReader, char Terminator, char Separator, bool bAllowTrailingSeparator, UhtTokensDelegate Delegate)
+		public static IUhtTokenReader RequireList(this IUhtTokenReader tokenReader, char terminator, char separator, bool allowTrailingSeparator, UhtTokensDelegate tokensDelegate)
 		{
-			return TokenReader.RequireList(Terminator, Separator, bAllowTrailingSeparator, null, Delegate);
+			return tokenReader.RequireList(terminator, separator, allowTrailingSeparator, null, tokensDelegate);
 		}
 
 		/// <summary>
 		/// Parse a required list.  Initiating token must have already been parsed
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Terminator">Terminating symbol</param>
-		/// <param name="Separator">Separator symbol</param>
-		/// <param name="bAllowTrailingSeparator">If true, allow trailing separators</param>
-		/// <param name="ExceptionContext">Extra context for error messages</param>
-		/// <param name="Delegate">Delegate to invoke with the parsed token list</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="terminator">Terminating symbol</param>
+		/// <param name="separator">Separator symbol</param>
+		/// <param name="allowTrailingSeparator">If true, allow trailing separators</param>
+		/// <param name="exceptionContext">Extra context for error messages</param>
+		/// <param name="tokensDelegate">Delegate to invoke with the parsed token list</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireList(this IUhtTokenReader TokenReader, char Terminator, char Separator, bool bAllowTrailingSeparator, object? ExceptionContext, UhtTokensDelegate Delegate)
+		public static IUhtTokenReader RequireList(this IUhtTokenReader tokenReader, char terminator, char separator, bool allowTrailingSeparator, object? exceptionContext, UhtTokensDelegate tokensDelegate)
 		{
 			// Check for an empty list
-			if (TokenReader.TryOptional(Terminator))
+			if (tokenReader.TryOptional(terminator))
 			{
-				return TokenReader;
+				return tokenReader;
 			}
 
 			// Process the body
 			while (true)
 			{
-				List<UhtToken> Tokens = new List<UhtToken>();
+				List<UhtToken> tokens = new List<UhtToken>();
 
 				// Read the tokens until we hit the end
 				while (true)
 				{
 					// Make sure we haven't reached the EOF
-					if (TokenReader.bIsEOF)
+					if (tokenReader.IsEOF)
 					{
-						throw new UhtTokenException(TokenReader, TokenReader.GetToken(), $"'{Separator}' or '{Terminator}'", ExceptionContext);
+						throw new UhtTokenException(tokenReader, tokenReader.GetToken(), $"'{separator}' or '{terminator}'", exceptionContext);
 					}
 
 					// If we have a separator, then it might be a trailing separator 
-					if (TokenReader.TryOptional(Separator))
+					if (tokenReader.TryOptional(separator))
 					{
-						Delegate(Tokens);
-						if (TokenReader.TryOptional(Terminator))
+						tokensDelegate(tokens);
+						if (tokenReader.TryOptional(terminator))
 						{
-							if (bAllowTrailingSeparator)
+							if (allowTrailingSeparator)
 							{
-								return TokenReader;
+								return tokenReader;
 							}
-							throw new UhtException(TokenReader, $"A separator '{Separator}' followed immediately by the terminator '{Terminator}' is invalid");
+							throw new UhtException(tokenReader, $"A separator '{separator}' followed immediately by the terminator '{terminator}' is invalid");
 						}
 						break;
 					}
 
 					// If this is the terminator, then we are done
-					if (TokenReader.TryOptional(Terminator))
+					if (tokenReader.TryOptional(terminator))
 					{
-						Delegate(Tokens);
-						return TokenReader;
+						tokensDelegate(tokens);
+						return tokenReader;
 					}
 
-					Tokens.Add(TokenReader.GetToken());
+					tokens.Add(tokenReader.GetToken());
 				}
 			}
 		}
@@ -257,91 +257,91 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Consume a block of tokens bounded by the two given symbols.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Initiator">The next token must be the given symbol.</param>
-		/// <param name="Terminator">The tokens are read until the given symbol is found.  The terminating symbol will be consumed.</param>
-		/// <param name="ExceptionContext">Extra context for any error messages</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initiator">The next token must be the given symbol.</param>
+		/// <param name="terminator">The tokens are read until the given symbol is found.  The terminating symbol will be consumed.</param>
+		/// <param name="exceptionContext">Extra context for any error messages</param>
 		/// <returns>The input token reader</returns>
-		public static IUhtTokenReader RequireList(this IUhtTokenReader TokenReader, char Initiator, char Terminator, object? ExceptionContext = null)
+		public static IUhtTokenReader RequireList(this IUhtTokenReader tokenReader, char initiator, char terminator, object? exceptionContext = null)
 		{
-			TokenReader.Require(Initiator);
+			tokenReader.Require(initiator);
 
 			// Process the body
 			while (true)
 			{
 
 				// Make sure we haven't reached the EOF
-				if (TokenReader.bIsEOF)
+				if (tokenReader.IsEOF)
 				{
-					throw new UhtTokenException(TokenReader, TokenReader.GetToken(), $"'{Terminator}'", ExceptionContext);
+					throw new UhtTokenException(tokenReader, tokenReader.GetToken(), $"'{terminator}'", exceptionContext);
 				}
 
 				// Look for the terminator
-				if (TokenReader.TryOptional(Terminator))
+				if (tokenReader.TryOptional(terminator))
 				{
 					break;
 				}
 
 				// Consume the current token
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Invoke action while the next token is the given string
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match to continue invoking Action</param>
-		/// <param name="Action">Action to invoke if and only if the prior text was parsed.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match to continue invoking Action</param>
+		/// <param name="action">Action to invoke if and only if the prior text was parsed.</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader While(this IUhtTokenReader TokenReader, string Text, Action Action)
+		public static IUhtTokenReader While(this IUhtTokenReader tokenReader, string text, Action action)
 		{
-			while (TokenReader.TryOptional(Text))
+			while (tokenReader.TryOptional(text))
 			{
-				Action();
+				action();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Invoke action while the next token is the given string
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match to continue invoking Action</param>
-		/// <param name="Action">Action to invoke if and only if the prior text was parsed.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match to continue invoking Action</param>
+		/// <param name="action">Action to invoke if and only if the prior text was parsed.</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader While(this IUhtTokenReader TokenReader, char Text, Action Action)
+		public static IUhtTokenReader While(this IUhtTokenReader tokenReader, char text, Action action)
 		{
-			while (TokenReader.TryOptional(Text))
+			while (tokenReader.TryOptional(text))
 			{
-				Action();
+				action();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Read tokens until the delegate return false.  The terminating token is not consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Delegate">Invoked with each read token.  Return true to continue tokenizing or false to terminate.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="untilDelegate">Invoked with each read token.  Return true to continue tokenizing or false to terminate.</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader While(this IUhtTokenReader TokenReader, UhtTokensUntilDelegate Delegate)
+		public static IUhtTokenReader While(this IUhtTokenReader tokenReader, UhtTokensUntilDelegate untilDelegate)
 		{
 			while (true)
 			{
-				if (TokenReader.bIsEOF)
+				if (tokenReader.IsEOF)
 				{
-					throw new UhtTokenException(TokenReader, TokenReader.GetToken(), null, null);
+					throw new UhtTokenException(tokenReader, tokenReader.GetToken(), null, null);
 				}
-				ref UhtToken Token = ref TokenReader.PeekToken();
-				if (Delegate(ref Token))
+				ref UhtToken token = ref tokenReader.PeekToken();
+				if (untilDelegate(ref token))
 				{
-					TokenReader.ConsumeToken();
+					tokenReader.ConsumeToken();
 				}
 				else
 				{
-					return TokenReader;
+					return tokenReader;
 				}
 			}
 		}
@@ -349,45 +349,45 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Consume tokens until one of the strings are found.  Terminating token will not be consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Terminators">Strings that will terminate processing.</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="terminators">Strings that will terminate processing.</param>
 		/// <returns>Number of tokens consumed</returns>
-		public static int ConsumeUntil(this IUhtTokenReader TokenReader, string[] Terminators)
+		public static int ConsumeUntil(this IUhtTokenReader tokenReader, string[] terminators)
 		{
-			int ConsumedTokens = 0;
-			while (!TokenReader.bIsEOF)
+			int consumedTokens = 0;
+			while (!tokenReader.IsEOF)
 			{
-				ref UhtToken Token = ref TokenReader.PeekToken();
-				foreach (string Candidate in Terminators)
+				ref UhtToken token = ref tokenReader.PeekToken();
+				foreach (string candidate in terminators)
 				{
-					if ((Token.IsIdentifier() || Token.IsSymbol()) && Token.IsValue(Candidate))
+					if ((token.IsIdentifier() || token.IsSymbol()) && token.IsValue(candidate))
 					{
-						return ConsumedTokens;
+						return consumedTokens;
 					}
 				}
-				TokenReader.ConsumeToken();
-				++ConsumedTokens;
+				tokenReader.ConsumeToken();
+				++consumedTokens;
 			}
-			return ConsumedTokens;
+			return consumedTokens;
 		}
 
 		/// <summary>
 		/// Consume until the given terminator is found.  Terminating token will be consumed
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Terminator">Terminating symbol</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="terminator">Terminating symbol</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader ConsumeUntil(this IUhtTokenReader TokenReader, char Terminator)
+		public static IUhtTokenReader ConsumeUntil(this IUhtTokenReader tokenReader, char terminator)
 		{
-			while (!TokenReader.bIsEOF)
+			while (!tokenReader.IsEOF)
 			{
-				if (TokenReader.TryOptional(Terminator))
+				if (tokenReader.TryOptional(terminator))
 				{
 					break;
 				}
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 	}
 }

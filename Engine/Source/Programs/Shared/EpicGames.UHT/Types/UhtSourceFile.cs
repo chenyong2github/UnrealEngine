@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using EpicGames.Core;
 using EpicGames.UHT.Utils;
-using System.IO;
 
 namespace EpicGames.UHT.Types
 {
@@ -12,8 +12,8 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtSourceFile : IUhtMessageSite, IUhtMessageSource
 	{
-		private readonly UhtSimpleMessageSite MessageSite;
-		private UhtSourceFragment SourceFragment;
+		private readonly UhtSimpleMessageSite _messageSite;
+		private UhtSourceFragment _sourceFragment;
 
 		/// <summary>
 		/// The session associated with the source
@@ -33,29 +33,29 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// The contents of the source file
 		/// </summary>
-		public StringView Data { get => SourceFragment.Data; }
+		public StringView Data => _sourceFragment.Data;
 
 		/// <summary>
 		/// If this source is from a fragment, the original source file
 		/// </summary>
-		public UhtSourceFile? FragmentSourceFile { get => SourceFragment.SourceFile; }
+		public UhtSourceFile? FragmentSourceFile => _sourceFragment.SourceFile;
 
 		/// <summary>
 		/// If this source is from a fragment, the starting line of the fragment
 		/// </summary>
-		public int FragmentLineNumber { get => SourceFragment.LineNumber; }
+		public int FragmentLineNumber => _sourceFragment.LineNumber;
 
 		/// <summary>
 		/// Full file path of the source file
 		/// </summary>
-		public string FullFilePath { get => SourceFragment.FilePath; }
+		public string FullFilePath => _sourceFragment.FilePath;
 
 		#region IUHTMessageSite implementation
 		/// <inheritdoc/>
-		public IUhtMessageSession MessageSession => this.MessageSite.MessageSession;
+		public IUhtMessageSession MessageSession => this._messageSite.MessageSession;
 
 		/// <inheritdoc/>
-		public IUhtMessageSource? MessageSource => this.MessageSite.MessageSource;
+		public IUhtMessageSource? MessageSource => this._messageSite.MessageSource;
 
 		/// <inheritdoc/>
 		public IUhtMessageLineNumber? MessageLineNumber => null;
@@ -63,35 +63,35 @@ namespace EpicGames.UHT.Types
 
 		#region IUHTMessageSource implementation
 		/// <inheritdoc/>
-		public string MessageFilePath { get => this.FilePath; }
+		public string MessageFilePath => this.FilePath;
 
 		/// <inheritdoc/>
-		public string MessageFullFilePath { get => this.FullFilePath; }
+		public string MessageFullFilePath => this.FullFilePath;
 
 		/// <inheritdoc/>
-		public bool bMessageIsFragment { get => this.FragmentSourceFile != null; }
+		public bool MessageIsFragment => this.FragmentSourceFile != null;
 
 		/// <inheritdoc/>
-		public string MessageFragmentFilePath { get => this.FragmentSourceFile != null ? this.FragmentSourceFile.MessageFilePath : ""; }
+		public string MessageFragmentFilePath => this.FragmentSourceFile != null ? this.FragmentSourceFile.MessageFilePath : "";
 
 		/// <inheritdoc/>
-		public string MessageFragmentFullFilePath { get => this.FragmentSourceFile != null ? this.FragmentSourceFile.MessageFullFilePath : ""; }
+		public string MessageFragmentFullFilePath => this.FragmentSourceFile != null ? this.FragmentSourceFile.MessageFullFilePath : "";
 
 		/// <inheritdoc/>
-		public int MessageFragmentLineNumber { get => this.FragmentLineNumber; }
+		public int MessageFragmentLineNumber => this.FragmentLineNumber;
 		#endregion
 
 		/// <summary>
 		/// Construct a new instance of a source file
 		/// </summary>
-		/// <param name="Session">The owning session</param>
-		/// <param name="FilePath">The full file path</param>
-		public UhtSourceFile(UhtSession Session, string FilePath)
+		/// <param name="session">The owning session</param>
+		/// <param name="filePath">The full file path</param>
+		public UhtSourceFile(UhtSession session, string filePath)
 		{
-			this.Session = Session;
-			this.FilePath = FilePath;
+			this.Session = session;
+			this.FilePath = filePath;
 			this.FileName = Path.GetFileNameWithoutExtension(this.FilePath);
-			this.MessageSite = new UhtSimpleMessageSite(this.Session, this);
+			this._messageSite = new UhtSimpleMessageSite(this.Session, this);
 		}
 
 		/// <summary>
@@ -99,7 +99,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		public virtual void Read()
 		{
-			this.SourceFragment = Session.ReadSource(this.FilePath);
+			this._sourceFragment = Session.ReadSource(this.FilePath);
 		}
 	}
 }

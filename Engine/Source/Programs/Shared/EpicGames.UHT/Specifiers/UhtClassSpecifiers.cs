@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -17,381 +17,381 @@ namespace EpicGames.UHT.Parsers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NoExportSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NoExportSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.ClassExportFlags |= UhtClassExportFlags.NoExport;
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.ClassExportFlags |= UhtClassExportFlags.NoExport;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void IntrinsicSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void IntrinsicSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.Intrinsic);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.Intrinsic);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ComponentWrapperClassSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ComponentWrapperClassSpecifier(UhtSpecifierContext specifierContext)
 		{
-			SpecifierContext.MetaData.Add(UhtNames.IgnoreCategoryKeywordsInSubclasses, true);
+			specifierContext.MetaData.Add(UhtNames.IgnoreCategoryKeywordsInSubclasses, true);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.SingleString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void WithinSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void WithinSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.ClassWithinIdentifier = Value.ToString();
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.ClassWithinIdentifier = value.ToString();
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void EditInlineNewSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void EditInlineNewSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.EditInlineNew);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.EditInlineNew);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NotEditInlineNewSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NotEditInlineNewSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.RemoveClassFlags(EClassFlags.EditInlineNew);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.RemoveClassFlags(EClassFlags.EditInlineNew);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void PlaceableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void PlaceableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.RemoveClassFlags(EClassFlags.NotPlaceable);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.RemoveClassFlags(EClassFlags.NotPlaceable);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NotPlaceableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NotPlaceableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.NotPlaceable);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.NotPlaceable);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void DefaultToInstancedSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void DefaultToInstancedSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.DefaultToInstanced);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.DefaultToInstanced);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void HideDropdownSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void HideDropdownSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.HideDropDown);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.HideDropDown);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void HiddenSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void HiddenSpecifier(UhtSpecifierContext specifierContext)
 		{
 			// Prevents class from appearing in the editor class browser and edit inline menus.
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.Hidden);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.Hidden);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void DependsOnSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void DependsOnSpecifier(UhtSpecifierContext specifierContext)
 		{
-			SpecifierContext.MessageSite.LogError("The dependsOn specifier is deprecated. Please use #include \"ClassHeaderFilename.h\" instead.");
+			specifierContext.MessageSite.LogError("The dependsOn specifier is deprecated. Please use #include \"ClassHeaderFilename.h\" instead.");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void MinimalAPISpecifier(UhtSpecifierContext SpecifierContext)
+		private static void MinimalAPISpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.MinimalAPI);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.MinimalAPI);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ConstSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ConstSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.Const);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.Const);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void PerObjectConfigSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void PerObjectConfigSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.PerObjectConfig);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.PerObjectConfig);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ConfigDoNotCheckDefaultsSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ConfigDoNotCheckDefaultsSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.ConfigDoNotCheckDefaults);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.ConfigDoNotCheckDefaults);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void AbstractSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void AbstractSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.Abstract);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.Abstract);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void DeprecatedSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void DeprecatedSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.Deprecated | EClassFlags.NotPlaceable);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.Deprecated | EClassFlags.NotPlaceable);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void TransientSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void TransientSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.Transient);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.Transient);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NonTransientSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NonTransientSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.RemoveClassFlags(EClassFlags.Transient);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.RemoveClassFlags(EClassFlags.Transient);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void OptionalSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void OptionalSpecifier(UhtSpecifierContext specifierContext)
 		{
 			// Optional class
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.Optional);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.Optional);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void CustomConstructorSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void CustomConstructorSpecifier(UhtSpecifierContext specifierContext)
 		{
 			// we will not export a constructor for this class, assuming it is in the CPP block
-			UhtClass Class = (UhtClass)SpecifierContext.Scope.ScopeType;
-			Class.ClassExportFlags |= UhtClassExportFlags.HasCustomConstructor;
+			UhtClass classObj = (UhtClass)specifierContext.Scope.ScopeType;
+			classObj.ClassExportFlags |= UhtClassExportFlags.HasCustomConstructor;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.SingleString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ConfigSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void ConfigSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			UhtClass Class = (UhtClass)SpecifierContext.Scope.ScopeType;
-			Class.Config = Value.ToString();
+			UhtClass classObj = (UhtClass)specifierContext.Scope.ScopeType;
+			classObj.Config = value.ToString();
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void DefaultConfigSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void DefaultConfigSpecifier(UhtSpecifierContext specifierContext)
 		{
 			// Save object config only to Default INIs, never to local INIs.
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.DefaultConfig);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.DefaultConfig);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void GlobalUserConfigSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void GlobalUserConfigSpecifier(UhtSpecifierContext specifierContext)
 		{
 			// Save object config only to global user overrides, never to local INIs
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.GlobalUserConfig);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.GlobalUserConfig);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ProjectUserConfigSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ProjectUserConfigSpecifier(UhtSpecifierContext specifierContext)
 		{
 			// Save object config only to project user overrides, never to INIs that are checked in
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.ProjectUserConfig);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.ProjectUserConfig);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.SingleString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void EditorConfigSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void EditorConfigSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			SpecifierContext.MetaData.Add(UhtNames.EditorConfig, Value.ToString());
+			specifierContext.MetaData.Add(UhtNames.EditorConfig, value.ToString());
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ShowCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
+		private static void ShowCategoriesSpecifier(UhtSpecifierContext specifierContext, List<StringView> value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.ShowCategories.AddUniqueRange(Value);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.ShowCategories.AddUniqueRange(value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void HideCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
+		private static void HideCategoriesSpecifier(UhtSpecifierContext specifierContext, List<StringView> value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.HideCategories.AddUniqueRange(Value);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.HideCategories.AddUniqueRange(value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ShowFunctionsSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
+		private static void ShowFunctionsSpecifier(UhtSpecifierContext specifierContext, List<StringView> value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.ShowFunctions.AddUniqueRange(Value);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.ShowFunctions.AddUniqueRange(value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void HideFunctionsSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
+		private static void HideFunctionsSpecifier(UhtSpecifierContext specifierContext, List<StringView> value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.HideFunctions.AddUniqueRange(Value);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.HideFunctions.AddUniqueRange(value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.SingleString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void SparseClassDataTypesSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void SparseClassDataTypesSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.SparseClassDataTypes.AddUnique(Value.ToString());
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.SparseClassDataTypes.AddUnique(value.ToString());
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ClassGroupSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
+		private static void ClassGroupSpecifier(UhtSpecifierContext specifierContext, List<StringView> value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			foreach (StringView Eleemnt in Value)
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			foreach (StringView element in value)
 			{
-				Class.ClassGroupNames.Add(Eleemnt.ToString());
+				classObj.ClassGroupNames.Add(element.ToString());
 			}
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void AutoExpandCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
+		private static void AutoExpandCategoriesSpecifier(UhtSpecifierContext specifierContext, List<StringView> value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AutoExpandCategories.AddUniqueRange(Value);
-			Class.AutoCollapseCategories.RemoveSwapRange(Value);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AutoExpandCategories.AddUniqueRange(value);
+			classObj.AutoCollapseCategories.RemoveSwapRange(value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void AutoCollapseCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
+		private static void AutoCollapseCategoriesSpecifier(UhtSpecifierContext specifierContext, List<StringView> value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AutoCollapseCategories.AddUniqueRange(Value);
-			Class.AutoExpandCategories.RemoveSwapRange(Value);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AutoCollapseCategories.AddUniqueRange(value);
+			classObj.AutoExpandCategories.RemoveSwapRange(value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void PrioritizeCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
+		private static void PrioritizeCategoriesSpecifier(UhtSpecifierContext specifierContext, List<StringView> value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.PrioritizeCategories.AddUniqueRange(Value);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.PrioritizeCategories.AddUniqueRange(value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.NonEmptyStringList)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void DontAutoCollapseCategoriesSpecifier(UhtSpecifierContext SpecifierContext, List<StringView> Value)
+		private static void DontAutoCollapseCategoriesSpecifier(UhtSpecifierContext specifierContext, List<StringView> value)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AutoCollapseCategories.RemoveSwapRange(Value);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AutoCollapseCategories.RemoveSwapRange(value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void CollapseCategoriesSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void CollapseCategoriesSpecifier(UhtSpecifierContext specifierContext)
 		{
 			// Class' properties should not be shown categorized in the editor.
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.CollapseCategories);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.CollapseCategories);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void DontCollapseCategoriesSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void DontCollapseCategoriesSpecifier(UhtSpecifierContext specifierContext)
 		{
 			// Class' properties should be shown categorized in the editor.
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.RemoveClassFlags(EClassFlags.CollapseCategories);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.RemoveClassFlags(EClassFlags.CollapseCategories);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void AdvancedClassDisplaySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void AdvancedClassDisplaySpecifier(UhtSpecifierContext specifierContext)
 		{
 			// By default the class properties are shown in advanced sections in UI
-			UhtClass Class = (UhtClass)SpecifierContext.Scope.ScopeType;
-			Class.MetaData.Add(UhtNames.AdvancedClassDisplay, "true");
+			UhtClass classObj = (UhtClass)specifierContext.Scope.ScopeType;
+			classObj.MetaData.Add(UhtNames.AdvancedClassDisplay, "true");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ConversionRootSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ConversionRootSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClass Class = (UhtClass)SpecifierContext.Scope.ScopeType;
-			Class.MetaData.Add(UhtNames.IsConversionRoot, "true");
+			UhtClass classObj = (UhtClass)specifierContext.Scope.ScopeType;
+			classObj.MetaData.Add(UhtNames.IsConversionRoot, "true");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NeedsDeferredDependencyLoadingSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NeedsDeferredDependencyLoadingSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.NeedsDeferredDependencyLoading);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.NeedsDeferredDependencyLoading);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void MatchedSerializersSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void MatchedSerializersSpecifier(UhtSpecifierContext specifierContext)
 		{
-			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
+			if (!specifierContext.Scope.HeaderParser.HeaderFile.IsNoExportTypes)
 			{
-				SpecifierContext.MessageSite.LogError("The 'MatchedSerializers' class specifier is only valid in the NoExportTypes.h file");
+				specifierContext.MessageSite.LogError("The 'MatchedSerializers' class specifier is only valid in the NoExportTypes.h file");
 			}
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.MatchedSerializers);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.MatchedSerializers);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void InterfaceSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void InterfaceSpecifier(UhtSpecifierContext specifierContext)
 		{
-			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
+			if (!specifierContext.Scope.HeaderParser.HeaderFile.IsNoExportTypes)
 			{
-				SpecifierContext.MessageSite.LogError("The 'Interface' class specifier is only valid in the NoExportTypes.h file");
+				specifierContext.MessageSite.LogError("The 'Interface' class specifier is only valid in the NoExportTypes.h file");
 			}
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.AddClassFlags(EClassFlags.Interface);
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.AddClassFlags(EClassFlags.Interface);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Class, ValueType = UhtSpecifierValueType.None)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void CustomFieldNotifySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void CustomFieldNotifySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClassParser Class = (UhtClassParser)SpecifierContext.Scope.ScopeType;
-			Class.ClassExportFlags |= UhtClassExportFlags.HasCustomFieldNotify;
+			UhtClassParser classObj = (UhtClassParser)specifierContext.Scope.ScopeType;
+			classObj.ClassExportFlags |= UhtClassExportFlags.HasCustomFieldNotify;
 		}
 	}
 }

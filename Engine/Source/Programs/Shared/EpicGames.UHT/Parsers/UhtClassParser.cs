@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -76,63 +76,63 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Add the given class flags
 		/// </summary>
-		/// <param name="Flags">Flags to add</param>
-		public void AddClassFlags(EClassFlags Flags)
+		/// <param name="flags">Flags to add</param>
+		public void AddClassFlags(EClassFlags flags)
 		{
-			this.ClassFlags |= Flags;
-			this.RemovedClassFlags &= ~Flags;
+			this.ClassFlags |= flags;
+			this.RemovedClassFlags &= ~flags;
 		}
 
 		/// <summary>
 		/// Remove the given class flags
 		/// </summary>
-		/// <param name="Flags">Flags to remove</param>
-		public void RemoveClassFlags(EClassFlags Flags)
+		/// <param name="flags">Flags to remove</param>
+		public void RemoveClassFlags(EClassFlags flags)
 		{
-			this.RemovedClassFlags |= Flags;
-			this.ClassFlags &= ~Flags;
+			this.RemovedClassFlags |= flags;
+			this.ClassFlags &= ~flags;
 		}
 
 		/// <summary>
 		/// Construct a new class parser
 		/// </summary>
-		/// <param name="Outer">Outer type</param>
-		/// <param name="LineNumber">Line number</param>
-		public UhtClassParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		/// <param name="outer">Outer type</param>
+		/// <param name="lineNumber">Line number</param>
+		public UhtClassParser(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
 		}
 
 		/// <inheritdoc/>
-		protected override void ResolveSuper(UhtResolvePhase ResolvePhase)
+		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
 		{
-			base.ResolveSuper(ResolvePhase);
+			base.ResolveSuper(resolvePhase);
 
 			// Make sure the class within is resolved.  We have to make sure we don't try to resolve ourselves.
 			if (this.ClassWithin != null && this.ClassWithin != this)
 			{
-				this.ClassWithin.Resolve(ResolvePhase);
+				this.ClassWithin.Resolve(resolvePhase);
 			}
 
-			switch (ResolvePhase)
+			switch (resolvePhase)
 			{
 				case UhtResolvePhase.Bases:
-					UhtClass? SuperClass = this.SuperClass;
+					UhtClass? superClass = this.SuperClass;
 
 					// Merge the super class flags
-					if (SuperClass != null)
+					if (superClass != null)
 					{
-						this.ClassFlags |= SuperClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
+						this.ClassFlags |= superClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
 					}
 
-					foreach (UhtStruct Base in this.Bases)
+					foreach (UhtStruct baseStruct in this.Bases)
 					{
-						if (Base is UhtClass BaseClass)
+						if (baseStruct is UhtClass baseClass)
 						{
-							if (!BaseClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
+							if (!baseClass.ClassFlags.HasAnyFlags(EClassFlags.Interface))
 							{
-								this.LogError($"Class '{BaseClass.SourceName}' is not an interface; Can only inherit from non-UObjects or UInterface derived interfaces");
+								this.LogError($"Class '{baseClass.SourceName}' is not an interface; Can only inherit from non-UObjects or UInterface derived interfaces");
 							}
-							this.ClassFlags |= BaseClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
+							this.ClassFlags |= baseClass.ClassFlags & EClassFlags.ScriptInherit & ~this.RemovedClassFlags;
 						}
 					}
 
@@ -149,7 +149,7 @@ namespace EpicGames.UHT.Parsers
 					// Merge with categories inherited from the parent.
 					MergeCategories();
 
-					SetAndValidateWithinClass(ResolvePhase);
+					SetAndValidateWithinClass(resolvePhase);
 					SetAndValidateConfigName();
 
 					// Copy all of the lists back to the meta data
@@ -173,65 +173,65 @@ namespace EpicGames.UHT.Parsers
 
 			// Merge ShowFunctions and HideFunctions
 			AppendStringListMetaData(this.SuperClass, UhtNames.HideFunctions, this.HideFunctions);
-			foreach (string Value in this.ShowFunctions)
+			foreach (string value in this.ShowFunctions)
 			{
-				this.HideFunctions.RemoveSwap(Value);
+				this.HideFunctions.RemoveSwap(value);
 			}
 			this.ShowFunctions.Clear();
 
 			// Merge AutoExpandCategories and AutoCollapseCategories (we still want to keep AutoExpandCategories though!)
-			List<string> ParentAutoExpandCategories = GetStringListMetaData(this.SuperClass, UhtNames.AutoExpandCategories);
-			List<string> ParentAutoCollapseCategories = GetStringListMetaData(this.SuperClass, UhtNames.AutoCollapseCategories);
+			List<string> parentAutoExpandCategories = GetStringListMetaData(this.SuperClass, UhtNames.AutoExpandCategories);
+			List<string> parentAutoCollapseCategories = GetStringListMetaData(this.SuperClass, UhtNames.AutoCollapseCategories);
 
-			foreach (string Value in this.AutoExpandCategories)
+			foreach (string value in this.AutoExpandCategories)
 			{
-				this.AutoCollapseCategories.RemoveSwap(Value);
-				ParentAutoCollapseCategories.RemoveSwap(Value);
+				this.AutoCollapseCategories.RemoveSwap(value);
+				parentAutoCollapseCategories.RemoveSwap(value);
 			}
 
 			// Do the same as above but the other way around
-			foreach (string Value in this.AutoCollapseCategories)
+			foreach (string value in this.AutoCollapseCategories)
 			{
-				this.AutoExpandCategories.RemoveSwap(Value);
-				ParentAutoExpandCategories.RemoveSwap(Value);
+				this.AutoExpandCategories.RemoveSwap(value);
+				parentAutoExpandCategories.RemoveSwap(value);
 			}
 
 			// Once AutoExpandCategories and AutoCollapseCategories for THIS class have been parsed, add the parent inherited categories
-			this.AutoCollapseCategories.AddRange(ParentAutoCollapseCategories);
-			this.AutoExpandCategories.AddRange(ParentAutoExpandCategories);
+			this.AutoCollapseCategories.AddRange(parentAutoCollapseCategories);
+			this.AutoExpandCategories.AddRange(parentAutoExpandCategories);
 		}
 
 		private void MergeShowCategories()
 		{
 
 			// Add the super class hide categories and prime the output show categories with the parent
-			List<string> OutShowCategories = GetStringListMetaData(this.SuperClass, UhtNames.ShowCategories);
+			List<string> outShowCategories = GetStringListMetaData(this.SuperClass, UhtNames.ShowCategories);
 			AppendStringListMetaData(this.SuperClass, UhtNames.HideCategories, this.HideCategories);
 
 			// If this class has new show categories, then merge them
 			if (this.ShowCategories.Count != 0)
 			{
-				StringBuilder SubCategoryPath = new StringBuilder();
-				foreach (string Value in this.ShowCategories)
+				StringBuilder subCategoryPath = new StringBuilder();
+				foreach (string value in this.ShowCategories)
 				{
 
 					// if we didn't find this specific category path in the HideCategories metadata
-					if (!this.HideCategories.RemoveSwap(Value))
+					if (!this.HideCategories.RemoveSwap(value))
 					{
-						string[] SubCategories = Value.ToString().Split('|', StringSplitOptions.RemoveEmptyEntries);
+						string[] subCategories = value.ToString().Split('|', StringSplitOptions.RemoveEmptyEntries);
 
-						SubCategoryPath.Clear();
+						subCategoryPath.Clear();
 						// look to see if any of the parent paths are excluded in the HideCategories list
-						for (int CategoryPathIndex = 0; CategoryPathIndex < SubCategories.Length - 1; ++CategoryPathIndex)
+						for (int categoryPathIndex = 0; categoryPathIndex < subCategories.Length - 1; ++categoryPathIndex)
 						{
-							SubCategoryPath.Append(SubCategories[CategoryPathIndex]);
+							subCategoryPath.Append(subCategories[categoryPathIndex]);
 							// if we're hiding a parent category, then we need to flag this sub category for show
-							if (HideCategories.Contains(SubCategoryPath.ToString()))
+							if (HideCategories.Contains(subCategoryPath.ToString()))
 							{
-								OutShowCategories.AddUnique(Value);
+								outShowCategories.AddUnique(value);
 								break;
 							}
-							SubCategoryPath.Append('|');
+							subCategoryPath.Append('|');
 						}
 					}
 				}
@@ -239,19 +239,19 @@ namespace EpicGames.UHT.Parsers
 
 			// Replace the show categories
 			this.ShowCategories.Clear();
-			this.ShowCategories.AddRange(OutShowCategories);
+			this.ShowCategories.AddRange(outShowCategories);
 		}
 
-		private void SetAndValidateWithinClass(UhtResolvePhase ResolvePhase)
+		private void SetAndValidateWithinClass(UhtResolvePhase resolvePhase)
 		{
 			// The class within must be a child of any super class within
-			UhtClass ExpectedClassWithin = this.SuperClass != null ? this.SuperClass.ClassWithin : this.Session.UObject;
+			UhtClass expectedClassWithin = this.SuperClass != null ? this.SuperClass.ClassWithin : this.Session.UObject;
 
 			// Process all of the class specifiers
-			if (!string.IsNullOrEmpty(this.ClassWithinIdentifier))
+			if (!String.IsNullOrEmpty(this.ClassWithinIdentifier))
 			{
-				UhtClass? SpecifiedClassWithin = (UhtClass?)this.Session.FindType(null, UhtFindOptions.EngineName | UhtFindOptions.Class, this.ClassWithinIdentifier);
-				if (SpecifiedClassWithin == null)
+				UhtClass? specifiedClassWithin = (UhtClass?)this.Session.FindType(null, UhtFindOptions.EngineName | UhtFindOptions.Class, this.ClassWithinIdentifier);
+				if (specifiedClassWithin == null)
 				{
 					this.LogError($"Within class '{this.ClassWithinIdentifier}' not found");
 				}
@@ -260,22 +260,22 @@ namespace EpicGames.UHT.Parsers
 
 					// Make sure the class within has been resolved to this phase.  We don't need to worry about the super since we know 
 					// that it has already been resolved.
-					if (SpecifiedClassWithin != this)
+					if (specifiedClassWithin != this)
 					{
-						SpecifiedClassWithin.Resolve(ResolvePhase);
+						specifiedClassWithin.Resolve(resolvePhase);
 					}
 
-					if (SpecifiedClassWithin.IsChildOf(this.Session.UInterface))
+					if (specifiedClassWithin.IsChildOf(this.Session.UInterface))
 					{
 						this.LogError("Classes cannot be 'within' interfaces");
 					}
-					else if (!SpecifiedClassWithin.IsChildOf(ExpectedClassWithin))
+					else if (!specifiedClassWithin.IsChildOf(expectedClassWithin))
 					{
-						this.LogError($"Cannot override within class with '{SpecifiedClassWithin.SourceName}' since it isn't a child of parent class's expected within '{ExpectedClassWithin.SourceName}'");
+						this.LogError($"Cannot override within class with '{specifiedClassWithin.SourceName}' since it isn't a child of parent class's expected within '{expectedClassWithin.SourceName}'");
 					}
 					else
 					{
-						this.ClassWithin = SpecifiedClassWithin;
+						this.ClassWithin = specifiedClassWithin;
 					}
 				}
 			}
@@ -283,7 +283,7 @@ namespace EpicGames.UHT.Parsers
 			// If we don't have a class within set, then just use the expected within
 			else
 			{
-				this.ClassWithin = ExpectedClassWithin;
+				this.ClassWithin = expectedClassWithin;
 			}
 		}
 
@@ -299,9 +299,9 @@ namespace EpicGames.UHT.Parsers
 			// Set the class config flag if any properties have config
 			if (!this.ClassFlags.HasAnyFlags(EClassFlags.Config))
 			{
-				foreach (UhtProperty Property in this.Properties)
+				foreach (UhtProperty property in this.Properties)
 				{
-					if (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.Config))
+					if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.Config))
 					{
 						this.ClassFlags |= EClassFlags.Config;
 						break;
@@ -341,25 +341,25 @@ namespace EpicGames.UHT.Parsers
 			}
 		}
 
-		private static List<string> GetStringListMetaData(UhtType? Type, string Key)
+		private static List<string> GetStringListMetaData(UhtType? type, string key)
 		{
-			List<string> Out = new List<string>();
-			AppendStringListMetaData(Type, Key, Out);
-			return Out;
+			List<string> outStrings = new List<string>();
+			AppendStringListMetaData(type, key, outStrings);
+			return outStrings;
 		}
 
-		private static void AppendStringListMetaData(UhtType? Type, string Key, List<string> StringList)
+		private static void AppendStringListMetaData(UhtType? type, string key, List<string> stringList)
 		{
-			if (Type != null)
+			if (type != null)
 			{
-				string[]? Values = Type.MetaData.GetStringArray(Key);
-				if (Values != null)
+				string[]? values = type.MetaData.GetStringArray(key);
+				if (values != null)
 				{
-					foreach (string Value in Values)
+					foreach (string value in values)
 					{
 						//COMPATIBILITY-TODO - TEST - This preserves duplicates that are in old UHT
 						//StringList.AddUnique(Value);
-						StringList.Add(Value);
+						stringList.Add(value);
 					}
 				}
 			}
@@ -369,110 +369,110 @@ namespace EpicGames.UHT.Parsers
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtParseResult UCLASSKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
+		private static UhtParseResult UCLASSKeyword(UhtParsingScope topScope, UhtParsingScope actionScope, ref UhtToken token)
 		{
-			return ParseUClass(TopScope, ref Token);
+			return ParseUClass(topScope, ref token);
 		}
 
 		[UhtKeyword(Extends = UhtTableNames.Class)]
 		[UhtKeyword(Extends = UhtTableNames.Class, Keyword = "GENERATED_BODY")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtParseResult GENERATED_UCLASS_BODYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
+		private static UhtParseResult GENERATED_UCLASS_BODYKeyword(UhtParsingScope topScope, UhtParsingScope actionScope, ref UhtToken token)
 		{
-			UhtClass Class = (UhtClass)TopScope.ScopeType;
+			UhtClass classObj = (UhtClass)topScope.ScopeType;
 
-			if (Token.IsValue("GENERATED_BODY"))
+			if (token.IsValue("GENERATED_BODY"))
 			{
-				Class.bHasGeneratedBody = true;
-				Class.GeneratedBodyAccessSpecifier = TopScope.AccessSpecifier;
+				classObj.HasGeneratedBody = true;
+				classObj.GeneratedBodyAccessSpecifier = topScope.AccessSpecifier;
 			}
 			else
 			{
-				TopScope.AccessSpecifier = UhtAccessSpecifier.Public;
+				topScope.AccessSpecifier = UhtAccessSpecifier.Public;
 			}
 
-			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, TopScope.Session.Config!, Class);
+			UhtParserHelpers.ParseCompileVersionDeclaration(topScope.TokenReader, topScope.Session.Config!, classObj);
 
-			Class.GeneratedBodyLineNumber = TopScope.TokenReader.InputLine;
+			classObj.GeneratedBodyLineNumber = topScope.TokenReader.InputLine;
 
-			TopScope.TokenReader.Optional(';');
+			topScope.TokenReader.Optional(';');
 			return UhtParseResult.Handled;
 		}
 		#endregion
 
-		private static UhtParseResult ParseUClass(UhtParsingScope ParentScope, ref UhtToken Token)
+		private static UhtParseResult ParseUClass(UhtParsingScope parentScope, ref UhtToken token)
 		{
-			UhtClassParser Class = new UhtClassParser(ParentScope.ScopeType, Token.InputLine);
-			using (var TopScope = new UhtParsingScope(ParentScope, Class, ParentScope.Session.GetKeywordTable(UhtTableNames.Class), UhtAccessSpecifier.Private))
+			UhtClassParser classObj = new UhtClassParser(parentScope.ScopeType, token.InputLine);
+			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, classObj, parentScope.Session.GetKeywordTable(UhtTableNames.Class), UhtAccessSpecifier.Private))
 			{
 				const string ScopeName = "class";
 
-				using (var TokenContext = new UhtMessageContext(ScopeName))
+				using (UhtMessageContext tokenContext = new UhtMessageContext(ScopeName))
 				{
 					// Parse the specifiers
-					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Class.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetCachedSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Class));
-					Specifiers.ParseSpecifiers();
-					Class.PrologLineNumber = TopScope.TokenReader.InputLine;
-					Class.ClassFlags |= EClassFlags.Native;
+					UhtSpecifierContext specifierContext = new UhtSpecifierContext(topScope, topScope.TokenReader, classObj.MetaData);
+					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Class));
+					specifiers.ParseSpecifiers();
+					classObj.PrologLineNumber = topScope.TokenReader.InputLine;
+					classObj.ClassFlags |= EClassFlags.Native;
 
-					TopScope.AddFormattedCommentsAsTooltipMetaData();
+					topScope.AddFormattedCommentsAsTooltipMetaData();
 
 					// Consume the class specifier
-					TopScope.TokenReader.Require("class");
+					topScope.TokenReader.Require("class");
 
-					TopScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
+					topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
 
 					// Read the class name and possible API macro name
-					UhtToken APIMacroToken;
-					TopScope.TokenReader.TryOptionalAPIMacro(out APIMacroToken);
-					Class.SourceName = TopScope.TokenReader.GetIdentifier().Value.ToString();
+					UhtToken apiMacroToken;
+					topScope.TokenReader.TryOptionalAPIMacro(out apiMacroToken);
+					classObj.SourceName = topScope.TokenReader.GetIdentifier().Value.ToString();
 
 					// Update the context for better error messages
-					TokenContext.Reset($"class '{Class.SourceName}'");
+					tokenContext.Reset($"class '{classObj.SourceName}'");
 
 					// Split the source name into the different parts
-					UhtEngineNameParts NameParts = UhtUtilities.GetEngineNameParts(Class.SourceName);
-					Class.EngineName = NameParts.EngineName.ToString();
+					UhtEngineNameParts nameParts = UhtUtilities.GetEngineNameParts(classObj.SourceName);
+					classObj.EngineName = nameParts.EngineName.ToString();
 
 					// Check for an empty engine name
-					if (Class.EngineName.Length == 0)
+					if (classObj.EngineName.Length == 0)
 					{
-						TopScope.TokenReader.LogError($"When compiling class definition for '{Class.SourceName}', attempting to strip prefix results in an empty name. Did you leave off a prefix?");
+						topScope.TokenReader.LogError($"When compiling class definition for '{classObj.SourceName}', attempting to strip prefix results in an empty name. Did you leave off a prefix?");
 					}
 
 					// Skip optional final keyword
-					TopScope.TokenReader.Optional("final");
+					topScope.TokenReader.Optional("final");
 
 					// Parse the inheritance
-					UhtToken SuperIdentifier;
-					List<UhtToken[]>? BaseIdentifiers;
-					UhtParserHelpers.ParseInheritance(TopScope.TokenReader, TopScope.Session.Config!, out SuperIdentifier, out BaseIdentifiers);
-					Class.SuperIdentifier = SuperIdentifier;
-					Class.BaseIdentifiers = BaseIdentifiers;
+					UhtToken superIdentifier;
+					List<UhtToken[]>? baseIdentifiers;
+					UhtParserHelpers.ParseInheritance(topScope.TokenReader, topScope.Session.Config!, out superIdentifier, out baseIdentifiers);
+					classObj.SuperIdentifier = superIdentifier;
+					classObj.BaseIdentifiers = baseIdentifiers;
 
-					if (APIMacroToken)
+					if (apiMacroToken)
 					{
-						Class.ClassFlags |= EClassFlags.RequiredAPI;
+						classObj.ClassFlags |= EClassFlags.RequiredAPI;
 					}
 
-					Specifiers.ParseDeferred();
+					specifiers.ParseDeferred();
 
-					if (Class.Outer != null)
+					if (classObj.Outer != null)
 					{
-						Class.Outer.AddChild(Class);
+						classObj.Outer.AddChild(classObj);
 					}
 
-					TopScope.AddModuleRelativePathToMetaData();
+					topScope.AddModuleRelativePathToMetaData();
 
-					TopScope.HeaderParser.ParseStatements('{', '}', true);
+					topScope.HeaderParser.ParseStatements('{', '}', true);
 
-					TopScope.TokenReader.Require(';');
+					topScope.TokenReader.Require(';');
 
-					if (Class.GeneratedBodyLineNumber == -1)
+					if (classObj.GeneratedBodyLineNumber == -1)
 					{
-						TopScope.TokenReader.LogError("Expected a GENERATED_BODY() at the start of the class");
+						topScope.TokenReader.LogError("Expected a GENERATED_BODY() at the start of the class");
 					}
 				}
 			}

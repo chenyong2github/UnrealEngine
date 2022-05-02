@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -17,16 +17,16 @@ namespace EpicGames.UHT.Types
 	public class UhtFieldPathProperty : UhtProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "FieldPathProperty"; }
+		public override string EngineClassName => "FieldPathProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "TFieldPath"; }
+		protected override string CppTypeText => "TFieldPath";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "TFIELDPATH"; }
+		protected override string PGetMacroText => "TFIELDPATH";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Class name without the prefix
@@ -36,11 +36,11 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="FieldClassName">Field class name</param>
-		public UhtFieldPathProperty(UhtPropertySettings PropertySettings, string FieldClassName) : base(PropertySettings)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="fieldClassName">Field class name</param>
+		public UhtFieldPathProperty(UhtPropertySettings propertySettings, string fieldClassName) : base(propertySettings)
 		{
-			this.FieldClassName = FieldClassName;
+			this.FieldClassName = fieldClassName;
 			this.PropertyCaps |= UhtPropertyCaps.IsParameterSupportedByBlueprint | UhtPropertyCaps.IsMemberSupportedByBlueprint;
 		}
 
@@ -51,55 +51,55 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				case UhtPropertyTextType.SparseShort:
-					Builder.Append("TFieldPath");
+					builder.Append("TFieldPath");
 					break;
 
 				default:
-					Builder.Append("TFieldPath<F").Append(this.FieldClassName).Append('>');
+					builder.Append("TFieldPath<F").Append(this.FieldClassName).Append('>');
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FFieldPathPropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FFieldPathPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FFieldPathPropertyParams", "UECodeGen_Private::EPropertyGenFlags::FieldPath");
-			Builder.Append("&F").Append(this.FieldClassName).Append("::StaticClass, ");
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FFieldPathPropertyParams", "UECodeGen_Private::EPropertyGenFlags::FieldPath");
+			builder.Append("&F").Append(this.FieldClassName).Append("::StaticClass, ");
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			Builder.Append("nullptr");
-			return Builder;
+			builder.Append("nullptr");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
 			return false;
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			if (Other is UhtFieldPathProperty OtherFieldPath)
+			if (other is UhtFieldPathProperty otherFieldPath)
 			{
-				return this.FieldClassName == OtherFieldPath.FieldClassName;
+				return this.FieldClassName == otherFieldPath.FieldClassName;
 			}
 			return false;
 		}
@@ -108,23 +108,23 @@ namespace EpicGames.UHT.Types
 		[UhtPropertyType(Keyword = "TFieldPath", Options = UhtPropertyTypeOptions.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? FieldPathProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? FieldPathProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			using (var TokenContext = new UhtMessageContext("TFieldPath"))
+			using (UhtMessageContext tokenContext = new UhtMessageContext("TFieldPath"))
 			{
-				UhtToken Identifier = new UhtToken();
-				TokenReader
+				UhtToken identifier = new UhtToken();
+				tokenReader
 					.Require("TFieldPath")
 					.Require('<')
-					.RequireIdentifier((ref UhtToken Token) => Identifier = Token)
+					.RequireIdentifier((ref UhtToken token) => identifier = token)
 					.Require('>');
 
-				StringView FieldClassName = new StringView(Identifier.Value, 1);
-				if (!PropertySettings.Outer.Session.IsValidPropertyTypeName(FieldClassName))
+				StringView fieldClassName = new StringView(identifier.Value, 1);
+				if (!propertySettings.Outer.Session.IsValidPropertyTypeName(fieldClassName))
 				{
-					throw new UhtException($"Undefined property type: {Identifier.Value}");
+					throw new UhtException($"Undefined property type: {identifier.Value}");
 				}
-				return new UhtFieldPathProperty(PropertySettings, FieldClassName.ToString());
+				return new UhtFieldPathProperty(propertySettings, fieldClassName.ToString());
 			}
 		}
 		#endregion

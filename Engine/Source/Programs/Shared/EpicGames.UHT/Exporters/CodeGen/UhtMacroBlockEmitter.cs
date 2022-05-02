@@ -7,32 +7,32 @@ namespace EpicGames.UHT.Exporters.CodeGen
 {
 	internal struct UhtMacroBlockEmitter : IDisposable
 	{
-		private readonly StringBuilder Builder;
-		private readonly string MacroName;
-		private bool bEmitted;
+		private readonly StringBuilder _builder;
+		private readonly string _macroName;
+		private bool _bEmitted;
 
-		public UhtMacroBlockEmitter(StringBuilder Builder, string MacroName, bool bInitialState = false)
+		public UhtMacroBlockEmitter(StringBuilder builder, string macroName, bool initialState = false)
 		{
-			this.Builder = Builder;
-			this.MacroName = MacroName;
-			this.bEmitted = false;
-			Set(bInitialState);
+			this._builder = builder;
+			this._macroName = macroName;
+			this._bEmitted = false;
+			Set(initialState);
 		}
 
-		public void Set(bool bEmit)
+		public void Set(bool emit)
 		{
-			if (this.bEmitted == bEmit)
+			if (this._bEmitted == emit)
 			{
 				return;
 			}
-			this.bEmitted = bEmit;
-			if (this.bEmitted)
+			this._bEmitted = emit;
+			if (this._bEmitted)
 			{
-				Builder.Append("#if ").Append(this.MacroName).Append("\r\n");
+				_builder.Append("#if ").Append(this._macroName).Append("\r\n");
 			}
 			else
 			{
-				Builder.Append("#endif // ").Append(this.MacroName).Append("\r\n");
+				_builder.Append("#endif // ").Append(this._macroName).Append("\r\n");
 			}
 		}
 

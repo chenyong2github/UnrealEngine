@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -18,90 +18,90 @@ namespace EpicGames.UHT.Types
 	public class UhtLazyObjectPtrProperty : UhtObjectPropertyBase
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "LazyObjectProperty"; }
+		public override string EngineClassName => "LazyObjectProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "TLazyObjectPtr"; }
+		protected override string CppTypeText => "TLazyObjectPtr";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "LAZYOBJECT"; }
+		protected override string PGetMacroText => "LAZYOBJECT";
 
 		/// <inheritdoc/>
-		protected override bool bPGetPassAsNoPtr { get => true; }
+		protected override bool PGetPassAsNoPtr => true;
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Construct new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="Class">Referenced class</param>
-		public UhtLazyObjectPtrProperty(UhtPropertySettings PropertySettings, UhtClass Class)
-			: base(PropertySettings, Class, null)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="classObj">Referenced class</param>
+		public UhtLazyObjectPtrProperty(UhtPropertySettings propertySettings, UhtClass classObj)
+			: base(propertySettings, classObj, null)
 		{
 			this.PropertyFlags |= EPropertyFlags.UObjectWrapper;
 			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.RequiresNullConstructorArg;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				case UhtPropertyTextType.FunctionThunkParameterArgType:
-					Builder.Append("TLazyObjectPtr<").Append(this.Class.SourceName).Append("> "); //COMPATIBILITY-TODO - Extra space
+					builder.Append("TLazyObjectPtr<").Append(this.Class.SourceName).Append("> "); //COMPATIBILITY-TODO - Extra space
 					break;
 
 				default:
-					Builder.Append("TLazyObjectPtr<").Append(this.Class.SourceName).Append('>');
+					builder.Append("TLazyObjectPtr<").Append(this.Class.SourceName).Append('>');
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FLazyObjectPropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FLazyObjectPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FLazyObjectPropertyParams", "UECodeGen_Private::EPropertyGenFlags::LazyObject");
-			AppendMemberDefRef(Builder, Context, this.Class, false);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FLazyObjectPropertyParams", "UECodeGen_Private::EPropertyGenFlags::LazyObject");
+			AppendMemberDefRef(builder, context, this.Class, false);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			Builder.Append("NULL");
-			return Builder;
+			builder.Append("NULL");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			if (Other is UhtLazyObjectPtrProperty OtherObject)
+			if (other is UhtLazyObjectPtrProperty otherObject)
 			{
-				return this.Class == OtherObject.Class && this.MetaClass == OtherObject.MetaClass;
+				return this.Class == otherObject.Class && this.MetaClass == otherObject.MetaClass;
 			}
 			return false;
 		}
 
 		/// <inheritdoc/>
-		public override void Validate(UhtStruct OuterStruct, UhtProperty OutermostProperty, UhtValidationOptions Options)
+		public override void Validate(UhtStruct outerStruct, UhtProperty outermostProperty, UhtValidationOptions options)
 		{
-			base.Validate(OuterStruct, OutermostProperty, Options);
+			base.Validate(outerStruct, outermostProperty, options);
 
 			// UFunctions with a smart pointer as input parameter wont compile anyway, because of missing P_GET_... macro.
 			// UFunctions with a smart pointer as return type will crash when called via blueprint, because they are not supported in VM.
 			if (this.PropertyCategory == UhtPropertyCategory.RegularParameter || this.PropertyCategory == UhtPropertyCategory.ReplicatedParameter)
 			{
-				OuterStruct.LogError("UFunctions cannot take a lazy pointer as a parameter.");
+				outerStruct.LogError("UFunctions cannot take a lazy pointer as a parameter.");
 			}
 		}
 
@@ -109,20 +109,20 @@ namespace EpicGames.UHT.Types
 		[UhtPropertyType(Keyword = "TLazyObjectPtr")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? LazyObjectPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? LazyObjectPtrProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			UhtClass? PropertyClass = ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, true);
-			if (PropertyClass == null)
+			UhtClass? propertyClass = ParseTemplateObject(propertySettings, tokenReader, matchedToken, true);
+			if (propertyClass == null)
 			{
 				return null;
 			}
 
-			if (PropertyClass.IsChildOf(PropertyClass.Session.UClass))
+			if (propertyClass.IsChildOf(propertyClass.Session.UClass))
 			{
-				TokenReader.LogError("Class variables cannot be lazy, they are always strong.");
+				tokenReader.LogError("Class variables cannot be lazy, they are always strong.");
 			}
 
-			return new UhtLazyObjectPtrProperty(PropertySettings, PropertyClass);
+			return new UhtLazyObjectPtrProperty(propertySettings, propertyClass);
 		}
 		#endregion
 	}

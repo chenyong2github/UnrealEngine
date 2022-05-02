@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -34,248 +34,247 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Construct a new instance
 		/// </summary>
-		/// <param name="Outer">Output type</param>
-		/// <param name="LineNumber">Line number of declaration</param>
-		public UhtScriptStructParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		/// <param name="outer">Output type</param>
+		/// <param name="lineNumber">Line number of declaration</param>
+		public UhtScriptStructParser(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
 		}
 
 		/// <inheritdoc/>
-		protected override void ResolveSuper(UhtResolvePhase ResolvePhase)
+		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
 		{
-			base.ResolveSuper(ResolvePhase);
+			base.ResolveSuper(resolvePhase);
 
-			switch (ResolvePhase)
+			switch (resolvePhase)
 			{
 				case UhtResolvePhase.Bases:
 					BindAndResolveSuper(this.SuperIdentifier, UhtFindOptions.ScriptStruct);
 
 					// if we have a base struct, propagate inherited struct flags now
-					UhtScriptStruct? SuperScriptStruct = this.SuperScriptStruct;
-					if (SuperScriptStruct != null)
+					UhtScriptStruct? superScriptStruct = this.SuperScriptStruct;
+					if (superScriptStruct != null)
 					{
-						this.ScriptStructFlags |= SuperScriptStruct.ScriptStructFlags & EStructFlags.Inherit;
+						this.ScriptStructFlags |= superScriptStruct.ScriptStructFlags & EStructFlags.Inherit;
 					}
 					break;
 			}
 		}
 
 		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase ResolvePhase)
+		protected override bool ResolveSelf(UhtResolvePhase resolvePhase)
 		{
-			bool bResult = base.ResolveSelf(ResolvePhase);
+			bool result = base.ResolveSelf(resolvePhase);
 
-			switch (ResolvePhase)
+			switch (resolvePhase)
 			{
 				case UhtResolvePhase.Properties:
 					UhtPropertyParser.ResolveChildren(this, UhtPropertyParseOptions.AddModuleRelativePath);
 					break;
 			}
-			return bResult;
+			return result;
 		}
 
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtParseResult USTRUCTKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
+		private static UhtParseResult USTRUCTKeyword(UhtParsingScope topScope, UhtParsingScope actionScope, ref UhtToken token)
 		{
-			return ParseUScriptStruct(TopScope, Token);
+			return ParseUScriptStruct(topScope, token);
 		}
 
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct)]
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct, Keyword = "GENERATED_BODY")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtParseResult GENERATED_USTRUCT_BODYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
+		private static UhtParseResult GENERATED_USTRUCT_BODYKeyword(UhtParsingScope topScope, UhtParsingScope actionScope, ref UhtToken token)
 		{
-			UhtScriptStruct ScriptStruct = (UhtScriptStruct)TopScope.ScopeType;
+			UhtScriptStruct scriptStruct = (UhtScriptStruct)topScope.ScopeType;
 
-			if (TopScope.AccessSpecifier != UhtAccessSpecifier.Public)
+			if (topScope.AccessSpecifier != UhtAccessSpecifier.Public)
 			{
-				TopScope.TokenReader.LogError($"{Token.Value} must be in the public scope of '{ScriptStruct.SourceName}', not private or protected.");
+				topScope.TokenReader.LogError($"{token.Value} must be in the public scope of '{scriptStruct.SourceName}', not private or protected.");
 			}
 
-			if (ScriptStruct.MacroDeclaredLineNumber != -1)
+			if (scriptStruct.MacroDeclaredLineNumber != -1)
 			{
-				TopScope.TokenReader.LogError($"Multiple {Token.Value} declarations found in '{ScriptStruct.SourceName}'");
+				topScope.TokenReader.LogError($"Multiple {token.Value} declarations found in '{scriptStruct.SourceName}'");
 			}
 
-			ScriptStruct.MacroDeclaredLineNumber = TopScope.TokenReader.InputLine;
+			scriptStruct.MacroDeclaredLineNumber = topScope.TokenReader.InputLine;
 
-			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, TopScope.Session.Config!, ScriptStruct);
+			UhtParserHelpers.ParseCompileVersionDeclaration(topScope.TokenReader, topScope.Session.Config!, scriptStruct);
 
-			TopScope.TokenReader.Optional(';');
+			topScope.TokenReader.Optional(';');
 			return UhtParseResult.Handled;
 		}
 
 		[UhtKeyword(Extends = UhtTableNames.ScriptStruct)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtParseResult RIGVM_METHODKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
+		private static UhtParseResult RIGVM_METHODKeyword(UhtParsingScope topScope, UhtParsingScope actionScope, ref UhtToken token)
 		{
-			ParseRigVM(TopScope);
+			ParseRigVM(topScope);
 			return UhtParseResult.Handled;
 		}
 		#endregion
 
-		private static UhtParseResult ParseUScriptStruct(UhtParsingScope ParentScope, UhtToken KeywordToken)
+		private static UhtParseResult ParseUScriptStruct(UhtParsingScope parentScope, UhtToken keywordToken)
 		{
-			UhtScriptStructParser ScriptStruct = new UhtScriptStructParser(ParentScope.ScopeType, KeywordToken.InputLine);
-			using (var TopScope = new UhtParsingScope(ParentScope, ScriptStruct, ParentScope.Session.GetKeywordTable(UhtTableNames.ScriptStruct), UhtAccessSpecifier.Public))
+			UhtScriptStructParser scriptStruct = new UhtScriptStructParser(parentScope.ScopeType, keywordToken.InputLine);
+			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, scriptStruct, parentScope.Session.GetKeywordTable(UhtTableNames.ScriptStruct), UhtAccessSpecifier.Public))
 			{
 				const string ScopeName = "struct";
 
-				using (var TokenContext = new UhtMessageContext(ScopeName))
+				using (UhtMessageContext tokenContext = new UhtMessageContext(ScopeName))
 				{
 					// Parse the specifiers
-					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, ScriptStruct.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetCachedSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.ScriptStruct));
-					Specifiers.ParseSpecifiers();
+					UhtSpecifierContext specifierContext = new UhtSpecifierContext(topScope, topScope.TokenReader, scriptStruct.MetaData);
+					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.ScriptStruct));
+					specifiers.ParseSpecifiers();
 
 					// Consume the struct specifier
-					TopScope.TokenReader.Require("struct");
+					topScope.TokenReader.Require("struct");
 
-					TopScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
+					topScope.TokenReader.SkipAlignasAndDeprecatedMacroIfNecessary();
 
 					// Read the struct name and possible API macro name
-					UhtToken APIMacroToken;
-					TopScope.TokenReader.TryOptionalAPIMacro(out APIMacroToken);
-					ScriptStruct.SourceName = TopScope.TokenReader.GetIdentifier().Value.ToString();
+					UhtToken apiMacroToken;
+					topScope.TokenReader.TryOptionalAPIMacro(out apiMacroToken);
+					scriptStruct.SourceName = topScope.TokenReader.GetIdentifier().Value.ToString();
 
-					TopScope.AddModuleRelativePathToMetaData();
+					topScope.AddModuleRelativePathToMetaData();
 
 					// Strip the name
-					if (ScriptStruct.SourceName[0] == 'T' || ScriptStruct.SourceName[0] == 'F')
+					if (scriptStruct.SourceName[0] == 'T' || scriptStruct.SourceName[0] == 'F')
 					{
-						ScriptStruct.EngineName = ScriptStruct.SourceName.Substring(1);
+						scriptStruct.EngineName = scriptStruct.SourceName.Substring(1);
 					}
 					else
 					{
 						// This will be flagged later in the validation phase
-						ScriptStruct.EngineName = ScriptStruct.SourceName;
+						scriptStruct.EngineName = scriptStruct.SourceName;
 					}
 
 					// Check for an empty engine name
-					if (ScriptStruct.EngineName.Length == 0)
+					if (scriptStruct.EngineName.Length == 0)
 					{
-						TopScope.TokenReader.LogError($"When compiling struct definition for '{ScriptStruct.SourceName}', attempting to strip prefix results in an empty name. Did you leave off a prefix?");
+						topScope.TokenReader.LogError($"When compiling struct definition for '{scriptStruct.SourceName}', attempting to strip prefix results in an empty name. Did you leave off a prefix?");
 					}
 
 					// Parse the inheritance
-					UhtToken SuperIdentifier;
-					List<UhtToken[]>? BaseIdentifiers;
-					UhtParserHelpers.ParseInheritance(TopScope.TokenReader, TopScope.Session.Config!, out SuperIdentifier, out BaseIdentifiers);
-					ScriptStruct.SuperIdentifier = SuperIdentifier;
-					ScriptStruct.BaseIdentifiers = BaseIdentifiers;
+					UhtToken superIdentifier;
+					List<UhtToken[]>? baseIdentifiers;
+					UhtParserHelpers.ParseInheritance(topScope.TokenReader, topScope.Session.Config!, out superIdentifier, out baseIdentifiers);
+					scriptStruct.SuperIdentifier = superIdentifier;
+					scriptStruct.BaseIdentifiers = baseIdentifiers;
 
 					// Add the comments here for compatibility with old UHT
 					//COMPATIBILITY-TODO - Move this back to where the AddModuleRelativePathToMetaData is called.
-					TopScope.TokenReader.PeekToken();
-					TopScope.TokenReader.CommitPendingComments();
-					TopScope.AddFormattedCommentsAsTooltipMetaData();
+					topScope.TokenReader.PeekToken();
+					topScope.TokenReader.CommitPendingComments();
+					topScope.AddFormattedCommentsAsTooltipMetaData();
 
 					// Initialize the structure flags
-					ScriptStruct.ScriptStructFlags |= EStructFlags.Native;
+					scriptStruct.ScriptStructFlags |= EStructFlags.Native;
 
 					// Record that this struct is RequiredAPI if the CORE_API style macro was present
-					if (APIMacroToken)
+					if (apiMacroToken)
 					{
-						ScriptStruct.ScriptStructFlags |= EStructFlags.RequiredAPI;
+						scriptStruct.ScriptStructFlags |= EStructFlags.RequiredAPI;
 					}
 
 					// Process the deferred specifiers
-					Specifiers.ParseDeferred();
+					specifiers.ParseDeferred();
 
-					if (ScriptStruct.Outer != null)
+					if (scriptStruct.Outer != null)
 					{
-						ScriptStruct.Outer.AddChild(ScriptStruct);
+						scriptStruct.Outer.AddChild(scriptStruct);
 					}
 
-					TopScope.HeaderParser.ParseStatements('{', '}', true);
+					topScope.HeaderParser.ParseStatements('{', '}', true);
 
-					TopScope.TokenReader.Require(';');
+					topScope.TokenReader.Require(';');
 
-					if (ScriptStruct.MacroDeclaredLineNumber == -1 && ScriptStruct.ScriptStructFlags.HasAnyFlags(EStructFlags.Native))
+					if (scriptStruct.MacroDeclaredLineNumber == -1 && scriptStruct.ScriptStructFlags.HasAnyFlags(EStructFlags.Native))
 					{
-						TopScope.TokenReader.LogError("Expected a GENERATED_BODY() at the start of the struct");
+						topScope.TokenReader.LogError("Expected a GENERATED_BODY() at the start of the struct");
 					}
 				}
 				return UhtParseResult.Handled;
 			}
 		}
 
-		private static void ParseRigVM(UhtParsingScope TopScope)
+		private static void ParseRigVM(UhtParsingScope topScope)
 		{
-			UhtScriptStruct ScriptStruct = (UhtScriptStruct)TopScope.ScopeType;
+			UhtScriptStruct scriptStruct = (UhtScriptStruct)topScope.ScopeType;
 
-			using (var TokenContext = new UhtMessageContext("RIGVM_METHOD"))
+			using (UhtMessageContext tokenContext = new UhtMessageContext("RIGVM_METHOD"))
 			{
 
 				// Create the RigVM information if it doesn't already exist
-				UhtRigVMStructInfo? StructInfo = ScriptStruct.RigVMStructInfo;
-				if (StructInfo == null)
+				UhtRigVMStructInfo? structInfo = scriptStruct.RigVMStructInfo;
+				if (structInfo == null)
 				{
-					StructInfo = new UhtRigVMStructInfo();
-					StructInfo.Name = ScriptStruct.EngineName;
-					ScriptStruct.RigVMStructInfo = StructInfo;
+					structInfo = new UhtRigVMStructInfo();
+					structInfo.Name = scriptStruct.EngineName;
+					scriptStruct.RigVMStructInfo = structInfo;
 				}
 
 				// Create a new method information and add it
-				UhtRigVMMethodInfo MethodInfo = new UhtRigVMMethodInfo();
+				UhtRigVMMethodInfo methodInfo = new UhtRigVMMethodInfo();
 
 				// NOTE: The argument list reader doesn't handle templates with multiple arguments (i.e. the ',' issue)
-				TopScope.TokenReader
+				topScope.TokenReader
 					.RequireList('(', ')')
 					.Optional("virtual")
-					.RequireIdentifier((ref UhtToken Identifier) => MethodInfo.ReturnType = Identifier.Value.ToString())
-					.RequireIdentifier((ref UhtToken Identifier) => MethodInfo.Name = Identifier.Value.ToString());
+					.RequireIdentifier((ref UhtToken identifier) => methodInfo.ReturnType = identifier.Value.ToString())
+					.RequireIdentifier((ref UhtToken identifier) => methodInfo.Name = identifier.Value.ToString());
 
-				bool bIsGetUpgradeInfo = false;
-				bool bIsGetNextAggregateName = false;
-				if (MethodInfo.ReturnType == "FRigVMStructUpgradeInfo" && MethodInfo.Name == "GetUpgradeInfo")
+				bool isGetUpgradeInfo = false;
+				bool isGetNextAggregateName = false;
+				if (methodInfo.ReturnType == "FRigVMStructUpgradeInfo" && methodInfo.Name == "GetUpgradeInfo")
 				{
-					StructInfo.bHasGetUpgradeInfoMethod = true;
-					bIsGetUpgradeInfo = true;
+					structInfo.HasGetUpgradeInfoMethod = true;
+					isGetUpgradeInfo = true;
 				}
-				if (MethodInfo.Name == "GetNextAggregateName")
+				if (methodInfo.Name == "GetNextAggregateName")
 				{
-					StructInfo.bHasGetNextAggregateNameMethod = true;
-					bIsGetNextAggregateName = true;
+					structInfo.HasGetNextAggregateNameMethod = true;
+					isGetNextAggregateName = true;
 				}
-				
 
-				TopScope.TokenReader
-					.RequireList('(', ')', ',', false, (IEnumerable<UhtToken> Tokens) =>
+				topScope.TokenReader
+					.RequireList('(', ')', ',', false, (IEnumerable<UhtToken> tokens) =>
 					{
-						if (!bIsGetUpgradeInfo && !bIsGetNextAggregateName)
+						if (!isGetUpgradeInfo && !isGetNextAggregateName)
 						{
-							StringViewBuilder Builder = new StringViewBuilder();
-							UhtToken LastToken = new UhtToken();
-							foreach (UhtToken Token in Tokens)
+							StringViewBuilder builder = new StringViewBuilder();
+							UhtToken lastToken = new UhtToken();
+							foreach (UhtToken token in tokens)
 							{
-								if (Token.IsSymbol('='))
+								if (token.IsSymbol('='))
 								{
 									break;
 								}
-								if (LastToken)
+								if (lastToken)
 								{
-									if (Builder.Length != 0)
+									if (builder.Length != 0)
 									{
-										Builder.Append(' ');
+										builder.Append(' ');
 									}
-									Builder.Append(LastToken.Value);
+									builder.Append(lastToken.Value);
 								}
-								LastToken = Token;
+								lastToken = token;
 							}
-							MethodInfo.Parameters.Add(new UhtRigVMParameter(LastToken.Value.ToString(), Builder.ToString()));
+							methodInfo.Parameters.Add(new UhtRigVMParameter(lastToken.Value.ToString(), builder.ToString()));
 						}
 					})
 					.ConsumeUntil(';');
 
-				if (!bIsGetUpgradeInfo && !bIsGetNextAggregateName)
+				if (!isGetUpgradeInfo && !isGetNextAggregateName)
 				{
-					StructInfo.Methods.Add(MethodInfo);
+					structInfo.Methods.Add(methodInfo);
 				}
 			}
 		}

@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -18,82 +18,82 @@ namespace EpicGames.UHT.Types
 	public class UhtStrProperty : UhtProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "StrProperty"; }
+		public override string EngineClassName => "StrProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "FString"; }
+		protected override string CppTypeText => "FString";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "PROPERTY"; }
+		protected override string PGetMacroText => "PROPERTY";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.EngineClass; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.EngineClass;
 
 		/// <summary>
 		/// Construct a new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		public UhtStrProperty(UhtPropertySettings PropertySettings) : base(PropertySettings)
+		/// <param name="propertySettings">Property settings</param>
+		public UhtStrProperty(UhtPropertySettings propertySettings) : base(propertySettings)
 		{
-			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint | 
+			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.CanExposeOnSpawn | UhtPropertyCaps.IsParameterSupportedByBlueprint |
 				UhtPropertyCaps.IsMemberSupportedByBlueprint | UhtPropertyCaps.SupportsRigVM;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			Builder.Append("TEXT(\"\")");
-			return Builder;
+			builder.Append("TEXT(\"\")");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FStrPropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FStrPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FStrPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Str");
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FStrPropertyParams", "UECodeGen_Private::EPropertyGenFlags::Str");
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool SanitizeDefaultValue(IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue)
+		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			if (DefaultValueReader.TryOptional("FString"))
+			if (defaultValueReader.TryOptional("FString"))
 			{
-				DefaultValueReader.Require('(');
-				StringView Value = DefaultValueReader.GetWrappedConstString();
-				DefaultValueReader.Require(')');
-				InnerDefaultValue.Append(Value);
+				defaultValueReader.Require('(');
+				StringView value = defaultValueReader.GetWrappedConstString();
+				defaultValueReader.Require(')');
+				innerDefaultValue.Append(value);
 			}
 			else
 			{
-				StringView Value = DefaultValueReader.GetWrappedConstString();
-				InnerDefaultValue.Append(Value);
+				StringView value = defaultValueReader.GetWrappedConstString();
+				innerDefaultValue.Append(value);
 			}
 			return true;
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			return Other is UhtStrProperty;
+			return other is UhtStrProperty;
 		}
 
 		/// <inheritdoc/>
-		protected override void ValidateFunctionArgument(UhtFunction Function, UhtValidationOptions Options)
+		protected override void ValidateFunctionArgument(UhtFunction function, UhtValidationOptions options)
 		{
-			base.ValidateFunctionArgument(Function, Options);
+			base.ValidateFunctionArgument(function, options);
 
-			if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
-				if (!Function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest))
+				if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetRequest))
 				{
-					if (this.RefQualifier != UhtPropertyRefQualifier.ConstRef && !this.bIsStaticArray)
+					if (this.RefQualifier != UhtPropertyRefQualifier.ConstRef && !this.IsStaticArray)
 					{
 						this.LogError("Replicated FString parameters must be passed by const reference");
 					}
@@ -105,36 +105,36 @@ namespace EpicGames.UHT.Types
 		[UhtPropertyType(Keyword = "FMemoryImageString", Options = UhtPropertyTypeOptions.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? StrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? StrProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			if (!TokenReader.SkipExpectedType(MatchedToken.Value, PropertySettings.PropertyCategory == UhtPropertyCategory.Member))
+			if (!tokenReader.SkipExpectedType(matchedToken.Value, propertySettings.PropertyCategory == UhtPropertyCategory.Member))
 			{
 				return null;
 			}
-			UhtStrProperty Out = new UhtStrProperty(PropertySettings);
-			if (Out.PropertyCategory != UhtPropertyCategory.Member)
+			UhtStrProperty property = new UhtStrProperty(propertySettings);
+			if (property.PropertyCategory != UhtPropertyCategory.Member)
 			{
-				if (TokenReader.TryOptional('&'))
+				if (tokenReader.TryOptional('&'))
 				{
-					if (Out.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
+					if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.ConstParm))
 					{
 						// 'const FString& Foo' came from 'FString' in .uc, no flags
-						Out.PropertyFlags &= ~EPropertyFlags.ConstParm;
+						property.PropertyFlags &= ~EPropertyFlags.ConstParm;
 
 						// We record here that we encountered a const reference, because we need to remove that information from flags for code generation purposes.
-						Out.RefQualifier = UhtPropertyRefQualifier.ConstRef;
+						property.RefQualifier = UhtPropertyRefQualifier.ConstRef;
 					}
 					else
 					{
 						// 'FString& Foo' came from 'out FString' in .uc
-						Out.PropertyFlags |= EPropertyFlags.OutParm;
+						property.PropertyFlags |= EPropertyFlags.OutParm;
 
 						// And we record here that we encountered a non-const reference here too.
-						Out.RefQualifier = UhtPropertyRefQualifier.NonConstRef;
+						property.RefQualifier = UhtPropertyRefQualifier.NonConstRef;
 					}
 				}
 			}
-			return Out;
+			return property;
 		}
 	}
 }

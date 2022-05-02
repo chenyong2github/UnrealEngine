@@ -16,75 +16,75 @@ namespace EpicGames.UHT.Parsers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NoExportSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NoExportSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtScriptStruct ScriptStruct = (UhtScriptStruct)SpecifierContext.Scope.ScopeType;
-			ScriptStruct.ScriptStructFlags |= EStructFlags.NoExport;
-			ScriptStruct.ScriptStructFlags &= ~EStructFlags.Native;
+			UhtScriptStruct scriptStruct = (UhtScriptStruct)specifierContext.Scope.ScopeType;
+			scriptStruct.ScriptStructFlags |= EStructFlags.NoExport;
+			scriptStruct.ScriptStructFlags &= ~EStructFlags.Native;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void AtomicSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void AtomicSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtScriptStruct ScriptStruct = (UhtScriptStruct)SpecifierContext.Scope.ScopeType;
-			ScriptStruct.ScriptStructFlags |= EStructFlags.Atomic;
+			UhtScriptStruct scriptStruct = (UhtScriptStruct)specifierContext.Scope.ScopeType;
+			scriptStruct.ScriptStructFlags |= EStructFlags.Atomic;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ImmutableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ImmutableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtScriptStruct ScriptStruct = (UhtScriptStruct)SpecifierContext.Scope.ScopeType;
-			ScriptStruct.ScriptStructFlags |= EStructFlags.Atomic | EStructFlags.Immutable;
+			UhtScriptStruct scriptStruct = (UhtScriptStruct)specifierContext.Scope.ScopeType;
+			scriptStruct.ScriptStructFlags |= EStructFlags.Atomic | EStructFlags.Immutable;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void HasDefaultsSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void HasDefaultsSpecifier(UhtSpecifierContext specifierContext)
 		{
-			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
+			if (!specifierContext.Scope.HeaderParser.HeaderFile.IsNoExportTypes)
 			{
-				SpecifierContext.MessageSite.LogError("The 'HasDefaults' struct specifier is only valid in the NoExportTypes.h file");
+				specifierContext.MessageSite.LogError("The 'HasDefaults' struct specifier is only valid in the NoExportTypes.h file");
 			}
-			UhtScriptStruct ScriptStruct = (UhtScriptStruct)SpecifierContext.Scope.ScopeType;
-			ScriptStruct.ScriptStructExportFlags |= UhtScriptStructExportFlags.HasDefaults;
+			UhtScriptStruct scriptStruct = (UhtScriptStruct)specifierContext.Scope.ScopeType;
+			scriptStruct.ScriptStructExportFlags |= UhtScriptStructExportFlags.HasDefaults;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void HasNoOpConstructorSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void HasNoOpConstructorSpecifier(UhtSpecifierContext specifierContext)
 		{
-			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
+			if (!specifierContext.Scope.HeaderParser.HeaderFile.IsNoExportTypes)
 			{
-				SpecifierContext.MessageSite.LogError("The 'HasNoOpConstructor' struct specifier is only valid in the NoExportTypes.h file");
+				specifierContext.MessageSite.LogError("The 'HasNoOpConstructor' struct specifier is only valid in the NoExportTypes.h file");
 			}
-			UhtScriptStruct ScriptStruct = (UhtScriptStruct)SpecifierContext.Scope.ScopeType;
-			ScriptStruct.ScriptStructExportFlags |= UhtScriptStructExportFlags.HasNoOpConstructor;
+			UhtScriptStruct scriptStruct = (UhtScriptStruct)specifierContext.Scope.ScopeType;
+			scriptStruct.ScriptStructExportFlags |= UhtScriptStructExportFlags.HasNoOpConstructor;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void IsAlwaysAccessibleSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void IsAlwaysAccessibleSpecifier(UhtSpecifierContext specifierContext)
 		{
-			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
+			if (!specifierContext.Scope.HeaderParser.HeaderFile.IsNoExportTypes)
 			{
-				SpecifierContext.MessageSite.LogError("The 'IsAlwaysAccessible' struct specifier is only valid in the NoExportTypes.h file");
+				specifierContext.MessageSite.LogError("The 'IsAlwaysAccessible' struct specifier is only valid in the NoExportTypes.h file");
 			}
-			UhtScriptStruct ScriptStruct = (UhtScriptStruct)SpecifierContext.Scope.ScopeType;
-			ScriptStruct.ScriptStructExportFlags |= UhtScriptStructExportFlags.IsAlwaysAccessible;
+			UhtScriptStruct scriptStruct = (UhtScriptStruct)specifierContext.Scope.ScopeType;
+			scriptStruct.ScriptStructExportFlags |= UhtScriptStructExportFlags.IsAlwaysAccessible;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.ScriptStruct, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void IsCoreTypeSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void IsCoreTypeSpecifier(UhtSpecifierContext specifierContext)
 		{
-			if (!SpecifierContext.Scope.HeaderParser.HeaderFile.bIsNoExportTypes)
+			if (!specifierContext.Scope.HeaderParser.HeaderFile.IsNoExportTypes)
 			{
-				SpecifierContext.MessageSite.LogError("The 'IsCoreType' struct specifier is only valid in the NoExportTypes.h file");
+				specifierContext.MessageSite.LogError("The 'IsCoreType' struct specifier is only valid in the NoExportTypes.h file");
 			}
-			UhtScriptStruct ScriptStruct = (UhtScriptStruct)SpecifierContext.Scope.ScopeType;
-			ScriptStruct.ScriptStructExportFlags |= UhtScriptStructExportFlags.IsCoreType;
+			UhtScriptStruct scriptStruct = (UhtScriptStruct)specifierContext.Scope.ScopeType;
+			scriptStruct.ScriptStructExportFlags |= UhtScriptStructExportFlags.IsCoreType;
 		}
 	}
 }

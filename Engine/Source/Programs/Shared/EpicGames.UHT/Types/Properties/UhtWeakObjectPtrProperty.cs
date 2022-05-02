@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -18,123 +18,123 @@ namespace EpicGames.UHT.Types
 	public class UhtWeakObjectPtrProperty : UhtObjectPropertyBase
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "WeakObjectProperty"; }
+		public override string EngineClassName => "WeakObjectProperty";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => this.PropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak) ? "AUTOWEAKOBJECT" : "WEAKOBJECT"; }
+		protected override string PGetMacroText => this.PropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak) ? "AUTOWEAKOBJECT" : "WEAKOBJECT";
 
 		/// <inheritdoc/>
-		protected override bool bPGetPassAsNoPtr { get => true; }
+		protected override bool PGetPassAsNoPtr => true;
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Construct a new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="PropertyClass">Class being referenced</param>
-		/// <param name="ExtraFlags">Extra property flags to add to the definition</param>
-		public UhtWeakObjectPtrProperty(UhtPropertySettings PropertySettings, UhtClass PropertyClass, EPropertyFlags ExtraFlags = EPropertyFlags.None)
-			: base(PropertySettings, PropertyClass, null)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="propertyClass">Class being referenced</param>
+		/// <param name="extraFlags">Extra property flags to add to the definition</param>
+		public UhtWeakObjectPtrProperty(UhtPropertySettings propertySettings, UhtClass propertyClass, EPropertyFlags extraFlags = EPropertyFlags.None)
+			: base(propertySettings, propertyClass, null)
 		{
-			this.PropertyFlags |= EPropertyFlags.UObjectWrapper | ExtraFlags;
+			this.PropertyFlags |= EPropertyFlags.UObjectWrapper | extraFlags;
 			this.PropertyCaps |= UhtPropertyCaps.PassCppArgsByRef | UhtPropertyCaps.RequiresNullConstructorArg | UhtPropertyCaps.IsMemberSupportedByBlueprint;
 			this.PropertyCaps &= ~(UhtPropertyCaps.IsParameterSupportedByBlueprint);
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				default:
 					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak))
 					{
-						Builder.Append("TAutoWeakObjectPtr<").Append(this.Class.SourceName).Append('>');
+						builder.Append("TAutoWeakObjectPtr<").Append(this.Class.SourceName).Append('>');
 					}
 					else
 					{
-						Builder.Append("TWeakObjectPtr<").Append(this.Class.SourceName).Append('>');
+						builder.Append("TWeakObjectPtr<").Append(this.Class.SourceName).Append('>');
 					}
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FWeakObjectPropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FWeakObjectPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FWeakObjectPropertyParams", "UECodeGen_Private::EPropertyGenFlags::WeakObject");
-			AppendMemberDefRef(Builder, Context, this.Class, false);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FWeakObjectPropertyParams", "UECodeGen_Private::EPropertyGenFlags::WeakObject");
+			AppendMemberDefRef(builder, context, this.Class, false);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendNullConstructorArg(StringBuilder Builder, bool bIsInitializer)
+		public override StringBuilder AppendNullConstructorArg(StringBuilder builder, bool isInitializer)
 		{
-			Builder.Append("NULL");
-			return Builder;
+			builder.Append("NULL");
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override bool IsSameType(UhtProperty Other)
+		public override bool IsSameType(UhtProperty other)
 		{
-			if (Other is UhtWeakObjectPtrProperty OtherObject)
+			if (other is UhtWeakObjectPtrProperty otherObject)
 			{
-				return this.Class == OtherObject.Class && this.MetaClass == OtherObject.MetaClass;
+				return this.Class == otherObject.Class && this.MetaClass == otherObject.MetaClass;
 			}
 			return false;
 		}
 
 		#region Keywords
-		private static UhtProperty CreateWeakProperty(UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtClass Class, EPropertyFlags ExtraFlags = EPropertyFlags.None)
+		private static UhtProperty CreateWeakProperty(UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtClass classObj, EPropertyFlags extraFlags = EPropertyFlags.None)
 		{
-			if (Class.IsChildOf(Class.Session.UClass))
+			if (classObj.IsChildOf(classObj.Session.UClass))
 			{
-				TokenReader.LogError("Class variables cannot be weak, they are always strong.");
+				tokenReader.LogError("Class variables cannot be weak, they are always strong.");
 			}
 
-			if (PropertySettings.DisallowPropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak))
+			if (propertySettings.DisallowPropertyFlags.HasAnyFlags(EPropertyFlags.AutoWeak))
 			{
-				return new UhtObjectProperty(PropertySettings, Class, null, ExtraFlags | EPropertyFlags.UObjectWrapper);
+				return new UhtObjectProperty(propertySettings, classObj, null, extraFlags | EPropertyFlags.UObjectWrapper);
 			}
-			return new UhtWeakObjectPtrProperty(PropertySettings, Class, ExtraFlags);
+			return new UhtWeakObjectPtrProperty(propertySettings, classObj, extraFlags);
 		}
 
 		[UhtPropertyType(Keyword = "TWeakObjectPtr")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? WeakObjectProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? WeakObjectProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			UhtClass? PropertyClass = ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, true);
-			if (PropertyClass == null)
+			UhtClass? propertyClass = ParseTemplateObject(propertySettings, tokenReader, matchedToken, true);
+			if (propertyClass == null)
 			{
 				return null;
 			}
 
-			return CreateWeakProperty(PropertySettings, TokenReader, PropertyClass);
+			return CreateWeakProperty(propertySettings, tokenReader, propertyClass);
 		}
 
 		[UhtPropertyType(Keyword = "TAutoWeakObjectPtr")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? AutoWeakObjectProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? AutoWeakObjectProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			UhtClass? PropertyClass = ParseTemplateObject(PropertySettings, TokenReader, MatchedToken, true);
-			if (PropertyClass == null)
+			UhtClass? propertyClass = ParseTemplateObject(propertySettings, tokenReader, matchedToken, true);
+			if (propertyClass == null)
 			{
 				return null;
 			}
 
-			return CreateWeakProperty(PropertySettings, TokenReader, PropertyClass, EPropertyFlags.AutoWeak);
+			return CreateWeakProperty(propertySettings, tokenReader, propertyClass, EPropertyFlags.AutoWeak);
 		}
 		#endregion
 	}

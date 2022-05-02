@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System.Diagnostics.CodeAnalysis;
-using System.Text;
 
 namespace EpicGames.UHT.Types
 {
@@ -17,25 +17,25 @@ namespace EpicGames.UHT.Types
 	public class UhtSoftClassProperty : UhtSoftObjectProperty
 	{
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "SoftClassProperty"; }
+		public override string EngineClassName => "SoftClassProperty";
 
 		/// <inheritdoc/>
-		protected override string CppTypeText { get => "SoftClassPtr"; }
+		protected override string CppTypeText => "SoftClassPtr";
 
 		/// <inheritdoc/>
-		protected override string PGetMacroText { get => "SOFTCLASS"; }
+		protected override string PGetMacroText => "SOFTCLASS";
 
 		/// <inheritdoc/>
-		protected override UhtPGetArgumentType PGetTypeArgument { get => UhtPGetArgumentType.TypeText; }
+		protected override UhtPGetArgumentType PGetTypeArgument => UhtPGetArgumentType.TypeText;
 
 		/// <summary>
 		/// Construct a new class property
 		/// </summary>
-		/// <param name="PropertySettings">Property setting</param>
-		/// <param name="Class">Referenced class (Always UClass)</param>
-		/// <param name="MetaClass">Referenced meta class</param>
-		public UhtSoftClassProperty(UhtPropertySettings PropertySettings, UhtClass Class, UhtClass MetaClass)
-			: base(PropertySettings, Class, MetaClass)
+		/// <param name="propertySettings">Property setting</param>
+		/// <param name="classObj">Referenced class (Always UClass)</param>
+		/// <param name="metaClass">Referenced meta class</param>
+		public UhtSoftClassProperty(UhtPropertySettings propertySettings, UhtClass classObj, UhtClass metaClass)
+			: base(propertySettings, classObj, metaClass)
 		{
 		}
 
@@ -46,52 +46,52 @@ namespace EpicGames.UHT.Types
 		}
 
 		/// <inheritdoc/>
-		public override void CollectReferencesInternal(IUhtReferenceCollector Collector, bool bTemplateProperty)
+		public override void CollectReferencesInternal(IUhtReferenceCollector collector, bool templateProperty)
 		{
-			Collector.AddCrossModuleReference(this.MetaClass, false);
+			collector.AddCrossModuleReference(this.MetaClass, false);
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendText(StringBuilder Builder, UhtPropertyTextType TextType, bool bIsTemplateArgument)
+		public override StringBuilder AppendText(StringBuilder builder, UhtPropertyTextType textType, bool isTemplateArgument)
 		{
-			switch (TextType)
+			switch (textType)
 			{
 				default:
-					Builder.Append("TSoftClassPtr<").Append(this.MetaClass?.SourceName).Append("> ");
+					builder.Append("TSoftClassPtr<").Append(this.MetaClass?.SourceName).Append("> ");
 					break;
 			}
-			return Builder;
+			return builder;
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDecl(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, int Tabs)
+		public override StringBuilder AppendMemberDecl(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, int tabs)
 		{
-			return AppendMemberDecl(Builder, Context, Name, NameSuffix, Tabs, "FSoftClassPropertyParams");
+			return AppendMemberDecl(builder, context, name, nameSuffix, tabs, "FSoftClassPropertyParams");
 		}
 
 		/// <inheritdoc/>
-		public override StringBuilder AppendMemberDef(StringBuilder Builder, IUhtPropertyMemberContext Context, string Name, string NameSuffix, string? Offset, int Tabs)
+		public override StringBuilder AppendMemberDef(StringBuilder builder, IUhtPropertyMemberContext context, string name, string nameSuffix, string? offset, int tabs)
 		{
-			AppendMemberDefStart(Builder, Context, Name, NameSuffix, Offset, Tabs, "FSoftClassPropertyParams", "UECodeGen_Private::EPropertyGenFlags::SoftClass");
-			AppendMemberDefRef(Builder, Context, this.MetaClass, false);
-			AppendMemberDefEnd(Builder, Context, Name, NameSuffix);
-			return Builder;
+			AppendMemberDefStart(builder, context, name, nameSuffix, offset, tabs, "FSoftClassPropertyParams", "UECodeGen_Private::EPropertyGenFlags::SoftClass");
+			AppendMemberDefRef(builder, context, this.MetaClass, false);
+			AppendMemberDefEnd(builder, context, name, nameSuffix);
+			return builder;
 		}
 
 		#region Keyword
 		[UhtPropertyType(Keyword = "TSoftClassPtr")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtProperty? SoftClassPtrProperty(UhtPropertyResolvePhase ResolvePhase, UhtPropertySettings PropertySettings, IUhtTokenReader TokenReader, UhtToken MatchedToken)
+		private static UhtProperty? SoftClassPtrProperty(UhtPropertyResolvePhase resolvePhase, UhtPropertySettings propertySettings, IUhtTokenReader tokenReader, UhtToken matchedToken)
 		{
-			UhtClass? MetaClass = ParseTemplateClass(PropertySettings, TokenReader, MatchedToken);
-			if (MetaClass == null)
+			UhtClass? metaClass = ParseTemplateClass(propertySettings, tokenReader, matchedToken);
+			if (metaClass == null)
 			{
 				return null;
 			}
 
 			// With TSubclassOf, MetaClass is used as a class limiter.  
-			return new UhtSoftClassProperty(PropertySettings, MetaClass.Session.UClass, MetaClass);
+			return new UhtSoftClassProperty(propertySettings, metaClass.Session.UClass, metaClass);
 		}
 		#endregion
 	}

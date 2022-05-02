@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Utils;
-using System;
-using System.Collections.Generic;
-using System.Text.Json.Serialization;
 
 namespace EpicGames.UHT.Types
 {
@@ -36,11 +36,11 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				foreach (UhtType Type in this.Children)
+				foreach (UhtType type in this.Children)
 				{
-					if (Type is UhtProperty Property)
+					if (type is UhtProperty property)
 					{
-						yield return Property;
+						yield return property;
 					}
 				}
 			}
@@ -59,11 +59,11 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				foreach (UhtType Type in this.Children)
+				foreach (UhtType type in this.Children)
 				{
-					if (Type is UhtFunction Function)
+					if (type is UhtFunction function)
 					{
-						yield return Function;
+						yield return function;
 					}
 				}
 			}
@@ -71,10 +71,10 @@ namespace EpicGames.UHT.Types
 
 		/// <inheritdoc/>
 		[JsonIgnore]
-		public virtual string EngineNamePrefix { get => "F"; }
+		public virtual string EngineNamePrefix => "F";
 
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "Struct"; }
+		public override string EngineClassName => "Struct";
 
 		/// <summary>
 		/// Super type
@@ -86,10 +86,7 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		//[JsonConverter(typeof(UhtNullableTypeListJsonConverter<UhtStruct>))]
 		[JsonIgnore]
-		public IReadOnlyList<UhtStruct> Bases 
-		{ 
-			get => _basesInternal != null ? _basesInternal : _emptyBases;
-		}
+		public IReadOnlyList<UhtStruct> Bases => _basesInternal ?? s_emptyBases;
 
 		/// <summary>
 		/// Super struct type
@@ -100,70 +97,70 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct a new instance
 		/// </summary>
-		/// <param name="Outer">Outer type</param>
-		/// <param name="LineNumber">Line number where definition begins</param>
-		protected UhtStruct(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		/// <param name="outer">Outer type</param>
+		/// <param name="lineNumber">Line number where definition begins</param>
+		protected UhtStruct(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
 		}
 
 		/// <summary>
 		/// Test to see if the given struct is derived from the base structure
 		/// </summary>
-		/// <param name="Base">Base structure.</param>
+		/// <param name="baseStruct">Base structure.</param>
 		/// <returns>True if the given structure is the specified base or derives from the base.  If the base is null, the false is returned.</returns>
-		public bool IsChildOf(UhtStruct? Base)
+		public bool IsChildOf(UhtStruct? baseStruct)
 		{
-			if (Base == null)
+			if (baseStruct == null)
 			{
 				return false;
 			}
-			for (UhtStruct? Current = this; Current != null; Current = Current.Super)
+			for (UhtStruct? current = this; current != null; current = current.Super)
 			{
-				if (Current == Base)
+				if (current == baseStruct)
 				{
 					return true;
 				}
 			}
 			return false;
 		}
-		
-		private static readonly List<UhtStruct> _emptyBases = new List<UhtStruct>();
+
+		private static readonly List<UhtStruct> s_emptyBases = new List<UhtStruct>();
 		private List<UhtStruct>? _basesInternal = null;
 
 		#region Resolution support
 		/// <inheritdoc/>
-		protected override void ResolveSuper(UhtResolvePhase ResolvePhase)
+		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
 		{
 			if (this.Super != null)
 			{
-				this.Super.Resolve(ResolvePhase);
+				this.Super.Resolve(resolvePhase);
 			}
 
-			foreach (UhtStruct Base in this.Bases)
+			foreach (UhtStruct baseStruct in this.Bases)
 			{
-				Base.Resolve(ResolvePhase);
+				baseStruct.Resolve(resolvePhase);
 			}
 
-			base.ResolveSuper(ResolvePhase);
+			base.ResolveSuper(resolvePhase);
 		}
 
 		/// <summary>
 		/// Check properties to see if any instances are referenced.
 		/// This method does NOT cache the result.
 		/// </summary>
-		/// <param name="bDeepScan">If true, the ScanForInstancedReferenced method on the properties will also be called.</param>
+		/// <param name="deepScan">If true, the ScanForInstancedReferenced method on the properties will also be called.</param>
 		/// <returns></returns>
-		public virtual bool ScanForInstancedReferenced(bool bDeepScan)
+		public virtual bool ScanForInstancedReferenced(bool deepScan)
 		{
-			foreach (UhtType Type in this.Children)
+			foreach (UhtType type in this.Children)
 			{
-				if (Type is UhtProperty Property)
+				if (type is UhtProperty property)
 				{
-					if (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.ContainsInstancedReference | EPropertyFlags.InstancedReference))
+					if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.ContainsInstancedReference | EPropertyFlags.InstancedReference))
 					{
 						return true;
 					}
-					if (bDeepScan && Property.ScanForInstancedReferenced(bDeepScan))
+					if (deepScan && property.ScanForInstancedReferenced(deepScan))
 					{
 						return true;
 					}
@@ -177,17 +174,17 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Resolve super identifier
 		/// </summary>
-		/// <param name="SuperIdentifier">Token that represent the super</param>
-		/// <param name="FindOptions">Find options to restrict types</param>
+		/// <param name="superIdentifier">Token that represent the super</param>
+		/// <param name="findOptions">Find options to restrict types</param>
 		/// <exception cref="UhtException">Thrown if super can not be found</exception>
-		public void BindAndResolveSuper(UhtToken SuperIdentifier, UhtFindOptions FindOptions)
+		public void BindAndResolveSuper(UhtToken superIdentifier, UhtFindOptions findOptions)
 		{
-			if (SuperIdentifier)
+			if (superIdentifier)
 			{
-				this.Super = (UhtStruct?)this.FindType(FindOptions | UhtFindOptions.SourceName | UhtFindOptions.NoSelf, ref SuperIdentifier);
+				this.Super = (UhtStruct?)this.FindType(findOptions | UhtFindOptions.SourceName | UhtFindOptions.NoSelf, ref superIdentifier);
 				if (this.Super == null)
 				{
-					throw new UhtException(this, $"Unable to find parent {this.EngineType.ShortLowercaseText()} type for '{this.SourceName}' named '{SuperIdentifier.Value}'");
+					throw new UhtException(this, $"Unable to find parent {this.EngineType.ShortLowercaseText()} type for '{this.SourceName}' named '{superIdentifier.Value}'");
 				}
 				this.HeaderFile.AddReferencedHeader(this.Super);
 				this.MetaData.Parent = this.Super.MetaData;
@@ -199,25 +196,25 @@ namespace EpicGames.UHT.Types
 		/// Resolve bases.  Unlike super, this routine will not generate an error if the type can not be found.
 		/// Having unrecognized types is expected.
 		/// </summary>
-		/// <param name="BaseIdentifiers">Collection of bases</param>
-		/// <param name="FindOptions">Options to restrict types being searched</param>
-		public void BindAndResolveBases(List<UhtToken[]>? BaseIdentifiers, UhtFindOptions FindOptions)
+		/// <param name="baseIdentifiers">Collection of bases</param>
+		/// <param name="findOptions">Options to restrict types being searched</param>
+		public void BindAndResolveBases(List<UhtToken[]>? baseIdentifiers, UhtFindOptions findOptions)
 		{
-			if (BaseIdentifiers != null)
+			if (baseIdentifiers != null)
 			{
-				foreach (UhtToken[] BaseIdentifier in BaseIdentifiers)
+				foreach (UhtToken[] baseIdentifier in baseIdentifiers)
 				{
 					// We really only case about interfaces, but we can also handle structs
-					UhtStruct? Base = (UhtStruct?)this.FindType(FindOptions | UhtFindOptions.Class | UhtFindOptions.ScriptStruct | UhtFindOptions.SourceName | UhtFindOptions.NoSelf, BaseIdentifier);
-					if (Base != null)
+					UhtStruct? baseStruct = (UhtStruct?)this.FindType(findOptions | UhtFindOptions.Class | UhtFindOptions.ScriptStruct | UhtFindOptions.SourceName | UhtFindOptions.NoSelf, baseIdentifier);
+					if (baseStruct != null)
 					{
 						if (this._basesInternal == null)
 						{
 							this._basesInternal = new List<UhtStruct>();
 						}
-						this._basesInternal.Add(Base);
-						this.HeaderFile.AddReferencedHeader(Base);
-						Base.Resolve(UhtResolvePhase.Bases);
+						this._basesInternal.Add(baseStruct);
+						this.HeaderFile.AddReferencedHeader(baseStruct);
+						baseStruct.Resolve(UhtResolvePhase.Bases);
 					}
 				}
 			}
@@ -226,115 +223,115 @@ namespace EpicGames.UHT.Types
 
 		#region Validation support
 		/// <inheritdoc/>
-		protected override UhtValidationOptions Validate(UhtValidationOptions Options)
+		protected override UhtValidationOptions Validate(UhtValidationOptions options)
 		{
-			Options = base.Validate(Options);
+			options = base.Validate(options);
 			ValidateSparseClassData();
-			return Options;
+			return options;
 		}
 
-		private static bool CheckUIMinMaxRangeFromMetaData(UhtType Child)
+		private static bool CheckUIMinMaxRangeFromMetaData(UhtType child)
 		{
-			string UIMin = Child.MetaData.GetValueOrDefault(UhtNames.UIMin);
-			string UIMax = Child.MetaData.GetValueOrDefault(UhtNames.UIMax);
-			if (UIMin.Length == 0 || UIMax.Length == 0)
+			string uiMin = child.MetaData.GetValueOrDefault(UhtNames.UIMin);
+			string uiMax = child.MetaData.GetValueOrDefault(UhtNames.UIMax);
+			if (uiMin.Length == 0 || uiMax.Length == 0)
 			{
 				return false;
 			}
 
 			// NOTE: Old UHT didn't handle parse errors
-			double MinValue;
-			if (!double.TryParse(UIMin, out MinValue))
+			double minValue;
+			if (!Double.TryParse(uiMin, out minValue))
 			{
-				MinValue = 0;
+				minValue = 0;
 			}
 
-			double MaxValue;
-			if (!double.TryParse(UIMax, out MaxValue))
+			double maxValue;
+			if (!Double.TryParse(uiMax, out maxValue))
 			{
-				MaxValue = 0;
+				maxValue = 0;
 			}
 
 			// NOTE: that we actually allow UIMin == UIMax to disable the range manually.
-			return MinValue <= MaxValue;
+			return minValue <= maxValue;
 		}
 
 		/// <inheritdoc/>
-		protected override void ValidateDocumentationPolicy(UhtDocumentationPolicy Policy)
+		protected override void ValidateDocumentationPolicy(UhtDocumentationPolicy policy)
 		{
-			if (Policy.bClassOrStructCommentRequired)
+			if (policy.ClassOrStructCommentRequired)
 			{
-				string ClassTooltip = this.MetaData.GetValueOrDefault(UhtNames.ToolTip);
-				if (ClassTooltip.Length == 0 || ClassTooltip.Equals(this.EngineName, StringComparison.OrdinalIgnoreCase))
+				string classTooltip = this.MetaData.GetValueOrDefault(UhtNames.ToolTip);
+				if (classTooltip.Length == 0 || classTooltip.Equals(this.EngineName, StringComparison.OrdinalIgnoreCase))
 				{
 					this.LogError($"{this.EngineType.CapitalizedText()} '{this.SourceName}' does not provide a tooltip / comment (DocumentationPolicy).");
 				}
 			}
 
-			if (Policy.bMemberToolTipsRequired)
+			if (policy.MemberToolTipsRequired)
 			{
-				Dictionary<string, UhtProperty> ToolTipToType = new Dictionary<string, UhtProperty>();
-				foreach (UhtProperty Property in this.Properties)
+				Dictionary<string, UhtProperty> toolTipToType = new Dictionary<string, UhtProperty>();
+				foreach (UhtProperty property in this.Properties)
 				{
-					string ToolTip = Property.GetToolTipText();
-					if (ToolTip.Length == 0 || ToolTip == Property.GetDisplayNameText())
+					string toolTip = property.GetToolTipText();
+					if (toolTip.Length == 0 || toolTip == property.GetDisplayNameText())
 					{
-						Property.LogError($"Property '{this.SourceName}::{Property.SourceName}' does not provide a tooltip / comment (DocumentationPolicy).");
+						property.LogError($"Property '{this.SourceName}::{property.SourceName}' does not provide a tooltip / comment (DocumentationPolicy).");
 						continue;
 					}
 
-					UhtProperty? Existing;
-					if (ToolTipToType.TryGetValue(ToolTip, out Existing))
+					UhtProperty? existing;
+					if (toolTipToType.TryGetValue(toolTip, out existing))
 					{
-						Property.LogError($"Property '{this.SourceName}::{Existing.SourceName}' and '{this.SourceName}::{Property.SourceName}' are using identical tooltips (DocumentationPolicy).");
+						property.LogError($"Property '{this.SourceName}::{existing.SourceName}' and '{this.SourceName}::{property.SourceName}' are using identical tooltips (DocumentationPolicy).");
 					}
 					else
 					{
-						ToolTipToType.Add(ToolTip, Property);
+						toolTipToType.Add(toolTip, property);
 					}
 				}
 			}
 
-			if (Policy.bFloatRangesRequired)
+			if (policy.FloatRangesRequired)
 			{
-				foreach (UhtType Child in this.Children)
+				foreach (UhtType child in this.Children)
 				{
-					if (Child is UhtDoubleProperty || Child is UhtFloatProperty)
+					if (child is UhtDoubleProperty || child is UhtFloatProperty)
 					{
-						if (!CheckUIMinMaxRangeFromMetaData(Child))
+						if (!CheckUIMinMaxRangeFromMetaData(child))
 						{
-							Child.LogError($"Property '{this.SourceName}::{Child.SourceName}' does not provide a valid UIMin / UIMax (DocumentationPolicy).");
+							child.LogError($"Property '{this.SourceName}::{child.SourceName}' does not provide a valid UIMin / UIMax (DocumentationPolicy).");
 						}
 					}
 				}
 			}
 
 			// also compare all tooltips to see if they are unique
-			if (Policy.bFunctionToolTipsRequired)
+			if (policy.FunctionToolTipsRequired)
 			{
 				if (this is UhtClass)
 				{
-					Dictionary<string, UhtType> ToolTipToType = new Dictionary<string, UhtType>();
-					foreach (UhtType Child in this.Children)
+					Dictionary<string, UhtType> toolTipToType = new Dictionary<string, UhtType>();
+					foreach (UhtType child in this.Children)
 					{
-						if (Child is UhtFunction Function)
+						if (child is UhtFunction function)
 						{
-							string ToolTip = Function.GetToolTipText();
-							if (ToolTip.Length == 0)
+							string toolTip = function.GetToolTipText();
+							if (toolTip.Length == 0)
 							{
 								// NOTE: This does not fire because it doesn't check to see if it matches the display name as above.
-								Child.LogError($"Function '{this.SourceName}::{Function.SourceName}' does not provide a tooltip / comment (DocumentationPolicy).");
+								child.LogError($"Function '{this.SourceName}::{function.SourceName}' does not provide a tooltip / comment (DocumentationPolicy).");
 								continue;
 							}
 
-							UhtType? Existing;
-							if (ToolTipToType.TryGetValue(ToolTip, out Existing))
+							UhtType? existing;
+							if (toolTipToType.TryGetValue(toolTip, out existing))
 							{
-								Child.LogError($"Functions '{this.SourceName}::{Existing.SourceName}' and '{this.SourceName}::{Function.SourceName}' are using identical tooltips / comments (DocumentationPolicy).");
+								child.LogError($"Functions '{this.SourceName}::{existing.SourceName}' and '{this.SourceName}::{function.SourceName}' are using identical tooltips / comments (DocumentationPolicy).");
 							}
 							else
 							{
-								ToolTipToType.Add(ToolTip, Function);
+								toolTipToType.Add(toolTip, function);
 							}
 						}
 					}
@@ -345,81 +342,81 @@ namespace EpicGames.UHT.Types
 		private void ValidateSparseClassData()
 		{
 			// Fetch the data types
-			string[]? SparseClassDataTypes = this.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
-			if (SparseClassDataTypes == null)
+			string[]? sparseClassDataTypes = this.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
+			if (sparseClassDataTypes == null)
 			{
 				return;
 			}
 
 			// Make sure we don't try to have sparse class data inside of a struct instead of a class
-			UhtClass? Class = this as UhtClass;
-			if (Class == null)
+			UhtClass? classObj = this as UhtClass;
+			if (classObj == null)
 			{
 				this.LogError($"{this.EngineType.CapitalizedText()} '{this.SourceName}' contains sparse class data but is not a class.");
 				return;
 			}
 
 			// for now we only support one sparse class data structure per class
-			if (SparseClassDataTypes.Length > 1)
+			if (sparseClassDataTypes.Length > 1)
 			{
 				this.LogError($"Class '{this.SourceName}' contains multiple sparse class data types");
 				return;
 			}
-			if (SparseClassDataTypes.Length == 0)
+			if (sparseClassDataTypes.Length == 0)
 			{
 				this.LogError($"Class '{this.SourceName}' has sparse class metadata but does not specify a type");
 				return;
 			}
 
-			foreach (string SparseClassDataTypeName in SparseClassDataTypes)
+			foreach (string sparseClassDataTypeName in sparseClassDataTypes)
 			{
-				UhtScriptStruct? SparseScriptStruct = this.Session.FindType(null, UhtFindOptions.EngineName | UhtFindOptions.ScriptStruct, SparseClassDataTypeName) as UhtScriptStruct;
+				UhtScriptStruct? sparseScriptStruct = this.Session.FindType(null, UhtFindOptions.EngineName | UhtFindOptions.ScriptStruct, sparseClassDataTypeName) as UhtScriptStruct;
 
 				// make sure the sparse class data struct actually exists
-				if (SparseScriptStruct == null)
+				if (sparseScriptStruct == null)
 				{
-					this.LogError($"Unable to find sparse data type '{SparseClassDataTypeName}' for class '{this.SourceName}'");
+					this.LogError($"Unable to find sparse data type '{sparseClassDataTypeName}' for class '{this.SourceName}'");
 					continue;
 				}
 
 				// check the data struct for invalid properties
-				foreach (UhtProperty Property in SparseScriptStruct.Properties)
+				foreach (UhtProperty property in sparseScriptStruct.Properties)
 				{
-					if (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintAssignable))
+					if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintAssignable))
 					{
-						Property.LogError($"Sparse class data types can not contain blueprint assignable delegates. Type '{SparseScriptStruct.EngineName}' Delegate '{Property.SourceName}'");
+						property.LogError($"Sparse class data types can not contain blueprint assignable delegates. Type '{sparseScriptStruct.EngineName}' Delegate '{property.SourceName}'");
 					}
 
 					// all sparse properties should have EditDefaultsOnly
-					if (!Property.PropertyFlags.HasAllFlags(EPropertyFlags.Edit | EPropertyFlags.DisableEditOnInstance))
+					if (!property.PropertyFlags.HasAllFlags(EPropertyFlags.Edit | EPropertyFlags.DisableEditOnInstance))
 					{
-						Property.LogError($"Sparse class data types must be VisibleDefaultsOnly or EditDefaultsOnly. Type '{SparseScriptStruct.EngineName}' Property '{Property.SourceName}'");
+						property.LogError($"Sparse class data types must be VisibleDefaultsOnly or EditDefaultsOnly. Type '{sparseScriptStruct.EngineName}' Property '{property.SourceName}'");
 					}
 
 					// no sparse properties should have BlueprintReadWrite
-					if (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintVisible) && !Property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintReadOnly))
+					if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintVisible) && !property.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintReadOnly))
 					{
-						Property.LogError($"Sparse class data types must not be BlueprintReadWrite. Type '{SparseScriptStruct.EngineName}' Property '{Property.SourceName}'");
+						property.LogError($"Sparse class data types must not be BlueprintReadWrite. Type '{sparseScriptStruct.EngineName}' Property '{property.SourceName}'");
 					}
 				}
 
 				// if the class's parent has a sparse class data struct then the current class must also use the same struct or one that inherits from it
-				UhtClass? SuperClass = Class.SuperClass;
-				if (SuperClass != null)
+				UhtClass? superClass = classObj.SuperClass;
+				if (superClass != null)
 				{
-					string[]? SuperSparseClassDataTypes = SuperClass.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
-					if (SuperSparseClassDataTypes != null)
+					string[]? superSparseClassDataTypes = superClass.MetaData.GetStringArray(UhtNames.SparseClassDataTypes);
+					if (superSparseClassDataTypes != null)
 					{
-						foreach (string SuperSparseClassDataTypeName in SuperSparseClassDataTypes)
+						foreach (string superSparseClassDataTypeName in superSparseClassDataTypes)
 						{
-							UhtScriptStruct? SuperSparseScriptStruct = this.Session.FindType(null, UhtFindOptions.EngineName | UhtFindOptions.ScriptStruct, SuperSparseClassDataTypeName) as UhtScriptStruct;
-							if (SuperSparseScriptStruct != null)
+							UhtScriptStruct? superSparseScriptStruct = this.Session.FindType(null, UhtFindOptions.EngineName | UhtFindOptions.ScriptStruct, superSparseClassDataTypeName) as UhtScriptStruct;
+							if (superSparseScriptStruct != null)
 							{
-								if (!SparseScriptStruct.IsChildOf(SuperSparseScriptStruct))
+								if (!sparseScriptStruct.IsChildOf(superSparseScriptStruct))
 								{
 									this.LogError(
-										$"Class '{this.SourceName}' is a child of '{SuperClass.SourceName}' but its sparse class data struct " +
-										$"'{SparseScriptStruct.EngineName}', does not inherit from '{SuperSparseScriptStruct.EngineName}'.");
+										$"Class '{this.SourceName}' is a child of '{superClass.SourceName}' but its sparse class data struct " +
+										$"'{sparseScriptStruct.EngineName}', does not inherit from '{superSparseScriptStruct.EngineName}'.");
 								}
 							}
 						}

@@ -19,28 +19,28 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Construct a new interface class parser
 		/// </summary>
-		/// <param name="Outer">Outer object</param>
-		/// <param name="LineNumber">Line number</param>
-		public UhtInterfaceClassParser(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		/// <param name="outer">Outer object</param>
+		/// <param name="lineNumber">Line number</param>
+		public UhtInterfaceClassParser(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
 		}
 
 		/// <inheritdoc/>
-		protected override void ResolveSuper(UhtResolvePhase ResolvePhase)
+		protected override void ResolveSuper(UhtResolvePhase resolvePhase)
 		{
-			base.ResolveSuper( ResolvePhase);
-			switch (ResolvePhase)
+			base.ResolveSuper(resolvePhase);
+			switch (resolvePhase)
 			{
 				case UhtResolvePhase.Bases:
-					UhtClass? SuperClass = this.SuperClass;
-					if (SuperClass != null)
+					UhtClass? superClass = this.SuperClass;
+					if (superClass != null)
 					{
-						this.ClassFlags |= SuperClass.ClassFlags & EClassFlags.ScriptInherit;
-						if (!SuperClass.ClassFlags.HasAnyFlags(EClassFlags.Native))
+						this.ClassFlags |= superClass.ClassFlags & EClassFlags.ScriptInherit;
+						if (!superClass.ClassFlags.HasAnyFlags(EClassFlags.Native))
 						{
 							throw new UhtException(this, $"Native classes cannot extend non-native classes");
 						}
-						this.ClassWithin = SuperClass.ClassWithin;
+						this.ClassWithin = superClass.ClassWithin;
 					}
 					else
 					{
@@ -51,133 +51,133 @@ namespace EpicGames.UHT.Parsers
 		}
 
 		/// <inheritdoc/>
-		protected override bool ResolveSelf(UhtResolvePhase ResolvePhase)
+		protected override bool ResolveSelf(UhtResolvePhase resolvePhase)
 		{
-			bool bResult = base.ResolveSelf(ResolvePhase);
+			bool result = base.ResolveSelf(resolvePhase);
 
-			switch (ResolvePhase)
+			switch (resolvePhase)
 			{
 				case UhtResolvePhase.InvalidCheck:
 					{
-						string NativeInterfaceName = "I" + this.EngineName;
-						UhtType? NativeInterface = this.Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, NativeInterfaceName);
-						if (NativeInterface == null)
+						string nativeInterfaceName = "I" + this.EngineName;
+						UhtType? nativeInterface = this.Session.FindType(null, UhtFindOptions.SourceName | UhtFindOptions.Class, nativeInterfaceName);
+						if (nativeInterface == null)
 						{
-							this.LogError($"UInterface '{this.SourceName}' parsed without a corresponding '{NativeInterfaceName}'");
+							this.LogError($"UInterface '{this.SourceName}' parsed without a corresponding '{nativeInterfaceName}'");
 						}
 						else
 						{
 							// Copy the children
-							this.AddChildren(NativeInterface.DetchChildren());
+							this.AddChildren(nativeInterface.DetachChildren());
 						}
 					}
 					break;
 			}
 
-			return bResult;
+			return result;
 		}
 		#region Keywords
 		[UhtKeyword(Extends = UhtTableNames.Global)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtParseResult UINTERFACEKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
+		private static UhtParseResult UINTERFACEKeyword(UhtParsingScope topScope, UhtParsingScope actionScope, ref UhtToken token)
 		{
-			return ParseUInterface(TopScope, ref Token);
+			return ParseUInterface(topScope, ref token);
 		}
 
 		[UhtKeyword(Extends = UhtTableNames.Interface)]
 		[UhtKeyword(Extends = UhtTableNames.Interface, Keyword = "GENERATED_BODY")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static UhtParseResult GENERATED_UINTERFACE_BODYKeyword(UhtParsingScope TopScope, UhtParsingScope ActionScope, ref UhtToken Token)
+		private static UhtParseResult GENERATED_UINTERFACE_BODYKeyword(UhtParsingScope topScope, UhtParsingScope actionScope, ref UhtToken token)
 		{
-			UhtClass Class = (UhtClass)TopScope.ScopeType;
+			UhtClass classObj = (UhtClass)topScope.ScopeType;
 
-			UhtParserHelpers.ParseCompileVersionDeclaration(TopScope.TokenReader, TopScope.Session.Config!, Class);
+			UhtParserHelpers.ParseCompileVersionDeclaration(topScope.TokenReader, topScope.Session.Config!, classObj);
 
-			Class.GeneratedBodyAccessSpecifier = TopScope.AccessSpecifier;
-			Class.GeneratedBodyLineNumber = TopScope.TokenReader.InputLine;
+			classObj.GeneratedBodyAccessSpecifier = topScope.AccessSpecifier;
+			classObj.GeneratedBodyLineNumber = topScope.TokenReader.InputLine;
 
-			if (Token.IsValue("GENERATED_UINTERFACE_BODY"))
+			if (token.IsValue("GENERATED_UINTERFACE_BODY"))
 			{
-				TopScope.AccessSpecifier = UhtAccessSpecifier.Public;
+				topScope.AccessSpecifier = UhtAccessSpecifier.Public;
 			}
 			return UhtParseResult.Handled;
 		}
 		#endregion
 
-		private static UhtParseResult ParseUInterface(UhtParsingScope ParentScope, ref UhtToken Token)
+		private static UhtParseResult ParseUInterface(UhtParsingScope parentScope, ref UhtToken token)
 		{
-			UhtInterfaceClassParser Class = new UhtInterfaceClassParser(ParentScope.ScopeType, Token.InputLine);
-			Class.ClassType = UhtClassType.Interface;
+			UhtInterfaceClassParser classObj = new UhtInterfaceClassParser(parentScope.ScopeType, token.InputLine);
+			classObj.ClassType = UhtClassType.Interface;
 
-			using (var TopScope = new UhtParsingScope(ParentScope, Class, ParentScope.Session.GetKeywordTable(UhtTableNames.Interface), UhtAccessSpecifier.Private))
+			using (UhtParsingScope topScope = new UhtParsingScope(parentScope, classObj, parentScope.Session.GetKeywordTable(UhtTableNames.Interface), UhtAccessSpecifier.Private))
 			{
 				const string ScopeName = "interface";
 
-				using (var TokenContext = new UhtMessageContext(ScopeName))
+				using (UhtMessageContext tokenContext = new UhtMessageContext(ScopeName))
 				{
 					// Parse the specifiers
-					UhtSpecifierContext SpecifierContext = new UhtSpecifierContext(TopScope, TopScope.TokenReader, Class.MetaData);
-					UhtSpecifierParser Specifiers = TopScope.HeaderParser.GetCachedSpecifierParser(SpecifierContext, ScopeName, ParentScope.Session.GetSpecifierTable(UhtTableNames.Interface));
-					Specifiers.ParseSpecifiers();
-					Class.PrologLineNumber = TopScope.TokenReader.InputLine;
-					Class.ClassFlags |= EClassFlags.Native | EClassFlags.Interface | EClassFlags.Abstract;
-					Class.InternalObjectFlags |= EInternalObjectFlags.Native;
+					UhtSpecifierContext specifierContext = new UhtSpecifierContext(topScope, topScope.TokenReader, classObj.MetaData);
+					UhtSpecifierParser specifiers = topScope.HeaderParser.GetCachedSpecifierParser(specifierContext, ScopeName, parentScope.Session.GetSpecifierTable(UhtTableNames.Interface));
+					specifiers.ParseSpecifiers();
+					classObj.PrologLineNumber = topScope.TokenReader.InputLine;
+					classObj.ClassFlags |= EClassFlags.Native | EClassFlags.Interface | EClassFlags.Abstract;
+					classObj.InternalObjectFlags |= EInternalObjectFlags.Native;
 
 					// Consume the class specifier
-					TopScope.TokenReader.Require("class");
+					topScope.TokenReader.Require("class");
 
 					// Get the optional API macro
-					UhtToken APIMacroToken;
-					TopScope.TokenReader.TryOptionalAPIMacro(out APIMacroToken);
+					UhtToken apiMacroToken;
+					topScope.TokenReader.TryOptionalAPIMacro(out apiMacroToken);
 
 					// Get the name of the interface
-					Class.SourceName = TopScope.TokenReader.GetIdentifier().Value.ToString();
+					classObj.SourceName = topScope.TokenReader.GetIdentifier().Value.ToString();
 
 					// Parse the inheritance
-					TopScope.TokenReader.OptionalInheritance((ref UhtToken Identifier) =>
+					topScope.TokenReader.OptionalInheritance((ref UhtToken identifier) =>
 					{
-						Class.SuperIdentifier = Identifier;
+						classObj.SuperIdentifier = identifier;
 					});
 
 					// Split the source name into the different parts
-					UhtEngineNameParts NameParts = UhtUtilities.GetEngineNameParts(Class.SourceName);
-					Class.EngineName = NameParts.EngineName.ToString();
+					UhtEngineNameParts nameParts = UhtUtilities.GetEngineNameParts(classObj.SourceName);
+					classObj.EngineName = nameParts.EngineName.ToString();
 
 					// Interfaces must start with a valid prefix
-					if (NameParts.Prefix != "U")
+					if (nameParts.Prefix != "U")
 					{
-						TopScope.TokenReader.LogError($"Interface name '{Class.SourceName}' is invalid, the first class should be identified as 'U{NameParts.EngineName}'");
+						topScope.TokenReader.LogError($"Interface name '{classObj.SourceName}' is invalid, the first class should be identified as 'U{nameParts.EngineName}'");
 					}
 
 					// Check for an empty engine name
-					if (Class.EngineName.Length == 0)
+					if (classObj.EngineName.Length == 0)
 					{
-						TopScope.TokenReader.LogError($"When compiling class definition for '{Class.SourceName}', attempting to strip prefix results in an empty name. Did you leave off a prefix?");
+						topScope.TokenReader.LogError($"When compiling class definition for '{classObj.SourceName}', attempting to strip prefix results in an empty name. Did you leave off a prefix?");
 					}
 
-					if (APIMacroToken)
+					if (apiMacroToken)
 					{
-						Class.ClassFlags |= EClassFlags.RequiredAPI;
+						classObj.ClassFlags |= EClassFlags.RequiredAPI;
 					}
 
-					Specifiers.ParseDeferred();
+					specifiers.ParseDeferred();
 
-					if (Class.Outer != null)
+					if (classObj.Outer != null)
 					{
-						Class.Outer.AddChild(Class);
+						classObj.Outer.AddChild(classObj);
 					}
 
-					TopScope.AddModuleRelativePathToMetaData();
+					topScope.AddModuleRelativePathToMetaData();
 
-					TopScope.HeaderParser.ParseStatements('{', '}', true);
+					topScope.HeaderParser.ParseStatements('{', '}', true);
 
-					TopScope.TokenReader.Require(';');
+					topScope.TokenReader.Require(';');
 
-					if (Class.GeneratedBodyLineNumber == -1)
+					if (classObj.GeneratedBodyLineNumber == -1)
 					{
-						TopScope.TokenReader.LogError("Expected a GENERATED_BODY() at the start of the interface");
+						topScope.TokenReader.LogError("Expected a GENERATED_BODY() at the start of the interface");
 					}
 				}
 			}

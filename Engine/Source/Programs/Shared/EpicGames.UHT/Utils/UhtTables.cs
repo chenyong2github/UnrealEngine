@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tables;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
+using EpicGames.Core;
+using EpicGames.UHT.Tables;
 using UnrealBuildBase;
 
 namespace EpicGames.UHT.Utils
@@ -101,14 +101,14 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Name of the table
 		/// </summary>
-		public string TableName { get; set; } = string.Empty;
+		public string TableName { get; set; } = String.Empty;
 
 		/// <summary>
 		/// User facing name of the table
 		/// </summary>
 		public string UserName
 		{
-			get => string.IsNullOrEmpty(this.UserNameInternal) ? this.TableName : this.UserNameInternal;
+			get => String.IsNullOrEmpty(this.UserNameInternal) ? this.TableName : this.UserNameInternal;
 			set => this.UserNameInternal = value;
 		}
 
@@ -125,39 +125,39 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Internal version of the user name.  If it hasn't been set, then the table name will be used
 		/// </summary>
-		private string UserNameInternal { get; set; } = string.Empty;
+		private string UserNameInternal { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Merge the lookup table.  Duplicates will be ignored.
 		/// </summary>
-		/// <param name="BaseTable">Base table being merged</param>
-		public virtual void Merge(UhtLookupTableBase BaseTable)
+		/// <param name="baseTable">Base table being merged</param>
+		public virtual void Merge(UhtLookupTableBase baseTable)
 		{
 		}
 
 		/// <summary>
 		/// Given a method name, try to extract the entry name for a table
 		/// </summary>
-		/// <param name="ClassType">Class containing the method</param>
-		/// <param name="MethodInfo">Method information</param>
-		/// <param name="InName">Optional name supplied by the attributes.  If specified, this name will be returned instead of extracted from the method name</param>
-		/// <param name="Suffix">Required suffix</param>
+		/// <param name="classType">Class containing the method</param>
+		/// <param name="methodInfo">Method information</param>
+		/// <param name="inName">Optional name supplied by the attributes.  If specified, this name will be returned instead of extracted from the method name</param>
+		/// <param name="suffix">Required suffix</param>
 		/// <returns>The extracted name or the supplied name</returns>
-		public static string GetSuffixedName(Type ClassType, MethodInfo MethodInfo, string? InName, string Suffix)
+		public static string GetSuffixedName(Type classType, MethodInfo methodInfo, string? inName, string suffix)
 		{
-			string Name = InName ?? string.Empty;
-			if (string.IsNullOrEmpty(Name))
+			string name = inName ?? String.Empty;
+			if (String.IsNullOrEmpty(name))
 			{
-				if (MethodInfo.Name.EndsWith(Suffix, StringComparison.Ordinal))
+				if (methodInfo.Name.EndsWith(suffix, StringComparison.Ordinal))
 				{
-					Name = MethodInfo.Name.Substring(0, MethodInfo.Name.Length - Suffix.Length);
+					name = methodInfo.Name.Substring(0, methodInfo.Name.Length - suffix.Length);
 				}
 				else
 				{
-					throw new UhtIceException($"The '{Suffix}' attribute on the {ClassType.Name}.{MethodInfo.Name} method doesn't have a name specified or the method name doesn't end in '{Suffix}'.");
+					throw new UhtIceException($"The '{suffix}' attribute on the {classType.Name}.{methodInfo.Name} method doesn't have a name specified or the method name doesn't end in '{suffix}'.");
 				}
 			}
-			return Name;
+			return name;
 		}
 	}
 
@@ -171,47 +171,47 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Lookup dictionary for the specifiers
 		/// </summary>
-		private readonly Dictionary<StringView, TValue> Lookup;
+		private readonly Dictionary<StringView, TValue> _lookup;
 
 		/// <summary>
 		/// Construct a new table
 		/// </summary>
-		public UhtLookupTable(StringViewComparer Comparer)
+		public UhtLookupTable(StringViewComparer comparer)
 		{
-			this.Lookup = new Dictionary<StringView, TValue>(Comparer);
+			this._lookup = new Dictionary<StringView, TValue>(comparer);
 		}
 
 		/// <summary>
 		/// Add the given value to the lookup table.  It will throw an exception if it is a duplicate.
 		/// </summary>
-		/// <param name="Key">Key to be added</param>
-		/// <param name="Value">Value to be added</param>
-		public UhtLookupTable<TValue> Add(string Key, TValue Value)
+		/// <param name="key">Key to be added</param>
+		/// <param name="value">Value to be added</param>
+		public UhtLookupTable<TValue> Add(string key, TValue value)
 		{
-			this.Lookup.Add(Key, Value);
+			this._lookup.Add(key, value);
 			return this;
 		}
 
 		/// <summary>
 		/// Attempt to fetch the value associated with the key
 		/// </summary>
-		/// <param name="Key">Lookup key</param>
-		/// <param name="Value">Value associated with the key</param>
+		/// <param name="key">Lookup key</param>
+		/// <param name="value">Value associated with the key</param>
 		/// <returns>True if the key was found, false if not</returns>
-		public bool TryGetValue(StringView Key, [MaybeNullWhen(false)] out TValue Value)
+		public bool TryGetValue(StringView key, [MaybeNullWhen(false)] out TValue value)
 		{
-			return this.Lookup.TryGetValue(Key, out Value);
+			return this._lookup.TryGetValue(key, out value);
 		}
 
 		/// <summary>
 		/// Merge the lookup table.  Duplicates will be ignored.
 		/// </summary>
-		/// <param name="BaseTable">Base table being merged</param>
-		public override void Merge(UhtLookupTableBase BaseTable)
+		/// <param name="baseTable">Base table being merged</param>
+		public override void Merge(UhtLookupTableBase baseTable)
 		{
-			foreach (var KVP in ((UhtLookupTable<TValue>)BaseTable).Lookup)
+			foreach (KeyValuePair<StringView, TValue> kvp in ((UhtLookupTable<TValue>)baseTable)._lookup)
 			{
-				this.Lookup.TryAdd(KVP.Key, KVP.Value);
+				this._lookup.TryAdd(kvp.Key, kvp.Value);
 			}
 		}
 	}
@@ -236,48 +236,48 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Create a new group of tables
 		/// </summary>
-		/// <param name="Name">The name of the group</param>
-		public UhtLookupTables(string Name)
+		/// <param name="name">The name of the group</param>
+		public UhtLookupTables(string name)
 		{
-			this.Name = Name;
+			this.Name = name;
 		}
 
 		/// <summary>
 		/// Given a table name, return the table.  If not found, a new one will be added with the given name.
 		/// </summary>
-		/// <param name="TableName">The name of the table to return</param>
+		/// <param name="tableName">The name of the table to return</param>
 		/// <returns>The table associated with the name.</returns>
-		public TTable Get(string TableName)
+		public TTable Get(string tableName)
 		{
-			TTable? Table;
-			if (!this.Tables.TryGetValue(TableName, out Table))
+			TTable? table;
+			if (!this.Tables.TryGetValue(tableName, out table))
 			{
-				Table = new TTable();
-				Table.TableName = TableName;
-				this.Tables.Add(TableName, Table);
+				table = new TTable();
+				table.TableName = tableName;
+				this.Tables.Add(tableName, table);
 			}
-			return Table;
+			return table;
 		}
 
 		/// <summary>
 		/// Create a table with the given information.  If the table already exists, it will be initialized with the given data.
 		/// </summary>
-		/// <param name="TableName">The name of the table</param>
-		/// <param name="UserName">The user facing name of the name</param>
-		/// <param name="ParentTableName">The parent table name used to merge table entries</param>
-		/// <param name="bInternal">If true, the table is internal and won't be visible to the user.</param>
+		/// <param name="tableName">The name of the table</param>
+		/// <param name="userName">The user facing name of the name</param>
+		/// <param name="parentTableName">The parent table name used to merge table entries</param>
+		/// <param name="tableIsInternal">If true, the table is internal and won't be visible to the user.</param>
 		/// <returns>The created table</returns>
-		public TTable Create(string TableName, string UserName, string? ParentTableName, bool bInternal = false)
+		public TTable Create(string tableName, string userName, string? parentTableName, bool tableIsInternal = false)
 		{
-			TTable Table = Get(TableName);
-			Table.UserName = UserName;
-			Table.Internal = bInternal;
-			Table.Implemented = true;
-			if (!string.IsNullOrEmpty(ParentTableName))
+			TTable table = Get(tableName);
+			table.UserName = userName;
+			table.Internal = tableIsInternal;
+			table.Implemented = true;
+			if (!String.IsNullOrEmpty(parentTableName))
 			{
-				Table.ParentTable = Get(ParentTableName);
+				table.ParentTable = Get(parentTableName);
 			}
-			return Table;
+			return table;
 		}
 
 		/// <summary>
@@ -287,52 +287,52 @@ namespace EpicGames.UHT.Utils
 		/// <exception cref="UhtIceException">Thrown if there are problems with the tables.</exception>
 		public void Merge()
 		{
-			List<TTable> OrderedList = new List<TTable>(this.Tables.Count);
-			List<TTable> RemainingList = new List<TTable>(this.Tables.Count);
-			HashSet<UhtLookupTableBase> DoneTables = new HashSet<UhtLookupTableBase>();
+			List<TTable> orderedList = new List<TTable>(this.Tables.Count);
+			List<TTable> remainingList = new List<TTable>(this.Tables.Count);
+			HashSet<UhtLookupTableBase> doneTables = new HashSet<UhtLookupTableBase>();
 
 			// Collect all of the tables
-			foreach (KeyValuePair<string, TTable> KVP in this.Tables)
+			foreach (KeyValuePair<string, TTable> kvp in this.Tables)
 			{
-				if (!KVP.Value.Implemented)
+				if (!kvp.Value.Implemented)
 				{
-					throw new UhtIceException($"{this.Name} table '{KVP.Value.TableName}' has been referenced but not implemented");
+					throw new UhtIceException($"{this.Name} table '{kvp.Value.TableName}' has been referenced but not implemented");
 				}
-				RemainingList.Add(KVP.Value);
+				remainingList.Add(kvp.Value);
 			}
 
 			// Perform a topological sort of the tables
-			while (RemainingList.Count != 0)
+			while (remainingList.Count != 0)
 			{
-				bool bAddedOne = false;
-				for (int i = 0; i < RemainingList.Count;)
+				bool addedOne = false;
+				for (int i = 0; i < remainingList.Count;)
 				{
-					TTable Table = RemainingList[i];
-					if (Table.ParentTable == null || DoneTables.Contains(Table.ParentTable))
+					TTable table = remainingList[i];
+					if (table.ParentTable == null || doneTables.Contains(table.ParentTable))
 					{
-						OrderedList.Add(Table);
-						DoneTables.Add(Table);
-						RemainingList[i] = RemainingList[RemainingList.Count - 1];
-						RemainingList.RemoveAt(RemainingList.Count - 1);
-						bAddedOne = true;
+						orderedList.Add(table);
+						doneTables.Add(table);
+						remainingList[i] = remainingList[^1];
+						remainingList.RemoveAt(remainingList.Count - 1);
+						addedOne = true;
 					}
 					else
 					{
 						++i;
 					}
 				}
-				if (!bAddedOne)
+				if (!addedOne)
 				{
 					throw new UhtIceException($"Circular dependency in {this.GetType().Name}.{this.Name} tables detected");
 				}
 			}
 
 			// Merge the tables
-			foreach (TTable Table in OrderedList)
+			foreach (TTable table in orderedList)
 			{
-				if (Table.ParentTable != null)
+				if (table.ParentTable != null)
 				{
-					Table.Merge((TTable)Table.ParentTable);
+					table.Merge((TTable)table.ParentTable);
 				}
 			}
 		}
@@ -364,45 +364,45 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Create all of the standard scope tables.
 		/// </summary>
-		/// <param name="Tables">UHT tables</param>
-		public static void InitStandardTables(UhtTables Tables)
+		/// <param name="tables">UHT tables</param>
+		public static void InitStandardTables(UhtTables tables)
 		{
-			CreateTables(Tables, UhtTableNames.Default, "Default", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, null, true);
-			CreateTables(Tables, UhtTableNames.Global, "Global", EUhtCreateTablesFlags.Keyword, UhtTableNames.Default, false);
-			CreateTables(Tables, UhtTableNames.PropertyArgument, "Argument/Return", EUhtCreateTablesFlags.Specifiers, UhtTableNames.Default, false);
-			CreateTables(Tables, UhtTableNames.PropertyMember, "Member", EUhtCreateTablesFlags.Specifiers, UhtTableNames.Default, false);
-			CreateTables(Tables, UhtTableNames.Object, "Object", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Default, true);
-			CreateTables(Tables, UhtTableNames.Field, "Field", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Object, true);
-			CreateTables(Tables, UhtTableNames.Enum, "Enum", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Field, false);
-			CreateTables(Tables, UhtTableNames.Struct, "Struct", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Field, true);
-			CreateTables(Tables, UhtTableNames.ClassBase, "ClassBase", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, true);
-			CreateTables(Tables, UhtTableNames.Class, "Class", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
-			CreateTables(Tables, UhtTableNames.Interface, "Interface", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
-			CreateTables(Tables, UhtTableNames.NativeInterface, "IInterface", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
-			CreateTables(Tables, UhtTableNames.Function, "Function", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, false);
-			CreateTables(Tables, UhtTableNames.ScriptStruct, "Struct", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, false);
+			CreateTables(tables, UhtTableNames.Default, "Default", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, null, true);
+			CreateTables(tables, UhtTableNames.Global, "Global", EUhtCreateTablesFlags.Keyword, UhtTableNames.Default, false);
+			CreateTables(tables, UhtTableNames.PropertyArgument, "Argument/Return", EUhtCreateTablesFlags.Specifiers, UhtTableNames.Default, false);
+			CreateTables(tables, UhtTableNames.PropertyMember, "Member", EUhtCreateTablesFlags.Specifiers, UhtTableNames.Default, false);
+			CreateTables(tables, UhtTableNames.Object, "Object", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Default, true);
+			CreateTables(tables, UhtTableNames.Field, "Field", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Object, true);
+			CreateTables(tables, UhtTableNames.Enum, "Enum", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Field, false);
+			CreateTables(tables, UhtTableNames.Struct, "Struct", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Field, true);
+			CreateTables(tables, UhtTableNames.ClassBase, "ClassBase", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, true);
+			CreateTables(tables, UhtTableNames.Class, "Class", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
+			CreateTables(tables, UhtTableNames.Interface, "Interface", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
+			CreateTables(tables, UhtTableNames.NativeInterface, "IInterface", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.ClassBase, false);
+			CreateTables(tables, UhtTableNames.Function, "Function", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, false);
+			CreateTables(tables, UhtTableNames.ScriptStruct, "Struct", EUhtCreateTablesFlags.Specifiers | EUhtCreateTablesFlags.Keyword, UhtTableNames.Struct, false);
 		}
 
 		/// <summary>
 		/// Creates a series of tables given the supplied setup
 		/// </summary>
-		/// <param name="Tables">UHT tables</param>
-		/// <param name="TableName">Name of the table.</param>
-		/// <param name="TableUserName">Name presented to the user via error messages.</param>
-		/// <param name="CreateTables">Types of tables to be created.</param>
-		/// <param name="ParentTableName">Name of the parent table or null for none.</param>
-		/// <param name="bInternal">If true, this table will not be included in any error messages.</param>
-		public static void CreateTables(UhtTables Tables, string TableName, string TableUserName, 
-			EUhtCreateTablesFlags CreateTables, string? ParentTableName, bool bInternal = false)
+		/// <param name="tables">UHT tables</param>
+		/// <param name="tableName">Name of the table.</param>
+		/// <param name="tableUserName">Name presented to the user via error messages.</param>
+		/// <param name="createTables">Types of tables to be created.</param>
+		/// <param name="parentTableName">Name of the parent table or null for none.</param>
+		/// <param name="tableIsInternal">If true, this table will not be included in any error messages.</param>
+		public static void CreateTables(UhtTables tables, string tableName, string tableUserName,
+			EUhtCreateTablesFlags createTables, string? parentTableName, bool tableIsInternal = false)
 		{
-			if (CreateTables.HasFlag(EUhtCreateTablesFlags.Keyword))
+			if (createTables.HasFlag(EUhtCreateTablesFlags.Keyword))
 			{
-				Tables.KeywordTables.Create(TableName, TableUserName, ParentTableName, bInternal);
+				tables.KeywordTables.Create(tableName, tableUserName, parentTableName, tableIsInternal);
 			}
-			if (CreateTables.HasFlag(EUhtCreateTablesFlags.Specifiers))
+			if (createTables.HasFlag(EUhtCreateTablesFlags.Specifiers))
 			{
-				Tables.SpecifierTables.Create(TableName, TableUserName, ParentTableName, bInternal);
-				Tables.SpecifierValidatorTables.Create(TableName, TableUserName, ParentTableName, bInternal);
+				tables.SpecifierTables.Create(tableName, tableUserName, parentTableName, tableIsInternal);
+				tables.SpecifierValidatorTables.Create(tableName, tableUserName, parentTableName, tableIsInternal);
 			}
 		}
 	}
@@ -418,7 +418,7 @@ namespace EpicGames.UHT.Utils
 		/// If specified, this method will be invoked once during the scan for attributes.
 		/// It can be used to perform some one time initialization.
 		/// </summary>
-		public string InitMethod { get; set; } = string.Empty;
+		public string InitMethod { get; set; } = String.Empty;
 	}
 
 	/// <summary>
@@ -502,12 +502,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Add a collection of plugin assembly file paths
 		/// </summary>
-		/// <param name="PluginAssembliesFilePaths">Collection of plugins to load</param>
-		public void AddPlugins(IEnumerable<string> PluginAssembliesFilePaths)
+		/// <param name="pluginAssembliesFilePaths">Collection of plugins to load</param>
+		public void AddPlugins(IEnumerable<string> pluginAssembliesFilePaths)
 		{
-			foreach (string AssemblyFilePath in PluginAssembliesFilePaths)
+			foreach (string assemblyFilePath in pluginAssembliesFilePaths)
 			{
-				CheckForAttributes(LoadAssembly(AssemblyFilePath));
+				CheckForAttributes(LoadAssembly(assemblyFilePath));
 			}
 			PerformPostInitialization();
 		}
@@ -515,20 +515,20 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Check to see if the assembly is a UHT plugin
 		/// </summary>
-		/// <param name="AssemblyFilePath">Path to the assembly file</param>
+		/// <param name="assemblyFilePath">Path to the assembly file</param>
 		/// <returns></returns>
-		public static bool IsUhtPlugin(string AssemblyFilePath)
+		public static bool IsUhtPlugin(string assemblyFilePath)
 		{
-			Assembly? Assembly = LoadAssembly(AssemblyFilePath);       
-			if (Assembly != null)
+			Assembly? assembly = LoadAssembly(assemblyFilePath);
+			if (assembly != null)
 			{
-				foreach (Type Type in Assembly.SafeGetLoadedTypes())
+				foreach (Type type in assembly.SafeGetLoadedTypes())
 				{
-					if (Type.IsClass)
+					if (type.IsClass)
 					{
-						foreach (Attribute ClassAttribute in Type.GetCustomAttributes(false))
+						foreach (Attribute classAttribute in type.GetCustomAttributes(false))
 						{
-							if (ClassAttribute is UnrealHeaderToolAttribute || ClassAttribute is UhtEngineClassAttribute)
+							if (classAttribute is UnrealHeaderToolAttribute || classAttribute is UhtEngineClassAttribute)
 							{
 								return true;
 							}
@@ -542,33 +542,33 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Load the given assembly from the file path
 		/// </summary>
-		/// <param name="AssemblyFilePath">Path to the file</param>
+		/// <param name="assemblyFilePath">Path to the file</param>
 		/// <returns>Assembly if it is already loaded or could be loaded</returns>
-		public static Assembly? LoadAssembly(string AssemblyFilePath)
+		public static Assembly? LoadAssembly(string assemblyFilePath)
 		{
-			Assembly? Assembly = FindAssemblyByName(Path.GetFileNameWithoutExtension(AssemblyFilePath));
-			if (Assembly == null)
+			Assembly? assembly = FindAssemblyByName(Path.GetFileNameWithoutExtension(assemblyFilePath));
+			if (assembly == null)
 			{
-				Assembly = Assembly.LoadFile(AssemblyFilePath);
+				assembly = Assembly.LoadFile(assemblyFilePath);
 			}
-			return Assembly;
+			return assembly;
 		}
 
 		/// <summary>
 		/// Locate the assembly by name
 		/// </summary>
-		/// <param name="Name">Name of the assembly</param>
+		/// <param name="name">Name of the assembly</param>
 		/// <returns>Assembly or null</returns>
-		private static Assembly? FindAssemblyByName(string? Name)
+		private static Assembly? FindAssemblyByName(string? name)
 		{
-			if (Name != null)
+			if (name != null)
 			{
-				foreach (Assembly Assembly in AppDomain.CurrentDomain.GetAssemblies())
+				foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
 				{
-					AssemblyName AssemblyName = Assembly.GetName();
-					if (AssemblyName.Name != null && String.Equals(AssemblyName.Name, Name, StringComparison.OrdinalIgnoreCase))
+					AssemblyName assemblyName = assembly.GetName();
+					if (assemblyName.Name != null && String.Equals(assemblyName.Name, name, StringComparison.OrdinalIgnoreCase))
 					{
-						return Assembly;
+						return assembly;
 					}
 				}
 			}
@@ -578,14 +578,14 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Check for UHT attributes on all types in the given assembly
 		/// </summary>
-		/// <param name="Assembly">Assembly to scan</param>
-		private void CheckForAttributes(Assembly? Assembly)
+		/// <param name="assembly">Assembly to scan</param>
+		private void CheckForAttributes(Assembly? assembly)
 		{
-			if (Assembly != null)
+			if (assembly != null)
 			{
-				foreach (Type Type in Assembly.SafeGetLoadedTypes())
+				foreach (Type type in assembly.SafeGetLoadedTypes())
 				{
-					CheckForAttributes(Type);
+					CheckForAttributes(type);
 				}
 			}
 		}
@@ -593,22 +593,22 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// For the given type, look for any table related attributes 
 		/// </summary>
-		/// <param name="Type">Type in question</param>
-		private void CheckForAttributes(Type Type)
+		/// <param name="type">Type in question</param>
+		private void CheckForAttributes(Type type)
 		{
-			if (Type.IsClass)
+			if (type.IsClass)
 			{
 
 				// Loop through the attributes
-				foreach (Attribute ClassAttribute in Type.GetCustomAttributes(false))
+				foreach (Attribute classAttribute in type.GetCustomAttributes(false))
 				{
-					if (ClassAttribute is UnrealHeaderToolAttribute ParserAttribute)
+					if (classAttribute is UnrealHeaderToolAttribute parserAttribute)
 					{
-						HandleUnrealHeaderToolAttribute(Type, ParserAttribute);
+						HandleUnrealHeaderToolAttribute(type, parserAttribute);
 					}
-					else if (ClassAttribute is UhtEngineClassAttribute EngineClassAttribute)
+					else if (classAttribute is UhtEngineClassAttribute engineClassAttribute)
 					{
-						this.EngineClassTable.OnEngineClassAttribute(EngineClassAttribute);
+						this.EngineClassTable.OnEngineClassAttribute(engineClassAttribute);
 					}
 				}
 			}
@@ -625,56 +625,56 @@ namespace EpicGames.UHT.Utils
 			_ = this.StructDefaultValueTable.Default;
 		}
 
-		private void HandleUnrealHeaderToolAttribute(Type Type, UnrealHeaderToolAttribute ParserAttribute)
+		private void HandleUnrealHeaderToolAttribute(Type type, UnrealHeaderToolAttribute parserAttribute)
 		{
-			if (!string.IsNullOrEmpty(ParserAttribute.InitMethod))
+			if (!String.IsNullOrEmpty(parserAttribute.InitMethod))
 			{
-				MethodInfo? InitInfo = Type.GetMethod(ParserAttribute.InitMethod, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-				if (InitInfo == null)
+				MethodInfo? initInfo = type.GetMethod(parserAttribute.InitMethod, BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+				if (initInfo == null)
 				{
-					throw new Exception($"Unable to find UnrealHeaderTool attribute InitMethod {ParserAttribute.InitMethod}");
+					throw new Exception($"Unable to find UnrealHeaderTool attribute InitMethod {parserAttribute.InitMethod}");
 				}
-				InitInfo.Invoke(null, Array.Empty<object>());
+				initInfo.Invoke(null, Array.Empty<object>());
 			}
 
 			// Scan the methods for things we are interested in
-			foreach (MethodInfo MethodInfo in Type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+			foreach (MethodInfo methodInfo in type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
 			{
 
 				// Scan for attributes we care about
-				foreach (Attribute MethodAttribute in MethodInfo.GetCustomAttributes())
+				foreach (Attribute methodAttribute in methodInfo.GetCustomAttributes())
 				{
-					if (MethodAttribute is UhtSpecifierAttribute SpecifierAttribute)
+					if (methodAttribute is UhtSpecifierAttribute specifierAttribute)
 					{
-						this.SpecifierTables.OnSpecifierAttribute(Type, MethodInfo, SpecifierAttribute);
+						this.SpecifierTables.OnSpecifierAttribute(type, methodInfo, specifierAttribute);
 					}
-					else if (MethodAttribute is UhtSpecifierValidatorAttribute SpecifierValidatorAttribute)
+					else if (methodAttribute is UhtSpecifierValidatorAttribute specifierValidatorAttribute)
 					{
-						this.SpecifierValidatorTables.OnSpecifierValidatorAttribute(Type, MethodInfo, SpecifierValidatorAttribute);
+						this.SpecifierValidatorTables.OnSpecifierValidatorAttribute(type, methodInfo, specifierValidatorAttribute);
 					}
-					else if (MethodAttribute is UhtKeywordCatchAllAttribute KeywordCatchAllAttribute)
+					else if (methodAttribute is UhtKeywordCatchAllAttribute keywordCatchAllAttribute)
 					{
-						this.KeywordTables.OnKeywordCatchAllAttribute(Type, MethodInfo, KeywordCatchAllAttribute);
+						this.KeywordTables.OnKeywordCatchAllAttribute(type, methodInfo, keywordCatchAllAttribute);
 					}
-					else if (MethodAttribute is UhtKeywordAttribute KeywordAttribute)
+					else if (methodAttribute is UhtKeywordAttribute keywordAttribute)
 					{
-						this.KeywordTables.OnKeywordAttribute(Type, MethodInfo, KeywordAttribute);
+						this.KeywordTables.OnKeywordAttribute(type, methodInfo, keywordAttribute);
 					}
-					else if (MethodAttribute is UhtPropertyTypeAttribute PropertyTypeAttribute)
+					else if (methodAttribute is UhtPropertyTypeAttribute propertyTypeAttribute)
 					{
-						this.PropertyTypeTable.OnPropertyTypeAttribute(MethodInfo, PropertyTypeAttribute);
+						this.PropertyTypeTable.OnPropertyTypeAttribute(methodInfo, propertyTypeAttribute);
 					}
-					else if (MethodAttribute is UhtStructDefaultValueAttribute StructDefaultValueAttribute)
+					else if (methodAttribute is UhtStructDefaultValueAttribute structDefaultValueAttribute)
 					{
-						this.StructDefaultValueTable.OnStructDefaultValueAttribute(MethodInfo, StructDefaultValueAttribute);
+						this.StructDefaultValueTable.OnStructDefaultValueAttribute(methodInfo, structDefaultValueAttribute);
 					}
-					else if (MethodAttribute is UhtExporterAttribute ExporterAttribute)
+					else if (methodAttribute is UhtExporterAttribute exporterAttribute)
 					{
-						this.ExporterTable.OnExporterAttribute(Type, MethodInfo, ExporterAttribute);
+						this.ExporterTable.OnExporterAttribute(type, methodInfo, exporterAttribute);
 					}
-					else if (MethodAttribute is UhtLocTextDefaultValueAttribute LocTextDefaultValueAttribute)
+					else if (methodAttribute is UhtLocTextDefaultValueAttribute locTextDefaultValueAttribute)
 					{
-						this.LocTextDefaultValueTable.OnLocTextDefaultValueAttribute(MethodInfo, LocTextDefaultValueAttribute);
+						this.LocTextDefaultValueTable.OnLocTextDefaultValueAttribute(methodInfo, locTextDefaultValueAttribute);
 					}
 				}
 			}

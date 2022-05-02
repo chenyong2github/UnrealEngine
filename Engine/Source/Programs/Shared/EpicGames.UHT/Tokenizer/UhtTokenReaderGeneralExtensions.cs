@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using EpicGames.Core;
 using EpicGames.UHT.Utils;
-using System;
 
 namespace EpicGames.UHT.Tokenizer
 {
-	
+
 	/// <summary>
 	/// Collection of general token reader extensions
 	/// </summary>
@@ -16,15 +16,15 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Try to parse the given text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
 		/// <returns>True if the text matched</returns>
-		public static bool TryOptional(this IUhtTokenReader TokenReader, string Text)
+		public static bool TryOptional(this IUhtTokenReader tokenReader, string text)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier(Text) || Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier(text) || token.IsSymbol(text))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 				return true;
 			}
 			return false;
@@ -33,15 +33,15 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Try to parse the given text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
 		/// <returns>True if the text matched</returns>
-		public static bool TryOptional(this IUhtTokenReader TokenReader, StringView Text)
+		public static bool TryOptional(this IUhtTokenReader tokenReader, StringView text)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier(Text) || Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier(text) || token.IsSymbol(text))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 				return true;
 			}
 			return false;
@@ -50,30 +50,30 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Try to parse the given text.  However, the matching token will not be consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
 		/// <returns>True if the text matched</returns>
-		public static bool TryPeekOptional(this IUhtTokenReader TokenReader, string Text)
+		public static bool TryPeekOptional(this IUhtTokenReader tokenReader, string text)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			return Token.IsIdentifier(Text) || Token.IsSymbol(Text);
+			ref UhtToken token = ref tokenReader.PeekToken();
+			return token.IsIdentifier(text) || token.IsSymbol(text);
 		}
 
 		/// <summary>
 		/// Test to see if the next token is one of the given strings.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">List of keywords to test</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">List of keywords to test</param>
 		/// <returns>Index of matched string or -1 if nothing matched</returns>
-		public static int TryOptional(this IUhtTokenReader TokenReader, string[] Text)
+		public static int TryOptional(this IUhtTokenReader tokenReader, string[] text)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			for (int Index = 0, EndIndex = Text.Length; Index < EndIndex; ++Index)
+			ref UhtToken token = ref tokenReader.PeekToken();
+			for (int index = 0, endIndex = text.Length; index < endIndex; ++index)
 			{
-				if (Token.IsIdentifier(Text[Index]) || Token.IsSymbol(Text[Index]))
+				if (token.IsIdentifier(text[index]) || token.IsSymbol(text[index]))
 				{
-					TokenReader.ConsumeToken();
-					return Index;
+					tokenReader.ConsumeToken();
+					return index;
 				}
 			}
 			return -1;
@@ -82,15 +82,15 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Try to parse the given text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
 		/// <returns>True if the text matched</returns>
-		public static bool TryOptional(this IUhtTokenReader TokenReader, char Text)
+		public static bool TryOptional(this IUhtTokenReader tokenReader, char text)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsSymbol(text))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 				return true;
 			}
 			return false;
@@ -99,256 +99,256 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Try to parse the given text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
-		/// <param name="OutToken">Open that was matched</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
+		/// <param name="outToken">Open that was matched</param>
 		/// <returns>True if the text matched</returns>
-		public static bool TryOptional(this IUhtTokenReader TokenReader, char Text, out UhtToken OutToken)
+		public static bool TryOptional(this IUhtTokenReader tokenReader, char text, out UhtToken outToken)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsSymbol(text))
 			{
-				OutToken = Token;
-				TokenReader.ConsumeToken();
+				outToken = token;
+				tokenReader.ConsumeToken();
 				return true;
 			}
-			OutToken = new UhtToken();
+			outToken = new UhtToken();
 			return false;
 		}
 
 		/// <summary>
 		/// Try to parse the given text.  However, the matching token will not be consumed.
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
 		/// <returns>True if the text matched</returns>
-		public static bool TryPeekOptional(this IUhtTokenReader TokenReader, char Text)
+		public static bool TryPeekOptional(this IUhtTokenReader tokenReader, char text)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			return Token.IsSymbol(Text);
+			ref UhtToken token = ref tokenReader.PeekToken();
+			return token.IsSymbol(text);
 		}
 
 		/// <summary>
 		/// Parse optional text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader Optional(this IUhtTokenReader TokenReader, string Text)
+		public static IUhtTokenReader Optional(this IUhtTokenReader tokenReader, string text)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier(Text) || Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier(text) || token.IsSymbol(text))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse optional text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
-		/// <param name="Action">Action to invoke if the text was found</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
+		/// <param name="action">Action to invoke if the text was found</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader Optional(this IUhtTokenReader TokenReader, string Text, Action Action)
+		public static IUhtTokenReader Optional(this IUhtTokenReader tokenReader, string text, Action action)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier(Text) || Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier(text) || token.IsSymbol(text))
 			{
-				TokenReader.ConsumeToken();
-				Action();
+				tokenReader.ConsumeToken();
+				action();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse optional text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader Optional(this IUhtTokenReader TokenReader, char Text)
+		public static IUhtTokenReader Optional(this IUhtTokenReader tokenReader, char text)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsSymbol(text))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse optional text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
-		/// <param name="Action">Action to invoke if the text was found</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
+		/// <param name="action">Action to invoke if the text was found</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader Optional(this IUhtTokenReader TokenReader, char Text, Action Action)
+		public static IUhtTokenReader Optional(this IUhtTokenReader tokenReader, char text, Action action)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsSymbol(text))
 			{
-				TokenReader.ConsumeToken();
-				Action();
+				tokenReader.ConsumeToken();
+				action();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse optional token that starts with the given text 
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader OptionalStartsWith(this IUhtTokenReader TokenReader, string Text)
+		public static IUhtTokenReader OptionalStartsWith(this IUhtTokenReader tokenReader, string text)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier() && Token.ValueStartsWith(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier() && token.ValueStartsWith(text))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse optional token that starts with the given text 
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Text to match</param>
-		/// <param name="TokenDelegate">Delegate to invoke on a match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Text to match</param>
+		/// <param name="tokenDelegate">Delegate to invoke on a match</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader OptionalStartsWith(this IUhtTokenReader TokenReader, string Text, UhtTokenDelegate TokenDelegate)
+		public static IUhtTokenReader OptionalStartsWith(this IUhtTokenReader tokenReader, string text, UhtTokenDelegate tokenDelegate)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier() && Token.ValueStartsWith(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier() && token.ValueStartsWith(text))
 			{
-				UhtToken CurrentToken = Token;
-				TokenReader.ConsumeToken();
-				TokenDelegate(ref CurrentToken);
+				UhtToken currentToken = token;
+				tokenReader.ConsumeToken();
+				tokenDelegate(ref currentToken);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Require the given text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Required text</param>
-		/// <param name="ExceptionContext">Extra exception context</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Required text</param>
+		/// <param name="exceptionContext">Extra exception context</param>
 		/// <returns>Token reader</returns>
 		/// <exception cref="UhtTokenException">Thrown if text is not found</exception>
-		public static IUhtTokenReader Require(this IUhtTokenReader TokenReader, string Text, object? ExceptionContext = null)
+		public static IUhtTokenReader Require(this IUhtTokenReader tokenReader, string text, object? exceptionContext = null)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier(Text) || Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier(text) || token.IsSymbol(text))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 			}
 			else
 			{
-				throw new UhtTokenException(TokenReader, Token, Text, ExceptionContext);
+				throw new UhtTokenException(tokenReader, token, text, exceptionContext);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Require the given text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Required text</param>
-		/// <param name="TokenDelegate">Delegate to invoke on a match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Required text</param>
+		/// <param name="tokenDelegate">Delegate to invoke on a match</param>
 		/// <returns>Token reader</returns>
 		/// <exception cref="UhtTokenException">Thrown if text is not found</exception>
-		public static IUhtTokenReader Require(this IUhtTokenReader TokenReader, string Text, UhtTokenDelegate TokenDelegate)
+		public static IUhtTokenReader Require(this IUhtTokenReader tokenReader, string text, UhtTokenDelegate tokenDelegate)
 		{
-			return TokenReader.Require(Text, null, TokenDelegate);
+			return tokenReader.Require(text, null, tokenDelegate);
 		}
 
 		/// <summary>
 		/// Require the given text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Required text</param>
-		/// <param name="ExceptionContext">Extra exception context</param>
-		/// <param name="TokenDelegate">Delegate to invoke on a match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Required text</param>
+		/// <param name="exceptionContext">Extra exception context</param>
+		/// <param name="tokenDelegate">Delegate to invoke on a match</param>
 		/// <returns>Token reader</returns>
 		/// <exception cref="UhtTokenException">Thrown if text is not found</exception>
-		public static IUhtTokenReader Require(this IUhtTokenReader TokenReader, string Text, object? ExceptionContext, UhtTokenDelegate TokenDelegate)
+		public static IUhtTokenReader Require(this IUhtTokenReader tokenReader, string text, object? exceptionContext, UhtTokenDelegate tokenDelegate)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier(Text) || Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier(text) || token.IsSymbol(text))
 			{
-				UhtToken CurrentToken = Token;
-				TokenReader.ConsumeToken();
-				TokenDelegate(ref CurrentToken);
+				UhtToken currentToken = token;
+				tokenReader.ConsumeToken();
+				tokenDelegate(ref currentToken);
 			}
 			else
 			{
-				throw new UhtTokenException(TokenReader, Token, Text, ExceptionContext);
+				throw new UhtTokenException(tokenReader, token, text, exceptionContext);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Require the given text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Required text</param>
-		/// <param name="ExceptionContext">Extra exception context</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Required text</param>
+		/// <param name="exceptionContext">Extra exception context</param>
 		/// <returns>Token reader</returns>
 		/// <exception cref="UhtTokenException">Thrown if text is not found</exception>
-		public static IUhtTokenReader Require(this IUhtTokenReader TokenReader, char Text, object? ExceptionContext = null)
+		public static IUhtTokenReader Require(this IUhtTokenReader tokenReader, char text, object? exceptionContext = null)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsSymbol(text))
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 			}
 			else
 			{
-				throw new UhtTokenException(TokenReader, Token, Text, ExceptionContext);
+				throw new UhtTokenException(tokenReader, token, text, exceptionContext);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Require the given text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Required text</param>
-		/// <param name="TokenDelegate">Delegate to invoke on a match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Required text</param>
+		/// <param name="tokenDelegate">Delegate to invoke on a match</param>
 		/// <returns>Token reader</returns>
 		/// <exception cref="UhtTokenException">Thrown if text is not found</exception>
-		public static IUhtTokenReader Require(this IUhtTokenReader TokenReader, char Text, UhtTokenDelegate TokenDelegate)
+		public static IUhtTokenReader Require(this IUhtTokenReader tokenReader, char text, UhtTokenDelegate tokenDelegate)
 		{
-			return TokenReader.Require(Text, null, TokenDelegate);
+			return tokenReader.Require(text, null, tokenDelegate);
 		}
 
 		/// <summary>
 		/// Require the given text
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Text">Required text</param>
-		/// <param name="ExceptionContext">Extra exception context</param>
-		/// <param name="TokenDelegate">Delegate to invoke on a match</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="text">Required text</param>
+		/// <param name="exceptionContext">Extra exception context</param>
+		/// <param name="tokenDelegate">Delegate to invoke on a match</param>
 		/// <returns>Token reader</returns>
 		/// <exception cref="UhtTokenException">Thrown if text is not found</exception>
-		public static IUhtTokenReader Require(this IUhtTokenReader TokenReader, char Text, object? ExceptionContext, UhtTokenDelegate TokenDelegate)
+		public static IUhtTokenReader Require(this IUhtTokenReader tokenReader, char text, object? exceptionContext, UhtTokenDelegate tokenDelegate)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsSymbol(Text))
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsSymbol(text))
 			{
-				UhtToken CurrentToken = Token;
-				TokenReader.ConsumeToken();
-				TokenDelegate(ref CurrentToken);
+				UhtToken currentToken = token;
+				tokenReader.ConsumeToken();
+				tokenDelegate(ref currentToken);
 			}
 			else
 			{
-				throw new UhtTokenException(TokenReader, Token, Text, ExceptionContext);
+				throw new UhtTokenException(tokenReader, token, text, exceptionContext);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 	}
 }

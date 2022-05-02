@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using EpicGames.Core;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Tokenizer
 {
@@ -14,39 +14,39 @@ namespace EpicGames.UHT.Tokenizer
 	/// </summary>
 	public sealed class UhtTokenReplayReader : IUhtTokenReader, IUhtMessageLineNumber
 	{
-		private static readonly ThreadLocal<UhtTokenReplayReader> Tls = new ThreadLocal<UhtTokenReplayReader>(() => new UhtTokenReplayReader());
+		private static readonly ThreadLocal<UhtTokenReplayReader> s_tls = new ThreadLocal<UhtTokenReplayReader>(() => new UhtTokenReplayReader());
 
 		const int MaxSavedStates = 2;
 		private struct SavedState
 		{
-			public int TokenIndex;
-			public bool bHasToken;
+			public int _tokenIndex;
+			public bool _hasToken;
 		}
 
-		private IUhtMessageSite MessageSiteInternal;
-		private ReadOnlyMemory<UhtToken> Tokens;
-		private ReadOnlyMemory<char> Data;
-		private int CurrentTokenIndex = -1;
-		private bool bHasToken = false;
-		private UhtToken CurrentToken = new UhtToken();
-		private readonly SavedState[] SavedStates = new SavedState[MaxSavedStates];
-		private int SavedStateCount = 0;
-		private UhtTokenType EndTokenType = UhtTokenType.EndOfFile;
+		private IUhtMessageSite _messageSiteInternal;
+		private ReadOnlyMemory<UhtToken> _tokens;
+		private ReadOnlyMemory<char> _data;
+		private int _currentTokenIndex = -1;
+		private bool _hasToken = false;
+		private UhtToken _currentToken = new UhtToken();
+		private readonly SavedState[] _savedStates = new SavedState[MaxSavedStates];
+		private int _savedStateCount = 0;
+		private UhtTokenType _endTokenType = UhtTokenType.EndOfFile;
 
 		/// <summary>
 		/// Construct new token reader
 		/// </summary>
-		/// <param name="MessageSite">Message site for generating errors</param>
-		/// <param name="Data">Complete data for the token (i.e. original source)</param>
-		/// <param name="Tokens">Tokens to replay</param>
-		/// <param name="EndTokenType">Token type to return when end of tokens reached</param>
-		public UhtTokenReplayReader(IUhtMessageSite MessageSite, ReadOnlyMemory<char> Data, ReadOnlyMemory<UhtToken> Tokens, UhtTokenType EndTokenType)
+		/// <param name="messageSite">Message site for generating errors</param>
+		/// <param name="data">Complete data for the token (i.e. original source)</param>
+		/// <param name="tokens">Tokens to replay</param>
+		/// <param name="endTokenType">Token type to return when end of tokens reached</param>
+		public UhtTokenReplayReader(IUhtMessageSite messageSite, ReadOnlyMemory<char> data, ReadOnlyMemory<UhtToken> tokens, UhtTokenType endTokenType)
 		{
-			this.MessageSiteInternal = MessageSite;
-			this.Tokens = Tokens;
-			this.Data = Data;
-			this.EndTokenType = EndTokenType;
-			this.CurrentToken = new UhtToken(EndTokenType);
+			this._messageSiteInternal = messageSite;
+			this._tokens = tokens;
+			this._data = data;
+			this._endTokenType = endTokenType;
+			this._currentToken = new UhtToken(endTokenType);
 		}
 
 		/// <summary>
@@ -54,97 +54,97 @@ namespace EpicGames.UHT.Tokenizer
 		/// </summary>
 		public UhtTokenReplayReader()
 		{
-			this.MessageSiteInternal = new UhtEmptyMessageSite();
-			this.Tokens = Array.Empty<UhtToken>().AsMemory();
-			this.Data = Array.Empty<char>().AsMemory();
+			this._messageSiteInternal = new UhtEmptyMessageSite();
+			this._tokens = Array.Empty<UhtToken>().AsMemory();
+			this._data = Array.Empty<char>().AsMemory();
 		}
 
 		/// <summary>
 		/// Reset a cached replay reader for replaying a new stream of tokens
 		/// </summary>
-		/// <param name="MessageSite">Message site for generating errors</param>
-		/// <param name="Data">Complete data for the token (i.e. original source)</param>
-		/// <param name="Tokens">Tokens to replay</param>
-		/// <param name="EndTokenType">Token type to return when end of tokens reached</param>
+		/// <param name="messageSite">Message site for generating errors</param>
+		/// <param name="data">Complete data for the token (i.e. original source)</param>
+		/// <param name="tokens">Tokens to replay</param>
+		/// <param name="endTokenType">Token type to return when end of tokens reached</param>
 		/// <returns>The replay reader</returns>
-		public UhtTokenReplayReader Reset(IUhtMessageSite MessageSite, ReadOnlyMemory<char> Data, ReadOnlyMemory<UhtToken> Tokens, UhtTokenType EndTokenType)
+		public UhtTokenReplayReader Reset(IUhtMessageSite messageSite, ReadOnlyMemory<char> data, ReadOnlyMemory<UhtToken> tokens, UhtTokenType endTokenType)
 		{
-			this.MessageSiteInternal = MessageSite;
-			this.Tokens = Tokens;
-			this.Data = Data;
-			this.CurrentTokenIndex = -1;
-			this.bHasToken = false;
-			this.CurrentToken = new UhtToken(EndTokenType);
-			this.SavedStateCount = 0;
-			this.EndTokenType = EndTokenType;
+			this._messageSiteInternal = messageSite;
+			this._tokens = tokens;
+			this._data = data;
+			this._currentTokenIndex = -1;
+			this._hasToken = false;
+			this._currentToken = new UhtToken(endTokenType);
+			this._savedStateCount = 0;
+			this._endTokenType = endTokenType;
 			return this;
 		}
 
 		/// <summary>
 		/// Return the replay reader associated with the current thread.  Only one replay reader is cached per thread.
 		/// </summary>
-		/// <param name="MessageSite">The message site used to log errors</param>
-		/// <param name="Data">Source data where tokens were originally parsed</param>
-		/// <param name="Tokens">Collection of tokens to replay</param>
-		/// <param name="EndTokenType">Type of end token marker to return when the end of the token list is reached.  This is used to produce errors in the context of the replay</param>
+		/// <param name="messageSite">The message site used to log errors</param>
+		/// <param name="data">Source data where tokens were originally parsed</param>
+		/// <param name="tokens">Collection of tokens to replay</param>
+		/// <param name="endTokenType">Type of end token marker to return when the end of the token list is reached.  This is used to produce errors in the context of the replay</param>
 		/// <returns>The threaded instance of the replay reader</returns>
 		/// <exception cref="UhtIceException">Thrown if the TLS value can not be retrieved.</exception>
-		public static UhtTokenReplayReader GetThreadInstance(IUhtMessageSite MessageSite, ReadOnlyMemory<char> Data, ReadOnlyMemory<UhtToken> Tokens, UhtTokenType EndTokenType)
+		public static UhtTokenReplayReader GetThreadInstance(IUhtMessageSite messageSite, ReadOnlyMemory<char> data, ReadOnlyMemory<UhtToken> tokens, UhtTokenType endTokenType)
 		{
-			UhtTokenReplayReader? Reader = Tls.Value;
-			if (Reader == null)
+			UhtTokenReplayReader? reader = s_tls.Value;
+			if (reader == null)
 			{
 				throw new UhtIceException("Unable to acquire a UhtTokenReplayReader");
 			}
-			Reader.Reset(MessageSite, Data, Tokens, EndTokenType);
-			return Reader;
+			reader.Reset(messageSite, data, tokens, endTokenType);
+			return reader;
 		}
 
 		#region IUHTMessageSite Implementation
-		IUhtMessageSession IUhtMessageSite.MessageSession => this.MessageSiteInternal.MessageSession;
-		IUhtMessageSource? IUhtMessageSite.MessageSource => this.MessageSiteInternal.MessageSource;
+		IUhtMessageSession IUhtMessageSite.MessageSession => this._messageSiteInternal.MessageSession;
+		IUhtMessageSource? IUhtMessageSite.MessageSource => this._messageSiteInternal.MessageSource;
 		IUhtMessageLineNumber? IUhtMessageSite.MessageLineNumber => this;
 		#endregion
 
 		#region ITokenReader Implementation
 		/// <inheritdoc/>
-		public bool bIsEOF
+		public bool IsEOF
 		{
 			get
 			{
-				if (!this.bHasToken)
+				if (!this._hasToken)
 				{
 					GetTokenInternal();
 				}
-				return this.CurrentTokenIndex == this.Tokens.Span.Length;
+				return this._currentTokenIndex == this._tokens.Span.Length;
 			}
 		}
 
 		/// <inheritdoc/>
-		public int InputPos 
+		public int InputPos
 		{
 			get
 			{
-				if (!this.bHasToken)
+				if (!this._hasToken)
 				{
 					GetTokenInternal();
 				}
-				return CurrentToken.InputStartPos;
+				return _currentToken.InputStartPos;
 			}
 		}
 
 		/// <inheritdoc/>
-		public int InputLine 
+		public int InputLine
 		{
 			get
 			{
-				if (!this.bHasToken)
+				if (!this._hasToken)
 				{
 					GetTokenInternal();
 				}
-				return CurrentToken.InputLine;
+				return _currentToken.InputLine;
 			}
-			set => throw new NotImplementedException(); 
+			set => throw new NotImplementedException();
 		}
 
 		/// <inheritdoc/>
@@ -165,7 +165,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <inheritdoc/>
 		public void ConsumeToken()
 		{
-			this.bHasToken = false;
+			this._hasToken = false;
 		}
 
 		/// <inheritdoc/>
@@ -193,27 +193,27 @@ namespace EpicGames.UHT.Tokenizer
 		}
 
 		/// <inheritdoc/>
-		public StringView GetRawString(char Terminator, UhtRawStringOptions Options)
+		public StringView GetRawString(char terminator, UhtRawStringOptions options)
 		{
 			throw new NotImplementedException();
 		}
 
 		/// <inheritdoc/>
-		public StringView GetStringView(int StartPos, int Count)
+		public StringView GetStringView(int startPos, int count)
 		{
-			return new StringView(this.Data, StartPos, Count);
+			return new StringView(this._data, startPos, count);
 		}
 
 		/// <inheritdoc/>
 		public UhtToken GetToken()
 		{
-			UhtToken Token = PeekToken();
+			UhtToken token = PeekToken();
 			ConsumeToken();
-			return Token;
+			return token;
 		}
 
 		/// <inheritdoc/>
-		public bool IsFirstTokenInLine(ref UhtToken Token)
+		public bool IsFirstTokenInLine(ref UhtToken token)
 		{
 			throw new NotImplementedException();
 		}
@@ -221,11 +221,11 @@ namespace EpicGames.UHT.Tokenizer
 		/// <inheritdoc/>
 		public ref UhtToken PeekToken()
 		{
-			if (!this.bHasToken)
+			if (!this._hasToken)
 			{
 				GetTokenInternal();
 			}
-			return ref this.CurrentToken;
+			return ref this._currentToken;
 		}
 
 		/// <inheritdoc/>
@@ -237,36 +237,36 @@ namespace EpicGames.UHT.Tokenizer
 		/// <inheritdoc/>
 		public void SaveState()
 		{
-			if (this.SavedStateCount == MaxSavedStates)
+			if (this._savedStateCount == MaxSavedStates)
 			{
 				throw new UhtIceException("Token reader saved states full");
 			}
-			this.SavedStates[this.SavedStateCount] = new SavedState { TokenIndex = this.CurrentTokenIndex, bHasToken = this.bHasToken };
-			++this.SavedStateCount;
+			this._savedStates[this._savedStateCount] = new SavedState { _tokenIndex = this._currentTokenIndex, _hasToken = this._hasToken };
+			++this._savedStateCount;
 		}
 
 		/// <inheritdoc/>
 		public void RestoreState()
 		{
-			if (this.SavedStateCount == 0)
+			if (this._savedStateCount == 0)
 			{
 				throw new UhtIceException("Attempt to restore a state when none have been saved");
 			}
 
-			--this.SavedStateCount;
-			this.CurrentTokenIndex = this.SavedStates[this.SavedStateCount].TokenIndex;
-			this.bHasToken = this.SavedStates[this.SavedStateCount].bHasToken;
+			--this._savedStateCount;
+			this._currentTokenIndex = this._savedStates[this._savedStateCount]._tokenIndex;
+			this._hasToken = this._savedStates[this._savedStateCount]._hasToken;
 		}
 
 		/// <inheritdoc/>
 		public void AbandonState()
 		{
-			if (this.SavedStateCount == 0)
+			if (this._savedStateCount == 0)
 			{
 				throw new UhtIceException("Attempt to abandon a state when none have been saved");
 			}
 
-			--this.SavedStateCount;
+			--this._savedStateCount;
 		}
 
 		/// <inheritdoc/>
@@ -282,19 +282,13 @@ namespace EpicGames.UHT.Tokenizer
 		}
 
 		/// <inheritdoc/>
-		public void RecordToken(ref UhtToken Token)
+		public void RecordToken(ref UhtToken token)
 		{
 			throw new NotImplementedException();
 		}
 
 		/// <inheritdoc/>
-		public List<UhtToken> RecordedTokens
-		{
-			get
-			{
-				throw new NotImplementedException();
-			}
-		}
+		public List<UhtToken> RecordedTokens => throw new NotImplementedException();
 		#endregion
 
 		#region IUHTMessageLineNumber implementation
@@ -302,45 +296,45 @@ namespace EpicGames.UHT.Tokenizer
 		{
 			get
 			{
-				if (this.Tokens.Length == 0)
+				if (this._tokens.Length == 0)
 				{
 					return -1;
 				}
-				if (this.CurrentTokenIndex < 0)
+				if (this._currentTokenIndex < 0)
 				{
-					return this.Tokens.Span[0].InputLine;
+					return this._tokens.Span[0].InputLine;
 				}
-				if (this.CurrentTokenIndex < this.Tokens.Length)
+				if (this._currentTokenIndex < this._tokens.Length)
 				{
-					return this.Tokens.Span[this.CurrentTokenIndex].InputLine;
+					return this._tokens.Span[this._currentTokenIndex].InputLine;
 				}
-				return this.Tokens.Span[this.Tokens.Length - 1].InputLine;
+				return this._tokens.Span[this._tokens.Length - 1].InputLine;
 			}
 		}
 		#endregion
 
 		private ref UhtToken GetTokenInternal()
 		{
-			if (this.CurrentTokenIndex < this.Tokens.Length)
+			if (this._currentTokenIndex < this._tokens.Length)
 			{
-				++this.CurrentTokenIndex;
+				++this._currentTokenIndex;
 			}
-			if (this.CurrentTokenIndex < this.Tokens.Length)
+			if (this._currentTokenIndex < this._tokens.Length)
 			{
-				this.CurrentToken = this.Tokens.Span[this.CurrentTokenIndex];
+				this._currentToken = this._tokens.Span[this._currentTokenIndex];
 			}
-			else if (this.Tokens.Length == 0)
+			else if (this._tokens.Length == 0)
 			{
-				this.CurrentToken = new UhtToken();
+				this._currentToken = new UhtToken();
 			}
 			else
 			{
-				UhtToken LastToken = this.Tokens.Span[this.Tokens.Length - 1];
-				int EndPos = LastToken.InputEndPos;
-				this.CurrentToken = new UhtToken(this.EndTokenType, EndPos, LastToken.InputLine, EndPos, LastToken.InputLine, new StringView());
+				UhtToken lastToken = this._tokens.Span[this._tokens.Length - 1];
+				int endPos = lastToken.InputEndPos;
+				this._currentToken = new UhtToken(this._endTokenType, endPos, lastToken.InputLine, endPos, lastToken.InputLine, new StringView());
 			}
-			this.bHasToken = true;
-			return ref this.CurrentToken;
+			this._hasToken = true;
+			return ref this._currentToken;
 		}
 	}
 }

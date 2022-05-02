@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tables;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
+using EpicGames.UHT.Tables;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Types
 {
-	
+
 	/// <summary>
 	/// How the enumeration was declared
 	/// </summary>
@@ -131,7 +131,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// True if the enum was declared in an WITH_EDITORONLY_DATA block
 		/// </summary>
-		public bool bIsEditorOnly { get; set; } = false;
+		public bool IsEditorOnly { get; set; } = false;
 
 		/// <summary>
 		/// Collection of enumeration values
@@ -143,18 +143,18 @@ namespace EpicGames.UHT.Types
 		public override UhtEngineType EngineType => UhtEngineType.Enum;
 
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "Enum"; }
+		public override string EngineClassName => "Enum";
 
 		///<inheritdoc/>
 		[JsonIgnore]
-		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable { get => this.Session.GetSpecifierValidatorTable(UhtTableNames.Enum); }
+		protected override UhtSpecifierValidatorTable? SpecifierValidatorTable => this.Session.GetSpecifierValidatorTable(UhtTableNames.Enum);
 
 		/// <summary>
 		/// Construct a new enumeration
 		/// </summary>
-		/// <param name="Outer">Outer type</param>
-		/// <param name="LineNumber">Line number of declaration</param>
-		public UhtEnum(UhtType Outer, int LineNumber) : base(Outer, LineNumber)
+		/// <param name="outer">Outer type</param>
+		/// <param name="lineNumber">Line number of declaration</param>
+		public UhtEnum(UhtType outer, int lineNumber) : base(outer, lineNumber)
 		{
 			this.MetaData.KeyConversion = this;
 			this.EnumValues = new List<UhtEnumValue>();
@@ -163,13 +163,13 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Test to see if the value is a known enum value
 		/// </summary>
-		/// <param name="Value">Value in question</param>
+		/// <param name="value">Value in question</param>
 		/// <returns>True if the value is known</returns>
-		public bool IsValidEnumValue(long Value)
+		public bool IsValidEnumValue(long value)
 		{
-			foreach (UhtEnumValue EnumValue in EnumValues)
+			foreach (UhtEnumValue enumValue in EnumValues)
 			{
-				if (EnumValue.Value == Value)
+				if (enumValue.Value == value)
 				{
 					return true;
 				}
@@ -180,16 +180,16 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Return the index of the given enumeration value name
 		/// </summary>
-		/// <param name="Name">Value name in question</param>
+		/// <param name="name">Value name in question</param>
 		/// <returns>Index of the value or -1 if not found.</returns>
-		public int GetIndexByName(string Name)
+		public int GetIndexByName(string name)
 		{
-			Name = CleanEnumValueName(Name);
-			for (int Index = 0; Index < EnumValues.Count; ++Index)
+			name = CleanEnumValueName(name);
+			for (int index = 0; index < EnumValues.Count; ++index)
 			{
-				if (this.EnumValues[Index].Name == Name)
+				if (this.EnumValues[index].Name == name)
 				{
-					return Index;
+					return index;
 				}
 			}
 			return -1;
@@ -198,39 +198,39 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Converts meta data name and index to a full meta data key name
 		/// </summary>
-		/// <param name="Name">Meta data key name</param>
-		/// <param name="NameIndex">Meta data key index</param>
+		/// <param name="name">Meta data key name</param>
+		/// <param name="nameIndex">Meta data key index</param>
 		/// <returns>Meta data name with the enum value name</returns>
-		public string GetMetaDataKey(string Name, int NameIndex)
+		public string GetMetaDataKey(string name, int nameIndex)
 		{
-			string EnumName = this.EnumValues[NameIndex].Name;
+			string enumName = this.EnumValues[nameIndex].Name;
 			if (this.CppForm != UhtEnumCppForm.Regular)
 			{
-				int ScopeIndex = EnumName.IndexOf("::", StringComparison.Ordinal);
-				if (ScopeIndex >= 0)
+				int scopeIndex = enumName.IndexOf("::", StringComparison.Ordinal);
+				if (scopeIndex >= 0)
 				{
-					EnumName = EnumName.Substring(ScopeIndex + 2);
+					enumName = enumName.Substring(scopeIndex + 2);
 				}
 			}
-			return $"{EnumName}.{Name}";
+			return $"{enumName}.{name}";
 		}
 
 		/// <summary>
 		/// Given an enumeration value name, return the full enumeration name
 		/// </summary>
-		/// <param name="ShortEnumName">Enum value name</param>
+		/// <param name="shortEnumName">Enum value name</param>
 		/// <returns>If required, enum type name combined with value name.  Otherwise just the value name.</returns>
 		/// <exception cref="UhtIceException">Unexpected enum form</exception>
-		public string GetFullEnumName(string ShortEnumName)
+		public string GetFullEnumName(string shortEnumName)
 		{
 			switch (this.CppForm)
 			{
 				case UhtEnumCppForm.Namespaced:
 				case UhtEnumCppForm.EnumClass:
-					return $"{this.SourceName}::{ShortEnumName}";
+					return $"{this.SourceName}::{shortEnumName}";
 
 				case UhtEnumCppForm.Regular:
-					return ShortEnumName;
+					return shortEnumName;
 
 				default:
 					throw new UhtIceException("Unexpected UhtEnumCppForm value");
@@ -240,33 +240,33 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Add a new enum value.
 		/// </summary>
-		/// <param name="ShortEnumName">Name of the enum value.</param>
-		/// <param name="Value">Enumeration value or -1 if the value can't be determined.</param>
+		/// <param name="shortEnumName">Name of the enum value.</param>
+		/// <param name="value">Enumeration value or -1 if the value can't be determined.</param>
 		/// <returns></returns>
-		public int AddEnumValue(string ShortEnumName, long Value)
+		public int AddEnumValue(string shortEnumName, long value)
 		{
-			int EnumIndex = this.EnumValues.Count;
-			this.EnumValues.Add(new UhtEnumValue { Name = GetFullEnumName(ShortEnumName), Value = Value });
-			return EnumIndex;
+			int enumIndex = this.EnumValues.Count;
+			this.EnumValues.Add(new UhtEnumValue { Name = GetFullEnumName(shortEnumName), Value = value });
+			return enumIndex;
 		}
 
 		/// <summary>
 		/// Reconstruct the full enum name.  Any existing enumeration name will be stripped and replaced 
 		/// with this enumeration name.
 		/// </summary>
-		/// <param name="Name">Name to reconstruct.</param>
+		/// <param name="name">Name to reconstruct.</param>
 		/// <returns>Reconstructed enum name</returns>
-		private string CleanEnumValueName(string Name)
+		private string CleanEnumValueName(string name)
 		{
-			int LastColons = Name.LastIndexOf("::", StringComparison.Ordinal);
-			return LastColons == -1 ? GetFullEnumName(Name) : GetFullEnumName(Name.Substring(LastColons + 2));		
+			int lastColons = name.LastIndexOf("::", StringComparison.Ordinal);
+			return lastColons == -1 ? GetFullEnumName(name) : GetFullEnumName(name.Substring(lastColons + 2));
 		}
 
 		#region Validation support
 		///<inheritdoc/>
-		protected override void ValidateDocumentationPolicy(UhtDocumentationPolicy Policy)
+		protected override void ValidateDocumentationPolicy(UhtDocumentationPolicy policy)
 		{
-			if (Policy.bClassOrStructCommentRequired)
+			if (policy.ClassOrStructCommentRequired)
 			{
 				if (!this.MetaData.ContainsKey(UhtNames.ToolTip))
 				{
@@ -274,42 +274,42 @@ namespace EpicGames.UHT.Types
 				}
 			}
 
-			Dictionary<string, string> ToolTips = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-			for (int EnumIndex = 0; EnumIndex < this.EnumValues.Count; ++EnumIndex)
+			Dictionary<string, string> toolTips = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			for (int enumIndex = 0; enumIndex < this.EnumValues.Count; ++enumIndex)
 			{
-				string? EntryName;
-				if (!this.MetaData.TryGetValue(UhtNames.Name, EnumIndex, out EntryName))
+				string? entryName;
+				if (!this.MetaData.TryGetValue(UhtNames.Name, enumIndex, out entryName))
 				{
 					continue;
 				}
 
-				string? ToolTip;
-				if (!this.MetaData.TryGetValue(UhtNames.ToolTip, EnumIndex, out ToolTip))
+				string? toolTip;
+				if (!this.MetaData.TryGetValue(UhtNames.ToolTip, enumIndex, out toolTip))
 				{
-					this.LogError(this.MetaData.LineNumber, $"Enum entry '{this.SourceName}::{EntryName}' does not provide a tooltip / comment (DocumentationPolicy)");
+					this.LogError(this.MetaData.LineNumber, $"Enum entry '{this.SourceName}::{entryName}' does not provide a tooltip / comment (DocumentationPolicy)");
 					continue;
 				}
 
-				string? DupName;
-				if (ToolTips.TryGetValue(ToolTip, out DupName))
+				string? dupName;
+				if (toolTips.TryGetValue(toolTip, out dupName))
 				{
-					this.LogError(this.MetaData.LineNumber, $"Enum entries '{this.SourceName}::{EntryName}' and '{this.SourceName}::{DupName}' have identical tooltips / comments (DocumentationPolicy)");
+					this.LogError(this.MetaData.LineNumber, $"Enum entries '{this.SourceName}::{entryName}' and '{this.SourceName}::{dupName}' have identical tooltips / comments (DocumentationPolicy)");
 				}
 				else
 				{
-					ToolTips.Add(ToolTip, EntryName);
+					toolTips.Add(toolTip, entryName);
 				}
 			}
 		}
 		#endregion
 
 		/// <inheritdoc/>
-		public override void CollectReferences(IUhtReferenceCollector Collector)
+		public override void CollectReferences(IUhtReferenceCollector collector)
 		{
-			Collector.AddExportType(this);
-			Collector.AddDeclaration(this, true);
-			Collector.AddCrossModuleReference(this, true);
-			Collector.AddCrossModuleReference(this.Package, true);
+			collector.AddExportType(this);
+			collector.AddDeclaration(this, true);
+			collector.AddCrossModuleReference(this, true);
+			collector.AddCrossModuleReference(this.Package, true);
 		}
 	}
 }

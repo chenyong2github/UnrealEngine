@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Tokenizer
 {
@@ -36,35 +36,35 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Test to see if any of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if any of the flags are set</returns>
-		public static bool HasAnyFlags(this UhtCppIdentifierOptions InFlags, UhtCppIdentifierOptions TestFlags)
+		public static bool HasAnyFlags(this UhtCppIdentifierOptions inFlags, UhtCppIdentifierOptions testFlags)
 		{
-			return (InFlags & TestFlags) != 0;
+			return (inFlags & testFlags) != 0;
 		}
 
 		/// <summary>
 		/// Test to see if all of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if all the flags are set</returns>
-		public static bool HasAllFlags(this UhtCppIdentifierOptions InFlags, UhtCppIdentifierOptions TestFlags)
+		public static bool HasAllFlags(this UhtCppIdentifierOptions inFlags, UhtCppIdentifierOptions testFlags)
 		{
-			return (InFlags & TestFlags) == TestFlags;
+			return (inFlags & testFlags) == testFlags;
 		}
 
 		/// <summary>
 		/// Test to see if a specific set of flags have a specific value.
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
-		/// <param name="MatchFlags">Expected value of the tested flags</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
+		/// <param name="matchFlags">Expected value of the tested flags</param>
 		/// <returns>True if the given flags have a specific value.</returns>
-		public static bool HasExactFlags(this UhtCppIdentifierOptions InFlags, UhtCppIdentifierOptions TestFlags, UhtCppIdentifierOptions MatchFlags)
+		public static bool HasExactFlags(this UhtCppIdentifierOptions inFlags, UhtCppIdentifierOptions testFlags, UhtCppIdentifierOptions matchFlags)
 		{
-			return (InFlags & TestFlags) == MatchFlags;
+			return (inFlags & testFlags) == matchFlags;
 		}
 	}
 
@@ -78,12 +78,12 @@ namespace EpicGames.UHT.Tokenizer
 		/// Get the next token and verify that it is an identifier
 		/// </summary>
 		/// <returns>True if it is an identifier, false if not.</returns>
-		public static bool TryOptionalIdentifier(this IUhtTokenReader TokenReader)
+		public static bool TryOptionalIdentifier(this IUhtTokenReader tokenReader)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier())
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier())
 			{
-				TokenReader.ConsumeToken();
+				tokenReader.ConsumeToken();
 				return true;
 			}
 			return false;
@@ -92,169 +92,169 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get the next token and verify that it is an identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Identifier">The fetched value of the identifier</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="identifier">The fetched value of the identifier</param>
 		/// <returns>True if it is an identifier, false if not.</returns>
-		public static bool TryOptionalIdentifier(this IUhtTokenReader TokenReader, out UhtToken Identifier)
+		public static bool TryOptionalIdentifier(this IUhtTokenReader tokenReader, out UhtToken identifier)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier())
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier())
 			{
-				Identifier = Token;
-				TokenReader.ConsumeToken();
+				identifier = token;
+				tokenReader.ConsumeToken();
 				return true;
 			}
-			Identifier = new UhtToken();
+			identifier = new UhtToken();
 			return false;
 		}
 
 		/// <summary>
 		/// Parse an optional identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="TokenDelegate">Invoked of an identifier is parsed</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="tokenDelegate">Invoked of an identifier is parsed</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader OptionalIdentifier(this IUhtTokenReader TokenReader, UhtTokenDelegate TokenDelegate)
+		public static IUhtTokenReader OptionalIdentifier(this IUhtTokenReader tokenReader, UhtTokenDelegate tokenDelegate)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier())
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier())
 			{
-				UhtToken TokenCopy = Token;
-				TokenReader.ConsumeToken();
-				TokenDelegate(ref TokenCopy);
+				UhtToken tokenCopy = token;
+				tokenReader.ConsumeToken();
+				tokenDelegate(ref tokenCopy);
 			}
-			return TokenReader;
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse a required identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">Extra exception context</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">Extra exception context</param>
 		/// <returns>Token reader</returns>
 		/// <exception cref="UhtTokenException">Thrown if an identifier isn't found</exception>
-		public static IUhtTokenReader RequireIdentifier(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static IUhtTokenReader RequireIdentifier(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier())
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier())
 			{
-				TokenReader.ConsumeToken();
-				return TokenReader;
+				tokenReader.ConsumeToken();
+				return tokenReader;
 			}
-			throw new UhtTokenException(TokenReader, Token, "an identifier", ExceptionContext);
+			throw new UhtTokenException(tokenReader, token, "an identifier", exceptionContext);
 		}
 
 		/// <summary>
 		/// Parse a required identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="TokenDelegate">Invoked if an identifier is parsed</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="tokenDelegate">Invoked if an identifier is parsed</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireIdentifier(this IUhtTokenReader TokenReader, UhtTokenDelegate TokenDelegate)
+		public static IUhtTokenReader RequireIdentifier(this IUhtTokenReader tokenReader, UhtTokenDelegate tokenDelegate)
 		{
-			return TokenReader.RequireIdentifier(null, TokenDelegate);
+			return tokenReader.RequireIdentifier(null, tokenDelegate);
 		}
 
 		/// <summary>
 		/// Parse a required identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">Extra exception context</param>
-		/// <param name="TokenDelegate">Invoked if an identifier is parsed</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">Extra exception context</param>
+		/// <param name="tokenDelegate">Invoked if an identifier is parsed</param>
 		/// <returns>Token reader</returns>
 		/// <exception cref="UhtTokenException">Thrown if an identifier isn't found</exception>
-		public static IUhtTokenReader RequireIdentifier(this IUhtTokenReader TokenReader, object? ExceptionContext, UhtTokenDelegate TokenDelegate)
+		public static IUhtTokenReader RequireIdentifier(this IUhtTokenReader tokenReader, object? exceptionContext, UhtTokenDelegate tokenDelegate)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier())
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier())
 			{
-				UhtToken CurrentToken = Token;
-				TokenReader.ConsumeToken();
-				TokenDelegate(ref CurrentToken);
-				return TokenReader;
+				UhtToken currentToken = token;
+				tokenReader.ConsumeToken();
+				tokenDelegate(ref currentToken);
+				return tokenReader;
 			}
-			throw new UhtTokenException(TokenReader, Token, "an identifier", ExceptionContext);
+			throw new UhtTokenException(tokenReader, token, "an identifier", exceptionContext);
 		}
 
 		/// <summary>
 		/// Get a required identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="ExceptionContext">Extra exception context</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="exceptionContext">Extra exception context</param>
 		/// <returns>Identifier token</returns>
 		/// <exception cref="UhtTokenException">Thrown if an identifier isn't found</exception>
-		public static UhtToken GetIdentifier(this IUhtTokenReader TokenReader, object? ExceptionContext = null)
+		public static UhtToken GetIdentifier(this IUhtTokenReader tokenReader, object? exceptionContext = null)
 		{
-			ref UhtToken Token = ref TokenReader.PeekToken();
-			if (Token.IsIdentifier())
+			ref UhtToken token = ref tokenReader.PeekToken();
+			if (token.IsIdentifier())
 			{
-				UhtToken CurrentToken = Token;
-				TokenReader.ConsumeToken();
-				return CurrentToken;
+				UhtToken currentToken = token;
+				tokenReader.ConsumeToken();
+				return currentToken;
 			}
-			throw new UhtTokenException(TokenReader, Token, ExceptionContext != null ? ExceptionContext : "an identifier");
+			throw new UhtTokenException(tokenReader, token, exceptionContext ?? "an identifier");
 		}
 
 		/// <summary>
 		/// Parse an optional cpp identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Identifier">Enumeration of the identifier tokens</param>
-		/// <param name="Options">Identifier options</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="identifier">Enumeration of the identifier tokens</param>
+		/// <param name="options">Identifier options</param>
 		/// <returns>True if an identifier is parsed</returns>
-		public static bool TryOptionalCppIdentifier(this IUhtTokenReader TokenReader, [NotNullWhen(true)] out IEnumerable<UhtToken>? Identifier, UhtCppIdentifierOptions Options = UhtCppIdentifierOptions.None)
+		public static bool TryOptionalCppIdentifier(this IUhtTokenReader tokenReader, [NotNullWhen(true)] out IEnumerable<UhtToken>? identifier, UhtCppIdentifierOptions options = UhtCppIdentifierOptions.None)
 		{
-			Identifier = null;
-			List<UhtToken> LocalIdentifier = new List<UhtToken>();
+			identifier = null;
+			List<UhtToken> localIdentifier = new List<UhtToken>();
 
-			using (var SavedState = new UhtTokenSaveState(TokenReader))
+			using (UhtTokenSaveState savedState = new UhtTokenSaveState(tokenReader))
 			{
-				UhtToken Token;
+				UhtToken token;
 
-				if (TokenReader.TryOptionalIdentifier(out Token))
+				if (tokenReader.TryOptionalIdentifier(out token))
 				{
-					LocalIdentifier.Add(Token);
+					localIdentifier.Add(token);
 				}
 				else
 				{
 					return false;
 				}
 
-				if (Options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates))
+				if (options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates))
 				{
 					while (true)
 					{
-						if (TokenReader.TryPeekOptional('<'))
+						if (tokenReader.TryPeekOptional('<'))
 						{
-							LocalIdentifier.Add(TokenReader.GetToken());
-							int NestedScopes = 1;
-							while (NestedScopes > 0)
+							localIdentifier.Add(tokenReader.GetToken());
+							int nestedScopes = 1;
+							while (nestedScopes > 0)
 							{
-								Token = TokenReader.GetToken();
-								if (Token.TokenType.IsEndType())
+								token = tokenReader.GetToken();
+								if (token.TokenType.IsEndType())
 								{
 									return false;
 								}
-								LocalIdentifier.Add(Token);
-								if (Token.IsSymbol('<'))
+								localIdentifier.Add(token);
+								if (token.IsSymbol('<'))
 								{
-									++NestedScopes;
+									++nestedScopes;
 								}
-								else if (Token.IsSymbol('>'))
+								else if (token.IsSymbol('>'))
 								{
-									--NestedScopes;
+									--nestedScopes;
 								}
 							}
 						}
 
-						if (!TokenReader.TryPeekOptional("::"))
+						if (!tokenReader.TryPeekOptional("::"))
 						{
 							break;
 						}
-						LocalIdentifier.Add(TokenReader.GetToken());
-						if (!TokenReader.TryOptionalIdentifier(out Token))
+						localIdentifier.Add(tokenReader.GetToken());
+						if (!tokenReader.TryOptionalIdentifier(out token))
 						{
-							LocalIdentifier.Add(Token);
+							localIdentifier.Add(token);
 						}
 						else
 						{
@@ -264,11 +264,11 @@ namespace EpicGames.UHT.Tokenizer
 				}
 				else
 				{
-					while (TokenReader.TryOptional("::"))
+					while (tokenReader.TryOptional("::"))
 					{
-						if (TokenReader.TryOptionalIdentifier(out Token))
+						if (tokenReader.TryOptionalIdentifier(out token))
 						{
-							LocalIdentifier.Add(Token);
+							localIdentifier.Add(token);
 						}
 						else
 						{
@@ -276,8 +276,8 @@ namespace EpicGames.UHT.Tokenizer
 						}
 					}
 				}
-				Identifier = LocalIdentifier;
-				SavedState.AbandonState();
+				identifier = localIdentifier;
+				savedState.AbandonState();
 				return true;
 			}
 		}
@@ -285,156 +285,156 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Parse a required cpp identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Options">Parsing options</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="options">Parsing options</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, UhtCppIdentifierOptions Options = UhtCppIdentifierOptions.None)
+		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader tokenReader, UhtCppIdentifierOptions options = UhtCppIdentifierOptions.None)
 		{
-			TokenReader.GetCppIdentifier(Options);
-			return TokenReader;
+			tokenReader.GetCppIdentifier(options);
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse a required cpp identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="InitialIdentifier">Initial token of the identifier</param>
-		/// <param name="Options">Parsing options</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initialIdentifier">Initial token of the identifier</param>
+		/// <param name="options">Parsing options</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, ref UhtToken InitialIdentifier, UhtCppIdentifierOptions Options = UhtCppIdentifierOptions.None)
+		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader tokenReader, ref UhtToken initialIdentifier, UhtCppIdentifierOptions options = UhtCppIdentifierOptions.None)
 		{
-			TokenReader.GetCppIdentifier(ref InitialIdentifier, Options);
-			return TokenReader;
+			tokenReader.GetCppIdentifier(ref initialIdentifier, options);
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse a required cpp identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="TokenListDelegate">Invoked when identifier is parsed</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="tokenListDelegate">Invoked when identifier is parsed</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, UhtTokenListDelegate TokenListDelegate)
+		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader tokenReader, UhtTokenListDelegate tokenListDelegate)
 		{
-			TokenReader.RequireCppIdentifier(UhtCppIdentifierOptions.None, TokenListDelegate);
-			return TokenReader;
+			tokenReader.RequireCppIdentifier(UhtCppIdentifierOptions.None, tokenListDelegate);
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse a required cpp identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Options">Parsing options</param>
-		/// <param name="TokenListDelegate">Invoked when identifier is parsed</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="options">Parsing options</param>
+		/// <param name="tokenListDelegate">Invoked when identifier is parsed</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, UhtCppIdentifierOptions Options, UhtTokenListDelegate TokenListDelegate)
+		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader tokenReader, UhtCppIdentifierOptions options, UhtTokenListDelegate tokenListDelegate)
 		{
-			UhtTokenList TokenList = TokenReader.GetCppIdentifier(Options);
-			TokenListDelegate(TokenList);
-			UhtTokenListCache.Return(TokenList);
-			return TokenReader;
+			UhtTokenList tokenList = tokenReader.GetCppIdentifier(options);
+			tokenListDelegate(tokenList);
+			UhtTokenListCache.Return(tokenList);
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse a required cpp identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="InitialIdentifier">Initial token of the identifier</param>
-		/// <param name="TokenListDelegate">Invoked when identifier is parsed</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initialIdentifier">Initial token of the identifier</param>
+		/// <param name="tokenListDelegate">Invoked when identifier is parsed</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, ref UhtToken InitialIdentifier, UhtTokenListDelegate TokenListDelegate)
+		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader tokenReader, ref UhtToken initialIdentifier, UhtTokenListDelegate tokenListDelegate)
 		{
-			TokenReader.RequireCppIdentifier(ref InitialIdentifier, UhtCppIdentifierOptions.None, TokenListDelegate);
-			return TokenReader;
+			tokenReader.RequireCppIdentifier(ref initialIdentifier, UhtCppIdentifierOptions.None, tokenListDelegate);
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Parse a required cpp identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="InitialIdentifier">Initial token of the identifier</param>
-		/// <param name="Options">Parsing options</param>
-		/// <param name="TokenListDelegate">Invoked when identifier is parsed</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initialIdentifier">Initial token of the identifier</param>
+		/// <param name="options">Parsing options</param>
+		/// <param name="tokenListDelegate">Invoked when identifier is parsed</param>
 		/// <returns>Token reader</returns>
-		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader TokenReader, ref UhtToken InitialIdentifier, UhtCppIdentifierOptions Options, UhtTokenListDelegate TokenListDelegate)
+		public static IUhtTokenReader RequireCppIdentifier(this IUhtTokenReader tokenReader, ref UhtToken initialIdentifier, UhtCppIdentifierOptions options, UhtTokenListDelegate tokenListDelegate)
 		{
-			UhtTokenList TokenList = TokenReader.GetCppIdentifier(ref InitialIdentifier, Options);
-			TokenListDelegate(TokenList);
-			UhtTokenListCache.Return(TokenList);
-			return TokenReader;
+			UhtTokenList tokenList = tokenReader.GetCppIdentifier(ref initialIdentifier, options);
+			tokenListDelegate(tokenList);
+			UhtTokenListCache.Return(tokenList);
+			return tokenReader;
 		}
 
 		/// <summary>
 		/// Get a required cpp identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="Options">Parsing options</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="options">Parsing options</param>
 		/// <returns>Token list</returns>
-		public static UhtTokenList GetCppIdentifier(this IUhtTokenReader TokenReader, UhtCppIdentifierOptions Options = UhtCppIdentifierOptions.None)
+		public static UhtTokenList GetCppIdentifier(this IUhtTokenReader tokenReader, UhtCppIdentifierOptions options = UhtCppIdentifierOptions.None)
 		{
-			UhtToken Token = TokenReader.GetIdentifier();
-			return TokenReader.GetCppIdentifier(ref Token, Options);
+			UhtToken token = tokenReader.GetIdentifier();
+			return tokenReader.GetCppIdentifier(ref token, options);
 		}
 
 		/// <summary>
 		/// Get a required cpp identifier
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		/// <param name="InitialIdentifier">Initial token of the identifier</param>
-		/// <param name="Options">Parsing options</param>
+		/// <param name="tokenReader">Token reader</param>
+		/// <param name="initialIdentifier">Initial token of the identifier</param>
+		/// <param name="options">Parsing options</param>
 		/// <returns>Token list</returns>
-		public static UhtTokenList GetCppIdentifier(this IUhtTokenReader TokenReader, ref UhtToken InitialIdentifier, UhtCppIdentifierOptions Options = UhtCppIdentifierOptions.None)
+		public static UhtTokenList GetCppIdentifier(this IUhtTokenReader tokenReader, ref UhtToken initialIdentifier, UhtCppIdentifierOptions options = UhtCppIdentifierOptions.None)
 		{
-			UhtTokenList ListHead = UhtTokenListCache.Borrow(InitialIdentifier);
-			UhtTokenList ListTail = ListHead;
+			UhtTokenList listHead = UhtTokenListCache.Borrow(initialIdentifier);
+			UhtTokenList listTail = listHead;
 
-			if (Options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates))
+			if (options.HasAnyFlags(UhtCppIdentifierOptions.AllowTemplates))
 			{
 				while (true)
 				{
-					if (TokenReader.TryPeekOptional('<'))
+					if (tokenReader.TryPeekOptional('<'))
 					{
-						ListTail.Next = UhtTokenListCache.Borrow(TokenReader.GetToken());
-						ListTail = ListTail.Next;
-						int NestedScopes = 1;
-						while (NestedScopes > 0)
+						listTail.Next = UhtTokenListCache.Borrow(tokenReader.GetToken());
+						listTail = listTail.Next;
+						int nestedScopes = 1;
+						while (nestedScopes > 0)
 						{
-							UhtToken Token = TokenReader.GetToken();
-							if (Token.TokenType.IsEndType())
+							UhtToken token = tokenReader.GetToken();
+							if (token.TokenType.IsEndType())
 							{
-								throw new UhtTokenException(TokenReader, Token, new string[] { "<", ">" }, "template");
+								throw new UhtTokenException(tokenReader, token, new string[] { "<", ">" }, "template");
 							}
-							ListTail.Next = UhtTokenListCache.Borrow(Token);
-							ListTail = ListTail.Next;
-							if (Token.IsSymbol('<'))
+							listTail.Next = UhtTokenListCache.Borrow(token);
+							listTail = listTail.Next;
+							if (token.IsSymbol('<'))
 							{
-								++NestedScopes;
+								++nestedScopes;
 							}
-							else if (Token.IsSymbol('>'))
+							else if (token.IsSymbol('>'))
 							{
-								--NestedScopes;
+								--nestedScopes;
 							}
 						}
 					}
 
-					if (!TokenReader.TryPeekOptional("::"))
+					if (!tokenReader.TryPeekOptional("::"))
 					{
 						break;
 					}
-					ListTail.Next = UhtTokenListCache.Borrow(TokenReader.GetToken());
-					ListTail = ListTail.Next;
-					ListTail.Next = UhtTokenListCache.Borrow(TokenReader.GetIdentifier());
-					ListTail = ListTail.Next;
+					listTail.Next = UhtTokenListCache.Borrow(tokenReader.GetToken());
+					listTail = listTail.Next;
+					listTail.Next = UhtTokenListCache.Borrow(tokenReader.GetIdentifier());
+					listTail = listTail.Next;
 				}
 			}
-			else if (TokenReader.PeekToken().IsSymbol("::"))
+			else if (tokenReader.PeekToken().IsSymbol("::"))
 			{
-				TokenReader.While("::", () =>
+				tokenReader.While("::", () =>
 				{
-					ListTail.Next = UhtTokenListCache.Borrow(TokenReader.GetIdentifier());
-					ListTail = ListTail.Next;
+					listTail.Next = UhtTokenListCache.Borrow(tokenReader.GetIdentifier());
+					listTail = listTail.Next;
 				});
 			}
-			return ListHead;
+			return listHead;
 		}
 	}
 }

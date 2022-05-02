@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using EpicGames.Core;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Tokenizer
 {
@@ -43,35 +43,35 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Test to see if any of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if any of the flags are set</returns>
-		public static bool HasAnyFlags(this UhtRawStringOptions InFlags, UhtRawStringOptions TestFlags)
+		public static bool HasAnyFlags(this UhtRawStringOptions inFlags, UhtRawStringOptions testFlags)
 		{
-			return (InFlags & TestFlags) != 0;
+			return (inFlags & testFlags) != 0;
 		}
 
 		/// <summary>
 		/// Test to see if all of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if all the flags are set</returns>
-		public static bool HasAllFlags(this UhtRawStringOptions InFlags, UhtRawStringOptions TestFlags)
+		public static bool HasAllFlags(this UhtRawStringOptions inFlags, UhtRawStringOptions testFlags)
 		{
-			return (InFlags & TestFlags) == TestFlags;
+			return (inFlags & testFlags) == testFlags;
 		}
 
 		/// <summary>
 		/// Test to see if a specific set of flags have a specific value.
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
-		/// <param name="MatchFlags">Expected value of the tested flags</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
+		/// <param name="matchFlags">Expected value of the tested flags</param>
 		/// <returns>True if the given flags have a specific value.</returns>
-		public static bool HasExactFlags(this UhtRawStringOptions InFlags, UhtRawStringOptions TestFlags, UhtRawStringOptions MatchFlags)
+		public static bool HasExactFlags(this UhtRawStringOptions inFlags, UhtRawStringOptions testFlags, UhtRawStringOptions matchFlags)
 		{
-			return (InFlags & TestFlags) == MatchFlags;
+			return (inFlags & testFlags) == matchFlags;
 		}
 	}
 
@@ -84,12 +84,12 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Parse a preprocessor directive
 		/// </summary>
-		/// <param name="Token">Token starting the directive.  Will be only the '#'</param>
-		/// <param name="bIsBeingIncluded">If true, the directive the source is being included.  Otherwise it is being skipped as part of an #if block</param>
-		/// <param name="bClearComments">If true, comments should be cleared</param>
-		/// <param name="bIllegalContentsCheck">If true, excluded contents should be checked for unparsed UE macros (i.e. UCLASS) </param>
+		/// <param name="token">Token starting the directive.  Will be only the '#'</param>
+		/// <param name="isBeingIncluded">If true, the directive the source is being included.  Otherwise it is being skipped as part of an #if block</param>
+		/// <param name="clearComments">If true, comments should be cleared</param>
+		/// <param name="illegalContentsCheck">If true, excluded contents should be checked for unparsed UE macros (i.e. UCLASS) </param>
 		/// <returns>True if the source should continue to be included</returns>
-		public bool ParsePreprocessorDirective(ref UhtToken Token, bool bIsBeingIncluded, out bool bClearComments, out bool bIllegalContentsCheck);
+		public bool ParsePreprocessorDirective(ref UhtToken token, bool isBeingIncluded, out bool clearComments, out bool illegalContentsCheck);
 
 		/// <summary>
 		/// Save the current preprocessor state
@@ -110,7 +110,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// True if the reader is at the end of the stream
 		/// </summary>
-		public bool bIsEOF { get; }
+		public bool IsEOF { get; }
 
 		/// <summary>
 		/// Current input position in the stream by characters
@@ -148,9 +148,9 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Tests to see if the given token is the first token of a line
 		/// </summary>
-		/// <param name="Token">The token to test</param>
+		/// <param name="token">The token to test</param>
 		/// <returns>True if the token is the first token on the line</returns>
-		public bool IsFirstTokenInLine(ref UhtToken Token);
+		public bool IsFirstTokenInLine(ref UhtToken token);
 
 		/// <summary>
 		/// Skip any whitespace and comments at the current buffer position
@@ -166,18 +166,18 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Get a view of the buffer being read
 		/// </summary>
-		/// <param name="StartPos">Starting character offset in the buffer.</param>
-		/// <param name="Count">Length of the span</param>
+		/// <param name="startPos">Starting character offset in the buffer.</param>
+		/// <param name="count">Length of the span</param>
 		/// <returns>The string view into the buffer</returns>
-		public StringView GetStringView(int StartPos, int Count);
+		public StringView GetStringView(int startPos, int count);
 
 		/// <summary>
 		/// Return a string terminated by the given character.
 		/// </summary>
-		/// <param name="Terminator">The character to stop at.</param>
-		/// <param name="Options">Options</param>
+		/// <param name="terminator">The character to stop at.</param>
+		/// <param name="options">Options</param>
 		/// <returns>The parsed string</returns>
-		public StringView GetRawString(char Terminator, UhtRawStringOptions Options);
+		public StringView GetRawString(char terminator, UhtRawStringOptions options);
 
 		/// <summary>
 		/// The current collection of parsed comments.  This does not include any comments parsed as part of a 
@@ -237,8 +237,8 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Record the given token to the list of recorded tokens
 		/// </summary>
-		/// <param name="Token">Token to record</param>
-		public void RecordToken(ref UhtToken Token);
+		/// <param name="token">Token to record</param>
+		public void RecordToken(ref UhtToken token);
 
 		/// <summary>
 		/// Get the current collection of recorded tokens
@@ -265,35 +265,35 @@ namespace EpicGames.UHT.Tokenizer
 		/// <summary>
 		/// Join the tokens in the list
 		/// </summary>
-		/// <param name="Builder">Destination builder</param>
-		/// <param name="Seperator">Separator between the tokens</param>
+		/// <param name="builder">Destination builder</param>
+		/// <param name="seperator">Separator between the tokens</param>
 		/// <returns></returns>
-		public void Join(StringBuilder Builder, string Seperator = "")
+		public void Join(StringBuilder builder, string seperator = "")
 		{
-			Builder.Append(this.Token.Value.ToString());
-			UhtTokenList List = this;
-			while (List.Next != null)
+			builder.Append(this.Token.Value.ToString());
+			UhtTokenList list = this;
+			while (list.Next != null)
 			{
-				List = List.Next;
-				Builder.Append(Seperator);
-				Builder.Append(List.Token.Value.ToString());
+				list = list.Next;
+				builder.Append(seperator);
+				builder.Append(list.Token.Value.ToString());
 			}
 		}
 
 		/// <summary>
 		/// Join the tokens in the list
 		/// </summary>
-		/// <param name="Seperator">Separator between the tokens</param>
+		/// <param name="seperator">Separator between the tokens</param>
 		/// <returns></returns>
-		public string Join(string Seperator = "")
+		public string Join(string seperator = "")
 		{
 			if (this.Next == null)
 			{
 				return this.Token.Value.ToString();
 			}
-			StringBuilder Builder = new StringBuilder();
-			Join(Builder, Seperator);
-			return Builder.ToString();
+			StringBuilder builder = new StringBuilder();
+			Join(builder, seperator);
+			return builder.ToString();
 		}
 
 		/// <summary>
@@ -302,20 +302,20 @@ namespace EpicGames.UHT.Tokenizer
 		/// <returns></returns>
 		public UhtToken[] ToArray()
 		{
-			int Count = 1;
-			for (UhtTokenList Temp = this; Temp.Next != null; Temp = Temp.Next)
+			int count = 1;
+			for (UhtTokenList temp = this; temp.Next != null; temp = temp.Next)
 			{
-				++Count;
+				++count;
 			}
-			UhtToken[] Out = new UhtToken[Count];
-			Out[0] = this.Token;
-			Count = 1;
-			for (UhtTokenList Temp = this; Temp.Next != null; Temp = Temp.Next)
+			UhtToken[] outTokens = new UhtToken[count];
+			outTokens[0] = this.Token;
+			count = 1;
+			for (UhtTokenList temp = this; temp.Next != null; temp = temp.Next)
 			{
-				Out[Count] = Temp.Next.Token;
-				++Count;
+				outTokens[count] = temp.Next.Token;
+				++count;
 			}
-			return Out;
+			return outTokens;
 		}
 	}
 
@@ -324,101 +324,101 @@ namespace EpicGames.UHT.Tokenizer
 	/// </summary>
 	public static class UhtTokenListCache
 	{
-		private static readonly ThreadLocal<UhtTokenList?> Tls = new ThreadLocal<UhtTokenList?>(() => null);
+		private static readonly ThreadLocal<UhtTokenList?> s_tls = new ThreadLocal<UhtTokenList?>(() => null);
 
 		/// <summary>
 		/// Borrow a token list
 		/// </summary>
-		/// <param name="Token">Starting token</param>
+		/// <param name="token">Starting token</param>
 		/// <returns>Token list</returns>
-		public static UhtTokenList Borrow(UhtToken Token)
+		public static UhtTokenList Borrow(UhtToken token)
 		{
-			UhtTokenList? Identifier = Tls.Value;
-			if (Identifier != null)
+			UhtTokenList? identifier = s_tls.Value;
+			if (identifier != null)
 			{
-				Tls.Value = Identifier.Next;
+				s_tls.Value = identifier.Next;
 			}
 			else
 			{
-				Identifier = new UhtTokenList();
+				identifier = new UhtTokenList();
 			}
-			Identifier.Token = Token;
-			Identifier.Next = null;
-			return Identifier;
+			identifier.Token = token;
+			identifier.Next = null;
+			return identifier;
 		}
 
 		/// <summary>
 		/// Return a token list to the cache
 		/// </summary>
-		/// <param name="Identifier"></param>
-		public static void Return(UhtTokenList Identifier)
+		/// <param name="identifier"></param>
+		public static void Return(UhtTokenList identifier)
 		{
-			UhtTokenList? Tail = Tls.Value;
-			if (Tail != null)
+			UhtTokenList? tail = s_tls.Value;
+			if (tail != null)
 			{
-				Tail.Next = Identifier;
+				tail.Next = identifier;
 			}
 
-			for (; Identifier.Next != null; Identifier = Identifier.Next)
+			for (; identifier.Next != null; identifier = identifier.Next)
 			{
 			}
 
-			Tls.Value = Identifier;
+			s_tls.Value = identifier;
 		}
 	}
 
 	/// <summary>
 	/// Delegate for when a token is parsed
 	/// </summary>
-	/// <param name="Token">The token in question</param>
-	public delegate void UhtTokenDelegate(ref UhtToken Token);
+	/// <param name="token">The token in question</param>
+	public delegate void UhtTokenDelegate(ref UhtToken token);
 
 	/// <summary>
 	/// Delegate for when a token is parsed in an until block
 	/// </summary>
-	/// <param name="Token">The token in question</param>
+	/// <param name="token">The token in question</param>
 	/// <returns>True if parsing should continue</returns>
-	public delegate bool UhtTokensUntilDelegate(ref UhtToken Token);
+	public delegate bool UhtTokensUntilDelegate(ref UhtToken token);
 
 	/// <summary>
 	/// Delegate for an enumeration of tokens
 	/// </summary>
-	/// <param name="Tokens">Parsed tokens</param>
-	public delegate void UhtTokensDelegate(IEnumerable<UhtToken> Tokens);
+	/// <param name="tokens">Parsed tokens</param>
+	public delegate void UhtTokensDelegate(IEnumerable<UhtToken> tokens);
 
 	/// <summary>
 	/// Delegate for cached token list
 	/// </summary>
-	/// <param name="TokenList">Token list that can be cached</param>
-	public delegate void UhtTokenListDelegate(UhtTokenList TokenList);
+	/// <param name="tokenList">Token list that can be cached</param>
+	public delegate void UhtTokenListDelegate(UhtTokenList tokenList);
 
 	/// <summary>
 	/// Delegate for a constant float
 	/// </summary>
-	/// <param name="Value">Value in question</param>
-	public delegate void UhtTokenConstFloatDelegate(float Value);
+	/// <param name="value">Value in question</param>
+	public delegate void UhtTokenConstFloatDelegate(float value);
 
 	/// <summary>
 	/// Delegate for a constant double
 	/// </summary>
-	/// <param name="Value">Value in question</param>
-	public delegate void UhtTokenConstDoubleDelegate(double Value);
+	/// <param name="value">Value in question</param>
+	public delegate void UhtTokenConstDoubleDelegate(double value);
 
 	/// <summary>
 	/// Helper struct to disable comment parsing.  Should be used in a using block
 	/// </summary>
 	public struct UhtTokenDisableComments : IDisposable
 	{
-		private readonly IUhtTokenReader TokenReader;
+		private readonly IUhtTokenReader _tokenReader;
 
 		/// <summary>
 		/// Construct instance
 		/// </summary>
-		/// <param name="TokenReader">Token reader to disable</param>
-		public UhtTokenDisableComments(IUhtTokenReader TokenReader)
+		/// <param name="tokenReader">Token reader to disable</param>
+		public UhtTokenDisableComments(IUhtTokenReader tokenReader)
 		{
-			this.TokenReader = TokenReader;
-			this.TokenReader.DisableComments();
+			this._tokenReader = tokenReader;
+			this._tokenReader.DisableComments();
 		}
 
 		/// <summary>
@@ -426,7 +426,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// </summary>
 		public void Dispose()
 		{
-			this.TokenReader.EnableComments();
+			this._tokenReader.EnableComments();
 		}
 	}
 
@@ -435,18 +435,18 @@ namespace EpicGames.UHT.Tokenizer
 	/// </summary>
 	public struct UhtTokenSaveState : IDisposable
 	{
-		private readonly IUhtTokenReader TokenReader;
-		private bool bHandled;
+		private readonly IUhtTokenReader _tokenReader;
+		private bool _handled;
 
 		/// <summary>
 		/// Construct instance
 		/// </summary>
-		/// <param name="TokenReader">Token reader</param>
-		public UhtTokenSaveState(IUhtTokenReader TokenReader)
+		/// <param name="tokenReader">Token reader</param>
+		public UhtTokenSaveState(IUhtTokenReader tokenReader)
 		{
-			this.TokenReader = TokenReader;
-			this.bHandled = false;
-			this.TokenReader.SaveState();
+			this._tokenReader = tokenReader;
+			this._handled = false;
+			this._tokenReader.SaveState();
 		}
 
 		/// <summary>
@@ -454,7 +454,7 @@ namespace EpicGames.UHT.Tokenizer
 		/// </summary>
 		public void Dispose()
 		{
-			if (!this.bHandled)
+			if (!this._handled)
 			{
 				RestoreState();
 			}
@@ -466,12 +466,12 @@ namespace EpicGames.UHT.Tokenizer
 		/// <exception cref="UhtIceException">Thrown if state has already been restored or aborted</exception>
 		public void RestoreState()
 		{
-			if (this.bHandled)
+			if (this._handled)
 			{
 				throw new UhtIceException("Can not call RestoreState/AbandonState more than once");
 			}
-			this.TokenReader.RestoreState();
-			this.bHandled = true;
+			this._tokenReader.RestoreState();
+			this._handled = true;
 		}
 
 		/// <summary>
@@ -480,12 +480,12 @@ namespace EpicGames.UHT.Tokenizer
 		/// <exception cref="UhtIceException">Thrown if state has already been restored or aborted</exception>
 		public void AbandonState()
 		{
-			if (this.bHandled)
+			if (this._handled)
 			{
 				throw new UhtIceException("Can not call RestoreState/AbandonState more than once");
 			}
-			this.TokenReader.AbandonState();
-			this.bHandled = true;
+			this._tokenReader.AbandonState();
+			this._handled = true;
 		}
 	}
 }

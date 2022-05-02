@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Tokenizer;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using EpicGames.UHT.Tokenizer;
 
 namespace EpicGames.UHT.Utils
 {
@@ -49,8 +49,8 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Add the given message
 		/// </summary>
-		/// <param name="Message">The message to be added</param>
-		void AddMessage(UhtMessage Message);
+		/// <param name="message">The message to be added</param>
+		void AddMessage(UhtMessage message);
 	}
 
 	/// <summary>
@@ -71,7 +71,7 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// If true, the source is a source fragment from the testing harness
 		/// </summary>
-		bool bMessageIsFragment { get; }
+		bool MessageIsFragment { get; }
 
 		/// <summary>
 		/// If this is a fragment, this is the container file path of the fragment
@@ -126,7 +126,7 @@ namespace EpicGames.UHT.Utils
 		/// Destination message session for the messages
 		/// </summary>
 		public IUhtMessageSession MessageSession { get; }
-		
+
 		/// <summary>
 		/// Source file generating messages
 		/// </summary>
@@ -171,40 +171,40 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Make a new message with the given settings
 		/// </summary>
-		/// <param name="MessageType">Type of message</param>
-		/// <param name="MessageSource">Source of the message</param>
-		/// <param name="FilePath">File path of the message</param>
-		/// <param name="LineNumber">Line number where message occurred</param>
-		/// <param name="Message">Text of the message</param>
+		/// <param name="messageType">Type of message</param>
+		/// <param name="messageSource">Source of the message</param>
+		/// <param name="filePath">File path of the message</param>
+		/// <param name="lineNumber">Line number where message occurred</param>
+		/// <param name="message">Text of the message</param>
 		/// <returns>Created message</returns>
-		public static UhtMessage MakeMessage(UhtMessageType MessageType, IUhtMessageSource? MessageSource, string? FilePath, int LineNumber, string Message)
+		public static UhtMessage MakeMessage(UhtMessageType messageType, IUhtMessageSource? messageSource, string? filePath, int lineNumber, string message)
 		{
 			return new UhtMessage
 			{
-				MessageType = MessageType,
-				MessageSource = MessageSource,
-				FilePath = FilePath,
-				LineNumber = LineNumber,
-				Message = Message
+				MessageType = messageType,
+				MessageSource = messageSource,
+				FilePath = filePath,
+				LineNumber = lineNumber,
+				Message = message
 			};
 		}
 
 		/// <summary>
 		/// Format an object to be included in a message
 		/// </summary>
-		/// <param name="Context">Contextual object</param>
+		/// <param name="context">Contextual object</param>
 		/// <returns>Formatted context</returns>
-		public static string FormatContext(object Context)
+		public static string FormatContext(object context)
 		{
-			if (Context is IUhtMessageExtraContext ExtraContextInterface)
+			if (context is IUhtMessageExtraContext extraContextInterface)
 			{
-				StringBuilder Builder = new StringBuilder();
-				Append(Builder, ExtraContextInterface, false);
-				return Builder.ToString();
+				StringBuilder builder = new StringBuilder();
+				Append(builder, extraContextInterface, false);
+				return builder.ToString();
 			}
-			else if (Context is UhtToken Token)
+			else if (context is UhtToken token)
 			{
-				switch (Token.TokenType)
+				switch (token.TokenType)
 				{
 					case UhtTokenType.EndOfFile:
 						return "EOF";
@@ -217,49 +217,49 @@ namespace EpicGames.UHT.Utils
 					case UhtTokenType.StringConst:
 						return "string constant";
 					default:
-						return $"'{Token.Value}'";
+						return $"'{token.Value}'";
 				}
 			}
-			else if (Context is char C)
+			else if (context is char c)
 			{
-				return $"'{C}'";
+				return $"'{c}'";
 			}
-			else if (Context is string[] StringArray)
+			else if (context is string[] stringArray)
 			{
-				return UhtUtilities.MergeTypeNames(StringArray, "or", true);
+				return UhtUtilities.MergeTypeNames(stringArray, "or", true);
 			}
 			else
 			{
-				return Context.ToString() ?? string.Empty;
+				return context.ToString() ?? String.Empty;
 			}
 		}
 
 		/// <summary>
 		/// Append message context
 		/// </summary>
-		/// <param name="Builder">Destination builder</param>
-		/// <param name="MessageExtraContextInterface">Extra context to append</param>
-		/// <param name="bAlwaysIncludeSeparator">If true, always include the separator</param>
-		public static void Append(StringBuilder Builder, IUhtMessageExtraContext? MessageExtraContextInterface, bool bAlwaysIncludeSeparator)
+		/// <param name="builder">Destination builder</param>
+		/// <param name="messageExtraContextInterface">Extra context to append</param>
+		/// <param name="alwaysIncludeSeparator">If true, always include the separator</param>
+		public static void Append(StringBuilder builder, IUhtMessageExtraContext? messageExtraContextInterface, bool alwaysIncludeSeparator)
 		{
-			if (MessageExtraContextInterface == null)
+			if (messageExtraContextInterface == null)
 			{
 				return;
 			}
 
-			IEnumerable<object?>? ExtraContextList = MessageExtraContextInterface.MessageExtraContext;
-			if (ExtraContextList != null)
+			IEnumerable<object?>? extraContextList = messageExtraContextInterface.MessageExtraContext;
+			if (extraContextList != null)
 			{
-				int StartingLength = Builder.Length;
-				foreach (object? EC in ExtraContextList)
+				int startingLength = builder.Length;
+				foreach (object? ec in extraContextList)
 				{
-					if (EC != null)
+					if (ec != null)
 					{
-						if (Builder.Length != StartingLength || bAlwaysIncludeSeparator)
+						if (builder.Length != startingLength || alwaysIncludeSeparator)
 						{
-							Builder.Append(" in ");
+							builder.Append(" in ");
 						}
-						Builder.Append(UhtMessage.FormatContext(EC));
+						builder.Append(UhtMessage.FormatContext(ec));
 					}
 				}
 			}
@@ -286,14 +286,14 @@ namespace EpicGames.UHT.Utils
 	/// </summary>
 	public class UhtSimpleMessageSite : IUhtMessageSite
 	{
-		private readonly IUhtMessageSession MessageSessionInternal;
-		private IUhtMessageSource? MessageSourceInternal;
+		private readonly IUhtMessageSession _messageSessionInternal;
+		private IUhtMessageSource? _messageSourceInternal;
 
 		#region IUHTMessageSite implementation
 		/// <inheritdoc/>
-		public IUhtMessageSession MessageSession => this.MessageSessionInternal;
+		public IUhtMessageSession MessageSession => this._messageSessionInternal;
 		/// <inheritdoc/>
-		public IUhtMessageSource? MessageSource { get => this.MessageSourceInternal; set => this.MessageSourceInternal = value; }
+		public IUhtMessageSource? MessageSource { get => this._messageSourceInternal; set => this._messageSourceInternal = value; }
 		/// <inheritdoc/>
 		public IUhtMessageLineNumber? MessageLineNumber => null;
 		#endregion
@@ -301,12 +301,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Create a simple message site for the given session and source
 		/// </summary>
-		/// <param name="MessageSession">Associated message session</param>
-		/// <param name="MessageSource">Source for the messages</param>
-		public UhtSimpleMessageSite(IUhtMessageSession MessageSession, IUhtMessageSource? MessageSource = null)
+		/// <param name="messageSession">Associated message session</param>
+		/// <param name="messageSource">Source for the messages</param>
+		public UhtSimpleMessageSite(IUhtMessageSession messageSession, IUhtMessageSource? messageSource = null)
 		{
-			this.MessageSessionInternal = MessageSession;
-			this.MessageSourceInternal = MessageSource;
+			this._messageSessionInternal = messageSession;
+			this._messageSourceInternal = messageSource;
 		}
 	}
 
@@ -317,29 +317,29 @@ namespace EpicGames.UHT.Utils
 	{
 		#region IUHTMessageSource implementation
 		/// <inheritdoc/>
-		public string MessageFilePath { get => this.FilePath; }
+		public string MessageFilePath => this._filePath;
 		/// <inheritdoc/>
-		public string MessageFullFilePath { get => this.FilePath; }
+		public string MessageFullFilePath => this._filePath;
 		/// <inheritdoc/>
-		public bool bMessageIsFragment { get => false; }
+		public bool MessageIsFragment => false;
 		/// <inheritdoc/>
-		public string MessageFragmentFilePath { get => ""; }
+		public string MessageFragmentFilePath => "";
 		/// <inheritdoc/>
-		public string MessageFragmentFullFilePath { get => ""; }
+		public string MessageFragmentFullFilePath => "";
 		/// <inheritdoc/>
-		public int MessageFragmentLineNumber { get => -1; }
+		public int MessageFragmentLineNumber => -1;
 		#endregion
 
-		private readonly string FilePath;
+		private readonly string _filePath;
 
 		/// <summary>
 		/// Create a simple file site
 		/// </summary>
-		/// <param name="MessageSession">Associated message session</param>
-		/// <param name="FilePath">File associated with the site</param>
-		public UhtSimpleFileMessageSite(IUhtMessageSession MessageSession, string FilePath) : base(MessageSession, null)
+		/// <param name="messageSession">Associated message session</param>
+		/// <param name="filePath">File associated with the site</param>
+		public UhtSimpleFileMessageSite(IUhtMessageSession messageSession, string filePath) : base(messageSession, null)
 		{
-			this.FilePath = FilePath;
+			this._filePath = filePath;
 			this.MessageSource = this;
 		}
 	}
@@ -352,18 +352,18 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Get the line number generating the error
 		/// </summary>
-		/// <param name="MessageSite">The message site generating the error.</param>
-		/// <param name="LineNumber">An override line number</param>
+		/// <param name="messageSite">The message site generating the error.</param>
+		/// <param name="lineNumber">An override line number</param>
 		/// <returns>Either the overriding line number or the line number from the message site.</returns>
-		public static int GetLineNumber(this IUhtMessageSite MessageSite, int LineNumber = -1)
+		public static int GetLineNumber(this IUhtMessageSite messageSite, int lineNumber = -1)
 		{
-			if (LineNumber != -1)
+			if (lineNumber != -1)
 			{
-				return LineNumber;
+				return lineNumber;
 			}
-			else if (MessageSite.MessageLineNumber != null)
+			else if (messageSite.MessageLineNumber != null)
 			{
-				return MessageSite.MessageLineNumber.MessageLineNumber;
+				return messageSite.MessageLineNumber.MessageLineNumber;
 			}
 			else
 			{
@@ -374,110 +374,110 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Log an error
 		/// </summary>
-		/// <param name="MessageSite">Message site associated with the message</param>
-		/// <param name="LineNumber">Line number of the error</param>
-		/// <param name="Message">Text of the error</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		public static void LogError(this IUhtMessageSite MessageSite, int LineNumber, string Message, object? ExtraContext = null)
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="lineNumber">Line number of the error</param>
+		/// <param name="message">Text of the error</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public static void LogError(this IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext = null)
 		{
-			LogMessage(UhtMessageType.Error, MessageSite, LineNumber, Message, ExtraContext);
+			LogMessage(UhtMessageType.Error, messageSite, lineNumber, message, extraContext);
 		}
 
 		/// <summary>
 		/// Log an error
 		/// </summary>
-		/// <param name="MessageSite">Message site associated with the message</param>
-		/// <param name="Message">Text of the error</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		public static void LogError(this IUhtMessageSite MessageSite, string Message, object? ExtraContext = null)
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="message">Text of the error</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public static void LogError(this IUhtMessageSite messageSite, string message, object? extraContext = null)
 		{
-			LogMessage(UhtMessageType.Error, MessageSite, -1, Message, ExtraContext);
+			LogMessage(UhtMessageType.Error, messageSite, -1, message, extraContext);
 		}
 
 		/// <summary>
 		/// Log a warning
 		/// </summary>
-		/// <param name="MessageSite">Message site associated with the message</param>
-		/// <param name="LineNumber">Line number of the warning</param>
-		/// <param name="Message">Text of the warning</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		public static void LogWarning(this IUhtMessageSite MessageSite, int LineNumber, string Message, object? ExtraContext = null)
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="lineNumber">Line number of the warning</param>
+		/// <param name="message">Text of the warning</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public static void LogWarning(this IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext = null)
 		{
-			LogMessage(UhtMessageType.Warning, MessageSite, LineNumber, Message, ExtraContext);
+			LogMessage(UhtMessageType.Warning, messageSite, lineNumber, message, extraContext);
 		}
 
 		/// <summary>
 		/// Log a warning
 		/// </summary>
-		/// <param name="MessageSite">Message site associated with the message</param>
-		/// <param name="Message">Text of the warning</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		public static void LogWarning(this IUhtMessageSite MessageSite, string Message, object? ExtraContext = null)
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="message">Text of the warning</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public static void LogWarning(this IUhtMessageSite messageSite, string message, object? extraContext = null)
 		{
-			LogMessage(UhtMessageType.Warning, MessageSite, -1, Message, ExtraContext);
+			LogMessage(UhtMessageType.Warning, messageSite, -1, message, extraContext);
 		}
 
 		/// <summary>
 		/// Log information
 		/// </summary>
-		/// <param name="MessageSite">Message site associated with the message</param>
-		/// <param name="LineNumber">Line number of the information</param>
-		/// <param name="Message">Text of the information</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		public static void LogInfo(this IUhtMessageSite MessageSite, int LineNumber, string Message, object? ExtraContext = null)
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="lineNumber">Line number of the information</param>
+		/// <param name="message">Text of the information</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public static void LogInfo(this IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext = null)
 		{
-			LogMessage(UhtMessageType.Info, MessageSite, LineNumber, Message, ExtraContext);
+			LogMessage(UhtMessageType.Info, messageSite, lineNumber, message, extraContext);
 		}
 
 		/// <summary>
 		/// Log a message directly to the log
 		/// </summary>
-		/// <param name="MessageSite">Message site associated with the message</param>
-		/// <param name="Message">Text of the information</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		public static void LogTrace(this IUhtMessageSite MessageSite, string Message, object? ExtraContext = null)
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="message">Text of the information</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public static void LogTrace(this IUhtMessageSite messageSite, string message, object? extraContext = null)
 		{
-			LogMessage(UhtMessageType.Trace, MessageSite, -1, Message, ExtraContext);
+			LogMessage(UhtMessageType.Trace, messageSite, -1, message, extraContext);
 		}
 
 		/// <summary>
 		/// Log a message directly to the log
 		/// </summary>
-		/// <param name="MessageSite">Message site associated with the message</param>
-		/// <param name="LineNumber">Line number of the information</param>
-		/// <param name="Message">Text of the information</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		public static void LogLog(this IUhtMessageSite MessageSite, int LineNumber, string Message, object? ExtraContext = null)
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="lineNumber">Line number of the information</param>
+		/// <param name="message">Text of the information</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public static void LogLog(this IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext = null)
 		{
-			LogMessage(UhtMessageType.Trace, MessageSite, LineNumber, Message, ExtraContext);
+			LogMessage(UhtMessageType.Trace, messageSite, lineNumber, message, extraContext);
 		}
 
 		/// <summary>
 		/// Log a information
 		/// </summary>
-		/// <param name="MessageSite">Message site associated with the message</param>
-		/// <param name="Message">Text of the information</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		public static void LogInfo(this IUhtMessageSite MessageSite, string Message, object? ExtraContext = null)
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="message">Text of the information</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		public static void LogInfo(this IUhtMessageSite messageSite, string message, object? extraContext = null)
 		{
-			LogMessage(UhtMessageType.Info, MessageSite, -1, Message, ExtraContext);
+			LogMessage(UhtMessageType.Info, messageSite, -1, message, extraContext);
 		}
 
 		/// <summary>
 		/// Log a message
 		/// </summary>
-		/// <param name="MessageType">Type of the message being generated</param>
-		/// <param name="MessageSite">Message site associated with the message</param>
-		/// <param name="LineNumber">Line number of the information</param>
-		/// <param name="Message">Text of the information</param>
-		/// <param name="ExtraContext">Addition context to be appended to the error message</param>
-		private static void LogMessage(UhtMessageType MessageType, IUhtMessageSite MessageSite, int LineNumber, string Message, object? ExtraContext)
+		/// <param name="messageType">Type of the message being generated</param>
+		/// <param name="messageSite">Message site associated with the message</param>
+		/// <param name="lineNumber">Line number of the information</param>
+		/// <param name="message">Text of the information</param>
+		/// <param name="extraContext">Addition context to be appended to the error message</param>
+		private static void LogMessage(UhtMessageType messageType, IUhtMessageSite messageSite, int lineNumber, string message, object? extraContext)
 		{
-			if (ExtraContext != null)
+			if (extraContext != null)
 			{
-				Message = $"{Message} in {UhtMessage.FormatContext(ExtraContext)}";
+				message = $"{message} in {UhtMessage.FormatContext(extraContext)}";
 			}
-			MessageSite.MessageSession.AddMessage(UhtMessage.MakeMessage(MessageType, MessageSite.MessageSource, null, MessageSite.GetLineNumber(LineNumber), Message));
+			messageSite.MessageSession.AddMessage(UhtMessage.MakeMessage(messageType, messageSite.MessageSource, null, messageSite.GetLineNumber(lineNumber), message));
 		}
 	}
 
@@ -486,24 +486,24 @@ namespace EpicGames.UHT.Utils
 	/// </summary>
 	public sealed class UhtTlsMessageExtraContext : IUhtMessageExtraContext
 	{
-		private Stack<object?>? ExtraContexts;
-		private static readonly ThreadLocal<UhtTlsMessageExtraContext> Tls = new ThreadLocal<UhtTlsMessageExtraContext>(() => new UhtTlsMessageExtraContext());
+		private Stack<object?>? _extraContexts;
+		private static readonly ThreadLocal<UhtTlsMessageExtraContext> s_tls = new ThreadLocal<UhtTlsMessageExtraContext>(() => new UhtTlsMessageExtraContext());
 
 		#region IUHTMessageExtraContext implementation
-		IEnumerable<object?>? IUhtMessageExtraContext.MessageExtraContext => this.ExtraContexts;
+		IEnumerable<object?>? IUhtMessageExtraContext.MessageExtraContext => this._extraContexts;
 		#endregion
 
 		/// <summary>
 		/// Add an extra context
 		/// </summary>
-		/// <param name="ExceptionContext"></param>
-		public void PushExtraContext(object? ExceptionContext)
+		/// <param name="exceptionContext"></param>
+		public void PushExtraContext(object? exceptionContext)
 		{
-			if (this.ExtraContexts == null)
+			if (this._extraContexts == null)
 			{
-				this.ExtraContexts = new Stack<object?>(8);
+				this._extraContexts = new Stack<object?>(8);
 			}
-			this.ExtraContexts.Push(ExceptionContext);
+			this._extraContexts.Push(exceptionContext);
 		}
 
 		/// <summary>
@@ -511,9 +511,9 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public void PopExtraContext()
 		{
-			if (this.ExtraContexts != null)
+			if (this._extraContexts != null)
 			{
-				this.ExtraContexts.Pop();
+				this._extraContexts.Pop();
 			}
 		}
 
@@ -521,13 +521,13 @@ namespace EpicGames.UHT.Utils
 		/// Get the extra context associated with this thread
 		/// </summary>
 		/// <returns>Extra context</returns>
-		public static UhtTlsMessageExtraContext? GetTls() { return UhtTlsMessageExtraContext.Tls.Value; }
+		public static UhtTlsMessageExtraContext? GetTls() { return UhtTlsMessageExtraContext.s_tls.Value; }
 
 		/// <summary>
 		/// Get the extra context interface
 		/// </summary>
 		/// <returns>Extra context interface</returns>
-		public static IUhtMessageExtraContext? GetMessageExtraContext() { return UhtTlsMessageExtraContext.Tls.Value; }
+		public static IUhtMessageExtraContext? GetMessageExtraContext() { return UhtTlsMessageExtraContext.s_tls.Value; }
 	}
 
 	/// <summary>
@@ -535,18 +535,18 @@ namespace EpicGames.UHT.Utils
 	/// </summary>
 	public struct UhtMessageContext : IDisposable
 	{
-		private readonly UhtTlsMessageExtraContext? Stack;
+		private readonly UhtTlsMessageExtraContext? _stack;
 
 		/// <summary>
 		/// Construct a new entry
 		/// </summary>
-		/// <param name="ExtraContext">Extra context to be added</param>
-		public UhtMessageContext(object? ExtraContext)
+		/// <param name="extraContext">Extra context to be added</param>
+		public UhtMessageContext(object? extraContext)
 		{
-			this.Stack = UhtTlsMessageExtraContext.GetTls();
-			if (this.Stack != null)
+			this._stack = UhtTlsMessageExtraContext.GetTls();
+			if (this._stack != null)
 			{
-				this.Stack.PushExtraContext(ExtraContext);
+				this._stack.PushExtraContext(extraContext);
 			}
 		}
 
@@ -554,13 +554,13 @@ namespace EpicGames.UHT.Utils
 		/// Replace the extra context.  This replaces the top level context and thus 
 		/// can have unexpected results if done when a more deeper context has been added
 		/// </summary>
-		/// <param name="ExtraContext">New extra context</param>
-		public void Reset(object? ExtraContext)
+		/// <param name="extraContext">New extra context</param>
+		public void Reset(object? extraContext)
 		{
-			if (this.Stack != null)
+			if (this._stack != null)
 			{
-				this.Stack.PopExtraContext();
-				this.Stack.PushExtraContext(ExtraContext);
+				this._stack.PopExtraContext();
+				this._stack.PushExtraContext(extraContext);
 			}
 		}
 
@@ -569,9 +569,9 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		public void Dispose()
 		{
-			if (this.Stack != null)
+			if (this._stack != null)
 			{
-				this.Stack.PopExtraContext();
+				this._stack.PopExtraContext();
 			}
 		}
 	}

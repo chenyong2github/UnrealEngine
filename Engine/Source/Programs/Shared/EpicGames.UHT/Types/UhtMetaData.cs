@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Types
 {
@@ -19,10 +19,10 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Convert a name and index into a full meta data name
 		/// </summary>
-		/// <param name="Name">Base name of the meta data</param>
-		/// <param name="NameIndex">Index of the meta data.  -1 for the root object.</param>
+		/// <param name="name">Base name of the meta data</param>
+		/// <param name="nameIndex">Index of the meta data.  -1 for the root object.</param>
 		/// <returns>Complete meta data key name</returns>
-		string GetMetaDataKey(string Name, int NameIndex);
+		string GetMetaDataKey(string name, int nameIndex);
 	}
 
 	/// <summary>
@@ -44,12 +44,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct a new meta data key
 		/// </summary>
-		/// <param name="Name">Meta data name</param>
-		/// <param name="Index">Meta data index</param>
-		public UhtMetaDataKey(string Name, int Index = UhtMetaData.IndexNone)
+		/// <param name="name">Meta data name</param>
+		/// <param name="index">Meta data index</param>
+		public UhtMetaDataKey(string name, int index = UhtMetaData.IndexNone)
 		{
-			this.Name = Name;
-			this.Index = Index;
+			this.Name = name;
+			this.Index = index;
 		}
 
 		/// <summary>
@@ -90,7 +90,7 @@ namespace EpicGames.UHT.Types
 			{
 				return 1;
 			}
-			return string.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase);
+			return String.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase);
 		}
 
 		/// <summary>
@@ -125,7 +125,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Helper comparer for meta data keys
 		/// </summary>
-		private static readonly UhtMetaDataKeyComparer Comparer = new UhtMetaDataKeyComparer();
+		private static readonly UhtMetaDataKeyComparer s_comparer = new UhtMetaDataKeyComparer();
 
 		/// <summary>
 		/// Empty collection of meta data
@@ -176,12 +176,12 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct new meta data
 		/// </summary>
-		/// <param name="MessageSite">Message site for generating errors</param>
-		/// <param name="Config">Configuration for redirects</param>
-		public UhtMetaData(IUhtMessageSite? MessageSite, IUhtConfig? Config)
+		/// <param name="messageSite">Message site for generating errors</param>
+		/// <param name="config">Configuration for redirects</param>
+		public UhtMetaData(IUhtMessageSite? messageSite, IUhtConfig? config)
 		{
-			this.MessageSite = MessageSite;
-			this.Config = Config;
+			this.MessageSite = messageSite;
+			this.Config = config;
 		}
 
 		/// <summary>
@@ -216,29 +216,29 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Test to see if the meta data contains the given key
 		/// </summary>
-		/// <param name="Name">Name of the meta data</param>
-		/// <param name="NameIndex">Enumeration value index or -1 for the type's meta data</param>
+		/// <param name="name">Name of the meta data</param>
+		/// <param name="nameIndex">Enumeration value index or -1 for the type's meta data</param>
 		/// <returns>True if the key is found</returns>
-		public bool ContainsKey(string Name, int NameIndex = IndexNone)
+		public bool ContainsKey(string name, int nameIndex = IndexNone)
 		{
 			if (this.Dictionary == null)
 			{
 				return false;
 			}
-			return this.Dictionary.ContainsKey(new UhtMetaDataKey(Name, NameIndex));
+			return this.Dictionary.ContainsKey(new UhtMetaDataKey(name, nameIndex));
 		}
 
 		/// <summary>
 		/// Test to see if the meta data or parent meta data contains the given key
 		/// </summary>
-		/// <param name="Name">Name of the meta data</param>
-		/// <param name="NameIndex">Enumeration value index or -1 for the type's meta data</param>
+		/// <param name="name">Name of the meta data</param>
+		/// <param name="nameIndex">Enumeration value index or -1 for the type's meta data</param>
 		/// <returns>True if the key is found</returns>
-		public bool ContainsKeyHierarchical(string Name, int NameIndex = IndexNone)
+		public bool ContainsKeyHierarchical(string name, int nameIndex = IndexNone)
 		{
-			for (UhtMetaData? Current = this; Current != null; Current = Current.Parent)
+			for (UhtMetaData? current = this; current != null; current = current.Parent)
 			{
-				if (Current.ContainsKey(Name, NameIndex))
+				if (current.ContainsKey(name, nameIndex))
 				{
 					return true;
 				}
@@ -249,74 +249,74 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Attempt to get the value associated with the key
 		/// </summary>
-		/// <param name="Name">Name of the meta data</param>
-		/// <param name="Value">Found value</param>
+		/// <param name="name">Name of the meta data</param>
+		/// <param name="value">Found value</param>
 		/// <returns>True if the key is found</returns>
-		public bool TryGetValue(string Name, [NotNullWhen(true)] out string? Value)
+		public bool TryGetValue(string name, [NotNullWhen(true)] out string? value)
 		{
-			return TryGetValue(Name, IndexNone, out Value);
+			return TryGetValue(name, IndexNone, out value);
 		}
 
 		/// <summary>
 		/// Attempt to get the value associated with the key including parent meta data
 		/// </summary>
-		/// <param name="Name">Name of the meta data</param>
-		/// <param name="Value">Found value</param>
+		/// <param name="name">Name of the meta data</param>
+		/// <param name="value">Found value</param>
 		/// <returns>True if the key is found</returns>
-		public bool TryGetValueHierarchical(string Name, [NotNullWhen(true)] out string? Value)
+		public bool TryGetValueHierarchical(string name, [NotNullWhen(true)] out string? value)
 		{
-			return TryGetValueHierarchical(Name, IndexNone, out Value);
+			return TryGetValueHierarchical(name, IndexNone, out value);
 		}
 
 		/// <summary>
 		/// Attempt to get the value associated with the key
 		/// </summary>
-		/// <param name="Name">Name of the meta data</param>
-		/// <param name="NameIndex">Enumeration value index or -1 for the type's meta data</param>
-		/// <param name="Value">Found value</param>
+		/// <param name="name">Name of the meta data</param>
+		/// <param name="nameIndex">Enumeration value index or -1 for the type's meta data</param>
+		/// <param name="value">Found value</param>
 		/// <returns>True if the key is found</returns>
-		public bool TryGetValue(string Name, int NameIndex, [NotNullWhen(true)] out string? Value)
+		public bool TryGetValue(string name, int nameIndex, [NotNullWhen(true)] out string? value)
 		{
 			if (this.Dictionary == null)
 			{
-				Value = String.Empty;
+				value = String.Empty;
 				return false;
 			}
-			return this.Dictionary.TryGetValue(new UhtMetaDataKey(Name, NameIndex), out Value);
+			return this.Dictionary.TryGetValue(new UhtMetaDataKey(name, nameIndex), out value);
 		}
 
 		/// <summary>
 		/// Attempt to get the value associated with the key including parent meta data
 		/// </summary>
-		/// <param name="Name">Name of the meta data</param>
-		/// <param name="NameIndex">Enumeration value index or -1 for the type's meta data</param>
-		/// <param name="Value">Found value</param>
+		/// <param name="name">Name of the meta data</param>
+		/// <param name="nameIndex">Enumeration value index or -1 for the type's meta data</param>
+		/// <param name="value">Found value</param>
 		/// <returns>True if the key is found</returns>
-		public bool TryGetValueHierarchical(string Name, int NameIndex, [NotNullWhen(true)] out string? Value)
+		public bool TryGetValueHierarchical(string name, int nameIndex, [NotNullWhen(true)] out string? value)
 		{
-			for (UhtMetaData? Current = this; Current != null; Current = Current.Parent)
+			for (UhtMetaData? current = this; current != null; current = current.Parent)
 			{
-				if (Current.TryGetValue(Name, NameIndex, out Value))
+				if (current.TryGetValue(name, nameIndex, out value))
 				{
 					return true;
 				}
 			}
-			Value = String.Empty;
+			value = String.Empty;
 			return false;
 		}
 
 		/// <summary>
 		/// Get the string value of the given meta data key or the default value.
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
 		/// <returns>Meta data value or empty string if not found.</returns>
-		public string GetValueOrDefault(string Name, int NameIndex = IndexNone)
+		public string GetValueOrDefault(string name, int nameIndex = IndexNone)
 		{
-			string? Out;
-			if (TryGetValue(Name, NameIndex, out Out))
+			string? output;
+			if (TryGetValue(name, nameIndex, out output))
 			{
-				return Out;
+				return output;
 			}
 			return String.Empty;
 		}
@@ -324,70 +324,70 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Get the string value of the given meta data searching the whole meta data chain.
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
 		/// <returns>Meta data value or empty string if not found.</returns>
-		public string GetValueOrDefaultHierarchical(string Name, int NameIndex = IndexNone)
+		public string GetValueOrDefaultHierarchical(string name, int nameIndex = IndexNone)
 		{
-			string? Out;
-			if (TryGetValueHierarchical(Name, NameIndex, out Out))
+			string? output;
+			if (TryGetValueHierarchical(name, nameIndex, out output))
 			{
-				return Out;
+				return output;
 			}
-			return string.Empty;
+			return String.Empty;
 		}
 
 		/// <summary>
 		/// Get the boolean value of the given meta data.
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
 		/// <returns>Boolean value or false if not found</returns>
-		public bool GetBoolean(string Name, int NameIndex = IndexNone)
+		public bool GetBoolean(string name, int nameIndex = IndexNone)
 		{
-			return UhtFCString.ToBool(GetValueOrDefault(Name, NameIndex));
+			return UhtFCString.ToBool(GetValueOrDefault(name, nameIndex));
 		}
 
 		/// <summary>
 		/// Get the boolean value of the given meta data searching the whole meta data chain.
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
 		/// <returns>Boolean value or false if not found</returns>
-		public bool GetBooleanHierarchical(string Name, int NameIndex = IndexNone)
+		public bool GetBooleanHierarchical(string name, int nameIndex = IndexNone)
 		{
-			return UhtFCString.ToBool(GetValueOrDefaultHierarchical(Name, NameIndex));
+			return UhtFCString.ToBool(GetValueOrDefaultHierarchical(name, nameIndex));
 		}
 
 		/// <summary>
 		/// Get the double value of the given meta data.
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
 		/// <returns>Double value or zero if not found</returns>
-		public double GetDouble(string Name, int NameIndex = IndexNone)
+		public double GetDouble(string name, int nameIndex = IndexNone)
 		{
-			string Value = GetValueOrDefault(Name, NameIndex);
-			double Result;
-			if (!double.TryParse(Value, out Result))
+			string value = GetValueOrDefault(name, nameIndex);
+			double result;
+			if (!Double.TryParse(value, out result))
 			{
-				Result = 0;
+				result = 0;
 			}
-			return Result;
+			return result;
 		}
 
 		/// <summary>
 		/// Get the string array value of the given meta data.
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
 		/// <returns>String array or null if not found</returns>
-		public string[]? GetStringArray(string Name, int NameIndex = IndexNone)
+		public string[]? GetStringArray(string name, int nameIndex = IndexNone)
 		{
-			string? Temp;
-			if (TryGetValue(Name, NameIndex, out Temp))
+			string? temp;
+			if (TryGetValue(name, nameIndex, out temp))
 			{
-				return Temp.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+				return temp.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);
 			}
 			return null;
 		}
@@ -395,15 +395,15 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Get the string array value of the given meta data searching the whole meta data chain.
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
 		/// <returns>String array or null if not found</returns>
-		public string[]? GetStringArrayHierarchical(string Name, int NameIndex = IndexNone)
+		public string[]? GetStringArrayHierarchical(string name, int nameIndex = IndexNone)
 		{
-			string? Temp;
-			if (TryGetValueHierarchical(Name, NameIndex, out Temp))
+			string? temp;
+			if (TryGetValueHierarchical(name, nameIndex, out temp))
 			{
-				return Temp.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+				return temp.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries);
 			}
 			return null;
 		}
@@ -411,83 +411,83 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Add new meta data
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="Value">Value of the meta data</param>
-		public void Add(string Name, string Value)
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="value">Value of the meta data</param>
+		public void Add(string name, string value)
 		{
-			Add(Name, IndexNone, Value);
+			Add(name, IndexNone, value);
 		}
 
 		/// <summary>
 		/// Add new meta data
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
-		/// <param name="Value">Value of the meta data</param>
-		public void Add(string Name, int NameIndex, string Value)
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
+		/// <param name="value">Value of the meta data</param>
+		public void Add(string name, int nameIndex, string value)
 		{
-			string RemappedName;
+			string remappedName;
 			if (this.Config != null)
 			{
-				if (this.Config.RedirectMetaDataKey(Name, out RemappedName))
+				if (this.Config.RedirectMetaDataKey(name, out remappedName))
 				{
 					if (this.MessageSite != null)
 					{
-						this.MessageSite.LogWarning(this.LineNumber, $"Remapping old metadata key '{Name}' to new key '{RemappedName}', please update the declaration.");
+						this.MessageSite.LogWarning(this.LineNumber, $"Remapping old metadata key '{name}' to new key '{remappedName}', please update the declaration.");
 					}
 				}
 			}
-			GetDictionary()[new UhtMetaDataKey(Name, NameIndex)] = Value;
+			GetDictionary()[new UhtMetaDataKey(name, nameIndex)] = value;
 		}
 
 		/// <summary>
 		/// Add new meta data
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="Value">Value of the meta data</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
-		public void Add(string Name, bool Value, int NameIndex = IndexNone)
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="value">Value of the meta data</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
+		public void Add(string name, bool value, int nameIndex = IndexNone)
 		{
-			Add(Name, NameIndex, Value ? "true" : "false");
+			Add(name, nameIndex, value ? "true" : "false");
 		}
 
 		/// <summary>
 		/// Add new meta data
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="Strings">Value of the meta data</param>
-		/// <param name="Separator">Separator to use to join the strings</param>
-		public void Add(string Name, List<string> Strings, char Separator = ' ')
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="strings">Value of the meta data</param>
+		/// <param name="separator">Separator to use to join the strings</param>
+		public void Add(string name, List<string> strings, char separator = ' ')
 		{
-			Add(Name, string.Join(Separator, Strings));
+			Add(name, String.Join(separator, strings));
 		}
 
 		/// <summary>
 		/// Add new meta data if there are strings in the value.
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="Strings">Value of the meta data</param>
-		/// <param name="Separator">Separator to use to join the strings</param>
-		public void AddIfNotEmpty(string Name, List<string> Strings, char Separator = ' ')
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="strings">Value of the meta data</param>
+		/// <param name="separator">Separator to use to join the strings</param>
+		public void AddIfNotEmpty(string name, List<string> strings, char separator = ' ')
 		{
-			if (Strings.Count != 0)
+			if (strings.Count != 0)
 			{
-				Add(Name, string.Join(Separator, Strings));
+				Add(name, String.Join(separator, strings));
 			}
 		}
 
 		/// <summary>
 		/// Add the meta data from another meta data block
 		/// </summary>
-		/// <param name="MetaData"></param>
-		public void Add(UhtMetaData MetaData)
+		/// <param name="metaData"></param>
+		public void Add(UhtMetaData metaData)
 		{
-			if (MetaData.Dictionary != null)
+			if (metaData.Dictionary != null)
 			{
-				SortedList<UhtMetaDataKey, string> Dictionary = GetDictionary();
-				foreach (KeyValuePair<UhtMetaDataKey, string> Kvp in MetaData.Dictionary)
+				SortedList<UhtMetaDataKey, string> dictionary = GetDictionary();
+				foreach (KeyValuePair<UhtMetaDataKey, string> kvp in metaData.Dictionary)
 				{
-					Dictionary[Kvp.Key] = Kvp.Value;
+					dictionary[kvp.Key] = kvp.Value;
 				}
 			}
 		}
@@ -495,42 +495,42 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Remove the given meta data
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
-		public void Remove(string Name, int NameIndex = IndexNone)
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
+		public void Remove(string name, int nameIndex = IndexNone)
 		{
 			if (this.Dictionary != null)
 			{
-				this.Dictionary.Remove(new UhtMetaDataKey(Name, NameIndex));
+				this.Dictionary.Remove(new UhtMetaDataKey(name, nameIndex));
 			}
 		}
 
 		/// <summary>
 		/// Given a key, return the full meta data name
 		/// </summary>
-		/// <param name="Key">Meta data key</param>
+		/// <param name="key">Meta data key</param>
 		/// <returns>Full meta data name</returns>
-		public string GetKeyString(UhtMetaDataKey Key)
+		public string GetKeyString(UhtMetaDataKey key)
 		{
-			return GetKeyString(Key.Name, Key.Index);
+			return GetKeyString(key.Name, key.Index);
 		}
 
 		/// <summary>
 		/// Given a key, return the full meta data name
 		/// </summary>
-		/// <param name="Name">Name of the meta data key</param>
-		/// <param name="NameIndex">Index of the meta data key</param>
+		/// <param name="name">Name of the meta data key</param>
+		/// <param name="nameIndex">Index of the meta data key</param>
 		/// <returns>Full meta data name</returns>
 		/// <exception cref="UhtIceException">Thrown if an index is supplied (not -1) and no key conversion interface is set</exception>
-		public string GetKeyString(string Name, int NameIndex)
+		public string GetKeyString(string name, int nameIndex)
 		{
-			if (NameIndex == IndexNone)
+			if (nameIndex == IndexNone)
 			{
-				return Name;
+				return name;
 			}
 			else if (KeyConversion != null)
 			{
-				return KeyConversion.GetMetaDataKey(Name, NameIndex);
+				return KeyConversion.GetMetaDataKey(name, nameIndex);
 			}
 			else
 			{
@@ -544,27 +544,27 @@ namespace EpicGames.UHT.Types
 		/// <returns>List of meta data key and value pairs</returns>
 		public List<KeyValuePair<string, string>> GetSorted()
 		{
-			List<KeyValuePair<string, string>> Out = new List<KeyValuePair<string, string>>(this.Dictionary != null ? this.Dictionary.Count : 0);
+			List<KeyValuePair<string, string>> output = new List<KeyValuePair<string, string>>(this.Dictionary != null ? this.Dictionary.Count : 0);
 			if (this.Dictionary != null && this.Dictionary.Count > 0)
 			{
-				foreach (KeyValuePair<UhtMetaDataKey, string> Kvp in this.Dictionary)
+				foreach (KeyValuePair<UhtMetaDataKey, string> kvp in this.Dictionary)
 				{
-					Out.Add(new KeyValuePair<string, string>(this.GetKeyString(Kvp.Key), Kvp.Value));
+					output.Add(new KeyValuePair<string, string>(this.GetKeyString(kvp.Key), kvp.Value));
 				}
 
-				Out.Sort((KeyValuePair<string, string> Lhs, KeyValuePair<string, string> Rhs) =>
+				output.Sort((KeyValuePair<string, string> lhs, KeyValuePair<string, string> rhs) =>
 				{
-					return StringComparerUE.OrdinalIgnoreCase.Compare(Lhs.Key, Rhs.Key);
+					return StringComparerUE.OrdinalIgnoreCase.Compare(lhs.Key, rhs.Key);
 				});
 			}
-			return Out;
+			return output;
 		}
 
 		private SortedList<UhtMetaDataKey, string> GetDictionary()
 		{
 			if (this.Dictionary == null)
 			{
-				this.Dictionary = new SortedList<UhtMetaDataKey, string>(Comparer);
+				this.Dictionary = new SortedList<UhtMetaDataKey, string>(s_comparer);
 			}
 			return this.Dictionary;
 		}

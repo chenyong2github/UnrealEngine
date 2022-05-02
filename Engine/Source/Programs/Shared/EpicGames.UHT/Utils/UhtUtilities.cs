@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using EpicGames.Core;
 
 namespace EpicGames.UHT.Utils
 {
@@ -18,31 +18,31 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Add the given value if it isn't already contained within the list
 		/// </summary>
-		/// <param name="Container">Destination container</param>
-		/// <param name="Value">Value to be added</param>
+		/// <param name="container">Destination container</param>
+		/// <param name="value">Value to be added</param>
 		/// <returns>True if the value was added, false if it was already present</returns>
-		public static bool AddUnique(this List<string> Container, string Value)
+		public static bool AddUnique(this List<string> container, string value)
 		{
-			if (Container.Contains(Value, StringComparer.OrdinalIgnoreCase))
+			if (container.Contains(value, StringComparer.OrdinalIgnoreCase))
 			{
 				return false;
 			}
-			Container.Add(Value);
+			container.Add(value);
 			return true;
 		}
 
 		/// <summary>
 		/// Add the given values if they aren't already contained within the list
 		/// </summary>
-		/// <param name="Container">Destination container</param>
-		/// <param name="Values">Values to be added</param>
-		public static void AddUniqueRange(this List<string> Container, IEnumerable<StringView>? Values)
+		/// <param name="container">Destination container</param>
+		/// <param name="values">Values to be added</param>
+		public static void AddUniqueRange(this List<string> container, IEnumerable<StringView>? values)
 		{
-			if (Values != null)
+			if (values != null)
 			{
-				foreach (StringView Value in Values)
+				foreach (StringView value in values)
 				{
-					AddUnique(Container, Value.ToString());
+					AddUnique(container, value.ToString());
 				}
 			}
 		}
@@ -50,19 +50,19 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Remove the given value but swap the last entry into the eliminated slot
 		/// </summary>
-		/// <param name="Container">Container being modified</param>
-		/// <param name="Value">Value to be removed</param>
+		/// <param name="container">Container being modified</param>
+		/// <param name="value">Value to be removed</param>
 		/// <returns>True if the value was removed, false if not</returns>
-		public static bool RemoveSwap(this List<string> Container, string Value)
+		public static bool RemoveSwap(this List<string> container, string value)
 		{
-			int Index = Container.FindIndex(n => Value.Equals(n, StringComparison.OrdinalIgnoreCase));
-			if (Index >= 0)
+			int index = container.FindIndex(n => value.Equals(n, StringComparison.OrdinalIgnoreCase));
+			if (index >= 0)
 			{
-				if (Index != Container.Count - 1)
+				if (index != container.Count - 1)
 				{
-					Container[Index] = Container[Container.Count - 1];
+					container[index] = container[^1];
 				}
-				Container.RemoveAt(Container.Count - 1);
+				container.RemoveAt(container.Count - 1);
 				return true;
 			}
 			return false;
@@ -71,15 +71,15 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Remove a range of values from a container using swapping
 		/// </summary>
-		/// <param name="Container">Container to be modified</param>
-		/// <param name="Values">List of values to be removed</param>
-		public static void RemoveSwapRange(this List<string> Container, IEnumerable<StringView>? Values)
+		/// <param name="container">Container to be modified</param>
+		/// <param name="values">List of values to be removed</param>
+		public static void RemoveSwapRange(this List<string> container, IEnumerable<StringView>? values)
 		{
-			if (Values != null)
+			if (values != null)
 			{
-				foreach (StringView Value in Values)
+				foreach (StringView value in values)
 				{
-					RemoveSwap(Container, Value.ToString());
+					RemoveSwap(container, value.ToString());
 				}
 			}
 		}
@@ -105,7 +105,7 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// The name contained the "DEPRECATED" text which has been removed from the engine name
 		/// </summary>
-		public bool bIsDeprecated { get; set; }
+		public bool IsDeprecated { get; set; }
 	}
 
 	/// <summary>
@@ -117,82 +117,82 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Given a collection of names, return a string containing the text of those names concatenated.
 		/// </summary>
-		/// <param name="TypeNames">Collect of names to be merged</param>
-		/// <param name="AndOr">Text used to separate the names</param>
-		/// <param name="bQuote">If true, add quotes around the names</param>
+		/// <param name="typeNames">Collect of names to be merged</param>
+		/// <param name="andOr">Text used to separate the names</param>
+		/// <param name="quote">If true, add quotes around the names</param>
 		/// <returns>Merged names</returns>
-		public static string MergeTypeNames(IEnumerable<string> TypeNames, string AndOr, bool bQuote = false)
+		public static string MergeTypeNames(IEnumerable<string> typeNames, string andOr, bool quote = false)
 		{
-			List<string> Local = new List<string>(TypeNames);
+			List<string> local = new List<string>(typeNames);
 
-			if (Local.Count == 0)
+			if (local.Count == 0)
 			{
 				return "";
 			}
 
-			Local.Sort();
+			local.Sort();
 
-			StringBuilder Builder = new StringBuilder();
-			for (int Index = 0; Index < Local.Count; ++Index)
+			StringBuilder builder = new StringBuilder();
+			for (int index = 0; index < local.Count; ++index)
 			{
-				if (Index != 0)
+				if (index != 0)
 				{
-					Builder.Append(", ");
-					if (Index == Local.Count - 1)
+					builder.Append(", ");
+					if (index == local.Count - 1)
 					{
-						Builder.Append(AndOr);
-						Builder.Append(' ');
+						builder.Append(andOr);
+						builder.Append(' ');
 					}
 				}
-				if (bQuote)
+				if (quote)
 				{
-					Builder.Append('\'');
-					Builder.Append(Local[Index]);
-					Builder.Append('\'');
+					builder.Append('\'');
+					builder.Append(local[index]);
+					builder.Append('\'');
 				}
 				else
 				{
-					Builder.Append(Local[Index]);
+					builder.Append(local[index]);
 				}
 			}
-			return Builder.ToString();
+			return builder.ToString();
 		}
 
 		/// <summary>
 		/// Split the given source name into the engine name parts
 		/// </summary>
-		/// <param name="SourceName">Source name</param>
+		/// <param name="sourceName">Source name</param>
 		/// <returns>Resulting engine name parts</returns>
-		public static UhtEngineNameParts GetEngineNameParts(StringView SourceName)
+		public static UhtEngineNameParts GetEngineNameParts(StringView sourceName)
 		{
-			if (SourceName.Span.Length == 0)
+			if (sourceName.Span.Length == 0)
 			{
-				return new UhtEngineNameParts { Prefix = new StringView(string.Empty), EngineName = new StringView(string.Empty), bIsDeprecated = false };
+				return new UhtEngineNameParts { Prefix = new StringView(String.Empty), EngineName = new StringView(String.Empty), IsDeprecated = false };
 			}
 
-			switch (SourceName.Span[0])
+			switch (sourceName.Span[0])
 			{
 				case 'I':
 				case 'A':
 				case 'U':
 					// If it is a class prefix, check for deprecated class prefix also
-					if (SourceName.Span.Length > 12 && SourceName.Span.Slice(1).StartsWith("DEPRECATED_"))
+					if (sourceName.Span.Length > 12 && sourceName.Span.Slice(1).StartsWith("DEPRECATED_"))
 					{
-						return new UhtEngineNameParts { Prefix = new StringView(SourceName, 0, 12), EngineName = new StringView(SourceName, 12), bIsDeprecated = true };
+						return new UhtEngineNameParts { Prefix = new StringView(sourceName, 0, 12), EngineName = new StringView(sourceName, 12), IsDeprecated = true };
 					}
 					else
 					{
-						return new UhtEngineNameParts { Prefix = new StringView(SourceName, 0, 1), EngineName = new StringView(SourceName, 1), bIsDeprecated = false };
+						return new UhtEngineNameParts { Prefix = new StringView(sourceName, 0, 1), EngineName = new StringView(sourceName, 1), IsDeprecated = false };
 					}
 
 				case 'F':
 				case 'T':
 					// Struct prefixes are also fine.
-					return new UhtEngineNameParts { Prefix = new StringView(SourceName, 0, 1), EngineName = new StringView(SourceName, 1), bIsDeprecated = false };
+					return new UhtEngineNameParts { Prefix = new StringView(sourceName, 0, 1), EngineName = new StringView(sourceName, 1), IsDeprecated = false };
 
 				default:
 					// If it's not a class or struct prefix, it's invalid
-					return new UhtEngineNameParts { Prefix = new StringView(string.Empty), EngineName = new StringView(SourceName), bIsDeprecated = false };
+					return new UhtEngineNameParts { Prefix = new StringView(String.Empty), EngineName = new StringView(sourceName), IsDeprecated = false };
 			}
 		}
 	}
@@ -207,17 +207,17 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// When only a string view has been appended, this references that StringView
 		/// </summary>
-		private StringView StringViewInternal = new StringView();
+		private StringView _stringViewInternal = new StringView();
 
 		/// <summary>
 		/// Represents more complex data being appended
 		/// </summary>
-		private StringBuilder? StringBuilderInternal = null;
+		private StringBuilder? _stringBuilderInternal = null;
 
 		/// <summary>
 		/// Set to true when the builder has switched to a StringBuilder (NOTE: This can probably be removed)
 		/// </summary>
-		private bool bUseStringBuilder = false;
+		private bool _useStringBuilder = false;
 
 		/// <summary>
 		/// The length of the appended data
@@ -226,13 +226,13 @@ namespace EpicGames.UHT.Utils
 		{
 			get
 			{
-				if (this.bUseStringBuilder && this.StringBuilderInternal != null)
+				if (this._useStringBuilder && this._stringBuilderInternal != null)
 				{
-					return this.StringBuilderInternal.Length;
+					return this._stringBuilderInternal.Length;
 				}
 				else
 				{
-					return this.StringViewInternal.Span.Length;
+					return this._stringViewInternal.Span.Length;
 				}
 			}
 		}
@@ -243,7 +243,7 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Contents of the builder</returns>
 		public StringView ToStringView()
 		{
-			return this.bUseStringBuilder ? new StringView(this.StringBuilderInternal!.ToString()) : this.StringViewInternal;
+			return this._useStringBuilder ? new StringView(this._stringBuilderInternal!.ToString()) : this._stringViewInternal;
 		}
 
 		/// <summary>
@@ -252,28 +252,28 @@ namespace EpicGames.UHT.Utils
 		/// <returns>Contents of the builder</returns>
 		public override string ToString()
 		{
-			return this.bUseStringBuilder ? this.StringBuilderInternal!.ToString() : this.StringViewInternal.ToString();
+			return this._useStringBuilder ? this._stringBuilderInternal!.ToString() : this._stringViewInternal.ToString();
 		}
 
 		/// <summary>
 		/// Append a StringView
 		/// </summary>
-		/// <param name="Text">Text to be appended</param>
+		/// <param name="text">Text to be appended</param>
 		/// <returns>The string builder</returns>
-		public StringViewBuilder Append(StringView Text)
+		public StringViewBuilder Append(StringView text)
 		{
-			if (this.bUseStringBuilder)
+			if (this._useStringBuilder)
 			{
-				this.StringBuilderInternal!.Append(Text.Span);
+				this._stringBuilderInternal!.Append(text.Span);
 			}
-			else if (this.StringViewInternal.Span.Length > 0)
+			else if (this._stringViewInternal.Span.Length > 0)
 			{
 				SwitchToStringBuilder();
-				this.StringBuilderInternal!.Append(Text.Span);
+				this._stringBuilderInternal!.Append(text.Span);
 			}
 			else
 			{
-				this.StringViewInternal = Text;
+				this._stringViewInternal = text;
 			}
 			return this;
 		}
@@ -281,12 +281,12 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Append a character
 		/// </summary>
-		/// <param name="C">Character to be appended</param>
+		/// <param name="c">Character to be appended</param>
 		/// <returns>The string builder</returns>
-		public StringViewBuilder Append(char C)
+		public StringViewBuilder Append(char c)
 		{
 			SwitchToStringBuilder();
-			this.StringBuilderInternal!.Append(C);
+			this._stringBuilderInternal!.Append(c);
 			return this;
 		}
 
@@ -295,14 +295,14 @@ namespace EpicGames.UHT.Utils
 		/// </summary>
 		private void SwitchToStringBuilder()
 		{
-			if (!this.bUseStringBuilder)
+			if (!this._useStringBuilder)
 			{
-				if (this.StringBuilderInternal == null)
+				if (this._stringBuilderInternal == null)
 				{
-					this.StringBuilderInternal = new StringBuilder();
+					this._stringBuilderInternal = new StringBuilder();
 				}
-				this.bUseStringBuilder = true;
-				this.StringBuilderInternal.Append(this.StringViewInternal.Span);
+				this._useStringBuilder = true;
+				this._stringBuilderInternal.Append(this._stringViewInternal.Span);
 			}
 		}
 	}

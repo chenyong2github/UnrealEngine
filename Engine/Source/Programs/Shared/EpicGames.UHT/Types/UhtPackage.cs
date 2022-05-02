@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Text.Json.Serialization;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Utils;
-using System;
-using System.Text.Json.Serialization;
 using UnrealBuildBase;
 
 namespace EpicGames.UHT.Types
@@ -37,7 +37,7 @@ namespace EpicGames.UHT.Types
 		public override UhtEngineType EngineType => UhtEngineType.Package;
 
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "Package"; }
+		public override string EngineClassName => "Package";
 
 		/// <inheritdoc/>
 		[JsonIgnore]
@@ -51,7 +51,7 @@ namespace EpicGames.UHT.Types
 		/// True if the package is part of the engine
 		/// </summary>
 		[JsonIgnore]
-		public bool bIsPartOfEngine
+		public bool IsPartOfEngine
 		{
 			get
 			{
@@ -81,7 +81,7 @@ namespace EpicGames.UHT.Types
 		/// True if the package is a plugin
 		/// </summary>
 		[JsonIgnore]
-		public bool bIsPlugin => this.Module.BaseDirectory.Replace('\\', '/').Contains("/Plugins/", StringComparison.Ordinal);
+		public bool IsPlugin => this.Module.BaseDirectory.Replace('\\', '/').Contains("/Plugins/", StringComparison.Ordinal);
 
 		/// <summary>
 		/// Short name of the package (without the /Script/)
@@ -91,25 +91,25 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct a new instance of a package
 		/// </summary>
-		/// <param name="Session">Running session</param>
-		/// <param name="Module">Source module of the package</param>
-		/// <param name="PackageFlags">Assorted package flags</param>
-		public UhtPackage(UhtSession Session, UHTManifest.Module Module, EPackageFlags PackageFlags) : base(Session)
+		/// <param name="session">Running session</param>
+		/// <param name="module">Source module of the package</param>
+		/// <param name="packageFlags">Assorted package flags</param>
+		public UhtPackage(UhtSession session, UHTManifest.Module module, EPackageFlags packageFlags) : base(session)
 		{
-			this.Module = Module;
-			this.PackageFlags = PackageFlags;
+			this.Module = module;
+			this.PackageFlags = packageFlags;
 			this.PackageTypeIndex = this.Session.GetNextPackageTypeIndex();
 
-			int LastSlashIndex = Module.Name.LastIndexOf('/');
-			if (LastSlashIndex == -1)
+			int lastSlashIndex = module.Name.LastIndexOf('/');
+			if (lastSlashIndex == -1)
 			{
-				this.SourceName = $"/Script/{Module.Name}";
-				this.ShortName = Module.Name;
+				this.SourceName = $"/Script/{module.Name}";
+				this.ShortName = module.Name;
 			}
 			else
 			{
-				this.SourceName = Module.Name;
-				this.ShortName = this.SourceName.Substring(LastSlashIndex + 1);
+				this.SourceName = module.Name;
+				this.ShortName = this.SourceName.Substring(lastSlashIndex + 1);
 			}
 		}
 	}

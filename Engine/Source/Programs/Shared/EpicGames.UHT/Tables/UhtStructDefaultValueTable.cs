@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tokenizer;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
+using EpicGames.Core;
+using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System.Text;
 
 namespace EpicGames.UHT.Tables
 {
@@ -15,11 +15,11 @@ namespace EpicGames.UHT.Tables
 	/// <summary>
 	/// Delegate for invoking structure default value sanitizer
 	/// </summary>
-	/// <param name="Property"></param>
-	/// <param name="DefaultValueReader"></param>
-	/// <param name="InnerDefaultValue"></param>
+	/// <param name="property"></param>
+	/// <param name="defaultValueReader"></param>
+	/// <param name="innerDefaultValue"></param>
 	/// <returns></returns>
-	public delegate bool UhtStructDefaultValueDelegate(UhtStructProperty Property, IUhtTokenReader DefaultValueReader, StringBuilder InnerDefaultValue);
+	public delegate bool UhtStructDefaultValueDelegate(UhtStructProperty property, IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue);
 
 	/// <summary>
 	/// Options for structure default value sanitizer
@@ -49,35 +49,35 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Test to see if any of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if any of the flags are set</returns>
-		public static bool HasAnyFlags(this UhtStructDefaultValueOptions InFlags, UhtStructDefaultValueOptions TestFlags)
+		public static bool HasAnyFlags(this UhtStructDefaultValueOptions inFlags, UhtStructDefaultValueOptions testFlags)
 		{
-			return (InFlags & TestFlags) != 0;
+			return (inFlags & testFlags) != 0;
 		}
 
 		/// <summary>
 		/// Test to see if all of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if all the flags are set</returns>
-		public static bool HasAllFlags(this UhtStructDefaultValueOptions InFlags, UhtStructDefaultValueOptions TestFlags)
+		public static bool HasAllFlags(this UhtStructDefaultValueOptions inFlags, UhtStructDefaultValueOptions testFlags)
 		{
-			return (InFlags & TestFlags) == TestFlags;
+			return (inFlags & testFlags) == testFlags;
 		}
 
 		/// <summary>
 		/// Test to see if a specific set of flags have a specific value.
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
-		/// <param name="MatchFlags">Expected value of the tested flags</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
+		/// <param name="matchFlags">Expected value of the tested flags</param>
 		/// <returns>True if the given flags have a specific value.</returns>
-		public static bool HasExactFlags(this UhtStructDefaultValueOptions InFlags, UhtStructDefaultValueOptions TestFlags, UhtStructDefaultValueOptions MatchFlags)
+		public static bool HasExactFlags(this UhtStructDefaultValueOptions inFlags, UhtStructDefaultValueOptions testFlags, UhtStructDefaultValueOptions matchFlags)
 		{
-			return (InFlags & TestFlags) == MatchFlags;
+			return (inFlags & testFlags) == matchFlags;
 		}
 	}
 
@@ -116,8 +116,8 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtStructDefaultValueTable
 	{
-		private readonly Dictionary<StringView, UhtStructDefaultValue> StructDefaultValues = new Dictionary<StringView, UhtStructDefaultValue>();
-		private UhtStructDefaultValue? DefaultInternal = null;
+		private readonly Dictionary<StringView, UhtStructDefaultValue> _structDefaultValues = new Dictionary<StringView, UhtStructDefaultValue>();
+		private UhtStructDefaultValue? _defaultInternal = null;
 
 		/// <summary>
 		/// Fetch the default sanitizer
@@ -126,54 +126,54 @@ namespace EpicGames.UHT.Tables
 		{
 			get
 			{
-				if (this.DefaultInternal == null)
+				if (this._defaultInternal == null)
 				{
 					throw new UhtIceException("No struct default value has been marked as default");
 				}
-				return (UhtStructDefaultValue)this.DefaultInternal;
+				return (UhtStructDefaultValue)this._defaultInternal;
 			}
 		}
 
 		/// <summary>
 		/// Return the structure default value associated with the given name
 		/// </summary>
-		/// <param name="Name"></param>
-		/// <param name="StructDefaultValue">Structure default value handler</param>
+		/// <param name="name"></param>
+		/// <param name="structDefaultValue">Structure default value handler</param>
 		/// <returns></returns>
-		public bool TryGet(StringView Name, out UhtStructDefaultValue StructDefaultValue)
+		public bool TryGet(StringView name, out UhtStructDefaultValue structDefaultValue)
 		{
-			return this.StructDefaultValues.TryGetValue(Name, out StructDefaultValue);
+			return this._structDefaultValues.TryGetValue(name, out structDefaultValue);
 		}
 
 		/// <summary>
 		/// Handle a structure default value sanitizer attribute
 		/// </summary>
-		/// <param name="MethodInfo">Method information</param>
-		/// <param name="StructDefaultValueAttribute">Found attribute</param>
+		/// <param name="methodInfo">Method information</param>
+		/// <param name="structDefaultValueAttribute">Found attribute</param>
 		/// <exception cref="UhtIceException">Thrown if the attribute isn't property defined</exception>
-		public void OnStructDefaultValueAttribute(MethodInfo MethodInfo, UhtStructDefaultValueAttribute StructDefaultValueAttribute)
+		public void OnStructDefaultValueAttribute(MethodInfo methodInfo, UhtStructDefaultValueAttribute structDefaultValueAttribute)
 		{
-			if (string.IsNullOrEmpty(StructDefaultValueAttribute.Name) && !StructDefaultValueAttribute.Options.HasAnyFlags(UhtStructDefaultValueOptions.Default))
+			if (String.IsNullOrEmpty(structDefaultValueAttribute.Name) && !structDefaultValueAttribute.Options.HasAnyFlags(UhtStructDefaultValueOptions.Default))
 			{
 				throw new UhtIceException("A struct default value attribute must have a name or be marked as default");
 			}
 
-			UhtStructDefaultValue StructDefaultValue = new UhtStructDefaultValue
+			UhtStructDefaultValue structDefaultValue = new UhtStructDefaultValue
 			{
-				Delegate = (UhtStructDefaultValueDelegate)Delegate.CreateDelegate(typeof(UhtStructDefaultValueDelegate), MethodInfo)
+				Delegate = (UhtStructDefaultValueDelegate)Delegate.CreateDelegate(typeof(UhtStructDefaultValueDelegate), methodInfo)
 			};
 
-			if (StructDefaultValueAttribute.Options.HasAnyFlags(UhtStructDefaultValueOptions.Default))
+			if (structDefaultValueAttribute.Options.HasAnyFlags(UhtStructDefaultValueOptions.Default))
 			{
-				if (this.DefaultInternal != null)
+				if (this._defaultInternal != null)
 				{
 					throw new UhtIceException("Only one struct default value attribute dispatcher can be marked as default");
 				}
-				this.DefaultInternal = StructDefaultValue;
+				this._defaultInternal = structDefaultValue;
 			}
-			else if (!string.IsNullOrEmpty(StructDefaultValueAttribute.Name))
+			else if (!String.IsNullOrEmpty(structDefaultValueAttribute.Name))
 			{
-				this.StructDefaultValues.Add(new StringView(StructDefaultValueAttribute.Name), StructDefaultValue);
+				this._structDefaultValues.Add(new StringView(structDefaultValueAttribute.Name), structDefaultValue);
 			}
 		}
 	}

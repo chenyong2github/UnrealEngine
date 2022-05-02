@@ -1,60 +1,60 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tables;
-using EpicGames.UHT.Types;
-using EpicGames.UHT.Utils;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using EpicGames.Core;
+using EpicGames.UHT.Tables;
+using EpicGames.UHT.Types;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Exporters.Json
 {
 	[UnrealHeaderTool]
-	internal class UhtJsonExporter
+	class UhtJsonExporter
 	{
 
 		[UhtExporter(Name = "Json", Description = "Json description of packages", Options = UhtExporterOptions.None)]
-		public static void JsonExporter(IUhtExportFactory Factory)
+		public static void JsonExporter(IUhtExportFactory factory)
 		{
-			new UhtJsonExporter(Factory).Export();
+			new UhtJsonExporter(factory).Export();
 		}
 
 		public readonly IUhtExportFactory Factory;
 		public UhtSession Session => Factory.Session;
 
-		private UhtJsonExporter(IUhtExportFactory Factory)
+		private UhtJsonExporter(IUhtExportFactory factory)
 		{
-			this.Factory = Factory;
+			this.Factory = factory;
 		}
 
 		private void Export()
 		{
 			// Generate the files for the packages
-			List<Task?> GeneratedPackages = new List<Task?>(this.Session.PackageTypeCount);
-			foreach (UhtPackage Package in this.Session.Packages)
+			List<Task?> generatedPackages = new List<Task?>(this.Session.PackageTypeCount);
+			foreach (UhtPackage package in this.Session.Packages)
 			{
-				UHTManifest.Module Module = Package.Module;
-				GeneratedPackages.Add(Factory.CreateTask(
-					(IUhtExportFactory Factory) =>
+				UHTManifest.Module module = package.Module;
+				generatedPackages.Add(Factory.CreateTask(
+					(IUhtExportFactory factory) =>
 					{
-						string JsonPath = Factory.MakePath(Package, ".json");
-						JsonSerializerOptions Options = new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
-						Factory.CommitOutput(JsonPath, JsonSerializer.Serialize(Package, Options));
+						string jsonPath = factory.MakePath(package, ".json");
+						JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+						factory.CommitOutput(jsonPath, JsonSerializer.Serialize(package, options));
 					}));
 			}
 
 			// Wait for all the packages to complete
-			List<Task> PackageTasks = new List<Task>(this.Session.PackageTypeCount);
-			foreach (Task? Output in GeneratedPackages)
+			List<Task> packageTasks = new List<Task>(this.Session.PackageTypeCount);
+			foreach (Task? output in generatedPackages)
 			{
-				if (Output != null)
+				if (output != null)
 				{
-					PackageTasks.Add(Output);
+					packageTasks.Add(output);
 				}
 			}
-			Task.WaitAll(PackageTasks.ToArray());
+			Task.WaitAll(packageTasks.ToArray());
 		}
 	}
 }

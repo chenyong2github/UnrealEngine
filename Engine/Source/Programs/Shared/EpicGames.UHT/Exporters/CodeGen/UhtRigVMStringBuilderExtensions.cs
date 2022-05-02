@@ -1,116 +1,116 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Types;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using EpicGames.UHT.Types;
 
 namespace EpicGames.UHT.Exporters.CodeGen
 {
 	internal static class UhtRigVMStringBuilderExtensions
 	{
-		public static StringBuilder AppendArgumentsName(this StringBuilder Builder, UhtStruct Struct, UhtRigVMMethodInfo MethodInfo)
+		public static StringBuilder AppendArgumentsName(this StringBuilder builder, UhtStruct structObj, UhtRigVMMethodInfo methodInfo)
 		{
-			return Builder.Append("Arguments_").Append(Struct.SourceName).Append('_').Append(MethodInfo.Name);
+			return builder.Append("Arguments_").Append(structObj.SourceName).Append('_').Append(methodInfo.Name);
 		}
 
-		public static StringBuilder AppendParameterNames(this StringBuilder Builder, IEnumerable<UhtRigVMParameter> Parameters, 
-			bool bLeadingSeparator = false, string Separator = ", ", bool bCastName = false, bool bIncludeEditorOnly = false)
+		public static StringBuilder AppendParameterNames(this StringBuilder builder, IEnumerable<UhtRigVMParameter> parameters,
+			bool leadingSeparator = false, string separator = ", ", bool castName = false, bool includeEditorOnly = false)
 		{
-			bool bEmitSeparator = bLeadingSeparator;
-			foreach (UhtRigVMParameter Parameter in Parameters)
+			bool emitSeparator = leadingSeparator;
+			foreach (UhtRigVMParameter parameter in parameters)
 			{
-				if (bIncludeEditorOnly && !Parameter.bEditorOnly)
+				if (includeEditorOnly && !parameter.EditorOnly)
 				{
 					continue;
 				}
-				if (bEmitSeparator)
+				if (emitSeparator)
 				{
-					Builder.Append(Separator);
+					builder.Append(separator);
 				}
-				bEmitSeparator = true;
-				Builder.Append(Parameter.NameOriginal(bCastName));
+				emitSeparator = true;
+				builder.Append(parameter.NameOriginal(castName));
 			}
-			return Builder;
+			return builder;
 		}
 
-		public static StringBuilder AppendTypeConstRef(this StringBuilder Builder, UhtRigVMParameter Parameter, bool bCastType = false)
+		public static StringBuilder AppendTypeConstRef(this StringBuilder builder, UhtRigVMParameter parameter, bool castType = false)
 		{
-			Builder.Append("const ");
-			string String = Parameter.TypeOriginal(bCastType);
-			ReadOnlySpan<char> Span = String.AsSpan();
-			if (Span.EndsWith("&"))
+			builder.Append("const ");
+			string paramterType = parameter.TypeOriginal(castType);
+			ReadOnlySpan<char> parameterTypeSpan = paramterType.AsSpan();
+			if (parameterTypeSpan.EndsWith("&"))
 			{
-				Span = Span.Slice(0, Span.Length - 1);
+				parameterTypeSpan = parameterTypeSpan.Slice(0, parameterTypeSpan.Length - 1);
 			}
-			Builder.Append(Span);
-			if (Span.Length > 0 && (Span[0] == 'T' || Span[0] == 'F'))
+			builder.Append(parameterTypeSpan);
+			if (parameterTypeSpan.Length > 0 && (parameterTypeSpan[0] == 'T' || parameterTypeSpan[0] == 'F'))
 			{
-				Builder.Append('&');
+				builder.Append('&');
 			}
-			return Builder;
+			return builder;
 		}
 
-		public static StringBuilder AppendTypeRef(this StringBuilder Builder, UhtRigVMParameter Parameter, bool bCastType = false)
+		public static StringBuilder AppendTypeRef(this StringBuilder builder, UhtRigVMParameter parameter, bool castType = false)
 		{
-			string String = Parameter.TypeOriginal(bCastType);
-			ReadOnlySpan<char> Span = String.AsSpan();
-			if (Span.EndsWith("&"))
+			string paramterType = parameter.TypeOriginal(castType);
+			ReadOnlySpan<char> parameterTypeSpan = paramterType.AsSpan();
+			if (parameterTypeSpan.EndsWith("&"))
 			{
-				Builder.Append(Span);
+				builder.Append(parameterTypeSpan);
 			}
 			else
 			{
-				Builder.Append(Span).Append('&');
+				builder.Append(parameterTypeSpan).Append('&');
 			}
-			return Builder;
+			return builder;
 		}
 
-		public static StringBuilder AppendTypeNoRef(this StringBuilder Builder, UhtRigVMParameter Parameter, bool bCastType = false)
+		public static StringBuilder AppendTypeNoRef(this StringBuilder builder, UhtRigVMParameter parameter, bool castType = false)
 		{
-			string String = Parameter.TypeOriginal(bCastType);
-			ReadOnlySpan<char> Span = String.AsSpan();
-			if (Span.EndsWith("&"))
+			string paramterType = parameter.TypeOriginal(castType);
+			ReadOnlySpan<char> parameterTypeSpan = paramterType.AsSpan();
+			if (parameterTypeSpan.EndsWith("&"))
 			{
-				Span = Span.Slice(0, Span.Length - 1);
+				parameterTypeSpan = parameterTypeSpan.Slice(0, parameterTypeSpan.Length - 1);
 			}
-			return Builder.Append(Span);
+			return builder.Append(parameterTypeSpan);
 		}
 
-		public static StringBuilder AppendTypeVariableRef(this StringBuilder Builder, UhtRigVMParameter Parameter, bool bCastType = false)
+		public static StringBuilder AppendTypeVariableRef(this StringBuilder builder, UhtRigVMParameter parameter, bool castType = false)
 		{
-			if (Parameter.IsConst())
+			if (parameter.IsConst())
 			{
-				Builder.AppendTypeConstRef(Parameter, bCastType);
+				builder.AppendTypeConstRef(parameter, castType);
 			}
 			else
 			{
-				Builder.AppendTypeRef(Parameter, bCastType);
+				builder.AppendTypeRef(parameter, castType);
 			}
-			return Builder;
+			return builder;
 		}
 
-		public static StringBuilder AppendParameterDecls(this StringBuilder Builder, IEnumerable<UhtRigVMParameter> Parameters, 
-			bool bLeadingSeparator = false, string Separator = ", ", bool bCastType = false, bool bCastName = false, bool bIncludeEditorOnly = false)
+		public static StringBuilder AppendParameterDecls(this StringBuilder builder, IEnumerable<UhtRigVMParameter> parameters,
+			bool leadingSeparator = false, string separator = ", ", bool castType = false, bool castName = false, bool includeEditorOnly = false)
 		{
-			bool bEmitSeparator = bLeadingSeparator;
-			foreach (UhtRigVMParameter Parameter in Parameters)
+			bool emitSeparator = leadingSeparator;
+			foreach (UhtRigVMParameter parameter in parameters)
 			{
-				if (bIncludeEditorOnly && !Parameter.bEditorOnly)
+				if (includeEditorOnly && !parameter.EditorOnly)
 				{
 					continue;
 				}
-				if (bEmitSeparator)
+				if (emitSeparator)
 				{
-					Builder.Append(Separator);
+					builder.Append(separator);
 				}
-				bEmitSeparator = true;
-				Builder
-					.AppendTypeVariableRef(Parameter, bCastType)
+				emitSeparator = true;
+				builder
+					.AppendTypeVariableRef(parameter, castType)
 					.Append(' ')
-					.Append(bCastName ? Parameter.CastName : Parameter.Name);
+					.Append(castName ? parameter.CastName : parameter.Name);
 			}
-			return Builder;
+			return builder;
 		}
 	}
 }

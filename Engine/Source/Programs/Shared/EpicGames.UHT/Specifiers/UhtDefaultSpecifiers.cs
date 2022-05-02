@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -17,28 +17,28 @@ namespace EpicGames.UHT.Parsers
 	[UnrealHeaderTool]
 	public static class UhtDefaultSpecifiers
 	{
-		private static void SetMetaData(UhtSpecifierContext SpecifierContext, StringView Key, StringView Value)
+		private static void SetMetaData(UhtSpecifierContext specifierContext, StringView key, StringView value)
 		{
-			if (Key.Length == 0)
+			if (key.Length == 0)
 			{
-				SpecifierContext.MessageSite.LogError("Invalid metadata, name can not be blank");
+				specifierContext.MessageSite.LogError("Invalid metadata, name can not be blank");
 				return;
 			}
 
 			// Trim the leading and ending whitespace
-			ReadOnlySpan<char> Span = Value.Span;
-			int Start = 0;
-			int End = Value.Length;
-			for (; Start < End; ++Start)
+			ReadOnlySpan<char> span = value.Span;
+			int start = 0;
+			int end = value.Length;
+			for (; start < end; ++start)
 			{
-				if (!UhtFCString.IsWhitespace(Span[Start]))
+				if (!UhtFCString.IsWhitespace(span[start]))
 				{
 					break;
 				}
 			}
-			for (; Start < End; --End)
+			for (; start < end; --end)
 			{
-				if (!UhtFCString.IsWhitespace(Span[End - 1]))
+				if (!UhtFCString.IsWhitespace(span[end - 1]))
 				{
 					break;
 				}
@@ -47,167 +47,151 @@ namespace EpicGames.UHT.Parsers
 			// Trim any quotes 
 			//COMPATIBILITY-TODO - This doesn't handle strings that end in an escaped ".  This is a bug in old UHT.
 			// Only remove quotes if we have quotes at both ends and the last isn't escaped.
-			if (Start < End && Span[Start] == '"')
+			if (start < end && span[start] == '"')
 			{
-				++Start;
+				++start;
 			}
-			if (Start < End && Span[End - 1] == '"')
+			if (start < end && span[end - 1] == '"')
 			{
-				--End;
+				--end;
 			}
 
 			// Get the trimmed string
-			Value = new StringView(Value, Start, End - Start);
+			value = new StringView(value, start, end - start);
 
 			// Make sure this isn't a duplicate assignment
-			string KeyAsString = Key.ToString();
-			if (SpecifierContext.MetaData.TryGetValue(KeyAsString, out string? ExistingValue))
+			string keyAsString = key.ToString();
+			if (specifierContext.MetaData.TryGetValue(keyAsString, out string? existingValue))
 			{
-				if (StringViewComparer.OrdinalIgnoreCase.Compare(ExistingValue, Value) != 0)
+				if (StringViewComparer.OrdinalIgnoreCase.Compare(existingValue, value) != 0)
 				{
-					SpecifierContext.MessageSite.LogError($"Metadata key '{Key}' first seen with value '{ExistingValue}' then '{Value}'");
+					specifierContext.MessageSite.LogError($"Metadata key '{key}' first seen with value '{existingValue}' then '{value}'");
 				}
 			}
 			else
 			{
-				SpecifierContext.MetaData.Add(KeyAsString, SpecifierContext.MetaNameIndex, Value.ToString());
+				specifierContext.MetaData.Add(keyAsString, specifierContext.MetaNameIndex, value.ToString());
 			}
 		}
 
-		private static void SetMetaData(UhtSpecifierContext SpecifierContext, StringView Key, bool Value)
+		private static void SetMetaData(UhtSpecifierContext specifierContext, StringView key, bool value)
 		{
-			SetMetaData(SpecifierContext, Key, Value ? "true" : "false");
+			SetMetaData(specifierContext, key, value ? "true" : "false");
 		}
 
 		#region Specifiers
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.KeyValuePairList, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void MetaSpecifier(UhtSpecifierContext SpecifierContext, List<KeyValuePair<StringView, StringView>> Value)
+		private static void MetaSpecifier(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> value)
 		{
-			foreach (KeyValuePair<StringView, StringView> KVP in (List<KeyValuePair<StringView, StringView>>)Value)
+			foreach (KeyValuePair<StringView, StringView> kvp in (List<KeyValuePair<StringView, StringView>>)value)
 			{
-				SetMetaData(SpecifierContext, KVP.Key, KVP.Value);
+				SetMetaData(specifierContext, kvp.Key, kvp.Value);
 			}
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.String, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void DisplayNameSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void DisplayNameSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			SetMetaData(SpecifierContext, "DisplayName", Value);
+			SetMetaData(specifierContext, "DisplayName", value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.String, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void FriendlyNameSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void FriendlyNameSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			SetMetaData(SpecifierContext, "FriendlyName", Value);
+			SetMetaData(specifierContext, "FriendlyName", value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintInternalUseOnlySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintInternalUseOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
-			SetMetaData(SpecifierContext, "BlueprintInternalUseOnly", true);
-			SetMetaData(SpecifierContext, "BlueprintType", true);
+			SetMetaData(specifierContext, "BlueprintInternalUseOnly", true);
+			SetMetaData(specifierContext, "BlueprintType", true);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintInternalUseOnlyHierarchicalSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintInternalUseOnlyHierarchicalSpecifier(UhtSpecifierContext specifierContext)
 		{
-			SetMetaData(SpecifierContext, "BlueprintInternalUseOnlyHierarchical", true);
-			SetMetaData(SpecifierContext, "BlueprintInternalUseOnly", true);
-			SetMetaData(SpecifierContext, "BlueprintType", true);
+			SetMetaData(specifierContext, "BlueprintInternalUseOnlyHierarchical", true);
+			SetMetaData(specifierContext, "BlueprintInternalUseOnly", true);
+			SetMetaData(specifierContext, "BlueprintType", true);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintTypeSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintTypeSpecifier(UhtSpecifierContext specifierContext)
 		{
-			SetMetaData(SpecifierContext, "BlueprintType", true);
+			SetMetaData(specifierContext, "BlueprintType", true);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void NotBlueprintTypeSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NotBlueprintTypeSpecifier(UhtSpecifierContext specifierContext)
 		{
-			SetMetaData(SpecifierContext, "NotBlueprintType", true);
-			SpecifierContext.MetaData.Remove("BlueprintType", SpecifierContext.MetaNameIndex);
+			SetMetaData(specifierContext, "NotBlueprintType", true);
+			specifierContext.MetaData.Remove("BlueprintType", specifierContext.MetaNameIndex);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void BlueprintableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			SetMetaData(SpecifierContext, "IsBlueprintBase", true);
-			SetMetaData(SpecifierContext, "BlueprintType", true);
+			SetMetaData(specifierContext, "IsBlueprintBase", true);
+			SetMetaData(specifierContext, "BlueprintType", true);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void CallInEditorSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void CallInEditorSpecifier(UhtSpecifierContext specifierContext)
 		{
-			SetMetaData(SpecifierContext, "CallInEditor", true);
+			SetMetaData(specifierContext, "CallInEditor", true);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void NotBlueprintableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NotBlueprintableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			SetMetaData(SpecifierContext, "IsBlueprintBase", false);
-			SpecifierContext.MetaData.Remove("BlueprintType", SpecifierContext.MetaNameIndex);
+			SetMetaData(specifierContext, "IsBlueprintBase", false);
+			specifierContext.MetaData.Remove("BlueprintType", specifierContext.MetaNameIndex);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.String, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void CategorySpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void CategorySpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			SetMetaData(SpecifierContext, "Category", Value);
+			SetMetaData(specifierContext, "Category", value);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void ExperimentalSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ExperimentalSpecifier(UhtSpecifierContext specifierContext)
 		{
-			SetMetaData(SpecifierContext, "DevelopmentStatus", "Experimental");
+			SetMetaData(specifierContext, "DevelopmentStatus", "Experimental");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void EarlyAccessPreviewSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void EarlyAccessPreviewSpecifier(UhtSpecifierContext specifierContext)
 		{
-			SetMetaData(SpecifierContext, "DevelopmentStatus", "EarlyAccess");
+			SetMetaData(specifierContext, "DevelopmentStatus", "EarlyAccess");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.None, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void DocumentationPolicySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void DocumentationPolicySpecifier(UhtSpecifierContext specifierContext)
 		{
-			SetMetaData(SpecifierContext, UhtNames.DocumentationPolicy, "Strict");
+			SetMetaData(specifierContext, UhtNames.DocumentationPolicy, "Strict");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Default, ValueType = UhtSpecifierValueType.String, When = UhtSpecifierWhen.Immediate)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void SparseClassDataTypeSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void SparseClassDataTypeSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			SetMetaData(SpecifierContext, "SparseClassDataType", Value);
+			SetMetaData(specifierContext, "SparseClassDataType", value);
 		}
 		#endregion
 
@@ -218,59 +202,58 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifierValidator(Name = "ClampMax", Extends = UhtTableNames.Default)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void ValidateNumeric(UhtType Type, UhtMetaData MetaData, UhtMetaDataKey Key, StringView Value)
+		private static void ValidateNumeric(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
-			if (!UhtFCString.IsNumeric(Value.Span))
+			if (!UhtFCString.IsNumeric(value.Span))
 			{
-				Type.LogError($"Metadata value for '{Key}' is non-numeric : '{Value}'");
+				type.LogError($"Metadata value for '{key}' is non-numeric : '{value}'");
 			}
 		}
 
 		[UhtSpecifierValidator(Extends = UhtTableNames.Default)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void DevelopmentStatusSpecifierValidator(UhtType Type, UhtMetaData MetaData, UhtMetaDataKey Key, StringView Value)
+		private static void DevelopmentStatusSpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
-			string[] AllowedValues = { "EarlyAccess", "Experimental" };
-			foreach (string AllowedValue in AllowedValues)
+			string[] allowedValues = { "EarlyAccess", "Experimental" };
+			foreach (string allowedValue in allowedValues)
 			{
-				if (Value.Equals(AllowedValue, StringComparison.OrdinalIgnoreCase))
+				if (value.Equals(allowedValue, StringComparison.OrdinalIgnoreCase))
 				{
 					return;
 				}
 			}
-			Type.LogError($"'{Key.Name}' metadata was '{Value}' but it must be {UhtUtilities.MergeTypeNames(AllowedValues, "or", false)}");
+			type.LogError($"'{key.Name}' metadata was '{value}' but it must be {UhtUtilities.MergeTypeNames(allowedValues, "or", false)}");
 		}
 
 		[UhtSpecifierValidator(Extends = UhtTableNames.Default)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void DocumentationPolicySpecifierValidator(UhtType Type, UhtMetaData MetaData, UhtMetaDataKey Key, StringView Value)
+		private static void DocumentationPolicySpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
 			const string StrictValue = "Strict";
-			if (!Value.Span.Equals(StrictValue, StringComparison.OrdinalIgnoreCase))
+			if (!value.Span.Equals(StrictValue, StringComparison.OrdinalIgnoreCase))
 			{
-				Type.LogError(MetaData.LineNumber, $"'{Key}' metadata was '{Value}' but it must be '{StrictValue}'");
+				type.LogError(metaData.LineNumber, $"'{key}' metadata was '{value}' but it must be '{StrictValue}'");
 			}
 		}
 
 		[UhtSpecifierValidator(Extends = UhtTableNames.Default)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
 		[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "Attribute accessed method")]
-		private static void UnitsSpecifierValidator(UhtType Type, UhtMetaData MetaData, UhtMetaDataKey Key, StringView Value)
+		private static void UnitsSpecifierValidator(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value)
 		{
 			// Check for numeric property
-			if (Type is UhtProperty)
+			if (type is UhtProperty)
 			{
-				if (!(Type is UhtNumericProperty) && !(Type is UhtStructProperty))
+				if (type is not UhtNumericProperty && type is not UhtStructProperty)
 				{
-					Type.LogError("'Units' meta data can only be applied to numeric and struct properties");
+					type.LogError("'Units' meta data can only be applied to numeric and struct properties");
 				}
 			}
 
-			if (!Type.Session.Config!.IsValidUnits(Value))
+			if (!type.Session.Config!.IsValidUnits(value))
 			{
-				Type.LogError($"Unrecognized units '{Value}' specified for '{Type.FullName}'");
+				type.LogError($"Unrecognized units '{value}' specified for '{type.FullName}'");
 			}
 		}
 		#endregion

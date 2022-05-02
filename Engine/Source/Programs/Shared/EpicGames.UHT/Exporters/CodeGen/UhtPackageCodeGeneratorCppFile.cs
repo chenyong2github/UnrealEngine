@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Types;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using EpicGames.Core;
+using EpicGames.UHT.Types;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Exporters.CodeGen
 {
@@ -14,137 +14,137 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <summary>
 		/// Construct an instance of this generator object
 		/// </summary>
-		/// <param name="CodeGenerator">The base code generator</param>
-		/// <param name="Package">Package being generated</param>
-		public UhtPackageCodeGeneratorCppFile(UhtCodeGenerator CodeGenerator, UhtPackage Package)
-			: base(CodeGenerator, Package)
+		/// <param name="codeGenerator">The base code generator</param>
+		/// <param name="package">Package being generated</param>
+		public UhtPackageCodeGeneratorCppFile(UhtCodeGenerator codeGenerator, UhtPackage package)
+			: base(codeGenerator, package)
 		{
 		}
 
 		/// <summary>
 		/// For a given UE header file, generated the generated cpp file
 		/// </summary>
-		/// <param name="Factory">Requesting factory</param>
-		/// <param name="PackageSortedHeaders">Sorted list of headers by name of all headers in the package</param>
-		public void Generate(IUhtExportFactory Factory, List<UhtHeaderFile> PackageSortedHeaders)
+		/// <param name="factory">Requesting factory</param>
+		/// <param name="packageSortedHeaders">Sorted list of headers by name of all headers in the package</param>
+		public void Generate(IUhtExportFactory factory, List<UhtHeaderFile> packageSortedHeaders)
 		{
-			using (BorrowStringBuilder Borrower = new BorrowStringBuilder(StringBuilderCache.Big))
+			using (BorrowStringBuilder borrower = new BorrowStringBuilder(StringBuilderCache.Big))
 			{
-				StringBuilder Builder = Borrower.StringBuilder;
 				const string MetaDataParamsName = "Package_MetaDataParams";
+				StringBuilder builder = borrower.StringBuilder;
 
 				// Collect information from all of the headers
-				List<UhtField> Singletons = new List<UhtField>();
-				StringBuilder Declarations = new StringBuilder();
-				uint BodiesHash = 0;
-				foreach (UhtHeaderFile HeaderFile in PackageSortedHeaders)
+				List<UhtField> singletons = new List<UhtField>();
+				StringBuilder declarations = new StringBuilder();
+				uint bodiesHash = 0;
+				foreach (UhtHeaderFile headerFile in packageSortedHeaders)
 				{
-					ref UhtCodeGenerator.HeaderInfo HeaderInfo = ref this.HeaderInfos[HeaderFile.HeaderFileTypeIndex];
-					ReadOnlyMemory<string> Sorted = HeaderFile.References.Declaration.GetSortedReferences(
-						(int ObjectIndex, bool bRegistered) => GetExternalDecl(ObjectIndex, bRegistered));
-					foreach (string Declaration in Sorted.Span)
+					ref UhtCodeGenerator.HeaderInfo headerInfo = ref this.HeaderInfos[headerFile.HeaderFileTypeIndex];
+					ReadOnlyMemory<string> sorted = headerFile.References.Declaration.GetSortedReferences(
+						(int objectIndex, bool registered) => GetExternalDecl(objectIndex, registered));
+					foreach (string declaration in sorted.Span)
 					{
-						Declarations.Append(Declaration);
+						declarations.Append(declaration);
 					}
 
-					Singletons.AddRange(HeaderFile.References.Singletons);
+					singletons.AddRange(headerFile.References.Singletons);
 
-					uint BodyHash = this.HeaderInfos[HeaderFile.HeaderFileTypeIndex].BodyHash;
-					if (BodiesHash == 0)
+					uint bodyHash = this.HeaderInfos[headerFile.HeaderFileTypeIndex]._bodyHash;
+					if (bodiesHash == 0)
 					{
 						// Don't combine in the first case because it keeps GUID backwards compatibility
-						BodiesHash = BodyHash;
+						bodiesHash = bodyHash;
 					}
 					else
 					{
-						BodiesHash = HashCombine(BodyHash, BodiesHash);
+						bodiesHash = HashCombine(bodyHash, bodiesHash);
 					}
 				}
 
 				// No need to generate output if we have no declarations
-				if (Declarations.Length == 0)
+				if (declarations.Length == 0)
 				{
 					return;
 				}
-				uint DeclarationsHash = UhtHash.GenenerateTextHash(Declarations.ToString());
+				uint declarationsHash = UhtHash.GenenerateTextHash(declarations.ToString());
 
-				string StrippedName = this.PackageInfos[this.Package.PackageTypeIndex].StrippedName;
-				string SingletonName = this.PackageSingletonName;
-				Singletons.Sort((UhtField Lhs, UhtField Rhs) =>
+				string strippedName = this.PackageInfos[this.Package.PackageTypeIndex]._strippedName;
+				string singletonName = this.PackageSingletonName;
+				singletons.Sort((UhtField lhs, UhtField rhs) =>
 				{
-					bool bLhsIsDel = IsDelegateFunction(Lhs);
-					bool bRhsIsDel = IsDelegateFunction(Rhs);
-					if (bLhsIsDel != bRhsIsDel)
+					bool lhsIsDel = IsDelegateFunction(lhs);
+					bool rhsIsDel = IsDelegateFunction(rhs);
+					if (lhsIsDel != rhsIsDel)
 					{
-						return !bLhsIsDel ? -1 : 1;
+						return !lhsIsDel ? -1 : 1;
 					}
 					return StringComparerUE.OrdinalIgnoreCase.Compare(
-						this.ObjectInfos[Lhs.ObjectTypeIndex].RegisteredSingletonName,
-						this.ObjectInfos[Rhs.ObjectTypeIndex].RegisteredSingletonName);
+						this.ObjectInfos[lhs.ObjectTypeIndex]._registeredSingletonName,
+						this.ObjectInfos[rhs.ObjectTypeIndex]._registeredSingletonName);
 				});
 
-				Builder.Append(HeaderCopyright);
-				Builder.Append(RequiredCPPIncludes);
-				Builder.Append(DisableDeprecationWarnings).Append("\r\n");
-				Builder.Append("void EmptyLinkFunctionForGeneratedCode").Append(this.Package.ShortName).Append("_init() {}\r\n");
+				builder.Append(HeaderCopyright);
+				builder.Append(RequiredCPPIncludes);
+				builder.Append(DisableDeprecationWarnings).Append("\r\n");
+				builder.Append("void EmptyLinkFunctionForGeneratedCode").Append(this.Package.ShortName).Append("_init() {}\r\n");
 
-				if (this.Session.bIncludeDebugOutput)
+				if (this.Session.IncludeDebugOutput)
 				{
-					Builder.Append("#if 0\r\n");
-					Builder.Append(Declarations);
-					Builder.Append("#endif\r\n");
+					builder.Append("#if 0\r\n");
+					builder.Append(declarations);
+					builder.Append("#endif\r\n");
 				}
 
-				foreach (UhtObject Object in Singletons)
+				foreach (UhtObject obj in singletons)
 				{
-					ref UhtCodeGenerator.ObjectInfo Info = ref this.ObjectInfos[Object.ObjectTypeIndex];
-					Builder.Append(Info.RegsiteredExternalDecl);
+					ref UhtCodeGenerator.ObjectInfo info = ref this.ObjectInfos[obj.ObjectTypeIndex];
+					builder.Append(info._regsiteredExternalDecl);
 				}
 
-				Builder.AppendMetaDataDef(this.Package, null, MetaDataParamsName, 3);
+				builder.AppendMetaDataDef(this.Package, null, MetaDataParamsName, 3);
 
-				Builder.Append("\tstatic FPackageRegistrationInfo Z_Registration_Info_UPackage_").Append(StrippedName).Append(";\r\n");
-				Builder.Append("\tFORCENOINLINE UPackage* ").Append(SingletonName).Append("()\r\n");
-				Builder.Append("\t{\r\n");
-				Builder.Append("\t\tif (!Z_Registration_Info_UPackage_").Append(StrippedName).Append(".OuterSingleton)\r\n");
-				Builder.Append("\t\t{\r\n");
+				builder.Append("\tstatic FPackageRegistrationInfo Z_Registration_Info_UPackage_").Append(strippedName).Append(";\r\n");
+				builder.Append("\tFORCENOINLINE UPackage* ").Append(singletonName).Append("()\r\n");
+				builder.Append("\t{\r\n");
+				builder.Append("\t\tif (!Z_Registration_Info_UPackage_").Append(strippedName).Append(".OuterSingleton)\r\n");
+				builder.Append("\t\t{\r\n");
 
-				if (Singletons.Count != 0)
+				if (singletons.Count != 0)
 				{
-					Builder.Append("\t\t\tstatic UObject* (*const SingletonFuncArray[])() = {\r\n");
-					foreach (UhtField Field in Singletons)
+					builder.Append("\t\t\tstatic UObject* (*const SingletonFuncArray[])() = {\r\n");
+					foreach (UhtField field in singletons)
 					{
-						Builder.Append("\t\t\t\t(UObject* (*)())").Append(this.ObjectInfos[Field.ObjectTypeIndex].RegisteredSingletonName).Append(",\r\n");
+						builder.Append("\t\t\t\t(UObject* (*)())").Append(this.ObjectInfos[field.ObjectTypeIndex]._registeredSingletonName).Append(",\r\n");
 					}
-					Builder.Append("\t\t\t};\r\n");
+					builder.Append("\t\t\t};\r\n");
 				}
 
-				EPackageFlags Flags = this.Package.PackageFlags & (EPackageFlags.ClientOptional | EPackageFlags.ServerSideOnly | EPackageFlags.EditorOnly | EPackageFlags.Developer | EPackageFlags.UncookedOnly);
-				Builder.Append("\t\t\tstatic const UECodeGen_Private::FPackageParams PackageParams = {\r\n");
-				Builder.Append("\t\t\t\t").AppendUTF8LiteralString(this.Package.SourceName).Append(",\r\n");
-				Builder.Append("\t\t\t\t").Append(Singletons.Count != 0 ? "SingletonFuncArray" : "nullptr").Append(",\r\n");
-				Builder.Append("\t\t\t\t").Append(Singletons.Count != 0 ? "UE_ARRAY_COUNT(SingletonFuncArray)" : "0").Append(",\r\n");
-				Builder.Append("\t\t\t\tPKG_CompiledIn | ").Append($"0x{(uint)Flags:X8}").Append(",\r\n");
-				Builder.Append("\t\t\t\t").Append($"0x{BodiesHash:X8}").Append(",\r\n");
-				Builder.Append("\t\t\t\t").Append($"0x{DeclarationsHash:X8}").Append(",\r\n");
-				Builder.Append("\t\t\t\t").AppendMetaDataParams(this.Package, null, MetaDataParamsName).Append("\r\n");
-				Builder.Append("\t\t\t};\r\n");
-				Builder.Append("\t\t\tUECodeGen_Private::ConstructUPackage(Z_Registration_Info_UPackage_").Append(StrippedName).Append(".OuterSingleton, PackageParams);\r\n");
-				Builder.Append("\t\t}\r\n");
-				Builder.Append("\t\treturn Z_Registration_Info_UPackage_").Append(StrippedName).Append(".OuterSingleton;\r\n");
-				Builder.Append("\t}\r\n");
+				EPackageFlags flags = this.Package.PackageFlags & (EPackageFlags.ClientOptional | EPackageFlags.ServerSideOnly | EPackageFlags.EditorOnly | EPackageFlags.Developer | EPackageFlags.UncookedOnly);
+				builder.Append("\t\t\tstatic const UECodeGen_Private::FPackageParams PackageParams = {\r\n");
+				builder.Append("\t\t\t\t").AppendUTF8LiteralString(this.Package.SourceName).Append(",\r\n");
+				builder.Append("\t\t\t\t").Append(singletons.Count != 0 ? "SingletonFuncArray" : "nullptr").Append(",\r\n");
+				builder.Append("\t\t\t\t").Append(singletons.Count != 0 ? "UE_ARRAY_COUNT(SingletonFuncArray)" : "0").Append(",\r\n");
+				builder.Append("\t\t\t\tPKG_CompiledIn | ").Append($"0x{(uint)flags:X8}").Append(",\r\n");
+				builder.Append("\t\t\t\t").Append($"0x{bodiesHash:X8}").Append(",\r\n");
+				builder.Append("\t\t\t\t").Append($"0x{declarationsHash:X8}").Append(",\r\n");
+				builder.Append("\t\t\t\t").AppendMetaDataParams(this.Package, null, MetaDataParamsName).Append("\r\n");
+				builder.Append("\t\t\t};\r\n");
+				builder.Append("\t\t\tUECodeGen_Private::ConstructUPackage(Z_Registration_Info_UPackage_").Append(strippedName).Append(".OuterSingleton, PackageParams);\r\n");
+				builder.Append("\t\t}\r\n");
+				builder.Append("\t\treturn Z_Registration_Info_UPackage_").Append(strippedName).Append(".OuterSingleton;\r\n");
+				builder.Append("\t}\r\n");
 
 				// Do not change the Z_CompiledInDeferPackage_UPackage_ without changing LC_SymbolPatterns
-				Builder.Append("\tstatic FRegisterCompiledInInfo Z_CompiledInDeferPackage_UPackage_").Append(StrippedName).Append('(').Append(SingletonName)
-					.Append(", TEXT(\"").Append(this.Package.SourceName).Append("\"), Z_Registration_Info_UPackage_").Append(StrippedName).Append(", CONSTRUCT_RELOAD_VERSION_INFO(FPackageReloadVersionInfo, ")
-					.Append($"0x{BodiesHash:X8}, 0x{DeclarationsHash:X8}").Append("));\r\n");
+				builder.Append("\tstatic FRegisterCompiledInInfo Z_CompiledInDeferPackage_UPackage_").Append(strippedName).Append('(').Append(singletonName)
+					.Append(", TEXT(\"").Append(this.Package.SourceName).Append("\"), Z_Registration_Info_UPackage_").Append(strippedName).Append(", CONSTRUCT_RELOAD_VERSION_INFO(FPackageReloadVersionInfo, ")
+					.Append($"0x{bodiesHash:X8}, 0x{declarationsHash:X8}").Append("));\r\n");
 
-				Builder.Append(EnableDeprecationWarnings).Append("\r\n");
+				builder.Append(EnableDeprecationWarnings).Append("\r\n");
 
 				if (this.SaveExportedHeaders)
 				{
-					string CppFilePath = Factory.MakePath(this.Package, ".init.gen.cpp");
-					Factory.CommitOutput(CppFilePath, Builder);
+					string cppFilePath = factory.MakePath(this.Package, ".init.gen.cpp");
+					factory.CommitOutput(cppFilePath, builder);
 				}
 			}
 		}

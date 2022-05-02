@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Tables
 {
@@ -12,8 +12,8 @@ namespace EpicGames.UHT.Tables
 	/// <summary>
 	/// Delegate to invoke to run exporter
 	/// </summary>
-	/// <param name="Factory">Factory used to generate export tasks and outputs</param>
-	public delegate void UhtExporterDelegate(IUhtExportFactory Factory);
+	/// <param name="factory">Factory used to generate export tasks and outputs</param>
+	public delegate void UhtExporterDelegate(IUhtExportFactory factory);
 
 	/// <summary>
 	/// Export options
@@ -43,35 +43,35 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Test to see if any of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if any of the flags are set</returns>
-		public static bool HasAnyFlags(this UhtExporterOptions InFlags, UhtExporterOptions TestFlags)
+		public static bool HasAnyFlags(this UhtExporterOptions inFlags, UhtExporterOptions testFlags)
 		{
-			return (InFlags & TestFlags) != 0;
+			return (inFlags & testFlags) != 0;
 		}
 
 		/// <summary>
 		/// Test to see if all of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if all the flags are set</returns>
-		public static bool HasAllFlags(this UhtExporterOptions InFlags, UhtExporterOptions TestFlags)
+		public static bool HasAllFlags(this UhtExporterOptions inFlags, UhtExporterOptions testFlags)
 		{
-			return (InFlags & TestFlags) == TestFlags;
+			return (inFlags & testFlags) == testFlags;
 		}
 
 		/// <summary>
 		/// Test to see if a specific set of flags have a specific value.
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
-		/// <param name="MatchFlags">Expected value of the tested flags</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
+		/// <param name="matchFlags">Expected value of the tested flags</param>
 		/// <returns>True if the given flags have a specific value.</returns>
-		public static bool HasExactFlags(this UhtExporterOptions InFlags, UhtExporterOptions TestFlags, UhtExporterOptions MatchFlags)
+		public static bool HasExactFlags(this UhtExporterOptions inFlags, UhtExporterOptions testFlags, UhtExporterOptions matchFlags)
 		{
-			return (InFlags & TestFlags) == MatchFlags;
+			return (inFlags & testFlags) == matchFlags;
 		}
 	}
 
@@ -85,17 +85,17 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Name of the exporter
 		/// </summary>
-		public string Name { get; set; } = string.Empty;
+		public string Name { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Description of the export.  Used to display help
 		/// </summary>
-		public string Description { get; set; } = string.Empty;
+		public string Description { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Exporters in plugins need to specify a module name
 		/// </summary>
-		public string ModuleName { get; set; } = string.Empty;
+		public string ModuleName { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Exporter options
@@ -167,18 +167,18 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Construct an exporter table instance
 		/// </summary>
-		/// <param name="Attribute">Source attribute</param>
-		/// <param name="Delegate">Delegate to invoke</param>
-		public UhtExporter(UhtExporterAttribute Attribute, UhtExporterDelegate Delegate)
+		/// <param name="attribute">Source attribute</param>
+		/// <param name="exporterDelegate">Delegate to invoke</param>
+		public UhtExporter(UhtExporterAttribute attribute, UhtExporterDelegate exporterDelegate)
 		{
-			this.Name = Attribute.Name;
-			this.Description = Attribute.Description;
-			this.ModuleName = Attribute.ModuleName;
-			this.Options = Attribute.Options;
-			this.Delegate = Delegate;
-			this.CppFilters = Attribute.CppFilters != null ? new List<string>(Attribute.CppFilters) : new List<string>();
-			this.HeaderFilters = Attribute.HeaderFilters != null ? new List<string>(Attribute.HeaderFilters) : new List<string>();
-			this.OtherFilters = Attribute.OtherFilters != null ? new List<string>(Attribute.OtherFilters) : new List<string>();
+			this.Name = attribute.Name;
+			this.Description = attribute.Description;
+			this.ModuleName = attribute.ModuleName;
+			this.Options = attribute.Options;
+			this.Delegate = exporterDelegate;
+			this.CppFilters = attribute.CppFilters != null ? new List<string>(attribute.CppFilters) : new List<string>();
+			this.HeaderFilters = attribute.HeaderFilters != null ? new List<string>(attribute.HeaderFilters) : new List<string>();
+			this.OtherFilters = attribute.OtherFilters != null ? new List<string>(attribute.OtherFilters) : new List<string>();
 		}
 	}
 
@@ -188,43 +188,43 @@ namespace EpicGames.UHT.Tables
 	public class UhtExporterTable : IEnumerable<UhtExporter>
 	{
 
-		private readonly Dictionary<string, UhtExporter> ExporterValues = new Dictionary<string, UhtExporter>(StringComparer.OrdinalIgnoreCase);
+		private readonly Dictionary<string, UhtExporter> _exporterValues = new Dictionary<string, UhtExporter>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Return the exporter associated with the given name
 		/// </summary>
-		/// <param name="Name"></param>
-		/// <param name="Value">Exporter associated with the name</param>
+		/// <param name="name"></param>
+		/// <param name="value">Exporter associated with the name</param>
 		/// <returns></returns>
-		public bool TryGet(string Name, out UhtExporter Value)
+		public bool TryGet(string name, out UhtExporter value)
 		{
-			return this.ExporterValues.TryGetValue(Name, out Value);
+			return this._exporterValues.TryGetValue(name, out value);
 		}
 
 		/// <summary>
 		/// Handle an exporter attribute
 		/// </summary>
-		/// <param name="Type">Containing type</param>
-		/// <param name="MethodInfo">Method info</param>
-		/// <param name="ExporterAttribute">Defining attribute</param>
+		/// <param name="type">Containing type</param>
+		/// <param name="methodInfo">Method info</param>
+		/// <param name="exporterAttribute">Defining attribute</param>
 		/// <exception cref="UhtIceException">Thrown if the attribute doesn't properly define an exporter.</exception>
-		public void OnExporterAttribute(Type Type, MethodInfo MethodInfo, UhtExporterAttribute ExporterAttribute)
+		public void OnExporterAttribute(Type type, MethodInfo methodInfo, UhtExporterAttribute exporterAttribute)
 		{
-			if (string.IsNullOrEmpty(ExporterAttribute.Name))
+			if (String.IsNullOrEmpty(exporterAttribute.Name))
 			{
 				throw new UhtIceException("An exporter must have a name");
 			}
 
-			if (Assembly.GetExecutingAssembly() != Type.Assembly)
+			if (Assembly.GetExecutingAssembly() != type.Assembly)
 			{
-				if (string.IsNullOrEmpty(ExporterAttribute.ModuleName))
+				if (String.IsNullOrEmpty(exporterAttribute.ModuleName))
 				{
 					throw new UhtIceException("An exporter in a UBT plugin must specify a ModuleName");
 				}
 			}
 
-			UhtExporter ExporterValue = new UhtExporter(ExporterAttribute, (UhtExporterDelegate)Delegate.CreateDelegate(typeof(UhtExporterDelegate), MethodInfo));
-			this.ExporterValues.Add(ExporterAttribute.Name, ExporterValue);
+			UhtExporter exporterValue = new UhtExporter(exporterAttribute, (UhtExporterDelegate)Delegate.CreateDelegate(typeof(UhtExporterDelegate), methodInfo));
+			this._exporterValues.Add(exporterAttribute.Name, exporterValue);
 		}
 
 		/// <summary>
@@ -233,9 +233,9 @@ namespace EpicGames.UHT.Tables
 		/// <returns>Enumerator</returns>
 		public IEnumerator<UhtExporter> GetEnumerator()
 		{
-			foreach (KeyValuePair<string, UhtExporter> KVP in this.ExporterValues)
+			foreach (KeyValuePair<string, UhtExporter> kvp in this._exporterValues)
 			{
-				yield return KVP.Value;
+				yield return kvp.Value;
 			}
 		}
 
@@ -245,9 +245,9 @@ namespace EpicGames.UHT.Tables
 		/// <returns>Enumerator</returns>
 		IEnumerator IEnumerable.GetEnumerator()
 		{
-			foreach (KeyValuePair<string, UhtExporter> KVP in this.ExporterValues)
+			foreach (KeyValuePair<string, UhtExporter> kvp in this._exporterValues)
 			{
-				yield return KVP.Value;
+				yield return kvp.Value;
 			}
 		}
 	}

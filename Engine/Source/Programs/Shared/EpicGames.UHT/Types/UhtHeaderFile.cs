@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json.Serialization;
+using EpicGames.Core;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Types
 {
@@ -42,7 +42,7 @@ namespace EpicGames.UHT.Types
 	/// Series of flags not part of the engine's class flags that affect code generation or verification
 	/// </summary>
 	[Flags]
-	public enum UhtHeaderFileExportFlags : Int32
+	public enum UhtHeaderFileExportFlags : int
 	{
 		/// <summary>
 		/// No export flags
@@ -52,7 +52,7 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// This header is being included by another header
 		/// </summary>
-		Referenced = 0x00000001, 
+		Referenced = 0x00000001,
 	}
 
 	/// <summary>
@@ -65,35 +65,35 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Test to see if any of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if any of the flags are set</returns>
-		public static bool HasAnyFlags(this UhtHeaderFileExportFlags InFlags, UhtHeaderFileExportFlags TestFlags)
+		public static bool HasAnyFlags(this UhtHeaderFileExportFlags inFlags, UhtHeaderFileExportFlags testFlags)
 		{
-			return (InFlags & TestFlags) != 0;
+			return (inFlags & testFlags) != 0;
 		}
 
 		/// <summary>
 		/// Test to see if all of the specified flags are set
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
 		/// <returns>True if all the flags are set</returns>
-		public static bool HasAllFlags(this UhtHeaderFileExportFlags InFlags, UhtHeaderFileExportFlags TestFlags)
+		public static bool HasAllFlags(this UhtHeaderFileExportFlags inFlags, UhtHeaderFileExportFlags testFlags)
 		{
-			return (InFlags & TestFlags) == TestFlags;
+			return (inFlags & testFlags) == testFlags;
 		}
 
 		/// <summary>
 		/// Test to see if a specific set of flags have a specific value.
 		/// </summary>
-		/// <param name="InFlags">Current flags</param>
-		/// <param name="TestFlags">Flags to test for</param>
-		/// <param name="MatchFlags">Expected value of the tested flags</param>
+		/// <param name="inFlags">Current flags</param>
+		/// <param name="testFlags">Flags to test for</param>
+		/// <param name="matchFlags">Expected value of the tested flags</param>
 		/// <returns>True if the given flags have a specific value.</returns>
-		public static bool HasExactFlags(this UhtHeaderFileExportFlags InFlags, UhtHeaderFileExportFlags TestFlags, UhtHeaderFileExportFlags MatchFlags)
+		public static bool HasExactFlags(this UhtHeaderFileExportFlags inFlags, UhtHeaderFileExportFlags testFlags, UhtHeaderFileExportFlags matchFlags)
 		{
-			return (InFlags & TestFlags) == MatchFlags;
+			return (inFlags & testFlags) == matchFlags;
 		}
 	}
 
@@ -103,21 +103,21 @@ namespace EpicGames.UHT.Types
 	/// </summary>
 	public class UhtHeaderFile : UhtType
 	{
-		private readonly UhtSimpleMessageSite MessageSite;
-		private readonly UhtSourceFile SourceFile;
-		private readonly List<UhtHeaderFile> ReferencedHeaders = new List<UhtHeaderFile>();
+		private readonly UhtSimpleMessageSite _messageSite;
+		private readonly UhtSourceFile _sourceFile;
+		private readonly List<UhtHeaderFile> _referencedHeaders = new List<UhtHeaderFile>();
 
 		/// <summary>
 		/// Contents of the header
 		/// </summary>
 		[JsonIgnore]
-		public StringView Data { get => this.SourceFile.Data; }
+		public StringView Data => this._sourceFile.Data;
 
 		/// <summary>
 		/// Path of the header
 		/// </summary>
 		[JsonIgnore]
-		public string FilePath { get => this.SourceFile.FilePath; }
+		public string FilePath => this._sourceFile.FilePath;
 
 		/// <summary>
 		/// File name without the extension
@@ -132,17 +132,17 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// True if this header is NoExportTypes.h
 		/// </summary>
-		public bool bIsNoExportTypes { get; }
+		public bool IsNoExportTypes { get; }
 
 		/// <summary>
 		/// The file path of the header relative to the module location
 		/// </summary>
-		public string ModuleRelativeFilePath { get; set; } = string.Empty;
+		public string ModuleRelativeFilePath { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Include file path added as meta data to the types
 		/// </summary>
-		public string IncludeFilePath { get; set; } = string.Empty;
+		public string IncludeFilePath { get; set; } = String.Empty;
 
 		/// <summary>
 		/// Location where the header file was found
@@ -164,7 +164,7 @@ namespace EpicGames.UHT.Types
 		/// If true, the header file should be exported
 		/// </summary>
 		[JsonIgnore]
-		public bool bShouldExport => this.HeaderFileExportFlags.HasAnyFlags(UhtHeaderFileExportFlags.Referenced) || this.Children.Count > 0;
+		public bool ShouldExport => this.HeaderFileExportFlags.HasAnyFlags(UhtHeaderFileExportFlags.Referenced) || this.Children.Count > 0;
 
 		/// <summary>
 		/// Resource collector for the header file
@@ -188,14 +188,14 @@ namespace EpicGames.UHT.Types
 
 		/// <inheritdoc/>
 		[JsonIgnore]
-		public override UhtHeaderFile HeaderFile { get => this; }
+		public override UhtHeaderFile HeaderFile => this;
 
 		/// <inheritdoc/>
 		[JsonIgnore]
 		public override UhtEngineType EngineType => UhtEngineType.Header;
 
 		/// <inheritdoc/>
-		public override string EngineClassName { get => "UhtHeaderFile"; }
+		public override string EngineClassName => "UhtHeaderFile";
 
 		/// <summary>
 		/// Collection of headers directly included by this header
@@ -207,28 +207,28 @@ namespace EpicGames.UHT.Types
 
 		/// <inheritdoc/>
 		[JsonIgnore]
-		public override IUhtMessageSession MessageSession => this.MessageSite.MessageSession;
+		public override IUhtMessageSession MessageSession => this._messageSite.MessageSession;
 
 		/// <inheritdoc/>
 		[JsonIgnore]
-		public override IUhtMessageSource? MessageSource => this.MessageSite.MessageSource;
+		public override IUhtMessageSource? MessageSource => this._messageSite.MessageSource;
 		#endregion
 
 		/// <summary>
 		/// Construct a new header file
 		/// </summary>
-		/// <param name="Package">Owning package</param>
-		/// <param name="Path">Path to the header file</param>
-		public UhtHeaderFile(UhtPackage Package, string Path) : base(Package, 1)
+		/// <param name="package">Owning package</param>
+		/// <param name="path">Path to the header file</param>
+		public UhtHeaderFile(UhtPackage package, string path) : base(package, 1)
 		{
 			this.HeaderFileTypeIndex = this.Session.GetNextHeaderFileTypeIndex();
-			this.MessageSite = new UhtSimpleMessageSite(this.Session);
-			this.SourceFile = new UhtSourceFile(this.Session, Path);
-			this.MessageSite.MessageSource = this.SourceFile;
-			this.FileNameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(this.SourceFile.FilePath);
+			this._messageSite = new UhtSimpleMessageSite(this.Session);
+			this._sourceFile = new UhtSourceFile(this.Session, path);
+			this._messageSite.MessageSource = this._sourceFile;
+			this.FileNameWithoutExtension = System.IO.Path.GetFileNameWithoutExtension(this._sourceFile.FilePath);
 			this.GeneratedHeaderFileName = this.FileNameWithoutExtension + ".generated.h";
-			this.SourceName = System.IO.Path.GetFileName(this.SourceFile.FilePath);
-			this.bIsNoExportTypes = string.Equals(this.SourceFile.FileName, "NoExportTypes", StringComparison.OrdinalIgnoreCase);
+			this.SourceName = System.IO.Path.GetFileName(this._sourceFile.FilePath);
+			this.IsNoExportTypes = String.Equals(this._sourceFile.FileName, "NoExportTypes", StringComparison.OrdinalIgnoreCase);
 		}
 
 		/// <summary>
@@ -236,45 +236,45 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		public void Read()
 		{
-			this.SourceFile.Read();
+			this._sourceFile.Read();
 		}
 
 		/// <summary>
 		/// Add a reference to the given header
 		/// </summary>
-		/// <param name="Id">Path of the header</param>
-		/// <param name="bIsIncludedFile">True if this is a directly included file</param>
-		public void AddReferencedHeader(string Id, bool bIsIncludedFile)
+		/// <param name="id">Path of the header</param>
+		/// <param name="isIncludedFile">True if this is a directly included file</param>
+		public void AddReferencedHeader(string id, bool isIncludedFile)
 		{
-			UhtHeaderFile? HeaderFile = this.Session.FindHeaderFile(Path.GetFileName(Id));
-			if (HeaderFile != null)
+			UhtHeaderFile? headerFile = this.Session.FindHeaderFile(Path.GetFileName(id));
+			if (headerFile != null)
 			{
-				AddReferencedHeader(HeaderFile, bIsIncludedFile);
+				AddReferencedHeader(headerFile, isIncludedFile);
 			}
 		}
 
 		/// <summary>
 		/// Add a reference to the header that defines the given type
 		/// </summary>
-		/// <param name="Type">Type in question</param>
-		public void AddReferencedHeader(UhtType Type)
+		/// <param name="type">Type in question</param>
+		public void AddReferencedHeader(UhtType type)
 		{
-			AddReferencedHeader(Type.HeaderFile, false);
+			AddReferencedHeader(type.HeaderFile, false);
 		}
 
 		/// <summary>
 		/// Add a reference to the given header file
 		/// </summary>
-		/// <param name="HeaderFile">Header file in question</param>
-		/// <param name="bIsIncludedFile">True if this is a directly included file</param>
-		public void AddReferencedHeader(UhtHeaderFile HeaderFile, bool bIsIncludedFile)
+		/// <param name="headerFile">Header file in question</param>
+		/// <param name="isIncludedFile">True if this is a directly included file</param>
+		public void AddReferencedHeader(UhtHeaderFile headerFile, bool isIncludedFile)
 		{
-			lock (this.ReferencedHeaders)
+			lock (this._referencedHeaders)
 			{
 				// Check for a duplicate
-				foreach (UhtHeaderFile Ref in this.ReferencedHeaders)
+				foreach (UhtHeaderFile reference in this._referencedHeaders)
 				{
-					if (Ref == HeaderFile)
+					if (reference == headerFile)
 					{
 						return;
 					}
@@ -282,14 +282,14 @@ namespace EpicGames.UHT.Types
 
 				// There is questionable compatibility hack where a source file will always be exported
 				// regardless of having types when it is being included by the SAME package.
-				if (HeaderFile.Package == this.Package)
+				if (headerFile.Package == this.Package)
 				{
-					HeaderFile.HeaderFileExportFlags |= UhtHeaderFileExportFlags.Referenced;
+					headerFile.HeaderFileExportFlags |= UhtHeaderFileExportFlags.Referenced;
 				}
-				this.ReferencedHeaders.Add(HeaderFile);
-				if (bIsIncludedFile)
+				this._referencedHeaders.Add(headerFile);
+				if (isIncludedFile)
 				{
-					this.IncludedHeaders.Add(HeaderFile);
+					this.IncludedHeaders.Add(headerFile);
 				}
 			}
 		}
@@ -298,13 +298,7 @@ namespace EpicGames.UHT.Types
 		/// Return an enumerator without locking.  This method can only be utilized AFTER all header parsing is complete. 
 		/// </summary>
 		[JsonIgnore]
-		public IEnumerable<UhtHeaderFile> ReferencedHeadersNoLock
-		{
-			get
-			{
-				return this.ReferencedHeaders;
-			}
-		}
+		public IEnumerable<UhtHeaderFile> ReferencedHeadersNoLock => this._referencedHeaders;
 
 		/// <summary>
 		/// Return an enumerator of all current referenced headers under a lock.  This should be used during parsing.
@@ -314,71 +308,71 @@ namespace EpicGames.UHT.Types
 		{
 			get
 			{
-				lock (this.ReferencedHeaders)
+				lock (this._referencedHeaders)
 				{
-					foreach (UhtHeaderFile Ref in this.ReferencedHeaders)
+					foreach (UhtHeaderFile reference in this._referencedHeaders)
 					{
-						yield return Ref;
+						yield return reference;
 					}
 				}
 			}
 		}
 
 		/// <inheritdoc/>
-		public override void AppendPathName(StringBuilder Builder, UhtType? StopOuter = null)
+		public override void AppendPathName(StringBuilder builder, UhtType? stopOuter = null)
 		{
 			// Headers do not contribute to path names
-			if (this != StopOuter && this.Outer != null)
+			if (this != stopOuter && this.Outer != null)
 			{
-				this.Outer.AppendPathName(Builder, StopOuter);
+				this.Outer.AppendPathName(builder, stopOuter);
 			}
 		}
 
 		/// <inheritdoc/>
-		protected override UhtValidationOptions Validate(UhtValidationOptions Options)
+		protected override UhtValidationOptions Validate(UhtValidationOptions options)
 		{
-			Options = base.Validate(Options | UhtValidationOptions.Shadowing);
+			options = base.Validate(options | UhtValidationOptions.Shadowing);
 
-			Dictionary<int, UhtFunction> UsedRPCIds = new Dictionary<int, UhtFunction>();
-			Dictionary<int, UhtFunction> RPCsNeedingHookup = new Dictionary<int, UhtFunction>();
-			foreach (UhtType Type in this.Children)
+			Dictionary<int, UhtFunction> usedRPCIds = new Dictionary<int, UhtFunction>();
+			Dictionary<int, UhtFunction> rpcsNeedingHookup = new Dictionary<int, UhtFunction>();
+			foreach (UhtType type in this.Children)
 			{
-				if (Type is UhtClass Class)
+				if (type is UhtClass classObj)
 				{
-					foreach (UhtType Child in Class.Children)
+					foreach (UhtType child in classObj.Children)
 					{
-						if (Child is UhtFunction Function)
+						if (child is UhtFunction function)
 						{
-							if (Function.FunctionType != UhtFunctionType.Function || !Function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
+							if (function.FunctionType != UhtFunctionType.Function || !function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 							{
 								continue;
 							}
 
-							if (Function.RPCId > 0)
+							if (function.RPCId > 0)
 							{
-								UhtFunction? ExistingFunc;
-								if (UsedRPCIds.TryGetValue(Function.RPCId, out ExistingFunc))
+								UhtFunction? existingFunc;
+								if (usedRPCIds.TryGetValue(function.RPCId, out existingFunc))
 								{
-									Function.LogError($"Function {ExistingFunc.SourceName} already uses identifier {Function.RPCId}");
+									function.LogError($"Function {existingFunc.SourceName} already uses identifier {function.RPCId}");
 								}
 								else
 								{
-									UsedRPCIds.Add(Function.RPCId, Function);
+									usedRPCIds.Add(function.RPCId, function);
 								}
 
-								if (Function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetResponse))
+								if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.NetResponse))
 								{
 									// Look for another function expecting this response
-									RPCsNeedingHookup.Remove(Function.RPCId);
+									rpcsNeedingHookup.Remove(function.RPCId);
 								}
 							}
 
-							if (Function.RPCResponseId > 0 && Function.EndpointName != "JSBridge")
+							if (function.RPCResponseId > 0 && function.EndpointName != "JSBridge")
 							{
 								// Look for an existing response function, if not found then add to the list of ids awaiting hookup
-								if (!UsedRPCIds.ContainsKey(Function.RPCResponseId))
+								if (!usedRPCIds.ContainsKey(function.RPCResponseId))
 								{
-									RPCsNeedingHookup.Add(Function.RPCResponseId, Function);
+									rpcsNeedingHookup.Add(function.RPCResponseId, function);
 								}
 							}
 						}
@@ -386,14 +380,14 @@ namespace EpicGames.UHT.Types
 				}
 			}
 
-			if (RPCsNeedingHookup.Count > 0)
+			if (rpcsNeedingHookup.Count > 0)
 			{
-				foreach (KeyValuePair<int, UhtFunction> KVP in RPCsNeedingHookup)
+				foreach (KeyValuePair<int, UhtFunction> kvp in rpcsNeedingHookup)
 				{
-					KVP.Value.LogError($"Request function '{KVP.Value.SourceName}' is missing a response function with the id of '{KVP.Key}'");
+					kvp.Value.LogError($"Request function '{kvp.Value.SourceName}' is missing a response function with the id of '{kvp.Key}'");
 				}
 			}
-			return Options;
+			return options;
 		}
 	}
 }

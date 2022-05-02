@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
-using EpicGames.UHT.Tokenizer;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
+using EpicGames.Core;
+using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System.Text;
 
 namespace EpicGames.UHT.Tables
 {
@@ -15,12 +15,12 @@ namespace EpicGames.UHT.Tables
 	/// <summary>
 	/// Delegate to invoke to sanitize a loctext default value
 	/// </summary>
-	/// <param name="Property">Property in question</param>
-	/// <param name="DefaultValueReader">The default value</param>
-	/// <param name="MacroToken">Token for the loctext type being parsed</param>
-	/// <param name="InnerDefaultValue">Output sanitized value.</param>
+	/// <param name="property">Property in question</param>
+	/// <param name="defaultValueReader">The default value</param>
+	/// <param name="macroToken">Token for the loctext type being parsed</param>
+	/// <param name="innerDefaultValue">Output sanitized value.</param>
 	/// <returns>True if sanitized, false if not.</returns>
-	public delegate bool UhtLocTextDefaultValueDelegate(UhtTextProperty Property, IUhtTokenReader DefaultValueReader, ref UhtToken MacroToken, StringBuilder InnerDefaultValue);
+	public delegate bool UhtLocTextDefaultValueDelegate(UhtTextProperty property, IUhtTokenReader defaultValueReader, ref UhtToken macroToken, StringBuilder innerDefaultValue);
 
 	/// <summary>
 	/// Attribute defining the loctext sanitizer
@@ -52,38 +52,38 @@ namespace EpicGames.UHT.Tables
 	public class UhtLocTextDefaultValueTable
 	{
 
-		private readonly Dictionary<StringView, UhtLocTextDefaultValue> LocTextDefaultValues = new Dictionary<StringView, UhtLocTextDefaultValue>();
+		private readonly Dictionary<StringView, UhtLocTextDefaultValue> _locTextDefaultValues = new Dictionary<StringView, UhtLocTextDefaultValue>();
 
 		/// <summary>
 		/// Return the loc text default value associated with the given name
 		/// </summary>
-		/// <param name="Name"></param>
-		/// <param name="LocTextDefaultValue">Loc text default value handler</param>
+		/// <param name="name"></param>
+		/// <param name="locTextDefaultValue">Loc text default value handler</param>
 		/// <returns></returns>
-		public bool TryGet(StringView Name, out UhtLocTextDefaultValue LocTextDefaultValue)
+		public bool TryGet(StringView name, out UhtLocTextDefaultValue locTextDefaultValue)
 		{
-			return this.LocTextDefaultValues.TryGetValue(Name, out LocTextDefaultValue);
+			return this._locTextDefaultValues.TryGetValue(name, out locTextDefaultValue);
 		}
 
 		/// <summary>
 		/// Handle a loctext default value attribute
 		/// </summary>
-		/// <param name="MethodInfo">Method info</param>
-		/// <param name="LocTextDefaultValueAttribute">Defining attribute</param>
+		/// <param name="methodInfo">Method info</param>
+		/// <param name="locTextDefaultValueAttribute">Defining attribute</param>
 		/// <exception cref="UhtIceException">Thrown if the attribute isn't properly defined</exception>
-		public void OnLocTextDefaultValueAttribute(MethodInfo MethodInfo, UhtLocTextDefaultValueAttribute LocTextDefaultValueAttribute)
+		public void OnLocTextDefaultValueAttribute(MethodInfo methodInfo, UhtLocTextDefaultValueAttribute locTextDefaultValueAttribute)
 		{
-			if (string.IsNullOrEmpty(LocTextDefaultValueAttribute.Name))
+			if (String.IsNullOrEmpty(locTextDefaultValueAttribute.Name))
 			{
 				throw new UhtIceException("A loc text default value attribute must have a name");
 			}
 
-			UhtLocTextDefaultValue LocTextDefaultValue = new UhtLocTextDefaultValue
+			UhtLocTextDefaultValue locTextDefaultValue = new UhtLocTextDefaultValue
 			{
-				Delegate = (UhtLocTextDefaultValueDelegate)Delegate.CreateDelegate(typeof(UhtLocTextDefaultValueDelegate), MethodInfo)
+				Delegate = (UhtLocTextDefaultValueDelegate)Delegate.CreateDelegate(typeof(UhtLocTextDefaultValueDelegate), methodInfo)
 			};
 
-			this.LocTextDefaultValues.Add(new StringView(LocTextDefaultValueAttribute.Name), LocTextDefaultValue);
+			this._locTextDefaultValues.Add(new StringView(locTextDefaultValueAttribute.Name), locTextDefaultValue);
 		}
 	}
 }

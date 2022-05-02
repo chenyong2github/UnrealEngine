@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Utils;
 using System;
 using System.Collections.Generic;
-using EpicGames.UHT.Tables;
 using EpicGames.Core;
+using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
+using EpicGames.UHT.Utils;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -19,73 +19,73 @@ namespace EpicGames.UHT.Parsers
 	{
 		struct DeferredSpecifier
 		{
-			public UhtSpecifier Specifier;
-			public object? Value;
+			public UhtSpecifier _specifier;
+			public object? _value;
 		}
 
-		private static readonly List<KeyValuePair<StringView, StringView>> EmptyKVPValues = new List<KeyValuePair<StringView, StringView>>();
+		private static readonly List<KeyValuePair<StringView, StringView>> s_emptyKVPValues = new List<KeyValuePair<StringView, StringView>>();
 
-		private UhtSpecifierContext SpecifierContext;
-		private IUhtTokenReader TokenReader;
-		private UhtSpecifierTable Table;
-		private StringView Context;
-		private StringView CurrentSpecifier = new StringView();
-		private List<DeferredSpecifier> DeferredSpecifiers = new List<DeferredSpecifier>();
-		private bool bIsParsingFieldMetaData = false;
-		private List<KeyValuePair<StringView, StringView>>? CurrentKVPValues = null;
-		private List<StringView>? CurrentStringValues = null;
-		private int UMetaElementsParsed = 0;
+		private UhtSpecifierContext _specifierContext;
+		private IUhtTokenReader _tokenReader;
+		private UhtSpecifierTable _table;
+		private StringView _context;
+		private StringView _currentSpecifier = new StringView();
+		private List<DeferredSpecifier> _deferredSpecifiers = new List<DeferredSpecifier>();
+		private bool _isParsingFieldMetaData = false;
+		private List<KeyValuePair<StringView, StringView>>? _currentKVPValues = null;
+		private List<StringView>? _currentStringValues = null;
+		private int _umetaElementsParsed = 0;
 
-		private readonly Action ParseAction;
-		private readonly Action ParseFieldMetaDataAction;
-		private readonly Action ParseKVPValueAction;
-		private readonly Action ParseStringViewListAction;
+		private readonly Action _parseAction;
+		private readonly Action _parseFieldMetaDataAction;
+		private readonly Action _parseKVPValueAction;
+		private readonly Action _parseStringViewListAction;
 
 		/// <summary>
 		/// Construct a new specifier parser
 		/// </summary>
-		/// <param name="SpecifierContext">Specifier context</param>
-		/// <param name="Context">User facing context added to messages</param>
-		/// <param name="Table">Specifier table</param>
-		public UhtSpecifierParser(UhtSpecifierContext SpecifierContext, StringView Context, UhtSpecifierTable Table)
+		/// <param name="specifierContext">Specifier context</param>
+		/// <param name="context">User facing context added to messages</param>
+		/// <param name="table">Specifier table</param>
+		public UhtSpecifierParser(UhtSpecifierContext specifierContext, StringView context, UhtSpecifierTable table)
 		{
-			this.SpecifierContext = SpecifierContext;
-			this.TokenReader = SpecifierContext.Scope.TokenReader;
-			this.Context = Context;
-			this.Table = Table;
+			this._specifierContext = specifierContext;
+			this._tokenReader = specifierContext.Scope.TokenReader;
+			this._context = context;
+			this._table = table;
 
-			this.ParseAction = ParseInternal;
-			this.ParseFieldMetaDataAction = ParseFieldMetaDataInternal;
-			this.ParseKVPValueAction = () => 
+			this._parseAction = ParseInternal;
+			this._parseFieldMetaDataAction = ParseFieldMetaDataInternal;
+			this._parseKVPValueAction = () =>
 			{
-				if (this.CurrentKVPValues == null)
+				if (this._currentKVPValues == null)
 				{
-					this.CurrentKVPValues = new List<KeyValuePair<StringView, StringView>>();
+					this._currentKVPValues = new List<KeyValuePair<StringView, StringView>>();
 				}
-				this.CurrentKVPValues.Add(ReadKVP()); 
+				this._currentKVPValues.Add(ReadKVP());
 			};
-			this.ParseStringViewListAction = () => 
-			{ 
-				if (this.CurrentStringValues == null)
+			this._parseStringViewListAction = () =>
+			{
+				if (this._currentStringValues == null)
 				{
-					this.CurrentStringValues = new List<StringView>();
+					this._currentStringValues = new List<StringView>();
 				}
-				this.CurrentStringValues.Add(ReadValue()); 
+				this._currentStringValues.Add(ReadValue());
 			};
 		}
 
 		/// <summary>
 		/// Reset an existing parser to parse a new specifier block
 		/// </summary>
-		/// <param name="SpecifierContext">Specifier context</param>
-		/// <param name="Context">User facing context added to messages</param>
-		/// <param name="Table">Specifier table</param>
-		public void Reset(UhtSpecifierContext SpecifierContext, StringView Context, UhtSpecifierTable Table)
+		/// <param name="specifierContext">Specifier context</param>
+		/// <param name="context">User facing context added to messages</param>
+		/// <param name="table">Specifier table</param>
+		public void Reset(UhtSpecifierContext specifierContext, StringView context, UhtSpecifierTable table)
 		{
-			this.SpecifierContext = SpecifierContext;
-			this.TokenReader = SpecifierContext.Scope.TokenReader;
-			this.Context = Context;
-			this.Table = Table;
+			this._specifierContext = specifierContext;
+			this._tokenReader = specifierContext.Scope.TokenReader;
+			this._context = context;
+			this._table = table;
 		}
 
 		/// <summary>
@@ -94,12 +94,12 @@ namespace EpicGames.UHT.Parsers
 		/// <returns>The parser</returns>
 		public UhtSpecifierParser ParseSpecifiers()
 		{
-			this.bIsParsingFieldMetaData = false;
-			this.SpecifierContext.MetaData.LineNumber = TokenReader.InputLine;
+			this._isParsingFieldMetaData = false;
+			this._specifierContext.MetaData.LineNumber = _tokenReader.InputLine;
 
-			using (var TokenContext = new UhtMessageContext(this))
+			using (UhtMessageContext tokenContext = new UhtMessageContext(this))
 			{
-				this.TokenReader.RequireList('(', ')', ',', false, this.ParseAction);
+				this._tokenReader.RequireList('(', ')', ',', false, this._parseAction);
 			}
 			return this;
 		}
@@ -110,18 +110,18 @@ namespace EpicGames.UHT.Parsers
 		/// <returns>Specifier parser</returns>
 		public UhtSpecifierParser ParseFieldMetaData()
 		{
-			this.TokenReader = this.SpecifierContext.Scope.TokenReader;
-			this.bIsParsingFieldMetaData = true;
+			this._tokenReader = this._specifierContext.Scope.TokenReader;
+			this._isParsingFieldMetaData = true;
 
-			using (var TokenContext = new UhtMessageContext(this))
+			using (UhtMessageContext tokenContext = new UhtMessageContext(this))
 			{
-				if (TokenReader.TryOptional("UMETA"))
+				if (_tokenReader.TryOptional("UMETA"))
 				{
-					this.UMetaElementsParsed = 0;
-					TokenReader.RequireList('(', ')', ',', false, this.ParseFieldMetaDataAction);
-					if (this.UMetaElementsParsed == 0)
+					this._umetaElementsParsed = 0;
+					_tokenReader.RequireList('(', ')', ',', false, this._parseFieldMetaDataAction);
+					if (this._umetaElementsParsed == 0)
 					{
-						this.TokenReader.LogError($"No metadata specified while parsing {UhtMessage.FormatContext(this)}");
+						this._tokenReader.LogError($"No metadata specified while parsing {UhtMessage.FormatContext(this)}");
 					}
 				}
 			}
@@ -133,11 +133,11 @@ namespace EpicGames.UHT.Parsers
 		/// </summary>
 		public void ParseDeferred()
 		{
-			foreach (var Deferred in this.DeferredSpecifiers)
+			foreach (DeferredSpecifier deferred in this._deferredSpecifiers)
 			{
-				Dispatch(Deferred.Specifier, Deferred.Value);
+				Dispatch(deferred._specifier, deferred._value);
 			}
-			this.DeferredSpecifiers.Clear();
+			this._deferredSpecifiers.Clear();
 		}
 
 		#region IMessageExtraContext implementation
@@ -147,180 +147,180 @@ namespace EpicGames.UHT.Parsers
 		{
 			get
 			{
-				Stack<object?> ExtraContext = new Stack<object?>(1);
-				string What = this.bIsParsingFieldMetaData ? "metadata" : "specifiers";
-				if (this.Context.Span.Length > 0)
+				Stack<object?> extraContext = new Stack<object?>(1);
+				string what = this._isParsingFieldMetaData ? "metadata" : "specifiers";
+				if (this._context.Span.Length > 0)
 				{
-					ExtraContext.Push($"{this.Context} {What}");
+					extraContext.Push($"{this._context} {what}");
 				}
 				else
 				{
-					ExtraContext.Push(What);
+					extraContext.Push(what);
 				}
-				return ExtraContext;
+				return extraContext;
 			}
 		}
 		#endregion
 
 		private void ParseInternal()
 		{
-			UhtToken Identifier = this.TokenReader.GetIdentifier();
+			UhtToken identifier = this._tokenReader.GetIdentifier();
 
-			this.CurrentSpecifier = Identifier.Value;
-			UhtSpecifier? Specifier;
-			if (this.Table.TryGetValue(CurrentSpecifier, out Specifier))
+			this._currentSpecifier = identifier.Value;
+			UhtSpecifier? specifier;
+			if (this._table.TryGetValue(_currentSpecifier, out specifier))
 			{
-				if (TryParseValue(Specifier.ValueType, out object? Value))
+				if (TryParseValue(specifier.ValueType, out object? value))
 				{
-					if (Specifier.When == UhtSpecifierWhen.Deferred)
+					if (specifier.When == UhtSpecifierWhen.Deferred)
 					{
-						if (this.DeferredSpecifiers == null)
+						if (this._deferredSpecifiers == null)
 						{
-							this.DeferredSpecifiers = new List<DeferredSpecifier>();
+							this._deferredSpecifiers = new List<DeferredSpecifier>();
 						}
-						this.DeferredSpecifiers.Add(new DeferredSpecifier { Specifier = Specifier, Value = Value });
+						this._deferredSpecifiers.Add(new DeferredSpecifier { _specifier = specifier, _value = value });
 					}
 					else
 					{
-						Dispatch(Specifier, Value);
+						Dispatch(specifier, value);
 					}
 				}
 			}
 			else
 			{
-				this.TokenReader.LogError($"Unknown specifier '{CurrentSpecifier}' found while parsing {UhtMessage.FormatContext(this)}");
+				this._tokenReader.LogError($"Unknown specifier '{_currentSpecifier}' found while parsing {UhtMessage.FormatContext(this)}");
 			}
 		}
 
 		private void ParseFieldMetaDataInternal()
 		{
-			UhtToken Key;
-			if (!TokenReader.TryOptionalIdentifier(out Key))
+			UhtToken key;
+			if (!_tokenReader.TryOptionalIdentifier(out key))
 			{
-				throw new UhtException(this.TokenReader, $"UMETA expects a key and optional value", this);
+				throw new UhtException(this._tokenReader, $"UMETA expects a key and optional value", this);
 			}
 
-			StringViewBuilder SVB = new StringViewBuilder();
-			if (TokenReader.TryOptional('='))
+			StringViewBuilder builder = new StringViewBuilder();
+			if (_tokenReader.TryOptional('='))
 			{
-				if (!ReadValue(TokenReader, SVB, true))
+				if (!ReadValue(_tokenReader, builder, true))
 				{
-					throw new UhtException(this.TokenReader, $"UMETA key '{Key.Value}' expects a value", this);
+					throw new UhtException(this._tokenReader, $"UMETA key '{key.Value}' expects a value", this);
 				}
 			}
-			
-			++this.UMetaElementsParsed;
-			this.SpecifierContext.MetaData.Add(Key.Value.ToString(), this.SpecifierContext.MetaNameIndex, SVB.ToString());
+
+			++this._umetaElementsParsed;
+			this._specifierContext.MetaData.Add(key.Value.ToString(), this._specifierContext.MetaNameIndex, builder.ToString());
 		}
 
-		private void Dispatch(UhtSpecifier Specifier, object? Value)
+		private void Dispatch(UhtSpecifier specifier, object? value)
 		{
-			UhtSpecifierDispatchResults Results = Specifier.Dispatch(this.SpecifierContext, Value);
-			if (Results == UhtSpecifierDispatchResults.Unknown)
+			UhtSpecifierDispatchResults results = specifier.Dispatch(this._specifierContext, value);
+			if (results == UhtSpecifierDispatchResults.Unknown)
 			{
-				this.TokenReader.LogError($"Unknown specifier '{Specifier.Name}' found while parsing {UhtMessage.FormatContext(this)}");
+				this._tokenReader.LogError($"Unknown specifier '{specifier.Name}' found while parsing {UhtMessage.FormatContext(this)}");
 			}
 		}
 
-		private bool TryParseValue(UhtSpecifierValueType ValueType, out object? Value)
+		private bool TryParseValue(UhtSpecifierValueType valueType, out object? value)
 		{
-			Value = null;
+			value = null;
 
-			switch (ValueType)
+			switch (valueType)
 			{
 				case UhtSpecifierValueType.NotSet:
 					throw new UhtIceException("NotSet is an invalid value for value types");
 
 				case UhtSpecifierValueType.None:
-					if (this.TokenReader.TryOptional('='))
+					if (this._tokenReader.TryOptional('='))
 					{
 						ReadValue(); // consume the value;
-						this.TokenReader.LogError($"The specifier '{this.CurrentSpecifier}' found a value when none was expected", this);
+						this._tokenReader.LogError($"The specifier '{this._currentSpecifier}' found a value when none was expected", this);
 						return false;
 					}
 					return true;
 
 				case UhtSpecifierValueType.String:
-					if (!this.TokenReader.TryOptional('='))
+					if (!this._tokenReader.TryOptional('='))
 					{
-						this.TokenReader.LogError($"The specifier '{this.CurrentSpecifier}' expects a value", this);
+						this._tokenReader.LogError($"The specifier '{this._currentSpecifier}' expects a value", this);
 						return false;
 					}
-					Value = ReadValue();
+					value = ReadValue();
 					return true;
 
 				case UhtSpecifierValueType.OptionalString:
 					{
-						List<StringView>? StringList = ReadValueList();
-						if (StringList != null && StringList.Count > 0)
+						List<StringView>? stringList = ReadValueList();
+						if (stringList != null && stringList.Count > 0)
 						{
-							Value = StringList[0];
+							value = stringList[0];
 						}
 						return true;
 					}
 
 				case UhtSpecifierValueType.SingleString:
 					{
-						List<StringView>? StringList = ReadValueList();
-						if (StringList == null || StringList.Count != 1)
+						List<StringView>? stringList = ReadValueList();
+						if (stringList == null || stringList.Count != 1)
 						{
-							this.TokenReader.LogError($"The specifier '{this.CurrentSpecifier}' expects a single value", this);
+							this._tokenReader.LogError($"The specifier '{this._currentSpecifier}' expects a single value", this);
 							return false;
 						}
-						Value = StringList[0];
+						value = stringList[0];
 						return true;
 					}
 
 				case UhtSpecifierValueType.StringList:
-					Value = ReadValueList();
+					value = ReadValueList();
 					return true;
 
 				case UhtSpecifierValueType.Legacy:
-					Value = ReadValueList();
+					value = ReadValueList();
 					return true;
 
 				case UhtSpecifierValueType.NonEmptyStringList:
 					{
-						List<StringView>? StringList = ReadValueList();
-						if (StringList == null || StringList.Count == 0)
+						List<StringView>? stringList = ReadValueList();
+						if (stringList == null || stringList.Count == 0)
 						{
-							this.TokenReader.LogError($"The specifier '{this.CurrentSpecifier}' expects at list one value", this);
+							this._tokenReader.LogError($"The specifier '{this._currentSpecifier}' expects at list one value", this);
 							return false;
 						}
-						Value = StringList;
+						value = stringList;
 						return true;
 					}
 
 				case UhtSpecifierValueType.KeyValuePairList:
 					{
-						this.CurrentKVPValues = null;
-						this.TokenReader
+						this._currentKVPValues = null;
+						this._tokenReader
 							.Require('=')
-							.RequireList('(', ')', ',', false, this.ParseKVPValueAction);
-						List<KeyValuePair<StringView, StringView>> Return = this.CurrentKVPValues ?? EmptyKVPValues;
-						this.CurrentKVPValues = null;
-						Value = Return;
+							.RequireList('(', ')', ',', false, this._parseKVPValueAction);
+						List<KeyValuePair<StringView, StringView>> kvps = this._currentKVPValues ?? s_emptyKVPValues;
+						this._currentKVPValues = null;
+						value = kvps;
 						return true;
 					}
 
 				case UhtSpecifierValueType.OptionalEqualsKeyValuePairList:
 					{
-						this.CurrentKVPValues = null;
+						this._currentKVPValues = null;
 						// This parser isn't as strict as the other parsers...
-						if (this.TokenReader.TryOptional('='))
+						if (this._tokenReader.TryOptional('='))
 						{
-							if (!this.TokenReader.TryOptionalList('(', ')', ',', false, this.ParseKVPValueAction))
+							if (!this._tokenReader.TryOptionalList('(', ')', ',', false, this._parseKVPValueAction))
 							{
-								this.ParseKVPValueAction();
+								this._parseKVPValueAction();
 							}
 						}
 						else
 						{
-							this.TokenReader.TryOptionalList('(', ')', ',', false, this.ParseKVPValueAction);
+							this._tokenReader.TryOptionalList('(', ')', ',', false, this._parseKVPValueAction);
 						}
-						List<KeyValuePair<StringView, StringView>> Return = this.CurrentKVPValues ?? EmptyKVPValues;
-						this.CurrentKVPValues = null;
-						Value = Return;
+						List<KeyValuePair<StringView, StringView>> kvps = this._currentKVPValues ?? s_emptyKVPValues;
+						this._currentKVPValues = null;
+						value = kvps;
 						return true;
 					}
 
@@ -331,62 +331,62 @@ namespace EpicGames.UHT.Parsers
 
 		private KeyValuePair<StringView, StringView> ReadKVP()
 		{
-			UhtToken Key;
-			if (!this.TokenReader.TryOptionalIdentifier(out Key))
+			UhtToken key;
+			if (!this._tokenReader.TryOptionalIdentifier(out key))
 			{
-				throw new UhtException(this.TokenReader, $"The specifier '{this.CurrentSpecifier}' expects a key and optional value", this);
+				throw new UhtException(this._tokenReader, $"The specifier '{this._currentSpecifier}' expects a key and optional value", this);
 			}
 
-			StringView Value = "";
-			if (this.TokenReader.TryOptional('='))
+			StringView value = "";
+			if (this._tokenReader.TryOptional('='))
 			{
-				Value = ReadValue();
+				value = ReadValue();
 			}
-			return new KeyValuePair<StringView, StringView>(Key.Value, Value);
+			return new KeyValuePair<StringView, StringView>(key.Value, value);
 		}
 
 		private List<StringView>? ReadValueList()
 		{
-			this.CurrentStringValues = null;
+			this._currentStringValues = null;
 
 			// This parser isn't as strict as the other parsers...
-			if (this.TokenReader.TryOptional('='))
+			if (this._tokenReader.TryOptional('='))
 			{
-				if (!this.TokenReader.TryOptionalList('(', ')', ',', false, this.ParseStringViewListAction))
+				if (!this._tokenReader.TryOptionalList('(', ')', ',', false, this._parseStringViewListAction))
 				{
-					this.ParseStringViewListAction();
+					this._parseStringViewListAction();
 				}
 			}
 			else
 			{
-				this.TokenReader.TryOptionalList('(', ')', ',', false, this.ParseStringViewListAction);
+				this._tokenReader.TryOptionalList('(', ')', ',', false, this._parseStringViewListAction);
 			}
-			List<StringView>? StringValues = this.CurrentStringValues;
-			this.CurrentStringValues = null;
-			return StringValues;
+			List<StringView>? stringValues = this._currentStringValues;
+			this._currentStringValues = null;
+			return stringValues;
 		}
 
 		private StringView ReadValue()
 		{
-			StringViewBuilder SVB = new StringViewBuilder();
-			if (!ReadValue(this.TokenReader, SVB, false))
+			StringViewBuilder builder = new StringViewBuilder();
+			if (!ReadValue(this._tokenReader, builder, false))
 			{
-				throw new UhtException(this.TokenReader, $"The specifier '{this.CurrentSpecifier}' expects a value", this);
+				throw new UhtException(this._tokenReader, $"The specifier '{this._currentSpecifier}' expects a value", this);
 			}
-			return SVB.ToStringView();
+			return builder.ToStringView();
 		}
 
 		/// <summary>
 		/// Parse the sequence of meta data
 		/// </summary>
-		/// <param name="TokenReader">Input token reader</param>
-		/// <param name="SVB">Output string builder</param>
-		/// <param name="bRespectQuotes">If true, do not convert \" to " in string constants.  This is required for UMETA data</param>
+		/// <param name="tokenReader">Input token reader</param>
+		/// <param name="builder">Output string builder</param>
+		/// <param name="respectQuotes">If true, do not convert \" to " in string constants.  This is required for UMETA data</param>
 		/// <returns>True if data was read</returns>
-		private static bool ReadValue(IUhtTokenReader TokenReader, StringViewBuilder SVB, bool bRespectQuotes)
+		private static bool ReadValue(IUhtTokenReader tokenReader, StringViewBuilder builder, bool respectQuotes)
 		{
-			UhtToken Token = TokenReader.GetToken();
-			switch (Token.TokenType)
+			UhtToken token = tokenReader.GetToken();
+			switch (token.TokenType)
 			{
 				case UhtTokenType.EndOfFile:
 				case UhtTokenType.EndOfDefault:
@@ -396,22 +396,22 @@ namespace EpicGames.UHT.Parsers
 
 				case UhtTokenType.Identifier:
 					// We handle true/false differently for compatibility with old UHT
-					if (Token.IsValue("true", true))
+					if (token.IsValue("true", true))
 					{
-						SVB.Append("TRUE");
+						builder.Append("TRUE");
 					}
-					else if (Token.IsValue("false", true))
+					else if (token.IsValue("false", true))
 					{
-						SVB.Append("FALSE");
+						builder.Append("FALSE");
 					}
 					else
 					{
-						SVB.Append(Token.Value);
+						builder.Append(token.Value);
 					}
-					if (TokenReader.TryOptional('='))
+					if (tokenReader.TryOptional('='))
 					{
-						SVB.Append('=');
-						if (!ReadValue(TokenReader, SVB, bRespectQuotes))
+						builder.Append('=');
+						if (!ReadValue(tokenReader, builder, respectQuotes))
 						{
 							return false;
 						}
@@ -419,11 +419,11 @@ namespace EpicGames.UHT.Parsers
 					break;
 
 				case UhtTokenType.Symbol:
-					SVB.Append(Token.Value);
-					if (TokenReader.TryOptional('='))
+					builder.Append(token.Value);
+					if (tokenReader.TryOptional('='))
 					{
-						SVB.Append('=');
-						if (!ReadValue(TokenReader, SVB, bRespectQuotes))
+						builder.Append('=');
+						if (!ReadValue(tokenReader, builder, respectQuotes))
 						{
 							return false;
 						}
@@ -431,7 +431,7 @@ namespace EpicGames.UHT.Parsers
 					break;
 
 				default:
-					SVB.Append(Token.GetConstantValue(bRespectQuotes));
+					builder.Append(token.GetConstantValue(respectQuotes));
 					break;
 			}
 

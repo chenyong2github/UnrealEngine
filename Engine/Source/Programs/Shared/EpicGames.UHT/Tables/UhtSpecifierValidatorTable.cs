@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Reflection;
 using EpicGames.Core;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System;
-using System.Reflection;
 
 namespace EpicGames.UHT.Tables
 {
@@ -12,11 +12,11 @@ namespace EpicGames.UHT.Tables
 	/// <summary>
 	/// Delegate used to validate a specifier
 	/// </summary>
-	/// <param name="Type">Containing type</param>
-	/// <param name="MetaData">Containing meta data</param>
-	/// <param name="Key">Key of the meta data entry</param>
-	/// <param name="Value">Value of the meta data entry</param>
-	public delegate void UhtSpecifierValidatorDelegate(UhtType Type, UhtMetaData MetaData, UhtMetaDataKey Key, StringView Value);
+	/// <param name="type">Containing type</param>
+	/// <param name="metaData">Containing meta data</param>
+	/// <param name="key">Key of the meta data entry</param>
+	/// <param name="value">Value of the meta data entry</param>
+	public delegate void UhtSpecifierValidatorDelegate(UhtType type, UhtMetaData metaData, UhtMetaDataKey key, StringView value);
 
 	/// <summary>
 	/// Defines a specifier validated created from the attribute
@@ -37,12 +37,12 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Construct a new instance
 		/// </summary>
-		/// <param name="Name">Name of the validator</param>
-		/// <param name="Delegate">Delegate of the validator</param>
-		public UhtSpecifierValidator(string Name, UhtSpecifierValidatorDelegate Delegate)
+		/// <param name="name">Name of the validator</param>
+		/// <param name="specifierValidatorDelegate">Delegate of the validator</param>
+		public UhtSpecifierValidator(string name, UhtSpecifierValidatorDelegate specifierValidatorDelegate)
 		{
-			this.Name = Name;
-			this.Delegate = Delegate;
+			this.Name = name;
+			this.Delegate = specifierValidatorDelegate;
 		}
 	}
 
@@ -80,10 +80,10 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Add the given value to the lookup table.  It will throw an exception if it is a duplicate.
 		/// </summary>
-		/// <param name="Specifier">Validator to add</param>
-		public UhtSpecifierValidatorTable Add(UhtSpecifierValidator Specifier)
+		/// <param name="specifier">Validator to add</param>
+		public UhtSpecifierValidatorTable Add(UhtSpecifierValidator specifier)
 		{
-			base.Add(Specifier.Name, Specifier);
+			base.Add(specifier.Name, specifier);
 			return this;
 		}
 	}
@@ -104,20 +104,20 @@ namespace EpicGames.UHT.Tables
 		/// <summary>
 		/// Handle the attribute appearing on a method
 		/// </summary>
-		/// <param name="Type">Type containing the method</param>
-		/// <param name="MethodInfo">The method</param>
-		/// <param name="SpecifierValidatorAttribute">Attribute</param>
+		/// <param name="type">Type containing the method</param>
+		/// <param name="methodInfo">The method</param>
+		/// <param name="specifierValidatorAttribute">Attribute</param>
 		/// <exception cref="UhtIceException">Thrown if the validator isn't properly defined</exception>
-		public void OnSpecifierValidatorAttribute(Type Type, MethodInfo MethodInfo, UhtSpecifierValidatorAttribute SpecifierValidatorAttribute)
+		public void OnSpecifierValidatorAttribute(Type type, MethodInfo methodInfo, UhtSpecifierValidatorAttribute specifierValidatorAttribute)
 		{
-			string Name = UhtLookupTableBase.GetSuffixedName(Type, MethodInfo, SpecifierValidatorAttribute.Name, "SpecifierValidator");
+			string name = UhtLookupTableBase.GetSuffixedName(type, methodInfo, specifierValidatorAttribute.Name, "SpecifierValidator");
 
-			if (string.IsNullOrEmpty(SpecifierValidatorAttribute.Extends))
+			if (String.IsNullOrEmpty(specifierValidatorAttribute.Extends))
 			{
-				throw new UhtIceException($"The 'SpecifierValidator' attribute on the {Type.Name}.{MethodInfo.Name} method doesn't have a table specified.");
+				throw new UhtIceException($"The 'SpecifierValidator' attribute on the {type.Name}.{methodInfo.Name} method doesn't have a table specified.");
 			}
-			UhtSpecifierValidatorTable Table = Get(SpecifierValidatorAttribute.Extends);
-			Table.Add(new UhtSpecifierValidator(Name, (UhtSpecifierValidatorDelegate)Delegate.CreateDelegate(typeof(UhtSpecifierValidatorDelegate), MethodInfo)));
+			UhtSpecifierValidatorTable table = Get(specifierValidatorAttribute.Extends);
+			table.Add(new UhtSpecifierValidator(name, (UhtSpecifierValidatorDelegate)Delegate.CreateDelegate(typeof(UhtSpecifierValidatorDelegate), methodInfo)));
 		}
 	}
 }

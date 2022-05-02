@@ -17,10 +17,10 @@ namespace EpicGames.UHT.Parsers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.Enum, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void FlagsSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void FlagsSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtEnum Enum = (UhtEnum)SpecifierContext.Scope.ScopeType;
-			Enum.EnumFlags |= EEnumFlags.Flags;
+			UhtEnum enumObj = (UhtEnum)specifierContext.Scope.ScopeType;
+			enumObj.EnumFlags |= EEnumFlags.Flags;
 		}
 	}
 }

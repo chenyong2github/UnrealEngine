@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.UHT.Types;
 using System.Text;
+using EpicGames.UHT.Types;
 
 namespace EpicGames.UHT.Exporters.CodeGen
 {
-	internal class UhtPackageCodeGenerator
+	class UhtPackageCodeGenerator
 	{
 		public static string HeaderCopyright =
 			"// Copyright Epic Games, Inc. All Rights Reserved.\r\n" +
@@ -28,16 +28,16 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		public bool SaveExportedHeaders => this.Package.Module.SaveExportedHeaders;
 
 		public Utils.UhtSession Session => this.CodeGenerator.Session;
-		public UhtCodeGenerator.PackageInfo[] PackageInfos => this.CodeGenerator.PackageInfos;
-		public UhtCodeGenerator.HeaderInfo[] HeaderInfos => this.CodeGenerator.HeaderInfos;
-		public UhtCodeGenerator.ObjectInfo[] ObjectInfos => this.CodeGenerator.ObjectInfos;
-		public string PackageApi => this.PackageInfos[this.Package.PackageTypeIndex].Api;
-		public string PackageSingletonName => this.ObjectInfos[this.Package.ObjectTypeIndex].RegisteredSingletonName;
+		public UhtCodeGenerator.PackageInfo[] PackageInfos => this.CodeGenerator._packageInfos;
+		public UhtCodeGenerator.HeaderInfo[] HeaderInfos => this.CodeGenerator._headerInfos;
+		public UhtCodeGenerator.ObjectInfo[] ObjectInfos => this.CodeGenerator._objectInfos;
+		public string PackageApi => this.PackageInfos[this.Package.PackageTypeIndex]._api;
+		public string PackageSingletonName => this.ObjectInfos[this.Package.ObjectTypeIndex]._registeredSingletonName;
 
-		public UhtPackageCodeGenerator(UhtCodeGenerator CodeGenerator, UhtPackage Package)
+		public UhtPackageCodeGenerator(UhtCodeGenerator codeGenerator, UhtPackage package)
 		{
-			this.CodeGenerator = CodeGenerator;
-			this.Package = Package;
+			this.CodeGenerator = codeGenerator;
+			this.Package = package;
 		}
 
 		#region Utility functions
@@ -45,68 +45,68 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <summary>
 		/// Return the singleton name for an object
 		/// </summary>
-		/// <param name="Object">The object in question.</param>
-		/// <param name="bRegistered">If true, return the registered singleton name.  Otherwise return the unregistered.</param>
+		/// <param name="obj">The object in question.</param>
+		/// <param name="registered">If true, return the registered singleton name.  Otherwise return the unregistered.</param>
 		/// <returns>Singleton name of "nullptr" if Object is null</returns>
-		public string GetSingletonName(UhtObject? Object, bool bRegistered)
+		public string GetSingletonName(UhtObject? obj, bool registered)
 		{
-			return this.CodeGenerator.GetSingletonName(Object, bRegistered);
+			return this.CodeGenerator.GetSingletonName(obj, registered);
 		}
 
 		/// <summary>
 		/// Return the external declaration for an object
 		/// </summary>
-		/// <param name="Object">The object in question.</param>
-		/// <param name="bRegistered">If true, return the registered external declaration.  Otherwise return the unregistered.</param>
+		/// <param name="obj">The object in question.</param>
+		/// <param name="registered">If true, return the registered external declaration.  Otherwise return the unregistered.</param>
 		/// <returns>External declaration</returns>
-		public string GetExternalDecl(UhtObject Object, bool bRegistered)
+		public string GetExternalDecl(UhtObject obj, bool registered)
 		{
-			return this.CodeGenerator.GetExternalDecl(Object, bRegistered);
+			return this.CodeGenerator.GetExternalDecl(obj, registered);
 		}
 
 		/// <summary>
 		/// Return the external declaration for an object
 		/// </summary>
-		/// <param name="ObjectIndex">The object in question.</param>
-		/// <param name="bRegistered">If true, return the registered external declaration.  Otherwise return the unregistered.</param>
+		/// <param name="objectIndex">The object in question.</param>
+		/// <param name="registered">If true, return the registered external declaration.  Otherwise return the unregistered.</param>
 		/// <returns>External declaration</returns>
-		public string GetExternalDecl(int ObjectIndex, bool bRegistered)
+		public string GetExternalDecl(int objectIndex, bool registered)
 		{
-			return this.CodeGenerator.GetExternalDecl(ObjectIndex, bRegistered);
+			return this.CodeGenerator.GetExternalDecl(objectIndex, registered);
 		}
 
 		/// <summary>
 		/// Return the cross reference for an object
 		/// </summary>
-		/// <param name="Object">The object in question.</param>
-		/// <param name="bRegistered">If true, return the registered cross reference.  Otherwise return the unregistered.</param>
+		/// <param name="obj">The object in question.</param>
+		/// <param name="registered">If true, return the registered cross reference.  Otherwise return the unregistered.</param>
 		/// <returns>Cross reference</returns>
-		public string GetCrossReference(UhtObject Object, bool bRegistered)
+		public string GetCrossReference(UhtObject obj, bool registered)
 		{
-			return this.CodeGenerator.GetCrossReference(Object, bRegistered);
+			return this.CodeGenerator.GetCrossReference(obj, registered);
 		}
 
 		/// <summary>
 		/// Return the cross reference for an object
 		/// </summary>
-		/// <param name="ObjectIndex">The object in question.</param>
-		/// <param name="bRegistered">If true, return the registered cross reference.  Otherwise return the unregistered.</param>
+		/// <param name="objectIndex">The object in question.</param>
+		/// <param name="registered">If true, return the registered cross reference.  Otherwise return the unregistered.</param>
 		/// <returns>Cross reference</returns>
-		public string GetCrossReference(int ObjectIndex, bool bRegistered)
+		public string GetCrossReference(int objectIndex, bool registered)
 		{
-			return this.CodeGenerator.GetCrossReference(ObjectIndex, bRegistered);
+			return this.CodeGenerator.GetCrossReference(objectIndex, registered);
 		}
 
 		/// <summary>
 		/// Test to see if the given field is a delegate function
 		/// </summary>
-		/// <param name="Field">Field to be tested</param>
+		/// <param name="field">Field to be tested</param>
 		/// <returns>True if the field is a delegate function</returns>
-		public static bool IsDelegateFunction(UhtField Field)
+		public static bool IsDelegateFunction(UhtField field)
 		{
-			if (Field is UhtFunction Function)
+			if (field is UhtFunction function)
 			{
-				return Function.FunctionType.IsDelegate();
+				return function.FunctionType.IsDelegate();
 			}
 			return false;
 		}
@@ -123,12 +123,13 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		/// <param name="A">Hash to merge</param>
 		/// <param name="C">Previously combined hash</param>
 		/// <returns>Resulting hash value</returns>
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "<Pending>")]
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE2001:Embedded statements must be on their own line", Justification = "<Pending>")]
 		public static uint HashCombine(uint A, uint C)
 		{
 			uint B = 0x9e3779b9;
 			A += B;
 
-#pragma warning disable IDE2001 // Embedded statements must be on their own line
 			A -= B; A -= C; A ^= (C >> 13);
 			B -= C; B -= A; B ^= (A << 8);
 			C -= A; C -= B; C ^= (B >> 13);
@@ -138,7 +139,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			A -= B; A -= C; A ^= (C >> 3);
 			B -= C; B -= A; B ^= (A << 10);
 			C -= A; C -= B; C ^= (B >> 15);
-#pragma warning restore IDE2001 // Embedded statements must be on their own line
 
 			return C;
 		}
@@ -147,22 +147,22 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 	internal static class UhtPackageCodeGeneratorStringBuilderExtensions
 	{
-		public static StringBuilder AppendBeginEditorOnlyGuard(this StringBuilder Builder, bool bEnable = true)
+		public static StringBuilder AppendBeginEditorOnlyGuard(this StringBuilder builder, bool enable = true)
 		{
-			if (bEnable)
+			if (enable)
 			{
-				Builder.Append(UhtPackageCodeGenerator.BeginEditorOnlyGuard);
+				builder.Append(UhtPackageCodeGenerator.BeginEditorOnlyGuard);
 			}
-			return Builder;
+			return builder;
 		}
 
-		public static StringBuilder AppendEndEditorOnlyGuard(this StringBuilder Builder, bool bEnable = true)
+		public static StringBuilder AppendEndEditorOnlyGuard(this StringBuilder builder, bool enable = true)
 		{
-			if (bEnable)
+			if (enable)
 			{
-				Builder.Append(UhtPackageCodeGenerator.EndEditorOnlyGuard);
+				builder.Append(UhtPackageCodeGenerator.EndEditorOnlyGuard);
 			}
-			return Builder;
+			return builder;
 		}
 	}
 }

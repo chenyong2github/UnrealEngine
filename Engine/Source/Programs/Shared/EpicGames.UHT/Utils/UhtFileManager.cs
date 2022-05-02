@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using EpicGames.Core;
 using System;
 using System.IO;
 using System.Linq;
 using System.Text;
+using EpicGames.Core;
 
 namespace EpicGames.UHT.Utils
 {
@@ -17,40 +17,40 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Return the full file path for a partial path
 		/// </summary>
-		/// <param name="FilePath">The partial file path</param>
+		/// <param name="filePath">The partial file path</param>
 		/// <returns>The full file path</returns>
-		public string GetFullFilePath(string FilePath);
+		public string GetFullFilePath(string filePath);
 
 		/// <summary>
 		/// Read the given source file
 		/// </summary>
-		/// <param name="FilePath">File path</param>
-		/// <param name="Fragment">Read fragment information</param>
+		/// <param name="filePath">File path</param>
+		/// <param name="fragment">Read fragment information</param>
 		/// <returns>True if the file was read</returns>
-		public bool ReadSource(string FilePath, out UhtSourceFragment Fragment);
+		public bool ReadSource(string filePath, out UhtSourceFragment fragment);
 
 		/// <summary>
 		/// Read the given source file
 		/// </summary>
-		/// <param name="FilePath">File path</param>
+		/// <param name="filePath">File path</param>
 		/// <returns>Buffer containing the read data or null if not found.  The returned buffer must be returned to the cache via a call to UhtBuffer.Return</returns>
-		public UhtBuffer? ReadOutput(string FilePath);
+		public UhtBuffer? ReadOutput(string filePath);
 
 		/// <summary>
 		/// Write the given contents to the file
 		/// </summary>
-		/// <param name="FilePath">Path to write to</param>
-		/// <param name="Contents">Contents to write</param>
+		/// <param name="filePath">Path to write to</param>
+		/// <param name="contents">Contents to write</param>
 		/// <returns>True if the source was written</returns>
-		public bool WriteOutput(string FilePath, ReadOnlySpan<char> Contents);
+		public bool WriteOutput(string filePath, ReadOnlySpan<char> contents);
 
 		/// <summary>
 		/// Rename the given file
 		/// </summary>
-		/// <param name="OldFilePath">Old file path name</param>
-		/// <param name="NewFilePath">New file path name</param>
+		/// <param name="oldFilePath">Old file path name</param>
+		/// <param name="newFilePath">New file path name</param>
 		/// <returns>True if the file was renamed</returns>
-		public bool RenameOutput(string OldFilePath, string NewFilePath);
+		public bool RenameOutput(string oldFilePath, string newFilePath);
 	}
 
 	/// <summary>
@@ -67,58 +67,58 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <inheritdoc/>
-		public string GetFullFilePath(string FilePath)
+		public string GetFullFilePath(string filePath)
 		{
-			return FilePath;
+			return filePath;
 		}
 
 		/// <inheritdoc/>
-		public bool ReadSource(string FilePath, out UhtSourceFragment Fragment)
+		public bool ReadSource(string filePath, out UhtSourceFragment fragment)
 		{
-			if (ReadFile(FilePath, out StringView Data))
+			if (ReadFile(filePath, out StringView data))
 			{
-				Fragment = new UhtSourceFragment { SourceFile = null, FilePath = FilePath, LineNumber = 0, Data = Data };
+				fragment = new UhtSourceFragment { SourceFile = null, FilePath = filePath, LineNumber = 0, Data = data };
 				return true;
 			}
-			Fragment = new UhtSourceFragment { SourceFile = null, FilePath = String.Empty, LineNumber = 0, Data = new StringView() };
+			fragment = new UhtSourceFragment { SourceFile = null, FilePath = String.Empty, LineNumber = 0, Data = new StringView() };
 			return false;
 		}
 
 		/// <inheritdoc/>
-		public UhtBuffer? ReadOutput(string FilePath)
+		public UhtBuffer? ReadOutput(string filePath)
 		{
 			// Exceptions are very expensive.  Don't bother trying to open the file if it doesn't exist
-			if (!File.Exists(FilePath))
+			if (!File.Exists(filePath))
 			{
 				return null;
 			}
 
 			try
 			{
-				using (FileStream fs = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan))
+				using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan))
 				{
 					using (StreamReader sr = new StreamReader(fs, Encoding.UTF8, true))
 					{
 
 						// Try to read the whole file into a buffer created by hand.  This avoids a LOT of memory allocations which in turn reduces the
 						// GC stress on the system.  Removing the StreamReader would be nice in the future.
-						long RawFileLength = fs.Length;
-						UhtBuffer InitialBuffer = UhtBuffer.Borrow((int)RawFileLength);
-						int ReadLength = sr.Read(InitialBuffer.Memory.Span);
+						long rawFileLength = fs.Length;
+						UhtBuffer initialBuffer = UhtBuffer.Borrow((int)rawFileLength);
+						int readLength = sr.Read(initialBuffer.Memory.Span);
 						if (sr.EndOfStream)
 						{
-							InitialBuffer.Reset(ReadLength);
-							return InitialBuffer;
+							initialBuffer.Reset(readLength);
+							return initialBuffer;
 						}
 						else
 						{
-							string Remaining = sr.ReadToEnd();
-							long TotalSize = ReadLength + Remaining.Length;
-							UhtBuffer Combined = UhtBuffer.Borrow((int)TotalSize);
-							Buffer.BlockCopy(InitialBuffer.Block, 0, Combined.Block, 0, ReadLength * sizeof(char));
-							Buffer.BlockCopy(Remaining.ToArray(), 0, Combined.Block, ReadLength * sizeof(char), Remaining.Length * sizeof(char));
-							UhtBuffer.Return(InitialBuffer);
-							return Combined;
+							string remaining = sr.ReadToEnd();
+							long totalSize = readLength + remaining.Length;
+							UhtBuffer combined = UhtBuffer.Borrow((int)totalSize);
+							Buffer.BlockCopy(initialBuffer.Block, 0, combined.Block, 0, readLength * sizeof(char));
+							Buffer.BlockCopy(remaining.ToArray(), 0, combined.Block, readLength * sizeof(char), remaining.Length * sizeof(char));
+							UhtBuffer.Return(initialBuffer);
+							return combined;
 						}
 					}
 				}
@@ -130,18 +130,18 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <inheritdoc/>
-		public bool WriteOutput(string FilePath, ReadOnlySpan<char> Contents)
+		public bool WriteOutput(string filePath, ReadOnlySpan<char> contents)
 		{
 			try
 			{
-				string? FileDirectory = Path.GetDirectoryName(FilePath);
-				if (!string.IsNullOrEmpty(FileDirectory))
+				string? fileDirectory = Path.GetDirectoryName(filePath);
+				if (!String.IsNullOrEmpty(fileDirectory))
 				{
-					Directory.CreateDirectory(FileDirectory);
+					Directory.CreateDirectory(fileDirectory);
 				}
-				using (StreamWriter Writer = new StreamWriter(FilePath, false, new UTF8Encoding(false, true), 16 * 1024))
+				using (StreamWriter writer = new StreamWriter(filePath, false, new UTF8Encoding(false, true), 16 * 1024))
 				{
-					Writer.Write(Contents);
+					writer.Write(contents);
 				}
 				return true;
 			}
@@ -152,11 +152,11 @@ namespace EpicGames.UHT.Utils
 		}
 
 		/// <inheritdoc/>
-		public bool RenameOutput(string OldFilePath, string NewFilePath)
+		public bool RenameOutput(string oldFilePath, string newFilePath)
 		{
 			try
 			{
-				File.Move(OldFilePath, NewFilePath, true);
+				File.Move(oldFilePath, newFilePath, true);
 				return true;
 			}
 			catch (Exception)
@@ -168,38 +168,38 @@ namespace EpicGames.UHT.Utils
 		/// <summary>
 		/// Read the given source file
 		/// </summary>
-		/// <param name="FilePath">Full file path</param>
-		/// <param name="Contents">Contents of the file</param>
+		/// <param name="filePath">Full file path</param>
+		/// <param name="contents">Contents of the file</param>
 		/// <returns>True if the file was read, false if not</returns>
-		private static bool ReadFile(string FilePath, out StringView Contents)
+		private static bool ReadFile(string filePath, out StringView contents)
 		{
 			// Exceptions are very expensive.  Don't bother trying to open the file if it doesn't exist
-			if (!File.Exists(FilePath))
+			if (!File.Exists(filePath))
 			{
-				Contents = new StringView();
+				contents = new StringView();
 				return false;
 			}
 
 			try
 			{
-				using (FileStream fs = new FileStream(FilePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan))
+				using (FileStream fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 4 * 1024, FileOptions.SequentialScan))
 				{
 					using (StreamReader sr = new StreamReader(fs, Encoding.UTF8, true))
 					{
 
 						// Try to read the whole file into a buffer created by hand.  This avoids a LOT of memory allocations which in turn reduces the
 						// GC stress on the system.  Removing the StreamReader would be nice in the future.
-						long RawFileLength = fs.Length;
-						char[] InitialBuffer = new char[RawFileLength];
-						int ReadLength = sr.Read(InitialBuffer, 0, (int)RawFileLength);
+						long rawFileLength = fs.Length;
+						char[] initialBuffer = new char[rawFileLength];
+						int readLength = sr.Read(initialBuffer, 0, (int)rawFileLength);
 						if (sr.EndOfStream)
 						{
-							Contents = new StringView(new ReadOnlyMemory<char>(InitialBuffer, 0, ReadLength));
+							contents = new StringView(new ReadOnlyMemory<char>(initialBuffer, 0, readLength));
 						}
 						else
 						{
-							string Remaining = sr.ReadToEnd();
-							Contents = new StringView(String.Concat(new ReadOnlySpan<char>(InitialBuffer, 0, ReadLength), Remaining));
+							string remaining = sr.ReadToEnd();
+							contents = new StringView(String.Concat(new ReadOnlySpan<char>(initialBuffer, 0, readLength), remaining));
 						}
 						return true;
 					}
@@ -207,7 +207,7 @@ namespace EpicGames.UHT.Utils
 			}
 			catch (IOException)
 			{
-				Contents = new StringView();
+				contents = new StringView();
 				return false;
 			}
 		}

@@ -13,25 +13,25 @@ namespace EpicGames.UHT.Parsers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void DependsOnSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void DependsOnSpecifier(UhtSpecifierContext specifierContext)
 		{
-			throw new UhtException(SpecifierContext.MessageSite, $"The dependsOn specifier is deprecated. Please use #include \"ClassHeaderFilename.h\" instead.");
+			throw new UhtException(specifierContext.MessageSite, $"The dependsOn specifier is deprecated. Please use #include \"ClassHeaderFilename.h\" instead.");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void MinimalAPISpecifier(UhtSpecifierContext SpecifierContext)
+		private static void MinimalAPISpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClass Class = (UhtClass)SpecifierContext.Scope.ScopeType;
-			Class.ClassFlags |= EClassFlags.MinimalAPI;
+			UhtClass clasObj = (UhtClass)specifierContext.Scope.ScopeType;
+			clasObj.ClassFlags |= EClassFlags.MinimalAPI;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ConversionRootSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ConversionRootSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClass Class = (UhtClass)SpecifierContext.Scope.ScopeType;
-			Class.MetaData.Add(UhtNames.IsConversionRoot, "true");
+			UhtClass classObj = (UhtClass)specifierContext.Scope.ScopeType;
+			classObj.MetaData.Add(UhtNames.IsConversionRoot, "true");
 		}
 	}
 }

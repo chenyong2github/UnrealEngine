@@ -17,39 +17,39 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Construct a new property
 		/// </summary>
-		/// <param name="PropertySettings">Property settings</param>
-		/// <param name="Value">Value property</param>
-		protected UhtContainerBaseProperty(UhtPropertySettings PropertySettings, UhtProperty Value) : base(PropertySettings)
+		/// <param name="propertySettings">Property settings</param>
+		/// <param name="value">Value property</param>
+		protected UhtContainerBaseProperty(UhtPropertySettings propertySettings, UhtProperty value) : base(propertySettings)
 		{
-			this.ValueProperty = Value;
-			this.PropertyCaps = (this.PropertyCaps & ~(UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanHaveConfig)) | 
+			this.ValueProperty = value;
+			this.PropertyCaps = (this.PropertyCaps & ~(UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanHaveConfig)) |
 				(this.ValueProperty.PropertyCaps & (UhtPropertyCaps.CanBeInstanced | UhtPropertyCaps.CanHaveConfig));
 		}
 
 		/// <inheritdoc/>
-		public override void Validate(UhtStruct OuterStruct, UhtProperty OutermostProperty, UhtValidationOptions Options)
+		public override void Validate(UhtStruct outerStruct, UhtProperty outermostProperty, UhtValidationOptions options)
 		{
-			base.Validate(OuterStruct, OutermostProperty, Options);
-			this.ValueProperty.Validate(OuterStruct, OutermostProperty, Options | UhtValidationOptions.IsValue);
+			base.Validate(outerStruct, outermostProperty, options);
+			this.ValueProperty.Validate(outerStruct, outermostProperty, options | UhtValidationOptions.IsValue);
 		}
 
 		/// <summary>
 		/// Propagate flags and meta data to/from child properties
 		/// </summary>
-		/// <param name="Container">Container property</param>
-		/// <param name="MetaData">Meta data</param>
-		/// <param name="Inner">Inner property</param>
-		protected static void PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(UhtProperty Container, UhtMetaData? MetaData, UhtProperty Inner)
+		/// <param name="container">Container property</param>
+		/// <param name="metaData">Meta data</param>
+		/// <param name="inner">Inner property</param>
+		protected static void PropagateFlagsFromInnerAndHandlePersistentInstanceMetadata(UhtProperty container, UhtMetaData? metaData, UhtProperty inner)
 		{
 			// Copy some of the property flags to the container property.
-			if (Inner.PropertyFlags.HasAnyFlags(EPropertyFlags.ContainsInstancedReference | EPropertyFlags.InstancedReference))
+			if (inner.PropertyFlags.HasAnyFlags(EPropertyFlags.ContainsInstancedReference | EPropertyFlags.InstancedReference))
 			{
-				Container.PropertyFlags |= EPropertyFlags.ContainsInstancedReference;
-				Container.PropertyFlags &= ~(EPropertyFlags.InstancedReference | EPropertyFlags.PersistentInstance); //this was propagated to the inner
+				container.PropertyFlags |= EPropertyFlags.ContainsInstancedReference;
+				container.PropertyFlags &= ~(EPropertyFlags.InstancedReference | EPropertyFlags.PersistentInstance); //this was propagated to the inner
 
-				if (MetaData != null && Inner.PropertyFlags.HasAnyFlags(EPropertyFlags.PersistentInstance))
+				if (metaData != null && inner.PropertyFlags.HasAnyFlags(EPropertyFlags.PersistentInstance))
 				{
-					Inner.MetaData.Add(MetaData);
+					inner.MetaData.Add(metaData);
 				}
 			}
 		}
@@ -57,21 +57,21 @@ namespace EpicGames.UHT.Types
 		/// <summary>
 		/// Resolve the child and return any new flags
 		/// </summary>
-		/// <param name="Child">Child to resolve</param>
-		/// <param name="Phase">Resolve phase</param>
+		/// <param name="child">Child to resolve</param>
+		/// <param name="phase">Resolve phase</param>
 		/// <returns>And new flags</returns>
-		protected static EPropertyFlags ResolveAndReturnNewFlags(UhtProperty Child, UhtResolvePhase Phase)
+		protected static EPropertyFlags ResolveAndReturnNewFlags(UhtProperty child, UhtResolvePhase phase)
 		{
-			EPropertyFlags OldFlags = Child.PropertyFlags;
-			Child.Resolve(Phase);
-			EPropertyFlags NewFlags = Child.PropertyFlags;
-			return NewFlags & ~OldFlags;
+			EPropertyFlags oldFlags = child.PropertyFlags;
+			child.Resolve(phase);
+			EPropertyFlags newFlags = child.PropertyFlags;
+			return newFlags & ~oldFlags;
 		}
 
 		/// <inheritdoc/>
-		public override bool ScanForInstancedReferenced(bool bDeepScan)
+		public override bool ScanForInstancedReferenced(bool deepScan)
 		{
-			return this.ValueProperty.ScanForInstancedReferenced(bDeepScan);
+			return this.ValueProperty.ScanForInstancedReferenced(deepScan);
 		}
 	}
 }

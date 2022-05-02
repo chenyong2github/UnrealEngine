@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
+using System.Diagnostics.CodeAnalysis;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
-using System;
-using System.Diagnostics.CodeAnalysis;
 
 namespace EpicGames.UHT.Parsers
 {
@@ -18,430 +18,430 @@ namespace EpicGames.UHT.Parsers
 	{
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void EditAnywhereSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void EditAnywhereSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.bSeenEditSpecifier)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.SeenEditSpecifier)
 			{
-				Context.MessageSite.LogError("Found more than one edit/visibility specifier (EditAnywhere), only one is allowed");
+				context.MessageSite.LogError("Found more than one edit/visibility specifier (EditAnywhere), only one is allowed");
 			}
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit;
-			Context.bSeenEditSpecifier = true;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit;
+			context.SeenEditSpecifier = true;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void EditInstanceOnlySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void EditInstanceOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.bSeenEditSpecifier)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.SeenEditSpecifier)
 			{
-				Context.MessageSite.LogError("Found more than one edit/visibility specifier (EditInstanceOnly), only one is allowed");
+				context.MessageSite.LogError("Found more than one edit/visibility specifier (EditInstanceOnly), only one is allowed");
 			}
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.DisableEditOnTemplate;
-			Context.bSeenEditSpecifier = true;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.DisableEditOnTemplate;
+			context.SeenEditSpecifier = true;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void EditDefaultsOnlySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void EditDefaultsOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.bSeenEditSpecifier)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.SeenEditSpecifier)
 			{
-				Context.MessageSite.LogError("Found more than one edit/visibility specifier (EditDefaultsOnly), only one is allowed");
+				context.MessageSite.LogError("Found more than one edit/visibility specifier (EditDefaultsOnly), only one is allowed");
 			}
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.DisableEditOnInstance;
-			Context.bSeenEditSpecifier = true;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.DisableEditOnInstance;
+			context.SeenEditSpecifier = true;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void VisibleAnywhereSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void VisibleAnywhereSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.bSeenEditSpecifier)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.SeenEditSpecifier)
 			{
-				Context.MessageSite.LogError("Found more than one edit/visibility specifier (VisibleAnywhere), only one is allowed");
+				context.MessageSite.LogError("Found more than one edit/visibility specifier (VisibleAnywhere), only one is allowed");
 			}
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.EditConst;
-			Context.bSeenEditSpecifier = true;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.EditConst;
+			context.SeenEditSpecifier = true;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void VisibleInstanceOnlySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void VisibleInstanceOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.bSeenEditSpecifier)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.SeenEditSpecifier)
 			{
-				Context.MessageSite.LogError("Found more than one edit/visibility specifier (VisibleInstanceOnly), only one is allowed");
+				context.MessageSite.LogError("Found more than one edit/visibility specifier (VisibleInstanceOnly), only one is allowed");
 			}
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.EditConst | EPropertyFlags.DisableEditOnTemplate;
-			Context.bSeenEditSpecifier = true;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.EditConst | EPropertyFlags.DisableEditOnTemplate;
+			context.SeenEditSpecifier = true;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void VisibleDefaultsOnlySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void VisibleDefaultsOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.bSeenEditSpecifier)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.SeenEditSpecifier)
 			{
-				Context.MessageSite.LogError("Found more than one edit/visibility specifier (VisibleDefaultsOnly), only one is allowed");
+				context.MessageSite.LogError("Found more than one edit/visibility specifier (VisibleDefaultsOnly), only one is allowed");
 			}
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.EditConst | EPropertyFlags.DisableEditOnInstance;
-			Context.bSeenEditSpecifier = true;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.EditConst | EPropertyFlags.DisableEditOnInstance;
+			context.SeenEditSpecifier = true;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void BlueprintReadWriteSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintReadWriteSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.bSeenBlueprintReadOnlySpecifier)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.SeenBlueprintReadOnlySpecifier)
 			{
-				Context.MessageSite.LogError("Cannot specify a property as being both BlueprintReadOnly and BlueprintReadWrite.");
+				context.MessageSite.LogError("Cannot specify a property as being both BlueprintReadOnly and BlueprintReadWrite.");
 			}
 
-			string? PrivateAccessMD;
-			bool bAllowPrivateAccess = Context.MetaData.TryGetValue(UhtNames.AllowPrivateAccess, out PrivateAccessMD) && !PrivateAccessMD.Equals("false", StringComparison.OrdinalIgnoreCase);
-			if (SpecifierContext.Scope.AccessSpecifier == UhtAccessSpecifier.Private && !bAllowPrivateAccess)
+			string? privateAccessMD;
+			bool allowPrivateAccess = context.MetaData.TryGetValue(UhtNames.AllowPrivateAccess, out privateAccessMD) && !privateAccessMD.Equals("false", StringComparison.OrdinalIgnoreCase);
+			if (specifierContext.Scope.AccessSpecifier == UhtAccessSpecifier.Private && !allowPrivateAccess)
 			{
-				Context.MessageSite.LogError("BlueprintReadWrite should not be used on private members");
+				context.MessageSite.LogError("BlueprintReadWrite should not be used on private members");
 			}
 
-			if (Context.PropertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly) && Context.PropertySettings.Outer is UhtScriptStruct)
+			if (context.PropertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly) && context.PropertySettings.Outer is UhtScriptStruct)
 			{
-				Context.MessageSite.LogError("Blueprint exposed struct members cannot be editor only");
+				context.MessageSite.LogError("Blueprint exposed struct members cannot be editor only");
 			}
 
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintVisible;
-			Context.bSeenBlueprintWriteSpecifier = true;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintVisible;
+			context.SeenBlueprintWriteSpecifier = true;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void BlueprintReadOnlySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintReadOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.bSeenBlueprintWriteSpecifier)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.SeenBlueprintWriteSpecifier)
 			{
-				Context.MessageSite.LogError("Cannot specify both BlueprintReadOnly and BlueprintReadWrite or BlueprintSetter.");
+				context.MessageSite.LogError("Cannot specify both BlueprintReadOnly and BlueprintReadWrite or BlueprintSetter.");
 			}
 
-			string? PrivateAccessMD;
-			bool bAllowPrivateAccess = Context.MetaData.TryGetValue(UhtNames.AllowPrivateAccess, out PrivateAccessMD) && !PrivateAccessMD.Equals("false", StringComparison.OrdinalIgnoreCase);
-			if (SpecifierContext.Scope.AccessSpecifier == UhtAccessSpecifier.Private && !bAllowPrivateAccess)
+			string? privateAccessMD;
+			bool allowPrivateAccess = context.MetaData.TryGetValue(UhtNames.AllowPrivateAccess, out privateAccessMD) && !privateAccessMD.Equals("false", StringComparison.OrdinalIgnoreCase);
+			if (specifierContext.Scope.AccessSpecifier == UhtAccessSpecifier.Private && !allowPrivateAccess)
 			{
-				Context.MessageSite.LogError("BlueprintReadOnly should not be used on private members");
+				context.MessageSite.LogError("BlueprintReadOnly should not be used on private members");
 			}
 
-			if (Context.PropertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly) && Context.PropertySettings.Outer is UhtScriptStruct)
+			if (context.PropertySettings.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly) && context.PropertySettings.Outer is UhtScriptStruct)
 			{
-				Context.MessageSite.LogError("Blueprint exposed struct members cannot be editor only");
+				context.MessageSite.LogError("Blueprint exposed struct members cannot be editor only");
 			}
 
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintVisible | EPropertyFlags.BlueprintReadOnly;
-			Context.bSeenBlueprintReadOnlySpecifier = true;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintVisible | EPropertyFlags.BlueprintReadOnly;
+			context.SeenBlueprintReadOnlySpecifier = true;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.SingleString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void BlueprintSetterSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void BlueprintSetterSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.bSeenBlueprintReadOnlySpecifier)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.SeenBlueprintReadOnlySpecifier)
 			{
-				Context.MessageSite.LogError("Cannot specify a property as being both BlueprintReadOnly and having a BlueprintSetter.");
+				context.MessageSite.LogError("Cannot specify a property as being both BlueprintReadOnly and having a BlueprintSetter.");
 			}
 
-			if (Context.PropertySettings.Outer is UhtScriptStruct)
+			if (context.PropertySettings.Outer is UhtScriptStruct)
 			{
-				Context.MessageSite.LogError("Cannot specify BlueprintSetter for a struct member.");
+				context.MessageSite.LogError("Cannot specify BlueprintSetter for a struct member.");
 			}
 
-			Context.MetaData.Add(UhtNames.BlueprintSetter, Value.ToString());
+			context.MetaData.Add(UhtNames.BlueprintSetter, value.ToString());
 
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintVisible;
-			Context.bSeenBlueprintWriteSpecifier = true;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintVisible;
+			context.SeenBlueprintWriteSpecifier = true;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.SingleString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void BlueprintGetterSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void BlueprintGetterSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.PropertySettings.Outer is UhtScriptStruct)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.PropertySettings.Outer is UhtScriptStruct)
 			{
-				Context.MessageSite.LogError("Cannot specify BlueprintGetter for a struct member.");
+				context.MessageSite.LogError("Cannot specify BlueprintGetter for a struct member.");
 			}
 
-			Context.MetaData.Add(UhtNames.BlueprintGetter, Value.ToString());
+			context.MetaData.Add(UhtNames.BlueprintGetter, value.ToString());
 
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintVisible;
-			Context.bSeenBlueprintGetterSpecifier = true;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintVisible;
+			context.SeenBlueprintGetterSpecifier = true;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ConfigSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ConfigSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Config;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Config;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void GlobalConfigSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void GlobalConfigSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.GlobalConfig | EPropertyFlags.Config;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.GlobalConfig | EPropertyFlags.Config;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void LocalizedSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void LocalizedSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.MessageSite.LogError("The Localized specifier is deprecated");
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.MessageSite.LogError("The Localized specifier is deprecated");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void TransientSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void TransientSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Transient;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Transient;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void DuplicateTransientSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void DuplicateTransientSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.DuplicateTransient;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.DuplicateTransient;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void TextExportTransientSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void TextExportTransientSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.TextExportTransient;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.TextExportTransient;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NonPIETransientSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NonPIETransientSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.MessageSite.LogWarning("NonPIETransient is deprecated - NonPIEDuplicateTransient should be used instead");
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.NonPIEDuplicateTransient;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.MessageSite.LogWarning("NonPIETransient is deprecated - NonPIEDuplicateTransient should be used instead");
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.NonPIEDuplicateTransient;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NonPIEDuplicateTransientSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NonPIEDuplicateTransientSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.NonPIEDuplicateTransient;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.NonPIEDuplicateTransient;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ExportSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ExportSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.ExportObject;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.ExportObject;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void EditInlineSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void EditInlineSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.MessageSite.LogError("EditInline is deprecated. Remove it, or use Instanced instead.");
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.MessageSite.LogError("EditInline is deprecated. Remove it, or use Instanced instead.");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NoClearSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NoClearSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.NoClear;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.NoClear;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void EditFixedSizeSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void EditFixedSizeSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.EditFixedSize;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.EditFixedSize;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ReplicatedSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void ReplicatedSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.PropertySettings.Outer is UhtScriptStruct)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.PropertySettings.Outer is UhtScriptStruct)
 			{
-				Context.MessageSite.LogError("Struct members cannot be replicated");
+				context.MessageSite.LogError("Struct members cannot be replicated");
 			}
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Net;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Net;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.SingleString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void ReplicatedUsingSpecifier(UhtSpecifierContext SpecifierContext, StringView Value)
+		private static void ReplicatedUsingSpecifier(UhtSpecifierContext specifierContext, StringView value)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (Context.PropertySettings.Outer is UhtScriptStruct)
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.PropertySettings.Outer is UhtScriptStruct)
 			{
-				Context.MessageSite.LogError("Struct members cannot be replicated");
+				context.MessageSite.LogError("Struct members cannot be replicated");
 			}
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Net;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Net;
 
-			if (Value.Span.Length == 0)
+			if (value.Span.Length == 0)
 			{
-				Context.MessageSite.LogError("Must specify a valid function name for replication notifications");
+				context.MessageSite.LogError("Must specify a valid function name for replication notifications");
 			}
-			Context.PropertySettings.RepNotifyName = Value.ToString();
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.RepNotify;
+			context.PropertySettings.RepNotifyName = value.ToString();
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.RepNotify;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NotReplicatedSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NotReplicatedSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (!(Context.PropertySettings.Outer is UhtScriptStruct))
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.PropertySettings.Outer is not UhtScriptStruct)
 			{
-				Context.MessageSite.LogError("Only Struct members can be marked NotReplicated");
+				context.MessageSite.LogError("Only Struct members can be marked NotReplicated");
 			}
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.RepSkip;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.RepSkip;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void RepRetrySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void RepRetrySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.MessageSite.LogError("'RepRetry' is deprecated.");
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.MessageSite.LogError("'RepRetry' is deprecated.");
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void InterpSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void InterpSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.BlueprintVisible | EPropertyFlags.Interp;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.Edit | EPropertyFlags.BlueprintVisible | EPropertyFlags.Interp;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void NonTransactionalSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void NonTransactionalSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.NonTransactional;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.NonTransactional;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void InstancedSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void InstancedSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.PersistentInstance | EPropertyFlags.ExportObject | EPropertyFlags.InstancedReference;
-			Context.MetaData.Add(UhtNames.EditInline, true);
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.PersistentInstance | EPropertyFlags.ExportObject | EPropertyFlags.InstancedReference;
+			context.MetaData.Add(UhtNames.EditInline, true);
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void BlueprintAssignableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintAssignableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintAssignable;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintAssignable;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void BlueprintCallableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintCallableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintCallable;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintCallable;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void BlueprintAuthorityOnlySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void BlueprintAuthorityOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintAuthorityOnly;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintAuthorityOnly;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void AssetRegistrySearchableSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void AssetRegistrySearchableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.AssetRegistrySearchable;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.AssetRegistrySearchable;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void SimpleDisplaySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void SimpleDisplaySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.SimpleDisplay;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.SimpleDisplay;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void AdvancedDisplaySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void AdvancedDisplaySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.AdvancedDisplay;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.AdvancedDisplay;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void SaveGameSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void SaveGameSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.SaveGame;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.SaveGame;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.Legacy)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void SkipSerializationSpecifier(UhtSpecifierContext SpecifierContext)
+		private static void SkipSerializationSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyFlags |= EPropertyFlags.SkipSerialization;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyFlags |= EPropertyFlags.SkipSerialization;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.OptionalString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void GetterSpecifier(UhtSpecifierContext SpecifierContext, StringView? Value)
+		private static void GetterSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (!(Context.PropertySettings.Outer is UhtClass))
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.PropertySettings.Outer is not UhtClass)
 			{
-				Context.MessageSite.LogError("Only class members can have Setters");
+				context.MessageSite.LogError("Only class members can have Setters");
 			}
-			Context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.GetterSpecified;
-			if (Value != null)
+			context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.GetterSpecified;
+			if (value != null)
 			{
-				StringView Temp = (StringView)Value;
-				if (Temp.Length > 0)
+				StringView temp = (StringView)value;
+				if (temp.Length > 0)
 				{
-					if (Temp.Equals("None", StringComparison.OrdinalIgnoreCase))
+					if (temp.Equals("None", StringComparison.OrdinalIgnoreCase))
 					{
-						Context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.GetterSpecifiedNone;
+						context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.GetterSpecifiedNone;
 					}
 					else
 					{
-						Context.PropertySettings.Getter = Value.ToString();
+						context.PropertySettings.Getter = value.ToString();
 					}
 				}
 			}
@@ -449,26 +449,26 @@ namespace EpicGames.UHT.Parsers
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.OptionalString)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void SetterSpecifier(UhtSpecifierContext SpecifierContext, StringView? Value)
+		private static void SetterSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			if (!(Context.PropertySettings.Outer is UhtClass))
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			if (context.PropertySettings.Outer is not UhtClass)
 			{
-				Context.MessageSite.LogError("Only class members can have Getters");
+				context.MessageSite.LogError("Only class members can have Getters");
 			}
-			Context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.SetterSpecified;
-			if (Value != null)
+			context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.SetterSpecified;
+			if (value != null)
 			{
-				StringView Temp = (StringView)Value;
-				if (Temp.Length > 0)
+				StringView temp = (StringView)value;
+				if (temp.Length > 0)
 				{
-					if (Temp.Equals("None", StringComparison.OrdinalIgnoreCase))
+					if (temp.Equals("None", StringComparison.OrdinalIgnoreCase))
 					{
-						Context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.SetterSpecifiedNone;
+						context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.SetterSpecifiedNone;
 					}
 					else
 					{
-						Context.PropertySettings.Setter = Value.ToString();
+						context.PropertySettings.Setter = value.ToString();
 					}
 				}
 			}
@@ -476,10 +476,10 @@ namespace EpicGames.UHT.Parsers
 
 		[UhtSpecifier(Extends = UhtTableNames.PropertyMember, ValueType = UhtSpecifierValueType.None)]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
-		private static void FieldNotifySpecifier(UhtSpecifierContext SpecifierContext)
+		private static void FieldNotifySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtPropertySpecifierContext Context = (UhtPropertySpecifierContext)SpecifierContext;
-			Context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.FieldNotify;
+			UhtPropertySpecifierContext context = (UhtPropertySpecifierContext)specifierContext;
+			context.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.FieldNotify;
 		}
 	}
 }
