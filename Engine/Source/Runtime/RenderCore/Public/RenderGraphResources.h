@@ -665,6 +665,10 @@ public:
 	{
 		Texture = InTexture;
 		NumMipLevels = InTexture->Desc.NumMips;
+		if (InTexture->Desc.IsTextureArray())
+		{
+			NumArraySlices = InTexture->Desc.ArraySize;
+		}
 	}
 
 	/** Create SRV that access all sub resources of texture. */
@@ -676,15 +680,26 @@ public:
 	/** Create SRV that access one specific mip level. */
 	static FRDGTextureSRVDesc CreateForMipLevel(FRDGTextureRef Texture, int32 MipLevel)
 	{
-		FRDGTextureSRVDesc Desc;
-		Desc.Texture = Texture;
-		check(MipLevel >= -1 && MipLevel <= TNumericLimits<int8>::Max()); 
+		check(MipLevel >= -1 && MipLevel <= TNumericLimits<int8>::Max());
+		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::Create(Texture);
 		Desc.MipLevel = (int8)MipLevel;
 		Desc.NumMipLevels = 1;
 		return Desc;
 	}
 
-	/** Create SRV that access one specific mip level. */
+	/** Create SRV that access one specific slice. */
+	static FRDGTextureSRVDesc CreateForSlice(FRDGTextureRef Texture, int32 SliceIndex)
+	{
+		check(Texture);
+		check(Texture->Desc.IsTextureArray());
+		check(SliceIndex >= 0 && SliceIndex < Texture->Desc.ArraySize);
+		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::Create(Texture);
+		Desc.FirstArraySlice = SliceIndex;
+		Desc.NumArraySlices = 1;
+		return Desc;
+	}
+
+	/** Create SRV that access all sub resources of texture with a specific pixel format. */
 	static FRDGTextureSRVDesc CreateWithPixelFormat(FRDGTextureRef Texture, EPixelFormat PixelFormat)
 	{
 		FRDGTextureSRVDesc Desc = FRDGTextureSRVDesc::Create(Texture);
@@ -713,6 +728,16 @@ public:
 	friend uint32 GetTypeHash(const FRDGTextureSRVDesc& Desc)
 	{
 		return HashCombine(GetTypeHash(static_cast<const FRHITextureSRVCreateInfo&>(Desc)), GetTypeHash(Desc.Texture));
+	}
+
+	/** Returns whether this descriptor conforms to requirements. */
+	bool IsValid() const
+	{
+		if (!Texture)
+		{
+			return false;
+		}
+		return FRHITextureSRVCreateInfo::Validate(Texture->Desc, *this, Texture->Name, /* bFatal = */ false);
 	}
 
 	FRDGTextureRef Texture = nullptr;

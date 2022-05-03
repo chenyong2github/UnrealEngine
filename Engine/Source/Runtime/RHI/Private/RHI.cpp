@@ -2029,7 +2029,7 @@ void FRHIRenderPassInfo::Validate() const
 }
 #endif
 
-#define ValidateTextureDesc(expr, format, ...) \
+#define ValidateResourceDesc(expr, format, ...) \
 	if (bFatal) \
 	{ \
 		checkf(expr, format, ##__VA_ARGS__); \
@@ -2044,9 +2044,9 @@ bool FRHITextureDesc::Validate(const FRHITextureCreateInfo& Desc, const TCHAR* N
 {
 	// Validate texture's pixel format.
 	{
-		ValidateTextureDesc(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
-		ValidateTextureDesc(Desc.Format < PF_MAX, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
-		ValidateTextureDesc(GPixelFormats[Desc.Format].Supported,
+		ValidateResourceDesc(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
+		ValidateResourceDesc(Desc.Format < PF_MAX, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
+		ValidateResourceDesc(GPixelFormats[Desc.Format].Supported,
 			TEXT("Failed to create texture %s with pixel format %s because it is not supported."),
 			Name,
 			GPixelFormats[Desc.Format].Name);
@@ -2056,60 +2056,134 @@ bool FRHITextureDesc::Validate(const FRHITextureCreateInfo& Desc, const TCHAR* N
 	{
 		int32 MaxDimension = (Desc.Dimension == ETextureDimension::TextureCube || Desc.Dimension == ETextureDimension::TextureCubeArray) ? GMaxCubeTextureDimensions : GMaxTextureDimensions;
 
-		ValidateTextureDesc(Desc.Extent.X > 0, TEXT("Texture %s's Extent.X=%d is invalid."), Name, Desc.Extent.X);
-		ValidateTextureDesc(Desc.Extent.X <= MaxDimension, TEXT("Texture %s's Extent.X=%d is too large."), Name, Desc.Extent.X);
+		ValidateResourceDesc(Desc.Extent.X > 0, TEXT("Texture %s's Extent.X=%d is invalid."), Name, Desc.Extent.X);
+		ValidateResourceDesc(Desc.Extent.X <= MaxDimension, TEXT("Texture %s's Extent.X=%d is too large."), Name, Desc.Extent.X);
 
-		ValidateTextureDesc(Desc.Extent.Y > 0, TEXT("Texture %s's Extent.Y=%d is invalid."), Name, Desc.Extent.Y);
-		ValidateTextureDesc(Desc.Extent.Y <= MaxDimension, TEXT("Texture %s's Extent.Y=%d is too large."), Name, Desc.Extent.Y);
+		ValidateResourceDesc(Desc.Extent.Y > 0, TEXT("Texture %s's Extent.Y=%d is invalid."), Name, Desc.Extent.Y);
+		ValidateResourceDesc(Desc.Extent.Y <= MaxDimension, TEXT("Texture %s's Extent.Y=%d is too large."), Name, Desc.Extent.Y);
 	}
 
 	// Validate texture's depth
 	if (Desc.Dimension == ETextureDimension::Texture3D)
 	{
-		ValidateTextureDesc(Desc.Depth > 0, TEXT("Texture %s's Depth=%d is invalid."), Name, int32(Desc.Depth));
-		ValidateTextureDesc(Desc.Depth <= GMaxTextureDimensions, TEXT("Texture %s's Extent.Depth=%d is too large."), Name, Desc.Depth);
+		ValidateResourceDesc(Desc.Depth > 0, TEXT("Texture %s's Depth=%d is invalid."), Name, int32(Desc.Depth));
+		ValidateResourceDesc(Desc.Depth <= GMaxTextureDimensions, TEXT("Texture %s's Extent.Depth=%d is too large."), Name, Desc.Depth);
 	}
 	else
 	{
-		ValidateTextureDesc(Desc.Depth == 1, TEXT("Texture %s's Depth=%d is invalid for Dimension=%s."), Name, int32(Desc.Depth), GetTextureDimensionString(Desc.Dimension));
+		ValidateResourceDesc(Desc.Depth == 1, TEXT("Texture %s's Depth=%d is invalid for Dimension=%s."), Name, int32(Desc.Depth), GetTextureDimensionString(Desc.Dimension));
 	}
 
 	// Validate texture's array size
 	if (Desc.Dimension == ETextureDimension::Texture2DArray || Desc.Dimension == ETextureDimension::TextureCubeArray)
 	{
-		ValidateTextureDesc(Desc.ArraySize > 0, TEXT("Texture %s's ArraySize=%d is invalid."), Name, Desc.ArraySize);
-		ValidateTextureDesc(Desc.ArraySize <= GMaxTextureArrayLayers, TEXT("Texture %s's Extent.ArraySize=%d is too large."), Name, int32(Desc.ArraySize));
+		ValidateResourceDesc(Desc.ArraySize > 0, TEXT("Texture %s's ArraySize=%d is invalid."), Name, Desc.ArraySize);
+		ValidateResourceDesc(Desc.ArraySize <= GMaxTextureArrayLayers, TEXT("Texture %s's Extent.ArraySize=%d is too large."), Name, int32(Desc.ArraySize));
 	}
 	else
 	{
-		ValidateTextureDesc(Desc.ArraySize == 1, TEXT("Texture %s's ArraySize=%d is invalid for Dimension=%s."), Name, Desc.ArraySize,  GetTextureDimensionString(Desc.Dimension));
+		ValidateResourceDesc(Desc.ArraySize == 1, TEXT("Texture %s's ArraySize=%d is invalid for Dimension=%s."), Name, Desc.ArraySize,  GetTextureDimensionString(Desc.Dimension));
 	}
 
 	// Validate texture's samples count.
 	if (Desc.Dimension == ETextureDimension::Texture2D || Desc.Dimension == ETextureDimension::Texture2DArray)
 	{
-		ValidateTextureDesc(Desc.NumSamples > 0, TEXT("Texture %s's NumSamples=%d is invalid."), Name, Desc.NumSamples);
+		ValidateResourceDesc(Desc.NumSamples > 0, TEXT("Texture %s's NumSamples=%d is invalid."), Name, Desc.NumSamples);
 	}
 	else
 	{
-		ValidateTextureDesc(Desc.NumSamples == 1, TEXT("Texture %s's NumSamples=%d is invalid for Dimension=%s."), Name, Desc.NumSamples, GetTextureDimensionString(Desc.Dimension));
+		ValidateResourceDesc(Desc.NumSamples == 1, TEXT("Texture %s's NumSamples=%d is invalid for Dimension=%s."), Name, Desc.NumSamples, GetTextureDimensionString(Desc.Dimension));
 	}
 
 	// Validate texture's mips.
 	if (Desc.IsMultisample())
 	{
-		ValidateTextureDesc(Desc.NumMips == 1, TEXT("MSAA Texture %s's can only have one mip."), Name);
+		ValidateResourceDesc(Desc.NumMips == 1, TEXT("MSAA Texture %s's can only have one mip."), Name);
 	}
 	else
 	{
-		ValidateTextureDesc(Desc.NumMips > 0, TEXT("Texture %s's NumMips=%d is invalid."), Name, Desc.NumMips);
-		ValidateTextureDesc(Desc.NumMips <= GMaxTextureMipCount, TEXT("Texture %s's NumMips=%d is too large."), Name, Desc.NumMips);
+		ValidateResourceDesc(Desc.NumMips > 0, TEXT("Texture %s's NumMips=%d is invalid."), Name, Desc.NumMips);
+		ValidateResourceDesc(Desc.NumMips <= GMaxTextureMipCount, TEXT("Texture %s's NumMips=%d is too large."), Name, Desc.NumMips);
 	}
 
 	return true;
 }
 
-#undef ValidateTextureDesc
+// static
+bool FRHITextureSRVCreateInfo::Validate(const FRHITextureDesc& TextureDesc, const FRHITextureSRVCreateInfo& TextureSRVDesc, const TCHAR* TextureName, bool bFatal)
+{
+	if (TextureName == nullptr)
+	{
+		TextureName = TEXT("UnnamedTexture");
+	}
+
+	ValidateResourceDesc(TextureDesc.Flags & TexCreate_ShaderResource,
+		TEXT("Attempted to create SRV from texture %s which was not created with TexCreate_ShaderResource"),
+		TextureName);
+
+	// Validate the pixel format if overridden by the SRV's descriptor.
+	if (TextureSRVDesc.Format == PF_X24_G8)
+	{
+		// PF_X24_G8 is a bit of mess in the RHI, used to read the stencil, but have varying BlockBytes.
+		ValidateResourceDesc(TextureDesc.Format == PF_DepthStencil,
+			TEXT("PF_X24_G8 is only to read stencil from a PF_DepthStencil texture"));
+	}
+	else if (TextureSRVDesc.Format != PF_Unknown)
+	{
+		ValidateResourceDesc(TextureSRVDesc.Format < PF_MAX,
+			TEXT("Illegal to create SRV for texture %s with invalid FPooledRenderTargetDesc::Format."),
+			TextureName);
+		ValidateResourceDesc(GPixelFormats[TextureSRVDesc.Format].Supported,
+			TEXT("Failed to create SRV for texture %s with pixel format %s because it is not supported."),
+			TextureName, GPixelFormats[TextureSRVDesc.Format].Name);
+
+		EPixelFormat ResourcePixelFormat = TextureDesc.Format;
+
+		ValidateResourceDesc(
+			GPixelFormats[TextureSRVDesc.Format].BlockBytes == GPixelFormats[ResourcePixelFormat].BlockBytes &&
+			GPixelFormats[TextureSRVDesc.Format].BlockSizeX == GPixelFormats[ResourcePixelFormat].BlockSizeX &&
+			GPixelFormats[TextureSRVDesc.Format].BlockSizeY == GPixelFormats[ResourcePixelFormat].BlockSizeY &&
+			GPixelFormats[TextureSRVDesc.Format].BlockSizeZ == GPixelFormats[ResourcePixelFormat].BlockSizeZ,
+			TEXT("Failed to create SRV for texture %s with pixel format %s because it does not match the byte size of the texture's pixel format %s."),
+			TextureName, GPixelFormats[TextureSRVDesc.Format].Name, GPixelFormats[ResourcePixelFormat].Name);
+	}
+
+	ValidateResourceDesc((TextureSRVDesc.MipLevel + TextureSRVDesc.NumMipLevels) <= TextureDesc.NumMips,
+		TEXT("Failed to create SRV at mips %d-%d: the texture %s has only %d mip levels."),
+		TextureSRVDesc.MipLevel, (TextureSRVDesc.MipLevel + TextureSRVDesc.NumMipLevels), TextureName, TextureDesc.NumMips);
+
+	// Validate the array sloces
+	if (TextureDesc.IsTextureArray())
+	{
+		ValidateResourceDesc((TextureSRVDesc.FirstArraySlice + TextureSRVDesc.NumArraySlices) <= TextureDesc.ArraySize,
+			TEXT("Failed to create SRV at array slices %d-%d: the texture array %s has only %d slices."),
+			TextureSRVDesc.FirstArraySlice,
+			(TextureSRVDesc.FirstArraySlice + TextureSRVDesc.NumArraySlices),
+			TextureName,
+			TextureDesc.ArraySize);
+	}
+	else
+	{
+		ValidateResourceDesc(TextureSRVDesc.FirstArraySlice == 0,
+			TEXT("Failed to create SRV with FirstArraySlice=%d: the texture %s is not a texture array."),
+			TextureSRVDesc.FirstArraySlice, TextureName);
+		ValidateResourceDesc(TextureSRVDesc.NumArraySlices == 0,
+			TEXT("Failed to create SRV with NumArraySlices=%d: the texture %s is not a texture array."),
+			TextureSRVDesc.NumArraySlices, TextureName);
+	}
+
+	ValidateResourceDesc(TextureSRVDesc.MetaData != ERHITextureMetaDataAccess::FMask || GRHISupportsExplicitFMask,
+		TEXT("Failed to create FMask SRV for texture %s because the current RHI doesn't support it. Be sure to gate the call with GRHISupportsExplicitFMask."),
+		TextureName);
+
+	ValidateResourceDesc(TextureSRVDesc.MetaData != ERHITextureMetaDataAccess::HTile || GRHISupportsExplicitHTile,
+		TEXT("Failed to create HTile SRV for texture %s because the current RHI doesn't support it. Be sure to gate the call with GRHISupportsExplicitHTile."),
+		TextureName);
+
+	return true;
+}
+
+#undef ValidateResourceDesc
 
 uint64 FRHITextureDesc::CalcMemorySizeEstimate(uint32 FirstMipIndex, uint32 LastMipIndex) const
 {

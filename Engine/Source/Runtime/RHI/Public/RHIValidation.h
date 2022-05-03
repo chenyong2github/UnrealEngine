@@ -601,6 +601,7 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FRHITexture* TextureRHI, const FRHITextureSRVCreateInfo& CreateInfo) override final
 	{
 		RHI_VALIDATION_CHECK(TextureRHI->GetTextureReference() == nullptr, TEXT("Creating a shader resource view of an FRHITextureReference is not supported."));
+		FRHITextureSRVCreateInfo::CheckValidity(TextureRHI->GetDesc(), CreateInfo, TextureRHI->GetTrackerResource()->GetDebugName());
 
 		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView(TextureRHI, CreateInfo);
 
@@ -1476,6 +1477,7 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, const FRHITextureSRVCreateInfo& CreateInfo) override final
 	{
 		RHI_VALIDATION_CHECK(Texture->GetTextureReference() == nullptr, TEXT("Creating a shader resource view of an FRHITextureReference is not supported."));
+		FRHITextureSRVCreateInfo::CheckValidity(Texture->GetDesc(), CreateInfo, Texture->GetTrackerResource()->GetDebugName());
 
 		FShaderResourceViewRHIRef SRV = RHI->RHICreateShaderResourceView_RenderThread(RHICmdList, Texture, CreateInfo);
 		RHIValidation::EResourcePlane Plane = CreateInfo.Format == PF_X24_G8

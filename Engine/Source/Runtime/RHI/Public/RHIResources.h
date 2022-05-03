@@ -4233,7 +4233,7 @@ enum ERHITextureSRVOverrideSRGBType : uint8
 	SRGBO_ForceDisable,
 };
 
-struct FRHITextureSRVCreateInfo
+struct RHI_API FRHITextureSRVCreateInfo
 {
 	explicit FRHITextureSRVCreateInfo(uint8 InMipLevel = 0u, uint8 InNumMipLevels = 1u, EPixelFormat InFormat = PF_Unknown)
 		: Format(InFormat)
@@ -4298,6 +4298,15 @@ struct FRHITextureSRVCreateInfo
 		Hash = HashCombine(Hash, uint32(Info.MetaData));
 		return Hash;
 	}
+
+	/** Check the validity. */
+	static bool CheckValidity(const FRHITextureDesc& TextureDesc, const FRHITextureSRVCreateInfo& TextureSRVDesc, const TCHAR* TextureName)
+	{
+		return FRHITextureSRVCreateInfo::Validate(TextureDesc, TextureSRVDesc, TextureName, /* bFatal = */ true);
+	}
+
+protected:
+	static bool Validate(const FRHITextureDesc& TextureDesc, const FRHITextureSRVCreateInfo& TextureSRVDesc, const TCHAR* TextureName, bool bFatal);
 };
 
 struct FRHITextureUAVCreateInfo

@@ -166,8 +166,14 @@ inline FRDGTextureSubresourceRange FRDGTextureUAV::GetSubresourceRange() const
 {
 	FRDGTextureSubresourceRange Range = GetParent()->GetSubresourceRange();
 	Range.MipIndex = Desc.MipLevel;
+	Range.ArraySlice = Desc.FirstArraySlice;
 	Range.NumMips = 1;
 	Range.PlaneSlice = GetResourceTransitionPlaneForMetadataAccess(Desc.MetaData);
+
+	if (Desc.NumArraySlices != 0)
+	{
+		Range.NumArraySlices = Desc.NumArraySlices;
+	}
 
 	if (Desc.MetaData != ERDGTextureMetaDataAccess::None)
 	{
