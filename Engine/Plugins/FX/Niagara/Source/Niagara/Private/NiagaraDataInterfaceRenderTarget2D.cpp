@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceRenderTarget2D.h"
-#include "NiagaraShader.h"
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
 #include "TextureResource.h"
@@ -15,24 +14,34 @@
 #include "NiagaraGpuComputeDebug.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGPUProfilerInterface.h"
+#include "NiagaraShader.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraStats.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceRenderTarget2D"
 
-const FString UNiagaraDataInterfaceRenderTarget2D::SizeName(TEXT("RWSize_"));
-const FString UNiagaraDataInterfaceRenderTarget2D::RWOutputName(TEXT("RWOutput_"));
-const FString UNiagaraDataInterfaceRenderTarget2D::OutputName(TEXT("Output_"));
-const FString UNiagaraDataInterfaceRenderTarget2D::InputName(TEXT("Input_"));
+namespace NDIRenderTarget2DLocal
+{
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(FIntPoint,					TextureSize)
+		SHADER_PARAMETER_UAV(RWTexture2D<float4>,	RWTexture)
+		SHADER_PARAMETER_TEXTURE(Texture2D<float4>, Texture)
+		SHADER_PARAMETER_SAMPLER(SamplerState,		TextureSampler)
+	END_SHADER_PARAMETER_STRUCT()
 
-// Global VM function names, also used by the shaders code generation methods.
-const FName UNiagaraDataInterfaceRenderTarget2D::SetValueFunctionName("SetRenderTargetValue");
-const FName UNiagaraDataInterfaceRenderTarget2D::GetValueFunctionName("GetRenderTargetValue");
-const FName UNiagaraDataInterfaceRenderTarget2D::SampleValueFunctionName("SampleRenderTargetValue");
-const FName UNiagaraDataInterfaceRenderTarget2D::SetSizeFunctionName("SetRenderTargetSize");
-const FName UNiagaraDataInterfaceRenderTarget2D::GetSizeFunctionName("GetRenderTargetSize");
-const FName UNiagaraDataInterfaceRenderTarget2D::LinearToIndexName("LinearToIndex");
+	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceRenderTarget2DTemplate.ush");
 
-static const FName GNiagaraRenderTarget2DGenerateMipsName("RenderTarget2D::GenerateMips");
+	// Global VM function names, also used by the shaders code generation methods.
+	static const FName SetValueFunctionName("SetRenderTargetValue");
+	static const FName GetValueFunctionName("GetRenderTargetValue");
+	static const FName SampleValueFunctionName("SampleRenderTargetValue");
+	static const FName SetSizeFunctionName("SetRenderTargetSize");
+	static const FName GetSizeFunctionName("GetRenderTargetSize");
+	static const FName LinearToIndexName("LinearToIndex");
+	static const FName ExecToIndexName("ExecToIndex");
+
+	static const FName GenerateMipsName("RenderTarget2D::GenerateMips");
+}
 
 FNiagaraVariableBase UNiagaraDataInterfaceRenderTarget2D::ExposedRTVar;
 
@@ -164,115 +173,6 @@ struct FNDIRenderTarget2DFunctionVersion
 };
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
-struct FNiagaraDataInterfaceParametersCS_RenderTarget2D : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_RenderTarget2D, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{			
-		SizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2D::SizeName + ParameterInfo.DataInterfaceHLSLSymbol));
-		OutputParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2D::OutputName + ParameterInfo.DataInterfaceHLSLSymbol));
-
-		InputParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2D::InputName + ParameterInfo.DataInterfaceHLSLSymbol));
-		InputSamplerStateParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTarget2D::InputName + ParameterInfo.DataInterfaceHLSLSymbol + TEXT("SamplerState")));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		// Get shader and DI
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		FNiagaraDataInterfaceProxyRenderTarget2DProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyRenderTarget2DProxy*>(Context.DataInterface);
-
-		FRenderTarget2DRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-		check(ProxyData);
-
-		SetShaderValue(RHICmdList, ComputeShaderRHI, SizeParam, ProxyData->Size);
-	
-		if (OutputParam.IsUAVBound())
-		{
-			FRHIUnorderedAccessView* OutputUAV = ProxyData->UnorderedAccessViewRHI;
-			if (OutputUAV)
-			{
-				// FIXME: this transition needs to happen in FNiagaraDataInterfaceProxyRenderTarget2DProxy::PreStage so it doesn't break up the overlap group,
-				// but for some reason it stops working if I move it in there.
-				RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-				ProxyData->bRebuildMips = true;
-				ProxyData->bWroteThisFrame = true;
-			}
-			else
-			{
-				OutputUAV = Context.ComputeDispatchInterface->GetEmptyUAVFromPool(RHICmdList, EPixelFormat::PF_A16B16G16R16, ENiagaraEmptyUAVType::Buffer);
-			}
-
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputParam.GetUAVIndex(), OutputUAV);
-		}
-
-		if ( InputParam.IsBound() )
-		{
-			ProxyData->bReadThisFrame = true;
-
-			FRHITexture* TextureRHI = ProxyData->TextureRHI;
-			if (!ensureMsgf(!OutputParam.IsUAVBound(), TEXT("NiagaraDIRenderTarget2D(%s) is bound as both read & write, read will be ignored."), *Context.DataInterface->SourceDIName.ToString()))
-			{
-				//-TODO: Feedback to the user that read & write is bound
-				TextureRHI = nullptr;
-			}
-
-			if (TextureRHI == nullptr)
-			{
-				TextureRHI = GBlackTexture->TextureRHI;
-			}
-
-			FRHISamplerState* SamplerStateRHI = ProxyData->SamplerStateRHI;
-			if (SamplerStateRHI == nullptr)
-			{
-				SamplerStateRHI = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			}
-
-			SetTextureParameter(
-				RHICmdList,
-				ComputeShaderRHI,
-				InputParam,
-				InputSamplerStateParam,
-				SamplerStateRHI,
-				TextureRHI
-			);
-		}
-	}
-
-	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const 
-	{
-		if (OutputParam.IsBound())
-		{
-			OutputParam.UnsetUAV(RHICmdList, Context.Shader.GetComputeShader());
-
-			FNiagaraDataInterfaceProxyRenderTarget2DProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyRenderTarget2DProxy*>(Context.DataInterface);
-			if ( FRenderTarget2DRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID) )
-			{
-				if (FRHIUnorderedAccessView* OutputUAV = ProxyData->UnorderedAccessViewRHI)
-				{
-					// FIXME: move to FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage, same as for the transition in Set() above.
-					RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
-				}
-			}
-		}
-	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter, SizeParam);
-	LAYOUT_FIELD(FRWShaderParameter, OutputParam);
-
-	LAYOUT_FIELD(FShaderResourceParameter, InputParam);
-	LAYOUT_FIELD(FShaderResourceParameter, InputSamplerStateParam);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_RenderTarget2D);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceRenderTarget2D, FNiagaraDataInterfaceParametersCS_RenderTarget2D);
-
-/*--------------------------------------------------------------------------------------------------------------------------*/
 
 #if STATS
 void FRenderTarget2DRWInstanceData_RenderThread::UpdateMemoryStats()
@@ -317,6 +217,8 @@ void UNiagaraDataInterfaceRenderTarget2D::PostInitProperties()
 
 void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	using namespace NDIRenderTarget2DLocal;
+
 	Super::GetFunctions(OutFunctions);
 
 	const int32 EmitterSystemOnlyBitmask = ENiagaraScriptUsageMask::Emitter | ENiagaraScriptUsageMask::System;
@@ -434,11 +336,31 @@ void UNiagaraDataInterfaceRenderTarget2D::GetFunctions(TArray<FNiagaraFunctionSi
 		Sig.FunctionVersion = FNDIRenderTarget2DFunctionVersion::LatestVersion;
 	#endif
 	}
+
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = ExecToIndexName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
+
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bWriteFunction = true;
+		Sig.bSupportsCPU = false;
+		Sig.bSupportsGPU = true;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTarget2DFunctionVersion::LatestVersion;
+	#endif
+	}
 }
 
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceRenderTarget2D::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
 {
+	using namespace NDIRenderTarget2DLocal;
+
 	bool bWasChanged = false;
 
 	if ( FunctionSignature.FunctionVersion < FNDIRenderTarget2DFunctionVersion::AddedOptionalExecute )
@@ -458,20 +380,22 @@ bool UNiagaraDataInterfaceRenderTarget2D::UpgradeFunctionCall(FNiagaraFunctionSi
 }
 #endif
 
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2D, GetSize);
-DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2D, SetSize);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2D, VMGetSize);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2D, VMSetSize);
 void UNiagaraDataInterfaceRenderTarget2D::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
+	using namespace NDIRenderTarget2DLocal;
+
 	Super::GetVMExternalFunction(BindingInfo, InstanceData, OutFunc);
 	if (BindingInfo.Name == GetSizeFunctionName)
 	{
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 2);
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2D, GetSize)::Bind(this, OutFunc);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2D, VMGetSize)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == SetSizeFunctionName)
 	{
 		check(BindingInfo.GetNumInputs() == 3 && BindingInfo.GetNumOutputs() == 1);
-		NDI_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2D, SetSize)::Bind(this, OutFunc);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceRenderTarget2D, VMSetSize)::Bind(this, OutFunc);
 	}
 
 }
@@ -525,105 +449,105 @@ bool UNiagaraDataInterfaceRenderTarget2D::CopyToInternal(UNiagaraDataInterface* 
 }
 
 #if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceRenderTarget2D::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	FSHAHash Hash = GetShaderFileHash(NDIRenderTarget2DLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
+	InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceRenderTarget2DTemplateHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderParameters<NDIRenderTarget2DLocal::FShaderParameters>();
+	return bSuccess;
+}
+
 void UNiagaraDataInterfaceRenderTarget2D::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
-
-	static const TCHAR *FormatDeclarations = TEXT(R"(
-		RWTexture2D<float4> {OutputName};
-		Texture2D<float4> {InputName};
-		SamplerState {InputName}SamplerState;
-		int2 {SizeName};
-	)");
-	TMap<FString, FStringFormatArg> ArgsDeclarations =
+	TMap<FString, FStringFormatArg> TemplateArgs =
 	{
-		{ TEXT("OutputName"),	RWOutputName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("InputName"),	InputName + ParamInfo.DataInterfaceHLSLSymbol },
-		{ TEXT("SizeName"),		SizeName + ParamInfo.DataInterfaceHLSLSymbol },
+		{TEXT("ParameterName"),				ParamInfo.DataInterfaceHLSLSymbol},
 	};
-	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
+
+	FString TemplateFile;
+	LoadShaderSourceFile(NDIRenderTarget2DLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
 bool UNiagaraDataInterfaceRenderTarget2D::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
+	using namespace NDIRenderTarget2DLocal;
+
 	bool ParentRet = Super::GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL);
 	if (ParentRet)
 	{
 		return true;
 	} 
 
-	const TMap<FString, FStringFormatArg> ArgsBounds =
+	if ((FunctionInfo.DefinitionName == SetValueFunctionName) ||
+		(FunctionInfo.DefinitionName == GetValueFunctionName) ||
+		(FunctionInfo.DefinitionName == SampleValueFunctionName) ||
+		(FunctionInfo.DefinitionName == GetSizeFunctionName) ||
+		(FunctionInfo.DefinitionName == LinearToIndexName) ||
+		(FunctionInfo.DefinitionName == ExecToIndexName))
 	{
-		{TEXT("FunctionName"),	FunctionInfo.InstanceName},
-		{TEXT("OutputName"),	RWOutputName + ParamInfo.DataInterfaceHLSLSymbol},
-		{TEXT("InputName"),		InputName + ParamInfo.DataInterfaceHLSLSymbol },
-		{TEXT("SizeName"),		SizeName + ParamInfo.DataInterfaceHLSLSymbol },
-	};
-
-	if (FunctionInfo.DefinitionName == SetValueFunctionName)
-	{
-		static const TCHAR* FormatBounds = TEXT(R"(
-			void {FunctionName}(bool bEnabled, int In_IndexX, int In_IndexY, float4 In_Value)
-			{			
-				if ( bEnabled )
-				{
-					{OutputName}[int2(In_IndexX, In_IndexY)] = In_Value;
-				}
-			}
-		)");
-		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetValueFunctionName)
-	{
-		static const TCHAR* FormatBounds = TEXT(R"(
-			void {FunctionName}(int In_IndexX, int In_IndexY, out float4 Out_Value)
-			{			
-				Out_Value = {InputName}.Load(int3(In_IndexX, In_IndexY, 0));
-			}
-		)");
-		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == SampleValueFunctionName)
-	{
-		static const TCHAR* FormatBounds = TEXT(R"(
-			void {FunctionName}(float2 UV, out float4 Out_Value)
-			{			
-				Out_Value = {InputName}.SampleLevel({InputName}SamplerState, UV, 0.0f);
-			}
-		)");
-		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == LinearToIndexName)
-	{
-		static const TCHAR* FormatBounds = TEXT(R"(
-			void {FunctionName}(int Linear, out int OutIndexX, out int OutIndexY)
-			{
-				OutIndexX = Linear % {SizeName}.x;
-				OutIndexY = Linear / {SizeName}.x;
-			}
-		)");
-		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetSizeFunctionName)
-	{
-		static const TCHAR* FormatBounds = TEXT(R"(
-			void {FunctionName}(out int Out_Width, out int Out_Height)
-			{			
-				Out_Width = {SizeName}.x;
-				Out_Height = {SizeName}.y;
-			}
-		)");
-		OutHLSL += FString::Format(FormatBounds, ArgsBounds);
 		return true;
 	}
 
 	return false;
 }
 #endif
+
+void UNiagaraDataInterfaceRenderTarget2D::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<NDIRenderTarget2DLocal::FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceRenderTarget2D::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNiagaraDataInterfaceProxyRenderTarget2DProxy& DIProxy = Context.GetProxy<FNiagaraDataInterfaceProxyRenderTarget2DProxy>();
+	FRenderTarget2DRWInstanceData_RenderThread* InstanceData_RT = DIProxy.SystemInstancesToProxyData_RT.Find(Context.GetSystemInstanceID());
+	check(InstanceData_RT);
+
+	NDIRenderTarget2DLocal::FShaderParameters* Parameters = Context.GetParameterNestedStruct<NDIRenderTarget2DLocal::FShaderParameters>();
+	Parameters->TextureSize = InstanceData_RT->Size;
+
+	const bool bRTWrite = Context.IsResourceBound(&Parameters->RWTexture);
+	const bool bRTRead = Context.IsResourceBound(&Parameters->Texture);
+
+	if (bRTWrite)
+	{
+		Parameters->RWTexture = InstanceData_RT->UnorderedAccessViewRHI;
+		if (Parameters->RWTexture)
+		{
+			// FIXME: this transition needs to happen in FNiagaraDataInterfaceProxyRenderTarget2DProxy::PreStage so it doesn't break up the overlap group,
+			// but for some reason it stops working if I move it in there.
+			Context.GetRHICmdList().Transition(FRHITransitionInfo(Parameters->RWTexture, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			InstanceData_RT->bRebuildMips = true;
+			InstanceData_RT->bWroteThisFrame = true;
+			InstanceData_RT->bNeedsTransition = true;
+		}
+		else
+		{
+			Parameters->RWTexture = Context.GetComputeDispatchInterface().GetEmptyUAVFromPool(Context.GetRHICmdList(), EPixelFormat::PF_A16B16G16R16, ENiagaraEmptyUAVType::Texture2D);
+		}
+	}
+	
+	if (bRTRead)
+	{
+		Parameters->Texture = GBlackTexture->TextureRHI;
+		Parameters->TextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		if (ensureMsgf(bRTWrite == false, TEXT("RenderTarget DataInterface is both wrote and read from in the same stage, this is not allowed, read will be invalid")))
+		{
+			InstanceData_RT->bReadThisFrame = true;
+
+			if (InstanceData_RT->TextureRHI)
+			{
+				Parameters->Texture = InstanceData_RT->TextureRHI;
+			}
+			if (InstanceData_RT->SamplerStateRHI)
+			{
+				Parameters->TextureSampler = InstanceData_RT->SamplerStateRHI;
+			}
+		}
+	}
+}
 
 bool UNiagaraDataInterfaceRenderTarget2D::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
@@ -738,7 +662,7 @@ bool UNiagaraDataInterfaceRenderTarget2D::RenderVariableToCanvas(FNiagaraSystemI
 	return true;
 }
 
-void UNiagaraDataInterfaceRenderTarget2D::SetSize(FVectorVMExternalFunctionContext& Context)
+void UNiagaraDataInterfaceRenderTarget2D::VMSetSize(FVectorVMExternalFunctionContext& Context)
 {
 	// This should only be called from a system or emitter script due to a need for only setting up initially.
 	VectorVM::FUserPtrHandler<FRenderTarget2DRWInstanceData_GameThread> InstData(Context);
@@ -761,7 +685,7 @@ void UNiagaraDataInterfaceRenderTarget2D::SetSize(FVectorVMExternalFunctionConte
 	}
 }
 
-void UNiagaraDataInterfaceRenderTarget2D::GetSize(FVectorVMExternalFunctionContext& Context)
+void UNiagaraDataInterfaceRenderTarget2D::VMGetSize(FVectorVMExternalFunctionContext& Context)
 {
 	VectorVM::FUserPtrHandler<FRenderTarget2DRWInstanceData_GameThread> InstData(Context);
 	VectorVM::FExternalFuncRegisterHandler<int> OutSizeX(Context);
@@ -911,10 +835,19 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage(FRHICommandList& R
 {
 	if (FRenderTarget2DRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID))
 	{
+		if (ProxyData->bNeedsTransition)
+		{
+			if (FRHIUnorderedAccessView* OutputUAV = ProxyData->UnorderedAccessViewRHI)
+			{
+				// FIXME: move to FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostStage, same as for the transition in Set() above.
+				RHICmdList.Transition(FRHITransitionInfo(OutputUAV, ERHIAccess::UAVCompute, ERHIAccess::SRVMask));
+			}
+		}
+
 		if (ProxyData->bRebuildMips && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostStage))
 		{
 			ProxyData->bRebuildMips = false;
-			FNiagaraGpuProfileScope GpuProfileScope(RHICmdList, Context, GNiagaraRenderTarget2DGenerateMipsName);
+			FNiagaraGpuProfileScope GpuProfileScope(RHICmdList, Context, NDIRenderTarget2DLocal::GenerateMipsName);
 			NiagaraGenerateMips::GenerateMips(RHICmdList, ProxyData->TextureRHI, ProxyData->MipMapGenerationType);
 		}
 	}
@@ -930,7 +863,7 @@ void FNiagaraDataInterfaceProxyRenderTarget2DProxy::PostSimulate(FRHICommandList
 
 	if (ProxyData->bRebuildMips && (ProxyData->MipMapGeneration == ENiagaraMipMapGeneration::PostSimulate))
 	{
-		FNiagaraGpuProfileScope GpuProfileScope(RHICmdList, Context, GNiagaraRenderTarget2DGenerateMipsName);
+		FNiagaraGpuProfileScope GpuProfileScope(RHICmdList, Context, NDIRenderTarget2DLocal::GenerateMipsName);
 		NiagaraGenerateMips::GenerateMips(RHICmdList, ProxyData->TextureRHI, ProxyData->MipMapGenerationType);
 	}
 
