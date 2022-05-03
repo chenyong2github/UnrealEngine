@@ -86,8 +86,8 @@ void SConfigEditor::CreateDisplayObjectForSelectedTargetPlatform()
 
 	for (const auto& IniFile : PlatformIniFile.SourceIniHierarchy)
 	{
-		UPropertyConfigFileDisplayRow* ConfigFilePropertyObj = NewObject<UPropertyConfigFileDisplayRow>(GetTransientPackage(), *IniFile.Value.Filename);
-		ConfigFilePropertyObj->InitWithConfigAndProperty(IniFile.Value.Filename, PropHelper->EditProperty.Get());
+		UPropertyConfigFileDisplayRow* ConfigFilePropertyObj = NewObject<UPropertyConfigFileDisplayRow>(GetTransientPackage(), *IniFile.Value);
+		ConfigFilePropertyObj->InitWithConfigAndProperty(IniFile.Value, PropHelper->EditProperty.Get());
 
 		PropHelper->ConfigFilePropertyObjects.Add(ConfigFilePropertyObj);
 	}
