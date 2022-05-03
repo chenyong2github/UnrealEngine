@@ -28,7 +28,7 @@
 #include "Misc/ConfigContext.h"
 #include <limits>
 
-#define USE_CONTEXT 1
+#define USE_CONTEXT 0
 #define VERIFY_CONTEXT 0
 
 namespace UE
