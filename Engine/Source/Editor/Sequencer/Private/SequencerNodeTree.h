@@ -277,6 +277,11 @@ private:
 	 */
 	bool UpdateFilters();
 
+	/*
+	 * Return whether there is a valid type editor for the track 
+	 */
+	bool HasValidTypeEditor(UMovieSceneTrack* Track) const;
+
 	/**
 	 * Finds or adds a type editor for the track
 	 *

@@ -284,8 +284,16 @@ TSharedPtr<FSequencerTrackNode> FSequencerNodeTree::CreateOrUpdateTrack(UMovieSc
 	else
 	{
 		const bool bIsDraggable = TrackType == ETrackType::Master;
-		TrackNode = MakeShared<FSequencerTrackNode>(Track, *FindOrAddTypeEditor(Track), bIsDraggable, *this);
-		TrackToNode.Add(TrackKey, TrackNode);
+		if (HasValidTypeEditor(Track))
+		{
+			TrackNode = MakeShared<FSequencerTrackNode>(Track, *FindOrAddTypeEditor(Track), bIsDraggable, *this);
+			TrackToNode.Add(TrackKey, TrackNode);
+		}
+		else
+		{
+			ensureAlwaysMsgf(Track, TEXT("'%s' is not currently supported."));
+			return nullptr;
+		}
 	}
 
 	// Assign the serial number for this node to indicate that it is still relevant
@@ -523,6 +531,30 @@ FSequencerDisplayNode* FindNodeWithPath(FSequencerDisplayNode* InNode, const FSt
 FSequencerDisplayNode* FSequencerNodeTree::GetNodeAtPath(const FString& NodePath) const
 {
 	return FindNodeWithPath(&RootNode.Get(), NodePath);
+}
+
+bool FSequencerNodeTree::HasValidTypeEditor(UMovieSceneTrack* InTrack) const
+{
+	TSharedPtr<ISequencerTrackEditor> Editor = EditorMap.FindRef(InTrack);
+
+	if (!Editor.IsValid())
+	{
+		const TArray<TSharedPtr<ISequencerTrackEditor>>& TrackEditors = Sequencer.GetTrackEditors();
+
+		// Get a tool for each track
+		// @todo sequencer: Should probably only need to get this once and it shouldn't be done here. It depends on when movie scene tool modules are loaded
+		TSharedPtr<ISequencerTrackEditor> SupportedTool;
+
+		for (const auto& TrackEditor : TrackEditors)
+		{
+			if (TrackEditor->SupportsType(InTrack->GetClass()))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 TSharedRef<ISequencerTrackEditor> FSequencerNodeTree::FindOrAddTypeEditor( UMovieSceneTrack* InTrack )
