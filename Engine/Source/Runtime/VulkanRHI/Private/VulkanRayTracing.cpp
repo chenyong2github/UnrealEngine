@@ -397,7 +397,26 @@ FVulkanRayTracingScene::FVulkanRayTracingScene(FRayTracingSceneInitializer2 InIn
 	: Device(InDevice), Initializer(MoveTemp(InInitializer))
 {
 	const ERayTracingAccelerationStructureFlags BuildFlags = ERayTracingAccelerationStructureFlags::FastTrace; // #yuriy_todo: pass this in
-	SizeInfo = RHICalcRayTracingSceneSize(Initializer.NumNativeInstances, BuildFlags);
+
+	SizeInfo = {};
+
+	const uint32 NumLayers = Initializer.NumNativeInstancesPerLayer.Num();
+	check(NumLayers > 0);
+
+	Layers.SetNum(NumLayers);
+
+	for (uint32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
+	{
+		FLayerData& Layer = Layers[LayerIndex];
+
+		FRayTracingAccelerationStructureSize LayerSizeInfo = RHICalcRayTracingSceneSize(Initializer.NumNativeInstancesPerLayer[LayerIndex], BuildFlags);
+
+		Layer.BufferOffset = Align(SizeInfo.ResultSize, GRHIRayTracingAccelerationStructureAlignment);
+		Layer.ScratchBufferOffset = Align(SizeInfo.BuildScratchSize, GRHIRayTracingScratchBufferAlignment);
+
+		SizeInfo.ResultSize = Layer.BufferOffset + LayerSizeInfo.ResultSize;
+		SizeInfo.BuildScratchSize = Layer.BufferOffset + LayerSizeInfo.BuildScratchSize;
+	}
 
 	const uint32 ParameterBufferSize = FMath::Max<uint32>(1, Initializer.NumTotalSegments) * sizeof(FVulkanRayTracingGeometryParameters);
 	FRHIResourceCreateInfo ParameterBufferCreateInfo(TEXT("RayTracingSceneMetadata"));
@@ -414,16 +433,21 @@ FVulkanRayTracingScene::~FVulkanRayTracingScene()
 
 void FVulkanRayTracingScene::BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOffset)
 {
-	checkf(AccelerationStructureView == nullptr, TEXT("Binding multiple buffers is not currently supported."));
-
 	check(IsInRHIThread() || !IsRunningRHIInSeparateThread());
 
 	check(SizeInfo.ResultSize + InBufferOffset <= InBuffer->GetSize());
-	check(InBufferOffset % 256 == 0); // Spec requires offset to be a multiple of 256
+	
 	AccelerationStructureBuffer = ResourceCast(InBuffer);
 
-	FShaderResourceViewInitializer ViewInitializer(InBuffer, InBufferOffset, 0);
-	AccelerationStructureView = new FVulkanShaderResourceView(Device, AccelerationStructureBuffer, InBufferOffset);
+	for (auto& Layer : Layers)
+	{
+		checkf(Layer.ShaderResourceView == nullptr, TEXT("Binding multiple buffers is not currently supported."));
+
+		const uint32 LayerOffset = InBufferOffset + Layer.BufferOffset;
+		check(LayerOffset % GRHIRayTracingAccelerationStructureAlignment == 0);
+
+		Layer.ShaderResourceView = new FVulkanShaderResourceView(Device, AccelerationStructureBuffer, LayerOffset);
+	}
 }
 
 void FVulkanRayTracingScene::BuildAccelerationStructure(
@@ -431,48 +455,68 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(
 	FVulkanResourceMultiBuffer* InScratchBuffer, uint32 InScratchOffset,
 	FVulkanResourceMultiBuffer* InInstanceBuffer, uint32 InInstanceOffset)
 {
-	check(AccelerationStructureBuffer.IsValid());
-	check(InInstanceBuffer != nullptr);
-	const bool bExternalScratchBuffer = InScratchBuffer != nullptr;
-
-	VkDeviceAddress InstanceBufferAddress = InInstanceBuffer->GetDeviceAddress() + InInstanceOffset;
-
 	// Build a metadata buffer	that contains VulkanRHI-specific per-geometry parameters that allow us to access
 	// vertex and index buffers from shaders that use inline ray tracing.
 	BuildPerInstanceGeometryParameterBuffer();
 
-	FVkRtTLASBuildData BuildData;
-	GetTLASBuildData(Device->GetInstanceHandle(), Initializer.NumNativeInstances, InstanceBufferAddress, BuildData);
+	check(AccelerationStructureBuffer.IsValid());
+	check(InInstanceBuffer != nullptr);
 
 	TRefCountPtr<FVulkanResourceMultiBuffer> ScratchBuffer;
 
-	if (!bExternalScratchBuffer)
+	if (InScratchBuffer == nullptr)
 	{
 		FRHIResourceCreateInfo ScratchBufferCreateInfo(TEXT("BuildScratchTLAS"));
-		ScratchBuffer = ResourceCast(RHICreateBuffer(BuildData.SizesInfo.buildScratchSize, BUF_UnorderedAccess | BUF_StructuredBuffer, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo).GetReference());
+		ScratchBuffer = ResourceCast(RHICreateBuffer(SizeInfo.BuildScratchSize, BUF_UnorderedAccess | BUF_StructuredBuffer, 0, ERHIAccess::UAVCompute, ScratchBufferCreateInfo).GetReference());
 		InScratchBuffer = ScratchBuffer.GetReference();
+		InScratchOffset = 0;
 	}
 
-	checkf(AccelerationStructureView, TEXT("A buffer must be bound to the ray tracing scene before it can be built."));
-	BuildData.GeometryInfo.dstAccelerationStructure = AccelerationStructureView->AccelerationStructureHandle;
+	const uint32 NumLayers = Initializer.NumNativeInstancesPerLayer.Num();
 
-	BuildData.GeometryInfo.scratchData.deviceAddress = InScratchBuffer->GetDeviceAddress();
-	if (bExternalScratchBuffer)
+	TArray<FVkRtTLASBuildData> BuildDatas;
+	BuildDatas.SetNum(NumLayers);
+
+	TArray<VkAccelerationStructureBuildGeometryInfoKHR> GeometryInfos;
+	GeometryInfos.SetNum(NumLayers);
+
+	TArray<VkAccelerationStructureBuildRangeInfoKHR> BuildRanges;
+	BuildRanges.SetNum(NumLayers);
+
+	TArray<VkAccelerationStructureBuildRangeInfoKHR*> pBuildRanges;
+	pBuildRanges.SetNum(NumLayers);
+
+	uint32 InstanceBaseOffset = 0;
+
+	for (uint32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 	{
-		BuildData.GeometryInfo.scratchData.deviceAddress += InScratchOffset;
+		const FLayerData& Layer = Layers[LayerIndex];
+
+		VkDeviceAddress InstanceBufferAddress = InInstanceBuffer->GetDeviceAddress() + InInstanceOffset;
+
+		FVkRtTLASBuildData& BuildData = BuildDatas[LayerIndex];
+		GetTLASBuildData(Device->GetInstanceHandle(), Initializer.NumNativeInstancesPerLayer[LayerIndex], InstanceBufferAddress, BuildData);
+
+		checkf(Layer.ShaderResourceView, TEXT("A buffer must be bound to the ray tracing scene before it can be built."));
+		BuildData.GeometryInfo.dstAccelerationStructure = Layer.ShaderResourceView->AccelerationStructureHandle;
+		BuildData.GeometryInfo.scratchData.deviceAddress = InScratchBuffer->GetDeviceAddress() + InScratchOffset + Layer.ScratchBufferOffset;
+
+		GeometryInfos[LayerIndex] = BuildData.GeometryInfo;
+
+		VkAccelerationStructureBuildRangeInfoKHR& TLASBuildRangeInfo = BuildRanges[LayerIndex];
+		TLASBuildRangeInfo.primitiveCount = Initializer.NumNativeInstancesPerLayer[LayerIndex];
+		TLASBuildRangeInfo.primitiveOffset = InstanceBaseOffset;
+		TLASBuildRangeInfo.transformOffset = 0;
+		TLASBuildRangeInfo.firstVertex = 0;
+
+		pBuildRanges[LayerIndex] = &TLASBuildRangeInfo;
+
+		InstanceBaseOffset += Initializer.NumNativeInstancesPerLayer[LayerIndex];
 	}
-
-	VkAccelerationStructureBuildRangeInfoKHR TLASBuildRangeInfo;
-	TLASBuildRangeInfo.primitiveCount = Initializer.NumNativeInstances;
-	TLASBuildRangeInfo.primitiveOffset = 0;
-	TLASBuildRangeInfo.transformOffset = 0;
-	TLASBuildRangeInfo.firstVertex = 0;
-
-	VkAccelerationStructureBuildRangeInfoKHR* const pBuildRanges = &TLASBuildRangeInfo;
 
 	FVulkanCommandBufferManager& CommandBufferManager = *CommandContext.GetCommandBufferManager();
 	FVulkanCmdBuffer* const CmdBuffer = CommandBufferManager.GetActiveCmdBuffer();
-	VulkanDynamicAPI::vkCmdBuildAccelerationStructuresKHR(CmdBuffer->GetHandle(), 1, &BuildData.GeometryInfo, &pBuildRanges);
+	VulkanDynamicAPI::vkCmdBuildAccelerationStructuresKHR(CmdBuffer->GetHandle(), NumLayers, GeometryInfos.GetData(), pBuildRanges.GetData());
 
 	CommandBufferManager.SubmitActiveCmdBuffer();
 	CommandBufferManager.PrepareForNewActiveCommandBuffer();

@@ -2687,7 +2687,10 @@ struct FRayTracingSceneInitializer2
 	// Exclusive prefix sum of instance geometry segments is used to calculate SBT record address from instance and segment indices.
 	TArray<uint32> SegmentPrefixSum;
 
-	// Total flattened number of ray tracing geometry instances (a single FRayTracingGeometryInstance may represent many).
+	// Total flattened number of ray tracing geometry instances (a single FRayTracingGeometryInstance may represent many) per layer.
+	TArray<uint32> NumNativeInstancesPerLayer;
+
+	UE_DEPRECATED(5.1, "Use NumNativeInstancesPerLayer instead.")
 	uint32 NumNativeInstances = 0;
 
 	uint32 NumTotalSegments = 0;
@@ -2713,6 +2716,12 @@ struct FRayTracingSceneInitializer2
 	ERayTracingSceneLifetime Lifetime = RTSL_SingleFrame;
 
 	FName DebugName;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FRayTracingSceneInitializer2() = default;
+	FRayTracingSceneInitializer2(FRayTracingSceneInitializer2&&) = default;
+	FRayTracingSceneInitializer2& operator=(FRayTracingSceneInitializer2&&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };
 
 struct FRayTracingAccelerationStructureSize
@@ -2730,6 +2739,14 @@ class FRHIRayTracingAccelerationStructure
 {
 public:
 	FRHIRayTracingAccelerationStructure() : FRHIResource(RRT_RayTracingAccelerationStructure) {}
+
+	FRayTracingAccelerationStructureSize GetSizeInfo() const
+	{
+		return SizeInfo;
+	};
+
+protected:
+	FRayTracingAccelerationStructureSize SizeInfo = {};
 };
 
 using FRayTracingAccelerationStructureAddress = uint64;
@@ -2756,13 +2773,7 @@ public:
 	{ 
 		return Initializer.Segments.Num(); 
 	}
-
-	FRayTracingAccelerationStructureSize GetSizeInfo() const
-	{
-		return SizeInfo;
-	};
 protected:
-	FRayTracingAccelerationStructureSize SizeInfo = {};
 	FRayTracingGeometryInitializer Initializer = {};
 	ERayTracingGeometryInitializerType InitializedType = ERayTracingGeometryInitializerType::Rendering;
 };
@@ -2782,6 +2793,8 @@ public:
 	{
 		return nullptr;
 	}
+
+	virtual uint32 GetLayerBufferOffset(uint32 LayerIndex) const = 0;
 };
 
 typedef TRefCountPtr<FRHIRayTracingScene>        FRayTracingSceneRHIRef;

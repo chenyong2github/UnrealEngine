@@ -40,7 +40,7 @@ FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances
 	Initializer.PerInstanceGeometries.SetNumUninitialized(NumSceneInstances);
 	Initializer.BaseInstancePrefixSum.SetNumUninitialized(NumSceneInstances);
 	Initializer.SegmentPrefixSum.SetNumUninitialized(NumSceneInstances);
-	Initializer.NumNativeInstances = 0;
+	Initializer.NumNativeInstancesPerLayer.SetNumZeroed(1);
 	Initializer.NumTotalSegments = 0;
 
 	Experimental::TSherwoodMap<FRHIRayTracingGeometry*, uint32> UniqueGeometries;
@@ -105,8 +105,8 @@ FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances
 			Output.NumNativeGPUInstances += InstanceDesc.NumTransforms;
 		}
 
-		Initializer.BaseInstancePrefixSum[InstanceIndex] = Initializer.NumNativeInstances;
-		Initializer.NumNativeInstances += InstanceDesc.NumTransforms;
+		Initializer.BaseInstancePrefixSum[InstanceIndex] = Initializer.NumNativeInstancesPerLayer[0];
+		Initializer.NumNativeInstancesPerLayer[0] += InstanceDesc.NumTransforms;
 	}
 
 	Output.Scene = RHICreateRayTracingScene(MoveTemp(Initializer));
@@ -231,7 +231,7 @@ void FillRayTracingInstanceUploadBuffer(
 #endif
 		});
 
-	SET_DWORD_STAT(STAT_RayTracingInstances, SceneInitializer.NumNativeInstances - NumInactiveNativeInstances);
+	SET_DWORD_STAT(STAT_RayTracingInstances, SceneInitializer.NumNativeInstancesPerLayer[0] - NumInactiveNativeInstances);
 }
 
 struct FRayTracingBuildInstanceBufferCS : public FGlobalShader

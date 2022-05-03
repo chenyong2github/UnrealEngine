@@ -1618,7 +1618,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		#if DO_CHECK
 			{
 				FRayTracingAccelerationStructureSize SizeInfo = RHICalcRayTracingSceneSize(
-					RayTracingSceneRHI->GetInitializer().NumNativeInstances, ERayTracingAccelerationStructureFlags::FastTrace);
+					RayTracingSceneRHI->GetInitializer().NumNativeInstancesPerLayer[0], ERayTracingAccelerationStructureFlags::FastTrace);
 
 				check(SizeInfo.ResultSize <= Scene->RayTracingScene.SizeInfo.ResultSize);
 				check(SizeInfo.BuildScratchSize <= Scene->RayTracingScene.SizeInfo.BuildScratchSize);

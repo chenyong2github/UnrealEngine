@@ -105,14 +105,13 @@ public:
 	~FVulkanRayTracingScene();
 
 	const FRayTracingSceneInitializer2& GetInitializer() const override final { return Initializer; }
+	uint32 GetLayerBufferOffset(uint32 LayerIndex) const override final { return Layers[LayerIndex].BufferOffset; }
 
 	void BindBuffer(FRHIBuffer* InBuffer, uint32 InBufferOffset);
 	void BuildAccelerationStructure(
 		FVulkanCommandListContext& CommandContext, 
 		FVulkanResourceMultiBuffer* ScratchBuffer, uint32 ScratchOffset, 
 		FVulkanResourceMultiBuffer* InstanceBuffer, uint32 InstanceOffset);
-
-	FRayTracingAccelerationStructureSize SizeInfo;
 
 	virtual FRHIShaderResourceView* GetMetadataBufferSRV() const override final
 	{
@@ -131,7 +130,15 @@ private:
 	// we allow TLAS memory to be allocated using transient resource allocator and 
 	// the lifetime of the scene object may be different from the lifetime of the buffer.
 	// Many VkAccelerationStructureKHR-s may be created, pointing at the same buffer.
-	TRefCountPtr<FVulkanShaderResourceView> AccelerationStructureView;
+
+	struct FLayerData
+	{
+		TRefCountPtr<FVulkanShaderResourceView> ShaderResourceView;
+		uint32 BufferOffset;
+		uint32 ScratchBufferOffset;
+	};
+
+	TArray<FLayerData> Layers;
 	
 	TRefCountPtr<FVulkanResourceMultiBuffer> AccelerationStructureBuffer;
 
