@@ -36,7 +36,6 @@ void FVolumeTextureBulkData::MergeMips(int32 NumMips)
 	int64 MergedSize = 0;
 	for (int32 MipIndex = FirstMipIdx; MipIndex < NumMips; ++MipIndex)
 	{
-		check( MipSize[MipIndex] != 0 );
 		MergedSize += MipSize[MipIndex];
 	}
 
