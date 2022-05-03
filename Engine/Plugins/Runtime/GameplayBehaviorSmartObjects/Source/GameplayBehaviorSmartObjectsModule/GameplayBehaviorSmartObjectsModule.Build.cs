@@ -6,6 +6,8 @@ public class GameplayBehaviorSmartObjectsModule : ModuleRules
 {
 	public GameplayBehaviorSmartObjectsModule(ReadOnlyTargetRules Target) : base(Target)
 	{
+		ShortName = "GameplayBhvSO";
+		
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
 		PublicDependencyModuleNames.AddRange(
