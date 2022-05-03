@@ -143,7 +143,7 @@ void FNiagaraDataInterfaceUtilities::ForEachGpuFunctionEquals(class UNiagaraData
 			if (FNiagaraShaderScript* ShaderScript = Script->GetRenderThreadScript())
 			{
 				const TArray<FNiagaraScriptDataInterfaceInfo>& CachedDefaultDIs = Script->GetCachedDefaultDataInterfaces();
-				const TArray<FNiagaraDataInterfaceGPUParamInfo>& DataInterfaceParamInfos = ShaderScript->GetDataInterfaceParamInfo();
+				const TArray<FNiagaraDataInterfaceGPUParamInfo>& DataInterfaceParamInfos = ShaderScript->GetScriptParametersMetadata()->DataInterfaceParamInfo;
 
 				const int NumDataInterfaces = FMath::Min(CachedDefaultDIs.Num(), DataInterfaceParamInfos.Num());	// Note: Should always be equal but lets be safe
 				for (int iDataInterface = 0; iDataInterface < NumDataInterfaces; ++iDataInterface)
@@ -275,8 +275,8 @@ void FNiagaraDataInterfaceUtilities::ForEachGpuFunction(class UNiagaraDataInterf
 
 		const FNiagaraScriptInstanceParameterStore& ParameterStore = EmitterInstance->GetGPUContext()->CombinedParamStore;
 		const TArray<UNiagaraDataInterface*>& DataInterfaces = ParameterStore.GetDataInterfaces();
-		const TArray<FNiagaraDataInterfaceGPUParamInfo>& DataInterfaceParamInfo = EmitterInstance->GetGPUContext()->GPUScript_RT->GetDataInterfaceParamInfo();
-		const int32 NumDataInterface = FMath::Min(DataInterfaces.Num(), DataInterfaceParamInfo.Num());		// Should be equal, but be safe
+		const TArray<FNiagaraDataInterfaceGPUParamInfo>& DataInterfaceParamInfos = EmitterInstance->GetGPUContext()->GPUScript_RT->GetScriptParametersMetadata()->DataInterfaceParamInfo;
+		const int32 NumDataInterface = FMath::Min(DataInterfaces.Num(), DataInterfaceParamInfos.Num());		// Should be equal, but be safe
 		for ( int32 iDataInterface=0; iDataInterface < NumDataInterface; ++iDataInterface)
 		{
 			if ( DataInterfaces[iDataInterface] != DataInterface )
@@ -284,7 +284,7 @@ void FNiagaraDataInterfaceUtilities::ForEachGpuFunction(class UNiagaraDataInterf
 				continue;
 			}
 
-			for (const FNiagaraDataInterfaceGeneratedFunction& GeneratedFunction : DataInterfaceParamInfo[iDataInterface].GeneratedFunctions)
+			for (const FNiagaraDataInterfaceGeneratedFunction& GeneratedFunction : DataInterfaceParamInfos[iDataInterface].GeneratedFunctions)
 			{
 				if (Action(GeneratedFunction) == false)
 				{

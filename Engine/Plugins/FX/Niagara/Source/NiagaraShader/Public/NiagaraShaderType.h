@@ -52,24 +52,32 @@ struct FNiagaraShaderPermutationParameters : public FShaderPermutationParameters
 class FNiagaraShaderType : public FShaderType
 {
 public:
+	struct FParameters : public FShaderType::FParameters
+	{
+		TSharedRef<FNiagaraShaderScriptParametersMetadata> ScriptParametersMetadata;
+
+		FParameters(const TSharedRef<FNiagaraShaderScriptParametersMetadata>& InScriptParametersMetadata)
+			: ScriptParametersMetadata(InScriptParametersMetadata)
+		{
+		}
+	};
+
 	struct CompiledShaderInitializerType : FShaderCompiledShaderInitializerType
 	{
-		//const FUniformExpressionSet& UniformExpressionSet;
 		const FString DebugDescription;
-		TArray< FNiagaraDataInterfaceGPUParamInfo > DIParamInfo;
 
 		CompiledShaderInitializerType(
 			const FShaderType* InType,
+			const FParameters* InParameters,
 			int32 InPermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
 			const FSHAHash& InNiagaraShaderMapHash,
-			const FString& InDebugDescription,
-			const TArray< FNiagaraDataInterfaceGPUParamInfo > &InDIParamInfo
-			)
-		: FShaderCompiledShaderInitializerType(InType,nullptr,InPermutationId,CompilerOutput, InNiagaraShaderMapHash,nullptr,nullptr)
-		, DebugDescription(InDebugDescription)
-		, DIParamInfo(InDIParamInfo)
-		{}
+			const FString& InDebugDescription
+		)
+			: FShaderCompiledShaderInitializerType(InType, InParameters, InPermutationId, CompilerOutput, InNiagaraShaderMapHash, nullptr, nullptr)
+			, DebugDescription(InDebugDescription)
+		{
+		}
 	};
 
 	FNiagaraShaderType(
@@ -86,15 +94,16 @@ public:
 		ValidateCompiledResultType InValidateCompiledResultRef,
 		uint32 InTypeSize,
 		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
-		):
-		FShaderType(EShaderTypeForDynamicCast::Niagara, InTypeLayout, InName, InSourceFilename, InFunctionName, SF_Compute, InTotalPermutationCount,
+	)
+		: FShaderType(EShaderTypeForDynamicCast::Niagara, InTypeLayout, InName, InSourceFilename, InFunctionName, SF_Compute, InTotalPermutationCount,
 			InConstructSerializedRef,
 			InConstructCompiledRef,
 			InModifyCompilationEnvironmentRef,
 			InShouldCompilePermutationRef,
 			InValidateCompiledResultRef,
 			InTypeSize,
-			InRootParametersMetadata)
+			InRootParametersMetadata
+		)
 	{
 		check(InTotalPermutationCount == 1);
 	}
@@ -110,8 +119,7 @@ public:
 			FSharedShaderCompilerEnvironment* CompilationEnvironment,
 			EShaderPlatform Platform,
 			TArray<TRefCountPtr<class FShaderCommonCompileJob>>& NewJobs,
-			FShaderTarget Target,
-			TArray<FNiagaraDataInterfaceGPUParamInfo>& InDIParamInfo
+			FShaderTarget Target
 		);
 
 	/**
@@ -153,7 +161,4 @@ protected:
 	{
 		ModifyCompilationEnvironment(FNiagaraShaderPermutationParameters(Platform, Script), Environment);
 	}
-
-private:
-	static TMap<const FShaderCompileJob*, TArray<FNiagaraDataInterfaceGPUParamInfo> > ExtraParamInfo;
 };

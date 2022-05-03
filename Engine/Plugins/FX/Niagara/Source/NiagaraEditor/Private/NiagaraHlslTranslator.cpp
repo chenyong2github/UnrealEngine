@@ -113,7 +113,7 @@ void FNiagaraShaderQueueTickable::ProcessQueue()
 
 		FNiagaraComputeShaderCompilationOutput NewCompilationOutput;
 
-		ShaderScript->SetDataInterfaceParamInfo(CompilableScript->GetVMExecutableData().DIParamInfo);
+		ShaderScript->BuildScriptParametersMetadata(CompilableScript->GetVMExecutableData().DIParamInfo);
 		ShaderScript->SetSourceName(TEXT("NiagaraComputeShader"));
 		UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(CompilableScript->GetOuter());
 		if (Emitter && Emitter->GetUniqueEmitterName().Len() > 0)
@@ -3168,7 +3168,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					"\t\t// count isn't updated. In that case we must manually copy the original count here.\n"
 					"\t\tif (WriteInstanceCountOffset != 0xFFFFFFFF && GLinearThreadId == 0) \n"
 					"\t\t{\n"
-					"\t\t	RWInstanceCounts[WriteInstanceCountOffset] = GSpawnStartInstance + SpawnedInstances; \n"
+					"\t\t	RWInstanceCounts[WriteInstanceCountOffset] = GSpawnStartInstance + NumSpawnedInstances; \n"
 					"\t\t}\n"
 				);
 			}
@@ -3295,7 +3295,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					"	{\n"
 					"		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];\n"
 					"	}\n"
-					"	const uint MaxInstances = GSpawnStartInstance + SpawnedInstances;\n"
+					"	const uint MaxInstances = GSpawnStartInstance + NumSpawnedInstances;\n"
 					"	const bool bRunUpdateLogic = bRunSpawnUpdateLogic && GLinearThreadId < GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
 					"	const bool bRunSpawnLogic = bRunSpawnUpdateLogic && GLinearThreadId >= GSpawnStartInstance && GLinearThreadId < MaxInstances;\n"
 				);

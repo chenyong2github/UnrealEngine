@@ -3080,7 +3080,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes,
 				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
 
-			ScriptResource->SetDataInterfaceParamInfo(CachedScriptVM.DIParamInfo);
+			ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.DIParamInfo);
 
 			if (FNiagaraUtilities::SupportsComputeShaders(ShaderPlatform))
 			{
@@ -3512,7 +3512,7 @@ void UNiagaraScript::ProcessSerializedShaderMaps()
 
 	if (HasScriptResource)
 	{
-		ScriptResource->SetDataInterfaceParamInfo(CachedScriptVM.DIParamInfo);
+		ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.DIParamInfo);
 	}
 }
 

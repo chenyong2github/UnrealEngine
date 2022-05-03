@@ -12,13 +12,16 @@
 #include "NiagaraDataInterface.generated.h"
 
 class INiagaraCompiler;
-class UCanvas;
 class UCurveVector;
 class UCurveLinearColor;
 class UCurveFloat;
-class FNiagaraSystemInstance;
-class FNiagaraEmitterInstance;
 struct FNiagaraDataInterfaceProxy;
+struct FNiagaraComputeInstanceData;
+class FNiagaraEmitterInstance;
+class FNiagaraGpuComputeDispatchInterface;
+class FNiagaraGPUSystemTick;
+struct FNiagaraSimStageData;
+class FNiagaraSystemInstance;
 
 struct FNDITransformHandlerNoop
 {
@@ -268,6 +271,77 @@ struct FNiagaraDataInterfaceProxy
 
 //////////////////////////////////////////////////////////////////////////
 
+struct FNiagaraDataInterfaceSetShaderParametersContext
+{
+	friend class FNiagaraGpuComputeDispatch;
+
+	FNiagaraDataInterfaceSetShaderParametersContext(FRHICommandList& InRHICmdList, const FNiagaraGpuComputeDispatchInterface& InComputeDispatchInterface, const FNiagaraGPUSystemTick& InSystemTick, const FNiagaraComputeInstanceData& InComputeInstanceData, const FNiagaraSimStageData& InSimStageData, const FNiagaraShaderRef& InShaderRef, uint8* InBaseParameters)
+		: RHICmdList(InRHICmdList)
+		, ComputeDispatchInterface(InComputeDispatchInterface)
+		, SystemTick(InSystemTick)
+		, ComputeInstanceData(InComputeInstanceData)
+		, SimStageData(InSimStageData)
+		, ShaderRef(InShaderRef)
+		, BaseParameters(InBaseParameters)
+	{
+	}
+
+	template<typename T> T& GetProxy() const { check(DataInterfaceProxy); return static_cast<T&>(*DataInterfaceProxy); }
+	const FNiagaraGpuComputeDispatchInterface& GetComputeDispatchInterface() const { return ComputeDispatchInterface; }
+	const FNiagaraGPUSystemTick& GetSystemTick() const { return SystemTick; }
+	const FNiagaraComputeInstanceData& GetComputeInstanceData() const { return ComputeInstanceData; }
+	const FNiagaraSimStageData& GetSimStageData() const { return SimStageData; }
+	FRHICommandList& GetRHICmdList() const { return RHICmdList; }
+
+	FNiagaraSystemInstanceID GetSystemInstanceID() const;
+	bool IsResourceBound(const void* ResourceAddress) const;
+	bool IsOutputStage() const;
+	bool IsIterationStage() const;
+
+
+	template<typename T> T* GetParameterNestedStruct() const
+	{
+		const uint32 StructOffset = Align(ParametersOffset, TShaderParameterStructTypeInfo<T>::Alignment);
+		ParametersOffset = StructOffset + TShaderParameterStructTypeInfo<T>::GetStructMetadata()->GetSize();
+
+		return reinterpret_cast<T*>(BaseParameters + StructOffset);
+	}
+	template<typename T> TArrayView<T> GetParameterLooseArray(int32 NumElements) const
+	{
+		const uint32 ArrayOffset = Align(ParametersOffset, SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT);
+		ParametersOffset = ArrayOffset + (sizeof(T) * NumElements);
+		return TArrayView<T>(reinterpret_cast<T*>(BaseParameters + ArrayOffset), NumElements);
+	}
+
+	template<typename T> const T& GetShaderStorage() const
+	{
+		check(ShaderStorage != nullptr);
+		return static_cast<const T&>(*ShaderStorage);
+	}
+
+	void SetDataInterface(FNiagaraDataInterfaceProxy* InDataInterfaceProxy, uint32 InParametersOffset, const FNiagaraDataInterfaceParametersCS* InShaderStorage)
+	{
+		DataInterfaceProxy = InDataInterfaceProxy;
+		ParametersOffset = InParametersOffset;
+		ShaderStorage = InShaderStorage;
+	}
+
+private:
+	FRHICommandList& RHICmdList;
+	const FNiagaraGpuComputeDispatchInterface& ComputeDispatchInterface;
+	const FNiagaraGPUSystemTick& SystemTick;
+	const FNiagaraComputeInstanceData& ComputeInstanceData;
+	const FNiagaraSimStageData& SimStageData;
+	const FNiagaraShaderRef& ShaderRef;
+	uint8* BaseParameters = nullptr;
+	const FNiagaraDataInterfaceParametersCS* ShaderStorage = nullptr;
+
+	FNiagaraDataInterfaceProxy* DataInterfaceProxy = nullptr;
+	mutable uint32 ParametersOffset = 0;
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 /** Base class for all Niagara data interfaces. */
 UCLASS(abstract, EditInlineNew)
 class NIAGARA_API UNiagaraDataInterface : public UNiagaraDataInterfaceBase
@@ -490,6 +564,12 @@ public:
 	virtual void GetEmitterDependencies(UNiagaraSystem* Asset, TArray<UNiagaraEmitter*>& Dependencies) const {}
 
 	virtual bool ReadsEmitterParticleData(const FString& EmitterName) const { return false; }
+
+	/**
+	Set the shader parameters will only be called if the data interface provided shader parameters.
+	You must write the parameters in the order you added them to the structure.
+	*/
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const {}
 
 protected:
 	virtual void PushToRenderThreadImpl() {}

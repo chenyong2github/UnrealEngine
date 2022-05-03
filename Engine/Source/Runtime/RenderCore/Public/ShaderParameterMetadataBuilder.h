@@ -47,6 +47,33 @@ public:
 	}
 
 	template<typename T>
+	void AddParamArray(
+		const TCHAR* Name,
+		int32 NumElements,
+		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
+		)
+	{
+		using TParamTypeInfo = TShaderParameterTypeInfo<T>;
+
+		NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT);
+
+		new(Members) FShaderParametersMetadata::FMember(
+			Name,
+			TEXT(""),
+			__LINE__,
+			NextMemberOffset,
+			TParamTypeInfo::BaseType,
+			Precision,
+			TParamTypeInfo::NumRows,
+			TParamTypeInfo::NumColumns,
+			NumElements,
+			TParamTypeInfo::GetStructMetadata()
+			);
+
+		NextMemberOffset += sizeof(typename TParamTypeInfo::TAlignedType) * NumElements;
+	}
+
+	template<typename T>
 	void AddReferencedStruct(
 		const TCHAR* Name,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
@@ -118,6 +145,8 @@ public:
 		const TCHAR* ShaderType,
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
 		);
+
+	uint32 GetNextMemberOffset() const { return NextMemberOffset; }
 
 	FShaderParametersMetadata* Build(
 		FShaderParametersMetadata::EUseCase UseCase,

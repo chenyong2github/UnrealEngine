@@ -6,12 +6,11 @@
 
 #pragma once
 
-//#include "HAL/IConsoleManager.h"
-//#include "RHI.h"
 #include "ShaderParameters.h"
 #include "SceneView.h"
 #include "Shader.h"
 #include "GlobalShader.h"
+#include "Math/Vector.h"
 #include "NiagaraCommon.h"
 #include "NiagaraScriptBase.h"
 #include "NiagaraShared.h"
@@ -29,14 +28,46 @@ class NIAGARASHADER_API FNiagaraShader : public FShader
 {
 public:
 	DECLARE_SHADER_TYPE(FNiagaraShader, Niagara);
+	//SHADER_USE_PARAMETER_STRUCT(FNiagaraShader, FShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32,									ComponentBufferSizeRead)
+		SHADER_PARAMETER(uint32,									ComponentBufferSizeWrite)
+		SHADER_PARAMETER(uint32,									SimStart)
+
+		SHADER_PARAMETER_SRV(Buffer<float>,							InputFloat)
+		SHADER_PARAMETER_SRV(Buffer<half>,							InputHalf)
+		SHADER_PARAMETER_SRV(Buffer<int>,							InputInt)
+		SHADER_PARAMETER_SRV(Buffer<float>,							StaticInputFloat)
+	
+		SHADER_PARAMETER_UAV(RWBuffer<float>,						RWOutputFloat)
+		SHADER_PARAMETER_UAV(RWBuffer<half>,						RWOutputHalf)
+		SHADER_PARAMETER_UAV(RWBuffer<int>,							RWOutputInt)
+
+		SHADER_PARAMETER_UAV(RWBuffer<uint>,						RWInstanceCounts)
+		SHADER_PARAMETER(uint32,									ReadInstanceCountOffset)
+		SHADER_PARAMETER(uint32,									WriteInstanceCountOffset)
+
+		SHADER_PARAMETER_SRV(Buffer<int>,							FreeIDList)
+		SHADER_PARAMETER_UAV(RWBuffer<int>,							RWIDToIndexTable)
+
+		SHADER_PARAMETER(FIntVector4,								SimulationStageIterationInfo)
+		SHADER_PARAMETER(float,										SimulationStageNormalizedIterationIndex)
+
+		SHADER_PARAMETER(FIntVector3,								ParticleIterationStateInfo)
+
+		SHADER_PARAMETER(uint32,									EmitterTickCounter)
+		SHADER_PARAMETER_ARRAY(FIntVector4,							EmitterSpawnInfoOffsets,	[(NIAGARA_MAX_GPU_SPAWN_INFOS + 3) / 4])
+		SHADER_PARAMETER_ARRAY(FVector4f,							EmitterSpawnInfoParams,		[NIAGARA_MAX_GPU_SPAWN_INFOS])
+		SHADER_PARAMETER(uint32,									NumSpawnedInstances)
+
+		SHADER_PARAMETER(FUintVector3,								DispatchThreadIdBounds)
+		SHADER_PARAMETER(FUintVector3,								DispatchThreadIdToLinear)
+	END_SHADER_PARAMETER_STRUCT()
 
 	using FPermutationParameters = FNiagaraShaderPermutationParameters;
 
 	static FName UniformBufferLayoutName;
-
-	FNiagaraShader()
-	{
-	}
 
 	static FIntVector GetDefaultThreadGroupSize(ENiagaraGpuDispatchType DispatchType)
 	{
@@ -59,56 +90,25 @@ public:
 
 	static bool ShouldCompilePermutation(const FNiagaraShaderPermutationParameters& Parameters)
 	{
-		//@todo - lit materials only 
 		return FNiagaraUtilities::SupportsComputeShaders(Parameters.Platform);
 	}
 
+	FNiagaraShader() {}
 	FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializerType& Initializer);
-
-	// Bind parameters
-	void BindParams(const TArray<FNiagaraDataInterfaceGPUParamInfo>& InDIParamInfo, const FShaderParameterMap &ParameterMap);
 
 	const TMemoryImageArray<FNiagaraDataInterfaceParamRef>& GetDIParameters()
 	{
 		return DataInterfaceParameters;
 	}
 
-	LAYOUT_FIELD(FShaderResourceParameter, FloatInputBufferParam);
-	LAYOUT_FIELD(FShaderResourceParameter, IntInputBufferParam);
-	LAYOUT_FIELD(FShaderResourceParameter, HalfInputBufferParam);
-	LAYOUT_FIELD(FShaderResourceParameter, StaticInputFloatParam);
-	LAYOUT_FIELD(FRWShaderParameter, FloatOutputBufferParam);
-	LAYOUT_FIELD(FRWShaderParameter, IntOutputBufferParam);
-	LAYOUT_FIELD(FRWShaderParameter, HalfOutputBufferParam);
-	LAYOUT_FIELD(FRWShaderParameter, InstanceCountsParam);
-	LAYOUT_FIELD(FShaderParameter, ReadInstanceCountOffsetParam);
-	LAYOUT_FIELD(FShaderParameter, WriteInstanceCountOffsetParam);
-	LAYOUT_FIELD(FShaderResourceParameter, FreeIDBufferParam);
-	LAYOUT_FIELD(FRWShaderParameter, IDToIndexBufferParam);
+	LAYOUT_FIELD(bool, bNeedsViewUniformBuffer);
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, GlobalConstantBufferParam, 2);
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, SystemConstantBufferParam, 2);
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, OwnerConstantBufferParam, 2);
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, EmitterConstantBufferParam, 2);
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, ExternalConstantBufferParam, 2);
-	LAYOUT_FIELD(FShaderUniformBufferParameter, ViewUniformBufferParam);
-	LAYOUT_FIELD(FShaderParameter, SimStartParam);
-	LAYOUT_FIELD(FShaderParameter, EmitterTickCounterParam);
-	LAYOUT_FIELD(FShaderParameter, EmitterSpawnInfoOffsetsParam);
-	LAYOUT_FIELD(FShaderParameter, EmitterSpawnInfoParamsParam);
-	LAYOUT_FIELD(FShaderParameter, NumSpawnedInstancesParam);
-
-	LAYOUT_FIELD(FShaderParameter, SimulationStageIterationInfoParam);
-	LAYOUT_FIELD(FShaderParameter, SimulationStageNormalizedIterationIndexParam);
-	LAYOUT_FIELD(FShaderParameter, ParticleIterationStateInfoParam);
-	LAYOUT_FIELD(FShaderParameter, DispatchThreadIdBoundsParam);
-	LAYOUT_FIELD(FShaderParameter, DispatchThreadIdToLinearParam);
-
-	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeReadParam);
-	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeWriteParam);
 
 private:
-	LAYOUT_FIELD(FShaderUniformBufferParameter, NiagaraUniformBuffer);
-
 	// Data about parameters used for each Data Interface.
 	LAYOUT_FIELD(TMemoryImageArray<FNiagaraDataInterfaceParamRef>, DataInterfaceParameters);
 
@@ -117,25 +117,6 @@ private:
 	FRHIUniformBufferLayout		DebugUniformExpressionUBLayout;
 	*/
 	LAYOUT_FIELD(FMemoryImageString, DebugDescription);
-
-	/* OPTODO: ? */
-	/*
-	// If true, cached uniform expressions are allowed.
-	static int32 bAllowCachedUniformExpressions;
-	// Console variable ref to toggle cached uniform expressions.
-	static FAutoConsoleVariableRef CVarAllowCachedUniformExpressions;
-	*/
-
-	/*
-#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING || !WITH_EDITOR)
-	void VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* MaterialRenderProxy, const FMaterial& Material, const FUniformExpressionCache* UniformExpressionCache);
-#endif
-	*/
-};
-
-class FNiagaraEmitterInstanceShader : public FNiagaraShader
-{
-
 };
 
 extern NIAGARASHADER_API int32 GNiagaraSkipVectorVMBackendOptimizations;

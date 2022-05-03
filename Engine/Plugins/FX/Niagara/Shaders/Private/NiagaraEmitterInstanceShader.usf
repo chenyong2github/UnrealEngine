@@ -86,9 +86,7 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 
 	// Physics common 
 	//-TOFIX: This should not be included here
-	#if USE_SIMULATION_STAGES == 1
-		#include "NiagaraPhysicsCommon.ush"
-	#endif
+	#include "NiagaraPhysicsCommon.ush"
 
 	uint EmitterTickCounter;
 
@@ -132,7 +130,7 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	static int GGPUExecIndex;
 
 	static uint GSpawnStartInstance;
-	uint SpawnedInstances;
+	uint NumSpawnedInstances;
 
 	void SetupExecIndexForGPU()
 	{
@@ -163,7 +161,7 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 		GGPUExecIndex		        = GGPUExecIndex - GroupSpawnStartIndex;
 		if ( SpawnInfoIndex == (NIAGARA_MAX_GPU_SPAWN_INFOS - 1) )
 		{
-			Engine_ExecutionCount   = int(SpawnedInstances) - GroupSpawnStartIndex;
+			Engine_ExecutionCount   = int(NumSpawnedInstances) - GroupSpawnStartIndex;
 		}
 		else
 		{
@@ -585,7 +583,7 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 		MustBe0[DataSetID] = 0;
 		// End static assert
 
-		int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
+		int PrevIdx = GSpawnStartInstance + NumSpawnedInstances;	// scratch instance as default; write to that for dead particles
 
 		#if USE_WAVE_INTRINSICS
 
@@ -766,19 +764,19 @@ int rand_int(int x, int Seed1, int Seed2, int Seed3)
 	 */
 	int OutputIndex(const int DataSetID, const bool bStageKillsParticles, const bool bIsValid)
 	{
-		#if USE_SIMULATION_STAGES
-			// If this stage cannot kill particles, we can just write them out in the same order as they
-			// appear in the input. We must use an if here (as opposed to a ternary operator, or some
-			// other branchless construct), because we don't want to call AcquireIndex() at all, since
-			// that manipulates the RWInstanceCounts UAV. The generated code will copy the source count
-			// at the end of the shader.
-			if (!bStageKillsParticles)
-			{
-				return GLinearThreadId;
-			}
-		#endif // USE_SIMULATION_STAGES
+	#if GPU_SIMULATION
+		// If this stage cannot kill particles, we can just write them out in the same order as they
+		// appear in the input. We must use an if here (as opposed to a ternary operator, or some
+		// other branchless construct), because we don't want to call AcquireIndex() at all, since
+		// that manipulates the RWInstanceCounts UAV. The generated code will copy the source count
+		// at the end of the shader.
+		if (!bStageKillsParticles)
+		{
+			return GLinearThreadId;
+		}
+	#endif
 
-			return AcquireIndex(DataSetID, bIsValid);
+		return AcquireIndex(DataSetID, bIsValid);
 	}
 
 ////////////////////////////////////////////////////////////////////////////////////

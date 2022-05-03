@@ -1397,7 +1397,7 @@ void UNiagaraEmitter::CacheFromShaderCompiled()
 			for (int i=0; i < NiagaraShaderScript->GetNumPermutations(); ++i)
 			{
 				FNiagaraShaderRef NiagaraShaderRef = NiagaraShaderScript->GetShaderGameThread(i);
-				if (NiagaraShaderRef.IsValid() && NiagaraShaderRef->ViewUniformBufferParam.IsBound())
+				if (NiagaraShaderRef.IsValid() && NiagaraShaderRef->bNeedsViewUniformBuffer)
 				{
 					bRequiresViewUniformBuffer = true;
 					break;

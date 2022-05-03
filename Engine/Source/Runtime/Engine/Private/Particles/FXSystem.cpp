@@ -93,7 +93,7 @@ void FFXSystemInterface::UnregisterCustomFXSystem(const FName& InterfaceName)
 	CreateCustomFXDelegates.Remove(InterfaceName);
 }
 
-FRHIUniformBuffer* FFXSystemInterface::GetReferenceViewUniformBuffer(TConstArrayView<FViewInfo> Views)
+TUniformBufferRef<FViewUniformShaderParameters> FFXSystemInterface::GetReferenceViewUniformBuffer(TConstArrayView<FViewInfo> Views)
 {
 	check(Views.Num() > 0);
 	return Views[0].ViewUniformBuffer;

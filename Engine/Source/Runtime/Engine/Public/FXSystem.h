@@ -275,7 +275,8 @@ protected:
 	/** By making the destructor protected, an instance must be destroyed via FFXSystemInterface::Destroy. */
 	ENGINE_API virtual ~FFXSystemInterface() {}
 
-	ENGINE_API static FRHIUniformBuffer* GetReferenceViewUniformBuffer(TConstArrayView<FViewInfo> Views);
+	
+	ENGINE_API static TUniformBufferRef<FViewUniformShaderParameters> GetReferenceViewUniformBuffer(TConstArrayView<FViewInfo> Views);
 	ENGINE_API static bool GetReferenceAllowGPUUpdate(TConstArrayView<FViewInfo> Views);
 	ENGINE_API static const FGlobalDistanceFieldParameterData* GetReferenceGlobalDistanceFieldData(TConstArrayView<FViewInfo> Views);
 

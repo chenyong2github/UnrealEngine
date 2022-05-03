@@ -650,6 +650,13 @@ public:
 		return true;
 	}
 
+	template<typename T>
+	bool UpdateShaderParameters()
+	{
+		const FShaderParametersMetadata* ShaderParametersMetadata = TShaderParameterStructTypeInfo<T>::GetStructMetadata();
+		return UpdatePOD(ShaderParametersMetadata->GetStructTypeName(), ShaderParametersMetadata->GetLayoutHash());
+	}
+
 	/**
 	Adds an string value to the hash.
 	*/
