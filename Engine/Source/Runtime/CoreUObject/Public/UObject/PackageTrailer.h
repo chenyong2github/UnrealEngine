@@ -315,6 +315,9 @@ public:
 	/** Try to load a trailer from a given package path. Note that it will always try to load the trailer from the workspace domain */
 	[[nodiscard]] static bool TryLoadFromPackage(const FPackagePath& PackagePath, FPackageTrailer& OutTrailer);
 
+	/** Try to load a trailer from a given file path. Note that it will always try to load the trailer from the workspace domain */
+	[[nodiscard]] static bool TryLoadFromFile(const FString& Path, FPackageTrailer& OutTrailer);
+
 	FPackageTrailer() = default;
 	~FPackageTrailer() = default;
 
