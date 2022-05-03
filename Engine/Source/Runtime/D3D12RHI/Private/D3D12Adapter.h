@@ -134,7 +134,7 @@ class FD3D12Adapter : public FNoncopyable
 public:
 
 	FD3D12Adapter(FD3D12AdapterDesc& DescIn);
-	virtual ~FD3D12Adapter() { }
+	virtual ~FD3D12Adapter();
 
 	void Initialize(FD3D12DynamicRHI* RHI);
 	void InitializeDevices();
@@ -510,8 +510,13 @@ protected:
 #endif
 
 #if D3D12_SUPPORTS_DXGI_DEBUG
+	HMODULE DxgiDebugDllHandle{};
 	TRefCountPtr<IDXGIDebug> DXGIDebug;
 	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
+#endif
+
+#if PLATFORM_WINDOWS
+	HMODULE DxgiDllHandle{};
 #endif
 
 	D3D_ROOT_SIGNATURE_VERSION RootSignatureVersion;
