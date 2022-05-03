@@ -259,7 +259,7 @@ void FDMXPixelMappingRenderer::RenderPreview(const FTextureResource* TextureReso
 		// Clear preview texture
 		{
 			FRHIRenderPassInfo RPInfo(RenderTargetRef, ERenderTargetActions::DontLoad_Store);
-			TransitionRenderPassTargets(RHICmdList, RPInfo);
+			RHICmdList.Transition(FRHITransitionInfo(RenderTargetRef, ERHIAccess::Unknown, ERHIAccess::RTV));
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearCanvas"));
 			RHICmdList.SetViewport(0.f, 0.f, 0.f, OutputTextureSize.X, OutputTextureSize.Y, 1.f);
 			DrawClearQuad(RHICmdList, FLinearColor::Black);

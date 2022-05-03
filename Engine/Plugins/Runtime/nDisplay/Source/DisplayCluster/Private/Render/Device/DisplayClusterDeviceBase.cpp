@@ -494,7 +494,7 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 		{
 			// Clear render target before out frame resolving, help to make things look better visually for console/resize, etc.
 			FRHIRenderPassInfo RPInfo(SrcTexture, ERenderTargetActions::Clear_Store);
-			TransitionRenderPassTargets(RHICmdList, RPInfo);
+			RHICmdList.Transition(FRHITransitionInfo(SrcTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
 			RHICmdList.EndRenderPass();
 		}

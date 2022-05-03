@@ -5185,7 +5185,10 @@ void FFXSystem::UpdateMultiGPUResources(FRHICommandListImmediate& RHICmdList)
 		RPInfo.ColorRenderTargets[0].ResolveTarget = ParticleSimulationResources->RenderAttributesTexture.TextureRHI;
 		RPInfo.ColorRenderTargets[1].ResolveTarget = ParticleSimulationResources->SimulationAttributesTexture.TextureRHI;
 		{
-			TransitionRenderPassTargets(RHICmdList, RPInfo);
+			RHICmdList.Transition({
+				FRHITransitionInfo(ParticleSimulationResources->RenderAttributesTexture.TextureTargetRHI, ERHIAccess::Unknown, ERHIAccess::RTV),
+				FRHITransitionInfo(ParticleSimulationResources->SimulationAttributesTexture.TextureTargetRHI, ERHIAccess::Unknown, ERHIAccess::RTV)
+			});
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("UpdateMultiGPUResources"));
 
 			RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)GParticleSimulationTextureSizeX, (float)GParticleSimulationTextureSizeY, 1.0f);

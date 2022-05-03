@@ -189,7 +189,7 @@ static void InjectCurves(
 	}
 
 	FRHIRenderPassInfo RPInfo(CurveTextureTargetRHI, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
-	TransitionRenderPassTargets(RHICmdList, RPInfo);
+	RHICmdList.Transition(FRHITransitionInfo(CurveTextureTargetRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("InjectCurves"));
 	{
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;

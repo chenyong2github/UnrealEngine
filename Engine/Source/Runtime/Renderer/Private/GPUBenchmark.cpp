@@ -560,7 +560,7 @@ void RendererGPUBenchmark(FRHICommandListImmediate& RHICmdList, FSynthBenchmarkR
 				LocalWorkScale[Iteration] = (Iteration / 10.f + 1.f) * WorkScale;
 
 				FRHIRenderPassInfo RPInfo(RTItems[DestRTIndex]->GetRHI(), ERenderTargetActions::Load_Store);
-				TransitionRenderPassTargets(RHICmdList, RPInfo);
+				RHICmdList.Transition(FRHITransitionInfo(RTItems[DestRTIndex]->GetRHI(), ERHIAccess::Unknown, ERHIAccess::RTV));
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("GPUBenchmark"));
 				{
 					RunBenchmarkShader(RHICmdList, VertexBuffer, View, MethodId, RTItems[SrcRTIndex], LocalWorkScale[Iteration]);

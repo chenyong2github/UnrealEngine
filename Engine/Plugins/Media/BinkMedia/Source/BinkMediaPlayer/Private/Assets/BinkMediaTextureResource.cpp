@@ -68,11 +68,11 @@ void FBinkMediaTextureResource::InitDynamicRHI()
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	{
 		FRHIRenderPassInfo RPInfo(TextureRHI, ERenderTargetActions::Clear_Store);
-		TransitionRenderPassTargets(RHICmdList, RPInfo);
+		RHICmdList.Transition(FRHITransitionInfo(TextureRHI.GetReference(), ERHIAccess::Unknown, ERHIAccess::RTV));
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
 		RHICmdList.EndRenderPass();
 		RHICmdList.SetViewport(0, 0, 0, w, h, 1);
-		RHICmdList.Transition(FRHITransitionInfo(TextureRHI.GetReference(), ERHIAccess::Unknown, ERHIAccess::UAVGraphics));
+		RHICmdList.Transition(FRHITransitionInfo(TextureRHI.GetReference(), ERHIAccess::RTV, ERHIAccess::UAVGraphics));
 	}
 }
 
@@ -116,11 +116,11 @@ void FBinkMediaTextureResource::Clear()
 	ENQUEUE_RENDER_COMMAND(BinkMediaPlayer_Draw)([ref,ref2,w,h](FRHICommandListImmediate& RHICmdList) 
 	{ 
 		FRHIRenderPassInfo RPInfo(ref2, ERenderTargetActions::Clear_Store);
-		TransitionRenderPassTargets(RHICmdList, RPInfo);
+		RHICmdList.Transition(FRHITransitionInfo(ref2.GetReference(), ERHIAccess::Unknown, ERHIAccess::RTV));
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearTexture"));
 		RHICmdList.EndRenderPass();
 		RHICmdList.SetViewport(0, 0, 0, w, h, 1);
-		RHICmdList.Transition(FRHITransitionInfo(ref2.GetReference(), ERHIAccess::Unknown, ERHIAccess::UAVGraphics));
+		RHICmdList.Transition(FRHITransitionInfo(ref2.GetReference(), ERHIAccess::RTV, ERHIAccess::UAVGraphics));
 	});
 }
 

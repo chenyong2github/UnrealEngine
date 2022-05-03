@@ -307,7 +307,7 @@ void FTextureRenderTarget2DArrayResource::UpdateDeferredResource(FRHICommandList
 	const ERenderTargetLoadAction LoadAction = bClearRenderTarget ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 
 	FRHIRenderPassInfo RPInfo(RenderTarget2DArrayRHI, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
-	TransitionRenderPassTargets(RHICmdList, RPInfo);
+	RHICmdList.Transition(FRHITransitionInfo(RenderTarget2DArrayRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("UpdateTarget2DArray"));
 	RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, (float)Dims.X, (float)Dims.Y, 1.0f);
 	RHICmdList.EndRenderPass();
