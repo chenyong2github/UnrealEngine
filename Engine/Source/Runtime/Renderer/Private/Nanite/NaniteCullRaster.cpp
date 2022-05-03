@@ -2215,31 +2215,27 @@ void AddPass_Rasterize(
 	PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
 	PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(RasterContext.VisualizeActive && RasterContext.RasterMode != EOutputBufferMode::DepthOnly);
 	PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	PermutationVectorPS.Set<FHWRasterizePS::FProgrammableRasterDim>(bProgrammableRaster);
-
+	
 	FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
 	PermutationVectorVS.Set<FHWRasterizeVS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 	PermutationVectorVS.Set<FHWRasterizeVS::FMultiViewDim>(bMultiView);
 	PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
 	PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
 	PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	PermutationVectorVS.Set<FHWRasterizeVS::FProgrammableRasterDim>(bProgrammableRaster);
-
+	
 	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
 	PermutationVectorMS.Set<FHWRasterizeMS::FInterpOptDim>(GNaniteMSInterp != 0);
 	PermutationVectorMS.Set<FHWRasterizeMS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 	PermutationVectorMS.Set<FHWRasterizeMS::FMultiViewDim>(bMultiView);
 	PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	PermutationVectorMS.Set<FHWRasterizeMS::FProgrammableRasterDim>(bProgrammableRaster);
-
+	
 	// SW Rasterize
 	FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FMultiViewDim>(bMultiView);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVisualizeDim>(RasterContext.VisualizeActive && RasterContext.RasterMode != EOutputBufferMode::DepthOnly);
 	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FProgrammableRasterDim>(bProgrammableRaster);
-
+	
 	const FMaterialRenderProxy* FixedMaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	check(FixedMaterialProxy);
 
@@ -2260,6 +2256,8 @@ void AddPass_Rasterize(
 		const FMaterial* VertexMaterial		= nullptr;
 		const FMaterial* PixelMaterial		= nullptr;
 		const FMaterial* ComputeMaterial	= nullptr;
+
+		bool bProgrammable = false;
 
 		uint32 IndirectOffset = 0u;
 		uint32 RasterizerBin = ~uint32(0u);
@@ -2294,15 +2292,19 @@ void AddPass_Rasterize(
 				const bool bUsesPixelDepthOffset		= RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread();
 				const bool bUsesAlphaTest				= RasterMaterial.IsMasked();
 
+				RasterizerPass.bProgrammable			= bUsesWorldPositionOffset || bUsesPixelDepthOffset || bUsesAlphaTest;
+
 				// Programmable vertex features
 				if (bUsesWorldPositionOffset)
 				{
 					if (bUseMeshShader)
 					{
+						PermutationVectorMS.Set<FHWRasterizeMS::FProgrammableRasterDim>(true);
 						ProgrammableShaderTypes.AddShaderType<FHWRasterizeMS>(PermutationVectorMS.ToDimensionValueId());
 					}
 					else
 					{
+						PermutationVectorVS.Set<FHWRasterizeVS::FProgrammableRasterDim>(true);
 						ProgrammableShaderTypes.AddShaderType<FHWRasterizeVS>(PermutationVectorVS.ToDimensionValueId());
 					}
 				}
@@ -2310,12 +2312,14 @@ void AddPass_Rasterize(
 				// Programmable pixel features
 				if (bUsesPixelDepthOffset || bUsesAlphaTest)
 				{
+					PermutationVectorPS.Set<FHWRasterizePS::FProgrammableRasterDim>(true);
 					ProgrammableShaderTypes.AddShaderType<FHWRasterizePS>(PermutationVectorPS.ToDimensionValueId());
 				}
 
 				// Programmable micropoly features
 				if (bUsesWorldPositionOffset || bUsesPixelDepthOffset || bUsesAlphaTest)
 				{
+					PermutationVectorCS.Set<FMicropolyRasterizeCS::FProgrammableRasterDim>(true);
 					ProgrammableShaderTypes.AddShaderType<FMicropolyRasterizeCS>(PermutationVectorCS.ToDimensionValueId());
 				}
 			}
@@ -2377,18 +2381,26 @@ void AddPass_Rasterize(
 
 	for (FRasterizerPass& RasterizerPass : RasterizerPasses)
 	{
-		if (RasterizerPass.RasterVertexShader.IsNull() || RasterizerPass.RasterMeshShader.IsNull())
+		if (bUseMeshShader)
 		{
-			const FMaterialShaderMap* VertexShaderMap = RasterizerPass.VertexMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), RasterizerPass.VertexMaterialProxy).GetRenderingThreadShaderMap();
-			check(VertexShaderMap);
-
-			if (bUseMeshShader)
+			if (RasterizerPass.RasterMeshShader.IsNull())
 			{
+				const FMaterialShaderMap* VertexShaderMap = RasterizerPass.VertexMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), RasterizerPass.VertexMaterialProxy).GetRenderingThreadShaderMap();
+				check(VertexShaderMap);
+
+				PermutationVectorMS.Set<FHWRasterizeMS::FProgrammableRasterDim>(RasterizerPass.bProgrammable);
 				RasterizerPass.RasterMeshShader = VertexShaderMap->GetShader<FHWRasterizeMS>(PermutationVectorMS);
 				check(!RasterizerPass.RasterMeshShader.IsNull());
 			}
-			else
+		}
+		else
+		{
+			if (RasterizerPass.RasterVertexShader.IsNull())
 			{
+				const FMaterialShaderMap* VertexShaderMap = RasterizerPass.VertexMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), RasterizerPass.VertexMaterialProxy).GetRenderingThreadShaderMap();
+				check(VertexShaderMap);
+
+				PermutationVectorVS.Set<FHWRasterizeVS::FProgrammableRasterDim>(RasterizerPass.bProgrammable);
 				RasterizerPass.RasterVertexShader = VertexShaderMap->GetShader<FHWRasterizeVS>(PermutationVectorVS);
 				check(!RasterizerPass.RasterVertexShader.IsNull());
 			}
@@ -2398,6 +2410,8 @@ void AddPass_Rasterize(
 		{
 			const FMaterialShaderMap* PixelShaderMap = RasterizerPass.PixelMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), RasterizerPass.PixelMaterialProxy).GetRenderingThreadShaderMap();
 			check(PixelShaderMap);
+
+			PermutationVectorPS.Set<FHWRasterizePS::FProgrammableRasterDim>(RasterizerPass.bProgrammable);
 			RasterizerPass.RasterPixelShader = PixelShaderMap->GetShader<FHWRasterizePS>(PermutationVectorPS);
 			check(!RasterizerPass.RasterPixelShader.IsNull());
 		}
@@ -2407,6 +2421,7 @@ void AddPass_Rasterize(
 			const FMaterialShaderMap* ComputeShaderMap = RasterizerPass.ComputeMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), RasterizerPass.ComputeMaterialProxy).GetRenderingThreadShaderMap();
 			check(ComputeShaderMap);
 			
+			PermutationVectorCS.Set<FMicropolyRasterizeCS::FProgrammableRasterDim>(RasterizerPass.bProgrammable);
 			RasterizerPass.RasterComputeShader = ComputeShaderMap->GetShader<FMicropolyRasterizeCS>(PermutationVectorCS);
 			check(!RasterizerPass.RasterComputeShader.IsNull());
 		}
