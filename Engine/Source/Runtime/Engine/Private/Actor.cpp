@@ -5910,31 +5910,36 @@ FArchive& operator<<(FArchive& Ar, AActor::FActorTransactionAnnotationData& Acto
 
 TArray<const UDataLayerInstance*> AActor::GetDataLayerInstances() const
 {
-	if (const IWorldPartitionCell* RuntinmeCell = GetLevel()->GetWorldPartitionRuntimeCell())
+	if (UseWorldPartitionRuntimeCellDataLayers())
 	{
-		return RuntinmeCell->GetDataLayerInstances();
+		return GetLevel()->GetWorldPartitionRuntimeCell()->GetDataLayerInstances();
 	}
 
 #if WITH_EDITOR
-	TArray<const UDataLayerInstance*> DataLayerInstances;
-	AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
-	DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayerAssets);
+	if (UWorld* World = GetWorld())
+	{
+		if (AWorldDataLayers* WorldDataLayers = World->GetWorldDataLayers())
+		{
+			TArray<const UDataLayerInstance*> DataLayerInstances;
+			DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayerAssets);
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayers);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				DataLayerInstances += WorldDataLayers->GetDataLayerInstances(DataLayers);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	return DataLayerInstances;
-#else
-	return TArray<const UDataLayerInstance*>();
+				return DataLayerInstances;
+		}
+	}
 #endif
+	
+	return TArray<const UDataLayerInstance*>();
 }
 
 bool AActor::ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const
 {
-	if (const IWorldPartitionCell* RuntinmeCell = GetLevel()->GetWorldPartitionRuntimeCell())
+	if (UseWorldPartitionRuntimeCellDataLayers())
 	{
-		return RuntinmeCell->ContainsDataLayer(DataLayerInstance);
+		return GetLevel()->GetWorldPartitionRuntimeCell()->ContainsDataLayer(DataLayerInstance);
 	}
 
 #if WITH_EDITOR
@@ -5946,9 +5951,9 @@ bool AActor::ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) cons
 
 bool AActor::ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const
 {
-	if (const IWorldPartitionCell* RuntinmeCell = GetLevel()->GetWorldPartitionRuntimeCell())
+	if (UseWorldPartitionRuntimeCellDataLayers())
 	{
-		return RuntinmeCell->ContainsDataLayer(DataLayerAsset);
+		return GetLevel()->GetWorldPartitionRuntimeCell()->ContainsDataLayer(DataLayerAsset);
 	}
 
 #if WITH_EDITOR
@@ -5960,9 +5965,9 @@ bool AActor::ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const
 
 bool AActor::HasDataLayers() const
 {
-	if (const IWorldPartitionCell* RuntinmeCell = GetLevel()->GetWorldPartitionRuntimeCell())
+	if (UseWorldPartitionRuntimeCellDataLayers())
 	{
-		return RuntinmeCell->HasDataLayers();
+		return GetLevel()->GetWorldPartitionRuntimeCell()->HasDataLayers();
 	}
 
 #if WITH_EDITOR
@@ -5971,6 +5976,23 @@ bool AActor::HasDataLayers() const
 	return false;
 #endif
 }
+
+bool AActor::UseWorldPartitionRuntimeCellDataLayers() const
+{
+	ULevel* Level = GetLevel();
+	bool bIsActorInCell = Level != nullptr && Level->IsWorldPartitionRuntimeCell();
+
+#if WITH_EDITOR
+	// In PIE, SIE & -game, use the WorldPartitionRuntimeCell's data layers to emulate the behavior of a Cooked Game.
+	UWorld* World = GetWorld();
+	bool bShouldUseCell = (World != nullptr && World->IsGameWorld()) || UWorldPartition::IsSimulating();
+
+	return bIsActorInCell && bShouldUseCell;
+#else
+	return bIsActorInCell;
+#endif
+}
+
 
 // DataLayers (end)
 //---------------------------------------------------------------------------

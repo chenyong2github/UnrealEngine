@@ -1227,9 +1227,12 @@ public:
 	bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const;
 	bool HasDataLayers() const;
 
+private:
+	bool UseWorldPartitionRuntimeCellDataLayers() const;
+
 	//~=============================================================================
 	// General functions.
-
+public:
 	/**
 	 * Get the actor-to-world transform.
 	 * @return The transform that transforms from actor space to world space.
