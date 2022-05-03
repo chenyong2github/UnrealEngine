@@ -109,6 +109,11 @@ bool ULevelSequence::CanAnimateObject(UObject& InObject) const
 
 ETrackSupport ULevelSequence::IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const
 {
+	if (!UMovieScene::IsTrackClassAllowed(InTrackClass))
+	{
+		return ETrackSupport::NotSupported;
+	}
+
 	if (InTrackClass == UMovieScene3DAttachTrack::StaticClass() ||
 		InTrackClass == UMovieScene3DPathTrack::StaticClass() ||
 		InTrackClass == UMovieSceneAudioTrack::StaticClass() ||
@@ -451,6 +456,11 @@ UObject* ULevelSequence::GetParentObject(UObject* Object) const
 
 bool ULevelSequence::AllowsSpawnableObjects() const
 {
+	if (!UMovieScene::IsTrackClassAllowed(UMovieSceneSpawnTrack::StaticClass()))
+	{
+		return false;
+	}
+
 	return true;
 }
 

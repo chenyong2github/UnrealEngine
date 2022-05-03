@@ -103,6 +103,7 @@
 #include "SequencerTrackFilterExtension.h"
 #include "SequencerCustomizationManager.h"
 #include "EditorActorFolders.h"
+#include "Tracks/MovieSceneEventTrack.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -1109,7 +1110,16 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 
 		return SequencerPtr.Pin()->GetClipboardStack().Num() != 0;
 	};
-	
+
+	auto CanOpenDirectorBlueprint = [this]{
+		UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
+		if (RootSequence && RootSequence->GetTypedOuter<UBlueprint>() == nullptr && UMovieScene::IsTrackClassAllowed(UMovieSceneEventTrack::StaticClass()))
+		{
+			return true;
+		}
+		return false;
+	};
+
 	SequencerCommandBindings->MapAction(
 		FGenericCommands::Get().Paste,
 		FExecuteAction::CreateSP(this, &SSequencer::OnPaste),
@@ -1165,7 +1175,8 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 
 	SequencerCommandBindings->MapAction(
 		FSequencerCommands::Get().OpenDirectorBlueprint,
-		FExecuteAction::CreateLambda(OpenDirectorBlueprint)
+		FExecuteAction::CreateLambda(OpenDirectorBlueprint),
+		FCanExecuteAction::CreateLambda(CanOpenDirectorBlueprint)
 	);
 
 	SequencerCommandBindings->MapAction(
@@ -1445,7 +1456,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 			}
 
 			UMovieSceneSequence* RootSequence = SequencerPtr.Pin()->GetRootMovieSceneSequence();
-			if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr)
+			if (RootSequence->GetTypedOuter<UBlueprint>() == nullptr && UMovieScene::IsTrackClassAllowed(UMovieSceneEventTrack::StaticClass()))
 			{
 				// Only show this button where it makes sense (ie, if the sequence is not contained within a blueprint already)
 				ToolBarBuilder.AddToolBarButton(FSequencerCommands::Get().OpenDirectorBlueprint, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::Get().GetStyleSetName(), "LevelEditor.OpenLevelBlueprint"));

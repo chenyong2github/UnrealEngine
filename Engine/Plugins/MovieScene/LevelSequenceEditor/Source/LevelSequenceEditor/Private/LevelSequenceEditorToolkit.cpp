@@ -355,6 +355,11 @@ void FLevelSequenceEditorToolkit::AddDefaultTracksForActor(AActor& Actor, const 
 					NewTrack = MovieScene->AddTrack(TrackClass, Binding);
 				}
 
+				if (!NewTrack)
+				{
+					continue;
+				}
+
 				bool bCreateDefaultSection = false;
 #if WITH_EDITORONLY_DATA
 				bCreateDefaultSection = NewTrack->SupportsDefaultSections();
@@ -671,7 +676,7 @@ void FLevelSequenceEditorToolkit::AddShot(UMovieSceneCinematicShotTrack* ShotTra
 		ACineCameraActor* NewCamera = GCurrentLevelEditingViewportClient->GetWorld()->SpawnActor<ACineCameraActor>();
 		
 		const USequencerSettings* SequencerSettings = GetDefault<USequencerSettings>();
-		bool bCreateSpawnableCamera = SequencerSettings->GetCreateSpawnableCameras();
+		const bool bCreateSpawnableCamera = SequencerSettings->GetCreateSpawnableCameras() && ShotSequence->AllowsSpawnableObjects();
 
 		FGuid CameraGuid;
 		if (bCreateSpawnableCamera)

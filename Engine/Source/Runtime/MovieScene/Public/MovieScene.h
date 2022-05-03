@@ -573,6 +573,16 @@ public:
 	 */
 	bool FindTrackBinding(const UMovieSceneTrack& InTrack, FGuid& OutGuid) const;
 
+#if WITH_EDITOR
+
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FIsTrackClassAllowedEvent, UClass*);
+
+	static FIsTrackClassAllowedEvent IsTrackClassAllowedEvent;
+
+	static bool IsTrackClassAllowed(UClass* InClass);
+
+#endif
+
 public:
 
 	/**

@@ -11767,7 +11767,7 @@ void FSequencer::CreateCamera()
 
 	const FScopedTransaction Transaction(NSLOCTEXT("Sequencer", "CreateCameraHere", "Create Camera Here"));
 
-	const bool bCreateAsSpawnable = Settings->GetCreateSpawnableCameras();
+	const bool bCreateAsSpawnable = Settings->GetCreateSpawnableCameras() && GetFocusedMovieSceneSequence()->AllowsSpawnableObjects();
 
 	FActorSpawnParameters SpawnParams;
 	if (bCreateAsSpawnable)
@@ -12423,7 +12423,13 @@ void FSequencer::BindCommands()
 
 	// We can convert to spawnables if anything selected is a root-level possessable
 	auto CanConvertToSpawnables = [this]{
-		UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+		UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+		if (!Sequence || !Sequence->AllowsSpawnableObjects())
+		{
+			return false;
+		}
+
+		UMovieScene* MovieScene = Sequence->GetMovieScene();
 
 		for (const TSharedRef<FSequencerDisplayNode>& Node : Selection.GetSelectedOutlinerNodes())
 		{

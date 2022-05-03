@@ -82,6 +82,9 @@
 #include "EditorModeManager.h"
 #include "EditModes/SkeletalAnimationTrackEditMode.h"
 
+#include "ClassViewerFilter.h"
+#include "ClassViewerModule.h"
+
 #include "LevelSequence.h"
 #include "LevelSequenceAnimSequenceLink.h"
 #include "AnimSequenceLevelSequenceLink.h"
@@ -190,6 +193,7 @@ void FMovieSceneToolsModule::StartupModule()
 	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint.BindStatic(UpgradeLegacyEventEndpointForSection);
 	UMovieSceneEventSectionBase::PostDuplicateSectionEvent.BindStatic(PostDuplicateEventSection);
 	UMovieSceneEventSectionBase::RemoveForCookEvent.BindStatic(RemoveForCookEventSection);
+	UMovieScene::IsTrackClassAllowedEvent.BindStatic(IsTrackClassAllowed);
 	ULevelSequence::PostDuplicateEvent.BindStatic(PostDuplicateEvent);
 
 	auto OnObjectsReplaced = [](const TMap<UObject*, UObject*>& ReplacedObjects)
@@ -224,6 +228,7 @@ void FMovieSceneToolsModule::ShutdownModule()
 	UMovieSceneEventSectionBase::UpgradeLegacyEventEndpoint = UMovieSceneEventSectionBase::FUpgradeLegacyEventEndpoint();
 	UMovieSceneEventSectionBase::PostDuplicateSectionEvent = UMovieSceneEventSectionBase::FPostDuplicateEvent();
 	UMovieSceneEventSectionBase::RemoveForCookEvent = UMovieSceneEventSectionBase::FRemoveForCookEvent();
+	UMovieScene::IsTrackClassAllowedEvent = UMovieScene::FIsTrackClassAllowedEvent();
 	ULevelSequence::PostDuplicateEvent = ULevelSequence::FPostDuplicateEvent();
 
 	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
@@ -459,6 +464,26 @@ bool FMovieSceneToolsModule::UpgradeLegacyEventEndpointForSection(UMovieSceneEve
 	if (SequenceDirectorBP->bHasBeenRegenerated)
 	{
 		Section->OnPostCompile(SequenceDirectorBP);
+	}
+
+	return true;
+}
+
+bool FMovieSceneToolsModule::IsTrackClassAllowed(UClass* InClass)
+{
+	if (!InClass)
+	{
+		return false;
+	}
+
+	FClassViewerModule& ClassViewerModule = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer");
+	const TSharedPtr<IClassViewerFilter>& GlobalClassFilter = ClassViewerModule.GetGlobalClassViewerFilter();
+	TSharedRef<FClassViewerFilterFuncs> ClassFilterFuncs = ClassViewerModule.CreateFilterFuncs();
+	FClassViewerInitializationOptions ClassViewerOptions = {};
+
+	if (GlobalClassFilter.IsValid())
+	{
+		return GlobalClassFilter->IsClassAllowed(ClassViewerOptions, InClass, ClassFilterFuncs);
 	}
 
 	return true;

@@ -39,6 +39,7 @@ public class MovieSceneTools : ModuleRules
 				"AnimationBlueprintLibrary",
 				"AppFramework",
 				"CinematicCamera",
+				"ClassViewer",
 				"DataLayerEditor",
                 "CurveEditor",
                 "DesktopPlatform",

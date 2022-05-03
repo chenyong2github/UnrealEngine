@@ -38,6 +38,22 @@ TOptional<TRangeBound<FFrameNumber>> GetMaxUpperBound(const UMovieSceneTrack* Tr
 /* UMovieScene interface
  *****************************************************************************/
 
+#if WITH_EDITOR
+
+UMovieScene::FIsTrackClassAllowedEvent UMovieScene::IsTrackClassAllowedEvent;
+
+bool UMovieScene::IsTrackClassAllowed(UClass* InClass)
+{
+	if (IsTrackClassAllowedEvent.IsBound() && !IsTrackClassAllowedEvent.Execute(InClass))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+#endif
+
 UMovieScene::UMovieScene(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -920,6 +936,13 @@ TArray<UMovieSceneTrack*> UMovieScene::FindTracks(TSubclassOf<UMovieSceneTrack> 
 
 UMovieSceneTrack* UMovieScene::AddTrack( TSubclassOf<UMovieSceneTrack> TrackClass, const FGuid& ObjectGuid )
 {
+#if WITH_EDITOR
+	if (!IsTrackClassAllowed(TrackClass))
+	{
+		return nullptr;
+	}
+#endif
+
 	UMovieSceneTrack* CreatedType = nullptr;
 
 	check( ObjectGuid.IsValid() )
@@ -941,6 +964,13 @@ UMovieSceneTrack* UMovieScene::AddTrack( TSubclassOf<UMovieSceneTrack> TrackClas
 
 bool UMovieScene::AddGivenTrack(UMovieSceneTrack* InTrack, const FGuid& ObjectGuid)
 {
+#if WITH_EDITOR
+	if (!IsTrackClassAllowed(InTrack->GetClass()))
+	{
+		return false;
+	}
+#endif
+
 	check(ObjectGuid.IsValid());
 	check(InTrack);
 
@@ -1015,6 +1045,13 @@ UMovieSceneTrack* UMovieScene::FindMasterTrack( TSubclassOf<UMovieSceneTrack> Tr
 
 UMovieSceneTrack* UMovieScene::AddMasterTrack( TSubclassOf<UMovieSceneTrack> TrackClass )
 {
+#if WITH_EDITOR
+	if (!IsTrackClassAllowed(TrackClass))
+	{
+		return nullptr;
+	}
+#endif
+
 	Modify();
 
 	UMovieSceneTrack* CreatedType = NewObject<UMovieSceneTrack>(this, TrackClass, NAME_None, RF_Transactional);
@@ -1025,6 +1062,13 @@ UMovieSceneTrack* UMovieScene::AddMasterTrack( TSubclassOf<UMovieSceneTrack> Tra
 
 bool UMovieScene::AddGivenMasterTrack(UMovieSceneTrack* InTrack)
 {
+#if WITH_EDITOR
+	if (!IsTrackClassAllowed(InTrack->GetClass()))
+	{
+		return false;
+	}
+#endif
+
 	if (!MasterTracks.Contains(InTrack))
 	{
 		Modify();
@@ -1060,6 +1104,13 @@ bool UMovieScene::IsAMasterTrack(const UMovieSceneTrack& Track) const
 
 UMovieSceneTrack* UMovieScene::AddCameraCutTrack( TSubclassOf<UMovieSceneTrack> TrackClass )
 {
+#if WITH_EDITOR
+	if (!IsTrackClassAllowed(TrackClass))
+	{
+		return nullptr;
+	}
+#endif
+
 	if( !CameraCutTrack )
 	{
 		Modify();

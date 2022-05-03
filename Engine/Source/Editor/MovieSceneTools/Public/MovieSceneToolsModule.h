@@ -79,6 +79,7 @@ private:
 	static bool UpgradeLegacyEventEndpointForSection(UMovieSceneEventSectionBase* Section);
 	static void PostDuplicateEventSection(UMovieSceneEventSectionBase* Section);
 	static void RemoveForCookEventSection(UMovieSceneEventSectionBase* Section);
+	static bool IsTrackClassAllowed(UClass* InClass);
 	static void PostDuplicateEvent(ULevelSequence* LevelSequence);
 
 private:
