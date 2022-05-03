@@ -639,8 +639,8 @@ FText UNiagaraComponentRendererProperties::GetWidgetDisplayName() const
 
 TArray<FNiagaraVariable> UNiagaraComponentRendererProperties::GetBoundAttributes() const
 {
-	TArray<FNiagaraVariable> BoundAttributes;
-	BoundAttributes.Reserve(PropertyBindings.Num() + (bAssignComponentsOnParticleID ? 2 : 1));
+	TArray<FNiagaraVariable> BoundAttributes = Super::GetBoundAttributes();
+	BoundAttributes.Reserve(BoundAttributes.Num() + PropertyBindings.Num() + (bAssignComponentsOnParticleID ? 2 : 1));
 
 	BoundAttributes.Add(SYS_PARAM_PARTICLES_COMPONENTS_ENABLED);
 	if (bAssignComponentsOnParticleID)
