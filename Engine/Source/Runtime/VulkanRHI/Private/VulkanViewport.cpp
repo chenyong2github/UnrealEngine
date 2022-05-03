@@ -667,7 +667,7 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 		
 		Device->GetImmediateContext().GetCommandBufferManager()->SubmitUploadCmdBuffer();
 
-		RHIBackBuffer = new FVulkanBackBuffer(*Device, this, PixelFormat, SizeX, SizeY, TexCreate_RenderTargetable | TexCreate_ShaderResource);
+		RHIBackBuffer = new FVulkanBackBuffer(*Device, this, PixelFormat, SizeX, SizeY, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_ResolveTargetable);
 	}
 	else
 	{
@@ -697,7 +697,7 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 			{ (int32)BackBufferSizeX, (int32)BackBufferSizeY },
 			PixelFormat,
 			FClearValueBinding::None,
-			TexCreate_RenderTargetable | TexCreate_ShaderResource,
+			TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_ResolveTargetable,
 			1,
 			1,
 			0,

@@ -320,7 +320,7 @@ void FOpenGLViewport::Resize(uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen)
 				{ (int32)InSizeX, (int32)InSizeY },
 				PixelFormat,
 				FClearValueBinding::Transparent,
-				TexCreate_RenderTargetable
+				TexCreate_RenderTargetable | TexCreate_ResolveTargetable
 			));
 		}
 

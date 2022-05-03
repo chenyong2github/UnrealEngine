@@ -456,7 +456,7 @@ FOpenGLTexture* PlatformCreateBuiltinBackBuffer(FOpenGLDynamicRHI* OpenGLRHI, ui
 			{ (int32)SizeX, (int32)SizeY },
 			PF_B8G8R8A8,
 			FClearValueBinding::Transparent,
-			TexCreate_RenderTargetable | TexCreate_Presentable
+			TexCreate_RenderTargetable | TexCreate_Presentable | TexCreate_ResolveTargetable
 		);
 
 		return new FOpenGLTexture(CreateDesc);
