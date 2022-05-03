@@ -340,18 +340,32 @@ namespace UE { namespace TasksTests
 			Outer.Launch(UE_SOURCE_LOCATION,
 				[&Outer]
 				{
-					auto InnerTaskBody = [&Outer] { check(!Outer.IsAwaitable()); /* still inside `Outer` execution */ };
-
-					// using the private API for `EExtendedTaskPriority::Inline` to force inner task execution inside the outer task
-					using namespace UE::Tasks::Private;
-					using FInnerTask = TExecutableTask<decltype(InnerTaskBody)>;
-
-					FInnerTask InnerTask{ UE_SOURCE_LOCATION, MoveTemp(InnerTaskBody), ETaskPriority::Default, EExtendedTaskPriority::Inline };
-					verify(InnerTask.TryLaunch()); // blocking execution of InnerTask due to its "inline" priority
+					// the inner task is executed "inline" (synchronously)
+					FTask Inner = Launch
+					(
+						UE_SOURCE_LOCATION, 
+						[&Outer] { check(!Outer.IsAwaitable()); /* still inside `Outer` execution */ }, 
+						ETaskPriority::Default, 
+						EExtendedTaskPriority::Inline
+					);
+					check(Inner.IsCompleted());
 				}
 			);
 			Outer.Wait();
 		}
+
+#if TASKGRAPH_NEW_FRONTEND
+		{	// a basic test for a named thread task
+			FTask GTTask = Launch
+			(
+				UE_SOURCE_LOCATION, 
+				[] { check(IsInGameThread()); }, 
+				ETaskPriority::Default, 
+				EExtendedTaskPriority::GameThreadNormalPri
+			);
+			GTTask.Wait();
+		}
+#endif
 
 		//{	// Cancelled task is completed only after nested
 		//	FTaskEvent ParentBlocker{ UE_SOURCE_LOCATION };

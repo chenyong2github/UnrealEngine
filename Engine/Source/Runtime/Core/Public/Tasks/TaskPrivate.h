@@ -28,6 +28,32 @@ namespace UE::Tasks
 {
 	using LowLevelTasks::ETaskPriority;
 
+	// special task priorities for tasks that are never sent to the scheduler
+	enum class EExtendedTaskPriority
+	{
+		None,
+		Inline, // a task priority for "inline" task execution - a task is executed "inline" by the thread that unlocked it, w/o scheduling
+		TaskEvent, // a task priority used by task events, allows to shortcut task execution
+
+#if TASKGRAPH_NEW_FRONTEND
+		// for integration with named threads
+		GameThreadNormalPri,
+		GameThreadHiPri,
+		GameThreadNormalPriLocalQueue,
+		GameThreadHiPriLocalQueue,
+
+		RenderThreadNormalPri,
+		RenderThreadHiPri,
+		RenderThreadNormalPriLocalQueue,
+		RenderThreadHiPriLocalQueue,
+
+		RHIThreadNormalPri,
+		RHIThreadHiPri,
+		RHIThreadNormalPriLocalQueue,
+		RHIThreadHiPriLocalQueue
+#endif
+	};
+
 	class FPipe;
 
 	namespace Private
@@ -38,32 +64,6 @@ namespace UE::Tasks
 		CORE_API FTaskBase* GetCurrentTask();
 		// sets the current task and returns the previous current task
 		CORE_API FTaskBase* ExchangeCurrentTask(FTaskBase* Task);
-
-		// special task priorities for tasks that are never scheduled
-		enum class EExtendedTaskPriority
-		{
-			None,
-			Inline, // a task priority for "inline" task execution - a task is executed "inline" by the thread that unlocked it, w/o scheduling
-			TaskEvent, // a task priority used by task events, allows to shortcut task execution
-
-#if TASKGRAPH_NEW_FRONTEND
-			// for integration with named threads
-			GameThreadNormalPri,
-			GameThreadHiPri,
-			GameThreadNormalPriLocalQueue,
-			GameThreadHiPriLocalQueue,
-
-			RenderThreadNormalPri,
-			RenderThreadHiPri,
-			RenderThreadNormalPriLocalQueue,
-			RenderThreadHiPriLocalQueue,
-
-			RHIThreadNormalPri,
-			RHIThreadHiPri,
-			RHIThreadNormalPriLocalQueue,
-			RHIThreadHiPriLocalQueue
-#endif
-		};
 
 		// An abstract base class for task implementation. 
 		// Implements internal logic of task prerequisites, nested tasks and deep task retraction.

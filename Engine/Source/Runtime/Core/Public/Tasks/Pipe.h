@@ -52,12 +52,18 @@ namespace UE::Tasks
 		// @Priority - task priority, can affect task scheduling once it's passed the pipe
 		// @return Task instance that can be used to wait for task completion or to obtain the result of task execution
 		template<typename TaskBodyType>
-		TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* InDebugName, TaskBodyType&& TaskBody, LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Default)
+		TTask<TInvokeResult_T<TaskBodyType>> Launch
+		(
+			const TCHAR* InDebugName, 
+			TaskBodyType&& TaskBody, 
+			ETaskPriority Priority = ETaskPriority::Default,
+			EExtendedTaskPriority ExtendedPriority = EExtendedTaskPriority::None
+		)
 		{
 			using FResult = TInvokeResult_T<TaskBodyType>;
 			using FExecutableTask = Private::TExecutableTask<std::decay_t<TaskBodyType>>;
 
-			FExecutableTask* Task = FExecutableTask::Create(InDebugName, Forward<TaskBodyType>(TaskBody), Priority, Private::EExtendedTaskPriority::None);
+			FExecutableTask* Task = FExecutableTask::Create(InDebugName, Forward<TaskBodyType>(TaskBody), Priority, ExtendedPriority);
 			Task->SetPipe(*this);
 			Task->TryLaunch();
 			return TTask<FResult>{ Task };
@@ -70,12 +76,19 @@ namespace UE::Tasks
 		// @Priority - task priority, can affect task scheduling once it's passed the pipe
 		// @return Task instance that can be used to wait for task completion or to obtain the result of task execution
 		template<typename TaskBodyType, typename PrerequisitesCollectionType>
-		TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* InDebugName, TaskBodyType&& TaskBody, PrerequisitesCollectionType&& Prerequisites, LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Default)
+		TTask<TInvokeResult_T<TaskBodyType>> Launch
+		(
+			const TCHAR* InDebugName, 
+			TaskBodyType&& TaskBody, 
+			PrerequisitesCollectionType&& Prerequisites, 
+			ETaskPriority Priority = ETaskPriority::Default,
+			EExtendedTaskPriority ExtendedPriority = EExtendedTaskPriority::None
+		)
 		{
 			using FResult = TInvokeResult_T<TaskBodyType>;
 			using FExecutableTask = Private::TExecutableTask<std::decay_t<TaskBodyType>>;
 
-			FExecutableTask* Task = FExecutableTask::Create(InDebugName, Forward<TaskBodyType>(TaskBody), Priority, Private::EExtendedTaskPriority::None);
+			FExecutableTask* Task = FExecutableTask::Create(InDebugName, Forward<TaskBodyType>(TaskBody), Priority, ExtendedPriority);
 			Task->SetPipe(*this);
 			Task->AddPrerequisites(Forward<PrerequisitesCollectionType>(Prerequisites));
 			Task->TryLaunch();

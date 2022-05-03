@@ -135,13 +135,14 @@ namespace UE::Tasks
 			void Launch(
 				const TCHAR* DebugName,
 				TaskBodyType&& TaskBody,
-				ETaskPriority Priority = ETaskPriority::Normal
+				ETaskPriority Priority = ETaskPriority::Normal,
+				EExtendedTaskPriority ExtendedPriority = EExtendedTaskPriority::None
 			)
 			{
 				check(!IsValid());
 
 				using FExecutableTask = Private::TExecutableTask<std::decay_t<TaskBodyType>>;
-				FExecutableTask* Task = FExecutableTask::Create(DebugName, Forward<TaskBodyType>(TaskBody), Priority);
+				FExecutableTask* Task = FExecutableTask::Create(DebugName, Forward<TaskBodyType>(TaskBody), Priority, ExtendedPriority);
 				// this must happen before launching, to support an ability to access the task itself from inside it
 				*Pimpl.GetInitReference() = Task;
 				Task->TryLaunch();
@@ -159,13 +160,14 @@ namespace UE::Tasks
 				const TCHAR* DebugName,
 				TaskBodyType&& TaskBody,
 				PrerequisitesCollectionType&& Prerequisites,
-				ETaskPriority Priority = ETaskPriority::Normal
+				ETaskPriority Priority = ETaskPriority::Normal,
+				EExtendedTaskPriority ExtendedPriority = EExtendedTaskPriority::None
 			)
 			{
 				check(!IsValid());
 
 				using FExecutableTask = Private::TExecutableTask<std::decay_t<TaskBodyType>>;
-				FExecutableTask* Task = FExecutableTask::Create(DebugName, Forward<TaskBodyType>(TaskBody), Priority);
+				FExecutableTask* Task = FExecutableTask::Create(DebugName, Forward<TaskBodyType>(TaskBody), Priority, ExtendedPriority);
 				Task->AddPrerequisites(Forward<PrerequisitesCollectionType>(Prerequisites));
 				// this must happen before launching, to support an ability to access the task itself from inside it
 				*Pimpl.GetInitReference() = Task;
@@ -266,12 +268,13 @@ namespace UE::Tasks
 	TTask<TInvokeResult_T<TaskBodyType>> Launch(
 		const TCHAR* DebugName,
 		TaskBodyType&& TaskBody,
-		ETaskPriority Priority = ETaskPriority::Normal
+		ETaskPriority Priority = ETaskPriority::Normal,
+		EExtendedTaskPriority ExtendedPriority = EExtendedTaskPriority::None
 	)
 	{
 		using FResult = TInvokeResult_T<TaskBodyType>;
 		TTask<FResult> Task;
-		Task.Launch(DebugName, Forward<TaskBodyType>(TaskBody), Priority);
+		Task.Launch(DebugName, Forward<TaskBodyType>(TaskBody), Priority, ExtendedPriority);
 		return Task;
 	}
 
@@ -287,12 +290,13 @@ namespace UE::Tasks
 		const TCHAR* DebugName,
 		TaskBodyType&& TaskBody,
 		PrerequisitesCollectionType&& Prerequisites,
-		ETaskPriority Priority = ETaskPriority::Normal
+		ETaskPriority Priority = ETaskPriority::Normal,
+		EExtendedTaskPriority ExtendedPriority = EExtendedTaskPriority::None
 	)
 	{
 		using FResult = TInvokeResult_T<TaskBodyType>;
 		TTask<FResult> Task;
-		Task.Launch(DebugName, Forward<TaskBodyType>(TaskBody), Forward<PrerequisitesCollectionType>(Prerequisites), Priority);
+		Task.Launch(DebugName, Forward<TaskBodyType>(TaskBody), Forward<PrerequisitesCollectionType>(Prerequisites), Priority, ExtendedPriority);
 		return Task;
 	}
 
@@ -347,7 +351,7 @@ namespace UE::Tasks
 		auto WaitingTaskBody = [&CompletionEvent] { CompletionEvent->Trigger(); };
 		using FWaitingTask = Private::TExecutableTask<decltype(WaitingTaskBody)>;
 
-		FWaitingTask WaitingTask{ TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter */, Private::EExtendedTaskPriority::Inline };
+		FWaitingTask WaitingTask{ TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter */,  EExtendedTaskPriority::Inline };
 		WaitingTask.AddPrerequisites(Tasks);
 
 		if (WaitingTask.TryLaunch())
@@ -387,7 +391,7 @@ namespace UE::Tasks
 		auto WaitingTaskBody = [CompletionEvent] { CompletionEvent->Trigger(); };
 		using FWaitingTask = Private::TExecutableTask<decltype(WaitingTaskBody)>;
 
-		TRefCountPtr<FWaitingTask> WaitingTask{ FWaitingTask::Create(TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter */, Private::EExtendedTaskPriority::Inline), /*bAddRef=*/ false};
+		TRefCountPtr<FWaitingTask> WaitingTask{ FWaitingTask::Create(TEXT("Waiting Task"), MoveTemp(WaitingTaskBody), ETaskPriority::Default /* doesn't matter */, EExtendedTaskPriority::Inline), /*bAddRef=*/ false};
 		WaitingTask->AddPrerequisites(Tasks);
 
 		if (WaitingTask->TryLaunch())

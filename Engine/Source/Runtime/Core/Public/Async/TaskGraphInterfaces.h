@@ -495,7 +495,7 @@ public:
 		}
 	}
 
-	void Init(const TCHAR* InDebugName, UE::Tasks::ETaskPriority InPriority, UE::Tasks::Private::EExtendedTaskPriority InExtendedPriority)
+	void Init(const TCHAR* InDebugName, UE::Tasks::ETaskPriority InPriority, UE::Tasks::EExtendedTaskPriority InExtendedPriority)
 	{
 		FTaskBase::Init(InDebugName, InPriority, InExtendedPriority);
 	}
@@ -567,7 +567,7 @@ public:
 	}
 
 	// task priority translation from the old API to the new API
-	static void TranslatePriority(ENamedThreads::Type ThreadType, UE::Tasks::ETaskPriority& OutPriority, UE::Tasks::Private::EExtendedTaskPriority& OutExtendedPriority)
+	static void TranslatePriority(ENamedThreads::Type ThreadType, UE::Tasks::ETaskPriority& OutPriority, UE::Tasks::EExtendedTaskPriority& OutExtendedPriority)
 	{
 		using namespace UE::Tasks;
 
@@ -575,21 +575,21 @@ public:
 		if (ThreadIndex != ENamedThreads::AnyThread)
 		{
 			check(ThreadIndex == ENamedThreads::GameThread || ThreadIndex == ENamedThreads::GetRenderThread() || ThreadIndex == ENamedThreads::RHIThread);
-			Private::EExtendedTaskPriority ConversionMap[] =
+			EExtendedTaskPriority ConversionMap[] =
 			{
-				Private::EExtendedTaskPriority::RHIThreadNormalPri,
-				Private::EExtendedTaskPriority::None, // invalid, maps from ENamedThreads::AudioThread
-				Private::EExtendedTaskPriority::GameThreadNormalPri,
-				Private::EExtendedTaskPriority::RenderThreadNormalPri
+				EExtendedTaskPriority::RHIThreadNormalPri,
+				EExtendedTaskPriority::None, // invalid, maps from ENamedThreads::AudioThread
+				EExtendedTaskPriority::GameThreadNormalPri,
+				EExtendedTaskPriority::RenderThreadNormalPri
 			};
 			OutExtendedPriority = ConversionMap[ThreadIndex - ENamedThreads::RHIThread];
-			OutExtendedPriority = (Private::EExtendedTaskPriority)((int32)OutExtendedPriority + (ENamedThreads::GetTaskPriority(ThreadType) != ENamedThreads::NormalTaskPriority ? 1 : 0));
-			OutExtendedPriority = (Private::EExtendedTaskPriority)((int32)OutExtendedPriority + (ENamedThreads::GetQueueIndex(ThreadType) != ENamedThreads::MainQueue ? 2 : 0));
+			OutExtendedPriority = (EExtendedTaskPriority)((int32)OutExtendedPriority + (ENamedThreads::GetTaskPriority(ThreadType) != ENamedThreads::NormalTaskPriority ? 1 : 0));
+			OutExtendedPriority = (EExtendedTaskPriority)((int32)OutExtendedPriority + (ENamedThreads::GetQueueIndex(ThreadType) != ENamedThreads::MainQueue ? 2 : 0));
 			OutPriority = ETaskPriority::Count;
 		}
 		else
 		{
-			OutExtendedPriority = Private::EExtendedTaskPriority::None;
+			OutExtendedPriority = EExtendedTaskPriority::None;
 			uint32 ThreadPriority = GetThreadPriorityIndex(ThreadType);
 			check(ThreadPriority < uint32(ENamedThreads::NumThreadPriorities));
 			ETaskPriority ConversionMap[int(ENamedThreads::NumThreadPriorities)] = { ETaskPriority::Normal, ETaskPriority::High, ETaskPriority::BackgroundNormal };
@@ -603,9 +603,9 @@ public:
 	}
 
 	// task priority translation from the new API to the old API
-	static ENamedThreads::Type TranslatePriority(UE::Tasks::Private::EExtendedTaskPriority Priority)
+	static ENamedThreads::Type TranslatePriority(UE::Tasks::EExtendedTaskPriority Priority)
 	{
-		using namespace UE::Tasks::Private;
+		using namespace UE::Tasks;
 
 		checkf(Priority >= EExtendedTaskPriority::GameThreadNormalPri && Priority <= EExtendedTaskPriority::RHIThreadHiPriLocalQueue, TEXT("only named threads can call this method: %d"), Priority);
 
@@ -662,7 +662,7 @@ public:
 			TTask* TaskObject = new(&Task->TaskStorage) TTask(Forward<T>(Args)...);
 
 			UE::Tasks::ETaskPriority Pri;
-			UE::Tasks::Private::EExtendedTaskPriority ExtPri;
+			UE::Tasks::EExtendedTaskPriority ExtPri;
 			TranslatePriority(TaskObject->GetDesiredThread(), Pri, ExtPri);
 
 			Task->Init(Pri, ExtPri);
@@ -701,7 +701,7 @@ private:
 	{
 	}
 
-	void Init(UE::Tasks::ETaskPriority InPriority, UE::Tasks::Private::EExtendedTaskPriority InExtendedPriority)
+	void Init(UE::Tasks::ETaskPriority InPriority, UE::Tasks::EExtendedTaskPriority InExtendedPriority)
 	{
 		FBaseGraphTask::Init(TEXT("GraphTask"), InPriority, InExtendedPriority);
 	}
@@ -732,7 +732,7 @@ public:
 	FGraphEventImpl()
 		: FBaseGraphTask(nullptr)
 	{
-		Init(TEXT("GraphEvent"), UE::Tasks::ETaskPriority::Normal, UE::Tasks::Private::EExtendedTaskPriority::TaskEvent);
+		Init(TEXT("GraphEvent"), UE::Tasks::ETaskPriority::Normal, UE::Tasks::EExtendedTaskPriority::TaskEvent);
 	}
 
 private:
