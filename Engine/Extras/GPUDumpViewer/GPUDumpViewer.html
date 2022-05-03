@@ -265,26 +265,59 @@ function parse_subresource_unique_name(subresource_unique_name)
 	var splitted_name = subresource_unique_name.split(".");
 
 	var subresource_info = {};
-	if (splitted_name[splitted_name.length - 1 ].startsWith('mip') || splitted_name[splitted_name.length - 1 ] == 'stencil')
+	subresource_info['subresource'] = null;
+	subresource_info['array_slice'] = null;
+
+	if (splitted_name[splitted_name.length - 1].startsWith('mip') || splitted_name[splitted_name.length - 1] == 'stencil')
 	{
 		subresource_info['subresource'] = splitted_name.pop();
-		subresource_info['resource'] = splitted_name.join('.');
 	}
-	else
+
+	if (splitted_name[splitted_name.length - 1].startsWith('[') && splitted_name[splitted_name.length - 1].endsWith(']'))
 	{
-		subresource_info['subresource'] = null;
-		subresource_info['resource'] = subresource_unique_name;
+		var array_slice_bracket = splitted_name.pop();
+		subresource_info['array_slice'] = parseInt(array_slice_bracket.substring(1, array_slice_bracket.length - 1));
 	}
+
+	subresource_info['resource'] = splitted_name.join('.');
+
 	return subresource_info;
 }
 
 function get_subresource_unique_name(subresource_info)
 {
-	if (subresource_info['subresource'] === null)
+	var subresource_unique_name = subresource_info['resource'];
+	if (subresource_info['array_slice'] !== null)
 	{
-		return subresource_info['resource'];
+		subresource_unique_name += `.[${subresource_info['array_slice']}]`;
 	}
-	return `${subresource_info['resource']}.${subresource_info['subresource']}`;
+	if (subresource_info['subresource'] !== null)
+	{
+		subresource_unique_name += `.${subresource_info['subresource']}`;
+	}
+	return subresource_unique_name;
+}
+
+function prettify_subresource_unique_name(subresource_info, resource_desc)
+{
+	if (!resource_desc)
+	{
+		return get_subresource_unique_name(subresource_info);
+	}
+
+	var name = resource_desc['Name'];
+
+	if (subresource_info['array_slice'] !== null)
+	{
+		name += ` slice[${subresource_info['array_slice']}]`;
+	}
+
+	if (subresource_info['subresource'] !== null && (subresource_info['subresource'] == 'stencil' || resource_desc['NumMips'] > 1))
+	{
+		name += ` ${subresource_info['subresource']}`;
+	}
+	
+	return name;
 }
 
 function parse_subresource_unique_version_name(subresource_unique_version_name)
@@ -649,18 +682,10 @@ class PassView extends IView
 			var subresource_info = parse_subresource_unique_name(subresource_unique_name);
 			var resource_desc = get_resource_desc(subresource_info['resource']);
 
-			var name = subresource_unique_name;
+			var name = prettify_subresource_unique_name(subresource_info, resource_desc);
 			var href = null;
 			if (resource_desc)
 			{
-				if (subresource_info['subresource'] == null)
-				{
-					name = resource_desc['Name'];
-				}
-				else
-				{
-					name = `${resource_desc['Name']} ${subresource_info['subresource']}`;
-				}
 				href = `#display_input_resource(${this.pass_id},'${subresource_unique_name}');`
 			}
 
@@ -691,19 +716,10 @@ class PassView extends IView
 			var subresource_info = parse_subresource_unique_name(subresource_unique_name);
 			var resource_desc = get_resource_desc(subresource_info['resource']);
 
-			var name = subresource_unique_name;
+			var name = prettify_subresource_unique_name(subresource_info, resource_desc);
 			var href = null;
 			if (resource_desc)
 			{
-				if (subresource_info['subresource'] == null)
-				{
-					name = resource_desc['Name'];
-				}
-				else
-				{
-					name = `${resource_desc['Name']} ${subresource_info['subresource']}`;
-				}
-
 				if (draw_id >= 0)
 				{
 					href = `#display_draw_output_resource(${this.pass_id},'${subresource_unique_name}',${draw_id});`;
@@ -922,7 +938,7 @@ function display_resource_internal(subresource_version_info)
 		return;
 	}
 
-	if (resource_desc['Type'] == 'Texture2D')
+	if (resource_desc['Type'] == 'Texture2D' || resource_desc['Type'] == 'Texture2DArray')
 	{
 		g_view.set_resource_view(new TextureView(subresource_version_info, resource_desc));
 	}
@@ -1486,7 +1502,7 @@ class TextureView extends ResourceView
 				</table>`;
 		}
 
-		var title = `${this.resource_desc['Name']} ${this.subresource_version_info['subresource']}`;
+		var title = prettify_subresource_unique_name(this.subresource_version_info, this.resource_desc);
 		if (this.subresource_version_info['draw'] >= 0)
 		{
 			title += ` draw:${this.subresource_version_info['draw']}`;
@@ -2281,12 +2297,7 @@ void main(void)
 			text += `Pass:\n\t${pass_data['EventName']}\n`;
 
 			{
-				var name = texture_view.resource_desc['Name'];
-				if (texture_view.subresource_version_info['subresource'])
-				{
-					name = `${texture_view.resource_desc['Name']} ${texture_view.subresource_version_info['subresource']}`;
-				}
-
+				var name = prettify_subresource_unique_name(texture_view.subresource_version_info, texture_view.resource_desc);
 				text += `${is_output_resource ? 'Output' : 'Input'} resource:\n\t${name}\n`;
 			}
 
