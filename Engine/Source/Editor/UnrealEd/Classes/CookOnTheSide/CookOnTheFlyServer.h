@@ -1088,9 +1088,9 @@ private:
 
 
 	/** Create sandbox file in directory using current settings supplied */
-	void CreateSandboxFile();
+	void CreateSandboxFile(FBeginCookContext& BeginContext);
 	/** Gets the output directory respecting any command line overrides */
-	FString GetOutputDirectoryOverride() const;
+	FString GetOutputDirectoryOverride(FBeginCookContext& BeginContext) const;
 
 	/**
 	 * Populate cooked packages from the PackageWriter's previous manifest and assetregistry of cooked output.
