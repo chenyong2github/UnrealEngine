@@ -234,6 +234,7 @@ FString UMoviePipelineEditorBlueprintLibrary::ResolveOutputDirectoryFromJob(UMov
 	Params.Job = InJob;
 	Params.ShotNameOverride = DummyTag;
 	Params.CameraNameOverride = DummyTag;
+	Params.InitializationTime = FDateTime::UtcNow();
 
 	FString OutResolvedPath;
 	FMoviePipelineFormatArgs Dummy;
