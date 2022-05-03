@@ -10,6 +10,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Editor.h"
+#include "EdGraphSchema_K2.h"
 
 #define LOCTEXT_NAMESPACE "UserDefinedStructEditorData"
 
@@ -35,13 +36,22 @@ void FStructVariableDescription::PostSerialize(const FArchive& Ar)
 
 	bool FixupPinCategories =
 		Ar.IsLoading() &&
-		(Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) < FUE5ReleaseStreamObjectVersion::BlueprintPinsUseRealNumbers) &&
-		((Category == TEXT("double")) || (Category == TEXT("float")));
+		((Category == UEdGraphSchema_K2::PC_Double) || (Category == UEdGraphSchema_K2::PC_Float));
 
 	if (FixupPinCategories)
 	{
-		Category = TEXT("real");
-		SubCategory = TEXT("double");
+		Category = UEdGraphSchema_K2::PC_Real;
+		SubCategory = UEdGraphSchema_K2::PC_Double;
+	}
+
+	bool FixupPinValueCategories =
+		Ar.IsLoading() &&
+		((PinValueType.TerminalCategory == UEdGraphSchema_K2::PC_Double) || (PinValueType.TerminalCategory == UEdGraphSchema_K2::PC_Float));
+
+	if (FixupPinValueCategories)
+	{
+		PinValueType.TerminalCategory = UEdGraphSchema_K2::PC_Real;
+		PinValueType.TerminalSubCategory = UEdGraphSchema_K2::PC_Double;
 	}
 }
 
