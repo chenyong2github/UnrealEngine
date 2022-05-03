@@ -62,6 +62,7 @@ public:
 	void GetFieldBounds(FVectorVMExternalFunctionContext& Context); 
 	void GetFieldTilingAxes(FVectorVMExternalFunctionContext& Context);
 	void SampleVectorField(FVectorVMExternalFunctionContext& Context);
+	void LoadVectorField(FVectorVMExternalFunctionContext& Context);
 	
 	//	
 	FVector GetTilingAxes() const;
