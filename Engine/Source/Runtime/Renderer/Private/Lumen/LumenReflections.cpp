@@ -602,57 +602,64 @@ FLumenReflectionTileParameters ReflectionTileClassification(
 	FRDGTextureDesc ResolveTileUsedDesc = FRDGTextureDesc::Create2D(ResolveTileBufferDimensions, PF_R8_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef ResolveTileUsed = GraphBuilder.CreateTexture(ResolveTileUsedDesc, TEXT("Lumen.Reflections.ResolveTileUsed"));
 
-	auto ReflectionTileClassificationMark = [&](bool bOverflow)
 	{
-		FReflectionTileClassificationMarkCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTileClassificationMarkCS::FParameters>();
-		PassParameters->RWDownsampledDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.DownsampledDepth));
-		PassParameters->RWReflectionResolveTileIndirectArgs = GraphBuilder.CreateUAV(ReflectionResolveTileIndirectArgs, PF_R32_UINT);
-		PassParameters->RWReflectionTracingTileIndirectArgs = GraphBuilder.CreateUAV(ReflectionTracingTileIndirectArgs, PF_R32_UINT);
-		PassParameters->RWResolveTileUsed = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolveTileUsed));
-		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+		FRDGTextureUAVRef RWDownsampledDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.DownsampledDepth), ERDGUnorderedAccessViewFlags::SkipBarrier);
+		FRDGBufferUAVRef RWReflectionResolveTileIndirectArgs = GraphBuilder.CreateUAV(ReflectionResolveTileIndirectArgs, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		FRDGBufferUAVRef RWReflectionTracingTileIndirectArgs = GraphBuilder.CreateUAV(ReflectionTracingTileIndirectArgs, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		FRDGTextureUAVRef RWResolveTileUsed = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolveTileUsed), ERDGUnorderedAccessViewFlags::SkipBarrier);
 
-		if (FrontLayerReflectionGBuffer)
+		auto ReflectionTileClassificationMark = [&](bool bOverflow)
 		{
-			PassParameters->FrontLayerTranslucencyGBufferParameters = *FrontLayerReflectionGBuffer;
-		}
+			FReflectionTileClassificationMarkCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTileClassificationMarkCS::FParameters>();
+			PassParameters->RWDownsampledDepth = RWDownsampledDepth;
+			PassParameters->RWReflectionResolveTileIndirectArgs = RWReflectionResolveTileIndirectArgs;
+			PassParameters->RWReflectionTracingTileIndirectArgs = RWReflectionTracingTileIndirectArgs;
+			PassParameters->RWResolveTileUsed = RWResolveTileUsed;
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+
+			if (FrontLayerReflectionGBuffer)
+			{
+				PassParameters->FrontLayerTranslucencyGBufferParameters = *FrontLayerReflectionGBuffer;
+			}
 		
-		PassParameters->NeedRayTracedReflectionsParameters = NeedRayTracedReflectionsParameters;
-		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
-		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
+			PassParameters->NeedRayTracedReflectionsParameters = NeedRayTracedReflectionsParameters;
+			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+			PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 
-		FReflectionTileClassificationMarkCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set< FReflectionTileClassificationMarkCS::FOverflowTile >(bOverflow);
-		PermutationVector.Set< FReflectionTileClassificationMarkCS::FFrontLayerTranslucency >(bFrontLayer);
-		auto ComputeShader = View.ShaderMap->GetShader<FReflectionTileClassificationMarkCS>(PermutationVector);
+			FReflectionTileClassificationMarkCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set< FReflectionTileClassificationMarkCS::FOverflowTile >(bOverflow);
+			PermutationVector.Set< FReflectionTileClassificationMarkCS::FFrontLayerTranslucency >(bFrontLayer);
+			auto ComputeShader = View.ShaderMap->GetShader<FReflectionTileClassificationMarkCS>(PermutationVector);
 
-		checkf(ResolveTileViewportDimensions.X > 0 && ResolveTileViewportDimensions.Y > 0, TEXT("FReflectionTileClassificationMarkCS needs non-zero dispatch to clear next pass's indirect args"));
+			checkf(ResolveTileViewportDimensions.X > 0 && ResolveTileViewportDimensions.Y > 0, TEXT("FReflectionTileClassificationMarkCS needs non-zero dispatch to clear next pass's indirect args"));
 
-		if (bOverflow)
+			if (bOverflow)
+			{
+				PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("TileClassificationMark(Overflow)"),
+					ComputeShader,
+					PassParameters,
+					View.StrataViewData.BSDFTileDispatchIndirectBuffer, 0u);
+			}
+			else
+			{
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("TileClassificationMark(%dx%d)", View.ViewRect.Size().X, View.ViewRect.Size().Y),
+					ComputeShader,
+					PassParameters,
+					FIntVector(ResolveTileViewportDimensions.X, ResolveTileViewportDimensions.Y, 1));
+			}
+		};
+
+		ReflectionTileClassificationMark(false);
+		if (Strata::IsStrataEnabled() && !bFrontLayer)
 		{
-			PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("TileClassificationMark(Overflow)"),
-				ComputeShader,
-				PassParameters,
-				View.StrataViewData.BSDFTileDispatchIndirectBuffer, 0u);
+			ReflectionTileClassificationMark(true);
 		}
-		else
-		{
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("TileClassificationMark(%dx%d)", View.ViewRect.Size().X, View.ViewRect.Size().Y),
-				ComputeShader,
-				PassParameters,
-				FIntVector(ResolveTileViewportDimensions.X, ResolveTileViewportDimensions.Y, 1));
-		}
-	};
-
-	ReflectionTileClassificationMark(false);
-	if (Strata::IsStrataEnabled() && !bFrontLayer)
-	{
-		ReflectionTileClassificationMark(true);
 	}
 
 	auto ReflectionTileClassificationBuildLists = [&](bool bOverflow)

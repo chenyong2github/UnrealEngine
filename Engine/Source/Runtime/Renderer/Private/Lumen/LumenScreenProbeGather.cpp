@@ -1092,96 +1092,108 @@ void InterpolateAndIntegrate(
 		FRDGTextureDesc TileClassificationModesDesc = FRDGTextureDesc::Create2D(TileClassificationBufferDimensions, PF_R8_UINT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 		FRDGTextureRef TileClassificationModes = GraphBuilder.CreateTexture(TileClassificationModesDesc, TEXT("Lumen.ScreenProbeGather.TileClassificationModes"));
 
-		auto ScreenProbeTileClassificationMark = [&](bool bOverflow)
 		{
-			FScreenProbeTileClassificationMarkCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTileClassificationMarkCS::FParameters>();
-			PassParameters->RWDiffuseIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DiffuseIndirect));
-			PassParameters->RWRoughSpecularIndirect =  GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RoughSpecularIndirect));
-			PassParameters->RWIntegrateIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(IntegrateIndirectArgs, PF_R32_UINT));
-			PassParameters->RWTileClassificationModes = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(TileClassificationModes));
-			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
-			PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
-			extern float GLumenReflectionMaxRoughnessToTrace;
-			extern float GLumenReflectionRoughnessFadeLength;
-			PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
-			PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
-			PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
+			FRDGTextureUAVRef RWDiffuseIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(DiffuseIndirect), ERDGUnorderedAccessViewFlags::SkipBarrier);
+			FRDGTextureUAVRef RWRoughSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(RoughSpecularIndirect), ERDGUnorderedAccessViewFlags::SkipBarrier);
+			FRDGBufferUAVRef RWIntegrateIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(IntegrateIndirectArgs, PF_R32_UINT), ERDGUnorderedAccessViewFlags::SkipBarrier);
+			FRDGTextureUAVRef RWTileClassificationModes = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(TileClassificationModes), ERDGUnorderedAccessViewFlags::SkipBarrier);
 
-			FScreenProbeTileClassificationMarkCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FScreenProbeTileClassificationMarkCS::FOverflowTile>(bOverflow);
-			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTileClassificationMarkCS>(PermutationVector);
+			auto ScreenProbeTileClassificationMark = [&](bool bOverflow)
+			{
+				FScreenProbeTileClassificationMarkCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTileClassificationMarkCS::FParameters>();
+				PassParameters->RWDiffuseIndirect = RWDiffuseIndirect;
+				PassParameters->RWRoughSpecularIndirect = RWRoughSpecularIndirect;
+				PassParameters->RWIntegrateIndirectArgs = RWIntegrateIndirectArgs;
+				PassParameters->RWTileClassificationModes = RWTileClassificationModes;
+				PassParameters->View = View.ViewUniformBuffer;
+				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+				PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
+				extern float GLumenReflectionMaxRoughnessToTrace;
+				extern float GLumenReflectionRoughnessFadeLength;
+				PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
+				PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
+				PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 
-			if (bOverflow)
-			{
-				PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("TileClassificationMark(Overflow)"),
-					ComputeShader,
-					PassParameters,
-					View.StrataViewData.BSDFTileDispatchIndirectBuffer,
-					0u);
-			}
-			else
-			{
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("TileClassificationMark"),
-					ComputeShader,
-					PassParameters,
-					FIntVector(ViewportIntegrateTileDimensions.X, ViewportIntegrateTileDimensions.Y, 1));
-			}
-		};
+				FScreenProbeTileClassificationMarkCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FScreenProbeTileClassificationMarkCS::FOverflowTile>(bOverflow);
+				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTileClassificationMarkCS>(PermutationVector);
+
+				if (bOverflow)
+				{
+					PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("TileClassificationMark(Overflow)"),
+						ComputeShader,
+						PassParameters,
+						View.StrataViewData.BSDFTileDispatchIndirectBuffer,
+						0u);
+				}
+				else
+				{
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("TileClassificationMark"),
+						ComputeShader,
+						PassParameters,
+						FIntVector(ViewportIntegrateTileDimensions.X, ViewportIntegrateTileDimensions.Y, 1));
+				}
+			};
 		
-		ScreenProbeTileClassificationMark(false);
-		if (Strata::IsStrataEnabled())
-		{
-			ScreenProbeTileClassificationMark(true);
+			ScreenProbeTileClassificationMark(false);
+			if (Strata::IsStrataEnabled())
+			{
+				ScreenProbeTileClassificationMark(true);
+			}
 		}
 
 		FRDGBufferRef IntegrateTileData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), ClassificationScaleFactor * TileClassificationBufferDimensions.X * TileClassificationBufferDimensions.Y * (uint32)EScreenProbeIntegrateTileClassification::Num), TEXT("Lumen.ScreenProbeGather.IntegrateTileData"));
 
-		auto ScreenProbeTileClassificationBuildLists = [&](bool bOverflow)
 		{
-			FScreenProbeTileClassificationBuildListsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTileClassificationBuildListsCS::FParameters>();
-			PassParameters->RWIntegrateIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(IntegrateIndirectArgs, PF_R32_UINT));
-			PassParameters->RWIntegrateTileData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(IntegrateTileData));
-			PassParameters->TileClassificationModes = TileClassificationModes;
-			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
-			PassParameters->ViewportTileDimensions = ViewportIntegrateTileDimensions;
+			FRDGBufferUAVRef RWIntegrateIndirectArgs = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(IntegrateIndirectArgs, PF_R32_UINT), ERDGUnorderedAccessViewFlags::SkipBarrier );
+			FRDGBufferUAVRef RWIntegrateTileData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(IntegrateTileData), ERDGUnorderedAccessViewFlags::SkipBarrier);
 
-			FScreenProbeTileClassificationBuildListsCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FScreenProbeTileClassificationBuildListsCS::FOverflowTile>(bOverflow);
-			auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTileClassificationBuildListsCS>(PermutationVector);
+			auto ScreenProbeTileClassificationBuildLists = [&](bool bOverflow)
+			{
+				FScreenProbeTileClassificationBuildListsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTileClassificationBuildListsCS::FParameters>();
+				PassParameters->RWIntegrateIndirectArgs = RWIntegrateIndirectArgs;
+				PassParameters->RWIntegrateTileData = RWIntegrateTileData;
+				PassParameters->TileClassificationModes = TileClassificationModes;
+				PassParameters->View = View.ViewUniformBuffer;
+				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+				PassParameters->ViewportTileDimensions = ViewportIntegrateTileDimensions;
 
-			if (bOverflow)
-			{
-				PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTilePerThreadDispatchIndirectBuffer;
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("TileClassificationBuildLists(Overflow)"),
-					ComputeShader,
-					PassParameters,
-					View.StrataViewData.BSDFTilePerThreadDispatchIndirectBuffer, 0u);
-			}
-			else
-			{
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("TileClassificationBuildLists"),
-					ComputeShader,
-					PassParameters,
-					FComputeShaderUtils::GetGroupCount(ViewportIntegrateTileDimensions, 8));
-			}
-		};
+				FScreenProbeTileClassificationBuildListsCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FScreenProbeTileClassificationBuildListsCS::FOverflowTile>(bOverflow);
+				auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTileClassificationBuildListsCS>(PermutationVector);
+
+				if (bOverflow)
+				{
+					PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTilePerThreadDispatchIndirectBuffer;
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("TileClassificationBuildLists(Overflow)"),
+						ComputeShader,
+						PassParameters,
+						View.StrataViewData.BSDFTilePerThreadDispatchIndirectBuffer, 0u);
+				}
+				else
+				{
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("TileClassificationBuildLists"),
+						ComputeShader,
+						PassParameters,
+						FComputeShaderUtils::GetGroupCount(ViewportIntegrateTileDimensions, 8));
+				}
+			};
 		
-		ScreenProbeTileClassificationBuildLists(false);
-		if (Strata::IsStrataEnabled())
-		{
-			ScreenProbeTileClassificationBuildLists(true);
+			ScreenProbeTileClassificationBuildLists(false);
+			if (Strata::IsStrataEnabled())
+			{
+				ScreenProbeTileClassificationBuildLists(true);
+			}
 		}
 
 		// Allow integration passes to overlap
@@ -1337,96 +1349,102 @@ void UpdateHistoryScreenProbeGather(
 				FRDGTextureRef OldHistoryNumFramesAccumulated = GraphBuilder.RegisterExternalTexture(*HistoryNumFramesAccumulated);
 				FRDGTextureRef OldFastUpdateModeHistory = GraphBuilder.RegisterExternalTexture(*FastUpdateModeHistoryState);
 
-				auto ScreenProbeTemporalReprojection = [&](bool bOverflow)
 				{
-					FScreenProbeTemporalReprojectionCS::FPermutationDomain PermutationVector;
-					PermutationVector.Set< FScreenProbeTemporalReprojectionCS::FOverflowTile>(bOverflow);
-					PermutationVector.Set< FScreenProbeTemporalReprojectionCS::FFastUpdateModeNeighborhoodClamp>(GLumenScreenProbeTemporalFastUpdateModeUseNeighborhoodClamp != 0);
-					PermutationVector.Set< FScreenProbeTemporalReprojectionCS::FHistoryRejectBasedOnNormal>(bRejectBasedOnNormal);
-					auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTemporalReprojectionCS>(PermutationVector);
+					FRDGTextureUAVRef RWNewHistoryDiffuseIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewDiffuseIndirect), ERDGUnorderedAccessViewFlags::SkipBarrier);
+					FRDGTextureUAVRef RWNewHistoryRoughSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewRoughSpecularIndirect), ERDGUnorderedAccessViewFlags::SkipBarrier);
+					FRDGTextureUAVRef RWNumHistoryFramesAccumulated = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewNumHistoryFramesAccumulated), ERDGUnorderedAccessViewFlags::SkipBarrier);
+					FRDGTextureUAVRef RWNewHistoryFastUpdateMode = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewHistoryFastUpdateMode), ERDGUnorderedAccessViewFlags::SkipBarrier);
 
-					FScreenProbeTemporalReprojectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTemporalReprojectionCS::FParameters>();
-					PassParameters->RWNewHistoryDiffuseIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewDiffuseIndirect));
-					PassParameters->RWNewHistoryRoughSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewRoughSpecularIndirect));
-					PassParameters->RWNumHistoryFramesAccumulated = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewNumHistoryFramesAccumulated));
-					PassParameters->RWNewHistoryFastUpdateMode = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewHistoryFastUpdateMode));
-
-					PassParameters->View = View.ViewUniformBuffer;
-					PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
-					PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-					PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
-
-					PassParameters->DiffuseIndirectHistory = OldDiffuseIndirectHistory;
-					PassParameters->RoughSpecularIndirectHistory = OldRoughSpecularIndirectHistory;
-					PassParameters->DiffuseIndirectDepthHistory = OldDepthHistory;
-					PassParameters->HistoryNumFramesAccumulated = OldHistoryNumFramesAccumulated;
-					PassParameters->FastUpdateModeHistory = OldFastUpdateModeHistory;
-					PassParameters->NormalHistory = bRejectBasedOnNormal ? GraphBuilder.RegisterExternalTexture(NormalHistoryState) : nullptr;
-					PassParameters->BSDFTileHistory = BSDFTileHistory;
-					PassParameters->EffectiveResolution = FVector4f(EffectiveResolution.X, EffectiveResolution.Y, 1.0f / EffectiveResolution.X, 1.0f / EffectiveResolution.Y);
-
-					PassParameters->HistoryDistanceThreshold = GLumenScreenProbeHistoryDistanceThreshold;
-					PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
-					PassParameters->InvFractionOfLightingMovingForFastUpdateMode = 1.0f / FMath::Max(GLumenScreenProbeFractionOfLightingMovingForFastUpdateMode, .001f);
-					PassParameters->MaxFastUpdateModeAmount = GLumenScreenProbeTemporalMaxFastUpdateModeAmount;
-
-					const float MaxFramesAccumulatedScale = 1.0f / FMath::Sqrt(FMath::Clamp(View.FinalPostProcessSettings.LumenFinalGatherLightingUpdateSpeed, .5f, 8.0f));
-					PassParameters->MaxFramesAccumulated = FMath::RoundToInt(GLumenScreenProbeTemporalMaxFramesAccumulated * MaxFramesAccumulatedScale);
-					PassParameters->HistoryNormalCosThreshold = FMath::Cos(GLumenScreenProbeTemporalHistoryNormalThreshold * (float)PI / 180.0f);
-					PassParameters->HistoryScreenPositionScaleBias = *DiffuseIndirectHistoryScreenPositionScaleBias;
-
-					const FVector2f HistoryUVToScreenPositionScale(1.0f / PassParameters->HistoryScreenPositionScaleBias.X, 1.0f / PassParameters->HistoryScreenPositionScaleBias.Y);
-					const FVector2f HistoryUVToScreenPositionBias = -FVector2f(PassParameters->HistoryScreenPositionScaleBias.W, PassParameters->HistoryScreenPositionScaleBias.Z) * HistoryUVToScreenPositionScale;
-					PassParameters->HistoryUVToScreenPositionScaleBias = FVector4f(HistoryUVToScreenPositionScale, HistoryUVToScreenPositionBias);
-
-					// History uses HistoryDepth which has the same resolution than SceneTextures (no extented/overflow space)
-					const FIntPoint BufferSize = SceneTextures.Config.Extent;
-					const FVector2D InvBufferSize(1.0f / BufferSize.X, 1.0f / BufferSize.Y);
-
-					// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
-					PassParameters->HistoryUVMinMax = FVector4f(
-						(DiffuseIndirectHistoryViewRect->Min.X + 0.5f) * InvBufferSize.X,
-						(DiffuseIndirectHistoryViewRect->Min.Y + 0.5f) * InvBufferSize.Y,
-						(DiffuseIndirectHistoryViewRect->Max.X - 0.5f) * InvBufferSize.X,
-						(DiffuseIndirectHistoryViewRect->Max.Y - 0.5f) * InvBufferSize.Y);
-
-					PassParameters->HistoryViewportMinMax = FIntVector4(
-						DiffuseIndirectHistoryViewRect->Min.X,
-						DiffuseIndirectHistoryViewRect->Min.Y,
-						DiffuseIndirectHistoryViewRect->Max.X,
-						DiffuseIndirectHistoryViewRect->Max.Y);
-
-					PassParameters->DiffuseIndirect = DiffuseIndirect;
-					PassParameters->RoughSpecularIndirect = RoughSpecularIndirect;
-
-					if (bOverflow)
+					auto ScreenProbeTemporalReprojection = [&](bool bOverflow)
 					{
-						PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
-						FComputeShaderUtils::AddPass(
-							GraphBuilder,
-							RDG_EVENT_NAME("TemporalReprojection(Overflow)"),
-							ComputeShader,
-							PassParameters,
-							View.StrataViewData.BSDFTileDispatchIndirectBuffer,
-							0u);
-					}
-					else
-					{
-						FComputeShaderUtils::AddPass(
-							GraphBuilder,
-							RDG_EVENT_NAME("TemporalReprojection(%ux%u)", View.ViewRect.Width(), View.ViewRect.Height()),
-							ComputeShader,
-							PassParameters,
-							FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenProbeTemporalReprojectionCS::GetGroupSize()));
-					}
-				};
+						FScreenProbeTemporalReprojectionCS::FPermutationDomain PermutationVector;
+						PermutationVector.Set< FScreenProbeTemporalReprojectionCS::FOverflowTile>(bOverflow);
+						PermutationVector.Set< FScreenProbeTemporalReprojectionCS::FFastUpdateModeNeighborhoodClamp>(GLumenScreenProbeTemporalFastUpdateModeUseNeighborhoodClamp != 0);
+						PermutationVector.Set< FScreenProbeTemporalReprojectionCS::FHistoryRejectBasedOnNormal>(bRejectBasedOnNormal);
+						auto ComputeShader = View.ShaderMap->GetShader<FScreenProbeTemporalReprojectionCS>(PermutationVector);
 
-				ScreenProbeTemporalReprojection(false);
-				if (Strata::IsStrataEnabled())
-				{
-					ScreenProbeTemporalReprojection(true);
+						FScreenProbeTemporalReprojectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTemporalReprojectionCS::FParameters>();
+						PassParameters->RWNewHistoryDiffuseIndirect = RWNewHistoryDiffuseIndirect;
+						PassParameters->RWNewHistoryRoughSpecularIndirect = RWNewHistoryRoughSpecularIndirect;
+						PassParameters->RWNumHistoryFramesAccumulated = RWNumHistoryFramesAccumulated;
+						PassParameters->RWNewHistoryFastUpdateMode = RWNewHistoryFastUpdateMode;
+
+						PassParameters->View = View.ViewUniformBuffer;
+						PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);
+						PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
+						PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+
+						PassParameters->DiffuseIndirectHistory = OldDiffuseIndirectHistory;
+						PassParameters->RoughSpecularIndirectHistory = OldRoughSpecularIndirectHistory;
+						PassParameters->DiffuseIndirectDepthHistory = OldDepthHistory;
+						PassParameters->HistoryNumFramesAccumulated = OldHistoryNumFramesAccumulated;
+						PassParameters->FastUpdateModeHistory = OldFastUpdateModeHistory;
+						PassParameters->NormalHistory = bRejectBasedOnNormal ? GraphBuilder.RegisterExternalTexture(NormalHistoryState) : nullptr;
+						PassParameters->BSDFTileHistory = BSDFTileHistory;
+						PassParameters->EffectiveResolution = FVector4f(EffectiveResolution.X, EffectiveResolution.Y, 1.0f / EffectiveResolution.X, 1.0f / EffectiveResolution.Y);
+
+						PassParameters->HistoryDistanceThreshold = GLumenScreenProbeHistoryDistanceThreshold;
+						PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
+						PassParameters->InvFractionOfLightingMovingForFastUpdateMode = 1.0f / FMath::Max(GLumenScreenProbeFractionOfLightingMovingForFastUpdateMode, .001f);
+						PassParameters->MaxFastUpdateModeAmount = GLumenScreenProbeTemporalMaxFastUpdateModeAmount;
+
+						const float MaxFramesAccumulatedScale = 1.0f / FMath::Sqrt(FMath::Clamp(View.FinalPostProcessSettings.LumenFinalGatherLightingUpdateSpeed, .5f, 8.0f));
+						PassParameters->MaxFramesAccumulated = FMath::RoundToInt(GLumenScreenProbeTemporalMaxFramesAccumulated * MaxFramesAccumulatedScale);
+						PassParameters->HistoryNormalCosThreshold = FMath::Cos(GLumenScreenProbeTemporalHistoryNormalThreshold * (float)PI / 180.0f);
+						PassParameters->HistoryScreenPositionScaleBias = *DiffuseIndirectHistoryScreenPositionScaleBias;
+
+						const FVector2f HistoryUVToScreenPositionScale(1.0f / PassParameters->HistoryScreenPositionScaleBias.X, 1.0f / PassParameters->HistoryScreenPositionScaleBias.Y);
+						const FVector2f HistoryUVToScreenPositionBias = -FVector2f(PassParameters->HistoryScreenPositionScaleBias.W, PassParameters->HistoryScreenPositionScaleBias.Z) * HistoryUVToScreenPositionScale;
+						PassParameters->HistoryUVToScreenPositionScaleBias = FVector4f(HistoryUVToScreenPositionScale, HistoryUVToScreenPositionBias);
+
+						// History uses HistoryDepth which has the same resolution than SceneTextures (no extented/overflow space)
+						const FIntPoint BufferSize = SceneTextures.Config.Extent;
+						const FVector2D InvBufferSize(1.0f / BufferSize.X, 1.0f / BufferSize.Y);
+
+						// Pull in the max UV to exclude the region which will read outside the viewport due to bilinear filtering
+						PassParameters->HistoryUVMinMax = FVector4f(
+							(DiffuseIndirectHistoryViewRect->Min.X + 0.5f) * InvBufferSize.X,
+							(DiffuseIndirectHistoryViewRect->Min.Y + 0.5f) * InvBufferSize.Y,
+							(DiffuseIndirectHistoryViewRect->Max.X - 0.5f) * InvBufferSize.X,
+							(DiffuseIndirectHistoryViewRect->Max.Y - 0.5f) * InvBufferSize.Y);
+
+						PassParameters->HistoryViewportMinMax = FIntVector4(
+							DiffuseIndirectHistoryViewRect->Min.X,
+							DiffuseIndirectHistoryViewRect->Min.Y,
+							DiffuseIndirectHistoryViewRect->Max.X,
+							DiffuseIndirectHistoryViewRect->Max.Y);
+
+						PassParameters->DiffuseIndirect = DiffuseIndirect;
+						PassParameters->RoughSpecularIndirect = RoughSpecularIndirect;
+
+						if (bOverflow)
+						{
+							PassParameters->TileIndirectBuffer = View.StrataViewData.BSDFTileDispatchIndirectBuffer;
+							FComputeShaderUtils::AddPass(
+								GraphBuilder,
+								RDG_EVENT_NAME("TemporalReprojection(Overflow)"),
+								ComputeShader,
+								PassParameters,
+								View.StrataViewData.BSDFTileDispatchIndirectBuffer,
+								0u);
+						}
+						else
+						{
+							FComputeShaderUtils::AddPass(
+								GraphBuilder,
+								RDG_EVENT_NAME("TemporalReprojection(%ux%u)", View.ViewRect.Width(), View.ViewRect.Height()),
+								ComputeShader,
+								PassParameters,
+								FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FScreenProbeTemporalReprojectionCS::GetGroupSize()));
+						}
+					};
+
+					ScreenProbeTemporalReprojection(false);
+					if (Strata::IsStrataEnabled())
+					{
+						ScreenProbeTemporalReprojection(true);
+					}
 				}
-
 				if (!View.bStatePrevViewInfoIsReadOnly)
 				{
 					// Queue updating the view state's render target reference with the new history
