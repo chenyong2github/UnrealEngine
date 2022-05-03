@@ -841,15 +841,6 @@ FPrevSceneColorMip ReducePrevSceneColorMip(
 			PassParameters->PrevSceneDepth = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer);
 			PassParameters->PrevSceneDepthSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 		}
-		else if (View.PrevViewInfo.TSRHistory.IsValid())
-		{
-			PassParameters->PrevSceneColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TSRHistory.LowFrequency);
-			PassParameters->PrevSceneColorSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
-
-			BufferSize = PassParameters->PrevSceneColor->Desc.Extent;
-			ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
-			ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
-		}
 		else
 		{
 			BufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
@@ -1053,10 +1044,6 @@ void RenderScreenSpaceReflections(
 		{
 			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.HalfResTemporalAAHistory);
 		}
-		else if (View.PrevViewInfo.TSRHistory.IsValid())
-		{
-			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TSRHistory.LowFrequency);
-		}
 		else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
 		{
 			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TemporalAAHistory.RT[0]);
@@ -1171,14 +1158,6 @@ void RenderScreenSpaceReflections(
 				ViewportOffset = View.PrevViewInfo.CustomSSRInput.ViewportRect.Min;
 				ViewportExtent = View.PrevViewInfo.CustomSSRInput.ViewportRect.Size();
 				BufferSize = View.PrevViewInfo.CustomSSRInput.ReferenceBufferSize;
-				ensure(ViewportExtent.X > 0 && ViewportExtent.Y > 0);
-				ensure(BufferSize.X > 0 && BufferSize.Y > 0);
-			}
-			else if (View.PrevViewInfo.TSRHistory.IsValid())
-			{
-				ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
-				ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
-				BufferSize = View.PrevViewInfo.TSRHistory.LowFrequency->GetDesc().Extent;
 				ensure(ViewportExtent.X > 0 && ViewportExtent.Y > 0);
 				ensure(BufferSize.X > 0 && BufferSize.Y > 0);
 			}

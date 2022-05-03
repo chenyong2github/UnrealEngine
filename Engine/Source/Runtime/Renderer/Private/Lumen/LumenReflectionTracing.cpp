@@ -492,20 +492,6 @@ FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
 		ViewportExtent = View.PrevViewInfo.CustomSSRInput.ViewportRect.Size();
 		PrevColorBufferSize = InputColor->Desc.Extent;
 	}
-	else if (View.PrevViewInfo.TSRHistory.IsValid())
-	{
-		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TSRHistory.LowFrequency);
-		ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
-		ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
-		PrevColorBufferSize = InputColor->Desc.Extent;
-	}
-	else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
-	{
-		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TemporalAAHistory.RT[0]);
-		ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
-		ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
-		PrevColorBufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
-	}
 	else if (View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid())
 	{
 		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.ScreenSpaceRayTracingInput);

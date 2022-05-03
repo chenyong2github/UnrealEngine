@@ -112,23 +112,37 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTSRCommonParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FTSRHistoryArrayIndices, )
+	SHADER_PARAMETER(int32, LowFrequency)
+	SHADER_PARAMETER(int32, HighFrequency)
+	SHADER_PARAMETER(int32, Translucency)
+END_SHADER_PARAMETER_STRUCT()
+
 BEGIN_SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LowFrequency)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HighFrequency)
+	SHADER_PARAMETER_STRUCT(FTSRHistoryArrayIndices, ArrayIndices)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, ColorArray)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HighFrequencyHalfRes)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Metadata)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SubpixelDetails)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Translucency)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TranslucencyAlpha)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FTSRHistorySRVs, )
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, LowFrequency)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, HighFrequency)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, HighFrequencyHalfRes)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, Metadata)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, SubpixelDetails)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, Translucency)
+	SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, TranslucencyAlpha)
+END_SHADER_PARAMETER_STRUCT()
+
 BEGIN_SHADER_PARAMETER_STRUCT(FTSRHistoryUAVs, )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, LowFrequency)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HighFrequency)
+	SHADER_PARAMETER_STRUCT(FTSRHistoryArrayIndices, ArrayIndices)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, ColorArray)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HighFrequencyHalfRes)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Metadata)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SubpixelDetails)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, Translucency)
 	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, TranslucencyAlpha)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -140,21 +154,36 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTSRPrevHistoryParameters, )
 	SHADER_PARAMETER(float, HistoryPreExposureCorrection)
 END_SHADER_PARAMETER_STRUCT()
 
+FTSRHistorySRVs CreateSRVs(FRDGBuilder& GraphBuilder, const FTSRHistoryTextures& Textures)
+{
+	FTSRHistorySRVs SRVs;
+	if (Textures.ArrayIndices.LowFrequency >= 0)
+	{
+		SRVs.LowFrequency = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(Textures.ColorArray, Textures.ArrayIndices.LowFrequency));
+	}
+	SRVs.HighFrequency = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(Textures.ColorArray, Textures.ArrayIndices.HighFrequency));
+	if (Textures.HighFrequencyHalfRes)
+	{
+		SRVs.HighFrequencyHalfRes = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(Textures.HighFrequencyHalfRes));
+	}
+	SRVs.Metadata = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(Textures.Metadata));
+	SRVs.SubpixelDetails = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(Textures.SubpixelDetails));
+	SRVs.Translucency = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(Textures.ColorArray, Textures.ArrayIndices.Translucency));
+	SRVs.TranslucencyAlpha = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(Textures.TranslucencyAlpha)); // TODO: move into metadata
+	return SRVs;
+}
+
 FTSRHistoryUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FTSRHistoryTextures& Textures)
 {
 	FTSRHistoryUAVs UAVs;
-	if (Textures.LowFrequency)
-	{
-		UAVs.LowFrequency = GraphBuilder.CreateUAV(Textures.LowFrequency);
-	}
-	UAVs.HighFrequency = GraphBuilder.CreateUAV(Textures.HighFrequency);
+	UAVs.ArrayIndices = Textures.ArrayIndices;
+	UAVs.ColorArray = GraphBuilder.CreateUAV(Textures.ColorArray);
 	if (Textures.HighFrequencyHalfRes)
 	{
 		UAVs.HighFrequencyHalfRes = GraphBuilder.CreateUAV(Textures.HighFrequencyHalfRes);
 	}
 	UAVs.Metadata = GraphBuilder.CreateUAV(Textures.Metadata);
 	UAVs.SubpixelDetails = GraphBuilder.CreateUAV(Textures.SubpixelDetails);
-	UAVs.Translucency = GraphBuilder.CreateUAV(Textures.Translucency);
 	UAVs.TranslucencyAlpha = GraphBuilder.CreateUAV(Textures.TranslucencyAlpha); // TODO: move into metadata
 	return UAVs;
 }
@@ -257,7 +286,7 @@ class FTSRDecimateHistoryCS : public FTSRShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevClosestDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxFactorTexture)
 
-		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, PrevHistory)
+		SHADER_PARAMETER_STRUCT(FTSRHistorySRVs, PrevHistory)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HalfResSceneColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HalfResPredictionSceneColorOutput)
@@ -465,11 +494,11 @@ class FTSRUpdateHistoryCS : public FTSRShader
 		SHADER_PARAMETER(int32, bHasSeparateTranslucency)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRPrevHistoryParameters, PrevHistoryParameters)
-		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, PrevHistory)
+		SHADER_PARAMETER_STRUCT(FTSRHistorySRVs, PrevHistory)
 
-		SHADER_PARAMETER_STRUCT(FTSRHistoryUAVs, HistoryOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutputMip0)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutputMip1)
+		SHADER_PARAMETER_STRUCT(FTSRHistoryUAVs, HistoryOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -495,7 +524,7 @@ class FTSRResolveHistoryCS : public FTSRShader
 		SHADER_PARAMETER(int32, bGenerateOutputMip1)
 		SHADER_PARAMETER(float, HistoryValidityMultiply)
 
-		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, History)
+		SHADER_PARAMETER_STRUCT(FTSRHistorySRVs, History)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutputMip0)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutputMip1)
@@ -518,8 +547,8 @@ class FTSRDebugHistoryCS : public FTSRShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRCommonParameters, CommonParameters)
-		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, History)
-		SHADER_PARAMETER_STRUCT(FTSRHistoryTextures, PrevHistory)
+		SHADER_PARAMETER_STRUCT(FTSRHistorySRVs, History)
+		SHADER_PARAMETER_STRUCT(FTSRHistorySRVs, PrevHistory)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 }; // class FTSRDebugHistoryCS
@@ -871,65 +900,21 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			FComputeShaderUtils::GetGroupCount(InputRect.Size(), TileSize));
 	}
 
-	// Setup a dummy history
-	FTSRHistoryTextures DummyHistory;
-	{
-		DummyHistory.LowFrequency = BlackDummy;
-		DummyHistory.HighFrequency = BlackDummy;
-		DummyHistory.HighFrequencyHalfRes = BlackDummy;
-		DummyHistory.Metadata = BlackDummy;
-		DummyHistory.Translucency = BlackDummy;
-		DummyHistory.TranslucencyAlpha = WhiteDummy;
-
-		DummyHistory.SubpixelDetails = BlackUintDummy;
-	}
-
-	// Setup the previous frame history
-	FTSRHistoryTextures PrevHistory;
-	if (InputHistory.IsValid())
-	{
-		// Register filterable history
-		PrevHistory.LowFrequency = InputHistory.LowFrequency.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.LowFrequency) : DummyHistory.LowFrequency;
-		PrevHistory.HighFrequency = GraphBuilder.RegisterExternalTexture(InputHistory.HighFrequency);
-		PrevHistory.HighFrequencyHalfRes = InputHistory.HighFrequencyHalfRes.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.HighFrequencyHalfRes) : DummyHistory.HighFrequencyHalfRes;
-		PrevHistory.Metadata = GraphBuilder.RegisterExternalTexture(InputHistory.Metadata);
-		PrevHistory.Translucency = InputHistory.Translucency.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.Translucency) : DummyHistory.Translucency;
-		PrevHistory.TranslucencyAlpha = InputHistory.TranslucencyAlpha.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.TranslucencyAlpha) : DummyHistory.TranslucencyAlpha;
-
-		// Register non-filterable history
-		PrevHistory.SubpixelDetails = GraphBuilder.RegisterExternalTexture(InputHistory.SubpixelDetails);
-	}
-	else
-	{
-		PrevHistory = DummyHistory;
-	}
-
-	// Setup the shader parameters for previous frame history
-	FTSRPrevHistoryParameters PrevHistoryParameters;
-	{
-		// Setup prev history parameters.
-		FScreenPassTextureViewport PrevHistoryViewport(PrevHistory.HighFrequency->Desc.Extent, InputHistory.OutputViewportRect);
-		FScreenPassTextureViewport PrevSubpixelDetailsViewport(PrevHistory.SubpixelDetails->Desc.Extent, bSubPixelDetailsAtOutputResolution ? InputHistory.OutputViewportRect : InputHistory.InputViewportRect);
-
-		if (bCameraCut)
-		{
-			PrevHistoryViewport.Extent = FIntPoint(1, 1);
-			PrevHistoryViewport.Rect = FIntRect(FIntPoint(0, 0), FIntPoint(1, 1));
-			PrevSubpixelDetailsViewport.Extent = FIntPoint(1, 1);
-			PrevSubpixelDetailsViewport.Rect = FIntRect(FIntPoint(0, 0), FIntPoint(1, 1));
-		}
-
-		PrevHistoryParameters.PrevHistoryInfo = GetScreenPassTextureViewportParameters(PrevHistoryViewport);
-		PrevHistoryParameters.ScreenPosToPrevHistoryBufferUV = FScreenTransform::ChangeTextureBasisFromTo(
-			PrevHistoryViewport, FScreenTransform::ETextureBasis::ScreenPosition, FScreenTransform::ETextureBasis::TextureUV);
-		PrevHistoryParameters.ScreenPosToPrevSubpixelDetails = FScreenTransform::ChangeTextureBasisFromTo(
-			PrevSubpixelDetailsViewport, FScreenTransform::ETextureBasis::ScreenPosition, FScreenTransform::ETextureBasis::TextureUV);
-		PrevHistoryParameters.PrevSubpixelDetailsExtent = PrevSubpixelDetailsViewport.Extent;
-		PrevHistoryParameters.HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
-	}
-
 	// Create new history.
 	FTSRHistoryTextures History;
+	{
+		FRDGTextureDesc ArrayDesc = FRDGTextureDesc::Create2DArray(
+			HistoryExtent,
+			(CVarTSRR11G11B10History.GetValueOnRenderThread() != 0 && !bSupportsAlpha) ? PF_FloatR11G11B10 : PF_FloatRGBA,
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV,
+			/* ArraySize = */ bHistoryHighFrequencyOnly ? 2 : 3);
+
+		History.ArrayIndices.LowFrequency = bHistoryHighFrequencyOnly ? -1 : 2;
+		History.ArrayIndices.HighFrequency = 0;
+		History.ArrayIndices.Translucency = 1;
+		History.ColorArray = GraphBuilder.CreateTexture(ArrayDesc, TEXT("TSR.History.ColorArray"));
+	}
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			HistoryExtent,
@@ -939,13 +924,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 		FRDGTextureDesc HalfResDesc = Desc;
 		HalfResDesc.Extent /= 2;
-
-		if (!bHistoryHighFrequencyOnly)
-		{
-			History.LowFrequency = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.LowFrequencies"));
-		}
-
-		History.HighFrequency = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.HighFrequencies"));
 		if (bHalfResHistory)
 		{
 			History.HighFrequencyHalfRes = GraphBuilder.CreateTexture(HalfResDesc, TEXT("TSR.History.HighFrequenciesHalfRes"));
@@ -953,9 +931,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 		Desc.Format = PF_R8G8;
 		History.Metadata = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.Metadata"));
-
-		Desc.Format = (CVarTSRR11G11B10History.GetValueOnRenderThread() != 0 && !bSupportsAlpha) ? PF_FloatR11G11B10 : PF_FloatRGBA;
-		History.Translucency = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.Translucency"));
 
 		Desc.Format = PF_R8;
 		History.TranslucencyAlpha = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.TranslucencyAlpha"));
@@ -974,6 +949,66 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 				TexCreate_ShaderResource | TexCreate_UAV);
 			History.SubpixelDetails = GraphBuilder.CreateTexture(SubpixelDetailsDesc, TEXT("TSR.History.SubpixelInfo"));
 		}
+	}
+
+	// Setup a dummy history
+	FTSRHistorySRVs DummyHistorySRVs;
+	{
+		DummyHistorySRVs.LowFrequency = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(BlackDummy));
+		DummyHistorySRVs.HighFrequency = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(BlackDummy));
+		DummyHistorySRVs.HighFrequencyHalfRes = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(BlackDummy));
+		DummyHistorySRVs.Metadata = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(BlackDummy));
+		DummyHistorySRVs.Translucency = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(BlackDummy));
+		DummyHistorySRVs.TranslucencyAlpha = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(WhiteDummy));
+
+		DummyHistorySRVs.SubpixelDetails = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(BlackUintDummy));
+	}
+
+	// Setup the previous frame history
+	FTSRHistorySRVs PrevHistorySRVs;
+	if (InputHistory.IsValid())
+	{
+		FTSRHistoryTextures PrevHistory;
+		PrevHistory.ArrayIndices = History.ArrayIndices;
+
+		// Register filterable history
+		PrevHistory.ColorArray = GraphBuilder.RegisterExternalTexture(InputHistory.ColorArray);
+		PrevHistory.HighFrequencyHalfRes = InputHistory.HighFrequencyHalfRes.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.HighFrequencyHalfRes) : DummyHistorySRVs.HighFrequencyHalfRes->Desc.Texture;
+		PrevHistory.Metadata = GraphBuilder.RegisterExternalTexture(InputHistory.Metadata);
+		PrevHistory.TranslucencyAlpha = InputHistory.TranslucencyAlpha.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.TranslucencyAlpha) : DummyHistorySRVs.TranslucencyAlpha->Desc.Texture;
+
+		// Register non-filterable history
+		PrevHistory.SubpixelDetails = GraphBuilder.RegisterExternalTexture(InputHistory.SubpixelDetails);
+
+		PrevHistorySRVs = CreateSRVs(GraphBuilder, PrevHistory);
+	}
+	else
+	{
+		PrevHistorySRVs = DummyHistorySRVs;
+	}
+
+	// Setup the shader parameters for previous frame history
+	FTSRPrevHistoryParameters PrevHistoryParameters;
+	{
+		// Setup prev history parameters.
+		FScreenPassTextureViewport PrevHistoryViewport(PrevHistorySRVs.HighFrequency->Desc.Texture->Desc.Extent, InputHistory.OutputViewportRect);
+		FScreenPassTextureViewport PrevSubpixelDetailsViewport(PrevHistorySRVs.SubpixelDetails->Desc.Texture->Desc.Extent, bSubPixelDetailsAtOutputResolution ? InputHistory.OutputViewportRect : InputHistory.InputViewportRect);
+
+		if (bCameraCut)
+		{
+			PrevHistoryViewport.Extent = FIntPoint(1, 1);
+			PrevHistoryViewport.Rect = FIntRect(FIntPoint(0, 0), FIntPoint(1, 1));
+			PrevSubpixelDetailsViewport.Extent = FIntPoint(1, 1);
+			PrevSubpixelDetailsViewport.Rect = FIntRect(FIntPoint(0, 0), FIntPoint(1, 1));
+		}
+
+		PrevHistoryParameters.PrevHistoryInfo = GetScreenPassTextureViewportParameters(PrevHistoryViewport);
+		PrevHistoryParameters.ScreenPosToPrevHistoryBufferUV = FScreenTransform::ChangeTextureBasisFromTo(
+			PrevHistoryViewport, FScreenTransform::ETextureBasis::ScreenPosition, FScreenTransform::ETextureBasis::TextureUV);
+		PrevHistoryParameters.ScreenPosToPrevSubpixelDetails = FScreenTransform::ChangeTextureBasisFromTo(
+			PrevSubpixelDetailsViewport, FScreenTransform::ETextureBasis::ScreenPosition, FScreenTransform::ETextureBasis::TextureUV);
+		PrevHistoryParameters.PrevSubpixelDetailsExtent = PrevSubpixelDetailsViewport.Extent;
+		PrevHistoryParameters.HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 	}
 
 	// Decimate input to flicker at same frequency as input.
@@ -1028,7 +1063,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->ParallaxFactorTexture = ParallaxFactorTexture;
 
 		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
-		PassParameters->PrevHistory = PrevHistory;
+		PassParameters->PrevHistory = PrevHistorySRVs;
 
 		if (bHalfResLowFrequency)
 		{
@@ -1413,7 +1448,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		FScreenTransform HistoryPixelPosToViewportUV = (FScreenTransform::Identity + 0.5f) * CommonParameters.HistoryInfo.ViewportSizeInverse;
 		PassParameters->HistoryPixelPosToScreenPos = HistoryPixelPosToViewportUV * FScreenTransform::ViewportUVToScreenPos;
 		PassParameters->HistoryPixelPosToPPCo = HistoryPixelPosToViewportUV * CommonParameters.InputInfo.ViewportSize + CommonParameters.InputJitter + CommonParameters.InputPixelPosMin;
-		PassParameters->HistoryQuantizationError = (FVector3f)ComputePixelFormatQuantizationError(History.HighFrequency->Desc.Format);
+		PassParameters->HistoryQuantizationError = (FVector3f)ComputePixelFormatQuantizationError(History.ColorArray->Desc.Format);
 		PassParameters->MinTranslucencyRejection = TranslucencyRejectionTexture == nullptr ? 1.0 : 0.0;
 		PassParameters->InvWeightClampingPixelSpeed = 1.0f / CVarTSRWeightClampingPixelSpeed.GetValueOnRenderThread();
 		PassParameters->InputToHistoryFactor = float(HistorySize.X) / float(InputRect.Width());
@@ -1422,7 +1457,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->bHasSeparateTranslucency = bHasSeparateTranslucency;
 
 		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
-		PassParameters->PrevHistory = PrevHistory;
+		PassParameters->PrevHistory = PrevHistorySRVs;
 
 		PassParameters->HistoryOutput = CreateUAVs(GraphBuilder, History);
 		if (HistorySize != OutputRect.Size())
@@ -1453,7 +1488,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			GraphBuilder,
 			RDG_EVENT_NAME("TSR UpdateHistory(Quality=%s %s%s%s) %dx%d",
 				kUpdateQualityNames[int32(PermutationVector.Get<FTSRUpdateHistoryCS::FQualityDim>())],
-				History.HighFrequency->Desc.Format == PF_FloatR11G11B10 ? TEXT("R11G11B10") : TEXT(""),
+				History.ColorArray->Desc.Format == PF_FloatR11G11B10 ? TEXT("R11G11B10") : TEXT(""),
 				PermutationVector.Get<FTSRHighFrequencyOnlyDim>() ? TEXT("") : TEXT(" LowFrequency"),
 				PassInputs.bGenerateOutputMip1 ? TEXT(" OutputMip1") : TEXT(""),
 				HistorySize.X, HistorySize.Y),
@@ -1471,8 +1506,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 		FTSRDebugHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRDebugHistoryCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
-		PassParameters->History = History;
-		PassParameters->PrevHistory = PrevHistory;
+		PassParameters->History = CreateSRVs(GraphBuilder, History);
+		PassParameters->PrevHistory = PrevHistorySRVs;
 		PassParameters->DebugOutput = CreateDebugUAV(HistoryExtent * kHistoryUpscalingFactor, TEXT("Debug.TSR.History"));
 
 		TShaderMapRef<FTSRDebugHistoryCS> ComputeShader(View.ShaderMap);
@@ -1501,7 +1536,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->bGenerateOutputMip1 = PassInputs.bGenerateOutputMip1 ? 1 : 0;
 		PassParameters->HistoryValidityMultiply = float(HistorySize.X * HistorySize.Y) / float(OutputRect.Width() * OutputRect.Height());
 
-		PassParameters->History = History;
+		PassParameters->History = CreateSRVs(GraphBuilder, History);
 		
 		PassParameters->SceneColorOutputMip0 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputTexture, /* InMipLevel = */ 0));
 		if (PassParameters->bGenerateOutputMip1)
@@ -1535,13 +1570,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		OutputHistory.OutputViewportRect = FIntRect(FIntPoint(0, 0), HistorySize);
 
 		// Extract filterable history
-		if (!bHistoryHighFrequencyOnly)
-		{
-			GraphBuilder.QueueTextureExtraction(History.LowFrequency, &OutputHistory.LowFrequency);
-		}
-		GraphBuilder.QueueTextureExtraction(History.HighFrequency, &OutputHistory.HighFrequency);
+		GraphBuilder.QueueTextureExtraction(History.ColorArray, &OutputHistory.ColorArray);
 		GraphBuilder.QueueTextureExtraction(History.Metadata, &OutputHistory.Metadata);
-		GraphBuilder.QueueTextureExtraction(History.Translucency, &OutputHistory.Translucency);
 		GraphBuilder.QueueTextureExtraction(History.TranslucencyAlpha, &OutputHistory.TranslucencyAlpha);
 
 		// Extract non-filterable history

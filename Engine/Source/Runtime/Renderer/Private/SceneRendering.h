@@ -892,10 +892,8 @@ struct FTemporalAAHistory
 struct FTSRHistory
 {
 	// Filterable output resolution.
-	TRefCountPtr<IPooledRenderTarget> LowFrequency;
-	TRefCountPtr<IPooledRenderTarget> HighFrequency;
+	TRefCountPtr<IPooledRenderTarget> ColorArray;
 	TRefCountPtr<IPooledRenderTarget> Metadata;
-	TRefCountPtr<IPooledRenderTarget> Translucency;
 	TRefCountPtr<IPooledRenderTarget> TranslucencyAlpha;
 
 	// Non-filterable output resolution
@@ -915,7 +913,7 @@ struct FTSRHistory
 
 	bool IsValid() const
 	{
-		return HighFrequency.IsValid();
+		return ColorArray.IsValid();
 	}
 };
 

@@ -126,16 +126,18 @@ Texture2D<tsr_half3> PrevHistory_Translucency;
 Texture2D<tsr_half>  PrevHistory_TranslucencyAlpha;
 Texture2D<tsr_subpixel_details> PrevHistory_SubpixelDetails;
 
-RWTexture2D<tsr_halfC> HistoryOutput_LowFrequency;
-RWTexture2D<tsr_halfC> HistoryOutput_HighFrequency;
-RWTexture2D<tsr_halfC> HistoryOutput_HighFrequencyHalfRes;
-RWTexture2D<tsr_half2> HistoryOutput_Metadata;
-RWTexture2D<tsr_half3> HistoryOutput_Translucency;
-RWTexture2D<tsr_half>  HistoryOutput_TranslucencyAlpha;
-RWTexture2D<tsr_subpixel_details> HistoryOutput_SubpixelDetails;
-
 RWTexture2D<tsr_halfC> SceneColorOutputMip0;
 RWTexture2D<tsr_halfC> SceneColorOutputMip1;
+
+uint HistoryOutput_ArrayIndices_LowFrequency;
+uint HistoryOutput_ArrayIndices_HighFrequency;
+uint HistoryOutput_ArrayIndices_Translucency;
+
+RWTexture2DArray<tsr_halfC> HistoryOutput_ColorArray;
+RWTexture2D<tsr_halfC> HistoryOutput_HighFrequencyHalfRes;
+RWTexture2D<tsr_half2> HistoryOutput_Metadata;
+RWTexture2D<tsr_half>  HistoryOutput_TranslucencyAlpha;
+RWTexture2D<tsr_subpixel_details> HistoryOutput_SubpixelDetails;
 
 
 //------------------------------------------------------- LDS
@@ -256,6 +258,41 @@ void ComputeInputKernelSamplePosition(
 		#error Unknown sample count
 	#endif
 }
+
+template<typename T>
+T BilinearSampleColorHistory(Texture2D<T> Texture, float2 SampleUV)
+#if 1
+{
+	return Texture.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+}
+#else
+{
+	FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(SampleUV, PrevHistoryInfo_Extent, PrevHistoryInfo_ExtentInverse);
+
+	T Return = 0.0;
+
+	UNROLL_N(4)
+	for (uint i = 0; i < 4; i++)
+	{
+		float BilinearWeight = GetSampleWeight(BilinearInter, i);
+		uint2 PixelPos = GetSamplePixelCoord(BilinearInter, i);
+		PixelPos = clamp(PixelPos, PrevHistoryInfo_ViewportMin, PrevHistoryInfo_ViewportMax - 1);
+
+		T RawSample = Texture[PixelPos];
+		
+		if (View.GeneralPurposeTweak == 1.0)
+			RawSample.rgb *= HdrWeight4(RawSample.rgb);
+
+		Return += RawSample * BilinearWeight;
+	}
+	
+	if (View.GeneralPurposeTweak == 1.0)
+		Return.rgb *= HdrWeightInvY(Luma4(Return.rgb));
+
+	return Return;
+}
+#endif
+
 
 //------------------------------------------------------- ENTRY POINT
 
@@ -778,14 +815,15 @@ void MainCS(
 					{
 						float2 SampleUV = PixelId == 0 ? SampleUV0 : SampleUV1;
 						
+
 						#if !CONFIG_HIGH_FREQUENCY_ONLY
-							RawLowFrequency[i][PixelId]      = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+							RawLowFrequency[i][PixelId]      = BilinearSampleColorHistory(PrevHistory_LowFrequency, SampleUV);
 						#endif
-						RawHighFrequency[i][PixelId]     = PrevHistory_HighFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+						RawHighFrequency[i][PixelId]     = BilinearSampleColorHistory(PrevHistory_HighFrequency, SampleUV);
 						RawMetadata[i][PixelId]	         = PrevHistory_Metadata.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 						
 						#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
-							RawTranslucencyColor[i][PixelId] = PrevHistory_Translucency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
+							RawTranslucencyColor[i][PixelId] = BilinearSampleColorHistory(PrevHistory_Translucency, SampleUV);
 							RawTranslucencyAlpha[i][PixelId] = PrevHistory_TranslucencyAlpha.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 						#endif
 					}
@@ -1616,15 +1654,15 @@ void MainCS(
 			// Output final history lo pixel.
 			{
 				#if CONFIG_HIGH_FREQUENCY_ONLY
-					HistoryOutput_HighFrequency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(PremultipliedHighFrequencyColor);
+					HistoryOutput_ColorArray[tsr_short3(dpv_lo(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_HighFrequency)] = dpv_lo(PremultipliedHighFrequencyColor);
 					HistoryOutput_Metadata[dpv_lo(LocalHistoryPixelPos)]      = tsr_half2(dpv_lo(FinalHistoryWeight), dpv_lo(FinalHistoryValidity));
 				#else
-					HistoryOutput_LowFrequency[dpv_lo(LocalHistoryPixelPos)]  = dpv_lo(FinalLowFrequencyColor);
-					HistoryOutput_HighFrequency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(PremultipliedHighFrequencyColor);
+					HistoryOutput_ColorArray[tsr_short3(dpv_lo(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_LowFrequency)]  = dpv_lo(FinalLowFrequencyColor);
+					HistoryOutput_ColorArray[tsr_short3(dpv_lo(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_HighFrequency)] = dpv_lo(PremultipliedHighFrequencyColor);
 					HistoryOutput_Metadata[dpv_lo(LocalHistoryPixelPos)]      = tsr_half2(dpv_lo(FinalLowFrequencyWeight), dpv_lo(FinalHistoryValidity));
 				#endif
 				#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
-					HistoryOutput_Translucency[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).rgb;
+					HistoryOutput_ColorArray[tsr_short3(dpv_lo(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_Translucency)] = dpv_lo(FinalTranslucencyColor).rgb;
 					HistoryOutput_TranslucencyAlpha[dpv_lo(LocalHistoryPixelPos)] = dpv_lo(FinalTranslucencyColor).a;
 				#endif
 				#if CONFIG_UPDATE_SUBPIXEL_DETAIL
@@ -1636,15 +1674,15 @@ void MainCS(
 			#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
 			{
 				#if CONFIG_HIGH_FREQUENCY_ONLY
-					HistoryOutput_HighFrequency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(PremultipliedHighFrequencyColor);
+					HistoryOutput_ColorArray[tsr_short3(dpv_hi(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_HighFrequency)] = dpv_hi(PremultipliedHighFrequencyColor);
 					HistoryOutput_Metadata[dpv_hi(LocalHistoryPixelPos)]      = tsr_half2(dpv_hi(FinalHistoryWeight), dpv_hi(FinalHistoryValidity));
 				#else
-					HistoryOutput_LowFrequency[dpv_hi(LocalHistoryPixelPos)]  = dpv_hi(FinalLowFrequencyColor);
-					HistoryOutput_HighFrequency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(PremultipliedHighFrequencyColor);
+					HistoryOutput_ColorArray[tsr_short3(dpv_hi(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_LowFrequency)]  = dpv_hi(FinalLowFrequencyColor);
+					HistoryOutput_ColorArray[tsr_short3(dpv_hi(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_HighFrequency)] = dpv_hi(PremultipliedHighFrequencyColor);
 					HistoryOutput_Metadata[dpv_hi(LocalHistoryPixelPos)]      = tsr_half2(dpv_hi(FinalLowFrequencyWeight), dpv_hi(FinalHistoryValidity));
 				#endif
 				#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
-					HistoryOutput_Translucency[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).rgb;
+					HistoryOutput_ColorArray[tsr_short3(dpv_hi(LocalHistoryPixelPos), HistoryOutput_ArrayIndices_Translucency)] = dpv_hi(FinalTranslucencyColor).rgb;
 					HistoryOutput_TranslucencyAlpha[dpv_hi(LocalHistoryPixelPos)] = dpv_hi(FinalTranslucencyColor).a;
 				#endif
 				#if CONFIG_UPDATE_SUBPIXEL_DETAIL
